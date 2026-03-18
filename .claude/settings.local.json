@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(powershell -Command \"Get-NetTCPConnection -LocalPort 3001 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_OwningProcess -Force }\")",
+      "Bash(node -e \":*)",
+      "Bash(npx dotenv -e .env -- node -e \":*)",
+      "Bash(node -e \"require\\(''dotenv''\\).config\\(\\); console.log\\(''DATABASE_URL:'', process.env.DATABASE_URL ? ''SET'' : ''NOT SET''\\);\")",
+      "Bash(node -e \"require\\(''dotenv''\\).config\\(\\); const { PrismaClient } = require\\(''@prisma/client''\\); const p = new PrismaClient\\(\\); p.tournament.count\\(\\).then\\(c => { console.log\\(''Tournament count:'', c\\); p[''$disconnect'']\\(\\); }\\).catch\\(e => { console.error\\(''DB Error:'', e.message\\); p[''$disconnect'']\\(\\); }\\);\")",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(powershell -Command \"Get-ChildItem -Path . -Filter ''BDR*'' | Select-Object Name\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''.'' -Filter ''*.png'' | Select-Object Name, Length\")",
+      "Bash(powershell -Command \"Get-ChildItem -Path ''.'' -Depth 0 | Where-Object { $_.Name -match ''BDR|로고|logo'' } | Select-Object Name, Length\")",
+      "Bash(xargs sed:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r text-2xl 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' --include=*.tsx -n)",
+      "Bash(grep -r \"text-3xl\\\\|text-4xl\" 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' --include=*.tsx -n)",
+      "Bash(grep -r \"space-y-\\\\|gap-\" 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' --include=*.tsx -n)",
+      "Bash(grep -rE bp[xy]?-[0-9] 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\components' --include=*.tsx -n)",
+      "Bash(grep -r \"space-y-\\\\|gap-\" 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\components' --include=*.tsx -n)",
+      "Bash(grep -r text-2xl 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\components' --include=*.tsx -n)",
+      "Bash(grep -r \"text-3xl\\\\|text-4xl\" 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\components' --include=*.tsx -n)",
+      "Bash(grep -r \"space-y-\\\\|gap-\" 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\app\\\\\\(web\\)' 'C:\\\\0. Programing\\\\mybdr-dev-main\\\\src\\\\components' --include=*.tsx -n)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const b=fs.readFileSync\\(''public/images/logo.png''\\); console.log\\(''Size:'', b.length, ''bytes''\\); console.log\\(''PNG signature:'', b.slice\\(0,8\\).toString\\(''hex''\\)\\); const hasAlpha = b.includes\\(Buffer.from\\([0,0,0,6]\\)\\); console.log\\(''Color type byte at offset 25:'', b[25]\\); console.log\\(''Has alpha \\(6=RGBA, 2=RGB\\):'', b[25] === 6 ? ''Yes \\(RGBA\\)'' : ''No \\(RGB\\)''\\);\")"
+    ]
+  }
+}

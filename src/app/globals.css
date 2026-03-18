@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #F5F6FA;
+  --color-card: #FFFFFF;
+  --color-elevated: #EDF0F8;
+  --color-surface: #E8ECF0;
+
+  --color-primary: #1B3C87;
+  --color-primary-hover: #142D6B;
+  --color-primary-light: rgba(27, 60, 135, 0.08);
+  --color-accent: #E31B23;
+  --color-accent-hover: #C8101E;
+  --color-accent-light: rgba(227, 27, 35, 0.08);
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-text-on-primary: #FFFFFF;
+
+  --color-success: #16A34A;
+  --color-error: #DC2626;
+  --color-warning: #D97706;
+  --color-info: #2563EB;
+
+  --color-border: #E8ECF0;
+  --color-border-subtle: #F1F5F9;
+
+  --radius-card: 16px;
+  --radius-card-lg: 24px;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* ---- Dark Mode Variables ---- */
+html.dark {
+  --color-background: #0F1117;
+  --color-card: #1A1D27;
+  --color-elevated: #22252F;
+  --color-surface: #2A2D37;
+
+  --color-primary: #5B7FD6;
+  --color-primary-hover: #7B9AE8;
+  --color-primary-light: rgba(91, 127, 214, 0.15);
+  --color-accent: #F04E54;
+  --color-accent-hover: #FF6B6F;
+  --color-accent-light: rgba(240, 78, 84, 0.15);
+
+  --color-text-primary: #F1F3F5;
+  --color-text-secondary: #9CA3AF;
+  --color-text-muted: #6B7280;
+  --color-text-on-primary: #FFFFFF;
+
+  --color-success: #4ADE80;
+  --color-error: #F87171;
+  --color-warning: #FBBF24;
+  --color-info: #60A5FA;
+
+  --color-border: #2A2D37;
+  --color-border-subtle: #22252F;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ====== Dark Mode Overrides (attribute selectors) ====== */
+
+/* Backgrounds: white → dark card */
+html.dark [class*="bg-[#FFFFFF]"],
+html.dark [class*="bg-[#FFFFFF]/95"],
+html.dark [class*="bg-white"] {
+  background-color: var(--color-card) !important;
+}
+
+html.dark [class*="bg-[#F5F7FA]"],
+html.dark [class*="bg-[#F5F6FA]"],
+html.dark [class*="bg-[#F5F5F5]"] {
+  background-color: var(--color-surface) !important;
+}
+
+html.dark [class*="bg-[#EEF2FF]"],
+html.dark [class*="bg-[#EDF0F8]"] {
+  background-color: var(--color-elevated) !important;
+}
+
+html.dark [class*="bg-[#E8ECF0]"] {
+  background-color: var(--color-surface) !important;
+}
+
+/* Borders */
+html.dark [class*="border-[#E8ECF0]"] {
+  border-color: var(--color-border) !important;
+}
+
+html.dark [class*="border-[#F1F5F9]"],
+html.dark [class*="border-[#CBD5E1]"] {
+  border-color: var(--color-border-subtle) !important;
+}
+
+/* Text */
+html.dark [class*="text-[#111827]"] {
+  color: var(--color-text-primary) !important;
+}
+
+html.dark [class*="text-[#374151]"] {
+  color: var(--color-text-primary) !important;
+}
+
+html.dark [class*="text-[#6B7280]"] {
+  color: var(--color-text-secondary) !important;
+}
+
+html.dark [class*="text-[#9CA3AF]"] {
+  color: var(--color-text-muted) !important;
+}
+
+/* Gradient overlays */
+html.dark [class*="from-[#1B3C87]"] {
+  --tw-gradient-from: rgba(91, 127, 214, 0.15) !important;
+}
+
+html.dark [class*="to-[#E31B23]"] {
+  --tw-gradient-to: rgba(240, 78, 84, 0.1) !important;
+}
+
+/* Dividers */
+html.dark [class*="bg-[#E8ECF0]"][class*="h-px"],
+html.dark [class*="bg-[#E8ECF0]"][class*="h-["] {
+  background-color: var(--color-border) !important;
+}
+
+/* Shadows on cards */
+html.dark [class*="shadow-["] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Backdrop blur header/nav */
+html.dark [class*="backdrop-blur"] {
+  background-color: rgba(26, 29, 39, 0.92) !important;
+}
+
+/* Hero card dark mode - more visible */
+html.dark {
+  --hero-bg: linear-gradient(135deg, rgba(91,127,214,0.18), rgba(240,78,84,0.12));
+}
+
+html.dark [class*="from-[#1B3C87]/10"][class*="to-[#E31B23]"],
+html.dark [class*="from-[#1B3C87]/15"][class*="to-[#E31B23]"] {
+  background: linear-gradient(135deg, rgba(91,127,214,0.20), rgba(240,78,84,0.14)) !important;
+  border-color: rgba(91,127,214,0.25) !important;
+}
+
+/* 모바일 터치 개선 */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1023px) {
+  .footer-mobile-space {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
