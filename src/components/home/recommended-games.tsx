@@ -13,7 +13,7 @@ interface RecommendedGame {
   city: string | null;
   game_type: string | null;
   spots_left: number | null;
-  match_reason: string | null;
+  match_reason: string[]; // 배열 기반 매칭 이유 (복수 이유 가능)
 }
 
 interface RecommendedData {
@@ -107,9 +107,11 @@ export function RecommendedGames() {
                   {g.venue_name ?? g.city ?? "장소 미정"}
                 </p>
 
-                {/* 매칭 이유 */}
-                {g.match_reason && (
-                  <p className="mt-auto pt-2 text-[11px] font-semibold text-[#1B3C87]">{g.match_reason}</p>
+                {/* 매칭 이유 — 배열을 " · "로 이어서 표시 */}
+                {g.match_reason.length > 0 && (
+                  <p className="mt-auto pt-2 text-[11px] font-semibold text-[#1B3C87]">
+                    {g.match_reason.join(" · ")}
+                  </p>
                 )}
               </div>
             </Link>
