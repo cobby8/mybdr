@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreferFilter } from "@/contexts/prefer-filter-context";
 
 // API에서 내려오는 게시글 데이터 타입 (apiSuccess가 snake_case로 자동 변환)
 interface PostFromApi {
@@ -81,44 +82,37 @@ export function CommunityContent() {
   const [loading, setLoading] = useState(true);
   const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
 
+  // 전역 선호 필터 Context에서 상태를 읽어옴 (헤더 버튼으로 ON/OFF 전환)
+  const { preferFilter } = usePreferFilter();
+
   // URL에서 필터 상태 읽기
   const category = searchParams.get("category") || null;
   const appliedQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(appliedQuery);
-
-  // "내 관심 게시판만 보기" 토글 상태 -- URL의 prefer 파라미터와 동기화
-  const preferOn = searchParams.get("prefer") === "true";
-
-  // 토글 클릭 시 URL에 prefer 파라미터를 추가/제거
-  const handlePreferToggle = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (preferOn) {
-      params.delete("prefer");  // OFF로 전환 -- prefer 파라미터 제거
-    } else {
-      params.set("prefer", "true"); // ON으로 전환
-      params.delete("category");    // 선호 필터 ON 시 개별 카테고리 선택 해제
-    }
-    router.push(`${pathname}?${params.toString()}`);
-  }, [preferOn, searchParams, router, pathname]);
 
   // 카테고리 선택 핸들러 (URL searchParams 업데이트)
   const handleCategoryChange = useCallback((cat: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
     if (cat) {
       params.set("category", cat);
-      params.delete("prefer"); // 카테고리 직접 선택 시 선호 필터 OFF
     } else {
       params.delete("category");
     }
     router.push(`${pathname}?${params.toString()}`);
   }, [searchParams, router, pathname]);
 
-  // searchParams가 바뀔 때마다 API 호출
+  // searchParams 또는 preferFilter가 바뀔 때마다 API 호출
   useEffect(() => {
     setLoading(true);
 
-    // 현재 URL의 쿼리 파라미터를 그대로 API에 전달
+    // URL의 쿼리 파라미터를 기반으로 API 호출 URL 구성
     const params = new URLSearchParams(searchParams.toString());
+    // Context에서 preferFilter가 true이면 API에 prefer=true 추가
+    if (preferFilter) {
+      params.set("prefer", "true");
+    } else {
+      params.delete("prefer");
+    }
     const url = `/api/web/community?${params.toString()}`;
 
     fetch(url)
@@ -136,7 +130,7 @@ export function CommunityContent() {
         setPosts([]);
       })
       .finally(() => setLoading(false));
-  }, [searchParams]);
+  }, [searchParams, preferFilter]);
 
   // 검색 폼 제출 핸들러 (URL에 q 파라미터 추가)
   const handleSearch = (e: React.FormEvent) => {
@@ -159,7 +153,7 @@ export function CommunityContent() {
   };
 
   // 필터 활성 여부 (결과 카운트 표시용)
-  const hasFilters = category || appliedQuery || preferOn;
+  const hasFilters = category || appliedQuery || preferFilter;
 
   return (
     <div>
@@ -172,22 +166,6 @@ export function CommunityContent() {
           COMMUNITY
         </h1>
         <div className="flex items-center gap-2">
-          {/* 내 관심 게시판만 보기 토글 버튼 (games-content.tsx와 동일 패턴) */}
-          <button
-            onClick={handlePreferToggle}
-            className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors ${
-              preferOn
-                ? "bg-[#1B3C87] text-white"           // ON: 강조 색상
-                : "bg-[#F3F4F6] text-[#6B7280] hover:bg-[#E5E7EB]" // OFF: 회색
-            }`}
-            title="내 관심 게시판만 보기"
-          >
-            {/* 별 아이콘 (게시판 선호는 지역이 아닌 관심 카테고리이므로 별 아이콘 사용) */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill={preferOn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" className="shrink-0">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            {preferOn ? "관심 ON" : "관심"}
-          </button>
           <Link
             href="/community/new"
             className="rounded-[10px] bg-[#111827] px-5 py-2 text-sm font-bold text-white hover:bg-[#1F2937] transition-colors"

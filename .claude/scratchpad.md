@@ -888,6 +888,140 @@ city/district를 쉼표 구분 문자열에서 Json 배열로 변경. `[{"city":
 
 ---
 
+### 2026-03-21: 선호 필터링 "페이지별 토글" -> "전역 자동 + 헤더 전체보기 버튼" 전환 설계
+
+#### 배경
+현재 games, tournaments, community 각 페이지에 "선호 ON" 토글 버튼이 따로 있다. 유저가 매번 각 페이지에서 토글을 눌러야 하는 불편함이 있다. 이를 "로그인하면 자동으로 선호 필터 적용 + 헤더에서 전체 보기 전환"으로 변경한다.
+
+#### A. 현재 코드 구조 분석 결과
+
+**헤더 컴포넌트** (`src/components/shared/header.tsx`)
+- 오른쪽 영역에 `TextSizeToggle` -> `ThemeToggle` -> `BellIcon` -> `UserDropdown/로그인` 순서
+- TextSizeToggle이 "AA" 큰글씨 버튼 (lucide의 ALargeSmall 아이콘 사용)
+- 이미 `user` 상태를 `/api/web/me`에서 가져오고 있음 (로그인 여부 판단 가능)
+
+**각 페이지의 토글 코드** (제거 대상)
+- `games-content.tsx` 192~204행: preferOn + handlePreferToggle + URL prefer 파라미터
+- `tournaments-content.tsx` 187~199행: 동일 패턴
+- `community-content.tsx` 89~102행: 동일 패턴 (prefer + category 연동 추가)
+- 세 파일 모두 `?prefer=true` URL 파라미터를 API에 그대로 전달하는 방식
+
+**API의 prefer 파라미터 처리** (변경 불필요 -- 그대로 유지)
+- `/api/web/games`: prefer=true이면 user.city 파싱 -> cities 필터
+- `/api/web/tournaments`: prefer=true이면 user.city 파싱 -> cities 필터
+- `/api/web/community`: prefer=true이면 preferred_board_categories -> category in 필터
+- 세 API 모두 `prefer` 쿼리 파라미터를 이미 처리하고 있어서 **API는 수정 불필요**
+
+#### B. 전역 상태 관리 방법 설계
+
+**방법: React Context + sessionStorage**
+
+비유로 설명하면:
+- React Context = "건물 전체 방송 시스템". 어느 층(페이지)에 있든 같은 방송(상태)을 들을 수 있다.
+- sessionStorage = "임시 방문증". 브라우저 탭을 닫으면 사라지지만, 같은 탭에서 페이지를 이동하는 동안은 유지된다.
+
+왜 이 조합인가:
+1. **localStorage 대신 sessionStorage**: 요구사항이 "세션 동안 유지"이므로 탭 닫으면 리셋. 다음 방문 시 다시 선호 필터가 기본 적용.
+2. **URL 파라미터 대신 Context**: URL에 `?prefer=true`를 넣으면 링크 공유 시 다른 사람도 선호 필터가 적용되는 문제가 있다. 전역 Context로 관리하면 URL이 깨끗해진다.
+3. **쿠키 대신 Context+sessionStorage**: 쿠키는 서버에 전달되어 SSR에서도 쓸 수 있지만, 현재 API 호출이 클라이언트에서 fetch로 이루어지므로 클라이언트 상태로 충분하다.
+
+**상태 흐름**:
+```
+[로그인 유저]
+  헤더 로드 -> PreferFilterProvider 초기화 -> preferFilter = true (기본값)
+  -> 각 페이지 API 호출 시 prefer=true 자동 추가
+  -> 헤더 "전체보기" 버튼 클릭 -> preferFilter = false
+  -> 각 페이지 API 호출 시 prefer 파라미터 없음
+
+[비로그인 유저]
+  헤더 로드 -> PreferFilterProvider 초기화 -> preferFilter = false (고정)
+  -> 각 페이지 API 호출 시 prefer 파라미터 없음
+  -> 헤더 "전체보기" 버튼 표시 안 함
+```
+
+#### C. 만들 위치와 구조
+
+📍 **신규 파일:**
+
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `src/contexts/prefer-filter-context.tsx` | 전역 선호 필터 ON/OFF 상태를 관리하는 Context Provider | 신규 |
+
+📍 **수정 파일:**
+
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `src/components/shared/header.tsx` | TextSizeToggle 왼쪽에 PreferFilterToggle 버튼 추가 (로그인 유저에게만 표시) | 수정 |
+| `src/app/(web)/layout.tsx` | PreferFilterProvider로 children 감싸기 | 수정 |
+| `src/app/(web)/games/_components/games-content.tsx` | 페이지별 토글 UI 제거 + Context에서 preferFilter 읽어서 API 호출에 자동 반영 | 수정 |
+| `src/app/(web)/tournaments/_components/tournaments-content.tsx` | 동일 패턴 수정 | 수정 |
+| `src/app/(web)/community/_components/community-content.tsx` | 동일 패턴 수정 (관심 카테고리 하이라이트는 유지) | 수정 |
+
+총: 신규 1개 + 수정 5개 = 6개 파일
+
+🔗 **기존 코드 연결:**
+- `prefer-filter-context.tsx` -> `header.tsx` (버튼 표시) + 각 content.tsx (API 호출 시 참조)
+- API 3개 (games, tournaments, community) -> 수정 없음. 기존 `prefer=true` 파라미터 그대로 활용
+- `text-size-toggle.tsx` -> 참고용 (같은 위치에 나란히 배치할 버튼의 스타일 참고)
+
+#### D. 구현 세부 사항
+
+**1단계: PreferFilterContext 만들기** (신규)
+```
+PreferFilterProvider:
+  - isLoggedIn: boolean (header에서 user 상태를 공유하거나, /api/web/me 결과 활용)
+  - preferFilter: boolean (로그인 유저 기본 true, 비로그인 false)
+  - togglePreferFilter(): void (true <-> false 전환 + sessionStorage 저장)
+  - 초기화 시 sessionStorage에서 이전 값 복원 (같은 세션 내 유지)
+```
+
+**2단계: layout.tsx에 Provider 감싸기**
+- `src/app/(web)/layout.tsx`에서 children을 `<PreferFilterProvider>` 로 감싼다
+- 주의: (web) layout에만 적용. (site) 등 다른 레이아웃에는 영향 없음
+
+**3단계: header.tsx에 전체보기 버튼 추가**
+- TextSizeToggle 왼쪽에 배치 (순서: [PreferToggle] [TextSizeToggle] [ThemeToggle] [BellIcon] [User])
+- 로그인 유저에게만 표시
+- 아이콘: lucide의 `Filter` 또는 `SlidersHorizontal` (선호 필터 개념에 맞는 아이콘)
+- ON 상태: 아이콘 색상 `#E31B23` (활성 강조) -- TextSizeToggle과 동일 패턴
+- OFF 상태: 아이콘 색상 `#9CA3AF` (비활성)
+
+**4단계: 각 content.tsx에서 토글 UI 제거 + Context 연동**
+- games-content.tsx: 선호 토글 버튼(251~265행) 제거, preferOn을 Context에서 가져옴
+- tournaments-content.tsx: 선호 토글 버튼(236~250행) 제거, preferOn을 Context에서 가져옴
+- community-content.tsx: 선호 토글 버튼(176~190행) 제거, preferOn을 Context에서 가져옴
+- API 호출 시: Context의 preferFilter가 true이면 URL에 `prefer=true` 추가, false이면 추가 안 함
+- URL의 `?prefer=true` 파라미터는 더 이상 사용하지 않음 (Context로 대체)
+
+#### E. 작업 순서 (권장)
+
+| 순서 | 작업 | 예상 시간 |
+|------|------|----------|
+| 1 | `prefer-filter-context.tsx` 신규 생성 | 10분 |
+| 2 | `(web)/layout.tsx`에 Provider 추가 | 5분 |
+| 3 | `header.tsx`에 전체보기 버튼 추가 | 10분 |
+| 4 | `games-content.tsx` 토글 제거 + Context 연동 | 10분 |
+| 5 | `tournaments-content.tsx` 동일 수정 | 10분 |
+| 6 | `community-content.tsx` 동일 수정 | 10분 |
+| 7 | TypeScript 검증 + 브라우저 테스트 | 10분 |
+| **합계** | | **65분** |
+
+#### F. developer 주의사항
+
+1. **Context 초기화 타이밍**: header.tsx가 `/api/web/me`를 호출해서 user를 얻는데, 이 시점에 Context의 isLoggedIn도 설정해야 한다. Provider가 layout에 있으므로 header의 me 호출 결과를 Context에 전달하는 흐름이 필요하다. 방법: Provider에서 직접 `/api/web/me` 결과를 받거나, header가 Provider의 setLoggedIn을 호출.
+
+2. **API 호출 방식 변경**: 현재 각 content.tsx는 URL searchParams에서 prefer를 읽어 API에 전달한다. 변경 후에는 Context에서 preferFilter를 읽어 fetch URL에 `prefer=true`를 직접 추가한다. searchParams.get("prefer")는 더 이상 사용하지 않는다.
+
+3. **community의 카테고리 연동**: 현재 community에서는 prefer ON 시 category 파라미터를 제거하는 로직이 있다. Context 전환 후에도 이 로직은 유지해야 한다 -- preferFilter가 true이면 category 탭을 "전체"로 리셋.
+
+4. **sessionStorage 키**: `bdr_prefer_filter` 같은 명확한 키 사용. 값은 `"true"` / `"false"` 문자열.
+
+5. **SSR 호환**: Context 초기값은 false로 설정하고, useEffect에서 sessionStorage 값을 읽어 업데이트. Hydration mismatch 방지를 위해 mounted 체크 필요 (TextSizeToggle 패턴 참고).
+
+6. **기존 URL의 ?prefer=true 하위호환**: 만약 누군가 `?prefer=true`가 붙은 URL을 북마크한 경우, 작동하지 않게 된다. 이것은 의도된 변경이며, 문제없다 (선호 필터는 개인 설정이므로 URL 공유 대상이 아님).
+
+---
+
 ## 구현 기록 (developer)
 
 ### 2026-03-20: /games 페이지 클라이언트 컴포넌트 + API route 전환 (1단계)
@@ -2474,6 +2608,7 @@ push 여부: 완료 (origin/master)
 | 2026-03-21 | tester | 개인화 선호 시스템 1단계 코드 검증 (4개 파일) | 31항목 중 29통과/2실패(preferred_game_types, onboarding_step 미구현)/1주의 |
 | 2026-03-21 | git-manager | 개인화 선호 시스템 Phase 1 커밋 (4개 파일) | 완료 - 7cc362f, push 미완료 |
 | 2026-03-21 | tester | 개인화 선호 시스템 2단계 코드 검증 (4개 파일) | 19항목 중 18통과/1실패(PATCH 응답 select 누락)/0주의 |
+| 2026-03-21 | architect | 선호 필터 "페이지별 토글" -> "전역 자동 + 헤더 버튼" 전환 설계 | 완료 - 신규1+수정5=6개 파일, Context+sessionStorage 방식, 65분 예상 |
 | 2026-03-21 | git-manager | 온보딩 선호 플로우 + PreferenceForm 공유 컴포넌트 커밋 (6개 파일) | 완료 - 952b446, push 미완료 |
 | 2026-03-21 | developer | /games 선호 지역 기반 필터링 (3단계) | 완료 - 3개 파일 수정, TypeScript 검증 통과 |
 | 2026-03-21 | tester | 개인화 선호 시스템 3단계 코드 검증 (3개 파일) | 28항목 중 27통과/1실패(city vs cities 우선순위)/1주의 |
@@ -2485,6 +2620,7 @@ push 여부: 완료 (origin/master)
 | 2026-03-21 | git-manager | 대회 목록 선호 지역 필터링 커밋 (3개 파일) | 완료 - 597eddc, push 미완료 |
 | 2026-03-21 | developer | 홈 추천 경기 선호 반영 (Phase 1 - 6단계) | 완료 - 2개 파일 수정, TypeScript 검증 통과 |
 | 2026-03-21 | tester | 개인화 선호 시스템 6단계 코드 검증 (2개 파일) | 7항목 중 7통과/0실패/0주의 |
+| 2026-03-21 | tester | 전역 선호 필터 전환 코드 검증 (6개 파일) | 13항목 중 13통과/0실패/3주의 |
 
 ## 디버깅 기록 (debugger)
 
@@ -2953,6 +3089,15 @@ tester 결과: 7항목 전체 통과
 |------|------|------|------|
 | 2026-03-21 | developer | 프로필 편집 페이지에 선호 설정 링크 카드 추가 (7단계) | 완료 |
 | 2026-03-21 | tester | 7단계 + 전체 통합 검증 (1~7단계, 15항목) | 전체 통과 |
+| 2026-03-21 | git-manager | Phase 1 최종 커밋 (7단계, 선호 설정 링크) | 완료 - 71a8cc7, push 미완료 |
+
+### Git 기록 (git-manager)
+
+📦 커밋: feat: add preference settings link to profile edit page (phase 1 complete)
+🌿 브랜치: master
+📁 포함 파일: src/app/(web)/profile/edit/page.tsx, .claude/scratchpad.md
+🔄 push 여부: 미완료
+📋 비고: tester 15/15 전체 통과 확인 후 커밋. .claude/settings.local.json 제외. Phase 1 (1~7단계) 최종 커밋.
 
 ---
 
@@ -2990,3 +3135,69 @@ tester 결과: 7항목 전체 통과
 - profile/edit 페이지의 선호 설정 카드 스타일(rounded-[10px], border, bg-[#F9FAFB])이 기존 섹션(rounded-[20px], section 클래스)과 약간 다르나, 의도적으로 "안내 카드" 성격을 구분한 것으로 보임. 기능에 영향 없음
 - 1~7단계 전체적으로 user.city split 패턴, getWebSession 인증, 명시적 파라미터 우선 가드가 일관되게 적용됨
 - preferences 페이지가 다크 테마(bg-zinc-950)인 반면 profile/edit는 라이트 테마. 사용자가 이동 시 테마 전환이 발생할 수 있으나 기능적 문제는 아님
+
+---
+
+### 구현 기록 (2026-03-21): 선호 필터 "페이지별 토글" -> "전역 자동 + 헤더 버튼" 전환
+
+구현한 기능: 각 페이지(games, tournaments, community)에 있던 선호 토글 버튼을 제거하고, React Context + sessionStorage 기반의 전역 선호 필터로 전환. 로그인 유저는 기본 ON, 헤더에서 ON/OFF 전환.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/contexts/prefer-filter-context.tsx` | 전역 선호 필터 Context Provider. sessionStorage로 세션 내 유지, isLoggedIn 연동, mounted 패턴으로 SSR hydration mismatch 방지 | 신규 |
+| `src/app/(web)/layout.tsx` | PreferFilterProvider로 children 감싸기. (web) 레이아웃 전체에 Context 공유 | 수정 |
+| `src/components/shared/header.tsx` | (1) usePreferFilter 훅 연동 (2) /api/web/me 결과로 setLoggedIn 호출 (3) TextSizeToggle 왼쪽에 SlidersHorizontal 아이콘 토글 버튼 추가 (로그인 유저만 표시) | 수정 |
+| `src/app/(web)/games/_components/games-content.tsx` | 페이지별 선호 토글 UI 제거. URL prefer 파라미터 대신 Context의 preferFilter로 API 호출. useRouter/usePathname/useCallback 제거 | 수정 |
+| `src/app/(web)/tournaments/_components/tournaments-content.tsx` | 동일 패턴. 선호 토글 UI 제거 + Context 연동. useRouter/usePathname/useCallback 제거 | 수정 |
+| `src/app/(web)/community/_components/community-content.tsx` | 선호 토글 UI 제거 + Context 연동. handleCategoryChange에서 prefer 파라미터 삭제 로직 제거 (더 이상 URL 기반이 아니므로). useRouter/usePathname은 카테고리/검색 기능에서 계속 사용하므로 유지 | 수정 |
+
+구현 상세:
+- PreferFilterContext: `bdr_prefer_filter` sessionStorage 키 사용. 로그인 유저이고 저장값 없으면 기본 true(ON). 비로그인이면 항상 false.
+- header.tsx: user fetch 완료 후 `setLoggedIn(!!userData)` 호출로 Context에 로그인 상태 전달. SlidersHorizontal 아이콘으로 ON(빨강)/OFF(회색) 표시.
+- 각 content.tsx: `usePreferFilter()`로 preferFilter 읽어서 fetch URL에 `prefer=true` 동적 추가. useEffect 의존성에 preferFilter 포함.
+- API route 수정 없음: 기존 `prefer=true` 쿼리 파라미터 방식 그대로 활용.
+
+tester 참고:
+- 테스트 방법: (1) 비로그인 상태에서 헤더에 선호 필터 버튼이 안 보이는지 확인 (2) 로그인 후 헤더에 SlidersHorizontal 아이콘이 빨간색(ON)으로 표시되는지 확인 (3) 경기/대회/게시판 페이지에서 선호 필터가 자동 적용되는지 확인 (4) 헤더 버튼 클릭으로 OFF 전환 시 전체 데이터가 표시되는지 확인 (5) 페이지 이동 후에도 ON/OFF 상태가 유지되는지 확인
+- 정상 동작: 로그인 시 기본 ON -> 각 페이지 API 호출에 prefer=true 자동 포함 -> 헤더 클릭으로 OFF -> prefer 파라미터 없이 호출
+- 주의할 입력: (1) 각 페이지에서 기존 선호 토글 버튼이 완전히 제거되었는지 확인 (2) community에서 카테고리 선택이 정상 동작하는지 확인 (community는 router를 유지하므로)
+
+reviewer 참고:
+- header.tsx에서 useEffect 의존성에 `setLoggedIn`을 추가함. Context의 useCallback으로 감싸져 있지 않지만, Provider가 리렌더링되지 않는 한 참조가 안정적. 필요시 useCallback 래핑 고려.
+- community-content.tsx에서 handleCategoryChange의 `params.delete("prefer")` 라인을 제거함. preferFilter가 URL이 아닌 Context 기반이므로 URL에 prefer 파라미터가 존재하지 않아 삭제가 불필요.
+
+| 날짜 | 역할 | 작업 | 결과 |
+|------|------|------|------|
+| 2026-03-21 | developer | 선호 필터 "페이지별 토글" -> "전역 자동 + 헤더 버튼" 전환 (6개 파일) | 완료 - tsc --noEmit 에러 0건 |
+
+---
+
+### 테스트 결과 (tester): 전역 선호 필터 전환 코드 검증 (2026-03-21)
+
+대상 파일 6개를 정적 코드 분석 + TypeScript 빌드로 검증.
+
+| # | 테스트 항목 | 결과 | 비고 |
+|---|-----------|------|------|
+| 1 | Context가 preferFilter 상태 + togglePreferFilter 함수를 정상 제공하는지 | ✅ 통과 | prefer-filter-context.tsx 9-14행: PreferFilterContextType에 preferFilter(boolean), togglePreferFilter(함수), isLoggedIn(boolean), setLoggedIn(함수) 4개 필드 정의. 80행 Provider value에 모두 전달됨 |
+| 2 | sessionStorage로 상태 유지 로직이 있는지 | ✅ 통과 | 6행: `STORAGE_KEY = "bdr_prefer_filter"`. 46행: 마운트 시 sessionStorage.getItem으로 복원. 61,74행: 값 변경 시 sessionStorage.setItem으로 저장 |
+| 3 | 로그인 유저 기본값 true, 비로그인 기본값 false인지 | ✅ 통과 | 55-67행: 로그인 유저이고 stored===null이면 true로 설정(58-62행). 비로그인이면 항상 false(63-66행). 초기 useState도 false로 시작하여 SSR mismatch 방지 |
+| 4 | layout.tsx에 Provider가 정상 감싸져 있는지 | ✅ 통과 | layout.tsx 4행: import 확인. 10-20행: SWRProvider > PreferFilterProvider > div 구조로 (web) 레이아웃 전체를 감싸고 있음 |
+| 5 | header.tsx에 AA 왼쪽에 필터 아이콘이 추가되었는지 | ✅ 통과 | header.tsx 117행 주석: "Right: PreferFilter + TextSize + Theme + Bell + Login/Profile". 119-128행: SlidersHorizontal 아이콘 버튼이 TextSizeToggle(129행) 왼쪽에 위치. 순서: 필터 > 텍스트 > 테마 > 벨 > 로그인/프로필 |
+| 6 | header에서 비로그인 시 아이콘이 숨겨지는지 | ✅ 통과 | 119행: `{user && (` 조건으로 user가 null이면(비로그인) 필터 버튼 자체가 렌더링되지 않음 |
+| 7 | games-content.tsx에서 기존 토글 UI가 완전 제거되었는지 | ✅ 통과 | grep 결과: "prefer.*toggle", "togglePrefer", "선호.*토글" 패턴 0건. useRouter/usePathname/useCallback import도 없음. 페이지 내 토글 버튼 UI 코드 없음 |
+| 8 | games-content.tsx에서 usePreferFilter로 Context 연동하는지 | ✅ 통과 | 7행: import usePreferFilter. 192행: `const { preferFilter } = usePreferFilter()`. 201-205행: preferFilter가 true이면 params.set("prefer","true"), false이면 params.delete("prefer"). 224행: useEffect 의존성에 preferFilter 포함 |
+| 9 | tournaments-content.tsx도 동일하게 처리되었는지 | ✅ 통과 | 9행: import usePreferFilter. 187행: `const { preferFilter } = usePreferFilter()`. 196-200행: 동일한 prefer 파라미터 설정 패턴. 217행: useEffect 의존성에 preferFilter 포함. 토글 UI 없음 |
+| 10 | community-content.tsx도 동일하게 처리되었는지 | ✅ 통과 | 9행: import usePreferFilter. 86행: `const { preferFilter } = usePreferFilter()`. 111-115행: 동일한 prefer 파라미터 설정 패턴. 133행: useEffect 의존성에 preferFilter 포함. 토글 UI 없음. useRouter/usePathname은 카테고리/검색 기능용으로 유지(정상) |
+| 11 | 기존 필터(q, type, city, date, status, category)가 정상 유지되는지 | ✅ 통과 | games: q/type/city/date (227-230행). tournaments: status (220행). community: category/q (89-90행). 모든 기존 필터 파라미터가 searchParams.get으로 정상 유지 |
+| 12 | URL에서 prefer 파라미터 관련 코드가 제거되었는지 | ✅ 통과 | searchParams.get("prefer") 패턴 0건 (3개 파일 모두). URL에서 prefer를 읽는 코드 없음. prefer는 오직 Context에서 읽어 fetch URL에 동적 추가하는 방식으로만 사용됨 |
+| 13 | `npx tsc --noEmit` 통과 | ✅ 통과 | 에러 출력 없음(빈 출력). 6개 파일 모두 타입 정합성 확인 |
+
+📊 종합: 13개 중 13개 통과 / 0개 실패
+
+#### 추가 확인 사항 (주의)
+
+1. **header.tsx의 setLoggedIn 안정성**: reviewer 메모에도 있듯이, setLoggedIn이 useCallback으로 감싸져 있지 않음(prefer-filter-context.tsx의 useState setter이므로 React가 참조 안정성을 보장). 현재 동작에 문제 없으나, 향후 Context 구조 변경 시 주의 필요.
+2. **preferFilter ON일 때 필터 카운트 표시**: games(231행), tournaments(221행), community(156행) 모두 `hasFilters` 판정에 `preferFilter`를 포함하여 선호 필터 ON 시에도 "검색 결과 N개" 표시됨. 의도된 동작으로 판단.
+3. **togglePreferFilter의 비로그인 보호**: prefer-filter-context.tsx 71행에서 `if (!isLoggedIn) return;`으로 비로그인 시 전환 불가 처리됨. header.tsx에서도 119행 `{user && (` 조건으로 버튼 자체가 숨겨지므로 이중 보호.
+
+---

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePreferFilter } from "@/contexts/prefer-filter-context";
 
 // API에서 내려오는 경기 데이터 타입 (snake_case로 자동 변환됨)
 interface GameFromApi {
@@ -182,33 +183,26 @@ export function GamesContent({
   GamesFilterComponent: React.ComponentType<{ cities: string[] }>;
 }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   const [games, setGames] = useState<GameFromApi[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // "내 선호 지역만 보기" 토글 상태 — URL의 prefer 파라미터와 동기화
-  const preferOn = searchParams.get("prefer") === "true";
+  // 전역 선호 필터 Context에서 상태를 읽어옴 (헤더 버튼으로 ON/OFF 전환)
+  const { preferFilter } = usePreferFilter();
 
-  // 토글 클릭 시 URL에 prefer 파라미터를 추가/제거
-  const handlePreferToggle = useCallback(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (preferOn) {
-      params.delete("prefer"); // OFF로 전환 — prefer 파라미터 제거
-    } else {
-      params.set("prefer", "true"); // ON으로 전환
-    }
-    router.push(`${pathname}?${params.toString()}`);
-  }, [preferOn, searchParams, router, pathname]);
-
-  // searchParams가 바뀔 때마다 API 호출
+  // searchParams 또는 preferFilter가 바뀔 때마다 API 호출
   useEffect(() => {
     setLoading(true);
 
-    // 현재 URL의 쿼리 파라미터를 그대로 API에 전달
+    // URL의 쿼리 파라미터를 기반으로 API 호출 URL 구성
     const params = new URLSearchParams(searchParams.toString());
+    // Context에서 preferFilter가 true이면 API에 prefer=true 추가
+    if (preferFilter) {
+      params.set("prefer", "true");
+    } else {
+      params.delete("prefer");
+    }
     const url = `/api/web/games?${params.toString()}`;
 
     fetch(url)
@@ -227,14 +221,14 @@ export function GamesContent({
         setCities([]);
       })
       .finally(() => setLoading(false));
-  }, [searchParams]);
+  }, [searchParams, preferFilter]);
 
   // 필터가 활성화되어 있는지 확인
   const q = searchParams.get("q");
   const type = searchParams.get("type");
   const city = searchParams.get("city");
   const date = searchParams.get("date");
-  const hasFilters = q || (type && type !== "all") || (city && city !== "all") || (date && date !== "all") || preferOn;
+  const hasFilters = q || (type && type !== "all") || (city && city !== "all") || (date && date !== "all") || preferFilter;
 
   return (
     <>
@@ -247,22 +241,6 @@ export function GamesContent({
           GAMES
         </h1>
         <div className="flex items-center gap-2">
-          {/* 내 선호 지역만 보기 토글 버튼 */}
-          <button
-            onClick={handlePreferToggle}
-            className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-bold transition-colors ${
-              preferOn
-                ? "bg-[#1B3C87] text-white"           // ON: 강조 색상
-                : "bg-[#F3F4F6] text-[#6B7280] hover:bg-[#E5E7EB]" // OFF: 회색
-            }`}
-            title="내 선호 지역만 보기"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
-            {preferOn ? "선호 ON" : "선호"}
-          </button>
           <Link
             href="/games/my-games"
             prefetch={true}

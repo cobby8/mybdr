@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Home, Dribbble, Trophy, MessageSquare, Menu } from "lucide-react";
+import { Home, Dribbble, Trophy, MessageSquare, Menu, SlidersHorizontal } from "lucide-react";
 import { SlideMenu } from "./slide-menu";
 import { UserDropdown } from "./user-dropdown";
 import { BellIcon } from "./bell-icon";
 import { ThemeToggle } from "./theme-toggle";
 import { TextSizeToggle } from "./text-size-toggle";
+import { usePreferFilter } from "@/contexts/prefer-filter-context";
 
 const navItems = [
   { href: "/", label: "홈", Icon: Home },
@@ -40,6 +41,9 @@ export function Header() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // 전역 선호 필터 Context -- 로그인 상태를 Provider에 전달하고, 토글 함수를 받아옴
+  const { preferFilter, togglePreferFilter, setLoggedIn } = usePreferFilter();
+
   // 마운트 시 1회: me + notifications 병렬 fetch (waterfall 제거)
   useEffect(() => {
     Promise.all([
@@ -51,9 +55,11 @@ export function Header() {
         .catch(() => null),
     ]).then(([userData, notifData]) => {
       setUser(userData);
+      // 로그인 여부를 PreferFilterProvider에 전달
+      setLoggedIn(!!userData);
       if (userData && notifData) setUnreadCount(notifData.unreadCount ?? 0);
     });
-  }, []);
+  }, [setLoggedIn]);
 
   // 페이지 이동 시: 알림 카운트만 갱신 (me 재호출 없음)
   useEffect(() => {
@@ -107,8 +113,19 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Right: Theme + Bell + Login/Profile */}
+          {/* Right: PreferFilter + TextSize + Theme + Bell + Login/Profile */}
           <div className="flex items-center gap-1.5">
+            {/* 선호 필터 토글 -- 로그인 유저에게만 표시 */}
+            {user && (
+              <button
+                onClick={togglePreferFilter}
+                className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[rgba(27,60,135,0.08)]"
+                title={preferFilter ? "전체 보기" : "내 선호만 보기"}
+                style={{ color: preferFilter ? "#E31B23" : "#9CA3AF" }}
+              >
+                <SlidersHorizontal size={20} />
+              </button>
+            )}
             <TextSizeToggle />
             <ThemeToggle />
             <BellIcon unreadCount={unreadCount} />
