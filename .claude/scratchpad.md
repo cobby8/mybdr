@@ -1,9 +1,9 @@
 # 📋 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 알림 생성 로직 구현 (핵심 이벤트에 알림 자동 생성)
-- **상태**: 진행 중 - 계획 수립
-- **현재 담당**: planner
+- **요청**: (대기) 프로필 수정 페이지 확장 + 경기 타입별 카드 컴포넌트
+- **상태**: 보류 - 프로필 이미지 업로드는 다른 프로그래머가 진행 중. 이미지 저장소 결정 후 재개.
+- **현재 담당**: pm (대기)
 
 ## 작업 계획 (planner)
 
@@ -1401,6 +1401,148 @@ push 여부: 완료 (7eb6b8a)
 push 여부: 완료 (origin/master)
 제외 파일: `.claude/settings.local.json` (로컬 설정)
 
+### 2026-03-20: 알림 트리거 추가 커밋
+
+커밋: `feat: add notification triggers for team join, tournament join, and match cancellation` (682716f)
+브랜치: master
+포함 파일 (6개):
+- 수정: `src/app/api/v1/matches/[id]/status/route.ts` (경기 취소 알림)
+- 수정: `src/app/api/web/teams/[id]/join/route.ts` (팀 가입 신청 알림)
+- 수정: `src/app/api/web/tournaments/[id]/join/route.ts` (대회 참가 신청 알림)
+- 수정: `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` (경기 취소 알림)
+- 수정: `src/lib/notifications/types.ts` (알림 타입 추가)
+- 기타: `.claude/scratchpad.md`
+push 여부: 완료 (origin/master)
+제외 파일: `.claude/settings.local.json` (로컬 설정)
+
+### 2026-03-20: [작업 A] 프로필 수정 페이지 확장 + [작업 B] 경기 타입별 카드 컴포넌트
+
+---
+
+#### 작업 A: 프로필 수정 페이지 확장
+
+##### 현황 분석
+
+**프로필 수정 페이지 위치**: `src/app/(web)/profile/edit/page.tsx`
+**프로필 완성 페이지 위치**: `src/app/(web)/profile/complete/page.tsx`
+**프로필 API**: `src/app/api/web/profile/route.ts` (GET + PATCH)
+
+**현재 수정 가능한 필드 (edit 페이지):**
+- 기본 정보: 이름(name), 닉네임(nickname), 생년월일(birth_date), 전화번호(phone), 지역(city/district - RegionPicker)
+- 경기 정보: 포지션(position), 키(height), 몸무게(weight), 자기소개(bio + AI 자동 작성)
+- 환불 계좌: 은행(bank_name/bank_code), 계좌번호(account_number), 예금주(account_holder)
+
+**DB 스키마(User 모델)에 존재하지만 edit 페이지에 없는 필드:**
+- profile_image / profile_image_url (프로필 이미지 업로드)
+- evaluation_rating (평가 점수 - 읽기 전용)
+- preferred_divisions (선호 디비전 - JSON)
+- preferred_board_categories (선호 게시판 카테고리 - JSON)
+
+**결론: edit 페이지에 이미 대부분의 수정 가능한 필드가 구현되어 있음.**
+
+**추가 가능한 기능 후보:**
+1. 프로필 이미지 업로드/변경 (현재 ProfileHeader에 이미지 표시는 되지만 변경 UI 없음)
+2. 선호 디비전 선택 (preferred_divisions)
+3. 선호 게시판 카테고리 선택 (preferred_board_categories)
+
+##### 작업 계획
+
+| 순서 | 작업 | 담당 | 예상 시간 | 선행 조건 |
+|------|------|------|----------|----------|
+| A-1 | 프로필 이미지 업로드 기능 추가 - 이미지 업로드 API 설계 (S3/Vercel Blob 등 스토리지 결정 필요) | architect | 10분 | 없음 |
+| A-2 | 이미지 업로드 API route 구현 (`/api/web/profile/avatar`) | developer | 15분 | A-1 |
+| A-3 | edit 페이지에 이미지 변경 UI 추가 (클릭하면 파일 선택 -> 업로드 -> 미리보기) | developer | 15분 | A-2 |
+| A-4 | 선호 디비전/게시판 카테고리 선택 UI 추가 (토글 칩 형태) | developer | 10분 | 없음 |
+| A-5 | PATCH API에 preferred_divisions, preferred_board_categories 필드 처리 추가 | developer | 5분 | A-4 |
+| A-6 | 전체 검증 (이미지 업로드 + 선호 설정 저장/불러오기) | tester | 10분 | A-3, A-5 |
+
+**총 예상 시간: 65분**
+
+**사전 결정 필요 사항 (PM 확인 필요):**
+- 이미지 스토리지: Vercel Blob vs S3 vs 외부 서비스?
+- 선호 디비전 목록: DB에서 가져올지 하드코딩할지?
+- 추가할 필드의 우선순위: 이미지 업로드가 가장 임팩트 큰 것으로 판단
+
+---
+
+#### 작업 B: 경기 타입별 카드 컴포넌트
+
+##### 현황 분석
+
+**경기 타입 (game_type 컬럼, Int):**
+- 0 = PICKUP (픽업 경기)
+- 1 = GUEST (게스트 모집)
+- 2 = PRACTICE/TEAM MATCH (팀 대결)
+
+**현재 카드 컴포넌트 현황:**
+
+| 컴포넌트 | 위치 | 타입 | 사용처 | 데이터 소스 |
+|----------|------|------|-------|------------|
+| `GameCard` (games-content.tsx 내부) | `_components/games-content.tsx` | 공통 (타입 구분 없이 뱃지만 다름) | /games 목록 페이지 | API 응답 (string 날짜) |
+| `GameCardCompact` | `_components/game-card-compact.tsx` | 공통 (뱃지만 다름) | 서버 컴포넌트용 | Prisma 객체 (Date) |
+| `PickupGameCard` | `_components/pickup-game-card.tsx` | 픽업 전용 | 미사용 (준비됨) | Prisma 객체 (Date) |
+| `GuestGameCard` | `_components/guest-game-card.tsx` | 게스트 전용 | 미사용 (준비됨) | Prisma 객체 (Date) |
+| `TeamMatchCard` | `_components/team-match-card.tsx` | 팀대결 전용 | 미사용 (준비됨) | Prisma 객체 (Date) |
+
+**핵심 발견:**
+- 타입별 전용 카드(PickupGameCard, GuestGameCard, TeamMatchCard)가 이미 만들어져 있지만, **현재 사용되지 않고 있음**
+- /games 목록 페이지의 `games-content.tsx`는 공통 `GameCard`를 사용 중 (타입 구분은 상단 뱃지 색상만 다름)
+- 타입별 전용 카드는 **서버 컴포넌트용**(Prisma Date 객체)이라 클라이언트 컴포넌트인 games-content.tsx에서 바로 사용 불가
+- 타입별 카드의 차이점:
+  - Pickup: 참가비(entry_fee_note), 연락처(contact_phone) 표시, 빨간색 왼쪽 보더
+  - Guest: 개인참가 가능 여부(allow_guests), 파란색 왼쪽 보더
+  - TeamMatch: 유니폼 색상(uniform_home/away_color), 요구사항(requirements), 초록색 왼쪽 보더
+
+**문제점:**
+- API 응답에 타입별 추가 필드(entry_fee_note, contact_phone, allow_guests, uniform colors, requirements)가 포함되지 않음
+- 타입별 전용 카드를 API 응답 기반으로 다시 만들어야 함 (Date -> string 변환 등)
+
+##### 작업 계획
+
+| 순서 | 작업 | 담당 | 예상 시간 | 선행 조건 |
+|------|------|------|----------|----------|
+| B-1 | /api/web/games API 응답에 타입별 추가 필드 포함하도록 수정 (entry_fee_note, contact_phone, allow_guests, uniform_home_color, uniform_away_color, requirements) | developer | 10분 | 없음 |
+| B-2 | games-content.tsx의 GameFromApi 인터페이스에 추가 필드 반영 | developer | 5분 | B-1 |
+| B-3 | 타입별 클라이언트 카드 컴포넌트 3개 생성 (API 응답 기반): PickupGameCardClient, GuestGameCardClient, TeamMatchCardClient | developer | 20분 | B-2 |
+| B-4 | games-content.tsx의 렌더링 로직 수정: game_type에 따라 다른 카드 컴포넌트를 렌더링하도록 분기 처리 | developer | 10분 | B-3 |
+| B-5 | 전체 검증 (3가지 타입 경기 카드가 올바르게 분기되어 표시되는지) | tester | 10분 | B-4 |
+| B-6 | 기존 서버 컴포넌트용 타입별 카드(pickup-game-card.tsx 등)를 사용하는 곳이 없으면 정리 여부 결정 | reviewer | 5분 | B-5 |
+
+**총 예상 시간: 60분**
+
+**설계 결정 사항:**
+- 기존 공통 GameCard를 유지하면서 타입별 카드를 추가할지, 아니면 GameCard를 완전히 대체할지 -> **대체 방식 권장** (타입별 정보가 다르므로)
+- 타입별 카드의 디자인은 기존 서버용 카드(PickupGameCard 등)의 디자인을 참고하되, 공통 GameCard의 레이아웃도 유지
+
+---
+
+#### 전체 진행 순서
+
+**작업 B(경기 타입별 카드) 먼저 -> 작업 A(프로필 확장) 나중에**
+
+이유:
+- 작업 B는 기존 컴포넌트가 이미 준비되어 있어 빠르게 진행 가능
+- 작업 A는 이미지 스토리지 등 사전 결정이 필요하므로 PM 확인 후 진행하는 것이 효율적
+- 작업 B는 API + 프론트 수정만으로 완결되지만, 작업 A는 외부 서비스(스토리지) 연동이 포함될 수 있음
+
+| 전체 순서 | 작업 | 예상 시간 |
+|----------|------|----------|
+| 1 | B-1~B-2: API 수정 + 인터페이스 확장 | 15분 |
+| 2 | B-3~B-4: 타입별 카드 구현 + 분기 처리 | 30분 |
+| 3 | B-5~B-6: 검증 + 정리 | 15분 |
+| 4 | A-1: 이미지 스토리지 설계 (PM 확인 후) | 10분 |
+| 5 | A-2~A-5: 이미지 업로드 + 선호 설정 구현 | 45분 |
+| 6 | A-6: 전체 검증 | 10분 |
+
+**총 예상 시간: 125분 (약 2시간)**
+
+**주의사항:**
+- 작업 A의 이미지 업로드는 스토리지 선택에 따라 구현 방식이 크게 달라짐 -> PM 확인 우선
+- 작업 B에서 API 응답 필드 추가 시 기존 프론트엔드(홈페이지 추천 경기 등)에 영향 없는지 확인 필요
+- 타입별 카드를 만들 때 기존 공통 GameCard와 스타일 일관성 유지
+
+---
+
 ## 문서 기록 (doc-writer)
 (아직 없음)
 
@@ -1427,3 +1569,5 @@ push 여부: 완료 (origin/master)
 | 2026-03-20 | developer | 알림 타입 2개 추가 + 팀 가입 신청 시 팀장 알림 발송 | 완료 - 2개 파일 수정, TypeScript 검증 통과 |
 | 2026-03-20 | developer | 대회 참가 신청 시 알림 2건 추가 (신청자+주최자) | 완료 - 1개 파일 수정, TypeScript 검증 통과 |
 | 2026-03-20 | tester | 알림 생성 로직 3건 통합 테스트 (5개 파일) | 통과 - 67항목 중 65통과/2주의(actionUrl 일관성), 실패 0건 |
+| 2026-03-20 | git-manager | 알림 트리거 커밋 + push (6개 파일) | 완료 - 682716f, push 완료 |
+| 2026-03-20 | planner | [4번] 프로필 수정 확장 + [5번] 타입별 카드 계획 수립 | 완료 - A:6단계 65분 + B:6단계 60분, 총 125분 예상 |
