@@ -1,11 +1,262 @@
 # 📋 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 유튜브 추천 영상 알고리즘 전면 업데이트 + iframe 차단 수정
-- **상태**: 진행 중 - 알고리즘 업데이트
+- **요청**: 개인화 선호 시스템 (종별/성별/지역 선호 + 튜토리얼 + 사이트 전체 필터링)
+- **상태**: 진행 중 - 1단계 (디비전/종별 상수 파일 생성)
 - **현재 담당**: developer
 
 ## 작업 계획 (planner)
+
+### 2026-03-21: 개인화 선호 시스템 상세 구현 계획
+
+---
+
+#### 조사 결과 요약
+
+**A. DB 현황 (prisma/schema.prisma)**
+- users 테이블에 이미 존재하는 선호 관련 필드:
+  - `preferred_divisions` (Json, 기본값 `[]`) - 선호 종별/디비전 (GIN 인덱스 있음)
+  - `preferred_board_categories` (Json, 기본값 `[]`) - 선호 게시판 카테고리
+  - `profile_completed` (Boolean, 기본값 false) - 프로필 완성 여부 (인덱스 있음)
+  - `profileReminderShownAt` (DateTime?) - 프로필 완성 알림 표시 시각
+  - `tutorial_completed_teams/tournaments/games/community` (Boolean) - 각 섹션 튜토리얼 완료 여부
+  - `city`, `district` - 유저 활동 지역 (이미 존재)
+- **아직 없는 것**: `preferred_gender` (선호 성별), `preferred_cities` (선호 지역 - city/district와 다른 개념)
+- tournaments 테이블: `divisions` (Json), `categories` (Json), `city`, `district` 존재
+- games 테이블: `city`, `district`, `game_type`, `skill_level` 존재 (성별/종별 필드 없음)
+- Team 테이블: `city`, `district` 존재 (성별/종별 필드 없음)
+- community_posts 테이블: `category` 존재 (general, info 등)
+
+**B. 프로필 완성 흐름 현황**
+- `/profile/complete` 페이지 존재 (이미 구현됨)
+  - 현재 받는 정보: 이름, 전화번호(인증), 지역(RegionPicker, 최대 3개), 포지션, 키, 몸무게, 자기소개
+  - 저장 시 `profile_completed: true` 설정
+  - "나중에 할게요" 스킵 가능
+  - 완료 후 홈(`/`)으로 리다이렉트
+- `/profile/edit` 페이지 존재 (수정 가능)
+- `src/lib/profile/completion.ts` - 프로필 완성 판정 로직 (name, nickname, phone, position, city, district 필수)
+- **선호 종별/성별 설정 UI는 아직 없음** - complete 페이지에 선호 설정 단계가 없음
+
+**C. 종별/디비전 데이터**
+- Tournament의 `divisions` 필드가 Json 배열로 저장됨 (예: ["스타터스", "챌린저"] 등)
+- 하드코딩 vs DB 마스터: 현재 코드에서 division 목록을 참조하는 곳이 없음 -> 마스터 데이터 없이 대회별로 자유롭게 설정하는 구조
+- **BDR 종별은 대회 생성 시 organizer가 직접 입력하는 방식**
+- 성별 구분: DB에 gender 관련 필드가 tournaments/games 어디에도 없음
+
+**D. 현재 필터링 방식**
+- `/api/web/games` - q, type, city, date 파라미터 (선호 기반 필터 없음)
+- `/api/web/tournaments` - status 파라미터만 (종별/지역 필터 없음)
+- `/api/web/community` - category, q 파라미터
+- `/api/web/teams` - 존재하지만 필터 파라미터 미확인
+- `/api/web/recommended-games` - 유저 참가 이력 기반 패턴 추천 (city, game_type, skill_level)
+- **preferred_divisions, preferred_board_categories 필드는 코드에서 아직 한 번도 사용되지 않음**
+
+---
+
+#### 핵심 판단: 현실적 범위 조정
+
+조사 결과, 종별(division)은 대회에만 존재하고 games/teams에는 없습니다.
+성별 구분도 DB 어디에도 없습니다.
+
+따라서 "종별/성별/지역" 전체를 한번에 구현하기보다,
+**현재 DB에 이미 존재하는 데이터를 최대한 활용**하는 현실적 접근이 필요합니다.
+
+선호 시스템의 단계별 확장 로드맵:
+1. **Phase 1 (지금)**: 선호 지역 + 선호 게시판 + 프로필 완성 흐름 개선
+2. **Phase 2 (나중)**: 선호 종별(대회용) + 대회 필터에 적용
+3. **Phase 3 (더 나중)**: 성별 구분 (DB 스키마 변경 필요, games/tournaments에 gender 필드 추가)
+
+---
+
+#### Phase 1 구현 계획 (이번에 할 것)
+
+**목표**: 유저가 선호 지역을 설정하면, 사이트 전체에서 해당 지역 기반 데이터를 우선 표시한다. 게시판 선호도 설정 가능. 프로필 완성 흐름에 "선호 설정" 단계를 추가한다.
+
+---
+
+##### 1단계: DB 스키마 보강 + 선호 API 엔드포인트
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | architect -> developer |
+| 예상 시간 | 15분 |
+| 선행 조건 | 없음 |
+
+**DB 변경 (prisma/schema.prisma)**:
+- users 테이블에 추가할 필드:
+  - `preferred_cities` (Json, 기본값 `[]`) - 선호 활동 지역 목록 (예: `[{"city":"서울","district":"강남구"}, {"city":"경기","district":"수원시"}]`)
+  - `preferred_game_types` (Json, 기본값 `[]`) - 선호 경기 유형 (예: `[0, 1]` = 일반경기, 연습경기)
+  - `onboarding_step` (Int, 기본값 0) - 온보딩 진행 단계 (0=미시작, 1=프로필완성, 2=선호설정완료, 3=튜토리얼완료)
+- 기존 필드 활용:
+  - `preferred_divisions` - 이미 있음 (선호 종별, Phase 2에서 활용)
+  - `preferred_board_categories` - 이미 있음 (선호 게시판)
+
+**API 엔드포인트 (신규)**:
+- `PATCH /api/web/profile/preferences` - 선호 설정 저장/수정
+  - body: `{ preferred_cities, preferred_game_types, preferred_board_categories, preferred_divisions }`
+  - 인증 필요 (withWebAuth)
+- `GET /api/web/profile/preferences` - 내 선호 설정 조회
+  - 인증 필요
+
+**대상 파일**:
+- `prisma/schema.prisma` (수정)
+- `src/app/api/web/profile/preferences/route.ts` (신규)
+
+---
+
+##### 2단계: 프로필 완성 흐름에 "선호 설정" 단계 추가
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | architect -> developer |
+| 예상 시간 | 20분 |
+| 선행 조건 | 1단계 |
+
+**현재 흐름**: 회원가입 -> /profile/complete (기본정보) -> 홈
+**변경 흐름**: 회원가입 -> /profile/complete (기본정보) -> /profile/complete/preferences (선호설정) -> 홈
+
+**구현 내용**:
+- `/profile/complete` 완료 시 `/profile/complete/preferences`로 이동 (현재는 `/`로 이동)
+- `/profile/complete/preferences` 신규 페이지:
+  - 선호 지역 선택 (RegionPicker 재활용, 최대 3개)
+  - 선호 경기 유형 선택 (일반경기/연습경기/게스트 - 토글 버튼)
+  - 선호 게시판 카테고리 선택 (자유/정보/질문/팀모집/중고거래 등 - 체크박스)
+  - "이 설정을 바탕으로 맞춤 경기와 게시글을 보여드릴게요!" 안내 문구
+  - "나중에 할게요" 스킵 가능
+  - 저장 시 `PATCH /api/web/profile/preferences` 호출 + `onboarding_step = 2` 업데이트
+
+**대상 파일**:
+- `src/app/(web)/profile/complete/preferences/page.tsx` (신규)
+- `src/app/(web)/profile/complete/page.tsx` (수정 - 완료 후 리다이렉트 변경)
+
+---
+
+##### 3단계: 경기 목록 (/games) 선호 기반 필터링
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | developer |
+| 예상 시간 | 15분 |
+| 선행 조건 | 1단계 |
+
+**구현 방식**:
+- 로그인 유저가 선호 지역을 설정한 경우, API에서 기본 필터로 적용
+- UI에 "내 선호 지역만 보기" 토글 추가
+- 토글 OFF 시 전체 경기 표시 (기존과 동일)
+
+**변경 내용**:
+- `GET /api/web/games`에 `prefer=true` 파라미터 추가
+  - prefer=true이면 로그인 유저의 preferred_cities를 where 조건에 추가
+  - 인증 쿠키에서 유저 정보 조회 (비로그인이면 무시)
+- `games-content.tsx`에 "내 선호" 토글 UI 추가
+
+**대상 파일**:
+- `src/app/api/web/games/route.ts` (수정)
+- `src/app/(web)/games/_components/games-content.tsx` (수정)
+
+---
+
+##### 4단계: 대회 목록 (/tournaments) 선호 기반 필터링
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | developer |
+| 예상 시간 | 10분 |
+| 선행 조건 | 1단계 |
+
+**변경 내용**:
+- `GET /api/web/tournaments`에 `prefer=true` 파라미터 추가
+  - preferred_cities 기반 지역 필터
+  - (Phase 2에서 preferred_divisions 기반 종별 필터 추가 예정)
+- `tournaments-content.tsx`에 "내 선호" 토글 UI 추가
+
+**대상 파일**:
+- `src/app/api/web/tournaments/route.ts` (수정)
+- `src/app/(web)/tournaments/_components/tournaments-content.tsx` (수정)
+
+---
+
+##### 5단계: 게시판 (/community) 선호 카테고리 필터링
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | developer |
+| 예상 시간 | 10분 |
+| 선행 조건 | 1단계 |
+
+**변경 내용**:
+- 게시판 목록에서 유저의 `preferred_board_categories`를 기본 필터로 적용
+- "전체 게시판" / "내 관심 게시판만" 토글
+- 카테고리 필터 UI에 선호 카테고리를 하이라이트 표시
+
+**대상 파일**:
+- `src/app/api/web/community/route.ts` (수정)
+- `src/app/(web)/community/_components/community-content.tsx` (수정)
+
+---
+
+##### 6단계: 홈 추천 경기 + 추천 영상 개선
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | developer |
+| 예상 시간 | 10분 |
+| 선행 조건 | 1단계 |
+
+**변경 내용**:
+- `GET /api/web/recommended-games` 개선:
+  - 기존: 참가 이력 기반 패턴 분석 (이력 3건 이상 필요)
+  - 추가: `preferred_cities` 설정이 있으면 이력 부족해도 지역 기반 추천 가능
+  - 우선순위: 이력 패턴 > 선호 설정 > 전체 최신
+- `GET /api/web/youtube/recommend` - preferred_divisions 키워드를 검색어에 반영 (Phase 2)
+
+**대상 파일**:
+- `src/app/api/web/recommended-games/route.ts` (수정)
+
+---
+
+##### 7단계: 프로필 설정에서 선호 수정 + 테스트
+
+| 항목 | 내용 |
+|------|------|
+| 담당 | developer -> tester -> reviewer |
+| 예상 시간 | 15분 |
+| 선행 조건 | 1~6단계 |
+
+**변경 내용**:
+- `/profile/edit` 페이지에 "선호 설정" 섹션 추가
+  - 선호 지역, 경기 유형, 게시판 카테고리 수정 가능
+  - 2단계에서 만든 UI 컴포넌트를 재활용
+- 전체 통합 테스트
+
+**대상 파일**:
+- `src/app/(web)/profile/edit/page.tsx` (수정)
+- 공통 컴포넌트: `src/components/shared/preference-form.tsx` (신규 - 2단계, 7단계에서 공유)
+
+---
+
+#### 전체 요약 테이블
+
+| 순서 | 작업 | 담당 | 예상 시간 | 선행 조건 |
+|------|------|------|----------|----------|
+| 1 | DB 스키마 보강 + 선호 API | architect -> developer | 15분 | 없음 |
+| 2 | 프로필 완성 흐름에 선호 설정 단계 추가 | architect -> developer | 20분 | 1 |
+| 3 | /games 선호 기반 필터링 | developer | 15분 | 1 |
+| 4 | /tournaments 선호 기반 필터링 | developer | 10분 | 1 |
+| 5 | /community 선호 카테고리 필터링 | developer | 10분 | 1 |
+| 6 | 홈 추천 경기 선호 반영 | developer | 10분 | 1 |
+| 7 | 프로필 편집에 선호 수정 + 통합 테스트 | developer -> tester -> reviewer | 15분 | 1~6 |
+
+**총 예상 시간**: 약 95분 (1시간 35분)
+
+**주의사항**:
+- 3~6단계는 모두 1단계만 완료되면 병렬 진행 가능 (독립적)
+- 각 단계는 독립적으로 동작 가능하도록 설계 (한 단계 완료 후 바로 확인 가능)
+- "내 선호 기반 필터" 토글은 기본 OFF로 시작 (기존 사용자 경험 유지, 점진적 도입)
+- preferred_divisions(종별)는 Phase 2에서 대회 필터에 본격 적용 (지금은 저장만)
+- 성별 구분은 Phase 3 (DB 스키마 변경이 크므로 별도 계획 필요)
+
+---
 
 ### 2026-03-20: 서버 컴포넌트 -> 클라이언트 컴포넌트 + API route 전환
 
@@ -1823,3 +2074,40 @@ tester 참고:
 reviewer 참고:
 - maxResults 50은 YouTube API 쿼터 소모가 약간 증가하지만, 캐시(30분)가 있어 실질적 영향 미미
 - videos API 호출도 최대 50개 ID를 한번에 요청하므로 추가 API 호출은 없음
+
+---
+
+### 구현 기록 (2026-03-21): BDR 디비전/종별/성별 상수 파일 생성 (개인화 선호 시스템 1단계)
+
+📝 구현한 기능: BDR 디비전 규정 기반 상수 파일 생성. 성별, 종별(카테고리), 디비전 데이터 + 여성부 자동 생성 + 유틸 함수 4개
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/constants/divisions.ts` | 성별/종별/디비전 상수 + 타입 + 유틸 함수 | 신규 |
+
+**구현 내용:**
+- GENDERS: 남성/여성 상수 (혼성 없음)
+- CATEGORIES: 일반부/유청소년/대학부/시니어 + divisionPrefix
+- 디비전: 일반부(D3~D8), 유청소년(하모니/i1~i4), 대학부(U1~U3), 시니어(S1~S3)
+- 여성부: buildWomenDivisions()으로 모든 코드에 W 접미사 자동 생성
+- DIVISIONS: 남성부+여성부 통합 맵 (읽기 전용)
+- 유틸 함수 4개: getDivisionInfo(), getDivisionsForCategory(), getGenderFromDivision(), getAllDivisionCodes()
+- 타입 export: GenderCode, CategoryCode, DivisionCode, DivisionInfo
+
+**검증:** `npx tsc --noEmit` 에러 0건 통과
+
+💡 tester 참고:
+- 테스트 방법: import 후 함수 호출로 검증
+  - `getDivisionInfo("D3")` -> 일반부 tier 1 male 반환
+  - `getDivisionInfo("D3W")` -> 일반부 tier 1 female 반환
+  - `getDivisionsForCategory("general", "male")` -> ["D3","D4","D5","D6","D7","D8"]
+  - `getDivisionsForCategory("general", "female")` -> ["D3W","D4W","D5W","D6W","D7W","D8W"]
+  - `getGenderFromDivision("하모니W")` -> "female"
+  - `getAllDivisionCodes()` -> 남성 17개 + 여성 17개 = 34개 코드
+- 정상 동작: 모든 유틸 함수가 정확한 값 반환
+- 주의: "하모니"는 한글 코드이므로 특수 처리 확인 필요
+
+⚠️ reviewer 참고:
+- DivisionCode는 string 타입 (union literal로 만들면 여성부 W 조합이 동적이라 관리가 어려움)
+- BASE_DIVISIONS -> WOMEN_DIVISIONS 자동 생성 -> ALL_DIVISIONS_MAP 통합 순서로 빌드
+- 각 종별 디비전은 private 상수로, DIVISIONS만 export (캡슐화)
