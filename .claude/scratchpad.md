@@ -2483,6 +2483,8 @@ push 여부: 완료 (origin/master)
 | 2026-03-21 | git-manager | preferred_cities 제거 리팩토링 커밋 (10개 파일) | 완료 - 56032b2, push 미완료 |
 | 2026-03-21 | developer | /tournaments 선호 지역 기반 필터링 (Phase 1 - 4단계) | 완료 - 3개 파일 수정, TypeScript 검증 통과 |
 | 2026-03-21 | git-manager | 대회 목록 선호 지역 필터링 커밋 (3개 파일) | 완료 - 597eddc, push 미완료 |
+| 2026-03-21 | developer | 홈 추천 경기 선호 반영 (Phase 1 - 6단계) | 완료 - 2개 파일 수정, TypeScript 검증 통과 |
+| 2026-03-21 | tester | 개인화 선호 시스템 6단계 코드 검증 (2개 파일) | 7항목 중 7통과/0실패/0주의 |
 
 ## 디버깅 기록 (debugger)
 
@@ -2769,6 +2771,7 @@ reviewer 참고:
 | 2026-03-21 | tester | 개인화 선호 시스템 4단계 코드 검증 (대회 목록 선호 필터링, 18항목) | 전체 통과 - 3개 파일 모두 정상, 3단계 패턴과 일관성 확인, tsc 에러 0건 |
 | 2026-03-21 | git-manager | 대회 목록 선호 지역 필터링 커밋 (3개 파일) | 완료 - 597eddc, push 미완료 |
 | 2026-03-21 | developer | 개인화 선호 시스템 5단계 - 게시판 선호 카테고리 필터링 (2개 파일) | 완료 - tsc --noEmit 에러 0건 |
+| 2026-03-21 | git-manager | 게시판 선호 카테고리 필터링 커밋 (3개 파일) | 완료 - d4f67e4, push 미완료 |
 
 ---
 
@@ -2845,3 +2848,145 @@ reviewer 참고:
 | 날짜 | 역할 | 작업 | 결과 |
 |------|------|------|------|
 | 2026-03-21 | tester | 개인화 선호 시스템 5단계 코드 검증 (게시판 선호 카테고리 필터링, 18항목) | 전체 통과 - 2개 파일 정상, 3~4단계 패턴 일관성 확인, tsc 에러 0건 |
+
+---
+
+### 구현 기록 (2026-03-21): 홈 추천 경기 선호 반영 (개인화 선호 시스템 6단계)
+
+구현한 기능: 홈 추천 경기 API를 cities 배열 기반으로 개선. 이력 부족 시 user.city split 활용, 이력 충분 시 프로필 지역 보완, matchReason 배열 기반 전환
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/recommended-games/route.ts` | getLatestGames를 cities 배열 방식으로 변경, 이력 부족 시 user.city split 배열 전달, 이력 충분 시 프로필 지역 합집합 보완, matchReason을 string[]로 전환 | 수정 |
+| `src/components/home/recommended-games.tsx` | RecommendedGame 인터페이스의 match_reason 타입을 string[] 로 변경, 렌더링에서 배열을 " . "로 join하여 표시 | 수정 |
+
+구현 상세:
+
+**API (recommended-games/route.ts)**:
+1. `getLatestGames(city?: string)` -> `getLatestGames(cities?: string[])`: 단일 도시 매칭에서 `{ in: cities }` 다중 도시 매칭으로 변경
+2. 이력 부족 시(`pastApplications < 3`): user.city를 쉼표 split하여 배열로 전달 (예: "서울,경기" -> ["서울", "경기"])
+3. 이력 충분 시: 패턴에서 추출한 historyCities + 프로필 profileCities를 Set 합집합으로 병합하여 preferredCities 구성. 이력에 없는 프로필 지역도 추천에 반영됨
+4. matchReason: `string | null` -> `string[]` 배열로 변경. 하나의 경기가 여러 이유(지역+유형+실력)로 동시에 매칭될 때 모든 이유를 반환
+
+**프론트엔드 (recommended-games.tsx)**:
+- `match_reason: string | null` -> `match_reason: string[]` 타입 변경
+- `g.match_reason && ...` 조건 -> `g.match_reason.length > 0 && ...` 배열 길이 체크
+- 표시: `g.match_reason.join(" . ")` 으로 복수 이유를 구분자로 연결
+
+tester 참고:
+- 테스트 방법: (1) 비로그인 -> 최신 경기 목록, matchReason은 빈 배열 (2) 로그인+이력 부족+city 설정 -> 해당 지역 경기 우선, matchReason에 ["내 지역 경기"] (3) 로그인+이력 충분 -> 패턴 기반 추천, matchReason에 여러 이유 가능 (예: ["자주 가는 지역", "선호 경기 유형"])
+- 정상 동작: matchReason이 빈 배열이면 이유 표시 안 됨, 1개 이상이면 " . "로 연결하여 표시
+- 주의할 입력: user.city가 null인 유저 + 이력 부족 -> profileCities가 빈 배열 -> getLatestGames(undefined) 호출 -> 전체 최신 경기
+
+reviewer 참고:
+- 3~5단계와 동일한 user.city split 패턴 적용 (`split(",").map(c => c.trim()).filter(Boolean)`)
+- 이력 충분 케이스에서 `[...new Set([...historyCities, ...profileCities])]`로 중복 제거 합집합
+- matchReason 배열 전환은 프론트엔드 타입도 함께 수정 완료 (RecommendedGame 인터페이스)
+
+### 테스트 결과 (tester): 개인화 선호 시스템 6단계 - 홈 추천 경기 선호 반영 검증 (2026-03-21)
+
+검증 대상 파일:
+- `src/app/api/web/recommended-games/route.ts`
+- `src/components/home/recommended-games.tsx`
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| 1. getLatestGames가 cities 배열을 받아 in 조건으로 필터링 | ✅ 통과 | 174행: `cities?: string[]` 파라미터, 178행: `{ city: { in: cities } }` 조건 사용 |
+| 2. user.city를 split하여 배열로 전달 | ✅ 통과 | 55-57행: `split(",").map(c => c.trim()).filter(Boolean)` — 3~5단계와 동일한 패턴 |
+| 3. 이력 충분 시 historyCities + profileCities 합집합 사용 | ✅ 통과 | 96행: `[...new Set([...historyCities, ...profileCities])]` — Set으로 중복 제거 |
+| 4. matchReason이 string[]로 변경 + 프론트 정상 렌더링 | ✅ 통과 | API: 133행 `reasons: string[]`, 160행 `matchReason: reasons`, 207행 `[] as string[]`. 프론트: 16행 인터페이스 `match_reason: string[]`, 111행 `.length > 0` 체크, 113행 `.join(" . ")` 렌더링 |
+| 5. 기존 추천 알고리즘(이력 기반) 깨지지 않음 | ✅ 통과 | 패턴 분석(78-106행), 후보 조회(109-128행), 점수 정렬(131-167행) 구조 유지. preferredCities에 profileCities 합집합 추가는 확장이지 파괴 아님 |
+| 6. 이력 부족 + 프로필 지역 있을 때 fallback 정상 동작 | ✅ 통과 | 62-74행: profileCities 있으면 배열 전달, 없으면 undefined -> 전체 최신 경기. matchReason 조건도 빈 배열일 때 정상 처리 |
+| 7. npx tsc --noEmit 통과 | ✅ 통과 | TypeScript 컴파일 에러 없음 |
+
+📊 종합: 7개 중 7개 통과 / 0개 실패
+
+추가 확인 사항:
+- 비로그인 경로(25-28행): `getLatestGames()` 파라미터 없이 호출 -> cities가 undefined -> 전체 최신 경기 반환, matchReason은 빈 배열. 정상.
+- 이력 부족 + city null인 유저: profileCities가 빈 배열 -> `profileCities.length > 0`이 false -> `getLatestGames(undefined)` 호출 -> 전체 최신 경기. 70행에서 빈 배열의 `includes()`는 항상 false이므로 matchReason도 빈 배열. 정상.
+- getLatestGames 반환값의 matchReason이 `[] as string[]`로 타입 단언되어 있어 이력 부족 경로에서 map할 때 타입 안전성 확보됨.
+
+---
+
+### 2026-03-21: 홈 추천 경기 선호 반영 커밋 (개인화 선호 시스템 6단계)
+
+커밋: `feat: improve recommended games with profile city-based fallback` (fefc356)
+브랜치: master
+포함 파일 (2개):
+- 수정: `src/app/api/web/recommended-games/route.ts` (cities 배열 방식 전환, user.city split fallback, matchReason 배열화)
+- 수정: `src/components/home/recommended-games.tsx` (match_reason 타입 string[] 변경, join 렌더링)
+push 여부: 미완료
+제외 파일: `.claude/settings.local.json` (로컬 설정)
+tester 결과: 7항목 전체 통과
+
+| 날짜 | 역할 | 작업 | 결과 |
+|------|------|------|------|
+| 2026-03-21 | git-manager | 홈 추천 경기 선호 반영 커밋 (2개 파일, 6단계) | 완료 - fefc356, push 미완료 |
+
+---
+
+### 2026-03-21: 프로필 설정에서 선호 수정 링크 추가 (Phase 1 - 7단계)
+
+구현한 기능: /profile/edit 페이지의 환불 계좌 섹션과 저장 버튼 사이에 "선호 설정" 안내 카드 + /profile/preferences 이동 버튼 추가
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/profile/edit/page.tsx` | 환불 계좌 섹션과 저장 버튼 사이에 선호 설정 안내 카드 추가. Sparkles 아이콘 + Link 버튼으로 /profile/preferences 이동 | 수정 |
+
+**설계 결정:**
+- 방식 2(링크 버튼) 채택: profile/edit에 PreferenceForm을 직접 임베드하지 않고, 별도 /profile/preferences 페이지로 이동하는 링크 버튼을 배치
+- 기존 import(Link, Sparkles)를 재활용하여 추가 의존성 없음
+- 카드 스타일은 기존 섹션(환불 계좌 등)과 동일한 rounded-[10px] + border 패턴 사용
+- 버튼 색상은 저장 버튼과 동일한 [#1B3C87] 계열로 통일
+
+**tester 참고:**
+- 테스트 방법: /profile/edit 접속 -> 스크롤 다운 -> 환불 계좌 아래에 "선호 설정" 카드가 보임 -> "선호 설정 관리" 버튼 클릭 -> /profile/preferences 페이지로 이동
+- 정상 동작: 카드에 제목("선호 설정"), 설명 텍스트, Sparkles 아이콘이 있는 파란 버튼이 표시됨
+- 클릭 시 /profile/preferences로 이동하여 종별/성별/게시판 선호 설정 가능
+- TypeScript 검증: `npx tsc --noEmit` 에러 0건 통과
+
+**reviewer 참고:**
+- 기존 코드 변경 없이 환불 계좌 div 닫힘과 저장 버튼 사이에 새 카드 블록만 삽입
+- Link + Sparkles는 이미 파일 상단에 import되어 있으므로 추가 import 불필요
+
+| 날짜 | 역할 | 작업 | 결과 |
+|------|------|------|------|
+| 2026-03-21 | developer | 프로필 편집 페이지에 선호 설정 링크 카드 추가 (7단계) | 완료 |
+| 2026-03-21 | tester | 7단계 + 전체 통합 검증 (1~7단계, 15항목) | 전체 통과 |
+
+---
+
+### 테스트 결과 (tester): 개인화 선호 시스템 7단계 + 전체 통합 검증 (2026-03-21)
+
+#### 7단계 검증: profile/edit 선호 설정 카드 추가
+
+| # | 테스트 항목 | 결과 | 비고 |
+|---|-----------|------|------|
+| 1 | profile/edit 페이지에 선호 설정 카드 존재 | 통과 | 413-431행: 환불 계좌 섹션(411행 닫힘) 바로 아래, 저장 버튼(434행) 위에 위치. 제목("선호 설정"), 설명 텍스트, Sparkles 아이콘 + 링크 버튼 포함 |
+| 2 | /profile/preferences 링크 정상 | 통과 | 424행: `<Link href="/profile/preferences">` -- Next.js Link 컴포넌트 사용. 대상 페이지 `src/app/(web)/profile/preferences/page.tsx` 파일 존재 확인됨 |
+| 3 | 기존 프로필 편집 기능 정상 유지 | 통과 | 기본정보(207-256행), 경기정보(258-333행), 환불계좌(336-411행) 섹션 모두 변경 없음. handleSave 함수(131-174행)도 변경 없음 |
+| 4 | npx tsc --noEmit 통과 | 통과 | TypeScript 컴파일 에러 0건 (출력 없이 정상 종료) |
+
+#### 전체 통합 검증 (1~7단계)
+
+| # | 테스트 항목 | 결과 | 비고 |
+|---|-----------|------|------|
+| 5 | prisma validate 통과 | 통과 | "The schema at prisma\schema.prisma is valid" 출력 확인 |
+| 6 | npx tsc --noEmit 전체 프로젝트 통과 | 통과 | 에러 0건 |
+| 7 | preferred_cities가 실제 로직에서 완전 제거 | 통과 | `src/` 디렉토리 grep 결과: `preferences/route.ts` 6행 주석 1건만 남음 ("preferred_cities 제거" 설명 주석). prisma/schema.prisma에서 0건. 실제 코드 로직(변수, 쿼리, Zod 스키마 등)에서 완전 제거 확인 |
+| 8 | GET /api/web/preferences 구조 정상 | 통과 | route.ts 15-36행: withWebAuth 인증, prisma select로 3개 필드(preferred_divisions, preferred_board_categories, preferred_game_types) 조회, apiSuccess로 응답 |
+| 9 | PATCH /api/web/preferences 구조 정상 | 통과 | route.ts 39-84행: withWebAuth 인증, Zod 검증(7-12행), 변경 필드만 update, select로 3개 필드 반환 |
+| 10 | GET /api/web/games?prefer=true 구조 정상 | 통과 | prefer=true일 때 getWebSession -> user.city split -> cities 배열로 listGames 호출. 명시적 city 파라미터 우선 (`prefer && !city` 가드) |
+| 11 | GET /api/web/tournaments?prefer=true 구조 정상 | 통과 | prefer=true일 때 getWebSession -> user.city split -> cities 배열로 listTournaments 호출. Prisma `in` + `mode: "insensitive"` 사용 |
+| 12 | GET /api/web/community?prefer=true 구조 정상 | 통과 | prefer=true일 때 getWebSession -> user.preferred_board_categories 조회 -> Prisma `in` 조건 적용. 명시적 category 파라미터 우선 (`prefer && !category` 가드) |
+| 13 | preferences 페이지 존재 및 정상 구조 | 통과 | `src/app/(web)/profile/preferences/page.tsx` 존재. PreferenceForm 컴포넌트를 mode="settings"로 사용 |
+| 14 | 선호 API와 필터 API 간 데이터 일관성 | 통과 | preferences API는 3개 필드 관리, games/tournaments는 user.city 기반 지역 필터, community는 preferred_board_categories 기반 카테고리 필터. 각각 데이터 소스가 명확히 분리됨 |
+| 15 | import 정리 상태 | 통과 | profile/edit/page.tsx: Link(5행), Sparkles(6행) 모두 기존 import에 포함되어 있어 추가 import 불필요. 미사용 import 없음 |
+
+종합: 15개 중 15개 통과 / 0개 실패
+
+참고사항:
+- preferred_cities 관련 잔존은 `src/app/api/web/preferences/route.ts` 6행의 주석 1건("preferred_cities 제거")만 남아 있으며, 이는 변경 이력 설명용 주석이므로 기능에 영향 없음
+- profile/edit 페이지의 선호 설정 카드 스타일(rounded-[10px], border, bg-[#F9FAFB])이 기존 섹션(rounded-[20px], section 클래스)과 약간 다르나, 의도적으로 "안내 카드" 성격을 구분한 것으로 보임. 기능에 영향 없음
+- 1~7단계 전체적으로 user.city split 패턴, getWebSession 인증, 명시적 파라미터 우선 가드가 일관되게 적용됨
+- preferences 페이지가 다크 테마(bg-zinc-950)인 반면 profile/edit는 라이트 테마. 사용자가 이동 시 테마 전환이 발생할 수 있으나 기능적 문제는 아님

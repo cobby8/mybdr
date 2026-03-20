@@ -410,6 +410,26 @@ export default function ProfileEditPage() {
         )}
       </div>
 
+      {/* 선호 설정 안내 카드 - 별도 페이지로 이동하는 링크 */}
+      <div className="rounded-[10px] border border-[#E5E7EB] bg-[#F9FAFB] p-5">
+        <h2
+          className="mb-1 font-semibold uppercase tracking-wide text-[#111827]"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          선호 설정
+        </h2>
+        <p className="mb-4 text-xs text-[#9CA3AF]">
+          선호 종별, 성별, 게시판 카테고리를 설정하면 맞춤 콘텐츠를 받을 수 있습니다
+        </p>
+        <Link
+          href="/profile/preferences"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1B3C87] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#142D6B]"
+        >
+          <Sparkles className="h-4 w-4" />
+          선호 설정 관리
+        </Link>
+      </div>
+
       {/* 저장 버튼 */}
       <button
         onClick={handleSave}
