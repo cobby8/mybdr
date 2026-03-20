@@ -190,6 +190,7 @@ model Tournament {
   @@index([status], map: "index_tournaments_on_status")
   @@index([status, startDate], map: "index_tournaments_on_status_and_start_date")
   @@index([venue_id], map: "index_tournaments_on_venue_id")
+  @@index([city], map: "index_tournaments_on_city")
   @@map("tournaments")
 }
 

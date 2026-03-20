@@ -188,6 +188,8 @@ export function TournamentsContent({
 
   // searchParams 또는 preferFilter가 바뀔 때마다 API 호출
   useEffect(() => {
+    // race condition 방지: 이전 요청이 완료되기 전에 새 요청이 발생하면 이전 요청을 취소
+    const controller = new AbortController();
     setLoading(true);
 
     // URL의 쿼리 파라미터를 기반으로 API 호출 URL 구성
@@ -200,7 +202,7 @@ export function TournamentsContent({
     }
     const url = `/api/web/tournaments?${params.toString()}`;
 
-    fetch(url)
+    fetch(url, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) return null;
         return res.json() as Promise<TournamentsApiResponse>;
@@ -210,10 +212,15 @@ export function TournamentsContent({
           setTournaments(data.tournaments ?? []);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        // 사용자가 필터를 빠르게 바꿔서 이전 요청이 취소된 경우 무시
+        if (error instanceof Error && error.name === 'AbortError') return;
         setTournaments([]);
       })
       .finally(() => setLoading(false));
+
+    // cleanup: 의존성이 바뀌면 진행 중인 fetch를 취소
+    return () => controller.abort();
   }, [searchParams, preferFilter]);
 
   // 필터가 활성화되어 있는지 확인
