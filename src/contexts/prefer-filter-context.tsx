@@ -1,15 +1,13 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-
-// sessionStorage 키 -- 같은 탭 내에서만 유지, 탭 닫으면 리셋
-const STORAGE_KEY = "bdr_prefer_filter";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 
 // Context 타입 정의
 interface PreferFilterContextType {
   preferFilter: boolean;       // true: 선호 필터 ON, false: 전체 보기
   isLoggedIn: boolean;         // 로그인 여부 (비로그인이면 preferFilter 항상 false)
-  togglePreferFilter: () => void;  // ON <-> OFF 전환
+  togglePreferFilter: () => void;  // ON <-> OFF 전환 (현재 페이지에서만 일시적)
   setLoggedIn: (v: boolean) => void; // header에서 /api/web/me 결과를 전달받기 위한 setter
 }
 
@@ -30,50 +28,36 @@ export function usePreferFilter() {
  * PreferFilterProvider
  *
  * 전역 선호 필터 상태를 관리하는 Provider.
- * - 로그인 유저: 기본 preferFilter = true (선호 필터 ON)
+ * - 로그인 유저: 항상 기본 preferFilter = true (선호 필터 ON)
  * - 비로그인 유저: preferFilter = false (고정, 전환 불가)
- * - sessionStorage에 값을 저장하여 같은 탭 내 페이지 이동 시 유지
- * - TextSizeToggle과 동일한 mounted 패턴으로 SSR hydration mismatch 방지
+ * - sessionStorage 사용하지 않음 -- 페이지 이동하면 자동으로 true로 복귀
+ * - "전체 보기"는 현재 페이지에서만 일시적으로 적용됨
  */
 export function PreferFilterProvider({ children }: { children: ReactNode }) {
-  const [isLoggedIn, setLoggedIn] = useState(false);
+  const pathname = usePathname(); // 현재 URL 경로를 감시
+  const [isLoggedIn, setLoggedInState] = useState(false);
+  // 로그인 유저는 항상 true로 시작, 비로그인은 false
   const [preferFilter, setPreferFilter] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  // 마운트 시 sessionStorage에서 이전 값 복원
+  // 페이지 이동 시 preferFilter를 true로 리셋 (로그인 유저만)
+  // "전체 보기"는 현재 페이지에서만 일시적 → 다른 페이지로 이동하면 자동 복귀
   useEffect(() => {
-    setMounted(true);
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored !== null) {
-      // 저장된 값이 있으면 복원
-      setPreferFilter(stored === "true");
+    if (isLoggedIn) {
+      setPreferFilter(true);
     }
-    // 저장된 값이 없으면 로그인 여부에 따라 초기값 설정 (아래 useEffect에서 처리)
+  }, [pathname, isLoggedIn]);
+
+  // 로그인 상태 변경 시 preferFilter도 함께 설정
+  const setLoggedIn = useCallback((v: boolean) => {
+    setLoggedInState(v);
+    // 로그인 유저면 기본 ON, 비로그인이면 OFF
+    setPreferFilter(v);
   }, []);
 
-  // 로그인 상태가 확인되면: 저장된 값이 없을 때만 기본값을 true로 설정
-  useEffect(() => {
-    if (!mounted) return;
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (isLoggedIn && stored === null) {
-      // 로그인 유저이고 아직 토글한 적 없으면 기본 ON
-      setPreferFilter(true);
-      sessionStorage.setItem(STORAGE_KEY, "true");
-    }
-    if (!isLoggedIn) {
-      // 비로그인이면 항상 OFF
-      setPreferFilter(false);
-    }
-  }, [isLoggedIn, mounted]);
-
-  // ON <-> OFF 전환 + sessionStorage 저장
+  // ON <-> OFF 전환 -- sessionStorage 저장 없이 state만 변경 (페이지 이동 시 리셋)
   const togglePreferFilter = useCallback(() => {
     if (!isLoggedIn) return; // 비로그인은 전환 불가
-    setPreferFilter((prev) => {
-      const next = !prev;
-      sessionStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
+    setPreferFilter((prev) => !prev);
   }, [isLoggedIn]);
 
   return (

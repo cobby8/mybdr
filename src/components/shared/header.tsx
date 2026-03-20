@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Home, Dribbble, Trophy, MessageSquare, Menu, SlidersHorizontal } from "lucide-react";
+import { Home, Dribbble, Trophy, MessageSquare, Menu, Sparkles } from "lucide-react";
 import { SlideMenu } from "./slide-menu";
 import { UserDropdown } from "./user-dropdown";
 import { BellIcon } from "./bell-icon";
@@ -123,7 +123,7 @@ export function Header() {
                 title={preferFilter ? "전체 보기" : "내 선호만 보기"}
                 style={{ color: preferFilter ? "#E31B23" : "#9CA3AF" }}
               >
-                <SlidersHorizontal size={20} />
+                <Sparkles size={20} />
               </button>
             )}
             <TextSizeToggle />
