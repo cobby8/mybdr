@@ -31,23 +31,23 @@ export async function GamesTab({ teamId, accent }: GamesTabProps) {
 
   if (games.length === 0) {
     return (
-      <div className="rounded-[16px] bg-white px-5 py-10 text-center">
-        <p className="text-sm text-[#9CA3AF]">경기 기록이 없습니다.</p>
+      <div className="rounded-[16px] bg-[var(--color-card)] px-5 py-10 text-center">
+        <p className="text-sm text-[var(--color-text-secondary)]">경기 기록이 없습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-[16px] bg-white p-5">
+    <div className="rounded-[16px] bg-[var(--color-card)] p-5">
       <div className="space-y-2">
         {games.map((g) => (
           <div
             key={g.id.toString()}
-            className="flex items-center justify-between rounded-[12px] bg-[#EEF2FF] px-4 py-3"
+            className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-3"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[#111827]">{g.title}</p>
-              <p className="text-xs text-[#9CA3AF]">
+              <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{g.title}</p>
+              <p className="text-xs text-[var(--color-text-secondary)]">
                 {g.scheduled_at?.toLocaleDateString("ko-KR", {
                   year: "numeric",
                   month: "long",

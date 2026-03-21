@@ -9,7 +9,7 @@ export default function TeamsLoading() {
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-[16px] border border-[#E8ECF0] bg-white p-5 space-y-3">
+          <div key={i} className="rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-5 space-y-3">
             <div className="flex items-center gap-3">
               <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">

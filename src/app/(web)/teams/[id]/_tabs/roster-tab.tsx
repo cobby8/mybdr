@@ -52,7 +52,7 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
     const joinDate = m.createdAt?.toLocaleDateString("ko-KR", { year: "numeric", month: "short", timeZone: "Asia/Seoul" });
 
     const inner = (
-      <div className="flex items-center gap-3 rounded-[12px] bg-[#EEF2FF] px-4 py-3 transition-colors hover:bg-[#E2E8F0]">
+      <div className="flex items-center gap-3 rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]">
         <div
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
           style={{ backgroundColor: isCaptain ? accent : "#9CA3AF" }}
@@ -60,17 +60,17 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
           {displayName.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-[#111827]">{displayName}</p>
-          {m.user?.city && <p className="text-xs text-[#9CA3AF]">{m.user.city}</p>}
+          <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{displayName}</p>
+          {m.user?.city && <p className="text-xs text-[var(--color-text-secondary)]">{m.user.city}</p>}
         </div>
         <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
           <span
             className="rounded-full px-2 py-0.5 text-xs font-medium"
-            style={isCaptain ? { backgroundColor: `${accent}22`, color: accent } : { backgroundColor: "#E8ECF0", color: "#6B7280" }}
+            style={isCaptain ? { backgroundColor: `${accent}22`, color: accent } : { backgroundColor: "var(--color-border)", color: "var(--color-text-muted)" }}
           >
             {roleLabel}
           </span>
-          {joinDate && <span className="text-xs text-[#9CA3AF]">{joinDate} 가입</span>}
+          {joinDate && <span className="text-xs text-[var(--color-text-secondary)]">{joinDate} 가입</span>}
         </div>
       </div>
     );
@@ -80,8 +80,8 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
 
   if (members.length === 0) {
     return (
-      <div className="rounded-[16px] bg-white px-5 py-10 text-center">
-        <p className="text-sm text-[#9CA3AF]">멤버가 없습니다.</p>
+      <div className="rounded-[16px] bg-[var(--color-card)] px-5 py-10 text-center">
+        <p className="text-sm text-[var(--color-text-secondary)]">멤버가 없습니다.</p>
       </div>
     );
   }
@@ -89,16 +89,16 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
   return (
     <div className="space-y-4">
       {captains.length > 0 && (
-        <div className="rounded-[16px] bg-white p-5">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">주장</h3>
+        <div className="rounded-[16px] bg-[var(--color-card)] p-5">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">주장</h3>
           <div className="space-y-2">
             {captains.map((m) => <MemberRow key={m.id.toString()} member={m} m={m} />)}
           </div>
         </div>
       )}
       {grouped.map(([pos, posMembers]) => (
-        <div key={pos} className="rounded-[16px] bg-white p-5">
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#9CA3AF]">{pos}</h3>
+        <div key={pos} className="rounded-[16px] bg-[var(--color-card)] p-5">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">{pos}</h3>
           <div className="space-y-2">
             {posMembers.map((m) => <MemberRow key={m.id.toString()} member={m} m={m} />)}
           </div>

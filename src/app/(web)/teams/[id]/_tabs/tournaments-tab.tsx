@@ -23,14 +23,14 @@ export async function TournamentsTab({ teamId }: TournamentsTabProps) {
 
   if (tournamentTeams.length === 0) {
     return (
-      <div className="rounded-[16px] bg-white px-5 py-10 text-center">
-        <p className="text-sm text-[#9CA3AF]">대회 이력이 없습니다.</p>
+      <div className="rounded-[16px] bg-[var(--color-card)] px-5 py-10 text-center">
+        <p className="text-sm text-[var(--color-text-secondary)]">대회 이력이 없습니다.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-[16px] bg-white p-5">
+    <div className="rounded-[16px] bg-[var(--color-card)] p-5">
       <div className="space-y-2">
         {tournamentTeams.map((tt) => {
           const t = tt.tournament;
@@ -39,22 +39,22 @@ export async function TournamentsTab({ teamId }: TournamentsTabProps) {
           return (
             <div
               key={tt.id.toString()}
-              className="flex items-center justify-between rounded-[12px] bg-[#EEF2FF] px-4 py-3"
+              className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-3"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[#111827]">{t.name}</p>
-                <p className="text-xs text-[#9CA3AF]">
+                <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{t.name}</p>
+                <p className="text-xs text-[var(--color-text-secondary)]">
                   {year ? `${year}년` : ""}
                   {tt.division ? ` · ${tt.division}` : ""}
                 </p>
               </div>
               <div className="ml-3 flex flex-shrink-0 flex-col items-end gap-0.5">
                 {rankLabel && (
-                  <span className="rounded-full bg-[#E8ECF0] px-2 py-0.5 text-xs font-medium text-[#6B7280]">
+                  <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
                     {rankLabel}
                   </span>
                 )}
-                <span className="text-xs text-[#9CA3AF]">{tt.status ?? t.status ?? "-"}</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">{tt.status ?? t.status ?? "-"}</span>
               </div>
             </div>
           );

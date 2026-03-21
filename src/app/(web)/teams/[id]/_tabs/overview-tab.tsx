@@ -34,8 +34,8 @@ export async function OverviewTab({ teamId, accent }: OverviewTabProps) {
   return (
     <div className="space-y-4">
       {recentGames.length > 0 && (
-        <div className="rounded-[16px] bg-white p-5">
-          <h3 className="mb-3 font-semibold text-[#111827]">최근 경기</h3>
+        <div className="rounded-[16px] bg-[var(--color-card)] p-5">
+          <h3 className="mb-3 font-semibold text-[var(--color-text-primary)]">최근 경기</h3>
           <div className="space-y-2">
             {recentGames.map((g) => {
               const href = `/games/${g.uuid?.slice(0, 8) ?? g.id}`;
@@ -43,18 +43,18 @@ export async function OverviewTab({ teamId, accent }: OverviewTabProps) {
                 <Link
                   key={g.id.toString()}
                   href={href}
-                  className="flex items-center justify-between rounded-[12px] bg-[#EEF2FF] px-4 py-3 transition-colors hover:bg-[#E2E8F0]"
+                  className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#111827]">{g.title}</p>
+                    <p className="truncate text-sm font-medium text-[var(--color-text-primary)]">{g.title}</p>
                     {g.scheduled_at && (
-                      <p className="text-xs text-[#9CA3AF]">
+                      <p className="text-xs text-[var(--color-text-secondary)]">
                         {g.scheduled_at.toLocaleDateString("ko-KR", { month: "long", day: "numeric", timeZone: "Asia/Seoul" })}
                       </p>
                     )}
                   </div>
                   <div className="ml-3 flex items-center gap-2 text-xs">
-                    <span className="text-[#9CA3AF]">{GAME_TYPE_LABEL[g.game_type ?? 0] ?? "-"}</span>
+                    <span className="text-[var(--color-text-secondary)]">{GAME_TYPE_LABEL[g.game_type ?? 0] ?? "-"}</span>
                     <span
                       className="rounded-full px-2 py-0.5 font-medium"
                       style={{ backgroundColor: `${accent}22`, color: accent }}
@@ -70,8 +70,8 @@ export async function OverviewTab({ teamId, accent }: OverviewTabProps) {
       )}
 
       {recentGames.length === 0 && (
-        <div className="rounded-[16px] bg-white px-5 py-10 text-center">
-          <p className="text-sm text-[#9CA3AF]">경기 기록이 없습니다.</p>
+        <div className="rounded-[16px] bg-[var(--color-card)] px-5 py-10 text-center">
+          <p className="text-sm text-[var(--color-text-secondary)]">경기 기록이 없습니다.</p>
         </div>
       )}
     </div>
