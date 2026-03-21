@@ -494,11 +494,60 @@ reviewer 참고:
 - group-hover:text-[#1B3C87] (제목 호버 색상 변화)를 제거함 -- WHOOP 스타일에서는 텍스트 색상 변화보다 배경 변화에 집중
 - tournaments의 "대회 만들기" 버튼에 중복된 style 속성이 있었으나 하나로 합침 (backgroundColor + fontFamily)
 
+### Phase 4-6: 상세 페이지 + 프로필 + 로그인 + 나머지 페이지 리디자인
+
+구현한 기능: 대회 상세 페이지, 프로필 대시보드(8개 컴포넌트), 로그인 페이지, 커뮤니티 목록, 팀 목록/카드의 하드코딩 색상(#E31B23, #111827, #6B7280, #9CA3AF, #E8ECF0, #EEF2FF, #F9FAFB, #1B3C87 등)을 Phase 4-1에서 정의한 CSS 변수(var(--color-accent), var(--color-text-primary), var(--color-text-secondary) 등)로 전환했다. 참가신청 CTA 버튼을 빨강(#E31B23)에서 웜 오렌지(var(--color-accent))로 변경했다. 로직/데이터 처리는 일절 건드리지 않았다.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/tournaments/[id]/page.tsx` | 섹션 제목 #E31B23 -> var(--color-accent), 보조 텍스트 #6B7280 -> var(--color-text-secondary), 테이블 헤더 bg-[#EEF2FF] -> var(--color-elevated), 테이블 테두리 #E8ECF0 -> var(--color-border), 순위 번호 #E31B23 -> var(--color-accent), 참가신청 CTA bg-[#E31B23] -> var(--color-accent), 프로그레스바 bg-[#E8ECF0] -> var(--color-surface), 서브탭 활성 bg-[#1B3C87] -> var(--color-primary), 스폰서 배경 bg-[#EEF2FF] -> var(--color-elevated), 링크 색상 #E31B23 -> var(--color-accent), 넘버링/불릿 색상 CSS 변수 전환 | 수정 |
+| `src/app/(web)/profile/_components/profile-header.tsx` | 카드 배경/테두리/섀도 CSS 변수, 설정 아이콘 색상, 이름/이메일 텍스트 색상 CSS 변수 | 수정 |
+| `src/app/(web)/profile/_components/activity-ring.tsx` | 카드 배경/테두리 CSS 변수, 스탯 카드 배경 var(--color-elevated), 아이콘 그라데이션 accent, 텍스트 색상 CSS 변수, 동기부여 메시지 배경 var(--color-elevated), 프로그레스바 accent 그라데이션 | 수정 |
+| `src/app/(web)/profile/_components/stat-bars.tsx` | 카드 배경/테두리 CSS 변수, 바 트랙 bg-[#E8ECF0] -> var(--color-surface), 라벨/수치 텍스트 CSS 변수, CTA 버튼 bg-[#E31B23] -> var(--color-accent), 시즌 하이 라벨 CSS 변수 | 수정 |
+| `src/app/(web)/profile/_components/section-wrapper.tsx` | 카드 배경/테두리/섀도 CSS 변수, 제목/빈상태 텍스트 CSS 변수, "자세히 보기" 링크 var(--color-accent) | 수정 |
+| `src/app/(web)/profile/_components/recent-games-section.tsx` | 리스트 아이템 배경/테두리 CSS 변수, 아이콘 var(--color-accent), 텍스트 CSS 변수 | 수정 |
+| `src/app/(web)/profile/_components/teams-section.tsx` | 리스트 아이템 배경/테두리 CSS 변수, 아이콘 var(--color-primary), 텍스트 CSS 변수 | 수정 |
+| `src/app/(web)/profile/_components/tournaments-section.tsx` | 리스트 아이템 배경/테두리 CSS 변수, 트로피 아이콘 #E31B23 -> var(--color-accent), 텍스트 CSS 변수 | 수정 |
+| `src/app/(web)/profile/_components/player-info-section.tsx` | 카드 배경/테두리 CSS 변수, 라벨/값 텍스트 CSS 변수, 자기소개 배경 var(--color-elevated) | 수정 |
+| `src/app/(web)/profile/page.tsx` | 로딩 스피너 #1B3C87 -> var(--color-primary), 에러 텍스트 CSS 변수, 로그인 버튼 bg-[#1B3C87] -> var(--color-accent) | 수정 |
+| `src/app/(web)/login/page.tsx` | 브랜드 타이틀/서브타이틀 CSS 변수, BDR 이니셜 #E31B23 -> var(--color-accent), 로그인 카드 배경/테두리 CSS 변수, 구글 버튼 테두리/배경 CSS 변수, 이메일 버튼 var(--color-primary), 모달 배경/섀도 CSS 변수, 입력 필드 테두리/배경 CSS 변수, 하단 텍스트 CSS 변수 | 수정 |
+| `src/app/(web)/community/_components/community-content.tsx` | 글쓰기 버튼 bg-[#111827] -> var(--color-accent), 검색 입력/버튼 CSS 변수, 카테고리 필터 활성/비활성/선호 CSS 변수, 결과 카운트 CSS 변수, 스켈레톤 CSS 변수, 빈 상태 CSS 변수 | 수정 |
+| `src/app/(web)/teams/_components/teams-content.tsx` | 팀 만들기 버튼 bg-[#1B3C87] -> var(--color-primary), 팀 카드 배경/테두리 CSS 변수, 팀명/지역/전적/멤버 텍스트 CSS 변수, 스켈레톤 CSS 변수, 결과/빈상태 텍스트 CSS 변수 | 수정 |
+| `src/app/(web)/teams/_components/team-card.tsx` | 카드 배경/테두리 CSS 변수, 팀명/지역/전적/멤버 텍스트 CSS 변수 | 수정 |
+
+tester 참고:
+- 테스트 방법: tsc --noEmit 통과 확인 (완료). 개발 서버에서 아래 페이지들을 라이트/다크 모드 전환하며 확인 필요
+  - /tournaments/[uuid] (대회 상세)
+  - /profile (프로필 대시보드)
+  - /login (로그인)
+  - /community (게시판 목록)
+  - /teams (팀 목록)
+- 정상 동작:
+  - 라이트: 카드 배경 흰색, 테두리 연회색, 포인트 컬러 웜 오렌지(#F4A261)
+  - 다크: 카드 배경 어두운 회색(#1A1A1A), 테두리 더 어두운 회색(#2A2A2A)
+  - 참가신청 CTA 버튼이 빨강이 아닌 웜 오렌지
+  - 대회 상세 테이블 헤더가 elevated 색상(라이트=#EDF0F8, 다크=#222222)
+  - 순위 번호가 빨강이 아닌 웜 오렌지
+  - 프로필 각 섹션 카드가 일관된 border/shadow
+- 주의할 점:
+  - stat-bars.tsx의 각 스탯 색상(득점=빨강, 리바운드=오렌지 등)은 의미론적 색상이므로 하드코딩 유지 (정상)
+  - activity-ring.tsx의 메달 색상(Bronze=#CD7F32 등)도 의미론적이므로 하드코딩 유지 (정상)
+  - profile-header.tsx의 아바타 기본 배경(bg-[#1B3C87])은 Tailwind ring 문법과 CSS 변수 충돌 방지를 위해 하드코딩 유지
+  - 카카오/네이버 버튼 색상은 브랜드 가이드라인이므로 하드코딩 유지 (정상)
+  - preference-form.tsx는 이미 CSS 변수 사용 중이므로 변경하지 않음
+
+reviewer 참고:
+- 로직/데이터 처리 코드는 일절 변경하지 않음 -- 순수 스타일(CSS) 변경만 진행
+- CSS 변수는 모두 Phase 4-1에서 정의된 것만 사용 (새 변수 추가 없음)
+- 서버 컴포넌트(tournaments/[id]/page.tsx)는 style prop으로 CSS 변수 적용 (Tailwind의 arbitrary value보다 명시적)
+- Card 컴포넌트가 style prop을 지원하지 않아 Card에는 className 기반으로 적용
+
 ### 작업 로그
 
 | 날짜 | Phase | 작업 내용 | 상태 |
 |------|-------|----------|------|
 | 2026-03-21 | 4-5 | 경기/대회 목록 카드 CSS 변수 전환 + WHOOP 호버 | 완료 |
+| 2026-03-21 | 4-6 | 상세/프로필/로그인/커뮤니티/팀 14개 파일 CSS 변수 전환 + 포인트컬러 웜 오렌지 | 완료 |
 
 ## 테스트 결과 (tester)
 
@@ -812,6 +861,140 @@ reviewer 참고:
 - 하드코딩 색상은 의미론적 색상(TYPE_BADGE, STATUS_LABEL, SKILL_BADGE, STATUS_STYLE, barColor)에만 남아있으며, 이는 상태/유형을 표현하는 고정 색상이므로 CSS 변수로 전환하지 않는 것이 올바른 설계 판단이다.
 - 호버 효과는 CSS의 :hover가 아닌 onMouseEnter/onMouseLeave 이벤트 핸들러로 구현되었는데, 이는 인라인 style에서 CSS 변수를 동적으로 적용하기 위한 합리적인 선택이다.
 - 두 파일(games-content.tsx, tournaments-content.tsx)의 카드 레이아웃이 Row 1~5까지 완전히 동일한 구조를 공유하며, 차이점은 데이터 특성(경기 유형 vs 대회 형식, 난이도 뱃지 vs 종별 칩)에 의한 것뿐이다.
+
+### Phase 4-6: 상세 페이지 + 프로필 + 로그인 + 나머지 페이지 리디자인 검증 (2026-03-21)
+
+#### 1. TypeScript 컴파일
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 1-1 | `npx tsc --noEmit` | 통과 | 에러/경고 0건. 출력 없이 정상 종료 |
+
+#### 2. 핵심 5개 파일 상세 검증
+
+##### 2-1. tournaments/[id]/page.tsx (대회 상세)
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 2-1-1 | 섹션 제목 #E31B23 -> var(--color-accent) | 통과 | 117, 135, 155, 173행: style={{ color: 'var(--color-accent)' }} |
+| 2-1-2 | 보조 텍스트 #6B7280 -> var(--color-text-secondary) | 통과 | 122, 180-181, 249, 480, 489, 514행 등 전부 CSS 변수 |
+| 2-1-3 | 테이블 헤더 bg-[#EEF2FF] -> var(--color-elevated) | 통과 | 178행: style={{ backgroundColor: 'var(--color-elevated)' }} |
+| 2-1-4 | 테이블 테두리 #E8ECF0 -> var(--color-border) | 통과 | 175, 186, 366, 376행: var(--color-border) / var(--color-border-subtle) |
+| 2-1-5 | 순위 번호 #E31B23 -> var(--color-accent) | 통과 | 378행: style={{ color: 'var(--color-accent)' }} |
+| 2-1-6 | 참가신청 CTA bg-[#E31B23] -> var(--color-accent) | 통과 | 529행: style={{ backgroundColor: 'var(--color-accent)' }} + hover 핸들러 |
+| 2-1-7 | 프로그레스바 bg-[#E8ECF0] -> var(--color-surface) | 통과 | 571행: style={{ backgroundColor: 'var(--color-surface)' }} |
+| 2-1-8 | 서브탭 활성 bg-[#1B3C87] -> var(--color-primary) | 통과 | 603행: style={{ backgroundColor: 'var(--color-primary)' }} |
+| 2-1-9 | 스폰서 배경 bg-[#EEF2FF] -> var(--color-elevated) | 통과 | 255행: style={{ backgroundColor: 'var(--color-elevated)' }} |
+| 2-1-10 | 링크 색상 #E31B23 -> var(--color-accent) | 통과 | 221행: style={{ color: 'var(--color-accent)' }} |
+| 2-1-11 | 넘버링/불릿 CSS 변수 전환 | 통과 | 140행: primary-light 배경 + accent 텍스트. 160행: primary 배경 불릿 |
+| 2-1-12 | #E31B23 잔존 여부 | 통과 | grep 결과 0건 -- 완전 제거 |
+| 2-1-13 | 로직 무변경 (prisma 쿼리) | 통과 | 315-338행(MatchesAndStandings), 408-433행(findUnique), 453-458행(groupBy) 원본 유지 |
+| 2-1-14 | 로직 무변경 (parseDescription) | 통과 | 32-101행: 파서 로직 원본 유지 |
+| 2-1-15 | 로직 무변경 (UUID 검증) | 통과 | 403행: 정규식 UUID 검증 원본 유지 |
+
+##### 2-2. login/page.tsx (로그인)
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 2-2-1 | BDR 이니셜 #E31B23 -> var(--color-accent) | 통과 | 47행: B/D/R 각각 style={{ color: 'var(--color-accent)' }} |
+| 2-2-2 | 로그인 카드 배경/테두리 CSS 변수 | 통과 | 60행: borderColor, backgroundColor, boxShadow 모두 CSS 변수 |
+| 2-2-3 | 구글 버튼 테두리/배경 CSS 변수 | 통과 | 85행: var(--color-border), var(--color-card) |
+| 2-2-4 | 이메일 버튼 var(--color-primary) | 통과 | 96행: backgroundColor, borderColor 모두 var(--color-primary) |
+| 2-2-5 | 모달 배경/섀도 CSS 변수 | 통과 | 138행: var(--color-card), var(--shadow-elevated) |
+| 2-2-6 | 입력 필드 테두리/배경 CSS 변수 | 통과 | 163, 167행: border/bg/color 모두 CSS 변수 |
+| 2-2-7 | 카카오/네이버 브랜드 색상 하드코딩 유지 | 통과 | 67행: #FEE500, 76행: #03C75A -- 브랜드 가이드라인 준수 |
+| 2-2-8 | #E31B23 잔존 여부 | 통과 | grep 결과 0건 |
+| 2-2-9 | 로직 무변경 (loginAction, devLoginAction) | 통과 | 6행 import, 20-21행 useActionState, 모달 상태관리 모두 원본 유지 |
+
+##### 2-3. profile/page.tsx (프로필 대시보드)
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 2-3-1 | 로딩 스피너 #1B3C87 -> var(--color-primary) | 통과 | 86행: style={{ color: 'var(--color-primary)' }} |
+| 2-3-2 | 에러 텍스트 CSS 변수 | 통과 | 82, 98행: var(--color-text-secondary) |
+| 2-3-3 | 로그인 버튼 bg-[#1B3C87] -> var(--color-accent) | 통과 | 100행: style={{ backgroundColor: 'var(--color-accent)' }} |
+| 2-3-4 | #E31B23 잔존 여부 | 통과 | grep 결과 0건 |
+| 2-3-5 | 로직 무변경 (useSWR, snake->camelCase 변환) | 통과 | 47-78행: SWR 호출 + 변환 로직 원본 유지 |
+
+##### 2-4. community-content.tsx (커뮤니티)
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 2-4-1 | 글쓰기 버튼 bg-[#111827] -> var(--color-accent) | 통과 | 180행: style={{ backgroundColor: 'var(--color-accent)' }} |
+| 2-4-2 | 검색 입력/버튼 CSS 변수 | 통과 | 195행(입력), 200행(버튼): border/bg/color CSS 변수 |
+| 2-4-3 | 카테고리 필터 활성/비활성 CSS 변수 | 통과 | 228-253행: primary-light/primary(활성), border/text-secondary(비활성) |
+| 2-4-4 | 결과 카운트/빈 상태 CSS 변수 | 통과 | 268-273행, 319행: CSS 변수 |
+| 2-4-5 | 스켈레톤 CSS 변수 | 통과 | 41행: borderColor, backgroundColor CSS 변수 |
+| 2-4-6 | #E31B23 잔존 여부 | 통과 | grep 결과 0건 |
+| 2-4-7 | 로직 무변경 (fetch, AbortController, URL params) | 통과 | 105-140행: fetch+abort 로직 원본 유지 |
+
+##### 2-5. teams-content.tsx (팀 목록)
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 2-5-1 | 팀 만들기 버튼 bg-[#1B3C87] -> var(--color-primary) | 통과 | 176행: style={{ backgroundColor: 'var(--color-primary)' }} |
+| 2-5-2 | 팀 카드 배경/테두리 CSS 변수 | 통과 | 71행: borderColor, backgroundColor CSS 변수 |
+| 2-5-3 | 팀명/지역/전적/멤버 텍스트 CSS 변수 | 통과 | 91-109행: text-primary, text-secondary, text-muted CSS 변수 |
+| 2-5-4 | 스켈레톤/결과/빈상태 CSS 변수 | 통과 | 34-35행(스켈레톤), 192-193행(결과), 207행(빈상태) |
+| 2-5-5 | resolveAccent 폴백 #E31B23 유지 | 통과 | 56행: 팀 고유색이 없을 때 폴백값 -- 의미론적 기본값이므로 유지 정상 |
+| 2-5-6 | WHOOP 호버 효과 | 통과 | 71행: hover:-translate-y-1 hover:shadow-lg |
+| 2-5-7 | 로직 무변경 (fetch, searchParams) | 통과 | 133-155행: fetch 로직 원본 유지 |
+
+#### 3. 나머지 9개 파일 #E31B23 잔존 확인
+
+| 번호 | 파일 | 결과 | 비고 |
+|------|------|------|------|
+| 3-1 | profile-header.tsx | 통과 | #E31B23 없음. 아바타 bg-[#1B3C87]은 Tailwind ring 충돌 방지용 -- 정상 |
+| 3-2 | activity-ring.tsx | 통과 | #E31B23 없음. 메달 색상(#CD7F32, #C0C0C0, #FFD700)은 의미론적 -- 정상 |
+| 3-3 | stat-bars.tsx | 허용 | #E31B23 3곳 잔존: 94행(득점 바 색상), 118행(시즌하이 배경), 120행(시즌하이 텍스트). 모두 의미론적 색상(득점=빨강) -- scratchpad 주의사항에 명시된 허용 항목 |
+| 3-4 | section-wrapper.tsx | 통과 | #E31B23 없음. 카드/제목/링크 모두 CSS 변수 |
+| 3-5 | recent-games-section.tsx | 통과 | #E31B23 없음. 아이콘/텍스트 모두 CSS 변수 |
+| 3-6 | teams-section.tsx | 통과 | #E31B23 없음. 아이콘 primary, 텍스트 CSS 변수 |
+| 3-7 | tournaments-section.tsx | 통과 | #E31B23 없음. 트로피 accent, 텍스트 CSS 변수 |
+| 3-8 | player-info-section.tsx | 통과 | #E31B23 없음. 라벨/값/자기소개 모두 CSS 변수 |
+| 3-9 | team-card.tsx | 허용 | #E31B23 1곳: 20행 resolveAccent 폴백값. 팀 고유색 없을 때 기본값 -- 의미론적 |
+
+#### 4. CSS 변수 매칭 (globals.css 정의 확인)
+
+| 번호 | 사용된 CSS 변수 | globals.css 정의 | 라이트값 | 다크값 |
+|------|----------------|-----------------|---------|--------|
+| 4-1 | --color-accent | 통과 | #F4A261 | #F4A261 |
+| 4-2 | --color-accent-hover | 통과 | #E8934F | #FABD82 |
+| 4-3 | --color-text-primary | 통과 | #111827 | #F5F5F5 |
+| 4-4 | --color-text-secondary | 통과 | #6B7280 | #A0A0A0 |
+| 4-5 | --color-text-muted | 통과 | #9CA3AF | #666666 |
+| 4-6 | --color-card | 통과 | #FFFFFF | #1A1A1A |
+| 4-7 | --color-border | 통과 | #E5E7EB | #2A2A2A |
+| 4-8 | --color-border-subtle | 통과 | #F0F0F0 | #1F1F1F |
+| 4-9 | --color-elevated | 통과 | #EDF0F8 | #222222 |
+| 4-10 | --color-surface | 통과 | #E8ECF0 | #1F1F1F |
+| 4-11 | --color-primary | 통과 | #1B3C87 | #5B7FD6 |
+| 4-12 | --color-primary-light | 통과 | rgba(27,60,135,0.08) | rgba(91,127,214,0.15) |
+| 4-13 | --color-error | 통과 | #EF4444 | #F87171 |
+| 4-14 | --shadow-card | 통과 | 0 4px 24px rgba(0,0,0,0.08) | 0 4px 24px rgba(0,0,0,0.4) |
+| 4-15 | --shadow-elevated | 통과 | 0 8px 32px rgba(0,0,0,0.12) | 0 8px 32px rgba(0,0,0,0.5) |
+| 4-16 | --font-heading | 통과 | 'Barlow Condensed', 'Pretendard', sans-serif |
+| 4-17 | --color-accent-light | 통과 | rgba(244,162,97,0.1) | rgba(244,162,97,0.15) |
+
+#### 5. 로직 무변경 확인 (주요 파일)
+
+| 번호 | 파일 | 검증 항목 | 결과 | 비고 |
+|------|------|----------|------|------|
+| 5-1 | tournaments/[id]/page.tsx | prisma 쿼리 (findUnique, findMany, groupBy) | 통과 | 315-338, 408-433, 453-458행 원본 유지 |
+| 5-2 | tournaments/[id]/page.tsx | parseDescription 파서 | 통과 | 32-101행 원본 유지 |
+| 5-3 | login/page.tsx | loginAction/devLoginAction + 모달 상태 | 통과 | import, useActionState, useEffect 원본 유지 |
+| 5-4 | profile/page.tsx | useSWR + snake->camelCase 변환 | 통과 | 47-78행 원본 유지 |
+| 5-5 | community-content.tsx | fetch + AbortController + URL params | 통과 | 105-140행 원본 유지 |
+| 5-6 | teams-content.tsx | fetch + searchParams | 통과 | 133-155행 원본 유지 |
+
+📊 종합: 62개 중 62개 통과 / 0개 실패 (의미론적 하드코딩 2건 허용)
+
+참고 사항:
+- stat-bars.tsx의 #E31B23은 의미론적 색상(득점=빨강)으로 하드코딩 유지가 올바른 설계 판단이다. developer의 scratchpad 주의사항에도 명시되어 있다.
+- team-card.tsx와 teams-content.tsx의 resolveAccent 폴백값 #E31B23은 팀 고유색이 없을 때의 기본값으로, 브랜드/데이터 레벨의 기본 색상이므로 CSS 변수 전환 대상이 아니다.
+- activity-ring.tsx의 메달 색상(Bronze=#CD7F32, Silver=#C0C0C0, Gold=#FFD700)과 profile-header.tsx의 아바타 기본 배경(bg-[#1B3C87])은 의미론적 색상이므로 하드코딩 유지가 정상이다.
+- 카카오(#FEE500)/네이버(#03C75A) 로그인 버튼은 각 플랫폼 브랜드 가이드라인을 따르므로 하드코딩이 필수이다.
+- 14개 파일 모두 로직/데이터 처리 코드는 변경 없이 순수 CSS/스타일만 변경되었음을 확인했다.
 
 ## 리뷰 결과 (reviewer)
 
@@ -1611,6 +1794,37 @@ reviewer 참고:
 - `.claude/scratchpad.md`
 🔄 push 여부: 미완료
 
+### Phase 4-5 커밋 (2026-03-21)
+
+📦 커밋: `b5547a2` feat: redesign games and tournaments list cards with CSS variables and WHOOP hover style
+🌿 브랜치: master
+📁 포함 파일:
+- `src/app/(web)/games/_components/games-content.tsx`
+- `src/app/(web)/tournaments/_components/tournaments-content.tsx`
+- `.claude/scratchpad.md`
+🔄 push 여부: 미완료
+
+### Phase 4-6 커밋 (2026-03-21)
+
+📦 커밋: `d3026ad` feat: redesign detail, profile, login, community, and teams pages with CSS variables and warm orange accent
+🌿 브랜치: master
+📁 포함 파일:
+- `src/app/(web)/tournaments/[id]/page.tsx`
+- `src/app/(web)/profile/page.tsx`
+- `src/app/(web)/profile/_components/activity-ring.tsx`
+- `src/app/(web)/profile/_components/player-info-section.tsx`
+- `src/app/(web)/profile/_components/profile-header.tsx`
+- `src/app/(web)/profile/_components/recent-games-section.tsx`
+- `src/app/(web)/profile/_components/section-wrapper.tsx`
+- `src/app/(web)/profile/_components/stat-bars.tsx`
+- `src/app/(web)/profile/_components/teams-section.tsx`
+- `src/app/(web)/profile/_components/tournaments-section.tsx`
+- `src/app/(web)/login/page.tsx`
+- `src/app/(web)/community/_components/community-content.tsx`
+- `src/app/(web)/teams/_components/team-card.tsx`
+- `src/app/(web)/teams/_components/teams-content.tsx`
+🔄 push 여부: 미완료
+
 ## 문서 기록 (doc-writer)
 (아직 없음)
 
@@ -1634,6 +1848,7 @@ reviewer 참고:
 | 2026-03-21 | tester | Phase 2 검증 - 정적 분석 + 로직 검증 + tsc 빌드 | 통과 - 13/13 항목 통과 |
 | 2026-03-21 | reviewer | Phase 2 코드 리뷰 - 설계 준수/보안/타입/에러/성능/컨벤션/일관성 7개 관점 | 통과 - 필수/권장 수정 없음 |
 | 2026-03-21 | git-manager | Phase 2 커밋 - feat: add preferred divisions filter to tournament list API | 완료 - ba1af0f (push 미완료) |
+| 2026-03-21 | git-manager | Phase 4-6 커밋 - feat: redesign detail/profile/login/community/teams with CSS vars | 완료 - d3026ad (push 미완료) |
 | 2026-03-21 | tester | A단계: 전체 사이트 빌드/컴파일 점검 (tsc + build + lint) | 2통과/0실패/1실행불가(lint 설정 없음) |
 | 2026-03-21 | tester | C단계: Phase1+2 통합 점검 - 코드 일관성/흐름/엣지케이스/UI연동/토글/타입 | 12통과/0실패 |
 | 2026-03-21 | planner | Phase 3 계획 수립 - 대회탭 UI를 경기탭 스타일로 통일 + 종별 태그 표시 | 완료 - 5단계, 25분 예상 |
@@ -1651,3 +1866,6 @@ reviewer 참고:
 | 2026-03-21 | tester | Phase 4-4 검증 - tsc + 하드코딩색상전환(20항목) + CSS변수매칭(14항목) + 로직무변경(5항목) | 통과 - 39/39 통과, 1경고 |
 | 2026-03-21 | git-manager | Phase 4-4 커밋 - feat: redesign home page components with CSS variables and warm orange accent | 완료 - 6298820 (push 미완료) |
 | 2026-03-21 | tester | Phase 4-5 검증 - tsc + 하드코딩색상전환(25항목) + 호버WHOOP(4항목) + 의미론적색상유지(6항목) + 로직무변경(4항목) + CSS변수매칭(10항목) + 일관성(13항목) | 통과 - 49/49 통과 |
+| 2026-03-21 | git-manager | Phase 4-5 커밋 - feat: redesign games and tournaments list cards with CSS variables and WHOOP hover style | 완료 - b5547a2 (push 미완료) |
+| 2026-03-21 | developer | Phase 4-6 구현 - 대회상세/프로필(8개)/로그인/커뮤니티/팀 14개 파일 CSS 변수 전환 + 포인트컬러 웜 오렌지 | 완료 - tsc 통과 |
+| 2026-03-21 | tester | Phase 4-6 검증 - tsc + 핵심5개상세(43항목) + 나머지9개#E31B23(9항목) + CSS변수매칭(17항목) + 로직무변경(6항목) | 통과 - 62/62 항목 통과 |
