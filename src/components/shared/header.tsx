@@ -134,7 +134,8 @@ export function Header() {
             )}
             <TextSizeToggle />
             <ThemeToggle />
-            <BellIcon unreadCount={unreadCount} />
+            {/* 비로그인 시 알림 벨 아이콘 숨김 -- 로그인 유저에게만 표시 */}
+            {user && <BellIcon unreadCount={unreadCount} />}
             {user ? (
               <UserDropdown name={user.name} role={user.role} profileImage={user.profile_image} />
             ) : (
