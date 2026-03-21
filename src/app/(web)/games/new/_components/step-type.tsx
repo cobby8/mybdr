@@ -94,8 +94,8 @@ export function StepType({
 
   return (
     <div aria-live="polite">
-      <h2 className="mb-1 text-xl font-bold sm:text-2xl text-[#111827]">어떤 경기를 만들까요?</h2>
-      <p className="mb-4 text-sm text-[#9CA3AF]">유형을 선택하면 바로 다음으로 넘어가요.</p>
+      <h2 className="mb-1 text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]">어떤 경기를 만들까요?</h2>
+      <p className="mb-4 text-sm text-[var(--color-text-secondary)]">유형을 선택하면 바로 다음으로 넘어가요.</p>
 
       {/* Game type cards — 3열 */}
       <div className="grid grid-cols-3 gap-2.5">
@@ -109,16 +109,16 @@ export function StepType({
               onClick={() => handleSelect(type)}
               className={`relative flex flex-col items-center gap-1.5 rounded-[14px] border-2 p-3 text-center transition-all active:scale-[0.97] ${
                 isLocked
-                  ? "border-[#E8ECF0] bg-[#F5F7FA] opacity-50"
-                  : "border-[#E8ECF0] bg-white hover:border-[#E31B23]/50 hover:bg-[#E31B23]/5"
+                  ? "border-[var(--color-border)] bg-[var(--color-surface)] opacity-50"
+                  : "border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/5"
               }`}
             >
               {isLocked && (
                 <span className="absolute right-1.5 top-1.5 text-xs">🔒</span>
               )}
               <span className="text-2xl">{type.emoji}</span>
-              <span className="text-sm font-semibold text-[#111827]">{type.label}</span>
-              <span className="text-xs text-[#9CA3AF] leading-tight">{type.desc}</span>
+              <span className="text-sm font-semibold text-[var(--color-text-primary)]">{type.label}</span>
+              <span className="text-xs text-[var(--color-text-secondary)] leading-tight">{type.desc}</span>
             </button>
           );
         })}
@@ -128,12 +128,12 @@ export function StepType({
       <div className="mt-5">
         {gamesLoading ? (
           <div className="space-y-2">
-            <div className="h-4 w-32 animate-pulse rounded bg-[#E8ECF0]" />
-            <div className="h-10 w-full animate-pulse rounded-[12px] bg-[#E8ECF0]" />
+            <div className="h-4 w-32 animate-pulse rounded bg-[var(--color-border)]" />
+            <div className="h-10 w-full animate-pulse rounded-[12px] bg-[var(--color-border)]" />
           </div>
         ) : recentGames.length > 0 ? (
           <div>
-            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[#E31B23]">
+            <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-[var(--color-primary)]">
               🔄 지난 경기 복사
             </p>
             <div className="space-y-2">
@@ -142,22 +142,22 @@ export function StepType({
                   key={i}
                   type="button"
                   onClick={() => onCopyGame(game)}
-                  className="flex w-full items-center gap-3 rounded-[12px] border border-[#E8ECF0] bg-white px-3 py-2.5 text-left transition-colors hover:border-[#E31B23]/50 hover:bg-[#E31B23]/5"
+                  className="flex w-full items-center gap-3 rounded-[12px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2.5 text-left transition-colors hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-primary)]/5"
                 >
                   <span className="text-base">
                     {game.game_type === 0 ? "🏀" : game.game_type === 1 ? "🤝" : "⚔️"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-[#111827] truncate">
+                    <span className="block text-sm font-medium text-[var(--color-text-primary)] truncate">
                       {typeLabel(game.game_type)}
                     </span>
-                    <span className="block text-xs text-[#9CA3AF] truncate">
+                    <span className="block text-xs text-[var(--color-text-secondary)] truncate">
                       {timeSince(game.scheduled_at)}
                       {game.venue_name && ` · ${game.venue_name}`}
                       {!game.venue_name && game.city && ` · ${game.city}`}
                     </span>
                   </div>
-                  <span className="text-xs text-[#9CA3AF]">→</span>
+                  <span className="text-xs text-[var(--color-text-secondary)]">→</span>
                 </button>
               ))}
             </div>

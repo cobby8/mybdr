@@ -18,11 +18,11 @@ interface TeamMatchDetailProps {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <tr className="border-b border-[#E8ECF0] last:border-0">
-      <th className="w-24 py-2.5 pr-4 text-left text-sm font-normal text-[#6B7280] align-top whitespace-nowrap">
+    <tr className="border-b border-[var(--color-border)] last:border-0">
+      <th className="w-24 py-2.5 pr-4 text-left text-sm font-normal text-[var(--color-text-muted)] align-top whitespace-nowrap">
         {label}
       </th>
-      <td className="py-2.5 text-sm font-medium text-[#111827]">{value}</td>
+      <td className="py-2.5 text-sm font-medium text-[var(--color-text-primary)]">{value}</td>
     </tr>
   );
 }
@@ -65,21 +65,21 @@ export function TeamMatchDetail({ game }: TeamMatchDetailProps) {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
                   <div
-                    className="h-5 w-5 rounded-full border border-[#E8ECF0]"
+                    className="h-5 w-5 rounded-full border border-[var(--color-border)]"
                     style={{
                       backgroundColor: game.uniform_home_color ?? "#FF0000",
                     }}
                   />
-                  <span className="text-xs text-[#6B7280]">홈</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">홈</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div
-                    className="h-5 w-5 rounded-full border border-[#E8ECF0]"
+                    className="h-5 w-5 rounded-full border border-[var(--color-border)]"
                     style={{
                       backgroundColor: game.uniform_away_color ?? "#0000FF",
                     }}
                   />
-                  <span className="text-xs text-[#6B7280]">어웨이</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">어웨이</span>
                 </div>
               </div>
             }

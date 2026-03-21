@@ -32,11 +32,11 @@ const SKILL_LABEL: Record<string, string> = {
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <tr className="border-b border-[#E8ECF0] last:border-0">
-      <th className="w-24 py-2.5 pr-4 text-left text-sm font-normal text-[#6B7280] align-top whitespace-nowrap">
+    <tr className="border-b border-[var(--color-border)] last:border-0">
+      <th className="w-24 py-2.5 pr-4 text-left text-sm font-normal text-[var(--color-text-muted)] align-top whitespace-nowrap">
         {label}
       </th>
-      <td className="py-2.5 text-sm font-medium text-[#111827]">{value}</td>
+      <td className="py-2.5 text-sm font-medium text-[var(--color-text-primary)]">{value}</td>
     </tr>
   );
 }
@@ -91,7 +91,7 @@ export function PickupDetail({ game }: PickupDetailProps) {
             value={
               <a
                 href={`tel:${game.contact_phone}`}
-                className="text-[#1B3C87] hover:underline"
+                className="text-[var(--color-accent)] hover:underline"
               >
                 {game.contact_phone}
               </a>

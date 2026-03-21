@@ -49,7 +49,7 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
 
   return (
     <Link href={href}>
-      <div className="group flex h-full flex-col rounded-[16px] border border-[#E8ECF0] bg-[#FFFFFF] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-[#1B3C87]/30">
+      <div className="group flex h-full flex-col rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg hover:border-[var(--color-accent)]/30">
         {/* 상단 컬러 바 */}
         <div className="h-1" style={{ backgroundColor: badge.bg }} />
 
@@ -70,20 +70,20 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
           </div>
 
           {/* Row 2: 제목 */}
-          <h3 className="mb-1 text-sm font-bold text-[#111827] line-clamp-1 leading-tight group-hover:text-[#1B3C87] transition-colors">
+          <h3 className="mb-1 text-sm font-bold text-[var(--color-text-primary)] line-clamp-1 leading-tight group-hover:text-[var(--color-accent)] transition-colors">
             {game.title}
           </h3>
 
           {/* Row 3: 날짜 + 장소 */}
           <div className="mb-2 space-y-0.5">
             {dateStr && (
-              <p className="flex items-center gap-1 text-xs text-[#6B7280]">
+              <p className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 opacity-50"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
                 {dateStr}
               </p>
             )}
             {location && (
-              <p className="flex items-center gap-1 text-xs text-[#6B7280]">
+              <p className="flex items-center gap-1 text-xs text-[var(--color-text-muted)]">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 opacity-50"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 <span className="line-clamp-1">{location}</span>
               </p>
@@ -93,7 +93,7 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
           {/* Row 4: 참가 프로그레스 */}
           {max > 0 && (
             <div className="mb-2 flex items-center gap-2">
-              <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[#E8ECF0]">
+              <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-border)]">
                 <div
                   className="absolute left-0 top-0 h-full rounded-full transition-all"
                   style={{ width: `${pct}%`, backgroundColor: barColor }}
@@ -107,8 +107,8 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
 
           {/* Row 5: 참가비 + 난이도 */}
           <div className="mt-auto flex items-center justify-between pt-1">
-            <span className="text-xs font-semibold text-[#111827]">
-              {fee ?? <span className="text-[#9CA3AF]">무료</span>}
+            <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+              {fee ?? <span className="text-[var(--color-text-secondary)]">무료</span>}
             </span>
             {skill && (
               <span

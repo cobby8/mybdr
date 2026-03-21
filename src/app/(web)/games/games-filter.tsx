@@ -19,7 +19,7 @@ const DATE_OPTIONS = [
 ];
 
 const selectCls =
-  "h-10 w-full appearance-none rounded-[12px] border border-[#E8ECF0] bg-[#FFFFFF] pl-3 pr-8 text-sm text-[#111827] focus:border-[#1B3C87]/60 focus:outline-none cursor-pointer";
+  "h-10 w-full appearance-none rounded-[12px] border border-[var(--color-border)] bg-[var(--color-card)] pl-3 pr-8 text-sm text-[var(--color-text-primary)] focus:border-[var(--color-accent)]/60 focus:outline-none cursor-pointer";
 
 function Select({
   value,
@@ -36,7 +36,7 @@ function Select({
         {children}
       </select>
       <svg
-        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF]"
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]"
         width="12" height="12" viewBox="0 0 12 12" fill="none"
       >
         <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -96,8 +96,8 @@ export function GamesFilter({ cities }: { cities: string[] }) {
         onClick={() => setOpen(!open)}
         className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
           open || hasActiveFilters
-            ? "bg-[#1B3C87] text-white"
-            : "text-[#6B7280] hover:bg-[rgba(27,60,135,0.08)] hover:text-[#111827]"
+            ? "bg-[var(--color-accent)] text-white"
+            : "text-[var(--color-text-muted)] hover:bg-[var(--color-accent)]/8 hover:text-[var(--color-text-primary)]"
         }`}
         title="검색 및 필터"
       >
@@ -106,22 +106,22 @@ export function GamesFilter({ cities }: { cities: string[] }) {
 
       {/* 활성 필터 도트 인디케이터 */}
       {hasActiveFilters && !open && (
-        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[#E31B23]" />
+        <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[var(--color-primary)]" />
       )}
 
       {/* 플로팅 패널 */}
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[300px] rounded-[16px] border border-[#E8ECF0] bg-[#FFFFFF] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)] space-y-3">
+        <div className="absolute right-0 top-12 z-50 w-[300px] rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-[0_8px_32px_rgba(0,0,0,0.12)] space-y-3">
           {/* 검색 */}
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="text"
               placeholder="경기 검색..."
               defaultValue={params.get("q") ?? ""}
               onChange={(e) => handleSearch(e.target.value)}
               autoFocus
-              className="h-10 w-full rounded-[12px] border border-[#E8ECF0] bg-[#FFFFFF] pl-9 pr-4 text-sm text-[#111827] placeholder:text-[#6B7280] focus:border-[#1B3C87]/60 focus:outline-none"
+              className="h-10 w-full rounded-[12px] border border-[var(--color-border)] bg-[var(--color-card)] pl-9 pr-4 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-accent)]/60 focus:outline-none"
             />
           </div>
 
@@ -145,7 +145,7 @@ export function GamesFilter({ cities }: { cities: string[] }) {
           {hasActiveFilters && (
             <button
               onClick={clearAll}
-              className="w-full rounded-full border border-[#E8ECF0] py-2 text-xs text-[#6B7280] hover:bg-[#EEF2FF] transition-colors"
+              className="w-full rounded-full border border-[var(--color-border)] py-2 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)] transition-colors"
             >
               필터 초기화
             </button>

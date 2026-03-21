@@ -10,10 +10,10 @@ export function WizardProgress({ steps, currentStep, onStepClick }: WizardProgre
   const progress = ((currentStep + 1) / steps.length) * 100;
 
   return (
-    <div className="bg-white">
+    <div className="bg-[var(--color-card)]">
       {/* Progress bar */}
       <div
-        className="h-1 bg-[#E8ECF0]"
+        className="h-1 bg-[var(--color-border)]"
         role="progressbar"
         aria-valuenow={progress}
         aria-valuemin={0}
@@ -21,7 +21,7 @@ export function WizardProgress({ steps, currentStep, onStepClick }: WizardProgre
         aria-label={`${steps.length}단계 중 ${currentStep + 1}단계`}
       >
         <div
-          className="h-full bg-[#E31B23] transition-all duration-200 ease-out"
+          className="h-full bg-[var(--color-primary)] transition-all duration-200 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -41,10 +41,10 @@ export function WizardProgress({ steps, currentStep, onStepClick }: WizardProgre
               disabled={!isClickable}
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-colors ${
                 isActive
-                  ? "bg-[#1B3C87] font-semibold text-white"
+                  ? "bg-[var(--color-accent)] font-semibold text-white"
                   : isCompleted
                     ? "bg-[rgba(74,222,128,0.15)] text-[#22C55E] cursor-pointer hover:bg-[rgba(74,222,128,0.25)]"
-                    : "bg-[#F5F7FA] text-[#9CA3AF] cursor-not-allowed"
+                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] cursor-not-allowed"
               }`}
               aria-current={isActive ? "step" : undefined}
             >

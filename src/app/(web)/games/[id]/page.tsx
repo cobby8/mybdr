@@ -97,7 +97,7 @@ export default async function GameDetailPage({
       {/* 메인 정보 카드 */}
       <Card>
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-[#1B3C87]">{gameTypeInfo.icon}</span>
+          <span className="text-[var(--color-accent)]">{gameTypeInfo.icon}</span>
           <Badge variant="default">{gameTypeInfo.label}</Badge>
           <Badge
             variant={
@@ -120,7 +120,7 @@ export default async function GameDetailPage({
 
         {/* 설명 */}
         {game.description && (
-          <p className="mt-4 text-sm text-[#6B7280]">{game.description}</p>
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">{game.description}</p>
         )}
 
         {/* 신청 버튼: 호스트 본인 제외, 미신청자만 */}
@@ -154,7 +154,7 @@ export default async function GameDetailPage({
         <Card>
           <h2 className="mb-4 text-lg font-semibold uppercase tracking-wide" style={{ fontFamily: "var(--font-heading)" }}>
             신청자 관리{" "}
-            <span className="text-sm font-normal text-[#6B7280]">
+            <span className="text-sm font-normal text-[var(--color-text-muted)]">
               ({applications.length} / {game.max_participants ?? "∞"}명)
             </span>
           </h2>
@@ -187,7 +187,7 @@ export default async function GameDetailPage({
                 .map((a) => (
                   <div
                     key={a.id.toString()}
-                    className="flex items-center justify-between rounded-[12px] bg-[#EEF2FF] px-4 py-2"
+                    className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-2"
                   >
                     <span className="text-sm">{a.users?.nickname ?? a.users?.name ?? "익명"}</span>
                     <Badge variant="success">승인</Badge>
@@ -195,7 +195,7 @@ export default async function GameDetailPage({
                 ))}
             </div>
           ) : (
-            <p className="text-sm text-[#6B7280]">아직 승인된 참가자가 없습니다.</p>
+            <p className="text-sm text-[var(--color-text-muted)]">아직 승인된 참가자가 없습니다.</p>
           )}
         </Card>
       )}

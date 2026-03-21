@@ -42,10 +42,10 @@ export default async function MyGamesPage() {
           <div className="space-y-2">
             {hostedGames.map((g) => (
               <Link key={g.id.toString()} href={`/games/${g.uuid?.slice(0, 8) ?? g.id}`}>
-                <Card className="flex items-center justify-between rounded-[16px] border border-[#E8ECF0] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
+                <Card className="flex items-center justify-between rounded-[16px] border border-[var(--color-border)] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
                   <div>
                     <p className="font-medium">{g.title ?? "제목 없음"}</p>
-                    <p className="text-xs text-[#6B7280]">{g.scheduled_at?.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {g.venue_name ?? g.city ?? "-"}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{g.scheduled_at?.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {g.venue_name ?? g.city ?? "-"}</p>
                   </div>
                   <Badge>{STATUS_LABEL[g.status] ?? "대기"}</Badge>
                 </Card>
@@ -53,10 +53,10 @@ export default async function MyGamesPage() {
             ))}
           </div>
         ) : (
-          <Card className="py-8 text-center text-[#6B7280]">
-            <div className="mb-2"><svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-[#9CA3AF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/><path d="M19.07 4.93A10 10 0 0 1 22 12c0 2.76-1.12 5.26-2.93 7.07"/><path d="M4.93 19.07A10 10 0 0 1 2 12c0-2.76 1.12-5.26 2.93-7.07"/></svg></div>
+          <Card className="py-8 text-center text-[var(--color-text-muted)]">
+            <div className="mb-2"><svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-[var(--color-text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/><path d="M19.07 4.93A10 10 0 0 1 22 12c0 2.76-1.12 5.26-2.93 7.07"/><path d="M4.93 19.07A10 10 0 0 1 2 12c0-2.76 1.12-5.26 2.93-7.07"/></svg></div>
             만든 경기가 없습니다.{" "}
-            <Link href="/games/new" className="text-[#E31B23] hover:underline">경기 만들기</Link>
+            <Link href="/games/new" className="text-[var(--color-primary)] hover:underline">경기 만들기</Link>
           </Card>
         )}
       </div>
@@ -68,10 +68,10 @@ export default async function MyGamesPage() {
           <div className="space-y-2">
             {applications.map((a) => (
               <Link key={a.id.toString()} href={`/games/${a.games?.uuid?.slice(0, 8) ?? a.game_id}`}>
-                <Card className="flex items-center justify-between rounded-[16px] border border-[#E8ECF0] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
+                <Card className="flex items-center justify-between rounded-[16px] border border-[var(--color-border)] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-lg">
                   <div>
                     <p className="font-medium">{a.games?.title ?? "경기"}</p>
-                    <p className="text-xs text-[#6B7280]">{a.games?.scheduled_at?.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {a.games?.venue_name ?? "-"}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{a.games?.scheduled_at?.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} · {a.games?.venue_name ?? "-"}</p>
                   </div>
                   <Badge variant={a.status === 1 ? "success" : a.status === 2 ? "error" : "default"}>
                     {APP_STATUS[a.status] ?? "대기"}
@@ -81,8 +81,8 @@ export default async function MyGamesPage() {
             ))}
           </div>
         ) : (
-          <Card className="py-8 text-center text-[#6B7280]">
-            <div className="mb-2"><svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-[#9CA3AF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/><path d="M19.07 4.93A10 10 0 0 1 22 12c0 2.76-1.12 5.26-2.93 7.07"/><path d="M4.93 19.07A10 10 0 0 1 2 12c0-2.76 1.12-5.26 2.93-7.07"/></svg></div>
+          <Card className="py-8 text-center text-[var(--color-text-muted)]">
+            <div className="mb-2"><svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-[var(--color-text-secondary)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/><path d="M19.07 4.93A10 10 0 0 1 22 12c0 2.76-1.12 5.26-2.93 7.07"/><path d="M4.93 19.07A10 10 0 0 1 2 12c0-2.76 1.12-5.26 2.93-7.07"/></svg></div>
             참가 신청한 경기가 없습니다.
           </Card>
         )}

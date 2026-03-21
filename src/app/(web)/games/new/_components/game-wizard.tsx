@@ -457,13 +457,13 @@ export function GameWizard({ permissions }: { permissions: Permissions }) {
             if (e.target === e.currentTarget) setShowPostcode(false);
           }}
         >
-          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-white shadow-xl mx-4">
-            <div className="flex items-center justify-between border-b border-[#E8ECF0] px-4 py-3">
-              <span className="font-semibold text-[#111827]">주소 검색</span>
+          <div className="flex w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-[var(--color-card)] shadow-xl mx-4">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
+              <span className="font-semibold text-[var(--color-text-primary)]">주소 검색</span>
               <button
                 type="button"
                 onClick={() => setShowPostcode(false)}
-                className="text-lg leading-none text-[#6B7280] hover:text-[#111827]"
+                className="text-lg leading-none text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
               >
                 ✕
               </button>
@@ -477,17 +477,17 @@ export function GameWizard({ permissions }: { permissions: Permissions }) {
       {showSuccess && <SuccessOverlay gameId={createdGameId} />}
 
       {/* --- Wizard Layout --- */}
-      <div className="fixed inset-0 z-[100] flex flex-col bg-[#F5F7FA] xl:static xl:min-h-[calc(100vh-80px)]">
+      <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-surface)] xl:static xl:min-h-[calc(100vh-80px)]">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[#E8ECF0] bg-white px-4">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-card)] px-4">
           <button
             type="button"
             onClick={step === 0 ? handleCancel : goPrev}
-            className="text-sm text-[#6B7280] hover:text-[#111827]"
+            className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
           >
             {step === 0 ? "← 취소" : "← 이전"}
           </button>
-          <span className="text-sm font-medium text-[#6B7280]">
+          <span className="text-sm font-medium text-[var(--color-text-muted)]">
             단계 {step + 1} / {STEPS.length}
           </span>
         </header>
@@ -556,13 +556,13 @@ export function GameWizard({ permissions }: { permissions: Permissions }) {
         </div>
 
         {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-between border-t border-[#E8ECF0] bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] xl:static xl:border-t xl:pb-3">
+        <div className="fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-between border-t border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] xl:static xl:border-t xl:pb-3">
           <div>
             {step > 0 && (
               <button
                 type="button"
                 onClick={goPrev}
-                className="rounded-full border border-[#E8ECF0] px-5 py-2.5 text-sm font-medium text-[#6B7280] hover:bg-[#F5F7FA] min-h-[44px]"
+                className="rounded-full border border-[var(--color-border)] px-5 py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] min-h-[44px]"
               >
                 ← 이전
               </button>
@@ -576,8 +576,8 @@ export function GameWizard({ permissions }: { permissions: Permissions }) {
                 disabled={!isNextEnabled}
                 className={`rounded-full px-6 py-2.5 text-sm font-semibold min-h-[44px] transition-colors ${
                   isNextEnabled
-                    ? "bg-[#E31B23] text-[#0A0A0A] hover:bg-[#E8934E]"
-                    : "bg-[#E8ECF0] text-[#9CA3AF] cursor-not-allowed"
+                    ? "bg-[var(--color-primary)] text-[#0A0A0A] hover:bg-[var(--color-primary-hover)]"
+                    : "bg-[var(--color-border)] text-[var(--color-text-secondary)] cursor-not-allowed"
                 }`}
               >
                 다음 →
@@ -589,8 +589,8 @@ export function GameWizard({ permissions }: { permissions: Permissions }) {
                 disabled={submitting}
                 className={`rounded-full px-6 py-2.5 text-sm font-semibold min-h-[44px] transition-colors ${
                   submitting
-                    ? "bg-[#E31B23]/50 text-[#0A0A0A]"
-                    : "bg-[#E31B23] text-[#0A0A0A] hover:bg-[#E8934E]"
+                    ? "bg-[var(--color-primary)]/50 text-[#0A0A0A]"
+                    : "bg-[var(--color-primary)] text-[#0A0A0A] hover:bg-[var(--color-primary-hover)]"
                 }`}
               >
                 {submitting ? (
@@ -623,8 +623,8 @@ function PreviewPanel({
 }) {
   if (step === 0 && !data.gameType) {
     return (
-      <div className="rounded-[16px] border border-[#E8ECF0] bg-white p-8 text-center">
-        <p className="text-sm text-[#9CA3AF]">유형을 선택하면 미리보기가 나타나요</p>
+      <div className="rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
+        <p className="text-sm text-[var(--color-text-secondary)]">유형을 선택하면 미리보기가 나타나요</p>
       </div>
     );
   }
@@ -653,34 +653,34 @@ function PreviewPanel({
 
   return (
     <div
-      className="overflow-hidden rounded-[16px] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
+      className="overflow-hidden rounded-[16px] bg-[var(--color-card)] p-5 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"
       style={{ borderLeft: "3px solid #E31B23" }}
     >
       <div className="mb-3 flex items-center gap-1.5">
         <span className="text-base">{typeEmoji}</span>
-        <span className="text-xs font-medium text-[#E31B23]">{typeLabel}</span>
+        <span className="text-xs font-medium text-[var(--color-primary)]">{typeLabel}</span>
       </div>
 
-      <h3 className="mb-3 font-semibold leading-snug text-[#111827]">{title}</h3>
+      <h3 className="mb-3 font-semibold leading-snug text-[var(--color-text-primary)]">{title}</h3>
 
       <div className="mb-3 space-y-1">
         {dateDisplay && (
-          <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
             <span>📅</span>
             <span>{dateDisplay}</span>
           </div>
         )}
         {location && (
-          <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
             <span>📍</span>
             <span>{location}</span>
           </div>
         )}
       </div>
 
-      <div className="mb-3 h-px bg-[#E8ECF0]" />
+      <div className="mb-3 h-px bg-[var(--color-border)]" />
 
-      <div className="flex flex-wrap gap-2 text-xs text-[#9CA3AF]">
+      <div className="flex flex-wrap gap-2 text-xs text-[var(--color-text-secondary)]">
         <span>최대 {data.maxParticipants}명</span>
         <span>·</span>
         <span>{feeDisplay}</span>
