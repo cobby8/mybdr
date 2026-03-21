@@ -1,5 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
+
+/* Space Grotesk: Kinetic Pulse 헤드라인 폰트
+   - 한글 미지원이므로 Pretendard가 fallback으로 동작
+   - CSS 변수 --font-heading에 연결됨 */
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-heading",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://mybdr.kr"),
@@ -42,14 +53,15 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
+        {/* Quicksand는 기존 사용처 호환용 유지 */}
+        <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark');if(localStorage.getItem('textSize')==='large')document.documentElement.classList.add('large-text')}catch(e){}})()`,
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className={`${spaceGrotesk.variable} antialiased`}>{children}</body>
     </html>
   );
 }

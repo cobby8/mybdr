@@ -6,104 +6,83 @@
 
 @theme {
   /* ========================================
-   * Phase 4-1: ESPN + WHOOP 믹스 디자인 토큰
-   * - 기존 변수명은 유지하고 값만 변경 (하위 호환)
-   * - 새 변수를 추가하여 Phase 4-2 이후 컴포넌트 전환에 사용
+   * Phase 5-1: Kinetic Pulse 디자인 토큰
+   * - 다크 모드 전용 (High-End Sport Editorial)
+   * - 변수명 유지, 값만 Kinetic Pulse로 교체
    * ======================================== */
 
-  /* --- 기존 변수 (값 변경, 하위 호환 유지) --- */
-  --color-background: #F5F5F7;       /* 페이지 배경: 살짝 회색 톤 */
-  --color-card: #FFFFFF;             /* 카드 배경: 순백 유지 */
-  --color-elevated: #EDF0F8;         /* 기존 유지 (Phase 4-7에서 정리) */
-  --color-surface: #E8ECF0;          /* 기존 유지 (Phase 4-7에서 정리) */
+  /* --- 배경/표면 계층 (Surface Hierarchy) --- */
+  --color-background: #131313;       /* 페이지 기본 배경 (surface) */
+  --color-card: #1C1B1B;             /* 카드 배경 (surface_container_low) */
+  --color-elevated: #353534;         /* 떠있는 요소 (surface_container_highest) */
+  --color-surface: #131313;          /* surface 기본 (background와 동일) */
 
-  --color-primary: #1B3C87;          /* 기본 브랜드 색상 유지 */
-  --color-primary-hover: #142D6B;
-  --color-primary-light: rgba(27, 60, 135, 0.08);
-  --color-accent: #F4A261;           /* 포인트 컬러: 빨강 -> 웜 오렌지로 변경 */
-  --color-accent-hover: #E8934F;     /* 약간 어두운 오렌지 */
-  --color-accent-light: rgba(244, 162, 97, 0.1); /* 오렌지 배경용 */
+  /* --- 신규: Surface 세분화 변수 --- */
+  --color-surface-lowest: #0E0E0E;   /* 입력 필드 등 깊이감 배경 */
+  --color-surface-low: #1C1B1B;      /* card와 동일 계층 */
+  --color-surface-high: #353534;     /* elevated와 동일 계층 */
+  --color-surface-bright: #474746;   /* 카드 호버 시 배경 */
 
-  --color-text-primary: #111827;
-  --color-text-secondary: #6B7280;
-  --color-text-muted: #9CA3AF;
-  --color-text-on-primary: #FFFFFF;
+  /* --- 브랜드 색상 (Primary = Electric Red) --- */
+  --color-primary: #E31B23;          /* 기본 브랜드: Electric Red */
+  --color-primary-hover: #FF2D35;    /* 호버 시 밝은 레드 */
+  --color-primary-light: rgba(227, 27, 35, 0.15); /* 레드 반투명 배경 */
+  --color-on-primary: #FFFFFF;       /* primary 위 텍스트 */
 
-  --color-success: #10B981;          /* 성공/진행중 (초록 톤 변경) */
-  --color-error: #EF4444;            /* 위험/마감 (톤 변경) */
-  --color-warning: #F59E0B;          /* 경고/대기 (톤 변경) */
-  --color-info: #3B82F6;             /* 정보 (톤 변경) */
+  /* --- 보조 색상 (Accent = Deep Navy, Secondary) --- */
+  --color-accent: #1B3C87;           /* 보조 강조: Deep Navy */
+  --color-accent-hover: #162F6B;     /* 어두운 네이비 */
+  --color-accent-light: rgba(27, 60, 135, 0.15); /* 네이비 반투명 배경 */
+  --color-secondary: #1B3C87;        /* secondary = accent 동일 */
+  --color-tertiary: #94CCFF;         /* 텍스트 링크/삼차 강조 */
 
-  --color-border: #E5E7EB;           /* 기본 테두리 (톤 변경) */
-  --color-border-subtle: #F0F0F0;    /* 미세한 구분선 (톤 변경) */
+  /* --- 텍스트 (따뜻한 톤, 순백 금지) --- */
+  --color-text-primary: #E7E2DE;     /* 메인 텍스트: 따뜻한 오프화이트 */
+  --color-text-secondary: #C4B8B4;   /* 보조 텍스트 */
+  --color-text-muted: #938F8C;       /* 약한 텍스트 */
+  --color-text-on-primary: #FFFFFF;  /* 버튼 위 텍스트 (유일한 순백 허용) */
 
-  --radius-card: 16px;
-  --radius-card-lg: 24px;
-  --radius-pill: 9999px;
+  /* --- 상태 색상 --- */
+  --color-success: #10B981;
+  --color-error: #FFB4AC;            /* 따뜻한 에러 톤 */
+  --color-warning: #F59E0B;
+  --color-info: #3B82F6;
 
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12);
+  /* --- 테두리 (Ghost Border) --- */
+  --color-border: rgba(147, 143, 140, 0.15);     /* 기본 고스트 보더 */
+  --color-border-subtle: rgba(147, 143, 140, 0.08); /* 미세한 구분선 */
 
+  /* --- 라운딩 (최소화) --- */
+  --radius-card: 8px;                /* 카드: 최소 라운딩 */
+  --radius-card-lg: 12px;            /* 큰 카드 */
+  --radius-pill: 4px;                /* 버튼: 거의 직각 */
+  --radius-button: 4px;              /* 버튼 전용 별칭 */
+
+  /* --- 그림자 (Ambient Shadow) --- */
+  --shadow-card: 0 4px 32px rgba(10, 10, 15, 0.08);
+  --shadow-elevated: 0 8px 48px rgba(10, 10, 15, 0.08);
+
+  /* --- 폰트 --- */
   --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-heading: 'Barlow Condensed', 'Pretendard', sans-serif;
+  --font-heading: 'Space Grotesk', 'Pretendard', sans-serif;
 
-  /* --- 새 컬러 변수 (Phase 4-2 이후 컴포넌트 전환용) --- */
-  --color-bg-primary: #FFFFFF;       /* 페이지 배경 (라이트) */
-  --color-bg-secondary: #F5F5F7;     /* 섹션 배경 */
-  --color-card-hover: #F9F9FB;       /* 카드 호버 배경 */
-  --color-text-tertiary: #9CA3AF;    /* 약한 텍스트 (text-muted와 동일값이지만 의미 분리) */
+  /* --- 기존 호환 변수 (다크 전용이므로 다크 값) --- */
+  --color-bg-primary: #131313;       /* background와 동일 */
+  --color-bg-secondary: #1C1B1B;     /* card와 동일 */
+  --color-bg-card: #353534;          /* elevated와 동일 */
+  --color-bg-hover: #2C2C2B;         /* 호버 배경 */
 
-  /* --- 타이포그래피 변수 (WHOOP 스타일 크기 스케일) --- */
-  --font-size-display: 2rem;         /* 32px: 대형 제목 (히어로, 페이지 타이틀) */
-  --font-size-heading: 1.25rem;      /* 20px: 섹션 제목 */
-  --font-size-subheading: 1rem;      /* 16px: 소제목 */
-  --font-size-body: 0.875rem;        /* 14px: 본문 */
-  --font-size-caption: 0.75rem;      /* 12px: 캡션, 보조 텍스트 */
-  --font-size-micro: 0.6875rem;      /* 11px: 아주 작은 텍스트 (뱃지 등) */
-
-  /* --- 간격 변수 (카드/섹션 일관된 여백) --- */
-  --spacing-card-padding: 0.875rem;  /* 14px: 카드 내부 패딩 */
-  --spacing-card-gap: 0.75rem;       /* 12px: 카드 사이 간격 */
-  --spacing-section-gap: 1.5rem;     /* 24px: 섹션 사이 간격 */
+  /* --- 그라디언트/글래스모피즘 --- */
+  --color-gradient-start: #FFB4AC;   /* CTA 그라디언트 시작 */
+  --color-gradient-end: #E31B23;     /* CTA 그라디언트 끝 */
+  --color-glass-bg: rgba(19, 19, 19, 0.7); /* 글래스 배경 */
+  --color-glass-blur: 20px;          /* 글래스 블러 값 */
 }
 
-/* ---- Dark Mode Variables (WHOOP 스타일 다크 팔레트) ---- */
+/* ---- Dark Mode Variables (Kinetic Pulse - 다크 전용) ---- */
+/* @theme 블록이 이미 다크 값을 가지므로, html.dark에서는
+   color-scheme 선언과 최소한의 오버라이드만 유지 */
 html.dark {
-  /* --- 기존 변수 (WHOOP 다크 팔레트로 값 변경) --- */
-  --color-background: #0D0D0D;      /* 깊은 어둠 (WHOOP 스타일) */
-  --color-card: #1A1A1A;            /* 카드 배경 */
-  --color-elevated: #222222;        /* 떠있는 요소 배경 */
-  --color-surface: #1F1F1F;         /* 표면 배경 */
-
-  --color-primary: #5B7FD6;         /* 기본 브랜드 (다크용, 유지) */
-  --color-primary-hover: #7B9AE8;
-  --color-primary-light: rgba(91, 127, 214, 0.15);
-  --color-accent: #F4A261;          /* 웜 오렌지 (다크에서도 동일) */
-  --color-accent-hover: #FABD82;    /* 약간 밝은 오렌지 (다크에서 호버 시 더 밝게) */
-  --color-accent-light: rgba(244, 162, 97, 0.15);
-
-  --color-text-primary: #F5F5F5;    /* 메인 텍스트 */
-  --color-text-secondary: #A0A0A0;  /* 보조 텍스트 */
-  --color-text-muted: #666666;      /* 약한 텍스트 */
-  --color-text-on-primary: #FFFFFF;
-
-  --color-success: #4ADE80;
-  --color-error: #F87171;
-  --color-warning: #FBBF24;
-  --color-info: #60A5FA;
-
-  --color-border: #2A2A2A;          /* 테두리 */
-  --color-border-subtle: #1F1F1F;   /* 미세한 구분선 */
-
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
-  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.5);
-
-  /* --- 새 컬러 변수 (다크 모드 오버라이드) --- */
-  --color-bg-primary: #0D0D0D;      /* 페이지 배경 */
-  --color-bg-secondary: #141414;    /* 섹션 배경 */
-  --color-card-hover: #222222;      /* 카드 호버 배경 */
-  --color-text-tertiary: #666666;   /* 약한 텍스트 */
-
   color-scheme: dark;
 }
 
