@@ -27,7 +27,7 @@ function getBadgeStyle(badge: string): { bg: string; text: string; icon?: "flame
       // 파란/보라 계열
       return { bg: "bg-indigo-500/15", text: "text-indigo-600" };
     default:
-      // 디비전명 (스타터스, 챌린저 등) → 오렌지 계열
+      // 디비전명 (스타터스, 챌린저 등) -> 오렌지 계열
       return { bg: "bg-[#F4A261]/15", text: "text-[#E76F00]" };
   }
 }
@@ -74,7 +74,7 @@ export function RecommendedVideos() {
 
   return (
     <section>
-      {/* 헤더 */}
+      {/* 헤더: 섹션 제목은 CSS 변수로 텍스트 색상 적용 */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#FF0000]">
@@ -82,7 +82,7 @@ export function RecommendedVideos() {
           </div>
           <h2
             className="text-xl font-bold uppercase tracking-wide"
-            style={{ fontFamily: "var(--font-heading)" }}
+            style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
           >
             BDR 추천 영상
           </h2>
@@ -91,7 +91,8 @@ export function RecommendedVideos() {
           href="https://www.youtube.com/@BDRBASKET"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold text-[#FF0000] hover:underline"
+          className="text-sm font-semibold hover:underline"
+          style={{ color: "#FF0000" }}
         >
           채널 보기 →
         </a>
@@ -99,18 +100,20 @@ export function RecommendedVideos() {
 
       {/* 영상 카드 가로 스크롤 */}
       <div className="group relative">
-        {/* 스크롤 버튼 (데스크탑) */}
+        {/* 스크롤 버튼 (데스크탑): CSS 변수로 배경/텍스트 적용 */}
         <button
           onClick={() => scroll("left")}
-          className="absolute -left-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100 md:block md:opacity-0"
+          className="absolute -left-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full p-1.5 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100 md:block md:opacity-0"
+          style={{ backgroundColor: "var(--color-card)" }}
         >
-          <ChevronLeft size={18} className="text-[#111827]" />
+          <ChevronLeft size={18} style={{ color: "var(--color-text-primary)" }} />
         </button>
         <button
           onClick={() => scroll("right")}
-          className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-white/90 p-1.5 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100 md:block md:opacity-0"
+          className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full p-1.5 shadow-md backdrop-blur-sm transition-opacity group-hover:opacity-100 md:block md:opacity-0"
+          style={{ backgroundColor: "var(--color-card)" }}
         >
-          <ChevronRight size={18} className="text-[#111827]" />
+          <ChevronRight size={18} style={{ color: "var(--color-text-primary)" }} />
         </button>
 
         <div
@@ -122,8 +125,11 @@ export function RecommendedVideos() {
               key={v.video_id}
               className="w-[260px] flex-shrink-0 sm:w-[300px]"
             >
-              {/* 썸네일 / 플레이어 */}
-              <div className="relative aspect-video overflow-hidden rounded-[12px] bg-[#111827]">
+              {/* 썸네일 / 플레이어: 다크 배경은 CSS 변수 사용 */}
+              <div
+                className="relative aspect-video overflow-hidden rounded-[12px]"
+                style={{ backgroundColor: "var(--color-text-primary)" }}
+              >
                 {playingId === v.video_id ? (
                   <iframe
                     src={`https://www.youtube.com/embed/${v.video_id}?autoplay=1&rel=0`}
@@ -166,9 +172,12 @@ export function RecommendedVideos() {
                 )}
               </div>
 
-              {/* 영상 정보 */}
+              {/* 영상 정보: 텍스트 색상을 CSS 변수로 전환 */}
               <div className="mt-2 px-0.5">
-                <h3 className="text-sm font-bold text-[#111827] line-clamp-2 leading-tight">
+                <h3
+                  className="text-sm font-bold line-clamp-2 leading-tight"
+                  style={{ color: "var(--color-text-primary)" }}
+                >
                   {v.title}
                 </h3>
                 {/* 뱃지 목록 + 날짜 */}
@@ -195,7 +204,8 @@ export function RecommendedVideos() {
                       </span>
                     );
                   })}
-                  <span className="text-xs text-[#9CA3AF]">
+                  {/* 날짜 텍스트: CSS 변수 사용 */}
+                  <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                     {formatDate(v.published_at)}
                   </span>
                 </div>

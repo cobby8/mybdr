@@ -30,7 +30,11 @@ export function HeroSection() {
 
   if (state === "loading") {
     return (
-      <div className="h-[160px] animate-pulse rounded-[20px] bg-gradient-to-br from-[#111827] to-[#1F2937]" />
+      /* 로딩 스켈레톤: CSS 변수로 배경색 적용 */
+      <div
+        className="h-[160px] animate-pulse rounded-[20px]"
+        style={{ background: "linear-gradient(to bottom right, var(--color-card), var(--color-elevated))" }}
+      />
     );
   }
 
@@ -39,23 +43,32 @@ export function HeroSection() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[20px] bg-[#111827] px-8 py-10 md:px-12 md:py-14">
+    /* 비로그인 히어로: 다크 카드 배경 + 웜 오렌지 포인트 */
+    <section
+      className="relative overflow-hidden rounded-[20px] px-8 py-10 md:px-12 md:py-14"
+      style={{ backgroundColor: "var(--color-text-primary)" }}
+    >
       {/* 배경 패턴 */}
       <div className="absolute inset-0 opacity-[0.06]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
       }} />
-      {/* 그라데이션 오버레이 */}
-      <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-[#E31B23]/20 to-transparent" />
+      {/* 그라데이션 오버레이: 웜 오렌지로 변경 */}
+      <div
+        className="absolute right-0 top-0 h-full w-1/2"
+        style={{ background: "linear-gradient(to left, var(--color-accent-light), transparent)" }}
+      />
 
       <div className="relative text-center">
-        <h1 className="mb-3 text-4xl font-extrabold uppercase tracking-wide text-white md:text-5xl" style={{ fontFamily: "var(--font-heading)" }}>
-          <span className="text-[#E31B23]">B</span>asketball{" "}
-          <span className="text-[#E31B23]">D</span>aily{" "}
-          <span className="text-[#E31B23]">R</span>outine
+        {/* 브랜드 타이틀: 포인트 컬러를 웜 오렌지로 변경 */}
+        <h1 className="mb-3 text-4xl font-extrabold uppercase tracking-wide md:text-5xl" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>
+          <span style={{ color: "var(--color-accent)" }}>B</span>asketball{" "}
+          <span style={{ color: "var(--color-accent)" }}>D</span>aily{" "}
+          <span style={{ color: "var(--color-accent)" }}>R</span>outine
         </h1>
-        <p className="mb-8 text-base text-white/60">농구 경기와 대회를 쉽고 빠르게 찾고, 즐기세요</p>
+        <p className="mb-8 text-base" style={{ color: "rgba(255,255,255,0.6)" }}>농구 경기와 대회를 쉽고 빠르게 찾고, 즐기세요</p>
         <div className="flex justify-center gap-3">
           <Link href="/games" prefetch={true}>
+            {/* CTA 버튼: 웜 오렌지 (Button cta variant가 이미 Phase 4-2에서 변경됨) */}
             <Button>경기 찾기</Button>
           </Link>
           <Link href="/tournaments" prefetch={true}>

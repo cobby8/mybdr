@@ -68,14 +68,22 @@ function dDay(iso: string | null): string {
 }
 
 // --- Slide Components ---
+// 각 슬라이드의 하드코딩 색상을 CSS 변수로 전환
+// 히어로 슬라이드는 다크 배경 위에 표시되므로 텍스트는 흰색(on-primary) 유지
+
 function SlideNextGame({ data }: { data: DashboardData["next_game"] }) {
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Calendar className="mb-2 text-[#1B3C87]" size={32} />
-        <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>예정된 경기가 없어요</p>
-        <p className="mt-1 text-xs text-[#9CA3AF]">새로운 경기를 찾아보세요!</p>
-        <Link href="/games" className="mt-3 rounded-[10px] bg-[#E31B23] px-4 py-2 text-xs font-bold text-white hover:bg-[#C8101E]">
+        <Calendar className="mb-2" size={32} style={{ color: "var(--color-primary)" }} />
+        <p className="text-sm font-bold" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>예정된 경기가 없어요</p>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>새로운 경기를 찾아보세요!</p>
+        {/* CTA 버튼: 웜 오렌지 적용 */}
+        <Link
+          href="/games"
+          className="mt-3 rounded-[10px] px-4 py-2 text-xs font-bold"
+          style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-primary)" }}
+        >
           경기 찾기
         </Link>
       </div>
@@ -85,19 +93,23 @@ function SlideNextGame({ data }: { data: DashboardData["next_game"] }) {
     <Link href={`/games/${data.uuid?.slice(0, 8) ?? ""}`} className="flex h-full flex-col justify-between">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <span className="rounded-[6px] bg-[#E31B23] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+          {/* D-Day 뱃지: 웜 오렌지로 변경 */}
+          <span
+            className="rounded-[6px] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider"
+            style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-primary)" }}
+          >
             {dDay(data.scheduled_at)}
           </span>
-          <span className="text-xs font-medium text-[#9CA3AF]">내 다음 경기</span>
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>내 다음 경기</span>
         </div>
-        <h3 className="text-base font-bold text-white line-clamp-2" style={{ fontFamily: "var(--font-heading)" }}>{data.title}</h3>
+        <h3 className="text-base font-bold line-clamp-2" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>{data.title}</h3>
       </div>
       <div className="mt-2 space-y-1">
-        <div className="flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
           <Calendar size={13} />
           <span>{formatDate(data.scheduled_at)} {formatTime(data.scheduled_at)}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-[#9CA3AF]">
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
           <MapPin size={13} />
           <span className="truncate">{[data.city, data.venue_name].filter(Boolean).join(" ")}</span>
         </div>
@@ -110,9 +122,10 @@ function SlideRecentStats({ data }: { data: DashboardData["recent_stats"] }) {
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Flame className="mb-2 text-[#E31B23]" size={32} />
-        <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>아직 기록이 없어요</p>
-        <p className="mt-1 text-xs text-[#9CA3AF]">대회에 참가하면 스탯이 기록됩니다</p>
+        {/* 불꽃 아이콘: 웜 오렌지로 변경 */}
+        <Flame className="mb-2" size={32} style={{ color: "var(--color-accent)" }} />
+        <p className="text-sm font-bold" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>아직 기록이 없어요</p>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>대회에 참가하면 스탯이 기록됩니다</p>
       </div>
     );
   }
@@ -126,11 +139,11 @@ function SlideRecentStats({ data }: { data: DashboardData["recent_stats"] }) {
     <div className="flex h-full flex-col justify-between">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Flame size={14} className="text-[#E31B23]" />
-          <span className="text-xs font-medium text-[#9CA3AF]">내 최근 스탯</span>
+          <Flame size={14} style={{ color: "var(--color-accent)" }} />
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>내 최근 스탯</span>
         </div>
         {data.tournament_name && (
-          <p className="mb-1 text-xs text-[#9CA3AF]">
+          <p className="mb-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
             {data.tournament_name} · {formatDate(data.match_date)}
           </p>
         )}
@@ -138,8 +151,8 @@ function SlideRecentStats({ data }: { data: DashboardData["recent_stats"] }) {
       <div className="grid grid-cols-4 gap-2">
         {stats.map((s) => (
           <div key={s.label} className="text-center">
-            <p className="text-xl font-black text-white">{s.value}</p>
-            <p className="text-xs text-[#9CA3AF]">{s.label}</p>
+            <p className="text-xl font-black" style={{ color: "var(--color-text-on-primary)" }}>{s.value}</p>
+            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -151,10 +164,14 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
   if (teams.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Users className="mb-2 text-[#1B3C87]" size={32} />
-        <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>소속 팀이 없어요</p>
-        <p className="mt-1 text-xs text-[#9CA3AF]">팀에 가입하거나 새로 만들어보세요</p>
-        <Link href="/teams" className="mt-3 rounded-[10px] bg-[#E31B23] px-4 py-2 text-xs font-bold text-white hover:bg-[#C8101E]">
+        <Users className="mb-2" size={32} style={{ color: "var(--color-primary)" }} />
+        <p className="text-sm font-bold" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>소속 팀이 없어요</p>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>팀에 가입하거나 새로 만들어보세요</p>
+        <Link
+          href="/teams"
+          className="mt-3 rounded-[10px] px-4 py-2 text-xs font-bold"
+          style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-primary)" }}
+        >
           팀 찾기
         </Link>
       </div>
@@ -163,8 +180,8 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="mb-2 flex items-center gap-2">
-        <Users size={14} className="text-[#1B3C87]" />
-        <span className="text-xs font-medium text-[#9CA3AF]">내 팀 전적</span>
+        <Users size={14} style={{ color: "var(--color-primary)" }} />
+        <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>내 팀 전적</span>
       </div>
       <div className="space-y-2">
         {teams.map((t) => {
@@ -174,13 +191,14 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
             <Link key={t.id} href={`/teams/${t.id}`} className="flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2 transition-colors hover:bg-white/20">
               <div
                 className="h-8 w-8 rounded-full"
-                style={{ backgroundColor: t.color || "#1B3C87" }}
+                style={{ backgroundColor: t.color || "var(--color-primary)" }}
               />
               <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-bold text-white">{t.name}</p>
-                <p className="text-xs text-[#9CA3AF]">{t.wins}승 {t.losses}패</p>
+                <p className="truncate text-sm font-bold" style={{ color: "var(--color-text-on-primary)" }}>{t.name}</p>
+                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{t.wins}승 {t.losses}패</p>
               </div>
-              <span className="text-sm font-black text-[#E31B23]">{winRate}%</span>
+              {/* 승률: 웜 오렌지로 변경 */}
+              <span className="text-sm font-black" style={{ color: "var(--color-accent)" }}>{winRate}%</span>
             </Link>
           );
         })}
@@ -193,10 +211,14 @@ function SlideActiveTournament({ data }: { data: DashboardData["active_tournamen
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Trophy className="mb-2 text-[#E31B23]" size={32} />
-        <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>참가 중인 대회가 없어요</p>
-        <p className="mt-1 text-xs text-[#9CA3AF]">대회에 참가해서 실력을 겨뤄보세요</p>
-        <Link href="/tournaments" className="mt-3 rounded-[10px] bg-[#E31B23] px-4 py-2 text-xs font-bold text-white hover:bg-[#C8101E]">
+        <Trophy className="mb-2" size={32} style={{ color: "var(--color-accent)" }} />
+        <p className="text-sm font-bold" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>참가 중인 대회가 없어요</p>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>대회에 참가해서 실력을 겨뤄보세요</p>
+        <Link
+          href="/tournaments"
+          className="mt-3 rounded-[10px] px-4 py-2 text-xs font-bold"
+          style={{ backgroundColor: "var(--color-accent)", color: "var(--color-text-on-primary)" }}
+        >
           대회 둘러보기
         </Link>
       </div>
@@ -211,20 +233,24 @@ function SlideActiveTournament({ data }: { data: DashboardData["active_tournamen
     <Link href={`/tournaments/${data.id}`} className="flex h-full flex-col justify-between">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Trophy size={14} className="text-[#E31B23]" />
-          <span className="text-xs font-medium text-[#9CA3AF]">참가 중인 대회</span>
+          <Trophy size={14} style={{ color: "var(--color-accent)" }} />
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>참가 중인 대회</span>
         </div>
-        <h3 className="text-base font-bold text-white line-clamp-2" style={{ fontFamily: "var(--font-heading)" }}>{data.name}</h3>
+        <h3 className="text-base font-bold line-clamp-2" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>{data.name}</h3>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <span className="rounded-[6px] bg-[#1B3C87] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+        {/* 상태 뱃지: primary 색상 유지 */}
+        <span
+          className="rounded-[6px] px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider"
+          style={{ backgroundColor: "var(--color-primary)", color: "var(--color-text-on-primary)" }}
+        >
           {STATUS_KR[data.status ?? ""] ?? data.status}
         </span>
         {data.team_name && (
-          <span className="text-xs text-[#9CA3AF]">{data.team_name}</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{data.team_name}</span>
         )}
         {data.start_date && (
-          <span className="text-xs text-[#9CA3AF]">{formatDate(data.start_date)}</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>{formatDate(data.start_date)}</span>
         )}
       </div>
     </Link>
@@ -235,17 +261,17 @@ function SlideRecommended({ games }: { games: DashboardData["recommended_games"]
   if (games.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <MapPin className="mb-2 text-[#1B3C87]" size={32} />
-        <p className="text-sm font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>추천 경기가 없어요</p>
-        <p className="mt-1 text-xs text-[#9CA3AF]">프로필에 지역을 설정하면 맞춤 추천해드려요</p>
+        <MapPin className="mb-2" size={32} style={{ color: "var(--color-primary)" }} />
+        <p className="text-sm font-bold" style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-on-primary)" }}>추천 경기가 없어요</p>
+        <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>프로필에 지역을 설정하면 맞춤 추천해드려요</p>
       </div>
     );
   }
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="mb-2 flex items-center gap-2">
-        <MapPin size={14} className="text-[#1B3C87]" />
-        <span className="text-xs font-medium text-[#9CA3AF]">내 지역 추천 경기</span>
+        <MapPin size={14} style={{ color: "var(--color-primary)" }} />
+        <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>내 지역 추천 경기</span>
       </div>
       <div className="space-y-2">
         {games.slice(0, 2).map((g, i) => (
@@ -255,13 +281,17 @@ function SlideRecommended({ games }: { games: DashboardData["recommended_games"]
             className="flex items-center justify-between rounded-xl bg-white/10 px-3 py-2 transition-colors hover:bg-white/20"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-white">{g.title}</p>
-              <p className="text-xs text-[#9CA3AF]">
+              <p className="truncate text-sm font-bold" style={{ color: "var(--color-text-on-primary)" }}>{g.title}</p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 {formatDate(g.scheduled_at)} {formatTime(g.scheduled_at)} · {g.venue_name ?? g.city}
               </p>
             </div>
             {g.spots_left !== null && (
-              <span className="ml-2 whitespace-nowrap rounded-[6px] bg-[#E31B23]/20 px-2 py-0.5 text-xs font-bold text-[#E31B23]">
+              /* 남은 자리 뱃지: 웜 오렌지로 변경 */
+              <span
+                className="ml-2 whitespace-nowrap rounded-[6px] px-2 py-0.5 text-xs font-bold"
+                style={{ backgroundColor: "var(--color-accent-light)", color: "var(--color-accent)" }}
+              >
                 {g.spots_left}자리
               </span>
             )}
@@ -327,17 +357,26 @@ export function PersonalHero({ preloadedData }: { preloadedData?: Record<string,
 
   if (loading) {
     return (
-      <div className="h-[144px] animate-pulse rounded-[20px] bg-[#111827] border border-[#1F2937]" />
+      /* 로딩 스켈레톤: CSS 변수 사용 */
+      <div
+        className="h-[144px] animate-pulse rounded-[20px]"
+        style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", borderWidth: "1px" }}
+      />
     );
   }
 
-  if (!data) return null; // Not logged in — parent will show static hero
+  if (!data) return null; // Not logged in -- parent will show static hero
 
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden rounded-[20px] border border-[#1F2937]"
-      style={{ background: "var(--hero-bg, #111827)" }}
+      className="relative overflow-hidden rounded-[20px]"
+      style={{
+        /* 히어로 컨테이너: CSS 변수로 배경/테두리 적용 */
+        background: "var(--hero-bg, var(--color-card))",
+        borderWidth: "1px",
+        borderColor: "var(--color-border)",
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={onTouchStart}
@@ -360,18 +399,20 @@ export function PersonalHero({ preloadedData }: { preloadedData?: Record<string,
         ))}
       </div>
 
-      {/* Navigation arrows (desktop) */}
+      {/* Navigation arrows (desktop): CSS 변수로 배경/아이콘 색상 적용 */}
       <button
         onClick={prev}
-        className="absolute left-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/80 p-1 shadow-sm backdrop-blur-sm md:block"
+        className="absolute left-2 top-1/2 hidden -translate-y-1/2 rounded-full p-1 shadow-sm backdrop-blur-sm md:block"
+        style={{ backgroundColor: "var(--color-card)" }}
       >
-        <ChevronLeft size={16} className="text-[#1B3C87]" />
+        <ChevronLeft size={16} style={{ color: "var(--color-primary)" }} />
       </button>
       <button
         onClick={next}
-        className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/80 p-1 shadow-sm backdrop-blur-sm md:block"
+        className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-full p-1 shadow-sm backdrop-blur-sm md:block"
+        style={{ backgroundColor: "var(--color-card)" }}
       >
-        <ChevronRight size={16} className="text-[#1B3C87]" />
+        <ChevronRight size={16} style={{ color: "var(--color-primary)" }} />
       </button>
 
       {/* Dots */}

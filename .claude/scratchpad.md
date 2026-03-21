@@ -434,6 +434,36 @@ reviewer 참고:
 - 헤더 배경의 반투명(bg-[#FFFFFF]/95)은 유지 -- rgba 값에 CSS 변수를 쓰기 어려워 globals.css의 dark backdrop-blur 오버라이드에 의존
 - slide-menu의 role/aria 속성은 그대로 유지 (접근성)
 
+### Phase 4-4: 홈 페이지 리디자인 (히어로, 퀵 메뉴, 추천 영상, 추천 경기)
+
+구현한 기능: 홈 페이지의 5개 컴포넌트에서 하드코딩 색상(#111827, #E31B23, #9CA3AF, #E8ECF0, #FFFFFF 등)을 Phase 4-1에서 정의한 CSS 변수로 전환하고, 포인트 컬러를 빨강(#E31B23)에서 웜 오렌지(var(--color-accent))로 변경했다. 로직/데이터 처리는 일절 건드리지 않았다.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/home/hero-section.tsx` | 비로그인 히어로: 배경 #111827->var(--color-text-primary), 그라데이션 오버레이 #E31B23->var(--color-accent-light), 브랜드 이니셜 #E31B23->var(--color-accent), 로딩 스켈레톤 CSS 변수 적용 | 수정 |
+| `src/components/home/personal-hero.tsx` | 로그인 대시보드: 5개 슬라이드 내 모든 하드코딩 색상->CSS 변수 전환 (text-[#9CA3AF]->var(--color-text-muted), text-white->var(--color-text-on-primary), #E31B23->var(--color-accent), #1B3C87->var(--color-primary)), 컨테이너 배경/테두리 CSS 변수 적용, 네비게이션 화살표 배경 bg-white/80->var(--color-card) | 수정 |
+| `src/components/home/quick-menu.tsx` | 카드 배경 bg-[#FFFFFF]->var(--color-card), 테두리 border-[#E8ECF0]->var(--color-border), 제목/텍스트->var(--color-text-primary)/var(--color-text-muted), 편집 모드 전체 CSS 변수 적용, 선택된 칩 색상->var(--color-primary-light) | 수정 |
+| `src/components/home/recommended-videos.tsx` | 섹션 제목->var(--color-text-primary), 영상 제목->var(--color-text-primary), 날짜 텍스트->var(--color-text-muted), 썸네일 배경->var(--color-text-primary), 스크롤 버튼 배경->var(--color-card) | 수정 |
+| `src/components/home/recommended-games.tsx` | 카드 배경/테두리->var(--color-card)/var(--color-border), 제목->var(--color-text-primary), 날짜->var(--color-text-muted), "전체보기" 링크 #E31B23->var(--color-accent), 남은자리 뱃지 bg-[#E31B23]->var(--color-accent), 매칭이유 #1B3C87->var(--color-primary), 빈 상태 카드 CSS 변수 적용 | 수정 |
+
+tester 참고:
+- 테스트 방법: tsc --noEmit 통과 확인 (완료). 개발 서버에서 홈 페이지(/) 라이트/다크 모드 전환 확인 필요
+- 정상 동작:
+  - 라이트 모드: 포인트 컬러가 빨강에서 웜 오렌지(#F4A261)로 변경되어야 함 (히어로 이니셜, D-Day 뱃지, CTA 버튼, 남은자리 뱃지, "전체보기" 링크, 승률 텍스트)
+  - 다크 모드: 카드 배경이 #1A1A1A, 테두리가 #2A2A2A, 텍스트가 #F5F5F5로 자동 전환되어야 함
+  - 퀵 메뉴 카드: 호버 시 살짝 떠오르는 효과(translate-y) 유지, 테두리 색상은 CSS 변수로 자동 다크 대응
+  - 추천 영상: YouTube 빨간색(#FF0000)은 브랜드 색상이므로 의도적으로 유지
+- 주의할 점:
+  - 로그인/비로그인 상태 모두 확인 필요 (hero-section이 상태에 따라 다른 컴포넌트 렌더링)
+  - personal-hero의 슬라이드 자동 회전(5초)과 스와이프 기능은 변경하지 않았으므로 정상 동작해야 함
+
+reviewer 참고:
+- 로직/데이터 처리 코드는 일절 변경하지 않음 -- 순수 스타일(CSS) 변경만 진행
+- CSS 변수는 모두 Phase 4-1에서 정의된 것만 사용 (새 변수 추가 없음)
+- personal-hero에서 className 대신 style 속성으로 CSS 변수를 적용한 이유: Tailwind의 text-[var(--...)] 문법보다 style={{ color: "var(--...)" }}가 더 명시적이고 런타임에서 CSS 변수 값 변경을 즉시 반영
+- YouTube 관련 색상(#FF0000, bg-red-600)은 YouTube 브랜드 가이드라인에 따라 의도적으로 유지
+- getBadgeStyle 함수의 LIVE/HOT 뱃지 색상은 의미론적 색상(빨강=라이브, 주황=인기)이므로 CSS 변수로 전환하지 않음
+
 ## 테스트 결과 (tester)
 
 ### Phase 2: 선호 종별(divisions) 대회 필터 검증 (2026-03-21)
@@ -558,6 +588,82 @@ reviewer 참고:
 - games API에서 preferred_divisions를 사용하지 않음 -- divisions는 대회(tournaments) 전용 개념이고, games는 game_type(경기 유형)으로 필터링하므로 정상 설계.
 - preferences API의 Zod 스키마가 preferred_divisions, preferred_board_categories, preferred_game_types 세 필드를 모두 검증하며, 각 필드가 optional이므로 부분 업데이트도 안전하게 처리됨.
 - 개발 서버가 실행 중이 아니어서 동적 API 호출 테스트는 수행하지 못함. B단계에서 이미 검증되었으므로 이번 C단계는 정적 코드 분석에 집중.
+
+### Phase 4-4: 홈 페이지 리디자인 검증 (2026-03-21)
+
+**검증 대상**: hero-section.tsx, personal-hero.tsx, quick-menu.tsx, recommended-videos.tsx, recommended-games.tsx
+
+#### 1. TypeScript 컴파일 체크
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 1 | `npx tsc --noEmit` | 통과 | 에러/경고 0건, 출력 없이 정상 종료 |
+
+#### 2. 하드코딩 색상 -> CSS 변수 전환 검증
+
+| 번호 | 파일 | 검증 항목 | 결과 | 비고 |
+|------|------|----------|------|------|
+| 2-1 | hero-section.tsx | 빨간색(#E31B23) 완전 제거 | 통과 | 포인트 컬러가 var(--color-accent)로 전환됨 |
+| 2-2 | hero-section.tsx | 배경색 #111827 -> CSS 변수 | 통과 | var(--color-text-primary)로 전환 |
+| 2-3 | hero-section.tsx | 그라데이션 오버레이 CSS 변수 적용 | 통과 | var(--color-accent-light) 사용 |
+| 2-4 | hero-section.tsx | 로딩 스켈레톤 CSS 변수 적용 | 통과 | var(--color-card), var(--color-elevated) 사용 |
+| 2-5 | personal-hero.tsx | 빨간색(#E31B23) 완전 제거 | 통과 | D-Day 뱃지, CTA 버튼 등 모두 var(--color-accent)로 전환 |
+| 2-6 | personal-hero.tsx | 텍스트 색상 CSS 변수 전환 | 통과 | text-muted, text-on-primary, text-primary 등 적절히 사용 |
+| 2-7 | personal-hero.tsx | 컨테이너 배경/테두리 CSS 변수 적용 | 통과 | var(--hero-bg, var(--color-card))로 fallback 포함 |
+| 2-8 | personal-hero.tsx | 네비게이션 화살표 배경 CSS 변수 | 통과 | var(--color-card) 사용 |
+| 2-9 | quick-menu.tsx | 카드 배경/테두리 CSS 변수 전환 | 통과 | var(--color-card), var(--color-border) 사용 |
+| 2-10 | quick-menu.tsx | 편집 모드 전체 CSS 변수 적용 | 통과 | 선택 칩 var(--color-primary-light), 후보 목록 var(--color-border) 등 |
+| 2-11 | quick-menu.tsx | 제목/텍스트 CSS 변수 전환 | 통과 | var(--color-text-primary), var(--color-text-muted) 사용 |
+| 2-12 | recommended-videos.tsx | 섹션 제목/영상 제목 CSS 변수 | 통과 | var(--color-text-primary) 사용 |
+| 2-13 | recommended-videos.tsx | 스크롤 버튼/썸네일 배경 CSS 변수 | 통과 | var(--color-card), var(--color-text-primary) 사용 |
+| 2-14 | recommended-videos.tsx | YouTube 빨간색(#FF0000) 의도적 유지 | 통과 | YouTube 브랜드 색상이므로 CSS 변수로 전환하지 않음 -- 적절한 판단 |
+| 2-15 | recommended-videos.tsx | LIVE/HOT 뱃지 색상 의도적 유지 | 통과 | 의미론적 색상(빨강=라이브, 주황=인기)이므로 유지 -- 적절 |
+| 2-16 | recommended-games.tsx | 카드 배경/테두리 CSS 변수 전환 | 통과 | var(--color-card), var(--color-border) 사용 |
+| 2-17 | recommended-games.tsx | "전체보기" 링크 빨강 -> 웜 오렌지 | 통과 | var(--color-accent) 사용 |
+| 2-18 | recommended-games.tsx | 남은자리 뱃지 빨강 -> 웜 오렌지 | 통과 | var(--color-accent) 사용 |
+| 2-19 | recommended-games.tsx | 빈 상태 카드 CSS 변수 적용 | 통과 | var(--color-card), var(--color-border), var(--color-text-muted) 사용 |
+| 2-20 | recommended-games.tsx | TYPE_BADGE 하드코딩 유지 | 통과 | 경기 유형별 고정 색상(PICKUP=파랑, GUEST=녹색, PRACTICE=주황)은 의미론적 구분이므로 유지 적절 |
+
+#### 3. CSS 변수 매칭 (globals.css 정의 확인)
+
+| 번호 | 사용된 CSS 변수 | globals.css 정의 | 라이트/다크 | 결과 |
+|------|---------------|-----------------|-----------|------|
+| 3-1 | --color-card | 라이트 #FFFFFF / 다크 #1A1A1A | 양쪽 정의됨 | 통과 |
+| 3-2 | --color-elevated | 라이트 #EDF0F8 / 다크 #222222 | 양쪽 정의됨 | 통과 |
+| 3-3 | --color-primary | 라이트 #1B3C87 / 다크 #5B7FD6 | 양쪽 정의됨 | 통과 |
+| 3-4 | --color-primary-light | 라이트 rgba(27,60,135,0.08) / 다크 rgba(91,127,214,0.15) | 양쪽 정의됨 | 통과 |
+| 3-5 | --color-accent | 라이트/다크 모두 #F4A261 | 양쪽 정의됨 | 통과 |
+| 3-6 | --color-accent-light | 라이트 rgba(244,162,97,0.1) / 다크 rgba(244,162,97,0.15) | 양쪽 정의됨 | 통과 |
+| 3-7 | --color-text-primary | 라이트 #111827 / 다크 #F5F5F5 | 양쪽 정의됨 | 통과 |
+| 3-8 | --color-text-secondary | 라이트 #6B7280 / 다크 #A0A0A0 | 양쪽 정의됨 | 통과 |
+| 3-9 | --color-text-muted | 라이트 #9CA3AF / 다크 #666666 | 양쪽 정의됨 | 통과 |
+| 3-10 | --color-text-on-primary | 양쪽 모두 #FFFFFF | 양쪽 정의됨 | 통과 |
+| 3-11 | --color-border | 라이트 #E5E7EB / 다크 #2A2A2A | 양쪽 정의됨 | 통과 |
+| 3-12 | --color-border-subtle | 라이트 #F0F0F0 / 다크 #1F1F1F | 양쪽 정의됨 | 통과 |
+| 3-13 | --font-heading | Barlow Condensed, Pretendard, sans-serif | 양쪽 공통 정의 | 통과 |
+| 3-14 | --hero-bg | 다크 모드만 정의 | fallback 처리됨 | 통과 |
+
+#### 4. 로직/데이터 처리 무변경 확인
+
+| 번호 | 파일 | 검증 항목 | 결과 | 비고 |
+|------|------|----------|------|------|
+| 4-1 | hero-section.tsx | fetch/상태관리/AbortController 로직 무변경 | 통과 | state 관리, API 호출, 타임아웃 처리 모두 원본 유지 |
+| 4-2 | personal-hero.tsx | 슬라이드 로직(자동회전/스와이프/네비) 무변경 | 통과 | useCallback, setInterval, touch 이벤트 모두 원본 유지 |
+| 4-3 | quick-menu.tsx | 편집/저장/낙관적 업데이트 로직 무변경 | 통과 | toggleItem, saveEdit, fetch PUT 모두 원본 유지 |
+| 4-4 | recommended-videos.tsx | YouTube embed/스크롤/로딩 로직 무변경 | 통과 | playingId 상태, scrollBy, iframe embed 모두 원본 유지 |
+| 4-5 | recommended-games.tsx | 추천 경기 API 호출/데이터 매핑 무변경 | 통과 | fetch, RecommendedData 타입, 카드 렌더링 로직 원본 유지 |
+
+#### 5. 추가 확인
+
+| 번호 | 검증 항목 | 결과 | 비고 |
+|------|----------|------|------|
+| 5-1 | --hero-bg fallback 처리 | 통과 | personal-hero.tsx 376행: `var(--hero-bg, var(--color-card))` -- 라이트 모드에서 --hero-bg 미정의 시 --color-card로 대체 |
+| 5-2 | recommended-videos.tsx getBadgeStyle 디비전 뱃지 하드코딩 | 경고 | `bg-[#F4A261]/15`와 `text-[#E76F00]` 하드코딩. #E76F00은 --color-accent(#F4A261)와 미세하게 다른 값. Tailwind 클래스 기반이라 CSS 변수 전환이 어려운 점은 이해하나 기록 남김 |
+
+📊 종합: 39개 중 39개 통과 / 0개 실패 / 1개 경고
+
+경고 상세:
+- recommended-videos.tsx의 getBadgeStyle 함수에서 디비전 뱃지 색상 `text-[#E76F00]`이 하드코딩됨. --color-accent(#F4A261)와 미세하게 다른 톤. Tailwind 유틸리티 클래스에서 CSS 변수를 직접 사용하기 어려운 구조적 한계이므로 현시점에서는 허용하되, Phase 4-7(정리/리팩토링) 시점에 검토 권장.
 
 ## 리뷰 결과 (reviewer)
 
@@ -1332,6 +1438,18 @@ reviewer 참고:
 - `.claude/scratchpad.md`
 🔄 push 여부: 미완료
 
+### Phase 4-3 커밋 (2026-03-21)
+
+📦 커밋: `342551b` feat: redesign header, nav, slide-menu, footer with CSS variables and warm orange accent
+🌿 브랜치: master
+📁 포함 파일:
+- `src/app/(web)/layout.tsx`
+- `src/components/shared/header.tsx`
+- `src/components/shared/slide-menu.tsx`
+- `src/components/layout/Footer.tsx`
+- `.claude/scratchpad.md`
+🔄 push 여부: 미완료
+
 ## 문서 기록 (doc-writer)
 (아직 없음)
 
@@ -1368,3 +1486,5 @@ reviewer 참고:
 | 2026-03-21 | developer | Phase 4-3 구현 - 헤더+네비+슬라이드메뉴+풋터+레이아웃 CSS 변수 전환 + 포인트컬러 웜 오렌지 | 완료 - tsc 통과 |
 | 2026-03-21 | git-manager | Phase 4-2 커밋 - feat: redesign common UI components (Card, Button, Badge, Skeleton) | 완료 - 2f20efe (push 미완료) |
 | 2026-03-21 | tester | Phase 4-3 검증 - tsc + 헤더/네비/슬라이드메뉴/풋터/레이아웃 CSS변수 + 포인트컬러 + safe-area + 세션로직 | 통과 - 43/43 항목 통과 |
+| 2026-03-21 | git-manager | Phase 4-3 커밋 - feat: redesign header, nav, slide-menu, footer with CSS variables and warm orange accent | 완료 - 342551b (push 미완료) |
+| 2026-03-21 | tester | Phase 4-4 검증 - tsc + 하드코딩색상전환(20항목) + CSS변수매칭(14항목) + 로직무변경(5항목) | 통과 - 39/39 통과, 1경고 |

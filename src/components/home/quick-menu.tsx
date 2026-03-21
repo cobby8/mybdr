@@ -35,7 +35,7 @@ export function QuickMenu() {
           setItems(data.menu_items ?? DEFAULT_ITEMS);
           setIsLoggedIn(true);
         }
-        // 401: 미로그인 → 기본값 유지
+        // 401: 미로그인 -> 기본값 유지
       })
       .catch(() => {});
   }, []);
@@ -68,51 +68,69 @@ export function QuickMenu() {
         body: JSON.stringify({ menu_items: pending }),
       });
     } catch {
-      // silent fail — UI already updated optimistically
+      // silent fail -- UI already updated optimistically
     } finally {
       setSaving(false);
     }
   };
 
+  /* 편집 모드: 카드 배경/테두리/텍스트를 CSS 변수로 전환 */
   if (editMode) {
     return (
-      <section className="rounded-[20px] border border-[#E8ECF0] bg-[#FFFFFF] p-4">
+      <section
+        className="rounded-[20px] p-4"
+        style={{
+          backgroundColor: "var(--color-card)",
+          borderWidth: "1px",
+          borderColor: "var(--color-border)",
+        }}
+      >
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm font-bold text-[#111827]" style={{ fontFamily: "var(--font-heading)" }}>
+          <span
+            className="text-sm font-bold"
+            style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
+          >
             메뉴 편집 ({pending.length}/{MAX_ITEMS}개 선택)
           </span>
           <button
             onClick={saveEdit}
             disabled={saving || pending.length === 0}
-            className="rounded-[10px] bg-[#111827] px-4 py-1.5 text-xs font-bold text-white disabled:opacity-60 hover:bg-[#1F2937]"
+            className="rounded-[10px] px-4 py-1.5 text-xs font-bold disabled:opacity-60"
+            style={{ backgroundColor: "var(--color-text-primary)", color: "var(--color-text-on-primary)" }}
           >
             완료
           </button>
         </div>
 
-        {/* 현재 선택 */}
+        {/* 현재 선택된 메뉴 칩 */}
         <div className="mb-3 flex flex-wrap gap-2">
           {MENU_POOL.filter((m) => pending.includes(m.id)).map((m) => (
             <button
               key={m.id}
               onClick={() => toggleItem(m.id)}
-              className="flex items-center gap-1 rounded-[6px] bg-[rgba(27,60,135,0.12)] px-3 py-1.5 text-xs font-bold text-[#1B3C87]"
+              className="flex items-center gap-1 rounded-[6px] px-3 py-1.5 text-xs font-bold"
+              style={{ backgroundColor: "var(--color-primary-light)", color: "var(--color-primary)" }}
             >
               {m.icon} {m.label} ✕
             </button>
           ))}
         </div>
 
-        {/* 전체 후보 */}
-        <div className="border-t border-[#F1F5F9] pt-3">
-          <p className="mb-2 text-xs text-[#9CA3AF]">추가 가능한 메뉴</p>
+        {/* 전체 후보 목록 */}
+        <div className="pt-3" style={{ borderTopWidth: "1px", borderColor: "var(--color-border-subtle)" }}>
+          <p className="mb-2 text-xs" style={{ color: "var(--color-text-muted)" }}>추가 가능한 메뉴</p>
           <div className="grid grid-cols-3 gap-2">
             {MENU_POOL.filter((m) => !pending.includes(m.id)).map((m) => (
               <button
                 key={m.id}
                 onClick={() => toggleItem(m.id)}
                 disabled={pending.length >= MAX_ITEMS}
-                className="flex flex-col items-center gap-1 rounded-[12px] border border-[#E8ECF0] py-3 text-xs text-[#6B7280] transition-colors hover:border-[#1B3C87] hover:text-[#1B3C87] disabled:opacity-40"
+                className="flex flex-col items-center gap-1 rounded-[12px] py-3 text-xs transition-colors disabled:opacity-40"
+                style={{
+                  borderWidth: "1px",
+                  borderColor: "var(--color-border)",
+                  color: "var(--color-text-secondary)",
+                }}
               >
                 <span className="text-lg">{m.icon}</span>
                 {m.label}
@@ -124,14 +142,21 @@ export function QuickMenu() {
     );
   }
 
+  /* 기본 표시 모드: 카드 배경/테두리/호버를 CSS 변수로 전환 */
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-bold text-[#111827]" style={{ fontFamily: "var(--font-heading)" }}>자주 쓰는 메뉴</span>
+        <span
+          className="text-sm font-bold"
+          style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
+        >
+          자주 쓰는 메뉴
+        </span>
         {isLoggedIn && (
           <button
             onClick={openEdit}
-            className="text-xs text-[#9CA3AF] hover:text-[#6B7280]"
+            className="text-xs"
+            style={{ color: "var(--color-text-muted)" }}
           >
             편집
           </button>
@@ -140,9 +165,17 @@ export function QuickMenu() {
       <div className="grid grid-cols-4 gap-2">
         {menuItems.map((m) => (
           <Link key={m.id} href={m.href}>
-            <div className="flex flex-col items-center gap-1.5 rounded-[16px] border border-[#E8ECF0] bg-[#FFFFFF] py-3 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-[#1B3C87]">
+            {/* 퀵 메뉴 카드: CSS 변수 배경/테두리 + 호버 시 웜 오렌지 보더 */}
+            <div
+              className="flex flex-col items-center gap-1.5 rounded-[16px] py-3 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-md"
+              style={{
+                backgroundColor: "var(--color-card)",
+                borderWidth: "1px",
+                borderColor: "var(--color-border)",
+              }}
+            >
               <span className="text-xl">{m.icon}</span>
-              <span className="text-xs font-bold text-[#374151]">{m.label}</span>
+              <span className="text-xs font-bold" style={{ color: "var(--color-text-primary)" }}>{m.label}</span>
             </div>
           </Link>
         ))}
