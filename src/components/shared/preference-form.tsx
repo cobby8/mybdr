@@ -35,7 +35,7 @@ export interface PreferenceFormProps {
 
 export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps) {
   // 전역 선호 필터 상태 (헤더의 "선호하는 정보만 보기" 토글과 동기화)
-  const { preferFilter, togglePreferFilter } = usePreferFilter();
+  const { preferFilter, togglePreferFilter, updatePreferDefault } = usePreferFilter();
 
   // 선호 디비전 선택 상태
   const [selectedDivisions, setSelectedDivisions] = useState<string[]>([]);
@@ -114,6 +114,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       });
 
       if (!res.ok) throw new Error("저장 실패");
+
+      // 저장 후 선호 설정 존재 여부에 따라 기본값 갱신
+      // 디비전이 하나라도 설정되어 있으면 preferFilter 기본값을 true로
+      const hasPrefs = selectedDivisions.length > 0;
+      updatePreferDefault(hasPrefs);
 
       setMessage({ type: "success", text: "선호 설정이 저장되었습니다." });
       // 3초 후 메시지 자동 제거

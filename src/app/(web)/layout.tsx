@@ -44,7 +44,7 @@ const bottomNavItems = [
 function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { preferFilter, togglePreferFilter, setLoggedIn } = usePreferFilter();
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: string; prefer_filter_enabled?: boolean } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   /* 마운트 시 로그인 + 알림 병렬 fetch (waterfall 방지) */
@@ -58,7 +58,8 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
         .catch(() => null),
     ]).then(([userData, notifData]) => {
       setUser(userData);
-      setLoggedIn(!!userData);
+      // DB의 선호 설정 여부를 preferFilter 기본값으로 전달
+      setLoggedIn(!!userData, userData?.prefer_filter_enabled ?? false);
       if (userData && notifData) setUnreadCount(notifData.unreadCount ?? 0);
     });
   }, [setLoggedIn]);
@@ -87,7 +88,8 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "var(--color-surface)" }}>
+    /* 전체 컨테이너: flex + min-h-screen으로 푸터를 항상 하단에 고정 */
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--color-surface)" }}>
       {/* ========================================
        * 데스크탑 사이드바 (md 이상에서만 표시)
        * bdr_6: fixed left-0, w-64, bg-surface-low
@@ -237,14 +239,16 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
        * pb-24: 모바일 하단 네비바 여백
        * md:pl-64: 데스크탑 사이드바 너비만큼 좌측 여백
        * ======================================== */}
-      <main className="pt-20 pb-24 md:pb-12 md:pl-64">
+      {/* 메인 콘텐츠: flex-1로 남은 공간을 모두 차지하여 푸터를 하단으로 밀어냄 */}
+      <main className="flex-1 pt-20 pb-24 md:pb-12 md:pl-64">
         <div className="mx-auto max-w-7xl px-6">
           {children}
         </div>
       </main>
 
-      {/* 풋터: 데스크탑에서는 사이드바만큼 좌측 패딩 */}
-      <div className="md:pl-64">
+      {/* 푸터: 데스크탑에서만 표시 (모바일은 하단 네비바가 있으므로 숨김) */}
+      {/* mt-auto로 콘텐츠가 짧아도 항상 화면 하단에 배치 */}
+      <div className="mt-auto hidden md:block md:pl-64">
         <Footer />
       </div>
 
