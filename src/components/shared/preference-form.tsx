@@ -117,10 +117,9 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
       if (!res.ok) throw new Error("저장 실패");
 
-      // 저장 후 선호 설정 존재 여부에 따라 기본값 갱신
-      // 디비전이 하나라도 설정되어 있으면 preferFilter 기본값을 true로
-      const hasPrefs = selectedDivisions.length > 0;
-      updatePreferDefault(hasPrefs);
+      // 저장 후 현재 토글 상태를 기본값으로 갱신
+      // preferFilter가 false(OFF)면 페이지 이동 시에도 OFF 유지
+      updatePreferDefault(preferFilter);
 
       setMessage({ type: "success", text: "맞춤 설정이 저장되었습니다." });
       // 3초 후 메시지 자동 제거

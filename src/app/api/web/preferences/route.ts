@@ -9,6 +9,8 @@ const preferencesSchema = z.object({
   preferred_board_categories: z.array(z.string()).optional(),
   // 경기 유형: 0=PICKUP, 1=GUEST, 2=PRACTICE (숫자 배열)
   preferred_game_types: z.array(z.number().int().min(0).max(2)).optional(),
+  // 맞춤 보기 토글 ON/OFF 상태 (true=켜짐, false=꺼짐)
+  prefer_filter_enabled: z.boolean().optional(),
 });
 
 // GET: 현재 유저의 선호 설정 조회
@@ -48,13 +50,15 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       return apiError("유효하지 않은 입력입니다.", 422);
     }
 
-    const { preferred_divisions, preferred_board_categories, preferred_game_types } = parsed.data;
+    const { preferred_divisions, preferred_board_categories, preferred_game_types, prefer_filter_enabled } = parsed.data;
 
     // 변경할 필드만 모아서 업데이트 (undefined인 필드는 건너뜀)
     const updateData: Record<string, unknown> = {};
     if (preferred_divisions !== undefined) updateData.preferred_divisions = preferred_divisions;
     if (preferred_board_categories !== undefined) updateData.preferred_board_categories = preferred_board_categories;
     if (preferred_game_types !== undefined) updateData.preferred_game_types = preferred_game_types;
+    // 맞춤 보기 토글 상태를 DB에 저장 (OFF→false, ON→true)
+    if (prefer_filter_enabled !== undefined) updateData.prefer_filter_enabled = prefer_filter_enabled;
 
     // 변경할 내용이 없으면 현재 값 그대로 반환
     if (Object.keys(updateData).length === 0) {
