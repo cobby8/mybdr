@@ -1450,6 +1450,19 @@ reviewer 참고:
 - `.claude/scratchpad.md`
 🔄 push 여부: 미완료
 
+### Phase 4-4 커밋 (2026-03-21)
+
+📦 커밋: `6298820` feat: redesign home page components (Hero, QuickMenu, Videos, Games) with CSS variables and warm orange accent
+🌿 브랜치: master
+📁 포함 파일:
+- `src/components/home/hero-section.tsx`
+- `src/components/home/personal-hero.tsx`
+- `src/components/home/quick-menu.tsx`
+- `src/components/home/recommended-videos.tsx`
+- `src/components/home/recommended-games.tsx`
+- `.claude/scratchpad.md`
+🔄 push 여부: 미완료
+
 ## 문서 기록 (doc-writer)
 (아직 없음)
 
@@ -1488,3 +1501,4 @@ reviewer 참고:
 | 2026-03-21 | tester | Phase 4-3 검증 - tsc + 헤더/네비/슬라이드메뉴/풋터/레이아웃 CSS변수 + 포인트컬러 + safe-area + 세션로직 | 통과 - 43/43 항목 통과 |
 | 2026-03-21 | git-manager | Phase 4-3 커밋 - feat: redesign header, nav, slide-menu, footer with CSS variables and warm orange accent | 완료 - 342551b (push 미완료) |
 | 2026-03-21 | tester | Phase 4-4 검증 - tsc + 하드코딩색상전환(20항목) + CSS변수매칭(14항목) + 로직무변경(5항목) | 통과 - 39/39 통과, 1경고 |
+| 2026-03-21 | git-manager | Phase 4-4 커밋 - feat: redesign home page components with CSS variables and warm orange accent | 완료 - 6298820 (push 미완료) |
