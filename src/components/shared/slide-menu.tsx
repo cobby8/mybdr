@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { TextSizeToggle } from "@/components/shared/text-size-toggle";
 
 /* ============================================================
  * 슬라이드 메뉴 네비게이션 항목 정의
@@ -143,8 +145,21 @@ export function SlideMenu({
           })}
         </nav>
 
-        {/* 하단: Settings + Logout */}
+        {/* 하단: 유틸리티 버튼 + Settings + Logout */}
         <div className="border-t border-[#3A3A3A] p-4">
+          {/* 테마 전환 + 글씨 크기 + 활동 지역 버튼 */}
+          <div className="mb-2 flex items-center gap-2 px-2">
+            <ThemeToggle />
+            <TextSizeToggle />
+            <Link
+              href="/profile"
+              onClick={onClose}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[#888888] transition-colors hover:bg-[rgba(27,60,135,0.08)] hover:text-[#E0E0E0]"
+              title="활동 지역 설정"
+            >
+              <span className="material-symbols-outlined text-xl">location_on</span>
+            </Link>
+          </div>
           <Link
             href="/profile"
             onClick={onClose}

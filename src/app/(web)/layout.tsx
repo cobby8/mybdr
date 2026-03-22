@@ -8,6 +8,8 @@ import { Footer } from "@/components/layout/Footer";
 import { SWRProvider } from "@/components/providers/swr-provider";
 import { PreferFilterProvider, usePreferFilter } from "@/contexts/prefer-filter-context";
 import { SlideMenu } from "@/components/shared/slide-menu";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { TextSizeToggle } from "@/components/shared/text-size-toggle";
 
 /* ============================================================
  * 사이드바 네비게이션 항목 정의
@@ -193,6 +195,22 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           >
             Upgrade Pro
           </Link>
+
+          {/* 유틸리티 버튼: 테마 전환 + 글씨 크기 + 활동 지역 */}
+          <div className="flex items-center gap-2 px-2">
+            {/* 다크/라이트 모드 토글 */}
+            <ThemeToggle />
+            {/* 글씨 크기 조절 토글 */}
+            <TextSizeToggle />
+            {/* 활동 지역 설정 (프로필 페이지로 이동) */}
+            <Link
+              href="/profile"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-[#888888] transition-colors hover:bg-[rgba(27,60,135,0.08)] hover:text-white"
+              title="활동 지역 설정"
+            >
+              <span className="material-symbols-outlined text-xl">location_on</span>
+            </Link>
+          </div>
 
           {/* Settings / Logout 링크 */}
           <div className="flex flex-col gap-1">
