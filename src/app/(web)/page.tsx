@@ -30,7 +30,7 @@ export default async function HomePage() {
         {/* 좌측 메인 콘텐츠: 화면의 2/3 차지 */}
         <div className="lg:col-span-2 space-y-10">
           {/* 히어로 벤토 그리드: LIVE NOW 배너 + 보조 카드 */}
-          <HeroBento session={session} />
+          <HeroBento />
 
           {/* 추천/인기 경기: 로그인 시 개인화 제목, 비로그인 시 인기 경기 */}
           <RecommendedGames session={session} />

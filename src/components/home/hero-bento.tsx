@@ -9,25 +9,13 @@
  * 부가 정보를 작은 카드로 배치해 시각적 계층을 만든다.
  * ============================================================ */
 
-/* 세션 정보: 서버에서 getWebSession()으로 받은 JwtPayload를 전달받는다 */
-interface UserSession {
-  sub: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface HeroBentoProps {
-  session: UserSession | null;
-}
-
-export function HeroBento({ session }: HeroBentoProps) {
+export function HeroBento() {
   return (
-    /* 3열 그리드: 메인 배너 2칸 + 사이드 카드 1칸 */
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+    /* 히어로 배너: 전체 너비 */
+    <div>
 
       {/* ===== 메인 배너: LIVE NOW 비디오 플레이어 스타일 ===== */}
-      <div className="md:col-span-2 relative h-[420px] rounded-xl overflow-hidden bg-card group border border-border">
+      <div className="relative h-[420px] rounded-xl overflow-hidden bg-card group border border-border">
         {/* 배경 이미지 + 호버 시 확대 효과 */}
         <div className="absolute inset-0 w-full h-full overflow-hidden">
           <img
@@ -70,66 +58,6 @@ export function HeroBento({ session }: HeroBentoProps) {
         </div>
       </div>
 
-      {/* ===== 우측 사이드 카드 2개 세로 배치 ===== */}
-      <div className="flex flex-col gap-6">
-        {/* 카드 1: 오늘의 주요 경기 (네이비 배경) */}
-        <div className="flex-1 bg-secondary rounded-xl p-6 relative overflow-hidden group border border-border min-h-[198px] flex flex-col justify-center">
-          <div className="relative z-10">
-            <h3 className="text-xl font-bold text-white mb-2">오늘의 주요 경기</h3>
-            <p className="text-blue-100 text-sm opacity-80 mb-4">
-              리그 전체 일정을 확인하고 참가하세요.
-            </p>
-            <button className="text-white border border-white/30 hover:bg-white/10 px-4 py-2 rounded text-sm transition-all">
-              전체보기
-            </button>
-          </div>
-          {/* 배경 장식 아이콘 */}
-          <span className="material-symbols-outlined absolute -bottom-4 -right-4 text-9xl text-white/10 rotate-12">
-            sports_basketball
-          </span>
-        </div>
-
-        {/* 카드 2: 로그인 시 → 나의 통계 / 비로그인 시 → 서비스 소개 */}
-        {session ? (
-          /* 로그인 상태: 나의 통계 카드 */
-          <div className="flex-1 bg-surface rounded-xl p-6 border border-border flex flex-col justify-center min-h-[198px]">
-            <h4 className="text-sm font-bold text-text-primary mb-6 flex items-center justify-between uppercase tracking-wider">
-              나의 통계
-              <span className="material-symbols-outlined text-text-muted text-sm">insights</span>
-            </h4>
-            {/* Wins / Rank 2열 그리드 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card p-5 rounded-lg border border-border">
-                <div className="text-[10px] text-text-muted uppercase mb-1 font-bold">Wins</div>
-                <div className="text-2xl font-bold text-text-primary">42</div>
-              </div>
-              <div className="bg-card p-5 rounded-lg border border-border">
-                <div className="text-[10px] text-text-muted uppercase mb-1 font-bold">Rank</div>
-                <div className="text-2xl font-bold text-primary">Gold I</div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* 비로그인 상태: 서비스 소개 카드 */
-          <div className="flex-1 bg-gradient-to-br from-surface to-card rounded-xl p-8 border border-border flex flex-col justify-center min-h-[198px]">
-            <h4 className="text-sm font-bold text-primary mb-3 uppercase tracking-wider">
-              Service Feature
-            </h4>
-            <p className="text-text-primary font-bold text-lg mb-2">
-              실시간 데이터 분석
-            </p>
-            <p className="text-text-muted text-xs leading-relaxed mb-4">
-              모든 경기의 기록이 체계적으로 관리되어 프로 선수 같은 통계를 제공합니다.
-            </p>
-            {/* 인디케이터 닷 */}
-            <div className="flex gap-2">
-              <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-              <div className="w-1.5 h-1.5 bg-elevated rounded-full" />
-              <div className="w-1.5 h-1.5 bg-elevated rounded-full" />
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
