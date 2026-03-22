@@ -279,6 +279,11 @@ h1, h2, h3,
   letter-spacing: 0.01em;
 }
 
+/* Material Symbols 기본 설정: 아이콘 폰트의 기본 스타일 지정 */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
 /* 모바일 터치 개선 */
 button,
 a,

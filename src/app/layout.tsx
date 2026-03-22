@@ -55,6 +55,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* Pretendard: 본문 한글 폰트 (CDN) */}
         <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" rel="stylesheet" />
+        {/* Material Symbols Outlined: 아이콘 폰트 (lucide-react 대체) */}
+        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
         {/* Quicksand는 기존 사용처 호환용 유지 */}
         <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
         <script

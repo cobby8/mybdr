@@ -7,45 +7,41 @@ import { usePathname } from "next/navigation";
 import { Footer } from "@/components/layout/Footer";
 import { SWRProvider } from "@/components/providers/swr-provider";
 import { PreferFilterProvider, usePreferFilter } from "@/contexts/prefer-filter-context";
-import { BellIcon } from "@/components/shared/bell-icon";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { TextSizeToggle } from "@/components/shared/text-size-toggle";
-import {
-  Home, Dribbble, Trophy, MapPin, Users, BarChart3,
-  Settings, LogOut, User, LayoutGrid, Sparkles
-} from "lucide-react";
+import { SlideMenu } from "@/components/shared/slide-menu";
 
 /* ============================================================
  * 사이드바 네비게이션 항목 정의
- * bdr_6 시안 기준: 6개 메인 메뉴 + 하단 Settings/Logout
+ * Material Symbols 아이콘명 사용 (lucide-react 대체)
  * ============================================================ */
 const sideNavItems = [
-  { href: "/", label: "홈", Icon: Home },
-  { href: "/games", label: "경기 찾기", Icon: Dribbble },
-  { href: "/tournaments", label: "대회", Icon: Trophy },
-  { href: "#", label: "코트 정보", Icon: MapPin },
-  { href: "/community", label: "커뮤니티", Icon: Users },
-  { href: "#", label: "랭킹", Icon: BarChart3 },
+  { href: "/", label: "홈", icon: "home" },
+  { href: "/games", label: "경기찾기", icon: "sports_basketball" },
+  { href: "/tournaments", label: "대회", icon: "emoji_events" },
+  { href: "/teams", label: "팀", icon: "groups" },
+  { href: "#", label: "랭킹", icon: "leaderboard" },
+  { href: "/community", label: "커뮤니티", icon: "forum" },
 ];
 
-/* 모바일 하단 네비바 항목: bdr_6 기준 5개 */
+/* 모바일 하단 네비바 항목: 5개 탭 */
 const bottomNavItems = [
-  { href: "/", label: "Home", Icon: LayoutGrid },
-  { href: "/games", label: "Matches", Icon: Dribbble },
-  { href: "#", label: "Courts", Icon: MapPin },
-  { href: "#", label: "Ranking", Icon: BarChart3 },
-  { href: "/profile", label: "Profile", Icon: User },
+  { href: "/", label: "홈", icon: "home" },
+  { href: "/games", label: "경기", icon: "sports_basketball" },
+  { href: "/tournaments", label: "대회", icon: "emoji_events" },
+  { href: "/teams", label: "팀", icon: "groups" },
+  { href: "#", label: "더보기", icon: "menu" },
 ];
 
 /* ============================================================
  * WebLayoutInner — PreferFilterProvider 내부에서 usePreferFilter 사용
- * bdr_6 레이아웃: 좌측 사이드바(데스크탑) + 상단 미니헤더 + 하단 모바일 네비
+ * 레이아웃: 좌측 사이드바(데스크탑) + 상단 헤더(모바일) + 하단 네비(모바일) + FAB
  * ============================================================ */
 function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { preferFilter, togglePreferFilter, setLoggedIn } = usePreferFilter();
+  const { setLoggedIn } = usePreferFilter();
   const [user, setUser] = useState<{ name: string; role: string; prefer_filter_enabled?: boolean } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  /* 슬라이드 메뉴 열림/닫힘 상태 (모바일 "더보기" 탭용) */
+  const [slideMenuOpen, setSlideMenuOpen] = useState(false);
 
   /* 마운트 시 로그인 + 알림 병렬 fetch (waterfall 방지) */
   useEffect(() => {
@@ -88,34 +84,33 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    /* 전체 컨테이너: flex + min-h-screen으로 푸터를 항상 하단에 고정 */
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: "var(--color-surface)" }}>
+    <div className="flex min-h-screen flex-col bg-[#111111]">
+
       {/* ========================================
-       * 데스크탑 사이드바 (md 이상에서만 표시)
-       * bdr_6: fixed left-0, w-64, bg-surface-low
+       * 데스크탑 좌측 사이드바 (lg 이상에서만 표시)
+       * fixed left-0, w-64, 어두운 배경
        * ======================================== */}
-      <aside
-        className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col gap-2 px-4 py-8 md:flex"
-        style={{
-          backgroundColor: "var(--color-surface-low)",
-          boxShadow: "48px 0 48px rgba(0,0,0,0.3)",
-        }}
-      >
-        {/* BDR 로고 이미지 — 사이드바 상단 */}
-        <div className="mb-8 px-4">
+      <aside className="fixed left-0 top-0 z-40 hidden h-full w-64 flex-col border-r border-[#222222] bg-[#111111] px-4 py-6 lg:flex">
+
+        {/* 상단: BDR 로고 (중앙 배치, 130% 확대) + 서브텍스트 */}
+        <div className="mb-8 flex flex-col items-center">
           <Link href="/" prefetch={true}>
             <Image
               src="/images/logo.png"
               alt="BDR"
-              width={140}
-              height={42}
-              className="h-[42px] w-auto"
+              width={182}
+              height={55}
+              className="h-[55px] w-auto"
               priority
             />
           </Link>
+          {/* 서브텍스트: 브랜드 슬로건 */}
+          <span className="mt-1 text-[10px] uppercase tracking-wider text-[#888888]">
+            Elite Athletics
+          </span>
         </div>
 
-        {/* 메인 네비게이션 메뉴 */}
+        {/* 메인 네비게이션 메뉴 (6개) */}
         <nav className="flex flex-1 flex-col gap-1">
           {sideNavItems.map((item) => {
             const active = isActive(item.href);
@@ -124,174 +119,255 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
                 key={item.href + item.label}
                 href={item.href}
                 prefetch={true}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all ${
+                className={`flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium transition-all ${
                   active
-                    ? "translate-x-1 text-white shadow-lg"
-                    : "opacity-70 hover:bg-white/5 hover:opacity-100"
+                    ? "bg-[#E31B23] text-white"
+                    : "text-[#888888] hover:bg-[#1A1A1A] hover:text-white"
                 }`}
-                style={
-                  active
-                    ? {
-                        /* 활성 메뉴: Red→Navy 그라디언트 배경 */
-                        background: "linear-gradient(to right, var(--color-primary), var(--color-accent))",
-                      }
-                    : { color: "var(--color-text-primary)" }
-                }
               >
-                <item.Icon size={20} />
+                {/* Material Symbols 아이콘: 활성 시 FILL 1 */}
+                <span
+                  className="material-symbols-outlined text-xl"
+                  style={active ? { fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" } : undefined}
+                >
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        {/* 하단: Settings + Logout */}
-        <div
-          className="mt-auto flex flex-col gap-1 pt-6"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-        >
+        {/* 하단 영역: 플레이어 카드 + Upgrade Pro + Settings/Logout */}
+        <div className="mt-auto flex flex-col gap-3 border-t border-[#222222] pt-4">
+
+          {/* 플레이어 카드: 로그인 상태에서만 표시 */}
+          {user && (
+            <div className="rounded-xl border border-[#333333] bg-[#1A1A1A] p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* 아바타: 이름 첫 글자 */}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E31B23] text-sm font-bold text-white">
+                    {user.name?.trim() ? user.name.trim()[0].toUpperCase() : "U"}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">{user.name || "사용자"}</p>
+                    <p className="text-[10px] text-[#888888]">Level 1</p>
+                  </div>
+                </div>
+                {/* 알림 벨 아이콘 (빨간 점 표시) */}
+                <Link href="/notifications" className="relative p-1">
+                  <span className="material-symbols-outlined text-xl text-[#888888]">notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#E31B23]" />
+                  )}
+                </Link>
+              </div>
+              {/* "경기 시작하기" 버튼 */}
+              <Link
+                href="/games/new"
+                className="mt-3 block w-full rounded-lg bg-[#E31B23] py-2.5 text-center text-sm font-bold text-white transition-colors hover:bg-[#FF3B3B]"
+              >
+                경기 시작하기
+              </Link>
+            </div>
+          )}
+
+          {/* 비로그인 시 로그인 버튼 */}
+          {!user && (
+            <Link
+              href="/login"
+              className="block w-full rounded-lg bg-[#E31B23] py-2.5 text-center text-sm font-bold text-white transition-colors hover:bg-[#FF3B3B]"
+            >
+              로그인
+            </Link>
+          )}
+
+          {/* Upgrade Pro 버튼 */}
           <Link
-            href="/profile"
-            className="flex items-center gap-3 px-4 py-3 text-sm opacity-70 transition-all hover:bg-white/5 hover:opacity-100"
-            style={{ color: "var(--color-text-primary)" }}
+            href="/pricing"
+            className="block w-full rounded-lg bg-[#1B3C87] py-3 text-center text-sm font-bold text-white transition-colors hover:bg-[#2A4F9E]"
           >
-            <Settings size={20} />
-            <span>Settings</span>
+            Upgrade Pro
           </Link>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 text-sm opacity-70 transition-all hover:bg-white/5 hover:opacity-100"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </button>
+
+          {/* Settings / Logout 링크 */}
+          <div className="flex flex-col gap-1">
+            <Link
+              href="/profile"
+              className="flex items-center gap-3 px-4 py-2 text-sm text-[#888888] transition-colors hover:text-white"
+            >
+              <span className="material-symbols-outlined text-lg">settings</span>
+              <span>Settings</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-2 text-sm text-[#888888] transition-colors hover:text-white"
+            >
+              <span className="material-symbols-outlined text-lg">logout</span>
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* ========================================
-       * 상단 미니 헤더 (fixed)
-       * 모바일: BDR 로고 + 알림/프로필
-       * 데스크탑: 지역명 + 알림/프로필 (사이드바 우측 영역에만)
+       * 모바일 상단 헤더 (lg 이하에서만 표시)
+       * fixed top, h-16, 어두운 배경
        * ======================================== */}
-      <header
-        className="fixed top-0 z-50 flex w-full items-center justify-between border-b border-white/10 px-6 py-4 backdrop-blur-xl md:pl-[calc(16rem+1.5rem)]"
-        style={{ backgroundColor: "rgba(19, 19, 19, 0.80)" }}
-      >
-        {/* BDR 로고 이미지 — 모바일+데스크탑 공통 */}
-        <Link href="/" prefetch={true} className="flex items-center">
+      <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-[#3A3A3A] bg-[#131313] px-4 lg:hidden">
+        {/* 좌: BDR 로고 */}
+        <Link href="/" prefetch={true}>
           <Image
             src="/images/logo.png"
             alt="BDR"
             width={120}
-            height={36}
-            className="h-[36px] w-auto"
+            height={32}
+            className="h-8 w-auto"
             priority
           />
         </Link>
 
-        {/* 우측: 선호모드 + 큰글씨 + 다크모드 + 벨 + 프로필/로그인 */}
-        <div className="flex items-center gap-1.5">
-          {/* 선호 필터 토글 — 로그인 유저에게만 표시 */}
+        {/* 우: 검색 + 알림(빨간 점) */}
+        <div className="flex items-center gap-1">
+          <Link href="/games" className="rounded p-2 text-[#B0B0B0] hover:bg-[#2A2A2A]">
+            <span className="material-symbols-outlined text-xl">search</span>
+          </Link>
           {user && (
-            <button
-              onClick={togglePreferFilter}
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
-              title={preferFilter ? "전체 보기" : "맞춤 보기"}
-              style={{
-                color: preferFilter ? "var(--color-primary)" : "var(--color-text-muted)",
-                backgroundColor: preferFilter ? "var(--color-primary-light)" : "transparent",
-              }}
-            >
-              <Sparkles size={20} />
-            </button>
-          )}
-          {/* 큰글씨 토글 */}
-          <TextSizeToggle />
-          {/* 다크모드 토글 */}
-          <ThemeToggle />
-          {/* 알림 벨 — 로그인 유저에게만 표시 */}
-          {user && <BellIcon unreadCount={unreadCount} />}
-          {/* 프로필 / 로그인 버튼 */}
-          {user ? (
-            <Link
-              href="/profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              <User size={22} />
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-lg px-4 py-1.5 text-sm font-bold text-white"
-              style={{ backgroundColor: "var(--color-primary)" }}
-            >
-              로그인
+            <Link href="/notifications" className="relative rounded p-2 text-[#B0B0B0] hover:bg-[#2A2A2A]">
+              <span className="material-symbols-outlined text-xl">notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[#E31B23]" />
+              )}
             </Link>
           )}
         </div>
       </header>
 
       {/* ========================================
-       * 메인 콘텐츠 영역
-       * pt-20: 상단 미니헤더 아래 여백
-       * pb-24: 모바일 하단 네비바 여백
-       * md:pl-64: 데스크탑 사이드바 너비만큼 좌측 여백
+       * 데스크탑 상단 우측 (lg 이상에서만 표시)
+       * 사이드바 너비(left-64) 오른쪽 영역, 배경 투명
+       * pointer-events-none으로 클릭 통과, 내부 요소만 클릭 가능
        * ======================================== */}
-      {/* 메인 콘텐츠: flex-1로 남은 공간을 모두 차지하여 푸터를 하단으로 밀어냄 */}
-      <main className="flex-1 pt-20 pb-24 md:pb-12 md:pl-64">
-        <div className="mx-auto max-w-7xl px-6">
+      <div className="pointer-events-none fixed right-0 top-0 z-50 hidden items-center justify-end gap-3 p-6 lg:flex" style={{ left: "16rem" }}>
+        {/* 검색 아이콘 */}
+        <Link href="/games" className="pointer-events-auto rounded p-2 text-[#B0B0B0] hover:bg-[#2A2A2A]">
+          <span className="material-symbols-outlined text-xl">search</span>
+        </Link>
+        {/* 알림 아이콘 (빨간 점) */}
+        {user && (
+          <Link href="/notifications" className="pointer-events-auto relative rounded p-2 text-[#B0B0B0] hover:bg-[#2A2A2A]">
+            <span className="material-symbols-outlined text-xl">notifications</span>
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#E31B23]" />
+            )}
+          </Link>
+        )}
+        {/* 프로필 아바타 */}
+        {user ? (
+          <Link href="/profile" className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#3A3A3A] text-sm font-bold text-white">
+            {user.name?.trim() ? user.name.trim()[0].toUpperCase() : "U"}
+          </Link>
+        ) : (
+          <Link
+            href="/login"
+            className="pointer-events-auto rounded-lg bg-[#E31B23] px-4 py-1.5 text-sm font-bold text-white hover:bg-[#FF3B3B]"
+          >
+            로그인
+          </Link>
+        )}
+      </div>
+
+      {/* ========================================
+       * 메인 콘텐츠 영역
+       * lg:ml-64 (사이드바 너비만큼 좌측 여백)
+       * pt-16 (모바일 헤더) / lg:pt-20 (데스크탑 여유)
+       * pb-20 (모바일 하단 네비) / lg:pb-8 (데스크탑)
+       * ======================================== */}
+      <main className="min-h-screen flex-1 pb-20 pt-16 lg:ml-64 lg:pb-8 lg:pt-20">
+        <div className="mx-auto max-w-7xl p-6 lg:p-10">
           {children}
         </div>
       </main>
 
       {/* 푸터: 데스크탑에서만 표시 (모바일은 하단 네비바가 있으므로 숨김) */}
-      {/* mt-auto로 콘텐츠가 짧아도 항상 화면 하단에 배치 */}
-      <div className="mt-auto hidden md:block md:pl-64">
+      <div className="mt-auto hidden lg:ml-64 lg:block">
         <Footer />
       </div>
 
       {/* ========================================
-       * 모바일 하단 네비바 (md 이하에서만 표시)
-       * bdr_6: 5개 아이콘, 활성=bg-primary rounded-2xl
+       * 모바일 하단 네비바 (lg 이하에서만 표시)
+       * 5개 탭, 활성=빨간색+scale-110, 비활성=회색
        * ======================================== */}
       <nav
-        className="fixed bottom-0 left-0 z-50 flex w-full items-end justify-around border-t border-white/5 px-4 pb-6 pt-2 backdrop-blur-2xl md:hidden"
+        className="fixed bottom-0 left-0 z-50 flex h-16 w-full items-center justify-around rounded-t-xl border-t border-[#3A3A3A] bg-[#1A1A1A] px-2 lg:hidden"
         style={{
-          backgroundColor: "rgba(19, 19, 19, 0.90)",
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))",
+          boxShadow: "0 -4px 12px rgba(0,0,0,0.5)",
+          paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))",
         }}
       >
         {bottomNavItems.map((item) => {
           const active = isActive(item.href);
+          /* "더보기" 탭은 슬라이드 메뉴를 여는 버튼으로 동작 */
+          const isMoreTab = item.icon === "menu";
+
+          if (isMoreTab) {
+            return (
+              <button
+                key="more-tab"
+                onClick={() => setSlideMenuOpen(true)}
+                className="flex flex-col items-center justify-center text-[#888888] transition-all"
+              >
+                <span className="material-symbols-outlined text-2xl">menu</span>
+                <span className="mt-0.5 text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          }
+
           return (
             <Link
               key={item.href + item.label}
               href={item.href}
               prefetch={true}
-              className={`flex flex-col items-center justify-center transition-all duration-200 active:scale-90 ${
+              className={`flex flex-col items-center justify-center transition-all ${
                 active
-                  ? "mb-2 scale-110 rounded-2xl p-3 text-white"
-                  : "p-2"
+                  ? "scale-110 text-[#E31B23]"
+                  : "text-[#888888]"
               }`}
-              style={
-                active
-                  ? { backgroundColor: "var(--color-primary)" }
-                  : { color: "var(--color-text-primary)", opacity: 0.6 }
-              }
             >
-              <item.Icon size={24} />
+              {/* Material Symbols 아이콘: 활성 시 FILL 1 */}
               <span
-                className="mt-1 text-[10px] font-semibold"
-                style={{ fontFamily: "var(--font-sans)" }}
+                className="material-symbols-outlined text-2xl"
+                style={active ? { fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" } : undefined}
               >
-                {item.label}
+                {item.icon}
               </span>
+              <span className="mt-0.5 text-[10px] font-medium">{item.label}</span>
             </Link>
           );
         })}
       </nav>
+
+      {/* ========================================
+       * FAB (모바일 전용, lg 이하에서만 표시)
+       * 빠른 경기 생성 버튼
+       * ======================================== */}
+      <Link
+        href="/games/new"
+        className="fixed z-[100] flex h-14 w-14 items-center justify-center rounded-full bg-[#E31B23] text-white shadow-lg transition-transform active:scale-90 lg:hidden"
+        style={{ bottom: "5rem", right: "1.5rem" }}
+      >
+        <span className="material-symbols-outlined text-3xl">add</span>
+      </Link>
+
+      {/* 슬라이드 메뉴: "더보기" 탭에서 열림 */}
+      <SlideMenu
+        open={slideMenuOpen}
+        onClose={() => setSlideMenuOpen(false)}
+        isLoggedIn={!!user}
+        role={user?.role}
+        name={user?.name}
+      />
     </div>
   );
 }
