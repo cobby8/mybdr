@@ -138,7 +138,17 @@ export function MatchCard({ match, size = "lg", showBadge = false, className = "
     .join(" ");
 
   return (
-    <div className={cardClasses}>
+    <div className={`${cardClasses} relative`}>
+      {/* LIVE NOW 배지 - 진행중 경기에 카드 상단 표시 (시안 bdr_3 참조) */}
+      {isLive && (
+        <div
+          className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 text-[8px] font-bold uppercase rounded z-10 text-white"
+          style={{ backgroundColor: "var(--color-primary)" }}
+        >
+          LIVE NOW
+        </div>
+      )}
+
       {/* 홈팀 */}
       <TeamRow match={match} team={match.homeTeam} score={match.homeScore} position="home" />
 

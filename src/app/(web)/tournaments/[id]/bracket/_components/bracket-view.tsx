@@ -67,7 +67,28 @@ export function BracketView({ rounds, tournamentId }: BracketViewProps) {
   const activeRoundData = rounds.find((r) => r.roundNumber === activeRound);
 
   return (
-    <div>
+    <section>
+      {/* 섹션 헤더: 시안 bdr_3의 "토너먼트 대진표 (Knockout Stage)" 스타일 */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+        <h3 className="text-xl font-bold flex items-center gap-2">
+          {/* 파란 세로 막대 (시안에서 secondary-navy 사용) */}
+          <span
+            className="w-1.5 h-6 rounded-sm"
+            style={{ backgroundColor: "var(--color-secondary)" }}
+          />
+          토너먼트 대진표 (Knockout Stage)
+        </h3>
+        {/* 범례: 실시간 / 예정 표시 */}
+        <div className="flex gap-4 items-center">
+          <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} /> 실시간 진행중
+          </span>
+          <span className="flex items-center gap-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "var(--color-border)" }} /> 경기 예정
+          </span>
+        </div>
+      </div>
+
       {/* 데스크톱: 전체 트리 뷰 */}
       <div className="hidden lg:block">
         <DesktopBracketView rounds={rounds} cardSize={cardSize} />
@@ -149,7 +170,7 @@ export function BracketView({ rounds, tournamentId }: BracketViewProps) {
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -229,7 +250,10 @@ function DesktopBracketView({
               width: `${cardWidth}px`,
             }}
           >
-            <span className="text-sm font-semibold text-[var(--color-text-muted)] whitespace-nowrap">
+            <span
+              className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
+              style={{ color: "var(--color-text-muted)" }}
+            >
               {rh.roundName}
             </span>
             {rh.hasLive && (
