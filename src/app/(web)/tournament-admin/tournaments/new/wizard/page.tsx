@@ -31,7 +31,7 @@ const FORMAT_OPTIONS = [
 ];
 
 const inputCls =
-  "w-full rounded-[16px] border-none bg-[#E8ECF0] px-4 py-3 text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1B3C87]/50";
+  "w-full rounded-[16px] border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50";
 
 type AuthStatus = "loading" | "unauthenticated" | "unauthorized" | "authorized";
 
@@ -124,7 +124,7 @@ export default function NewTournamentWizardPage() {
   if (authStatus === "loading" || authStatus === "unauthenticated") {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="text-[#6B7280]">로딩 중...</div>
+        <div className="text-[var(--color-text-muted)]">로딩 중...</div>
       </div>
     );
   }
@@ -133,15 +133,15 @@ export default function NewTournamentWizardPage() {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
         <div className="text-5xl">🔒</div>
-        <h1 className="text-xl font-bold text-[#111827]">권한이 필요합니다</h1>
-        <p className="max-w-md text-sm text-[#6B7280]">
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">권한이 필요합니다</h1>
+        <p className="max-w-md text-sm text-[var(--color-text-muted)]">
           대회를 만들려면 <strong>대회 관리자</strong> 이상의 권한이 필요합니다.
           <br />
           운영자에게 문의해주세요.
         </p>
         <Link
           href="/tournaments"
-          className="mt-2 rounded-full bg-[#1B3C87] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#142D6B]"
+          className="mt-2 rounded-full bg-[var(--color-accent)] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--color-accent-hover)]"
         >
           대회 목록으로 돌아가기
         </Link>
@@ -235,10 +235,10 @@ export default function NewTournamentWizardPage() {
             onClick={() => i < currentStep && setCurrentStep(i)}
             className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${
               i === currentStep
-                ? "bg-[#1B3C87] font-semibold text-white"
+                ? "bg-[var(--color-accent)] font-semibold text-white"
                 : i < currentStep
-                  ? "cursor-pointer bg-[rgba(74,222,128,0.2)] text-[#4ADE80]"
-                  : "cursor-not-allowed bg-[#EEF2FF] text-[#6B7280]"
+                  ? "cursor-pointer bg-[rgba(74,222,128,0.2)] text-[var(--color-success)]"
+                  : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
             }`}
           >
             <span>{step.icon}</span>
@@ -263,8 +263,8 @@ export default function NewTournamentWizardPage() {
                   onClick={() => setTemplate(t)}
                   className={`cursor-pointer rounded-[16px] border p-6 text-center transition-colors ${
                     template === t
-                      ? "border-[#1B3C87] bg-[rgba(27,60,135,0.08)]"
-                      : "border-[#E8ECF0] hover:border-[#1B3C87]"
+                      ? "border-[var(--color-accent)] bg-[rgba(27,60,135,0.08)]"
+                      : "border-[var(--color-border)] hover:border-[var(--color-accent)]"
                   }`}
                 >
                   <div className="mb-2 text-2xl">🏆</div>
@@ -280,7 +280,7 @@ export default function NewTournamentWizardPage() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">기본 정보</h2>
             <div>
-              <label className="mb-1 block text-sm text-[#6B7280]">대회 이름 *</label>
+              <label className="mb-1 block text-sm text-[var(--color-text-muted)]">대회 이름 *</label>
               <input
                 type="text"
                 value={name}
@@ -290,7 +290,7 @@ export default function NewTournamentWizardPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm text-[#6B7280]">대회 방식</label>
+              <label className="mb-1 block text-sm text-[var(--color-text-muted)]">대회 방식</label>
               <select
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
@@ -302,7 +302,7 @@ export default function NewTournamentWizardPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm text-[#6B7280]">대회 소개</label>
+              <label className="mb-1 block text-sm text-[var(--color-text-muted)]">대회 소개</label>
               <textarea
                 className={inputCls}
                 rows={4}
@@ -347,7 +347,7 @@ export default function NewTournamentWizardPage() {
             <h2 className="text-lg font-semibold">디자인 / URL</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-[#6B7280]">대표 색상</label>
+                <label className="mb-1 block text-sm text-[var(--color-text-muted)]">대표 색상</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -355,11 +355,11 @@ export default function NewTournamentWizardPage() {
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     className="h-12 w-16 cursor-pointer rounded-[12px] border-none bg-transparent p-0"
                   />
-                  <span className="text-sm text-[#6B7280]">{primaryColor}</span>
+                  <span className="text-sm text-[var(--color-text-muted)]">{primaryColor}</span>
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-sm text-[#6B7280]">보조 색상</label>
+                <label className="mb-1 block text-sm text-[var(--color-text-muted)]">보조 색상</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -367,7 +367,7 @@ export default function NewTournamentWizardPage() {
                     onChange={(e) => setSecondaryColor(e.target.value)}
                     className="h-12 w-16 cursor-pointer rounded-[12px] border-none bg-transparent p-0"
                   />
-                  <span className="text-sm text-[#6B7280]">{secondaryColor}</span>
+                  <span className="text-sm text-[var(--color-text-muted)]">{secondaryColor}</span>
                 </div>
               </div>
             </div>
@@ -384,7 +384,7 @@ export default function NewTournamentWizardPage() {
 
             {/* URL */}
             <div>
-              <label className="mb-1 block text-sm text-[#6B7280]">서브도메인 (선택)</label>
+              <label className="mb-1 block text-sm text-[var(--color-text-muted)]">서브도메인 (선택)</label>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -395,9 +395,9 @@ export default function NewTournamentWizardPage() {
                   className={`flex-1 ${inputCls}`}
                   placeholder="my-tournament"
                 />
-                <span className="text-sm text-[#6B7280]">.mybdr.kr</span>
+                <span className="text-sm text-[var(--color-text-muted)]">.mybdr.kr</span>
               </div>
-              <p className="mt-1 text-xs text-[#9CA3AF]">비워두면 대회 ID로 접근합니다.</p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">비워두면 대회 ID로 접근합니다.</p>
             </div>
           </div>
         )}
@@ -408,7 +408,7 @@ export default function NewTournamentWizardPage() {
             <div className="mb-2 text-center text-4xl">🎉</div>
             <h2 className="text-center text-lg font-semibold">대회 생성 미리보기</h2>
 
-            <div className="space-y-3 rounded-[16px] bg-[#EEF2FF] p-4 text-sm">
+            <div className="space-y-3 rounded-[16px] bg-[var(--color-elevated)] p-4 text-sm">
               <Row label="대회명" value={name || "미입력"} />
               <Row label="형식" value={format} />
               <Row
@@ -436,8 +436,8 @@ export default function NewTournamentWizardPage() {
 
               {/* 부문/디비전 */}
               {Object.keys(registration.categories).length > 0 && (
-                <div className="border-t border-[#1B3C87]/10 pt-2">
-                  <span className="text-[#6B7280]">부문/디비전</span>
+                <div className="border-t border-[var(--color-accent)]/10 pt-2">
+                  <span className="text-[var(--color-text-muted)]">부문/디비전</span>
                   <div className="mt-1 space-y-1">
                     {Object.entries(registration.categories).map(([cat, divs]) => (
                       <div key={cat} className="flex gap-2">
@@ -517,7 +517,7 @@ export default function NewTournamentWizardPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-[#6B7280]">{label}</span>
+      <span className="text-[var(--color-text-muted)]">{label}</span>
       <span className="font-medium">{value}</span>
     </div>
   );

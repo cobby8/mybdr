@@ -201,12 +201,12 @@ export default function TournamentWizardPage() {
   };
 
   const inputCls =
-    "w-full rounded-[16px] border-none bg-[#E8ECF0] px-4 py-3 text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#1B3C87]/50";
-  const labelCls = "mb-1 block text-sm text-[#6B7280]";
+    "w-full rounded-[16px] border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50";
+  const labelCls = "mb-1 block text-sm text-[var(--color-text-muted)]";
 
   if (loading)
     return (
-      <div className="flex h-40 items-center justify-center text-[#6B7280]">불러오는 중...</div>
+      <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>
     );
 
   return (
@@ -214,7 +214,7 @@ export default function TournamentWizardPage() {
       <div className="mb-2 flex items-center gap-2">
         <button
           onClick={() => router.push(`/tournament-admin/tournaments/${id}`)}
-          className="text-sm text-[#6B7280] hover:text-[#111827]"
+          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
         >
           ← 대회 관리
         </button>
@@ -229,10 +229,10 @@ export default function TournamentWizardPage() {
             onClick={() => setStep(i)}
             className={`flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${
               i === step
-                ? "bg-[#1B3C87] font-semibold text-white"
+                ? "bg-[var(--color-accent)] font-semibold text-white"
                 : i < step
-                ? "bg-[rgba(74,222,128,0.2)] text-[#4ADE80]"
-                : "bg-[#EEF2FF] text-[#6B7280]"
+                ? "bg-[rgba(74,222,128,0.2)] text-[var(--color-success)]"
+                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
             }`}
           >
             <span>{s.icon}</span>
@@ -301,7 +301,7 @@ export default function TournamentWizardPage() {
                 id="is_public"
                 checked={data.is_public}
                 onChange={(e) => set("is_public", e.target.checked)}
-                className="accent-[#E31B23]"
+                className="accent-[var(--color-primary)]"
               />
               <label htmlFor="is_public" className="text-sm">공개 대회</label>
             </div>
@@ -426,7 +426,7 @@ export default function TournamentWizardPage() {
                     onChange={(e) => set("primary_color", e.target.value)}
                     className="h-12 w-16 cursor-pointer rounded-[12px] border-none bg-transparent p-0"
                   />
-                  <span className="text-sm text-[#6B7280]">{data.primary_color}</span>
+                  <span className="text-sm text-[var(--color-text-muted)]">{data.primary_color}</span>
                 </div>
               </div>
               <div>
@@ -438,7 +438,7 @@ export default function TournamentWizardPage() {
                     onChange={(e) => set("secondary_color", e.target.value)}
                     className="h-12 w-16 cursor-pointer rounded-[12px] border-none bg-transparent p-0"
                   />
-                  <span className="text-sm text-[#6B7280]">{data.secondary_color}</span>
+                  <span className="text-sm text-[var(--color-text-muted)]">{data.secondary_color}</span>
                 </div>
               </div>
             </div>
@@ -447,7 +447,7 @@ export default function TournamentWizardPage() {
               className="mt-4 rounded-[16px] p-6 text-center"
               style={{ background: `linear-gradient(135deg, ${data.primary_color}, ${data.secondary_color})` }}
             >
-              <p className="font-bold text-[#111827] drop-shadow">{data.name || "대회 이름"}</p>
+              <p className="font-bold text-[var(--color-text-primary)] drop-shadow">{data.name || "대회 이름"}</p>
             </div>
           </div>
         )}
