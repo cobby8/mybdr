@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-03-23] 하드코딩 데이터 vs DB/API 연결 전체 분석
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 리디자인 완료된 7개 영역(30+ 파일) 분석. (1) 높음 우선순위 5건: recommended-games.tsx가 가장 큰 문제 - API(/api/web/recommended-games) fetch는 하지만 응답 데이터를 카드에 미사용, 4개 하드코딩 카드만 표시. notable-teams.tsx는 TEAMS 상수 배열 4개(더미). right-sidebar 양쪽에 랭킹/통계 하드코딩. (2) 중간 우선순위 5건: 커뮤니티 사이드바 API 연결, 플랫폼 통계 신규 API, 프로필 Win Rate/createdAt 확장. (3) 낮음 5건: DB 스키마 변경 필요(레벨/랭크 시스템, 이미지 필드, 관중 수 등). (4) 완벽 연결됨: 경기 목록/상세, 팀 목록/상세, 프로필 스탯, 대회 전체, 커뮤니티 전체. 실행 계획: 6단계(recommended-games -> notable-teams -> sidebar 연결 -> profile 확장 -> 통계 API -> tester 검증).
+- **참조횟수**: 0
+
 ### [2026-03-23] 커뮤니티 페이지 구조 분석 (목록/상세 2종, 6파일)
 - **분류**: architecture
 - **발견자**: planner-architect
@@ -26,10 +32,16 @@
 - **내용**: src/ 전체에서 하드코딩 색상 ~929건/107파일 확인. 전환 제외 대상은 (1) 데이터 기본값(teams.ts, games.ts 등의 fallback), (2) 유니폼/팀 동적 색상, (3) 브랜드 고정색(카카오/네이버/구글/YouTube), (4) manifest.ts PWA 색상, (5) 사이트 템플릿 커스텀 테마, (6) activity-ring 티어 고유색. admin 페이지는 라이트 테마 전용으로 #F5F7FA, #EEF2FF 등 밝은 색 위주.
 - **참조횟수**: 0
 
+### [2026-03-23] admin 라우트 그룹 분리 ((web) -> (admin))
+- **분류**: architecture
+- **발견자**: developer
+- **내용**: admin 폴더를 src/app/(web)/admin/ -> src/app/(admin)/admin/으로 이동. 이유: (web)/layout.tsx의 사이드바/헤더/하단네비가 admin에도 적용되어 이중 레이아웃 문제 발생. (admin) 라우트 그룹으로 분리하면 (web)/layout.tsx가 적용되지 않고, admin/layout.tsx의 AdminSidebar만 적용됨. URL은 /admin/... 그대로 유지. (admin)/layout.tsx는 불필요 - 루트 layout.tsx가 HTML/폰트를 처리하고 admin/layout.tsx가 AdminSidebar+권한체크를 처리.
+- **참조횟수**: 0
+
 ### [2026-03-22] 전체 페이지 구조 분석
 - **분류**: architecture
 - **발견자**: planner-architect
-- **내용**: src/app/ 전체 90개 페이지 분석. (web) 64개 + _site 6개 + live 2개 + layout 5개 + loading 13개. 라우트 그룹: (web)=일반 웹(NextAuth), _site=서브도메인 토너먼트 사이트, live=독립 다크테마 라이브. 레이아웃 계층: root > (web)(사이드바+미니헤더+모바일네비) > admin(AdminSidebar+super_admin전용) / tournament-admin(상단 탭 네비). _site는 독립 레이아웃(서브도메인 검증+발행 게이트). 공통 UI: card/button/badge/skeleton. 홈은 4섹션 구성(히어로/퀵메뉴/추천경기/추천영상).
+- **내용**: src/app/ 전체 90개 페이지 분석. (web) 64개 + _site 6개 + live 2개 + layout 5개 + loading 13개. 라우트 그룹: (web)=일반 웹(NextAuth), _site=서브도메인 토너먼트 사이트, live=독립 다크테마 라이브. 레이아웃 계층: root > (web)(사이드바+미니헤더+모바일네비) > (admin)/admin(AdminSidebar+super_admin전용) / tournament-admin(상단 탭 네비). _site는 독립 레이아웃(서브도메인 검증+발행 게이트). 공통 UI: card/button/badge/skeleton. 홈은 4섹션 구성(히어로/퀵메뉴/추천경기/추천영상).
 - **참조횟수**: 0
 
 ### [2026-03-22] 홈페이지 리디자인 구조 설계
