@@ -25,11 +25,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  draft: "text-[#6B7280]",
+  draft: "text-[var(--color-text-muted)]",
   registration: "text-[#60A5FA]",
   active: "text-[#4ADE80]",
-  completed: "text-[#6B7280]",
-  cancelled: "text-[#EF4444]",
+  completed: "text-[var(--color-text-muted)]",
+  cancelled: "text-[var(--color-error)]",
 };
 
 export default async function TournamentAdminDetailPage({
@@ -118,27 +118,27 @@ export default async function TournamentAdminDetailPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="mb-1 flex items-center gap-2">
-              <Link href="/tournament-admin/tournaments" className="text-sm text-[#6B7280] hover:text-[#111827]">
+              <Link href="/tournament-admin/tournaments" className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
                 ← 대회 목록
               </Link>
             </div>
             <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>{tournament.name}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-              <span className={STATUS_COLOR[status] ?? "text-[#6B7280]"}>
+              <span className={STATUS_COLOR[status] ?? "text-[var(--color-text-muted)]"}>
                 ● {STATUS_LABEL[status] ?? status}
               </span>
               {tournament.startDate && (
                 <>
-                  <span className="text-[#6B7280]">
+                  <span className="text-[var(--color-text-muted)]">
                     {tournament.startDate.toLocaleDateString("ko-KR")}
                     {tournament.endDate && ` ~ ${tournament.endDate.toLocaleDateString("ko-KR")}`}
                   </span>
-                  <span className="rounded-[10px] bg-[rgba(244,162,97,0.12)] px-2 py-0.5 text-xs font-semibold text-[#E31B23]">
+                  <span className="rounded-[10px] bg-[rgba(244,162,97,0.12)] px-2 py-0.5 text-xs font-semibold text-[var(--color-primary)]">
                     {getDDay(tournament.startDate)}
                   </span>
                 </>
               )}
-              <span className="text-[#6B7280]">{tournament.format ?? "싱글 엘리미네이션"}</span>
+              <span className="text-[var(--color-text-muted)]">{tournament.format ?? "싱글 엘리미네이션"}</span>
             </div>
           </div>
           {tournament.tournamentSite[0]?.isPublished && (
@@ -156,8 +156,8 @@ export default async function TournamentAdminDetailPage({
           { label: "참가비", value: tournament.entry_fee ? `${Number(tournament.entry_fee).toLocaleString()}원` : "무료" },
         ].map((s) => (
           <Card key={s.label} className="text-center py-4">
-            <p className="text-xl font-bold sm:text-2xl text-[#E31B23]">{s.value}</p>
-            <p className="mt-1 text-xs text-[#6B7280]">{s.label}</p>
+            <p className="text-xl font-bold sm:text-2xl text-[var(--color-primary)]">{s.value}</p>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">{s.label}</p>
           </Card>
         ))}
       </div>
@@ -166,10 +166,10 @@ export default async function TournamentAdminDetailPage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((a) => (
           <Link key={a.href} href={a.href}>
-            <Card className="cursor-pointer transition-colors hover:bg-[#EEF2FF]">
-              <div className="mb-2 text-sm font-bold text-[#1B3C87]">{a.icon}</div>
+            <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
+              <div className="mb-2 text-sm font-bold text-[var(--color-accent)]">{a.icon}</div>
               <h3 className="font-semibold">{a.label}</h3>
-              <p className="mt-1 text-sm text-[#6B7280]">{a.desc}</p>
+              <p className="mt-1 text-sm text-[var(--color-text-muted)]">{a.desc}</p>
             </Card>
           </Link>
         ))}
