@@ -57,30 +57,36 @@ export function HeroBento() {
   // 타이머 참조: 수동 조작 후 재개 대기용
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // --- YouTube iframe API: 영상 재생 상태 감지 ---
-  // 방법 B: postMessage로 YouTube에서 보내는 재생 상태를 수신
-  // playerState: 1=재생중, 2=일시정지, 0=종료, -1=시작전
+  // --- YouTube 영상 재생 감지 ---
+  // iframe 내부 클릭은 cross-origin이라 직접 감지 불가.
+  // 대신: 사용자가 iframe을 클릭하면 iframe이 포커스를 받으므로,
+  // window blur 이벤트로 "포커스가 iframe으로 갔다"를 감지한다.
+  // 슬라이드 컨테이너 ref로 내부 iframe인지 확인.
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      // YouTube iframe에서 오는 메시지만 처리 (보안)
-      if (event.origin !== "https://www.youtube.com") return;
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === "onStateChange") {
-          if (data.info === 1) {
-            // 재생 시작 → 자동 슬라이드 정지
-            setIsPlaying(true);
-          } else if (data.info === 2 || data.info === 0) {
-            // 일시정지 또는 종료 → 자동 슬라이드 재개
-            setIsPlaying(false);
-          }
+    function handleWindowBlur() {
+      // window가 blur되면 iframe이 포커스를 가져간 것
+      // 약간의 딜레이 후 activeElement가 iframe인지 확인
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (active?.tagName === "IFRAME" && containerRef.current?.contains(active)) {
+          setIsPlaying(true);
         }
-      } catch {
-        // YouTube 외 메시지는 무시
-      }
+      }, 100);
     }
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+
+    function handleWindowFocus() {
+      // window가 다시 포커스되면 iframe에서 나온 것 → 재개
+      setIsPlaying(false);
+    }
+
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
   }, []);
 
   // --- 방법 A (fallback): 마우스/터치 인터랙션으로 정지 ---
@@ -230,6 +236,7 @@ export function HeroBento() {
     <div>
       {/* 슬라이드 컨테이너: aspect-video로 16:9 비율 유지, max-h로 데스크탑 제한 */}
       <div
+        ref={containerRef}
         className="relative aspect-video max-h-[420px] rounded-xl overflow-hidden bg-black group border border-border"
         onMouseEnter={() => setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
@@ -250,7 +257,7 @@ export function HeroBento() {
               {/* enablejsapi=1: 재생 상태 감지를 위해 YouTube Player API 활성화 */}
               {/* 라이브 영상은 autoplay=1로 자동재생, 일반 영상은 autoplay=0 */}
               <iframe
-                src={`https://www.youtube.com/embed/${video.video_id}?enablejsapi=1&autoplay=${video.is_live ? "1" : "0"}&rel=0&modestbranding=1&mute=${video.is_live ? "1" : "0"}`}
+                src={`https://www.youtube.com/embed/${video.video_id}?autoplay=${video.is_live ? "1" : "0"}&rel=0&modestbranding=1&mute=${video.is_live ? "1" : "0"}`}
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
