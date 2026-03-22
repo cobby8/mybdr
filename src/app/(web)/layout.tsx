@@ -234,8 +234,10 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           />
         </Link>
 
-        {/* 우: 검색 + 알림(빨간 점) */}
+        {/* 우: 다크모드 + 큰글씨 + 검색 + 알림 */}
         <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <TextSizeToggle />
           <Link href="/games" className="rounded p-2 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]">
             <span className="material-symbols-outlined text-xl">search</span>
           </Link>
@@ -294,7 +296,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
        * pt-16 (모바일 헤더) / lg:pt-20 (데스크탑 여유)
        * pb-20 (모바일 하단 네비) / lg:pb-8 (데스크탑)
        * ======================================== */}
-      <main className="min-h-screen flex-1 pb-20 pt-16 lg:ml-64 lg:pb-12 lg:pt-20">
+      <main className="min-h-screen flex-1 pb-20 pt-20 lg:ml-64 lg:pb-12 lg:pt-20">
         <div className="mx-auto max-w-7xl p-6 lg:p-10">
           {children}
         </div>
