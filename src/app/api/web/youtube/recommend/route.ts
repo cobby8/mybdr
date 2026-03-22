@@ -11,6 +11,9 @@ let cachedResult: EnrichedVideo[] = [];
 let cacheTimestamp = 0;
 let cacheTTL = 30 * 60 * 1000; // 기본 30분
 
+// 페이지네이션 최대 페이지 수 (50개 x 3페이지 = 최대 150개)
+const MAX_PLAYLIST_PAGES = 3;
+
 // BDR 디비전 키워드 목록 (제목/설명에서 매칭용)
 const DIVISION_KEYWORDS = [
   "스타터스", "비기너", "챌린저", "마스터스",
@@ -19,16 +22,20 @@ const DIVISION_KEYWORDS = [
   "pro", "elite", "open",
 ];
 
-// HOT 판단 기준: 최근 30일 이내 영상의 조회수 임계값
+// HOT 판단 기준: BDR 채널 규모에 맞춘 조회수 임계값
+// (28일 기준 총 조회수 ~10만, 1위 영상 ~1만뷰 수준)
 const HOT_THRESHOLDS = [
-  { maxDays: 1, minViews: 1000 },   // 24시간 이내 1000뷰 이상
-  { maxDays: 3, minViews: 5000 },   // 3일 이내 5000뷰 이상
-  { maxDays: 7, minViews: 10000 },  // 7일 이내 10000뷰 이상
-  { maxDays: 30, minViews: 20000 }, // 30일 이내 20000뷰 이상
+  { maxDays: 1, minViews: 200 },   // 24시간 이내 200뷰 이상
+  { maxDays: 3, minViews: 500 },   // 3일 이내 500뷰 이상
+  { maxDays: 7, minViews: 1000 },  // 7일 이내 1000뷰 이상
+  { maxDays: 30, minViews: 2000 }, // 30일 이내 2000뷰 이상
 ];
 
-// 최근 영상 조회 범위: 30일
-const RECENT_DAYS = 30;
+// 쇼츠 판별 기준: 60초 미만은 쇼츠로 간주
+const MIN_DURATION_SECONDS = 60;
+
+// 캐시 최대 수명: 1시간 (라이브 여부와 관계없이 강제 갱신)
+const CACHE_MAX_AGE = 60 * 60 * 1000;
 
 // --- 타입 정의 ---
 
@@ -55,6 +62,10 @@ interface VideoDetailsItem {
   statistics: {
     viewCount: string;
   };
+  // 영상 길이 정보 (ISO 8601 형식, 예: "PT54M40S")
+  contentDetails?: {
+    duration: string;
+  };
 }
 
 // playlistItems + videos API를 합친 풍부한 영상 정보
@@ -66,6 +77,7 @@ interface EnrichedVideo {
   publishedAt: string;
   liveBroadcastContent: "live" | "upcoming" | "none";
   viewCount: number;
+  duration: string; // ISO 8601 duration (예: "PT54M40S", "PT10S")
 }
 
 interface ScoredVideo {
@@ -75,25 +87,52 @@ interface ScoredVideo {
   isLive: boolean;
 }
 
+// --- ISO 8601 Duration 파싱 ---
+
+// YouTube duration 형식(ISO 8601)을 초 단위로 변환
+// 예: "PT54M40S" → 3280, "PT1H7M36S" → 4056, "PT10S" → 10
+function parseDuration(iso8601: string): number {
+  const match = iso8601.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] ?? "0", 10);
+  const minutes = parseInt(match[2] ?? "0", 10);
+  const seconds = parseInt(match[3] ?? "0", 10);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 // --- YouTube API 호출 ---
 
 // 1단계: playlistItems API로 채널 최근 영상 ID 목록 가져오기
-async function fetchPlaylistItems(apiKey: string): Promise<PlaylistItem[]> {
+// nextPageToken을 이용해 최대 maxPages 페이지(50개 x 3 = 150개)까지 가져옴
+// Search API(200쿼터) 대신 playlistItems(1쿼터/페이지)로 쿼터를 대폭 절약
+async function fetchPlaylistItems(apiKey: string, maxPages: number = MAX_PLAYLIST_PAGES): Promise<PlaylistItem[]> {
   if (!UPLOADS_PLAYLIST_ID) {
     console.error("[youtube] BDR_YOUTUBE_UPLOADS_PLAYLIST_ID not configured");
     return [];
   }
 
-  const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${UPLOADS_PLAYLIST_ID}&maxResults=50&key=${apiKey}`,
-    { signal: AbortSignal.timeout(5000) }
-  );
-  if (!res.ok) {
-    console.error("[youtube] PlaylistItems fetch failed:", res.status);
-    return [];
+  const allItems: PlaylistItem[] = [];
+  let pageToken: string | undefined;
+
+  // 페이지네이션: 각 페이지 50개씩, 최대 maxPages 페이지까지 반복
+  for (let page = 0; page < maxPages; page++) {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${UPLOADS_PLAYLIST_ID}&maxResults=50&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ""}`;
+
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) {
+      console.error("[youtube] PlaylistItems fetch failed (page %d):", page, res.status);
+      break; // 실패한 페이지 이후는 포기, 이미 가져온 것만 사용
+    }
+
+    const data = await res.json();
+    allItems.push(...(data.items ?? []));
+
+    // 다음 페이지 토큰이 없으면 마지막 페이지
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
   }
-  const data = await res.json();
-  return data.items ?? [];
+
+  return allItems;
 }
 
 // 2단계: videos API로 라이브/통계 상세 정보 가져오기
@@ -106,7 +145,7 @@ async function fetchVideoDetails(
 
   const ids = videoIds.join(",");
   const res = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics&id=${ids}&key=${apiKey}`,
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails,statistics,contentDetails&id=${ids}&key=${apiKey}`,
     { signal: AbortSignal.timeout(5000) }
   );
   if (!res.ok) {
@@ -119,8 +158,9 @@ async function fetchVideoDetails(
 
 // playlistItems + videos API 결과를 합쳐서 EnrichedVideo 배열 생성
 async function fetchEnrichedVideos(apiKey: string): Promise<EnrichedVideo[]> {
-  // 캐시가 유효하면 재사용
-  if (cachedResult.length > 0 && Date.now() - cacheTimestamp < cacheTTL) {
+  const cacheAge = Date.now() - cacheTimestamp;
+  // 캐시가 유효하면 재사용 (단, 최대 1시간 초과 시 강제 갱신)
+  if (cachedResult.length > 0 && cacheAge < cacheTTL && cacheAge < CACHE_MAX_AGE) {
     return cachedResult;
   }
 
@@ -129,8 +169,13 @@ async function fetchEnrichedVideos(apiKey: string): Promise<EnrichedVideo[]> {
   if (items.length === 0) return [];
 
   // 2단계: videoId 목록으로 상세 정보 일괄 조회
+  // videos API는 한 번에 최대 50개 ID만 처리 가능하므로, 50개씩 나눠서 요청
   const videoIds = items.map((item) => item.snippet.resourceId.videoId);
-  const details = await fetchVideoDetails(videoIds, apiKey);
+  const chunks: string[][] = [];
+  for (let i = 0; i < videoIds.length; i += 50) {
+    chunks.push(videoIds.slice(i, i + 50));
+  }
+  const details = (await Promise.all(chunks.map((chunk) => fetchVideoDetails(chunk, apiKey)))).flat();
 
   // videoId를 key로 하는 상세정보 맵 생성 (O(1) 조회용)
   const detailMap = new Map<string, VideoDetailsItem>();
@@ -159,6 +204,7 @@ async function fetchEnrichedVideos(apiKey: string): Promise<EnrichedVideo[]> {
       publishedAt: item.snippet.publishedAt,
       liveBroadcastContent: broadcastStatus,
       viewCount: parseInt(detail?.statistics?.viewCount ?? "0", 10),
+      duration: detail?.contentDetails?.duration ?? "PT0S",
     });
   }
 
@@ -289,10 +335,8 @@ export async function GET() {
   }
 
   try {
+    // --- 라이브 영상: 기존 playlistItems 기반 (최근 업로드에서 라이브 감지) ---
     const videos = await fetchEnrichedVideos(youtubeKey);
-    if (videos.length === 0) {
-      return NextResponse.json({ videos: [] });
-    }
 
     // 유저 정보로 키워드 매칭 (로그인 시)
     const session = await getWebSession();
@@ -308,21 +352,10 @@ export async function GET() {
       userPosition = user?.position ?? null;
     }
 
+    // 라이브 영상은 playlistItems 기반 점수 시스템으로 처리
     const scored = scoreVideos(videos, userCity, userPosition);
     scored.sort((a, b) => b.score - a.score);
-
-    // 라이브 영상과 비라이브 영상을 분리
     const liveVideos = scored.filter((s) => s.isLive);
-    const nonLiveVideos = scored.filter((s) => !s.isLive);
-
-    // 최근 30일 이내 비라이브 영상만 필터링하고 조회수 순 정렬
-    const now = Date.now();
-    const recentNonLive = nonLiveVideos
-      .filter((s) => {
-        const daysSince = (now - new Date(s.video.publishedAt).getTime()) / (1000 * 60 * 60 * 24);
-        return daysSince <= RECENT_DAYS;
-      })
-      .sort((a, b) => b.video.viewCount - a.video.viewCount);
 
     // 라이브 최대 2개
     const topLive = liveVideos.slice(0, 2).map((s) => ({
@@ -335,14 +368,26 @@ export async function GET() {
       is_live: true,
     }));
 
-    // 비라이브 조회수 상위 2개
-    const topNonLive = recentNonLive.slice(0, 2).map((s) => ({
-      video_id: s.video.videoId,
-      title: s.video.title,
-      thumbnail: s.video.thumbnail,
-      published_at: s.video.publishedAt,
-      view_count: s.video.viewCount,
-      badges: s.badges,
+    // --- 인기 영상: 150개 영상 중 비라이브, 1분 이상, 조회수순으로 선정 ---
+    // playlistItems 페이지네이션(3페이지 = 150개)으로 충분한 후보 확보
+    // Search API(부정확한 정렬 + 200쿼터) 대신 실제 조회수 데이터로 정확하게 정렬
+    const popularVideos = videos
+      .filter((v) => v.liveBroadcastContent !== "live") // 라이브 제외
+      .filter((v) => parseDuration(v.duration) >= MIN_DURATION_SECONDS) // 쇼츠(1분 미만) 제외
+      .sort((a, b) => b.viewCount - a.viewCount) // 조회수 내림차순 정렬
+      .slice(0, 2); // 상위 2개 선정
+
+    const topNonLive = popularVideos.map((v) => ({
+      video_id: v.videoId,
+      title: v.title,
+      thumbnail: v.thumbnail,
+      published_at: v.publishedAt,
+      view_count: v.viewCount,
+      // 인기 영상에 배지 부여 (HOT, 디비전 매칭)
+      badges: [
+        ...(isHotVideo(v.publishedAt, v.viewCount) ? ["HOT"] : []),
+        ...(matchDivision(v.title, v.description) ? [matchDivision(v.title, v.description)!] : []),
+      ],
       is_live: false,
     }));
 
