@@ -58,12 +58,19 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // 게시글 목록 조회 (최신순 30개, 작성자 닉네임 포함)
+    // 게시글 목록 조회 (최신순 30개, 작성자 닉네임 + 프로필 이미지 포함)
     const posts = await prisma.community_posts.findMany({
       where,
       orderBy: { created_at: "desc" },
       take: 30,
-      include: { users: { select: { nickname: true } } },
+      include: {
+        users: {
+          select: {
+            nickname: true,
+            profile_image_url: true,  // 작성자 아바타용 프로필 이미지 추가
+          },
+        },
+      },
     }).catch(() => []);
 
     // BigInt/Date 필드를 직렬화 가능한 형태로 변환
@@ -76,6 +83,8 @@ export async function GET(request: NextRequest) {
       commentsCount: p.comments_count ?? 0,
       createdAt: p.created_at?.toISOString() ?? null,          // Date -> ISO string
       authorNickname: p.users?.nickname ?? "익명",              // 작성자 닉네임 추출
+      authorProfileImage: p.users?.profile_image_url ?? null,  // 작성자 프로필 이미지 URL
+      contentPreview: p.content?.slice(0, 120) ?? "",          // 본문 미리보기 (앞 120자)
     }));
 
     // 선호 카테고리 목록도 함께 반환 (프론트엔드에서 하이라이트 표시용)
