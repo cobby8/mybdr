@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
       category: p.category,
       viewCount: p.view_count ?? 0,
       commentsCount: p.comments_count ?? 0,
+      likesCount: p.likes_count ?? 0,
       createdAt: p.created_at?.toISOString() ?? null,          // Date -> ISO string
       authorNickname: p.users?.nickname ?? "익명",              // 작성자 닉네임 추출
       authorProfileImage: p.users?.profile_image_url ?? null,  // 작성자 프로필 이미지 URL

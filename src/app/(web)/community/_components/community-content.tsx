@@ -15,6 +15,7 @@ interface PostFromApi {
   category: string | null;
   view_count: number;
   comments_count: number;
+  likes_count: number;
   created_at: string | null;
   author_nickname: string;
   author_profile_image: string | null;   // 작성자 프로필 이미지 URL (신규)
@@ -486,11 +487,15 @@ function PostCard({ post }: { post: PostFromApi }) {
             {categoryLabel}
           </span>
 
-          {/* 메타 수치 */}
+          {/* 메타 수치: 조회수 + 좋아요 + 댓글 */}
           <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-text-muted)" }}>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm">visibility</span>
               {post.view_count.toLocaleString()}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-sm">thumb_up</span>
+              {post.likes_count}
             </span>
             <span className="flex items-center gap-1.5">
               <span className="material-symbols-outlined text-sm">chat_bubble</span>

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { CommentForm } from "./comment-form";
 import { PostDetailSidebar } from "./_components/post-detail-sidebar";
 import { ShareButton } from "./_components/share-button";
+import { LikeButton } from "./_components/like-button";
+import { getWebSession } from "@/lib/auth/web-session";
 
 export const revalidate = 30;
 
@@ -72,6 +74,24 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
     },
   }).catch(() => null);
   if (!post) return notFound();
+
+  // 현재 로그인 유저 확인 + 좋아요 여부 쿼리
+  const session = await getWebSession();
+  let isLiked = false;
+  const isLoggedIn = !!session;
+
+  if (session) {
+    // 로그인 상태면 이 유저가 이 게시글을 좋아요했는지 확인
+    const like = await prisma.community_post_likes.findUnique({
+      where: {
+        community_post_id_user_id: {
+          community_post_id: post.id,
+          user_id: BigInt(session.sub),
+        },
+      },
+    }).catch(() => null);
+    isLiked = !!like;
+  }
 
   // 댓글 조회: 작성자 프로필 이미지 포함
   const comments = await prisma.comments.findMany({
@@ -194,34 +214,13 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
               ))}
             </div>
 
-            {/* 좋아요 버튼 (UI만 배치, 기능 미구현) */}
-            <div
-              className="flex flex-col items-center mt-12 pt-8 border-t"
-              style={{ borderColor: "var(--color-border)" }}
-            >
-              <button className="group flex flex-col items-center gap-2 mb-8" title="추천 기능은 준비 중입니다">
-                <div
-                  className="w-16 h-16 rounded-full border-2 flex items-center justify-center transition-all duration-300"
-                  style={{
-                    borderColor: "var(--color-primary)",
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  <span
-                    className="material-symbols-outlined text-3xl"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    thumb_up
-                  </span>
-                </div>
-                <span className="font-bold text-lg" style={{ color: "var(--color-primary)" }}>
-                  0
-                </span>
-                <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  추천하기
-                </span>
-              </button>
-            </div>
+            {/* 좋아요 버튼: 실제 동작하는 클라이언트 컴포넌트 */}
+            <LikeButton
+              postPublicId={id}
+              initialLiked={isLiked}
+              initialCount={post.likes_count ?? 0}
+              isLoggedIn={isLoggedIn}
+            />
           </article>
 
           {/* 댓글 섹션 */}
