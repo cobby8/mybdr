@@ -48,20 +48,31 @@ const FALLBACK_POSTS: PostData[] = [
   { id: "2", publicId: null, title: "Storm FC 팀원 모집합니다 (수비수)", viewCount: 90, createdAt: null },
 ];
 
+// 플랫폼 통계 타입 (/api/web/stats 응답)
+interface StatsData {
+  teamCount: number;
+  matchCount: number;
+  userCount: number;
+}
+
 export function RightSidebarGuest() {
   // 실시간 랭킹 상위 3팀
   const [topTeams, setTopTeams] = useState<TeamData[]>(FALLBACK_TEAMS);
   // 커뮤니티 최신글 2개
   const [recentPosts, setRecentPosts] = useState<PostData[]>(FALLBACK_POSTS);
+  // 플랫폼 통계 (null이면 아직 로딩 중 또는 실패)
+  const [stats, setStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
-    // 2개의 API를 병렬 호출하여 로딩 시간 최소화
+    // 3개의 API를 병렬 호출하여 로딩 시간 최소화
     const fetchAll = async () => {
       const results = await Promise.allSettled([
         // 1) 팀 목록 (인증 불필요, wins DESC 정렬)
         fetch("/api/web/teams").then((r) => r.json()),
         // 2) 커뮤니티 게시글 (인증 불필요, created_at DESC)
         fetch("/api/web/community").then((r) => r.json()),
+        // 3) 플랫폼 통계 (팀 수, 매치 수, 유저 수)
+        fetch("/api/web/stats").then((r) => r.json()),
       ]);
 
       // 팀 랭킹: 상위 3팀만 사용
@@ -79,10 +90,26 @@ export function RightSidebarGuest() {
           setRecentPosts(posts.slice(0, 2));
         }
       }
+
+      // 플랫폼 통계: snake_case 응답이므로 키 이름 주의
+      if (results[2].status === "fulfilled" && results[2].value?.data) {
+        const d = results[2].value.data;
+        setStats({
+          teamCount: d.team_count ?? 0,
+          matchCount: d.match_count ?? 0,
+          userCount: d.user_count ?? 0,
+        });
+      }
     };
 
     fetchAll();
   }, []);
+
+  // 숫자를 읽기 쉽게 포맷 (예: 1234 -> "1,234", 12500 -> "12.5k+")
+  const formatNumber = (n: number): string => {
+    if (n >= 10000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k+";
+    return n.toLocaleString("ko-KR");
+  };
 
   // 게시글 상세 링크 생성
   const getPostLink = (post: PostData): string => {
@@ -147,8 +174,7 @@ export function RightSidebarGuest() {
       </div>
 
       {/* === 4. BDR과 함께 성장하세요 (통계 + 가입) === */}
-      {/* TODO: "4,200개 팀", "12.5k+ 매치", "85.2k+ 선수"는 하드코딩 유지
-          새 API(/api/web/stats)로 실제 count를 가져오는 작업은 별도 진행 예정 */}
+      {/* /api/web/stats API에서 실제 팀/매치/유저 수를 가져와 표시 */}
       <div className="bg-surface rounded-xl p-8 border border-border flex flex-col items-center text-center">
         {/* 아이콘 */}
         <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mb-4">
@@ -158,19 +184,24 @@ export function RightSidebarGuest() {
           BDR과 함께 성장하세요
         </h4>
         <p className="text-text-muted text-sm mb-6">
-          현재까지 4,200개 이상의 팀이
+          {/* stats가 로드되면 실제 팀 수 표시, 아니면 "-" */}
+          현재까지 {stats ? `${formatNumber(stats.teamCount)}개` : "-"}의 팀이
           <br />
           BDR에서 실력을 증명하고 있습니다.
         </p>
-        {/* 통계 2열 -- 하드코딩 유지 (TODO: /api/web/stats 연결) */}
+        {/* 통계 2열 -- /api/web/stats 연동 완료 */}
         <div className="grid grid-cols-2 gap-4 w-full mb-6">
           <div className="bg-card p-3 rounded-lg border border-border">
             <div className="text-[10px] text-text-muted uppercase mb-1">등록 매치</div>
-            <div className="text-lg font-bold text-text-primary">12.5k+</div>
+            <div className="text-lg font-bold text-text-primary">
+              {stats ? formatNumber(stats.matchCount) : "-"}
+            </div>
           </div>
           <div className="bg-card p-3 rounded-lg border border-border">
             <div className="text-[10px] text-text-muted uppercase mb-1">활동 선수</div>
-            <div className="text-lg font-bold text-text-primary">85.2k+</div>
+            <div className="text-lg font-bold text-text-primary">
+              {stats ? formatNumber(stats.userCount) : "-"}
+            </div>
           </div>
         </div>
         {/* 가입 버튼 */}
