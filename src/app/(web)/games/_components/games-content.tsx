@@ -327,26 +327,37 @@ export function GamesContent({
 
   return (
     <>
-      {/* 헤더 영역 - "경기 찾기" + 필터/검색 + MY/NEW 버튼 */}
-      <div className="mb-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]" style={{ fontFamily: "var(--font-heading)" }}>
+      {/* 헤더 영역 - 1행 통합: 제목 + 검색/필터 + MY/NEW 버튼 */}
+      <div className="mb-6">
+        <div className="flex items-center gap-3">
+          {/* 제목 (왼쪽 고정) */}
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)] shrink-0" style={{ fontFamily: "var(--font-heading)" }}>
             경기 찾기
           </h1>
+
+          {/* 가운데 여백 - 제목과 오른쪽 버튼들 사이를 벌림 */}
+          <div className="flex-1" />
+
+          {/* 검색 + 필터 + MY + NEW (오른쪽 정렬) */}
           <div className="flex items-center gap-2">
-            {/* 필터 트리거 + 검색은 GamesFilterComponent 안에 포함 */}
+            {/* 검색/필터 컴포넌트 (축소된 검색창 + 필터 트리거) */}
+            <GamesFilterComponent cities={cities} />
+
+            {/* MY 버튼 */}
             <Link
               href="/games/my-games"
               prefetch={true}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-colors bg-[var(--color-accent)] text-[var(--color-text-primary)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-colors bg-[var(--color-accent)] text-[var(--color-text-primary)] shrink-0"
               title="내 경기"
             >
               MY
             </Link>
+
+            {/* + 경기 만들기 버튼 */}
             <Link
               href="/games/new"
               prefetch={true}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors bg-[var(--color-primary)]"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors bg-[var(--color-primary)] shrink-0"
               title="경기 만들기"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -355,9 +366,6 @@ export function GamesContent({
             </Link>
           </div>
         </div>
-
-        {/* 필터 바 - 검색 인라인 + 플로팅 필터 패널 트리거 */}
-        <GamesFilterComponent cities={cities} />
       </div>
 
       {/* 로딩 중이면 스켈레톤 표시 */}

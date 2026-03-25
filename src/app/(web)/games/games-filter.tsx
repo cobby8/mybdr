@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import { FloatingFilterPanel, type FilterConfig } from "@/components/shared/floating-filter-panel";
 
 // 경기 유형 옵션 (기존 로직 유지)
@@ -121,11 +121,28 @@ export function GamesFilter({ cities }: { cities: string[] }) {
     },
   ];
 
+  // 모바일에서 검색창 열기/닫기 토글 (작은 화면에서 공간 절약)
+  const [searchOpen, setSearchOpen] = useState(false);
+
   return (
-    <div className="flex items-center gap-3">
-      {/* 검색바: 인라인 유지 (패널 밖) */}
-      <div className="relative flex-1">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-lg" style={{ color: "var(--color-text-muted)" }}>
+    <div className="flex items-center gap-2">
+      {/* 모바일: 검색 아이콘 토글 버튼 (md 이상에서는 숨김) */}
+      <button
+        type="button"
+        onClick={() => setSearchOpen(!searchOpen)}
+        className="md:hidden flex h-9 w-9 items-center justify-center rounded-full transition-colors shrink-0"
+        style={{
+          backgroundColor: searchOpen ? "var(--color-primary)" : "var(--color-surface)",
+          color: searchOpen ? "#fff" : "var(--color-text-secondary)",
+        }}
+        title="검색"
+      >
+        <span className="material-symbols-outlined text-lg">search</span>
+      </button>
+
+      {/* 검색바: 데스크탑에서는 항상 보임, 모바일에서는 토글 */}
+      <div className={`relative ${searchOpen ? "block" : "hidden"} md:block`}>
+        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-base" style={{ color: "var(--color-text-muted)" }}>
           search
         </span>
         <input
@@ -133,7 +150,7 @@ export function GamesFilter({ cities }: { cities: string[] }) {
           placeholder="경기 검색..."
           defaultValue={params.get("q") ?? ""}
           onChange={(e) => handleSearch(e.target.value)}
-          className="h-10 w-full rounded border pl-10 pr-4 text-sm focus:ring-1 focus:outline-none transition-all"
+          className="h-9 w-[160px] lg:w-[200px] rounded border pl-8 pr-3 text-sm focus:ring-1 focus:outline-none transition-all"
           style={{
             borderColor: "var(--color-border)",
             backgroundColor: "var(--color-surface)",
