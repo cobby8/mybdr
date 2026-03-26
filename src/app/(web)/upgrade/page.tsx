@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { MEMBERSHIP_LABELS, MEMBERSHIP_PRICES, type MembershipType } from "@/lib/auth/roles";
+
+// SEO: 업그레이드 안내 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "업그레이드 | MyBDR",
+  description: "더 많은 기능을 이용하려면 멤버십을 업그레이드하세요.",
+};
 
 type UpgradeReason = "team_creation" | "pickup_hosting" | "tournament_management";
 

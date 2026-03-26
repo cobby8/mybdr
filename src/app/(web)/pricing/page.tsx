@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import Link from "next/link";
+
+// SEO: 요금제 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "요금제 | MyBDR",
+  description: "MyBDR 멤버십 요금제를 비교하고 나에게 맞는 플랜을 선택하세요.",
+};
 
 export const revalidate = 300;
 

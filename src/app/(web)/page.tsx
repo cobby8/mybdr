@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { getWebSession } from "@/lib/auth/web-session";
+
+// SEO: 홈 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "MyBDR | 농구 매칭 플랫폼",
+  description: "픽업 게임, 팀 대결, 대회까지 — 농구인을 위한 올인원 매칭 플랫폼",
+};
 import { HeroBento } from "@/components/home/hero-bento";
 import { RecommendedGames } from "@/components/home/recommended-games";
 import { NotableTeams } from "@/components/home/notable-teams";

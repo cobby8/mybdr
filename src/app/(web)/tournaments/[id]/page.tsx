@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
@@ -10,6 +11,20 @@ import { TournamentSidebar } from "./_components/tournament-sidebar";
 import { TournamentAbout } from "./_components/tournament-about";
 
 export const revalidate = 30;
+
+// SEO: 대회 상세 동적 메타데이터 — 대회명을 DB에서 조회하여 title에 반영
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const tournament = await prisma.tournament.findUnique({
+    where: { id },
+    select: { name: true, description: true },
+  }).catch(() => null);
+  if (!tournament) return { title: "대회 상세 | MyBDR" };
+  return {
+    title: `${tournament.name} | MyBDR`,
+    description: tournament.description?.slice(0, 100) || `${tournament.name} 대회 일정, 팀, 순위를 확인하세요.`,
+  };
+}
 
 // -- Skeleton for matches + standings (기존 유지) --
 function MatchesStandingsSkeleton() {

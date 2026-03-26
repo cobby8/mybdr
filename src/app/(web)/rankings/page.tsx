@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { RankingsContent } from "./_components/rankings-content";
 import RankingsLoading from "./loading";
+
+// SEO: 랭킹 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "랭킹 | MyBDR",
+  description: "득점, 리바운드, 어시스트 등 부문별 선수 랭킹을 확인하세요.",
+};
 
 /**
  * /rankings 페이지

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import Image from "next/image";
@@ -22,6 +23,20 @@ import { getWebSession } from "@/lib/auth/web-session";
  */
 
 export const revalidate = 60;
+
+// SEO: 유저 프로필 동적 메타데이터 — 닉네임을 DB에서 조회하여 title에 반영
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const user = await prisma.user.findUnique({
+    where: { id: BigInt(id) },
+    select: { nickname: true, position: true },
+  }).catch(() => null);
+  if (!user) return { title: "선수 프로필 | MyBDR" };
+  return {
+    title: `${user.nickname || "선수"} 프로필 | MyBDR`,
+    description: `${user.nickname || "선수"}의 경기 기록과 능력치를 확인하세요.`,
+  };
+}
 
 const POSITION_LABEL: Record<string, string> = {
   PG: "포인트가드",
