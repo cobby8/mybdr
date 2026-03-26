@@ -294,6 +294,93 @@ export default async function TournamentDetailPage({ params }: { params: Promise
             />
           )}
 
+          {/* 장소/안내 요약 카드: 모바일에서 사이드바가 하단에 밀리므로 인라인 요약 제공 */}
+          <div
+            className="mt-8 rounded-radius-card border p-5 sm:p-6 lg:hidden"
+            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+          >
+            <h3
+              className="mb-4 flex items-center gap-2 font-bold"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              <span
+                className="h-6 w-1.5 flex-shrink-0 rounded-full"
+                style={{ backgroundColor: "var(--color-primary)" }}
+              />
+              대회 안내
+            </h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* 장소 */}
+              {(tournament.city || tournament.venue_name) && (
+                <div className="flex items-start gap-3">
+                  <span
+                    className="material-symbols-outlined mt-0.5 flex-shrink-0 text-lg"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    location_on
+                  </span>
+                  <div>
+                    <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>장소</p>
+                    <p className="text-sm font-medium">
+                      {[tournament.city, tournament.venue_name].filter(Boolean).join(" ")}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* 일시 */}
+              {tournament.startDate && (
+                <div className="flex items-start gap-3">
+                  <span
+                    className="material-symbols-outlined mt-0.5 flex-shrink-0 text-lg"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    event
+                  </span>
+                  <div>
+                    <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>일시</p>
+                    <p className="text-sm font-medium">
+                      {tournament.startDate.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                      {tournament.endDate && tournament.endDate.getTime() !== tournament.startDate.getTime() && (
+                        <> ~ {tournament.endDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}</>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {/* 참가비 */}
+              {tournament.entry_fee && Number(tournament.entry_fee) > 0 && (
+                <div className="flex items-start gap-3">
+                  <span
+                    className="material-symbols-outlined mt-0.5 flex-shrink-0 text-lg"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    payments
+                  </span>
+                  <div>
+                    <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>참가비</p>
+                    <p className="text-sm font-medium">{Number(tournament.entry_fee).toLocaleString()}원</p>
+                  </div>
+                </div>
+              )}
+              {/* 참가팀 현황 */}
+              <div className="flex items-start gap-3">
+                <span
+                  className="material-symbols-outlined mt-0.5 flex-shrink-0 text-lg"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  groups
+                </span>
+                <div>
+                  <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>참가팀</p>
+                  <p className="text-sm font-medium">
+                    {tournament._count.tournamentTeams}팀
+                    {tournament.maxTeams && <span style={{ color: "var(--color-text-secondary)" }}> / {tournament.maxTeams}팀</span>}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 최근 경기 + 순위: Suspense로 스트리밍 (기존 유지) */}
           <div className="mt-8">
             <Suspense fallback={<MatchesStandingsSkeleton />}>
