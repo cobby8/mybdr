@@ -114,9 +114,9 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
             <Image
               src="/images/logo.png"
               alt="BDR"
-              width={236}
-              height={71}
-              className="w-[236px] h-auto"
+              width={165}
+              height={50}
+              className="w-[165px] h-auto"
               priority
             />
           </Link>
