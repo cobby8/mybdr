@@ -6,12 +6,15 @@
 
 import { Badge } from "@/components/ui/badge";
 
-// 대회 포맷 한글 매핑
+// 대회 포맷 한글 매핑 -- DB에 저장된 영어 포맷값을 한글로 변환
 const FORMAT_LABEL: Record<string, string> = {
-  single_elimination: "싱글 엘리미",
-  double_elimination: "더블 엘리미",
+  single_elimination: "싱글 엘리미네이션",
+  double_elimination: "더블 엘리미네이션",
   round_robin: "리그전",
   hybrid: "혼합",
+  group_stage_knockout: "조별리그+토너먼트",
+  GROUP_STAGE_KNOCKOUT: "조별리그+토너먼트",
+  swiss: "스위스 라운드",
 };
 
 // 대회 상태 배지 매핑
@@ -51,7 +54,8 @@ export function TournamentHero({
   maxTeams,
 }: TournamentHeroProps) {
   const statusInfo = STATUS_LABEL[status ?? "draft"] ?? { label: status ?? "draft", variant: "default" as const };
-  const formatLabel = FORMAT_LABEL[format ?? ""] ?? format ?? "";
+  // 포맷 한글 변환: 대소문자 무시하여 매핑 (DB 값이 대문자일 수도 있으므로)
+  const formatLabel = FORMAT_LABEL[format ?? ""] ?? FORMAT_LABEL[(format ?? "").toLowerCase()] ?? format ?? "";
 
   // 날짜 포맷
   const dateStr = startDate
@@ -63,7 +67,8 @@ export function TournamentHero({
 
   return (
     /* 히어로 전체: 다크 그라디언트 배경 (이미지 대신) */
-    <section className="relative w-full overflow-hidden" style={{ minHeight: "360px" }}>
+    /* 모바일: minHeight 축소(240px), 데스크탑: 360px 유지 */
+    <section className="relative w-full overflow-hidden min-h-[240px] sm:min-h-[360px]">
       {/* 배경 그라디언트: 어두운 톤에서 primary 컬러를 살짝 비춰주는 효과 */}
       <div
         className="absolute inset-0"
@@ -84,14 +89,14 @@ export function TournamentHero({
         style={{ background: "radial-gradient(circle, var(--color-primary) 0%, transparent 70%)" }}
       />
 
-      {/* 콘텐츠 영역 */}
-      <div className="relative flex h-full min-h-[360px] flex-col justify-end px-6 pb-10 sm:px-10">
-        {/* 배지 그룹: 상태 + 포맷 */}
-        <div className="mb-4 flex items-center gap-3">
+      {/* 콘텐츠 영역: 모바일 패딩/높이 축소 */}
+      <div className="relative flex h-full min-h-[240px] sm:min-h-[360px] flex-col justify-end px-4 pb-6 sm:px-10 sm:pb-10">
+        {/* 배지 그룹: 상태 + 포맷 -- 모바일에서 gap/margin 축소 */}
+        <div className="mb-2 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
           <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
           {formatLabel && (
             <span
-              className="rounded-sm px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"
+              className="rounded-sm px-2 py-0.5 text-[10px] font-bold tracking-wider text-white sm:px-3 sm:py-1 sm:text-xs"
               style={{ backgroundColor: "var(--color-primary)" }}
             >
               {formatLabel}
@@ -99,16 +104,16 @@ export function TournamentHero({
           )}
         </div>
 
-        {/* 대회명: 대형 타이포그래피 */}
+        {/* 대회명: 모바일 text-2xl -> sm:text-4xl -> lg:text-6xl (잘리지 않도록) */}
         <h1
-          className="mb-6 text-4xl font-extrabold uppercase leading-none tracking-tight sm:text-5xl lg:text-6xl"
+          className="mb-3 text-2xl font-extrabold uppercase leading-tight tracking-tight sm:mb-6 sm:text-4xl sm:leading-none lg:text-6xl"
           style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
         >
           {name}
         </h1>
 
-        {/* 메타 정보: 날짜 / 장소 / 팀수 (아이콘 + 텍스트) */}
-        <div className="flex flex-wrap gap-6">
+        {/* 메타 정보: 모바일은 세로 배치(flex-col gap-2), 데스크탑은 가로(flex-row gap-6) */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
           {dateStr && (
             <div className="flex items-center gap-2">
               <span

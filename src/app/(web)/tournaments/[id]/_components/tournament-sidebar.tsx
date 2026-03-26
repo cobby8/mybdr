@@ -81,7 +81,7 @@ export function TournamentSidebar({
     <div className="sticky top-20 space-y-4">
       {/* 메인 참가 카드 */}
       <div
-        className="overflow-hidden rounded-radius-card border shadow-shadow-card"
+        className="overflow-hidden rounded-[var(--radius-card)] border shadow-[var(--shadow-card)]"
         style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
       >
         {/* 상단 참가비 영역: 컴팩트한 인라인 표시 (축소 버전) */}
@@ -222,7 +222,7 @@ export function TournamentSidebar({
       {/* 입금 정보 (있을 경우, 축소) */}
       {bankName && bankAccount && (
         <div
-          className="rounded-radius-card border p-4"
+          className="rounded-[var(--radius-card)] border p-4"
           style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-elevated)" }}
         >
           <p className="mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-text-secondary)" }}>

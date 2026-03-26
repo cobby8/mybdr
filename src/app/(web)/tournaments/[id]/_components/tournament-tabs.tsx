@@ -50,10 +50,15 @@ export function TournamentTabs({
 
   return (
     <div>
-      {/* 밑줄 탭 네비게이션: 기존 Link 대신 button으로 클라이언트 상태 전환 */}
+      {/* 밑줄 탭 네비게이션: 모바일 가로 스크롤 + 스크롤바 숨김 */}
       <div
-        className="mb-8 flex gap-8 overflow-x-auto border-b"
-        style={{ borderColor: "var(--color-border)" }}
+        className="mb-6 flex gap-4 overflow-x-auto border-b sm:mb-8 sm:gap-8 [&::-webkit-scrollbar]:hidden"
+        style={{
+          borderColor: "var(--color-border)",
+          /* 스크롤바 숨김: WebKit + Firefox */
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
       >
         {TAB_META.map((tab) => {
           const isActive = activeTab === tab.key;
@@ -61,7 +66,7 @@ export function TournamentTabs({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className="whitespace-nowrap pb-4 text-base font-medium transition-colors"
+              className="whitespace-nowrap pb-3 text-sm font-medium transition-colors sm:pb-4 sm:text-base"
               style={
                 isActive
                   ? {

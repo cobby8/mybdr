@@ -9,15 +9,15 @@ type DashboardHeaderProps = {
   finalsDate: string | null; // 결승전 예정일 (ISO string)
 };
 
-// 날짜를 "OCT 24" 형태로 포맷
+// 날짜를 "3월 24일" 형태로 한글 포맷
 function formatShortDate(dateStr: string | null): string {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
+  return d.toLocaleDateString("ko-KR", {
+    month: "long",
     day: "numeric",
     timeZone: "Asia/Seoul",
-  }).toUpperCase();
+  });
 }
 
 export function TournamentDashboardHeader({
@@ -38,15 +38,15 @@ export function TournamentDashboardHeader({
           >
             {tournamentName}
           </div>
-          {/* 메인 타이틀 */}
+          {/* 메인 타이틀: 한글화 + 모바일 폰트 축소 */}
           <h2
-            className="text-3xl sm:text-4xl font-black tracking-tighter uppercase"
+            className="text-xl sm:text-3xl lg:text-4xl font-black tracking-tighter uppercase"
             style={{
               color: "var(--color-text-primary)",
               fontFamily: "'Space Grotesk', sans-serif",
             }}
           >
-            Tournament Dashboard
+            대회 대시보드
           </h2>
         </div>
         {/* 액션 버튼 (데스크톱만 표시) */}
@@ -79,18 +79,18 @@ export function TournamentDashboardHeader({
         </div>
       </div>
 
-      {/* 통계 4칸 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* 통계 4칸 카드: 모바일 gap 축소 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
         {/* 총 참가팀 */}
         <StatCard
           label="총 참가팀"
-          value={`${totalTeams} TEAMS`}
+          value={`${totalTeams}팀`}
           icon="groups"
         />
         {/* 진행중 경기 */}
         <StatCard
           label="진행중인 경기"
-          value={`${String(liveMatchCount).padStart(2, "0")} MATCHES`}
+          value={`${String(liveMatchCount).padStart(2, "0")}경기`}
           icon="sports_basketball"
           highlight={liveMatchCount > 0}
           badge={liveMatchCount > 0 ? "LIVE" : undefined}
@@ -124,7 +124,7 @@ function StatCard({
 }) {
   return (
     <div
-      className="p-5 rounded"
+      className="p-3 sm:p-5 rounded"
       style={{
         backgroundColor: "var(--color-card)",
         border: "1px solid var(--color-border)",

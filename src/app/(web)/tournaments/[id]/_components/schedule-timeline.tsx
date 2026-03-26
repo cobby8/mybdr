@@ -136,7 +136,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
       {/* 날짜별 타임라인 */}
       {dateGroups.size === 0 && (
         <div
-          className="rounded-radius-card border p-8 text-center"
+          className="rounded-[var(--radius-card)] border p-8 text-center"
           style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-muted)" }}
         >
           {selectedTeam ? "선택한 팀의 일정이 없습니다." : "일정이 없습니다."}
@@ -220,7 +220,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
 
                     {/* 오른쪽: 매치 카드 */}
                     <div
-                      className="mb-4 flex-1 rounded-radius-card border p-4 transition-all"
+                      className="mb-4 flex-1 rounded-[var(--radius-card)] border p-4 transition-all"
                       style={{
                         borderColor: isHighlighted ? "var(--color-primary)" : "var(--color-border)",
                         backgroundColor: "var(--color-card)",

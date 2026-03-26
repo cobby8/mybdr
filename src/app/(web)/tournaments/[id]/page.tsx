@@ -49,13 +49,13 @@ function MatchesStandingsSkeleton() {
         <Skeleton className="mb-3 h-5 w-20" />
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 rounded-radius-card" />
+            <Skeleton key={i} className="h-14 rounded-[var(--radius-card)]" />
           ))}
         </div>
       </div>
       <div>
         <Skeleton className="mb-3 h-5 w-12" />
-        <Skeleton className="h-48 rounded-radius-card" />
+        <Skeleton className="h-48 rounded-[var(--radius-card)]" />
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ async function MatchesAndStandings({ tournamentId }: { tournamentId: string }) {
             {matches.map((m) => (
               <div
                 key={m.id.toString()}
-                className="flex items-center justify-between rounded-radius-card border p-3"
+                className="flex items-center justify-between rounded-[var(--radius-card)] border p-3"
                 style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
               >
                 <span className="text-sm font-medium">{m.homeTeam?.team.name ?? "TBD"}</span>
@@ -399,7 +399,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
 
       {/* 장소/안내 요약 카드: 모바일에서 사이드바가 하단에 밀리므로 인라인 요약 제공 */}
       <div
-        className="mt-8 rounded-radius-card border p-5 sm:p-6 lg:hidden"
+        className="mt-8 rounded-[var(--radius-card)] border p-5 sm:p-6 lg:hidden"
         style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
       >
         <h3
