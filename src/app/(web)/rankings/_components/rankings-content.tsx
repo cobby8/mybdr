@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BdrRankingTable } from "./bdr-ranking-table";
 
 /* ============================================================
  * 타입 정의 (API 응답은 apiSuccess가 snake_case로 자동 변환)
@@ -37,8 +38,8 @@ interface PlayerRanking {
   total_assists: number;
 }
 
-// 탭 종류
-type TabType = "team" | "player";
+// 탭 종류: 기존 team/player는 유지하되 UI에서 숨김, BDR 탭 추가
+type TabType = "team" | "player" | "bdr-general" | "bdr-university";
 
 // 페이지당 항목 수
 const ITEMS_PER_PAGE = 20;
@@ -477,8 +478,8 @@ function PlayerRankingTable({ players }: { players: PlayerRanking[] }) {
  * - API 호출 + 클라이언트 페이지네이션
  * ============================================================ */
 export function RankingsContent() {
-  // 현재 활성 탭
-  const [activeTab, setActiveTab] = useState<TabType>("team");
+  // 현재 활성 탭 — 기본값을 BDR 일반부로 변경
+  const [activeTab, setActiveTab] = useState<TabType>("bdr-general");
   // 데이터 상태
   const [teamRankings, setTeamRankings] = useState<TeamRanking[]>([]);
   const [playerRankings, setPlayerRankings] = useState<PlayerRanking[]>([]);
@@ -487,7 +488,14 @@ export function RankingsContent() {
   const [currentPage, setCurrentPage] = useState(1);
 
   // 탭이 바뀌면 해당 데이터를 API에서 가져옴
+  // BDR 탭은 자체 컴포넌트가 데이터를 관리하므로 기존 team/player만 fetch
   useEffect(() => {
+    // BDR 탭이면 기존 API 호출 불필요 (BdrRankingTable이 자체 fetch)
+    if (activeTab.startsWith("bdr-")) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setCurrentPage(1); // 탭 전환 시 1페이지로 리셋
 
@@ -525,10 +533,13 @@ export function RankingsContent() {
     [currentData, currentPage]
   );
 
-  // 탭 정의
+  // 탭 정의 — BDR 일반부/대학부 2탭 (기존 team/player 탭은 숨김 처리)
   const tabs: { key: TabType; label: string; icon: string }[] = [
-    { key: "team", label: "팀 랭킹", icon: "groups" },
-    { key: "player", label: "개인 랭킹", icon: "person" },
+    { key: "bdr-general", label: "일반부", icon: "leaderboard" },
+    { key: "bdr-university", label: "대학부", icon: "school" },
+    // 기존 탭은 코드 유지, UI에서만 숨김 (향후 복원 가능)
+    // { key: "team", label: "팀 랭킹", icon: "groups" },
+    // { key: "player", label: "개인 랭킹", icon: "person" },
   ];
 
   return (
@@ -551,7 +562,7 @@ export function RankingsContent() {
           className="ml-5"
           style={{ color: "var(--color-text-muted)" }}
         >
-          BDR 플랫폼의 팀과 선수 랭킹을 확인하세요.
+          BDR 전국 팀 랭킹을 확인하세요.
         </p>
       </div>
 
@@ -589,33 +600,45 @@ export function RankingsContent() {
         ))}
       </div>
 
-      {/* 테이블 영역 */}
-      <div
-        className="rounded-lg border overflow-hidden"
-        style={{
-          borderColor: "var(--color-border)",
-          backgroundColor: "var(--color-surface)",
-        }}
-      >
-        {loading ? (
-          <TableSkeleton />
-        ) : activeTab === "team" ? (
-          <TeamRankingTable teams={paginatedData as TeamRanking[]} />
-        ) : (
-          <PlayerRankingTable players={paginatedData as PlayerRanking[]} />
-        )}
-      </div>
+      {/* BDR 랭킹 탭 — 자체 컴포넌트가 데이터 로딩/렌더링 담당 */}
+      {activeTab === "bdr-general" && (
+        <BdrRankingTable division="general" />
+      )}
+      {activeTab === "bdr-university" && (
+        <BdrRankingTable division="university" />
+      )}
 
-      {/* 페이지네이션 */}
-      {!loading && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => {
-            setCurrentPage(page);
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          }}
-        />
+      {/* 기존 팀/개인 랭킹 테이블 (현재 숨김 상태, 코드 유지) */}
+      {(activeTab === "team" || activeTab === "player") && (
+        <>
+          <div
+            className="rounded-lg border overflow-hidden"
+            style={{
+              borderColor: "var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+            }}
+          >
+            {loading ? (
+              <TableSkeleton />
+            ) : activeTab === "team" ? (
+              <TeamRankingTable teams={paginatedData as TeamRanking[]} />
+            ) : (
+              <PlayerRankingTable players={paginatedData as PlayerRanking[]} />
+            )}
+          </div>
+
+          {/* 페이지네이션 (기존 팀/개인 탭 전용) */}
+          {!loading && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            />
+          )}
+        </>
       )}
     </>
   );
