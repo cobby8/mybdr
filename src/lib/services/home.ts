@@ -108,11 +108,20 @@ export async function prefetchStats() {
  * - 홈 프리페치용이므로 prefer/category/q 파라미터 없음
  * ============================================================ */
 export async function prefetchCommunity() {
+  // content 전체를 가져오지 않고 필요한 컬럼만 select (수천자 본문 → DB 레벨에서 제외)
   const posts = await prisma.community_posts.findMany({
     where: {},
     orderBy: { created_at: "desc" },
     take: 30,
-    include: {
+    select: {
+      id: true,
+      public_id: true,
+      title: true,
+      category: true,
+      view_count: true,
+      comments_count: true,
+      likes_count: true,
+      created_at: true,
       users: {
         select: {
           nickname: true,
@@ -122,7 +131,7 @@ export async function prefetchCommunity() {
     },
   });
 
-  // BigInt/Date 직렬화 (API route와 동일한 형식)
+  // BigInt/Date 직렬화 (content 필드 제외 — 목록에서는 미리보기 불필요)
   const serializedPosts = posts.map((p) => ({
     id: p.id.toString(),
     publicId: p.public_id,
@@ -134,7 +143,7 @@ export async function prefetchCommunity() {
     createdAt: p.created_at?.toISOString() ?? null,
     authorNickname: p.users?.nickname ?? "익명",
     authorProfileImage: p.users?.profile_image_url ?? null,
-    contentPreview: p.content?.slice(0, 120) ?? "",
+    contentPreview: "",
   }));
 
   // apiSuccess()와 동일하게 snake_case 변환

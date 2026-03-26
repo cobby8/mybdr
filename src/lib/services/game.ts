@@ -55,10 +55,27 @@ export async function listGames(filters: GameListFilters = {}) {
 
   if (scheduledAt) where.scheduled_at = scheduledAt;
 
+  // 카드 표시에 필요한 컬럼만 select (description, notes 등 불필요한 긴 텍스트 제외)
   const games = await prisma.games.findMany({
     where,
     orderBy: { created_at: "desc" },
     take,
+    select: {
+      id: true,
+      uuid: true,
+      title: true,
+      status: true,
+      game_type: true,
+      city: true,
+      district: true,
+      venue_name: true,
+      scheduled_at: true,
+      max_participants: true,
+      current_participants: true,
+      fee_per_person: true,
+      skill_level: true,
+      created_at: true,
+    },
   });
 
   // 날짜 지난 모집중(1)/확정(2) 경기 → 종료(3)로 표시

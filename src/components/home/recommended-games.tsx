@@ -13,6 +13,7 @@
  * - p-3 정보 영역 (제목+잔여석 / 참여 버튼)
  * ============================================================ */
 
+import { useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,9 +21,17 @@ import { formatRelativeDateTime } from "@/lib/utils/format-date";
 // 경기 카드와 동일한 뱃지 상수 import
 import { TYPE_BADGE } from "@/app/(web)/games/_constants/game-badges";
 
-// Google Places 사진 fetcher (games-content.tsx와 동일 패턴)
-const photoFetcher = (url: string) =>
-  fetch(url).then((res) => res.json()).then((data) => data.photo_url as string | null);
+// batch API fetcher: 장소명 배열을 한번에 보내고 맵으로 받음
+const batchPhotoFetcher = (key: string) => {
+  const queries = JSON.parse(key.replace("/api/web/place-photos:", ""));
+  return fetch("/api/web/place-photos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ queries }),
+  })
+    .then((res) => res.json())
+    .then((data) => (data.results ?? {}) as Record<string, string | null>);
+};
 
 /* 세션 정보: 서버에서 getWebSession()으로 받은 JwtPayload를 전달받는다 */
 interface UserSession {
@@ -103,6 +112,21 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
   /* API 응답이 없거나 games 배열이 비어있으면 fallback 사용 */
   const games = (data?.games && data.games.length > 0) ? data.games : FALLBACK_GAMES;
 
+  // 모든 경기의 장소명을 수집하여 batch API 1번 호출
+  const venueQueries = useMemo(() => {
+    return games
+      .map((g) => g.venue_name ?? g.city ?? "")
+      .filter((v) => v.length >= 2);
+  }, [games]);
+
+  const { data: photoMap } = useSWR(
+    venueQueries.length > 0
+      ? `/api/web/place-photos:${JSON.stringify(venueQueries)}`
+      : null,
+    batchPhotoFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 }
+  );
+
   if (loading) {
     return (
       <section className="space-y-6">
@@ -139,7 +163,11 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
       {/* 반응형 레이아웃: 모바일 가로 스크롤 / 데스크탑 2열 그리드 */}
       <div className="flex flex-row overflow-x-auto gap-4 no-scrollbar -mx-6 px-6 md:grid md:grid-cols-2 md:overflow-visible md:mx-0 md:px-0">
         {games.map((game) => (
-          <GameCard key={game.id} game={game} />
+          <GameCard
+            key={game.id}
+            game={game}
+            photoUrl={photoMap?.[game.venue_name ?? game.city ?? ""] ?? null}
+          />
         ))}
       </div>
     </section>
@@ -147,7 +175,8 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
 }
 
 /* ---- 개별 경기 카드 컴포넌트 (games-content.tsx GameCard와 동일 구조) ---- */
-function GameCard({ game }: { game: RecommendedGame }) {
+// photoUrl을 부모에서 batch로 가져와서 prop으로 전달 (개별 API 호출 제거)
+function GameCard({ game, photoUrl }: { game: RecommendedGame; photoUrl?: string | null }) {
   // game_type은 문자열("0","1","2")로 오므로 숫자로 변환
   const typeNum = Number(game.game_type ?? "0");
   const badge = TYPE_BADGE[typeNum] ?? TYPE_BADGE[0];
@@ -157,13 +186,6 @@ function GameCard({ game }: { game: RecommendedGame }) {
 
   // ISO string -> 간결한 상대 시간 ("오늘 19:00" / "내일 14:00" / "3/22 19:00")
   const scheduleStr = formatRelativeDateTime(game.scheduled_at);
-
-  // 장소명이 있으면 Google Places API로 사진 조회 (SWR 캐시로 중복 호출 방지)
-  const { data: photoUrl } = useSWR(
-    location ? `/api/web/place-photo?query=${encodeURIComponent(location)}` : null,
-    photoFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 3600000 } // 1시간 캐시
-  );
 
   // 남은 자리 텍스트
   const spotsText = game.spots_left !== null ? `${game.spots_left}자리` : null;

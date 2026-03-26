@@ -9,9 +9,17 @@ import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { formatShortDate } from "@/lib/utils/format-date";
 
-// SWR fetcher: Google Places 사진 URL 추출 (games-content.tsx와 동일 패턴)
-const photoFetcher = (url: string) =>
-  fetch(url).then((res) => res.json()).then((data) => data.photo_url as string | null);
+// batch API fetcher: 장소명 배열을 한번에 보내고 맵으로 받음
+const batchPhotoFetcher = (key: string) => {
+  const queries = JSON.parse(key.replace("/api/web/place-photos:", ""));
+  return fetch("/api/web/place-photos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ queries }),
+  })
+    .then((res) => res.json())
+    .then((data) => (data.results ?? {}) as Record<string, string | null>);
+};
 
 // API 응답 타입 (snake_case로 자동 변환됨)
 interface TournamentFromApi {
@@ -119,8 +127,8 @@ function TournamentGridSkeleton() {
 }
 
 // -- 대회 카드: 경기 카드와 동일한 컴팩트 스타일 --
-// 구조: 이미지(h-20 lg:h-28) + 정보(p-3) 2행
-function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
+// photoUrl을 부모에서 batch로 가져와서 prop으로 전달 (개별 API 호출 제거)
+function TournamentCard({ tournament: t, photoUrl }: { tournament: TournamentFromApi; photoUrl?: string | null }) {
   const st = t.status ?? "draft";
   const badge = STATUS_BADGE[st] ?? { label: st.toUpperCase(), bg: "var(--color-text-disabled)" };
   const maxTeams = t.max_teams ?? 0;
@@ -131,13 +139,6 @@ function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
 
   // 대회 유형에 따른 그라디언트+아이콘 결정
   const formatStyle = FORMAT_GRADIENT[t.format ?? ""] ?? DEFAULT_FORMAT_STYLE;
-
-  // 장소명이 있으면 Google Places API로 사진 조회 (경기 카드와 동일 패턴)
-  const { data: photoUrl } = useSWR(
-    location ? `/api/web/place-photo?query=${encodeURIComponent(location)}` : null,
-    photoFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 3600000 } // 1시간 캐시
-  );
 
   return (
     <Link href={`/tournaments/${t.id}`} prefetch={true}>
@@ -429,6 +430,21 @@ export function TournamentsContent({
   const handleRegionChange = useCallback((city: string) => setRegionFilter(city), []);
   const handleFeeChange = useCallback((fee: string) => setFeeFilter(fee), []);
 
+  // 모든 대회의 장소명을 수집하여 batch API 1번 호출
+  const venueQueries = useMemo(() => {
+    return tournaments
+      .map((t) => t.venue_name ?? t.city ?? "")
+      .filter((v) => v.length >= 2);
+  }, [tournaments]);
+
+  const { data: photoMap } = useSWR(
+    venueQueries.length > 0
+      ? `/api/web/place-photos:${JSON.stringify(venueQueries)}`
+      : null,
+    batchPhotoFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 }
+  );
+
   // 필터 활성 여부 확인
   const status = searchParams.get("status");
   const hasFilters =
@@ -490,7 +506,11 @@ export function TournamentsContent({
           {/* 대회 카드 그리드 (3열) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedTournaments.map((t) => (
-              <TournamentCard key={t.id} tournament={t} />
+              <TournamentCard
+                key={t.id}
+                tournament={t}
+                photoUrl={photoMap?.[t.venue_name ?? t.city ?? ""] ?? null}
+              />
             ))}
 
             {/* 빈 상태 */}

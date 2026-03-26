@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -8,9 +8,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { formatRelativeDateTime } from "@/lib/utils/format-date";
 
-// SWR fetcher: JSON 응답에서 photo_url 추출
-const photoFetcher = (url: string) =>
-  fetch(url).then((res) => res.json()).then((data) => data.photo_url as string | null);
+// batch API fetcher: 장소명 배열을 한번에 보내고 { results: { 장소명: url } } 형태로 받음
+const batchPhotoFetcher = (key: string) => {
+  // key에서 장소명 배열을 추출 (JSON.stringify된 배열이 key에 포함됨)
+  const queries = JSON.parse(key.replace("/api/web/place-photos:", ""));
+  return fetch("/api/web/place-photos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ queries }),
+  })
+    .then((res) => res.json())
+    .then((data) => (data.results ?? {}) as Record<string, string | null>);
+};
 
 // API에서 내려오는 경기 데이터 타입 (snake_case로 자동 변환됨) - 기존 유지
 interface GameFromApi {
@@ -96,7 +105,8 @@ function GamesGridSkeleton() {
 }
 
 // -- 경기 카드: 디자인 시안(bdr_1, bdr_5)에 맞춘 이미지 카드 --
-function GameCard({ game }: { game: GameFromApi }) {
+// photoUrl을 부모에서 batch로 가져와서 prop으로 전달 (개별 API 호출 제거)
+function GameCard({ game, photoUrl }: { game: GameFromApi; photoUrl?: string | null }) {
   const href = `/games/${game.uuid?.slice(0, 8) ?? game.id}`;
   const badge = TYPE_BADGE[game.game_type] ?? TYPE_BADGE[0];
   const skill = game.skill_level && game.skill_level !== "all" ? SKILL_BADGE[game.skill_level] : null;
@@ -116,13 +126,6 @@ function GameCard({ game }: { game: GameFromApi }) {
 
   // ISO string -> 간결한 상대 시간 포맷 ("오늘 19:00" / "내일 14:00" / "3/22 19:00")
   const scheduleStr = formatRelativeDateTime(game.scheduled_at);
-
-  // 장소명이 있으면 Google Places API로 사진 조회 (SWR 캐시로 중복 호출 방지)
-  const { data: photoUrl } = useSWR(
-    location ? `/api/web/place-photo?query=${encodeURIComponent(location)}` : null,
-    photoFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 3600000 } // 1시간 동안 같은 요청 중복 방지
-  );
 
   return (
     <Link href={href}>
@@ -253,6 +256,22 @@ export function GamesContent({
     return () => controller.abort();
   }, [searchParams, preferFilter]);
 
+  // 모든 경기의 장소명을 수집하여 batch API 1번 호출 (60번 → 1번으로 줄임)
+  const venueQueries = useMemo(() => {
+    return games
+      .map((g) => g.venue_name ?? g.city ?? "")
+      .filter((v) => v.length >= 2);
+  }, [games]);
+
+  // batch API: 장소명 배열을 key에 포함 (배열이 바뀌면 재호출)
+  const { data: photoMap } = useSWR(
+    venueQueries.length > 0
+      ? `/api/web/place-photos:${JSON.stringify(venueQueries)}`
+      : null,
+    batchPhotoFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 }
+  );
+
   return (
     <>
       {/* 헤더 영역 - 1행 통합: 제목 + 검색/필터 + MY/NEW 버튼 */}
@@ -314,7 +333,11 @@ export function GamesContent({
           {/* 경기 카드 그리드 - 3열 레이아웃 (디자인 시안) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {games.map((g) => (
-              <GameCard key={g.id} game={g} />
+              <GameCard
+                key={g.id}
+                game={g}
+                photoUrl={photoMap?.[g.venue_name ?? g.city ?? ""] ?? null}
+              />
             ))}
 
             {/* 빈 상태 */}
