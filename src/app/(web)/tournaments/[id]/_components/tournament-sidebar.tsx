@@ -83,16 +83,18 @@ export function TournamentSidebar({
         className="overflow-hidden rounded-radius-card border shadow-shadow-card"
         style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
       >
-        {/* 상단 참가비 영역: primary 배경 */}
+        {/* 상단 참가비 영역: 컴팩트한 인라인 표시 (기존 대형 블록에서 축소) */}
         {hasFee && (
-          <div className="p-6 text-center text-white" style={{ backgroundColor: "var(--color-primary)" }}>
-            <p className="mb-1 text-xs font-bold uppercase tracking-widest opacity-80">참가비</p>
-            <div className="flex items-center justify-center gap-1">
-              <span className="text-3xl font-extrabold" style={{ fontFamily: "var(--font-heading)" }}>
-                {entryFee!.toLocaleString()}
-              </span>
-              <span className="text-lg">원</span>
-            </div>
+          <div
+            className="flex items-center justify-between px-5 py-3"
+            style={{ borderBottom: "1px solid var(--color-border)" }}
+          >
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-text-secondary)" }}>
+              참가비
+            </span>
+            <span className="text-lg font-extrabold" style={{ color: "var(--color-primary)", fontFamily: "var(--font-heading)" }}>
+              {entryFee!.toLocaleString()}<span className="text-sm font-bold">원</span>
+            </span>
           </div>
         )}
 

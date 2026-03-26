@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
+
 import { buildRoundGroups } from "@/lib/tournaments/bracket-builder";
 
 // 기존 디자인 컴포넌트 (히어로 + 사이드바 + About 섹션)
@@ -123,7 +123,7 @@ async function MatchesAndStandings({ tournamentId }: { tournamentId: string }) {
         </div>
       )}
 
-      {/* 순위 테이블 */}
+      {/* 순위 테이블: 미니멀 플랫 스타일 (외곽 border 제거, 하단선만) */}
       {teams.length > 0 && (
         <div>
           <h2
@@ -133,31 +133,35 @@ async function MatchesAndStandings({ tournamentId }: { tournamentId: string }) {
             <span className="material-symbols-outlined text-lg" style={{ color: "var(--color-primary)" }}>leaderboard</span>
             순위
           </h2>
-          <div
-            className="overflow-hidden rounded-radius-card border"
-            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-          >
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: "var(--color-border)" }}>
-                  <th className="px-4 py-2 text-left" style={{ color: "var(--color-text-secondary)" }}>#</th>
-                  <th className="px-4 py-2 text-left" style={{ color: "var(--color-text-secondary)" }}>팀</th>
-                  <th className="px-4 py-2 text-center" style={{ color: "var(--color-text-secondary)" }}>승</th>
-                  <th className="px-4 py-2 text-center" style={{ color: "var(--color-text-secondary)" }}>패</th>
-                </tr>
-              </thead>
-              <tbody>
-                {teams.map((t, i) => (
-                  <tr key={t.id.toString()} className="border-b last:border-b-0" style={{ borderColor: "var(--color-border)" }}>
-                    <td className="px-4 py-2 font-bold" style={{ color: "var(--color-primary)" }}>{i + 1}</td>
-                    <td className="px-4 py-2">{t.team.name}</td>
-                    <td className="px-4 py-2 text-center">{t.wins ?? 0}</td>
-                    <td className="px-4 py-2 text-center">{t.losses ?? 0}</td>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>#</th>
+                <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>팀</th>
+                <th className="px-3 py-2 text-center text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>승</th>
+                <th className="px-3 py-2 text-center text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>패</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((t, i) => {
+                const isTop3 = i < 3;
+                return (
+                  <tr
+                    key={t.id.toString()}
+                    style={{
+                      borderBottom: "1px solid var(--color-border)",
+                      borderLeft: isTop3 ? "3px solid var(--color-primary)" : "3px solid transparent",
+                    }}
+                  >
+                    <td className="px-3 py-2 font-bold" style={{ color: "var(--color-primary)" }}>{i + 1}</td>
+                    <td className="px-3 py-2">{t.team.name}</td>
+                    <td className="px-3 py-2 text-center">{t.wins ?? 0}</td>
+                    <td className="px-3 py-2 text-center">{t.losses ?? 0}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
@@ -471,38 +475,45 @@ export default async function TournamentDetailPage({ params }: { params: Promise
     </div>
   );
 
-  // -- 순위 탭 콘텐츠 --
+  // -- 순위 탭 콘텐츠: 미니멀 플랫 테이블 (외곽 border 제거, 행 구분은 얇은 하단선만) --
   const standingsContent = (
     <div>
       <h2 className="mb-6 text-xl font-bold sm:text-2xl">순위표</h2>
-      <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
-          <thead className="border-b border-[var(--color-border)] text-[var(--color-text-muted)]">
-            <tr>
-              <th className="px-5 py-3">#</th>
-              <th className="px-5 py-3 text-left">팀</th>
-              <th className="px-5 py-3">승</th>
-              <th className="px-5 py-3">패</th>
-              <th className="px-5 py-3">승률</th>
-            </tr>
-          </thead>
-          <tbody>
-            {standingsTeams.map((t, i) => {
-              const total = (t.wins ?? 0) + (t.losses ?? 0);
-              const pct = total > 0 ? ((t.wins ?? 0) / total).toFixed(3) : ".000";
-              return (
-                <tr key={t.id.toString()} className="border-b border-[var(--color-border)]">
-                  <td className="px-5 py-3 text-center font-bold text-[var(--color-primary)]">{i + 1}</td>
-                  <td className="px-5 py-3 font-medium">{t.team.name}</td>
-                  <td className="px-5 py-3 text-center">{t.wins ?? 0}</td>
-                  <td className="px-5 py-3 text-center">{t.losses ?? 0}</td>
-                  <td className="px-5 py-3 text-center">{pct}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
+      <table className="w-full text-sm">
+        {/* 헤더: 배경 없이 작은 muted 텍스트 */}
+        <thead>
+          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+            <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>#</th>
+            <th className="px-3 py-2 text-left text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>팀</th>
+            <th className="px-3 py-2 text-center text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>승</th>
+            <th className="px-3 py-2 text-center text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>패</th>
+            <th className="px-3 py-2 text-center text-xs font-medium" style={{ color: "var(--color-text-tertiary)" }}>승률</th>
+          </tr>
+        </thead>
+        <tbody>
+          {standingsTeams.map((t, i) => {
+            const total = (t.wins ?? 0) + (t.losses ?? 0);
+            const pct = total > 0 ? ((t.wins ?? 0) / total).toFixed(3) : ".000";
+            // 1~3위: 왼쪽 border-left 3px primary로 미세한 하이라이트
+            const isTop3 = i < 3;
+            return (
+              <tr
+                key={t.id.toString()}
+                style={{
+                  borderBottom: "1px solid var(--color-border)",
+                  borderLeft: isTop3 ? "3px solid var(--color-primary)" : "3px solid transparent",
+                }}
+              >
+                <td className="px-3 py-2.5 text-sm font-bold" style={{ color: "var(--color-primary)" }}>{i + 1}</td>
+                <td className="px-3 py-2.5 font-medium">{t.team.name}</td>
+                <td className="px-3 py-2.5 text-center">{t.wins ?? 0}</td>
+                <td className="px-3 py-2.5 text-center">{t.losses ?? 0}</td>
+                <td className="px-3 py-2.5 text-center">{pct}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 
@@ -541,13 +552,17 @@ export default async function TournamentDetailPage({ params }: { params: Promise
     </div>
   );
 
-  // -- 참가팀 탭 콘텐츠 --
+  // -- 참가팀 탭 콘텐츠: 얇은 하단 구분선 스타일 (두꺼운 카드 border 제거) --
   const teamsContent = (
     <div>
       <h2 className="mb-6 text-xl font-bold sm:text-2xl">참가팀</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {teamsWithPlayers.map((t) => (
-          <Card key={t.id.toString()}>
+          <div
+            key={t.id.toString()}
+            className="rounded-lg p-4"
+            style={{ backgroundColor: "var(--color-card)", border: "1px solid var(--color-border)" }}
+          >
             <div className="mb-3 flex items-center gap-3">
               {/* 팀 아이콘: primaryColor가 없으면 CSS 변수 사용 */}
               <div
@@ -563,7 +578,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
               </div>
               <div>
                 <h3 className="font-semibold">{t.team.name}</h3>
-                <p className="text-xs text-[var(--color-text-secondary)]">
+                <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
                   {t.groupName && `${t.groupName} · `}{t.players.length}명
                 </p>
               </div>
@@ -571,12 +586,12 @@ export default async function TournamentDetailPage({ params }: { params: Promise
             <div className="space-y-1">
               {t.players.map((p) => (
                 <div key={p.id.toString()} className="flex justify-between text-sm">
-                  <span className="text-[var(--color-text-muted)]">#{p.jerseyNumber ?? "-"} {p.users?.nickname ?? "선수"}</span>
-                  <span className="text-xs text-[var(--color-text-secondary)]">{p.position ?? ""}</span>
+                  <span style={{ color: "var(--color-text-muted)" }}>#{p.jerseyNumber ?? "-"} {p.users?.nickname ?? "선수"}</span>
+                  <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{p.position ?? ""}</span>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>
