@@ -6,15 +6,23 @@
  * /api/web/recommended-games API 응답을 기반으로 동적 렌더링한다.
  * API 실패 시 하드코딩 fallback 카드를 보여준다.
  *
- * 구조:
- * - 빨간 세로 막대 + 제목 + "전체보기" 링크
- * - 경기 카드: 유형별 아이콘/그라디언트 + 뱃지 + 제목 + 일시/장소 + "예약하기" 버튼
+ * 2026-03-27: games-content.tsx GameCard와 동일한 컴팩트 스타일 적용
+ * - h-20 lg:h-28 이미지 영역 + Google Places 사진
+ * - TYPE_BADGE 공통 상수 사용
+ * - 우하단 장소/시간 뱃지 (bg-black/50 backdrop-blur)
+ * - p-3 정보 영역 (제목+잔여석 / 참여 버튼)
  * ============================================================ */
 
 import Link from "next/link";
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatShortDate, formatShortTime } from "@/lib/utils/format-date";
+import { formatRelativeDateTime } from "@/lib/utils/format-date";
+// 경기 카드와 동일한 뱃지 상수 import
+import { TYPE_BADGE } from "@/app/(web)/games/_constants/game-badges";
+
+// Google Places 사진 fetcher (games-content.tsx와 동일 패턴)
+const photoFetcher = (url: string) =>
+  fetch(url).then((res) => res.json()).then((data) => data.photo_url as string | null);
 
 /* 세션 정보: 서버에서 getWebSession()으로 받은 JwtPayload를 전달받는다 */
 interface UserSession {
@@ -49,27 +57,6 @@ interface RecommendedGamesProps {
   fallbackData?: RecommendedData;
 }
 
-/* ---- 경기 유형별 뱃지/그라디언트 매핑 ---- */
-/* game_type: 0=PICKUP, 1=GUEST, 2=PRACTICE (DB Int -> API에서 문자열로 변환) */
-const GAME_TYPE_CONFIG: Record<string, {
-  label: string;
-  icon: string;         // Material Symbols 아이콘명
-  gradient: string;     // 이미지 대신 보여줄 배경 그라디언트
-}> = {
-  "0": { label: "PICKUP",   icon: "sports_basketball", gradient: "linear-gradient(135deg, var(--color-primary), #1e40af)" },
-  "1": { label: "GUEST",    icon: "group_add",         gradient: "linear-gradient(135deg, #16a34a, #065f46)" },
-  "2": { label: "PRACTICE", icon: "fitness_center",    gradient: "linear-gradient(135deg, #d97706, #92400e)" },
-};
-
-/* 기본값: 알 수 없는 타입일 때 */
-const DEFAULT_TYPE_CONFIG = {
-  label: "GAME",
-  icon: "sports_basketball",
-  gradient: "linear-gradient(135deg, var(--color-primary), #1e40af)",
-};
-
-/* ---- 날짜/시간 포맷: 공통 유틸 사용 (format-date.ts) ---- */
-
 /* ---- API 실패 시 보여줄 fallback 더미 데이터 ---- */
 const FALLBACK_GAMES: RecommendedGame[] = [
   {
@@ -101,7 +88,6 @@ const FALLBACK_GAMES: RecommendedGame[] = [
 export function RecommendedGames({ session, fallbackData }: RecommendedGamesProps) {
   // useSWR로 추천 경기 API 호출
   // fallbackData가 있으면 초기값으로 사용 → 로딩 스켈레톤 없이 즉시 렌더링
-  // SWR이 백그라운드에서 API를 다시 호출하여 최신 데이터로 갱신
   const { data, isLoading: loading } = useSWR<RecommendedData>(
     "/api/web/recommended-games",
     null,
@@ -124,9 +110,10 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-5 w-16" />
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* 스켈레톤도 컴팩트 카드 크기에 맞춤 */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-lg" />
+            <Skeleton key={i} className="h-32 rounded-xl" />
           ))}
         </div>
       </section>
@@ -150,7 +137,7 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
       </div>
 
       {/* 반응형 레이아웃: 모바일 가로 스크롤 / 데스크탑 2열 그리드 */}
-      <div className="flex flex-row overflow-x-auto gap-6 no-scrollbar -mx-6 px-6 md:grid md:grid-cols-2 md:overflow-visible md:mx-0 md:px-0">
+      <div className="flex flex-row overflow-x-auto gap-4 no-scrollbar -mx-6 px-6 md:grid md:grid-cols-2 md:overflow-visible md:mx-0 md:px-0">
         {games.map((game) => (
           <GameCard key={game.id} game={game} />
         ))}
@@ -159,88 +146,93 @@ export function RecommendedGames({ session, fallbackData }: RecommendedGamesProp
   );
 }
 
-/* ---- 개별 경기 카드 컴포넌트 ---- */
-/* 경기 유형에 따라 뱃지 색상/아이콘/그라디언트를 자동 적용한다 */
+/* ---- 개별 경기 카드 컴포넌트 (games-content.tsx GameCard와 동일 구조) ---- */
 function GameCard({ game }: { game: RecommendedGame }) {
-  const typeConfig = GAME_TYPE_CONFIG[game.game_type ?? "0"] ?? DEFAULT_TYPE_CONFIG;
+  // game_type은 문자열("0","1","2")로 오므로 숫자로 변환
+  const typeNum = Number(game.game_type ?? "0");
+  const badge = TYPE_BADGE[typeNum] ?? TYPE_BADGE[0];
 
-  /* 경기 상세 링크: uuid가 있으면 앞 8자리 사용, 없으면 id */
   const href = `/games/${game.uuid?.slice(0, 8) ?? game.id}`;
-
-  /* 장소 텍스트: venue_name > city > 빈 문자열 */
   const location = game.venue_name ?? game.city ?? "";
 
-  /* 남은 자리 텍스트 */
-  const spotsText = game.spots_left !== null ? `${game.spots_left}자리 남음` : null;
+  // ISO string -> 간결한 상대 시간 ("오늘 19:00" / "내일 14:00" / "3/22 19:00")
+  const scheduleStr = formatRelativeDateTime(game.scheduled_at);
+
+  // 장소명이 있으면 Google Places API로 사진 조회 (SWR 캐시로 중복 호출 방지)
+  const { data: photoUrl } = useSWR(
+    location ? `/api/web/place-photo?query=${encodeURIComponent(location)}` : null,
+    photoFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 } // 1시간 캐시
+  );
+
+  // 남은 자리 텍스트
+  const spotsText = game.spots_left !== null ? `${game.spots_left}자리` : null;
 
   return (
-    <Link
-      href={href}
-      className="min-w-[280px] md:min-w-0 bg-surface border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-colors group block"
-    >
-      {/* 이미지 영역: DB에 이미지가 없으므로 경기 유형별 그라디언트 + 아이콘 */}
-      <div
-        className="relative h-40 flex items-center justify-center"
-        style={{ background: typeConfig.gradient }}
-      >
-        {/* 유형별 대형 아이콘 (배경 장식) */}
-        <span
-          className="material-symbols-outlined text-white/20 select-none"
-          style={{ fontSize: "80px" }}
+    <Link href={href} className="min-w-[240px] md:min-w-0 block">
+      <div className="group rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-card)] hover:shadow-lg transition-all h-full">
+        {/* 이미지 영역: Google Places 사진 → 유형별 그라디언트+아이콘 fallback */}
+        <div
+          className="relative h-20 lg:h-28 flex items-center justify-center bg-cover bg-center"
+          style={photoUrl
+            ? { backgroundImage: `url(${photoUrl})` }
+            : { background: badge.gradient }
+          }
         >
-          {typeConfig.icon}
-        </span>
+          {/* 사진 없을 때: 유형별 아이콘 (반투명 배경 장식) */}
+          {!photoUrl && (
+            <span className="material-symbols-outlined text-5xl text-white/20">{badge.icon}</span>
+          )}
 
-        {/* 유형 뱃지 (좌상단) */}
-        <div className="absolute top-3 left-3 bg-primary text-on-primary text-xs font-bold px-2 py-1 rounded">
-          {typeConfig.label}
-        </div>
-
-        {/* 추천 이유 뱃지 (우상단) - match_reason이 있을 때만 표시 */}
-        {game.match_reason.length > 0 && (
-          <div className="absolute top-3 right-3 bg-surface/90 text-primary text-xs font-bold px-2 py-1 rounded">
-            {game.match_reason[0]}
-          </div>
-        )}
-      </div>
-
-      {/* 카드 본문 */}
-      <div className="p-5">
-        {/* 경기 제목 */}
-        <h4 className="text-lg font-bold text-text-primary mb-2 line-clamp-1">
-          {game.title ?? "경기"}
-        </h4>
-
-        {/* 일시 + 장소 정보 */}
-        <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
-          {/* 날짜 */}
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-base">calendar_today</span>
-            {formatShortDate(game.scheduled_at) || "--"}
+          {/* 유형 뱃지 (좌상단) */}
+          <span
+            className="absolute top-2 left-2 rounded px-2 py-0.5 text-xs font-bold uppercase"
+            style={{ backgroundColor: badge.bg, color: badge.color }}
+          >
+            {badge.label}
           </span>
-          {/* 시간 */}
-          <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-base">schedule</span>
-            {formatShortTime(game.scheduled_at)}
-          </span>
-          {/* 장소 (있을 때만) */}
-          {location && (
-            <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-base">location_on</span>
-              <span className="truncate max-w-[100px]">{location}</span>
+
+          {/* 추천 이유 뱃지 (우상단) - match_reason이 있을 때만 */}
+          {game.match_reason.length > 0 && (
+            <span className="absolute top-2 right-2 rounded bg-white/90 px-1.5 py-0.5 text-xs font-bold text-[var(--color-primary)]">
+              {game.match_reason[0]}
             </span>
           )}
+
+          {/* 위치 + 시간 뱃지 (우하단) -- bg-black/50 backdrop-blur */}
+          <div className="absolute bottom-2 right-2 flex flex-col items-end gap-1">
+            {location && (
+              <span className="flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm">
+                <span className="material-symbols-outlined text-xs">location_on</span>
+                <span className="line-clamp-1 max-w-[140px]">{location}</span>
+              </span>
+            )}
+            {scheduleStr && (
+              <span className="flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-xs text-white backdrop-blur-sm">
+                <span className="material-symbols-outlined text-xs">schedule</span>
+                {scheduleStr}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* 남은 자리 표시 (있을 때만) */}
-        {spotsText && (
-          <p className="text-xs text-primary font-bold mb-3">{spotsText}</p>
-        )}
+        {/* 정보 영역: 제목+잔여석 / 참여 버튼 (p-3 컴팩트) */}
+        <div className="p-3">
+          {/* 제목 + 잔여석 */}
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <h4 className="text-sm font-bold line-clamp-1 text-[var(--color-text-primary)] flex-1">
+              {game.title ?? "경기"}
+            </h4>
+            {spotsText && (
+              <span className="shrink-0 text-xs font-bold text-[var(--color-primary)]">{spotsText}</span>
+            )}
+          </div>
 
-        {/* 예약하기 버튼 */}
-        <span className="block w-full py-2.5 bg-primary text-on-primary text-sm font-bold rounded hover:brightness-110 transition-all active:scale-95 text-center">
-          예약하기
-        </span>
+          {/* 참여 버튼 */}
+          <div className="flex items-center justify-end">
+            <span className="text-xs font-bold text-white bg-[var(--color-primary)] px-3 py-1 rounded">참여</span>
+          </div>
+        </div>
       </div>
     </Link>
   );
