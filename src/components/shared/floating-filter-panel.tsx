@@ -82,6 +82,7 @@ export function FloatingFilterPanel({
           backgroundColor: "var(--color-accent)",
           color: "var(--color-text-primary)",
         }}
+        aria-label="필터 열기"
         title="필터"
       >
         <span className="material-symbols-outlined text-lg">tune</span>
@@ -96,9 +97,9 @@ export function FloatingFilterPanel({
         )}
       </button>
 
-      {/* 백드롭 + 패널: isOpen일 때만 렌더링 */}
       {/* 백드롭: 반투명 검정, 클릭 시 닫기 */}
       <div
+        aria-hidden="true"
         className="fixed inset-0 z-50 transition-opacity duration-300"
         style={{
           opacity: isOpen ? 1 : 0,
@@ -110,6 +111,9 @@ export function FloatingFilterPanel({
 
       {/* 패널: 오른쪽에서 슬라이드 인 (width 320px, 모바일 전체) */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="필터 패널"
         className="fixed top-0 right-0 z-50 h-full w-full sm:w-80 flex flex-col transition-transform duration-300 ease-in-out"
         style={{
           transform: isOpen ? "translateX(0)" : "translateX(100%)",
@@ -131,6 +135,7 @@ export function FloatingFilterPanel({
           <button
             type="button"
             onClick={handleClose}
+            aria-label="필터 닫기"
             className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
             style={{ color: "var(--color-text-muted)" }}
           >

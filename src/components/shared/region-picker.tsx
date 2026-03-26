@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-// lucide-react 제거 → Material Symbols Outlined 사용
 import { REGIONS, PROVINCES } from "@/lib/constants/regions";
 
 export interface Region {
@@ -177,6 +176,7 @@ export function RegionPicker({ value, onChange, max = 3, className = "" }: Regio
                 <button
                   type="button"
                   onClick={() => removeRegion(i)}
+                  aria-label="지역 삭제"
                   className="mt-3 flex-shrink-0 rounded-full p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)]"
                 >
                   <span className="material-symbols-outlined text-base">close</span>

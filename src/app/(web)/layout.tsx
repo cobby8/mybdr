@@ -13,7 +13,7 @@ import { TextSizeToggle } from "@/components/shared/text-size-toggle";
 
 /* ============================================================
  * 사이드바 네비게이션 항목 정의
- * Material Symbols 아이콘명 사용 (lucide-react 대체)
+ * Material Symbols 아이콘명 사용
  * ============================================================ */
 const sideNavItems = [
   { href: "/", label: "홈", icon: "home" },

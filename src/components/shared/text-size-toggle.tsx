@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// lucide-react 제거 → Material Symbols Outlined 사용
 
 export function TextSizeToggle() {
   const [large, setLarge] = useState(false);
@@ -26,6 +25,7 @@ export function TextSizeToggle() {
     <button
       onClick={toggle}
       className="flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-[rgba(27,60,135,0.08)]"
+      aria-label={large ? "기본 글씨 크기로 전환" : "큰 글씨 크기로 전환"}
       title={large ? "기본 글씨" : "큰 글씨"}
       style={{ color: large ? "var(--color-primary)" : "var(--color-text-muted)" }}
     >

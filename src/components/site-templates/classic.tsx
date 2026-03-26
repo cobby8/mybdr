@@ -287,7 +287,7 @@ function HomePage({
                             ? "text-(--color-text-secondary)"
                             : i === 2
                             ? "text-amber-600"
-                            : "text-[#C4C9D4]"
+                            : "text-[var(--color-text-disabled)]"
                         }`}
                       >
                         {i + 1}
@@ -408,7 +408,7 @@ function TeamsPage({ teams, primary }: { teams: TeamEntry[]; primary: string }) 
                         ? "text-(--color-text-secondary)"
                         : i === 2
                         ? "text-amber-600"
-                        : "text-[#C4C9D4]"
+                        : "text-[var(--color-text-disabled)]"
                     }`}
                   >
                     {i + 1}
@@ -656,7 +656,7 @@ export function ClassicTemplate({
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             {site.logoUrl ? (
-              <Image src={site.logoUrl} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
+              <Image src={site.logoUrl} alt={`${siteName} 로고`} width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
             ) : (
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white">
                 {siteName[0]}
