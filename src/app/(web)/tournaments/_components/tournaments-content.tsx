@@ -3,10 +3,15 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TOURNAMENT_STATUS_LABEL } from "@/lib/constants/tournament-status";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { formatShortDate } from "@/lib/utils/format-date";
+
+// SWR fetcher: Google Places 사진 URL 추출 (games-content.tsx와 동일 패턴)
+const photoFetcher = (url: string) =>
+  fetch(url).then((res) => res.json()).then((data) => data.photo_url as string | null);
 
 // API 응답 타입 (snake_case로 자동 변환됨)
 interface TournamentFromApi {
@@ -127,18 +132,30 @@ function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
   // 대회 유형에 따른 그라디언트+아이콘 결정
   const formatStyle = FORMAT_GRADIENT[t.format ?? ""] ?? DEFAULT_FORMAT_STYLE;
 
+  // 장소명이 있으면 Google Places API로 사진 조회 (경기 카드와 동일 패턴)
+  const { data: photoUrl } = useSWR(
+    location ? `/api/web/place-photo?query=${encodeURIComponent(location)}` : null,
+    photoFetcher,
+    { revalidateOnFocus: false, dedupingInterval: 3600000 } // 1시간 캐시
+  );
+
   return (
     <Link href={`/tournaments/${t.id}`} prefetch={true}>
       <div className={`group rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-card)] hover:shadow-lg transition-all h-full ${isFull ? "opacity-70 grayscale" : ""}`}>
-        {/* 이미지 영역: 유형별 그라디언트 + 반투명 아이콘 */}
+        {/* 이미지 영역: 장소 사진 -> 유형별 그라디언트+아이콘 fallback */}
         <div
-          className="relative h-20 lg:h-28 flex items-center justify-center"
-          style={{ background: formatStyle.gradient }}
+          className="relative h-20 lg:h-28 flex items-center justify-center bg-cover bg-center"
+          style={photoUrl
+            ? { backgroundImage: `url(${photoUrl})` }
+            : { background: formatStyle.gradient }
+          }
         >
-          {/* 반투명 대형 아이콘 (배경 장식) */}
-          <span className="material-symbols-outlined text-5xl text-white/20">
-            {formatStyle.icon}
-          </span>
+          {/* 사진이 없을 때만: 반투명 대형 아이콘 (배경 장식) */}
+          {!photoUrl && (
+            <span className="material-symbols-outlined text-5xl text-white/20">
+              {formatStyle.icon}
+            </span>
+          )}
 
           {/* 상태 배지 (좌상단) */}
           <span
