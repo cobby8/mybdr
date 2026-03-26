@@ -204,13 +204,13 @@ function GameCard({ game }: { game: RecommendedGame }) {
         </span>
 
         {/* 유형 뱃지 (좌상단) */}
-        <div className="absolute top-3 left-3 bg-primary text-on-primary text-[10px] font-bold px-2 py-1 rounded">
+        <div className="absolute top-3 left-3 bg-primary text-on-primary text-xs font-bold px-2 py-1 rounded">
           {typeConfig.label}
         </div>
 
         {/* 추천 이유 뱃지 (우상단) - match_reason이 있을 때만 표시 */}
         {game.match_reason.length > 0 && (
-          <div className="absolute top-3 right-3 bg-surface/90 text-primary text-[10px] font-bold px-2 py-1 rounded">
+          <div className="absolute top-3 right-3 bg-surface/90 text-primary text-xs font-bold px-2 py-1 rounded">
             {game.match_reason[0]}
           </div>
         )}
@@ -227,18 +227,18 @@ function GameCard({ game }: { game: RecommendedGame }) {
         <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
           {/* 날짜 */}
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
+            <span className="material-symbols-outlined text-base">calendar_today</span>
             {formatDate(game.scheduled_at)}
           </span>
           {/* 시간 */}
           <span className="flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">schedule</span>
+            <span className="material-symbols-outlined text-base">schedule</span>
             {formatTime(game.scheduled_at)}
           </span>
           {/* 장소 (있을 때만) */}
           {location && (
             <span className="flex items-center gap-1">
-              <span className="material-symbols-outlined text-sm">location_on</span>
+              <span className="material-symbols-outlined text-base">location_on</span>
               <span className="truncate max-w-[100px]">{location}</span>
             </span>
           )}

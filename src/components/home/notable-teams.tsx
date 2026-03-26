@@ -102,7 +102,7 @@ export function NotableTeams({ fallbackData }: NotableTeamsProps = {}) {
             </div>
 
             {/* 승수 + 멤버수 표시 (API 데이터가 있을 때만) */}
-            <div className="text-[10px] text-text-muted">
+            <div className="text-xs text-text-muted">
               {isLoading ? (
                 <span className="inline-block w-16 h-3 bg-elevated rounded animate-pulse" />
               ) : team.id !== "0" ? (

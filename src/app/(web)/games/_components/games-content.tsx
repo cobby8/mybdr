@@ -69,7 +69,8 @@ function GamesGridSkeleton() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="rounded-xl overflow-hidden bg-[var(--color-card)] border border-[var(--color-border)]">
           {/* 이미지 영역 스켈레톤 */}
-          <Skeleton className="h-48 w-full rounded-none" />
+          {/* 이미지 영역 스켈레톤 -- 모바일 가독성 위해 h-36으로 축소 */}
+          <Skeleton className="h-36 w-full rounded-none" />
           <div className="p-5 space-y-3">
             <Skeleton className="h-3 w-16 rounded" />
             <Skeleton className="h-5 w-3/4 rounded" />
@@ -120,8 +121,8 @@ function GameCard({ game }: { game: GameFromApi }) {
     <Link href={href}>
       {/* 디자인 시안: 이미지 카드 + 호버 시 그림자 */}
       <div className={`group flex flex-col rounded-xl overflow-hidden border border-[var(--color-border)] bg-[var(--color-card)] hover:shadow-lg transition-all h-full ${isFullyBooked ? "opacity-70 grayscale" : ""}`}>
-        {/* 이미지 영역 - aspect h-48 고정 높이 */}
-        <div className="relative h-48">
+        {/* 이미지 영역 -- h-36: 모바일에서 카드가 더 많이 보이도록 축소 */}
+        <div className="relative h-36">
           {/* placeholder 이미지: 경기장 타입별 기본 이미지 */}
           <div className="w-full h-full bg-[var(--color-surface)] flex items-center justify-center">
             <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)] opacity-40">
@@ -132,7 +133,7 @@ function GameCard({ game }: { game: GameFromApi }) {
           {/* 상태 배지 오버레이 (좌상단) */}
           {statusBadge && (
             <div className="absolute top-4 left-4 flex gap-2">
-              <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 ${statusBadge.className}`}>
+              <span className={`text-xs font-bold px-2 py-1 rounded flex items-center gap-1 ${statusBadge.className}`}>
                 {/* LIVE일 때 깜빡이는 점 */}
                 {statusBadge.text === "라이브" && (
                   <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
@@ -153,7 +154,7 @@ function GameCard({ game }: { game: GameFromApi }) {
 
           {/* 유형 뱃지 (우상단) */}
           <span
-            className="absolute top-4 right-4 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            className="absolute top-4 right-4 rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider"
             style={{ backgroundColor: badge.bg, color: badge.color }}
           >
             {badge.label}
@@ -163,7 +164,7 @@ function GameCard({ game }: { game: GameFromApi }) {
         {/* 정보 영역 */}
         <div className="p-5 flex-1 flex flex-col">
           {/* 종목 라벨 */}
-          <p className="text-[10px] text-[var(--color-primary)] font-bold uppercase tracking-wider mb-1">
+          <p className="text-xs text-[var(--color-primary)] font-bold uppercase tracking-wider mb-1">
             {badge.label}
           </p>
 
@@ -176,7 +177,7 @@ function GameCard({ game }: { game: GameFromApi }) {
           <div className="space-y-2 mb-4">
             {location && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-sm">
+                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-base">
                   location_on
                 </span>
                 <span className="text-xs text-[var(--color-text-secondary)] line-clamp-1">
@@ -186,7 +187,7 @@ function GameCard({ game }: { game: GameFromApi }) {
             )}
             {(dateStr || timeStr) && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-sm">
+                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-base">
                   schedule
                 </span>
                 <span className="text-xs text-[var(--color-text-secondary)]">
@@ -196,7 +197,7 @@ function GameCard({ game }: { game: GameFromApi }) {
             )}
             {skill && (
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-sm">
+                <span className="material-symbols-outlined text-[var(--color-text-muted)] text-base">
                   equalizer
                 </span>
                 <span className="text-xs text-[var(--color-text-secondary)]">
@@ -212,7 +213,7 @@ function GameCard({ game }: { game: GameFromApi }) {
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[var(--color-primary)]">{cur}/{max}</span>
-                  <span className="text-[10px] text-[var(--color-text-muted)]">모집중</span>
+                  <span className="text-xs text-[var(--color-text-muted)]">모집중</span>
                 </div>
               </div>
               <div className="w-full bg-[var(--color-border)] h-1 rounded-full overflow-hidden">
@@ -227,7 +228,7 @@ function GameCard({ game }: { game: GameFromApi }) {
           {/* 가격 + JOIN 버튼 */}
           <div className="mt-auto pt-3 border-t border-[var(--color-border)] flex items-center justify-between">
             <div>
-              {fee && <p className="text-[10px] text-[var(--color-text-muted)]">참가비</p>}
+              {fee && <p className="text-xs text-[var(--color-text-muted)]">참가비</p>}
               <span className="text-lg font-bold text-[var(--color-text-primary)]">
                 {fee ?? <span className="text-sm text-[var(--color-text-muted)]">무료</span>}
               </span>

@@ -251,7 +251,7 @@ function DesktopBracketView({
             }}
           >
             <span
-              className="text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
+              className="text-xs font-bold uppercase tracking-widest whitespace-nowrap"
               style={{ color: "var(--color-text-muted)" }}
             >
               {rh.roundName}

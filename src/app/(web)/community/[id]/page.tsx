@@ -315,7 +315,7 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                             </span>
                           )}
                           <span
-                            className="text-[11px] ml-2"
+                            className="text-xs ml-2"
                             style={{ color: "var(--color-text-muted)" }}
                           >
                             {formatRelativeTime(c.created_at)}

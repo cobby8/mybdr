@@ -89,7 +89,7 @@ export function FloatingFilterPanel({
         {/* 활성 필터 수 뱃지: 1개 이상일 때만 표시 */}
         {activeCount > 0 && (
           <span
-            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white"
+            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold text-white"
             style={{ backgroundColor: "var(--color-primary)" }}
           >
             {activeCount}

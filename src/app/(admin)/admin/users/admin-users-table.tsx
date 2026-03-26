@@ -212,7 +212,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                     <div className="rounded-[14px] border border-[var(--color-border)] p-4 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-[var(--color-text-secondary)]">슈퍼관리자</p>
-                        <p className="text-[11px] text-[var(--color-text-muted)]">시스템 전체 관리 권한</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">시스템 전체 관리 권한</p>
                       </div>
                       <button onClick={() => runAction(toggleUserAdminAction, { user_id: u.id, make_admin: u.isAdmin ? "false" : "true" })}
                         disabled={pending}
@@ -225,7 +225,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                     <div className="rounded-[14px] border border-[var(--color-border)] p-4 flex items-center justify-between">
                       <div>
                         <p className="text-xs font-bold text-[var(--color-text-secondary)]">계정 상태</p>
-                        <p className="text-[11px] text-[var(--color-text-muted)]">현재: {u.status === "active" ? "활성" : u.status === "withdrawn" ? "탈퇴" : "정지"}</p>
+                        <p className="text-xs text-[var(--color-text-muted)]">현재: {u.status === "active" ? "활성" : u.status === "withdrawn" ? "탈퇴" : "정지"}</p>
                       </div>
                       <button onClick={() => runAction(updateUserStatusAction, { user_id: u.id, status: u.status === "active" ? "suspended" : "active" })}
                         disabled={pending}
@@ -238,7 +238,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                     {!u.isAdmin && (
                       <div className="rounded-[14px] border border-[var(--color-error)]/30 bg-[var(--color-error)]/[0.03] p-4">
                         <p className="mb-1 text-xs font-bold text-[var(--color-error)]">위험 영역</p>
-                        <p className="mb-3 text-[11px] text-[var(--color-text-muted)]">이 작업은 되돌릴 수 없습니다.</p>
+                        <p className="mb-3 text-xs text-[var(--color-text-muted)]">이 작업은 되돌릴 수 없습니다.</p>
                         {confirm ? (
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-[var(--color-error)]">
@@ -290,7 +290,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
 function InfoSection({ title, rows }: { title: string; rows: [string, string | null | undefined][] }) {
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{title}</p>
+      <p className="mb-1.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{title}</p>
       <div className="rounded-[12px] border border-[var(--color-border)] overflow-hidden">
         {rows.map(([label, value], i) => (
           <div key={label} className={`flex items-center px-4 py-2 ${i > 0 ? "border-t border-[var(--color-border-subtle)]" : ""}`}>

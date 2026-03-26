@@ -198,7 +198,7 @@ export function HeroBento() {
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
           <div className="absolute bottom-0 left-0 p-8 w-full pointer-events-none">
-            <span className="inline-block px-3 py-1 bg-primary text-on-primary text-[10px] font-bold tracking-widest uppercase rounded mb-4">
+            <span className="inline-block px-3 py-1 bg-primary text-on-primary text-xs font-bold tracking-widest uppercase rounded mb-4">
               BDR
             </span>
             <h2 className="text-4xl font-heading font-bold text-white mb-2 leading-tight">
@@ -269,7 +269,7 @@ export function HeroBento() {
               .map((badge) => (
                 <span
                   key={badge}
-                  className={`px-2 py-1 text-[10px] font-bold rounded ${
+                  className={`px-2 py-1 text-xs font-bold rounded ${
                     badge === "HOT"
                       ? "bg-orange-500 text-white"
                       : "bg-white/20 text-white backdrop-blur-sm"

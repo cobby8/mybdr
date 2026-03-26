@@ -177,13 +177,13 @@ export function RightSidebarGuest({ fallbackTeams, fallbackCommunity, fallbackSt
         {/* 통계 2열 -- /api/web/stats 연동 완료 */}
         <div className="grid grid-cols-2 gap-4 w-full mb-6">
           <div className="bg-card p-3 rounded-lg border border-border">
-            <div className="text-[10px] text-text-muted uppercase mb-1">등록 매치</div>
+            <div className="text-xs text-text-muted uppercase mb-1">등록 매치</div>
             <div className="text-lg font-bold text-text-primary">
               {stats ? formatNumber(stats.matchCount) : "-"}
             </div>
           </div>
           <div className="bg-card p-3 rounded-lg border border-border">
-            <div className="text-[10px] text-text-muted uppercase mb-1">활동 선수</div>
+            <div className="text-xs text-text-muted uppercase mb-1">활동 선수</div>
             <div className="text-lg font-bold text-text-primary">
               {stats ? formatNumber(stats.userCount) : "-"}
             </div>
@@ -222,7 +222,7 @@ export function RightSidebarGuest({ fallbackTeams, fallbackCommunity, fallbackSt
                 </span>
               </div>
               {/* 승수 표시 */}
-              <span className="text-[10px] text-text-muted">{team.wins}W</span>
+              <span className="text-xs text-text-muted">{team.wins}W</span>
             </Link>
           ))}
         </div>

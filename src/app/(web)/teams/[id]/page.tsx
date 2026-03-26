@@ -124,7 +124,7 @@ export default async function TeamDetailPage({
                 {/* 디비전 배지 — 아이콘 우하단 */}
                 {division && (
                   <div
-                    className="absolute -bottom-2 -right-2 rounded bg-[var(--color-primary)] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                    className="absolute -bottom-2 -right-2 rounded bg-[var(--color-primary)] px-1.5 py-0.5 text-xs font-bold text-white"
                   >
                     {division.label}
                   </div>

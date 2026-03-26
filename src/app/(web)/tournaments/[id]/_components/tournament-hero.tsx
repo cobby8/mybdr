@@ -99,7 +99,7 @@ export function TournamentHero({
         <div className="mb-2 flex flex-wrap items-center gap-2">
           {/* PREMIUM 배지: 빨간 배경 + 흰 텍스트 (시안) */}
           <span
-            className="rounded-sm px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white sm:text-xs"
+            className="rounded-sm px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white sm:text-xs"
             style={{ backgroundColor: "var(--color-primary)" }}
           >
             PREMIUM

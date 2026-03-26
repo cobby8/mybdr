@@ -85,7 +85,7 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                 <p className="text-xs font-bold text-[var(--color-text-primary)]">
                   {team.wins}승 {team.draws > 0 ? `${team.draws}무 ` : ""}{team.losses}패
                 </p>
-                <p className="text-[10px] text-[var(--color-text-muted)] mt-1">
+                <p className="text-xs text-[var(--color-text-muted)] mt-1">
                   총 {total}경기
                 </p>
               </div>
@@ -182,7 +182,7 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                       <div>
                         <p className="text-sm font-bold text-[var(--color-text-primary)]">{g.title}</p>
                         {g.scheduled_at && (
-                          <p className="text-[10px] text-[var(--color-text-muted)] uppercase font-bold">
+                          <p className="text-xs text-[var(--color-text-muted)] uppercase font-bold">
                             {g.scheduled_at.toLocaleDateString("ko-KR", {
                               year: "numeric",
                               month: "long",
@@ -193,7 +193,7 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                         )}
                       </div>
                     </div>
-                    <span className={`rounded px-2 py-0.5 text-[10px] font-bold ${statusColor}`}>
+                    <span className={`rounded px-2 py-0.5 text-xs font-bold ${statusColor}`}>
                       {STATUS_LABEL[statusNum] ?? String(statusNum)}
                     </span>
                   </Link>
@@ -244,13 +244,13 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                       <p className="text-xs font-bold text-[var(--color-text-primary)]">
                         {displayName} {isCaptain ? "(C)" : ""}
                       </p>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">
+                      <p className="text-xs text-[var(--color-text-muted)]">
                         {position}
                       </p>
                     </div>
                     {/* 역할 배지 */}
                     {isCaptain && (
-                      <span className="text-[10px] font-bold text-[var(--color-primary)]">
+                      <span className="text-xs font-bold text-[var(--color-primary)]">
                         CAPTAIN
                       </span>
                     )}

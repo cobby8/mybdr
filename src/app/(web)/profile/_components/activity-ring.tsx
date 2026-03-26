@@ -72,7 +72,7 @@ export function ActivityRing({ monthlyGames, totalGames, totalTournaments }: Act
             style={{ backgroundColor: `${tierColor}20`, border: `1px solid ${tierColor}60` }}
           >
             <span className="material-symbols-outlined text-xs" style={{ color: tierColor }}>workspace_premium</span>
-            <span className="text-[11px] font-bold uppercase" style={{ color: tierColor }}>
+            <span className="text-xs font-bold uppercase" style={{ color: tierColor }}>
               {currentTier}
             </span>
           </div>

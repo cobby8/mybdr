@@ -90,7 +90,7 @@ export function ProfileHeader({
         </div>
         {/* 티어 배지: 우하단 오버레이 */}
         <div
-          className="absolute -bottom-2 -right-2 text-white text-[11px] font-bold px-3 py-1 rounded shadow-lg"
+          className="absolute -bottom-2 -right-2 text-white text-xs font-bold px-3 py-1 rounded shadow-lg"
           style={{ backgroundColor: tier.color }}
         >
           {tier.label}
@@ -179,7 +179,7 @@ export function ProfileHeader({
           >
             {totalGames}
           </div>
-          <div className="text-[11px] uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+          <div className="text-xs uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
             Total Games
           </div>
         </div>
@@ -197,7 +197,7 @@ export function ProfileHeader({
           >
             {winRate != null ? `${winRate}%` : "-%"}
           </div>
-          <div className="text-[11px] uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+          <div className="text-xs uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
             Win Rate
           </div>
         </div>

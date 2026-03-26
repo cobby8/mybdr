@@ -45,7 +45,7 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
               {badge.label}
             </span>
             {status && (
-              <span className="text-[11px] font-bold" style={{ color: status.color }}>
+              <span className="text-xs font-bold" style={{ color: status.color }}>
                 {status.text}
               </span>
             )}
@@ -81,7 +81,7 @@ export function GameCardCompact({ game }: { game: GameCardData }) {
                   style={{ width: `${pct}%`, backgroundColor: barColor }}
                 />
               </div>
-              <span className="text-[11px] font-bold tabular-nums" style={{ color: barColor }}>
+              <span className="text-xs font-bold tabular-nums" style={{ color: barColor }}>
                 {cur}/{max}
               </span>
             </div>

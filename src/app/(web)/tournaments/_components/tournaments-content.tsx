@@ -95,7 +95,8 @@ function TournamentGridSkeleton() {
           }}
         >
           {/* 이미지 배너 스켈레톤 */}
-          <Skeleton className="h-48 w-full" />
+          {/* 이미지 배너 스켈레톤 -- 모바일 가독성 위해 h-36으로 축소 */}
+          <Skeleton className="h-36 w-full" />
           <div className="p-6 space-y-3">
             <div className="flex justify-between">
               <Skeleton className="h-5 w-3/5" />
@@ -136,7 +137,7 @@ function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
       >
         {/* 상단 이미지 배너: DB에 이미지가 없으므로 그라디언트 배경 + 대회 이니셜 */}
         <div
-          className="relative h-48 overflow-hidden flex items-center justify-center"
+          className="relative h-36 overflow-hidden flex items-center justify-center"
           style={{ background: getGradient(t.name) }}
         >
           {/* 대회명 이니셜 (배경 장식) */}
@@ -155,7 +156,7 @@ function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
           </span>
           {/* 상태 배지 */}
           <div
-            className="absolute top-4 left-4 text-white text-[10px] font-bold px-2 py-1 rounded tracking-wider"
+            className="absolute top-4 left-4 text-white text-xs font-bold px-2 py-1 rounded tracking-wider"
             style={{ backgroundColor: badge.bg }}
           >
             {badge.label}
@@ -163,7 +164,7 @@ function TournamentCard({ tournament: t }: { tournament: TournamentFromApi }) {
           {/* 형식 배지 (우측 상단) */}
           {t.format && (
             <div
-              className="absolute top-4 right-4 text-[10px] font-bold px-2 py-1 rounded tracking-wider"
+              className="absolute top-4 right-4 text-xs font-bold px-2 py-1 rounded tracking-wider"
               style={{
                 backgroundColor: "rgba(255,255,255,0.15)",
                 backdropFilter: "blur(4px)",

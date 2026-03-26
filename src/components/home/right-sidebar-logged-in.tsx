@@ -144,12 +144,12 @@ export function RightSidebarLoggedIn({ fallbackTeams, fallbackCommunity }: Right
         <div className="grid grid-cols-2 gap-4">
           {/* 총 경기수를 Wins 자리에 표시 */}
           <div className="bg-card p-5 rounded-lg border border-border">
-            <div className="text-[10px] text-text-muted uppercase mb-1 font-bold">Games</div>
+            <div className="text-xs text-text-muted uppercase mb-1 font-bold">Games</div>
             <div className="text-2xl font-bold text-text-primary">{gamesPlayed}</div>
           </div>
           {/* 경기수 기반 임시 티어를 Rank 자리에 표시 */}
           <div className="bg-card p-5 rounded-lg border border-border">
-            <div className="text-[10px] text-text-muted uppercase mb-1 font-bold">Rank</div>
+            <div className="text-xs text-text-muted uppercase mb-1 font-bold">Rank</div>
             <div className="text-2xl font-bold" style={{ color: tier.color }}>{tier.label}</div>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function RightSidebarLoggedIn({ fallbackTeams, fallbackCommunity }: Right
                 </span>
               </div>
               {/* 승수 표시 */}
-              <span className="text-[10px] text-text-muted">{team.wins}W</span>
+              <span className="text-xs text-text-muted">{team.wins}W</span>
             </Link>
           ))}
         </div>

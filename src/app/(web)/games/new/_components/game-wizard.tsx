@@ -671,7 +671,7 @@ function SummaryCard({
 
       {/* 환불 정책 안내 */}
       <div className="mt-8 p-4 bg-white/5 rounded border border-white/10">
-        <p className="text-[10px] text-white/50 leading-relaxed">
+        <p className="text-xs text-white/50 leading-relaxed">
           매치 생성 시 서비스 이용 약관에 동의하게 됩니다. 매치 시작 24시간 전까지 취소 시 100% 환불이 가능합니다.
         </p>
       </div>

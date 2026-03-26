@@ -54,7 +54,7 @@ export function GuestDetail({ game }: GuestDetailProps) {
             <div className="flex flex-col items-center p-4 bg-[var(--color-surface)] rounded-lg border border-transparent hover:border-[var(--color-primary)] transition-all">
               <span className="material-symbols-outlined text-[var(--color-primary)] text-3xl mb-2">location_on</span>
               <span className="text-sm font-medium text-[var(--color-text-primary)] text-center">{location}</span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">Location</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Location</span>
             </div>
           )}
 
@@ -62,7 +62,7 @@ export function GuestDetail({ game }: GuestDetailProps) {
             <div className="flex flex-col items-center p-4 bg-[var(--color-surface)] rounded-lg border border-transparent hover:border-[var(--color-primary)] transition-all">
               <span className="material-symbols-outlined text-[var(--color-primary)] text-3xl mb-2">map</span>
               <span className="text-sm font-medium text-[var(--color-text-primary)] text-center">{game.venue_address}</span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">Address</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Address</span>
             </div>
           )}
 
@@ -70,7 +70,7 @@ export function GuestDetail({ game }: GuestDetailProps) {
             <div className="flex flex-col items-center p-4 bg-[var(--color-surface)] rounded-lg border border-transparent hover:border-[var(--color-primary)] transition-all">
               <span className="material-symbols-outlined text-[var(--color-primary)] text-3xl mb-2">timer</span>
               <span className="text-sm font-medium text-[var(--color-text-primary)]">{game.duration_hours}시간</span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">Duration</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Duration</span>
             </div>
           )}
 
@@ -80,7 +80,7 @@ export function GuestDetail({ game }: GuestDetailProps) {
               <span className="text-sm font-medium text-[var(--color-text-primary)]">
                 {SKILL_LABEL[game.skill_level] ?? game.skill_level}
               </span>
-              <span className="text-[10px] text-[var(--color-text-muted)]">Skill Level</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Skill Level</span>
             </div>
           )}
 
@@ -92,7 +92,7 @@ export function GuestDetail({ game }: GuestDetailProps) {
             <span className="text-sm font-medium text-[var(--color-text-primary)]">
               {game.allow_guests ? "게스트 허용" : "게스트 불가"}
             </span>
-            <span className="text-[10px] text-[var(--color-text-muted)]">Guest Policy</span>
+            <span className="text-xs text-[var(--color-text-muted)]">Guest Policy</span>
           </div>
         </div>
       </section>

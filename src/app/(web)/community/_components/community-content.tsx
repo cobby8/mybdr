@@ -440,7 +440,7 @@ function PostCard({ post }: { post: PostFromApi }) {
             />
           ) : (
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
               style={{ backgroundColor: "var(--color-primary)" }}
             >
               {post.author_nickname.charAt(0)}
@@ -452,7 +452,7 @@ function PostCard({ post }: { post: PostFromApi }) {
           >
             {post.author_nickname}
           </span>
-          <span className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
             {formatRelativeTime(post.created_at)}
           </span>
         </div>
@@ -479,7 +479,7 @@ function PostCard({ post }: { post: PostFromApi }) {
         <div className="flex items-center justify-between">
           {/* 카테고리 배지 */}
           <span
-            className="text-[10px] px-2 py-0.5 rounded font-bold uppercase"
+            className="text-xs px-2 py-0.5 rounded font-bold uppercase"
             style={{
               backgroundColor: "var(--color-primary)",
               color: "var(--color-on-primary)",
@@ -492,15 +492,15 @@ function PostCard({ post }: { post: PostFromApi }) {
           {/* 메타 수치: 조회수 + 좋아요 + 댓글 */}
           <div className="flex items-center gap-4 text-xs" style={{ color: "var(--color-text-muted)" }}>
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">visibility</span>
+              <span className="material-symbols-outlined text-base">visibility</span>
               {post.view_count.toLocaleString()}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">thumb_up</span>
+              <span className="material-symbols-outlined text-base">thumb_up</span>
               {post.likes_count}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-sm">chat_bubble</span>
+              <span className="material-symbols-outlined text-base">chat_bubble</span>
               {post.comments_count}
             </span>
           </div>

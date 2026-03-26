@@ -237,7 +237,7 @@ function TeamCardRedesigned({
               {/* 배지: TOP1/HOT/NEW 또는 디비전 */}
               {badge && (
                 <span
-                  className="text-[10px] px-2 py-0.5 rounded font-black uppercase whitespace-nowrap"
+                  className="text-xs px-2 py-0.5 rounded font-black uppercase whitespace-nowrap"
                   style={{
                     backgroundColor: badgeStyle.bg,
                     color: badgeStyle.text,
@@ -271,7 +271,7 @@ function TeamCardRedesigned({
           >
             <div>
               <p
-                className="text-[10px] mb-1 uppercase tracking-wider font-bold"
+                className="text-xs mb-1 uppercase tracking-wider font-bold"
                 style={{ color: "var(--color-text-disabled)" }}
               >
                 멤버
@@ -285,7 +285,7 @@ function TeamCardRedesigned({
             </div>
             <div style={{ borderLeft: "1px solid var(--color-border)", borderRight: "1px solid var(--color-border)" }}>
               <p
-                className="text-[10px] mb-1 uppercase tracking-wider font-bold"
+                className="text-xs mb-1 uppercase tracking-wider font-bold"
                 style={{ color: "var(--color-text-disabled)" }}
               >
                 전적
@@ -299,7 +299,7 @@ function TeamCardRedesigned({
             </div>
             <div>
               <p
-                className="text-[10px] mb-1 uppercase tracking-wider font-bold"
+                className="text-xs mb-1 uppercase tracking-wider font-bold"
                 style={{ color: "var(--color-text-disabled)" }}
               >
                 승률

@@ -125,7 +125,7 @@ export function RecommendedVideos() {
                   </div>
                   {/* LIVE 뱃지 */}
                   {v.is_live && (
-                    <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] px-2 py-1 rounded font-bold flex items-center gap-1">
+                    <span className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
                       <span className="relative flex h-1.5 w-1.5">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
@@ -137,7 +137,7 @@ export function RecommendedVideos() {
                 <h4 className="text-sm font-bold text-text-primary mb-1 line-clamp-1 group-hover:text-primary transition-colors">
                   {v.title}
                 </h4>
-                <p className="text-[11px] text-text-muted">{formatDate(v.published_at)}</p>
+                <p className="text-xs text-text-muted">{formatDate(v.published_at)}</p>
               </a>
             ))
           : /* 더미 데이터 기반 카드 */
@@ -154,14 +154,14 @@ export function RecommendedVideos() {
                     <span className="material-symbols-outlined text-white text-5xl">play_circle</span>
                   </div>
                   {/* 재생시간 뱃지 */}
-                  <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-1 rounded font-bold">
+                  <span className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded font-bold">
                     {v.duration}
                   </span>
                 </div>
                 <h4 className="text-sm font-bold text-text-primary mb-1 line-clamp-1 group-hover:text-primary transition-colors">
                   {v.title}
                 </h4>
-                <p className="text-[11px] text-text-muted">
+                <p className="text-xs text-text-muted">
                   조회수 {v.views} &bull; {v.date}
                 </p>
               </div>

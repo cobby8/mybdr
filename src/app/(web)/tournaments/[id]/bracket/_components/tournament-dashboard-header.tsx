@@ -155,7 +155,7 @@ function StatCard({
         {/* LIVE 배지 */}
         {badge && (
           <span
-            className="px-2 py-0.5 text-[10px] font-black uppercase rounded-full animate-pulse"
+            className="px-2 py-0.5 text-xs font-black uppercase rounded-full animate-pulse"
             style={{
               backgroundColor: "rgba(227, 27, 35, 0.15)",
               color: "var(--color-primary)",

@@ -121,7 +121,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
             />
           </Link>
           {/* 서브텍스트: 브랜드 슬로건 */}
-          <span className="mt-1 text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+          <span className="mt-1 text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
             Elite Athletics
           </span>
         </div>
@@ -168,7 +168,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-[var(--color-text-primary)]">{user.name || "사용자"}</p>
-                    <p className="text-[10px] text-[var(--color-text-muted)]">Level 1</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">Level 1</p>
                   </div>
                 </div>
                 {/* 알림 벨 아이콘 (빨간 점 표시) */}
@@ -346,7 +346,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
                 className="flex flex-col items-center justify-center text-[var(--color-text-muted)] transition-all"
               >
                 <span className="material-symbols-outlined text-2xl">menu</span>
-                <span className="mt-0.5 text-[10px] font-medium">{item.label}</span>
+                <span className="mt-0.5 text-xs font-medium">{item.label}</span>
               </button>
             );
           }
@@ -369,7 +369,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
               >
                 {item.icon}
               </span>
-              <span className="mt-0.5 text-[10px] font-medium">{item.label}</span>
+              <span className="mt-0.5 text-xs font-medium">{item.label}</span>
             </Link>
           );
         })}

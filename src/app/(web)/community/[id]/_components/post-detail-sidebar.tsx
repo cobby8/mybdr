@@ -111,7 +111,7 @@ export async function PostDetailSidebar({
             style={{ backgroundColor: "var(--color-elevated)" }}
           >
             <span
-              className="block text-[10px] uppercase"
+              className="block text-xs uppercase"
               style={{ color: "var(--color-text-muted)" }}
             >
               작성글
@@ -128,7 +128,7 @@ export async function PostDetailSidebar({
             style={{ backgroundColor: "var(--color-elevated)" }}
           >
             <span
-              className="block text-[10px] uppercase"
+              className="block text-xs uppercase"
               style={{ color: "var(--color-text-muted)" }}
             >
               작성댓글
@@ -207,7 +207,7 @@ export async function PostDetailSidebar({
         />
         <div className="relative z-10">
           <span
-            className="text-[10px] font-bold px-2 py-1 rounded w-fit mb-3 inline-block"
+            className="text-xs font-bold px-2 py-1 rounded w-fit mb-3 inline-block"
             style={{ backgroundColor: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
             HOT EVENT
