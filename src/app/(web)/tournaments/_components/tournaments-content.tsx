@@ -327,10 +327,11 @@ export function TournamentsContent({
 }: {
   // TournamentsFilter 컴포넌트를 외부에서 주입받음
   TournamentsFilterComponent: React.ComponentType<{
-    cities: string[];
     onSearchChange: (query: string) => void;
-    onRegionChange: (city: string) => void;
-    onFeeChange: (fee: string) => void;
+    onRegionChange: (region: string) => void;
+    onGenderChange: (gender: string) => void;
+    onCategoryChange: (category: string) => void;
+    onDivisionChange: (division: string) => void;
   }>;
 }) {
   const searchParams = useSearchParams();
@@ -338,10 +339,12 @@ export function TournamentsContent({
   const [tournaments, setTournaments] = useState<TournamentFromApi[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 클라이언트 사이드 필터 상태
+  // 클라이언트 사이드 필터 상태 (지역/성별/종별/디비전)
   const [searchQuery, setSearchQuery] = useState("");
   const [regionFilter, setRegionFilter] = useState("all");
-  const [feeFilter, setFeeFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [divisionFilter, setDivisionFilter] = useState("all");
 
   // 상태별 탭 필터: 모집중 / 진행중 / 완료
   const [statusTab, setStatusTab] = useState<"recruiting" | "active" | "ended">("recruiting");
@@ -387,16 +390,9 @@ export function TournamentsContent({
   // 필터가 바뀌면 1페이지로 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchParams, searchQuery, regionFilter, feeFilter, statusTab]);
+  }, [searchParams, searchQuery, regionFilter, genderFilter, categoryFilter, divisionFilter, statusTab]);
 
-  // API 응답에서 도시 목록 추출 (지역 필터 드롭다운용)
-  const cities = useMemo(() => {
-    const citySet = new Set<string>();
-    tournaments.forEach((t) => {
-      if (t.city) citySet.add(t.city);
-    });
-    return Array.from(citySet).sort();
-  }, [tournaments]);
+  // 도시 목록은 더 이상 API에서 추출하지 않음 (17시도 고정 옵션으로 필터에서 관리)
 
   // 상태 탭별 status 매핑: DB status 값을 3개 그룹으로 분류
   // 모집중: open, published, registration, registration_open, draft 등 모집 가능한 상태
@@ -418,7 +414,7 @@ export function TournamentsContent({
     cancelled: "ended",
   };
 
-  // 클라이언트 사이드 필터 적용 (상태 탭 + 검색 + 지역 + 참가비)
+  // 클라이언트 사이드 필터 적용 (상태 탭 + 검색 + 지역 + 성별 + 종별 + 디비전)
   const filteredTournaments = useMemo(() => {
     let result = tournaments;
 
@@ -435,20 +431,20 @@ export function TournamentsContent({
       result = result.filter((t) => t.name.toLowerCase().includes(q));
     }
 
-    // 지역 필터
+    // 지역 필터: city 필드에 선택한 시도명이 포함되는지 확인
+    // 예: "서울" 선택 시 city가 "서울특별시" 또는 "서울"인 대회 매칭
     if (regionFilter !== "all") {
-      result = result.filter((t) => t.city === regionFilter);
+      result = result.filter((t) => t.city?.includes(regionFilter));
     }
 
-    // 참가비 필터
-    if (feeFilter === "free") {
-      result = result.filter((t) => !t.entry_fee || Number(t.entry_fee) === 0);
-    } else if (feeFilter === "paid") {
-      result = result.filter((t) => t.entry_fee && Number(t.entry_fee) > 0);
-    }
+    // 성별/종별/디비전: 현재 DB에 해당 필드가 없으므로 UI만 구성
+    // TODO: API에 gender, category, division 필드 추가 시 필터링 로직 연동
+    // if (genderFilter !== "all") { ... }
+    // if (categoryFilter !== "all") { ... }
+    // if (divisionFilter !== "all") { ... }
 
     return result;
-  }, [tournaments, searchQuery, regionFilter, feeFilter, statusTab]);
+  }, [tournaments, searchQuery, regionFilter, genderFilter, categoryFilter, divisionFilter, statusTab]);
 
   // 페이지네이션 계산
   const totalPages = Math.max(1, Math.ceil(filteredTournaments.length / TOURNAMENTS_PER_PAGE));
@@ -457,10 +453,12 @@ export function TournamentsContent({
     currentPage * TOURNAMENTS_PER_PAGE
   );
 
-  // 필터 콜백
+  // 필터 콜백 (지역/성별/종별/디비전)
   const handleSearchChange = useCallback((q: string) => setSearchQuery(q), []);
-  const handleRegionChange = useCallback((city: string) => setRegionFilter(city), []);
-  const handleFeeChange = useCallback((fee: string) => setFeeFilter(fee), []);
+  const handleRegionChange = useCallback((region: string) => setRegionFilter(region), []);
+  const handleGenderChange = useCallback((gender: string) => setGenderFilter(gender), []);
+  const handleCategoryChange = useCallback((category: string) => setCategoryFilter(category), []);
+  const handleDivisionChange = useCallback((division: string) => setDivisionFilter(division), []);
 
   // 모든 대회의 장소명을 수집하여 batch API 1번 호출
   const venueQueries = useMemo(() => {
@@ -477,12 +475,14 @@ export function TournamentsContent({
     { revalidateOnFocus: false, dedupingInterval: 3600000 }
   );
 
-  // 필터 활성 여부 확인 (상태 탭은 항상 선택되므로 검색/지역/참가비만 체크)
+  // 필터 활성 여부 확인 (상태 탭은 항상 선택되므로 검색/지역/성별/종별/디비전만 체크)
   const hasFilters =
     preferFilter ||
     searchQuery.trim() !== "" ||
     regionFilter !== "all" ||
-    feeFilter !== "all";
+    genderFilter !== "all" ||
+    categoryFilter !== "all" ||
+    divisionFilter !== "all";
 
   return (
     <>
@@ -502,10 +502,11 @@ export function TournamentsContent({
 
           {/* 검색 + 필터 아이콘 (오른쪽 정렬) */}
           <TournamentsFilterComponent
-            cities={cities}
             onSearchChange={handleSearchChange}
             onRegionChange={handleRegionChange}
-            onFeeChange={handleFeeChange}
+            onGenderChange={handleGenderChange}
+            onCategoryChange={handleCategoryChange}
+            onDivisionChange={handleDivisionChange}
           />
         </div>
 

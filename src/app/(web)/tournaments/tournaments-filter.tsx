@@ -1,66 +1,90 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useState, useCallback } from "react";
 import { FloatingFilterPanel, type FilterConfig } from "@/components/shared/floating-filter-panel";
 
 /**
- * TournamentsFilter - 대회 필터 (플로팅 패널 방식으로 교체)
+ * TournamentsFilter - 대회 필터 (플로팅 패널 방식)
  *
- * 기존: 커스텀 드롭다운 3개 (상태/지역/참가비) + 검색
- * 변경: 검색바 인라인 + FloatingFilterPanel 트리거
- *
- * 상태 필터는 URL params (status), 지역/참가비는 클라이언트 사이드 콜백.
+ * 필터 구성: 지역(17개 시도) / 성별 / 종별 / 디비전
+ * - 상태 필터는 상단 탭으로 이동했으므로 여기서 제거
+ * - 참가비 필터도 제거
  */
 
-// 상태 옵션 (기존 유지)
-const STATUS_OPTIONS = [
+// 17개 시도 + 전체 (행정구역 기준)
+const REGION_OPTIONS = [
   { value: "all", label: "전체" },
-  { value: "registration", label: "모집중" },
-  { value: "in_progress", label: "진행중" },
-  { value: "completed", label: "완료" },
+  { value: "서울", label: "서울" },
+  { value: "부산", label: "부산" },
+  { value: "대구", label: "대구" },
+  { value: "인천", label: "인천" },
+  { value: "광주", label: "광주" },
+  { value: "대전", label: "대전" },
+  { value: "울산", label: "울산" },
+  { value: "세종", label: "세종" },
+  { value: "경기", label: "경기" },
+  { value: "강원", label: "강원" },
+  { value: "충북", label: "충북" },
+  { value: "충남", label: "충남" },
+  { value: "전북", label: "전북" },
+  { value: "전남", label: "전남" },
+  { value: "경북", label: "경북" },
+  { value: "경남", label: "경남" },
+  { value: "제주", label: "제주" },
 ];
 
-// 참가비 옵션
-const FEE_OPTIONS = [
+// 성별 옵션
+const GENDER_OPTIONS = [
   { value: "all", label: "전체" },
-  { value: "free", label: "무료" },
-  { value: "paid", label: "유료" },
+  { value: "male", label: "남성" },
+  { value: "female", label: "여성" },
+  { value: "mixed", label: "혼성" },
+];
+
+// 종별 옵션
+const CATEGORY_OPTIONS = [
+  { value: "all", label: "전체" },
+  { value: "general", label: "일반부" },
+  { value: "university", label: "대학부" },
+  { value: "high_school", label: "고등부" },
+  { value: "middle_school", label: "중등부" },
+  { value: "elementary", label: "초등부" },
+  { value: "masters", label: "마스터즈(40+)" },
+  { value: "senior", label: "시니어(50+)" },
+];
+
+// 디비전 옵션
+const DIVISION_OPTIONS = [
+  { value: "all", label: "전체" },
+  { value: "1", label: "1부" },
+  { value: "2", label: "2부" },
+  { value: "3", label: "3부" },
+  { value: "4", label: "4부" },
+  { value: "5", label: "5부" },
+  { value: "6", label: "6부" },
+  { value: "7", label: "7부" },
+  { value: "open", label: "오픈" },
 ];
 
 export function TournamentsFilter({
-  cities,
   onSearchChange,
   onRegionChange,
-  onFeeChange,
+  onGenderChange,
+  onCategoryChange,
+  onDivisionChange,
 }: {
-  cities: string[];
   onSearchChange: (query: string) => void;
-  onRegionChange: (city: string) => void;
-  onFeeChange: (fee: string) => void;
+  onRegionChange: (region: string) => void;
+  onGenderChange: (gender: string) => void;
+  onCategoryChange: (category: string) => void;
+  onDivisionChange: (division: string) => void;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-
-  // 로컬 필터 상태 (URL에 반영하지 않는 클라이언트 필터)
+  // 각 필터의 로컬 상태 (URL에 반영하지 않는 클라이언트 필터)
   const [selectedRegion, setSelectedRegion] = useState("all");
-  const [selectedFee, setSelectedFee] = useState("all");
+  const [selectedGender, setSelectedGender] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedDivision, setSelectedDivision] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-
-  // 현재 상태 필터값 (URL params)
-  const currentStatus = params.get("status") ?? "all";
-
-  // 상태 필터 변경 (기존 URL 기반 필터 유지)
-  const setStatus = useCallback(
-    (value: string) => {
-      const sp = new URLSearchParams(params.toString());
-      if (!value || value === "all") sp.delete("status");
-      else sp.set("status", value);
-      router.push(`${pathname}?${sp.toString()}`);
-    },
-    [router, pathname, params]
-  );
 
   // 검색어 입력 핸들러
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,73 +92,89 @@ export function TournamentsFilter({
     onSearchChange(e.target.value);
   };
 
-  // 지역 필터 콜백
-  const handleRegionChange = (city: string) => {
-    setSelectedRegion(city);
-    onRegionChange(city);
+  // 지역 필터 변경
+  const handleRegionChange = (region: string) => {
+    setSelectedRegion(region);
+    onRegionChange(region);
   };
 
-  // 참가비 필터 콜백
-  const handleFeeChange = (fee: string) => {
-    setSelectedFee(fee);
-    onFeeChange(fee);
+  // 성별 필터 변경
+  const handleGenderChange = (gender: string) => {
+    setSelectedGender(gender);
+    onGenderChange(gender);
+  };
+
+  // 종별 필터 변경
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    onCategoryChange(category);
+  };
+
+  // 디비전 필터 변경
+  const handleDivisionChange = (division: string) => {
+    setSelectedDivision(division);
+    onDivisionChange(division);
   };
 
   // 전체 초기화
   const handleReset = useCallback(() => {
-    // URL params 초기화 (상태 필터)
-    router.push(pathname);
-    // 클라이언트 필터 초기화
     setSelectedRegion("all");
-    setSelectedFee("all");
+    setSelectedGender("all");
+    setSelectedCategory("all");
+    setSelectedDivision("all");
     setSearchQuery("");
     onRegionChange("all");
-    onFeeChange("all");
+    onGenderChange("all");
+    onCategoryChange("all");
+    onDivisionChange("all");
     onSearchChange("");
-  }, [router, pathname, onRegionChange, onFeeChange, onSearchChange]);
+  }, [onRegionChange, onGenderChange, onCategoryChange, onDivisionChange, onSearchChange]);
 
-  // 지역 옵션: "전체" + API에서 받은 도시 목록
-  const cityOptions = [
-    { value: "all", label: "전체" },
-    ...cities.map((c) => ({ value: c, label: c })),
-  ];
-
-  // 활성 필터 수 계산
+  // 활성 필터 수 계산 ("all"이 아닌 필터 개수)
   const activeCount = [
-    currentStatus !== "all" ? 1 : 0,
     selectedRegion !== "all" ? 1 : 0,
-    selectedFee !== "all" ? 1 : 0,
+    selectedGender !== "all" ? 1 : 0,
+    selectedCategory !== "all" ? 1 : 0,
+    selectedDivision !== "all" ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  // FloatingFilterPanel에 전달할 필터 설정
+  // FloatingFilterPanel에 전달할 필터 설정 배열
   const filterConfigs: FilterConfig[] = [
-    {
-      key: "status",
-      label: "상태",
-      type: "select",
-      options: STATUS_OPTIONS,
-      value: currentStatus,
-      onChange: setStatus,
-    },
     {
       key: "region",
       label: "지역",
       type: "select",
-      options: cityOptions,
+      options: REGION_OPTIONS,
       value: selectedRegion,
       onChange: handleRegionChange,
     },
     {
-      key: "fee",
-      label: "참가비",
+      key: "gender",
+      label: "성별",
       type: "select",
-      options: FEE_OPTIONS,
-      value: selectedFee,
-      onChange: handleFeeChange,
+      options: GENDER_OPTIONS,
+      value: selectedGender,
+      onChange: handleGenderChange,
+    },
+    {
+      key: "category",
+      label: "종별",
+      type: "select",
+      options: CATEGORY_OPTIONS,
+      value: selectedCategory,
+      onChange: handleCategoryChange,
+    },
+    {
+      key: "division",
+      label: "디비전",
+      type: "select",
+      options: DIVISION_OPTIONS,
+      value: selectedDivision,
+      onChange: handleDivisionChange,
     },
   ];
 
-  // 검색창 토글 상태 (아이콘 클릭 시 검색 input 표시/숨김)
+  // 검색창 토글 상태
   const [showSearch, setShowSearch] = useState(false);
 
   return (
@@ -153,7 +193,7 @@ export function TournamentsFilter({
         <span className="material-symbols-outlined text-lg">search</span>
       </button>
 
-      {/* 검색 input: 토글 시 슬라이드 표시 */}
+      {/* 검색 input: 토글 시 표시 */}
       {showSearch && (
         <input
           type="text"
