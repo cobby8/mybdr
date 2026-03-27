@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 // 디자인 시스템 통일: 이모지 아이콘 -> Material Symbols Outlined
@@ -22,14 +23,9 @@ export function AdminSidebar() {
   return (
     // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
-      {/* 로고: "BDR SPORTS" + ADMIN 빨간 배지 */}
-      <Link href="/admin" className="mb-8 flex items-center gap-2 px-3">
-        <span
-          className="text-xl font-bold text-white"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          BDR SPORTS
-        </span>
+      {/* 로고: BDR 이미지 + ADMIN 배지 */}
+      <Link href="/admin" className="mb-8 flex items-center gap-3 px-3">
+        <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
         <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
           Admin
         </span>
