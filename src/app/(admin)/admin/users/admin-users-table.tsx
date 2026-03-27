@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
 
 interface SerializedUser {
@@ -62,6 +63,25 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
   const [tab, setTab] = useState<"info" | "edit">("info");
   const [confirm, setConfirm] = useState<"withdraw" | "delete" | null>(null);
   const [pending, setPending] = useState(false);
+  // 역할별 필터링 탭 상태
+  const [activeRoleTab, setActiveRoleTab] = useState("all");
+
+  // 역할별 탭 목록 + 개수 계산
+  const roleTabs = useMemo(() => [
+    { key: "all", label: "전체", count: users.length },
+    { key: "normal", label: "일반", count: users.filter((u) => u.membershipType === 0 && !u.isAdmin).length },
+    { key: "host", label: "호스트", count: users.filter((u) => u.membershipType >= 1 && !u.isAdmin).length },
+    { key: "admin", label: "관리자", count: users.filter((u) => u.isAdmin).length },
+  ], [users]);
+
+  // 탭에 따라 유저 필터링
+  const filteredUsers = useMemo(() => {
+    if (activeRoleTab === "all") return users;
+    if (activeRoleTab === "normal") return users.filter((u) => u.membershipType === 0 && !u.isAdmin);
+    if (activeRoleTab === "host") return users.filter((u) => u.membershipType >= 1 && !u.isAdmin);
+    if (activeRoleTab === "admin") return users.filter((u) => u.isAdmin);
+    return users;
+  }, [users, activeRoleTab]);
 
   useEffect(() => {
     document.body.style.overflow = selectedUser ? "hidden" : "";
@@ -90,6 +110,9 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
 
   return (
     <>
+      {/* 역할별 필터 탭 */}
+      <AdminStatusTabs tabs={roleTabs} activeTab={activeRoleTab} onChange={setActiveRoleTab} />
+
       {/* 테이블 */}
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
@@ -104,7 +127,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => {
+              {filteredUsers.map((user) => {
                 const role = getRoleInfo(user.membershipType);
                 return (
                   <tr
