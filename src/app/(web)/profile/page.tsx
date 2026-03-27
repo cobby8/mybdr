@@ -181,6 +181,21 @@ export default function ProfilePage() {
 
       {/* 4. 최근 경기 전적 */}
       <RecentGamesSection games={recentGames} />
+
+      {/* 5. 로그아웃 버튼 */}
+      <div className="mt-8 border-t pt-6" style={{ borderColor: "var(--color-border)" }}>
+        <button
+          onClick={async () => {
+            await fetch("/api/web/logout", { method: "POST", credentials: "include" });
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-80"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          <span className="material-symbols-outlined text-lg">logout</span>
+          로그아웃
+        </button>
+      </div>
     </div>
   );
 }
