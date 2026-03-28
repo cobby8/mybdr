@@ -2,6 +2,30 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-03-28] 프론트-백엔드 연결 전수 조사 + admin 관리 갭 분석
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: (web) 59개 페이지 + 89개 API route + 9개 Server Action 전수 조사. 프론트 60개 기능 중 59개 완전 연결(OK), 1개 부분 연결(tournament-admin/templates). 데이터 패칭 패턴: (1) 목록 페이지는 클라이언트 컴포넌트에서 /api/web/* fetch 또는 useSWR, (2) 상세 페이지는 서버 컴포넌트에서 prisma 직접 쿼리, (3) 생성/수정/삭제는 Server Action 또는 fetch POST/PATCH/DELETE. admin 관리 갭 4영역: 경기(games) 관리 없음, 커뮤니티(community_posts+comments) 관리 없음, 팀(teams) 관리 없음, 코트(court_infos) 관리 없음. admin이 완전 관리하는 것: users(CRUD), tournaments(상태변경), plans(CRUD), payments(읽기), suggestions(상태변경), settings(점검/캐시), logs/analytics(읽기). 가장 시급한 누락: 경기+커뮤니티 관리 (부적절 콘텐츠 모더레이션 대응 불가).
+- **참조횟수**: 0
+
+### [2026-03-26] 외부 BDR 랭킹 연동 구조 설계
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 외부 BDR 랭킹 사이트(bdrranking-d.netlify.app) 분석 후 연동 설계. 외부 데이터 소스는 GitHub 저장소(cobby8/BDR-ranking-d, cobby8/BDR-ranking-u)의 xlsx 파일. 일반부(division_rank.xlsx, 29KB)와 대학부(divisionU_rank.xlsx, 14KB). 필드: rank/team/city/score/move/scoreChange. 연동 방식: 서버사이드 API proxy -- /api/web/rankings/bdr/route.ts에서 GitHub raw URL fetch + xlsx 라이브러리로 파싱 + 인메모리 캐시(10분). 기존 /api/web/rankings API는 수정 없음(독립 경로). UI: rankings-content.tsx의 탭을 2개에서 3개로 확장(BDR 랭킹/플랫폼 팀/플랫폼 개인). BDR 랭킹 탭에 일반부/대학부 서브탭 + 지역 필터 + 검색. 신규 파일: API route.ts 1개 + bdr-ranking-table.tsx 1개. 수정 파일: rankings-content.tsx 1개 + package.json 1개.
+- **참조횟수**: 0
+
+### [2026-03-25] 랭킹 페이지 구조 설계 (신규 페이지 + API)
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: /rankings 신규 페이지 설계. (1) 팀 랭킹: Team 모델의 wins/losses/draws 필드를 직접 정렬(DB 스키마 변경 없음). (2) 개인 랭킹: TournamentTeamPlayer의 total_points/total_rebounds/total_assists/games_played를 userId 기준 groupBy 합산 후 정렬. 같은 유저가 여러 대회에 참가하면 여러 TournamentTeamPlayer 레코드가 존재하므로 합산 필수. (3) API: /api/web/rankings?type=team|player, 공개 API, 50건 고정. (4) 페이지: Suspense 래퍼 + 클라이언트 컴포넌트(탭 전환+테이블+클라이언트 페이지네이션) - teams 패턴 동일. (5) slide-menu.tsx href="#" -> "/rankings" 연결. 파일 5개: API route.ts, page.tsx, loading.tsx, rankings-content.tsx, slide-menu.tsx(수정).
+- **참조횟수**: 0
+
+### [2026-03-25] 하드코딩/미연동 심층 재분석 (03-23 완료분 제외)
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 03-23 완료 5건 제외 후 재분석. 하드코딩 8건(H1~H8), 미연동 UI 8건(U1~U8), 미구현 API 4건(A1~A4), DB 스키마 변경 7건(D1~D7) 발견. 핵심 발견: (1) 플랫폼 통계 API(/api/web/stats)가 여전히 미구현 - guest 사이드바에 "4,200개 팀" 등 하드코딩. (2) 팔로우/좋아요 시스템은 DB 테이블(follows, likes)부터 필요. (3) 슬라이드 메뉴 "랭킹" 항목이 href="#"으로 랭킹 페이지 미구현. (4) 타인 프로필 승률은 matchPlayerStat에서 계산 가능하나 미구현. (5) 커뮤니티 이벤트 배너 2곳은 하드코딩 텍스트. (6) fallback 데이터(API 실패 시 더미)는 graceful degradation으로 허용 가능. 정상 연동 확인: 홈 6개 섹션 전부, 경기/팀/대회/커뮤니티/프로필/코트/알림/요금제 전부 DB 연동 완료. 우선 추천: 통계 API(15분) -> 랭킹 페이지(40분) -> 타인 승률(15분) -> 좋아요(1시간) -> 팔로우(1시간).
+- **참조횟수**: 0
+
 ### [2026-03-23] 하드코딩 데이터 vs DB/API 연결 전체 분석
 - **분류**: architecture
 - **발견자**: planner-architect

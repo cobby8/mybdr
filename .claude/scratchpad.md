@@ -1,11 +1,185 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 코트 Phase 2 — 체크인 + 혼잡도 시스템 구현
-- **상태**: 구현 완료 (tsc 통과)
-- **현재 담당**: developer
+- **요청**: 웹(PWA) 백그라운드 위치 기반 자동 체크인 기술 조사
+- **상태**: 조사 완료
+- **현재 담당**: planner-architect
+
+### 기획설계 (planner-architect) -- 백그라운드 위치 기반 자동 체크인 기술 조사
+
+목표: 웹(PWA)에서 사용자가 코트 근처에 도착하면 자동으로 체크인되는 기능이 가능한지 조사
+
+---
+
+#### 1. 웹 Background Geolocation API 현황 -- "불가능"
+
+| 항목 | 결론 |
+|------|------|
+| 백그라운드 Geolocation | 불가. 탭/앱이 백그라운드로 가면 위치 추적 중단됨 |
+| Service Worker에서 위치 접근 | 불가. Geolocation API는 SW에 노출되지 않음 (W3C 제안만 존재, 구현 없음) |
+| PWA 설치 vs 브라우저 탭 차이 | 거의 동일. PWA 설치해도 백그라운드 위치 접근 불가 |
+| watchPosition 백그라운드 동작 | Android Chrome에서 "이미 실행 중"이면 알림과 함께 계속 감시되나, iOS Safari는 즉시 중단 |
+| iOS Safari | 백그라운드 위치 완전 차단. Background Sync도 미지원 |
+| Android Chrome | 제한적 허용 (watchPosition이 이미 실행 중일 때만, 알림 표시) |
+
+비유: 웹 앱은 "건물 안에서만 일할 수 있는 직원"과 같다. 건물(브라우저 탭) 밖으로 나가면(백그라운드) 아무것도 할 수 없다. 네이티브 앱은 "자유롭게 돌아다니는 직원"이라 밖에서도 일할 수 있다.
+
+#### 2. Web Geofencing API -- "사실상 폐기"
+
+| 항목 | 상태 |
+|------|------|
+| W3C Geofencing API 스펙 | Editor's Draft 단계에서 방치됨 (진행 없음) |
+| 브라우저 구현 | 없음. Chrome, Safari, Firefox 모두 미구현 |
+| 향후 전망 | 구현 가능성 극히 낮음 (개인정보 우려로 브라우저 벤더들이 소극적) |
+
+비유: 지오펜싱은 "특정 구역에 들어오면 자동으로 울리는 알람"인데, 웹 브라우저에는 이 알람 시스템 자체가 설치되어 있지 않다.
+
+#### 3. 대안 기술 비교표
+
+| 방식 | 웹 지원 | iOS | Android | 백그라운드 | 구현 난이도 | 비용 |
+|------|---------|-----|---------|-----------|-----------|------|
+| (A) 포그라운드 위치 감지 | O | O | O | X | 낮음 | 무료 |
+| (B) QR 코드 스캔 | O | O | O | 해당없음 | 매우 낮음 | 인쇄비만 |
+| (C) NFC 태그 | 부분 | X (Safari 미지원) | O (Chrome만) | 해당없음 | 낮음 | 태그당 500원 |
+| (D) URL 기반 (코트별 고유 링크) | O | O | O | 해당없음 | 매우 낮음 | 무료 |
+| (E) BLE 비콘 | X (웹 불가) | 네이티브만 | 네이티브만 | 네이티브만 | 높음 | 비콘 3-5만원/개 |
+| (F) Flutter 앱 백그라운드 GPS | 해당없음 | O | O | O | 높음 | 개발비 |
+
+#### 4. 추천 방안 -- 단계별 로드맵
+
+**[1단계] QR 코드 원탭 체크인 (가장 현실적, 1-2일)** <<<< 강력 추천
+- 코트마다 고유 QR 코드 생성 (URL: /courts/{id}/checkin?auto=true)
+- 사용자가 QR 스캔 -> 로그인 상태면 즉시 체크인 (버튼 1번 탭)
+- 코트에 QR 스티커/현수막 부착
+- 장점: iOS/Android 모두 100% 지원, 구현 매우 쉬움, 위치 위조 불가
+- 단점: 물리적 QR 설치 필요, 사용자가 "스캔" 행동 필요
+
+**[2단계] 포그라운드 근접 감지 + 푸시 알림 (1주)**
+- /courts 페이지 열려있을 때 watchPosition으로 위치 추적
+- 코트 100m 이내 접근 시 슬라이드업 카드 "여기서 농구하세요?" (이미 Phase 2에 계획됨)
+- Web Push로 "근처 코트 발견" 알림 (앱이 백그라운드여도 푸시는 가능)
+- 장점: 앱 열려있으면 자동 감지, 푸시는 백그라운드에서도 도달
+- 단점: 앱을 열고 있어야 위치 감지 가능
+
+**[3단계] 코트별 고유 URL + NFC (선택, 1주)**
+- 코트에 NFC 태그 부착 (Android Chrome 사용자용)
+- NFC 탭 -> 코트 체크인 페이지로 즉시 이동
+- 장점: 터치 한 번으로 체크인
+- 단점: iOS Safari 미지원 (QR 코드와 병행 필수)
+
+**[장기] Flutter 앱 전환 시 (6개월+)**
+- 진짜 백그라운드 GPS + 지오펜싱 가능
+- 코트 반경 진입 시 자동 체크인 (사용자 행동 불필요)
+- 이것만이 "완전 자동" 체크인을 구현할 수 있는 유일한 방법
+
+#### 5. 최종 결론
+
+| 질문 | 답변 |
+|------|------|
+| 웹에서 백그라운드 자동 체크인 가능? | **불가능** (브라우저 기술 한계) |
+| 가장 현실적인 대안? | **QR 코드 원탭 체크인** (1단계) |
+| 반자동 체크인 가능? | **가능** -- 앱 열려있을 때 근접 감지 (2단계) |
+| 완전 자동이 필요하면? | **Flutter 네이티브 앱만 가능** (장기) |
+
+#### 6. 1단계 QR 체크인 구현 계획 (developer용)
+
+| 순서 | 작업 | 담당 | 선행 조건 |
+|------|------|------|----------|
+| 1 | /courts/[id]/checkin?auto=true 쿼리 파라미터 처리 추가 | developer | 없음 |
+| 2 | QR 코드 생성 유틸리티 (코트 ID -> QR 이미지) | developer | 없음 |
+| 3 | 코트 상세 페이지에 "QR 코드 보기" 버튼 추가 (관리자용) | developer | 1, 2 |
+| 4 | QR 스캔 -> 비로그인 시 로그인 유도 -> 체크인 플로우 | developer | 1 |
+| 5 | tsc + 테스트 | tester | 1-4 |
+
+주의사항:
+- GPS 근접 검증은 QR 체크인에서 생략 가능 (QR 자체가 현장 증거)
+- 기존 checkin API (/api/web/courts/[id]/checkin) 그대로 활용
+- QR 라이브러리: qrcode (npm) 또는 서버사이드 생성
+
+---
+
+### 테스트 결과 (tester) -- 2026-03-29 거리계산+정렬+근접감지
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| tsc --noEmit 타입 검사 | PASS | 에러 0건 |
+| haversineDistance 수학 공식 정확성 | PASS | R=6371, 라디안 변환, sin/cos/atan2 표준 공식 |
+| userLocation state + useEffect 적절성 | PASS | getCurrentPosition(1회) + watchPosition(실시간) 이중 구조 |
+| distanceMap 계산 (위경도 0 제외) | PASS | useMemo + lat/lng 0 continue 처리 |
+| filtered 거리순 정렬 로직 | PASS | distanceMap 거리 오름차순, Infinity 폴백 |
+| 위치 권한 거부 시 기존 동작 유지 | PASS | userLocation=null -> 야외+검증+평점순 폴백 |
+| watchPosition cleanup (메모리 누수) | PASS | useEffect return에서 clearWatch 호출 |
+| sessionStorage 30분 재표시 방지 | PASS | Date.now() 저장 + 30*60*1000 비교 |
+| 체크인 버튼 URL (/courts/[id]) | PASS | Link href로 상세 페이지 이동 (API 직접 호출 아님) |
+| 닫기 버튼 동작 | PASS | dismissed=true + nearbyCourtId=null + sessionStorage 저장 |
+| CSS 변수 사용 (하드코딩 색상 없음) | PASS | 전체 var(--color-*) 사용 |
+| Material Symbols 아이콘 사용 | PASS | span.material-symbols-outlined 형태 |
+| API/데이터 패칭 변경 없음 | PASS | page.tsx 미변경, props 인터페이스 동일 |
+| 기존 필터 (야외/실내/지역/pill) 유지 | PASS | 필터 로직 코드 변경 없음 |
+| 마커 클릭 -> 목록 하이라이트 유지 | PASS | handleMarkerClick + scrollIntoView 유지 |
+| 위경도 0,0 코트 제외 처리 | PASS | distanceMap, watchPosition, mapMarkers 3곳 모두 제외 |
+| 빈 markers 배열 처리 | PASS | 빈 상태 UI + bounds 조건부 조정 |
+| 위치 권한 거부 시 에러 없음 | PASS | 에러 콜백에서 조용히 무시 |
+
+종합: 18개 중 18개 통과 / 0개 실패
+
+---
 
 ### 구현 기록
+
+📝 구현한 기능: 거리 계산 + 거리순 정렬 + 거리 표시 + 100m 근접 감지 슬라이드업
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/components/shared/kakao-map.tsx | 현위치 줌 레벨 5→7 (약 20km 반경) | 수정 |
+| src/app/(web)/courts/_components/courts-content.tsx | Haversine 거리 계산 + 거리순 정렬 + 카드에 거리 표시 + 근접 감지 슬라이드업 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법: /courts 페이지 접속 -> 위치 권한 허용 -> 목록이 가까운 순으로 정렬 확인
+- 거리 표시: CourtListCard에 "near_me 1.2km" 형태, MiniCourtCard에도 동일
+- 근접 감지: 코트 100m 이내 접근 시 하단에 "근처 농구장 발견!" 슬라이드업 카드
+  - 체크인 버튼 → /courts/[id] 상세 페이지로 이동
+  - 닫기 버튼 → 30분간 재표시 안됨 (sessionStorage)
+- 위치 거부 시: 기존과 동일하게 야외우선+검증우선+평점순 정렬
+- 주의: 실제 코트 근처에서 테스트하기 어려우므로, 개발자 도구에서 위치 오버라이드로 테스트 권장
+
+⚠️ reviewer 참고:
+- API/데이터 패칭 변경 없음
+- Haversine 공식은 외부 라이브러리 없이 순수 계산 함수로 구현
+- watchPosition은 페이지 unmount 시 clearWatch로 정리 (배터리 절약)
+- sessionStorage 키: bdr_proximity_dismissed (30분 TTL)
+
+---
+
+#### 이전 구현 기록 (카카오맵 연동)
+
+📝 구현한 기능: 카카오맵 JS SDK 연동 + /courts 지도+목록 분할 뷰
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/courts/layout.tsx | 카카오맵 SDK Script 로드 (courts 하위에서만) | 신규 |
+| src/components/shared/kakao-map.tsx | KakaoMap 공통 컴포넌트 (마커+클러스터+현위치+인포윈도우) | 신규 |
+| src/app/(web)/courts/_components/courts-content.tsx | 지도+목록 분할 레이아웃으로 전면 재설계 | 수정 |
+| src/app/globals.css | slide-up 애니메이션 추가 (모바일 미니카드용) | 수정 |
+
+💡 tester 참고:
+- 테스트 방법: /courts 페이지 접속 -> 지도 표시 확인, 마커 클릭 시 우측 목록 하이라이트 확인
+- PC: 좌측 60% 지도 + 우측 40% 스크롤 목록
+- 모바일: 상단 [지도]/[목록] 토글, 지도에서 마커 클릭 시 하단 미니카드
+- 필터: 전체/야외/실내 탭 + 지역 드롭다운 + 무료/조명/풀코트/사람있는곳 pill
+- 현위치 버튼: 좌하단, 위치 권한 허용 시 현위치로 이동
+- 정상 동작: 지도에 마커 표시, 클러스터링, 마커 클릭 시 인포윈도우+목록 하이라이트
+- 주의: NEXT_PUBLIC_KAKAO_JS_KEY 환경변수 필요 (.env에 이미 있음)
+
+⚠️ reviewer 참고:
+- API/데이터 패칭 코드 전혀 변경 없음 (page.tsx 그대로)
+- KakaoMap 컴포넌트는 shared에 배치하여 향후 재사용 가능
+- SDK 폴링: kakao.maps가 아직 안 로드됐을 때 500ms 간격 최대 20회 재시도
+- window.kakao 타입은 any로 선언 (카카오 공식 타입 패키지 없음)
+
+---
+
+#### 이전 구현 기록 (코트 Phase 2)
 
 📝 구현한 기능: 코트 체크인/체크아웃 + 혼잡도 시스템
 

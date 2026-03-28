@@ -276,7 +276,7 @@ export function KakaoMap({
 
         const moveLatLng = new window.kakao.maps.LatLng(lat, lng);
         mapRef.current.setCenter(moveLatLng);
-        mapRef.current.setLevel(5); // 현위치는 좀 더 줌인
+        mapRef.current.setLevel(7); // 약 20km 반경으로 주변 코트가 함께 보이도록
 
         // 현위치 마커 표시
         const markerContent = `

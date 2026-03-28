@@ -9,6 +9,9 @@
 | decisions.md | 19 | 2026-03-28 | 기술 결정 (성능/구조/디비전/admin 개편) |
 | errors.md | 5 | 2026-03-28 | 에러 패턴, 함정, 주의사항 |
 | lessons.md | 4 | 2026-03-28 | 삽질 경험, 효과적 접근법 |
+| toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 (색상/폰트/간격/컴포넌트/레이아웃) |
+| ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 (11개 영역, 28개 개선안, 우선순위 정리) |
+| project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 (미사용 파일/API + 페이지 연결맵 + 사용자 흐름 + 사각지대) |
 
 ## 빠른 검색 가이드
 
@@ -89,6 +92,9 @@
 | Stitch 원본 | Dev/design/0. 레이아웃/DESIGN.md | Stitch에서 내보낸 원본 디자인 규격 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [03-28] project-structure-audit: 전체 구조 분석 — 미사용 API 6개/고립 페이지 4개/TODO 3건/레거시 3쌍 발견
+- [03-28] ux-audit-report: UI/UX 사용성 심층 조사 — 11개 영역/28개 개선안/단기10+중기8+장기5 우선순위
+- [03-28] toss-design-analysis: 토스 디자인 시스템 심층 분석 — 색상/폰트/간격/컴포넌트/레이아웃 전수치 + MyBDR 매핑 테이블
 - [03-28] decisions: admin UI 전면 개편 — 컴팩트 테이블 + 플로팅 모달 + 상태 탭
 - [03-28] conventions: admin UI 패턴 — 서버page + 클라이언트content 분리
 - [03-28] conventions: 대회 상태 4종 통일 (준비중/접수중/진행중/종료)

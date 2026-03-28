@@ -16,6 +16,31 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { KakaoMap, type MapMarker } from "@/components/shared/kakao-map";
 
+// ─── Haversine 공식: 두 좌표 사이의 거리(km)를 계산 ───
+// 지구를 완벽한 구로 가정하고, 위경도 차이를 호도법으로 변환하여 대원거리를 구한다
+function haversineDistance(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371; // 지구 반지름 (km)
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// 거리를 사람이 읽기 쉬운 형태로 변환 (1km 미만이면 m 단위)
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)}m`;
+  return `${km.toFixed(1)}km`;
+}
+
+// 근접 감지 슬라이드업을 30분간 숨기기 위한 키
+const PROXIMITY_DISMISS_KEY = "bdr_proximity_dismissed";
+
 // API에서 직렬화된 코트 데이터 타입 (기존과 동일)
 interface CourtItem {
   id: string;
@@ -97,6 +122,15 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("map"); // 모바일 뷰 모드
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
 
+  // 사용자 현재 위치 (거리 계산 + 근접 감지에 사용)
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // 근접 감지 슬라이드업 표시 대상 코트
+  const [nearbyCourtId, setNearbyCourtId] = useState<string | null>(null);
+
+  // 슬라이드업 닫힘 상태 (sessionStorage 30분 제한과 별도로 UI 상태 관리)
+  const [proximityDismissed, setProximityDismissed] = useState(false);
+
   // 목록 스크롤 참조 (선택 시 자동 스크롤용)
   const listRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -110,6 +144,20 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
       return next;
     });
   };
+
+  // 각 코트별 거리 계산 맵 (userLocation이 있을 때만)
+  const distanceMap = useMemo(() => {
+    if (!userLocation) return new Map<string, number>();
+    const map = new Map<string, number>();
+    for (const court of courts) {
+      if (court.latitude === 0 || court.longitude === 0) continue;
+      map.set(court.id, haversineDistance(
+        userLocation.lat, userLocation.lng,
+        court.latitude, court.longitude
+      ));
+    }
+    return map;
+  }, [courts, userLocation]);
 
   // 필터링 + 정렬
   const filtered = useMemo(() => {
@@ -140,8 +188,15 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
       result = result.filter((c) => c.activeCount > 0);
     }
 
-    // 야외 우선 + 검증 우선 + 평점순 정렬
+    // 정렬: 위치 있으면 거리순 우선, 없으면 기존 로직 (야외+검증+평점)
     result = [...result].sort((a, b) => {
+      // 거리순 우선 정렬 (사용자 위치가 있을 때)
+      if (userLocation) {
+        const distA = distanceMap.get(a.id) ?? Infinity;
+        const distB = distanceMap.get(b.id) ?? Infinity;
+        if (distA !== distB) return distA - distB;
+      }
+      // 같은 거리이거나 위치 없을 때: 야외 우선 + 검증 우선 + 평점순
       const typeOrder = (t: string) =>
         t === "outdoor" ? 0 : t === "indoor" ? 1 : 2;
       const typeDiff = typeOrder(a.court_type) - typeOrder(b.court_type);
@@ -151,7 +206,93 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
     });
 
     return result;
-  }, [courts, typeFilter, cityFilter, activePills]);
+  }, [courts, typeFilter, cityFilter, activePills, userLocation, distanceMap]);
+
+  // ─── 사용자 위치 가져오기 (1회) ───
+  // getCurrentPosition으로 초기 위치를 가져와서 거리 계산에 사용
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {
+        // 위치 권한 거부 시 무시 -- 거리 표시 안 함
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+    );
+  }, []);
+
+  // ─── watchPosition: 실시간 위치 감시 + 100m 이내 코트 감지 ───
+  // 페이지가 열려있는 동안 계속 위치를 추적하여, 코트 근처에 도착하면 슬라이드업 표시
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    // 30분 이내에 이미 닫은 경우 감지 건너뛰기
+    const dismissedAt = sessionStorage.getItem(PROXIMITY_DISMISS_KEY);
+    if (dismissedAt) {
+      const elapsed = Date.now() - Number(dismissedAt);
+      if (elapsed < 30 * 60 * 1000) {
+        setProximityDismissed(true);
+      } else {
+        sessionStorage.removeItem(PROXIMITY_DISMISS_KEY);
+      }
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+
+        // 이미 닫힌 상태면 근접 감지 건너뛰기
+        const dismissed = sessionStorage.getItem(PROXIMITY_DISMISS_KEY);
+        if (dismissed && Date.now() - Number(dismissed) < 30 * 60 * 1000) return;
+
+        // 100m(0.1km) 이내 코트 찾기 -- 가장 가까운 것 하나만
+        let closestId: string | null = null;
+        let closestDist = Infinity;
+        for (const court of courts) {
+          if (court.latitude === 0 || court.longitude === 0) continue;
+          const dist = haversineDistance(latitude, longitude, court.latitude, court.longitude);
+          if (dist <= 0.1 && dist < closestDist) {
+            closestDist = dist;
+            closestId = court.id;
+          }
+        }
+        setNearbyCourtId(closestId);
+      },
+      () => {
+        // 위치 권한 거부 시 무시
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+    );
+
+    // 페이지 떠나면 위치 감시 정리 (배터리 절약)
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [courts]);
+
+  // 근접 코트 정보 조회
+  const nearbyCourt = useMemo(
+    () => (nearbyCourtId ? courts.find((c) => c.id === nearbyCourtId) ?? null : null),
+    [courts, nearbyCourtId]
+  );
+
+  // 근접 코트까지의 거리 (m 단위)
+  const nearbyDistance = useMemo(() => {
+    if (!nearbyCourt || !userLocation) return null;
+    const km = haversineDistance(
+      userLocation.lat, userLocation.lng,
+      nearbyCourt.latitude, nearbyCourt.longitude
+    );
+    return formatDistance(km);
+  }, [nearbyCourt, userLocation]);
+
+  // 슬라이드업 닫기 핸들러 -- 30분간 재표시 방지
+  const dismissProximity = useCallback(() => {
+    setProximityDismissed(true);
+    setNearbyCourtId(null);
+    sessionStorage.setItem(PROXIMITY_DISMISS_KEY, String(Date.now()));
+  }, []);
 
   // 지도 마커 데이터 변환 (위경도 유효한 것만)
   const mapMarkers: MapMarker[] = useMemo(
@@ -368,7 +509,7 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
           {/* 모바일: 선택된 코트 미니카드 (지도 하단 슬라이드업) */}
           {viewMode === "map" && selectedCourt && (
             <div className="lg:hidden absolute bottom-16 left-3 right-3 z-10 animate-slide-up">
-              <MiniCourtCard court={selectedCourt} />
+              <MiniCourtCard court={selectedCourt} distance={distanceMap.get(selectedCourt.id)} />
             </div>
           )}
         </div>
@@ -394,6 +535,7 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
                     onSelect={() => {
                       setSelectedCourtId(court.id);
                     }}
+                    distance={distanceMap.get(court.id)}
                   />
                 </div>
               ))}
@@ -429,6 +571,89 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
           )}
         </div>
       </div>
+
+      {/* ═══════ 근접 감지 슬라이드업 (100m 이내 코트 발견 시) ═══════ */}
+      {nearbyCourt && !proximityDismissed && (
+        <div className="fixed bottom-6 left-4 right-4 z-50 animate-slide-up max-w-md mx-auto">
+          <div
+            className="rounded-xl p-4"
+            style={{
+              backgroundColor: "var(--color-card)",
+              boxShadow: "0 -4px 24px rgba(0,0,0,0.3)",
+              border: "1px solid var(--color-primary)",
+            }}
+          >
+            {/* 상단: 코트 정보 */}
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--color-primary) 15%, transparent)",
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "20px", color: "var(--color-primary)" }}
+                >
+                  location_on
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p
+                  className="text-xs font-medium"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  근처 농구장 발견!
+                </p>
+                <h3
+                  className="text-sm font-bold truncate"
+                  style={{ color: "var(--color-text-primary)" }}
+                >
+                  {nearbyCourt.name}
+                </h3>
+                {nearbyDistance && (
+                  <p
+                    className="text-xs mt-0.5"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    {nearbyDistance} 거리
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 하단: 버튼 2개 */}
+            <div className="flex gap-2">
+              {/* 체크인 버튼 -- 코트 상세 페이지로 이동 (체크인 API 호출은 상세 페이지에서) */}
+              <Link
+                href={`/courts/${nearbyCourt.id}`}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-[4px] py-2.5 text-sm font-bold transition-opacity active:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-primary)",
+                  color: "white",
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>
+                  sports_basketball
+                </span>
+                체크인
+              </Link>
+              {/* 닫기 버튼 -- 30분간 재표시 방지 */}
+              <button
+                type="button"
+                onClick={dismissProximity}
+                className="flex items-center justify-center rounded-[4px] px-4 py-2.5 text-sm font-medium transition-opacity active:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-surface-bright)",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -436,7 +661,7 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
 // ─────────────────────────────────────────────────────────
 // MiniCourtCard -- 모바일 지도 하단에 표시되는 미니 카드
 // ─────────────────────────────────────────────────────────
-function MiniCourtCard({ court }: { court: CourtItem }) {
+function MiniCourtCard({ court, distance }: { court: CourtItem; distance?: number }) {
   const isIndoor = court.court_type === "indoor";
   const typeLabel = isIndoor ? "실내" : "야외";
 
@@ -493,6 +718,18 @@ function MiniCourtCard({ court }: { court: CourtItem }) {
               style={{ color: "var(--color-text-muted)" }}
             >
               <span>{typeLabel}</span>
+              {/* 거리 표시 (위치 있을 때만) */}
+              {distance !== undefined && (
+                <span
+                  className="inline-flex items-center gap-0.5 font-medium"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "11px" }}>
+                    near_me
+                  </span>
+                  {formatDistance(distance)}
+                </span>
+              )}
               {court.is_free && (
                 <span style={{ color: "var(--color-success)" }}>무료</span>
               )}
@@ -527,10 +764,12 @@ function CourtListCard({
   court,
   isSelected,
   onSelect,
+  distance,
 }: {
   court: CourtItem;
   isSelected: boolean;
   onSelect: () => void;
+  distance?: number; // km 단위 (undefined이면 위치 미확보)
 }) {
   const isOutdoor = court.court_type === "outdoor";
   const isIndoor = court.court_type === "indoor";
@@ -722,11 +961,26 @@ function CourtListCard({
             )}
           </div>
 
-          {/* 주소 + 가까운 역 */}
+          {/* 주소 + 거리 + 가까운 역 */}
           <div
             className="mt-1.5 flex items-center gap-1.5 text-[11px]"
             style={{ color: "var(--color-text-muted)" }}
           >
+            {/* 거리 표시 (위치 확보 시에만) */}
+            {distance !== undefined && (
+              <>
+                <span
+                  className="inline-flex items-center gap-0.5 font-bold shrink-0"
+                  style={{ color: "var(--color-primary)" }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "11px" }}>
+                    near_me
+                  </span>
+                  {formatDistance(distance)}
+                </span>
+                <span style={{ color: "var(--color-border)" }}>|</span>
+              </>
+            )}
             <span className="truncate">
               {court.city} {court.district}
             </span>
