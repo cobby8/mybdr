@@ -339,7 +339,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
         {/* SNS 링크: YouTube + Instagram (사이드 네비 하단) */}
         <div className="px-4 pb-2 flex items-center gap-3">
           <a
-            href="https://www.youtube.com/@bdrsports"
+            href="https://www.youtube.com/@BDRBASKET"
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)]"
@@ -349,7 +349,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
             <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
           </a>
           <a
-            href="https://www.instagram.com/bdrsports"
+            href="https://www.instagram.com/bdr_basket"
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)]"

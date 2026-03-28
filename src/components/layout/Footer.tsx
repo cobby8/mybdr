@@ -34,7 +34,7 @@ export function Footer() {
           {/* SNS 링크: YouTube + Instagram */}
           <div className="flex items-center gap-4">
             <a
-              href="https://www.youtube.com/@bdrsports"
+              href="https://www.youtube.com/@BDRBASKET"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-80"
@@ -46,7 +46,7 @@ export function Footer() {
               <span>YouTube</span>
             </a>
             <a
-              href="https://www.instagram.com/bdrsports"
+              href="https://www.instagram.com/bdr_basket"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-80"

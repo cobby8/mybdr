@@ -196,7 +196,7 @@ export function TournamentSidebar({
             <span className="material-symbols-outlined text-base" style={{ color: "var(--color-info)" }}>
               mail
             </span>
-            <span style={{ color: "var(--color-text-secondary)" }}>support@bdrsports.com</span>
+            <span style={{ color: "var(--color-text-secondary)" }}>support@bdrbasket.com</span>
           </div>
         </div>
       </div>

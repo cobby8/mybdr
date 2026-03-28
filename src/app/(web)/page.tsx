@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 };
 import { HomeGreeting } from "@/components/home/home-greeting";
 import { RecommendedGames } from "@/components/home/recommended-games";
+import { RecommendedTournaments } from "@/components/home/recommended-tournaments";
 import { NotableTeams } from "@/components/home/notable-teams";
 import { RecommendedVideos } from "@/components/home/recommended-videos";
 import { HomeCommunity } from "@/components/home/home-community";
@@ -67,6 +68,9 @@ export default async function HomePage() {
 
       {/* [섹션 1] 추천/인기 경기: TossSectionHeader + TossCard 가로 스크롤 */}
       <RecommendedGames fallbackData={gamesData} />
+
+      {/* [섹션 1.5] 추천 대회: 접수중 대회 가로 스크롤 (클라이언트 fetch) */}
+      <RecommendedTournaments />
 
       {/* [섹션 2] 주목할만한 팀: TossListItem으로 리스트 표시 */}
       <NotableTeams fallbackData={teamsData} />
