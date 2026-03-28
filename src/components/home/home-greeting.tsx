@@ -14,6 +14,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { MySummaryHero } from "./my-summary-hero";
 
 export function HomeGreeting() {
   const [user, setUser] = useState<{ name: string } | null | undefined>(undefined);
@@ -31,19 +32,23 @@ export function HomeGreeting() {
     return <div className="h-32" />;
   }
 
-  // 로그인 상태: 개인화 인사말
+  // 로그인 상태: 개인화 인사말 + 맞춤 요약 카드 슬라이드
   if (user) {
     return (
-      <div className="mb-2">
-        <h2
-          className="text-lg font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          안녕하세요, {user.name}님
-        </h2>
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-          오늘도 좋은 경기 되세요!
-        </p>
+      <div className="space-y-4">
+        <div className="mb-2">
+          <h2
+            className="text-lg font-bold"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            안녕하세요, {user.name}님
+          </h2>
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            오늘도 좋은 경기 되세요!
+          </p>
+        </div>
+        {/* 맞춤 요약 카드 슬라이드: 내 팀/다가오는 경기/내 기록/다음 대회 */}
+        <MySummaryHero />
       </div>
     );
   }

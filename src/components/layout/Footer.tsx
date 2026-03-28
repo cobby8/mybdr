@@ -30,6 +30,34 @@ export function Footer() {
               광고 문의
             </a>
           </nav>
+
+          {/* SNS 링크: YouTube + Instagram */}
+          <div className="flex items-center gap-4">
+            <a
+              href="https://www.youtube.com/@bdrsports"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-80"
+              style={{ color: 'var(--color-text-secondary)' }}
+              aria-label="BDR YouTube"
+            >
+              {/* YouTube 아이콘: Material Symbols에 없으므로 play_circle 대체 */}
+              <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
+              <span>YouTube</span>
+            </a>
+            <a
+              href="https://www.instagram.com/bdrsports"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm transition-colors hover:opacity-80"
+              style={{ color: 'var(--color-text-secondary)' }}
+              aria-label="BDR Instagram"
+            >
+              {/* Instagram 아이콘: Material Symbols에 없으므로 photo_camera 대체 */}
+              <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
+              <span>Instagram</span>
+            </a>
+          </div>
         </div>
       </div>
     </footer>

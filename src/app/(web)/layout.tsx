@@ -336,6 +336,30 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        {/* SNS 링크: YouTube + Instagram (사이드 네비 하단) */}
+        <div className="px-4 pb-2 flex items-center gap-3">
+          <a
+            href="https://www.youtube.com/@bdrsports"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)]"
+            style={{ color: "var(--color-text-muted)" }}
+            aria-label="BDR YouTube"
+          >
+            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
+          </a>
+          <a
+            href="https://www.instagram.com/bdrsports"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface)]"
+            style={{ color: "var(--color-text-muted)" }}
+            aria-label="BDR Instagram"
+          >
+            <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>photo_camera</span>
+          </a>
+        </div>
+
         {/* 하단: 프로필 + 로그아웃 */}
         <div className="border-t border-[var(--color-border)] p-4 space-y-2">
           {user ? (

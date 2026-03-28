@@ -6,7 +6,6 @@ export const metadata: Metadata = {
   description: "픽업 게임, 팀 대결, 대회까지 — 농구인을 위한 올인원 매칭 플랫폼",
 };
 import { HomeGreeting } from "@/components/home/home-greeting";
-import { HeroBento } from "@/components/home/hero-bento";
 import { RecommendedGames } from "@/components/home/recommended-games";
 import { NotableTeams } from "@/components/home/notable-teams";
 import { RecommendedVideos } from "@/components/home/recommended-videos";
@@ -31,12 +30,12 @@ export const revalidate = 60;
  * 토스 앱처럼 "모바일 퍼스트, 한 화면에 하나의 메시지" 구조.
  *
  * 섹션 순서:
- * 1. 인사말 (로그인 시 개인화, 클라이언트에서 처리)
- * 2. 히어로 영상 슬라이드
- * 3. 추천 경기 (가로 스크롤)
- * 4. 주목할 팀 (리스트)
+ * 0. 인사말/요약 (로그인 시 인사말+맞춤카드, 비로그인 시 소개 히어로)
+ * 1. 추천 경기 (가로 스크롤)
+ * 2. 주목할 팀 (리스트)
+ * 3. 최근 활동 피드
+ * 4. 추천 영상 (YouTube)
  * 5. 커뮤니티 (최근 게시글)
- * 6. 인기 영상
  *
  * API/데이터 패칭 로직은 기존과 100% 동일하게 유지.
  * 사이드바(HomeSidebar) import만 제거, 데이터는 다른 섹션에서 활용.
@@ -63,26 +62,23 @@ export default async function HomePage() {
      * 토스 앱처럼 섹션별로 구분감 있게 배치 */
     <div className="space-y-10">
 
-      {/* [섹션 0] 인사말(로그인) 또는 소개 히어로(비로그인) — 클라이언트에서 분기 */}
+      {/* [섹션 0] 인사말/요약: 로그인 시 인사말+맞춤요약카드, 비로그인 시 소개 히어로 */}
       <HomeGreeting />
 
-      {/* [섹션 1] 히어로 영상 슬라이드 (YouTube — 프리페치 안 함) */}
-      <HeroBento />
-
-      {/* [섹션 2] 추천/인기 경기: TossSectionHeader + TossCard 가로 스크롤 */}
+      {/* [섹션 1] 추천/인기 경기: TossSectionHeader + TossCard 가로 스크롤 */}
       <RecommendedGames fallbackData={gamesData} />
 
-      {/* [섹션 3] 주목할만한 팀: TossListItem으로 리스트 표시 */}
+      {/* [섹션 2] 주목할만한 팀: TossListItem으로 리스트 표시 */}
       <NotableTeams fallbackData={teamsData} />
 
-      {/* [섹션 4] 최근 활동 피드: 경기참가/대회참가/글작성 통합 (클라이언트 fetch) */}
+      {/* [섹션 3] 최근 활동 피드: 경기참가/대회참가/글작성 통합 (클라이언트 fetch) */}
       <RecentActivity />
+
+      {/* [섹션 4] 추천 영상 (YouTube — 프리페치 안 함) */}
+      <RecommendedVideos />
 
       {/* [섹션 5] 커뮤니티: 최근 게시글 TossListItem */}
       <HomeCommunity fallbackData={communityData} />
-
-      {/* [섹션 6] 인기 영상 (YouTube — 프리페치 안 함) */}
-      <RecommendedVideos />
     </div>
   );
 }
