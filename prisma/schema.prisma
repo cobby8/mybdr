@@ -55,6 +55,11 @@ model User {
   preferred_divisions                                                       Json                         @default("[]")
   preferred_board_categories                                                Json                         @default("[]")
   preferred_game_types                                                      Json                         @default("[]")
+  // 선호 지역/요일/시간대/실력 (JSON 배열로 저장)
+  preferred_regions                                                         Json                         @default("[]")
+  preferred_days                                                            Json                         @default("[]")
+  preferred_time_slots                                                      Json                         @default("[]")
+  preferred_skill_levels                                                    Json                         @default("[]")
   // 맞춤 보기 토글 ON/OFF 상태를 DB에 저장 (기본 false)
   // SQL: ALTER TABLE users ADD COLUMN prefer_filter_enabled BOOLEAN NOT NULL DEFAULT false;
   prefer_filter_enabled                                                     Boolean                      @default(false)

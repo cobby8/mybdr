@@ -28,9 +28,42 @@ const GAME_TYPES = [
 // 게시판 카테고리 목록 (커뮤니티에서 사용하는 카테고리)
 const BOARD_CATEGORIES = [
   { code: "general", label: "자유게시판" },
-  { code: "info", label: "정보게시판" },
-  { code: "review", label: "후기게시판" },
-  { code: "marketplace", label: "장터게시판" },
+  { code: "recruit", label: "팀원모집" },
+  { code: "review", label: "대회후기" },
+  { code: "info", label: "정보공유" },
+  { code: "qna", label: "질문답변" },
+  { code: "notice", label: "공지사항" },
+  { code: "marketplace", label: "농구장터" },
+] as const;
+
+// 선호 지역 목록 (17개 광역시/도)
+const REGIONS = [
+  "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+  "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
+];
+
+// 선호 요일 (월~일)
+const DAYS = [
+  { code: "mon", label: "월" }, { code: "tue", label: "화" },
+  { code: "wed", label: "수" }, { code: "thu", label: "목" },
+  { code: "fri", label: "금" }, { code: "sat", label: "토" },
+  { code: "sun", label: "일" },
+] as const;
+
+// 선호 시간대 (4구간)
+const TIME_SLOTS = [
+  { code: "morning", label: "오전 (6~12시)" },
+  { code: "afternoon", label: "오후 (12~18시)" },
+  { code: "evening", label: "저녁 (18~22시)" },
+  { code: "night", label: "심야 (22~6시)" },
+] as const;
+
+// 실력 수준 (4단계)
+const SKILL_LEVELS = [
+  { code: "beginner", label: "초급" },
+  { code: "intermediate", label: "중급" },
+  { code: "intermediate_advanced", label: "중상" },
+  { code: "advanced", label: "상급" },
 ] as const;
 
 // --- Props 타입 정의 ---
@@ -80,6 +113,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   const [selectedBoardCategories, setSelectedBoardCategories] = useState<string[]>([]);
   // 선호 경기 유형 선택 상태 (숫자 배열: 0=PICKUP, 1=GUEST, 2=PRACTICE)
   const [selectedGameTypes, setSelectedGameTypes] = useState<number[]>([]);
+  // 선호 지역/요일/시간대/실력 선택 상태
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
   // 현재 선택된 종별 탭
   const [activeCategory, setActiveCategory] = useState<CategoryCode>("general");
@@ -101,6 +139,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       setSelectedDivisions(data.preferred_divisions ?? []);
       setSelectedBoardCategories(data.preferred_board_categories ?? []);
       setSelectedGameTypes(data.preferred_game_types ?? []);
+      setSelectedRegions(data.preferred_regions ?? []);
+      setSelectedDays(data.preferred_days ?? []);
+      setSelectedTimeSlots(data.preferred_time_slots ?? []);
+      setSelectedSkills(data.preferred_skill_levels ?? []);
     } catch {
       // 로드 실패 시 빈 상태로 시작 (신규 유저이거나 네트워크 문제)
     } finally {
@@ -134,6 +176,34 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     );
   };
 
+  // 지역 토글
+  const toggleRegion = (region: string) => {
+    setSelectedRegions((prev) =>
+      prev.includes(region) ? prev.filter((r) => r !== region) : [...prev, region]
+    );
+  };
+
+  // 요일 토글
+  const toggleDay = (code: string) => {
+    setSelectedDays((prev) =>
+      prev.includes(code) ? prev.filter((d) => d !== code) : [...prev, code]
+    );
+  };
+
+  // 시간대 토글
+  const toggleTimeSlot = (code: string) => {
+    setSelectedTimeSlots((prev) =>
+      prev.includes(code) ? prev.filter((t) => t !== code) : [...prev, code]
+    );
+  };
+
+  // 실력 수준 토글
+  const toggleSkill = (code: string) => {
+    setSelectedSkills((prev) =>
+      prev.includes(code) ? prev.filter((s) => s !== code) : [...prev, code]
+    );
+  };
+
   // 저장 처리 - API에 선호 설정을 PATCH로 전송
   const handleSave = async () => {
     setSaving(true);
@@ -147,6 +217,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           preferred_divisions: selectedDivisions,
           preferred_board_categories: selectedBoardCategories,
           preferred_game_types: selectedGameTypes,
+          preferred_regions: selectedRegions,
+          preferred_days: selectedDays,
+          preferred_time_slots: selectedTimeSlots,
+          preferred_skill_levels: selectedSkills,
           // 토글 ON/OFF 상태를 API에 전달 (맞춤 보기 활성화 여부)
           prefer_filter_enabled: preferFilter,
         }),
@@ -332,11 +406,73 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               <span className="font-medium text-[var(--color-primary)]">{selectedGameTypes.length}개</span> 선택됨
             </p>
           )}
+
+          {/* --- 서브섹션: 선호 실력 수준 --- */}
+          <div className="mt-6">
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>선호 실력</p>
+            <div className="flex flex-wrap gap-2">
+              {SKILL_LEVELS.map(({ code, label }) => (
+                <PillButton key={code} selected={selectedSkills.includes(code)} onClick={() => toggleSkill(code)}>
+                  {label}
+                </PillButton>
+              ))}
+            </div>
+          </div>
         </TossCard>
       </div>
 
       {/* ========================================
-       * 섹션 3: 관심 게시판 카테고리
+       * 섹션 3: 경기 일정 선호
+       * 지역 / 요일 / 시간대 pill 버튼
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="경기 일정 선호" />
+        <TossCard>
+          {/* 선호 지역 */}
+          <div>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>선호 지역</p>
+            <div className="flex flex-wrap gap-2">
+              {REGIONS.map((region) => (
+                <PillButton key={region} selected={selectedRegions.includes(region)} onClick={() => toggleRegion(region)}>
+                  {region}
+                </PillButton>
+              ))}
+            </div>
+            {selectedRegions.length > 0 && (
+              <p className="mt-3 text-sm text-[var(--color-text-muted)]">
+                <span className="font-medium text-[var(--color-primary)]">{selectedRegions.length}개</span> 선택됨
+              </p>
+            )}
+          </div>
+
+          {/* 선호 요일 */}
+          <div className="mt-6">
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>선호 요일</p>
+            <div className="flex flex-wrap gap-2">
+              {DAYS.map(({ code, label }) => (
+                <PillButton key={code} selected={selectedDays.includes(code)} onClick={() => toggleDay(code)}>
+                  {label}
+                </PillButton>
+              ))}
+            </div>
+          </div>
+
+          {/* 선호 시간대 */}
+          <div className="mt-6">
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>선호 시간대</p>
+            <div className="flex flex-wrap gap-2">
+              {TIME_SLOTS.map(({ code, label }) => (
+                <PillButton key={code} selected={selectedTimeSlots.includes(code)} onClick={() => toggleTimeSlot(code)}>
+                  {label}
+                </PillButton>
+              ))}
+            </div>
+          </div>
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 4: 관심 게시판 카테고리
        * 자유게시판 / 정보게시판 / 후기게시판 / 장터게시판 pill 버튼
        * ======================================== */}
       <div>
