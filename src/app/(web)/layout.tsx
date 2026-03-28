@@ -38,6 +38,34 @@ const bottomNavItems = [
 ];
 
 /* ============================================================
+ * PreferFilterToggleButton — 헤더 우측 선호 필터 토글 아이콘 버튼
+ * ON: 파란색 tune 아이콘 / OFF: 회색 tune 아이콘
+ * 클릭 시 usePreferFilter()의 togglePreferFilter() 호출
+ * ============================================================ */
+function PreferFilterToggleButton() {
+  const { preferFilter, togglePreferFilter } = usePreferFilter();
+  return (
+    <button
+      onClick={togglePreferFilter}
+      className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-surface-bright)]"
+      aria-label={preferFilter ? "맞춤 필터 켜짐" : "맞춤 필터 꺼짐"}
+      title={preferFilter ? "맞춤 필터 켜짐" : "맞춤 필터 꺼짐"}
+    >
+      {/* tune 아이콘: ON이면 primary 색상, OFF이면 muted 색상 */}
+      <span
+        className="material-symbols-outlined text-xl"
+        style={{
+          color: preferFilter ? "var(--color-primary)" : "var(--color-text-muted)",
+          fontVariationSettings: preferFilter ? "'FILL' 1" : undefined,
+        }}
+      >
+        tune
+      </span>
+    </button>
+  );
+}
+
+/* ============================================================
  * WebLayoutInner — 토스 스타일 레이아웃
  * 구조: 상단 미니멀 헤더(56px) + 메인 콘텐츠(중앙 정렬) + 하단 탭 네비(56px)
  * 사이드바 완전 제거, 모바일/데스크탑 동일 구조
@@ -194,10 +222,12 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* 우측: 테마+검색+알림+프로필 */}
+        {/* 우측: 테마+검색+선호필터+알림+프로필 */}
         <div className="flex items-center gap-1 shrink-0">
           <ThemeToggle />
           <TextSizeToggle />
+          {/* 선호 필터 토글: 로그인 시에만 표시, ON=파란 아이콘 / OFF=회색 아이콘 */}
+          {user && <PreferFilterToggleButton />}
           {/* 모바일 검색 아이콘 (PC에서는 좌측 검색바 사용) */}
           <Link
             href="/games"

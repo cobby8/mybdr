@@ -1,9 +1,22 @@
 "use client";
 
+/* ============================================================
+ * PreferenceForm — 선호 설정 폼 (토스 스타일)
+ *
+ * 3개 섹션: 관심 종별/디비전, 경기 유형, 게시판 카테고리
+ * + "원하는 정보만 보기" 토글 스위치
+ *
+ * 토스 공통 컴포넌트 활용: TossCard, TossSectionHeader, TossButton
+ * pill 버튼(rounded-full), primary 색상 선택 상태
+ * ============================================================ */
+
 import { useState, useEffect, useCallback } from "react";
 import { CATEGORIES, getDivisionsForCategory, DIVISIONS } from "@/lib/constants/divisions";
 import type { CategoryCode, GenderCode } from "@/lib/constants/divisions";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
+import { TossCard } from "@/components/toss/toss-card";
+import { TossSectionHeader } from "@/components/toss/toss-section-header";
+import { TossButton } from "@/components/toss/toss-button";
 
 // 경기 유형 목록 (game_type 숫자값과 매핑)
 const GAME_TYPES = [
@@ -20,18 +33,41 @@ const BOARD_CATEGORIES = [
   { code: "marketplace", label: "장터게시판" },
 ] as const;
 
-// --- 미선택 버튼의 공통 스타일 (CSS 변수로 라이트/다크 자동 대응) ---
-const unselectedBtn = "bg-(--color-elevated) border-(--color-border) text-(--color-text-secondary) hover:border-(--color-text-secondary)";
-// --- 선택된 버튼 스타일 (오렌지 계열 - 테마 무관하게 고정) ---
-// 선택된 칩 스타일 - 액센트 색상(오렌지) CSS 변수 사용
-const selectedChip = "bg-(--color-accent)/20 border-(--color-accent) text-(--color-accent)";
-
 // --- Props 타입 정의 ---
 // mode: "onboarding"은 온보딩 흐름 (스킵 가능), "settings"는 프로필 설정 페이지용
 export interface PreferenceFormProps {
   mode: "onboarding" | "settings";
   onComplete?: () => void;  // 저장 완료 후 호출되는 콜백
   onSkip?: () => void;      // 스킵 버튼 클릭 시 호출 (onboarding 모드에서만 사용)
+}
+
+/* ============================================================
+ * 토스 스타일 pill 버튼 — 선택/미선택 상태에 따라 스타일 변경
+ * 선택됨: primary 배경 + 흰색 글씨 (토스의 강조 패턴)
+ * 미선택: surface 배경 + muted 글씨
+ * ============================================================ */
+function PillButton({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+        selected
+          ? "bg-[var(--color-primary)] text-white shadow-sm"
+          : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
 }
 
 export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps) {
@@ -142,217 +178,230 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-(--color-accent)" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--color-primary)]" />
       </div>
     );
   }
 
   return (
-    <div>
+    /* 섹션 간 넉넉한 간격 (토스 스타일 space-y-8) */
+    <div className="space-y-8">
+
       {/* 온보딩 모드일 때만 안내 문구 표시 */}
       {mode === "onboarding" && (
-        <p className="text-(--color-text-secondary) mb-6 text-sm">
+        <p className="text-[var(--color-text-secondary)] text-sm">
           이 설정을 바탕으로 맞춤 경기와 게시글을 보여드릴게요!
         </p>
       )}
 
-      {/* "원하는 정보만 보기" 토글 - settings와 onboarding 모두 표시 */}
-      <section className="mb-8 rounded-2xl border border-(--color-border) bg-(--color-card) p-5">
-        <div className="flex items-center justify-between">
-          <div>
+      {/* ========================================
+       * "원하는 정보만 보기" 토글 — TossCard 사용
+       * 토스 스타일 둥근 토글 스위치 (primary 색상)
+       * ======================================== */}
+      <TossCard className="!p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
             {/* 토글 라벨 */}
-            <h3 className="text-base font-semibold text-(--color-text-primary)">
+            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
               원하는 정보만 보기
             </h3>
-            {/* 토글 설명 - 온보딩과 설정 모드에 따라 다른 안내 문구 */}
+            {/* 토글 설명 - 모드에 따라 다른 안내 문구 */}
             {mode === "onboarding" ? (
-              <p className="text-sm text-(--color-text-secondary) mt-1">
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
                 켜면 경기, 대회, 게시판에서 내가 원하는 정보만 표시됩니다. 나중에 프로필에서 변경할 수 있습니다.
               </p>
             ) : (
-              <>
-                <p className="text-sm text-(--color-text-secondary) mt-1">
-                  켜면 경기, 대회, 게시판에서 원하는 정보만 표시됩니다
-                </p>
-                <p className="text-xs text-(--color-text-secondary) mt-1 opacity-70">
-                  켜두면 항상 기본으로 내가 원하는 정보만 볼 수 있습니다. 상단 아이콘을 통해 언제든지 전체 정보를 볼 수 있습니다.
-                </p>
-              </>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+                켜면 경기, 대회, 게시판에서 원하는 정보만 표시됩니다.
+                <br />
+                <span className="text-xs opacity-70">
+                  상단 tune 아이콘으로도 언제든 전환할 수 있습니다.
+                </span>
+              </p>
             )}
           </div>
-          {/* 토글 스위치 - 클릭 시 전역 preferFilter 상태 즉시 변경 */}
+          {/* 토스 스타일 토글 스위치: 둥근 pill, primary 색상 */}
           <button
             type="button"
             onClick={togglePreferFilter}
-            className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ${
-              preferFilter ? "bg-(--color-accent)" : "bg-(--color-surface)"
+            className={`relative inline-flex h-8 w-[52px] shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 ${
+              preferFilter
+                ? "bg-[var(--color-primary)]"
+                : "bg-[var(--color-surface-bright)]"
             }`}
             role="switch"
             aria-checked={preferFilter}
             aria-label="원하는 정보만 보기"
           >
-            {/* 토글 동그라미 (ON: 오른쪽, OFF: 왼쪽) */}
+            {/* 토글 원형 노브: ON=오른쪽, OFF=왼쪽 */}
             <span
-              className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                preferFilter ? "translate-x-6" : "translate-x-1"
+              className={`inline-block h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-300 ${
+                preferFilter ? "translate-x-[26px]" : "translate-x-[3px]"
               }`}
             />
           </button>
         </div>
-      </section>
+      </TossCard>
 
-      {/* 섹션 1: 관심 종별/디비전 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-(--color-text-primary)">
-          관심 종별 / 디비전
-        </h2>
-
-        {/* 성별 토글 (남성부/여성부) */}
-        <div className="flex gap-2 mb-4">
-          {(["male", "female"] as GenderCode[]).map((gender) => (
-            <button
-              key={gender}
-              onClick={() => setActiveGender(gender)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                activeGender === gender
-                  ? "bg-(--color-accent) text-black"
-                  : unselectedBtn
-              }`}
-            >
-              {gender === "male" ? "남성부" : "여성부"}
-            </button>
-          ))}
-        </div>
-
-        {/* 종별 탭 (일반부/유청소년/대학부/시니어) */}
-        <div className="flex gap-2 mb-4 overflow-x-auto">
-          {Object.entries(CATEGORIES).map(([code, cat]) => (
-            <button
-              key={code}
-              onClick={() => setActiveCategory(code as CategoryCode)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                activeCategory === code
-                  ? "bg-(--color-surface) text-(--color-text-primary)"
-                  : "bg-(--color-elevated) text-(--color-text-secondary) hover:bg-(--color-surface)"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        {/* 디비전 칩 목록 - 각 디비전을 토글 버튼으로 표시 */}
-        <div className="flex flex-wrap gap-2">
-          {currentDivisions.map((code) => {
-            const info = DIVISIONS[code];
-            const isSelected = selectedDivisions.includes(code);
-            return (
-              <button
-                key={code}
-                onClick={() => toggleDivision(code)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border ${
-                  isSelected ? selectedChip : unselectedBtn
-                }`}
+      {/* ========================================
+       * 섹션 1: 관심 종별/디비전
+       * TossCard 내부에 성별 + 종별 탭 + 디비전 pill 배치
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="관심 종별 / 디비전" />
+        <TossCard>
+          {/* 성별 토글 (남성부/여성부) — pill 스타일 */}
+          <div className="flex gap-2 mb-5">
+            {(["male", "female"] as GenderCode[]).map((gender) => (
+              <PillButton
+                key={gender}
+                selected={activeGender === gender}
+                onClick={() => setActiveGender(gender)}
               >
-                <span>{info?.label ?? code}</span>
-                {info?.leagueName && (
-                  <span className="block text-xs opacity-60">{info.leagueName}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 선택된 디비전 요약 */}
-        {selectedDivisions.length > 0 && (
-          <div className="mt-3 text-sm text-(--color-text-secondary)">
-            선택됨: {selectedDivisions.join(", ")}
+                {gender === "male" ? "남성부" : "여성부"}
+              </PillButton>
+            ))}
           </div>
-        )}
-      </section>
 
-      {/* 섹션 2: 관심 경기 유형 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 text-(--color-text-primary)">관심 경기 유형</h2>
-        <div className="flex flex-wrap gap-2">
-          {GAME_TYPES.map(({ code, label, description }) => {
-            const isSelected = selectedGameTypes.includes(code);
-            return (
-              <button
+          {/* 종별 탭 (일반부/유청소년/대학부/시니어) — pill 스타일 */}
+          <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+            {Object.entries(CATEGORIES).map(([code, cat]) => (
+              <PillButton
                 key={code}
-                onClick={() => toggleGameType(code)}
-                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
-                  isSelected ? selectedChip : unselectedBtn
-                }`}
+                selected={activeCategory === code}
+                onClick={() => setActiveCategory(code as CategoryCode)}
               >
-                <span>{label}</span>
-                <span className="block text-xs opacity-60">{description}</span>
-              </button>
-            );
-          })}
-        </div>
-        {selectedGameTypes.length > 0 && (
-          <div className="mt-3 text-sm text-(--color-text-secondary)">
-            선택됨: {selectedGameTypes.map((c) => GAME_TYPES.find((g) => g.code === c)?.label ?? c).join(", ")}
+                {cat.label}
+              </PillButton>
+            ))}
           </div>
-        )}
-      </section>
 
-      {/* 섹션 3: 관심 게시판 카테고리 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4 text-(--color-text-primary)">관심 게시판</h2>
-        <div className="flex flex-wrap gap-2">
-          {BOARD_CATEGORIES.map(({ code, label }) => {
-            const isSelected = selectedBoardCategories.includes(code);
-            return (
-              <button
-                key={code}
-                onClick={() => toggleBoardCategory(code)}
-                className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
-                  isSelected ? selectedChip : unselectedBtn
-                }`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        {selectedBoardCategories.length > 0 && (
-          <div className="mt-3 text-sm text-(--color-text-secondary)">
-            선택됨: {selectedBoardCategories.map((c) => BOARD_CATEGORIES.find((b) => b.code === c)?.label ?? c).join(", ")}
+          {/* 디비전 pill 목록 — 선택/미선택 토글 */}
+          <div className="flex flex-wrap gap-2">
+            {currentDivisions.map((code) => {
+              const info = DIVISIONS[code];
+              const isSelected = selectedDivisions.includes(code);
+              return (
+                <PillButton
+                  key={code}
+                  selected={isSelected}
+                  onClick={() => toggleDivision(code)}
+                >
+                  <span>{info?.label ?? code}</span>
+                  {info?.leagueName && (
+                    <span className="block text-xs opacity-60 mt-0.5">{info.leagueName}</span>
+                  )}
+                </PillButton>
+              );
+            })}
           </div>
-        )}
-      </section>
 
-      {/* 저장 버튼 + 메시지 */}
-      <div className="sticky bottom-4">
+          {/* 선택된 디비전 요약 */}
+          {selectedDivisions.length > 0 && (
+            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-primary)]">{selectedDivisions.length}개</span> 선택됨
+            </p>
+          )}
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 2: 관심 경기 유형
+       * PICKUP / GUEST / PRACTICE pill 버튼
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="관심 경기 유형" />
+        <TossCard>
+          <div className="flex flex-wrap gap-2">
+            {GAME_TYPES.map(({ code, label, description }) => {
+              const isSelected = selectedGameTypes.includes(code);
+              return (
+                <PillButton
+                  key={code}
+                  selected={isSelected}
+                  onClick={() => toggleGameType(code)}
+                >
+                  <span>{label}</span>
+                  <span className="block text-xs opacity-60 mt-0.5">{description}</span>
+                </PillButton>
+              );
+            })}
+          </div>
+          {selectedGameTypes.length > 0 && (
+            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-primary)]">{selectedGameTypes.length}개</span> 선택됨
+            </p>
+          )}
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 3: 관심 게시판 카테고리
+       * 자유게시판 / 정보게시판 / 후기게시판 / 장터게시판 pill 버튼
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="관심 게시판" />
+        <TossCard>
+          <div className="flex flex-wrap gap-2">
+            {BOARD_CATEGORIES.map(({ code, label }) => {
+              const isSelected = selectedBoardCategories.includes(code);
+              return (
+                <PillButton
+                  key={code}
+                  selected={isSelected}
+                  onClick={() => toggleBoardCategory(code)}
+                >
+                  {label}
+                </PillButton>
+              );
+            })}
+          </div>
+          {selectedBoardCategories.length > 0 && (
+            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-primary)]">{selectedBoardCategories.length}개</span> 선택됨
+            </p>
+          )}
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 저장 버튼 영역 — TossButton (풀와이드 CTA)
+       * 메시지 표시 + primary CTA + 온보딩 스킵 버튼
+       * ======================================== */}
+      <div className="sticky bottom-4 space-y-3">
+        {/* 성공/실패 메시지 — 토스 스타일 라운드 카드 */}
         {message && (
           <div
-            className={`mb-3 px-4 py-2 rounded-lg text-sm ${
+            className={`px-4 py-3 rounded-2xl text-sm font-medium ${
               message.type === "success"
-                ? "bg-green-100 text-green-800 border border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700"
-                : "bg-red-100 text-red-800 border border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700"
+                ? "bg-[var(--color-surface)] text-[var(--color-primary)]"
+                : "bg-[var(--color-surface)] text-[var(--color-error,#E31B23)]"
             }`}
+            style={{ boxShadow: "var(--shadow-card)" }}
           >
             {message.text}
           </div>
         )}
-        <button
+
+        {/* 메인 CTA — TossButton primary (풀와이드) */}
+        <TossButton
+          variant="primary"
+          fullWidth
           onClick={handleSave}
           disabled={saving}
-          className="w-full py-3 rounded-xl bg-(--color-accent) text-black font-semibold text-base hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? "저장 중..." : "설정 저장"}
-        </button>
+        </TossButton>
 
-        {/* 온보딩 모드에서만 스킵 버튼 표시 */}
+        {/* 온보딩 모드에서만 스킵 버튼 — TossButton secondary */}
         {mode === "onboarding" && onSkip && (
-          <button
+          <TossButton
+            variant="secondary"
+            fullWidth
             onClick={onSkip}
-            className="w-full mt-3 py-3 rounded-xl border border-(--color-border) text-(--color-text-secondary) font-medium text-sm hover:bg-(--color-elevated) transition-colors"
           >
             기본 설정으로 시작
-          </button>
+          </TossButton>
         )}
       </div>
     </div>
