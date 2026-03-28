@@ -161,9 +161,9 @@ function SearchAutocomplete() {
   const totalResults = categories.reduce((sum, cat) => sum + cat.items.length, 0);
 
   return (
-    <div ref={containerRef} className="hidden lg:flex items-center gap-2">
+    <div ref={containerRef} className="relative">
       <form
-        className="relative w-72"
+        className="relative w-full"
         onSubmit={(e) => {
           e.preventDefault();
           const q = query.trim();
@@ -315,6 +315,11 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
+        {/* 검색창: 홈 위에 배치 */}
+        <div className="px-3 mb-2">
+          <SearchAutocomplete />
+        </div>
+
         {/* 메인 네비게이션 */}
         <nav className="flex-1 overflow-y-auto px-3 space-y-1">
           {sideNavItems.map(item => {
@@ -397,28 +402,22 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
         className="fixed top-0 z-50 flex h-14 items-center justify-between border-b border-[var(--color-border)] px-4 backdrop-blur-xl left-0 right-0 lg:left-60"
         style={{ backgroundColor: "color-mix(in srgb, var(--color-background) 85%, transparent)" }}
       >
-        {/* 좌측: 모바일=뒤로+로고, PC=검색바 */}
-        <div className="flex items-center gap-2">
-          {/* 모바일: 뒤로가기 + 로고 */}
-          <div className="flex items-center gap-2 lg:hidden">
-            {pathname !== "/" && (
-              <button
-                onClick={() => {
-                  /* 브라우저 히스토리가 있으면 뒤로가기, 없으면(직접 URL 접근) 홈으로 */
-                  if (window.history.length > 1) router.back();
-                  else router.push("/");
-                }}
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-bright)]"
-              >
-                <span className="material-symbols-outlined text-xl">arrow_back</span>
-              </button>
-            )}
-            <Link href="/" prefetch={true}>
-              <Image src="/images/logo.png" alt="BDR" width={100} height={30} className="h-7 w-auto" />
-            </Link>
-          </div>
-          {/* PC: 검색바 — 타이핑 시 실시간 자동완성 + Enter로 전체 검색 */}
-          <SearchAutocomplete />
+        {/* 좌측: 뒤로가기 + 로고 (모바일만, PC는 사이드네비에 있음) */}
+        <div className="flex items-center gap-2 lg:hidden">
+          {pathname !== "/" && (
+            <button
+              onClick={() => {
+                if (window.history.length > 1) router.back();
+                else router.push("/");
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-bright)]"
+            >
+              <span className="material-symbols-outlined text-xl">arrow_back</span>
+            </button>
+          )}
+          <Link href="/" prefetch={true}>
+            <Image src="/images/logo.png" alt="BDR" width={100} height={30} className="h-7 w-auto" />
+          </Link>
         </div>
 
         {/* 우측: 테마+검색+선호필터+알림+프로필 */}
@@ -427,13 +426,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           <TextSizeToggle />
           {/* 선호 필터 토글: 로그인 시에만 표시, ON=파란 아이콘 / OFF=회색 아이콘 */}
           {user && <PreferFilterToggleButton />}
-          {/* 모바일 검색 아이콘 — /search로 이동 (통합 검색) */}
-          <Link
-            href="/search"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-bright)] lg:hidden"
-          >
-            <span className="material-symbols-outlined text-xl">search</span>
-          </Link>
+          {/* 검색은 사이드네비의 검색창으로 이동 — 헤더에서 제거 */}
           {/* 알림 (PC에서도 표시 — 사이드네비 알림과 별개로 빠른 접근) */}
           {user && (
             <Link
