@@ -495,12 +495,10 @@ function CourtListCard({ court }: { court: CourtItem }) {
             </div>
           </div>
 
-          {/* 우측: 카카오맵 길찾기 버튼 */}
-          <a
-            href={kakaoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+          {/* 우측: 카카오맵 길찾기 버튼 (Link 안이므로 button + window.open) */}
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(kakaoUrl, "_blank"); }}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors"
             style={{
               backgroundColor: "var(--color-surface-bright)",
@@ -513,7 +511,7 @@ function CourtListCard({ court }: { court: CourtItem }) {
             >
               directions
             </span>
-          </a>
+          </button>
         </div>
       </div>
     </Link>
