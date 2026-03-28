@@ -386,3 +386,12 @@ a,
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* 모바일 지도 하단 미니카드 슬라이드업 애니메이션 */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
