@@ -84,6 +84,140 @@ function getGameStatus(status: number): string {
   }
 }
 
+// ============================================================
+// 업적 배지 컴포넌트
+// 조건: 총 경기수, 팀장 역할, 평균 득점 등 기존 데이터에서 계산
+// 달성한 배지는 컬러, 미달성은 회색 잠금 처리
+// ============================================================
+interface Badge {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;          // Material Symbols 아이콘
+  color: string;         // 달성 시 배경색
+  condition: boolean;    // 달성 여부
+}
+
+function AchievementBadges({
+  totalGames,
+  avgPoints,
+  teams,
+}: {
+  totalGames: number;
+  avgPoints: number;
+  teams: { id: string; name: string; role: string }[];
+}) {
+  // 팀장 여부 확인 (role이 "owner"인 팀이 있는지)
+  const isTeamLeader = teams.some((t) => t.role === "owner");
+
+  // 배지 목록 정의: 각 배지의 달성 조건을 계산
+  const badges: Badge[] = [
+    {
+      id: "hot-player",
+      label: "핫플레이어",
+      description: "경기 10회 이상 참가",
+      icon: "local_fire_department",
+      color: "var(--color-primary)",
+      condition: totalGames >= 10,
+    },
+    {
+      id: "veteran",
+      label: "베테랑",
+      description: "경기 50회 이상 참가",
+      icon: "military_tech",
+      color: "var(--color-tier-gold)",
+      condition: totalGames >= 50,
+    },
+    {
+      id: "team-leader",
+      label: "팀 리더",
+      description: "팀장 역할 수행 중",
+      icon: "shield_person",
+      color: "var(--color-info)",
+      condition: isTeamLeader,
+    },
+    {
+      id: "scorer",
+      label: "슈터",
+      description: "평균 득점 15점 이상",
+      icon: "sports_score",
+      color: "var(--color-accent)",
+      condition: avgPoints >= 15,
+    },
+    {
+      id: "rookie",
+      label: "첫 경기",
+      description: "첫 번째 경기 참가",
+      icon: "celebration",
+      color: "var(--color-tertiary)",
+      condition: totalGames >= 1,
+    },
+    {
+      id: "multi-team",
+      label: "소셜 플레이어",
+      description: "2개 이상 팀 소속",
+      icon: "diversity_3",
+      color: "var(--color-navy, #1B3C87)",
+      condition: teams.length >= 2,
+    },
+  ];
+
+  // 달성한 배지를 먼저, 미달성은 뒤로 정렬
+  const sorted = [...badges].sort((a, b) => (b.condition ? 1 : 0) - (a.condition ? 1 : 0));
+  const achieved = sorted.filter((b) => b.condition).length;
+
+  return (
+    <div>
+      <TossSectionHeader
+        title="업적 배지"
+        actionLabel={`${achieved}/${badges.length} 달성`}
+      />
+      <TossCard>
+        <div className="grid grid-cols-3 gap-3">
+          {sorted.map((badge) => (
+            <div
+              key={badge.id}
+              className="flex flex-col items-center text-center py-3"
+              style={{ opacity: badge.condition ? 1 : 0.35 }}
+            >
+              {/* 원형 배지 아이콘 */}
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full mb-2"
+                style={{
+                  backgroundColor: badge.condition ? badge.color : "var(--color-surface)",
+                }}
+              >
+                <span
+                  className="material-symbols-outlined text-2xl"
+                  style={{
+                    color: badge.condition ? "#FFFFFF" : "var(--color-text-disabled)",
+                  }}
+                >
+                  {badge.condition ? badge.icon : "lock"}
+                </span>
+              </div>
+              {/* 배지 이름 */}
+              <p
+                className="text-xs font-bold"
+                style={{ color: badge.condition ? "var(--color-text-primary)" : "var(--color-text-disabled)" }}
+              >
+                {badge.label}
+              </p>
+              {/* 배지 설명 */}
+              <p
+                className="text-[10px] mt-0.5 leading-tight"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                {badge.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </TossCard>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   // API 호출 로직 100% 유지
   const { data: profile, isLoading } = useSWR<ProfileData>("/api/web/profile", {
@@ -348,7 +482,14 @@ export default function ProfilePage() {
         </TossCard>
       </div>
 
-      {/* ==== 6. 설정 메뉴: TossListItem 리스트 ==== */}
+      {/* ==== 6. 업적 배지: 조건 기반 달성 배지 ==== */}
+      <AchievementBadges
+        totalGames={totalGames}
+        avgPoints={avgPoints}
+        teams={teams}
+      />
+
+      {/* ==== 7. 설정 메뉴: TossListItem 리스트 ==== */}
       <div>
         <TossSectionHeader title="설정" />
         <TossCard className="p-0">

@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { ShareTournamentButton } from "./share-tournament-button";
+import { MyRegistrationStatus } from "./my-registration-status";
 
 // 구글 캘린더 URL 생성 유틸
 function buildCalendarUrl(name: string, startDate: Date | null, endDate: Date | null, venue: string | null): string {
@@ -67,6 +68,9 @@ export function TournamentSidebar({
   return (
     /* sticky: 헤더(64px) + 여유 = top-20 */
     <div className="sticky top-20 space-y-3">
+      {/* ====== 내 참가 현황 (로그인 + 참가 시만 표시) ====== */}
+      <MyRegistrationStatus tournamentId={tournamentId} />
+
       {/* ====== 참가비 카드 ====== */}
       <div
         className="overflow-hidden rounded-xl border"

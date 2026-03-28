@@ -17,6 +17,7 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { getMissingFields } from "@/lib/profile/completion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
 
 export const revalidate = 30;
 
@@ -118,6 +119,12 @@ export default async function GameDetailPage({
 
   return (
     <div className="space-y-6">
+      {/* 브레드크럼: PC에서만 표시, 모바일은 뒤로가기 버튼이 대신 */}
+      <Breadcrumb items={[
+        { label: "경기", href: "/games" },
+        { label: game.title || "경기 상세" },
+      ]} />
+
       {/* 프로필 미완성 안내 배너 (1일 1회) */}
       {showProfileBanner && <ProfileIncompleteBanner />}
 

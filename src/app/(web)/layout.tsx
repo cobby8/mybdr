@@ -11,6 +11,7 @@ import { ToastProvider } from "@/contexts/toast-context";
 import { SlideMenu } from "@/components/shared/slide-menu";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { TextSizeToggle } from "@/components/shared/text-size-toggle";
+import { ProfileCompletionBanner } from "@/components/shared/profile-completion-banner";
 
 /* ============================================================
  * 하단 탭 네비바 항목: 5개 탭 (모바일+데스크탑 공통)
@@ -285,6 +286,8 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
        * ======================================== */}
       <main className="min-h-screen flex-1 pb-20 pt-14 lg:ml-60 lg:pb-8 animate-fade-in">
         <div className="mx-auto max-w-[640px] px-5 py-4 lg:max-w-[960px] lg:px-8">
+          {/* 로그인 상태에서 프로필 미완성이면 상단 유도 배너 표시 */}
+          {user && <ProfileCompletionBanner userName={user.name} />}
           {children}
         </div>
       </main>

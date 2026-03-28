@@ -8,6 +8,7 @@ import { OverviewTab } from "./_tabs/overview-tab";
 import { RosterTab } from "./_tabs/roster-tab";
 import { GamesTab } from "./_tabs/games-tab";
 import { TournamentsTab } from "./_tabs/tournaments-tab";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
 
 export const revalidate = 60;
 
@@ -94,6 +95,12 @@ export default async function TeamDetailPage({
 
   return (
     <div className="space-y-0">
+
+      {/* 브레드크럼: PC에서만 표시, 모바일은 뒤로가기 버튼이 대신 */}
+      <Breadcrumb items={[
+        { label: "팀", href: "/teams" },
+        { label: team.name },
+      ]} />
 
       {/* ===== 히어로 배너 ===== */}
       {/* 팀 고유색 그라디언트 배경 + 어두운 오버레이 */}

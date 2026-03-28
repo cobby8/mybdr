@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { TournamentHero } from "./_components/tournament-hero";
 import { TournamentAbout } from "./_components/tournament-about";
 import { TournamentSidebar } from "./_components/tournament-sidebar";
+import { Breadcrumb } from "@/components/shared/breadcrumb";
 
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
 import { TournamentTabs } from "./_components/tournament-tabs";
@@ -385,6 +387,12 @@ export default async function TournamentDetailPage({ params }: { params: Promise
 
   return (
     <div>
+      {/* 브레드크럼: PC에서만 표시, 모바일은 뒤로가기 버튼이 대신 */}
+      <Breadcrumb items={[
+        { label: "대회", href: "/tournaments" },
+        { label: tournament.name },
+      ]} />
+
       {/* 히어로 배너 */}
       <TournamentHero
         name={tournament.name}
@@ -447,6 +455,24 @@ export default async function TournamentDetailPage({ params }: { params: Promise
           />
         </div>
       </div>
+
+      {/* ========================================
+       * 모바일 플로팅 CTA: 접수중일 때만 하단 고정 표시
+       * bottom-16 = 하단 네비(h-14) 위, z-40으로 콘텐츠 위에 뜸
+       * lg 이상에서는 사이드바에 CTA가 있으므로 숨김
+       * ======================================== */}
+      {isRegistrationOpen && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 lg:hidden">
+          <Link
+            href={`/tournaments/${id}/join`}
+            className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-[0.97]"
+            style={{ backgroundColor: "var(--color-primary)" }}
+          >
+            <span className="material-symbols-outlined text-lg">edit_square</span>
+            참가 신청하기
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
