@@ -342,7 +342,7 @@ export default function BracketAdminPage() {
           <div className="mb-3 text-4xl">🏆</div>
           <p className="font-medium">대진표가 없습니다</p>
           <p className="mt-1 text-sm">
-            승인된 팀 {data?.approvedTeams.length ?? 0}팀이 있습니다.
+            승인된 팀 {data?.approvedTeams?.length ?? 0}팀이 있습니다.
           </p>
         </Card>
       )}
