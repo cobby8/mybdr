@@ -67,7 +67,7 @@ export function RegistrationSettingsForm({ data, onChange }: Props) {
           >
             {/* 종별 헤더 */}
             <div className="mb-3 flex items-center justify-between">
-              <span className="font-semibold text-[var(--color-text-primary)]">{cat}</span>
+              <span className="text-lg font-bold text-[var(--color-text-primary)]">{cat}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -103,7 +103,7 @@ export function RegistrationSettingsForm({ data, onChange }: Props) {
                   className="flex items-center gap-3 rounded-lg bg-[var(--color-bg-secondary)] px-3 py-2"
                 >
                   {/* 디비전 코드 */}
-                  <span className="min-w-[48px] text-sm font-semibold text-[var(--color-text-primary)]">
+                  <span className="min-w-[56px] text-base font-bold text-[var(--color-primary)]">
                     {div}
                   </span>
 
