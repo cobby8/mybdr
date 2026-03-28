@@ -191,6 +191,12 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       bank_account: true,
       bank_holder: true,
       maxTeams: true,
+      // 디자인 템플릿 관련 필드
+      design_template: true,
+      logo_url: true,
+      banner_url: true,
+      primary_color: true,
+      secondary_color: true,
       _count: { select: { tournamentTeams: true } },
     },
   });
@@ -401,6 +407,11 @@ export default async function TournamentDetailPage({ params }: { params: Promise
         venueName={tournament.venue_name}
         teamCount={tournament._count.tournamentTeams}
         maxTeams={tournament.maxTeams}
+        designTemplate={tournament.design_template}
+        logoUrl={tournament.logo_url}
+        bannerUrl={tournament.banner_url}
+        primaryColor={tournament.primary_color}
+        secondaryColor={tournament.secondary_color}
       />
 
       {/* 2열 레이아웃: 좌측 콘텐츠 + 우측 사이드바 */}

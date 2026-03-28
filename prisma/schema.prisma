@@ -162,6 +162,7 @@ model Tournament {
   game_method                            String?
   places                                 Json?
   gender                                 String?                 @db.VarChar
+  design_template                        String?                 @db.VarChar
   status                                 String?                 @default("draft") @db.VarChar
   teams_count                            Int?                    @default(0)
   matches_count                          Int?                    @default(0)

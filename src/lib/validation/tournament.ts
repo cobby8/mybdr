@@ -55,6 +55,10 @@ export const updateTournamentSchema = z
     game_ball: z.string().nullable(),
     game_method: z.string().nullable(),
     places: z.array(z.object({ name: z.string(), address: z.string() })).nullable(),
+    // 디자인 템플릿 + 이미지 URL
+    design_template: z.enum(["basic", "poster", "logo", "photo"]).nullable(),
+    logo_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
+    banner_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
   })
   .partial()
   .refine(

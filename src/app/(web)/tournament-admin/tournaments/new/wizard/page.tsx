@@ -14,6 +14,7 @@ import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
 // GameMethodInput 제거 — 대회 방식은 FORMAT_OPTIONS 4종으로 통합
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
+import { ImageUploader } from "@/components/shared/image-uploader";
 import { TournamentCopyModal, type CopyData } from "@/components/tournament/tournament-copy-modal";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
@@ -125,6 +126,9 @@ export default function NewTournamentWizardPage() {
   });
 
   // --- Step 3에서 사용하는 state (디자인) ---
+  const [designTemplate, setDesignTemplate] = useState("basic");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#E31B23");
   const [secondaryColor, setSecondaryColor] = useState("#E76F51");
   const [subdomain, setSubdomain] = useState("");
@@ -309,6 +313,9 @@ export default function NewTournamentWizardPage() {
           rosterMin: Number(teamSettings.rosterMin) || 5,
           rosterMax: Number(teamSettings.rosterMax) || 12,
           autoApproveTeams: teamSettings.autoApproveTeams || undefined,
+          designTemplate: designTemplate || undefined,
+          logoUrl: logoUrl || undefined,
+          bannerUrl: bannerUrl || undefined,
           primaryColor,
           secondaryColor,
           subdomain: subdomain || undefined,
@@ -578,10 +585,57 @@ export default function NewTournamentWizardPage() {
       {currentStep === 2 && (
         <div className="space-y-4">
           {/* --- 디자인 설정 --- */}
-          <TossCard className="space-y-4 hover:scale-100">
+          <TossCard className="space-y-5 hover:scale-100">
             <SectionTitle icon="palette">디자인</SectionTitle>
 
-            {/* 대회 색상 */}
+            {/* 템플릿 선택 — 4종 pill 버튼 */}
+            <div>
+              <label className={labelCls}>템플릿</label>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    { value: "basic", label: "기본형", icon: "gradient" },
+                    { value: "poster", label: "포스터형", icon: "image" },
+                    { value: "logo", label: "로고형", icon: "badge" },
+                    { value: "photo", label: "사진형", icon: "photo_camera" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    onClick={() => setDesignTemplate(t.value)}
+                    className={pillCls(designTemplate === t.value)}
+                  >
+                    <span className="material-symbols-outlined text-sm align-middle mr-1">{t.icon}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 대회 로고 업로드 (1:1 비율) — 생성 시에는 아직 ID가 없으므로 임시 경로 */}
+            <ImageUploader
+              value={logoUrl}
+              onChange={setLogoUrl}
+              bucket="tournament-images"
+              path="tournaments/new/logo"
+              label="대회 로고"
+              aspectRatio="1/1"
+              maxSizeMB={5}
+            />
+
+            {/* 대회 포스터/배너 업로드 (16:9 비율) */}
+            <ImageUploader
+              value={bannerUrl}
+              onChange={setBannerUrl}
+              bucket="tournament-images"
+              path="tournaments/new/banner"
+              label="대회 포스터"
+              aspectRatio="16/9"
+              maxSizeMB={5}
+            />
+
+            {/* 색상 설정 */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelCls}>대표 색상</label>
@@ -609,14 +663,59 @@ export default function NewTournamentWizardPage() {
               </div>
             </div>
 
-            {/* 미리보기 배너 — 선택한 색상으로 그라디언트 */}
-            <div
-              className="rounded-xl p-6 text-center"
-              style={{
-                background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-              }}
-            >
-              <p className="font-bold text-white drop-shadow">{name || "대회 이름"}</p>
+            {/* 실시간 미리보기 — 선택한 템플릿에 따라 다르게 표시 */}
+            <div>
+              <label className={labelCls}>미리보기</label>
+              <div className="overflow-hidden rounded-xl" style={{ aspectRatio: "16/9" }}>
+                {designTemplate === "basic" && (
+                  <div
+                    className="flex h-full items-end p-6"
+                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+                  >
+                    <p className="text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
+                  </div>
+                )}
+                {designTemplate === "poster" && (
+                  <div className="relative flex h-full items-end">
+                    {bannerUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={bannerUrl} alt="포스터" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }} />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <p className="relative p-6 text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
+                  </div>
+                )}
+                {designTemplate === "logo" && (
+                  <div
+                    className="flex h-full flex-col items-center justify-center gap-3"
+                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+                  >
+                    {logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={logoUrl} alt="로고" className="h-16 w-16 rounded-xl object-cover shadow-lg" />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white/20 text-white">
+                        <span className="material-symbols-outlined text-3xl">emoji_events</span>
+                      </div>
+                    )}
+                    <p className="text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
+                  </div>
+                )}
+                {designTemplate === "photo" && (
+                  <div className="relative flex h-full items-end">
+                    {bannerUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={bannerUrl} alt="사진" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="absolute inset-0 bg-[var(--color-surface)]" />
+                    )}
+                    <div className="absolute inset-0 bg-black/50" />
+                    <p className="relative p-6 text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 서브도메인 URL */}

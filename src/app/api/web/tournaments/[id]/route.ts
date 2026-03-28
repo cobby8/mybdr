@@ -85,6 +85,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (data.game_ball !== undefined) updateData.game_ball = data.game_ball;
   if (data.game_method !== undefined) updateData.game_method = data.game_method;
   if (data.places !== undefined) updateData.places = data.places;
+  // 디자인 템플릿 + 이미지 URL
+  if (data.design_template !== undefined) updateData.design_template = data.design_template;
+  if (data.logo_url !== undefined) updateData.logo_url = data.logo_url || null;
+  if (data.banner_url !== undefined) updateData.banner_url = data.banner_url || null;
 
   const updated = await updateTournament(id, updateData);
 

@@ -110,6 +110,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       // 대회 관리 확장 필드
       organizer, host, sponsors, gameTime, gameBall, gameMethod, places, gender,
       rules, prizeInfo,
+      // 디자인 템플릿 + 이미지 URL
+      designTemplate, logoUrl, bannerUrl,
     } = body;
 
     if (!name?.trim()) {
@@ -184,6 +186,10 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       rosterMin: rosterMin ? Number(rosterMin) : undefined,
       rosterMax: rosterMax ? Number(rosterMax) : undefined,
       autoApproveTeams: autoApproveTeams ?? undefined,
+      // 디자인 템플릿 + 이미지 URL
+      designTemplate: designTemplate || undefined,
+      logoUrl: logoUrl || undefined,
+      bannerUrl: bannerUrl || undefined,
     });
 
     return apiSuccess({
