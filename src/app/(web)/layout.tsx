@@ -214,14 +214,14 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
               <Image src="/images/logo.png" alt="BDR" width={100} height={30} className="h-7 w-auto" />
             </Link>
           </div>
-          {/* PC: 검색바 — Enter 시 /games?q=검색어 로 이동 */}
+          {/* PC: 검색바 — Enter 시 /search?q=검색어 로 이동 (통합 검색) */}
           <div className="hidden lg:flex items-center gap-2">
             <form
               className="relative w-72"
               onSubmit={(e) => {
                 e.preventDefault();
                 const q = (e.currentTarget.elements.namedItem("q") as HTMLInputElement).value.trim();
-                if (q) router.push(`/games?q=${encodeURIComponent(q)}`);
+                if (q) router.push(`/search?q=${encodeURIComponent(q)}`);
               }}
             >
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-lg" style={{ color: "var(--color-text-muted)" }}>search</span>
@@ -241,9 +241,9 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           <TextSizeToggle />
           {/* 선호 필터 토글: 로그인 시에만 표시, ON=파란 아이콘 / OFF=회색 아이콘 */}
           {user && <PreferFilterToggleButton />}
-          {/* 모바일 검색 아이콘 (PC에서는 좌측 검색바 사용) */}
+          {/* 모바일 검색 아이콘 — /search로 이동 (통합 검색) */}
           <Link
-            href="/games"
+            href="/search"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-bright)] lg:hidden"
           >
             <span className="material-symbols-outlined text-xl">search</span>
