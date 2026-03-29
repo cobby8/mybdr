@@ -11,6 +11,7 @@ import { CourtEditSuggest } from "./_components/court-edit-suggest";
 import { CourtPickups } from "./_components/court-pickups";
 import { CourtQrCode } from "./_components/court-qr-code";
 import { CourtAmbassador } from "./_components/court-ambassador";
+import { CourtEvents } from "./_components/court-events";
 
 export const revalidate = 300;
 
@@ -352,6 +353,9 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
 
       {/* 픽업게임 모집 섹션 (클라이언트 컴포넌트 — SWR) */}
       <CourtPickups courtId={court.id.toString()} currentUserId={currentUserId} />
+
+      {/* 3x3 이벤트 섹션 (클라이언트 컴포넌트 — SWR) */}
+      <CourtEvents courtId={court.id.toString()} currentUserId={currentUserId} />
 
       {/* 이용 현황 카드 */}
       <div

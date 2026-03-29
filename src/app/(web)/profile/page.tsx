@@ -583,6 +583,14 @@ export default function ProfilePage() {
       <div>
         <TossSectionHeader title="설정" />
         <TossCard className="p-0">
+          {/* 주간 운동 리포트 진입점 */}
+          <TossListItem
+            icon="bar_chart"
+            iconBg="var(--color-info, #0079B9)"
+            title="주간 운동 리포트"
+            subtitle="이번주 운동 요약과 지난주 비교"
+            href="/profile/weekly-report"
+          />
           <TossListItem
             icon="edit"
             iconBg="var(--color-text-secondary)"

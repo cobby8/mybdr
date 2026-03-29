@@ -15,6 +15,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { KakaoMap, type MapMarker } from "@/components/shared/kakao-map";
+import { HeatmapOverlay, type HeatmapPoint } from "@/components/shared/heatmap-overlay";
 
 // ─── Haversine 공식: 두 좌표 사이의 거리(km)를 계산 ───
 // 지구를 완벽한 구로 가정하고, 위경도 차이를 호도법으로 변환하여 대원거리를 구한다
@@ -115,6 +116,14 @@ const SIZE_LABELS: Record<string, string> = {
 // 모바일 뷰 모드
 type ViewMode = "map" | "list";
 
+// 히트맵 시간대 옵션
+const HEATMAP_PERIODS = [
+  { key: "all", label: "전체" },
+  { key: "morning", label: "오전" },
+  { key: "afternoon", label: "오후" },
+  { key: "evening", label: "저녁" },
+] as const;
+
 export function CourtsContent({ courts, cities }: CourtsContentProps) {
   // 필터 상태
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -124,6 +133,14 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
   // 지도/목록 관련 상태
   const [viewMode, setViewMode] = useState<ViewMode>("map"); // 모바일 뷰 모드
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
+
+  // ─── 히트맵 상태 ───
+  const [heatmapOn, setHeatmapOn] = useState(false); // 히트맵 ON/OFF 토글
+  const [heatmapPeriod, setHeatmapPeriod] = useState<string>("all"); // 시간대 필터
+  const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]); // 히트맵 데이터
+  const [heatmapMaxWeight, setHeatmapMaxWeight] = useState(0); // 정규화 기준값
+  const [heatmapLoading, setHeatmapLoading] = useState(false); // 로딩 상태
+  const [kakaoMapInstance, setKakaoMapInstance] = useState<any>(null); // 카카오맵 인스턴스
 
   // 사용자 현재 위치 (거리 계산 + 근접 감지에 사용)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -214,6 +231,40 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
 
     return result;
   }, [courts, typeFilter, cityFilter, activePills, userLocation, distanceMap]);
+
+  // ─── 히트맵 데이터 패칭 (토글 ON + 기간 변경 시) ───
+  // heatmapOn이 true일 때만 API 호출하여 불필요한 네트워크 요청 방지
+  useEffect(() => {
+    if (!heatmapOn) return;
+
+    let cancelled = false; // 컴포넌트 언마운트 시 상태 업데이트 방지
+    setHeatmapLoading(true);
+
+    fetch(`/api/web/courts/heatmap?period=${heatmapPeriod}&days=30`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.data?.points) {
+          setHeatmapPoints(data.data.points);
+          setHeatmapMaxWeight(data.data.max_weight || 0);
+        }
+      })
+      .catch((err) => {
+        console.error("[히트맵 데이터 로드 실패]", err);
+      })
+      .finally(() => {
+        if (!cancelled) setHeatmapLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [heatmapOn, heatmapPeriod]);
+
+  // 카카오맵 초기화 완료 콜백 (히트맵 오버레이에 지도 인스턴스 전달용)
+  const handleMapReady = useCallback((map: any) => {
+    setKakaoMapInstance(map);
+  }, []);
 
   // ─── 사용자 위치 가져오기 (1회) ───
   // getCurrentPosition으로 초기 위치를 가져와서 거리 계산에 사용
@@ -495,6 +546,70 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
                 </button>
               );
             })}
+
+          {/* 구분선 */}
+          <div
+            className="h-4 w-px shrink-0"
+            style={{ backgroundColor: "var(--color-border)" }}
+          />
+
+          {/* 히트맵 토글 버튼 */}
+          <button
+            onClick={() => setHeatmapOn((prev) => !prev)}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all duration-150"
+            style={{
+              backgroundColor: heatmapOn
+                ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
+                : "var(--color-surface-bright)",
+              color: heatmapOn
+                ? "var(--color-primary)"
+                : "var(--color-text-secondary)",
+              border: heatmapOn
+                ? "1px solid color-mix(in srgb, var(--color-primary) 30%, transparent)"
+                : "1px solid transparent",
+            }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: "13px" }}
+            >
+              whatshot
+            </span>
+            히트맵
+            {heatmapLoading && (
+              <span
+                className="material-symbols-outlined animate-spin"
+                style={{ fontSize: "11px" }}
+              >
+                progress_activity
+              </span>
+            )}
+          </button>
+
+          {/* 히트맵 ON일 때: 시간대 선택 버튼 그룹 */}
+          {heatmapOn && (
+            <div className="flex gap-0.5">
+              {HEATMAP_PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setHeatmapPeriod(p.key)}
+                  className="rounded-[4px] px-2 py-1 text-[10px] font-semibold transition-all duration-150"
+                  style={{
+                    backgroundColor:
+                      heatmapPeriod === p.key
+                        ? "var(--color-primary)"
+                        : "var(--color-surface-bright)",
+                    color:
+                      heatmapPeriod === p.key
+                        ? "white"
+                        : "var(--color-text-muted)",
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -511,7 +626,18 @@ export function CourtsContent({ courts, cities }: CourtsContentProps) {
             selectedId={selectedCourtId}
             className="h-full w-full rounded-lg overflow-hidden"
             showCurrentLocation
+            onMapReady={handleMapReady}
           />
+
+          {/* 히트맵 Canvas 오버레이 (지도 위에 겹침) */}
+          {kakaoMapInstance && (
+            <HeatmapOverlay
+              map={kakaoMapInstance}
+              points={heatmapPoints}
+              maxWeight={heatmapMaxWeight}
+              visible={heatmapOn}
+            />
+          )}
 
           {/* 모바일: 선택된 코트 미니카드 (지도 하단 슬라이드업) */}
           {viewMode === "map" && selectedCourt && (

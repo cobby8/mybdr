@@ -130,6 +130,9 @@ model User {
   pickup_participations                                                     pickup_participants[]        @relation("pickup_participant")
   // 코트 앰배서더: 해당 유저가 앰배서더로 활동하는 코트들
   court_ambassadors                                                         court_ambassadors[]          @relation("ambassador_user")
+  // 3x3 이벤트: 주최자 / 선수 참가
+  court_events_organized                                                    court_events[]               @relation("event_organizer")
+  court_event_players                                                       court_event_players[]        @relation("event_player")
 
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
@@ -378,7 +381,7 @@ model TournamentTeam {
 model TournamentTeamPlayer {
   id               BigInt            @id @default(autoincrement())
   tournamentTeamId BigInt            @map("tournament_team_id")
-  userId           BigInt            @map("user_id")
+  userId           BigInt?           @map("user_id")
   jerseyNumber     Int?              @map("jersey_number")
   role             String?           @default("player") @db.VarChar
   position         String?           @db.VarChar
@@ -401,7 +404,7 @@ model TournamentTeamPlayer {
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
   playerStats      MatchPlayerStat[]
   play_by_plays    play_by_plays[]
-  users            User              @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
+  users            User?             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
   tournamentTeam   TournamentTeam    @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
 
   @@unique([tournamentTeamId, jerseyNumber], map: "idx_tournament_team_players_jersey")
@@ -906,6 +909,7 @@ model court_infos {
   court_edit_suggestions   court_edit_suggestions[]
   pickup_games             pickup_games[]
   court_ambassadors        court_ambassadors[]
+  court_events             court_events[]
 
   @@index([average_rating], map: "index_court_infos_on_average_rating")
   @@index([city], map: "index_court_infos_on_city")
@@ -1806,4 +1810,98 @@ model court_ambassadors {
   @@unique([user_id, court_info_id], map: "idx_court_ambassadors_user_court") // 유저당 코트 1건
   @@index([court_info_id, status], map: "idx_court_ambassadors_court_status")
   @@index([status], map: "idx_court_ambassadors_status")
+}
+
+// ─── 3x3 이벤트: 코트에서 열리는 3대3 대회/이벤트 ───
+// 주최자가 이벤트를 만들고, 팀을 등록하고, 대진표를 생성하는 시스템
+model court_events {
+  id             BigInt    @id @default(autoincrement())
+  court_info_id  BigInt                                          // 개최 코트
+  organizer_id   BigInt                                          // 주최자 (User FK)
+  title          String    @db.VarChar(200)                      // 이벤트 제목
+  description    String?                                         // 설명
+  event_date     DateTime  @db.Date                              // 이벤트 날짜
+  start_time     String?   @db.VarChar(5)                        // 시작 시간 (HH:mm)
+  end_time       String?   @db.VarChar(5)                        // 종료 시간 (HH:mm)
+  max_teams      Int       @default(8)                           // 최대 팀 수 (4/8/16)
+  team_size      Int       @default(3)                           // 팀 인원 (기본 3명)
+  format         String    @default("single_elimination") @db.VarChar(30) // single_elimination | round_robin
+  status         String    @default("recruiting") @db.VarChar(20) // recruiting | ready | in_progress | completed | cancelled
+  rules          String?                                         // 경기 규칙 설명
+  prize          String?   @db.VarChar(200)                      // 상금/상품 정보
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+  updated_at     DateTime  @updatedAt @db.Timestamp(6)
+
+  // 관계
+  court_info     court_infos          @relation(fields: [court_info_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  organizer      User                 @relation("event_organizer", fields: [organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teams          court_event_teams[]
+  matches        court_event_matches[]
+
+  @@index([court_info_id, status], map: "idx_court_events_court_status")
+  @@index([organizer_id], map: "idx_court_events_organizer")
+  @@index([event_date, status], map: "idx_court_events_date_status")
+}
+
+// ─── 3x3 이벤트 팀: 이벤트에 참가하는 팀 ───
+model court_event_teams {
+  id             BigInt    @id @default(autoincrement())
+  event_id       BigInt                                          // 이벤트 FK
+  team_name      String    @db.VarChar(100)                      // 팀명
+  seed           Int?                                            // 시드 번호 (대진표용)
+  status         String    @default("registered") @db.VarChar(20) // registered | confirmed | eliminated | winner
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+
+  // 관계
+  event          court_events          @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  players        court_event_players[]
+  home_matches   court_event_matches[] @relation("match_home_team")
+  away_matches   court_event_matches[] @relation("match_away_team")
+  won_matches    court_event_matches[] @relation("match_winner_team")
+
+  @@unique([event_id, team_name], map: "idx_court_event_teams_name") // 같은 이벤트 내 팀명 중복 방지
+  @@index([event_id, status], map: "idx_court_event_teams_event_status")
+}
+
+// ─── 3x3 이벤트 선수: 팀에 소속된 선수 ───
+model court_event_players {
+  id             BigInt    @id @default(autoincrement())
+  team_id        BigInt                                          // 팀 FK
+  user_id        BigInt                                          // 선수 (User FK)
+  jersey_number  Int?                                            // 등번호 (선택)
+  is_captain     Boolean   @default(false)                       // 주장 여부
+  joined_at      DateTime  @default(now()) @db.Timestamp(6)
+
+  // 관계
+  team           court_event_teams @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  user           User              @relation("event_player", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([team_id, user_id], map: "idx_court_event_players_unique") // 한 팀에 같은 유저 중복 방지
+  @@index([user_id], map: "idx_court_event_players_user")
+}
+
+// ─── 3x3 이벤트 경기(대진표): 토너먼트 매치 ───
+model court_event_matches {
+  id             BigInt    @id @default(autoincrement())
+  event_id       BigInt                                          // 이벤트 FK
+  round          Int                                             // 라운드 (1=결승, 2=4강, 4=8강...)
+  match_order    Int                                             // 같은 라운드 내 순서 (1,2,3,4...)
+  home_team_id   BigInt?                                         // 홈팀 FK (미정이면 null)
+  away_team_id   BigInt?                                         // 어웨이팀 FK (미정이면 null)
+  home_score     Int?                                            // 홈팀 점수
+  away_score     Int?                                            // 어웨이팀 점수
+  winner_id      BigInt?                                         // 승리팀 FK
+  status         String    @default("scheduled") @db.VarChar(20) // scheduled | in_progress | completed
+  scheduled_time String?   @db.VarChar(5)                        // 예정 시간 (HH:mm)
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+  updated_at     DateTime  @updatedAt @db.Timestamp(6)
+
+  // 관계
+  event          court_events      @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  home_team      court_event_teams? @relation("match_home_team", fields: [home_team_id], references: [id], onDelete: SetNull)
+  away_team      court_event_teams? @relation("match_away_team", fields: [away_team_id], references: [id], onDelete: SetNull)
+  winner         court_event_teams? @relation("match_winner_team", fields: [winner_id], references: [id], onDelete: SetNull)
+
+  @@unique([event_id, round, match_order], map: "idx_court_event_matches_round") // 라운드+순서 유니크
+  @@index([event_id, status], map: "idx_court_event_matches_event_status")
 }

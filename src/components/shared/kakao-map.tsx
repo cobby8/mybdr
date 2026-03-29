@@ -41,6 +41,7 @@ interface KakaoMapProps {
   selectedId?: string | null; // 선택된 마커 ID (하이라이트)
   className?: string;
   showCurrentLocation?: boolean; // 현위치 버튼 표시 여부
+  onMapReady?: (map: any) => void; // 지도 초기화 완료 콜백 (히트맵 등 외부 확장용)
 }
 
 // 서울 시청 기본 좌표 (위치 권한 없을 때 폴백)
@@ -54,6 +55,7 @@ export function KakaoMap({
   selectedId,
   className = "",
   showCurrentLocation = true,
+  onMapReady,
 }: KakaoMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null); // 카카오맵 인스턴스
@@ -137,6 +139,9 @@ export function KakaoMap({
 
         clustererRef.current = clusterer;
         setIsLoaded(true);
+
+        // 외부에 지도 인스턴스 전달 (히트맵 오버레이 등에서 사용)
+        onMapReady?.(map);
       });
 
       return true;
