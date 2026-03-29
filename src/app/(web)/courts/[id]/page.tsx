@@ -9,6 +9,7 @@ import { CourtReports } from "./_components/court-reports";
 import { CourtRankings } from "./_components/court-rankings";
 import { CourtEditSuggest } from "./_components/court-edit-suggest";
 import { CourtPickups } from "./_components/court-pickups";
+import { CourtQrCode } from "./_components/court-qr-code";
 
 export const revalidate = 300;
 
@@ -308,9 +309,9 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
           </div>
         )}
 
-        {/* 카카오맵 버튼 */}
+        {/* 카카오맵 버튼 + QR 체크인 */}
         {lat !== 0 && (
-          <div className="mt-5 flex gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             <a
               href={kakaoMapUrl}
               target="_blank"
@@ -334,6 +335,8 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
               <span className="material-symbols-outlined text-base">directions</span>
               길찾기
             </a>
+            {/* QR 코드 체크인 버튼 (모달 열기) */}
+            <CourtQrCode courtId={court.id.toString()} courtName={court.name} />
           </div>
         )}
       </div>

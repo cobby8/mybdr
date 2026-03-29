@@ -142,8 +142,11 @@ export async function POST(
     // body 파싱 실패
   }
 
-  // 위치 정보가 없으면 에러 (위치 서비스 비활성화)
-  if (checkinLat == null || checkinLng == null) {
+  // QR 체크인이 아닌 경우: 위치 정보 필수
+  // QR 방식은 현장에 QR이 부착되어 있으므로 GPS 검증을 스킵한다
+  const isQrCheckin = checkinMethod === "qr";
+
+  if (!isQrCheckin && (checkinLat == null || checkinLng == null)) {
     return apiError("위치 서비스를 활성화해주세요", 400, "LOCATION_REQUIRED");
   }
 
@@ -156,17 +159,19 @@ export async function POST(
     return apiError("존재하지 않는 코트입니다", 404, "NOT_FOUND");
   }
 
-  // GPS 거리 검증: 코트 위경도가 있는 경우에만 (0,0이면 검증 스킵)
-  const courtLat = Number(court.latitude);
-  const courtLng = Number(court.longitude);
-  if (courtLat !== 0 && courtLng !== 0) {
-    const distanceM = haversineDistanceM(checkinLat, checkinLng, courtLat, courtLng);
-    if (distanceM > MAX_CHECKIN_DISTANCE_M) {
-      return apiError(
-        "코트에서 100m 이내에서만 체크인할 수 있어요",
-        400,
-        "TOO_FAR"
-      );
+  // GPS 거리 검증: QR 체크인이면 스킵, 코트 위경도가 (0,0)이면 스킵
+  if (!isQrCheckin) {
+    const courtLat = Number(court.latitude);
+    const courtLng = Number(court.longitude);
+    if (courtLat !== 0 && courtLng !== 0 && checkinLat != null && checkinLng != null) {
+      const distanceM = haversineDistanceM(checkinLat, checkinLng, courtLat, courtLng);
+      if (distanceM > MAX_CHECKIN_DISTANCE_M) {
+        return apiError(
+          "코트에서 100m 이내에서만 체크인할 수 있어요",
+          400,
+          "TOO_FAR"
+        );
+      }
     }
   }
 
