@@ -6,7 +6,7 @@
 |------|--------|------------|------|
 | architecture.md | 15 | 2026-03-28 | 페이지별 구조, admin 개편, 프론트-백엔드 연결맵 |
 | conventions.md | 11 | 2026-03-28 | 디자인 시스템, 디비전 체계, 대회 상태 4종, admin UI 패턴 |
-| decisions.md | 20 | 2026-03-29 | 기술 결정 (성능/구조/디비전/admin 개편/코트 데이터 정리) |
+| decisions.md | 22 | 2026-03-29 | 기술 결정 (성능/구조/디비전/admin 개편/코트 데이터 정리/픽업게임/위키) |
 | errors.md | 5 | 2026-03-28 | 에러 패턴, 함정, 주의사항 |
 | lessons.md | 4 | 2026-03-28 | 삽질 경험, 효과적 접근법 |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 (색상/폰트/간격/컴포넌트/레이아웃) |
@@ -92,6 +92,8 @@
 | Stitch 원본 | Dev/design/0. 레이아웃/DESIGN.md | Stitch에서 내보낸 원본 디자인 규격 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [03-29] decisions: 코트 유저 위키 — court_edit_suggestions 1테이블 + changes JSON diff (reports와 분리, 승인 시 XP 10)
+- [03-29] decisions: 픽업게임 모집 — 별도 pickup_games 테이블 신설 (games 분리, 즉시 확정 참가, 코트 직접 연결)
 - [03-29] decisions: 코트 데이터 품질 정리 기준 — 658개 추정 데이터 null 초기화 + 유저 위키 시스템
 - [03-28] project-structure-audit: 전체 구조 분석 — 미사용 API 6개/고립 페이지 4개/TODO 3건/레거시 3쌍 발견
 - [03-28] ux-audit-report: UI/UX 사용성 심층 조사 — 11개 영역/28개 개선안/단기10+중기8+장기5 우선순위

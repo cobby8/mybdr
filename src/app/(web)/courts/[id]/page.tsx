@@ -7,6 +7,7 @@ import { CourtCheckin } from "./_components/court-checkin";
 import { CourtReviews } from "./_components/court-reviews";
 import { CourtReports } from "./_components/court-reports";
 import { CourtRankings } from "./_components/court-rankings";
+import { CourtEditSuggest } from "./_components/court-edit-suggest";
 
 export const revalidate = 300;
 
@@ -484,6 +485,9 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
 
       {/* 상태 제보 섹션 (클라이언트 컴포넌트) */}
       <CourtReports courtId={court.id.toString()} currentUserId={currentUserId} />
+
+      {/* 유저 위키: 코트 정보 수정 제안 (클라이언트 컴포넌트) */}
+      <CourtEditSuggest courtId={court.id.toString()} currentUserId={currentUserId} />
     </div>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+import { EDITABLE_FIELDS, type EditableFieldKey } from "@/lib/constants/court";
 
 // 서버에서 직렬화된 코트 타입
 interface SerializedCourt {
@@ -19,6 +21,19 @@ interface SerializedCourt {
   status: string;
   isFree: boolean | null;
   reviewsCount: number;
+  createdAt: string;
+}
+
+// 위키 수정 제안 타입
+interface SerializedSuggestion {
+  id: string;
+  courtId: string;
+  courtName: string;
+  userId: string;
+  nickname: string;
+  changes: Record<string, { old: unknown; new: unknown }>;
+  reason: string;
+  status: string;
   createdAt: string;
 }
 
@@ -39,6 +54,7 @@ const STATUS_BADGE: Record<string, "success" | "error"> = {
 
 interface Props {
   courts: SerializedCourt[];
+  pendingSuggestions: SerializedSuggestion[];
   createCourtAction: (formData: FormData) => Promise<void>;
   updateCourtAction: (formData: FormData) => Promise<void>;
   deleteCourtAction: (formData: FormData) => Promise<void>;
@@ -46,10 +62,13 @@ interface Props {
 
 export function AdminCourtsContent({
   courts,
+  pendingSuggestions,
   createCourtAction,
   updateCourtAction,
   deleteCourtAction,
 }: Props) {
+  // 탭 상태: "courts" = 코트 관리 (기본), "suggestions" = 수정 제안
+  const [activeTab, setActiveTab] = useState<"courts" | "suggestions">("courts");
   const [selected, setSelected] = useState<SerializedCourt | null>(null);
 
   const fmtDate = (iso: string) =>
@@ -57,6 +76,49 @@ export function AdminCourtsContent({
 
   return (
     <>
+      {/* ─── 탭 네비게이션 ─── */}
+      <div className="flex gap-1 mb-4 rounded-lg p-1" style={{ backgroundColor: "var(--color-surface)" }}>
+        <button
+          onClick={() => setActiveTab("courts")}
+          className="flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors"
+          style={{
+            backgroundColor: activeTab === "courts" ? "var(--color-card)" : "transparent",
+            color: activeTab === "courts" ? "var(--color-text-primary)" : "var(--color-text-muted)",
+            boxShadow: activeTab === "courts" ? "var(--shadow-card)" : "none",
+          }}
+        >
+          <span className="material-symbols-outlined mr-1 align-middle text-base">sports_basketball</span>
+          코트 관리
+        </button>
+        <button
+          onClick={() => setActiveTab("suggestions")}
+          className="flex-1 rounded-md px-4 py-2 text-sm font-semibold transition-colors"
+          style={{
+            backgroundColor: activeTab === "suggestions" ? "var(--color-card)" : "transparent",
+            color: activeTab === "suggestions" ? "var(--color-text-primary)" : "var(--color-text-muted)",
+            boxShadow: activeTab === "suggestions" ? "var(--shadow-card)" : "none",
+          }}
+        >
+          <span className="material-symbols-outlined mr-1 align-middle text-base">edit_note</span>
+          수정 제안
+          {pendingSuggestions.length > 0 && (
+            <span
+              className="ml-1 inline-flex items-center justify-center rounded-full px-1.5 text-xs font-bold text-white"
+              style={{ backgroundColor: "var(--color-primary)", minWidth: "18px", height: "18px" }}
+            >
+              {pendingSuggestions.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* ─── 수정 제안 탭 ─── */}
+      {activeTab === "suggestions" && (
+        <SuggestionsTab suggestions={pendingSuggestions} />
+      )}
+
+      {/* ─── 코트 관리 탭 (기존) ─── */}
+      {activeTab === "courts" && <>
       {/* 코트 등록 폼 — 기존 유지 */}
       <Card className="mb-6 p-5">
         <h2 className="mb-4 text-sm font-bold text-[var(--color-text-primary)]">
@@ -164,6 +226,8 @@ export function AdminCourtsContent({
       </Card>
 
       {/* 상세 모달 */}
+      </>}
+
       {selected && (
         <AdminDetailModal
           isOpen={!!selected}
@@ -229,5 +293,154 @@ export function AdminCourtsContent({
         </AdminDetailModal>
       )}
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// SuggestionsTab — 대기 중인 위키 수정 제안 관리
+// ─────────────────────────────────────────────────
+function formatValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "미등록";
+  if (typeof value === "boolean") return value ? "있음" : "없음";
+  const fieldDef = EDITABLE_FIELDS[key as EditableFieldKey];
+  if (fieldDef && "options" in fieldDef && fieldDef.options) {
+    const opt = fieldDef.options.find((o: { value: string; label: string }) => o.value === value);
+    if (opt) return opt.label;
+  }
+  if (key === "fee") return `${Number(value).toLocaleString()}원`;
+  if (key === "hoops_count") return `${value}개`;
+  return String(value);
+}
+
+function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }) {
+  const router = useRouter();
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState<Record<string, string>>({});
+
+  // 승인/거절 API 호출
+  const handleAction = async (suggestion: SerializedSuggestion, action: "approve" | "reject") => {
+    setProcessing(suggestion.id);
+    try {
+      const res = await fetch(
+        `/api/web/courts/${suggestion.courtId}/suggestions/${suggestion.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            review_note: action === "reject" ? rejectNote[suggestion.id] || undefined : undefined,
+          }),
+        }
+      );
+      if (res.ok) {
+        // 페이지 새로고침으로 서버 데이터 반영
+        router.refresh();
+      }
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  if (suggestions.length === 0) {
+    return (
+      <Card className="p-8 text-center">
+        <span
+          className="material-symbols-outlined text-4xl mb-2"
+          style={{ color: "var(--color-text-disabled)" }}
+        >
+          check_circle
+        </span>
+        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          대기 중인 수정 제안이 없습니다
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {suggestions.map((s) => (
+        <Card key={s.id} className="p-4">
+          {/* 헤더: 코트명 + 제안자 + 날짜 */}
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+                {s.courtName}
+              </p>
+              <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
+              </p>
+            </div>
+            <Badge variant="default">대기중</Badge>
+          </div>
+
+          {/* 변경 내용 diff */}
+          <div className="space-y-1 mb-2">
+            {Object.entries(s.changes).map(([key, diff]) => {
+              const field = EDITABLE_FIELDS[key as EditableFieldKey];
+              if (!field) return null;
+              return (
+                <div key={key} className="flex items-center gap-1.5 text-xs">
+                  <span className="font-medium" style={{ color: "var(--color-text-muted)" }}>
+                    {field.label}:
+                  </span>
+                  <span style={{ color: "var(--color-text-disabled)" }}>
+                    {formatValue(key, diff.old)}
+                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: "12px", color: "var(--color-text-disabled)" }}>
+                    arrow_forward
+                  </span>
+                  <span className="font-semibold" style={{ color: "var(--color-info)" }}>
+                    {formatValue(key, diff.new)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 사유 */}
+          <p className="text-xs mb-3" style={{ color: "var(--color-text-muted)" }}>
+            사유: {s.reason}
+          </p>
+
+          {/* 거절 사유 입력 */}
+          <input
+            type="text"
+            placeholder="거절 사유 (선택)"
+            value={rejectNote[s.id] ?? ""}
+            onChange={(e) => setRejectNote((prev) => ({ ...prev, [s.id]: e.target.value }))}
+            className="w-full rounded-lg px-3 py-1.5 text-xs mb-2 focus:outline-none"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border-subtle)",
+            }}
+          />
+
+          {/* 승인/거절 버튼 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleAction(s, "approve")}
+              disabled={processing === s.id}
+              className="rounded-[4px] px-4 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "var(--color-success)" }}
+            >
+              {processing === s.id ? "처리 중..." : "승인 (코트 정보 반영 + 10XP)"}
+            </button>
+            <button
+              onClick={() => handleAction(s, "reject")}
+              disabled={processing === s.id}
+              className="rounded-[4px] px-4 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--color-error) 15%, transparent)",
+                color: "var(--color-error)",
+              }}
+            >
+              거절
+            </button>
+          </div>
+        </Card>
+      ))}
+    </div>
   );
 }

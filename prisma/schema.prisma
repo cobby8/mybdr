@@ -116,6 +116,9 @@ model User {
   followers                                                                 follows[]                     @relation("user_followers")
   following                                                                 follows[]                     @relation("user_following")
   court_reports                                                             court_reports[]
+  // 위키 수정 제안: 작성자 / 심사자 2가지 관계
+  court_edit_suggestions_submitted                                          court_edit_suggestions[]      @relation("suggestion_submitter")
+  court_edit_suggestions_reviewed                                           court_edit_suggestions[]      @relation("suggestion_reviewer")
   // 게이미피케이션: XP/레벨/스트릭 (Phase 4)
   xp                                                                        Int                          @default(0)
   level                                                                     Int                          @default(1)
@@ -893,8 +896,9 @@ model court_infos {
   court_sessions  court_sessions[]
   users           User             @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_d006c2c973")
   reports_count   Int              @default(0)        // 활성 상태 제보 수
-  court_reviews   court_reviews[]
-  court_reports   court_reports[]
+  court_reviews            court_reviews[]
+  court_reports            court_reports[]
+  court_edit_suggestions   court_edit_suggestions[]
 
   @@index([average_rating], map: "index_court_infos_on_average_rating")
   @@index([city], map: "index_court_infos_on_city")
@@ -957,6 +961,30 @@ model court_reports {
 
   @@index([court_info_id, status], map: "idx_court_reports_court_status")
   @@index([user_id], map: "idx_court_reports_user")
+}
+
+// 유저 위키 — 코트 정보 수정 제안 (위키피디아식 편집)
+// reports(119 신고)와 구분: suggestions는 "바닥재 우레탄", "조명 23시까지" 같은 정보 보정
+model court_edit_suggestions {
+  id            BigInt      @id @default(autoincrement())
+  court_info_id BigInt                                     // 대상 코트
+  user_id       BigInt                                     // 제안자
+  changes       Json                                       // {"surface_type":{"old":null,"new":"urethane"}, ...}
+  reason        String      @db.VarChar                    // 수정 사유 (필수)
+  status        String      @default("pending") @db.VarChar // pending | approved | rejected
+  reviewed_by   BigInt?                                    // 심사한 관리자 ID
+  reviewed_at   DateTime?   @db.Timestamp(6)               // 심사 시각
+  review_note   String?                                    // 관리자 메모 (거절 사유 등)
+  created_at    DateTime    @default(now()) @db.Timestamp(6)
+  updated_at    DateTime    @updatedAt @db.Timestamp(6)
+
+  court_infos   court_infos @relation(fields: [court_info_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users         User        @relation("suggestion_submitter", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reviewer      User?       @relation("suggestion_reviewer", fields: [reviewed_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([court_info_id, status], map: "idx_court_edit_suggestions_court_status")
+  @@index([user_id], map: "idx_court_edit_suggestions_user")
+  @@index([status], map: "idx_court_edit_suggestions_status")
 }
 
 // 게이미피케이션 뱃지 — 유저가 획득한 뱃지 기록

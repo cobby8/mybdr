@@ -30,3 +30,114 @@ export const REVIEW_CATEGORIES = [
 
 // 리뷰 카테고리 키 타입
 export type ReviewCategoryKey = (typeof REVIEW_CATEGORIES)[number]["key"];
+
+// ─────────────────────────────────────────────────
+// 유저 위키 수정 가능 필드 — 사용자가 제안할 수 있는 코트 정보 14개
+// type: DB 컬럼 타입, input: UI 입력 방식, options: select일 때 선택지
+// ─────────────────────────────────────────────────
+export const EDITABLE_FIELDS = {
+  court_type: {
+    label: "코트 유형",
+    type: "string" as const,
+    input: "select" as const,
+    options: [
+      { value: "indoor", label: "실내" },
+      { value: "outdoor", label: "야외" },
+    ],
+  },
+  surface_type: {
+    label: "바닥 재질",
+    type: "string" as const,
+    input: "select" as const,
+    options: [
+      { value: "asphalt", label: "아스팔트" },
+      { value: "urethane", label: "우레탄" },
+      { value: "wood", label: "마루" },
+      { value: "concrete", label: "콘크리트" },
+      { value: "rubber", label: "고무" },
+      { value: "other", label: "기타" },
+    ],
+  },
+  hoops_count: {
+    label: "골대 수",
+    type: "number" as const,
+    input: "number" as const,
+    min: 1,
+    max: 10,
+  },
+  hoop_height: {
+    label: "골대 높이",
+    type: "string" as const,
+    input: "select" as const,
+    options: [
+      { value: "305", label: "공식 (305cm)" },
+      { value: "non_standard", label: "비공식" },
+    ],
+  },
+  court_size: {
+    label: "코트 크기",
+    type: "string" as const,
+    input: "select" as const,
+    options: [
+      { value: "fullcourt", label: "풀코트" },
+      { value: "halfcourt", label: "하프코트" },
+      { value: "3x3", label: "3x3" },
+    ],
+  },
+  has_lighting: {
+    label: "야간 조명",
+    type: "boolean" as const,
+    input: "toggle" as const,
+  },
+  lighting_until: {
+    label: "조명 종료 시간",
+    type: "string" as const,
+    input: "time" as const,
+  },
+  has_restroom: {
+    label: "화장실",
+    type: "boolean" as const,
+    input: "toggle" as const,
+  },
+  has_parking: {
+    label: "주차장",
+    type: "boolean" as const,
+    input: "toggle" as const,
+  },
+  is_free: {
+    label: "무료 여부",
+    type: "boolean" as const,
+    input: "toggle" as const,
+  },
+  fee: {
+    label: "이용 요금 (원)",
+    type: "number" as const,
+    input: "number" as const,
+    min: 0,
+    max: 1000000,
+  },
+  nickname: {
+    label: "별칭",
+    type: "string" as const,
+    input: "text" as const,
+    maxLength: 30,
+  },
+  description: {
+    label: "소개",
+    type: "string" as const,
+    input: "textarea" as const,
+    maxLength: 500,
+  },
+  nearest_station: {
+    label: "가까운 역",
+    type: "string" as const,
+    input: "text" as const,
+    maxLength: 50,
+  },
+} as const;
+
+// 수정 가능 필드 키 타입
+export type EditableFieldKey = keyof typeof EDITABLE_FIELDS;
+
+// 수정 가능 필드 키 배열 (API 검증에 사용)
+export const EDITABLE_FIELD_KEYS = Object.keys(EDITABLE_FIELDS) as EditableFieldKey[];

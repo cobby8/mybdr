@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-03-29] 코트 유저 위키: court_edit_suggestions 1테이블 + changes JSON diff 방식
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: (1) court_edit_suggestions 테이블 1개 신설 — 제안+이력을 한 테이블에서 관리. (2) changes 필드는 JSON으로 `{"필드명": {"old": 이전값, "new": 새값}}` 형태 — 여러 필드를 한 번에 제안 가능 + diff 표시 용이. (3) 상태 3종: pending→approved/rejected. (4) 승인 시 트랜잭션으로 court_infos 업데이트 + XP 10 지급. (5) 같은 코트에 같은 유저의 pending 제안 있으면 중복 차단. (6) court_reports(상태 제보)와 완전 분리 — reports는 물리적 문제 신고(119 신고), suggestions는 정보 보정(위키 편집).
+- **이유**: (1) 필드별 테이블(court_field_edits)은 "바닥재+조명+화장실"을 동시에 제안할 때 3행이 생겨 관리 복잡. JSON이면 1행. (2) old/new 구조로 관리자가 "null→우레탄" 같은 변경을 한눈에 볼 수 있어 승인 판단 용이. (3) court_reports의 report_type은 "hoop_broken" 같은 고정 유형인 반면, edit_suggestions는 court_infos의 14개 필드 중 아무거나 수정 가능해야 해서 구조가 다름.
+- **대안 기각**: (A) court_reports 테이블 재활용 — 목적이 다름(신고 vs 보정), report_type 필드가 맞지 않음, 상태 워크플로도 다름(active/resolved vs pending/approved). (B) 필드별 별도 행 — 한 번에 5개 필드 수정 시 5행 생성, 승인도 5번 해야 함, UX 나쁨. (C) 자동 승인 — 초기에는 관리자 검수가 필요, 악의적 수정 방지. 향후 신뢰 기여자 자동 승인은 확장 가능.
+- **참조횟수**: 0
+
+### [2026-03-29] 픽업게임 모집: 별도 pickup_games 테이블 신설 (기존 games와 분리)
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: (1) pickup_games + pickup_participants 2개 테이블을 신규 생성하여 court_infos와 직접 연결. (2) 기존 games 모델(game_type=0)을 재활용하지 않음. (3) 참가 방식은 "즉시 확정"(confirmed) — games의 "신청→승인" 워크플로와 다름. (4) 상태 5종: recruiting→full→in_progress→completed→cancelled. (5) cron 없이 조회 시 자동 상태 전이 (날짜 지나면 completed). (6) courts API에 pickupCount 서브쿼리 추가하여 "픽업게임" pill 필터 구현.
+- **이유**: (1) games.court_id는 courts(레거시 테이블) 참조 — court_infos와 FK 연결 불가. (2) game_applications의 status=0→1→2 승인 워크플로는 픽업게임의 "버튼 누르면 바로 참가" UX와 맞지 않음. (3) games는 팀매치/대회경기와 혼재되어 있어 코트 시스템 내에서 독립적 진화가 어려움. (4) 픽업게임은 가볍고 빈번(하루 수십 건)한 반면 games는 공식적이고 드문 이벤트 — 라이프사이클이 다름.
+- **대안 기각**: (A) games 모델에 game_type=0 활용 — FK 충돌(courts vs court_infos) + 참가 워크플로 불일치. (B) games에 court_info_id 필드 추가 — 기존 games/game_applications 코드 전체 수정 필요, 리스크 대비 이익 적음.
+- **참조횟수**: 0
+
 ### [2026-03-29] 코트 데이터 품질 정리: 불확실한 필드 null 초기화 + 유저 위키 시스템
 - **분류**: decision
 - **발견자**: planner-architect
