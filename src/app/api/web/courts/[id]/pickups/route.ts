@@ -24,6 +24,10 @@ export async function GET(
   { params }: RouteCtx
 ) {
   const { id } = await params;
+  // ID가 숫자인지 검증 — 문자열이 들어오면 BigInt 변환 시 500 에러 방지
+  if (!/^\d+$/.test(id)) {
+    return apiError("유효하지 않은 코트 ID입니다", 400);
+  }
   const courtId = BigInt(id);
 
   // 오늘 날짜 (KST 기준 — UTC+9) → 자정 시점을 UTC로 변환
@@ -111,6 +115,10 @@ export async function POST(
   }
 
   const { id } = await params;
+  // ID가 숫자인지 검증
+  if (!/^\d+$/.test(id)) {
+    return apiError("유효하지 않은 코트 ID입니다", 400);
+  }
   const courtId = BigInt(id);
   const userId = BigInt(session.sub);
 

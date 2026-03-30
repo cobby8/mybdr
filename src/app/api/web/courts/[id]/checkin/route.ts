@@ -44,6 +44,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  // ID가 숫자인지 검증 — 문자열이 들어오면 BigInt 변환 시 500 에러 방지
+  if (!/^\d+$/.test(id)) {
+    return apiError("유효하지 않은 코트 ID입니다", 400);
+  }
   const courtId = BigInt(id);
 
   // 3시간 전 시각 계산
@@ -121,6 +125,10 @@ export async function POST(
   }
 
   const { id } = await params;
+  // ID가 숫자인지 검증
+  if (!/^\d+$/.test(id)) {
+    return apiError("유효하지 않은 코트 ID입니다", 400);
+  }
   const courtId = BigInt(id);
   const userId = BigInt(session.sub);
   const cutoff = new Date(Date.now() - SESSION_TIMEOUT_MS);
@@ -245,6 +253,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
+  // ID가 숫자인지 검증
+  if (!/^\d+$/.test(id)) {
+    return apiError("유효하지 않은 코트 ID입니다", 400);
+  }
   const courtId = BigInt(id);
   const userId = BigInt(session.sub);
   const cutoff = new Date(Date.now() - SESSION_TIMEOUT_MS);
