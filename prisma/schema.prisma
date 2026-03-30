@@ -133,6 +133,8 @@ model User {
   // 3x3 이벤트: 주최자 / 선수 참가
   court_events_organized                                                    court_events[]               @relation("event_organizer")
   court_event_players                                                       court_event_players[]        @relation("event_player")
+  // 웹 푸시 구독: 유저가 등록한 브라우저 푸시 구독 목록
+  push_subscriptions                                                        push_subscriptions[]
 
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
@@ -1911,4 +1913,20 @@ model court_event_matches {
 
   @@unique([event_id, round, match_order], map: "idx_court_event_matches_round") // 라운드+순서 유니크
   @@index([event_id, status], map: "idx_court_event_matches_event_status")
+}
+
+// 웹 푸시 구독 정보 — 유저별 여러 기기(브라우저) 구독 가능
+model push_subscriptions {
+  id         BigInt   @id @default(autoincrement())
+  user_id    BigInt                                      // 구독 유저 FK
+  endpoint   String   @db.VarChar                        // 브라우저가 생성한 푸시 엔드포인트 URL
+  p256dh     String   @db.VarChar                        // 암호화 공개키
+  auth       String   @db.VarChar                        // 인증 시크릿
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  // 관계
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, endpoint], map: "idx_push_subscriptions_user_endpoint") // 유저+엔드포인트 중복 방지
+  @@index([user_id], map: "idx_push_subscriptions_user_id")
 }
