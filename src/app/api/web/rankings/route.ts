@@ -119,7 +119,8 @@ async function getPlayerRankings() {
   }
 
   // 2+3단계 병렬 실행: 유저 이름 조회와 최근 팀명 조회는 서로 독립적이므로 동시에 실행
-  const userIds = grouped.map((g) => g.userId);
+  // userId가 nullable이므로 null 제거 후 사용
+  const userIds = grouped.map((g) => g.userId).filter((id): id is bigint => id !== null);
   const [users, latestPlayers] = await Promise.all([
     // 2단계: 유저 ID 목록으로 이름 조회
     prisma.user.findMany({
@@ -128,17 +129,14 @@ async function getPlayerRankings() {
     }),
     // 3단계: 각 유저의 가장 최근 TournamentTeamPlayer에서 팀명 추출
     // (최근 대회 참가 기준으로 소속팀 표시)
+    // tournamentTeam relation 대신 tournamentTeamId로 별도 조회
     prisma.tournamentTeamPlayer.findMany({
       where: { userId: { in: userIds }, games_played: { gt: 0 } },
       orderBy: { createdAt: "desc" },
       distinct: ["userId"], // 유저별 가장 최근 1건만
       select: {
         userId: true,
-        tournamentTeam: {
-          select: {
-            team: { select: { name: true } },
-          },
-        },
+        tournamentTeamId: true,
       },
     }),
   ]);
@@ -147,16 +145,31 @@ async function getPlayerRankings() {
   const userMap = new Map(
     users.map((u) => [u.id.toString(), u.nickname || u.name || "이름 없음"])
   );
+
+  // 팀명 조회: latestPlayers에서 수집한 tournamentTeamId로 팀명 일괄 조회
+  const teamIds = [...new Set(latestPlayers.map((p) => p.tournamentTeamId))];
+  const tournamentTeams = teamIds.length > 0
+    ? await prisma.tournamentTeam.findMany({
+        where: { id: { in: teamIds } },
+        select: { id: true, team: { select: { name: true } } },
+      })
+    : [];
+  const ttMap = new Map(tournamentTeams.map((tt) => [tt.id.toString(), tt.team?.name ?? "-"]));
+
   // userId -> 팀명 맵
   const teamMap = new Map(
-    latestPlayers.map((p) => [
-      p.userId.toString(),
-      p.tournamentTeam?.team?.name ?? "-",
-    ])
+    latestPlayers
+      .filter((p): p is typeof p & { userId: bigint } => p.userId !== null)
+      .map((p) => [
+        p.userId.toString(),
+        ttMap.get(p.tournamentTeamId.toString()) ?? "-",
+      ])
   );
 
   // 4단계: 최종 응답 조합 (순위 + 유저명 + 팀명 + 합산 스탯)
-  const rankings = grouped.map((g, idx) => {
+  const rankings = grouped
+    .filter((g): g is typeof g & { userId: bigint } => g.userId !== null)
+    .map((g, idx) => {
     const uid = g.userId.toString();
     const gamesPlayed = g._sum.games_played ?? 0;
     const totalPoints = g._sum.total_points ?? 0;

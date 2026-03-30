@@ -61,8 +61,8 @@ export async function PATCH(
             select: { userId: true },
           })
           .then((players) => {
-            // 중복 제거 (한 명이 양쪽 팀에 속할 수 없지만 안전하게)
-            const uniqueUserIds = [...new Set(players.map((p) => p.userId))];
+            // 중복 제거 + null userId 필터링 (BigInt?로 변경되어 null 가능)
+            const uniqueUserIds = [...new Set(players.map((p) => p.userId).filter((id): id is bigint => id !== null))];
             if (uniqueUserIds.length === 0) return;
 
             return createNotificationBulk(

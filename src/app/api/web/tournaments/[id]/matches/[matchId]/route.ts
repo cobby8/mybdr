@@ -119,7 +119,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           select: { userId: true },
         })
         .then((players) => {
-          const uniqueUserIds = [...new Set(players.map((p) => p.userId))];
+          // null userId 필터링 (BigInt?로 변경되어 null 가능)
+          const uniqueUserIds = [...new Set(players.map((p) => p.userId).filter((id): id is bigint => id !== null))];
           if (uniqueUserIds.length === 0) return;
 
           return createNotificationBulk(
