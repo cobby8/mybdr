@@ -194,7 +194,11 @@
       "Bash(ls \"C:\\\\0.programing\\\\my-bdr-subin-main\\\\src\\\\app\\\\\\(web\\)/\")",
       "Bash(ls \"C:\\\\0.programing\\\\my-bdr-subin-main\\\\src\\\\app\\\\\\(web\\)\\\\admin/\")",
       "Bash(ls \"C:\\\\0.programing\\\\my-bdr-subin-main\\\\src\\\\app\\\\\\(admin\\)/\")",
-      "Bash(ls \"C:\\\\0.programing\\\\my-bdr-subin-main\\\\src\\\\app/\\(web\\)/admin/\")"
+      "Bash(ls \"C:\\\\0.programing\\\\my-bdr-subin-main\\\\src\\\\app/\\(web\\)/admin/\")",
+      "Bash(ping -n 12 127.0.0.1)",
+      "Bash(ping -n 15 127.0.0.1)",
+      "Bash(ping -n 20 127.0.0.1)",
+      "Bash(ls \"src/app/\\(web\\)/~offline/\")"
     ]
   }
 }

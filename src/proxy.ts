@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
+import * as jose from "jose";
+
+// ── 인증 보호 설정 ─────────────────────────────────────
+const isProduction = process.env.NODE_ENV === "production";
+const COOKIE_NAME = isProduction ? "__Host-bdr_session" : "bdr_session";
+
+// 로그인 필요 경로
+const PROTECTED_PATHS = ["/profile", "/notifications", "/admin"];
+// admin 전용 (super_admin만)
+const ADMIN_PATHS = ["/admin"];
+
+function matchesPath(pathname: string, paths: string[]): boolean {
+  return paths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+async function getTokenPayload(token: string) {
+  try {
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const { payload } = await jose.jwtVerify(token, secret);
+    return payload as { sub: string; role: string };
+  } catch {
+    return null;
+  }
+}
 
 function extractSubdomain(hostname: string, searchParams?: URLSearchParams): string | null {
   // 개발 환경: ?_sub=rookie 로 서브도메인 시뮬레이션
@@ -95,7 +119,30 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next({ headers });
   }
 
-  // 페이지 요청: 서브도메인 감지
+  // 2. 페이지 인증 보호 (로그인 필요 경로)
+  if (!pathname.startsWith("/api/") && matchesPath(pathname, PROTECTED_PATHS)) {
+    const token = req.cookies.get(COOKIE_NAME)?.value;
+
+    if (!token) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    const payload = await getTokenPayload(token);
+    if (!payload) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // admin 경로: super_admin만 접근 가능
+    if (matchesPath(pathname, ADMIN_PATHS) && payload.role !== "super_admin") {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+  }
+
+  // 3. 페이지 요청: 서브도메인 감지
   const subdomain = extractSubdomain(hostname, req.nextUrl.searchParams);
   if (subdomain) {
     const url = req.nextUrl.clone();
