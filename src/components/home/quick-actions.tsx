@@ -107,7 +107,7 @@ function buildPersonalizedActions(data: DashboardData): ActionItem[] {
   }
 
   // 2번 위치: 활동 유형에 따른 버튼
-  const { dominantType } = data.activityProfile;
+  const dominantType = data.activityProfile?.dominantType ?? "new";
   if (dominantType === "checkin" && data.frequentCourts.length > 0) {
     // 자주 가는 코트로 체크인 유도
     const court = data.frequentCourts[0];
