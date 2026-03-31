@@ -148,6 +148,12 @@ function RankDisplay({ rank }: { rank: number }) {
  * - API에서 외부 BDR 랭킹 데이터를 가져와 테이블로 표시
  * - 팀명/지역 검색 기능 포함
  * ============================================================ */
+// 시즌 옵션 타입
+interface SeasonOption {
+  value: string;
+  label: string;
+}
+
 export function BdrRankingTable({ division }: BdrRankingTableProps) {
   // 데이터 상태
   const [rankings, setRankings] = useState<BdrRankingItem[]>([]);
@@ -155,27 +161,41 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
   const [error, setError] = useState(false);
   // 검색어 상태
   const [searchQuery, setSearchQuery] = useState("");
+  // 시즌 상태 (API에서 가용 시즌 목록을 받아옴)
+  const [seasons, setSeasons] = useState<SeasonOption[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState("");
 
-  // division이 바뀌면 API 호출
+  // division 또는 시즌이 바뀌면 API 호출
   useEffect(() => {
     setLoading(true);
     setError(false);
     setSearchQuery(""); // 탭 전환 시 검색어 초기화
 
-    fetch(`/api/web/rankings/bdr?division=${division}`)
+    // 시즌 파라미터: 선택된 시즌이 있으면 포함
+    const seasonParam = selectedSeason ? `&season=${selectedSeason}` : "";
+    fetch(`/api/web/rankings/bdr?division=${division}${seasonParam}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("API error");
         return res.json();
       })
       .then((data) => {
         setRankings(data.rankings ?? []);
+        // API에서 시즌 목록을 받아와서 드롭다운에 표시
+        if (data.seasons && Array.isArray(data.seasons)) {
+          setSeasons(data.seasons);
+          // 첫 로딩 시 기본 시즌 설정
+          if (!selectedSeason && data.season) {
+            setSelectedSeason(data.season);
+          }
+        }
       })
       .catch(() => {
         setRankings([]);
         setError(true);
       })
       .finally(() => setLoading(false));
-  }, [division]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [division, selectedSeason]);
 
   // 검색 필터: 팀명 또는 지역에 검색어 포함
   const filteredRankings = useMemo(() => {
@@ -230,8 +250,25 @@ export function BdrRankingTable({ division }: BdrRankingTableProps) {
 
   return (
     <div>
-      {/* 검색 입력 + 결과 수 */}
+      {/* 시즌 선택 드롭다운 + 검색 입력 + 결과 수 */}
       <div className="flex items-center gap-3 mb-4">
+        {/* 시즌 드롭다운: 시즌 목록이 2개 이상일 때만 표시 */}
+        {seasons.length > 1 && (
+          <select
+            value={selectedSeason}
+            onChange={(e) => setSelectedSeason(e.target.value)}
+            className="shrink-0 rounded border px-3 py-2 text-sm font-medium outline-none"
+            style={{
+              borderColor: "var(--color-border)",
+              backgroundColor: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            {seasons.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        )}
         <div
           className="flex items-center gap-2 flex-1 px-3 py-2 rounded border"
           style={{

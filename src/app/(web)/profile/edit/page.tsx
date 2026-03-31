@@ -24,7 +24,17 @@ interface ProfileEditData {
   account_number_masked: string | null;
   account_holder: string | null;
   has_account: boolean;
+  // 소셜 로그인 제공자 (kakao, google, apple 등)
+  provider: string | null;
 }
+
+// 소셜 제공자별 표시 정보 매핑
+const SOCIAL_PROVIDERS: Record<string, { label: string; icon: string; color: string }> = {
+  kakao: { label: "카카오", icon: "chat_bubble", color: "#FEE500" },
+  google: { label: "Google", icon: "mail", color: "#4285F4" },
+  apple: { label: "Apple", icon: "phone_iphone", color: "#A2AAAD" },
+  naver: { label: "네이버", icon: "language", color: "#03C75A" },
+};
 
 export default function ProfileEditPage() {
   const router = useRouter();
@@ -55,6 +65,8 @@ export default function ProfileEditPage() {
   const [maskedAccount, setMaskedAccount] = useState<string | null>(null);
   const [hasExistingAccount, setHasExistingAccount] = useState(false);
   const [generatingBio, setGeneratingBio] = useState(false);
+  // 소셜 계정 연동 상태 (읽기 전용 표시)
+  const [provider, setProvider] = useState<string | null>(null);
   // 회원 탈퇴 모달 상태
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawPassword, setWithdrawPassword] = useState("");
@@ -94,6 +106,7 @@ export default function ProfileEditPage() {
         }));
         setMaskedAccount(u.account_number_masked);
         setHasExistingAccount(u.has_account);
+        setProvider(u.provider ?? null);
       })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
@@ -439,6 +452,38 @@ export default function ProfileEditPage() {
           </div>
         )}
       </div>
+
+      {/* 소셜 계정 연동 상태 (읽기 전용) - provider가 있으면 표시 */}
+      {provider && SOCIAL_PROVIDERS[provider] && (
+        <div className={section}>
+          <h2 className="mb-4 font-semibold uppercase tracking-wide text-[var(--color-text-primary)]" style={{ fontFamily: "var(--font-heading)" }}>
+            연동된 계정
+          </h2>
+          <div className="flex items-center gap-3 rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-3">
+            {/* 소셜 제공자 아이콘 */}
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+              style={{ backgroundColor: SOCIAL_PROVIDERS[provider].color }}
+            >
+              <span className="material-symbols-outlined text-lg text-white">
+                {SOCIAL_PROVIDERS[provider].icon}
+              </span>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                {SOCIAL_PROVIDERS[provider].label} 계정 연동됨
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">
+                소셜 로그인으로 가입한 계정입니다
+              </p>
+            </div>
+            {/* 연동 상태 뱃지 */}
+            <span className="rounded-full bg-[rgba(0,200,83,0.1)] px-2.5 py-1 text-xs font-medium text-[var(--color-success)]">
+              연동됨
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 선호 설정 안내 카드 - 별도 페이지로 이동하는 링크 */}
       <div className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">

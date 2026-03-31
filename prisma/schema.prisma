@@ -71,6 +71,7 @@ model User {
   comments                                                                  comments[]
   community_posts                                                           community_posts[]
   community_post_likes                                                      community_post_likes[]
+  comment_likes                                                             comment_likes[]
   court_checkins                                                            court_checkins[]
   court_infos                                                               court_infos[]
   court_reviews                                                             court_reviews[]
@@ -750,6 +751,7 @@ model comments {
   users            User       @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_03de2dc08c")
   comments         comments?  @relation("commentsTocomments", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_31554e7034")
   other_comments   comments[] @relation("commentsTocomments")
+  comment_likes    comment_likes[]
 
   @@index([commentable_type, commentable_id], map: "index_comments_on_commentable")
   @@index([commentable_type, commentable_id, created_at], map: "index_comments_on_commentable_and_created_at")
@@ -783,6 +785,7 @@ model community_posts {
   negotiable       Boolean? @default(false)
   share_contact    Boolean? @default(false)
   trade_status     String?  @default("available") @db.VarChar
+  images           Json?                                        // 이미지 URL 배열 (["url1","url2"...])
   likes_count      Int      @default(0)
   users            User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_0b2d1de074")
   teams            Team?    @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_e4a581c07d")
@@ -807,6 +810,19 @@ model community_post_likes {
 
   @@unique([community_post_id, user_id], map: "index_community_post_likes_on_post_and_user")
   @@index([user_id], map: "index_community_post_likes_on_user_id")
+}
+
+// 댓글 좋아요 테이블: 유저당 댓글 1회 좋아요
+model comment_likes {
+  id         BigInt   @id @default(autoincrement())
+  comment_id BigInt                                    // 대상 댓글
+  user_id    BigInt                                    // 좋아요 누른 유저
+  created_at DateTime @db.Timestamp(6)
+  comments   comments @relation(fields: [comment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      User     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([comment_id, user_id], map: "index_comment_likes_on_comment_and_user")
+  @@index([user_id], map: "index_comment_likes_on_user_id")
 }
 
 // 팔로우 테이블: follower가 following을 팔로우

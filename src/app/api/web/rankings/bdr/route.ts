@@ -30,12 +30,24 @@ interface CacheEntry {
   fetchedAt: number; // 캐시 저장 시점 (ms)
 }
 
-// --- GitHub xlsx 파일 URL ---
-const GITHUB_URLS: Record<string, string> = {
-  general:
-    "https://raw.githubusercontent.com/cobby8/BDR-ranking-d/main/division_rank.xlsx",
-  university:
-    "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/divisionU_rank.xlsx",
+// --- 시즌 목록 (최신 시즌이 첫 번째) ---
+// 추후 시즌 추가 시 여기만 업데이트하면 됨
+export const BDR_SEASONS = [
+  { value: "2025-26", label: "2025-26 시즌" },
+  { value: "2024-25", label: "2024-25 시즌" },
+];
+
+// --- GitHub xlsx 파일 URL (시즌별) ---
+// 최신 시즌은 main 브랜치, 과거 시즌은 파일명에 시즌 접미사
+const GITHUB_URLS: Record<string, Record<string, string>> = {
+  general: {
+    "2025-26": "https://raw.githubusercontent.com/cobby8/BDR-ranking-d/main/division_rank.xlsx",
+    "2024-25": "https://raw.githubusercontent.com/cobby8/BDR-ranking-d/main/division_rank_2024-25.xlsx",
+  },
+  university: {
+    "2025-26": "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/divisionU_rank.xlsx",
+    "2024-25": "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/divisionU_rank_2024-25.xlsx",
+  },
 };
 
 // --- 인메모리 캐시 (1시간 = 3,600,000ms) ---
@@ -125,13 +137,14 @@ async function parseXlsx(buffer: ArrayBuffer): Promise<BdrRankingItem[]> {
  * stale-while-revalidate 패턴: 사용자에게는 기존 캐시를 즉시 반환하고,
  * 뒤에서 새 데이터를 가져와 캐시만 교체한다.
  */
-function refreshCacheInBackground(division: string): void {
+function refreshCacheInBackground(division: string, season: string): void {
+  const cacheKey = `${division}:${season}`;
   // 이미 갱신 중이면 중복 실행 방지
-  if (refreshing.has(division)) return;
-  refreshing.add(division);
+  if (refreshing.has(cacheKey)) return;
+  refreshing.add(cacheKey);
 
-  const url = GITHUB_URLS[division];
-  if (!url) { refreshing.delete(division); return; }
+  const url = GITHUB_URLS[division]?.[season];
+  if (!url) { refreshing.delete(cacheKey); return; }
 
   fetch(url, { next: { revalidate: 3600 } })
     .then(async (response) => {
@@ -139,13 +152,13 @@ function refreshCacheInBackground(division: string): void {
       const buffer = await response.arrayBuffer();
       const data = await parseXlsx(buffer);
       // 새 데이터로 캐시 교체
-      cache.set(division, { data, fetchedAt: Date.now() });
+      cache.set(cacheKey, { data, fetchedAt: Date.now() });
     })
     .catch((err) => {
       console.error(`[BDR Rankings] 백그라운드 갱신 실패:`, err);
     })
     .finally(() => {
-      refreshing.delete(division);
+      refreshing.delete(cacheKey);
     });
 }
 
@@ -157,9 +170,11 @@ function refreshCacheInBackground(division: string): void {
  * 3. 캐시 없음(최초 요청) -> 동기적으로 fetch 후 반환
  */
 async function fetchBdrRankings(
-  division: string
+  division: string,
+  season: string = BDR_SEASONS[0].value,
 ): Promise<BdrRankingItem[]> {
-  const cached = cache.get(division);
+  const cacheKey = `${division}:${season}`;
+  const cached = cache.get(cacheKey);
 
   // 1. 캐시 유효: TTL 이내면 그대로 반환
   if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
@@ -168,12 +183,12 @@ async function fetchBdrRankings(
 
   // 2. 캐시 만료됐지만 기존 데이터가 있으면 즉시 반환 + 백그라운드 갱신
   if (cached) {
-    refreshCacheInBackground(division);
+    refreshCacheInBackground(division, season);
     return cached.data;
   }
 
   // 3. 캐시 없음 (최초 요청): 동기적으로 fetch
-  const url = GITHUB_URLS[division];
+  const url = GITHUB_URLS[division]?.[season];
   if (!url) return [];
 
   const response = await fetch(url, {
@@ -192,7 +207,7 @@ async function fetchBdrRankings(
   const data = await parseXlsx(buffer);
 
   // 캐시 저장
-  cache.set(division, { data, fetchedAt: Date.now() });
+  cache.set(cacheKey, { data, fetchedAt: Date.now() });
 
   return data;
 }
@@ -211,19 +226,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     // division 파라미터: "general" 또는 "university" (기본값 "general")
     const division = searchParams.get("division") || "general";
+    // season 파라미터: 시즌 값 (기본값 최신 시즌)
+    const season = searchParams.get("season") || BDR_SEASONS[0].value;
 
     // 허용된 division 값 검증
     if (!["general", "university"].includes(division)) {
       return apiError("유효하지 않은 division 값입니다.", 400, "INVALID_PARAM");
     }
 
-    const rankings = await fetchBdrRankings(division);
+    // 허용된 season 값 검증
+    if (!BDR_SEASONS.some((s) => s.value === season)) {
+      return apiError("유효하지 않은 시즌 값입니다.", 400, "INVALID_PARAM");
+    }
 
-    // 응답: 랭킹 배열 + division 정보 + 마지막 갱신 시각
-    const cached = cache.get(division);
+    const rankings = await fetchBdrRankings(division, season);
+
+    // 응답: 랭킹 배열 + division 정보 + 시즌 + 마지막 갱신 시각
+    const cacheKey = `${division}:${season}`;
+    const cached = cache.get(cacheKey);
     const res = apiSuccess({
       rankings,
       division,
+      season,
+      seasons: BDR_SEASONS,
       updatedAt: cached
         ? new Date(cached.fetchedAt).toISOString()
         : new Date().toISOString(),

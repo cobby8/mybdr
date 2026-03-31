@@ -117,6 +117,13 @@ export async function createPostAction(_prevState: { error: string } | null, for
   const title = (formData.get("title") as string)?.trim();
   const content = (formData.get("content") as string)?.trim();
   const category = (formData.get("category") as string) || "general";
+  // 이미지 URL 배열 파싱 (JSON 문자열로 전달됨, 없으면 빈 배열)
+  const imagesRaw = formData.get("images") as string;
+  let images: string[] = [];
+  try {
+    const parsed = JSON.parse(imagesRaw || "[]");
+    if (Array.isArray(parsed)) images = parsed.filter((u: unknown) => typeof u === "string" && (u as string).startsWith("http"));
+  } catch { /* 파싱 실패 시 빈 배열 유지 */ }
 
   if (!title || !content) {
     return { error: "제목과 내용을 입력하세요." };
@@ -130,6 +137,8 @@ export async function createPostAction(_prevState: { error: string } | null, for
         title,
         content,
         category,
+        // 이미지가 있을 때만 JSON으로 저장
+        ...(images.length > 0 && { images }),
         status: "published",
         created_at: new Date(),
         updated_at: new Date(),
@@ -346,5 +355,75 @@ export async function createCommentAction(_prevState: { error?: string; success?
     return { success: true };
   } catch {
     return { error: "댓글 등록 중 오류가 발생했습니다." };
+  }
+}
+
+/**
+ * toggleCommentLikeAction - 댓글 좋아요 토글 (추가/취소)
+ *
+ * 게시글 좋아요와 동일한 패턴: comment_likes 테이블 + likes_count 카운터 캐시
+ * 본인 댓글에도 좋아요 가능 (알림은 생략)
+ */
+export async function toggleCommentLikeAction(
+  commentId: string,
+  postPublicId: string,
+): Promise<{ liked: boolean; count: number; error?: string }> {
+  const session = await getWebSession();
+  if (!session) {
+    return { liked: false, count: 0, error: "로그인이 필요합니다." };
+  }
+
+  try {
+    const comment = await prisma.comments.findUnique({
+      where: { id: BigInt(commentId) },
+      select: { id: true, likes_count: true, user_id: true },
+    });
+    if (!comment) {
+      return { liked: false, count: 0, error: "댓글을 찾을 수 없습니다." };
+    }
+
+    const userId = BigInt(session.sub);
+
+    // 기존 좋아요 확인
+    const existing = await prisma.comment_likes.findUnique({
+      where: {
+        comment_id_user_id: {
+          comment_id: comment.id,
+          user_id: userId,
+        },
+      },
+    });
+
+    if (existing) {
+      // 이미 좋아요 -> 취소
+      await prisma.$transaction([
+        prisma.comment_likes.delete({ where: { id: existing.id } }),
+        prisma.comments.update({
+          where: { id: comment.id },
+          data: { likes_count: { decrement: 1 } },
+        }),
+      ]);
+      revalidatePath(`/community/${postPublicId}`);
+      return { liked: false, count: Math.max(0, comment.likes_count - 1) };
+    } else {
+      // 좋아요 추가
+      await prisma.$transaction([
+        prisma.comment_likes.create({
+          data: {
+            comment_id: comment.id,
+            user_id: userId,
+            created_at: new Date(),
+          },
+        }),
+        prisma.comments.update({
+          where: { id: comment.id },
+          data: { likes_count: { increment: 1 } },
+        }),
+      ]);
+      revalidatePath(`/community/${postPublicId}`);
+      return { liked: true, count: comment.likes_count + 1 };
+    }
+  } catch {
+    return { liked: false, count: 0, error: "좋아요 처리 중 오류가 발생했습니다." };
   }
 }

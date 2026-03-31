@@ -502,9 +502,27 @@ const AMBASSADOR_STATUS_COLOR: Record<string, string> = {
   revoked: "var(--color-error)",
 };
 
+// 앰배서더 상태 필터 타입
+type AmbassadorFilter = "all" | "pending" | "active" | "revoked";
+
 function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }) {
   const router = useRouter();
   const [processing, setProcessing] = useState<string | null>(null);
+  // 상태 필터 (기본: 전체)
+  const [filter, setFilter] = useState<AmbassadorFilter>("all");
+
+  // 필터링된 앰배서더 목록
+  const filteredAmbassadors = filter === "all"
+    ? ambassadors
+    : ambassadors.filter((a) => a.status === filter);
+
+  // 상태별 건수 (필터 탭에 뱃지로 표시)
+  const counts = {
+    all: ambassadors.length,
+    pending: ambassadors.filter((a) => a.status === "pending").length,
+    active: ambassadors.filter((a) => a.status === "active").length,
+    revoked: ambassadors.filter((a) => a.status === "revoked").length,
+  };
 
   // 승인/거절/해임 API 호출
   const handleAction = async (
@@ -529,6 +547,14 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
     }
   };
 
+  // 필터 탭 정의
+  const filterTabs: { key: AmbassadorFilter; label: string }[] = [
+    { key: "all", label: "전체" },
+    { key: "pending", label: "대기중" },
+    { key: "active", label: "활동중" },
+    { key: "revoked", label: "해임/거절" },
+  ];
+
   if (ambassadors.length === 0) {
     return (
       <Card className="p-8 text-center">
@@ -547,7 +573,45 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
 
   return (
     <div className="space-y-3">
-      {ambassadors.map((a) => (
+      {/* 상태별 필터 탭 */}
+      <div className="flex gap-2 mb-4">
+        {filterTabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
+            className="flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-semibold transition-colors"
+            style={{
+              backgroundColor: filter === tab.key ? "var(--color-primary)" : "var(--color-surface)",
+              color: filter === tab.key ? "#FFFFFF" : "var(--color-text-muted)",
+            }}
+          >
+            {tab.label}
+            {/* 건수 뱃지 */}
+            {counts[tab.key] > 0 && (
+              <span
+                className="rounded-full px-1.5 text-[10px] font-bold"
+                style={{
+                  backgroundColor: filter === tab.key ? "rgba(255,255,255,0.2)" : "var(--color-border)",
+                  color: filter === tab.key ? "#FFFFFF" : "var(--color-text-muted)",
+                }}
+              >
+                {counts[tab.key]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* 필터된 결과가 없을 때 */}
+      {filteredAmbassadors.length === 0 && (
+        <Card className="p-6 text-center">
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            해당 상태의 앰배서더가 없습니다
+          </p>
+        </Card>
+      )}
+
+      {filteredAmbassadors.map((a) => (
         <Card key={a.id} className="p-4">
           {/* 헤더: 코트명 + 상태 뱃지 */}
           <div className="flex items-center justify-between mb-2">

@@ -17,6 +17,12 @@ async function getAnalytics() {
     totalTournaments,
     totalGames,
     monthlyUsers,
+    // 추가 통계: 코트, 커뮤니티, 앰배서더
+    totalCourts,
+    totalPosts,
+    thisMonthPosts,
+    activeAmbassadors,
+    pendingAmbassadors,
   ] = await Promise.all([
     prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }).catch(() => 0),
     prisma.tournament.count({ where: { createdAt: { gte: startOfMonth } } }).catch(() => 0),
@@ -32,6 +38,16 @@ async function getAnalytics() {
       GROUP BY month
       ORDER BY month ASC
     `.catch(() => [] as { month: string; count: bigint }[]),
+    // 전체 코트 수
+    prisma.court_infos.count().catch(() => 0),
+    // 전체 커뮤니티 게시글 수 (published만)
+    prisma.community_posts.count({ where: { status: "published" } }).catch(() => 0),
+    // 이번 달 게시글 수
+    prisma.community_posts.count({ where: { status: "published", created_at: { gte: startOfMonth } } }).catch(() => 0),
+    // 활동중 앰배서더 수
+    prisma.court_ambassadors.count({ where: { status: "active" } }).catch(() => 0),
+    // 대기중 앰배서더 수
+    prisma.court_ambassadors.count({ where: { status: "pending" } }).catch(() => 0),
   ]);
 
   return {
@@ -41,6 +57,11 @@ async function getAnalytics() {
     totalUsers,
     totalTournaments,
     totalGames,
+    totalCourts,
+    totalPosts,
+    thisMonthPosts,
+    activeAmbassadors,
+    pendingAmbassadors,
     monthlyUsers: monthlyUsers.map((r) => ({
       month: r.month,
       count: Number(r.count),
@@ -89,6 +110,30 @@ export default async function AdminAnalyticsPage() {
           <p className="text-xs text-[var(--color-text-muted)]">전체 경기</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalGames.toLocaleString()}</p>
         </Card>
+      </div>
+
+      {/* 코트 / 커뮤니티 / 앰배서더 통계 */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="등록 코트"
+          value={data.totalCourts.toLocaleString()}
+          icon={<span className="material-symbols-outlined text-2xl">location_on</span>}
+        />
+        <StatCard
+          label="커뮤니티 게시글"
+          value={data.totalPosts.toLocaleString()}
+          icon={<span className="material-symbols-outlined text-2xl">forum</span>}
+        />
+        <StatCard
+          label="이번 달 게시글"
+          value={data.thisMonthPosts.toLocaleString()}
+          icon={<span className="material-symbols-outlined text-2xl">edit_note</span>}
+        />
+        <StatCard
+          label="앰배서더"
+          value={`${data.activeAmbassadors} 활동 / ${data.pendingAmbassadors} 대기`}
+          icon={<span className="material-symbols-outlined text-2xl">shield_person</span>}
+        />
       </div>
 
       {/* 월별 가입 추이 */}

@@ -226,6 +226,19 @@ export default function PaymentsPage() {
                     >
                       {formatAmount(p.final_amount)}
                     </p>
+                    {/* 결제완료 건에 영수증 보기 링크 */}
+                    {p.status === "paid" && (
+                      <Link
+                        href={`/pricing/success?orderId=${encodeURIComponent(p.order_id)}&amount=${p.final_amount}&method=${encodeURIComponent(p.payment_method ?? "카드")}`}
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium"
+                        style={{ color: "var(--color-primary)" }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+                          receipt
+                        </span>
+                        영수증
+                      </Link>
+                    )}
                     {/* 환불 가능하면 환불 버튼 표시 */}
                     {p.can_refund && (
                       <button

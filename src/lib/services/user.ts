@@ -33,6 +33,8 @@ export const PROFILE_DETAIL_SELECT = {
   bank_code: true,
   account_number: true,
   account_holder: true,
+  // 소셜 로그인 제공자 표시용 (프로필 수정 페이지)
+  provider: true,
 } as const;
 
 /** 게임 상세에서 사용하는 유저 프로필 select */
