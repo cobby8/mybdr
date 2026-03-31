@@ -97,6 +97,32 @@ interface SearchResult {
   teams: { id: string; name: string; city?: string }[];
   posts: { id: string; title: string; category?: string }[];
   courts: { id: string; name: string; city?: string; district?: string }[];
+  users: { id: string; nickname?: string; name?: string; position?: string; city?: string }[];
+}
+
+// localStorage에 최근 검색어를 저장/조회하는 키와 최대 개수
+const RECENT_SEARCH_KEY = "bdr_recent_searches";
+const RECENT_SEARCH_MAX = 5;
+
+// 최근 검색어 읽기
+function getRecentSearches(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCH_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// 최근 검색어 저장 (중복 제거, 최대 5개)
+function saveRecentSearch(query: string) {
+  try {
+    const list = getRecentSearches().filter((s) => s !== query);
+    list.unshift(query);
+    localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(list.slice(0, RECENT_SEARCH_MAX)));
+  } catch {
+    /* localStorage 사용 불가 시 무시 */
+  }
 }
 
 function SearchAutocomplete() {
@@ -105,6 +131,9 @@ function SearchAutocomplete() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // 최근 검색어 상태 (포커스 시 로드)
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showRecent, setShowRecent] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -139,6 +168,7 @@ function SearchAutocomplete() {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setShowRecent(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -148,8 +178,17 @@ function SearchAutocomplete() {
   /* 검색 결과 항목 클릭 시 이동 후 드롭다운 닫기 */
   const navigate = (href: string) => {
     setIsOpen(false);
+    setShowRecent(false);
     setQuery("");
     router.push(href);
+  };
+
+  /* 최근 검색어 클릭 시: 해당 검색어로 바로 이동 */
+  const handleRecentClick = (term: string) => {
+    setQuery(term);
+    setShowRecent(false);
+    saveRecentSearch(term);
+    router.push(`/search?q=${encodeURIComponent(term)}`);
   };
 
   /* 드롭다운에 표시할 카테고리별 항목 (최대 3건씩) */
@@ -158,6 +197,7 @@ function SearchAutocomplete() {
     { label: "대회", icon: "emoji_events", items: results.tournaments.slice(0, 3).map(t => ({ id: t.id, title: t.name, sub: t.city, href: `/tournaments/${t.id}` })) },
     { label: "팀", icon: "groups", items: results.teams.slice(0, 3).map(t => ({ id: t.id, title: t.name, sub: t.city, href: `/teams/${t.id}` })) },
     { label: "코트", icon: "location_on", items: results.courts.slice(0, 3).map(c => ({ id: c.id, title: c.name, sub: c.district || c.city, href: `/courts/${c.id}` })) },
+    { label: "유저", icon: "person", items: (results.users || []).slice(0, 3).map(u => ({ id: u.id, title: u.nickname || u.name || "알 수 없음", sub: u.city || u.position, href: `/profile/${u.id}` })) },
     { label: "커뮤니티", icon: "forum", items: results.posts.slice(0, 3).map(p => ({ id: p.id, title: p.title, sub: p.category, href: `/community/${p.id}` })) },
   ].filter(cat => cat.items.length > 0) : [];
 
@@ -172,6 +212,8 @@ function SearchAutocomplete() {
           const q = query.trim();
           if (q) {
             setIsOpen(false);
+            setShowRecent(false);
+            saveRecentSearch(q);
             router.push(`/search?q=${encodeURIComponent(q)}`);
           }
         }}
@@ -191,13 +233,56 @@ function SearchAutocomplete() {
             setQuery(e.target.value);
             debouncedSearch(e.target.value.trim());
           }}
-          onFocus={() => { if (results && totalResults > 0) setIsOpen(true); }}
+          onFocus={() => {
+            if (results && totalResults > 0) { setIsOpen(true); }
+            else if (!query.trim()) {
+              // 입력이 비었을 때 최근 검색어 표시
+              const recent = getRecentSearches();
+              setRecentSearches(recent);
+              if (recent.length > 0) setShowRecent(true);
+            }
+          }}
           onKeyDown={(e) => { if (e.key === "Escape") setIsOpen(false); }}
           placeholder="경기, 대회, 팀 검색..."
           autoComplete="off"
           className="w-full rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none"
           style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text-primary)" }}
         />
+
+        {/* 최근 검색어 드롭다운: 입력이 비어있고 검색 결과가 없을 때만 표시 */}
+        {showRecent && !isOpen && recentSearches.length > 0 && (
+          <div
+            className="absolute left-0 top-full mt-2 w-full overflow-hidden rounded-xl border shadow-xl"
+            style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)", zIndex: 100 }}
+          >
+            <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: "var(--color-surface)" }}>
+              <span className="text-xs font-semibold" style={{ color: "var(--color-text-tertiary)" }}>최근 검색어</span>
+              <button
+                type="button"
+                onClick={() => {
+                  try { localStorage.removeItem(RECENT_SEARCH_KEY); } catch { /* 무시 */ }
+                  setRecentSearches([]);
+                  setShowRecent(false);
+                }}
+                className="text-xs transition-colors hover:opacity-70"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                전체 삭제
+              </button>
+            </div>
+            {recentSearches.map((term) => (
+              <button
+                key={term}
+                type="button"
+                onClick={() => handleRecentClick(term)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--color-surface)]"
+              >
+                <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-muted)" }}>history</span>
+                <span className="truncate text-sm" style={{ color: "var(--color-text-primary)" }}>{term}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* 자동완성 드롭다운 */}
         {isOpen && categories.length > 0 && (
@@ -234,7 +319,7 @@ function SearchAutocomplete() {
             {/* 전체 검색 결과 보기 링크 */}
             <button
               type="button"
-              onClick={() => { setIsOpen(false); router.push(`/search?q=${encodeURIComponent(query.trim())}`); }}
+              onClick={() => { setIsOpen(false); saveRecentSearch(query.trim()); router.push(`/search?q=${encodeURIComponent(query.trim())}`); }}
               className="flex w-full items-center justify-center gap-1 border-t px-4 py-3 text-sm font-medium transition-colors hover:bg-[var(--color-surface)]"
               style={{ borderColor: "var(--color-border)", color: "var(--color-primary)" }}
             >

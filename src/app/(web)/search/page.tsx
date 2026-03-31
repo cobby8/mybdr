@@ -71,8 +71,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     );
   }
 
-  // 5개 테이블 동시 검색 (서버 컴포넌트이므로 Prisma 직접 사용)
-  const [games, tournaments, teams, posts, courts] = await Promise.all([
+  // 6개 테이블 동시 검색 (서버 컴포넌트이므로 Prisma 직접 사용)
+  const [games, tournaments, teams, posts, users, courts] = await Promise.all([
     prisma.games.findMany({
       where: { title: { contains: q, mode: "insensitive" } },
       orderBy: { scheduled_at: "desc" },
@@ -126,6 +126,25 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         created_at: true,
       },
     }),
+    // 유저: nickname 또는 name에서 키워드 검색
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { nickname: { contains: q, mode: "insensitive" } },
+          { name: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        nickname: true,
+        name: true,
+        position: true,
+        city: true,
+      },
+    }),
+
     // 코트: name 또는 address에서 키워드 검색
     prisma.court_infos.findMany({
       where: {
@@ -156,8 +175,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     rooftop: "옥상",
   };
 
+  // 포지션 한글 매핑
+  const POSITION_LABELS: Record<string, string> = {
+    PG: "포인트가드",
+    SG: "슈팅가드",
+    SF: "스몰포워드",
+    PF: "파워포워드",
+    C: "센터",
+  };
+
   // 전체 결과가 0건인지 확인
-  const totalCount = games.length + tournaments.length + teams.length + posts.length + courts.length;
+  const totalCount = games.length + tournaments.length + teams.length + posts.length + courts.length + users.length;
 
   return (
     <div className="space-y-6">
@@ -296,6 +324,31 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                 court.average_rating
                   ? `${Number(court.average_rating).toFixed(1)}점`
                   : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+          ))}
+        </SearchSection>
+      )}
+
+      {/* 유저 섹션 */}
+      {users.length > 0 && (
+        <SearchSection
+          icon="person"
+          iconBg="#8b5cf6"
+          title="유저"
+          count={users.length}
+          moreHref={`/search?q=${encodeURIComponent(q)}`}
+        >
+          {users.map((user) => (
+            <SearchResultItem
+              key={user.id.toString()}
+              href={`/profile/${user.id}`}
+              title={user.nickname || user.name || "알 수 없음"}
+              subtitle={[
+                user.position ? (POSITION_LABELS[user.position] || user.position) : null,
+                user.city,
               ]
                 .filter(Boolean)
                 .join(" · ")}

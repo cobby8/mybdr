@@ -66,13 +66,20 @@ interface Props {
   notifications: SerializedNotification[];
 }
 
-export function NotificationsClient({ notifications }: Props) {
+export function NotificationsClient({ notifications: initialNotifications }: Props) {
   // 현재 선택된 탭
   const [activeTab, setActiveTab] = useState("all");
   // 읽음 처리 후 로컬 상태 관리 (서버 새로고침 없이 즉시 반영)
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  // 삭제된 알림 ID (삭제 시 즉시 UI에서 제거)
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   // "모두 읽음" 처리 중 로딩
   const [markingAll, setMarkingAll] = useState(false);
+  // 삭제 중인 알림 ID
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // 삭제된 알림을 제외한 목록
+  const notifications = initialNotifications.filter((n) => !deletedIds.has(n.id));
 
   // 탭별 필터링된 알림 목록
   const filtered = useMemo(() => {
@@ -105,6 +112,25 @@ export function NotificationsClient({ notifications }: Props) {
     }
     return counts;
   }, [notifications, readIds]);
+
+  // 개별 알림 삭제: DELETE /api/web/notifications/[id]
+  async function handleDelete(id: string) {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/web/notifications/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        // 즉시 UI에서 제거
+        setDeletedIds((prev) => new Set(prev).add(id));
+      }
+    } catch {
+      /* 실패 시 무시 */
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // "모두 읽음" 처리: 기존 PATCH /api/web/notifications API 호출
   async function handleMarkAllRead() {
@@ -250,6 +276,24 @@ export function NotificationsClient({ notifications }: Props) {
                     chevron_right
                   </span>
                 )}
+
+                {/* 삭제 버튼: 개별 알림 삭제 */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault(); // Link 내부 클릭 시 이동 방지
+                    e.stopPropagation();
+                    handleDelete(n.id);
+                  }}
+                  disabled={deletingId === n.id}
+                  className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full self-center transition-colors hover:bg-[var(--color-surface)]"
+                  style={{ color: "var(--color-text-muted)" }}
+                  title="알림 삭제"
+                >
+                  <span className="material-symbols-outlined text-base">
+                    {deletingId === n.id ? "hourglass_empty" : "close"}
+                  </span>
+                </button>
               </div>
             );
 

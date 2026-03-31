@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // 5개 테이블 동시 검색 (Promise.all로 병렬 처리)
-    const [games, tournaments, teams, posts, courts] = await Promise.all([
+    // 6개 테이블 동시 검색 (Promise.all로 병렬 처리)
+    const [games, tournaments, teams, posts, users, courts] = await Promise.all([
       // 경기: title에서 키워드 검색
       prisma.games.findMany({
         where: { title: { contains: q, mode: "insensitive" } },
@@ -97,6 +97,25 @@ export async function GET(request: NextRequest) {
         },
       }),
 
+      // 유저: nickname 또는 name에서 키워드 검색
+      prisma.user.findMany({
+        where: {
+          OR: [
+            { nickname: { contains: q, mode: "insensitive" } },
+            { name: { contains: q, mode: "insensitive" } },
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          nickname: true,
+          name: true,
+          position: true,
+          city: true,
+        },
+      }),
+
       // 코트: name 또는 address에서 키워드 검색
       prisma.court_infos.findMany({
         where: {
@@ -141,6 +160,7 @@ export async function GET(request: NextRequest) {
       teams: teams.map((t) => serialize(t as unknown as Record<string, unknown>)),
       posts: posts.map((p) => serialize(p as unknown as Record<string, unknown>)),
       courts: courts.map((c) => serialize(c as unknown as Record<string, unknown>)),
+      users: users.map((u) => serialize(u as unknown as Record<string, unknown>)),
     });
   } catch (error) {
     console.error("[search] error:", error);

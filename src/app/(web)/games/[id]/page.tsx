@@ -10,6 +10,7 @@ import { PickupDetail } from "./_sections/pickup-detail";
 import { GuestDetail } from "./_sections/guest-detail";
 import { TeamMatchDetail } from "./_sections/team-match-detail";
 import { HostApplications } from "./_components/host-applications";
+import { HostActions } from "./_components/host-actions";
 import { HeroBanner } from "./_components/hero-banner";
 import { PriceCard } from "./_components/price-card";
 import { HostCard } from "./_components/host-card";
@@ -175,6 +176,9 @@ export default async function GameDetailPage({
       >
         {game.title}
       </h1>
+
+      {/* 호스트 전용: 수정/취소 버튼 */}
+      {isHost && <HostActions gameId={id} />}
 
       {/* 설명 */}
       {game.description && (
