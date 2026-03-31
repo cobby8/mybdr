@@ -267,8 +267,13 @@ export function RightSidebar() {
       )}
 
       {/* ======== 3. 인기 코트 TOP 5 ======== */}
-      {data.courts.length > 0 && (
-        <Widget title="인기 코트" moreHref="/courts">
+      <Widget title="인기 코트" moreHref="/courts">
+        {data.courts.length === 0 ? (
+          <p className="py-4 text-center text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <span className="material-symbols-outlined text-2xl block mb-1" style={{ color: "var(--color-text-disabled)" }}>location_on</span>
+            체크인 데이터가 쌓이면 인기 코트가 표시돼요
+          </p>
+        ) : (
           <ul>
             {data.courts.map((court, i) => (
               <li
@@ -316,12 +321,17 @@ export function RightSidebar() {
               </li>
             ))}
           </ul>
-        </Widget>
-      )}
+        )}
+      </Widget>
 
       {/* ======== 4. 최근 활동 ======== */}
-      {data.activities.length > 0 && (
-        <Widget title="최근 활동">
+      <Widget title="최근 활동">
+        {data.activities.length === 0 ? (
+          <p className="py-4 text-center text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <span className="material-symbols-outlined text-2xl block mb-1" style={{ color: "var(--color-text-disabled)" }}>bolt</span>
+            아직 활동이 없어요. 코트에서 체크인해보세요!
+          </p>
+        ) : (
           <ul>
             {data.activities.map((act, i) => (
               <li
@@ -373,8 +383,8 @@ export function RightSidebar() {
               </li>
             ))}
           </ul>
-        </Widget>
-      )}
+        )}
+      </Widget>
     </div>
   );
 }
