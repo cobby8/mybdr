@@ -23,7 +23,7 @@ export async function GET(
         title: true,
         content: true,
         category: true,
-        user_id: true,
+        user_id: true, // 수정 페이지에서 작성자 본인 확인용 — 공개 정보이므로 보안 이슈 없음
         status: true,
         created_at: true,
         updated_at: true,

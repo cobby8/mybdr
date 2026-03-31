@@ -103,7 +103,53 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    dynamicPages = [...teamPages, ...tournamentPages];
+    // 코트 목록: 1,045개 코트 중 최근 업데이트된 순으로 500개
+    const courts = await prisma.courts.findMany({
+      where: { is_active: true },
+      select: { id: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 500,
+    });
+
+    const courtPages: MetadataRoute.Sitemap = courts.map((c) => ({
+      url: `${baseUrl}/courts/${c.id}`,
+      lastModified: c.updated_at ?? new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+
+    // 커뮤니티 게시글: 삭제되지 않은 게시글 (public_id 기반 URL)
+    const posts = await prisma.community_posts.findMany({
+      where: { status: { not: "deleted" } },
+      select: { public_id: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 500,
+    });
+
+    const communityPages: MetadataRoute.Sitemap = posts.map((p) => ({
+      url: `${baseUrl}/community/${p.public_id}`,
+      lastModified: p.updated_at ?? new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.5,
+    }));
+
+    // 경기 목록: 활성 경기 (public_id 기반 URL)
+    // 경기 목록: status=0(모집중), 1(확정), 2(진행중), 3(완료) — 취소(4) 제외
+    const games = await prisma.games.findMany({
+      where: { status: { not: 4 } },
+      select: { game_id: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 500,
+    });
+
+    const gamePages: MetadataRoute.Sitemap = games.map((g) => ({
+      url: `${baseUrl}/games/${g.game_id}`,
+      lastModified: g.updated_at ?? new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+    }));
+
+    dynamicPages = [...teamPages, ...tournamentPages, ...courtPages, ...communityPages, ...gamePages];
   } catch {
     // DB 연결 실패 시 정적 페이지만 반환 (빌드 환경 등)
     console.error("[sitemap] DB 조회 실패, 정적 페이지만 생성");

@@ -514,7 +514,14 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           <TextSizeToggle />
           {/* 선호 필터 토글: 로그인 시에만 표시, ON=파란 아이콘 / OFF=회색 아이콘 */}
           {user && <PreferFilterToggleButton />}
-          {/* 검색은 사이드네비의 검색창으로 이동 — 헤더에서 제거 */}
+          {/* 모바일 검색 아이콘: PC에서는 사이드네비 검색창이 있으므로 lg 이하에서만 표시 */}
+          <Link
+            href="/search"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-bright)] lg:hidden"
+            aria-label="검색"
+          >
+            <span className="material-symbols-outlined text-xl">search</span>
+          </Link>
           {/* 알림 (PC에서도 표시 — 사이드네비 알림과 별개로 빠른 접근) */}
           {user && (
             <Link

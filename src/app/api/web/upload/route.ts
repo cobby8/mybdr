@@ -13,12 +13,12 @@ import { apiSuccess, apiError, unauthorized } from "@/lib/api/response";
 import { supabase } from "@/lib/supabase";
 
 // 허용할 이미지 MIME 타입 목록
+// SVG는 XSS 공격 벡터가 될 수 있어 차단 (스크립트 삽입 가능)
 const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
   "image/gif",
-  "image/svg+xml",
 ];
 
 // 최대 파일 크기 (5MB)

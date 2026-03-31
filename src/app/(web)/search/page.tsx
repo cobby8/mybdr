@@ -1,5 +1,12 @@
+import type { Metadata } from "next";
 import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
+
+// SEO: 검색 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "검색 - MyBDR",
+  description: "경기, 대회, 팀, 코트, 유저를 통합 검색하세요.",
+};
 
 /* ============================================================
  * /search?q=키워드 — 통합 검색 결과 페이지
