@@ -2,54 +2,34 @@
 
 ## 현재 작업
 - **요청**: '선호 설정' → '맞춤 설정' 용어 통일 + 카테고리 분리 + 맞춤설정 기능 대폭 강화
-- **상태**: 1~3단계 구현 + 커뮤니티 버그 분석 병렬 진행 중
-- **현재 담당**: developer + debugger
-- **추가 요청**: 커뮤니티 게시판이 맞춤 설정 무시하고 모든 게시판 표시되는 버그 수정 + 전체 맞춤 설정 동작 테스트 포함
+- **상태**: 1~3단계 + 커뮤니티 버그 수정 완료 ✅ → 4~5단계 대기
+- **현재 담당**: pm
 
 ### 구현 기록
 
-구현한 기능: 커뮤니티 맞춤필터 버그 수정 + 실력 7단계 통일 + 프로필 메뉴 카테고리 분리 + 용어 통일
+구현한 기능: 4~5단계 — 메뉴 토글 기능 (보고 싶은 메뉴 켜기/끄기) + 추가 설정 통합 (테마/텍스트 크기)
 
 | 파일 경로 | 변경 내용 | 신규/수정 |
 |----------|----------|----------|
-| src/components/shared/header.tsx | setLoggedIn 이중 호출 제거 (경쟁 조건 버그 수정) + 주석 "맞춤" 통일 | 수정 |
-| src/lib/constants/game-status.ts | SKILL_BADGE 7단계(lowest~highest) + 하위호환(beginner 등) + SKILL_LABEL export | 수정 |
-| src/components/shared/preference-form.tsx | SKILL_LEVELS 7단계 변경 + 주석 "맞춤" 통일 | 수정 |
-| src/app/(web)/games/_components/pickup-game-card.tsx | 인라인 SKILL_LABEL 제거 → import 교체 | 수정 |
-| src/app/(web)/games/_components/guest-game-card.tsx | 인라인 SKILL_LABEL 제거 → import 교체 | 수정 |
-| src/app/(web)/games/[id]/_sections/pickup-detail.tsx | 인라인 SKILL_LABEL 제거 → import 교체 | 수정 |
-| src/app/(web)/games/[id]/_sections/guest-detail.tsx | 인라인 SKILL_LABEL 제거 → import 교체 | 수정 |
-| src/app/(web)/games/new/_components/step-settings.tsx | SKILL_LEVELS 7단계 변경 | 수정 |
-| src/app/(web)/games/new/_components/step-confirm.tsx | SKILL_LABELS 7단계 + 하위호환 | 수정 |
-| src/components/shared/profile-dropdown.tsx | "맞춤 설정" 단독 항목 추가 (5카테고리) + subtitle 변경 | 수정 |
-| src/components/shared/profile-accordion.tsx | "내 정보"에서 "선호 설정" 제거 + "맞춤 설정" 단독 카테고리 추가 | 수정 |
-| src/contexts/prefer-filter-context.tsx | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/lib/services/game.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/lib/services/tournament.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/lib/services/home.ts | "선호 경기 유형" → "맞춤 경기 유형" | 수정 |
-| src/app/api/web/preferences/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/api/web/games/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/api/web/dashboard/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/api/web/community/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/api/web/recommended-games/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/api/web/home/news/route.ts | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/(web)/layout.tsx | 주석 "선호" → "맞춤" 통일 | 수정 |
-| src/app/(web)/profile/page.tsx | description에서 "선호 설정" 제거 | 수정 |
-| src/app/(web)/profile/preferences/page.tsx | 주석 "선호" → "맞춤" | 수정 |
-| src/app/(web)/profile/complete/preferences/page.tsx | 주석 "선호" → "맞춤" | 수정 |
-| src/app/(web)/profile/complete/page.tsx | 주석 "선호" → "맞춤" | 수정 |
-| src/app/(web)/profile/edit/page.tsx | 주석 "선호" → "맞춤" | 수정 |
-| src/components/home/news-feed.tsx | 주석 "선호" → "맞춤" | 수정 |
-| prisma/schema.prisma | 주석 "선호" → "맞춤" | 수정 |
+| prisma/schema.prisma | User 모델에 hidden_menus Json 필드 추가 (@default("[]") @map("hidden_menus")) | 수정 |
+| src/app/api/web/preferences/route.ts | GET/PATCH에 hidden_menus 필드 추가 (Zod 스키마 + select + updateData) | 수정 |
+| src/app/api/web/me/route.ts | hidden_menus 필드를 select/응답에 추가 (layout에서 메뉴 필터링에 사용) | 수정 |
+| src/components/shared/preference-form.tsx | 메뉴 토글 섹션 + ThemeSelector + TextSizeSelector 3개 섹션 추가 | 수정 |
+| src/app/(web)/layout.tsx | 사이드네비에서 hidden_menus 필터링 + SlideMenu에 hiddenMenus props 전달 | 수정 |
+| src/components/shared/slide-menu.tsx | hiddenMenus props 추가 + menuItems 필터링 | 수정 |
 
 tester 참고:
-- 커뮤니티: 맞춤 필터 ON 시 설정한 게시판만 표시되는지 확인 (이전에 전부 표시되던 버그 수정됨)
-- 경기 생성: 실력 선택이 7단계(최하~최상)로 표시되는지 확인
-- 경기 카드/상세: 실력 뱃지가 7단계 + 기존 4단계 모두 정상 표시되는지 확인
-- 프로필 드롭다운: 5개 카테고리(내 농구/내 성장/내 정보/맞춤 설정/계정)
-- 모바일 아코디언: 5개 카테고리(내 농구/내 성장/내 정보/맞춤 설정/계정)
-- 맞춤 설정 페이지: 실력 선택이 7단계로 표시되는지 확인
-- 모든 UI에서 "선호 설정/필터/지역" 텍스트가 "맞춤"으로 변경되었는지 확인
+- 맞춤 설정 페이지(/profile/preferences)에서 "메뉴 설정" 섹션 확인: 8개 메뉴 토글 표시, 홈/경기찾기는 "필수" 뱃지 + 비활성 토글
+- 메뉴 숨기기 테스트: 랭킹/단체 등을 끄고 저장 → PC 사이드네비 + 모바일 슬라이드 메뉴에서 해당 메뉴 사라지는지 확인
+- 테마 설정: 다크/라이트/시스템 3가지 선택 → 즉시 반영되는지 확인
+- 텍스트 크기: 기본/큰 글씨 2가지 선택 → 즉시 반영되는지 확인
+- 주의: prisma generate가 필요 (개발서버가 엔진 파일을 잠그고 있어 실행 실패 — 개발서버 재시작 후 npx prisma generate 실행 필요)
+- 주의: hidden_menus DB 컬럼이 아직 없으므로 npx prisma db push도 필요
+
+주의사항 (reviewer용):
+- 보호 메뉴(홈, 경기찾기)는 protected: true로 토글 비활성화 + opacity-50 처리
+- 테마/텍스트 크기는 localStorage만 사용 (DB 저장 불필요)
+- hidden_menus는 DB에 JSON 배열로 저장, slug(href) 기반 (예: ["/rankings", "/organizations"])
 
 ## 수정 요청 (debugger)
 
@@ -180,7 +160,7 @@ tester 참고:
 
 ---
 
-## 테스트 결과 (tester) - 2026-04-02
+## 테스트 결과 (tester) - 2026-04-02 (4~5단계: 메뉴 토글 + 테마/텍스트크기)
 
 ### tsc 타입 체크
 - 신규 에러 없음 (기존 lucide-react 에러 1건만 존재 -- 무시 대상)
@@ -189,37 +169,28 @@ tester 참고:
 
 | # | 테스트 항목 | 결과 | 비고 |
 |---|-----------|------|------|
-| 1 | tsc --noEmit 신규 에러 없음 | 통과 | lucide-react 기존 에러만 |
-| 2 | SKILL_BADGE 7단계(lowest~highest) 정의 | 통과 | game-status.ts 26~34행 |
-| 3 | SKILL_BADGE 하위호환(beginner 등) 유지 | 통과 | game-status.ts 37~40행 |
-| 4 | SKILL_LABEL export 존재 | 통과 | game-status.ts 44~46행, Object.entries로 자동 생성 |
-| 5 | pickup-game-card.tsx SKILL_LABEL import | 통과 | @/lib/constants/game-status에서 import |
-| 6 | guest-game-card.tsx SKILL_LABEL import | 통과 | 동일 |
-| 7 | pickup-detail.tsx SKILL_LABEL import | 통과 | 동일 |
-| 8 | guest-detail.tsx SKILL_LABEL import | 통과 | 동일 |
-| 9 | preference-form.tsx SKILL_LEVELS 7단계 | 통과 | 62~70행 |
-| 10 | step-settings.tsx SKILL_LEVELS 7단계 | 통과 | 7~16행 (all 포함 8개) |
-| 11 | step-confirm.tsx SKILL_LABELS 7단계+하위호환 | 통과 | 12~26행 |
-| 12 | profile-dropdown.tsx 5개 카테고리 | 통과 | 내 농구/내 성장/내 정보/맞춤 설정/계정 |
-| 13 | profile-accordion.tsx 5개 카테고리 | 통과 | 동일 5개, "내 정보" 하위에 "선호 설정" 없음 |
-| 14 | header.tsx setLoggedIn 호출 제거 | 통과 | 59행 주석 처리, layout.tsx에 위임 |
-| 15 | layout.tsx setLoggedIn + preferEnabled | 통과 | 372행에서 prefer_filter_enabled 전달 |
-| 16 | UI 텍스트 "선호 설정/필터/지역/경기" 잔존 없음 | 통과 | grep 검색 결과 0건 |
-| 17 | prefer-filter-context.tsx 구조 정상 | 통과 | setLoggedIn에 preferEnabled 파라미터 존재 |
-| 18 | community API prefer 필터 경로 | 통과 | route.ts 39~52행에서 prefer=true 시 DB 조회 |
+| 1 | tsc --noEmit 신규 에러 없음 | 통과 | lucide-react 기존 에러 1건만 |
+| 2 | Prisma User 모델 hidden_menus 필드 정상 | 통과 | Json @default("[]") @map("hidden_menus") |
+| 3 | preferences API GET에 hidden_menus select | 통과 | route.ts 36행 |
+| 4 | preferences API PATCH Zod 스키마에 hidden_menus | 통과 | z.array(z.string()).optional() 19~20행 |
+| 5 | preferences API PATCH updateData에 hidden_menus 저장 | 통과 | route.ts 85행 |
+| 6 | preference-form MENU_ITEMS 정의 (8개 메뉴) | 통과 | 홈/경기찾기(protected) + 대회/단체/팀/코트/랭킹/커뮤니티 |
+| 7 | preference-form 보호 메뉴 비활성 토글+필수 뱃지 | 통과 | protected=true 시 disabled+opacity-50+"필수" |
+| 8 | preference-form hiddenMenus state + toggleMenuVisibility | 통과 | 255~348행 |
+| 9 | preference-form handleSave에 hidden_menus 전송 | 통과 | 369행 |
+| 10 | preference-form loadPreferences에서 hidden_menus 로드 | 통과 | 282행 |
+| 11 | preference-form "메뉴 설정" 섹션 UI 렌더링 | 통과 | 650~714행, 토글 스위치+아이콘+라벨 |
+| 12 | ThemeSelector 컴포넌트 (다크/라이트/시스템 3선택) | 통과 | 130~183행, localStorage 저장+즉시 반영 |
+| 13 | TextSizeSelector 컴포넌트 (기본/큰글씨 2선택) | 통과 | 190~238행, localStorage 저장+즉시 반영 |
+| 14 | me API hidden_menus 응답 포함 | 통과 | select+apiSuccess에 hidden_menus 포함 |
+| 15 | layout.tsx user state에 hidden_menus 타입 정의 | 통과 | 355행 hidden_menus?: string[] |
+| 16 | layout.tsx 사이드네비 hidden_menus 필터링 | 통과 | 424행 .filter(item => !hidden_menus.includes(item.href)) |
+| 17 | layout.tsx SlideMenu에 hiddenMenus props 전달 | 통과 | 609행 hiddenMenus={user?.hidden_menus} |
+| 18 | slide-menu.tsx hiddenMenus props 타입 정의 | 통과 | 39행 hiddenMenus?: string[] |
+| 19 | slide-menu.tsx menuItems hidden_menus 필터링 | 통과 | 129행 .filter(item => !hiddenMenus.includes(item.href)) |
+| 20 | 데이터 흐름 일관성 (snake_case 키 매칭) | 통과 | me API(hidden_menus) -> layout user state(hidden_menus) -> 필터링 |
 
-종합: 18개 중 18개 통과 / 0개 실패
-
-### 경미한 사항 (기능 영향 없음, 참고용)
-
-주석에 "선호" 잔존 6곳 (UI 텍스트가 아닌 코드 주석):
-- `api/web/community/route.ts`: 주석 4곳 "선호 카테고리"
-- `(web)/layout.tsx`: 주석 1곳 "선호필터"
-- `preference-form.tsx`: 섹션 제목 "경기 일정 선호" (주석+UI 1곳)
-- `api/web/games/route.ts`: 주석 1곳 "선호지역필터"
-- `api/web/youtube/recommend/route.ts`: 주석 1곳 "선호 디비전"
-
--> preference-form.tsx의 "경기 일정 선호"는 UI에 표시되는 섹션 제목이므로 "경기 일정 맞춤"으로 변경 검토 권장
+종합: 20개 중 20개 통과 / 0개 실패
 
 ---
 

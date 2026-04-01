@@ -18,6 +18,22 @@ import { TossCard } from "@/components/toss/toss-card";
 import { TossSectionHeader } from "@/components/toss/toss-section-header";
 import { TossButton } from "@/components/toss/toss-button";
 
+/* ============================================================
+ * 메뉴 항목 정의 — 사이드/슬라이드 메뉴와 동일한 slug(href) 사용
+ * 보호 메뉴: 홈(/), 경기찾기(/games) — 숨길 수 없음
+ * 토글 가능 메뉴: 대회, 단체, 팀, 코트, 랭킹, 커뮤니티
+ * ============================================================ */
+const MENU_ITEMS = [
+  { href: "/", label: "홈", icon: "home", protected: true },
+  { href: "/games", label: "경기찾기", icon: "sports_basketball", protected: true },
+  { href: "/tournaments", label: "대회", icon: "emoji_events", protected: false },
+  { href: "/organizations", label: "단체", icon: "corporate_fare", protected: false },
+  { href: "/teams", label: "팀", icon: "groups", protected: false },
+  { href: "/courts", label: "코트", icon: "location_on", protected: false },
+  { href: "/rankings", label: "랭킹", icon: "leaderboard", protected: false },
+  { href: "/community", label: "커뮤니티", icon: "forum", protected: false },
+] as const;
+
 // 경기 유형 목록 (game_type 숫자값과 매핑)
 const GAME_TYPES = [
   { code: 0, label: "PICKUP", description: "픽업 경기" },
@@ -106,6 +122,121 @@ function PillButton({
   );
 }
 
+/* ============================================================
+ * ThemeSelector — 테마 3가지 선택 (다크/라이트/시스템)
+ * localStorage에 저장하고 즉시 반영 (DB 저장 불필요)
+ * 기존 ThemeToggle의 dark/light 클래스 토글 로직을 재사용
+ * ============================================================ */
+function ThemeSelector() {
+  const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem("theme") as "dark" | "light" | "system" | null;
+    setTheme(saved ?? "dark");
+  }, []);
+
+  // 테마를 실제로 적용하는 함수
+  const applyTheme = (value: "dark" | "light" | "system") => {
+    setTheme(value);
+    localStorage.setItem("theme", value);
+
+    if (value === "system") {
+      // 시스템 설정에 따라 다크/라이트 결정
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.classList.toggle("dark", prefersDark);
+      document.documentElement.classList.toggle("light", !prefersDark);
+    } else {
+      document.documentElement.classList.toggle("dark", value === "dark");
+      document.documentElement.classList.toggle("light", value === "light");
+    }
+  };
+
+  if (!mounted) return null;
+
+  const options = [
+    { value: "dark" as const, label: "다크 모드", icon: "dark_mode" },
+    { value: "light" as const, label: "라이트 모드", icon: "light_mode" },
+    { value: "system" as const, label: "시스템 설정", icon: "devices" },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => applyTheme(opt.value)}
+          className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+            theme === opt.value
+              ? "bg-[var(--color-primary)] text-white shadow-sm"
+              : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
+          }`}
+        >
+          <span className="material-symbols-outlined text-lg">{opt.icon}</span>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+ * TextSizeSelector — 텍스트 크기 2가지 선택 (기본/크게)
+ * localStorage에 저장하고 즉시 반영 (DB 저장 불필요)
+ * 기존 TextSizeToggle의 large-text 클래스 토글 로직을 재사용
+ * ============================================================ */
+function TextSizeSelector() {
+  const [large, setLarge] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const isLarge = document.documentElement.classList.contains("large-text");
+    setLarge(isLarge);
+  }, []);
+
+  const applySize = (isLarge: boolean) => {
+    setLarge(isLarge);
+    document.documentElement.classList.toggle("large-text", isLarge);
+    localStorage.setItem("textSize", isLarge ? "large" : "normal");
+  };
+
+  if (!mounted) return null;
+
+  const options = [
+    { value: false, label: "기본 크기", icon: "text_fields", sample: "가나다 ABC 123" },
+    { value: true, label: "큰 글씨", icon: "text_increase", sample: "가나다 ABC 123" },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <button
+            key={String(opt.value)}
+            type="button"
+            onClick={() => applySize(opt.value)}
+            className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+              large === opt.value
+                ? "bg-[var(--color-primary)] text-white shadow-sm"
+                : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
+            }`}
+          >
+            <span className="material-symbols-outlined text-lg">{opt.icon}</span>
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {/* 미리보기 텍스트 — 현재 크기 설정이 즉시 반영됨 */}
+      <p className="text-sm text-[var(--color-text-muted)] mt-2">
+        설정 변경 시 모든 페이지에 즉시 적용됩니다.
+      </p>
+    </div>
+  );
+}
+
 export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps) {
   // 전역 맞춤 필터 상태 (헤더의 "원하는 정보만 보기" 토글과 동기화)
   const { preferFilter, togglePreferFilter, updatePreferDefault } = usePreferFilter();
@@ -121,6 +252,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  // 숨긴 메뉴 slug 배열 (예: ["/rankings", "/organizations"])
+  const [hiddenMenus, setHiddenMenus] = useState<string[]>([]);
 
   // 현재 선택된 종별 탭
   const [activeCategory, setActiveCategory] = useState<CategoryCode>("general");
@@ -146,6 +279,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       setSelectedDays(data.preferred_days ?? []);
       setSelectedTimeSlots(data.preferred_time_slots ?? []);
       setSelectedSkills(data.preferred_skill_levels ?? []);
+      setHiddenMenus(data.hidden_menus ?? []);
     } catch {
       // 로드 실패 시 빈 상태로 시작 (신규 유저이거나 네트워크 문제)
     } finally {
@@ -207,6 +341,13 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     );
   };
 
+  // 메뉴 숨기기/보이기 토글 (hidden_menus에 추가/제거)
+  const toggleMenuVisibility = (href: string) => {
+    setHiddenMenus((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    );
+  };
+
   // 저장 처리 - API에 맞춤 설정을 PATCH로 전송
   const handleSave = async () => {
     setSaving(true);
@@ -224,6 +365,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           preferred_days: selectedDays,
           preferred_time_slots: selectedTimeSlots,
           preferred_skill_levels: selectedSkills,
+          // 숨긴 메뉴 목록
+          hidden_menus: hiddenMenus,
           // 토글 ON/OFF 상태를 API에 전달 (맞춤 보기 활성화 여부)
           prefer_filter_enabled: preferFilter,
         }),
@@ -500,6 +643,97 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               <span className="font-medium text-[var(--color-primary)]">{selectedBoardCategories.length}개</span> 선택됨
             </p>
           )}
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 5: 메뉴 설정 — 보고 싶은 메뉴만 켜기/끄기
+       * 보호 메뉴(홈, 경기찾기)는 항상 켜짐, 토글 비활성
+       * hidden_menus에 포함된 메뉴는 사이드/슬라이드 메뉴에서 숨김
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="메뉴 설정" />
+        <TossCard>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+            보고 싶은 메뉴만 켜두세요. 끄면 사이드 메뉴에서 숨겨집니다.
+          </p>
+          <div className="space-y-3">
+            {MENU_ITEMS.map((item) => {
+              // 보호 메뉴는 항상 표시 (숨길 수 없음)
+              const isVisible = item.protected || !hiddenMenus.includes(item.href);
+              return (
+                <div key={item.href} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="material-symbols-outlined text-xl"
+                      style={{ color: isVisible ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+                    >
+                      {item.icon}
+                    </span>
+                    <span
+                      className={`text-sm font-medium ${
+                        isVisible ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                    {/* 보호 메뉴 표시 */}
+                    {item.protected && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-bright)] text-[var(--color-text-muted)]">
+                        필수
+                      </span>
+                    )}
+                  </div>
+                  {/* 토글 스위치 — 보호 메뉴는 비활성화 */}
+                  <button
+                    type="button"
+                    onClick={() => !item.protected && toggleMenuVisibility(item.href)}
+                    disabled={item.protected}
+                    className={`relative inline-flex h-7 w-11 shrink-0 items-center rounded-full transition-colors duration-300 ${
+                      item.protected
+                        ? "cursor-not-allowed bg-[var(--color-primary)] opacity-50"
+                        : isVisible
+                          ? "cursor-pointer bg-[var(--color-primary)]"
+                          : "cursor-pointer bg-[var(--color-surface-bright)]"
+                    }`}
+                    role="switch"
+                    aria-checked={isVisible}
+                    aria-label={`${item.label} 메뉴 ${isVisible ? "표시" : "숨김"}`}
+                  >
+                    <span
+                      className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-300 ${
+                        isVisible ? "translate-x-[22px]" : "translate-x-[3px]"
+                      }`}
+                    />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 6: 테마 설정 (다크/라이트/시스템)
+       * localStorage에 저장, DB 저장 불필요
+       * 기존 ThemeToggle 로직을 재사용
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="테마" />
+        <TossCard>
+          <ThemeSelector />
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 7: 텍스트 크기 설정
+       * localStorage에 저장, DB 저장 불필요
+       * 기존 TextSizeToggle 로직을 재사용
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="텍스트 크기" />
+        <TossCard>
+          <TextSizeSelector />
         </TossCard>
       </div>
 

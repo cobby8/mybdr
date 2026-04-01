@@ -28,6 +28,7 @@ export function SlideMenu({
   isLoggedIn,
   role,
   name,
+  hiddenMenus,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,6 +36,7 @@ export function SlideMenu({
   role?: string;
   name?: string;
   email?: string; /* header.tsx 호환용: 현재 UI에서는 미사용 */
+  hiddenMenus?: string[]; /* 숨긴 메뉴 slug 배열 — 맞춤 설정에서 지정 */
 }) {
   const pathname = usePathname();
 
@@ -121,9 +123,11 @@ export function SlideMenu({
           )}
         </div>
 
-        {/* 네비게이션: 6개 메뉴 */}
+        {/* 네비게이션 — hidden_menus에 포함된 메뉴는 숨김 */}
         <nav className="flex-1 space-y-1 overflow-y-auto p-4">
-          {menuItems.map((item) => {
+          {menuItems
+            .filter((item) => !(hiddenMenus ?? []).includes(item.href))
+            .map((item) => {
             const active = isActive(item.href);
             return (
               <Link

@@ -352,7 +352,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { setLoggedIn } = usePreferFilter();
-  const [user, setUser] = useState<{ name: string; role: string; prefer_filter_enabled?: boolean } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: string; prefer_filter_enabled?: boolean; hidden_menus?: string[] } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   /* 슬라이드 메뉴 열림/닫힘 상태 ("더보기" 탭용) */
   const [slideMenuOpen, setSlideMenuOpen] = useState(false);
@@ -418,9 +418,11 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           <SearchAutocomplete />
         </div>
 
-        {/* 메인 네비게이션 */}
+        {/* 메인 네비게이션 — hidden_menus에 포함된 메뉴는 숨김 */}
         <nav className="flex-1 overflow-y-auto px-3 space-y-1">
-          {sideNavItems.map(item => {
+          {sideNavItems
+            .filter(item => !(user?.hidden_menus ?? []).includes(item.href))
+            .map(item => {
             const active = isActive(item.href);
             return (
               <Link key={item.href} href={item.href} prefetch={true}
@@ -597,12 +599,14 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* 슬라이드 메뉴: "더보기" 탭에서 열림 (랭킹, 커뮤니티, 프로필, 설정 등) */}
+      {/* 슬라이드 메뉴에도 hidden_menus 전달하여 동일하게 필터링 */}
       <SlideMenu
         open={slideMenuOpen}
         onClose={() => setSlideMenuOpen(false)}
         isLoggedIn={!!user}
         role={user?.role}
         name={user?.name}
+        hiddenMenus={user?.hidden_menus}
       />
     </div>
   );
