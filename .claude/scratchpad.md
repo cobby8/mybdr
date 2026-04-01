@@ -2,39 +2,37 @@
 
 ## 현재 작업
 - **요청**: '선호 설정' → '맞춤 설정' 용어 통일 + 카테고리 분리 + 맞춤설정 기능 대폭 강화
-- **상태**: 1~3단계 + 커뮤니티 버그 수정 완료 ✅ → 4~5단계 대기
-- **현재 담당**: pm
+- **상태**: 맞춤 설정 필터 미동작 5건 수정 완료 + 전수 검증 통과
+- **현재 담당**: tester (검증 완료 → PM)
 
-### 구현 기록
+### 구현 기록 (developer)
 
-구현한 기능: 4~5단계 — 메뉴 토글 기능 (보고 싶은 메뉴 켜기/끄기) + 추가 설정 통합 (테마/텍스트 크기)
+구현한 기능: 맞춤 설정 5개 항목 필터링 미동작 수정 (지역/실력/요일/시간대/성별)
 
 | 파일 경로 | 변경 내용 | 신규/수정 |
 |----------|----------|----------|
-| prisma/schema.prisma | User 모델에 hidden_menus Json 필드 추가 (@default("[]") @map("hidden_menus")) | 수정 |
-| src/app/api/web/preferences/route.ts | GET/PATCH에 hidden_menus 필드 추가 (Zod 스키마 + select + updateData) | 수정 |
-| src/app/api/web/me/route.ts | hidden_menus 필드를 select/응답에 추가 (layout에서 메뉴 필터링에 사용) | 수정 |
-| src/components/shared/preference-form.tsx | 메뉴 토글 섹션 + ThemeSelector + TextSizeSelector 3개 섹션 추가 | 수정 |
-| src/app/(web)/layout.tsx | 사이드네비에서 hidden_menus 필터링 + SlideMenu에 hiddenMenus props 전달 | 수정 |
-| src/components/shared/slide-menu.tsx | hiddenMenus props 추가 + menuItems 필터링 | 수정 |
+| prisma/schema.prisma | User 모델에 preferred_gender Json 필드 추가 | 수정 |
+| src/app/api/web/preferences/route.ts | GET/PATCH에 preferred_gender 추가 (Zod + select + updateData) | 수정 |
+| src/components/shared/preference-form.tsx | 성별 선택 UI 섹션 추가 (남성부/여성부/혼성부 pill 버튼) + state/toggle/save 연결 | 수정 |
+| src/app/api/web/games/route.ts | preferred_regions/skill_levels/days/time_slots 전부 읽어서 필터 적용. 지역은 preferred_regions 우선(user.city fallback). 실력은 서비스로 전달. 요일/시간대는 JS 후처리 필터 | 수정 |
+| src/lib/services/game.ts | GameListFilters에 skillLevels 파라미터 추가 + where 조건에 skill_level IN 필터 추가 | 수정 |
+| src/app/api/web/tournaments/route.ts | preferred_regions/preferred_gender 읽어서 필터 적용. 지역은 preferred_regions 우선 | 수정 |
+| src/lib/services/tournament.ts | TournamentListFilters에 gender 파라미터 추가 + where 조건에 gender IN 필터 추가 | 수정 |
 
 tester 참고:
-- 맞춤 설정 페이지(/profile/preferences)에서 "메뉴 설정" 섹션 확인: 8개 메뉴 토글 표시, 홈/경기찾기는 "필수" 뱃지 + 비활성 토글
-- 메뉴 숨기기 테스트: 랭킹/단체 등을 끄고 저장 → PC 사이드네비 + 모바일 슬라이드 메뉴에서 해당 메뉴 사라지는지 확인
-- 테마 설정: 다크/라이트/시스템 3가지 선택 → 즉시 반영되는지 확인
-- 텍스트 크기: 기본/큰 글씨 2가지 선택 → 즉시 반영되는지 확인
-- 주의: prisma generate가 필요 (개발서버가 엔진 파일을 잠그고 있어 실행 실패 — 개발서버 재시작 후 npx prisma generate 실행 필요)
-- 주의: hidden_menus DB 컬럼이 아직 없으므로 npx prisma db push도 필요
+- 테스트 방법: /profile/preferences에서 각 항목 선택 후 저장 → 맞춤 필터 ON 상태에서 /games, /tournaments 페이지 확인
+- 지역(preferred_regions): 맞춤 설정에서 "서울" 선택 → 경기/대회 목록에 서울 지역만 표시
+- 실력(preferred_skill_levels): 맞춤 설정에서 "중" 선택 → 경기 목록에 skill_level="mid"인 경기만 표시
+- 요일(preferred_days): "토","일" 선택 → 경기 목록에 토/일에 열리는 경기만 표시
+- 시간대(preferred_time_slots): "저녁" 선택 → 18~22시 경기만 표시
+- 성별(preferred_gender): "남성부" 선택 → 대회 목록에 gender="male" 대회만 표시
+- 아무것도 선택 안 하면(빈 배열) 해당 필터 미적용 (전체 표시)
+- 주의: preferred_gender DB 컬럼이 새로 추가되므로 npx prisma db push 필요
 
-주의사항 (reviewer용):
-- 보호 메뉴(홈, 경기찾기)는 protected: true로 토글 비활성화 + opacity-50 처리
-- 테마/텍스트 크기는 localStorage만 사용 (DB 저장 불필요)
-
-#### 수정 이력
-| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
-|------|------|----------|----------|------|
-| 1차 | 2026-04-02 | handleSave에서 mode="settings"일 때 저장 성공 후 window.location.reload() 추가 | preference-form.tsx | PM 요청: 메뉴 설정 저장 후 사이드바에 즉시 반영 안 되는 문제 해결
-- hidden_menus는 DB에 JSON 배열로 저장, slug(href) 기반 (예: ["/rankings", "/organizations"])
+reviewer 참고:
+- 요일/시간대는 Prisma에서 DOW/HOUR 추출이 어려워 JS 후처리(.filter)로 구현
+- 심야(night) 시간대는 22~6시로 자정을 넘기므로 start > end 특수 처리
+- 지역 우선순위: preferred_regions > user.city (fallback)
 
 ## 수정 요청 (debugger)
 
@@ -197,6 +195,159 @@ tester 참고:
 | 20 | 데이터 흐름 일관성 (snake_case 키 매칭) | 통과 | me API(hidden_menus) -> layout user state(hidden_menus) -> 필터링 |
 
 종합: 20개 중 20개 통과 / 0개 실패
+
+---
+
+## 테스트 결과 (tester) - 2026-04-02 맞춤 필터 미동작 5건 수정 후 검증
+
+### tsc 타입 체크
+- 신규 에러 없음 (기존 lucide-react 에러 1건만 존재 -- 무시 대상)
+
+### 검증 항목별 결과
+
+| # | 테스트 항목 | 결과 | 비고 |
+|---|-----------|------|------|
+| 1 | tsc --noEmit 신규 에러 없음 | 통과 | lucide-react 기존 에러 1건만 |
+| 2 | 지역 필터 - games API에서 preferred_regions select | 통과 | route.ts 55행 preferred_regions select 확인 |
+| 3 | 지역 필터 - preferred_regions 우선, user.city fallback | 통과 | route.ts 66~74행: regions 배열이면 우선 사용, 없으면 city.split(",") |
+| 4 | 지역 필터 - tournaments API에서 preferred_regions select | 통과 | route.ts 46행 preferred_regions select 확인 |
+| 5 | 지역 필터 - tournaments API에서도 동일 우선순위 적용 | 통과 | route.ts 52~59행: regions 우선, city fallback |
+| 6 | 실력 필터 - games API에서 preferred_skill_levels select | 통과 | route.ts 58행 select 확인 |
+| 7 | 실력 필터 - listGames에 skillLevels 파라미터 전달 | 통과 | route.ts 134행 skillLevels: preferredSkillLevels 전달 |
+| 8 | 실력 필터 - game.ts에 skillLevels where 조건 | 통과 | game.ts 59~61행: skill_level IN 조건 |
+| 9 | 요일 필터 - games API에서 preferred_days select | 통과 | route.ts 59행 select 확인 |
+| 10 | 요일 필터 - DAY_CODE_MAP 정의 (sun:0~sat:6) | 통과 | route.ts 145~147행 |
+| 11 | 요일 필터 - JS 후처리 .filter()로 요일 체크 | 통과 | route.ts 159~167행: getDay()로 요일 추출 후 allowedDows와 비교 |
+| 12 | 요일 필터 - scheduled_at 없으면 통과 (필터 안 함) | 통과 | route.ts 163행: !g.scheduled_at → return true |
+| 13 | 시간대 필터 - games API에서 preferred_time_slots select | 통과 | route.ts 61행 select 확인 |
+| 14 | 시간대 필터 - TIME_SLOT_RANGES 정의 (오전6~12/오후12~18/저녁18~22/심야22~6) | 통과 | route.ts 149~154행 |
+| 15 | 시간대 필터 - JS 후처리 .filter()로 시간대 체크 | 통과 | route.ts 170~184행: getHours()로 시간 추출 후 범위 비교 |
+| 16 | 시간대 필터 - 심야(night) 자정 넘김 특수 처리 | 통과 | route.ts 180행: start > end이면 hour >= start OR hour < end |
+| 17 | 성별 필터 - Prisma User 모델에 preferred_gender 필드 | 통과 | schema.prisma: Json @default("[]") @map("preferred_gender") |
+| 18 | 성별 필터 - preferences API GET에 preferred_gender select | 통과 | route.ts 38행 |
+| 19 | 성별 필터 - preferences API PATCH Zod 스키마에 preferred_gender | 통과 | z.array(z.string()).optional() 18행 |
+| 20 | 성별 필터 - preferences API PATCH updateData에 preferred_gender 저장 | 통과 | route.ts 87행 |
+| 21 | 성별 필터 - preference-form GENDER_OPTIONS 정의 | 통과 | 남성부/여성부/혼성부 (male/female/mixed) |
+| 22 | 성별 필터 - preference-form 성별 선택 UI + toggleGender + save | 통과 | state(selectedGenders) + toggle + handleSave에 preferred_gender 포함 |
+| 23 | 성별 필터 - tournaments API에서 preferred_gender select | 통과 | route.ts 48행 |
+| 24 | 성별 필터 - tournaments API에서 listTournaments에 gender 전달 | 통과 | route.ts 83행: gender: preferredGender |
+| 25 | 성별 필터 - tournament.ts에 gender where 조건 | 통과 | tournament.ts 247~249행: gender IN 조건 + mode insensitive |
+| 26 | 데이터 흐름 - 모든 5개 필터의 UI→API→DB→읽기→적용 연결 | 통과 | preference-form → PATCH → DB → 각 API GET에서 select → 필터 적용 |
+| 27 | prefer=true일 때만 필터 동작 | 통과 | games: 46행 if(prefer && !city), tournaments: 36행 if(prefer) |
+| 28 | prefer=false이면 필터 무시 | 통과 | prefer 조건 블록 밖이므로 모든 preferred* 변수가 undefined → 필터 미적용 |
+| 29 | 빈 배열이면 해당 필터 미적용 | 통과 | 모든 필터에 Array.isArray + .length > 0 체크 후 적용 |
+| 30 | 명시적 city 파라미터 우선 (games) | 통과 | route.ts 46행: prefer && !city 조건으로 명시적 city 있으면 맞춤 지역 무시 |
+
+종합: 30개 중 30개 통과 / 0개 실패
+
+---
+
+## 테스트 결과 (tester) - 2026-04-02 맞춤 설정 시스템 전수조사
+
+### 데이터 흐름 추적 결과
+
+각 설정 항목에 대해 다음 흐름을 추적:
+```
+preference-form.tsx (UI) → /api/web/preferences PATCH (DB 저장) → DB User 필드 → 각 API에서 읽기 → 필터링 적용
+```
+
+| # | 설정 항목 | 필드명 | UI 저장 | DB 저장 | 적용 페이지 | 동작 여부 | 비고 |
+|---|---------|-------|--------|--------|-----------|---------|------|
+| 1 | 종별/디비전 | preferred_divisions | 통과 (361행) | 통과 (74행) | 대회 목록 | 통과 | tournaments API가 preferred_divisions 읽어서 divisions 필터로 전달 |
+| 2 | 경기 유형 | preferred_game_types | 통과 (363행) | 통과 (76행) | 경기 목록 | 통과 | games API가 preferred_game_types 읽어서 gameTypes 필터로 전달 |
+| 3 | 실력 수준 | preferred_skill_levels | 통과 (367행) | 통과 (81행) | 경기 목록 | **실패** | games API에서 preferred_skill_levels를 전혀 읽지 않음. 저장만 되고 필터에 미사용 |
+| 4 | 요일 | preferred_days | 통과 (365행) | 통과 (79행) | 경기/대회 목록 | **실패** | games/tournaments API에서 preferred_days를 전혀 읽지 않음. dashboard에서 표시만 |
+| 5 | 시간대 | preferred_time_slots | 통과 (366행) | 통과 (80행) | 경기 목록 | **실패** | games API에서 preferred_time_slots를 전혀 읽지 않음. 저장만 됨 |
+| 6 | 게시판 카테고리 | preferred_board_categories | 통과 (362행) | 통과 (75행) | 커뮤니티 | 통과 | community API가 preferred_board_categories 읽어서 category IN 필터 적용 |
+| 7 | 지역 | preferred_regions | 통과 (364행) | 통과 (78행) | 경기/대회 목록 | **실패** | games API는 user.city(프로필 도시)만 읽음, preferred_regions를 무시. tournaments API도 동일 |
+| 8 | 성별 | preferred_gender | N/A | N/A | N/A | **미구현** | DB 필드 자체가 없음. Prisma 스키마에 preferred_gender 컬럼 없음. UI에도 성별 선택 섹션 없음 |
+| 9 | 메뉴 토글 | hidden_menus | 통과 (369행) | 통과 (85행) | 사이드바/슬라이드메뉴 | 통과 | layout.tsx + slide-menu.tsx에서 필터링 적용 |
+| 10 | 맞춤 필터 ON/OFF | prefer_filter_enabled | 통과 (371행) | 통과 (83행) | 전체 | 통과 | me API 응답 -> layout.tsx -> setLoggedIn -> preferFilter context -> 각 페이지에서 prefer=true 전달 |
+
+### 상세 분석: 동작하는 항목 (6개)
+
+**1. preferred_divisions (종별/디비전)**
+- UI: preference-form.tsx 361행에서 PATCH body에 포함
+- DB: preferences API 74행에서 updateData에 저장
+- 적용: tournaments API 40~55행에서 user.preferred_divisions 조회 -> listTournaments에 divisions 파라미터로 전달
+- 서비스: tournament.ts 232~241행에서 OR 조건으로 divisions 필터링
+- 흐름: 완전 연결됨
+
+**2. preferred_game_types (경기 유형)**
+- UI: preference-form.tsx 363행에서 PATCH body에 포함
+- DB: preferences API 76행에서 updateData에 저장
+- 적용: games API 56~61행에서 user.preferred_game_types 조회 -> listGames에 gameTypes 파라미터로 전달
+- 서비스: game.ts 44~46행에서 game_type IN 조건으로 필터링
+- 흐름: 완전 연결됨
+
+**6. preferred_board_categories (게시판 카테고리)**
+- UI: preference-form.tsx 362행에서 PATCH body에 포함
+- DB: preferences API 75행에서 updateData에 저장
+- 적용: community API 42~49행에서 user.preferred_board_categories 조회 -> category IN 필터 적용
+- 흐름: 완전 연결됨
+
+**9. hidden_menus (메뉴 토글)**
+- 이전 테스트에서 검증 완료. 완전 연결됨.
+
+**10. prefer_filter_enabled (맞춤 필터 ON/OFF)**
+- me API에서 prefer_filter_enabled 반환 -> layout.tsx에서 setLoggedIn(true, preferEnabled)로 context 설정
+- 각 페이지(games-content, tournaments-content, community-content)에서 preferFilter가 true일 때만 prefer=true 쿼리 전달
+- OFF 시 prefer 파라미터가 없으므로 모든 필터 무시됨
+- 흐름: 완전 연결됨
+
+### 상세 분석: 미동작 항목 (4개)
+
+**3. preferred_skill_levels (실력 수준) -- 저장만 되고 필터 미적용**
+- 저장: preferences API에서 DB에 정상 저장됨
+- 끊기는 곳: `/api/web/games/route.ts`에서 user 조회 시 `preferred_skill_levels`를 select하지 않음 (46~47행: city와 preferred_game_types만 select)
+- game.ts 서비스에도 skillLevels 필터 파라미터가 없음
+- home.ts의 추천 경기에서는 과거 신청 이력의 skill_level을 사용하지만, 맞춤 설정의 preferred_skill_levels는 사용하지 않음
+- 수정 방안: games API에서 preferred_skill_levels도 select -> listGames에 skillLevels 파라미터 추가 -> game.ts에서 skill_level IN 조건 추가
+
+**4. preferred_days (요일) -- 저장만 되고 필터 미적용**
+- 저장: preferences API에서 DB에 정상 저장됨
+- 끊기는 곳: games/tournaments API 모두 preferred_days를 읽지 않음
+- dashboard API에서 읽어서 응답에 포함하지만, 표시 용도일 뿐 필터링에 미사용
+- 수정 방안: games API에서 preferred_days 조회 -> scheduled_at의 요일 추출 -> DOW 조건 필터 추가 (구현 복잡도 높음: Prisma에서 요일 추출 쿼리 필요)
+
+**5. preferred_time_slots (시간대) -- 저장만 되고 필터 미적용**
+- 저장: preferences API에서 DB에 정상 저장됨
+- 끊기는 곳: games API에서 preferred_time_slots를 전혀 읽지 않음
+- 수정 방안: games API에서 preferred_time_slots 조회 -> scheduled_at의 시간 추출 -> 시간대별 범위 조건 추가 (구현 복잡도 높음)
+
+**7. preferred_regions (지역) -- 저장만 되고 필터 미적용**
+- 저장: preferences API에서 DB에 정상 저장됨
+- 끊기는 곳: games API 44~53행에서 `user.city` (프로필의 도시)만 읽고, `preferred_regions`는 select하지 않음. tournaments API도 동일하게 `user.city`만 사용
+- 현재 동작: prefer=true 시 user.city("서울,경기" 같은 프로필 도시)로 필터링
+- 문제: 맞춤 설정에서 별도로 지역(17개 광역시/도)을 선택해도 무시됨. 프로필의 도시만 사용됨
+- 수정 방안: games/tournaments API에서 preferred_regions를 추가 select -> user.city 대신 preferred_regions 우선 사용
+
+**8. preferred_gender (성별) -- 완전 미구현**
+- DB 필드: Prisma 스키마에 preferred_gender 컬럼 없음
+- UI: preference-form.tsx에 성별 선택 섹션 없음 (activeGender state가 있지만 종별 탭 전환용으로만 사용)
+- API: preferences API에 gender 관련 Zod 스키마/로직 없음
+- 수정 방안: (1) Prisma 스키마에 preferred_gender Json 필드 추가 (2) preferences API에 Zod 스키마 추가 (3) preference-form에 성별 선택 UI 추가 (4) games/tournaments API에서 gender 필터 적용
+
+### 종합
+
+| 구분 | 개수 | 항목 |
+|------|------|------|
+| 정상 동작 | 5개 | 종별, 경기유형, 게시판, 메뉴토글, ON/OFF토글 |
+| 저장만 됨 (필터 미적용) | 4개 | 실력수준, 요일, 시간대, 지역 |
+| 완전 미구현 | 1개 | 성별 |
+
+10개 중 5개 동작 / 4개 저장만 / 1개 미구현
+
+### 수정 요청
+
+| 요청자 | 파일명 | 문제 설명 | 상태 |
+|--------|-------|----------|------|
+| tester | src/app/api/web/games/route.ts | preferred_regions를 읽지 않음. user.city 대신 preferred_regions 우선 사용하도록 수정 필요 | 대기 |
+| tester | src/app/api/web/games/route.ts + src/lib/services/game.ts | preferred_skill_levels를 읽지 않음. select에 추가 + 서비스에 skillLevels 필터 파라미터 추가 필요 | 대기 |
+| tester | src/app/api/web/games/route.ts | preferred_days를 읽지 않음. 요일 기반 필터 구현 필요 (구현 복잡도 높음) | 대기 |
+| tester | src/app/api/web/games/route.ts | preferred_time_slots를 읽지 않음. 시간대 기반 필터 구현 필요 (구현 복잡도 높음) | 대기 |
+| tester | src/app/api/web/tournaments/route.ts | preferred_regions를 읽지 않음. user.city 대신 preferred_regions 우선 사용하도록 수정 필요 | 대기 |
+| tester | 전체 (스키마+API+UI) | preferred_gender 완전 미구현. DB 필드부터 UI까지 전체 구현 필요 | 대기 |
 
 ---
 

@@ -14,6 +14,8 @@ const preferencesSchema = z.object({
   preferred_days: z.array(z.string()).optional(),
   preferred_time_slots: z.array(z.string()).optional(),
   preferred_skill_levels: z.array(z.string()).optional(),
+  // 맞춤 성별 필터 (["male","female","mixed"] 등)
+  preferred_gender: z.array(z.string()).optional(),
   // 맞춤 보기 토글 ON/OFF 상태 (true=켜짐, false=꺼짐)
   prefer_filter_enabled: z.boolean().optional(),
   // 숨긴 메뉴 slug 배열 (예: ["/rankings", "/organizations"])
@@ -33,6 +35,7 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
         preferred_days: true,
         preferred_time_slots: true,
         preferred_skill_levels: true,
+        preferred_gender: true,
         hidden_menus: true,
       },
     });
@@ -47,6 +50,7 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
       preferred_days: user.preferred_days ?? [],
       preferred_time_slots: user.preferred_time_slots ?? [],
       preferred_skill_levels: user.preferred_skill_levels ?? [],
+      preferred_gender: user.preferred_gender ?? [],
       hidden_menus: user.hidden_menus ?? [],
     });
   } catch (e) {
@@ -67,7 +71,7 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       return apiError("유효하지 않은 입력입니다.", 422);
     }
 
-    const { preferred_divisions, preferred_board_categories, preferred_game_types, preferred_regions, preferred_days, preferred_time_slots, preferred_skill_levels, prefer_filter_enabled, hidden_menus } = parsed.data;
+    const { preferred_divisions, preferred_board_categories, preferred_game_types, preferred_regions, preferred_days, preferred_time_slots, preferred_skill_levels, preferred_gender, prefer_filter_enabled, hidden_menus } = parsed.data;
 
     // 변경할 필드만 모아서 업데이트 (undefined인 필드는 건너뜀)
     const updateData: Record<string, unknown> = {};
@@ -79,6 +83,8 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     if (preferred_days !== undefined) updateData.preferred_days = preferred_days;
     if (preferred_time_slots !== undefined) updateData.preferred_time_slots = preferred_time_slots;
     if (preferred_skill_levels !== undefined) updateData.preferred_skill_levels = preferred_skill_levels;
+    // 맞춤 성별 필터
+    if (preferred_gender !== undefined) updateData.preferred_gender = preferred_gender;
     // 맞춤 보기 토글 상태를 DB에 저장 (OFF→false, ON→true)
     if (prefer_filter_enabled !== undefined) updateData.prefer_filter_enabled = prefer_filter_enabled;
     // 숨긴 메뉴 목록 저장
@@ -96,6 +102,7 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
           preferred_days: true,
           preferred_time_slots: true,
           preferred_skill_levels: true,
+          preferred_gender: true,
           hidden_menus: true,
         },
       });
@@ -124,6 +131,7 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
         preferred_days: true,
         preferred_time_slots: true,
         preferred_skill_levels: true,
+        preferred_gender: true,
         hidden_menus: true,
       },
     });

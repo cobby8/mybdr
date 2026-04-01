@@ -85,6 +85,13 @@ const SKILL_LEVELS = [
   { code: "highest", label: "최상" },
 ] as const;
 
+// 맞춤 성별 필터 (대회의 gender 필드와 매칭)
+const GENDER_OPTIONS = [
+  { code: "male", label: "남성부" },
+  { code: "female", label: "여성부" },
+  { code: "mixed", label: "혼성부" },
+] as const;
+
 // --- Props 타입 정의 ---
 // mode: "onboarding"은 온보딩 흐름 (스킵 가능), "settings"는 프로필 설정 페이지용
 export interface PreferenceFormProps {
@@ -252,6 +259,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  // 맞춤 성별 필터 (male/female/mixed)
+  const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
   // 숨긴 메뉴 slug 배열 (예: ["/rankings", "/organizations"])
   const [hiddenMenus, setHiddenMenus] = useState<string[]>([]);
 
@@ -279,6 +288,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       setSelectedDays(data.preferred_days ?? []);
       setSelectedTimeSlots(data.preferred_time_slots ?? []);
       setSelectedSkills(data.preferred_skill_levels ?? []);
+      setSelectedGenders(data.preferred_gender ?? []);
       setHiddenMenus(data.hidden_menus ?? []);
     } catch {
       // 로드 실패 시 빈 상태로 시작 (신규 유저이거나 네트워크 문제)
@@ -341,6 +351,13 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     );
   };
 
+  // 성별 토글
+  const toggleGender = (code: string) => {
+    setSelectedGenders((prev) =>
+      prev.includes(code) ? prev.filter((g) => g !== code) : [...prev, code]
+    );
+  };
+
   // 메뉴 숨기기/보이기 토글 (hidden_menus에 추가/제거)
   const toggleMenuVisibility = (href: string) => {
     setHiddenMenus((prev) =>
@@ -365,6 +382,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           preferred_days: selectedDays,
           preferred_time_slots: selectedTimeSlots,
           preferred_skill_levels: selectedSkills,
+          // 맞춤 성별 필터
+          preferred_gender: selectedGenders,
           // 숨긴 메뉴 목록
           hidden_menus: hiddenMenus,
           // 토글 ON/OFF 상태를 API에 전달 (맞춤 보기 활성화 여부)
@@ -622,6 +641,31 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               ))}
             </div>
           </div>
+        </TossCard>
+      </div>
+
+      {/* ========================================
+       * 섹션 3-2: 대회 성별 필터
+       * 남성부 / 여성부 / 혼성부 pill 버튼
+       * ======================================== */}
+      <div>
+        <TossSectionHeader title="대회 성별" />
+        <TossCard>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-3">
+            관심 있는 성별 부문을 선택하세요. 대회 목록에서 필터링됩니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {GENDER_OPTIONS.map(({ code, label }) => (
+              <PillButton key={code} selected={selectedGenders.includes(code)} onClick={() => toggleGender(code)}>
+                {label}
+              </PillButton>
+            ))}
+          </div>
+          {selectedGenders.length > 0 && (
+            <p className="mt-3 text-sm text-[var(--color-text-muted)]">
+              <span className="font-medium text-[var(--color-primary)]">{selectedGenders.length}개</span> 선택됨
+            </p>
+          )}
         </TossCard>
       </div>
 

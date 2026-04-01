@@ -85,6 +85,8 @@ export interface TournamentListFilters {
   cities?: string[];
   /** 맞춤 종별 필터 -- Json 배열 교집합 매칭 (prefer=true 시 사용) */
   divisions?: string[];
+  /** 맞춤 성별 필터 -- tournament.gender IN (...) 조건 (prefer=true 시 사용) */
+  gender?: string[];
   take?: number;
 }
 
@@ -212,7 +214,7 @@ function toMyTournamentItem(
  * 대회 목록 (공개) — tournaments/page.tsx, 홈페이지에서 사용
  */
 export async function listTournaments(filters: TournamentListFilters = {}) {
-  const { status, cities, divisions, take = 60 } = filters;
+  const { status, cities, divisions, gender, take = 60 } = filters;
 
   // where 조건을 동적으로 구성
   const where: Record<string, unknown> = {
@@ -238,6 +240,11 @@ export async function listTournaments(filters: TournamentListFilters = {}) {
         })),
       },
     ];
+  }
+
+  // 맞춤 성별 필터: tournament.gender가 선택한 성별 중 하나와 일치
+  if (gender && gender.length > 0) {
+    where.gender = { in: gender, mode: "insensitive" };
   }
 
   return prisma.tournament.findMany({

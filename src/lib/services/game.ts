@@ -18,6 +18,8 @@ export interface GameListFilters {
   cities?: string[];
   /** 맞춤 경기 유형 필터 — game_type IN (...) 조건 (prefer=true 시 사용) */
   gameTypes?: number[];
+  /** 맞춤 실력 수준 필터 — skill_level IN (...) 조건 (prefer=true 시 사용) */
+  skillLevels?: string[];
   scheduledAt?: { gte?: Date; lt?: Date };
   take?: number;
 }
@@ -30,7 +32,7 @@ export interface GameListFilters {
  * 경기 목록 조회 (필터 + 페이지네이션)
  */
 export async function listGames(filters: GameListFilters = {}) {
-  const { q, type, city, cities, gameTypes, scheduledAt, take = 60 } = filters;
+  const { q, type, city, cities, gameTypes, skillLevels, scheduledAt, take = 60 } = filters;
 
   const where: Prisma.gamesWhereInput = {
     // 취소(4) 제외
@@ -51,6 +53,11 @@ export async function listGames(filters: GameListFilters = {}) {
     where.city = { in: cities, mode: "insensitive" };
   } else if (city && city !== "all") {
     where.city = { contains: city, mode: "insensitive" };
+  }
+
+  // 맞춤 실력 수준 필터: skill_level이 선택한 레벨 중 하나와 일치하는 경기만 표시
+  if (skillLevels && skillLevels.length > 0) {
+    where.skill_level = { in: skillLevels };
   }
 
   if (scheduledAt) where.scheduled_at = scheduledAt;
