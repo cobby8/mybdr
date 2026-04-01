@@ -468,13 +468,16 @@ export async function hasAccessToTournament(
   tournamentId: string,
   userId: bigint
 ): Promise<boolean> {
-  const [isOrganizer, adminMember] = await Promise.all([
+  const [isOrganizer, adminMember, isRecorder] = await Promise.all([
     prisma.tournament.findFirst({
       where: { id: tournamentId, organizerId: userId },
     }),
     prisma.tournamentAdminMember.findFirst({
       where: { tournamentId, userId, isActive: true },
     }),
+    prisma.tournament_recorders.findFirst({
+      where: { tournamentId, recorderId: userId, isActive: true },
+    }),
   ]);
-  return !!(isOrganizer || adminMember);
+  return !!(isOrganizer || adminMember || isRecorder);
 }
