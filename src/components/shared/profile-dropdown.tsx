@@ -15,44 +15,12 @@ import { usePathname } from "next/navigation";
  * 사용처: layout.tsx 헤더 우측 프로필 아이콘 자리
  * ============================================================ */
 
-// 4개 카테고리와 하위 링크 정의
-const menuCategories = [
-  {
-    id: "basketball",
-    label: "내 농구",
-    icon: "sports_basketball",
-    items: [
-      { href: "/profile/basketball", label: "소속 팀 · 경기 · 대회", icon: "groups" },
-      { href: "/profile/weekly-report", label: "주간 리포트", icon: "bar_chart" },
-    ],
-  },
-  {
-    id: "growth",
-    label: "내 성장",
-    icon: "trending_up",
-    items: [
-      { href: "/profile/growth", label: "XP / 레벨 · 뱃지 · 도장", icon: "star" },
-    ],
-  },
-  {
-    id: "info",
-    label: "내 정보",
-    icon: "person",
-    items: [
-      { href: "/profile/edit", label: "프로필 편집", icon: "edit" },
-      { href: "/profile/preferences", label: "선호 설정", icon: "tune" },
-    ],
-  },
-  {
-    id: "account",
-    label: "계정",
-    icon: "settings",
-    items: [
-      { href: "/profile/subscription", label: "구독 관리", icon: "card_membership" },
-      { href: "/profile/payments", label: "결제 내역", icon: "receipt_long" },
-      { href: "/profile/notification-settings", label: "알림 설정", icon: "notifications" },
-    ],
-  },
+// 4개 카테고리 (각각 페이지로 이동, 하위 항목 없음)
+const menuItems = [
+  { href: "/profile/basketball", label: "내 농구", icon: "sports_basketball", subtitle: "팀 · 경기 · 대회 · 주간 리포트" },
+  { href: "/profile/growth", label: "내 성장", icon: "trending_up", subtitle: "XP · 레벨 · 뱃지 · 도장깨기" },
+  { href: "/profile/edit", label: "내 정보", icon: "person", subtitle: "프로필 편집 · 선호 설정" },
+  { href: "/profile/subscription", label: "계정", icon: "settings", subtitle: "구독 · 결제 · 알림 설정" },
 ];
 
 interface ProfileDropdownProps {
@@ -155,52 +123,38 @@ export function ProfileDropdown({ name }: ProfileDropdownProps) {
             </span>
           </Link>
 
-          {/* 4개 카테고리: 플랫 목록 (아코디언 아님) */}
-          {menuCategories.map((cat) => (
-            <div key={cat.id}>
-              {/* 카테고리 헤더 */}
-              <div
-                className="flex items-center gap-2 px-4 py-2"
-                style={{ backgroundColor: "var(--color-surface)" }}
+          {/* 4개 카테고리: 각각 페이지로 이동하는 심플 링크 */}
+          <div className="py-1">
+            {menuItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface)]"
               >
                 <span
-                  className="material-symbols-outlined text-base"
+                  className="material-symbols-outlined text-lg"
                   style={{ color: "var(--color-text-muted)" }}
                 >
-                  {cat.icon}
+                  {item.icon}
                 </span>
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: "var(--color-text-tertiary)" }}
-                >
-                  {cat.label}
-                </span>
-              </div>
-
-              {/* 하위 링크 목록 */}
-              {cat.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--color-surface)]"
-                >
-                  <span
-                    className="material-symbols-outlined text-base"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    {item.icon}
-                  </span>
-                  <span
-                    className="text-sm"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
                     {item.label}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ))}
+                  </p>
+                  <p className="text-[11px]" style={{ color: "var(--color-text-muted)" }}>
+                    {item.subtitle}
+                  </p>
+                </div>
+                <span
+                  className="material-symbols-outlined text-sm"
+                  style={{ color: "var(--color-text-disabled)" }}
+                >
+                  chevron_right
+                </span>
+              </Link>
+            ))}
+          </div>
 
           {/* 구분선 + 로그아웃 */}
           <div
