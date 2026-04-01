@@ -35,7 +35,7 @@ async function handlePost(
 
   // 경기 존재 확인 (해당 대회 소속)
   const match = await prisma.tournamentMatch.findFirst({
-    where: { id: match_id, tournamentId: tournament_id },
+    where: { id: BigInt(match_id), tournamentId: tournament_id },
     select: { id: true },
   });
   if (!match) return apiError("Match not found in tournament", 404, "NOT_FOUND");
