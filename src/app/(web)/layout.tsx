@@ -22,6 +22,11 @@ const SlideMenu = dynamic(
   () => import("@/components/shared/slide-menu").then((m) => m.SlideMenu),
   { ssr: false }
 );
+/* ProfileAccordion: 사이드네비 하단 프로필 4카테고리 아코디언 */
+const ProfileAccordion = dynamic(
+  () => import("@/components/shared/profile-accordion").then((m) => m.ProfileAccordion),
+  { ssr: false }
+);
 const ThemeToggle = dynamic(
   () => import("@/components/shared/theme-toggle").then((m) => m.ThemeToggle),
   { ssr: false }
@@ -434,17 +439,20 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        {/* 하단: 관리 링크 + 로그인 버튼 (프로필/로그아웃은 프로필 페이지 안에서만) */}
-        <div className="border-t border-[var(--color-border)] p-4 space-y-2">
-          {/* 관리 링크: 로그인 유저에게 통합 "관리" 1개만 표시 */}
-          {user && (
-            <Link href="/admin"
-              className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors">
-              <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
-              관리
-            </Link>
-          )}
-          {!user && (
+        {/* 하단: 프로필 아코디언 (로그인) 또는 로그인 버튼 (비로그인) */}
+        <div className="border-t border-[var(--color-border)] p-3 space-y-2">
+          {user ? (
+            <>
+              {/* 프로필 4카테고리 아코디언 메뉴 */}
+              <ProfileAccordion name={user.name} />
+              {/* 관리 링크: 아코디언 아래에 배치 */}
+              <Link href="/admin"
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors">
+                <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
+                관리
+              </Link>
+            </>
+          ) : (
             <Link href="/login" className="block w-full rounded-xl bg-[var(--color-primary)] py-3 text-center text-sm font-bold text-white">
               로그인
             </Link>

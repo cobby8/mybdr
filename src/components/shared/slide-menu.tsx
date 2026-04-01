@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { TextSizeToggle } from "@/components/shared/text-size-toggle";
 import { PushNotificationToggle } from "@/components/shared/push-notification-toggle";
+import { ProfileAccordion } from "@/components/shared/profile-accordion";
 
 /* ============================================================
  * 슬라이드 메뉴 네비게이션 항목 정의
@@ -148,10 +149,14 @@ export function SlideMenu({
           })}
         </nav>
 
-        {/* 하단: 관리 링크 + 유틸리티 버튼 + Settings + Logout */}
-        <div className="border-t border-[var(--color-border)] p-4">
-          {/* 관리 링크: 로그인 유저에게 통합 "관리" 1개만 표시 */}
-          {/* /admin layout에서 권한별 메뉴를 필터링하므로 여기서는 단순 링크만 */}
+        {/* 하단: 프로필 아코디언 + 관리 + 유틸리티 */}
+        <div className="border-t border-[var(--color-border)] p-4 space-y-2">
+          {/* 프로필 4카테고리 아코디언 (로그인 시) */}
+          {isLoggedIn && (
+            <ProfileAccordion name={name} onNavigate={onClose} />
+          )}
+
+          {/* 관리 링크 */}
           {isLoggedIn && (
             <Link
               href="/admin"
@@ -163,32 +168,13 @@ export function SlideMenu({
             </Link>
           )}
 
-          {/* 테마 전환 + 글씨 크기 버튼 (모바일 슬라이드 메뉴용) */}
-          <div className="mb-2 mt-2 flex items-center gap-2 px-2">
+          {/* 테마 전환 + 글씨 크기 버튼 */}
+          <div className="flex items-center gap-2 px-2">
             <ThemeToggle />
             <TextSizeToggle />
           </div>
-          {/* 푸시 알림 권한 요청 토글 (브라우저 지원 시에만 표시) */}
-          <div className="mb-2">
-            <PushNotificationToggle />
-          </div>
-          <Link
-            href="/profile"
-            onClick={onClose}
-            className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
-          >
-            <span className="material-symbols-outlined text-lg">settings</span>
-            <span>설정</span>
-          </Link>
-          {isLoggedIn && (
-            <button
-              onClick={() => { handleLogout(); onClose(); }}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
-            >
-              <span className="material-symbols-outlined text-lg">logout</span>
-              <span>로그아웃</span>
-            </button>
-          )}
+          {/* 푸시 알림 권한 요청 토글 */}
+          <PushNotificationToggle />
         </div>
       </div>
     </>
