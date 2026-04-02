@@ -49,8 +49,17 @@ export async function listGames(filters: GameListFilters = {}) {
 
   // 맞춤 지역(cities) 우선, 단일 도시(city) 차선 — 둘 다 있으면 cities 사용
   if (cities && cities.length > 0) {
-    // 여러 도시를 OR 조건으로 묶어 검색
-    where.city = { in: cities, mode: "insensitive" };
+    // 선택한 지역이거나 지역이 아직 미정(null)인 경기도 포함
+    // AND로 감싸서 status 등 다른 조건과 충돌하지 않도록 한다
+    where.AND = [
+      ...(Array.isArray(where.AND) ? (where.AND as Prisma.gamesWhereInput[]) : []),
+      {
+        OR: [
+          { city: { in: cities, mode: "insensitive" } },
+          { city: null },
+        ],
+      },
+    ];
   } else if (city && city !== "all") {
     where.city = { contains: city, mode: "insensitive" };
   }
