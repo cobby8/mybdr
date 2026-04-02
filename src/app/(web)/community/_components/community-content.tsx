@@ -243,35 +243,45 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
       </form>
 
       {/* 카테고리 탭: 토스 스타일 pill 탭 (가로 스크롤) */}
+      {/* 맞춤 필터 ON + preferredCategories가 있으면 해당 카테고리 탭만 표시 */}
       <div
         className="mb-6 overflow-x-auto"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         <div className="flex gap-2 min-w-max">
-          {categoryTabs.map((tab) => {
-            const isActive = category === tab.key;
-            return (
-              <button
-                key={tab.key ?? "all"}
-                type="button"
-                onClick={() => handleCategoryChange(tab.key)}
-                className="px-4 py-2 text-sm font-semibold rounded-full whitespace-nowrap transition-all"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: "var(--color-primary)",
-                        color: "#FFFFFF",
-                      }
-                    : {
-                        backgroundColor: "var(--color-surface)",
-                        color: "var(--color-text-muted)",
-                      }
-                }
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+          {categoryTabs
+            .filter((tab) => {
+              // 맞춤 필터가 꺼져있거나 선호 카테고리가 없으면 전체 탭 표시
+              if (!preferFilter || preferredCategories.length === 0) return true;
+              // "전체" 탭(key=null)은 항상 표시
+              if (tab.key === null) return true;
+              // 선호 카테고리에 포함된 탭만 표시
+              return preferredCategories.includes(tab.key);
+            })
+            .map((tab) => {
+              const isActive = category === tab.key;
+              return (
+                <button
+                  key={tab.key ?? "all"}
+                  type="button"
+                  onClick={() => handleCategoryChange(tab.key)}
+                  className="px-4 py-2 text-sm font-semibold rounded-full whitespace-nowrap transition-all"
+                  style={
+                    isActive
+                      ? {
+                          backgroundColor: "var(--color-primary)",
+                          color: "#FFFFFF",
+                        }
+                      : {
+                          backgroundColor: "var(--color-surface)",
+                          color: "var(--color-text-muted)",
+                        }
+                  }
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
         </div>
       </div>
 

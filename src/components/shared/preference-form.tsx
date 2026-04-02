@@ -86,10 +86,10 @@ const SKILL_LEVELS = [
 ] as const;
 
 // 맞춤 성별 필터 (대회의 gender 필드와 매칭)
+// 혼성부 제거: 남성부/여성부만 필터링 대상
 const GENDER_OPTIONS = [
   { code: "male", label: "남성부" },
   { code: "female", label: "여성부" },
-  { code: "mixed", label: "혼성부" },
 ] as const;
 
 // --- Props 타입 정의 ---
@@ -543,10 +543,14 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
             })}
           </div>
 
-          {/* 선택된 디비전 요약 */}
-          {selectedDivisions.length > 0 && (
+          {/* 선택된 디비전 요약 / 미선택 시 전체 안내 */}
+          {selectedDivisions.length > 0 ? (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedDivisions.length}개</span> 선택됨
+            </p>
+          ) : (
+            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
         </TossCard>
@@ -574,9 +578,14 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               );
             })}
           </div>
-          {selectedGameTypes.length > 0 && (
+          {/* 경기 유형 선택 요약 / 미선택 시 전체 안내 */}
+          {selectedGameTypes.length > 0 ? (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedGameTypes.length}개</span> 선택됨
+            </p>
+          ) : (
+            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
 
@@ -590,6 +599,12 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
+            {/* 실력 미선택 시 전체 안내 */}
+            {selectedSkills.length === 0 && (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+                필터를 선택하지 않으면 전체로 설정됩니다.
+              </p>
+            )}
           </div>
         </TossCard>
       </div>
@@ -611,9 +626,14 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
-            {selectedRegions.length > 0 && (
+            {/* 지역 선택 요약 / 미선택 시 전체 안내 */}
+            {selectedRegions.length > 0 ? (
               <p className="mt-3 text-sm text-[var(--color-text-muted)]">
                 <span className="font-medium text-[var(--color-primary)]">{selectedRegions.length}개</span> 선택됨
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+                필터를 선택하지 않으면 전체로 설정됩니다.
               </p>
             )}
           </div>
@@ -628,6 +648,12 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
+            {/* 요일 미선택 시 전체 안내 */}
+            {selectedDays.length === 0 && (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+                필터를 선택하지 않으면 전체로 설정됩니다.
+              </p>
+            )}
           </div>
 
           {/* 맞춤 시간대 */}
@@ -640,19 +666,25 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
+            {/* 시간대 미선택 시 전체 안내 */}
+            {selectedTimeSlots.length === 0 && (
+              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+                필터를 선택하지 않으면 전체로 설정됩니다.
+              </p>
+            )}
           </div>
         </TossCard>
       </div>
 
       {/* ========================================
-       * 섹션 3-2: 대회 성별 필터
-       * 남성부 / 여성부 / 혼성부 pill 버튼
+       * 섹션 3-2: 성별 필터
+       * 남성부 / 여성부 pill 버튼
        * ======================================== */}
       <div>
-        <TossSectionHeader title="대회 성별" />
+        <TossSectionHeader title="성별" />
         <TossCard>
           <p className="text-sm text-[var(--color-text-secondary)] mb-3">
-            관심 있는 성별 부문을 선택하세요. 대회 목록에서 필터링됩니다.
+            관심 있는 성별을 선택하세요. 경기와 대회 목록에서 필터링됩니다.
           </p>
           <div className="flex flex-wrap gap-2">
             {GENDER_OPTIONS.map(({ code, label }) => (
@@ -661,9 +693,14 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               </PillButton>
             ))}
           </div>
-          {selectedGenders.length > 0 && (
+          {/* 성별 선택 요약 / 미선택 시 전체 안내 */}
+          {selectedGenders.length > 0 ? (
             <p className="mt-3 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedGenders.length}개</span> 선택됨
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
         </TossCard>
@@ -690,9 +727,14 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               );
             })}
           </div>
-          {selectedBoardCategories.length > 0 && (
+          {/* 게시판 선택 요약 / 미선택 시 전체 안내 */}
+          {selectedBoardCategories.length > 0 ? (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedBoardCategories.length}개</span> 선택됨
+            </p>
+          ) : (
+            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
+              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
         </TossCard>
