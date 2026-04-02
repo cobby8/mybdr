@@ -264,10 +264,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   // 숨긴 메뉴 slug 배열 (예: ["/rankings", "/organizations"])
   const [hiddenMenus, setHiddenMenus] = useState<string[]>([]);
 
-  // 현재 선택된 종별 탭
-  const [activeCategory, setActiveCategory] = useState<CategoryCode>("general");
-  // 성별 필터 (남성부/여성부)
-  const [activeGender, setActiveGender] = useState<GenderCode>("male");
+  // 종별 복수 선택 (토글 방식, 빈 배열 = 전체)
+  const [selectedCategoryFilters, setSelectedCategoryFilters] = useState<CategoryCode[]>([]);
+  // 성별 복수 선택 (토글 방식, 빈 배열 = 전체)
+  const [selectedGenderFilters, setSelectedGenderFilters] = useState<GenderCode[]>([]);
 
   // 로딩/저장 상태
   const [loading, setLoading] = useState(true);
@@ -358,6 +358,20 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     );
   };
 
+  // 종별 필터 토글 (복수 선택)
+  const toggleCategoryFilter = (code: CategoryCode) => {
+    setSelectedCategoryFilters((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  // 성별 필터 토글 (복수 선택, 디비전 표시용)
+  const toggleGenderFilter = (code: GenderCode) => {
+    setSelectedGenderFilters((prev) =>
+      prev.includes(code) ? prev.filter((g) => g !== code) : [...prev, code]
+    );
+  };
+
   // 메뉴 숨기기/보이기 토글 (hidden_menus에 추가/제거)
   const toggleMenuVisibility = (href: string) => {
     setHiddenMenus((prev) =>
@@ -418,8 +432,25 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     }
   };
 
-  // 현재 탭의 디비전 목록 가져오기
-  const currentDivisions = getDivisionsForCategory(activeCategory, activeGender);
+  // 선택된 성별+종별 조합의 디비전 목록 계산
+  // 아무것도 선택하지 않으면 전체 디비전 표시
+  const currentDivisions = (() => {
+    const genders: GenderCode[] = selectedGenderFilters.length > 0
+      ? selectedGenderFilters
+      : (["male", "female"] as GenderCode[]);
+    const categories: CategoryCode[] = selectedCategoryFilters.length > 0
+      ? selectedCategoryFilters
+      : (Object.keys(CATEGORIES) as CategoryCode[]);
+
+    // 모든 조합의 디비전을 합치고 중복 제거
+    const divisionSet = new Set<string>();
+    for (const gender of genders) {
+      for (const category of categories) {
+        getDivisionsForCategory(category, gender).forEach((d) => divisionSet.add(d));
+      }
+    }
+    return Array.from(divisionSet);
+  })();
 
   // 로딩 중 스피너 표시
   if (loading) {
@@ -497,30 +528,48 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       <div>
         <TossSectionHeader title="관심 종별 / 디비전" />
         <TossCard>
-          {/* 성별 토글 (남성부/여성부) — pill 스타일 */}
-          <div className="flex gap-2 mb-5">
-            {(["male", "female"] as GenderCode[]).map((gender) => (
-              <PillButton
-                key={gender}
-                selected={activeGender === gender}
-                onClick={() => setActiveGender(gender)}
-              >
-                {gender === "male" ? "남성부" : "여성부"}
-              </PillButton>
-            ))}
+          {/* 성별 복수 선택 (남성부/여성부) — 토글 방식, 여러 개 선택 가능 */}
+          <div>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>성별</p>
+            <div className="flex gap-2 mb-5">
+              {(["male", "female"] as GenderCode[]).map((gender) => (
+                <PillButton
+                  key={gender}
+                  selected={selectedGenderFilters.includes(gender)}
+                  onClick={() => toggleGenderFilter(gender)}
+                >
+                  {gender === "male" ? "남성부" : "여성부"}
+                </PillButton>
+              ))}
+            </div>
+            {/* 미선택 시 전체 안내 */}
+            {selectedGenderFilters.length === 0 && (
+              <p className="text-xs text-[var(--color-text-muted)] -mt-3 mb-4">
+                선택하지 않으면 전체 성별이 표시됩니다.
+              </p>
+            )}
           </div>
 
-          {/* 종별 탭 (일반부/유청소년/대학부/시니어) — pill 스타일 */}
-          <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-            {Object.entries(CATEGORIES).map(([code, cat]) => (
-              <PillButton
-                key={code}
-                selected={activeCategory === code}
-                onClick={() => setActiveCategory(code as CategoryCode)}
-              >
-                {cat.label}
-              </PillButton>
-            ))}
+          {/* 종별 복수 선택 (일반부/유청소년/대학부/시니어) — 토글 방식, 여러 개 선택 가능 */}
+          <div>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>종별</p>
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
+              {Object.entries(CATEGORIES).map(([code, cat]) => (
+                <PillButton
+                  key={code}
+                  selected={selectedCategoryFilters.includes(code as CategoryCode)}
+                  onClick={() => toggleCategoryFilter(code as CategoryCode)}
+                >
+                  {cat.label}
+                </PillButton>
+              ))}
+            </div>
+            {/* 미선택 시 전체 안내 */}
+            {selectedCategoryFilters.length === 0 && (
+              <p className="text-xs text-[var(--color-text-muted)] -mt-3 mb-4">
+                선택하지 않으면 전체 종별이 표시됩니다.
+              </p>
+            )}
           </div>
 
           {/* 디비전 pill 목록 — 선택/미선택 토글 */}
