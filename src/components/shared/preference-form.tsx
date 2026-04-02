@@ -85,13 +85,6 @@ const SKILL_LEVELS = [
   { code: "highest", label: "최상" },
 ] as const;
 
-// 맞춤 성별 필터 (대회의 gender 필드와 매칭)
-// 혼성부 제거: 남성부/여성부만 필터링 대상
-const GENDER_OPTIONS = [
-  { code: "male", label: "남성부" },
-  { code: "female", label: "여성부" },
-] as const;
-
 // --- Props 타입 정의 ---
 // mode: "onboarding"은 온보딩 흐름 (스킵 가능), "settings"는 프로필 설정 페이지용
 export interface PreferenceFormProps {
@@ -259,15 +252,12 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  // 맞춤 성별 필터 (male/female/mixed)
-  const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
   // 숨긴 메뉴 slug 배열 (예: ["/rankings", "/organizations"])
   const [hiddenMenus, setHiddenMenus] = useState<string[]>([]);
 
-  // 종별 복수 선택 (토글 방식, 빈 배열 = 전체)
-  const [selectedCategoryFilters, setSelectedCategoryFilters] = useState<CategoryCode[]>([]);
-  // 성별 복수 선택 (토글 방식, 빈 배열 = 전체)
-  const [selectedGenderFilters, setSelectedGenderFilters] = useState<GenderCode[]>([]);
+  // 종별/성별 단일 선택 탭 (디비전 표시 필터용)
+  const [activeGender, setActiveGender] = useState<GenderCode>("male");
+  const [activeCategory, setActiveCategory] = useState<CategoryCode>("general");
 
   // 로딩/저장 상태
   const [loading, setLoading] = useState(true);
@@ -288,7 +278,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       setSelectedDays(data.preferred_days ?? []);
       setSelectedTimeSlots(data.preferred_time_slots ?? []);
       setSelectedSkills(data.preferred_skill_levels ?? []);
-      setSelectedGenders(data.preferred_gender ?? []);
       setHiddenMenus(data.hidden_menus ?? []);
     } catch {
       // 로드 실패 시 빈 상태로 시작 (신규 유저이거나 네트워크 문제)
@@ -351,27 +340,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     );
   };
 
-  // 성별 토글
-  const toggleGender = (code: string) => {
-    setSelectedGenders((prev) =>
-      prev.includes(code) ? prev.filter((g) => g !== code) : [...prev, code]
-    );
-  };
-
-  // 종별 필터 토글 (복수 선택)
-  const toggleCategoryFilter = (code: CategoryCode) => {
-    setSelectedCategoryFilters((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    );
-  };
-
-  // 성별 필터 토글 (복수 선택, 디비전 표시용)
-  const toggleGenderFilter = (code: GenderCode) => {
-    setSelectedGenderFilters((prev) =>
-      prev.includes(code) ? prev.filter((g) => g !== code) : [...prev, code]
-    );
-  };
-
   // 메뉴 숨기기/보이기 토글 (hidden_menus에 추가/제거)
   const toggleMenuVisibility = (href: string) => {
     setHiddenMenus((prev) =>
@@ -396,8 +364,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           preferred_days: selectedDays,
           preferred_time_slots: selectedTimeSlots,
           preferred_skill_levels: selectedSkills,
-          // 맞춤 성별 필터
-          preferred_gender: selectedGenders,
           // 숨긴 메뉴 목록
           hidden_menus: hiddenMenus,
           // 토글 ON/OFF 상태를 API에 전달 (맞춤 보기 활성화 여부)
@@ -432,25 +398,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
     }
   };
 
-  // 선택된 성별+종별 조합의 디비전 목록 계산
-  // 아무것도 선택하지 않으면 전체 디비전 표시
-  const currentDivisions = (() => {
-    const genders: GenderCode[] = selectedGenderFilters.length > 0
-      ? selectedGenderFilters
-      : (["male", "female"] as GenderCode[]);
-    const categories: CategoryCode[] = selectedCategoryFilters.length > 0
-      ? selectedCategoryFilters
-      : (Object.keys(CATEGORIES) as CategoryCode[]);
-
-    // 모든 조합의 디비전을 합치고 중복 제거
-    const divisionSet = new Set<string>();
-    for (const gender of genders) {
-      for (const category of categories) {
-        getDivisionsForCategory(category, gender).forEach((d) => divisionSet.add(d));
-      }
-    }
-    return Array.from(divisionSet);
-  })();
+  // 선택된 성별+종별 단일 탭 조합의 디비전 목록 계산
+  const currentDivisions = getDivisionsForCategory(activeCategory, activeGender);
 
   // 로딩 중 스피너 표시
   if (loading) {
@@ -523,56 +472,65 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
       {/* ========================================
        * 섹션 1: 관심 종별/디비전
-       * TossCard 내부에 성별 + 종별 탭 + 디비전 pill 배치
+       * 성별 단일 탭 + 종별 단일 탭 → 디비전 복수 선택 pill
        * ======================================== */}
       <div>
         <TossSectionHeader title="관심 종별 / 디비전" />
         <TossCard>
-          {/* 성별 복수 선택 (남성부/여성부) — 토글 방식, 여러 개 선택 가능 */}
+          {/* 성별 단일 선택 탭 (남성부/여성부) */}
           <div>
             <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>성별</p>
             <div className="flex gap-2 mb-5">
               {(["male", "female"] as GenderCode[]).map((gender) => (
                 <PillButton
                   key={gender}
-                  selected={selectedGenderFilters.includes(gender)}
-                  onClick={() => toggleGenderFilter(gender)}
+                  selected={activeGender === gender}
+                  onClick={() => setActiveGender(gender)}
                 >
                   {gender === "male" ? "남성부" : "여성부"}
                 </PillButton>
               ))}
             </div>
-            {/* 미선택 시 전체 안내 */}
-            {selectedGenderFilters.length === 0 && (
-              <p className="text-xs text-[var(--color-text-muted)] -mt-3 mb-4">
-                선택하지 않으면 전체 성별이 표시됩니다.
-              </p>
-            )}
           </div>
 
-          {/* 종별 복수 선택 (일반부/유청소년/대학부/시니어) — 토글 방식, 여러 개 선택 가능 */}
+          {/* 종별 단일 선택 탭 (일반부/유청소년/대학부/시니어) */}
           <div>
             <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>종별</p>
             <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
               {Object.entries(CATEGORIES).map(([code, cat]) => (
                 <PillButton
                   key={code}
-                  selected={selectedCategoryFilters.includes(code as CategoryCode)}
-                  onClick={() => toggleCategoryFilter(code as CategoryCode)}
+                  selected={activeCategory === code}
+                  onClick={() => setActiveCategory(code as CategoryCode)}
                 >
                   {cat.label}
                 </PillButton>
               ))}
             </div>
-            {/* 미선택 시 전체 안내 */}
-            {selectedCategoryFilters.length === 0 && (
-              <p className="text-xs text-[var(--color-text-muted)] -mt-3 mb-4">
-                선택하지 않으면 전체 종별이 표시됩니다.
-              </p>
-            )}
           </div>
 
-          {/* 디비전 pill 목록 — 선택/미선택 토글 */}
+          {/* 디비전 복수 선택 pill 목록 + 전체선택 버튼 */}
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>디비전</p>
+            <button
+              type="button"
+              onClick={() => {
+                // 현재 표시된 디비전이 모두 선택 상태인지 확인
+                const allSelected = currentDivisions.every((d) => selectedDivisions.includes(d));
+                if (allSelected) {
+                  // 전체해제: 현재 표시된 디비전만 해제
+                  setSelectedDivisions((prev) => prev.filter((d) => !currentDivisions.includes(d)));
+                } else {
+                  // 전체선택: 현재 표시된 디비전 모두 추가 (중복 방지)
+                  setSelectedDivisions((prev) => [...new Set([...prev, ...currentDivisions])]);
+                }
+              }}
+              className="text-sm font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
+              {currentDivisions.every((d) => selectedDivisions.includes(d)) ? "전체해제" : "전체선택"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {currentDivisions.map((code) => {
               const info = DIVISIONS[code];
@@ -592,14 +550,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
             })}
           </div>
 
-          {/* 선택된 디비전 요약 / 미선택 시 전체 안내 */}
-          {selectedDivisions.length > 0 ? (
+          {/* 선택된 디비전 요약 */}
+          {selectedDivisions.length > 0 && (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedDivisions.length}개</span> 선택됨
-            </p>
-          ) : (
-            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
         </TossCard>
@@ -612,6 +566,22 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       <div>
         <TossSectionHeader title="관심 경기 유형" />
         <TossCard>
+          {/* 경기 유형 + 전체선택 버튼 */}
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>경기 유형</p>
+            <button
+              type="button"
+              onClick={() => {
+                const allCodes = GAME_TYPES.map((g) => g.code);
+                const allSelected = allCodes.every((c) => selectedGameTypes.includes(c));
+                setSelectedGameTypes(allSelected ? [] : allCodes);
+              }}
+              className="text-sm font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
+              {GAME_TYPES.every((g) => selectedGameTypes.includes(g.code)) ? "전체해제" : "전체선택"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {GAME_TYPES.map(({ code, label, description }) => {
               const isSelected = selectedGameTypes.includes(code);
@@ -627,20 +597,30 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               );
             })}
           </div>
-          {/* 경기 유형 선택 요약 / 미선택 시 전체 안내 */}
-          {selectedGameTypes.length > 0 ? (
+          {/* 경기 유형 선택 요약 */}
+          {selectedGameTypes.length > 0 && (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedGameTypes.length}개</span> 선택됨
             </p>
-          ) : (
-            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-              필터를 선택하지 않으면 전체로 설정됩니다.
-            </p>
           )}
 
-          {/* --- 서브섹션: 맞춤 실력 수준 --- */}
+          {/* --- 서브섹션: 맞춤 실력 수준 + 전체선택 버튼 --- */}
           <div className="mt-6">
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>맞춤 실력</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 실력</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const allCodes = SKILL_LEVELS.map((s) => s.code);
+                  const allSelected = allCodes.every((c) => selectedSkills.includes(c));
+                  setSelectedSkills(allSelected ? [] : [...allCodes]);
+                }}
+                className="text-sm font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                {SKILL_LEVELS.every((s) => selectedSkills.includes(s.code)) ? "전체해제" : "전체선택"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {SKILL_LEVELS.map(({ code, label }) => (
                 <PillButton key={code} selected={selectedSkills.includes(code)} onClick={() => toggleSkill(code)}>
@@ -648,12 +628,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
-            {/* 실력 미선택 시 전체 안내 */}
-            {selectedSkills.length === 0 && (
-              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-                필터를 선택하지 않으면 전체로 설정됩니다.
-              </p>
-            )}
           </div>
         </TossCard>
       </div>
@@ -665,9 +639,22 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       <div>
         <TossSectionHeader title="경기 일정 선호" />
         <TossCard>
-          {/* 맞춤 지역 */}
+          {/* 맞춤 지역 + 전체선택 */}
           <div>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>맞춤 지역</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 지역</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const allSelected = REGIONS.every((r) => selectedRegions.includes(r));
+                  setSelectedRegions(allSelected ? [] : [...REGIONS]);
+                }}
+                className="text-sm font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                {REGIONS.every((r) => selectedRegions.includes(r)) ? "전체해제" : "전체선택"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {REGIONS.map((region) => (
                 <PillButton key={region} selected={selectedRegions.includes(region)} onClick={() => toggleRegion(region)}>
@@ -675,21 +662,31 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
-            {/* 지역 선택 요약 / 미선택 시 전체 안내 */}
-            {selectedRegions.length > 0 ? (
+            {/* 지역 선택 요약 */}
+            {selectedRegions.length > 0 && (
               <p className="mt-3 text-sm text-[var(--color-text-muted)]">
                 <span className="font-medium text-[var(--color-primary)]">{selectedRegions.length}개</span> 선택됨
-              </p>
-            ) : (
-              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-                필터를 선택하지 않으면 전체로 설정됩니다.
               </p>
             )}
           </div>
 
-          {/* 맞춤 요일 */}
+          {/* 맞춤 요일 + 전체선택 */}
           <div className="mt-6">
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>맞춤 요일</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 요일</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const allCodes = DAYS.map((d) => d.code);
+                  const allSelected = allCodes.every((c) => selectedDays.includes(c));
+                  setSelectedDays(allSelected ? [] : [...allCodes]);
+                }}
+                className="text-sm font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                {DAYS.every((d) => selectedDays.includes(d.code)) ? "전체해제" : "전체선택"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {DAYS.map(({ code, label }) => (
                 <PillButton key={code} selected={selectedDays.includes(code)} onClick={() => toggleDay(code)}>
@@ -697,17 +694,25 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
-            {/* 요일 미선택 시 전체 안내 */}
-            {selectedDays.length === 0 && (
-              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-                필터를 선택하지 않으면 전체로 설정됩니다.
-              </p>
-            )}
           </div>
 
-          {/* 맞춤 시간대 */}
+          {/* 맞춤 시간대 + 전체선택 */}
           <div className="mt-6">
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>맞춤 시간대</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 시간대</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const allCodes = TIME_SLOTS.map((t) => t.code);
+                  const allSelected = allCodes.every((c) => selectedTimeSlots.includes(c));
+                  setSelectedTimeSlots(allSelected ? [] : [...allCodes]);
+                }}
+                className="text-sm font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                {TIME_SLOTS.every((t) => selectedTimeSlots.includes(t.code)) ? "전체해제" : "전체선택"}
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {TIME_SLOTS.map(({ code, label }) => (
                 <PillButton key={code} selected={selectedTimeSlots.includes(code)} onClick={() => toggleTimeSlot(code)}>
@@ -715,43 +720,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 </PillButton>
               ))}
             </div>
-            {/* 시간대 미선택 시 전체 안내 */}
-            {selectedTimeSlots.length === 0 && (
-              <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-                필터를 선택하지 않으면 전체로 설정됩니다.
-              </p>
-            )}
           </div>
-        </TossCard>
-      </div>
-
-      {/* ========================================
-       * 섹션 3-2: 성별 필터
-       * 남성부 / 여성부 pill 버튼
-       * ======================================== */}
-      <div>
-        <TossSectionHeader title="성별" />
-        <TossCard>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-3">
-            관심 있는 성별을 선택하세요. 경기와 대회 목록에서 필터링됩니다.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {GENDER_OPTIONS.map(({ code, label }) => (
-              <PillButton key={code} selected={selectedGenders.includes(code)} onClick={() => toggleGender(code)}>
-                {label}
-              </PillButton>
-            ))}
-          </div>
-          {/* 성별 선택 요약 / 미선택 시 전체 안내 */}
-          {selectedGenders.length > 0 ? (
-            <p className="mt-3 text-sm text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-primary)]">{selectedGenders.length}개</span> 선택됨
-            </p>
-          ) : (
-            <p className="mt-3 text-xs text-[var(--color-text-muted)]">
-              필터를 선택하지 않으면 전체로 설정됩니다.
-            </p>
-          )}
         </TossCard>
       </div>
 
@@ -762,6 +731,22 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       <div>
         <TossSectionHeader title="관심 게시판" />
         <TossCard>
+          {/* 게시판 + 전체선택 버튼 */}
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>게시판</p>
+            <button
+              type="button"
+              onClick={() => {
+                const allCodes = BOARD_CATEGORIES.map((b) => b.code);
+                const allSelected = allCodes.every((c) => selectedBoardCategories.includes(c));
+                setSelectedBoardCategories(allSelected ? [] : [...allCodes]);
+              }}
+              className="text-sm font-medium"
+              style={{ color: "var(--color-primary)" }}
+            >
+              {BOARD_CATEGORIES.every((b) => selectedBoardCategories.includes(b.code)) ? "전체해제" : "전체선택"}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {BOARD_CATEGORIES.map(({ code, label }) => {
               const isSelected = selectedBoardCategories.includes(code);
@@ -776,14 +761,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               );
             })}
           </div>
-          {/* 게시판 선택 요약 / 미선택 시 전체 안내 */}
-          {selectedBoardCategories.length > 0 ? (
+          {/* 게시판 선택 요약 */}
+          {selectedBoardCategories.length > 0 && (
             <p className="mt-4 text-sm text-[var(--color-text-muted)]">
               <span className="font-medium text-[var(--color-primary)]">{selectedBoardCategories.length}개</span> 선택됨
-            </p>
-          ) : (
-            <p className="mt-4 text-xs text-[var(--color-text-muted)]">
-              필터를 선택하지 않으면 전체로 설정됩니다.
             </p>
           )}
         </TossCard>
