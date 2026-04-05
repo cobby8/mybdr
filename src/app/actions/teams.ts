@@ -40,27 +40,31 @@ export async function createTeamAction(_prevState: { error: string } | null, for
       return { error: "팀은 최대 2개까지 생성할 수 있습니다." };
     }
 
-    const team = await prisma.team.create({
-      data: {
-        uuid: randomUUID(),
-        name,
-        description: description || null,
-        primaryColor,
-        secondaryColor,
-        captainId: userId,
-        status: "active",
-        members_count: 1,
-      },
-    });
+    const team = await prisma.$transaction(async (tx) => {
+      const created = await tx.team.create({
+        data: {
+          uuid: randomUUID(),
+          name,
+          description: description || null,
+          primaryColor,
+          secondaryColor,
+          captainId: userId,
+          status: "active",
+          members_count: 1,
+        },
+      });
 
-    await prisma.teamMember.create({
-      data: {
-        teamId: team.id,
-        userId,
-        role: "captain",
-        status: "approved",
-        joined_at: new Date(),
-      },
+      await tx.teamMember.create({
+        data: {
+          teamId: created.id,
+          userId,
+          role: "captain",
+          status: "approved",
+          joined_at: new Date(),
+        },
+      });
+
+      return created;
     });
 
     createdTeamId = team.id;

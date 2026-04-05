@@ -18,7 +18,7 @@ export const updateTournamentSchema = z
     // 빈 문자열("")도 허용 — datetime-local 입력 초기화 시 빈 문자열이 올 수 있음
     startDate: z.string().nullable().or(z.literal("")),
     endDate: z.string().nullable().or(z.literal("")),
-    status: z.string(),
+    status: z.enum(["draft", "registration_open", "in_progress", "completed", "cancelled"]),
     venue_name: z.string().nullable(),
     venue_address: z.string().nullable(),
     city: z.string().nullable(),

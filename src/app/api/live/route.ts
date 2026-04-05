@@ -39,12 +39,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 최근 종료된 경기도 표시 (30분 이내)
-    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+    // 최근 종료된 경기도 표시 (24시간 이내)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const recentCompleted = await prisma.tournamentMatch.findMany({
       where: {
         status: "completed",
-        ended_at: { gte: thirtyMinAgo },
+        ended_at: { gte: twentyFourHoursAgo },
       },
       orderBy: { ended_at: "desc" },
       take: 10,

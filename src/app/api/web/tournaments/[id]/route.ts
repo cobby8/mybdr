@@ -1,4 +1,5 @@
 import { type NextRequest } from "next/server";
+import { prisma } from "@/lib/db/prisma";
 import { requireTournamentAdmin } from "@/lib/auth/tournament-auth";
 import { updateTournamentSchema } from "@/lib/validation/tournament";
 import { apiSuccess, apiError } from "@/lib/api/response";
@@ -40,6 +41,19 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 
   const data = result.data;
+
+  // T3-02: completed로 변경 시 미완료 경기 존재하면 에러
+  if (data.status === "completed") {
+    const incompleteMatches = await prisma.tournamentMatch.count({
+      where: {
+        tournamentId: id,
+        status: { notIn: ["completed", "cancelled"] },
+      },
+    });
+    if (incompleteMatches > 0) {
+      return apiError(`미완료 경기가 ${incompleteMatches}건 있습니다. 모든 경기를 완료한 후 대회를 종료하세요.`, 400);
+    }
+  }
 
   // Zod 검증 통과된 데이터를 Prisma update 형식으로 변환
   const updateData: Record<string, unknown> = {};

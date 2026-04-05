@@ -123,7 +123,14 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         homeScore: match.home_score,
         awayScore: match.away_score,
         status: match.status,
-        quarterScores: match.quarter_scores ? JSON.parse(JSON.stringify(match.quarter_scores)) : undefined,
+        // I-01: current_quarter는 sync data에 포함되지만 DB 컬럼 미존재.
+        // quarter_scores JSON 내부에 current_quarter 값을 함께 보관한다.
+        quarterScores: match.quarter_scores
+          ? JSON.parse(JSON.stringify({
+              ...match.quarter_scores,
+              ...(match.current_quarter != null && { current_quarter: match.current_quarter }),
+            }))
+          : (match.current_quarter != null ? { current_quarter: match.current_quarter } : undefined),
         mvp_player_id: match.mvp_player_id ? BigInt(match.mvp_player_id) : undefined,
         started_at: match.started_at ? new Date(match.started_at) : undefined,
         ended_at: match.ended_at ? new Date(match.ended_at) : undefined,

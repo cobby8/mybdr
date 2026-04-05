@@ -152,6 +152,30 @@ export async function GET(
           case "turnover":
             stat.to += 1;
             break;
+          case "made_shot":
+            // generic made shot — value carries points
+            stat.pts += val;
+            stat.fgm += 1;
+            stat.fga += 1;
+            if (val === 3) { stat.tpm += 1; stat.tpa += 1; }
+            if (val === 1) { stat.ftm += 1; stat.fta += 1; stat.fgm -= 1; stat.fga -= 1; }
+            break;
+          case "missed_shot":
+            // generic missed shot
+            stat.fga += 1;
+            if (val === 3) { stat.tpa += 1; }
+            if (val === 1) { stat.fta += 1; stat.fga -= 1; }
+            break;
+          case "2pt_miss":
+            stat.fga += 1;
+            break;
+          case "3pt_miss":
+            stat.fga += 1;
+            stat.tpa += 1;
+            break;
+          case "1pt_miss":
+            stat.fta += 1;
+            break;
           case "foul_personal":
           case "foul_technical":
             stat.fouls += 1;
@@ -204,6 +228,33 @@ export async function GET(
       away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     } | null;
 
+    // PBP 로그 조회 — 시간 역순, 최대 200건
+    const pbpRows = await prisma.play_by_plays.findMany({
+      where: { tournament_match_id: BigInt(matchId) },
+      orderBy: [{ quarter: "desc" }, { game_clock_seconds: "asc" }],
+      take: 200,
+      include: {
+        tournament_team_players: {
+          select: { jerseyNumber: true, users: { select: { name: true, nickname: true } } },
+        },
+      },
+    });
+
+    const playByPlays = pbpRows.map((p) => ({
+      id: Number(p.id),
+      quarter: p.quarter,
+      gameClockSeconds: p.game_clock_seconds,
+      teamId: Number(p.tournament_team_id),
+      jerseyNumber: p.tournament_team_players.jerseyNumber,
+      playerName: p.tournament_team_players.users?.nickname ?? p.tournament_team_players.users?.name ?? "-",
+      actionType: p.action_type,
+      actionSubtype: p.action_subtype,
+      isMade: p.is_made,
+      pointsScored: p.points_scored ?? 0,
+      homeScoreAtTime: p.home_score_at_time,
+      awayScoreAtTime: p.away_score_at_time,
+    }));
+
     return apiSuccess({
       match: {
         id: Number(match.id),
@@ -225,6 +276,7 @@ export async function GET(
         },
         homePlayers,
         awayPlayers,
+        playByPlays,
         updatedAt: match.updatedAt.toISOString(),
       },
     });

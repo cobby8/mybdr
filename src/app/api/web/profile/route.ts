@@ -59,6 +59,14 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       bank_name, bank_code, account_number, account_holder, account_consent,
     } = body;
 
+    // T2-04: 닉네임 길이 검증 (2~20자)
+    if (nickname !== undefined && typeof nickname === "string" && nickname.trim().length > 0) {
+      const trimmed = nickname.trim();
+      if (trimmed.length < 2 || trimmed.length > 20) {
+        return apiError("닉네임은 2자 이상 20자 이하여야 합니다.", 400);
+      }
+    }
+
     // 계좌 필드: account_consent가 true일 때만 업데이트
     const bankUpdate: Record<string, unknown> = {};
     if (account_consent === true) {
