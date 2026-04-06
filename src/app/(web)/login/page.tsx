@@ -70,15 +70,14 @@ export default function LoginPage() {
               <svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 1C4.58 1 1 3.8 1 7.2c0 2.2 1.46 4.13 3.66 5.23l-.93 3.42c-.08.3.26.54.52.36L8.1 13.6c.3.03.6.05.9.05 4.42 0 8-2.8 8-6.25S13.42 1 9 1" fill="#191919"/></svg>
               <span className="text-sm font-semibold">카카오로 시작하기</span>
             </a>
-            {/* 네이버: 고유 브랜드 색상 유지 */}
-            <a
-              href="/api/auth/login?provider=naver"
-              className="flex h-12 items-center justify-center gap-2 rounded-[12px] transition-opacity hover:opacity-90"
+            {/* 네이버: 준비 중 (비활성화) */}
+            <div
+              className="flex h-12 items-center justify-center gap-2 rounded-[12px] opacity-40 cursor-not-allowed"
               style={{ backgroundColor: "#03C75A", color: "#FFFFFF" }}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10.85 8.55L4.92 0H0v16h5.15V7.45L11.08 16H16V0h-5.15v8.55z" fill="white"/></svg>
-              <span className="text-sm font-semibold">네이버로 시작하기</span>
-            </a>
+              <span className="text-sm font-semibold">네이버 (준비 중)</span>
+            </div>
             {/* 구글: 테두리/배경 CSS 변수 */}
             <a
               href="/api/auth/login?provider=google"
