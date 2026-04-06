@@ -12,15 +12,11 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
 
   const updates: Record<string, string> = {};
 
-  // 전화번호 인증
+  // 전화번호 저장 (SMS 인증은 SOLAPI 연동 후 활성화)
   if (body.phone) {
     const phone = body.phone.replace(/[^0-9]/g, "");
-    if (!body.code) {
-      return apiError("인증 코드를 입력해주세요.", 400);
-    }
-    const valid = await verifyCode(ctx.userId, phone, body.code);
-    if (!valid) {
-      return apiError("인증 코드가 올바르지 않거나 만료되었습니다.", 400);
+    if (!phone.match(/^01[016789]\d{7,8}$/)) {
+      return apiError("올바른 전화번호를 입력해주세요.", 400);
     }
 
     // 중복 확인
