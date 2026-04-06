@@ -173,6 +173,7 @@ model Tournament {
   description                            String?
   logo_url                               String?                 @db.VarChar
   banner_url                             String?                 @db.VarChar
+  court_bg_url                           String?                 @db.VarChar
   registration_start_at                  DateTime?               @db.Timestamp(6)
   registration_end_at                    DateTime?               @db.Timestamp(6)
   startDate                              DateTime?               @map("start_date") @db.Timestamp(6)

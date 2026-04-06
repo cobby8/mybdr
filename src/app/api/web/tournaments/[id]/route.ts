@@ -103,6 +103,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (data.design_template !== undefined) updateData.design_template = data.design_template;
   if (data.logo_url !== undefined) updateData.logo_url = data.logo_url || null;
   if (data.banner_url !== undefined) updateData.banner_url = data.banner_url || null;
+  if (data.court_bg_url !== undefined) updateData.court_bg_url = data.court_bg_url || null;
 
   const updated = await updateTournament(id, updateData);
 

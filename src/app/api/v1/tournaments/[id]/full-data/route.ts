@@ -31,6 +31,8 @@ async function handler(
       venue_name: tournament.venue_name,
       venue_address: tournament.venue_address,
       team_count: teams.length,
+      logo_url: tournament.logo_url ?? null,
+      court_bg_url: tournament.court_bg_url ?? null,
     },
     teams: teams.map((t) => ({
       id: Number(t.id),

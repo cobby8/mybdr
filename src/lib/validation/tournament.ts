@@ -61,6 +61,7 @@ export const updateTournamentSchema = z
     design_template: z.enum(["basic", "poster", "logo", "photo"]).nullable(),
     logo_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
     banner_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
+    court_bg_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
   })
   .partial()
   .refine(
