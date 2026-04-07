@@ -32,7 +32,8 @@ export function PriceCard({ game, children }: PriceCardProps) {
   // 날짜+시간 KST (yyyy-mm-dd hh시 mi분 ~ hh시 mi분)
   let dateStr = "-";
   if (game.scheduled_at) {
-    const start = new Date(game.scheduled_at.getTime() + 9 * 60 * 60 * 1000); // KST
+    const raw = typeof game.scheduled_at === "string" ? new Date(game.scheduled_at) : game.scheduled_at;
+    const start = new Date(raw.getTime() + 9 * 60 * 60 * 1000); // KST
     const y = start.getUTCFullYear();
     const mo = String(start.getUTCMonth() + 1).padStart(2, "0");
     const d = String(start.getUTCDate()).padStart(2, "0");
