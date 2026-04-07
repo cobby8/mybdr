@@ -269,7 +269,7 @@ export default async function GameDetailPage({
           </PriceCard>
 
           {/* 호스트 프로필 카드 */}
-          <HostCard organizerName={userRecord?.nickname ?? userRecord?.name ?? null} contactPhone={game.contact_phone ?? null} />
+          {/* HostCard 제거 — 신청 버튼(GameApplyButton)이 이미 존재 */}
         </div>
       </div>
 

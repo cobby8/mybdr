@@ -29,25 +29,20 @@ export function PriceCard({ game, children }: PriceCardProps) {
   // 원 단위 표시 여부 (숫자 금액일 때만 원/game 표시)
   const isNumericFee = !game.entry_fee_note && game.fee_per_person && Number(game.fee_per_person) > 0;
 
-  // 날짜 포맷
+  // 날짜+시간 KST (년월일 시분)
   const dateStr = game.scheduled_at
     ? game.scheduled_at.toLocaleString("ko-KR", {
         timeZone: "Asia/Seoul",
         year: "numeric",
-        month: "long",
-        day: "numeric",
-        weekday: "short",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       })
     : "-";
 
-  // 시간 포맷
-  const timeStr = game.scheduled_at
-    ? game.scheduled_at.toLocaleString("ko-KR", {
-        timeZone: "Asia/Seoul",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "-";
+  const timeStr = "";
 
   // 경기 시간 (시작~종료)
   const durationStr = game.duration_hours ? `(${game.duration_hours}h)` : "";
