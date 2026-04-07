@@ -351,7 +351,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           {users.map((user) => (
             <SearchResultItem
               key={user.id.toString()}
-              href={`/profile/${user.id}`}
+              href={`/users/${user.id}`}
               title={user.nickname || user.name || "알 수 없음"}
               subtitle={[
                 user.position ? (POSITION_LABELS[user.position] || user.position) : null,

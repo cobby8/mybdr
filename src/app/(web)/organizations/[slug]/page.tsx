@@ -231,7 +231,7 @@ export default async function OrganizationDetailPage({ params }: Props) {
         {org.members.map((m) => (
           <Link
             key={m.id.toString()}
-            href={`/profile/${m.user.id}`}
+            href={`/users/${m.user.id}`}
             className="flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-sm transition-colors hover:border-[var(--color-primary)]"
           >
             {m.user.profile_image_url ? (

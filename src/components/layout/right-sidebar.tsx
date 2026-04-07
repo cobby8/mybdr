@@ -110,7 +110,7 @@ export function RightSidebar() {
           {data.rankings.map((user) => (
              <TossListItem
                 key={user.id}
-                href={`/profile/${user.id}`}
+                href={`/users/${user.id}`}
                 title={user.nickname}
                 subtitle={`Lv.${user.level} · ${user.xp.toLocaleString()} XP`}
                 rightText={`#${user.rank}`}
@@ -170,7 +170,7 @@ export function RightSidebar() {
           data.activities.map((act) => (
             <TossListItem
                key={act.id}
-               href={`/profile/${act.userId}`}
+               href={`/users/${act.userId}`}
                title={act.nickname}
                subtitle={`${act.courtName} 체크인`}
                rightText={timeAgo(act.checkedInAt)}
