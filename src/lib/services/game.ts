@@ -143,22 +143,34 @@ export async function listRecentGames(take = 4) {
  * @returns game 또는 null
  */
 export async function getGame(idOrShortUuid: string) {
-  if (!idOrShortUuid || idOrShortUuid.length < 8) return null;
+  if (!idOrShortUuid) return null;
 
-  let fullUuid: string | undefined;
-
-  if (idOrShortUuid.length === 8) {
-    const rows = await prisma.$queryRaw<{ uuid: string }[]>`
-      SELECT uuid::text AS uuid FROM games WHERE uuid::text LIKE ${idOrShortUuid + "%"} LIMIT 1
-    `.catch(() => [] as { uuid: string }[]);
-    fullUuid = rows[0]?.uuid;
-  } else {
-    fullUuid = idOrShortUuid;
+  // 숫자 ID로 조회 시도
+  const numId = Number(idOrShortUuid);
+  if (!isNaN(numId) && numId > 0) {
+    const game = await prisma.games.findUnique({ where: { id: BigInt(numId) } }).catch(() => null);
+    if (game) return game;
   }
 
-  if (!fullUuid) return null;
+  // UUID (8자 이상)로 조회
+  if (idOrShortUuid.length >= 8) {
+    let fullUuid: string | undefined;
 
-  return prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+    if (idOrShortUuid.length === 8) {
+      const rows = await prisma.$queryRaw<{ uuid: string }[]>`
+        SELECT uuid::text AS uuid FROM games WHERE uuid::text LIKE ${idOrShortUuid + "%"} LIMIT 1
+      `.catch(() => [] as { uuid: string }[]);
+      fullUuid = rows[0]?.uuid;
+    } else {
+      fullUuid = idOrShortUuid;
+    }
+
+    if (fullUuid) {
+      return prisma.games.findUnique({ where: { uuid: fullUuid } }).catch(() => null);
+    }
+  }
+
+  return null;
 }
 
 /**
