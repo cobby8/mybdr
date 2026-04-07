@@ -498,7 +498,7 @@ export default function ProfileEditPage() {
         </p>
         <Link
           href="/profile/preferences"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover,#142D6B)]"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text-on-primary)] border-2 border-[var(--color-primary)] hover:opacity-90"
         >
           <span className="material-symbols-outlined text-base">auto_awesome</span>
           맞춤 설정 관리
@@ -509,7 +509,7 @@ export default function ProfileEditPage() {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full rounded-[10px] bg-[var(--color-accent)] py-4 text-sm font-semibold text-white hover:bg-[var(--color-accent-hover,#142D6B)] disabled:opacity-60"
+        className="w-full rounded-[10px] bg-[var(--color-primary)] py-4 text-sm font-semibold text-[var(--color-text-on-primary)] border-2 border-[var(--color-primary)] hover:opacity-90 disabled:opacity-60"
       >
         {saving ? "저장 중..." : "저장"}
       </button>
