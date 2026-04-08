@@ -23,10 +23,12 @@ export async function createTeamAction(_prevState: { error: string } | null, for
   try {
     const userId = BigInt(session.sub);
 
-    // 팀 2개 한도 확인
-    const teamCount = await prisma.team.count({ where: { captainId: userId } });
-    if (teamCount >= 2) {
-      return { error: "팀은 최대 2개까지 생성할 수 있습니다." };
+    // 팀 한도 확인 (super_admin은 무제한)
+    if (session.role !== "super_admin") {
+      const teamCount = await prisma.team.count({ where: { captainId: userId } });
+      if (teamCount >= 5) {
+        return { error: "팀은 최대 5개까지 생성할 수 있습니다." };
+      }
     }
 
     const team = await prisma.$transaction(async (tx) => {
