@@ -31,6 +31,23 @@ const getPost = cache(async (publicId: string) => {
   }).catch(() => null);
 });
 
+// 카페 댓글 타입
+interface CafeComment {
+  nickname: string;
+  text: string;
+  date: string;
+  is_reply: boolean;
+}
+
+// images JSONB에서 카페 댓글 추출
+function getCafeComments(images: unknown): CafeComment[] {
+  if (!images || typeof images !== "object") return [];
+  const obj = images as Record<string, unknown>;
+  const comments = obj.cafe_comments;
+  if (!Array.isArray(comments)) return [];
+  return comments.filter((c): c is CafeComment => !!c && typeof c === "object" && "text" in c);
+}
+
 // 카테고리 라벨 매핑 (브레드크럼 표시용)
 const categoryLabelMap: Record<string, string> = {
   general: "자유게시판",
@@ -86,6 +103,11 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
     getWebSession(),
   ]);
   if (!post || post.status === "deleted") return notFound();
+
+  // 카페 크롤링 글쓴이 우선, 없으면 users 테이블
+  const displayNickname = post.author_nickname || post.users?.nickname || "익명";
+  // 카페 댓글
+  const cafeComments = getCafeComments(post.images);
 
   // 2단계: post.id가 필요한 댓글 + 좋아요/팔로우를 병렬 실행
   let isLiked = false;
@@ -193,7 +215,7 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                       className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
                       style={{ backgroundColor: "var(--color-primary)" }}
                     >
-                      {(post.users?.nickname ?? "?").charAt(0)}
+                      {displayNickname.charAt(0)}
                     </div>
                   )}
                   <div>
@@ -202,7 +224,7 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                         className="text-sm font-semibold"
                         style={{ color: "var(--color-text-primary)" }}
                       >
-                        {post.users?.nickname ?? "익명"}
+                        {displayNickname}
                       </span>
                     </div>
                     <div
@@ -304,13 +326,73 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
               </div>
             </div>
           </section>
+
+          {/* 카페 댓글 (크롤링 원본) */}
+          {cafeComments.length > 0 && (
+            <section
+              className="mt-6 rounded-lg border overflow-hidden"
+              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+            >
+              <div className="p-6 md:p-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-muted)" }}>
+                    forum
+                  </span>
+                  <span className="text-sm font-bold" style={{ color: "var(--color-text-muted)" }}>
+                    카페 댓글
+                  </span>
+                  <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>
+                    {cafeComments.length}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {cafeComments.map((c, i) => (
+                    <div
+                      key={i}
+                      className={`flex gap-3 ${c.is_reply ? "ml-8" : ""}`}
+                    >
+                      {c.is_reply && (
+                        <span
+                          className="material-symbols-outlined text-sm mt-1"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          subdirectory_arrow_right
+                        </span>
+                      )}
+                      <div
+                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                        style={{ backgroundColor: c.is_reply ? "var(--color-text-muted)" : "var(--color-navy, #1B3C87)" }}
+                      >
+                        {(c.nickname || "?").charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
+                            {c.nickname || "익명"}
+                          </span>
+                          {c.date && (
+                            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                              {c.date}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
+                          {c.text}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
         {/* 우측: 사이드바 */}
         <div className="lg:col-span-4">
           <PostDetailSidebar
             authorId={post.user_id}
-            authorNickname={post.users?.nickname ?? "익명"}
+            authorNickname={displayNickname}
             authorImage={post.users?.profile_image_url ?? null}
             isFollowing={isFollowing}
             isLoggedIn={isLoggedIn}

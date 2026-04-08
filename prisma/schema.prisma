@@ -802,8 +802,9 @@ model community_posts {
   negotiable       Boolean? @default(false)
   share_contact    Boolean? @default(false)
   trade_status     String?  @default("available") @db.VarChar
-  images           Json?                                        // 이미지 URL 배열 (["url1","url2"...])
+  images           Json?                                        // 이미지 URL 배열 + 카페 메타 (cafe_source_id, cafe_author, cafe_comments)
   likes_count      Int      @default(0)
+  author_nickname  String?  @db.VarChar(255)                     // 카페 크롤링 글쓴이 닉네임
   users            User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_0b2d1de074")
   teams            Team?    @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_e4a581c07d")
   community_post_likes community_post_likes[]

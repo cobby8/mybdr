@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
         view_count: true,
         comments_count: true,
         likes_count: true,
+        author_nickname: true,  // 카페 크롤링 글쓴이 (우선)
         users: {
           select: {
             nickname: true,
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
       commentsCount: p.comments_count ?? 0,
       likesCount: p.likes_count ?? 0,
       createdAt: p.created_at?.toISOString() ?? null,          // Date -> ISO string
-      authorNickname: p.users?.nickname ?? "익명",              // 작성자 닉네임 추출
+      authorNickname: p.author_nickname || p.users?.nickname || "익명",  // 카페 글쓴이 우선
       authorProfileImage: p.users?.profile_image_url ?? null,  // 작성자 프로필 이미지 URL
       contentPreview: "",                                        // 목록에서 본문 미리보기 제거 (성능 최적화)
     }));
