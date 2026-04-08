@@ -2,6 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { generateToken } from "@/lib/auth/jwt";
@@ -82,6 +83,7 @@ export async function loginAction(_prevState: { error: string } | null, formData
     return { error: "로그인 중 오류가 발생했습니다." };
   }
 
+  revalidatePath("/", "layout");
   redirect("/");
 }
 
