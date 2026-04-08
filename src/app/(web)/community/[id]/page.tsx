@@ -292,100 +292,54 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
             style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
           >
             <div className="p-6 md:p-8">
-              {/* 댓글 수 헤더 */}
+              {/* 댓글 수 헤더 (DB 댓글 + 카페 댓글 합산) */}
               <div className="flex items-center gap-2 mb-8">
                 <span className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
                   댓글
                 </span>
                 <span className="font-bold" style={{ color: "var(--color-primary)" }}>
-                  {comments.length}
+                  {comments.length + cafeComments.length}
                 </span>
               </div>
 
               {/* 댓글 입력 폼 */}
               <CommentForm postId={id} />
 
-              {/* 댓글 리스트: 클라이언트 컴포넌트로 분리 (인라인 편집/삭제 지원) */}
+              {/* 댓글 리스트: DB 댓글 + 카페 댓글을 하나로 합침 */}
               <div className="mt-8">
                 <CommentList
-                  comments={comments
-                    .filter((c) => c.status !== "deleted")
-                    .map((c) => ({
-                      id: c.id.toString(),
-                      userId: c.user_id.toString(),
-                      content: c.content,
-                      likesCount: c.likes_count,
-                      createdAt: c.created_at.toISOString(),
-                      isPostAuthor: c.user_id === post.user_id,
-                      nickname: c.users?.nickname ?? "익명",
-                      profileImage: c.users?.profile_image_url ?? null,
-                    }))}
+                  comments={[
+                    // 카페 댓글 (크롤링 원본 — 먼저 표시)
+                    ...cafeComments.map((c, i) => ({
+                      id: `cafe-${i}`,
+                      userId: "",
+                      content: c.text,
+                      likesCount: 0,
+                      createdAt: c.date || "",
+                      isPostAuthor: false,
+                      nickname: c.nickname || "익명",
+                      profileImage: null as string | null,
+                    })),
+                    // DB 댓글 (사이트에서 직접 작성)
+                    ...comments
+                      .filter((c) => c.status !== "deleted")
+                      .map((c) => ({
+                        id: c.id.toString(),
+                        userId: c.user_id.toString(),
+                        content: c.content,
+                        likesCount: c.likes_count,
+                        createdAt: c.created_at.toISOString(),
+                        isPostAuthor: c.user_id === post.user_id,
+                        nickname: c.users?.nickname ?? "익명",
+                        profileImage: c.users?.profile_image_url ?? null,
+                      })),
+                  ]}
                   postPublicId={id}
                   currentUserId={currentUserId}
                 />
               </div>
             </div>
           </section>
-
-          {/* 카페 댓글 (크롤링 원본) */}
-          {cafeComments.length > 0 && (
-            <section
-              className="mt-6 rounded-lg border overflow-hidden"
-              style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-            >
-              <div className="p-6 md:p-8">
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-muted)" }}>
-                    forum
-                  </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-muted)" }}>
-                    카페 댓글
-                  </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>
-                    {cafeComments.length}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {cafeComments.map((c, i) => (
-                    <div
-                      key={i}
-                      className={`flex gap-3 ${c.is_reply ? "ml-8" : ""}`}
-                    >
-                      {c.is_reply && (
-                        <span
-                          className="material-symbols-outlined text-sm mt-1"
-                          style={{ color: "var(--color-text-muted)" }}
-                        >
-                          subdirectory_arrow_right
-                        </span>
-                      )}
-                      <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                        style={{ backgroundColor: c.is_reply ? "var(--color-text-muted)" : "var(--color-navy, #1B3C87)" }}
-                      >
-                        {(c.nickname || "?").charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold" style={{ color: "var(--color-text-primary)" }}>
-                            {c.nickname || "익명"}
-                          </span>
-                          {c.date && (
-                            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                              {c.date}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm mt-0.5" style={{ color: "var(--color-text-secondary)" }}>
-                          {c.text}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
         </div>
 
         {/* 우측: 사이드바 */}
