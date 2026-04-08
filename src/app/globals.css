@@ -474,8 +474,7 @@ html.light .watermark-text {
   #box-score-print-area table { font-size: 9px; border-collapse: collapse; }
   #box-score-print-area th { color: #555 !important; border-bottom: 1px solid #999 !important; }
   #box-score-print-area td { border-bottom: 1px solid #ddd !important; }
-  .print\\:hidden { display: none !important; }
-  .print\\:block { display: block !important; }
-  .print\\:table { display: table !important; }
+  [data-print-hide] { display: none !important; }
+  [data-print-show] { display: block !important; }
 }
 

@@ -295,16 +295,16 @@ export default function LiveBoxScorePage() {
       {/* 박스스코어 (프린트 영역) */}
       <div id="box-score-print-area" className="px-4 pb-4 space-y-4">
         {/* 프린트 전용 헤더 (화면에서는 숨김) */}
-        <div className="hidden print:block text-center mb-2">
+        <div data-print-show className="hidden text-center mb-2">
           <h1 className="text-lg font-bold">{match.tournament_name}</h1>
           <p className="text-xs text-gray-500 mt-0.5">{match.round_name ?? ""} · {STATUS_LABEL[match.status] ?? match.status}</p>
         </div>
 
         {/* 쿼터별 득점 요약 (화면 + 프린트 공용) */}
-        <div className="bg-[#111118] rounded-xl overflow-hidden print:bg-white print:border print:border-gray-300">
+        <div className="bg-[#111118] rounded-xl overflow-hidden">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-white/10 text-gray-500 print:border-gray-300 print:text-gray-600">
+              <tr className="border-b border-white/10 text-gray-500">
                 <th className="py-2 px-3 text-left font-semibold w-[100px]">팀</th>
                 {quarters.map((q) => (
                   <th key={q.label} className="py-2 px-2 text-center font-normal">{q.label}</th>
@@ -313,19 +313,19 @@ export default function LiveBoxScorePage() {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-white/5 print:border-gray-200">
-                <td className="py-2 px-3 font-semibold text-gray-200 print:text-black truncate max-w-[100px]">{match.home_team.name}</td>
+              <tr className="border-b border-white/5">
+                <td className="py-2 px-3 font-semibold text-gray-200 truncate max-w-[100px]">{match.home_team.name}</td>
                 {quarters.map((q) => (
-                  <td key={q.label} className="py-2 px-2 text-center text-gray-300 print:text-black">{q.home}</td>
+                  <td key={q.label} className="py-2 px-2 text-center text-gray-300">{q.home}</td>
                 ))}
-                <td className="py-2 px-3 text-center font-bold text-white print:text-black text-sm">{match.home_score}</td>
+                <td className="py-2 px-3 text-center font-bold text-white text-sm">{match.home_score}</td>
               </tr>
               <tr>
-                <td className="py-2 px-3 font-semibold text-gray-200 print:text-black truncate max-w-[100px]">{match.away_team.name}</td>
+                <td className="py-2 px-3 font-semibold text-gray-200 truncate max-w-[100px]">{match.away_team.name}</td>
                 {quarters.map((q) => (
-                  <td key={q.label} className="py-2 px-2 text-center text-gray-300 print:text-black">{q.away}</td>
+                  <td key={q.label} className="py-2 px-2 text-center text-gray-300">{q.away}</td>
                 ))}
-                <td className="py-2 px-3 text-center font-bold text-white print:text-black text-sm">{match.away_score}</td>
+                <td className="py-2 px-3 text-center font-bold text-white text-sm">{match.away_score}</td>
               </tr>
             </tbody>
           </table>
@@ -344,7 +344,7 @@ export default function LiveBoxScorePage() {
         />
       </div>
       {/* 프린트 버튼 */}
-      <div className="px-4 pb-8 print:hidden">
+      <div data-print-hide className="px-4 pb-8">
         <button
           onClick={() => window.print()}
           className="w-full py-3 rounded-xl text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex items-center justify-center gap-2"
