@@ -158,15 +158,17 @@ export default function LiveBoxScorePage() {
   }
 
   const qs = match.quarterScores;
+  const qh = qs?.home;
+  const qa = qs?.away;
   const quarters = [
-    { label: "Q1", home: qs?.home.q1 ?? 0, away: qs?.away.q1 ?? 0 },
-    { label: "Q2", home: qs?.home.q2 ?? 0, away: qs?.away.q2 ?? 0 },
-    { label: "Q3", home: qs?.home.q3 ?? 0, away: qs?.away.q3 ?? 0 },
-    { label: "Q4", home: qs?.home.q4 ?? 0, away: qs?.away.q4 ?? 0 },
-    ...(qs?.home.ot ?? []).map((v, i) => ({
+    { label: "Q1", home: qh?.q1 ?? 0, away: qa?.q1 ?? 0 },
+    { label: "Q2", home: qh?.q2 ?? 0, away: qa?.q2 ?? 0 },
+    { label: "Q3", home: qh?.q3 ?? 0, away: qa?.q3 ?? 0 },
+    { label: "Q4", home: qh?.q4 ?? 0, away: qa?.q4 ?? 0 },
+    ...(qh?.ot ?? []).map((v, i) => ({
       label: `OT${i + 1}`,
       home: v,
-      away: qs?.away.ot[i] ?? 0,
+      away: qa?.ot?.[i] ?? 0,
     })),
   ];
 
