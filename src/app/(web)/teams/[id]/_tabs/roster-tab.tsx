@@ -6,26 +6,30 @@ interface RosterTabProps {
   accent: string;
 }
 
-// 포지션 정렬 우선순위 — 농구 기준
-const POSITION_ORDER = ["PG", "SG", "SF", "PF", "C"];
+// 포지션 → 대분류 매핑 (G/F/C)
+function normalizePosition(pos: string | null): string {
+  if (!pos) return "기타";
+  const upper = pos.toUpperCase();
+  if (["PG", "SG", "G"].includes(upper)) return "G";
+  if (["SF", "PF", "F"].includes(upper)) return "F";
+  if (upper === "C") return "C";
+  return "기타";
+}
 
-// 포지션별로 멤버 분류하는 유틸 함수
+const POSITION_GROUP_ORDER = ["G", "F", "C", "기타"];
+const POSITION_GROUP_LABEL: Record<string, string> = { G: "가드 (G)", F: "포워드 (F)", C: "센터 (C)", "기타": "기타" };
+
+// 포지션 대분류로 멤버 그룹핑
 function groupByPosition<T extends { position: string | null }>(members: T[]) {
   const groups: Record<string, T[]> = {};
   for (const m of members) {
-    const pos = m.position ?? "미설정";
-    if (!groups[pos]) groups[pos] = [];
-    groups[pos].push(m);
+    const group = normalizePosition(m.position);
+    if (!groups[group]) groups[group] = [];
+    groups[group].push(m);
   }
-  // PG SG SF PF C 먼저, 나머지는 마지막
-  return Object.entries(groups).sort(([a], [b]) => {
-    const ai = POSITION_ORDER.indexOf(a);
-    const bi = POSITION_ORDER.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  return POSITION_GROUP_ORDER
+    .filter((g) => groups[g]?.length)
+    .map((g) => [g, groups[g]] as [string, T[]]);
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -45,48 +49,39 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
   }).catch(() => []);
 
-  const captains = members.filter((m) => m.role === "captain");
-  const rest = members.filter((m) => m.role !== "captain");
-  const grouped = groupByPosition(rest.map((m) => ({ ...m, position: m.user?.position ?? null })));
+  // 스태프 (감독/코치/매니저/총무) vs 선수 (팀장/멤버)
+  const staffRoles = ["director", "coach", "manager", "treasurer"];
+  const staff = members.filter((m) => staffRoles.includes(m.role ?? ""));
+  const players = members.filter((m) => !staffRoles.includes(m.role ?? ""));
+  const grouped = groupByPosition(players.map((m) => ({ ...m, position: m.user?.position ?? null })));
 
-  // 개별 멤버 카드 (원형 아바타 그리드 스타일)
-  function MemberCard({ m }: { m: typeof members[0] }) {
+  // 행 컴포넌트
+  function MemberRow({ m }: { m: typeof members[0] }) {
     const displayName = m.user?.nickname ?? m.user?.name ?? "멤버";
     const isCaptain = m.role === "captain";
     const roleLabel = ROLE_LABEL[m.role ?? "member"] ?? m.role ?? "멤버";
     const userId = m.user?.id?.toString();
-    const position = m.user?.position ?? "-";
 
     const inner = (
-      <div className="group flex flex-col items-center rounded border border-[var(--color-border)] bg-[var(--color-card)] p-4 text-center transition-all hover:bg-[var(--color-card-hover)]">
-        {/* 원형 아바타 */}
-        <div className="relative mb-3">
-          <div
-            className="flex h-20 w-20 items-center justify-center rounded-full text-lg font-bold text-white"
-            style={{
-              backgroundColor: isCaptain ? accent : "var(--color-surface-high)",
-              borderWidth: "2px",
-              borderColor: isCaptain ? `${accent}80` : "var(--color-border)",
-            }}
-          >
-            <span className={isCaptain ? "" : "text-[var(--color-text-secondary)]"}>
-              {displayName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          {/* 주장 배지 */}
-          {isCaptain && (
-            <span className="absolute -bottom-1 -right-1 rounded bg-[var(--color-primary)] px-1.5 py-0.5 text-xs font-black text-white">
-              CP
-            </span>
-          )}
+      <div className="flex items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 transition-all hover:bg-[var(--color-card-hover)]">
+        {/* 등번호 */}
+        <div
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-black"
+          style={{
+            backgroundColor: isCaptain ? `${accent}22` : "var(--color-surface-high)",
+            color: isCaptain ? accent : "var(--color-text-secondary)",
+          }}
+        >
+          {m.jerseyNumber != null ? `#${m.jerseyNumber}` : "-"}
         </div>
-        {/* 이름 + 포지션 */}
-        <p className="text-sm font-bold text-[var(--color-text-primary)] mb-0.5">{displayName}</p>
-        <p className="text-xs uppercase tracking-widest text-[var(--color-text-muted)] font-medium">{position}</p>
-        {/* 역할 배지 */}
-        <div className="mt-2">
+        {/* 이름 */}
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{displayName}</p>
+        </div>
+        {/* 역할 배지 (멤버 제외) */}
+        {m.role !== "member" && (
           <span
-            className="rounded px-2 py-0.5 text-xs font-medium"
+            className="rounded px-2 py-0.5 text-xs font-medium flex-shrink-0"
             style={
               isCaptain
                 ? { backgroundColor: `${accent}22`, color: accent }
@@ -95,7 +90,7 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
           >
             {roleLabel}
           </span>
-        </div>
+        )}
       </div>
     );
 
@@ -116,27 +111,27 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 주장 섹션 */}
-      {captains.length > 0 && (
+    <div className="space-y-5">
+      {/* 스태프 */}
+      {staff.length > 0 && (
         <div>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-            주장
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            코칭 스태프
           </h3>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-            {captains.map((m) => <MemberCard key={m.id.toString()} m={m} />)}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {staff.map((m) => <MemberRow key={m.id.toString()} m={m} />)}
           </div>
         </div>
       )}
 
-      {/* 포지션별 멤버 그리드 — 6열 */}
+      {/* 포지션별 선수 — G / F / C */}
       {grouped.map(([pos, posMembers]) => (
         <div key={pos}>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-            {pos}
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
+            {POSITION_GROUP_LABEL[pos] ?? pos} <span className="text-[var(--color-text-secondary)]">({posMembers.length})</span>
           </h3>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-            {posMembers.map((m) => <MemberCard key={m.id.toString()} m={m} />)}
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {posMembers.map((m) => <MemberRow key={m.id.toString()} m={m} />)}
           </div>
         </div>
       ))}
