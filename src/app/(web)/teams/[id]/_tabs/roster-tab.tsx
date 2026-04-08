@@ -29,9 +29,11 @@ function groupByPosition<T extends { position: string | null }>(members: T[]) {
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  captain: "주장",
+  director: "감독",
   coach: "코치",
+  captain: "팀장",
   manager: "매니저",
+  treasurer: "총무",
   member: "멤버",
 };
 

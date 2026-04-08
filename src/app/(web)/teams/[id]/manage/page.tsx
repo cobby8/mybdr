@@ -9,6 +9,24 @@ import { Button } from "@/components/ui/button";
 // 타입 정의
 // ─────────────────────────────────────────────────
 
+const ROLE_OPTIONS = [
+  { value: "director", label: "감독" },
+  { value: "coach", label: "코치" },
+  { value: "captain", label: "팀장" },
+  { value: "manager", label: "매니저" },
+  { value: "treasurer", label: "총무" },
+  { value: "member", label: "멤버" },
+];
+
+interface TeamMember {
+  id: string;
+  user_id: string;
+  nickname: string;
+  position: string | null;
+  profile_image: string | null;
+  role: string;
+}
+
 interface JoinRequest {
   id: string;
   user_id: string;
@@ -53,10 +71,12 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   const [tab, setTab] = useState<ManageTab>("members");
 
   // ─── 멤버 관리 상태 ───
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [requests, setRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [roleChanging, setRoleChanging] = useState<string | null>(null);
 
   // ─── 팀 설정 상태 ───
   const [teamData, setTeamData] = useState<TeamEditData | null>(null);
@@ -90,7 +110,8 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       }
       if (!res.ok) throw new Error("조회 실패");
       const data = await res.json();
-      setRequests(data.data ?? []);
+      setMembers(data.data?.members ?? data.members ?? []);
+      setRequests(data.data?.requests ?? data.data ?? []);
     } catch {
       setError("가입신청 목록을 불러오지 못했습니다.");
     } finally {
@@ -158,6 +179,28 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       alert("네트워크 오류가 발생했습니다.");
     } finally {
       setProcessing(null);
+    }
+  }
+
+  // ─── 멤버 관리: 역할 변경 핸들러 ───
+  async function handleRoleChange(memberId: string, newRole: string) {
+    setRoleChanging(memberId);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/members`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memberId, role: newRole }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? data.message ?? "역할 변경 실패");
+        return;
+      }
+      setMembers((prev) => prev.map((m) => m.id === memberId ? { ...m, role: newRole } : m));
+    } catch {
+      alert("네트워크 오류");
+    } finally {
+      setRoleChanging(null);
     }
   }
 
@@ -269,6 +312,45 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       {/* ═══════════ 멤버 관리 탭 ═══════════ */}
       {tab === "members" && (
         <>
+          {/* ─── 현재 멤버 목록 + 역할 변경 ─── */}
+          {!loading && members.length > 0 && (
+            <div className="mb-6">
+              <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-secondary)]">
+                멤버 ({members.length}명)
+              </h3>
+              <div className="space-y-2">
+                {members.map((m) => (
+                  <div key={m.id} className="flex items-center gap-3 rounded-lg bg-[var(--color-card)] p-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-bright)] text-sm font-bold text-[var(--color-accent)]">
+                      {m.nickname.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{m.nickname}</p>
+                      {m.position && <p className="text-xs text-[var(--color-text-muted)]">{m.position}</p>}
+                    </div>
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRoleChange(m.id, e.target.value)}
+                      disabled={roleChanging === m.id}
+                      className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+                    >
+                      {ROLE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ─── 가입 신청 ─── */}
+          {!loading && requests.length > 0 && (
+            <h3 className="mb-3 text-sm font-semibold text-[var(--color-text-secondary)]">
+              가입 신청 ({requests.length}건)
+            </h3>
+          )}
+
           {loading && (
             <div className="py-12 text-center text-sm text-[var(--color-text-secondary)]">불러오는 중...</div>
           )}
