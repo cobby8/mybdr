@@ -319,6 +319,7 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                       isPostAuthor: false,
                       nickname: c.nickname || "익명",
                       profileImage: null as string | null,
+                      isReply: c.is_reply,
                     })),
                     // DB 댓글 (사이트에서 직접 작성)
                     ...comments

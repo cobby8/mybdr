@@ -17,6 +17,7 @@ interface CommentItem {
   isPostAuthor: boolean;
   nickname: string;
   profileImage: string | null;
+  isReply?: boolean;
 }
 
 /**
@@ -125,7 +126,7 @@ function CommentRow({
   }
 
   return (
-    <div className="flex gap-4">
+    <div className={`flex gap-4${c.isReply ? " ml-12 pl-4 border-l-2" : ""}`} style={c.isReply ? { borderColor: "var(--color-border)" } : undefined}>
       {/* 댓글 작성자 아바타 */}
       {c.profileImage ? (
         <Image
