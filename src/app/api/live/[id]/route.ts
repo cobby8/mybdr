@@ -225,10 +225,39 @@ export async function GET(
         .map(toPlayerRow);
     }
 
-    const quarterScores = match.quarterScores as {
+    // DB quarterScores가 불완전하면 PBP에서 쿼터별 점수 계산
+    let quarterScores = match.quarterScores as {
       home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
       away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     } | null;
+
+    // home/away 구조가 없으면 PBP 기반으로 계산
+    if (!quarterScores?.home || !quarterScores?.away) {
+      const pbpForScores = await prisma.play_by_plays.findMany({
+        where: { tournament_match_id: BigInt(matchId), is_made: true, points_scored: { gt: 0 } },
+        select: { quarter: true, points_scored: true, tournament_team_id: true },
+      });
+      const homeId = Number(homeTeamId);
+      const qMap: Record<number, { home: number; away: number }> = {};
+      for (const p of pbpForScores) {
+        const q = p.quarter ?? 1;
+        if (!qMap[q]) qMap[q] = { home: 0, away: 0 };
+        if (Number(p.tournament_team_id) === homeId) {
+          qMap[q].home += p.points_scored ?? 0;
+        } else {
+          qMap[q].away += p.points_scored ?? 0;
+        }
+      }
+      quarterScores = {
+        home: { q1: qMap[1]?.home ?? 0, q2: qMap[2]?.home ?? 0, q3: qMap[3]?.home ?? 0, q4: qMap[4]?.home ?? 0, ot: [] },
+        away: { q1: qMap[1]?.away ?? 0, q2: qMap[2]?.away ?? 0, q3: qMap[3]?.away ?? 0, q4: qMap[4]?.away ?? 0, ot: [] },
+      };
+      // OT 처리
+      for (const q of Object.keys(qMap).map(Number).filter(n => n > 4).sort()) {
+        quarterScores.home.ot.push(qMap[q].home);
+        quarterScores.away.ot.push(qMap[q].away);
+      }
+    }
 
     // PBP 로그 조회 — 시간 역순, 최대 200건
     const pbpRows = await prisma.play_by_plays.findMany({
