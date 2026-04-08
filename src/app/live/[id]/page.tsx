@@ -308,63 +308,7 @@ export default function LiveBoxScorePage() {
 
       {/* PBP 로그 */}
       {match.play_by_plays && match.play_by_plays.length > 0 && (
-        <div className="px-4 pb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm font-semibold text-gray-200">Play-by-Play</span>
-            <span className="text-xs text-gray-500">({match.play_by_plays.length})</span>
-          </div>
-          <div className="bg-[#111118] rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-white/10 text-gray-500">
-                    <th className="py-2 px-2 text-left font-normal w-[60px]">시간</th>
-                    <th className="py-2 px-2 text-center font-normal w-[32px]">팀</th>
-                    <th className="py-2 px-2 text-center font-normal w-[32px]">#</th>
-                    <th className="py-2 px-2 text-left font-normal">행동</th>
-                    <th className="py-2 px-2 text-center font-normal w-[60px]">점수</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {match.play_by_plays.map((pbp, i) => {
-                    const isHome = pbp.team_id === match.home_team.id;
-                    const teamColor = isHome ? match.home_team.color : match.away_team.color;
-                    const actionLabel = ACTION_LABEL[pbp.action_type] ?? pbp.action_type;
-
-                    return (
-                      <tr
-                        key={pbp.id}
-                        className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
-                      >
-                        <td className="py-1.5 px-2 text-gray-500 whitespace-nowrap">
-                          <span className="text-gray-600">{getQuarterLabel(pbp.quarter)}</span>{" "}
-                          {formatGameClock(pbp.game_clock_seconds)}
-                        </td>
-                        <td className="py-1.5 px-2 text-center">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full mx-auto"
-                            style={{ backgroundColor: teamColor }}
-                          />
-                        </td>
-                        <td className="py-1.5 px-2 text-center text-gray-400">
-                          {pbp.jersey_number ?? "-"}
-                        </td>
-                        <td className="py-1.5 px-2 text-gray-300">
-                          {actionLabel}
-                        </td>
-                        <td className="py-1.5 px-2 text-center text-gray-400 whitespace-nowrap">
-                          <span style={{ color: match.home_team.color }}>{pbp.home_score_at_time}</span>
-                          <span className="text-gray-600 mx-0.5">:</span>
-                          <span style={{ color: match.away_team.color }}>{pbp.away_score_at_time}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <PbpSection match={match} />
       )}
 
       {/* 하단 갱신 정보 */}
@@ -507,6 +451,83 @@ function BoxScoreTable({
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+const PBP_COLLAPSED_COUNT = 10;
+
+function PbpSection({ match }: { match: MatchData }) {
+  const [expanded, setExpanded] = useState(false);
+  const pbps = match.play_by_plays;
+  const visiblePbps = expanded ? pbps : pbps.slice(0, PBP_COLLAPSED_COUNT);
+  const hasMore = pbps.length > PBP_COLLAPSED_COUNT;
+
+  return (
+    <div className="px-4 pb-8">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-sm font-semibold text-gray-200">Play-by-Play</span>
+        <span className="text-xs text-gray-500">({pbps.length})</span>
+      </div>
+      <div className="bg-[#111118] rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-white/10 text-gray-500">
+                <th className="py-2 px-2 text-left font-normal w-[60px]">시간</th>
+                <th className="py-2 px-2 text-center font-normal w-[32px]">팀</th>
+                <th className="py-2 px-2 text-center font-normal w-[32px]">#</th>
+                <th className="py-2 px-2 text-left font-normal">행동</th>
+                <th className="py-2 px-2 text-center font-normal w-[60px]">점수</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visiblePbps.map((pbp, i) => {
+                const isHome = pbp.team_id === match.home_team.id;
+                const teamColor = isHome ? match.home_team.color : match.away_team.color;
+                const actionLabel = ACTION_LABEL[pbp.action_type] ?? pbp.action_type;
+
+                return (
+                  <tr
+                    key={pbp.id}
+                    className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
+                  >
+                    <td className="py-1.5 px-2 text-gray-500 whitespace-nowrap">
+                      <span className="text-gray-600">{getQuarterLabel(pbp.quarter)}</span>{" "}
+                      {formatGameClock(pbp.game_clock_seconds)}
+                    </td>
+                    <td className="py-1.5 px-2 text-center">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full mx-auto"
+                        style={{ backgroundColor: teamColor }}
+                      />
+                    </td>
+                    <td className="py-1.5 px-2 text-center text-gray-400">
+                      {pbp.jersey_number ?? "-"}
+                    </td>
+                    <td className="py-1.5 px-2 text-gray-300">
+                      {actionLabel}
+                    </td>
+                    <td className="py-1.5 px-2 text-center text-gray-400 whitespace-nowrap">
+                      <span style={{ color: match.home_team.color }}>{pbp.home_score_at_time}</span>
+                      <span className="text-gray-600 mx-0.5">:</span>
+                      <span style={{ color: match.away_team.color }}>{pbp.away_score_at_time}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {hasMore && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="w-full py-2.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors border-t border-white/5"
+          >
+            {expanded ? "접기" : `더보기 (${pbps.length - PBP_COLLAPSED_COUNT}건)`}
+          </button>
+        )}
       </div>
     </div>
   );
