@@ -16,7 +16,13 @@ async function handler(
     if (!hasAccess) return forbidden("No access to this tournament");
   }
 
-  const fullData = await getTournamentFullData(tournamentId);
+  let fullData;
+  try {
+    fullData = await getTournamentFullData(tournamentId);
+  } catch (dbError) {
+    console.error("[full-data] DB error:", dbError);
+    return new Response(JSON.stringify({ error: "DB error", detail: String(dbError) }), { status: 500 });
+  }
   if (!fullData) return notFound("Tournament not found");
 
   const { tournament, teams, players, matches, playerStats } = fullData;
@@ -103,7 +109,12 @@ async function handler(
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  return withErrorHandler(withAuth(async (r: NextRequest, authCtx: AuthContext) => {
-    return handler(r, authCtx, id);
-  }))(req);
+  try {
+    return await withErrorHandler(withAuth(async (r: NextRequest, authCtx: AuthContext) => {
+      return handler(r, authCtx, id);
+    }))(req);
+  } catch (error) {
+    console.error("[full-data] Unhandled error:", error);
+    return new Response(JSON.stringify({ error: String(error) }), { status: 500 });
+  }
 }
