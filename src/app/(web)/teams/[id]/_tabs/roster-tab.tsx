@@ -51,7 +51,9 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
 
   // 스태프 (감독/코치/매니저/총무) vs 선수 (팀장/멤버)
   const staffRoles = ["director", "coach", "manager", "treasurer"];
-  const staff = members.filter((m) => staffRoles.includes(m.role ?? ""));
+  const staff = members
+    .filter((m) => staffRoles.includes(m.role ?? ""))
+    .sort((a, b) => staffRoles.indexOf(a.role ?? "") - staffRoles.indexOf(b.role ?? ""));
   const players = members.filter((m) => !staffRoles.includes(m.role ?? ""));
   const grouped = groupByPosition(players.map((m) => ({ ...m, position: m.user?.position ?? null })));
 
