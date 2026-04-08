@@ -74,9 +74,11 @@ export async function loginAction(_prevState: { error: string } | null, formData
     await clearLoginAttempts(email);
 
     const token = await generateToken(user);
+    console.log("[loginAction] SUCCESS:", email, "cookie:", WEB_SESSION_COOKIE);
     const cookieStore = await cookies();
     cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
-  } catch {
+  } catch (err) {
+    console.error("[loginAction] ERROR:", err);
     return { error: "로그인 중 오류가 발생했습니다." };
   }
 
