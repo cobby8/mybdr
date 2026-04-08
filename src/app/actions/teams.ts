@@ -23,17 +23,6 @@ export async function createTeamAction(_prevState: { error: string } | null, for
   try {
     const userId = BigInt(session.sub);
 
-    // 권한 체크 (슈퍼관리자 우회, 나머지는 membershipType 기반)
-    if (session.role !== "super_admin") {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { membershipType: true },
-      });
-      if (!canCreateTeam(user?.membershipType ?? 0)) {
-        return { error: "UPGRADE_REQUIRED" };
-      }
-    }
-
     // 팀 2개 한도 확인
     const teamCount = await prisma.team.count({ where: { captainId: userId } });
     if (teamCount >= 2) {
