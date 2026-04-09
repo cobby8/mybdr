@@ -174,6 +174,11 @@ export async function devLoginAction(_prevState: { error: string } | null, _form
 
 export async function logoutAction() {
   const cookieStore = await cookies();
+  // 현재 쿠키 + 이전 쿠키 이름(__Host- 접두사) 모두 삭제
   cookieStore.delete(WEB_SESSION_COOKIE);
+  cookieStore.delete("__Host-bdr_session");
+  cookieStore.delete("bdr_session");
+  // 캐시 무효화 (로그인 상태 반영)
+  revalidatePath("/", "layout");
   redirect("/login");
 }
