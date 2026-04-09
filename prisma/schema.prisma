@@ -209,6 +209,7 @@ model Tournament {
   matches_count                          Int?                    @default(0)
   views_count                            Int?                    @default(0)
   settings                               Json?                   @default("{}")
+  author_nickname                        String?                 @db.VarChar(255)
   is_public                              Boolean?                @default(true)
   auto_approve_teams                     Boolean?                @default(false)
   champion_team_id                       BigInt?
@@ -1192,6 +1193,8 @@ model games {
   status               Int                 @default(0)
   contact_phone        String?             @db.VarChar(20)
   entry_fee_note       String?             @db.VarChar(100)
+  metadata             Json?               @default("{}")
+  author_nickname      String?             @db.VarChar(255)
   template_id          BigInt?
   cloned_from_id       BigInt?
   is_recurring         Boolean?            @default(false)

@@ -180,6 +180,21 @@ export default async function GameDetailPage({
       {/* 호스트 전용: 수정/취소 버튼 */}
       {isHost && <HostActions gameId={id} />}
 
+      {/* 작성자 (카페 크롤링) */}
+      {game.author_nickname && (
+        <div className="flex items-center gap-2">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+            style={{ backgroundColor: "var(--color-navy, #1B3C87)" }}
+          >
+            {game.author_nickname.charAt(0)}
+          </div>
+          <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+            {game.author_nickname}
+          </span>
+        </div>
+      )}
+
       {/* 설명 */}
       {game.description && (
         <p className="text-sm text-[var(--color-text-muted)]">{game.description}</p>
@@ -269,6 +284,39 @@ export default async function GameDetailPage({
           {/* HostCard 제거 — 신청 버튼(GameApplyButton)이 이미 존재 */}
         </div>
       </div>
+
+      {/* 카페 댓글 */}
+      {(() => {
+        const meta = game.metadata as Record<string, unknown> | null;
+        const cafeComments = (Array.isArray(meta?.cafe_comments) ? meta!.cafe_comments : []) as Array<{nickname: string; text: string; date: string; is_reply: boolean}>;
+        if (cafeComments.length === 0) return null;
+        return (
+          <section className="rounded-lg border overflow-hidden" style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}>
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-lg font-bold text-[var(--color-text-primary)]">댓글</span>
+                <span className="font-bold text-[var(--color-primary)]">{cafeComments.length}</span>
+              </div>
+              <div className="space-y-6">
+                {cafeComments.map((c, i) => (
+                  <div key={i} className={`flex gap-3${c.is_reply ? " ml-12 pl-4 border-l-2 border-[var(--color-border)]" : ""}`}>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ backgroundColor: c.is_reply ? "var(--color-text-muted)" : "var(--color-primary)" }}>
+                      {(c.nickname || "?").charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-bold text-[var(--color-text-primary)]">{c.nickname || "익명"}</span>
+                        {c.date && <span className="text-xs text-[var(--color-text-muted)]">{c.date}</span>}
+                      </div>
+                      <p className="text-sm text-[var(--color-text-secondary)]">{c.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 다음 액션 유도: 다른 경기 탐색 + 내 경기 확인 */}
       <div className="mt-6 flex flex-wrap gap-3">

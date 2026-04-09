@@ -91,6 +91,7 @@ export async function listGames(filters: GameListFilters = {}) {
       current_participants: true,
       fee_per_person: true,
       skill_level: true,
+      author_nickname: true,
       created_at: true,
     },
   });

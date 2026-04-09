@@ -46,6 +46,7 @@ interface GameFromApi {
   max_participants: number | null;
   fee_per_person: string | null;
   skill_level: string | null;
+  author_nickname: string | null;
 }
 
 interface GamesApiResponse {
@@ -143,8 +144,14 @@ function GameCard({ game, photoUrl }: { game: GameFromApi; photoUrl?: string | n
                 </span>
               )}
             </div>
-            {/* 장소 + 시간 */}
+            {/* 작성자 + 장소 + 시간 */}
             <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+              {game.author_nickname && (
+                <span className="flex items-center gap-0.5 truncate">
+                  <span className="material-symbols-outlined text-xs">person</span>
+                  {game.author_nickname}
+                </span>
+              )}
               {location && (
                 <span className="flex items-center gap-0.5 truncate">
                   <span className="material-symbols-outlined text-xs">location_on</span>
