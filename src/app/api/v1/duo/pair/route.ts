@@ -40,15 +40,26 @@ async function handlePost(
   });
   if (!match) return apiError("Match not found in tournament", 404, "NOT_FOUND");
 
-  // 기존 활성 세션이 있으면 closed로 변경 (새 PIN 생성 위해)
-  await prisma.duoSession.updateMany({
+  // 기존 활성 세션이 있고 만료 안 됐으면 그대로 재사용 (이어하기)
+  const existingSession = await prisma.duoSession.findFirst({
     where: {
       matchId: BigInt(match_id),
       hostUserId,
       status: { in: ["waiting", "paired", "active"] },
+      expiresAt: { gt: new Date() },
     },
-    data: { status: "closed" },
+    orderBy: { createdAt: "desc" },
   });
+
+  if (existingSession) {
+    return apiSuccess({
+      pin: existingSession.pin,
+      channel_name: existingSession.channelName,
+      host_team: existingSession.hostTeam,
+      expires_at: existingSession.expiresAt.toISOString(),
+      reused: true,
+    });
+  }
 
   // PIN 생성
   const pin = await generateUniquePin();
