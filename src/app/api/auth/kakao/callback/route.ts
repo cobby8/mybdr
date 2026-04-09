@@ -104,10 +104,14 @@ export async function GET(req: NextRequest) {
     const nickname = kakaoUser.kakao_account?.profile?.nickname ?? null;
     const picture = kakaoUser.kakao_account?.profile?.profile_image_url ?? null;
 
+    console.log("[Kakao] login:", { kakaoId, email, nickname });
+
     // 유저 조회: kakao uid → email 순
     let user = await prisma.user.findFirst({
       where: { provider: "kakao", uid: kakaoId },
     });
+
+    console.log("[Kakao] uid lookup:", user ? `found id=${user.id}, email=${user.email}` : "not found");
 
     if (!user) {
       if (email) {
@@ -173,6 +177,8 @@ export async function GET(req: NextRequest) {
         },
       });
     }
+
+    console.log("[Kakao] final user:", { id: user.id.toString(), email: user.email });
 
     // JWT 발급 후 쿠키를 redirect 응답에 직접 설정
     const token = await generateToken(user);
