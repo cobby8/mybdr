@@ -174,10 +174,20 @@ export async function devLoginAction(_prevState: { error: string } | null, _form
 
 export async function logoutAction() {
   const cookieStore = await cookies();
-  // 현재 쿠키 + 이전 쿠키 이름(__Host- 접두사) 모두 삭제
-  cookieStore.delete(WEB_SESSION_COOKIE);
-  cookieStore.delete("__Host-bdr_session");
-  cookieStore.delete("bdr_session");
+  // 모든 가능한 쿠키 이름 삭제 (현재 + 레거시)
+  // path 명시 + maxAge 0으로 강제 만료
+  const cookieNames = [WEB_SESSION_COOKIE, "__Host-bdr_session", "bdr_session"];
+  for (const name of cookieNames) {
+    cookieStore.delete(name);
+    // 추가 안전장치: 빈 값 + maxAge 0으로 덮어쓰기
+    cookieStore.set(name, "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+  }
   // 캐시 무효화 (로그인 상태 반영)
   revalidatePath("/", "layout");
   redirect("/login");
