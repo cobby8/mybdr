@@ -443,18 +443,17 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
 
         {/* 하단: 관리 링크 (로그인) 또는 로그인 버튼 (비로그인) */}
         <div className="border-t border-[var(--color-border)] p-3 space-y-2">
-          {user ? (
-            /* 관리 링크만 표시 (프로필은 헤더 드롭다운으로 이동) */
+          {user?.role === "super_admin" ? (
             <Link href="/admin"
               className="flex items-center gap-3 px-3 py-2.5 text-sm font-black uppercase tracking-wide text-[var(--color-primary)] hover:bg-[var(--color-surface)] transition-colors border-l-4 border-transparent hover:border-[var(--color-primary)]">
               <span className="material-symbols-outlined text-lg">admin_panel_settings</span>
               ADMIN
             </Link>
-          ) : (
+          ) : !user ? (
             <Link href="/login" className="block w-full bg-[var(--color-primary)] py-3 text-center text-sm font-black uppercase tracking-wider text-white rounded-sm shadow-glow-primary hover:bg-[var(--color-primary-hover)] transition-colors">
               로그인
             </Link>
-          )}
+          ) : null}
         </div>
       </aside>
 
