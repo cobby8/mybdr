@@ -185,6 +185,27 @@ export async function GET(
         }
       }
 
+      // 진행 중 경기에서도 match_player_stats의 quarter_stats_json에서 MIN 보강
+      for (const stat of match.playerStats) {
+        const pid = Number(stat.tournamentTeamPlayerId);
+        const row = statsMap.get(pid);
+        if (!row) continue;
+        if (stat.quarterStatsJson) {
+          try {
+            const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
+            row.min_seconds = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
+            row.min = Math.round(row.min_seconds / 60);
+          } catch {}
+        } else if (stat.minutesPlayed && stat.minutesPlayed > 0) {
+          row.min = stat.minutesPlayed;
+          row.min_seconds = stat.minutesPlayed * 60;
+        }
+        // +/- 보강
+        if (stat.plusMinus != null) {
+          row.plus_minus = stat.plusMinus;
+        }
+      }
+
       const allStats = Array.from(statsMap.values()).sort((a, b) => b.pts - a.pts);
       homePlayers = allStats.filter((s) => s.teamId === Number(homeTeamId));
       awayPlayers = allStats.filter((s) => s.teamId === Number(awayTeamId));
