@@ -105,7 +105,7 @@ export async function GET(
           name: p.name,
           teamId: p.teamId,
           min: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
-          oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0,
+          oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
         });
       }
 
@@ -214,6 +214,7 @@ export async function GET(
           blk: stat.blocks ?? 0,
           to: stat.turnovers ?? 0,
           fouls: stat.personal_fouls ?? 0,
+          plus_minus: stat.plusMinus ?? 0,
         };
       };
 
@@ -350,4 +351,5 @@ interface PlayerRow {
   blk: number;
   to: number;
   fouls: number;
+  plus_minus?: number;
 }
