@@ -107,7 +107,7 @@ function getQuarterLabel(q: number): string {
   return `OT${q - 4}`;
 }
 
-const POLL_INTERVAL = 10_000; // 10초
+const POLL_INTERVAL = 5_000; // 5초
 
 export default function LiveBoxScorePage() {
   const { id } = useParams<{ id: string }>();
@@ -295,54 +295,43 @@ export default function LiveBoxScorePage() {
 
       {/* 박스스코어 (프린트 영역) */}
       <div id="box-score-print-area" className="px-4 pb-4 space-y-4">
-        {/* 프린트 전용 헤더 (화면에서는 숨김) */}
-        <div data-print-show className="hidden text-center mb-2">
-          <h1 className="text-lg font-bold">{match.tournament_name}</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{match.round_name ?? ""} · {STATUS_LABEL[match.status] ?? match.status}</p>
-        </div>
+        {/* 프린트 전용: 팀별 독립 페이지 */}
+        {[
+          { team: match.home_team, players: match.home_players, score: match.home_score, opponentName: match.away_team.name, opponentScore: match.away_score },
+          { team: match.away_team, players: match.away_players, score: match.away_score, opponentName: match.home_team.name, opponentScore: match.home_score },
+        ].map(({ team, players, score, opponentName, opponentScore }) => (
+          <div key={team.id} className="print-team-page">
+            {/* 프린트 전용 헤더 */}
+            <div data-print-show className="hidden">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "4px" }}>
+                <div>
+                  <span style={{ fontSize: "14px", fontWeight: 800 }}>{team.name}</span>
+                  <span style={{ fontSize: "11px", marginLeft: "8px", color: "#666" }}>vs {opponentName}</span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: "11px", color: "#666" }}>{match.tournament_name}</span>
+                  {match.round_name && <span style={{ fontSize: "10px", color: "#999", marginLeft: "6px" }}>{match.round_name}</span>}
+                </div>
+              </div>
+              {/* 쿼터별 점수 인라인 */}
+              <div style={{ display: "flex", gap: "12px", fontSize: "9px", color: "#666", borderBottom: "1px solid #ccc", paddingBottom: "3px", marginBottom: "2px" }}>
+                <span style={{ fontWeight: 700, color: "#000", fontSize: "12px" }}>{score} : {opponentScore}</span>
+                {quarters.map((q) => {
+                  const myScore = team.id === match.home_team.id ? q.home : q.away;
+                  const oppScore = team.id === match.home_team.id ? q.away : q.home;
+                  return <span key={q.label}>{q.label} {myScore}-{oppScore}</span>;
+                })}
+              </div>
+            </div>
 
-        {/* 쿼터별 득점 요약 (프린트 전용 — 화면에서는 상단 스코어보드에 표시) */}
-        <div data-print-show className="hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/10 text-gray-500">
-                <th className="py-2 px-3 text-left font-semibold w-[100px]">팀</th>
-                {quarters.map((q) => (
-                  <th key={q.label} className="py-2 px-2 text-center font-normal">{q.label}</th>
-                ))}
-                <th className="py-2 px-3 text-center font-bold">T</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-white/5">
-                <td className="py-2 px-3 font-semibold">{match.home_team.name}</td>
-                {quarters.map((q) => (
-                  <td key={q.label} className="py-2 px-2 text-center">{q.home}</td>
-                ))}
-                <td className="py-2 px-3 text-center font-bold text-sm">{match.home_score}</td>
-              </tr>
-              <tr>
-                <td className="py-2 px-3 font-semibold">{match.away_team.name}</td>
-                {quarters.map((q) => (
-                  <td key={q.label} className="py-2 px-2 text-center">{q.away}</td>
-                ))}
-                <td className="py-2 px-3 text-center font-bold text-sm">{match.away_score}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* 박스스코어 */}
-        <BoxScoreTable
-          teamName={match.home_team.name}
-          color={match.home_team.color}
-          players={match.home_players}
-        />
-        <BoxScoreTable
-          teamName={match.away_team.name}
-          color={match.away_team.color}
-          players={match.away_players}
-        />
+            {/* 박스스코어 테이블 */}
+            <BoxScoreTable
+              teamName={team.name}
+              color={team.color}
+              players={players}
+            />
+          </div>
+        ))}
       </div>
       {/* 프린트 버튼 */}
       <div data-print-hide className="px-4 pb-8">
@@ -387,8 +376,8 @@ function BoxScoreTable({
   if (!players || players.length === 0) return null;
 
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-2">
+    <div className="print-team-table-wrap">
+      <div className="flex items-center gap-2 mb-2 print:hidden">
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
         <span className="text-sm font-semibold text-gray-200">{teamName}</span>
       </div>
@@ -397,8 +386,8 @@ function BoxScoreTable({
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/10 text-gray-500">
-                <th className="py-2 px-3 text-left font-normal sticky left-0 bg-[#141416]">#</th>
-                <th className="py-2 px-1 text-left font-normal sticky left-8 bg-[#141416] min-w-[70px]">이름</th>
+                <th className="py-2 px-3 text-left font-normal sticky left-0 bg-[#141416] print:static print:bg-transparent">#</th>
+                <th className="py-2 px-1 text-left font-normal sticky left-8 bg-[#141416] min-w-[70px] print:static print:bg-transparent">이름</th>
                 <th className="py-2 px-1 text-center font-normal">MIN</th>
                 <th className="py-2 px-1 text-center font-semibold text-gray-300">PTS</th>
                 <th className="py-2 px-1 text-center font-normal">FG</th>
@@ -421,10 +410,10 @@ function BoxScoreTable({
                   key={p.id}
                   className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
                 >
-                  <td className="py-2 px-3 text-gray-500 sticky left-0 bg-inherit">
+                  <td className="py-2 px-3 text-gray-500 sticky left-0 bg-inherit print:static print:bg-transparent">
                     {p.jersey_number ?? "-"}
                   </td>
-                  <td className="py-2 px-1 text-gray-200 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px]">
+                  <td className="py-2 px-1 text-gray-200 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none">
                     {p.name}
                   </td>
                   <td className="py-2 px-1 text-center text-gray-500">{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
@@ -478,9 +467,9 @@ function BoxScoreTable({
                   { min: 0, min_seconds: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0 }
                 );
                 return (
-                  <tr className="border-t border-white/20 bg-white/[0.04] font-semibold">
-                    <td className="py-2 px-3 text-gray-400 sticky left-0 bg-[#111118]" />
-                    <td className="py-2 px-1 text-gray-200 sticky left-8 bg-[#111118]">TOTAL</td>
+                  <tr className="border-t border-white/20 bg-white/[0.04] font-semibold print-total-row">
+                    <td className="py-2 px-3 text-gray-400 sticky left-0 bg-[#111118] print:static print:bg-transparent" />
+                    <td className="py-2 px-1 text-gray-200 sticky left-8 bg-[#111118] print:static print:bg-transparent">TOTAL</td>
                     <td className="py-2 px-1 text-center text-gray-400">{formatGameClock(total.min_seconds)}</td>
                     <td className="py-2 px-1 text-center" style={{ color }}>{total.pts}</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.fgm}/{total.fga}</td>

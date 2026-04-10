@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
+import { mergeTempMember } from "@/lib/teams/merge-temp-member";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -32,21 +33,30 @@ export const POST = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: W
     if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
 
     if (team.auto_accept_members) {
+      // 사전 등록 계정 병합: 같은 닉네임 + 미로그인 멤버가 있으면 등번호/포지션/역할 이관
+      const merged = await mergeTempMember(teamId, ctx.userId);
+
       // 자동 수락
       await prisma.teamMember.create({
         data: {
           teamId,
           userId: ctx.userId,
-          role: "member",
+          role: merged?.role ?? "member",
           status: "active",
           joined_at: new Date(),
+          ...(merged && { jerseyNumber: merged.jerseyNumber, position: merged.position }),
         },
       });
       await prisma.team.update({
         where: { id: teamId },
         data: { members_count: { increment: 1 } },
       });
-      return apiSuccess({ success: true, message: "팀에 가입되었습니다." });
+      return apiSuccess({
+        success: true,
+        message: merged
+          ? `팀에 가입되었습니다. (등번호 #${merged.jerseyNumber}, 포지션 ${merged.position} 자동 배정)`
+          : "팀에 가입되었습니다.",
+      });
     }
 
     // 가입 신청

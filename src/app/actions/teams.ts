@@ -50,7 +50,7 @@ export async function createTeamAction(_prevState: { error: string } | null, for
           teamId: created.id,
           userId,
           role: "captain",
-          status: "approved",
+          status: "active",
           joined_at: new Date(),
         },
       });

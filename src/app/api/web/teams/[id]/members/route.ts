@@ -1,9 +1,9 @@
-import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
+import { mergeTempMember } from "@/lib/teams/merge-temp-member";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -133,6 +133,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   });
 
   if (action === "approve") {
+    // 사전 등록 계정 병합: 같은 닉네임 + 미로그인 멤버가 있으면 등번호/포지션/역할 이관
+    const merged = await mergeTempMember(teamId, applicantId);
+
     await prisma.$transaction([
       prisma.team_join_requests.update({
         where: { id: BigInt(requestId) },
@@ -142,9 +145,10 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
         data: {
           teamId,
           userId: applicantId,
-          role: "member",
+          role: merged?.role ?? "member",
           status: "active",
           joined_at: new Date(),
+          ...(merged && { jerseyNumber: merged.jerseyNumber, position: merged.position }),
         },
       }),
       prisma.team.update({
