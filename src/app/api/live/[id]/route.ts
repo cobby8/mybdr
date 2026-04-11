@@ -190,17 +190,23 @@ export async function GET(
         const pid = Number(stat.tournamentTeamPlayerId);
         const row = statsMap.get(pid);
         if (!row) continue;
+        // 1) quarterStatsJson에서 초 합산 (2인 모드)
+        let resolved = false;
         if (stat.quarterStatsJson) {
           try {
             const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
-            row.min_seconds = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
-            row.min = Math.round(row.min_seconds / 60);
+            const total = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
+            if (total > 0) {
+              row.min_seconds = total;
+              row.min = Math.round(total / 60);
+              resolved = true;
+            }
           } catch {}
-        } else if (stat.minutesPlayed && stat.minutesPlayed > 0) {
-          // minutesPlayed: v0.5.7+부터 초 단위, 이전 버전은 분 단위
-          // 600 이상이면 초 단위로 판단 (10분 이상 = 초 단위)
-          const isSeconds = stat.minutesPlayed >= 60;
-          row.min_seconds = isSeconds ? stat.minutesPlayed : stat.minutesPlayed * 60;
+        }
+        // 2) fallback: minutesPlayed (1인 모드 — 초 단위 저장)
+        if (!resolved && stat.minutesPlayed && stat.minutesPlayed > 0) {
+          const mp = stat.minutesPlayed;
+          row.min_seconds = mp >= 60 ? mp : mp * 60;
           row.min = Math.round(row.min_seconds / 60);
         }
         // +/- 보강
@@ -216,13 +222,15 @@ export async function GET(
       // 종료된 경기 — playerStats 테이블 사용
       // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback)
       const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): number => {
+        // 1) quarterStatsJson에서 초 합산 (2인 모드)
         if (stat.quarterStatsJson) {
           try {
             const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
-            return Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
+            const total = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
+            if (total > 0) return total;
           } catch {}
         }
-        // v0.5.7+부터 초 단위, 이전 버전은 분 단위
+        // 2) fallback: minutesPlayed (1인 모드 — 초 단위 저장)
         const mp = stat.minutesPlayed ?? 0;
         return mp >= 60 ? mp : mp * 60;
       };
