@@ -57,6 +57,7 @@
   --color-primary-hover: #1B64DA;    /* 호버 시 진한 블루 */
   --color-primary-light: rgba(49, 130, 246, 0.08); /* 블루 반투명 배경 */
   --color-on-primary: #FFFFFF;       /* primary 위 텍스트 */
+  --color-on-accent: #FFFFFF;        /* accent 위 텍스트 (라이트모드: 진한 accent 배경에 흰 글씨) */
 
   /* --- 보조 색상 --- */
   --color-accent: #191F28;           /* 진한 텍스트 활용 */
@@ -201,6 +202,7 @@ html.dark {
   --color-accent: #F2F4F6;
   --color-accent-hover: #D1D6DB;
   --color-accent-light: rgba(242, 244, 246, 0.08);
+  --color-on-accent: #191F28;        /* accent 위 텍스트 (다크모드: 밝은 accent 배경이라 검정 글씨) */
 }
 
 body {
