@@ -1200,3 +1200,92 @@ src/app/(referee)/
 | 2026-04-12 | pm | Commit 2 커밋 결정 | A안 채택 — 두 warning 모두 기능 정상, redirect는 (web) 수정 필요해 별도 이슈 롤링, #fff 9건은 수정 요청 테이블에 등록 후 커밋 |
 | 2026-04-12 | pm | Commit 2 커밋(e7e8d95) + 푸시 완료 | 16 files, +3001/-2. main 대비 3 앞섬. working tree clean |
 | 2026-04-12 | pm | 세션 중단 (노트북 전환) — 이어서 시작 가이드 작성 | scratchpad 최상단 "📌 이어서 시작하기" 블록 추가, 새 노트북 세팅 절차·다음 작업 범위·미해결 warning 전부 기록 |
+| 2026-04-12 | developer | Commit 3: 배정/정산 조회 API 2개 + 본인 열람 페이지 2개 + 셸 주석 제거 | 신규 4파일 + 수정 1파일, tsc 0 errors, prisma generate 필요 해결 |
+| 2026-04-12 | tester | Commit 3 검증 (6개 테스트, 19항목) | PASS — tsc 0, 파일 5/5, IDOR 방어 확인, 기존 코드 미수정, critical 0, warning 1(#fff 기존 이슈 연장) |
+
+---
+
+### 구현 기록 (developer) — Commit 3/4
+
+📝 구현한 기능: 심판 배정(assignments) 및 정산(settlements) 본인 조회 API + 열람 페이지
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/referee-assignments/route.ts | GET: 본인 배정 목록 + TournamentMatch 수동 조인 + 페이지네이션 | 신규 |
+| src/app/api/web/referee-settlements/route.ts | GET: 본인 정산 목록 + 합계 3종(전체/paid/pending) + 페이지네이션 | 신규 |
+| src/app/(referee)/referee/assignments/page.tsx | 상태별 필터 탭(6개) + 데스크톱 테이블/모바일 카드 + 페이지네이션 | 신규 |
+| src/app/(referee)/referee/settlements/page.tsx | 합계 카드 3개 + 상태별 필터 탭(4개) + 데스크톱 테이블/모바일 카드 | 신규 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS 주석 "Commit 3 예정..." 제거 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법: /referee/assignments, /referee/settlements 페이지 접근. API는 /api/web/referee-assignments, /api/web/referee-settlements
+- 정상 동작: 로그인+심판프로필 있으면 빈 목록 표시, 미등록이면 "심판 프로필이 필요합니다" EmptyState
+- 주의할 입력: status 쿼리 파라미터 유효성(잘못된 값이면 빈 목록), page/limit 경계값
+- DB에 배정/정산 테스트 데이터가 없으므로 빈 목록이 정상. 시드 데이터 INSERT 후 목록 표시 확인 필요
+- TournamentMatch 조인: RefereeAssignment.tournament_match_id → TournamentMatch → Tournament.name, TournamentTeam → Team.name 경로로 팀명/대회명 매핑
+
+⚠️ reviewer 참고:
+- TournamentMatch와 RefereeAssignment 간 Prisma 관계가 없어 수동 조인 패턴 사용 (matchIds → findMany → Map)
+- BigInt 직렬화: apiSuccess()의 snake_case 변환기가 BigInt→string 처리하는지 확인 필요
+- 합계 카드 색상은 CSS 변수 사용하되 fallback 값 포함 (var(--color-info, #0079B9))
+
+---
+
+## 테스트 결과 (tester) — Commit 3/4
+
+테스트 일시: 2026-04-12
+검증 대상: 배정/정산 조회 API 2개 + 페이지 2개 + referee-shell 주석 제거
+
+| # | 테스트 항목 | 결과 | 비고 |
+|---|-----------|------|------|
+| 1 | tsc --noEmit | PASS | 에러 0건 (출력 없음, 클린 통과) |
+| 2 | 파일 존재 확인 (5개) | PASS | 신규 4 + 수정 1, 모두 존재 확인 |
+| 3a | referee-assignments API: 인증 | PASS | withWebAuth 사용, session.userId로 Referee 조회 (IDOR 방지) |
+| 3b | referee-assignments API: 404 처리 | PASS | referee 미등록 시 apiError("...", 404, "NO_REFEREE_PROFILE") |
+| 3c | referee-assignments API: 페이지네이션 | PASS | page/limit/skip/total_pages 로직 정상, limit 최대 100 제한 |
+| 3d | referee-assignments API: apiSuccess/apiError 사용 | PASS | 헬퍼 함수만 사용 |
+| 3e | referee-settlements API: 인증/IDOR | PASS | withWebAuth + session.userId 동일 패턴 |
+| 3f | referee-settlements API: 합계 3종 | PASS | aggregate로 sumAll/sumPaid/sumPending 계산, null 시 0 대체 |
+| 3g | referee-settlements API: assignment include | PASS | include: { assignment: true } 포함 |
+| 4a | "use client" 선언 | PASS | assignments/settlements 양쪽 모두 1행에 선언 |
+| 4b | lucide-react 미사용 | PASS | (referee) 폴더 전체 검색 결과 0건 |
+| 4c | Material Symbols 사용 | PASS | material-symbols-outlined span 태그 사용 확인 |
+| 4d | empty state 처리 | PASS | 빈 목록 UI + NO_REFEREE_PROFILE EmptyState 양쪽 모두 존재 |
+| 4e | 하드코딩 색상 | WARNING | #fff 사용 (assignments 4곳, settlements 4곳) — Commit 2 기존 이슈와 동일 패턴 |
+| 4f | CSS 변수 사용 | PASS | var(--color-*) 전반 적용, fallback 포함 (var(--color-info, #0079B9) 등) |
+| 5 | 기존 코드 미수정 | PASS | prisma/schema, (web)/, (admin)/, (site)/, globals.css 변경 없음 |
+| 6a | "Commit 3 예정" 주석 제거 | PASS | referee-shell.tsx 내 "Commit 3" 검색 결과 0건 |
+| 6b | NAV_ITEMS 항목 유지 | PASS | assignments(28행), settlements(29행) 정상 존재 |
+
+종합: 19개 중 18개 PASS / 0개 FAIL / 1개 WARNING (info 수준)
+
+### WARNING 상세
+
+**[WARNING-info] #fff 하드코딩 (기존 이슈 연장)**
+- 위치: assignments/page.tsx (59-63행 뱃지 color, 175행 탭 active color), settlements/page.tsx (66-68행 뱃지 color, 218행 탭 active color)
+- 내용: 흰색 텍스트에 #fff 직접 사용. CSS 변수 var(--color-text-on-primary) 같은 토큰이 없어 대안 부재.
+- 판정: Commit 2 테스트에서도 동일 패턴 warning으로 등록됨. 기능 영향 없음. 디자인 토큰 추가 시 일괄 교체 대상.
+- 심각도: info (커밋 차단 사유 아님)
+
+---
+
+### 리뷰 결과 (reviewer) — Commit 3/4 (2026-04-12)
+
+종합 판정: **APPROVE**
+
+잘된 점:
+- IDOR 방지 완벽: 두 API 모두 session.userId -> Referee 조회 -> referee.id 기반 쿼리. 외부에서 referee_id를 주입할 수 없는 구조.
+- Commit 2(certificates) 패턴과 일관성 높음: withWebAuth, apiSuccess/apiError, NO_REFEREE_PROFILE 처리, 페이지네이션 로직, 상태 필터, 데스크톱 테이블/모바일 카드 반응형 UI 전부 동일 패턴.
+- 정산 합계 3종(sumAll/sumPaid/sumPending)을 Promise.all로 병렬 처리하여 성능 고려됨.
+- 합계는 필터 무관하게 본인 전체 기준으로 계산 (올바른 UX).
+- TournamentMatch 별도 조인이 주석으로 잘 설명되어 있음 (Prisma 관계 없는 이유).
+- referee-shell.tsx 변경은 placeholder 주석 2줄 제거뿐, 기능 변경 없음.
+- 기존 (web)/(admin)/(site)/prisma/globals.css 미수정 확인 완료.
+- lucide-react 사용 0건, Material Symbols Outlined 올바르게 사용.
+
+nit (선택적, 커밋 차단 아님):
+1. [assignments/page.tsx:59-63, 175] [settlements/page.tsx:66-68, 218] `#fff` 하드코딩 — Commit 2부터 이어지는 기존 이슈. var(--color-text-on-primary) 토큰 부재로 대안 없음. 디자인 토큰 추가 시 일괄 교체 대상.
+2. [assignments/page.tsx, settlements/page.tsx] Pagination 컴포넌트가 두 페이지에 중복 정의됨. 공통 _components로 추출하면 유지보수 용이. 단, 현 규모에서는 문제 아님.
+3. [settlements/page.tsx] formatDate 함수도 assignments와 동일 코드 중복. 유틸로 추출 가능하나 현 규모에서 불필요.
+
+수정 요청: 없음 (critical/warning 이슈 0건)

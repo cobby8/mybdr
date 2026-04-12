@@ -21,12 +21,10 @@ type NavItem = {
   icon: string; // Material Symbols ligature
 };
 
-// 1차 범위: 배정/정산 페이지는 Commit 3에서 추가. 지금은 메뉴에 넣되 동일 경로는 향후 연결
 const NAV_ITEMS: NavItem[] = [
   { href: "/referee", label: "대시보드", icon: "dashboard" },
   { href: "/referee/profile", label: "내 프로필", icon: "badge" },
   { href: "/referee/certificates", label: "내 자격증", icon: "verified" },
-  // Commit 3 예정 항목 (현재는 placeholder 경로, 클릭해도 404 → 향후 구현 시 자동 유효)
   { href: "/referee/assignments", label: "내 배정", icon: "event" },
   { href: "/referee/settlements", label: "내 정산", icon: "payments" },
 ];
