@@ -394,6 +394,8 @@ function BoxScoreTable({
   if (!players || players.length === 0) return null;
 
   const sorted = [...players].sort((a, b) => b.pts - a.pts);
+  const pct = (made: number, attempted: number) =>
+    attempted > 0 ? Math.round((made / attempted) * 100) : 0;
 
   return (
     <div className="print-team-table-wrap">
@@ -411,8 +413,11 @@ function BoxScoreTable({
                 <th className="py-2 px-1 text-center font-normal">MIN</th>
                 <th className="py-2 px-1 text-center font-semibold text-gray-300">PTS</th>
                 <th className="py-2 px-1 text-center font-normal">FG</th>
+                <th className="py-2 px-1 text-center font-normal">FG%</th>
                 <th className="py-2 px-1 text-center font-normal">3P</th>
+                <th className="py-2 px-1 text-center font-normal">3P%</th>
                 <th className="py-2 px-1 text-center font-normal">FT</th>
+                <th className="py-2 px-1 text-center font-normal">FT%</th>
                 <th className="py-2 px-1 text-center font-normal">OR</th>
                 <th className="py-2 px-1 text-center font-normal">DR</th>
                 <th className="py-2 px-1 text-center font-normal">REB</th>
@@ -444,10 +449,19 @@ function BoxScoreTable({
                     {p.fgm}/{p.fga}
                   </td>
                   <td className="py-2 px-1 text-center text-gray-400">
+                    {pct(p.fgm, p.fga)}%
+                  </td>
+                  <td className="py-2 px-1 text-center text-gray-400">
                     {p.tpm}/{p.tpa}
                   </td>
                   <td className="py-2 px-1 text-center text-gray-400">
+                    {pct(p.tpm, p.tpa)}%
+                  </td>
+                  <td className="py-2 px-1 text-center text-gray-400">
                     {p.ftm}/{p.fta}
+                  </td>
+                  <td className="py-2 px-1 text-center text-gray-400">
+                    {pct(p.ftm, p.fta)}%
                   </td>
                   <td className="py-2 px-1 text-center text-gray-300">{p.oreb}</td>
                   <td className="py-2 px-1 text-center text-gray-300">{p.dreb}</td>
@@ -493,8 +507,11 @@ function BoxScoreTable({
                     <td className="py-2 px-1 text-center text-gray-400">{formatGameClock(total.min_seconds)}</td>
                     <td className="py-2 px-1 text-center" style={{ color }}>{total.pts}</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.fgm}/{total.fga}</td>
+                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.fgm, total.fga)}%</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.tpm}/{total.tpa}</td>
+                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.tpm, total.tpa)}%</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.ftm}/{total.fta}</td>
+                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.ftm, total.fta)}%</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.oreb}</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.dreb}</td>
                     <td className="py-2 px-1 text-center text-gray-300">{total.reb}</td>
