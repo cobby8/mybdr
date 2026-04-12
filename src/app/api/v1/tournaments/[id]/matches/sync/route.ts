@@ -234,11 +234,13 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
 
     // 3. Play-by-Play upsert (병렬 처리)
     if (play_by_plays && play_by_plays.length > 0) {
-      const pbpPromises = play_by_plays.map((pbp) => {
+      // player_id=0인 PBP(타임아웃/쿼터시작 등)는 제외
+      const validPbps = play_by_plays.filter((pbp) => pbp.tournament_team_player_id > 0 && pbp.tournament_team_id > 0);
+      const pbpPromises = validPbps.map((pbp) => {
         const pbpData = {
           tournament_match_id: matchId,
-          tournament_team_player_id: pbp.tournament_team_player_id ? BigInt(pbp.tournament_team_player_id) : null,
-          tournament_team_id: pbp.tournament_team_id ? BigInt(pbp.tournament_team_id) : null,
+          tournament_team_player_id: BigInt(pbp.tournament_team_player_id),
+          tournament_team_id: BigInt(pbp.tournament_team_id),
           quarter: pbp.quarter,
           game_clock_seconds: pbp.game_clock_seconds,
           shot_clock_seconds: pbp.shot_clock_seconds ?? null,
