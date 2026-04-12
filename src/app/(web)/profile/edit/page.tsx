@@ -304,13 +304,13 @@ export default function ProfileEditPage() {
         <div className="space-y-4">
           <div>
             <label className={lbl}>포지션 <span className="text-xs text-[var(--color-text-secondary)]">(복수 선택 가능)</span></label>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2">
               {POSITIONS.map((pos) => (
                 <button
                   key={pos}
                   type="button"
                   onClick={() => togglePosition(pos)}
-                  className={`flex-1 rounded-full border py-2 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded-full border py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors ${
                     selectedPositions.includes(pos)
                       ? "border-[var(--color-accent)] bg-[rgba(27,60,135,0.12)] text-[var(--color-accent)]"
                       : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-accent)]"

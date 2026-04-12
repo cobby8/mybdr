@@ -91,7 +91,7 @@ export default function NewPostPage() {
                   value={imageInput}
                   onChange={(e) => setImageInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addImage(); } }}
-                  className={inp}
+                  className={`${inp} min-w-0`}
                   placeholder="https://example.com/image.jpg"
                 />
                 <button

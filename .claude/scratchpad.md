@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 모바일 UI 전수조사 → 문제 페이지 순차 수정 (3/5: 대회 순위표)
-- **상태**: 대기 (2/5 추가수정 완료)
+- **요청**: 모바일 UI 전수조사 → 5/5 완료
+- **상태**: ✅ 심각 5건 모두 수정 완료
 - **현재 담당**: pm
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-01)
@@ -25,6 +25,27 @@
 - 웹 구현 시 API 전부 재사용 가능, 새로 만들 것은 기록 입력 UI만
 
 ## 구현 기록 (developer)
+
+📝 구현한 기능: 모바일 반응형 8파일 일괄 수정 (간격/패딩/텍스트/CSS변수)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/games/[id]/page.tsx | gap-8→gap-6 sm:gap-8, space-y-8→space-y-6 sm:space-y-8 | 수정 |
+| src/app/(web)/community/[id]/page.tsx | gap-8→gap-6 sm:gap-8, p-6→p-4 sm:p-6, 제목 text-xl sm:text-2xl, mb 축소 | 수정 |
+| src/app/(web)/users/[id]/page.tsx | gap-6→gap-4 sm:gap-6 | 수정 |
+| src/app/(web)/courts/[id]/page.tsx | 뱃지+버튼 gap-2→gap-1.5 sm:gap-2 (2곳) | 수정 |
+| src/app/(web)/community/new/page.tsx | 이미지 URL input에 min-w-0 추가 | 수정 |
+| src/app/(web)/profile/edit/page.tsx | 포지션 gap-1.5 sm:gap-2, py-1.5 sm:py-2, text-xs sm:text-sm | 수정 |
+| src/app/(web)/login/page.tsx | OAuth 4개 버튼 span에 whitespace-nowrap | 수정 |
+| src/app/(web)/profile/preferences/page.tsx | bg-(--color-*)→bg-[var(--color-*)] 문법 수정 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법: 모바일 뷰포트(375px)에서 위 8개 페이지 확인
+- 정상 동작: 간격이 좁아지고, 텍스트 줄바꿈 없이 한 줄 유지, CSS 변수 정상 적용
+- sm(640px) 이상에서는 기존과 동일해야 함
+- tsc --noEmit 통과 확인 완료
+
+---
 
 📝 구현한 기능: 모바일 UI 3건 수정 (탭 아이콘 삭제 + 통계 카드 축소 + 푸터 최소화)
 
@@ -104,6 +125,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | 모바일 3-4/5: 대회 순위표 스크롤 + 팀 관리 탭 최적화 (2파일) | ✅ 완료 |
 | 04-13 | developer+tester | 모바일 추가: 탭 아이콘 삭제 + 통계 카드 축소 + 푸터 컴팩트 (3파일) | ✅ 완료 |
 | 04-13 | developer+tester | 모바일 최적화 2/5: 팀 상세 히어로/탭/버튼 반응형 (3파일) | ✅ 완료 |
 | 04-13 | developer+tester | 모바일 최적화 1/5: 하단 탭 네비 아이콘/텍스트/간격 조정 (layout.tsx) | ✅ 완료 |
@@ -114,4 +136,3 @@
 | 04-02 | developer+tester | 맞춤 설정 필터 미동작 5건 수정 + 전수 검증 30건 통과 | 완료 |
 | 04-02 | developer | 메뉴 토글 + 테마/텍스트크기 설정 (20건 검증 통과) | 완료 |
 | 04-02 | developer | 맞춤 설정 강화 — 실력 7단계, 카테고리 분리, 용어 통일 | 완료 |
-| 04-01 | developer | 파트너셀프서비스+대관+카페이전 (14파일) | 완료 |
