@@ -15,6 +15,8 @@
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
+// API 응답은 snake_case → 하위 컴포넌트는 camelCase를 기대하므로 변환 필요
+import { convertKeysToCamelCase } from "@/lib/utils/case";
 
 // 일정 탭 컴포넌트
 import { ScheduleTimeline } from "./schedule-timeline";
@@ -39,8 +41,15 @@ const TAB_META: { key: TabKey; label: string; icon: string }[] = [
   { key: "teams", label: "참가팀", icon: "groups" },
 ];
 
-// API fetcher (JSON 응답 파싱)
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- API 응답 구조가 탭마다 다름
+type ApiResponse = Record<string, any>;
+
+// API fetcher: JSON 파싱 후 snake_case → camelCase 변환
+// apiSuccess()가 convertKeysToSnakeCase()를 적용하므로 클라이언트에서 되돌림
+const fetcher = (url: string): Promise<ApiResponse> =>
+  fetch(url)
+    .then((r) => r.json())
+    .then((json) => convertKeysToCamelCase(json) as ApiResponse);
 
 interface TournamentTabsProps {
   tournamentId: string;
@@ -69,8 +78,9 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
 
   if (isLoading) return <TabSkeleton />;
 
-  const matches: ScheduleMatch[] = data?.data?.matches ?? [];
-  const teams: ScheduleTeam[] = data?.data?.teams ?? [];
+  // apiSuccess()는 .data 래핑 없이 직접 반환 → data?.matches로 접근
+  const matches: ScheduleMatch[] = data?.matches ?? [];
+  const teams: ScheduleTeam[] = data?.teams ?? [];
 
   return (
     <div>
@@ -90,7 +100,8 @@ function StandingsTabContent({ tournamentId }: { tournamentId: string }) {
 
   if (isLoading) return <TabSkeleton />;
 
-  const teams = data?.data?.teams ?? [];
+  // apiSuccess()는 .data 래핑 없이 직접 반환
+  const teams = data?.teams ?? [];
 
   return (
     <div>
@@ -142,7 +153,8 @@ function BracketTabContent({ tournamentId }: { tournamentId: string }) {
 
   if (isLoading) return <TabSkeleton />;
 
-  const d = data?.data ?? {};
+  // apiSuccess()는 .data 래핑 없이 직접 반환 + fetcher가 camelCase 변환 완료
+  const d = data ?? {};
   const groupTeams: GroupTeam[] = d.groupTeams ?? [];
   const rounds = d.rounds ?? [];
 
@@ -186,7 +198,8 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
 
   if (isLoading) return <TabSkeleton />;
 
-  const teams = data?.data?.teams ?? [];
+  // apiSuccess()는 .data 래핑 없이 직접 반환
+  const teams = data?.teams ?? [];
 
   return (
     <div>
