@@ -111,14 +111,14 @@ export default async function PricingPage() {
                 ) : session ? (
                   <Link
                     href={`/pricing/checkout?planId=${plan.id.toString()}`}
-                    className="block rounded-[12px] bg-[var(--color-accent)] py-3 text-center text-sm font-semibold text-black transition-colors hover:bg-[var(--color-accent-hover)]"
+                    className="block rounded-[12px] bg-[var(--color-accent)] py-3 text-center text-sm font-semibold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
                   >
                     시작하기
                   </Link>
                 ) : (
                   <Link
                     href="/login"
-                    className="block rounded-[12px] bg-[var(--color-accent)] py-3 text-center text-sm font-semibold text-black transition-colors hover:bg-[var(--color-accent-hover)]"
+                    className="block rounded-[12px] bg-[var(--color-accent)] py-3 text-center text-sm font-semibold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
                   >
                     로그인 후 시작하기
                   </Link>

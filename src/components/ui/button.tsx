@@ -7,9 +7,8 @@ type Variant = "primary" | "secondary" | "ghost" | "danger" | "cta";
 // cta: 웜 오렌지(#F4A261)로 변경 (기존 빨간색 #E31B23에서)
 const variants: Record<Variant, string> = {
   primary:
-    "font-bold hover:opacity-85 text-white",
+    "font-bold hover:opacity-85",
   cta:
-    // text-white 제거: style prop의 color(var(--color-on-accent))가 라이트/다크 자동 전환하므로 고정 흰색 클래스는 오히려 혼란을 준다
     "font-bold hover:opacity-90",
   secondary:
     "font-bold border-2",
@@ -32,8 +31,7 @@ export function Button({
   loading?: boolean;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const variantStyles: Record<Variant, React.CSSProperties> = {
-    primary: { backgroundColor: 'var(--color-text-primary)', color: '#fff' },
-    // cta 버튼 글씨색을 --color-on-accent로: 다크모드에서 accent가 #F2F4F6(거의 흰색)이 되면 글씨는 자동으로 #191F28(검정)이 됨
+    primary: { backgroundColor: 'var(--color-text-primary)', color: 'var(--color-on-text-primary)' },
     cta: { backgroundColor: 'var(--color-accent)', color: 'var(--color-on-accent)' },
     secondary: { backgroundColor: 'var(--color-surface)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' },
     ghost: { backgroundColor: 'transparent', color: 'var(--color-primary)' },
