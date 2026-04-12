@@ -13,7 +13,7 @@ import Link from "next/link";
 // ─── 타입 정의 ───
 type MemberItem = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   user_name: string | null;
   user_phone: string | null;
   user_email: string | null;
@@ -21,6 +21,8 @@ type MemberItem = {
   license_number: string | null;
   role_type: string;
   status: string;
+  // v3: 매칭 상태
+  match_status: "matched" | "unmatched";
   total_certificates: number;
   verified_certificates: number;
   verification_status: "verified" | "partial" | "unverified" | "none";
@@ -36,6 +38,12 @@ type ApiResponse = {
 };
 
 // ─── 필터 탭 정의 ───
+const MATCH_STATUS_TABS = [
+  { value: "", label: "전체" },
+  { value: "matched", label: "매칭됨" },
+  { value: "unmatched", label: "미매칭" },
+] as const;
+
 const VERIFICATION_TABS = [
   { value: "", label: "전체" },
   { value: "true", label: "검증됨" },
@@ -58,12 +66,19 @@ const VERIFY_BADGE: Record<string, { bg: string; color: string; label: string }>
   none:       { bg: "var(--color-text-muted)",        color: "#fff", label: "없음" },
 };
 
+// v3: 매칭 상태 뱃지
+const MATCH_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  matched:   { bg: "var(--color-success, #22c55e)", color: "#fff", label: "매칭됨" },
+  unmatched: { bg: "var(--color-warning, #f59e0b)", color: "#000", label: "미매칭" },
+};
+
 export default function AdminMembersPage() {
   const [items, setItems] = useState<MemberItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // 필터 & 페이지네이션
+  const [matchStatusFilter, setMatchStatusFilter] = useState("");
   const [verifiedFilter, setVerifiedFilter] = useState("");
   const [levelFilter, setLevelFilter] = useState("");
   const [page, setPage] = useState(1);
@@ -75,6 +90,7 @@ export default function AdminMembersPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (matchStatusFilter) params.set("match_status", matchStatusFilter);
       if (verifiedFilter) params.set("verified", verifiedFilter);
       if (levelFilter) params.set("level", levelFilter);
       params.set("page", String(page));
@@ -101,13 +117,18 @@ export default function AdminMembersPage() {
     } finally {
       setLoading(false);
     }
-  }, [verifiedFilter, levelFilter, page]);
+  }, [matchStatusFilter, verifiedFilter, levelFilter, page]);
 
   useEffect(() => {
     void loadList();
   }, [loadList]);
 
   // 필터 변경 시 1페이지로 리셋
+  const handleMatchStatusChange = (value: string) => {
+    setMatchStatusFilter(value);
+    setPage(1);
+  };
+
   const handleVerifiedChange = (value: string) => {
     setVerifiedFilter(value);
     setPage(1);
@@ -121,24 +142,39 @@ export default function AdminMembersPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <header>
-        <h1
-          className="text-2xl font-black uppercase tracking-wider"
-          style={{ color: "var(--color-text-primary)" }}
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1
+            className="text-2xl font-black uppercase tracking-wider"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            심판 관리
+          </h1>
+          <p
+            className="mt-1 text-sm"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            소속 심판 목록을 관리합니다.{" "}
+            {total > 0 && (
+              <span style={{ color: "var(--color-text-secondary)" }}>
+                총 {total.toLocaleString("ko-KR")}명
+              </span>
+            )}
+          </p>
+        </div>
+        {/* v3: 사전 등록 버튼 */}
+        <Link
+          href="/referee/admin/members/new"
+          className="flex shrink-0 items-center gap-1.5 px-4 py-2 text-xs font-bold"
+          style={{
+            backgroundColor: "var(--color-primary)",
+            color: "#fff",
+            borderRadius: 4,
+          }}
         >
-          심판 관리
-        </h1>
-        <p
-          className="mt-1 text-sm"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          소속 심판 목록을 관리합니다.{" "}
-          {total > 0 && (
-            <span style={{ color: "var(--color-text-secondary)" }}>
-              총 {total.toLocaleString("ko-KR")}명
-            </span>
-          )}
-        </p>
+          <span className="material-symbols-outlined text-base">person_add</span>
+          사전 등록
+        </Link>
       </header>
 
       {/* 에러 배너 */}
@@ -158,6 +194,29 @@ export default function AdminMembersPage() {
 
       {/* 필터 영역 */}
       <div className="flex flex-wrap gap-3">
+        {/* v3: 매칭 상태 필터 */}
+        <div className="flex gap-2">
+          {MATCH_STATUS_TABS.map((tab) => {
+            const active = matchStatusFilter === tab.value;
+            return (
+              <button
+                key={`match-${tab.value}`}
+                type="button"
+                onClick={() => handleMatchStatusChange(tab.value)}
+                className="whitespace-nowrap px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors"
+                style={{
+                  backgroundColor: active ? "var(--color-primary)" : "var(--color-surface)",
+                  color: active ? "#fff" : "var(--color-text-secondary)",
+                  borderRadius: 4,
+                  border: active ? "none" : "1px solid var(--color-border)",
+                }}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* 검증 상태 필터 */}
         <div className="flex gap-2">
           {VERIFICATION_TABS.map((tab) => {
@@ -258,6 +317,7 @@ export default function AdminMembersPage() {
                 >
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">이름</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">등급</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">매칭</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">자격증</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">검증</th>
                   <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">상태</th>
@@ -282,6 +342,9 @@ export default function AdminMembersPage() {
                     </td>
                     <td className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
                       {m.level ?? "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <MatchBadge status={m.match_status} />
                     </td>
                     <td className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
                       {m.total_certificates}건
@@ -339,7 +402,10 @@ export default function AdminMembersPage() {
                       {m.level ?? "등급 미설정"} | 자격증 {m.total_certificates}건
                     </p>
                   </div>
-                  <VerificationBadge status={m.verification_status} />
+                  <div className="flex flex-col items-end gap-1">
+                    <MatchBadge status={m.match_status} />
+                    <VerificationBadge status={m.verification_status} />
+                  </div>
                 </div>
                 <div className="mt-3 flex justify-end">
                   <Link
@@ -403,6 +469,27 @@ export default function AdminMembersPage() {
         </>
       )}
     </div>
+  );
+}
+
+// v3: 매칭 상태 뱃지
+function MatchBadge({ status }: { status: string }) {
+  const badge = MATCH_BADGE[status] ?? {
+    bg: "var(--color-surface)",
+    color: "var(--color-text-muted)",
+    label: status,
+  };
+  return (
+    <span
+      className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+      style={{
+        backgroundColor: badge.bg,
+        color: badge.color,
+        borderRadius: 4,
+      }}
+    >
+      {badge.label}
+    </span>
   );
 }
 

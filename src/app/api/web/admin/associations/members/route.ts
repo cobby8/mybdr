@@ -31,6 +31,8 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const verifiedParam = url.searchParams.get("verified");
     const levelParam = url.searchParams.get("level");
+    // v3: 매칭 상태 필터 — "matched" / "unmatched" / "" (전체)
+    const matchStatusParam = url.searchParams.get("match_status");
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10)));
     const skip = (page - 1) * limit;
@@ -42,6 +44,10 @@ export async function GET(req: Request) {
     };
     if (levelParam) {
       where.level = levelParam;
+    }
+    // v3: 매칭 상태 필터 적용
+    if (matchStatusParam === "matched" || matchStatusParam === "unmatched") {
+      where.match_status = matchStatusParam;
     }
 
     // verified 필터: 자격증 중 하나라도 검증된 심판 / 하나도 없는 심판

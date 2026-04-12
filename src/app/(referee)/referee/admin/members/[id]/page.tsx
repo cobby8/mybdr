@@ -43,6 +43,7 @@ type Settlement = {
 
 type RefereeDetail = {
   id: string;
+  user_id: string | null;
   user_name: string | null;
   user_phone: string | null;
   user_email: string | null;
@@ -57,7 +58,21 @@ type RefereeDetail = {
   verified_name: string | null;
   verified_birth_date: string | null;
   verified_phone: string | null;
+  // v3: 매칭 관련
+  match_status: "matched" | "unmatched";
+  matched_at: string | null;
+  registered_name: string | null;
+  registered_phone: string | null;
   joined_at: string;
+};
+
+// v3: 매칭 후보 타입
+type MatchCandidate = {
+  user_id: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  birth_date: string | null;
 };
 
 type ApiResponse = {
@@ -95,6 +110,12 @@ export default function AdminMemberDetailPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // 검증 토글 진행 중인 cert id
   const [togglingCertId, setTogglingCertId] = useState<string | null>(null);
+
+  // v3: 매칭 관련 상태
+  const [matchCandidates, setMatchCandidates] = useState<MatchCandidate[]>([]);
+  const [matchSearching, setMatchSearching] = useState(false);
+  const [matchExecuting, setMatchExecuting] = useState(false);
+  const [matchMsg, setMatchMsg] = useState<string | null>(null);
 
   // 데이터 조회
   const loadData = useCallback(async () => {
@@ -158,6 +179,63 @@ export default function AdminMemberDetailPage() {
       alert("네트워크 오류가 발생했습니다.");
     } finally {
       setTogglingCertId(null);
+    }
+  };
+
+  // v3: 매칭 후보 검색
+  const handleSearchMatch = async () => {
+    setMatchSearching(true);
+    setMatchMsg(null);
+    setMatchCandidates([]);
+    try {
+      const res = await fetch(`/api/web/referee-admin/members/${id}/match`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.already_matched) {
+          setMatchMsg("이미 매칭된 심판입니다.");
+        } else if (json.candidates?.length === 0) {
+          setMatchMsg("매칭 가능한 유저를 찾지 못했습니다.");
+        } else {
+          setMatchCandidates(json.candidates ?? []);
+        }
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setMatchMsg((json as { error?: string }).error ?? "검색에 실패했습니다.");
+      }
+    } catch {
+      setMatchMsg("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMatchSearching(false);
+    }
+  };
+
+  // v3: 수동 매칭 실행
+  const handleExecuteMatch = async (userId: string) => {
+    if (!confirm("이 유저를 심판에 매칭하시겠습니까?")) return;
+    setMatchExecuting(true);
+    setMatchMsg(null);
+    try {
+      const res = await fetch(`/api/web/referee-admin/members/${id}/match`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (res.ok) {
+        setMatchMsg("매칭이 완료되었습니다.");
+        setMatchCandidates([]);
+        // 데이터 새로고침
+        void loadData();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setMatchMsg((json as { error?: string }).error ?? "매칭에 실패했습니다.");
+      }
+    } catch {
+      setMatchMsg("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMatchExecuting(false);
     }
   };
 
@@ -250,6 +328,140 @@ export default function AdminMemberDetailPage() {
           />
           <InfoRow label="가입일" value={formatDate(referee.joined_at)} />
         </div>
+      </section>
+
+      {/* v3: 매칭 상태 섹션 */}
+      <section
+        className="p-5"
+        style={{
+          backgroundColor: "var(--color-card)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 4,
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3
+            className="text-sm font-bold uppercase tracking-wider"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            매칭 상태
+          </h3>
+          <span
+            className="inline-flex px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{
+              backgroundColor:
+                referee.match_status === "matched"
+                  ? "var(--color-success, #22c55e)"
+                  : "var(--color-warning, #f59e0b)",
+              color: referee.match_status === "matched" ? "#fff" : "#000",
+              borderRadius: 4,
+            }}
+          >
+            {referee.match_status === "matched" ? "매칭됨" : "미매칭"}
+          </span>
+        </div>
+
+        {/* 사전 등록 정보 표시 */}
+        {(referee.registered_name || referee.registered_phone) && (
+          <div
+            className="mt-3 grid gap-2 text-sm"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <InfoRow label="등록 이름" value={referee.registered_name} />
+            <InfoRow label="등록 전화" value={referee.registered_phone} />
+            {referee.matched_at && (
+              <InfoRow label="매칭일" value={formatDate(referee.matched_at)} />
+            )}
+          </div>
+        )}
+
+        {/* 미매칭 심판: 수동 매칭 UI */}
+        {referee.match_status === "unmatched" && (
+          <div className="mt-4 space-y-3">
+            <button
+              type="button"
+              disabled={matchSearching}
+              onClick={handleSearchMatch}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-opacity"
+              style={{
+                backgroundColor: "var(--color-info, #0079B9)",
+                color: "#fff",
+                borderRadius: 4,
+                opacity: matchSearching ? 0.6 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">search</span>
+              {matchSearching ? "검색 중..." : "매칭 후보 검색"}
+            </button>
+
+            {/* 매칭 메시지 */}
+            {matchMsg && (
+              <p
+                className="text-xs"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                {matchMsg}
+              </p>
+            )}
+
+            {/* 매칭 후보 목록 */}
+            {matchCandidates.length > 0 && (
+              <div
+                className="space-y-2 p-3"
+                style={{
+                  backgroundColor: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 4,
+                }}
+              >
+                <p
+                  className="text-xs font-bold"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  매칭 후보 ({matchCandidates.length}명)
+                </p>
+                {matchCandidates.map((c) => (
+                  <div
+                    key={c.user_id}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-sm font-bold"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {c.name ?? "이름 없음"}
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {c.phone ?? "-"} | {c.email ?? "-"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={matchExecuting}
+                      onClick={() => handleExecuteMatch(c.user_id)}
+                      className="flex shrink-0 items-center gap-1 px-3 py-1 text-xs font-bold transition-opacity"
+                      style={{
+                        backgroundColor: "var(--color-success, #22c55e)",
+                        color: "#fff",
+                        borderRadius: 4,
+                        opacity: matchExecuting ? 0.6 : 1,
+                      }}
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        link
+                      </span>
+                      매칭
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 자격증 목록 */}

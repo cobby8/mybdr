@@ -94,6 +94,13 @@ reviewer 참고:
 - 본인 API (referees/me, referee-certificates 등)는 세션 기반 user_id 검색이라 영향 없음
 - admin-guard.ts의 requirePermission()은 apiError import 순환 방지를 위해 Response 직접 생성
 
+#### 수정 이력 (되돌림 루프 1회차)
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 04-13 | Zod에 resident_id 추가 + 암호화(encryptResidentId/extractLast4) + 자동매칭(findMatchingUser/executeMatch) 호출 | members/route.ts | tester 요청: 주민번호 암호화+자동매칭 누락 |
+| 1차 | 04-13 | 주민번호 입력 필드 추가 (type:password, 하이픈 자동삽입, 보안안내문구) + fetch body에 resident_id 포함 | members/new/page.tsx | tester 요청: 주민번호 입력 필드 누락 |
+| 1차 | 04-13 | GET/POST 핸들러에 /^\d+$/ 검증 추가 — 비숫자 입력 시 400 반환 | members/[id]/match/route.ts | reviewer 요청: BigInt 입력값 검증 없음 |
+
 ---
 
 ## 테스트 결과 (tester) — v3 1차
@@ -168,3 +175,54 @@ reviewer 참고:
 | 04-13 | pm | 협회 역할 9종 + 권한 매트릭스 확정 | ✅ 사용자 승인 |
 | 04-13 | developer | v3 1차: 스키마+매칭+암호화+권한+API수정 (7파일) | ✅ tsc 통과 |
 | 04-13 | reviewer | v3 1차 리뷰: critical 0, warning 2 (VarChar 제한+동명이인) | ✅ APPROVE |
+| 04-13 | tester | v3 2차: API 3개 + 페이지 3개 검증 (7개 중 5통과/2실패) | ❌ 수정 필요 |
+
+---
+
+## 테스트 결과 (tester) -- v3 2차
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| Test 1: tsc --noEmit | PASS | 소스 코드 에러 0건 |
+| Test 2: 사전 등록 API | FAIL | encryptResidentId/extractLast4 호출 없음, findMatchingUser 자동 매칭 호출 없음, Zod 스키마에 resident_id 필드 없음 |
+| Test 3: 매칭 API | PASS | GET: 이름+전화번호로 후보 검색, POST: executeMatch 호출, 이미 매칭 시 409 에러, IDOR 방지(association_id 비교), 권한 체크 정상 |
+| Test 4: 기존 목록 API 수정 | PASS | match_status 파라미터 처리 정상, "matched"/"unmatched" 필터, 빈 값이면 전체 반환, 기존 verified/level 필터 유지 |
+| Test 5: 신규 페이지 (new) | FAIL | "use client" 선언 있음, fetch POST 호출 정상, 클라이언트 빈값 검증 있음. 그러나 주민번호 입력 필드 누락 (테스트 지시에서 요구) |
+| Test 6: 기존 페이지 수정 | PASS | members/page.tsx: 매칭 상태 필터 탭 3개(전체/매칭됨/미매칭), MatchBadge/VerificationBadge 컴포넌트, "사전 등록" 버튼 Link. members/[id]/page.tsx: 매칭 상태 섹션, 미매칭시 수동 매칭 검색+실행 UI, loadData 새로고침 |
+| Test 7: 디자인 규칙 | PASS | 하드코딩 색상은 CSS 변수 fallback으로만 사용(#fff/#000 텍스트 + var() fallback), Material Symbols 사용, lucide-react 없음, pill(9999px) 없음, borderRadius 4 통일 |
+
+종합: 7개 중 5개 통과 / 2개 실패
+
+### 수정 요청
+
+| 요청자 | 파일 | 문제 설명 | 상태 |
+|--------|------|----------|------|
+| tester | src/app/api/web/referee-admin/members/route.ts | (1) Zod 스키마에 resident_id(주민번호) 필드 없음 (2) encryptResidentId/extractLast4 암호화 처리 없음 (3) findMatchingUser 자동 매칭 시도 없음 -- DB에 resident_id_enc, resident_id_last4 컬럼이 있고, 1차에서 암호화 유틸+매칭 서비스를 만들었는데 사전 등록 API에서 사용하지 않음 | 완료 |
+| tester | src/app/(referee)/referee/admin/members/new/page.tsx | 주민번호 입력 필드 누락 -- 테스트 지시에서 "입력 필드: 이름*, 전화*, 생년월일, 주민번호, 자격증번호, 급수, 구분" 요구 | 완료 |
+| reviewer | src/app/api/web/referee-admin/members/[id]/match/route.ts | BigInt(id) 변환에 유효성 검증 없음 — 비숫자 입력 시 500 에러 | 완료 |
+
+---
+
+## 리뷰 결과 (reviewer) — v3 2차
+
+종합 판정: **APPROVE with comments** (critical 1건, warning 2건)
+
+잘된 점:
+- 모든 API에 getAssociationAdmin() + requirePermission() 이중 인증/인가 적용. IDOR 방지를 위해 association_id를 세션에서 강제 주입하는 패턴이 일관됨
+- match API(GET/POST)에서 심판의 association_id와 관리자 세션을 비교하는 IDOR 체크가 정확함
+- 매칭 실행 시 이중 매칭 방지(이미 매칭된 심판 거부 + 이미 다른 심판에 연결된 유저 거부)가 트랜잭션 내에서 처리됨
+- 전화번호 정규화(숫자만 추출 비교)를 중복 체크/매칭 검색 양쪽에 일관 적용
+- UI에서 CSS 변수 사용. Material Symbols 아이콘 사용. 반응형 (데스크톱 테이블/모바일 카드) 패턴 유지
+- members/page.tsx의 매칭 상태 필터 추가가 기존 검증/등급 필터와 공존하며 기존 기능을 깨뜨리지 않음
+- members/[id]/page.tsx의 기존 자격증 검증 토글, 배정/정산 표시 기능이 그대로 유지됨
+- associations/members/route.ts의 match_status 필터가 기존 where 조건에 안전하게 추가됨 (AND 조건)
+
+필수 수정 (1건):
+- [match/route.ts:38,124] BigInt(id) 변환에 유효성 검증 없음. id에 "abc" 같은 비숫자를 넣으면 SyntaxError throw -> 500 에러 반환. /^\d+$/ 체크 또는 try-catch로 400/422 반환 권장
+
+권장 수정 (2건):
+1. [referee-admin/members/route.ts:85-98] 중복 체크에서 findFirst로 같은 이름인 심판 1건만 가져온 뒤 전화번호 비교. 같은 이름이지만 다른 전화번호인 심판이 먼저 발견되면 실제 중복을 놓칠 수 있음. findMany로 이름 일치 전체를 가져와서 any() 비교 또는 DB unique constraint 권장
+2. [new/page.tsx:404 등] 제출 버튼 color: "#fff" 하드코딩. 프로젝트 전역 관행이므로 즉시 수정 필수는 아니나 통일 권장
+
+참고:
+- tester가 지적한 주민번호/자동매칭 누락 건은 reviewer 관점에서도 확인됨. 설계 문서에 resident_id_enc 컬럼이 있고 1차에서 암호화 유틸을 만들었으나 2차 API/UI에서 미사용. PM 판단 필요 (의도적 단계 분리인지 누락인지)
