@@ -334,7 +334,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                       value={m.role}
                       onChange={(e) => handleRoleChange(m.id, e.target.value)}
                       disabled={roleChanging === m.id}
-                      className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+                      className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-xs sm:text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
                     >
                       {ROLE_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -532,15 +532,15 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   <span className="material-symbols-outlined text-base">palette</span>
                   팀 색상
                 </h3>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]">주 색상</label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <input
                         type="color"
                         value={primaryColor}
                         onChange={(e) => setPrimaryColor(e.target.value)}
-                        className="h-10 w-10 cursor-pointer rounded border border-[var(--color-border)]"
+                        className="h-8 w-8 sm:h-10 sm:w-10 cursor-pointer rounded border border-[var(--color-border)]"
                       />
                       <input
                         type="text"
@@ -553,12 +553,12 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]">보조 색상</label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <input
                         type="color"
                         value={secondaryColor}
                         onChange={(e) => setSecondaryColor(e.target.value)}
-                        className="h-10 w-10 cursor-pointer rounded border border-[var(--color-border)]"
+                        className="h-8 w-8 sm:h-10 sm:w-10 cursor-pointer rounded border border-[var(--color-border)]"
                       />
                       <input
                         type="text"

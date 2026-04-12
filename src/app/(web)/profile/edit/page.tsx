@@ -539,14 +539,14 @@ export default function ProfileEditPage() {
           onClick={(e) => { if (e.target === e.currentTarget) { setShowWithdrawModal(false); setWithdrawError(""); setWithdrawPassword(""); } }}
         >
           <div
-            className="mx-4 w-full max-w-sm rounded-[20px] p-6"
+            className="mx-3 w-full max-w-sm rounded-[20px] p-6"
             style={{ backgroundColor: "var(--color-card)", boxShadow: "var(--shadow-elevated)" }}
           >
             <div className="mb-4 flex items-center gap-2">
               <span className="material-symbols-outlined text-2xl" style={{ color: "var(--color-error, #EF4444)" }}>
                 warning
               </span>
-              <h3 className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+              <h3 className="text-base sm:text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
                 정말 탈퇴하시겠습니까?
               </h3>
             </div>

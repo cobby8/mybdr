@@ -76,6 +76,31 @@
 - sm(640px) 이상에서는 기존과 완전히 동일해야 함
 - API/로직 변경 없음 (CSS 클래스만 수정)
 
+---
+
+📝 구현한 기능: 모바일 UI 보통 문제 배치2 - 6건 수정 (색상피커/역할select/탈퇴모달/대진표/구독/참가팀)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/teams/[id]/manage/page.tsx | 색상 그리드 gap-3 sm:gap-4, 피커 gap-2 sm:gap-3, color input h-8 w-8 sm:h-10 sm:w-10, 역할 select text-xs sm:text-sm | 수정 |
+| src/app/(web)/profile/edit/page.tsx | 탈퇴 모달 mx-3, 제목 text-base sm:text-lg | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/page.tsx | 2열 레이아웃 gap-4 sm:gap-8 | 수정 |
+| src/app/(web)/profile/subscription/page.tsx | 상세 정보 text-xs sm:text-sm | 수정 |
+| src/app/(web)/tournaments/[id]/teams/page.tsx | 선수 목록 max-h-[200px] overflow-hidden 추가 | 수정 |
+
+건너뛴 항목:
+- 프로필 편집 색상 피커: 해당 없음 (color input 없음)
+
+💡 tester 참고:
+- 테스트 방법: 모바일 뷰포트(375px)에서 위 5개 파일의 해당 영역 확인
+- 팀 관리 색상: 피커가 작아지고 간격 좁아짐, 역할 select 글자 커짐
+- 탈퇴 모달: 좌우 여유 mx-3, 제목 크기 축소
+- 대진표: 칼럼 간격 좁아짐
+- 구독 상세: 글자 커짐
+- 참가팀: 선수 8명 이상이면 카드 높이 제한됨
+- sm(640px) 이상에서는 기존과 동일
+- tsc --noEmit 통과 확인 완료
+
 ## 테스트 결과 (tester)
 
 테스트 일시: 2026-04-13
