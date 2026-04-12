@@ -26,7 +26,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     prisma.tournamentMatch.findMany({
       where: {
         tournamentId: id,
-        status: { in: ["completed", "in_progress"] }, // 완료 + 진행중 경기만
+        status: { in: ["completed", "in_progress", "live"] }, // 완료 + 진행중 + 라이브
         homeTeamId: { not: null },
         awayTeamId: { not: null },
       },
@@ -65,8 +65,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     teamStats[awayId].pointsFor += as_;
     teamStats[awayId].pointsAgainst += hs;
 
-    // 승패는 완료된 경기에서만 집계
-    if (m.status === "completed") {
+    // 승패는 완료/라이브 경기에서 집계 (스코어가 확정된 경기)
+    if (m.status === "completed" || m.status === "live") {
       if (hs > as_) {
         teamStats[homeId].wins++;
         teamStats[awayId].losses++;
