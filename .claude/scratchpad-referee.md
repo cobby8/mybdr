@@ -226,3 +226,76 @@ reviewer 참고:
 
 참고:
 - tester가 지적한 주민번호/자동매칭 누락 건은 reviewer 관점에서도 확인됨. 설계 문서에 resident_id_enc 컬럼이 있고 1차에서 암호화 유틸을 만들었으나 2차 API/UI에서 미사용. PM 판단 필요 (의도적 단계 분리인지 누락인지)
+
+---
+
+## 구현 기록 (developer) -- v3 3차
+
+구현한 기능: 로그인 시 자동 매칭 훅 + 대시보드 안내 배너 + 관리자 역할 관리 (API 2개 + 페이지 1개 + 셸 수정)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/auth/oauth.ts | tryAutoMatch() 함수 추가 + handleOAuthLogin()에서 리다이렉트 전 매칭 호출 | 수정 |
+| src/app/actions/auth.ts | tryAutoMatch() 함수 추가 + loginAction()에서 쿠키 설정 후 매칭 호출 | 수정 |
+| src/app/(referee)/referee/page.tsx | match_status=matched일 때 협회명 포함 안내 배너 표시 | 수정 |
+| src/app/api/web/referee-admin/settings/route.ts | GET(관리자 목록) + POST(관리자 추가, admin_manage 권한) | 신규 |
+| src/app/api/web/referee-admin/settings/[id]/route.ts | PATCH(역할 변경) + DELETE(관리자 삭제), 자기 보호 + IDOR 방지 | 신규 |
+| src/app/(referee)/referee/admin/settings/page.tsx | 관리자 목록 테이블 + 역할 뱃지 + 추가/변경/삭제 UI + 권한별 분기 | 신규 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "설정" 메뉴 추가 (icon: settings, href: /referee/admin/settings) | 수정 |
+
+tester 참고:
+- tsc --noEmit 에러 0건 확인
+- 자동 매칭: OAuth 로그인(handleOAuthLogin) + 이메일 로그인(loginAction) 양쪽에 삽입, try-catch로 매칭 실패 시 로그인에 영향 없음
+- 대시보드: match_status=matched + association 존재 시에만 배너 표시, 그 외는 기존 동작 동일
+- 설정 API: GET은 모든 관리자 열람 가능, POST/PATCH/DELETE는 admin_manage(secretary_general만), 자기 자신 변경/삭제 불가
+- 설정 페이지: 데스크톱 테이블 + 모바일 카드 반응형, 역할 인라인 편집(select+저장)
+- 셸: 사이드바에 "설정" 항목 추가됨 (관리자 메뉴 아래)
+
+reviewer 참고:
+- oauth.ts/auth.ts 수정은 import 추가 + tryAutoMatch 함수 정의 + 1줄 호출뿐. 기존 인증 흐름에 영향 없음
+- settings API에서 POST/DELETE는 $transaction으로 AssociationAdmin + User.admin_role 동시 처리
+- settings/[id] API에서 id 파라미터는 /^\d+$/ 정규식으로 검증 (BigInt 변환 전)
+- 페이지에서 canManage 판정은 클라이언트에서 역할로 판정 (서버 API가 403으로 최종 방어)
+
+---
+
+## 테스트 결과 (tester) -- v3 3차
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| Test 1: tsc --noEmit | PASS | 소스 코드 에러 0건 |
+| Test 2: 자동 매칭 훅 (oauth.ts + auth.ts) | PASS | tryAutoMatch 함수 정의됨, findUnmatchedReferee+executeMatch import 정상, try-catch로 감싸여 매칭 실패 시 로그인 무영향, 기존 로그인 흐름 구조 유지 |
+| Test 3: 대시보드 안내 배너 | PASS | match_status==="matched" && association 조건 체크 정상, 협회명(association.name) 표시, 모든 색상 var(--color-*) CSS 변수 사용 |
+| Test 4: 관리자 설정 API 보안 | PASS | GET: getAssociationAdmin() 호출, POST: requirePermission('admin_manage') 호출, PATCH/DELETE: requirePermission('admin_manage') 호출, 자기 자신 변경/삭제 방지(user_id===admin.userId), association_id 세션 강제, [id] parseAdminId /^\d+$/ 검증 |
+| Test 5: 관리자 설정 페이지 | PASS | 9종 역할 한국어 매핑 완비(ROLE_LABELS), canManage=false시 수정/삭제 버튼 미표시+관리 컬럼 자체 미렌더링, 추가 폼 인라인 표시(showAddForm), 역할 인라인 편집(select+저장/취소) |
+| Test 6: referee-shell 메뉴 | PASS | NAV_ITEMS에 { href: "/referee/admin/settings", label: "설정", icon: "settings" } 추가됨 |
+| Test 7: 디자인 규칙 | PASS | 하드코딩 색상 없음(모두 CSS 변수 + fallback), Material Symbols 사용, lucide-react 없음, borderRadius 4 통일 |
+
+종합: 7개 중 7개 통과 / 0개 실패 -- 전체 PASS
+
+---
+
+## 리뷰 결과 (reviewer) -- v3 3차
+
+종합 판정: **APPROVE with comments** (critical 0건, warning 2건)
+
+잘된 점:
+- 자동 매칭 훅(tryAutoMatch)이 try-catch로 완벽히 격리됨. 매칭 실패/DB 에러 모두 인증 흐름에 영향 없음
+- oauth.ts/auth.ts 수정이 최소한 — import 1줄 + 함수 정의 + 호출 1줄만 추가. 기존 로그인 로직 변경 없음
+- settings/[id] API의 parseAdminId()로 BigInt 변환 전 /^\d+$/ 검증 — 2차 리뷰 지적 패턴 정확 적용
+- 모든 settings API에 getAssociationAdmin() + requirePermission() 이중 인증/인가 일관 적용
+- IDOR 방지: PATCH/DELETE에서 target.association_id !== admin.associationId 체크 정확
+- 자기 자신 보호: PATCH/DELETE 양쪽에 target.user_id === admin.userId 체크 존재
+- POST/DELETE에서 $transaction으로 AssociationAdmin + User.admin_role 동시 처리 — 정합성 보장
+- referee/page.tsx: 기존 EmptyState/프로필카드/빠른링크 모두 유지, 매칭 배너만 조건부 추가
+- 역할 한국어 매핑(ROLE_LABELS) 9종 모두 포함 확인
+- referee-shell.tsx: NAV_ITEMS에 1항목 추가만으로 기존 메뉴 영향 없음
+
+[WARNING] 권장 수정 2건:
+1. [settings/[id]/route.ts:148-154] DELETE에서 User.admin_role을 null로 무조건 초기화. 현재 user_id unique 제약으로 1인 1협회만 가능하므로 당장 문제없으나, 설계에 "unique 제거 -> 복수 협회 가능성 대비" 언급 있음. 향후 확장 시 "다른 AssociationAdmin 존재 여부 확인" 추가 필요.
+2. [settings/page.tsx:101-104] canManage가 클라이언트에서 role==="secretary_general" 하드코딩. 서버 API 403 방어로 보안 문제 아니나, admin_manage 역할 확장 시 불일치 가능. API 응답에 can_manage 필드 포함 권장.
+
+[INFO] 참고:
+- tryAutoMatch에서 user.name이 null이면 즉시 return — 이름 없는 유저는 매칭 미시도. 의도된 동작 (프로필 완성 후 다음 로그인에서 매칭)
+- auth.ts의 tryAutoMatch는 loginAction() try-catch 내에서 호출되나, 자체 try-catch가 있으므로 예외 전파 없음 — 이중 안전
+- 설정 페이지 유저 추가가 "ID 숫자 입력" 방식 — UX 개선 여지 있으나 1차 범위에서 OK

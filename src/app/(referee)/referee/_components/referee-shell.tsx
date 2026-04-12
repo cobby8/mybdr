@@ -28,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/referee/assignments", label: "내 배정", icon: "event" },
   { href: "/referee/settlements", label: "내 정산", icon: "payments" },
   { href: "/referee/admin", label: "관리자", icon: "admin_panel_settings" },
+  { href: "/referee/admin/settings", label: "설정", icon: "settings" },
 ];
 
 // 모바일 하단 탭은 주요 4항목만 표시 (배정은 숨김)

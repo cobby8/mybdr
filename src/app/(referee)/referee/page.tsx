@@ -76,6 +76,39 @@ export default async function RefereeDashboardPage() {
         </p>
       </header>
 
+      {/* 매칭 완료 안내 배너 — 협회가 사전 등록한 심판과 유저가 매칭된 경우 표시 */}
+      {referee.match_status === "matched" && referee.association && (
+        <div
+          className="flex items-center gap-3 p-4"
+          style={{
+            backgroundColor: "var(--color-success-subtle, rgba(34,197,94,0.1))",
+            border: "1px solid var(--color-success, #22c55e)",
+            borderRadius: 4,
+          }}
+        >
+          <span
+            className="material-symbols-outlined text-2xl"
+            style={{ color: "var(--color-success, #22c55e)" }}
+          >
+            check_circle
+          </span>
+          <div>
+            <p
+              className="text-sm font-bold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              {referee.association.name}에서 심판으로 등록되었습니다
+            </p>
+            <p
+              className="mt-0.5 text-xs"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              협회 관리자가 사전 등록한 정보와 자동으로 연결되었습니다.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ========================================
        * 내 심판 카드
        * ======================================== */}
