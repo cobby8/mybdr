@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 모바일 UI 전수조사 → 5/5 완료
-- **상태**: ✅ 심각 5건 모두 수정 완료
+- **요청**: 모바일 UI 전수조사 → 심각 5건 + 보통 16건 전체 수정 완료
+- **상태**: ✅ 전체 완료
 - **현재 담당**: pm
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-01)
@@ -14,131 +14,29 @@
 | Web API | 111개 라우트 |
 
 ## 기획설계 (planner-architect)
-
-### 경기 기록 입력 시스템 완전 분석 완료 (2026-04-13)
-
-핵심 발견:
-- API 12개 엔드포인트 분석 (v1 matches/events/stats/roster/status/live-token + duo + recorder + sync)
-- 2가지 기록 방식: (1) 이벤트 기반 실시간 (match_events), (2) 최종 스탯 동기화 (MatchPlayerStat)
-- 실시간 통신: Supabase Realtime Broadcast (Flutter -> scoreboard 페이지)
-- 인증: requireRecorder 미들웨어 (JWT + API token 폴백)
-- 웹 구현 시 API 전부 재사용 가능, 새로 만들 것은 기록 입력 UI만
+(아직 없음)
 
 ## 구현 기록 (developer)
 
-📝 구현한 기능: 모바일 반응형 8파일 일괄 수정 (간격/패딩/텍스트/CSS변수)
+### 모바일 UI 경미(녹색) 10건 일괄 수정
 
 | 파일 경로 | 변경 내용 | 신규/수정 |
 |----------|----------|----------|
-| src/app/(web)/games/[id]/page.tsx | gap-8→gap-6 sm:gap-8, space-y-8→space-y-6 sm:space-y-8 | 수정 |
-| src/app/(web)/community/[id]/page.tsx | gap-8→gap-6 sm:gap-8, p-6→p-4 sm:p-6, 제목 text-xl sm:text-2xl, mb 축소 | 수정 |
-| src/app/(web)/users/[id]/page.tsx | gap-6→gap-4 sm:gap-6 | 수정 |
-| src/app/(web)/courts/[id]/page.tsx | 뱃지+버튼 gap-2→gap-1.5 sm:gap-2 (2곳) | 수정 |
-| src/app/(web)/community/new/page.tsx | 이미지 URL input에 min-w-0 추가 | 수정 |
-| src/app/(web)/profile/edit/page.tsx | 포지션 gap-1.5 sm:gap-2, py-1.5 sm:py-2, text-xs sm:text-sm | 수정 |
-| src/app/(web)/login/page.tsx | OAuth 4개 버튼 span에 whitespace-nowrap | 수정 |
-| src/app/(web)/profile/preferences/page.tsx | bg-(--color-*)→bg-[var(--color-*)] 문법 수정 | 수정 |
-
-💡 tester 참고:
-- 테스트 방법: 모바일 뷰포트(375px)에서 위 8개 페이지 확인
-- 정상 동작: 간격이 좁아지고, 텍스트 줄바꿈 없이 한 줄 유지, CSS 변수 정상 적용
-- sm(640px) 이상에서는 기존과 동일해야 함
-- tsc --noEmit 통과 확인 완료
-
----
-
-📝 구현한 기능: 모바일 UI 3건 수정 (탭 아이콘 삭제 + 통계 카드 축소 + 푸터 최소화)
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/teams/[id]/page.tsx | 탭 아이콘 span 삭제 + gap-1.5 제거 | 수정 |
-| src/app/(web)/teams/[id]/_tabs/overview-tab.tsx | 통계 카드 숫자 text-2xl/xl + 패딩 p-4 + 간격 gap-3 (모바일) | 수정 |
-| src/components/layout/Footer.tsx | py-4 + gap-2 + gap-x-4/y-1 + gap-3 (모바일) | 수정 |
-
-💡 tester 참고:
-- 테스트 방법: 모바일 뷰포트(375px)에서 팀 상세 페이지 + 푸터 확인
-- 정상 동작: 탭에 아이콘 없이 텍스트만 표시, 통계 숫자가 작게, 푸터가 컴팩트하게
-- sm(640px) 이상에서는 기존과 동일해야 함
-
----
-
-📝 구현한 기능: 대회 순위표 테이블 모바일 대응 + 팀 관리 탭 모바일 최적화
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/tournaments/[id]/standings/page.tsx | overflow-x-auto 래퍼 추가 + 셀 패딩 모바일 축소 + text-xs sm:text-sm | 수정 |
-| src/app/(web)/teams/[id]/manage/page.tsx | 탭 아이콘 hidden sm:inline + 텍스트 text-xs sm:text-sm + 패딩 px-3 py-2 sm:px-4 sm:py-2.5 + whitespace-nowrap | 수정 |
-
-💡 tester 참고:
-- 테스트 방법: 모바일 뷰포트(375px)에서 대회 순위표 + 팀 관리 페이지 확인
-- 순위표 정상: 테이블이 잘리지 않고 가로 스크롤 가능, 셀 간격 컴팩트
-- 팀 관리 정상: 탭에 텍스트만 표시(아이콘 없음), 줄바꿈 없이 한 줄 유지
-- sm(640px) 이상에서는 기존과 완전히 동일해야 함
-- API/로직 변경 없음 (CSS 클래스만 수정)
-
----
-
-📝 구현한 기능: 모바일 UI 보통 문제 배치2 - 6건 수정 (색상피커/역할select/탈퇴모달/대진표/구독/참가팀)
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| src/app/(web)/teams/[id]/manage/page.tsx | 색상 그리드 gap-3 sm:gap-4, 피커 gap-2 sm:gap-3, color input h-8 w-8 sm:h-10 sm:w-10, 역할 select text-xs sm:text-sm | 수정 |
-| src/app/(web)/profile/edit/page.tsx | 탈퇴 모달 mx-3, 제목 text-base sm:text-lg | 수정 |
-| src/app/(web)/tournaments/[id]/bracket/page.tsx | 2열 레이아웃 gap-4 sm:gap-8 | 수정 |
-| src/app/(web)/profile/subscription/page.tsx | 상세 정보 text-xs sm:text-sm | 수정 |
-| src/app/(web)/tournaments/[id]/teams/page.tsx | 선수 목록 max-h-[200px] overflow-hidden 추가 | 수정 |
+| profile/basketball/page.tsx | 통계 숫자 text-2xl sm:text-3xl (3곳) + 커리어 gap-2 sm:gap-4 | 수정 |
+| profile/page.tsx | 카테고리 그리드 gap-2 sm:gap-3 + 아이콘 h-8 w-8 sm:h-10 sm:w-10 + 텍스트 축소 | 수정 |
+| profile/notification-settings/page.tsx | 토글 간격 gap-3 sm:gap-4 | 수정 |
+| invite/page.tsx | 4개 섹션 패딩 축소 + CTA 버튼 3곳 px-6 py-3 sm:px-8 sm:py-3.5 | 수정 |
+| courts/[id]/checkin/page.tsx | 제목 text-lg sm:text-xl | 수정 |
+| pricing/page.tsx | 카드 그리드 gap-4 sm:gap-6 | 수정 |
 
 건너뛴 항목:
-- 프로필 편집 색상 피커: 해당 없음 (color input 없음)
+- #7 대회 일정: 이미 반응형 적용됨
+- #8 Button 컴포넌트: 전역 영향 범위가 커서 건너뜀
 
-💡 tester 참고:
-- 테스트 방법: 모바일 뷰포트(375px)에서 위 5개 파일의 해당 영역 확인
-- 팀 관리 색상: 피커가 작아지고 간격 좁아짐, 역할 select 글자 커짐
-- 탈퇴 모달: 좌우 여유 mx-3, 제목 크기 축소
-- 대진표: 칼럼 간격 좁아짐
-- 구독 상세: 글자 커짐
-- 참가팀: 선수 8명 이상이면 카드 높이 제한됨
-- sm(640px) 이상에서는 기존과 동일
-- tsc --noEmit 통과 확인 완료
+tester 참고: CSS 클래스만 변경, 375px 뷰포트에서 각 페이지 여백/텍스트 크기 확인
 
 ## 테스트 결과 (tester)
-
-테스트 일시: 2026-04-13
-
-### 1. 타입 검증
-| 테스트 항목 | 결과 | 비고 |
-|-----------|------|------|
-| npx tsc --noEmit | ✅ 통과 | EXIT_CODE=0, 에러 없음 |
-
-### 2. page.tsx — 탭 아이콘 삭제
-| 테스트 항목 | 결과 | 비고 |
-|-----------|------|------|
-| material-symbols-outlined span 제거 | ✅ 통과 | Link 내부에 {t.label} 텍스트만 존재 |
-| gap-1.5 제거 | ✅ 통과 | Link className에 gap-1.5 없음 |
-| 기존 스타일 유지 (flex-1, justify-center 등) | ✅ 통과 | flex flex-1 items-center justify-center whitespace-nowrap 유지 |
-
-### 3. overview-tab.tsx — 통계 카드 글자 축소
-| 테스트 항목 | 결과 | 비고 |
-|-----------|------|------|
-| 시즌 승률 숫자 text-2xl sm:text-4xl | ✅ 통과 | 79줄 확인 |
-| 경기 수 숫자 text-xl sm:text-3xl | ✅ 통과 | 110줄 확인 |
-| 멤버 수 숫자 text-xl sm:text-3xl | ✅ 통과 | 122줄 확인 |
-| 시즌 승률 카드 패딩 p-4 sm:p-6 | ✅ 통과 | 73줄 확인 |
-| 통계 그리드 간격 gap-3 sm:gap-4 | ✅ 통과 | 71줄 확인 |
-| API/prisma 쿼리 미변경 | ✅ 통과 | findMany 3건 동일 |
-
-### 4. Footer.tsx — 푸터 높이 최소화
-| 테스트 항목 | 결과 | 비고 |
-|-----------|------|------|
-| footer py-4 sm:py-8 | ✅ 통과 | 6줄 확인 |
-| 항목 간격 gap-2 sm:gap-4 | ✅ 통과 | 8줄 확인 |
-| nav 링크 gap-x-4 gap-y-1 sm:gap-x-6 sm:gap-y-2 | ✅ 통과 | 15줄 확인 |
-| SNS 간격 gap-3 sm:gap-4 | ✅ 통과 | 35줄 확인 |
-| 링크 미변경 (요금제/이용약관/개인정보/광고문의) | ✅ 통과 | 4개 링크 href 동일 |
-
-종합: 15개 중 15개 통과 / 0개 실패
-
-참고: page.tsx TABS 배열에 icon 프로퍼티 정의가 남아있으나 렌더링 미사용. 기능 문제 없음.
+(아직 없음)
 
 ## 리뷰 결과 (reviewer)
 (아직 없음)
@@ -150,14 +48,13 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-13 | developer | 모바일 3-4/5: 대회 순위표 스크롤 + 팀 관리 탭 최적화 (2파일) | ✅ 완료 |
+| 04-13 | developer | 모바일 🟡 배치2: 색상피커/모달/gap/텍스트 6건 (5파일) | ✅ 완료 |
+| 04-13 | developer | 모바일 🟡 배치1: gap/패딩/텍스트/CSS변수 8건 (8파일) | ✅ 완료 |
+| 04-13 | developer | 모바일 🔴 3-4/5: 대회 순위표 스크롤 + 팀 관리 탭 (2파일) | ✅ 완료 |
 | 04-13 | developer+tester | 모바일 추가: 탭 아이콘 삭제 + 통계 카드 축소 + 푸터 컴팩트 (3파일) | ✅ 완료 |
-| 04-13 | developer+tester | 모바일 최적화 2/5: 팀 상세 히어로/탭/버튼 반응형 (3파일) | ✅ 완료 |
-| 04-13 | developer+tester | 모바일 최적화 1/5: 하단 탭 네비 아이콘/텍스트/간격 조정 (layout.tsx) | ✅ 완료 |
-| 04-12 | developer+tester | Phase 3b: host-card/pricing/button 가시성 버그 3건 수정 (6파일) | ✅ 완료 |
-| 04-12 | pm | 새 PC 세팅: origin/subin reset + .env 생성 + npm install | 완료 |
-| 04-12 | developer+tester | 다크모드 accent 버튼 가시성 전수 수정 (40파일/59포인트, 3단계) | 완료 |
-| 04-05 | pm | AG→main 머지+푸시 (타이포그래피+슬라이드메뉴 정리) | 완료 |
-| 04-02 | developer+tester | 맞춤 설정 필터 미동작 5건 수정 + 전수 검증 30건 통과 | 완료 |
-| 04-02 | developer | 메뉴 토글 + 테마/텍스트크기 설정 (20건 검증 통과) | 완료 |
-| 04-02 | developer | 맞춤 설정 강화 — 실력 7단계, 카테고리 분리, 용어 통일 | 완료 |
+| 04-13 | developer+tester | 모바일 🔴 2/5: 팀 상세 히어로/탭/버튼 반응형 (3파일) | ✅ 완료 |
+| 04-13 | developer+tester | 모바일 🔴 1/5: 하단 탭 네비 조정 (layout.tsx) | ✅ 완료 |
+| 04-12 | developer+tester | Phase 3b: 가시성 버그 3건 수정 (6파일) | ✅ 완료 |
+| 04-12 | pm | 새 PC 세팅 | 완료 |
+| 04-12 | developer+tester | 다크모드 accent 버튼 가시성 전수 수정 (40파일) | 완료 |
+| 04-05 | pm | AG→main 머지+푸시 | 완료 |

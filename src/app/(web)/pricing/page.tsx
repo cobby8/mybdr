@@ -72,7 +72,7 @@ export default async function PricingPage() {
           <p>현재 등록된 요금제가 없습니다.</p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
           {plans.map((plan) => {
             const isSubscribed = subscribedFeatures.has(plan.feature_key);
             return (
