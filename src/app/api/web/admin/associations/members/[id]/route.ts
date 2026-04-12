@@ -53,26 +53,29 @@ export async function GET(
       return apiError("접근 권한이 없습니다.", 403, "FORBIDDEN");
     }
 
-    // User 정보 별도 조회
-    const user = await prisma.user.findUnique({
-      where: { id: referee.user_id },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        birth_date: true,
-      },
-    });
+    // User 정보 별도 조회 — v3: user_id null이면 스킵
+    const user = referee.user_id
+      ? await prisma.user.findUnique({
+          where: { id: referee.user_id },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            birth_date: true,
+          },
+        })
+      : null;
 
     return apiSuccess({
       referee: {
         id: referee.id,
         user_id: referee.user_id,
-        user_name: user?.name ?? null,
-        user_phone: user?.phone ?? null,
+        // v3: 매칭된 유저 정보 우선, 없으면 사전 등록 정보
+        user_name: user?.name ?? referee.registered_name ?? null,
+        user_phone: user?.phone ?? referee.registered_phone ?? null,
         user_email: user?.email ?? null,
-        user_birth_date: user?.birth_date ?? null,
+        user_birth_date: user?.birth_date ?? referee.registered_birth_date ?? null,
         level: referee.level,
         license_number: referee.license_number,
         role_type: referee.role_type,
@@ -83,6 +86,11 @@ export async function GET(
         verified_name: referee.verified_name,
         verified_birth_date: referee.verified_birth_date,
         verified_phone: referee.verified_phone,
+        // v3: 매칭 상태 정보
+        match_status: referee.match_status,
+        matched_at: referee.matched_at,
+        registered_name: referee.registered_name,
+        registered_phone: referee.registered_phone,
         joined_at: referee.joined_at,
       },
       certificates: referee.certificates,

@@ -2191,6 +2191,8 @@ model AssociationAdmin {
   id             BigInt   @id @default(autoincrement())
   user_id        BigInt   @unique // 한 유저는 하나의 협회만 관리 (1:1)
   association_id BigInt
+  // v3: 협회 내 역할 (9종). 기본값 secretary_general — 기존 레코드에 자동 적용
+  role           String   @default("secretary_general") @db.VarChar
   created_at     DateTime @default(now()) @db.Timestamp(6)
 
   association Association @relation(fields: [association_id], references: [id], onDelete: Cascade)
@@ -2201,10 +2203,12 @@ model AssociationAdmin {
 }
 
 // 심판(Referee): User와 1:1. 실명/생년월일/전화 스냅샷을 따로 보관해 검증 변경 추적.
+// v3: user_id nullable — 협회가 사전 등록 시 user_id 없이 생성, 이후 매칭으로 연결.
 // onDelete: Cascade → User 삭제 시 Referee도 자동 삭제 (DB 레벨 무결성 보장).
 model Referee {
   id             BigInt  @id @default(autoincrement())
-  user_id        BigInt  @unique // User.id — 1인 1 Referee
+  // v3: nullable — 사전 등록 시 user_id 없이 생성 가능 (매칭 후 채워짐)
+  user_id        BigInt? @unique // User.id — 매칭 후 1인 1 Referee
   association_id BigInt? // 소속 협회 (없을 수도 있음)
 
   // 교차검증 스냅샷: User 변경돼도 이 값은 그대로 유지됨 (변경 감지에 사용)
@@ -2223,8 +2227,22 @@ model Referee {
   created_at     DateTime @default(now()) @db.Timestamp(6)
   updated_at     DateTime @updatedAt @db.Timestamp(6)
 
-  // v1 확정: User와 양방향 @relation 선언. onDelete: Cascade로 DB 레벨 무결성.
-  user         User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  // ── v3 사전 등록 필드 ──────────────────────────────────
+  // 협회가 입력한 원본 정보 (매칭 키로 사용)
+  registered_name       String?   @db.VarChar  // 관리자가 입력한 이름
+  registered_phone      String?   @db.VarChar  // 관리자가 입력한 전화번호
+  registered_birth_date DateTime? @db.Date     // 관리자가 입력한 생년월일
+  // 주민번호: 암호화 저장 (AES-256-GCM). 평문 절대 금지
+  resident_id_enc       String?               // 암호화된 주민번호 전체
+  resident_id_last4     String?   @db.VarChar(4) // 뒷자리 4자리 (마스킹 표시용)
+  // 매칭 상태: unmatched → matched (user_id 채워지면 자동 전환)
+  match_status          String    @default("unmatched") @db.VarChar
+  matched_at            DateTime? @db.Timestamp(6) // 매칭 완료 시각
+  registered_by_admin_id BigInt?  // 사전 등록한 관리자의 User.id
+  // ── 사전 등록 필드 끝 ──────────────────────────────────
+
+  // v3: User optional — 사전 등록 시 user_id null 허용. onDelete: Cascade 유지.
+  user         User?                @relation(fields: [user_id], references: [id], onDelete: Cascade)
   association  Association?         @relation(fields: [association_id], references: [id], onDelete: SetNull)
   certificates RefereeCertificate[]
   assignments  RefereeAssignment[]
@@ -2235,6 +2253,9 @@ model Referee {
   @@index([level])
   @@index([region_sido, region_sigungu])
   @@index([status])
+  // v3: 매칭 검색용 인덱스
+  @@index([match_status])
+  @@index([registered_name, registered_phone])
   @@map("referees")
 }
 

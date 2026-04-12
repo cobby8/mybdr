@@ -101,7 +101,10 @@ export async function POST(req: Request) {
     });
 
     // User 정보 별도 조회
-    const userIds = referees.map((r) => r.user_id);
+    // v3: user_id가 null인 사전 등록 심판 제외
+    const userIds = referees
+      .map((r) => r.user_id)
+      .filter((id): id is bigint => id !== null);
     const users = userIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
@@ -118,15 +121,28 @@ export async function POST(req: Request) {
     const refereeByUserKey = new Map<string, RefereeWithCerts>();
 
     for (const referee of referees) {
-      const user = userMap.get(referee.user_id.toString());
-      if (!user) continue;
+      // v3: 매칭된 심판은 User 정보로 키 생성, 사전 등록 심판은 registered_ 필드로 키 생성
+      let name = "";
+      let birthDate = "";
+      let phone = "";
 
-      // 매칭 키 생성: 이름 + 생년월일(YYYY-MM-DD) + 전화번호(숫자만)
-      const name = (user.name ?? "").trim();
-      const birthDate = user.birth_date
-        ? user.birth_date.toISOString().split("T")[0]
-        : "";
-      const phone = (user.phone ?? "").replace(/\D/g, "");
+      if (referee.user_id) {
+        const user = userMap.get(referee.user_id.toString());
+        if (!user) continue;
+        name = (user.name ?? "").trim();
+        birthDate = user.birth_date
+          ? user.birth_date.toISOString().split("T")[0]
+          : "";
+        phone = (user.phone ?? "").replace(/\D/g, "");
+      } else {
+        // 사전 등록 심판: registered_ 필드 사용
+        name = (referee.registered_name ?? "").trim();
+        birthDate = referee.registered_birth_date
+          ? referee.registered_birth_date.toISOString().split("T")[0]
+          : "";
+        phone = (referee.registered_phone ?? "").replace(/\D/g, "");
+      }
+
       const key = `${name}|${birthDate}|${phone}`;
       refereeByUserKey.set(key, referee);
     }

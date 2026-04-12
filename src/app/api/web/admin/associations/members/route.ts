@@ -74,7 +74,10 @@ export async function GET(req: Request) {
     ]);
 
     // User 정보 별도 조회 (name, phone 등)
-    const userIds = referees.map((r) => r.user_id);
+    // v3: user_id가 null인 사전 등록 심판은 제외하고 User 조회
+    const userIds = referees
+      .map((r) => r.user_id)
+      .filter((id): id is bigint => id !== null);
     const users = userIds.length > 0
       ? await prisma.user.findMany({
           where: { id: { in: userIds } },
@@ -91,21 +94,25 @@ export async function GET(req: Request) {
     const userMap = new Map(users.map((u) => [u.id.toString(), u]));
 
     // 응답 구성: 심판 + User 정보 매핑
+    // v3: user_id null이면 registered_name/phone으로 대체 표시
     const items = referees.map((r) => {
-      const user = userMap.get(r.user_id.toString());
+      const user = r.user_id ? userMap.get(r.user_id.toString()) : null;
       const totalCerts = r.certificates.length;
       const verifiedCerts = r.certificates.filter((c) => c.verified).length;
 
       return {
         id: r.id,
         user_id: r.user_id,
-        user_name: user?.name ?? null,
-        user_phone: user?.phone ?? null,
+        // v3: 매칭된 유저 정보 우선, 없으면 사전 등록 정보 표시
+        user_name: user?.name ?? r.registered_name ?? null,
+        user_phone: user?.phone ?? r.registered_phone ?? null,
         user_email: user?.email ?? null,
         level: r.level,
         license_number: r.license_number,
         role_type: r.role_type,
         status: r.status,
+        // v3: 매칭 상태 추가
+        match_status: r.match_status,
         total_certificates: totalCerts,
         verified_certificates: verifiedCerts,
         // 모든 자격증이 검증됐으면 "verified", 하나도 없으면 "none", 일부면 "partial"
