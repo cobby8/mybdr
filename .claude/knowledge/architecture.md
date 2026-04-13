@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-13] 대회 선수 등록 및 userId 연결 흐름 분석
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: TournamentTeamPlayer.userId 연결 경로 전수 분석. (1) 웹 참가신청(POST /api/web/tournaments/[id]/join): TeamMember에서 userId를 받아 TournamentTeamPlayer에 설정 -- userId 항상 존재. (2) Flutter 현장등록(POST /api/v1/tournaments/[id]/teams/[teamId]/players): player_name+jersey_number만 입력, userId=null 고정, auto_registered=true -- NULL 원인. (3) admin 팀등록(POST /api/web/tournaments/[id]/teams): TournamentTeam만 생성, 선수 미등록 -- 이후 Flutter에서 등록하면 경로(2)와 동일. (4) 프로필/랭킹에서 대회 기록 조회는 모두 userId 기준(findMany/aggregate/groupBy). userId NULL이면 기록 미표시. (5) merge-temp-member.ts가 유사 패턴(이름매칭+병합)이나 TeamMember 전용이라 TournamentTeamPlayer와 무관. (6) unique 제약: @@unique([tournamentTeamId, userId])와 @@unique([tournamentTeamId, jerseyNumber]) 2개 존재.
+- **참조횟수**: 0
+
 ### [2026-04-13] 대회 형식 프리셋 시스템 구조 설계
 - **분류**: architecture
 - **발견자**: planner-architect

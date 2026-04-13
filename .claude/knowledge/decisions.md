@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-13] 대회 기록 자동 연결: 4시나리오 우선순위 A>D>B>C
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: (1) 시나리오 A(현장등록 시 자동 매칭)가 최우선 -- Flutter v1 players API에서 create 직후 팀 멤버 이름 매칭으로 userId 설정. (2) 시나리오 D(배치 정리)가 2순위 -- 기존 NULL 데이터 일괄 정리용 admin API. (3) 시나리오 B(팀 가입 시 과거 연결) 3순위 -- teams join에서 과거 대회 기록 소급 연결. (4) 시나리오 C(admin 수동 연결) 4순위 -- 자동 매칭 실패 케이스 수동 해결. 핵심 로직을 link-player-user.ts로 분리하여 4곳에서 재사용.
+- **이유**: (1) 현장등록이 userId NULL의 유일한 원인이므로 근본 해결. (2) 이름 매칭은 정확 일치만 적용 -- 유사 매칭은 오매칭 위험. (3) 매칭 후보 2명 이상이면 skip(안전). (4) 기존 API 응답 형식 변경 없음(userId null->값, 하위호환).
+- **대안 기각**: (A) Flutter 앱에서 userId를 보내도록 수정 -- 앱 업데이트 필요, 즉시 적용 불가. (B) 이름 유사 매칭(레벤슈타인) -- 동명이인 오매칭 위험, 과잉 설계.
+- **참조횟수**: 0
+
+### [2026-04-13] 중복 팀 병합: TournamentTeam.teamId만 변경 (B안 채택)
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: 대회 참가팀(TournamentTeam)의 teamId FK만 대회팀->본팀으로 UPDATE. 대회 경기/스탯 데이터는 TournamentTeam.id(PK)를 참조하므로 변경 불필요. 미참가 중복팀(멤버 0, 참조 0)은 외래키 검증 후 DELETE.
+- **이유**: (1) TournamentMatch.homeTeamId/awayTeamId는 TournamentTeam.id(PK)를 참조하므로 teamId 변경이 경기 데이터에 영향 없음. (2) 1개 UPDATE 쿼리로 완료되어 트랜잭션 범위 최소. (3) TournamentTeam에 unique(tournamentId, teamId) 제약이 있으므로 같은 대회에 본팀이 이미 참가하지 않았는지 사전 확인 필수.
+- **대안 기각**: (A) 대회 후 병합 -- 안전하지만 대회 진행 중 웹 팀 상세 페이지에서 대회 기록이 분산 표시되는 UX 문제 지속. (C) Team 자체 교체(211 삭제, 200으로 모든 참조 이전) -- 변경 테이블 6+개, 위험도 높음.
+- **참조횟수**: 0
+
 ### [2026-04-13] 대회 형식 프리셋 시스템: settings Json 활용 + DB 변경 없음
 - **분류**: decision
 - **발견자**: planner-architect
