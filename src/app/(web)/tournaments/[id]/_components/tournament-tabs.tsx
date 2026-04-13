@@ -364,7 +364,7 @@ export function TournamentTabs({
     <div>
       {/* 탭 네비게이션: 배경색 카드 스타일 (구분감 있는 세그먼트 디자인) */}
       <div
-        className="mb-6 flex gap-1 overflow-x-auto rounded-lg p-1 sm:mb-8 [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 mb-6 flex gap-0 overflow-x-auto p-1 sm:mx-0 sm:gap-1 sm:rounded-lg sm:mb-8 [&::-webkit-scrollbar]:hidden"
         style={{
           backgroundColor: "var(--color-surface)",
           scrollbarWidth: "none",
