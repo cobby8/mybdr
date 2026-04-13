@@ -62,6 +62,8 @@ export const updateTournamentSchema = z
     logo_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
     banner_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
     court_bg_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
+    // settings JSON — contact_phone 등 부가 설정을 담는 범용 필드
+    settings: z.record(z.string(), z.unknown()).optional(),
   })
   .partial()
   .refine(

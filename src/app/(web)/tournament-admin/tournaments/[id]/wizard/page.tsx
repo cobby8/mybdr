@@ -150,6 +150,9 @@ export default function TournamentEditWizardPage() {
     autoCalcMaxTeams: false,
   });
 
+  // --- 문의 연락처 (settings.contact_phone에 저장) ---
+  const [contactPhone, setContactPhone] = useState("");
+
   // --- Step 3: 디자인 ---
   const [designTemplate, setDesignTemplate] = useState("basic");
   const [logoUrl, setLogoUrl] = useState("");
@@ -237,6 +240,10 @@ export default function TournamentEditWizardPage() {
       setBannerUrl(t.banner_url ?? t.bannerUrl ?? "");
       setPrimaryColor(t.primary_color ?? t.primaryColor ?? "#E31B23");
       setSecondaryColor(t.secondary_color ?? t.secondaryColor ?? "#E76F51");
+
+      // 문의 연락처 (settings JSON에서 읽기)
+      const settings = t.settings ?? {};
+      setContactPhone(settings.contact_phone ?? "");
     } catch {
       setError("대회 정보를 불러오지 못했습니다.");
     } finally {
@@ -322,6 +329,8 @@ export default function TournamentEditWizardPage() {
           banner_url: bannerUrl || null,
           primary_color: primaryColor,
           secondary_color: secondaryColor,
+          // settings JSON — 문의 연락처
+          settings: { contact_phone: contactPhone || null },
         }),
       });
 
@@ -607,6 +616,24 @@ export default function TournamentEditWizardPage() {
                   setTeamSettings((prev) => ({ ...prev, [field]: value }))
                 }
               />
+            </div>
+          </TossCard>
+
+          {/* --- 섹션 3: 문의 연락처 --- */}
+          <TossCard className="hover:scale-100">
+            <SectionTitle icon="call">문의 연락처</SectionTitle>
+            <div className="mt-4">
+              <label className={labelCls}>전화번호 (선택)</label>
+              <input
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="010-1234-5678"
+                className={inputCls}
+              />
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                입력하면 대회 페이지에 문의 전화 아이콘이 표시됩니다
+              </p>
             </div>
           </TossCard>
         </div>

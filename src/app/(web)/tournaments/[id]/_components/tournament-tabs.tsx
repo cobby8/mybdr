@@ -97,7 +97,20 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
 
   return (
     <div>
-      <h2 className="mb-6 text-xl font-bold sm:text-2xl">일정</h2>
+      {/* 일정 헤더 + 캘린더 등록 버튼 (placeholder, 추후 구현) */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-bold sm:text-2xl">일정</h2>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium transition-colors opacity-50 cursor-not-allowed"
+          style={{ borderColor: "var(--color-border)", color: "var(--color-text-secondary)" }}
+          title="우리팀 일정 구글 캘린더 등록 (준비 중)"
+          disabled
+        >
+          <span className="material-symbols-outlined text-sm">calendar_today</span>
+          캘린더 등록
+        </button>
+      </div>
       <ScheduleTimeline matches={matches} teams={teams} />
     </div>
   );

@@ -87,6 +87,8 @@ export default async function TournamentDetailPage({ params }: { params: Promise
       banner_url: true,
       primary_color: true,
       secondary_color: true,
+      // settings JSON — contact_phone 등 부가 설정 포함
+      settings: true,
       _count: { select: { tournamentTeams: true } },
     },
   });
@@ -294,6 +296,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
         entryFee={tournament.entry_fee ? Number(tournament.entry_fee) : null}
         isRegistrationOpen={isRegistrationOpen}
         tournamentId={id}
+        contactPhone={(tournament.settings as Record<string, unknown>)?.contact_phone as string ?? null}
       />
 
       {/* 1열 레이아웃: 탭 콘텐츠 전체 너비 (사이드바 제거됨) */}
