@@ -31,8 +31,13 @@ export async function POST(req: Request) {
     }
 
     const { certificate_ids } = body;
-    if (!Array.isArray(certificate_ids) || certificate_ids.length === 0) {
-      return apiError("검증할 자격증 ID가 필요합니다.", 400, "VALIDATION_ERROR");
+    // 배열 형태 검증 + 각 원소가 정수인지 확인 (문자열/소수점 등 차단)
+    if (
+      !Array.isArray(certificate_ids) ||
+      certificate_ids.length === 0 ||
+      !certificate_ids.every((id) => typeof id === "number" && Number.isInteger(id))
+    ) {
+      return apiError("certificate_ids는 정수 배열이어야 합니다.", 400, "VALIDATION_ERROR");
     }
 
     // 최대 500개 제한

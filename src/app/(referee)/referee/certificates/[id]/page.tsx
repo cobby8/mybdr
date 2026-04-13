@@ -229,7 +229,7 @@ export default function CertificateDetailPage() {
                 className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold uppercase"
                 style={{
                   backgroundColor: "var(--color-primary)",
-                  color: "#fff",
+                  color: "var(--color-text-on-primary, #fff)",
                   borderRadius: 4,
                 }}
               >
@@ -252,7 +252,10 @@ export default function CertificateDetailPage() {
             )}
             {cert.verified_at && (
               <span>
-                · 검증일 {new Date(cert.verified_at).toISOString().slice(0, 10)}
+                · 검증일 {(() => {
+                  try { return new Date(cert.verified_at).toISOString().slice(0, 10); }
+                  catch { return cert.verified_at; }
+                })()}
               </span>
             )}
           </div>
@@ -402,7 +405,7 @@ export default function CertificateDetailPage() {
               className="px-5 py-2 text-xs font-bold uppercase tracking-wider"
               style={{
                 backgroundColor: "var(--color-primary)",
-                color: "#fff",
+                color: "var(--color-text-on-primary, #fff)",
                 borderRadius: 4,
                 opacity: submitting ? 0.6 : 1,
               }}

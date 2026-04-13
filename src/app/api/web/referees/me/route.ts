@@ -42,10 +42,9 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
     });
 
     if (!referee) {
-      // 심판 프로필 미등록 상태: 프런트에서 CTA 렌더링 트리거
-      return apiError("Referee not found", 404, "NOT_FOUND", {
-        has_referee: false,
-      });
+      // 심판 프로필 미등록 상태: 200 + has_referee:false로 반환
+      // (404를 쓰면 "리소스 없음"과 "프로필 미등록"이 구분 안 되므로 200이 적합)
+      return apiSuccess({ has_referee: false, referee: null });
     }
 
     return apiSuccess({ has_referee: true, referee });
@@ -103,8 +102,12 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
 
     return apiSuccess({ has_referee: true, referee: created }, 201);
   } catch (err) {
-    // unique 제약(license_number) 등 DB 에러는 409로 처리
+    // unique 제약 위반: 어느 필드인지 구분하여 정확한 에러 메시지 반환
     if (err && typeof err === "object" && "code" in err && err.code === "P2002") {
+      const target = (err as { meta?: { target?: string[] } }).meta?.target;
+      if (target?.includes("user_id")) {
+        return apiError("이미 심판 프로필이 등록되어 있습니다.", 409, "ALREADY_EXISTS");
+      }
       return apiError("이미 사용 중인 자격번호입니다.", 409, "ALREADY_EXISTS");
     }
     return apiError("심판 프로필을 생성할 수 없습니다.", 500);

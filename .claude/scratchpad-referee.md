@@ -144,10 +144,35 @@ reviewer 참고:
 
 ---
 
-## ⚠️ 미해결 이슈 (v2 잔재)
-1. 로그인 후 /referee 복귀 미동작 (redirect 파라미터 미지원)
-2. 하드코딩 #fff 9곳
-3. Reviewer 권장수정 2건 + nit 6건
+## ⚠️ 미해결 이슈 (v2 잔재) — 모두 해결됨
+1. ~~로그인 후 /referee 복귀 미동작~~ → bdr_redirect 쿠키 방식으로 해결
+2. ~~하드코딩 #fff 9곳~~ → var(--color-text-on-primary, #fff) 대체
+3. ~~Reviewer 권장수정 + nit 6건~~ → 배열 검증, P2002 구분, 200+null, 에러 중복, 로깅, Date 방어
+
+## 구현 기록 (developer) — B코스 품질 개선 (3가지 일괄)
+
+구현한 기능: 로그인 redirect 복귀 + 하드코딩 #fff 제거 + Reviewer nit 수정
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/auth/login/route.ts | redirect 쿼리 파라미터 → bdr_redirect 쿠키 저장 (5분 TTL) | 수정 |
+| src/lib/auth/oauth.ts | handleOAuthLogin에서 bdr_redirect 쿠키 읽고 해당 경로로 복귀 | 수정 |
+| src/app/actions/auth.ts | loginAction에 redirect FormData 파라미터 지원 | 수정 |
+| src/app/(web)/login/page.tsx | redirect 쿼리 읽기 + OAuth/이메일 로그인에 전달 | 수정 |
+| src/app/(referee)/referee/_components/empty-state.tsx | #fff → var(--color-text-on-primary, #fff) | 수정 |
+| src/app/(referee)/referee/certificates/page.tsx | #fff 4곳 → CSS 변수 + 에러+empty UI 중복 방지 | 수정 |
+| src/app/(referee)/referee/certificates/[id]/page.tsx | #fff 2곳 → CSS 변수 + verified_at Date 방어 | 수정 |
+| src/app/(referee)/referee/profile/edit/page.tsx | #fff 2곳 → CSS 변수 | 수정 |
+| src/app/api/web/admin/bulk-verify/confirm/route.ts | certificate_ids 배열 원소 정수 검증 추가 | 수정 |
+| src/app/api/web/referees/me/route.ts | GET: 404→200+null, POST: P2002 에러 user_id/license 구분 | 수정 |
+| src/app/api/web/associations/route.ts | catch에 error 로깅 추가 | 수정 |
+
+tester 참고:
+- tsc --noEmit 에러 0건
+- 로그인 redirect 테스트: /referee 접근 → /login?redirect=/referee 이동 → 로그인 후 /referee 복귀 확인
+- OAuth: bdr_redirect 쿠키 5분 TTL, 이메일: hidden input으로 redirect 전달
+- 보안: redirect 경로는 /로 시작 + //로 시작하지 않는 것만 허용 (외부 URL 차단)
+- referees/me GET이 404→200으로 변경됨: 기존 프런트 코드는 res.ok + has_referee 체크이므로 호환됨
 
 ## 🛑 절대 지킬 원칙
 1. 기존 (web)/(admin)/(site) 수정 금지

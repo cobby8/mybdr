@@ -53,6 +53,8 @@ async function getRequestIp(): Promise<string> {
 export async function loginAction(_prevState: { error: string } | null, formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  // 로그인 성공 후 돌아갈 경로 (로그인 페이지에서 hidden input으로 전달)
+  const redirectTo = formData.get("redirect") as string | null;
 
   if (!email || !password) {
     return { error: "이메일과 비밀번호를 입력하세요." };
@@ -104,7 +106,10 @@ export async function loginAction(_prevState: { error: string } | null, formData
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+
+  // redirect 경로가 유효하면 해당 경로로, 아니면 홈으로
+  const validRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//");
+  redirect(validRedirect ? redirectTo : "/");
 }
 
 export async function signupAction(_prevState: { error: string } | null, formData: FormData) {

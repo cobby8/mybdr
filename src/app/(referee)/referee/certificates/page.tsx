@@ -178,7 +178,7 @@ export default function RefereeCertificatesPage() {
             className="mt-6 px-5 py-2.5 text-sm font-bold uppercase tracking-wide"
             style={{
               backgroundColor: "var(--color-primary)",
-              color: "#fff",
+              color: "var(--color-text-on-primary, #fff)",
               borderRadius: 4,
             }}
           >
@@ -352,7 +352,7 @@ export default function RefereeCertificatesPage() {
               className="px-5 py-2 text-xs font-bold uppercase tracking-wider"
               style={{
                 backgroundColor: "var(--color-primary)",
-                color: "#fff",
+                color: "var(--color-text-on-primary, #fff)",
                 borderRadius: 4,
                 opacity: submitting ? 0.6 : 1,
               }}
@@ -363,7 +363,7 @@ export default function RefereeCertificatesPage() {
         </form>
       )}
 
-      {/* 목록 */}
+      {/* 목록 — 에러 발생 시 빈 목록 메시지는 숨김 (에러 배너만 표시) */}
       {loading ? (
         <p
           className="p-8 text-center text-sm"
@@ -371,7 +371,7 @@ export default function RefereeCertificatesPage() {
         >
           불러오는 중...
         </p>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && !errorMsg ? (
         <p
           className="p-12 text-center text-sm"
           style={{
@@ -410,7 +410,7 @@ export default function RefereeCertificatesPage() {
                         className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold uppercase"
                         style={{
                           backgroundColor: "var(--color-primary)",
-                          color: "#fff",
+                          color: "var(--color-text-on-primary, #fff)",
                           borderRadius: 4,
                         }}
                       >

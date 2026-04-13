@@ -245,7 +245,7 @@ export default function RefereeProfileEditPage() {
                     backgroundColor: active
                       ? "var(--color-primary)"
                       : "var(--color-surface)",
-                    color: active ? "#fff" : "var(--color-text-primary)",
+                    color: active ? "var(--color-text-on-primary, #fff)" : "var(--color-text-primary)",
                     border: "1px solid var(--color-border)",
                     borderRadius: 4,
                   }}
@@ -388,7 +388,7 @@ export default function RefereeProfileEditPage() {
             className="px-5 py-2 text-xs font-bold uppercase tracking-wider"
             style={{
               backgroundColor: "var(--color-primary)",
-              color: "#fff",
+              color: "var(--color-text-on-primary, #fff)",
               borderRadius: 4,
               opacity: submitting ? 0.6 : 1,
             }}

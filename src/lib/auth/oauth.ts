@@ -114,12 +114,20 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
 
-  // 이메일 또는 전화번호가 없으면 인증 페이지로
+  // 이메일 또는 전화번호가 없으면 인증 페이지로 (redirect보다 우선)
   const needsEmail = !user.email || user.email.endsWith("@oauth.local");
   const needsPhone = !user.phone;
   if (needsEmail || needsPhone) {
     const missing = [needsEmail && "email", needsPhone && "phone"].filter(Boolean).join(",");
     return Response.redirect(new URL(`/verify?missing=${missing}`, baseUrl));
+  }
+
+  // bdr_redirect 쿠키가 있으면 해당 경로로 복귀, 없으면 홈으로
+  const redirectPath = cookieStore.get("bdr_redirect")?.value;
+  if (redirectPath && redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
+    // 사용한 쿠키는 삭제 (일회용)
+    cookieStore.delete("bdr_redirect");
+    return Response.redirect(new URL(redirectPath, baseUrl));
   }
 
   return Response.redirect(new URL("/", baseUrl));

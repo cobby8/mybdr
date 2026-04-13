@@ -52,7 +52,7 @@ export function EmptyState({
         className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold uppercase tracking-wide"
         style={{
           backgroundColor: "var(--color-primary)",
-          color: "#fff",
+          color: "var(--color-text-on-primary, #fff)",
           borderRadius: 4,
         }}
       >

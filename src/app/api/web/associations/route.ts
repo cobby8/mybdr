@@ -32,7 +32,8 @@ export async function GET() {
 
     // BigInt는 apiSuccess가 자동 문자열 변환. 별도 가공 없이 반환.
     return apiSuccess(associations);
-  } catch {
+  } catch (err) {
+    console.error("[associations] GET error:", err);
     return apiError("협회 목록을 불러올 수 없습니다.", 500);
   }
 }
