@@ -85,6 +85,15 @@ export default function AdminMemberDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // PDF 출력 관련 상태
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfMessage, setPdfMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  // 현재 관리자의 역할 (사무국장 여부 판단용)
+  const [adminRole, setAdminRole] = useState<string | null>(null);
+
   // ── 서류 목록 조회 ──
   const fetchDocuments = useCallback(async () => {
     try {
@@ -112,6 +121,86 @@ export default function AdminMemberDocumentsPage() {
   useEffect(() => {
     void fetchDocuments();
   }, [fetchDocuments]);
+
+  // 관리자 역할 조회 (사무국장 여부 판단)
+  // settings API는 { items: [...], current_user_id } 형태로 응답.
+  // items에서 current_user_id와 일치하는 항목의 role을 추출한다.
+  useEffect(() => {
+    async function fetchAdminRole() {
+      try {
+        const res = await fetch("/api/web/referee-admin/settings", {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const json = await res.json() as {
+            items?: { user_id: number | string; role: string }[];
+            current_user_id?: number | string;
+          };
+          if (json.items && json.current_user_id) {
+            const me = json.items.find(
+              (item) => String(item.user_id) === String(json.current_user_id)
+            );
+            setAdminRole(me?.role ?? null);
+          }
+        }
+      } catch {
+        // 역할 조회 실패 시 버튼 미표시 (안전하게)
+      }
+    }
+    void fetchAdminRole();
+  }, []);
+
+  // 3종 서류 모두 등록 여부 확인
+  const allDocsRegistered = ["certificate", "id_card", "bankbook"].every(
+    (type) => documents.some((d) => d.doc_type === type)
+  );
+
+  // 사무국장 여부 (document_print 권한)
+  const canPrint = adminRole === "secretary_general";
+
+  // ── PDF 다운로드 핸들러 ──
+  const handlePdfDownload = async () => {
+    setPdfGenerating(true);
+    setPdfMessage(null);
+
+    try {
+      const res = await fetch("/api/web/referee-admin/documents/print", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ referee_id: refereeId }),
+      });
+
+      if (res.ok) {
+        // PDF blob 다운로드 트리거
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        // Content-Disposition에서 파일명 추출 또는 기본값
+        const disposition = res.headers.get("Content-Disposition");
+        const filenameMatch = disposition?.match(/filename="?(.+?)"?$/);
+        a.download = filenameMatch?.[1] ?? `settlement-${refereeId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setPdfMessage({ type: "success", text: "PDF 다운로드가 시작되었습니다." });
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setPdfMessage({
+          type: "error",
+          text:
+            (json as { error?: string }).error ?? "PDF 생성에 실패했습니다.",
+        });
+      }
+    } catch {
+      setPdfMessage({ type: "error", text: "네트워크 오류가 발생했습니다." });
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
 
   const getDoc = (docType: string) =>
     documents.find((d) => d.doc_type === docType);
@@ -166,6 +255,87 @@ export default function AdminMemberDocumentsPage() {
           서류는 암호화 저장됩니다. 이미지는 화면에 표시되지 않습니다.
         </p>
       </div>
+
+      {/* 정산 서류 PDF 출력 (사무국장만 표시) */}
+      {canPrint && !loading && (
+        <div
+          className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+          style={{
+            backgroundColor: "var(--color-card)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 4,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className="material-symbols-outlined text-2xl"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              print
+            </span>
+            <div>
+              <h3
+                className="text-sm font-bold"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                정산 서류 PDF 출력
+              </h3>
+              <p
+                className="text-xs"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                {allDocsRegistered
+                  ? "3종 서류가 모두 등록되어 있습니다. PDF로 출력할 수 있습니다."
+                  : "서류 3종이 모두 등록되어야 출력할 수 있습니다."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={!allDocsRegistered || pdfGenerating}
+            onClick={handlePdfDownload}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold transition-opacity"
+            style={{
+              backgroundColor: allDocsRegistered
+                ? "var(--color-primary)"
+                : "var(--color-surface)",
+              color: allDocsRegistered ? "#fff" : "var(--color-text-muted)",
+              borderRadius: 4,
+              opacity: pdfGenerating ? 0.6 : 1,
+              cursor: allDocsRegistered && !pdfGenerating ? "pointer" : "not-allowed",
+            }}
+          >
+            <span className="material-symbols-outlined text-sm">print</span>
+            {pdfGenerating ? "생성 중..." : "PDF 출력"}
+          </button>
+        </div>
+      )}
+
+      {/* PDF 출력 메시지 */}
+      {pdfMessage && (
+        <div
+          className="px-3 py-2 text-xs"
+          style={{
+            backgroundColor:
+              pdfMessage.type === "success"
+                ? "var(--color-success-subtle, rgba(34,197,94,0.1))"
+                : "var(--color-surface)",
+            color:
+              pdfMessage.type === "success"
+                ? "var(--color-success, #22c55e)"
+                : "var(--color-primary)",
+            border: `1px solid ${
+              pdfMessage.type === "success"
+                ? "var(--color-success, #22c55e)"
+                : "var(--color-primary)"
+            }`,
+            borderRadius: 4,
+          }}
+        >
+          {pdfMessage.text}
+        </div>
+      )}
 
       {/* 에러 메시지 */}
       {errorMsg && (

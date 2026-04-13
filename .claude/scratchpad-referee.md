@@ -415,3 +415,33 @@ reviewer 참고:
 - confirm API에서 bank_account 암호화 실패 시 (키 미설정) 평문 저장 안 하고 skip — 보안 원칙 유지
 - Prisma Json 필드 타입 호환: `ocrResult as unknown as Prisma.InputJsonValue` 캐스팅 사용
 - 관리자 OCR confirm은 본인용 confirm API를 호출함 (관리자가 confirm 시 서류 소유자 검증은 서류→referee→user_id로 수행)
+
+---
+
+## 구현 기록 (developer) — 서류 3차 PDF
+
+구현한 기능: 정산 PDF 출력 (사무국장 전용, 워터마크+추적코드)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/services/settlement-pdf.ts | pdfkit 기반 PDF 생성 — 표지(심판정보)+서류3장(이미지)+워터마크+추적코드+푸터 | 신규 |
+| src/app/api/web/referee-admin/documents/print/route.ts | POST API — document_print 권한(사무국장만)+IDOR방지+encrypted_data복호화+PDF스트리밍응답+접근로그 | 신규 |
+| src/app/(referee)/referee/admin/members/[id]/documents/page.tsx | "정산 서류 PDF 출력" 버튼 추가 — 사무국장에게만 표시, 3종 모두 등록 시 활성화, blob 다운로드 트리거 | 수정 |
+| package.json / package-lock.json | pdfkit + @types/pdfkit 패키지 설치 | 수정 |
+
+tester 참고:
+- tsc --noEmit 에러 0건 확인
+- PDF는 서버에 저장되지 않음 (일회성 생성, Response로 직접 반환)
+- PDF 한글: 기본 Helvetica 폰트 사용 (한글 미지원). 영문/숫자만 표시, 이미지에 한글 포함
+- 워터마크: "mybdr SETTLEMENT ONLY" 대각선 반투명(opacity 0.06) 반복 배치
+- 추적 코드: PRINT-{adminUserId}-{timestamp}-{random4} 형식, 표지+각 페이지 푸터에 표시
+- encrypted_data는 API 내부에서만 복호화하여 PDF에 삽입, 응답에 노출 안 됨
+- 사무국장 역할 판단: settings API 호출하여 items에서 current_user_id 매칭으로 role 추출
+- DOCUMENT_ENCRYPTION_KEY 환경변수 필요 (서류 복호화용)
+
+reviewer 참고:
+- decryptDocument()가 처음으로 실제 사용됨 (1차 리뷰에서 "미사용" 언급했던 함수)
+- Buffer -> Uint8Array 변환: new Response() 생성자에 Buffer 직접 전달 불가, Uint8Array로 감싸서 해결
+- 접근 로그: console.log로 기록 (추후 DB audit_log 테이블로 전환 예정)
+- Content-Disposition: attachment로 강제 다운로드 (inline 미사용)
+- Cache-Control: no-store로 민감 문서 캐싱 방지
