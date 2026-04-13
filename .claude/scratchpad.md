@@ -169,6 +169,28 @@ reviewer 참고:
 - findUserIdByName에서 unique 제약 위반 사전 체크
 - v1 API 응답 형식 유지 (user_id 필드가 null -> 값으로 바뀌는 것은 하위 호환)
 
+### 팀명/선수명 Link 추가 (2026-04-13)
+
+구현한 기능: 대회 상세 페이지 12곳에 팀/선수 프로필 페이지 Link 추가 (schedule-timeline은 카드 전체가 Link라 건너뜀)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/tournaments/[id]/public-standings/route.ts | teamId 필드 추가 | 수정 |
+| src/app/api/web/tournaments/[id]/public-teams/route.ts | teamId + players.userId 필드 추가 | 수정 |
+| src/app/api/web/tournaments/[id]/public-bracket/route.ts | groupTeams에 teamId 필드 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/_components/tournament-tabs.tsx | 순위표 팀명 + 참가팀 팀명/선수명에 Link 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/_components/group-standings.tsx | 조별리그 팀명에 Link 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/_components/match-card.tsx | MatchCard + MobileMatchCard 팀명에 Link 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/page.tsx | groupTeams에 teamId 필드 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/standings/page.tsx | 서버 컴포넌트 팀명에 Link 추가 | 수정 |
+| src/app/(web)/tournaments/[id]/teams/page.tsx | 서버 컴포넌트 팀명/선수명에 Link 추가 | 수정 |
+
+tester 참고:
+- 테스트 방법: 대회 상세 페이지에서 팀명 클릭 시 /teams/{teamId}로 이동, 선수명 클릭 시 /users/{userId}로 이동 확인
+- 정상 동작: 팀명 hover시 underline 표시, 클릭 시 해당 페이지로 이동
+- 주의: userId가 null인 선수는 Link 없이 텍스트만 표시됨 (정상)
+- schedule-timeline은 경기 카드 전체가 Link로 감싸져 있어 건너뜀 (중첩 Link 방지)
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -176,6 +198,7 @@ reviewer 참고:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | 팀명/선수명 Link 추가 (9파일, API 3곳 + UI 6곳) | 완료 |
 | 04-13 | developer | 대회 선수 userId 자동 연결 구현 (시나리오 A+D, 3파일) | 완료 |
 | 04-13 | planner-architect | 대회 기록 자동 연결 시스템 계획 수립 (4시나리오 분석+5파일 설계) | 기획완료 |
 | 04-13 | developer | 대회 상세 UI 전면 리디자인 (히어로+탭+대시보드+일정카드+순위표 등 15건) | 완료 |

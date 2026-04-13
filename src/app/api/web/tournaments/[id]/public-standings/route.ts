@@ -104,6 +104,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         : 0;
       return {
         id: tid,
+        teamId: t.teamId.toString(), // Team 테이블의 실제 id (팀 페이지 링크용)
         teamName: t.team.name,
         wins: stats.wins,
         losses: stats.losses,

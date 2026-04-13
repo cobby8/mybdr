@@ -14,6 +14,7 @@
 
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 // API 응답은 snake_case → 하위 컴포넌트는 camelCase를 기대하므로 변환 필요
 import { convertKeysToCamelCase } from "@/lib/utils/case";
@@ -130,6 +131,7 @@ function StandingsTabContent({ tournamentId }: { tournamentId: string }) {
   // 순위표 팀 타입 (API에서 gamesPlayed, winRate, pointDifference, pointsFor 추가됨)
   type StandingsTeam = {
     id: string;
+    teamId: string; // Team 테이블의 실제 id (팀 페이지 링크용)
     teamName: string;
     wins: number;
     losses: number;
@@ -206,7 +208,9 @@ function StandingsTabContent({ tournamentId }: { tournamentId: string }) {
                 }}
               >
                 <td className="px-2 py-2.5 text-sm font-bold sm:px-3" style={{ color: "var(--color-primary)" }}>{ranks[i]}</td>
-                <td className="px-2 py-2.5 font-medium sm:px-3">{t.teamName}</td>
+                <td className="px-2 py-2.5 font-medium sm:px-3">
+                  <Link href={`/teams/${t.teamId}`} className="hover:underline">{t.teamName}</Link>
+                </td>
                 <td className="px-2 py-2.5 text-center sm:px-3">{t.gamesPlayed}</td>
                 <td className="px-2 py-2.5 text-center sm:px-3">{t.wins}</td>
                 <td className="px-2 py-2.5 text-center sm:px-3">{t.losses}</td>
@@ -310,10 +314,11 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {teams.map((t: {
           id: string;
+          teamId: string; // Team 테이블의 실제 id (팀 페이지 링크용)
           teamName: string;
           primaryColor: string | null;
           groupName: string | null;
-          players: { id: string; jerseyNumber: number | null; position: string | null; nickname: string }[];
+          players: { id: string; userId: string | null; jerseyNumber: number | null; position: string | null; nickname: string }[];
         }) => (
           <div
             key={t.id}
@@ -333,16 +338,25 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
                 {t.teamName.charAt(0)}
               </div>
               <div>
-                <h3 className="font-semibold">{t.teamName}</h3>
+                <Link href={`/teams/${t.teamId}`} className="hover:underline">
+                  <h3 className="font-semibold">{t.teamName}</h3>
+                </Link>
                 <p className="text-xs" style={{ color: "var(--color-text-secondary)" }}>
                   {t.groupName && `${t.groupName} · `}{t.players.length}명
                 </p>
               </div>
             </div>
             <div className="space-y-1">
-              {t.players.map((p: { id: string; jerseyNumber: number | null; position: string | null; nickname: string }) => (
+              {t.players.map((p: { id: string; userId: string | null; jerseyNumber: number | null; position: string | null; nickname: string }) => (
                 <div key={p.id} className="flex justify-between text-sm">
-                  <span style={{ color: "var(--color-text-muted)" }}>#{p.jerseyNumber ?? "-"} {p.nickname}</span>
+                  {/* userId가 있으면 선수 프로필 링크, 없으면 텍스트만 */}
+                  {p.userId ? (
+                    <Link href={`/users/${p.userId}`} className="hover:underline" style={{ color: "var(--color-text-muted)" }}>
+                      #{p.jerseyNumber ?? "-"} {p.nickname}
+                    </Link>
+                  ) : (
+                    <span style={{ color: "var(--color-text-muted)" }}>#{p.jerseyNumber ?? "-"} {p.nickname}</span>
+                  )}
                   <span className="text-xs" style={{ color: "var(--color-text-secondary)" }}>{p.position ?? ""}</span>
                 </div>
               ))}

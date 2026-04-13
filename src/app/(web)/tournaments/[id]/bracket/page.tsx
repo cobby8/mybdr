@@ -134,6 +134,7 @@ export default async function BracketPage({
     .filter((t) => t.groupName != null)
     .map((t) => ({
       id: t.id.toString(),
+      teamId: t.teamId.toString(), // Team 테이블의 실제 id (팀 페이지 링크용)
       teamName: t.team.name,
       groupName: t.groupName,
       wins: t.wins ?? 0,

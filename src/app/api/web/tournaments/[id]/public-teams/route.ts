@@ -24,6 +24,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       players: {
         select: {
           id: true,
+          userId: true, // 선수 프로필 링크용
           jerseyNumber: true,
           position: true,
           users: { select: { nickname: true } },
@@ -35,11 +36,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // BigInt -> string 직렬화
   const serialized = teamsWithPlayers.map((t) => ({
     id: t.id.toString(),
+    teamId: t.teamId.toString(), // Team 테이블의 실제 id (팀 페이지 링크용)
     teamName: t.team.name,
     primaryColor: t.team.primaryColor,
     groupName: t.groupName,
     players: t.players.map((p) => ({
       id: p.id.toString(),
+      userId: p.userId ? p.userId.toString() : null, // 선수 프로필 링크용 (null이면 미연결)
       jerseyNumber: p.jerseyNumber,
       position: p.position,
       nickname: p.users?.nickname ?? "선수",

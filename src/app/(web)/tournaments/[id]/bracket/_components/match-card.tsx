@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { BracketMatch, TeamSlot } from "@/lib/tournaments/bracket-builder";
 
 type MatchCardProps = {
@@ -88,18 +89,26 @@ function TeamRow({
         }`}
       />
 
-      {/* 팀명 */}
-      <span
-        className={`flex-1 truncate font-medium leading-tight ${
-          loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
-        }`}
->
-        {isBye && position === "away"
-          ? "부전승"
-          : team !== null
-            ? team.team.name
-            : "TBD"}
-      </span>
+      {/* 팀명: teamId가 있으면 팀 페이지 링크 */}
+      {team !== null && !isBye ? (
+        <Link
+          href={`/teams/${team.teamId}`}
+          className={`flex-1 truncate font-medium leading-tight hover:underline ${
+            loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {team.team.name}
+        </Link>
+      ) : (
+        <span
+          className={`flex-1 truncate font-medium leading-tight ${
+            loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
+          }`}
+        >
+          {isBye && position === "away" ? "부전승" : "TBD"}
+        </span>
+      )}
 
       {/* 점수 */}
       <span
@@ -218,13 +227,19 @@ export function MobileMatchCard({
             homeWinner ? "bg-[var(--color-primary)]" : "bg-transparent"
           }`}
         />
-        <span
-          className={`flex-1 font-medium ${
-            homeLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
-          }`}
-        >
-          {match.homeTeam?.team.name ?? "TBD"}
-        </span>
+        {/* 홈팀명: teamId가 있으면 팀 페이지 링크 */}
+        {match.homeTeam ? (
+          <Link
+            href={`/teams/${match.homeTeam.teamId}`}
+            className={`flex-1 font-medium hover:underline ${
+              homeLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
+            }`}
+          >
+            {match.homeTeam.team.name}
+          </Link>
+        ) : (
+          <span className={`flex-1 font-medium text-[var(--color-text-primary)]`}>TBD</span>
+        )}
         <span
           className={`text-lg font-bold tabular-nums ${
             homeWinner
@@ -252,15 +267,21 @@ export function MobileMatchCard({
             awayWinner ? "bg-[var(--color-primary)]" : "bg-transparent"
           }`}
         />
-        <span
-          className={`flex-1 font-medium ${
-            awayLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
-          }`}
-        >
-          {isBye && !match.awayTeam
-            ? "부전승"
-            : (match.awayTeam?.team.name ?? "TBD")}
-        </span>
+        {/* 어웨이팀명: teamId가 있으면 팀 페이지 링크 */}
+        {match.awayTeam ? (
+          <Link
+            href={`/teams/${match.awayTeam.teamId}`}
+            className={`flex-1 font-medium hover:underline ${
+              awayLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
+            }`}
+          >
+            {match.awayTeam.team.name}
+          </Link>
+        ) : (
+          <span className={`flex-1 font-medium text-[var(--color-text-primary)]`}>
+            {isBye ? "부전승" : "TBD"}
+          </span>
+        )}
         <span
           className={`text-lg font-bold tabular-nums ${
             awayWinner
