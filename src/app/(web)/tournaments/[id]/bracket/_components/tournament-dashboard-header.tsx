@@ -79,8 +79,8 @@ export function TournamentDashboardHeader({
         </div>
       </div>
 
-      {/* 통계 4칸 카드: 모바일 gap 축소 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+      {/* 통계 2칸 카드 */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-4">
         {/* 총 참가팀 */}
         <StatCard
           label="총 참가팀"
@@ -94,14 +94,6 @@ export function TournamentDashboardHeader({
           icon="sports_basketball"
           highlight={liveMatchCount > 0}
           badge={liveMatchCount > 0 ? "LIVE" : undefined}
-        />
-        {/* 누적 관중 - DB에 없으므로 placeholder */}
-        <StatCard label="누적 관중" value="-" icon="stadium" />
-        {/* 결승전 예정일 */}
-        <StatCard
-          label="결승전 예정일"
-          value={formatShortDate(finalsDate)}
-          icon="event"
         />
       </div>
     </section>
