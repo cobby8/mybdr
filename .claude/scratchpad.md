@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 모바일 UI 전수조사 → 🔴5 + 🟡15 + 🟢8 = 28건 수정 완료
-- **상태**: ✅ 전체 완료 (커밋+푸시 완료)
-- **현재 담당**: pm
+- **요청**: 대회 형식 프리셋 시스템 + 토너먼트 자동 구성 + 미달 팀 대응 로직 설계
+- **상태**: 기획설계 완료
+- **현재 담당**: planner-architect
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-01)
 | 항목 | 수치 |
@@ -15,37 +15,270 @@
 
 ## 기획설계 (planner-architect)
 
-### 대진표 탭 기능 개선 계획 (2026-04-13)
+### 대회 형식 프리셋 시스템 + 자동 구성 설계 (2026-04-13)
 
-목표: 대회 format에 따라 리그전 조편성 + 토너먼트 대진표를 올바르게 표시
+목표: 참가팀 수+조 수 입력만으로 조편성~토너먼트 트리까지 자동 생성하는 프리셋 시스템 설계
 
-만들 위치와 구조:
+---
+
+#### 1. 현재 시스템 분석
+
+DB에 이미 있는 필드 (스키마 변경 없이 활용 가능):
+- Tournament: format(VarChar), maxTeams(Int), min_teams(Int), settings(Json={})
+- TournamentTeam: groupName(VarChar), seedNumber(Int), group_order(Int)
+- TournamentMatch: group_name(VarChar), round_number(Int), bracket_position(Int), next_match_id, next_match_slot
+
+현재 한계:
+- bracket 생성 API(POST /api/web/tournaments/[id]/bracket)가 single_elimination만 지원
+- format이 group_stage_knockout이어도 조별리그 경기 자동 생성 불가
+- 조편성(groupName 배정)이 수동 — admin teams 페이지에서 직접 입력해야 함
+- settings Json이 비어있음 — 조별 진출 수/와일드카드 등 저장할 곳은 있으나 미사용
+
+---
+
+#### 2. 프리셋 시스템 설계
+
+##### 2-1. settings Json 구조 (Tournament.settings에 저장)
+
+```typescript
+// Tournament.settings에 저장될 대회 구성 설정
+type TournamentSettings = {
+  preset?: {                    // 프리셋 설정 (null이면 커스텀)
+    totalTeams: number;         // 총 참가팀 수
+    groupCount: number;         // 조 수
+    teamsPerGroup: number;      // 조당 팀 수
+    advancingPerGroup: number;  // 조별 진출 수 (각 조 N위까지)
+    wildcards: number;          // 와일드카드 수 (조별 진출 외 추가)
+    knockoutSize: number;       // 토너먼트 진출팀 수 (= groupCount * advancingPerGroup + wildcards)
+    thirdPlaceMatch: boolean;   // 3/4위전 여부
+  };
+  groupDraw?: {                 // 조편성 결과 (자동 생성 후 저장)
+    method: "random" | "seeded" | "manual";
+    groups: Record<string, bigint[]>;  // { "A": [teamId1, teamId2], "B": [...] }
+    drawnAt: string;            // ISO datetime
+  };
+};
+```
+
+##### 2-2. 프리셋 목록 (프론트에서 선택지로 제공)
+
+| 총팀 | 조x팀 | 조별진출 | 와일드카드 | 토너먼트 | 3/4위전 | 비고 |
+|------|--------|----------|-----------|----------|---------|------|
+| 4 | - | - | - | 4강 | Y | 조별리그 없이 바로 토너먼트 |
+| 6 | 2x3 | 2위까지 | 0 | 4강 | Y | |
+| 8 | 2x4 | 2위까지 | 0 | 4강 | Y | 가장 흔한 형태 |
+| 8 | 4x2 | 1위만 | 0 | 4강 | Y | 빠른 진행용 |
+| 10 | 2x5 | 2위까지 | 0 | 4강 | Y | |
+| 12 | 4x3 | 1위만 | 0 | 4강 | Y | |
+| 12 | 4x3 | 2위까지 | 0 | 8강 | Y | 더 많은 경기 원할 때 |
+| 16 | 4x4 | 2위까지 | 0 | 8강 | Y | 대형 대회 기본 |
+| 20 | 4x5 | 2위까지 | 0 | 8강 | Y | |
+| 24 | 4x6 | 2위까지 | 0 | 8강 | Y | |
+| 24 | 8x3 | 1위만 | 0 | 8강 | Y | |
+| 32 | 8x4 | 2위까지 | 0 | 16강 | N | |
+
+커스텀도 가능: 관리자가 조 수/조당 팀 수/진출 수를 직접 입력
+
+##### 2-3. 프리셋 자동 추천 알고리즘
+
+```
+입력: totalTeams (실제 참가 확정 팀 수)
+출력: 추천 프리셋 목록 (최대 3개)
+
+1) totalTeams <= 4 → "바로 토너먼트" 추천 (조별리그 생략)
+2) totalTeams <= 8 → 2조x(teams/2) + 4강 추천
+3) totalTeams <= 16 → 4조x(teams/4) + 8강 추천
+4) totalTeams <= 32 → 8조x(teams/8) + 16강 추천
+
+나누어 떨어지지 않으면 불균등 조편성 제안:
+예) 10팀 → "2조(5팀씩)" 또는 "4조(3+3+2+2)"
+```
+
+---
+
+#### 3. 조편성 자동 로직 설계
+
+##### 3-1. 팀 배분 알고리즘 (균등 분배 + 나머지 분산)
+
+```
+입력: teams[] (시드순 정렬), groupCount
+처리:
+  base = floor(teams.length / groupCount)   // 기본 팀 수
+  extra = teams.length % groupCount          // 나머지 (앞쪽 조에 +1)
+  
+  조 A: base+1팀 (extra > 0이면)
+  조 B: base+1팀 (extra > 1이면)
+  ...
+  나머지 조: base팀
+```
+
+##### 3-2. 시드 배정 방식 (스네이크 드래프트)
+
+시드가 있는 경우 스네이크 방식으로 분산:
+```
+4조 8팀 예시:
+시드 1 → A조, 시드 2 → B조, 시드 3 → C조, 시드 4 → D조
+시드 5 → D조, 시드 6 → C조, 시드 7 → B조, 시드 8 → A조
+(지그재그로 배치하여 조간 균형)
+```
+
+시드가 없는 경우: 랜덤 셔플 후 동일 알고리즘 적용
+
+##### 3-3. 조별리그 경기 자동 생성
+
+각 조 내 풀리그(라운드 로빈):
+```
+N팀 조의 총 경기 수 = N*(N-1)/2
+3팀 → 3경기, 4팀 → 6경기, 5팀 → 10경기, 6팀 → 15경기
+
+TournamentMatch 생성 시:
+- group_name = "A", "B", ...
+- round_number = null (조별리그는 토너먼트 라운드가 아님)
+- bracket_position = null
+- match_number = 조 내 경기 순번
+```
+
+---
+
+#### 4. 토너먼트 트리 자동 생성 로직
+
+##### 4-1. 진출팀 → 라운드 수 계산
+
+```
+knockoutSize = groupCount * advancingPerGroup + wildcards
+totalRounds = ceil(log2(knockoutSize))
+slots = nextPow2(knockoutSize)  // 2의 거듭제곱으로 올림
+byes = slots - knockoutSize      // 부전승 수
+```
+
+##### 4-2. 대진표 시딩 (교차 배치)
+
+조 1위 vs 다른 조 2위가 만나도록 교차 배치:
+```
+8강 (4조 1~2위 진출) 예시:
+A1 vs B2 | C1 vs D2 | B1 vs A2 | D1 vs C2
+
+원칙:
+- 같은 조 팀은 결승 전까지 만나지 않도록 배치
+- 1위 팀은 반대쪽 브라켓의 2위 팀과 매칭
+```
+
+##### 4-3. 부전승(BYE) 처리
+
+```
+knockoutSize가 2의 거듭제곱이 아닐 때:
+예) 6팀 진출 → 8강 토너먼트, 2팀 BYE
+BYE는 상위 시드(조 1위)에 우선 배정
+
+시드 순서: 각 조 1위 먼저 배정 → 나머지 진출팀
+```
+
+##### 4-4. 3/4위전
+
+```
+준결승 패자 2팀이 3/4위전 진행
+TournamentMatch 생성 시:
+- roundName = "3/4위전"
+- round_number = totalRounds (결승과 같은 라운드)
+- bracket_position = 별도 번호
+```
+
+---
+
+#### 5. 참가팀 미달 대응 로직
+
+##### 5-1. 자동 재배분
+
+```
+프리셋: 16팀(4조x4팀) → 실제 14팀 참가 시:
+방법 1 (추천): 조 수 유지 + 불균등 분배
+  → A(4팀), B(4팀), C(3팀), D(3팀) = 14팀
+  
+방법 2: 프리셋 변경 제안
+  → "14팀이면 2조x7팀 + 4강은 어떠세요?" 제안
+
+극단적 미달 (4팀 이하):
+  → 조별리그 생략, 바로 토너먼트 제안
+```
+
+##### 5-2. 관리자 수동 오버라이드
+
+- 시스템이 자동 제안 → 관리자가 확인/수정 → 확정
+- 확정 후에도 팀 추가/제거 시 재배분 가능 (대진표 미생성 상태에서만)
+
+##### 5-3. 경기 수 불균형 보정
+
+불균등 조에서 팀당 경기 수가 다를 수 있음:
+- 3팀 조: 팀당 2경기, 4팀 조: 팀당 3경기
+- 순위 결정 시 승률(승수/경기수) 기준으로 비교 (이미 구현됨)
+
+---
+
+#### 6. DB 스키마 설계
+
+**스키마 변경 불필요** — 기존 필드로 모두 커버 가능:
+
+| 기존 필드 | 용도 | 비고 |
+|----------|------|------|
+| Tournament.settings (Json) | 프리셋 설정 전체 저장 | 현재 {} — 여기에 preset/groupDraw 저장 |
+| Tournament.format (VarChar) | 대회 형식 | group_stage_knockout/single_elimination 등 |
+| Tournament.maxTeams (Int) | 총 참가팀 수 | 프리셋의 totalTeams와 연동 |
+| TournamentTeam.groupName (VarChar) | 조 이름 | "A", "B", ... |
+| TournamentTeam.seedNumber (Int) | 시드 번호 | 조편성 시 사용 |
+| TournamentTeam.group_order (Int) | 조 내 순서 | 스네이크 드래프트 순서 |
+| TournamentMatch.group_name (VarChar) | 경기의 조 구분 | 조별리그 경기에 사용 |
+| TournamentMatch.round_number (Int) | 라운드 번호 | 조별=null, 토너먼트=1,2,3... |
+
+---
+
+#### 7. 만들 위치와 구조
+
 | 파일 경로 | 역할 | 신규/수정 |
 |----------|------|----------|
-| src/app/api/web/tournaments/[id]/public-bracket/route.ts | format 필드 추가 + 조별 경기 데이터 반환 + 조별 전적 집계 | 수정 |
-| src/app/(web)/tournaments/[id]/_components/tournament-tabs.tsx | format에 따른 조건부 렌더링 | 수정 |
-| src/app/(web)/tournaments/[id]/bracket/_components/group-standings.tsx | 조별 전적을 경기 결과에서 직접 집계하도록 변경 | 수정 |
-| src/app/(web)/tournaments/[id]/bracket/_components/group-schedule.tsx | 조별 경기 일정/결과 카드 | 신규 |
+| src/lib/tournaments/preset.ts | 프리셋 목록 + 추천 알고리즘 + 팀 배분 + 경기 생성 유틸 | 신규 |
+| src/lib/tournaments/group-draw.ts | 조편성 알고리즘 (스네이크 드래프트 + 랜덤) | 신규 |
+| src/lib/tournaments/knockout-seeding.ts | 토너먼트 교차 시딩 + BYE 배정 | 신규 |
+| src/app/api/web/tournaments/[id]/bracket/route.ts | format 분기: group_stage_knockout 시 조별+토너먼트 생성 | 수정 |
+| src/app/api/web/tournaments/[id]/group-draw/route.ts | 조편성 API (POST: 자동 배정, GET: 현재 조편성) | 신규 |
+| tournament-admin/.../wizard/page.tsx (new + [id]) | 프리셋 선택 UI + 조편성 UI 단계 추가 | 수정 |
+| tournament-admin/.../[id]/bracket/page.tsx | format별 분기: 조별리그+토너먼트 or 토너먼트만 | 수정 |
+| src/lib/tournaments/bracket-builder.ts | 조별리그 경기 그룹핑 지원 추가 | 수정 |
 
 기존 코드 연결:
-- public-bracket API가 tournament.format을 안 읽고 있음 → format 추가 필요
-- groupTeams의 wins/losses가 tournament_teams 테이블에서 직접 읽는데, 이 값이 갱신 안 됨 (순위 탭과 동일 문제)
-- bracket-builder.ts는 round_number + bracket_position이 있는 경기만 처리 → 조별 리그 경기(group_name 있는)는 빠짐
+- bracket/route.ts의 POST가 현재 single_elimination만 생성 → format별 분기 추가
+- bracket-builder.ts의 buildRoundGroups가 round_number 기준 → group_name 기준 추가
+- tournament-admin teams 페이지의 groupName이 수동 입력 → 자동 배정 연동
+- public-bracket API가 조별 경기 미반환 → groupMatches 추가 (이전 기획설계에서 계획됨)
 
-실행 계획:
-| 순서 | 작업 | 담당 | 선행 조건 |
-|------|------|------|----------|
-| 1 | API 수정: format 반환 + 조별 경기 데이터 추가 + 조별 전적 집계 | developer | 없음 |
-| 2 | GroupStandings: 경기 결과 기반 전적 표시로 변경 | developer | 1 |
-| 3 | GroupSchedule 신규: 조별 경기 카드 컴포넌트 | developer | 1 |
-| 4 | BracketTabContent: format별 조건부 렌더링 | developer | 2,3 |
-| 5 | 테스트 | tester + reviewer (병렬) | 4 |
+---
 
-developer 주의사항:
-- tournament_teams.wins/losses는 갱신이 안 되는 필드 → 순위 탭처럼 경기 결과에서 직접 집계해야 함
-- 조별 경기는 group_name이 있고 round_number/bracket_position이 null → 현재 bracketOnlyMatches 필터에서 제외됨
-- format이 "round_robin"이면 토너먼트 대진표 트리 없이 조편성+경기 결과만 표시
-- format이 "group_stage"면 조별리그 + 결승 토너먼트 둘 다 표시
+#### 8. 실행 계획
+
+| 순서 | 작업 | 담당 | 선행 조건 | 예상 시간 |
+|------|------|------|----------|----------|
+| 1 | preset.ts 신규: 프리셋 정의 + 추천 알고리즘 + 검증 | developer | 없음 | 15분 |
+| 2 | group-draw.ts 신규: 스네이크 드래프트 + 조별리그 경기 생성 | developer | 없음 | 20분 |
+| 3 | knockout-seeding.ts 신규: 교차 시딩 + BYE + 3/4위전 | developer | 없음 | 20분 |
+| 4 | group-draw API 신규: POST(자동 조편성) + GET(조회) | developer | 1,2 | 15분 |
+| 5 | bracket API 수정: format 분기 + 조별리그 경기 생성 연동 | developer | 2,3 | 20분 |
+| 6 | wizard UI 수정: 프리셋 선택 + 조편성 단계 추가 | developer | 1,4 | 30분 |
+| 7 | tester 검증 + reviewer | tester+reviewer (병렬) | 6 | 15분 |
+
+Phase 1 (MVP): 순서 1~5 (프리셋 + 자동 조편성 + 조별리그 경기 생성 + 토너먼트 트리)
+Phase 2 (UI): 순서 6 (wizard에서 프리셋 선택 + 조편성 확인/수정)
+Phase 3 (확장): 와일드카드 로직 + 미달 팀 자동 재배분 제안 UI + 듀얼토너먼트/풀리그 지원
+
+---
+
+#### 9. developer 주의사항
+
+- DB 스키마(prisma/schema.prisma) 변경 절대 금지 — 기존 필드만 활용
+- Tournament.settings Json에 preset 객체를 저장 — 기존 {} 디폴트와 하위 호환
+- 조별리그 경기는 group_name 설정 + round_number/bracket_position은 null
+- 토너먼트 경기는 기존 방식 유지 (round_number/bracket_position 사용)
+- 승패 집계는 tournament_teams.wins/losses 컬럼에 쓰지 말 것 (갱신 안 되는 문제 있음)
+- 기존 single_elimination 생성 로직은 그대로 유지하고, format별 분기로 새 로직 추가
+- FORMAT_OPTIONS 상수가 wizard에 인라인 정의됨 (new + [id] 두 곳) → 공통화 고려
 
 ## 구현 기록 (developer)
 

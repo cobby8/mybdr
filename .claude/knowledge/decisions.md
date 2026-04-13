@@ -2,6 +2,14 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-13] 대회 형식 프리셋 시스템: settings Json 활용 + DB 변경 없음
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: (1) 대회 조편성/토너먼트 자동 구성 설정을 Tournament.settings(Json) 필드에 preset 객체로 저장. DB 스키마 변경 없음. (2) 프리셋은 프론트 상수로 정의하되 settings에도 저장하여 서버에서 참조 가능. (3) 조편성은 스네이크 드래프트 방식(시드 기반 지그재그 배치). (4) 토너먼트 시딩은 교차 배치(같은 조 팀이 결승 전까지 안 만남). (5) 조별리그 경기는 group_name만 설정하고 round_number/bracket_position은 null. (6) 3/4위전은 결승과 같은 round_number에 별도 bracket_position. (7) 로직을 3파일로 분리: preset.ts(프리셋 정의), group-draw.ts(조편성), knockout-seeding.ts(토너먼트 시딩).
+- **이유**: (1) Tournament.settings가 Json={}로 이미 존재하여 스키마 변경 불필요. 운영 DB 마이그레이션 위험 제거. (2) TournamentTeam.groupName/seedNumber/group_order와 TournamentMatch.group_name이 이미 존재하여 조별리그 데이터 모델 완비. (3) 스네이크 드래프트는 축구 월드컵/프로 스포츠에서 표준 방식으로 조간 균형 보장. (4) 로직 분리는 단위 테스트와 재사용성 확보.
+- **대안 기각**: (A) 별도 tournament_presets/tournament_groups 테이블 신설 -- DB 마이그레이션 필요, Flutter 앱 호환성 문제. (B) format 필드에 세부 설정을 인코딩 -- VarChar 하나로는 조 수/진출 수 등 표현 불가. (C) 프론트에서만 프리셋 관리(서버 미저장) -- 대진표 생성 API에서 설정 참조 불가.
+- **참조횟수**: 0
+
 ### [2026-04-13] 대진표 탭: format 기반 조건부 렌더링 + 조별 전적 경기결과 집계
 - **분류**: decision
 - **발견자**: planner-architect
