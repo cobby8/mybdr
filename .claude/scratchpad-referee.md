@@ -385,3 +385,33 @@ reviewer 참고:
 - decryptDocument() 함수가 정의되어 있으나 현재 어디서도 import/사용되지 않음. OCR 또는 인쇄 기능에서 사용할 예정으로 보임 — 미사용 자체는 문제 아님
 - Referee 모델에 bank_name/bank_account/bank_holder 3필드 추가. 기존 API에서 select를 명시하는 패턴이므로 새 필드가 자동으로 노출될 위험 없음
 - sharp 패키지가 Vercel에서 기본 지원되므로 배포 환경 호환성 문제 없음
+
+---
+
+## 구현 기록 (developer) — 서류 2차 OCR
+
+구현한 기능: Naver Clova OCR 연동 — 자격증/통장 자동 추출 + 편집 확정 폼 + 관리자 OCR
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/services/ocr-extractor.ts | Clova OCR 호출 + 자격증/통장/신분증별 필드 추출 + 은행명 매칭 상수 | 신규 |
+| src/app/api/web/referee-documents/[id]/ocr/route.ts | 본인용 OCR 실행 API (복호화+OCR+DB업데이트, id_card skipped) | 신규 |
+| src/app/api/web/referee-documents/[id]/ocr/confirm/route.ts | OCR 결과 확정 API (certificate→RefereeCertificate upsert, bankbook→Referee 계좌 암호화 저장, id_card→verified_name) | 신규 |
+| src/app/api/web/referee-admin/documents/[id]/ocr/route.ts | 관리자용 OCR 실행 API (document_manage 권한 + IDOR 방지) | 신규 |
+| src/app/(referee)/referee/documents/page.tsx | OCR "정보 추출" 버튼 + 편집 폼(자격증/통장/신분증별) + "확인 저장" + "직접 입력" 폼 | 수정 |
+| src/app/(referee)/referee/admin/members/[id]/documents/page.tsx | 관리자용 OCR + 편집 폼 (관리자 OCR API 호출 + confirm API 호출) | 수정 |
+
+tester 참고:
+- tsc --noEmit 에러 0건 확인
+- NAVER_OCR_INVOKE_URL, NAVER_OCR_SECRET_KEY 환경변수 없으면 OCR 건너뛰고 수동 입력 폼만 표시 (에러 안 남)
+- id_card는 OCR 절대 안 함 (ocr_status = "skipped", 빈 객체 반환)
+- encrypted_data는 모든 API 응답에서 제외됨 (서버 내부 복호화용으로만 사용)
+- OCR 실패해도 수동 입력 폼은 표시됨
+- bank_account 암호화: encryptResidentId() 패턴 재사용 (RESIDENT_ID_ENCRYPTION_KEY 필요)
+- 자격증 확정 시 RefereeCertificate upsert (같은 referee_id + cert_type이면 업데이트)
+
+reviewer 참고:
+- OCR API에서 encrypted_data를 select에 포함하지만, 복호화 후 processDocumentOCR()에만 전달하고 응답에는 절대 포함 안 함
+- confirm API에서 bank_account 암호화 실패 시 (키 미설정) 평문 저장 안 하고 skip — 보안 원칙 유지
+- Prisma Json 필드 타입 호환: `ocrResult as unknown as Prisma.InputJsonValue` 캐스팅 사용
+- 관리자 OCR confirm은 본인용 confirm API를 호출함 (관리자가 confirm 시 서류 소유자 검증은 서류→referee→user_id로 수행)

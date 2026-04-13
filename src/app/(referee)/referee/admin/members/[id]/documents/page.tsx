@@ -5,18 +5,18 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 
 /**
- * /referee/admin/members/[id]/documents — 관리자용 심판 서류 관리.
+ * /referee/admin/members/[id]/documents -- 관리자용 심판 서류 관리.
  *
- * 이유: 관리자가 특정 심판의 정산 서류를 대리 업로드하거나 상태를 확인하는 페이지.
- *       본인용 페이지와 동일한 3종 카드 UI를 사용하되,
- *       API 엔드포인트가 관리자 전용(/api/web/referee-admin/documents)을 호출한다.
+ * 이유: 관리자가 특정 심판의 정산 서류를 대리 업로드하고,
+ *       OCR 자동 추출 결과를 확인/편집/확정하는 페이지.
  *
- * 보안:
- *   - 이미지 미리보기/썸네일 절대 없음 (텍스트 상태만 표시)
- *   - 관리자 API가 association_id를 세션에서 검증 (IDOR 방지)
+ * 본인용 페이지와 동일한 UI이지만:
+ *   - API 엔드포인트가 /api/web/referee-admin/documents/* 사용
+ *   - 삭제 미제공 (관리자는 교체만 가능, 삭제는 본인만)
+ *   - OCR confirm은 본인용 API 호출 (관리자가 대리 확정)
  */
 
-// ── 서류 메타데이터 타입 ──
+// ── 타입 정의 ──
 type DocumentMeta = {
   id: string;
   doc_type: string;
@@ -27,6 +27,8 @@ type DocumentMeta = {
   created_at: string;
   updated_at: string;
 };
+
+type OcrExtracted = Record<string, string | undefined>;
 
 // ── 서류 종류별 정보 ──
 const DOC_CONFIGS = [
@@ -48,6 +50,31 @@ const DOC_CONFIGS = [
     label: "통장 사본",
     description: "정산금 입금을 위한 통장 앞면",
   },
+] as const;
+
+// ── 은행 목록 ──
+const BANK_OPTIONS = [
+  "KB국민은행",
+  "신한은행",
+  "우리은행",
+  "하나은행",
+  "NH농협은행",
+  "IBK기업은행",
+  "SC제일은행",
+  "카카오뱅크",
+  "토스뱅크",
+  "케이뱅크",
+  "Sh수협은행",
+  "광주은행",
+  "전북은행",
+  "경남은행",
+  "대구은행",
+  "부산은행",
+  "제주은행",
+  "KDB산업은행",
+  "우체국",
+  "새마을금고",
+  "신협",
 ] as const;
 
 export default function AdminMemberDocumentsPage() {
@@ -86,7 +113,6 @@ export default function AdminMemberDocumentsPage() {
     void fetchDocuments();
   }, [fetchDocuments]);
 
-  // ── 특정 doc_type의 서류 찾기 ──
   const getDoc = (docType: string) =>
     documents.find((d) => d.doc_type === docType);
 
@@ -114,7 +140,7 @@ export default function AdminMemberDocumentsPage() {
           className="mt-1 text-sm"
           style={{ color: "var(--color-text-muted)" }}
         >
-          심판의 정산 서류를 대리 업로드하거나 상태를 확인합니다.
+          심판의 정산 서류를 대리 업로드하고 정보를 추출합니다.
         </p>
       </header>
 
@@ -165,7 +191,6 @@ export default function AdminMemberDocumentsPage() {
           불러오는 중...
         </p>
       ) : (
-        /* 3종 서류 카드 */
         <div className="space-y-4">
           {DOC_CONFIGS.map((config) => (
             <AdminDocumentCard
@@ -202,21 +227,31 @@ function AdminDocumentCard({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // OCR 관련 상태
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [confirming, setConfirming] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
   // ── 대리 업로드 핸들러 ──
   const handleUpload = async (file: File) => {
     setUploading(true);
     setMessage(null);
+    setShowForm(false);
+    setFormData({});
+    setOcrStatus(null);
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("doc_type", config.type);
-    formData.append("referee_id", refereeId);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("doc_type", config.type);
+    fd.append("referee_id", refereeId);
 
     try {
       const res = await fetch("/api/web/referee-admin/documents", {
         method: "POST",
         credentials: "include",
-        body: formData,
+        body: fd,
       });
 
       if (res.ok) {
@@ -226,8 +261,7 @@ function AdminDocumentCard({
         const json = await res.json().catch(() => ({}));
         setMessage({
           type: "error",
-          text:
-            (json as { error?: string }).error ?? "업로드에 실패했습니다.",
+          text: (json as { error?: string }).error ?? "업로드에 실패했습니다.",
         });
       }
     } catch {
@@ -237,13 +271,103 @@ function AdminDocumentCard({
     }
   };
 
-  // ── 파일 선택 이벤트 ──
+  // ── OCR 실행 핸들러 (관리자용 API) ──
+  const handleOcr = async () => {
+    if (!doc) return;
+    setOcrLoading(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(
+        `/api/web/referee-admin/documents/${doc.id}/ocr`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
+
+      const json = (await res.json()) as {
+        ocr_status?: string;
+        extracted?: OcrExtracted;
+        message?: string;
+      };
+
+      if (res.ok) {
+        setOcrStatus(json.ocr_status || null);
+        const initial: Record<string, string> = {};
+        if (json.extracted) {
+          for (const [key, value] of Object.entries(json.extracted)) {
+            if (value) initial[key] = value;
+          }
+        }
+        setFormData(initial);
+        setShowForm(true);
+
+        if (json.ocr_status === "failed" || json.ocr_status === "skipped") {
+          setMessage({
+            type: "error",
+            text: json.message || "자동 추출에 실패했습니다. 직접 입력해주세요.",
+          });
+        }
+      } else {
+        setMessage({
+          type: "error",
+          text: (json as { error?: string }).error ?? "OCR 처리에 실패했습니다.",
+        });
+        setShowForm(true);
+      }
+    } catch {
+      setMessage({ type: "error", text: "네트워크 오류가 발생했습니다." });
+      setShowForm(true);
+    } finally {
+      setOcrLoading(false);
+    }
+  };
+
+  // ── OCR 결과 확정 (관리자용 confirm API 사용) ──
+  const handleConfirm = async () => {
+    if (!doc) return;
+    setConfirming(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch(
+        `/api/web/referee-admin/documents/${doc.id}/ocr/confirm`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      if (res.ok) {
+        setMessage({ type: "success", text: "정보가 저장되었습니다!" });
+        setShowForm(false);
+      } else {
+        const json = await res.json().catch(() => ({}));
+        setMessage({
+          type: "error",
+          text: (json as { error?: string }).error ?? "저장에 실패했습니다.",
+        });
+      }
+    } catch {
+      setMessage({ type: "error", text: "네트워크 오류가 발생했습니다." });
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       void handleUpload(file);
     }
     e.target.value = "";
+  };
+
+  const updateField = (key: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
   const isRegistered = !!doc;
@@ -351,7 +475,7 @@ function AdminDocumentCard({
       )}
 
       {/* 액션 버튼 */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -361,27 +485,68 @@ function AdminDocumentCard({
         />
 
         {isRegistered ? (
-          /* 교체 버튼 (관리자는 삭제 미제공 — 본인만 삭제 가능) */
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold transition-opacity"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text-primary)",
-              border: "1px solid var(--color-border)",
-              borderRadius: 4,
-              opacity: uploading ? 0.6 : 1,
-            }}
-          >
-            <span className="material-symbols-outlined text-sm">
-              swap_horiz
-            </span>
-            {uploading ? "업로드 중..." : "교체"}
-          </button>
+          <>
+            {/* 정보 추출 버튼 */}
+            <button
+              type="button"
+              disabled={ocrLoading}
+              onClick={handleOcr}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold transition-opacity"
+              style={{
+                backgroundColor: "var(--color-primary)",
+                color: "#fff",
+                borderRadius: 4,
+                opacity: ocrLoading ? 0.6 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">
+                document_scanner
+              </span>
+              {ocrLoading ? "추출 중..." : "정보 추출"}
+            </button>
+
+            {/* 수동 입력 버튼 */}
+            {!showForm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(true);
+                  setFormData({});
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold transition-opacity"
+                style={{
+                  backgroundColor: "transparent",
+                  color: "var(--color-text-secondary)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 4,
+                }}
+              >
+                <span className="material-symbols-outlined text-sm">edit</span>
+                직접 입력
+              </button>
+            )}
+
+            {/* 교체 버튼 */}
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold transition-opacity"
+              style={{
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-text-primary)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 4,
+                opacity: uploading ? 0.6 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">
+                swap_horiz
+              </span>
+              {uploading ? "업로드 중..." : "교체"}
+            </button>
+          </>
         ) : (
-          /* 대리 업로드 버튼 */
           <button
             type="button"
             disabled={uploading}
@@ -401,7 +566,268 @@ function AdminDocumentCard({
           </button>
         )}
       </div>
+
+      {/* OCR 추출 결과 + 편집 폼 */}
+      {showForm && isRegistered && (
+        <div
+          className="mt-4 space-y-3 p-4"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 4,
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="material-symbols-outlined text-base"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {ocrStatus === "completed" ? "auto_fix_high" : "edit_note"}
+            </span>
+            <p
+              className="text-xs font-bold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              {ocrStatus === "completed"
+                ? "자동 추출 결과 (확인 후 저장하세요)"
+                : "정보를 직접 입력하세요"}
+            </p>
+          </div>
+
+          {config.type === "certificate" && (
+            <CertificateForm data={formData} onChange={updateField} />
+          )}
+          {config.type === "bankbook" && (
+            <BankbookForm data={formData} onChange={updateField} />
+          )}
+          {config.type === "id_card" && (
+            <IdCardForm data={formData} onChange={updateField} />
+          )}
+
+          <div className="flex items-center gap-2 pt-2">
+            <button
+              type="button"
+              disabled={confirming}
+              onClick={handleConfirm}
+              className="flex items-center gap-1 px-4 py-2 text-xs font-bold transition-opacity"
+              style={{
+                backgroundColor: "var(--color-success, #22c55e)",
+                color: "#fff",
+                borderRadius: 4,
+                opacity: confirming ? 0.6 : 1,
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">check</span>
+              {confirming ? "저장 중..." : "확인 저장"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setFormData({});
+              }}
+              className="px-3 py-2 text-xs font-bold"
+              style={{ color: "var(--color-text-muted)", borderRadius: 4 }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── 서류별 편집 폼 (본인 페이지와 동일) ──
+
+function CertificateForm({
+  data,
+  onChange,
+}: {
+  data: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <FormField
+        label="자격증 번호"
+        value={data.cert_number || ""}
+        onChange={(v) => onChange("cert_number", v)}
+        placeholder="KBA-2023-12345"
+      />
+      <FormSelect
+        label="유형"
+        value={data.cert_type || ""}
+        onChange={(v) => onChange("cert_type", v)}
+        options={[
+          { value: "referee", label: "심판" },
+          { value: "scorer", label: "경기원/기록원" },
+          { value: "timer", label: "타이머" },
+        ]}
+      />
+      <FormSelect
+        label="등급"
+        value={data.cert_grade || ""}
+        onChange={(v) => onChange("cert_grade", v)}
+        options={[
+          { value: "국제", label: "국제" },
+          { value: "S급", label: "S급" },
+          { value: "A급", label: "A급" },
+          { value: "B급", label: "B급" },
+          { value: "1급", label: "1급" },
+          { value: "2급", label: "2급" },
+          { value: "3급", label: "3급" },
+        ]}
+      />
+      <FormField
+        label="발급기관"
+        value={data.issuer || ""}
+        onChange={(v) => onChange("issuer", v)}
+        placeholder="대한농구협회"
+      />
+      <FormField
+        label="발급일"
+        value={data.issued_date || ""}
+        onChange={(v) => onChange("issued_date", v)}
+        type="date"
+      />
+    </div>
+  );
+}
+
+function BankbookForm({
+  data,
+  onChange,
+}: {
+  data: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <FormSelect
+        label="은행명"
+        value={data.bank_name || ""}
+        onChange={(v) => onChange("bank_name", v)}
+        options={BANK_OPTIONS.map((b) => ({ value: b, label: b }))}
+      />
+      <FormField
+        label="계좌번호"
+        value={data.account_number || ""}
+        onChange={(v) => onChange("account_number", v)}
+        placeholder="000-0000-0000-00"
+      />
+      <FormField
+        label="예금주"
+        value={data.account_holder || ""}
+        onChange={(v) => onChange("account_holder", v)}
+        placeholder="홍길동"
+      />
+    </div>
+  );
+}
+
+function IdCardForm({
+  data,
+  onChange,
+}: {
+  data: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+        신분증은 보안상 자동 추출을 사용하지 않습니다. 직접 입력해주세요.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField
+          label="이름"
+          value={data.name || ""}
+          onChange={(v) => onChange("name", v)}
+          placeholder="홍길동"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── 공통 폼 필드 ──
+
+function FormField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+}) {
+  return (
+    <label className="block">
+      <span
+        className="mb-1 block text-[10px] font-bold uppercase tracking-wider"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-1.5 text-sm outline-none"
+        style={{
+          backgroundColor: "var(--color-card)",
+          color: "var(--color-text-primary)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 4,
+        }}
+      />
+    </label>
+  );
+}
+
+function FormSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block">
+      <span
+        className="mb-1 block text-[10px] font-bold uppercase tracking-wider"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-1.5 text-sm outline-none"
+        style={{
+          backgroundColor: "var(--color-card)",
+          color: "var(--color-text-primary)",
+          border: "1px solid var(--color-border)",
+          borderRadius: 4,
+        }}
+      >
+        <option value="">선택하세요</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
