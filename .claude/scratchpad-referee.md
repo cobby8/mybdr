@@ -103,6 +103,45 @@ reviewer 참고:
 
 ---
 
+## 구현 기록 (developer) — 경기 배정
+
+구현한 기능: 심판 경기 배정 CRUD — DB unique 제약 + 대회 검색 API 2개 + 배정 CRUD API 2개 + 3단계 드릴다운 관리 페이지 + 사이드바 메뉴 추가
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| prisma/schema.prisma | RefereeAssignment에 @@unique([referee_id, tournament_match_id]) 추가 | 수정 |
+| src/app/api/web/referee-admin/tournaments/route.ts | GET: 대회 검색 API (q/status/page/limit, 모든 관리자 열람) | 신규 |
+| src/app/api/web/referee-admin/tournaments/[id]/matches/route.ts | GET: 대회 경기 목록 + 배정 현황 (homeTeam→Team 조인, 배정은 수동 조인) | 신규 |
+| src/app/api/web/referee-admin/assignments/route.ts | POST: 배정 생성(assignment_manage 권한) / GET: 배정 목록 조회 | 신규 |
+| src/app/api/web/referee-admin/assignments/[id]/route.ts | PATCH: role/status/memo 수정 / DELETE: 삭제 (IDOR 협회 검증) | 신규 |
+| src/app/(referee)/referee/admin/assignments/page.tsx | 3단계 드릴다운 UI (대회 선택 → 경기 목록 → 배정 추가 모달) | 신규 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "배정 관리"(/referee/admin/assignments, event_available) 추가 | 수정 |
+
+tester 참고:
+- 테스트 방법:
+  1. `npx prisma generate` 완료됨 (schema 변경 반영)
+  2. `npx tsc --noEmit` 에러 0건 확인됨
+  3. 개발서버 재시작 필요 (`npm run dev`, 포트 3001) — prisma generate 과정에서 기존 dev 서버 종료함 (PID 11632)
+  4. `/referee/admin/assignments` 접속 → 대회 검색 → 대회 클릭 → 경기 목록 표시 → "배정 추가" 클릭 → 모달에서 심판/역할 선택 → 확정
+- 정상 동작:
+  - 검색 인풋에 타이핑하면 300ms 디바운스 후 대회 필터
+  - 경기 행마다 "주심 N / 부심 N / 기록원 N / 타이머 N" 요약 표시
+  - 우리 협회 배정만 "확정"/"삭제" 액션 노출, 타 협회는 "타협회" 뱃지만
+  - 중복 배정 시도 → 409 "이미 해당 경기에 배정된 심판입니다."
+- 주의할 입력:
+  - 타 협회 심판 ID로 POST → 403 "다른 협회 소속 심판은 배정할 수 없습니다."
+  - 존재하지 않는 tournament_match_id → 404
+  - role 값이 main/sub/recorder/timer 외 → 422 Zod
+  - DB 실제 반영은 PM이 db push를 별도 수행 필요 (unique 제약 추가분)
+
+reviewer 참고:
+- BigInt 직렬화: 프론트에서는 id를 string|number로 union 타입 처리 (JSON.stringify가 BigInt → string)
+- 관계 설계: RefereeAssignment 쪽엔 tournament_match 관계 선언이 없으므로(기존 TournamentMatch 미수정 원칙) matches 라우트에서 수동 `findMany({ where: { tournament_match_id: { in: [...] } } })` 조인함
+- IDOR 2중 검증: 생성 시 referee.association_id 확인 / 수정·삭제 시 loadOwnedAssignment() 헬퍼로 소속 확인
+- TournamentTeam → Team 조인: `homeTeam: { select: { team: { select: { name: true } } } }` 패턴으로 팀명만 추출
+
+---
+
 ## 테스트 결과 (tester) — v3 1차
 
 | 테스트 항목 | 결과 | 비고 |
@@ -118,6 +157,28 @@ reviewer 참고:
 종합: 7개 중 7개 통과 / 0개 실패 -- 전체 PASS
 
 참고: scratchpad에 "db push 아직 안 함"으로 기록되어 있으나, 실제 DB에는 이미 반영 완료 상태
+
+---
+
+## 테스트 결과 (tester) — 심판 경기 배정 기능
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| Test 1: tsc --noEmit | PASS | 소스 코드 타입 에러 0건 |
+| Test 2: Prisma validate + @@unique | PASS | schema.prisma 2311줄 `@@unique([referee_id, tournament_match_id])` 확인, `npx prisma validate` 성공 |
+| Test 3: 대회 검색 API | PASS | getAssociationAdmin 권한체크(L26-29), q/status/page/limit 파싱(L33-40), items 배열+total/page/limit 응답(L73-85) |
+| Test 4: 경기 목록 API | PASS | TournamentMatch.findMany + homeTeam.team.name 경로(L74-79), RefereeAssignment 수동조인(L86-107), tournamentId 필터 |
+| Test 5: 배정 CRUD API | PASS | POST requirePermission('assignment_manage')(L50), IDOR referee.association_id 검증(L75-81), 409 친절한 중복 에러(L102-108), PATCH/DELETE loadOwnedAssignment IDOR(L32-48) |
+| Test 6: 배정 관리 페이지 | PASS | "use client"(L1), 3단계 드릴다운(searchQ/matches/modalMatch), 배정 추가 모달(openModal L181, 버튼 L562), 타협회 뱃지(L597-607) |
+| Test 7: 메뉴 추가 | PASS | referee-shell.tsx L32: href `/referee/admin/assignments`, label "배정 관리", icon `event_available` |
+
+종합: 7개 중 7개 통과 / 0개 실패 -- 전체 PASS
+
+참고:
+- admin-guard.ts L63: `assignment_manage: ["secretary_general", "referee_chief", "game_chief"]` 권한 매트릭스 확인
+- POST 중복체크 이중 보호: 사전조회 findUnique(L93-108) + Prisma P2002 코드 방어(L132-140)
+- 심판명 표출 fallback: user.name → user.nickname → registered_name → `심판 #id` (matches/route.ts L123-128, assignments/route.ts L202-209)
+- 모달에서 이미 배정된 심판 제외 필터 존재 (page.tsx L295)
 
 ---
 
@@ -203,6 +264,8 @@ tester 참고:
 | 04-13 | tester | v3 2차: API 3개 + 페이지 3개 검증 (7개 중 5통과/2실패) | ❌ 수정 필요 |
 | 04-13 | developer | 메인사이트 심판 바로가기: me API is_referee + PC사이드바 + 모바일슬라이드 | ✅ tsc 통과 |
 | 04-13 | developer | 서류 1차: Prisma모델+sharp+암호화+API4개+페이지2개+셸+상세링크 (13파일) | ✅ tsc 통과 |
+| 04-13 | developer | 경기 배정: 스키마unique+tournaments/matches/assignments API 4개+3단계드릴다운 페이지+셸 (7파일) | ✅ tsc 통과 |
+| 04-13 | reviewer | 경기 배정 리뷰: critical 0, warning 3, nit 2 | ✅ APPROVE w/ comments |
 
 ---
 
@@ -259,6 +322,44 @@ reviewer 참고:
 | Test 10: referee-shell 메뉴 | PASS | "서류" 항목, 아이콘 description, href /referee/documents (자격증 아래 배치) |
 
 종합: 10개 중 10개 통과 / 0개 실패 -- 전체 PASS
+
+---
+
+## 리뷰 결과 (reviewer) — 경기 배정 (2026-04-13)
+
+종합 판정: **APPROVE with comments** (critical 0건, warning 3건, nit 2건)
+
+### 잘된 점
+- 중복 방지 3중 방어: DB @@unique + POST 사전 findUnique + catch에서 P2002 구분 — 교과서적 구현
+- IDOR 방지 철저: POST는 referee.association_id 확인, PATCH/DELETE는 loadOwnedAssignment() 헬퍼로 일관성 있게 검증
+- 권한 계층 분리: 생성/수정/삭제는 assignment_manage(팀장급), 열람은 모든 관리자 — 설계 의도 정확히 반영
+- Zod enum으로 role/status 값을 화이트리스트 검증 (main/sub/recorder/timer) — 잘못된 값 주입 차단
+- BigInt 입력 안전 변환: union(number|string).transform(BigInt) 패턴 깔끔함
+- GET 배정 목록 API도 where.referee.association_id 조건 필수 적용 → 크로스 협회 IDOR 방지
+- matches 라우트의 수동 조인(tournament_match_id in [...]) 설계가 "기존 TournamentMatch 미수정" 원칙과 정확히 일치
+- 기존 본인 배정 API(/api/web/referee-assignments)와 TournamentMatch 모델 모두 무수정 — 회귀 위험 0
+- 페이지 3단계 드릴다운이 자연스럽고, "타협회" 뱃지로 배정 투명성 확보하면서 액션은 숨김 → UX 합리적
+- CSS 변수 + Material Symbols 컨벤션 100% 준수 (배정 추가/삭제/확정 버튼 모두)
+
+### [WARNING] 권장 수정 3건
+1. **[assignments/route.ts:67-90] 중복 배정 사전 체크가 트랜잭션 밖** — findUnique(dup) → create() 사이 경쟁 조건 이론상 가능. 두 관리자가 동시에 같은 심판을 같은 경기에 배정하면 둘 다 null 확인 후 create 시도 → 한쪽은 P2002로 실패 (catch에서 409로 변환되므로 치명적이진 않음). DB unique + P2002 폴백이 있으므로 동작엔 문제 없으나, 사전 findUnique는 "친절한 에러"용이라는 점을 주석으로 명시 권장.
+
+2. **[tournaments/[id]/matches/route.ts:87-107] 타 협회 심판의 실명이 응답에 포함됨** — 의도적 설계(UI에서 "타협회" 뱃지)는 이해하지만, referee.user.name/nickname까지 노출됨. 타 협회 심판의 실명 공개가 개인정보 정책상 적절한지 운영자 확인 필요. 현재 연락처/주민번호는 미포함이라 최소한의 보호는 됨. 불가 시 타 협회는 "타협회 심판" 또는 닉네임만으로 마스킹 권장.
+
+3. **[assignments/page.tsx:162] 심판 드롭다운이 limit=100 고정 호출** — 100명 초과 협회에서는 일부 심판이 드롭다운에서 누락. 현재 대부분 협회가 100명 이하라 실무 영향은 적지만, 장기적으로 type-ahead 검색 UI로 확장 권장.
+
+### [NIT] 참고 사항 2건
+1. **[assignments/route.ts:161, 43] where 타입이 Record<string, unknown>** — Prisma.RefereeAssignmentWhereInput / Prisma.TournamentWhereInput 타입으로 바꾸면 IDE 자동완성/타입 안전성 향상. 동작엔 문제 없음.
+2. **[assignments/page.tsx:555, 805] "#fff" 하드코딩** — B코스 품질 개선에서 정립한 var(--color-text-on-primary, #fff) 패턴으로 통일 권장. 기존 페이지는 CSS 변수 쓰는데 새 페이지만 #fff 남아있음.
+
+### 회귀 검토
+- prisma/schema.prisma 변경: RefereeAssignment에 @@unique 추가뿐 — 기존 컬럼/관계 불변 ✅
+- 기존 TournamentMatch 모델 무수정 확인 ✅
+- 기존 본인 배정 API(/api/web/referee-assignments) 무영향 — 세션 기반 referee_id 조회 + 독립 라우트 ✅
+- NAV_ITEMS 추가만 하고 기존 항목 수정 없음 ✅
+
+### 수정 요청 (developer 맡김)
+없음 — 모두 권장/nit 수준. 현재 상태로 동작·보안상 문제 없음. 추후 여유 시 #fff 통일 + Prisma.WhereInput 타입 적용 + 타 협회 심판명 마스킹 정책 확정 정도 고려.
 
 ---
 

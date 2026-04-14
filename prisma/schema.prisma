@@ -2308,6 +2308,7 @@ model RefereeAssignment {
   settlement RefereeSettlement?
   // tournament_match 쪽은 관계 선언 없음 — 기존 TournamentMatch 모델 미수정
 
+  @@unique([referee_id, tournament_match_id]) // 같은 심판이 같은 경기에 중복 배정 방지
   @@index([referee_id])
   @@index([tournament_match_id])
   @@index([status])

@@ -29,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/referee/assignments", label: "내 배정", icon: "event" },
   { href: "/referee/settlements", label: "내 정산", icon: "payments" },
   { href: "/referee/admin", label: "관리자", icon: "admin_panel_settings" },
+  { href: "/referee/admin/assignments", label: "배정 관리", icon: "event_available" },
   { href: "/referee/admin/settings", label: "설정", icon: "settings" },
 ];
 
