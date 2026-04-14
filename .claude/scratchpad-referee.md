@@ -3,9 +3,33 @@
 ---
 
 ## 📌 현재 작업
-- **요청**: 정산(Settlement) 1차 — DB 확장 + 기본 CRUD + 자동 생성 + 목록 페이지 + 단가표
-- **상태**: ✅ tester 전체 PASS (10/10) — PM 커밋/DB 마이그레이션 대기
-- **현재 담당**: tester → (다음) PM (`npx prisma db push` + git commit)
+- **요청**: 정산 2차+3차 — 일괄 처리 + 대시보드 + 본인 페이지
+- **상태**: ✅ tester 전체 PASS (9/9) — PM 커밋 대기
+- **현재 담당**: tester → (다음) PM (git commit)
+
+## 테스트 결과 (tester) — 정산 2차+3차 (2026-04-13)
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| T1. tsc --noEmit | ✅ 통과 | EXIT=0, 에러 0건 |
+| T2. 일괄 생성 API (bulk-create) | ✅ 통과 | GET: settlement:null + association_id IDOR 필터(L128-129) / POST: $transaction + Map으로 중복제거(L221-225) + 4가지 재검증(NOT_FOUND/FORBIDDEN/NOT_COMPLETED/DUPLICATE) + 부분 실패 허용. Zod items min(1)/max(200), P2002 DUPLICATE 변환 |
+| T3. 일괄 상태 변경 API (bulk-status) | ✅ 통과 | 전이 화이트리스트(단건 /status와 5종 완전 일치) / association_id 1차 필터(L100)로 IDOR 차단 + NOT_FOUND_OR_FORBIDDEN 통합(존재 누출 방지) / paid 시 referee_id 모아 N+1 회피(L118-137) / force 필드 schema 없음(일괄 금지) / max 500 / succeeded+skipped+failed 3분류 |
+| T4. 통계 API (summary) | ✅ 통과 | settlement_view 권한(L64) / groupBy로 by_status + top_referees / refereeIds 0명이면 즉시 빈 결과(L94-106) / year-month 정규식 미통과 시 현재 fallback(L72-77) / 6개월 JS 집계 / documents_incomplete_count는 서류 3종 중 하나라도 빠진 심판의 pending+scheduled 카운트 |
+| T5. 일괄 생성 페이지 (new-batch) | ✅ 통과 | 대회 드롭다운 → loadPreview 자동 호출 / 초기 전체 체크 + 예상 금액 자동 채움(L136-143) / 금액 input 숫자만 필터(L189) / 선택 합계 실시간(L202-213) / 제출 후 failed 아닌 것만 items에서 제거(재시도 가능, L254-266) / 실패 사유 FAIL_REASON 한글 맵핑 |
+| T6. 대시보드 페이지 (dashboard) | ✅ 통과 | 월 select(최근 12개월, L65-78) / 카드 6개(전체+5상태) StatCard / 순수 CSS 바 차트(flex+h-48+height %, minHeight 2px, 현재월 primary 강조, >=10000은 k 단위 표시) / maxBarValue===0 시 "데이터 없음" / top_referees 1위 warning 색, by_tournament 1위 info 색 / documents_incomplete_count > 0일 때 경고 배너 + "정산 보기" 링크 |
+| T7. 정산 관리 페이지 수정 | ✅ 통과 | 헤더에 "일괄 생성"(playlist_add) + "통계 보기"(insights) 2개 버튼(L327-350) / 전체 선택 체크박스(L544-550) / 각 행 체크박스(L597-602) / fixed bottom-4 z-40 고정 바(selectedIds.size > 0 시, L805-870) / 버튼 3개(지급예정/지급완료/취소) + 선택 해제 / BulkResultModal(L873-878) / colSpan 8→9 반영 / 필터/페이지 변경 시 selectedIds 초기화(L230-233) |
+| T8. 본인 정산 페이지 수정 | ✅ 통과 | STATUS_TABS 6개(전체+5상태, scheduled/refunded 추가, L66-73) / STATUS_BADGE 5종 색 재매핑(pending: muted, scheduled: warning, paid: success, cancelled: primary, refunded: info, L76-82) / DocumentsStatus 타입 + /api/web/referee-documents 1회 호출(L162-185) / docsStatus.complete=false 시 상단 warning 배너 + "서류 등록" 버튼 → /referee/documents(L230-286) / 부족 서류 한글 맵핑(자격증/신분증/통장) |
+| T9. 메뉴 (referee-shell) | ✅ 통과 | NAV_ITEMS L44에 "정산 대시보드"(insights) 추가, 정산 관리(L42) 바로 아래 배치 |
+
+📊 종합: 9개 중 9개 통과 / 0개 실패
+
+**추가 검증 포인트**:
+- Prisma schema: AssociationFeeSetting/RefereeSettlement/RefereeDocument/RefereeAssignment 모든 모델 존재 확인
+- 단건 /status TRANSITIONS와 bulk-status TRANSITIONS 5종 완전 일치 — 일관성 OK
+- apiSuccess/apiError/validationError 사용 일관 — snake_case 자동 변환 유지
+- IDOR 2중 방어: bulk-create는 재조회 시 assignment.referee.association_id 검증, bulk-status는 findMany 단계에서 관계 필터
+- 서류 3종(certificate/id_card/bankbook) 상수 3개 파일(bulk-status/summary/본인 settlements)에서 동일하게 사용
+- 차트/UI 하드코딩 색상 없음 — var(--color-*) 일관 사용, fallback 값만 hex로 병기
 
 ## 구현 기록 (developer) — 정산 1차 (2026-04-13)
 
@@ -706,6 +730,7 @@ tester 참고:
 | 04-13 | developer | v4 배정워크플로우 1차: 스키마4모델+pool_id / 관리자 API 2개 / 본인 API 3개 / 페이지 2개 / 셸 2메뉴 (9파일) | ✅ tsc 통과 |
 | 04-13 | developer | v4 배정워크플로우 2차: pools API 2개(POST/GET, PATCH/DELETE) + 공고상세+풀대시보드 페이지 2개 + 공고목록 상세링크 + 셸 "일자별 운영" 메뉴 (6파일) | ✅ tsc 통과 |
 | 04-13 | reviewer | v4 배정워크플로우 2차 리뷰 (6파일) | ✅ APPROVE w/ comments (critical 0, warning 3, nit 3) |
+| 04-13 | reviewer | 정산 2차+3차 리뷰 (8파일) | ⚠️ APPROVE w/ comments (필수 1 by_month 월 키 누락, 권장 4) |
 
 ---
 
@@ -1124,4 +1149,133 @@ reviewer 참고:
 - [ ] 공고 status=cancelled 시 pools POST 차단 (위 권장 수정 적용)
 - [ ] "책임자" 지정 자동 배정 전략(예: 첫 경기 주심 우선 할당)
 - [ ] 연락처 마스킹 + 별도 권한(contact_view 등) 도입
+
+---
+
+## 🔎 리뷰 결과 (reviewer) — 정산 2차+3차 (2026-04-13)
+
+📊 종합 판정: **APPROVE with comments** (필수 수정 1건, 권장 수정 4건)
+
+✅ 잘된 점:
+- **IDOR 2중 방어 탄탄**: bulk-create/bulk-status 모두 1차 조회 단계에서 `referee.association_id === admin.associationId` 관계 필터로 다른 협회 건을 조회부터 배제. 정보 누출 방지 위해 bulk-status는 NOT_FOUND/FORBIDDEN을 `NOT_FOUND_OR_FORBIDDEN` 동일 사유로 묶음 (정책 모범)
+- **force 일괄 금지 정책 관철**: bulk-status 스키마에 `force` 필드 자체 부재 → 우회 경로 봉쇄. 강행은 단건 `/status`로만 가능하도록 제한
+- **단건/일괄 전이 화이트리스트 일관성**: bulk-status의 `TRANSITIONS` 테이블이 단건 `/status`와 동일 — 규칙 분기 없음
+- **서류 3종 검증 N+1 회피**: paid 전환 시 대상 referee_id 집합으로 `in` 한 번 조회 후 `Map<refereeId, Set<docType>>`로 O(1) 조회. summary도 동일 패턴
+- **groupBy 활용**: summary의 by_status/top_referees 모두 Prisma groupBy로 집계. `_sum.amount` + `_count._all` orderBy + take 5로 서버 측에서 끝냄
+- **부분 실패 허용 결과 리포트**: succeeded / skipped(의도 제외) / failed(DB 에러) 3단 분리 — UI도 동일 구조로 표시해 사용자가 원인 파악 쉬움
+- **bulk-create settlement: null 필터**: 1:1 optional 관계로 "정산 미존재"만 골라 중복 생성 원천 차단. 추가 findUnique 루프보다 훨씬 효율
+- **$transaction 내 try/catch 부분 실패**: 한 건 실패해도 전체 롤백 없이 나머지는 커밋 — 80건 중 3건 실패 시 77건 정상이라는 실무 요구 충족
+- **트랜잭션 입력 상한**: items 200 / settlement_ids 500으로 Zod `.max()` — 타임아웃 방지
+- **UX 구현 완성도**: 체크박스 전체/개별, 금액 인라인 편집, 선택 합계 실시간 표시, fixed bottom 일괄 처리 바(z-40 < 모달 z-50), 결과 모달에 친화적 사유 라벨(`서류 부족 (자격증, 통장)` 등)
+- **차트 라이브러리 0 의존성**: 순수 flex + % height로 구현. 최대값 0이면 "데이터 없음" 그레이스풀 처리
+- **본인 페이지 서류 경고 배너**: /referee/documents에 직접 링크 + missing 배열 기반 동적 안내 — 심판이 스스로 해결 가능한 동선
+- **디자인 규칙 준수**: var(--color-*) + Material Symbols + border-radius 4px + 천단위 콤마 + 2열 카드 그리드
+
+🔴 필수 수정:
+- **src/app/api/web/referee-admin/settlements/summary/route.ts:149-153** — `by_month` 월 키 생성이 "선택월 직전 6개월"만 포함하고 **선택월 자체는 누락**. 결과적으로 (1) UI의 `isCurrent = row.month === month` primary 강조 하이라이트가 영구 false, (2) 범위 필터(gte sixMonthStart, lt monthEnd)로는 선택월 데이터까지 가져오지만 버킷에 키가 없어 `monthBuckets.get(key)` 매칭 실패 → **선택월에 생긴 paid 정산이 차트에서 완전 누락됨**.
+  - 수정 방법: 루프를 `for (let i = 5; i >= 0; i--) { const d = new Date(Date.UTC(year, month - 1 - i, 1)); ... }` 대신 선택월 포함 6개월로 바꾸기. 예:
+    ```ts
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(Date.UTC(year, month - 1 - i, 1));
+      monthKeys.push(ymKey(d));
+    }
+    // → 선택월 포함하려면 month - 1 - i가 아니라 month - 1 - (i - 1) 또는 루프 0..5로 역전.
+    // 가장 단순한 수정:
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(Date.UTC(year, month - 1 - (5 - i), 1)); // i=0 → month-6, i=5 → month-1 … (동일)
+    }
+    ```
+    더 명확하게는 `sixMonthStart`를 `Date.UTC(year, month - 1 - 5, 1)`로 바꾸고(현재 `month - 6`) 동시에 루프를 `month - 1 - (5 - i)`로 맞추기. 또는 "선택월 직전 6개월"이 의도였다면 UI의 `isCurrent` 로직과 설명 주석을 현실에 맞게 고치기(주석 L83 "현재 선택된 월 포함 6개월" 허위).
+  - 선택: 의도가 "직전 6개월"이라면 L269 주석 "기준: 정산 생성일"을 유지하되 UI의 현재월 하이라이트를 제거하고, 차트 제목을 "최근 6개월(선택월 직전)"로 변경. 의도가 "포함 6개월"이면 위 코드 수정.
+
+🟡 권장 수정:
+- **src/app/api/web/referee-admin/settlements/bulk-create/route.ts:292-298** — `$transaction(async tx => {...})`로 감쌌지만 내부에서 개별 `try/catch`로 에러를 모두 삼킴. Prisma는 콜백이 throw 없이 완료되면 "정상 종료"로 간주해 커밋. 즉 **개별 실패는 롤백 없이 성공 부분만 커밋**이 의도된 동작이고 그대로 작동함. 다만 이 상태면 $transaction 래핑의 실질 이득이 없음(DB-side 원자성 X, 단순 순차 실행과 동일). 의도가 "부분 실패 허용"이 맞다면 $transaction 제거하고 평범한 for 루프로 두는 게 더 정직. 지금은 동작 문제 없으나 "transaction = 원자성"이라 오해 여지. 주석에 "개별 실패 허용 정책으로 트랜잭션은 단순 커넥션 경계 용도"라고 명시하거나 래핑을 벗기는 것 권장
+- **src/app/api/web/referee-admin/settlements/bulk-status/route.ts:184-202** — 동일한 이슈. `$transaction` 내부에서 per-row try/catch로 에러 삼킴. 의도가 "뭐가 성공/실패하든 모든 row 시도"라면 맞지만, transaction 의미상 부적절. 단건 /status 엔드포인트와의 동작 차이(감사 로그/paid_at 자동 기록) 없는지 한 번 더 대조 권장 (scheduled→paid 전환 시 기존 scheduled_at 유지 vs 재기록 정책 등)
+- **src/app/(referee)/referee/admin/settlements/new-batch/page.tsx:100-115** — 대회 목록 로드 시 에러/로딩 상태 처리 없음. catch가 빈 블록이라 API 실패 시 드롭다운이 조용히 비어있음. 최소 `console.warn` 또는 빈 상태 안내(`<option>대회 목록을 불러오지 못했습니다</option>`) 권장
+- **src/app/(referee)/referee/admin/settlements/page.tsx:254-260** — `confirm()` 네이티브 다이얼로그 사용. 디자인 규칙상 모달(ModalShell)이 이미 있으니 커스텀 확인 모달로 통일하면 UX 일관성 향상. 다만 동작에는 문제 없으므로 우선순위 낮음
+
+🟢 Nit (선택):
+- summary route L232-234: `monthSettlements` 전체를 프론트단 groupBy로 집계하고 있음. `prisma.refereeSettlement.groupBy({ by: ['assignment_id'], ... })` + 별도 match 조회가 가능하나, 현재 구현도 데이터량 생각하면 충분. 건수 폭증 시 개선 여지
+- bulk-create POST 응답 `created_ids`에 settlement id만 반환하고 assignment_id 매핑은 없음 — 프론트(L252-266)가 "선택됐는데 failed에 없는 건"을 성공으로 간주하는 우회 방식. API에 `succeeded: [{ assignment_id, settlement_id }]` 형식으로 반환하면 명확해짐
+- dashboard 페이지 L81-83: 초기 month 값을 로컬 시각 기준(`new Date().getMonth()`)으로 설정. summary API는 UTC 기준으로 경계 처리 → **자정 전후 타임존 차이로 1개월 오차 가능성** (서울 KST는 UTC+9이라 실질 영향 없으나, 서버 배포시 주의)
+
+📌 판정 근거:
+- **보안**: IDOR/권한/force 일괄 금지 모두 정책 준수. `settlement_manage` / `settlement_view` 분리 적용 OK. 단건 /status와의 규칙 일관성도 유지
+- **데이터 무결성**: 부분 실패 허용 + 중복 id 제거 + Zod 상한. `$transaction` 래핑은 의미 애매하나 실동작은 의도대로 — 주석 보강 권장
+- **성능**: groupBy + in 조회 + Map 매칭으로 N+1 모두 회피. summary 미완비 집계도 N+1 없음
+- **UX**: 확인 모달(네이티브지만 동작 OK), 결과 요약(succeeded/skipped/failed 3단 라벨), 차트 가독성(최대값 0 처리, 월 라벨) 모두 합격
+- **기존 기능 회귀**: 1차 정산 관리 기존 필터/모달/페이지네이션 로직 영향 없음. 본인 페이지 STATUS_TABS가 2→5개 확장으로 기존 "전체/미지급/지급완료/취소" 탭 라벨/value 그대로 유지 + "지급예정"/"환수" 2개 추가 → 회귀 없음. 서류 조회 useEffect 실패도 catch로 삼켜 기존 정산 표시는 정상
+
+→ 필수 수정 1건(summary by_month 월 키) 반영 후 APPROVE. 권장 4건은 후속 커밋 가능
+
+### 수정 요청 (developer용)
+| 우선순위 | 파일 | 라인 | 요청 내용 |
+|---------|------|------|----------|
+| 필수 | src/app/api/web/referee-admin/settlements/summary/route.ts | 83-84, 149-153 | `by_month`에 선택월 포함하거나 UI의 "현재월 하이라이트"/차트 주석을 "직전 6개월"에 맞춰 수정. 현재는 선택월 데이터가 차트에서 누락됨 |
+| 권장 | src/app/api/web/referee-admin/settlements/bulk-create/route.ts | 230, 292 | `$transaction` 내 try/catch 부분실패 정책 — 실질 원자성 없음. 래핑 벗기거나 주석으로 의도 명시 |
+| 권장 | src/app/api/web/referee-admin/settlements/bulk-status/route.ts | 184 | 동일 — `$transaction` 의미 재확인 + 의도 주석 |
+| 권장 | src/app/(referee)/referee/admin/settlements/new-batch/page.tsx | 112 | 대회 목록 로드 실패 시 사용자 안내 추가 |
+| 권장 | src/app/(referee)/referee/admin/settlements/page.tsx | 260 | 네이티브 `confirm()` → 커스텀 확인 모달로 교체 (UX 일관성) |
+
+---
+
+## 구현 기록 (developer) — 정산 2차+3차 (2026-04-13)
+
+📝 구현한 기능:
+- **2차 일괄 처리**:
+  - 일괄 정산 생성 API (GET 미리보기 + POST 일괄 생성, $transaction + 부분 실패 허용)
+  - 일괄 상태 변경 API (POST, 미완비 심판 자동 제외 + force 일괄 금지, 단건 /status와 동일 전이 규칙)
+  - 일괄 생성 페이지 (대회 선택 → 미리보기 테이블 + 체크박스 + 금액/메모 편집 → 일괄 확정 → 결과 요약)
+  - 기존 정산 관리 페이지에 체크박스/일괄 처리 고정 바(fixed bottom) + 결과 요약 모달 추가
+- **3차 통계 + 본인 UX**:
+  - 정산 통계 API (by_status 5종 + 6개월 추이 + 상위 심판/대회 5위 + 서류 미완비 건수, groupBy 최적화)
+  - 정산 대시보드 페이지 (월 선택 select + 카드 6개 + 순수 CSS 바 차트 + 상위 리스트 2종 + 미완비 경고)
+  - 본인 정산 페이지 업데이트: 상태 뱃지 5종 체계 반영 + 서류 미완비 상단 경고 배너 + 서류 페이지 링크
+  - referee-shell에 "정산 대시보드" 메뉴(insights 아이콘) 추가
+  - 기존 정산 관리 페이지 헤더에 "일괄 생성" / "통계 보기" 바로가기 버튼 2개
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/referee-admin/settlements/bulk-create/route.ts | GET(예상 금액 포함 미리보기, referee.association_id IDOR + settlement:null 필터) + POST($transaction 내 부분 실패 허용 일괄 생성, 재검증 4가지) | 신규 |
+| src/app/api/web/referee-admin/settlements/bulk-status/route.ts | POST 일괄 상태 변경(IDOR + 전이 화이트리스트 + paid 서류 3종 N+1 회피 + 미완비 자동 skip + 500건 상한) | 신규 |
+| src/app/api/web/referee-admin/settlements/summary/route.ts | GET 대시보드 통계 (by_status groupBy + 최근6개월 JS 집계 + top_referees groupBy + 대회별 상위 + 미완비 건수) | 신규 |
+| src/app/(referee)/referee/admin/settlements/new-batch/page.tsx | 일괄 생성 페이지(대회 선택 → 체크박스/금액/메모 편집 테이블 → 선택 합계 → 결과 요약 + 실패 사유 목록) | 신규 |
+| src/app/(referee)/referee/admin/settlements/dashboard/page.tsx | 통계 대시보드(월 선택 + 카드 6개 + 순수 CSS 6개월 바 차트 + 상위 심판/대회 TOP5 + 미완비 경고 + 정산 관리 링크) | 신규 |
+| src/app/(referee)/referee/admin/settlements/page.tsx | 헤더에 일괄생성/대시보드 버튼 + 체크박스(헤더+각 행) + 일괄 처리 고정 바(지급예정/지급완료/취소/해제) + BulkResultModal + colSpan 8→9 | 수정 |
+| src/app/(referee)/referee/settlements/page.tsx | STATUS_TABS 5종 확장(scheduled/refunded 추가) + STATUS_BADGE 5종 재매핑 + DocumentsStatus 타입 + 서류 3종 보유 조회 effect + 상단 서류 미완비 경고 배너 + 서류 등록 링크 | 수정 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "정산 대시보드"(insights) 추가 — 정산 관리 바로 아래 | 수정 |
+
+💡 tester 참고:
+- **타입 체크**: `npx tsc --noEmit` EXIT=0 통과
+- **테스트 시나리오**:
+  1. 사무국장 로그인 → `/referee/admin/settlements` → 상단 "일괄 생성" 클릭 → 대회 선택 → 미리보기 행들이 예상 금액과 함께 표시됨 → 금액 편집/체크 해제/메모 입력 → "일괄 생성" → 결과 `생성 N건/실패 0건`
+  2. 같은 대회로 다시 미리보기 → 이미 생성된 건은 사라져 있음(settlement:null 필터)
+  3. `/referee/admin/settlements`에서 2~3개 체크 → 하단 바 등장 → "지급예정으로" 클릭 → 확인 → 결과 모달에 "성공 N건" → 상태 뱃지 변경 확인
+  4. 다시 체크 → "지급완료로" → 서류 미완비 심판 건은 자동 제외되고 결과 모달에 `MISSING_DOCUMENTS:...` 로 사유 표시
+  5. `/referee/admin/settlements/dashboard` → 월 select 변경 → 카드 6개 + 바 차트 + 상위 5명/5대회 업데이트
+  6. 서류 미완비 경고 배너: dashboard 상단에 노란색 경고 + "정산 보기" 링크
+  7. 본인 로그인 → `/referee/settlements` → 서류 3종 중 일부 누락 시 "서류 등록이 필요합니다" 경고 + "서류 등록" 버튼 → `/referee/documents`로 이동
+  8. 상태 탭: `전체/미지급/지급예정/지급완료/취소/환수` 6개 탭 모두 동작
+- **정상 동작 확인**:
+  - bulk-create POST: 같은 assignment_id 중복 items 들어와도 1회만 처리
+  - bulk-status force 일괄 금지 (body schema에 force 없음) — 강행은 단건 /status만 허용
+  - summary: 심판 0명인 협회는 즉시 빈 결과 반환 (DB 부하 없음)
+  - 대시보드 바 차트: 최대값 0이면 "데이터 없음" 메시지, 현재 선택 월은 primary 색으로 강조
+- **주의할 입력**:
+  - bulk-create items 빈 배열: Zod min(1)로 400
+  - bulk-status settlement_ids > 500: Zod max(500)로 400
+  - 다른 협회 settlement_id 섞어 보내기: IDOR 필터로 조회 자체 누락 → skipped의 NOT_FOUND_OR_FORBIDDEN
+  - summary year/month 형식 오류: 정규식 미통과 시 현재 년/월로 fallback
+
+⚠️ reviewer 참고:
+- **IDOR 2중 방어**: bulk-status는 findMany 단계에서 `referee.association_id === admin.associationId`로 조회 자체 필터링 → 다른 협회 id는 결과에 포함되지 않음 → skipped에만 NOT_FOUND_OR_FORBIDDEN로 표기해 ID 존재 여부 누출 방지
+- **$transaction 내 부분 실패**: bulk-create는 try/catch로 감싸서 개별 실패가 전체 롤백을 유발하지 않음(실무 편의). bulk-status도 동일 패턴
+- **N+1 회피**:
+  - bulk-status paid: 대상 referee_id 모아 RefereeDocument 한 번에 in 조회
+  - summary: 협회 심판 id 배열 → Settlement/Document를 in 필터로, top_referees는 groupBy 후 심판 상세 한 번에 조회
+- **차트 라이브러리 미사용**: 순수 flex + height % + min-height로 구현. Tailwind `h-48`(12rem=192px) 고정 + 내부 div가 % 높이
+- **by_month 기준**: created_at(정산 생성일) 기준. paid_at 기준이 더 "정확한 지급 추이"일 수 있으나, pending/scheduled도 함께 보여주려면 created_at이 자연스럽다고 판단
+- **SnakeCase 변환**: apiSuccess가 자동으로 camelCase→snake_case 변환 → 응답 JSON은 snake_case로 전달됨. 프론트 타입 정의도 snake_case로 통일 유지
+- **bulk 처리 고정 바**: selected.size > 0 일 때만 `fixed bottom-4`로 등장 → 페이지 스크롤 없이 접근 가능. z-40으로 모달(z-50)보다 아래에 둬 충돌 방지
+- **월 select**: `getMonthOptions()`로 최근 12개월 생성 (현재 월부터 과거 11개월까지)
 

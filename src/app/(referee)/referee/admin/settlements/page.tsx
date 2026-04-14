@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
@@ -153,6 +154,17 @@ export default function AdminSettlementsPage() {
   const [editTarget, setEditTarget] = useState<Settlement | null>(null);
   const [mutating, setMutating] = useState(false);
 
+  // ── 일괄 선택 상태 (2차) ──
+  // settlement id 문자열 Set — 현재 페이지에 한정하여 체크 기억
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // 일괄 결과 요약 모달
+  const [bulkResult, setBulkResult] = useState<{
+    target_status: string;
+    succeeded: number;
+    skipped: { id: string; reason: string }[];
+    failed: { id: string; reason: string }[];
+  } | null>(null);
+
   // 대회 목록 로드 (초기 1회)
   useEffect(() => {
     const url = new URL(
@@ -215,6 +227,69 @@ export default function AdminSettlementsPage() {
     setPage(1);
   }, [status, tournamentId, from, to]);
 
+  // 필터/페이지 변경 시 체크박스 초기화 — 다른 페이지 건 섞이지 않도록
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [items]);
+
+  // ── 일괄 처리 유틸 ──
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      if (prev.size === items.length && items.length > 0) return new Set();
+      return new Set(items.map((i) => i.id.toString()));
+    });
+  };
+
+  // 일괄 상태 변경 API 호출
+  const runBulkStatus = async (target: string) => {
+    if (selectedIds.size === 0) return;
+    const confirmMsg =
+      target === "paid"
+        ? "선택한 정산을 지급완료로 변경합니다. 서류 미완비 심판은 자동 제외됩니다. 진행할까요?"
+        : target === "scheduled"
+        ? "선택한 정산을 지급예정으로 변경합니다. 진행할까요?"
+        : "선택한 정산을 취소로 변경합니다. 진행할까요?";
+    if (!confirm(confirmMsg)) return;
+
+    setMutating(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        "/api/web/referee-admin/settlements/bulk-status",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            settlement_ids: Array.from(selectedIds),
+            target_status: target,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "일괄 변경 실패");
+      setBulkResult({
+        target_status: target,
+        succeeded: data.succeeded ?? 0,
+        skipped: data.skipped ?? [],
+        failed: data.failed ?? [],
+      });
+      setSelectedIds(new Set());
+      fetchList();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "실패");
+    } finally {
+      setMutating(false);
+    }
+  };
+
   // ── 요약 카드 데이터 ──
   const summaryCards = useMemo(() => {
     if (!summary) return [];
@@ -237,7 +312,7 @@ export default function AdminSettlementsPage() {
       style={{ color: "var(--color-text-primary)" }}
     >
       {/* 페이지 헤더 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-black">정산 관리</h1>
           <p
@@ -246,6 +321,33 @@ export default function AdminSettlementsPage() {
           >
             배정이 완료된 경기의 정산을 관리합니다.
           </p>
+        </div>
+        {/* 바로가기 버튼 2개 — 일괄 생성 / 통계 */}
+        <div className="flex gap-2">
+          <Link
+            href="/referee/admin/settlements/new-batch"
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold"
+            style={{
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-primary)",
+              borderRadius: 4,
+            }}
+          >
+            <span className="material-symbols-outlined text-sm">playlist_add</span>
+            일괄 생성
+          </Link>
+          <Link
+            href="/referee/admin/settlements/dashboard"
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold"
+            style={{
+              backgroundColor: "var(--color-primary, #E31B23)",
+              color: "var(--color-text-on-primary, #fff)",
+              borderRadius: 4,
+            }}
+          >
+            <span className="material-symbols-outlined text-sm">insights</span>
+            통계 보기
+          </Link>
         </div>
       </div>
 
@@ -436,6 +538,17 @@ export default function AdminSettlementsPage() {
             }}
           >
             <tr>
+              <th className="px-2 py-2 text-center w-8">
+                {/* 전체 선택 체크박스 */}
+                <input
+                  type="checkbox"
+                  checked={
+                    items.length > 0 && selectedIds.size === items.length
+                  }
+                  onChange={toggleAll}
+                  aria-label="전체 선택"
+                />
+              </th>
               <th className="px-3 py-2 text-left text-xs font-bold">경기일</th>
               <th className="px-3 py-2 text-left text-xs font-bold">대회</th>
               <th className="px-3 py-2 text-left text-xs font-bold">심판</th>
@@ -450,7 +563,7 @@ export default function AdminSettlementsPage() {
             {loading && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-3 py-10 text-center"
                   style={{ color: "var(--color-text-muted)" }}
                 >
@@ -461,7 +574,7 @@ export default function AdminSettlementsPage() {
             {!loading && items.length === 0 && (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-3 py-10 text-center"
                   style={{ color: "var(--color-text-muted)" }}
                 >
@@ -479,6 +592,15 @@ export default function AdminSettlementsPage() {
                     className="border-t"
                     style={{ borderColor: "var(--color-border)" }}
                   >
+                    <td className="px-2 py-2 text-center">
+                      {/* 일괄 선택 체크박스 */}
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(s.id.toString())}
+                        onChange={() => toggleOne(s.id.toString())}
+                        aria-label="선택"
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       {formatDate(s.match?.scheduled_at ?? null)}
                     </td>
@@ -678,6 +800,82 @@ export default function AdminSettlementsPage() {
             );
           })}
       </div>
+
+      {/* 일괄 처리 고정 바 (선택 시 나타남) */}
+      {selectedIds.size > 0 && (
+        <div
+          className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 px-4 py-3 flex items-center gap-3 shadow-lg"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: 4,
+          }}
+        >
+          <div className="text-sm font-bold">
+            선택: <span style={{ color: "var(--color-primary, #E31B23)" }}>{selectedIds.size}</span>건
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={mutating}
+              onClick={() => runBulkStatus("scheduled")}
+              className="px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+              style={{
+                backgroundColor: "var(--color-warning, #f59e0b)",
+                color: "#fff",
+                borderRadius: 4,
+              }}
+            >
+              지급예정으로
+            </button>
+            <button
+              type="button"
+              disabled={mutating}
+              onClick={() => runBulkStatus("paid")}
+              className="px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+              style={{
+                backgroundColor: "var(--color-success, #22c55e)",
+                color: "#fff",
+                borderRadius: 4,
+              }}
+            >
+              지급완료로
+            </button>
+            <button
+              type="button"
+              disabled={mutating}
+              onClick={() => runBulkStatus("cancelled")}
+              className="px-3 py-1.5 text-xs font-bold disabled:opacity-40"
+              style={{
+                border: "1px solid var(--color-primary, #E31B23)",
+                color: "var(--color-primary, #E31B23)",
+                borderRadius: 4,
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 text-xs font-bold"
+              style={{
+                color: "var(--color-text-muted)",
+                borderRadius: 4,
+              }}
+            >
+              선택 해제
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 일괄 결과 요약 모달 */}
+      {bulkResult && (
+        <BulkResultModal
+          result={bulkResult}
+          onClose={() => setBulkResult(null)}
+        />
+      )}
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
@@ -1125,6 +1323,120 @@ function EditModal({
               {mutating ? "저장 중..." : "저장"}
             </button>
           </div>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+/* ==========================================================================
+ * BulkResultModal — 일괄 처리 결과 요약
+ * ========================================================================== */
+function BulkResultModal({
+  result,
+  onClose,
+}: {
+  result: {
+    target_status: string;
+    succeeded: number;
+    skipped: { id: string; reason: string }[];
+    failed: { id: string; reason: string }[];
+  };
+  onClose: () => void;
+}) {
+  // skip reason 사용자 친화 라벨
+  const reasonLabel = (r: string) => {
+    if (r.startsWith("MISSING_DOCUMENTS:")) {
+      const names = r
+        .replace("MISSING_DOCUMENTS:", "")
+        .split(",")
+        .map((d) => DOC_LABEL[d] ?? d)
+        .join(", ");
+      return `서류 부족 (${names})`;
+    }
+    const map: Record<string, string> = {
+      NOT_FOUND_OR_FORBIDDEN: "대상 없음 또는 권한 없음",
+      SAME_STATUS: "이미 해당 상태",
+      INVALID_TRANSITION: "전이 불가",
+      UNKNOWN_STATUS: "알 수 없는 상태",
+      UPDATE_ERROR: "DB 오류",
+    };
+    return map[r] ?? r;
+  };
+
+  const targetLabel =
+    STATUS_BADGE[result.target_status]?.label ?? result.target_status;
+
+  return (
+    <ModalShell onClose={onClose} title={`일괄 처리 결과 (${targetLabel})`}>
+      <div className="space-y-3 text-sm">
+        <div className="flex items-center gap-3">
+          <span
+            className="material-symbols-outlined text-2xl"
+            style={{
+              color: "var(--color-success, #22c55e)",
+              fontVariationSettings: "'FILL' 1",
+            }}
+          >
+            check_circle
+          </span>
+          <div>
+            성공:{" "}
+            <b style={{ color: "var(--color-success, #22c55e)" }}>
+              {result.succeeded}건
+            </b>
+          </div>
+        </div>
+        {result.skipped.length > 0 && (
+          <div>
+            <div className="font-bold text-xs mb-1">
+              제외 ({result.skipped.length}건)
+            </div>
+            <ul
+              className="max-h-40 overflow-y-auto text-xs space-y-0.5 pl-2"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {result.skipped.map((s, idx) => (
+                <li key={`${s.id}-${idx}`}>
+                  • #{s.id}: {reasonLabel(s.reason)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {result.failed.length > 0 && (
+          <div>
+            <div
+              className="font-bold text-xs mb-1"
+              style={{ color: "var(--color-primary, #E31B23)" }}
+            >
+              실패 ({result.failed.length}건)
+            </div>
+            <ul
+              className="max-h-32 overflow-y-auto text-xs space-y-0.5 pl-2"
+              style={{ color: "var(--color-primary, #E31B23)" }}
+            >
+              {result.failed.map((f, idx) => (
+                <li key={`${f.id}-${idx}`}>
+                  • #{f.id}: {reasonLabel(f.reason)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 text-sm font-bold"
+            style={{
+              backgroundColor: "var(--color-primary, #E31B23)",
+              color: "var(--color-text-on-primary, #fff)",
+              borderRadius: 4,
+            }}
+          >
+            확인
+          </button>
         </div>
       </div>
     </ModalShell>

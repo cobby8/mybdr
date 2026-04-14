@@ -284,6 +284,12 @@ model RefereeAssignment {
 
 ### 구현 기록
 
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-04-13 | 배정 DELETE 핸들러에 정산 가드 추가. cancelled 아닌 정산(pending/scheduled/paid/refunded) 연결 시 409 SETTLEMENT_EXISTS 반환하여 cascade로 지급 이력 소실되는 것 방지 | src/app/api/web/referee-admin/assignments/[id]/route.ts (L320~336) | reviewer critical: onDelete: Cascade로 paid 정산이 조용히 사라질 수 있는 재무 무결성 버그 |
+| 1차 | 2026-04-13 | settlements/summary의 by_month에 선택월 포함. sixMonthStart `month-6`→`month-5`, 루프 인덱스 `month-1-i`→`month-1-(5-i)` 수정. 예: 2026-04 선택 시 [2025-11~2026-04] 반환 | src/app/api/web/referee-admin/settlements/summary/route.ts (L83~85, L149~155) | reviewer critical: 선택월이 by_month에서 누락되어 대시보드 isCurrent 하이라이트 미작동 + 선택월 paid 정산 버킷 매칭 실패 |
+
 구현한 기능: v3 2차 — 심판 사전 등록 API/페이지 + 매칭 상태 필터 + 수동 매칭 API/UI
 
 | 파일 경로 | 변경 내용 | 신규/수정 |
@@ -801,6 +807,7 @@ home-sidebar.tsx, hero-section.tsx, quick-menu.tsx, hero-bento.tsx, home-greetin
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | 배정 DELETE 정산 가드 추가 (reviewer critical 되돌림 1차) | tsc 통과, SETTLEMENT_EXISTS 409 가드 |
 | 04-13 | reviewer | Excel 일괄 사전 등록 리뷰 (4파일) | APPROVE with comments (권장 9건) |
 | 04-05 | pm | AG→main 머지+푸시 (타이포그래피+슬라이드메뉴 정리) | 완료 |
 | 04-02 | developer+tester | 맞춤 설정 필터 미동작 5건 수정 + 전수 검증 30건 통과 | 완료 |

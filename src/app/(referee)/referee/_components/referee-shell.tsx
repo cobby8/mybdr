@@ -40,6 +40,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/referee/admin/pools", label: "일자별 운영", icon: "calendar_today" },
   // 정산 1차: 정산 관리 + 협회 단가표 (사무국장 위주)
   { href: "/referee/admin/settlements", label: "정산 관리", icon: "payments" },
+  // 정산 3차: 통계 대시보드 (사무국장/팀장/임원 열람)
+  { href: "/referee/admin/settlements/dashboard", label: "정산 대시보드", icon: "insights" },
   { href: "/referee/admin/fee-settings", label: "배정비 단가", icon: "monetization_on" },
   { href: "/referee/admin/settings", label: "설정", icon: "settings" },
 ];

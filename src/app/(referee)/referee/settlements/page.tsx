@@ -44,6 +44,15 @@ type Summary = {
   pending_amount: number;
 };
 
+// 본인 서류 3종 보유 여부 API 응답 타입
+type DocumentsStatus = {
+  certificate: boolean;
+  id_card: boolean;
+  bankbook: boolean;
+  complete: boolean;
+  missing: string[];
+};
+
 type ApiResponse = {
   items: Settlement[];
   total: number;
@@ -53,19 +62,23 @@ type ApiResponse = {
   summary: Summary;
 };
 
-// ─── 상태 탭 정의 ───
+// ─── 상태 탭 정의 (정산 3차: 5종 전체 반영) ───
 const STATUS_TABS = [
   { value: "", label: "전체" },
-  { value: "pending", label: "대기중" },
+  { value: "pending", label: "미지급" },
+  { value: "scheduled", label: "지급예정" },
   { value: "paid", label: "지급완료" },
   { value: "cancelled", label: "취소" },
+  { value: "refunded", label: "환수" },
 ] as const;
 
-// 상태별 뱃지 색상
+// 상태별 뱃지 색상 — 관리자 페이지와 일관된 5종 체계
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  pending:   { bg: "var(--color-warning, #f59e0b)", color: "#fff", label: "대기중" },
-  paid:      { bg: "var(--color-success, #22c55e)", color: "#fff", label: "지급완료" },
-  cancelled: { bg: "var(--color-text-muted)",        color: "#fff", label: "취소" },
+  pending:   { bg: "var(--color-text-muted)",         color: "#fff", label: "미지급" },
+  scheduled: { bg: "var(--color-warning, #f59e0b)",   color: "#fff", label: "지급예정" },
+  paid:      { bg: "var(--color-success, #22c55e)",   color: "#fff", label: "지급완료" },
+  cancelled: { bg: "var(--color-primary, #E31B23)",   color: "#fff", label: "취소" },
+  refunded:  { bg: "var(--color-info, #0079B9)",      color: "#fff", label: "환수" },
 };
 
 // 역할 한글 매핑
@@ -94,6 +107,10 @@ export default function RefereeSettlementsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+
+  // 내 서류 3종 상태 (경고 배너용)
+  // 이유: paid 전환 시 관리자가 막히므로 본인이 미리 채우도록 안내
+  const [docsStatus, setDocsStatus] = useState<DocumentsStatus | null>(null);
 
   // 목록 조회
   const loadList = useCallback(async () => {
@@ -140,6 +157,33 @@ export default function RefereeSettlementsPage() {
     void loadList();
   }, [loadList]);
 
+  // 내 서류 3종 상태 로드 (초기 1회)
+  // 이유: 응답은 [{doc_type, ...}, ...] 배열. 필요 doc_type 3종 보유 여부로 경고 여부 결정.
+  useEffect(() => {
+    fetch("/api/web/referee-documents", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        const owned = new Set(
+          data
+            .map((d: { doc_type?: string }) => d?.doc_type)
+            .filter(Boolean) as string[]
+        );
+        const required = ["certificate", "id_card", "bankbook"];
+        const missing = required.filter((t) => !owned.has(t));
+        setDocsStatus({
+          certificate: owned.has("certificate"),
+          id_card: owned.has("id_card"),
+          bankbook: owned.has("bankbook"),
+          complete: missing.length === 0,
+          missing,
+        });
+      })
+      .catch(() => {
+        /* 서류 조회 실패해도 정산 페이지는 계속 보여줌 */
+      });
+  }, []);
+
   // 필터 변경 시 1페이지로 리셋
   const handleStatusChange = (value: string) => {
     setStatusFilter(value);
@@ -178,6 +222,66 @@ export default function RefereeSettlementsPage() {
           }}
         >
           {errorMsg}
+        </div>
+      )}
+
+      {/* 서류 미완비 안내 (3차 추가) */}
+      {/* 이유: paid 전환 시 관리자가 막히므로 본인에게 미리 서류 업로드 유도 */}
+      {docsStatus && !docsStatus.complete && (
+        <div
+          className="flex items-start gap-3 p-3"
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--color-warning, #f59e0b) 10%, transparent)",
+            border: "1px solid var(--color-warning, #f59e0b)",
+            borderRadius: 4,
+          }}
+        >
+          <span
+            className="material-symbols-outlined text-lg shrink-0"
+            style={{
+              color: "var(--color-warning, #f59e0b)",
+              fontVariationSettings: "'FILL' 1",
+            }}
+          >
+            info
+          </span>
+          <div className="flex-1 min-w-0">
+            <div
+              className="text-sm font-bold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              정산 처리를 위해 서류 등록이 필요합니다
+            </div>
+            <div
+              className="mt-0.5 text-xs"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              자격증 / 신분증 / 통장 사본을 모두 등록하면 정산 처리가 원활합니다.
+              부족:{" "}
+              {docsStatus.missing
+                .map(
+                  (t) =>
+                    ({
+                      certificate: "자격증",
+                      id_card: "신분증",
+                      bankbook: "통장",
+                    }[t] ?? t)
+                )
+                .join(", ")}
+            </div>
+          </div>
+          <a
+            href="/referee/documents"
+            className="px-3 py-1.5 text-xs font-bold whitespace-nowrap"
+            style={{
+              backgroundColor: "var(--color-warning, #f59e0b)",
+              color: "#fff",
+              borderRadius: 4,
+            }}
+          >
+            서류 등록
+          </a>
         </div>
       )}
 
