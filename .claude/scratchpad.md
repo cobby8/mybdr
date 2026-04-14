@@ -25,7 +25,44 @@
 - 2D ⏸ tester 검증
 
 ## 구현 기록 (developer)
-(완료된 내용은 작업 로그로 축약)
+
+### Phase 2A-2: Team name_en/name_primary API/Zod/검색 반영 (2026-04-13)
+
+📝 구현한 기능: 한/영 팀명 구조의 API 응답/검색 경로 완결
+  - 이미 Zod 스키마 + 생성/수정 액션/라우트는 Phase 2A-1에서 정비되어 있었음
+  - 이번엔 "응답 직렬화"와 "검색"과 "FE 타입"의 누락 부분만 채움
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/teams/route.ts | GET 직렬화 반환에 name_en, name_primary 추가 | 수정 |
+| src/app/api/web/tournaments/[id]/public-teams/route.ts | team select + 반환(teamNameEn, teamNamePrimary)에 영문명/대표언어 추가 | 수정 |
+| src/app/api/web/search/route.ts | 팀 검색 where를 name/name_en OR로 확장 + select에 영문명/대표언어 추가 | 수정 |
+| src/app/(web)/teams/_components/teams-content.tsx | TeamFromApi 타입에 name_en, name_primary 추가 | 수정 |
+| src/app/api/web/teams/[id]/route.ts | founded_year null 가드 추가 (nullable schema 대응) | 수정 |
+
+💡 tester 참고:
+- 테스트 방법
+  1. `/api/web/teams?q=eagle` — name_en에 "Eagle" 포함된 팀이 검색되는지
+  2. `/api/web/teams` 응답 → teams[].name_en, name_primary 필드가 존재하는지
+  3. `/api/web/search?q=eagle` → teams 배열이 name_en 매칭으로 잡히는지
+  4. `/api/web/tournaments/{uuid}/public-teams` → teams[].teamNameEn, teamNamePrimary 필드 확인
+  5. 팀 생성: POST /api/web/teams에 name_en="BDR-Eagle 01", name_primary="en" 전달 시 저장 성공
+  6. 팀 수정: PATCH에 name_en="가나다"(한글) → 400 INVALID_INPUT 반환 (엄격 정규식 동작 확인)
+- 정상 동작
+  - 기존 팀(name_en NULL)은 그대로 NULL 유지되고 응답에도 null로 내려옴
+  - name_primary 지정 없으면 기본 "ko"
+  - 한글 q로 검색해도 name LIKE는 여전히 동작
+- 주의할 입력
+  - name_en="" (빈문자열) → null 자동 치환 (preprocess)
+  - name_en="   " → null 자동 치환 (trim 후 empty)
+  - name_en="한글" → 400
+  - name_en="A-B C 01" → 저장 성공 (하이픈/공백/숫자 OK)
+  - name_en 길이 81+ → 400
+
+⚠️ reviewer 참고:
+- founded_year null 가드는 이번 타입 검증에서 발견된 기존 버그(nullable schema인데 `< 1900 || >` 직접 비교)를 최소 수정으로 방어한 것. 실제 동작 변화는 없지만 null 전달 시 이제 안전하게 NULL로 저장됨.
+- teams-content.tsx는 타입만 추가했고 UI는 건드리지 않음 (Phase 2C에서 처리 예정).
+- public-teams 응답 key는 teamNameEn/teamNamePrimary (camelCase)로 넣음 — 기존 teamName과 동일한 네이밍 룰 유지.
 
 ## 테스트 결과 (tester)
 (대진표 시스템 일괄 tester 검증 보류 — dev 머지 후 진행 예정)

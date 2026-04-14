@@ -11,6 +11,10 @@ import { TeamCard } from "./team-card";
 interface TeamFromApi {
   id: string;
   name: string;
+  // Phase 2A-2: 영문명/대표언어 필드 추가 (지금은 UI에 안 쓰이지만 Phase 2C에서 스위칭용)
+  // → 타입을 미리 맞춰두면 Phase 2C 렌더링 전환 시 as 캐스팅/any 없이 그대로 사용 가능
+  name_en: string | null;
+  name_primary: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   // 로고 URL — API가 snake_case로 내려줌 (apiSuccess 자동 변환)

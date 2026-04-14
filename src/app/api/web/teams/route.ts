@@ -33,9 +33,13 @@ export async function GET(request: NextRequest) {
       is_public: true,
     };
 
-    // 검색어가 있으면 팀 이름으로 부분 검색
+    // 검색어가 있으면 팀 이름(한글/영문 동시)으로 부분 검색
+    // Phase 2A-2: name_en이 있는 팀은 영문 키워드(eagle 등)로도 찾을 수 있도록 OR 조건 적용
     if (q) {
-      where.name = { contains: q, mode: "insensitive" };
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { name_en: { contains: q, mode: "insensitive" } },
+      ];
     }
 
     // 도시 필터 ("all"이 아닌 경우에만 적용)
@@ -52,6 +56,9 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          // Phase 2A-2: 영문명/대표언어 필드 (이후 UI에서 "상단 언어" 스위칭에 사용)
+          name_en: true,
+          name_primary: true,
           primaryColor: true,
           secondaryColor: true,
           // 로고 URL — 있으면 이미지, 없으면 city 기반 플레이스홀더로 렌더링
@@ -80,6 +87,10 @@ export async function GET(request: NextRequest) {
     const serializedTeams = teams.map((t) => ({
       id: t.id.toString(),                         // BigInt -> string
       name: t.name,
+      // Phase 2A-2: 영문명/대표언어도 응답에 포함
+      // → Phase 2C에서 UI가 name_primary 기준으로 상단 언어를 스위칭할 수 있게 필드를 내려줌
+      name_en: t.name_en,
+      name_primary: t.name_primary,
       primaryColor: t.primaryColor,
       secondaryColor: t.secondaryColor,
       // 로고 URL — 프론트에서 이미지/플레이스홀더 분기 판단용

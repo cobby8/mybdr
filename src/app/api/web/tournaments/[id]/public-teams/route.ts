@@ -24,6 +24,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       team: {
         select: {
           name: true,
+          // Phase 2A-2: 영문명/대표언어 — 참가팀 카드도 Phase 2C에서 언어 스위칭 적용 가능하게 필드 내려줌
+          name_en: true,
+          name_primary: true,
           primaryColor: true,
           secondaryColor: true,
           logoUrl: true,
@@ -52,6 +55,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     id: t.id.toString(),
     teamId: t.teamId.toString(), // Team 테이블의 실제 id (팀 페이지 링크용)
     teamName: t.team.name,
+    // Phase 2A-2: 영문 팀명 + 대표 언어
+    // → 참가팀 카드가 Phase 2C에서 name_primary에 따라 한/영 타이틀을 바꿀 수 있게 한다.
+    teamNameEn: t.team.name_en,
+    teamNamePrimary: t.team.name_primary,
     primaryColor: t.team.primaryColor,
     secondaryColor: t.team.secondaryColor,
     // 로고 URL — 프론트에서 이미지/플레이스홀더 분기 판단용
