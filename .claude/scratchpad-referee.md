@@ -3,9 +3,9 @@
 ---
 
 ## 📌 현재 작업
-- **요청**: 심판 배정 워크플로우 1차 — 공고 + 신청 뼈대
-- **상태**: 🚧 developer 구현 완료 (tsc 통과), tester 대기
-- **현재 담당**: developer → (다음) tester
+- **요청**: 심판 배정 워크플로우 2차 — 신청자 선정 + 일자별 풀 + 책임자 지정
+- **상태**: ✅ tester 전체 PASS (23/23) — PM 커밋 대기
+- **현재 담당**: tester → (다음) PM 커밋
 
 ## 🧭 진행 현황표
 
@@ -27,9 +27,59 @@
 ### v4 (심판 배정 워크플로우) — 🚧 진행 중
 | 단계 | 범위 | 상태 |
 |------|------|------|
-| 1차 | 공고 게시 + 본인 신청 뼈대 (공고/신청/선정풀 스키마 + API 5개 + 페이지 2개) | 🚧 구현 완료 |
-| 2차 | 일자별 선정 풀 + 선정 UI | 대기 |
+| 1차 | 공고 게시 + 본인 신청 뼈대 (공고/신청/선정풀 스키마 + API 5개 + 페이지 2개) | ✅ 완료 |
+| 2차 | 신청자 선정 + 일자별 풀 + 책임자 지정 (pools API 2개 + 상세/대시보드 페이지 2개) | ✅ 테스트 통과 |
 | 3차 | 풀→경기 배정 자동화 + 기존 assignments 통합 | 대기 |
+
+## 구현 기록 (developer) — 배정워크플로우 2차
+
+📝 구현한 기능:
+- 공고 신청자 중 "이 날짜에 이 심판/경기원을 쓸게"로 확정하는 선정 워크플로우
+- 일자·역할 단위로 책임자(is_chief) 1명 지정 (별표 토글)
+- 대회별 일자별 풀 운영 대시보드 (여러 공고 가로질러 요약)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/referee-admin/pools/route.ts | POST(선정: association_id 강제 + Referee 소유 검증 + Application·Date 존재 검증 + P2002 중복 처리) / GET(풀 목록, tournament_id 필수, referee 이름·등급 조인) | 신규 |
+| src/app/api/web/referee-admin/pools/[id]/route.ts | DELETE(경기배정 연결 있으면 409 ASSIGNMENT_EXISTS) / PATCH(is_chief=true 시 $transaction으로 기존 chief false 후 본인 true, memo 병행) | 신규 |
+| src/app/(referee)/referee/admin/announcements/[id]/page.tsx | 공고 상세 — 일자 탭 + 좌(미선정 신청자)·우(선정 풀) 2열 / 책임자 토글 / 선정·취소 / 클라이언트 필터 | 신규 |
+| src/app/(referee)/referee/admin/pools/page.tsx | 대회별 일자별 풀 대시보드 — 대회 검색/선택 → 일자×역할 그룹 카드(필요/선정/책임자/선정인원 일부) + 공고 상세 링크 | 신규 |
+| src/app/(referee)/referee/admin/announcements/page.tsx | 테이블 관리열에 "상세" 링크 추가 (Link import) | 수정 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "일자별 운영"(calendar_today) 추가 | 수정 |
+
+💡 tester 참고:
+- `npx tsc --noEmit` 에러 0건 확인
+- 기존 스키마 변경 없음 — `db push` 불필요 (1차에서 4모델 + pool_id 이미 반영됨)
+- 테스트 시나리오 (순서대로):
+  1. 관리자로 `/referee/admin/announcements` → 공고 목록에서 "상세" 클릭
+  2. `/referee/admin/announcements/[id]` 상단 일자 탭 클릭 → 해당 일자 신청자만 좌측에 표시
+  3. 좌측 "선정" 버튼 → 즉시 좌측에서 사라지고 우측에 등장, 신청자 수에 반영
+  4. 우측 별표 버튼 → 해당 일자·역할 책임자가 본인에게 이동 (기존 chief 자동 해제)
+  5. 우측 "취소" 버튼 → 확인 후 선정 해제
+  6. `/referee/admin/pools` → 대회 선택 → 일자×역할 카드 출현 + "공고 상세" 링크로 이동
+- 정상 동작 확인 포인트:
+  - 다른 협회 심판의 pool 생성 시 403 FORBIDDEN
+  - 신청 안 한 심판을 선정 시 400 NOT_APPLIED
+  - 같은 (tournament, date, referee, role) 중복 선정 시 409 DUPLICATE_POOL
+  - 경기 배정이 이미 있는 pool 삭제 시 409 ASSIGNMENT_EXISTS
+  - is_chief=true 시 기존 chief는 자동으로 false (화면 새로고침 없이 반영)
+- 주의할 입력:
+  - date는 YYYY-MM-DD 고정 (API가 UTC 자정으로 변환)
+  - tournament_id는 UUID 문자열 (Tournament.id)
+  - referee_id는 BigInt — 클라이언트는 number/string로 보내면 Zod가 변환
+
+⚠️ reviewer 참고:
+- **IDOR 포인트**:
+  - POST: referee.association_id === admin.associationId 검증 후에만 생성, association_id는 세션 강제
+  - GET: where에 항상 association_id: admin.associationId
+  - PATCH/DELETE: existing.association_id === admin.associationId 검증
+- **트랜잭션**: is_chief=true 설정 시 기존 chief updateMany + 본인 update를 `$transaction` 배열로 원자 처리 (route.ts [id] L130~146)
+- **신청 존재 검증**: POST에서 `assignmentApplication.findFirst` with nested announcement(tournament+association+role_type) + dates.some(date) — 4중 조건으로 정확한 신청-선정 매칭 보장
+- **참조 무결성**: pool DELETE는 `_count.assignments > 0`이면 거부 — RefereeAssignment.pool_id(SetNull)가 있지만, 명시적 거부로 운영 실수 방지
+- **기존 코드 무수정 원칙 유지**:
+  - /referee/admin/assignments (경기 배정) 페이지/API 미수정 — 3차에서 통합
+  - announcements 페이지는 Link import + "상세" 버튼 1개만 추가
+- **디자인 일관성**: var(--color-*), Material Symbols(star/star_border/chevron_right), border-radius 4px, 하드코딩 색상 없음
 
 ## 구현 기록 (developer) — 배정워크플로우 1차
 
@@ -80,6 +130,47 @@
   - referee만 referee, 나머지는 모두 game_official로 판단 — 2차 이전에 PM 확인 필요
 - **withWebAuth 3-인자 패턴**: referee-applications/[id]에서 handler 시그니처 `(req, routeCtx, ctx)` — certificates/[id]와 동일
 - **Date[] 컬럼**: PostgreSQL native Date[] 타입. Prisma @db.Date 배열은 UTC 자정 저장
+
+## 테스트 결과 (tester) — 배정워크플로우 2차 [2026-04-13]
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| T1. tsc --noEmit | ✅ 통과 | Exit 0, 에러 0건 |
+| T2. pools POST 권한 | ✅ 통과 | route.ts L53-56: getAssociationAdmin + requirePermission("assignment_manage") |
+| T2. pools POST IDOR (협회 일치) | ✅ 통과 | L72-85: Referee 조회 후 referee.association_id !== admin.associationId면 403 FORBIDDEN |
+| T2. pools POST 신청 존재 검증 | ✅ 통과 | L91-112: Application + Announcement(tournament+association+role_type) + dates.some(date) 4중 조건, 없으면 400 NOT_APPLIED |
+| T2. pools POST 중복 선정 방지 | ✅ 통과 | L142-147: P2002 catch → 409 DUPLICATE_POOL "이미 선정된 심판입니다." (unique 제약 기반) |
+| T2. pools POST association_id 세션 강제 | ✅ 통과 | L118: create data에 admin.associationId 직접 주입 (클라 입력 무시) |
+| T2. pools GET association_id 필터 | ✅ 통과 | L172-175: where에 association_id: admin.associationId 항상 포함 / tournament_id 필수(L164) |
+| T2. pools [id] DELETE 배정 존재 시 거부 | ✅ 통과 | [id]/route.ts L75-81: _count.assignments > 0이면 409 ASSIGNMENT_EXISTS |
+| T2. pools [id] DELETE IDOR | ✅ 통과 | L68-74: existing.association_id !== admin.associationId면 403 FORBIDDEN |
+| T2. pools [id] PATCH is_chief 트랜잭션 | ✅ 통과 | L136-159: $transaction([updateMany(기존 chief false, NOT id), update(본인 chief true)]) — 같은 tournament_id+date+role_type 범위로 잠금 |
+| T2. pools [id] PATCH IDOR | ✅ 통과 | L129-131: 다른 협회 수정 시 403 |
+| T3. 공고 상세 "use client" | ✅ 통과 | announcements/[id]/page.tsx L1 |
+| T3. 일자별 탭 구조 | ✅ 통과 | activeDate state(L93) + 탭 렌더 L402-440 + 탭 활성 시 패널 전환 L442 |
+| T3. 신청자/풀 2열 | ✅ 통과 | 좌 미선정 신청자(L444-523) / 우 선정 풀(L525-) flexbox 2열 |
+| T3. 선정/취소/책임자 토글 버튼 | ✅ 통과 | 선정(L516 "선정"), 취소 확인(L234 confirm), 책임자 토글(L597-614 star/star_border) |
+| T3. 필요 인원 대비 선정 인원 표시 | ✅ 통과 | L182-188 selectedByDate + L434 `{selected}/{need} 선정` 탭 뱃지 + L539 우측 헤더 |
+| T4. 공고 목록 "상세" 링크 | ✅ 통과 | announcements/page.tsx L411-421: Link href=`/referee/admin/announcements/${a.id}` 관리열에 추가 |
+| T5. 일자별 운영 "use client" | ✅ 통과 | pools/page.tsx L1 |
+| T5. 대회 선택 드롭다운/검색 | ✅ 통과 | 대회 검색 input(L251) + /api/web/referee-admin/tournaments(L79) 조회 + 결과 리스트(L286-) |
+| T5. 일자별 카드 + 요약 | ✅ 통과 | date+role_type 그룹화(L152-179) + summary 4지표(L355-358 일자수/그룹/책임자/총선정) + 카드 렌더(L385-) |
+| T6. 메뉴 "일자별 운영" | ✅ 통과 | referee-shell.tsx L38: { href:"/referee/admin/pools", label:"일자별 운영", icon:"calendar_today" } |
+| T7. 회귀: assignments 미수정 | ✅ 통과 | git status에 /referee/admin/assignments 및 /api/web/referee-admin/assignments 파일 없음 |
+| T7. 회귀: 1차 공고/신청 API 미수정 | ✅ 통과 | announcements/page.tsx는 Link import + "상세" 링크 1개만 추가(git diff 12줄), 1차 API 라우트(/api/web/referee-admin/announcements, /api/web/referee-applications) 수정 흔적 없음 |
+| T7. 회귀: referee-shell 기존 메뉴 보존 | ✅ 통과 | git diff에서 기존 NAV_ITEMS 변경 없음, L38 한 줄만 추가 |
+
+📊 종합: 23개 중 23개 통과 / 0개 실패
+
+**전체 PASS** — PM 커밋 승인 권장.
+
+보조 확인 사항 (참고):
+- unique 제약과 P2002 catch가 이중 방어 (DB 제약 + 애플리케이션 단의 NOT_APPLIED 선검증)
+- POST에서 referee 존재 확인 → IDOR 체크 → 신청 매칭 → create 순서로 방어 단계가 논리적
+- PATCH는 is_chief=true일 때만 $transaction, false/memo만일 때는 단일 update — 불필요 트랜잭션 회피 합리적
+- 클라이언트 낙관적 UI(selecting Set으로 중복 클릭 방지 L95)
+- Material Symbols(star/star_border/chevron_right/calendar_today) + border-radius 4px + var(--color-*) 일관
+- 기존 배정(RefereeAssignment) 페이지/API 0 수정 — 3차 통합 전까지 회귀 리스크 없음
 
 ## 테스트 결과 (tester) — 배정워크플로우 1차 [2026-04-13]
 
@@ -352,6 +443,8 @@ tester 참고:
 | 04-13 | developer | 경기 배정: 스키마unique+tournaments/matches/assignments API 4개+3단계드릴다운 페이지+셸 (7파일) | ✅ tsc 통과 |
 | 04-13 | reviewer | 경기 배정 리뷰: critical 0, warning 3, nit 2 | ✅ APPROVE w/ comments |
 | 04-13 | developer | v4 배정워크플로우 1차: 스키마4모델+pool_id / 관리자 API 2개 / 본인 API 3개 / 페이지 2개 / 셸 2메뉴 (9파일) | ✅ tsc 통과 |
+| 04-13 | developer | v4 배정워크플로우 2차: pools API 2개(POST/GET, PATCH/DELETE) + 공고상세+풀대시보드 페이지 2개 + 공고목록 상세링크 + 셸 "일자별 운영" 메뉴 (6파일) | ✅ tsc 통과 |
+| 04-13 | reviewer | v4 배정워크플로우 2차 리뷰 (6파일) | ✅ APPROVE w/ comments (critical 0, warning 3, nit 3) |
 
 ---
 
@@ -705,3 +798,69 @@ reviewer 참고:
 - [ ] 공고 `status="cancelled"` 시 본인 화면에 이미 낸 신청을 "공고 취소" 표시
 - [ ] 이미 DailyAssignmentPool에 선정된 신청은 본인 취소 차단 (applications/[id] DELETE)
 - [ ] Pool 생성 API에서 `@@unique` 제약 덕분에 중복 선정 자동 방지 확인
+
+---
+
+## 리뷰 결과 (reviewer) — 배정 워크플로우 2차 (2026-04-13)
+
+종합 판정: **APPROVE with comments** (필수 수정 0건, 권장 수정 3건, nit 3건)
+
+### 잘된 점
+- **IDOR 3중 방어 견고함**: pools/route.ts POST는 (1) referee.association_id === admin.associationId 직접 검증, (2) matchedApp을 `announcement.association_id: admin.associationId` 조건으로 찾아 "다른 협회 공고로 신청한 타협회 심판"까지 차단, (3) 생성 시 body 무시하고 세션 associationId 강제 주입. DELETE/PATCH도 existing.association_id 일치 검증 후 동작.
+- **신청 존재성 검증이 정확함**(L91-105): 단순히 referee가 협회 소속인지만 보는 게 아니라, "해당 tournament+association+role_type 공고에 해당 일자로 신청한 Application이 실제 있는지"까지 확인. 신청 없이 선정 불가 → 워크플로우 무결성 보장.
+- **중복 선정 3중 방어**: (1) DB @@unique([tournament_id, date, referee_id, role_type]), (2) P2002 catch → 409 DUPLICATE_POOL 친절 메시지, (3) 프론트 `selectedRefereeIds` Set으로 이미 선정된 심판은 "미선정 신청자" 목록에서 자동 제외 → 선정 버튼 자체가 안 보임. 3중.
+- **책임자(is_chief) 원자 교체**: PATCH L136-159가 `$transaction([updateMany(기존 chief 해제), update(본인 chief 지정)])`로 묶임. 동시에 두 명이 chief가 되는 경합 없음. `NOT: {id}`로 본인 제외해 자기 해제 루프 방지.
+- **cascade 방지**: DELETE L75-81이 `_count.assignments > 0`이면 409 ASSIGNMENT_EXISTS. RefereeAssignment.pool_id는 onDelete:SetNull이라 그냥 삭제해도 DB 무결성은 유지되지만, 이미 경기에 배정된 심판을 풀에서 빼면 "경기에 붙었는데 풀에는 없는" 이상 상태 발생 → 사전 차단한 게 맞음.
+- **권한 분리 적절**: POST/PATCH/DELETE는 `requirePermission("assignment_manage")`(사무국장/심판팀장/경기팀장만), GET은 `getAssociationAdmin()` 통과만으로 열람 허용. 1차 announcements와 동일한 정책.
+- **날짜 처리 일관성**: 1차와 동일한 `toUtcDate(ymd)` = `new Date(\`${ymd}T00:00:00.000Z\`)` + `toIsoString().slice(0,10)` 왕복. PostgreSQL @db.Date(UTC 자정 저장) + Prisma Date[] 입출력과 호환.
+- **클라이언트 UX 세밀함**:
+  - 선정 중 버튼 `selecting: Set<string>`으로 중복 클릭 방지(announcements/[id] L194-226).
+  - 일자 탭 버튼에 `선정/필요` 카운트 실시간 표시.
+  - 선정 취소 시 `confirm()` 한 단계 거침.
+  - chief 토글 버튼과 취소 버튼이 시각적으로 분리됨(star/star_border 아이콘 + 테두리 색).
+- **기존 기능 무영향**: assignments 페이지·API 미수정, 1차 announcements/applications 기능 무수정. 셸에 메뉴 1개만 추가(L38).
+- **디자인 컨벤션 준수**: 모든 색상 `var(--color-*)`, border-radius 4px, Material Symbols 사용, lucide-react 없음, 하드코딩 `#ffffff`는 primary 위의 텍스트에만 제한적으로 사용(OK).
+
+### 필수 수정
+없음.
+
+### 권장 수정
+
+🟡 **pools/route.ts POST — Announcement status 검증 누락** (L91-105)
+- 현재는 Application이 존재하는지만 확인. 해당 공고가 `cancelled` 상태여도 선정이 가능.
+- 영향: 취소된 공고의 신청자를 선정할 수 있는 엣지 케이스. 운영상 혼란 여지.
+- 수정: `matchedApp` 조회 시 `announcement: { ..., status: { not: "cancelled" } }` 조건 추가하거나, 별도로 `announcement.status`를 확인해 400 반환.
+
+🟡 **pools/route.ts GET — 대용량 응답 페이지네이션 부재** (L179-208)
+- tournament_id 하나로 `findMany`가 전체 풀을 반환. 대회가 10일 × 20명 × 2역할이면 400건 이상. 공고 대시보드 성능 저하 가능.
+- 수정: limit/offset 또는 커서 기반 페이지네이션 추가. 현 스케일에서 당장 문제는 없으므로 2차 마무리 시점에 고려.
+
+🟡 **pools/[id] PATCH — memo만 바꿀 때 is_chief 분기 불일치 처리** (L161-172)
+- `is_chief === undefined && memo !== undefined`는 정상 단순 업데이트 분기로 들어가 OK.
+- 그러나 `is_chief === true && memo === undefined` 케이스는 transaction 분기에서 `...(memo !== undefined ? { memo } : {})`로 memo 미터치 → OK.
+- 혼재 시 약간 읽기 어려움. 향후 is_chief=true 전용 함수로 분리 리팩토링 권장(동작은 정확함).
+
+### Nit (선택 개선)
+
+🔵 **pools/route.ts L35-37 `toYmd` 함수 미사용**: import된 헬퍼지만 GET 응답은 Prisma Date를 그대로 직렬화(ISO 문자열). 죽은 코드. 제거하거나 GET 응답에서 실제 사용(예: `date: toYmd(p.date)`)으로 정리.
+
+🔵 **announcements/[id] page.tsx `loadDetail` useCallback 의존성 함정** (L99-127):
+- 의존성에 `activeDate`가 들어가 있는데, 같은 effect에서 `setActiveDate`를 호출. 재로드 시 `activeDate`가 이미 설정되어 있으면 `!activeDate` 조건을 건너뜀 → 의도대로 동작.
+- 그러나 `loadDetail` 재실행 시 `activeDate` 변경이 함수 재생성을 유발 → `useEffect(() => loadDetail(), [loadDetail])`로 불필요한 재호출 가능성. 현재 공고 데이터가 캐시되지 않고 매번 fetch됨.
+- 실사용에서 느껴지는 문제는 없으나, `activeDate` 의존성을 제거하고 초기 활성 일자는 별도 effect(`useEffect(() => { if (detail && !activeDate && detail.dates.length) setActiveDate(toYmd(detail.dates[0])); }, [detail, activeDate])`)로 분리하는 편이 안전.
+
+🔵 **pools 대시보드 `needFor` 합산 로직** (admin/pools/page.tsx L183-193):
+- 같은 대회·같은 일자·같은 role_type에 공고가 2개 이상이면 `required_count[ymd]`를 단순 합산. 의도한 동작이라면 OK. 그러나 "주의: 동일 조합 공고는 사실상 하나만 허용" 같은 운영 규칙이 있다면 주석으로 명시하거나 UI에서 "공고 N개 합산" 표기 권장.
+
+### 기타 관찰
+- **신청자 목록에 phone 노출**(announcements/[id] page.tsx): 1차 리뷰에서 권장한 마스킹/권한 분리는 이번에도 미적용. 관리자 전용 화면이라 차단되지만 2차에서 재검토.
+- **BigInt 직렬화**: `referee_id`가 `string | number` union 타입으로 프론트에서 처리. POST body에서도 `z.union([number, string]).transform(BigInt)`로 방어적 변환. OK.
+- **풀 재로드 전략**: 선정/취소/chief 토글 후 `loadPools()` 전체 재호출. 네트워크 왕복 1회 추가되지만, 동시성 충돌·stale state 방지에 유리. 현 스케일에서 적절한 선택.
+- **pools 대시보드 `searchTournaments`가 대회 상태 필터 없음**: 종료된 대회도 포함될 수 있음. 1차 리뷰에서 지적한 내용과 동일 — tournaments API 레벨에서 해결 필요.
+
+### 3차 구현 시 체크리스트
+- [ ] Pool → RefereeAssignment로 내려가는 경기별 배정 UI (pool_id FK 활용)
+- [ ] 공고 status=cancelled 시 pools POST 차단 (위 권장 수정 적용)
+- [ ] "책임자" 지정 자동 배정 전략(예: 첫 경기 주심 우선 할당)
+- [ ] 연락처 마스킹 + 별도 권한(contact_view 등) 도입
+

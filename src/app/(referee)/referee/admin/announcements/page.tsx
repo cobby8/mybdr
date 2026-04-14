@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -406,6 +407,18 @@ export default function AnnouncementsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
+                      {/* 배정 워크플로우 2차: 공고 상세(선정 UI) 이동 */}
+                      <Link
+                        href={`/referee/admin/announcements/${a.id}`}
+                        className="px-2 py-1 text-xs font-semibold"
+                        style={{
+                          border: "1px solid var(--color-primary)",
+                          color: "var(--color-primary)",
+                          borderRadius: 4,
+                        }}
+                      >
+                        상세
+                      </Link>
                       <button
                         onClick={() => toggleStatus(a)}
                         className="px-2 py-1 text-xs font-semibold"

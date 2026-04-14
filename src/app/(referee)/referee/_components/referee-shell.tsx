@@ -34,6 +34,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/referee/admin/assignments", label: "배정 관리", icon: "event_available" },
   // 배정 워크플로우 1차: 관리자가 신청 공고 게시/관리
   { href: "/referee/admin/announcements", label: "공고 관리", icon: "campaign" },
+  // 배정 워크플로우 2차: 대회별 일자별 풀 대시보드
+  { href: "/referee/admin/pools", label: "일자별 운영", icon: "calendar_today" },
   { href: "/referee/admin/settings", label: "설정", icon: "settings" },
 ];
 
