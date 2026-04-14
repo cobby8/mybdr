@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
 import { encryptResidentId, extractLast4 } from "@/lib/security/encryption";
 import { findMatchingUser, executeMatch } from "@/lib/services/referee-matching";
+// 헬스체크 봇의 쓰기 작업 차단 가드
+import { requireNotBot } from "@/lib/healthcheck/is-bot";
 
 /**
  * POST /api/web/referee-admin/members
@@ -77,6 +79,10 @@ export async function POST(req: Request) {
     // 2) 심판 관리 권한 체크
     const denied = requirePermission(admin.role, "referee_manage");
     if (denied) return denied;
+
+    // 2-1) 봇 방어 — 헬스체크 봇 계정은 쓰기 차단
+    const botCheck = await requireNotBot(admin.userId);
+    if (botCheck) return botCheck.error;
 
     // 3) 요청 본문 파싱 + 검증
     const body = await req.json();

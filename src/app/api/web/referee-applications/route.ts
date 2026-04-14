@@ -2,6 +2,8 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError, validationError } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
+// 헬스체크 봇의 쓰기 작업 차단 가드
+import { requireNotBot } from "@/lib/healthcheck/is-bot";
 
 /**
  * /api/web/referee-applications
@@ -38,6 +40,10 @@ const createSchema = z.object({
 
 // ── POST: 신청 제출 ──
 export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
+  // 0) 봇 방어 — 헬스체크 봇 계정은 쓰기 차단
+  const botCheck = await requireNotBot(ctx.userId);
+  if (botCheck) return botCheck.error;
+
   // 1) 본인 Referee 조회
   const referee = await prisma.referee.findUnique({
     where: { user_id: ctx.userId },

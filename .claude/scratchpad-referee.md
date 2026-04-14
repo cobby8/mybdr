@@ -2,6 +2,64 @@
 
 ---
 
+## 구현 기록 (developer) — 헬스체크 봇 1차 (2026-04-13)
+
+📝 구현한 기능:
+- HealthCheckRun / HealthCheckResult 2모델 추가 (기존 ALTER 0건, CREATE TABLE 2건만)
+- 봇 식별 헬퍼 `src/lib/healthcheck/is-bot.ts` (isBotEmail / isBotUser / requireNotBot)
+- 봇 계정 시드 스크립트 `scripts/seed-healthcheck-bots.js`
+  - BOT협회 1개(code="BOT-HEALTHCHECK") + 봇 User 3개(admin/referee/guest) + AssociationAdmin/Referee 매핑
+- 6개 핵심 쓰기 API에 `requireNotBot` 가드 삽입 (권한 체크 직후)
+
+### 변경 파일
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| prisma/schema.prisma | HealthCheckRun + HealthCheckResult 2모델 append | 수정 |
+| src/lib/healthcheck/is-bot.ts | 봇 식별 + 쓰기 가드 헬퍼 | 신규 |
+| scripts/seed-healthcheck-bots.js | 개발 DB 봇 시드 스크립트 (운영 금지 경고 포함) | 신규 |
+| src/app/api/web/referee-admin/announcements/route.ts | POST에 requireNotBot 삽입 | 수정 |
+| src/app/api/web/referee-applications/route.ts | POST에 requireNotBot 삽입 (ctx.userId) | 수정 |
+| src/app/api/web/referee-admin/pools/route.ts | POST에 requireNotBot 삽입 | 수정 |
+| src/app/api/web/referee-admin/assignments/route.ts | POST에 requireNotBot 삽입 | 수정 |
+| src/app/api/web/referee-admin/settlements/route.ts | POST에 requireNotBot 삽입 | 수정 |
+| src/app/api/web/referee-admin/members/route.ts | POST에 requireNotBot 삽입 | 수정 |
+
+### 핵심 설계 포인트
+- **봇 식별 기준**: `@healthcheck.bot` 이메일 서픽스. DNS 등록 불가 도메인이라 실계정 충돌 0.
+- **requireNotBot 반환 타입**: `{ error: Response } | null` — 호출측이 `if (botCheck) return botCheck.error;` 패턴으로 간결 조기 반환.
+- **읽기는 허용**: GET은 봇 방어 없음. 헬스체크의 목적이 "읽어서 존재/응답 확인"이므로 쓰기만 차단.
+- **apiError 사용**: `Response.json` 대신 프로젝트 공통 `apiError(message, 403, "BOT_WRITE_FORBIDDEN")` — 응답 포맷 일관성.
+- **admin vs ctx**: 관리자 API는 `admin.userId`(bigint), 본인 API(withWebAuth)는 `ctx.userId`(bigint). 둘 다 bigint이므로 시그니처는 `bigint | number | null | undefined` 수용.
+- **시드 스크립트**: upsert 기반이라 재실행 안전. `BOT_DEFAULT_PASSWORD` 환경변수로 비밀번호 주입, 미지정 시 시각 기반 임시값 생성 후 콘솔 노출.
+- **운영 안전**: schema 파일 맨 끝에 append — 기존 모델 ALTER 0건. 스크립트는 "개발 DB 전용" 경고 주석 배치.
+
+### 검증
+- `npx prisma validate`: ✅ 통과 ("The schema at prisma\\schema.prisma is valid 🚀")
+- `npx tsc --noEmit`: ✅ 통과 (EXIT=0, 에러 0건)
+- `npx prisma generate`: ⚠️ EPERM (query_engine DLL이 실행 중 node 프로세스에 잠김)
+  - schema는 유효하지만 client 재생성은 PM이 dev 서버 재시작 후 수행 필요
+  - 현재 커밋된 코드는 기존 PrismaClient 타입만 사용(User/Association/AssociationAdmin/Referee) — tsc 통과로 runtime 위험 없음
+
+💡 tester 참고:
+- **사전 준비**:
+  1. PM이 포트 3001 등 dev 서버 종료 → `npx prisma generate` → `npx prisma db push` (개발 DB에만)
+  2. `BOT_DEFAULT_PASSWORD=test123! node scripts/seed-healthcheck-bots.js` 실행
+- **테스트 방법**:
+  1. `bot-admin@healthcheck.bot` 로그인 → POST `/api/web/referee-admin/announcements` → 403 + `BOT_WRITE_FORBIDDEN` 응답 확인
+  2. GET `/api/web/referee-admin/announcements` → 200 정상 응답 (읽기 허용)
+  3. `bot-referee@healthcheck.bot` 로그인 → POST `/api/web/referee-applications` → 403 확인
+  4. 일반 관리자 계정은 정상 쓰기 가능 (회귀 없음)
+- **정상 동작**: 403 + `{ error: "헬스체크 봇은 쓰기 작업을 수행할 수 없습니다.", code: "BOT_WRITE_FORBIDDEN" }`
+- **주의할 입력**: 봇 이메일 검사는 소문자 비교(`toLowerCase()`) — 대문자 혼용도 차단됨.
+
+⚠️ reviewer 참고:
+- 봇 방어는 **권한 체크 직후**에만 배치. 이유: 권한 통과 후에도 봇이라면 즉시 차단하는 것이 의미 있으며, 권한 실패 시 403이 먼저 나가서 불필요한 User 조회가 없음.
+- `requireNotBot`는 매 쓰기마다 User findUnique 1회 발생 → 운영 부하 미미(쓰기 트래픽 자체가 낮음).
+- schema에 추가한 2모델은 아직 `prisma db push` 전. 프로덕션 반영 전 개발 DB에서 마이그레이션 검증 필요.
+- bot-referee의 `license_number`는 `BOT-REF-${Date.now()}` 로 UNIQUE 충돌 회피. 다회 시드 시에도 upsert(where: user_id)로 기존 레코드 재사용 → 새 license_number 생성은 최초 1회.
+
+---
+
 ## 구현 기록 (developer) — 심판 전용 로그인/가입 (2026-04-13)
 
 📝 구현한 기능:

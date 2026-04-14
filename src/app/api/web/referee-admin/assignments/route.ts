@@ -8,6 +8,8 @@ import { z } from "zod";
 import type { NextRequest } from "next/server";
 // 경기 배정 생성 시 심판에게 알림 발송
 import { notifyAssignmentCreated } from "@/lib/notifications/referee-events";
+// 헬스체크 봇의 쓰기 작업 차단 가드
+import { requireNotBot } from "@/lib/healthcheck/is-bot";
 
 /**
  * POST /api/web/referee-admin/assignments
@@ -60,6 +62,10 @@ export async function POST(req: NextRequest) {
   }
   const denied = requirePermission(admin.role, "assignment_manage");
   if (denied) return denied;
+
+  // 1-1) 봇 방어 — 헬스체크 봇 계정은 쓰기 차단
+  const botCheck = await requireNotBot(admin.userId);
+  if (botCheck) return botCheck.error;
 
   // 2) body 파싱 + Zod 검증
   let body: unknown;

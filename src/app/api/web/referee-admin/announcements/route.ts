@@ -8,6 +8,8 @@ import { z } from "zod";
 import type { NextRequest } from "next/server";
 // 공고 게시 시 협회 소속 심판에게 일괄 알림 발송 — 실패해도 메인 트랜잭션은 성공
 import { notifyAnnouncementPublished } from "@/lib/notifications/referee-events";
+// 헬스체크 봇의 쓰기 작업 차단 가드 (봇이 운영 데이터를 더럽히지 못하게)
+import { requireNotBot } from "@/lib/healthcheck/is-bot";
 
 /**
  * /api/web/referee-admin/announcements
@@ -63,6 +65,10 @@ export async function POST(req: NextRequest) {
   }
   const denied = requirePermission(admin.role, "assignment_manage");
   if (denied) return denied;
+
+  // 1-1) 봇 방어 — 헬스체크 봇 계정은 쓰기 차단 (읽기는 허용)
+  const botCheck = await requireNotBot(admin.userId);
+  if (botCheck) return botCheck.error;
 
   // 2) body 파싱 + Zod 검증
   let body: unknown;

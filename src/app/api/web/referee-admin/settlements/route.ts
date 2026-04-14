@@ -6,6 +6,8 @@ import {
 import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
 import type { NextRequest } from "next/server";
+// 헬스체크 봇의 쓰기 작업 차단 가드
+import { requireNotBot } from "@/lib/healthcheck/is-bot";
 
 /**
  * GET /api/web/referee-admin/settlements
@@ -355,6 +357,10 @@ export async function POST(req: NextRequest) {
   }
   const denied = requirePermission(admin.role, "settlement_manage");
   if (denied) return denied;
+
+  // 봇 방어 — 헬스체크 봇 계정은 쓰기 차단
+  const botCheck = await requireNotBot(admin.userId);
+  if (botCheck) return botCheck.error;
 
   // body 파싱
   let body: unknown;
