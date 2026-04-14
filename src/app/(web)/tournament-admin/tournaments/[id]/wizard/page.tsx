@@ -11,6 +11,8 @@ import {
 import { TeamSettingsForm, type TeamSettingsData } from "@/components/tournament/team-settings-form";
 import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
+// 대진 포맷 세부 설정 폼 — format 선택 UI 아래에 삽입
+import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
 
@@ -153,6 +155,23 @@ export default function TournamentEditWizardPage() {
   // --- 문의 연락처 (settings.contact_phone에 저장) ---
   const [contactPhone, setContactPhone] = useState("");
 
+  // --- 대진 포맷 세부 설정 (settings.bracket에 저장) ---
+  const [bracketSettings, setBracketSettings] = useState<BracketSettingsData>({
+    format: "group_stage_knockout",
+    knockoutSize: 8,
+    bronzeMatch: false,
+    groupCount: 2,
+    teamsPerGroup: 4,
+    advancePerGroup: 2,
+    autoGenerateMatches: true,
+  });
+
+  // 현재 참가팀 수 (미리보기/조별 팀수 계산용)
+  const [teamCount, setTeamCount] = useState<number | undefined>(undefined);
+
+  // 기존 settings 원본 — 저장 시 머지용 (다른 키 유실 방지)
+  const [rawSettings, setRawSettings] = useState<Record<string, unknown>>({});
+
   // --- Step 3: 디자인 ---
   const [designTemplate, setDesignTemplate] = useState("basic");
   const [logoUrl, setLogoUrl] = useState("");
@@ -242,8 +261,31 @@ export default function TournamentEditWizardPage() {
       setSecondaryColor(t.secondary_color ?? t.secondaryColor ?? "#E76F51");
 
       // 문의 연락처 (settings JSON에서 읽기)
-      const settings = t.settings ?? {};
-      setContactPhone(settings.contact_phone ?? "");
+      const settings = (t.settings ?? {}) as Record<string, unknown>;
+      setRawSettings(settings);
+      setContactPhone((settings.contact_phone as string) ?? "");
+
+      // 대진 포맷 세부 설정 복원
+      // settings.bracket이 없으면 format 기반 기본값으로 초기화
+      const bracket = (settings.bracket ?? {}) as Record<string, unknown>;
+      const loadedFormat = LEGACY_FORMAT_MAP[dbFormat] ?? dbFormat;
+      setBracketSettings({
+        format: loadedFormat,
+        knockoutSize: typeof bracket.knockoutSize === "number" ? bracket.knockoutSize : 8,
+        bronzeMatch: typeof bracket.bronzeMatch === "boolean" ? bracket.bronzeMatch : false,
+        groupCount: typeof bracket.groupCount === "number" ? bracket.groupCount : 2,
+        teamsPerGroup: typeof bracket.teamsPerGroup === "number" ? bracket.teamsPerGroup : 4,
+        advancePerGroup: typeof bracket.advancePerGroup === "number" ? bracket.advancePerGroup : 2,
+        autoGenerateMatches: typeof bracket.autoGenerateMatches === "boolean" ? bracket.autoGenerateMatches : true,
+      });
+
+      // 현재 참가팀 수 — _count.tournamentTeams 우선, 없으면 teams_count, 그것도 없으면 maxTeams
+      const count =
+        t._count?.tournamentTeams ??
+        t.teams_count ??
+        t.teamCount ??
+        undefined;
+      setTeamCount(typeof count === "number" ? count : undefined);
     } catch {
       setError("대회 정보를 불러오지 못했습니다.");
     } finally {
@@ -254,6 +296,11 @@ export default function TournamentEditWizardPage() {
   useEffect(() => {
     loadTournament();
   }, [loadTournament]);
+
+  // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약/분기용)
+  useEffect(() => {
+    setBracketSettings((prev) => (prev.format === format ? prev : { ...prev, format }));
+  }, [format]);
 
   // 다음 단계 이동 — Step 0에서 대회명 필수 검증
   function goNext() {
@@ -329,8 +376,20 @@ export default function TournamentEditWizardPage() {
           banner_url: bannerUrl || null,
           primary_color: primaryColor,
           secondary_color: secondaryColor,
-          // settings JSON — 문의 연락처
-          settings: { contact_phone: contactPhone || null },
+          // settings JSON — 기존 값 유지 + 문의 연락처 + 대진 포맷 세부 설정
+          // (API PATCH는 DB의 현재 settings와 다시 머지하지만, 여기서도 rawSettings를 섞어 보내
+          //  다른 키가 실수로 누락되는 상황을 방지)
+          settings: {
+            ...rawSettings,
+            contact_phone: contactPhone || null,
+            bracket: {
+              knockoutSize: bracketSettings.knockoutSize,
+              bronzeMatch: bracketSettings.bronzeMatch,
+              groupCount: bracketSettings.groupCount,
+              advancePerGroup: bracketSettings.advancePerGroup,
+              autoGenerateMatches: bracketSettings.autoGenerateMatches,
+            },
+          },
         }),
       });
 
@@ -562,12 +621,23 @@ export default function TournamentEditWizardPage() {
                 value={format}
                 onChange={(e) => setFormat(e.target.value)}
                 className={inputCls}
+                disabled={status === "in_progress" || status === "completed"}
               >
                 {FORMAT_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
             </div>
+
+            {/* 대진 포맷 세부 설정 — 대회 진행/종료 시 잠금 */}
+            <BracketSettingsForm
+              data={bracketSettings}
+              teamCount={teamCount ?? (Number(teamSettings.maxTeams) || undefined)}
+              disabled={status === "in_progress" || status === "completed"}
+              onChange={(field, value) =>
+                setBracketSettings((prev) => ({ ...prev, [field]: value }))
+              }
+            />
 
             {/* 경기시간 프리셋 */}
             <GameTimeInput value={gameTime} onChange={setGameTime} />

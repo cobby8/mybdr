@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 대진표 시스템 개발 계획 수립 (포맷 설정 -> 자동 생성 -> 표시)
-- **상태**: 기획설계 완료
-- **현재 담당**: planner-architect
+- **요청**: 대진표 Phase 2-4 구체 계획 (리그→4강 자동 + 그래픽 강화 + wizard 포맷 + 자동 조편성)
+- **상태**: 기획설계 완료 (Phase 1 구현 완료 상태)
+- **현재 담당**: planner-architect → developer 대기
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-01)
 | 항목 | 수치 |
@@ -15,7 +15,195 @@
 
 ## 기획설계 (planner-architect)
 
-### 대진표 시스템 개발 (2026-04-13)
+### 대진표 Phase 2-4 개발 (2026-04-13)
+
+🎯 목표: 리그→4강 자동 생성 + 토너먼트 그래픽 강화 + wizard 포맷 세부설정 + 포맷별 자동 조편성/경기생성
+
+---
+
+### 현재 코드 베이스 조사 결과
+
+| 구분 | 파일/상태 | 핵심 내용 |
+|------|----------|----------|
+| wizard | src/app/(web)/tournament-admin/tournaments/new/wizard/page.tsx | FORMAT_OPTIONS 4종 선택 UI만 있음 → **포맷별 세부설정(조수/진출팀수/3-4위전) 없음**, body에 settings 전송 안 함 |
+| API POST | src/app/api/web/tournaments/route.ts | format만 저장. settings는 createTournament에 안 넘김 |
+| bracket API POST | src/app/api/web/tournaments/[id]/bracket/route.ts | single_elimination 전용. format 분기 없음 |
+| update-standings.ts | advanceWinner(토너먼트 진출) + updateTeamStandings(wins/losses) 2개 함수 | **리그 완료 감지 로직 없음** — 4강 자동생성 훅 추가 필요 |
+| 매치 완료 훅 | src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:145 | status==="completed"일 때 updateTeamStandings 호출 → **여기에 리그 완료 체크 추가 가능** |
+| bracket-generator.ts | generateSingleEliminationBracket + computeNextMatchLinks (BYE 배정, 시드정렬) | 재사용 가능 |
+| tournament-tabs.tsx | full_league_knockout 분기 완성 (LeagueStandings + hasKnockout ? BracketView : 안내카드) | **그대로 활용 — Phase 2A가 경기만 생성하면 자동으로 트리 노출됨** |
+| Tournament.settings | Json? @default("{}") 존재 | **스키마 변경 불필요** — preset/groupDraw/knockoutConfig 모두 여기에 저장 |
+
+---
+
+### Phase 2A: 리그 종료 시 4강 자동 생성 (예상 40분)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| src/lib/tournaments/league-completion.ts | (1) 리그 경기 전부 완료 여부 체크, (2) 4강 진출팀 순위 계산, (3) 1vs4/2vs3 준결승+결승(+3/4위전) TournamentMatch 생성 | 신규 |
+| src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts | PATCH 내 updateTeamStandings 직후 full_league_knockout이면 checkAndGenerateKnockout() 호출 | 수정 |
+| src/app/api/web/tournaments/[id]/generate-knockout/route.ts | admin 수동 트리거 POST (안전장치, 자동 실패 시 재시도용) | 신규 |
+
+🔗 기존 코드 연결:
+- LeagueStandings의 순위 정렬 로직(승률 → 득실차 → 다득점)을 **league-completion.ts에서 재사용**하기 위해 → `src/lib/tournaments/league-standings-calc.ts`로 추출 (LeagueStandings 컴포넌트도 이 유틸 사용)
+- tournament-tabs.tsx는 rounds 있으면 자동으로 BracketView 표시 → 경기 생성 완료되면 UI 자동 반영 (수정 불필요)
+- bracket-version.ts의 createBracketVersion 호출하여 버전 관리 일관성 유지
+
+🔑 핵심 로직 (league-completion.ts):
+```ts
+async function checkAndGenerateKnockout(tournamentId: string) {
+  // 1. tournament.format === 'full_league_knockout' 확인
+  // 2. settings.knockoutConfig = { size: 4, thirdPlaceMatch: boolean } 읽기
+  // 3. 리그 경기(group_name=null, round_number=null)가 전부 completed인지
+  // 4. 이미 토너먼트 경기(round_number != null) 있으면 skip
+  // 5. advisory lock으로 동시 생성 방지
+  // 6. 순위 계산 → size=4면 1위/2위/3위/4위 추출
+  // 7. TournamentMatch 3~4개 생성:
+  //    - 준결승1: home=1위팀, away=4위팀, round_number=1, bracket_position=1, next_match_id=결승
+  //    - 준결승2: home=2위팀, away=3위팀, round_number=1, bracket_position=2, next_match_id=결승
+  //    - 결승: round_number=2, bracket_position=1
+  //    - (옵션) 3/4위전: round_number=2, bracket_position=2 (독립, next_match_id=null)
+}
+```
+
+⚠️ developer 주의사항:
+- **동시성**: updateTeamStandings 완료 직후 호출이므로 여러 경기가 거의 동시에 completed → advisory lock 필수 + "이미 토너먼트 경기 있음" 체크 필수
+- **트랜잭션 외부 호출**: PATCH 핸들러의 트랜잭션 밖에서 호출하되 실패해도 경기 상태 변경은 보존 (warning만 반환)
+- size=8/16도 확장 고려하되 **MVP는 size=4만** (열혈농구단 요구사항)
+
+---
+
+### Phase 2B: 토너먼트 그래픽 강화 — 순위별 시드 표시 (예상 20분)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| src/app/(web)/tournaments/[id]/bracket/_components/match-card.tsx | "1위" "2위" 시드 뱃지 렌더링 추가 (팀 이름 앞) | 수정 |
+| src/lib/tournaments/bracket-builder.ts | RoundGroup 타입에 seedLabel 필드 추가 검토 **→ NO: 수정 금지 원칙. 대신 public-bracket API에서 seedLabel 주입** | 금지 |
+| src/app/api/web/tournaments/[id]/public-bracket/route.ts | full_league_knockout이고 round_number=1일 때 각 매치의 home/awayTeam에 seedRank (1~4) 메타 추가 | 수정 |
+
+🔗 기존 코드 연결:
+- BracketView/match-card는 기존 데스크톱 SVG + 모바일 탭 구조 그대로 유지
+- `roundName`은 이미 bracket-generator에서 "4강"/"결승" 자동 생성 → 별도 표기 불필요
+- 3/4위전은 `roundName = "3·4위전"` + `bracket_level`/`bracket_position`으로 구분
+
+🔑 시드 표시 UX:
+- 매치카드 팀 이름 앞에 작은 뱃지 `#1` `#4` 형식 (--color-accent 배경, 12px)
+- Phase 2A에서 생성된 준결승 경기만 해당 (결승/3-4위전은 "승자 vs 승자")
+
+⚠️ developer 주의사항:
+- bracket-builder.ts **절대 수정 금지** (기존 토너먼트 시각화 깨짐) → public-bracket API 응답에만 seedRank 추가
+- 기존 single_elimination 대회는 seedRank 없이 렌더링 (조건부)
+
+---
+
+### Phase 3: wizard 포맷별 세부설정 UI (예상 50분)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| src/components/tournament/format-settings-form.tsx | format 선택에 따라 조건부 필드 렌더링 (group_stage_knockout: 조수/조당팀수/조별진출수, single_elimination: 진출팀수 4/8/16, full_league_knockout: 4강여부/3-4위전, dual_tournament: 플래그만) | 신규 |
+| src/app/(web)/tournament-admin/tournaments/new/wizard/page.tsx | Step 1에 FormatSettingsForm 추가, body.settings에 포맷별 config 전송 | 수정 |
+| src/app/(web)/tournament-admin/tournaments/[id]/wizard/page.tsx | 기존 대회 수정 시에도 동일 UI + **대회 개시 전(status=registration_open 이전)만 수정 가능** 가드 | 수정 |
+| src/app/api/web/tournaments/route.ts (POST) | body.settings 받아 createTournament에 전달 | 수정 |
+| src/app/api/web/tournaments/[id]/route.ts (PUT) | settings 업데이트 허용 + status 체크 | 수정 |
+| src/lib/services/tournament.ts (createTournament) | settings Json 필드 저장 | 수정 |
+
+📋 settings JSON 스키마:
+```json
+{
+  "formatConfig": {
+    "group_stage_knockout": { "groupCount": 4, "teamsPerGroup": 4, "advancingPerGroup": 2, "knockoutSize": 8, "thirdPlaceMatch": false },
+    "single_elimination":   { "knockoutSize": 16, "thirdPlaceMatch": false },
+    "full_league_knockout": { "knockoutSize": 4, "thirdPlaceMatch": true },
+    "dual_tournament":      { "bracketCount": 2 }
+  }
+}
+```
+저장 시 선택된 format의 config만 저장 (전체 저장 안 함).
+
+🔑 대회 개시 전 수정 플로우:
+- status가 `draft` 또는 `preparing` (접수시작 전)에만 수정 가능
+- 이미 참가팀 승인되어 있으면 **경고만 표시** (설정 변경 가능하나 재조편성 필요 안내)
+- 경기가 1개라도 생성돼 있으면 수정 막기 (DB 정합성)
+
+⚠️ developer 주의사항:
+- FORMAT_OPTIONS 4종 그대로 유지 (value 변경 금지 — DB 영향)
+- Zod 스키마로 formatConfig 검증 (각 format별 허용 키 화이트리스트)
+
+---
+
+### Phase 4: 포맷별 자동 조편성/경기 생성 (예상 90분)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| src/lib/tournaments/league-generator.ts | 풀리그 경기쌍 생성(round-robin N*(N-1)/2, group_name=null, round_number=null) | 신규 |
+| src/lib/tournaments/group-draw.ts | 스네이크 드래프트 조편성 + 조별 풀리그 경기 생성(group_name=A/B/C/D 설정) | 신규 |
+| src/lib/tournaments/knockout-seeding.ts | 조별리그 결과 기반 교차시딩(조1위 vs 타조2위) + BYE 배정 + 3/4위전 옵션 | 신규 |
+| src/app/api/web/tournaments/[id]/bracket/route.ts (POST) | format 분기: single_elimination은 기존 로직, 나머지 3종은 신규 유틸 호출 | 수정 |
+| src/app/(web)/tournament-admin/tournaments/[id]/bracket/page.tsx | format별 UI: 조별이면 조편성 표시, 풀리그면 "리그 경기 생성" 버튼 | 수정 |
+
+🔑 format별 생성 로직:
+
+**full_league_knockout** (풀리그+토너먼트):
+- POST 시: league-generator가 모든 팀의 round-robin 경기 생성 (group_name=null, round_number=null, scheduled)
+- 리그 완료 후: Phase 2A의 league-completion이 자동으로 4강 경기 생성
+
+**group_stage_knockout** (조별+토너먼트):
+- POST 시: group-draw로 팀을 groupCount개 조로 배분 → 각 조 내 round-robin 경기 생성 (group_name="A"/"B"/..., round_number=null)
+- 조별리그 완료 후: admin 페이지에서 "토너먼트 생성" 버튼 → knockout-seeding 호출 → 조1위 vs 타조2위 교차배치
+
+**single_elimination** (순수 토너먼트):
+- 기존 로직 그대로 유지 (bracket-generator.ts 활용)
+
+**dual_tournament**: Phase 5로 미룸
+
+🔑 스네이크 드래프트 (group-draw.ts):
+```
+시드 1 → A조 | 시드 2 → B조 | 시드 3 → C조 | 시드 4 → D조
+시드 5 → D조 | 시드 6 → C조 | 시드 7 → B조 | 시드 8 → A조
+시드 9 → A조 | ... (반복)
+```
+
+🔑 풀리그 경기쌍 (league-generator.ts):
+- N팀 중 (i,j) i<j 모든 조합 → N*(N-1)/2 경기
+- scheduledAt은 null (admin이 수동 배정), status=scheduled
+- homeTeamId/awayTeamId는 시드 순서 균등 분배(라운드-로빈 알고리즘)
+
+⚠️ developer 주의사항:
+- 조별리그 경기: **group_name 설정, round_number/bracket_position은 NULL 유지** (기존 약속)
+- 토너먼트 경기: round_number/bracket_position 설정, group_name은 NULL (기존 패턴)
+- advisory lock + bracket version 관리 기존 패턴 동일 적용
+- **MVP 최소 범위**: Phase 4에서 full_league_knockout + group_stage_knockout 2종만 (single은 기존 유지)
+
+---
+
+### 🚀 구현 순서 (의존관계 고려)
+
+| 순서 | 작업 | 담당 | 선행 | 예상 |
+|------|------|------|------|------|
+| 1 | Phase 3 — wizard 포맷 세부설정 UI + settings 저장 (UI만, 생성 로직 없어도 저장은 가능) | developer | 없음 | 50분 |
+| 2 | Phase 4a — league-generator.ts + bracket POST에 full_league_knockout 분기 | developer | 1 | 30분 |
+| 3 | Phase 2A — league-completion.ts + matches PATCH 훅 + 수동 트리거 API | developer | 2 | 40분 |
+| 4 | Phase 2B — public-bracket API seedRank + match-card 뱃지 | developer | 3 | 20분 |
+| 5 | 통합 테스트 (full_league_knockout 전체 플로우 — 리그 생성→경기입력→자동4강) | tester | 4 | 15분 |
+| 6 | Phase 4b — group-draw.ts + knockout-seeding.ts + group_stage_knockout 분기 | developer | 5 | 60분 |
+| 7 | 최종 통합 검증 | tester + reviewer (병렬) | 6 | 15분 |
+
+**MVP 권장**: 1→2→3→4→5까지 (full_league_knockout 완성). Phase 4b(조별리그)는 별도 iteration.
+
+---
+
+### ❓ 사용자 결정 필요 사항 (developer 진입 전 확인)
+
+1. **4강 자동 생성 트리거**: A안(경기 completed 시 서버 hook 자동) 채택. admin 수동 트리거 API는 안전장치로 함께 제공. ✅
+2. **3/4위전 기본값**: 열혈농구단 settings.knockoutConfig.thirdPlaceMatch → 사용자 선호 확인 필요
+3. **리그 전체 생성 방식**: full_league_knockout 대회 생성 시 **자동 경기 생성**(POST bracket 버튼 클릭 시) vs **수동 입력**? 열혈농구단은 이미 31경기 수동 입력됨 → 향후 대회부터 자동 생성 적용 권장
+4. **size=4 이외 4강 확장**: MVP는 4로 고정. 향후 size=8/16 지원 시 settings.knockoutConfig.size 활용
+
+### 대진표 시스템 개발 (2026-04-13) — Phase 1 (참고용, 완료)
 
 목표: 대회 관리자가 포맷 설정 -> 경기 자동 생성 -> 대진표/순위표 표시까지 완성
 
@@ -195,6 +383,56 @@ reviewer 참고:
 |------|------|----------|----------|------|
 | 1차 | 04-13 | 대진표 탭에서 LeagueSchedule 제거 + 4강 토너먼트 트리 영역 추가 (hasKnockout ? BracketView : 안내 카드), hasLeagueData 조건을 leagueTeams만으로 완화, LeagueMatch import 제거 | tournament-tabs.tsx | PM 요청: 경기 일정은 "일정" 탭에 이미 있으므로 대진표 탭은 "조편성(리그 순위)+4강 트리" 역할로 변경 |
 
+### Phase 3: admin wizard 포맷 세부설정 UI + settings 저장 (2026-04-13)
+
+구현한 기능: 대회 생성/수정 wizard의 "경기 설정" 섹션에 포맷별 조건부 세부설정 UI(조 수/토너먼트 진출팀/3-4위전/경기 자동생성) 추가. Tournament.settings.bracket JSON에 저장. 기존 contact_phone 등 settings 다른 키 머지 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/components/tournament/bracket-settings-form.tsx | 포맷별 조건부 UI(조별리그/토너먼트/공통) + 요약 + disabled prop | 신규 |
+| src/app/(web)/tournament-admin/tournaments/new/wizard/page.tsx | BracketSettingsForm 삽입 + bracketSettings state + POST body.settings.bracket | 수정 |
+| src/app/(web)/tournament-admin/tournaments/[id]/wizard/page.tsx | 동일 컴포넌트 삽입 + 로드 시 settings.bracket 복원 + rawSettings 머지 + status in_progress/completed 시 disabled | 수정 |
+| src/app/api/web/tournaments/route.ts (POST) | body.settings 받아 createTournament에 전달 | 수정 |
+| src/lib/services/tournament.ts | CreateTournamentInput.settings 추가 + Prisma.InputJsonValue 캐스팅하여 저장 | 수정 |
+
+저장 스키마:
+```ts
+settings: {
+  contact_phone?: string;
+  bracket?: {
+    knockoutSize: number;        // 토너먼트 진출팀 수 (2~64, 비제곱 허용)
+    bronzeMatch: boolean;        // 3/4위전 여부
+    groupCount: number;          // 조 수 (조별리그 전용)
+    advancePerGroup: number;     // 조별 진출 수 (1~3)
+    autoGenerateMatches: boolean;// 경기 자동생성 활성화
+  }
+}
+```
+
+tester 참고:
+- 테스트 URL (생성): /tournament-admin/tournaments/new/wizard
+- 테스트 URL (수정): /tournament-admin/tournaments/{id}/wizard
+- 정상 동작:
+  - 대회 방식 select를 바꾸면 아래 세부설정 섹션이 즉시 변한다
+    - "토너먼트" / "듀얼토너먼트": knockoutSize + 3/4위전 + 자동생성
+    - "조별리그+토너먼트": 조 수 + 조별 팀 수(자동) + 조별 진출 수 + knockoutSize + 3/4위전 + 자동생성
+    - "풀리그+토너먼트": knockoutSize + 3/4위전 + 자동생성
+  - 요약 카드에 "풀리그 8팀 → 4강 토너먼트 + 3/4위전" 같은 문장이 표시
+  - 생성 후 수정 wizard 재진입 시 저장된 값이 복원됨
+  - 수정 wizard에서 status가 "진행중"/"종료"이면 모든 입력이 disabled + 안내 문구 노출
+- 주의할 입력:
+  - knockoutSize 0/음수 (min=2로 막혀 있음, 서버 추가 검증은 향후)
+  - 조 수 0 (min=1)
+  - 조 수 × 조별 팀 수가 참가팀 수와 맞지 않을 때 → 요약 카드에 자동 계산값만 표시 (오류 X)
+  - contact_phone을 입력한 뒤 bracket을 바꿔 저장 → 전화번호 유지되는지 확인
+
+reviewer 참고:
+- API PATCH는 기존 DB settings와 머지(이미 있던 로직). edit wizard도 클라이언트에서 rawSettings 보존하여 이중 안전장치
+- POST는 createTournament에 settings 그대로 전달. Prisma Json 타입 호환을 위해 JSON.parse(JSON.stringify(...)) round-trip 후 Prisma.InputJsonValue 캐스팅
+- BracketSettingsForm은 순수 presentational — 상위의 onChange로 한 필드씩 업데이트
+- format 변경 시 useEffect로 bracketSettings.format 동기화 (조건부 렌더링 즉시 반영)
+- Zod updateTournamentSchema.settings는 이미 z.record(z.string(), z.unknown()).optional() → 통과
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -202,6 +440,8 @@ reviewer 참고:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | Phase 3 wizard 포맷 세부설정 UI + settings.bracket 저장 (5파일, tsc 통과) | 완료 |
+| 04-13 | planner-architect | 대진표 Phase 2-4 구체 계획 (리그→4강 자동 + wizard 세부설정 + 조편성) | 기획완료 |
 | 04-13 | developer | 팀 전적 tournament_matches 집계 + draws 제거 (2파일) | 완료 |
 | 04-13 | developer | 팀명/선수명 Link 추가 (9파일, API 3곳 + UI 6곳) | 완료 |
 | 04-13 | developer | 대회 선수 userId 자동 연결 구현 (시나리오 A+D, 3파일) | 완료 |
@@ -211,4 +451,3 @@ reviewer 참고:
 | 04-13 | planner-architect | 대회 형식 프리셋 시스템 설계 (12프리셋+조편성+시딩) | 기획완료 |
 | 04-13 | planner-architect | 중복 팀 안전 병합 보고서 (B안 채택: teamId만 UPDATE) | 기획완료 |
 | 04-13 | planner-architect | 경기 기록 입력 시스템 전체 구조 분석 (v1 API 12개+실시간 6종) | 기획완료 |
-| 04-12 | developer+tester | 다크모드 accent 버튼 가시성 전수 수정 (40파일) | 완료 |

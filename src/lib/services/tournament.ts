@@ -6,6 +6,8 @@
  * Service 함수는 순수 데이터만 반환한다 (NextResponse 사용 금지).
  */
 import { prisma } from "@/lib/db/prisma";
+// Prisma namespace — Json 타입 호환용 InputJsonValue 캐스팅에 사용
+import type { Prisma } from "@prisma/client";
 
 // ---------------------------------------------------------------------------
 // Select 상수 — 동일 쿼리의 select 객체 중복을 제거한다
@@ -136,6 +138,8 @@ export interface CreateTournamentInput {
   designTemplate?: string;
   logoUrl?: string;
   bannerUrl?: string;
+  // settings JSON — 포맷 세부설정(bracket)/문의 연락처 등 부가 설정 저장
+  settings?: Record<string, unknown>;
 }
 
 export interface UpdateTournamentData {
@@ -416,6 +420,12 @@ export async function createTournament(input: CreateTournamentInput) {
       design_template: input.designTemplate ?? null,
       logo_url: input.logoUrl ?? null,
       banner_url: input.bannerUrl ?? null,
+      // settings JSON — 클라이언트가 보낸 bracket/contact_phone 등을 그대로 저장
+      // 빈 객체 기본값은 스키마에서 @default("{}") 처리
+      // Prisma Json 타입은 readonly 구조를 요구하므로 JSON round-trip으로 호환 값 변환
+      ...(input.settings
+        ? { settings: JSON.parse(JSON.stringify(input.settings)) as Prisma.InputJsonValue }
+        : {}),
     },
   });
 
