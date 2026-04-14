@@ -28,6 +28,8 @@ import { BracketView } from "../bracket/_components/bracket-view";
 import { BracketEmpty } from "../bracket/_components/bracket-empty";
 import { TournamentDashboardHeader } from "../bracket/_components/tournament-dashboard-header";
 import { GroupStandings, type GroupTeam } from "../bracket/_components/group-standings";
+// 팀 카드 (팀 목록 페이지와 UI 통일)
+import { TeamCard } from "../../../teams/_components/team-card";
 import { FinalsSidebar } from "../bracket/_components/finals-sidebar";
 // 풀리그 전용 컴포넌트 (round_robin/full_league/full_league_knockout)
 // 주의: 경기 일정은 "일정" 탭에서 이미 보여주므로 여기서는 LeagueSchedule을 쓰지 않는다.
@@ -270,62 +272,44 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
   // apiSuccess()는 .data 래핑 없이 직접 반환
   const teams = data?.teams ?? [];
 
-  // 카드 그리드 레이아웃: 모바일 2열 / 태블릿 3열 / PC 4열
-  // 선수 목록은 팀 상세 페이지(/teams/{teamId})로 이동하여 확인
+  // 팀 목록 페이지와 동일한 TeamCard 재사용 (UI 통일)
+  type ApiTeam = {
+    id: string;
+    teamId: string;
+    teamName: string;
+    primaryColor: string | null;
+    secondaryColor: string | null;
+    logoUrl: string | null;
+    city: string | null;
+    district: string | null;
+    wins: number | null;
+    losses: number | null;
+    accepting_members: boolean | null;
+    tournaments_count: number | null;
+    players: { id: string }[];
+  };
   return (
     <div>
       <h2 className="mb-6 text-xl font-bold sm:text-2xl">참가팀</h2>
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {teams.map((t: {
-          id: string;
-          teamId: string; // Team 테이블의 실제 id (팀 페이지 링크용)
-          teamName: string;
-          primaryColor: string | null;
-          // 로고 URL — 있으면 이미지, 없으면 city 플레이스홀더
-          logoUrl: string | null;
-          city: string | null;
-          district: string | null;
-          groupName: string | null;
-          players: { id: string; userId: string | null; jerseyNumber: number | null; position: string | null; nickname: string }[];
-        }) => (
-          // 카드 전체를 Link로 감싸 클릭 시 팀 상세로 이동
-          <Link
+        {(teams as ApiTeam[]).map((t) => (
+          <TeamCard
             key={t.id}
-            href={`/teams/${t.teamId}`}
-            className="flex flex-col items-center gap-2 rounded-lg border p-3 transition-colors hover:opacity-80 sm:p-4"
-            style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
-          >
-            {/* 팀 로고: 있으면 이미지, 없으면 primaryColor 배경 + city(지역명) 텍스트 */}
-            {t.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지, next/image 최적화 불필요
-              <img
-                src={t.logoUrl}
-                alt=""
-                className="h-14 w-14 rounded-full object-cover sm:h-16 sm:w-16"
-              />
-            ) : (
-              <div
-                className="flex h-14 w-14 items-center justify-center rounded-full text-xs font-bold text-white sm:h-16 sm:w-16 sm:text-sm"
-                style={{ backgroundColor: t.primaryColor ?? "var(--color-primary)" }}
-              >
-                {/* city(지역명) 우선 — 없을 때만 팀명 첫 글자 */}
-                {t.city ?? t.teamName.charAt(0)}
-              </div>
-            )}
-            {/* 팀명 — 가운데 정렬, 잘림 방지 */}
-            <p className="w-full truncate text-center text-sm font-bold">{t.teamName}</p>
-            {/* 지역 — city + district (없으면 생략) */}
-            {t.city && (
-              <p className="w-full truncate text-center text-xs" style={{ color: "var(--color-text-muted)" }}>
-                {t.city}{t.district ? ` ${t.district}` : ""}
-              </p>
-            )}
-            {/* 멤버수 — 아이콘 + 명수 */}
-            <p className="flex items-center gap-0.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-              <span className="material-symbols-outlined align-middle text-xs">group</span>
-              {t.players?.length ?? 0}명
-            </p>
-          </Link>
+            team={{
+              id: BigInt(t.teamId),
+              name: t.teamName,
+              logoUrl: t.logoUrl,
+              primaryColor: t.primaryColor,
+              secondaryColor: t.secondaryColor,
+              city: t.city,
+              district: t.district,
+              wins: t.wins,
+              losses: t.losses,
+              accepting_members: t.accepting_members,
+              tournaments_count: t.tournaments_count,
+              _count: { teamMembers: t.players?.length ?? 0 },
+            }}
+          />
         ))}
       </div>
     </div>
