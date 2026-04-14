@@ -353,6 +353,31 @@ Phase 1(열혈농구단 즉시 해결)을 먼저 독립적으로 완료한 뒤, 
 
 ## 구현 기록 (developer)
 
+### BracketView/MatchCard 모바일 한 화면 축소 (2026-04-13)
+
+📝 구현한 기능: 토너먼트 트리 카드/간격을 일괄 축소하여 모바일 375px 화면에서 4강 트리(3컬럼)가 가로 스크롤 없이 들어가도록 조정. `getCardSize`를 모든 라운드 수에 대해 sm 고정으로 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/tournaments/[id]/bracket/_components/match-card.tsx | SIZE_MAP 축소(sm 120→100, md 140→120, lg 160→140 / 높이도 비례 축소). TeamRow 내부 패딩 px-2.5 py-1.5→px-2 py-1, gap-1.5→gap-1, text-xs→text-[11px]로 공간 절약 | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/_components/bracket-view.tsx | CARD_DIMENSIONS를 SIZE_MAP과 동기화(sm 100×52, md 120×58, lg 140×66). columnGap 40→24. getCardSize를 라운드 수 무관 "sm" 고정으로 변경 | 수정 |
+
+💡 tester 참고:
+- 테스트 URL: /tournaments/{id}/bracket 또는 대회 상세 → 대진표 탭 (single_elimination 또는 full_league_knockout 경기 생성된 대회)
+- 정상 동작:
+  - 모바일 375px: 4강 트리(3컬럼)가 가로 스크롤 없이 한 화면에 표시됨. 계산: 100×3 + 24×2 + padding 12×2 = 372px < 375px
+  - 카드 내부 팀명 truncate 유지, 시드 뱃지(#1, #4) 스타일 유지, 슬롯 라벨(이탤릭) 유지
+  - 연결선(SVG)이 카드 위치와 정확히 맞물리는지 (bracket-builder가 CARD_DIMENSIONS 상수를 읽어 좌표 계산 → 자동 반영)
+- 주의할 입력:
+  - 8강 이상 토너먼트: sm 고정이라 데스크톱에서 모바일 크기로 보임. 가독성 저하 여부 확인
+  - 팀명이 긴 경우 truncate 잘 동작하는지 (100px 폭이라 더 빨리 잘림)
+  - MobileMatchCard(풀와이드 카드)는 건드리지 않음 — 모바일에서 카드를 풀와이드로 쓸 때는 영향 없음
+
+⚠️ reviewer 참고:
+- SIZE_MAP(Tailwind 클래스)과 CARD_DIMENSIONS(JS 숫자 상수) 두 곳이 같이 있어야 함 — 좌표 계산은 JS, 렌더는 Tailwind라 동기화 필수
+- getCardSize의 rounds 매개변수는 현재 미사용이라 `_rounds`로 rename. 시그니처는 유지(호출부 영향 없음)
+- 데스크톱 가독성 vs 모바일 접근성 트레이드오프: 후자 우선 선택 (PM 지시)
+
 ### BracketView 모바일 탭 뷰 제거 → 트리 전체 표시 (2026-04-13)
 
 📝 구현한 기능: BracketView에서 모바일 전용 라운드 탭(준결승/결승) 뷰 제거. 데스크톱 트리 뷰를 모든 화면에 적용하여 토너먼트 전체 트리를 한 화면에 보여줌. 모바일은 가로 스크롤로 자연스럽게 처리.
@@ -621,6 +646,7 @@ tsc --noEmit 통과. 미푸시 커밋: N/A (PM 커밋 대기)
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | BracketView/MatchCard 모바일 한 화면 축소 (SIZE_MAP 100/120/140 + columnGap 24 + getCardSize sm 고정, 2파일, tsc 통과) | 완료 |
 | 04-13 | developer | BracketView 모바일 탭 뷰 제거 → 트리 전체 표시 (bracket-view.tsx 1파일, columnGap 40 + 패딩축소, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2C 토너먼트 뼈대 미리 생성 + 슬롯 라벨 (tournament-seeding 2함수 추가 + bracket API 훅 + matches 자동 훅 전환 + bracket-builder 타입확장 + match-card 라벨 표시 + admin 안내, 6파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2B 토너먼트 카드 시드 뱃지 표시 (seeding seedNumber 저장 + bracket-builder 타입확장 + public-bracket select + match-card UI, 4파일, tsc 통과) | 완료 |

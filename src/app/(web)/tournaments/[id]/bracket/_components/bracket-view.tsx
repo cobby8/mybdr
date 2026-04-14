@@ -21,18 +21,18 @@ type BracketViewProps = {
 };
 
 // ── 카드 크기 결정 ────────────────────────────────────
-// 이유: 모바일에서도 트리 전체를 보여주려면 라운드 수(=토너먼트 규모)에 따라
-// 카드 크기를 더 보수적으로 고르는 편이 가로 스크롤 폭을 줄여줌.
-// 4강(3 rounds 미만) → md, 그 외에는 sm 고정.
-function getCardSize(rounds: RoundGroup[]): "sm" | "md" | "lg" {
-  if (rounds.length >= 4) return "sm"; // 8강 이상: 작게
-  return "md"; // 4강 등: 기본
+// 이유: 모바일 한 화면 우선. 4강/8강/16강 전부 sm 고정으로 통일.
+// 데스크톱에서 살짝 작아 보이지만, 모바일에서 가로 스크롤 없는 게 더 중요.
+function getCardSize(_rounds: RoundGroup[]): "sm" | "md" | "lg" {
+  return "sm";
 }
 
+// 이유: SIZE_MAP과 동기화. match-card의 Tailwind 클래스와 이 상수가 일치해야
+// bracket-builder의 좌표 계산이 정확함 (카드 실제 픽셀 크기 기준으로 선 그림).
 const CARD_DIMENSIONS = {
-  sm: { width: 120, height: 60 },
-  md: { width: 140, height: 66 },
-  lg: { width: 160, height: 72 },
+  sm: { width: 100, height: 52 },
+  md: { width: 120, height: 58 },
+  lg: { width: 140, height: 66 },
 } as const;
 
 // ── 메인 컴포넌트 ──────────────────────────────────────
@@ -83,8 +83,9 @@ function BracketTreeView({
 }) {
   const { width: cardWidth, height: cardHeight } = CARD_DIMENSIONS[cardSize];
   // columnGap: 카드-카드 사이 공간 (연결선 영역 포함)
-  // 이유: 72 → 40. 모바일에서 4강(3컬럼)이 화면(375px)에 거의 들어오도록.
-  const columnGap = 40;
+  // 이유: 40 → 24. 카드가 100px로 줄어든 만큼 컬럼 간격도 줄여서
+  // 모바일 375px 화면에 4강 트리(3컬럼 = 100*3 + 24*2 + padding 12*2 = 372px)가 들어오게.
+  const columnGap = 24;
 
   const config: BracketConfig = { cardWidth, cardHeight, columnGap };
 

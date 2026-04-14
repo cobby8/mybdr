@@ -10,10 +10,12 @@ type MatchCardProps = {
   className?: string;
 };
 
+// 이유: 모바일 375px 한 화면에 4강 트리(3컬럼)가 들어가려면 카드를 더 작게.
+// 기존 120/140/160 → 100/120/140로 20px씩 축소. 높이도 비율 맞춰 축소.
 const SIZE_MAP = {
-  sm: "w-[120px] min-h-[60px]",
-  md: "w-[140px] min-h-[66px]",
-  lg: "w-[160px] min-h-[72px]",
+  sm: "w-[100px] min-h-[52px]",
+  md: "w-[120px] min-h-[58px]",
+  lg: "w-[140px] min-h-[66px]",
 } as const;
 
 function isWinner(match: BracketMatch, team: TeamSlot): boolean {
@@ -79,8 +81,10 @@ function TeamRow({
   const slotLabel = position === "home" ? match.homeSlotLabel : match.awaySlotLabel;
 
   return (
+    // 이유: 카드 크기 축소에 맞춰 내부 패딩/폰트도 축소.
+    // px-2.5 py-1.5 → px-2 py-1, text-xs → text-[11px] (팀명은 여전히 읽히되 공간 절약)
     <div
-      className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs ${
+      className={`flex items-center gap-1 px-2 py-1 text-[11px] ${
         winner ? "bg-[rgba(244,162,97,0.08)]" : ""
       }`}
     >
