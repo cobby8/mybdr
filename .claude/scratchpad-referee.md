@@ -3,9 +3,39 @@
 ---
 
 ## 📌 현재 작업
-- **요청**: 정산 2차+3차 — 일괄 처리 + 대시보드 + 본인 페이지
-- **상태**: ✅ tester 전체 PASS (9/9) — PM 커밋 대기
-- **현재 담당**: tester → (다음) PM (git commit)
+- **요청**: 관리자 메뉴 조건부 표시 — 비관리자에게 admin 메뉴 숨기기 + 역할별 권한 세분화
+- **상태**: ✅ developer 구현 완료 (tsc --noEmit EXIT=0) — tester 대기
+- **현재 담당**: developer → (다음) tester
+
+## 구현 기록 (developer) — 메뉴 조건부 표시 (2026-04-13)
+
+📝 구현한 기능:
+- /api/web/me 응답에 `admin_info` 필드 추가 (is_admin/association_id/role/is_executive/permissions[])
+- referee-shell 사이드바 메뉴 역할별 동적 필터링
+- 본인 메뉴 / 관리자 메뉴 구분선 + "관리자" 라벨 삽입
+- 임원(president/vice_president/director)은 열람용 화이트리스트만 표시 (대시보드 + *_view)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/me/route.ts | getAssociationAdmin + PERMISSIONS 역조회로 admin_info 빌드 (bigint → Number 변환) | 수정 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 requires 추가 + AdminInfo 타입 + useEffect fetch + isNavVisible 필터 + 구분선/라벨 렌더 + BOTTOM_TABS 별도 타입 분리 | 수정 |
+
+💡 tester 참고:
+- **테스트 계정별 기대 메뉴**:
+  - 비관리자(본인 심판): 본인 7개 메뉴만, 관리자 섹션/구분선 없음
+  - 사무국장(secretary_general): 본인 7 + 관리자 전체 (대시보드/배정 관리/공고/일괄/일자별/정산 관리/정산 대시보드/배정비 단가/설정)
+  - 심판팀장(referee_chief): 본인 7 + 대시보드/배정 관리/공고/일괄/일자별/정산 관리/정산 대시보드 (배정비 단가 제외, 설정 제외)
+  - 심판팀원(referee_clerk): 본인 7 + 대시보드/일괄 (배정/정산 관리 제외)
+  - 임원(president/vice_president/director): 본인 7 + 대시보드/정산 관리(열람)/정산 대시보드만
+- **정상 동작**: 로그인 직후 본인 메뉴만 잠깐 보이다가 fetch 완료 시 관리자 메뉴 추가 (깜빡임 정상)
+- **주의**: 서버 API는 여전히 requirePermission()으로 403 반환. 클라이언트 필터는 UX용
+
+⚠️ reviewer 참고:
+- `admin_info.association_id`는 Number로 변환 (JSON 직렬화 + bigint 안전 범위 내)
+- PERMISSIONS 매트릭스를 역순 순회(Object.keys.filter)로 현재 role의 권한 키 추출 — O(12) 상수 시간
+- BOTTOM_TABS는 기존 본인 메뉴 고정 (모바일 하단 탭은 필터링 대상 아님)
+- `requires: "admin"`은 특수 키(관리자 대시보드) — PERMISSIONS에 없어도 is_admin이면 표시
+- 임원은 EXECUTIVE_VISIBLE 화이트리스트(admin/assignment_view/settlement_view)만
 
 ## 테스트 결과 (tester) — 정산 2차+3차 (2026-04-13)
 
@@ -731,6 +761,7 @@ tester 참고:
 | 04-13 | developer | v4 배정워크플로우 2차: pools API 2개(POST/GET, PATCH/DELETE) + 공고상세+풀대시보드 페이지 2개 + 공고목록 상세링크 + 셸 "일자별 운영" 메뉴 (6파일) | ✅ tsc 통과 |
 | 04-13 | reviewer | v4 배정워크플로우 2차 리뷰 (6파일) | ✅ APPROVE w/ comments (critical 0, warning 3, nit 3) |
 | 04-13 | reviewer | 정산 2차+3차 리뷰 (8파일) | ⚠️ APPROVE w/ comments (필수 1 by_month 월 키 누락, 권장 4) |
+| 04-13 | developer | 관리자 메뉴 조건부 표시: /api/web/me에 admin_info 추가 + referee-shell 역할별 필터 + 구분선 (2파일) | ✅ tsc 통과 |
 
 ---
 

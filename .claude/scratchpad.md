@@ -804,9 +804,53 @@ home-sidebar.tsx, hero-section.tsx, quick-menu.tsx, hero-bento.tsx, home-greetin
 
 📌 결론: **APPROVE with comments**. 바로 병합해도 동작·보안에 실질 리스크는 없음. 위 1~6번은 운영 중 발견될 경우를 대비한 견고성 개선, 9번은 중기적 보안 개선 과제로 별도 이슈화 권장.
 
+## 리뷰 결과 (reviewer) — 2026-04-13 — 관리자 메뉴 조건부 표시
+
+📊 종합 판정: **APPROVE with comments** (동작/보안 OK, 권장 개선 4건)
+
+✅ 잘된 점:
+- **서버 방어선 유지**: 클라 필터는 UX 목적, 실제 권한 체크는 `requirePermission()`이 담당함을 코드 주석(referee-shell.tsx:22)에서 명확히 선언. 방어 철학 명확
+- **병렬 조회**: `/api/web/me`에서 user/referee/admin 3건을 `Promise.all`로 묶음. 라운드트립 최소화 잘했음
+- **PERMISSIONS 역조회 정확**: `Object.keys(PERMISSIONS).filter(k => PERMISSIONS[k].includes(admin.role))` — O(n×m)이지만 n=12, m≤9라서 무시 가능. 로직 정확함
+- **임원 분기 화이트리스트**: `EXECUTIVE_VISIBLE = ["admin", "assignment_view", "settlement_view"]`로 열람 전용만 노출 → admin-guard의 `EXECUTIVE_ROLES`와 의미 일치 (임원은 열람만)
+- **비로그인 안전**: `getAssociationAdmin().catch(() => null)` + `admin_info === null` 분기. fetch 실패/미로그인 모두 본인 메뉴만 표시
+- **타입 정의 명확**: `AdminInfo` 타입 명시 + `Permission` import로 서버 응답과 1:1 매핑
+- **UX 깜빡임 방지**: 초기값 `null`로 두고 fetch 완료 전까지 관리자 메뉴 숨김. 관리자 메뉴가 잠깐 보였다 사라지는 현상 방지
+- **시각적 구분**: 본인↔관리자 섹션 경계에 border-top + "관리자" 라벨. 관리자 메뉴 0개면 구분선도 숨김(line 200 `hasAdminItems` 가드)
+
+🟡 권장 수정 (동작 OK, 개선 여지):
+
+1. **[referee-shell.tsx:124-138] /api/web/me 중복 호출 가능성**
+   - 셸이 독자적으로 fetch 호출. 다른 페이지 컴포넌트가 이미 `/api/web/me`를 호출 중이면 세션 체크에서 2회 발생. 현재는 cache-control 설정 없어 네트워크 2회. 권장: React Query/SWR 도입하거나 layout/context에서 단일 호출 후 prop 전파. **다만** `dynamic="force-dynamic"`에 응답 자체가 가볍고(<1KB) 관리자 수가 적어 당장 문제는 아님.
+
+2. **[referee-shell.tsx:127] fetch 응답 에러 로깅 누락**
+   - `r.ok ? r.json() : null` — 401/500 떨어지면 조용히 무시. 개발자 도구에 원인 못 남김. `.catch(console.warn)` 정도 권장.
+
+3. **[referee-shell.tsx:58] "admin" 특수 키의 모호함**
+   - `requires: "admin"`은 NAV_ITEMS 전용 의사-권한 키(가짜 권한)로, PERMISSIONS에는 존재하지 않음. 현재 `isNavVisible`이 `item.requires === "admin"`을 일반 관리자 분기에서만 처리하고, 임원은 `EXECUTIVE_VISIBLE` 배열에 "admin" 포함으로 처리. 동작은 맞지만 타입 안전성은 약함 — `requires`가 `string | null`이라 오타 방지 안 됨. 권장: `type RequiresKey = Permission | "admin" | null`로 좁히면 오타 빌드 에러로 잡힘.
+
+4. **[api/web/me/route.ts:54-56] 매 호출마다 PERMISSIONS 전체 순회**
+   - 관리자 접속 시마다 12개 키 × 9 역할 = 108회 비교. 현재 수준에서 성능 이슈는 없지만, 역방향 매핑을 모듈 로드 시 한 번 계산(`const ROLE_TO_PERMS: Record<string, Permission[]>`)해두면 O(1) 조회로 더 깔끔. 선택사항.
+
+🔐 보안 관점 평가:
+- `admin_info` 노출 정보: `association_id`(숫자), `role`(문자열), `is_executive`(불리언), `permissions`(문자열 배열). **민감 정보 아님** — 주민번호/이메일/전화번호 등은 미포함. 다른 유저 정보 노출 없음, 본인 세션에만 해당 ✅
+- IDOR 불가: `getAssociationAdmin()`이 내부에서 세션 `userId`만 사용, 외부 입력 없음 ✅
+- 비관리자가 `/referee/admin/*` URL 직타이핑 시: 서버 라우트의 `requirePermission()`이 403 차단. 클라 필터 우회해도 안전 ✅
+- `admin.role`을 클라이언트에 노출하는 것은 기존 관행(관리자 UI 전반에서 이미 사용)과 일치, 신규 위험 없음 ✅
+
+🎯 권한 매트릭스 정확성:
+- 일반 관리자 경로(line 98-99): `permissions.includes(requires)` — admin-guard.ts의 `hasPermission()`과 동일 의미 ✅
+- 임원 경로(line 93-95): `EXECUTIVE_VISIBLE`로 화이트리스트. PERMISSIONS에서 임원이 포함된 권한은 `assignment_view`, `settlement_view` 두 개 + 가짜 "admin" — **정확히 일치** ✅
+- `admin_manage`는 `secretary_general`만 → 설정 메뉴(line 70)가 사무국장에게만 표시. ✅
+- `settlement_manage`는 사무국장만 → 배정비 단가(line 69)도 사무국장 전용. ✅
+- `excel_upload`: 일반 관리자 전체(secretary_general + referee/game chief/clerk). 임원 제외 ✅
+
+📌 결론: **APPROVE with comments**. 병합해도 안전. 권장 수정 4건은 즉시 처리 불필요, 추후 React Query 도입 시 1번 해결, 3번은 10분이면 타입 강화 가능하여 선택적 반영 권장.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | reviewer | 관리자 메뉴 조건부 표시 리뷰 (me/route + referee-shell) | APPROVE with comments (권장 4건) |
 | 04-13 | developer | 배정 DELETE 정산 가드 추가 (reviewer critical 되돌림 1차) | tsc 통과, SETTLEMENT_EXISTS 409 가드 |
 | 04-13 | reviewer | Excel 일괄 사전 등록 리뷰 (4파일) | APPROVE with comments (권장 9건) |
 | 04-05 | pm | AG→main 머지+푸시 (타이포그래피+슬라이드메뉴 정리) | 완료 |
