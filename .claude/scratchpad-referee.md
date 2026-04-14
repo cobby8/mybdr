@@ -56,7 +56,54 @@
 | 2차 | 신청자 선정 + 일자별 풀 + 책임자 지정 (pools API 2개 + 상세/대시보드 페이지 2개) | ✅ 테스트 통과 |
 | 3차 | 풀→경기 배정 자동화 + 기존 assignments 통합 | 대기 |
 
-## 구현 기록 (developer) — 배정워크플로우 3차
+## 구현 기록 (developer) — Excel 일괄 사전 등록
+
+📝 구현한 기능:
+- 관리자가 심판/경기원 명단을 Excel로 한 번에 업로드 → 미리보기 → 확정 2단계 UX
+- 기존 가입자와 이름+전화번호로 자동 매칭 (matched) / 매칭 대상 없으면 사전등록 상태로 저장 (unmatched)
+- DB 중복/파일 내 중복/필수값 누락/주민번호 형식 오류는 invalid/duplicated로 분류 후 확정 시 스킵
+- 템플릿 다운로드 버튼 제공 (클라이언트에서 xlsx 생성)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/referee-admin/bulk-register/preview/route.ts | multipart Excel 파싱 → 행별 Zod 검증 → User/기존 Referee 일괄 조회(N+1 방지) → matched/unmatched/duplicated/invalid 판정 + 파일 내 중복 감지. 필수 헤더(이름/전화번호) + 선택 헤더(생년월일/주민등록번호/자격증번호/급수/구분). role_type은 body 기본값 + "구분" 컬럼 행별 override. 5MB/500행 제한. 권한: referee_manage OR game_manage | 신규 |
+| src/app/api/web/referee-admin/bulk-register/confirm/route.ts | preview rows 재검증 → TOCTOU 방지용 서버측 중복 재조회 → $transaction으로 Referee 일괄 생성(user_id=null) → 트랜잭션 밖에서 executeMatch 개별 호출(부분 실패 허용). 주민번호는 encryptResidentId + extractLast4로 암호화 저장. association_id는 세션 강제(IDOR 방지) | 신규 |
+| src/app/(referee)/referee/admin/bulk-register/page.tsx | "use client" 2단계 UX — role_type 라디오(심판/경기원) + xlsx 파일 선택 + 템플릿 다운로드 버튼 → 미리보기 요약 5카드(총/매칭/미매칭/중복/오류) + 상세 테이블(뱃지) → 등록 확정 → 완료 요약 + 심판목록 링크. 뱃지 색상: matched=green, unmatched=info blue, duplicated=muted, invalid=primary red | 신규 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "일괄 등록"(upload_file) 추가 — "공고 관리" 직후 배치 | 수정 |
+
+💡 tester 참고:
+- `npx tsc --noEmit` 통과 (EXIT=0, 에러 0건)
+- 스키마 변경 없음 (기존 Referee 모델 그대로 사용) — `db push` 불필요
+- 테스트 시나리오:
+  1. 관리자 로그인 → `/referee/admin/bulk-register` 진입
+  2. "템플릿 다운로드" → xlsx 파일 받아서 내용 채우기
+  3. 기본 역할(심판/경기원) 선택 → 파일 선택 → "미리보기" 클릭
+  4. 요약 카드 5개 + 행별 상태 뱃지 + 에러 메시지 확인
+  5. "등록 확정" → 완료 요약 → "심판 목록 보기"로 이동해서 생성 확인
+- 정상 동작 포인트:
+  - 이름 또는 전화번호 비면 invalid (확정 시 스킵)
+  - 전화번호 숫자 9자리 미만이면 invalid
+  - 주민등록번호가 있는데 13자리 아니면 invalid
+  - 같은 이름+전화번호가 DB에 이미 있으면 duplicated (스킵)
+  - 같은 파일 내에 같은 이름+전화번호 2번 등장하면 첫 번째만 통과, 이후는 invalid
+  - 기존 User에 같은 이름+전화번호 있으면 matched(초록 뱃지) + 자동 연결
+  - 없으면 unmatched(파란 뱃지) + user_id=null로 사전 등록
+  - 엑셀 "구분" 컬럼 빈값 → 기본 role_type 적용 / "심판"|"기록원"|"계시원" 한글/영문 모두 인식
+  - 엑셀 "급수" 컬럼: "1급"→advanced, "2급"→intermediate, "3급"→beginner, "국제"→international
+- 주의할 입력:
+  - 전화번호: "010-1234-5678" / "01012345678" 모두 OK (숫자만 비교)
+  - 주민번호 암호화 키 없으면 암호화 실패 → 주민번호 없이 등록(관리자에겐 형식 검증까진 통과되므로 주민번호 컬럼 비어 저장됨)
+  - Excel serial date 포맷도 생년월일 파싱 지원
+  - 헤더 대소문자/공백 구별함 — 정확히 "이름","전화번호" 필요
+
+⚠️ reviewer 참고:
+- **IDOR 방어**: preview/confirm 모두 association_id는 admin.associationId로 강제, 프론트에서 body에 association_id 보내도 무시됨
+- **권한 이중 매트릭스**: referee_manage(심판팀) OR game_manage(경기팀) 둘 중 하나만 있으면 통과 — 일괄 등록은 "구분" 컬럼으로 심판/경기원이 섞일 수 있으므로 OR 조건 적용
+- **TOCTOU 방지**: confirm에서 목록을 다시 조회해 중복 재검증 후 $transaction 내에서 등록 직전 한 번 더 Set 체크 — preview와 confirm 사이에 동일 (이름+전화) 등록이 일어나도 안전
+- **매칭 실행 분리**: executeMatch()는 내부에 자체 $transaction을 쓰므로 중첩 방지 위해 일괄 생성 트랜잭션 밖에서 개별 호출. 매칭 하나 실패해도 다른 행 등록은 유지(부분 성공 모델)
+- **주민번호 보안**: preview 응답에는 평문 resident_id를 포함(confirm에 다시 보내기 위함) + resident_id_last4 별도 제공. 프론트는 표시에 last4만 사용, API 재전송에 full 사용 — 탭/스크린샷 관점에서 주민번호 화면 노출 안됨. 장기적으론 preview 단계에서 서버 세션 캐시에 보관 후 confirm은 키만 받는 개선 가능(현재는 단순화)
+- **템플릿 다운로드**: 서버 경유 없이 클라이언트 xlsx 생성 — 추가 API 없음
+- **디자인**: var(--color-*), Material Symbols, border-radius 4px, 뱃지 색상 체계 기존 bulk-verify와 일관
 
 📝 구현한 기능:
 - 경기 배정 단계를 "공고→신청→일자별 선정풀→경기 배정" 최종 단계로 통합

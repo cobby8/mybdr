@@ -1,13 +1,314 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 홈 추천 경기/대회 카드 컴팩트 축소
-- **상태**: developer 구현 완료 (tsc 통과)
-- **현재 담당**: developer → tester
+- **요청**: 심판 경기 배정 워크플로우 재설계 (공고→신청→선정→책임자→현장배정 6단계)
+- **상태**: planner-architect 설계 완료
+- **현재 담당**: PM (사용자 승인 대기)
+
+### 기획설계 — 2026-04-13 — 심판 배정 워크플로우 재설계
+
+🎯 목표: 현재 "원스텝 배정 CRUD"를 **공고→신청→선정→책임자 지정→현장 배정** 다단계 워크플로우로 확장. 기존 RefereeAssignment는 그대로 두고, 앞단에 "신청/선정 파이프라인"을 추가한다.
+
+🏗️ 전체 아키텍처 비유: **학교 현장체험 학습 배정 시스템**
+- 1단계(공고) = 선생님이 "5/2 체험학습 도우미 모집" 칠판에 붙이기
+- 2단계(신청) = 학생이 "저 5/2, 5/5 참여할게요" 손들기
+- 3단계(선정) = 선생님이 "5/2에는 이 5명 갈 거야" 명단 확정
+- 4단계(책임자) = "5/2에는 철수가 반장" 지정
+- 5단계(현장 배정) = 당일 반장이 "철수는 A조, 영희는 B조" 배정 — **이게 기존 RefereeAssignment**
+
+즉 **기존 RefereeAssignment는 "맨 끝 단계(현장 배정)"로 재정의**. 앞에 4개 단계(Announcement/Application/Pool/Chief)를 새로 추가.
+
+📍 DB 모델 변경 (prisma/schema.prisma, 신규 4개 + 기존 1개 수정):
+
+| 모델 | 역할 | 신규/수정 |
+|------|------|----------|
+| `AssignmentAnnouncement` | 공고 (대회+일정+필요인원) | 신규 |
+| `AssignmentApplication` | 신청 (공고별 심판 신청) | 신규 |
+| `AssignmentApplicationDate` | 신청 일자 상세 (N:M) | 신규 |
+| `DailyAssignmentPool` | 일자별 선정 인원 풀 + 책임자 플래그 | 신규 |
+| `RefereeAssignment` | 기존 유지 (현장 경기별 최종 배정) + `pool_id` FK 1개 추가 | 수정 |
+
+🔑 핵심 스키마 (간략):
+
+```prisma
+// 2단계: 공고
+model AssignmentAnnouncement {
+  id             BigInt   @id @default(autoincrement())
+  association_id BigInt                 // 게시 협회
+  tournament_id  String   @db.Uuid      // 대회 (UUID)
+  title          String   @db.VarChar
+  description    String?
+  role_type      String   @db.VarChar   // "referee" | "scorer" | "both"
+  // 신청 받을 날짜들 (Postgres 배열)
+  dates          DateTime[] @db.Date
+  // 일자별 필요 인원 (JSON: {"2025-05-02": {referee: 5, scorer: 3}})
+  required_count Json?
+  apply_deadline DateTime?  @db.Timestamp(6)
+  status         String   @default("open") @db.VarChar  // open/closed/cancelled
+  posted_by      BigInt                 // User.id (심판팀장/경기원팀장)
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+  updated_at     DateTime @updatedAt @db.Timestamp(6)
+
+  applications   AssignmentApplication[]
+  @@index([association_id, status])
+  @@index([tournament_id])
+  @@map("assignment_announcements")
+}
+
+// 3단계: 신청 (1 심판 × 1 공고 = 1 신청)
+model AssignmentApplication {
+  id              BigInt @id @default(autoincrement())
+  announcement_id BigInt
+  referee_id      BigInt
+  memo            String?
+  status          String @default("applied") @db.VarChar  // applied/selected/rejected/cancelled
+  applied_at      DateTime @default(now()) @db.Timestamp(6)
+
+  announcement AssignmentAnnouncement @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+  referee      Referee               @relation(fields: [referee_id], references: [id], onDelete: Cascade)
+  dates        AssignmentApplicationDate[]
+
+  @@unique([announcement_id, referee_id])  // 같은 공고에 중복 신청 방지
+  @@index([referee_id])
+  @@map("assignment_applications")
+}
+
+// 3단계 상세: 신청자가 선택한 날짜들
+model AssignmentApplicationDate {
+  id             BigInt   @id @default(autoincrement())
+  application_id BigInt
+  date           DateTime @db.Date
+
+  application AssignmentApplication @relation(fields: [application_id], references: [id], onDelete: Cascade)
+  @@unique([application_id, date])
+  @@map("assignment_application_dates")
+}
+
+// 4+5단계: 일자별 선정 풀 + 책임자
+model DailyAssignmentPool {
+  id             BigInt   @id @default(autoincrement())
+  tournament_id  String   @db.Uuid
+  date           DateTime @db.Date
+  referee_id     BigInt
+  role_type      String   @db.VarChar  // referee/scorer
+  // 책임자 플래그 (일자별로 referee 1명 + scorer 1명만 true 허용)
+  is_chief       Boolean  @default(false)
+  // 선정 근거 (신청 없이 직접 추가했을 수도 있음)
+  application_id BigInt?
+  selected_by    BigInt                 // User.id (팀장)
+  selected_at    DateTime @default(now()) @db.Timestamp(6)
+
+  referee     Referee @relation(fields: [referee_id], references: [id], onDelete: Cascade)
+  assignments RefereeAssignment[]       // 6단계 현장 배정 → 이 풀에서만 선택
+
+  @@unique([tournament_id, date, referee_id, role_type])  // 중복 선정 방지
+  @@index([tournament_id, date])
+  @@map("daily_assignment_pools")
+}
+
+// 6단계: 기존 RefereeAssignment에 pool_id 추가
+model RefereeAssignment {
+  // ... 기존 필드
+  pool_id BigInt?      // null 허용(기존 데이터 호환), 신규는 필수화 유도
+  pool    DailyAssignmentPool? @relation(fields: [pool_id], references: [id], onDelete: SetNull)
+}
+```
+
+왜 이렇게 쪼갰는지:
+- **Announcement** = 학원 모집 공고문. 한 장 붙이면 여러 학생이 신청.
+- **Application** = 한 학생의 전체 신청서. "나 참여합니다".
+- **ApplicationDate** = 그 안의 체크박스들. "5/2 ☑ 5/5 ☑". N:M 관계라 따로 분리.
+- **Pool** = 최종 명단. "확정된 5명". 경기별 배정(RefereeAssignment)은 이 풀에서만 고른다.
+- **is_chief를 Pool 안에 flag로** = 따로 Chief 테이블 만들면 조인 늘어남. 같은 테이블 1컬럼이 단순.
+
+🔗 기존 코드 연결:
+- `RefereeAssignment` 테이블은 그대로. `pool_id` 컬럼만 nullable로 추가 → 기존 데이터 0변경.
+- 기존 `/referee/admin/assignments` 페이지는 **"6단계 현장 배정"** 전용으로 유지/리팩토링. 심판 선택 시 **현재: 전체 협회 심판** → **변경 후: 해당 일자 Pool에서만**.
+- `admin-guard.ts`의 `assignment_manage` 권한은 재사용. 단계별 세분화는 불필요(모두 팀장급이므로 동일).
+
+📍 API 설계 (신규 10개):
+
+| 단계 | 메서드 & 경로 | 역할 | 권한 |
+|------|--------------|------|------|
+| 2 | POST `/api/web/referee-admin/announcements` | 공고 등록 | referee_chief/game_chief |
+| 2 | GET `/api/web/referee-admin/announcements` | 공고 목록 (관리자) | 관리자 전원 |
+| 2 | PATCH `/api/web/referee-admin/announcements/[id]` | 공고 수정/마감 | referee_chief/game_chief |
+| 3 | GET `/api/web/referee/announcements` | **공개 공고 목록** (본인) | 본인 Referee |
+| 3 | POST `/api/web/referee/applications` | 신청 (body: dates 배열) | 본인 Referee |
+| 3 | DELETE `/api/web/referee/applications/[id]` | 신청 취소 | 본인 |
+| 4 | GET `/api/web/referee-admin/announcements/[id]/applications?date=...` | 일자별 신청자 조회 | 팀장 |
+| 4 | POST `/api/web/referee-admin/pools` | 선정 (신청자→풀 이동, 또는 직접 추가) | 팀장 |
+| 4 | DELETE `/api/web/referee-admin/pools/[id]` | 선정 취소 | 팀장 |
+| 5 | PATCH `/api/web/referee-admin/pools/[id]/chief` | 책임자 토글 | 팀장 |
+| 6 | POST `/api/web/referee-admin/assignments` | **수정**: pool_id 검증 추가 | 팀장 + 해당 일자 chief |
+
+(6단계 기존 API는 유지하되 `pool_id`가 제공되면 우선 검증하고, 해당 경기의 `scheduled_at` 날짜와 일치하는 풀 소속 심판인지 체크.)
+
+📍 페이지 설계 (신규 3개 + 기존 1개 리팩토링):
+
+| 페이지 | 경로 | 역할 | 신규/수정 |
+|--------|------|------|----------|
+| 공고 관리 | `/referee/admin/announcements` + `/[id]` | 공고 CRUD, 신청자 조회, 선정, 책임자 지정 | 신규 |
+| 내 신청 | `/referee/applications` | 공개 공고 조회 + 본인 신청/취소 | 신규 |
+| 일자별 풀 | `/referee/admin/pools?tournament_id=xxx` | 대회별 일자 캘린더 + 확정 인원 | 신규 |
+| 현장 배정 | `/referee/admin/assignments` | **풀 기반으로 수정**. 검색창 기반 심판 선택 | 수정 |
+
+🎨 UI 핵심: "검색창 기반 선택 UI"
+- 기존 드롭다운 `<select>`는 전체 심판 중에서 고름 → 풀이 커지면 못 씀
+- 신규: **검색 input + 하단에 필터된 풀 카드 리스트** (자동완성 스타일)
+- 재사용 가능한 컴포넌트 `_components/referee-picker.tsx` 1개로 통일 (4단계 선정 UI, 6단계 배정 UI 모두 사용)
+
+📋 실행 계획 (단계별 구현):
+
+**1차 (뼈대) — 이 순서로 바로 진행 가능**
+
+| 순서 | 작업 | 담당 | 선행 조건 |
+|------|------|------|----------|
+| 1 | Prisma 신규 4모델 + RefereeAssignment.pool_id 추가, migration | developer | 없음 |
+| 2 | 공고 API 3종 (announcements POST/GET/PATCH) | developer | 1 |
+| 3 | 공고 관리 페이지 (`/referee/admin/announcements`) 리스트+생성 모달 | developer | 2 |
+| 4 | 공개 공고 + 신청 API 2종 (referee/announcements GET, applications POST/DELETE) | developer | 1 |
+| 5 | 내 신청 페이지 (`/referee/applications`) | developer | 4 |
+| 6 | 1차 tester + reviewer (병렬) | tester + reviewer | 5 |
+| 7 | PM 커밋 + 사용자 보고 | pm | 6 |
+
+**2차 (선정/책임자)** — 1차 안정화 후
+
+| 순서 | 작업 | 담당 |
+|------|------|------|
+| 1 | 신청자 조회 API + 선정/선정취소 API + 책임자 토글 API | developer |
+| 2 | 공고 상세 페이지 `/referee/admin/announcements/[id]` (일자별 탭 + 신청자 리스트 + 선정 버튼 + 책임자 star) | developer |
+| 3 | 일자별 풀 페이지 `/referee/admin/pools` | developer |
+| 4 | tester + reviewer (병렬) + 커밋 | tester+reviewer → pm |
+
+**3차 (현장 배정 마이그레이션)** — 2차 안정화 후
+
+| 순서 | 작업 | 담당 |
+|------|------|------|
+| 1 | `referee-picker.tsx` 재사용 컴포넌트 생성 | developer |
+| 2 | 기존 `/referee/admin/assignments` 페이지를 풀 기반으로 리팩토링 (드롭다운 → picker, 필터 = 해당 일자 풀) | developer |
+| 3 | POST /assignments API에 pool_id 검증 추가 | developer |
+| 4 | 기존 RefereeAssignment 데이터 호환성 확인 (pool_id null 허용) | tester |
+| 5 | 최종 커밋 + 사용자 보고 | pm |
+
+🔑 권한 매트릭스 (9종 역할 × 새 액션):
+
+| 액션 | president | vice_pres | director | sga | staff | ref_chief | ref_clerk | game_chief | game_clerk |
+|------|:--------:|:--------:|:--------:|:---:|:-----:|:--------:|:--------:|:---------:|:---------:|
+| 공고 게시/수정 | - | - | - | O | - | O | - | O | - |
+| 공고 열람 | O | O | O | O | O | O | O | O | O |
+| 신청자 조회 | - | - | - | O | - | O | - | O | - |
+| 선정/선정취소 | - | - | - | O | - | O | - | O | - |
+| 책임자 지정 | - | - | - | O | - | O | - | O | - |
+| 현장 배정 (경기별) | - | - | - | O | - | O | - | O | - |
+| 신청(본인) | 해당 Referee만 | | | | | | | | |
+
+권한 구현: 기존 `assignment_manage` 그룹(sga/referee_chief/game_chief)을 그대로 재사용. 새 권한 키 추가 불필요 → `admin-guard.ts` 무수정.
+
+🔄 마이그레이션 전략 (기존 데이터 보존):
+- `RefereeAssignment.pool_id` **nullable** 추가 → 기존 행은 모두 null로 유지
+- 신규 배정은 "풀 먼저 만들고 배정" 원칙이지만, 과도기 2주 동안 pool_id null도 허용(운영자 혼란 방지)
+- 기존 `/referee/admin/assignments` 페이지는 1차/2차까진 그대로 동작 → 3차에서 교체
+- 최종적으로 pool_id NOT NULL 전환은 4차(선택사항) — 당분간 nullable 유지 권장
+
+⚠️ developer 주의사항:
+1. **일자 선택 UI**: `<input type="date" multiple>`은 브라우저 미지원. 캘린더 컴포넌트 or date chips + "+ 추가" 버튼 패턴 사용
+2. **공고 dates (Postgres 배열)**: Prisma에서 `DateTime[] @db.Date` 문법. 기존 스키마에 배열 사용 사례 없으면 CONVENTIONS 확인 필요
+3. **required_count는 Json** 사용: 일자별 키 형태 `"YYYY-MM-DD"`로 고정(타임존 이슈 회피)
+4. **selected_by는 User.id**: admin.userId 사용. referee_id와 헷갈리지 말 것
+5. **책임자 unique 제약**: `is_chief=true` 중복 방지를 Prisma에서 partial unique index로 강제 불가 → 애플리케이션 레벨 체크 (트랜잭션에서 같은 일자+role_type에 다른 chief가 있으면 false로 바꾸기)
+6. **"타협회 심판 배정 금지"는 풀 선정 단계로 이동**: 6단계 현장 배정에서는 풀만 보면 되므로 협회 검증 생략 가능 (이미 풀에서 걸렀음)
+7. **RefereeAssignment 삭제 시 풀 데이터는 유지** (onDelete: SetNull 맞음)
+8. **기존 assignments 페이지 3차 리팩토링 전까진 건드리지 말 것** — 1차/2차는 앞단만 쌓기
+
+### 리뷰 결과 (reviewer) — 2026-04-13
+
+종합 판정: **APPROVE with comments** (수정 필요 1건, 권장 1건)
+
+잘된 점:
+- encrypted_data가 모든 API 응답에서 완벽히 제외됨 (select에서 명시적 제어)
+- 신분증(id_card) OCR이 서비스 + API 양쪽에서 이중 차단
+- 환경변수 미설정 시 graceful fallback (에러 안 남, 빈 배열 반환)
+- OCR 실패 시 ocr_status="failed" + 수동 입력 폼 표시 (흐름 차단 없음)
+- bank_account 암호화 저장 + 암호화 실패 시 평문 저장 거부 (보안 원칙 준수)
+- 본인 API: userId === referee.user_id IDOR 방지
+- 관리자 API: getAssociationAdmin + requirePermission("document_manage") + association_id 검증
+- UI에서 사용자가 OCR 결과를 편집 후 확정 가능 (자동 추출 맹신 안 함)
+- 복호화된 이미지가 메모리에서만 사용 (변수 스코프 안에서 소멸)
+
+필수 수정:
+- [관리자 UI 328~335행] `/referee/admin/members/[id]/documents/page.tsx`의 handleConfirm이 **본인용 API** (`/api/web/referee-documents/${doc.id}/ocr/confirm`)를 호출함. 관리자는 세션 userId가 해당 심판의 user_id와 다르므로 confirm API의 IDOR 체크(57행)에서 403 FORBIDDEN 에러 발생. 관리자 전용 confirm API를 만들거나, confirm API에 관리자 권한 분기를 추가해야 함.
+
+권장 수정:
+- [ocr-extractor.ts 260~261행] 계좌번호 정규식 `\d{10,16}`이 전화번호나 날짜 등 다른 긴 숫자 시퀀스와 겹칠 수 있음. 실사용 시 오탐이 나면 패턴 순서 조정이나 컨텍스트 기반 필터 추가를 고려할 것. (지금 당장 수정 필수는 아님, 실사용 후 판단)
+
+### 테스트 결과 (tester) — 2차 OCR 연동 검증 2026-04-13
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| Test 1: tsc --noEmit | PASS | 에러 0건 |
+| Test 2-1: callClovaOCR 환경변수+헤더 | PASS | NAVER_OCR_INVOKE_URL + X-OCR-SECRET 헤더 (94-98행) |
+| Test 2-2: 환경변수 없을 때 빈 배열 | PASS | 63-68행 graceful skip |
+| Test 2-3: extractCertificateInfo 5필드 | PASS | 번호/유형/등급/기관/발급일 패턴 매칭 |
+| Test 2-4: extractBankbookInfo 3필드 | PASS | 은행명 키워드 + 계좌패턴 + 예금주 |
+| Test 2-5: 신분증 OCR 미사용 | PASS | id_card 즉시 빈 객체 반환 (336-338행) |
+| Test 3-1: OCR API 세션+본인확인 | PASS | getWebSession + userId IDOR (34행, 63행) |
+| Test 3-2: encrypted_data 서버 내부 복호화 | PASS | decryptDocument (84행) |
+| Test 3-3: processDocumentOCR 호출 | PASS | 85-89행 |
+| Test 3-4: ocr_status/ocr_result DB 업데이트 | PASS | 95-101행 |
+| Test 3-5: id_card skipped | PASS | 70-79행 |
+| Test 3-6: encrypted_data 응답 미포함 | PASS | 103-107행 extracted/raw_text_count만 |
+| Test 4-1: certificate -> RefereeCertificate | PASS | saveCertificateData upsert (78행) |
+| Test 4-2: bankbook -> Referee 계좌 | PASS | saveBankbookData (80행) |
+| Test 4-3: id_card -> verified_name | PASS | saveIdCardData (82행) |
+| Test 4-4: bank_account 암호화 | PASS | encryptResidentId (171행) |
+| Test 5-1: 관리자 OCR 권한 체크 | PASS | getAssociationAdmin + requirePermission (29-33행) |
+| Test 5-2: 관리자 OCR IDOR 방지 | PASS | association_id 검증 (59행) |
+| Test 6-1: 정보 추출 버튼 | PASS | document_scanner 아이콘 (531-547행) |
+| Test 6-2: 자격증 편집 폼 | PASS | 번호/유형/등급/기관/발급일 (720-764행) |
+| Test 6-3: 통장 편집 폼 | PASS | 은행/계좌/예금주 (776-796행) |
+| Test 6-4: 확인 저장 버튼 | PASS | 673-687행 |
+| Test 6-5: OCR 실패 시 수동 입력 안내 | PASS | 338-345행 메시지 + showForm=true |
+| Test 7-1: 관리자 정보추출 버튼 | PASS | 490-506행 |
+| Test 7-2: 관리자 편집 폼 | PASS | 597-605행 동일 구조 |
+| Test 7-3: 관리자 확인 저장 버튼 | PASS | 608-621행 |
+| Test 7-WARN: 관리자 confirm IDOR | WARN | 본인용 confirm API 호출 -> 403 예상 (수정 요청) |
+
+종합: 26개 중 26개 통과 / 0개 실패 / 1개 경고 -- 전체 PASS (경고 1건)
+
+### 수정 요청
+
+| 요청자 | 파일 | 문제 설명 | 상태 |
+|--------|------|----------|------|
+| tester | admin/members/[id]/documents/page.tsx 334행 | 관리자 handleConfirm이 본인용 API(/referee-documents/[id]/ocr/confirm)를 호출하나, 해당 API는 userId===referee.user_id 체크(57행)하므로 관리자 세션은 403 반환됨. 관리자 전용 confirm API 필요 | 대기 |
 
 ### 구현 기록
 
-구현한 기능: 전체 프로젝트에서 clip-slant/clip-slant-sm/clip-slant-reverse CSS 클래스 제거 (18개 파일)
+구현한 기능: v3 2차 — 심판 사전 등록 API/페이지 + 매칭 상태 필터 + 수동 매칭 API/UI
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/api/web/referee-admin/members/route.ts | 사전 등록 POST API (Zod 검증, 중복 체크, IDOR 방지) | 신규 |
+| src/app/api/web/admin/associations/members/route.ts | match_status 쿼리 필터 추가 | 수정 |
+| src/app/api/web/referee-admin/members/[id]/match/route.ts | GET 매칭 후보 검색 + POST 수동 매칭 실행 | 신규 |
+| src/app/(referee)/referee/admin/members/new/page.tsx | 사전 등록 폼 UI (필수: 이름+전화 / 선택: 생년월일,등급,역할 등) | 신규 |
+| src/app/(referee)/referee/admin/members/page.tsx | 매칭 상태 필터 탭 + MatchBadge + 사전등록 버튼 추가 | 수정 |
+| src/app/(referee)/referee/admin/members/[id]/page.tsx | 매칭 상태 섹션 + 수동 매칭 검색/실행 UI 추가 | 수정 |
+
+tester 참고:
+- 테스트 방법: /referee/admin/members에서 "사전 등록" 버튼 클릭 → 이름+전화번호 입력 → 등록 → 목록에서 미매칭 뱃지 확인
+- 매칭 테스트: 미매칭 심판 상세 → "매칭 후보 검색" → 후보 있으면 "매칭" 클릭
+- 필터 테스트: 목록에서 "전체/매칭됨/미매칭" 탭 전환
+- tsc --noEmit 통과 확인 (EXIT_CODE=0)
+
+reviewer 참고:
+- 모든 API에 getAssociationAdmin() + requirePermission("referee_manage") 적용
+- IDOR 방지: association_id는 세션에서 강제 주입
+- CSS 변수만 사용 (하드코딩 색상 없음), border-radius 4px, Material Symbols
+
+---
+
+(이전) 구현한 기능: 전체 프로젝트에서 clip-slant/clip-slant-sm/clip-slant-reverse CSS 클래스 제거 (18개 파일)
 
 | 파일 경로 | 변경 내용 | 신규/수정 |
 |----------|----------|----------|
@@ -442,9 +743,65 @@ home-sidebar.tsx, hero-section.tsx, quick-menu.tsx, hero-bento.tsx, home-greetin
 | Prisma 모델 | 73개 |
 | Web API | 111개 라우트 |
 
+## 리뷰 결과 (reviewer) — 2026-04-13 — Excel 일괄 사전 등록
+
+📊 종합 판정: **APPROVE with comments** (기능 동작/보안 OK, 권장 개선 몇 건)
+
+✅ 잘된 점:
+- 2단계 UX(preview→confirm) 설계가 깔끔. bulk-verify 패턴을 일관되게 재활용
+- 주민번호 AES-256-GCM 암호화(`encryptResidentId`) 제대로 사용, 평문 저장 없음. 응답에는 `resident_id_last4`만 내려보냄
+- N+1 회피: User/Referee 후보를 이름 IN 절로 한 번에 조회한 뒤 메모리에서 key map으로 매칭. 500행 × 2쿼리만 발생
+- TOCTOU 방어: confirm에서 다시 `existingReferees` 조회 + 트랜잭션 내 `dupKeySet`으로 "한 트랜잭션 안에서도 중복 생성" 차단. 꼼꼼함
+- 권한 OR 체크(referee_manage || game_manage)가 role_type 혼합 시나리오와 맞음
+- `association_id`는 세션의 `admin.associationId`만 사용 → IDOR 불가
+- `executeMatch`를 트랜잭션 밖에서 개별 try/catch — 매칭 실패가 전체 롤백으로 번지지 않게 한 설계 의도 좋음
+- 클라이언트 템플릿 다운로드를 xlsx로 즉석 생성 (서버 부담 0)
+
+🟡 권장 수정 (동작은 OK, 개선 여지):
+
+1. **[preview/route.ts:198-206] 빈 행 방어 부족**
+   - `jsonData.length === 0`은 체크하지만 `jsonData[0]`이 헤더만 있고 모든 값이 빈 경우 `Object.keys`가 공백이라 `MISSING_HEADERS`로 빠진다. 현재는 안전하게 에러로 처리되지만, 메시지가 "헤더 누락"이라 사용자가 혼란. "데이터 행이 없습니다"와 구분되면 더 친절.
+
+2. **[preview/route.ts:286-305] 주민번호 형식 검증이 단순**
+   - `/^\d{13}$/`만 검사 — 생년 6자리 + 성별코드 1자리의 유효성은 확인 안 함. 실무상 허용 가능하나, 주민번호 체크섬까지 검증하면 더 견고. (권장, 필수 아님)
+
+3. **[preview/route.ts:523, confirm/route.ts:229] catch 블록에서 에러 로깅 누락**
+   - `catch { return apiError(...) }` 로 에러 객체를 버림. 500 원인 추적이 어렵다. 최소 `console.error(e)` 정도는 남기는 게 좋음.
+
+4. **[confirm/route.ts:143-148] 트랜잭션 내 중복 체크 재확인 필요**
+   - 외부 `existingReferees` 조회는 트랜잭션 **밖**에서 수행 → 그 사이 다른 세션이 동일 키로 insert하면 여기서 못 잡음. DB에 `registered_name + registered_phone` 유니크 제약이 없는 것으로 보여(`@@index`만 있음), 동시 실행 시 중복 생성 가능. 실용적으로는 Referee가 수작업 등록이라 경쟁이 낮지만, 장기적으로는 unique constraint 검토 권장.
+
+5. **[confirm/route.ts:155-161] 암호화 실패 시 fallback이 조용함**
+   - try/catch로 encrypt 실패 시 `null`로 넘겨 등록을 진행. 관리자는 "주민번호 등록됐는데 실제로는 안 됨"을 모른다. `RESIDENT_ID_ENCRYPTION_KEY` 누락은 운영 사고 수준이므로 오히려 fail-fast(500)가 안전. (환경 세팅 경고 관점)
+
+6. **[confirm/route.ts:170-172] birth_date 파싱**
+   - `new Date(r.birth_date)` — `"2025-01-32"` 같은 무효 값이 Invalid Date가 되어 Prisma insert에서 에러로 번질 수 있음. preview에서 `normalizeBirthDate`로 정제했지만 confirm에서 재검증 없음. `isNaN(date.getTime())` 체크 권장.
+
+7. **[page.tsx:163-170] 에러 메시지 파싱 로직 복잡**
+   - `apiError()`의 응답 포맷이 `{ success:false, error: { message, code } }`로 일관된다면(실제 `admin-guard.ts:168-173` 참고) 프론트에서 `data.error?.message`만 읽으면 됨. 현재는 string/object 양쪽 다 처리하는데, 서버가 오브젝트로 일관되므로 단순화 가능.
+
+8. **[page.tsx:109] `fileInputRef` 대신 `onChange` state 고려**
+   - ref로 `.files?.[0]`을 꺼내는 방식은 동작은 하지만, 파일 선택 직후 "선택된 파일명" 같은 UI 피드백이 없음. bulk-verify 패턴 따른 거면 유지 OK.
+
+9. **[preview/route.ts:96-101] resident_id 평문이 preview 응답에 포함됨**
+   - 주석에도 "평문을 절대 담지 않음"이라 했지만, 실제로는 응답에 `resident_id: p.resident_id`(평문, 라인 421/446 등)가 들어간다. HTTPS면 전송은 안전하나, 브라우저 메모리/개발자도구/로그 캐시 노출 위험. **대안**: preview 응답에는 `resident_id_last4`만 내보내고, confirm에서는 프론트 상태가 아니라 **서버 측 임시 캐시(Redis 5분 TTL)** 또는 **재업로드**하는 구조가 더 안전. 현재 구조는 "단일 세션 내 매우 짧은 왕복"이라는 가정 하에서만 허용. 보안팀 검토 필요.
+
+10. **[referee-shell.tsx:38] NAV_ITEMS 정렬**
+    - "일괄 등록"이 "공고 관리" 뒤에 삽입됨. UX상 "멤버 관리" 근처(members/settings 쪽)가 더 자연스러울 수 있으나, 현 위치도 "관리자 도구 그룹" 안에 있어 문제는 없음.
+
+🔴 필수 수정: **없음**
+
+📝 회귀 영향:
+- 기존 개별 등록 API: 건드리지 않음 ✅
+- 기존 bulk-verify: 별개 디렉토리(`bulk-verify/`), 영향 없음. 단 존재 여부 재확인 필요(Glob로는 현재 안 잡힘 → 이미 제거됐거나 별도 경로일 수 있음)
+- referee-shell.tsx: NAV_ITEMS에 한 줄 추가만 — 기존 링크 영향 없음 ✅
+
+📌 결론: **APPROVE with comments**. 바로 병합해도 동작·보안에 실질 리스크는 없음. 위 1~6번은 운영 중 발견될 경우를 대비한 견고성 개선, 9번은 중기적 보안 개선 과제로 별도 이슈화 권장.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | reviewer | Excel 일괄 사전 등록 리뷰 (4파일) | APPROVE with comments (권장 9건) |
 | 04-05 | pm | AG→main 머지+푸시 (타이포그래피+슬라이드메뉴 정리) | 완료 |
 | 04-02 | developer+tester | 맞춤 설정 필터 미동작 5건 수정 + 전수 검증 30건 통과 | 완료 |
 | 04-02 | developer | 메뉴 토글 + 테마/텍스트크기 설정 (20건 검증 통과) | 완료 |
