@@ -19,12 +19,49 @@
 
 ### Phase 2 (진행중): 팀명 한글+영문 구조화
 - 2A-1 ✅ Team.name_en + name_primary 컬럼 추가 (커밋 66e6736)
-- 2A-2 ⏸ API + Zod + 검색 (대기)
-- 2B ⏸ 생성/수정 폼 UI
+- 2A-2 ✅ API + Zod + 검색 (구현 완료)
+- 2B ✅ 생성/수정 폼 UI (구현 완료 — 이 커밋)
 - 2C ⏸ 표시 UI 일괄 반영
 - 2D ⏸ tester 검증
 
 ## 구현 기록 (developer)
+
+### Phase 2B: 팀 생성/수정 폼 UI에 영문명 + 대표언어 추가 (2026-04-13)
+
+📝 구현한 기능: 팀 생성 / 관리(설정) 폼에 영문 팀명 입력과 대표 팀명(한글/영문) 토글 UI 추가
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/teams/new/new-team-form.tsx | 영문명 input + 대표언어 토글 버튼 추가, useState로 제어, 한글 혼입 차단 검증 | 수정 |
+| src/app/(web)/teams/[id]/manage/page.tsx | TeamEditData에 name_en/name_primary 추가, 상태/로더/PATCH body/UI 블록 추가, 제출 전 regex 검증 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법
+  1. 팀 생성: `/teams/new` → 한글 팀명만 입력 후 제출 → name_en=null, name_primary="ko"로 저장되는지
+  2. 팀 생성: 영문명 "RISING EAGLES" 추가 → 대표 팀명 토글 UI 등장 → "영문" 선택 후 제출 → name_primary="en"
+  3. 팀 생성: 영문명에 "이글스" 입력 → 제출 시 차단 + 빨간 에러 메시지 "영문/숫자/공백/하이픈만..."
+  4. 팀 관리: `/teams/[id]/manage` → 팀 설정 탭 → 기존 팀 로드 시 영문명/대표언어 초기값 반영
+  5. 팀 관리: 영문명 추가 후 저장 → PATCH 요청에 name_en, name_primary 포함 → DB 반영
+  6. 팀 관리: 영문명 지우고 저장 → name_en=null, name_primary="ko"로 초기화됨
+- 정상 동작
+  - 영문명이 비어있으면 대표 팀명 토글 UI는 숨김
+  - 대표 팀명은 항상 hidden input(생성) 또는 state(관리)로 제출됨, 기본 "ko"
+  - 클라이언트 검증 실패 시 서버로 요청 자체가 가지 않음
+- 주의할 입력
+  - 공백만 입력된 영문명 → trim 후 빈문자열 → null 저장
+  - "A-B 01" → 통과
+  - "한글" → 차단 (한글 포함)
+  - "Team@1" → 차단 (허용 외 문자)
+
+⚠️ reviewer 참고:
+- Server Action(createTeamAction)은 이미 Phase 2A-1에서 FormData로 name_en/name_primary를 받도록 되어 있어 폼에 name="name_en" / hidden name="name_primary"만 추가하면 바로 연결됨
+- PATCH(/api/web/teams/[id])도 2A-2에서 Zod 스키마로 수용하도록 정비돼 있어 추가 API 변경 없음
+- 대표 팀명 토글은 조건부 렌더이지만 hidden input은 항상 렌더해 제출됨 (영문명 없을 때 기본 "ko"로 고정)
+- 하드코딩 색상 사용하지 않음 (모두 var(--color-*))
+- tsc --noEmit 통과
+
+#### 수정 이력
+(없음 — 최초 구현)
 
 ### Phase 2A-2: Team name_en/name_primary API/Zod/검색 반영 (2026-04-13)
 
@@ -83,6 +120,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | Phase 2B: 팀 생성/수정 폼 UI에 영문명 + 대표언어 토글 추가 (tsc OK) | ✅ 완료 |
 | 04-15 | pm | 중간 정리: knowledge 갱신(6파일) + scratchpad 대청소 | 진행중 |
 | 04-15 | developer | Phase 2A-1: Team.name_en/name_primary + Referee 14모델 schema 통합 (커밋 66e6736) | ✅ 완료 |
 | 04-15 | developer | 참가팀 탭 → TeamCard 재사용 UI 통일 (커밋 2b69d12) | ✅ 완료 |
