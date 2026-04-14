@@ -135,7 +135,14 @@ function BracketTreeView({
   return (
     // 이유: 모바일에서 컨테이너 패딩을 p-3으로 줄이고 데스크톱은 p-6 유지.
     // overflow-x-auto가 모바일 가로 스크롤을 처리함.
-    <div className="overflow-x-auto rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+    <div
+      className="overflow-x-auto rounded-[12px] border p-3 sm:p-6"
+      style={{
+        borderColor: "var(--color-text-muted)",
+        backgroundColor: "var(--color-card)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)",
+      }}
+    >
       <div
         className="relative"
         style={{
@@ -143,28 +150,26 @@ function BracketTreeView({
           height: `${dimensions.height + headerHeight + padding}px`,
         }}
       >
-        {/* 라운드 헤더 — NBA 스타일 칩 (라운드명 + 경기 수) + LIVE 펄스 */}
+        {/* 라운드 헤더 — 카드 너비 중앙 정렬, 배경 강조 버튼 스타일 */}
         {roundHeaders.map((rh) => (
           <div
             key={rh.roundNumber}
-            className="absolute flex items-center gap-1.5"
+            className="absolute flex items-center justify-center gap-1.5"
             style={{
               left: `${rh.x + padding}px`,
               top: 0,
               width: `${cardWidth}px`,
             }}
           >
-            {/* 칩 형태 헤더: surface 배경 + rounded-full + 작은 폰트 */}
+            {/* 강조 버튼 스타일: primary 연한 배경 + 진한 글씨 */}
             <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap"
+              className="inline-flex items-center rounded-md px-3 py-1 text-[11px] font-bold whitespace-nowrap"
               style={{
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text-secondary)",
+                backgroundColor: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+                color: "var(--color-primary)",
               }}
             >
               {rh.roundName}
-              {/* 이유: "준결승 · 2경기" 형태로 경기 수 표시 → 트리 스캔성 향상 */}
-              <span className="ml-1 opacity-60">· {rh.matchCount}</span>
             </span>
             {rh.hasLive && (
               <span className="relative flex h-2 w-2">
