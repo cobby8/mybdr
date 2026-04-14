@@ -353,6 +353,31 @@ Phase 1(열혈농구단 즉시 해결)을 먼저 독립적으로 완료한 뒤, 
 
 ## 구현 기록 (developer)
 
+### BracketView 모바일 탭 뷰 제거 → 트리 전체 표시 (2026-04-13)
+
+📝 구현한 기능: BracketView에서 모바일 전용 라운드 탭(준결승/결승) 뷰 제거. 데스크톱 트리 뷰를 모든 화면에 적용하여 토너먼트 전체 트리를 한 화면에 보여줌. 모바일은 가로 스크롤로 자연스럽게 처리.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/tournaments/[id]/bracket/_components/bracket-view.tsx | useState/useEffect/MobileMatchCard/getInitialActiveRound/탭 UI 전부 제거. DesktopBracketView → BracketTreeView 리네임. columnGap 72→40. 컨테이너 패딩 p-6 → p-3 sm:p-6. getCardSize 시그니처 변경(rounds 배열 기반, 4+ 라운드면 sm) | 수정 |
+
+💡 tester 참고:
+- 테스트 URL: /tournaments/{id}/bracket 또는 대회 상세 → 대진표 탭 (single_elimination 또는 full_league_knockout + 토너먼트 생성된 대회)
+- 정상 동작:
+  - 데스크톱: 기존 트리 뷰 그대로 (헤더, SVG 연결선, 라이브 인디케이터 모두 동작)
+  - 모바일(375px 등): 탭 버튼 사라지고 트리 전체가 가로 스크롤로 노출. 4강은 columnGap 40 덕에 거의 한 화면에 들어옴
+  - 라운드 헤더(준결승/결승 등), 실시간 펄스, 라이브/예정 범례 모두 유지
+- 주의할 입력:
+  - 16강 이상 큰 토너먼트(rounds >= 4): cardSize=sm으로 축소되는지
+  - 4강(rounds < 4): cardSize=md 유지되는지
+  - 리그 단독(토너먼트 단계 없음) 대회는 이 컴포넌트 자체가 렌더되지 않음 (tournament-tabs 분기)
+
+⚠️ reviewer 참고:
+- tournamentId prop은 현재 미사용이라 `_tournamentId`로 rename (MobileMatchCard 제거 결과). 시그니처는 유지 — 상위 tournament-tabs가 넘기고 있음
+- MatchCard는 계속 사용, MobileMatchCard만 import 제거
+- SIZE_MAP 기존값 유지 (sm: 120x60, md: 140x66, lg: 160x72)
+- 4강 트리 너비 대략: cardWidth*3 + columnGap*2 + padding*2 = 140*3 + 40*2 + 16*2 = 532px → 모바일 375에서는 여전히 스크롤 필요하나 부담 크게 감소
+
 ### Phase 1: 풀리그 대진표 표시 (2026-04-13)
 
 구현한 기능: 대진표 탭에서 tournament.format이 풀리그(round_robin/full_league/full_league_knockout)일 때 리그 순위표 + 경기 일정 목록을 조건부 렌더링. 기존 single_elimination 동작은 완전히 유지.
@@ -596,6 +621,7 @@ tsc --noEmit 통과. 미푸시 커밋: N/A (PM 커밋 대기)
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | BracketView 모바일 탭 뷰 제거 → 트리 전체 표시 (bracket-view.tsx 1파일, columnGap 40 + 패딩축소, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2C 토너먼트 뼈대 미리 생성 + 슬롯 라벨 (tournament-seeding 2함수 추가 + bracket API 훅 + matches 자동 훅 전환 + bracket-builder 타입확장 + match-card 라벨 표시 + admin 안내, 6파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2B 토너먼트 카드 시드 뱃지 표시 (seeding seedNumber 저장 + bracket-builder 타입확장 + public-bracket select + match-card UI, 4파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2A 리그 종료 시 토너먼트 자동 생성 (tournament-seeding + matches 훅 + 수동 API, 3파일, tsc 통과) | 완료 |
@@ -605,5 +631,3 @@ tsc --noEmit 통과. 미푸시 커밋: N/A (PM 커밋 대기)
 | 04-13 | developer | 팀 전적 tournament_matches 집계 + draws 제거 (2파일) | 완료 |
 | 04-13 | developer | 팀명/선수명 Link 추가 (9파일, API 3곳 + UI 6곳) | 완료 |
 | 04-13 | developer | 대회 선수 userId 자동 연결 구현 (시나리오 A+D, 3파일) | 완료 |
-| 04-13 | planner-architect | 대회 기록 자동 연결 시스템 계획 수립 (4시나리오 분석+5파일 설계) | 기획완료 |
-| 04-13 | developer | 대회 상세 UI 전면 리디자인 (히어로+탭+대시보드+일정카드+순위표 등 15건) | 완료 |

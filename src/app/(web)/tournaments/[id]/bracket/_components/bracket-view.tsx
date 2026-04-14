@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+// 이유: 모바일 탭 뷰를 제거하고 모든 화면에서 SVG 트리 뷰를 표시하기 위해
+// useState/useEffect 훅과 MobileMatchCard가 더 이상 필요 없음. 트리 뷰는 순수
+// 렌더링이라 useMemo만 있으면 충분함.
+import { useMemo } from "react";
 import type {
   RoundGroup,
   BracketConfig,
@@ -10,7 +13,7 @@ import {
   computeConnectorPaths,
   computeBracketDimensions,
 } from "@/lib/tournaments/bracket-builder";
-import { MatchCard, MobileMatchCard } from "./match-card";
+import { MatchCard } from "./match-card";
 
 type BracketViewProps = {
   rounds: RoundGroup[];
@@ -18,11 +21,12 @@ type BracketViewProps = {
 };
 
 // ── 카드 크기 결정 ────────────────────────────────────
-
-function getCardSize(totalTeams: number): "sm" | "md" | "lg" {
-  if (totalTeams > 16) return "sm";
-  if (totalTeams > 8) return "md";
-  return "lg";
+// 이유: 모바일에서도 트리 전체를 보여주려면 라운드 수(=토너먼트 규모)에 따라
+// 카드 크기를 더 보수적으로 고르는 편이 가로 스크롤 폭을 줄여줌.
+// 4강(3 rounds 미만) → md, 그 외에는 sm 고정.
+function getCardSize(rounds: RoundGroup[]): "sm" | "md" | "lg" {
+  if (rounds.length >= 4) return "sm"; // 8강 이상: 작게
+  return "md"; // 4강 등: 기본
 }
 
 const CARD_DIMENSIONS = {
@@ -31,45 +35,16 @@ const CARD_DIMENSIONS = {
   lg: { width: 160, height: 72 },
 } as const;
 
-// ── 현재 활성 라운드 계산 ──────────────────────────────
-
-function getInitialActiveRound(rounds: RoundGroup[]): number {
-  const liveRound = rounds.find((r) => r.hasLive);
-  if (liveRound) return liveRound.roundNumber;
-
-  const completedRounds = rounds.filter((r) => r.hasCompleted);
-  if (completedRounds.length > 0) {
-    const lastCompleted = completedRounds[completedRounds.length - 1];
-    const nextRound = rounds.find(
-      (r) => r.roundNumber === lastCompleted.roundNumber + 1,
-    );
-    if (nextRound) return nextRound.roundNumber;
-    return lastCompleted.roundNumber;
-  }
-
-  return rounds[0]?.roundNumber ?? 1;
-}
-
 // ── 메인 컴포넌트 ──────────────────────────────────────
 
-export function BracketView({ rounds, tournamentId }: BracketViewProps) {
-  const [activeRound, setActiveRound] = useState<number>(() =>
-    getInitialActiveRound(rounds),
-  );
-
-  const totalTeams = rounds.length > 0 ? rounds[0].matches.length * 2 : 0;
-  const cardSize = getCardSize(totalTeams);
-
-  useEffect(() => {
-    setActiveRound(getInitialActiveRound(rounds));
-  }, [rounds]);
-
-  const activeRoundData = rounds.find((r) => r.roundNumber === activeRound);
+export function BracketView({ rounds, tournamentId: _tournamentId }: BracketViewProps) {
+  // 이유: 더 이상 탭 state 없음. 트리 뷰가 전체를 한번에 그림.
+  const cardSize = getCardSize(rounds);
 
   return (
     <section>
       {/* 섹션 헤더: 시안 bdr_3의 "토너먼트 대진표 (Knockout Stage)" 스타일 */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h3 className="text-xl font-bold flex items-center gap-2">
           {/* 파란 세로 막대 (시안에서 secondary-navy 사용) */}
           <span
@@ -89,94 +64,17 @@ export function BracketView({ rounds, tournamentId }: BracketViewProps) {
         </div>
       </div>
 
-      {/* 데스크톱: 전체 트리 뷰 */}
-      <div className="hidden lg:block">
-        <DesktopBracketView rounds={rounds} cardSize={cardSize} />
-      </div>
-
-      {/* 모바일: 라운드 탭 뷰 */}
-      <div className="lg:hidden">
-        {/* 라운드 탭 바 */}
-        <div className="mb-4 flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-          {rounds.map((round) => (
-            <button
-              key={round.roundNumber}
-              onClick={() => setActiveRound(round.roundNumber)}
-              className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                activeRound === round.roundNumber
-                  ? "bg-[var(--color-primary)] text-white"
-                  : round.hasLive
-                    ? "bg-[var(--color-card)] border border-[var(--color-primary)] text-[var(--color-primary)]"
-                    : "bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
-              }`}
-            >
-              {round.roundName}
-              {round.hasLive && activeRound !== round.roundNumber && (
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--color-primary)]" />
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* 라운드 정보 */}
-        {activeRoundData && (
-          <p className="mb-3 text-xs text-[var(--color-text-secondary)]">
-            {activeRoundData.roundName} · {activeRoundData.matches.length}경기
-          </p>
-        )}
-
-        {/* 선택된 라운드의 매치 카드 */}
-        <div className="space-y-3">
-          {activeRoundData?.matches
-            .slice()
-            .sort((a, b) => {
-              if (a.status === "in_progress" && b.status !== "in_progress") return -1;
-              if (a.status !== "in_progress" && b.status === "in_progress") return 1;
-              return a.bracketPosition - b.bracketPosition;
-            })
-            .map((match) => (
-              <MobileMatchCard
-                key={match.id}
-                match={match}
-                tournamentId={tournamentId}
-              />
-            ))}
-        </div>
-
-        {/* 이전/다음 라운드 이동 */}
-        <div className="mt-4 flex justify-between text-sm">
-          {activeRound > (rounds[0]?.roundNumber ?? 1) ? (
-            <button
-              onClick={() => setActiveRound(activeRound - 1)}
-              className="text-[var(--color-accent)] hover:underline"
-            >
-              ← {rounds.find((r) => r.roundNumber === activeRound - 1)?.roundName}
-            </button>
-          ) : (
-            <div />
-          )}
-          {activeRound < (rounds[rounds.length - 1]?.roundNumber ?? 1) ? (
-            <button
-              onClick={() => setActiveRound(activeRound + 1)}
-              className="text-[var(--color-accent)] hover:underline"
-            >
-              {rounds.find((r) => r.roundNumber === activeRound + 1)?.roundName} →
-            </button>
-          ) : (
-            <div />
-          )}
-        </div>
-      </div>
+      {/* 트리 뷰: 모든 화면에서 동일하게 렌더.
+          모바일에서는 내부 overflow-x-auto로 가로 스크롤 처리됨. */}
+      <BracketTreeView rounds={rounds} cardSize={cardSize} />
     </section>
   );
 }
 
-// ── 데스크톱 트리 뷰 (절대 위치 기반) ─────────────────
-
-function DesktopBracketView({
+// ── 트리 뷰 (절대 위치 기반 SVG 트리) ─────────────────
+// 이유: 과거 DesktopBracketView를 BracketTreeView로 이름만 정리. 로직은 동일하되
+// columnGap을 40으로 줄여 모바일 가로 폭 부담을 낮춤.
+function BracketTreeView({
   rounds,
   cardSize,
 }: {
@@ -185,7 +83,8 @@ function DesktopBracketView({
 }) {
   const { width: cardWidth, height: cardHeight } = CARD_DIMENSIONS[cardSize];
   // columnGap: 카드-카드 사이 공간 (연결선 영역 포함)
-  const columnGap = 72;
+  // 이유: 72 → 40. 모바일에서 4강(3컬럼)이 화면(375px)에 거의 들어오도록.
+  const columnGap = 40;
 
   const config: BracketConfig = { cardWidth, cardHeight, columnGap };
 
@@ -231,7 +130,9 @@ function DesktopBracketView({
   const padding = 16;
 
   return (
-    <div className="overflow-x-auto rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
+    // 이유: 모바일에서 컨테이너 패딩을 p-3으로 줄이고 데스크톱은 p-6 유지.
+    // overflow-x-auto가 모바일 가로 스크롤을 처리함.
+    <div className="overflow-x-auto rounded-[16px] border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div
         className="relative"
         style={{
