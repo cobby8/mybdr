@@ -27,9 +27,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/referee/certificates", label: "내 자격증", icon: "verified" },
   { href: "/referee/documents", label: "서류", icon: "description" },
   { href: "/referee/assignments", label: "내 배정", icon: "event" },
+  // 배정 워크플로우 1차: 본인이 공고에 신청/내 신청 열람
+  { href: "/referee/applications", label: "배정 신청", icon: "how_to_reg" },
   { href: "/referee/settlements", label: "내 정산", icon: "payments" },
   { href: "/referee/admin", label: "관리자", icon: "admin_panel_settings" },
   { href: "/referee/admin/assignments", label: "배정 관리", icon: "event_available" },
+  // 배정 워크플로우 1차: 관리자가 신청 공고 게시/관리
+  { href: "/referee/admin/announcements", label: "공고 관리", icon: "campaign" },
   { href: "/referee/admin/settings", label: "설정", icon: "settings" },
 ];
 

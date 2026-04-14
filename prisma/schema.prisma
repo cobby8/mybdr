@@ -2177,6 +2177,9 @@ model Association {
   children Association[]      @relation("AssociationHierarchy")
   referees Referee[]
   admins   AssociationAdmin[]
+  // 배정 워크플로우: 이 협회가 게시한 공고 + 일자별 선정 풀 역참조
+  announcements AssignmentAnnouncement[]
+  pools         DailyAssignmentPool[]
 
   @@index([parent_id])
   @@index([level])
@@ -2253,6 +2256,9 @@ model Referee {
   assignments  RefereeAssignment[]
   settlements  RefereeSettlement[]
   documents    RefereeDocument[]
+  // 배정 워크플로우: 심판이 제출한 신청 + 일자별 선정 풀 역참조
+  applications AssignmentApplication[]
+  pools        DailyAssignmentPool[]
 
   @@index([user_id])
   @@index([association_id])
@@ -2303,6 +2309,11 @@ model RefereeAssignment {
   memo                String?
   created_at          DateTime @default(now()) @db.Timestamp(6)
   updated_at          DateTime @updatedAt @db.Timestamp(6)
+
+  // 1차 추가: 일자별 선정 풀 연결 (SetNull로 기존 배정 무결성 유지)
+  // 기존 RefereeAssignment는 pool 없이도 동작 — 2차에서 선정→배정 흐름 연결 시 사용
+  pool_id BigInt?
+  pool    DailyAssignmentPool? @relation(fields: [pool_id], references: [id], onDelete: SetNull)
 
   referee    Referee            @relation(fields: [referee_id], references: [id], onDelete: Cascade)
   settlement RefereeSettlement?
@@ -2357,4 +2368,102 @@ model RefereeDocument {
   @@unique([referee_id, doc_type])  // 1심판당 서류 종류별 1장
   @@index([referee_id])
   @@map("referee_documents")
+}
+
+// ============================================================================
+// 심판 배정 워크플로우 (1차: 공고 + 신청 + 선정풀 스켈레톤)
+// ----------------------------------------------------------------------------
+// 흐름:
+//   1) 협회 팀장/총무가 AssignmentAnnouncement(공고) 게시 — 대회/일자/필요인원
+//   2) 심판(또는 경기원)이 AssignmentApplication(신청) 제출 — 신청 일자 체크
+//   3) [2차] 협회가 DailyAssignmentPool(일자별 선정 풀)로 확정
+//   4) [2차] 풀 → RefereeAssignment(경기별 배정)로 내려감 (pool_id 연결)
+// ============================================================================
+
+// 배정 신청 공고 — 심판팀장/경기팀장이 게시
+// tournament_id는 Tournament.id (UUID/String)
+model AssignmentAnnouncement {
+  id              BigInt   @id @default(autoincrement())
+  tournament_id   String   @db.VarChar         // Tournament.id (UUID)
+  association_id  BigInt                       // 게시 협회 (IDOR 필터 키)
+  title           String   @db.VarChar
+  description     String?  @db.Text
+  role_type       String   @db.VarChar          // "referee" | "game_official"
+  // 공고 대상 일자들 (PostgreSQL Date[])
+  dates           DateTime[] @db.Date
+  // 일자별 필요 인원: {"YYYY-MM-DD": number}. 타임존 이슈 회피 위해 키는 문자열 고정
+  required_count  Json
+  deadline        DateTime? @db.Timestamp(6)
+  status          String   @default("open") @db.VarChar  // open/closed/cancelled
+  created_by      BigInt                        // User.id (게시자)
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @updatedAt @db.Timestamp(6)
+
+  association  Association              @relation(fields: [association_id], references: [id], onDelete: Cascade)
+  applications AssignmentApplication[]
+
+  @@index([tournament_id])
+  @@index([association_id])
+  @@index([status])
+  @@map("assignment_announcements")
+}
+
+// 배정 신청 — 심판/경기원이 공고에 신청
+// @@unique: 한 심판이 같은 공고에 중복 신청 방지
+model AssignmentApplication {
+  id              BigInt   @id @default(autoincrement())
+  announcement_id BigInt
+  referee_id      BigInt
+  memo            String?  @db.Text
+  status          String   @default("submitted") @db.VarChar  // submitted/withdrawn
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  updated_at      DateTime @updatedAt @db.Timestamp(6)
+
+  announcement AssignmentAnnouncement       @relation(fields: [announcement_id], references: [id], onDelete: Cascade)
+  referee      Referee                      @relation(fields: [referee_id], references: [id], onDelete: Cascade)
+  dates        AssignmentApplicationDate[]
+
+  @@unique([announcement_id, referee_id])
+  @@index([referee_id])
+  @@map("assignment_applications")
+}
+
+// 신청 일자 (N:M) — 한 신청이 여러 일자를 선택 가능
+model AssignmentApplicationDate {
+  id             BigInt   @id @default(autoincrement())
+  application_id BigInt
+  date           DateTime @db.Date
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+
+  application AssignmentApplication @relation(fields: [application_id], references: [id], onDelete: Cascade)
+
+  @@unique([application_id, date])
+  @@index([date])
+  @@map("assignment_application_dates")
+}
+
+// 일자별 선정 풀 (2차에서 본격 사용, 1차에서는 모델만 생성)
+// 협회 관리자가 신청자 중 특정 일자에 "이 심판을 쓴다"고 확정하는 단계
+model DailyAssignmentPool {
+  id             BigInt   @id @default(autoincrement())
+  tournament_id  String   @db.VarChar
+  association_id BigInt
+  date           DateTime @db.Date
+  referee_id     BigInt
+  role_type      String   @db.VarChar   // "referee" | "game_official"
+  is_chief       Boolean  @default(false)  // 주심/팀장 여부 (2차에서 활용)
+  selected_by    BigInt                   // User.id (선정한 관리자)
+  memo           String?  @db.Text
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+  updated_at     DateTime @updatedAt @db.Timestamp(6)
+
+  association Association         @relation(fields: [association_id], references: [id], onDelete: Cascade)
+  referee     Referee             @relation(fields: [referee_id], references: [id], onDelete: Cascade)
+  // 이 풀에서 내려간 경기별 배정들 (2차에서 연결)
+  assignments RefereeAssignment[]
+
+  @@unique([tournament_id, date, referee_id, role_type])
+  @@index([tournament_id, date])
+  @@index([association_id])
+  @@map("daily_assignment_pools")
 }

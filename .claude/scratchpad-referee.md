@@ -3,9 +3,9 @@
 ---
 
 ## 📌 현재 작업
-- **요청**: v3 아키텍처 — 협회 주도 사전 등록 + 유저 매칭 시스템
-- **상태**: ✅ v3 전체 완료 (1차+2차+3차)
-- **현재 담당**: pm (완료 보고)
+- **요청**: 심판 배정 워크플로우 1차 — 공고 + 신청 뼈대
+- **상태**: 🚧 developer 구현 완료 (tsc 통과), tester 대기
+- **현재 담당**: developer → (다음) tester
 
 ## 🧭 진행 현황표
 
@@ -17,12 +17,97 @@
 | 3/4 | 배정/정산 조회 API 2개 + 본인 열람 페이지 2개 | ✅ | 405c030 |
 | 4/4 | Admin API 6개 + 페이지 5개 + Excel 일괄검증 | ✅ | 0510b01 |
 
-### v3 (협회 주도 등록 + 매칭) — 🚧 진행 중
+### v3 (협회 주도 등록 + 매칭) — ✅ 완료
 | 단계 | 범위 | 상태 |
 |------|------|------|
 | 1차 | DB 마이그레이션 + 매칭 엔진 + 암호화 유틸 | ✅ | 4aea61f |
 | 2차 | 관리자 사전 등록 UI/API + 수동매칭 + 상태필터 | ✅ | 3b3ba18 |
 | 3차 | 자동 매칭 훅 + 대시보드 안내 + 역할 관리 | ✅ | 39612a4 |
+
+### v4 (심판 배정 워크플로우) — 🚧 진행 중
+| 단계 | 범위 | 상태 |
+|------|------|------|
+| 1차 | 공고 게시 + 본인 신청 뼈대 (공고/신청/선정풀 스키마 + API 5개 + 페이지 2개) | 🚧 구현 완료 |
+| 2차 | 일자별 선정 풀 + 선정 UI | 대기 |
+| 3차 | 풀→경기 배정 자동화 + 기존 assignments 통합 | 대기 |
+
+## 구현 기록 (developer) — 배정워크플로우 1차
+
+📝 구현한 기능:
+- 심판팀장/경기팀장이 "대회 일자별 필요 인원" 공고를 게시하고, 심판이 본인 가능 일자를 골라 신청 제출/취소하는 뼈대
+- DB 모델 4개 신규(공고/신청/신청일자/일자별선정풀) + 기존 RefereeAssignment.pool_id nullable 확장
+- 선정풀(DailyAssignmentPool)은 모델만 생성 — 2차에서 UI/API 추가
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| prisma/schema.prisma | AssignmentAnnouncement / AssignmentApplication / AssignmentApplicationDate / DailyAssignmentPool 4모델 추가, Association·Referee back-relation, RefereeAssignment.pool_id nullable | 수정 |
+| src/app/api/web/referee-admin/announcements/route.ts | POST(공고 게시) + GET(목록) — assignment_manage 권한 + association_id IDOR 방지 + dates/required_count 키 검증 | 신규 |
+| src/app/api/web/referee-admin/announcements/[id]/route.ts | GET(상세+신청자) / PATCH(수정) / DELETE(삭제) — 소유 협회 검증 | 신규 |
+| src/app/api/web/referee-applications/announcements/route.ts | GET — 본인에게 열려있는 공고 목록 (협회+역할 필터 + already_applied 플래그) | 신규 |
+| src/app/api/web/referee-applications/route.ts | POST(신청: Application+Date 트랜잭션) / GET(내 신청) — 공고 open/deadline/role/date 검증 + 중복 방지 | 신규 |
+| src/app/api/web/referee-applications/[id]/route.ts | DELETE — 본인 신청 취소 (IDOR: referee_id 세션 기반 검증) | 신규 |
+| src/app/(referee)/referee/admin/announcements/page.tsx | 공고 관리 페이지 — 테이블 + 게시 모달(대회검색/일자추가/필요인원/마감일) + 상태토글/삭제 | 신규 |
+| src/app/(referee)/referee/applications/page.tsx | 내 신청 페이지 — 탭2개(열린공고/내 신청) + 신청 모달(일자체크+메모) + 취소 | 신규 |
+| src/app/(referee)/referee/_components/referee-shell.tsx | NAV_ITEMS에 "배정 신청"(how_to_reg) + "공고 관리"(campaign) 추가 | 수정 |
+
+💡 tester 참고:
+- `npx prisma generate` 성공 (신규 4모델 Prisma Client 반영됨)
+- `npx tsc --noEmit` 에러 0건 확인
+- **db push 필요 — PM이 별도 실행**: 신규 테이블 4개 + referee_assignments.pool_id 컬럼 추가
+- 테스트 계정: 관리자 로그인으로 `/referee/admin/announcements` 접근 → 공고 게시 → 다른 심판 계정으로 `/referee/applications` 신청 → 다시 관리자로 상세 조회
+- role_type 매칭 로직: Referee.role_type="referee" → 공고 role_type="referee"만 보임 / scorer/timer → "game_official"만 보임
+- 정상 동작:
+  1. 관리자가 공고 게시 → 해당 협회 소속 심판만 본인 화면에서 공고 보임
+  2. 같은 공고에 중복 신청 시 409 DUPLICATE_APPLICATION
+  3. 공고 상태를 "마감"으로 바꾸면 신청 불가(400 NOT_OPEN)
+  4. deadline 경과 시 400 DEADLINE_PASSED
+  5. 공고에 없는 일자로 신청 시 400 INVALID_DATE
+- 주의할 입력:
+  - dates 배열이 UTC 자정 Date로 저장됨 → 클라이언트는 YYYY-MM-DD만 주고받음
+  - required_count의 키는 dates와 1:1 매칭 (API가 검증)
+  - datetime-local 입력은 로컬 TZ → API에서 ISO로 변환 필요(페이지가 처리함)
+
+⚠️ reviewer 참고:
+- **IDOR 포인트**:
+  - announcements POST: body의 association_id 없이 세션에서 강제
+  - applications POST: referee.association_id와 announcement.association_id 일치 검증
+  - [id] 모든 메서드: existing.association_id === admin.associationId 검증
+- **기존 코드 무수정 원칙 준수**:
+  - /referee/admin/assignments 페이지/API 미수정
+  - 기존 RefereeAssignment 스키마는 pool_id(nullable) 추가만 — 기존 배정 무결성 유지
+- **role_type 버킷화** (referee-applications/announcements, applications POST):
+  - Referee.role_type이 scorer/timer 등 다양한데, 공고는 "referee"|"game_official" 2분류
+  - referee만 referee, 나머지는 모두 game_official로 판단 — 2차 이전에 PM 확인 필요
+- **withWebAuth 3-인자 패턴**: referee-applications/[id]에서 handler 시그니처 `(req, routeCtx, ctx)` — certificates/[id]와 동일
+- **Date[] 컬럼**: PostgreSQL native Date[] 타입. Prisma @db.Date 배열은 UTC 자정 저장
+
+## 테스트 결과 (tester) — 배정워크플로우 1차 [2026-04-13]
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| T1. tsc --noEmit | ✅ 통과 | Exit 0, 에러 0건 |
+| T2. Prisma 신규 4모델 | ✅ 통과 | AssignmentAnnouncement(2385), AssignmentApplication(2413), AssignmentApplicationDate(2432), DailyAssignmentPool(2447) |
+| T2. RefereeAssignment.pool_id nullable | ✅ 통과 | L2315 `pool_id BigInt?` + SetNull relation |
+| T2. 기존 데이터 영향 없음 | ✅ 통과 | refereeAssignments count 정상 조회(0건) — 기존 테이블 ALTER 없음 |
+| T3. 관리자 공고 POST/GET | ✅ 통과 | requirePermission("assignment_manage") + association_id 세션 강제 + dates/required_count 키 일치 검증 + Zod |
+| T3. 관리자 공고 [id] GET/PATCH/DELETE | ✅ 통과 | association_id IDOR 검증 3개 메서드 모두, Cascade로 applications 동반 삭제 |
+| T4. 본인 announcements GET | ✅ 통과 | Referee.association_id 필터 + role_type 버킷 매핑 + already_applied 플래그 |
+| T4. 본인 applications POST | ✅ 통과 | getWebSession→referee 조회 + assoc 일치 + status/deadline/role/INVALID_DATE 검증 + 중복 409 |
+| T4. 본인 applications [id] DELETE | ✅ 통과 | withWebAuth 3-인자 패턴, referee_id 세션 검증 |
+| T5. 트랜잭션 원자성 | ✅ 통과 | prisma.$transaction 내 Application create + ApplicationDate createMany (route.ts L123) |
+| T6. 공고 관리 페이지 | ✅ 통과 | 게시 모달(L441) / 일자 태그(L690) / 일자별 필요인원(L712) / 수정·삭제·마감·열기 버튼(L226,247,418) |
+| T7. 내 신청 페이지 | ✅ 통과 | 2탭(open/mine) L69, 신청 모달 L465, 일자 체크박스 L545, 메모+취소 |
+| T8. 메뉴 추가 | ✅ 통과 | referee-shell.tsx L31 "배정 신청"(how_to_reg) + L36 "공고 관리"(campaign) |
+| T9. DB 상태 | ✅ 통과 | announcements=0, applications=0, pools=0, applicationDates=0, refereeAssignments=0 — 4신규 테이블 전부 push됨 |
+
+📊 종합: 14개 중 14개 통과 / 0개 실패
+
+**전체 PASS** — PM 커밋 승인 권장.
+
+보조 확인 사항 (참고):
+- withWebAuth 시그니처 일관: /referee-applications GET/POST는 (req, ctx) 2-인자, [id] DELETE는 (req, routeCtx, ctx) 3-인자 — 기존 certificates/[id] 패턴과 동일
+- role_type 버킷화 로직: Referee.role_type === "referee" ? "referee" : "game_official" — 공고 GET과 POST에 동일 규칙 적용됨 (일관성 OK, developer가 남긴 주의사항대로 2차 이전 PM 정책 확인 필요)
+- Date[] UTC 저장 + YYYY-MM-DD 왕복 변환 유틸(toUtcDate/toYmd) 양측 API 동일하게 사용 — 타임존 드리프트 위험 낮음
 
 ---
 
@@ -266,6 +351,7 @@ tester 참고:
 | 04-13 | developer | 서류 1차: Prisma모델+sharp+암호화+API4개+페이지2개+셸+상세링크 (13파일) | ✅ tsc 통과 |
 | 04-13 | developer | 경기 배정: 스키마unique+tournaments/matches/assignments API 4개+3단계드릴다운 페이지+셸 (7파일) | ✅ tsc 통과 |
 | 04-13 | reviewer | 경기 배정 리뷰: critical 0, warning 3, nit 2 | ✅ APPROVE w/ comments |
+| 04-13 | developer | v4 배정워크플로우 1차: 스키마4모델+pool_id / 관리자 API 2개 / 본인 API 3개 / 페이지 2개 / 셸 2메뉴 (9파일) | ✅ tsc 통과 |
 
 ---
 
@@ -571,3 +657,51 @@ reviewer 참고:
 - 접근 로그: console.log로 기록 (추후 DB audit_log 테이블로 전환 예정)
 - Content-Disposition: attachment로 강제 다운로드 (inline 미사용)
 - Cache-Control: no-store로 민감 문서 캐싱 방지
+
+---
+
+## 리뷰 결과 (reviewer) — 배정 워크플로우 1차
+
+종합 판정: **APPROVE with comments** (필수 수정 0건, 권장 수정 4건)
+
+잘된 점:
+- **IDOR 방지 3중 방어**가 매우 견고함. POST/PATCH/DELETE 모두 `existing.association_id === admin.associationId` 검증 + body의 association_id는 무시하고 세션에서 강제 주입(announcements/route.ts L106). 신청 측도 `ann.association_id !== referee.association_id` 교차 검증(applications/route.ts L80-82).
+- **중복 신청 방지 이중 보호**: 사전 findUnique 체크(L109-120) + P2002 catch(L147-151) + DB @@unique 제약 — 3중.
+- **트랜잭션 원자성**: Application + ApplicationDate 생성이 `prisma.$transaction`으로 묶임(applications/route.ts L123-141). createMany 하나라도 실패하면 Application도 롤백.
+- **pool_id nullable 확장이 안전함**: 기존 RefereeAssignment 레코드는 pool_id=null로 존재 가능 + onDelete:SetNull이라 pool 삭제 시 기존 배정 보존. 기존 /admin/assignments 페이지 쿼리에 전혀 영향 없음(select 절에 pool_id 미포함).
+- **타임존 처리 일관됨**: 서버/클라이언트 모두 `YYYY-MM-DD` 문자열을 UTC 자정 Date로 변환(`T00:00:00.000Z`) + `toISOString().slice(0,10)`로 역변환. PostgreSQL Date 컬럼과 호환.
+- **dates ↔ required_count 키 매칭 검증**(L80-90) — 클라이언트 실수 방어.
+- **역할 버킷화 명시적 주석**: Referee.role_type(referee/scorer/timer 등) → 공고의 이분법(referee/game_official) 매핑 규칙을 코드 주석 + scratchpad에 명시.
+- **Zod 입력 검증**: regex(`^\d{4}-\d{2}-\d{2}$`), min/max 길이, record key/value 타입 모두 체크.
+- **디자인 컨벤션 준수**: 모든 색상 var(--color-*) / border-radius 4px / Material Symbols 사용 / 하드코딩 색상은 모달 오버레이 `rgba(0,0,0,0.6)` 하나뿐(허용 가능).
+- **DailyAssignmentPool 확장성**: `is_chief` 필드가 이미 2차의 "책임자 지정"을 수용, `@@unique([tournament_id, date, referee_id, role_type])`이 동일 날짜 동일 심판 중복 선정 방지, `RefereeAssignment.pool_id` 연결 준비 완료 — 2차 설계 자연 확장 가능.
+
+필수 수정: 없음
+
+권장 수정:
+
+🟡 announcements/route.ts POST (L80-90):
+- 현재 `required_count` 키가 `dates`에 있는지만 검증. 반대 방향(`dates`에 있지만 `required_count`에 없는 일자)은 미검증.
+- 영향: 클라이언트가 일자만 추가하고 인원 입력을 누락하면 DB에 저장된 후 해당 일자 정원이 `undefined` → UI에서 `0명`으로 표시됨.
+- 프론트가 기본값 1을 자동 주입하므로 현재 동작은 정상이나, 방어적 API를 위해 역방향 체크(없으면 0으로 채우기 or 400) 추가를 권장.
+
+🟡 applications/announcements/route.ts GET (L48-53):
+- `deadline`이 지난 공고도 `status=open`이면 목록에 노출됨. POST 단계에서 `DEADLINE_PASSED`로 막고 있어 기능적 문제는 없지만 UX상 "이미 지난 공고"가 열린 공고에 섞임.
+- 2차에서 `where`에 `OR: [{ deadline: null }, { deadline: { gt: new Date() } }]` 추가 검토.
+
+🟡 announcements/[id] GET (L120-133):
+- 신청자 목록 노출 시 `referee_phone`에 `user?.phone ?? registered_phone` 그대로 포함. 현재는 협회 관리자만 접근하므로 문제 없지만, 심판 연락처는 민감 정보에 가까움. 마스킹(010-****-1234) 또는 "연락처 보기" 버튼 + 별도 권한 체크 단계를 2차에서 고려.
+
+🟡 applications/route.ts POST 일자 검증(L97-106):
+- `ann.dates.map((d) => toYmd(d))`는 Prisma Date 컬럼(UTC 자정)을 UTC 기준 `toISOString().slice(0,10)`으로 포매팅해 일관성 OK. 다만 `ann.dates`가 Prisma에서 Date[] 타입으로 오는지(JS Date) 확인됨 — 현재 로직은 정확함. 단, `d`가 `Date` 객체임을 타입으로 보이게 주석 보강하면 이후 리팩토링 시 안전.
+
+기타 관찰 사항:
+- `withWebAuth` 3-인자 시그니처가 프로젝트 기존 패턴(certificates/[id])과 동일. OK.
+- announcements/[id] PATCH에서 `status: "cancelled"`로 변경해도 기존 신청(applications)은 유지됨 — 1차 의도된 동작. 2차에서 취소 공고의 신청 노출 규칙 확정 필요.
+- 공고 게시 페이지에 "대회 상태" 필터나 지난 대회 구분이 없음. tournaments 검색 API가 모든 상태를 반환하는지 확인 필요(별도 API라 리뷰 범위 밖).
+- BigInt 직렬화 — Prisma 응답이 Next.js route handler에서 자동 직렬화되는지 확인됨(이전 커밋 패턴과 동일). 프론트 타입이 `string | number` union이라 안전.
+
+2차 구현 시 체크리스트:
+- [ ] 공고 `status="cancelled"` 시 본인 화면에 이미 낸 신청을 "공고 취소" 표시
+- [ ] 이미 DailyAssignmentPool에 선정된 신청은 본인 취소 차단 (applications/[id] DELETE)
+- [ ] Pool 생성 API에서 `@@unique` 제약 덕분에 중복 선정 자동 방지 확인
