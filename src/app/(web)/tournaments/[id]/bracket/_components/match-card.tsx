@@ -80,6 +80,22 @@ function TeamRow({
   // Phase 2C: 팀이 없을 때 "1위", "4위" 같은 슬롯 라벨을 표시 (리그 진행 중)
   const slotLabel = position === "home" ? match.homeSlotLabel : match.awaySlotLabel;
 
+  // 좌측 세로 띠 색상 결정
+  // - 팀 확정 + primaryColor가 흰색 아님 → 유니폼 색상
+  // - 팀 확정 + 흰색 → secondaryColor 또는 fallback
+  // - 팀 미확정 → home=primary(red), away=secondary(navy)
+  const isWhiteColor = (c: string | null | undefined) =>
+    !c || c.toLowerCase() === "#ffffff" || c.toLowerCase() === "#fff";
+  const stripeColor = (() => {
+    if (team) {
+      if (!isWhiteColor(team.team.primaryColor)) return team.team.primaryColor!;
+      // 흰색이면 position별 fallback
+      return position === "home" ? "var(--color-primary)" : "var(--color-secondary)";
+    }
+    // 팀 미확정: home은 primary(red), away는 secondary(navy)
+    return position === "home" ? "var(--color-primary)" : "var(--color-secondary)";
+  })();
+
   return (
     // 이유: NBA.com 스타일 — 승자 row는 굵게+primary 하이라이트, 패자 row는 opacity로 명암 구분.
     // px-2 py-1 유지, 승자 배경 0.08 → 0.1로 살짝 강화.
@@ -88,11 +104,10 @@ function TeamRow({
         winner ? "bg-[rgba(244,162,97,0.1)]" : ""
       } ${loser ? "opacity-50" : ""}`}
     >
-      {/* 승자 좌측 세로 막대 — NBA 스타일로 w-0.5 → w-1로 강화하여 시각적 "승자 표시" 명확히 */}
+      {/* 좌측 세로 띠: 팀 유니폼 색상 (미확정 시 home=red, away=navy) */}
       <div
-        className={`w-1 self-stretch rounded-sm flex-shrink-0 ${
-          winner ? "bg-[var(--color-primary)]" : "bg-transparent"
-        }`}
+        className="w-1 self-stretch rounded-sm flex-shrink-0"
+        style={{ backgroundColor: stripeColor }}
       />
 
       {/* 팀명: teamId가 있으면 팀 페이지 링크 */}
@@ -222,6 +237,16 @@ export function MobileMatchCard({
   const homeLoser = isLoser(match, match.homeTeam);
   const awayLoser = isLoser(match, match.awayTeam);
 
+  // 좌측 세로 띠 색상 (유니폼 / 미확정 시 home=red, away=navy)
+  const isWhiteColor = (c: string | null | undefined) =>
+    !c || c.toLowerCase() === "#ffffff" || c.toLowerCase() === "#fff";
+  const homeStripeColor = match.homeTeam && !isWhiteColor(match.homeTeam.team.primaryColor)
+    ? match.homeTeam.team.primaryColor!
+    : "var(--color-primary)";
+  const awayStripeColor = match.awayTeam && !isWhiteColor(match.awayTeam.team.primaryColor)
+    ? match.awayTeam.team.primaryColor!
+    : "var(--color-secondary)";
+
   return (
     <div
       className={`rounded-[16px] border overflow-hidden ${
@@ -247,9 +272,8 @@ export function MobileMatchCard({
         }`}
       >
         <div
-          className={`w-1 self-stretch rounded-full mr-3 flex-shrink-0 ${
-            homeWinner ? "bg-[var(--color-primary)]" : "bg-transparent"
-          }`}
+          className="w-1 self-stretch rounded-full mr-3 flex-shrink-0"
+          style={{ backgroundColor: homeStripeColor }}
         />
         {/* 홈팀명: teamId가 있으면 팀 페이지 링크 */}
         {/* 모바일은 데스크톱보다 공간 여유 있으므로 뱃지 11px로 살짝 크게 */}
@@ -306,9 +330,8 @@ export function MobileMatchCard({
         }`}
       >
         <div
-          className={`w-1 self-stretch rounded-full mr-3 flex-shrink-0 ${
-            awayWinner ? "bg-[var(--color-primary)]" : "bg-transparent"
-          }`}
+          className="w-1 self-stretch rounded-full mr-3 flex-shrink-0"
+          style={{ backgroundColor: awayStripeColor }}
         />
         {/* 어웨이팀명: teamId가 있으면 팀 페이지 링크 */}
         {match.awayTeam ? (
