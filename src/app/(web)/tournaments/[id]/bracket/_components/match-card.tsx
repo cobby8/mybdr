@@ -75,6 +75,8 @@ function TeamRow({
   const isBye = match.status === "bye" && !team;
   const isLive = match.status === "in_progress";
   const showScore = match.status === "completed" || match.status === "in_progress";
+  // Phase 2C: 팀이 없을 때 "1위", "4위" 같은 슬롯 라벨을 표시 (리그 진행 중)
+  const slotLabel = position === "home" ? match.homeSlotLabel : match.awaySlotLabel;
 
   return (
     <div
@@ -116,10 +118,12 @@ function TeamRow({
       ) : (
         <span
           className={`flex-1 truncate font-medium leading-tight ${
-            loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
+            // 슬롯 라벨은 팀 이름이 아니라 "대기 중" 의미이므로 이탤릭 + muted
+            slotLabel ? "italic text-[var(--color-text-muted)]" : loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
           }`}
         >
-          {isBye && position === "away" ? "부전승" : "TBD"}
+          {/* 우선순위: bye(부전승) > slotLabel("1위"/"4위") > TBD */}
+          {isBye && position === "away" ? "부전승" : slotLabel ?? "TBD"}
         </span>
       )}
 
@@ -263,7 +267,14 @@ export function MobileMatchCard({
             <span className="truncate">{match.homeTeam.team.name}</span>
           </Link>
         ) : (
-          <span className={`flex-1 font-medium text-[var(--color-text-primary)]`}>TBD</span>
+          // Phase 2C: 홈팀 슬롯 라벨 우선 표시 (예: "1위")
+          <span
+            className={`flex-1 font-medium ${
+              match.homeSlotLabel ? "italic text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"
+            }`}
+          >
+            {match.homeSlotLabel ?? "TBD"}
+          </span>
         )}
         <span
           className={`text-lg font-bold tabular-nums ${
@@ -314,8 +325,13 @@ export function MobileMatchCard({
             <span className="truncate">{match.awayTeam.team.name}</span>
           </Link>
         ) : (
-          <span className={`flex-1 font-medium text-[var(--color-text-primary)]`}>
-            {isBye ? "부전승" : "TBD"}
+          // Phase 2C: 어웨이팀 슬롯 라벨 표시 (bye가 우선)
+          <span
+            className={`flex-1 font-medium ${
+              !isBye && match.awaySlotLabel ? "italic text-[var(--color-text-muted)]" : "text-[var(--color-text-primary)]"
+            }`}
+          >
+            {isBye ? "부전승" : match.awaySlotLabel ?? "TBD"}
           </span>
         )}
         <span

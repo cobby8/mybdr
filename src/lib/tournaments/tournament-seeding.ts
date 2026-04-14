@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 
 // 팀별 순위 결과 타입
 // rank는 1부터 시작 (1위, 2위, ...)
@@ -303,6 +304,208 @@ export async function generateKnockoutMatches(
   await prisma.tournamentMatch.createMany({ data: matchData });
 
   return matchData.length;
+}
+
+/**
+ * ✨ Phase 2C: 토너먼트 "빈 뼈대" 미리 생성
+ *
+ * 리그가 아직 끝나지 않았을 때도 대진표 탭에 토너먼트 트리를 보여주기 위해
+ * 팀이 정해지지 않은 빈 경기(homeTeamId/awayTeamId = null)를 미리 insert.
+ *
+ * 슬롯 라벨은 TournamentMatch.settings JSON에 저장:
+ *   settings = { homeSlotLabel: "1위", awaySlotLabel: "4위" }
+ *
+ * 1라운드만 "N위" 라벨을 표시한다. 2라운드+는 이전 라운드 승자가 채워지므로 라벨 없음.
+ * (부전승 시드 직접 표시는 복잡도 대비 이득이 적어 생략 — 팀 할당 시 자연히 채워짐)
+ *
+ * @param tournamentId 대회 ID
+ * @param knockoutSize 토너먼트 진출 팀 수 (4/8/16 등)
+ * @param bronzeMatch  3/4위전 포함 여부
+ * @returns 생성된 경기 수
+ */
+export async function generateEmptyKnockoutSkeleton(
+  tournamentId: string,
+  knockoutSize: number,
+  bronzeMatch: boolean = false,
+): Promise<number> {
+  // 1) 이미 토너먼트 경기가 있으면 중단 (중복 생성 방지)
+  const existing = await prisma.tournamentMatch.count({
+    where: { tournamentId, round_number: { not: null } },
+  });
+  if (existing > 0) {
+    throw new Error(`이미 ${existing}건의 토너먼트 경기가 존재합니다.`);
+  }
+
+  // 2) bracketSize(다음 2의 제곱)와 totalRounds 계산
+  //    knockoutSize=6이면 bracketSize=8, totalRounds=3 (8강→4강→결승)
+  const size = knockoutSize;
+  const bracketSize = Math.pow(2, Math.ceil(Math.log2(Math.max(size, 2))));
+  const totalRounds = Math.log2(bracketSize);
+
+  // 3) 1라운드 대진 구성 — 표준 시드 매칭 (1 vs N, 2 vs N-1, ...)
+  //    양쪽 모두 실팀(size 이내)인 경우에만 1라운드 경기 생성
+  //    한쪽만 있으면 부전승으로 2라운드 직행 (이 단계에서는 경기 생성 안 함)
+  const firstRoundMatches: Array<{
+    homeRank: number;
+    awayRank: number;
+    bracketPosition: number;
+  }> = [];
+  for (let i = 0; i < bracketSize / 2; i++) {
+    const homeSeed = i + 1;
+    const awaySeed = bracketSize - i;
+    const homeRank = homeSeed <= size ? homeSeed : null;
+    const awayRank = awaySeed <= size ? awaySeed : null;
+    if (homeRank && awayRank) {
+      firstRoundMatches.push({ homeRank, awayRank, bracketPosition: i });
+    }
+  }
+
+  // 4) match_number는 기존(리그 경기)의 최댓값 + 1부터 이어서
+  const lastMatch = await prisma.tournamentMatch.findFirst({
+    where: { tournamentId },
+    orderBy: { match_number: "desc" },
+    select: { match_number: true },
+  });
+  let nextMatchNumber = (lastMatch?.match_number ?? 0) + 1;
+
+  // 5) createMany용 데이터 배열 — 1라운드부터 결승까지 빈 슬롯으로 채운다
+  // settings는 Prisma Json 필드: null 값을 그대로 못 넣으므로 Prisma.JsonNull 사용
+  const matchData: Prisma.TournamentMatchCreateManyInput[] = [];
+
+  // 5-1) 1라운드: "1위" / "4위" 같은 시드 라벨 저장
+  for (const m of firstRoundMatches) {
+    matchData.push({
+      tournamentId,
+      homeTeamId: null,
+      awayTeamId: null,
+      status: "scheduled",
+      homeScore: 0,
+      awayScore: 0,
+      round_number: 1,
+      bracket_position: m.bracketPosition,
+      roundName: getRoundName(1, totalRounds),
+      match_number: nextMatchNumber++,
+      settings: {
+        homeSlotLabel: `${m.homeRank}위`,
+        awaySlotLabel: `${m.awayRank}위`,
+      },
+    });
+  }
+
+  // 5-2) 2라운드 이상: 빈 슬롯만 (라벨 없음, 이전 라운드 승자가 채워짐)
+  //     라운드 r의 경기 수 = bracketSize / 2^r
+  for (let r = 2; r <= totalRounds; r++) {
+    const matchCount = bracketSize / Math.pow(2, r);
+    for (let i = 0; i < matchCount; i++) {
+      matchData.push({
+        tournamentId,
+        homeTeamId: null,
+        awayTeamId: null,
+        status: "scheduled",
+        homeScore: 0,
+        awayScore: 0,
+        round_number: r,
+        bracket_position: i,
+        roundName: getRoundName(r, totalRounds),
+        match_number: nextMatchNumber++,
+        // 2라운드+는 승자가 채워지므로 라벨 불필요 — Prisma Json 필드라 DbNull 사용
+        settings: Prisma.JsonNull,
+      });
+    }
+  }
+
+  // 5-3) 3/4위전 (옵션) — 결승과 같은 라운드, bracket_position=99로 분리
+  if (bronzeMatch && totalRounds >= 2) {
+    matchData.push({
+      tournamentId,
+      homeTeamId: null,
+      awayTeamId: null,
+      status: "scheduled",
+      homeScore: 0,
+      awayScore: 0,
+      round_number: totalRounds,
+      bracket_position: 99,
+      roundName: "3/4위전",
+      match_number: nextMatchNumber++,
+      settings: {
+        homeSlotLabel: "준결승 1 패자",
+        awaySlotLabel: "준결승 2 패자",
+      },
+    });
+  }
+
+  // 6) 일괄 insert
+  await prisma.tournamentMatch.createMany({ data: matchData });
+
+  return matchData.length;
+}
+
+/**
+ * ✨ Phase 2C: 리그 완료 후 빈 토너먼트 슬롯에 팀 할당
+ *
+ * generateEmptyKnockoutSkeleton으로 생성된 빈 1라운드 경기들의
+ * settings.homeSlotLabel("N위")를 파싱해서 실제 tournamentTeamId를 채워 넣는다.
+ *
+ * - TournamentTeam.seedNumber도 동시에 업데이트 (시드 뱃지 표시용)
+ * - 1라운드만 처리. 2라운드+는 경기 진행 중 승자가 자동으로 전파됨
+ * - 뼈대가 없으면(= 구버전 대회) 0 반환 → 호출 측에서 fallback 가능
+ *
+ * @returns 팀이 할당된 경기 수
+ */
+export async function assignTeamsToKnockout(tournamentId: string): Promise<number> {
+  // 1) 리그 순위 계산
+  const ranking = await calculateLeagueRanking(tournamentId);
+  if (ranking.length < 2) {
+    throw new Error("토너먼트 배정에 필요한 팀이 부족합니다.");
+  }
+
+  // 2) TournamentTeam.seedNumber 업데이트 (시드 뱃지 표시용)
+  for (const r of ranking) {
+    await prisma.tournamentTeam.update({
+      where: { id: r.tournamentTeamId },
+      data: { seedNumber: r.rank },
+    });
+  }
+
+  // 3) rank → tournamentTeamId 매핑
+  const rankMap = new Map<number, bigint>(ranking.map((r) => [r.rank, r.tournamentTeamId]));
+
+  // 4) 1라운드 빈 슬롯 경기 조회
+  const firstRound = await prisma.tournamentMatch.findMany({
+    where: { tournamentId, round_number: 1 },
+    select: { id: true, settings: true, homeTeamId: true, awayTeamId: true },
+  });
+
+  // 5) settings.homeSlotLabel / awaySlotLabel("N위")에서 숫자 추출해 팀 할당
+  let updated = 0;
+  for (const m of firstRound) {
+    // 이미 팀이 배정된 경기는 건너뜀 (중복 실행 안전)
+    if (m.homeTeamId && m.awayTeamId) continue;
+
+    const settings = m.settings as Record<string, unknown> | null;
+    const homeLabel = settings?.homeSlotLabel as string | undefined;
+    const awayLabel = settings?.awaySlotLabel as string | undefined;
+
+    // "1위" → 1, "4위" → 4 식으로 숫자만 추출
+    const homeRank = homeLabel ? parseInt(homeLabel.replace(/\D/g, ""), 10) : NaN;
+    const awayRank = awayLabel ? parseInt(awayLabel.replace(/\D/g, ""), 10) : NaN;
+
+    const homeTeamId = Number.isFinite(homeRank) ? rankMap.get(homeRank) ?? null : null;
+    const awayTeamId = Number.isFinite(awayRank) ? rankMap.get(awayRank) ?? null : null;
+
+    if (homeTeamId || awayTeamId) {
+      await prisma.tournamentMatch.update({
+        where: { id: m.id },
+        data: {
+          homeTeamId: homeTeamId ?? null,
+          awayTeamId: awayTeamId ?? null,
+        },
+      });
+      updated++;
+    }
+  }
+
+  return updated;
 }
 
 /**

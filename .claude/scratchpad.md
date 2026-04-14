@@ -553,6 +553,42 @@ reviewer 참고:
 - seedNumber는 TournamentTeam DB에 원래 있던 필드(schema.prisma:355) — DB 마이그레이션 불필요
 - tsc --noEmit 통과 확인
 
+### Phase 2C: 토너먼트 뼈대 미리 생성 + 슬롯 플레이스홀더 (2026-04-13)
+
+구현한 기능: full_league_knockout 대회의 풀리그 경기 생성 시 토너먼트 뼈대(빈 슬롯)도 함께 생성. TournamentMatch.settings JSON에 "1위"/"4위" 같은 슬롯 라벨을 저장해서 리그 진행 중에도 대진표 탭에 토너먼트 트리가 보이고 팀 미확정 슬롯은 라벨로 표시됨. 리그 완료 시 기존 generateKnockoutMatches 대신 assignTeamsToKnockout이 빈 슬롯의 팀 ID만 UPDATE. DB 스키마 변경 없음.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/tournaments/tournament-seeding.ts | generateEmptyKnockoutSkeleton + assignTeamsToKnockout 신규 (기존 generateKnockoutMatches는 하위호환 유지), Prisma import 추가 | 수정 |
+| src/app/api/web/tournaments/[id]/bracket/route.ts | 풀리그 생성 성공 후 full_league_knockout이면 빈 뼈대 동적 import 호출 + 응답에 skeletonCreated 추가 | 수정 |
+| src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts | 리그 완료 자동 훅: 뼈대 존재 시 assignTeamsToKnockout, 없으면 기존 generateKnockoutMatches fallback | 수정 |
+| src/lib/tournaments/bracket-builder.ts | BracketMatch에 homeSlotLabel/awaySlotLabel 추가, DbMatch.settings 옵셔널 필드 + toBracketMatch에서 JSON 파싱 | 수정 |
+| src/app/(web)/tournaments/[id]/bracket/_components/match-card.tsx | TeamRow와 MobileMatchCard에서 team이 null이면 slotLabel을 이탤릭 muted로 표시 (bye 우선) | 수정 |
+| src/app/(web)/tournament-admin/tournaments/[id]/bracket/page.tsx | full_league_knockout 안내 문구에 "풀리그 + 토너먼트 뼈대 함께 생성" 추가 | 수정 |
+
+슬롯 라벨 저장 형식 (TournamentMatch.settings JSON):
+```json
+{ "homeSlotLabel": "1위", "awaySlotLabel": "4위" }
+```
+
+tester 참고:
+- 테스트 URL: admin /tournament-admin/tournaments/<id>/bracket → "경기 자동 생성" 클릭 (full_league_knockout 대회)
+- 정상: 리그 경기 + 토너먼트 뼈대 함께 생성. 응답에 matchesCreated + skeletonCreated 동시 반환
+- 사용자 페이지 /tournaments/<id> → 대진표 탭 진입 시, 리그 진행 중이어도 토너먼트 트리가 보이고 1라운드 카드에 "1위 vs 4위", "2위 vs 3위" 같은 라벨 표시
+- 리그 전체 completed 처리 시 마지막 경기 저장 훅이 assignTeamsToKnockout 호출 → 1라운드 카드가 라벨 → 실제 팀명으로 변경되고 #1, #4 시드 뱃지 표시
+- 3/4위전 옵션 on인 경우: "준결승 1 패자" / "준결승 2 패자" 라벨 표시
+- 부전승 케이스(6강 등): 1라운드는 실팀 매칭만 라벨 표시, 2라운드+는 팀 비어있고 "TBD" 표시
+
+reviewer 참고:
+- DB 스키마 변경 없음 — 기존 settings JSONB 활용
+- 기존 generateKnockoutMatches는 제거하지 않고 하위호환 fallback으로 유지 (구버전 대회 안전)
+- 2라운드+ 빈 슬롯은 settings = Prisma.JsonNull (Prisma Json 필드 null 처리)
+- assignTeamsToKnockout은 homeTeamId/awayTeamId가 이미 둘 다 찬 경기는 건너뜀 (중복 실행 안전)
+- public-bracket API는 include를 쓰므로 settings 스칼라 필드가 자동 포함 — 쿼리 수정 불필요
+- match-card 시드 뱃지 기존 로직 그대로 유지 (팀이 배정되면 자동으로 #N 뱃지 표시)
+
+tsc --noEmit 통과. 미푸시 커밋: N/A (PM 커밋 대기)
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -560,6 +596,7 @@ reviewer 참고:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | Phase 2C 토너먼트 뼈대 미리 생성 + 슬롯 라벨 (tournament-seeding 2함수 추가 + bracket API 훅 + matches 자동 훅 전환 + bracket-builder 타입확장 + match-card 라벨 표시 + admin 안내, 6파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2B 토너먼트 카드 시드 뱃지 표시 (seeding seedNumber 저장 + bracket-builder 타입확장 + public-bracket select + match-card UI, 4파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 2A 리그 종료 시 토너먼트 자동 생성 (tournament-seeding + matches 훅 + 수동 API, 3파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 4a 풀리그 경기 자동 생성 (league-generator + bracket API 분기 + admin UI 분기, 3파일, tsc 통과) | 완료 |

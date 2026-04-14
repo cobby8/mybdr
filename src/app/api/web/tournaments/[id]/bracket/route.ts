@@ -119,12 +119,38 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // 기존 single_elimination 로직 보존 + 분기만 최소 추가
   const tournamentMeta = await prisma.tournament.findUnique({
     where: { id },
-    select: { format: true },
+    select: { format: true, settings: true },
   });
 
   if (isLeagueFormat(tournamentMeta?.format)) {
     try {
       const league = await generateRoundRobinMatches(id, { clear: body.clear });
+
+      // ✨ Phase 2C: full_league_knockout이면 토너먼트 "빈 뼈대"도 함께 생성
+      //   → 리그 진행 중에도 대진표 탭에 토너먼트 트리가 보이고
+      //     팀 없는 슬롯은 "1위", "4위" 같은 라벨로 표시됨
+      //   실패해도 리그 생성 자체는 성공으로 유지 (뼈대는 admin이 수동 재시도 가능)
+      let skeletonCreated = 0;
+      if (tournamentMeta?.format === "full_league_knockout") {
+        try {
+          const settings = tournamentMeta.settings as Record<string, unknown> | null;
+          const bracket = settings?.bracket as Record<string, unknown> | undefined;
+          const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
+          const bronzeMatch = (bracket?.bronzeMatch as boolean | undefined) ?? false;
+          // 동적 import: 엣지 경로라 번들 분리
+          const { generateEmptyKnockoutSkeleton } = await import(
+            "@/lib/tournaments/tournament-seeding"
+          );
+          skeletonCreated = await generateEmptyKnockoutSkeleton(
+            id,
+            knockoutSize,
+            bronzeMatch,
+          );
+        } catch (e) {
+          console.error("[skeleton-gen]", e);
+        }
+      }
+
       // bracket_version 기록 — single_elimination 과 동일하게 버전 관리 일관성 유지
       await createBracketVersion(id, auth.userId);
       return apiSuccess({
@@ -132,6 +158,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         type: "round_robin", // UI 에서 메시지 분기용
         matchesCreated: league.matchesCreated,
         teamCount: league.teamCount,
+        skeletonCreated, // 토너먼트 뼈대 경기 수 (0이면 생성 안 됨)
         versionNumber: versionStatus.currentVersion + 1,
       });
     } catch (e) {

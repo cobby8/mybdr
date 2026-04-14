@@ -160,6 +160,15 @@ export default function BracketAdminPage() {
         {isLeague && approvedCount >= 2 && !hasMatches && (
           <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             승인된 {approvedCount}팀 기준 총 {expectedLeagueMatches}경기가 생성됩니다.
+            {/* Phase 2C: full_league_knockout이면 토너먼트 뼈대도 함께 생성됨을 안내 */}
+            {data?.format === "full_league_knockout" && (
+              <>
+                {" "}
+                <span className="text-[var(--color-text-secondary)]">
+                  풀리그 경기와 토너먼트 뼈대가 함께 생성됩니다. (토너먼트 슬롯은 리그 완료 후 자동 채워집니다)
+                </span>
+              </>
+            )}
           </p>
         )}
       </div>

@@ -160,18 +160,26 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
       if (tournament?.format === "full_league_knockout") {
         // 동적 import: 자동 생성 로직은 엣지 케이스이므로 번들 크기 최적화
-        const { isLeagueComplete, generateKnockoutMatches } = await import(
-          "@/lib/tournaments/tournament-seeding"
-        );
+        const {
+          isLeagueComplete,
+          assignTeamsToKnockout,
+          generateKnockoutMatches,
+        } = await import("@/lib/tournaments/tournament-seeding");
 
         const leagueDone = await isLeagueComplete(id);
         if (leagueDone) {
-          // 중복 방지: 이미 토너먼트 경기(round_number != null)가 있으면 스킵
+          // Phase 2C: 이미 빈 뼈대가 있는지 확인
+          //  - 있음 → assignTeamsToKnockout (팀 ID만 UPDATE, 빠름)
+          //  - 없음 → 구버전 대회이므로 기존 generateKnockoutMatches fallback
           const existingKnockout = await prisma.tournamentMatch.count({
             where: { tournamentId: id, round_number: { not: null } },
           });
-          if (existingKnockout === 0) {
-            // settings.bracket에서 knockoutSize/bronzeMatch 읽기 (기본값: 4강, 3/4위전 없음)
+
+          if (existingKnockout > 0) {
+            // 빈 뼈대가 존재 → 1라운드 빈 슬롯에 팀 할당
+            await assignTeamsToKnockout(id);
+          } else {
+            // 뼈대가 없는 구버전 대회 fallback — 기존 방식으로 전체 생성
             const settings = tournament.settings as Record<string, unknown> | null;
             const bracket = settings?.bracket as Record<string, unknown> | undefined;
             const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
