@@ -26,6 +26,8 @@ interface PlayerRow {
   to: number;
   fouls: number;
   plus_minus?: number;
+  // 0414: DNP(Did Not Play) — NBA 미출전 표시
+  dnp?: boolean;
 }
 
 interface PlayByPlayRow {
@@ -375,6 +377,10 @@ function BoxScoreTable({
 }) {
   if (!players || players.length === 0) return null;
 
+  // 0414: DNP(NBA: Did Not Play) 분리 — 테이블 본체는 출전 선수만, 하단에 DNP 리스트
+  const activePlayers = players.filter((p) => !p.dnp);
+  const dnpPlayers = players.filter((p) => p.dnp);
+
   return (
     <div className="print-team-table-wrap">
       <div className="flex items-center gap-2 mb-2 print:hidden">
@@ -405,7 +411,7 @@ function BoxScoreTable({
               </tr>
             </thead>
             <tbody>
-              {players.map((p, i) => (
+              {activePlayers.map((p, i) => (
                 <tr
                   key={p.id}
                   className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
@@ -442,9 +448,9 @@ function BoxScoreTable({
                   </td>
                 </tr>
               ))}
-              {/* TOTAL 합산 행 */}
+              {/* TOTAL 합산 행 — 출전 선수만 집계 (DNP 제외) */}
               {(() => {
-                const total = players.reduce(
+                const total = activePlayers.reduce(
                   (acc, p) => ({
                     min: acc.min + p.min,
                     min_seconds: acc.min_seconds + (p.min_seconds ?? p.min * 60),
@@ -490,6 +496,21 @@ function BoxScoreTable({
             </tbody>
           </table>
         </div>
+        {/* 0414: DNP 섹션 (NBA 스타일 Did Not Play) */}
+        {dnpPlayers.length > 0 && (
+          <div className="border-t border-white/10 px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-[10px] font-semibold tracking-wider text-gray-500 uppercase">
+              DNP
+            </span>
+            {dnpPlayers.map((p, i) => (
+              <span key={p.id} className="text-xs text-gray-400">
+                {i > 0 && <span className="text-gray-700 mx-1">·</span>}
+                <span className="text-gray-500">#{p.jersey_number ?? "-"}</span>{" "}
+                <span className="text-gray-300">{p.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
