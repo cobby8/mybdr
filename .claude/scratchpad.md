@@ -476,6 +476,52 @@ reviewer 참고:
 - 영향 없음: src/lib/tournaments/bracket-generator.ts, bracket-builder.ts, match-transitions.ts, update-standings.ts
 - 수정 영향: bracket GET 응답에 `format` 필드 추가 → 클라이언트는 optional 로 받으므로 기존 호출부 무영향
 
+### Phase 2A: 리그 종료 시 토너먼트 자동 생성 (2026-04-13)
+
+구현한 기능: full_league_knockout 대회의 리그 경기가 모두 완료되면 settings.bracket.knockoutSize/bronzeMatch 설정에 따라 토너먼트 경기를 자동 생성. 2의 제곱이 아닌 knockoutSize(6,12 등)에 대해 부전승(BYE) 처리 포함. 순위는 승률→득실차→다득점 기준. admin 수동 트리거 API도 함께 제공.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/tournaments/tournament-seeding.ts | calculateLeagueRanking / buildKnockoutBracket(BYE 처리) / generateKnockoutMatches / isLeagueComplete 4개 함수 | 신규 |
+| src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts | updateTeamStandings 직후 full_league_knockout + isLeagueComplete + 중복없음일 때 동적 import로 generateKnockoutMatches 호출. 실패해도 사용자 응답은 성공 보존 | 수정 |
+| src/app/api/web/tournaments/[id]/bracket/knockout/route.ts | POST 수동 트리거 — requireTournamentAdmin + format 검증 + settings.bracket 읽어 generateKnockoutMatches 호출 | 신규 |
+
+설계 결정:
+- **순위 계산**: 리그 경기(round_number=null)만 집계 / 득실점은 live+completed 모두 / 승패는 completed만. 동점은 연장으로 해결되므로 무시
+- **BYE 알고리즘**: bracketSize = 다음 2의 제곱. byeCount = bracketSize-size. 표준 시드 매칭 1↔bracketSize에서 양쪽 모두 실팀인 경우만 1라운드 경기 생성. 부전승 팀은 admin이 수동 배정(2라운드 경기는 빈 슬롯으로 생성)
+- **라운드 이름**: 결승/준결승/8강/16강/32강 자동 명명 (2^(totalRounds-roundNumber+1) 기준)
+- **3/4위전**: bronzeMatch=true 시 결승과 동일 라운드에 bracket_position=99 로 생성(결승과 구분)
+- **match_number**: 리그 경기 최댓값+1 부터 이어 번호 부여
+- **중복 방지**: generateKnockoutMatches 진입 시 round_number != null 경기 존재 여부 확인 후 throw. 자동 훅에서도 별도 카운트 체크(이중 안전)
+- **동적 import**: 자동 훅은 경기 완료의 엣지 케이스이므로 `await import()`로 번들 분리
+
+tester 참고:
+- 테스트 URL: /tournament-admin/tournaments/{id}/bracket (bracket 페이지에 수동 트리거 버튼은 admin UI 미존재 — API 직접 호출로 테스트)
+- 시나리오 1 (자동): full_league_knockout 대회에서 마지막 리그 경기를 PATCH로 completed 변경 → tournament_matches에 round_number != null 경기 생성 확인
+- 시나리오 2 (수동): POST /api/web/tournaments/{id}/bracket/knockout → {"generated": N} 응답
+- 시나리오 3 (knockoutSize=4): 4강→결승 총 3경기(3/4위전 옵션 시 4경기). 1-4위 배치 확인
+- 시나리오 4 (knockoutSize=6): 1,2위 부전승 / 3-6, 4-5 1라운드 2경기 + 2라운드 빈 슬롯 2개 + 결승 빈 슬롯 1개. 부전승 팀은 admin이 수동 배정 필요
+- 시나리오 5 (knockoutSize=8): 1-8, 2-7, 3-6, 4-5 1라운드 4경기 + 2라운드 2경기 + 결승 1경기
+- 에러 케이스:
+  - 이미 토너먼트 경기 있음 → 400 "이미 N건의 토너먼트 경기가 존재합니다"
+  - 팀 < 2 → 400 "토너먼트 생성에 필요한 팀이 부족합니다"
+  - format이 full_league_knockout 아님 → 400 (수동 API만)
+  - 비 admin 접근 → 401/403 (requireTournamentAdmin)
+- 회귀 확인:
+  - single_elimination 대회 경기 완료 시 기존 동작(updateTeamStandings만)에 영향 없는지
+  - round_robin / full_league 포맷(full_league_knockout 아닌 리그 포맷)은 자동 생성 트리거 안 함 확인
+
+reviewer 참고:
+- 자동 훅 실패해도 경기 상태 변경 응답은 200 유지 (try-catch로 감쌈, console.error만)
+- settings 타입은 `Record<string, unknown>` 캐스팅 후 키별 `as number | undefined` 추출 (Prisma Json 안전 파싱 패턴)
+- calculateLeagueRanking의 stats record는 BigInt.toString() 키로 운영 (Record<string, ...>)
+- createMany 1회 호출로 모든 라운드 경기 일괄 생성 (트랜잭션 불필요 — 단일 쿼리)
+- 동적 import는 Next.js App Router에서 번들 분리에 유효. 훅 성능 영향 최소
+
+#### 회귀 영향 범위
+- 영향 없음: src/lib/tournaments/update-standings.ts, bracket-generator.ts, league-generator.ts
+- 수정 영향: matches PATCH 핸들러에 훅 1블록 추가. status=completed 경로에만 동작 → 다른 PATCH 시나리오에 영향 없음
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -483,6 +529,7 @@ reviewer 참고:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-13 | developer | Phase 2A 리그 종료 시 토너먼트 자동 생성 (tournament-seeding + matches 훅 + 수동 API, 3파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 4a 풀리그 경기 자동 생성 (league-generator + bracket API 분기 + admin UI 분기, 3파일, tsc 통과) | 완료 |
 | 04-13 | developer | Phase 3 wizard 포맷 세부설정 UI + settings.bracket 저장 (5파일, tsc 통과) | 완료 |
 | 04-13 | planner-architect | 대진표 Phase 2-4 구체 계획 (리그→4강 자동 + wizard 세부설정 + 조편성) | 기획완료 |
@@ -492,4 +539,3 @@ reviewer 참고:
 | 04-13 | planner-architect | 대회 기록 자동 연결 시스템 계획 수립 (4시나리오 분석+5파일 설계) | 기획완료 |
 | 04-13 | developer | 대회 상세 UI 전면 리디자인 (히어로+탭+대시보드+일정카드+순위표 등 15건) | 완료 |
 | 04-13 | developer | 모바일 반응형 전수 수정 (빨강5+노랑14+녹색8건, 20+파일) | 완료 |
-| 04-13 | planner-architect | 대회 형식 프리셋 시스템 설계 (12프리셋+조편성+시딩) | 기획완료 |

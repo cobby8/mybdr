@@ -149,6 +149,43 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       console.error(`[updateTeamStandings] matchId=${matchBigInt} 전적 갱신 실패:`, err);
       standingsWarning = "경기 상태는 변경되었으나 팀 전적 갱신에 실패했습니다. 관리자에게 문의하세요.";
     }
+
+    // ✨ Phase 2A: full_league_knockout 대회의 리그 전부 완료 시 토너먼트 경기 자동 생성
+    // 실패해도 경기 완료 응답 자체는 성공으로 처리 (사용자 요청 흐름 보존)
+    try {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id },
+        select: { format: true, settings: true },
+      });
+
+      if (tournament?.format === "full_league_knockout") {
+        // 동적 import: 자동 생성 로직은 엣지 케이스이므로 번들 크기 최적화
+        const { isLeagueComplete, generateKnockoutMatches } = await import(
+          "@/lib/tournaments/tournament-seeding"
+        );
+
+        const leagueDone = await isLeagueComplete(id);
+        if (leagueDone) {
+          // 중복 방지: 이미 토너먼트 경기(round_number != null)가 있으면 스킵
+          const existingKnockout = await prisma.tournamentMatch.count({
+            where: { tournamentId: id, round_number: { not: null } },
+          });
+          if (existingKnockout === 0) {
+            // settings.bracket에서 knockoutSize/bronzeMatch 읽기 (기본값: 4강, 3/4위전 없음)
+            const settings = tournament.settings as Record<string, unknown> | null;
+            const bracket = settings?.bracket as Record<string, unknown> | undefined;
+            const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
+            const bronzeMatch = (bracket?.bronzeMatch as boolean | undefined) ?? false;
+
+            await generateKnockoutMatches(id, knockoutSize, bronzeMatch);
+          }
+        }
+      }
+    } catch (e) {
+      // 토너먼트 자동 생성 실패는 로그만 남기고 사용자 응답은 성공 유지
+      // admin이 수동 트리거 API로 재시도 가능
+      console.error("[auto-knockout-gen]", e);
+    }
   }
 
   if (standingsWarning) {
