@@ -29,7 +29,9 @@ export async function GET(
       include: {
         homeTeam: {
           include: {
-            team: { select: { name: true, primaryColor: true } },
+            // 팀 로고 URL 추가 (티빙 스타일 스코어카드 — 큰 원형 로고 표시용)
+            // tournament_teams에는 logo_url 컬럼이 없으므로 teams.logoUrl만 사용
+            team: { select: { name: true, primaryColor: true, logoUrl: true } },
             players: {
               include: { users: { select: { name: true, nickname: true } } },
             },
@@ -37,13 +39,14 @@ export async function GET(
         },
         awayTeam: {
           include: {
-            team: { select: { name: true, primaryColor: true } },
+            team: { select: { name: true, primaryColor: true, logoUrl: true } },
             players: {
               include: { users: { select: { name: true, nickname: true } } },
             },
           },
         },
-        tournament: { select: { name: true } },
+        // 경기장명 fallback용으로 tournament.venue_name 같이 가져옴
+        tournament: { select: { name: true, venue_name: true } },
         playerStats: {
           include: {
             tournamentTeamPlayer: {
@@ -355,6 +358,18 @@ export async function GET(
       }
     }
 
+    // 진행 중인 쿼터 계산 — 가장 최근 PBP 이벤트의 quarter
+    // 라이브가 아니거나 PBP가 없으면 null. 프런트에서 isLive && current_quarter 조건으로 표시 분기.
+    const latestPbp = await prisma.play_by_plays.findFirst({
+      where: { tournament_match_id: BigInt(matchId) },
+      orderBy: [{ created_at: "desc" }],
+      select: { quarter: true },
+    });
+    const currentQuarter = latestPbp?.quarter ?? null;
+
+    // 경기장명: tournament_matches.venue_name 우선 → 없으면 tournament.venue_name fallback
+    const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
+
     return apiSuccess({
       match: {
         id: Number(match.id),
@@ -368,15 +383,21 @@ export async function GET(
         scheduledAt: match.scheduledAt?.toISOString() ?? null,
         startedAt: match.started_at?.toISOString() ?? null,
         tournamentName: match.tournament?.name ?? "",
+        // 티빙 스타일 스코어카드 신규 필드 — 경기장명 + 진행 쿼터
+        venueName,
+        currentQuarter,
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",
           color: match.homeTeam?.team?.primaryColor ?? "#F97316",
+          // 팀 로고 URL — 없으면 null (프런트에서 팀색 원 + 이니셜로 fallback)
+          logoUrl: match.homeTeam?.team?.logoUrl ?? null,
         },
         awayTeam: {
           id: Number(match.awayTeam?.id ?? 0),
           name: match.awayTeam?.team?.name ?? "원정",
           color: match.awayTeam?.team?.primaryColor ?? "#10B981",
+          logoUrl: match.awayTeam?.team?.logoUrl ?? null,
         },
         homePlayers,
         awayPlayers,

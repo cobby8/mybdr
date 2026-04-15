@@ -1,13 +1,15 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 메인/합계 점수 글자 색 통일 + 쿼터 테이블 폭 75% + 메인 점수 간격 80%
+- **요청**: 티빙 스타일 스코어카드 리디자인 — Phase 1 (API 확장 + 레이아웃)
 - **상태**: developer 위임
 - **현재 담당**: developer
-- **사용자 결정**:
-  - 메인 점수 + 쿼터 합계 점수 color → var(--color-text-primary), textShadow 제거
-  - 쿼터 테이블 w-full → w-3/4 + mx-auto
-  - 스코어카드 flex gap-4 → gap-3, 가운데 px-2 → px-1
+- **사용자 결정 (AACAA)**:
+  - Phase 1→2→3 순차
+  - 로고 없으면 팀색 원 + 팀명 이니셜
+  - 홈/원정 아이콘 생략
+  - 경기장명 match.venue_name → tournament.venue_name fallback, 없으면 숨김
+  - 헤더 새로고침 제거 → 중앙 둥근 버튼으로 이동
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-15)
 | 항목 | 수치 |
@@ -41,6 +43,51 @@
 - 영구 복구는 `"/c/Program Files/GitHub CLI/gh.exe" auth login`
 
 ## 구현 기록 (developer)
+
+### 티빙 스타일 Phase 1 — 스코어카드 리디자인 (2026-04-15)
+
+📝 변경:
+- API route: 팀 로고 url + venue_name + current_quarter 응답에 추가
+- MatchData 타입 확장 (logo_url / venue_name / current_quarter)
+- 스코어카드: 팀색 점(3px) 제거 → 큰 원형 팀 로고(모바일 56 / sm:72)로 교체
+- 로고 없으면 팀색 원 + 팀명 이니셜 (TeamLogo + getTeamInitials 헬퍼)
+- 중앙 영역 재구성: [N쿼터(빨강 isLive 한정)] / [라운드명 muted] / [경기장명 muted] / [🔄 원형 버튼]
+- 헤더 새로고침 제거 (스코어카드 중앙으로 이동)
+- 쿼터 테이블 + 박스스코어 미변경 (Phase 2에서 처리)
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/api/live/[id]/route.ts | team select에 logoUrl + tournament select에 venue_name + currentQuarter용 play_by_plays.findFirst + 응답 4필드 추가 | 수정 |
+| src/app/live/[id]/page.tsx | MatchData 확장 + TeamLogo/getTeamInitials 헬퍼 추가 + 스코어카드 좌/중/우 레이아웃 교체 + 헤더 새로고침 제거 | 수정 |
+
+⚠️ PM 가이드 정정:
+- `tournament_teams` 테이블엔 `logo_url` 컬럼이 **없음** (line 292는 다른 모델). teams.logoUrl 단일 소스만 사용 (fallback 불필요)
+- 라운드명(round_name)을 가운데 영역에 살려둠 — 기존 정보 손실 방지
+
+🔎 자체 검증:
+- `npx tsc --noEmit` → exit=0 (에러 0건)
+- grep `w-3 h-3 rounded-full mx-auto` → 0건 (구 팀색 점 완전 제거)
+- grep `onClick={fetchMatch}` → 1건 (가운데 새 버튼만, 헤더 중복 제거 확인)
+- API 응답 신규 필드 4개(logoUrl×2 / venueName / currentQuarter) grep 확인
+
+💡 PM/tester:
+- 테스트: `/live/[경기ID]` 접속
+  1. 로고 있는 팀: 원형 로고 이미지 표시
+  2. 로고 없는 팀: 팀색 원 + 이니셜("DB", "BE" 등)
+  3. venue_name 있는 경기: 가운데에 경기장명 노출 / 없으면 숨김
+  4. status=live/in_progress + PBP 있는 경기: "3쿼터" 빨강 표시
+  5. status=finished/scheduled: 쿼터 미표시 (current_quarter는 살아있어도 isLive false면 숨김)
+  6. 모바일(<640px): 로고 56px, 점수 text-5xl / sm 이상: 로고 72px, 점수 text-6xl
+  7. 헤더 우측에 새로고침 버튼이 사라지고 ThemeToggle만 있는지
+  8. 가운데 둥근 새로고침 버튼 클릭 시 데이터 갱신 동작
+  9. 라이트/다크 양쪽 가독성
+
+⚠️ 추가 주의:
+- API 응답 필드 4개 추가만 (기존 필드 미변경) → Flutter/타 페이지 영향 없음 예상
+- TeamLogo의 흰색 글자가 옅은 팀색(노랑/베이지)에서 가독성 떨어질 수 있음 → 후속 Phase에서 contrast 기반 adaptive
+- play_by_plays.findFirst 추가 쿼리 1회 발생 (3초 폴링이라 부담은 작음, idx_pbp_match_quarter 인덱스 활용)
+
+---
 
 ### /live/[id] 스코어카드 색 통일 + 쿼터 폭 75% + 간격 축소 (2026-04-15)
 

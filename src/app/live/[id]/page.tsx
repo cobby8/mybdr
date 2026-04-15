@@ -58,8 +58,9 @@ interface MatchData {
     home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
   } | null;
-  home_team: { id: number; name: string; color: string };
-  away_team: { id: number; name: string; color: string };
+  // 티빙 스타일 스코어카드 — 팀 로고 URL 추가 (없으면 null → 팀색 원 + 이니셜 fallback)
+  home_team: { id: number; name: string; color: string; logo_url: string | null };
+  away_team: { id: number; name: string; color: string; logo_url: string | null };
   home_players: PlayerRow[];
   away_players: PlayerRow[];
   play_by_plays: PlayByPlayRow[];
@@ -67,6 +68,9 @@ interface MatchData {
   // 2026-04-15: 4/11~12 게임 클럭 부정확 시기 안내 분기에 사용 — API가 optional로 내려줌
   scheduled_at?: string | null;
   started_at?: string | null;
+  // 티빙 스타일 — 경기장명(없으면 null) + 현재 진행 쿼터(라이브 아닐 때 null)
+  venue_name?: string | null;
+  current_quarter?: number | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -112,6 +116,58 @@ function formatGameClock(seconds: number): string {
 function getQuarterLabel(q: number): string {
   if (q <= 4) return `Q${q}`;
   return `OT${q - 4}`;
+}
+
+// 팀명에서 이니셜 추출 — 로고가 없을 때 원형 배지 안에 표기
+// 규칙:
+//  - 마지막 토큰이 영문 대문자/숫자(2~4자) 약어면 그대로 사용 ("원주 DB" → "DB", "부산 KCC" → "KCC")
+//  - 그 외에는 각 토큰 첫 글자 2~3개 ("BDR Eagles" → "BE", "서울 삼성 썬더스" → "서삼썬")
+function getTeamInitials(name: string): string {
+  const tokens = name.trim().split(/\s+/);
+  if (tokens.length === 0) return "?";
+  const last = tokens[tokens.length - 1];
+  if (/^[A-Z0-9]{2,4}$/.test(last)) return last;
+  return tokens.map((t) => t.charAt(0)).join("").slice(0, 3);
+}
+
+// 팀 로고 컴포넌트 — 로고 URL 있으면 이미지, 없으면 팀색 원 + 이니셜
+// size는 px 단위. 모바일에서 작게 쓰려면 호출부에서 반응형 처리.
+function TeamLogo({
+  team,
+  size = 64,
+}: {
+  team: { name: string; color: string; logo_url: string | null };
+  size?: number;
+}) {
+  const px = `${size}px`;
+  if (team.logo_url) {
+    return (
+      <div
+        className="relative rounded-full overflow-hidden"
+        // 이미지 로딩 전/실패 시 팀색이 슬쩍 비치도록 surface 배경 깔아둠
+        style={{ width: px, height: px, backgroundColor: "var(--color-surface)" }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={team.logo_url} alt={team.name} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  // 로고 없음 → 팀색 원 + 이니셜 (밝은 팀색일 경우 가독성 후속 Phase에서 adaptive 처리)
+  const initials = getTeamInitials(team.name);
+  return (
+    <div
+      className="flex items-center justify-center rounded-full font-bold"
+      style={{
+        width: px,
+        height: px,
+        backgroundColor: team.color,
+        color: "#ffffff",
+        fontSize: size >= 64 ? "20px" : "16px",
+      }}
+    >
+      {initials}
+    </div>
+  );
 }
 
 const POLL_INTERVAL = 3_000; // 3초
@@ -271,70 +327,99 @@ export default function LiveBoxScorePage() {
           <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
             {STATUS_LABEL[match.status] ?? match.status}
           </span>
-          {/* 헤더 우측: 테마 토글(왼쪽) → 새로고침(오른쪽) 순서로 배치 */}
+          {/* 헤더 우측: 테마 토글만 유지. 새로고침 버튼은 스코어카드 가운데로 이동 (Phase 1) */}
           <ThemeToggle />
-          <button
-            onClick={fetchMatch}
-            className="transition-colors ml-1"
-            title="새로고침"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-          </button>
         </div>
       </div>
 
-      {/* 스코어 카드 */}
+      {/* 스코어 카드 — 티빙 중계 스타일 (Phase 1)
+          [큰 원형 로고 + 팀명 + 점수] 좌/우 + [쿼터 / 경기장명 / 새로고침] 중앙 */}
       <div className="px-4 py-6">
         <div className="flex items-center justify-between gap-3">
           {/* 홈팀 */}
-          <div className="flex-1 text-center">
-            <div
-              className="w-3 h-3 rounded-full mx-auto mb-2"
-              style={{ backgroundColor: match.home_team.color }}
-            />
-            {/* 팀명 헤더: text-lg → text-2xl (추가 확대) */}
+          <div className="flex-1 flex flex-col items-center gap-2">
+            {/* 큰 원형 로고 (모바일 56 / sm 이상 64) — Tailwind에서 sm:size 동적 변경이 어려워 두 사이즈를 분기 렌더 */}
+            <div className="sm:hidden">
+              <TeamLogo team={match.home_team} size={56} />
+            </div>
+            <div className="hidden sm:block">
+              <TeamLogo team={match.home_team} size={72} />
+            </div>
+            {/* 팀명 — truncate로 길어지면 잘림. max-w로 카드 폭 보호 */}
             <p
-              className="text-2xl font-medium truncate"
+              className="text-lg sm:text-2xl font-medium truncate max-w-[140px] text-center"
               style={{ color: "var(--color-text-primary)" }}
             >
               {match.home_team.name}
             </p>
-            {/* 메인 점수: 팀색 버리고 text-primary로 통일 (외곽선만 보이던 이슈 해결)
-                팀 식별은 상단 동그라미(team.color)로 수행 */}
+            {/* 메인 점수 — 플래시 애니메이션 className 로직 유지 */}
             <p
-              className={`text-6xl font-black mt-1 transition-all duration-300 ${homeFlash ? "scale-125 brightness-150" : "scale-100"}`}
+              className={`text-5xl sm:text-6xl font-black transition-all duration-300 ${homeFlash ? "scale-125 brightness-150" : "scale-100"}`}
               style={{ color: "var(--color-text-primary)" }}
             >
               {match.home_score}
             </p>
           </div>
 
-          {/* 가운데 — 콜론 크기는 의미상 유지. 색상은 muted 변수로 (라이트에서 어둡게, 다크에서 밝게) */}
-          <div className="text-center px-1">
-            <p className="text-xl font-light" style={{ color: "var(--color-text-muted)" }}>:</p>
-            {match.round_name && (
-              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-                {match.round_name}
-              </p>
+          {/* 가운데 — 진행 쿼터(빨강) / 경기장명(회색) / 새로고침 원형 버튼 3단 */}
+          <div className="flex flex-col items-center justify-center gap-1 px-1 min-w-[80px]">
+            {/* 진행 쿼터: 라이브이고 current_quarter가 양수일 때만 표시. 5 이상은 OT */}
+            {isLive && match.current_quarter && match.current_quarter > 0 && (
+              <span
+                className="text-sm font-semibold"
+                style={{ color: "var(--color-primary)" }}
+              >
+                {match.current_quarter <= 4
+                  ? `${match.current_quarter}쿼터`
+                  : `연장${match.current_quarter - 4}`}
+              </span>
             )}
+            {/* 라운드명 — 기존에 있던 정보 유지 (예: "결승", "8강") */}
+            {match.round_name && (
+              <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                {match.round_name}
+              </span>
+            )}
+            {/* 경기장명 — API에서 venue_name 또는 fallback으로 받아옴 */}
+            {match.venue_name && (
+              <span
+                className="text-xs truncate max-w-[120px] text-center"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                {match.venue_name}
+              </span>
+            )}
+            {/* 새로고침 원형 버튼 — 헤더에서 이동. surface 배경 + border로 가벼운 둘레 */}
+            <button
+              onClick={fetchMatch}
+              title="새로고침"
+              className="mt-1 flex items-center justify-center w-9 h-9 rounded-full transition-colors"
+              style={{
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-text-muted)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            </button>
           </div>
 
           {/* 원정팀 */}
-          <div className="flex-1 text-center">
-            <div
-              className="w-3 h-3 rounded-full mx-auto mb-2"
-              style={{ backgroundColor: match.away_team.color }}
-            />
+          <div className="flex-1 flex flex-col items-center gap-2">
+            <div className="sm:hidden">
+              <TeamLogo team={match.away_team} size={56} />
+            </div>
+            <div className="hidden sm:block">
+              <TeamLogo team={match.away_team} size={72} />
+            </div>
             <p
-              className="text-2xl font-medium truncate"
+              className="text-lg sm:text-2xl font-medium truncate max-w-[140px] text-center"
               style={{ color: "var(--color-text-primary)" }}
             >
               {match.away_team.name}
             </p>
-            {/* 원정팀 메인 점수: 홈과 동일하게 text-primary로 통일 */}
             <p
-              className={`text-6xl font-black mt-1 transition-all duration-300 ${awayFlash ? "scale-125 brightness-150" : "scale-100"}`}
+              className={`text-5xl sm:text-6xl font-black transition-all duration-300 ${awayFlash ? "scale-125 brightness-150" : "scale-100"}`}
               style={{ color: "var(--color-text-primary)" }}
             >
               {match.away_score}
