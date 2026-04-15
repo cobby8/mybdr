@@ -1,10 +1,14 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 라이브 경기 페이지(/live/[id]) 라이트모드 + 글자 크기 확대(2단계) + 헤더에 ThemeToggle 추가
+- **요청**: /live/[id] 박스스코어 MIN 컬럼 부활 + DNP 재구조화 + PTS 가독성 + 간격 축소 + 4/11-12 안내
 - **상태**: developer 위임
 - **현재 담당**: developer
-- **사용자 결정**: ① 글자 두 단계 확대(xs→base, sm→lg) ② 헤더에 ThemeToggle 추가 ③ 풀스크린 유지
+- **사용자 결정**:
+  - MIN 컬럼 부활 (3곳 헤더/tbody/TOTAL) + 4/11~12 경기 조건부 안내 문구
+  - DNP는 MIN 셀에 "DNP", 나머지 16개 스탯 셀 "-" (NBA 스타일)
+  - MIN 우측 스탯 셀 px-1 → px-0.5
+  - PTS 가시성: 🅱️ 좌측 4px 팀색 띠 + 글자 var(--color-text-primary)
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-15)
 | 항목 | 수치 |
@@ -97,9 +101,45 @@
 🎁 컨벤션 후보 (conventions.md 승격 제안):
 - **풀스크린 / (web) 그룹 밖 페이지**에도 ThemeToggle을 개별 배치해야 한다는 패턴 — 라이브/프린트 중심 페이지는 사이드바 없이도 테마 전환 UI 필요.
 
+### /live/[id] 박스스코어 MIN 복원 + DNP 재구조화 + PTS 가독성 (2026-04-15)
+
+📝 구현한 기능:
+1. **MIN 컬럼 복원** (3곳: thead / tbody 활성 선수 / TOTAL 행). 이름 뒤·PTS 앞 위치.
+2. **DNP 행 재구조화** (NBA 스타일): `colSpan={16}` 제거 → 19셀 모두 채움. MIN 셀에 "DNP" 텍스트(text-xs semibold muted), 나머지 16개 스탯 셀은 `-`.
+3. **4/11~12 경기 조건부 안내** 추가. 박스스코어 두 팀 모두 끝난 후(프린트 버튼 위)에 한 번만 표시, `data-print-hide`로 프린트에선 숨김. 판정 로직: `scheduled_at` → `started_at` → `updated_at` fallback + 2026-04-11/12 체크.
+4. **MIN 우측 스탯 셀 `px-1` → `px-0.5`** 일괄 축소 (4px → 2px). 이름/번호 셀은 `px-3`/`px-1` 유지.
+5. **PTS 가독성(라이트모드)**: 좌측 3px 팀색 띠(`PtsTeamBar` 컴포넌트) + 글자 색 `var(--color-text-primary)`. 부모 `td.relative`에 `span.absolute`. 활성 선수 행 + TOTAL 행 모두 적용 (DNP 행은 `-`만, 띠 없음).
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| src/app/live/[id]/page.tsx | MatchData 타입에 scheduled_at/started_at 추가 + isLegacyClockIssue 계산 + 안내문구 블록 + BoxScoreTable 전면 개선 (MIN 3곳 복원, DNP 19셀, PTS 띠, px-0.5) | 수정 |
+| src/app/api/live/[id]/route.ts | apiSuccess 응답에 scheduledAt/startedAt 필드 추가 (프런트 분기용) | 수정 |
+
+💡 PM/tester 참고:
+- **테스트 방법**:
+  1. `/live/[경기ID]` 접속 — MIN 컬럼이 이름 뒤에 `M:SS` 형식(예: `12:30`)으로 표시되는지
+  2. DNP 선수(로스터 등록됐으나 출전 0) 행이 MIN 셀에 "DNP" + 나머지 셀 `-`로 19셀 모두 채워졌는지
+  3. TOTAL 행 MIN은 팀 출전 총합(초 → M:SS)으로 표시되는지
+  4. 4/11~12 경기: URL에 해당 날짜 경기 id로 접속 → 박스스코어 하단에 ℹ 아이콘 + "경기시간 집계 시스템 오류..." 안내 노출 확인
+  5. 4/13 이후 경기: 안내 문구 미노출 확인
+  6. 라이트/다크 모두에서 PTS 숫자가 잘 보이는지(좌측 3px 팀 컬러 띠 + 검정/흰 글자)
+  7. 프린트(Ctrl+P): 안내 문구가 숨겨지고 PTS 띠는 인라인 색상이라 남아 있음 (확인)
+- **경기 날짜 분기**: `scheduled_at` 우선 → 없으면 `started_at` → 최후 `updated_at`. 4/11 또는 4/12만 true.
+- **tsc 결과**: `npx tsc --noEmit` exit=0, 에러 0건.
+- **셀 개수 검증**: 헤더/활성선수/DNP/TOTAL 모두 19셀로 맞춤 (# + 이름 + MIN + 16 스탯).
+
+⚠️ 주의:
+- API 응답에 `scheduledAt`/`startedAt` 필드를 새로 추가했으나 기존 소비자는 이 필드를 사용하지 않아 영향 없음 (추가만). snake_case로 자동 변환되어 프런트 `match.scheduled_at` / `match.started_at`로 내려옴.
+- `/live/[id]` 외 다른 페이지는 수정하지 않음.
+- PbpSection(/PBP 로그) 영역은 이번 작업 대상 아님 — px-2 그대로 유지.
+
+🎁 컨벤션 후보 (1회차 관찰, 3회 반복 시 conventions.md 승격):
+- "테마 반응형 박스스코어에서 팀 색은 좌측 3~4px 띠로 표기, 글자 색은 `var(--color-text-primary)` 사용" — NBA.com 스타일. 하드코딩 팀 색이 라이트모드에서 가독성 떨어지는 문제 해결 패턴.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-15 | developer | /live/[id] 박스스코어 MIN 복원 + DNP 19셀 재구조화 + PTS 좌측 띠 + px-0.5 축소 + 4/11~12 안내 | ✅ 완료 |
 | 04-15 | developer | /live/[id] 라이트모드 + 글자 2단계 확대 + ThemeToggle 헤더 추가 | ✅ 완료 |
 | 04-15 | pm | knowledge 갱신 (errors +1, lessons +2) + scratchpad Phase 2 완료 처리 | ✅ 완료 |
 | 04-15 | pm | dev PR #8 생성 (git credential로 gh 우회) | ✅ 완료 |

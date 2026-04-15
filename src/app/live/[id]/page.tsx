@@ -64,6 +64,9 @@ interface MatchData {
   away_players: PlayerRow[];
   play_by_plays: PlayByPlayRow[];
   updated_at: string;
+  // 2026-04-15: 4/11~12 게임 클럭 부정확 시기 안내 분기에 사용 — API가 optional로 내려줌
+  scheduled_at?: string | null;
+  started_at?: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -196,6 +199,17 @@ export default function LiveBoxScorePage() {
       </div>
     );
   }
+
+  // 2026-04-15: 4/11~12 게임 클럭 부정확 시기 판정
+  // 이 기간에 치러진 경기는 box score의 MIN 값이 정확하지 않아 테이블 하단에 안내 문구를 노출한다.
+  // 우선순위: scheduled_at(예정일) → started_at(실제 시작) → updated_at(최종 갱신). 하나라도 2026-04-11/12 이면 true.
+  const matchDateStr = match.scheduled_at || match.started_at || match.updated_at;
+  const matchDate = matchDateStr ? new Date(matchDateStr) : null;
+  const isLegacyClockIssue = matchDate
+    ? matchDate.getFullYear() === 2026 &&
+      matchDate.getMonth() === 3 /* 0-indexed: 3 === 4월 */ &&
+      (matchDate.getDate() === 11 || matchDate.getDate() === 12)
+    : false;
 
   const qs = match.quarter_scores;
   const qh = qs?.home;
@@ -417,6 +431,20 @@ export default function LiveBoxScorePage() {
           </div>
         ))}
       </div>
+
+      {/* 2026-04-15: 4/11~12 경기 클럭 부정확 안내 — 두 팀 박스스코어 모두 아래 한 번만 표시
+          프린트 시에는 숨김(data-print-hide). 좌측 정렬 + 아이콘 + muted 색상 */}
+      {isLegacyClockIssue && (
+        <div
+          data-print-hide
+          className="px-4 pb-2 flex items-start gap-2 text-sm italic"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          <span className="material-symbols-outlined text-base leading-tight">info</span>
+          <span>경기시간 집계 시스템 오류로 경기시간이 정확하지 않은 부분 양해바랍니다.</span>
+        </div>
+      )}
+
       {/* 프린트 버튼 — 기본 text-sm → text-base 확대, 배경/텍스트는 CSS 변수로 */}
       <div data-print-hide className="px-4 pb-8">
         <button
@@ -480,6 +508,24 @@ function BoxScoreTable({
   const pct = (made: number, attempted: number) =>
     attempted > 0 ? Math.round((made / attempted) * 100) : 0;
 
+  // 2026-04-15: PTS 셀 — 팀색은 좌측 띠(3px)로만 표기하고 숫자는 텍스트 기본색을 사용
+  // 라이트 모드에서 흰색에 가까운 팀 컬러가 안 보이는 문제(NBA.com 스타일로 해결)
+  // 셀 높이의 60%만 차지하도록 상하 20% 여백, 반올림 2px로 살짝 부드럽게
+  const PtsTeamBar = () => (
+    <span
+      aria-hidden
+      style={{
+        position: "absolute",
+        left: 0,
+        top: "20%",
+        bottom: "20%",
+        width: "3px",
+        backgroundColor: color,
+        borderRadius: "2px",
+      }}
+    />
+  );
+
   return (
     <div className="print-team-table-wrap">
       <div className="flex items-center gap-2 mb-2 print:hidden">
@@ -507,22 +553,24 @@ function BoxScoreTable({
                   className="py-2 px-1 text-left font-normal sticky left-8 min-w-[70px] print:static print:bg-transparent"
                   style={{ backgroundColor: "var(--color-card)" }}
                 >이름</th>
-                <th className="py-2 px-1 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>PTS</th>
-                <th className="py-2 px-1 text-center font-normal">FG</th>
-                <th className="py-2 px-1 text-center font-normal">FG%</th>
-                <th className="py-2 px-1 text-center font-normal">3P</th>
-                <th className="py-2 px-1 text-center font-normal">3P%</th>
-                <th className="py-2 px-1 text-center font-normal">FT</th>
-                <th className="py-2 px-1 text-center font-normal">FT%</th>
-                <th className="py-2 px-1 text-center font-normal">OR</th>
-                <th className="py-2 px-1 text-center font-normal">DR</th>
-                <th className="py-2 px-1 text-center font-normal">REB</th>
-                <th className="py-2 px-1 text-center font-normal">AST</th>
-                <th className="py-2 px-1 text-center font-normal">STL</th>
-                <th className="py-2 px-1 text-center font-normal">BLK</th>
-                <th className="py-2 px-1 text-center font-normal">TO</th>
-                <th className="py-2 px-1 text-center font-normal">PF</th>
-                <th className="py-2 px-1 text-center font-normal">+/-</th>
+                {/* 2026-04-15: MIN 복원 — 이름 바로 다음, PTS 앞 */}
+                <th className="py-2 px-0.5 text-center font-normal">MIN</th>
+                <th className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>PTS</th>
+                <th className="py-2 px-0.5 text-center font-normal">FG</th>
+                <th className="py-2 px-0.5 text-center font-normal">FG%</th>
+                <th className="py-2 px-0.5 text-center font-normal">3P</th>
+                <th className="py-2 px-0.5 text-center font-normal">3P%</th>
+                <th className="py-2 px-0.5 text-center font-normal">FT</th>
+                <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                <th className="py-2 px-0.5 text-center font-normal">OR</th>
+                <th className="py-2 px-0.5 text-center font-normal">DR</th>
+                <th className="py-2 px-0.5 text-center font-normal">REB</th>
+                <th className="py-2 px-0.5 text-center font-normal">AST</th>
+                <th className="py-2 px-0.5 text-center font-normal">STL</th>
+                <th className="py-2 px-0.5 text-center font-normal">BLK</th>
+                <th className="py-2 px-0.5 text-center font-normal">TO</th>
+                <th className="py-2 px-0.5 text-center font-normal">PF</th>
+                <th className="py-2 px-0.5 text-center font-normal">+/-</th>
               </tr>
             </thead>
             <tbody>
@@ -549,41 +597,51 @@ function BoxScoreTable({
                   >
                     {p.name}
                   </td>
-                  <td className="py-2 px-1 text-center font-bold" style={{ color }}>
+                  {/* MIN — muted 색으로 살짝 약하게 (스탯만큼 강조 X) */}
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>
+                    {formatGameClock(p.min_seconds ?? p.min * 60)}
+                  </td>
+                  {/* PTS — 팀색 좌측 띠 + 텍스트 기본색. 부모 td에 relative 필수 */}
+                  <td
+                    className="py-2 px-0.5 text-center font-bold relative"
+                    style={{ color: "var(--color-text-primary)" }}
+                  >
+                    <PtsTeamBar />
                     {p.pts}
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.fgm}/{p.fga}
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.fgm, p.fga)}%
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.tpm}/{p.tpa}
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.tpm, p.tpa)}%
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.ftm}/{p.fta}
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.ftm, p.fta)}%
                   </td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.oreb}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.dreb}</td>
-                  <td className="py-2 px-1 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{p.reb}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.ast}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.stl}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.blk}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.to}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.fouls}</td>
-                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.oreb}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.dreb}</td>
+                  <td className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{p.reb}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.ast}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.stl}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.blk}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.to}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{p.fouls}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}
                   </td>
                 </tr>
               ))}
-              {/* 0414: DNP 인라인 행 — 본체 테이블 안에서 표시, 스탯 영역 colspan */}
+              {/* 2026-04-15: DNP 행 재구조화 — colSpan 제거, NBA 스타일로 셀마다 채움.
+                  MIN 셀에 "DNP" 표시, 나머지 스탯 16개는 모두 "-" */}
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
@@ -605,15 +663,30 @@ function BoxScoreTable({
                   >
                     {p.name}
                   </td>
-                  <td colSpan={16} className="py-2 px-1 text-center">
-                    {/* DNP 라벨: text-[10px] → text-xs (10→12px로 한 단계 확대) */}
-                    <span
-                      className="text-xs font-semibold tracking-[0.2em] uppercase"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      DNP &mdash; Did Not Play
-                    </span>
+                  {/* MIN 셀에 "DNP" — text-xs + semibold + muted 색으로 시각적 구분 */}
+                  <td
+                    className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    DNP
                   </td>
+                  {/* 나머지 16개 스탯 셀은 모두 "-" */}
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>-</td>
                 </tr>
               ))}
               {/* TOTAL 합산 행 — 출전 선수만 집계 (DNP 제외) */}
@@ -658,22 +731,33 @@ function BoxScoreTable({
                       className="py-2 px-1 sticky left-8 print:static print:bg-transparent"
                       style={{ color: "var(--color-text-primary)", backgroundColor: totalStickyBg }}
                     >TOTAL</td>
-                    <td className="py-2 px-1 text-center" style={{ color }}>{total.pts}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fgm}/{total.fga}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.fgm, total.fga)}%</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.tpm}/{total.tpa}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.tpm, total.tpa)}%</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ftm}/{total.fta}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.ftm, total.fta)}%</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.oreb}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.dreb}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.reb}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ast}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.stl}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.blk}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.to}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fouls}</td>
-                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
+                    {/* MIN — TOTAL 행은 secondary 색으로 강조 */}
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                      {formatGameClock(total.min_seconds)}
+                    </td>
+                    {/* PTS — TOTAL 행도 동일하게 팀색 좌측 띠 + 텍스트 기본색 */}
+                    <td
+                      className="py-2 px-0.5 text-center relative"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      <PtsTeamBar />
+                      {total.pts}
+                    </td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fgm}/{total.fga}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.fgm, total.fga)}%</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.tpm}/{total.tpa}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.tpm, total.tpa)}%</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ftm}/{total.fta}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.ftm, total.fta)}%</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.oreb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.dreb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.reb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ast}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.stl}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.blk}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.to}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fouls}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
                   </tr>
                 );
               })()}

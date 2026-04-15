@@ -363,6 +363,10 @@ export async function GET(
         awayScore: match.awayScore ?? 0,
         roundName: match.roundName,
         quarterScores,
+        // 경기 날짜 필드 — 프런트에서 4/11~12 게임 클럭 부정확 안내 분기에 사용
+        // scheduledAt(예정일) / started_at(실제 시작 시각) 둘 다 내려줘서 프런트가 우선순위로 선택 가능하게 함
+        scheduledAt: match.scheduledAt?.toISOString() ?? null,
+        startedAt: match.started_at?.toISOString() ?? null,
         tournamentName: match.tournament?.name ?? "",
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
