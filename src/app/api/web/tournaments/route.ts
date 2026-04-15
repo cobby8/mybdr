@@ -137,6 +137,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       rules, prizeInfo,
       // 디자인 템플릿 + 이미지 URL
       designTemplate, logoUrl, bannerUrl,
+      // settings JSON (bracket 세부설정 등) — createTournament에 그대로 전달
+      settings,
     } = body;
 
     if (!name?.trim()) {
@@ -215,6 +217,8 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       designTemplate: designTemplate || undefined,
       logoUrl: logoUrl || undefined,
       bannerUrl: bannerUrl || undefined,
+      // settings JSON (bracket 세부 설정 등)
+      settings: settings && typeof settings === "object" ? settings : undefined,
     });
 
     return apiSuccess({

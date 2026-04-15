@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 
 export const revalidate = 60;
@@ -9,7 +10,7 @@ export default async function TournamentTeamsPage({ params }: { params: Promise<
     where: { tournamentId: id },
     include: {
       team: { select: { name: true, primaryColor: true } },
-      players: { select: { id: true, jerseyNumber: true, position: true, users: { select: { nickname: true } } } },
+      players: { select: { id: true, userId: true, jerseyNumber: true, position: true, users: { select: { nickname: true } } } },
     },
   });
 
@@ -25,7 +26,9 @@ export default async function TournamentTeamsPage({ params }: { params: Promise<
                 {t.team.name.charAt(0)}
               </div>
               <div>
-                <h3 className="font-semibold">{t.team.name}</h3>
+                <Link href={`/teams/${t.teamId}`} className="hover:underline">
+                  <h3 className="font-semibold">{t.team.name}</h3>
+                </Link>
                 <p className="text-xs text-[var(--color-text-secondary)]">{t.groupName && `${t.groupName} · `}{t.players.length}명</p>
               </div>
             </div>
@@ -33,7 +36,14 @@ export default async function TournamentTeamsPage({ params }: { params: Promise<
             <div className="max-h-[200px] overflow-hidden space-y-1">
               {t.players.map((p) => (
                 <div key={p.id.toString()} className="flex justify-between text-sm">
-                  <span className="text-[var(--color-text-muted)]">#{p.jerseyNumber ?? "-"} {p.users?.nickname ?? "선수"}</span>
+                  {/* userId가 있으면 선수 프로필 링크, 없으면 텍스트만 */}
+                  {p.userId ? (
+                    <Link href={`/users/${p.userId}`} className="text-[var(--color-text-muted)] hover:underline">
+                      #{p.jerseyNumber ?? "-"} {p.users?.nickname ?? "선수"}
+                    </Link>
+                  ) : (
+                    <span className="text-[var(--color-text-muted)]">#{p.jerseyNumber ?? "-"} {p.users?.nickname ?? "선수"}</span>
+                  )}
                   <span className="text-xs text-[var(--color-text-secondary)]">{p.position ?? ""}</span>
                 </div>
               ))}

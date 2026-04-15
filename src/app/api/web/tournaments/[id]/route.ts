@@ -105,6 +105,14 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (data.banner_url !== undefined) updateData.banner_url = data.banner_url || null;
   if (data.court_bg_url !== undefined) updateData.court_bg_url = data.court_bg_url || null;
 
+  // settings JSON — 기존 settings와 머지하여 업데이트 (contact_phone 등)
+  if (data.settings !== undefined) {
+    const current = await prisma.tournament.findUnique({ where: { id }, select: { settings: true } });
+    const existing = (current?.settings as Record<string, unknown>) ?? {};
+    const incoming = data.settings as Record<string, unknown>;
+    updateData.settings = { ...existing, ...incoming };
+  }
+
   const updated = await updateTournament(id, updateData);
 
   return apiSuccess(updated);

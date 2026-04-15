@@ -4,6 +4,7 @@ import { withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, apiError, forbidden, validationError } from "@/lib/api/response";
 import { verifyToken } from "@/lib/auth/jwt";
 import { onsitePlayerRegistrationSchema } from "@/lib/validation/player";
+import { findUserIdByName } from "@/lib/tournaments/link-player-user";
 
 // ---------------------------------------------------------------------------
 // 인증 헬퍼: JWT 우선, API Token 폴백 (match sync 패턴 재사용)
@@ -107,11 +108,26 @@ async function handlePost(
     return apiError(`이미 사용 중인 등번호입니다 (등번호: ${jersey_number})`, 400);
   }
 
-  // 선수 생성 (userId = null, auto_registered = true, FR-103, FR-105, FR-113)
+  // 이름 매칭으로 userId 자동 연결 시도
+  // - 같은 팀의 TeamMember 중 닉네임/이름이 일치하는 유저를 찾음
+  // - 매칭 실패 시 null (기존 동작과 동일)
+  // - try-catch: 매칭 실패가 선수 등록을 막으면 안 됨
+  let matchedUserId: bigint | null = null;
+  try {
+    matchedUserId = await findUserIdByName(
+      player_name,
+      tournamentTeam.teamId,
+      BigInt(teamId)
+    );
+  } catch {
+    // 매칭 에러 시 무시 -- userId: null로 진행
+  }
+
+  // 선수 생성 (auto_registered = true, FR-103, FR-105, FR-113)
   const player = await prisma.tournamentTeamPlayer.create({
     data: {
       tournamentTeamId: BigInt(teamId),
-      userId: null,
+      userId: matchedUserId,
       player_name,
       jerseyNumber: jersey_number,
       position: position ?? null,
@@ -127,7 +143,7 @@ async function handlePost(
     {
       id: Number(player.id),
       tournament_team_id: Number(player.tournamentTeamId),
-      user_id: null,
+      user_id: player.userId ? Number(player.userId) : null,
       player_name: player.player_name,
       jersey_number: player.jerseyNumber,
       position: player.position,

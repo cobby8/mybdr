@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 
 export const revalidate = 30;
@@ -32,7 +33,9 @@ export default async function StandingsPage({ params }: { params: Promise<{ id: 
                 return (
                   <tr key={t.id.toString()} className="border-b border-[var(--color-border)]">
                     <td className="px-2 py-2.5 sm:px-5 sm:py-3 text-center font-bold text-[var(--color-primary)]">{i + 1}</td>
-                    <td className="px-2 py-2.5 sm:px-5 sm:py-3 font-medium">{t.team.name}</td>
+                    <td className="px-2 py-2.5 sm:px-5 sm:py-3 font-medium">
+                      <Link href={`/teams/${t.teamId}`} className="hover:underline">{t.team.name}</Link>
+                    </td>
                     <td className="px-2 py-2.5 sm:px-5 sm:py-3 text-center">{t.wins ?? 0}</td>
                     <td className="px-2 py-2.5 sm:px-5 sm:py-3 text-center">{t.losses ?? 0}</td>
                     <td className="px-2 py-2.5 sm:px-5 sm:py-3 text-center">{pct}</td>

@@ -14,6 +14,9 @@ export type MatchStatus =
 export type TeamSlot = {
   id: string;
   teamId: string;
+  // 시드 번호: 리그 최종 순위(1=1위, 2=2위, ...). 시드 미배정 팀은 null
+  // MatchCard에서 "#1", "#4" 뱃지로 표시
+  seedNumber: number | null;
   team: { name: string; primaryColor: string | null };
 } | null;
 
@@ -34,6 +37,11 @@ export type BracketMatch = {
   nextMatchId: string | null;
   nextMatchSlot: "home" | "away" | null;
   scheduledAt: string | null;
+  // ✨ Phase 2C: 팀이 아직 확정되지 않은 빈 슬롯용 라벨
+  // 예: "1위", "4위", "준결승 1 패자" — settings JSON에서 읽어옴
+  // team이 null일 때만 MatchCard에서 이 라벨을 표시한다
+  homeSlotLabel: string | null;
+  awaySlotLabel: string | null;
 };
 
 export type RoundGroup = {
@@ -61,14 +69,19 @@ type DbMatch = {
   next_match_id: bigint | null;
   next_match_slot: string | null;
   scheduledAt: Date | null;
+  // Phase 2C: JSON 컬럼에 슬롯 라벨 저장 (homeSlotLabel/awaySlotLabel)
+  // 쿼리에서 settings를 포함하지 않아도 옵셔널이라 안전
+  settings?: unknown;
   homeTeam: {
     id: bigint;
     teamId: bigint;
+    seedNumber: number | null; // DB TournamentTeam.seed_number
     team: { name: string; primaryColor: string | null };
   } | null;
   awayTeam: {
     id: bigint;
     teamId: bigint;
+    seedNumber: number | null;
     team: { name: string; primaryColor: string | null };
   } | null;
 };
@@ -80,6 +93,8 @@ function toTeamSlot(
   return {
     id: t.id.toString(),
     teamId: t.teamId.toString(),
+    // seedNumber가 undefined일 수 있으므로 ?? null로 안전 처리
+    seedNumber: t.seedNumber ?? null,
     team: {
       name: t.team.name,
       primaryColor: t.team.primaryColor,
@@ -88,6 +103,12 @@ function toTeamSlot(
 }
 
 function toBracketMatch(m: DbMatch): BracketMatch {
+  // settings JSON에서 슬롯 라벨 추출 (없으면 null)
+  // 타입: Prisma Json 이라 Record로 안전 변환
+  const settings = (m.settings ?? null) as Record<string, unknown> | null;
+  const homeSlotLabel = typeof settings?.homeSlotLabel === "string" ? settings.homeSlotLabel : null;
+  const awaySlotLabel = typeof settings?.awaySlotLabel === "string" ? settings.awaySlotLabel : null;
+
   return {
     id: m.id.toString(),
     uuid: m.uuid,
@@ -105,6 +126,8 @@ function toBracketMatch(m: DbMatch): BracketMatch {
     nextMatchId: m.next_match_id?.toString() ?? null,
     nextMatchSlot: (m.next_match_slot as "home" | "away") ?? null,
     scheduledAt: m.scheduledAt?.toISOString() ?? null,
+    homeSlotLabel,
+    awaySlotLabel,
   };
 }
 
@@ -257,8 +280,10 @@ export function computeConnectorPaths(
 
       const d = `M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`;
 
+      // 이유: NBA 스타일 "승자 경로 강조" — 승자가 확정된 매치(winnerTeamId 존재)만 active로 간주.
+      // 진행중(in_progress)은 아직 승자 미확정이지만 시각적 연속성을 위해 포함.
       const isActive =
-        match.status === "completed" ||
+        match.winnerTeamId != null ||
         match.status === "in_progress" ||
         nextMatch.status === "in_progress";
 
