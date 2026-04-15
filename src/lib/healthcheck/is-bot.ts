@@ -11,7 +11,8 @@ import { prisma } from "@/lib/db/prisma";
 import { apiError } from "@/lib/api/response";
 
 // 봇 이메일 서픽스 (모두 소문자로 비교)
-const BOT_EMAIL_DOMAIN = "@healthcheck.bot";
+// export: 헬스체크 cron에서 봇 계정 조회 시 하드코딩 대신 재사용
+export const BOT_EMAIL_DOMAIN = "@healthcheck.bot";
 
 /**
  * 이메일 문자열만 보고 봇 여부 판단. DB 조회 없음.

@@ -1,12 +1,12 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-13 (v3 협회 주도 등록 + 매칭 시스템 설계 확정)
+> 최종 갱신: 2026-04-15 (헬스체크 cron 2차 구현 완료 — check3 내부 호출 예외 기록)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 18 | 2026-04-12 | 페이지별 구조, admin 개편, 프론트-백엔드 연결맵, 맞춤설정 시스템, 심판 플랫폼 v2(6모델 + 17API) |
 | conventions.md | 11 | 2026-03-28 | 디자인 시스템, 디비전 체계, 대회 상태 4종, admin UI 패턴 |
-| decisions.md | 43 | 2026-04-13 | 기술 결정 (… v2 최종확정 3건 + **v3 3건: 분리형 아키텍처/협회 주도 등록+매칭/역할 9종 세분화**) |
+| decisions.md | 44 | 2026-04-15 | 기술 결정 (… v3 3건 + **헬스체크 cron self-fetch 병렬**) |
 | errors.md | 6 | 2026-04-12 | 에러 패턴, 함정, 주의사항 (+ Prisma schema drift / users.gender 복원) |
 | lessons.md | 4 | 2026-03-28 | 삽질 경험, 효과적 접근법 |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 (색상/폰트/간격/컴포넌트/레이아웃) |
@@ -94,6 +94,7 @@
 | Stitch 원본 | Dev/design/0. 레이아웃/DESIGN.md | Stitch에서 내보낸 원본 디자인 규격 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-15] decisions: 헬스체크 cron 2차 — self-fetch + Promise.allSettled 병렬 + 실패해도 끝까지 진행 (내부 함수 호출 대비 유저 경로 검증 이점)
 - [04-12] architecture: 심판 플랫폼 재설계 v2 — 6모델(Association/AssociationAdmin/Referee/Certificate/Assignment/Settlement) + 17API + Excel 2단계 업로드, users 0수정 CREATE 6건만
 - [04-12] decisions: v2 협회 계층형 Association — self-relation, 20개 시드(KBA+시도17+KBL/WKBL), REGIONS 재사용
 - [04-12] decisions: v2 자격증 파일 업로드 제거 — cert_number + 실명/생년월일/전화 교차검증으로 대체

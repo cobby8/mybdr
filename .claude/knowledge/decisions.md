@@ -2,6 +2,24 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-15] 헬스체크 cron 2차 — self-fetch + Promise.allSettled 병렬
+- **분류**: decision
+- **발견자**: planner-architect
+- **결정**: `/api/cron/referee-healthcheck`의 8항목 점검을 (1) **self-fetch 방식으로 자기 도메인 API를 실제 호출**, (2) **Promise.allSettled로 병렬 실행**, (3) **실패해도 끝까지 진행 후 종합 기록**하도록 결정.
+- **대안 검토**:
+  (A) 내부 함수 직접 호출 (prisma + 서비스 함수 호출) → 빠르지만 미들웨어/라우팅/쿠키 경로를 건너뛰어 "실제 유저 경로 고장"을 못 잡음. 헬스체크 본래 목적과 어긋남.
+  (B) **[채택]** self-fetch + Promise.allSettled 병렬 + 개별 5초 타임아웃 → 실제 유저와 동일 경로 검증 + 8항목 5~7초 완료 + Vercel Hobby 10초 제한 내.
+  (C) 순차 실행 → 총 시간 40초+로 Vercel 10초 제한 초과. 실패 1건이 뒤를 막음.
+- **이유**: (1) "진짜 문 열어보기" — cron은 관측자 역할이므로 미들웨어 버그/인증 쿠키/라우팅 설정까지 전부 통과한 경로를 재현해야 의미가 있다. (2) 8항목이 서로 독립이라 병렬이 자연스럽고, allSettled는 1건 실패가 나머지를 막지 않음. (3) 중단 없이 끝까지 감 — 헬스체크의 목적은 "어디가 고장났는지" 전부 파악. (4) Vercel self-fetch는 공식 지원, cold start는 매시간 유지되는 cron 특성상 warm 상태.
+- **부차 결정**:
+  (1) 봇 로그인은 Admin/Referee 각 1회만 실행 후 set-cookie 파싱해 이후 점검에 재사용 — 매번 로그인 시 5배 지연.
+  (2) HealthCheckRun은 시작 시 running 생성 → 끝에 passed/partial/failed 업데이트. 결과 8건은 createMany 1회 batch.
+  (3) 개별 타임아웃 5초 (AbortController) — 심각한 지연의 명확한 지표, 전체 10초 안에 수렴.
+  (4) baseUrl 선택 우선순위: `APP_URL` → `VERCEL_URL` → `req.nextUrl.origin`.
+- **구현 예외 (2026-04-15 구현 시 조정)**:
+  check3(봇 로그인)만 self-fetch가 아닌 **내부 함수 호출**로 대체. 이유: 프로젝트의 웹 로그인이 Server Action(`loginAction`) 기반이라 JSON POST 엔드포인트가 없음. cron의 `performBotLogin`은 `loginAction`의 4단계(findUnique → status 확인 → bcrypt.compare → generateToken)를 동일 순서로 재현하여 로그인 계약 회귀는 충분히 탐지. check4/5/6/7/8은 설계대로 self-fetch 유지.
+- **참조횟수**: 0
+
 ### [2026-04-13] 심판 알림 — 신규 Notification 모델 만들지 않고 기존 `notifications` 재사용
 - **분류**: decision
 - **발견자**: planner-architect
