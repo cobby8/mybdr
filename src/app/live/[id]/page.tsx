@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+// 헤더 우측에 테마 토글 버튼을 배치하기 위해 공통 컴포넌트 재사용
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 interface PlayerRow {
   id: number;
@@ -111,6 +113,12 @@ function getQuarterLabel(q: number): string {
 
 const POLL_INTERVAL = 3_000; // 3초
 
+// 얼룩무늬(zebra stripe) 배경색 — 중립 회색 알파를 쓰면 다크/라이트 모두에서 은은하게 보임.
+// 라이트 배경(흰색)에서는 살짝 어둡게, 다크 배경(#0A)에서는 살짝 밝게 동시에 보이도록 중간 회색 사용.
+const ZEBRA_BG = "rgba(127, 127, 127, 0.06)";
+// TOTAL 합산 행 전용 — 조금 더 진하게 구분
+const TOTAL_ROW_BG = "rgba(127, 127, 127, 0.10)";
+
 export default function LiveBoxScorePage() {
   const { id } = useParams<{ id: string }>();
   const [match, setMatch] = useState<MatchData | null>(null);
@@ -160,20 +168,31 @@ export default function LiveBoxScorePage() {
   }, [fetchMatch]);
 
   if (error) {
+    // 에러 화면도 테마 반응형이 되도록 CSS 변수로 배경/텍스트 지정
     return (
-      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center text-white">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)" }}
+      >
         <div className="text-center">
           <div className="text-5xl mb-4">🏀</div>
-          <p className="text-gray-400">{error}</p>
+          <p style={{ color: "var(--color-text-secondary)" }}>{error}</p>
         </div>
       </div>
     );
   }
 
   if (!match) {
+    // 로딩 스피너: 주황 → BDR 기본 primary 사용 (테마 중립)
     return (
-      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "var(--color-background)" }}
+      >
+        <div
+          className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+          style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }}
+        />
       </div>
     );
   }
@@ -194,26 +213,58 @@ export default function LiveBoxScorePage() {
   ];
 
   return (
-    <div className="min-h-screen text-white" style={{ backgroundColor: '#0A0A0F' }}>
-      {/* 헤더 */}
-      <div className="border-b border-white/10 px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#141416' }}>
+    // 페이지 최상단 컨테이너 — 배경/글자 기본색은 모두 CSS 변수 사용 (테마 전환 대응)
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)" }}
+    >
+      {/* 헤더 — border와 배경을 모두 CSS 변수로 */}
+      <div
+        className="px-4 py-3 flex items-center justify-between border-b"
+        style={{
+          backgroundColor: "var(--color-card)",
+          borderColor: "var(--color-border)",
+        }}
+      >
         <div className="flex items-center gap-3 min-w-0">
-          <button onClick={() => window.history.back()} className="shrink-0 text-gray-400 hover:text-white transition-colors">
+          <button
+            onClick={() => window.history.back()}
+            className="shrink-0 transition-colors"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
-          <span className="text-sm text-gray-400 truncate">{match.tournament_name}</span>
+          {/* 토너먼트명: text-sm → text-base (두 단계 확대의 헤더 버전) */}
+          <span className="text-base truncate" style={{ color: "var(--color-text-secondary)" }}>
+            {match.tournament_name}
+          </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isLive && (
-            <span className="flex items-center gap-1 text-xs text-red-400 font-semibold">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            // LIVE 인디케이터: 상태 시맨틱 변수 사용 (text-xs → text-sm)
+            <span
+              className="flex items-center gap-1 text-sm font-semibold"
+              style={{ color: "var(--color-status-live)" }}
+            >
+              <span
+                className="w-2 h-2 rounded-full animate-pulse"
+                style={{ backgroundColor: "var(--color-status-live)" }}
+              />
               LIVE
             </span>
           )}
-          <span className="text-xs text-gray-500">
+          {/* 상태 라벨: text-xs → text-sm */}
+          <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
             {STATUS_LABEL[match.status] ?? match.status}
           </span>
-          <button onClick={fetchMatch} className="text-gray-500 hover:text-white transition-colors ml-1" title="새로고침">
+          {/* 헤더 우측: 테마 토글(왼쪽) → 새로고침(오른쪽) 순서로 배치 */}
+          <ThemeToggle />
+          <button
+            onClick={fetchMatch}
+            className="transition-colors ml-1"
+            title="새로고침"
+            style={{ color: "var(--color-text-muted)" }}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
           </button>
         </div>
@@ -228,7 +279,11 @@ export default function LiveBoxScorePage() {
               className="w-3 h-3 rounded-full mx-auto mb-2"
               style={{ backgroundColor: match.home_team.color }}
             />
-            <p className="text-sm text-gray-300 font-medium truncate">
+            {/* 팀명 헤더: text-sm → text-lg (두 단계 확대) */}
+            <p
+              className="text-lg font-medium truncate"
+              style={{ color: "var(--color-text-primary)" }}
+            >
               {match.home_team.name}
             </p>
             <p
@@ -239,11 +294,13 @@ export default function LiveBoxScorePage() {
             </p>
           </div>
 
-          {/* 가운데 */}
+          {/* 가운데 — 콜론 크기는 의미상 유지. 색상은 muted 변수로 (라이트에서 어둡게, 다크에서 밝게) */}
           <div className="text-center px-2">
-            <p className="text-gray-600 text-xl font-light">:</p>
+            <p className="text-xl font-light" style={{ color: "var(--color-text-muted)" }}>:</p>
             {match.round_name && (
-              <p className="text-xs text-gray-500 mt-1">{match.round_name}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
+                {match.round_name}
+              </p>
             )}
           </div>
 
@@ -253,7 +310,10 @@ export default function LiveBoxScorePage() {
               className="w-3 h-3 rounded-full mx-auto mb-2"
               style={{ backgroundColor: match.away_team.color }}
             />
-            <p className="text-sm text-gray-300 font-medium truncate">
+            <p
+              className="text-lg font-medium truncate"
+              style={{ color: "var(--color-text-primary)" }}
+            >
               {match.away_team.name}
             </p>
             <p
@@ -267,26 +327,30 @@ export default function LiveBoxScorePage() {
 
         {/* 쿼터별 점수 */}
         {quarters.some((q) => q.home > 0 || q.away > 0) && (
-          <div className="mt-4 bg-[#141416] rounded-md overflow-hidden">
+          <div
+            className="mt-4 rounded-md overflow-hidden"
+            style={{ backgroundColor: "var(--color-card)" }}
+          >
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-white/10">
-                  <th className="py-2 px-3 text-left text-gray-500 font-normal">팀</th>
+                <tr className="border-b" style={{ borderColor: "var(--color-border)" }}>
+                  <th className="py-2 px-3 text-left font-normal" style={{ color: "var(--color-text-muted)" }}>팀</th>
                   {quarters.map((q) => (
-                    <th key={q.label} className="py-2 px-2 text-center text-gray-500 font-normal">
+                    <th key={q.label} className="py-2 px-2 text-center font-normal" style={{ color: "var(--color-text-muted)" }}>
                       {q.label}
                     </th>
                   ))}
-                  <th className="py-2 px-3 text-center text-gray-400 font-semibold">합계</th>
+                  <th className="py-2 px-3 text-center font-semibold" style={{ color: "var(--color-text-secondary)" }}>합계</th>
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-white/5">
-                  <td className="py-2 px-3 text-gray-300 text-xs truncate max-w-[60px]">
+                <tr className="border-b" style={{ borderColor: "var(--color-border)" }}>
+                  {/* 팀명 셀: text-xs → text-base (두 단계 확대) */}
+                  <td className="py-2 px-3 text-base truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
                     {match.home_team.name}
                   </td>
                   {quarters.map((q) => (
-                    <td key={q.label} className="py-2 px-2 text-center text-gray-300">
+                    <td key={q.label} className="py-2 px-2 text-center" style={{ color: "var(--color-text-primary)" }}>
                       {q.home}
                     </td>
                   ))}
@@ -295,11 +359,11 @@ export default function LiveBoxScorePage() {
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-2 px-3 text-gray-300 text-xs truncate max-w-[60px]">
+                  <td className="py-2 px-3 text-base truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
                     {match.away_team.name}
                   </td>
                   {quarters.map((q) => (
-                    <td key={q.label} className="py-2 px-2 text-center text-gray-300">
+                    <td key={q.label} className="py-2 px-2 text-center" style={{ color: "var(--color-text-primary)" }}>
                       {q.away}
                     </td>
                   ))}
@@ -313,7 +377,7 @@ export default function LiveBoxScorePage() {
         )}
       </div>
 
-      {/* 박스스코어 (프린트 영역) */}
+      {/* 박스스코어 (프린트 영역) — 프린트 CSS에서 검정 잉크로 강제 변환되므로 인라인 색상은 유지 */}
       <div id="box-score-print-area" className="px-4 pb-4 space-y-4">
         {/* 프린트 전용: 팀별 독립 페이지 */}
         {[
@@ -321,7 +385,7 @@ export default function LiveBoxScorePage() {
           { team: match.away_team, players: match.away_players, score: match.away_score, opponentName: match.home_team.name, opponentScore: match.home_score },
         ].map(({ team, players, score, opponentName, opponentScore }) => (
           <div key={team.id} className="print-team-page">
-            {/* 프린트 전용 헤더 */}
+            {/* 프린트 전용 헤더 — 인라인 색상(#000/#666/#999)은 프린트 잉크용이라 그대로 유지 */}
             <div data-print-show className="hidden">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "4px" }}>
                 <div>
@@ -333,7 +397,7 @@ export default function LiveBoxScorePage() {
                   {match.round_name && <span style={{ fontSize: "10px", color: "#999", marginLeft: "6px" }}>{match.round_name}</span>}
                 </div>
               </div>
-              {/* 쿼터별 점수 인라인 */}
+              {/* 쿼터별 점수 인라인 — 프린트 전용 */}
               <div style={{ display: "flex", gap: "12px", fontSize: "9px", color: "#666", borderBottom: "1px solid #ccc", paddingBottom: "3px", marginBottom: "2px" }}>
                 <span style={{ fontWeight: 700, color: "#000", fontSize: "12px" }}>{score} : {opponentScore}</span>
                 {quarters.map((q) => {
@@ -353,11 +417,16 @@ export default function LiveBoxScorePage() {
           </div>
         ))}
       </div>
-      {/* 프린트 버튼 */}
+      {/* 프린트 버튼 — 기본 text-sm → text-base 확대, 배경/텍스트는 CSS 변수로 */}
       <div data-print-hide className="px-4 pb-8">
         <button
           onClick={() => window.print()}
-          className="w-full py-3 rounded-xl text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 rounded-xl text-base font-semibold border transition-colors flex items-center justify-center gap-2"
+          style={{
+            color: "var(--color-text-primary)",
+            backgroundColor: "var(--color-card)",
+            borderColor: "var(--color-border)",
+          }}
         >
           <span className="material-symbols-outlined text-lg">print</span>
           박스스코어 프린트
@@ -369,12 +438,20 @@ export default function LiveBoxScorePage() {
         <PbpSection match={match} />
       )}
 
-      {/* 하단 갱신 정보 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-[#0A0A0F]/90 backdrop-blur border-t border-white/10 px-4 py-2 flex items-center justify-between">
-        <span className="text-xs text-gray-600">
+      {/* 하단 갱신 정보 — fixed bar. backdrop-blur 유지, 배경은 CSS 변수 + rgba로 직접 합성 */}
+      <div
+        className="fixed bottom-0 left-0 right-0 backdrop-blur px-4 py-2 flex items-center justify-between border-t"
+        style={{
+          // backgroundColor만으로 테마별 투명도를 표현하기 어려우므로 --color-card를 그대로 + 블러에 맡김
+          backgroundColor: "color-mix(in srgb, var(--color-background) 90%, transparent)",
+          borderColor: "var(--color-border)",
+        }}
+      >
+        {/* 하단 정보 text-xs → text-sm */}
+        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           🏀 BDR Live Score
         </span>
-        <span className="text-xs text-gray-600">
+        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           {lastUpdated
             ? `${lastUpdated.getHours().toString().padStart(2, "0")}:${lastUpdated.getMinutes().toString().padStart(2, "0")} 기준`
             : "로딩중..."}
@@ -407,16 +484,30 @@ function BoxScoreTable({
     <div className="print-team-table-wrap">
       <div className="flex items-center gap-2 mb-2 print:hidden">
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-        <span className="text-sm font-semibold text-gray-200">{teamName}</span>
+        {/* 팀명 헤더: text-sm → text-lg (두 단계 확대) */}
+        <span className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+          {teamName}
+        </span>
       </div>
-      <div className="bg-[#141416] rounded-md overflow-hidden">
+      <div
+        className="rounded-md overflow-hidden"
+        style={{ backgroundColor: "var(--color-card)" }}
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          {/* 박스스코어 전체 text-xs → text-base (두 단계 확대) */}
+          <table className="w-full text-base">
             <thead>
-              <tr className="border-b border-white/10 text-gray-500">
-                <th className="py-2 px-3 text-left font-normal sticky left-0 bg-[#141416] print:static print:bg-transparent">#</th>
-                <th className="py-2 px-1 text-left font-normal sticky left-8 bg-[#141416] min-w-[70px] print:static print:bg-transparent">이름</th>
-                <th className="py-2 px-1 text-center font-semibold text-gray-300">PTS</th>
+              <tr className="border-b" style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}>
+                {/* sticky 셀: 라이트/다크 모두 card 색으로 배경 칠해줘야 투명해지지 않음 */}
+                <th
+                  className="py-2 px-3 text-left font-normal sticky left-0 print:static print:bg-transparent"
+                  style={{ backgroundColor: "var(--color-card)" }}
+                >#</th>
+                <th
+                  className="py-2 px-1 text-left font-normal sticky left-8 min-w-[70px] print:static print:bg-transparent"
+                  style={{ backgroundColor: "var(--color-card)" }}
+                >이름</th>
+                <th className="py-2 px-1 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>PTS</th>
                 <th className="py-2 px-1 text-center font-normal">FG</th>
                 <th className="py-2 px-1 text-center font-normal">FG%</th>
                 <th className="py-2 px-1 text-center font-normal">3P</th>
@@ -438,44 +529,56 @@ function BoxScoreTable({
               {sorted.map((p, i) => (
                 <tr
                   key={p.id}
-                  className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
+                  className="border-b"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    // 얼룩무늬: 짝수 행은 투명, 홀수 행은 중립 회색 알파
+                    backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                  }}
                 >
-                  <td className="py-2 px-3 text-gray-500 sticky left-0 bg-inherit print:static print:bg-transparent">
+                  {/* sticky 셀은 zebra 배경을 bg-inherit로 따라가게 함 */}
+                  <td
+                    className="py-2 px-3 sticky left-0 bg-inherit print:static print:bg-transparent"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     {p.jersey_number ?? "-"}
                   </td>
-                  <td className="py-2 px-1 text-gray-200 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none">
+                  <td
+                    className="py-2 px-1 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
+                    style={{ color: "var(--color-text-primary)" }}
+                  >
                     {p.name}
                   </td>
                   <td className="py-2 px-1 text-center font-bold" style={{ color }}>
                     {p.pts}
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.fgm}/{p.fga}
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.fgm, p.fga)}%
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.tpm}/{p.tpa}
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.tpm, p.tpa)}%
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.ftm}/{p.fta}
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-400">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {pct(p.ftm, p.fta)}%
                   </td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.oreb}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.dreb}</td>
-                  <td className="py-2 px-1 text-center text-gray-300 font-semibold">{p.reb}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.ast}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.stl}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.blk}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.to}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">{p.fouls}</td>
-                  <td className="py-2 px-1 text-center text-gray-300">
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.oreb}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.dreb}</td>
+                  <td className="py-2 px-1 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{p.reb}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.ast}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.stl}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.blk}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.to}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{p.fouls}</td>
+                  <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}
                   </td>
                 </tr>
@@ -484,16 +587,30 @@ function BoxScoreTable({
               {dnpPlayers.map((p, i) => (
                 <tr
                   key={`dnp-${p.id}`}
-                  className={`border-b border-white/5 ${(sorted.length + i) % 2 === 0 ? "" : "bg-white/[0.02]"}`}
+                  className="border-b"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    backgroundColor: (sorted.length + i) % 2 === 0 ? "transparent" : ZEBRA_BG,
+                  }}
                 >
-                  <td className="py-2 px-3 text-gray-600 sticky left-0 bg-inherit print:static print:bg-transparent">
+                  <td
+                    className="py-2 px-3 sticky left-0 bg-inherit print:static print:bg-transparent"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     {p.jersey_number ?? "-"}
                   </td>
-                  <td className="py-2 px-1 text-gray-500 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none">
+                  <td
+                    className="py-2 px-1 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
                     {p.name}
                   </td>
                   <td colSpan={16} className="py-2 px-1 text-center">
-                    <span className="text-[10px] font-semibold tracking-[0.2em] text-gray-500 uppercase">
+                    {/* DNP 라벨: text-[10px] → text-xs (10→12px로 한 단계 확대) */}
+                    <span
+                      className="text-xs font-semibold tracking-[0.2em] uppercase"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
                       DNP &mdash; Did Not Play
                     </span>
                   </td>
@@ -523,26 +640,40 @@ function BoxScoreTable({
                   }),
                   { min: 0, min_seconds: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0 }
                 );
+                // TOTAL 행: sticky 셀에 elevated 배경을 지정해 라이트/다크 모두 투명해지지 않음
+                const totalStickyBg = "var(--color-elevated)";
                 return (
-                  <tr className="border-t border-white/20 bg-white/[0.04] font-semibold print-total-row">
-                    <td className="py-2 px-3 text-gray-400 sticky left-0 bg-[#111118] print:static print:bg-transparent" />
-                    <td className="py-2 px-1 text-gray-200 sticky left-8 bg-[#111118] print:static print:bg-transparent">TOTAL</td>
+                  <tr
+                    className="border-t font-semibold print-total-row"
+                    style={{
+                      borderColor: "var(--color-border)",
+                      backgroundColor: TOTAL_ROW_BG,
+                    }}
+                  >
+                    <td
+                      className="py-2 px-3 sticky left-0 print:static print:bg-transparent"
+                      style={{ color: "var(--color-text-secondary)", backgroundColor: totalStickyBg }}
+                    />
+                    <td
+                      className="py-2 px-1 sticky left-8 print:static print:bg-transparent"
+                      style={{ color: "var(--color-text-primary)", backgroundColor: totalStickyBg }}
+                    >TOTAL</td>
                     <td className="py-2 px-1 text-center" style={{ color }}>{total.pts}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.fgm}/{total.fga}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.fgm, total.fga)}%</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.tpm}/{total.tpa}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.tpm, total.tpa)}%</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.ftm}/{total.fta}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{pct(total.ftm, total.fta)}%</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.oreb}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.dreb}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.reb}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.ast}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.stl}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.blk}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.to}</td>
-                    <td className="py-2 px-1 text-center text-gray-300">{total.fouls}</td>
-                    <td className="py-2 px-1 text-center text-gray-400">-</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fgm}/{total.fga}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.fgm, total.fga)}%</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.tpm}/{total.tpa}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.tpm, total.tpa)}%</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ftm}/{total.fta}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{pct(total.ftm, total.fta)}%</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.oreb}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.dreb}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.reb}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.ast}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.stl}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.blk}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.to}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-primary)" }}>{total.fouls}</td>
+                    <td className="py-2 px-1 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
                   </tr>
                 );
               })()}
@@ -565,14 +696,19 @@ function PbpSection({ match }: { match: MatchData }) {
   return (
     <div className="px-4 pb-8">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-sm font-semibold text-gray-200">Play-by-Play</span>
-        <span className="text-xs text-gray-500">({pbps.length})</span>
+        {/* PBP 섹션 헤더: text-sm → text-lg (두 단계 확대) */}
+        <span className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>Play-by-Play</span>
+        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>({pbps.length})</span>
       </div>
-      <div className="bg-[#111118] rounded-xl overflow-hidden">
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--color-elevated)" }}
+      >
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          {/* PBP 테이블 전체 text-xs → text-base (두 단계 확대) */}
+          <table className="w-full text-base">
             <thead>
-              <tr className="border-b border-white/10 text-gray-500">
+              <tr className="border-b" style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}>
                 <th className="py-2 px-2 text-left font-normal w-[60px]">시간</th>
                 <th className="py-2 px-2 text-center font-normal w-[32px]">팀</th>
                 <th className="py-2 px-2 text-center font-normal w-[32px]">#</th>
@@ -589,10 +725,14 @@ function PbpSection({ match }: { match: MatchData }) {
                 return (
                   <tr
                     key={pbp.id}
-                    className={`border-b border-white/5 ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
+                    className="border-b"
+                    style={{
+                      borderColor: "var(--color-border)",
+                      backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                    }}
                   >
-                    <td className="py-1.5 px-2 text-gray-500 whitespace-nowrap">
-                      <span className="text-gray-600">{getQuarterLabel(pbp.quarter)}</span>{" "}
+                    <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--color-text-muted)" }}>
+                      <span style={{ color: "var(--color-text-muted)" }}>{getQuarterLabel(pbp.quarter)}</span>{" "}
                       {formatGameClock(pbp.game_clock_seconds)}
                     </td>
                     <td className="py-1.5 px-2 text-center">
@@ -601,15 +741,15 @@ function PbpSection({ match }: { match: MatchData }) {
                         style={{ backgroundColor: teamColor }}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-center text-gray-400">
+                    <td className="py-1.5 px-2 text-center" style={{ color: "var(--color-text-secondary)" }}>
                       {pbp.jersey_number ?? "-"}
                     </td>
-                    <td className="py-1.5 px-2 text-gray-300">
+                    <td className="py-1.5 px-2" style={{ color: "var(--color-text-primary)" }}>
                       {actionLabel}
                     </td>
-                    <td className="py-1.5 px-2 text-center text-gray-400 whitespace-nowrap">
+                    <td className="py-1.5 px-2 text-center whitespace-nowrap" style={{ color: "var(--color-text-secondary)" }}>
                       <span style={{ color: match.home_team.color }}>{pbp.home_score_at_time}</span>
-                      <span className="text-gray-600 mx-0.5">:</span>
+                      <span className="mx-0.5" style={{ color: "var(--color-text-muted)" }}>:</span>
                       <span style={{ color: match.away_team.color }}>{pbp.away_score_at_time}</span>
                     </td>
                   </tr>
@@ -621,7 +761,11 @@ function PbpSection({ match }: { match: MatchData }) {
         {hasMore && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full py-2.5 text-xs text-gray-400 hover:text-gray-200 hover:bg-white/5 transition-colors border-t border-white/5"
+            className="w-full py-2.5 text-xs transition-colors border-t"
+            style={{
+              color: "var(--color-text-secondary)",
+              borderColor: "var(--color-border)",
+            }}
           >
             {expanded ? "접기" : `더보기 (${pbps.length - PBP_COLLAPSED_COUNT}건)`}
           </button>
