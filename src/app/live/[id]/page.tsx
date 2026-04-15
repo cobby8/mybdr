@@ -394,11 +394,14 @@ function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean 
 
 const POLL_INTERVAL = 3_000; // 3초
 
-// 얼룩무늬(zebra stripe) 배경색 — 중립 회색 알파를 쓰면 다크/라이트 모두에서 은은하게 보임.
-// 라이트 배경(흰색)에서는 살짝 어둡게, 다크 배경(#0A)에서는 살짝 밝게 동시에 보이도록 중간 회색 사용.
-const ZEBRA_BG = "rgba(127, 127, 127, 0.06)";
-// TOTAL 합산 행 전용 — 조금 더 진하게 구분
-const TOTAL_ROW_BG = "rgba(127, 127, 127, 0.10)";
+// 얼룩무늬(zebra stripe) 배경색 — card 위에 중립 회색 6%를 섞어 불투명화.
+// 모바일 가로 스크롤 시 sticky 셀(bg-inherit)이 투명해지면 뒤 콘텐츠가 비치는 문제 해결.
+// color-mix는 모던 브라우저(Chrome 111+, Safari 16.2+, Firefox 113+) 모두 지원.
+const ZEBRA_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 6%)";
+// TOTAL 합산 행 전용 — 조금 더 진하게 구분 (card 위에 10%)
+const TOTAL_ROW_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 10%)";
+// 짝수 행(홀수 번째가 아닌) 기본 배경 — 카드 색 그대로 쓰되 sticky 셀도 불투명 상속받도록 명시
+const ROW_EVEN_BG = "var(--color-card)";
 
 export default function LiveBoxScorePage() {
   const { id } = useParams<{ id: string }>();
@@ -1060,7 +1063,7 @@ function BoxScoreTable({
                   style={{
                     borderColor: "var(--color-border)",
                     // 얼룩무늬: 짝수 행은 투명, 홀수 행은 중립 회색 알파
-                    backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                    backgroundColor: i % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                   }}
                 >
                   {/* sticky 셀은 zebra 배경을 bg-inherit로 따라가게 함 */}
@@ -1129,7 +1132,7 @@ function BoxScoreTable({
                   className="border-b"
                   style={{
                     borderColor: "var(--color-border)",
-                    backgroundColor: (sorted.length + i) % 2 === 0 ? "transparent" : ZEBRA_BG,
+                    backgroundColor: (sorted.length + i) % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                   }}
                 >
                   <td
@@ -1295,7 +1298,7 @@ function PbpSection({ match }: { match: MatchData }) {
                     className="border-b"
                     style={{
                       borderColor: "var(--color-border)",
-                      backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                      backgroundColor: i % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                     }}
                   >
                     <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--color-text-muted)" }}>
