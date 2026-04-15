@@ -502,18 +502,21 @@ html.light .watermark-text {
   #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; }
   #box-score-print-area td:nth-child(2) { max-width: 60px !important; min-width: 50px !important; }
 
-  /* 한 섹션(팀×기간)이 한 페이지를 차지 — 마지막만 break-after 해제 */
+  /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 — height: 100vh로 강제
+     + flex:1 테이블 + tbody 마지막 행(TOTAL) vertical-align:bottom으로 하단 고정
+     (2026-04-16: min-height 사용 시 긴 테이블이 2페이지로 분할되는 문제가 있어 height: 100vh로 복구) */
   .print-team-page {
     page-break-after: always;
     page-break-inside: avoid;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 16mm);
+    height: 100vh;
     justify-content: space-between;
+    overflow: hidden;
   }
   .print-team-page:last-child { page-break-after: auto; }
-  .print-team-table-wrap { flex: 1; display: flex; flex-direction: column; }
-  .print-team-table-wrap table { flex: 1; }
+  .print-team-table-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .print-team-table-wrap table { flex: 1; height: 100%; }
   .print-team-table-wrap table tbody tr:last-child { vertical-align: bottom; }
 
   /* TOTAL 행 강조 — 굵게 + 상단 굵은 선 */
