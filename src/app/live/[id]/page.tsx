@@ -1460,17 +1460,29 @@ function PrintOptionsDialog({
           </p>
         )}
 
-        {/* 프린트 레이아웃 안내 — Chrome PDF 저장에서 세로로 저장되는 경우 사용자 가이드 */}
-        <p
-          className="mt-3 text-xs flex items-start gap-1"
-          style={{ color: "var(--color-text-muted)" }}
+        {/* 프린트 방향 안내 — Hancom PDF 등 외부 가상 프린터는 @page CSS를 무시하므로 사용자 개입 필요 */}
+        <div
+          className="mt-3 p-2 rounded text-xs flex items-start gap-2"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-secondary)",
+          }}
         >
-          <span className="material-symbols-outlined shrink-0" style={{ fontSize: "14px" }}>info</span>
-          <span>
-            프린트 대화상자에서 <strong>레이아웃: 가로</strong>로 설정해주세요.
-            세로로 저장되면 내용이 90도 회전됩니다.
-          </span>
-        </p>
+          <span className="material-symbols-outlined shrink-0" style={{ fontSize: "16px", color: "var(--color-primary)" }}>warning</span>
+          <div className="space-y-1">
+            <p className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+              PDF 저장이 세로로 나올 때
+            </p>
+            <p>
+              권장: 프린터를 <strong>&quot;PDF로 저장&quot;</strong>(Chrome 기본)으로 선택하세요.
+              Hancom PDF 등 외부 PDF 드라이버는 가로 설정을 무시합니다.
+            </p>
+            <p>
+              또는 프린트 대화상자에서 <strong>인쇄 방향 → 가로</strong>로 직접 변경하세요.
+            </p>
+          </div>
+        </div>
 
         {/* 하단 버튼 */}
         <div className="flex justify-end gap-2 mt-6">
