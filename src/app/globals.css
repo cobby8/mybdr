@@ -497,10 +497,17 @@ html.light .watermark-text {
   }
 
   /* 테이블 스타일 */
-  #box-score-print-area table { font-size: 11px; border-collapse: collapse; width: 100%; }
-  #box-score-print-area th { color: #555 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 3px !important; white-space: nowrap; }
-  #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; }
-  #box-score-print-area td:nth-child(2) { max-width: 60px !important; min-width: 50px !important; }
+  #box-score-print-area table { font-size: 11px; border-collapse: collapse; width: 100%; table-layout: fixed; }
+  /* th/td 모두 중앙 정렬 — th 기본(center) vs td 기본(left)이 달라 헤더와 데이터 정렬이 어긋나던 문제 해결.
+     inline style의 textAlign:"left"(이름/TOTAL 셀)은 그대로 덮어써서 왼쪽 정렬 유지됨 */
+  #box-score-print-area th { color: #555 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 3px !important; white-space: nowrap; text-align: center; }
+  #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; text-align: center; }
+  /* 이름 컬럼 폭 — th와 td 둘 다 동일 폭으로 고정해야 뒤 컬럼이 밀리지 않음 */
+  #box-score-print-area th:nth-child(2),
+  #box-score-print-area td:nth-child(2) { max-width: 80px !important; min-width: 60px !important; }
+  /* # 컬럼 폭 고정 */
+  #box-score-print-area th:nth-child(1),
+  #box-score-print-area td:nth-child(1) { width: 28px !important; }
 
   /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 — height: 100vh로 강제
      + flex:1 테이블 + tbody 마지막 행(TOTAL) vertical-align:bottom으로 하단 고정
