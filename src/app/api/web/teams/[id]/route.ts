@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// Phase 2A-2: 팀 수정 입력값 검증 (영문명 엄격 규칙 포함)
+import { updateTeamSchema } from "@/lib/validation/team";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -32,6 +34,9 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     select: {
       id: true,
       name: true,
+      // Phase 2A-2: 영문명 + 대표언어 (수정 폼 UI에서 읽고 쓰기 위해 필요)
+      name_en: true,
+      name_primary: true,
       description: true,
       city: true,
       district: true,
@@ -60,6 +65,9 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
   return apiSuccess({
     id: team.id.toString(),
     name: team.name,
+    // Phase 2A-2: 응답에도 포함 — 수정 폼이 기존 값으로 초기화할 수 있게
+    name_en: team.name_en,
+    name_primary: team.name_primary,
     description: team.description,
     city: team.city,
     district: team.district,
@@ -101,36 +109,42 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   }
 
   // 요청 본문 파싱
-  let body: {
-    name?: string;
-    description?: string;
-    city?: string;
-    district?: string;
-    home_court?: string;
-    founded_year?: number;
-    primary_color?: string;
-    secondary_color?: string;
-    is_public?: boolean;
-    accepting_members?: boolean;
-    max_members?: number;
-  };
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return apiError("잘못된 요청 형식입니다.", 400, "BAD_REQUEST");
   }
+
+  // Phase 2A-2: Zod로 body 검증 — 영문명 엄격 규칙(알파벳/숫자/공백/하이픈)을 여기서 한 번에 걸러냄
+  // 기존 필드 검증도 그대로 살아있지만 Zod가 통과한 값만 updateData로 내려감
+  const parsed = updateTeamSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return apiError(
+      firstIssue?.message ?? "입력값이 올바르지 않습니다.",
+      400,
+      "INVALID_INPUT"
+    );
+  }
+  const body = parsed.data;
 
   // 수정 가능한 필드만 추출 (부분 업데이트)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData: Record<string, any> = {};
 
-  // 팀명: 2~30자
+  // 팀명: 2~30자 (Zod가 이미 trim + 길이 검증 완료)
   if (body.name !== undefined) {
-    const trimmed = body.name.trim();
-    if (trimmed.length < 2 || trimmed.length > 30) {
-      return apiError("팀명은 2~30자로 입력해주세요.", 400, "INVALID_NAME");
-    }
-    updateData.name = trimmed;
+    updateData.name = body.name;
+  }
+  // Phase 2A-2: 영문명 — null로 명시 전달 시 지우기 / 문자열이면 저장
+  // nameEnSchema가 빈 문자열을 null로 치환해주므로 그대로 대입 가능
+  if (body.name_en !== undefined) {
+    updateData.name_en = body.name_en; // string | null
+  }
+  // Phase 2A-2: 대표 언어 — "ko" | "en" (기본값 "ko"는 Zod에서 주입됨)
+  if (body.name_primary !== undefined) {
+    updateData.name_primary = body.name_primary;
   }
   // 설명
   if (body.description !== undefined) {
@@ -148,12 +162,17 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   if (body.home_court !== undefined) {
     updateData.home_court = body.home_court?.trim() || null;
   }
-  // 창단연도
+  // 창단연도 — null이면 지우기, 숫자면 범위 검증 후 저장
+  // Phase 2A-2: updateTeamSchema에서 null을 허용하도록 명시되어 strict 체크 대응 필요
   if (body.founded_year !== undefined) {
-    if (body.founded_year < 1900 || body.founded_year > new Date().getFullYear()) {
-      return apiError("유효하지 않은 창단 연도입니다.", 400, "INVALID_YEAR");
+    if (body.founded_year === null) {
+      updateData.founded_year = null;
+    } else {
+      if (body.founded_year < 1900 || body.founded_year > new Date().getFullYear()) {
+        return apiError("유효하지 않은 창단 연도입니다.", 400, "INVALID_YEAR");
+      }
+      updateData.founded_year = body.founded_year;
     }
-    updateData.founded_year = body.founded_year;
   }
   // 팀 색상
   if (body.primary_color !== undefined) {

@@ -65,14 +65,23 @@ export async function GET(request: NextRequest) {
         },
       }),
 
-      // 팀: name에서 키워드 검색
+      // 팀: name(한글) 또는 name_en(영문) 두 컬럼에서 키워드 검색
+      // Phase 2A-2: 영문 키워드(eagle 등)로도 팀을 찾을 수 있도록 OR 조건 적용
       prisma.team.findMany({
-        where: { name: { contains: q, mode: "insensitive" } },
+        where: {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { name_en: { contains: q, mode: "insensitive" } },
+          ],
+        },
         orderBy: { createdAt: "desc" },
         take: 5,
         select: {
           id: true,
           name: true,
+          // 영문명/대표언어도 응답에 포함 — 검색 결과에서도 언어 스위칭 UI 적용 가능
+          name_en: true,
+          name_primary: true,
           city: true,
           members_count: true,
           logoUrl: true,

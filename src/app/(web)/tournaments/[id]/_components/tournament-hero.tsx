@@ -8,6 +8,7 @@
  * - photo: banner_url 배경 사진 + 어둡게 + 제목 오버레이
  */
 
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { formatDateRange } from "@/lib/utils/format-date";
 import {
@@ -32,6 +33,12 @@ interface TournamentHeroProps {
   bannerUrl?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  // 사이드바에서 이동한 props (참가비 + 참가 신청)
+  entryFee?: number | null;
+  isRegistrationOpen?: boolean;
+  tournamentId?: string;
+  // 문의 연락처 — DB settings.contact_phone에서 전달
+  contactPhone?: string | null;
 }
 
 export function TournamentHero({
@@ -49,6 +56,10 @@ export function TournamentHero({
   bannerUrl,
   primaryColor,
   secondaryColor,
+  entryFee,
+  isRegistrationOpen,
+  tournamentId,
+  contactPhone,
 }: TournamentHeroProps) {
   // 공통 상수에서 상태 라벨과 뱃지 variant를 가져옴
   const statusLabel = TOURNAMENT_STATUS_LABEL[status ?? "draft"] ?? (status ?? "draft");
@@ -73,24 +84,110 @@ export function TournamentHero({
   const template = designTemplate ?? "basic";
 
   // --- 공통 메타 정보 바 (모든 템플릿에서 동일하게 사용) ---
-  const metaBar = (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
-      {dateStr && (
+  // 참가비 표시 문자열
+  const feeStr = entryFee && entryFee > 0 ? `${entryFee.toLocaleString()}원` : "무료";
+
+  // --- 메타 정보 2줄 (poster/logo/photo 템플릿용) ---
+  const progressPct = maxTeams ? Math.min((teamCount / maxTeams) * 100, 100) : null;
+
+  const metaInfo = (
+    <div className="space-y-1.5 text-sm text-white/80">
+      {/* 1줄: 날짜 + 장소 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {dateStr && (
+          <span className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-base text-white/70">calendar_today</span>
+            {dateStr}
+          </span>
+        )}
+        {venueStr && (
+          <span className="flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-base text-white/70">location_on</span>
+            {venueStr}
+          </span>
+        )}
+      </div>
+      {/* 2줄: 참가비 + 참가팀수 */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-base text-white/70">calendar_today</span>
-          {dateStr}
+          <span className="material-symbols-outlined text-base text-white/70">payments</span>
+          {feeStr}
         </span>
-      )}
-      {venueStr && (
         <span className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-base text-white/70">location_on</span>
-          {venueStr}
+          <span className="material-symbols-outlined text-base text-white/70">groups</span>
+          {teamsStr}
         </span>
+      </div>
+      {/* 참가 현황 프로그레스바 (maxTeams 있을 때만) */}
+      {progressPct !== null && (
+        <div className="pt-1">
+          <p className="mb-1 text-xs text-white/60">참가 현황</p>
+          <div className="h-2 overflow-hidden rounded-full bg-white/20" style={{ maxWidth: "240px" }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${progressPct}%`,
+                backgroundColor: progressPct >= 90 ? "#EF4444" : "#FFFFFF",
+              }}
+            />
+          </div>
+        </div>
       )}
-      <span className="flex items-center gap-1.5">
-        <span className="material-symbols-outlined text-base text-white/70">groups</span>
-        {teamsStr}{formatLabel && ` · ${formatLabel}`}
-      </span>
+    </div>
+  );
+
+  // --- 문의 전화 아이콘 (poster/logo/photo 템플릿용 - 흰색 계열) ---
+  const contactIcon = contactPhone ? (
+    <a
+      href={`tel:${contactPhone}`}
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white transition-colors hover:bg-white/30"
+      title={`문의: ${contactPhone}`}
+    >
+      <span className="material-symbols-outlined text-xl">call</span>
+    </a>
+  ) : null;
+
+  // --- 문의 전화 아이콘 (basic 템플릿용 - 테마 색상) ---
+  const contactIconBasic = contactPhone ? (
+    <a
+      href={`tel:${contactPhone}`}
+      className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:opacity-80"
+      style={{ backgroundColor: "var(--color-surface)", color: pColor }}
+      title={`문의: ${contactPhone}`}
+    >
+      <span className="material-symbols-outlined text-xl">call</span>
+    </a>
+  ) : null;
+
+  // --- 액션 바: 참가 신청만 (poster/logo/photo 템플릿용) ---
+  const actionBar = (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {isRegistrationOpen && tournamentId && (
+        <Link
+          href={`/tournaments/${tournamentId}/join`}
+          className="inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-bold text-white transition-all hover:opacity-90"
+          style={{ backgroundColor: pColor }}
+        >
+          <span className="material-symbols-outlined text-base">edit_square</span>
+          참가 신청
+        </Link>
+      )}
+    </div>
+  );
+
+  // --- 액션 바: basic 템플릿용 (참가 신청만) ---
+  const actionBarBasic = (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {isRegistrationOpen && tournamentId && (
+        <Link
+          href={`/tournaments/${tournamentId}/join`}
+          className="inline-flex items-center gap-1.5 rounded px-4 py-2 text-sm font-bold text-white transition-all hover:opacity-90"
+          style={{ backgroundColor: pColor }}
+        >
+          <span className="material-symbols-outlined text-base">edit_square</span>
+          참가 신청
+        </Link>
+      )}
     </div>
   );
 
@@ -132,11 +229,15 @@ export function TournamentHero({
         />
         {/* 하단 그라디언트 오버레이 — 텍스트 가독성 보장 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        {/* 콘텐츠 */}
-        <div className="relative flex flex-col justify-end px-4 py-10 sm:px-10 sm:py-14" style={{ minHeight: "280px" }}>
-          {badges}
-          {title}
-          {metaBar}
+        {/* 콘텐츠: flex justify-between으로 좌측 정보 + 우측 전화 아이콘 */}
+        <div className="relative flex items-start justify-between px-4 py-10 sm:px-10 sm:py-14" style={{ minHeight: "280px" }}>
+          <div className="flex flex-col justify-end">
+            {badges}
+            {title}
+            {metaInfo}
+            {actionBar}
+          </div>
+          {contactIcon}
         </div>
       </section>
     );
@@ -153,24 +254,28 @@ export function TournamentHero({
         />
         {/* 장식 원: 우상단 */}
         <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/10" />
-        {/* 콘텐츠: 중앙 정렬 */}
-        <div className="relative flex flex-col items-center justify-center px-4 py-10 sm:px-10 sm:py-14 text-center" style={{ minHeight: "300px" }}>
-          {/* 로고 이미지 */}
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoUrl}
-              alt={name}
-              className="mb-4 h-24 w-24 rounded-md object-cover shadow-xl ring-4 ring-white/20"
-            />
-          ) : (
-            <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-md bg-white/20 shadow-xl">
-              <span className="material-symbols-outlined text-5xl text-white">emoji_events</span>
-            </div>
-          )}
-          {badges}
-          {title}
-          {metaBar}
+        {/* 콘텐츠: 중앙 정렬 + 우측 상단 전화 아이콘 */}
+        <div className="relative flex items-start justify-between px-4 py-10 sm:px-10 sm:py-14" style={{ minHeight: "300px" }}>
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
+            {/* 로고 이미지 */}
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={name}
+                className="mb-4 h-24 w-24 rounded-md object-cover shadow-xl ring-4 ring-white/20"
+              />
+            ) : (
+              <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-md bg-white/20 shadow-xl">
+                <span className="material-symbols-outlined text-5xl text-white">emoji_events</span>
+              </div>
+            )}
+            {badges}
+            {title}
+            {metaInfo}
+            {actionBar}
+          </div>
+          {contactIcon}
         </div>
       </section>
     );
@@ -189,11 +294,15 @@ export function TournamentHero({
         />
         {/* 어두운 오버레이 — photo는 poster보다 더 어둡게 */}
         <div className="absolute inset-0 bg-black/60" />
-        {/* 콘텐츠 */}
-        <div className="relative flex flex-col justify-end px-4 py-10 sm:px-10 sm:py-14" style={{ minHeight: "280px" }}>
-          {badges}
-          {title}
-          {metaBar}
+        {/* 콘텐츠: flex justify-between으로 좌측 정보 + 우측 전화 아이콘 */}
+        <div className="relative flex items-start justify-between px-4 py-10 sm:px-10 sm:py-14" style={{ minHeight: "280px" }}>
+          <div className="flex flex-col justify-end">
+            {badges}
+            {title}
+            {metaInfo}
+            {actionBar}
+          </div>
+          {contactIcon}
         </div>
       </section>
     );
@@ -222,46 +331,75 @@ export function TournamentHero({
         style={{ background: `radial-gradient(circle, ${pColor} 0%, transparent 70%)` }}
       />
 
-      {/* 콘텐츠: 좌측 하단 정렬, 컴팩트 패딩 */}
-      <div className="relative flex flex-col justify-end px-4 py-6 sm:px-10 sm:py-8">
-        {/* 배지 그룹 */}
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span
-            className="rounded-sm px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white sm:text-xs"
-            style={{ backgroundColor: pColor }}
+      {/* 콘텐츠: flex justify-between으로 좌측 정보 + 우측 전화 아이콘 */}
+      <div className="relative flex items-start justify-between px-4 py-6 sm:px-10 sm:py-8">
+        <div className="flex flex-col justify-end">
+          {/* 배지 그룹 */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <span
+              className="rounded-sm px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-white sm:text-xs"
+              style={{ backgroundColor: pColor }}
+            >
+              PREMIUM
+            </span>
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+          </div>
+
+          {/* 대회명 */}
+          <h1
+            className="mb-2 text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+            style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
           >
-            PREMIUM
-          </span>
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
-        </div>
+            {name}
+          </h1>
 
-        {/* 대회명 */}
-        <h1
-          className="mb-2 text-2xl font-extrabold uppercase leading-tight tracking-tight sm:text-4xl lg:text-5xl"
-          style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
-        >
-          {name}
-        </h1>
+          {/* 메타 정보 2줄 (basic용 - 테마 색상) */}
+          <div className="space-y-1.5 text-sm" style={{ color: "var(--color-text-secondary)" }}>
+            {/* 1줄: 날짜 + 장소 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {dateStr && (
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base" style={{ color: pColor }}>calendar_today</span>
+                  {dateStr}
+                </span>
+              )}
+              {venueStr && (
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-base" style={{ color: pColor }}>location_on</span>
+                  {venueStr}
+                </span>
+              )}
+            </div>
+            {/* 2줄: 참가비 + 참가팀수 */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base" style={{ color: pColor }}>payments</span>
+                {feeStr}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-base" style={{ color: pColor }}>groups</span>
+                {teamsStr}
+              </span>
+            </div>
+            {/* 참가 현황 프로그레스바 */}
+            {progressPct !== null && (
+              <div className="pt-1">
+                <p className="mb-1 text-xs" style={{ color: "var(--color-text-muted)" }}>참가 현황</p>
+                <div className="h-2 overflow-hidden rounded-full" style={{ maxWidth: "240px", backgroundColor: "var(--color-surface)" }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${progressPct}%`, backgroundColor: progressPct >= 90 ? "#EF4444" : pColor }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
-        {/* 메타 정보 한 줄 */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" style={{ color: "var(--color-text-secondary)" }}>
-          {dateStr && (
-            <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base" style={{ color: pColor }}>calendar_today</span>
-              {dateStr}
-            </span>
-          )}
-          {venueStr && (
-            <span className="flex items-center gap-1.5">
-              <span className="material-symbols-outlined text-base" style={{ color: pColor }}>location_on</span>
-              {venueStr}
-            </span>
-          )}
-          <span className="flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-base" style={{ color: pColor }}>groups</span>
-            {teamsStr}{formatLabel && ` · ${formatLabel}`}
-          </span>
+          {/* 액션 바: 참가 신청만 (basic용) */}
+          {actionBarBasic}
         </div>
+        {/* 우측 상단: 문의 전화 아이콘 (basic용) */}
+        {contactIconBasic}
       </div>
     </section>
   );

@@ -5,6 +5,8 @@ import { getBracketVersionStatus, createBracketVersion, activateBracketVersion }
 import { createNotificationBulk } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// 풀리그(라운드 로빈) 자동 생성 유틸 — single_elimination 외 format 분기용
+import { generateRoundRobinMatches, isLeagueFormat } from "@/lib/tournaments/league-generator";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -31,7 +33,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const auth = await requireTournamentAdmin(id);
   if ("error" in auth) return auth.error;
 
-  const [versionStatus, versions, matches, approvedTeams] = await Promise.all([
+  // 풀리그/토너먼트 UI 분기에 필요한 format 을 함께 반환
+  const [versionStatus, versions, matches, approvedTeams, tournamentMeta] = await Promise.all([
     getBracketVersionStatus(id),
     prisma.tournament_bracket_versions.findMany({
       where: { tournament_id: id },
@@ -40,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
     prisma.tournamentMatch.findMany({
       where: { tournamentId: id },
-      orderBy: [{ round_number: "asc" }, { bracket_position: "asc" }],
+      orderBy: [{ round_number: "asc" }, { bracket_position: "asc" }, { match_number: "asc" }],
       select: {
         id: true,
         roundName: true,
@@ -63,9 +66,19 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
       select: { id: true, seedNumber: true, team: { select: { name: true } } },
     }),
+    prisma.tournament.findUnique({
+      where: { id },
+      select: { format: true },
+    }),
   ]);
 
-  return apiSuccess({ ...versionStatus, versions, matches, approvedTeams });
+  return apiSuccess({
+    ...versionStatus,
+    versions,
+    matches,
+    approvedTeams,
+    format: tournamentMeta?.format ?? null, // UI 가 풀리그/토너먼트 분기할 때 사용
+  });
 }
 
 // POST: generate bracket (single elimination)
@@ -99,6 +112,65 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       `무료 생성 횟수(${versionStatus.currentVersion}회)를 초과하였습니다. 슈퍼관리자의 승인을 요청했습니다.`,
       403
     );
+  }
+
+  // ── format 분기: 풀리그 계열이면 라운드 로빈 경기 생성 후 조기 반환 ──
+  // 이유: single_elimination 트리 생성과 풀리그(N*(N-1)/2) 생성은 완전히 다른 로직.
+  // 기존 single_elimination 로직 보존 + 분기만 최소 추가
+  const tournamentMeta = await prisma.tournament.findUnique({
+    where: { id },
+    select: { format: true, settings: true },
+  });
+
+  if (isLeagueFormat(tournamentMeta?.format)) {
+    try {
+      const league = await generateRoundRobinMatches(id, { clear: body.clear });
+
+      // ✨ Phase 2C: full_league_knockout이면 토너먼트 "빈 뼈대"도 함께 생성
+      //   → 리그 진행 중에도 대진표 탭에 토너먼트 트리가 보이고
+      //     팀 없는 슬롯은 "1위", "4위" 같은 라벨로 표시됨
+      //   실패해도 리그 생성 자체는 성공으로 유지 (뼈대는 admin이 수동 재시도 가능)
+      let skeletonCreated = 0;
+      if (tournamentMeta?.format === "full_league_knockout") {
+        try {
+          const settings = tournamentMeta.settings as Record<string, unknown> | null;
+          const bracket = settings?.bracket as Record<string, unknown> | undefined;
+          const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
+          const bronzeMatch = (bracket?.bronzeMatch as boolean | undefined) ?? false;
+          // 동적 import: 엣지 경로라 번들 분리
+          const { generateEmptyKnockoutSkeleton } = await import(
+            "@/lib/tournaments/tournament-seeding"
+          );
+          skeletonCreated = await generateEmptyKnockoutSkeleton(
+            id,
+            knockoutSize,
+            bronzeMatch,
+          );
+        } catch (e) {
+          console.error("[skeleton-gen]", e);
+        }
+      }
+
+      // bracket_version 기록 — single_elimination 과 동일하게 버전 관리 일관성 유지
+      await createBracketVersion(id, auth.userId);
+      return apiSuccess({
+        success: true,
+        type: "round_robin", // UI 에서 메시지 분기용
+        matchesCreated: league.matchesCreated,
+        teamCount: league.teamCount,
+        skeletonCreated, // 토너먼트 뼈대 경기 수 (0이면 생성 안 됨)
+        versionNumber: versionStatus.currentVersion + 1,
+      });
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === "TEAMS_INSUFFICIENT" || err.message === "TEAMS_INSUFFICIENT") {
+        return apiError("2팀 이상 승인되어야 풀리그 경기를 생성할 수 있습니다.", 400);
+      }
+      if (err.code === "ALREADY_EXISTS" || err.message === "ALREADY_EXISTS") {
+        return apiError("이미 경기가 존재합니다. 재생성을 원하면 clear=true 로 요청하세요.", 409);
+      }
+      throw e;
+    }
   }
 
   // TC-003: 브라켓 생성 전 DB 어드바이저리 락으로 동시 생성 race condition 방지

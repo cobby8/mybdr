@@ -47,6 +47,9 @@ interface JoinRequest {
 interface TeamEditData {
   id: string;
   name: string;
+  // Phase 2B: 영문 팀명 + 대표 언어
+  name_en: string | null;
+  name_primary: "ko" | "en" | null;
   description: string | null;
   city: string | null;
   district: string | null;
@@ -59,6 +62,9 @@ interface TeamEditData {
   max_members: number | null;
   status: string | null;
 }
+
+// Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
+const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 
 // 현재 활성 탭: 멤버관리 / 팀설정
 type ManageTab = "members" | "settings";
@@ -87,6 +93,10 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
 
   // 팀 수정 폼 필드
   const [name, setName] = useState("");
+  // Phase 2B: 영문 팀명 + 대표 언어
+  const [nameEn, setNameEn] = useState("");
+  const [namePrimary, setNamePrimary] = useState<"ko" | "en">("ko");
+  const [nameEnError, setNameEnError] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
@@ -135,6 +145,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
 
       // 폼 초기값 설정
       setName(data.name ?? "");
+      // Phase 2B: 영문명/대표 언어 로드
+      setNameEn(data.name_en ?? "");
+      setNamePrimary(data.name_primary === "en" ? "en" : "ko");
       setDescription(data.description ?? "");
       setCity(data.city ?? "");
       setDistrict(data.district ?? "");
@@ -211,6 +224,14 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       alert("팀명은 2자 이상 입력해주세요.");
       return;
     }
+    // Phase 2B: 영문명이 입력돼 있다면 형식 체크 (서버 400을 미리 방어)
+    const trimmedNameEn = nameEn.trim();
+    if (trimmedNameEn && !NAME_EN_PATTERN.test(trimmedNameEn)) {
+      setNameEnError("영문/숫자/공백/하이픈만 입력할 수 있습니다.");
+      alert("영문 팀명은 영문/숫자/공백/하이픈만 입력할 수 있습니다.");
+      return;
+    }
+    setNameEnError(null);
     setSaving(true);
     try {
       const res = await fetch(`/api/web/teams/${id}`, {
@@ -218,6 +239,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          // Phase 2B: 영문명 비어있으면 null로 저장 / 대표언어는 영문명이 있을 때만 의미, 없으면 "ko"
+          name_en: trimmedNameEn || null,
+          name_primary: trimmedNameEn ? namePrimary : "ko",
           description: description.trim() || null,
           city: city.trim() || null,
           district: district.trim() || null,
@@ -466,6 +490,99 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                       className="w-full rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
                     />
                   </div>
+                  {/* Phase 2B: 영문 팀명 (선택) */}
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      영문 팀명{" "}
+                      <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        (선택)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={nameEn}
+                      onChange={(e) => {
+                        setNameEn(e.target.value);
+                        if (nameEnError) setNameEnError(null);
+                      }}
+                      placeholder="RISING EAGLES"
+                      pattern="[A-Za-z0-9 \-]+"
+                      maxLength={80}
+                      className="w-full rounded border px-3 py-2.5 text-sm outline-none focus:border-[var(--color-primary)]"
+                      style={{
+                        borderColor: nameEnError ? "rgb(239 68 68)" : "var(--color-border)",
+                        backgroundColor: "var(--color-surface)",
+                        color: "var(--color-text-primary)",
+                      }}
+                    />
+                    {nameEnError ? (
+                      <p className="mt-1 text-xs text-red-500">{nameEnError}</p>
+                    ) : (
+                      <p className="mt-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                        대한민국농구협회 등록 영문명. 영문/숫자/공백/하이픈만 허용.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Phase 2B: 대표 팀명 선택 — 영문명 있을 때만 노출 */}
+                  {nameEn.trim() && (
+                    <div>
+                      <label
+                        className="mb-1 block text-sm font-medium"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        대표 팀명{" "}
+                        <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                          (우선 표시)
+                        </span>
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setNamePrimary("ko")}
+                          className="flex-1 rounded border px-3 py-2 text-sm font-medium transition-colors"
+                          style={
+                            namePrimary === "ko"
+                              ? {
+                                  borderColor: "var(--color-primary)",
+                                  backgroundColor: "var(--color-primary)",
+                                  color: "white",
+                                }
+                              : {
+                                  borderColor: "var(--color-border)",
+                                  backgroundColor: "var(--color-surface)",
+                                  color: "var(--color-text-secondary)",
+                                }
+                          }
+                        >
+                          한글 ({name || "팀명"})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNamePrimary("en")}
+                          className="flex-1 rounded border px-3 py-2 text-sm font-medium transition-colors"
+                          style={
+                            namePrimary === "en"
+                              ? {
+                                  borderColor: "var(--color-primary)",
+                                  backgroundColor: "var(--color-primary)",
+                                  color: "white",
+                                }
+                              : {
+                                  borderColor: "var(--color-border)",
+                                  backgroundColor: "var(--color-surface)",
+                                  color: "var(--color-text-secondary)",
+                                }
+                          }
+                        >
+                          영문 ({nameEn})
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {/* 팀 소개 */}
                   <div>
                     <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]">팀 소개</label>

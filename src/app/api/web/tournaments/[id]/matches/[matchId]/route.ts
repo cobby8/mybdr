@@ -149,6 +149,51 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       console.error(`[updateTeamStandings] matchId=${matchBigInt} 전적 갱신 실패:`, err);
       standingsWarning = "경기 상태는 변경되었으나 팀 전적 갱신에 실패했습니다. 관리자에게 문의하세요.";
     }
+
+    // ✨ Phase 2A: full_league_knockout 대회의 리그 전부 완료 시 토너먼트 경기 자동 생성
+    // 실패해도 경기 완료 응답 자체는 성공으로 처리 (사용자 요청 흐름 보존)
+    try {
+      const tournament = await prisma.tournament.findUnique({
+        where: { id },
+        select: { format: true, settings: true },
+      });
+
+      if (tournament?.format === "full_league_knockout") {
+        // 동적 import: 자동 생성 로직은 엣지 케이스이므로 번들 크기 최적화
+        const {
+          isLeagueComplete,
+          assignTeamsToKnockout,
+          generateKnockoutMatches,
+        } = await import("@/lib/tournaments/tournament-seeding");
+
+        const leagueDone = await isLeagueComplete(id);
+        if (leagueDone) {
+          // Phase 2C: 이미 빈 뼈대가 있는지 확인
+          //  - 있음 → assignTeamsToKnockout (팀 ID만 UPDATE, 빠름)
+          //  - 없음 → 구버전 대회이므로 기존 generateKnockoutMatches fallback
+          const existingKnockout = await prisma.tournamentMatch.count({
+            where: { tournamentId: id, round_number: { not: null } },
+          });
+
+          if (existingKnockout > 0) {
+            // 빈 뼈대가 존재 → 1라운드 빈 슬롯에 팀 할당
+            await assignTeamsToKnockout(id);
+          } else {
+            // 뼈대가 없는 구버전 대회 fallback — 기존 방식으로 전체 생성
+            const settings = tournament.settings as Record<string, unknown> | null;
+            const bracket = settings?.bracket as Record<string, unknown> | undefined;
+            const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
+            const bronzeMatch = (bracket?.bronzeMatch as boolean | undefined) ?? false;
+
+            await generateKnockoutMatches(id, knockoutSize, bronzeMatch);
+          }
+        }
+      }
+    } catch (e) {
+      // 토너먼트 자동 생성 실패는 로그만 남기고 사용자 응답은 성공 유지
+      // admin이 수동 트리거 API로 재시도 가능
+      console.error("[auto-knockout-gen]", e);
+    }
   }
 
   if (standingsWarning) {

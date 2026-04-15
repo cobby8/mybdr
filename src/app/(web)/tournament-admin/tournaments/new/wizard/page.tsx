@@ -12,6 +12,8 @@ import {
 import { TeamSettingsForm, type TeamSettingsData } from "@/components/tournament/team-settings-form";
 import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
+// 대진 포맷 세부 설정 폼 — format 선택 UI 아래에 삽입
+import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
 // GameMethodInput 제거 — 대회 방식은 FORMAT_OPTIONS 4종으로 통합
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
@@ -124,6 +126,23 @@ export default function NewTournamentWizardPage() {
     autoApproveTeams: false,
     autoCalcMaxTeams: false,
   });
+
+  // --- 대진 포맷 세부 설정 (settings.bracket 저장) ---
+  // 이유: 조 수, 토너먼트 진출 팀 수, 3/4위전 등 포맷별 추가 설정을 한 곳에 모아 관리
+  const [bracketSettings, setBracketSettings] = useState<BracketSettingsData>({
+    format: "group_stage_knockout",
+    knockoutSize: 8,
+    bronzeMatch: false,
+    groupCount: 2,
+    teamsPerGroup: 4,
+    advancePerGroup: 2,
+    autoGenerateMatches: true,
+  });
+
+  // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약 표시 + 분기용)
+  useEffect(() => {
+    setBracketSettings((prev) => ({ ...prev, format }));
+  }, [format]);
 
   // --- Step 3에서 사용하는 state (디자인) ---
   const [designTemplate, setDesignTemplate] = useState("basic");
@@ -319,6 +338,17 @@ export default function NewTournamentWizardPage() {
           primaryColor,
           secondaryColor,
           subdomain: subdomain || undefined,
+          // 대진 포맷 세부 설정 — settings.bracket에 저장
+          // (API의 PATCH 로직은 기존 settings와 머지. 신규 POST는 아래 값이 바로 settings에 들어감)
+          settings: {
+            bracket: {
+              knockoutSize: bracketSettings.knockoutSize,
+              bronzeMatch: bracketSettings.bronzeMatch,
+              groupCount: bracketSettings.groupCount,
+              advancePerGroup: bracketSettings.advancePerGroup,
+              autoGenerateMatches: bracketSettings.autoGenerateMatches,
+            },
+          },
         }),
       });
 
@@ -525,6 +555,16 @@ export default function NewTournamentWizardPage() {
                 ))}
               </select>
             </div>
+
+            {/* 대진 포맷 세부 설정 — 조 수/토너먼트 진출팀/3-4위전 등 */}
+            {/* 신규 대회는 아직 참가팀이 없으므로 maxTeams 기준으로 미리보기 */}
+            <BracketSettingsForm
+              data={bracketSettings}
+              teamCount={Number(teamSettings.maxTeams) || undefined}
+              onChange={(field, value) =>
+                setBracketSettings((prev) => ({ ...prev, [field]: value }))
+              }
+            />
 
             {/* 경기시간 프리셋 */}
             <GameTimeInput value={gameTime} onChange={setGameTime} />

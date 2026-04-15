@@ -82,14 +82,39 @@ export default async function TeamDetailPage({
   }).catch(() => null);
   if (!team) return notFound();
 
-  // 기존 데이터 변환 로직 100% 유지
+  // 기존 데이터 변환 로직
   const accent = resolveAccent(team.primaryColor, team.secondaryColor);
   const memberCount = team.teamMembers.length;
   const location = [team.city, team.district].filter(Boolean).join(" ");
-  const wins = team.wins ?? 0;
-  const losses = team.losses ?? 0;
-  const draws = team.draws ?? 0;
-  const total = wins + losses + draws;
+
+  // 이 팀의 모든 TournamentTeam ID를 조회 (대회 참가 이력)
+  const tournamentTeamIds = await prisma.tournamentTeam.findMany({
+    where: { teamId: BigInt(id) },
+    select: { id: true },
+  });
+  const ttIds = tournamentTeamIds.map(t => t.id);
+
+  // 해당 TournamentTeam이 참여한 완료/라이브 경기에서 스코어 조회
+  const completedMatches = ttIds.length > 0 ? await prisma.tournamentMatch.findMany({
+    where: {
+      OR: [{ homeTeamId: { in: ttIds } }, { awayTeamId: { in: ttIds } }],
+      status: { in: ["completed", "live"] },
+      homeTeamId: { not: null },
+      awayTeamId: { not: null },
+    },
+    select: { homeTeamId: true, awayTeamId: true, homeScore: true, awayScore: true },
+  }) : [];
+
+  // 승/패 집계 (농구는 무승부 없음)
+  let wins = 0, losses = 0;
+  for (const m of completedMatches) {
+    const isHome = ttIds.some(ttId => ttId === m.homeTeamId);
+    const myScore = isHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
+    const oppScore = isHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
+    if (myScore > oppScore) wins++;
+    else losses++;
+  }
+  const total = wins + losses;
   const winRate = total > 0 ? Math.round((wins / total) * 100) : null;
   const division = computeDivision(wins);
 
@@ -120,14 +145,24 @@ export default async function TeamDetailPage({
           <div className="flex flex-col gap-4 sm:gap-6 lg:flex-row lg:items-end lg:justify-between">
             {/* 좌측: 팀 로고 + 정보 */}
             <div className="flex items-center gap-3 sm:gap-6">
-              {/* 팀 이니셜 아이콘 (w-24 h-24) */}
+              {/* 팀 로고 — 있으면 이미지, 없으면 primaryColor 배경 + city(지역명) 텍스트 */}
               <div className="relative flex-shrink-0">
-                <div
-                  className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded border-4 border-[var(--color-background)] text-2xl sm:text-4xl font-black text-white shadow-xl"
-                  style={{ backgroundColor: accent }}
-                >
-                  {team.name.charAt(0).toUpperCase()}
-                </div>
+                {team.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지, next/image 최적화 불필요
+                  <img
+                    src={team.logoUrl}
+                    alt={team.name}
+                    className="h-16 w-16 sm:h-24 sm:w-24 rounded border-4 border-[var(--color-background)] object-cover shadow-xl"
+                  />
+                ) : (
+                  <div
+                    className="flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded border-4 border-[var(--color-background)] text-sm sm:text-xl font-black text-white shadow-xl"
+                    style={{ backgroundColor: accent }}
+                  >
+                    {/* city(지역명) 우선 — 없을 때만 팀명 첫 글자 */}
+                    {team.city ?? team.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 {/* 디비전 배지 — 아이콘 우하단 */}
                 {division && (
                   <div
@@ -217,7 +252,6 @@ export default async function TeamDetailPage({
                 description: team.description,
                 wins,
                 losses,
-                draws,
                 winRate,
                 memberCount,
                 location,

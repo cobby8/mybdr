@@ -5,10 +5,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 
 // DB에서 가져온 팀 데이터 타입
 export type GroupTeam = {
   id: string;
+  teamId: string; // Team 테이블의 실제 id (팀 페이지 링크용)
   teamName: string;
   groupName: string | null;
   wins: number;
@@ -187,12 +189,13 @@ export function GroupStandings({
                             shield
                           </span>
                         </div>
-                        <span
-                          className="font-bold"
+                        <Link
+                          href={`/teams/${team.teamId}`}
+                          className="font-bold hover:underline"
                           style={{ color: "var(--color-text-primary)" }}
                         >
                           {team.teamName}
-                        </span>
+                        </Link>
                         {/* 조 통과 배지 */}
                         {isAdvanced && (
                           <span
