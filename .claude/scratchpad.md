@@ -1,10 +1,10 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 티빙 이미지에 최대한 유사하게 — 5단 레이아웃 + 🏠 + 쿼터 테이블 100% + 쿼터 강조
+- **요청**: 가운데 정보 블록 상태 기반 재구성 (경기전/중/종료 + 일시 + 장소) + 스코어카드 좌우폭 75%
 - **상태**: developer 위임
 - **현재 담당**: developer
-- **사용자 피드백**: 이전 결정 일부 뒤집음 (🏠 추가, 쿼터 테이블 100%로), Phase 1 레이아웃 재조정 + Phase 2 쿼터 강조 통합
+- **사용자 결정**: 라운드명 제거, 모바일 100% / sm 이상 75%
 
 ## 전체 프로젝트 현황 대시보드 (2026-04-15)
 | 항목 | 수치 |
@@ -38,6 +38,45 @@
 - 영구 복구는 `"/c/Program Files/GitHub CLI/gh.exe" auth login`
 
 ## 구현 기록 (developer)
+
+### /live/[id] 중앙 정보 상태기반 + 폭 75% (2026-04-15)
+
+📝 변경:
+- 가운데 정보 블록: [N쿼터/경기전/중/종료 라벨] + [일시 YYYY.MM.DD HH:MM] + [장소] + [🔄]
+- 라운드명(round_name) 제거 (정보 밀도 낮음)
+- 헬퍼 추가: getCenterStatusLabel (상태→라벨+색 highlight bool), formatMatchDateTime (ISO→YYYY.MM.DD HH:MM)
+- 스코어카드 + 쿼터 테이블을 mx-auto w-full sm:w-3/4로 감싸 데스크톱에서 75%폭 중앙 집중 (모바일 100%)
+- 박스스코어(BoxScoreTable, 500행~)는 래퍼 밖이라 폭 영향 없음
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/live/[id]/page.tsx | getQuarterLabel 아래 헬퍼 2개 + 중앙 블록 재작성(라운드명 제거) + 75% 래퍼 open/close 2곳 | 수정 |
+
+🔎 자체 검증:
+- `npx tsc --noEmit` → exit=0, 에러 0건
+- grep `round_name` → 타입 정의 + 프린트 영역만 잔존 (중앙 블록에서 제거 확인)
+- grep `mx-auto w-full sm:w-3/4` → 1건(래퍼)
+- grep `getCenterStatusLabel|formatMatchDateTime` → 정의 2 + 사용 2
+
+💡 PM/tester:
+- **테스트**: `/live/[경기ID]` 접속
+  1. status=live + current_quarter=3 → 중앙 상단 "3쿼터" 빨강+bold
+  2. current_quarter=5 → "연장1" 빨강+bold
+  3. status=live + current_quarter null/0 → "경기 중" 빨강
+  4. status=halftime → "하프타임" 빨강+bold
+  5. status=warmup → "워밍업" muted
+  6. status=scheduled → "경기 전" muted
+  7. status=finished/completed → "경기 종료" muted
+  8. scheduled_at 있으면 그 시각, 없으면 started_at, 둘 다 없으면 일시 줄 숨김 (포맷 "2026.04.15 19:00")
+  9. venue_name 있으면 노출, 없으면 숨김
+  10. 640px 이상(sm:) 폭 75% + 중앙 / 640px 미만 폭 100%
+  11. 라운드명은 스코어카드에서 사라졌지만 프린트 헤더(데이터 손실 방지 목적)엔 유지
+
+⚠️ reviewer:
+- 중앙 블록 너비 변동은 `min-w-[80px]` 고정 없이 현재 구조 유지 (라벨 최대 4자라 점프 크지 않을 것으로 판단)
+- `formatMatchDateTime`는 브라우저 로컬 타임. 한국 사용자 대상이고 서버-브라우저 모두 KST 기준이라 큰 문제 없음 (SSR 불일치 피하려고 클라이언트 useState 후 렌더)
+
+---
 
 ### 티빙 이미지 매칭 재조정 — 5단 레이아웃 + 쿼터 강조 (2026-04-15)
 

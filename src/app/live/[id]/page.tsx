@@ -118,6 +118,54 @@ function getQuarterLabel(q: number): string {
   return `OT${q - 4}`;
 }
 
+/**
+ * 경기 상태 → 중앙 정보 블록에 표시할 라벨.
+ * 이유: 헤더의 "LIVE"/상태 칩과 별개로, 스코어카드 가운데에 "지금 이 경기가 어떤 단계인지"를
+ * 한눈에 보여주기 위함 (티빙 중계 스타일). live/in_progress이고 current_quarter가 있으면
+ * 구체적 쿼터("3쿼터")로 대체해 중계 몰입감 제공.
+ */
+function getCenterStatusLabel(
+  status: string,
+  currentQuarter: number | null | undefined,
+): { text: string; highlight: boolean } {
+  if (status === "live" || status === "in_progress") {
+    if (currentQuarter && currentQuarter > 0) {
+      // 4쿼터까지는 "N쿼터", 5 이상은 연장 (OT1 == 연장1)
+      const text = currentQuarter <= 4 ? `${currentQuarter}쿼터` : `연장${currentQuarter - 4}`;
+      return { text, highlight: true };
+    }
+    return { text: "경기 중", highlight: true };
+  }
+  if (status === "halftime") return { text: "하프타임", highlight: true };
+  if (status === "warmup") return { text: "워밍업", highlight: false };
+  if (status === "scheduled") return { text: "경기 전", highlight: false };
+  if (status === "finished" || status === "completed") return { text: "경기 종료", highlight: false };
+  // 알 수 없는 상태 — 기존 STATUS_LABEL fallback
+  return { text: STATUS_LABEL[status] ?? status, highlight: false };
+}
+
+/**
+ * ISO 시각을 "YYYY.MM.DD HH:MM" 형식으로 포맷.
+ * 이유: 중앙 정보 블록에 "언제 치러진/치러질 경기인지" 표시하기 위함.
+ * 우선순위: scheduled_at(예정) → started_at(실제 시작). 둘 다 없으면 null 반환 → UI에서 숨김.
+ * 타임존: 브라우저 로컬(클라이언트 컴포넌트라 자연스러움).
+ */
+function formatMatchDateTime(
+  scheduledAt: string | null | undefined,
+  startedAt: string | null | undefined,
+): string | null {
+  const iso = scheduledAt ?? startedAt ?? null;
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const yyyy = d.getFullYear();
+  const MM = String(d.getMonth() + 1).padStart(2, "0");
+  const DD = String(d.getDate()).padStart(2, "0");
+  const HH = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}.${MM}.${DD} ${HH}:${mm}`;
+}
+
 // 팀명에서 이니셜 추출 — 로고가 없을 때 원형 배지 안에 표기
 // 규칙:
 //  - 마지막 토큰이 영문 대문자/숫자(2~4자) 약어면 그대로 사용 ("원주 DB" → "DB", "부산 KCC" → "KCC")
@@ -336,6 +384,10 @@ export default function LiveBoxScorePage() {
           [홈 로고+팀명] [홈 점수] [중앙] [원정 점수] [원정 로고+팀명]
           이미지 목표대로 각 요소가 독립 영역으로 가로 나열되어야 점수가 가운데에 큼직하게 보임 */}
       <div className="px-4 py-6">
+        {/* 스코어카드 + 쿼터 테이블 75% 래퍼: 모바일 100% / sm(640+) 이상에서 75% 폭 중앙.
+            이유: 데스크톱에서 스코어카드/쿼터 테이블이 너무 넓게 퍼져 정보 밀도가 떨어지므로
+            좌우를 좁혀 시선 집중시키기. 박스스코어는 이 래퍼 밖이라 영향 없음. */}
+        <div className="mx-auto w-full sm:w-3/4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* 1. 홈 영역: 로고 + 🏠아이콘+팀명 */}
           <div className="flex flex-col items-center gap-2 min-w-0 flex-shrink-0">
@@ -370,29 +422,37 @@ export default function LiveBoxScorePage() {
             {match.home_score}
           </p>
 
-          {/* 3. 중앙 정보 블록 — 진행 쿼터 / 라운드명 / 경기장명 / 새로고침 */}
+          {/* 3. 중앙 정보 블록 — 상태 라벨 / 일시 / 장소 / 새로고침 (2026-04-15 재구성)
+              이유: 라운드명은 정보 밀도 낮아 제거, 대신 "경기 상태(N쿼터/경기 전/종료)"와 "일시"를
+              티빙 중계처럼 상단에 배치해 방문자가 현재 경기가 어느 단계인지 즉시 파악 가능하게. */}
           <div className="flex flex-col items-center gap-1 px-1 min-w-0">
-            {/* 진행 쿼터: 라이브이고 current_quarter가 양수일 때만 표시. 5 이상은 OT */}
-            {isLive && match.current_quarter && match.current_quarter > 0 && (
-              <span
-                className="text-sm font-semibold whitespace-nowrap"
-                style={{ color: "var(--color-primary)" }}
-              >
-                {match.current_quarter <= 4
-                  ? `${match.current_quarter}쿼터`
-                  : `연장${match.current_quarter - 4}`}
-              </span>
-            )}
-            {/* 라운드명 — 기존 정보 유지 (예: "결승", "8강") */}
-            {match.round_name && (
-              <span
-                className="text-xs truncate max-w-[120px]"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                {match.round_name}
-              </span>
-            )}
-            {/* 경기장명 — API에서 venue_name 또는 fallback으로 받아옴 */}
+            {/* ① 상태 라벨 — 헬퍼가 { text, highlight } 반환. highlight=true면 빨강+bold, false면 muted */}
+            {(() => {
+              const { text, highlight } = getCenterStatusLabel(match.status, match.current_quarter);
+              return (
+                <span
+                  className={`text-sm whitespace-nowrap ${highlight ? "font-semibold" : ""}`}
+                  style={{ color: highlight ? "var(--color-primary)" : "var(--color-text-muted)" }}
+                >
+                  {text}
+                </span>
+              );
+            })()}
+
+            {/* ② 일시 — scheduled_at 우선, 없으면 started_at, 둘 다 없으면 숨김 */}
+            {(() => {
+              const dt = formatMatchDateTime(match.scheduled_at, match.started_at);
+              return dt ? (
+                <span
+                  className="text-xs whitespace-nowrap"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  {dt}
+                </span>
+              ) : null;
+            })()}
+
+            {/* ③ 경기장명 — API에서 venue_name으로 받아옴 (없으면 숨김) */}
             {match.venue_name && (
               <span
                 className="text-xs truncate max-w-[140px] text-center"
@@ -401,7 +461,8 @@ export default function LiveBoxScorePage() {
                 {match.venue_name}
               </span>
             )}
-            {/* 새로고침 원형 버튼 — 작게(14×14 아이콘) 유지. surface 배경 + border */}
+
+            {/* ④ 새로고침 원형 버튼 — 기존 스타일 그대로 유지 */}
             <button
               onClick={fetchMatch}
               title="새로고침"
@@ -546,6 +607,8 @@ export default function LiveBoxScorePage() {
             </table>
           </div>
         )}
+        </div>
+        {/* /75% 래퍼 닫기 */}
       </div>
 
       {/* 박스스코어 (프린트 영역) — 프린트 CSS에서 검정 잉크로 강제 변환되므로 인라인 색상은 유지 */}
