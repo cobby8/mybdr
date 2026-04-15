@@ -1,7 +1,7 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 중앙 🔄 제거+글자확대 + TeamLogo 글자색 adaptive + 극단 명도 테두리
+- **요청**: 전체 페이지 zoom 125% + 박스스코어 쿼터 필터 버튼 (API 쿼터별 집계)
 - **상태**: developer 위임
 - **현재 담당**: developer
 
@@ -37,6 +37,39 @@
 - 영구 복구는 `"/c/Program Files/GitHub CLI/gh.exe" auth login`
 
 ## 구현 기록 (developer)
+
+### 라이브 페이지 zoom 125% + 박스스코어 쿼터 필터 버튼 (2026-04-15)
+
+📝 구현한 기능:
+- 라이브 박스스코어 페이지 전체 UI 1.25배 확대 (zoom: "1.25")
+- 박스스코어 테이블에 쿼터 필터 버튼 (전체/1Q/2Q/3Q/4Q/OT) — 선택 쿼터만 노출, DNP 판정은 원본 유지
+- API가 match_events를 항상(종료/진행 분기 무관) 조회해서 선수별 quarter_stats 필드 추가
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/api/live/[id]/route.ts | match_events 상시 조회 + playerId별 쿼터 집계 Map(quarterStatsByPlayer) 빌드 → 두 분기(진행/종료) 모두 row.quarter_stats 주입. PlayerRow 타입에 quarter_stats 추가 | 수정 |
+| src/app/live/[id]/page.tsx | PlayerRow+QuarterStat 타입, zoom 1.25 3곳(error/loading/main), BoxScoreTable에 hasOT prop + quarterFilter state + applyQuarterFilter 헬퍼 + 팀명 헤더 옆 필터 버튼 그룹 | 수정 |
+
+🔎 자체 검증:
+- `npx tsc --noEmit` → exit=0, 에러 0건
+- grep `zoom:` → 3곳 확인 (line 350/366/407 = error/loading/main)
+- grep `quarterFilter|applyQuarterFilter|hasOT` → 정의 1 + 사용처 정상 (page.tsx)
+- grep `quarterStatsByPlayer|quarter_stats|allEvents` → API에서 Map 구축 + 두 분기(진행 line 340, 종료 line 390) 주입 확인
+- 쿼터 키: "1"=Q1, "5"=OT1. 기록 없는 쿼터는 Map에서 키 자체 생략 → 프론트가 0 객체로 치환 후 0%/- 표시
+- DNP 판정은 원본 p.dnp로 유지 (쿼터 필터와 무관) — NBA 스타일 보존
+- TOTAL 합계는 activePlayers.reduce 그대로 — 쿼터 필터 적용된 값으로 자동 재계산
+- PtsTeamBar, DNP 셀 로직, 4/11~12 안내, 프린트 CSS 모두 미변경
+
+💡 tester 참고:
+- 테스트 방법: `/live/[id]` 페이지에서 박스스코어 팀명 옆 쿼터 버튼 클릭 → 해당 쿼터 스탯만 표시, TOTAL도 재계산됨
+- 정상: "전체" 버튼은 기존 합계 그대로, 1Q~4Q 클릭 시 쿼터별 스탯, OT 버튼은 연장 있을 때만 노출
+- 전체 UI가 125% 확대되어야 함 (헤더/스코어카드/박스스코어 포함)
+- 주의: match_events 쿼터 필드가 null인 이벤트는 quarter=1로 간주 (기존 PBP 폴백과 동일 규칙)
+
+⚠️ reviewer 참고:
+- API: quarter_stats 집계에서 min/min_seconds/plus_minus는 이벤트만으로 계산 불가하므로 0 고정 (프론트가 0→"-" 표시)
+- 종료 분기의 매칭 키는 `Number(player.id)` (= tournamentTeamPlayer.id), 진행 분기는 `row.id` (이미 tournamentTeamPlayer.id로 세팅됨)
+- 기존 전체 집계(home_players/away_players)는 완전히 유지, 추가만 함
 
 ### 중앙 🔄 제거 + 글자 확대 + TeamLogo adaptive (2026-04-15)
 

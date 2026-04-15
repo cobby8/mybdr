@@ -5,6 +5,14 @@ import { useParams } from "next/navigation";
 // 헤더 우측에 테마 토글 버튼을 배치하기 위해 공통 컴포넌트 재사용
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
+// 2026-04-15: 쿼터별 스탯 — 쿼터 필터 버튼용. API에서 snake_case로 내려옴.
+interface QuarterStat {
+  min: number; min_seconds: number; pts: number;
+  fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
+  oreb: number; dreb: number; reb: number;
+  ast: number; stl: number; blk: number; to: number; fouls: number; plus_minus: number;
+}
+
 interface PlayerRow {
   id: number;
   jersey_number: number | null;
@@ -30,6 +38,8 @@ interface PlayerRow {
   plus_minus?: number;
   // 0414: DNP(Did Not Play) — NBA 미출전 표시
   dnp?: boolean;
+  // 2026-04-15: 쿼터별 집계 — 키 "1"=Q1, "5"=OT1. 없는 쿼터는 키 자체 없음.
+  quarter_stats?: Record<string, QuarterStat>;
 }
 
 interface PlayByPlayRow {
@@ -336,7 +346,8 @@ export default function LiveBoxScorePage() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)" }}
+        // 2026-04-15: zoom 1.25 — 전체 UI 125% 확대 (박스스코어 가독성)
+        style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.25" }}
       >
         <div className="text-center">
           <div className="text-5xl mb-4">🏀</div>
@@ -351,7 +362,8 @@ export default function LiveBoxScorePage() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "var(--color-background)" }}
+        // 2026-04-15: zoom 1.25 적용
+        style={{ backgroundColor: "var(--color-background)", zoom: "1.25" }}
       >
         <div
           className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
@@ -389,9 +401,10 @@ export default function LiveBoxScorePage() {
 
   return (
     // 페이지 최상단 컨테이너 — 배경/글자 기본색은 모두 CSS 변수 사용 (테마 전환 대응)
+    // 2026-04-15: zoom 1.25로 전체 UI 125% 확대 (박스스코어 가독성 개선)
     <div
       className="min-h-screen"
-      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)" }}
+      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.25" }}
     >
       {/* 헤더 — border와 배경을 모두 CSS 변수로 */}
       <div
@@ -688,11 +701,12 @@ export default function LiveBoxScorePage() {
               </div>
             </div>
 
-            {/* 박스스코어 테이블 */}
+            {/* 박스스코어 테이블 — hasOT: OT 쿼터가 존재하면 쿼터 필터 버튼에 OT 버튼도 노출 */}
             <BoxScoreTable
               teamName={team.name}
               color={team.color}
               players={players}
+              hasOT={quarters.some((q) => q.label.startsWith("OT"))}
             />
           </div>
         ))}
@@ -759,15 +773,43 @@ function BoxScoreTable({
   teamName,
   color,
   players,
+  hasOT = false,
 }: {
   teamName: string;
   color: string;
   players: PlayerRow[];
+  // 2026-04-15: OT 쿼터 존재 여부 — 쿼터 필터 버튼에 "OT" 버튼 노출 분기
+  hasOT?: boolean;
 }) {
+  // 2026-04-15: 쿼터 필터 state — "all" | "1" | "2" | "3" | "4" | "5"(OT1)
+  // 이유: 사용자가 특정 쿼터만 집중해서 보고 싶을 때 활용. "all"은 전체 합계(기본값).
+  const [quarterFilter, setQuarterFilter] = useState<string>("all");
+
   if (!players || players.length === 0) return null;
 
+  // 2026-04-15: 쿼터 필터 헬퍼
+  // 이유: "all"이면 원본 그대로, 특정 쿼터면 해당 쿼터의 quarter_stats만 노출.
+  // 해당 쿼터에 기록이 없는 선수는 모든 스탯을 0으로 치환(UI에서 0%·- 표시됨).
+  // dnp 필드는 원본 유지(쿼터 필터와 무관하게 "등록됐으나 출전 전무"한 선수 구분).
+  const applyQuarterFilter = (p: PlayerRow): PlayerRow => {
+    if (quarterFilter === "all") return p;
+    const qs = p.quarter_stats?.[quarterFilter];
+    if (!qs) {
+      return { ...p, min: 0, min_seconds: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0 };
+    }
+    return {
+      ...p,
+      min: qs.min, min_seconds: qs.min_seconds, pts: qs.pts,
+      fgm: qs.fgm, fga: qs.fga, tpm: qs.tpm, tpa: qs.tpa, ftm: qs.ftm, fta: qs.fta,
+      oreb: qs.oreb, dreb: qs.dreb, reb: qs.reb,
+      ast: qs.ast, stl: qs.stl, blk: qs.blk, to: qs.to, fouls: qs.fouls,
+      plus_minus: qs.plus_minus,
+    };
+  };
+
   // 0414: DNP(NBA: Did Not Play) 분리 — 테이블 본체는 출전 선수만, 하단에 DNP 리스트
-  const activePlayers = players.filter((p) => !p.dnp);
+  // 2026-04-15: activePlayers에만 쿼터 필터 적용 (DNP 판정은 원본 p.dnp로 유지)
+  const activePlayers = players.filter((p) => !p.dnp).map(applyQuarterFilter);
   const dnpPlayers = players.filter((p) => p.dnp);
   // dev: 득점 내림차순 정렬 + FG/3P/FT 퍼센트 헬퍼
   const sorted = [...activePlayers].sort((a, b) => b.pts - a.pts);
@@ -794,12 +836,38 @@ function BoxScoreTable({
 
   return (
     <div className="print-team-table-wrap">
-      <div className="flex items-center gap-2 mb-2 print:hidden">
+      <div className="flex items-center gap-2 mb-2 print:hidden flex-wrap">
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
         {/* 팀명 헤더: text-sm → text-lg (두 단계 확대) */}
         <span className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
           {teamName}
         </span>
+        {/* 2026-04-15: 쿼터 필터 버튼 그룹 — 전체/1Q/2Q/3Q/4Q/OT(있을 때만)
+            이유: 특정 쿼터의 스탯만 보고 싶을 때 사용. print에서는 숨김(모든 쿼터 정보는 별도 방식으로).
+            선택된 버튼은 primary 배경+흰색 글자, 나머지는 surface 배경+muted 글자로 시각 구분. */}
+        <div className="ml-auto flex items-center gap-1 print:hidden">
+          {[
+            { key: "all", label: "전체" },
+            { key: "1", label: "1Q" },
+            { key: "2", label: "2Q" },
+            { key: "3", label: "3Q" },
+            { key: "4", label: "4Q" },
+            ...(hasOT ? [{ key: "5", label: "OT" }] : []),
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setQuarterFilter(key)}
+              className="px-2 py-1 text-xs rounded transition-colors"
+              style={{
+                backgroundColor: quarterFilter === key ? "var(--color-primary)" : "var(--color-surface)",
+                color: quarterFilter === key ? "#ffffff" : "var(--color-text-muted)",
+                border: `1px solid ${quarterFilter === key ? "var(--color-primary)" : "var(--color-border)"}`,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <div
         className="rounded-md overflow-hidden"

@@ -68,20 +68,119 @@ export async function GET(
     // playerStats 없을 때만 match_events 폴백으로 실시간 집계.
     const hasPlayerStats = match.playerStats.length > 0;
 
+    // 2026-04-15: 쿼터별 집계를 위해 match_events를 "항상" 조회한다.
+    // 이유: 종료된 경기도 쿼터별 스탯 필터 버튼을 지원해야 하므로, playerStats 전체 합계와 별도로
+    // match_events를 쿼터별로 쪼개서 선수 객체에 quarter_stats 필드로 추가한다.
+    const allEvents = await prisma.match_events.findMany({
+      where: { matchId: BigInt(matchId), undone: false },
+      select: {
+        eventType: true,
+        value: true,
+        teamId: true,
+        playerId: true,
+        quarter: true,
+      },
+    });
+
+    // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
+    // min/min_seconds/plus_minus는 이벤트만으로 계산 불가하므로 0 고정 (프론트가 0 → "-" 표시)
+    type QuarterStatEntry = {
+      min: number; min_seconds: number; pts: number;
+      fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
+      oreb: number; dreb: number; reb: number;
+      ast: number; stl: number; blk: number; to: number; fouls: number; plus_minus: number;
+    };
+    const emptyQStat = (): QuarterStatEntry => ({
+      min: 0, min_seconds: 0, pts: 0,
+      fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
+      oreb: 0, dreb: 0, reb: 0,
+      ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
+    });
+
+    // playerId별 쿼터 집계 Map 구성
+    const quarterStatsByPlayer = new Map<number, Record<string, QuarterStatEntry>>();
+    for (const e of allEvents) {
+      if (!e.playerId) continue;
+      const pid = Number(e.playerId);
+      const q = String(e.quarter ?? 1); // Int 쿼터 번호를 그대로 string 키로 사용
+      let byQ = quarterStatsByPlayer.get(pid);
+      if (!byQ) {
+        byQ = {};
+        quarterStatsByPlayer.set(pid, byQ);
+      }
+      if (!byQ[q]) byQ[q] = emptyQStat();
+      const s = byQ[q];
+      const val = e.value ?? 0;
+      switch (e.eventType) {
+        case "2pt":
+          s.pts += val; s.fgm += 1; s.fga += 1;
+          break;
+        case "3pt":
+          s.pts += val; s.fgm += 1; s.fga += 1; s.tpm += 1; s.tpa += 1;
+          break;
+        case "1pt":
+          s.pts += val; s.ftm += 1; s.fta += 1;
+          break;
+        case "rebound_off":
+          s.oreb += 1; s.reb += 1;
+          break;
+        case "rebound_def":
+          s.dreb += 1; s.reb += 1;
+          break;
+        case "assist":
+          s.ast += 1;
+          break;
+        case "steal":
+          s.stl += 1;
+          break;
+        case "block":
+          s.blk += 1;
+          break;
+        case "turnover":
+          s.to += 1;
+          break;
+        case "made_shot":
+          s.pts += val; s.fgm += 1; s.fga += 1;
+          if (val === 3) { s.tpm += 1; s.tpa += 1; }
+          if (val === 1) { s.ftm += 1; s.fta += 1; s.fgm -= 1; s.fga -= 1; }
+          break;
+        case "missed_shot":
+          s.fga += 1;
+          if (val === 3) { s.tpa += 1; }
+          if (val === 1) { s.fta += 1; s.fga -= 1; }
+          break;
+        case "free_throw":
+          // free_throw는 made 여부가 value로 오는 변형 — 전체 집계와 동일하게 value>0면 성공
+          s.fta += 1;
+          if (val > 0) { s.ftm += 1; s.pts += 1; }
+          break;
+        case "2pt_miss":
+          s.fga += 1;
+          break;
+        case "3pt_miss":
+          s.fga += 1; s.tpa += 1;
+          break;
+        case "1pt_miss":
+          s.fta += 1;
+          break;
+        case "foul":
+        case "foul_personal":
+          s.fouls += 1;
+          break;
+        case "foul_technical":
+          // 테크니컬 파울은 전체 집계에서는 fouls에 더하지만, 쿼터 집계도 동일 규칙 유지
+          s.fouls += 1;
+          break;
+      }
+    }
+
     let homePlayers: PlayerRow[];
     let awayPlayers: PlayerRow[];
 
     if (!hasPlayerStats) {
       // 진행 중이거나 playerStats가 없으면 match_events에서 실시간 집계
-      const events = await prisma.match_events.findMany({
-        where: { matchId: BigInt(matchId), undone: false },
-        select: {
-          eventType: true,
-          value: true,
-          teamId: true,
-          playerId: true,
-        },
-      });
+      // 전체 합계 계산용 — allEvents를 재사용 (필드 호환을 위해 별칭)
+      const events = allEvents;
 
       // 선수 목록 구성 (roster)
       // 0414: role='player' + is_active !== false 인 선수만 박스스코어 대상
@@ -236,6 +335,13 @@ export async function GET(
       });
       homePlayers = allStats.filter((s) => s.teamId === Number(homeTeamId));
       awayPlayers = allStats.filter((s) => s.teamId === Number(awayTeamId));
+      // 쿼터별 집계 주입 (진행 중 분기) — stat.id는 tournamentTeamPlayer.id와 동일하게 세팅되어 있어 그대로 매칭됨
+      for (const row of [...homePlayers, ...awayPlayers]) {
+        const qs = quarterStatsByPlayer.get(row.id);
+        if (qs && Object.keys(qs).length > 0) {
+          row.quarter_stats = qs;
+        }
+      }
     } else {
       // 종료된 경기 — playerStats 테이블 사용
       // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback)
@@ -280,6 +386,11 @@ export async function GET(
           plus_minus: stat.plusMinus ?? 0,
         };
         row.dnp = isDnpRow(row);
+        // 쿼터별 집계 주입 (종료 경기 분기) — tournamentTeamPlayerId로 Map 조회
+        const qs = quarterStatsByPlayer.get(Number(player.id));
+        if (qs && Object.keys(qs).length > 0) {
+          row.quarter_stats = qs;
+        }
         return row;
       };
 
@@ -436,6 +547,14 @@ interface PlayerRow {
   plus_minus?: number;
   // 0414: DNP(Did Not Play) — 등록됐으나 출전 0 + 스탯 0
   dnp?: boolean;
+  // 2026-04-15: 쿼터별 스탯 (박스스코어 쿼터 필터 버튼용)
+  // 키: "1"=Q1, "2"=Q2, ..., "5"=OT1. 해당 쿼터에 기록이 없으면 키 자체가 없음.
+  quarter_stats?: Record<string, {
+    min: number; min_seconds: number; pts: number;
+    fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
+    oreb: number; dreb: number; reb: number;
+    ast: number; stl: number; blk: number; to: number; fouls: number; plus_minus: number;
+  }>;
 }
 
 /// 선수가 "코트에서 뛴 기록이 전혀 없음" 여부 (DNP 판정)
