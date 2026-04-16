@@ -96,7 +96,7 @@ interface MatchData {
   venue_name?: string | null;
   current_quarter?: number | null;
   // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부
-  // false면 Flutter "최종 스탯 입력 모드"로 기록된 경기 → 쿼터 필터 활성 시 안내 배너 + 스탯 "—" 처리
+  // false면 Flutter "최종 스탯 입력 모드"로 기록된 경기 → 쿼터 필터 활성 시 안내 배너 + 스탯 "-" 처리
   has_quarter_event_detail: boolean;
 }
 
@@ -302,13 +302,106 @@ function TeamLogo({
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// 스코어카드 서브 컴포넌트 (2026-04-15 모바일 2행 레이아웃 재설계)
+// 이유: 기존 5단(로고/점수/중앙/점수/로고) 가로 배치가 모바일에서 가로폭 부족으로
+// 점수·중앙정보가 쪼그라들어 가독성이 떨어짐.
+// 해결: 모바일은 Row1(팀 좌우) + Row2(점수-중앙정보-점수) 2행 구조, 데스크톱은 5단 유지.
+// 공통 빌딩블록으로 뽑아 모바일/데스크톱 양쪽에서 재사용.
+// ─────────────────────────────────────────────────────────────
+
+// 팀 블록: 로고 + 팀명(+홈 아이콘)
+// logoSize는 호출부에서 모바일 48 / 데스크톱 72로 지정
+function TeamBlock({
+  team,
+  isHome,
+  logoSize,
+}: {
+  team: MatchData["home_team"];
+  isHome: boolean;
+  logoSize: number;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2 min-w-0">
+      <TeamLogo team={team} size={logoSize} />
+      {/* 팀명: 모바일은 max-w 100px(좁게), 데스크톱은 160px. 홈팀만 home 아이콘 prepend */}
+      <p
+        className="text-sm sm:text-base font-medium flex items-center gap-1 truncate max-w-[100px] sm:max-w-[160px]"
+        style={{ color: "var(--color-text-primary)" }}
+      >
+        {isHome && (
+          <span
+            className="material-symbols-outlined shrink-0"
+            style={{ fontSize: "16px", color: "var(--color-text-muted)" }}
+          >
+            home
+          </span>
+        )}
+        {team.name}
+      </p>
+    </div>
+  );
+}
+
+// 점수 표시: 플래시 애니메이션(점수 변경 시 scale+brightness) 유지
+function ScoreDisplay({ value, flash }: { value: number; flash: boolean }) {
+  return (
+    <p
+      className={`text-5xl sm:text-6xl font-black transition-all duration-300 ${flash ? "scale-125 brightness-150" : "scale-100"}`}
+      style={{ color: "var(--color-text-primary)" }}
+    >
+      {value}
+    </p>
+  );
+}
+
+// 중앙 정보 블록: 상태 라벨 + 일시 + 장소
+// 기존 5단 레이아웃 내 JSX 블록을 그대로 추출. getCenterStatusLabel / formatMatchDateTime 재사용
+function CenterInfoBlock({ match, isLive }: { match: MatchData; isLive: boolean }) {
+  void isLive; // 현재는 상태 라벨 헬퍼가 match.status/current_quarter만 쓰지만, 추후 확장 대비 시그니처 유지
+  const { text, highlight } = getCenterStatusLabel(match.status, match.current_quarter);
+  const dt = formatMatchDateTime(match.scheduled_at, match.started_at);
+  return (
+    <div className="flex flex-col items-center gap-2 px-1 min-w-0">
+      {/* 상태 라벨 — highlight(진행 중 쿼터 등)면 primary red + 크게 */}
+      <span
+        className={`whitespace-nowrap ${highlight ? "text-xl font-semibold" : "text-lg"}`}
+        style={{ color: highlight ? "var(--color-primary)" : "var(--color-text-muted)" }}
+      >
+        {text}
+      </span>
+      {/* 일시 — 모바일은 text-sm으로 한 단계 축소 (좁은 가로폭 대응) */}
+      {dt && (
+        <span
+          className="text-sm sm:text-base whitespace-nowrap"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {dt}
+        </span>
+      )}
+      {/* 장소 — 모바일은 max-w 180px, 데스크톱 220px */}
+      {match.venue_name && (
+        <span
+          className="text-sm sm:text-base truncate max-w-[180px] sm:max-w-[220px] text-center"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {match.venue_name}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const POLL_INTERVAL = 3_000; // 3초
 
-// 얼룩무늬(zebra stripe) 배경색 — 중립 회색 알파를 쓰면 다크/라이트 모두에서 은은하게 보임.
-// 라이트 배경(흰색)에서는 살짝 어둡게, 다크 배경(#0A)에서는 살짝 밝게 동시에 보이도록 중간 회색 사용.
-const ZEBRA_BG = "rgba(127, 127, 127, 0.06)";
-// TOTAL 합산 행 전용 — 조금 더 진하게 구분
-const TOTAL_ROW_BG = "rgba(127, 127, 127, 0.10)";
+// 얼룩무늬(zebra stripe) 배경색 — card 위에 중립 회색 6%를 섞어 불투명화.
+// 모바일 가로 스크롤 시 sticky 셀(bg-inherit)이 투명해지면 뒤 콘텐츠가 비치는 문제 해결.
+// color-mix는 모던 브라우저(Chrome 111+, Safari 16.2+, Firefox 113+) 모두 지원.
+const ZEBRA_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 6%)";
+// TOTAL 합산 행 전용 — 조금 더 진하게 구분 (card 위에 10%)
+const TOTAL_ROW_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 10%)";
+// 짝수 행(홀수 번째가 아닌) 기본 배경 — 카드 색 그대로 쓰되 sticky 셀도 불투명 상속받도록 명시
+const ROW_EVEN_BG = "var(--color-card)";
 
 export default function LiveBoxScorePage() {
   const { id } = useParams<{ id: string }>();
@@ -367,17 +460,49 @@ export default function LiveBoxScorePage() {
   // 2026-04-16: 프린트 옵션 확정 → 다음 틱에 실제 프린트 실행
   // 이유: printOptions 세팅으로 #box-score-print-area가 리렌더되는 타이밍과
   // window.print() 타이밍을 분리해야 DOM이 완전히 반영된 상태로 프린트된다.
+  // 추가: 프린트 직전 document.title을 "YYMMDD_홈팀_원정팀"으로 변경 →
+  //       Chrome "PDF로 저장" 다이얼로그의 파일명이 이 title을 사용.
+  //       afterprint 이벤트로 원래 title 복원.
   useEffect(() => {
-    if (printOptions) {
-      const t = setTimeout(() => {
-        window.print();
-        // 프린트 다이얼로그가 닫힌 뒤(사용자 취소 포함) 옵션 초기화
+    if (printOptions && match) {
+      // 파일명용 날짜/시간: scheduled_at 우선 → started_at → 현재
+      // HH는 경기 시작 시간(24시간 형식), 브라우저 로컬 타임존 기준
+      const dateStr = match.scheduled_at ?? match.started_at ?? new Date().toISOString();
+      const d = new Date(dateStr);
+      const yy = String(d.getFullYear()).slice(2);
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0"); // 24h
+      // 파일명 안전 문자만: 공백/특수문자 → _, 한글 허용
+      const safe = (s: string) => s.replace(/[\s\\/:*?"<>|]+/g, "_").trim() || "team";
+      const homeName = safe(match.home_team.name);
+      const awayName = safe(match.away_team.name);
+      const printTitle = `${yy}${mm}${dd}${hh}_${homeName}_${awayName}`;
+
+      const originalTitle = document.title;
+      document.title = printTitle;
+
+      // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화
+      const handleAfterPrint = () => {
+        document.title = originalTitle;
         setPrintOptions(null);
         setPrintDialogOpen(false);
+        window.removeEventListener("afterprint", handleAfterPrint);
+      };
+      window.addEventListener("afterprint", handleAfterPrint);
+
+      const t = setTimeout(() => {
+        window.print();
       }, 100);
-      return () => clearTimeout(t);
+
+      return () => {
+        clearTimeout(t);
+        // 안전장치: cleanup 시 title 복원 + 리스너 제거
+        window.removeEventListener("afterprint", handleAfterPrint);
+        if (document.title === printTitle) document.title = originalTitle;
+      };
     }
-  }, [printOptions]);
+  }, [printOptions, match]);
 
   // 2026-04-16: printOptions 기반 동적 섹션 목록
   // 순서: 홈(누적 → 1Q → ... → OT) → 원정(누적 → 1Q → ... → OT)
@@ -404,9 +529,9 @@ export default function LiveBoxScorePage() {
       <div
         data-live-root
         className="min-h-screen flex items-center justify-center"
-        // 2026-04-15: zoom 1.25 — 전체 UI 125% 확대 (박스스코어 가독성)
+        // 2026-04-15: zoom 1.1 — 전체 UI 110% 확대 (박스스코어 가독성)
         // 2026-04-16: data-live-root — 프린트 CSS가 이 컨테이너의 자식 중 프린트 영역만 남기고 제거
-        style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.25" }}
+        style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.1" }}
       >
         <div className="text-center">
           <div className="text-5xl mb-4">🏀</div>
@@ -422,9 +547,9 @@ export default function LiveBoxScorePage() {
       <div
         data-live-root
         className="min-h-screen flex items-center justify-center"
-        // 2026-04-15: zoom 1.25 적용
+        // 2026-04-15: zoom 1.1 적용
         // 2026-04-16: data-live-root — 프린트 CSS 타겟
-        style={{ backgroundColor: "var(--color-background)", zoom: "1.25" }}
+        style={{ backgroundColor: "var(--color-background)", zoom: "1.1" }}
       >
         <div
           className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
@@ -462,12 +587,12 @@ export default function LiveBoxScorePage() {
 
   return (
     // 페이지 최상단 컨테이너 — 배경/글자 기본색은 모두 CSS 변수 사용 (테마 전환 대응)
-    // 2026-04-15: zoom 1.25로 전체 UI 125% 확대 (박스스코어 가독성 개선)
+    // 2026-04-15: zoom 1.1로 전체 UI 110% 확대 (박스스코어 가독성 개선)
     // 2026-04-16: data-live-root — 프린트 CSS가 자식 중 #box-score-print-area만 남기고 제거
     <div
       data-live-root
       className="min-h-screen"
-      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.25" }}
+      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: "1.1" }}
     >
       {/* 헤더 — border와 배경을 모두 CSS 변수로 */}
       <div
@@ -521,107 +646,34 @@ export default function LiveBoxScorePage() {
             이유: 데스크톱에서 스코어카드/쿼터 테이블이 너무 넓게 퍼져 정보 밀도가 떨어지므로
             좌우를 좁혀 시선 집중시키기. 박스스코어는 이 래퍼 밖이라 영향 없음. */}
         <div className="mx-auto w-full sm:w-3/4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
-          {/* 1. 홈 영역: 로고 + 🏠아이콘+팀명 */}
-          <div className="flex flex-col items-center gap-2 min-w-0 flex-shrink-0">
-            {/* 큰 원형 로고 (모바일 56 / sm 이상 72) — Tailwind에서 sm:size 동적 변경이 어려워 두 사이즈를 분기 렌더 */}
-            <div className="sm:hidden">
-              <TeamLogo team={match.home_team} size={56} />
-            </div>
-            <div className="hidden sm:block">
-              <TeamLogo team={match.home_team} size={72} />
-            </div>
-            {/* 팀명 — 이전보다 크기 축소(text-sm sm:text-base)로 로고/점수 대비 약하게.
-                홈팀 표기를 위해 Material Symbols home 아이콘을 팀명 앞에 gap-1로 배치 */}
-            <p
-              className="text-sm sm:text-base font-medium flex items-center gap-1 truncate max-w-[120px] sm:max-w-[160px]"
-              style={{ color: "var(--color-text-primary)" }}
-            >
-              <span
-                className="material-symbols-outlined shrink-0"
-                style={{ fontSize: "16px", color: "var(--color-text-muted)" }}
-              >
-                home
-              </span>
-              <span className="truncate">{match.home_team.name}</span>
-            </p>
+        {/* 스코어카드 레이아웃 분기 (2026-04-15 모바일 2행 재설계)
+            - 모바일(sm 미만): 2행 — Row1 [홈팀 | 원정팀], Row2 [홈점수 | 중앙정보 | 원정점수]
+            - 데스크톱(sm 이상): 기존 5단 — [홈팀 | 홈점수 | 중앙정보 | 원정점수 | 원정팀]
+            이유: 모바일에서 점수·중앙정보가 좁은 가로폭에 짓눌려 판독성이 떨어지는 문제를 해결.
+            가로폭이 넉넉한 데스크톱은 한 줄로 보는 편이 시선 흐름이 자연스러워 기존 유지. */}
+
+        {/* 모바일 전용: 2행 레이아웃 */}
+        <div className="sm:hidden">
+          {/* Row1: 홈팀 / 원정팀 좌우 배치. justify-around로 여백 균등 */}
+          <div className="flex items-center justify-around mb-4">
+            <TeamBlock team={match.home_team} isHome logoSize={48} />
+            <TeamBlock team={match.away_team} isHome={false} logoSize={48} />
           </div>
-
-          {/* 2. 홈 점수 — 팀 영역에서 분리되어 독립 배치. 플래시 애니메이션 className 유지 */}
-          <p
-            className={`text-5xl sm:text-6xl font-black transition-all duration-300 ${homeFlash ? "scale-125 brightness-150" : "scale-100"}`}
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            {match.home_score}
-          </p>
-
-          {/* 3. 중앙 정보 블록 — 상태 라벨 / 일시 / 장소 (2026-04-15 글자 확대 + 🔄 제거)
-              이유: 라운드명은 정보 밀도 낮아 제거, 대신 "경기 상태(N쿼터/경기 전/종료)"와 "일시"를
-              티빙 중계처럼 상단에 배치해 방문자가 현재 경기가 어느 단계인지 즉시 파악 가능하게.
-              🔄 새로고침 버튼 제거: fetchMatch가 3초 폴링으로 자동 갱신되므로 수동 버튼 불필요.
-              글자 확대: 이미지 5처럼 중앙 정보가 또렷하게 보이도록 상태/일시/장소 폰트 크기 상향. */}
-          <div className="flex flex-col items-center gap-2 px-1 min-w-0">
-            {/* ① 상태 라벨 — 헬퍼가 { text, highlight } 반환. highlight=true면 빨강+bold+xl, false면 muted+lg */}
-            {(() => {
-              const { text, highlight } = getCenterStatusLabel(match.status, match.current_quarter);
-              return (
-                <span
-                  className={`whitespace-nowrap ${highlight ? "text-xl font-semibold" : "text-lg"}`}
-                  style={{ color: highlight ? "var(--color-primary)" : "var(--color-text-muted)" }}
-                >
-                  {text}
-                </span>
-              );
-            })()}
-
-            {/* ② 일시 — scheduled_at 우선, 없으면 started_at, 둘 다 없으면 숨김. text-xs → text-base */}
-            {(() => {
-              const dt = formatMatchDateTime(match.scheduled_at, match.started_at);
-              return dt ? (
-                <span
-                  className="text-base whitespace-nowrap"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  {dt}
-                </span>
-              ) : null;
-            })()}
-
-            {/* ③ 경기장명 — API에서 venue_name으로 받아옴 (없으면 숨김). text-xs → text-base, 글자 커지니 max-w도 확대 */}
-            {match.venue_name && (
-              <span
-                className="text-base truncate max-w-[220px] text-center"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                {match.venue_name}
-              </span>
-            )}
-            {/* ④ 새로고침 버튼은 제거됨 — 3초 폴링(POLL_INTERVAL)으로 자동 갱신 */}
+          {/* Row2: 점수 - 중앙정보 - 점수. justify-between로 양 끝 정렬 */}
+          <div className="flex items-center justify-between gap-2 px-2">
+            <ScoreDisplay value={match.home_score} flash={homeFlash} />
+            <CenterInfoBlock match={match} isLive={isLive} />
+            <ScoreDisplay value={match.away_score} flash={awayFlash} />
           </div>
+        </div>
 
-          {/* 4. 원정 점수 */}
-          <p
-            className={`text-5xl sm:text-6xl font-black transition-all duration-300 ${awayFlash ? "scale-125 brightness-150" : "scale-100"}`}
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            {match.away_score}
-          </p>
-
-          {/* 5. 원정 영역: 로고 + 팀명 (홈 아이콘 없음) */}
-          <div className="flex flex-col items-center gap-2 min-w-0 flex-shrink-0">
-            <div className="sm:hidden">
-              <TeamLogo team={match.away_team} size={56} />
-            </div>
-            <div className="hidden sm:block">
-              <TeamLogo team={match.away_team} size={72} />
-            </div>
-            <p
-              className="text-sm sm:text-base font-medium truncate max-w-[120px] sm:max-w-[160px] text-center"
-              style={{ color: "var(--color-text-primary)" }}
-            >
-              {match.away_team.name}
-            </p>
-          </div>
+        {/* 데스크톱 전용: 기존 5단 가로 레이아웃 */}
+        <div className="hidden sm:flex items-center justify-between gap-4">
+          <TeamBlock team={match.home_team} isHome logoSize={72} />
+          <ScoreDisplay value={match.home_score} flash={homeFlash} />
+          <CenterInfoBlock match={match} isLive={isLive} />
+          <ScoreDisplay value={match.away_score} flash={awayFlash} />
+          <TeamBlock team={match.away_team} isHome={false} logoSize={72} />
         </div>
 
         {/* 쿼터별 점수 — 테이블 폭 100% 롤백 (mx-auto w-3/4 제거).
@@ -742,7 +794,7 @@ export default function LiveBoxScorePage() {
         ].map(({ team, players }) => (
           <div key={team.id}>
             {/* 박스스코어 테이블 — hasOT: OT 쿼터가 존재하면 쿼터 필터 버튼에 OT 버튼도 노출
-                hasQuarterEventDetail: false면 쿼터 필터 활성 시 안내 배너 + MIN/+- 외 스탯 "—" 처리 */}
+                hasQuarterEventDetail: false면 쿼터 필터 활성 시 안내 배너 + MIN/+- 외 스탯 "-" 처리 */}
             <BoxScoreTable
               teamName={team.name}
               color={team.color}
@@ -871,7 +923,7 @@ function BoxScoreTable({
   // 2026-04-15: OT 쿼터 존재 여부 — 쿼터 필터 버튼에 "OT" 버튼 노출 분기
   hasOT?: boolean;
   // 2026-04-16: 쿼터별 이벤트 상세 스탯 존재 여부
-  // false + quarterFilter !== "all" → 안내 배너 + MIN/+- 외 스탯 "—" 처리
+  // false + quarterFilter !== "all" → 안내 배너 + MIN/+- 외 스탯 "-" 처리
   hasQuarterEventDetail?: boolean;
 }) {
   // 2026-04-15: 쿼터 필터 state — "all" | "1" | "2" | "3" | "4" | "5"(OT1)
@@ -880,9 +932,9 @@ function BoxScoreTable({
 
   if (!players || players.length === 0) return null;
 
-  // 2026-04-16: 이벤트 없는 경기에서 쿼터 필터를 활성화한 경우 — MIN/+-만 유효, 나머지 스탯은 "—"로 표시
+  // 2026-04-16: 이벤트 없는 경기에서 쿼터 필터를 활성화한 경우 — MIN/+-만 유효, 나머지 스탯은 "-"로 표시
   // 이유: Flutter "최종 스탯 입력 모드"는 match_events 없이 MatchPlayerStat.quarterStatsJson의 min/pm만 저장.
-  // 쿼터별 PTS/FG/REB 등은 데이터가 없으므로 0 대신 "—"로 표시해야 사용자 혼동이 없다.
+  // 쿼터별 PTS/FG/REB 등은 데이터가 없으므로 0 대신 "-"로 표시해야 사용자 혼동이 없다.
   const showPlaceholder = !hasQuarterEventDetail && quarterFilter !== "all";
 
   // 2026-04-15: 쿼터 필터 헬퍼
@@ -982,7 +1034,7 @@ function BoxScoreTable({
         </div>
       </div>
       {/* 2026-04-16: 이벤트 없는 경기 + 쿼터 필터 활성 안내 배너
-          이유: 데이터가 없어 PTS/FG 등이 "—"로 표시되는 이유를 사용자에게 명확히 알림.
+          이유: 데이터가 없어 PTS/FG 등이 "-"로 표시되는 이유를 사용자에게 명확히 알림.
           프린트 시에는 숨김(print:hidden). */}
       {showPlaceholder && (
         <div
@@ -1008,11 +1060,11 @@ function BoxScoreTable({
               <tr className="border-b" style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}>
                 {/* sticky 셀: 라이트/다크 모두 card 색으로 배경 칠해줘야 투명해지지 않음 */}
                 <th
-                  className="py-2 px-3 text-left font-normal sticky left-0 print:static print:bg-transparent"
+                  className="py-2 px-3 text-left font-normal sticky left-0 z-10 print:static print:bg-transparent"
                   style={{ backgroundColor: "var(--color-card)" }}
                 >#</th>
                 <th
-                  className="py-2 px-1 text-left font-normal sticky left-8 min-w-[70px] print:static print:bg-transparent"
+                  className="py-2 px-1 text-left font-normal sticky left-8 z-10 min-w-[70px] print:static print:bg-transparent"
                   style={{ backgroundColor: "var(--color-card)" }}
                 >이름</th>
                 {/* 2026-04-15: MIN 복원 — 이름 바로 다음, PTS 앞 */}
@@ -1043,18 +1095,18 @@ function BoxScoreTable({
                   style={{
                     borderColor: "var(--color-border)",
                     // 얼룩무늬: 짝수 행은 투명, 홀수 행은 중립 회색 알파
-                    backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                    backgroundColor: i % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                   }}
                 >
                   {/* sticky 셀은 zebra 배경을 bg-inherit로 따라가게 함 */}
                   <td
-                    className="py-2 px-3 sticky left-0 bg-inherit print:static print:bg-transparent"
+                    className="py-2 px-3 sticky left-0 z-10 bg-inherit print:static print:bg-transparent"
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     {p.jersey_number ?? "-"}
                   </td>
                   <td
-                    className="py-2 px-1 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
+                    className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-primary)" }}
                   >
                     {p.name}
@@ -1064,41 +1116,41 @@ function BoxScoreTable({
                     {formatGameClock(p.min_seconds ?? p.min * 60)}
                   </td>
                   {/* PTS — 팀색 좌측 띠 + 텍스트 기본색. 부모 td에 relative 필수
-                      2026-04-16: showPlaceholder 시 "—"만 표시하고 팀색 띠는 생략 (PTS 숫자가 없어 띠의 의미가 없음) */}
+                      2026-04-16: showPlaceholder 시 "-"만 표시하고 팀색 띠는 생략 (PTS 숫자가 없어 띠의 의미가 없음) */}
                   <td
                     className="py-2 px-0.5 text-center font-bold relative"
                     style={{ color: showPlaceholder ? "var(--color-text-muted)" : "var(--color-text-primary)" }}
                   >
                     {!showPlaceholder && <PtsTeamBar />}
-                    {showPlaceholder ? "—" : p.pts}
+                    {showPlaceholder ? "-" : p.pts}
                   </td>
-                  {/* 이하 스탯 셀들 — showPlaceholder 시 모두 "—" (MIN과 +/-만 예외) */}
+                  {/* 이하 스탯 셀들 — showPlaceholder 시 모두 "-" (MIN과 +/-만 예외) */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${p.fgm}/${p.fga}`}
-                  </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${pct(p.fgm, p.fga)}%`}
+                    {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
                   </td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${p.tpm}/${p.tpa}`}
+                    {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
                   </td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${pct(p.tpm, p.tpa)}%`}
+                    {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
                   </td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${p.ftm}/${p.fta}`}
+                    {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
                   </td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
-                    {showPlaceholder ? "—" : `${pct(p.ftm, p.fta)}%`}
+                    {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
                   </td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.oreb}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.dreb}</td>
-                  <td className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.reb}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.ast}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.stl}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.blk}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.to}</td>
-                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : p.fouls}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                    {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
+                  </td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.oreb}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.dreb}</td>
+                  <td className="py-2 px-0.5 text-center font-semibold" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.reb}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.ast}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.stl}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.blk}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.to}</td>
+                  <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : p.fouls}</td>
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>
                     {p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}
                   </td>
@@ -1112,17 +1164,17 @@ function BoxScoreTable({
                   className="border-b"
                   style={{
                     borderColor: "var(--color-border)",
-                    backgroundColor: (sorted.length + i) % 2 === 0 ? "transparent" : ZEBRA_BG,
+                    backgroundColor: (sorted.length + i) % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                   }}
                 >
                   <td
-                    className="py-2 px-3 sticky left-0 bg-inherit print:static print:bg-transparent"
+                    className="py-2 px-3 sticky left-0 z-10 bg-inherit print:static print:bg-transparent"
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     {p.jersey_number ?? "-"}
                   </td>
                   <td
-                    className="py-2 px-1 sticky left-8 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
+                    className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-muted)" }}
                   >
                     {p.name}
@@ -1188,11 +1240,11 @@ function BoxScoreTable({
                     }}
                   >
                     <td
-                      className="py-2 px-3 sticky left-0 print:static print:bg-transparent"
+                      className="py-2 px-3 sticky left-0 z-10 print:static print:bg-transparent"
                       style={{ color: "var(--color-text-secondary)", backgroundColor: totalStickyBg }}
                     />
                     <td
-                      className="py-2 px-1 sticky left-8 print:static print:bg-transparent"
+                      className="py-2 px-1 sticky left-8 z-10 print:static print:bg-transparent"
                       style={{ color: "var(--color-text-primary)", backgroundColor: totalStickyBg }}
                     >TOTAL</td>
                     {/* MIN — TOTAL 행은 secondary 색으로 강조 */}
@@ -1200,29 +1252,29 @@ function BoxScoreTable({
                       {formatGameClock(total.min_seconds)}
                     </td>
                     {/* PTS — TOTAL 행도 동일하게 팀색 좌측 띠 + 텍스트 기본색
-                        2026-04-16: showPlaceholder 시 "—"만 표시, 팀색 띠 생략 */}
+                        2026-04-16: showPlaceholder 시 "-"만 표시, 팀색 띠 생략 */}
                     <td
                       className="py-2 px-0.5 text-center relative"
                       style={{ color: showPlaceholder ? "var(--color-text-muted)" : "var(--color-text-primary)" }}
                     >
                       {!showPlaceholder && <PtsTeamBar />}
-                      {showPlaceholder ? "—" : total.pts}
+                      {showPlaceholder ? "-" : total.pts}
                     </td>
-                    {/* 나머지 TOTAL 스탯 셀 — showPlaceholder 시 모두 "—" */}
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${total.fgm}/${total.fga}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${pct(total.fgm, total.fga)}%`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${total.tpm}/${total.tpa}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${pct(total.tpm, total.tpa)}%`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${total.ftm}/${total.fta}`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : `${pct(total.ftm, total.fta)}%`}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.oreb}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.dreb}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.reb}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.ast}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.stl}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.blk}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.to}</td>
-                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "—" : total.fouls}</td>
+                    {/* 나머지 TOTAL 스탯 셀 — showPlaceholder 시 모두 "-" */}
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.oreb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.dreb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.reb}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.ast}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.stl}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.blk}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.to}</td>
+                    <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-primary)" }}>{showPlaceholder ? "-" : total.fouls}</td>
                     <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-secondary)" }}>-</td>
                   </tr>
                 );
@@ -1278,7 +1330,7 @@ function PbpSection({ match }: { match: MatchData }) {
                     className="border-b"
                     style={{
                       borderColor: "var(--color-border)",
-                      backgroundColor: i % 2 === 0 ? "transparent" : ZEBRA_BG,
+                      backgroundColor: i % 2 === 0 ? ROW_EVEN_BG : ZEBRA_BG,
                     }}
                   >
                     <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--color-text-muted)" }}>
@@ -1404,9 +1456,33 @@ function PrintOptionsDialog({
             className="mt-3 text-xs"
             style={{ color: "var(--color-text-muted)" }}
           >
-            이 경기는 실시간 이벤트 기록이 없어 쿼터별 세부 스탯이 "—"로 표시됩니다.
+            이 경기는 실시간 이벤트 기록이 없어 쿼터별 세부 스탯이 "-"로 표시됩니다.
           </p>
         )}
+
+        {/* 프린트 방향 안내 — Hancom PDF 등 외부 가상 프린터는 @page CSS를 무시하므로 사용자 개입 필요 */}
+        <div
+          className="mt-3 p-2 rounded text-xs flex items-start gap-2"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          <span className="material-symbols-outlined shrink-0" style={{ fontSize: "16px", color: "var(--color-primary)" }}>warning</span>
+          <div className="space-y-1">
+            <p className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
+              PDF 저장이 세로로 나올 때
+            </p>
+            <p>
+              권장: 프린터를 <strong>&quot;PDF로 저장&quot;</strong>(Chrome 기본)으로 선택하세요.
+              Hancom PDF 등 외부 PDF 드라이버는 가로 설정을 무시합니다.
+            </p>
+            <p>
+              또는 프린트 대화상자에서 <strong>인쇄 방향 → 가로</strong>로 직접 변경하세요.
+            </p>
+          </div>
+        </div>
 
         {/* 하단 버튼 */}
         <div className="flex justify-end gap-2 mt-6">
@@ -1514,7 +1590,7 @@ function TeamSection({
  * 2026-04-16: 프린트 전용 박스스코어 테이블
  * - 화면용 BoxScoreTable과 달리 쿼터 필터 버튼은 없음 (filter prop으로 고정)
  * - 페이지 상단에 "팀명 vs 상대 — 누적 기록 / 1쿼터 등" 라벨을 크게 표시
- * - filter !== "all" + hasQuarterEventDetail=false → MIN/+- 외 모든 스탯 "—"
+ * - filter !== "all" + hasQuarterEventDetail=false → MIN/+- 외 모든 스탯 "-"
  */
 function PrintBoxScoreTable({
   teamName,
@@ -1672,21 +1748,21 @@ function PrintBoxScoreTable({
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
                 <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
-                <td style={{ fontWeight: 700 }}>{showPlaceholder ? "—" : p.pts}</td>
-                <td>{showPlaceholder ? "—" : `${p.fgm}/${p.fga}`}</td>
-                <td>{showPlaceholder ? "—" : `${pct(p.fgm, p.fga)}%`}</td>
-                <td>{showPlaceholder ? "—" : `${p.tpm}/${p.tpa}`}</td>
-                <td>{showPlaceholder ? "—" : `${pct(p.tpm, p.tpa)}%`}</td>
-                <td>{showPlaceholder ? "—" : `${p.ftm}/${p.fta}`}</td>
-                <td>{showPlaceholder ? "—" : `${pct(p.ftm, p.fta)}%`}</td>
-                <td>{showPlaceholder ? "—" : p.oreb}</td>
-                <td>{showPlaceholder ? "—" : p.dreb}</td>
-                <td>{showPlaceholder ? "—" : p.reb}</td>
-                <td>{showPlaceholder ? "—" : p.ast}</td>
-                <td>{showPlaceholder ? "—" : p.stl}</td>
-                <td>{showPlaceholder ? "—" : p.blk}</td>
-                <td>{showPlaceholder ? "—" : p.to}</td>
-                <td>{showPlaceholder ? "—" : p.fouls}</td>
+                <td style={{ fontWeight: 700 }}>{showPlaceholder ? "-" : p.pts}</td>
+                <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
+                <td>{showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}</td>
+                <td>{showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}</td>
+                <td>{showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}</td>
+                <td>{showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}</td>
+                <td>{showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}</td>
+                <td>{showPlaceholder ? "-" : p.oreb}</td>
+                <td>{showPlaceholder ? "-" : p.dreb}</td>
+                <td>{showPlaceholder ? "-" : p.reb}</td>
+                <td>{showPlaceholder ? "-" : p.ast}</td>
+                <td>{showPlaceholder ? "-" : p.stl}</td>
+                <td>{showPlaceholder ? "-" : p.blk}</td>
+                <td>{showPlaceholder ? "-" : p.to}</td>
+                <td>{showPlaceholder ? "-" : p.fouls}</td>
                 <td>{p.plus_minus != null ? (p.plus_minus > 0 ? `+${p.plus_minus}` : p.plus_minus) : "-"}</td>
               </tr>
             ))}
@@ -1705,21 +1781,21 @@ function PrintBoxScoreTable({
               <td></td>
               <td style={{ textAlign: "left" }}>TOTAL</td>
               <td>{formatGameClock(total.min_seconds)}</td>
-              <td>{showPlaceholder ? "—" : total.pts}</td>
-              <td>{showPlaceholder ? "—" : `${total.fgm}/${total.fga}`}</td>
-              <td>{showPlaceholder ? "—" : `${pct(total.fgm, total.fga)}%`}</td>
-              <td>{showPlaceholder ? "—" : `${total.tpm}/${total.tpa}`}</td>
-              <td>{showPlaceholder ? "—" : `${pct(total.tpm, total.tpa)}%`}</td>
-              <td>{showPlaceholder ? "—" : `${total.ftm}/${total.fta}`}</td>
-              <td>{showPlaceholder ? "—" : `${pct(total.ftm, total.fta)}%`}</td>
-              <td>{showPlaceholder ? "—" : total.oreb}</td>
-              <td>{showPlaceholder ? "—" : total.dreb}</td>
-              <td>{showPlaceholder ? "—" : total.reb}</td>
-              <td>{showPlaceholder ? "—" : total.ast}</td>
-              <td>{showPlaceholder ? "—" : total.stl}</td>
-              <td>{showPlaceholder ? "—" : total.blk}</td>
-              <td>{showPlaceholder ? "—" : total.to}</td>
-              <td>{showPlaceholder ? "—" : total.fouls}</td>
+              <td>{showPlaceholder ? "-" : total.pts}</td>
+              <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
+              <td>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
+              <td>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
+              <td>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
+              <td>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
+              <td>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+              <td>{showPlaceholder ? "-" : total.oreb}</td>
+              <td>{showPlaceholder ? "-" : total.dreb}</td>
+              <td>{showPlaceholder ? "-" : total.reb}</td>
+              <td>{showPlaceholder ? "-" : total.ast}</td>
+              <td>{showPlaceholder ? "-" : total.stl}</td>
+              <td>{showPlaceholder ? "-" : total.blk}</td>
+              <td>{showPlaceholder ? "-" : total.to}</td>
+              <td>{showPlaceholder ? "-" : total.fouls}</td>
               <td>-</td>
             </tr>
           </tbody>
