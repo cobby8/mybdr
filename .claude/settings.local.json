@@ -242,7 +242,11 @@
       "Bash(git stash *)",
       "Bash(mkdir -p Dev/design/team-logos)",
       "Bash(mv \"참가팀_로고모음/\"*.png Dev/design/team-logos/)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(gh pr create --base dev --head subin --title '2026-04-17 참가팀 로고 PNG 8종 자료 폴더 이관' --body ' *)",
+      "Bash(git credential *)",
+      "Bash(npx vitest *)",
+      "Bash(git rm *)"
     ]
   }
 }

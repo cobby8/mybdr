@@ -2,6 +2,36 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-04-17] API 미들웨어 변환을 잊고 컴포넌트 인터페이스를 거꾸로 바꿈 — curl 먼저 확인 (재발 4회)
+- **분류**: lesson
+- **시나리오**: `/games` 카드에 시각/장소가 안 뜸. Explore가 "API는 camelCase 반환, 컴포넌트는 snake_case 기대 → 불일치" 진단 → 컴포넌트를 camelCase로 통일(A1 커밋 83801f6) → **모든 필드 undefined** → 데이터 더 안 뜸. 사용자가 "내용은 잘 들어가는데 정작 바뀐 제목엔 없다"라고 발견.
+- **원인**: API route.ts L195가 `scheduledAt: g.scheduled_at?.toISOString()` 로 보내는 것처럼 보였지만, 실제로는 `apiSuccess()` → `convertKeysToSnakeCase()` 미들웨어가 응답을 다시 snake_case로 바꿔서 내보냄. **route.ts 코드만 보면 진실을 못 봄.**
+- **교훈**:
+  1. API 응답 진단은 **반드시 raw로 확인** (`curl /api/...` 또는 DevTools Network 탭). 코드만 보고 추정 금지
+  2. `apiSuccess()` / `apiError()` 같은 wrapper가 있으면 그 안의 변환 로직을 한 번 더 확인
+  3. lessons.md [2026-04-14] "fetcher 래퍼로 근본 해결" 교훈이 있는데도 **A1처럼 컴포넌트 측을 건드리는 우회 시도가 또 발생** — 같은 함정에 4번째 빠짐
+  4. CLAUDE.md의 "API=snake_case, TS 내부=camelCase" 규칙을 다시 강조
+- **권장 패턴**:
+  ```bash
+  # 코드로 추정 금지. 한 번에 진실 확인:
+  curl -s http://localhost:3001/api/web/games | head -c 500
+  ```
+- **참조**: errors.md "apiSuccess 응답에 .data로 접근" / lessons.md "snake/camelCase 변환 버그는 fetcher 래퍼로 근본 해결"
+- **참조횟수**: 0
+
+### [2026-04-17] 다음카페 본문 양식이 매우 일관적 — 정규식 파서로 95%+ 추출
+- **분류**: lesson
+- **내용**: 외부 스크래퍼가 다음카페 농구 게시판 본문(`1. HOME 팀명 : ...` 9항목 양식)을 `games.description`에 통째로 저장하면서 구조화 필드(scheduled_at/venue_name/fee/game_type)는 비우거나 부정확. 본문이 "N. 라벨 : 값" 형식으로 일관적이라 정규식 파서로 257건 중 147건(57%) 자동 채움 + game_type 66건 재분류
+- **교훈**:
+  1. 외부 데이터 인입 시 **본문 양식 일관성 먼저 표본 5건 확인** → 일관적이면 정규식이 LLM보다 빠르고 무료
+  2. 핵심 정규식: `^\s*(?:(\d{1,2})\s*[\.\)]?\s*\.?\s*)?([^:：\d][^:：]{0,30}?)\s*[:：]\s*(.*)$` (번호 optional, 전각 콜론 허용)
+  3. 비용 변형: "5천원" / "8,000원" / "1만원" / "무료" 매핑 사전 필요
+  4. KST 시각: `Date.UTC(y, m-1, d, h-9, mi)` 명시 (Node TZ 무관, 서버/로컬 동작 일치)
+  5. 휴리스틱이라 100%는 불가능. **null 보류 + 덮어쓰기 금지** 원칙으로 안전장치
+- **재사용**: `src/lib/parsers/cafe-game-parser.ts` (DB 의존 0, 다른 카페·게시판 본문에도 응용 가능)
+- **참조**: decisions.md "다음카페 본문 정규식 파서 도입" / conventions.md "외부 게시판 본문 파서 패턴"
+- **참조횟수**: 0
+
 ### [2026-04-17] HTTP 5xx 에러 시 "실패" 단정 금지 — Git/DB 실상 확인 후 판단
 - **분류**: lesson
 - **시나리오**: `gh pr merge 37` 호출 시 **502 Bad Gateway** 에러 반환 → 재시도했더니 `Pull Request is not mergeable` + `mergeStateStatus: DIRTY/CONFLICTING` 응답. 실제로는 **첫 번째 요청이 이미 머지에 성공**(main에 9a1abbe 커밋 존재), 502는 nginx↔백엔드 응답 중계 실패였을 뿐

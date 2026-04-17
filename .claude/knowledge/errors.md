@@ -2,6 +2,20 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-04-17] API 미들웨어(apiSuccess의 convertKeysToSnakeCase) 놓치고 컴포넌트 인터페이스 거꾸로 변환
+- **분류**: error (재발 4회)
+- **발견자**: pm + 사용자
+- **증상**: `/games` 카드의 시각/장소/가격이 안 뜸. 진단 시 "API 응답이 camelCase인데 컴포넌트가 snake_case 기대"로 잘못 판단해 컴포넌트를 camelCase로 통일 → 모든 필드 undefined로 폴백
+- **원인**: `src/lib/api/response.ts:5` `apiSuccess(data) → NextResponse.json(convertKeysToSnakeCase(data))`. route.ts에서 camelCase로 직렬화하는 것처럼 보여도 미들웨어가 다시 snake_case로 변환. **route.ts 코드만 보고 응답 형태 추정 금지.**
+- **해결**:
+  1. `curl` 또는 DevTools Network 탭으로 raw 응답 확인 → 컴포넌트 인터페이스를 응답 형태에 맞게 정합 (snake_case 유지)
+  2. 프로젝트 컨벤션: API 응답 = snake_case (Flutter 호환), TS 내부 = camelCase
+- **재발 방지**:
+  1. **API 응답 인터페이스 변경 전 반드시 `curl` 1회** — 코드 추정 금지
+  2. 같은 종류 버그 4회 재발 — fetcher 래퍼로 일괄 변환 미적용 영역 우선 점검 권장
+- **참조**: lessons.md "API 미들웨어 변환을 잊고 컴포넌트 인터페이스를 거꾸로 바꿈 (재발 4회)"
+- **참조횟수**: 0
+
 ### [2026-04-17] Next.js 16 next/image 외부 호스트 미허용 (카카오 CDN 2종 누락)
 - **분류**: error
 - **발견자**: debugger
