@@ -34,6 +34,9 @@ import { parseCafeGame, ParsedCafeGame } from "../src/lib/parsers/cafe-game-pars
 
 const prisma = new PrismaClient();
 const EXECUTE = process.argv.includes("--execute");
+// 게임 유형 재분류 모드 — 본문 키워드로 game_type 추정 결과 매트릭스 출력
+// (UPDATE 절대 안 함. dry-run 매트릭스 + 표본만)
+const RECLASSIFY_TYPES = process.argv.includes("--reclassify-types");
 
 // 운영 DB 차단 가드: --execute 시 개발 DB(bwoorsgoijvlgutkrcvs)가 아니면 abort.
 // 실수로 운영 DB에 백필이 들어가는 사고 방지.
@@ -64,6 +67,7 @@ interface Row {
   scheduled_at: Date;
   created_at: Date;
   title: string | null;
+  game_type: number;
 }
 
 interface Fillable {
@@ -105,19 +109,29 @@ function computeFillable(row: Row, parsed: ParsedCafeGame): Fillable {
 
 async function main() {
   const mode = EXECUTE ? "[EXECUTE]" : "[DRY RUN]";
-  console.log(`${mode} games 백필 — cafe 본문 파서 기반\n`);
+  console.log(`${mode} games 백필 — cafe 본문 파서 기반`);
+  if (RECLASSIFY_TYPES) {
+    console.log("--reclassify-types 플래그: game_type 매트릭스만 출력 (UPDATE 안 함)");
+  }
+  console.log("");
 
   // 대상: description 이 채워진 모든 게임 (본문 없으면 복구 불가)
   const rows = await prisma.$queryRaw<Row[]>(Prisma.sql`
     SELECT
       id, description, venue_name, city, district,
-      fee_per_person, scheduled_at, created_at, title
+      fee_per_person, scheduled_at, created_at, title, game_type
     FROM games
     WHERE description IS NOT NULL
     ORDER BY id ASC
   `);
 
   console.log(`대상(description 존재): ${rows.length}건\n`);
+
+  // 재분류 모드: --reclassify-types 단독은 매트릭스만, --execute 추가 시 UPDATE
+  if (RECLASSIFY_TYPES) {
+    await reclassifyTypesReport(rows);
+    return;
+  }
 
   // 집계 변수
   let parseFail = 0;             // 본문이 있으나 파서가 라벨 1개도 못 찾음
@@ -217,6 +231,138 @@ async function main() {
   } else {
     console.log(`\n💡 DRY RUN 완료. 실행하려면 --execute 플래그 사용.`);
     console.log(`   (단, 이번 단계에서는 --execute 금지. tester/reviewer 검증 후에만)`);
+  }
+}
+
+/**
+ * --reclassify-types 모드: game_type 매트릭스 + 표본 출력 (UPDATE 절대 없음).
+ *
+ * 출력:
+ *   1) current → inferred 매트릭스 (3x4: PICKUP/GUEST/PRACTICE × PICKUP/GUEST/PRACTICE/null)
+ *   2) 변경 발생 행 카운트 (재분류 권장 건수)
+ *   3) 표본 10건 (id / 제목 / current → inferred / 분류 단서)
+ *   4) 위험 알림: PRACTICE → PICKUP 같이 강한 다운그레이드 케이스 별도 표시
+ */
+async function reclassifyTypesReport(rows: Row[]) {
+  // 매트릭스: current(0/1/2) × inferred(0/1/2/null)
+  // null 키는 -1 로 저장
+  const NULL_KEY = -1;
+  const matrix: Record<number, Record<number, number>> = {
+    0: { 0: 0, 1: 0, 2: 0, [NULL_KEY]: 0 },
+    1: { 0: 0, 1: 0, 2: 0, [NULL_KEY]: 0 },
+    2: { 0: 0, 1: 0, 2: 0, [NULL_KEY]: 0 },
+  };
+
+  // 표본 버퍼 (current ≠ inferred 인 케이스 우선) + 위험 케이스 별도
+  const samples: string[] = [];
+  const risks: string[] = []; // PRACTICE(2) → PICKUP(0) 같은 강한 변경
+  let totalChange = 0;       // current ≠ inferred && inferred ≠ null
+  let parseFail = 0;          // 본문이 있어도 라벨 0개
+  let updated = 0;            // EXECUTE 시 실제 UPDATE 카운트
+
+  const TYPE_NAME: Record<number, string> = {
+    0: "PICKUP",
+    1: "GUEST",
+    2: "PRACTICE",
+    [NULL_KEY]: "null",
+  };
+
+  for (const row of rows) {
+    if (!row.description) continue;
+    const { data: parsed, stats } = parseCafeGame(row.description, row.created_at);
+
+    if (stats.matchedLines === 0) {
+      parseFail++;
+      // 라벨 0개여도 키워드만으로 분류는 시도됨 — gameType 결과 그대로 사용
+    }
+
+    const inferred = parsed.gameType ?? null;
+    const inferredKey = inferred ?? NULL_KEY;
+    const cur = row.game_type;
+    if (matrix[cur]) matrix[cur][inferredKey]++;
+
+    // 변경 발생 행 (inferred null 은 "분류 보류"이므로 변경 카운트에서 제외)
+    const isChange = inferred !== null && inferred !== cur;
+    if (isChange) totalChange++;
+
+    // --reclassify-types --execute 조합일 때만 실제 UPDATE
+    // (--reclassify-types 단독은 매트릭스만 출력)
+    if (isChange && EXECUTE) {
+      await prisma.games.update({
+        where: { id: row.id },
+        data: { game_type: inferred as number },
+      });
+      updated++;
+    }
+
+    // 위험 케이스: PRACTICE(팀-팀) → PICKUP(픽업) 으로 잘못 분류되면 의미 다움
+    //   PRACTICE → GUEST 는 게스트 모집글이 잘못 PRACTICE 로 들어가있던 것일 수 있어서 OK
+    //   PICKUP → PRACTICE 도 잘못된 변경 가능성
+    const isRisky =
+      (cur === 2 && inferred === 0) ||
+      (cur === 0 && inferred === 2);
+    if (isRisky && risks.length < 10) {
+      risks.push(
+        `  [id=${row.id}] ${TYPE_NAME[cur]} → ${TYPE_NAME[inferred ?? NULL_KEY]}\n     title="${(row.title ?? "").slice(0, 60)}"`,
+      );
+    }
+
+    // 일반 표본: current ≠ inferred 인 행 우선 (정상 변경 케이스)
+    if (isChange && samples.length < 10) {
+      samples.push(
+        `  [id=${row.id}] ${TYPE_NAME[cur]} → ${TYPE_NAME[inferred ?? NULL_KEY]}\n     title="${(row.title ?? "").slice(0, 60)}"`,
+      );
+    }
+  }
+
+  // ─────────── 리포트 출력 ───────────
+  console.log("====== 파싱 통계 ======");
+  console.log(`  파싱 실패 (라벨 0개): ${parseFail}건 (gameType 은 키워드만으로 시도됨)\n`);
+
+  console.log("====== game_type 재분류 매트릭스 (current → inferred) ======");
+  console.log("  " + ["current\\inferred", "PICKUP", "GUEST", "PRACTICE", "null"].join(" | "));
+  for (const cur of [0, 1, 2]) {
+    const row = matrix[cur];
+    console.log(
+      "  " +
+        [
+          TYPE_NAME[cur].padEnd(17),
+          String(row[0]).padStart(6),
+          String(row[1]).padStart(5),
+          String(row[2]).padStart(8),
+          String(row[NULL_KEY]).padStart(4),
+        ].join(" | "),
+    );
+  }
+
+  console.log("");
+  console.log(`====== 변경 발생 행 (current ≠ inferred, inferred ≠ null): ${totalChange}건 ======`);
+
+  console.log("");
+  console.log("====== 표본 10건 (변경 발생 케이스 우선) ======");
+  if (samples.length === 0) {
+    console.log("  (변경 발생 행 없음)");
+  } else {
+    console.log(samples.join("\n"));
+  }
+
+  if (risks.length > 0) {
+    console.log("");
+    console.log("⚠️ ====== 위험 알림: 강한 다운그레이드 (PRACTICE↔PICKUP 교차) ======");
+    console.log(risks.join("\n"));
+    console.log("→ 이 행들은 키워드 단서가 약하거나 본문이 짧을 가능성. 수동 검토 권장.");
+  }
+
+  console.log("");
+  console.log("========================================");
+  const modeLabel = EXECUTE ? "[EXECUTE]" : "[DRY RUN]";
+  console.log(`${modeLabel} --reclassify-types 요약`);
+  console.log("========================================");
+  console.log(`대상 ${rows.length}건 중 재분류 권장 ${totalChange}건 / 위험 케이스 ${risks.length}건`);
+  if (EXECUTE) {
+    console.log(`💾 실제 game_type UPDATE: ${updated}건`);
+  } else {
+    console.log("💡 매트릭스/표본만 출력. 실제 UPDATE 는 --execute 추가 시.");
   }
 }
 

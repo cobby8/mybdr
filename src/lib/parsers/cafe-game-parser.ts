@@ -43,6 +43,16 @@ export interface ParsedCafeGame {
   requiredInfo?: string;
   /** "9. 기타 참고 사항" 이하 자유 텍스트 */
   notes?: string;
+  /**
+   * 본문 키워드 기반으로 추정한 경기 유형.
+   *   0 = PICKUP (픽업게임/팀 양도)
+   *   1 = GUEST (게스트 모집)
+   *   2 = PRACTICE (교류전/연습경기/팀초청)
+   *   null = 분류 불가 (덮어쓰기 금지)
+   *
+   * `parseCafeGame()` 의 마지막 단계에서 `inferGameType()` 호출로 자동 채움.
+   */
+  gameType?: 0 | 1 | 2 | null;
 }
 
 /** 라벨별 매칭 통계 (디버그/리포팅용) */
@@ -413,6 +423,95 @@ export function parseLocation(raw: string): { city?: string; district?: string }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 게임 유형 추론
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 카페 본문/제목에서 game_type 추론.
+ *   0 = PICKUP (픽업게임/팀 양도)
+ *   1 = GUEST (게스트 모집)
+ *   2 = PRACTICE (교류전/연습경기/팀초청)
+ *   null = 어디에도 안 걸리면 분류 보류 (덮어쓰지 않음)
+ *
+ * 우선순위 (위에서부터 첫 매칭 채택):
+ *   1) PRACTICE — "교류전/연습경기/친선전/팀초청/한팀 초청" 키워드가 있고
+ *                 GUEST 키워드(게스트모집/게스트비용/게스트신청)가 없을 때.
+ *                 ※ "교류전 + 게스트모집" 혼합글은 GUEST 로 보내야 정확. (실제 표본 #389)
+ *   2) GUEST — "게스트모집/게스트비용/게스트신청/픽업게임 게스트" 키워드 OR
+ *              parsed.guestCount(모집 인원) 이 1 이상이면 GUEST.
+ *   3) PICKUP — "픽업게임/픽업" 키워드 (단독) OR "양도/대관양도" 키워드.
+ *               (=GUEST 키워드가 없는 픽업게임은 보통 팀-팀 픽업 매칭)
+ *   4) null — 위 어디에도 매칭 안 되면 보류.
+ *
+ * 왜 export 분리:
+ *   백필 스크립트 dry-run 시 단위 호출 가능 + vitest 단위 테스트 가능.
+ *
+ * @param parsed   parseCafeGame() 의 data (guestCount 같은 구조화 필드 활용)
+ * @param content  본문 원문 (키워드 검색용)
+ * @param title    제목 (선택, 본문이 짧을 때 보조 단서)
+ */
+export function inferGameType(
+  parsed: ParsedCafeGame,
+  content?: string,
+  title?: string,
+): 0 | 1 | 2 | null {
+  // 검색 텍스트: 제목 + 본문 + 운영방식 라벨 값까지 합쳐서 한 번에 검사.
+  // 공백 정규화는 includes 검색 정확도와 무관하므로 생략.
+  const haystack = [title ?? "", content ?? "", parsed.format ?? ""]
+    .filter(Boolean)
+    .join("\n");
+
+  // GUEST 키워드 — 가장 강한 신호 (게스트 모집글 특유의 표현)
+  const GUEST_KEYWORDS = [
+    "게스트 모집",
+    "게스트모집",
+    "게스트 비용",
+    "게스트비용",
+    "게스트 신청",
+    "게스트신청",
+    "게스트 환영",
+  ];
+  // PRACTICE 키워드 — 팀-팀 매칭 특유의 표현
+  const PRACTICE_KEYWORDS = [
+    "교류전",
+    "연습경기",
+    "친선전",
+    "팀 초청",
+    "팀초청",
+    "한팀 초청",
+    "한 팀 초청",
+    "팀 연습경기",
+  ];
+  // PICKUP 키워드 — 본인 팀이 픽업/양도 (게스트 모집과는 다른 결)
+  const PICKUP_KEYWORDS = [
+    "픽업게임",
+    "픽업 게임",
+    "체육관 양도",
+    "대관 양도",
+    "코트 양도",
+    "양도합니다",
+  ];
+
+  const hasGuestKw = GUEST_KEYWORDS.some((k) => haystack.includes(k));
+  const hasPracticeKw = PRACTICE_KEYWORDS.some((k) => haystack.includes(k));
+  const hasPickupKw = PICKUP_KEYWORDS.some((k) => haystack.includes(k));
+
+  // 1) PRACTICE — 교류전 키워드 + GUEST 신호 없음
+  //   (GUEST 키워드 또는 guestCount 명시는 "게스트 모집글" 단서이므로 PRACTICE 보다 우선)
+  const hasGuestSignal = hasGuestKw || (parsed.guestCount !== undefined && parsed.guestCount > 0);
+  if (hasPracticeKw && !hasGuestSignal) return 2;
+
+  // 2) GUEST — 키워드 또는 모집 인원 명시
+  if (hasGuestSignal) return 1;
+
+  // 3) PICKUP — 픽업/양도 키워드 (GUEST 가 아닌 경우의 픽업)
+  if (hasPickupKw) return 0;
+
+  // 4) 분류 불가
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 본문 전체 파싱
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -509,6 +608,10 @@ export function parseCafeGame(
   // notes 가 별도 라벨로 잡히지 않았는데 본문 후반부에 자유 텍스트가 있으면 무시
   // (현재 표본에는 notes 없는 케이스가 많고, 잘못 잡으면 노이즈가 큼)
   void notesStartIdx;
+
+  // 게임 유형 추론 — 키워드 + guestCount 신호. null 가능 (분류 불가)
+  // 백필 시 null 인 경우 game_type 컬럼은 건드리지 않는다 (덮어쓰기 금지).
+  data.gameType = inferGameType(data, normalized);
 
   return {
     data,

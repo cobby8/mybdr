@@ -12,6 +12,7 @@ import {
   parseGuestCount,
   parseScheduledAt,
   parseLocation,
+  inferGameType,
 } from "@/lib/parsers/cafe-game-parser";
 
 // reference date — 표본이 2026-04-09 작성된 글들이라 모두 2026-04 기준
@@ -268,5 +269,142 @@ describe("parseCafeGame (실제 표본)", () => {
     const { stats } = parseCafeGame(content, REF);
     expect(stats.matchedLines).toBe(3);
     expect(stats.labels).toContain("HOME 팀명");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// inferGameType — 본문 키워드 기반 game_type 추정
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("inferGameType", () => {
+  // GUEST 시그널: 키워드 또는 guestCount > 0
+  it("게스트 모집 키워드 → 1 (GUEST)", () => {
+    const r = inferGameType({}, "게스트 모집 인원 : 6명");
+    expect(r).toBe(1);
+  });
+
+  it("게스트비용 키워드 → 1 (GUEST)", () => {
+    const r = inferGameType({}, "5. 게스트비용 : 7천원");
+    expect(r).toBe(1);
+  });
+
+  it("guestCount > 0 만 있어도 → 1 (GUEST)", () => {
+    const r = inferGameType({ guestCount: 5 }, "팀 운영방식 자체전");
+    expect(r).toBe(1);
+  });
+
+  it("guestCount === 0 은 GUEST 신호 아님", () => {
+    // 0명은 자리표시자로 들어올 수 있어 GUEST 신호로 사용하지 않음
+    const r = inferGameType({ guestCount: 0 }, "그냥 평범한 본문");
+    expect(r).toBeNull();
+  });
+
+  // PRACTICE 시그널
+  it("교류전 키워드 + GUEST 시그널 없음 → 2 (PRACTICE)", () => {
+    const r = inferGameType({}, "도봉 지역에서 교류전 진행합니다");
+    expect(r).toBe(2);
+  });
+
+  it("연습경기 키워드 → 2 (PRACTICE)", () => {
+    const r = inferGameType({}, "팀 연습경기 초청합니다");
+    expect(r).toBe(2);
+  });
+
+  it("팀초청 키워드 → 2 (PRACTICE)", () => {
+    const r = inferGameType({}, "한팀 초청합니다 4월 12일");
+    expect(r).toBe(2);
+  });
+
+  it("교류전 키워드 + 게스트모집 키워드 동시 → 1 (GUEST 우선)", () => {
+    // "운영방식: 교류전" + "게스트 모집 인원: 6명" 혼합글 (실제 표본 #389 패턴)
+    const r = inferGameType(
+      { guestCount: 6, format: "교류전" },
+      "교류전 진행 / 게스트 모집 인원 : 6명",
+    );
+    expect(r).toBe(1);
+  });
+
+  // PICKUP 시그널
+  it("픽업게임 키워드 (GUEST 없음) → 0 (PICKUP)", () => {
+    const r = inferGameType({}, "토요일 오전 픽업게임 진행");
+    expect(r).toBe(0);
+  });
+
+  it("체육관 양도 → 0 (PICKUP)", () => {
+    const r = inferGameType({}, "체육관 양도합니다 50000원");
+    expect(r).toBe(0);
+  });
+
+  it("픽업게임 + 게스트모집 동시 → 1 (GUEST 우선)", () => {
+    // "상암체육관 픽업게임 게스트 모집" 패턴 (실제 표본 #184/186)
+    const r = inferGameType({}, "상암체육관 픽업게임 게스트 모집");
+    expect(r).toBe(1);
+  });
+
+  // 분류 불가
+  it("아무 키워드도 없으면 null", () => {
+    const r = inferGameType({}, "오늘 날씨가 좋네요");
+    expect(r).toBeNull();
+  });
+
+  it("빈 입력 → null", () => {
+    const r = inferGameType({});
+    expect(r).toBeNull();
+  });
+
+  // title 보조 입력
+  it("title 의 게스트 키워드도 GUEST 로 분류", () => {
+    const r = inferGameType({}, "본문에는 키워드 없음", "[강남] 4/12 게스트 모집");
+    expect(r).toBe(1);
+  });
+
+  // format 필드 보조 입력
+  it("format 필드의 교류전 키워드도 PRACTICE 로 분류", () => {
+    const r = inferGameType({ format: "교류전 7쿼터 보장" }, "");
+    expect(r).toBe(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// parseCafeGame 자동 채움 — gameType 필드가 결과에 포함되는지
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("parseCafeGame → gameType 자동 채움", () => {
+  it("표본 #389 (게스트 모집 + 교류전) → gameType=1", () => {
+    const content = `1. HOME 팀명 : 리턴즈
+2. 일시 : 4월 11일 토요일  오후 3시 ~ 5시
+3. 장소 : 동작구 사당동 상도중학교
+4. 운영방식 : 교류전
+5. 게스트 모집 인원 : 6명
+6. 게스트 비용 : 8,000원`;
+    const { data } = parseCafeGame(content, REF);
+    expect(data.gameType).toBe(1);
+  });
+
+  it("표본 #129 (연습경기 키워드) → gameType=2", () => {
+    const content = `[강남구] 4월 11일(토) 오후 5시 수서역 인근 연습경기
+1. HOME 팀명 : BOAT
+2. 일시 : 4/11 오후5-7시
+3. 장소 : 강남스포츠문화센터`;
+    const { data } = parseCafeGame(content, REF);
+    expect(data.gameType).toBe(2);
+  });
+
+  it("표본 #291 (양도) → gameType=0", () => {
+    const content = `1. 일시 : 04월 11일 토 오전 08:00 ~ 10:30
+2. 장소 : 부평구 십정동 229-2 (멤버스 스포츠)
+3. 양도 비용 : 50,000원
+4. 연락처 : 010-3020-0308
+체육관 양도합니다`;
+    const { data } = parseCafeGame(content, REF);
+    expect(data.gameType).toBe(0);
+  });
+
+  it("키워드/모집인원 모두 없는 본문 → gameType=null (분류 불가)", () => {
+    const content = `1. HOME 팀명 : A
+2. 일시 : 4월 9일 오후 7시
+3. 장소 : 서울 강남구`;
+    const { data } = parseCafeGame(content, REF);
+    expect(data.gameType).toBeNull();
   });
 });
