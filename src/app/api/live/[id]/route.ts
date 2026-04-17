@@ -480,6 +480,27 @@ export async function GET(
     const finalHomeScore = (match.homeScore && match.homeScore > 0) ? match.homeScore : homePlayerPts;
     const finalAwayScore = (match.awayScore && match.awayScore > 0) ? match.awayScore : awayPlayerPts;
 
+    // 임시 디버그 (쿼터별 집계 불일치 진단용) — ?debug=1 시 PBP 샘플/매핑 노출
+    const debugEnabled = req.nextUrl.searchParams.get("debug") === "1";
+    const debugPayload = debugEnabled
+      ? {
+          pbp_count: allPbps.length,
+          pbp_sample: allPbps.slice(0, 10).map((p) => ({
+            player_id: p.tournament_team_player_id != null ? String(p.tournament_team_player_id) : null,
+            team_id:   p.tournament_team_id   != null ? String(p.tournament_team_id)   : null,
+            quarter: p.quarter,
+            action_type: p.action_type,
+            action_subtype: p.action_subtype,
+            is_made: p.is_made,
+            points_scored: p.points_scored,
+          })),
+          pbp_distinct_player_ids: Array.from(new Set(allPbps.map((p) => String(p.tournament_team_player_id)))),
+          map_keys: Array.from(quarterStatsByPlayer.keys()),
+          roster_player_ids_home: (match.homeTeam?.players ?? []).map((p) => String(p.id)),
+          roster_player_ids_away: (match.awayTeam?.players ?? []).map((p) => String(p.id)),
+        }
+      : undefined;
+
     return apiSuccess({
       match: {
         id: Number(match.id),
@@ -516,6 +537,7 @@ export async function GET(
         awayPlayers,
         playByPlays: [],
         updatedAt: match.updatedAt.toISOString(),
+        ...(debugPayload ? { _debug: debugPayload } : {}),
       },
     });
   } catch (err) {
