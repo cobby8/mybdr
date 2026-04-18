@@ -11,6 +11,9 @@ import { PreferFilterProvider, usePreferFilter } from "@/contexts/prefer-filter-
 import { ToastProvider } from "@/contexts/toast-context";
 import { ProfileCompletionBanner } from "@/components/shared/profile-completion-banner";
 import { PwaInstallBanner } from "@/components/shared/pwa-install-banner";
+import { MoreTabTooltip } from "@/components/shared/more-tab-tooltip";
+// 알림 아이콘 우상단 수치 배지 (0건 숨김 / 99+ 축약)
+import { NotificationBadge } from "@/components/shared/notification-badge";
 
 /* ============================================================
  * dynamic import: 초기 번들 크기를 줄이기 위해
@@ -507,9 +510,8 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
               className="relative flex h-9 w-9 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-bright)]"
             >
               <span className="material-symbols-outlined text-xl">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[var(--color-primary)]" />
-              )}
+              {/* 숫자 배지: count<=0이면 내부에서 null 반환하여 조건부 처리 불필요 */}
+              <NotificationBadge count={unreadCount} />
             </Link>
           )}
           {/* 프로필: 로그인 시 드롭다운 메뉴, 비로그인 시 로그인 버튼 */}
@@ -574,17 +576,22 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           const isMoreTab = item.icon === "menu";
 
           if (isMoreTab) {
+            // relative 컨테이너로 감싸 MoreTabTooltip(absolute bottom-full)의
+            // positioning 기준점 역할을 하게 한다.
             return (
-              <button
-                key="more-tab"
-                onClick={() => setSlideMenuOpen(true)}
-                className="flex flex-col items-center justify-center gap-0 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
-              >
-                {/* 아이콘: 20px로 축소 (토스/카카오 스타일) */}
-                <span className="material-symbols-outlined text-xl">menu</span>
-                {/* 텍스트: 10px + semibold로 가독성 향상, 한글이라 uppercase 제거 */}
-                <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
-              </button>
+              <div key="more-tab" className="relative flex items-center justify-center">
+                {/* 최초 방문 안내 툴팁 — 내부적으로 localStorage 확인 + lg:hidden 처리 */}
+                <MoreTabTooltip />
+                <button
+                  onClick={() => setSlideMenuOpen(true)}
+                  className="flex flex-col items-center justify-center gap-0 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-secondary)]"
+                >
+                  {/* 아이콘: 20px로 축소 (토스/카카오 스타일) */}
+                  <span className="material-symbols-outlined text-xl">menu</span>
+                  {/* 텍스트: 10px + semibold로 가독성 향상, 한글이라 uppercase 제거 */}
+                  <span className="text-[10px] font-semibold tracking-wide">{item.label}</span>
+                </button>
+              </div>
             );
           }
 

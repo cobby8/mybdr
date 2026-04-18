@@ -137,6 +137,9 @@ export function ProfileAccordion({ name, region = "", teamName = "", position = 
             </Link>
           ))}
 
+          {/* 구분선: 카테고리 목록과 로그아웃을 시각적으로 분리 (PC 드롭다운과 일관성) */}
+          <div className="my-1 border-t border-[var(--color-border)]" />
+
           {/* 로그아웃 버튼: 카테고리와 동일한 레이아웃, 빨간색 */}
           <button
             onClick={() => {
