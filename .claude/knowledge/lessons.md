@@ -2,6 +2,29 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-04-18] "개발 DB"라고 믿은 `.env`가 사실 운영 DB였다 — API id 비교로 발견
+- **분류**: lesson
+- **발견자**: pm
+- **시나리오**: 어제(4/17) `scripts/backfill-games-from-cafe.ts --execute`로 "개발 DB"에 147건 백필 + 66건 game_type 재분류 실행. 스크립트의 운영 DB 차단 가드 `DEV_DB_HOST = "bwoorsgoijvlgutkrcvs"`를 통과했기에 개발 DB라고 신뢰. 오늘 운영 웹(`www.mybdr.kr/api/web/games`)과 로컬(`localhost:3001/api/web/games`) 첫 게임을 비교했더니 **id=391, scheduled_at, venue_name까지 완전 동일** → 같은 DB 확정
+- **원인**:
+  1. `.env`의 DATABASE_URL이 운영 DB였음 (프로젝트 ref가 `bwoorsgoijvlgutkrcvs`)
+  2. `.env.local`에 DATABASE_URL 오버라이드가 **없어서** 로컬 개발도 운영 DB 직접 사용
+  3. 스크립트 가드의 `DEV_DB_HOST`가 실제로는 운영 DB ref라 가드가 무의미했음
+  4. CLAUDE.md에는 "개발 DB: Supabase 개발 전용 (운영 분리)"라 적혀있지만 **실제 구조는 미분리** — 문서와 현실 괴리
+- **교훈**:
+  1. **"가드 통과 = 안전"이 아니다** — 가드 식별자가 맞는 DB를 가리키는지 주기적 검증 필요
+  2. **DB 실체 확인은 API id 비교가 가장 확실** — `curl 운영/api` vs `curl 로컬/api` 응답 id가 같으면 같은 DB
+  3. 비파괴 스크립트(빈 컬럼만 채움, DELETE 없음)라 다행히 사고는 아니었지만, **schema 변경(prisma db push)이었다면 운영 장애 즉시 발생**
+  4. CLAUDE.md 정책과 실제 구조가 다르면 **실제에 맞게 문서를 바꾸거나 구조를 문서에 맞추거나** 둘 중 하나 반드시 선택
+- **결정**: 수빈님이 당분간 운영 DB 그대로 연결해서 작업하기로 결정(2026-04-18) — decisions.md 참조
+- **향후 주의 (운영 DB 직접 연결 중, 2026-04-18 수빈 결정)**:
+  - 마이그레이션/DELETE/파괴적 UPDATE는 **허용하되 PM이 반드시 사전 경고 + 승인 요청**
+  - 경고 프로토콜은 decisions.md "운영 DB 직접 연결 유지" 참조
+  - 대량 UPDATE(20건+)는 dry-run 필수
+  - 기능 안정화 시점에 개발 DB 분리 예정
+- **참조**: decisions.md "운영 DB 직접 연결 유지" / errors.md "개발 DB로 믿고 운영 DB에 백필"
+- **참조횟수**: 0
+
 ### [2026-04-17] API 미들웨어 변환을 잊고 컴포넌트 인터페이스를 거꾸로 바꿈 — curl 먼저 확인 (재발 4회)
 - **분류**: lesson
 - **시나리오**: `/games` 카드에 시각/장소가 안 뜸. Explore가 "API는 camelCase 반환, 컴포넌트는 snake_case 기대 → 불일치" 진단 → 컴포넌트를 camelCase로 통일(A1 커밋 83801f6) → **모든 필드 undefined** → 데이터 더 안 뜸. 사용자가 "내용은 잘 들어가는데 정작 바뀐 제목엔 없다"라고 발견.

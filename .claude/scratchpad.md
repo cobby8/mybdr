@@ -1,16 +1,48 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: (다음 작업 대기 중)
-- **상태**: 대기
-- **현재 담당**: pm
+- **요청**: 카페 크롤링 텍스트의 HTML 엔티티(&amp; &#39; &nbsp; 등) 디코드 — 목록/상세 UI 렌더링 시점에만
+- **상태**: 구현 완료 → tester 대기
+- **현재 담당**: developer → tester
 
-## 전체 프로젝트 현황 (2026-04-17 마감)
+### 구현 기록
+
+📝 구현한 기능: `/games` 목록·상세 페이지에서 다음카페 크롤링 텍스트의 HTML 엔티티를 렌더링 시점에 디코드. DB 원본은 보존하고 표시만 변환.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/lib/utils/decode-html.ts | `decodeHtmlEntities` 유틸 신규 — 명명 엔티티(amp/lt/gt/quot/apos/nbsp) + 숫자/16진수 참조(&#123; &#x7B;) 지원, null/undefined/빈 문자열 통과, 외부 의존 0 | 신규 |
+| src/app/(web)/games/_components/games-content.tsx | GameCard 3곳 — 제목(h3), 장소(location 변수), 작성자 닉네임(author_nickname) 디코드 적용 | 수정 |
+| src/app/(web)/games/[id]/page.tsx | `generateMetadata`의 title/description/OG/Twitter 전부 디코드 + 본문 브레드크럼·h1 제목·작성자 아바타/이름·설명 디코드 | 수정 |
+
+✅ 검증 결과:
+- `npx tsc --noEmit`: 에러 0건 통과
+- decode 케이스 12/12 PASS:
+  - `팀&amp;스포츠` → `팀&스포츠`
+  - `It&#39;s ok` → `It's ok`
+  - `&quot;점프&quot;` → `"점프"`
+  - `A&nbsp;B` → `A\u00A0B`
+  - `&lt;팀&gt;` → `<팀>`
+  - `&#x27;hex&#x27;` → `'hex'` (16진수 참조)
+  - 혼합/알수없는 엔티티/null/undefined/빈 문자열/일반텍스트 모두 통과
+
+💡 tester 참고:
+- 테스트 방법: `/games` 목록에서 카페 원문에 엔티티가 섞인 경기 카드 확인 → 제목/장소/작성자 3곳에 `&amp;` 등이 안 보여야 정상. 상세 페이지(`/games/<id>`)도 동일 + 브라우저 탭 title 확인.
+- 정상 동작: "팀&amp;스포츠" → "팀&스포츠" / "It&#39;s ok" → "It's ok" / 엔티티 없는 텍스트는 변화 없음
+- 주의할 입력: DB에 엔티티가 섞여 있어야 효과가 보임. metadata.cafe_* 출처 경기 위주로 확인.
+
+⚠️ reviewer 참고:
+- `decodeHtmlEntities`는 순수 함수 + 외부 의존 0 (he/entities 라이브러리 대신 정규식 기반)
+- 알 수 없는 엔티티(`&foo;`)는 **원문 유지** 정책 — 안전한 폴백
+- DB 값은 건드리지 않음. 렌더링 시점에만 변환 → 중복 디코드/인코딩 위험 없음
+- SEO 메타데이터(generateMetadata)도 디코드 적용 — SNS/검색엔진 노출 텍스트 일관성
+
+## 전체 프로젝트 현황 (2026-04-18 시작)
 | 항목 | 값 |
 |------|-----|
-| 현재 브랜치 | subin (origin/subin = e9d0879, 동기화 완료) |
-| main / dev | 어제 main 기준 / dev에 PR #38 머지된 상태 |
-| 진행 중 PR | **#39** (subin → dev, MERGEABLE, 8커밋, +1605 -18, 17파일) |
+| 현재 브랜치 | subin (origin/subin = b39561b, 동기화 완료) |
+| main / dev | dev 머지 직전 (subin이 dev보다 9커밋 앞섬, PR #39 진행 중) |
+| 진행 중 PR | **#39** (subin → dev) — dev 머지 반영 후 재확인 필요 |
 | 미푸시 커밋 | 0개 |
 
 ## 오늘 핵심 성과 (2026-04-17)
@@ -40,6 +72,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-18 | developer | HTML 엔티티 디코드 유틸 신규 + games 목록·상세 UI 적용 (3파일) | ✅ tsc + decode 12/12 |
+| 04-18 | pm | 운영/로컬 API id 비교로 `.env`가 운영 DB 확인 → 수빈 "운영 DB 직접 연결 유지" 결정 → lessons+decisions 기록 | ✅ |
+| 04-18 | pm | 오늘 시작 점검 + dev → subin 머지 (live 7커밋) + tsc 통과 + push 8커밋 | ✅ |
 | 04-17 | pm | knowledge 갱신 + 임시 스크립트 정리 + scratchpad 100줄 압축 | ✅ |
 | 04-17 | pm | PR #39 제목·본문 갱신 (`/games` 데이터 정상화 + 파서 + 로고) + push 5커밋 | ✅ |
 | 04-17 | pm | game_type 자동 분류 백필 — 66건 UPDATE (PRACTICE 41 → 66, GUEST 100 → 153) | ✅ |
@@ -48,5 +83,3 @@
 | 04-17 | pm | 개발DB 백필 147건 UPDATE (scheduled_at 93/venue_name 104/city 26/district 38/fee 85) | ✅ |
 | 04-17 | developer | 다음카페 정규식 파서 + 백필 dry-run + A4 사진 5초 타임아웃 폴백 (병렬) | ✅ vitest 40 + tsc |
 | 04-17 | pm | PR #39 생성 (subin → dev) — 참가팀 로고 PNG 8종 이관 + .gitignore + 메타 | ✅ |
-| 04-17 | pm | 오늘 시작 점검 — dev fast-forward 머지(20커밋) + 참가팀 로고 PNG 8종 이관 | ✅ |
-| 04-17 | pm | 토큰 절약 효율화 — 글로벌 CLAUDE.md + 프로젝트 CLAUDE.md 슬림화 + 스크립트 템플릿 | ✅ |
