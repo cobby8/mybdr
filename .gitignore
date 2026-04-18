@@ -59,3 +59,4 @@ local_dump.sql
 /참가팀_로고모음/
 tmp/
 !tmp/.gitkeep
+test-results/
