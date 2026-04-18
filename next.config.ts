@@ -85,6 +85,35 @@ const nextConfig: NextConfig = {
       static: 300,  // 정적 페이지 5분 캐시 (기본 180)
     },
   },
+  // 대회 상세 고아 라우트 → 메인 탭 경로로 영구 리다이렉트 (308)
+  // 왜 308인가: GET 메서드를 그대로 유지하는 영구 리다이렉트. 301과 달리 메서드 변환 없음.
+  // 탭 통합 매핑:
+  //   - standings → bracket (순위표 LeagueStandings/GroupStandings가 bracket 탭 안에서 렌더링됨)
+  //   - teams → teams (참가팀 탭 독립)
+  async redirects() {
+    return [
+      {
+        source: "/tournaments/:id/bracket",
+        destination: "/tournaments/:id?tab=bracket",
+        permanent: true, // 308
+      },
+      {
+        source: "/tournaments/:id/schedule",
+        destination: "/tournaments/:id?tab=schedule",
+        permanent: true,
+      },
+      {
+        source: "/tournaments/:id/standings",
+        destination: "/tournaments/:id?tab=bracket",
+        permanent: true,
+      },
+      {
+        source: "/tournaments/:id/teams",
+        destination: "/tournaments/:id?tab=teams",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

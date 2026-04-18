@@ -57,13 +57,29 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 // -- 메인 페이지 --
-export default async function TournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+// searchParams: ?tab=bracket|schedule|teams|overview 지원 (고아 라우트 /bracket 등에서 redirect 유입)
+export default async function TournamentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const { tab } = await searchParams;
 
   // UUID 형식 검증
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
     return notFound();
   }
+
+  // ?tab= 쿼리 검증: 허용된 탭 키만 통과, 그 외(없음/오타/임의값)는 overview로 폴백
+  // 이렇게 서버에서 화이트리스트로 거르면 TournamentTabs가 안전하게 initialTab 사용 가능
+  const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams"] as const;
+  type AllowedTab = (typeof ALLOWED_TABS)[number];
+  const initialTab: AllowedTab = (ALLOWED_TABS as readonly string[]).includes(tab ?? "")
+    ? (tab as AllowedTab)
+    : "overview";
 
   // ========================================
   // 1) 대회 기본 정보 조회 (is_public 포함 — 비공개 가드용)
@@ -327,6 +343,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
           <TournamentTabs
             tournamentId={id}
             overviewContent={overviewContent}
+            initialTab={initialTab}
           />
         </div>
 
