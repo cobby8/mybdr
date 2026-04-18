@@ -18,6 +18,9 @@ import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { formatRelativeDateTime } from "@/lib/utils/format-date";
+// [2026-04-18 추가] 카페 크롤링 텍스트의 HTML 엔티티(&amp; &#39; &nbsp; 등)를
+// 렌더링 시점에만 디코드. DB 원본은 그대로 유지.
+import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 import { TYPE_BADGE, SKILL_BADGE } from "../_constants/game-badges";
 
 // batch API fetcher
@@ -109,7 +112,8 @@ function GameCard({ game, photoUrl }: { game: GameFromApi; photoUrl?: string | n
   const cur = game.current_participants ?? 0;
   const max = game.max_participants ?? 0;
   const pct = max > 0 ? Math.min((cur / max) * 100, 100) : 0;
-  const location = game.venue_name ?? game.city ?? "";
+  // [2026-04-18] 장소 표시 디코드 — venue_name에 &amp; 등이 섞여 들어오는 케이스 방지
+  const location = decodeHtmlEntities(game.venue_name ?? game.city ?? "");
   const statusBadge = getStatusBadge(game);
   const isFullyBooked = statusBadge?.text === "만석";
   const fee = game.fee_per_person && Number(game.fee_per_person) > 0
@@ -159,7 +163,8 @@ function GameCard({ game, photoUrl }: { game: GameFromApi; photoUrl?: string | n
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <h3 className="text-sm font-bold text-[var(--color-text-primary)] line-clamp-1 flex-1">
-                {game.title}
+                {/* [2026-04-18] 제목 디코드 — 카페 원문의 엔티티 표시 방지 */}
+                {decodeHtmlEntities(game.title)}
               </h3>
               {statusBadge && (
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-bold ${statusBadge.className}`}>
@@ -172,7 +177,8 @@ function GameCard({ game, photoUrl }: { game: GameFromApi; photoUrl?: string | n
               {game.author_nickname && (
                 <span className="flex items-center gap-0.5 truncate">
                   <span className="material-symbols-outlined text-xs">person</span>
-                  {game.author_nickname}
+                  {/* [2026-04-18] 작성자 닉네임 디코드 — 카페 닉에 간혹 엔티티 포함 */}
+                  {decodeHtmlEntities(game.author_nickname)}
                 </span>
               )}
               {location && (
