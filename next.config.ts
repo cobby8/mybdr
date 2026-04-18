@@ -121,6 +121,13 @@ const nextConfig: NextConfig = {
         destination: "/tournaments/:id?tab=teams",
         permanent: true,
       },
+      // 업그레이드 안내 페이지 통합: 구 /upgrade → /pricing (308, 영구)
+      // 왜 308: GET 유지. /pricing이 결제 플로우 포함 최신 페이지이므로 /upgrade는 제거하고 일원화
+      {
+        source: "/upgrade",
+        destination: "/pricing",
+        permanent: true,
+      },
     ];
   },
   async headers() {
