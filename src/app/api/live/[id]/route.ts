@@ -93,12 +93,22 @@ export async function GET(
     // 쿼터별 상세 스탯 존재 여부 — PBP 가 1건이라도 있으면 true.
     const hasQuarterEventDetail = allPbps.length > 0;
 
-    // 2026-04-18: PBP 에 등장한 선수 ID 집합 — DNP 완화 + MIN fallback 판정용.
+    // 2026-04-18: PBP 에 등장한 선수 ID 집합 — DNP 완화 판정용.
     // 본인 액션(tournament_team_player_id) 또는 교체 투입(sub_in_player_id) 으로 코트에 나타났던 선수 포함.
     const playedPlayerIds = new Set<number>();
     for (const p of allPbps) {
       if (p.tournament_team_player_id) playedPlayerIds.add(Number(p.tournament_team_player_id));
       if (p.sub_in_player_id) playedPlayerIds.add(Number(p.sub_in_player_id));
+    }
+
+    // 2026-04-18: 선수별 PBP 점수 합계 — 정합성 보정용.
+    // match_player_stats.points (앱 집계, ground truth) 와 PBP 기반 합이 다르면 쿼터 pts 신뢰 불가.
+    const playerPbpPtsSum = new Map<number, number>();
+    for (const p of allPbps) {
+      if (p.is_made !== true || !p.points_scored || p.points_scored <= 0) continue;
+      const pid = Number(p.tournament_team_player_id);
+      if (!pid) continue;
+      playerPbpPtsSum.set(pid, (playerPbpPtsSum.get(pid) ?? 0) + p.points_scored);
     }
 
     // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
@@ -402,23 +412,8 @@ export async function GET(
           isStarter: stat.isStarter ?? player.isStarter ?? false,
         };
 
-        // 2026-04-18: MIN fallback — 앱이 minutes_played 를 0 으로 보낸 상태에서도 PBP 기반 대략 추정.
-        // starter 이고 min_s=0 인데 PBP 에 등장한 경우: Q 시작 - 최근 PBP clock 차이 를 MIN 으로 사용.
-        // 정확하진 않지만 "0:00" 보다 의미 있음 (현장 라이브 페이지 가시성 우선).
+        // 2026-04-18: MIN fallback 은 롤백 (DNP 조건까지만 조정, MIN fake 주입 안 함).
         const playerIdNum = Number(player.id);
-        if (
-          row.min_seconds === 0 &&
-          row.isStarter &&
-          playedPlayerIds.has(playerIdNum) &&
-          latestClockSeconds !== null
-        ) {
-          const quarterStartClock = 10 * 60; // 기본 10분 가정 (tournament gameRules 에서 정밀 값 가져오려면 추가 조회 필요)
-          const estimated = Math.max(0, quarterStartClock - latestClockSeconds);
-          if (estimated > 0) {
-            row.min_seconds = estimated;
-            row.min = Math.round(estimated / 60);
-          }
-        }
 
         row.dnp = isDnpRow(row);
         // 2026-04-18: DNP 완화 — is_starter 또는 PBP 에 등장한 선수는 DNP 표시 해제 (출전선수를 "DNP"→"00:00" 로)
@@ -456,6 +451,22 @@ export async function GET(
             }
           } catch {}
         }
+
+        // 2026-04-18: 스탯 정합성 보정 (Fix D).
+        // match_player_stats.points 를 ground truth 로 두고, 선수별 PBP pts 합과 다르면
+        // 쿼터별 득점/슛 관련 스탯 0 처리 (stale PBP 로 인한 Q필터 vs 전체 불일치 방지).
+        // MIN / plus_minus 는 quarterStatsJson 소스라 유지.
+        const expectedPts = stat.points ?? 0;
+        const pbpPts = playerPbpPtsSum.get(playerIdNum) ?? 0;
+        if (expectedPts !== pbpPts && row.quarter_stats) {
+          for (const qv of Object.values(row.quarter_stats)) {
+            qv.pts = 0;
+            qv.fgm = 0; qv.fga = 0;
+            qv.tpm = 0; qv.tpa = 0;
+            qv.ftm = 0; qv.fta = 0;
+          }
+        }
+
         return row;
       };
 
@@ -517,14 +528,12 @@ export async function GET(
 
     // 진행 중인 쿼터 계산 — 가장 최근 PBP 이벤트의 quarter
     // 라이브가 아니거나 PBP가 없으면 null. 프런트에서 isLive && current_quarter 조건으로 표시 분기.
-    // 2026-04-18: game_clock_seconds 도 가져와서 MIN fallback 계산에 사용.
     const latestPbp = await prisma.play_by_plays.findFirst({
       where: { tournament_match_id: BigInt(matchId) },
       orderBy: [{ created_at: "desc" }],
-      select: { quarter: true, game_clock_seconds: true },
+      select: { quarter: true },
     });
     const currentQuarter = latestPbp?.quarter ?? null;
-    const latestClockSeconds = latestPbp?.game_clock_seconds ?? null;
 
     // 경기장명: tournament_matches.venue_name 우선 → 없으면 tournament.venue_name fallback
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
