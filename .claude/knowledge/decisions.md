@@ -2,6 +2,53 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-19] 다음카페 자동 동기화 아키텍처 + 조건부 진행 결정 (9가드 전제)
+- **분류**: decision
+- **결정자**: 수빈 (사용자) + pm (조건부 승인 예정)
+- **배경**: 다음카페(dongarry) 3개 게시판(IVHA 픽업 / Dilr 게스트 / MptT 연습) 신규 글을 30분 주기로 `/games`에 자동 반영하는 시스템이 필요. 외부 크롤러 112건 주입 후 2026-04-09에 멈춘 상태. `cafe_posts` 테이블은 존재하나 0건.
+- **기술 결정**:
+  1. **수집 방식**: HTTP fetch(모바일 목록) + Playwright(본문, 로그인 쿠키 기반) 하이브리드
+  2. **스케줄**: Vercel Cron 30분(목록) + GH Actions 30분~2시간(본문 워커)
+  3. **데이터 모델**: `cafe_posts` 재활용 + `games.metadata` JSON 확장만. **schema.prisma 변경 없음**
+  4. **중복 방지 키**: `cafe_posts.@@unique(cafe_code, board_id, dataid)` + `games.metadata.cafe_dataid`
+  5. **파서**: 기존 `src/lib/parsers/cafe-game-parser.ts` (vitest 59/59) **재사용, 수정 금지**
+- **파일 구조** (`src/lib/cafe-sync/` 신규 격리):
+  - `board-map.ts`(매핑 상수) / `fetcher.ts`(목록 HTTP) / `article-fetcher.ts`(본문 HTTP+Playwright) / `upsert.ts`(cafe_posts + games 동기화)
+  - `scripts/sync-cafe.ts` (수동 실행, dry-run 기본)
+  - `src/app/api/cron/cafe-sync/route.ts` (Phase 3)
+  - `.github/workflows/cafe-sync-deep.yml` (Phase 3 Playwright 워커)
+- **대안 기각**:
+  - Vercel 단일 실행: Playwright 불가 → 본문 수집 불가
+  - 새 테이블 신설: 이미 `cafe_posts` 있음
+  - 공식 RSS/Open API: apis.daum.net ECONNREFUSED, 미제공 확정
+  - 기존 외부 크롤러 복원: 소스 위치 불명 + 4/9 이후 멈춤 원인 불명 → **자연 소멸 처리**
+- **법적 리스크 평가** (2026-04-19 general-purpose 리서치):
+
+| 영역 | 법적 위반 | 실제 차단 | 핵심 근거 |
+|------|----------|----------|----------|
+| 약관 위반 | 낮음 | 중간 | 카카오 약관 크롤링 명시 없음, 포괄조항 "비정상적 방법"만. 회원 본인 범위는 인정 가능성 낮음 |
+| 저작권 | 중간 | 낮음 | 본문 전문 UI 노출은 위험. **요약+원본링크는 공정이용 범위 근접** (저작권법 제28·35조의5) |
+| 업무방해 | 매우낮음 | 매우낮음 | 야놀자 판례(대법원 2021도1533): **1,594만 회도 무죄**. MyBDR 일 100회 미만 |
+| 개인정보 | 중간 | 낮음 | 닉네임=조건부 개인정보 / 본문 내 전화·계좌 **마스킹 필수** |
+| 정보통신망법(제48조) | 낮음 | 낮음 | 수빈 본인 계정 쿠키 = 정당한 접근권한 |
+| 부정경쟁방지법 | 낮음 | 낮음 | 농구 플랫폼 vs 동아리 카페 = 경쟁 관계 X (잡코리아 vs 사람인 판례 적용 안됨) |
+
+- **9가드 (Phase 1 진입 전제 조건)**:
+  1. 요청 간격 3초 유지
+  2. 새벽 1~6시(KST) 회피 — Cron 시간 설정 시 UTC 환산 주의
+  3. 수빈 본인 계정 쿠키만 사용 (다중 계정 금지)
+  4. **본문 원문은 `cafe_posts.content` DB 저장만, UI는 요약(100~200자) + 원본 링크**
+  5. 전화번호·계좌번호 정규식 마스킹 유틸 Phase 2에 추가 (`src/lib/security/mask-personal-info.ts`)
+  6. 작성자 삭제 요청 시 즉시 DB 삭제 프로세스 (Phase 3 admin UI)
+  7. 일반 모바일 브라우저 UA 유지 (봇 명시 X — 차단 위험 > 투명성 이익)
+  8. 403/429 3회 연속 시 해당 주기 스킵 + 알림
+  9. 카페/카카오 중단 요청 시 즉시 중단 (cs.daum.net 대응 매뉴얼화)
+- **재검토 트리거**: 카카오 공식 중단 서신 / 차단 24h 내 3회 이상 / 본문 민감정보 빈도 증가 / 경쟁 관계 확장
+- **운영 가드**: dry-run 기본 + UA 명시 + 3초 sleep + 운영 DB 직접 연결 경고 프로토콜 적용
+- **Phase 소요**: P1(2~3h) + P2(4~6h) + P3(6~8h) = **총 12~17h**
+- **참조**: lessons.md "다음카페 정규식 파서 95%", errors.md (없음), Sources: 카카오 이용약관 / robots.txt / 대법원 2021도1533 / 개인정보보호위 2024.2 가이드
+- **승격됨**: CLAUDE.md [미승격, 추후 Phase 2~3 진입 시 검토]
+
 ### [2026-04-18] 운영 DB 직접 연결 유지 + 마이그레이션도 조건부 허용 (개발/운영 DB 분리 유보)
 - **분류**: decision
 - **결정자**: 수빈 (사용자)
