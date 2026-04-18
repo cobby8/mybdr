@@ -101,15 +101,6 @@ export async function GET(
       if (p.sub_in_player_id) playedPlayerIds.add(Number(p.sub_in_player_id));
     }
 
-    // 2026-04-18: 선수별 PBP 점수 합계 — 정합성 보정용.
-    // match_player_stats.points (앱 집계, ground truth) 와 PBP 기반 합이 다르면 쿼터 pts 신뢰 불가.
-    const playerPbpPtsSum = new Map<number, number>();
-    for (const p of allPbps) {
-      if (p.is_made !== true || !p.points_scored || p.points_scored <= 0) continue;
-      const pid = Number(p.tournament_team_player_id);
-      if (!pid) continue;
-      playerPbpPtsSum.set(pid, (playerPbpPtsSum.get(pid) ?? 0) + p.points_scored);
-    }
 
     // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
     // min/min_seconds/plus_minus 는 PBP 만으로 산출 불가 → 0 고정. quarterStatsJson 에서 나중에 주입.
@@ -450,21 +441,6 @@ export async function GET(
               row.quarter_stats[qKey].plus_minus = qv.pm ?? 0;
             }
           } catch {}
-        }
-
-        // 2026-04-18: 스탯 정합성 보정 (Fix D).
-        // match_player_stats.points 를 ground truth 로 두고, 선수별 PBP pts 합과 다르면
-        // 쿼터별 득점/슛 관련 스탯 0 처리 (stale PBP 로 인한 Q필터 vs 전체 불일치 방지).
-        // MIN / plus_minus 는 quarterStatsJson 소스라 유지.
-        const expectedPts = stat.points ?? 0;
-        const pbpPts = playerPbpPtsSum.get(playerIdNum) ?? 0;
-        if (expectedPts !== pbpPts && row.quarter_stats) {
-          for (const qv of Object.values(row.quarter_stats)) {
-            qv.pts = 0;
-            qv.fgm = 0; qv.fga = 0;
-            qv.tpm = 0; qv.tpa = 0;
-            qv.ftm = 0; qv.fta = 0;
-          }
         }
 
         return row;
