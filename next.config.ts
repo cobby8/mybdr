@@ -92,6 +92,15 @@ const nextConfig: NextConfig = {
   //   - teams → teams (참가팀 탭 독립)
   async redirects() {
     return [
+      // 시리즈 URL 통합: 구 /tournament-series → /series (308, 영구)
+      // 왜 308: GET 메서드 유지, SEO 신호 이전. slug 기반 허브(/series/[slug])와 일관
+      // 왜 목록만 리다이렉트: 구 페이지는 /tournament-series/${id}(숫자) 링크였고
+      //   신규 허브는 /series/[slug](문자) 구조라 자동 매핑 불가 → 목록으로만 통합
+      {
+        source: "/tournament-series",
+        destination: "/series",
+        permanent: true,
+      },
       {
         source: "/tournaments/:id/bracket",
         destination: "/tournaments/:id?tab=bracket",
