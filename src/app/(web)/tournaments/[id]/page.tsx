@@ -73,6 +73,10 @@ export default async function TournamentDetailPage({
     return notFound();
   }
 
+  // 세션 1회 로드 — 비공개 가드와 "내 신청 건수" 배지에 공통 사용 (중복 호출 방지)
+  // 비로그인이면 session=null. 비공개 가드는 아래 L127~에서 session 재사용
+  const session = await getWebSession();
+
   // ?tab= 쿼리 검증: 허용된 탭 키만 통과, 그 외(없음/오타/임의값)는 overview로 폴백
   // 이렇게 서버에서 화이트리스트로 거르면 TournamentTabs가 안전하게 initialTab 사용 가능
   const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams"] as const;
@@ -123,12 +127,26 @@ export default async function TournamentDetailPage({
   if (!tournament) return notFound();
 
   // 비공개 대회: 관계자(organizer/admin member/super_admin)만 접근, 아니면 존재 숨김(404)
+  // session은 상단에서 1회 로드한 값을 재사용 — 기존 가드 동작 동일 (비로그인/비관계자 → 404)
   if (tournament.is_public === false) {
-    const session = await getWebSession();
     if (!session) return notFound();
     const userId = BigInt(session.sub);
     const insider = await isTournamentInsider(userId, id, session);
     if (!insider) return notFound();
+  }
+
+  // ===== 내 신청 건수 조회 (배지 표시용) =====
+  // 이 유저가 이 대회에 등록한 팀 중 활성 상태(pending/approved/waiting)만 카운트.
+  // rejected/cancelled 등은 "신청 완료"로 보지 않음. 비로그인은 0 (쿼리 스킵).
+  let myApplicationsCount = 0;
+  if (session) {
+    myApplicationsCount = await prisma.tournamentTeam.count({
+      where: {
+        tournamentId: id,
+        registered_by_id: BigInt(session.sub),
+        status: { in: ["pending", "approved", "waiting"] },
+      },
+    });
   }
 
   // ========================================
@@ -334,6 +352,7 @@ export default async function TournamentDetailPage({
         isRegistrationOpen={isRegistrationOpen}
         tournamentId={id}
         contactPhone={(tournament.settings as Record<string, unknown>)?.contact_phone as string ?? null}
+        myApplicationsCount={myApplicationsCount}
       />
 
       {/* 1열 레이아웃: 탭 콘텐츠 전체 너비 (사이드바 제거됨) */}
