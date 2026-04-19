@@ -275,7 +275,10 @@
       "Bash(gh --version)",
       "Bash(gh auth *)",
       "Bash(git merge-tree *)",
-      "Bash(awk 'NR==1 || /^\\\\| 04-1[789] \\\\|/' .claude/scratchpad.md)"
+      "Bash(awk 'NR==1 || /^\\\\| 04-1[789] \\\\|/' .claude/scratchpad.md)",
+      "Bash(git pull *)",
+      "Bash(cp .claude/scratchpad.md .claude/backup-2026-04-14/scratchpad-pre-cleanup-921lines.md)",
+      "Bash(mkdir -p .claude/backup-2026-04-14)"
     ]
   }
 }
