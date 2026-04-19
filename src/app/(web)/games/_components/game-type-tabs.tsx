@@ -81,10 +81,13 @@ export function GameTypeTabs() {
             onClick={() => handleClick(tab.value)}
             aria-pressed={isActive}
             // flex-shrink-0 + whitespace-nowrap: 모바일 가로 스크롤에서 한 줄 유지
-            className="flex-shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm font-bold whitespace-nowrap transition-colors"
+            // 비활성 탭 hover: Tailwind className으로 처리 (inline bg가 transparent면 hover: 가 덮어쓸 수 있도록 activeBg는 isActive일 때만 inline 주입)
+            className={`flex-shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-sm font-bold whitespace-nowrap transition-colors${
+              isActive ? "" : " bg-transparent hover:bg-[var(--color-surface-bright)]"
+            }`}
             style={{
-              // 활성/비활성 배경·글자색 동시 제어 (hover는 별도 CSS가 어려워 inline에서 onMouseEnter/Leave 대신 Tailwind 유지가 어려움 → 간단하게 둠)
-              backgroundColor: isActive ? activeBg : "transparent",
+              // 활성 시에만 inline backgroundColor 주입 — 비활성은 className의 hover가 동작해야 하므로 inline에서 bg를 빼야 함 (inline이 hover: 보다 우선)
+              ...(isActive && { backgroundColor: activeBg }),
               color: isActive ? activeColor : "var(--color-text-secondary)",
               borderWidth: isActive ? 0 : 1,
               borderStyle: "solid",
