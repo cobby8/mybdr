@@ -93,6 +93,7 @@ IS_MEMBER: 'false', DID_LOGIN: 'false'
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-19 | pm | **W1 완료** — Q9/Q10/Q11 커밋(8efc045/219088e/a236634) + 통합 PR #45 생성(subin→dev) + 검증 6단계(tsc/redirect 6건/HTTP 200 10건) | ✅ |
 | 04-19 | developer | 다음카페 Phase 2a: 마스킹 유틸 + article-fetcher + --with-body (vitest 19/19) | ✅ 코드 완성 / 쿠키 갱신 대기 (403) |
 | 04-19 | pm | PR #39 정리: Coworker 4파일 3커밋 + Vercel 복구 + 제목/본문 갱신 (24커밋, +3842/-626, 51파일) | ✅ mergeable CLEAN |
 | 04-19 | tester | MoreTabTooltip Playwright E2E 6/6 PASS (모바일 Pixel 7 + 데스크톱 1440x900) | ✅ |
@@ -102,4 +103,3 @@ IS_MEMBER: 'false', DID_LOGIN: 'false'
 | 04-18 | developer | MoreTabTooltip + NotificationBadge + 팀장 CTA + 대회 신청 배지 (Coworker, 내가 커밋 수습) | ✅ tsc + Vercel |
 | 04-18 | developer | W1 Day 1 Q1 — 고아 라우트 4개 308 redirect + 탭 쿼리 초기화 (7파일, Coworker) | ✅ tsc |
 | 04-18 | planner-architect | 다음카페 3개 게시판 동기화 계획 수립 (Phase 1/2/3) | ✅ decisions 승격 |
-| 04-18 | pm | `.env`=운영 DB 확인, 직접 연결 유지 결정 | ✅ |
