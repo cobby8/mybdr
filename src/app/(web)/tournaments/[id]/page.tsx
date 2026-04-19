@@ -12,6 +12,9 @@ import { Breadcrumb } from "@/components/shared/breadcrumb";
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
 import { TournamentTabs } from "./_components/tournament-tabs";
 
+// 데스크톱(lg+) 우측 sticky 신청 카드 — M2
+import { RegistrationStickyCard } from "@/components/tournaments/registration-sticky-card";
+
 // 비공개 대회 가드 — 관계자(organizer/admin member/super_admin)만 접근
 import { getWebSession } from "@/lib/auth/web-session";
 import { isTournamentInsider } from "@/lib/auth/tournament-auth";
@@ -355,27 +358,54 @@ export default async function TournamentDetailPage({
         myApplicationsCount={myApplicationsCount}
       />
 
-      {/* 1열 레이아웃: 탭 콘텐츠 전체 너비 (사이드바 제거됨) */}
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div>
+      {/*
+        데스크톱(lg+) 2열 레이아웃:
+          - 좌: 탭 콘텐츠(기존 그대로)
+          - 우: sticky 신청 카드(320px 고정)
+        모바일(< lg)은 grid가 풀려 단일 칼럼이 되고, <aside>는 hidden으로 숨어
+        하단 플로팅 CTA(L387~)만 노출된다. 기존 단일 칼럼 레이아웃은 100% 유지.
+      */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:grid lg:grid-cols-[1fr_320px] lg:gap-6">
+        {/* min-w-0: grid 자식이 내부 콘텐츠(예: 스크롤 테이블)로 인해
+            최소폭이 튕기며 우측 aside를 밀어내지 않도록 축소 허용. 필수. */}
+        <main className="min-w-0">
           {/* 탭: 개요는 서버 렌더링, 나머지는 클라이언트 lazy loading */}
           <TournamentTabs
             tournamentId={id}
             overviewContent={overviewContent}
             initialTab={initialTab}
           />
-        </div>
 
-        {/* 다음 액션 유도: 다른 대회 탐색 */}
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/tournaments"
-            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
-          >
-            <span className="material-symbols-outlined text-base">emoji_events</span>
-            다른 대회 보기
-          </Link>
-        </div>
+          {/* 다음 액션 유도: 다른 대회 탐색 */}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/tournaments"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-elevated)]"
+            >
+              <span className="material-symbols-outlined text-base">emoji_events</span>
+              다른 대회 보기
+            </Link>
+          </div>
+        </main>
+
+        {/* 데스크톱(lg+) 전용 우측 영역: sticky 신청 카드.
+            top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음. */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-20">
+            <RegistrationStickyCard
+              tournamentId={tournament.id}
+              registrationEndAt={tournament.registration_end_at}
+              status={tournament.status ?? ""}
+              entryFee={tournament.entry_fee ? Number(tournament.entry_fee) : null}
+              divFees={tournament.div_fees as Record<string, number> | null}
+              divCaps={tournament.div_caps as Record<string, number> | null}
+              divisionCounts={divisionCounts}
+              isRegistrationOpen={isRegistrationOpen}
+              myApplicationsCount={myApplicationsCount}
+              isLoggedIn={!!session}
+            />
+          </div>
+        </aside>
       </div>
 
       {/* ========================================
