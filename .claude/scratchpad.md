@@ -48,7 +48,7 @@
 ## 전체 프로젝트 현황
 | 항목 | 값 |
 |------|-----|
-| 현재 브랜치 | subin (origin/subin = 55d78c3) |
+| 현재 브랜치 | subin (origin/subin = 3cd61c4) |
 | dev 상태 | 75b653b (PR #39 머지됨, 04-19) |
 | 미푸시 커밋 | 0 |
 | 진행 중 PR | 없음 (다음 PR은 Phase 2b 완료 후) |
@@ -73,6 +73,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-19 | pm | 오늘 세션 시작: 환경 체크 + Phase 2a 재검증(IVHA 본문 200×2/2) + 로컬 변경 커밋·푸시 | ✅ 3cd61c4 push |
 | 04-19 | pm+developer | Phase 2a 완료: Playwright `cafe-login.ts` + storageState 쿠키 로드 → 본문 200 × 2/2 + parseCafeGame 2/2 + 마스킹 OK | ✅ 55d78c3 push |
 | 04-19 | developer | Phase 2a 코드: mask-personal-info + article-fetcher + sync-cafe --with-body (vitest 19/19, 쿠키 미수 403) | ✅ 2890224 push |
 | 04-19 | pm | PR #39 **dev 머지 완료** (squash, 75b653b) + 제목/본문 갱신 | ✅ merged |
