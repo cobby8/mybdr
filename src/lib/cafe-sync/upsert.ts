@@ -30,6 +30,9 @@ import type { PrismaClient, Prisma } from "@prisma/client";
 import type { CafeBoard } from "./board-map";
 import { articleUrl } from "./board-map";
 import type { ParsedCafeGame } from "@/lib/parsers/cafe-game-parser";
+// Phase 2b Step 4 — parseCafeGame 실패 필드를 관대한 정규식으로 보완하는 2단계 fallback.
+// parser 는 공식 포맷만 신뢰하므로, 라벨 없는 "4월19일 저녁10시" 같은 본문을 위해 별도 모듈로 분리.
+import { extractFallbacks } from "./extract-fallbacks";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 운영 DB 가드 (1차)
@@ -268,9 +271,29 @@ async function insertGameFromCafe(
   const now = new Date();
   const parsed = input.parsed;
   const gameType = resolveGameType(parsed, input.board);
-  const scheduledAt = parsed.scheduledAt ?? fallbackScheduledAt(input.crawledAt);
   const gameId = buildGameId(input.board, input.dataid);
   const organizerId = resolveOrganizerId();
+
+  // Phase 2b Step 4 — parser 실패 필드 2단계 fallback.
+  // 왜 여기서 한 번 계산: 아래 5개 필드(scheduledAt/fee/guestCount/skill/city/district)
+  // 각각 동일한 content 를 여러 번 스캔하기보다 한 번에 뽑아두고 체인으로 소비한다.
+  const extracted = extractFallbacks(input.content, input.crawledAt);
+
+  // fallback 체인 — parsed(공식 포맷) → extracted(관대 정규식) → 상수 fallback
+  const scheduledAt =
+    parsed.scheduledAt ?? extracted.scheduledAt ?? fallbackScheduledAt(input.crawledAt);
+  const feePerPerson = parsed.feePerPerson ?? extracted.fee ?? 0;
+  // guestCount 는 "0"(미기재 의미) 을 유효값으로 받아들이지 않음 — 0 이면 한 단계 더 내려감.
+  const maxParticipants =
+    parsed.guestCount && parsed.guestCount > 0
+      ? parsed.guestCount
+      : extracted.guestCount && extracted.guestCount > 0
+        ? extracted.guestCount
+        : 10;
+  // skillLevel — parser 에 로직 없으므로 extracted 우선, 못 찾으면 "all" 로 게임 목록 필터와 일관.
+  const skillLevel = extracted.skillLevel ?? "all";
+  const city = parsed.city ?? extracted.city ?? null;
+  const district = parsed.district ?? extracted.district ?? null;
 
   // metadata 7키 — D1-B 스펙
   const metadata = {
@@ -289,12 +312,13 @@ async function insertGameFromCafe(
       title: input.title,
       game_type: gameType,
       organizer_id: organizerId,
-      city: parsed.city ?? null,
-      district: parsed.district ?? null,
+      city,
+      district,
       venue_name: parsed.venueName ?? null,
       scheduled_at: scheduledAt,
-      max_participants: parsed.guestCount ?? 10,
-      fee_per_person: parsed.feePerPerson ?? 0,
+      max_participants: maxParticipants,
+      fee_per_person: feePerPerson,
+      skill_level: skillLevel, // Phase 2b Step 4 — 필터(SKILL_OPTIONS) 4단계 키와 일관
       status: 0, // 기존 관례: 103/112건이 status=0
       description: input.content.slice(0, 2000), // 너무 긴 본문 차단 (게시판 평균 300자 수준)
       author_nickname: input.author || null,
@@ -396,17 +420,110 @@ export function previewUpsert(input: CafeSyncInput): {
   gameId: string;
   gameType: number;
   scheduledAt: string;
+  scheduledAtSource: "parsed" | "extracted" | "fallback";
+  fee: number;
+  feeSource: "parsed" | "extracted" | "fallback";
+  maxParticipants: number;
+  maxParticipantsSource: "parsed" | "extracted" | "fallback";
+  skillLevel: string;
+  skillLevelSource: "extracted" | "fallback";
+  city: string | null;
+  citySource: "parsed" | "extracted" | "fallback";
+  district: string | null;
+  districtSource: "parsed" | "extracted" | "fallback";
   willInsertGame: boolean;
   metadata: Record<string, unknown>;
 } {
   const parsed = input.parsed;
   const gameType = resolveGameType(parsed, input.board);
-  const scheduledAt = parsed?.scheduledAt ?? fallbackScheduledAt(input.crawledAt);
+  // Phase 2b Step 4 — 실제 insert 와 동일한 체인을 dry-run 미리보기에서도 적용.
+  // 로그 라인에 "어느 단계에서 값이 왔는가"를 표시하기 위해 *Source 필드도 함께 계산.
+  const extracted = extractFallbacks(input.content, input.crawledAt);
+
+  let scheduledAt: Date;
+  let scheduledAtSource: "parsed" | "extracted" | "fallback";
+  if (parsed?.scheduledAt) {
+    scheduledAt = parsed.scheduledAt;
+    scheduledAtSource = "parsed";
+  } else if (extracted.scheduledAt) {
+    scheduledAt = extracted.scheduledAt;
+    scheduledAtSource = "extracted";
+  } else {
+    scheduledAt = fallbackScheduledAt(input.crawledAt);
+    scheduledAtSource = "fallback";
+  }
+
+  let fee: number;
+  let feeSource: "parsed" | "extracted" | "fallback";
+  if (parsed?.feePerPerson !== undefined) {
+    fee = parsed.feePerPerson;
+    feeSource = "parsed";
+  } else if (extracted.fee !== null) {
+    fee = extracted.fee;
+    feeSource = "extracted";
+  } else {
+    fee = 0;
+    feeSource = "fallback";
+  }
+
+  let maxParticipants: number;
+  let maxParticipantsSource: "parsed" | "extracted" | "fallback";
+  if (parsed?.guestCount && parsed.guestCount > 0) {
+    maxParticipants = parsed.guestCount;
+    maxParticipantsSource = "parsed";
+  } else if (extracted.guestCount && extracted.guestCount > 0) {
+    maxParticipants = extracted.guestCount;
+    maxParticipantsSource = "extracted";
+  } else {
+    maxParticipants = 10;
+    maxParticipantsSource = "fallback";
+  }
+
+  const skillLevel = extracted.skillLevel ?? "all";
+  const skillLevelSource: "extracted" | "fallback" =
+    extracted.skillLevel !== null ? "extracted" : "fallback";
+
+  let city: string | null;
+  let citySource: "parsed" | "extracted" | "fallback";
+  if (parsed?.city) {
+    city = parsed.city;
+    citySource = "parsed";
+  } else if (extracted.city) {
+    city = extracted.city;
+    citySource = "extracted";
+  } else {
+    city = null;
+    citySource = "fallback";
+  }
+
+  let district: string | null;
+  let districtSource: "parsed" | "extracted" | "fallback";
+  if (parsed?.district) {
+    district = parsed.district;
+    districtSource = "parsed";
+  } else if (extracted.district) {
+    district = extracted.district;
+    districtSource = "extracted";
+  } else {
+    district = null;
+    districtSource = "fallback";
+  }
 
   return {
     gameId: buildGameId(input.board, input.dataid),
     gameType,
     scheduledAt: scheduledAt.toISOString(),
+    scheduledAtSource,
+    fee,
+    feeSource,
+    maxParticipants,
+    maxParticipantsSource,
+    skillLevel,
+    skillLevelSource,
+    city,
+    citySource,
+    district,
+    districtSource,
     willInsertGame: parsed !== null,
     metadata: {
       cafe_dataid: input.dataid,

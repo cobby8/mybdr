@@ -363,12 +363,22 @@ async function main() {
             }
           } else {
             // dry-run 미리보기 — DB 접근 0
+            // Phase 2b Step 4 — 각 필드 옆에 (parsed/extracted/fallback) 소스를 괄호로 노출.
+            //   왜: "값이 DB 에 어떻게 들어갈지"뿐 아니라 "어떤 추출 경로로 나왔는지"를
+            //   스모크 테스트에서 한 눈에 보기 위함. 운영 투입 전 검증 효율↑.
             const preview = previewUpsert(syncInput);
             console.log(
               `      🔍 upsert 예정: game_id=${preview.gameId} / ` +
                 `game_type=${preview.gameType} / ` +
-                `scheduled_at=${preview.scheduledAt} / ` +
+                `scheduled_at=${preview.scheduledAt} (${preview.scheduledAtSource}) / ` +
                 `game insert=${preview.willInsertGame ? "YES" : "NO (parsed 없음)"}`,
+            );
+            console.log(
+              `         fields: fee=${preview.fee}원(${preview.feeSource}) / ` +
+                `max=${preview.maxParticipants}명(${preview.maxParticipantsSource}) / ` +
+                `skill=${preview.skillLevel}(${preview.skillLevelSource}) / ` +
+                `city=${preview.city ?? "null"}(${preview.citySource}) / ` +
+                `district=${preview.district ?? "null"}(${preview.districtSource})`,
             );
           }
         }
