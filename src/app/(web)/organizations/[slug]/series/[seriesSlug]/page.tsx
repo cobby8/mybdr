@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+// L3: 3계층 IA 브레드크럼 (홈 → 단체 → 시리즈) — 기존 인라인 nav 교체
+import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb";
 
 /* ============================================================
  * 시리즈 상세 (공개) — /organizations/[slug]/series/[seriesSlug]
@@ -84,30 +86,24 @@ export default async function SeriesDetailPage({ params }: Props) {
     notFound();
   }
 
+  // L3: 3계층 IA 브레드크럼 (홈 → 단체명 → 시리즈명)
+  // organization이 null일 가능성 대응 — null이면 2단(홈 → 시리즈명)만 표시.
+  // 타입을 명시해 href optional(마지막 항목) 허용.
+  const breadcrumbItems: BreadcrumbItem[] = [{ label: "홈", href: "/" }];
+  if (series.organization) {
+    breadcrumbItems.push({
+      label: series.organization.name,
+      href: `/organizations/${series.organization.slug}`,
+    });
+  }
+  breadcrumbItems.push({ label: series.name });
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      {/* 브레드크럼 */}
-      <nav className="mb-4 text-xs text-[var(--color-text-muted)]">
-        <Link
-          href="/organizations"
-          className="hover:text-[var(--color-text-primary)]"
-        >
-          단체
-        </Link>
-        <span className="mx-1">/</span>
-        {series.organization && (
-          <>
-            <Link
-              href={`/organizations/${series.organization.slug}`}
-              className="hover:text-[var(--color-text-primary)]"
-            >
-              {series.organization.name}
-            </Link>
-            <span className="mx-1">/</span>
-          </>
-        )}
-        <span className="text-[var(--color-text-primary)]">{series.name}</span>
-      </nav>
+      {/* L3: 브레드크럼 (shared 컴포넌트로 통일 — 인라인 nav 교체) */}
+      <div className="mb-4">
+        <Breadcrumb items={breadcrumbItems} />
+      </div>
 
       {/* 시리즈 헤더 */}
       <div className="mb-8">

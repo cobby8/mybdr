@@ -4,9 +4,9 @@
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
-| architecture.md | 29 | 2026-04-15 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환 |
+| architecture.md | 30 | 2026-04-20 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, **L3 다음 단위(EditionSwitcher/SeriesCard)** |
 | conventions.md | 25 | 2026-04-20 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/**세션 분리 원칙(본 vs 카페)** |
-| decisions.md | 74 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/**카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination common-articles API**) |
+| decisions.md | 76 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / **L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약**) |
 | errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
 | lessons.md | 18 | 2026-04-18 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, **개발 DB라 믿은 .env가 운영 DB**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
@@ -14,6 +14,9 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-20] architecture: **L3 다음 단위 설계** — shared/edition-switcher.tsx + tournaments/[id]/_components/series-card.tsx 신규 2 + Organization/Series(under org)/Tournament 3페이지 수정. **신규 API 0** (기존 `/api/web/series/slug/[slug]`가 editions 포함). Prisma 변경 0. Organization 페이지는 **기존 활용**(브레드크럼만 추가)
+- [04-20] decisions: **L3 Organization 라우트 = 기존 `/organizations/[slug]` 활용** — 기획서에 신규/수정 명시 없었으나 실제 이미 존재 확인. 신규 라우트 금지. 브레드크럼만 삽입
+- [04-20] decisions: **EditionSwitcher 동작 규약** — 이전/전체/다음 3버튼, disabled는 span 폴백(Link 아님, aria-disabled), 키보드 ←→ 글로벌 미포함, Material Symbols 고정, CSS 변수 색상
 - [04-20] decisions: **운영 DB 동기화 계획 초안** — Dev/ops-db-sync-plan.md. 옵션 A(Supabase 두 번째 프로젝트) 추천 + 선결 조건 6개. 2026-04-18 ".env=운영 DB" 사고의 장기 해결책. 원영 협의 대기
 - [04-20] architecture: **L3 초입 — 대회·시리즈 브레드크럼 4단** — `/tournaments/[id]` + `/series/[slug]` 2개 페이지. 기존 `shared/breadcrumb.tsx` 재활용(신규 0). 다음 단위 = Organization / EditionSwitcher
 - [04-20] lessons: **하드코딩 색상 31파일 / `any` 9회 audit** — 점진 정비 숙제. 샘플로 manage/page.tsx 5곳 정비. 보이스카우트 규칙(파일 건드릴 때 함께) + 대규모 일괄 비추천
@@ -23,8 +26,6 @@
 - [04-20] architecture: **W4 마감 — M4 /profile/activity 통합 뷰 + M7 팀 가입 신청자 분기 UI + L1 /help/glossary 용어 사전** — 본 세션 5 커밋(12f71bf/e5071f0/c2b13c5/de2c712/642a8be). 기획 17h → 실제 ~2h
 - [04-20] decisions: **L2/L3 장기 기획서 작성** — Dev/long-term-plan-L2.md(본인·타인 프로필 시각 통합 ~15h) + L3.md(단체-시리즈-대회 3계층 IA ~12h). **L3 선행 → L2** 순서 권장
 - [04-20] conventions: **도메인 용어 정의 단일 소스** — `/help/glossary` 페이지가 9개 핵심 용어(대회·경기·픽업·게스트·연습경기·디비전·시드·토너먼트·풀리그)의 single source of truth. 새 용어 추가 시 여기부터 갱신
-- [04-20] decisions: **카페 sync dataid tie-break — metadata JSON 키 (cafe_article_id Int)** — Prisma 마이그레이션 없이 JSON path 2차 정렬. listGames에서 메모리 tie-break(take=60 기준)
-- [04-20] decisions: **카페 공지 필터 noticeContainer 방어 가드** — 실측 공지 수집 0건 확인, 미래 레이아웃 변경 대비 lookahead 정규식으로 구간 드랍
 - [04-18] lessons: **"개발 DB"라고 믿은 .env가 사실 운영 DB** — API id 비교(운영 vs 로컬)로 발견. 스크립트 가드의 DEV_DB_HOST ref가 운영 ref였음. 비파괴 스크립트라 사고는 아님
 - [04-18] decisions: **운영 DB 직접 연결 유지 결정** — 개발/운영 DB 분리는 유보. prisma 스키마 변경/DELETE/파괴적 UPDATE 엄격 금지
 - [04-17] decisions: **다음카페 본문 정규식 파서 도입** — LLM 대신 정규식 (95%+ 정확도, 무료). 257건 중 147건 백필 + game_type 66건 재분류. 운영 DB 차단 가드 + 덮어쓰기 금지
