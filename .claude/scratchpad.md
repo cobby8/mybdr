@@ -11,8 +11,8 @@
 - **푸시 전 `git fetch` 권장** (양 세션 push 충돌 방지)
 
 ## 현재 작업
-- **요청**: D→C→B→A 순 — D✅ referee 알림 사일런트 버그 해소 / C(W4 L1 라벨 정리) 대기
-- **상태**: 🟢 D 수정 완료, 커밋 대기
+- **요청**: D→C→B→A 순 — D✅ 커밋(12f71bf) / C✅ W4 L1 용어 통일 + /help/glossary 신설, 커밋 대기 / B 대기
+- **상태**: 🟢 C 수정 완료, 커밋 대기
 - **현재 담당**: pm
 
 ## 진행 현황표
@@ -37,7 +37,6 @@
 ## 남은 과제
 - **W4 M4 내 활동 통합 뷰** — `/profile/activity` 신규 (~8h 예상, 실제 더 적을 수도)
 - **W4 M7 팀 가입 신청자 화면** — ~5h
-- **W4 L1 라벨 정리** — ~4h
 - **W5+ L2/L3** — 분기 단위
 - **Phase 3 다음카페 동기화 자동화** — 별도 세션에서 진행 (본 PM 금지 파일)
 - **운영 DB 동기화** — 원영 협의
@@ -68,7 +67,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-20 | pm | **referee 알림 사일런트 버그 해소** (errors.md 6회차 재발). notification-bell.tsx + notifications/page.tsx: `json?.data` → `json` 직접 접근 + apiSuccess 래핑 없음 주석 가드. errors.md 해소 표시 | ✅ 커밋 대기 |
+| 04-20 | pm | **W4 L1 용어 통일 + /help/glossary 신설** — 용어 9종(대회/경기/픽업/게스트/연습경기/디비전/시드/토너먼트/풀리그) 정의 페이지, Footer 도움말 링크, 비로그인 히어로 "용어 사전 보기" 링크, PC 사이드네비 "경기" 부제("픽업·게스트 모집"), conventions.md 단일 소스 기록 | ✅ 커밋 대기 |
+| 04-20 | pm | **referee 알림 사일런트 버그 해소** (errors.md 6회차 재발). notification-bell.tsx + notifications/page.tsx: `json?.data` → `json` 직접 접근 + apiSuccess 래핑 없음 주석 가드 | ✅ 12f71bf |
 | 04-20 | pm | **subin→dev→main 전체 push** (원영 협의). PR #47 subin→dev squash / PR #48 dev→main merge. 충돌 6개(scratchpad/settings/M5/카페 sync) --ours로 해결 | ✅ main 8475e10 / dev ff02652 |
 | 04-20 | pm+developer | **Phase 2b 품질 보강 + 지속동기화 기반** — 마스킹 3중/script 제거/venue 제한/city 역매핑/MptT PRACTICE 강제/postedAt fallback/created_at=카페게시순 | ✅ 4826018 |
 | 04-20 | pm+team | **M5 온보딩 압축** — auth redirect→/verify, /profile/complete 7→3필드 옵션카드, 흐름 정렬 + 후속 정비(타입/색상변수) | ✅ 1e7ec68 + 17732ab |
@@ -77,4 +77,3 @@
 | 04-19 | dev+review | M2 데스크톱 sticky 신청 카드 도입 | ✅ 3405727 |
 | 04-19 | developer | Phase 2b Step 1 — upsert.ts + sync-cafe --execute 통합 | ✅ 6d2617d |
 | 04-19 | developer | M1 Day 8 설정/결제 탭 통합 허브 2개 + 기존 4페이지 redirect | ✅ 546a5c3 |
-| 04-19 | developer | `/games` 경기 유형 탭 + 건수 뱃지 (route.ts groupBy 1회) | ✅ 1082124 + 1e7b642 |
