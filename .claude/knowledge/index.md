@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-20 (카페 sync A+E 설계 — dataid tie-break metadata JSON + noticeContainer 방어 가드)
+> 최종 갱신: 2026-04-20 (W4 마감 — M4 내 활동 통합 + M7 팀 가입자 + L1 용어 사전 + L2/L3 장기 기획서)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -14,6 +14,9 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-20] architecture: **W4 마감 — M4 /profile/activity 통합 뷰 + M7 팀 가입 신청자 분기 UI + L1 /help/glossary 용어 사전** — 본 세션 5 커밋(12f71bf/e5071f0/c2b13c5/de2c712/642a8be). 기획 17h → 실제 ~2h
+- [04-20] decisions: **L2/L3 장기 기획서 작성** — Dev/long-term-plan-L2.md(본인·타인 프로필 시각 통합 ~15h) + L3.md(단체-시리즈-대회 3계층 IA ~12h). **L3 선행 → L2** 순서 권장
+- [04-20] conventions: **도메인 용어 정의 단일 소스** — `/help/glossary` 페이지가 9개 핵심 용어(대회·경기·픽업·게스트·연습경기·디비전·시드·토너먼트·풀리그)의 single source of truth. 새 용어 추가 시 여기부터 갱신
 - [04-20] decisions: **카페 sync dataid tie-break — metadata JSON 키 (cafe_article_id Int)** — Prisma 마이그레이션 없이 JSON path 2차 정렬. listGames에서 메모리 tie-break(take=60 기준)
 - [04-20] decisions: **카페 공지 필터 noticeContainer 방어 가드** — 실측 공지 수집 0건 확인, 미래 레이아웃 변경 대비 lookahead 정규식으로 구간 드랍
 - [04-18] lessons: **"개발 DB"라고 믿은 .env가 사실 운영 DB** — API id 비교(운영 vs 로컬)로 발견. 스크립트 가드의 DEV_DB_HOST ref가 운영 ref였음. 비파괴 스크립트라 사고는 아님
