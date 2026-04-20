@@ -286,7 +286,8 @@
       "Bash(git -C \"C:/0. Programing/mybdr\" status -s)",
       "Bash(git -C \"C:/0. Programing/mybdr\" diff HEAD -- \"src/app/\\(web\\)/courts/_components/courts-content.tsx\")",
       "Bash(git -C \"C:/0. Programing/mybdr\" blame -L 481,512 \"src/app/\\(web\\)/courts/_components/courts-content.tsx\")",
-      "Bash(echo \"---EXIT:$?---\")"
+      "Bash(echo \"---EXIT:$?---\")",
+      "Bash(npx tsx *)"
     ]
   }
 }

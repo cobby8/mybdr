@@ -6,7 +6,7 @@
 |------|--------|------------|------|
 | architecture.md | 29 | 2026-04-15 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환 |
 | conventions.md | 25 | 2026-04-20 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/**세션 분리 원칙(본 vs 카페)** |
-| decisions.md | 73 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/**카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정**) |
+| decisions.md | 74 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/**카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination common-articles API**) |
 | errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
 | lessons.md | 18 | 2026-04-18 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, **개발 DB라 믿은 .env가 운영 DB**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
@@ -14,6 +14,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-20] decisions: **카페 sync Phase 3 #6 Pagination — `/api/v1/common-articles` cursor-based API** — 번들 역공학 + 실측 8패턴. `?page=N` 전부 무효. `afterBbsDepth`(커서) + `targetPage` + `pageSize`(상한 50). 1P HTML SSR + 2P~ JSON API 하이브리드, 이중 안전망. developer 착수 대기
 - [04-20] errors: **카페 상세 HTML 시간 소스 `.num_subject` 단일** — articleElapsedTime/regDttm/JSON-LD 전부 부재. 목록 HTML과 구조 다름. extractPostedAt 4번째 fallback 필수 (`c84aba0`)
 - [04-20] decisions: **카페 과거 글 시분 원천 미제공 확정** — 실측 5건 전부 YY.MM.DD만. dataid tie-break로 우회. 모바일 API 시도는 비추천 (`c84aba0`)
 - [04-20] architecture: **W4 마감 — M4 /profile/activity 통합 뷰 + M7 팀 가입 신청자 분기 UI + L1 /help/glossary 용어 사전** — 본 세션 5 커밋(12f71bf/e5071f0/c2b13c5/de2c712/642a8be). 기획 17h → 실제 ~2h
