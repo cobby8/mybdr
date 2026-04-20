@@ -73,12 +73,13 @@
 ### 진행 순서 (사용자 승인됨)
 | 단계 | 작업 | 쿠키 필요 | 상태 |
 |------|------|----------|------|
-| A | dataid tie-break (metadata 저장 + 정렬 2차키) | N | 📐 설계 완료 |
-| E | 공지글 필터 (noticeContainer 스킵) | N | 📐 설계 완료 |
-| 커밋 1 | A+E 묶음 커밋 | N | 대기 |
-| B | 쿠키 재발급 (사용자 수작업) | 재발급 | 대기 |
-| C | 과거 글 상세 샘플 수집 + HTML 분석 | Y | 대기 |
-| D | `.num_subject` → postedAt 시분 폴백 | Y | 대기 (C 결과에 따름) |
+| A | dataid tie-break (metadata 저장 + 정렬 2차키) | N | ✅ 완료 (`4bc41bf`) |
+| E | 공지글 필터 (noticeContainer 스킵) | N | ✅ 완료 (`4bc41bf`) |
+| 백필 | 기존 15건 `cafe_article_id` 채움 | N | ✅ execute 완료 (15/15) |
+| 커밋 1 | A+E + 백필 스크립트 묶음 | N | ✅ `4bc41bf` (미푸시) |
+| B | 쿠키 재발급 (사용자 수작업) | 재발급 | ⏳ 대기 |
+| C | 과거 글 상세 샘플 수집 + HTML 분석 | Y | ⏳ 대기 |
+| D | `.num_subject` → postedAt 시분 폴백 | Y | ⏳ 대기 (C 결과에 따름) |
 
 ---
 
@@ -636,9 +637,7 @@ IVHA/Dilr는 혼재 글 많으므로 parser 재분류 유지.
 
 | 날짜 | 작업 | 커밋 |
 |------|------|------|
-| 04-20 | **A+E 테스터 검증** — T1~T6 6/6 통과. tsc exit 0 / 백필 dry-run 15건 OK / noticeContainer 10691자 구간 정확 제거 (articles.push 20→20, 오삭제 0) / 정렬 케이스 A~D 논리 검증 / metadata 8키 insert+preview 동기. **커밋 가능** | 대기(commit) |
-| 04-20 | **A+E 리뷰 완료 (reviewer)** — R1~R6 전부 통과, 블록커 0. metadata 노출 리스크: route.ts 에서 pick 되어 응답 미포함 확인. 권장 개선 5건(cafe_dataid 제거 전략, 타입 가드 유틸, dataidNum required 승격 등)은 후속 처리. **커밋 가능** | 대기(commit 전) |
-| 04-20 | **A+E 구현** — dataid tie-break (BoardItem.dataidNum + metadata.cafe_article_id Int + listGames 메모리 정렬) + noticeContainer 방어 가드 + 백필 스크립트 (15건 dry-run 성공). tsc 통과 | 대기(commit 전) |
+| 04-20 | **A+E 완료 (카페 게시 순서 tie-break)** — metadata.cafe_article_id(Int) 저장 + listGames 메모리 정렬(created_at desc → cafe_article_id desc null last) + noticeContainer 방어 가드 + 기존 15건 백필 execute 완료. tester T1~T6 / reviewer R1~R6 전부 통과, 블록커 0 | `4bc41bf` |
 | 04-20 | **Phase 2b 지속동기화 기반** — postedAt fallback / created_at=카페게시순 / MptT PRACTICE 강제 / DISTRICT_TO_CITY 역매핑. 카페 출처 118건 초기화 + 3게시판 각 5건 재수집 | `4826018` |
 | 04-20 | **Phase 2b 품질 종합 보강** — 마스킹 3중 방어 + script 제거 + venue 20자 제한 + 시간 정규식 확장 | `2af6719` |
 | 04-19 | **Phase 2b Step 4 (extract-fallbacks)** — 본문 재추출 (scheduledAt/fee/venue/city/district/skillLevel) | `6d2dac5` |
