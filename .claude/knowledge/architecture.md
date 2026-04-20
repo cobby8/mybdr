@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-20] L3 다음 단위 — Organization 브레드크럼 + SeriesCard + EditionSwitcher
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: L3 초입(eb9c910, 대회·시리즈 브레드크럼 4단) 후속. 영향 5파일(신규 2 + 수정 3). (1) 신규: `src/components/shared/edition-switcher.tsx`(이전/다음/전체 3버튼, Material Symbols chevron_left/apps/chevron_right, disabled 시 span 폴백, CSS 변수 색상) + `src/app/(web)/tournaments/[id]/_components/series-card.tsx`(로고+시리즈명+"M회차/전체 N회차"+"시리즈 전체 보기"+EditionSwitcher 내장, series_id 있을 때만 렌더). (2) 수정: `/organizations/[slug]/page.tsx`(shared/Breadcrumb 2단 삽입, 기존 시리즈 카드 목록 유지) + `/organizations/[slug]/series/[seriesSlug]/page.tsx`(인라인 nav 15줄을 shared/Breadcrumb 3단으로 교체) + `/tournaments/[id]/page.tsx`(series include에 tournaments select 추가하여 prev/next 계산 + Hero 직후 SeriesCard 삽입). (3) **신규 API 0** — 기존 `/api/web/series/slug/[slug]`가 이미 editions 배열 포함 완전 반환. `/api/web/series/[id]/editions`는 POST(회차 추가)로 이름 충돌 주의. (4) Prisma 변경 0 — `tournament.series_id BigInt?` + `edition_number Int?` 기존 필드 재활용. (5) 공식 기록 가드 해당 없음(메타만 조회). (6) **Organization 페이지 이미 존재** — 신규 라우트 아님. 브레드크럼만 누락된 상태였음.
+- **참조횟수**: 0
+
 ### [2026-04-15] 팀명 2필드 구조 (Team.name_en + name_primary) + Referee 시스템 통합
 - **분류**: architecture
 - **발견자**: developer

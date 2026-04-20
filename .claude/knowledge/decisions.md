@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-20] L3 Organization 라우트 방식 — 기존 `/organizations/[slug]` 활용 (신규 라우트 금지)
+- **분류**: decision (L3 다음 단위 설계)
+- **결정자**: planner-architect
+- **결정**: L3 다음 단위(Organization 브레드크럼) 작업 시 **이미 존재하는** `src/app/(web)/organizations/[slug]/page.tsx`에 shared/Breadcrumb만 삽입. 신규 라우트 생성/이동 금지
+- **배경**: Dev/long-term-plan-L3.md 기획서는 "영향 페이지" 목록에 organizations/[slug]를 올렸지만 신규 여부 명시 없음. 실제 확인 시 이미 존재하고 시리즈 카드 목록까지 구현돼 있음 — 브레드크럼만 누락
+- **대안 배제**: (A) 신규 라우트 신설 → URL 중복 + 리다이렉트 설계 추가 부담. (B) 기존 파일 재구성 → 로고/배너/멤버 섹션 회귀 리스크
+- **영향**: 예상 공수 -30분(신규 페이지 제작 생략)
+
+### [2026-04-20] EditionSwitcher 동작 규약 — 3버튼 비대칭 비활성 + 전체 보기 중앙 배치
+- **분류**: decision (L3 다음 단위 설계)
+- **결정자**: planner-architect
+- **결정**: `src/components/shared/edition-switcher.tsx` 신규 공용 컴포넌트. (1) 좌측 "이전 회차"/중앙 "시리즈 전체 N회차"/우측 "다음 회차" 3버튼. (2) prev/next null(현재가 첫/끝 회차)이면 `<span>` 폴백(Link 아님) + `aria-disabled="true"` + 회색 처리. (3) 키보드 글로벌 ←→ 핸들러 미포함(페이지별 다른 단축키 충돌 방지, Link의 포커스 + Enter만). (4) 중앙 "전체 보기"는 항상 활성(`/series/{slug}`). (5) Material Symbols `chevron_left`/`apps`/`chevron_right` 고정. (6) 색상 전부 CSS 변수.
+- **배경**: 기획서 결정 C는 "이전/다음/전체 보기 3버튼"만 명시. disabled UX, 키보드 지원 범위, 중앙 버튼 역할은 미정이라 본 설계 단계에서 규약 확정
+- **대안 배제**: (A) disabled Link href="#" → 접근성 경고. (B) 키보드 ←→ 글로벌 → 대회 페이지 내 다른 슬라이더/캐러셀 충돌 우려
+- **영향**: SeriesCard 카드 내부에 내장 배치 — 별도 블록 없이 맥락 일체화
+
 ### [2026-04-20] 카페 sync Pagination — `/api/v1/common-articles` cursor-based API
 - **분류**: decision (Phase 3 #6)
 - **결정자**: planner-architect
