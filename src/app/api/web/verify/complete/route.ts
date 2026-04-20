@@ -2,6 +2,7 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 import { verifyCode } from "@/lib/security/verify-store";
+import { matchPlayersByPhone } from "@/lib/services/player-matching";
 
 /**
  * POST /api/web/verify/complete
@@ -60,6 +61,15 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     where: { id: ctx.userId },
     data: updates,
   });
+
+  // 전화번호가 저장되었으면, 미연결 선수 자동 매칭 시도
+  if (updates.phone) {
+    try {
+      await matchPlayersByPhone(ctx.userId, updates.phone);
+    } catch {
+      // 매칭 실패해도 인증 완료에는 영향 없음
+    }
+  }
 
   return apiSuccess({ message: "인증이 완료되었습니다." });
 });
