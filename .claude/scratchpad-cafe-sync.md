@@ -77,9 +77,9 @@
 | E | 공지글 필터 (noticeContainer 스킵) | N | ✅ 완료 (`4bc41bf`) |
 | 백필 | 기존 15건 `cafe_article_id` 채움 | N | ✅ execute 완료 (15/15) |
 | 커밋 1 | A+E + 백필 스크립트 묶음 | N | ✅ `4bc41bf` (미푸시) |
-| B | 쿠키 재발급 (사용자 수작업) | 재발급 | ⏳ 대기 |
-| C | 과거 글 상세 샘플 수집 + HTML 분석 | Y | ⏳ 대기 |
-| D | `.num_subject` → postedAt 시분 폴백 | Y | ⏳ 대기 (C 결과에 따름) |
+| B | 쿠키 재발급 (사용자 수작업) | 재발급 | ✅ 완료 (04-20 12:38) |
+| C | 과거 글 상세 샘플 수집 + HTML 분석 | Y | ✅ 완료 — **과거 글 시분은 카페 원천 미제공** 확정 |
+| D | `.num_subject` → postedAt 폴백 (D 미니) | Y | ✅ 완료 (`c84aba0`) — postedAt null 5/5 → 0/5 |
 
 ---
 
@@ -637,6 +637,7 @@ IVHA/Dilr는 혼재 글 많으므로 parser 재분류 유지.
 
 | 날짜 | 작업 | 커밋 |
 |------|------|------|
+| 04-20 | **D 미니 (extractPostedAt .num_subject 폴백)** — 상세 HTML 유일 시간 소스(.num_subject)를 4번째 fallback으로 추가. 과거 글 시분은 카페 원천 미제공 실측 확정(5/5 YY.MM.DD). postedAt null 5/5 → 0/5. tsc OK, 스모크 5/5 200 | `c84aba0` |
 | 04-20 | **A+E 완료 (카페 게시 순서 tie-break)** — metadata.cafe_article_id(Int) 저장 + listGames 메모리 정렬(created_at desc → cafe_article_id desc null last) + noticeContainer 방어 가드 + 기존 15건 백필 execute 완료. tester T1~T6 / reviewer R1~R6 전부 통과, 블록커 0 | `4bc41bf` |
 | 04-20 | **Phase 2b 지속동기화 기반** — postedAt fallback / created_at=카페게시순 / MptT PRACTICE 강제 / DISTRICT_TO_CITY 역매핑. 카페 출처 118건 초기화 + 3게시판 각 5건 재수집 | `4826018` |
 | 04-20 | **Phase 2b 품질 종합 보강** — 마스킹 3중 방어 + script 제거 + venue 20자 제한 + 시간 정규식 확장 | `2af6719` |
