@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-20 (W4 마감 — M4 내 활동 통합 + M7 팀 가입자 + L1 용어 사전 + L2/L3 장기 기획서)
+> 최종 갱신: 2026-04-20 (하루 마감 — W4 완전 마감 + M7 후속(거부 사유) + L3 초입 브레드크럼 + 운영 DB 초안 + 색상/any audit)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -14,6 +14,9 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-20] decisions: **운영 DB 동기화 계획 초안** — Dev/ops-db-sync-plan.md. 옵션 A(Supabase 두 번째 프로젝트) 추천 + 선결 조건 6개. 2026-04-18 ".env=운영 DB" 사고의 장기 해결책. 원영 협의 대기
+- [04-20] architecture: **L3 초입 — 대회·시리즈 브레드크럼 4단** — `/tournaments/[id]` + `/series/[slug]` 2개 페이지. 기존 `shared/breadcrumb.tsx` 재활용(신규 0). 다음 단위 = Organization / EditionSwitcher
+- [04-20] lessons: **하드코딩 색상 31파일 / `any` 9회 audit** — 점진 정비 숙제. 샘플로 manage/page.tsx 5곳 정비. 보이스카우트 규칙(파일 건드릴 때 함께) + 대규모 일괄 비추천
 - [04-20] decisions: **카페 sync Phase 3 #6 Pagination — `/api/v1/common-articles` cursor-based API** — 번들 역공학 + 실측 8패턴. `?page=N` 전부 무효. `afterBbsDepth`(커서) + `targetPage` + `pageSize`(상한 50). 1P HTML SSR + 2P~ JSON API 하이브리드, 이중 안전망. developer 착수 대기
 - [04-20] errors: **카페 상세 HTML 시간 소스 `.num_subject` 단일** — articleElapsedTime/regDttm/JSON-LD 전부 부재. 목록 HTML과 구조 다름. extractPostedAt 4번째 fallback 필수 (`c84aba0`)
 - [04-20] decisions: **카페 과거 글 시분 원천 미제공 확정** — 실측 5건 전부 YY.MM.DD만. dataid tie-break로 우회. 모바일 API 시도는 비추천 (`c84aba0`)
