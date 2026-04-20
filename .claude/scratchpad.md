@@ -11,8 +11,8 @@
 - **푸시 전 `git fetch` 권장** (양 세션 push 충돌 방지)
 
 ## 현재 작업
-- **요청**: D→C→B→A 순 — D✅ 12f71bf / C✅ e5071f0 / B✅ M7 1~3번 완료 (4번=프로필 활동 탭은 M4와 함께) / A 대기
-- **상태**: 🟢 B 수정 완료, 커밋 대기
+- **요청**: D→C→B→A 순 — D✅ 12f71bf / C✅ e5071f0 / B✅ c2b13c5 / A✅ M4+M7 4번(팀 탭 취소) 통합 완료, 커밋 대기
+- **상태**: 🟢 A 수정 완료, 커밋 대기
 - **현재 담당**: pm
 
 ## 진행 현황표
@@ -35,8 +35,8 @@
 | **합계** | **20h** | **~7h** | **3배 절감** |
 
 ## 남은 과제
-- **W4 M4 내 활동 통합 뷰** — `/profile/activity` 신규 (~8h 예상). M7 4번(프로필 활동 탭 신청 상태)은 여기서 같이 처리
 - **W5+ L2/L3** — 분기 단위
+- **M4 후속(선택)**: `/games/my-games`의 "참가 신청한 경기" 리스트 제거(현재 중복). 안정화 확인 후
 - **Phase 3 다음카페 동기화 자동화** — 별도 세션에서 진행 (본 PM 금지 파일)
 - **운영 DB 동기화** — 원영 협의
 
@@ -66,7 +66,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-20 | pm | **W4 M7 팀 가입 신청자 화면** (1~3번) — GET/DELETE my-application API 신설, join-button.tsx 상태별 분기(none/pending/approved/rejected) + 환영 토스트 1회 + 신청 취소 + 재신청 + 거부 사유 노출 + 하드코딩 색상 CSS 변수화 | ✅ 커밋 대기 |
+| 04-20 | pm | **W4 M4 내 활동 통합 뷰 + M7 4번** — /api/web/me/activity(tournaments/games/teams 통합), /profile/activity 3탭 페이지, 좌측네비 "내 활동" 추가(7항목), /games/my-games 상단 배너, 팀 탭 pending 카드에 취소 빠른액션(M7 4번 해소) | ✅ 커밋 대기 |
+| 04-20 | pm | **W4 M7 팀 가입 신청자 화면** (1~3번) — GET/DELETE my-application API, join-button.tsx 상태 분기 + 환영 토스트 + 취소/재신청 + 거부사유 + CSS 변수화 | ✅ c2b13c5 |
 | 04-20 | pm | **W4 L1 용어 통일 + /help/glossary 신설** — 용어 9종 페이지 + Footer 도움말 + 비로그인 히어로 용어 사전 링크 + PC 사이드네비 "경기" 부제 + conventions.md 단일 소스 | ✅ e5071f0 |
 | 04-20 | pm | **referee 알림 사일런트 버그 해소** (errors.md 6회차). `json?.data` → `json` 직접 접근 + 주석 가드 | ✅ 12f71bf |
 | 04-20 | pm | **subin→dev→main 전체 push** (원영 협의). PR #47 subin→dev squash / PR #48 dev→main merge. 충돌 6개(scratchpad/settings/M5/카페 sync) --ours로 해결 | ✅ main 8475e10 / dev ff02652 |
@@ -76,4 +77,3 @@
 | 04-20 | pm+team | **M6 알림 분류** 6카테고리 + 카테고리별 mark-all-read + 더 보기 + 헤더 뱃지 사일런트 버그 정정 | ✅ 5e56d0f |
 | 04-19 | dev+review | M2 데스크톱 sticky 신청 카드 도입 | ✅ 3405727 |
 | 04-19 | developer | Phase 2b Step 1 — upsert.ts + sync-cafe --execute 통합 | ✅ 6d2617d |
-| 04-19 | developer | M1 Day 8 설정/결제 탭 통합 허브 2개 + 기존 4페이지 redirect | ✅ 546a5c3 |

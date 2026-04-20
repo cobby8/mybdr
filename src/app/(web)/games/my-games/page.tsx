@@ -42,6 +42,28 @@ export default async function MyGamesPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>내 경기</h1>
 
+      {/* W4 M4: "신청한 경기" 현황은 /profile/activity 통합 뷰로 이관 안내.
+       *       여기에서는 "내가 만든 경기" + 기존 리스트 유지(하위 호환).
+       *       통합 뷰가 안정화되면 리스트 중 "참가 신청한 경기"는 제거 예정. */}
+      <Link
+        href="/profile/activity?tab=games"
+        className="flex items-center justify-between gap-3 px-4 py-3 text-sm transition-colors hover:opacity-90"
+        style={{
+          border: "1px solid var(--color-border)",
+          backgroundColor: "var(--color-bg-secondary)",
+          borderRadius: 4,
+          color: "var(--color-text-secondary)",
+        }}
+      >
+        <span>
+          신청한 경기·대회·팀을 한 곳에서 보고 싶다면{" "}
+          <strong style={{ color: "var(--color-primary)" }}>내 활동 통합 뷰</strong>를 확인하세요.
+        </span>
+        <span className="material-symbols-outlined text-base" aria-hidden>
+          arrow_forward
+        </span>
+      </Link>
+
       {/* 내가 만든 경기 */}
       <div>
         <h2 className="mb-3 text-lg font-semibold uppercase tracking-wide" style={{ fontFamily: "var(--font-heading)" }}>내가 만든 경기</h2>
