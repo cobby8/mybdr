@@ -1,12 +1,12 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-20 (W4 마감 — M4 내 활동 통합 + M7 팀 가입자 + L1 용어 사전 + L2/L3 장기 기획서)
+> 최종 갱신: 2026-04-20 (하루 마감 — W4 완전 마감 + M7 후속(거부 사유) + L3 초입 브레드크럼 + 운영 DB 초안 + 색상/any audit)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 29 | 2026-04-15 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환 |
 | conventions.md | 25 | 2026-04-20 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/**세션 분리 원칙(본 vs 카페)** |
-| decisions.md | 73 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/**카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정**) |
+| decisions.md | 74 | 2026-04-20 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/**카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination common-articles API**) |
 | errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
 | lessons.md | 18 | 2026-04-18 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, **개발 DB라 믿은 .env가 운영 DB**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
@@ -14,6 +14,10 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-20] decisions: **운영 DB 동기화 계획 초안** — Dev/ops-db-sync-plan.md. 옵션 A(Supabase 두 번째 프로젝트) 추천 + 선결 조건 6개. 2026-04-18 ".env=운영 DB" 사고의 장기 해결책. 원영 협의 대기
+- [04-20] architecture: **L3 초입 — 대회·시리즈 브레드크럼 4단** — `/tournaments/[id]` + `/series/[slug]` 2개 페이지. 기존 `shared/breadcrumb.tsx` 재활용(신규 0). 다음 단위 = Organization / EditionSwitcher
+- [04-20] lessons: **하드코딩 색상 31파일 / `any` 9회 audit** — 점진 정비 숙제. 샘플로 manage/page.tsx 5곳 정비. 보이스카우트 규칙(파일 건드릴 때 함께) + 대규모 일괄 비추천
+- [04-20] decisions: **카페 sync Phase 3 #6 Pagination — `/api/v1/common-articles` cursor-based API** — 번들 역공학 + 실측 8패턴. `?page=N` 전부 무효. `afterBbsDepth`(커서) + `targetPage` + `pageSize`(상한 50). 1P HTML SSR + 2P~ JSON API 하이브리드, 이중 안전망. developer 착수 대기
 - [04-20] errors: **카페 상세 HTML 시간 소스 `.num_subject` 단일** — articleElapsedTime/regDttm/JSON-LD 전부 부재. 목록 HTML과 구조 다름. extractPostedAt 4번째 fallback 필수 (`c84aba0`)
 - [04-20] decisions: **카페 과거 글 시분 원천 미제공 확정** — 실측 5건 전부 YY.MM.DD만. dataid tie-break로 우회. 모바일 API 시도는 비추천 (`c84aba0`)
 - [04-20] architecture: **W4 마감 — M4 /profile/activity 통합 뷰 + M7 팀 가입 신청자 분기 UI + L1 /help/glossary 용어 사전** — 본 세션 5 커밋(12f71bf/e5071f0/c2b13c5/de2c712/642a8be). 기획 17h → 실제 ~2h
@@ -170,7 +174,8 @@
 | DESIGN.md | Dev/design/DESIGN.md | 디자인 시스템 통합 문서 (색상/폰트/레이아웃/컴포넌트) |
 | Stitch 원본 | Dev/design/0. 레이아웃/DESIGN.md | Stitch에서 내보낸 원본 디자인 규격 |
 
-## 최근 추가된 지식 (최근 10건)
+## 이전 누적 지식 아카이브 (2026-04-15 이전, 참고용)
+<!-- 위쪽 "최근 추가된 지식" 섹션과 분리. 제목 중복 방지. 신규 항목은 상단 섹션에 추가하고, 3개월 이상 참조 안 된 항목은 이 섹션에서 정리/삭제 검토. -->
 - [04-15] decisions: 헬스체크 cron 2차 — self-fetch + Promise.allSettled 병렬 + 실패해도 끝까지 진행 (내부 함수 호출 대비 유저 경로 검증 이점)
 - [04-12] architecture: 심판 플랫폼 재설계 v2 — 6모델(Association/AssociationAdmin/Referee/Certificate/Assignment/Settlement) + 17API + Excel 2단계 업로드, users 0수정 CREATE 6건만
 - [04-12] decisions: v2 협회 계층형 Association — self-relation, 20개 시드(KBA+시도17+KBL/WKBL), REGIONS 재사용

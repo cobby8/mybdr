@@ -2,6 +2,36 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-20] 카페 sync Pagination — `/api/v1/common-articles` cursor-based API
+- **분류**: decision (Phase 3 #6)
+- **결정자**: planner-architect
+- **결정**: 20건 상한 극복을 위해 **Daum 카페 모바일 내부 XHR API** 사용. `GET https://m.cafe.daum.net/api/v1/common-articles?grpid=IGaj&fldid={board}&targetPage={N}&afterBbsDepth={cursor}&pageSize={20~50}`
+- **배경**: 각 게시판 1페이지(20건)만 긁히는 한계. 3게시판 × 20 = 60건 상한. 전체 수집을 위해 pagination 필요.
+- **실측 근거 (2026-04-20)**:
+  - `?page=N` / `?p=N` / `?curpage=N` / `?pageNo=N` / `?listNum=N` / `?offset=20` / `/IVHA/2` — **전부 무효** (모바일 SSR이 쿼리 무시, 동일 응답)
+  - PC `cafe.daum.net/dongarry/_c21_/bbs_list?page=N` — **404**
+  - 번들 역공학(`general_articles-5f488a9d60.min.js` Vue 컴포넌트)에서 `Ns.get("/api/v1/common-articles", { params: {grpid, fldid, targetPage, afterBbsDepth, pageSize} })` 확인
+  - 실측: 커서 필수(`afterBbsDepth=0`이면 빈 배열), pageSize **50 OK / 100은 서버 500**
+  - 종료: `{"articles":[],"nextPage":N}` 반환으로 감지
+- **선택지**:
+  - A. cursor-based common-articles API ✅ (번들 역공학 + 실측 확정)
+  - B. Playwright로 무한 스크롤 재현 — **비권장** (무겁고 403 위험 ↑)
+  - C. 모바일 HTML만 반복 스크래핑 — **불가능** (SSR이 항상 1페이지)
+- **구현 방침**:
+  - 1페이지: **기존 HTML SSR 경로 유지** (`articles.push` 정규식). `bbsDepth` 필드 추출만 추가.
+  - 2페이지+: common-articles JSON API. 응답 필드명이 articles.push 블록과 **동일**(dataid/title/writerNickname/articleElapsedTime/bbsDepth) → parser 재사용.
+  - CLI: `--max-pages=N` 신규 (기본 1, 호환). 페이지 간 sleep 3초(9가드 #1).
+  - 중단: articles=[] / maxPages 도달 / dataid 중복 / 403·429·500 연속 3회
+- **필수 헤더**: `Referer: https://m.cafe.daum.net/dongarry/{fldid}` + `X-Requested-With: XMLHttpRequest` + `Accept: application/json, text/plain, */*`
+- **운영 가드**: 
+  - pageSize 50 상한 코드 강제 (서버 500 방지)
+  - API 실패 시 1페이지 HTML 수집은 그대로 동작 (이중 안전망)
+  - 9가드 #1(3초) / #8(연속 3회 중단) 기존 로직 재사용
+- **영향**: `board-map.ts`(+ GRP_CODE 상수), `fetcher.ts`(+ fetchBoardListApi), `scripts/sync-cafe.ts`(페이지 루프). 스키마 0, 운영 DB 영향 0.
+- **재검토 트리거**: API 스펙 변경(무고지 고장) → 이중 안전망으로 1페이지는 유지. 알림이 "2P 이후 0건" 감지
+- **참조**: scratchpad-cafe-sync.md "📋 Phase 3 #6 Pagination 설계안"
+- **참조횟수**: 0
+
 ### [2026-04-20] 카페 sync 과거 글 시분 확보 불가 — 원천 미제공 (HTML 한계)
 - **분류**: decision (기술적 한계 확정)
 - **결정자**: pm + Explore 실측 분석

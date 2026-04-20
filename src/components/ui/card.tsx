@@ -6,9 +6,11 @@ import { type ReactNode } from "react";
 export function Card({
   children,
   className = "",
+  style,
 }: {
   children: ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
@@ -17,6 +19,7 @@ export function Card({
         borderColor: "var(--color-border)",
         backgroundColor: "var(--color-card)",
         boxShadow: "var(--shadow-card)",
+        ...style, // 외부에서 전달된 style을 병합 (팀 색상 보더 등)
       }}
     >
       {children}
