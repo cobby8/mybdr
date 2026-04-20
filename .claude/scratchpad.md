@@ -11,9 +11,9 @@
 - **푸시 전 `git fetch` 권장** (양 세션 push 충돌 방지)
 
 ## 현재 작업
-- **요청**: 오후 push + 후속 정비 3종 (scratchpad / referee 알림 확인 / L3 Breadcrumb)
-- **상태**: 🟢 1·2·5 확인 완료 — 알림 이미 완비 / Breadcrumb 이미 존재. 실질 작업은 M7 거부 사유 저장으로 전환
-- **현재 담당**: pm (거부 사유 저장 작업 중)
+- **요청**: 오후 push 이후 종합 후속 정비 — L3 초입 + M2 확인 + 알림 UX + code audit + 운영 DB 문서
+- **상태**: 🟢 전부 완료 (5 커밋 누적 — 71b817c / eb9c910 / e6a9169 / 8dfbafe / 커밋 대기)
+- **현재 담당**: pm (push 대기)
 
 ## 진행 현황표
 | 영역 | 상태 |
@@ -69,9 +69,10 @@ Day 20 남은 작업: 통합 스모크 테스트(수동, 수빈 직접) + L2/L3 
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-20 | pm | **M7 후속 — 거부 사유 저장/노출** — members/route.ts PATCH에 rejection_reason body 수신·저장(500자 trim) + 알림 content에 사유 포함 + manage/page.tsx reject 시 prompt로 입력(빈값 허용, cancel시 중단) | ✅ 커밋 대기 |
-| 04-20 | pm | **오후 push — PR #49/#50 전부 MERGED** (subin→dev squash `70baa17` / dev→main merge `e6bbe4e`). 충돌 5개 --ours 해결 | ✅ main 반영 |
-| 04-20 | pm | **W4 마감 Day 20** — /games/my-games 중복 제거 + Dev/long-term-plan-L2/L3.md + W1~W4 완료 요약 | ✅ 642a8be + 1119991 |
+| 04-20 | pm | **오후 후속 종합 정비** — L3 초입(대회/시리즈 브레드크럼 4단) + /profile/activity 탭 카운트 배지(3탭 병렬 캐시) + manage/page.tsx 하드코딩 색상 5곳 CSS 변수화 + lessons.md audit 기록(31파일/9any) + Dev/ops-db-sync-plan.md 초안 | ✅ eb9c910 + e6a9169 + 8dfbafe + 커밋 대기 |
+| 04-20 | pm | **M7 후속 — 거부 사유 저장/노출** — members/route.ts PATCH에 rejection_reason body 수신·저장(500자 trim) + 알림 content에 사유 포함 + manage/page.tsx reject prompt 입력 | ✅ 71b817c |
+| 04-20 | pm | **오후 push — PR #49/#50 MERGED** (squash `70baa17` / merge `e6bbe4e`). 충돌 5개 --ours | ✅ main |
+| 04-20 | pm | **W4 마감 Day 20** — /games/my-games 중복 제거 + L2/L3 기획서 + W1~W4 요약 | ✅ 642a8be + 1119991 |
 | 04-20 | pm | **W4 M4 내 활동 통합 뷰 + M7 4번** — /api/web/me/activity(3type 통합), /profile/activity 3탭 페이지, 좌측네비 "내 활동" 추가(7항목), /games/my-games 배너, 팀 탭 pending 취소 빠른액션 | ✅ de2c712 |
 | 04-20 | pm | **W4 M7 팀 가입 신청자 화면** (1~3번) — GET/DELETE my-application API, join-button.tsx 상태 분기 + 환영 토스트 + 취소/재신청 + 거부사유 + CSS 변수화 | ✅ c2b13c5 |
 | 04-20 | pm | **W4 L1 용어 통일 + /help/glossary 신설** — 용어 9종 페이지 + Footer 도움말 + 비로그인 히어로 용어 사전 링크 + PC 사이드네비 "경기" 부제 + conventions.md 단일 소스 | ✅ e5071f0 |
@@ -79,5 +80,4 @@ Day 20 남은 작업: 통합 스모크 테스트(수동, 수빈 직접) + L2/L3 
 | 04-20 | pm | **subin→dev→main 전체 push** (원영 협의). PR #47 subin→dev squash / PR #48 dev→main merge. 충돌 6개(scratchpad/settings/M5/카페 sync) --ours로 해결 | ✅ main 8475e10 / dev ff02652 |
 | 04-20 | pm+developer | **Phase 2b 품질 보강 + 지속동기화 기반** — 마스킹 3중/script 제거/venue 제한/city 역매핑/MptT PRACTICE 강제/postedAt fallback/created_at=카페게시순 | ✅ 4826018 |
 | 04-20 | pm+team | **M5 온보딩 압축** — auth redirect→/verify, /profile/complete 7→3필드 옵션카드, 흐름 정렬 + 후속 정비(타입/색상변수) | ✅ 1e7ec68 + 17732ab |
-| 04-20 | pm+team | **M3 코트 지도 폴리시** — localStorage viewMode + 인포 ★평점/상세보기 + appkey env 외부화 | ✅ 86f1736 |
-| 04-20 | pm+team | **M6 알림 분류** 6카테고리 + 카테고리별 mark-all-read + 더 보기 + 헤더 뱃지 사일런트 버그 정정 | ✅ 5e56d0f |
+| 04-20 | pm+team | **M3/M6 코트 지도 + 알림 분류** | ✅ 86f1736 + 5e56d0f |
