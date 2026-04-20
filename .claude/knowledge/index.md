@@ -171,7 +171,8 @@
 | DESIGN.md | Dev/design/DESIGN.md | 디자인 시스템 통합 문서 (색상/폰트/레이아웃/컴포넌트) |
 | Stitch 원본 | Dev/design/0. 레이아웃/DESIGN.md | Stitch에서 내보낸 원본 디자인 규격 |
 
-## 최근 추가된 지식 (최근 10건)
+## 이전 누적 지식 아카이브 (2026-04-15 이전, 참고용)
+<!-- 위쪽 "최근 추가된 지식" 섹션과 분리. 제목 중복 방지. 신규 항목은 상단 섹션에 추가하고, 3개월 이상 참조 안 된 항목은 이 섹션에서 정리/삭제 검토. -->
 - [04-15] decisions: 헬스체크 cron 2차 — self-fetch + Promise.allSettled 병렬 + 실패해도 끝까지 진행 (내부 함수 호출 대비 유저 경로 검증 이점)
 - [04-12] architecture: 심판 플랫폼 재설계 v2 — 6모델(Association/AssociationAdmin/Referee/Certificate/Assignment/Settlement) + 17API + Excel 2단계 업로드, users 0수정 CREATE 6건만
 - [04-12] decisions: v2 협회 계층형 Association — self-relation, 20개 시드(KBA+시도17+KBL/WKBL), REGIONS 재사용
