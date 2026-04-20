@@ -2,6 +2,7 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { encryptAccount, maskAccount } from "@/lib/security/account-crypto";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { getProfile, updateProfile } from "@/lib/services/user";
+import { matchPlayersByPhone } from "@/lib/services/player-matching";
 
 export const GET = withWebAuth(async (ctx: WebAuthContext) => {
   try {
@@ -116,6 +117,15 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       ...(weight !== undefined && { weight: weight ? Number(weight) : null }),
       ...bankUpdate,
     });
+
+    // 전화번호가 변경되었으면, 미연결 선수 자동 매칭 시도
+    if (phone && typeof phone === "string") {
+      try {
+        await matchPlayersByPhone(ctx.userId, phone);
+      } catch {
+        // 매칭 실패해도 프로필 수정에는 영향 없음
+      }
+    }
 
     return apiSuccess(updated);
   } catch {

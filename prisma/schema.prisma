@@ -421,6 +421,7 @@ model TournamentTeamPlayer {
   birth_date       String?           @db.VarChar
   is_elite         Boolean?          @default(false)
   player_name      String?           @db.VarChar
+  phone            String?           @db.VarChar
   isStarter        Boolean?          @default(false) @map("is_starter")
   games_played     Int?              @default(0)
   total_points     Int?              @default(0)

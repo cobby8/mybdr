@@ -2,28 +2,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { generateToken } from "./jwt";
 import { WEB_SESSION_COOKIE } from "./web-session";
-import { findUnmatchedReferee, executeMatch } from "@/lib/services/referee-matching";
-
-/**
- * 로그인 성공 후 사전 등록된 심판과 자동 매칭 시도.
- * 이유: 협회가 미리 등록한 심판(unmatched)을 유저 로그인 시 자동 연결하여
- *       유저가 별도 작업 없이 심판 플랫폼을 바로 이용할 수 있게 한다.
- *
- * 중요: 매칭 실패가 로그인을 방해하면 안 됨 — try-catch로 감싸서 에러 시 조용히 무시
- */
-async function tryAutoMatch(userId: bigint, name: string | null, phone: string | null) {
-  if (!name || !phone) return null;
-  try {
-    const referee = await findUnmatchedReferee(name, phone);
-    if (referee) {
-      await executeMatch(referee.id, userId);
-      return referee;
-    }
-  } catch {
-    // 매칭 실패는 로그인 실패로 이어지면 안 됨 — 조용히 무시
-  }
-  return null;
-}
+import { matchPlayersByPhone } from "@/lib/services/player-matching";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -89,6 +68,13 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
         status: "active",
       },
     });
+
+    // 신규 가입 시 phone이 있으면 미연결 선수 자동 매칭
+    if (phone) {
+      try {
+        await matchPlayersByPhone(user.id, phone);
+      } catch { /* 매칭 실패해도 가입 흐름에 영향 없음 */ }
+    }
   } else {
     // 프로필 이미지/닉네임 업데이트 (없는 경우만)
     const updates: Record<string, string> = {};
@@ -100,6 +86,13 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
     if (!user.phone && phone) updates.phone = phone;
     if (Object.keys(updates).length > 0) {
       await prisma.user.update({ where: { id: user.id }, data: updates });
+
+      // 기존 유저의 phone이 새로 저장되었으면 미연결 선수 자동 매칭
+      if (updates.phone) {
+        try {
+          await matchPlayersByPhone(user.id, updates.phone);
+        } catch { /* 매칭 실패해도 로그인 흐름에 영향 없음 */ }
+      }
     }
   }
 
@@ -108,26 +101,14 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
   const cookieStore = await cookies();
   cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
 
-  // 5. 사전 등록 심판 자동 매칭 시도 (로그인 성공 후, 리다이렉트 전)
-  //    유저의 이름+전화번호로 unmatched 심판을 찾아 자동 연결
-  await tryAutoMatch(user.id, user.name ?? null, user.phone ?? null);
-
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
 
-  // 이메일 또는 전화번호가 없으면 인증 페이지로 (redirect보다 우선)
+  // 이메일 또는 전화번호가 없으면 인증 페이지로
   const needsEmail = !user.email || user.email.endsWith("@oauth.local");
   const needsPhone = !user.phone;
   if (needsEmail || needsPhone) {
     const missing = [needsEmail && "email", needsPhone && "phone"].filter(Boolean).join(",");
     return Response.redirect(new URL(`/verify?missing=${missing}`, baseUrl));
-  }
-
-  // bdr_redirect 쿠키가 있으면 해당 경로로 복귀, 없으면 홈으로
-  const redirectPath = cookieStore.get("bdr_redirect")?.value;
-  if (redirectPath && redirectPath.startsWith("/") && !redirectPath.startsWith("//")) {
-    // 사용한 쿠키는 삭제 (일회용)
-    cookieStore.delete("bdr_redirect");
-    return Response.redirect(new URL(redirectPath, baseUrl));
   }
 
   return Response.redirect(new URL("/", baseUrl));
