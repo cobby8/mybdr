@@ -2,6 +2,15 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-21] 세션 역할 재정의 — 본 세션 = 다음카페 sync 전용
+- **분류**: decision (운영 워크플로우)
+- **결정자**: pm + 수빈 (2026-04-21 승인)
+- **결정**: 2026-04-21부로 **본 세션(이 Claude Code 터미널) = 다음카페 sync 전용**으로 역할 뒤집음. 이전(2026-04-20) "본=일반, 다른=카페" 합의 폐기. 옵션 A 조합 채택: (1) **브랜치**: 양 세션 `subin` 공용 유지. (2) **커밋 스코프**: 본 세션 모든 커밋에 `(cafe-sync)` 스코프 필수 — `feat/fix/docs/chore/refactor(cafe-sync):`. (3) **PR**: 신규 카페 작업은 별도 PR로 오픈. PR #55(혼재)는 그대로 머지. (4) **scratchpad**: 공용 `.claude/scratchpad.md` 유지 + "카페 작업 로그" 섹션 분리(담당=`pm-cafe`). (5) **충돌 방지**: push 전 `git fetch origin subin` 필수, scratchpad 동시 편집 금지(섹션 다르면 OK).
+- **배경**: 2026-04-20부터 "본=일반" 원칙이었으나 실제 `subin` 브랜치 커밋 이력상 카페 sync 작업이 혼재됐고, PR 분리 시도 2회(`531b3261` / `98433ca`·`2f67ddc` Revert) 모두 되돌림. PR #55도 "L2 + 보이스카우트 + 카페 sync 후속 (통합)" 혼재 상태. 더 이상 같은 세션에서 두 도메인을 섞지 않고 이 터미널을 **카페 전용**으로 굳히는 게 리뷰/검수 부담 최소.
+- **대안 배제**: (B) `subin-cafe` 브랜치 분리 → 과거 PR 분리 실패 이력 + 브랜치 관리 오버헤드. 필요시 나중에 전환. (C) 현 상태 유지(두 도메인 섞기) → PR 리뷰 난이도 높음, 책임 경계 모호.
+- **영향**: 본 세션은 `src/lib/cafe-sync/**`, `src/lib/parsers/cafe-*.ts`, `scripts/sync-cafe.ts`, `scripts/cafe-login.ts`, `scripts/backfill-*cafe*.ts`, `scripts/_tmp-cafe-*`, `Dev/cafe-*.md`, `Dev/prompt-cafe-*.md`, 프리즈마 cafe migration **만** 수정. 그 외 파일 터치 시 PM이 차단. 다른 세션(일반)은 반대로 이 목록을 금지 파일로.
+- **참조횟수**: 0
+
 ### [2026-04-21] 카페 sync 3게시판 전면 board 강제 + parser 힌트 메타데이터화
 - **분류**: decision (카페 sync Phase 2b 후속)
 - **결정자**: pm + developer (2026-04-21 승인)

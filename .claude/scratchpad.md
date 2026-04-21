@@ -1,10 +1,17 @@
 # 작업 스크래치패드
 
-## ⚠️ 세션 분리 원칙 (필수, 2026-04-20 합의)
-- **본 세션** = `(web)`/`(api/web)`/`(referee)` 등 일반 UX/기능 작업
-- **다른 세션 (병행)** = 다음카페 sync 작업 — 항상 별도 터미널에서 동시 진행
-- **본 세션 PM 금지 파일**: `scripts/sync-cafe.ts`, `scripts/cafe-login.ts`, `scripts/_tmp-*`, `scripts/backfill-*cafe*.ts`, `src/lib/cafe-sync/*`, `Dev/cafe-sync-plan-*.md`
-- **푸시 전 `git fetch` 권장** (양 세션 push 충돌 방지)
+## ⚠️ 세션 분리 원칙 (필수, 2026-04-21 재정의)
+> 2026-04-21부로 **본 세션 역할 뒤집음** — 이전 합의(본=일반)는 폐기
+
+- **본 세션 (Claude Code, 이 터미널)** = **다음카페 sync 전용**
+  - 허용 파일: `scripts/sync-cafe.ts`, `scripts/cafe-login.ts`, `scripts/_tmp-cafe-*`, `scripts/backfill-*cafe*.ts`, `src/lib/cafe-sync/**`, `src/lib/parsers/cafe-*.ts`, `Dev/cafe-*.md`, `Dev/prompt-cafe-*.md`, 프리즈마 cafe 관련 migration
+  - 커밋 스코프 **필수**: `feat(cafe-sync):` / `fix(cafe-sync):` / `docs(cafe-sync):` / `chore(cafe-sync):` / `refactor(cafe-sync):`
+- **다른 세션 (병행)** = 일반 UX/기능 작업 — `(web)`/`(api/web)`/`(referee)`/`profile`/`tournaments` 등
+- **본 세션 PM 금지 파일**: 위 허용 목록 외 전부. 특히 `src/app/(web)/**`, `src/app/api/web/**`, `src/components/profile/**`, `src/app/(site)/**`, `src/app/api/v1/**`(카페 관련 제외)
+- **브랜치**: 양 세션 모두 `subin` 공용 (분리 안 함). 충돌 발생 시 `subin-cafe` 분리 재검토
+- **push 전 `git fetch origin subin` 필수** → 뒤처지면 `git pull --rebase`
+- **scratchpad**: 공용 유지. 카페 작업은 "카페 작업 로그" 섹션에 별도 기록 (담당 = `pm-cafe`)
+- **PR**: 본 세션은 카페 전용 신규 PR로. PR #55(혼재)는 그대로 머지 예정
 
 ## 📍 다음 세션 진입점 (2026-04-21~ "이어서 하자" 시 이 순서대로)
 
@@ -57,6 +64,11 @@
 | L3 | Organization brc + EditionSwitcher + SeriesCard | 3h | ~1.5h |
 | L2 | 본인·타인 프로필 통합 + 공용 3종 + 대시보드 재정의 + 티어→레벨 | 15h | ~2h |
 | **합계** | **4주 + L2·L3** | **~85h** | **~31.5h** (2.7배 절감) |
+
+## 🗂 카페 작업 로그 (본 세션 전용 — 2026-04-21~)
+| 날짜 | 담당 | 작업 | 결과 |
+|------|------|------|------|
+| 04-21 | pm-cafe | **세션 재정의 — 본 세션 = 카페 전용** (scratchpad 원칙 뒤집음 + decisions.md 기록) | ⏳ 커밋 대기 |
 
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
