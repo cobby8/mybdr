@@ -311,8 +311,8 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                 const statusNum = g.status;
                 // 완료된 경기는 초록, 취소는 빨강, 나머지는 기본색
                 const statusColor =
-                  statusNum === 3 ? "text-green-500 bg-green-500/10" :
-                  statusNum === 4 ? "text-red-500 bg-red-500/10" :
+                  statusNum === 3 ? "text-[var(--color-success)] bg-[var(--color-success)]/10" :
+                  statusNum === 4 ? "text-[var(--color-error)] bg-[var(--color-error)]/10" :
                   "text-[var(--color-text-muted)] bg-[var(--color-surface-high)]";
 
                 return (
