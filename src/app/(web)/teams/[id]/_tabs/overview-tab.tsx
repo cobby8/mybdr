@@ -240,13 +240,16 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
                   let outcomeColor = "text-[var(--color-text-muted)] bg-[var(--color-surface-high)]";
                   if (m.status === "live") {
                     outcomeLabel = TM_STATUS_LABEL.live;
-                    outcomeColor = "text-yellow-500 bg-yellow-500/10";
+                    // 진행중 = warning(amber), CSS 변수 사용
+                    outcomeColor = "text-[var(--color-warning)] bg-[var(--color-warning)]/10";
                   } else if (myScore > oppScore) {
                     outcomeLabel = "승";
-                    outcomeColor = "text-green-500 bg-green-500/10";
+                    // 승리 = success(green)
+                    outcomeColor = "text-[var(--color-success)] bg-[var(--color-success)]/10";
                   } else if (myScore < oppScore) {
                     outcomeLabel = "패";
-                    outcomeColor = "text-red-500 bg-red-500/10";
+                    // 패배 = error(red)
+                    outcomeColor = "text-[var(--color-error)] bg-[var(--color-error)]/10";
                   }
 
                   const homeName = m.homeTeam?.team?.name ?? "미정";
