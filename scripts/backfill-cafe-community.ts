@@ -35,7 +35,7 @@
  * 옵션:
  *   --board=E7hL|bWL|N54V|IVd2|community   (community = 4게시판 전부)
  *   --max-pages=N            기본 5, 상한 20 (페이지당 20건 * 20 = 400건/게시판)
- *   --article-limit=N        기본 10, 상한 50 (본문 fetch 건수)
+ *   --article-limit=N        기본 10, 상한 100 (본문 fetch 건수). IVd2 전량(95건) 등 100건 이내 작은 게시판 1회 처리용으로 확대
  *   --with-body              본문 fetch + upsert 실행 (기본 꺼짐)
  *   --list-only              목록만 (본문 스킵)
  *   --execute                실제 DB 쓰기 (dry-run 해제)
@@ -141,7 +141,7 @@ function assertDevDatabase(): void {
 
 async function main(): Promise<void> {
   const maxPages = parseNumArg("max-pages", 5, 1, 20);
-  const articleLimit = parseNumArg("article-limit", 10, 1, 50);
+  const articleLimit = parseNumArg("article-limit", 10, 1, 100);
   const boards = parseBoardsArg();
 
   console.log("========================================");
