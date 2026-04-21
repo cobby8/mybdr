@@ -125,27 +125,85 @@ export interface CafeSyncResult {
 
 /**
  * board → game_type 숫자 매핑.
- * parsed.gameType이 있으면 그걸 우선 사용, null이면 board 기반 fallback.
  *
- * [2026-04-20] PRACTICE 게시판은 board 강제 적용:
- *   MptT(연습경기) 글에 "게스트 모집" 키워드가 섞이면 parseCafeGame이
- *   GUEST(1)로 오분류하는 문제(실측 4/5). 운영자가 MptT 게시판을 택했다는 건
- *   팀-팀 매칭 의도이므로 board를 절대 기준으로 삼는다.
- *   PICKUP/GUEST 게시판은 혼재 글(픽업 게스트 구함 등)이 실제로 많으므로
- *   parser 재분류 결과를 유지 (설계대로).
+ * [2026-04-21] **3개 게시판 전체 board 강제** (PM 승인):
+ *   2026-04-20 에 MptT(PRACTICE) 만 board 강제로 바꿨는데,
+ *   IVHA/Dilr 에서도 같은 오분류 패턴 발견 (본문에 타 유형 키워드 혼입 시
+ *   parser 가 GUEST/PICKUP 로 재분류 → 실제 의도와 탭 표시 불일치).
+ *   운영자가 **어느 게시판에 올렸는가** 가 가장 강한 의도 신호이므로
+ *   board → game_type 1:1 매핑을 절대 기준으로 삼는다.
+ *
+ *   parser 결과(parsed.gameType) 는 소비하지 않고, 대신
+ *   `buildMetadataHints()` 에서 metadata.mixed_type_hint 로 보존한다
+ *   (admin UI 의 "혼재 의심" 필터 재활용 대비).
+ *
+ * export 이유: 백필 스크립트(scripts/backfill-cafe-game-type.ts) 에서
+ *   동일 매핑을 재사용하기 위해 공개.
  */
-function resolveGameType(parsed: ParsedCafeGame | null, board: CafeBoard): number {
-  // MptT(PRACTICE) 강제 규칙
-  if (board.gameType === "PRACTICE") return 2;
-
-  // parsed.gameType: 0 | 1 | 2 | null | undefined
-  if (parsed && typeof parsed.gameType === "number") {
-    return parsed.gameType;
-  }
-  // board fallback: IVHA=0 / Dilr=1 / MptT=2(이미 위에서 처리)
+export function resolveGameType(board: CafeBoard): number {
+  // 1:1 매핑만 남김 — parser 결과 분기 제거 (2026-04-21)
   if (board.gameType === "PICKUP") return 0;
   if (board.gameType === "GUEST") return 1;
-  return 2; // PRACTICE
+  if (board.gameType === "PRACTICE") return 2;
+  return 2; // 이론상 도달 불가 — CafeBoard.gameType 은 3가지 유니온
+}
+
+/**
+ * parser 재분류 결과가 board 와 다를 때 metadata 힌트 객체 생성.
+ *
+ * 왜 분리했나 (2026-04-21):
+ *   - 단위 테스트 가능 (DB 없이 pure function 검증)
+ *   - insertGameFromCafe 와 previewUpsert 두 곳에서 같은 로직 재사용
+ *   - 분기 조건이 4 단계(null/undefined/일치/불일치) 라 조립 지점에
+ *     ternary 쌓으면 가독성 나빠짐
+ *
+ * 반환 규칙:
+ *   - parsed === null                              → {}  (파서 실패, 힌트 없음)
+ *   - parsed.gameType == null/undefined            → {}  (파서가 미분류)
+ *   - parsed.gameType === resolvedType             → {}  (의도 일치, 힌트 불필요)
+ *   - 불일치                                         → { mixed_type_hint, parser_game_type }
+ *
+ * - mixed_type_hint.suggested_type: 문자열 라벨 ("PICKUP"/"GUEST"/"PRACTICE")
+ * - mixed_type_hint.reason: "parser_mismatch_board_forced" (고정)
+ * - mixed_type_hint.original_parser_type: parser 가 뽑은 숫자 (0/1/2)
+ * - parser_game_type: parser 가 뽑은 숫자 그대로 (top-level 복제 — admin 쿼리 편의)
+ */
+type GameTypeLabel = "PICKUP" | "GUEST" | "PRACTICE";
+function labelOfGameType(n: number): GameTypeLabel {
+  if (n === 0) return "PICKUP";
+  if (n === 1) return "GUEST";
+  return "PRACTICE"; // 2 또는 이론상 도달 불가
+}
+
+export interface MetadataHints {
+  mixed_type_hint?: {
+    suggested_type: GameTypeLabel;
+    reason: "parser_mismatch_board_forced";
+    original_parser_type: 0 | 1 | 2;
+  };
+  parser_game_type?: 0 | 1 | 2;
+}
+
+export function buildMetadataHints(
+  board: CafeBoard,
+  parsed: ParsedCafeGame | null,
+  resolvedType: number,
+): MetadataHints {
+  // 파서가 본문 판정 못한 경우 힌트 없음
+  if (!parsed) return {};
+  if (parsed.gameType == null) return {};
+  // board 강제 결과와 파서 결과가 같으면 혼재 글 아님
+  if (parsed.gameType === resolvedType) return {};
+
+  const n = parsed.gameType as 0 | 1 | 2;
+  return {
+    mixed_type_hint: {
+      suggested_type: labelOfGameType(n),
+      reason: "parser_mismatch_board_forced",
+      original_parser_type: n,
+    },
+    parser_game_type: n,
+  };
 }
 
 /**
@@ -292,7 +350,9 @@ async function insertGameFromCafe(
 
   const now = new Date();
   const parsed = input.parsed;
-  const gameType = resolveGameType(parsed, input.board);
+  // [2026-04-21] board 강제 매핑 — parsed.gameType 무시. 혼재 글은 hints 로 기록.
+  const gameType = resolveGameType(input.board);
+  const hints = buildMetadataHints(input.board, parsed, gameType);
   const gameId = buildGameId(input.board, input.dataid);
   const organizerId = resolveOrganizerId();
 
@@ -320,7 +380,7 @@ async function insertGameFromCafe(
   //   id=397 실측: parser 가 "장소 :" 라벨 변형 못 잡아 null, extracted 가 구제.
   const venueName = parsed.venueName ?? extracted.venueName ?? null;
 
-  // metadata 8키 — D1-B 스펙 + [2026-04-20] cafe_article_id 추가
+  // metadata 8키 + [2026-04-21] 혼재 글 힌트 (조건부 0~2키 추가)
   //
   // 왜 cafe_article_id (Int) 를 별도 저장:
   //   - listGames 정렬에서 `created_at desc` 동률일 때 2차 tie-break 키로 사용.
@@ -328,6 +388,10 @@ async function insertGameFromCafe(
   //     JSON 안에 Int 로 직렬화된 복제본을 둔다.
   //   - dataidNum 이 optional 이라 누락 시 undefined → JSON 키 자체 생략(JSON.stringify 규칙).
   //     이 경우 정렬에서 null 로 취급되어 같은 분 안에서 뒤로 밀릴 뿐, 기능 이상 없음.
+  //
+  // 왜 hints 를 spread:
+  //   - buildMetadataHints 가 빈 객체 또는 2키 객체를 반환 → 불일치 케이스에만 metadata 에 섞임.
+  //   - 일치 케이스에선 mixed_type_hint / parser_game_type 키 자체가 없어 스토리지 깨끗.
   const metadata = {
     cafe_dataid: input.dataid,
     cafe_article_id: input.dataidNum, // ← 8번째 키 (정렬 tie-break 용, Int)
@@ -337,6 +401,7 @@ async function insertGameFromCafe(
     cafe_created: input.postedAt ? input.postedAt.toISOString() : null,
     cafe_comments: [], // Phase 2b에선 아직 댓글 수집 안 함. 빈 배열로 스키마만 확보.
     cafe_source_id: buildCafeSourceId(input.board, input.dataid),
+    ...hints, // [2026-04-21] board 와 parser 판정 불일치 시 mixed_type_hint + parser_game_type
   } as const;
 
   const row = await tx.games.create({
@@ -484,7 +549,9 @@ export function previewUpsert(input: CafeSyncInput): {
   metadata: Record<string, unknown>;
 } {
   const parsed = input.parsed;
-  const gameType = resolveGameType(parsed, input.board);
+  // [2026-04-21] insert 경로와 동일한 board 강제 매핑 — 미리보기 결과 일관성 유지.
+  const gameType = resolveGameType(input.board);
+  const hints = buildMetadataHints(input.board, parsed, gameType);
   // Phase 2b Step 4 — 실제 insert 와 동일한 체인을 dry-run 미리보기에서도 적용.
   // 로그 라인에 "어느 단계에서 값이 왔는가"를 표시하기 위해 *Source 필드도 함께 계산.
   const extracted = extractFallbacks(input.content, input.crawledAt);
@@ -590,7 +657,7 @@ export function previewUpsert(input: CafeSyncInput): {
     venueName,
     venueNameSource,
     willInsertGame: parsed !== null,
-    // 실제 insert 경로(insertGameFromCafe)와 동일한 8키 구성 — 미리보기 정확성 유지.
+    // 실제 insert 경로(insertGameFromCafe)와 동일한 8키 + hints 구성 — 미리보기 정확성 유지.
     metadata: {
       cafe_dataid: input.dataid,
       cafe_article_id: input.dataidNum, // ← 8번째 키 (Int, tie-break 2차키)
@@ -600,6 +667,7 @@ export function previewUpsert(input: CafeSyncInput): {
       cafe_created: input.postedAt ? input.postedAt.toISOString() : null,
       cafe_comments: [],
       cafe_source_id: buildCafeSourceId(input.board, input.dataid),
+      ...hints, // [2026-04-21] 혼재 글 힌트 (insert 와 동일)
     },
   };
 }
