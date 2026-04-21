@@ -65,12 +65,16 @@ export function RecentGames({
         className="px-5 py-4 flex justify-between items-center border-b"
         style={{ borderColor: "var(--color-border)" }}
       >
-        <h3
+        {/*
+          heading 계층 — 이 컴포넌트는 페이지 h1 바로 아래 섹션으로 쓰인다
+          (/users/[id], /profile 양쪽 모두). 그래서 h2가 올바른 레벨.
+        */}
+        <h2
           className="font-bold text-lg"
           style={{ color: "var(--color-text-primary)" }}
         >
           {title}
-        </h3>
+        </h2>
         {showMoreHref && (
           <Link
             href={showMoreHref}

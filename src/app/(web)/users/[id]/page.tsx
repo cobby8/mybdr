@@ -10,6 +10,8 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 
 import { ProfileHero } from "@/components/profile/profile-hero";
 import { RecentGames } from "@/components/profile/recent-games";
+// 본인 프로필 볼 때 "프로필 편집" 버튼 — 공용 컴포넌트 (2곳 중복 해소)
+import { OwnerEditButton } from "@/components/profile/owner-edit-button";
 import { UserRadarSection } from "./_components/user-radar-section";
 import { UserStatsSection } from "./_components/user-stats-section";
 import { ActionButtons } from "./_components/action-buttons";
@@ -273,12 +275,13 @@ export default async function UserProfilePage({
             className="px-5 py-4 border-b"
             style={{ borderColor: "var(--color-border)" }}
           >
-            <h3
+            {/* h1(닉네임) 바로 아래 섹션이므로 h2가 올바른 heading 계층 */}
+            <h2
               className="font-bold text-lg"
               style={{ color: "var(--color-text-primary)" }}
             >
               소속 팀
-            </h3>
+            </h2>
           </div>
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {publicTeams.map((team) => (
@@ -314,9 +317,11 @@ export default async function UserProfilePage({
                   )}
                 </div>
                 <div className="min-w-0">
+                  {/* truncate로 말줄임될 때 hover 툴팁으로 풀네임 확인 가능 */}
                   <p
                     className="font-medium text-sm truncate"
                     style={{ color: "var(--color-text-primary)" }}
+                    title={team.name ?? ""}
                   >
                     {team.name}
                   </p>
@@ -360,26 +365,5 @@ export default async function UserProfilePage({
       {/* ===== 4) 공용 RecentGames (variant=table) ===== */}
       <RecentGames games={recentGameRows} variant="table" title="최근 경기 기록" />
     </div>
-  );
-}
-
-/**
- * OwnerEditButton — 본인이 자기 프로필 볼 때 "프로필 편집" 버튼.
- * /profile/edit로 이동 (L2 설계: 편집 경로는 기존 /profile/edit 재활용).
- */
-function OwnerEditButton() {
-  return (
-    <Link
-      href="/profile/edit"
-      className="inline-flex items-center gap-1.5 rounded border px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-surface-bright,var(--color-surface))]"
-      style={{
-        borderColor: "var(--color-primary)",
-        color: "var(--color-primary)",
-        borderRadius: "4px",
-      }}
-    >
-      <span className="material-symbols-outlined text-base">edit</span>
-      프로필 편집
-    </Link>
   );
 }

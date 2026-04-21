@@ -19,6 +19,8 @@ import useSWR from "swr";
 import Link from "next/link";
 
 import { ProfileHero } from "@/components/profile/profile-hero";
+// 편집 버튼 — /users/[id] 본인 분기와 공용화된 컴포넌트 (2곳 중복 해소)
+import { OwnerEditButton } from "@/components/profile/owner-edit-button";
 import {
   TeamsTournamentsCard,
   type NextGameSummary,
@@ -173,20 +175,7 @@ export default function ProfilePage() {
         levelInfo={levelInfo}
         followersCount={profile.followers_count ?? 0}
         followingCount={profile.following_count ?? 0}
-        actionSlot={
-          <Link
-            href="/profile/edit"
-            className="inline-flex items-center gap-1.5 rounded border px-4 py-2 text-sm font-semibold transition-colors hover:bg-[var(--color-surface-bright,var(--color-surface))]"
-            style={{
-              borderColor: "var(--color-primary)",
-              color: "var(--color-primary)",
-              borderRadius: "4px",
-            }}
-          >
-            <span className="material-symbols-outlined text-base">edit</span>
-            프로필 편집
-          </Link>
-        }
+        actionSlot={<OwnerEditButton />}
       />
 
       {/* ===== 2) 대시보드 카드 2열 — 팀·대회(다음 경기) + 빠른 메뉴 ===== */}
