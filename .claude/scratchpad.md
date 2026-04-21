@@ -68,11 +68,17 @@
 ## 🗂 카페 작업 로그 (본 세션 전용 — 2026-04-21~)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-21 | pm-cafe | **세션 재정의 — 본 세션 = 카페 전용** (scratchpad 원칙 뒤집음 + decisions.md 기록) | ⏳ 커밋 대기 |
+| 04-21 | pm-cafe | **Stage B-1 실전 INSERT 10건** — E7hL 5건(postId 272~276, category=review) + bWL 5건(postId 277~281, category=recruit). 모두 user_id=3004(봇) 통합 + author_nickname 원본 유지 + images JSON cafe_source_id 정상. title HTML entity는 설계상 DB 원본 보존(렌더 시점 디코드). 렌더 측 community 경로 `decodeHtmlEntities` 누락은 수정 요청 테이블에 인계 | ✅ (DB only, 커밋 없음) |
+| 04-21 | pm-cafe | **Stage B 선결 ③** — E7hL/bWL dry-run 각 5건 본문 fetch 성공(쿠키 재발급 효과 확인). 매핑/중복/포맷 모두 정상 | ✅ (DB only) |
+| 04-21 | pm-cafe | **Stage B 선결 ②** — 개발 DB 카페 봇 유저 seed (`seed-cafe-bot-user.ts --execute`). `cafe-bot@mybdr.local` / id=3004 생성. 멱등 확보 | ✅ (DB only, 커밋 없음) |
+| 04-21 | pm-cafe | **game_type 오분류 설계안 + 실행 프롬프트 문서 커밋** (Dev/cafe-classification-fix-2026-04-21.md / Dev/prompt-cafe-classification-fix.md, 400줄). 대응 코드는 이미 머지됨(4fd75e4) | ✅ 8c0223a |
+| 04-21 | pm-cafe | **세션 재정의 — 본 세션 = 카페 전용** (scratchpad 원칙 뒤집음 + decisions.md 78항목 기록 + index.md 갱신) | ✅ aef2dcd |
 
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
+| 수빈(스모크 L3-2) | `src/app/(web)/organizations/[slug]/series/[seriesSlug]/page.tsx` | `/organizations/org-ny6os/series/bdr-series` 접근 시 500 + Turbopack "Jest worker ... retry limit" crash. Next 16.1.6 (stale) | ✅ 해결 — 코드 무결 / 워커 캐시 손상. PID 42564 종료 + `.next` 삭제 + 재기동 → **200 / 0.28s**. errors.md [2026-04-12] 재발 참조횟수 1 |
+| pm-cafe (Stage B-1) | `src/app/(web)/community/**` 렌더 컴포넌트 (리스트/상세) | **Stage A 확장 후속 누락** — 카페 sync가 `community_posts`로 확장(Stage A `47c2c97`)됐으나 렌더 측 `decodeHtmlEntities` 적용은 games 경로만 있고 community 경로 누락. postId 277 title `[시흥] 일요일팀 &#39;지역방어&#39;` 등. 저장은 설계상 원본 보존이라 정상, **렌더 시점** 디코드만 추가 필요. 유틸 기존: `@/lib/utils/decode-html#decodeHtmlEntities`. 참고 구현: `src/app/(web)/games/_components/games-content.tsx` | ⏳ 일반 세션 대기 |
 
 ## 운영 팁
 - **gh 인증 풀림**: `GH_TOKEN=$(printf "protocol=https\nhost=github.com\n\n" | git credential fill 2>/dev/null | grep ^password= | cut -d= -f2) gh ...`
@@ -88,8 +94,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-21 | pm | **점진 정비 — any 타입 3건 명시 타입화** (community/page public_id null 정규화 + bulk-verify/bulk-register ExcelRow 공용 interface `src/lib/types/excel-row.ts` 신규) 4파일 tsc OK | ⏳ 커밋 대기 |
-| 04-21 | pm | **점진 정비 — 하드코딩 색상 7파일 CSS 변수화** (login/pricing/venues/community/registration/teams overview+games, 13개 색상 → var(--color-*)) | ⏳ 커밋 대기 |
+| 04-21 | pm | **L3 IA 스모크 완료** — BDR 시리즈 시드(12대회 편입, edition 혼재) + L3-2 500 운영 복구(Turbopack 워커 재발, PID + `.next` 재기동, errors.md [2026-04-12] 참조횟수 1) + 수빈 4조합 대표 통과 | ✅ 14b1934 (미푸시) + docs |
 | 04-21 | pm | **점진 정비 — any 3건 명시 타입화** (community CommunityPost + bulk-verify/bulk-register ExcelRow 공용 interface) | ✅ b5f5e5a |
 | 04-21 | pm | **점진 정비 — 하드코딩 색상 7파일 CSS 변수화** (login/pricing/venues/community/registration/teams overview+games, 13개 색상) | ✅ 9a1c924 |
 | 04-21 | pm | **reviewer 권장 5건 정비** — OwnerEditButton 공용 + color/heading/wrap 보강. 9파일 | ✅ be6d7e1 |
@@ -99,5 +104,3 @@
 | 04-20 | pm | **#7 위생 — index.md 중복 섹션 해소** (하단 아카이브 재명명) | ✅ 1ffedb5 |
 | 04-20 | pm | **운영 DB 동기화 초안 + scratchpad 정비** (Dev/ops-db-sync-plan.md 옵션 A/B/C) | ✅ d30264f |
 | 04-20 | pm | **manage 하드코딩 색상 5곳 CSS 변수화 + lessons audit** (31파일/9any 숙제 기록) | ✅ 8dfbafe |
-| 04-20 | pm | **/profile/activity 탭 카운트 배지** (3탭 병렬 캐시) | ✅ e6a9169 |
-| 04-20 | pm | **L3 초입 — 대회·시리즈 브레드크럼 4단** (`shared/breadcrumb.tsx` 재활용) | ✅ eb9c910 |
