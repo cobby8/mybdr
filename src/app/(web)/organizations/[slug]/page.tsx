@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+// L3: 3계층 IA 브레드크럼 (홈 → 단체명) — shared 컴포넌트 재활용
+import { Breadcrumb } from "@/components/shared/breadcrumb";
 
 /* ============================================================
  * 단체 상세 (공개) — /organizations/[slug]
@@ -79,6 +81,17 @@ export default async function OrganizationDetailPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      {/* L3: 브레드크럼 (홈 → 단체명)
+       * PC 전용(shared/Breadcrumb 내부에서 hidden lg:block). 모바일은 뒤로가기 버튼이 대체. */}
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            { label: "홈", href: "/" },
+            { label: org.name },
+          ]}
+        />
+      </div>
+
       {/* 배너 */}
       {org.banner_url && (
         <div className="mb-6 h-40 w-full overflow-hidden rounded-lg">

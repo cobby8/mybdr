@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 // 디자인 시안 컴포넌트: 히어로(배너) + About(대회 소개) + 탭
 import { TournamentHero } from "./_components/tournament-hero";
 import { TournamentAbout } from "./_components/tournament-about";
+// L3: 소속 시리즈 카드 + EditionSwitcher (Hero 직후에 배치)
+import { SeriesCard } from "./_components/series-card";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb";
 
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
@@ -89,8 +91,13 @@ export default async function TournamentDetailPage({
     : "overview";
 
   // ========================================
-  // 1) 대회 기본 정보 조회 (is_public 포함 — 비공개 가드용)
+  // 1) 대회 기본 정보 + 소속 시리즈 통합 조회 (is_public 포함 — 비공개 가드용)
   // ========================================
+  // 왜 tournament_series를 include로 통합?
+  // - 기존에 tournament.findUnique + tournament_series.findUnique 2쿼리였으나,
+  //   Prisma relation으로 단일 쿼리화해 왕복 1회 감소 (reviewer D1 권장).
+  // - series_id=null이면 Prisma가 자동으로 tournament_series=null 반환 → 조건 분기 불필요.
+  // - is_public은 select에 포함해 비공개 시리즈 차단 가드에 사용 (reviewer D2 권장).
   const tournament = await prisma.tournament.findUnique({
     where: { id },
     select: {
@@ -127,6 +134,28 @@ export default async function TournamentDetailPage({
       // settings JSON — contact_phone 등 부가 설정 포함
       settings: true,
       _count: { select: { tournamentTeams: true } },
+      // L3 D1: 소속 시리즈 + 단체 + 시리즈 내 모든 회차 (prev/next 계산용)
+      // edition_number null 대회는 필터에서 제외되지만, DB는 asc로 뒤로 밀어 정렬만 통일
+      tournament_series: {
+        select: {
+          name: true,
+          slug: true,
+          logo_url: true,
+          // D2: 비공개 시리즈 차단용
+          is_public: true,
+          organization: { select: { name: true, slug: true } },
+          tournaments: {
+            select: {
+              id: true,
+              edition_number: true,
+              startDate: true,
+              status: true,
+            },
+            // edition_number asc — null 대회는 뒤로, 계산 시 추가 필터로 제외
+            orderBy: { edition_number: "asc" },
+          },
+        },
+      },
     },
   });
   if (!tournament) return notFound();
@@ -140,22 +169,57 @@ export default async function TournamentDetailPage({
     if (!insider) return notFound();
   }
 
-  // L3: 소속 시리즈/단체 메타 (브레드크럼 4단)
+  // L3: 소속 시리즈/단체 메타 (브레드크럼 4단 + SeriesCard)
   // Home / 단체 / 시리즈 / 대회명 체인. series_id/organization_id null이면 해당 단계 skip.
-  let series:
-    | { name: string; slug: string; organization: { name: string; slug: string } | null }
-    | null = null;
-  if (tournament.series_id) {
-    series = await prisma.tournament_series
-      .findUnique({
-        where: { id: tournament.series_id },
-        select: {
-          name: true,
-          slug: true,
-          organization: { select: { name: true, slug: true } },
-        },
-      })
-      .catch(() => null);
+  //
+  // D1: tournament.findUnique include로 통합됨 (별도 쿼리 제거).
+  // D2: is_public=false 시리즈는 노출 금지 → series=null 폴백 → 기존 "시리즈 미소속" 분기 재활용.
+  //     notFound()가 아니라 폴백인 이유: Tournament 자체는 정상 표시해야 하며,
+  //     브레드크럼 2단 축소 + SeriesCard skip 이 자연스러운 UX.
+  const series =
+    tournament.tournament_series && tournament.tournament_series.is_public !== false
+      ? tournament.tournament_series
+      : null;
+
+  // L3: prev/next 회차 계산
+  // edition_number null 대회 제외 + 현재 대회도 edition_number가 있어야 SeriesCard 렌더.
+  let seriesCardProps: {
+    seriesName: string;
+    seriesSlug: string;
+    seriesLogoUrl: string | null;
+    currentEditionNumber: number;
+    totalEditions: number;
+    orgName: string | null;
+    orgSlug: string | null;
+    prevTournamentId: string | null;
+    nextTournamentId: string | null;
+  } | null = null;
+  if (series && series.tournaments.length > 0) {
+    // edition_number null 제거 후 asc 정렬 (DB orderBy에 맞춰 이미 정렬 상태이지만 안전하게 필터만 적용).
+    const editions = series.tournaments.filter(
+      (t): t is typeof t & { edition_number: number } =>
+        t.edition_number !== null
+    );
+    // 현재 대회가 edition_number를 가진 경우에만 계산 — 없으면 SeriesCard skip.
+    const currentIdx = editions.findIndex((t) => t.id === tournament.id);
+    const currentTournament =
+      currentIdx >= 0 ? editions[currentIdx] : null;
+    if (currentTournament) {
+      const prev = currentIdx > 0 ? editions[currentIdx - 1] : null;
+      const next =
+        currentIdx < editions.length - 1 ? editions[currentIdx + 1] : null;
+      seriesCardProps = {
+        seriesName: series.name,
+        seriesSlug: series.slug,
+        seriesLogoUrl: series.logo_url,
+        currentEditionNumber: currentTournament.edition_number,
+        totalEditions: editions.length,
+        orgName: series.organization?.name ?? null,
+        orgSlug: series.organization?.slug ?? null,
+        prevTournamentId: prev?.id ?? null,
+        nextTournamentId: next?.id ?? null,
+      };
+    }
   }
 
   // ===== 내 신청 건수 조회 (배지 표시용) =====
@@ -396,6 +460,23 @@ export default async function TournamentDetailPage({
         contactPhone={(tournament.settings as Record<string, unknown>)?.contact_phone as string ?? null}
         myApplicationsCount={myApplicationsCount}
       />
+
+      {/* L3: 소속 시리즈 카드 — Hero 직후 / About(탭) 이전에 배치.
+       * series_id + edition_number 둘 다 있을 때만 렌더 (seriesCardProps null이면 skip).
+       * 맥락 일체화: 대회 이름 바로 아래에서 "이 대회는 X회차"를 인식 → About(탭)으로 내려감. */}
+      {seriesCardProps && (
+        <SeriesCard
+          seriesName={seriesCardProps.seriesName}
+          seriesSlug={seriesCardProps.seriesSlug}
+          seriesLogoUrl={seriesCardProps.seriesLogoUrl}
+          currentEditionNumber={seriesCardProps.currentEditionNumber}
+          totalEditions={seriesCardProps.totalEditions}
+          orgName={seriesCardProps.orgName}
+          orgSlug={seriesCardProps.orgSlug}
+          prevTournamentId={seriesCardProps.prevTournamentId}
+          nextTournamentId={seriesCardProps.nextTournamentId}
+        />
+      )}
 
       {/*
         데스크톱(lg+) 2열 레이아웃:
