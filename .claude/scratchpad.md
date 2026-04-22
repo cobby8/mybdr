@@ -68,7 +68,8 @@
 ## 🗂 카페 작업 로그 (본 세션 전용 — 2026-04-21~)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-22 | pm-cafe | **"중" 범위 정책 완료 — bWL 200 + N54V 400** (offset 분할). bWL 1차 50new+49dup+1empty, 2차 99new+1empty (누적 199). N54V 1차 95new+5empty, 2차 94+6empty, 3차 100, 4차 97+3empty (누적 386). **최종 community_posts 1073건** (E7hL 396 + N54V 386 + bWL 199 + IVd2 92). postId 272~1344. 4게시판 파이프라인 전량/상한 스냅샷 이전 완료 | ✅ docs |
+| 04-22 | pm-cafe | **봇 운영 개선 4건 완료 (#1~#4)**. #1 cafe-sync.yml Slack 쿠키 만료 감지 힌트(403/401/unauthorized 패턴). #2 cafe-sync-verify.yml Slack 일일 리포트(ok 1줄/warn·alert 상세). #3 backfill-community `--posted-since`/`--posted-until` 긴급 백필 모드(KST 기준). #4 cron `--article-limit` 5→10 (게시판당 180건/일 수용). #5/#6은 사용자 결정상 스킵(현행 운영 유지) | ✅ fb3f5b7+56f7437+5cdc46c+a932eb6 |
+| 04-22 | pm-cafe | **"중" 범위 정책 완료 — bWL 200 + N54V 400** (offset 분할). bWL 1차 50new+49dup+1empty, 2차 99new+1empty (누적 199). N54V 1차 95new+5empty, 2차 94+6empty, 3차 100, 4차 97+3empty (누적 386). **최종 community_posts 1073건** (E7hL 396 + N54V 386 + bWL 199 + IVd2 92). postId 272~1344. 4게시판 파이프라인 전량/상한 스냅샷 이전 완료 | ✅ 08cc8db |
 | 04-21 | pm-cafe | **E7hL 실질 전량 이전 완료** — `--offset` 옵션으로 4회 분할 (`--max-pages=20 --article-limit=100 --execute` × 4, offset 0/100/200/300). 1차 47신규+50dup+3empty, 2차 99+1empty, 3차 100, 4차 100. 목록 400건 중 396건 created. 누적 538건 (시점). 시간 범위 **2021-11-28 ~ 2026-04-21 (4.5년치)**. postId 272~809 | ✅ fce8805(offset) + 5a5104a |
 | 04-21 | pm-cafe | **backfill 스크립트 `--offset` 옵션 추가** — `items.slice(0, N)` → `items.slice(offset, offset+N)`. 대규모 게시판 100건씩 분할 처리 가능. 기본 0(호환), 상한 400(max-pages=20 × 20건). tsc OK | ✅ fce8805 |
 | 04-21 | pm-cafe | **IVd2 전량 이전 완료** — `--article-limit=95 --execute` 1회. listed=95 / body=92 / created=92 / failed=0 / skipped(dup)=0. 3건 차이는 본문 비어있는 글(삭제/보호) 자연 스킵. postId 369~463. 누적 192건 (시점 기록) | ✅ 98f26f6 |
