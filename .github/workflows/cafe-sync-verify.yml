@@ -139,3 +139,65 @@ jobs:
             tmp/verify.log
           retention-days: 30
           if-no-files-found: warn
+
+      # ─── 7. Slack 일일 리포트 (개선 #2, 2026-04-22) ─────────────────────────
+      # 이유: verify 는 이미 지표·권고를 JSON 으로 생성. workflow 에서 읽어 Slack
+      #       에 요약 전송하면 "포지티브 신호" 확보 — 매일 운영 상태 가시화.
+      # 포맷: severity=ok → 1줄 요약 / severity=warn|alert → 지표 상세 + 권고.
+      # 알림 피로 최소화: 성공 시 한 줄, 이상 시만 상세.
+      # 실패 Slack (cafe-sync.yml 쪽) 과 별도 — 성격 분리.
+      - name: Slack daily report
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL 미설정 — 스킵"
+            exit 0
+          fi
+          # 최신 report JSON (스크립트가 타임스탬프 suffix 로 저장)
+          REPORT=$(ls -t tmp/verify-report-*.json 2>/dev/null | head -n 1)
+          if [ -z "$REPORT" ]; then
+            echo "verify-report JSON 없음 — 알림 스킵"
+            exit 0
+          fi
+          export REPORT_PATH="$REPORT"
+          export RUN_URL
+          PAYLOAD=$(node -e "
+            const fs = require('fs');
+            const r = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            const url = process.env.RUN_URL;
+            const sev = r.severity;
+            const icon = sev==='ok'?'✅':sev==='warn'?'⚠️':sev==='alert'?'🚨':sev==='disabled_phase1'?'⏸️':'❓';
+            const mode = r.dry_run ? 'dry-run' : 'execute-issues';
+            // severity=ok 일 때는 1줄 요약만 (알림 피로 최소화)
+            if (sev === 'ok' || sev === 'disabled_phase1') {
+              const text = icon + ' *cafe-sync-verify* ' + sev.toUpperCase() + ' · 최근 ' + r.since_raw + ' · <' + url + '|상세>';
+              process.stdout.write(JSON.stringify({ text }));
+              return;
+            }
+            // warn/alert 는 지표 상세 + 권고 포함
+            const lines = [
+              icon + ' *cafe-sync-verify* severity=' + sev.toUpperCase() + ' · 최근 ' + r.since_raw + ' · <' + url + '|상세>',
+              ''
+            ];
+            const badIndicators = Object.entries(r.indicators).filter(([_, v]) => v.status !== 'ok' && v.status !== 'disabled_phase1');
+            if (badIndicators.length > 0) {
+              lines.push('*이상 지표*', '\`\`\`');
+              for (const [k, v] of badIndicators) {
+                const s = v.status;
+                const b = s==='warn'?'⚠️':s==='alert'?'🚨':'❓';
+                const val = v.value===null?'(n/a)':String(v.value);
+                lines.push(b + ' ' + k + ': ' + val + ' [' + s + ']' + (v.note ? ' — ' + v.note : ''));
+              }
+              lines.push('\`\`\`');
+            }
+            if (r.recommendations && r.recommendations.length > 0) {
+              lines.push('', '*추천 조치*');
+              for (const rec of r.recommendations) lines.push('• ' + rec);
+            }
+            process.stdout.write(JSON.stringify({ text: lines.join('\n') }));
+          ")
+          curl -sS -X POST -H 'Content-Type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" || true
