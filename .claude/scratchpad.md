@@ -101,6 +101,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | pm | **3순위 점진 정비 — 하드코딩 색상 M1+M2a+M2b (7파일 29건)** — M1 `live/page.tsx` 16건(루트 text-white 라이트모드 버그 수정 포함) / M2a teams·games 3파일 5건(yellow→tier-gold, green→success, 2단 다크배너 단일화) / M2b games 3파일 8건(red→error, hover:red-600→error/90 불투명도). 유지: 임의 배경 위 text-white, bg-black/60 백드롭. 3커밋 tsc 통과 | ✅ 6f4b65e + 13112df + fff9c41 |
 | 04-22 | pm | **ops-db-sync-plan 선결 조건 5/6 반영** — Supabase 2개 가능(원영) / 운영 DB 증설 예정(원영) / PII 치환 범위(수빈) / 동기화 주 1회 + `/admin` 수동 버튼(수빈) / super_admin 공용 `admin@dev.local`(수빈) 확정. Flutter API URL 분기 1건 원영 대기 | ✅ docs |
 | 04-22 | pm | **박찬웅 계정 연결 (운영 DB)** — placeholder `user_id=2884`(박찬웅_194@placeholder...) → 실계정 `3000`(pcwman1004@naver.com) 로 TTP 2492(열혈농구단 SEASON2 전국 최강전) + TeamMember 2236(라이징이글스 상시팀) 각 1건 UPDATE. 원자 트랜잭션, after 카운트 일치. placeholder 2884 유지(히스토리) | ✅ (DB only) |
 | 04-21 | pm | **L3 IA 스모크 완료** — BDR 시리즈 시드(12대회 편입, edition 혼재) + L3-2 500 운영 복구(Turbopack 워커 재발, PID + `.next` 재기동, errors.md [2026-04-12] 참조횟수 1) + 수빈 4조합 대표 통과 | ✅ 14b1934 (미푸시) + docs |
@@ -110,4 +111,3 @@
 | 04-21 | pm | **L2 본인·타인 프로필 통합** — 공용 3종(Hero/MiniStat/RecentGames) + gamification 서버 헬퍼 + /users/[id] 본인 분기 + Teams(공개만) + 티어→레벨 통합 + /profile 대시보드 재정의 + 레거시 6파일 삭제. tester 14/14 / reviewer 통과(블록커 0, 권장 4). 15파일 +1347/-1286 | ✅ a04fad8 (미푸시) |
 | 04-21 | pm | **L3 다음 단위 5파일 완성** — EditionSwitcher+SeriesCard 신규 + Organization/Series(under org) Breadcrumb + Tournament series include. tester 10/10 / reviewer 통과 | ✅ a6b329f → PR #53 MERGED |
 | 04-20 | pm | **옵션 F — main 흡수 + 카페 분리 2회 + PR #51 머지 → PR #52 카페 Phase 3 합류 통합 머지** | ✅ 9836e88 (main/dev/subin 동기화) |
-| 04-20 | pm | **#7 위생 — index.md 중복 섹션 해소** (하단 아카이브 재명명) | ✅ 1ffedb5 |
