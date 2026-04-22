@@ -176,17 +176,33 @@ jobs:
           BOARD_SUMMARY=$(grep -E '\[(IVHA|Dilr|MptT|N54V|IVd2|E7hL|bWL) ' tmp/cafe-sync.log 2>/dev/null | head -n 20 || echo "(게시판 요약 없음)")
           # 마지막 50줄 + 2000바이트 제한 (Slack text 필드 여유)
           TAIL=$(tail -n 50 tmp/cafe-sync.log 2>/dev/null | head -c 2000 || echo "(로그 없음)")
-          # BOARD_SUMMARY / TAIL / RUN_URL / RUN_ID 를 env 로 넘겨 JSON 안전 직렬화 (node)
+
+          # [2026-04-22] 쿠키 만료 자동 감지 — 403/401/unauthorized 패턴 있으면 힌트 추가
+          # 이유: Slack 알림이 실패 팩트만 전해서 원인 파악 느림. 403/401은 거의 쿠키 만료.
+          # 다음카페 HttpOnly 세션(TIARA/DID) 만료 시 article 본문 fetch 가 403 반환.
+          # 참고: scripts/cafe-login.ts 재실행 → DAUM_CAFE_STORAGE_STATE_B64 secret 갱신
+          COOKIE_HINT=""
+          if grep -qE '(\b403\b|\b401\b|unauthorized|로그인이 필요|세션.*만료|session.*expired)' tmp/cafe-sync.log 2>/dev/null; then
+            COOKIE_HINT="⚠️ *쿠키 만료 의심* — 로그에 403/401/unauthorized 감지. \`scripts/cafe-login.ts\` 재실행 후 \`DAUM_CAFE_STORAGE_STATE_B64\` secret 갱신 필요"
+          fi
+
+          # BOARD_SUMMARY / TAIL / RUN_URL / RUN_ID / COOKIE_HINT 를 env 로 넘겨 JSON 안전 직렬화 (node)
           # 이유: sed 기반 이스케이프는 따옴표/개행 처리가 취약. node JSON.stringify 가 안전.
-          export BOARD_SUMMARY TAIL
+          export BOARD_SUMMARY TAIL COOKIE_HINT
           PAYLOAD=$(node -e "
             const url = process.env.RUN_URL;
             const id = process.env.RUN_ID;
             const board = process.env.BOARD_SUMMARY || '(없음)';
             const tail = (process.env.TAIL || '(없음)').slice(0, 2000);
-            const text = [
+            const cookieHint = process.env.COOKIE_HINT || '';
+            const lines = [
               '🚨 *cafe-sync 실패* <' + url + '|런 #' + id + ' 열기>',
               '',
+            ];
+            if (cookieHint) {
+              lines.push(cookieHint, '');
+            }
+            lines.push(
               '*게시판 요약*',
               '\`\`\`',
               board,
@@ -196,8 +212,8 @@ jobs:
               '\`\`\`',
               tail,
               '\`\`\`'
-            ].join('\n');
-            process.stdout.write(JSON.stringify({ text }));
+            );
+            process.stdout.write(JSON.stringify({ text: lines.join('\n') }));
           ")
           # Secret 값은 --data 인자로만 사용 (로그 미노출). curl 실패해도 step 은 계속.
           curl -sS -X POST -H 'Content-Type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" || true

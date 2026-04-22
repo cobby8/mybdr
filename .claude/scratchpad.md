@@ -4,7 +4,7 @@
 > 2026-04-21부로 **본 세션 역할 뒤집음** — 이전 합의(본=일반)는 폐기
 
 - **본 세션 (Claude Code, 이 터미널)** = **다음카페 sync 전용**
-  - 허용 파일: `scripts/sync-cafe.ts`, `scripts/cafe-login.ts`, `scripts/_tmp-cafe-*`, `scripts/backfill-*cafe*.ts`, `src/lib/cafe-sync/**`, `src/lib/parsers/cafe-*.ts`, `Dev/cafe-*.md`, `Dev/prompt-cafe-*.md`, 프리즈마 cafe 관련 migration
+  - 허용 파일: `scripts/sync-cafe.ts`, `scripts/cafe-login.ts`, `scripts/_tmp-cafe-*`, `scripts/backfill-*cafe*.ts`, `scripts/verify-cafe-sync.ts`, `scripts/refresh-cafe-cookie.ts`, `scripts/seed-cafe-bot-user.ts`, `src/lib/cafe-sync/**`, `src/lib/parsers/cafe-*.ts`, `.github/workflows/cafe-*.yml`, `Dev/cafe-*.md`, `Dev/prompt-cafe-*.md`, 프리즈마 cafe 관련 migration
   - 커밋 스코프 **필수**: `feat(cafe-sync):` / `fix(cafe-sync):` / `docs(cafe-sync):` / `chore(cafe-sync):` / `refactor(cafe-sync):`
 - **다른 세션 (병행)** = 일반 UX/기능 작업 — `(web)`/`(api/web)`/`(referee)`/`profile`/`tournaments` 등
 - **본 세션 PM 금지 파일**: 위 허용 목록 외 전부. 특히 `src/app/(web)/**`, `src/app/api/web/**`, `src/components/profile/**`, `src/app/(site)/**`, `src/app/api/v1/**`(카페 관련 제외)
