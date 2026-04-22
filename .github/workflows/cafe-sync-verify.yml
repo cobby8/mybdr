@@ -140,64 +140,98 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-      # ─── 7. Slack 일일 리포트 (개선 #2, 2026-04-22) ─────────────────────────
-      # 이유: verify 는 이미 지표·권고를 JSON 으로 생성. workflow 에서 읽어 Slack
-      #       에 요약 전송하면 "포지티브 신호" 확보 — 매일 운영 상태 가시화.
-      # 포맷: severity=ok → 1줄 요약 / severity=warn|alert → 지표 상세 + 권고.
-      # 알림 피로 최소화: 성공 시 한 줄, 이상 시만 상세.
-      # 실패 Slack (cafe-sync.yml 쪽) 과 별도 — 성격 분리.
-      - name: Slack daily report
+      # ─── 7. 일일 리포트 메일 준비 ─────────────────────────────────────────
+      # [2026-04-22] Slack → 메일 전환. 수신자: cobby8@stiz.kr, bdrbasket@gmail.com
+      # severity=ok → 1줄 요약 (제목만, 본문 최소) / warn·alert → 지표 상세 + 권고.
+      - name: Prepare daily report mail
         if: always()
+        id: prep_mail
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
-          if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "SLACK_WEBHOOK_URL 미설정 — 스킵"
-            exit 0
-          fi
-          # 최신 report JSON (스크립트가 타임스탬프 suffix 로 저장)
           REPORT=$(ls -t tmp/verify-report-*.json 2>/dev/null | head -n 1)
           if [ -z "$REPORT" ]; then
-            echo "verify-report JSON 없음 — 알림 스킵"
+            echo "verify-report JSON 없음 — 메일 건너뜀"
+            echo "has_report=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           export REPORT_PATH="$REPORT"
           export RUN_URL
-          PAYLOAD=$(node -e "
+
+          # node 로 subject + html 생성
+          OUT=$(node -e "
             const fs = require('fs');
             const r = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
             const url = process.env.RUN_URL;
             const sev = r.severity;
             const icon = sev==='ok'?'✅':sev==='warn'?'⚠️':sev==='alert'?'🚨':sev==='disabled_phase1'?'⏸️':'❓';
-            const mode = r.dry_run ? 'dry-run' : 'execute-issues';
-            // severity=ok 일 때는 1줄 요약만 (알림 피로 최소화)
+            const sevColor = sev==='ok'?'#2e7d32':sev==='warn'?'#f57c00':sev==='alert'?'#c62828':'#555';
+            const today = r.run_at.slice(0, 10);
+            const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            const subject = '[cafe-sync-verify] ' + sev.toUpperCase() + ' · ' + today + ' · 최근 ' + r.since_raw;
+
+            let bodyInner = '';
             if (sev === 'ok' || sev === 'disabled_phase1') {
-              const text = icon + ' *cafe-sync-verify* ' + sev.toUpperCase() + ' · 최근 ' + r.since_raw + ' · <' + url + '|상세>';
-              process.stdout.write(JSON.stringify({ text }));
-              return;
-            }
-            // warn/alert 는 지표 상세 + 권고 포함
-            const lines = [
-              icon + ' *cafe-sync-verify* severity=' + sev.toUpperCase() + ' · 최근 ' + r.since_raw + ' · <' + url + '|상세>',
-              ''
-            ];
-            const badIndicators = Object.entries(r.indicators).filter(([_, v]) => v.status !== 'ok' && v.status !== 'disabled_phase1');
-            if (badIndicators.length > 0) {
-              lines.push('*이상 지표*', '\`\`\`');
-              for (const [k, v] of badIndicators) {
-                const s = v.status;
-                const b = s==='warn'?'⚠️':s==='alert'?'🚨':'❓';
+              bodyInner = '<p style=\"font-size:16px;margin:16px 0;\">' + icon + ' <b>정상 운영 중</b> — 최근 ' + esc(r.since_raw) + ' 구간 이상 없음.</p>';
+            } else {
+              const badIndicators = Object.entries(r.indicators).filter(([_, v]) => v.status !== 'ok' && v.status !== 'disabled_phase1');
+              const rows = badIndicators.map(([k, v]) => {
+                const statusColor = v.status==='warn'?'#f57c00':v.status==='alert'?'#c62828':'#888';
                 const val = v.value===null?'(n/a)':String(v.value);
-                lines.push(b + ' ' + k + ': ' + val + ' [' + s + ']' + (v.note ? ' — ' + v.note : ''));
+                return '<tr><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\"><b>' + esc(k) + '</b></td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;\">' + esc(val) + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;color:' + statusColor + ';\">' + esc(v.status) + '</td><td style=\"padding:6px 10px;border-bottom:1px solid #eee;font-size:12px;color:#555;\">' + esc(v.note || '') + '</td></tr>';
+              }).join('');
+              bodyInner += '<h3>이상 지표</h3>';
+              bodyInner += '<table style=\"border-collapse:collapse;width:100%;font-size:14px;\"><thead><tr style=\"background:#fafafa;\"><th style=\"text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;\">지표</th><th style=\"text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;\">값</th><th style=\"text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;\">상태</th><th style=\"text-align:left;padding:8px 10px;border-bottom:2px solid #ddd;\">비고</th></tr></thead><tbody>' + rows + '</tbody></table>';
+              if (r.recommendations && r.recommendations.length > 0) {
+                bodyInner += '<h3>추천 조치</h3><ul>';
+                for (const rec of r.recommendations) bodyInner += '<li>' + esc(rec) + '</li>';
+                bodyInner += '</ul>';
               }
-              lines.push('\`\`\`');
             }
-            if (r.recommendations && r.recommendations.length > 0) {
-              lines.push('', '*추천 조치*');
-              for (const rec of r.recommendations) lines.push('• ' + rec);
-            }
-            process.stdout.write(JSON.stringify({ text: lines.join('\n') }));
+
+            const html = [
+              '<!doctype html><html><body style=\"font-family:-apple-system,Segoe UI,Pretendard,sans-serif;color:#222;max-width:760px;margin:0 auto;padding:24px;\">',
+              '<h2 style=\"color:' + sevColor + ';margin-bottom:4px;\">' + icon + ' cafe-sync-verify 일일 리포트</h2>',
+              '<p style=\"color:#666;margin-top:0;\">severity=<b style=\"color:' + sevColor + ';\">' + sev.toUpperCase() + '</b> · 최근 ' + esc(r.since_raw) + ' · 모드: ' + (r.dry_run ? 'dry-run' : 'execute-issues') + ' · <a href=\"' + esc(url) + '\">런 상세</a></p>',
+              bodyInner,
+              '<hr style=\"margin-top:32px;border:none;border-top:1px solid #eee;\">',
+              '<p style=\"color:#888;font-size:12px;\">mybdr cafe-sync-verify bot · 매일 KST 08:10 자동 실행</p>',
+              '</body></html>'
+            ].join('');
+            console.log('SUBJECT:::' + subject);
+            console.log('HTML_START');
+            console.log(html);
+            console.log('HTML_END');
           ")
-          curl -sS -X POST -H 'Content-Type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" || true
+
+          # OUT 에서 subject/html 분리
+          SUBJECT=$(echo "$OUT" | grep '^SUBJECT:::' | sed 's/^SUBJECT::://')
+          HTML=$(echo "$OUT" | sed -n '/^HTML_START$/,/^HTML_END$/p' | sed '1d;$d')
+
+          {
+            echo "has_report=true"
+            echo "subject=$SUBJECT"
+            echo "html<<HTML_EOF"
+            echo "$HTML"
+            echo "HTML_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "mail prepared (subject=$SUBJECT)"
+
+      # ─── 8. 메일 전송 — MAIL_USERNAME secret 없으면 자동 스킵 ───────────────
+      - name: Send daily report mail
+        if: always() && steps.prep_mail.outputs.has_report == 'true' && env.HAS_MAIL_SECRET == 'true'
+        env:
+          HAS_MAIL_SECRET: ${{ secrets.MAIL_USERNAME != '' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_APP_PASSWORD }}
+          from: mybdr cafe-sync bot <${{ secrets.MAIL_USERNAME }}>
+          to: cobby8@stiz.kr, bdrbasket@gmail.com
+          subject: ${{ steps.prep_mail.outputs.subject }}
+          html_body: ${{ steps.prep_mail.outputs.html }}
