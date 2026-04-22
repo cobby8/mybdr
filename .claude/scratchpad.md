@@ -32,7 +32,7 @@
 - 옵션 A 추천 (Supabase 두 번째 프로젝트)
 
 ### 🥉 3순위 — 점진 정비 (보이스카우트)
-- **하드코딩 색상**: 누계 64건 치환 / 잔존 **9파일 11건** (상위: referee-login 2 / teams-new 2 / 1건짜리 7파일). tournament-admin 영역 ✅ 완결
+- **하드코딩 색상**: 누계 **71건** 치환 / **실질 완결**. 남은 것은 의도 예외 2건(live orange 스피너 — accent 변수 추가 시 정비 / tm-org-new dark:페어 — 단일 토큰 검증 후) + false positive 2건(hero-bento 주석). tournament-admin 영역 ✅ 완결
 - **any 타입**: ~6회 / ~6파일 (누계 정비 진행 중)
 - **원칙**: 다른 이유로 파일 건드릴 때 함께 정비. 대규모 일괄 치환 비추천
 
@@ -47,11 +47,11 @@
 | 항목 | 값 |
 |------|-----|
 | 브랜치 | subin |
-| subin HEAD | `dfa5b9a` (스타일 3차) + 로컬 4차 대기 |
-| origin/subin | `dfa5b9a` ✅ 동기화 |
+| subin HEAD | `42c5066` (스타일 4차 + conventions 승격) + 로컬 5차 대기 |
+| origin/subin | `dfa5b9a` |
 | dev / main | `8de9be4` (PR #53 squash, PR #54 원영 승인 대기) |
-| 미푸시 | **1건** (4차 대기) |
-| 오늘 커밋 (04-22) | `bb488ce`+`0f41e99`+`1958b9d`+`672dc9a`+`dfa5b9a` 5건 푸시 / 4차 대기 |
+| 미푸시 | **1~2건** (4차 `42c5066` + 5차 대기) |
+| 오늘 커밋 (04-22) | `bb488ce`+`0f41e99`+`1958b9d`+`672dc9a`+`dfa5b9a`+`42c5066` 6건 / 5차 대기 |
 | 열린 PR | #54 (dev→main) / #55 (subin→dev) |
 | 카페 Phase 3 | 운영 반영 ✅ (GH Actions + 쿠키 갱신 + 메일 알림 + 품질 검증봇) |
 
@@ -123,12 +123,27 @@
   - `tm/new/wizard/page.tsx`: L414 (에러 박스)
 - **tsc**: PASS
 
+### [2026-04-22] 하드코딩 색상 5차 — 잔존 정비 (7건) + 예외 2건 명시
+- **변경 파일**: 5개 / 7건 치환
+- **파일별 변경**:
+  - `(referee-public)/referee/signup/page.tsx` L110 (에러 박스)
+  - `(referee-public)/referee/login/page.tsx` L137 (Dev 에러 텍스트, red-400→error) / L179 (로그인 에러 박스)
+  - `(web)/verify/page.tsx` L159 (개발 모드 인증 코드 박스, amber → warning)
+  - `(web)/teams/[id]/manage/page.tsx` L840 (해산 버튼 solid + hover color-mix 85% black)
+  - `(web)/teams/new/new-team-form.tsx` L45 (에러 박스) / L94 (영문명 유효성 에러 텍스트)
+- **유지 예외 신규 2건**:
+  - `live/page.tsx` L89 orange-500 스피너 — 기존 주석의 "accent 변수 추가 시 치환" TODO 존중
+  - `tournament-admin/organizations/new/page.tsx` L79 dark: 페어 6건 — 디자인 시스템 단일 토큰 검증 전, 명시적 라이트/다크 분리 유지
+- **실질 완결**: 7건 정비 완료. 이후 남은 하드코딩 패턴은 모두 의도 예외 또는 false positive
+- **tsc**: PASS
+
 ---
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-22 | developer+pm | **하드코딩 색상 3파일 CSS 변수화 (4차, 4건) + conventions.md 승격** — tm-admins(error+success 페어) + tm/[id]/wizard + tm/new/wizard. **tournament-admin 영역 전체 완결** (3차+4차 = 6파일 11건). color-mix Tailwind arbitrary 언더스코어 문법을 conventions.md 승격 | ✅ (커밋 대기) |
+| 04-22 | developer | **하드코딩 색상 5차 — 잔존 정비 (5파일 7건) + 예외 2건 명시** — referee/signup(에러) + referee/login(2건) + verify(warning) + teams/[id]/manage(해산 버튼 hover solid+tone-down) + teams/new(2건). 예외: live orange 스피너(accent TODO) / tm-org-new dark:페어(단일 토큰 검증 전). **하드코딩 색상 audit 실질 완결** | ✅ (커밋 대기) |
+| 04-22 | developer+pm | **하드코딩 색상 3파일 CSS 변수화 (4차, 4건) + conventions.md 승격** — tm-admins(error+success 페어) + tm/[id]/wizard + tm/new/wizard. **tournament-admin 영역 전체 완결** (3차+4차 = 6파일 11건). color-mix Tailwind arbitrary 언더스코어 문법을 conventions.md 승격 | ✅ `42c5066` |
 | 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (3차, 7건)** — tm-matches(에러 text+삭제 버튼 hover color-mix+에러 박스 3건) + tm-site(에러 박스 3건) + tm-bracket(에러 박스 1건). Tailwind v4 arbitrary `color-mix` 언더스코어 문법 next build PASS 검증 | ✅ `dfa5b9a` |
 | 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (2차, 7건)** — classic(1위/3위 순위 4건 → warning) + hero-bento(LIVE→error / HOT→warning) + admin-users-table(★라벨→warning). classic statusColors 시맨틱 고정은 유지. tsc PASS | ✅ `672dc9a` |
 | 04-22 | pm | **통합 스모크 체크리스트 + B-1 시드 상태 확인** — `Dev/smoke-test-2026-04-22.md` 신규 / B-1 이미 충족 | ✅ `1958b9d` |
@@ -137,4 +152,3 @@
 | 04-22 | pm | **3~4순위 점진 정비 전체 (11파일 44건 + reviewer 2건)** — live/teams/games/games-new 색상 42건 + any 3건 + L3 쿼리 합치기 + is_public 가드 | ✅ 6커밋 tsc PASS |
 | 04-22 | pm | **ops-db-sync-plan 선결 조건 5/6 반영** (원영 대기 1건) | ✅ docs |
 | 04-22 | pm | **박찬웅 계정 연결 (운영 DB)** — placeholder 2884 → 실계정 3000, TTP+TeamMember 2건 UPDATE | ✅ DB only |
-| 04-21 | pm | **L3 IA 스모크 완료** — BDR 시리즈 12대회 시드 + L3-2 복구 + 수빈 4조합 대표 통과 | ✅ `14b1934` |
