@@ -29,9 +29,9 @@ on:
         required: false
         default: "2"
       article_limit:
-        description: "본문 수집 건수 (1~10, 기본 5)"
+        description: "본문 수집 건수 (1~10, 기본 10)"
         required: false
-        default: "5"
+        default: "10"
 
 # ─── 동시 실행 제어 ────────────────────────────────────────────────────────────
 # 이전 실행이 늦어져도 덮어쓰지 않음 (9가드 #8 연속 실패 상황 보존).
@@ -140,7 +140,7 @@ jobs:
           npx tsx scripts/sync-cafe.ts \
             --board=all \
             --with-body \
-            --article-limit=${{ github.event.inputs.article_limit || '5' }} \
+            --article-limit=${{ github.event.inputs.article_limit || '10' }} \
             --max-pages=${{ github.event.inputs.max_pages || '2' }} \
             --execute \
             2>&1 | tee tmp/cafe-sync.log
