@@ -29,10 +29,10 @@
 - **체크리스트 문서**: `Dev/smoke-test-2026-04-22.md`
 - **발견된 코드 결함**: 0건
 
-### 🥈 2순위 — 원영 협의 (30분~1h)
-- `Dev/ops-db-sync-plan.md` (6개 선결 조건 5/6 반영, Flutter API URL 1건 대기)
-- `Dev/advancement-roadmap-2026-04-20.md` 10-2 아젠다
-- 옵션 A 추천 (Supabase 두 번째 프로젝트)
+### 🥈 2순위 — 원영 협의 (30분)
+- `Dev/ops-db-sync-plan.md` (선결 조건 **전 조건 확정**, Flutter 앱은 원영 별도 관리로 범위 제외)
+- 원영 액션: PR #54 승인
+- 옵션 A 확정 (Supabase 두 번째 프로젝트) — 착수 가능 상태
 
 ### 🥉 3순위 — 점진 정비 (보이스카우트)
 - **하드코딩 색상**: 누계 **71건** 치환 / **실질 완결**. 남은 것은 의도 예외 2건(live orange 스피너 — accent 변수 추가 시 정비 / tm-org-new dark:페어 — 단일 토큰 검증 후) + false positive 2건(hero-bento 주석). tournament-admin 영역 ✅ 완결
