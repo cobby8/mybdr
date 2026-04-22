@@ -68,6 +68,7 @@
 ## 🗂 카페 작업 로그 (본 세션 전용 — 2026-04-21~)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | pm-cafe | **알림 채널 Slack → 메일 전환** — cafe-sync.yml 실패 알림 + cafe-sync-verify.yml 일일 리포트 모두 `dawidd6/action-send-mail@v3` 로 교체. 수신자 `cobby8@stiz.kr`+`bdrbasket@gmail.com` 하드코딩. HTML 본문(severity 색상/이상 지표 표/추천 조치). Gmail SMTP 465. Secret 미등록 시 자동 스킵. `Dev/cafe-mail-setup.md` 설정 가이드 동봉 (수빈 Step 1~4 필요: Gmail 2FA → 앱 비밀번호 → MAIL_USERNAME/MAIL_APP_PASSWORD secret 등록 → workflow_dispatch 테스트) | ✅ 829f544 |
 | 04-22 | pm-cafe | **봇 운영 개선 4건 완료 (#1~#4)**. #1 cafe-sync.yml Slack 쿠키 만료 감지 힌트(403/401/unauthorized 패턴). #2 cafe-sync-verify.yml Slack 일일 리포트(ok 1줄/warn·alert 상세). #3 backfill-community `--posted-since`/`--posted-until` 긴급 백필 모드(KST 기준). #4 cron `--article-limit` 5→10 (게시판당 180건/일 수용). #5/#6은 사용자 결정상 스킵(현행 운영 유지) | ✅ fb3f5b7+56f7437+5cdc46c+a932eb6 |
 | 04-22 | pm-cafe | **"중" 범위 정책 완료 — bWL 200 + N54V 400** (offset 분할). bWL 1차 50new+49dup+1empty, 2차 99new+1empty (누적 199). N54V 1차 95new+5empty, 2차 94+6empty, 3차 100, 4차 97+3empty (누적 386). **최종 community_posts 1073건** (E7hL 396 + N54V 386 + bWL 199 + IVd2 92). postId 272~1344. 4게시판 파이프라인 전량/상한 스냅샷 이전 완료 | ✅ 08cc8db |
 | 04-21 | pm-cafe | **E7hL 실질 전량 이전 완료** — `--offset` 옵션으로 4회 분할 (`--max-pages=20 --article-limit=100 --execute` × 4, offset 0/100/200/300). 1차 47신규+50dup+3empty, 2차 99+1empty, 3차 100, 4차 100. 목록 400건 중 396건 created. 누적 538건 (시점). 시간 범위 **2021-11-28 ~ 2026-04-21 (4.5년치)**. postId 272~809 | ✅ fce8805(offset) + 5a5104a |
@@ -102,6 +103,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **3순위 점진 정비 — any 2건 + export interface 1건 (3파일)** — session-complete-card.tsx `export interface SessionCompleteCardProps` / court-checkin.tsx `CheckoutResult` interface + `useState<any>`→`useState<CheckoutResult\|null>` + eslint-disable 제거 / community.ts `Prisma.PrismaPromise<unknown>[]` + `as any` 제거. courts-content.tsx(kakao map 연쇄)는 범위 외 유지. tsc 통과(폴백 불필요) | ✅ (미커밋) |
 | 04-22 | pm | **3순위 점진 정비 — 하드코딩 색상 M1+M2a+M2b (7파일 29건)** — M1 `live/page.tsx` 16건(루트 text-white 라이트모드 버그 수정 포함) / M2a teams·games 3파일 5건(yellow→tier-gold, green→success, 2단 다크배너 단일화) / M2b games 3파일 8건(red→error, hover:red-600→error/90 불투명도). 유지: 임의 배경 위 text-white, bg-black/60 백드롭. 3커밋 tsc 통과 | ✅ 6f4b65e + 13112df + fff9c41 |
 | 04-22 | pm | **ops-db-sync-plan 선결 조건 5/6 반영** — Supabase 2개 가능(원영) / 운영 DB 증설 예정(원영) / PII 치환 범위(수빈) / 동기화 주 1회 + `/admin` 수동 버튼(수빈) / super_admin 공용 `admin@dev.local`(수빈) 확정. Flutter API URL 분기 1건 원영 대기 | ✅ docs |
 | 04-22 | pm | **박찬웅 계정 연결 (운영 DB)** — placeholder `user_id=2884`(박찬웅_194@placeholder...) → 실계정 `3000`(pcwman1004@naver.com) 로 TTP 2492(열혈농구단 SEASON2 전국 최강전) + TeamMember 2236(라이징이글스 상시팀) 각 1건 UPDATE. 원자 트랜잭션, after 카운트 일치. placeholder 2884 유지(히스토리) | ✅ (DB only) |
@@ -111,4 +113,3 @@
 | 04-21 | pm | **reviewer 권장 5건 정비** — OwnerEditButton 공용 + color/heading/wrap 보강. 9파일 | ✅ be6d7e1 |
 | 04-21 | pm | **L2 본인·타인 프로필 통합** — 공용 3종(Hero/MiniStat/RecentGames) + gamification 서버 헬퍼 + /users/[id] 본인 분기 + Teams(공개만) + 티어→레벨 통합 + /profile 대시보드 재정의 + 레거시 6파일 삭제. tester 14/14 / reviewer 통과(블록커 0, 권장 4). 15파일 +1347/-1286 | ✅ a04fad8 (미푸시) |
 | 04-21 | pm | **L3 다음 단위 5파일 완성** — EditionSwitcher+SeriesCard 신규 + Organization/Series(under org) Breadcrumb + Tournament series include. tester 10/10 / reviewer 통과 | ✅ a6b329f → PR #53 MERGED |
-| 04-20 | pm | **옵션 F — main 흡수 + 카페 분리 2회 + PR #51 머지 → PR #52 카페 Phase 3 합류 통합 머지** | ✅ 9836e88 (main/dev/subin 동기화) |
