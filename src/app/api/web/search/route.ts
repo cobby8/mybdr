@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
       // 대회: name에서 키워드 검색
       prisma.tournament.findMany({
-        where: { name: { contains: q, mode: "insensitive" } },
+        where: { name: { contains: q, mode: "insensitive" }, is_public: true },
         orderBy: { createdAt: "desc" },
         take: 5,
         select: {

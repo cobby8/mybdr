@@ -307,7 +307,7 @@ export async function listTournaments(filters: TournamentListFilters = {}) {
  */
 export async function listUpcomingTournaments(take = 4) {
   return prisma.tournament.findMany({
-    where: { status: { in: ["active", "published", "registration_open"] } },
+    where: { is_public: true, status: { in: ["active", "published", "registration_open"] } },
     orderBy: { startDate: "asc" },
     take,
     select: TOURNAMENT_HOME_SELECT,
