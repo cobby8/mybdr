@@ -113,6 +113,54 @@
 
 ---
 
+## 구현 기록 — Phase 1 Games + 공통 컴포넌트 시안 매칭 [2026-04-22]
+
+📝 구현한 기능: v2 Games.jsx 시안을 현재 `/games` 페이지 및 AppNav 공통 컴포넌트에 100% 반영 (색상/라벨/포맷/구조).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/bdr-v2/game-card.tsx` | kind 색상(pickup=cafe-blue/guest=bdr-red/scrimmage=ok) + 라벨(픽업/게스트/스크림) + 날짜(YYYY.MM.DD (요일) · HH:mm) + 비용(₩5,000/무료) 전면 재작업. TYPE_BADGE 참조 제거 → v2 원본 토큰 직접 사용 | 수정 |
+| `src/app/(web)/layout.tsx` | PreferFilterToggleButton 정의 제거 + AppNav rightAccessory 전달 제거. usePreferFilter 는 setLoggedIn 훅용으로 유지 | 수정 |
+| `src/components/bdr-v2/app-nav.tsx` | rightAccessory prop 제거(더 이상 미사용) + 주석 업데이트 | 수정 |
+
+### 변경 요약
+- **kind 매핑** (v2 Games.jsx L5~L6 그대로 이식):
+  - game_type=0 (픽업) → `var(--cafe-blue)` / "픽업"
+  - game_type=1 (게스트) → `var(--bdr-red)` / "게스트"
+  - game_type=2 (DB상 PRACTICE = 시안 scrimmage) → `var(--ok)` / "스크림"
+- **날짜 포맷**: `2026.04.25 (토) · 22:55` (시안의 "– HH:mm" 종료 시각은 `listGames` select에 duration_hours/ended_at 미포함으로 생략 — Prisma select 비변경 방침)
+- **비용 포맷**: 유료 → `₩{toLocaleString}` (예: ₩5,000) / 무료 → "무료" + `color:var(--ok)` + `font-weight:700`
+- **진행바 색상**: 마감임박이면 `var(--accent)`(red), 아니면 해당 kindColor
+- **AppNav 별 아이콘 제거**: layout.tsx에서 `PreferFilterToggleButton`(`>star<`) 삭제. `PreferFilterProvider` context는 유지(usePreferFilter 훅은 setLoggedIn 호출에 계속 필요)
+
+### 검증 결과 (HTML 렌더)
+- `tsc --noEmit` PASS (0 에러)
+- `curl /games` → 200
+- `var(--cafe-blue)`/`var(--bdr-red)`/`var(--ok)` 렌더 HTML에서 확인 (stripe 4px + 배지 + 진행바 3군데 각각)
+- kind 배지 삼중 속성 렌더: `background:var(--bdr-red);color:#fff;border-color:var(--bdr-red)` × 31건 / `var(--ok)` × 29건
+- 날짜 포맷 샘플: `2026.04.25 (토) · 22:55` / `2026.04.25 (토) · 18:00` / `2026.04.25 (토) · 09:00` 등
+- 비용 포맷 샘플: "무료" 9회 + "₩6,000" 첫 유료 카드 확인
+- AppNav 별 아이콘: `>star<` 0건 / "PreferFilter" 문자열 0건 (rendered HTML 기준)
+
+💡 tester 참고:
+- **테스트 방법**: `/games` 접속 → 카드 30장 내외 렌더 확인. 라이트/다크 양쪽에서 kind 색상이 시안과 일치하는지. AppNav 우측에 별 아이콘이 없는지.
+- **정상 동작**:
+  - 픽업 카드는 상단 stripe + 배지 + 진행바 모두 파랑(`--cafe-blue`)
+  - 게스트는 빨강(`--bdr-red`)
+  - 스크림(연습경기)은 초록(`--ok`)
+  - 일시는 "YYYY.MM.DD (요일) · HH:mm" (요일 한글)
+  - 무료는 녹색 볼드, 유료는 "₩" 기호 + 콤마 구분 숫자
+  - AppNav 우측에 ThemeSwitch / 검색 / 알림 / 더보기 / 아바타만 노출 (별 X)
+- **주의할 입력**: game_type 이 0/1/2 외의 값이면 기본값 0(픽업/파랑) 폴백. scheduled_at 이 null 이면 "일정 미정"
+
+⚠️ reviewer 참고:
+- **TYPE_BADGE 제거 영향 없음**: GameCard 에서만 사용하던 필드로 교체. 다른 곳에서 import 시 그대로 동작 (상수 파일 자체는 그대로 유지)
+- **rightAccessory prop 제거**: AppNavProps 에서 optional 제거했으므로 이 prop을 외부에서 넣던 호출부는 layout.tsx 하나뿐 (동시 제거 완료)
+- **PreferFilterProvider 유지**: context 자체는 usePreferFilter 훅이 setLoggedIn 을 노출하므로 layout.tsx 에서 호출 필요. 프로젝트 다른 페이지(예: 홈)에서도 사용 가능성 존재
+- **종료 시각 미표시**: 시안은 "· 20:30 – 22:30" 이지만 구현은 "· 22:55" 단일. 사유는 `listGames` select 미포함 + Prisma 비변경 방침. duration_hours 인입 시 formatScheduleFull 한 줄만 확장하면 됨
+
+---
+
 ## 기획설계 (planner-architect) — BDR v2 전역 교체 + Home 적용 [04-22]
 
 🎯 목표: BDR v2 디자인 시스템 프로젝트 전역 적용(사용자 "완전 교체" 방침) + Home 페이지 섹션 단위 UI 교체. API/데이터 패칭 0 변경.

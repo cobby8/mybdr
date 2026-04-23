@@ -38,8 +38,7 @@ export interface AppNavUser {
 interface AppNavProps {
   user: AppNavUser | null;
   unreadCount: number;
-  // 헤더 우측 선호필터 토글 슬롯 (로그인 시에만 주입됨) — layout.tsx에서 전달
-  rightAccessory?: React.ReactNode;
+  // [2026-04-22] rightAccessory(별 아이콘) prop 제거 — v2 시안에 존재하지 않음
 }
 
 // 메인 탭 8개 — PM 확정안
@@ -66,7 +65,7 @@ const moreItems: { href: string; label: string; icon: string }[] = [
   { href: "/help/glossary", label: "도움말", icon: "help" },
 ];
 
-export function AppNav({ user, unreadCount, rightAccessory }: AppNavProps) {
+export function AppNav({ user, unreadCount }: AppNavProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -176,9 +175,6 @@ export function AppNav({ user, unreadCount, rightAccessory }: AppNavProps) {
         {/* 우측 액션 영역 */}
         <div className="app-nav__right">
           <ThemeSwitch />
-
-          {/* 선호필터 토글 슬롯 (로그인 시에만 layout.tsx에서 주입) */}
-          {rightAccessory}
 
           {/* 검색 */}
           <Link href="/search" className="btn btn--sm" title="검색" aria-label="검색">

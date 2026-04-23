@@ -26,37 +26,14 @@ import { AppNav, type AppNavUser } from "@/components/bdr-v2/app-nav";
  *
  * 방법(어떻게):
  *   - WebLayoutInner: user/unreadCount fetch → AppNav 에 props 전달
- *   - rightAccessory: 선호필터 토글 버튼(PreferFilterToggleButton)을 AppNav
- *     우측 액션 영역에 슬롯으로 주입
  *   - main: 풀폭. 페이지 내부에서 `.page` 또는 `max-w-*` 로 필요 시 제약
  *     (Home 등은 이미 자체 컨테이너 가짐)
+ *
+ * [2026-04-22] v2 시안 100% 매칭 작업 — 우측 별 아이콘(PreferFilterToggleButton) 제거.
+ *   이유: v2 Games/Home 시안에 존재하지 않아 AppNav 가 시안과 불일치.
+ *   PreferFilterProvider context 자체는 프로젝트 다른 페이지에서 사용하므로 유지,
+ *   AppNav 노출만 제거. usePreferFilter 는 setLoggedIn 훅 호출용으로 여전히 필요.
  * ============================================================ */
-
-function PreferFilterToggleButton() {
-  const { preferFilter, togglePreferFilter } = usePreferFilter();
-  return (
-    <button
-      type="button"
-      onClick={togglePreferFilter}
-      className="btn btn--sm"
-      aria-label={preferFilter ? "맞춤 필터 켜짐" : "맞춤 필터 꺼짐"}
-      title={preferFilter ? "맞춤 필터 켜짐" : "맞춤 필터 꺼짐"}
-      aria-pressed={preferFilter}
-    >
-      <span
-        className="material-symbols-outlined"
-        style={{
-          fontSize: 14,
-          // 켜짐: 강조색(accent = BDR Red) / 꺼짐: 보조 텍스트
-          color: preferFilter ? "var(--accent)" : "var(--ink-mute)",
-          fontVariationSettings: preferFilter ? "'FILL' 1" : undefined,
-        }}
-      >
-        star
-      </span>
-    </button>
-  );
-}
 
 function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const { setLoggedIn } = usePreferFilter();
@@ -123,13 +100,9 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)" }}>
-      {/* 상단 가로 네비 — utility bar + 메인 탭 + 모바일 drawer 일체 */}
-      <AppNav
-        user={user}
-        unreadCount={unreadCount}
-        // 선호필터 토글은 로그인 시에만 주입 (AppNav는 단순 렌더)
-        rightAccessory={user ? <PreferFilterToggleButton /> : null}
-      />
+      {/* 상단 가로 네비 — utility bar + 메인 탭 + 모바일 drawer 일체.
+       * [2026-04-22] v2 시안 매칭: rightAccessory(별 아이콘) 제거. */}
+      <AppNav user={user} unreadCount={unreadCount} />
 
       {/* 메인 — 풀폭. 각 페이지가 자체 `.page` 컨테이너로 폭 제어 */}
       <main className="flex-1">{children}</main>

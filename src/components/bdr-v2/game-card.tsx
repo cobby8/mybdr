@@ -18,11 +18,18 @@
  *   - scheduled_at 이 토/일 → "주말"
  * 파생은 상위(games-client)에서 수행해 props로 주입한다. (SSR 안전:
  * 서버가 계산해 직렬화된 문자열 배열로 내려준다.)
+ *
+ * [2026-04-22 시안 100% 매칭 재작업]
+ *   - TYPE_BADGE 의 --color-badge-* 토큰 대신 v2 원본 토큰(--cafe-blue / --bdr-red / --ok) 직접 참조
+ *   - 라벨 한글화: "픽업" / "게스트" / "스크림" (시안 kindLabel 일치)
+ *   - 날짜 포맷: "YYYY.MM.DD (요일) · HH:mm" (시안 원본은 종료시각 포함 "– HH:mm" 이지만
+ *     현 listGames select 에 duration_hours/ended_at 이 없어 단일 시각으로 표시 — Prisma select 비변경 방침)
+ *   - 비용 포맷: 무료는 "무료" + ok 색상 + bold / 유료는 "₩5,000" (toLocaleString)
  * ============================================================ */
 
 import Link from "next/link";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
-import { TYPE_BADGE, SKILL_LABEL } from "@/lib/constants/game-status";
+import { SKILL_LABEL } from "@/lib/constants/game-status";
 
 export interface GameCardProps {
   /** 상세 페이지 이동용 경로 */
@@ -53,18 +60,45 @@ export interface GameCardProps {
   tags: string[];
 }
 
-/* -- ISO → "MM/DD HH:mm" 포맷 (시안과 맞춘 2줄 미만 고정 폭) --
- * 왜: formatRelativeDateTime("3일 후") 형태는 카드에서 읽기는 편하지만
- * 시안은 "9/21 · 18:00" 같은 고정 표기를 선호. 여기서는 간결 포맷을 쓴다. */
-function formatScheduleShort(iso: string | null): string {
+/* -- v2 시안 kind 색상/라벨 매핑 --
+ * 왜: v2 Games.jsx L5~L6 원본 그대로 이식.
+ *   const kindLabel = { pickup: '픽업', guest: '게스트', scrimmage: '스크림' };
+ *   const kindColor = { pickup: 'var(--cafe-blue)', guest: 'var(--bdr-red)', scrimmage: 'var(--ok)' };
+ * DB game_type 코드(0/1/2)를 시안 kind 키로 매핑한 뒤 같은 테이블을 참조한다.
+ *   0 → pickup  (픽업)
+ *   1 → guest   (게스트 모집)
+ *   2 → scrimmage (DB상 PRACTICE = 연습경기 = 시안 "스크림")
+ */
+const KIND_COLOR: Record<number, string> = {
+  0: "var(--cafe-blue)",
+  1: "var(--bdr-red)",
+  2: "var(--ok)",
+};
+const KIND_LABEL: Record<number, string> = {
+  0: "픽업",
+  1: "게스트",
+  2: "스크림",
+};
+
+/* -- ISO → "YYYY.MM.DD (요일) · HH:mm" 포맷 --
+ * 왜: 시안은 "2026.04.25 (목) · 20:30 – 22:30" 형식이지만, 현재 listGames select 에
+ * duration_hours / ended_at 이 포함돼 있지 않아 종료 시각 계산을 생략한다.
+ * (Prisma select 변경 금지 방침 — 기획 "⚠️ 주의: Prisma 0 변경")
+ * 종료 시각 데이터가 인입되면 "– HH:mm" 을 이어 붙이는 확장 지점이다.
+ */
+const KO_WEEKDAY = ["일", "월", "화", "수", "목", "금", "토"] as const;
+function formatScheduleFull(iso: string | null): string {
   if (!iso) return "일정 미정";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "일정 미정";
+  const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
+  const dow = KO_WEEKDAY[d.getDay()];
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${mm}/${dd} · ${hh}:${mi}`;
+  // 예) 2026.04.25 (목) · 20:30
+  return `${yyyy}.${mm}.${dd} (${dow}) · ${hh}:${mi}`;
 }
 
 /* -- 마감임박 판단 --
@@ -96,10 +130,9 @@ export function GameCard({
   authorNickname,
   tags,
 }: GameCardProps) {
-  // 종류 배지 스타일 (TYPE_BADGE 재사용) — bg 값을 stripe 색상으로도 사용
-  const typeBadge = TYPE_BADGE[gameType] ?? TYPE_BADGE[0];
-  // stripe / 배경 배지 색상은 CSS 변수 참조 — 하드코딩 금지 규칙 준수
-  const kindColor = typeBadge.bg;
+  // 시안 원본 KIND_COLOR/LABEL 매핑 사용 — 기본값은 픽업(파랑)
+  const kindColor = KIND_COLOR[gameType] ?? KIND_COLOR[0];
+  const kindLabel = KIND_LABEL[gameType] ?? KIND_LABEL[0];
 
   // 참가자 계산 — null 안전
   const cur = currentParticipants ?? 0;
@@ -112,10 +145,11 @@ export function GameCard({
   // status 3(종료/취소) 혹은 만석이면 신청 비활성화 UI
   const isDisabled = isFull || status === 3 || status === 4;
 
-  // 참가비: "무료" 강조 (시안: 무료면 green bold)
+  // 참가비: "무료" 강조 (시안: 무료면 green bold + ok 색상)
+  // 유료는 "₩5,000" 형식 (시안 기준 toLocaleString + ₩ 기호)
   const feeNum = feePerPerson ? Number(feePerPerson) : 0;
   const isFree = !feePerPerson || feeNum === 0;
-  const feeText = isFree ? "무료" : `${feeNum.toLocaleString()}원`;
+  const feeText = isFree ? "무료" : `₩${feeNum.toLocaleString()}`;
 
   // 실력 한글 라벨 (없으면 "전체")
   const skillText =
@@ -140,10 +174,10 @@ export function GameCard({
         opacity: isDisabled ? 0.6 : 1,
       }}
     >
-      {/* 1. kind stripe — 4px 색상 바, 종류를 한눈에 구분 */}
+      {/* 1. kind stripe — 4px 색상 바, 종류를 한눈에 구분 (v2 원본 토큰 직접 참조) */}
       <div style={{ height: 4, background: kindColor }} />
 
-      {/* 2. 본문 padding 영역 */}
+      {/* 2. 본문 padding 영역 — 시안 L58: "16px 18px 12px" */}
       <div style={{ padding: "16px 18px 12px" }}>
         {/* 2-1. 상단 배지 줄: 종류 / 마감임박 / 지역(우측) */}
         <div
@@ -155,15 +189,16 @@ export function GameCard({
             flexWrap: "wrap",
           }}
         >
+          {/* 종류 배지 — 시안 L60: background=kindColor, color=#fff, borderColor=kindColor */}
           <span
             className="badge"
             style={{
               background: kindColor,
-              color: typeBadge.color,
+              color: "#fff",
               borderColor: kindColor,
             }}
           >
-            {typeBadge.label}
+            {kindLabel}
           </span>
           {isClosing && <span className="badge badge--red">마감임박</span>}
           {isFull && <span className="badge">만석</span>}
@@ -179,7 +214,7 @@ export function GameCard({
           </span>
         </div>
 
-        {/* 2-2. 타이틀 */}
+        {/* 2-2. 타이틀 — 시안 L64: fontWeight:700, fontSize:15, lineHeight:1.4, letterSpacing:-0.005em */}
         <div
           style={{
             fontWeight: 700,
@@ -198,7 +233,7 @@ export function GameCard({
           {decodeHtmlEntities(title) || "제목 없음"}
         </div>
 
-        {/* 2-3. 4행 info grid — 라벨 68px / 값 1fr */}
+        {/* 2-3. 4행 info grid — 시안 L67: 라벨 68px / 값 1fr, rowGap:4, columnGap:8, fontSize:13 */}
         <div
           style={{
             fontSize: 13,
@@ -221,12 +256,13 @@ export function GameCard({
             {place || "-"}
           </span>
           <span style={{ color: "var(--ink-dim)" }}>일시</span>
-          <span>{formatScheduleShort(scheduledAt)}</span>
+          <span>{formatScheduleFull(scheduledAt)}</span>
           <span style={{ color: "var(--ink-dim)" }}>레벨</span>
           <span>{skillText}</span>
           <span style={{ color: "var(--ink-dim)" }}>비용</span>
           <span
             style={{
+              // 시안 L71: 무료면 700+ok, 유료면 500+ink-soft
               fontWeight: isFree ? 700 : 500,
               color: isFree ? "var(--ok)" : "var(--ink-soft)",
             }}
@@ -235,7 +271,7 @@ export function GameCard({
           </span>
         </div>
 
-        {/* 2-4. 자동 파생 태그 — tags 배열 길이 0이면 섹션 자체 숨김 */}
+        {/* 2-4. 자동 파생 태그 — 시안 L75: fontSize:11, padding:2px 7px, border, radius-chip */}
         {tags.length > 0 && (
           <div
             style={{
@@ -263,7 +299,7 @@ export function GameCard({
         )}
       </div>
 
-      {/* 3. 푸터 — 호스트 + 진행바 + 신청 버튼. marginTop:auto 로 카드 최하단 고정 */}
+      {/* 3. 푸터 — 시안 L79: padding "12px 18px 14px", 상단 dashed border, marginTop:auto */}
       <div
         style={{
           padding: "12px 18px 14px",
@@ -297,13 +333,14 @@ export function GameCard({
               style={{
                 fontFamily: "var(--ff-mono)",
                 fontWeight: 700,
+                // 시안 L83: 마감임박이면 accent(red), 아니면 ink-soft
                 color: isClosing ? "var(--accent)" : "var(--ink-soft)",
               }}
             >
               {cur}/{max || "?"}
             </span>
           </div>
-          {/* 진행바 — 4px 높이, 마감임박이면 accent(red), 아니면 kindColor */}
+          {/* 진행바 — 시안 L87: 높이 4px, 채움은 마감임박이면 accent, 아니면 kindColor */}
           <div
             style={{
               height: 4,
