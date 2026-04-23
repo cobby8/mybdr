@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-24] BDR v2 전체 로드맵 — design_v2 브랜치, 74 페이지 10 Phase
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: v2 48 시안 × 기존 88 페이지 매핑 완료. 3 버킷 분류 — A) 1:1 직접 매핑 18건(Home/Games/Profile/Teams/Tournaments/Community/Courts/Login/Pricing/Settings/Help/Search/Orgs/Referee 등 코어 라우트), B) v2 전용 16건(Shop/Stats/Safety/Reviews/Gallery/Coaches/Rank/Achievements/Awards/Saved/Scrim/GuestApps/TeamInvite/TournamentEnroll/Messages/Calendar — 대부분 DB 모델 없음, 보류/흡수/정적 페이지화), C) 기존 전용 17건(tournament-admin 13 + partner-admin 4 + profile/growth·weekly-report·notification-settings·complete 등 — 옵션 2 "토큰만 교체" 추천). **10 Phase 구성**: 0(토큰+폰트+responsive, 2h) → 1(Home/Games/GameDetail/Live/Profile 8-10h) → 2(CreateGame/Result/MyGames/Noti/Search 6-8h) → 3(팀·대회 12페이지 18-22h) → 4(커뮤니티 4페이지 5-6h) → 5(프로필/랭킹 7페이지 8-10h) → 6(인증·결제 12페이지 10-12h) → 7(코트·Settings 10페이지 10-12h) → 8(admin 토큰 교체 19페이지 6-8h) → 9(정리+PR 4-6h). 총 77~94h (단축 시 62h). **공통 컴포넌트 위치**: `src/components/bdr-v2/` 신규 폴더, Phase 0에 AppNav/Drawer/Sidebar/Avatar/PromoCard/StatsStrip 6개 선제 추출, 이후 Phase별 점진 추출(3회 사용 기준). **PR 전략 C 혼합**: Phase 0+1 선 머지 → Phase 2~9 매주 rolling PR(6회) → 최종 정리 PR. 매주 design_v2 ← dev rebase. **전제 완화**: "API/데이터 패칭 절대 변경 금지" 규칙을 백엔드(route.ts)·Prisma 한정으로 좁힘. 클라이언트 페칭/상태/props shape는 v2 맞춤 조정 허용. **사용자 결정 8건** 중 D1(primary 반전)·D2(brutalist radius)·D8(PR 전략)만 Phase 0 착수 전 필수.
+- **참조횟수**: 0
+
 ### [2026-04-21] L2 본 설계 — 공용 컴포넌트 3종 + `/users/[id]` 본인 분기 + 티어 제거
 - **분류**: architecture
 - **발견자**: planner-architect

@@ -483,6 +483,35 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-23] BDR v2 Phase 1 Home — S4 + S5
+- **브랜치**: design_v2 (0e7e95b 위)
+- **S4 신규 컴포넌트 4종** (모두 서버 컴포넌트, TypeScript strict + JSDoc):
+  - `src/components/bdr-v2/promo-card.tsx` — .promo 배너. eyebrow/title/subtitle/description + primaryCta/secondaryCta (Link). 기본 카페 블루 그라디언트, `[data-promo="red"]` 오버라이드 지원
+  - `src/components/bdr-v2/stats-strip.tsx` — 4열(items 개수 기반 동적 grid) .card 통계 스트립. 숫자는 `.toLocaleString()` 자동 포맷, 문자열(예: "-")은 그대로
+  - `src/components/bdr-v2/board-row.tsx` — `.board__row` 1줄. num/title/board/author/date/views 6컬럼 + hasImage/commentsCount/isNew/isNotice. Link 자체가 grid row (responsive.css가 모바일 재배치 담당)
+  - `src/components/bdr-v2/card-panel.tsx` — `.card` 헤더(제목 + 더보기 Link) + children slot. `noPadding` 옵션으로 내부 `.board` 배치 지원
+- **신규 서비스 함수**: `src/lib/services/home.ts` 하단에 `prefetchOpenTournaments` 추가 — `unstable_cache`(60s) / `is_public=true` + `status in [registration, in_progress]` / 10건 / `tournament.findMany` + `_count.tournamentTeams` / `convertKeysToSnakeCase` 직렬화. 기존 patterns와 동일 (prefetchStats/Community)
+- **S5 page.tsx 재구성** — 기존 6종 import 전면 제거(HomeHero/RecommendedGames/RecommendedTournaments/NotableTeams/RecommendedVideos/RecentActivity/HomeCommunity + prefetchTeams/prefetchRecommendedGames). 3개 prefetch 병렬(Promise.allSettled). 섹션 배치: PromoCard(대회 첫 항목) → StatsStrip(4열 — user_count / "-" placeholder / match_count / team_count) → 2컬럼 grid(CardPanel 공지·인기글 5건 + CardPanel 열린 대회 5건) → .board 풀 테이블(방금 올라온 글 10건). 유틸 3종(formatShortDate/isWithin24h/communityCategoryLabel/tournamentStatusLabel) 페이지 로컬
+- **검증**:
+  - `npx tsc --noEmit` → EXIT=0 **PASS**
+  - dev server `/` → **200** (첫 컴파일 4.3s, 재요청 88ms). Turbopack worker crash 1회 발생(3001 PID 95520) → kill + `.next` 삭제 + 재기동(errors.md [2026-04-12] 패턴 재발 5회차). 이후 /manifest + /api/web/me/notifications/sidebar/ads 전부 200
+- **기존 파일 보존**: `src/components/home/*` 파일 삭제 금지 지시 따름 (미사용 상태로 유지). 카페·route.ts·Prisma 스키마 무변경
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/
+- **정상 동작**: PromoCard 카페 블루 그라디언트 배너(접수중 대회 있을 때) / StatsStrip 4열(숫자 천단위 포맷) / 2컬럼 카드 패널 / 방금 올라온 글 .board 테이블. 다크모드 전환 시 모든 카드 brutalist(radius=0, 2px 테두리)
+- **주의할 입력**:
+  - 열린 대회 0건일 때 → PromoCard 자체 미렌더 / 열린 대회 CardPanel "접수중인 대회가 없습니다" 표시
+  - community posts 0건일 때 → 공지·인기글/방금 올라온 글 둘 다 empty state
+  - 모바일(≤480px) 뷰 → responsive.css가 .board__row 6열을 "번호:제목 / 게시판·작성자·날짜·조회 한 줄" 형태로 재배치
+- **로그인 영향 없음**: 서버 컴포넌트 + Promise.allSettled 구조라 비로그인도 정상. /api/web/me는 layout.tsx 사이드바용이라 homepage 자체에는 영향 없음
+
+⚠️ reviewer 참고:
+- **카페 블루 primary vs BDR Red accent 공존**: `.btn--primary`는 `--cafe-blue` 배경 (PromoCard 미사용), `.btn--accent`는 `--bdr-red` 배경(PromoCard primaryCta 사용). 시안 의도에 부합. 다크모드에서는 `--bdr-red`로 통일됨
+- **DB 없는 필드 처리**: "지금 접속자 수"는 StatsStrip에서 `value: "-"` 문자열로 placeholder. 향후 실시간 세션 카운트 기능 추가 시 이 자리에 주입
+- **시안 차이점 — 열린 대회 렌더 방식**: v2 Home.jsx는 accent block(레벨 약어) + 2열 카드 그리드 형태. 본 구현은 기획설계 확정안에 따라 `<BoardRow>` 세로 리스트로 일관성 우선. 향후 시안 충실도를 높이려면 별도 `<TournamentRow>` 컴포넌트 추출 가능
+- **`(web)/page.tsx`는 서버 컴포넌트**: 클라이언트 hook 없음. 기존 HomeHero의 로그인 분기(getWebSession)는 v2 범위에서 제거됨 → 로그인/비로그인 구분 UI는 차후 Phase에서 PromoCard eyebrow 또는 별도 상단 Greeting 섹션으로 복원 검토 필요
+
 ### [2026-04-23] BDR v2 Phase 0 — 기반 설정 (S1~S3)
 - **브랜치**: design_v2
 - **S1**: `src/app/globals.css` 전면 재작성 (554줄 → **1194줄**) — @theme는 Tailwind 4 breakpoint 5개만 유지 / v2 tokens.css 748줄 본체 이식 / 테마 셀렉터 이중화(`[data-theme="dark"], html.dark` / `[data-theme="light"], html.light, :root:not([data-theme])`) / 기존 `--color-*` alias는 **없음** (PM 지시 전면 폐기) / 보존 블록 유지 — @source not, @media print, shadow-glow-primary/accent, clip-slant*, watermark-text, data-printing 토글, html.large-text, scrollbar-hide, no-scrollbar, fade-in, slide-up, footer-mobile-space, sidebar-scaled, Material Symbols base, touch-action
@@ -511,6 +540,7 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-23 | developer | **Phase 1 Home S4+S5** — bdr-v2 신규 컴포넌트 4종(promo-card/stats-strip/board-row/card-panel, 서버) + prefetchOpenTournaments(home.ts, unstable_cache 60s, is_public+registration/in_progress) + page.tsx 전면 재구성(기존 6종 import 제거 → Promo/Stats/2컬럼 CardPanel/.board 풀 테이블 배치). tsc EXIT=0 / `/` 200. Turbopack worker crash 1회(errors.md 2026-04-12 5회차) → `.next` 삭제+재기동 복구 | ✅ (커밋 대기) |
 | 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
 | 04-22 | tester | **위임 스모크 W4+L3+L2 Playwright 자동화** — 60 테스트(desktop×30 + mobile×30) 4조합(PC/Mobile × Light/Dark) 전건 PASS. L3(브레드크럼/EditionSwitcher 경계 #1/#11/null) + W4(glossary/courts/community/profile-activity) + postId 277 `'지역방어'` decode 검증. 임시파일(`_tmp-smoke-2026-04-22.spec.ts` + config + quick-check) 완료 후 삭제. 시작 시 `/organizations/*` 500 → PID 46100 kill + `.next` 삭제 + 재기동(PID 78736)으로 복구(Turbopack worker crash 재발) | ✅ 60/60 PASS (수빈 재확인 권장 3건: M6 알림·M5 온보딩·M7 팀 가입 = 로그인 필수) |
 | 04-22 | developer | **any 4건 명시 타입화** — home-sidebar(SWR fallback 3건 → TeamData/PostData 재사용) + members/route.ts(Prisma.RefereeWhereInput). 예외 13건(kakao/HOF/SW) 유지. right-sidebar-logged-in 타입 `export` 추가 | ✅ `3f54daa` |
