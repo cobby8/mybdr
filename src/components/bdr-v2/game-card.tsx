@@ -21,7 +21,7 @@
  *
  * [2026-04-22 시안 100% 매칭 재작업]
  *   - TYPE_BADGE 의 --color-badge-* 토큰 대신 v2 원본 토큰(--cafe-blue / --bdr-red / --ok) 직접 참조
- *   - 라벨 한글화: "픽업" / "게스트" / "스크림" (시안 kindLabel 일치)
+ *   - 라벨 한글화: "픽업" / "게스트" / "연습경기" (프로젝트 용어 통일, help/glossary 기준)
  *   - 날짜 포맷: "YYYY.MM.DD (요일) · HH:mm" (시안 원본은 종료시각 포함 "– HH:mm" 이지만
  *     현 listGames select 에 duration_hours/ended_at 이 없어 단일 시각으로 표시 — Prisma select 비변경 방침)
  *   - 비용 포맷: 무료는 "무료" + ok 색상 + bold / 유료는 "₩5,000" (toLocaleString)
@@ -61,13 +61,13 @@ export interface GameCardProps {
 }
 
 /* -- v2 시안 kind 색상/라벨 매핑 --
- * 왜: v2 Games.jsx L5~L6 원본 그대로 이식.
- *   const kindLabel = { pickup: '픽업', guest: '게스트', scrimmage: '스크림' };
- *   const kindColor = { pickup: 'var(--cafe-blue)', guest: 'var(--bdr-red)', scrimmage: 'var(--ok)' };
+ * 왜: v2 Games.jsx L5~L6 원본 그대로 이식하되, 라벨은 프로젝트 도메인 용어
+ *   (help/glossary 단일 소스)에 맞춰 "연습경기"로 표시.
+ *   conventions.md [2026-04-20] 도메인 용어 정의 참조.
  * DB game_type 코드(0/1/2)를 시안 kind 키로 매핑한 뒤 같은 테이블을 참조한다.
- *   0 → pickup  (픽업)
- *   1 → guest   (게스트 모집)
- *   2 → scrimmage (DB상 PRACTICE = 연습경기 = 시안 "스크림")
+ *   0 → pickup    (픽업)
+ *   1 → guest     (게스트 모집)
+ *   2 → practice  (DB상 PRACTICE = 연습경기)
  */
 const KIND_COLOR: Record<number, string> = {
   0: "var(--cafe-blue)",
@@ -77,7 +77,7 @@ const KIND_COLOR: Record<number, string> = {
 const KIND_LABEL: Record<number, string> = {
   0: "픽업",
   1: "게스트",
-  2: "스크림",
+  2: "연습경기",
 };
 
 /* -- ISO → "YYYY.MM.DD (요일) · HH:mm" 포맷 --
