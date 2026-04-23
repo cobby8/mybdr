@@ -33,7 +33,7 @@ export default async function AdminGamesPage({
   const [games, totalCount] = await Promise.all([
     prisma.games.findMany({
       where,
-      orderBy: { created_at: "desc" },
+      orderBy: { scheduled_at: "desc" },
       skip,
       take: pageSize,
       select: {

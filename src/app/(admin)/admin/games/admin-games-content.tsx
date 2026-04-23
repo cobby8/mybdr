@@ -128,7 +128,7 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                 <th className="px-5 py-4 font-medium">제목</th>
                 <th className="w-[60px] px-3 py-4 font-medium">유형</th>
                 <th className="w-[80px] px-3 py-4 font-medium">상태</th>
-                <th className="w-[95px] px-4 py-4 font-medium">날짜</th>
+                <th className="w-[95px] px-4 py-4 font-medium">예정일 ↓</th>
               </tr>
             </thead>
             <tbody>
