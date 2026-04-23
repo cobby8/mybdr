@@ -39,6 +39,14 @@ export interface BoardRowProps {
   href: string;
   /** 공지 글 여부 — true면 .board__row.notice 배경 강조 */
   isNotice?: boolean;
+  /**
+   * 카테고리 배지 스타일 — 제목 앞에 `.badge badge--<type>` 표시.
+   * - "soft": 기본 카페블루 soft 배지 (일반 카테고리)
+   * - "red" : 강조 배지 (공지/중요)
+   * - "ghost": 약한 아웃라인
+   * - 생략(undefined) 시 배지 미표시 → 기존 동작 유지
+   */
+  categoryBadge?: "soft" | "red" | "ghost";
 }
 
 /**
@@ -57,6 +65,7 @@ export function BoardRow({
   isNew = false,
   href,
   isNotice = false,
+  categoryBadge,
 }: BoardRowProps) {
   // Link 자체를 row로 만들기 위해 className 동적 구성
   const rowClass = isNotice ? "board__row notice" : "board__row";
@@ -69,6 +78,17 @@ export function BoardRow({
 
       {/* 2열: 제목 + 이미지 아이콘 + 댓글수 + NEW 뱃지 */}
       <div className="title">
+        {/* 카테고리 배지 — board 값을 제목 앞에 뱃지로 강조 (시안 매칭)
+         * 왜: v2 시안은 "자유/공지/Q&A" 등을 제목 앞 작은 칩으로 두어 스캔성↑.
+         * categoryBadge가 정의된 경우에만 표시(기존 동작 하위 호환). */}
+        {categoryBadge && (
+          <span
+            className={`badge badge--${categoryBadge}`}
+            style={{ marginRight: 6, flex: "none" }}
+          >
+            {board}
+          </span>
+        )}
         {/* 썸네일 존재 표식 — Material Symbols image 아이콘 */}
         {hasImage && (
           <span

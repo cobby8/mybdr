@@ -485,6 +485,35 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-22] Phase 1 Home 시안 매칭 보완 (A+B+C 3건)
+- **브랜치**: subin
+- **배경**: page.tsx는 이미 v2 구조(PromoCard/StatsStrip/CardPanel/BoardRow)로 완성돼 있으나, 시안 대비 3가지 gap 존재 — (A) 페이지 셸 클래스 (B) "열린 대회" 섹션 레이아웃 (C) 카테고리 배지
+- **A `src/app/(web)/page.tsx` L114**: 이미 `className="page"`로 선적용 상태였음(직전 세션 반영). 추가 작업 없음. L113 주석은 왜 `page`여야 하는지(max-width/중앙정렬/상하여백 포함 쉘) 근거 유지
+- **B `src/components/bdr-v2/tournament-row.tsx`**: 파일은 사전 존재했으나 **page.tsx에서 미사용(여전히 BoardRow로 렌더링)**. page.tsx import + "열린 대회" CardPanel 내용을 `BoardRow → TournamentRow`로 **실제 교체**. 인덱스 기반 accent 색상 로테이션 유틸 `tournamentAccent(idx)` 추가 — `["var(--accent)", "#f59e0b", "var(--accent-2, #0ea5e9)"]` 3색 순환. level 라벨 유틸 `tournamentLevelLabel(status)` 추가 — `registration→OPEN` / `in_progress→LIVE` / 기타→`INFO`. meta 문자열은 `venue_name|city · MM/DD · N/M팀` 형식으로 구성(PromoCard 방식과 맞춤). `.board` 그리드 래퍼 대신 `padding: "0 14px"` div로 감싸 CardPanel `noPadding` 하위에서 좌우 여백만 부여
+- **C `src/components/bdr-v2/board-row.tsx`**: `categoryBadge?: "soft" | "red" | "ghost"` prop은 사전 정의돼 있었으나 **렌더 로직이 없었음**. title div 앞에 `<span className="badge badge--{type}">{board}</span>` 렌더 추가. page.tsx 공지·인기글/방금 올라온 글 두 BoardRow 모두 `categoryBadge={post.category === "notice" ? "red" : "soft"}` 전달 — 공지 카테고리만 red 배지로 강조, 나머지는 카페블루 soft 배지
+- **검증**:
+  - `npx tsc --noEmit` → EXIT=0 **PASS**
+  - dev server 3001(PID 102232) 기동 중 → `curl /` **HTTP 200 PASS**
+  - `.badge--soft`/`.badge--red`/`.badge--ghost` 클래스는 globals.css L280-285 기존 존재 확인
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/
+- **정상 동작**:
+  - "열린 대회" 카드 좌측에 54×54 accent 블록(1번=레드/2번=앰버/3번=블루) + "OPEN" 또는 "LIVE" 텍스트
+  - 대회 중앙 본문: 제목 + Vol.N(있으면) + 하단 12px muted "장소 · 날짜 · 팀수"
+  - `status === "in_progress"`인 대회만 우측 빨간 `LIVE` 배지 표시
+  - "공지·인기글" / "방금 올라온 글" 각 행 제목 앞에 카테고리 배지(공지=빨강 / 그 외=카페블루 soft)
+- **주의할 입력**:
+  - `edition_number == null` → Vol 표시 생략
+  - `venue_name·city·start_date·max_teams` 전부 null이면 meta가 `{team_count}팀` 한 조각만 표시 (빈 문자열 아님)
+  - 열린 대회 6개 이상일 때 4번째부터는 accent 색상이 1번과 동일 반복(의도된 시각 리듬)
+
+⚠️ reviewer 참고:
+- **TournamentRow는 이전 세션에 선행 작성만 되고 실제 사용 누락**. page.tsx가 BoardRow로 대회 리스트를 그리고 있었음 → 이번 커밋에서 교체. 미사용 import 없이 정상 연결됨
+- **categoryBadge 렌더 로직 부재**: 이전 세션에서 prop 시그니처만 추가하고 render 누락. 이번 세션에서 완결
+- **CardPanel noPadding + 내부 padding 차이**: BoardRow 버전은 `.board { border:0, borderRadius:0 }`으로 그리드 폭 그대로 사용. TournamentRow 버전은 `padding: "0 14px"` div 래퍼로 좌우 14px 안쪽에 배치 — 시안의 카드 좌우 여백 재현
+- **accent_2 변수 없을 때 fallback #0ea5e9**: `var(--accent-2, #0ea5e9)` 형태로 선언해 globals.css에 `--accent-2` 미정의일 경우에도 깨지지 않도록 방어
+
 ### [2026-04-24] BDR v2 Phase 1 Home — S6 + S7 + S8 (가로 네비 전면 전환)
 - **브랜치**: design_v2 (이전 Phase 1 커밋 위)
 - **S6 `src/components/bdr-v2/app-nav.tsx`** (신규, "use client") — v2 원본 `AppNav` React 재작성. 유틸리티바(MyBDR 커뮤니티 / 소개 / 요금제 / 도움말 하드코딩 + 로그인 시 이름·설정·로그아웃 / 비로그인 시 로그인·회원가입) + 메인바(로고 Link → `/` + 탭 8개 Link + 우측 액션). 탭 8개: 홈·경기·대회·단체·팀·코트·랭킹·커뮤니티 (PM 확정). 우측 액션: `ThemeSwitch` + `rightAccessory` 슬롯(선호필터 토글) + 검색 + 알림(로그인 시 unreadCount 빨간 점) + "더보기 ▼" 드롭다운(moreItems 7개 + super_admin→/admin + is_referee→/referee 조건부 노출) + 아바타 Link(→ /profile, `BDR` or name.slice(0,3) 이니셜, 드롭다운 X) + 모바일 햄버거. 외부 클릭·ESC·pathname 변경 시 드롭다운/드로어 자동 닫힘
@@ -579,6 +608,7 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 1 Home 시안 매칭 보완 (A+B+C)** — (A) page.tsx `className="page"` 확인(기반영) + (B) "열린 대회" 섹션 `BoardRow→TournamentRow` 교체 + 인덱스 accent 로테이션 `[--accent, #f59e0b, --accent-2]` + level 매핑 `registration→OPEN / in_progress→LIVE / 그외→INFO` + (C) board-row.tsx `categoryBadge` 렌더 로직 추가 + page.tsx 공지·인기글/방금 올라온 글에 `categoryBadge={notice?"red":"soft"}` 전달. tsc EXIT=0 / `/` 200 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 S6+S7+S8 — 가로 네비 전면 전환** — bdr-v2/app-nav(유틸리티바 하드코딩 + 탭 8개 + 더보기 드롭다운 + 아바타=/profile Link) + bdr-v2/app-drawer(모바일 햄버거 슬라이드) + bdr-v2/theme-switch(이중 셀렉터 세팅) 3종 신규 + `(web)/layout.tsx` 431→137줄 전면 재작성(좌측사이드바/상단헤더/하단탭/우측사이드바/SlideMenu/PWA배너/ProfileCompletionBanner/NotificationBadge 전부 제거, SWR/PreferFilter/Toast Provider + /api/web/me·/notifications 폴링 + Footer 유지). tsc EXIT=0 / `/` 200 / 탭 8개 전 라우트 200 / HTML 검증 app-nav 1회 + 탭 8개 순서 정확 + 레거시 요소 0회 | ✅ (커밋 대기) |
 | 04-23 | developer | **Phase 1 Home S4+S5** — bdr-v2 신규 컴포넌트 4종(promo-card/stats-strip/board-row/card-panel, 서버) + prefetchOpenTournaments(home.ts, unstable_cache 60s, is_public+registration/in_progress) + page.tsx 전면 재구성(기존 6종 import 제거 → Promo/Stats/2컬럼 CardPanel/.board 풀 테이블 배치). tsc EXIT=0 / `/` 200. Turbopack worker crash 1회(errors.md 2026-04-12 5회차) → `.next` 삭제+재기동 복구 | ✅ (커밋 대기) |
 | 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
@@ -588,4 +618,3 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 | 04-22 | developer | **하드코딩 색상 5차 — 잔존 정비 (5파일 7건) + 예외 2건 명시** — referee/signup(에러) + referee/login(2건) + verify(warning) + teams/[id]/manage(해산 버튼 hover solid+tone-down) + teams/new(2건). 예외: live orange 스피너(accent TODO) / tm-org-new dark:페어(단일 토큰 검증 전). **하드코딩 색상 audit 실질 완결** | ✅ `6a7569b` |
 | 04-22 | developer+pm | **하드코딩 색상 3파일 CSS 변수화 (4차, 4건) + conventions.md 승격** — tm-admins(error+success 페어) + tm/[id]/wizard + tm/new/wizard. **tournament-admin 영역 전체 완결** (3차+4차 = 6파일 11건). color-mix Tailwind arbitrary 언더스코어 문법을 conventions.md 승격 | ✅ `42c5066` |
 | 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (3차, 7건)** — tm-matches(에러 text+삭제 버튼 hover color-mix+에러 박스 3건) + tm-site(에러 박스 3건) + tm-bracket(에러 박스 1건). Tailwind v4 arbitrary `color-mix` 언더스코어 문법 next build PASS 검증 | ✅ `dfa5b9a` |
-| 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (2차, 7건)** — classic(1위/3위 순위 4건 → warning) + hero-bento(LIVE→error / HOT→warning) + admin-users-table(★라벨→warning). classic statusColors 시맨틱 고정은 유지. tsc PASS | ✅ `672dc9a` |

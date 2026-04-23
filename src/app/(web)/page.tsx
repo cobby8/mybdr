@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 import { PromoCard } from "@/components/bdr-v2/promo-card";
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
 import { BoardRow } from "@/components/bdr-v2/board-row";
+import { TournamentRow } from "@/components/bdr-v2/tournament-row";
 import { CardPanel } from "@/components/bdr-v2/card-panel";
 import {
   prefetchStats,
@@ -76,6 +77,27 @@ function tournamentStatusLabel(status: string | null): string {
   return map[status] ?? status;
 }
 
+/* -- 유틸: 대회 상태 코드 → TournamentRow level 약어 (좌측 accent 블록용) --
+ * 왜: v2 Home.jsx 시안의 "열린 대회" 좌측 54×54 accent 블록은 4~5자 영문
+ * 약어로 상태를 보여줌. status 원코드를 그대로 쓰면 너무 길어지므로 매핑. */
+function tournamentLevelLabel(status: string | null): string {
+  if (status === "registration") return "OPEN";
+  if (status === "in_progress") return "LIVE";
+  return "INFO";
+}
+
+/* -- 유틸: 인덱스 → accent 색상 로테이션 --
+ * PM 지정 3색 순환. 4번째 이상은 다시 0번부터 반복 (시안의 시각 리듬 유지).
+ * CSS 변수가 없는 환경을 대비해 #f59e0b / #0ea5e9은 리터럴 fallback 제공. */
+const TOURNAMENT_ACCENTS = [
+  "var(--accent)",
+  "#f59e0b",
+  "var(--accent-2, #0ea5e9)",
+] as const;
+function tournamentAccent(idx: number): string {
+  return TOURNAMENT_ACCENTS[idx % TOURNAMENT_ACCENTS.length];
+}
+
 export default async function HomePage() {
   // 3개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
   const [statsResult, communityResult, tournamentsResult] =
@@ -109,8 +131,9 @@ export default async function HomePage() {
   const openTournaments = tournamentsData?.tournaments?.slice(0, 5) ?? [];
 
   return (
-    // page: v2 globals.css의 .page 기본 레이아웃 + 기존 layout 여백 유지
-    <div className="pb-10">
+    // page: v2 globals.css의 .page 쉘 — max-width + 중앙 정렬 + 기본 상하 여백
+    // (이전 "pb-10"은 좌우 maxw/gutter 제한이 없어 콘텐츠가 전폭으로 퍼져 시안과 어긋났음)
+    <div className="page">
       {/* 1. Promo 배너 — 열린 대회 첫 항목이 있을 때만 표시 */}
       {mainTournament && (
         <PromoCard
@@ -196,6 +219,8 @@ export default async function HomePage() {
                   views={post.view_count}
                   commentsCount={post.comments_count}
                   isNew={isWithin24h(post.created_at)}
+                  /* 공지 카테고리는 red 배지, 그 외는 soft 배지 — 시안 매칭 */
+                  categoryBadge={post.category === "notice" ? "red" : "soft"}
                   href={`/community/${post.public_id ?? post.id}`}
                 />
               ))}
@@ -203,7 +228,9 @@ export default async function HomePage() {
           )}
         </CardPanel>
 
-        {/* 열린 대회 패널 — BoardRow 방식 (대회는 board 컬럼에 장소/상태 표시) */}
+        {/* 열린 대회 패널 — TournamentRow 방식 (시안 3-column 카드형)
+         * BoardRow의 6열 테이블과 달리, 좌측 54×54 accent 블록 + 중앙 본문 +
+         * 우측 LIVE 배지 구조. 인덱스별 accent 색상 로테이션 적용. */}
         <CardPanel title="열린 대회" moreHref="/tournaments" noPadding>
           {openTournaments.length === 0 ? (
             <div
@@ -217,26 +244,39 @@ export default async function HomePage() {
               접수중인 대회가 없습니다.
             </div>
           ) : (
-            <div className="board" style={{ border: 0, borderRadius: 0 }}>
-              {openTournaments.map((tournament, idx) => (
-                <BoardRow
-                  key={tournament.id}
-                  num={idx + 1}
-                  title={tournament.name}
-                  // board 컬럼에 상태 표시 (접수중/진행중)
-                  board={tournamentStatusLabel(tournament.status)}
-                  // author 컬럼에 장소 표시 (v2 시안 재배치)
-                  author={tournament.venue_name ?? tournament.city ?? "-"}
-                  date={formatShortDate(tournament.start_date)}
-                  // views 컬럼에 참가 팀 수 표시
-                  views={
-                    tournament.max_teams
-                      ? `${tournament.team_count}/${tournament.max_teams}`
-                      : `${tournament.team_count}팀`
-                  }
-                  href={`/tournaments/${tournament.id}`}
-                />
-              ))}
+            <div style={{ padding: "0 14px" }}>
+              {openTournaments.map((tournament, idx) => {
+                // 부제(meta) 구성: 장소 · 날짜 · 접수현황을 " · "로 연결
+                const metaParts = [
+                  tournament.venue_name || tournament.city,
+                  tournament.start_date
+                    ? new Date(tournament.start_date).toLocaleDateString(
+                        "ko-KR",
+                        { month: "numeric", day: "numeric" }
+                      )
+                    : null,
+                  tournament.max_teams
+                    ? `${tournament.team_count}/${tournament.max_teams}팀`
+                    : `${tournament.team_count}팀`,
+                ].filter(Boolean);
+
+                return (
+                  <TournamentRow
+                    key={tournament.id}
+                    accent={tournamentAccent(idx)}
+                    level={tournamentLevelLabel(tournament.status)}
+                    title={tournament.name}
+                    edition={
+                      tournament.edition_number
+                        ? `Vol.${tournament.edition_number}`
+                        : undefined
+                    }
+                    meta={metaParts.join(" · ")}
+                    status={tournament.status ?? ""}
+                    href={`/tournaments/${tournament.id}`}
+                  />
+                );
+              })}
             </div>
           )}
         </CardPanel>
@@ -296,6 +336,8 @@ export default async function HomePage() {
                 views={post.view_count}
                 commentsCount={post.comments_count}
                 isNew={isWithin24h(post.created_at)}
+                /* 공지는 red 배지로 강조, 그 외는 soft 배지 */
+                categoryBadge={post.category === "notice" ? "red" : "soft"}
                 href={`/community/${post.public_id ?? post.id}`}
               />
             ))}
