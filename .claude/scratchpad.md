@@ -85,6 +85,8 @@
 | 수빈(L3-2 스모크) | `/organizations/*/series/*/page.tsx` | 500 + Turbopack worker crash | ✅ 코드 무결 / `.next` 재기동으로 복구 (errors.md [2026-04-12] 재발 참조+1) |
 | pm-cafe (Stage B-1) | `(web)/community/**` 렌더 | HTML entity 디코드 누락 | ✅ 완료 `bb488ce` — 5파일 렌더 경로 decode 적용 |
 | tester(위임 스모크 04-22) | dev server `/organizations/org-ny6os` | Turbopack worker crash 재발 (3회차). `/` 200인데 `/organizations/*` 만 500 → PID 46100 kill + `.next` 삭제 + npm run dev 재기동 → PID 78736 복구 / 전 엔드포인트 200 | ✅ errors.md [2026-04-12] 참조횟수+1 해당 (신규 라우트 첫 접근 패턴) |
+| tester(Phase 1 Home 검증) | `src/components/layout/right-sidebar.tsx` | Home 페이지 xl+ 우측 사이드바에 레거시 "주목할 팀" / "최근 활동" 위젯이 그대로 남아 있음 (page.tsx에서는 제거 완료). PC뷰에서만 노출, 모바일 뷰에선 자동 숨김. v2 Phase 1 범위가 Home 본문에 한정되었으므로 **결함 아님 / 범위 밖** — 사이드바 v2 교체는 Phase 1에 포함시킬지, 후속 Phase로 넘길지 결정 필요 | 대기 (PM 범위 결정) |
+| tester(Phase 1 Home 검증) | `src/app/(web)/page.tsx` | `<h1>` 태그 0건. v2 시안은 섹션 헤딩(`<h2>` "방금 올라온 글") 위주라 의도된 구조일 수 있으나 접근성/SEO 관점에서 페이지당 1개 h1 권장. PromoCard 내부 `<h2>`를 `<h1>`으로 승격하거나 시안 외 상단에 visually-hidden h1 추가 검토 | 대기 (PM 결정) |
 
 ---
 
@@ -483,6 +485,43 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-24] BDR v2 Phase 1 Home — S6 + S7 + S8 (가로 네비 전면 전환)
+- **브랜치**: design_v2 (이전 Phase 1 커밋 위)
+- **S6 `src/components/bdr-v2/app-nav.tsx`** (신규, "use client") — v2 원본 `AppNav` React 재작성. 유틸리티바(MyBDR 커뮤니티 / 소개 / 요금제 / 도움말 하드코딩 + 로그인 시 이름·설정·로그아웃 / 비로그인 시 로그인·회원가입) + 메인바(로고 Link → `/` + 탭 8개 Link + 우측 액션). 탭 8개: 홈·경기·대회·단체·팀·코트·랭킹·커뮤니티 (PM 확정). 우측 액션: `ThemeSwitch` + `rightAccessory` 슬롯(선호필터 토글) + 검색 + 알림(로그인 시 unreadCount 빨간 점) + "더보기 ▼" 드롭다운(moreItems 7개 + super_admin→/admin + is_referee→/referee 조건부 노출) + 아바타 Link(→ /profile, `BDR` or name.slice(0,3) 이니셜, 드롭다운 X) + 모바일 햄버거. 외부 클릭·ESC·pathname 변경 시 드롭다운/드로어 자동 닫힘
+- **S7 `src/components/bdr-v2/app-drawer.tsx`** (신규, "use client") — 모바일 햄버거 전용 우측 슬라이드 패널. body scroll lock + ESC 닫힘 + backdrop 클릭 닫힘. 구성: 헤더(MyBDR. + ×) / 본문(탭 8개 Link + divider + 글쓰기·알림·검색 보조 + is_referee·super_admin 조건부) / 푸터(ThemeSwitch + 이름·로그아웃 또는 로그인·회원가입). `AppNav`와 tabs·isActive·user props 공유
+- **S7-b `src/components/bdr-v2/theme-switch.tsx`** (신규, "use client") — v2 원본 2버튼 토글(라이트/다크). html 태그에 `classList.add("dark"|"light")` + `dataset.theme` 동시 세팅으로 **이중 셀렉터 호환**. localStorage 키 `theme-preference` 기존 재사용. 마운트 이후에만 상태 동기화해 SSR/CSR mismatch 방지
+- **S8 `src/app/(web)/layout.tsx`** (전면 재작성, 431줄 → 137줄) — 기존 좌측 고정 사이드네비(aside.lg:flex) + 상단 헤더(fixed header) + 하단 탭(fixed bottom nav) + 우측 사이드바(RightSidebar xl+) + SlideMenu + MoreTabTooltip + ProfileCompletionBanner + PwaInstallBanner + NotificationBadge + 검색 + 기존 ProfileDropdown dynamic import 전부 제거. 남긴 것 = SWRProvider + PreferFilterProvider + ToastProvider + `/api/web/me` 병렬 fetch + `/api/web/notifications` 30초 폴링 + `notifications:read-all` 이벤트 리스너 + Footer. layout은 이제 AppNav + main(풀폭, 페이지 자체 컨테이너 사용) + Footer 3층. PreferFilterToggleButton은 `.btn .btn--sm` + `--accent` 색상으로 v2 톤 맞춤해 rightAccessory 슬롯에 주입
+- **검증**:
+  - `npx tsc --noEmit` → EXIT=0 **PASS**
+  - dev server 이미 3001 기동 중(PID 102232) → HMR 자동 반영. `curl /` 200 / `/games` 200 / `/community` 200 / `/tournaments` 200 / `/courts` 200 / `/rankings` 200 / `/teams` 200 / `/organizations` 200 (탭 8개 전 라우트)
+  - HTML 검사: `app-nav` 1회 렌더 / 탭 8개 정확히 순서대로 렌더 (홈 data-active=true) / 유틸리티 "MyBDR 커뮤니티·소개·요금제·도움말" 전부 존재 / 레거시 `slide-menu`·`bottomNavItems`·`right-sidebar`·`fixed bottom-0`·`pwa-install` 0회 = **완전 제거 확인**
+- **보존 파일**: `src/components/shared/slide-menu.tsx`, `.../more-tab-tooltip.tsx`, `.../notification-badge.tsx`, `.../profile-completion-banner.tsx`, `.../pwa-install-banner.tsx`, `.../search-autocomplete.tsx`, `.../theme-toggle.tsx`, `.../text-size-toggle.tsx`, `.../profile-dropdown.tsx`, `src/components/layout/right-sidebar.tsx` — 삭제 금지. 미사용 상태로 유지(Phase 9 정리 시 재평가)
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/ (+ 탭 8개 각 라우트 순환)
+- **정상 동작 체크리스트**:
+  - 상단 가로 네비 1개만 렌더 (좌측 사이드바 / 우측 사이드바 / 하단 탭 **전부 미렌더**)
+  - 메인 컨텐츠가 **풀폭**(기존 lg:ml-60 여백 없음)
+  - 유틸리티 바: "MyBDR 커뮤니티 / 소개 / 요금제 / 도움말" + 우측 로그인 시 "이름 / 설정 / 로그아웃" 표시
+  - 메인 바 탭 클릭 시 Next.js Link 라우팅 + 활성 탭 `data-active="true"` 하이라이트
+  - 테마 버튼 "라이트/다크" 클릭 시 html 태그 `dark`/`light` class + `data-theme` 속성 동시 변경
+  - 더보기 ▼ 클릭 시 7개 항목 + super_admin/is_referee 조건부 추가 노출. 외부 클릭/ESC/라우트 변경 시 닫힘
+  - 아바타 클릭 = `/profile` 이동 (드롭다운 열리지 않음 — PM 확정안)
+  - 모바일 뷰(900px 이하) → 햄버거 표시 → 클릭 시 우측 슬라이드 드로어 + body scroll lock
+- **주의할 입력**:
+  - 비로그인 상태에서는 알림 아이콘 미렌더 + 유틸리티바 우측이 "로그인 / 회원가입"
+  - 로그아웃 클릭 시 POST /api/web/logout → /login 이동
+  - 선호필터 토글(★)은 로그인 상태에서만 노출
+
+⚠️ reviewer 참고:
+- **Next/Link vs v2 원본 `<a onClick=setRoute>`**: v2 원본은 SPA 라우터 없이 상태 교체 방식. mybdr은 Next App Router이므로 모든 탭/드롭다운 항목을 `<Link href>` 로 교체했다. prefetch=true 는 탭에만 적용(더보기 항목은 prefetch 없이 단순 이동)
+- **Utility "소개" 링크**: v2 원본은 setRoute('about') 했으나 mybdr에는 `/about` 라우트가 없어 일단 `/` 로 매핑. 별도 About 페이지 필요 시 Phase 6에서 /safety·/terms 옆에 신설 검토
+- **더보기 드롭다운 항목 축소**: v2 원본 moreItems 28개(중복 포함)를 mybdr 실제 라우트 존재분 7개로 추림(my-games/notifications/live/rankings/search/pricing/help/glossary). 추후 calendar·saved·messages·shop 등 도입 시 이 배열에 추가
+- **기존 ProfileDropdown 미사용**: PM 확정안 "아바타 = /profile 링크 + 더보기 드롭다운 = moreItems"에 따라 기존 ProfileDropdown 파일 자체는 보존하지만 import 제거. 드롭다운 목록이 AppNav "더보기" 버튼으로 이관됨. Phase 9에서 삭제 결정
+- **Footer 풀폭 노출**: 기존 layout에서 Footer는 `max-w-[960px]` 내부에 있었으나, v2 구조는 풀폭 Footer가 자연스러우므로 감싸지 않음. Footer 컴포넌트 내부에서 필요 시 자체 max-width 처리
+- **PreferFilterToggleButton 스타일 변경**: 기존 tailwind 클래스에서 v2 `.btn.btn--sm` + inline style `var(--accent)`로 변경. 다른 토글(Theme·검색·알림)과 일관성 확보
+- **layout.tsx 431 → 137줄 감축(294줄 삭제)**: 이는 단순 파일 라인 비교이며 삭제한 사용처 컴포넌트는 전부 파일로는 살아있음. 다른 페이지에서 import 남아있으면 빌드는 OK지만 Phase 9 cleanup에서 dead code 추려야 함
+
 ### [2026-04-23] BDR v2 Phase 1 Home — S4 + S5
 - **브랜치**: design_v2 (0e7e95b 위)
 - **S4 신규 컴포넌트 4종** (모두 서버 컴포넌트, TypeScript strict + JSDoc):
@@ -540,6 +579,7 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-24 | developer | **Phase 1 S6+S7+S8 — 가로 네비 전면 전환** — bdr-v2/app-nav(유틸리티바 하드코딩 + 탭 8개 + 더보기 드롭다운 + 아바타=/profile Link) + bdr-v2/app-drawer(모바일 햄버거 슬라이드) + bdr-v2/theme-switch(이중 셀렉터 세팅) 3종 신규 + `(web)/layout.tsx` 431→137줄 전면 재작성(좌측사이드바/상단헤더/하단탭/우측사이드바/SlideMenu/PWA배너/ProfileCompletionBanner/NotificationBadge 전부 제거, SWR/PreferFilter/Toast Provider + /api/web/me·/notifications 폴링 + Footer 유지). tsc EXIT=0 / `/` 200 / 탭 8개 전 라우트 200 / HTML 검증 app-nav 1회 + 탭 8개 순서 정확 + 레거시 요소 0회 | ✅ (커밋 대기) |
 | 04-23 | developer | **Phase 1 Home S4+S5** — bdr-v2 신규 컴포넌트 4종(promo-card/stats-strip/board-row/card-panel, 서버) + prefetchOpenTournaments(home.ts, unstable_cache 60s, is_public+registration/in_progress) + page.tsx 전면 재구성(기존 6종 import 제거 → Promo/Stats/2컬럼 CardPanel/.board 풀 테이블 배치). tsc EXIT=0 / `/` 200. Turbopack worker crash 1회(errors.md 2026-04-12 5회차) → `.next` 삭제+재기동 복구 | ✅ (커밋 대기) |
 | 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
 | 04-22 | tester | **위임 스모크 W4+L3+L2 Playwright 자동화** — 60 테스트(desktop×30 + mobile×30) 4조합(PC/Mobile × Light/Dark) 전건 PASS. L3(브레드크럼/EditionSwitcher 경계 #1/#11/null) + W4(glossary/courts/community/profile-activity) + postId 277 `'지역방어'` decode 검증. 임시파일(`_tmp-smoke-2026-04-22.spec.ts` + config + quick-check) 완료 후 삭제. 시작 시 `/organizations/*` 500 → PID 46100 kill + `.next` 삭제 + 재기동(PID 78736)으로 복구(Turbopack worker crash 재발) | ✅ 60/60 PASS (수빈 재확인 권장 3건: M6 알림·M5 온보딩·M7 팀 가입 = 로그인 필수) |
@@ -549,6 +589,3 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 | 04-22 | developer+pm | **하드코딩 색상 3파일 CSS 변수화 (4차, 4건) + conventions.md 승격** — tm-admins(error+success 페어) + tm/[id]/wizard + tm/new/wizard. **tournament-admin 영역 전체 완결** (3차+4차 = 6파일 11건). color-mix Tailwind arbitrary 언더스코어 문법을 conventions.md 승격 | ✅ `42c5066` |
 | 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (3차, 7건)** — tm-matches(에러 text+삭제 버튼 hover color-mix+에러 박스 3건) + tm-site(에러 박스 3건) + tm-bracket(에러 박스 1건). Tailwind v4 arbitrary `color-mix` 언더스코어 문법 next build PASS 검증 | ✅ `dfa5b9a` |
 | 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (2차, 7건)** — classic(1위/3위 순위 4건 → warning) + hero-bento(LIVE→error / HOT→warning) + admin-users-table(★라벨→warning). classic statusColors 시맨틱 고정은 유지. tsc PASS | ✅ `672dc9a` |
-| 04-22 | pm | **통합 스모크 체크리스트 + B-1 시드 상태 확인** — `Dev/smoke-test-2026-04-22.md` 신규 / B-1 이미 충족 | ✅ `1958b9d` |
-| 04-22 | developer | **하드코딩 색상 3파일 CSS 변수화 (4건)** — community/edit + push-permission + image-uploader, `--color-error` 토큰화 | ✅ `0f41e99` |
-| 04-22 | developer | **카페 community HTML entity decode (5파일)** — 렌더 시점 `decodeHtmlEntities` 적용 (리스트/사이드바/상세/댓글/사이드바) | ✅ `bb488ce` |
