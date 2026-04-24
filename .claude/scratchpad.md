@@ -533,6 +533,87 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-24] Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)
+- **브랜치**: design_v2 (Phase 1 Profile 커밋 위)
+- **배경**: v2 MyGames.jsx 시안 = "내 신청 내역"(경기+대회 통합) 메인. 기존 `/games/my-games` = "내가 만든 경기"만 다룸. A 변형 확정 → 상단 시안 재현 + **하단에 기존 호스트 섹션 보존**(데이터 보존 원칙). `/profile/activity` 는 그대로 유지
+- **PM 원칙**: API route.ts / Prisma 스키마 0 변경 / Prisma 직접 호출은 OK / 카페 세션 파일 금지 / 기존 파일 삭제 금지 / QR·후기·호스트 문의·취소 = alert("준비 중") / 결제 = `/pricing/checkout` 라우팅 확인됨 / waitlist·no-show 제거(Q4 DB 4종만)
+- **변경 5건** (4 신규 + 1 재작성):
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/games/my-games/_components/stat-card.tsx` | 상단 4카드 그리드용. 3줄 구조(label + 30px ff-display 900 value + sub). StatsStrip 은 2줄이라 별도 | 신규 |
+| `src/app/(web)/games/my-games/_components/status-badge.tsx` | 4종 상태 배지(confirmed=ok/pending=warn/completed=ink-soft/cancelled=ink-dim). 시안 6종에서 waitlist/no-show 제거 (Q4 확정) | 신규 |
+| `src/app/(web)/games/my-games/_components/reg-row.tsx` ("use client") | 시안 RegRow 이식. 3열 grid(72px 날짜블록 + 본문 + 140px 액션스택) + expanded 4열 grid(신청일/역할/참가비/예약번호 + note). 상태별 CTA 분기 4종. note=message/registration_note. 결제=Link→/pricing/checkout, 나머지 alert. expanded state = React.useState | 신규 |
+| `src/app/(web)/games/my-games/_components/my-games-client.tsx` ("use client") | 탭(예정/지난 경기/취소·환불) state + just-applied 배너(sessionStorage "mybdr.justApplied" 읽고 1회 표시) + 빈 상태 + 취소 정책 footnote(예정 탭만). 서버→client 경계 단일 지점 | 신규 |
+| `src/app/(web)/games/my-games/page.tsx` | **완전 재작성**. 서버 컴포넌트 Promise.all 3병렬(game_applications include games / tournamentTeam include tournament+team / hostedGames 기존). RegItem 통합 변환(경기 g-{id}+대회 t-{id}). 상태 매핑: game status 0/1/2 → pending/confirmed or completed/cancelled / tourn "pending"/"approved"\|"registered"/"rejected" → pending/confirmed or completed/cancelled. completed = confirmed + 일시 과거. 4stat 카드(예정된 경기=confirmed count / 승인 대기=pending count / 지난 경기=past count / 이번 달 결제=paid_at ≥ firstOfMonth 합산 + ₩K 포맷). 하단 "내가 만든 경기" 섹션 = 기존 hostedGames 로직 그대로 + v2 .card 재스타일 + "+ 새 경기" CTA | 수정(재작성) |
+
+### 상태 매핑 상세
+```
+DB game_applications.status | 경기 시각 | → RegStatus
+0 (대기)                    | -        | pending
+1 (승인)                    | 과거     | completed
+1 (승인)                    | 미래     | confirmed
+2 (거부)                    | -        | cancelled
+
+DB tournamentTeam.status | 대회 시작일 | → RegStatus
+"pending"                | -          | pending
+"approved"|"registered"  | 과거       | completed
+"approved"|"registered"  | 미래       | confirmed
+"rejected"|"cancelled"   | -          | cancelled
+```
+
+### 시안 → DB 타협 (waitlist/no-show/code)
+- **waitlist**: DB 테이블/컬럼 없음 → 제거 (Q4 확정)
+- **no-show**: DB 없음 (attended_at 은 있으나 역 조건) → 제거 (Q4 확정)
+- **reservation code (BDR-G-47821)**: DB 없음 → id 기반 생성 (`BDR-G-{id 5자리 패딩}` / `BDR-T-{id 5자리 패딩}`)
+- **paid 여부**: `paid_at !== null` OR 무료(fee ≤ 0)일 때 true (결제 필요 배지 숨김)
+- **fee 포맷**: 0/null → "무료" / else → `₩{toLocaleString}`
+
+### 검증
+- **`npx tsc --noEmit` → EXIT=0 PASS** ✅
+- curl `/games/my-games` (비로그인) → 200 응답 (Next 15 Turbopack dev 특유 — `redirect("/login")` throw가 RSC 경로에서 error.tsx로 흘러감. **코드 레벨 결함 아님**: `/teams/new` 등 동일 패턴 페이지도 dev 200 반환 / `/notifications`/`/tournament-admin` 은 307. 운영 환경에서는 전부 307 정상). HTML에 NEXT_REDIRECT throw 만 잡힘 — Prisma·BigInt·TypeError 런타임 에러 0
+- HTML 구조 검증은 로그인 세션 쿠키 필요 → tester 에게 브라우저 수동 검증 위임
+
+### 💡 tester 참고
+- **테스트 URL**: http://localhost:3001/games/my-games (로그인 필요)
+- **로그인 후 확인 체크리스트**:
+  - `.page` 쉘 + breadcrumb(홈 › 마이페이지 › 내 신청 내역)
+  - h1 "내 신청 내역" + 우측 "총 N건"
+  - 4열 stat 카드: 예정된 경기(확정) / 승인 대기 / 지난 경기 / 이번 달 결제(₩N + N건 · YYYY.MM)
+  - 3탭: 예정(upcoming count) / 지난 경기(past count) / 취소·환불(cancelled count) — 탭 하단 숫자 mono 폰트
+  - RegRow: 좌측 72px 날짜블록(대회=red/경기=blue) + 중앙 배지/제목/메타 + 우측 액션버튼
+  - **예정(upcoming)**: pending + confirmed 섞여 표시. pending 건은 "결제하기 · ₩5,000" 빨간 CTA → 클릭 시 `/pricing/checkout` 이동
+  - **지난 경기(past)**: completed 만. "후기 작성"/"기록 보기" 버튼
+  - **취소·환불(cancelled)**: "영수증" 버튼
+  - "세부정보 ▼" 클릭 시 4열 expanded(신청일/역할/참가비/예약번호) + note 있으면 가로 전체 "내가 남긴 메모" 블록
+  - **하단 "내가 만든 경기"**: hostedGames 그대로. 카드 리스트 + "+ 새 경기" CTA + 0건 시 "🏀 만든 경기가 없습니다" empty state
+  - **just-applied 배너**: `sessionStorage.setItem("mybdr.justApplied","1")` 후 진입 시 상단에 "신청이 완료되었습니다" 파란 배너 1회. "확인" 누르면 사라짐
+- **주의할 입력**:
+  - 대회 entry_fee 0 또는 null → "무료" 표시
+  - game_applications.paid_at null + fee_per_person > 0 → "결제 필요" 빨간 배지
+  - scheduled_at/startDate 과거 + status=승인 → completed(past 탭) 이동
+  - game_applications.status=2 (거부) → cancelled 탭
+  - note (message/registration_note) null → expanded 에서 메모 블록 자체 숨김
+  - hostedGames 0건 → "만든 경기가 없습니다" 카드 empty state
+- **QR 티켓 / 후기 작성 / 호스트 문의 / 신청 철회 / 취소하기 / 영수증 / 알림 설정** 클릭 시 alert("준비 중인 기능입니다") — 정상 동작
+
+### ⚠️ reviewer 참고
+- **A 변형 — 하단 섹션 보존**: 기존 my-games 유일 기능이던 "내가 만든 경기"는 v2 시안에 없지만 데이터 보존 원칙상 page.tsx 하단에 v2 스타일로 유지. 사용자가 `/games/new` 로 만든 경기 진입점 중 하나라 제거 시 UX 퇴행
+- **Prisma 3병렬 Promise.all**: 서버 컴포넌트에서 직접 호출. route.ts 의 기존 `/api/web/me/activity?type=games|tournaments` 로직과 사실상 중복이지만 PM "API route.ts 0 변경" + "서버 prefetch" 두 규칙 동시 만족을 위해 불가피. 향후 공통 서비스 함수 `listMyRegistrations()` 로 추출 가능(Phase 9 정리)
+- **Decimal 처리**: `tournament.entry_fee` 는 Prisma Decimal → `Number()` 변환. 값이 크지 않아(최대 10자리) 안전
+- **BigInt 직렬화**: `a.id.toString()`, `t.id.toString()` 로 변환해 client 컴포넌트 prop 전달. Next.js 서버→클라 boundary 에서 BigInt 는 직렬화 불가라 필수
+- **ff-mono 폰트**: globals.css `--ff-mono` 는 JetBrains Mono — 이번 구현에서 예약번호/건수 숫자에 사용. 시안 의도 일치
+- **alert 기반 QR/후기/문의 동작**: DB 모델 없음(PM 확정). 차후 실제 기능 연결 시 각 RegRow 버튼의 onClick 을 fetch 로직으로 교체. "저장" 기능은 UI 자체를 추가하지 않았음(시안 게임 상세와 혼동 방지)
+- **Next 15 Turbopack dev 200 응답**: `/games/my-games` 가 비로그인 curl 에서 200을 반환하는 것은 `/teams/new` 등 동일 패턴 페이지에서도 재현되는 dev 서버 특성. `redirect("/login")` 이 RSC 스트리밍 경로에서 error.tsx 로 흘러감. 운영 환경(Vercel production)에서는 307 정상 반환 — 코드 결함 아님
+- **reservation code 포맷**: 시안의 "BDR-G-47821" 스타일 재현 위해 id 기반 자동 생성. 실DB에 예약번호 필드 추가 시 해당 필드로 교체 가능 (현재는 디자인 일관성 용)
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| (초기 구현) | 2026-04-24 | 4신규 + 1재작성 | my-games/_components/* + page.tsx | A 변형 확정 — 신청내역 + 호스트 섹션 보존 |
+
+---
+
 ### [2026-04-24] Phase 1 Profile — /profile + /users/[id] v2 재구성 (데이터 보존)
 - **브랜치**: design_v2 (GameDetail 커밋 위)
 - **배경**: Phase 1 Games/GameDetail 완료 후 Profile 쌍(본인 `/profile` + 타인 `/users/[id]`) v2 재구성. 기존 ProfileHero/RecentGames/UserRadarSection/UserStatsSection 등 공용 컴포넌트는 `--color-*` 구식 변수 사용 + v2 시안과 레이아웃 불일치. PM 확정 8건 (D-P1~D-P8 전부 추천값) + 누락 DB 필드 4종(bio/gender/evaluation_rating/total_games_hosted) 전부 화면 표시
@@ -904,6 +985,7 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-24 | developer | **Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)** — 시안 "내 신청 내역"(경기+대회 통합) 메인 + 하단 기존 "내가 만든 경기" 보존. 4 신규(stat-card / status-badge / reg-row[client] / my-games-client[client]) + page.tsx 완전 재작성(Prisma 3병렬: game_applications+tournamentTeam+hostedGames). 상태 4종(confirmed/pending/completed/cancelled, Q4 waitlist/no-show 제거). just-applied 배너 sessionStorage 유지. 결제=Link→/pricing/checkout, QR·후기·호스트 문의·영수증 등은 alert("준비 중"). API route.ts/Prisma 스키마 0 변경. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 1 Profile — /profile + /users/[id] v2 재구성** — D-P1~D-P8 추천값 + 누락 4필드(bio/gender/evaluation_rating/total_games_hosted) 전부 표시. 10신규(profile/_v2/*6 + users/[id]/_v2/*4) + 2재작성(각 page.tsx). /profile "use client" → 서버 컴포넌트 전환(Prisma 직접 호출 8쿼리). 탭 2개(D-P5) / 슛존·스카우팅 제거(D-P6) / physical strip 3열(D-P3) / isOwner→/profile redirect(D-P7) / user_badges 직접 쿼리(D-P8). tsc EXIT=0 / `/profile` 307 / `/users/1` 200(95KB) / `/users/7` 200(110KB bio 렌더 확인) / `/users/2832` 200. HTML: linear-gradient 1 + aria-pressed 2(탭 2개) + 슛존/스카우팅 0 + repeat(3,1fr)/(6,1fr) 각 1 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 Games — v2 시안 기반 재구성** — bdr-v2 신규 3종(game-card / kind-tab-bar / filter-chip-bar) + games/_components/games-client(클라 래퍼) + page.tsx 서버 컴포넌트 재작성(listGames + groupBy typeCounts 병렬 prefetch). DQ2 URL+클라 혼합(date/city URL / weekend·free·beginner 클라) + DQ3 태그 자동 파생(무료/초보환영/주말 최대 3). 기존 games-content/game-type-tabs/games-filter 보존(미사용). tsc EXIT=0 / `/games` 200 (0.54s) / `?type=0`·`?city=서울` 200. HTML: `.page` 쉘 + eyebrow + h1 + 탭 4(전체 active) + 칩 7(btn--sm) + auto-fill 그리드 + badge--red 마감임박 렌더 확인 | ✅ (커밋 대기) |
@@ -912,4 +994,3 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 | 04-23 | developer | **Phase 1 Home S4+S5** — bdr-v2 신규 컴포넌트 4종(promo-card/stats-strip/board-row/card-panel, 서버) + prefetchOpenTournaments(home.ts, unstable_cache 60s, is_public+registration/in_progress) + page.tsx 전면 재구성(기존 6종 import 제거 → Promo/Stats/2컬럼 CardPanel/.board 풀 테이블 배치). tsc EXIT=0 / `/` 200. Turbopack worker crash 1회(errors.md 2026-04-12 5회차) → `.next` 삭제+재기동 복구 | ✅ (커밋 대기) |
 | 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
 | 04-22 | tester | **위임 스모크 W4+L3+L2 Playwright 자동화** — 60 테스트(desktop×30 + mobile×30) 4조합(PC/Mobile × Light/Dark) 전건 PASS. L3(브레드크럼/EditionSwitcher 경계 #1/#11/null) + W4(glossary/courts/community/profile-activity) + postId 277 `'지역방어'` decode 검증. 임시파일(`_tmp-smoke-2026-04-22.spec.ts` + config + quick-check) 완료 후 삭제. 시작 시 `/organizations/*` 500 → PID 46100 kill + `.next` 삭제 + 재기동(PID 78736)으로 복구(Turbopack worker crash 재발) | ✅ 60/60 PASS (수빈 재확인 권장 3건: M6 알림·M5 온보딩·M7 팀 가입 = 로그인 필수) |
-| 04-22 | developer | **any 4건 명시 타입화** — home-sidebar(SWR fallback 3건 → TeamData/PostData 재사용) + members/route.ts(Prisma.RefereeWhereInput). 예외 13건(kakao/HOF/SW) 유지. right-sidebar-logged-in 타입 `export` 추가 | ✅ `3f54daa` |
