@@ -1232,9 +1232,69 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 
 ---
 
+## 구현 기록 — Phase 2 GameResult — /live/[id] finished 분기 v2 재구성 [2026-04-22]
+
+📝 구현한 기능: `/live/[id]` 에서 경기 상태가 `finished`/`completed` 일 때 v2 시안(`Dev/design/BDR v2/screens/GameResult.jsx`) 레이아웃으로 전체 렌더를 교체. 라이브/진행중 UI는 0 수정.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/live/[id]/route.ts` | `mvp_player`(GameScore 공식 기반 MVP 1명) + `playByPlays`(상위 50건, 시간순) 응답 필드 2개 신규 추가. 기존 필드/구조 0 변경 | 수정 |
+| `src/app/live/[id]/page.tsx` | MatchData 인터페이스에 `mvp_player` optional 필드 추가 + 상단 import 1줄 + return 직전 분기 3줄(`status === finished/completed` → `<GameResultV2 />`) 추가. 1829줄 본문 0 수정 | 수정 |
+| `src/app/live/[id]/_v2/game-result.tsx` | 메인 컨테이너. 탭 상태(요약/팀비교/개인기록/타임라인/샷차트 5종) + MatchDataV2/PlayerRowV2/PlayByPlayRowV2/MvpPlayerV2 타입 export | 신규 |
+| `src/app/live/[id]/_v2/hero-scoreboard.tsx` | 어두운 135deg 그라디언트 카드 + radial 오버레이 + FINAL 배지 + 팀별 큰 스코어(72px) + WINNER 라벨 + 쿼터 스코어 표(Q1~Q4 + OT 동적). 시드/전적/관중수/하이라이트 버튼 생략(D5) | 신규 |
+| `src/app/live/[id]/_v2/mvp-banner.tsx` | 팀색 원형 등번호 배지 + GAME MVP 라벨 + 이름 + 주요 스탯 라인(pts/ast/reb/stl/+-/FG/3P 야투율). accent 12% 그라디언트 배경 | 신규 |
+| `src/app/live/[id]/_v2/tab-summary.tsx` | 좌: 경기 요약 내러티브(자동 조립) + 3블록(점수차/쿼터승/총득점) / 우: TOP 퍼포머 4항목(득점/리바/어시/스틸). playerStats 기반 최대값 선수 1명씩 | 신규 |
+| `src/app/live/[id]/_v2/tab-team-stats.tsx` | 9항목 좌우 비교 바(야투/3점/자유투/리바운드/어시스트/스틸/블록/턴오버/파울). 팀별 합계 aggregateTeam 헬퍼 + 비교 바(homePct/awayPct). 페인트/패스트브레이크/벤치득점 생략(D5) | 신규 |
+| `src/app/live/[id]/_v2/tab-players.tsx` | 팀별 박스스코어 14컬럼(#/선수/MIN/PTS/REB/AST/STL/BLK/TOV/PF/FG/3P/FT/+/-). DNP 선수는 회색 배경 + 전부 "-". MVP 선수 앞에 ★. POS 컬럼 생략(D5) | 신규 |
+| `src/app/live/[id]/_v2/tab-timeline.tsx` | play_by_plays 이벤트 역순 렌더. action_type 한국어 매핑(shot/made_shot/missed_shot/free_throw/rebound/assist/steal/block/turnover/foul/substitution/timeout 등). 득점 이벤트는 accent 4% 배경 + 굵게 | 신규 |
+| `src/app/live/[id]/_v2/tab-shot-chart.tsx` | "샷차트 준비 중" 안내 카드 + 팀별 코트 SVG 배경(외곽/페인트/탑서클/자유투서클/3점라인/골대) 반투명 렌더. court_x/y 채워지면 shots 배열 map 으로 확장 가능 구조 | 신규 |
+
+### 변경 요약
+- **API 필드 2개 순수 추가**:
+  - `mvp_player`: GameScore 공식(`pts + 0.4*fgm - 0.7*fga - 0.4*(fta-ftm) + 0.7*oreb + 0.3*dreb + stl + 0.7*ast + 0.7*blk - 0.4*fouls - to`) 으로 home/away 합산 정렬 1위. DNP/전스탯 0인 선수 제외. playerStats 0건이면 null
+  - `play_by_plays`: allPbps를 quarter DESC + game_clock_seconds ASC 정렬 후 상위 50건. roster(TournamentTeamPlayer)에서 직접 player_name/jersey_number 매핑 (home_players[].id 가 분기에 따라 MatchPlayerStat.id 또는 TournamentTeamPlayer.id 여서 PBP 매칭 실패 버그 있었음 — roster 직접 조회로 해결)
+- **분기 3줄만 추가**:
+  ```tsx
+  if (match.status === "finished" || match.status === "completed") {
+    return <GameResultV2 match={match as unknown as MatchDataV2} />;
+  }
+  ```
+- **8 신규 파일 토큰**: v2 토큰(`--ink`, `--ink-soft`, `--ink-dim`, `--ink-mute`, `--bg-alt`, `--border`, `--accent`, `--ff-display`, `--ff-mono`) + `color-mix(in oklab, ...)` 그라디언트. `.card` / `.page` globals.css 클래스 사용
+- **샷차트 탭**: D2-B 확정 반영 — 탭 유지 + "준비 중" 안내 카드 + 코트 SVG 배경만. 더미 점 전부 제거. 향후 court_x/y 데이터 생기면 `shots.map(...)` 추가만으로 확장 가능
+- **D5 생략 필드**: 시드(#1 SEED) / 팀 누적 전적(15W 4L · 1684) / 관중수(412명) / 페인트득점·패스트브레이크·벤치득점 / 자동 내러티브 LLM 문장 / 영상·공유·기록지 PDF·하이라이트 버튼 전부 생략
+
+### 검증 결과
+- `tsc --noEmit` EXIT=0 PASS
+- Playwright chromium 실측:
+  - `/live/102` (status=completed): FINAL/WINNER/GAME MVP/요약/팀 비교/개인 기록/타임라인/샷차트 탭 + `linear-gradient(135deg` 전부 렌더. v1 zoom 1.1 marker 없음 → v2 분기 ✅
+  - `/live/92` (status=live): v1 UI 렌더 — LIVE 배지 있음, v2 요소(FINAL/MVP/요약 탭) 모두 0건 → 분기 정상 ✅
+- API `/api/live/102` 직접 호출: `mvp_player` 채워짐(강승현 등) + `play_by_plays` 50건 + player_name/jersey_number 매칭 확인
+
+💡 tester 참고:
+- **테스트 방법**:
+  - finished/completed 경기: `/live/102`, `/live/100`, `/live/99` 등 접속 → v2 GameResult 레이아웃 확인. 탭 5개 전환 동작. Hero Scoreboard 쿼터 스코어 / MVP 배너 / Summary TOP 퍼포머 / Team Stats 비교 바 / Players 테이블 / Timeline 역순 / ShotChart 안내 카드
+  - live/in_progress 경기: `/live/92` 같은 라이브 경기 — 기존 v1 UI 그대로. 변경 없음
+- **정상 동작**:
+  - 종료 경기: `linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%)` 히어로 + WINNER 라벨 1회(승자 팀만) + MVP 배너 팀색 원 + 탭 전환 시 active 탭에 `var(--accent)` 하단 2px 밑줄
+  - 라이브 경기: 기존 박스스코어 UI(zoom 1.1, LIVE 배지, 프린트 버튼 등) 100% 동일
+- **주의할 입력**:
+  - playerStats 0건 경기 → `mvp_player: null` → MVP 배너 아예 안 렌더 (빈 공간 없음)
+  - play_by_plays 0건 경기 → Timeline 탭에 "play-by-play 기록이 없습니다" 안내 카드
+  - OT 경기 → HeroScoreboard 쿼터 표에 OT1/OT2… 동적 컬럼 추가 확인 필요
+  - 모바일 뷰 (< 720px) → Summary 2열 → 1열 / ShotChart 2열 → 1열 자동 전환
+
+⚠️ reviewer 참고:
+- **API 필드 순수 추가만**: 기존 응답 구조/필드 0 변경. apiSuccess 의 camelCase→snake_case 변환 확인. `mvpPlayer` → `mvp_player`, `playByPlays` → `play_by_plays`
+- **MatchData 캐스팅**: `match as unknown as MatchDataV2` — page.tsx MatchData 와 v2 MatchDataV2 가 중복 정의되어 있지만 필드는 호환. 단일 타입 export 로 통합할 수 있으나 page.tsx 건드리지 않는 원칙상 이번에는 캐스팅으로 처리
+- **roster 직접 조회로 PBP 매핑 수정**: home_players[].id 가 진행중/종료 분기에 따라 다른 ID 타입을 반환하는 기존 버그를 playByPlays 렌더에서 우회. roster(match.homeTeam.players / awayTeam.players) 의 p.id 를 직접 lookup 키로 사용 → 타임라인 player_name 정상 렌더
+- **샷차트 확장 여지**: court_x/y 데이터 생기면 `tab-shot-chart.tsx` TeamCourt 컴포넌트 내 SVG 위에 `shots.map(s => <circle>/<g>)` 렌더만 추가하면 됨. 구조는 시안 그대로 유지
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 2 GameResult — /live/[id] finished/completed 분기 v2 재구성** — API `/api/live/[id]/route.ts` 응답 필드 2개 신규 추가(`mvp_player` GameScore 공식 + `play_by_plays` 상위 50건 roster 직접 매핑). `_v2/` 8 신규(game-result 메인+탭상태 / hero-scoreboard 135deg 그라디언트+쿼터표 / mvp-banner 팀색 원형 / tab-summary TOP 퍼포머 4 / tab-team-stats 9항목 좌우 비교바 / tab-players 14컬럼 박스스코어+DNP+MVP★ / tab-timeline action_type 한국어 매핑+역순 / tab-shot-chart 준비중 카드+코트 SVG). `page.tsx` 1829줄 0 수정 — MatchData interface에 `mvp_player?` 추가 + import 1줄 + 분기 3줄만. 라이브/진행중 UI 완전 보존. D2-B 샷차트 유지(준비중 안내) / D5 시드·전적·관중수·페인트·내러티브·영상공유 생략. tsc EXIT=0 / Playwright: `/live/102`(completed)=FINAL+WINNER+GAME MVP+탭5+gradient 전부 렌더·v1 zoom 없음 / `/live/92`(live)=v1 UI 그대로·v2 요소 0건 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |
 | 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-22 | developer | **Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)** — `page.tsx`(서버, Prisma 6테이블 유지 + 직렬화) + `_components/search-client.tsx`(신규, controlled form + URL push + 탭 7종 클라 필터) + `loading.tsx`(v2 스켈레톤). 탭: 전체/팀/경기/대회/커뮤니티/코트/유저. API/Prisma/서비스 0 변경. 6종 데이터 전부 화면 보존. tsc EXIT=0 / `/search` 200 / `/search?q=test` 200 + `.page`·`type="search"`·탭 7개 전부 렌더 | ✅ (커밋 대기, PM 처리) |
@@ -1244,5 +1304,3 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 Games — v2 시안 기반 재구성** — bdr-v2 신규 3종(game-card / kind-tab-bar / filter-chip-bar) + games/_components/games-client(클라 래퍼) + page.tsx 서버 컴포넌트 재작성(listGames + groupBy typeCounts 병렬 prefetch). DQ2 URL+클라 혼합(date/city URL / weekend·free·beginner 클라) + DQ3 태그 자동 파생(무료/초보환영/주말 최대 3). 기존 games-content/game-type-tabs/games-filter 보존(미사용). tsc EXIT=0 / `/games` 200 (0.54s) / `?type=0`·`?city=서울` 200. HTML: `.page` 쉘 + eyebrow + h1 + 탭 4(전체 active) + 칩 7(btn--sm) + auto-fill 그리드 + badge--red 마감임박 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 1 Home 시안 매칭 보완 (A+B+C)** — (A) page.tsx `className="page"` 확인(기반영) + (B) "열린 대회" 섹션 `BoardRow→TournamentRow` 교체 + 인덱스 accent 로테이션 `[--accent, #f59e0b, --accent-2]` + level 매핑 `registration→OPEN / in_progress→LIVE / 그외→INFO` + (C) board-row.tsx `categoryBadge` 렌더 로직 추가 + page.tsx 공지·인기글/방금 올라온 글에 `categoryBadge={notice?"red":"soft"}` 전달. tsc EXIT=0 / `/` 200 | ✅ (커밋 대기) |
-| 04-24 | developer | **Phase 1 S6+S7+S8 — 가로 네비 전면 전환** — bdr-v2/app-nav(유틸리티바 하드코딩 + 탭 8개 + 더보기 드롭다운 + 아바타=/profile Link) + bdr-v2/app-drawer(모바일 햄버거 슬라이드) + bdr-v2/theme-switch(이중 셀렉터 세팅) 3종 신규 + `(web)/layout.tsx` 431→137줄 전면 재작성(좌측사이드바/상단헤더/하단탭/우측사이드바/SlideMenu/PWA배너/ProfileCompletionBanner/NotificationBadge 전부 제거, SWR/PreferFilter/Toast Provider + /api/web/me·/notifications 폴링 + Footer 유지). tsc EXIT=0 / `/` 200 / 탭 8개 전 라우트 200 / HTML 검증 app-nav 1회 + 탭 8개 순서 정확 + 레거시 요소 0회 | ✅ (커밋 대기) |
-| 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
