@@ -980,6 +980,78 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 - **Pretendard 교체**: PM 지시 "Pretendard는 기존 CDN 로더 유지"였으나 실제 코드는 SUIT만 로드 중이었음. v2 body 기본 `--ff-body: 'Pretendard'`에 맞추려면 교체 필요하다고 판단 → Pretendard variable CDN으로 전환. 피드백 주세요
 - **폰트 preload 경고 가능성**: next/font는 자동 preload하는데 pages router가 아니면 Next.js 15+에서 경고 안 남. 16.1.6에서도 정상 (확인됨)
 
+### [2026-04-22] Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)
+
+📝 구현한 기능: `/search` 페이지 BDR v2 재구성 — 서버 컴포넌트(Prisma 6테이블 직접 호출 유지) + 클라이언트 컴포넌트 분리. 탭 7종(전체/팀/경기/대회/커뮤니티/코트/유저) + controlled input form → URL push(Enter/submit) + v2 스켈레톤 loading.tsx. **API route.ts / Prisma 스키마 / 서비스 레이어 0 변경**. 6종 데이터(games/tournaments/teams/posts/users/courts) 전부 화면에 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/search/page.tsx` | 서버 컴포넌트 — 기존 Prisma 쿼리 6종 그대로 + BigInt/Date 직렬화(`Serialized*` 6개 export) + `SearchClient`에 props 전달. 기존 인라인 JSX 삭제 | 수정 |
+| `src/app/(web)/search/_components/search-client.tsx` | 클라 — controlled input + `router.push("/search?q=...")` submit + 탭 7개(activeTab state, 서버 재요청 없이 섹션 노출 토글) + `SearchSection`/`SearchResultItem` v2 톤 재구현 | 신규 |
+| `src/app/(web)/search/loading.tsx` | v2 스켈레톤(`.page` + maxWidth 780 + 탭 7 줄 + 카드 3장) | 수정 |
+
+### PM 7건 결정 반영 상세
+| 결정 | 구현 위치 |
+|------|----------|
+| 1. 탭 7개 (전체/팀/경기/대회/커뮤니티/코트/유저) | `TABS` 배열 + `TabKey = "all" \| "teams" \| "games" \| "tournaments" \| "community" \| "courts" \| "users"` |
+| 2. controlled form + URL push | `useState(inputValue)` + `<form onSubmit>` → `router.push(\`/search?q=\${encodeURIComponent(next)}\`)` |
+| 3. 필터·정렬 미추가 | 칩/셀렉트 일절 없음. 탭 전환만 존재 |
+| 4. 빈 쿼리 상태 | 기존 "검색어를 입력해주세요" 유지 + v2 톤(`var(--ink)`, `var(--ink-mute)`, `var(--ink-dim)` Material Symbols `search`) |
+| 5. DB 필드 부제 병합 | tournament: `{teams_count}/{max_teams}팀` / court: `{court_type} · {district\|city} · {rating}점` / user: `{position} · {city}` / game: `{type} · {venue\|city} · {date}` |
+| 6. loading.tsx v2 스켈레톤 | `.page` + 탭 7줄(border-bottom) + 카드 3장(각각 헤더 + 아이템 3개) |
+| 7. 구조 분리 | `page.tsx`(서버, Prisma) + `_components/search-client.tsx`(클라, input+탭+렌더) |
+
+### 보존 로직 (0 변경)
+- Prisma 쿼리 6종 전부 유지: `games.findMany` / `tournament.findMany` / `team.findMany` / `community_posts.findMany` / `user.findMany` / `court_infos.findMany`
+- 한글 라벨 맵: `GAME_TYPE_LABELS` / `CATEGORY_LABELS` / `STATUS_LABELS` / `COURT_TYPE_LABELS` / `POSITION_LABELS` 모두 유지 (서버 → 클라로 이동만)
+- 6종 모두 상위 5건 `take: 5` + 기존 `orderBy` 유지
+- 빈 쿼리 시 조기 리턴 패턴 유지 (단 이제 빈 배열 props로 SearchClient에 위임)
+
+### v2 스타일 토큰 적용
+- 쉘: `.page` + inline `maxWidth: 780` (Phase 1/2 일관)
+- 배경/구분선: `var(--bg-elev)`, `var(--border)`
+- 텍스트 위계: `var(--ink)` 제목 / `var(--ink-mute)` 본문 / `var(--ink-dim)` 보조
+- 강조: `var(--accent)` 탭 밑줄·더보기 Link / `var(--cafe-blue)` 대회·코트 섹션 아이콘 배경
+- mono 숫자: `var(--ff-mono)` (탭 뱃지 숫자 + 검색 결과 총 건수)
+- 탭 스타일: KindTabBar 패턴 — 활성 3px accent 밑줄 + ink / 비활성 투명 3px + ink-mute (레이아웃 흔들림 방지)
+
+### 검증
+- `npx tsc --noEmit` → **EXIT=0 PASS**
+- `curl /search` → **HTTP 200** + `.page` 1 + `type="search"` 1 + "검색어를 입력" 1회
+- `curl /search?q=test` → **HTTP 200** + `.page` 1 + `type="search"` 1 + 7탭 라벨(전체/팀/경기/대회/커뮤니티/코트/유저) 전부 렌더
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/search 와 http://localhost:3001/search?q=키워드
+- **정상 동작**:
+  - 검색어 없을 때: Material Symbols `search` 아이콘 + "검색어를 입력해주세요" + 안내 문구. 탭/결과 미표시
+  - 검색어 있을 때: "키워드" 검색 결과 · 총 N건 요약 표시 + 탭 7개(전체=activeTab 기본) + 각 섹션 카드
+  - 탭 전환 시 **서버 재요청 없이** 섹션만 노출/숨김 (클라이언트 필터, URL 변경 없음)
+  - Enter 또는 돋보기 없이 input만 있는 form — Enter 치면 `router.push(/search?q=...)` → 서버 재쿼리
+  - 입력값이 있을 때 X(close) 버튼으로 input 초기화 (URL은 그대로, 사용자가 Enter 치기 전에는 기존 q 결과 유지)
+  - 탭 뱃지 mono 숫자: 해당 카테고리 결과 건수 (0도 표시)
+  - 활성 탭에서 결과 0건이면 "검색 결과가 없어요" 빈 상태 표시
+  - 결과 카드: 아이콘 원형 + 제목 + 건수(mono) + 더보기 링크 + 아이템 리스트(제목·부제·chevron)
+  - 아이템 클릭 → 상세 페이지(`/games/[id]`, `/tournaments/[id]`, `/teams/[id]`, `/community/[id]`, `/courts/[id]`, `/users/[id]`)
+- **주의할 입력**:
+  - `?q=농구` (한글 검색) — URL encoding 확인
+  - `?q=  공백  ` (앞뒤 공백) — `trim()` 후 검색
+  - `?q=` (빈 쿼리) — 빈 상태 UI
+  - 결과 0건 키워드 (예: `?q=zzzznonexistent`) — 탭 7개 모두 0 뱃지 + "검색 결과가 없어요"
+  - 결과 6종 모두 있는 키워드 (예: `?q=a` 같은 흔한 문자) — 전체 탭에서 6섹션 순차 노출
+  - 탭 이동: 각 탭 클릭 시 해당 섹션만 노출되는지 (전체 탭 외에는 1섹션만)
+  - 다크/라이트 토글 시 `--ink` / `--ink-mute` / `--accent` 변수 자동 전환
+
+⚠️ reviewer 참고:
+- **구조 분리 근거**: Prisma 쿼리는 서버에서 실행해야 보안/성능상 이점이 있고, controlled input + 탭 클릭은 "use client" 필수. 따라서 page.tsx(서버) + _components/search-client.tsx(클라) 분리. `Serialized*` 인터페이스를 page.tsx에서 `export`하고 client에서 `import type` — 직렬화 계약 명확화
+- **BigInt 직렬화**: `id.toString()` / `Date.toISOString()` / `Decimal → Number` 처리. 누락 시 "Only plain objects can be passed to Client Components" 런타임 에러 → 사전 차단
+- **탭 전환 UX**: 서버 재요청 없음 — 이미 6테이블 결과를 props로 받아둠. 탭 전환 = `activeTab` state 변경 + 섹션 노출 토글. 검색 쿼리 변경만 URL push
+- **결과 0건**: 활성 탭 기준 판정 (`activeTabCount`) — 전체 탭은 counts.all, 카테고리 탭은 해당 카테고리 count. 전체 0건이어도 탭 7개는 모두 렌더(사용자가 다른 탭 눌러도 빈 상태 동일)
+- **v2 tokens only**: `--color-*` alias 일절 미사용(Phase 0 S1 폐기). 아이콘 배경색 중 `#6366f1`(팀) / `#8b5cf6`(유저) / `#10b981`(커뮤니티)는 Notifications 패턴과 동일 — 하드코딩이지만 6종 섹션 구분용 의도 색상(Phase 9 또는 별도 정비 대상)
+- **Material Symbols Outlined**: `search` / `search_off` / `close` / `chevron_right` / `sports_basketball` / `emoji_events` / `groups` / `location_on` / `person` / `forum` 전부 Outlined 폰트
+- **폴백**: `game.title || "제목 없음"` / `user.nickname || user.name || "알 수 없음"` / `court.average_rating != null` 등 null 안전 처리
+
+---
+
 ### [2026-04-22] Phase 2 Notifications — v2 재구성 (UI-only, PM 4건 결정 반영)
 
 📝 구현한 기능: `/notifications` 페이지 BDR v2 재구성 — 탭 7종(전체/안읽음/대회/경기/팀/커뮤니티/시스템) + unread 아이템 전체 배경 강조(`var(--accent-soft)` + 좌측 3px accent bar) + `.page` 쉘 + 780px 폭 + "알림 설정" 버튼 Link 추가. **API/Prisma/page.tsx/category.ts 0 변경**. 상태·핸들러·fetch 로직 100% 보존.
@@ -1048,6 +1120,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)** — `page.tsx`(서버, Prisma 6테이블 유지 + 직렬화) + `_components/search-client.tsx`(신규, controlled form + URL push + 탭 7종 클라 필터) + `loading.tsx`(v2 스켈레톤). 탭: 전체/팀/경기/대회/커뮤니티/코트/유저. API/Prisma/서비스 0 변경. 6종 데이터 전부 화면 보존. tsc EXIT=0 / `/search` 200 / `/search?q=test` 200 + `.page`·`type="search"`·탭 7개 전부 렌더 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 Notifications — v2 재구성 (UI-only, 4결정 반영)** — `notifications-client.tsx` 단일 파일만 수정. page.tsx/API/Prisma/category.ts 0 변경. 탭 6→**7종**(전체/안읽음/대회/경기/팀/커뮤니티/시스템) + unread 아이템 `var(--accent-soft)` 배경 + 좌측 3px `inset var(--accent)` bar + `.page` 쉘 + `maxWidth: 780` + 헤더 우측 "알림 설정" Link(`/profile/notification-settings`) 추가. 상태 7종·handleLoadMore/Delete/MarkAllRead·CustomEvent·PushPermissionBanner·삭제/더보기 버튼 전부 보존. tsc --noEmit EXIT=0 / `/notifications` 307 (비로그인 정상) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)** — 시안 "내 신청 내역"(경기+대회 통합) 메인 + 하단 기존 "내가 만든 경기" 보존. 4 신규(stat-card / status-badge / reg-row[client] / my-games-client[client]) + page.tsx 완전 재작성(Prisma 3병렬: game_applications+tournamentTeam+hostedGames). 상태 4종(confirmed/pending/completed/cancelled, Q4 waitlist/no-show 제거). just-applied 배너 sessionStorage 유지. 결제=Link→/pricing/checkout, QR·후기·호스트 문의·영수증 등은 alert("준비 중"). API route.ts/Prisma 스키마 0 변경. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 1 Profile — /profile + /users/[id] v2 재구성** — D-P1~D-P8 추천값 + 누락 4필드(bio/gender/evaluation_rating/total_games_hosted) 전부 표시. 10신규(profile/_v2/*6 + users/[id]/_v2/*4) + 2재작성(각 page.tsx). /profile "use client" → 서버 컴포넌트 전환(Prisma 직접 호출 8쿼리). 탭 2개(D-P5) / 슛존·스카우팅 제거(D-P6) / physical strip 3열(D-P3) / isOwner→/profile redirect(D-P7) / user_badges 직접 쿼리(D-P8). tsc EXIT=0 / `/profile` 307 / `/users/1` 200(95KB) / `/users/7` 200(110KB bio 렌더 확인) / `/users/2832` 200. HTML: linear-gradient 1 + aria-pressed 2(탭 2개) + 슛존/스카우팅 0 + repeat(3,1fr)/(6,1fr) 각 1 | ✅ (커밋 대기) |
