@@ -36,14 +36,16 @@ import { FinalsSidebar } from "../bracket/_components/finals-sidebar";
 import { LeagueStandings, type LeagueTeam } from "../bracket/_components/league-standings";
 
 // 탭 타입 정의 (standings는 bracket에 통합 — 백엔드 페이지는 유지)
-export type TabKey = "overview" | "bracket" | "schedule" | "teams";
+// Phase 2 Match: "rules" 탭 추가 (DB tournaments.rules 표시용)
+export type TabKey = "overview" | "schedule" | "bracket" | "teams" | "rules";
 
-// 탭 메타 정보 — 순서: 대회정보 → 대진표 → 일정 → 참가팀
+// 탭 메타 정보 — 시안 Match.jsx L117 순서: 대회소개 → 경기일정 → 대진표 → 참가팀 → 규정
 const TAB_META: { key: TabKey; label: string; icon: string }[] = [
-  { key: "overview", label: "대회정보", icon: "info" },
+  { key: "overview", label: "대회소개", icon: "info" },
+  { key: "schedule", label: "경기일정", icon: "calendar_month" },
   { key: "bracket", label: "대진표", icon: "account_tree" },
-  { key: "schedule", label: "일정", icon: "calendar_month" },
   { key: "teams", label: "참가팀", icon: "groups" },
+  { key: "rules", label: "규정", icon: "gavel" },
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API 응답 구조가 탭마다 다름
@@ -64,6 +66,9 @@ interface TournamentTabsProps {
   tournamentId: string;
   // 개요 탭만 서버에서 렌더링하여 전달
   overviewContent: ReactNode;
+  // Phase 2 Match: 규정 탭 콘텐츠 (서버에서 tournament.rules 프리렌더)
+  // 없으면(null) 빈 상태 카드 렌더 — 탭 자체는 항상 표시
+  rulesContent?: ReactNode;
   // URL의 ?tab= 쿼리로 받은 초기 탭 (redirect된 /bracket, /schedule 등에서 유입 시 사용)
   // 상위 서버 컴포넌트가 searchParams로 파싱해서 넘김 → 잘못된 값은 "overview"로 이미 폴백됨
   initialTab?: TabKey;
@@ -348,6 +353,7 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
 export function TournamentTabs({
   tournamentId,
   overviewContent,
+  rulesContent,
   initialTab = "overview",
 }: TournamentTabsProps) {
   // 초기 탭: 서버에서 searchParams로 파싱한 값. 유효하지 않으면 overview로 폴백됨(상위에서 이미 검증)
@@ -382,12 +388,15 @@ export function TournamentTabs({
         })}
       </div>
 
-      {/* 탭 콘텐츠: 개요는 서버 렌더링, 나머지는 lazy loading */}
+      {/* 탭 콘텐츠: 개요/규정은 서버 렌더링, 나머지는 lazy loading */}
       <div>
         {activeTab === "overview" && <OverviewWithDashboard tournamentId={tournamentId} overviewContent={overviewContent} />}
         {activeTab === "bracket" && <BracketTabContent tournamentId={tournamentId} />}
         {activeTab === "schedule" && <ScheduleTabContent tournamentId={tournamentId} />}
         {activeTab === "teams" && <TeamsTabContent tournamentId={tournamentId} />}
+        {/* 규정 탭: 서버에서 tournament.rules로 프리렌더된 콘텐츠.
+            데이터 없으면 빈 상태 카드(page.tsx에서 폴백 렌더). 탭 자체는 항상 렌더. */}
+        {activeTab === "rules" && <div>{rulesContent}</div>}
       </div>
     </div>
   );

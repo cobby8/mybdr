@@ -1169,9 +1169,73 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 
 ---
 
+### [2026-04-22] Phase 2 Match (목록+상세) — /tournaments v2 재구성
+
+📝 구현한 기능: `/tournaments` 목록 + `/tournaments/[id]` 상세 BDR v2 재구성 — **A. 래퍼 신규** 방식으로 기존 컴포넌트(TournamentHero/TournamentTabs/RegistrationStickyCard) 0 수정, v2 스킨 3종 신설 + 규정 탭 추가. **API route.ts / Prisma 스키마 / 서비스 레이어 0 변경**.
+
+#### Phase A — /tournaments 목록
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/tournaments/_components/v2-tournament-list.tsx` | 신규 — 6상태 칩(전체/접수중/마감임박/진행중/접수예정/종료) + 포스터 카드 2열 grid(auto-fill minmax). `deriveV2Status()` 유틸로 DB status + `registration_end_at` 7일 기준 마감임박 파생. 카드: 포스터 140px 좌측 + 본문 우측(상태배지/태그/제목/📅📍💰 메타/진행바/CTA). accent 4색 로테이션 | 신규 |
+| `src/app/(web)/tournaments/_components/tournaments-content.tsx` | 기존 `TournamentCard`/`STATUS_BG`/`FORMAT_GRADIENT`/4상태 탭 UI 제거 → `<V2TournamentList>` 호출로 교체. 6상태 탭 state(`v2StatusTab`)로 전환. `deriveV2Status` 단일 소스로 필터 + 탭 카운트(`v2TabCounts`) 계산. 캘린더/주간 뷰 토글·페이지네이션·/api/web/tournaments fetch·prefer 필터·photoMap SWR·필터 드롭다운 전부 그대로 유지. `.page` 쉘 + eyebrow + "열린 대회 · 예정 대회" 제목 + 요약 카운트 행 추가 | 수정 |
+
+#### Phase B — /tournaments/[id] 상세
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/tournaments/[id]/_components/v2-tournament-hero.tsx` | 신규 — 시안 Match.jsx L99 `linear-gradient(135deg, accent, accentAA 50%, #0B0D10)` + grid(포스터 200×280 / 1fr) + `t-display` 48px 제목 + eyebrow(상태·회차) + 메타(📅📍💰👥) + 신청완료 배지 + 전화 inline 링크. 기존 4종 템플릿(basic/poster/logo/photo)은 TournamentHero에 보존 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-registration-sidebar.tsx` | 신규 — 시안 L242 sticky 카드 3단(D-day 44px 대형 숫자 / 참가비·접수현황 / CTA). `computeDaysLeft`·`formatFee` 로직은 기존 RegistrationStickyCard 그대로 이식. 6상태 CTA 분기(비로그인→`/login?next=` / 로그인+접수중→`/join` / 접수중 아님→disabled statusLabel) 동일 유지. 진행바 90%↑ accent 전환, periodText 표시 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/tournament-tabs.tsx` | `TabKey`에 `"rules"` 추가, `TAB_META` 시안 순서 재배열(대회소개→경기일정→대진표→참가팀→규정), props에 `rulesContent?: ReactNode` 추가, 렌더 분기에 `activeTab === "rules"` 추가. 기존 lazy loading(schedule/bracket/teams) / SWR fetcher / convertKeysToCamelCase / 포맷별 분기(풀리그/조별+토너/순수토너) 0 변경 | 수정 |
+| `src/app/(web)/tournaments/[id]/page.tsx` | `TournamentHero` → `V2TournamentHero` import 교체. `RegistrationStickyCard` → `V2RegistrationSidebar` import 교체. Prisma select에 `rules: true`, `edition_number: true` 추가. `ALLOWED_TABS`에 `"rules"` 추가. `rulesContent` 서버 렌더(데이터 있으면 whitespace-pre-line 카드 / 없으면 "경기 규정이 아직 공개되지 않았습니다" 빈 상태). `<TournamentTabs rulesContent={rulesContent}/>` 전달. 사이드바 `periodText` prop 생성(registration_start_at ~ end_at). **세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보 / TournamentAbout / SeriesCard / Breadcrumb / 모바일 플로팅 CTA 전부 0 수정** | 수정 |
+
+**기존 보존 파일(삭제 X, import만 끊음)**: `tournament-hero.tsx` (4종 템플릿 로직 보존), `@/components/tournaments/registration-sticky-card.tsx` (다른 곳에서 참조 가능)
+
+**검증**:
+- `npx tsc --noEmit` → **EXIT=0 PASS** (Phase A + B 전부)
+- `curl /tournaments` → **200** (0.55s)
+- `curl /tournaments/cb33bf68-...` → **200** (1.08s)
+- `curl /tournaments/[id]?tab=rules` → **200**
+- HTML 검증 — 상세: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 탭 5개(대회소개/경기일정/대진표/참가팀/규정) 모두 렌더
+- HTML 검증 — 목록: `class="page"` + `class="eyebrow"` + "열린 대회 · 예정 대회" + 6상태 탭 레이블 전부 client JS에 포함
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/tournaments (목록) + http://localhost:3001/tournaments/{id} (상세)
+- **정상 동작 — 목록**:
+  - 헤더: eyebrow "대회 · TOURNAMENTS" + H1 "열린 대회 · 예정 대회" + 요약 카운트 1줄 (접수중 X · 마감임박 X · 진행중 X · 예정 X)
+  - 우측: ViewToggle(리스트/월간/주간) + TournamentsFilterComponent (기존 그대로)
+  - 6상태 칩: 전체/접수중/마감임박/진행중/접수예정/종료. 활성 탭은 cafe-blue 배경 + 흰 글씨. 숫자 뱃지 병기
+  - 카드 그리드: 2열(desktop) / 1열(mobile). 카드 = 포스터 140px 좌측(있으면 배경 이미지 / 없으면 accent 그라디언트 + 레벨 약어) + 본문 우측(상태 배지 + 카테고리 태그 + 제목 + 📅📍💰 메타 + 진행바 + CTA)
+  - CTA 라벨: 접수중/마감임박 → "신청" / 진행중 → "라이브" / 그 외 → "상세"
+  - 뷰 모드 월간/주간 전환 → 기존 CalendarView/WeekView 그대로 (기능 보존)
+- **정상 동작 — 상세**:
+  - 히어로: accent→black 그라디언트 배경 + 포스터(banner_url 있으면 좌측 200×280) + eyebrow "{상태} · {회차}" + 제목 + 📅📍💰👥 메타 + (로그인 신청자면) 신청완료 배지 + (contact_phone 있으면) 전화 링크
+  - 탭 5개 순서: 대회소개 → 경기일정 → 대진표 → 참가팀 → 규정
+  - 규정 탭: DB `rules` 있으면 whitespace-pre-line 카드 / 없으면 "경기 규정이 아직 공개되지 않았습니다" 빈 상태. 탭 자체는 항상 노출
+  - 우측 sticky 사이드바(desktop only): 상단 "접수중/상태" + D-day 대형 숫자(7일 이내 accent 강조) + 접수 기간 → 중단 참가비 + 접수 현황 진행바(90%↑ accent) → 하단 CTA(로그인상태·접수가능 6분기) + 이미 신청시 "내 신청 보기" 대시 테두리 링크
+  - 모바일: 사이드바 hidden, 기존 플로팅 CTA(`bottom-16 lg:hidden`) 그대로
+  - 비공개 대회: 비관계자는 404 (기존 `isTournamentInsider` 가드 그대로)
+- **주의할 입력**:
+  - `registration_end_at` 없음 → D-day 텍스트 숨김, "접수 현황" 진행바는 정원 기반으로 정상 렌더
+  - `max_teams` 0 / null → 목록 카드 진행바 대신 "N팀 신청" 텍스트만 / 사이드바는 "정원 미정" 안내
+  - `banner_url` / `logo_url` 둘 다 없음 → 히어로 1열 풀와이드 + accent 그라디언트만
+  - `status=completed` → 사이드바 CTA disabled "종료" 라벨
+  - 비공개(is_public=false) + 비관계자 로그인 → notFound() (변경 없음)
+  - `?tab=rules` 직접 진입 → initialTab 검증 통과, 규정 탭 활성 상태로 렌더
+
+⚠️ reviewer 참고:
+- **원칙 — 기존 파일 0 수정**: `tournament-hero.tsx` (450줄, 4종 템플릿 로직), `@/components/tournaments/registration-sticky-card.tsx` (239줄) 전혀 건드리지 않음. v2는 각각 병렬 파일(`v2-tournament-hero.tsx` 210줄 / `v2-registration-sidebar.tsx` 230줄)로 신설. 후속 PR에서 기존 컴포넌트 import가 모두 끊긴 걸 확인하면 그때 삭제 가능
+- **원칙 — page.tsx 가드/SEO 보존**: `getWebSession` → `isTournamentInsider` 비공개 가드, `generateMetadata` (비공개 robots noindex / 공개 OG + Twitter Card), 시리즈 카드(D1 include 통합 + D2 is_public 차단), 디비전별 현황(`div_caps`/`div_fees`/`divisionCounts` groupBy), 입금 정보, 모바일 플로팅 CTA, Breadcrumb 4단 전부 0 수정. diff 확인 가능
+- **규정 탭 처리**: 시안 Match.jsx L227 `ul/li` 하드코딩이었지만 DB `rules`는 자유 텍스트 필드(String?)라 **whitespace-pre-line** 카드로 렌더. 향후 마크다운 파서 추가 가능
+- **v2 토큰 혼용**: `v2-tournament-list.tsx` / `v2-registration-sidebar.tsx`은 v2 토큰(`--ink`, `--ink-mute`, `--accent`, `--cafe-blue`, `--bg-alt`, `--border`) 사용. `v2-tournament-hero.tsx`는 primary_color/secondary_color prop 직접 색상 + 화이트/rgba(255,255,255,...) 조합(어두운 히어로 위 가독성). page.tsx의 overviewContent 카드는 기존 `--color-*` alias 그대로 유지 (건드리지 말라는 원칙에 부합)
+- **6상태 매핑 단일 소스**: `deriveV2Status(t)` 유틸을 목록 카드 배지 + 탭 필터 + 탭 카운트 3곳이 공유 → 규칙 불일치 위험 제거. 마감임박은 DB status=`registration_closed` OR (접수중 AND registration_end_at ≤ 7일 이내). 경계값 테스트 시 check
+- **Material Symbols**: `gavel`(규정 탭 빈 상태) / `check_circle`(신청 완료) / `call`(문의) / `search`(빈 상태 CTA) 전부 Outlined 폰트 사용
+- **커밋 분리 준비**: Phase A(목록 3 파일) / Phase B(상세 4 파일) 파일 세트 완전 분리 — PM이 2커밋으로 쪼갤 수 있음
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |
 | 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-22 | developer | **Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)** — `page.tsx`(서버, Prisma 6테이블 유지 + 직렬화) + `_components/search-client.tsx`(신규, controlled form + URL push + 탭 7종 클라 필터) + `loading.tsx`(v2 스켈레톤). 탭: 전체/팀/경기/대회/커뮤니티/코트/유저. API/Prisma/서비스 0 변경. 6종 데이터 전부 화면 보존. tsc EXIT=0 / `/search` 200 / `/search?q=test` 200 + `.page`·`type="search"`·탭 7개 전부 렌더 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 Notifications — v2 재구성 (UI-only, 4결정 반영)** — `notifications-client.tsx` 단일 파일만 수정. page.tsx/API/Prisma/category.ts 0 변경. 탭 6→**7종**(전체/안읽음/대회/경기/팀/커뮤니티/시스템) + unread 아이템 `var(--accent-soft)` 배경 + 좌측 3px `inset var(--accent)` bar + `.page` 쉘 + `maxWidth: 780` + 헤더 우측 "알림 설정" Link(`/profile/notification-settings`) 추가. 상태 7종·handleLoadMore/Delete/MarkAllRead·CustomEvent·PushPermissionBanner·삭제/더보기 버튼 전부 보존. tsc --noEmit EXIT=0 / `/notifications` 307 (비로그인 정상) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
