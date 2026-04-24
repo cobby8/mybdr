@@ -533,6 +533,68 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-24] Phase 1 GameDetail — v2 시안 재구성 (안 A: 2열 info grid + 조건부 행)
+- **브랜치**: design_v2 (Phase 1 Games 커밋 위)
+- **배경**: Games 목록은 v2 전환 완료, 같은 Phase 1 범위인 `/games/[id]` 상세 재구성. 기존 구조(HeroBanner/PriceCard/PickupDetail·GuestDetail·TeamMatchDetail 3종/ParticipantsGrid)는 시안과 공간 리듬 불일치 + DB 필드 중 contact_phone/requirements/notes/allow_guests/uniform_home·away_color 5개가 UI 미노출. PM 확정: 데이터 있는 필드 전부 화면 표시 / HeroBanner 이미지 DB 필드 없어 제거 / API·route.ts·Prisma 0 변경 / 기존 파일 삭제 금지 (import만 빠짐)
+- **변경 6건** (5 신규 + 1 재작성):
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/games/[id]/_v2/summary-card.tsx | kind stripe 4px + 배지 + 타이틀 + 2열 info grid(라벨 76px/값 1fr) 5~8행 + 진행바. 조건부 행: duration_hours 병합("– HH:mm" 추가) / entry_fee_note 병합 / contact_phone(tel 링크) / allow_guests(true/false 분기) / uniform_home·away_color(색상 칩 원) | 신규 |
+| src/app/(web)/games/[id]/_v2/about-card.tsx | description/requirements/notes 3필드 흡수. 조건부 렌더(하나도 없으면 카드 자체 숨김). Section 서브컴포넌트로 라벨+pre-wrap 블록 반복 | 신규 |
+| src/app/(web)/games/[id]/_v2/participant-list.tsx | 헤더(참가자 + n/M명 mono) + 리스트 행(이니셜 32px 아바타 + 닉네임/이름 + position mono). level 생략. 0건일 때 empty state | 신규 |
+| src/app/(web)/games/[id]/_v2/apply-panel.tsx ("use client") | 비용 요약(mono 24px, 무료는 ok 컬러 강조) + 메인 CTA(호스트/비로그인/미신청/대기/승인/거절 6분기, GameApplyButton·CancelApplyButton 내부 재사용) + 보조 3버튼(한마디/저장/문의 alert 동작) + 하단 인원 요약. sticky top:16 | 신규 |
+| src/app/(web)/games/[id]/_v2/host-panel.tsx ("use client") | 헤더(호스트 메뉴 + 신청자 n/M명 + HostActions 수정·취소 버튼) + 본문(HostApplications 그대로 주입). 기존 로직 2개를 하나의 .card 로 응집 | 신규 |
+| src/app/(web)/games/[id]/page.tsx | 재작성 — HeroBanner/PriceCard/HostCard/ParticipantsGrid/PickupDetail·GuestDetail·TeamMatchDetail/HostApplications 직접 렌더 전부 제거. _v2 5개 컴포넌트 조립. 카페 댓글 섹션 v2 토큰으로 리스타일(기능 유지). Breadcrumb/ProfileIncompleteBanner 유지. getGame/listGameApplications/getWebSession/getUserGameProfile/getMissingFields 호출 100% 동일 | 수정 |
+
+- **보존 (삭제 0, import만 끊김)**:
+  - `_components/hero-banner.tsx` / `price-card.tsx` / `host-card.tsx` / `participants-grid.tsx` — 미사용 파일로 유지 (Phase 9 cleanup 대상)
+  - `_sections/pickup-detail.tsx` / `guest-detail.tsx` / `team-match-detail.tsx` — 동일
+  - `_components/host-actions.tsx` / `host-applications.tsx` — HostPanel 내부에서 그대로 재사용 중
+  - `apply-button.tsx` / `cancel-apply-button.tsx` — ApplyPanel 내부에서 그대로 재사용 중
+  - `profile-banner.tsx` — page.tsx 에서 직접 사용
+  - `_modals/profile-incomplete-modal.tsx` — GameApplyButton 이 사용
+
+- **검증**:
+  - `npx tsc --noEmit` → EXIT=0 **PASS**
+  - dev server 3001(PID 102232) 기동 중 → HMR 자동 반영
+  - `curl /games/552` → **HTTP 200 / 3.18s(첫 컴파일) / 111KB**, `551` → 200/0.24s, `550` → 200/0.20s
+  - HTML 검증 (game 552 비로그인):
+    - `.page` 쉘 1회 / `.card` 15회 (5 섹션 각각) / `material-symbols` 11회
+    - 필드 노출: 장소(14) / 일시(14) / 레벨(2) / 비용(2) / 인원(3) / 연락처(12) / 게스트(4) / 유니폼(14) / 참가자(4) / 경기 안내(2) / 한마디(1) / 저장(1) / 문의(2) / 댓글(1)
+    - 상태 배지: "모집 전"(2) / CTA: "로그인 후 신청"(1) / 게스트 허용: "게스트 참여 가능"(2)
+  - 조건부 행 비교 (여러 게임): 551/550/548 모두 연락처·유니폼·소개(description) 노출. 548은 uniform 짧음(데이터 기반)
+
+💡 tester 참고:
+- **테스트 URL**: http://localhost:3001/games/552 (및 /551, /550, /548 등 임의 ID)
+- **정상 동작 체크리스트**:
+  - 좌측 메인 스택: SummaryCard → AboutCard(데이터 있을 때) → ParticipantList(비호스트) 또는 HostPanel(호스트) → 카페 댓글 → 이동 버튼
+  - 우측 ApplyPanel: lg 이상에서 340px 고정 sticky, 모바일은 하단으로 스택
+  - SummaryCard 상단 4px stripe 색상이 game_type 별로 다름(픽업=blue / 게스트=red / 연습=green)
+  - info grid 조건부 행: contact_phone 있으면 "연락처" 행 + tel: 링크, allow_guests true/false에 따라 "게스트 참여 가능/불가", uniform 색상 있으면 원형 칩 렌더
+  - AboutCard: description/requirements/notes 중 하나도 없으면 카드 자체 숨김
+  - ApplyPanel 비용: 0/null → "무료"(ok 컬러 bold), 유료 → "₩5,000" mono 24px
+  - ApplyPanel CTA: 비로그인 → "로그인 후 신청" 문구 / 호스트 → "내가 개설한 경기" / 미신청 → GameApplyButton / 대기(status 0) → CancelApplyButton / 승인(1) → 녹색 배지 / 거절(2) → 빨간 배지
+  - 한마디·저장·문의 버튼 클릭 시 alert 1개씩("준비 중입니다") — 정상
+- **주의할 입력**:
+  - `allow_guests === null` → "게스트" 행 자체 렌더 안 함 (true/false만 표시, 3분기)
+  - `fee_per_person === 0` vs `null` → 둘 다 "무료" 표시
+  - `scheduled_at === null` → "일정 미정" (duration 무시)
+  - `duration_hours > 0` + scheduled_at 있음 → "YYYY.MM.DD (요일) · HH:mm – HH:mm" 한 줄
+  - 호스트 본인 → ApplyPanel 신청 버튼 대신 문구만, 좌측은 HostPanel(수정/취소+신청자 관리)
+  - 참가자 0명 → ParticipantList 내부 "아직 참가자가 없습니다." empty state
+
+⚠️ reviewer 참고:
+- **기존 3종 타입별 상세(PickupDetail/GuestDetail/TeamMatchDetail) 미사용**: game_type 0/1/2 별로 따로 렌더하던 Amenities+Rules 스타일 섹션이 SummaryCard + AboutCard 로 통합됨. 타입별 차이는 kind stripe 색상과 배지 라벨로만 표현. 각 섹션에만 있던 고유 UI(예: TeamMatchDetail 의 팀 구성 UI)가 있었다면 누락 가능성 — 실제 렌더 내용 확인 필요. 각 _sections/*.tsx 파일이 DB 추가 필드를 참조하지 않고 단순 요약이었다면 정보 손실 0
+- **allow_guests 3분기**: null(미설정) 은 행 자체 숨김, true 는 "게스트 참여 가능"(ok 컬러), false 는 "게스트 참여 불가"(ink-soft). Prisma 기본값이 true 이므로 대부분 "참여 가능" 표시됨
+- **ApplyPanel 내부 GameApplyButton/CancelApplyButton 재사용**: 기존 로직(profile-incomplete-modal / fetch /api/web/games/[id]/apply·/apply/cancel / router.refresh) 그대로. ApplyPanel 은 이들을 감싸는 레이아웃 쉘 역할만. 신청 API 경로 0 변경
+- **한마디/저장/문의 alert 동작**: DB 연결 없음(PM 확정). 차후 실제 기능 연결 시 `handleMessage`/`handleSave`/`handleContact` 자리에 fetch 로직 추가. 저장은 user_bookmark 같은 별도 테이블 필요 (현재 schema 확인 안 함)
+- **카페 댓글 섹션 v2 토큰 리스타일**: 기존 tailwind(bg-[var(--color-card)]) → v2 .card 토큰 + inline style. 기능(대댓글 들여쓰기/is_reply 색상 변경)은 동일
+- **sticky 동작 조건**: ApplyPanel `position:sticky, top:16` — 부모 그리드가 `overflow:visible`이므로 정상 동작 예상. 단, lg 이상에서만 의미(모바일은 스택)
+- **HostCard 미사용**: 기존 page.tsx 에 이미 주석처리("HostCard 제거 — 신청 버튼이 이미 존재")로 렌더 안 되던 파일. 이번 재구성에서도 import 하지 않음
+
+---
+
 ### [2026-04-24] Phase 1 Games — v2 시안 기반 재구성
 - **브랜치**: design_v2 (이전 Phase 1 Home 커밋 위, PM 지시 대로 Games 착수)
 - **배경**: Phase 1 Home 이 완료되어 다음 페이지로 Games 를 재구성. 기존 `games-content.tsx`(토스 스타일 세로 스택 카드)는 v2 시안의 "auto-fill 320px 카드 그리드 + stripe + 배지 + 4행 info + 푸터 진행바" 구조와 전혀 다름. PM 확정안: DQ2 (URL+클라 혼합 필터) / DQ3 (태그 하드코딩 자동 파생) / Home 패턴(서버 컴포넌트 + 서버 prefetch)
@@ -745,6 +807,7 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 Games — v2 시안 기반 재구성** — bdr-v2 신규 3종(game-card / kind-tab-bar / filter-chip-bar) + games/_components/games-client(클라 래퍼) + page.tsx 서버 컴포넌트 재작성(listGames + groupBy typeCounts 병렬 prefetch). DQ2 URL+클라 혼합(date/city URL / weekend·free·beginner 클라) + DQ3 태그 자동 파생(무료/초보환영/주말 최대 3). 기존 games-content/game-type-tabs/games-filter 보존(미사용). tsc EXIT=0 / `/games` 200 (0.54s) / `?type=0`·`?city=서울` 200. HTML: `.page` 쉘 + eyebrow + h1 + 탭 4(전체 active) + 칩 7(btn--sm) + auto-fill 그리드 + badge--red 마감임박 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 1 Home 시안 매칭 보완 (A+B+C)** — (A) page.tsx `className="page"` 확인(기반영) + (B) "열린 대회" 섹션 `BoardRow→TournamentRow` 교체 + 인덱스 accent 로테이션 `[--accent, #f59e0b, --accent-2]` + level 매핑 `registration→OPEN / in_progress→LIVE / 그외→INFO` + (C) board-row.tsx `categoryBadge` 렌더 로직 추가 + page.tsx 공지·인기글/방금 올라온 글에 `categoryBadge={notice?"red":"soft"}` 전달. tsc EXIT=0 / `/` 200 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 S6+S7+S8 — 가로 네비 전면 전환** — bdr-v2/app-nav(유틸리티바 하드코딩 + 탭 8개 + 더보기 드롭다운 + 아바타=/profile Link) + bdr-v2/app-drawer(모바일 햄버거 슬라이드) + bdr-v2/theme-switch(이중 셀렉터 세팅) 3종 신규 + `(web)/layout.tsx` 431→137줄 전면 재작성(좌측사이드바/상단헤더/하단탭/우측사이드바/SlideMenu/PWA배너/ProfileCompletionBanner/NotificationBadge 전부 제거, SWR/PreferFilter/Toast Provider + /api/web/me·/notifications 폴링 + Footer 유지). tsc EXIT=0 / `/` 200 / 탭 8개 전 라우트 200 / HTML 검증 app-nav 1회 + 탭 8개 순서 정확 + 레거시 요소 0회 | ✅ (커밋 대기) |
@@ -754,4 +817,3 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 | 04-22 | developer | **any 4건 명시 타입화** — home-sidebar(SWR fallback 3건 → TeamData/PostData 재사용) + members/route.ts(Prisma.RefereeWhereInput). 예외 13건(kakao/HOF/SW) 유지. right-sidebar-logged-in 타입 `export` 추가 | ✅ `3f54daa` |
 | 04-22 | pm | **knowledge 3파일 갱신 + docs planning 지연 커밋** — conventions +2(any 예외 + color-mix 문법) / lessons +1(영역 단위 정비 교훈) / index 갱신 + Dev/advancement-roadmap/weekly-status 04-20 커밋 | ✅ `ab46ae2` + `9023236` |
 | 04-22 | developer | **하드코딩 색상 5차 — 잔존 정비 (5파일 7건) + 예외 2건 명시** — referee/signup(에러) + referee/login(2건) + verify(warning) + teams/[id]/manage(해산 버튼 hover solid+tone-down) + teams/new(2건). 예외: live orange 스피너(accent TODO) / tm-org-new dark:페어(단일 토큰 검증 전). **하드코딩 색상 audit 실질 완결** | ✅ `6a7569b` |
-| 04-22 | developer+pm | **하드코딩 색상 3파일 CSS 변수화 (4차, 4건) + conventions.md 승격** — tm-admins(error+success 페어) + tm/[id]/wizard + tm/new/wizard. **tournament-admin 영역 전체 완결** (3차+4차 = 6파일 11건). color-mix Tailwind arbitrary 언더스코어 문법을 conventions.md 승격 | ✅ `42c5066` |
