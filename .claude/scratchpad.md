@@ -113,6 +113,61 @@
 
 ---
 
+## 구현 기록 — Phase 3 Teams 목록 — v2 재구성 (필터 보존) [2026-04-22]
+
+📝 구현한 기능: `/teams` 목록을 v2 시안(`screens/Team.jsx`) 구조로 재구성. 기존 플로팅 필터(지역/정렬)는 보존하고 시안 내장 검색 chip 을 헤더에 추가. API/Prisma 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/teams/_components/team-card-v2.tsx` | v2 카드: 상단 accent 블록(로고/tag/팀명/창단 연도/#랭크) + 3열 stat(레이팅=wins/승/패) + 하단 btn--sm 2개(상세 Link + 매치 신청 disabled) | 신규 |
+| `src/app/(web)/teams/_components/teams-content-v2.tsx` | v2 헤더(eyebrow+`등록 팀 N팀`+메타+우측 검색chip+팀 등록 버튼) + 기존 `TeamsFilter` 유지 + auto-fill minmax(260px,1fr) 그리드 + 페이지네이션 + wins desc 프론트 정렬로 #랭크 안정화 | 신규 |
+| `src/app/(web)/teams/page.tsx` | `TeamsContent` → `TeamsContentV2` 교체 (import 1줄 + 컴포넌트 1줄) | 수정 |
+| `src/app/(web)/teams/_components/teams-content.tsx` | 유지 (롤백용) | — |
+| `src/app/(web)/teams/_components/team-card.tsx` | 유지 (롤백용, `resolveAccent` 로직은 v2 카드에서 로컬 복사) | — |
+| `src/app/(web)/teams/teams-filter.tsx` | 유지 (지역/정렬 플로팅 필터 그대로 재사용) | — |
+
+### 데이터 매핑 결정 (PM 확정 그대로)
+- **rating A**: `#랭크` = wins desc sort index + 1, 레이팅 박스 값 = `wins` 표시 (가짜 수치 생성 금지)
+- **founded**: `created_at` 연도 (JS `new Date().getFullYear()`). null 은 `—`
+- **tag**: 영문명 우선(`name_en`) → 없으면 한글명 첫 3글자 `.toUpperCase()`
+- **필터 B**: 기존 `TeamsFilter`(플로팅 지역/정렬) 유지 + 시안 내장 검색 chip 추가. 두 입력 모두 URL `q` 파라미터 공유, 380ms debounce 동일
+- **매치 신청 버튼**: UI only (disabled + title="준비 중인 기능입니다", aria-label 명시). 리디자인 원칙에 따라 동작 미구현
+- **다크 배경**: `resolveAccent(primary, secondary)` 로직을 기존 team-card.tsx 에서 로컬 복사 (원본 export 없음 + 기존 카드 보존 원칙). `#ffffff` 같은 너무 밝은 primary 는 secondary 또는 `#E31B23` 으로 폴백, accent 위 ink 는 `#FFFFFF` 고정
+
+### 검증 결과
+- `npx tsc --noEmit` ✅ PASS (에러 0)
+- `curl /teams` → **HTTP 200** (227KB)
+- SSR HTML 에 시안 마커 포함 확인: `팀 · TEAMS`, `등록 팀`, `레이팅 순`, `이름·태그` 각 1회 렌더
+- 기존 플로팅 필터 + 시안 내장 검색 공존 (두 입력 모두 URL q 에 380ms debounce 로 set)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/teams` 접속 → v2 헤더(`등록 팀 N팀` 28px Pretendard + `레이팅 순 · 2026 시즌 기준` 서브)
+  2. 헤더 우측에 검색 chip(`팀 이름·태그 검색`) + `팀 등록` 버튼(primary)
+  3. 기존 플로팅 필터 트리거(지역/정렬) 그대로 하단에 유지
+  4. 카드: 상단 팀 primary 컬러 블록 + 로고/tag/팀명/창단 + 우측 상단 #랭크
+  5. 3열 stat: 레이팅(wins) / 승(녹색) / 패(회색)
+  6. 하단 버튼: 상세(클릭 → `/teams/{id}`) + 매치 신청(disabled)
+- **정상 동작**:
+  - 내장 검색 input에 타이핑 → 380ms 후 `?q=...` 로 URL 업데이트 + 플로팅 필터 내 검색박스도 동기화
+  - 플로팅 필터에서 q 바꾸면 내장 검색박스 value 도 동기화
+  - 지역/정렬 변경 시 1페이지 리셋
+  - 팀 0건일 때 빈 상태 + 팀 만들기 CTA
+- **주의할 입력**:
+  - `primary_color` null 또는 `#ffffff` → secondary 또는 `#E31B23` 폴백 (resolveAccent)
+  - `logo_url` null → tag(첫 3글자) 이니셜 박스 (accent 위 반투명 배경)
+  - `created_at` null → 창단 `—`
+  - `wins`/`losses` null → 0 처리
+
+⚠️ reviewer 참고:
+- **resolveAccent 로직 중복**: 기존 `team-card.tsx` 와 `team-card-v2.tsx` 양쪽에 존재. 원본을 export 로 바꾸거나 `@/lib/utils/team-display.ts` 로 뽑는 것이 이상적이나 **기존 카드 수정 금지 원칙**에 따라 로컬 복사 선택. v2 전환이 안정화되면 기존 카드 제거와 함께 공용 유틸로 통합 권장
+- **rankIndex 의미**: 기본 정렬이 wins 가 아니어도(최신순/승률순) `#랭크` 는 항상 wins desc 기준 — 팀 고유 랭크 의미 통일을 위한 의도된 설계
+- **매치 신청 disabled**: 기능 미구현이지만 시안 일관성을 위해 자리 유지. 향후 기능 추가 시 disabled 제거 + onClick 핸들러 붙이면 됨
+- **v2 토큰 의존**: `.btn`, `.btn--sm`, `.btn--primary`, `.eyebrow`, `--bg-elev`, `--border`, `--radius-chip`, `--ink*`, `--ok`, `--ff-display`, `--ff-mono` 등 v2 CSS 토큰 전역 적용된 상태 전제. Phase 1 에서 이미 전역 교체 완료되어 렌더 정상 확인
+- **SSR vs 클라이언트 fetch**: teams 데이터는 클라이언트에서 `/api/web/teams` 호출. Suspense fallback(`TeamsLoading`) → mounted 후 스켈레톤 → 카드. 초기 빈 `등록 팀 0팀` 깜빡임 가능 (기존 동작과 동일)
+
+---
+
 ## 구현 기록 — Phase 1 Games + 공통 컴포넌트 시안 매칭 [2026-04-22]
 
 📝 구현한 기능: v2 Games.jsx 시안을 현재 `/games` 페이지 및 AppNav 공통 컴포넌트에 100% 반영 (색상/라벨/포맷/구조).
