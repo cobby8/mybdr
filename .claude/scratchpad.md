@@ -1117,9 +1117,62 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 
 ---
 
+### [2026-04-22] Phase 2 CreateGame — 단일 폼 v2 재구성 (고급 설정 아코디언으로 DB 필드 보존)
+
+📝 구현한 기능: `/games/new` 경기 만들기 페이지 BDR v2 재구성 — 기존 **4스텝 위자드 → 단일 페이지 3카드**(종류/정보/조건) + 고급 설정 아코디언 + 액션 3버튼. 시안(CreateGame.jsx) 레이아웃 100% 반영 + DB 필드 전부 보존. **서버 액션 / Prisma / validation / API 0 변경**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/games/new/_v2/game-form.tsx` | GameFormV2 메인 — state/validation/submit/Kakao postcode/preset/recent fetch/copy-game 통합 | 신규 |
+| `src/app/(web)/games/new/_v2/kind-selector.tsx` | 경기 종류 3버튼 카드(픽업/게스트/스크림) + 권한 잠금 → UpgradeModal | 신규 |
+| `src/app/(web)/games/new/_v2/basic-info-section.tsx` | 경기 정보 카드(제목/날짜/시작~종료 시간/코트/지역/수준/정원/참가비/설명) + TimePicker + 최근 장소 칩 | 신규 |
+| `src/app/(web)/games/new/_v2/conditions-section.tsx` | 신청 조건 체크박스 6개(시안) + 기타 자유 텍스트 → `requirements` 줄바꿈 JOIN | 신규 |
+| `src/app/(web)/games/new/_v2/advanced-section.tsx` | 고급 설정 아코디언 — min_participants / allow_guests / contact_phone / entry_fee_note / uniform_home/away_color / is_recurring / recurrence_rule / recurring_count / notes | 신규 |
+| `src/app/(web)/games/new/new-game-form.tsx` | `GameWizard` import 제거 → `GameFormV2` 호출로 교체 | 수정 |
+
+**위자드 전용 파일 보존(삭제 X, import만 끊음)**: `_components/game-wizard.tsx`, `step-type.tsx`, `step-when-where.tsx`, `step-settings.tsx`, `step-confirm.tsx`, `wizard-progress.tsx` — 이 6개는 그대로 남아있음(디스크 유지, 참조 0).
+
+**재사용 파일**: `_modals/upgrade-modal.tsx`(권한 부족 시 오픈) + `_components/success-overlay.tsx`(submit 성공 시 fallback) 두 개는 `GameFormV2`에서 그대로 import해서 재활용.
+
+**FormData 키 매핑 — createGameAction 기준 전부 보존**:
+- 전송 키 23개: `title, game_type, scheduled_at, duration_hours, venue_name, venue_address, city, district, max_participants, min_participants, fee_per_person, skill_level, allow_guests, requirements, description, notes, contact_phone, entry_fee_note, uniform_home_color, uniform_away_color, is_recurring, recurrence_rule, recurring_count`
+
+💡 tester 참고:
+- **테스트 방법**: 로그인 세션으로 `/games/new` 접속 → 3카드 + 고급 설정 아코디언 + 액션 3버튼 확인
+- **정상 동작**:
+  - Breadcrumb "경기 › 경기 개설" + eyebrow "새 경기 · NEW GAME" + H1 "경기 개설"
+  - **1. 경기 종류** 카드: 픽업/게스트/스크림 3버튼 → 선택 시 2px cafe-blue 테두리 + 틴트 배경
+  - **2. 경기 정보** 카드: 제목(자동생성 가능) / 날짜 / 시작~종료 시간(TimePicker AM/PM) / 코트(클릭=postcode 오픈) / 지역 / 수준(7단계+전연령) / 정원 / 참가비(+빠른선택 4개) / 상세설명
+  - 최근 장소 칩 — `/api/web/games/recent-venues` 결과 표시, 클릭 시 venueName/address/city/district 자동 채움
+  - **3. 신청 조건** 카드: 체크박스 6개(초보 환영/레이팅 1400 이상/여성 우대/학생 우대/자차 가능자/프로필 공개 필수) + 기타 텍스트 → requirements에 줄바꿈 JOIN
+  - **고급 설정** 아코디언: 접힌 상태 기본, 펼치면 min_participants / 연락처 / (픽업시) 참가비 안내 / 게스트 허용 토글 / (팀대결시) 유니폼 색상 / 반복 경기 토글 / 비고
+  - **액션 버튼** 우측: 취소(router.back) / 임시저장(프리셋 모달) / 경기 개설(createGameAction 호출 → redirect)
+  - 지난 경기 복사 — 상단 카드, 클릭 시 최대 3건 중 택1 → 데이터 자동 채움 + 다음주 동일 요일/시간 계산
+- **주의할 입력**:
+  - 종료 시간 < 시작 시간 → 익일 종료로 간주(durationHours 자동 계산: `(eh-sh+24)*60`)
+  - 제목 비우고 제출 → `generateTitle()` 자동 생성(예: "목요일 저녁 픽업 경기")
+  - 권한 없는 상태에서 픽업/스크림 클릭 → UpgradeModal(pricing Link)
+  - 카카오 postcode — 코트 or 지역 input 클릭 시 오픈. 결과 → city/district/venueAddress 자동 채움
+  - 임시저장 프리셋 → localStorage `bdr_game_presets`(최대 10개). 하단 "저장된 설정 불러오기" Link로 복원
+- **tsc --noEmit EXIT=0 PASS** / `/games/new` 비로그인 200 (로그인 페이지 렌더, 기존과 동일 redirect 거동)
+
+⚠️ reviewer 참고:
+- **스타일 토큰**: 기존 Phase 2 재구성(Search/Notifications)과 동일하게 인라인 `style={{}}` + v2 토큰(`--ink`, `--ink-mute`, `--ink-dim`, `--bg-elev`, `--bg-alt`, `--border`, `--border-strong`, `--cafe-blue`, `--bdr-red`, `--ok`) 사용. `--color-*` alias 전면 배제 (Phase 0 S1 정책). `.page` 쉘 / `.card` / `.input` / `.textarea` / `.label` / `.btn` / `.btn--sm` / `.btn--accent` / `.eyebrow` 기존 globals.css 클래스 활용
+- **시안 대비 의도적 변경점 2건**:
+  1. 시안 시간 input `"20:30 – 22:30"` 단일 → **시작 시간 / 종료 시간 2개 TimePicker** (DB `scheduled_at` + `duration_hours` 매핑 + 사용성)
+  2. 시안 참가비 `"₩5,000"` 문자열 → **number input + 원 단위** (숫자 유효성)
+- **시안 없는 DB 필드 9개 처리**: 시안 "3카드"로는 부족한 필드는 **고급 설정 아코디언**(접힘 기본)으로 보존 — 일반 사용자 UI 노이즈 최소화 + 파워유저/기존 사용자 호환성 유지. 원칙 "DB 필드 **전부 유지**" 준수
+- **신청 조건 체크박스 JOIN 방식**: 체크된 `CONDITION_OPTIONS` + 기타 자유 텍스트를 `\n` 줄바꿈으로 JOIN → `requirements` 단일 컬럼. 재진입 시 parser가 역으로 해석(split `\n` or `,` → 알려진 키워드면 체크박스, 아니면 "기타"로). 기존 저장 데이터(쉼표 구분) 호환됨
+- **권한 체크**: 기존 step-type.tsx와 동일 로직 — 게스트(1)는 프리, 픽업(0)/스크림(2)은 `permissions` 체크 후 `UpgradeModal` 오픈. `page.tsx`의 `canHostPickup` + `canCreateTeam` 호출 변경 없음
+- **임시저장**: 기존 위자드 `step-when-where.tsx`의 `savePreset` 로직(localStorage `bdr_game_presets` + 최대 10개)을 GameFormV2에 포팅. 키 변경 없음 → 기존 사용자 프리셋 호환
+- **Material Symbols**: `close` / `content_copy` / `error` / `expand_more` / `history` 전부 Outlined 폰트 사용
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-22 | developer | **Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)** — `page.tsx`(서버, Prisma 6테이블 유지 + 직렬화) + `_components/search-client.tsx`(신규, controlled form + URL push + 탭 7종 클라 필터) + `loading.tsx`(v2 스켈레톤). 탭: 전체/팀/경기/대회/커뮤니티/코트/유저. API/Prisma/서비스 0 변경. 6종 데이터 전부 화면 보존. tsc EXIT=0 / `/search` 200 / `/search?q=test` 200 + `.page`·`type="search"`·탭 7개 전부 렌더 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 Notifications — v2 재구성 (UI-only, 4결정 반영)** — `notifications-client.tsx` 단일 파일만 수정. page.tsx/API/Prisma/category.ts 0 변경. 탭 6→**7종**(전체/안읽음/대회/경기/팀/커뮤니티/시스템) + unread 아이템 `var(--accent-soft)` 배경 + 좌측 3px `inset var(--accent)` bar + `.page` 쉘 + `maxWidth: 780` + 헤더 우측 "알림 설정" Link(`/profile/notification-settings`) 추가. 상태 7종·handleLoadMore/Delete/MarkAllRead·CustomEvent·PushPermissionBanner·삭제/더보기 버튼 전부 보존. tsc --noEmit EXIT=0 / `/notifications` 307 (비로그인 정상) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)** — 시안 "내 신청 내역"(경기+대회 통합) 메인 + 하단 기존 "내가 만든 경기" 보존. 4 신규(stat-card / status-badge / reg-row[client] / my-games-client[client]) + page.tsx 완전 재작성(Prisma 3병렬: game_applications+tournamentTeam+hostedGames). 상태 4종(confirmed/pending/completed/cancelled, Q4 waitlist/no-show 제거). just-applied 배너 sessionStorage 유지. 결제=Link→/pricing/checkout, QR·후기·호스트 문의·영수증 등은 alert("준비 중"). API route.ts/Prisma 스키마 0 변경. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
@@ -1128,6 +1181,4 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-24 | developer | **Phase 1 Games — v2 시안 기반 재구성** — bdr-v2 신규 3종(game-card / kind-tab-bar / filter-chip-bar) + games/_components/games-client(클라 래퍼) + page.tsx 서버 컴포넌트 재작성(listGames + groupBy typeCounts 병렬 prefetch). DQ2 URL+클라 혼합(date/city URL / weekend·free·beginner 클라) + DQ3 태그 자동 파생(무료/초보환영/주말 최대 3). 기존 games-content/game-type-tabs/games-filter 보존(미사용). tsc EXIT=0 / `/games` 200 (0.54s) / `?type=0`·`?city=서울` 200. HTML: `.page` 쉘 + eyebrow + h1 + 탭 4(전체 active) + 칩 7(btn--sm) + auto-fill 그리드 + badge--red 마감임박 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 1 Home 시안 매칭 보완 (A+B+C)** — (A) page.tsx `className="page"` 확인(기반영) + (B) "열린 대회" 섹션 `BoardRow→TournamentRow` 교체 + 인덱스 accent 로테이션 `[--accent, #f59e0b, --accent-2]` + level 매핑 `registration→OPEN / in_progress→LIVE / 그외→INFO` + (C) board-row.tsx `categoryBadge` 렌더 로직 추가 + page.tsx 공지·인기글/방금 올라온 글에 `categoryBadge={notice?"red":"soft"}` 전달. tsc EXIT=0 / `/` 200 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 S6+S7+S8 — 가로 네비 전면 전환** — bdr-v2/app-nav(유틸리티바 하드코딩 + 탭 8개 + 더보기 드롭다운 + 아바타=/profile Link) + bdr-v2/app-drawer(모바일 햄버거 슬라이드) + bdr-v2/theme-switch(이중 셀렉터 세팅) 3종 신규 + `(web)/layout.tsx` 431→137줄 전면 재작성(좌측사이드바/상단헤더/하단탭/우측사이드바/SlideMenu/PWA배너/ProfileCompletionBanner/NotificationBadge 전부 제거, SWR/PreferFilter/Toast Provider + /api/web/me·/notifications 폴링 + Footer 유지). tsc EXIT=0 / `/` 200 / 탭 8개 전 라우트 200 / HTML 검증 app-nav 1회 + 탭 8개 순서 정확 + 레거시 요소 0회 | ✅ (커밋 대기) |
-| 04-23 | developer | **Phase 1 Home S4+S5** — bdr-v2 신규 컴포넌트 4종(promo-card/stats-strip/board-row/card-panel, 서버) + prefetchOpenTournaments(home.ts, unstable_cache 60s, is_public+registration/in_progress) + page.tsx 전면 재구성(기존 6종 import 제거 → Promo/Stats/2컬럼 CardPanel/.board 풀 테이블 배치). tsc EXIT=0 / `/` 200. Turbopack worker crash 1회(errors.md 2026-04-12 5회차) → `.next` 삭제+재기동 복구 | ✅ (커밋 대기) |
 | 04-24 | planner-architect | **BDR v2 전체 로드맵 설계** — v2 48 시안 × 기존 88 페이지 3 버킷 매핑(A 18/B 16/C 17) + 10 Phase 구성(0~9, 총 77~94h) + 공통 컴포넌트 분해(Phase 0 선제 6 + 점진 추출) + PR 전략 C 혼합(Phase 0+1 선 머지 → 주간 rolling 6회) + 리스크 매트릭스 + 사용자 결정 8건(필수 3 + 선택 5). scratchpad 기획설계 섹션 추가 + architecture.md 1항목 추가 | ✅ 이번 세션 Phase 0 S1~S3 착수 가능 상태 |
-| 04-22 | tester | **위임 스모크 W4+L3+L2 Playwright 자동화** — 60 테스트(desktop×30 + mobile×30) 4조합(PC/Mobile × Light/Dark) 전건 PASS. L3(브레드크럼/EditionSwitcher 경계 #1/#11/null) + W4(glossary/courts/community/profile-activity) + postId 277 `'지역방어'` decode 검증. 임시파일(`_tmp-smoke-2026-04-22.spec.ts` + config + quick-check) 완료 후 삭제. 시작 시 `/organizations/*` 500 → PID 46100 kill + `.next` 삭제 + 재기동(PID 78736)으로 복구(Turbopack worker crash 재발) | ✅ 60/60 PASS (수빈 재확인 권장 3건: M6 알림·M5 온보딩·M7 팀 가입 = 로그인 필수) |
