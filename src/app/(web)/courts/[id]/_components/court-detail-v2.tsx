@@ -67,6 +67,9 @@ export interface CourtDetailV2Data {
   pickup_count: number;
   latitude: number;
   longitude: number;
+  // Phase A 코트 대관 — booking_mode 분기 CTA 용 (none/external/internal)
+  booking_mode: string;
+  rental_url: string | null;
 }
 
 // 시간대별 혼잡도 — DB 미지원 → 빈 슬롯 12개 (시안 시각 형태 유지 + "데이터 준비 중" 캡션)
@@ -685,6 +688,54 @@ export function CourtDetailV2({ court }: CourtDetailV2Props) {
               </div>
             )}
           </div>
+
+          {/* CTA: 코트 예약 (booking_mode 분기) — Phase A */}
+          {/* 이유: court_infos.booking_mode 가 internal 이면 시스템 예약 페이지로,
+                  external 이면 rental_url 외부 링크로, none 이면 비활성 상태로 노출 */}
+          {court.booking_mode === "internal" ? (
+            <Link
+              href={`/courts/${court.id}/booking`}
+              className="btn btn--primary btn--xl"
+              style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                event_available
+              </span>
+              코트 예약하기
+            </Link>
+          ) : court.booking_mode === "external" && court.rental_url ? (
+            <a
+              href={court.rental_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn--primary btn--xl"
+              style={{ width: "100%", justifyContent: "center", marginBottom: 8 }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                open_in_new
+              </span>
+              외부 대관 신청
+            </a>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--xl"
+              disabled
+              title="이 코트는 현재 대관을 받지 않습니다"
+              style={{
+                width: "100%",
+                justifyContent: "center",
+                marginBottom: 8,
+                opacity: 0.55,
+                cursor: "not-allowed",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                event_busy
+              </span>
+              대관 미지원
+            </button>
+          )}
 
           {/* CTA: 모집 글쓰기 — DB 미지원 → alert */}
           <button

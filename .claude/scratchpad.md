@@ -74,6 +74,20 @@
 - 쪽지 보내기 — DM 모델
 - 연락 카드 응답시간 — 메시지 응답 로그 집계
 
+### 코트 대관 Phase A → B 이행 (04-22 신설)
+> Phase A 11파일 일괄 구현 완료. 다음 Phase B(결제) 진입 시 추가 필요 항목:
+- **결제 통합** — `/api/web/payments/confirm/booking` 신규 (Plan 분기와 별도) + 토스페이먼츠 SDK 결제 위젯을 booking-client 결제 영역에 마운트 + payments 다형성(`payable_type="CourtBooking"`) 활용
+- **status 흐름 확장** — 현재 즉시 `confirmed`. Phase B 는 `pending(15분 잠금) → confirmed(결제완료) → ...` 으로 전환. cron 으로 pending 만료 자동 취소
+- **payment_id 연결** — court_bookings.payment_id 컬럼은 schema 에 이미 추가됨 (Phase A 는 NULL). Phase B 결제 confirm 콜백에서 UPDATE
+- **platform_fee 계산** — D-B4 결정값(추천 5%) 반영. 현재 컬럼만 존재 + 0 저장
+- **BDR+ 할인** — Phase D. 현재 booking-client UI 라인은 유지하되 0원 표시 ("BDR+ 할인 (Phase D 도입 예정)")
+- **자동환불 룰** — Phase C (D-B6=a 자동 도입 시). 시안 3일100%/2일50%/당일0% 룰 엔진
+- **운영자 출금 신청** — Phase C. `court_settlements` 테이블 신규 (RefereeSettlement 패턴 재사용)
+- **운영자 신청·승인 워크플로우** — Phase D. D-B1=(c) 채택 시 admin 승인 페이지 + court_managers N:M 테이블
+- **/profile/court-revenue** — Phase C 운영자 수익 대시보드
+- **booking_mode 토글 UI** — 현재 운영자 manage 페이지에서 모드 표시만 가능 (admin 콘솔 직접 수정 안내). Phase B 에서 운영자가 직접 internal/external/none 토글 + 시간당 요금 변경 폼 추가
+- **취소 정책 강화** — 현재 시작 24시간 이상 전이면 누구나 취소 가능. 운영자별 취소 정책 설정 (몇 시간 전까지 가능?) — court_infos 에 `cancellation_window_hours` 필드 검토
+
 ### Phase 3 Court (커밋 대기, 04-22)
 - `courts.operating_hours` JSON — 시안 "09–22" 같은 운영 시간 정형 (현재 lighting_until 없으면 "운영시간 미상")
 - `courts.tags` JSON — 시안 "픽업 다수/대회장/샤워실 있음/강변 뷰" 등 자유 태그 (현재 pickupCount > 0 이면 "픽업 모집중" 자동 라벨, 그 외 생략)
@@ -102,6 +116,200 @@
 - 빈 데이터는 "준비 중" 텍스트 + 회색 placeholder
 - 데이터 있는 필드는 절대 숨기지 않음
 - 각 항목 완성 시 본 목록에서 제거 + 해당 Phase 커밋 링크 업데이트
+
+---
+
+## 기획설계 (planner-architect) — 코트 대관(Booking) 시스템 [2026-04-25]
+
+🎯 **목표**: "유료 멤버십(`feature_key="court_rental"`) 구독자가 자신의 코트 슬롯을 직접 등록·관리하고, 일반 회원이 그 슬롯을 예약·결제하는 시스템" 구축.
+
+### A. 현황 분석 (사전 점검 결과)
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| `plans.feature_key="court_rental"` | ✅ 존재 | admin/plans/page.tsx · pricing/page.tsx 등 라벨 등록 |
+| `user_subscriptions` 발급 흐름 | ✅ 동작 | `/api/web/payments/confirm`에서 토스페이먼츠 승인 → 구독 자동 생성 (30일) |
+| 토스페이먼츠 SDK + DB 모델 | ✅ 운영 중 | payments 모델 `payable_type` 다형성 — 현재 "Plan"만 사용. "CourtBooking" 추가 가능 |
+| `court_infos.user_id` (등록자) | ✅ 존재 | 누가 등록했는지 추적 가능 |
+| `court_infos.rental_available/rental_url/fee` | ⚠️ 부분 | **외부 링크 안내** 수준. 자체 예약 없음 |
+| `partners`+`partner_members` (파트너 시스템) | ⚠️ 별도 존재 | **광고용**. `/partner-admin/venue` + `/api/web/partner/venue` PATCH로 court_infos.rental_* 수정 가능. 단 partner는 광고/파트너십용이라 멤버십과 직접 연계 X |
+| `court_bookings` 테이블 | ❌ **없음** | 신규 필요 |
+| 코트 운영자(=등록자) 권한 식별 | ❌ 없음 | court_managers 같은 매핑 없음. 현재는 `court_infos.user_id == session.sub`로 추정만 가능 |
+| 시안 `CourtBooking.jsx` | ✅ 회원 관점 | 운영자용 슬롯 관리 UI는 **시안 없음** (신규 디자인 필요) |
+
+**핵심 통찰 3건**:
+1. **이미 깔린 인프라가 80%** — feature_key 등록 + 토스결제 + payments 다형성 + court_infos 등록자. 진짜 신규는 `court_bookings` 테이블 + 슬롯 등록 UI + 예약 트랜잭션 로직.
+2. **partners ≠ 코트 운영자** — partners는 광고/스폰서십용 (현재 1~2건). 코트 운영자는 별도 모델로 가는 것이 깨끗 (혹은 court_infos.user_id + 멤버십 활성 여부로 단순화 가능).
+3. **시안의 환불 정책(3일/2일/당일)은 mock값** — 실제 운영 시 결제 PG 연동 환불 + 정산 분리 필요 → Phase 분할 강제.
+
+### B. 사용자 결정 필요 포인트 (PM이 사용자에게 전달) — 7건
+
+> 본 결정 없이는 DB 모델·권한 룰·결제 흐름이 확정되지 않음. **Phase A 착수 전 최소 D-B1·D-B2·D-B6 3건은 필수**.
+
+| ID | 결정 사항 | 옵션 | 추천 |
+|----|----------|------|------|
+| **D-B1** | 운영자 자격 — 어느 멤버십부터? | (a) `feature_key="court_rental"` 활성 구독자만 (b) 모든 가입자 (c) 별도 운영자 신청+관리자 승인 | **(a) court_rental 구독자만**. 이미 plans 존재 + 결제 흐름 가동. 신청·승인 절차는 Phase D로 미룸. **MVP는 구독 활성 = 운영자 권한** |
+| **D-B2** | 코트 ↔ 운영자 매핑 모델 | (a) `court_infos.user_id` 그대로 사용 (1:1) (b) 신규 `court_managers` 테이블(N:M) | **(a) 1:1로 시작**. 한 코트 다중 운영자 요구 발생 시 Phase D에 도입. **Prisma 모델 1개 절약** |
+| **D-B3** | 외부 vs 자체 대관 정책 | (a) `rental_url` 있으면 외부, 없으면 자체 (b) 운영자가 코트별 토글 (c) 자체로 일원화 | **(b) 토글**. court_infos에 `booking_mode: "external"\|"internal"\|"none"` 1필드 추가. 외부=`rental_url` 노출, 내부=시스템 예약 |
+| **D-B4** | 플랫폼 수수료 정책 | (a) 0% MVP 무료 (b) 5% 고정 (c) 10% 고정 (d) 운영자별 가변 | **MVP=(a) 0%**. Phase B에서 (b) 5% 도입. payments에 `platform_fee` 필드 추가 (현재 없음 → DB 마이그레이션 1건) |
+| **D-B5** | 정산 방식 | (a) 즉시 정산 (b) 월 1회 (c) 주 1회 (d) 운영자가 출금 신청 | **(d) 출금 신청형**. `RefereeSettlement` 모델 패턴 재사용 가능. Phase C에서 도입. MVP는 정산 미구현 |
+| **D-B6** | 환불 정책 자동/수동 | (a) 자동(시안 3일100%/2일50%/당일0%) (b) 운영자 수동 승인 (c) 관리자 처리 | **MVP=(b) 수동 승인** (간단). Phase C에서 (a) 자동화. 시안 정책은 default 안내 텍스트로만 |
+| **D-B7** | KYC/세금 | (a) MVP 생략 (b) 사업자등록번호 필수 (c) 개인운영자 별도 양식 | **MVP=(a) 생략**. 운영자 1~5명 베타로 시작 + Phase C에서 도입. user.bank_name/account_number는 이미 있음 |
+
+### C. DB 모델 설계 (D-B2=a / D-B3=b 채택 가정)
+
+#### C-1. 신규 테이블 1개
+
+```prisma
+model court_bookings {
+  id                BigInt    @id @default(autoincrement())
+  court_info_id     BigInt    // 어느 코트
+  user_id           BigInt    // 예약자
+  start_at          DateTime  @db.Timestamp(6)  // 시작 (1시간 단위)
+  end_at            DateTime  @db.Timestamp(6)  // 종료
+  duration_hours    Int       // 1~4 (시안)
+  purpose           String    @default("pickup") @db.VarChar  // pickup|team|scrim|private
+  expected_count    Int?      // 예상 인원
+  amount            Decimal   @db.Decimal(10, 0)  // 대관료
+  discount_amount   Decimal?  @default(0) @db.Decimal(10, 0)  // BDR+ 할인 등
+  final_amount      Decimal   @db.Decimal(10, 0)  // 최종 결제 금액
+  platform_fee      Decimal?  @default(0) @db.Decimal(10, 0)  // 플랫폼 수수료 (Phase B에서 사용)
+  status            String    @default("pending") @db.VarChar
+  // pending(슬롯 잠금) → confirmed(결제완료) → cancelled / refunded / completed(이용 종료)
+  payment_id        BigInt?   // payments.id FK (결제 완료 후 연결)
+  cancellation_reason String?
+  cancelled_at      DateTime? @db.Timestamp(6)
+  refunded_at       DateTime? @db.Timestamp(6)
+  created_at        DateTime  @default(now()) @db.Timestamp(6)
+  updated_at        DateTime  @updatedAt @db.Timestamp(6)
+
+  court    court_infos @relation(fields: [court_info_id], references: [id])
+  user     User        @relation(fields: [user_id], references: [id])
+
+  @@index([court_info_id, start_at])  // 슬롯 충돌 검사용 (핵심)
+  @@index([user_id, status])
+  @@index([status, created_at])
+  @@map("court_bookings")
+}
+```
+
+**슬롯 충돌 처리**:
+- 별도 `court_slots` 테이블 **불필요**. 운영자는 `court_infos.operating_hours`(이미 존재)로 가능 시간만 정의 → 충돌은 `start_at < ? AND end_at > ?` 쿼리로 즉시 검사. 운영자 차단(블록) 슬롯이 필요하면 `court_bookings.status="blocked"` + `user_id=운영자` 더미 row로 표현 (테이블 1개 절약).
+- `Prisma.$transaction` + `SELECT ... FOR UPDATE` 패턴으로 동시성 처리 (Postgres pessimistic lock).
+
+#### C-2. 기존 모델 변경 (3건만)
+
+| 모델 | 변경 | 사유 |
+|------|------|------|
+| `court_infos` | `+booking_mode String @default("none")` (none/external/internal) | D-B3=(b) 토글 |
+| `court_infos` | `+booking_fee_per_hour Decimal?` (시간당 요금) | 기존 `fee` 필드와 분리 (기존 fee는 "전체 대관" 의미였을 수 있음) |
+| `User` | `+court_bookings court_bookings[]` 백릴레이션 1줄 | Prisma 관계 |
+
+> 위 3건만으로 충분. 운영자 ↔ 코트 매핑은 **`court_infos.user_id`**(이미 있음) + **`court_rental` 구독 활성**(이미 있음) 2개 조합으로 권한 가드.
+
+### D. 권한 모델 (헬퍼 1개)
+
+신규 유틸: `src/lib/courts/court-manager-guard.ts`
+```ts
+// 이 코트의 운영자인가?
+async function isCourtManager(userId: bigint, courtInfoId: bigint): Promise<boolean> {
+  const court = await prisma.court_infos.findUnique({
+    where: { id: courtInfoId }, select: { user_id: true },
+  });
+  if (!court || court.user_id !== userId) return false;
+  // 멤버십 활성 검사 (D-B1=(a))
+  const sub = await prisma.user_subscriptions.findFirst({
+    where: { user_id: userId, feature_key: "court_rental", status: "active",
+             OR: [{ expires_at: null }, { expires_at: { gte: new Date() } }] },
+  });
+  return !!sub;
+}
+```
+
+> `referee/admin/admin-guard.ts` 패턴 그대로 재사용. 모든 운영자 API에 1줄 호출.
+
+### E. UI 흐름 + 라우트 (신규/수정)
+
+| 라우트 | 역할 | 신규/수정 | 위치 |
+|--------|------|----------|------|
+| `/courts/[id]/booking` | 회원용 예약 (시안 CourtBooking.jsx) | **신규** | `src/app/(web)/courts/[id]/booking/page.tsx` |
+| `/courts/[id]/manage` | 운영자용 슬롯 관리 + 예약 현황 | **신규** | `src/app/(web)/courts/[id]/manage/page.tsx` (운영자 가드) |
+| `/profile/bookings` | 내 예약 내역 | **신규** | `src/app/(web)/profile/bookings/page.tsx` |
+| `/profile/court-revenue` | 운영자 수익 현황 | **신규** (Phase C) | 동상 |
+| `/courts/[id]` (상세) | "예약하기" CTA 추가 | **수정** | court-detail-v2.tsx에 booking_mode 분기 버튼 |
+| `/api/web/courts/[id]/bookings` | GET(슬롯 조회) / POST(예약 생성) | **신규** | |
+| `/api/web/courts/[id]/manage/bookings` | GET(예약 목록) / POST(블록) | **신규** | |
+| `/api/web/bookings/[id]/cancel` | DELETE(취소+환불 트리거) | **신규** | |
+| `/api/web/payments/confirm/booking` | 코트 예약 결제 승인 (Plan 분기와 별도) | **신규** (Phase B) | 기존 confirm/route.ts 분기 OR 신규 |
+
+### F. 단계적 구현 계획 (Phase A → D)
+
+| Phase | 범위 | 주요 산출물 | 예상 공수 | 결제? | 의존 |
+|-------|------|------------|----------|-------|------|
+| **A. MVP (무료 대관)** | 운영자 슬롯 등록 + 회원 예약 + 가드 | DB 신규 1테이블+3컬럼 / API 4개 / UI 3페이지 / 가드 1유틸 | **8~12h** | ❌ (`final_amount=0` 강제) | D-B1, D-B2, D-B6=manual |
+| **B. 결제 통합** | 토스페이먼츠 결제 + 환불 트리거 | `/api/web/payments/confirm/booking` + 환불 API + payments 다형성 활용 + platform_fee 도입 | **6~8h** | ✅ 토스 | D-B4 결정 + Phase A |
+| **C. 정산 + 자동환불 + 수익 대시보드** | 운영자 출금 신청 모델 + 자동환불 룰 + `/profile/court-revenue` | `court_settlements` 신규 1테이블 + 자동환불 cron + 대시보드 | **8~10h** | ✅ | D-B5, D-B6=auto, D-B7 결정 |
+| **D. BDR+ 할인 + 운영자 신청·승인 + N:M 매핑** | 멤버십별 할인율 + 운영자 신청 워크플로우 + court_managers 도입 | 신규 1테이블 (court_managers) + admin 승인 페이지 + 할인 룰 | **6~8h** | ✅ | D-B1=(c), D-B2=(b) 결정 시 |
+
+**총 28~38h** — 4 Phase 분할로 매번 2~3일 단위 출시 가능.
+
+### G. 위험·제약
+
+| 위험 | 대응 |
+|------|------|
+| **동시성 슬롯 충돌** | `Prisma.$transaction` + `FOR UPDATE` lock + UNIQUE 인덱스 (court_info_id, start_at) 검토 (단 status 분기로 인해 partial unique 필요 → Postgres `CREATE UNIQUE INDEX ... WHERE status='confirmed'`로 raw SQL 추가) |
+| **결제 후 슬롯 사라짐** | 예약 생성 시 status="pending" + payment_id NULL로 슬롯 잠금(15분 만료) → 토스 confirm 콜백에서 status="confirmed" 전환 |
+| **PG 환불 자동화 비용** | Phase A는 운영자 수동(D-B6=b). Phase C에서 토스 환불 API + 룰 엔진 |
+| **운영자 KYC** | Phase A는 베타 1~5명 한정. Phase C에서 도입 |
+| **외부 vs 자체 대관 혼재** | court_infos.booking_mode 토글 + 코트 상세 CTA 분기 (시안 D-B3=b) |
+| **운영자 멤버십 만료 시 처리** | 만료된 운영자 = 신규 슬롯 등록 불가 (가드 동작), 기존 confirmed 예약은 유지 (단 cron으로 알림) |
+
+### H. 실행 계획 (Phase A 한정 — MVP)
+
+| 순서 | 작업 | 담당 | 선행 조건 |
+|------|------|------|----------|
+| **0** | PM이 D-B1 / D-B2 / D-B6 결정 사항을 사용자에게 전달 → 승인 | pm | — |
+| **1** | Prisma 마이그레이션 — `court_bookings` 1테이블 + court_infos 2컬럼 추가 | developer | 0 |
+| **2** | 가드 유틸 `src/lib/courts/court-manager-guard.ts` + 시간 충돌 검사 유틸 `src/lib/courts/booking-conflict.ts` | developer | 1 |
+| **3** | API 4개 — `/api/web/courts/[id]/bookings` (GET/POST) + `/api/web/courts/[id]/manage/bookings` (GET) + `/api/web/bookings/[id]` (DELETE) | developer | 2 |
+| **4** | 운영자용 페이지 `/courts/[id]/manage` — 슬롯 가능 시간 토글 + 예약 목록 + 블록 등록 (시안 없으므로 BDR v2 토큰 기반 신규 디자인) | developer | 3 |
+| **5** | 회원용 페이지 `/courts/[id]/booking` — 시안 CourtBooking.jsx 기반 React/Next 전환 (단 결제는 Phase A에서 final_amount=0 우회) | developer | 3 |
+| **6** | 코트 상세 `/courts/[id]` 수정 — booking_mode 분기 CTA + `/profile/bookings` 신규 | developer | 5 |
+| **7** | tester (Playwright) + reviewer **병렬** — 동시성 충돌 테스트 + 가드 테스트 + UI 흐름 | tester + reviewer | 6 |
+
+> 7단계 제한 준수. Phase B/C/D는 별도 기획 라운드에서 단계별로 다시 분할.
+
+### I. developer 주의사항 (Phase A 착수 시)
+
+1. **Prisma 변경 시** `npx prisma migrate dev --name add_court_bookings` 후 schema.prisma `model User { ... }`에 `court_bookings court_bookings[]` 백릴레이션 1줄 추가 잊지 말 것.
+2. **시간 슬롯 단위는 1시간 고정** (시안 동일). DB는 `DateTime` 그대로 저장 + UI에서만 슬롯 그리드.
+3. **UTC vs KST**: 기존 코드 패턴(timestamp(6)) 그대로 — Prisma는 UTC 저장 + UI에서 KST 변환. `dayjs.tz` 사용 패턴 유지.
+4. **시안 BDR+ 10% 할인**은 Phase D에서 — Phase A는 final_amount=0 또는 amount 그대로.
+5. **partners 시스템 건드리지 말 것** — 광고/스폰서용으로 별도. 코트 운영자와 무관.
+6. **응답 키 snake_case 자동 변환** (errors.md 2026-04-17) — `/api/web/courts/[id]/bookings` POST 응답 raw curl 1회 검증 후 프론트 인터페이스 작성.
+
+### J. 산출 파일 영향 (Phase A)
+
+| 경로 | 역할 | 신규/수정 |
+|------|------|----------|
+| `prisma/schema.prisma` | court_bookings 모델 + court_infos 2컬럼 + User 백릴레이션 | 수정 |
+| `src/lib/courts/court-manager-guard.ts` | 운영자 가드 헬퍼 | 신규 |
+| `src/lib/courts/booking-conflict.ts` | 시간 충돌 검사 | 신규 |
+| `src/app/api/web/courts/[id]/bookings/route.ts` | GET 슬롯 조회 / POST 예약 생성 | 신규 |
+| `src/app/api/web/courts/[id]/manage/bookings/route.ts` | 운영자용 예약 목록 | 신규 |
+| `src/app/api/web/bookings/[id]/route.ts` | DELETE 취소 | 신규 |
+| `src/app/(web)/courts/[id]/booking/page.tsx` | 회원 예약 페이지 | 신규 |
+| `src/app/(web)/courts/[id]/manage/page.tsx` | 운영자 관리 페이지 | 신규 |
+| `src/app/(web)/profile/bookings/page.tsx` | 내 예약 내역 | 신규 |
+| `src/app/(web)/courts/[id]/_components/court-detail-v2.tsx` | booking_mode 분기 CTA | 수정 |
+
+총 **신규 8 + 수정 2 = 10파일** (Phase A MVP).
+
+### K. 다음 액션
+
+1. **PM이 사용자에게 위 D-B1~D-B7 7개 결정 사항 전달**.
+2. 사용자가 D-B1/D-B2/D-B6 3개 최소 결정 → developer Phase A 착수.
+3. Phase B 이후는 D-B4/D-B5/D-B7 추가 결정 후 진행.
 
 ---
 
@@ -1571,6 +1779,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-25 | planner-architect | **코트 대관(Booking) 시스템 기획설계** — 현황 점검(plans/court_rental + 토스페이먼츠 + payments 다형성 + court_infos.user_id 모두 기존 자산 확인) → 신규 1테이블(court_bookings) + court_infos 2컬럼 + User 백릴레이션 1줄로 MVP 가능 판정. 운영자 ↔ 코트 매핑은 court_infos.user_id + user_subscriptions(feature_key=court_rental) 활성 검사로 단순화 (court_managers 신규 모델 도입 보류). 4 Phase 분할(A=무료 MVP 8~12h / B=결제 6~8h / C=정산+자동환불 8~10h / D=BDR+할인+N:M 6~8h). PM이 사용자에게 전달할 결정 포인트 7건(D-B1~D-B7) 도출 — Phase A 착수 전 D-B1·D-B2·D-B6 3건 필수. Phase A 산출 파일 신규 8 + 수정 2 = 10파일 매핑. 동시성·환불·KYC·외부vs자체 위험 6건 대응 명세. 코드 0수정 | ✅ 설계 완료 |
 | 04-22 | developer | **Phase 3 Org 상세 — /organizations/[slug] v2 재구성 (Hero + 4탭 + ?tab= 동기화)** — `_components_v2/` 7 신규(org-color 공유 헬퍼 / org-hero-v2 135deg 그라디언트+가입신청 alert+회원/팀/설립 메타 / org-tabs-v2 4탭+useRouter ?tab= 동기화 / overview-tab-v2 좌소개·운영원칙(준비중)+우연락처·스폰서(준비중) / teams-tab-v2 빈상태 / events-tab-v2 series.tournaments 평탄화 4건 / members-tab-v2 4열 카드+role한국어라벨+sinceYYYY) + `page.tsx` 재작성(searchParams.tab 정규화 + 기존 include 트리 0변경 + members.created_at 1줄만 추가). `_components/org-card-v2.tsx` pickColor/generateTag 공유 헬퍼 import로 통합. Phase 3 Orgs 추후 구현 목록 9건으로 확장(founded_year/address/policies/sponsors/team집계/임원직책 추가). tsc EXIT=0 / `/organizations/org-ny6os` + 4탭 전부 200(?tab=overview/teams/events/members) | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |
 | 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
@@ -1582,3 +1791,60 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-22 | developer | **Phase 3 Court — /courts v2 재구성 (B 변형: KakaoMap sticky 임베드 + 기능 보존)** — 신규 2 (`_components/court-card-v2.tsx`: area+HOT/혼잡도/이름+verified/메타1줄(타입·코트수·요금·운영시간)/메타2줄(바닥·조명)/푸터(현재 N명·평점·상세) + `_components/courts-content-v2.tsx`: 시안 5필터칩(전체/실내/실외/무료/지금한산) + 지역드롭다운 + 좌측 카드그리드 + 우측 sticky `<KakaoMap>` 360px 임베드 + HeatmapOverlay/근접감지/위치권한 v1 그대로 이식). page.tsx import 1줄 + JSX 1줄 교체. **API/Prisma/unstable_cache 0 변경**. 정렬: 거리(있으면)→verified→평점→activeCount desc. 시안 데모필드(hot/today/floor/light/tag) 전부 실데이터로 매핑(hot=activeCount≥5, today→현재 N명, floor=surface_type, light=has_lighting+lighting_until, tag=pickupCount>0이면 "픽업 모집중"). CourtTopAd 보존. tsc --noEmit EXIT=0 / `/courts` 200 + HTML "등록 코트"·"courts-v2-grid"·"CourtsContentV2" 렌더 확인 | ✅ (커밋 대기) |
 | 04-25 | developer | **Phase 3 Orgs — /organizations v2 재구성 (단체 등록 라벨 + 필터 chip)** — `_components/` 2 신규(org-card-v2 그라디언트 헤더+태그 자동 생성+가입 신청 alert / orgs-list-v2 클라 컨테이너+종류 chip 4종 "전체"만 동작·"리그/협회/동호회" 클릭 시 alert+opacity0.55) + `page.tsx` 재작성(.page eyebrow+h1+부제+"단체 등록" 버튼 라벨 변경). DB 미지원 3필드 자동 폴백(`color`=id 해시→6색 팔레트 / `tag`=이름 첫 2글자/영문이면 대문자 4글자 / `kind`="단체" 고정 배지). 데이터 패칭 0 변경(prisma.organizations.findMany 그대로). 추후 구현 목록에 Phase 3 Orgs 5건 신규(kind/brand_color/tag 필드 + 가입 신청 API + teams 집계). tsc EXIT=0 / `/organizations` 200(0.98s, 55KB). HTML: `단체 · ORGANIZATIONS` + `리그 · 협회 · 동호회` + `단체 등록` + `준비 중` + `orgs-list-v2` 마커 전부 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 3 Court 상세 — /courts/[id] v2 재구성 (헤더+혼잡도+Side KakaoMap)** — 신규 1 (`_components/court-detail-v2.tsx`: 시안 브레드크럼+area eyebrow+30px h1+image placeholder(자동태그)+desc / 오늘 혼잡도(시간대 12슬롯 빈+첫슬롯만 현재 활성카운트 단일 막대+"시간대별 분포 데이터 준비 중" 캡션) / Side sticky(KakaoMap 180px 단일마커+길찾기/지도열기 / 시설 정보 2col 그리드(샤워/락커/연락처 "정보 없음") / 모집 글쓰기 alert / MiniStat 3통계 흡수)) + `page.tsx` 수정(import 1 + courtV2Data 직렬화 + `<CourtDetailV2>` 1줄 + (구) 메인정보카드 218줄/이용현황 24줄/InfoBadge·StatBlock 헬퍼 2개 제거 + QR버튼만 시안 외 운영 핵심으로 별도 보존). **API/Prisma/하단 클라컴포넌트 8종 0 변경**(CourtCheckin/Ambassador/Pickups/Events/Rankings/Reviews/Reports/EditSuggest 전부 보존). courts.tags/operating_hours/shower/locker/phone/시간대별 집계 DB 미지원 → 자동 폴백 + "정보 없음"/"준비 중" 처리. tsc --noEmit EXIT=0 / `/courts/100` 200 (135KB). HTML: 오늘의 혼잡도·시설 정보·이곳에서 모집 글쓰기·시간대별 분포·COURT PHOTO·준비 중·농구장 목록 마커 전부 렌더 확인 | ✅ (커밋 대기) |
+| 04-22 | developer | **코트 대관(Booking) Phase A — MVP 무료 대관 11파일 일괄 구현** — schema.prisma 수정(court_bookings 신규 모델 + court_infos 2컬럼 booking_mode/booking_fee_per_hour + User 백릴레이션 1줄) / `prisma/migrations/manual/court_booking_phase_a.sql` 신규(자동 실행 X 보존만, 운영 DB 위험) / `lib/courts/court-manager-guard.ts` 신규(D-B1=a + D-B2=a — court_infos.user_id == session.sub + court_rental 활성 구독 동시검사) / `lib/courts/booking-conflict.ts` 신규(pg_advisory_xact_lock + checkConflict 시간겹침 + validateBookingTime 1시간단위/1~4h/과거차단) / API 3 신규(`courts/[id]/bookings` GET 슬롯조회+POST 트랜잭션락+즉시confirmed / `courts/[id]/manage/bookings` GET 운영자대시보드+POST blocked / `bookings/[id]` GET+DELETE 본인or운영자) / 페이지 3 신규(`courts/[id]/booking` 시안 CourtBooking.jsx 기반 7일 날짜+16시간 슬롯+이용시간1~4+목적4종+무료확정 / `courts/[id]/manage` 차단슬롯폼+예약테이블+개별취소 / `profile/bookings` 90일내 본인예약+취소액션) / `_components/court-detail-v2.tsx` 수정(booking_mode 분기 CTA — internal=Link / external+rental_url=외부링크 / 그외=disabled "대관 미지원"). page.tsx 수정(courtV2Data 에 booking_mode/rental_url 2필드 추가). **결제 X (Phase A 무료 final_amount=0)** + status 즉시 confirmed. **prisma generate EPERM(dev server PID 102232 lock)으로 미실행** — schema validate ✅ + tsc --noEmit EXIT=0 PASS (기존 generate된 타입 포함, 다음 dev 재시작 시 generate 자동 갱신). DB 변경 위험 → SQL 파일 보존만 | ✅ (커밋 대기) |
+
+---
+
+## 구현 기록 — 코트 대관(Booking) Phase A — MVP 무료 대관 [2026-04-22]
+
+📝 구현한 기능: 시안 CourtBooking.jsx + 자체 운영자 UI 기반 코트 대관 시스템 Phase A (결제 미도입 무료 베타). 회원이 운영자 등록 코트의 슬롯을 시간 단위로 예약 → 운영자가 manage 페이지에서 차단 슬롯 등록/예약 강제 취소 → 본인은 /profile/bookings 에서 자기 예약 조회/취소.
+
+| # | 파일 경로 | 변경 내용 | 신규/수정 |
+|---|----------|----------|----------|
+| 1 | `prisma/schema.prisma` | court_bookings 신규 모델 + court_infos 2컬럼(booking_mode/booking_fee_per_hour) + User 백릴레이션 1줄 | 수정 |
+| 2 | `prisma/migrations/manual/court_booking_phase_a.sql` | 마이그레이션 SQL (BEGIN/COMMIT + 인덱스 3 + FK 2 + ROLLBACK 주석) | 신규 |
+| 3 | `src/lib/courts/court-manager-guard.ts` | checkCourtManager / isCourtManager — D-B1+D-B2 통합 가드 | 신규 |
+| 4 | `src/lib/courts/booking-conflict.ts` | acquireBookingLock(pg_advisory_xact_lock) + checkConflict + validateBookingTime + listActiveBookings | 신규 |
+| 5 | `src/app/api/web/courts/[id]/bookings/route.ts` | GET(슬롯조회 KST 자정~익일자정) + POST($transaction lock+conflict+즉시 confirmed) | 신규 |
+| 6 | `src/app/api/web/courts/[id]/manage/bookings/route.ts` | GET(운영자 대시보드 30일치 user join) + POST(blocked 슬롯 lock+conflict) | 신규 |
+| 7 | `src/app/api/web/bookings/[id]/route.ts` | GET(본인or운영자) + DELETE(취소 사유+cancelled_at) | 신규 |
+| 8 | `src/app/(web)/courts/[id]/booking/page.tsx` + `_booking-client.tsx` | 시안 기반 회원 예약 페이지 (7일×16시간×1~4시간×4목적). booking_mode!=internal 시 안내 화면 | 신규 |
+| 9 | `src/app/(web)/courts/[id]/manage/page.tsx` + `_manage-client.tsx` | 운영자 대시보드 (모드 표시 + 차단슬롯 폼 + 예약 카드 리스트 + 개별 취소) | 신규 |
+| 10 | `src/app/(web)/profile/bookings/page.tsx` + `_bookings-list-client.tsx` | 90일치 내 예약 카드 + 취소 (24h 전 + status 가드) + just_booked 배너 | 신규 |
+| 11 | `src/app/(web)/courts/[id]/_components/court-detail-v2.tsx` | booking_mode 분기 CTA (internal=Link / external=외부링크 / 그외=disabled). interface 2필드 추가 | 수정 |
+| 추가 | `src/app/(web)/courts/[id]/page.tsx` | courtV2Data 에 booking_mode + rental_url 2필드 직렬화 (CTA 분기 prop 전달) | 수정 |
+
+핵심 기술 결정:
+- **별도 court_slots 테이블 불필요** — court_bookings 시간 범위 쿼리(start_at < ? AND end_at > ?)로 충돌 검사
+- **pg_advisory_xact_lock** — court_info_id 단위 동시성 직렬화 (row-level FOR UPDATE 로는 INSERT 차단 못함)
+- **status="blocked"** 운영자 차단 슬롯 (별도 테이블 X)
+- **Phase A 강제 final_amount=0** — 결제 도입은 Phase B (D-B4 결정 후)
+- **D-B1+D-B2 단순화** — court_infos.user_id 1:1 + court_rental 활성 구독 → 운영자 1줄 검사
+
+🚧 Phase B 진입 시 추가 필요: scratchpad "코트 대관 Phase A → B 이행" 섹션 참조 (12개 항목)
+
+💡 tester 참고:
+- **prisma generate 미실행** — dev server PID 102232 가 잡고 있어 EPERM. 다음 dev 재시작 시 자동 재생성 OR `taskkill //f //pid 102232 → npx prisma generate → npm run dev` 수동 실행
+- **DB 변경 보류** — `prisma/migrations/manual/court_booking_phase_a.sql` 자동 실행 절대 금지. 운영 DB 분리 후 PM 승인 받고 수동 실행
+- **테스트 전 선결**: ① prisma generate 완료 ② SQL 마이그레이션 실행 ③ 테스트용 코트 1건 booking_mode='internal' + booking_fee_per_hour=20000 + user_id=본인 으로 UPDATE ④ 본인 user_subscriptions 에 feature_key='court_rental', status='active' row INSERT
+- **정상 동작**:
+  - `/courts/[id]/booking` — 7일 날짜 + 시간 슬롯 그리드. 다른 예약이 있는 시간은 disabled. "무료 예약 확정" 클릭 → /profile/bookings?just_booked=1 이동 + 성공 배너
+  - `/courts/[id]/manage` — 비운영자 접근 시 멤버십/등록자 안내 화면. 운영자는 30일 예약 목록 + 차단 폼 + 개별 취소
+  - `/profile/bookings` — 90일치 본인 예약 카드 + 24h 전이면 취소 가능
+  - 코트 상세 CTA — booking_mode 별 분기 (internal=예약하기 / external=외부 신청 / none=대관 미지원 disabled)
+- **주의 입력**:
+  - **동시 예약 race** — 같은 시간 슬롯에 2명 동시 POST → 한 명만 201, 다른 한 명 409 SLOT_CONFLICT (advisory lock 효과 검증 핵심)
+  - **과거 시각** — start_at 이 현재 이전이면 400 INVALID_TIME
+  - **분/초 0 아님** — 14:30 같은 정시 아님 → 400
+  - **booking_mode=none/external** 코트 직접 POST → 400 BOOKING_NOT_SUPPORTED
+  - **운영자 멤버십 만료** — court_rental status=expired 또는 expires_at 과거 → manage 페이지 403 NO_SUBSCRIPTION
+- **snake_case 응답 검증** — apiSuccess 자동 변환. 신규 API 3개 모두 raw curl 1회 권장 (errors.md 6회차 가드)
+- **타임존** — 클라이언트는 KST 기준 슬롯 표시, 서버는 UTC 저장. ?date=2026-04-26 → KST 자정~익일자정으로 변환
+
+⚠️ reviewer 참고:
+- **pg_advisory_xact_lock 타입 안전성** — `tx.$executeRaw\`SELECT pg_advisory_xact_lock(${courtInfoId})\`` BigInt 직접 보간. Postgres 는 bigint 1개 인자 받음. 동작은 정상이나 타입 캐스팅 명시(`pg_advisory_xact_lock(${courtInfoId}::bigint)`)가 더 안전할 수 있음
+- **시간 정합성** — KST↔UTC 변환을 클라/서버 양쪽에서 수행. KST 자정 계산 로직(`new Date(\`${date}T00:00:00+09:00\`)`)이 서버에서 정상 동작하는지 더블체크 권장
+- **prisma generate 미실행 상태** — 본 PR 머지 전 반드시 generate 한번 돌리고 `npm run build` 빌드 확인 필요
+- **Phase B 결제 분기 미리 흙체 잡힌 필드** — court_bookings.payment_id/discount_amount/platform_fee/amount 컬럼은 모두 schema 에 있음. Phase A 는 0/NULL 저장. Phase B 진입 시 컬럼 변경 없이 INSERT 데이터만 변경
+- **court-detail-v2 import 변경** — Link 가 이미 import 되어 있어 추가 import 없음. CTA 분기 1블록만 변경
+- **운영자 멤버십 만료 시 기존 예약** — 현재 가드는 신규 슬롯/취소만 차단. 기존 confirmed 예약은 그대로 유지 (운영자 권한 만료해도 회원이 정상 이용). Phase C 알림 cron 도입 예정

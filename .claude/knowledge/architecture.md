@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-25] 코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 코트 대관 시스템 4 Phase 기획. **기존 인프라 80% 재활용**: (1) `plans.feature_key="court_rental"` 이미 존재 (admin/plans/page.tsx + pricing/page.tsx 라벨 등록), (2) `/api/web/payments/confirm` 토스페이먼츠 승인 + `user_subscriptions` 30일 자동 발급 흐름 가동, (3) `payments.payable_type` 다형성 ("Plan"만 사용 중 → "CourtBooking" 추가 가능), (4) `court_infos.user_id` 등록자 추적 가능, (5) `court_infos.rental_available/rental_url/fee` 외부 링크 안내 수준 존재, (6) `partners`+`/partner-admin/venue` 광고용 별개 시스템 — 멤버십과 무관하므로 코트 운영자에 사용 X. **신규 필요**: court_bookings 테이블 1개 + court_infos에 booking_mode/booking_fee_per_hour 2컬럼 + User 백릴레이션 1줄. **운영자 ↔ 코트 매핑 단순화**: court_managers N:M 신규 모델 보류 → court_infos.user_id(1:1) + user_subscriptions(feature_key=court_rental, status=active) 검사 조합으로 충분. **가드 헬퍼**: `src/lib/courts/court-manager-guard.ts`(referee admin-guard 패턴 재사용). **동시성**: $transaction + FOR UPDATE + partial unique index(WHERE status='confirmed') + 슬롯 잠금 status=pending(15분 만료). **4 Phase**: A=무료 MVP(8~12h, final_amount=0) / B=토스결제(6~8h, payments 다형성 활용) / C=정산+자동환불+수익 대시보드(8~10h, court_settlements 신규 1테이블) / D=BDR+할인+운영자 신청 승인+court_managers N:M(6~8h). **사용자 결정 7건(D-B1~D-B7)**: 운영자 자격(추천 court_rental 구독자만) / 매핑 모델(추천 1:1) / 외부vs자체 토글(추천 booking_mode 토글) / 수수료(MVP 0%) / 정산(추천 출금 신청형) / 환불(MVP 수동승인) / KYC(MVP 생략). **Phase A 산출 파일 10개**: 신규 8(court-manager-guard.ts/booking-conflict.ts/api 3 route/page 3) + 수정 2(schema.prisma/court-detail-v2.tsx). **시안 위치**: Dev/design/BDR v2/screens/CourtBooking.jsx(199줄, 회원 관점만 — 운영자용 시안 없음 → Phase A에서 BDR v2 토큰 기반 신규 디자인 필요).
+- **참조횟수**: 0
+
 ### [2026-04-24] BDR v2 전체 로드맵 — design_v2 브랜치, 74 페이지 10 Phase
 - **분류**: architecture
 - **발견자**: planner-architect

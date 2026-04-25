@@ -129,6 +129,9 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
     pickup_count: 0, // courts 상세 데이터에는 pickup_count 집계 없음. 0 으로 시작 (CourtPickups 가 SWR 로 별도 패치)
     latitude: lat,
     longitude: lng,
+    // Phase A 코트 대관 — booking_mode 분기 CTA 표시용
+    booking_mode: court.booking_mode,
+    rental_url: court.rental_url,
   };
 
   // 경기 유형 레이블
