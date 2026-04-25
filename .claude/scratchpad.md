@@ -74,6 +74,16 @@
 - 쪽지 보내기 — DM 모델
 - 연락 카드 응답시간 — 메시지 응답 로그 집계
 
+### Phase 3 TeamCreate (커밋 대기, 04-22 v2 4스텝 변경)
+> 시안 TeamCreate.jsx 4스텝(기본정보/엠블럼/활동/검토) UI 완성. createTeamAction / createTeamSchema / Prisma 0 변경. UI 만 배치된 신규 항목:
+- `teams.tag` 필드 — Step1 입력 + Step4 검토 표 표시. 현재 "(자동 생성 예정)" 라벨 + 다음 버전에 자동 생성 로직 + DB 컬럼 추가
+- `teams.level` 필드 — Step3 실력 수준 6종(초보~선수급). 등록 시 미저장 → "준비 중" 표시
+- `teams.practice_days` 필드 — Step3 활동 요일 다중 선택(7요일). 등록 시 미저장 → "준비 중"
+- `teams.home_court` (또는 `home_court_id` court 참조) — Step3 주 활동 코트. 등록 시 미저장
+- `teams.is_public` (또는 `visibility` enum) — Step3 공개 설정 3종(public/invite/closed). 등록 시 미저장
+- 엠블럼 업로더 — Step2 우측 영역. BDR+ 멤버 전용 + S3 파이프라인 정의 후 구현
+- createTeamSchema 확장 — 위 필드들 추가 시 Zod 검증 동시 확장
+
 ### 코트 대관 Phase A → B 이행 (04-22 신설)
 > Phase A 11파일 일괄 구현 완료. 다음 Phase B(결제) 진입 시 추가 필요 항목:
 - **결제 통합** — `/api/web/payments/confirm/booking` 신규 (Plan 분기와 별도) + 토스페이먼츠 SDK 결제 위젯을 booking-client 결제 영역에 마운트 + payments 다형성(`payable_type="CourtBooking"`) 활용
@@ -1776,6 +1786,53 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 
 ---
 
+## 구현 기록 — Phase 3 TeamCreate — /teams/new v2 4스텝 멀티스텝 폼 [2026-04-22]
+
+📝 구현한 기능: 시안 `TeamCreate.jsx` 4스텝(기본정보/엠블럼/활동/검토) + 우측 Tips aside + 약관 차단 멀티스텝 폼. **B 옵션(영문 팀명 보존)** — 기존 `name_en` + `name_primary` 토글을 Step1 보조 입력으로 흡수. 서버 액션·Zod 스키마·Prisma 0 변경.
+
+| # | 파일 경로 | 변경 내용 | 신규/수정 |
+|---|----------|----------|----------|
+| 1 | `src/app/(web)/teams/new/_v2/team-form.tsx` | 메인 폼. useActionState + step state 1~4 + state 6키(name/name_en/name_primary/description/primary_color/secondary_color)를 form 내부 hidden input 으로 항상 함께 제출. goNext 에서 영문명 형식 체크. 약관 미체크 시 onSubmit preventDefault. Tips aside 3카드(TIP/등록 후/요금제) 우측 sticky | 신규 |
+| 2 | `src/app/(web)/teams/new/_v2/stepper.tsx` | 36px 원형 + 연결선 4스텝. 도달=accent / 활성=ring 3px / 완료=✓ | 신규 |
+| 3 | `src/app/(web)/teams/new/_v2/step-basic.tsx` | Step1 — 한글명(필수, 2~20자) / 영문명(선택, 패턴 검증) / 대표 언어 토글(영문명 입력 시 노출) / 팀 태그(시안 신규, UI만, "준비 중") / 팀 소개(500자 카운트) | 신규 |
+| 4 | `src/app/(web)/teams/new/_v2/step-emblem.tsx` | Step2 — 160×160 미리보기(primaryColor + tag) + 10팔레트(BDR Red 첫번째) + 엠블럼 업로더(BDR+ 준비 중) + 보조 색상 input (기존 기능 보존) | 신규 |
+| 5 | `src/app/(web)/teams/new/_v2/step-activity.tsx` | Step3 — 홈코트/실력 6단계/요일 7토글/공개 3종(public/invite/closed). **모두 UI 만, 전체 섹션 "준비 중" 표시** | 신규 |
+| 6 | `src/app/(web)/teams/new/_v2/step-review.tsx` | Step4 — 7행 검토표(팀명·영문명·태그·컬러·코트·실력·공개·팀장) + 약관 2개 체크. 미입력 필드는 "(미입력)" / 미지원 필드는 "(준비 중)" 라벨 | 신규 |
+| 7 | `src/app/(web)/teams/new/new-team-form.tsx` | 200줄 → 11줄. `<TeamFormV2/>` 1줄 import 로 슬림화. page.tsx 의 import 경로 유지 | 수정 (전면 교체) |
+| 8 | `.claude/scratchpad.md` | "🚧 추후 구현 목록"에 Phase 3 TeamCreate 7건 신규(tag/level/practice_days/home_court/is_public + 엠블럼 업로더 + createTeamSchema 확장) | 수정 |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/teams/new` 로그인 후 진입
+  2. Step1: 한글명만 입력 → "다음" 활성. 영문명에 한글 입력 시 클라 에러("영문/숫자/공백/하이픈만") 표시. 대표 언어 토글 노출.
+  3. Step2: 10팔레트 클릭 → 미리보기 색상 즉시 변경. 미리보기 텍스트 = tag(미입력 시 영문명/한글명 첫 3자 fallback). 보조 색상 입력 가능.
+  4. Step3: 홈코트/실력/요일/공개 입력 가능하지만 모든 항목이 "준비 중" 라벨 — 등록 시 미저장 정상.
+  5. Step4: 검토표 7행 노출. **약관 2개 모두 체크 전엔 "팀 등록 완료" 비활성**.
+  6. 약관 체크 → 제출 → `/teams/{id}` 리다이렉트
+- **정상 동작**:
+  - 생성 후 팀 상세 페이지 진입
+  - 팀 카드 목록(`/teams`)에서 새 팀이 wins desc 기준 정렬에 포함
+  - 영문명 입력했으면 v2 카드 tag = 영문명 첫 3자 대문자
+- **주의할 입력**:
+  - 영문명에 한글/특수문자 → 클라 에러 + Step1 로 자동 복귀
+  - 한글명 빈 문자열 → "다음" 비활성
+  - Step1~3 입력 후 "이전"으로 돌아가도 값 유지 (state 보존)
+  - 팀 태그 / 홈코트 / 실력 / 요일 / 공개 → **등록 후 DB에 저장 안 됨 (UI 만)**
+  - 엠블럼 업로더 클릭해도 동작 없음 (BDR+ 준비 중 라벨)
+  - 팀 5개 한도 초과 시 서버 에러 표시
+  - 영문명 미입력 시 `name_primary` 기본 "ko" 로 제출
+
+⚠️ reviewer 참고:
+- **createTeamAction / createTeamSchema / Prisma 0 변경**: FormData 키 6개(name/name_en/name_primary/description/primary_color/secondary_color) 그대로 전송. 기존 영문명 검증·엄격 패턴 그대로 작동
+- **hidden input 항상 6키 포함**: 어느 스텝에 있든 form 안에 6키 hidden input 이 항상 마운트됨 → Step1 unmount 되어도 값 손실 없음. Step1/2 의 가시 input 은 모두 제어 컴포넌트(value=state) + onChange 만
+- **약관 차단 이중 안전망**: ① Step4 의 submit 버튼 `disabled` ② form `onSubmit` preventDefault. 사용자가 disabled 우회 시도해도 차단
+- **시안 색상 토큰**: `var(--accent)` `var(--ink)` `var(--ink-mute)` `var(--ink-dim)` `var(--bg-alt)` `var(--border)` `var(--ff-mono)` `var(--ff-display)` `var(--sh-lift)` `var(--cafe-blue)` 모두 globals.css 토큰. 하드코딩 컬러는 팔레트 10종(시안 디자인값 그대로) + 보조 색상 기본값(`#E76F51`, 기존 폼 값 보존) + 엠블럼 placeholder 텍스트 색상(`#fff`) 만
+- **UI 만 5필드(tag/home/level/days/privacy)**: state 는 가지고 있지만 form 에 hidden 으로 추가하지 않음 → 서버에 도달 안 함. createTeamSchema 가 strict 모드라 실수로 추가 키 들어가면 400 발생할 위험 차단
+- **버튼 마크업**: 시안의 `<button className="btn btn--primary">` 토큰 그대로 사용. 모든 nav 버튼은 `type="button"` 명시(form submit 오발 방지) — 마지막 "팀 등록 완료"만 `type="submit"`
+- **/teams/new GET 200**: Next 15 Turbopack dev 특성으로 비로그인이라도 200 반환(redirect throw → error.tsx 흐름). 운영(Vercel)에서는 307 정상. errors.md 에 등록된 알려진 패턴
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
@@ -1784,13 +1841,13 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |
 | 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-22 | developer | **Phase 2 Search — v2 재구성 (탭 7개, 데이터 보존)** — `page.tsx`(서버, Prisma 6테이블 유지 + 직렬화) + `_components/search-client.tsx`(신규, controlled form + URL push + 탭 7종 클라 필터) + `loading.tsx`(v2 스켈레톤). 탭: 전체/팀/경기/대회/커뮤니티/코트/유저. API/Prisma/서비스 0 변경. 6종 데이터 전부 화면 보존. tsc EXIT=0 / `/search` 200 / `/search?q=test` 200 + `.page`·`type="search"`·탭 7개 전부 렌더 | ✅ (커밋 대기, PM 처리) |
-| 04-22 | developer | **Phase 2 Notifications — v2 재구성 (UI-only, 4결정 반영)** — `notifications-client.tsx` 단일 파일만 수정. page.tsx/API/Prisma/category.ts 0 변경. 탭 6→**7종**(전체/안읽음/대회/경기/팀/커뮤니티/시스템) + unread 아이템 `var(--accent-soft)` 배경 + 좌측 3px `inset var(--accent)` bar + `.page` 쉘 + `maxWidth: 780` + 헤더 우측 "알림 설정" Link(`/profile/notification-settings`) 추가. 상태 7종·handleLoadMore/Delete/MarkAllRead·CustomEvent·PushPermissionBanner·삭제/더보기 버튼 전부 보존. tsc --noEmit EXIT=0 / `/notifications` 307 (비로그인 정상) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)** — 시안 "내 신청 내역"(경기+대회 통합) 메인 + 하단 기존 "내가 만든 경기" 보존. 4 신규(stat-card / status-badge / reg-row[client] / my-games-client[client]) + page.tsx 완전 재작성(Prisma 3병렬: game_applications+tournamentTeam+hostedGames). 상태 4종(confirmed/pending/completed/cancelled, Q4 waitlist/no-show 제거). just-applied 배너 sessionStorage 유지. 결제=Link→/pricing/checkout, QR·후기·호스트 문의·영수증 등은 alert("준비 중"). API route.ts/Prisma 스키마 0 변경. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 1 Profile — /profile + /users/[id] v2 재구성** — D-P1~D-P8 추천값 + 누락 4필드(bio/gender/evaluation_rating/total_games_hosted) 전부 표시. 10신규(profile/_v2/*6 + users/[id]/_v2/*4) + 2재작성(각 page.tsx). /profile "use client" → 서버 컴포넌트 전환(Prisma 직접 호출 8쿼리). 탭 2개(D-P5) / 슛존·스카우팅 제거(D-P6) / physical strip 3열(D-P3) / isOwner→/profile redirect(D-P7) / user_badges 직접 쿼리(D-P8). tsc EXIT=0 / `/profile` 307 / `/users/1` 200(95KB) / `/users/7` 200(110KB bio 렌더 확인) / `/users/2832` 200. HTML: linear-gradient 1 + aria-pressed 2(탭 2개) + 슛존/스카우팅 0 + repeat(3,1fr)/(6,1fr) 각 1 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 3 Court — /courts v2 재구성 (B 변형: KakaoMap sticky 임베드 + 기능 보존)** — 신규 2 (`_components/court-card-v2.tsx`: area+HOT/혼잡도/이름+verified/메타1줄(타입·코트수·요금·운영시간)/메타2줄(바닥·조명)/푸터(현재 N명·평점·상세) + `_components/courts-content-v2.tsx`: 시안 5필터칩(전체/실내/실외/무료/지금한산) + 지역드롭다운 + 좌측 카드그리드 + 우측 sticky `<KakaoMap>` 360px 임베드 + HeatmapOverlay/근접감지/위치권한 v1 그대로 이식). page.tsx import 1줄 + JSX 1줄 교체. **API/Prisma/unstable_cache 0 변경**. 정렬: 거리(있으면)→verified→평점→activeCount desc. 시안 데모필드(hot/today/floor/light/tag) 전부 실데이터로 매핑(hot=activeCount≥5, today→현재 N명, floor=surface_type, light=has_lighting+lighting_until, tag=pickupCount>0이면 "픽업 모집중"). CourtTopAd 보존. tsc --noEmit EXIT=0 / `/courts` 200 + HTML "등록 코트"·"courts-v2-grid"·"CourtsContentV2" 렌더 확인 | ✅ (커밋 대기) |
 | 04-25 | developer | **Phase 3 Orgs — /organizations v2 재구성 (단체 등록 라벨 + 필터 chip)** — `_components/` 2 신규(org-card-v2 그라디언트 헤더+태그 자동 생성+가입 신청 alert / orgs-list-v2 클라 컨테이너+종류 chip 4종 "전체"만 동작·"리그/협회/동호회" 클릭 시 alert+opacity0.55) + `page.tsx` 재작성(.page eyebrow+h1+부제+"단체 등록" 버튼 라벨 변경). DB 미지원 3필드 자동 폴백(`color`=id 해시→6색 팔레트 / `tag`=이름 첫 2글자/영문이면 대문자 4글자 / `kind`="단체" 고정 배지). 데이터 패칭 0 변경(prisma.organizations.findMany 그대로). 추후 구현 목록에 Phase 3 Orgs 5건 신규(kind/brand_color/tag 필드 + 가입 신청 API + teams 집계). tsc EXIT=0 / `/organizations` 200(0.98s, 55KB). HTML: `단체 · ORGANIZATIONS` + `리그 · 협회 · 동호회` + `단체 등록` + `준비 중` + `orgs-list-v2` 마커 전부 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 3 Court 상세 — /courts/[id] v2 재구성 (헤더+혼잡도+Side KakaoMap)** — 신규 1 (`_components/court-detail-v2.tsx`: 시안 브레드크럼+area eyebrow+30px h1+image placeholder(자동태그)+desc / 오늘 혼잡도(시간대 12슬롯 빈+첫슬롯만 현재 활성카운트 단일 막대+"시간대별 분포 데이터 준비 중" 캡션) / Side sticky(KakaoMap 180px 단일마커+길찾기/지도열기 / 시설 정보 2col 그리드(샤워/락커/연락처 "정보 없음") / 모집 글쓰기 alert / MiniStat 3통계 흡수)) + `page.tsx` 수정(import 1 + courtV2Data 직렬화 + `<CourtDetailV2>` 1줄 + (구) 메인정보카드 218줄/이용현황 24줄/InfoBadge·StatBlock 헬퍼 2개 제거 + QR버튼만 시안 외 운영 핵심으로 별도 보존). **API/Prisma/하단 클라컴포넌트 8종 0 변경**(CourtCheckin/Ambassador/Pickups/Events/Rankings/Reviews/Reports/EditSuggest 전부 보존). courts.tags/operating_hours/shower/locker/phone/시간대별 집계 DB 미지원 → 자동 폴백 + "정보 없음"/"준비 중" 처리. tsc --noEmit EXIT=0 / `/courts/100` 200 (135KB). HTML: 오늘의 혼잡도·시설 정보·이곳에서 모집 글쓰기·시간대별 분포·COURT PHOTO·준비 중·농구장 목록 마커 전부 렌더 확인 | ✅ (커밋 대기) |
+| 04-22 | developer | **Phase 3 TeamCreate — /teams/new v2 4스텝 멀티스텝 폼 (B 옵션: 영문 팀명 보존)** — `_v2/` 6 신규(team-form 메인+useActionState/state6키hidden제출/약관미체크 차단 / stepper 36px원형+연결선 4스텝 / step-basic 한글명·영문명·대표언어토글·팀태그(시안신규UIonly)·팀소개 / step-emblem 10팔레트+미리보기160×160+엠블럼업로더(BDR+준비중)+secondary색상보존 / step-activity 홈코트·실력6단계·요일7토글·공개3종 모두 "준비중" / step-review 7행검토표+약관2개체크 차단) + `new-team-form.tsx` 슬림화(`<TeamFormV2/>` import 1줄). **createTeamAction / createTeamSchema / Prisma 0 변경**. FormData 키 6개(name/name_en/name_primary/description/primary_color/secondary_color) 그대로. 시안 신규 5필드(tag/home/level/days/privacy/엠블럼) UI 만 + "준비 중". 추후 구현 목록에 Phase 3 TeamCreate 7건 신규. tsc --noEmit EXIT=0 PASS / `/teams/new` 200 (Next 15 Turbopack dev 특성, 운영 307 정상) / 런타임 에러 0 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **코트 대관(Booking) Phase A — MVP 무료 대관 11파일 일괄 구현** — schema.prisma 수정(court_bookings 신규 모델 + court_infos 2컬럼 booking_mode/booking_fee_per_hour + User 백릴레이션 1줄) / `prisma/migrations/manual/court_booking_phase_a.sql` 신규(자동 실행 X 보존만, 운영 DB 위험) / `lib/courts/court-manager-guard.ts` 신규(D-B1=a + D-B2=a — court_infos.user_id == session.sub + court_rental 활성 구독 동시검사) / `lib/courts/booking-conflict.ts` 신규(pg_advisory_xact_lock + checkConflict 시간겹침 + validateBookingTime 1시간단위/1~4h/과거차단) / API 3 신규(`courts/[id]/bookings` GET 슬롯조회+POST 트랜잭션락+즉시confirmed / `courts/[id]/manage/bookings` GET 운영자대시보드+POST blocked / `bookings/[id]` GET+DELETE 본인or운영자) / 페이지 3 신규(`courts/[id]/booking` 시안 CourtBooking.jsx 기반 7일 날짜+16시간 슬롯+이용시간1~4+목적4종+무료확정 / `courts/[id]/manage` 차단슬롯폼+예약테이블+개별취소 / `profile/bookings` 90일내 본인예약+취소액션) / `_components/court-detail-v2.tsx` 수정(booking_mode 분기 CTA — internal=Link / external+rental_url=외부링크 / 그외=disabled "대관 미지원"). page.tsx 수정(courtV2Data 에 booking_mode/rental_url 2필드 추가). **결제 X (Phase A 무료 final_amount=0)** + status 즉시 confirmed. **prisma generate EPERM(dev server PID 102232 lock)으로 미실행** — schema validate ✅ + tsc --noEmit EXIT=0 PASS (기존 generate된 타입 포함, 다음 dev 재시작 시 generate 자동 갱신). DB 변경 위험 → SQL 파일 보존만 | ✅ (커밋 대기) |
 
 ---
