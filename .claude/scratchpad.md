@@ -148,6 +148,14 @@
 - **글 번호 채번** — 현재 정렬 후 인덱스 역순. 시안은 글 번호가 영구 ID. `community_posts.post_number` 또는 created_at 기준 시퀀스
 - **카테고리별 게시판 검색** — 시안의 "게시판 내 검색"은 현재 활성 카테고리 필터와 검색어 AND. 동작은 OK이나 명시적 안내 라벨 추가 검토
 
+### Phase 4 PostDetail (커밋 대기, 04-26)
+> 시안 PostDetail.jsx + 좌 CommunityAside + 본문 4섹션 + PostDetailSidebar 본문 하단 1열 누적 v2 재구성 완료. UI 만 배치된 미지원 항목:
+- **이전/다음 글 네비** — 시안 카드 하단 좌우 분할(이전글 / 다음글). 현재 placeholder "준비 중" 표시. `created_at` 기준 인접 글 2건 Prisma 쿼리 추가 필요 (같은 카테고리 한정 / 전체 둘 중 결정)
+- **users.xp 기반 LevelBadge** — 시안 작성자 옆 등급 뱃지(공식/코치/언론/일반). 현재 미렌더. `users.role` 또는 `users.xp` 등급 컴포넌트(`<LevelBadge level=...>`) 도입 — BoardList와 동일 컴포넌트 공유 예정
+- **작성자 작성글 수 (헤더용)** — 시안 작성자 박스 아래 "작성글 N개" 캡션. 현재 헤더는 생략, 우측 PostDetailSidebar에는 노출. 헤더에도 같은 값을 노출하려면 `prisma.community_posts.count` 결과를 서버에서 prop으로 내림
+- **Body block type 분기** — 시안 `body.map`은 `type: 'p' | 'h' | 'img'` 분기. 현재 DB는 plain text content 1컬럼만 → 줄바꿈 split <p>만 지원. 카페 원문 HTML(`<h3>`/`<img>`) 파싱 또는 신규 `community_post_blocks` JSONB 컬럼 도입 시 본격 구현
+- **스크랩/북마크** — 시안 Reactions 3버튼 중 스크랩. 현재 disabled "준비 중". `community_post_bookmarks` 테이블(post_id+user_id 복합 PK + bookmarked_at) + Server Action(`toggleBookmarkAction`) 필요. 마이페이지 "내 스크랩" 탭 노출 시점에 함께 도입
+
 ### 공통 처리 원칙
 - UI는 **배치만 하고 동작 없음** → `alert("준비 중인 기능입니다")` 또는 `disabled` + `title="준비 중"`
 - 빈 데이터는 "준비 중" 텍스트 + 회색 placeholder
@@ -1935,6 +1943,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-26 | developer | **Phase 4 PostDetail — /community/[id] v2 재구성 (시안 PostDetail.jsx + 좌 CommunityAside 재사용)** — 신규 1(`_components/community-aside-nav.tsx` RSC↔클라 경계 우회용 useRouter 래퍼: 클릭 시 `/community?category=...` push) + `[id]/page.tsx` 전면 재구성(grid 12열 → `.page > .with-aside`. 시안 4섹션: badge--soft 카테고리 + 24px 제목 + cafe-blue-soft 이니셜 작성자 + 우측 메타(날짜·조회·댓글·추천) + Body padding 28/26·fs15·lh1.8 + Reactions 가운데정렬 좋아요/공유/스크랩(disabled "준비 중") + Nav 이전/다음글 placeholder "준비 중"). D1-c: 우측 PostDetailSidebar 그대로 호출 + `marginTop:32`로 본문 하단 1열 누적 (작성자카드/실시간 인기글/이벤트 배너 3블록 보존). D2: 홈›카테고리›글 상세. D3: split <p> 유지(h3/img X). D4: 이전/다음 placeholder. D5: LikeButton+ShareButton 그대로+스크랩 disabled. D6+D7: CommentForm/CommentList 그대로 호출(카페 댓글 병합 보존). **API/Prisma/Server Action/decodeHtmlEntities/cache(getPost)/병렬 likes·follow 0 변경. 컴포넌트 6개(LikeButton/ShareButton/PostActions/PostDetailSidebar/CommentForm/CommentList) 0 수정**. 추후 구현 Phase 4 PostDetail 5건(이전/다음 글 Prisma 쿼리·users.xp LevelBadge·작성글 수 헤더·Body block type 분기·스크랩 community_post_bookmarks). tsc --noEmit EXIT=0 / `/community/<recruit-id>` 200(207KB,2.2s) + `/community/<review-id>` 200(213KB) + `/community/<general-id>` 200(223KB) / HTML: with-aside 1·page 1·badge--soft 1(카테고리별 동적)·aside__link 8·cafe-blue-soft 1·thumb_up 1·>댓글< 1·>스크랩< 1·이전글/다음글 1·실시간 인기글 1·작성자 정보 1·View Detail 1 전부 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 4 BoardList — /community v2 재구성 (시안 BoardList.jsx + 그룹 트리 사이드바, 페이지당 20개)** — 신규 2 (`src/components/bdr-v2/v2-pager.tsx` 재사용 페이저 컴포넌트 + 윈도우 슬라이딩 / `src/app/(web)/community/_components/community-aside.tsx` 좌측 그룹 트리: 메인(공지/자유) · 플레이(팀원/대회후기/장터) · 이야기(질문/정보) — 글 수 카운트 "—" + title="준비 중") + `community-content.tsx` 전면 교체(.page + .with-aside 2열 + 헤더 eyebrow+제목+전체글수+검색+글쓰기 + 정렬 4종(최신/인기/댓글/조회) 클라 토글 + .board 테이블(번호/제목/작성자/날짜/조회/추천) + 공지(category=notice) 자동 핀 상단 + 새글 24h badge--new "N" + has_image false 고정). **API `/api/web/community` 호출 / SSR fallbackPosts / preferFilter Context / searchParams 동기화 / decodeHtmlEntities 100% 보존**. 페이지당 20개(PM 결정, 시안 충실). 추후 구현 Phase 4 BoardList 6건 신설(is_pinned/has_image/카테고리별 글수 API/LevelBadge/글 번호 채번/게시판 내 검색 라벨). tsc --noEmit EXIT=0 / `/community` 200(0.86s) + `?category=general/notice` 200 + `?q=test` 200 / HTML 마커: with-aside 1 / board__head 1 / board__row 20 / aside__ 16 / pager 5 / eyebrow 1 / btn--primary 2 전부 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 3 Bracket — v2 재구성 (B안: 헤더/Status/사이드 v2 공통, 메인 트리는 포맷별 분기 보존)** — 사용자 4건 결정(B안/SVG 유지/우승예측 자리 유지+"투표 준비중"/select 같은 series_id 라우팅) 그대로 반영. 신규 6 (`v2-bracket-header` eyebrow+h1+부제+series_id회차select+저장/공유/출력 alert / `v2-bracket-status-bar` 5칸: 참가팀/완료/진행중LIVE/현재라운드/우승상금"-" / `v2-bracket-schedule-list` rounds 평탄화+시간순+상태배지 / `v2-bracket-seed-ranking` 시드+이니셜박스+wins(레이팅 자리 대체) / `v2-bracket-prediction` placeholder "투표 준비중"+버튼 disabled / `v2-bracket-wrapper` SWR+포맷별 분기 보존 LeagueStandings/GroupStandings/BracketView/BracketEmpty 그대로 호출) + 수정 2 (`tournament-tabs.tsx` BracketTabContent를 V2BracketWrapper 위임으로 슬림화+props 6개 추가 / `page.tsx` TournamentTabs에 헤더용 메타+seriesEditions 매핑 전달, 추가 쿼리 0). **API route.ts/Prisma/서비스 0 변경. BracketView/LeagueStandings/GroupStandings/FinalsSidebar/BracketEmpty 0 수정.** 추후 구현 목록 Phase 3 Bracket 6건 신설(우승예측 테이블/teams.rating/LIVE 실시간/저장공유출력/prize_money/MatchCard 코트정보). tsc --noEmit EXIT=0 / `/tournaments/18e4912f-.../?tab=bracket` 200(group_stage_knockout TEST 6팀) / public-bracket API 200 / SSR HTML eyebrow "BRACKET" 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-25 | planner-architect | **코트 대관(Booking) 시스템 기획설계** — 현황 점검(plans/court_rental + 토스페이먼츠 + payments 다형성 + court_infos.user_id 모두 기존 자산 확인) → 신규 1테이블(court_bookings) + court_infos 2컬럼 + User 백릴레이션 1줄로 MVP 가능 판정. 운영자 ↔ 코트 매핑은 court_infos.user_id + user_subscriptions(feature_key=court_rental) 활성 검사로 단순화 (court_managers 신규 모델 도입 보류). 4 Phase 분할(A=무료 MVP 8~12h / B=결제 6~8h / C=정산+자동환불 8~10h / D=BDR+할인+N:M 6~8h). PM이 사용자에게 전달할 결정 포인트 7건(D-B1~D-B7) 도출 — Phase A 착수 전 D-B1·D-B2·D-B6 3건 필수. Phase A 산출 파일 신규 8 + 수정 2 = 10파일 매핑. 동시성·환불·KYC·외부vs자체 위험 6건 대응 명세. 코드 0수정 | ✅ 설계 완료 |
@@ -1945,11 +1954,79 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-24 | developer | **Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)** — 시안 "내 신청 내역"(경기+대회 통합) 메인 + 하단 기존 "내가 만든 경기" 보존. 4 신규(stat-card / status-badge / reg-row[client] / my-games-client[client]) + page.tsx 완전 재작성(Prisma 3병렬: game_applications+tournamentTeam+hostedGames). 상태 4종(confirmed/pending/completed/cancelled, Q4 waitlist/no-show 제거). just-applied 배너 sessionStorage 유지. 결제=Link→/pricing/checkout, QR·후기·호스트 문의·영수증 등은 alert("준비 중"). API route.ts/Prisma 스키마 0 변경. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
 | 04-24 | developer | **Phase 1 Profile — /profile + /users/[id] v2 재구성** — D-P1~D-P8 추천값 + 누락 4필드(bio/gender/evaluation_rating/total_games_hosted) 전부 표시. 10신규(profile/_v2/*6 + users/[id]/_v2/*4) + 2재작성(각 page.tsx). /profile "use client" → 서버 컴포넌트 전환(Prisma 직접 호출 8쿼리). 탭 2개(D-P5) / 슛존·스카우팅 제거(D-P6) / physical strip 3열(D-P3) / isOwner→/profile redirect(D-P7) / user_badges 직접 쿼리(D-P8). tsc EXIT=0 / `/profile` 307 / `/users/1` 200(95KB) / `/users/7` 200(110KB bio 렌더 확인) / `/users/2832` 200. HTML: linear-gradient 1 + aria-pressed 2(탭 2개) + 슛존/스카우팅 0 + repeat(3,1fr)/(6,1fr) 각 1 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
-| 04-22 | developer | **Phase 3 Court — /courts v2 재구성 (B 변형: KakaoMap sticky 임베드 + 기능 보존)** — 신규 2 (`_components/court-card-v2.tsx`: area+HOT/혼잡도/이름+verified/메타1줄(타입·코트수·요금·운영시간)/메타2줄(바닥·조명)/푸터(현재 N명·평점·상세) + `_components/courts-content-v2.tsx`: 시안 5필터칩(전체/실내/실외/무료/지금한산) + 지역드롭다운 + 좌측 카드그리드 + 우측 sticky `<KakaoMap>` 360px 임베드 + HeatmapOverlay/근접감지/위치권한 v1 그대로 이식). page.tsx import 1줄 + JSX 1줄 교체. **API/Prisma/unstable_cache 0 변경**. 정렬: 거리(있으면)→verified→평점→activeCount desc. 시안 데모필드(hot/today/floor/light/tag) 전부 실데이터로 매핑(hot=activeCount≥5, today→현재 N명, floor=surface_type, light=has_lighting+lighting_until, tag=pickupCount>0이면 "픽업 모집중"). CourtTopAd 보존. tsc --noEmit EXIT=0 / `/courts` 200 + HTML "등록 코트"·"courts-v2-grid"·"CourtsContentV2" 렌더 확인 | ✅ (커밋 대기) |
 | 04-25 | developer | **Phase 3 Orgs — /organizations v2 재구성 (단체 등록 라벨 + 필터 chip)** — `_components/` 2 신규(org-card-v2 그라디언트 헤더+태그 자동 생성+가입 신청 alert / orgs-list-v2 클라 컨테이너+종류 chip 4종 "전체"만 동작·"리그/협회/동호회" 클릭 시 alert+opacity0.55) + `page.tsx` 재작성(.page eyebrow+h1+부제+"단체 등록" 버튼 라벨 변경). DB 미지원 3필드 자동 폴백(`color`=id 해시→6색 팔레트 / `tag`=이름 첫 2글자/영문이면 대문자 4글자 / `kind`="단체" 고정 배지). 데이터 패칭 0 변경(prisma.organizations.findMany 그대로). 추후 구현 목록에 Phase 3 Orgs 5건 신규(kind/brand_color/tag 필드 + 가입 신청 API + teams 집계). tsc EXIT=0 / `/organizations` 200(0.98s, 55KB). HTML: `단체 · ORGANIZATIONS` + `리그 · 협회 · 동호회` + `단체 등록` + `준비 중` + `orgs-list-v2` 마커 전부 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 3 Court 상세 — /courts/[id] v2 재구성 (헤더+혼잡도+Side KakaoMap)** — 신규 1 (`_components/court-detail-v2.tsx`: 시안 브레드크럼+area eyebrow+30px h1+image placeholder(자동태그)+desc / 오늘 혼잡도(시간대 12슬롯 빈+첫슬롯만 현재 활성카운트 단일 막대+"시간대별 분포 데이터 준비 중" 캡션) / Side sticky(KakaoMap 180px 단일마커+길찾기/지도열기 / 시설 정보 2col 그리드(샤워/락커/연락처 "정보 없음") / 모집 글쓰기 alert / MiniStat 3통계 흡수)) + `page.tsx` 수정(import 1 + courtV2Data 직렬화 + `<CourtDetailV2>` 1줄 + (구) 메인정보카드 218줄/이용현황 24줄/InfoBadge·StatBlock 헬퍼 2개 제거 + QR버튼만 시안 외 운영 핵심으로 별도 보존). **API/Prisma/하단 클라컴포넌트 8종 0 변경**(CourtCheckin/Ambassador/Pickups/Events/Rankings/Reviews/Reports/EditSuggest 전부 보존). courts.tags/operating_hours/shower/locker/phone/시간대별 집계 DB 미지원 → 자동 폴백 + "정보 없음"/"준비 중" 처리. tsc --noEmit EXIT=0 / `/courts/100` 200 (135KB). HTML: 오늘의 혼잡도·시설 정보·이곳에서 모집 글쓰기·시간대별 분포·COURT PHOTO·준비 중·농구장 목록 마커 전부 렌더 확인 | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 3 TeamCreate — /teams/new v2 4스텝 멀티스텝 폼 (B 옵션: 영문 팀명 보존)** — `_v2/` 6 신규(team-form 메인+useActionState/state6키hidden제출/약관미체크 차단 / stepper 36px원형+연결선 4스텝 / step-basic 한글명·영문명·대표언어토글·팀태그(시안신규UIonly)·팀소개 / step-emblem 10팔레트+미리보기160×160+엠블럼업로더(BDR+준비중)+secondary색상보존 / step-activity 홈코트·실력6단계·요일7토글·공개3종 모두 "준비중" / step-review 7행검토표+약관2개체크 차단) + `new-team-form.tsx` 슬림화(`<TeamFormV2/>` import 1줄). **createTeamAction / createTeamSchema / Prisma 0 변경**. FormData 키 6개(name/name_en/name_primary/description/primary_color/secondary_color) 그대로. 시안 신규 5필드(tag/home/level/days/privacy/엠블럼) UI 만 + "준비 중". 추후 구현 목록에 Phase 3 TeamCreate 7건 신규. tsc --noEmit EXIT=0 PASS / `/teams/new` 200 (Next 15 Turbopack dev 특성, 운영 307 정상) / 런타임 에러 0 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **코트 대관(Booking) Phase A — MVP 무료 대관 11파일 일괄 구현** — schema.prisma 수정(court_bookings 신규 모델 + court_infos 2컬럼 booking_mode/booking_fee_per_hour + User 백릴레이션 1줄) / `prisma/migrations/manual/court_booking_phase_a.sql` 신규(자동 실행 X 보존만, 운영 DB 위험) / `lib/courts/court-manager-guard.ts` 신규(D-B1=a + D-B2=a — court_infos.user_id == session.sub + court_rental 활성 구독 동시검사) / `lib/courts/booking-conflict.ts` 신규(pg_advisory_xact_lock + checkConflict 시간겹침 + validateBookingTime 1시간단위/1~4h/과거차단) / API 3 신규(`courts/[id]/bookings` GET 슬롯조회+POST 트랜잭션락+즉시confirmed / `courts/[id]/manage/bookings` GET 운영자대시보드+POST blocked / `bookings/[id]` GET+DELETE 본인or운영자) / 페이지 3 신규(`courts/[id]/booking` 시안 CourtBooking.jsx 기반 7일 날짜+16시간 슬롯+이용시간1~4+목적4종+무료확정 / `courts/[id]/manage` 차단슬롯폼+예약테이블+개별취소 / `profile/bookings` 90일내 본인예약+취소액션) / `_components/court-detail-v2.tsx` 수정(booking_mode 분기 CTA — internal=Link / external+rental_url=외부링크 / 그외=disabled "대관 미지원"). page.tsx 수정(courtV2Data 에 booking_mode/rental_url 2필드 추가). **결제 X (Phase A 무료 final_amount=0)** + status 즉시 confirmed. **prisma generate EPERM(dev server PID 102232 lock)으로 미실행** — schema validate ✅ + tsc --noEmit EXIT=0 PASS (기존 generate된 타입 포함, 다음 dev 재시작 시 generate 자동 갱신). DB 변경 위험 → SQL 파일 보존만 | ✅ (커밋 대기) |
+
+---
+
+## 구현 기록 — Phase 4 PostDetail — /community/[id] v2 재구성 [2026-04-26]
+
+📝 구현한 기능: BDR v2 시안 `screens/PostDetail.jsx` 그대로 따라 `/community/[id]` 페이지를 재구성. 좌측 CommunityAside(BoardList 재사용) + 우측 본문 카드 4섹션(헤더/Body/Reactions/Nav) + 본문 하단 1열 누적(PostDetailSidebar). **API/Prisma/Server Action/decodeHtmlEntities/cache(getPost)/병렬 likes·follow 0 변경. 6개 클라 컴포넌트(LikeButton/ShareButton/PostActions/PostDetailSidebar/CommentForm/CommentList) 0 수정.**
+
+| # | 파일 경로 | 변경 내용 | 신규/수정 |
+|---|----------|----------|----------|
+| 1 | `src/app/(web)/community/_components/community-aside-nav.tsx` | RSC↔클라 경계 우회용 useRouter 래퍼. CommunityAside `onSelect` 콜백을 `/community?category=...` push로 바인딩. CommunityAside 자체 0 수정 | 신규 |
+| 2 | `src/app/(web)/community/[id]/page.tsx` | 전면 재구성. grid 12열 → `.page > .with-aside`. 시안 4섹션(badge--soft + 24px 제목 + cafe-blue-soft 이니셜 + 우측 메타 / Body padding 28/26·fs15·lh1.8 / Reactions 가운데정렬 좋아요·공유·스크랩 disabled / Nav 이전·다음 placeholder). PostDetailSidebar는 `marginTop:32`로 본문 하단에 1열 누적 (D1-c) | 수정 |
+
+### 핵심 기술 결정 (사용자 7건 결정 그대로 반영)
+
+- **D1 (c)** — 좌측 CommunityAside + 우측 PostDetailSidebar 항목들을 본문 하단 1열로 누적. 우측 컬럼 제거. PostDetailSidebar 컴포넌트는 `<aside>` 그대로 호출하되 `marginTop:32`로 본문 article+comments 아래에 배치
+- **D2** — 시안 브레드크럼 "홈 › 카테고리 › 글 상세". 카테고리는 `/community?category=...` 링크로 라우팅
+- **D3** — Body 줄바꿈 split `<p>` 그대로 유지. DB가 `community_posts.content` 단일 plain text라 시안의 h3/img 블록 분기는 미적용. 추후 구현 목록에 기록
+- **D4** — 이전/다음 글 placeholder "준비 중" (Prisma 쿼리 추가 X). 시안 좌우 분할 레이아웃은 그대로 유지하되 텍스트만 placeholder
+- **D5** — LikeButton + ShareButton 그대로 호출. 스크랩은 `<button disabled title="스크랩 준비 중">`로 시각적 자리만 확보
+- **D6** — CommentForm 그대로 호출 (props/시그니처 0 변경)
+- **D7** — CommentList 그대로 호출. 카페 댓글 + DB 댓글 병합 패턴(decodeHtmlEntities 적용)도 100% 보존
+
+### 보존된 동작 (회귀 방지)
+
+- `getPost = cache(...)` — generateMetadata와 본문이 같은 쿼리 1회 공유
+- `Promise.all([getPost, getWebSession])` 1단계 병렬 → 로그인 시 `Promise.all([comments, likes, follows])` 2단계 병렬 (총 4쿼리, 비로그인은 2쿼리)
+- `getCafeComments(post.images)` — JSONB cafe_comments 추출 + DB 댓글과 합산
+- `decodeHtmlEntities` — title / displayNickname / content / 카페 댓글 nickname·text / DB 댓글 nickname·content 모두 적용
+- 본인 게시글일 때만 `<PostActions>` 드롭다운 노출 (수정/삭제)
+- `revalidate = 30` ISR 그대로
+- `notFound()` — post 없거나 status="deleted"
+
+💡 tester 참고:
+- **테스트 URL**: `/community/<public_id>` (각 카테고리별 글 1건씩) — 검증 완료
+  - recruit: `/community/2df7a9ae-d7b2-4943-af67-901d9f72cdd8` 200 (207KB, 2.2s)
+  - review: `/community/29d2672b-7e2a-4dcc-9da7-f7123657d5fb` 200 (213KB)
+  - general: `/community/58ad9661-805f-48b6-b5a8-e3c59af961d3` 200 (223KB)
+- **정상 동작**:
+  - 좌측 사이드바 8개 항목 클릭 → `/community?category=...` 이동 (PostDetail에는 활성 카테고리 없으므로 항상 "전체글" 활성)
+  - 브레드크럼 "홈 › 카테고리 › 글 상세" — 카테고리 클릭 시 `/community?category=...` 이동
+  - 카테고리 배지(badge--soft)가 글의 카테고리에 맞게 동적 라벨 (recruit→팀원모집, review→대회후기, general→자유게시판 등)
+  - 좋아요 버튼: 로그인 시 즉시 토글 + 낙관적 업데이트, 비로그인 시 alert("로그인이 필요합니다")
+  - 공유 버튼: 클립보드 복사 + 토스트
+  - 스크랩 버튼: disabled (호버 시 "스크랩 준비 중" 툴팁)
+  - 이전글/다음글 자리: "준비 중" 텍스트 + title 툴팁
+  - 본인 게시글: 헤더 우측 메타 옆 `<PostActions>` 드롭다운 (수정/삭제)
+  - 댓글 헤더: "댓글 + accent N" (DB 댓글 + 카페 댓글 합산)
+  - CommentForm/CommentList 동작 그대로 — 작성/수정/삭제 모두 정상
+  - 본문 하단: 작성자 정보 카드(아바타+게시글수+댓글수+팔로우 버튼) → 실시간 인기글 → 이벤트 배너 3블록 누적
+- **주의 입력**:
+  - 본인 게시글 — `<PostActions>` 드롭다운 + 작성자 카드의 팔로우 버튼은 숨김 (isOwnPost)
+  - 카페 댓글 있는 글 — 댓글 카운트 = DB 댓글 + 카페 댓글
+  - status="deleted" 또는 post 없음 — `notFound()` (404)
+  - 비로그인 — 좋아요 alert / 댓글 작성 폼은 CommentForm 자체 분기
+
+⚠️ reviewer 참고:
+- **API/Prisma 0 변경** — 신규 쿼리 / 신규 라우트 / 스키마 변경 없음. 기존 cache(getPost) + 병렬 likes/follows + comments 쿼리 그대로
+- **신규 client wrapper 1건 (community-aside-nav.tsx)** — RSC 제약상 onSelect 콜백을 서버에서 못 넘기므로 작은 useRouter 래퍼만 추가. CommunityAside 컴포넌트 자체는 0 수정 (BoardList와 동일 인스턴스 공유). 신규 파일이지만 도메인 로직 0
+- **PostDetailSidebar 본문 하단 누적** — 컴포넌트 내부 0 수정. `<aside>` 시맨틱 태그가 main 안에서 본문 하단에 위치하는 게 약간 어색하지만 시맨틱은 보조 정보이므로 valid. 추후 디자인 일관성 정리 시 별도 wrapper로 div 변경 가능
+- **Reactions 가운데정렬 — LikeButton 시각 차이** — 기존 LikeButton은 자체 마진/구분선/원형 64px 아이콘 + 라벨 3줄 구성이라 시안의 "버튼 1줄 가로정렬"과 다른 형태. PM 결정(D5: LikeButton 그대로)에 따라 그대로 유지. 시안 충실도를 더 높이려면 LikeButton 디자인 자체를 v2로 교체해야 함 (별도 작업)
+- **카페 게시글의 작성자** — `post.author_nickname || post.users?.nickname || "익명"`. 카페 크롤링 글은 users 조인이 없을 수도 있어 조건부. PostDetailSidebar의 authorId(=post.user_id)가 카페 더미 user를 가리킬 수 있음 (운영 데이터 확인 필요)
+- **이전/다음 글 placeholder div** — 시안 마크업 그대로(좌우 분할 + 좌측 borderRight) 유지. 클릭 핸들러 없음 / cursor:pointer 없음 / `var(--ink-dim)` 더 옅은 색으로 비활성 표현
+- **LevelBadge 자리 빈 채로 둠** — 시안 작성자 박스에 LevelBadge 위치하지만 컴포넌트 자체 미존재. 단순 주석 placeholder. 도입 시 component import 1줄 + JSX 1줄
+
+### 검증 결과 요약
+- tsc --noEmit EXIT=0
+- 3개 카테고리 글 200 OK
+- HTML 마커 13종 전부 렌더 (with-aside 1 / page 1 / badge--soft 1 / aside__link 8 / cafe-blue-soft 1 / 글 상세 1 / thumb_up 1 / >댓글< 1 / >스크랩< 1 / 이전글 1 / 다음글 1 / 실시간 인기글 1 / 작성자 정보 1)
+- 카테고리별 동적 라벨 매핑 검증 (badge--soft가 recruit→팀원모집, review→대회후기, general→자유게시판으로 각각 1회 출력)
 
 ---
 
