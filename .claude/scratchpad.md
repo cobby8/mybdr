@@ -74,6 +74,13 @@
 - 쪽지 보내기 — DM 모델
 - 연락 카드 응답시간 — 메시지 응답 로그 집계
 
+### Phase 3 Orgs (커밋 대기, 04-25)
+- `organizations.kind` 필드 (리그/협회/동호회) — 현재 카드 배지 "단체" 고정 + 필터 chip "전체" 외 alert
+- `organizations.brand_color` 필드 — 헤더 그라디언트 색상. 현재 id 해시 → 6색 팔레트(`#0F5FCC/#E31B23/#10B981/#F59E0B/#8B5CF6/#0EA5E9`) 자동 선택
+- `organizations.tag` 필드 — 카드 태그 라벨. 현재 이름 첫 2글자(영문이면 대문자 4글자) 자동 생성
+- 단체 가입 신청 API — 현재 카드 하단 "가입 신청" 버튼 alert("준비 중인 기능입니다")
+- 단체별 팀 수 집계 — series→teams 조인 쿼리. 현재 series_count로 대체 표시
+
 ### 공통 처리 원칙
 - UI는 **배치만 하고 동작 없음** → `alert("준비 중인 기능입니다")` 또는 `disabled` + `title="준비 중"`
 - 빈 데이터는 "준비 중" 텍스트 + 회색 placeholder
@@ -1496,10 +1503,58 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 
 ---
 
+## 구현 기록 — Phase 3 Orgs — /organizations v2 재구성 [2026-04-25]
+
+📝 구현한 기능: `/organizations` 단체 목록 페이지를 BDR v2 디자인 시안(`Dev/design/BDR v2/screens/Orgs.jsx`) 기반으로 재구성. 데이터 패칭 로직(Prisma 쿼리) 0 변경, UI만 완전 교체.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/organizations/_components/org-card-v2.tsx` | 카드 컴포넌트. 상단 그라디언트 헤더(135deg + 단체 색상) + 로고/태그/이름/종류 배지 + 본문 설명·통계 3분할(지역/시리즈/인원) + 하단 "상세" Link + "가입 신청" alert. 색상 6색 팔레트 id 해시 / 태그 자동 생성 / kind="단체" 폴백 | 신규 |
+| `src/app/(web)/organizations/_components/orgs-list-v2.tsx` | 클라 컨테이너. 종류 chip 4종(전체/리그/협회/동호회) — "전체"만 동작·나머지 클릭 시 alert("준비 중") + opacity 0.55 + title. auto-fill minmax(300px, 1fr) 그리드 | 신규 |
+| `src/app/(web)/organizations/page.tsx` | SSR. eyebrow "단체 · ORGANIZATIONS" + h1 "리그 · 협회 · 동호회" + 부제 "여러 팀을 아우르는 N개의 농구 단체" + "단체 등록" 버튼(라벨 PM 지시). 기존 prisma.organizations.findMany 그대로 + BigInt → string 직렬화 매핑 추가 | 수정 |
+| `.claude/scratchpad.md` | "🚧 추후 구현 목록" 섹션에 "Phase 3 Orgs (커밋 대기, 04-25)" 5건 추가 (kind/brand_color/tag 필드 + 가입 신청 API + teams 집계) | 수정 |
+
+### DB 미지원 필드 폴백 전략
+| 디자인 필드 | 매핑 | 폴백 처리 |
+|------|------|----------|
+| `color` | 없음 | id 해시 → `[#0F5FCC, #E31B23, #10B981, #F59E0B, #8B5CF6, #0EA5E9]` 6색 순환 (같은 id는 항상 같은 색) |
+| `tag` | 없음 | 영문 대문자 ≥2자 → 4글자 추출 / 영문 단어 2+개 → 이니셜 / 그 외 → 앞 2글자 |
+| `kind` | 없음 | 헤더 우측 배지 "단체" 고정 / 필터 chip "전체"만 활성 |
+| `teams` | series→teams 조인 미구현 | series_count 그대로 표시 (라벨도 "시리즈"로 변경) |
+
+### 검증
+- `npx tsc --noEmit` → EXIT=0 **PASS**
+- 개발 서버(PID 102232, 3001) `curl /organizations` → **HTTP=200** (0.98s, 55KB)
+- HTML 검증 grep: `단체 · ORGANIZATIONS` / `리그 · 협회 · 동호회` / `단체 등록` / `준비 중` / `orgs-list-v2` 마커 5개 모두 렌더 확인
+
+💡 tester 참고:
+- 테스트 방법: 브라우저로 `http://localhost:3001/organizations` 접속
+- 정상 동작:
+  - 페이지 상단 eyebrow + h1 + 부제 + 우측 "단체 등록" 빨간 버튼 표시
+  - 필터 chip 4종(전체/리그/협회/동호회). "전체" active 상태
+  - "리그/협회/동호회" 클릭 시 alert("준비 중인 기능입니다") + 시각적 비활성(opacity 0.55, hover title 표시)
+  - 카드: 상단 그라디언트 헤더(단체별 다른 색) / 좌측 로고 또는 태그 박스 / 우상단 "단체" 배지 / 본문 3분할(지역·시리즈·인원) / 하단 "상세"·"가입 신청"
+  - "상세" 클릭 → `/organizations/[slug]` 정상 이동
+  - "가입 신청" 클릭 → alert("준비 중인 기능입니다") (페이지 이동 X)
+- 주의할 입력:
+  - 로고 없는 단체 → 태그 자동 생성 박스가 그라디언트 안에 표시됨
+  - region NULL 단체 → "전국"으로 폴백
+  - description NULL 단체 → "단체 소개가 없습니다." 폴백 (높이 보존)
+  - 영문/한글/숫자 혼합 단체명 → 태그 자동 생성 결과 확인 (영문 대문자 우선)
+  - 단체 0건 → "아직 등록된 단체가 없습니다." 빈 상태 카드
+
+⚠️ reviewer 참고:
+- **데이터 패칭 0 변경**: prisma.organizations.findMany select/where/orderBy/take 모두 v1과 동일. UI만 교체된 리디자인 작업
+- **BigInt 직렬화**: page.tsx에서 `id: org.id.toString()`로 변환 후 클라 컴포넌트 전달 (Next.js 클라 컴포넌트 props 직렬화 제약 회피)
+- **하드코딩 색상 일부**: 단체별 그라디언트 색상은 디자인 시안 6색 팔레트 그대로 사용 (var 없음). 추후 `organizations.brand_color` 필드 추가 시 DB 값으로 대체 예정. 그 외 텍스트/배경은 모두 `var(--color-*)` 사용
+- **next/image 미사용**: 기존 page.tsx와 동일하게 `<img>` 사용 (logo_url 외부 도메인 다양 → next.config 설정 부담 회피). D3 정책에 따라 추후 일괄 마이그레이션 검토
+- **종류 필터 미구현 의도적**: organizations.kind 필드 부재로 필터링 자체가 불가. UI 노출은 시안 충실도 확보 + 향후 마이그레이션 비용 절감 목적. 구현 시점에 `useState<Kind>` 분기 + filter 적용만 추가하면 됨
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
-| 04-22 | developer | **Phase 3 Teams 상세 — v2 재구성 (DB 미지원 항목 준비 중 표시)** — `_components_v2/` 7 신규(team-hero-v2 / team-tabs-v2 / overview-tab-v2 / roster-tab-v2 / recent-tab-v2 + computeRecentForm helper / stats-tab-v2 / team-side-card-v2) + `page.tsx` 완전 재작성. accent 카드형 Hero(135deg 그라디언트 + 우상단 거대 tag 워터마크 + 96px Avatar + 4스탯 + 팔로우/매치신청 disabled) + cafe-blue sticky 탭 4종(overview/roster/recent/stats) + 좌측 탭 + 우측 320px sticky aside(최근 폼 5칸 + 게스트지원/팀매치신청 disabled + 연락 카드 응답시간 "준비 중"). 신규 쿼리 2건(team.count(wins.gt) → teamRank / computeRecentForm 5건). 기존 `_tabs/*` 4파일 보존(롤백용). API/Prisma 스키마 0 변경. DB 미지원 10항목 모두 "준비 중"(팔로우·매치신청·게스트지원·쪽지·응답시간·연습일·팀레벨·게스트모집·PPG·시즌4스탯). tsc EXIT=0 / `/teams/201?tab={overview,roster,recent,stats}` 4탭 모두 200. HTML: 시안 마커(창단/레이팅/승률/팀 소개/팀 정보/최근 폼/2026 시즌 평균) + 탭 4종 + "준비 중" 21건 + disabled 다수 전부 렌더 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 GameResult — /live/[id] finished/completed 분기 v2 재구성** — API `/api/live/[id]/route.ts` 응답 필드 2개 신규 추가(`mvp_player` GameScore 공식 + `play_by_plays` 상위 50건 roster 직접 매핑). `_v2/` 8 신규(game-result 메인+탭상태 / hero-scoreboard 135deg 그라디언트+쿼터표 / mvp-banner 팀색 원형 / tab-summary TOP 퍼포머 4 / tab-team-stats 9항목 좌우 비교바 / tab-players 14컬럼 박스스코어+DNP+MVP★ / tab-timeline action_type 한국어 매핑+역순 / tab-shot-chart 준비중 카드+코트 SVG). `page.tsx` 1829줄 0 수정 — MatchData interface에 `mvp_player?` 추가 + import 1줄 + 분기 3줄만. 라이브/진행중 UI 완전 보존. D2-B 샷차트 유지(준비중 안내) / D5 시드·전적·관중수·페인트·내러티브·영상공유 생략. tsc EXIT=0 / Playwright: `/live/102`(completed)=FINAL+WINNER+GAME MVP+탭5+gradient 전부 렌더·v1 zoom 없음 / `/live/92`(live)=v1 UI 그대로·v2 요소 0건 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |
 | 04-22 | developer | **Phase 2 CreateGame — 단일 폼 v2 재구성 (위자드 → 3카드 + 고급 설정 아코디언으로 DB 필드 보존)** — 5 신규(`_v2/game-form.tsx` + `kind-selector.tsx` + `basic-info-section.tsx` + `conditions-section.tsx` + `advanced-section.tsx`) + `new-game-form.tsx` 수정(`GameFormV2` 호출로 교체). 시안 3카드(종류 3버튼 / 정보 9필드 / 조건 체크박스 6개→requirements JOIN) + 고급 설정 아코디언(9필드 보존) + 액션 3버튼(취소/임시저장/경기 개설). FormData 키 23개 전부 기존 `createGameAction` 시그니처 유지. 위자드 전용 6파일(`game-wizard` + `step-*` 4종 + `wizard-progress`) 삭제 없이 import만 끊음. UpgradeModal/SuccessOverlay 재사용. Kakao postcode + 지난 경기 복사(`/api/web/games/my-last-game`) + 최근 장소(`/recent-venues`) + localStorage 프리셋(`bdr_game_presets`) 전부 보존. tsc --noEmit EXIT=0 PASS / `/games/new` 비로그인 200(로그인 페이지 리다이렉트) | ✅ (커밋 대기, 로그인 세션 브라우저 수동 검증 필요) |
@@ -1509,3 +1564,4 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-24 | developer | **Phase 1 Profile — /profile + /users/[id] v2 재구성** — D-P1~D-P8 추천값 + 누락 4필드(bio/gender/evaluation_rating/total_games_hosted) 전부 표시. 10신규(profile/_v2/*6 + users/[id]/_v2/*4) + 2재작성(각 page.tsx). /profile "use client" → 서버 컴포넌트 전환(Prisma 직접 호출 8쿼리). 탭 2개(D-P5) / 슛존·스카우팅 제거(D-P6) / physical strip 3열(D-P3) / isOwner→/profile redirect(D-P7) / user_badges 직접 쿼리(D-P8). tsc EXIT=0 / `/profile` 307 / `/users/1` 200(95KB) / `/users/7` 200(110KB bio 렌더 확인) / `/users/2832` 200. HTML: linear-gradient 1 + aria-pressed 2(탭 2개) + 슛존/스카우팅 0 + repeat(3,1fr)/(6,1fr) 각 1 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 GameDetail — v2 시안 재구성 (안 A)** — `_v2/` 5 신규(summary-card / about-card / participant-list / apply-panel / host-panel) + `page.tsx` 재작성. 2열 info grid + 조건부 행(duration·contact·allow_guests·uniform) / AboutCard(description·requirements·notes) / ParticipantList(이니셜+position) / ApplyPanel(6분기 CTA + 한마디·저장·문의 alert) / HostPanel(수정·취소+신청자 관리 응집). HeroBanner·PriceCard·HostCard·ParticipantsGrid·PickupDetail·GuestDetail·TeamMatchDetail 미사용(파일 보존). API/Prisma/service 0 변경. tsc EXIT=0 / `/games/552` 200 (3.18s) + 551/550 200 (0.2s). HTML 검증: `.page` 1 + `.card` 15 / 연락처·유니폼·게스트·참가자 필드 전부 렌더 | ✅ (커밋 대기) |
 | 04-24 | developer | **Phase 1 Games — v2 시안 기반 재구성** — bdr-v2 신규 3종(game-card / kind-tab-bar / filter-chip-bar) + games/_components/games-client(클라 래퍼) + page.tsx 서버 컴포넌트 재작성(listGames + groupBy typeCounts 병렬 prefetch). DQ2 URL+클라 혼합(date/city URL / weekend·free·beginner 클라) + DQ3 태그 자동 파생(무료/초보환영/주말 최대 3). 기존 games-content/game-type-tabs/games-filter 보존(미사용). tsc EXIT=0 / `/games` 200 (0.54s) / `?type=0`·`?city=서울` 200. HTML: `.page` 쉘 + eyebrow + h1 + 탭 4(전체 active) + 칩 7(btn--sm) + auto-fill 그리드 + badge--red 마감임박 렌더 확인 | ✅ (커밋 대기) |
+| 04-25 | developer | **Phase 3 Orgs — /organizations v2 재구성 (단체 등록 라벨 + 필터 chip)** — `_components/` 2 신규(org-card-v2 그라디언트 헤더+태그 자동 생성+가입 신청 alert / orgs-list-v2 클라 컨테이너+종류 chip 4종 "전체"만 동작·"리그/협회/동호회" 클릭 시 alert+opacity0.55) + `page.tsx` 재작성(.page eyebrow+h1+부제+"단체 등록" 버튼 라벨 변경). DB 미지원 3필드 자동 폴백(`color`=id 해시→6색 팔레트 / `tag`=이름 첫 2글자/영문이면 대문자 4글자 / `kind`="단체" 고정 배지). 데이터 패칭 0 변경(prisma.organizations.findMany 그대로). 추후 구현 목록에 Phase 3 Orgs 5건 신규(kind/brand_color/tag 필드 + 가입 신청 API + teams 집계). tsc EXIT=0 / `/organizations` 200(0.98s, 55KB). HTML: `단체 · ORGANIZATIONS` + `리그 · 협회 · 동호회` + `단체 등록` + `준비 중` + `orgs-list-v2` 마커 전부 렌더 확인 | ✅ (커밋 대기) |
