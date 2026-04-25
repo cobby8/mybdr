@@ -1,6 +1,12 @@
 "use client";
 
 import Link from "next/link";
+// 공유 헬퍼 — 카드(목록)와 Hero(상세)의 색/태그 fallback 로직을 단일화
+// (Phase 3 Org 상세 v2 작업에서 통합)
+import {
+  pickColor,
+  generateTag,
+} from "../[slug]/_components_v2/org-color";
 
 /* ============================================================
  * 단체 카드 V2 — BDR v2 디자인 적용
@@ -9,7 +15,8 @@ import Link from "next/link";
  * - 본문: 설명 + 지역/팀/인원 3분할 통계
  * - 하단: "상세" 링크 + "가입 신청" 버튼 (준비 중)
  *
- * ⚠️ DB에 kind/brand_color/tag 필드가 아직 없음 → 폴백 로직 사용:
+ * ⚠️ DB에 kind/brand_color/tag 필드가 아직 없음 → 폴백 로직 사용
+ *    (`./[slug]/_components_v2/org-color.ts` 헬퍼 공유):
  *   - color: id 해시 → 6색 팔레트
  *   - tag: 이름에서 자동 생성 (첫 2글자 또는 영문 이니셜)
  *   - kind: "단체" 고정 (Phase 3 Orgs에서 추가 예정)
@@ -25,43 +32,6 @@ type OrgCardData = {
   membersCount: number;
   seriesCount: number;
 };
-
-// 6색 팔레트 (디자인 시안 ORGS 더미 색상 참조)
-const COLOR_PALETTE = [
-  "#0F5FCC", // 파랑
-  "#E31B23", // BDR Red
-  "#10B981", // 초록
-  "#F59E0B", // 주황
-  "#8B5CF6", // 보라
-  "#0EA5E9", // 하늘
-];
-
-// id로부터 결정적 색상 선택 (같은 단체는 항상 같은 색)
-function pickColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
-}
-
-// 단체명에서 태그 자동 생성 (영문이면 대문자 4글자, 한글이면 첫 2글자)
-function generateTag(name: string): string {
-  const trimmed = name.trim();
-  // 영문 위주면 대문자만 추출 → 최대 4글자
-  const upperOnly = trimmed.replace(/[^A-Z]/g, "");
-  if (upperOnly.length >= 2) return upperOnly.slice(0, 4);
-  // 영문 단어 첫 글자
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.every((w) => /^[A-Za-z]/.test(w)) && words.length >= 2) {
-    return words
-      .map((w) => w.charAt(0).toUpperCase())
-      .join("")
-      .slice(0, 4);
-  }
-  // 한글/혼합: 앞 2글자
-  return trimmed.slice(0, 2).toUpperCase();
-}
 
 export function OrgCardV2({ org }: { org: OrgCardData }) {
   const color = pickColor(org.id);
