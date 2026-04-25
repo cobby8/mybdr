@@ -139,6 +139,17 @@
 - UI 시안: `Dev/design/BDR v2/screens/TeamInvite.jsx` 보존
 - 대안: `/teams/[id]/manage`에 "멤버 초대" 버튼만 disabled 추가 (소규모, 별도 작업으로 가능)
 
+### Phase 4 Messages (보류, 04-25)
+> v2 시안 204줄. mybdr DM 시스템 0%. 사전 D4 결정 (보류 합의). Phase 4 종료.
+- 시안 정체: 3컬럼 메신저 (좌 쓰레드 리스트 / 중앙 채팅 버블 + 입력 / 우 프로필 레일)
+- 기능: DM 양방향, 읽음표시(✓✓), 온라인 상태, 그룹 단톡, 핀 고정, 공식 운영팀 배지, 첨부(경기카드/장소/사진), 검색, 차단/신고
+- DB 부재: messages / conversations / direct_messages / message_reads — **전부 신규**
+- 인프라 부재: WebSocket / Pusher / Supabase Realtime 도입 결정 필요
+- 첨부 polymorphic 스키마 미설계
+- 진행 조건: DM 비즈니스 결정 + 실시간 인프라 + Phase 5 별건 풀스택
+- UI 시안: `Dev/design/BDR v2/screens/Messages.jsx` 보존
+- 사전 합의: scratchpad D4 결정 ("Messages 보류 (DB 없음)")
+
 ### Phase 4 BoardList (커밋 대기, 04-22)
 > 시안 BoardList.jsx + Sidebar 그룹 트리 + .board 테이블 v2 재구성 완료. 페이지당 20개 통일. UI 만 배치된 미지원 항목:
 - **`community_posts.is_pinned` 필드** — 시안 pinned 패턴(공지 핀 항상 상단). 현재는 `category=notice`인 글을 자동 핀으로 간주. is_pinned 컬럼 + 운영자 핀 토글 UI 필요
