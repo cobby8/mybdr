@@ -109,6 +109,15 @@
 - **`courts.shower` / `courts.locker` / `courts.phone` 필드** (04-22 상세 추가) — 현재 시설 정보 그리드에서 "정보 없음" 표기
 - **코트별 게스트 모집 카테고리** (04-22 상세 추가) — Side "이곳에서 모집 글쓰기" CTA가 alert("준비 중") — 코트 컨텍스트로 픽업 모집 작성 진입점 필요
 
+### Phase 3 Bracket (커밋 대기, 2026-04-22)
+> 시안 Bracket.jsx 전체 재구성 (B안: 헤더/Status/사이드 v2 공통, 메인 트리만 포맷별 분기). 사용자 4건 결정 (DB 미지원도 자리 유지) 반영. API/Prisma/서비스 0 변경.
+- **우승 예측 (커뮤니티 투표 시스템)** — 새 테이블 필요 (`tournament_predictions`: tournament_id / user_id / team_id / created_at). 현재 V2BracketPrediction 카드 자리는 유지 + "투표 준비 중" placeholder + 투표 버튼 disabled
+- **시드 레이팅 (`teams.rating`)** — 시안 우측 시드순위 카드 마지막 칸은 레이팅 (시안 1684 등). 현재는 wins로 대체 표시. 별도 ELO 계산 시스템 필요
+- **LIVE 실시간 점수** — 시안 매치카드 우상단 "● LIVE" + 진행 쿼터 "Q3 5:24" + 실시간 점수. 현재 `homeScore/awayScore` 종료 후만 채워짐. websocket/realtime 인프라 + `tournament_matches.current_quarter/current_clock` 필드 필요
+- **저장/공유/출력** — 헤더 우측 3 버튼은 모두 `alert("준비 중")`. 출력은 대진표 PDF/이미지 익스포트 (Puppeteer/html-to-image), 공유는 OG 이미지 동적 생성 또는 카카오톡 공유 API
+- **`tournament.prize_money` 필드** — Status Bar 5칸째 "우승상금" 자리. 현재 항상 "-" 표기. DB 미존재 → 추후 `prize_money: bigint` 컬럼 + 운영자 입력 폼 추가
+- **MatchCard에 코트 정보 표시** — 시안은 매치카드 푸터에 "잠실 · 05.09 14:00" 형태. 현재 `tournament_matches.court_number`는 있지만 BracketMatch 타입에 미포함. bracket-builder.ts 확장 시 함께 추가 가능
+
 ### Phase 3 Orgs (커밋 대기, 04-25 + 04-22 상세 추가)
 - `organizations.kind` 필드 (리그/협회/동호회) — 현재 카드 배지/Hero eyebrow "단체" 고정 + 필터 chip "전체" 외 alert
 - `organizations.brand_color` 필드 — 카드/Hero 그라디언트 색상. 현재 id 해시 → 6색 팔레트(`#0F5FCC/#E31B23/#10B981/#F59E0B/#8B5CF6/#0EA5E9`) 자동 선택 (`_components_v2/org-color.ts` 공유)
@@ -979,6 +988,78 @@ v2 `components.jsx` 340줄에서 재사용 단위 추출:
 
 ## 구현 기록
 
+### [2026-04-22] Phase 3 Bracket — v2 재구성 (B안: 헤더·Status·사이드 v2 공통, 메인 트리는 포맷별 분기 보존)
+- **브랜치**: subin
+- **시안**: `Dev/design/BDR v2/screens/Bracket.jsx` 전체 구조
+- **PM 4건 결정 그대로 반영**:
+  1. **B안 채택** — 헤더(eyebrow+h1+부제+select+버튼) / Status Bar 5칸 / 사이드 3카드는 v2 공통 신규. 메인 트리 영역만 기존 BracketView/LeagueStandings/GroupStandings 그대로 호출(포맷별 분기 보존)
+  2. **SVG 트리 유지** — 기존 BracketView의 정교한 connector 보존. 시안의 단순 div connector로 다운그레이드 안 함
+  3. **우승 예측 카드 유지 + "투표 준비 중"** — 사용자 원칙: DB 미지원도 제거 금지. 카드 + 투표 버튼 자리 유지하고 placeholder 영역으로 표시
+  4. **대회 select 유지** — 같은 series_id의 다른 회차로 라우팅(데이터 있으면 동작). 회차 1개 이하면 자동 disabled + "준비 중" 폴백
+- **API/Prisma/서비스 레이어 0 변경**. 기존 BracketView/LeagueStandings/GroupStandings/FinalsSidebar/BracketEmpty 0 수정. 카페 세션 파일 미생성
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-header.tsx` | eyebrow + h1 + 부제 + select(시리즈 회차) + 저장/공유/출력 버튼 — 버튼 3종은 모두 alert("준비 중"), select는 hasMultipleEditions=false면 disabled+"준비 중" 옵션 폴백, 변경 시 router.push로 다른 토너먼트로 이동 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-status-bar.tsx` | 5칸 stat: 참가팀 / 경기완료 / 진행중(LIVE 강조) / 현재라운드 / 우승상금. 모바일 2col → sm 3col → lg 5col 반응형. prizeMoney는 항상 null(DB 미지원) → "-" 표기 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-schedule-list.tsx` | 좌하단 "경기 일정" 카드 — RoundGroup[] 평탄화 + 시간순 정렬 + 상태배지(LIVE/완료/예정/TBD) + 점수. hasKnockout일 때만 표시 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-seed-ranking.tsx` | 우상단 "시드 순위" 카드 — leagueTeams 우선, 없으면 groupTeams. 4-col grid(시드/이니셜박스/팀명/wins). 레이팅 자리는 wins로 대체(teams.rating 미존재) | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-prediction.tsx` | 우하단 "우승 예측" 카드 — predictions 비어있으면 placeholder("투표 준비 중") + 투표 버튼 disabled. 데이터 들어오면 자동으로 가로 % 바 모드 | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-wrapper.tsx` | 통합 클라이언트 래퍼 — useSWR로 public-bracket 호출 + 헤더/Status/메인트리/사이드 조립. 헤더는 SWR 의존 제거하고 즉시 렌더(서버 props만 사용). Status/메인은 isLoading=Skeleton, error=경량 안내. 메인 트리 포맷별 분기는 기존 BracketTabContent 로직 그대로 이식(round_robin/full_league/full_league_knockout/group_stage_knockout/single_elimination 모두 처리) | 신규 |
+| `src/app/(web)/tournaments/[id]/_components/tournament-tabs.tsx` | BracketTabContent 함수를 V2BracketWrapper로 위임하는 얇은 래퍼로 교체. SWR import/lazy fetcher 로직은 V2BracketWrapper로 이동. TournamentTabs props에 tournamentName/editionNumber/startDate/endDate/venueName/seriesEditions 추가(기존 props 0 변경) | 수정 |
+| `src/app/(web)/tournaments/[id]/page.tsx` | TournamentTabs 호출에 헤더용 메타 props 전달. seriesEditions는 series.tournaments에서 edition_number 있는 회차만 추출해 [{id,label:"Vol.N 본선",isCurrent}] 배열로 매핑(이미 page.tsx 상단에서 series include로 조회한 데이터 재사용 — 추가 쿼리 0). 다른 로직 0 변경 | 수정 |
+
+#### 데이터 매핑 결정 (사용자 4건 결정 + DB 매핑)
+| UI 요소 | 데이터 출처 | 미지원/폴백 |
+|--------|-----------|-----------|
+| eyebrow ("BRACKET · SINGLE ELIMINATION") | tournament.format → 한국어 매핑 | format=null이면 "BRACKET" |
+| h1 ("Kings Cup Vol.07 · 본선") | tournament.name + edition_number | edition_number=null이면 name만 |
+| 부제 ("8팀 · ... · 2026.05.09 ~ ... · 장충체육관") | totalTeams + format + start/end + venue_name | 빈 값은 자동 누락 |
+| select | series.tournaments (edition_number not null) | 회차 1개 이하면 disabled + "준비 중" |
+| 저장/공유/출력 | — | 모두 alert("준비 중") |
+| 참가팀 (Status) | data.totalTeams | — |
+| 경기완료 / 총경기 | data.completedMatches / data.totalMatches | — |
+| 진행중 (LIVE) | data.liveMatchCount | 0이면 "—" 표기 |
+| 현재라운드 | rounds 중 in_progress 매치 있는 라운드 → pending 첫 라운드 → 마지막 라운드 | rounds 비면 "-" |
+| 우승상금 | tournament.prize_money 미존재 | 항상 null → "-" + sub "준비 중" |
+| 시드 순위 wins 자리 (시안 레이팅) | leagueTeams.wins / groupTeams.wins | teams.rating 미존재 → "wins" 표시 |
+| 시드 팀 로고 | (DB 미연결) | 이니셜 박스 폴백 |
+| 우승 예측 % | (테이블 미존재) | placeholder + 투표 버튼 disabled |
+| 경기 일정 | rounds 평탄화 + scheduledAt 정렬 | hasKnockout=false면 카드 미표시 |
+
+#### 검증 결과
+- `npx tsc --noEmit` PASS (exit 0)
+- `/tournaments/18e4912f-e6d4-4c7f-b8e4-91a6786c6691?tab=bracket` HTTP 200 (TEST 토너먼트, group_stage_knockout, 6팀)
+- `/api/web/tournaments/18e4912f-e6d4-4c7f-b8e4-91a6786c6691/public-bracket` HTTP 200 (API 변경 0 확인)
+- SSR HTML에 V2BracketHeader eyebrow "BRACKET" 텍스트 렌더 확인 (이후 데이터는 클라 hydration으로 채워짐)
+
+#### 💡 tester 참고
+- **테스트 URL 후보**: 
+  - `/tournaments/18e4912f-e6d4-4c7f-b8e4-91a6786c6691?tab=bracket` (TEST/group_stage_knockout/6팀, in_progress) — 조별+토너먼트 분기 테스트
+  - `/tournaments/b82cfdc3-3b38-4f4a-a782-cc6f37060291?tab=bracket` (round_robin/풀리그) — leagueTeams 분기 테스트
+  - `/tournaments/cb33bf68-cb80-4a94-9703-d0e24e9618d9?tab=bracket` (single_elimination) — 순수 토너먼트 분기 테스트
+- **정상 동작**: 
+  - 헤더 eyebrow "BRACKET · {포맷}" + h1 "{대회명} {Vol.N · 본선}" + 부제 한 줄
+  - Status 5칸 모두 데이터 채워짐 (우승상금만 "-")
+  - 시드 순위 카드: 팀명 + #시드 + 이니셜박스 + wins
+  - 우승 예측 카드: placeholder("투표 준비 중") + 투표 버튼 disabled
+  - 경기 일정 카드: 시간순 정렬, LIVE/완료/예정/TBD 배지
+  - select에서 같은 시리즈 다른 회차 선택 시 router.push로 페이지 이동(서로 다른 회차 토너먼트가 있는 시리즈 한정)
+  - 저장/공유/출력 버튼 클릭 시 `alert("X 기능은 준비 중입니다.")`
+- **주의할 입력**:
+  - 풀리그 단독(round_robin): 메인 트리 영역에 LeagueStandings만 표시되고 BracketView 미표시 — 정상
+  - full_league_knockout: 리그 순위표 + 4강 토너먼트 트리(혹은 "리그 종료 후 확정" 안내)
+  - 빈 토너먼트(매치 0개): BracketEmpty 카드 표시. 사이드는 leagueTeams/groupTeams 둘 다 없으면 시드 순위 카드도 미표시 → 우승 예측 카드만 보임
+  - 시리즈 미소속 토너먼트: select가 disabled + "준비 중" 옵션 1개만 표시
+  - 비공개 대회(is_public=false): page.tsx 상단 가드에서 이미 처리됨(404), bracket 탭 도달 안 함
+
+#### ⚠️ reviewer 참고
+- **헤더 SWR 의존 제거**: V2BracketHeader는 page.tsx 서버 props만 사용. SWR 데이터 hydration 전에도 즉시 렌더되어 첫 페인트 UX 개선. Status 이하만 isLoading 스켈레톤 적용. 의도된 분리
+- **시리즈 select 라우팅**: router.push로 다른 토너먼트 ID 페이지로 이동. 같은 series_id 가정. 토너먼트별로 format/status/teams가 다를 수 있어서 페이지 진입 후 자동 데이터 재호출
+- **포맷별 분기 보존**: V2BracketWrapper 내부의 hasLeagueData/hasKnockout 분기는 기존 BracketTabContent와 100% 동일. 시안 우선이지만 데이터 보존 원칙에 따라 포맷별 컴포넌트(LeagueStandings/GroupStandings/BracketView/BracketEmpty)는 그대로 호출
+- **사이드 카드 표시 조건**: 시드 순위는 leagueTeams/groupTeams 둘 다 비면 카드 자체 미표시 (의미 없는 빈 카드 회피). 우승 예측은 항상 표시(사용자 원칙: 자리 유지)
+- **public-bracket API 0 변경**: 새 컴포넌트가 필요로 하는 totalTeams/liveMatchCount/totalMatches/completedMatches/rounds/leagueTeams/groupTeams는 모두 기존 응답에 이미 포함됨
+
 ### [2026-04-24] Phase 2 MyGames — v2 재구성 (A 변형: 신청내역 + 호스트 섹션 보존)
 - **브랜치**: design_v2 (Phase 1 Profile 커밋 위)
 - **배경**: v2 MyGames.jsx 시안 = "내 신청 내역"(경기+대회 통합) 메인. 기존 `/games/my-games` = "내가 만든 경기"만 다룸. A 변형 확정 → 상단 시안 재현 + **하단에 기존 호스트 섹션 보존**(데이터 보존 원칙). `/profile/activity` 는 그대로 유지
@@ -1836,6 +1917,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 3 Bracket — v2 재구성 (B안: 헤더/Status/사이드 v2 공통, 메인 트리는 포맷별 분기 보존)** — 사용자 4건 결정(B안/SVG 유지/우승예측 자리 유지+"투표 준비중"/select 같은 series_id 라우팅) 그대로 반영. 신규 6 (`v2-bracket-header` eyebrow+h1+부제+series_id회차select+저장/공유/출력 alert / `v2-bracket-status-bar` 5칸: 참가팀/완료/진행중LIVE/현재라운드/우승상금"-" / `v2-bracket-schedule-list` rounds 평탄화+시간순+상태배지 / `v2-bracket-seed-ranking` 시드+이니셜박스+wins(레이팅 자리 대체) / `v2-bracket-prediction` placeholder "투표 준비중"+버튼 disabled / `v2-bracket-wrapper` SWR+포맷별 분기 보존 LeagueStandings/GroupStandings/BracketView/BracketEmpty 그대로 호출) + 수정 2 (`tournament-tabs.tsx` BracketTabContent를 V2BracketWrapper 위임으로 슬림화+props 6개 추가 / `page.tsx` TournamentTabs에 헤더용 메타+seriesEditions 매핑 전달, 추가 쿼리 0). **API route.ts/Prisma/서비스 0 변경. BracketView/LeagueStandings/GroupStandings/FinalsSidebar/BracketEmpty 0 수정.** 추후 구현 목록 Phase 3 Bracket 6건 신설(우승예측 테이블/teams.rating/LIVE 실시간/저장공유출력/prize_money/MatchCard 코트정보). tsc --noEmit EXIT=0 / `/tournaments/18e4912f-.../?tab=bracket` 200(group_stage_knockout TEST 6팀) / public-bracket API 200 / SSR HTML eyebrow "BRACKET" 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-25 | planner-architect | **코트 대관(Booking) 시스템 기획설계** — 현황 점검(plans/court_rental + 토스페이먼츠 + payments 다형성 + court_infos.user_id 모두 기존 자산 확인) → 신규 1테이블(court_bookings) + court_infos 2컬럼 + User 백릴레이션 1줄로 MVP 가능 판정. 운영자 ↔ 코트 매핑은 court_infos.user_id + user_subscriptions(feature_key=court_rental) 활성 검사로 단순화 (court_managers 신규 모델 도입 보류). 4 Phase 분할(A=무료 MVP 8~12h / B=결제 6~8h / C=정산+자동환불 8~10h / D=BDR+할인+N:M 6~8h). PM이 사용자에게 전달할 결정 포인트 7건(D-B1~D-B7) 도출 — Phase A 착수 전 D-B1·D-B2·D-B6 3건 필수. Phase A 산출 파일 신규 8 + 수정 2 = 10파일 매핑. 동시성·환불·KYC·외부vs자체 위험 6건 대응 명세. 코드 0수정 | ✅ 설계 완료 |
 | 04-22 | developer | **Phase 3 Org 상세 — /organizations/[slug] v2 재구성 (Hero + 4탭 + ?tab= 동기화)** — `_components_v2/` 7 신규(org-color 공유 헬퍼 / org-hero-v2 135deg 그라디언트+가입신청 alert+회원/팀/설립 메타 / org-tabs-v2 4탭+useRouter ?tab= 동기화 / overview-tab-v2 좌소개·운영원칙(준비중)+우연락처·스폰서(준비중) / teams-tab-v2 빈상태 / events-tab-v2 series.tournaments 평탄화 4건 / members-tab-v2 4열 카드+role한국어라벨+sinceYYYY) + `page.tsx` 재작성(searchParams.tab 정규화 + 기존 include 트리 0변경 + members.created_at 1줄만 추가). `_components/org-card-v2.tsx` pickColor/generateTag 공유 헬퍼 import로 통합. Phase 3 Orgs 추후 구현 목록 9건으로 확장(founded_year/address/policies/sponsors/team집계/임원직책 추가). tsc EXIT=0 / `/organizations/org-ny6os` + 4탭 전부 200(?tab=overview/teams/events/members) | ✅ (커밋 대기) |
 | 04-22 | developer | **Phase 2 Match (목록+상세) — /tournaments v2 재구성 (A. 래퍼 신규)** — **Phase A 목록**: 신규 `v2-tournament-list.tsx`(6상태 칩 + 포스터 카드 2열 grid + `deriveV2Status` 단일 소스) + `tournaments-content.tsx` 수정(기존 `TournamentCard`/4상태 탭 제거 → `<V2TournamentList>` 호출, 캘린더/주간 뷰·페이지네이션·필터·prefer·photoMap SWR 유지, `.page` + eyebrow + "열린 대회 · 예정 대회" 헤더). **Phase B 상세**: 신규 `v2-tournament-hero.tsx`(135deg 그라디언트 + 포스터 200×280 + t-display 48px) + `v2-registration-sidebar.tsx`(D-day 44px + 참가비/진행바/6상태 CTA 분기) + `tournament-tabs.tsx` 수정(`"rules"` 탭 추가, 5탭 순서 시안 반영, rulesContent prop) + `page.tsx` 수정(TournamentHero→V2, RegistrationStickyCard→V2, Prisma select `rules`+`edition_number` 추가, rulesContent 서버 렌더, `ALLOWED_TABS`에 `"rules"`). **API route.ts / Prisma 스키마 / 서비스 0 변경**. 기존 `tournament-hero.tsx` 450줄 + `registration-sticky-card.tsx` 239줄 + 세션/비공개 가드/SEO/시리즈 카드/디비전 현황/입금 정보/모바일 플로팅 CTA 0 수정. tsc --noEmit EXIT=0 / `/tournaments` 200(0.55s) / `/tournaments/[id]` 200(1.08s) / `?tab=rules` 200 / HTML: `linear-gradient(135deg` + `>규정<` + `>접수 현황<` + 5탭 전부 확인 | ✅ (커밋 대기, PM이 Phase A/B 2커밋 분리) |

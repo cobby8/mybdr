@@ -533,12 +533,31 @@ export default async function TournamentDetailPage({
         {/* min-w-0: grid 자식이 내부 콘텐츠(예: 스크롤 테이블)로 인해
             최소폭이 튕기며 우측 aside를 밀어내지 않도록 축소 허용. 필수. */}
         <main className="min-w-0">
-          {/* 탭: 개요/규정은 서버 렌더링, 대진표/일정/참가팀은 클라이언트 lazy loading */}
+          {/* 탭: 개요/규정은 서버 렌더링, 대진표/일정/참가팀은 클라이언트 lazy loading
+              Bracket 탭 v2: 헤더/Status/사이드 카드용 메타를 서버 props로 전달.
+              seriesEditions는 같은 series_id 내 다른 회차 select 라우팅용 (데이터 부족 시 빈 배열). */}
           <TournamentTabs
             tournamentId={id}
             overviewContent={overviewContent}
             rulesContent={rulesContent}
             initialTab={initialTab}
+            tournamentName={tournament.name}
+            editionNumber={tournament.edition_number}
+            startDate={tournament.startDate}
+            endDate={tournament.endDate}
+            venueName={tournament.venue_name}
+            seriesEditions={
+              series && series.tournaments.length > 0
+                ? series.tournaments
+                    // edition_number 있는 회차만
+                    .filter((t): t is typeof t & { edition_number: number } => t.edition_number !== null)
+                    .map((t) => ({
+                      id: t.id,
+                      label: `Vol.${t.edition_number} 본선`,
+                      isCurrent: t.id === tournament.id,
+                    }))
+                : []
+            }
           />
 
           {/* 다음 액션 유도: 다른 대회 탐색 */}
