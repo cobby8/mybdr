@@ -2040,6 +2040,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-27 | developer | **Phase 6 Pricing 1차 수정 — /pricing/checkout v2 정렬 (PM 미해결 4건 일괄)** — 1파일 전면 수정(`src/app/(web)/pricing/checkout/page.tsx`). ①breadcrumb 추가(홈›요금제›결제, `@/components/shared/breadcrumb`) ②약관 4종 라벨 카드(결제 대행/개인정보 제3자/구독·환불 정책/마케팅 선택, UI 박제 — 결제 차단 X) ③`/api/web/me` useEffect fetch 후 email·이름 readOnly input 노출(빈 값 placeholder "(미등록)" + var(--ink-dim), 실패 시 무시) ④plan_type 라벨 기존 그대로(monthly→"월 구독 (30일)", 그 외→"1회 구매") ⑤loading/error/Suspense fallback 모두 v2 spinner(`var(--accent)`)+`.card` 정렬(기존 tailwind --color-* alias 제거). **토스 SDK `toss.requestPayment({ method, amount, orderId, orderName, successUrl, failUrl, customerEmail, customerName })` 인자 한 글자도 변경 X**. handlePay 흐름·SDK 로드 useEffect·planId 가드·router·useSearchParams 보존. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 6 Pricing — /pricing v2 시안 박제 (server wrapper + client content 분리)** — 1전면재작성(`(web)/pricing/page.tsx` server wrapper 슬림화: metadata + revalidate=300 보존, prisma/getWebSession/feature_key 4종 카드 전부 제거, `<PricingContent/>` 단일 호출) + 1신규(`(web)/pricing/_v2/pricing-content.tsx` "use client" useState<"monthly"\|"yearly"> 시안 Pricing.jsx 90줄 박제 — 헤더 eyebrow+h1 36px+부제+theme-switch 월간/연간 토글(연간=2개월 할인 ok색) + 카드 3종(FREE/BDR+/PRO) extras-data.jsx PRICING 박제: highlight 카드 BDR+ 만 translateY(-8px)+2px accent border+sh-lg+상단 "가장 인기" 라운드 뱃지 / 가격 ff-display 40px / 연간 토글 시 BDR+ 만 ₩4,900→₩3,900 분기(시안 L42 동작) / btn--accent btn--xl CTA / 기능 ✓ 6항목 list / 비교표 7행 .board 4열(기능/FREE/BDR+/PRO) BDR+ 컬럼 ○ 시 accent / 결제 문의 mailto 푸터). **결정 B: 모든 CTA `alert("준비 중입니다.")` — /pricing/checkout 라우트 자체는 0 변경(소스 보존). 결정 C: 시안 그대로 박제(기존 plans/user_subscriptions 동적 데이터 0 활용)**. 카페 세션 무관. 기존 FAQ 3건 / 광고 문의 박스 제거(Help로 통합됨). globals.css `.page/.card/.btn/.btn--accent/.btn--xl/.theme-switch/.theme-switch__btn/.eyebrow/.board/.board__head/.board__row` + 변수 `--accent/--ok/--ink/--ink-mute/--ink-dim/--ink-soft/--ff-display/--sh-lg` 전부 기존 정의 활용. 추후 구현 Phase 6 Pricing 6건 신설(plans 등급 모델 / yearly_price 분기 / BDR+·PRO 결제 진입점 연결 / feature_key 4종 통합 마이그레이션 / is_recommended 동적 / 결제 문의 → inquiries 모달). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 6 Help — /help v2 신규 (시안 86줄 박제 + 탭 3종 + 검색 + 정책 6카드 + 1:1 문의)** — 신규 1 (`src/app/(web)/help/page.tsx` "use client" useState tab/q + 헤더(eyebrow+h1 32px+검색 input padding-left:38 Material Symbols search 아이콘) + 탭 3종(faq/glossary/policy) cafe-blue 3px 하단 라인 + FAQ 6건 시안 박제 `<details>` 아코디언 Q번호 accent+mono + 용어집 16건 시안 박제 200/1fr 그리드 + GLOSSARY 검색 필터(term/desc 부분일치 toLowerCase) + 결과 0건 안내 + "전체 용어 사전 보기 →" Link `/help/glossary` + 정책 6카드 1fr 1fr 그리드(terms/privacy 활성 Link, 운영정책/환불/광고제휴/저작권 4종 비활성 opacity 0.55 + "준비 중" badge bg-alt) + 하단 1:1 문의 카드 mailto:bdrbasket@gmail.com?subject=%5BMyBDR%20문의%5D btn--primary). **API/Prisma/서비스 0 변경. 신규 fetch 0건. 기존 /help/glossary 0 변경**(링크만 연결). 카페 세션 무관. globals.css `.page/.card/.input/.btn/.btn--primary/.eyebrow` + 변수 `--cafe-blue/--ink/--ink-soft/--ink-mute/--ink-dim/--accent/--border/--bg-alt/--ff-mono` 전부 기존 정의 활용. 추후 구현 Phase 6 Help 4건 신설(FAQ DB 박제→운영자 편집 / 1:1 문의 Inquiry 모델+답변 워크플로 / 운영정책·환불·광고제휴·저작권 정책 페이지 / FAQ 검색 — 현재 GLOSSARY만 검색). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Achievements — /profile/achievements v2 신규 (시안 16종 배지 그리드 + 필터 + 최근4 + 정적 카탈로그)** — 신규 3 (`achievements/_v2/badge-catalog.ts` 16+12종 카탈로그(BadgeMeta tier/category/icon/desc/name) + TIER_COLOR/TIER_LABEL/CATEGORY_LABEL 상수 + resolveBadgeMeta() 폴백(bronze/milestone/🏅) + SIGNATURE_ORDER 시안 16키 순서 / `achievements/_v2/achievements-content.tsx` "use client" useState filter + Breadcrumb(홈›프로필›업적) + Header 통계 3셀(획득/전체/달성률) + 최근획득 4셀 카드(borderLeft tier색) + 필터칩 8개(전체/획득/진행중/경기/팀/커뮤니티/시즌/마일스톤) + 4열 배지 그리드(tier 라벨우상단/이모지48px/잠금시🔒+grayscale/desc 32px minHeight/획득시✓날짜+상위 —, 미획득시 0%바+0/— title="측정 준비 중") / `achievements/page.tsx` 서버컴포넌트 force-dynamic + getWebSession + 비로그인 안내(person_off) + prisma.user_badges.findMany earned_at desc + BigInt→string + Date→ISO 직렬화 + AchievementsContent 렌더). **API/Prisma/서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 시안 16종 SIGNATURE_ORDER 우선 + DB 발급 시안외 배지(court_explorer/streak/mvp 등) 끝에 추가. DB 미지원 메타(rarity/progress/total) 전부 "—" / "0 / —" / 0% 폴백 + var(--ink-dim) 약하게. 추후 구현 Phase 5 Achievements 4건 신설(rarity 측정 cron / user_badges_progress 테이블 / 자동 발급 트리거 / badge_definitions DB화). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
@@ -2618,6 +2619,33 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | `src/app/(web)/pricing/page.tsx` | 전면 재작성. **server wrapper 로 슬림화** — metadata+revalidate 보존, prisma/getWebSession/feature_key 4종 카드/FAQ/광고 문의 전부 제거. `<PricingContent/>` 단일 호출 | 수정(전면 재작성) |
 | `src/app/(web)/pricing/_v2/pricing-content.tsx` | "use client" useState<"monthly"\|"yearly">. 시안 Pricing.jsx 90줄 박제 — 헤더(eyebrow+h1 36px+부제) + theme-switch 월간/연간 토글(연간=2개월 할인 ok색) + 카드 3종(FREE/BDR+/PRO) PRICING 상수 박제(BDR+ highlight + translateY-8px + 2px accent border + sh-lg + "가장 인기" 라운드 뱃지) + 연간 토글 시 BDR+ 만 ₩4,900→₩3,900 분기(시안 L42 동작) + 기능 ✓ list + 비교표 7행 `.board` 4열 + 결제 문의 mailto 푸터 | 신규 |
 | `src/app/(web)/pricing/checkout/page.tsx` | 0 변경 (보존) | — |
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-04-27 | checkout 페이지 v2 스타일 정렬 + breadcrumb(홈›요금제›결제) + 약관 4종 라벨(결제 대행/개인정보 제3자/구독·환불 정책/마케팅 선택) UI 박제 + `/api/web/me` useEffect fetch 후 email·이름 readOnly input 노출(빈 값 "(미등록)") + loading/error/Suspense fallback v2 spinner(`var(--accent)`)+`.card` 적용. plan_type 라벨(monthly→"월 구독"·그 외→"1회 구매") 유지. **토스 SDK requestPayment 인자 한 글자도 변경 X**. tsc --noEmit 통과 | `src/app/(web)/pricing/checkout/page.tsx` | PM 미해결 4건 일괄 처리 지시 (breadcrumb / 약관 라벨 / me readOnly / plan_type 라벨 유지) |
+| 2차 | 2026-04-27 | 약관 가드 1줄 추가 — `agreedTerms` state(pg/third/refund/marketing) 도입 + 4개 체크박스 `checked`/`onChange` 동기화 + 결제 버튼 `disabled={paying \|\| !allRequiredAgreed}` (필수 3종 모두 체크 시만 활성화, marketing 선택은 제외) + 버튼 위 안내 문구 "필수 약관 3건 동의 시 결제 가능"(미체크 시만 ink-dim 12px). **토스 SDK 인자 0 변경**. tsc --noEmit 통과 | `src/app/(web)/pricing/checkout/page.tsx` | reviewer 지적: PM 최초 지시 "agreed=true 일 때만 결제 가능" 미반영 |
+
+💡 tester 참고 (1차 수정):
+- **테스트 URL**: `http://localhost:3001/pricing/checkout?planId=<유효 plan id>`
+- **정상 동작**:
+  1. 페이지 상단 breadcrumb: `홈 › 요금제 › 결제` (PC만, 모바일 hidden lg:block)
+  2. h1 "결제하기" + var(--ink) 색
+  3. 요금제 카드: 플랜명/plan_type 라벨/결제 금액 — 금액은 var(--accent) 빨강 + ff-display 22px
+  4. 결제자 정보 카드: 이메일/이름 readOnly input 2개. me 응답 있으면 값 표시, 없으면 placeholder "(미등록)" + var(--ink-dim) 흐린 색
+  5. 약관 4종 카드: 4개 체크박스 + 라벨 (UI 박제, 체크 여부가 결제 진행을 막지 **않음** — PM 지시 범위 외)
+  6. 결제 버튼: `.btn .btn--accent .btn--xl` — 클릭 시 토스 SDK 호출 (인자 0 변경)
+  7. me fetch 실패(401 등): readOnly input 미표시 placeholder만 보이지만 결제는 진행 가능 (handlePay에서 다시 me fetch → 실패 시 /login 리다이렉트)
+- **다크 모드**: var(--*) 토큰 자동 대응
+
+⚠️ reviewer 참고 (1차 수정):
+- **토스 SDK 인자 보존**: handlePay 내부 `toss.requestPayment({ method, amount, orderId, orderName, successUrl, failUrl, customerEmail, customerName })` 한 글자도 변경 X
+- **약관 체크 가드 미적용**: PM 지시는 "약관 라벨 추가". 체크 여부로 결제 진행을 차단하는 가드는 추가하지 않음 (필요 시 추가 작업)
+- **me 사전 fetch + handlePay 재 fetch 중복**: handlePay 재 fetch 는 기존 동작 보존(401 시 /login 리다이렉트가 거기서만 일어남). 사전 fetch 는 readOnly UI 노출용으로만 사용 — 이중 호출이지만 의도적
+- **`.input` 클래스 readOnly 시각 구분**: `background: var(--bg-alt)` + `cursor: default` inline 오버라이드. globals.css `.input` 기본은 흰 배경 + cursor 텍스트라 readOnly 인지가 약함
+- **추후 구현 항목 그대로 유효**: BDR+/PRO 결제 진입점 / yearly_price 분기 / feature_key 통합 마이그레이션 등 6건은 미해결
+
+---
 
 💡 tester 참고:
 - **테스트 URL**: `http://localhost:3001/pricing`
