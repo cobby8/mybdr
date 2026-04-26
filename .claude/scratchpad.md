@@ -2031,6 +2031,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-22 | developer | **Phase 6 Help — /help v2 신규 (시안 86줄 박제 + 탭 3종 + 검색 + 정책 6카드 + 1:1 문의)** — 신규 1 (`src/app/(web)/help/page.tsx` "use client" useState tab/q + 헤더(eyebrow+h1 32px+검색 input padding-left:38 Material Symbols search 아이콘) + 탭 3종(faq/glossary/policy) cafe-blue 3px 하단 라인 + FAQ 6건 시안 박제 `<details>` 아코디언 Q번호 accent+mono + 용어집 16건 시안 박제 200/1fr 그리드 + GLOSSARY 검색 필터(term/desc 부분일치 toLowerCase) + 결과 0건 안내 + "전체 용어 사전 보기 →" Link `/help/glossary` + 정책 6카드 1fr 1fr 그리드(terms/privacy 활성 Link, 운영정책/환불/광고제휴/저작권 4종 비활성 opacity 0.55 + "준비 중" badge bg-alt) + 하단 1:1 문의 카드 mailto:bdrbasket@gmail.com?subject=%5BMyBDR%20문의%5D btn--primary). **API/Prisma/서비스 0 변경. 신규 fetch 0건. 기존 /help/glossary 0 변경**(링크만 연결). 카페 세션 무관. globals.css `.page/.card/.input/.btn/.btn--primary/.eyebrow` + 변수 `--cafe-blue/--ink/--ink-soft/--ink-mute/--ink-dim/--accent/--border/--bg-alt/--ff-mono` 전부 기존 정의 활용. 추후 구현 Phase 6 Help 4건 신설(FAQ DB 박제→운영자 편집 / 1:1 문의 Inquiry 모델+답변 워크플로 / 운영정책·환불·광고제휴·저작권 정책 페이지 / FAQ 검색 — 현재 GLOSSARY만 검색). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Achievements — /profile/achievements v2 신규 (시안 16종 배지 그리드 + 필터 + 최근4 + 정적 카탈로그)** — 신규 3 (`achievements/_v2/badge-catalog.ts` 16+12종 카탈로그(BadgeMeta tier/category/icon/desc/name) + TIER_COLOR/TIER_LABEL/CATEGORY_LABEL 상수 + resolveBadgeMeta() 폴백(bronze/milestone/🏅) + SIGNATURE_ORDER 시안 16키 순서 / `achievements/_v2/achievements-content.tsx` "use client" useState filter + Breadcrumb(홈›프로필›업적) + Header 통계 3셀(획득/전체/달성률) + 최근획득 4셀 카드(borderLeft tier색) + 필터칩 8개(전체/획득/진행중/경기/팀/커뮤니티/시즌/마일스톤) + 4열 배지 그리드(tier 라벨우상단/이모지48px/잠금시🔒+grayscale/desc 32px minHeight/획득시✓날짜+상위 —, 미획득시 0%바+0/— title="측정 준비 중") / `achievements/page.tsx` 서버컴포넌트 force-dynamic + getWebSession + 비로그인 안내(person_off) + prisma.user_badges.findMany earned_at desc + BigInt→string + Date→ISO 직렬화 + AchievementsContent 렌더). **API/Prisma/서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 시안 16종 SIGNATURE_ORDER 우선 + DB 발급 시안외 배지(court_explorer/streak/mvp 등) 끝에 추가. DB 미지원 메타(rarity/progress/total) 전부 "—" / "0 / —" / 0% 폴백 + var(--ink-dim) 약하게. 추후 구현 Phase 5 Achievements 4건 신설(rarity 측정 cron / user_badges_progress 테이블 / 자동 발급 트리거 / badge_definitions DB화). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Settings — /profile/settings v2 6 섹션 재구성 (시안 옵션 A: 인라인 9필드 폼)** — 신규 8 (`_components_v2/section-key.ts` SectionKey 유니언 + resolveSection 폴백 / `settings-side-nav-v2.tsx` 220px sticky 6 버튼 nav(Material Symbols person/sports_basketball/notifications/lock/credit_card/warning) / `settings-ui.tsx` 공용 SettingsHeader+SettingsRow+SettingsToggle (토큰 var(--*) 전용·하드코딩 색 0) / `account-section-v2.tsx` 5행 Row(이메일·비밀번호 동작 + 연결된 계정·2FA·로그인기기 disabled) / `profile-section-v2.tsx` **시안 인라인 9필드 폼**(닉네임 2~20 검증 / 실명 / 포지션 / 키 / 몸무게 / 도시 / 활동지역구 / 생년월일 / 자기소개) + PATCH `/api/web/profile` 호출 + 낙관적 onSaved 콜백 / `notify-section-v2.tsx` 5 동작 토글(push/game/community/team/tournament) + 4 disabled(이메일·D-3·좋아요·마케팅) + 낙관적 PATCH 롤백 / `privacy-section-v2.tsx` 5 disabled "준비 중" 토글 / `billing-section-v2.tsx` 시안 그라디언트 카드(유료=cafe-blue, 무료=alt) + 4행 Row(결제수단/결제내역→/profile/payments/세금계산서/구독관리→/profile/subscription) + 하단 2버튼(플랜변경→/pricing / 구독취소) / `danger-section-v2.tsx` 3 카드(데이터내보내기·비활성화 disabled / 계정삭제 inline 비밀번호 모달 → DELETE `/api/web/auth/withdraw`)) + 1 전면재작성 (`page.tsx` `?section=`/`?tab=` 폴백 + 좌 sticky nav + 우 카드 + GET /api/web/profile + GET /api/web/profile/subscription 병렬 마운트 fetch / 비활성 섹션 unmount). **API route.ts / Prisma / 서비스 / 컴포넌트 0 변경. 신규 fetch 0건** (활용: profile/notification-settings/subscription/auth/withdraw 전부 기존 라우트). 기존 6 페이지(notification-settings/preferences/payments/subscription/billing/edit) 삭제 0. 추후 구현 Phase 5 Settings 11건 신설(2FA/세션 관리/이메일 알림/D-3·좋아요·마케팅/privacy 5 토글 JSONB/GDPR ZIP/soft deactivate/PG 카드 토큰/세금계산서 자동/jersey_number+dominant_hand/소셜 연동 UI). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Rank — /rankings v2 재구성 (a 토글 3종: 팀/선수/외부BDR)** — 신규 3 (`_components/v2-podium.tsx` 1·2·3등 카드 [2등/1등/3등] 배치 + 가운데 1등 translateY(-12px) + display 폰트 #N / `v2-team-board.tsx` 6열 보드(순위·팀색배지·이름링크·레이팅(=wins임시)·승[ok색]·패·승률) / `v2-player-board.tsx` 8열 보드 + 정렬pills 4종(레이팅/PPG/APG/RPG) + 클라 정렬 + PPG=avg_points / APG=total_assists/games_played / RPG=total_rebounds/games_played / 레이팅·변동 "—") + 수정 2 (`_components/rankings-content.tsx` 전면 교체: theme-switch 3종(팀/선수/외부BDR) + eyebrow + h1 "2026 시즌 랭킹" + V2Podium + V2TeamBoard/V2PlayerBoard 분기 + 외부BDR 탭은 `<BdrRankingTable>` + 일반/대학 부 토글 / `loading.tsx` v2 톤 가볍게 .page+.eyebrow+.board 8행). 보존 1 (`_components/bdr-ranking-table.tsx` 0수정, 외부BDR 탭에서 그대로 호출). **API/Prisma/서비스 0 변경** (/api/web/rankings?type=team\|player + /api/web/rankings/bdr 그대로). 시안 Rank.jsx 충실. globals.css `.page/.eyebrow/.theme-switch/.board/.card` + 변수 `--accent/--ok/--cafe-blue/--cafe-blue-soft/--cafe-blue-deep/--bg-elev/--bg-alt/--ink-mute/--ink-dim/--ink-soft/--ff-display/--ff-mono/--border/--radius-chip` 전부 기존 정의 활용. 추후 구현 Phase 5 Rank 5건 신설(teams.rating ELO / users.rating+trend / PPG·APG·RPG 정규화 / 시즌 갱신 cron / 포디움 메타 포맷). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
@@ -2551,4 +2552,47 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 - **Google/Dev 로그인 추가 행**: 시안 외 추가지만 PM 명시 결정 "유지". 카카오/네이버 grid 아래 Google, 카드 외부에 Dev 자동 로그인 카드. 시각적으로 시안 흐름을 해치지 않도록 마진/카드 분리
 - **다크모드**: 모든 색상 var(--*) 토큰 사용으로 자동 대응
 - **접근성**: 자동 로그인 disabled 체크박스에 `title="준비 중"` 추가. 네이버 버튼도 동일
+
+---
+
+## 구현 기록 — Phase 6 Help [2026-04-22]
+
+📝 구현한 기능: `/help` 페이지 신규 (시안 박제 + 탭 3종 + 검색 + 정책 6카드 + 1:1 문의 mailto). 데이터는 시안 박제(상수). API/Prisma/서비스 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/help/page.tsx` | "use client" 신규 — 탭 useState + 검색 useState + FAQ 6건 박제 + GLOSSARY 16건 박제 + 정책 6카드 (terms/privacy 활성, 4종 "준비 중" 비활성) + 1:1 문의 mailto 카드 | 신규 |
+
+💡 tester 참고:
+- **테스트 URL**: `http://localhost:3001/help`
+- **시안 비교**: `Dev/design/BDR v2/screens/Help.jsx` (86줄)
+- **정상 동작**:
+  1. 헤더 검색 input + Material Symbols search 아이콘 좌측 absolute (paddingLeft:38)
+  2. 탭 3종 클릭 시 cafe-blue 3px 하단 라인 + 폰트 굵기 700 전환
+  3. FAQ 탭: 6건 `<details>`, summary 클릭 시 펼침/접힘. Q1~Q6 mono 폰트 + accent(BDR red) 색
+  4. 용어집 탭: 16건 200/1fr 그리드. 검색 input에 "픽업" 입력 → 1건 필터링 ("픽업 (Pick-up)")
+  5. 용어집 검색 결과 없을 시 "검색 결과가 없습니다" 안내
+  6. 용어집 하단 우측 "전체 용어 사전 보기 →" Link 클릭 → `/help/glossary` 이동
+  7. 정책 탭: 1fr 1fr 그리드 6카드. 이용약관/개인정보처리방침 클릭 시 `/terms`/`/privacy` 이동. 나머지 4종은 opacity:0.55 dim + "준비 중" 회색 배지 + cursor:default
+  8. 하단 1:1 문의 카드 "1:1 문의하기" 버튼 클릭 → 메일 클라이언트 호출 (to: bdrbasket@gmail.com, 제목: [MyBDR 문의] )
+- **주의 입력**:
+  - 검색어 영문 대소문자 무시 ("PICK" → "픽업 (Pick-up)" 매칭)
+  - 검색어 desc 본문 매칭 ("스크리너" → "픽앤롤" 매칭)
+  - 탭 전환 시 검색어 q 상태 유지 (탭 간 검색어 공유)
+- **tsc --noEmit 통과 확인** (EXIT=0)
+
+⚠️ reviewer 참고:
+- **시안 충실도**: Help.jsx 86줄 1:1 박제. `Icon.search` → Material Symbols Outlined `search` 로 교체(CLAUDE.md "lucide-react 금지" 컨벤션). `setRoute` prop 제거(Next.js 라우팅으로 대체).
+- **인라인 style vs Tailwind**: 시안이 인라인 style을 쓰고 있고 globals.css의 `.card/.input/.btn/.eyebrow` 클래스가 BDR v2 토큰 기반 — 일관성을 위해 시안 그대로 인라인 style 유지 (Login·BoardList·PostDetail 등 다른 v2 페이지와 동일 패턴)
+- **GLOSSARY 16건 vs /help/glossary 9건**: 시안 GLOSSARY는 농구 일반 용어 16건(픽앤롤/풀코트/PPG 등). 기존 `/help/glossary`는 서비스 핵심 용어 9건(대회/경기/픽업/게스트/디비전 등) — 컨벤션 [2026-04-20]에서 단일 소스로 지정. **둘은 보완 관계**: /help는 빠른 훑어보기(검색·요약), /help/glossary는 단일 소스(상세 설명+예시+관련 링크). PM 의뢰대로 "전체 용어 사전 보기 →" 링크로 연결만.
+- **정책 카드 비활성 처리**: 4종("운영정책/환불규정/광고·제휴 문의/저작권 안내")은 `<div>` 로 렌더(클릭 무반응) + opacity 0.55 + "준비 중" 배지. 활성 2종은 `<Link>`. 추후 페이지 신설 시 href 추가 + 비활성 카드는 `<Link>` 로 승격.
+- **1:1 문의 mailto**: `bdrbasket@gmail.com?subject=[MyBDR 문의]` 인코딩됨. PM 의뢰대로. 추후 Inquiry 모델 도입 시 모달/폼 페이지로 교체.
+- **메타데이터 부재**: Client Component라 `export const metadata` 불가. Phase 6 후속 작업으로 layout.tsx 분리 검토 가능.
+- **다크모드**: 모든 색상 var(--*) 토큰 사용으로 자동 대응 (cafe-blue/ink-*/accent/border 다크 페어 정의 globals.css 141~146 라인 기존)
+
+🚧 추후 구현 — Phase 6 Help (PM 의뢰 기록):
+1. **FAQ 모델**: DB 박제 → 운영자 편집 가능 (admin/help/faq CRUD + 카테고리/태그/순서)
+2. **1:1 문의 모델**: `inquiries` 테이블 (사용자/제목/본문/상태/답변) + 운영자 답변 워크플로 + 사용자 알림
+3. **정책 페이지 4종 신설**: `/operating-policy`, `/refund-policy`, `/advertising-inquiry`, `/copyright` (현재는 "준비 중" 배지)
+4. **FAQ 검색**: 현재 GLOSSARY만 검색. FAQ q/a 동시 검색 + 통합 검색(FAQ + 용어 결합) 검토
 
