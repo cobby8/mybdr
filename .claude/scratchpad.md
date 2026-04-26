@@ -2052,6 +2052,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-22 | developer | **Phase 5 More — NotFound + About v2 적용 (X 옵션)** — `not-found.tsx` 전면 재작성(시안 More.jsx L3-20 충실 — 거대 404 120px ff-display+accent / "에어볼!" 농구 메타포 / 3버튼 .btn--primary→홈 + 검색→/search Phase 2 + 도움말→/help/glossary). 신규 1 `(web)/about/page.tsx`(시안 More.jsx L22-115 6 섹션: Hero(eyebrow+h1 42px+리드) / 통계 4셀(20년/48,000+/320+/1,240회 "예시" 캡션) / "우리가 만드는 것" 6 카드(공정매치/투명기록/지역연결/열린커뮤니티/공정운영/지속가능성) / 운영진 6 이니셜아바타 "예시" 캡션 / 파트너 8 mono fontFamily / CTA 가입·로그인 둘 다 /login + 경기둘러보기 /games). app-nav.tsx 1줄 수정(L117 `/` → `/about` + 폴백 주석 제거). **API/Prisma/서비스 0 변경**. 추후 구현 Phase 5 More 4건 신설(통계 4건 동적/운영진 명단/파트너 로고/회원가입 페이지 분리). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Awards — /awards v2 신규 (글로벌 톱레벨, profile 하위 X)** — 신규 3 (`awards/_v2/awards-catalog.ts` 시안 6 honor 정적 메타 카탈로그 — kind/label/color + notReady 폴백 / `HONOR_CATALOG[6]` 순서 보존 + `ALL_STAR_POSITIONS=[PG,SG,SF,PF,C]` + `ALL_STAR_GROUPS [first/accent, second/cafe-blue]` / `awards/_v2/awards-content.tsx` "use client" 시안 Awards.jsx L50-176 충실 이식: Breadcrumb(홈›수상·아카이브) + 시즌 셀렉터(useRouter+useSearchParams ?series= URL 동기화 + 활성 ink배경) + 시즌 MVP Hero(135deg teamColor→#000 그라디언트 + 트로피 이모지 + 56px ff-display name + teamTag(영문3자/한글2자 폴백) + PPG/APG/RPG/WIN%(null="—") + MVP 코멘트 폴백 "수상 코멘트는 준비 중") + 우상단 팀 레이팅 카드(빈 5행 dashed placeholder + "집계 준비 중" + query_stats 아이콘) + 주요 수상 6 카드 3열(borderTop 3px tier색 + 36×36 tag박스 + 데이터 있으면 선수+metric, 없으면 "준비 중"·"수상자가 없습니다") + 올-스타 1st/2nd 2카드 5포지션 빈 슬롯("준비 중" + opacity 0.5 + schedule 아이콘) + 역대 우승팀 .board 6열(시즌·대회·우승🏆·준우승·스코어·MVP, 빈 상태 fallback) / `awards/page.tsx` 서버 컴포넌트 force-dynamic + 비로그인 허용 + searchParams.series 폴백 + 6단계 Prisma 직접 호출: ①tournament_series.findMany is_public+status=active(20건) → seasons 셀렉터 + "전체" 옵션 ②Tournament.findFirst(시즌범위 + mvp_player_id ≠ null) ORDER BY endDate desc → 시즌 MVP + matchPlayerStat.aggregate(_avg points/assists/total_rebounds) ③`$queryRaw` GROUP BY user_id × 3 (득점왕/어시왕/리바왕, AVG NULLS LAST DESC LIMIT 1, OFFICIAL_MATCH_SQL_CONDITION + series 필터 Prisma.sql 바인딩) + 팀명 서브쿼리 ④TournamentMatch.findMany roundName LIKE 결승/final/championship + 폴백(시즌 최신 mvp 매치) → Finals MVP ⑤Tournament.findMany champion_team_id ≠ null ORDER BY endDate desc 10건 + tournamentTeams where final_rank=2 + tournamentMatches where roundName 키워드 매칭 → 역대 우승팀(시즌라벨/대회/우승🏆/준우승/스코어/MVP). **API route.ts / Prisma 스키마 / 서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. is_public=true 가드. officialMatchWhere() / officialMatchNestedFilter() / OFFICIAL_MATCH_SQL_CONDITION 전부 사용. BigInt→string + Decimal→Number(.toString()) + Date→ISO 직렬화. DB 미지원 5건 "준비 중" 빈 카드 처리(팀 ELO/올해의 감독/올스타 1st·2nd/MVP 코멘트/d:+48 변동). 추후 구현 Phase 5 Awards 8건 신설(team_ratings 테이블+ELO cron / season_all_star_teams / Team.coach_user_id / tournament_mvp_quotes / seasons 테이블 분리 / NEW FACE 루키 식별 / Finals MVP 결승 식별 정밀화 / 시즌 변동 snapshot). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Reviews — /reviews v2 신규 (C안 Saved 패턴 응용 + 4탭 분리, 글로벌 톱레벨)** — 신규 2 (`reviews/page.tsx` 서버 컴포넌트 force-dynamic + 비로그인 허용(공개 콘텐츠) + `prisma.court_reviews.findMany({where:{status:"published"}, include:{court_infos:select(id/name/city/district/address) + users:select(id/nickname/name)}, orderBy:{created_at:"desc"}, take:60})` + splitTitleBody(content) "첫 줄=title 나머지=body, 60자 초과 한 줄은 50자 컷+'…'" + countPhotos(JSON 배열 길이) + targetSub city+district→address 폴백 + author=nickname→name→"익명" 폴백 + authorLevel="L.—" placeholder + likes=helpful=likes_count 매핑(helpful_count 컬럼 분리 전) + verified=is_checkin + BigInt→string + Date→ISO 직렬화 / `reviews/_v2/reviews-content.tsx` "use client" useState<TabId>("all")+useState<SortId>("recent") + 4탭(전체/대회/코트/팀/심판, court 만 실데이터) + 정렬 3종(최신/별점/도움) + 시안 Reviews.jsx 충실: ①Breadcrumb(홈›리뷰) ②Header 2열 그리드 minmax(0,1fr) 360px(좌:eyebrow+h1 32px+부제 / 우:요약 카드 평균별점 44px ff-display+StarRow+ "{total}개 리뷰 · 인증 {verified}"+5★~1★ 분포바 grid 20px/1fr/32px, 4-5★=ok/3★=accent/1-2★=err) ③Controls 카드 좌:타입 5버튼 chip(active=btn--primary, count opacity 0.7 ff-mono) 우:정렬 select+"+ 리뷰 쓰기" disabled "코트 상세 페이지에서…" ④카드 grid 180px/1fr/auto: 좌(코트 상세 Link → `/courts/{courtId}` + 시안 typeColor.court=cafe-blue 라벨 + 코트명 + targetSub mono) 중(StarRow 14px + b 제목 15px + 본문 5줄 line-clamp + 📷 사진 N장 + 작성자 b/L.— 뱃지/날짜 mono) 우(👍 도움됨 + 🚩 신고 transparent + ♥ likes — 모두 disabled "준비 중") ⑤미지원 3탭(대회/팀/심판) construction 48px + "리뷰 시스템 준비 중" + 탭별 메시지 ⑥coiurts 0건(rate_review 48px) "아직 등록된 코트 리뷰가 없습니다"). **API route.ts / Prisma 스키마 / 서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 비로그인도 열람 가능(공개). status='published' 만 노출. `eyebrow/badge--ok/badge--soft/btn--primary/btn--accent/btn--sm/input/card/badge--ok` 기존 globals.css 정의 활용. 추후 구현 Phase 5 Reviews 11건 신설(tournament_reviews/team_reviews/referee_reviews 모델 / helpful_count 분리 + court_review_helpfuls 토글 / 리뷰 태그 / User 레벨 LevelBadge / 통합 작성 폼 / 신고 기능 / 본문 line-clamp 토글 / 사진 라이트박스 / 페이지네이션). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
+| 04-22 | developer | **Phase 6 Login — /login v2 리디자인 (시안 Login.jsx + 탭 2종 + 인라인 폼)** — 1파일 전면 재작성(`(web)/login/page.tsx` 288→362줄). UI 교체만, 인증 로직/서버 액션/OAuth href/InfoDialog/Dev 자동 로그인 0 변경. 헤더 `MyBDR.` 대형 ff-display 36px + `.` accent + 부제 "서울 3x3 농구 커뮤니티". `.card` + 탭 2종(로그인/회원가입) cafe-blue 3px 하단 라인 + bg-elev/bg-alt 토글. 로그인 탭: `.label`+`.input` 2필드(email/password) + 자동로그인 체크박스 disabled+title="준비 중"+우측 "준비 중" 뱃지(D4) + 비밀번호 찾기 button → `router.push("/forgot-password")` + `.btn--primary .btn--xl` "로그인" + "또는" divider + 카카오/네이버 grid(네이버 disabled+title) + Google OAuth 추가 행(시안 외 PM 결정 유지). 회원가입 탭: cafe-blue-soft 안내 뱃지("준비 중") + 5필드 모두 disabled(아이디/비번/비번확인/닉네임/활동지역) + 약관 체크 disabled + 가입하기 button → `router.push("/signup")`. 푸터: `← 홈으로 돌아가기` button → `/`. Dev 자동 로그인 별도 카드(NODE_ENV !== production, .btn--sm). **보존**: `loginAction`/`devLoginAction`/`useActionState`/`name="email"/"password"/"redirect"` hidden input/`isValidRedirect`/`OAUTH_ERRORS`/`REDIRECT_BANNERS`/`InfoDialog 2종`(redirectBanner+OAuth error). **삭제**: 이메일 모달(`showEmailModal`), 눈 아이콘 토글(`showPassword`), `<style jsx global>` slide-up/fade-in (인라인 폼으로 대체). 모든 색상 BDR v2 토큰(var(--cafe-blue)/--ink/--ink-mute/--ink-dim/--bg-elev/--bg-alt/--border/--accent/--accent-soft/--cafe-blue-soft/--cafe-blue-deep/--danger/--link). globals.css `.card`/`.input`/`.label`/`.select`/`.btn`/`.btn--primary`/`.btn--xl`/`.btn--sm` 그대로 활용. **layout.tsx 0 변경**(getWebSession 가드 유지). 추후 구현 Phase 6 Login 3건 신설(자동 로그인 토큰 시스템 / 회원가입 인라인 폼 / 네이버 OAuth 활성화). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Saved — /saved v2 신규 (옵션 C + 7탭 분리, 글로벌 톱레벨)** — 신규 2 (`saved/page.tsx` 서버 컴포넌트 force-dynamic + getWebSession + 비로그인 시 인라인 로그인 카드(`bookmark` 아이콘+`/login?redirect=/saved` btn--accent) + Promise.all 2병렬: `prisma.board_favorites.findMany select(id/category/position/created_at) orderBy[position asc, created_at asc]` + `prisma.user_favorite_courts.findMany include:{courts select(id/public_id/name/city/district/indoor/rental_fee/opening_hours)} orderBy[last_used_at desc, created_at desc]` + CATEGORY_LABEL 7매핑(notice/general/recruit/review/marketplace/qna/info → 한글) + courts.public_id 폴백 + city+district 합쳐 area + last_used_at→created_at 폴백 + BigInt→string + Date→ISO 직렬화 / `saved/_v2/saved-content.tsx` "use client" useState<TabId> + 7탭(전체/게시글/게시판/경기/대회/팀/코트, count fontFamily mono) + 활성 시 var(--accent) 2px underline + 시안 Saved.jsx Breadcrumb(홈›보관함) + Header eyebrow "Saved · Bookmarks"+h1 32px+부제 + 액션 2버튼 disabled "준비 중"(내보내기/폴더 관리, opacity 0.5 cursor not-allowed) + 게시판 섹션(forum 아이콘 + auto-fill minmax(220px,1fr) Link 카드 → `/community?category={category}` + 🔖 bookmark var(--accent) 우상단 + 저장일 ff-mono) + 코트 섹션(place 아이콘 + auto-fill minmax(260px,1fr) Link 카드 → `/courts/{public_id}` + nickname 우선 본명 보조표기 + area + opening_hours/rental_fee(0=무료)/indoor 메타 + 사용 N회 + 저장일) + 미지원 4탭 안내(construction 아이콘 + "게시글/경기/대회/팀 북마크 기능은 곧 추가됩니다") + 전체+0건 글로벌 빈상태(bookmark_border 48px) + 게시판 0건/코트 0건 탭별 안내). **API route.ts / Prisma 스키마 / 서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 세션 userId 기반 본인 데이터만(IDOR 없음). 추후 구현 Phase 5 Saved 6건 신설(community_post_bookmarks / game_bookmarks / tournament_bookmarks / team_follows(Phase 3 Teams 통합) / saved_folders / 내보내기 CSV·PDF). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 
 ---
@@ -2497,3 +2498,57 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 - **Phase B 결제 분기 미리 흙체 잡힌 필드** — court_bookings.payment_id/discount_amount/platform_fee/amount 컬럼은 모두 schema 에 있음. Phase A 는 0/NULL 저장. Phase B 진입 시 컬럼 변경 없이 INSERT 데이터만 변경
 - **court-detail-v2 import 변경** — Link 가 이미 import 되어 있어 추가 import 없음. CTA 분기 1블록만 변경
 - **운영자 멤버십 만료 시 기존 예약** — 현재 가드는 신규 슬롯/취소만 차단. 기존 confirmed 예약은 그대로 유지 (운영자 권한 만료해도 회원이 정상 이용). Phase C 알림 cron 도입 예정
+
+---
+
+## 구현 기록 — Phase 6 Login 리디자인 [2026-04-22]
+
+📝 구현한 기능: BDR v2 시안(Dev/design/BDR v2/screens/Login.jsx) 기반 로그인 페이지 UI 전면 교체. 인증 로직/서버 액션/OAuth href/InfoDialog/Dev 자동 로그인은 0 변경 — UI만 교체.
+
+| # | 파일 경로 | 변경 내용 | 신규/수정 |
+|---|----------|----------|----------|
+| 1 | `src/app/(web)/login/page.tsx` | 시안 적용: 헤더 `MyBDR.` 대형 타이포, 탭 2종(로그인/회원가입) cafe-blue 하단 라인, 로그인 탭 인라인 폼 + 자동로그인(disabled+tooltip "준비 중"+뱃지) + 비번찾기 + `.btn--primary .btn--xl` + "또는" divider + 카카오/네이버 grid + Google 행, 회원가입 탭 모두 disabled + 안내 뱃지 + 가입하기→`/signup` router push, 하단 ← 홈으로, Dev 자동 로그인 별도 카드. 288→362줄 | 수정 |
+| 2 | `src/app/(web)/login/layout.tsx` | 변경 없음 (메타데이터/getWebSession 그대로) | 미수정 |
+
+핵심 결정:
+- **API/액션 0 변경** — `loginAction`, `devLoginAction`, `useActionState`, `name="email"/"password"/"redirect"` hidden input, OAuth href, `isValidRedirect`, `OAUTH_ERRORS`, `REDIRECT_BANNERS`, `InfoDialog` 모두 보존
+- **시안 외 추가 보존**: ① 구글 OAuth 행 ② Dev 자동 로그인 카드 ③ InfoDialog 2종 (redirectBanner / oauth error)
+- **비밀번호 찾기**: 시안 `<a href="#">` → `router.push("/forgot-password")` 로 기존 라우트 연결
+- **이전 이메일 모달 제거**: 인라인 폼으로 대체했으므로 `showEmailModal`, `showPassword` (눈 아이콘), `<style jsx global>` 슬라이드 애니메이션 모두 삭제 → 코드 단순화
+- **CSS 토큰**: `var(--cafe-blue)`, `var(--ink)`, `var(--ink-mute)`, `var(--ink-dim)`, `var(--bg-elev)`, `var(--bg-alt)`, `var(--border)`, `var(--accent)`, `var(--accent-soft)`, `var(--cafe-blue-soft)`, `var(--cafe-blue-deep)`, `var(--danger)`, `var(--link)` — globals.css BDR v2 토큰 그대로 활용
+- **시안 클래스 활용**: `.card`, `.input`, `.label`, `.select`, `.btn`, `.btn--primary`, `.btn--xl`, `.btn--sm` — 추가 스타일 정의 0
+
+🚧 추후 구현 — Phase 6 Login (PM 의뢰 기록):
+- 자동 로그인 ("remember me") 토큰 시스템 — DB 컬럼/세션 토큰 만료 정책/로그아웃 무효화 설계 필요
+- 회원가입 인라인 폼 — 현재 /signup 페이지로 이동 (인라인 검증/중복 체크/약관 동의 처리)
+- 네이버 OAuth 활성화 — 현재 disabled 표시, 콜백 라우트는 이미 존재 (NAVER_* env + 서비스 등록 필요)
+
+💡 tester 참고:
+- **테스트 방법**: `npm run dev` → http://localhost:3001/login
+- **정상 동작**:
+  - 헤더 `MyBDR.` 표시 + 마지막 점이 BDR red (var(--accent))
+  - 탭 클릭 — 로그인/회원가입 토글, cafe-blue 하단 라인 이동
+  - 로그인 폼 제출 → 기존 loginAction 동작 (이메일/패스워드 → /로 리다이렉트). 에러 시 빨간 배너 표시
+  - 자동 로그인 체크박스 — disabled + hover 시 "준비 중" tooltip + 우측 뱃지
+  - 비밀번호 찾기 클릭 → /forgot-password 이동
+  - 카카오 클릭 → /api/auth/login?provider=kakao (redirect 쿼리 보존)
+  - Google 클릭 → /api/auth/login?provider=google
+  - 네이버 disabled (클릭 불가)
+  - 회원가입 탭 → 모든 입력 disabled + 가입하기 클릭 → /signup 이동
+  - ← 홈으로 → /
+  - Dev 자동 로그인 (NODE_ENV=development) → devLoginAction 동작
+- **주의 입력**:
+  - `?error=kakao_token` 쿼리 → InfoDialog "로그인 오류" 모달 (확인/ESC/backdrop 닫기 + URL 쿼리 정리)
+  - `?redirect=/games/new` 쿼리 → InfoDialog "경기 만들기는 로그인이 필요해요" 모달 + 로그인 성공 후 /games/new로 이동
+  - `?redirect=//evil.com` (open redirect 공격) → isValidRedirect로 차단됨 (redirectTo=null)
+  - 이미 로그인된 상태 접근 → layout.tsx에서 / 로 리다이렉트
+- **tsc --noEmit 통과 확인** (exit=0)
+
+⚠️ reviewer 참고:
+- **시안 충실도**: Login.jsx 의 `<a href="#">비밀번호 찾기</a>` 만 `router.push("/forgot-password")` 로 변경. 그 외 시안과 1:1 매칭
+- **인라인 style vs Tailwind**: 시안이 인라인 style을 쓰고 있고 globals.css의 `.card/.input/.label/.btn` 클래스가 BDR v2 토큰 기반 — 일관성을 위해 시안 그대로 인라인 style 유지. 다른 BDR v2 페이지(community/new 등)도 동일 패턴
+- **회원가입 탭 disabled 처리**: 시안에는 disabled 표시가 없으나 PM 결정 "A 시안 인라인 폼 (입력 disabled + 준비 중 뱃지 + 가입하기는 /signup 이동)" 반영
+- **Google/Dev 로그인 추가 행**: 시안 외 추가지만 PM 명시 결정 "유지". 카카오/네이버 grid 아래 Google, 카드 외부에 Dev 자동 로그인 카드. 시각적으로 시안 흐름을 해치지 않도록 마진/카드 분리
+- **다크모드**: 모든 색상 var(--*) 토큰 사용으로 자동 대응
+- **접근성**: 자동 로그인 disabled 체크박스에 `title="준비 중"` 추가. 네이버 버튼도 동일
+
