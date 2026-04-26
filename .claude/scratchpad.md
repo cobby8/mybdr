@@ -2065,6 +2065,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-22 | developer | **Phase 5 Reviews — /reviews v2 신규 (C안 Saved 패턴 응용 + 4탭 분리, 글로벌 톱레벨)** — 신규 2 (`reviews/page.tsx` 서버 컴포넌트 force-dynamic + 비로그인 허용(공개 콘텐츠) + `prisma.court_reviews.findMany({where:{status:"published"}, include:{court_infos:select(id/name/city/district/address) + users:select(id/nickname/name)}, orderBy:{created_at:"desc"}, take:60})` + splitTitleBody(content) "첫 줄=title 나머지=body, 60자 초과 한 줄은 50자 컷+'…'" + countPhotos(JSON 배열 길이) + targetSub city+district→address 폴백 + author=nickname→name→"익명" 폴백 + authorLevel="L.—" placeholder + likes=helpful=likes_count 매핑(helpful_count 컬럼 분리 전) + verified=is_checkin + BigInt→string + Date→ISO 직렬화 / `reviews/_v2/reviews-content.tsx` "use client" useState<TabId>("all")+useState<SortId>("recent") + 4탭(전체/대회/코트/팀/심판, court 만 실데이터) + 정렬 3종(최신/별점/도움) + 시안 Reviews.jsx 충실: ①Breadcrumb(홈›리뷰) ②Header 2열 그리드 minmax(0,1fr) 360px(좌:eyebrow+h1 32px+부제 / 우:요약 카드 평균별점 44px ff-display+StarRow+ "{total}개 리뷰 · 인증 {verified}"+5★~1★ 분포바 grid 20px/1fr/32px, 4-5★=ok/3★=accent/1-2★=err) ③Controls 카드 좌:타입 5버튼 chip(active=btn--primary, count opacity 0.7 ff-mono) 우:정렬 select+"+ 리뷰 쓰기" disabled "코트 상세 페이지에서…" ④카드 grid 180px/1fr/auto: 좌(코트 상세 Link → `/courts/{courtId}` + 시안 typeColor.court=cafe-blue 라벨 + 코트명 + targetSub mono) 중(StarRow 14px + b 제목 15px + 본문 5줄 line-clamp + 📷 사진 N장 + 작성자 b/L.— 뱃지/날짜 mono) 우(👍 도움됨 + 🚩 신고 transparent + ♥ likes — 모두 disabled "준비 중") ⑤미지원 3탭(대회/팀/심판) construction 48px + "리뷰 시스템 준비 중" + 탭별 메시지 ⑥coiurts 0건(rate_review 48px) "아직 등록된 코트 리뷰가 없습니다"). **API route.ts / Prisma 스키마 / 서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 비로그인도 열람 가능(공개). status='published' 만 노출. `eyebrow/badge--ok/badge--soft/btn--primary/btn--accent/btn--sm/input/card/badge--ok` 기존 globals.css 정의 활용. 추후 구현 Phase 5 Reviews 11건 신설(tournament_reviews/team_reviews/referee_reviews 모델 / helpful_count 분리 + court_review_helpfuls 토글 / 리뷰 태그 / User 레벨 LevelBadge / 통합 작성 폼 / 신고 기능 / 본문 line-clamp 토글 / 사진 라이트박스 / 페이지네이션). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 6 Login — /login v2 리디자인 (시안 Login.jsx + 탭 2종 + 인라인 폼)** — 1파일 전면 재작성(`(web)/login/page.tsx` 288→362줄). UI 교체만, 인증 로직/서버 액션/OAuth href/InfoDialog/Dev 자동 로그인 0 변경. 헤더 `MyBDR.` 대형 ff-display 36px + `.` accent + 부제 "서울 3x3 농구 커뮤니티". `.card` + 탭 2종(로그인/회원가입) cafe-blue 3px 하단 라인 + bg-elev/bg-alt 토글. 로그인 탭: `.label`+`.input` 2필드(email/password) + 자동로그인 체크박스 disabled+title="준비 중"+우측 "준비 중" 뱃지(D4) + 비밀번호 찾기 button → `router.push("/forgot-password")` + `.btn--primary .btn--xl` "로그인" + "또는" divider + 카카오/네이버 grid(네이버 disabled+title) + Google OAuth 추가 행(시안 외 PM 결정 유지). 회원가입 탭: cafe-blue-soft 안내 뱃지("준비 중") + 5필드 모두 disabled(아이디/비번/비번확인/닉네임/활동지역) + 약관 체크 disabled + 가입하기 button → `router.push("/signup")`. 푸터: `← 홈으로 돌아가기` button → `/`. Dev 자동 로그인 별도 카드(NODE_ENV !== production, .btn--sm). **보존**: `loginAction`/`devLoginAction`/`useActionState`/`name="email"/"password"/"redirect"` hidden input/`isValidRedirect`/`OAUTH_ERRORS`/`REDIRECT_BANNERS`/`InfoDialog 2종`(redirectBanner+OAuth error). **삭제**: 이메일 모달(`showEmailModal`), 눈 아이콘 토글(`showPassword`), `<style jsx global>` slide-up/fade-in (인라인 폼으로 대체). 모든 색상 BDR v2 토큰(var(--cafe-blue)/--ink/--ink-mute/--ink-dim/--bg-elev/--bg-alt/--border/--accent/--accent-soft/--cafe-blue-soft/--cafe-blue-deep/--danger/--link). globals.css `.card`/`.input`/`.label`/`.select`/`.btn`/`.btn--primary`/`.btn--xl`/`.btn--sm` 그대로 활용. **layout.tsx 0 변경**(getWebSession 가드 유지). 추후 구현 Phase 6 Login 3건 신설(자동 로그인 토큰 시스템 / 회원가입 인라인 폼 / 네이버 OAuth 활성화). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 5 Saved — /saved v2 신규 (옵션 C + 7탭 분리, 글로벌 톱레벨)** — 신규 2 (`saved/page.tsx` 서버 컴포넌트 force-dynamic + getWebSession + 비로그인 시 인라인 로그인 카드(`bookmark` 아이콘+`/login?redirect=/saved` btn--accent) + Promise.all 2병렬: `prisma.board_favorites.findMany select(id/category/position/created_at) orderBy[position asc, created_at asc]` + `prisma.user_favorite_courts.findMany include:{courts select(id/public_id/name/city/district/indoor/rental_fee/opening_hours)} orderBy[last_used_at desc, created_at desc]` + CATEGORY_LABEL 7매핑(notice/general/recruit/review/marketplace/qna/info → 한글) + courts.public_id 폴백 + city+district 합쳐 area + last_used_at→created_at 폴백 + BigInt→string + Date→ISO 직렬화 / `saved/_v2/saved-content.tsx` "use client" useState<TabId> + 7탭(전체/게시글/게시판/경기/대회/팀/코트, count fontFamily mono) + 활성 시 var(--accent) 2px underline + 시안 Saved.jsx Breadcrumb(홈›보관함) + Header eyebrow "Saved · Bookmarks"+h1 32px+부제 + 액션 2버튼 disabled "준비 중"(내보내기/폴더 관리, opacity 0.5 cursor not-allowed) + 게시판 섹션(forum 아이콘 + auto-fill minmax(220px,1fr) Link 카드 → `/community?category={category}` + 🔖 bookmark var(--accent) 우상단 + 저장일 ff-mono) + 코트 섹션(place 아이콘 + auto-fill minmax(260px,1fr) Link 카드 → `/courts/{public_id}` + nickname 우선 본명 보조표기 + area + opening_hours/rental_fee(0=무료)/indoor 메타 + 사용 N회 + 저장일) + 미지원 4탭 안내(construction 아이콘 + "게시글/경기/대회/팀 북마크 기능은 곧 추가됩니다") + 전체+0건 글로벌 빈상태(bookmark_border 48px) + 게시판 0건/코트 0건 탭별 안내). **API route.ts / Prisma 스키마 / 서비스 0 변경. 신규 fetch 0건**. 카페 세션 무관. 세션 userId 기반 본인 데이터만(IDOR 없음). 추후 구현 Phase 5 Saved 6건 신설(community_post_bookmarks / game_bookmarks / tournament_bookmarks / team_follows(Phase 3 Teams 통합) / saved_folders / 내보내기 CSV·PDF). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
+| 04-22 | developer | **Phase 6 Signup — /signup v2 3-step 위저드 (BDR v2 시안 박제)** — 1파일 전면 재작성(`(web)/signup/page.tsx` 90→약 470줄). "use client" + useState<1\|2\|3>(step) + useState 5개(email/password/passwordConfirm/agreed/nickname) + useActionState(signupAction). Step indicator(원 1·2·3 + 진행선 cafe-blue) + "회원가입 · N/3" 캡션 + 단계별 헤딩 28px ff-display(계정 만들기/선수 프로필/활동 환경) + 부제. **Step 1 (실작동)**: email/password/password_confirm controlled input + 약관·개인정보 Link 체크 + OAuth 3종(시안 외 보존, 카카오/네이버/Google grid 3열). **Step 2**: 닉네임만 실작동(name="nickname") + 포지션 5종(가드/슈가/스포/파포/센터) + 키 + 등번호 모두 disabled+title="준비 중"+라벨 옆 회색 뱃지. **Step 3**: 지역 8종(강남/강북/강서/강동/분당/일산/수원/인천) + 실력 5단계 + 관심 경기 유형 5종(픽업/게스트/스크림/대회/정기팀) 모두 disabled+"준비 중". 진입 가드 (Step 1→2: isValidEmail+비번 8자+비번/확인 일치+약관 체크 / Step 2→3: 닉네임 2~20자). 에러 표시 3종(OAuth 쿼리 / stepError 클라 가드 / serverState.error signupAction 반환). Step 3 "시작하기 →" type=submit → form action(signupAction). **signupAction 0 변경**(email/nickname/password/password_confirm 4필드만 사용, /verify?missing=phone 리다이렉트 보존). **layout.tsx 0 변경**(metadata 보존). globals.css `.card/.input/.label/.btn/.btn--sm/.btn--primary/.btn--xl` + 변수 `--cafe-blue/--bg-alt/--ink-dim/--ink-mute/--ink/--ff-mono/--border/--accent-soft/--danger` 전부 기존 정의 활용. 추후 구현 Phase 6 Signup 6건 신설(User.position / User.height·jersey_number / User.regions JSONB / User.skill_level / User.preferred_game_types / 3-step 데이터 hidden field). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 
 ---
 
@@ -2655,4 +2656,69 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 4. **feature_key 4종 통합 마이그레이션**: 기존 4종(team_create/pickup_game/court_rental/tournament_create) ↔ 등급 모델(BDR+/PRO 패키지) 통합. PM 결정 필요 (deprecate / 병행 / 자동 매핑)
 5. **is_recommended 동적 처리**: 현재 BDR+ highlight=true 박제. plans.is_recommended 컬럼 추가 시 동적 분기
 6. **결제 문의 mailto → inquiries 모달**: Phase 6 Help inquiries 모델 도입 시 통합
+
+---
+
+## 구현 기록 — Phase 6 Signup (3-step 위저드) [2026-04-22]
+
+📝 구현한 기능: `/signup` 페이지 BDR v2 시안 박제 — 3-step 위저드(계정→프로필→활동환경) + Step indicator + useActionState(signupAction). Step 1만 실작동(이메일/비번/비번확인/약관), Step 2 닉네임 + 포지션·키·등번호 UI(준비중), Step 3 지역·실력·관심유형 UI(준비중). signupAction 0 변경.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/signup/page.tsx` | 전면 재작성 (90→약 470줄). "use client" + useState<1\|2\|3> + useState(email/password/passwordConfirm/agreed/nickname) + useActionState(signupAction). Step indicator(원 1·2·3 + 진행선 cafe-blue) + "회원가입 · N/3" + 단계별 헤딩/부제 + 카드 본문(.card 28px) + Step 1 실작동(email/password/password_confirm/약관 체크) + 약관·개인정보 Link + OAuth 3종(시안 외 보존, 카카오/네이버/Google grid) + Step 2 닉네임(실작동) + 포지션 5/키/등번호 disabled+"준비 중" 뱃지 + Step 3 지역 8/실력 5/관심 5 disabled+"준비 중" + 하단 이전/다음(Step 1·2)·시작하기(Step 3 type=submit) + 풋터 "이미 계정이 있으신가요? 로그인" Link | 수정(전면 재작성) |
+| `src/app/(web)/signup/layout.tsx` | 0 변경 (metadata 보존) | 미수정 |
+
+핵심 결정:
+- **signupAction 0 변경** — `email/nickname/password/password_confirm` 4필드만 사용 (`src/app/actions/auth.ts` L115~). 닉네임 2~20자, 비번 8자+영문+숫자+특수문자, /verify?missing=phone 리다이렉트 모두 보존
+- **3-step 데이터 — Step 2/3 추가 입력은 form submit 시 무시** (DB 컬럼 없음). 추후 hidden field로 보내도록 Phase 6 Signup 백로그 등록
+- **진입 가드 (클라이언트)**:
+  - Step 1→2: `isValidEmail` (단순 RFC 정규식) + 비번 8자 + 비번/확인 일치 + 약관 체크
+  - Step 2→3: 닉네임 2~20자 (signupAction과 동일 규칙)
+  - Step 3 → submit: 가드 없음 (signupAction이 모든 검증 수행, 비번 강도 등 서버에서 catch)
+- **에러 표시 3종**: ① OAuth ?error= 쿼리 ② stepError (클라이언트 진입 가드) ③ serverState.error (signupAction 반환). 모두 `var(--accent-soft) / var(--danger)` 빨간 배너
+- **OAuth 3종 보존**: Step 1 하단 grid 3열 (카카오 #FEE500 / 네이버 #03C75A / Google `.btn`). 시안 외 추가지만 PM 결정 "보존"
+- **Step 컴포넌트 분리**: `<Step s step isLast />` 함수 컴포넌트로 추출 — 시안의 `React.Fragment + map` 패턴을 가독성 향상
+- **CSS 토큰**: `var(--cafe-blue)`, `var(--bg-alt)`, `var(--ink-dim)`, `var(--ink-mute)`, `var(--ink)`, `var(--ff-mono)`, `var(--border)`, `var(--accent-soft)`, `var(--danger)` — globals.css BDR v2 토큰만 사용
+- **시안 클래스 활용**: `.card`, `.input`, `.label`, `.btn`, `.btn--sm`, `.btn--primary`, `.btn--xl` — 추가 스타일 0
+
+🚧 추후 구현 — Phase 6 Signup (PM 의뢰 기록):
+1. **User.position 컬럼**: prisma schema 추가 + 회원가입 시 hidden field로 전달 → signupAction에서 수신/저장 (Step 2 포지션 5종 활성화)
+2. **User.height / jersey_number 컬럼**: prisma 추가 + Step 2 입력 활성화. height numeric(5,2) cm, jersey_number int (2자리)
+3. **User.regions JSONB 멀티**: 활동 지역 복수 선택 (Step 3 지역 8개). 추후 시·구 수준 행정구역 정규화 검토
+4. **User.skill_level 컬럼**: enum(beginner/lower-mid/mid/upper-mid/advanced) — Step 3 5단계
+5. **User.preferred_game_types JSONB**: pickup/guest/scrim/tournament/regular_team 멀티 — Step 3 관심 경기 유형 5종
+6. **3-step 데이터 hidden field 추가**: 컬럼 추가 후 Step 2·3 입력값을 `<input type="hidden" name="position" value={...} />` 등으로 form submit 시 함께 전송. signupAction에서 formData.get 으로 수신 + 검증/저장 분기 추가
+
+💡 tester 참고:
+- **테스트 URL**: `http://localhost:3001/signup`
+- **시안 비교**: `Dev/design/BDR v2/screens/Signup.jsx` (118줄)
+- **정상 동작**:
+  1. Step 1 진입 — Step indicator 원1=cafe-blue 채움, 원2/3=bg-alt 회색. "회원가입 · 1/3" + "계정 만들기"
+  2. 이메일 형식 오류 + "다음" 클릭 → 빨간 배너 "올바른 이메일 형식을 입력하세요."
+  3. 비번 8자 미만 → "비밀번호는 8자 이상이어야 합니다."
+  4. 비번/확인 불일치 → "비밀번호가 일치하지 않습니다."
+  5. 약관 미체크 → "이용약관 및 개인정보처리방침에 동의해주세요."
+  6. 4가지 모두 통과 → Step 2로 이동, 진행선 cafe-blue 채움, "회원가입 · 2/3" + "선수 프로필"
+  7. Step 2 닉네임 1자 또는 21자 입력 + "다음" → "닉네임은 2~20자여야 합니다."
+  8. Step 2 포지션·키·등번호 — 모두 disabled, hover 시 "준비 중" tooltip + 라벨 옆 회색 뱃지
+  9. Step 3 진입 → 진행선 양쪽 채움. 지역/실력/관심유형 모두 disabled + "준비 중" 뱃지
+  10. Step 3 "시작하기 →" 클릭 → form submit → signupAction 호출 → 성공 시 /verify?missing=phone 리다이렉트
+  11. signupAction 에러 시 (이메일/닉네임 중복) 빨간 배너 표시 + 단계는 3에 머무름 (재시도 가능)
+  12. "이전" 버튼 클릭 시 입력값 보존 (state 유지)
+  13. OAuth 카카오/네이버/Google 클릭 → 기존 라우트 그대로
+  14. 풋터 "로그인" Link 클릭 → /login 이동
+- **주의 입력**:
+  - `?error=kakao_token` 등 OAuth 콜백 에러 쿼리 → Step 1에서 빨간 배너로 표시
+  - 비번 영문+숫자+특수문자 모두 포함 안 한 경우 → 클라이언트 가드 통과 → Step 3 submit 시 signupAction이 차단 ("비밀번호는 영문, 숫자, 특수문자를 모두 포함해야 합니다.")
+  - 이미 가입된 이메일/닉네임 → signupAction 에러 배너
+- **tsc --noEmit 통과 확인** (EXIT=0)
+
+⚠️ reviewer 참고:
+- **시안 충실도**: Signup.jsx 118줄 1:1 박제. `setRoute` prop 제거 (Next.js 라우팅으로 대체). `defaultValue="rdm_captain@mybdr.kr"` 등 시안의 박제 데이터는 제거하고 controlled input + placeholder로 교체.
+- **인라인 style vs Tailwind**: 시안이 인라인 style을 쓰고 있어 Login/Help/Pricing 등 다른 BDR v2 페이지와 동일한 패턴 유지. globals.css의 .card/.input/.label/.btn 클래스가 BDR v2 토큰 기반이므로 시안 충실도 우선.
+- **OAuth 3종 추가 위치**: 시안에는 OAuth 없으나 PM 결정 "보존". Step 1 하단 grid 3열 (카카오/네이버/Google). 시안의 카드 흐름을 해치지 않도록 "또는 간편 가입" divider 후 배치. Step 2/3에서는 비노출.
+- **Step 2/3 추가 입력 무시 정책**: form submit 시 signupAction에 전달되는 필드는 Step 1 + Step 2 닉네임만 (controlled input의 name 속성 4개 — email/password/password_confirm/nickname). 포지션/키/등번호/지역/실력/관심유형은 disabled 라 form data에 포함 안 됨. 추후 컬럼 추가 시 hidden input + name 속성으로 활성화.
+- **Fragment 대신 함수 컴포넌트**: 시안의 `React.Fragment` + 인라인 map → `<Step />` 함수 컴포넌트로 추출. JSX 가독성 향상.
+- **다크모드**: 모든 색상 var(--*) 토큰 사용으로 자동 대응.
+- **접근성**: 모든 disabled 입력에 `title="준비 중"` 추가. 클라이언트 가드 에러는 form 상단 빨간 배너로 명확히 표시.
 
