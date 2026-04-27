@@ -173,7 +173,7 @@ export default function PaymentFailPage() {
             lineHeight: 1.6,
           }}
         >
-          예약은 자동으로 취소되었습니다. 다시 시도해주세요.
+          예약은 자동으로 취소 처리됩니다. 다시 시도해주세요.
         </p>
 
         {/* 디버깅용 원본 정보 — 매핑 못 한 code/reason 만 표시 (문의 시 활용) */}

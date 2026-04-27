@@ -2286,6 +2286,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-27 | developer | **코트 대관 Phase B reviewer 후속 4건 (라벨/문구/쿼리)** — 4파일 수정. ①`(admin)/admin/payments/admin-payments-content.tsx` STATUS_LABEL/COLOR에 `partial_refunded:"부분 환불"` + info 톤 컬러 추가(B-7에서 신규 도입한 status 값 admin 화면 매핑). ②`(web)/courts/[id]/booking/_booking-client.tsx` 환불 정책 안내문 "시작 24h 전 100% / 12h 전 50%" → "3일 전 100% / 1~2일 전 50% / 당일 0%" (refund-policy.ts 정책과 정렬). ③같은 파일 `successUrl` query `?bookingId=...` 제거(B-3 confirm/booking은 orderId 파싱 — bookingId 미사용). failUrl은 payment-fail 페이지가 사용하므로 유지. ④`payment-fail/page.tsx` "예약은 자동으로 취소되었습니다" → "예약은 자동으로 취소 처리됩니다"(미래형, B-4 API 응답 도착 전 안내 일관성). **동작 변경 0** — 라벨/문구/미사용 쿼리만. TOSS SDK 인자(method/amount/orderId/orderName/successUrl/failUrl/customerEmail/customerName) 변경 0. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **코트 대관 Phase B-7 — DELETE /bookings/[id] 환불 정책 적용** — 1파일 수정(`src/app/api/web/bookings/[id]/route.ts` 183→ ~360줄). DELETE 핸들러만 교체, GET/loadBookingWithPermission/findBooking 100% 보존. **신규 import**: `calcRefundAmount` from `@/lib/courts/refund-policy`. **신규 가드**: `now >= start_at` → 409 ALREADY_STARTED. **3분기 환불 로직**: ①무료(payment_id=null OR final_amount=0) → status=cancelled만 + `refund: null` ②유료 ratio=0(당일+본인) → 토스 호출 X, DB만 cancel + `refund: { amount:0, ratio:0, label:"당일" }` ③유료 ratio>0 → 토스 `/v1/payments/{key}/cancel` POST(Basic Auth, body `{cancelReason, cancelAmount}`) → 성공 시 `prisma.$transaction([court_bookings.update + payments.update])` 동시 갱신. **운영자 정책**: `result.isManager`이면 ratio=1.0 강제(전액 환불) — 운영 사정 취소 시 사용자 보호. **payments.status 결정**: `refund.amount < paidAmount` → "partial_refunded" / 전액 → "refunded". **결제 가드**: payments 미존재 500 PAYMENT_NOT_FOUND, 이미 환불(`refunded`/`partial_refunded`/`cancelled`) 400 PAYMENT_ALREADY_REFUNDED. **토스 실패**: 트랜잭션 외부 호출이라 500 응답 시 DB 변경 0(자동 롤백). **dev fallback**: `secretKey` 또는 `toss_payment_key` 미존재 시 토스 호출 skip + DB 갱신만(기존 `/payments/[id]/refund` 패턴 재사용). **보존**: getWebSession·CancelSchema·loadBookingWithPermission·isCourtManager·apiSuccess/apiError·기존 ALREADY_TERMINATED 가드 모두 그대로. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **코트 대관 Phase B-3 — payments/confirm/booking 신규 (토스 successUrl 콜백)** — 신규 1(`src/app/api/web/payments/confirm/booking/route.ts` 237줄: `withWebAuth` GET, paymentKey/orderId/amount 쿼리 검증 + orderId 파싱(`BOOKING-{bookingId}-{userId}-{ts}` 4세그먼트 BigInt 변환) + booking 조회 + **3중 보안 게이트**(세션user===orderIduser===booking.user_id / status="pending"+payment_id===null / DB.final_amount===query.amount) + 토스 `/v1/payments/confirm` POST(Basic Auth) + 응답 totalAmount 4번째 검증(불일치 시 `tossCancelCompensate` 보상) + `prisma.$transaction`(payments INSERT payable_type="CourtBooking" + court_bookings.updateMany where status="pending" AND payment_id=null → race 가드 count!==1이면 throw 롤백) + 보상 호출(DB 실패 시 토스 cancel API)). **DB 변경 0** — Plan 결제 라우트 0 변경, payable_type 다형성에 "CourtBooking" 신규 값만. URL 분리 결정으로 회귀 위험 차단. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **코트 대관 Phase B-1 — refund-policy 유틸 신규** — 신규 1(`src/lib/courts/refund-policy.ts` 약 145줄: KST 자정 기준 환불 정책 룰 엔진. `toKstMidnight()` (UTC ms+9h → setUTCHours(0,0,0,0) 패턴, 코드베이스 다수 위치와 일관) + `calcDaysBeforeBookingKst()` (예약 시작일까지 KST 달력 일수 계산, 음수 가능) + `getRefundRatio()` (시안 동일: D-3 이전 100% / D-2~D-1 50% / 당일 0%) + `calcRefundAmount()` (Math.floor 절단으로 사업자 유리, 무료/음수 paidAmount 안전 처리) + `RefundLabel`/`RefundCalculation` 타입 export). **의존성 0** — Date만 사용해 테스트 용이. **Phase A 호환** — paidAmount=0이면 amount=0 반환. 사용자 결정 Q4=(a) 시안 통일 + KST 자정 기준 명시. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
@@ -3577,4 +3578,113 @@ C. 유료 ratio>0
 
 ✅ tsc --noEmit: PASS (exit 0)
 🚫 미푸시 / 미커밋 (PM 처리 대기)
+
+---
+
+### 구현 기록 — 코트 대관 Phase B reviewer 후속 4건 (2026-04-27)
+
+📝 구현한 기능: reviewer 권장 1건 + Minor 3건 일괄 반영. 동작 변경 없음 — 라벨/안내문/미사용 쿼리 정정.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/payments/admin-payments-content.tsx` | STATUS_LABEL에 `partial_refunded:"부분 환불"` + STATUS_COLOR에 동일 키 info 톤(refunded와 동일 클래스) 추가. 한 줄씩만 추가, 기존 키 보존 | 수정 |
+| `src/app/(web)/courts/[id]/booking/_booking-client.tsx` | (1) 환불 정책 안내문 "시작 24h 전 100% / 12h 전 50% / 그 외 0%" → "3일 전 100% / 1~2일 전 50% / 당일 0%" (refund-policy.ts D-3/D-2~D-1/당일 정책과 정렬) (2) successUrl에서 `?bookingId=...` query 제거 — B-3 confirm/booking 라우트는 orderId(`BOOKING-{bookingId}-...`)를 파싱해 bookingId를 얻으므로 query 미사용. failUrl은 payment-fail 페이지가 query를 사용하므로 유지 | 수정 |
+| `src/app/(web)/courts/[id]/booking/payment-fail/page.tsx` | "예약은 자동으로 취소되었습니다" → "예약은 자동으로 취소 처리됩니다" 미래형. B-4 API 응답 도착 전 단정 표현 부적절 — 안내 일관성 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **admin/payments 라벨**: payments 테이블에 `status='partial_refunded'` 레코드 1건 생성 → `/admin/payments` 진입 → 상태 칼럼이 "부분 환불"로 표시(영문 폴백 사라짐).
+  2. **환불 정책 문구**: `/courts/[id]/booking?...` 진입 후 isPaid=true 상태(유료 코트) 사이드 우측 안내문이 "3일 전 100% / 1~2일 전 50% / 당일 0%"로 표시.
+  3. **successUrl**: 토스 결제창에서 결제 완료 → 실제 호출 URL이 `/api/web/payments/confirm/booking?paymentKey=...&orderId=BOOKING-{bookingId}-{userId}-{ts}&amount=...` 형식. `&bookingId=...` 추가 query는 더이상 안 붙음. confirm/booking은 orderId만으로 정상 동작.
+  4. **failUrl**: 결제창 X 클릭 → `/courts/[id]/booking/payment-fail?bookingId=...` 페이지에 "예약은 자동으로 취소 처리됩니다" 문구 표시(과거형 X).
+- 정상 동작:
+  - admin/payments: partial_refunded 라벨이 한국어로 표시되며, refunded와 동일한 info 톤 색상 유지
+  - 결제 흐름: B-3 confirm/booking이 successUrl bookingId query 없이도 정상 처리(orderId만으로 booking 식별)
+  - 안내문 텍스트가 refund-policy.ts 실제 정책과 일치
+- 주의할 입력:
+  - successUrl 변경은 B-3 라우트 query 파싱 로직과 결합 — confirm/booking 코드를 함께 확인 필요(이미 orderId 기반 파싱이라 회귀 0)
+  - admin/payments status 탭 필터(라인 61~63): partial_refunded 탭 노출 여부는 별도 결정 — 본 작업에서는 라벨 매핑만 추가, 탭은 PM 결정 영역
+
+⚠️ reviewer 참고:
+- 동작 변경 0 — TOSS SDK 인자(method/amount/orderId/orderName/successUrl/failUrl/customerEmail/customerName) 8개 그대로 유지, 라우트 핸들러/Prisma/Zod 모두 0 변경
+- successUrl 변경은 reviewer 명시 권장 사항. confirm/booking 라우트가 orderId 의존이라 안전성 검증됨(reviewer Phase B 통과 결과 #2 orderId 위조 방어 게이트 그대로 유지)
+- partial_refunded 컬러 결정: `STATUS_COLOR.refunded`와 동일 클래스(text/bg-info) 사용 — refunded/partial_refunded 시각적 일관성 확보. 추후 운영자 피드백에 따라 분리 가능
+
+✅ tsc --noEmit: PASS (exit 0)
+🚫 미푸시 / 미커밋 (PM 처리 대기)
+
+---
+
+### 리뷰 결과 (reviewer) — 2026-04-27 / Phase B 결제 통합 8단계
+
+📊 **종합 판정: 통과 (수정 권장 1건 — 배포 전 보강 추천)**
+
+핵심 보안 게이트(4중 금액 검증, orderId 위변조 방어, race condition 가드)는 모두 정상 작동. 데이터 일관성 및 Phase A 회귀도 안전. admin/payments 페이지의 partial_refunded 라벨 누락만 배포 후 즉시 보강 권장(차단 사유 아님).
+
+✅ **OK (확인 완료)**:
+1. **금액 변조 방어 (4중 게이트)** — `confirm/booking` 79~80, 134~138, 173~177줄. amount<=0/NaN 거부 → DB.final_amount === query.amount → 토스 응답 totalAmount === amount. 변조 query 모든 경우 차단됨.
+2. **orderId 위조 방어** — `confirm/booking` 84~96줄. `parts.length !== 4 || parts[0] !== "BOOKING"` + BigInt 변환 try/catch. + booking.user_id === ctx.userId === orderUserId(122~126) 3중 일치. 다른 사용자 booking 강탈 불가.
+3. **권한 가드** — B-4(payment-cancel) 본인만 허용(70~72), B-7(DELETE bookings) 본인 OR 운영자(`isCourtManager` 체크 47~51). 분리 정확.
+4. **race condition** — confirm/booking 208~219줄 `updateMany where: { status: "pending", payment_id: null }` + `count !== 1` 트랜잭션 throw. payment-cancel 90~107줄 동일 패턴. 동시 confirm/cancel 콜백 안전.
+5. **CRON_SECRET** — expire-pending-bookings 36~39줄. `process.env.CRON_SECRET` 설정 시만 검증, 미설정 시 우회(개발 편의). Vercel 환경에서 운영 시 SECRET 설정만 확실히 하면 OK. 다른 cron 라우트와 동일 패턴(referee-healthcheck 등).
+6. **트랜잭션 경계** — 토스 fetch는 항상 `prisma.$transaction` 외부. confirm/booking은 토스 성공 후 트랜잭션 진입 → DB 실패 시 `tossCancelCompensate()` 보상 호출(42~64줄). DELETE/bookings는 토스 cancel 성공 → 트랜잭션 진입(355~386). 둘 다 connection pool 점유 위험 0.
+7. **payment_id FK 무결성** — court_bookings.payment_id는 confirm/booking 트랜잭션에서 `payments INSERT` 의 select id 결과를 즉시 사용(212~214). FK 외래키 위배 시점 없음.
+8. **Phase A 회귀** — bookings POST 222~234줄 `isPaid = amount > 0` 분기. fee=0/NULL 코트는 `status="confirmed", final_amount=0` 즉시 확정. DELETE/bookings 183~210줄 `payment_id===null || finalAmount===0` 무료 분기에서 토스/payments 미참조. Phase A 클라이언트 영향 0.
+9. **KST 자정 계산** — refund-policy 56~61줄 `+9h → setUTCHours(0,0,0,0)` 패턴. KST DST 미적용이라 안전. tournaments 도메인의 동일 패턴과 일치(architecture 검증된 방식).
+10. **calcRefundAmount Math.floor** — 146줄 `Math.floor(safePaid * ratio)`. 사업자 유리 절단. 부분환불 시 `refund.amount < paidAmount` 분기 → `partial_refunded`로 정확 분류.
+11. **TOSS_SECRET_KEY env 누락** — confirm/booking 141~144줄에서 사전 검증, redirect로 fail. DELETE/bookings 302줄 `canCallToss` 가드로 dev fallback 처리. 운영 누락 시 데이터 깨짐 없음.
+12. **payable_type="CourtBooking"** — admin/payments page.tsx 33줄 `payableType: p.payable_type` 그대로 직렬화. 별도 분기 없음(단순 라벨 표시) → "CourtBooking" 값이 문자열로 그대로 노출됨. admin-payments-content는 status 필터만 사용하고 payable_type 필터/라벨 매핑 없음 → 충돌 없음.
+
+🟡 **권장 수정 (배포 후 즉시 — 차단 아님)**:
+
+1. **admin/payments status 라벨에 `partial_refunded` 누락**
+   - 위치: `src/app/(admin)/admin/payments/admin-payments-content.tsx:27~38`
+   - 현황: `STATUS_LABEL` / `STATUS_COLOR` 맵에 `paid`/`cancelled`/`refunded`만 있음. `partial_refunded` 값이 들어오면 `STATUS_LABEL[p.status] ?? p.status` 폴백으로 영문 그대로 노출됨(122~125줄).
+   - 영향: 50% 환불 케이스 발생 시 admin이 "partial_refunded" 영문 라벨을 보게 됨. 동작은 정상이나 운영자 UX 저하.
+   - 권장: `STATUS_LABEL.partial_refunded = "부분환불"` + `STATUS_COLOR.partial_refunded = STATUS_COLOR.refunded` 추가. status 탭(61~63줄)에도 노출 여부 결정.
+
+🟢 **Minor (백로그)**:
+
+1. **booking-client UI 안내 문구와 실제 정책 불일치**
+   - 위치: `_booking-client.tsx:867`
+   - 현황: "환불 정책: 시작 24h 전 100% / 12h 전 50% / 그 외 0%" 텍스트가 시간 단위 표기. 실제 `refund-policy.ts`는 KST 달력일 기준(D-3 이전 100% / D-2~D-1 50% / 당일 0%)
+   - 권장: "시작 3일 전 100% / 1~2일 전 50% / 당일 0%" 로 표시. 사용자 혼란 방지.
+
+2. **booking-client `successUrl` 의 bookingId 쿼리 사용처 없음**
+   - 위치: `_booking-client.tsx:285`
+   - 현황: `successUrl=/api/web/payments/confirm/booking?bookingId=${data.booking.id}` 로 보내지만, confirm/booking 라우트는 토스가 추가한 `paymentKey/orderId/amount`만 사용하고 `bookingId` 쿼리는 무시함(orderId에서 파싱).
+   - 권장: 의도적 fallback이면 주석 추가, 아니면 제거(코드 가독성).
+
+3. **payment-fail 페이지의 안내문 단정**
+   - 위치: `payment-fail/page.tsx:176`
+   - 현황: "예약은 자동으로 취소되었습니다" 단정. 그러나 fetch 실패 시 cron(15분 뒤)이 처리하므로 즉시 cancelled 보장이 아님.
+   - 권장: "자동으로 취소됩니다" 또는 "취소 처리됩니다" — 현재로도 OK.
+
+4. **DELETE/bookings 토스 응답 검증 미구현**
+   - 위치: `bookings/[id]/route.ts:340~341` 주석
+   - 현황: 토스 cancel 응답의 `cancels[].cancelAmount` 값 일치 검증 미구현. 운영 안정화 후 추가 예정으로 명시되어 있음.
+   - 권장: Phase B-9 후속으로 추가. 현재 ok 신뢰 충분.
+
+5. **expire-pending-bookings 알림 없음**
+   - 위치: `cron/expire-pending-bookings/route.ts`
+   - 현황: 만료 시 사용자 메일 알림 없음. 결제 미완료 사용자가 자기 예약이 사라진 줄 모름.
+   - 권장: 백로그(Phase D 정도). 현재는 booking_status를 /profile/bookings에서 직접 확인 가능.
+
+6. **운영자 취소 시 100% 환불의 비대칭성**
+   - 위치: `bookings/[id]/route.ts:250~257`
+   - 현황: 운영자 취소 시 `ratio=1.0` 강제하지만 `daysBefore`는 정보용으로 유지하면서 `label="D-3 이전"`으로 덮어씀. UI에서 "D-3 이전 환불" 라벨이 표시되는데 실제로는 당일이었을 수도 있음 → 사용자 혼란 가능성.
+   - 권장: `label="운영자 취소 (전액 환불)"` 같은 명확한 라벨 신설. RefundLabel 타입 확장 필요. 백로그.
+
+📌 **운영 환경 최종 체크리스트**:
+- ✅ 운영 DB schema 변경 0건 (Phase A 컬럼만 사용 — court_bookings.payment_id, payments.payable_type)
+- ✅ TOSS_SECRET_KEY / NEXT_PUBLIC_TOSS_CLIENT_KEY env 누락 시 graceful fallback
+- ✅ CRON_SECRET 누락 시 우회 (기존 cron과 일관)
+- ⚠️ 배포 후 admin/payments 페이지의 `partial_refunded` 라벨 추가 권장 (위 권장 수정 1번)
+
+📋 **수정 요청 (developer 작업)**:
+| # | 우선순위 | 파일 | 수정 내용 |
+|---|----------|------|----------|
+| 1 | 권장 | `src/app/(admin)/admin/payments/admin-payments-content.tsx` | `STATUS_LABEL.partial_refunded = "부분환불"` + `STATUS_COLOR.partial_refunded` 추가 |
+| 2 | Minor | `_booking-client.tsx:867` | 환불 정책 안내문 시간단위 → 일단위로 정정 |
+| 3 | Minor | `_booking-client.tsx:285` | successUrl의 미사용 bookingId 쿼리 제거 또는 주석 |
 

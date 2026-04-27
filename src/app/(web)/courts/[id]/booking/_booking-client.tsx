@@ -282,7 +282,9 @@ export function BookingClient({ court }: { court: CourtData }) {
         amount: { currency: "KRW", value: data.amount },
         orderId: data.order_id,
         orderName: `코트 대관 — ${court.name}`,
-        successUrl: `${window.location.origin}/api/web/payments/confirm/booking?bookingId=${data.booking.id}`,
+        // successUrl: confirm/booking은 orderId에서 bookingId를 파싱하므로 query bookingId 불필요
+        successUrl: `${window.location.origin}/api/web/payments/confirm/booking`,
+        // failUrl: payment-fail 페이지가 bookingId query를 사용하므로 유지
         failUrl: `${window.location.origin}/courts/${court.id}/booking/payment-fail?bookingId=${data.booking.id}`,
         customerEmail: me?.email ?? undefined,
         customerName: me?.nickname ?? me?.name ?? undefined,
@@ -864,7 +866,8 @@ export function BookingClient({ court }: { court: CourtData }) {
                 {isPaid ? (
                   <>
                     · 토스페이먼츠 안전결제
-                    <br />· 환불 정책: 시작 24h 전 100% / 12h 전 50% / 그 외 0%
+                    {/* refund-policy.ts 정책과 정렬: D-3 100% / D-2~D-1 50% / 당일 0% */}
+                    <br />· 환불 정책: 3일 전 100% / 1~2일 전 50% / 당일 0%
                     <br />· 취소·환불은 내 예약 페이지에서
                   </>
                 ) : (
