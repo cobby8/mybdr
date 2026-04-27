@@ -1700,6 +1700,37 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 - **Material Symbols Outlined**: `search` / `search_off` / `close` / `chevron_right` / `sports_basketball` / `emoji_events` / `groups` / `location_on` / `person` / `forum` 전부 Outlined 폰트
 - **폴백**: `game.title || "제목 없음"` / `user.nickname || user.name || "알 수 없음"` / `court.average_rating != null` 등 null 안전 처리
 
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-04-27 | 시안 박제 전면 재작성 — 781줄 단일 행 카드 리스트 → `Dev/design/BDR v2/screens/Search.jsx` 1:1. 폭 780→900, 큰 input(52/17), 헤더 위치(input 위 → 제목+카운트 아래), 팀 grid auto-fill 200 카드 + 32×32 이니셜 칩, 경기 board(60/1fr/auto + badge--soft), 대회 board(56/1fr/auto + 48×48 status accent 박스 + 상세 btn), 커뮤니티 board(60/1fr/auto + badge--soft), 코트/유저는 시안 외이지만 사용자 원칙대로 팀 grid 톤과 통일하여 추가. 빈 상태 60px+search_off. 탭 cafe-blue 밑줄(시안). | `src/app/(web)/search/_components/search-client.tsx` 전면 재작성 | PM 지시 — "기존 단일 행 리스트는 시안 톤과 거리. 시안의 grid/board/56px accent/badge 패턴을 그대로 박제" |
+
+#### 시안 매핑 표 (1차 수정 기준)
+| 시안 (Search.jsx) | 적용 |
+|---|---|
+| L21 `maxWidth:900, margin:'0 auto'` | 동일 |
+| L22~26 큰 input(52/17, 좌측 search absolute) | `<form>` 안 `position:relative` + Material Symbols absolute + className="input" |
+| L28~37 헤더("키워드" 검색 결과 + 카운트 라인) | 동일. 단 카운트 라인에 코트/유저는 0 초과 시에만 추가(사용자 원칙) |
+| L39~48 탭 cafe-blue 3px 밑줄 | 동일. 5탭 → 7탭(코트/유저 추가) |
+| L50~67 팀 grid auto-fill 200px + 32×32 tag 칩 + rating | DB에 tag/color/rating 없음 → 이름 이니셜 + id 결정 4톤 칩 + city/members 표시 |
+| L69~85 경기 card 0pad + 60/1fr/auto + badge--soft + applied/spots | DB에 정원 필드 없음 → 우측 chevron으로 대체 |
+| L87~103 대회 56/1fr/auto + 48×48 accent 박스 + level + edition + 상세 btn | status 약어("접수"/"진행"/"준비"/"종료") + status별 토큰 색 + teams_count/max_teams + Link className="btn btn--sm" |
+| L105~118 커뮤니티 60/1fr/auto + badge--soft + author·date | author select 없음 → 댓글 + 날짜 |
+| L120~125 빈 상태 60px + 36px ○ | 60px + Material Symbols `search_off` 48px |
+| (시안 외) 코트 / 유저 섹션 | 팀 grid 톤 그대로 (auto-fill 200, 32×32 칩) — 코트는 location_on 칩(cafe-blue), 유저는 이니셜 칩(원형) |
+
+#### 보존 (1차 수정 — 0 변경)
+- `page.tsx` (서버 컴포넌트) — Prisma 6테이블 쿼리, 직렬화, props 전달 100% 동일
+- `loading.tsx` 무변경 (이미 v2 스켈레톤 적용)
+- `SearchClientProps` 인터페이스, `useState(inputValue/activeTab)`, `handleSubmit` → `router.push` 동작 동일
+- `searchParams.q` → 서버 → 클라 흐름 동일
+- 6종 데이터(games/tournaments/teams/posts/users/courts) 전부 화면 노출
+- 한글 라벨 매핑 그대로(시안 폭에 맞춰 GAME_TYPE/STATUS 일부 짧게)
+
+#### 검증 (1차)
+- `npx tsc --noEmit` → **EXIT=0 PASS** (에러/경고 0)
+- 커밋 보류 — PM 처리 대기
+
 ---
 
 ### [2026-04-22] Phase 2 Notifications — v2 재구성 (UI-only, PM 4건 결정 반영)
@@ -2040,6 +2071,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-27 | developer | **알림 페이지 v2 시안 박제 (옵션 A)** — 1파일 수정(`(web)/notifications/_components/notifications-client.tsx`). eyebrow "알림 · NOTIFICATIONS"(11px/.14em/uppercase/cafe-blue-deep) 추가 + h1 옆 unread 빨간 22px 텍스트(뱃지 X, ff-mono) + "읽지 않은 알림 N건" 보조문구(ink-dim) + 활성 탭 cafe-blue 배경+cafe-blue-deep 보더(accent → cafe-blue) + unread 카드 bg-elev 배경+좌측 6px 원형 점(accent-soft + 3px bar 제거) + 시간 ff-mono+ink-dim + 그리드 44px/1fr/auto 패딩 16/20 + 본문 서브텍스트 ink-dim + "모두 읽음" 항상 노출(0건 disabled+opacity 0.45) + `getNotificationEmoji()` 신규(시안 박제: 🏆 match/tournament·🏀 game/scrim·💬 comment/mention·👥 team/friend·📈 rating/achievement·❤️ like/react·⚙️ system, 키워드 부분일치+categorize 폴백) + Material Symbols 아이콘 원형 → 이모지 26px. 보존 100%: SerializedNotification 타입(status: string)·Props(notifications/total/initialCategoryCounts)·6 useState·handleLoadMore/handleDelete/handleMarkAllRead·categorize() 사용·`/api/web/notifications/read-all` 호출 흐름·CustomEvent "notifications:read-all" 발행·PushPermissionBanner·더 보기·삭제 버튼·page.tsx 0 변경. **이모지 박제 근거**: CLAUDE.md "Material Symbols Outlined" 규칙은 lucide-react 외부 라이브러리 import 금지가 핵심, 이모지는 시안 결정 영역. shop/scrim/guest-apps와 일관성 유지(시안 인라인 이모지 그대로 박제). tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **Phase 7 이모지 정책 점검 + 최종 tsc 통과** — PM 지시("시안 인라인 이모지 그대로 박제, Material Symbols 강제 변환 X") 따라 TournamentEnroll(★ 시안 더미 컬럼 미사용, 💡 enroll-step-docs L133, ⚠️ page.tsx L1275 박제 확인) + GuestApps(⚡🎯🏆📅📍💳 박제 확인 + 주석 명시 L221) 양쪽 모두 시안 충실 박제 일관성 유지. 코드 수정 0. tsc --noEmit EXIT=0. | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **Phase 7-1 TournamentEnroll v2 박제** — `/tournaments/[id]/join` 전면 재작성 + `_v2/` 4 신규(enroll-poster/enroll-stepper/enroll-aside/enroll-step-docs). API/Prisma 0 변경, 보존 9건(팀선택/대표자/디비전/유니폼/선수/카테고리/입금계좌/완료/대기) 동작 유지, 5-step(hasCategories=true)/4-step adaptive, 서류 step "준비 중" 박제, 결제 step 입금 안내 흐름 유지(토스 미연결), 우측 sticky aside(포스터 placeholder + D-카운터 정적 + 환불 정책 mock). tsc --noEmit EXIT=0. | ✅ (커밋 대기, PM 처리) |
 | 04-27 | developer | **Phase 6 Pricing 1차 수정 — /pricing/checkout v2 정렬 (PM 미해결 4건 일괄)** — 1파일 전면 수정(`src/app/(web)/pricing/checkout/page.tsx`). ①breadcrumb 추가(홈›요금제›결제, `@/components/shared/breadcrumb`) ②약관 4종 라벨 카드(결제 대행/개인정보 제3자/구독·환불 정책/마케팅 선택, UI 박제 — 결제 차단 X) ③`/api/web/me` useEffect fetch 후 email·이름 readOnly input 노출(빈 값 placeholder "(미등록)" + var(--ink-dim), 실패 시 무시) ④plan_type 라벨 기존 그대로(monthly→"월 구독 (30일)", 그 외→"1회 구매") ⑤loading/error/Suspense fallback 모두 v2 spinner(`var(--accent)`)+`.card` 정렬(기존 tailwind --color-* alias 제거). **토스 SDK `toss.requestPayment({ method, amount, orderId, orderName, successUrl, failUrl, customerEmail, customerName })` 인자 한 글자도 변경 X**. handlePay 흐름·SDK 로드 useEffect·planId 가드·router·useSearchParams 보존. tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |

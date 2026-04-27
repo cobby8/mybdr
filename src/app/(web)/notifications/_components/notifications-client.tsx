@@ -1,24 +1,35 @@
 "use client";
 
 /**
- * 알림 페이지 클라이언트 컴포넌트 (M6) — BDR v2 재구성
+ * 알림 페이지 클라이언트 컴포넌트 (M6) — BDR v2 시안 박제 (옵션 A)
  *
- * 이유: Phase 1/2와 일관된 `.page` 쉘 + 780px 폭 + v2 tokens 적용. 단
- *      상태/핸들러/fetch 로직은 기존 그대로 보존 (PM 지시: UI만 재구성).
+ * 이유: 기존 v2 재구성(Material Symbols 아이콘)에서 시안(이모지+cafe-blue 탭)
+ *      박제로 한 번 더 정렬. shop/scrim/guest-apps와 동일 톤(eyebrow + cafe-blue
+ *      탭 + ff-mono 시간) 일관성 확보. 이모지는 시안 그대로 박제 — CLAUDE.md
+ *      "Material Symbols Outlined" 규칙은 lucide-react 같은 외부 라이브러리
+ *      import 금지가 핵심이고 이모지는 시안 결정 영역이라 박제 우선.
  *
- * v2 변경점:
- * - 탭 7종: 전체 / 안읽음 / 대회 / 경기 / 팀 / 커뮤니티 / 시스템
- * - unread 아이템: 배경 강조 (var(--accent-soft) + 좌측 accent bar)
- * - "알림 설정" 버튼: /profile/notification-settings 로 Link
- * - .page 래퍼 + inline maxWidth 780
- * - Material Symbols Outlined 아이콘 (이모지 금지)
+ * v2 시안 박제 변경점:
+ *  - eyebrow "알림 · NOTIFICATIONS" 추가 (Shop hero와 동일 패턴)
+ *  - h1 옆 unread 숫자: 빨간 22px 텍스트 (뱃지 → 텍스트)
+ *  - "읽지 않은 알림 N건" 보조문구
+ *  - 활성 탭: cafe-blue 배경 + cafe-blue-deep 보더 (accent → cafe-blue)
+ *  - unread 카드: bg-elev 배경 + 좌측 6px 원형 점 (accent-soft + bar 제거)
+ *  - 시간: ff-mono + ink-dim (ink-mute → ink-dim)
+ *  - 카드 그리드: 44px / 1fr / auto, 패딩 16/20
+ *  - 본문 서브텍스트: ink-dim (ink-mute → ink-dim)
+ *  - "모두 읽음" 항상 노출 (unread 0이면 disabled)
+ *  - notification_type → 이모지 매핑 함수 (🏆 대회·매치, 🏀 경기, 💬 댓글,
+ *    👥 팀, 📈 레이팅, ❤️ 좋아요, ⚙️ 시스템)
  *
- * 불변:
- * - SerializedNotification / Props 타입
- * - useState 6종 (activeTab 제외) + handleLoadMore / handleDelete / handleMarkAllRead
- * - window CustomEvent "notifications:read-all" 발행 (헤더 벨 즉시 갱신)
- * - PushPermissionBanner 유지
- * - 삭제 버튼 / 더 보기 버튼 유지
+ * 불변 (PM 지시 100% 보존):
+ *  - SerializedNotification / Props 타입 (notifications/total/initialCategoryCounts)
+ *  - useState 6종 (activeTab 제외) + handleLoadMore / handleDelete / handleMarkAllRead
+ *  - categorize() 사용 (탭 필터/카테고리 카운트)
+ *  - /api/web/notifications/read-all 호출 흐름
+ *  - window CustomEvent "notifications:read-all" 발행 (헤더 벨 즉시 갱신)
+ *  - PushPermissionBanner 유지
+ *  - 더 보기 / 삭제 버튼 유지
  */
 
 import { useState, useMemo, useEffect } from "react";
@@ -26,7 +37,6 @@ import Link from "next/link";
 import { PushPermissionBanner } from "@/components/shared/push-permission";
 import {
   type NotifCategory,
-  ICON_MAP,
   categorize,
 } from "@/lib/notifications/category";
 
@@ -42,7 +52,6 @@ interface SerializedNotification {
 }
 
 // 탭 정의 — 7종 (전체 + 안읽음 + 5카테고리)
-// key가 "all"이면 필터 없음, "unread"는 status==="unread"만, 그 외는 NotifCategory
 type TabKey = "all" | "unread" | NotifCategory;
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "전체" },
@@ -54,10 +63,27 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "system", label: "시스템" },
 ];
 
-// notification_type → 아이콘 (카테고리 기반 매핑 재사용)
-function getNotificationIcon(type: string): { icon: string; color: string } {
+// 시안 박제 — notification_type → 이모지 매핑
+// 🏆 대회/매치 (tournament + match), 🏀 경기 (game),
+// 💬 댓글/멘션 (comment, mention), 👥 팀 (team, friend, follow),
+// 📈 레이팅 (rating, achievement, level), ❤️ 좋아요 (like, react),
+// ⚙️ 시스템/공지 (system, announcement)
+function getNotificationEmoji(type: string): string {
+  const t = (type || "").toLowerCase();
+  if (t.includes("comment") || t.includes("mention") || t.includes("reply")) return "💬";
+  if (t.includes("like") || t.includes("react") || t.includes("heart")) return "❤️";
+  if (t.includes("rating") || t.includes("achievement") || t.includes("level")) return "📈";
+  if (t.includes("team") || t.includes("friend") || t.includes("follow") || t.includes("invite_team")) return "👥";
+  if (t.includes("match") || t.includes("tournament") || t.includes("league") || t.includes("bracket")) return "🏆";
+  if (t.includes("game") || t.includes("scrim") || t.includes("schedule")) return "🏀";
+  if (t.includes("system") || t.includes("announce") || t.includes("notice")) return "⚙️";
+  // fallback — 카테고리 기반 보조 매핑
   const cat = categorize(type);
-  return ICON_MAP[cat];
+  if (cat === "tournament") return "🏆";
+  if (cat === "game") return "🏀";
+  if (cat === "team") return "👥";
+  if (cat === "community") return "💬";
+  return "⚙️";
 }
 
 // 상대 시간 표시 (예: "3분 전", "2시간 전", "어제")
@@ -116,9 +142,6 @@ export function NotificationsClient({
   const notifications = allNotifications.filter((n) => !deletedIds.has(n.id));
 
   // 탭별 필터링된 알림 목록
-  // - all: 전체
-  // - unread: status==="unread" && readIds에 없는 것만
-  // - 그 외: categorize 매칭
   const filtered = useMemo(() => {
     if (activeTab === "all") return notifications;
     if (activeTab === "unread") {
@@ -130,7 +153,6 @@ export function NotificationsClient({
   }, [activeTab, notifications, readIds]);
 
   // 카테고리별 unread 카운트 (서버 SSR 값 + 클라이언트 read 처리 보정)
-  // 이유: SSR 값은 정확하지만 사용자가 페이지에서 "모두 읽음" 누르면 0이 되어야 함
   const categoryCounts = useMemo(() => {
     const counts: Record<NotifCategory, number> = { ...initialCategoryCounts };
     for (const id of readIds) {
@@ -143,7 +165,7 @@ export function NotificationsClient({
     return counts;
   }, [initialCategoryCounts, readIds, allNotifications]);
 
-  // 전체 unread 카운트 (헤더 옆 빨간 뱃지)
+  // 전체 unread 카운트
   const unreadCount =
     categoryCounts.tournament +
     categoryCounts.game +
@@ -151,16 +173,13 @@ export function NotificationsClient({
     categoryCounts.community +
     categoryCounts.system;
 
-  // 활성 탭 unread (모두 읽음 버튼 노출 판단)
+  // 활성 탭 unread (모두 읽음 버튼 활성화 판단)
   const activeTabUnread =
     activeTab === "all" || activeTab === "unread"
       ? unreadCount
       : categoryCounts[activeTab];
 
-  // 탭별 뱃지 카운트
-  // - all: 전체 건수 (표시 안함 — unread가 아니라 total이므로 뱃지 없음)
-  // - unread: 미확인 총 건수
-  // - 각 카테고리: 해당 카테고리 unread
+  // 탭별 카운트
   const tabUnreadCounts = useMemo(() => {
     const counts: Record<TabKey, number> = {
       all: 0, // 전체 탭은 뱃지 미표시
@@ -174,7 +193,7 @@ export function NotificationsClient({
     return counts;
   }, [unreadCount, categoryCounts]);
 
-  // 더 보기 가능 여부 (서버 total > 현재 누적 건수)
+  // 더 보기 가능 여부
   const hasMore = allNotifications.length < total;
 
   // 더 보기 — 다음 page fetch 후 append (기존 로직 그대로)
@@ -187,7 +206,6 @@ export function NotificationsClient({
         { credentials: "include" },
       );
       if (!res.ok) return;
-      // snake_case 응답 직접 사용 (apiSuccess 자동 변환)
       const data = (await res.json()) as {
         items: Array<{
           id: string | number;
@@ -236,13 +254,11 @@ export function NotificationsClient({
   }
 
   // "모두 읽음" 처리 (기존 로직 그대로)
-  // - all/unread 탭: 전체 카테고리 대상
-  // - 개별 카테고리 탭: 해당 카테고리만
   async function handleMarkAllRead() {
+    if (activeTabUnread <= 0) return; // 시안 박제: 항상 노출하되 0건이면 noop
     setMarkingAll(true);
     try {
       const body: { category?: NotifCategory } = {};
-      // "unread" 탭은 전체를 읽음 처리 (전체 대상). 개별 카테고리만 category 전송
       if (activeTab !== "all" && activeTab !== "unread") {
         body.category = activeTab;
       }
@@ -283,63 +299,74 @@ export function NotificationsClient({
   const activeTabLabel = TABS.find((t) => t.key === activeTab)?.label ?? "";
 
   return (
-    // v2 시안 .page 쉘 + 알림 페이지는 780px로 좁힘 (Phase 1/2 일관)
+    // v2 시안 .page 쉘 + 알림 페이지는 780px (Phase 1/2 일관)
     <div className="page" style={{ maxWidth: 780 }}>
-      {/* ==== 헤더: 제목 + unread 배지 + 우측 액션 2개 ==== */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-              color: "var(--ink)",
-            }}
-          >
-            알림
-          </h1>
-          {unreadCount > 0 && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                minWidth: 22,
-                height: 22,
-                padding: "0 7px",
-                borderRadius: 999,
-                background: "var(--accent)",
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 700,
-              }}
-            >
-              {unreadCount}
-            </span>
-          )}
+      {/* ==== 헤더 ==== */}
+      <div style={{ marginBottom: 20 }}>
+        {/* eyebrow — shop hero와 동일 톤 (uppercase / .14em / 800) */}
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: ".14em",
+            fontWeight: 800,
+            textTransform: "uppercase",
+            color: "var(--cafe-blue-deep)",
+            marginBottom: 6,
+          }}
+        >
+          알림 · NOTIFICATIONS
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* "모두 읽음" — 활성 탭에 unread가 있을 때만 */}
-          {activeTabUnread > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
+          {/* 좌: h1 + 빨간 unread 숫자 (텍스트, 뱃지 X) */}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 800,
+                letterSpacing: "-0.015em",
+                color: "var(--ink)",
+              }}
+            >
+              알림
+            </h1>
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: "var(--accent)",
+                  fontFamily: "var(--ff-mono)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </div>
+
+          {/* 우: 액션 2개 (모두 읽음 + 알림 설정) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {/* "모두 읽음" — 시안 박제: 항상 노출 (0건이면 disabled) */}
             <button
               type="button"
               onClick={handleMarkAllRead}
-              disabled={markingAll}
+              disabled={markingAll || activeTabUnread <= 0}
               className="btn btn--sm"
               style={{
                 color: "var(--accent)",
                 borderColor: "var(--border)",
                 fontWeight: 700,
+                opacity: activeTabUnread <= 0 ? 0.45 : 1,
+                cursor: activeTabUnread <= 0 ? "not-allowed" : "pointer",
               }}
             >
               {markingAll
@@ -348,36 +375,47 @@ export function NotificationsClient({
                   ? "모두 읽음"
                   : `${activeTabLabel} 모두 읽음`}
             </button>
-          )}
-          {/* "알림 설정" — /profile/notification-settings 로 이동 */}
-          <Link
-            href="/profile/notification-settings"
-            className="btn btn--sm"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              textDecoration: "none",
-              color: "var(--ink)",
-            }}
-          >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 16 }}
+            {/* "알림 설정" */}
+            <Link
+              href="/profile/notification-settings"
+              className="btn btn--sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                textDecoration: "none",
+                color: "var(--ink)",
+              }}
             >
-              settings
-            </span>
-            알림 설정
-          </Link>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+              >
+                settings
+              </span>
+              알림 설정
+            </Link>
+          </div>
         </div>
+
+        {/* 보조문구 — 읽지 않은 알림 N건 */}
+        <p
+          style={{
+            margin: "6px 0 0",
+            fontSize: 13,
+            color: "var(--ink-dim)",
+          }}
+        >
+          읽지 않은 알림 {unreadCount}건
+        </p>
       </div>
 
-      {/* ==== 푸시 알림 구독 배너: 권한 요청 + SW 구독 + 서버 저장 ==== */}
+      {/* ==== 푸시 알림 구독 배너 ==== */}
       <div style={{ marginBottom: 16 }}>
         <PushPermissionBanner />
       </div>
 
-      {/* ==== 탭: 7종 (전체 / 안읽음 / 대회 / 경기 / 팀 / 커뮤니티 / 시스템) ==== */}
+      {/* ==== 탭: 7종 — cafe-blue 배경 + cafe-blue-deep 보더 ==== */}
       <div
         className="scrollbar-hide"
         style={{
@@ -400,9 +438,10 @@ export function NotificationsClient({
               aria-pressed={isActive}
               style={{
                 flexShrink: 0,
-                background: isActive ? "var(--accent)" : "var(--bg-elev)",
+                // 활성: cafe-blue 배경 + cafe-blue-deep 보더 (시안 박제)
+                background: isActive ? "var(--cafe-blue)" : "var(--bg-elev)",
                 color: isActive ? "#fff" : "var(--ink)",
-                borderColor: isActive ? "var(--accent)" : "var(--border)",
+                borderColor: isActive ? "var(--cafe-blue-deep)" : "var(--border)",
                 fontWeight: 700,
                 display: "inline-flex",
                 alignItems: "center",
@@ -410,7 +449,7 @@ export function NotificationsClient({
               }}
             >
               {tab.label}
-              {/* 뱃지 — 비활성 탭이고 unread > 0 일 때만 */}
+              {/* 비활성 탭에 unread 있을 때만 카운트 뱃지 */}
               {count > 0 && !isActive && (
                 <span
                   style={{
@@ -425,6 +464,7 @@ export function NotificationsClient({
                     color: "#fff",
                     fontSize: 10,
                     fontWeight: 700,
+                    fontFamily: "var(--ff-mono)",
                   }}
                 >
                   {count}
@@ -444,57 +484,69 @@ export function NotificationsClient({
           >
             {filtered.map((n, idx) => {
               const isUnread = n.status === "unread" && !readIds.has(n.id);
-              const { icon, color } = getNotificationIcon(n.notification_type);
+              const emoji = getNotificationEmoji(n.notification_type);
               const timeStr = formatRelativeTime(n.created_at);
               const isLast = idx === filtered.length - 1;
 
               const itemContent = (
                 <div
                   style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    padding: "14px 16px",
-                    // unread 배경 강조 — accent-soft (라이트 #FDE8E9 / 다크 #2A1214)
-                    background: isUnread ? "var(--accent-soft)" : "transparent",
-                    // unread 좌측 accent bar (3px)
-                    boxShadow: isUnread
-                      ? "inset 3px 0 0 var(--accent)"
-                      : "none",
+                    // 시안 그리드: 44px / 1fr / auto, 패딩 16/20
+                    display: "grid",
+                    gridTemplateColumns: "44px 1fr auto",
+                    alignItems: "start",
+                    columnGap: 14,
+                    padding: "16px 20px",
+                    // unread 카드 배경: bg-elev (accent-soft 제거)
+                    background: isUnread ? "var(--bg-elev)" : "transparent",
                     borderBottom: isLast ? "none" : "1px solid var(--border)",
                     transition: "background 0.15s ease",
+                    position: "relative",
                   }}
                 >
-                  {/* 아이콘 원형 배경 */}
+                  {/* unread 좌측 6px 원형 점 (accent bar 제거 → dot) */}
+                  {isUnread && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: "var(--accent)",
+                      }}
+                      aria-hidden
+                    />
+                  )}
+
+                  {/* 1열: 이모지 (시안 박제 — Material Symbols 아닌 이모지 그대로) */}
                   <div
                     style={{
-                      flexShrink: 0,
+                      width: 44,
+                      height: 44,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 40,
-                      height: 40,
-                      borderRadius: 999,
-                      background: color,
-                      opacity: isUnread ? 1 : 0.55,
+                      fontSize: 26,
+                      lineHeight: 1,
+                      opacity: isUnread ? 1 : 0.7,
+                      userSelect: "none",
                     }}
+                    aria-hidden
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 20, color: "#fff" }}
-                    >
-                      {icon}
-                    </span>
+                    {emoji}
                   </div>
 
-                  {/* 본문 */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* 2열: 본문 (제목 + 서브텍스트) */}
+                  <div style={{ minWidth: 0 }}>
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "flex-start",
+                        alignItems: "baseline",
                         justifyContent: "space-between",
-                        gap: 8,
+                        gap: 10,
                       }}
                     >
                       <p
@@ -510,12 +562,15 @@ export function NotificationsClient({
                       >
                         {n.title}
                       </p>
+                      {/* 시간 — ff-mono + ink-dim */}
                       <span
                         style={{
                           flexShrink: 0,
                           whiteSpace: "nowrap",
                           fontSize: 11,
-                          color: "var(--ink-mute)",
+                          color: "var(--ink-dim)",
+                          fontFamily: "var(--ff-mono)",
+                          letterSpacing: ".02em",
                         }}
                       >
                         {timeStr}
@@ -525,8 +580,8 @@ export function NotificationsClient({
                       <p
                         style={{
                           margin: "4px 0 0",
-                          fontSize: 12,
-                          color: "var(--ink-mute)",
+                          fontSize: 12.5,
+                          color: "var(--ink-dim)",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
@@ -537,53 +592,58 @@ export function NotificationsClient({
                     )}
                   </div>
 
-                  {/* action_url 화살표 */}
-                  {n.action_url && (
-                    <span
-                      className="material-symbols-outlined"
-                      style={{
-                        flexShrink: 0,
-                        fontSize: 18,
-                        alignSelf: "center",
-                        color: "var(--ink-mute)",
-                      }}
-                    >
-                      chevron_right
-                    </span>
-                  )}
-
-                  {/* 삭제 버튼 — 기존 로직 그대로 */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleDelete(n.id);
-                    }}
-                    disabled={deletingId === n.id}
-                    title="알림 삭제"
+                  {/* 3열: action 화살표 + 삭제 버튼 */}
+                  <div
                     style={{
-                      flexShrink: 0,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      width: 28,
-                      height: 28,
-                      borderRadius: 999,
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--ink-mute)",
-                      cursor: "pointer",
+                      gap: 4,
                       alignSelf: "center",
                     }}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 16 }}
+                    {n.action_url && (
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: 18,
+                          color: "var(--ink-mute)",
+                        }}
+                        aria-hidden
+                      >
+                        chevron_right
+                      </span>
+                    )}
+                    {/* 삭제 버튼 — 기존 로직 그대로 */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(n.id);
+                      }}
+                      disabled={deletingId === n.id}
+                      title="알림 삭제"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        border: "none",
+                        background: "transparent",
+                        color: "var(--ink-mute)",
+                        cursor: "pointer",
+                      }}
                     >
-                      {deletingId === n.id ? "hourglass_empty" : "close"}
-                    </span>
-                  </button>
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 16 }}
+                      >
+                        {deletingId === n.id ? "hourglass_empty" : "close"}
+                      </span>
+                    </button>
+                  </div>
                 </div>
               );
 
@@ -638,17 +698,10 @@ export function NotificationsClient({
             textAlign: "center",
           }}
         >
-          <span
-            className="material-symbols-outlined"
-            style={{
-              fontSize: 48,
-              color: "var(--ink-mute)",
-              marginBottom: 12,
-              display: "inline-block",
-            }}
-          >
-            notifications_off
-          </span>
+          {/* 빈 상태도 시안 톤에 맞춰 이모지 사용 */}
+          <div style={{ fontSize: 48, marginBottom: 12, lineHeight: 1 }} aria-hidden>
+            🔕
+          </div>
           <p
             style={{
               margin: "0 0 4px",
