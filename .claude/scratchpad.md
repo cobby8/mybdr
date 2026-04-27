@@ -2915,3 +2915,41 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 - **+ 일정 등록 / ICS 내보내기 disabled 처리**: 시안 원본은 단순 `<button>`이지만 PM 지시로 `disabled + title="준비 중"` 추가하여 인터랙션 차단 명시.
 - **추후 구현 8건 백로그 등록** — 일정 집계 API / 5종 분류 정형화 / 클릭 라우팅 / 일정 등록 모달 / ICS / 주(week) 뷰 본구현 / 친구 일정 겹쳐보기 / 이번 달 통계 동적화
 
+---
+
+### 구현 기록 — Phase 8 TeamInvite v2 박제 (2026-04-27)
+
+📝 구현한 기능: 팀 초대 수락/거절 페이지 v2 신규 박제 (`/team-invite`)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/team-invite/page.tsx | 메타데이터 + 클라 컴포넌트 마운트 (29줄) | 신규 |
+| src/app/(web)/team-invite/_v2/team-invite-client.tsx | TeamInvite.jsx 시안 1:1 박제 (537줄) | 신규 |
+
+**라우트 충돌**: 없음. `/invite`는 카페 이전 안내 정적 페이지라 별개. `/team-invite`는 미점유 → 신규 생성.
+
+**보존 항목**:
+- 시안 인라인 데이터 100% 유지 (team / inviter / invite 객체)
+- DB 호출 0건, API 호출 0건 (사용자 원칙 — 박제 + '준비 중' 형태)
+- useState 인터랙션 (status: pending/accepted/declined, showProfile) 그대로
+- 시안 인라인 style + color-mix() 그라디언트 유지
+
+**시안 변형**:
+- a 태그 onClick → button 변환 (a11y) — "초대 다시 보기" / "프로필 펼치기"
+- 라우터 `setRoute('teamDetail')` → `<Link href="/teams">`로 폴백 (실제 팀 ID 없음)
+- 메시지 따옴표 `"..."` → HTML 엔티티 `&ldquo;&rdquo;` (react/no-unescaped-entities)
+- 빈 a href → `#team-rules`, `#report` 앵커 (lint 회피)
+
+💡 tester 참고:
+- 테스트 방법: `/team-invite` 직접 방문
+- 정상 동작: 초대 카드 → "수락하고 합류하기" 클릭 → 환영 화면 / "거절" → 거절 화면 → "초대 다시 보기"로 복귀
+- 프로필 펼치기 토글 동작 확인
+- 주의: DB/API 미연결 (박제) — 새로고침 시 status 초기화는 정상
+
+⚠️ reviewer 참고:
+- 시안 충실도: TeamInvite.jsx 205줄 1:1 박제. 시안의 mock TEAMS[2] 객체는 박제 시 인라인으로 풀어냄 (몽키즈 컬러 #F5C842 추정값 — 시안 원본 TEAMS 배열 미접근).
+- lucide-react 미사용. 시안 원본도 텍스트 ✓ ✕ 만 사용 (Material Symbols 불필요).
+- v2 토큰(--bg-alt, --ink-mute, --ff-display, --cafe-blue-soft 등) 다른 v2 페이지와 동일 사용 → globals.css 영향 없음.
+- 향후 DB 연결 시: TeamInvitation 테이블 신설 + `/team-invite/[code]` 동적 세그먼트 변경 + GET/POST API 3종 추가.
+- tsc --noEmit 통과 (EXIT=0).
+

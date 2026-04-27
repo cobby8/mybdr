@@ -315,17 +315,19 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
           >
             <div style={{ minWidth: 0 }}>
               <div className="eyebrow">{headerInfo.eyebrow}</div>
+              {/* 시안 충실: h1/글수에 whiteSpace:nowrap 박제 */}
               <h1
                 style={{
                   margin: "6px 0 4px",
                   fontSize: 24,
                   fontWeight: 700,
                   letterSpacing: "-0.01em",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {headerInfo.title}
               </h1>
-              <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+              <div style={{ fontSize: 13, color: "var(--ink-mute)", whiteSpace: "nowrap" }}>
                 {/* 공지(pinned)도 합산 */}
                 전체 {(pinnedPosts.length + regularPosts.length).toLocaleString()}개의 글
               </div>
@@ -384,6 +386,7 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
               border: "1px solid var(--border)",
               borderRadius: "var(--radius-chip)",
               fontSize: 13,
+              whiteSpace: "nowrap",
               flexWrap: "wrap",
             }}
           >
@@ -410,6 +413,7 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
                     fontWeight: active ? 700 : 500,
                     fontSize: 13,
                     whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                 >
                   {opt.label}
