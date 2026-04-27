@@ -160,7 +160,7 @@ export function RegRow({ r }: { r: RegItem }) {
             {r.title}
           </Link>
 
-          {/* 메타 라인 — 일시 / 장소 / 예약번호 */}
+          {/* 메타 라인 — 일시 / 장소 / 예약번호 (시안의 📅/📍 이모지 그대로) */}
           <div
             style={{
               fontSize: 12.5,
@@ -170,8 +170,8 @@ export function RegRow({ r }: { r: RegItem }) {
               flexWrap: "wrap",
             }}
           >
-            {r.whenText && <span>{r.whenText}</span>}
-            {r.placeText && <span>{r.placeText}</span>}
+            {r.whenText && <span>📅 {r.whenText}</span>}
+            {r.placeText && <span>📍 {r.placeText}</span>}
             <span style={{ fontFamily: "var(--ff-mono)", color: "var(--ink-dim)" }}>
               {r.code}
             </span>
