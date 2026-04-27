@@ -1,12 +1,22 @@
 /* ============================================================
- * /api/web/courts/[id]/bookings — 회원용 코트 예약 API (Phase A)
+ * /api/web/courts/[id]/bookings — 회원용 코트 예약 API (Phase B-2)
  *
  * GET  : 특정 일자의 활성 슬롯 목록 조회 (예약 가능 시간 표시용)
- * POST : 신규 예약 생성 (FOR UPDATE 락 + 충돌 검사 + 즉시 confirmed)
+ * POST : 신규 예약 생성 (FOR UPDATE 락 + 충돌 검사 + 결제 분기)
  *
- * Phase A 정책:
- *   - 결제 미도입 → final_amount = 0, status = "confirmed" 즉시 확정
- *   - amount/discount 는 향후 Phase B/D 를 위해 컬럼만 유지 (현재는 0 또는 시간당 요금 그대로)
+ * Phase B-2 정책 (결제 통합):
+ *   - fee == 0 (무료) : status = "confirmed" 즉시 확정, final_amount = 0
+ *   - fee > 0 (유료)  : status = "pending"  결제 대기, final_amount = amount
+ *                      → 응답에 orderId 포함 (클라가 toss.requestPayment 호출)
+ *                      → orderId 패턴: `BOOKING-${bookingId}-${userId}-${timestamp}`
+ *                      → DB 변경 0 원칙: order_id 컬럼 없음. successUrl 콜백에서
+ *                        orderId 파싱(bookingId 추출) → lookup
+ *
+ * 보존 항목 (Phase A → B-2 100% 유지):
+ *   - getWebSession 인증, Zod 검증, validateBookingTime
+ *   - booking_mode === "internal" 가드
+ *   - acquireBookingLock(pg_advisory_xact_lock) + checkConflict
+ *   - INSERT 트랜잭션 + 충돌 409 변환
  *
  * apiSuccess 자동 snake_case 변환 (errors.md 6회차 가드):
  *   클라이언트는 본 응답을 snake_case 로 접근. raw curl 검증 권장.
@@ -209,13 +219,19 @@ export async function POST(
         throw err;
       }
 
-      // 금액 계산 — Phase A 는 final_amount=0 강제 (무료 MVP)
+      // 금액 계산 — Phase B-2 결제 분기
+      // 이유: feePerHour 가 0 또는 null 이면 무료 코트, 그 외엔 유료 코트.
+      //       무료/유료에 따라 status 와 final_amount 가 달라짐.
       const feePerHour = court.booking_fee_per_hour
         ? Number(court.booking_fee_per_hour)
         : 0;
       const amount = feePerHour * duration_hours;
-      // Phase A: 결제 미도입이라 final_amount=0. amount 는 표시용으로만 저장 (Phase B 진입 시 활용)
-      const finalAmount = 0;
+
+      // 분기: 유료(amount > 0) → pending + 실제 금액. 무료 → confirmed + 0
+      const isPaid = amount > 0;
+      const finalAmount = isPaid ? amount : 0;
+      // 유료는 결제 완료 시 confirm. 무료는 즉시 확정 (Phase A 흐름 유지)
+      const initialStatus = isPaid ? "pending" : "confirmed";
 
       return tx.court_bookings.create({
         data: {
@@ -229,9 +245,9 @@ export async function POST(
           amount,
           discount_amount: 0,
           final_amount: finalAmount,
+          // platform_fee 는 Phase C 이후 사용. Phase B 는 0 유지
           platform_fee: 0,
-          // Phase A: 결제 없으므로 즉시 confirmed
-          status: "confirmed",
+          status: initialStatus,
         },
         select: {
           id: true,
@@ -247,19 +263,48 @@ export async function POST(
       });
     });
 
+    // 결제 분기 응답
+    // 이유: 유료 예약은 클라가 토스 결제창을 띄워야 하므로 orderId/amount 가 필요.
+    //       무료 예약은 즉시 확정이라 결제 호출 불필요.
+    const isPaid = Number(created.final_amount) > 0;
+
+    // orderId — DB 저장하지 않고 응답으로만 전달 (DB 변경 0 원칙)
+    // 패턴: BOOKING-{bookingId}-{userId}-{timestamp}
+    // successUrl 콜백에서 bookingId 파싱하여 lookup → confirm
+    const orderId = isPaid
+      ? `BOOKING-${created.id.toString()}-${userId.toString()}-${Date.now()}`
+      : null;
+
+    const bookingPayload = {
+      id: created.id.toString(),
+      start_at: created.start_at.toISOString(),
+      end_at: created.end_at.toISOString(),
+      duration_hours: created.duration_hours,
+      purpose: created.purpose,
+      status: created.status,
+      amount: Number(created.amount),
+      final_amount: Number(created.final_amount),
+      expected_count: created.expected_count,
+    };
+
+    if (isPaid) {
+      // 유료: 결제 필요 플래그 + orderId + amount 동봉
+      return apiSuccess(
+        {
+          booking: bookingPayload,
+          requiresPayment: true,
+          orderId,
+          amount: Number(created.final_amount),
+        },
+        201
+      );
+    }
+
+    // 무료: 결제 불필요. Phase A 와 동일한 응답에 플래그만 추가
     return apiSuccess(
       {
-        booking: {
-          id: created.id.toString(),
-          start_at: created.start_at.toISOString(),
-          end_at: created.end_at.toISOString(),
-          duration_hours: created.duration_hours,
-          purpose: created.purpose,
-          status: created.status,
-          amount: Number(created.amount),
-          final_amount: Number(created.final_amount),
-          expected_count: created.expected_count,
-        },
+        booking: bookingPayload,
+        requiresPayment: false,
       },
       201
     );

@@ -1,20 +1,44 @@
 "use client";
 
 /* ============================================================
- * BookingClient — 회원용 예약 화면 (Phase A)
+ * BookingClient — 회원용 예약 화면 (Phase B-5: 토스 SDK 통합)
  *
  * 시안: Dev/design/BDR v2/screens/CourtBooking.jsx
- * 차이점:
- *   - 시안의 코트 멀티 선택 → 본 페이지는 단일 코트 (URL 진입한 코트만)
- *   - 시안의 mock 슬롯 → SWR 로 /api/web/courts/[id]/bookings?date=... 조회
- *   - 시안의 BDR+ 할인 라인은 유지하되 Phase A 는 0원 표시
- *   - "결제하고 예약 확정" → Phase A 는 final_amount=0 무료 확정 (텍스트도 "무료 예약 확정"으로 변경)
+ *
+ * Phase B-5 (현재):
+ *   - 토스페이먼츠 SDK 동적 로딩 (/pricing/checkout 패턴 그대로)
+ *   - POST /bookings → fee>0 이면 응답 requires_payment=true → toss.requestPayment 호출
+ *   - 약관 4종 (필수 3 + 선택 1) — UI 박제, 필수 3종 미체크 시 결제 버튼 disabled
+ *   - 무료/유료 분기 버튼 라벨 + 무료는 약관 게이트 우회
+ *   - successUrl: /api/web/payments/confirm/booking?bookingId=...
+ *   - failUrl   : /courts/[id]/booking/payment-fail?bookingId=...
+ *
+ * Phase A → B-5 보존 항목 (모두 유지):
+ *   - 슬롯 선택 UI (날짜 7일 + 시간 16칸)
+ *   - duration / purpose / expected_count
+ *   - 시안 카드 디자인 / v2 클래스 / 토큰 (var(--accent) 등)
+ *   - SWR 점유 슬롯 갱신, 충돌 409 → mutate 재조회
+ *   - 에러 메시지 영역
+ *
+ * Phase B-5 변경사항 (Phase A 대비):
+ *   - final_amount 강제 0 → 실제 계산값 (fee × duration)
+ *   - 무료 라벨 → "무료 예약 확정" / 유료 → "{amount}원 결제하기"
  * ============================================================ */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import useSWR, { mutate } from "swr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+// 토스 SDK 글로벌 타입 (window.TossPayments)
+// 이유: 외부 스크립트로 주입되는 SDK라 declare global 로 타입을 선언해야 함.
+//       /pricing/checkout/page.tsx 와 동일한 패턴.
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    TossPayments: (clientKey: string) => any;
+  }
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -28,6 +52,17 @@ const PURPOSES = [
   { id: "scrim", l: "스크림", d: "팀간 연습" },
   { id: "private", l: "개인 연습", d: "혼자/소규모" },
 ] as const;
+
+// 약관 4종 — 필수 3 + 선택 1
+// 이유: PG사 결제 약관 / 개인정보 제3자 제공 동의 / 환불 규정은 결제 진행 필수.
+//       마케팅은 선택이므로 결제 차단 조건에서 제외.
+const TERMS = [
+  { key: "pg", label: "결제 대행 서비스 약관 (필수)" },
+  { key: "third", label: "개인정보 제3자 제공 동의 (PG사) (필수)" },
+  { key: "refund", label: "코트 대관 정책 및 환불 규정 (필수)" },
+  { key: "marketing", label: "마케팅 정보 수신 동의 (선택)" },
+] as const;
+type TermKey = (typeof TERMS)[number]["key"];
 
 // 7일 날짜 배열 생성 — 오늘부터 +6일 (KST 기준)
 function generateDays() {
@@ -82,6 +117,32 @@ interface CourtData {
   primary_color: string;
 }
 
+// /api/web/me 응답 중 결제에 사용할 필드만 부분 타입
+type MeInfo = {
+  id?: string | number | null;
+  email?: string | null;
+  nickname?: string | null;
+  name?: string | null;
+};
+
+// POST /bookings 응답 타입 (apiSuccess → snake_case)
+interface CreateBookingResponse {
+  booking: {
+    id: string;
+    start_at: string;
+    end_at: string;
+    duration_hours: number;
+    purpose: string;
+    status: string;
+    amount: number;
+    final_amount: number;
+    expected_count: number | null;
+  };
+  requires_payment: boolean;
+  order_id?: string | null;
+  amount?: number;
+}
+
 export function BookingClient({ court }: { court: CourtData }) {
   const router = useRouter();
   const days = useMemo(() => generateDays(), []);
@@ -92,6 +153,30 @@ export function BookingClient({ court }: { court: CourtData }) {
   const [expectedCount, setExpectedCount] = useState<number>(10);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 약관 동의 상태 — 필수 3종(pg/third/refund) 모두 체크되어야 결제 가능
+  // 이유: 결제 직전 사용자 명시 동의 확보 (PG/개인정보/환불 규정)
+  const [agreedTerms, setAgreedTerms] = useState<Record<TermKey, boolean>>({
+    pg: false,
+    third: false,
+    refund: false,
+    marketing: false,
+  });
+  const allRequiredAgreed =
+    agreedTerms.pg && agreedTerms.third && agreedTerms.refund;
+
+  // 토스 SDK 동적 로드 (한 번만)
+  // 이유: SDK가 포함된 외부 스크립트를 페이지 진입 시 head에 주입.
+  //       useRef로 중복 주입 방지 (StrictMode 더블 마운트 대응).
+  const sdkLoaded = useRef(false);
+  useEffect(() => {
+    if (sdkLoaded.current) return;
+    sdkLoaded.current = true;
+    const script = document.createElement("script");
+    script.src = "https://js.tosspayments.com/v2/standard";
+    script.async = true;
+    document.head.appendChild(script);
+  }, []);
 
   // 선택 일자 활성 슬롯 조회 (SWR)
   const { data, isLoading } = useSWR<BookingsResponse>(
@@ -123,14 +208,20 @@ export function BookingClient({ court }: { court: CourtData }) {
 
   const fee = court.booking_fee_per_hour;
   const total = hour !== null ? fee * duration : 0;
-  const discount = 0; // Phase A: BDR+ 할인 미적용 (시안 0% 표시)
-  const finalAmount = 0; // Phase A: 무료 확정 강제
+  const discount = 0; // Phase B-5: BDR+ 할인 미적용 (Phase D 도입 예정)
+  // 실제 결제 금액 — Phase A 의 강제 0 제거. fee>0 이면 유료, 0이면 무료
+  const finalAmount = total - discount;
+  const isPaid = finalAmount > 0;
   const accentColor = court.primary_color || "var(--accent)";
 
   // 시간 라벨 (HH:00 형식)
   const hourLabel = (h: number) => `${String(h).padStart(2, "0")}:00`;
 
-  // 예약 확정 — POST /api/web/courts/[id]/bookings
+  // 예약 확정 — 2단계 흐름
+  //   1) POST /bookings 로 예약 생성
+  //   2) 응답 requires_payment 분기:
+  //      - false → 무료 → 즉시 /profile/bookings 이동
+  //      - true  → 유료 → /api/web/me 조회 → toss.requestPayment 호출
   async function handleSubmit() {
     if (hour === null) return;
     setErrorMsg(null);
@@ -139,6 +230,8 @@ export function BookingClient({ court }: { court: CourtData }) {
       // 선택 KST → UTC ISO 변환
       const startKstIso = `${date}T${hourLabel(hour)}:00+09:00`;
       const startAt = new Date(startKstIso).toISOString();
+
+      // ── 1단계: 예약 생성 ─────────────────────────────
       const res = await fetch(`/api/web/courts/${court.id}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,7 +244,7 @@ export function BookingClient({ court }: { court: CourtData }) {
       });
       const json = await res.json();
       if (!res.ok) {
-        // 충돌(409) 또는 기타 에러
+        // 충돌(409) 또는 기타 에러 — error 키는 그대로 (apiError는 snake 변환 안 함)
         const msg =
           (typeof json?.error === "string" && json.error) ||
           "예약 처리 중 오류가 발생했습니다";
@@ -160,15 +253,68 @@ export function BookingClient({ court }: { court: CourtData }) {
         await mutate(`/api/web/courts/${court.id}/bookings?date=${date}`);
         return;
       }
-      // 성공 → /profile/bookings 로 이동
-      router.push("/profile/bookings?just_booked=1");
+
+      const data = json as CreateBookingResponse;
+
+      // ── 2단계 분기 ─────────────────────────────
+      if (!data.requires_payment) {
+        // 무료 → 즉시 확정. /profile/bookings 로 이동
+        router.push("/profile/bookings?just_booked=1");
+        return;
+      }
+
+      // 유료 → /api/web/me 조회 후 토스 결제창 호출
+      const meRes = await fetch("/api/web/me");
+      const me: MeInfo | null = meRes.ok ? await meRes.json() : null;
+
+      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) throw new Error("결제 설정 오류");
+
+      // SDK 미로딩 시 가드 (네트워크 지연 등)
+      if (typeof window === "undefined" || !window.TossPayments) {
+        throw new Error("결제 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+      }
+
+      const toss = window.TossPayments(clientKey);
+      // ⚠️ 토스 requestPayment 인자는 PM 명세 그대로 — 변경 금지
+      await toss.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: data.amount },
+        orderId: data.order_id,
+        orderName: `코트 대관 — ${court.name}`,
+        successUrl: `${window.location.origin}/api/web/payments/confirm/booking?bookingId=${data.booking.id}`,
+        failUrl: `${window.location.origin}/courts/${court.id}/booking/payment-fail?bookingId=${data.booking.id}`,
+        customerEmail: me?.email ?? undefined,
+        customerName: me?.nickname ?? me?.name ?? undefined,
+      });
+      // requestPayment 는 successUrl 로 리다이렉트하므로 여기 이후 코드는 실행되지 않음
     } catch (e) {
-      setErrorMsg("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+      // 사용자 결제창 X 클릭 시 토스가 throw — "결제 취소"는 굳이 노출 안 함
+      if (e instanceof Error && e.message !== "결제 취소") {
+        setErrorMsg(e.message || "결제 시작 실패");
+      }
       console.error(e);
     } finally {
       setSubmitting(false);
     }
   }
+
+  // 결제 버튼 disabled 조건
+  // 이유: 시간 미선택 / 처리 중 / 슬롯 로딩 중은 항상 막고,
+  //       유료 예약일 때만 약관 게이트 적용 (무료는 약관 우회)
+  const submitDisabled =
+    hour === null ||
+    submitting ||
+    isLoading ||
+    (isPaid && !allRequiredAgreed);
+
+  // 버튼 라벨 분기 — 무료/유료 표시 구분 (PM 명세)
+  const submitLabel = (() => {
+    if (submitting) return "처리 중…";
+    if (hour === null) return "시간을 선택해주세요";
+    if (!isPaid) return "무료 예약 확정";
+    return `${finalAmount.toLocaleString()}원 결제하기`;
+  })();
 
   return (
     <div className="page">
@@ -231,7 +377,7 @@ export function BookingClient({ court }: { court: CourtData }) {
             fontSize: 13,
           }}
         >
-          시간 단위로 예약하세요. 환불 정책은 운영자에게 문의 — Phase A 는 무료 예약 단계입니다.
+          시간 단위로 예약하세요. {isPaid ? "유료 코트는 결제 후 확정됩니다." : "무료 코트는 즉시 확정됩니다."}
         </p>
       </div>
 
@@ -419,7 +565,7 @@ export function BookingClient({ court }: { court: CourtData }) {
           </div>
 
           {/* 3. 이용 목적 */}
-          <div className="card" style={{ padding: "18px 20px" }}>
+          <div className="card" style={{ padding: "18px 20px", marginBottom: 14 }}>
             <div
               style={{
                 fontSize: 11,
@@ -492,6 +638,72 @@ export function BookingClient({ court }: { court: CourtData }) {
               />
             </div>
           </div>
+
+          {/* 4. 약관 동의 — 유료일 때만 노출 (무료는 약관 우회)
+              이유: 무료 예약은 PG 결제가 발생하지 않으므로 PG/제3자 동의가 불필요 */}
+          {isPaid && (
+            <div className="card" style={{ padding: "18px 20px" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-dim)",
+                  fontWeight: 800,
+                  letterSpacing: ".12em",
+                  marginBottom: 10,
+                }}
+              >
+                4. 약관 동의
+              </div>
+              <ul
+                style={{
+                  margin: 0,
+                  padding: 0,
+                  listStyle: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {TERMS.map((t) => (
+                  <li
+                    key={t.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 13,
+                      color: "var(--ink-soft)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={agreedTerms[t.key]}
+                      onChange={(e) =>
+                        setAgreedTerms((prev) => ({
+                          ...prev,
+                          [t.key]: e.target.checked,
+                        }))
+                      }
+                      style={{ accentColor: "var(--accent)" }}
+                    />
+                    {t.label}
+                  </li>
+                ))}
+              </ul>
+              {!allRequiredAgreed && (
+                <p
+                  style={{
+                    marginTop: 10,
+                    marginBottom: 0,
+                    fontSize: 12,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  필수 약관 3건 동의 시 결제 가능합니다.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* 우측 — 요약 카드 */}
@@ -557,7 +769,7 @@ export function BookingClient({ court }: { court: CourtData }) {
                 />
               </div>
 
-              {/* 금액 영역 — Phase A 는 모두 0 */}
+              {/* 금액 영역 — Phase B-5: 실제 계산값 표시 */}
               <div
                 style={{
                   borderTop: "1px dashed var(--border)",
@@ -611,7 +823,7 @@ export function BookingClient({ court }: { court: CourtData }) {
                     color: accentColor,
                   }}
                 >
-                  무료
+                  {isPaid ? `₩${finalAmount.toLocaleString()}` : "무료"}
                 </span>
               </div>
 
@@ -636,13 +848,9 @@ export function BookingClient({ court }: { court: CourtData }) {
                 className="btn btn--primary btn--xl"
                 style={{ width: "100%", justifyContent: "center" }}
                 onClick={handleSubmit}
-                disabled={hour === null || submitting || isLoading}
+                disabled={submitDisabled}
               >
-                {submitting
-                  ? "처리 중…"
-                  : hour === null
-                  ? "시간을 선택해주세요"
-                  : "무료 예약 확정"}
+                {submitLabel}
               </button>
 
               <div
@@ -653,9 +861,18 @@ export function BookingClient({ court }: { court: CourtData }) {
                   lineHeight: 1.5,
                 }}
               >
-                · Phase A (무료 베타) — 결제 미도입
-                <br />· 취소는 내 예약 페이지에서 가능
-                <br />· 환불 정책 자동화는 Phase C 도입 예정
+                {isPaid ? (
+                  <>
+                    · 토스페이먼츠 안전결제
+                    <br />· 환불 정책: 시작 24h 전 100% / 12h 전 50% / 그 외 0%
+                    <br />· 취소·환불은 내 예약 페이지에서
+                  </>
+                ) : (
+                  <>
+                    · 무료 예약 — 결제 없이 즉시 확정
+                    <br />· 취소는 내 예약 페이지에서 가능
+                  </>
+                )}
               </div>
             </div>
           </div>
