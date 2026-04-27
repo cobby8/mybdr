@@ -6,8 +6,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { CommentForm } from "./comment-form";
 import { PostDetailSidebar } from "./_components/post-detail-sidebar";
-import { ShareButton } from "./_components/share-button";
-import { LikeButton } from "./_components/like-button";
+// v2 박제: 기존 ShareButton/LikeButton 대신 시안 .btn.btn--lg 모양의 v2 버튼 사용
+// 데이터 로직(Server Action / 클립보드)은 v1 과 100% 동일 — UI 만 교체
+import { ShareButtonV2 } from "./_components/share-button-v2";
+import { LikeButtonV2 } from "./_components/like-button-v2";
 import { PostActions } from "./_components/post-actions";
 import { CommentList } from "./_components/comment-list";
 import { CommunityAsideNav } from "../_components/community-aside-nav";
@@ -280,15 +282,31 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                   </div>
                 </div>
 
-                {/* 우측 메타 — flex:1 spacer 후 우정렬 */}
+                {/* 우측 메타 — flex:1 spacer 후 우정렬
+                    시안: Icon.eye / Icon.msg / Icon.heart Material Symbols 로 박제 */}
                 <span style={{ flex: 1 }} />
                 <span>{formatRelativeTime(post.created_at)}</span>
                 <span>·</span>
-                <span title="조회수">조회 {viewsCount.toLocaleString()}</span>
+                <span title="조회수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
+                    visibility
+                  </span>
+                  {viewsCount.toLocaleString()}
+                </span>
                 <span>·</span>
-                <span title="댓글수">댓글 {totalCommentsCount}</span>
+                <span title="댓글수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
+                    chat_bubble
+                  </span>
+                  {totalCommentsCount}
+                </span>
                 <span>·</span>
-                <span title="좋아요수">추천 {likesCount}</span>
+                <span title="좋아요수" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -3 }}>
+                    favorite
+                  </span>
+                  {likesCount}
+                </span>
 
                 {/* 본인 게시글이면 수정/삭제 드롭다운만 추가 (시안에는 없지만 운영 필수) */}
                 {isPostOwner && (
@@ -314,10 +332,9 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
               ))}
             </div>
 
-            {/* 2-3. Reactions — 시안 좋아요/공유/스크랩 3버튼 가로 정렬
-                   D5: LikeButton + ShareButton 그대로 + 스크랩 disabled "준비 중"
-                   기존 LikeButton 은 자체 마진/구분선이 있으므로 시안의 단일 행 정렬과는 다름 → 시안의 가로 3버튼 행은 별도 div 를 두지 않고
-                   LikeButton 컴포넌트의 기존 디자인을 본문 하단 정렬로 그대로 사용. 공유/스크랩은 본문 헤더의 메타 옆 자리에서 우측 정렬로 함께 배치 */}
+            {/* 2-3. Reactions — 시안 좋아요/공유/스크랩 3버튼 가로 정렬 (.btn.btn--lg 통일)
+                   v2 박제: LikeButtonV2 + ShareButtonV2 (데이터 로직은 기존과 100% 동일, UI 만 시안 박제)
+                   스크랩은 DB 미지원 → disabled "준비 중" 유지 */}
             <div
               style={{
                 display: "flex",
@@ -329,32 +346,26 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                 flexWrap: "wrap",
               }}
             >
-              {/* 좋아요 — 기존 클라 컴포넌트 그대로 (낙관적 업데이트 + 토글) */}
-              <LikeButton
+              {/* 좋아요 — v2 박제 (시안 .btn.btn--lg minWidth:140) */}
+              <LikeButtonV2
                 postPublicId={id}
                 initialLiked={isLiked}
                 initialCount={likesCount}
                 isLoggedIn={isLoggedIn}
               />
-              {/* 공유 — 기존 클라 컴포넌트 그대로 (URL 클립보드 복사 + 토스트) */}
-              <ShareButton />
-              {/* 스크랩 — 시안에 있으나 DB 미지원 → disabled "준비 중" */}
+              {/* 공유 — v2 박제 (시안 .btn.btn--lg) */}
+              <ShareButtonV2 />
+              {/* 스크랩 — 시안에 있으나 DB 미지원 → disabled "준비 중" (.btn.btn--lg 톤 통일) */}
               <button
                 disabled
                 title="스크랩 준비 중"
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "var(--radius-chip, 6px)",
-                  border: "1px solid var(--border)",
-                  background: "var(--bg-alt)",
-                  color: "var(--ink-dim)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "not-allowed",
-                  opacity: 0.6,
-                }}
+                className="btn btn--lg"
+                style={{ cursor: "not-allowed", opacity: 0.55 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 16, verticalAlign: -2, marginRight: 4 }}>
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 18, verticalAlign: -3, marginRight: 6 }}
+                >
                   bookmark
                 </span>
                 스크랩
