@@ -7,22 +7,25 @@ export const metadata: Metadata = {
 };
 
 /* ============================================================
- * 404 NotFound — BDR v2 More.jsx L3-20 시안 적용 (Phase 5)
+ * 404 NotFound — BDR v2 (1) screens/NotFound.jsx 1:1 박제 (Phase 9 P1-1a)
  *
  * 이유(왜):
- *   기존 토스풍 작은 카드형 → v2 시안의 "에어볼!" 농구 메타포 +
- *   거대 404 (120px display 폰트) + 홈/검색/도움말 3버튼 패턴으로 교체.
- *   글로벌 not-found이므로 서버 컴포넌트로 둠 (history.back 제거).
+ *   기존 Phase 5의 More.jsx L3-20 "에어볼!" 카피 → Phase 9 공식 시안
+ *   (screens/NotFound.jsx 24줄)으로 재교체. 시안의 maxWidth:480, eyebrow,
+ *   H1 카피("요청한 페이지를 찾을 수 없어요"), btn--ghost 도움말 패턴을
+ *   1:1로 박제.
  *
  * 디자인 토큰:
- *   - color: var(--accent) 거대 404, var(--ink) / var(--ink-mute)
- *   - font: var(--ff-display) 거대 숫자, 본문은 시스템
- *   - layout: .page 클래스 + grid placeItems center
+ *   - color: var(--accent) 거대 404, var(--ink-mute) 본문
+ *   - font: var(--ff-display) 거대 숫자
+ *   - layout: .page + minHeight 60vh + grid placeItems center
  *
- * 버튼 라우팅 (PM 확정안 2026-04-22):
- *   - 홈으로 → /
- *   - 검색  → /search (Phase 2 글로벌 검색 페이지)
- *   - 도움말 → /help/glossary
+ * 버튼 라우팅 (시안 setRoute → Next.js Link):
+ *   - 홈으로 (primary)  → /
+ *   - 검색              → /search
+ *   - 도움말 (ghost)    → /help
+ *
+ * 서버 컴포넌트: 시안에 useState/onClick 인터랙션 없음 → "use client" 불필요.
  * ============================================================ */
 export default function NotFound() {
   return (
@@ -30,13 +33,14 @@ export default function NotFound() {
       className="page"
       style={{
         // 시안 그대로: 60vh 중앙 정렬
+        minHeight: "60vh",
         display: "grid",
         placeItems: "center",
-        minHeight: "60vh",
         textAlign: "center",
       }}
     >
-      <div>
+      {/* 시안 maxWidth:480 컨테이너 */}
+      <div style={{ maxWidth: 480 }}>
         {/* 거대 404 — 시안 fontSize:120, fontWeight:900, accent 컬러 */}
         <div
           style={{
@@ -51,31 +55,45 @@ export default function NotFound() {
           404
         </div>
 
-        {/* 메인 카피 — "에어볼!" 농구 메타포 (시안 그대로) */}
-        <div style={{ fontSize: 22, fontWeight: 800, marginTop: 14 }}>
-          에어볼! 해당 페이지를 찾을 수 없습니다
+        {/* EYEBROW — v2 공통 .eyebrow 클래스, 중앙 정렬 */}
+        <div
+          className="eyebrow"
+          style={{ justifyContent: "center", marginTop: 8 }}
+        >
+          PAGE NOT FOUND
         </div>
 
-        {/* 보조 설명 */}
-        <div
+        {/* 메인 카피 — 시안 24px/700, margin 14/0/10 */}
+        <h1
           style={{
-            fontSize: 14,
-            color: "var(--ink-mute)",
-            marginTop: 8,
-            maxWidth: 420,
-            margin: "8px auto 0",
+            margin: "14px 0 10px",
+            fontSize: 24,
+            fontWeight: 700,
           }}
         >
-          주소가 잘못되었거나, 삭제된 콘텐츠일 수 있습니다. 홈으로 돌아가거나 검색을 이용해주세요.
-        </div>
+          요청한 페이지를 찾을 수 없어요
+        </h1>
 
-        {/* CTA 3버튼 — Primary 홈 / Default 검색·도움말 */}
+        {/* 보조 설명 — 시안 lineHeight:1.7, marginBottom:24 */}
+        <p
+          style={{
+            color: "var(--ink-mute)",
+            fontSize: 14,
+            lineHeight: 1.7,
+            marginBottom: 24,
+          }}
+        >
+          주소가 변경되었거나 삭제된 페이지일 수 있습니다.
+          <br />
+          홈으로 돌아가거나 검색을 통해 다시 찾아보세요.
+        </p>
+
+        {/* CTA 3버튼 — Primary 홈 / Default 검색 / Ghost 도움말 */}
         <div
           style={{
             display: "flex",
-            gap: 10,
+            gap: 8,
             justifyContent: "center",
-            marginTop: 20,
             flexWrap: "wrap",
           }}
         >
@@ -87,8 +105,8 @@ export default function NotFound() {
           <Link href="/search" className="btn">
             검색
           </Link>
-          {/* 도움말 → 기존 용어사전 */}
-          <Link href="/help/glossary" className="btn">
+          {/* 도움말 → 시안 /help (ghost 스타일) */}
+          <Link href="/help" className="btn btn--ghost">
             도움말
           </Link>
         </div>
