@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";
+import { prisma } from "@/lib/db/prisma";
 import { SeriesCreateForm } from "./_form/series-create-form";
 
 /* ============================================================
@@ -14,8 +16,9 @@ import { SeriesCreateForm } from "./_form/series-create-form";
  *   제출 시 alert("준비 중") + 완료 화면 분기만 동작.
  *
  * 권한 가드:
- *   - getWebSession() 으로 로그인만 검증. 미로그인 시 /login 리다이렉트.
- *   - 실제 운영자 권한(organizations.owner_id, user.role 등)은 추후 강화.
+ *   - getWebSession() 으로 로그인 검증. 미로그인 시 /login 리다이렉트.
+ *   - organizations.owner_id 검증. 단체 운영자가 아니면 안내 페이지(옵션 2)
+ *     를 페이지 내부에서 직접 렌더 — redirect 대신 사용자 혼란 최소화.
  *   - 컨벤션: redirect 파라미터 이름은 mybdr 기존 패턴(`?redirect=...`)
  *     을 따른다. (PM prompt 의 `?next=` 대신)
  *
@@ -38,10 +41,56 @@ export default async function SeriesNewPage() {
     redirect("/login?redirect=/series/new");
   }
 
-  // TODO(권한 강화): 현재는 로그인만 통과하면 진입 가능.
-  //   실제 운영자 권한(organizations.owner_id 또는 user.role)
-  //   체크는 백로그(scratchpad)로 분리. 권한 부족 시
-  //   /organizations/apply 안내 카드 노출 흐름 검토.
+  // 왜 운영자 권한 체크: 시리즈는 organization 단위 운영(BDR 본부, 지역 협회 등)
+  // 이라 spam 위험이 크다. organizations.owner_id 가 현재 세션 user 인 경우만
+  // 통과시킨다. findFirst + select id 만 — 존재 여부만 확인하면 충분.
+  const ownsOrg = await prisma.organizations.findFirst({
+    where: { owner_id: BigInt(session.sub) },
+    select: { id: true },
+  });
+
+  // 왜 페이지 내부 분기(옵션 2): redirect 시 사용자가 "왜 튕겼지?" 혼란.
+  // 안내 카드 + 단체 등록 신청 CTA 로 흐름을 명확히 한다.
+  if (!ownsOrg) {
+    return (
+      <div className="page" style={{ maxWidth: 640, margin: "0 auto", padding: "48px 24px" }}>
+        <div
+          className="card"
+          style={{
+            padding: 32,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          {/* 잠금 아이콘 — Material Symbols Outlined (lucide 금지 컨벤션) */}
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 48, color: "var(--accent)" }}
+          >
+            lock
+          </span>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+            운영자 권한이 필요합니다
+          </h1>
+          <p style={{ color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
+            시리즈 생성은 등록된 단체(organization) 운영자만 가능합니다.
+            <br />
+            단체를 먼저 등록 신청해 주세요.
+          </p>
+          <Link
+            href="/organizations/apply"
+            className="btn btn--primary"
+            style={{ marginTop: 8 }}
+          >
+            단체 등록 신청
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return <SeriesCreateForm />;
 }
