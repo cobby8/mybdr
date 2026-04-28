@@ -184,37 +184,58 @@ function BracketTreeView({
           height: `${dimensions.height + headerHeight + padding}px`,
         }}
       >
-        {/* 라운드 헤더 — 각 라운드의 첫 카드 바로 위에 배치 (전체 블록 세로 중앙 정렬 효과) */}
-        {roundHeaders.map((rh) => (
-          <div
-            key={rh.roundNumber}
-            className="absolute flex items-center justify-center gap-1.5"
-            style={{
-              left: `${rh.x + padding}px`,
-              // 이유: 첫 카드 y 좌표 바로 위(headerHeight - 헤더 여백)에 배치
-              // → 라운드별 헤더+카드 블록 중심이 자연스럽게 트리 전체 중심과 일치
-              top: `${rh.y + headerHeight - 28}px`,
-              width: `${cardWidth}px`,
-            }}
-          >
-            {/* 강조 버튼 스타일: primary 연한 배경 + 진한 글씨 */}
-            <span
-              className="inline-flex items-center rounded-md px-3 py-1 text-[11px] font-bold whitespace-nowrap"
+        {/* 라운드 헤더 sticky band
+            ───────────────────────────────────────
+            이유: 모바일에서 본체가 가로 스크롤(minWidth 1000+)되는 동안에도
+            "지금 보고 있는 라운드"를 항상 알 수 있어야 함.
+            ▸ 가로 스크롤: 같은 캔버스 안이라 본체와 함께 움직임 (R16 보면 SF/F는 가려짐).
+            ▸ 세로 스크롤: position: sticky로 페이지 상단에 고정 (트리가 길어도 라벨 유지).
+            기존 캔버스 구조의 headerHeight(=32px) 영역이 이미 reserve되어 있어
+            SVG/카드 좌표(top: headerHeight) 변경 불필요. */}
+        <div
+          className="sticky z-10 flex"
+          style={{
+            // 페이지 스크롤 컨테이너에 fixed AppNav가 없으므로 top:0.
+            // (필요 시 추후 var(--app-nav-height) 등으로 offset 추가)
+            top: 0,
+            height: `${headerHeight}px`,
+            width: `${dimensions.width + padding * 2}px`,
+            // 트리 위로 떠야 하므로 카드와 동일한 불투명 배경
+            backgroundColor: "var(--color-card)",
+          }}
+        >
+          {/* 각 라운드 헤더 — x 좌표는 첫 매치 위치 그대로, y는 band 내부 중앙 */}
+          {roundHeaders.map((rh) => (
+            <div
+              key={rh.roundNumber}
+              className="absolute flex items-center justify-center gap-1.5"
               style={{
-                backgroundColor: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
-                color: "var(--color-primary)",
+                left: `${rh.x + padding}px`,
+                // band 안에서 세로 중앙
+                top: 0,
+                bottom: 0,
+                width: `${cardWidth}px`,
               }}
             >
-              {rh.roundName}
-            </span>
-            {rh.hasLive && (
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-primary)]" />
+              {/* 강조 버튼 스타일: primary 연한 배경 + 진한 글씨 */}
+              <span
+                className="inline-flex items-center rounded-md px-3 py-1 text-[11px] font-bold whitespace-nowrap"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--color-primary) 12%, transparent)",
+                  color: "var(--color-primary)",
+                }}
+              >
+                {rh.roundName}
               </span>
-            )}
-          </div>
-        ))}
+              {rh.hasLive && (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-primary)] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-primary)]" />
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* SVG 연결선 레이어 */}
         <svg

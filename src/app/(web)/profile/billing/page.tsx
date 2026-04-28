@@ -536,6 +536,11 @@ function PaymentsSection() {
   const payments = data?.payments ?? [];
   const pagination = data?.pagination;
 
+  // 4열 board grid 정의
+  // 이유: 데스크톱에서 결제일/내역/금액/상태 컬럼 너비를 고정해 정렬을 안정시키고,
+  //       상태 컬럼은 라벨+inline 액션(영수증/환불)을 모두 담아야 해서 폭을 크게(220px) 잡음.
+  const BOARD_COLUMNS = "140px 1fr 120px 220px";
+
   return (
     <div className="space-y-6">
       {payments.length === 0 ? (
@@ -556,106 +561,174 @@ function PaymentsSection() {
           </div>
         </TossCard>
       ) : (
-        <div className="space-y-3">
+        // v2 .board 토큰 사용 — 다른 v2 보드(rankings/teams)와 동일 패턴
+        <div className="board">
+          {/* 헤더: 4열 grid */}
+          <div
+            className="board__head"
+            style={{ gridTemplateColumns: BOARD_COLUMNS }}
+          >
+            <div>결제일</div>
+            <div>내역</div>
+            <div>금액</div>
+            <div>상태</div>
+          </div>
+
           {payments.map((p) => {
             const statusInfo = getStatusInfo(p.status);
+            // 결제일은 paid_at 우선, 없으면 created_at — 기존 동작 보존
             const dateStr = p.paid_at
               ? new Date(p.paid_at).toLocaleDateString("ko-KR", {
                   year: "numeric",
-                  month: "long",
-                  day: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
                 })
               : new Date(p.created_at).toLocaleDateString("ko-KR", {
                   year: "numeric",
-                  month: "long",
-                  day: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
                 });
 
             return (
-              <TossCard key={p.id}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <span
-                      className="inline-block text-xs font-bold px-2 py-0.5 rounded mb-2"
-                      style={{
-                        color: statusInfo.color,
-                        backgroundColor: "var(--color-surface)",
-                      }}
-                    >
-                      {statusInfo.label}
-                    </span>
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {p.description || p.payable_type}
-                    </p>
-                    <p
-                      className="text-xs mt-1"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {dateStr}
-                      {p.payment_method ? ` · ${p.payment_method}` : ""}
-                    </p>
+              <div
+                key={p.id}
+                className="board__row"
+                style={{ gridTemplateColumns: BOARD_COLUMNS }}
+              >
+                {/* 결제일 — mono 폰트로 정렬 가독성 향상 */}
+                <div
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    fontSize: 13,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  {dateStr}
+                </div>
+
+                {/* 내역 — description 우선, 없으면 payable_type 폴백 + 결제수단/환불일 메타 */}
+                <div className="title" style={{ display: "block" }}>
+                  <p
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--ink)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.description || p.payable_type}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      marginTop: 2,
+                      color: "var(--ink-mute)",
+                    }}
+                  >
+                    {p.payment_method || "—"}
                     {p.status === "refunded" && p.refunded_at && (
-                      <p
-                        className="text-xs mt-1"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        환불일:{" "}
+                      <>
+                        {" · 환불 "}
                         {new Date(p.refunded_at).toLocaleDateString("ko-KR")}
                         {p.refund_amount
-                          ? ` · ${formatAmount(p.refund_amount)}`
+                          ? ` (${formatAmount(p.refund_amount)})`
                           : ""}
-                      </p>
+                      </>
                     )}
-                  </div>
+                  </p>
+                </div>
 
-                  <div className="text-right shrink-0 ml-4">
-                    <p
-                      className="text-base font-bold"
+                {/* 금액 — refunded 상태는 line-through로 음소거 */}
+                <div
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    fontWeight: 700,
+                    color:
+                      p.status === "refunded"
+                        ? "var(--ink-mute)"
+                        : "var(--ink)",
+                    textDecoration:
+                      p.status === "refunded" ? "line-through" : "none",
+                  }}
+                >
+                  {formatAmount(p.final_amount)}
+                </div>
+
+                {/* 상태 + inline 액션 (영수증/환불)
+                    이유: 4열 board 안에 별도 액션 컬럼을 추가하면 모바일에서 너무 좁아짐.
+                          상태 라벨 옆에 inline으로 배치해 시각적 그룹화. */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    className="badge"
+                    style={{
+                      color: statusInfo.color,
+                      backgroundColor: "var(--bg-alt)",
+                      border: "1px solid var(--border)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-chip, 4px)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {statusInfo.label}
+                  </span>
+
+                  {/* 영수증: 결제완료 건만 노출 — pricing/success 페이지 재활용 */}
+                  {p.status === "paid" && (
+                    <Link
+                      href={`/pricing/success?orderId=${encodeURIComponent(
+                        p.order_id
+                      )}&amount=${p.final_amount}&method=${encodeURIComponent(
+                        p.payment_method ?? "카드"
+                      )}`}
+                      className="inline-flex items-center gap-1"
                       style={{
-                        color:
-                          p.status === "refunded"
-                            ? "var(--color-text-muted)"
-                            : "var(--color-text-primary)",
-                        textDecoration:
-                          p.status === "refunded" ? "line-through" : "none",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--cafe-blue, var(--color-primary))",
+                        textDecoration: "none",
                       }}
                     >
-                      {formatAmount(p.final_amount)}
-                    </p>
-                    {p.status === "paid" && (
-                      <Link
-                        href={`/pricing/success?orderId=${encodeURIComponent(p.order_id)}&amount=${p.final_amount}&method=${encodeURIComponent(p.payment_method ?? "카드")}`}
-                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium"
-                        style={{ color: "var(--color-primary)" }}
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 14 }}
                       >
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: "14px" }}
-                        >
-                          receipt
-                        </span>
-                        영수증
-                      </Link>
-                    )}
-                    {p.can_refund && (
-                      <button
-                        className="mt-2 text-xs font-bold px-3 py-1 rounded"
-                        style={{
-                          color: "var(--color-error, #EF4444)",
-                          backgroundColor: "var(--color-surface)",
-                          border: "1px solid var(--color-error, #EF4444)",
-                        }}
-                        onClick={() => setRefundTarget(p)}
-                      >
-                        환불
-                      </button>
-                    )}
-                  </div>
+                        receipt
+                      </span>
+                      영수증
+                    </Link>
+                  )}
+
+                  {/* 환불: API에서 can_refund=true 일 때만 — 모달 트리거 */}
+                  {p.can_refund && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundTarget(p)}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: "2px 10px",
+                        borderRadius: "var(--radius-chip, 4px)",
+                        color: "var(--color-error, #EF4444)",
+                        backgroundColor: "transparent",
+                        border: "1px solid var(--color-error, #EF4444)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      환불
+                    </button>
+                  )}
                 </div>
-              </TossCard>
+              </div>
             );
           })}
         </div>
