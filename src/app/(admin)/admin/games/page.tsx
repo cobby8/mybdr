@@ -5,13 +5,21 @@ import { AdminGamesContent } from "./admin-games-content";
 
 export const dynamic = "force-dynamic";
 
-// 경기 관리 — 서버 컴포넌트: 데이터 패칭만 담당
+const DEFAULT_PAGE_SIZE = 20;
+const VALID_PAGE_SIZES = [10, 20, 30];
+
 export default async function AdminGamesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; pageSize?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, page: pageParam, pageSize: pageSizeParam } = await searchParams;
+
+  const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const pageSize = VALID_PAGE_SIZES.includes(parseInt(pageSizeParam ?? "", 10))
+    ? parseInt(pageSizeParam!, 10)
+    : DEFAULT_PAGE_SIZE;
+  const skip = (page - 1) * pageSize;
 
   const where = q
     ? {
@@ -25,8 +33,9 @@ export default async function AdminGamesPage({
   const [games, totalCount] = await Promise.all([
     prisma.games.findMany({
       where,
-      orderBy: { created_at: "desc" },
-      take: 100,
+      orderBy: { scheduled_at: "desc" },
+      skip,
+      take: pageSize,
       select: {
         id: true,
         title: true,
@@ -44,7 +53,6 @@ export default async function AdminGamesPage({
     prisma.games.count({ where }),
   ]);
 
-  // 직렬화: BigInt/Date -> string
   const serialized = games.map((g) => ({
     id: String(g.id),
     title: g.title,
@@ -60,6 +68,8 @@ export default async function AdminGamesPage({
     hostEmail: g.users?.email ?? "",
   }));
 
+  const totalPages = Math.ceil(totalCount / pageSize);
+
   return (
     <div>
       <AdminPageHeader
@@ -71,6 +81,7 @@ export default async function AdminGamesPage({
       <AdminGamesContent
         games={serialized}
         updateStatusAction={updateGameStatusAction}
+        pagination={{ page, pageSize, totalPages, totalCount }}
       />
     </div>
   );

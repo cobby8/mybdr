@@ -80,6 +80,7 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
   // 같은 장소 이름을 가진 대회 조회 (최근 3건)
   const relatedTournaments = await prisma.tournament.findMany({
     where: {
+      is_public: true,
       OR: [
         { venue_name: { contains: court.name } },
         { venue_name: court.name },

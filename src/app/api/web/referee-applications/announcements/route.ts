@@ -75,7 +75,7 @@ export const GET = withWebAuth(async (_req: Request, ctx: WebAuthContext) => {
     const tIds = [...new Set(announcements.map((a) => a.tournament_id))];
     const tournaments = tIds.length
       ? await prisma.tournament.findMany({
-          where: { id: { in: tIds } },
+          where: { id: { in: tIds }, is_public: true },
           select: { id: true, name: true },
         })
       : [];

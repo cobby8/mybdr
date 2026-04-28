@@ -114,8 +114,11 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
           onClose={() => setSelected(null)}
           title={selected.name}
           actions={
-            // 상태 토글 버튼
-            <form action={updateStatusAction} className="flex items-center gap-2">
+            <form
+              action={updateStatusAction}
+              className="flex items-center gap-2"
+              onSubmit={() => setSelected(null)}
+            >
               <input type="hidden" name="team_id" value={selected.id} />
               <input
                 type="hidden"
@@ -124,7 +127,11 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
               />
               <button
                 type="submit"
-                className="w-full rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
+                className={`w-full rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors ${
+                  selected.status === "active"
+                    ? "border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
               >
                 {selected.status === "active" ? "비활성화" : "활성화"}
               </button>
