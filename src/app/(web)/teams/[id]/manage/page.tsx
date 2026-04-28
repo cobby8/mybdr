@@ -63,6 +63,11 @@ interface TeamEditData {
   accepting_members: boolean | null;
   max_members: number | null;
   status: string | null;
+  // 정책 결정 3A: 서버가 알려주는 본인 운영진 역할 / 팀장 여부
+  // my_role: "captain" | "vice" | "manager" | null (super_admin이면 null)
+  // is_captain: PATCH/DELETE 가능 여부 (captain 또는 super_admin)
+  my_role: string | null;
+  is_captain: boolean;
 }
 
 // Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
@@ -330,6 +335,11 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       setShowDissolve(false);
     }
   }
+
+  // 정책 결정 3A: captain만 수정/해산 가능. 부팀장/매니저는 조회만 가능.
+  // 서버가 응답에 is_captain을 명시 — 클라이언트는 그 boolean으로 폼/버튼 disabled 분기.
+  // teamData가 아직 없을 때(=로딩 전)는 false로 두어도 무방 (폼 자체가 안 보임)
+  const canEditTeam = teamData?.is_captain === true;
 
   // 시안 4탭 정의 — 카운트는 실데이터 기반
   const tabs: { id: ManageTab; label: string; count: number }[] = [
@@ -685,6 +695,26 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
 
           {!settingsLoading && teamData && (
             <form onSubmit={handleSaveSettings} className="space-y-6">
+              {/* 정책 결정 3A: 부팀장/매니저는 조회만 가능 — 안내 배너 노출 */}
+              {/* 이유(왜): 입력 필드만 disabled로 두면 사용자가 이유를 모른 채 좌절한다.
+                  명시적으로 "팀장만 수정 가능"이라고 알려주는 것이 UX상 안전 */}
+              {!canEditTeam && (
+                <div
+                  className="rounded-lg border px-4 py-3 text-sm"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
+                    backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
+                    color: "var(--color-info)",
+                  }}
+                >
+                  <span className="material-symbols-outlined mr-1.5 align-middle text-base">info</span>
+                  <span className="align-middle">팀 정보 수정과 팀 해산은 팀장만 가능합니다. (조회만 가능)</span>
+                </div>
+              )}
+
+              {/* fieldset disabled — captain이 아니면 모든 입력/버튼이 한 번에 비활성화
+                  이유(왜): 개별 input마다 disabled prop을 다는 것보다 안전하고 누락 위험 0 */}
+              <fieldset disabled={!canEditTeam} className="space-y-6 disabled:opacity-70">
               {/* 기본 정보 */}
               <div className="rounded-lg bg-[var(--color-card)] p-5">
                 <h3 className="mb-4 flex items-center gap-1.5 text-base font-semibold text-[var(--color-text-primary)]">
@@ -982,6 +1012,8 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   팀 해산
                 </button>
               </div>
+              </fieldset>
+              {/* fieldset 종료 — 정책 결정 3A: captain이 아니면 위 모든 입력/버튼 비활성화 */}
             </form>
           )}
         </>

@@ -11,8 +11,17 @@ import { updateTeamSchema } from "@/lib/validation/team";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
+// 운영진 역할 — GET(조회) 가드 통과 대상.
+// 이유(왜): P1-A에서 members API는 부팀장(vice)·매니저(manager)도 통과시켰는데,
+// 정작 팀 단일 정보 GET이 captain only로 막혀 있어 manage 페이지의 "팀 설정" 탭이
+// 부팀장/매니저 진입 시 403 → 빈 폼으로 보이는 UX 단절이 있었다.
+// 정책 결정 3A에 따라 GET만 운영진 통과로 확장하고,
+// PATCH(수정) / DELETE(해산)는 captain only를 그대로 유지한다.
+const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"] as const;
+
 /**
  * 팀장 여부 확인 유틸 — captain role + active 상태
+ * (PATCH/DELETE 가드 그대로 사용)
  */
 async function isCaptain(teamId: bigint, userId: bigint): Promise<boolean> {
   const member = await prisma.teamMember.findFirst({
@@ -23,7 +32,8 @@ async function isCaptain(teamId: bigint, userId: bigint): Promise<boolean> {
 
 // ─────────────────────────────────────────────────
 // GET: 팀 상세 조회 (수정 폼용)
-// 인증 필요 — 팀장만 수정 폼 데이터를 가져올 수 있음
+// 인증 필요 — 운영진(captain/vice/manager)이면 폼 데이터 조회 허용
+// 단, 실제 수정/해산은 PATCH/DELETE에서 captain만 허용 (응답의 my_role/is_captain으로 UI 분기)
 // ─────────────────────────────────────────────────
 export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
   const { id } = await routeCtx.params;
@@ -56,11 +66,26 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     return apiError("존재하지 않는 팀입니다.", 404, "NOT_FOUND");
   }
 
-  // IDOR: 팀장만 수정 데이터 접근 가능
-  const captain = await isCaptain(teamId, ctx.userId);
-  if (!captain && ctx.session.role !== "super_admin") {
-    return apiError("팀장만 접근할 수 있습니다.", 403, "FORBIDDEN");
+  // IDOR: 운영진(captain/vice/manager)만 폼 데이터 접근 가능
+  // 이유(왜): captain 외 운영진도 manage 페이지의 "팀 설정" 탭에서 정보를 볼 수 있어야
+  // UX가 끊기지 않는다 (수정 권한은 PATCH 가드에서 별도 차단).
+  const myMember = await prisma.teamMember.findFirst({
+    where: {
+      teamId,
+      userId: ctx.userId,
+      role: { in: [...TEAM_MANAGER_ROLES] },
+      status: "active",
+    },
+    select: { role: true },
+  });
+  if (!myMember && ctx.session.role !== "super_admin") {
+    return apiError("팀 운영진만 접근할 수 있습니다.", 403, "FORBIDDEN");
   }
+
+  // super_admin은 운영진이 아니지만 통과 — my_role은 null로 응답하되 is_captain은 true 처리
+  // (super_admin은 운영 목적으로 captain 권한과 동일하게 다룸)
+  const myRole = myMember?.role ?? null;
+  const isCaptainFlag = myRole === "captain" || ctx.session.role === "super_admin";
 
   return apiSuccess({
     id: team.id.toString(),
@@ -79,6 +104,11 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     accepting_members: team.accepting_members,
     max_members: team.max_members,
     status: team.status,
+    // 정책 결정 3A: 클라이언트가 입력 필드/버튼 disabled 분기에 사용
+    // my_role: "captain" | "vice" | "manager" | null (super_admin이면 null)
+    // is_captain: PATCH/DELETE 가능 여부 — captain 또는 super_admin
+    my_role: myRole,
+    is_captain: isCaptainFlag,
   });
 });
 
