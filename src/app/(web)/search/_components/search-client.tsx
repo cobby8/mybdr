@@ -135,6 +135,112 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "users", label: "유저" },
 ];
 
+// ============================================================
+// v2(1) 사이드 필터 — 시안 SearchResults.jsx 117~167줄
+// ============================================================
+// area: 시안의 강남/서초 등 8개 지역 (city/district 부분 매칭)
+const AREA_OPTIONS = [
+  "강남",
+  "서초",
+  "송파",
+  "성동",
+  "용산",
+  "중구",
+  "마포",
+  "영등포",
+] as const;
+
+// level: 시안의 실력 4단계 — DB에 level 필드 없음 → UI만 (준비 중)
+const LEVEL_OPTIONS = ["초보", "중급", "상급", "선출급"] as const;
+
+// dateRange: 시안의 일정 5옵션 — games.scheduled_at / tournaments.start_date 기반
+type DateRangeKey = "any" | "today" | "week" | "month" | "weekend";
+const DATE_RANGE_OPTIONS: { v: DateRangeKey; l: string }[] = [
+  { v: "any", l: "전체" },
+  { v: "today", l: "오늘" },
+  { v: "week", l: "이번 주" },
+  { v: "month", l: "이번 달" },
+  { v: "weekend", l: "주말만" },
+];
+
+// 모집중 상태 키 — openOnly 체크 시 이 값들만 통과
+const OPEN_STATUS_KEYS = new Set([
+  "registration",
+  "active",
+  "open",
+  "upcoming",
+]);
+
+interface FilterState {
+  area: string[];
+  level: string[];
+  dateRange: DateRangeKey;
+  freeOnly: boolean;
+  openOnly: boolean;
+}
+
+const INITIAL_FILTERS: FilterState = {
+  area: [],
+  level: [],
+  dateRange: "any",
+  freeOnly: false,
+  openOnly: false, // 시안은 기본 true지만 우리 DB 매핑상 false 시작이 더 자연 (모든 결과 노출)
+};
+
+// 일정 필터 — Date 객체가 dateRange에 매칭되는지 판정
+// 이유: games.scheduled_at, tournaments.start_date 둘 다 ISO string. parse 후 비교.
+function matchesDateRange(
+  iso: string | null,
+  range: DateRangeKey,
+): boolean {
+  if (range === "any") return true;
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+  if (range === "today") {
+    return d >= startOfToday && d < endOfToday;
+  }
+  if (range === "week") {
+    // 이번 주 (월요일 시작) — 단순화: 오늘 포함 7일
+    const weekEnd = new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return d >= startOfToday && d < weekEnd;
+  }
+  if (range === "month") {
+    // 이번 달 — 오늘 ~ 30일 후
+    const monthEnd = new Date(
+      startOfToday.getTime() + 30 * 24 * 60 * 60 * 1000,
+    );
+    return d >= startOfToday && d < monthEnd;
+  }
+  if (range === "weekend") {
+    // 주말만 (토 6 / 일 0)
+    const day = d.getDay();
+    return day === 0 || day === 6;
+  }
+  return true;
+}
+
+// area 매칭 — city/district 문자열에 선택한 지역 키워드가 포함되는지
+// 빈 배열이면 모두 통과
+function matchesArea(
+  candidates: (string | null | undefined)[],
+  selected: string[],
+): boolean {
+  if (selected.length === 0) return true;
+  const joined = candidates.filter(Boolean).join(" ");
+  if (!joined) return false;
+  return selected.some((a) => joined.includes(a));
+}
+
 interface SearchClientProps {
   q: string;
   games: SerializedGame[];
@@ -193,6 +299,22 @@ export function SearchClient({
   const [inputValue, setInputValue] = useState(q);
   // 현재 활성 탭
   const [activeTab, setActiveTab] = useState<TabKey>("all");
+  // v2(1) 사이드 필터 상태 — 클라이언트 사이드 필터링만 (URL 동기화 X)
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
+
+  // 필터 토글 헬퍼 — area/level 처럼 배열형 필터에서 값 추가/제거
+  // 이유: 시안의 toggleF 함수와 동일한 동작
+  function toggleArrayFilter(key: "area" | "level", value: string) {
+    setFilters((prev) => {
+      const arr = prev[key];
+      return {
+        ...prev,
+        [key]: arr.includes(value)
+          ? arr.filter((x) => x !== value)
+          : [...arr, value],
+      };
+    });
+  }
 
   // form submit → URL push (Enter / 돋보기 클릭)
   // 이유: 탭 필터는 클라가 하지만, 실제 DB 재검색은 서버에서 해야 하므로 URL 변경 필수.
@@ -206,24 +328,74 @@ export function SearchClient({
     }
   }
 
-  // 전체 결과 건수 (탭별 뱃지 / 빈 상태 판정용)
+  // ============================================================
+  // 클라이언트 필터링 — 서버에서 받은 결과를 area/dateRange/openOnly에 따라 추가 필터
+  // level/freeOnly는 DB 미지원 — 필터 자체를 무시 (placeholder UI만 표시)
+  // ============================================================
+  const filteredGames = useMemo(() => {
+    return games.filter((g) => {
+      // area: venue_name + city 합쳐서 부분 매칭
+      if (!matchesArea([g.venue_name, g.city], filters.area)) return false;
+      // dateRange: scheduled_at 기준
+      if (!matchesDateRange(g.scheduled_at, filters.dateRange)) return false;
+      return true;
+    });
+  }, [games, filters.area, filters.dateRange]);
+
+  const filteredTournaments = useMemo(() => {
+    return tournaments.filter((t) => {
+      if (!matchesArea([t.city], filters.area)) return false;
+      if (!matchesDateRange(t.start_date, filters.dateRange)) return false;
+      // openOnly: 모집중 상태만 통과
+      if (filters.openOnly) {
+        if (!t.status || !OPEN_STATUS_KEYS.has(t.status)) return false;
+      }
+      return true;
+    });
+  }, [tournaments, filters.area, filters.dateRange, filters.openOnly]);
+
+  const filteredTeams = useMemo(() => {
+    return teams.filter((t) => matchesArea([t.city], filters.area));
+  }, [teams, filters.area]);
+
+  const filteredCourts = useMemo(() => {
+    return courts.filter((c) =>
+      matchesArea([c.city, c.district, c.address], filters.area),
+    );
+  }, [courts, filters.area]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => matchesArea([u.city], filters.area));
+  }, [users, filters.area]);
+
+  // 커뮤니티는 area/dateRange/freeOnly/openOnly 어느 것도 매핑 불가 (제목 검색만)
+  const filteredPosts = posts;
+
+  // 전체 결과 건수 (탭별 뱃지 / 빈 상태 판정용) — 필터 적용 후 기준
   const counts = useMemo(
     () => ({
       all:
-        games.length +
-        tournaments.length +
-        teams.length +
-        posts.length +
-        users.length +
-        courts.length,
-      teams: teams.length,
-      games: games.length,
-      tournaments: tournaments.length,
-      community: posts.length,
-      courts: courts.length,
-      users: users.length,
+        filteredGames.length +
+        filteredTournaments.length +
+        filteredTeams.length +
+        filteredPosts.length +
+        filteredUsers.length +
+        filteredCourts.length,
+      teams: filteredTeams.length,
+      games: filteredGames.length,
+      tournaments: filteredTournaments.length,
+      community: filteredPosts.length,
+      courts: filteredCourts.length,
+      users: filteredUsers.length,
     }),
-    [games, tournaments, teams, posts, users, courts],
+    [
+      filteredGames,
+      filteredTournaments,
+      filteredTeams,
+      filteredPosts,
+      filteredUsers,
+      filteredCourts,
+    ],
   );
 
   // 현재 탭에서 어떤 섹션을 노출할지 판정
@@ -239,9 +411,9 @@ export function SearchClient({
     activeTab === "all" ? counts.all : counts[activeTab];
 
   return (
-    // .page 쉘 + 시안 21번째 줄 그대로: maxWidth 900, 가운데 정렬
+    // .page 쉘 + v2(1) 시안: 사이드 240 + 본문 영역 → maxWidth 1180으로 확장
     <div className="page">
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
         {/* ==== 큰 검색 input (시안 22~26줄): height 52, fontSize 17, 좌측 search 아이콘 absolute ==== */}
         <form onSubmit={handleSubmit} role="search">
           <div style={{ position: "relative", marginBottom: 20 }}>
@@ -430,8 +602,257 @@ export function SearchClient({
               })}
             </div>
 
-            {/* ==== 결과가 0건일 때 (시안 120~125줄: 60px + 36px ○ + 안내) ==== */}
-            {activeTabCount === 0 ? (
+            {/* ==== v2(1) 시안 117줄: 사이드 240 + 본문 grid 레이아웃 ==== */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "240px minmax(0, 1fr)",
+                gap: 20,
+                alignItems: "flex-start",
+              }}
+            >
+              {/* ============================================================
+                * 사이드 필터 (시안 119~169줄)
+                * - area: city/district 부분 매칭 (실 동작)
+                * - level: DB 미지원 → disabled + "준비 중" 라벨
+                * - dateRange: scheduled_at/start_date 기반 (실 동작)
+                * - freeOnly: DB 미지원 → disabled
+                * - openOnly: tournament.status 기반 (실 동작)
+                * ============================================================ */}
+              <aside style={{ position: "sticky", top: 120 }}>
+                <div className="card" style={{ padding: "18px 18px" }}>
+                  {/* 필터 헤더 + 초기화 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        letterSpacing: ".05em",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      필터
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setFilters(INITIAL_FILTERS)}
+                      style={{
+                        fontSize: 11,
+                        color: "var(--cafe-blue)",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        background: "transparent",
+                        border: 0,
+                        padding: 0,
+                      }}
+                    >
+                      초기화
+                    </button>
+                  </div>
+
+                  {/* area — city/district 부분 매칭 */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-dim)",
+                        fontWeight: 700,
+                        marginBottom: 8,
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      지역
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {AREA_OPTIONS.map((a) => {
+                        const on = filters.area.includes(a);
+                        return (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => toggleArrayFilter("area", a)}
+                            className={`btn btn--sm${on ? " btn--primary" : ""}`}
+                            style={{ padding: "3px 9px", fontSize: 11 }}
+                          >
+                            {a}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* level — DB에 level 필드 없음 → UI만 (disabled) */}
+                  <div style={{ marginBottom: 16, opacity: 0.5 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-dim)",
+                        fontWeight: 700,
+                        marginBottom: 8,
+                        letterSpacing: ".06em",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>실력</span>
+                      <span
+                        style={{
+                          fontSize: 9,
+                          color: "var(--ink-mute)",
+                          fontWeight: 500,
+                          letterSpacing: 0,
+                        }}
+                      >
+                        준비 중
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {LEVEL_OPTIONS.map((l) => (
+                        <button
+                          key={l}
+                          type="button"
+                          disabled
+                          className="btn btn--sm"
+                          style={{
+                            padding: "3px 9px",
+                            fontSize: 11,
+                            cursor: "not-allowed",
+                          }}
+                        >
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* dateRange — scheduled_at/start_date 기반 */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-dim)",
+                        fontWeight: 700,
+                        marginBottom: 8,
+                        letterSpacing: ".06em",
+                      }}
+                    >
+                      일정
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
+                      {DATE_RANGE_OPTIONS.map((d) => (
+                        <label
+                          key={d.v}
+                          style={{
+                            display: "flex",
+                            gap: 6,
+                            alignItems: "center",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            color: "var(--ink)",
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="search-date-range"
+                            checked={filters.dateRange === d.v}
+                            onChange={() =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                dateRange: d.v,
+                              }))
+                            }
+                          />
+                          {d.l}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* freeOnly + openOnly — 시안 158~167줄 */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      paddingTop: 12,
+                      borderTop: "1px solid var(--border)",
+                    }}
+                  >
+                    {/* freeOnly: DB 미지원 (직렬화에 fee 없음) → disabled */}
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        fontSize: 12,
+                        cursor: "not-allowed",
+                        color: "var(--ink-mute)",
+                        opacity: 0.5,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled
+                        checked={filters.freeOnly}
+                        onChange={() => {
+                          /* DB 미지원 — 동작 없음 */
+                        }}
+                      />
+                      무료만
+                      <span
+                        style={{ fontSize: 9, color: "var(--ink-mute)" }}
+                      >
+                        (준비 중)
+                      </span>
+                    </label>
+                    {/* openOnly: tournament.status 기반 */}
+                    <label
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        color: "var(--ink)",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.openOnly}
+                        onChange={(e) =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            openOnly: e.target.checked,
+                          }))
+                        }
+                      />
+                      모집중만
+                    </label>
+                  </div>
+                </div>
+              </aside>
+
+              {/* ============================================================
+                * 본문 결과 영역 (filtered* 데이터 사용)
+                * ============================================================ */}
+              <div>
+                {/* ==== 결과가 0건일 때 (시안 120~125줄: 60px + 36px ○ + 안내) ==== */}
+                {activeTabCount === 0 ? (
               <div
                 style={{
                   padding: 60,
@@ -455,8 +876,8 @@ export function SearchClient({
             ) : (
               <>
                 {/* ==== 팀 섹션 (시안 50~67줄): grid auto-fill 200px 카드 ==== */}
-                {showTeams && teams.length > 0 && (
-                  <SectionHeader title="팀" count={teams.length}>
+                {showTeams && filteredTeams.length > 0 && (
+                  <SectionHeader title="팀" count={filteredTeams.length}>
                     <div
                       style={{
                         display: "grid",
@@ -465,7 +886,7 @@ export function SearchClient({
                         gap: 10,
                       }}
                     >
-                      {teams.map((t) => {
+                      {filteredTeams.map((t) => {
                         const tone = getChipTone(t.id);
                         return (
                           <Link
@@ -539,20 +960,20 @@ export function SearchClient({
                 )}
 
                 {/* ==== 경기 섹션 (시안 69~85줄): card 0 padding + 60px/1fr/auto 행 + badge--soft ==== */}
-                {showGames && games.length > 0 && (
+                {showGames && filteredGames.length > 0 && (
                   <SectionHeader title="경기 모집">
                     <div
                       className="card"
                       style={{ padding: 0, overflow: "hidden" }}
                     >
-                      {games.map((g, i) => (
+                      {filteredGames.map((g, i) => (
                         <Link
                           key={g.id}
                           href={`/games/${g.id}`}
                           style={{
                             padding: "12px 16px",
                             borderBottom:
-                              i < games.length - 1
+                              i < filteredGames.length - 1
                                 ? "1px solid var(--border)"
                                 : 0,
                             display: "grid",
@@ -617,13 +1038,13 @@ export function SearchClient({
                 )}
 
                 {/* ==== 대회 섹션 (시안 87~103줄): 56px/1fr/auto 행 + 48×48 accent 박스 + level 약어 + 상세 btn ==== */}
-                {showTournaments && tournaments.length > 0 && (
+                {showTournaments && filteredTournaments.length > 0 && (
                   <SectionHeader title="대회">
                     <div
                       className="card"
                       style={{ padding: 0, overflow: "hidden" }}
                     >
-                      {tournaments.map((t, i) => {
+                      {filteredTournaments.map((t, i) => {
                         const statusKey = t.status || "draft";
                         const accent =
                           STATUS_ACCENT[statusKey] || "var(--ink-mute)";
@@ -634,7 +1055,7 @@ export function SearchClient({
                             style={{
                               padding: "14px 16px",
                               borderBottom:
-                                i < tournaments.length - 1
+                                i < filteredTournaments.length - 1
                                   ? "1px solid var(--border)"
                                   : 0,
                               display: "grid",
@@ -727,8 +1148,8 @@ export function SearchClient({
                 )}
 
                 {/* ==== 코트 섹션 (시안에는 없음 — 사용자 원칙으로 추가, 팀 grid 톤과 통일) ==== */}
-                {showCourts && courts.length > 0 && (
-                  <SectionHeader title="코트" count={courts.length}>
+                {showCourts && filteredCourts.length > 0 && (
+                  <SectionHeader title="코트" count={filteredCourts.length}>
                     <div
                       style={{
                         display: "grid",
@@ -737,7 +1158,7 @@ export function SearchClient({
                         gap: 10,
                       }}
                     >
-                      {courts.map((c) => (
+                      {filteredCourts.map((c) => (
                         <Link
                           key={c.id}
                           href={`/courts/${c.id}`}
@@ -810,8 +1231,8 @@ export function SearchClient({
                 )}
 
                 {/* ==== 유저 섹션 (시안에는 없음 — 사용자 원칙으로 추가, 팀 grid 톤과 통일) ==== */}
-                {showUsers && users.length > 0 && (
-                  <SectionHeader title="유저" count={users.length}>
+                {showUsers && filteredUsers.length > 0 && (
+                  <SectionHeader title="유저" count={filteredUsers.length}>
                     <div
                       style={{
                         display: "grid",
@@ -820,7 +1241,7 @@ export function SearchClient({
                         gap: 10,
                       }}
                     >
-                      {users.map((u) => {
+                      {filteredUsers.map((u) => {
                         const display = u.nickname || u.name || "알 수 없음";
                         const tone = getChipTone(u.id);
                         return (
@@ -894,20 +1315,20 @@ export function SearchClient({
                 )}
 
                 {/* ==== 커뮤니티 섹션 (시안 105~118줄): 60px/1fr/auto 행 + badge--soft ==== */}
-                {showCommunity && posts.length > 0 && (
+                {showCommunity && filteredPosts.length > 0 && (
                   <SectionHeader title="커뮤니티">
                     <div
                       className="card"
                       style={{ padding: 0, overflow: "hidden" }}
                     >
-                      {posts.map((p, i) => (
+                      {filteredPosts.map((p, i) => (
                         <Link
                           key={p.id}
                           href={`/community/${p.id}`}
                           style={{
                             padding: "12px 16px",
                             borderBottom:
-                              i < posts.length - 1
+                              i < filteredPosts.length - 1
                                 ? "1px solid var(--border)"
                                 : 0,
                             display: "grid",
@@ -969,6 +1390,10 @@ export function SearchClient({
                 )}
               </>
             )}
+              </div>
+              {/* /본문 결과 영역 */}
+            </div>
+            {/* /grid 240 + 1fr */}
           </>
         )}
       </div>
