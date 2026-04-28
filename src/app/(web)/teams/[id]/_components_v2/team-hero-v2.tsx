@@ -18,7 +18,8 @@ import Link from "next/link";
  * - eyebrow: `TEAM · {tag} · 창단 {founded}`
  * - 스탯 4종: 레이팅(= wins 대체) / 승 / 패 / 승률
  * - CTA 2종: 팔로우 (disabled, 준비 중) / 매치 신청 (disabled, 준비 중)
- *   + 팀장일 때만 "팀 관리" 링크 추가 노출 (기존 page.tsx 규칙 유지)
+ *   + 운영진(팀장/부팀장/매니저) 일 때만 "팀 관리" 링크 추가 노출
+ *     (P1-A에서 captain only → captain+vice+manager로 권한 확대)
  *
  * DB 미지원 항목:
  * - `rating`(별도 레이팅) → wins로 대체 표시 (기존 /teams 목록과 동일 규칙)
@@ -38,7 +39,9 @@ type Props = {
   losses: number;
   winRate: number | null;
   teamId: string;
-  isCaptain: boolean;
+  // P1-A: captain only → 운영진(captain/vice/manager) 으로 의미 확장.
+  // 이름도 의미에 맞게 canManage 로 변경 (서버 컴포넌트에서 운영진 여부 판정).
+  canManage: boolean;
 };
 
 export function TeamHeroV2({
@@ -53,7 +56,7 @@ export function TeamHeroV2({
   losses,
   winRate,
   teamId,
-  isCaptain,
+  canManage,
 }: Props) {
   // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, #0B0D10 140%.
   // 이유: 시안 TeamDetail.jsx은 끝점을 #0B0D10(거의 검정)으로 고정해
@@ -184,8 +187,9 @@ export function TeamHeroV2({
         {/* CTA 그룹 — 모바일은 본문 아래, lg에선 우열(sticky 오른쪽 정렬).
             시안은 우측 고정이라 lg:justify-end 처리 */}
         <div className="flex flex-wrap gap-2 lg:justify-end">
-          {isCaptain && (
-            // 팀장 전용 — 실제 동작 있는 유일한 버튼 (기존 page.tsx 규칙 보존)
+          {canManage && (
+            // 운영진(팀장/부팀장/매니저) 전용 — 실제 동작 있는 유일한 버튼.
+            // P1-A에서 captain only → 운영진 3종으로 권한 확장.
             <Link
               href={`/teams/${teamId}/manage`}
               aria-label="팀 관리"

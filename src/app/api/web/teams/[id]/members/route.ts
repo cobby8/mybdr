@@ -7,16 +7,28 @@ import { mergeTempMember } from "@/lib/teams/merge-temp-member";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-// GET /api/web/teams/[id]/members -- 팀장: 가입신청 목록 조회
+// 운영진 역할 — 팀 관리 페이지 진입/조작 허용 대상.
+// 이유(왜): 기존 captain only 가드는 부팀장(vice)·매니저(manager)가 멤버 명단/가입 신청을
+// 확인할 수 없게 했다. 사용자 발견 케이스(P1-A)에 따라 captain + vice + manager 운영진
+// 3종을 동일한 권한으로 통과시킨다. 가입 승인 같은 민감 작업도 동일 가드 사용
+// (단순화 — 추후 vice/manager에게서 세부 권한을 분리할 여지 있음).
+const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"] as const;
+
+// GET /api/web/teams/[id]/members -- 팀 운영진(captain/vice/manager): 멤버·가입신청 목록 조회
 export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
   const { id } = await routeCtx.params;
   const teamId = BigInt(id);
 
-  // IDOR: 요청자가 해당 팀의 captain인지 확인
-  const isCaptain = await prisma.teamMember.findFirst({
-    where: { teamId, userId: ctx.userId, role: "captain", status: "active" },
+  // IDOR: 요청자가 해당 팀의 운영진(captain/vice/manager) 인지 확인
+  const isManager = await prisma.teamMember.findFirst({
+    where: {
+      teamId,
+      userId: ctx.userId,
+      role: { in: [...TEAM_MANAGER_ROLES] },
+      status: "active",
+    },
   });
-  if (!isCaptain && ctx.session.role !== "super_admin") {
+  if (!isManager && ctx.session.role !== "super_admin") {
     return apiError("FORBIDDEN", 403);
   }
 
@@ -68,16 +80,21 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
   });
 });
 
-// PATCH /api/web/teams/[id]/members -- 팀장: 가입신청 승인/거부
+// PATCH /api/web/teams/[id]/members -- 팀 운영진(captain/vice/manager): 가입신청 승인/거부 + 역할 변경
 export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
   const { id } = await routeCtx.params;
   const teamId = BigInt(id);
 
-  // IDOR: 요청자가 해당 팀의 captain인지 확인
-  const isCaptain = await prisma.teamMember.findFirst({
-    where: { teamId, userId: ctx.userId, role: "captain", status: "active" },
+  // IDOR: 요청자가 해당 팀의 운영진(captain/vice/manager) 인지 확인
+  const isManager = await prisma.teamMember.findFirst({
+    where: {
+      teamId,
+      userId: ctx.userId,
+      role: { in: [...TEAM_MANAGER_ROLES] },
+      status: "active",
+    },
   });
-  if (!isCaptain && ctx.session.role !== "super_admin") {
+  if (!isManager && ctx.session.role !== "super_admin") {
     return apiError("FORBIDDEN", 403);
   }
 

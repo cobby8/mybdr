@@ -71,7 +71,9 @@ export const MORE_GROUPS: MoreGroup[] = [
       { id: "courtBooking", label: "코트 예약", icon: "📍", href: "/courts" },
       { id: "courtAdd", label: "코트 제보", icon: "📮", href: "/courts/submit" },
       { id: "teamCreate", label: "팀 등록", icon: "➕", href: "/teams/new" },
-      { id: "teamManage", label: "팀 관리", icon: "⚙", href: "/teams" },
+      // P1-A: 기존 `/teams`(전체 디렉토리) → 운영팀 선택 허브로 직접 진입.
+      // 0개=빈 상태 / 1개=자동 redirect / N개=선택 화면 분기.
+      { id: "teamManage", label: "팀 관리", icon: "⚙", href: "/teams/manage" },
       // P0-B 제거: refereeRequest
       //   심판 배정은 토너먼트 운영 영역에서 직접 처리되므로 가짜 링크 제거
     ],

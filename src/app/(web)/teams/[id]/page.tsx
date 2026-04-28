@@ -135,9 +135,12 @@ export default async function TeamDetailPage({
   // 별도 쿼리이지만 recent-tab-v2와 중복 제거를 위해 유틸 함수화.
   const recentForm = await computeRecentForm(BigInt(id));
 
-  // ===== 팀장 여부 (기존 규칙 유지) =====
+  // ===== 운영진 여부 — captain/vice/manager 판정 =====
+  // 이유(왜): P1-A에서 "팀 관리" 진입 권한을 captain → 운영진 3종으로 확대.
+  // team.captainId 단순 비교만으로는 부팀장/매니저를 잡지 못하므로 teamMembers
+  // (이미 본조회에 include 되어 있음)에서 role을 확인한다.
   const session = await getWebSession();
-  let isCaptain = false;
+  let canManage = false;
   // 가입 신청 UI 제어용 — 로그인 여부 / 멤버 여부 / pending 신청 여부
   // 이유: 사이드 카드의 "팀 가입 신청" 버튼 표시 분기는 SSR에서 결정해야
   // 첫 렌더 부터 정확한 상태를 보여줄 수 있다 (깜빡임 방지).
@@ -147,9 +150,16 @@ export default async function TeamDetailPage({
   if (session?.sub) {
     try {
       const userId = BigInt(session.sub);
-      isCaptain = userId === team.captainId;
       // 이미 active 멤버 목록에 포함되었는지 (팀 본조회의 teamMembers 재활용)
-      isMember = team.teamMembers.some((m) => m.userId === userId);
+      const myMembership = team.teamMembers.find((m) => m.userId === userId);
+      isMember = !!myMembership;
+      // 운영진(captain/vice/manager) — 가입 신청/멤버 관리 진입 허용 대상.
+      // 추가 쿼리 없이 본조회 결과 재활용 (성능/일관성 모두 이득).
+      canManage =
+        !!myMembership &&
+        (myMembership.role === "captain" ||
+          myMembership.role === "vice" ||
+          myMembership.role === "manager");
       // pending 가입 신청이 있는지 (멤버가 아닌 경우에만 의미 있음)
       if (!isMember) {
         const pending = await prisma.team_join_requests.findFirst({
@@ -159,7 +169,7 @@ export default async function TeamDetailPage({
         hasPendingRequest = !!pending;
       }
     } catch {
-      isCaptain = false;
+      canManage = false;
     }
   }
 
@@ -203,7 +213,7 @@ export default async function TeamDetailPage({
         losses={losses}
         winRate={winRate}
         teamId={id}
-        isCaptain={isCaptain}
+        canManage={canManage}
       />
 
       {/* 2) Tabs — sticky 네비 */}
