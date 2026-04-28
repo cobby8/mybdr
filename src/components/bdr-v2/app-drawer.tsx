@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { ThemeSwitch } from "./theme-switch";
 import type { AppNavUser } from "./app-nav";
+import { MORE_GROUPS } from "./more-groups";
 
 /* ============================================================
  * AppDrawer (BDR v2 모바일 드로어)
@@ -214,6 +215,68 @@ export function AppDrawer({ open, onClose, tabs, isActive, user }: AppDrawerProp
               </span>
             </Link>
           )}
+
+          {/* ============================================================
+           * [P2-1] 더보기 5그룹 — 모바일 드로어에서도 동일 IA 노출
+           * 이유: 햄버거 진입 시 데스크톱 드롭다운과 동일한 5그룹 IA를 만나야
+           *       사용자가 일관된 멘탈 모델을 유지할 수 있다. 세로 stack 형태.
+           * ============================================================ */}
+          <div className="drawer__divider" />
+          {MORE_GROUPS.map((g) => (
+            <div key={g.title} style={{ marginTop: 4 }}>
+              {/* 그룹 헤더 — 데스크톱 드롭다운과 동일 톤 */}
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  color: "var(--ink-mute)",
+                  textTransform: "uppercase",
+                  padding: "10px 4px 4px",
+                }}
+              >
+                {g.title}
+              </div>
+              {g.items.map((m) => {
+                const active = isActive(m.href);
+                return (
+                  <Link
+                    key={m.id + g.title}
+                    href={m.href}
+                    className="drawer__item"
+                    data-active={active}
+                    onClick={onClose}
+                    style={{ gap: 10 }}
+                  >
+                    {/* 좌측: 이모지 + 라벨 */}
+                    <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span
+                        style={{ width: 18, textAlign: "center", fontSize: 14 }}
+                        aria-hidden
+                      >
+                        {m.icon}
+                      </span>
+                      <span>{m.label}</span>
+                    </span>
+                    {/* 우측: chevron */}
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {/* 푸터 — 테마 + 세션 정보 */}

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeSwitch } from "./theme-switch";
 import { AppDrawer } from "./app-drawer";
+import { MORE_GROUPS } from "./more-groups";
 
 /* ============================================================
  * AppNav (BDR v2 상단 네비게이션)
@@ -53,17 +54,8 @@ const tabs: { id: string; href: string; label: string }[] = [
   { id: "community", href: "/community", label: "커뮤니티" },
 ];
 
-// 더보기 드롭다운 — v2 원본 moreItems 중 실제 라우트가 존재하는 항목만 추림
-// (원본 중복 제거 + mybdr 실제 route 매핑)
-const moreItems: { href: string; label: string; icon: string }[] = [
-  { href: "/games/my-games", label: "내 신청 내역", icon: "assignment" },
-  { href: "/notifications", label: "알림", icon: "notifications" },
-  { href: "/live", label: "라이브 중계", icon: "play_circle" },
-  { href: "/rankings", label: "랭킹", icon: "leaderboard" },
-  { href: "/search", label: "검색", icon: "search" },
-  { href: "/pricing", label: "요금제", icon: "workspace_premium" },
-  { href: "/help/glossary", label: "도움말", icon: "help" },
-];
+// 더보기 메뉴 5그룹은 ./more-groups.ts 의 MORE_GROUPS 상수에서 import
+// (데스크톱 드롭다운 + 모바일 드로어 더보기 패널 공유)
 
 export function AppNav({ user, unreadCount }: AppNavProps) {
   const pathname = usePathname();
@@ -235,107 +227,179 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
               </span>
             </button>
             {moreOpen && (
+              // 데스크톱: 680px 2-col 그리드 / 모바일(<=720px): globals.css의
+              // .app-nav__more-panel 룰이 풀스크린 시트로 변환 (1-col stack)
               <div
                 role="menu"
+                className="app-nav__more-panel"
                 style={{
                   position: "absolute",
                   top: "calc(100% + 6px)",
                   right: 0,
-                  minWidth: 220,
+                  width: 680,
+                  maxHeight: "70vh",
+                  overflowY: "auto",
                   background: "var(--bg)",
                   border: "1px solid var(--border)",
                   boxShadow: "var(--sh-lift, var(--sh-lg))",
-                  borderRadius: 8,
-                  padding: "6px 0",
+                  borderRadius: 10,
+                  padding: 12,
                   zIndex: 30,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "4px 18px",
                 }}
               >
-                {moreItems.map((m) => {
-                  const active = isActive(m.href);
-                  return (
-                    <Link
-                      key={m.href + m.label}
-                      href={m.href}
-                      role="menuitem"
-                      onClick={() => setMoreOpen(false)}
+                {/* 5그룹 그리드: 각 그룹은 헤더 + 항목 리스트 */}
+                {MORE_GROUPS.map((g) => (
+                  <div key={g.title} style={{ breakInside: "avoid" }}>
+                    {/* 그룹 헤더 — 시안 톤(uppercase + letter-spacing) */}
+                    <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "9px 14px",
-                        fontSize: 13,
-                        color: "var(--ink)",
-                        textDecoration: "none",
-                        fontWeight: active ? 700 : 500,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        color: "var(--ink-mute)",
+                        textTransform: "uppercase",
+                        padding: "8px 10px 4px",
                       }}
                     >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 16, color: "var(--ink-mute)" }}
-                      >
-                        {m.icon}
-                      </span>
-                      <span>{m.label}</span>
-                    </Link>
-                  );
-                })}
-                {/* super_admin 전용: 관리자 진입 */}
-                {user?.role === "super_admin" && (
-                  <>
+                      {g.title}
+                    </div>
+                    {g.items.map((m) => {
+                      const active = isActive(m.href);
+                      return (
+                        <Link
+                          key={m.id + g.title}
+                          href={m.href}
+                          role="menuitem"
+                          onClick={() => setMoreOpen(false)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            width: "100%",
+                            padding: "7px 10px",
+                            background: active ? "var(--bg-alt)" : "transparent",
+                            fontSize: 12.5,
+                            color: "var(--ink)",
+                            textDecoration: "none",
+                            borderRadius: 6,
+                            whiteSpace: "nowrap",
+                            fontWeight: active ? 700 : 500,
+                          }}
+                        >
+                          {/* 시안 인라인 이모지 그대로 (Material Symbols 변환 X) */}
+                          <span
+                            style={{
+                              width: 18,
+                              textAlign: "center",
+                              fontSize: 13,
+                              flexShrink: 0,
+                            }}
+                            aria-hidden
+                          >
+                            {m.icon}
+                          </span>
+                          <span
+                            style={{
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {m.label}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))}
+
+                {/* super_admin / 심판 전용은 별도 그룹으로 마지막에 배치 */}
+                {(user?.role === "super_admin" || user?.is_referee) && (
+                  <div style={{ breakInside: "avoid", gridColumn: "1 / -1" }}>
                     <div
                       aria-hidden
-                      style={{ height: 1, background: "var(--border)", margin: "4px 0" }}
-                    />
-                    <Link
-                      href="/admin"
-                      role="menuitem"
-                      onClick={() => setMoreOpen(false)}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "9px 14px",
-                        fontSize: 13,
-                        color: "var(--accent)",
-                        textDecoration: "none",
-                        fontWeight: 700,
+                        height: 1,
+                        background: "var(--border)",
+                        margin: "8px 0 4px",
+                      }}
+                    />
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        color: "var(--ink-mute)",
+                        textTransform: "uppercase",
+                        padding: "4px 10px",
                       }}
                     >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ fontSize: 16 }}
-                      >
-                        admin_panel_settings
-                      </span>
-                      <span>관리자</span>
-                    </Link>
-                  </>
-                )}
-                {/* 심판 유저 전용: 심판 센터 진입 */}
-                {user?.is_referee && (
-                  <Link
-                    href="/referee"
-                    role="menuitem"
-                    onClick={() => setMoreOpen(false)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "9px 14px",
-                      fontSize: 13,
-                      color: "var(--ink)",
-                      textDecoration: "none",
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 16, color: "var(--ink-mute)" }}
+                      운영
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "0 18px",
+                      }}
                     >
-                      sports
-                    </span>
-                    <span>심판 센터</span>
-                  </Link>
+                      {user?.role === "super_admin" && (
+                        <Link
+                          href="/admin"
+                          role="menuitem"
+                          onClick={() => setMoreOpen(false)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "7px 10px",
+                            fontSize: 12.5,
+                            color: "var(--accent)",
+                            textDecoration: "none",
+                            fontWeight: 700,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <span
+                            style={{ width: 18, textAlign: "center", fontSize: 13 }}
+                            aria-hidden
+                          >
+                            🛠
+                          </span>
+                          <span>관리자</span>
+                        </Link>
+                      )}
+                      {user?.is_referee && (
+                        <Link
+                          href="/referee"
+                          role="menuitem"
+                          onClick={() => setMoreOpen(false)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            padding: "7px 10px",
+                            fontSize: 12.5,
+                            color: "var(--ink)",
+                            textDecoration: "none",
+                            fontWeight: 600,
+                            borderRadius: 6,
+                          }}
+                        >
+                          <span
+                            style={{ width: 18, textAlign: "center", fontSize: 13 }}
+                            aria-hidden
+                          >
+                            🦓
+                          </span>
+                          <span>심판 센터</span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
