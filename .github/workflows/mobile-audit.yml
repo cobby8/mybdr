@@ -1,0 +1,157 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# mobile-audit — Playwright 모바일 감사 (P3-2 CI 통합)
+# ═══════════════════════════════════════════════════════════════════════════════
+# 설계: P3-1 audit.spec.ts (iPhone SE / Galaxy S20 viewport, 10개 라우트 자동 감사)
+#       PM 지시안: "옵션 A — workflow_dispatch only" (안정화 우선, 시크릿 부담 회피)
+#
+# 동작 원칙:
+#   - 첫 도입 단계라 자동 트리거(PR/push) 미설정 → workflow_dispatch 수동 실행만.
+#     이유: ① CI에서 dev 서버 + 인증 + Playwright 브라우저 설치까지 도는
+#           복합 시퀀스라 첫 주는 수동으로 동작 검증 필요.
+#           ② DATABASE_URL_DEV 시크릿 재사용(cafe-sync.yml 동일) — 운영 DB 가드 동일.
+#           ③ PR 트리거 활성화는 안정화 후 별도 PR로 추가 (P3-3 제안).
+#   - 기존 cafe-sync.yml / cafe-sync-verify.yml 0 변경. 완전 독립.
+#   - DB / API 0 변경 (UI 측정 전용 + 읽기 전용).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: mobile-audit
+
+on:
+  # ─── 수동 트리거 (옵션 A — PR/push 트리거 보류) ──────────────────────────────
+  # 이유: 첫 주는 안정화 우선. 사용자가 GitHub Actions 탭에서 "Run workflow" 클릭.
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "감사 대상 baseURL (기본 http://localhost:3001 — CI 자체 빌드)"
+        required: false
+        default: "http://localhost:3001"
+
+# ─── 동시 실행 제어 ────────────────────────────────────────────────────────────
+# 이전 run 이 늦어져도 덮어쓰지 않음 (artifact 보존).
+concurrency:
+  group: mobile-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: "모바일 감사 (Playwright)"
+    runs-on: ubuntu-latest
+    # next build + dev 서버 + 10라우트 × 2 viewport = 20케이스. 20분 넉넉.
+    timeout-minutes: 20
+
+    env:
+      CI: "true"
+      TZ: "Asia/Seoul"
+      # 개발 DB URL (cafe-sync.yml 과 동일 시크릿 재사용 — 별도 등록 불필요).
+      # 빌드 시 Prisma generate 가 DATABASE_URL 을 요구하기 때문에 주입.
+      DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+
+    steps:
+      # ─── 1. 체크아웃 ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ─── 2. Node 설치 (cafe-sync.yml 동일 버전) ──────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ─── 3. CI 운영 DB 가드 (cafe-sync.yml 와 동일 관습) ─────────────────────
+      # 이유: 실수로 운영 DB URL 등록 시 즉시 실패시켜 오염 차단.
+      #       audit 자체는 read-only지만, next build → Prisma generate 단계에서
+      #       schema 호환 체크가 일어나므로 동일 가드 적용.
+      - name: Validate DB is development (CI guard)
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret 미설정"
+            exit 1
+          fi
+          if echo "$DATABASE_URL" | grep -q 'bwoorsgoijvlgutkrcvs'; then
+            echo "dev DB identifier confirmed"
+          else
+            echo "::error::DATABASE_URL 이 개발 DB 아님 (bwoorsgoijvlgutkrcvs 미포함). CI 중단."
+            exit 1
+          fi
+
+      # ─── 4. Playwright Chromium 설치 ─────────────────────────────────────────
+      # 이유: audit.spec.ts 는 mobile project (Pixel 7 chromium 기반) 만 사용.
+      #       --with-deps 로 Linux 필수 라이브러리 동시 설치.
+      - name: Install Playwright (chromium only)
+        run: npx playwright install chromium --with-deps
+
+      # ─── 5. Next 빌드 (production) ──────────────────────────────────────────
+      # 이유: dev 서버는 hydration 지연 + HMR 노이즈로 audit 측정값이 흔들림.
+      #       production build → next start 로 안정 측정.
+      #       postinstall 단계에서 prisma generate 가 이미 실행되므로 build 는
+      #       prisma generate && next build 인 package.json 스크립트 그대로 사용.
+      - name: Build (production)
+        run: npm run build
+
+      # ─── 6. Production 서버 백그라운드 실행 ────────────────────────────────
+      # 이유: audit.spec.ts 는 baseURL=http://localhost:3001 을 가정 (playwright.config.ts).
+      #       package.json 의 dev 포트가 3001 이지만 start 는 기본 3000 → PORT=3001 명시.
+      #       nohup + & 로 백그라운드, log 파일로 stdout/stderr 보관.
+      - name: Start server (background)
+        run: |
+          mkdir -p tmp
+          PORT=3001 nohup npm run start > tmp/server.log 2>&1 &
+          echo $! > tmp/server.pid
+          echo "server PID: $(cat tmp/server.pid)"
+
+      # ─── 7. 서버 ready 대기 ──────────────────────────────────────────────────
+      # 이유: next start 는 init 에 수 초 걸림. audit 시작 전 200 응답 확인.
+      #       npx wait-on 추가 의존성 회피 → curl 폴링 (60초 timeout).
+      - name: Wait for server (max 60s)
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS -o /dev/null http://localhost:3001/; then
+              echo "server ready (after ${i}s)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::server not ready within 60s"
+          tail -n 50 tmp/server.log || true
+          exit 1
+
+      # ─── 8. 모바일 감사 실행 ─────────────────────────────────────────────────
+      # 이유: package.json 의 audit:mobile 스크립트 그대로 사용.
+      #       Playwright 자체는 케이스별 expect 통과만 보장하고 보고서는 HTML 로 생성됨.
+      #       set -o pipefail 로 tsx 실패 시 step 실패 보장.
+      - name: Run mobile audit
+        id: audit
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p tmp
+          npm run audit:mobile 2>&1 | tee tmp/audit.log
+
+      # ─── 9. 서버 종료 ────────────────────────────────────────────────────────
+      # 이유: artifact 업로드 전 서버 정리. 실패해도 artifact 는 always() 로 업로드.
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f tmp/server.pid ]; then
+            kill $(cat tmp/server.pid) 2>/dev/null || true
+            echo "server stopped"
+          fi
+
+      # ─── 10. 보고서 artifact 업로드 ─────────────────────────────────────────
+      # if: always() — 감사 실패 시에도 부분 결과 + 로그 회수.
+      # retention-days 30 — 추세 비교용 (cafe-sync-verify 동일 정책).
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-audit-report-${{ github.run_id }}
+          path: |
+            Dev/design/audit-results/*.html
+            tmp/audit.log
+            tmp/server.log
+          retention-days: 30
+          if-no-files-found: warn
