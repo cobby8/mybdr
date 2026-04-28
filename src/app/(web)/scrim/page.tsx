@@ -23,6 +23,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+// 2026-04-27 Phase 9 P0-4-E: history 탭 6컬럼 board → ResponsiveTable 교체 (모바일 라벨 보존)
+import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/ui/responsive-table";
 
 // ---- 타입 정의 ----
 type TabId = "find" | "incoming" | "outgoing" | "history";
@@ -433,54 +435,89 @@ export default function ScrimPage() {
       )}
 
       {/* === 지난 스크림 === (시안 L148~L164) */}
+      {/* 2026-04-27 Phase 9 P0-4-E: 6열 board → ResponsiveTable 교체.
+         이유: 모바일(<=720px)에서 헤더가 사라지면 "+14 / -12" 같은 값이 무엇의 변동인지
+              식별 불가 (mobile_audit_report.html L188 Med). data-label 패턴으로 라벨 보존. */}
       {tab === "history" && (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div
-            className="board__head"
-            style={{ gridTemplateColumns: "80px 1.2fr 100px 80px 80px 90px" }}
-          >
-            <div>날짜</div>
-            <div style={{ textAlign: "left" }}>상대</div>
-            <div>스코어</div>
-            <div>결과</div>
-            <div>레이팅</div>
-            <div>코트</div>
-          </div>
-          {HISTORY.map((h, i) => (
-            <div
-              key={i}
-              className="board__row"
-              style={{ gridTemplateColumns: "80px 1.2fr 100px 80px 80px 90px" }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  color: "var(--ink-dim)",
-                  fontSize: 12,
-                }}
-              >
-                {h.date}
-              </div>
-              <div className="title">{h.opp}</div>
-              <div style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>{h.score}</div>
-              <div>
-                <span className={`badge ${h.result === "승" ? "badge--ok" : "badge--red"}`}>
-                  {h.result}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  fontWeight: 700,
-                  color: h.rating > 0 ? "var(--ok)" : "var(--err)",
-                }}
-              >
-                {h.rating > 0 ? "+" : ""}
-                {h.rating}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>{h.court}</div>
-            </div>
-          ))}
+          <ResponsiveTable<HistoryRow>
+            mobileMode="card"
+            rowKey={(_, i) => i}
+            columns={
+              [
+                {
+                  key: "date",
+                  label: "날짜",
+                  width: "80px",
+                  // 더미 시안 그대로: mono + dim + 12px
+                  render: (h) => (
+                    <span
+                      style={{
+                        fontFamily: "var(--ff-mono)",
+                        color: "var(--ink-dim)",
+                        fontSize: 12,
+                      }}
+                    >
+                      {h.date}
+                    </span>
+                  ),
+                },
+                {
+                  key: "opp",
+                  label: "상대",
+                  width: "1.2fr",
+                  // 시안의 .title 클래스 보존 (board 행에서 강조 텍스트)
+                  render: (h) => <span className="title">{h.opp}</span>,
+                },
+                {
+                  key: "score",
+                  label: "스코어",
+                  width: "100px",
+                  render: (h) => (
+                    <span style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>{h.score}</span>
+                  ),
+                },
+                {
+                  key: "result",
+                  label: "결과",
+                  width: "80px",
+                  // 승/패 배지 (badge--ok / badge--red 시안 클래스 보존)
+                  render: (h) => (
+                    <span className={`badge ${h.result === "승" ? "badge--ok" : "badge--red"}`}>
+                      {h.result}
+                    </span>
+                  ),
+                },
+                {
+                  key: "rating",
+                  label: "레이팅",
+                  width: "80px",
+                  // 양수=ok 색, 음수=err 색. 부호 명시 표기
+                  render: (h) => (
+                    <span
+                      style={{
+                        fontFamily: "var(--ff-mono)",
+                        fontWeight: 700,
+                        color: h.rating > 0 ? "var(--ok)" : "var(--err)",
+                      }}
+                    >
+                      {h.rating > 0 ? "+" : ""}
+                      {h.rating}
+                    </span>
+                  ),
+                },
+                {
+                  key: "court",
+                  label: "코트",
+                  width: "90px",
+                  render: (h) => (
+                    <span style={{ fontSize: 12, color: "var(--ink-mute)" }}>{h.court}</span>
+                  ),
+                },
+              ] satisfies ResponsiveTableColumn<HistoryRow>[]
+            }
+            rows={HISTORY}
+          />
         </div>
       )}
     </div>
