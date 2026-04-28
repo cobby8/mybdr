@@ -9,18 +9,23 @@ export const metadata: Metadata = {
 };
 
 /* ============================================================
- * 용어 사전 (Help > Glossary) — W4 L1
+ * 용어 사전 (Help > Glossary) — Phase 9 D-P3 v2 박제
  *
- * 이유: 서비스 내 용어가 중첩되어 신규 사용자가 "대회 vs 경기",
- *      "픽업 vs 게스트 vs 연습경기", "토너먼트 vs 풀리그"
- *      같은 구분을 어려워함. 한 곳에서 짧은 설명 + 예시 + 관련
- *      링크를 제공해 내비게이션 편의를 높인다.
+ * 이유: /help (Phase 6) 통합 허브의 "전체 용어 사전 보기 →" 링크
+ *      대상 페이지. /help의 GLOSSARY(16건 짧은 정의)와 달리,
+ *      이 페이지는 9건 핵심 용어를 더 풍부하게 (설명 + 예시 +
+ *      관련 페이지 링크) 다룬다. 의도적 분리 — redirect 금지.
  *
- * 구조: 정적 서버 컴포넌트. 각 용어를 <section> 단위로 나열하고
- *      관련 링크를 Link로 연결해 탐색을 유도한다.
+ * 박제 변경 (Phase 9):
+ *  - .page 래퍼 + eyebrow + h1(BDR v2 톤)
+ *  - 카드형 .card 래핑 + var(--cafe-blue) 강조 (탭형 페이지와 통일)
+ *  - 변수: var(--ink), var(--ink-soft), var(--ink-mute), var(--ink-dim),
+ *         var(--accent), var(--border), var(--bg-alt) (BDR v2 토큰)
+ *  - 상단 "← 도움말로 돌아가기" 링크 (탐색 일관성)
  *
- * 디자인: /terms, /privacy 패턴에 맞춰 var(--color-*) 변수 사용.
- *        Material Symbols 아이콘은 섹션 헤더 왼쪽에 소형 배치.
+ * 보존:
+ *  - 9건 용어 데이터 (entries) + 예시 + 관련 링크 = 외부 링크 호환성
+ *  - SEO metadata 그대로
  * ============================================================ */
 
 // 용어 1건 타입 — 섹션 반복 렌더링을 위한 구조화
@@ -116,126 +121,199 @@ const entries: GlossaryEntry[] = [
 
 export default function GlossaryPage() {
   return (
-    <div className="mx-auto max-w-2xl py-10">
-      {/* 헤더 */}
-      <div className="mb-8">
-        <h1
-          className="text-xl font-bold sm:text-2xl"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          용어 사전
-        </h1>
-        <p
-          className="mt-1 text-sm"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          MyBDR에서 자주 쓰는 농구 용어를 한 곳에서 확인하세요.
-        </p>
-      </div>
-
-      {/* 용어 목록 */}
-      <div className="space-y-8">
-        {entries.map((e) => (
-          <section
-            key={e.term}
-            // 항목마다 얇은 상단 구분선 — 스크롤 가독성 확보
-            className="border-t pt-6 first:border-t-0 first:pt-0"
-            style={{ borderColor: "var(--color-border)" }}
+    // .page = BDR v2 공통 래퍼 (좌우 패딩 + 상단 여백 통일)
+    <div className="page">
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        {/* 상단 "← 도움말로 돌아가기" — /help 통합 허브로 복귀 동선 */}
+        <div style={{ marginBottom: 16 }}>
+          <Link
+            href="/help"
+            style={{
+              fontSize: 13,
+              color: "var(--ink-mute)",
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
           >
-            {/* 제목 줄: 아이콘 + 한글 용어 + 영문 부연 */}
-            <div className="mb-2 flex items-center gap-2">
-              <span
-                className="material-symbols-outlined text-lg"
-                style={{ color: "var(--color-primary)" }}
-                aria-hidden
-              >
-                {e.icon}
-              </span>
-              <h2
-                className="text-base font-semibold"
-                style={{ color: "var(--color-text-primary)" }}
-              >
-                {e.term}
-              </h2>
-              {e.english && (
-                <span
-                  className="text-xs font-medium"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  · {e.english}
-                </span>
-              )}
-            </div>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }} aria-hidden>
+              arrow_back
+            </span>
+            도움말로 돌아가기
+          </Link>
+        </div>
 
-            {/* 설명 */}
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "var(--color-text-secondary)" }}
+        {/* 헤더: eyebrow + h1 (BDR v2 톤, /help 페이지와 통일) */}
+        <div style={{ marginBottom: 28 }}>
+          <div className="eyebrow">용어 사전 · GLOSSARY</div>
+          <h1
+            style={{
+              margin: "10px 0 8px",
+              fontSize: 28,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+            }}
+          >
+            농구 용어 한눈에 보기
+          </h1>
+          <p style={{ fontSize: 14, color: "var(--ink-mute)", lineHeight: 1.6 }}>
+            MyBDR에서 자주 쓰는 핵심 용어 9개를 예시·관련 페이지와 함께 정리했습니다.
+          </p>
+        </div>
+
+        {/* 용어 목록 — .card 한 장에 9개 섹션 (탭형 정책 카드와 일관성) */}
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {entries.map((e, i) => (
+            <section
+              key={e.term}
+              // 항목 사이 구분선 — 마지막 항목은 제외
+              style={{
+                padding: "20px 22px",
+                borderBottom: i < entries.length - 1 ? "1px solid var(--border)" : 0,
+              }}
             >
-              {e.description}
-            </p>
-
-            {/* 예시 (선택) — 살짝 들여쓰기한 박스 */}
-            {e.example && (
-              <p
-                className="mt-2 text-xs leading-relaxed"
-                style={{ color: "var(--color-text-muted)" }}
+              {/* 제목 줄: 아이콘(accent) + 한글 + 영문 부연 */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 8,
+                }}
               >
-                {e.example}
-              </p>
-            )}
-
-            {/* 관련 링크 (선택) */}
-            {e.links && e.links.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {e.links.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    // 라벨형 링크 — border-radius 4px, CLAUDE.md 컨벤션
-                    className="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold transition-colors"
+                <span
+                  className="material-symbols-outlined"
+                  style={{ color: "var(--accent)", fontSize: 20 }}
+                  aria-hidden
+                >
+                  {e.icon}
+                </span>
+                <h2
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    margin: 0,
+                  }}
+                >
+                  {e.term}
+                </h2>
+                {e.english && (
+                  <span
                     style={{
-                      border: "1px solid var(--color-border)",
-                      color: "var(--color-text-secondary)",
-                      borderRadius: 4,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: "var(--ink-mute)",
                     }}
                   >
-                    {l.label}
-                    <span
-                      className="material-symbols-outlined text-sm"
-                      aria-hidden
-                    >
-                      arrow_forward
-                    </span>
-                  </Link>
-                ))}
+                    · {e.english}
+                  </span>
+                )}
               </div>
-            )}
-          </section>
-        ))}
-      </div>
 
-      {/* 하단 안내 — 더 궁금한 점이 있을 때 */}
-      <div
-        className="mt-10 rounded-md p-4 text-xs leading-relaxed"
-        style={{
-          backgroundColor: "var(--color-bg-secondary)",
-          color: "var(--color-text-muted)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 4,
-        }}
-      >
-        <p>
-          궁금한 용어가 더 있다면{" "}
-          <a
-            href="mailto:bdr.wonyoung@gmail.com"
-            className="font-semibold underline"
-            style={{ color: "var(--color-primary)" }}
-          >
-            bdr.wonyoung@gmail.com
-          </a>
-          으로 알려주세요. 다음 업데이트에 추가하겠습니다.
-        </p>
+              {/* 설명 */}
+              <p
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                  color: "var(--ink-soft)",
+                  margin: 0,
+                }}
+              >
+                {e.description}
+              </p>
+
+              {/* 예시 (선택) — 살짝 약한 톤으로 부연 */}
+              {e.example && (
+                <p
+                  style={{
+                    marginTop: 8,
+                    fontSize: 12.5,
+                    lineHeight: 1.6,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  {e.example}
+                </p>
+              )}
+
+              {/* 관련 링크 (선택) — cafe-blue 톤 라벨, 하드코딩 색상 금지 */}
+              {e.links && e.links.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
+                  {e.links.map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "6px 12px",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--cafe-blue)",
+                        background: "var(--bg-alt)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 4,
+                      }}
+                    >
+                      {l.label}
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 14 }}
+                        aria-hidden
+                      >
+                        arrow_forward
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+
+        {/* 하단 안내 카드 — 추가 용어 요청 동선 (1:1 문의는 /help 허브로 유도) */}
+        <div
+          className="card"
+          style={{
+            marginTop: 20,
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)" }}>
+              찾는 용어가 없나요?
+            </div>
+            <div
+              style={{
+                fontSize: 12.5,
+                color: "var(--ink-mute)",
+                marginTop: 4,
+                lineHeight: 1.6,
+              }}
+            >
+              FAQ·정책은 도움말 통합 페이지에서, 직접 문의는 운영팀 메일로 부탁드립니다.
+            </div>
+          </div>
+          <Link href="/help" className="btn btn--primary" style={{ fontSize: 13 }}>
+            도움말 허브로 이동
+          </Link>
+        </div>
       </div>
     </div>
   );
