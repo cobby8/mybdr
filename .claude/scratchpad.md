@@ -3759,4 +3759,64 @@ C. 유료 ratio>0
 | 날짜 | 작업 | 상태 |
 |------|------|------|
 | 2026-04-27 | Phase 9 P0-2 Messages 모바일 푸시 흐름 (data-mobile-view + URL 동기화 + 백버튼) | 완료 |
+| 2026-04-27 | Phase 9 P0-3 Bracket 라운드 sticky 헤더 (모바일 가로 스크롤 위치 파악) | 완료 |
+
+---
+
+## Phase 9 P0-3 — Bracket 라운드 sticky 헤더 — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: BDR v2 (1) `_mobile_audit_report.html` High 항목 — Bracket 본체가 `minWidth: 1000`으로 가로 스크롤되는 상황에서, 라운드 라벨(R16/QF/SF/F)이 본체와 함께 절대 위치로 배치되어 모바일 세로 스크롤 시 시야에서 사라지던 문제 해결. 옵션 A 적용 — sticky band로 분리하여 가로 스크롤은 본체와 동기화, 세로 스크롤 시 상단 고정.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/tournaments/[id]/bracket/_components/bracket-view.tsx` | 라운드 헤더 영역을 캔버스 내부 절대 위치 → normal flow의 sticky band(top:0, height:32, zIndex:10, var(--color-card) 배경)로 이동. 자식 헤더는 absolute로 x좌표(`rh.x + padding`)는 그대로 유지하고 y좌표는 band 내부 세로 중앙(top:0/bottom:0). 캔버스 height/SVG/카드 좌표 변경 0 (이미 `headerHeight=32`만큼 reserve된 영역을 sticky band가 그대로 사용). | 수정 (+19줄, 위치 변경 1건) |
+
+🔄 **sticky 작동 메커니즘**:
+```
+스크롤 컨테이너 = 페이지 본체 (BracketTreeView 외부 카드는 overflow-x-auto만 + y는 visible)
+  └ scrollRef (overflow-x-auto, 가로 스크롤만)
+      └ canvas (relative, width=dimensions+padding*2)
+          ├ ★ sticky band (top:0, normal flow, height:32) ← 변경점
+          │   └ 각 라운드 헤더 (absolute, left=rh.x+padding, top:0/bottom:0)
+          ├ SVG (absolute, top:32) ← 좌표 무변경
+          └ 매치 카드 (absolute, top:pos.y+32) ← 좌표 무변경
+
+가로 스크롤: scrollRef 안이라 sticky band도 같이 이동 → R16 보면 SF/F 가려짐, 우측으로 드래그하면 QF가 보임
+세로 스크롤: 페이지 스크롤 컨테이너 기준 sticky → 트리가 길어도 라운드 라벨은 항상 상단 고정
+```
+
+🎨 **시각 변화**:
+| 화면 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| 데스크톱 (>=720px, minWidth 안 잘림) | 헤더가 각 라운드 첫 카드 위에 곡선 정렬 | sticky band 안 일직선 정렬 (시각 차이 미세) |
+| 모바일 (<720px, 가로 스크롤 발생) | 세로 스크롤 시 헤더가 사라져 라운드 식별 불가 | 세로 스크롤 시 헤더 상단 고정 + 가로 스크롤은 본체와 동기화 |
+
+✅ **보존 항목**:
+- API/Prisma/`bracket-builder` 좌표 계산 0 변경
+- `BracketView` 의 섹션 헤더(`토너먼트 대진표 (Knockout Stage)` + 범례) 0 변경
+- SVG 연결선 / MatchCard / 좌·우 스크롤 버튼 0 변경
+- `roundHeaders` 데이터 구조(rh.x/rh.y/hasLive 등) 0 변경 — y좌표는 미사용으로만 전환
+- 데스크톱 레이아웃 시각 거의 동일
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 없음) |
+| `npx next build` | 통과 (`/tournaments/[id]/bracket` ƒ 동적 라우트 정상) |
+
+💡 **tester 참고**:
+- 데스크톱(>=720px)에서 `/tournaments/[id]?tab=bracket` 접속 → 라운드 헤더가 한 줄로 일직선 정렬 (이전 곡선 정렬에서 변경). 트리 본체가 카드 안에 다 들어오면 시각 차이는 거의 없음
+- 모바일(<720px) DevTools에서 동일 페이지 접속 → 좌우 가로 스크롤 시 헤더가 본체와 함께 이동 (R16 → 우측 드래그 → QF/SF 차례로 노출)
+- 트리가 긴 경우(8강+) **세로 스크롤** → 라운드 헤더가 페이지 상단에 고정되어 항상 보임
+- 좌·우 화살표 버튼 동작은 변경 없음 (이전과 동일하게 한 컬럼씩 이동)
+- 라운드 LIVE 인디케이터(빨간 점 + ping 애니) 표시 동작 동일
+
+⚠️ **reviewer 참고**:
+- sticky 작동 조건: 스크롤 컨테이너는 페이지 본체. 만약 추후 트리 외곽에 `overflow-y: hidden` 등이 들어오면 sticky 컨텍스트가 바뀜. 현재 구조에서는 정상 작동.
+- AppNav가 fixed면 헤더가 가릴 수 있음. 현재 mybdr `<AppNav>`는 fixed 아니거나 `--app-nav-height` 변수가 미정의 상태(globals.css 검색 결과). 추후 fixed AppNav 도입 시 `top: var(--app-nav-height)` 로 offset 조정 필요.
+- 옵션 B(모바일 라운드별 세로 스택/탭) 미적용. 옵션 A의 sticky band만으로 "어느 라운드를 보고 있는지"가 모바일에서 명확해짐 — 추가 작업 불필요 판단.
+
+🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과. tsc + next build 정상.
 
