@@ -36,7 +36,7 @@ export default async function SeriesListPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16">
-      {/* 헤더 — 시안: eyebrow + 큰 타이틀 + 우측 CTA(현재는 생략, 권한 별도) */}
+      {/* 헤더 — 시안: eyebrow + 큰 타이틀 + 우측 CTA */}
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <div
@@ -54,6 +54,11 @@ export default async function SeriesListPage() {
             정기적으로 열리는 모든 시리즈와 그 회차의 계보
           </div>
         </div>
+        {/* 왜 CTA: P1-D 진입점 보강 — /series/new 라우트는 server wrapper에서 로그인 가드,
+            여기서는 노출만. 권한 검증은 라우트가 처리하므로 모든 사용자에게 표시 */}
+        <Link href="/series/new" className="btn btn--primary">
+          + 시리즈 만들기
+        </Link>
       </div>
 
       {/* spotlight — 시안 박제. 그라디언트는 var(--color-accent) 기반 (하드코딩 금지) */}
