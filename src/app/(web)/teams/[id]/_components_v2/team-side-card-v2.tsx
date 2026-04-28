@@ -1,3 +1,5 @@
+import { TeamJoinButtonV2 } from "./team-join-button-v2";
+
 /**
  * TeamSideCardV2
  * ─────────────────────────────────────────────────────────
@@ -8,26 +10,41 @@
  * 기존 페이지에는 사이드 영역 자체가 없어 새로 추가한다.
  *
  * 방법(어떻게):
- * - 2개 `.card`를 세로 스택. 상단 카드는 position:sticky top:120
- *   (시안 기준; mybdr 헤더 높이 고려해 96px 정도로 조정)
+ * - 2개 `.card`를 세로 스택. 상단 카드는 position:sticky top:96
+ *   (시안은 120; mybdr 헤더 높이 고려해 96으로 조정)
  * - 최근 폼: 28×28 칸 5개, W→var(--ok) L→var(--ink-dim) "—"→border only.
- * - 버튼: "게스트 지원" (btn--primary btn--xl) + "팀 매치 신청" (btn 전폭).
- *   둘 다 DB/기능 미구현 → disabled + title="준비 중"
+ * - 메인 CTA "팀 가입 신청" — 시안의 "게스트 지원" 자리에 실제 동작하는
+ *   가입 신청 복원 (1d53893 v2 재구성에서 누락된 기능 복원).
+ *   멤버에게는 미렌더(아래 isMember 가드).
+ * - 보조 버튼 "팀 매치 신청" (btn 전폭) — DB 미구현 → disabled + title="준비 중"
  * - 연락 카드: 팀장 닉네임 + 응답시간("준비 중")
  *   + "쪽지 보내기" 버튼 (btn--sm 전폭, disabled).
  *
  * DB 매핑 / 미지원:
  * - 최근 폼 → computeRecentForm (recent-tab-v2.tsx에서 import)
- * - 게스트 지원 / 팀 매치 신청 / 쪽지 → 전부 준비 중
+ * - 팀 가입 신청 → POST /api/web/teams/:id/join (구현됨)
+ * - 팀 매치 신청 / 쪽지 → 준비 중
  * - 응답시간 → "준비 중" 텍스트로 대체
  */
 
 type Props = {
   recentForm: ("W" | "L" | "-")[]; // 최대 5개
   captainName: string | null;
+  // 가입 신청 UI 제어 (서버 컴포넌트에서 미리 계산해 전달)
+  teamId: string;
+  isLoggedIn: boolean;
+  isMember: boolean; // 멤버면 "가입 신청" 자체를 숨긴다
+  hasPendingRequest: boolean; // pending 신청 있으면 disabled "신청 완료"
 };
 
-export function TeamSideCardV2({ recentForm, captainName }: Props) {
+export function TeamSideCardV2({
+  recentForm,
+  captainName,
+  teamId,
+  isLoggedIn,
+  isMember,
+  hasPendingRequest,
+}: Props) {
   // 정확히 5칸을 유지 (빈 칸은 "-"로 채움) — 시안 일관성 위해
   const cells: ("W" | "L" | "-")[] = [...recentForm];
   while (cells.length < 5) cells.push("-");
@@ -86,17 +103,15 @@ export function TeamSideCardV2({ recentForm, captainName }: Props) {
           })}
         </div>
 
-        {/* 게스트 지원 — 준비 중 (game_applications는 경기 단위, 팀 단위 지원은 미구현) */}
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          title="준비 중인 기능입니다"
-          className="btn btn--primary btn--xl"
-          style={{ marginBottom: 8, opacity: 0.6, cursor: "not-allowed" }}
-        >
-          게스트 지원
-        </button>
+        {/* 팀 가입 신청 — 1d53893 재구성에서 누락된 기능 복원.
+            멤버면 미표시(이미 멤버), 미멤버면 활성/신청완료 분기 (TeamJoinButtonV2 내부 처리) */}
+        {!isMember && (
+          <TeamJoinButtonV2
+            teamId={teamId}
+            isLoggedIn={isLoggedIn}
+            hasPendingRequest={hasPendingRequest}
+          />
+        )}
         {/* 팀 매치 신청 — 준비 중 (team_match_requests 테이블 미구현) */}
         <button
           type="button"

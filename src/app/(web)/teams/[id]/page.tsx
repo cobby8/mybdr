@@ -138,9 +138,26 @@ export default async function TeamDetailPage({
   // ===== 팀장 여부 (기존 규칙 유지) =====
   const session = await getWebSession();
   let isCaptain = false;
+  // 가입 신청 UI 제어용 — 로그인 여부 / 멤버 여부 / pending 신청 여부
+  // 이유: 사이드 카드의 "팀 가입 신청" 버튼 표시 분기는 SSR에서 결정해야
+  // 첫 렌더 부터 정확한 상태를 보여줄 수 있다 (깜빡임 방지).
+  const isLoggedIn = !!session?.sub;
+  let isMember = false;
+  let hasPendingRequest = false;
   if (session?.sub) {
     try {
-      isCaptain = BigInt(session.sub) === team.captainId;
+      const userId = BigInt(session.sub);
+      isCaptain = userId === team.captainId;
+      // 이미 active 멤버 목록에 포함되었는지 (팀 본조회의 teamMembers 재활용)
+      isMember = team.teamMembers.some((m) => m.userId === userId);
+      // pending 가입 신청이 있는지 (멤버가 아닌 경우에만 의미 있음)
+      if (!isMember) {
+        const pending = await prisma.team_join_requests.findFirst({
+          where: { team_id: BigInt(id), user_id: userId, status: "pending" },
+          select: { id: true },
+        });
+        hasPendingRequest = !!pending;
+      }
     } catch {
       isCaptain = false;
     }
@@ -159,8 +176,10 @@ export default async function TeamDetailPage({
   // Hero 위 이미지 accent 의 ink(전경색) — 기본 흰색 유지 (충분한 대비 확보)
   const ink = "#FFFFFF";
 
+  // 레이아웃 폭: .page (max-width 1200px) 사용 — 다른 v2 페이지와 폭 통일.
+  // page--wide(1440px)은 헤더/푸터(1200px)와 어긋나 팀 페이지가 더 넓게 보였음.
   return (
-    <div className="page page--wide">
+    <div className="page">
       {/* 브레드크럼 — 기존 유지 */}
       <div style={{ marginBottom: 14 }}>
         <Breadcrumb
@@ -236,6 +255,10 @@ export default async function TeamDetailPage({
             <TeamSideCardV2
               recentForm={recentForm}
               captainName={captainName}
+              teamId={id}
+              isLoggedIn={isLoggedIn}
+              isMember={isMember}
+              hasPendingRequest={hasPendingRequest}
             />
           </div>
         </div>

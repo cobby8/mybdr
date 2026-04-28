@@ -55,9 +55,12 @@ export function TeamHeroV2({
   teamId,
   isCaptain,
 }: Props) {
-  // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, card 140%.
-  // 그라디언트 끝이 카드 배경색으로 섞이면서 하단이 "폴딩"되는 느낌 재현.
-  const bgGradient = `linear-gradient(135deg, ${accent} 0%, ${accent}CC 60%, var(--color-card) 140%)`;
+  // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, #0B0D10 140%.
+  // 이유: 시안 TeamDetail.jsx은 끝점을 #0B0D10(거의 검정)으로 고정해
+  // accent → 어두운 폴딩으로 떨어지게 한다. 라이트/다크 모드 어디서나
+  // 동일한 시각적 깊이가 나오도록 토큰 대신 시안의 고정 색을 사용한다.
+  // (var(--color-card)로 두면 라이트 모드에서 흰색으로 끝나 그라디언트가 어색함)
+  const bgGradient = `linear-gradient(135deg, ${accent} 0%, ${accent}CC 60%, #0B0D10 140%)`;
 
   return (
     <section
