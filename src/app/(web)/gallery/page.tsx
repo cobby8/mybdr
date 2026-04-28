@@ -244,34 +244,53 @@ export default function GalleryPage() {
         ))}
       </div>
 
-      {/* Lightbox — 모달. 좌(미디어) + 우(메타/액션) 2단 그리드 */}
+      {/* Lightbox — 모달. 좌(미디어) + 우(메타/액션) 2단 그리드.
+          모바일(<720px)에서는 풀폭 + 세로 stack: 미디어 위, 메타/액션 아래.
+          이유: globals.css 의 .page 모바일 룰이 portal/fixed 컴포넌트엔 적용되지 않아
+                styled-jsx 미디어쿼리로 직접 폴리시 (P2-2 Med). */}
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.85)",
-            zIndex: 1000,
-            display: "grid",
-            placeItems: "center",
-            padding: 40,
-          }}
+          className="gallery-lightbox-overlay"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: 1100,
-              width: "100%",
-              display: "grid",
-              gridTemplateColumns: "minmax(0,1fr) 320px",
-              gap: 0,
-              background: "var(--bg)",
-              borderRadius: 8,
-              overflow: "hidden",
-              boxShadow: "0 40px 120px rgba(0,0,0,.6)",
-            }}
+            className="gallery-lightbox-inner"
           >
+            {/* styled-jsx — fixed/portal 영역에 .page 룰이 안 닿으므로 컴포넌트 로컬 미디어쿼리 사용 */}
+            <style jsx>{`
+              :global(.gallery-lightbox-overlay) {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.85);
+                z-index: 1000;
+                display: grid;
+                place-items: center;
+                padding: 40px;
+              }
+              :global(.gallery-lightbox-inner) {
+                max-width: 1100px;
+                width: 100%;
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 320px;
+                gap: 0;
+                background: var(--bg);
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6);
+              }
+              @media (max-width: 720px) {
+                :global(.gallery-lightbox-overlay) {
+                  padding: 12px;
+                  align-items: stretch;
+                }
+                :global(.gallery-lightbox-inner) {
+                  grid-template-columns: 1fr;
+                  max-height: calc(100vh - 24px);
+                  overflow-y: auto;
+                }
+              }
+            `}</style>
             {/* 좌: 미디어 영역 — clip이면 플레이 버튼, 16:10 비율 */}
             <div
               style={{

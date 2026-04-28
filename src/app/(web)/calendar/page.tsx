@@ -26,7 +26,7 @@
  * ============================================================ */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // ---- 타입 정의 ----
 type EventType = "pickup" | "guest" | "scrim" | "tournament" | "done";
@@ -94,6 +94,18 @@ export default function CalendarPage() {
   const [month, setMonth] = useState<{ y: number; m: number }>({ y: 2026, m: 4 });
   const [view, setView] = useState<ViewMode>("month");
   const [filter, setFilter] = useState<FilterId>("all");
+
+  // 모바일 자동 list 뷰 전환 (P2-2 Med):
+  // 이유 — 7×6 = 42셀 월간 그리드는 모바일(<720px)에서 셀당 ~50px / 폰트 9px 가 되어 가독성 0.
+  //        시안 그대로 list 뷰는 모바일 친화적이므로 첫 마운트 시에만 자동 전환.
+  // 어떻게 — useEffect로 1회 체크. 사용자가 그 후 month/week 클릭하면 그대로 유지(덮어쓰기 X).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.innerWidth <= 720) {
+      setView("list");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 필터 적용 (시안 L29)
   const filtered = filter === "all" ? EVENTS : EVENTS.filter((e) => e.type === filter);

@@ -299,8 +299,11 @@ export default async function ProfilePage() {
 
   return (
     <div className="page">
-      {/* 레이아웃: 좌측 320px aside (sticky) + 우측 main 1fr — v2 Profile.jsx 그대로 */}
+      {/* 레이아웃: 좌측 320px aside (sticky) + 우측 main 1fr — v2 Profile.jsx 그대로.
+          모바일(<720px)에서는 1열 + sticky 해제 — globals.css "@media (max-width:720px)" 의
+          .profile-grid / .profile-aside 룰이 처리 (P2-2 Med). */}
       <div
+        className="profile-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "320px 1fr",
@@ -310,6 +313,7 @@ export default async function ProfilePage() {
       >
         {/* ========== 좌측 aside ========== */}
         <aside
+          className="profile-aside"
           style={{
             position: "sticky",
             top: 120,

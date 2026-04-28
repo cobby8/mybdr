@@ -867,6 +867,13 @@ html.dark .app-nav__tab[data-active="true"]::after {
   .with-aside { grid-template-columns: 1fr !important; gap: 14px; }
   .aside { display: none; }  /* desktop sidebar hidden; drawer covers it */
 
+  /* ---- Profile (P2-2 Med) ----
+     /profile 본인 프로필: 데스크톱은 320px sidebar + main, 모바일은 단일 컬럼.
+     이유 — 320px sidebar 가 모바일 폭(360~414px) 의 80~90% 를 차지해 본문 공간 부족.
+     sticky 도 해제: 모바일은 짧은 세로 스크롤이라 sticky 가 도리어 본문을 가림. */
+  .profile-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .profile-aside { position: static !important; top: auto !important; }
+
   /* ---- Home ---- */
   /* stat strip: 2x2 */
   .page > div[style*="grid-template-columns: repeat(4, 1fr)"] {

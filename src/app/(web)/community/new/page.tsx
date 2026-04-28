@@ -152,7 +152,12 @@ export default function NewPostPage() {
               </div>
 
               {/* 2-2. 툴바 (D3) — 전부 disabled "준비 중"
-                     시안의 .btn--sm 사용 + textarea 와 시각적으로 붙이기 위해 borderBottom:0 + radius 상단만 */}
+                     시안의 .btn--sm 사용 + textarea 와 시각적으로 붙이기 위해 borderBottom:0 + radius 상단만.
+                     모바일 폴리시 (P2-2 Med):
+                     - 9버튼이 모바일에서 줄바꿈되면 툴바 높이가 2~3줄로 늘어 textarea 와 시각 단절.
+                     - flexWrap: wrap → nowrap + overflowX: auto 로 1줄 가로 스크롤로 전환.
+                     - 자식 button 에 flexShrink: 0 (이미 .btn 기본값이지만 명시).
+                     - WebkitOverflowScrolling: "touch" 로 iOS 관성 스크롤 활성화. */}
               <div
                 style={{
                   display: "flex",
@@ -162,7 +167,9 @@ export default function NewPostPage() {
                   borderBottom: 0,
                   borderRadius: "var(--radius-chip) var(--radius-chip) 0 0",
                   background: "var(--bg-alt)",
-                  flexWrap: "wrap",
+                  flexWrap: "nowrap",
+                  overflowX: "auto",
+                  WebkitOverflowScrolling: "touch",
                 }}
                 title="에디터 툴바 준비 중"
               >
@@ -189,9 +196,10 @@ export default function NewPostPage() {
                 <button type="button" className="btn btn--sm" disabled title="준비 중" style={{ opacity: 0.5, cursor: "not-allowed" }}>링크</button>
                 <button type="button" className="btn btn--sm" disabled title="준비 중" style={{ opacity: 0.5, cursor: "not-allowed" }}>영상</button>
 
-                {/* spacer + 미리보기 */}
-                <span style={{ flex: 1 }} />
-                <button type="button" className="btn btn--sm" disabled title="준비 중" style={{ opacity: 0.5, cursor: "not-allowed" }}>미리보기</button>
+                {/* spacer + 미리보기 — overflowX:auto 환경에서도 동작.
+                    flex:1 spacer 는 minWidth:0 fallback 시 nowrap 과 충돌 → minWidth 명시 */}
+                <span style={{ flex: 1, minWidth: 8 }} />
+                <button type="button" className="btn btn--sm" disabled title="준비 중" style={{ opacity: 0.5, cursor: "not-allowed", flexShrink: 0 }}>미리보기</button>
               </div>
 
               {/* 2-3. 본문 textarea — 툴바와 시각적으로 연결 (상단 radius 0) */}
