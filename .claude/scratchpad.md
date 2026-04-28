@@ -3760,6 +3760,7 @@ C. 유료 ratio>0
 |------|------|------|
 | 2026-04-27 | Phase 9 P0-2 Messages 모바일 푸시 흐름 (data-mobile-view + URL 동기화 + 백버튼) | 완료 |
 | 2026-04-27 | Phase 9 P0-3 Bracket 라운드 sticky 헤더 (모바일 가로 스크롤 위치 파악) | 완료 |
+| 2026-04-27 | Phase 9 P0-4-A ResponsiveTable 컴포넌트 신규 (data-label 모바일 라벨 보존) | 완료 (사용처 적용 별도 커밋) |
 
 ---
 
@@ -3819,4 +3820,71 @@ C. 유료 ratio>0
 - 옵션 B(모바일 라운드별 세로 스택/탭) 미적용. 옵션 A의 sticky band만으로 "어느 라운드를 보고 있는지"가 모바일에서 명확해짐 — 추가 작업 불필요 판단.
 
 🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과. tsc + next build 정상.
+
+---
+
+## Phase 9 P0-4-A — ResponsiveTable 공용 컴포넌트 신규 — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: BDR v2 (1) `_mobile_audit_report.html` Med 항목 — 다중 컬럼 board가 모바일에서 헤더 사라진 채 셀 값만 나열되어 라벨이 손실되는 4건을 일괄 처리할 공용 컴포넌트. **이번 커밋은 컴포넌트만** — 사용처 적용은 별도 커밋(PM 처리). data-label 속성 + ::before 의사요소로 모바일에서 "라벨: 값" 카드/스택 형태 자동 변환.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/ui/responsive-table.tsx` | "use client" 약 165줄: generic `<T>` 함수 컴포넌트 + `ResponsiveTableColumn<T>`/`ResponsiveTableProps<T>` export + 데스크톱은 grid-template-columns(useMemo) + 모바일(<=720px)은 mode 별 분기(card: 행 카드 박스 + 셀 100px/1fr 그리드 / stack: 행 박스 없이 inline "라벨: 값" + min-width 80px) + `mobileHide` set 캐싱 + 빈 상태 emptyMessage 단일 div + styled-jsx 미디어쿼리 + 디자인 토큰만(`--bg-alt/--ink-mute/--ink-dim/--border/--bg`) | 신규 |
+
+📋 **Props 시그니처**:
+```typescript
+ResponsiveTableColumn<T> = {
+  key: string;                          // row[key] fallback + React key
+  label: string;                        // 데스크톱 헤더
+  width?: string;                       // grid-template-columns 한 슬롯 (기본 "1fr")
+  mobileLabel?: string;                 // 모바일 ::before 라벨 (기본 label)
+  align?: "left" | "center" | "right";
+  render?: (row: T) => ReactNode;       // 없으면 row[key]
+}
+
+ResponsiveTableProps<T> = {
+  columns: ResponsiveTableColumn<T>[];
+  rows: T[];
+  mobileMode?: "card" | "stack";        // 기본 "card"
+  mobileHide?: string[];                // 모바일 display:none 컬럼 key
+  rowKey: (row: T, index: number) => string | number;
+  className?: string;
+  emptyMessage?: string;                // 기본 "데이터가 없습니다"
+}
+```
+
+🎨 **모바일 변환 메커니즘**:
+- `data-label={c.mobileLabel ?? c.label}` 셀에 부착
+- @media(max-width:720px)에서 `.resp-table__head { display:none }`
+- `card` 모드: `.resp-table__cell::before { content: attr(data-label); }` + 100px/1fr 2열 그리드
+- `stack` 모드: `.resp-table__cell::before { content: attr(data-label) ":"; }` + flex inline (min-width:80px)
+- 데스크톱 ≥720px: 일반 grid 테이블 (변환 0)
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 없음) |
+| `npx next build` | 통과 (라우트 목록 정상 출력, ResponsiveTable 관련 에러/경고 0) |
+
+💡 **tester 참고**:
+- 사용처 미적용 → 단독 페이지 테스트 불가. 빌드 통과 + tsc 통과만으로 "import 가능 상태" 확인됨
+- 별도 커밋에서 사용처(다중 컬럼 board 4건) 적용 시:
+  - 데스크톱 720px 이상에서 columns.width 기반 grid 정상 렌더 확인
+  - DevTools 모바일(<720px)에서 헤더 사라지고 각 셀이 "라벨: 값" 카드로 변환 확인
+  - `mobileMode="stack"` 지정 시 행 박스 없이 inline 변환 확인
+  - `mobileHide=["someKey"]` 컬럼이 모바일에서 사라지는지 확인
+  - `rows=[]` 시 `emptyMessage` 단일 div만 렌더되는지 확인
+  - generic 타입 추론(`<MyRow>` 명시 불필요) 정상 동작
+
+⚠️ **reviewer 참고**:
+- "use client" 강제: `<style jsx>` 사용 위해 필요 (서버 컴포넌트 불가)
+- generic `<T>` 함수 컴포넌트는 `.tsx` 화살표 함수가 아닌 `function` 선언 사용 — JSX 파싱 충돌 회피 (`<T,>` 트릭 불필요)
+- React 19 호환: `ReactElement` 명시 반환 타입, `ReactNode` (cell value) 사용
+- TS strict 호환: `row[key]` fallback 시 `as unknown as Record<string, ReactNode>` 캐스팅으로 strict 통과
+- 디자인 토큰만 사용 (하드코딩 색 0). `--bg-alt/--ink-mute/--ink-dim/--border/--bg` 모두 globals.css에 정의됨 (라이트/다크 동시 지원)
+- 720px 브레이크는 ScrollableTable(P0-1)과 동일 → 일관성
+
+🚧 **미해결**: 없음. 컴포넌트 신규 + tsc + next build 통과. 사용처 적용은 별도 커밋(PM 처리).
 
