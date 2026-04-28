@@ -137,8 +137,10 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       }
       if (!res.ok) throw new Error("조회 실패");
       const data = await res.json();
-      setMembers(data.data?.members ?? data.members ?? []);
-      setRequests(data.data?.requests ?? data.data ?? []);
+      // apiSuccess 응답 형식: { members, requests } 직접 (data.data 래핑 없음)
+      // 이전 코드 `data.data?.requests ?? data.data ?? []` 는 항상 [] 반환 — 버그
+      setMembers(data.members ?? []);
+      setRequests(data.requests ?? []);
     } catch {
       setError("가입신청 목록을 불러오지 못했습니다.");
     } finally {
@@ -156,8 +158,9 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         return;
       }
       if (!res.ok) throw new Error();
-      const json = await res.json();
-      const data: TeamEditData = json.data;
+      // apiSuccess 응답 형식: { id, name, ... } 직접 (data 래핑 없음)
+      // 이전 코드 `json.data` 는 undefined → 폼이 빈값으로 초기화되는 버그
+      const data: TeamEditData = await res.json();
       setTeamData(data);
 
       // 폼 초기값 설정
