@@ -33,71 +33,115 @@ type NavItem = {
   exactOnly?: boolean;
 };
 
-/* 6개 서브페이지 매핑.
- * PM 지정 매핑을 그대로 따른다. 순서 = 사용 빈도 + 사용자 멘탈 모델 우선. */
-const NAV_ITEMS: NavItem[] = [
+/* 그룹 정의.
+ * 왜 그룹화: P1-C 통합 작업으로 항목이 9개로 늘면서 평면 나열은 가독성이 떨어진다.
+ * - 4그룹(개인정보 / 활동 / 농구 / 설정·결제)으로 묶고 각 그룹에 라벨 헤더 부착.
+ * - 모바일(<lg)에서는 라벨 숨김 + 가로 chip만 노출 (라벨까지 띄우면 chip 흐름 끊어짐). */
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+/* 9개 서브페이지 매핑 — P1-C 통합 후.
+ * 순서 원칙: 그룹 = 사용 빈도, 그룹 내부 = 사용자 멘탈 모델 우선. */
+const NAV_GROUPS: NavGroup[] = [
   {
-    label: "내 정보",
-    // Day 7: /profile 허브가 통합 대시보드("내 정보")로 재편됨에 따라 href를 /profile로 변경.
-    // /profile/edit 는 상세 편집 화면으로 남아있으므로 matchPaths에 함께 포함해 둘 다 "내 정보" 활성.
-    // exactOnly: true 가 필수 — 그렇지 않으면 /profile/basketball 등 하위 경로 전체가 startsWith("/profile/") 에 걸려 오작동.
-    href: "/profile",
-    icon: "person",
-    matchPaths: ["/profile", "/profile/edit"],
-    exactOnly: true,
-  },
-  {
-    // W4 M4 "내 활동 통합 뷰" — 내 정보 바로 다음에 배치해 "최근 신청 현황 확인" 멘탈 모델을 빠르게 연결
-    label: "내 활동",
-    href: "/profile/activity",
-    icon: "history",
-    matchPaths: ["/profile/activity"],
-  },
-  {
-    label: "내 농구",
-    href: "/profile/basketball",
-    icon: "sports_basketball",
-    matchPaths: ["/profile/basketball"],
-  },
-  {
-    label: "내 성장",
-    href: "/profile/growth",
-    icon: "trending_up",
-    matchPaths: ["/profile/growth"],
-  },
-  {
-    label: "설정",
-    // Day 8: 맞춤 설정 + 알림 설정을 /profile/settings 허브 (탭 2개)로 통합. href 는 허브 루트.
-    href: "/profile/settings",
-    icon: "settings",
-    // matchPaths: 신 경로(/profile/settings) + 구 경로(/profile/preferences, /profile/notification-settings).
-    // 왜 구 경로까지 포함? redirect() 가 즉시 실행되더라도 네비게이션 중간 상태에서 활성 표시가 끊기지 않도록,
-    // 그리고 외부 링크로 구 경로 진입 시에도 메뉴 활성 유지.
-    matchPaths: [
-      "/profile/settings",
-      "/profile/preferences",
-      "/profile/notification-settings",
+    label: "개인정보",
+    items: [
+      {
+        label: "내 정보",
+        // /profile 허브가 통합 대시보드("내 정보")이므로 href는 /profile.
+        // /profile/edit 는 상세 편집 화면 — matchPaths에 포함해 둘 다 "내 정보" 활성.
+        // exactOnly: true 필수 — 그렇지 않으면 /profile/basketball 등 하위 경로 전체가 startsWith("/profile/")에 걸려 오작동.
+        href: "/profile",
+        icon: "person",
+        matchPaths: ["/profile", "/profile/edit"],
+        exactOnly: true,
+      },
+      {
+        // P1-C 추가: 프로필 완성도 페이지 (이전 진입점 0)
+        label: "프로필 완성도",
+        href: "/profile/complete",
+        icon: "task_alt",
+        matchPaths: ["/profile/complete"],
+      },
     ],
   },
   {
-    label: "결제",
-    // Day 8: 구독 + 결제 내역을 /profile/billing 허브 (탭 2개)로 통합.
-    href: "/profile/billing",
-    icon: "payments",
-    // 신 경로 + 구 경로 양쪽 매칭 (redirect 구간에도 활성 유지)
-    matchPaths: [
-      "/profile/billing",
-      "/profile/subscription",
-      "/profile/payments",
+    label: "활동",
+    items: [
+      {
+        // W4 M4 "내 활동 통합 뷰"
+        label: "내 활동",
+        href: "/profile/activity",
+        icon: "history",
+        matchPaths: ["/profile/activity"],
+      },
+      {
+        // P1-C 추가: 예약 이력 (이전 진입점 1 — 결제 실패에서만)
+        label: "예약 이력",
+        href: "/profile/bookings",
+        icon: "event_note",
+        matchPaths: ["/profile/bookings"],
+      },
+      {
+        label: "주간 리포트",
+        href: "/profile/weekly-report",
+        icon: "summarize",
+        matchPaths: ["/profile/weekly-report"],
+      },
     ],
   },
   {
-    label: "주간 리포트",
-    href: "/profile/weekly-report",
-    icon: "summarize",
-    matchPaths: ["/profile/weekly-report"],
+    label: "농구",
+    items: [
+      {
+        label: "내 농구",
+        href: "/profile/basketball",
+        icon: "sports_basketball",
+        matchPaths: ["/profile/basketball"],
+      },
+      {
+        label: "내 성장",
+        href: "/profile/growth",
+        icon: "trending_up",
+        matchPaths: ["/profile/growth"],
+      },
+    ],
+  },
+  {
+    label: "설정·결제",
+    items: [
+      {
+        label: "설정",
+        // Day 8: 맞춤 설정 + 알림 설정을 /profile/settings 허브 (탭 2개)로 통합. href 는 허브 루트.
+        href: "/profile/settings",
+        icon: "settings",
+        // 신 경로(/profile/settings) + 구 경로 모두 활성 (redirect 구간 + 외부 링크 진입 시)
+        matchPaths: [
+          "/profile/settings",
+          "/profile/preferences",
+          "/profile/notification-settings",
+        ],
+      },
+      {
+        label: "결제",
+        // Day 8: 구독 + 결제 내역을 /profile/billing 허브 (탭 2개)로 통합.
+        href: "/profile/billing",
+        icon: "payments",
+        // 신 경로 + 구 경로 양쪽 매칭 (redirect 구간에도 활성 유지)
+        matchPaths: [
+          "/profile/billing",
+          "/profile/subscription",
+          "/profile/payments",
+        ],
+      },
+    ],
   },
 ];
+
+// 모바일 가로 chip 용으로 그룹을 평면화 — 그룹 헤더 없이 9개 chip을 그룹 순서 그대로 배치.
+const NAV_ITEMS_FLAT: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
 export function ProfileSideNav() {
   const pathname = usePathname();
@@ -126,33 +170,48 @@ export function ProfileSideNav() {
         className="hidden shrink-0 lg:block lg:w-[220px]"
         aria-label="프로필 메뉴"
       >
-        <nav className="sticky top-20 space-y-1">
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(item.matchPaths, item.exactOnly);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={true}
-                className={`flex items-center gap-3 px-4 py-3 text-sm font-black uppercase tracking-wide transition-all rounded-none ${
-                  active
-                    ? "bg-[var(--color-surface)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]"
-                    : "text-[var(--color-text-secondary)] border-l-4 border-transparent hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
-                }`}
+        {/* PC: 그룹별 라벨 헤더 + 항목 — space-y-4로 그룹 간 여백, 각 그룹 내부는 space-y-1 */}
+        <nav className="sticky top-20 space-y-4">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="space-y-1">
+              {/* 그룹 라벨 헤더 — 작은 uppercase 텍스트로 시각적 분리.
+                  px-4 로 항목 들여쓰기와 정렬 맞춤. */}
+              {/* 그룹 라벨 색상: --ink-dim 사용 (가장 약한 톤, 보조 텍스트).
+                  --color-text-tertiary 는 v2 토큰에 없으므로 사용 금지. */}
+              <div
+                className="px-4 pt-1 pb-2 text-[10px] font-black uppercase tracking-widest"
+                style={{ color: "var(--ink-dim)" }}
               >
-                {/* 활성 시 아이콘 FILL 1 (글로벌 layout 패턴과 동일) */}
-                <span
-                  className="material-symbols-outlined text-xl"
-                  style={
-                    active ? { fontVariationSettings: "'FILL' 1" } : undefined
-                  }
-                >
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            );
-          })}
+                {group.label}
+              </div>
+              {group.items.map((item) => {
+                const active = isActive(item.matchPaths, item.exactOnly);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={true}
+                    className={`flex items-center gap-3 px-4 py-3 text-sm font-black uppercase tracking-wide transition-all rounded-none ${
+                      active
+                        ? "bg-[var(--color-surface)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]"
+                        : "text-[var(--color-text-secondary)] border-l-4 border-transparent hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
+                    }`}
+                  >
+                    {/* 활성 시 아이콘 FILL 1 (글로벌 layout 패턴과 동일) */}
+                    <span
+                      className="material-symbols-outlined text-xl"
+                      style={
+                        active ? { fontVariationSettings: "'FILL' 1" } : undefined
+                      }
+                    >
+                      {item.icon}
+                    </span>
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
       </aside>
 
@@ -174,7 +233,8 @@ export function ProfileSideNav() {
           className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-none"
           aria-label="프로필 메뉴"
         >
-          {NAV_ITEMS.map((item) => {
+          {/* 모바일은 그룹 라벨을 숨기고 평면 chip 리스트 — chip 가로 스크롤 흐름이 끊기지 않도록 */}
+          {NAV_ITEMS_FLAT.map((item) => {
             const active = isActive(item.matchPaths, item.exactOnly);
             return (
               <Link
