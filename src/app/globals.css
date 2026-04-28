@@ -982,6 +982,35 @@ html.dark .app-nav__tab[data-active="true"]::after {
   /* Breadcrumb, nav previews get smaller */
   /* Disable hover transforms on touch */
   .onb__card:hover { transform: none; }
+
+  /* ---- Messages: 3컬럼 → 1컬럼 + data-mobile-view 푸시-네비 ----
+     이유: 모바일에서 데스크톱 3컬럼(320/1fr/280)을 그대로 두면 첫 번째
+           목록 컬럼만 보이고 가운데 채팅·우측 정보가 잘림.
+           data-mobile-view="list|thread"로 컬럼 토글, 우측 정보 패널은 영구 숨김.
+     출처: Dev/design/BDR v2 (1)/responsive.css L207~L223 */
+  .page .msg-shell {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  /* 우측 프로필 패널은 모바일에서 영구 숨김 */
+  .page .msg-shell > *:nth-child(3) { display: none !important; }
+  /* list 뷰: 가운데 채팅 컬럼 숨김 */
+  .page .msg-shell[data-mobile-view="list"] > *:nth-child(2) { display: none !important; }
+  /* thread 뷰: 첫 번째 목록 컬럼 숨김 */
+  .page .msg-shell[data-mobile-view="thread"] > *:nth-child(1) { display: none !important; }
+  /* 목록·채팅 단일컬럼 높이 */
+  .page .msg-shell > *:nth-child(1),
+  .page .msg-shell > *:nth-child(2) {
+    height: calc(100vh - 160px) !important;
+    min-height: 520px !important;
+  }
+  /* 모바일에서만 백버튼 노출 — 데스크톱은 inline style display:none 유지 */
+  .page .msg-shell .msg-back {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Hamburger hidden on desktop by default */

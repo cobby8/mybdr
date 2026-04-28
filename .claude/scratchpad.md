@@ -3689,3 +3689,74 @@ C. 유료 ratio>0
 | 2 | Minor | `_booking-client.tsx:867` | 환불 정책 안내문 시간단위 → 일단위로 정정 |
 | 3 | Minor | `_booking-client.tsx:285` | successUrl의 미사용 bookingId 쿼리 제거 또는 주석 |
 
+---
+
+## Phase 9 P0-2 — Messages 모바일 푸시 흐름 (data-mobile-view) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: BDR v2 (1) `_mobile_audit_report.html` High 항목 — `/messages` 모바일 푸시-네비. 데스크톱 3컬럼은 그대로, 모바일(<720px)에서만 list/thread 뷰 토글 + 백버튼. URL 쿼리 `?thread=<id>` 동기화로 새로고침/뒤로가기 자연스럽게 동작.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/messages/page.tsx` | `useSearchParams`+`useRouter`로 URL 동기화, `mobileView` state, wrapper에 `className="msg-shell"`+`data-mobile-view`, 백버튼 `.msg-back` 추가, default export Suspense 래핑 | 수정 (568→652줄) |
+| `src/app/globals.css` | `@media (max-width: 720px)` 내부에 `.msg-shell` 컬럼 토글 + `.msg-back` 노출 규칙 추가 (시안 responsive.css L207~L223 이식) | 수정 (+34줄) |
+
+🔄 **data-mobile-view 상태 흐름**:
+```
+초기:
+  URL ?thread=<id> 있음 → active=id, mobileView="thread"
+  URL ?thread= 없음     → active="t1", mobileView="list"
+
+목록의 스레드 클릭 (openThread):
+  active=id + mobileView="thread" + router.push("?thread=id")
+
+채팅 헤더 백버튼 클릭 (backToList):
+  mobileView="list" + router.push("?")
+
+브라우저 뒤로가기:
+  searchParams 변경 → useEffect로 mobileView 자동 동기화
+```
+
+🔗 **URL 동기화 방식**:
+- `useSearchParams()`로 초기/변경 감지 (reactive)
+- `router.push("?thread=id", { scroll: false })`로 스크롤 보존
+- 새로고침/공유/뒤로가기 모두 자연스러움
+- `Suspense` 경계로 감싸 Next.js 15 prerender 안전
+
+🎨 **CSS 패치 위치**: `globals.css` L976~L1015 — 기존 `@media (max-width: 720px)` 닫기 직전 (Phase 0 복사 영역). 시안 출처 주석 명시.
+
+✅ **보존 항목**:
+- THREADS / MESSAGES / FALLBACK_MSGS 더미 데이터 (Phase 8 박제)
+- Avatar 컴포넌트, 시안 모든 인라인 style + className
+- "준비 중" 안내 1줄
+- 3컬럼 데스크톱 레이아웃 (320/1fr/280) — 변경 없음
+- 입력창/첨부 버튼/공유된 항목/알림 설정 모두 그대로
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ 통과 (출력 없음) |
+| `npx next build` | ✅ 통과. `/messages` ○ (정적 prerender) — 비관련 기존 API 라우트 경고만 있음 |
+
+💡 **tester 참고**:
+- 데스크톱(>=720px)에서 `/messages` 접속 → 3컬럼 그대로, 백버튼 안 보임
+- 모바일(<720px) DevTools에서 `/messages` 접속 → 좌측 목록만 풀폭으로 표시
+- 목록의 스레드 행 클릭 → URL이 `?thread=t1` 로 바뀌고 채팅 화면 + 좌상단 `‹` 백버튼 표시
+- 백버튼 클릭 → 목록 복귀, URL 쿼리 제거
+- 모바일에서 우측 정보 패널은 영구 숨김 (시안 의도)
+- 새로고침 시 활성 스레드 유지 (URL 쿼리 기반 복원)
+- 뒤로가기 → mobileView 자동 동기화 (useEffect)
+
+⚠️ **reviewer 참고**:
+- `Suspense fallback={null}`로 감쌈: Next.js 15 `useSearchParams` 빌드 요구사항. fallback UI는 빠르게 마운트되므로 null로 충분.
+- 백버튼은 인라인 `display: none` + `globals.css`의 `display: inline-flex !important`로 모바일에서만 노출 → 데스크톱 외관 무영향 확인 필요.
+- `router.push`의 `{ scroll: false }`는 Next.js App Router 옵션. 페이지 내 스크롤 보존 목적.
+
+🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과.
+
+### 작업 로그
+| 날짜 | 작업 | 상태 |
+|------|------|------|
+| 2026-04-27 | Phase 9 P0-2 Messages 모바일 푸시 흐름 (data-mobile-view + URL 동기화 + 백버튼) | 완료 |
+

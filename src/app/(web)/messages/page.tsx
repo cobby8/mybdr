@@ -28,7 +28,8 @@
  * ============================================================ */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 
 // 스레드 타입 — 시안 필드 그대로 박제. DB 모델 미존재.
 type Thread = {
@@ -127,11 +128,43 @@ function Avatar({ tag, color, size, radius }: { tag: string; color: string; size
   );
 }
 
-export default function MessagesPage() {
-  // 활성 스레드 ID — 시안 기본값 t1
-  const [active, setActive] = useState<string>("t1");
+/**
+ * 메시지 페이지 본체 — useSearchParams 사용을 위해 Suspense 경계 안에서 렌더.
+ * 이유: Next.js 15에서 useSearchParams를 사용하는 컴포넌트는 빌드 시
+ *      Suspense 바운더리가 없으면 prerender 단계에서 에러가 난다.
+ */
+function MessagesPageInner() {
+  // 모바일 푸시-네비 — 목록/대화 뷰 토글. 데스크톱(>=720px)에서는 CSS 미디어 쿼리로 영향 없음.
+  // URL 쿼리 ?thread=<id>가 있으면 thread, 없으면 list로 시작.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialThreadId = searchParams.get("thread");
+
+  // 활성 스레드 ID — URL 쿼리 우선, 없으면 시안 기본값 t1
+  const [active, setActive] = useState<string>(() => {
+    if (initialThreadId && THREADS.some((t) => t.id === initialThreadId)) {
+      return initialThreadId;
+    }
+    return "t1";
+  });
+  // 모바일 단일컬럼 뷰 상태. URL에 ?thread=가 있으면 thread, 아니면 list.
+  const [mobileView, setMobileView] = useState<"list" | "thread">(
+    initialThreadId && THREADS.some((t) => t.id === initialThreadId) ? "thread" : "list",
+  );
   // 입력창 텍스트 (전송 동작은 더미 — 입력값만 비움)
   const [text, setText] = useState<string>("");
+
+  // 뒤로가기/앞으로가기 등 외부에서 URL이 바뀐 경우 상태 동기화
+  // (useSearchParams는 reactive — 변경 시 자동 재실행)
+  useEffect(() => {
+    const tid = searchParams.get("thread");
+    if (tid && THREADS.some((t) => t.id === tid)) {
+      setActive(tid);
+      setMobileView("thread");
+    } else {
+      setMobileView("list");
+    }
+  }, [searchParams]);
 
   // 활성 스레드 객체 (THREADS 첫 항목으로 fallback — TS strict 대응)
   const current: Thread = THREADS.find((t) => t.id === active) ?? THREADS[0]!;
@@ -144,6 +177,20 @@ export default function MessagesPage() {
   const send = () => {
     if (!text.trim()) return;
     setText("");
+  };
+
+  // 스레드 행 클릭 — 활성화 + 모바일에서는 thread 뷰로 + URL 동기화
+  // 이유: 새로고침/공유 시 같은 스레드로 복귀, 뒤로가기로 목록 복귀가 자연스러움.
+  const openThread = (id: string) => {
+    setActive(id);
+    setMobileView("thread");
+    router.push(`?thread=${id}`, { scroll: false });
+  };
+
+  // 백버튼 클릭 — 모바일 목록 복귀 + URL 쿼리 제거
+  const backToList = () => {
+    setMobileView("list");
+    router.push("?", { scroll: false });
   };
 
   return (
@@ -162,8 +209,13 @@ export default function MessagesPage() {
         <span style={{ color: "var(--ink)" }}>쪽지</span>
       </div>
 
-      {/* 3컬럼 레이아웃: 320 / 1fr / 280 */}
+      {/* 3컬럼 레이아웃: 320 / 1fr / 280
+          이유: 모바일(<720px)에서는 globals.css `.msg-shell[data-mobile-view]` 셀렉터로
+                컬럼 토글 — list 상태면 목록만, thread 상태면 채팅만 노출.
+                3번째 컬럼(우측 정보)은 모바일 영구 숨김.  */}
       <div
+        className="msg-shell"
+        data-mobile-view={mobileView}
         style={{
           display: "grid",
           gridTemplateColumns: "320px 1fr 280px",
@@ -206,7 +258,7 @@ export default function MessagesPage() {
             {THREADS.map((t) => (
               <div
                 key={t.id}
-                onClick={() => setActive(t.id)}
+                onClick={() => openThread(t.id)}
                 style={{
                   padding: "12px 14px",
                   cursor: "pointer",
@@ -305,7 +357,7 @@ export default function MessagesPage() {
 
         {/* === THREAD: 중앙 대화창 === */}
         <div style={{ display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg-alt)" }}>
-          {/* 상단 헤더: 아바타 + 이름 + 온라인 상태 + 액션 */}
+          {/* 상단 헤더: 백버튼(모바일 only) + 아바타 + 이름 + 온라인 상태 + 액션 */}
           <div
             style={{
               padding: "12px 18px",
@@ -316,6 +368,25 @@ export default function MessagesPage() {
               gap: 10,
             }}
           >
+            {/* 백버튼 — 데스크톱은 inline style display:none, 모바일에서만
+                globals.css `.msg-back`이 inline-flex로 강제 노출. */}
+            <button
+              className="msg-back"
+              onClick={backToList}
+              aria-label="목록으로"
+              style={{
+                display: "none",
+                background: "transparent",
+                border: 0,
+                color: "var(--ink)",
+                fontSize: 20,
+                cursor: "pointer",
+                padding: "2px 6px",
+                marginRight: 2,
+              }}
+            >
+              ‹
+            </button>
             <Avatar tag={current.tag} color={current.color} size={36} radius={current.group ? 8 : 999} />
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14 }}>{current.name}</div>
@@ -564,5 +635,18 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * default export — Suspense 경계로 감싸 useSearchParams가 안전하게 동작하도록.
+ * 이유: Next.js 15의 prerender 단계에서 Suspense 없이 useSearchParams를 호출하면
+ *      빌드 에러("useSearchParams() should be wrapped in a suspense boundary")가 난다.
+ */
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MessagesPageInner />
+    </Suspense>
   );
 }
