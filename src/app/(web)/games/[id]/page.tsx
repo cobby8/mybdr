@@ -334,7 +334,16 @@ export default async function GameDetailPage({
               </section>
             )}
 
-            {/* 5. 하단 이동 버튼 — 다른 경기 / 내 경기 */}
+            {/* 5. 하단 이동 버튼 — 다른 경기 / 내 경기 + 조건부 진입점(평가/게스트 지원)
+             *
+             * 왜 여기에 진입점을 두는가:
+             * v2 ApplyPanel(우측)은 신청 흐름에 응집된 패널이라 props 추가는 응집도를
+             * 깬다. 좌측 하단의 이동 버튼 행은 이미 보조 액션을 모아둔 자연스러운
+             * 진입점 영역이라 여기에 조건부 CTA 2개를 추가한다.
+             * - "경기 평가": 완료된 경기(status===3)일 때 노출. 클릭 후 상세 권한
+             *   가드는 /games/[id]/report 페이지가 처리.
+             * - "게스트 지원": GUEST 유형(game_type===1)이고 호스트가 아닐 때 노출.
+             *   클릭 후 모집중/마감 등 디테일 가드는 /games/[id]/guest-apply 처리. */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 4 }}>
               <Link
                 href="/games"
@@ -362,6 +371,41 @@ export default async function GameDetailPage({
                     assignment
                   </span>
                   내 경기 보기
+                </Link>
+              )}
+
+              {/* 경기 평가 진입점 — 완료된 경기일 때만 노출 (status===3=완료, STATUS_LABEL 기준) */}
+              {game.status === 3 && (
+                <Link
+                  href={`/games/${id}/report`}
+                  className="btn btn--sm"
+                  style={{ textDecoration: "none" }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16, marginRight: 4 }}
+                  >
+                    rate_review
+                  </span>
+                  경기 평가
+                </Link>
+              )}
+
+              {/* 게스트 지원 진입점 — GUEST 유형(game_type===1) + 본인이 호스트가 아닐 때만 노출.
+               * 모집 마감/취소 여부는 진입한 페이지 측에서 처리하므로 여기서는 유형만으로 노출 판단. */}
+              {game.game_type === 1 && !isHost && (
+                <Link
+                  href={`/games/${id}/guest-apply`}
+                  className="btn btn--sm btn--primary"
+                  style={{ textDecoration: "none" }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16, marginRight: 4 }}
+                  >
+                    person_add
+                  </span>
+                  게스트 지원
                 </Link>
               )}
             </div>
