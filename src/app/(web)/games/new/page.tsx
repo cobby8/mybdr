@@ -1,3 +1,6 @@
+// 시안 출처: Dev/design/BDR v2/screens/CreateGame.jsx
+// - server wrapper: 세션/권한 체크 → 클라이언트 폼(NewGameForm)으로 위임
+// - v2 박제 본체는 ./new-game-form.tsx → ./_v2/game-form.tsx (3카드 단일 폼 + 고급 아코디언)
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";
