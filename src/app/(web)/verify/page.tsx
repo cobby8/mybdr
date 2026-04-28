@@ -97,8 +97,10 @@ export default function VerifyPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        // M5 온보딩 압축: phone 인증 완료 → 미니멀 옵션 카드로 자연 진입
-        router.push("/profile/complete");
+        // P1-B (UI 진입점 감사): phone 인증 완료 → /onboarding/setup 자동 진입
+        // 이유: 신규 회원이 onboarding 위저드를 More 메뉴에서만 발견 가능 → 자동 redirect로 노출 보장
+        // 기존 /profile/complete 는 More 메뉴 / 마이페이지 경로에서 별도 진입 가능 (보존)
+        router.push("/onboarding/setup");
       } else {
         setError(data.error ?? "저장 실패");
       }
