@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+// useSearchParams: 팀 가입 신청 알림(`/teams/:id/manage?tab=requests`) 클릭 시
+// 곧바로 "가입 신청" 탭으로 진입시키기 위해 초기 탭을 쿼리에서 결정
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 // ─────────────────────────────────────────────────
@@ -69,12 +71,27 @@ const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 // 시안 v2(1) 4탭 구조: 로스터 / 가입신청 / 초대링크 / 팀설정
 type ManageTab = "roster" | "applicants" | "invite" | "settings";
 
+// 쿼리 문자열 → 내부 탭 키로 정규화.
+// 이유: 팀 가입 신청 알림의 actionUrl은 `?tab=requests`로 보내지만 (의미 명확)
+// 실제 내부 탭 키는 `applicants`다. 두 표기 모두 허용해 외부 진입과 내부 표기를 분리한다.
+function resolveInitialTab(raw: string | null): ManageTab {
+  if (!raw) return "roster";
+  // requests / request → applicants 매핑 (가입 신청 알림 호환)
+  if (raw === "requests" || raw === "request" || raw === "applicants") return "applicants";
+  if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
+  return "roster";
+}
+
 export default function TeamManagePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // 탭 상태 — 시안 기본값 'roster' 유지
-  const [tab, setTab] = useState<ManageTab>("roster");
+  // 탭 상태 — 시안 기본값 'roster' 유지하되, ?tab= 쿼리가 있으면 우선 적용
+  // (팀 가입 신청 알림 클릭 시 ?tab=requests → applicants 자동 활성화)
+  const [tab, setTab] = useState<ManageTab>(() =>
+    resolveInitialTab(searchParams.get("tab")),
+  );
 
   // ─── 멤버 관리 상태 ───
   const [members, setMembers] = useState<TeamMember[]>([]);
