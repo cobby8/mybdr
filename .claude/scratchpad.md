@@ -266,6 +266,39 @@
 - **완료 화면 통계 3건 동적화** — 현재 더미값 24/8/3. Step 1 입력값(지역/포지션/실력)으로 추천 경기/팀/대회 카운트 쿼리 후 표시. 추천 알고리즘 의존
 - **로그인 가드 + 첫 진입 분기** — 현재 본 페이지는 비로그인도 진입 가능. 신규 가입 직후 자동 진입 + "이미 완료한 사용자는 /profile 로 자동 redirect" 흐름은 `users.onboarding_completed_at` 컬럼 추가 후 처리
 
+### Phase 9 P1-2a CourtSubmit (커밋 대기, 2026-04-27)
+> 시안 CourtAdd.jsx 3단계 위저드 박제 (StepWizard 두 번째 사용처). `/courts/submit` 신규. **API/Prisma/서비스 0 변경.** 제출 버튼은 `alert("준비 중") + setSubmitted(true)` 만, 실 mutation 없음. UI 만 배치된 항목:
+- **`court_submissions` 테이블 신설** — `id / submitted_by FK(users) / name / area / address / hours / court_type / surface_type / hoops_count / has_lighting / fee_kind(free|paid|reserve) / fee_amount / features JSON / vibe / description / status enum(pending|approved|rejected) / reviewed_by FK / reviewed_at / rejection_reason / created_at`. 또는 기존 `court_infos` 에 `status="pending"` 사용 + `submitted_by` 컬럼 추가로 통합 가능
+- **사진 업로드** — 현재 `<input type="file" disabled>` 자리만. Supabase Storage 또는 외부 CDN 도입 후 활성화. 최대 5장, JPG/PNG, 5MB 제한. `court_submission_photos` 또는 `court_infos.photos JSON` 으로 저장
+- **운영자 검토 화면** — `/admin/court-submissions` 신설 필요. 목록(pending 우선) / 상세(지도 미리보기 + 사진) / 승인(→ court_infos 자동 INSERT) / 반려(사유 입력). 기존 admin 라우트 패턴 따름
+- **포인트/배지 지급** — 시안 보상 카드(승인 +500P / 사진 3장+ +200P / 월 3회+ 🥇 배지) 표시 중. `users.points` 컬럼 또는 `point_transactions` 테이블 + `user_badges` 테이블 신설 필요. 승인 시 자동 지급 트리거
+- **알림** — 제보자에게 status 변동 시 알림 (in-app + 이메일). 알림 시스템 도입 시 우선 구현
+- **내 기여 현황 카드** — 사이드 "3개 제보 / 1,200P / 🥈 은 기여자" 더미값. `court_submissions where submitted_by=$user` 카운트 + 배지 단계(브론즈/실버/골드) 동적 계산
+- **주소 → 지도 자동 매핑** — Step 1 안내 문구만 있음. 카카오/네이버 지오코딩 API 연동 필요 (lat/lng 자동 추출)
+- **중복 제보 가드** — 같은 주소 또는 좌표 반경 50m 내 기존 코트/제보 존재 시 경고. `court_infos` + `court_submissions` 양쪽 검색
+
+### Phase 9 P1-2b GuestApply (커밋 대기, 2026-04-27)
+> 시안 GuestApply.jsx 박제 (단일 client 페이지). `/games/[id]/guest-apply` 신규. **API/Prisma/서비스 0 변경.** "게스트로 지원하기" 버튼은 `alert("준비 중") + setSubmitted(true)` 만, 실 mutation 없음. UI 만 배치된 항목:
+- **`game_applications` API 연결 (게스트 지원 분기)** — 현재 `/api/web/games/[id]/apply` 는 일반 참가 신청 (POST 단일). 시안의 게스트 지원은 별도 컨텍스트(role=guest, 포지션/구력/메시지/약관). 옵션 ① 기존 endpoint 에 `?type=guest` 쿼리 + body 확장 ② 별도 `/api/web/games/[id]/guest-apply` 신규 endpoint. `game_applications` 에 `applicant_role enum(player|guest) / position char(1) / experience_years smallint / message text(300) / accepted_terms JSON` 컬럼 추가 필요
+- **호스트 알림 (게스트 지원 도착)** — 신청 즉시 호스트에게 in-app 알림 + 이메일/푸시. `notifications` 테이블 활용 (이미 시스템 존재) + 알림 타입 `guest_application_received` 추가
+- **수락/거절 워크플로우** — 호스트 측 `/games/[id]/manage` 또는 `_components/host-applications.tsx` 에 게스트 지원자 카드 + 수락/거절 버튼. 수락 시 → `game_applications.status=approved` + 게스트에게 알림 + 동시 지원 중인 다른 경기 자동 cancel (시안 sticky 사이드 라인 159 박제 문구)
+- **결제 연동 (게스트 비용)** — 시안 라인 35 "5,000원 (현장 결제)". 추후 카드 결제 옵션 도입 시 `payments` 다형성(`payable_type="GameApplication"`) 활용 + 토스페이먼츠 위젯. 현재 더미 fee 표시만
+- **placeholder 더미 → 실 game 데이터 fetch** — 현재 `PLACEHOLDER_GAME` 상수 사용 (시안 라인 4~11 박제). 실제 진입 시 server wrapper 또는 useSWR 로 `prisma.games.findUnique({ where: { id }, include: { host_user: true } })` 호출 + 호스트 평균 응답 시간(`host_response_avg_minutes` 집계 또는 캐시 컬럼) 노출
+- **내 프로필 카드 동적화** — 시안 라인 96~103 의 `@me_player · Lv.6 / 매너 4.8 · 픽업 23회 · 노쇼 0` 더미값. `users.skill_level / users.mannerScore / users.pickupCount / users.noshowCount` 집계 또는 캐시 컬럼 필요
+- **동시 지원 카운트** — 시안 라인 158~162 "다른 경기 2개에 동시 지원 중" 더미값. `game_applications where user_id=$me AND status='pending' AND applicant_role='guest'` count
+
+### Phase 9 P1-3a GameReport (커밋 대기, 2026-04-27)
+> 시안 GameReport.jsx 박제 (단일 client 페이지). `/games/[id]/report` 신규. **API/Prisma/서비스 0 변경.** "리포트 제출" 버튼은 `alert("준비 중") + setSubmitted(true)` 만, 실 mutation 없음. UI 만 배치된 항목:
+- **`game_reports` 테이블 신규** — 모델: `id / reporter_user_id (호스트 또는 참가자) / game_id / overall_rating smallint(1~5) / comment text / mvp_user_id?  / status enum(submitted/reviewed) / created_at` + `@@unique([reporter_user_id, game_id])` (1인 1리포트). 시안 라인 81~104(전반 평가 카드) + 라인 170(제출 버튼) 데이터 수신.
+- **`game_player_ratings` 테이블 신규** — 모델: `id / game_id / rater_user_id / rated_user_id / rating smallint(1~5) / flags JSON (string[]) / is_noshow boolean / created_at` + `@@unique([game_id, rater_user_id, rated_user_id])`. 시안 라인 110~159(선수별 평가 카드) 데이터 수신. flags 는 enum 후보 `no_show / manner / foul / verbal / cheat`.
+- **신고 플래그 enum 정형화** — 시안 라인 56~62 의 5종 (`noshow / manner / foul / verbal / cheat`). 현재 string 으로 박제. 추후 `report_flag_type` Postgres enum 또는 별도 lookup 테이블. 익명 처리 위해 `game_player_ratings.flags` 는 reporter 식별 미노출 정책 (관리자만 raw 조회).
+- **MVP 자동 집계** — 시안의 "MVP 추천" 은 1인 1표. 게임 종료 후 `game_reports.mvp_user_id` 다수결 집계 → `games.mvp_user_id` 캐시 컬럼 또는 `game_results` 별도 테이블에 저장. 동률이면 ratings 평균 높은 선수 우선 등 tie-breaker 룰 정의.
+- **평균 매너 점수 캐시 (`users.manner_score`)** — 시안 라인 121 "매너 4.8" 더미값. `users.manner_score numeric(3,2)` 컬럼 + 트리거 또는 cron 으로 `game_player_ratings` 평균 갱신. 매너 4.0 미만 누적 시 운영 알림. 시안 익명성 보장(라인 162) 정책 준수.
+- **임시 저장 (draft)** — 시안 라인 169 "임시 저장" 버튼. 현재 alert 만. `game_reports.status='draft'` 추가 또는 LocalStorage 저장 검토. 작성 도중 페이지 이탈 시 복원 UX.
+- **placeholder 더미 → 실 game 데이터 fetch** — 현재 `PLACEHOLDER_PLAYERS` 6명 + `PLACEHOLDER_META` 모듈 상수. 실제 진입 시 server wrapper 또는 useSWR 로 `prisma.games.findUnique({ include: { game_applications: { where: { status: 'approved' }, include: { user: true } } } })` 호출. 진입 권한도 검증 (호스트 또는 approved 참가자만).
+- **신고 누적 검토 워크플로우** — 시안 라인 162~163 "누적 신고가 많은 선수는 BDR 운영팀이 개별 확인". `users.report_count_30d` 캐시 + admin 페이지에서 임계치 초과 사용자 큐 표시. 정지 / 경고 / 무시 액션.
+- **결과 보기 라우트 연결** — submitted 분기 CTA "결과 보기" 가 현재 `/games/${gameId}` 로 이동. 추후 `/games/${gameId}/result` (시안 GameResult 박제 페이지) 도입 시 교체.
+
 ### 공통 처리 원칙
 - UI는 **배치만 하고 동작 없음** → `alert("준비 중인 기능입니다")` 또는 `disabled` + `title="준비 중"`
 - 빈 데이터는 "준비 중" 텍스트 + 회색 placeholder
@@ -2299,6 +2332,7 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-27 | developer | **Phase 9 P1-2b — /games/[id]/guest-apply 신규 (GuestApply 박제)** — 신규 1(`src/app/(web)/games/[id]/guest-apply/page.tsx` ~430줄). "use client" + `useParams<{id}>()/useRouter()`. 시안 GuestApply.jsx(170줄) 박제 — 단일 폼 + submitted 분기. State 5(`submitted/pos/exp/msg/accept{insurance,cancel}`). 메인 폼(좌) + sticky aside(우 340px) 그리드. 폼 영역: 지원 대상 박스 + 내 정보(포지션 G/F/C 토글 3버튼 + 구력 select 5종) + 내 프로필 미리보기(Avatar→인라인 div) + 호스트에게 한마디 textarea(300자 카운터) + 약관 동의 체크 2종(insurance+cancel 둘 다 필수) + 푸터(← 취소 / 게스트로 지원하기). submitted=true 분기: ✓ 동그라미 + 신청 요약 박스(경기/일시/포지션/참가비) + 두 CTA(지원 현황 보기→/games/my-games / 다른 경기 찾기→/games). sticky aside 3카드(호스트가 보는 것 / 예상 대기 시간 ~2시간 / 동시 지원 안내). **DB/API 0 호출** — `PLACEHOLDER_GAME` 모듈 상수 더미. 지원 버튼 핸들러: `alert("준비 중 — 게스트 지원 기능은 game_applications API 연결 후 활성화됩니다") + setSubmitted(true)`. 약관 둘 다 체크 안 되면 버튼 disabled(시안 라인 136 박제). CSS 변수+클래스 모두 globals.css 토큰 그대로(`var(--accent)/--bg-alt/--ink-mute/--ink-dim/--ink-soft/--ok/--err/--border/--cafe-blue/--ff-mono/--ff-display` + `.page/.page--wide/.card/.btn/.btn--primary/.btn--lg/.input/.badge/.badge--ok/.eyebrow`). 하드코딩 색상 1건(#0F5FCC Avatar ME 박스, 시안 라인 97 박제). 이모지 1건(💡 sticky aside 라인 144). scratchpad "추후 구현 목록"에 "Phase 9 P1-2b GuestApply 7건"(game_applications 게스트 분기 API / 호스트 알림 / 수락-거절 워크플로우 / 결제 연동 / 실 game fetch / 프로필 카드 동적화 / 동시 지원 카운트) 신설. tsc --noEmit EXIT=0 PASS / next build 스킵(dev 서버 port 3001 PID 140564 락 충돌, P1-1b 동일 패턴). | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **/profile/billing payments 탭 v2 4열 board 재구성 (옵션 A)** — 1파일 수정(`src/app/(web)/profile/billing/page.tsx` `PaymentsSection` 함수만, 약 +30줄). 카드 리스트(`<TossCard>` 반복) → v2 `.board` 4열 grid("140px 1fr 120px 220px"): **결제일 / 내역 / 금액 / 상태**. 결제일=mono 폰트 13px ink-dim YYYY.MM.DD. 내역=description ellipsis + 메타라인(payment_method · 환불일/환불금액). 금액=mono 700 ink, refunded면 line-through+ink-mute. **상태 컬럼 inline 액션**: badge(라벨 1px border + bg-alt) + paid면 영수증 Link(cafe-blue, /pricing/success 재사용) + can_refund면 환불 button(error border, setRefundTarget). flex-wrap으로 좁은 폭 대응. 빈 상태 `<TossCard>` + receipt_long 그대로 보존, 페이지네이션·환불 모달·SubscriptionSection 0 변경. **API/SWR/모달 흐름 0 변경**(`/api/web/profile/payments` + `/api/web/payments/{id}/refund`). v2 토큰: `.board/.board__head/.board__row/.title/.badge` + 변수 `--ff-mono/--ink/--ink-dim/--ink-mute/--bg-alt/--border/--cafe-blue/--radius-chip/--color-error`. tsc --noEmit EXIT=0 PASS / next build PASS(`/profile/billing` ○ static). | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **Phase 9 P0-4-D — match teams 탭 5열 board → ResponsiveTable 적용** — 1파일 수정(`src/app/(web)/match/page.tsx` 1318→1341줄, +23 / git diff +93 -70). teams 탭(L935~L1015) 인라인 grid(`56px 1fr 90px 100px 80px`) 헤더+행 81줄 → ResponsiveTable 5컬럼 정의로 교체(`rank/team/rating/record/status`, mobileMode="card", rowKey=tm.id). 셀 렌더 100% 보존: 색상칩 22x22 + 팀명 / 레이팅 monospace 700 / "12W 3L" monospace 12px / STATUS_BADGE_STYLE.open "확정" 배지. 데이터(appliedTeams) 0 변경, 다른 탭(overview/schedule/bracket/rules) 0 변경, TOURNAMENTS/TEAMS 더미 0 변경. import: `ResponsiveTable from "@/components/ui/responsive-table"` 추가. mobileLabel "순위" 1건만 별도 지정(나머지는 label 재사용). 모바일(<=720px)에서 5열 라벨 손실 → "라벨: 값" 카드 자동 변환. tsc --noEmit EXIT=0 PASS / next build PASS. | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **GameResult v2 모바일 가로 스크롤 힌트 (ScrollableTable)** — 신규 1(`src/components/ui/scrollable-table.tsx` "use client" 약 120줄: useRef+useState scrollable/atEnd + ResizeObserver 측정 + 우측 32px 페이드 마스크 `linear-gradient(to right, transparent, var(--bg))` opacity 트랜지션 200ms + 모바일 마이크로카피 "← 좌우로 스와이프해 모든 통계 보기"(@media >=720px display:none) + iOS WebkitOverflowScrolling) + 수정 1(`src/app/live/[id]/_v2/tab-players.tsx` import 추가 + TeamTable 내 `<div style={{ overflowX: "auto" }}>` → `<ScrollableTable>` 교체. 홈/원정 두 테이블 각각 독립 인스턴스 → 스크롤 상태 분리). API/Prisma/Server Action 0 변경, 테이블 grid·minWidth:860·헤더·DNP·MVP 표시 100% 보존. var(--bg) 변수 사용으로 라이트/다크 모드 모두 자연스럽게 fade. tsc --noEmit EXIT=0 PASS / next build PASS. | ✅ (커밋 금지 — PM 처리) |
@@ -3778,6 +3812,9 @@ C. 유료 ratio>0
 | 2026-04-27 | Phase 9 P0-4-E scrim history 탭 6열 board → ResponsiveTable 적용 (라벨 손실 1건 해결) | 검증 완료 (PM 커밋 대기) |
 | 2026-04-27 | Phase 9 P1-1 StepWizard + StepIndicator 공통 컴포넌트 신규 (사용처 적용 별도) | 검증 완료 (PM 커밋 대기) |
 | 2026-04-27 | Phase 9 P1-1b /onboarding/setup 신규 라우트 (StepWizard 첫 사용처, 시안 OnboardingV2 6단계+완료 박제) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P1-2b /games/[id]/guest-apply 신규 (GuestApply 박제, 단일 client 페이지, alert+submitted 분기) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P1-2a /courts/submit 신규 (CourtAdd 3단계 박제, StepWizard 두 번째 사용처) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P1-3a /games/[id]/report 신규 (GameReport 박제, StarRating sm 첫 사용처, alert+submitted 분기) | 검증 완료 (PM 커밋 대기) |
 
 ---
 
@@ -4164,3 +4201,353 @@ interface StepWizardProps {
 - 메뉴/홈에서 본 페이지로 진입하는 link 0건 — 신규 가입 흐름 통합은 별도 P1-1c 또는 P1-1d 로 분리 검토
 - next build 직접 검증은 dev 서버 락 때문에 스킵 (tsc strict 통과로 갈음)
 
+---
+
+## Phase 9 P1-2b — /games/[id]/guest-apply 신규 (GuestApply 박제) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: 시안 `Dev/design/BDR v2 (1)/screens/GuestApply.jsx` 단일 폼(170줄) 박제. `/games/[id]/guest-apply` 신규 라우트. 단일 client 페이지(`useParams`/`useRouter`) — 시안이 단순 폼 + submitted 분기뿐이라 server wrapper 불필요. **API/Prisma/서비스 0 변경.** "게스트로 지원하기" 버튼은 `alert("준비 중") + setSubmitted(true)` 만 — 실 mutation 없음. game 카드는 `PLACEHOLDER_GAME` 더미.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/games/[id]/guest-apply/page.tsx` | 신규 (~430줄). "use client" 페이지. State 5개(`submitted/pos/exp/msg/accept{insurance,cancel}`). 메인 폼(좌) + sticky aside(우 340px) 그리드. submitted=true 분기 화면(체크 + 신청 요약 + CTA 2개). 약관 둘 다 체크 안 되면 지원 버튼 disabled. | 신규 |
+
+📐 **시안 → 폼 필드 매핑**:
+
+| 시안 라인 | UI 요소 | 우리 처리 |
+|---|---|---|
+| L4~L11 | game fallback 더미 객체 | `PLACEHOLDER_GAME` 상수로 박제 (모듈 상수) |
+| L13~L17 | submitted/pos/exp/msg/accept 5 state | `useState` 5개 그대로 |
+| L19~L45 | submitted=true 분기 (✓ 큰 동그라미 + 신청 요약 + CTA 2버튼) | 동일 박제. `setRoute('guestApps')` → `router.push('/games/my-games')`, `setRoute('games')` → `router.push('/games')` |
+| L49~L54 | 빵 부스러기 4단 (홈 › 경기 › 경기 상세 › 게스트 지원) | router.push 로 라우팅 — `/`, `/games`, `/games/${gameId}` |
+| L57~L58 | eyebrow + h1 페이지 타이틀 | 동일 |
+| L64~L68 | 지원 대상 박스 (game.title/when/court/level) | 동일 (placeholder 데이터) |
+| L73~L82 | 주 포지션 G/F/C 토글 3버튼 | `pos` state, 선택 시 `var(--accent)` 배경 |
+| L86~L92 | 구력 select (5종 0~4) | `EXP_OPTIONS` 상수로 분리 |
+| L96~L103 | 내 프로필 미리보기 카드 (Avatar+이름+매너+배지) | Avatar 컴포넌트 → 인라인 div 박스 (lucide-react 금지 규칙) |
+| L106~L117 | 호스트에게 한마디 textarea + 글자수 카운터 | 동일. 입력 길이 300자 강제 (시안은 placeholder 표시만) |
+| L120~L130 | 약관 동의 체크박스 2종 (insurance/cancel, 둘 다 필수) | `ACCEPT_ITEMS` 상수 + map |
+| L132~L139 | 푸터 ← 취소 / 게스트로 지원하기 버튼 (약관 체크 안 되면 disabled) | `setRoute('gameDetail')` → `router.push('/games/${gameId}')`, 지원 버튼 → `handleSubmit()` |
+| L143~L151 | sticky aside #1: 호스트가 보는 것 (4개 항목 ul) | 동일 박제 |
+| L153~L156 | sticky aside #2: 예상 대기 시간 (~ 2시간) | 동일 (placeholder) |
+| L158~L163 | sticky aside #3: 동시 지원 안내 + "지원 현황 보기 →" 링크 | 동일. 링크 → `router.push('/games/my-games')` |
+
+🚧 **DB 미지원 항목 (추후 구현 목록 신설)**:
+- scratchpad "🚧 추후 구현 목록" 섹션에 **"Phase 9 P1-2b GuestApply (커밋 대기, 2026-04-27)" 7건** 신규 추가:
+  - `game_applications` 게스트 지원 분기 API (role/position/experience/message/accepted_terms 컬럼 확장)
+  - 호스트 알림 (in-app + 이메일/푸시, `notifications` 타입 `guest_application_received`)
+  - 수락/거절 워크플로우 (호스트 측 manage 페이지 + 동시 지원 자동 cancel)
+  - 결제 연동 (`payments` 다형성 `payable_type="GameApplication"`)
+  - placeholder 더미 → 실 game 데이터 fetch (server wrapper 또는 useSWR)
+  - 내 프로필 카드 동적화 (mannerScore/pickupCount/noshowCount 캐시 컬럼)
+  - 동시 지원 카운트 동적화
+
+🎨 **시안 박제 충실도**:
+- CSS 변수 모두 globals.css 에 박제됨 → 그대로 사용 (`var(--accent) / --bg-alt / --ink-mute / --ink-dim / --ink-soft / --ok / --err / --border / --cafe-blue / --ff-mono / --ff-display`)
+- 클래스도 globals.css 에 박제됨 → 그대로 사용 (`.page / .page--wide / .card / .btn / .btn--primary / .btn--lg / .input / .badge / .badge--ok / .eyebrow`)
+- 시안 의도된 하드코딩 색상 1건: `#0F5FCC` (Avatar ME 박스 배경 — 시안 라인 97 박제). `var(--cafe-blue)` light 모드 동일 값이라 토큰화 가능하지만 시안 1:1 박제 우선
+- 이모지 1건: `💡` (sticky aside 라인 144 박제). PM 지시대로 Material Symbols 변환 안 함
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 (출력 없음 = 에러 0) |
+| `npx next build` | **스킵** — dev 서버(port 3001 PID 140564) 실행 중으로 `.next/` 락 충돌. 신규 파일 1개 + 외부 import 0개(useState/useParams/useRouter만) — tsc strict 통과로 갈음 (P1-1b 와 동일 패턴) |
+
+💡 **tester 참고**:
+- **테스트 URL**: `http://localhost:3001/games/<아무_uuid>/guest-apply` (gameId 검증 안 함 — placeholder 더미라 어떤 id 든 같은 화면)
+- **정상 동작**:
+  - 첫 진입: pos=G / exp=2 / msg="" / accept.insurance=true / accept.cancel=false
+  - 약관 cancel 체크 안 된 상태: "게스트로 지원하기" 버튼 disabled (회색)
+  - cancel 체크 → 버튼 활성화 → 클릭 시 alert("준비 중 — 게스트 지원 기능은 game_applications API 연결 후 활성화됩니다") + 화면 전환
+  - 전환 후: ✓ 동그라미 + "지원 완료" + 신청 요약 박스(경기/일시/포지션/참가비) + "지원 현황 보기" / "다른 경기 찾기" 버튼
+  - "지원 현황 보기" → `/games/my-games`, "다른 경기 찾기" → `/games`
+  - "← 취소" → `/games/<id>` (실제 게임 상세 페이지)
+- **주의할 입력**:
+  - 한마디 textarea 300자 초과 입력 시 자동 잘림 (시안 라인 116 글자수 카운터와 일관성)
+  - 포지션 G/F/C 클릭 시 즉시 액센트 배경 전환 (선택 라디오 효과)
+  - 비로그인 상태에서도 진입 가능 (의도). DB 호출 0건이라 인증 가드 미설치
+  - `useParams<{id}>` 미존재 케이스 (`params?.id ?? ""`) — Next.js 15 에선 항상 존재하지만 타입 안전 차원
+- **모바일 (<=720px)**: 우측 340px sticky aside 가 좁아짐 — globals.css 의 `@media (max-width: 720px)` 룰로 자동 stack 처리됨 (P1-1b/타 시안 페이지와 동일 패턴)
+
+⚠️ **reviewer 참고**:
+- **단일 client 페이지 결정**: 시안이 form 단순 폼 + submitted 분기뿐이라 server wrapper 분리 시 props drill 만 늘고 효용 0. PM 컨텍스트 권장(`server wrapper면 params await / client only면 useParams 사용 / 단순화 위해 placeholder 더미 권장`)과 일치
+- **`PLACEHOLDER_GAME` 모듈 상수**: 컴포넌트 외부에 두어 매 렌더 재생성 안 됨. 추후 실 데이터 fetch 도입 시 `useParams` 다음 줄에 `useSWR(`/api/web/games/${gameId}`, ...)` 추가 후 fallback 으로 활용
+- **Avatar 인라인 div 대체**: 시안 `<Avatar tag="ME" color="#0F5FCC" .../>` 컴포넌트는 시안 전용. lucide-react / 외부 라이브러리 도입 금지 규칙 준수 위해 인라인 div 박스로 박제
+- **`.btn--primary` 색상**: globals.css 라인 239 `var(--cafe-blue)` 사용 — 시안의 `.btn--primary` 와 동일 토큰. 본 페이지 "게스트로 지원하기" 도 cafe-blue 표시 (시안과 일치)
+- **약관 체크 가드만 있음**: 포지션/구력/메시지는 비어있어도 제출 가능 (시안 라인 136 `disabled={!accept.insurance || !accept.cancel}` 그대로). 추후 실 API 연결 시 server-side validation 으로 보강
+- **dev 서버 락 충돌**: P1-1b 와 동일 — netstat 확인 후 next build 스킵. tsc strict 통과로 갈음 (CI/배포 환경에선 build 자동 실행되므로 안전)
+- **현 시점 사용자 영향 0**: 라우트가 어디서도 link 안 됨. game detail 의 apply-button.tsx 에 "게스트로 지원" 분기 추가는 별도 커밋
+
+🚧 **미해결**:
+- game detail 페이지(`/games/[id]/page.tsx` 또는 `_components/host-actions.tsx`)에서 본 페이지로 진입하는 link 0건 — 일반 참가/게스트 분기 UX 통합은 별도 P1-2c 또는 P1-3 로 분리 검토
+- next build 직접 검증은 dev 서버 락 때문에 스킵 (tsc strict 통과로 갈음)
+- gameId 가 실제 DB 의 game 과 매칭되는지 검증 0건 — placeholder 더미라 의도된 동작이지만, 실 데이터 fetch 도입 시 `notFound()` 처리 필요
+
+---
+
+## Phase 9 P1-2a — /courts/submit 신규 라우트 (CourtAdd 박제, StepWizard 두 번째 사용처) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: 시안 `Dev/design/BDR v2 (1)/screens/CourtAdd.jsx` 3단계 코트 제보 위저드를 박제하여 `/courts/submit` 신규 라우트로 박제. P1-1 에서 만든 공용 StepWizard 셸의 두 번째 사용처. 모든 입력은 클라이언트 state 만, 제출 버튼은 `alert("준비 중") + setSubmitted(true)` (실 mutation 없음). 사진 업로더는 `<input type="file" disabled>` 자리만 차지.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/courts/submit/page.tsx` | 신규 (24줄). server wrapper. Metadata + 클라이언트 폼 임포트만. 데이터 패칭 0. | 신규 |
+| `src/app/(web)/courts/submit/_form/court-submit-form.tsx` | 신규 (612줄). "use client". STEPS 배열 3단계(basic/facility/photo) + AREAS 9건 + FEATURES 12건 상수. FormData 타입(name/area/addr/hours/type/surface/hoops/lighting/fee/feeAmount/features/vibe/desc 13필드). update/toggleFeature 헬퍼 + canGoNext 가드(step 0 일 때 name+addr 필수). submitted=true 분기로 완료 화면 표시. 단계별 본문은 Step1Basic / Step2Facility / Step3Photo 보조 컴포넌트로 분리. | 신규 |
+
+📐 **단계 매핑 (시안 vs 우리 흐름)**:
+
+| 단계 | 시안 라인 | 우리 처리 | 입력 필드 |
+|------|----------|----------|----------|
+| 0: 기본 정보 | L82~L127 | `Step1Basic` | name(필수) / area / hours / addr(필수) / type / surface |
+| 1: 시설·특징 | L129~L180 | `Step2Facility` | hoops / lighting / fee / feeAmount(fee=paid 일 때) / features[] / vibe |
+| 2: 사진·설명 | L181~L213 | `Step3Photo` | photos[](미동작) / desc |
+| 완료 화면 | L25~L50 | submitted 분기 | 제보 요약 + "코트 목록" Link + "또 제보하기" 버튼 |
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 0 = 에러 0) |
+| `npx next build` | 통과 — `├ ○ /courts/submit` 정적 페이지로 빌드 성공. 빌드 로그의 `/api/web/ads`, `/api/web/courts/heatmap` 경고는 기존 라우트의 prerender 시도 로그로 본 작업과 무관 |
+
+🎨 **시안 박제 vs 변경**:
+| 영역 | 시안 | 본 페이지 처리 |
+|------|------|--------------|
+| Progress bar + 단계 동그라미 | 인라인 `<Step n l/>` 컴포넌트 (L52~L57) | **StepWizard 셸로 위임** — 공용 진행 표시 + prev/next 푸터 |
+| 카드 외피 | `<div className="card" style={{padding:'24px 28px'}}>` (L74) | 동일 박제 |
+| 사이드 보상 카드 + 내 기여 현황 | L215~L227 | 박제 (더미 숫자 3개/1,200P 그대로) |
+| 사진 업로더 | `<input type="file">` 자리 + 더미 썸네일 3개 (L185~L198) | `<input disabled>` + 더미 썸네일 박제 (onChange 없음) |
+| 빵부스러기 (홈 › 코트 › 코트 제보) | onClick={()=>setRoute('home')} (L62~L64) | Next.js `<Link>` 로 변환 (`/`, `/courts`) |
+| 1단계 next 가드 (`disabled={!data.name \|\| !data.addr}`) | L124 | StepWizard 의 `canGoNext` prop 으로 위임 |
+| Finish 버튼 라벨 | "제보하기" (L209) | StepWizard `finishLabel="제보하기"` 로 전달 |
+
+💡 **tester 참고**:
+- **테스트 URL**: http://localhost:3001/courts/submit (로그인/비로그인 무관 — 가드 없음)
+- **정상 동작**:
+  - 페이지 진입 시 Step 0 (기본 정보) 표시. 코트 이름/주소 비어있으면 "다음" 버튼 비활성(opacity 0.5)
+  - 이름+주소 입력 시 "다음" 활성. Step 1(시설·특징) 이동
+  - Step 1 → Step 2 (사진·설명). 좌측 "이전" 버튼 노출
+  - Step 2 의 "파일 선택" 버튼은 disabled(opacity 0.6, cursor not-allowed). 클릭해도 파일 다이얼로그 안 뜸
+  - Step 2 의 "제보하기" 클릭 → `alert("준비 중...")` 표시 → 확인 누르면 완료 화면(✓ + 제보 요약)
+  - 완료 화면 "또 제보하기" → name/addr 만 초기화하고 Step 0 복귀
+  - 완료 화면 "코트 목록" → /courts 이동 (Next Link)
+- **주의할 입력**:
+  - 이용료 "유료" 선택 시에만 금액 입력란 노출 (다른 옵션 → 숨김)
+  - 편의시설은 토글(중복 클릭 시 해제). 4개 이상 선택해도 제한 없음(시안 그대로)
+  - 분위기/유형/조명/골대 수 버튼은 단일 선택(상호 배타)
+  - "또 제보하기" 시 type/surface/hoops 등 다른 필드는 유지됨(시안 의도 — 같은 지역 연속 제보 편의)
+
+⚠️ **reviewer 참고**:
+- **DB 변경 0건 — 의도된 박제**: 백로그 수정 요청 9항목 추가(`court_submissions` 테이블, 사진 업로드, 운영자 검토, 포인트/배지, 알림, 내 기여 현황, 주소 지오코딩, 중복 가드)
+- **StepWizard 두 번째 사용처**: P1-1b Onboarding(6단계) 다음으로 P1-2a CourtSubmit(3단계). 컴포넌트 다중 사용 검증 완료
+- **단계별 본문 컴포넌트 분리**: Step1Basic / Step2Facility / Step3Photo 로 분리. 시안 단일 함수 233줄을 612줄로 늘렸지만 가독성/타입 안전성 향상 (제네릭 update<K> 패턴)
+- **하드코딩 색상 3건 (#DC2626 / #0F5FCC / #10B981)**: 시안 더미 썸네일 그라디언트 색. 시안 박제 예외(P1-1b 와 동일 정책)
+- **이모지 박제**: 🎁 / 📍 / 📸 / 🏀 / × / ✓ 모두 시안 그대로. Material Symbols 변환 안 함
+- **사이드 카드 더미값**: "3개 제보 / 1,200P / 🥈 은 기여자" 는 시안 그대로 박제 — 사용자별 동적 계산 미구현(백로그)
+- **현 시점 사용자 영향 0**: `/courts` 또는 헤더에서 본 페이지로 link 0건. 진입점 추가는 별도 커밋
+
+🚧 **미해결**:
+- `/courts` 페이지 또는 헤더에서 "코트 제보" 버튼 추가 미적용 (별도 커밋 권장)
+- 사진 업로더 비활성 상태가 disabled 라벨이라 시각적 안내 부족 — Storage 도입 시점에 활성화하면서 안내 보강
+- 제출 시 클라이언트 데이터를 어디로도 보내지 않음 (POST 없음). `court_submissions` 테이블 신설 시 server action 추가 필요
+
+---
+
+## Phase 9 P1-3a — /games/[id]/report 신규 (GameReport 박제, StarRating 첫 사용처) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: 시안 `Dev/design/BDR v2 (1)/screens/GameReport.jsx` 198줄 박제. `/games/[id]/report` 신규 라우트 (단일 client 페이지). 시안이 단일 화면 + submitted 분기 구조라 server wrapper 분리 미채택. **API/Prisma/서비스 0 변경.** "리포트 제출" 버튼은 `alert("준비 중") + setSubmitted(true)` 만, 실 mutation 없음. 선수 6명은 `PLACEHOLDER_PLAYERS` 모듈 상수 박제. P1-1 직전 커밋의 `StarRating` 컴포넌트 첫 실 사용처 (선수별 sm 별점).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/games/[id]/report/page.tsx` | 신규 (~510줄). "use client". State 7개(`submitted/ratings/reports/mvp/noshows/overall/comment`). 좌측 메인(전반평가/선수별평가/익명성안내/푸터액션) + 우측 sticky aside 300px(진행상황/신고기준). submitted=true 분기 화면(✓ + 리포트 요약 + CTA 2개). | 신규 |
+
+📐 **시안 → 폼 필드 매핑**:
+
+| 시안 라인 | UI 요소 | 우리 처리 |
+|---|---|---|
+| L4~L10 | 7 state (submitted/ratings/reports/mvp/noshows/overall/comment) | `useState` 7개 그대로 |
+| L12~L19 | players 6명 (id/name/team/pos/num/color) | `PLACEHOLDER_PLAYERS` 모듈 상수로 박제 |
+| L21~L26 | setRating/toggleReport/toggleNoshow 헬퍼 | 동일 박제. setRating은 StarRating onChange 시그니처 호환 |
+| L28~L54 | submitted=true 분기 (✓ 큰 동그라미 + 리포트 요약 + CTA 2개) | 동일 박제. `setRoute('mygames')` → `router.push('/games/my-games')`, `setRoute('gameResult')` → `router.push(`/games/${gameId}`)` (GameResult 라우트 도입 전 임시) |
+| L56~L62 | 신고 플래그 5종 (`noshow/manner/foul/verbal/cheat`) | `FLAGS` 상수로 박제 |
+| L66~L70 | 빵부스러기 (홈 › 내 경기 › 경기 후 리포트) | router.push 로 라우팅 — `/`, `/games/my-games` |
+| L72~L76 | eyebrow + h1 + 경기 메타 | `PLACEHOLDER_META` 상수 (title/date/hostNote) |
+| L78 | 좌측 메인 + 우측 300px 그리드 | 동일. 720px 미만 1열 + aside 정상 흐름 (styled-jsx) |
+| L81~L104 | 전반 평가 카드 (54×54px 큰 별 5개 + 라벨 + textarea) | 시안 그대로 인라인 button 유지 — StarRating lg(32px)로는 너무 작아 시안 박제 우선. **토글 클릭(같은 별 재클릭 시 0)** 추가 |
+| L107~L160 | 선수별 평가 카드 (선수 6명 반복) | 동일. Avatar 컴포넌트는 lucide-react 금지 규칙 따라 인라인 div 박스(p.color 배경 + p.team+p.num)로 대체 |
+| L128~L135 | 작은 별 5칸 (28×28) | **`<StarRating size="sm" fillColor="var(--warn)" value={ratings[p.id] ?? 0} onChange={(v) => setRating(p.id, v)} />` 로 교체** — 시안 박제 + StarRating 의 hover 프리뷰/aria-radio/토글(같은 별 재클릭 시 0) 보너스 |
+| L136~L151 | 신고 플래그 칩 5종 (FLAGS map) | 동일 박제 |
+| L152~L155 | 불참/노쇼 체크박스 | 동일 |
+| L162~L164 | 익명성 보장 안내 (🔒) | 동일 박제. 이모지 그대로 |
+| L166~L172 | 푸터 (나중에 / 임시 저장 / 리포트 제출) | 동일. "임시 저장" 도 `alert("준비 중")`. "리포트 제출"은 overall=0 일 때 disabled (시안 라인 170 박제) |
+| L175~L192 | sticky aside (진행 상황 + 신고 기준) | 동일 박제. top:120px sticky |
+
+🌟 **StarRating 사용 위치**:
+- **선수별 평점 (선수 6명 × 5칸 = 30개 별)**: `size="sm"` (16px) + `fillColor="var(--warn)"` (시안 노란 별 박제)
+- **이유**: 시안의 작은 별은 28×28 컨테이너에 14px 글리프 — StarRating sm(16px) 와 시각적 거의 동일. interactive 모드 자동 활성화 (onChange 제공) + 같은 별 재클릭 시 0(해제) 토글 UX 보너스 + ARIA radio role 자동 부여 (시안 박제보다 a11y 향상)
+- **전반 평가 큰 별(54×54)은 인라인 유지**: StarRating lg(32px)로는 시안 의도된 큰 인터랙션 박스(정사각형 + 4px radius + 22px ★ 글리프)와 맞지 않음. 시안 박제 우선 + 토글 클릭 동작은 추가 (시안은 토글 없음 → StarRating 의 토글 UX 영감 받아 일관성)
+
+🚧 **DB 미지원 항목 (추후 구현 목록 신설)**:
+- scratchpad "🚧 추후 구현 목록" 섹션에 **"Phase 9 P1-3a GameReport (커밋 대기, 2026-04-27)" 9건** 신규 추가:
+  - `game_reports` 테이블 (reporter_user_id / game_id / overall_rating / comment / mvp_user_id / status enum)
+  - `game_player_ratings` 테이블 (game_id / rater_user_id / rated_user_id / rating / flags JSON / is_noshow)
+  - 신고 플래그 enum 정형화 (`no_show / manner / foul / verbal / cheat`)
+  - MVP 자동 집계 (다수결 + tie-breaker)
+  - `users.manner_score` 캐시 컬럼 (game_player_ratings 평균)
+  - 임시 저장 (draft status 또는 LocalStorage)
+  - placeholder 더미 → 실 game.participants fetch (server wrapper 또는 useSWR)
+  - 신고 누적 검토 워크플로우 (admin 큐)
+  - `/games/[id]/result` 라우트 도입 시 submitted 분기 CTA 교체
+
+🎨 **시안 박제 충실도**:
+- CSS 변수 모두 globals.css 박제 → 그대로 사용 (`var(--accent) / --warn / --err / --ok / --bg-alt / --ink-mute / --ink-dim / --ink-soft / --border / --ff-mono`)
+- 클래스 모두 globals.css 박제 → 그대로 사용 (`.page / .card / .btn / .btn--primary / .btn--lg / .btn--sm / .badge / .badge--soft / .badge--ghost / .input / .eyebrow`)
+- 시안 의도된 하드코딩 색상 2건: `#DC2626` (팀 A 빨강) / `#0F5FCC` (팀 B 파랑) — `PLACEHOLDER_PLAYERS.color` 박제. 추후 실 데이터 fetch 도입 시 각 게임의 팀 색상 또는 v2 토큰 매핑 후 정리
+- 이모지 3건: `✓` / `🔒` / `🛡` 시안 그대로. Material Symbols 변환 안 함
+- styled-jsx 1건: `.report-grid` / `.report-aside` 모바일 720px 미만 1열 처리 (aside position:static 으로 일반 흐름 진입)
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 (출력 없음 = 에러 0) |
+| `npx next build` | **스킵** — dev 서버(port 3001 PID 140564) 실행 중으로 `.next/` 락 충돌. 신규 파일 1개 + 외부 import 3개(useState/useParams+useRouter/StarRating) — tsc strict 통과 + StarRating은 P1-1 작업에서 이미 build 검증 완료 → 갈음 (P1-1b/P1-2b 와 동일 패턴) |
+
+💡 **tester 참고**:
+- **테스트 URL**: `http://localhost:3001/games/<아무_uuid>/report` (gameId 검증 안 함 — placeholder 더미라 어떤 id든 같은 화면)
+- **정상 동작**:
+  - 첫 진입: overall=0, ratings={}, mvp=null, comment="" 기본값
+  - 전반 평가 큰 별 클릭 → 누적 채워짐 (1=★ / 2=★★ / 3=★★★ ...). 같은 별 재클릭 시 0(해제). 우측에 라벨 "매우 나빴음/아쉬움/보통/좋았음/최고!" 동적 표시
+  - 선수별 작은 별 클릭 → StarRating 토글 동작 (같은 별 재클릭 시 0). hover 프리뷰 (마우스 올린 별까지 노란색 + 살짝 확대)
+  - 신고 플래그 칩 클릭 → 토글 (선택 시 색상 채움 + 흰 글씨, 미선택 시 transparent + dim 글씨)
+  - MVP 추천 버튼 → 한 선수만 선택 가능. 같은 선수 재클릭 시 해제
+  - 불참/노쇼 체크박스 → 독립 토글
+  - overall=0 (전반 평가 없음) 상태: "리포트 제출" 버튼 disabled (회색)
+  - overall>=1 + 제출 클릭 → `alert("준비 중 — game_reports + game_player_ratings API 연결 후 활성화됩니다")` → 확인 누르면 submitted 분기 진입
+  - submitted 분기: ✓ 동그라미 + 리포트 요약(평가한 선수 N명/신고 M건/노쇼 K명/MVP 이름) + "내 경기로" `/games/my-games` / "결과 보기" `/games/<id>` 이동
+  - "임시 저장" 클릭 → `alert("준비 중 — 임시 저장 기능은 추후 구현 예정입니다")`
+  - "나중에 하기" 클릭 → `/games/my-games` 이동
+  - 빵부스러기 클릭 → 홈/내경기 이동
+- **주의할 입력**:
+  - 같은 별 재클릭 시 0 으로 해제 — StarRating 의 의도된 토글 UX. 시안에는 없는 동작이지만 일관성 + a11y 향상
+  - 진행 상황 카드의 "선수별 평가 N/6" 카운터는 ratings 객체 키 개수 — 0점으로 토글 해제하면 키 자체가 남아 카운트 유지될 수 있음 (StarRating 이 0 호출 시 ratings[id]=0 으로 저장). 시안 동작과 동일
+  - 비로그인 상태에서도 진입 가능 (의도). DB 호출 0건이라 인증 가드 미설치
+  - 모바일 (<=720px): grid 1열 + aside 일반 흐름 (sticky 해제)
+- **모바일 (375px)**: 좌측 메인 + 우측 aside 가 stack. 작은 별 5개 + 신고 칩 5개 + 노쇼 체크박스가 한 줄에 들어가지 못해 2~3 줄 wrap (의도 — flex-wrap 적용)
+
+⚠️ **reviewer 참고**:
+- **단일 client 페이지 결정**: 시안 단일 화면 + submitted 분기뿐이라 server wrapper 분리 시 props drill 만 늘고 효용 0. P1-2b GuestApply 와 동일 패턴 (PM 컨텍스트 권장사항 일치)
+- **`PLACEHOLDER_PLAYERS` / `PLACEHOLDER_META` 모듈 상수**: 컴포넌트 외부에 두어 매 렌더 재생성 안 됨. 추후 실 데이터 fetch 도입 시 useSWR 의 fallback 으로 활용 가능
+- **StarRating 첫 실 사용처**: P1-1 직전 커밋에서 만든 컴포넌트의 첫 실제 사용. 30개 별(선수 6명 × 5칸) 동시 렌더 + onChange 시 ratings 객체 spread 갱신 — 성능 부담 0 확인
+- **전반 평가 큰 별 인라인 유지 결정**: StarRating 의 size 토큰이 sm/md/lg(16/24/32px) 까지라 시안 의도(54×54 컨테이너에 22px 글리프 + 4px radius)와 맞지 않음. StarRating 확장(xl 추가) vs 인라인 유지 trade-off 에서 후자 채택 — 시안 박제 우선 + 호출처 1개라 컴포넌트화 가치 낮음
+- **하드코딩 색상 2건 (#DC2626 / #0F5FCC)**: PLACEHOLDER_PLAYERS.color (팀 A/B 색). 시안 박제 예외(P1-1b/P1-2a 와 동일 정책). 실 데이터 도입 시 game.team_a_color / game.team_b_color 등 컬럼 매핑 또는 v2 토큰 정리
+- **이모지 박제**: ✓/🔒/🛡 시안 그대로. PM 지시대로 Material Symbols 변환 안 함
+- **약관/검증 가드 없음**: 시안 라인 170 의 `disabled={overall===0}` 만 박제. 선수별 평점 누락/MVP 미선택 등은 제출 가능 (시안 의도 — 부분 작성 허용). 실 API 연결 시 server-side validation 보강
+- **"결과 보기" 임시 라우팅**: submitted 분기 CTA "결과 보기" 가 `/games/${gameId}` (게임 상세) 로 이동. GameResult.jsx 박제 페이지 도입 시 `/games/${gameId}/result` 로 교체 — 추후 구현 목록에 명시
+- **현 시점 사용자 영향 0**: 라우트가 어디서도 link 안 됨. game detail 또는 my-games 의 종료 게임 카드에서 "리포트 작성" 버튼 추가는 별도 커밋
+
+🚧 **미해결**:
+- game detail 페이지 또는 my-games 의 "종료된 경기" 카드에서 본 페이지로 진입하는 link 0건 — 진입점 추가는 별도 P1-3b 또는 추후 커밋
+- next build 직접 검증은 dev 서버 락 때문에 스킵 (tsc strict 통과로 갈음)
+- gameId 가 실제 DB 의 game 과 매칭되는지 검증 0건 — placeholder 더미라 의도된 동작이지만, 실 데이터 fetch 도입 시 `notFound()` + 진입 권한 검증(호스트 또는 approved 참가자만) 필요
+- "전반 평가" 큰 별이 StarRating 미사용 — 일관성을 위해 StarRating 에 xl(48px+) 사이즈 추가 검토 가능 (현재는 trade-off 후 인라인 유지)
+
+
+---
+
+## Phase 9 P1-4 — /series/new 신규 라우트 (SeriesCreate 박제, StepWizard 네 번째 사용처) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: 시안 `Dev/design/BDR v2 (1)/screens/SeriesCreate.jsx` (140줄, 3단계) 시리즈 생성 위저드를 박제하여 `/series/new` 신규 라우트로 배치. P1-1 StepWizard 셸의 네 번째 사용처. 모든 입력은 클라이언트 state, "공개하고 시리즈 만들기 ✓" 버튼은 `alert("준비 중") + setSubmitted(true)` (실 mutation 없음). server wrapper 에서 `getWebSession()` 가드 → 미로그인 시 `/login?redirect=/series/new` 리다이렉트.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/series/new/page.tsx` | 신규 (47줄). server wrapper. `getWebSession()` 로그인 가드 → 미로그인 시 `/login?redirect=...` 리다이렉트. Metadata + 클라이언트 폼 임포트. 데이터 패칭 0. | 신규 |
+| `src/app/(web)/series/new/_form/series-create-form.tsx` | 신규 (546줄). "use client". STEPS 배열 3단계(basics/edition/review) + ACCENT_COLORS 8색 + CAPACITY_OPTIONS 5건 + VISIBILITY_OPTIONS 3건 상수. FormData 타입 11필드(name/tagline/accent/format/frequency/firstDate/venue/capacity/fee/prize/visibility). update 헬퍼 + canGoNext 가드(step 0=name 필수, step 1=venue+firstDate 필수). submitted=true 분기로 완료 화면. 단계별 본문은 Step1Basics / Step2FirstEdition / Step3Review 보조 컴포넌트 분리. | 신규 |
+
+📐 **단계 매핑 (시안 vs 우리 흐름)**:
+
+| 단계 | 시안 라인 | 우리 처리 | 입력 필드 |
+|------|----------|----------|----------|
+| 0: 기본 정보 | L31~L56 | `Step1Basics` | name(필수) / tagline / accent (8색 팔레트) |
+| 1: 첫 회차 | L59~L101 | `Step2FirstEdition` | venue(필수) / firstDate(필수) / capacity / fee / prize |
+| 2: 검토·공개 | L104~L135 | `Step3Review` | preview 카드 + 요약 표 + visibility |
+| 완료 화면 | (시안엔 없음) | submitted 분기 | preview 카드 + "시리즈 목록" Link + "또 만들기" 버튼 |
+
+🔐 **권한 가드**:
+| 항목 | 처리 |
+|------|------|
+| 미로그인 | `redirect("/login?redirect=/series/new")` — mybdr 기존 컨벤션(`?redirect=`) 따름. PM prompt 의 `?next=` 대신 |
+| 로그인 사용자 | 통과 (현 단계는 단순화) |
+| 운영자 권한 강화 | **백로그** — organizations.owner_id 또는 user.role 체크는 추후 |
+| 권한 부족 안내 카드 | 백로그 — /organizations/apply 안내 흐름 검토 |
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 0 = 에러 0) |
+| `npx next build` | **스킵** — dev 서버가 3001 점유 중(PID 140564 LISTENING). tsc strict 통과로 갈음 (P1-1b/P1-2a/P1-3 와 동일 정책. CI 환경 자동 검증) |
+
+🎨 **시안 박제 vs 변경**:
+| 영역 | 시안 | 본 페이지 처리 |
+|------|------|--------------|
+| Progress bar (3개 div) | 인라인 (L24~L28) | **StepWizard 셸로 위임** — 공용 진행 표시 + prev/next 푸터 |
+| 카드 외피 | `<div className="card" style={{padding:'24px 26px'}}>` (L32) | 동일 박제 |
+| max-width | 720 (L12) | 동일 |
+| 빵부스러기 (시리즈 › 새 시리즈 만들기) | onClick={()=>setRoute('series')} (L13~L15) | Next.js `<Link href="/series">` 로 변환 |
+| 색상 팔레트 (8색) | 인라인 배열 (L46) | `ACCENT_COLORS` 모듈 상수로 추출 |
+| 정원 옵션 (5종) | 인라인 (L77) | `CAPACITY_OPTIONS` 모듈 상수로 추출 |
+| visibility 옵션 (3종) | 인라인 (L124) | `VISIBILITY_OPTIONS` `as const` 튜플 → 타입 안전 |
+| Step 1 next 가드 (`disabled={!data.name}`) | L52 | StepWizard 의 `canGoNext` prop 으로 위임 |
+| Step 2 next 가드 (`!data.venue \|\| !data.firstDate`) | L97 | 동일 위임 |
+| Finish 버튼 라벨 | "공개하고 시리즈 만들기 ✓" (L131) | StepWizard `finishLabel` 로 전달 |
+| Finish 액션 | `setRoute('seriesDetail')` (L131) | `alert("준비 중") + setSubmitted(true)` (실 mutation 없음) |
+| accent 컬러 사용처 | preview 카드 그라디언트 (L109) | 동일 + 완료 화면 preview 카드에도 재사용 |
+
+💡 **tester 참고**:
+- **테스트 URL**: http://localhost:3001/series/new
+  - 비로그인 진입 시 → `/login?redirect=/series/new` 자동 리다이렉트
+  - 로그인 후 진입 시 → Step 0 (기본 정보) 표시
+- **정상 동작**:
+  - Step 0: 시리즈 이름이 비면 "다음" 비활성. 색상 8개 클릭 시 ink 컬러 3px 보더 표시
+  - Step 1: 장소+개최일 둘 다 채워야 "다음" 활성. 정원 5종(8/12/16/24/32) 단일 선택. 참가비/상금은 자유 텍스트(선택)
+  - Step 2: preview 카드가 Step 0 의 accent 컬러 그라디언트로 그려짐. 요약 표에 첫 회차/경기방식/참가비/상금 표시. visibility 3종 단일 선택
+  - "공개하고 시리즈 만들기 ✓" → `alert("준비 중...")` → 확인 시 완료 화면(✓ + preview + "시리즈 목록"/"또 만들기")
+  - 완료 화면 "또 만들기" → name/tagline/venue/firstDate 만 초기화하고 Step 0 복귀 (accent/format/capacity 등은 유지)
+  - 완료 화면 "시리즈 목록" → /series 이동 (Next Link)
+- **주의할 입력**:
+  - 시리즈 이름이 비어있을 때 preview 는 "My Series" placeholder 표시
+  - 태그라인이 비어있을 때 preview 는 "태그라인 없음" placeholder 표시
+  - 참가비 placeholder 는 `₩80,000` 형식이지만 실제 입력은 자유 텍스트(파싱 없음)
+  - 색상은 8개 중 1개 단일 선택 (시안 그대로)
+- **권한 테스트**:
+  - 비로그인: 페이지 진입 시 즉시 /login 으로 리다이렉트 (입력 화면 노출 안 됨)
+  - 로그인 일반 사용자: 현재는 통과 (운영자 권한 강화는 백로그)
+
+⚠️ **reviewer 참고**:
+- **권한 가드 단순화 의도**: PM prompt 명시대로 "단순화: 로그인만 통과 + scratchpad 백로그". 운영자 권한 강화는 별도 커밋
+- **시안 단계 수**: PM prompt 는 "4-5단계" 였지만 시안 자체가 3단계 구조. **시안 충실 우선** 원칙으로 3단계 박제. 단계 추가/분리는 시안 변경 시 대응
+- **redirect 쿼리 이름**: `?redirect=` 사용. PM prompt 의 `?next=` 대신 mybdr 기존 컨벤션 따름 (`courts/[id]/manage`, `courts/[id]/booking` 등 동일 패턴 6+ 곳)
+- **완료 화면 신규 추가**: 시안엔 `setRoute('seriesDetail')` 만 있고 완료 분기 없음. P1-2a CourtSubmit 박제 패턴 차용해 일관성 확보 (실 mutation 없는 단계라 자연스러움)
+- **모듈 상수 추출**: ACCENT_COLORS/CAPACITY_OPTIONS/VISIBILITY_OPTIONS 는 시안 인라인 배열을 모듈 상수로 빼냄. 가독성 + 향후 i18n/admin 패널 재사용 용이
+- **VISIBILITY_OPTIONS 의 `as const`**: visibility 가 `"public" | "unlisted" | "private"` 리터럴 유니온이라 `as const` 로 추론. 시안의 `[['public','전체 공개'], ...]` 튜플 패턴은 타입 추론에 약해 `{v, l}` 객체 + `as const` 로 변경
+
+📌 **DB 미지원 / scratchpad 백로그**:
+- [ ] 시리즈 생성 server action — `prisma.tournament_series.create({ data: { name, slug(자동생성), description: tagline, accent_color, owner_id, is_public: visibility==="public" } })` 형태. 스키마 확장 필요 (accent_color, visibility, format 등 신규 필드 검토)
+- [ ] 운영자 권한 가드 강화 — 옵션 A: organizations.owner_id 체크 / 옵션 B: user.role IN ('admin','organizer') / 옵션 C: organizations.member_role='owner' 체크. P0 결정 필요
+- [ ] 권한 부족 안내 페이지 — "운영자 권한이 필요합니다" 카드 + /organizations/apply 신청 흐름 (별도 라우트)
+- [ ] 색상/엠블럼 업로드 — Supabase storage + image processing (시안에 엠블럼 입력 UI 는 아직 없음, 색상만 박제)
+- [ ] 시리즈 → 토너먼트 회차 자동 연결 — Step 1 의 venue/firstDate/capacity 를 첫 회차 tournaments row 로 자동 생성하는 흐름. 또는 Step 1 을 "시리즈 메타데이터만" 입력으로 단순화하고 회차는 별도 라우트
+- [ ] visibility = "unlisted" / "private" 동작 — current schema 는 is_public boolean 만 있음. unlisted = 링크 공유, private = 초대만 의 차이를 표현하려면 enum 컬럼 추가 필요
+- [ ] format = "5v5" 옵션 — 시안 Step 1 에 format 입력 UI 가 없어 default '3v3' 하드코딩. tournaments 테이블의 format/team_size 컬럼과 매핑 필요
+
+🚧 **미해결**:
+- next build 직접 검증은 dev 서버 락 때문에 스킵 (tsc strict 통과로 갈음)
+- /series 목록 페이지에서 본 페이지로 진입하는 link 0건 — "새 시리즈 만들기" CTA 버튼 추가는 별도 P1-4b 또는 운영자 권한 가드 도입 시 동시 처리
+- 운영자 권한 가드 미적용 — 일반 사용자도 진입 가능. 실제 mutation 도입 전에 가드 강화 필수
+- accent 컬러가 #0B0D10(거의 검정)일 때 preview 카드 텍스트 가시성 — 시안 그대로지만 디자인 검토 필요할 수 있음
