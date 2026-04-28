@@ -112,17 +112,21 @@ export function TeamSideCardV2({
             hasPendingRequest={hasPendingRequest}
           />
         )}
-        {/* 팀 매치 신청 — 준비 중 (team_match_requests 테이블 미구현) */}
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          title="준비 중인 기능입니다"
-          className="btn"
-          style={{ width: "100%", opacity: 0.6, cursor: "not-allowed" }}
-        >
-          팀 매치 신청
-        </button>
+        {/*
+          DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+          team_match_requests 테이블 추가 후 활성. PM 정책에 따라 UI 숨김.
+
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="준비 중인 기능입니다"
+            className="btn"
+            style={{ width: "100%", opacity: 0.6, cursor: "not-allowed" }}
+          >
+            팀 매치 신청
+          </button>
+        */}
       </div>
 
       {/* ── 카드 2: 연락 ── */}
@@ -147,25 +151,34 @@ export function TeamSideCardV2({
           }}
         >
           팀장 · {captainName ?? "—"}
-          <br />
-          {/* 응답시간 집계는 미구현 (메시지/쪽지 응답 로그 집계 필요) */}
-          <span style={{ color: "var(--ink-mute)" }}>응답시간 · 준비 중</span>
+          {/*
+            DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+            응답시간 집계: 메시지/쪽지 응답 로그 테이블 추가 필요. PM 정책에 따라 UI 숨김.
+
+            <br />
+            <span style={{ color: "var(--ink-mute)" }}>응답시간 · 준비 중</span>
+          */}
         </div>
-        <button
-          type="button"
-          disabled
-          aria-disabled="true"
-          title="준비 중인 기능입니다"
-          className="btn btn--sm"
-          style={{
-            marginTop: 10,
-            width: "100%",
-            opacity: 0.6,
-            cursor: "not-allowed",
-          }}
-        >
-          쪽지 보내기
-        </button>
+        {/*
+          DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+          쪽지/DM 모델 추가 필요 (현재 messages는 알림 메시지만). PM 정책에 따라 UI 숨김.
+
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="준비 중인 기능입니다"
+            className="btn btn--sm"
+            style={{
+              marginTop: 10,
+              width: "100%",
+              opacity: 0.6,
+              cursor: "not-allowed",
+            }}
+          >
+            쪽지 보내기
+          </button>
+        */}
       </div>
     </aside>
   );

@@ -204,36 +204,40 @@ export function TeamHeroV2({
               <span className="ml-1.5">팀 관리</span>
             </Link>
           )}
-          {/* 팔로우 — 준비 중 (team_follows 테이블 미구현) */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="준비 중인 기능입니다"
-            className="btn"
-            style={{
-              background: "rgba(255,255,255,0.16)",
-              color: ink,
-              borderColor: "rgba(255,255,255,0.35)",
-              opacity: 0.7,
-              cursor: "not-allowed",
-            }}
-          >
-            팔로우
-          </button>
-          {/* 매치 신청 — 준비 중 (team_match_requests 테이블 미구현).
-              시안은 btn--accent (레드) — accent 배경 위에 또 레드를 겹치면 대비가 약하므로
-              여기서는 흰 pill 스타일로 폴백하여 "액션 유도"만 유지. */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="준비 중인 기능입니다"
-            className="btn btn--accent"
-            style={{ opacity: 0.7, cursor: "not-allowed" }}
-          >
-            매치 신청
-          </button>
+          {/*
+            DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+            아래 두 버튼(팔로우 / 매치 신청)은 PM 정책에 따라 메뉴/UI에서 숨김.
+            - 팔로우: team_follows 테이블 추가 필요
+            - 매치 신청: team_match_requests 테이블 추가 필요
+            DB 구현 후 주석 해제 한 줄로 복귀.
+
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="준비 중인 기능입니다"
+              className="btn"
+              style={{
+                background: "rgba(255,255,255,0.16)",
+                color: ink,
+                borderColor: "rgba(255,255,255,0.35)",
+                opacity: 0.7,
+                cursor: "not-allowed",
+              }}
+            >
+              팔로우
+            </button>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title="준비 중인 기능입니다"
+              className="btn btn--accent"
+              style={{ opacity: 0.7, cursor: "not-allowed" }}
+            >
+              매치 신청
+            </button>
+          */}
         </div>
       </div>
     </section>

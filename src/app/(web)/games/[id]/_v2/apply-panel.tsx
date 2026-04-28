@@ -56,13 +56,17 @@ export function ApplyPanel({
   const cur = currentParticipants ?? 0;
   const max = maxParticipants ?? 0;
 
-  // 알림만 띄우는 3버튼 핸들러 (PM 확정안 — 실제 DB 연동은 차후)
-  function handleMessage() {
-    alert("한마디 남기기 기능은 준비 중입니다.");
-  }
-  function handleSave() {
-    alert("경기 저장 기능은 준비 중입니다.");
-  }
+  // 알림만 띄우는 보조 버튼 핸들러 (PM 확정안 — 실제 DB 연동은 차후).
+  // DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+  // - 한마디(handleMessage): game_applications.message 서버 미전송 → UI 숨김
+  // - 저장(handleSave): bookmarks 테이블 미구현 → UI 숨김
+  // - 문의(handleContact): 유지 (5-2 명시 대상 아님)
+  // function handleMessage() {
+  //   alert("한마디 남기기 기능은 준비 중입니다.");
+  // }
+  // function handleSave() {
+  //   alert("경기 저장 기능은 준비 중입니다.");
+  // }
   function handleContact() {
     alert("호스트에게 문의 기능은 준비 중입니다.");
   }
@@ -201,43 +205,49 @@ export function ApplyPanel({
         )}
       </div>
 
-      {/* 3. 보조 3버튼: 한마디 / 저장 / 문의 — alert 동작 (PM 확정안) */}
+      {/* 3. 보조 버튼: 문의만 노출 (한마디/저장은 DB 미구현 → 숨김).
+          DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
+          - 한마디: game_applications.message 서버 미전송
+          - 저장: bookmarks 테이블 추가 필요
+          DB 구현 후 grid를 1fr 1fr 1fr로 복귀 + 한마디/저장 버튼 주석 해제. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
+          gridTemplateColumns: "1fr",
           gap: 6,
           marginBottom: 14,
         }}
       >
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={handleMessage}
-          style={{ fontSize: 12 }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, marginRight: 2 }}
+        {/*
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={handleMessage}
+            style={{ fontSize: 12 }}
           >
-            chat_bubble
-          </span>
-          한마디
-        </button>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={handleSave}
-          style={{ fontSize: 12 }}
-        >
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, marginRight: 2 }}
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16, marginRight: 2 }}
+            >
+              chat_bubble
+            </span>
+            한마디
+          </button>
+          <button
+            type="button"
+            className="btn btn--sm"
+            onClick={handleSave}
+            style={{ fontSize: 12 }}
           >
-            bookmark
-          </span>
-          저장
-        </button>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16, marginRight: 2 }}
+            >
+              bookmark
+            </span>
+            저장
+          </button>
+        */}
         <button
           type="button"
           className="btn btn--sm"
