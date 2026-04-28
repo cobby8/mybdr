@@ -66,3 +66,7 @@ tmp/
 .auth/logs/
 !.auth/.gitkeep
 test-results/
+
+# 모바일 감사 자동 생성 보고서 (.gitkeep만 추적)
+Dev/design/audit-results/*
+!Dev/design/audit-results/.gitkeep
