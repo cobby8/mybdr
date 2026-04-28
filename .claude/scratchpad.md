@@ -3823,6 +3823,7 @@ C. 유료 ratio>0
 | 2026-04-27 | Phase 9 P1-2b /games/[id]/guest-apply 신규 (GuestApply 박제, 단일 client 페이지, alert+submitted 분기) | 검증 완료 (PM 커밋 대기) |
 | 2026-04-27 | Phase 9 P1-2a /courts/submit 신규 (CourtAdd 3단계 박제, StepWizard 두 번째 사용처) | 검증 완료 (PM 커밋 대기) |
 | 2026-04-27 | Phase 9 P1-3a /games/[id]/report 신규 (GameReport 박제, StarRating sm 첫 사용처, alert+submitted 분기) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P0-A 게임 상세 진입점 2건(report+guest-apply) 좌측 하단 버튼 행에 조건부 CTA 추가 (page.tsx만 +43줄, API/Prisma/v2 컴포넌트 0 변경) | 검증 완료 (PM 커밋 대기) |
 
 ---
 
@@ -4559,3 +4560,62 @@ interface StepWizardProps {
 - /series 목록 페이지에서 본 페이지로 진입하는 link 0건 — "새 시리즈 만들기" CTA 버튼 추가는 별도 P1-4b 또는 운영자 권한 가드 도입 시 동시 처리
 - 운영자 권한 가드 미적용 — 일반 사용자도 진입 가능. 실제 mutation 도입 전에 가드 강화 필수
 - accent 컬러가 #0B0D10(거의 검정)일 때 preview 카드 텍스트 가시성 — 시안 그대로지만 디자인 검토 필요할 수 있음
+
+---
+
+## [2026-04-27] P0-B + P0-C — More 메뉴 가짜 링크 정리 + 핵심 액션 추가
+
+### 구현 기록
+
+**구현 기능**: BDR v2 More 메뉴(드롭다운/Drawer 공유) 5그룹 IA 정리 — 가짜 링크 4건 제거 + 핵심 액션 2건 추가.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/bdr-v2/more-groups.ts` | 가짜 링크 4건 제거(bracket / tournamentEnroll / guestApply / refereeRequest) + 핵심 액션 2건 추가(communityNew / gameNew) + 제거 사유 주석 | 수정 |
+
+**그룹별 카운트 변화 (5그룹 35 → 5그룹 33)**:
+| 그룹 | 변화 | 비고 |
+|------|------|------|
+| 내 활동 | 7 → 8 | +communityNew |
+| 경기·대회 | 7 → 6 | -bracket, -tournamentEnroll, -guestApply, +gameNew |
+| 등록·예약 | 5 → 4 | -refereeRequest |
+| 둘러보기 | 7 → 7 | 무변경 |
+| 계정·도움 | 8 → 8 | 무변경 |
+| **합계** | **35 → 33** | **-4 + 2** |
+
+**제거 4항목 (P0-B 가짜 링크)**:
+- `bracket` — 대진은 토너먼트 선택 후 `[id]/bracket` 진입이 자연스러움
+- `tournamentEnroll` — 대회 접수도 토너먼트 선택 후 흐름
+- `guestApply` — 게스트 신청은 게임 상세에서 직접
+- `refereeRequest` — 심판 배정은 토너먼트 운영 영역
+
+**유지 3항목 (의미 ↔ href 흐름 자연)**:
+- `gameResult` (/games/my-games) — 종료 경기 → 결과
+- `gameReport` (/games/my-games) — 종료 경기 → 평가
+- `teamManage` (/teams) — /teams 에서 본인 팀 진입
+
+**추가 2항목 (P0-C 핵심 액션)**:
+- `communityNew` (/community/new) ✍ — "내 활동" 그룹
+- `gameNew` (/games/new) ➕ — "경기·대회" 그룹
+
+**검증**:
+- `npx tsc --noEmit` 통과 (오류 0)
+- AppNav/AppDrawer 변경 없음 — `MORE_GROUPS` import 만 사용하므로 자동 반영
+
+💡 **tester 참고**:
+- 데스크톱: AppNav 우상단 "더보기" 클릭 → 680px 2-col 드롭다운 5그룹 노출
+- 모바일: AppDrawer 햄버거 → 풀폭 패널 동일 5그룹
+- 확인 포인트:
+  - "경기·대회"에 ➕ 경기 등록 / "내 활동"에 ✍ 글 작성 신규 노출
+  - 대진표 / 대회 접수 / 게스트 지원 신청 / 심판 배정 요청 4개 항목이 사라졌는지
+  - "/community/new" 과 "/games/new" 가 실제 라우트로 진입하는지 (라우트 미존재 시 404)
+- 라우트 존재 여부 확인 필요 (developer 단계에선 시안 IA 만 정리, 실제 페이지 박제는 별도 작업)
+
+⚠️ **reviewer 참고**:
+- **시안 강제 vs 기능 자연성 균형**: 시안의 7항목을 그대로 박제하지 않고 PM 결정대로 "B안(제거) 4건 + 유지 3건"으로 혼합 처리. `more-groups.ts` 헤더 주석의 라우트 매핑 메모와 일관성 유지를 위해 제거 사유를 인라인 주석으로 남김
+- **gameResult/gameReport 유지 사유 명시**: my-games 허브로 폴백하는 의도가 코드만으로 안 보이므로 `(종료 경기에서 결과 확인·평가 진입이 자연스러우므로 유지)` 주석 추가
+- 가짜 링크가 사라지면서 "경기·대회" 그룹 6항목 / "등록·예약" 그룹 4항목으로 비주얼 균형이 변함 — 디자인 시안과 한번 더 대조 권장 (시안은 7+5 였음)
+
+🚧 **미해결**:
+- `/games/new` / `/community/new` 라우트 실존 여부 미검증 (PM 단계에서 라우트 매핑 확인 필요)
+- 시안 원본의 바디 톤(7+5 그룹 비주얼)과 차이 발생 — 디자인 사후 점검 항목

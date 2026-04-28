@@ -1,7 +1,7 @@
 "use client";
 
 // 2026-04-27: Phase 9 P0-4-A — ResponsiveTable 공용 컴포넌트
-// 시안: Dev/design/BDR-v2-upgrade-prompts.md (P0-4) + _mobile_audit_report.html Med
+// 시안: Dev/design/phase-9-prompts.md (P0-4) + _mobile_audit_report.html Med
 // 사용처(예정, 별도 커밋): 다중 컬럼 board 라벨 손실 4건
 //
 // 왜 만드는가:

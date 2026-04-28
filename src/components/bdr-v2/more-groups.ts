@@ -45,21 +45,24 @@ export const MORE_GROUPS: MoreGroup[] = [
       // achievements: 실제 라우트 /profile/achievements 가 존재하므로 그쪽 우선
       { id: "achievements", label: "업적·배지", icon: "🎖", href: "/profile/achievements" },
       { id: "stats", label: "스탯 분석", icon: "📈", href: "/stats" },
+      // P0-C: 글 작성 핵심 액션 — 커뮤니티 작성 페이지 직진입
+      { id: "communityNew", label: "글 작성", icon: "✍", href: "/community/new" },
     ],
   },
   {
     title: "경기·대회",
     items: [
       { id: "live", label: "라이브 중계", icon: "🔴", href: "/live" },
-      // bracket: 대진은 [id]/bracket 이라 일반 진입은 토너먼트 목록으로
-      { id: "bracket", label: "대진표", icon: "🏆", href: "/tournaments" },
+      // P0-C: 경기 등록 핵심 액션 — 신규 경기 생성 페이지 직진입
+      { id: "gameNew", label: "경기 등록", icon: "➕", href: "/games/new" },
       // gameResult/gameReport: 직접 라우트 없음 → my-games 허브로
+      // (종료 경기에서 결과 확인·평가 진입이 자연스러우므로 유지)
       { id: "gameResult", label: "경기 결과", icon: "📊", href: "/games/my-games" },
       { id: "gameReport", label: "경기 신고·평가", icon: "🚩", href: "/games/my-games" },
       { id: "scrim", label: "스크림 매칭", icon: "🆚", href: "/scrim" },
-      { id: "tournamentEnroll", label: "대회 접수", icon: "📝", href: "/tournaments" },
-      // guestApply: 게스트 신청은 게임 상세에서 진행 → /games 허브
-      { id: "guestApply", label: "게스트 지원 신청", icon: "🙋", href: "/games" },
+      // P0-B 제거: bracket / tournamentEnroll / guestApply
+      //   - 대진표/대회 접수: 토너먼트 선택 후 진입이 자연스러워 가짜 링크 제거
+      //   - 게스트 지원 신청: /games 상세에서 직접 진입 흐름이라 가짜 링크 제거
     ],
   },
   {
@@ -69,8 +72,8 @@ export const MORE_GROUPS: MoreGroup[] = [
       { id: "courtAdd", label: "코트 제보", icon: "📮", href: "/courts/submit" },
       { id: "teamCreate", label: "팀 등록", icon: "➕", href: "/teams/new" },
       { id: "teamManage", label: "팀 관리", icon: "⚙", href: "/teams" },
-      // refereeRequest: 심판 배정은 토너먼트 운영에서 → /tournaments
-      { id: "refereeRequest", label: "심판 배정 요청", icon: "📣", href: "/tournaments" },
+      // P0-B 제거: refereeRequest
+      //   심판 배정은 토너먼트 운영 영역에서 직접 처리되므로 가짜 링크 제거
     ],
   },
   {

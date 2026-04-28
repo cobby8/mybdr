@@ -1,7 +1,7 @@
 "use client";
 
 // 2026-04-27: Phase 9 P0-1 — 모바일 가로 스크롤 힌트
-// 시안: Dev/design/BDR-v2-upgrade-prompts.md (P0-1)
+// 시안: Dev/design/phase-9-prompts.md (P0-1)
 // 사용처: GameResult v2 tab-players, tab-summary 쿼터 스코어, bracket 등
 //
 // 왜 만드는가:
