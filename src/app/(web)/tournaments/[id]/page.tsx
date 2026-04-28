@@ -165,11 +165,19 @@ export default async function TournamentDetailPage({
 
   // 비공개 대회: 관계자(organizer/admin member/super_admin)만 접근, 아니면 존재 숨김(404)
   // session은 상단에서 1회 로드한 값을 재사용 — 기존 가드 동작 동일 (비로그인/비관계자 → 404)
-  if (tournament.is_public === false) {
-    if (!session) return notFound();
+  //
+  // P0-A: 운영자 전용 CTA(심판 배정 요청 등) 노출 여부도 동일 정책으로 판단해야 하므로,
+  // 기존에 if 블록 내부에서 한 번만 쓰던 `insider`를 블록 밖 변수(isInsider)로 끌어내
+  // 비공개 가드와 운영자 CTA 모두에서 재사용. 공개 대회 + 로그인 사용자는 여기서 1회 호출,
+  // 비공개 대회는 가드와 CTA 양쪽에 동일 결과 재사용. 비로그인은 false로 단축.
+  let isInsider = false;
+  if (session) {
     const userId = BigInt(session.sub);
-    const insider = await isTournamentInsider(userId, id, session);
-    if (!insider) return notFound();
+    isInsider = await isTournamentInsider(userId, id, session);
+  }
+  if (tournament.is_public === false) {
+    // 비공개 대회: 관계자(insider)가 아니면 존재 숨김(404)
+    if (!isInsider) return notFound();
   }
 
   // L3: 소속 시리즈/단체 메타 (브레드크럼 4단 + SeriesCard)
@@ -560,7 +568,7 @@ export default async function TournamentDetailPage({
             }
           />
 
-          {/* 다음 액션 유도: 다른 대회 탐색 */}
+          {/* 다음 액션 유도: 다른 대회 탐색 + (운영자 한정) 심판 배정 요청 */}
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/tournaments"
@@ -569,6 +577,24 @@ export default async function TournamentDetailPage({
               <span className="material-symbols-outlined text-base">emoji_events</span>
               다른 대회 보기
             </Link>
+
+            {/* P0-A: 운영자 전용 CTA — 심판 배정 요청 (박제 라우트 진입점)
+             * 노출 조건: insider(organizer | tournamentAdminMember(active) | super_admin)
+             * 위치: 토너먼트 상세 메인 영역 하단. 일반 참가자에게는 노출되지 않음. */}
+            {isInsider && (
+              <Link
+                href={`/tournaments/${id}/referee-request`}
+                className="flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+                style={{
+                  borderColor: "var(--color-primary)",
+                  color: "var(--color-primary)",
+                  backgroundColor: "transparent",
+                }}
+              >
+                <span className="material-symbols-outlined text-base">sports_kabaddi</span>
+                심판 배정 요청
+              </Link>
+            )}
           </div>
         </main>
 
