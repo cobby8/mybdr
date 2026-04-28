@@ -43,13 +43,38 @@ export default function ProfileBillingPage() {
   );
 
   return (
-    <div className="max-w-[640px] mx-auto space-y-6 py-4 px-4">
-      {/* ============ 허브 단일 헤더 ============ */}
-      <h1
-        className="text-2xl font-bold"
-        style={{ color: "var(--color-text-primary)" }}
+    // 시안 v2(1) Billing.jsx — page max-width 880, 빵부스러기 + eyebrow + h1 박제
+    <div className="page mx-auto" style={{ maxWidth: 880 }}>
+      {/* 시안 빵부스러기 (프로필 › 결제·구독) */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-mute)",
+          marginBottom: 10,
+        }}
       >
-        결제
+        <Link
+          href="/profile"
+          style={{ cursor: "pointer", color: "var(--ink-mute)" }}
+        >
+          프로필
+        </Link>{" "}
+        ›{" "}
+        <span style={{ color: "var(--ink)" }}>결제·구독</span>
+      </div>
+
+      {/* 시안 eyebrow + h1 */}
+      <div className="eyebrow">결제 · BILLING</div>
+      <h1
+        style={{
+          margin: "6px 0 18px",
+          fontSize: 28,
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+          color: "var(--ink)",
+        }}
+      >
+        결제·구독 관리
       </h1>
 
       {/* ============ 탭 바 (border-b-2 절제형) ============ */}
@@ -57,7 +82,7 @@ export default function ProfileBillingPage() {
         role="tablist"
         aria-label="결제 카테고리"
         className="flex gap-6 border-b"
-        style={{ borderColor: "var(--color-border-subtle)" }}
+        style={{ borderColor: "var(--color-border-subtle)", marginBottom: 16 }}
       >
         <TabButton
           label="구독"
@@ -261,100 +286,251 @@ function SubscriptionSection() {
             const canCancel = sub.status === "active";
 
             return (
-              <TossCard key={sub.id}>
-                <div className="flex items-start justify-between mb-3">
+              // 시안 v2(1) 박제: 그라디언트 헤더 + 메타 그리드 + 액션 버튼 행 (3섹션 카드)
+              <div
+                key={sub.id}
+                className="card"
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  marginBottom: 18,
+                  background: "var(--color-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                }}
+              >
+                {/* 시안: 그라디언트 헤더 (cafe-blue → cafe-blue-deep) */}
+                <div
+                  style={{
+                    padding: "20px 24px",
+                    background:
+                      "linear-gradient(135deg, var(--cafe-blue), var(--cafe-blue-deep))",
+                    color: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 14,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div>
-                    <h3
-                      className="text-base font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.8,
+                        fontWeight: 700,
+                        letterSpacing: ".12em",
+                        textTransform: "uppercase",
+                        marginBottom: 6,
+                      }}
+                    >
+                      현재 구독
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--ff-display)",
+                        fontWeight: 900,
+                        fontSize: 30,
+                        letterSpacing: "-0.01em",
+                        marginBottom: 4,
+                      }}
                     >
                       {sub.plan.name}
-                    </h3>
-                    {sub.plan.description && (
-                      <p
-                        className="text-xs mt-0.5"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        {sub.plan.description}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded"
-                    style={{
-                      color: statusInfo.color,
-                      backgroundColor: "var(--color-surface)",
-                    }}
-                  >
-                    {statusInfo.label}
-                  </span>
-                </div>
-
-                <div
-                  className="space-y-2 text-xs sm:text-sm"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  <div className="flex justify-between">
-                    <span>요금</span>
-                    <span
-                      className="font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
+                    </div>
+                    <div style={{ fontSize: 13, opacity: 0.9 }}>
                       {sub.plan.price.toLocaleString("ko-KR")}원 /{" "}
                       {sub.plan.plan_type === "monthly" ? "월" : "회"}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>시작일</span>
-                    <span>
-                      {new Date(sub.started_at).toLocaleDateString("ko-KR")}
-                    </span>
-                  </div>
-                  {sub.expires_at && (
-                    <div className="flex justify-between">
-                      <span>만료일</span>
-                      <span>
-                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        padding: "4px 10px",
+                        background: "rgba(255,255,255,.18)",
+                        borderRadius: 3,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: ".06em",
+                        display: "inline-block",
+                        marginBottom: 6,
+                        color: statusInfo.color,
+                        // 그라디언트 헤더 위에선 가독성을 위해 흰색 글씨 + 색상 dot
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          backgroundColor: statusInfo.color,
+                          marginRight: 6,
+                          verticalAlign: "middle",
+                        }}
+                      />
+                      <span style={{ color: "#fff" }}>
+                        {statusInfo.label.toUpperCase()}
                       </span>
                     </div>
+                    {sub.expires_at && (
+                      <div style={{ fontSize: 12, opacity: 0.85 }}>
+                        {sub.status === "cancelled" && sub.is_usable
+                          ? "만료 · "
+                          : "다음 결제 · "}
+                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 시안: 메타 그리드 (140px 1fr 2열, 14px 폰트) */}
+                <div
+                  style={{
+                    padding: "18px 24px",
+                    display: "grid",
+                    gridTemplateColumns: "140px 1fr",
+                    rowGap: 10,
+                    fontSize: 14,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <div style={{ color: "var(--ink-dim)" }}>요금</div>
+                  <div>
+                    {sub.plan.price.toLocaleString("ko-KR")}원 /{" "}
+                    {sub.plan.plan_type === "monthly" ? "월" : "회"}
+                  </div>
+                  <div style={{ color: "var(--ink-dim)" }}>시작일</div>
+                  <div>
+                    {new Date(sub.started_at).toLocaleDateString("ko-KR")}
+                  </div>
+                  {sub.expires_at && (
+                    <>
+                      <div style={{ color: "var(--ink-dim)" }}>
+                        {sub.status === "cancelled" ? "만료일" : "다음 갱신"}
+                      </div>
+                      <div>
+                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                        {sub.status === "active" && " · 자동 갱신"}
+                      </div>
+                    </>
+                  )}
+                  {sub.plan.description && (
+                    <>
+                      <div style={{ color: "var(--ink-dim)" }}>혜택</div>
+                      <div>{sub.plan.description}</div>
+                    </>
                   )}
                 </div>
 
-                {canCancel && (
-                  <button
-                    className="w-full mt-4 py-2.5 rounded text-sm font-bold"
-                    style={{
-                      color: "var(--color-error, #EF4444)",
-                      backgroundColor: "var(--color-surface)",
-                      border: "1px solid var(--color-border-subtle)",
-                    }}
-                    onClick={() => setCancelTarget(sub)}
-                  >
-                    구독 해지
-                  </button>
-                )}
-
-                {sub.status === "cancelled" && sub.is_usable && sub.expires_at && (
-                  <div
-                    className="mt-4 p-3 rounded text-xs"
-                    style={{
-                      backgroundColor: "var(--color-surface)",
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined text-sm align-text-bottom mr-1"
-                      style={{ color: "var(--color-accent)" }}
+                {/* 시안: 하단 액션 버튼 행 (border-top 구분) */}
+                <div
+                  style={{
+                    padding: "14px 24px",
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {canCancel && (
+                    <button
+                      className="btn btn--ghost"
+                      style={{
+                        marginLeft: "auto",
+                        color: "var(--danger)",
+                      }}
+                      onClick={() => setCancelTarget(sub)}
                     >
-                      info
-                    </span>
-                    {new Date(sub.expires_at).toLocaleDateString("ko-KR")}까지
-                    계속 이용 가능합니다.
-                  </div>
-                )}
-              </TossCard>
+                      구독 해지
+                    </button>
+                  )}
+                </div>
+
+                {/* 해지 예정 안내 (active 외 상태) */}
+                {sub.status === "cancelled" &&
+                  sub.is_usable &&
+                  sub.expires_at && (
+                    <div
+                      style={{
+                        margin: "0 24px 18px",
+                        padding: "12px 14px",
+                        borderRadius: 4,
+                        backgroundColor: "var(--bg-alt)",
+                        color: "var(--ink-mute)",
+                        fontSize: 12,
+                        borderLeft: "3px solid var(--accent)",
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: 14,
+                          color: "var(--accent)",
+                          verticalAlign: "text-bottom",
+                          marginRight: 4,
+                        }}
+                      >
+                        info
+                      </span>
+                      {new Date(sub.expires_at).toLocaleDateString("ko-KR")}까지
+                      계속 이용 가능합니다.
+                    </div>
+                  )}
+              </div>
             );
           })}
+
+          {/* 시안 v2(1): 업그레이드 프롬프트 카드 (border-left accent) */}
+          <div
+            className="card"
+            style={{
+              padding: "18px 22px",
+              marginBottom: 22,
+              background: "var(--bg-alt)",
+              borderLeft: "3px solid var(--accent)",
+              border: "1px solid var(--border)",
+              borderRadius: 4,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    marginBottom: 2,
+                    color: "var(--ink)",
+                  }}
+                >
+                  팀장이라면?{" "}
+                  <span style={{ color: "var(--accent)" }}>TEAM PRO</span>{" "}
+                  플랜으로
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--ink-mute)",
+                  }}
+                >
+                  로스터 무제한 · 대회 우선 신청 · 통합 통계
+                </div>
+              </div>
+              <Link
+                href="/pricing"
+                className="btn btn--primary"
+                style={{ textDecoration: "none" }}
+              >
+                요금제 비교 →
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
@@ -561,8 +737,30 @@ function PaymentsSection() {
           </div>
         </TossCard>
       ) : (
-        // v2 .board 토큰 사용 — 다른 v2 보드(rankings/teams)와 동일 패턴
-        <div className="board">
+        <>
+          {/* 시안 v2(1): 결제 내역 섹션 헤더 (h2 + 전체 다운로드 링크) */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--ink)",
+              }}
+            >
+              결제 내역
+            </h2>
+          </div>
+
+          {/* v2 .board 토큰 사용 — 다른 v2 보드(rankings/teams)와 동일 패턴 */}
+          <div className="board">
           {/* 헤더: 4열 grid */}
           <div
             className="board__head"
@@ -731,7 +929,8 @@ function PaymentsSection() {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {/* 페이지네이션 */}
