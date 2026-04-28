@@ -9,6 +9,7 @@
 //  - 관중수 412명 생략 — DB 필드 없음
 //  - 하이라이트/공유/기록지 버튼 생략 — 기능 없음
 
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { MatchDataV2 } from "./game-result";
 
 export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
@@ -169,17 +170,23 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           />
         </div>
 
-        {/* 쿼터 스코어 표 */}
+        {/* 쿼터 스코어 표 — ScrollableTable 로 모바일 가로 스크롤 힌트 + 페이드 제공.
+            OT 다수 시 표 폭이 넘어가는 경우 사용자가 스와이프 단서를 받음.
+            wrapper(grid)는 padding/background/borderRadius 그대로, overflow 만 ScrollableTable 위임 */}
+        <div style={{ marginTop: 24 }}>
+        <ScrollableTable hint="← 좌우로 스와이프해 모든 쿼터 보기">
         <div
           style={{
             display: "grid",
             gridTemplateColumns: `1fr repeat(${quarters.length}, 56px) 60px`,
             gap: 6,
-            marginTop: 24,
             padding: "12px 16px",
             background: "rgba(255,255,255,.08)",
             borderRadius: 6,
-            overflow: "auto",
+            // grid 가 컨테이너 폭을 넘어가면 ScrollableTable 의 overflowX:auto 가 처리.
+            // grid 자체에 width:max-content 를 주어 columns 가 줄어들지 않게 유지
+            width: "max-content",
+            minWidth: "100%",
           }}
         >
           {/* 첫 행 — 헤더 (빈칸 + Q1~Q4 + TOTAL) */}
@@ -267,6 +274,8 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           >
             {awayScore}
           </div>
+        </div>
+        </ScrollableTable>
         </div>
       </div>
     </div>

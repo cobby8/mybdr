@@ -7,6 +7,7 @@
 //  - POS (포지션): tournamentTeamPlayer 에 position 필드 없음 → 생략 (14컬럼 유지)
 //  - 시안 star 표시: MVP 플레이어 id 매칭으로 star 표시
 
+import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { MatchDataV2, MvpPlayerV2, PlayerRowV2 } from "./game-result";
 
 export function TabPlayers({ match }: { match: MatchDataV2 }) {
@@ -82,8 +83,9 @@ function TeamTable({
         </div>
       </div>
 
-      {/* 테이블 — 가로 스크롤 지원 */}
-      <div style={{ overflowX: "auto" }}>
+      {/* 테이블 — ScrollableTable 로 가로 스크롤 + 페이드 마스크 + 마이크로카피 제공.
+          홈/원정 두 테이블 각각 독립 인스턴스 → 스크롤 상태/끝 도달 여부 분리 추적 */}
+      <ScrollableTable>
         {/* 헤더 행 */}
         <div
           style={{
@@ -137,7 +139,7 @@ function TeamTable({
             기록된 선수가 없습니다.
           </div>
         )}
-      </div>
+      </ScrollableTable>
     </div>
   );
 }
