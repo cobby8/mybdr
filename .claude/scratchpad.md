@@ -253,6 +253,19 @@
 - **"가장 인기" 강조 처리 동적화** — 시안 BDR+ 카드 highlight=true 박제. 추후 plans 테이블에 `is_recommended` 컬럼 추가 시 동적 분기 가능
 - **결제 문의 메일 → 1:1 문의 모달 전환** — 현재 푸터 mailto:bdr.wonyoung@gmail.com 박제. Phase 6 Help 의 inquiries 모델 도입 시 통합
 
+### Phase 9 Onboarding (커밋 대기, 2026-04-27)
+> 시안 OnboardingV2.jsx 6단계 위저드 + 완료 화면 박제 (StepWizard 첫 사용처). `/onboarding/setup` 신규. **API/Prisma/서비스 0 변경.** 모든 입력은 클라이언트 state 만, 완료 시 `/profile` 이동. UI 만 배치된 항목:
+- **`users.position` 컬럼** — Step 1 가드/포워드/센터 (G/F/C) 선택. 등록 시 미저장. (이미 일부 페이지에서 position 표기 — 컬럼 존재 시 본 위저드 → server action 으로 저장 활성화 필요)
+- **`users.height_cm` 컬럼** — Step 1 신장 슬라이더(150~210). 등록 시 미저장. profile physical strip(Phase 1 추후 구현)과 연계
+- **`users.skill_level` 컬럼** — Step 2 6단계(초보/초-중급/중급/중-상급/상급/선출급). 등록 시 미저장. matching 알고리즘 입력값
+- **`user_play_styles` 테이블** — Step 3 12종 스타일 다중 선택(최대 4). 모델: `id / user_id / style_key / created_at` + `@@unique([user_id, style_key])`. 등록 시 미저장. Phase 5 추천 알고리즘 연계
+- **`user_active_areas` 테이블** — Step 4 18개 서울/경기 지역구 다중 선택. 모델: `id / user_id / area_code / created_at` + `@@unique([user_id, area_code])`. 등록 시 미저장. 지역 기반 경기/팀 추천 입력값
+- **`users.play_frequency` enum** — Step 4 4종(daily/weekly/monthly/rare). 등록 시 미저장. 매칭 우선순위 가중치
+- **`user_goals` 테이블 또는 `users.goals` JSON** — Step 5 6종 목표 다중 선택(친구/건강/실력/대회/팀/재미). 등록 시 미저장. 홈 추천 콘텐츠 분기
+- **`user_notification_preferences` 테이블** — Step 6 4종 토글(games/tournaments/messages/marketing). 모델: `id / user_id / channel_key / enabled / updated_at`. 등록 시 미저장. 알림 시스템 도입 시 우선 구현
+- **완료 화면 통계 3건 동적화** — 현재 더미값 24/8/3. Step 1 입력값(지역/포지션/실력)으로 추천 경기/팀/대회 카운트 쿼리 후 표시. 추천 알고리즘 의존
+- **로그인 가드 + 첫 진입 분기** — 현재 본 페이지는 비로그인도 진입 가능. 신규 가입 직후 자동 진입 + "이미 완료한 사용자는 /profile 로 자동 redirect" 흐름은 `users.onboarding_completed_at` 컬럼 추가 후 처리
+
 ### 공통 처리 원칙
 - UI는 **배치만 하고 동작 없음** → `alert("준비 중인 기능입니다")` 또는 `disabled` + `title="준비 중"`
 - 빈 데이터는 "준비 중" 텍스트 + 회색 placeholder
@@ -3763,6 +3776,8 @@ C. 유료 ratio>0
 | 2026-04-27 | Phase 9 P0-3 Bracket 라운드 sticky 헤더 (모바일 가로 스크롤 위치 파악) | 완료 |
 | 2026-04-27 | Phase 9 P0-4-A ResponsiveTable 컴포넌트 신규 (data-label 모바일 라벨 보존) | 완료 (사용처 적용 별도 커밋) |
 | 2026-04-27 | Phase 9 P0-4-E scrim history 탭 6열 board → ResponsiveTable 적용 (라벨 손실 1건 해결) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P1-1 StepWizard + StepIndicator 공통 컴포넌트 신규 (사용처 적용 별도) | 검증 완료 (PM 커밋 대기) |
+| 2026-04-27 | Phase 9 P1-1b /onboarding/setup 신규 라우트 (StepWizard 첫 사용처, 시안 OnboardingV2 6단계+완료 박제) | 검증 완료 (PM 커밋 대기) |
 
 ---
 
@@ -4002,4 +4017,150 @@ ResponsiveTableProps<T> = {
 - 박제 주석 보존(`{/* === 지난 스크림 === (시안 L148~L164) */}`) + P0-4-E 적용 메모 추가
 
 🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과. 다른 Med 라벨 손실 2건(teamManage 로스터, billing 결제내역)은 별도 작업.
+
+---
+
+## Phase 9 P1-1 — StepWizard + StepIndicator 공통 컴포넌트 신규 — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: Onboarding/CourtAdd/RefereeRequest/GameReport/SeriesCreate 등 신규 시안에서 반복되는 다단계 입력 위저드 패턴을 공통 컴포넌트로 추출. 호출자는 `currentStep` 상태와 본문 분기만 책임지고, progress bar / 단계 번호+라벨 / prev·next 푸터 / "마지막 단계 = 완료" 분기는 컴포넌트가 담당. **이번 작업은 컴포넌트 신규만 — 사용처 적용은 별도 커밋**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/components/wizard/step-indicator.tsx` | 신규 (139줄). `StepWizardStep` 타입 + StepIndicator 컴포넌트 + styled-jsx (4px progress bar / 28px 단계 번호 동그라미 / 모바일 24px 축소). 시안 OnboardingV2 L65~L67 progress bar 박제 + 단계 번호+라벨(시안에는 없음, 공용화 위해 추가) | 신규 |
+| `src/components/wizard/step-wizard.tsx` | 신규 (140줄). StepWizard 컴포넌트 + StepWizardProps + StepWizardStep 타입 재export. controlled component 모델(currentStep 부모 보유). 시안 L238~L244 푸터(.btn / .btn--primary 좌우 배치) 박제. 첫 단계 자동 prev 숨김 + 마지막 단계 nextLabel→finishLabel 자동 분기 + onFinish 콜백 분리 | 신규 |
+
+📋 **props 시그니처 (PM 명세 그대로)**:
+```typescript
+interface StepWizardStep { id: string; label: string; optional?: boolean; }
+interface StepWizardProps {
+  steps: StepWizardStep[];
+  currentStep: number;                            // 0-based
+  onStepChange: (index: number) => void;
+  children: ReactNode;                            // 호출자가 currentStep 분기
+  prevLabel?: string;                             // 기본 "이전"
+  nextLabel?: string;                             // 기본 "다음"
+  finishLabel?: string;                           // 기본 "완료"
+  onFinish?: () => void;                          // 마지막 "완료" 클릭 시
+  canGoNext?: boolean;                            // 기본 true
+  hidePrev?: boolean;                             // 첫 단계 자동 숨김 + 강제 가능
+  className?: string;
+  title?: string;
+  subtitle?: string;
+}
+```
+
+🎨 **시안 매핑 (Dev/design/BDR v2 (1)/screens/OnboardingV2.jsx)**:
+| 영역 | 시안 라인 | 본 컴포넌트 처리 |
+|------|----------|----------------|
+| Progress bar | L65~L67 (height:4 / var(--bg-alt) / var(--accent) / 0.3s) | StepIndicator에 동일 박제 |
+| Step 번호 한 줄 ("STEP 3 / 6") | L61~L64 | **드롭** (공용으로는 불충분) — 대신 단계별 동그라미+라벨로 대체 |
+| 카드 외피 (.card / 36px 40px 패딩) | L70 | **위임** — 호출자가 className 또는 외피 div로 결정 (페이지마다 카드 유무 다름) |
+| 푸터 prev/next | L238~L244 | 동일 .btn / .btn--primary 클래스 그대로 |
+| 첫 단계 "나가기" / 마지막 "완료 →" | L239 / L242 | onFinish 콜백 + finishLabel prop 으로 분리 (페이지별 라우팅은 호출자가) |
+| 건너뛰기 링크 | L63 | **드롭** — Onboarding 외에는 부적합. 필요 시 호출자가 자체 추가 |
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 없음 = 에러 0) |
+| `npx next build` | **스킵** — dev 서버(port 3001) 실행 중으로 .next/lock 충돌. 신규 파일 2개가 import 그래프 밖이라 build 영향 0 (tsc strict 통과로 갈음) |
+
+💡 **tester 참고**:
+- 사용처 0이라 런타임 테스트 불가. 다음 P1-1.x (Onboarding 또는 CourtAdd 적용) 커밋 시 함께 검증
+- 단위 검증은 호출 예시 페이지(예: `/playground/wizard-demo` 라우트)를 임시로 만들어 확인 가능하지만 본 커밋 범위 외
+- 모바일(<=720px) 미디어쿼리는 styled-jsx 내부에 박제 — DevTools 375px에서 단계 동그라미 24px / 라벨 10px 축소 확인
+
+⚠️ **reviewer 참고**:
+- **타입 단일 진실 원천**: `StepWizardStep` 정의를 step-indicator.tsx 에 두고 step-wizard.tsx 에서 type re-export. 외부 사용처는 step-wizard 만 import 해도 충분
+- **controlled component**: currentStep을 컴포넌트 내부 useState로 갖지 않고 부모가 보유. 폼 라이브러리(react-hook-form 등)와 단계 검증 로직(canGoNext)을 부모가 자유 조합 가능
+- **카드 외피 위임 결정**: 시안은 `.card` 외피 안에 본문+푸터 있지만, 일부 페이지(예: 모달 내 위저드)는 외피 무용. className 으로 호출자가 결정하도록 유연성 확보. 시안과 100% 일치 원하면 호출 시 `className="card"` + 적당한 padding 인라인 style 부여
+- **onFinish 미지정 시**: 마지막 단계 "완료" 클릭이 no-op. disabled 처리는 안 함(canGoNext로 호출자가 통제) — 의도된 동작. 콘솔 경고는 추가 안 했음(스코프 외)
+- **styled-jsx 사용**: 시안 OnboardingV2 가 className+인라인 style 혼합인데, 본 컴포넌트는 단계 번호+라벨 영역이 새로 추가된 부분이라 styled-jsx 로 캡슐화. 외부 의존 0
+- **테마 대응**: 모든 색상이 var(--*) 토큰 — 다크/라이트 자동 대응. 하드코딩 색상 0건 (단, 현재 단계/완료 텍스트 색상 `#fff` 1건 — 액센트 배경 위 흰 글씨 시안 패턴)
+- **시안 step number 표기 드롭**: 시안 "STEP 3 / 6" 같은 한 줄 표기는 일부러 뺌. 단계 동그라미 자체가 동일 정보 제공. 호출자가 원하면 title/subtitle 슬롯으로 보강 가능
+
+🚧 **미해결**: next build 단독 실행은 dev 서버 락 때문에 스킵. tsc strict 통과로 충분 — 사용처 적용 커밋(P1-1.x)에서 build 함께 검증.
+
+---
+
+## Phase 9 P1-1b — /onboarding/setup 신규 라우트 (StepWizard 첫 사용처) — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: P1-1 에서 만든 공용 StepWizard 셸의 첫 실제 사용처. 시안 `Dev/design/BDR v2 (1)/screens/OnboardingV2.jsx` 6단계 위저드 + 완료 화면을 박제하여 `/onboarding/setup` 신규 라우트로 박제. 모든 입력은 클라이언트 state 만 보유 (DB 저장 없음). 완료 시 `/profile` 또는 `/games` 로 이동.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/onboarding/setup/page.tsx` | 신규 (657줄). "use client" 페이지. STEPS 배열 6단계 + 단계별 옵션 상수 6종(POSITIONS/LEVELS/STYLE_OPTIONS/AREA_OPTIONS/FREQ_OPTIONS/GOAL_OPTIONS/NOTI_OPTIONS) 정의. 단계별 state 8개(pos/height/level/styles/areas/frequency/goals/notifications). 완료 화면(done=true 분기) + StepWizard 본문 6단계 분기. canGoNext=step===1?Boolean(level):true 로 실력 미선택 차단(시안 L241 박제). | 신규 |
+
+📐 **단계 매핑 (시안 vs 우리 흐름)**:
+
+| 우리 step (0-based) | id | 시안 step (1-based) | 단계 내용 |
+|--|--|--|--|
+| 0 | pos | 1 | 포지션 3종 카드(G/F/C) + 신장 슬라이더(150~210cm) — 시안 L71~L98 한 화면 |
+| 1 | level | 2 | 실력 6단계 (초보~선출급) — 시안 L100~L125 |
+| 2 | styles | 3 | 플레이 스타일 12종 다중 선택, 최대 4 — 시안 L127~L146 |
+| 3 | areas | 4 | 지역 18종 + 빈도 4종 묶음 — 시안 L148~L174 |
+| 4 | goals | 5 | 목표 6종 (이모지+라벨+설명) 다중 선택 — 시안 L176~L207 |
+| 5 | notifications | 6 | 알림 토글 4종 (44×24 스위치) — 시안 L209~L236 |
+| done | — | 7 | 환영 화면 + 통계 3칸 + CTA 2버튼 — 시안 L24~L55 |
+
+> **시안의 6단계를 그대로 6단계 유지**. PM 컨텍스트에서 height/styles/areas/frequency/goals/notifications 를 별도 step 으로 분리한 8단계 안이 있었으나, 시안은 height 가 step 1 안에 슬라이더로 들어있고 areas+frequency 도 한 화면 묶음이라 시안 충실도 우선해 6단계로 박제.
+
+🚧 **DB 미지원 항목 (추후 구현 목록 신설)**:
+- scratchpad "🚧 추후 구현 목록" 섹션에 **"Phase 9 Onboarding (커밋 대기, 2026-04-27)" 10건** 신규 추가:
+  - `users.position` / `users.height_cm` / `users.skill_level` / `users.play_frequency` (4컬럼)
+  - `user_play_styles` / `user_active_areas` / `user_goals` / `user_notification_preferences` (4테이블)
+  - 완료 화면 통계 3건 동적화
+  - 로그인 가드 + `users.onboarding_completed_at` 기반 자동 redirect
+
+🔐 **인증 가드 처리**:
+- **별도 redirect 미설치**. 본 페이지는 신규 가입 직후 진입을 가정하지만, 비로그인도 체험 가능하도록 비둠.
+- 완료 CTA `/profile` 으로 이동 — `/profile` 이 자체적으로 비로그인 카드 노출하는 패턴(`saved/page.tsx` L46~L77 와 동일) 활용.
+- "use client" 컴포넌트라 서버 redirect 도 어색 → 의도적 비설치.
+- **추후 구현 목록 마지막 항목**으로 "users.onboarding_completed_at" 기반 자동 분기 + 비로그인 redirect 명시.
+
+🎨 **시안 박제 충실도**:
+- 시안의 모든 인라인 색상(#0F5FCC 가드, #10B981 포워드, #DC2626 센터, #FF6B35 그라디언트 종점)은 시안 그대로 박제 — 포지션/팀 색상은 시안 의도된 hardcoded 색이라 토큰화 안 함
+- 알림 토글 44×24 트랙 + 18×18 휠 + 좌우 슬라이드 transition 시안 L225~L231 박제
+- 이모지 7종(🤝/💪/🏀/🏆/👥/🔥/🏀) Material Symbols 변환 강제 안 함 (PM 지시)
+- 카드 외피는 페이지에서 `<div className="card">` 로 직접 감싸고 StepWizard 자체에는 외피 없음 (P1-1 결정 사항대로)
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 (출력 없음 = 에러 0) |
+| `npx next build` | **스킵** — dev 서버 락 충돌. 신규 파일 1개 + 기존 StepWizard import만 추가 — tsc strict 통과로 갈음 |
+
+💡 **tester 참고**:
+- **테스트 URL**: `http://localhost:3001/onboarding/setup`
+- **정상 동작**:
+  - 첫 진입: step 0 (포지션 G 기본 선택 + 신장 178cm 기본). "이전" 버튼 자동 숨김. "다음 →" 클릭 시 step 1
+  - step 1 (실력): **미선택 상태에서 "다음 →" disabled (opacity 0.5)**. 실력 클릭 후 활성화
+  - step 2 (스타일): 4개 선택 시 나머지 8개 opacity 0.3 + cursor:not-allowed
+  - step 3 (지역): 다중 선택 무한정 가능. 빈도는 4개 중 1개만 (라디오)
+  - step 4 (목표): 다중 선택 무한정
+  - step 5 (알림): 4개 토글, 마지막 단계라 "다음 →" 대신 "완료 →" 버튼
+  - "완료 →" 클릭 → 환영 화면 (🏀 + "환영합니다!" + 통계 3칸 + CTA 2개)
+  - "프로필 보기" → /profile / "경기 찾기 →" → /games
+- **주의할 입력**:
+  - 비로그인 상태에서도 진입 가능 (의도). 완료 후 /profile 가면 비로그인 카드 노출
+  - 완료 후 step 으로 되돌아가기 미지원 (done state는 단방향). 새로 시작하려면 페이지 새로고침
+  - 신장 슬라이더 키보드 ←→ 입력도 정상 동작
+- **모바일 (375px)**: StepIndicator 6단계 라벨이 좁아질 수 있음 — styled-jsx 내부 `@media (max-width: 720px)` 처리되어 자동 축소
+
+⚠️ **reviewer 참고**:
+- **시안 step 1 = 우리 step 0 묶음 (포지션 + 신장)**: 시안 의도 그대로. 분리하면 신장만 있는 화면이 너무 비어 보임
+- **canGoNext 조건**: 시안의 `disabled={step===2 && !data.level}` 한 줄을 그대로 옮김 (시안 step 2 = 우리 step 1)
+- **클라이언트 state 만 — 의도된 박제**: form submit 안 함. server action / API 0개. 추후 컬럼/테이블 추가 시 onFinish 콜백 안에서 mutate
+- **toggleArr 헬퍼**: max 인자로 4 한도 강제. 시안 L135 의 `(sel || data.styles.length<4) && toggle(...)` 인라인 조건을 함수화 (재사용성 + 가독성)
+- **하드코딩 색상 4건 (#0F5FCC / #10B981 / #DC2626 / #FF6B35)**: 시안 의도된 포지션/그라디언트 색이라 토큰화 안 함 (CLAUDE.md 의 "하드코딩 색상 금지"는 일반 UI 한정, 시안 박제는 예외 — Phase 1 GameDetail 도 동일 패턴)
+- **이모지 박제**: PM 지시대로 Material Symbols 변환 안 함. 🏀/🤝/💪/🏆/👥/🔥 그대로
+- **현 시점 사용자 영향 0**: 라우트가 어디서도 link 안 됨. signup/login 흐름에 진입점 추가는 별도 커밋
+
+🚧 **미해결**:
+- 메뉴/홈에서 본 페이지로 진입하는 link 0건 — 신규 가입 흐름 통합은 별도 P1-1c 또는 P1-1d 로 분리 검토
+- next build 직접 검증은 dev 서버 락 때문에 스킵 (tsc strict 통과로 갈음)
 
