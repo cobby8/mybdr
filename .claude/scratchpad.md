@@ -2286,6 +2286,8 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 ## 작업 로그 (최근 10건)
 | 날짜 | 담당 | 작업 | 결과 |
 |------|------|------|------|
+| 04-27 | developer | **/profile/billing payments 탭 v2 4열 board 재구성 (옵션 A)** — 1파일 수정(`src/app/(web)/profile/billing/page.tsx` `PaymentsSection` 함수만, 약 +30줄). 카드 리스트(`<TossCard>` 반복) → v2 `.board` 4열 grid("140px 1fr 120px 220px"): **결제일 / 내역 / 금액 / 상태**. 결제일=mono 폰트 13px ink-dim YYYY.MM.DD. 내역=description ellipsis + 메타라인(payment_method · 환불일/환불금액). 금액=mono 700 ink, refunded면 line-through+ink-mute. **상태 컬럼 inline 액션**: badge(라벨 1px border + bg-alt) + paid면 영수증 Link(cafe-blue, /pricing/success 재사용) + can_refund면 환불 button(error border, setRefundTarget). flex-wrap으로 좁은 폭 대응. 빈 상태 `<TossCard>` + receipt_long 그대로 보존, 페이지네이션·환불 모달·SubscriptionSection 0 변경. **API/SWR/모달 흐름 0 변경**(`/api/web/profile/payments` + `/api/web/payments/{id}/refund`). v2 토큰: `.board/.board__head/.board__row/.title/.badge` + 변수 `--ff-mono/--ink/--ink-dim/--ink-mute/--bg-alt/--border/--cafe-blue/--radius-chip/--color-error`. tsc --noEmit EXIT=0 PASS / next build PASS(`/profile/billing` ○ static). | ✅ (커밋 금지 — PM 처리) |
+| 04-27 | developer | **Phase 9 P0-4-D — match teams 탭 5열 board → ResponsiveTable 적용** — 1파일 수정(`src/app/(web)/match/page.tsx` 1318→1341줄, +23 / git diff +93 -70). teams 탭(L935~L1015) 인라인 grid(`56px 1fr 90px 100px 80px`) 헤더+행 81줄 → ResponsiveTable 5컬럼 정의로 교체(`rank/team/rating/record/status`, mobileMode="card", rowKey=tm.id). 셀 렌더 100% 보존: 색상칩 22x22 + 팀명 / 레이팅 monospace 700 / "12W 3L" monospace 12px / STATUS_BADGE_STYLE.open "확정" 배지. 데이터(appliedTeams) 0 변경, 다른 탭(overview/schedule/bracket/rules) 0 변경, TOURNAMENTS/TEAMS 더미 0 변경. import: `ResponsiveTable from "@/components/ui/responsive-table"` 추가. mobileLabel "순위" 1건만 별도 지정(나머지는 label 재사용). 모바일(<=720px)에서 5열 라벨 손실 → "라벨: 값" 카드 자동 변환. tsc --noEmit EXIT=0 PASS / next build PASS. | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **GameResult v2 모바일 가로 스크롤 힌트 (ScrollableTable)** — 신규 1(`src/components/ui/scrollable-table.tsx` "use client" 약 120줄: useRef+useState scrollable/atEnd + ResizeObserver 측정 + 우측 32px 페이드 마스크 `linear-gradient(to right, transparent, var(--bg))` opacity 트랜지션 200ms + 모바일 마이크로카피 "← 좌우로 스와이프해 모든 통계 보기"(@media >=720px display:none) + iOS WebkitOverflowScrolling) + 수정 1(`src/app/live/[id]/_v2/tab-players.tsx` import 추가 + TeamTable 내 `<div style={{ overflowX: "auto" }}>` → `<ScrollableTable>` 교체. 홈/원정 두 테이블 각각 독립 인스턴스 → 스크롤 상태 분리). API/Prisma/Server Action 0 변경, 테이블 grid·minWidth:860·헤더·DNP·MVP 표시 100% 보존. var(--bg) 변수 사용으로 라이트/다크 모드 모두 자연스럽게 fade. tsc --noEmit EXIT=0 PASS / next build PASS. | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **코트 대관 Phase B reviewer 후속 4건 (라벨/문구/쿼리)** — 4파일 수정. ①`(admin)/admin/payments/admin-payments-content.tsx` STATUS_LABEL/COLOR에 `partial_refunded:"부분 환불"` + info 톤 컬러 추가(B-7에서 신규 도입한 status 값 admin 화면 매핑). ②`(web)/courts/[id]/booking/_booking-client.tsx` 환불 정책 안내문 "시작 24h 전 100% / 12h 전 50%" → "3일 전 100% / 1~2일 전 50% / 당일 0%" (refund-policy.ts 정책과 정렬). ③같은 파일 `successUrl` query `?bookingId=...` 제거(B-3 confirm/booking은 orderId 파싱 — bookingId 미사용). failUrl은 payment-fail 페이지가 사용하므로 유지. ④`payment-fail/page.tsx` "예약은 자동으로 취소되었습니다" → "예약은 자동으로 취소 처리됩니다"(미래형, B-4 API 응답 도착 전 안내 일관성). **동작 변경 0** — 라벨/문구/미사용 쿼리만. TOSS SDK 인자(method/amount/orderId/orderName/successUrl/failUrl/customerEmail/customerName) 변경 0. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
 | 04-27 | developer | **코트 대관 Phase B-7 — DELETE /bookings/[id] 환불 정책 적용** — 1파일 수정(`src/app/api/web/bookings/[id]/route.ts` 183→ ~360줄). DELETE 핸들러만 교체, GET/loadBookingWithPermission/findBooking 100% 보존. **신규 import**: `calcRefundAmount` from `@/lib/courts/refund-policy`. **신규 가드**: `now >= start_at` → 409 ALREADY_STARTED. **3분기 환불 로직**: ①무료(payment_id=null OR final_amount=0) → status=cancelled만 + `refund: null` ②유료 ratio=0(당일+본인) → 토스 호출 X, DB만 cancel + `refund: { amount:0, ratio:0, label:"당일" }` ③유료 ratio>0 → 토스 `/v1/payments/{key}/cancel` POST(Basic Auth, body `{cancelReason, cancelAmount}`) → 성공 시 `prisma.$transaction([court_bookings.update + payments.update])` 동시 갱신. **운영자 정책**: `result.isManager`이면 ratio=1.0 강제(전액 환불) — 운영 사정 취소 시 사용자 보호. **payments.status 결정**: `refund.amount < paidAmount` → "partial_refunded" / 전액 → "refunded". **결제 가드**: payments 미존재 500 PAYMENT_NOT_FOUND, 이미 환불(`refunded`/`partial_refunded`/`cancelled`) 400 PAYMENT_ALREADY_REFUNDED. **토스 실패**: 트랜잭션 외부 호출이라 500 응답 시 DB 변경 0(자동 롤백). **dev fallback**: `secretKey` 또는 `toss_payment_key` 미존재 시 토스 호출 skip + DB 갱신만(기존 `/payments/[id]/refund` 패턴 재사용). **보존**: getWebSession·CancelSchema·loadBookingWithPermission·isCourtManager·apiSuccess/apiError·기존 ALREADY_TERMINATED 가드 모두 그대로. tsc --noEmit EXIT=0 PASS | ✅ (커밋 금지 — PM 처리) |
@@ -2305,7 +2307,6 @@ DB tournamentTeam.status | 대회 시작일 | → RegStatus
 | 04-22 | developer | **Phase 5 Rank — /rankings v2 재구성 (a 토글 3종: 팀/선수/외부BDR)** — 신규 3 (`_components/v2-podium.tsx` 1·2·3등 카드 [2등/1등/3등] 배치 + 가운데 1등 translateY(-12px) + display 폰트 #N / `v2-team-board.tsx` 6열 보드(순위·팀색배지·이름링크·레이팅(=wins임시)·승[ok색]·패·승률) / `v2-player-board.tsx` 8열 보드 + 정렬pills 4종(레이팅/PPG/APG/RPG) + 클라 정렬 + PPG=avg_points / APG=total_assists/games_played / RPG=total_rebounds/games_played / 레이팅·변동 "—") + 수정 2 (`_components/rankings-content.tsx` 전면 교체: theme-switch 3종(팀/선수/외부BDR) + eyebrow + h1 "2026 시즌 랭킹" + V2Podium + V2TeamBoard/V2PlayerBoard 분기 + 외부BDR 탭은 `<BdrRankingTable>` + 일반/대학 부 토글 / `loading.tsx` v2 톤 가볍게 .page+.eyebrow+.board 8행). 보존 1 (`_components/bdr-ranking-table.tsx` 0수정, 외부BDR 탭에서 그대로 호출). **API/Prisma/서비스 0 변경** (/api/web/rankings?type=team\|player + /api/web/rankings/bdr 그대로). 시안 Rank.jsx 충실. globals.css `.page/.eyebrow/.theme-switch/.board/.card` + 변수 `--accent/--ok/--cafe-blue/--cafe-blue-soft/--cafe-blue-deep/--bg-elev/--bg-alt/--ink-mute/--ink-dim/--ink-soft/--ff-display/--ff-mono/--border/--radius-chip` 전부 기존 정의 활용. 추후 구현 Phase 5 Rank 5건 신설(teams.rating ELO / users.rating+trend / PPG·APG·RPG 정규화 / 시즌 갱신 cron / 포디움 메타 포맷). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 4 PostWrite — /community/new v2 재구성 (with-aside 2열 + 시안 카드 폼)** — 1파일 전면 재작성(`(web)/community/new/page.tsx`). 단독 Card → `.page > .with-aside` (좌 `CommunityAsideNav activeCategory={null}` 재사용 + 우 main). 시안 그대로 헤더(h1 "글쓰기" + 우 "임시저장 · 자동저장 준비 중") + 본문 카드 6섹션: ①게시판 선택+제목 160px/1fr 그리드 ②툴바 12버튼 모두 disabled "준비 중"(D3 — B/I/U/S 시각 힌트 유지+H1/H2/인용/목록/사진/링크/영상/미리보기) ③textarea 상단 radius 0 으로 툴바와 시각 연결+ minHeight 340 + 글자수 카운터 ④체크박스 3개(댓글허용/비밀글/공감표시) 모두 disabled (D4) + 글자수/20000 카운터 ⑤이미지 URL 첨부 섹션 보존(D5 — 실 동작, 시안 톤만 정돈, `<img>` → `next/image fill unoptimized` 교체) ⑥액션 3버튼(취소 router.back / 임시저장 disabled / 등록 submit). **카테고리 select 4→7개**(D1: notice 제외, recruit/qna 신설). **createPostAction / useActionState / `name="images"` hidden JSON / pending / state.error 0 변경**. v2 글로벌 클래스 활용(.label/.select/.input/.textarea/.btn/.btn--sm/.btn--primary 전부 globals.css 정의 확인). 추후 구현 Phase 4 PostWrite 4건 신설(community_post_drafts 임시저장/자동저장 · TipTap 또는 Lexical 리치 에디터 · allow_comments/is_private/show_reactions 컬럼 · Supabase Storage 직접 업로드). tsc --noEmit EXIT=0 PASS | ✅ (커밋 대기, PM 처리) |
 | 04-26 | developer | **Phase 4 PostDetail — /community/[id] v2 재구성 (시안 PostDetail.jsx + 좌 CommunityAside 재사용)** — 신규 1(`_components/community-aside-nav.tsx` RSC↔클라 경계 우회용 useRouter 래퍼: 클릭 시 `/community?category=...` push) + `[id]/page.tsx` 전면 재구성(grid 12열 → `.page > .with-aside`. 시안 4섹션: badge--soft 카테고리 + 24px 제목 + cafe-blue-soft 이니셜 작성자 + 우측 메타(날짜·조회·댓글·추천) + Body padding 28/26·fs15·lh1.8 + Reactions 가운데정렬 좋아요/공유/스크랩(disabled "준비 중") + Nav 이전/다음글 placeholder "준비 중"). D1-c: 우측 PostDetailSidebar 그대로 호출 + `marginTop:32`로 본문 하단 1열 누적 (작성자카드/실시간 인기글/이벤트 배너 3블록 보존). D2: 홈›카테고리›글 상세. D3: split <p> 유지(h3/img X). D4: 이전/다음 placeholder. D5: LikeButton+ShareButton 그대로+스크랩 disabled. D6+D7: CommentForm/CommentList 그대로 호출(카페 댓글 병합 보존). **API/Prisma/Server Action/decodeHtmlEntities/cache(getPost)/병렬 likes·follow 0 변경. 컴포넌트 6개(LikeButton/ShareButton/PostActions/PostDetailSidebar/CommentForm/CommentList) 0 수정**. 추후 구현 Phase 4 PostDetail 5건(이전/다음 글 Prisma 쿼리·users.xp LevelBadge·작성글 수 헤더·Body block type 분기·스크랩 community_post_bookmarks). tsc --noEmit EXIT=0 / `/community/<recruit-id>` 200(207KB,2.2s) + `/community/<review-id>` 200(213KB) + `/community/<general-id>` 200(223KB) / HTML: with-aside 1·page 1·badge--soft 1(카테고리별 동적)·aside__link 8·cafe-blue-soft 1·thumb_up 1·>댓글< 1·>스크랩< 1·이전글/다음글 1·실시간 인기글 1·작성자 정보 1·View Detail 1 전부 렌더 확인 | ✅ (커밋 대기, PM 처리) |
-| 04-22 | developer | **Phase 4 BoardList — /community v2 재구성 (시안 BoardList.jsx + 그룹 트리 사이드바, 페이지당 20개)** — 신규 2 (`src/components/bdr-v2/v2-pager.tsx` 재사용 페이저 컴포넌트 + 윈도우 슬라이딩 / `src/app/(web)/community/_components/community-aside.tsx` 좌측 그룹 트리: 메인(공지/자유) · 플레이(팀원/대회후기/장터) · 이야기(질문/정보) — 글 수 카운트 "—" + title="준비 중") + `community-content.tsx` 전면 교체(.page + .with-aside 2열 + 헤더 eyebrow+제목+전체글수+검색+글쓰기 + 정렬 4종(최신/인기/댓글/조회) 클라 토글 + .board 테이블(번호/제목/작성자/날짜/조회/추천) + 공지(category=notice) 자동 핀 상단 + 새글 24h badge--new "N" + has_image false 고정). **API `/api/web/community` 호출 / SSR fallbackPosts / preferFilter Context / searchParams 동기화 / decodeHtmlEntities 100% 보존**. 페이지당 20개(PM 결정, 시안 충실). 추후 구현 Phase 4 BoardList 6건 신설(is_pinned/has_image/카테고리별 글수 API/LevelBadge/글 번호 채번/게시판 내 검색 라벨). tsc --noEmit EXIT=0 / `/community` 200(0.86s) + `?category=general/notice` 200 + `?q=test` 200 / HTML 마커: with-aside 1 / board__head 1 / board__row 20 / aside__ 16 / pager 5 / eyebrow 1 / btn--primary 2 전부 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-22 | developer | **Phase 3 Bracket — v2 재구성 (B안: 헤더/Status/사이드 v2 공통, 메인 트리는 포맷별 분기 보존)** — 사용자 4건 결정(B안/SVG 유지/우승예측 자리 유지+"투표 준비중"/select 같은 series_id 라우팅) 그대로 반영. 신규 6 (`v2-bracket-header` eyebrow+h1+부제+series_id회차select+저장/공유/출력 alert / `v2-bracket-status-bar` 5칸: 참가팀/완료/진행중LIVE/현재라운드/우승상금"-" / `v2-bracket-schedule-list` rounds 평탄화+시간순+상태배지 / `v2-bracket-seed-ranking` 시드+이니셜박스+wins(레이팅 자리 대체) / `v2-bracket-prediction` placeholder "투표 준비중"+버튼 disabled / `v2-bracket-wrapper` SWR+포맷별 분기 보존 LeagueStandings/GroupStandings/BracketView/BracketEmpty 그대로 호출) + 수정 2 (`tournament-tabs.tsx` BracketTabContent를 V2BracketWrapper 위임으로 슬림화+props 6개 추가 / `page.tsx` TournamentTabs에 헤더용 메타+seriesEditions 매핑 전달, 추가 쿼리 0). **API route.ts/Prisma/서비스 0 변경. BracketView/LeagueStandings/GroupStandings/FinalsSidebar/BracketEmpty 0 수정.** 추후 구현 목록 Phase 3 Bracket 6건 신설(우승예측 테이블/teams.rating/LIVE 실시간/저장공유출력/prize_money/MatchCard 코트정보). tsc --noEmit EXIT=0 / `/tournaments/18e4912f-.../?tab=bracket` 200(group_stage_knockout TEST 6팀) / public-bracket API 200 / SSR HTML eyebrow "BRACKET" 렌더 확인 | ✅ (커밋 대기, PM 처리) |
 | 04-25 | planner-architect | **코트 대관(Booking) 시스템 기획설계** — 현황 점검(plans/court_rental + 토스페이먼츠 + payments 다형성 + court_infos.user_id 모두 기존 자산 확인) → 신규 1테이블(court_bookings) + court_infos 2컬럼 + User 백릴레이션 1줄로 MVP 가능 판정. 운영자 ↔ 코트 매핑은 court_infos.user_id + user_subscriptions(feature_key=court_rental) 활성 검사로 단순화 (court_managers 신규 모델 도입 보류). 4 Phase 분할(A=무료 MVP 8~12h / B=결제 6~8h / C=정산+자동환불 8~10h / D=BDR+할인+N:M 6~8h). PM이 사용자에게 전달할 결정 포인트 7건(D-B1~D-B7) 도출 — Phase A 착수 전 D-B1·D-B2·D-B6 3건 필수. Phase A 산출 파일 신규 8 + 수정 2 = 10파일 매핑. 동시성·환불·KYC·외부vs자체 위험 6건 대응 명세. 코드 0수정 | ✅ 설계 완료 |
 | 04-22 | developer | **Phase 3 Org 상세 — /organizations/[slug] v2 재구성 (Hero + 4탭 + ?tab= 동기화)** — `_components_v2/` 7 신규(org-color 공유 헬퍼 / org-hero-v2 135deg 그라디언트+가입신청 alert+회원/팀/설립 메타 / org-tabs-v2 4탭+useRouter ?tab= 동기화 / overview-tab-v2 좌소개·운영원칙(준비중)+우연락처·스폰서(준비중) / teams-tab-v2 빈상태 / events-tab-v2 series.tournaments 평탄화 4건 / members-tab-v2 4열 카드+role한국어라벨+sinceYYYY) + `page.tsx` 재작성(searchParams.tab 정규화 + 기존 include 트리 0변경 + members.created_at 1줄만 추가). `_components/org-card-v2.tsx` pickColor/generateTag 공유 헬퍼 import로 통합. Phase 3 Orgs 추후 구현 목록 9건으로 확장(founded_year/address/policies/sponsors/team집계/임원직책 추가). tsc EXIT=0 / `/organizations/org-ny6os` + 4탭 전부 200(?tab=overview/teams/events/members) | ✅ (커밋 대기) |
@@ -3761,6 +3762,7 @@ C. 유료 ratio>0
 | 2026-04-27 | Phase 9 P0-2 Messages 모바일 푸시 흐름 (data-mobile-view + URL 동기화 + 백버튼) | 완료 |
 | 2026-04-27 | Phase 9 P0-3 Bracket 라운드 sticky 헤더 (모바일 가로 스크롤 위치 파악) | 완료 |
 | 2026-04-27 | Phase 9 P0-4-A ResponsiveTable 컴포넌트 신규 (data-label 모바일 라벨 보존) | 완료 (사용처 적용 별도 커밋) |
+| 2026-04-27 | Phase 9 P0-4-E scrim history 탭 6열 board → ResponsiveTable 적용 (라벨 손실 1건 해결) | 검증 완료 (PM 커밋 대기) |
 
 ---
 
@@ -3887,4 +3889,117 @@ ResponsiveTableProps<T> = {
 - 720px 브레이크는 ScrollableTable(P0-1)과 동일 → 일관성
 
 🚧 **미해결**: 없음. 컴포넌트 신규 + tsc + next build 통과. 사용처 적용은 별도 커밋(PM 처리).
+
+---
+
+## Phase 9 P0-4-D — match 참가팀 board ResponsiveTable 적용 — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: BDR v2 (1) `_mobile_audit_report.html` Med 라벨 손실 4건 중 **1건(match 참가팀 board)** 처리. P0-4-A에서 만든 ResponsiveTable 공용 컴포넌트를 첫 사용처에 적용. 데스크톱 grid 시안 100% 보존 + 모바일(<=720px)에서 헤더 사라지고 각 셀이 "라벨: 값" 카드로 자동 변환되어 라벨 손실 해결.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/match/page.tsx` | 1318→1341줄(+23 / git diff +93 -70). ①상단 import 1줄 추가(`ResponsiveTable from "@/components/ui/responsive-table"`). ②teams 탭(L935~L1015) 인라인 grid(`gridTemplateColumns: "56px 1fr 90px 100px 80px"`) 헤더 div + appliedTeams.map 행 div 81줄 → `<ResponsiveTable<Team>>` 5컬럼 정의 교체(rank/team/rating/record/status). 외부 wrapper div(`background: var(--color-card)`+border+borderRadius+overflow:hidden) 그대로 유지 → 시안 박스 외형 100% 보존. mobileMode="card", rowKey=`(tm) => tm.id`. | 수정 |
+
+📋 **5컬럼 정의**:
+| key | label | width | mobileLabel | render |
+|-----|-------|-------|-------------|--------|
+| rank | # | 56px | "순위" | `appliedTeams.findIndex((x) => x.id === tm.id) + 1` (1-based, fontWeight:900 fontSize:14) |
+| team | 팀 | 1fr | (label 재사용) | 색상칩 22x22(`tm.color`/`tm.ink`/`tm.tag` 보존) + tm.name fontWeight:600 |
+| rating | 레이팅 | 90px | (label 재사용) | tm.rating monospace fontWeight:700 |
+| record | 전적 | 100px | (label 재사용) | `{tm.wins}W {tm.losses}L` monospace fontSize:12 |
+| status | 상태 | 80px | (label 재사용) | STATUS_BADGE_STYLE.open + "확정" (fontSize:11 fontWeight:700 padding:"3px 8px" borderRadius:3) |
+
+🎨 **시각/동작 보존**:
+- 데스크톱(>720px): grid-template-columns "56px 1fr 90px 100px 80px" 동일 → 시각 변화 0
+- 모바일(<=720px): 헤더 div 자동 숨김 + 각 행이 카드 박스 + 셀이 "100px 라벨 / 1fr 값" 2열 그리드로 변환 → "#"이 "순위:"로 표시되어 의미 보존
+- 외부 wrapper div(card 배경+border+radius+overflow:hidden) 보존 → 박스 일관성
+
+🔒 **보존 항목 (변경 0)**:
+- TOURNAMENTS/TEAMS/SCHEDULE/BRACKET_R16 더미 상수 0 변경
+- appliedTeams 생성 로직(L612 `["redeem", ...].map().filter()`) 0 변경
+- STATUS_BADGE_STYLE 객체 0 변경 (재사용만)
+- 다른 탭(overview/schedule/bracket/rules) 0 변경
+- 박제 주석/시안 변형 주석 0 변경
+- API/Prisma/Server Action: 정적 더미 페이지라 호출 자체 없음
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 없음 = 에러 0) |
+| `npx next build` | 통과 (라우트 목록 정상 출력, ResponsiveTable 관련 에러/경고 0) |
+
+💡 **tester 참고**:
+- 테스트 경로: `/match` → 카드 클릭 후 상세 페이지의 "참가팀" 탭
+- 데스크톱(>720px): 시각 변화 거의 없음. # / 팀 / 레이팅 / 전적 / 상태 5컬럼 grid 헤더 + 8개 팀 행
+- 모바일(<=720px DevTools): 헤더 사라짐 + 각 팀이 카드 박스로 변환. 카드 내부에 "순위: 1", "팀: [색상칩] REDEEM", "레이팅: 1820", "전적: 12W 3L", "상태: 확정" 5줄
+- 정상 동작: 카드 박스 background `var(--bg)` + border `var(--border)` + 카드 간 8px gap. 색상칩(22x22 RDM/MNK/3PT 등) 모바일에서도 동일 표시
+- 주의: 외부 wrapper div는 시안 색(`--color-card`+`--color-border`+radius:8) 유지, 내부 ResponsiveTable card는 `--bg`/`--border` 사용 → 두 색이 다소 다를 수 있으나 의도된 카드 시각 분리
+
+⚠️ **reviewer 참고**:
+- ResponsiveTable의 외부 wrapper(`overflow:hidden`+`borderRadius:8`)는 시안 박스 외형 보존을 위해 유지. ResponsiveTable 자체가 외부 박스를 그리지 않으므로 충돌 없음
+- rank 컬럼 render에서 `appliedTeams.findIndex(...)` 사용 — ResponsiveTable의 render 시그니처가 row 1개만 받아서 index 직접 미지원. 8건 더미 데이터라 비용 무시 (O(n²)지만 8x8=64). 실데이터 마이그레이션 시 row에 `rank` 필드 사전 주입 권장
+- mobileLabel "순위" 1건만 별도 지정(데스크톱 "#" → 모바일 "순위:"로 자연스럽게). 나머지 4컬럼은 label("팀"/"레이팅"/"전적"/"상태")이 모바일 라벨로도 적합해 mobileLabel 미지정
+- 박제 주석 보존(`// teams 탭 (시안 L207~L225)`) + Phase 9 P0-4-D 적용 메모 1줄 추가
+- 외부 wrapper의 `--color-card`(시안 토큰)와 ResponsiveTable의 `--bg`(공용 토큰)가 다른 변수 — 의도된 이중 톤. 통일 원하면 ResponsiveTable에 `card-tone` prop 신설 가능(스코프 외)
+
+🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과. tsc + next build 정상. 다른 Med 라벨 손실 3건(다른 board 위치)은 별도 작업.
+
+---
+
+## Phase 9 P0-4-E — scrim history 탭 6열 board ResponsiveTable 적용 — 2026-04-27
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: BDR v2 (1) `_mobile_audit_report.html` Med 라벨 손실 4건 중 **2건째 (scrim 페이지 history 탭 6열 board)** 처리. P0-4-A에서 만든 ResponsiveTable 공용 컴포넌트를 두 번째 사용처에 적용. 데스크톱 grid 시안 100% 보존 + 모바일(<=720px)에서 헤더 사라지고 각 셀이 "라벨: 값" 카드로 자동 변환되어 라벨 손실 해결 (특히 "+14" / "-12" 같은 레이팅 변동치가 무엇의 변동인지 식별 가능).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/scrim/page.tsx` | ①상단 import 1줄 추가(`ResponsiveTable, ResponsiveTableColumn` from `@/components/ui/responsive-table`). ②history 탭(L436~L485 기준) 인라인 grid(`gridTemplateColumns: "80px 1.2fr 100px 80px 80px 90px"`) 헤더 div + HISTORY.map 행 div 50줄 → `<ResponsiveTable<HistoryRow>>` 6컬럼 정의로 교체. 외부 wrapper `<div className="card" style={{ padding: 0, overflow: "hidden" }}>` 그대로 유지 → 시안 박스 외형 100% 보존. mobileMode="card", rowKey=`(_, i) => i` (HistoryRow 더미가 id 미보유). | 수정 |
+
+📋 **6컬럼 정의**:
+| key | label | width | render |
+|-----|-------|-------|--------|
+| date | 날짜 | 80px | mono+ink-dim+12px (h.date) |
+| opp | 상대 | 1.2fr | `<span className="title">` (board 강조) |
+| score | 스코어 | 100px | mono+700 (h.score) |
+| result | 결과 | 80px | badge--ok/badge--red (승/패) |
+| rating | 레이팅 | 80px | mono+700, 양수=`var(--ok)` 음수=`var(--err)`, 부호 명시 |
+| court | 코트 | 90px | 12px+ink-mute (h.court) |
+
+🎨 **시각/동작 보존**:
+- 데스크톱(>720px): grid-template-columns "80px 1.2fr 100px 80px 80px 90px" 동일 → 시각 변화 0
+- 모바일(<=720px): 헤더 div 자동 숨김 + 각 행이 카드 박스 + 셀이 "100px 라벨 / 1fr 값" 2열 그리드로 변환 → "+14"가 "레이팅: +14"로 표시
+- 외부 wrapper card(`padding:0`+`overflow:hidden`) 보존 → 시안 박스 외형
+- 모든 라벨이 시안과 자연 매칭 → mobileLabel 별도 지정 0건 (label 그대로 사용)
+
+🔒 **보존 항목 (변경 0)**:
+- HISTORY 더미 상수 0 변경
+- HistoryRow 타입 정의 0 변경
+- 다른 탭(find/incoming/outgoing) 0 변경
+- API/Prisma/Server Action: 정적 더미 페이지라 호출 자체 없음
+- badge--ok / badge--red / .title 클래스 그대로 재사용
+
+🔧 **빌드 결과**:
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | 통과 (출력 없음 = 에러 0) |
+| `npx next build` | 통과 (`/scrim` 라우트 ○ static 정상 출력, ResponsiveTable 관련 에러/경고 0) |
+
+💡 **tester 참고**:
+- 테스트 경로: `/scrim` → 상단 탭 4번째 "지난 스크림" 클릭
+- 데스크톱(>720px): 시각 변화 거의 없음. 날짜/상대/스코어/결과/레이팅/코트 6컬럼 grid 헤더 + 3개 history 행
+- 모바일(<=720px DevTools 375px): 헤더 사라짐 + 각 history가 카드 박스로 변환. 카드 내부에 "날짜: 04.18", "상대: 몽키즈", "스코어: 71–78", "결과: [패 배지]", "레이팅: -12" (빨강), "코트: 장충" 6줄
+- 정상 동작: 카드 박스 background `var(--bg)` + border `var(--border)` + 카드 간 8px gap. 승=초록 배지+초록 부호 / 패=빨강 배지+빨강 부호
+- 주의: badge 클래스(`.badge.badge--ok`/`.badge--red`)는 globals.css 의존 — 변경 없음
+
+⚠️ **reviewer 참고**:
+- P0-4-D(match teams 탭)와 동일한 패턴 — 외부 wrapper card 유지, ResponsiveTable이 내부 헤더/행만 그림
+- rowKey가 `(_, i) => i` 인덱스 기반 — HistoryRow 더미에 id가 없어서 (DB 마이그레이션 시 `scrim_history.id` 추가 후 row.id 로 변경 필요)
+- mobileLabel 0건 지정: 6컬럼 모두 label 자체("날짜"/"상대"/"스코어"/"결과"/"레이팅"/"코트")가 모바일 라벨로 적합
+- `satisfies ResponsiveTableColumn<HistoryRow>[]` 사용 — 컬럼 정의 타입 안전성 + 추론 보존
+- 박제 주석 보존(`{/* === 지난 스크림 === (시안 L148~L164) */}`) + P0-4-E 적용 메모 추가
+
+🚧 **미해결**: 없음. 작업 범위 내 모든 검증 통과. 다른 Med 라벨 손실 2건(teamManage 로스터, billing 결제내역)은 별도 작업.
 

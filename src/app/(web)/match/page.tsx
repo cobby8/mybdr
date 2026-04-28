@@ -29,6 +29,9 @@
  * ============================================================ */
 
 import { useState } from "react";
+// 2026-04-27: Phase 9 P0-4-D — teams 탭 5열 board 모바일 라벨 손실 해결.
+// 데스크톱 grid 유지 + 모바일에서 카드+data-label 자동 변환.
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 
 // ---- 타입 정의 ----
 type TournamentStatus = "open" | "closing" | "closed" | "live" | "ended" | "preparing";
@@ -932,7 +935,8 @@ function MatchDetail({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          {/* teams 탭 (시안 L207~L225) */}
+          {/* teams 탭 (시안 L207~L225) — Phase 9 P0-4-D: ResponsiveTable 적용
+              데스크톱 grid 시안 유지 + 모바일 카드+data-label 자동 변환 */}
           {tab === "teams" && (
             <div
               style={{
@@ -942,75 +946,94 @@ function MatchDetail({ onBack }: { onBack: () => void }) {
                 overflow: "hidden",
               }}
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "56px 1fr 90px 100px 80px",
-                  padding: "12px 18px",
-                  background: "var(--color-surface)",
-                  borderBottom: "1px solid var(--color-border)",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  color: "var(--color-text-muted)",
-                }}
-              >
-                <div>#</div>
-                <div>팀</div>
-                <div>레이팅</div>
-                <div>전적</div>
-                <div>상태</div>
-              </div>
-              {appliedTeams.map((tm, i) => (
-                <div
-                  key={tm.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "56px 1fr 90px 100px 80px",
-                    padding: "12px 18px",
-                    borderBottom:
-                      i < appliedTeams.length - 1 ? "1px solid var(--color-border)" : 0,
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontWeight: 900, fontSize: 14 }}>{i + 1}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span
-                      style={{
-                        width: 22,
-                        height: 22,
-                        background: tm.color,
-                        color: tm.ink,
-                        display: "grid",
-                        placeItems: "center",
-                        fontFamily: "monospace",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        borderRadius: 3,
-                      }}
-                    >
-                      {tm.tag}
-                    </span>
-                    <span style={{ fontWeight: 600 }}>{tm.name}</span>
-                  </div>
-                  <div style={{ fontFamily: "monospace", fontWeight: 700 }}>{tm.rating}</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 12 }}>
-                    {tm.wins}W {tm.losses}L
-                  </div>
-                  <div>
-                    <span
-                      style={{
-                        ...STATUS_BADGE_STYLE.open,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        padding: "3px 8px",
-                        borderRadius: 3,
-                      }}
-                    >
-                      확정
-                    </span>
-                  </div>
-                </div>
-              ))}
+              <ResponsiveTable<Team>
+                rowKey={(tm) => tm.id}
+                rows={appliedTeams}
+                mobileMode="card"
+                columns={[
+                  // # — 인덱스 1부터. render 인자가 row 1개여서 별도로 index를 받지 못해
+                  // appliedTeams.indexOf(tm) 으로 1-based 순번 산출 (소량 더미 데이터라 비용 무시)
+                  {
+                    key: "rank",
+                    label: "#",
+                    mobileLabel: "순위",
+                    width: "56px",
+                    render: (tm) => (
+                      <span style={{ fontWeight: 900, fontSize: 14 }}>
+                        {appliedTeams.findIndex((x) => x.id === tm.id) + 1}
+                      </span>
+                    ),
+                  },
+                  // 팀 — 색상 태그 + 이름. 시안 색상칩(22x22) 보존
+                  {
+                    key: "team",
+                    label: "팀",
+                    width: "1fr",
+                    render: (tm) => (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span
+                          style={{
+                            width: 22,
+                            height: 22,
+                            background: tm.color,
+                            color: tm.ink,
+                            display: "grid",
+                            placeItems: "center",
+                            fontFamily: "monospace",
+                            fontSize: 10,
+                            fontWeight: 700,
+                            borderRadius: 3,
+                          }}
+                        >
+                          {tm.tag}
+                        </span>
+                        <span style={{ fontWeight: 600 }}>{tm.name}</span>
+                      </div>
+                    ),
+                  },
+                  // 레이팅 — 시안 monospace 유지
+                  {
+                    key: "rating",
+                    label: "레이팅",
+                    width: "90px",
+                    render: (tm) => (
+                      <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                        {tm.rating}
+                      </span>
+                    ),
+                  },
+                  // 전적 — "12W 3L" 시안 그대로
+                  {
+                    key: "record",
+                    label: "전적",
+                    width: "100px",
+                    render: (tm) => (
+                      <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+                        {tm.wins}W {tm.losses}L
+                      </span>
+                    ),
+                  },
+                  // 상태 — "확정" 배지. 시안 STATUS_BADGE_STYLE.open 재사용
+                  {
+                    key: "status",
+                    label: "상태",
+                    width: "80px",
+                    render: () => (
+                      <span
+                        style={{
+                          ...STATUS_BADGE_STYLE.open,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 3,
+                        }}
+                      >
+                        확정
+                      </span>
+                    ),
+                  },
+                ]}
+              />
             </div>
           )}
 
