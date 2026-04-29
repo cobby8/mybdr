@@ -40,6 +40,8 @@
 | [phase-9-audit.md](./phase-9-audit.md) | UI 진입점 단절 감사 — More 4건 제거 진행 상태 반영 | active | 2026-04-29 |
 | [phase-9-paste-completeness.md](./phase-9-paste-completeness.md) | UI 박제 완성도 감사 보고서 (시안 vs 페이지 일치도, 5+1 등급 분류) | active | 2026-04-29 |
 | [phase-9-future-features.md](./phase-9-future-features.md) | 시안-only 기능 정리 — Phase 10 SQL 적용 완료 반영 | active | 2026-04-29 |
+| [ui-consistency-audit-2026-04-29.md](./ui-consistency-audit-2026-04-29.md) | 시안 vs 실제 + DESIGN.md 규칙 위반 1회성 감사 (Cowork 작성) | active | 2026-04-29 |
+| [ghost-features-and-breakage-2026-04-29.md](./ghost-features-and-breakage-2026-04-29.md) | 유령 기능(A~F) + UI 깨짐 위험 전수조사 (33건 + CLI 프롬프트) | active | 2026-04-29 |
 
 ### 영구 참조
 
