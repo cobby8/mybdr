@@ -14,6 +14,12 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { convertKeysToSnakeCase } from "@/lib/utils/case";
+import type {
+  HeroSlide,
+  HeroSlideTournament,
+  HeroSlideGame,
+  HeroSlideMvp,
+} from "@/components/bdr-v2/hero-slides/types";
 
 /* ============================================================
  * 1. 팀 목록 프리페치
@@ -411,3 +417,257 @@ export const prefetchOpenTournaments = unstable_cache(async () => {
     }>;
   };
 }, ["home-open-tournaments"], { revalidate: 60 });
+
+/* ============================================================
+ * 6. Hero 카로셀 — 임박 대회 1건 프리페치
+ *
+ * 왜 이 함수가 필요한가:
+ * v2 메인의 hero 카로셀은 "지금 가장 가까운 대회/게임/MVP"를 한 화면에 회전 노출한다.
+ * 이 함수는 그 중 첫 번째 슬롯(대회)을 책임진다.
+ *
+ * 정렬 우선순위 (마감 임박 우선 → 시작일 빠른 순):
+ *  1) registration_close_at(=registration_end_at) 가 NOW~+7일 이내인 대회 우선
+ *  2) 그 안에서 start_date ASC
+ * 다만 단일 ORDER BY로 1+2 동시 표현이 어렵기 때문에,
+ *  - 임박 마감(7일 이내)을 먼저 1건 조회 → 없으면 일반 모집/진행중 1건 조회 fallback
+ * 두 단계로 나눠 보장한다.
+ *
+ * 필터:
+ *  - status IN ('registration','in_progress')
+ *  - is_public = true
+ *  - name ILIKE '%test%' 차단 (운영 DB의 테스트 데이터 노출 방지)
+ * ============================================================ */
+export const prefetchUpcomingTournament = unstable_cache(async (): Promise<HeroSlideTournament["data"] | null> => {
+  // 공통 where 절 — 공개 + 접수중/진행중 + 테스트 데이터 제외
+  const baseWhere = {
+    is_public: true,
+    status: { in: ["registration", "in_progress"] },
+    NOT: { name: { contains: "test", mode: "insensitive" as const } },
+  };
+
+  // 마감 7일 이내 대회의 cutoff (NOW + 7일)
+  const sevenDaysLater = new Date();
+  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+
+  // 1단계: 마감 임박(7일 이내) 대회 우선
+  let t = await prisma.tournament.findFirst({
+    where: {
+      ...baseWhere,
+      registration_end_at: { gte: new Date(), lte: sevenDaysLater },
+    },
+    orderBy: [{ registration_end_at: "asc" }, { startDate: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      startDate: true,
+      registration_end_at: true,
+      teams_count: true,
+      maxTeams: true,
+      banner_url: true,
+    },
+  });
+
+  // 2단계: 임박 대회 없으면 일반 모집/진행중 1건 (시작일 빠른 순)
+  if (!t) {
+    t = await prisma.tournament.findFirst({
+      where: baseWhere,
+      orderBy: [{ startDate: "asc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        startDate: true,
+        registration_end_at: true,
+        teams_count: true,
+        maxTeams: true,
+        banner_url: true,
+      },
+    });
+  }
+
+  if (!t) return null;
+
+  // snake_case 직렬화 (HeroSlideTournament.data 형태)
+  // - tournament.id 는 UUID String → string 그대로
+  // - banner_url 을 cover_image_url 로 매핑 (시안에 맞춰 별칭)
+  // - short_name 컬럼은 스키마에 없으므로 null
+  return {
+    id: t.id,
+    uuid: t.id, // tournament.id 자체가 UUID이므로 동일값 사용
+    name: t.name,
+    short_name: null,
+    status: t.status ?? "registration",
+    start_date: t.startDate?.toISOString() ?? null,
+    registration_close_at: t.registration_end_at?.toISOString() ?? null,
+    teams_count: t.teams_count ?? 0,
+    max_teams: t.maxTeams ?? null,
+    cover_image_url: t.banner_url ?? null,
+  };
+}, ["home-hero-tournament"], { revalidate: 60 });
+
+/* ============================================================
+ * 7. Hero 카로셀 — 24시간 내 모집중 게임 1건 프리페치
+ *
+ * 왜 24시간 윈도우인가:
+ * "지금 곧 시작하는 픽업 게임"을 hero에 노출해 즉시 참여 동선을 만들기 위함.
+ * 너무 먼 미래(예: 1주 뒤)는 hero보다 게임 목록 페이지에서 보는 편이 자연스럽다.
+ *
+ * 필터:
+ *  - status = 1 (recruiting; games 모델 status 인덱스 활용)
+ *  - scheduled_at BETWEEN NOW() AND NOW() + 24h
+ *  - 정렬: scheduled_at ASC (가장 빠른 게임 1건)
+ *  - join users (organizer_id) → nickname
+ * ============================================================ */
+export const prefetchUpcomingGame = unstable_cache(async (): Promise<HeroSlideGame["data"] | null> => {
+  // 24시간 윈도우 계산
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const g = await prisma.games.findFirst({
+    where: {
+      status: 1, // recruiting
+      scheduled_at: { gte: now, lte: in24h },
+      uuid: { not: null }, // hero 라우팅용으로 uuid 필수
+    },
+    orderBy: { scheduled_at: "asc" },
+    select: {
+      id: true,
+      uuid: true,
+      title: true,
+      scheduled_at: true,
+      venue_name: true,
+      city: true,
+      current_participants: true,
+      max_participants: true,
+      status: true,
+      users: {
+        // organizer 닉네임 한 번에 join — 추가 쿼리 회피
+        select: { nickname: true },
+      },
+    },
+  });
+
+  if (!g || !g.uuid) return null;
+
+  // location: venue_name 우선, 없으면 city, 둘 다 없으면 null
+  const location = g.venue_name ?? g.city ?? null;
+
+  // BigInt → string, Date → ISO 변환 (snake_case 그대로)
+  return {
+    id: g.id.toString(),
+    uuid: g.uuid,
+    title: g.title ?? "픽업 게임", // 제목 누락 시 기본값 (DB null 가능)
+    scheduled_at: g.scheduled_at.toISOString(),
+    location,
+    current_count: g.current_participants ?? 0,
+    max_count: g.max_participants ?? null,
+    status: g.status,
+    organizer_nickname: g.users?.nickname ?? null,
+  };
+}, ["home-hero-game"], { revalidate: 60 });
+
+/* ============================================================
+ * 8. Hero 카로셀 — 최근 MVP 1건 프리페치
+ *
+ * 왜 이 함수가 필요한가:
+ * Phase 10-1에서 도입된 game_reports / final_mvp_user_id 기반으로
+ * "최근 경기에서 MVP로 뽑힌 사람"을 hero에 노출 (커뮤니티 동기부여 + 신뢰감).
+ *
+ * 안전 장치 (try/catch):
+ *  - 운영 DB에 game_reports 테이블이 아직 없을 가능성 (Phase 10 미배포 환경)
+ *  - 테이블 부재 시 prisma.game_reports.findFirst()는 P2021 에러를 던짐
+ *  - 이 경우 로그 + null 반환으로 hero 깨짐 방지
+ *
+ * 정렬:
+ *  - mvp_user_id IS NOT NULL (MVP 지목된 리포트만)
+ *  - games.final_mvp_user_id IS NOT NULL 도 함께 검사 (운영자 확정 MVP)
+ *  - created_at DESC, overall_rating DESC (최신 + 고평점 우선)
+ * ============================================================ */
+export const prefetchRecentMvp = unstable_cache(async (): Promise<HeroSlideMvp["data"] | null> => {
+  try {
+    // game_reports 테이블 미존재 가능성 → try/catch 로 감싸기
+    const r = await prisma.game_reports.findFirst({
+      where: {
+        mvp_user_id: { not: null },
+        // 운영자 확정 MVP가 있는 경기만 hero 노출 (신뢰성)
+        game: { final_mvp_user_id: { not: null } },
+      },
+      orderBy: [{ created_at: "desc" }, { overall_rating: "desc" }],
+      select: {
+        overall_rating: true,
+        created_at: true,
+        mvp_user_id: true,
+        game: {
+          select: { uuid: true, title: true },
+        },
+        mvp_player: {
+          select: { nickname: true, profile_image_url: true },
+        },
+      },
+    });
+
+    if (!r || !r.mvp_user_id || !r.game?.uuid) return null;
+
+    return {
+      game_uuid: r.game.uuid,
+      game_title: r.game.title ?? "경기",
+      mvp_user_id: r.mvp_user_id.toString(),
+      mvp_nickname: r.mvp_player?.nickname ?? null,
+      mvp_profile_image: r.mvp_player?.profile_image_url ?? null,
+      overall_rating: r.overall_rating,
+      reported_at: r.created_at.toISOString(),
+    };
+  } catch (err) {
+    // 운영 DB에 game_reports 테이블이 없거나 컬럼 drift 시 hero 깨짐 방지
+    console.warn("[prefetchRecentMvp] game_reports 미사용 환경 — null 반환:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}, ["home-hero-mvp"], { revalidate: 60 });
+
+/* ============================================================
+ * 9. Hero 카로셀 — 통합 프리페치
+ *
+ * 왜 이 함수가 필요한가:
+ * page.tsx 에서 매번 3개를 직접 호출하지 않고 한 줄로 슬라이드 배열을 받기 위함.
+ * Promise.allSettled 로 한 쿼리가 실패해도 나머지가 살아남도록 격리.
+ *
+ * Fallback 보장:
+ *  - 3건 모두 null 인 경우 정적 슬라이드 1개를 강제 주입 → hero가 빈 화면이 되는 사고 방지.
+ * ============================================================ */
+export async function prefetchHeroSlides(): Promise<HeroSlide[]> {
+  // 3개를 동시에 실행 (병렬) — 가장 느린 쿼리 시간만 hero 로딩에 반영
+  const [tournament, game, mvp] = await Promise.allSettled([
+    prefetchUpcomingTournament(),
+    prefetchUpcomingGame(),
+    prefetchRecentMvp(),
+  ]);
+
+  const slides: HeroSlide[] = [];
+
+  // fulfilled + 값 존재하는 경우만 push (rejected는 무시)
+  if (tournament.status === "fulfilled" && tournament.value) {
+    slides.push({ kind: "tournament", data: tournament.value });
+  }
+  if (game.status === "fulfilled" && game.value) {
+    slides.push({ kind: "game", data: game.value });
+  }
+  if (mvp.status === "fulfilled" && mvp.value) {
+    slides.push({ kind: "mvp", data: mvp.value });
+  }
+
+  // fallback: 데이터 0건이면 정적 슬라이드 1개 보장
+  if (slides.length === 0) {
+    slides.push({
+      kind: "static",
+      data: {
+        title: "BDR 커뮤니티에 참여하세요",
+        description: "전국 농구인이 모이는 곳",
+        cta_label: "둘러보기",
+        cta_href: "/community",
+      },
+    });
+  }
+
+  return slides;
+}

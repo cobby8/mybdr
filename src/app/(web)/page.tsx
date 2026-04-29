@@ -10,7 +10,8 @@ export const metadata: Metadata = {
  * 홈페이지 — BDR v2 디자인 적용 (Phase 1)
  *
  * 레이아웃 (v2 Home.jsx 시안 기준):
- * 1. PromoCard — prefetchOpenTournaments 첫 항목 하이라이트
+ * 1. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
+ *    └ prefetchHeroSlides()가 데이터 0건이어도 정적 fallback 1개 보장
  * 2. StatsStrip — 4열 통계 (전체회원/지금접속/오늘의글/진행중대회)
  * 3. 2컬럼 grid
  *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → BoardRow
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
  * 추가만 있음. Promise.allSettled로 부분 실패 허용.
  * ============================================================ */
 
-import { PromoCard } from "@/components/bdr-v2/promo-card";
+// 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
+// PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
+import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
 import { BoardRow } from "@/components/bdr-v2/board-row";
 import { HotPostRow } from "@/components/bdr-v2/hot-post-row";
@@ -35,6 +38,7 @@ import {
   prefetchStats,
   prefetchCommunity,
   prefetchOpenTournaments,
+  prefetchHeroSlides,
 } from "@/lib/services/home";
 
 /* ISR: 60초마다 재생성. getWebSession() 호출 없음 → 정적 캐시 유효 */
@@ -68,16 +72,6 @@ function communityCategoryLabel(category: string | null): string {
   return map[category] ?? category;
 }
 
-/* -- 유틸: 대회 상태 코드 → 한글 라벨 매핑 -- */
-function tournamentStatusLabel(status: string | null): string {
-  if (!status) return "";
-  const map: Record<string, string> = {
-    registration: "접수중",
-    in_progress: "진행중",
-  };
-  return map[status] ?? status;
-}
-
 /* -- 유틸: 대회 상태 코드 → TournamentRow level 약어 (좌측 accent 블록용) --
  * 왜: v2 Home.jsx 시안의 "열린 대회" 좌측 54×54 accent 블록은 4~5자 영문
  * 약어로 상태를 보여줌. status 원코드를 그대로 쓰면 너무 길어지므로 매핑. */
@@ -100,12 +94,15 @@ function tournamentAccent(idx: number): string {
 }
 
 export default async function HomePage() {
-  // 3개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
-  const [statsResult, communityResult, tournamentsResult] =
+  // 4개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
+  // 왜 hero를 별도 호출: prefetchHeroSlides 내부에서 이미 3종(대회/게임/MVP)을
+  // Promise.allSettled로 병렬 처리하므로, 여기서는 4번째 슬롯에 "묶음 1개"로만 추가.
+  const [statsResult, communityResult, tournamentsResult, heroResult] =
     await Promise.allSettled([
       prefetchStats(),
       prefetchCommunity(),
       prefetchOpenTournaments(),
+      prefetchHeroSlides(),
     ]);
 
   // 성공한 결과만 추출 (실패 시 undefined → 빈 상태 fallback)
@@ -117,9 +114,9 @@ export default async function HomePage() {
     tournamentsResult.status === "fulfilled"
       ? tournamentsResult.value
       : undefined;
-
-  // Promo 배너용 첫 번째 열린 대회 (없으면 배너 자체 렌더 skip)
-  const mainTournament = tournamentsData?.tournaments?.[0];
+  // hero 슬라이드: prefetchHeroSlides 내부에서 정적 fallback 1개를 항상 보장하므로
+  // rejected 시에만 빈 배열. 빈 배열이면 카로셀 렌더 skip.
+  const heroSlides = heroResult.status === "fulfilled" ? heroResult.value : [];
 
   // 공지·인기글: prefetchCommunity 상위 5건 (DB에 별도 "인기" 플래그가 없으므로
   // 최신 정렬 기준 상위 5건을 공지/인기 섹션에 매핑. 추후 likes 기준 정렬 가능)
@@ -135,40 +132,10 @@ export default async function HomePage() {
     // page: v2 globals.css의 .page 쉘 — max-width + 중앙 정렬 + 기본 상하 여백
     // (이전 "pb-10"은 좌우 maxw/gutter 제한이 없어 콘텐츠가 전폭으로 퍼져 시안과 어긋났음)
     <div className="page">
-      {/* 1. Promo 배너 — 열린 대회 첫 항목이 있을 때만 표시 */}
-      {mainTournament && (
-        <PromoCard
-          eyebrow={`NOW OPEN · ${tournamentStatusLabel(mainTournament.status)}`}
-          title={mainTournament.name}
-          subtitle={
-            mainTournament.edition_number
-              ? `Vol.${mainTournament.edition_number}`
-              : undefined
-          }
-          description={[
-            mainTournament.venue_name || mainTournament.city,
-            mainTournament.start_date
-              ? new Date(mainTournament.start_date).toLocaleDateString(
-                  "ko-KR",
-                  { month: "long", day: "numeric" }
-                )
-              : null,
-            mainTournament.max_teams
-              ? `접수 ${mainTournament.team_count}/${mainTournament.max_teams}팀`
-              : `${mainTournament.team_count}팀 참가`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          primaryCta={{
-            label: "지금 신청하기",
-            href: `/tournaments/${mainTournament.id}`,
-          }}
-          secondaryCta={{
-            label: "대회 전체 보기",
-            href: "/tournaments",
-          }}
-        />
-      )}
+      {/* 1. Hero 카로셀 — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 5초 간격
+       * prefetchHeroSlides가 정적 fallback 1개를 항상 보장하지만, 만일의 rejected
+       * 케이스(heroSlides=[])에 대비해 length>0 가드 추가. */}
+      {heroSlides.length > 0 && <HeroCarousel slides={heroSlides} />}
 
       {/* 2. Stats Strip — 통계 4열
        * 지금 접속자 수는 DB에 실시간 카운트가 없어 placeholder "-" 표시 */}
@@ -181,14 +148,8 @@ export default async function HomePage() {
         ]}
       />
 
-      {/* 3. 2컬럼 그리드 — 공지·인기글 + 열린 대회 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 20,
-        }}
-      >
+      {/* 3. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 공지·인기글 패널 — HotPostRow 방식 (시안 3열 grid 간략 리스트)
          * v2 Home.jsx L44~53 HOT_POSTS 구조: 56px 배지 / 1fr 제목 / auto 조회수.
          * "방금 올라온 글"의 풀 테이블(6열)과 정보 밀도가 달라 별도 컴포넌트 사용. */}

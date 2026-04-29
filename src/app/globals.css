@@ -720,6 +720,238 @@ html.dark .app-nav__tab[data-active="true"]::after {
 }
 
 /* ============================================================
+   Hero Carousel — 메인 4종 슬라이드 회전 영역
+   - 모든 슬라이드를 absolute로 겹쳐 두고 active 만 opacity:1 로 표시
+   - .promo 와 같은 라운딩/패딩 톤 유지 (디자인 일관성)
+   ============================================================ */
+.hero-carousel {
+  position: relative;
+  margin-bottom: 20px;
+  /* 포커스 외곽선은 키보드 사용자에게만 보이도록 제거 후 :focus-visible 로 표현 */
+  outline: none;
+}
+.hero-carousel:focus-visible {
+  /* 키보드 포커스 표시 — 색상은 BDR Red */
+  outline: 2px solid var(--bdr-red);
+  outline-offset: 2px;
+}
+
+/* viewport: 슬라이드 stacking 컨테이너. min-height 로 panel 높이 보장 */
+.hero-carousel__viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  /* 슬라이드들이 absolute라 부모가 높이를 잃지 않도록 명시 */
+  min-height: 200px;
+}
+
+/* 개별 슬라이드 컨테이너 — 모두 동일 위치에 겹쳐서 fade 전환 */
+.hero-carousel__slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  /* 비활성 슬라이드의 CTA가 클릭되는 사고 방지 */
+  pointer-events: none;
+}
+.hero-carousel__slide--active {
+  opacity: 1;
+  pointer-events: auto;
+  /* z-index 는 시각적 겹침 순서일 뿐 — 키보드 탭 순서는 aria-hidden 이 제어 */
+  z-index: 1;
+}
+
+/* 슬라이드 내부 패널 — .promo 와 동일한 라운딩/패딩/색상 톤 */
+.hero-carousel__panel {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  border-radius: var(--radius-card);
+  padding: 28px;
+  color: #fff;
+  overflow: hidden;
+  /* viewport 가 absolute 자식의 높이를 잃지 않도록 box 채움 */
+  box-sizing: border-box;
+}
+.hero-carousel__accent {
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  /* 색상은 shell 컴포넌트가 inline style 로 주입 */
+}
+
+/* 좌측 콘텐츠 영역 — z-index 로 accent 원형 위에 노출 */
+.hero-carousel__content {
+  position: relative;
+  z-index: 1;
+  max-width: 60ch;
+}
+.hero-carousel__badge {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hero-carousel__title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  letter-spacing: -0.015em;
+  font-weight: 800;
+  /* 너무 긴 타이틀은 2줄까지만 노출 (시각 일관성 확보) */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hero-carousel__meta {
+  margin: 0 0 14px;
+  opacity: 0.9;
+  font-size: 14px;
+}
+.hero-carousel__ctas {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 다크 모드: .promo 와 동일하게 검정 배경 + 흰 테두리 / 라운딩 0 */
+[data-theme="dark"] .hero-carousel__panel,
+html.dark .hero-carousel__panel {
+  background: #000 !important;
+  border: 2px solid #fff;
+  border-radius: 0;
+}
+[data-theme="dark"] .hero-carousel__viewport,
+html.dark .hero-carousel__viewport {
+  border-radius: 0;
+}
+[data-theme="dark"] .hero-carousel__accent,
+html.dark .hero-carousel__accent {
+  opacity: 1;
+  border-radius: 0;
+  right: -20px;
+  top: -20px;
+  width: 140px;
+  height: 140px;
+  transform: rotate(10deg);
+}
+
+/* 좌우 화살표 — viewport 양 끝에 absolute 배치 */
+.hero-carousel__arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.hero-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hero-carousel__arrow:hover {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.hero-carousel__arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.hero-carousel__arrow--prev {
+  left: 12px;
+}
+.hero-carousel__arrow--next {
+  right: 12px;
+}
+
+/* 점 indicator — viewport 하단 중앙 */
+.hero-carousel__indicators {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  z-index: 2;
+}
+.hero-carousel__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  /* width 변화를 부드럽게 — active 시 가로로 늘어남 */
+  transition: background 0.2s ease, width 0.2s ease;
+}
+.hero-carousel__indicator:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+.hero-carousel__indicator--active {
+  width: 22px;
+  border-radius: 4px;
+  background: #fff;
+}
+.hero-carousel__indicator:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* 모바일 — 화살표 작게 + 패널 패딩 축소 (.promo 와 동일 톤) */
+@media (max-width: 768px) {
+  .hero-carousel__panel {
+    padding: 20px 18px;
+  }
+  .hero-carousel__title {
+    font-size: 22px;
+  }
+  .hero-carousel__meta {
+    font-size: 13px;
+  }
+  .hero-carousel__arrow {
+    width: 32px;
+    height: 32px;
+  }
+  .hero-carousel__arrow--prev {
+    left: 8px;
+  }
+  .hero-carousel__arrow--next {
+    right: 8px;
+  }
+}
+
+/* 접근성 — OS 모션 감소 설정 시 fade 전환 제거 */
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel__slide {
+    transition: none;
+  }
+  .hero-carousel__indicator {
+    transition: none;
+  }
+  .hero-carousel__arrow {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Tweaks panel (unchanged protocol, restyled)
    ============================================================ */
 .tweaks {
