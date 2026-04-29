@@ -74,37 +74,55 @@ export function ThemeSwitch() {
     setThemeState(next);
   };
 
-  // 시안 매칭: 두 버튼 동시 표시, data-active 속성으로 활성 분기
+  // 옵션 A 하이브리드 (2026-04-30):
+  //   - 모바일 (≤720px): 단일 아이콘 토글 (햄버거 영역 압박 해소)
+  //   - 데스크톱 (≥721px): 두 라벨 (v2.1 시안 매칭)
+  // 두 버전 모두 DOM 동시 렌더 + CSS hidden 으로 분기 (HMR 안전)
+  const nextTheme: Theme = theme === "dark" ? "light" : "dark";
+
   return (
-    <div className="theme-switch" role="group" aria-label="테마 전환">
+    <>
+      {/* 데스크톱 — v2.1 시안 두 라벨 토글 (≥md=768px) */}
+      <div className="theme-switch hidden md:inline-flex" role="group" aria-label="테마 전환">
+        <button
+          type="button"
+          className="theme-switch__btn"
+          data-active={theme === "light"}
+          onClick={() => applyTheme("light")}
+          aria-label="라이트 모드"
+          aria-pressed={theme === "light"}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16 }}>
+            light_mode
+          </span>
+          라이트
+        </button>
+        <button
+          type="button"
+          className="theme-switch__btn"
+          data-active={theme === "dark"}
+          onClick={() => applyTheme("dark")}
+          aria-label="다크 모드"
+          aria-pressed={theme === "dark"}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16 }}>
+            dark_mode
+          </span>
+          다크
+        </button>
+      </div>
+
+      {/* 모바일 — 단일 아이콘 토글 (≤md=767px, 햄버거 영역 압박 해소) */}
       <button
         type="button"
-        className="theme-switch__btn"
-        data-active={theme === "light"}
-        onClick={() => applyTheme("light")}
-        aria-label="라이트 모드"
-        aria-pressed={theme === "light"}
+        className="app-nav__icon-btn md:hidden"
+        onClick={() => applyTheme(nextTheme)}
+        aria-label={theme === "dark" ? "라이트 모드 전환" : "다크 모드 전환"}
       >
-        {/* Material Symbols Outlined — light_mode (해 아이콘) */}
-        <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16 }}>
-          light_mode
+        <span className="material-symbols-outlined" aria-hidden="true">
+          {theme === "dark" ? "light_mode" : "dark_mode"}
         </span>
-        라이트
       </button>
-      <button
-        type="button"
-        className="theme-switch__btn"
-        data-active={theme === "dark"}
-        onClick={() => applyTheme("dark")}
-        aria-label="다크 모드"
-        aria-pressed={theme === "dark"}
-      >
-        {/* Material Symbols Outlined — dark_mode (달 아이콘) */}
-        <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16 }}>
-          dark_mode
-        </span>
-        다크
-      </button>
-    </div>
+    </>
   );
 }
