@@ -1205,6 +1205,9 @@ model game_applications {
   attended_at      DateTime? @db.Timestamp(6)
   created_at       DateTime  @db.Timestamp(6)
   updated_at       DateTime  @db.Timestamp(6)
+  // Phase 10-3 — 게스트 지원 흐름: 농구 경력(년) + 약관 동의 스냅샷
+  experience_years Int?      @db.SmallInt
+  accepted_terms   Json?     @default("{}")
   users            User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3cac6c4ac4")
   games            games     @relation(fields: [game_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_a07efcd68e")
 
