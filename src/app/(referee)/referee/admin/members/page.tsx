@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+// v2.1 P2: DataTableV2 도입 — 데스크톱 표 + 모바일 카드형 자동 변환 통합
+import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
 
 /**
  * /referee/admin/members — 소속 심판 관리 목록 (Client Component).
@@ -71,6 +73,85 @@ const MATCH_BADGE: Record<string, { bg: string; color: string; label: string }> 
   matched:   { bg: "var(--color-success, #22c55e)", color: "#fff", label: "매칭됨" },
   unmatched: { bg: "var(--color-warning, #f59e0b)", color: "#000", label: "미매칭" },
 };
+
+// v2.1 P2: DataTableV2 컬럼 명세
+// primary=이름(카드 제목) / actions=상세 버튼(카드 하단 영역) / 나머지는 모바일에서 라벨+값 라인
+const MEMBER_COLUMNS: DataTableColumn<MemberItem>[] = [
+  {
+    key: "user_name",
+    label: "이름",
+    primary: true,
+    width: "1.5fr",
+    render: (m) => (
+      <div>
+        <div style={{ color: "var(--color-text-primary)" }} className="font-semibold">
+          {m.user_name ?? "이름 없음"}
+        </div>
+        {m.user_email && (
+          <div className="mt-0.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
+            {m.user_email}
+          </div>
+        )}
+      </div>
+    ),
+  },
+  {
+    key: "level",
+    label: "등급",
+    width: "100px",
+    render: (m) => (
+      <span style={{ color: "var(--color-text-secondary)" }}>{m.level ?? "-"}</span>
+    ),
+  },
+  {
+    key: "match_status",
+    label: "매칭",
+    width: "100px",
+    render: (m) => <MatchBadge status={m.match_status} />,
+  },
+  {
+    key: "total_certificates",
+    label: "자격증",
+    width: "100px",
+    render: (m) => (
+      <span style={{ color: "var(--color-text-secondary)" }}>{m.total_certificates}건</span>
+    ),
+  },
+  {
+    key: "verification_status",
+    label: "검증",
+    width: "100px",
+    render: (m) => <VerificationBadge status={m.verification_status} />,
+  },
+  {
+    key: "status",
+    label: "상태",
+    width: "100px",
+    render: (m) => (
+      <span style={{ color: "var(--color-text-muted)" }}>{m.status}</span>
+    ),
+  },
+  {
+    key: "actions",
+    label: " ",
+    actions: true,
+    width: "120px",
+    render: (m) => (
+      <Link
+        href={`/referee/admin/members/${m.id}`}
+        className="btn inline-flex items-center gap-1 px-3 py-1 text-xs font-bold"
+        style={{
+          color: "var(--color-primary)",
+          border: "1px solid var(--color-primary)",
+          borderRadius: 4,
+        }}
+      >
+        상세
+        <span className="material-symbols-outlined text-sm">chevron_right</span>
+      </Link>
+    ),
+  },
+];
 
 export default function AdminMembersPage() {
   const [items, setItems] = useState<MemberItem[]>([]);
@@ -298,132 +379,13 @@ export default function AdminMembersPage() {
         </div>
       ) : (
         <>
-          {/* 데스크톱: 테이블 */}
-          <div
-            className="hidden lg:block overflow-x-auto"
-            style={{
-              backgroundColor: "var(--color-card)",
-              border: "1px solid var(--color-border)",
-              borderRadius: 4,
-            }}
-          >
-            <table className="w-full text-sm">
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid var(--color-border)",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">이름</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">등급</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">매칭</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">자격증</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">검증</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider">상태</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((m) => (
-                  <tr
-                    key={String(m.id)}
-                    style={{ borderBottom: "1px solid var(--color-border)" }}
-                  >
-                    <td className="px-4 py-3">
-                      <div style={{ color: "var(--color-text-primary)" }} className="font-semibold">
-                        {m.user_name ?? "이름 없음"}
-                      </div>
-                      {m.user_email && (
-                        <div className="mt-0.5 text-xs" style={{ color: "var(--color-text-secondary)" }}>
-                          {m.user_email}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
-                      {m.level ?? "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <MatchBadge status={m.match_status} />
-                    </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
-                      {m.total_certificates}건
-                    </td>
-                    <td className="px-4 py-3">
-                      <VerificationBadge status={m.verification_status} />
-                    </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-text-muted)" }}>
-                      {m.status}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/referee/admin/members/${m.id}`}
-                        className="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold"
-                        style={{
-                          color: "var(--color-primary)",
-                          border: "1px solid var(--color-primary)",
-                          borderRadius: 4,
-                        }}
-                      >
-                        상세
-                        <span className="material-symbols-outlined text-sm">chevron_right</span>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 모바일: 카드형 */}
-          <ul className="space-y-3 lg:hidden">
-            {items.map((m) => (
-              <li
-                key={String(m.id)}
-                className="p-4"
-                style={{
-                  backgroundColor: "var(--color-card)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: 4,
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className="truncate text-sm font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {m.user_name ?? "이름 없음"}
-                    </h3>
-                    <p
-                      className="mt-0.5 text-xs"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {m.level ?? "등급 미설정"} | 자격증 {m.total_certificates}건
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <MatchBadge status={m.match_status} />
-                    <VerificationBadge status={m.verification_status} />
-                  </div>
-                </div>
-                <div className="mt-3 flex justify-end">
-                  <Link
-                    href={`/referee/admin/members/${m.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold"
-                    style={{
-                      color: "var(--color-primary)",
-                      border: "1px solid var(--color-primary)",
-                      borderRadius: 4,
-                    }}
-                  >
-                    상세보기
-                    <span className="material-symbols-outlined text-sm">chevron_right</span>
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {/* v2.1 P2: DataTableV2 — 데스크톱 표 + 모바일 카드 자동 변환 (≤720px G-1 룰) */}
+          <DataTableV2<MemberItem>
+            rowKey={(m) => String(m.id)}
+            rows={items}
+            columns={MEMBER_COLUMNS}
+            emptyMessage="심판이 없습니다"
+          />
 
           {/* 페이지네이션 */}
           {totalPages > 1 && (
