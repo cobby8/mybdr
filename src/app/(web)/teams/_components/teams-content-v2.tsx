@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,19 +40,13 @@ interface TeamsApiResponse {
 // 260px min × 4~5열 × 2~3행 기준 12장이 적정.
 const TEAMS_PER_PAGE = 12;
 
-// 스켈레톤 (v2 카드 비율 유지: 상단 98px + 본문 stat + 하단 버튼 → 약 h-64)
+// 스켈레톤 (v2 카드 비율 — 간소화 후: 로고 + 팀명 + 창단 + 상세 버튼 → 약 h-44)
+// 이유: 카드에서 stat 3종 + 매치신청 버튼이 빠지면서 높이 축소됨. 모바일 2열 강제.
 function TeamsListSkeletonV2() {
   return (
-    <div
-      className="mt-4"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-        gap: 14,
-      }}
-    >
+    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
       {Array.from({ length: 8 }).map((_, i) => (
-        <Skeleton key={i} className="h-64 rounded-[10px]" />
+        <Skeleton key={i} className="h-44 rounded-[10px]" />
       ))}
     </div>
   );
@@ -208,17 +202,7 @@ export function TeamsContentV2({
     }, 380);
   };
 
-  // wins desc 로 정렬한 뒤 index 를 카드에 부여 → 시안의 #랭크 표시
-  // 이유: 기존 API가 sort=wins 일 때 이미 wins desc 정렬해서 내려주지만,
-  // 정렬 옵션이 "최신순/승률순" 이어도 "#랭크" 는 항상 wins 기준이어야 의미가 통일됨.
-  // 현재 기본 정렬이 wins 이고, URL에 sort 파라미터가 붙어도 팀별 고유 랭크 의미를 유지하기 위해
-  // 프론트에서 wins desc 로 한 번 더 정렬한 맵을 만들어 rankIndex 를 매긴다.
-  const rankMap = useMemo(() => {
-    const m = new Map<string, number>();
-    const sorted = [...teams].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0));
-    sorted.forEach((t, i) => m.set(t.id, i + 1));
-    return m;
-  }, [teams]);
+  // 순위(rankIndex) 계산 제거 — PM 결정: 팀 레이팅 미구현 기능이라 카드 우상단 #랭크도 비표시 (2026-04-29)
 
   // 페이지네이션 계산
   const totalPages = Math.max(1, Math.ceil(teams.length / TEAMS_PER_PAGE));
@@ -228,7 +212,8 @@ export function TeamsContentV2({
   );
 
   return (
-    <div className="max-w-[1200px] mx-auto">
+    // 모바일 좌우 여백 보강 — .page 컨테이너 padding 외에 추가 안전망 (2026-04-29)
+    <div className="max-w-[1200px] mx-auto px-3 sm:px-0">
       {/* v2 헤더 — 시안 L7~L20 */}
       <div
         style={{
@@ -253,9 +238,7 @@ export function TeamsContentV2({
           >
             등록 팀 {teams.length}팀
           </h1>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-            레이팅 순 · 2026 시즌 기준
-          </div>
+          {/* 레이팅 순 라벨 제거 — PM 결정: 팀 레이팅은 미구현 기능이므로 표시 X (2026-04-29) */}
         </div>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -311,15 +294,8 @@ export function TeamsContentV2({
         <TeamsListSkeletonV2 />
       ) : (
         <>
-          {/* v2 그리드 — auto-fill minmax(260px, 1fr) (시안 L22) */}
-          <div
-            className="mt-4"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: 14,
-            }}
-          >
+          {/* v2 그리드 — 모바일 2열 강제, md 3열, xl 4열 (2026-04-29 모바일 최적화) */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
             {paginatedTeams.map((team) => {
               // API snake_case → 카드 입력 타입으로 변환
               const cardData = {
@@ -331,11 +307,8 @@ export function TeamsContentV2({
                 logoUrl: team.logo_url,
                 city: team.city,
                 district: team.district,
-                wins: team.wins ?? 0,
-                losses: team.losses ?? 0,
                 accepting_members: team.accepting_members,
                 created_at: team.created_at ?? null,
-                rankIndex: rankMap.get(team.id) ?? 0,
               };
               return <TeamCardV2 key={team.id} team={cardData} />;
             })}

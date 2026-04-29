@@ -40,7 +40,8 @@ type Props = {
   teamName: string;
   teamNameSecondary: string | null;
   foundedYear: number | null;
-  rating: number;
+  // rating prop 제거 (2026-04-29) — 팀 레이팅 미구현 기능이라 표시 X.
+  // 부모 page.tsx 의 rating 변수는 OverviewTabV2 등 다른 곳에서도 쓰이므로 유지.
   wins: number;
   losses: number;
   winRate: number | null;
@@ -62,7 +63,6 @@ export function TeamHeroV2({
   teamName,
   teamNameSecondary,
   foundedYear,
-  rating,
   wins,
   losses,
   winRate,
@@ -81,12 +81,12 @@ export function TeamHeroV2({
 
   return (
     <section
-      className="relative overflow-hidden"
+      // padding 모바일 축소 (2026-04-29) — 기존 36px 32px 고정 → 반응형
+      className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-9"
       style={{
         background: bgGradient,
         color: ink,
         borderRadius: "var(--radius-card)",
-        padding: "36px 32px",
         marginBottom: 20,
         // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
         // 부모 .page wrapper가 1200px이므로 동일 폭 안전망. wrapper 누락 시에도 hero만 풀폭으로 튀지 않게.
@@ -96,10 +96,12 @@ export function TeamHeroV2({
       }}
     >
       {/* 우상단 거대 tag 워터마크 — 시안의 시그니처 장식.
-          opacity .12 로 가독성 방해 없이 브랜드 감만 남긴다. */}
+          opacity .12 로 가독성 방해 없이 브랜드 감만 남긴다.
+          모바일(366px viewport)에서는 220px 워터마크가 본문 위로 올라와 글자 겹침 발생 →
+          sm 이상에서만 노출 (2026-04-29 모바일 최적화) */}
       <div
         aria-hidden
-        className="pointer-events-none select-none"
+        className="pointer-events-none select-none hidden sm:block"
         style={{
           position: "absolute",
           right: -20,
@@ -125,20 +127,18 @@ export function TeamHeroV2({
         }}
       >
         {/* 1행 (lg미만) / 좌열 (lg+) — Avatar + 텍스트 블록을 한 줄에 */}
-        <div className="flex items-start gap-4 sm:gap-6 lg:items-end">
-          {/* Avatar — 96px / radius 12 / tag 이니셜 폴백.
-              accent 위에 반투명 흰 배경(.2)으로 살짝 떠 보이게. */}
+        <div className="flex items-start gap-3 sm:gap-6 lg:items-end">
+          {/* Avatar — 모바일 64px / sm 이상 96px (2026-04-29 모바일 최적화)
+              tag 이니셜 폴백. accent 위에 반투명 흰 배경(.2)으로 살짝 떠 보이게. */}
           <div
-            className="flex-shrink-0 grid place-items-center"
+            className="flex-shrink-0 grid place-items-center w-16 h-16 sm:w-24 sm:h-24"
             style={{
-              width: 96,
-              height: 96,
               borderRadius: 12,
               background: "rgba(255,255,255,0.2)",
               color: ink,
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              fontSize: 28,
+              fontSize: 22,
               letterSpacing: "-0.02em",
             }}
           >
@@ -161,13 +161,13 @@ export function TeamHeroV2({
               {foundedYear ? ` · 창단 ${foundedYear}` : ""}
             </div>
 
-            {/* 메인 팀명 — 시안 52px. 모바일 32px / sm 42px / lg 52px 점진 확대 */}
+            {/* 메인 팀명 — 모바일 더 작게 (2026-04-29): clamp(20px, 5vw, 42px) */}
             <h1
               className="t-display"
               style={{
                 margin: 0,
-                fontSize: "clamp(28px, 6vw, 52px)",
-                lineHeight: 1,
+                fontSize: "clamp(20px, 5vw, 42px)",
+                lineHeight: 1.05,
                 letterSpacing: "-0.02em",
                 fontFamily: "var(--ff-display)",
                 fontWeight: 900,
@@ -186,12 +186,12 @@ export function TeamHeroV2({
               </p>
             )}
 
-            {/* 스탯 4종 — 시안 그대로: 숫자(22px ff-display 900) + 라벨(14px opacity .75) */}
+            {/* 스탯 3종 — 레이팅 stat 제거 (2026-04-29, PM 결정: 미구현 기능)
+                숫자(22px ff-display 900) + 라벨(14px opacity .75) */}
             <div
               className="flex flex-wrap"
               style={{ gap: 22, marginTop: 18, fontSize: 14 }}
             >
-              <StatInline value={rating} label="레이팅" ink={ink} />
               <StatInline value={wins} label="승" ink={ink} />
               <StatInline value={losses} label="패" ink={ink} />
               <StatInline
