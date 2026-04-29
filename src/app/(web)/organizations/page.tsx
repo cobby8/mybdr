@@ -26,22 +26,24 @@ export const metadata: Metadata = {
 export const revalidate = 60; // 60초 ISR
 
 export default async function OrganizationsPage() {
-  // 공개 + 활성 단체만 조회 (시리즈 수 내림차순) — 기존 쿼리 그대로 유지
-  const orgs = await prisma.organizations.findMany({
-    where: { is_public: true, status: "active" },
-    orderBy: { series_count: "desc" },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      logo_url: true,
-      region: true,
-      series_count: true,
-      description: true,
-      _count: { select: { members: { where: { is_active: true } } } },
-    },
-    take: 50,
-  });
+  // 빌드 시점 DB 연결 실패 시 빈 목록 fallback (ISR 60초로 복구)
+  const orgs = await prisma.organizations
+    .findMany({
+      where: { is_public: true, status: "active" },
+      orderBy: { series_count: "desc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logo_url: true,
+        region: true,
+        series_count: true,
+        description: true,
+        _count: { select: { members: { where: { is_active: true } } } },
+      },
+      take: 50,
+    })
+    .catch(() => []);
 
   // BigInt → string 직렬화 + 클라 컴포넌트용 props 매핑
   const cardData: OrgCardData[] = orgs.map((org) => ({
