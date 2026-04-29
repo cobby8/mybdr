@@ -137,6 +137,12 @@ DB 구현 후 메뉴 활성 복귀 순서. 사용자 임팩트 큰 것부터.
 14. **프로필 VS 나** — `match_player_stat` 양방향 조인 + 비교 UI (A-2 ghost)
 15. **커뮤니티 댓글 답글** — `comments.parent_id` DB는 있지만 createCommentAction + comment-list UI 미연결 (A-4 ghost, 2026-04-29). depth=1 1단계만 우선
 16. **커뮤니티 댓글 좋아요** — `comment_likes` 테이블 + toggleCommentLikeAction 연결 (A-4 ghost). action 함수는 이미 community.ts:370 에 작성돼 있음 — UI 만 연결하면 활성화 가능 (Phase 11 첫 후보)
+17. **/about 통계 4건 동적화** — 현재 `src/app/(web)/about/page.tsx` L48-51 가데이터 + L159 "예시" 라벨 명시. 추후 DB 집계로 교체 (2026-04-29 박제 텍스트 정리 작업 큐 추가):
+    - 가입 멤버 수: `SELECT COUNT(*) FROM users` (또는 `is_active=true` 필터)
+    - 등록 팀 수: `SELECT COUNT(*) FROM teams`
+    - 개최 대회 수: `SELECT COUNT(*) FROM tournaments`
+    - 운영 기간(20년): 정적 표시 + 매년 자동 갱신 (커뮤니티 시작년 2005 기준 동적 산출 가능)
+    - 구현 시 about 페이지 server component fetch 추가 + L159 "예시" 캡션 제거
 
 ---
 

@@ -2,10 +2,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 // SEO: About(소개) 페이지 메타데이터
+// 2026-04-29 카피 통일: "서울 3x3 농구 커뮤니티" → "전국 농구 매칭 플랫폼"
+//  (mybdr는 전국/5x5+3x3 모두 지원하므로 지역·종목 한정 표현 제거)
 export const metadata: Metadata = {
   title: "소개 | MyBDR",
   description:
-    "MyBDR은 다음카페 시절부터 20년을 이어온 서울 3x3 농구 커뮤니티입니다. 흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모읍니다.",
+    "MyBDR은 다음카페 시절부터 20년을 이어온 전국 농구 매칭 플랫폼입니다. 흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모읍니다.",
 };
 
 /* ============================================================
@@ -33,14 +35,16 @@ export const metadata: Metadata = {
  *   - 파트너 로고 실제 자산
  * ============================================================ */
 
-// 운영진 가데이터 — 시안 그대로 (실제 명단 확정 후 교체)
+// 운영진 가데이터 — 일반 팀 라벨로 교체 (실명 노출 위험 차단, 2026-04-29)
+//  이유: 시안 박제 시 임의 실명 6건이 그대로 운영 노출 → 개인정보/명예 위험.
+//  실명 명단은 운영팀 확정 + 동의 절차 후 정식 교체.
 const team: { name: string; role: string; since: string }[] = [
-  { name: "김승철", role: "대표 / 기획", since: "2022" },
-  { name: "이경진", role: "개발총괄", since: "2022" },
-  { name: "박상우", role: "운영총괄", since: "2023" },
-  { name: "최지혜", role: "디자인", since: "2023" },
-  { name: "정혁수", role: "커뮤니티", since: "2024" },
-  { name: "한수민", role: "파트너십", since: "2024" },
+  { name: "기획팀", role: "전략 · 기획", since: "2022" },
+  { name: "개발팀", role: "프론트엔드 · 백엔드", since: "2022" },
+  { name: "운영팀", role: "콘텐츠 · 운영", since: "2023" },
+  { name: "디자인팀", role: "UX · UI", since: "2023" },
+  { name: "커뮤니티팀", role: "파트너십 · 소통", since: "2024" },
+  { name: "사업팀", role: "비즈니스 개발", since: "2024" },
 ];
 
 // 통계 4건 — 시안 가데이터 (정확한 수치는 운영팀 확정 후 동적 카운트로 교체)
@@ -91,7 +95,7 @@ export default function AboutPage() {
               letterSpacing: "-0.025em",
             }}
           >
-            서울의 농구를 더 가깝게
+            농구를 더 가깝게
           </h1>
           <p
             style={{
@@ -102,7 +106,7 @@ export default function AboutPage() {
               lineHeight: 1.7,
             }}
           >
-            MyBDR은 다음카페 시절부터 20년을 이어온 서울 3x3 농구 커뮤니티입니다.
+            MyBDR은 다음카페 시절부터 20년을 이어온 전국 농구 매칭 플랫폼입니다.
             흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모아{" "}
             <strong style={{ color: "var(--ink)" }}>누구나 쉽게 뛸 수 있는 환경</strong>을
             만듭니다.
