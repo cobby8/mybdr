@@ -38,7 +38,9 @@ export const MORE_GROUPS: MoreGroup[] = [
     title: "내 활동",
     items: [
       { id: "mygames", label: "내 신청 내역", icon: "📋", href: "/games/my-games" },
-      { id: "guestApps", label: "게스트 지원", icon: "🎟️", href: "/guest-apps" },
+      // [2026-04-29] guestApps 제거 — phase-9 1-A: guest_applications DB 미존재.
+      // 게임 상세 "게스트 모집중" 배지 활성 시에만 CTA 노출 정책. 추후 구현:
+      //   { id: "guestApps", label: "게스트 지원", icon: "🎟️", href: "/guest-apps" },
       { id: "calendar", label: "내 일정", icon: "📅", href: "/calendar" },
       { id: "saved", label: "보관함", icon: "🔖", href: "/saved" },
       { id: "messages", label: "쪽지", icon: "💬", href: "/messages" },
@@ -55,10 +57,12 @@ export const MORE_GROUPS: MoreGroup[] = [
       { id: "live", label: "라이브 중계", icon: "🔴", href: "/live" },
       // P0-C: 경기 등록 핵심 액션 — 신규 경기 생성 페이지 직진입
       { id: "gameNew", label: "경기 등록", icon: "➕", href: "/games/new" },
-      // gameResult/gameReport: 직접 라우트 없음 → my-games 허브로
-      // (종료 경기에서 결과 확인·평가 진입이 자연스러우므로 유지)
-      { id: "gameResult", label: "경기 결과", icon: "📊", href: "/games/my-games" },
-      { id: "gameReport", label: "경기 신고·평가", icon: "🚩", href: "/games/my-games" },
+      // [2026-04-29] gameResult / gameReport 제거 — phase-9 1-A: 가짜 링크.
+      // 두 항목 모두 /games/my-games 로 fallback 되는 placeholder. 종료된 경기 카드에
+      // "결과/평가" CTA 활성화 정책으로 전환. game_reports / game_player_ratings DB 신규
+      // 필요. 추후 구현:
+      //   { id: "gameResult", label: "경기 결과", icon: "📊", href: "/games/my-games" },
+      //   { id: "gameReport", label: "경기 신고·평가", icon: "🚩", href: "/games/my-games" },
       { id: "scrim", label: "스크림 매칭", icon: "🆚", href: "/scrim" },
       // P0-B 제거: bracket / tournamentEnroll / guestApply
       //   - 대진표/대회 접수: 토너먼트 선택 후 진입이 자연스러워 가짜 링크 제거
@@ -82,7 +86,10 @@ export const MORE_GROUPS: MoreGroup[] = [
     title: "둘러보기",
     items: [
       { id: "searchResults", label: "검색 결과", icon: "🔎", href: "/search" },
-      { id: "referee", label: "심판 센터", icon: "🦓", href: "/referee" },
+      // [2026-04-29] referee 제거 — phase-9 1-A: 일반 사용자 메뉴에서 노출 X.
+      // is_referee=true 사용자는 AppNav 더보기 패널의 "운영" 그룹에 별도 노출됨.
+      // 추후 구현 (일반 사용자 진입점이 필요해질 때):
+      //   { id: "referee", label: "심판 센터", icon: "🦓", href: "/referee" },
       { id: "coaches", label: "코치·트레이너", icon: "👔", href: "/coaches" },
       { id: "reviews", label: "리뷰", icon: "⭐", href: "/reviews" },
       { id: "awards", label: "수상 아카이브", icon: "🏆", href: "/awards" },

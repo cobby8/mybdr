@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeSwitch } from "./theme-switch";
 import { AppDrawer } from "./app-drawer";
-import { MORE_GROUPS } from "./more-groups";
+import { MORE_GROUPS, type MoreGroup } from "./more-groups";
 
 /* ============================================================
  * AppNav (BDR v2 상단 네비게이션)
@@ -42,16 +42,23 @@ interface AppNavProps {
   // [2026-04-22] rightAccessory(별 아이콘) prop 제거 — v2 시안에 존재하지 않음
 }
 
-// 메인 탭 8개 — PM 확정안
-const tabs: { id: string; href: string; label: string }[] = [
-  { id: "home", href: "/", label: "홈" },
-  { id: "games", href: "/games", label: "경기" },
-  { id: "tournaments", href: "/tournaments", label: "대회" },
-  { id: "orgs", href: "/organizations", label: "단체" },
-  { id: "teams", href: "/teams", label: "팀" },
-  { id: "courts", href: "/courts", label: "코트" },
-  { id: "rankings", href: "/rankings", label: "랭킹" },
-  { id: "community", href: "/community", label: "커뮤니티" },
+// 메인 탭 9개 — PM 확정안 (2026-04-29: "더보기" 추가)
+// kind:
+//   - "link"    : 일반 라우트 이동
+//   - "trigger" : "더보기" 드롭다운 토글 (href 미사용)
+// 이유(왜): 메인 바에서 떨어져 있던 "더보기" 트리거를 메인 탭 9번째로 흡수.
+//         탭 자체가 모바일 햄버거를 대체하는 역할로 일관성 부여.
+const tabs: { id: string; href: string; label: string; kind?: "link" | "trigger" }[] = [
+  { id: "home", href: "/", label: "홈", kind: "link" },
+  { id: "games", href: "/games", label: "경기", kind: "link" },
+  { id: "tournaments", href: "/tournaments", label: "대회", kind: "link" },
+  { id: "orgs", href: "/organizations", label: "단체", kind: "link" },
+  { id: "teams", href: "/teams", label: "팀", kind: "link" },
+  { id: "courts", href: "/courts", label: "코트", kind: "link" },
+  { id: "rankings", href: "/rankings", label: "랭킹", kind: "link" },
+  { id: "community", href: "/community", label: "커뮤니티", kind: "link" },
+  // 더보기: 클릭 시 기존 더보기 드롭다운 패널을 토글 (작업 4)
+  { id: "more", href: "#", label: "더보기", kind: "trigger" },
 ];
 
 // 더보기 메뉴 5그룹은 ./more-groups.ts 의 MORE_GROUPS 상수에서 import
@@ -90,11 +97,7 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  // 아바타 이니셜 (최대 3글자, v2 원본 "RDM" 스타일 모노 폰트)
-  const initials = useMemo(() => {
-    if (!user?.name) return "BDR";
-    return user.name.slice(0, 3).toUpperCase();
-  }, [user?.name]);
+  // [2026-04-29] 아바타 영역 제거에 따라 initials useMemo 제거
 
   return (
     <nav className="app-nav">
@@ -103,14 +106,17 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
        * ============================================================ */}
       <div className="app-nav__utility">
         <div className="app-nav__utility-inner">
-          <span>MyBDR 커뮤니티</span>
-          <span className="sep" />
-          <Link href="/about">소개</Link>
-          <span className="sep" />
-          <Link href="/pricing">요금제</Link>
-          <span className="sep" />
-          <Link href="/help/glossary">도움말</Link>
+          {/* [2026-04-29] 좌측 그룹 — 모바일에서 숨김 (CSS 셀렉터 .util-left 사용)
+                          좌/우를 명시 클래스로 분리해 모바일에서 좌측만 hide. */}
+          <span className="util-left">MyBDR 커뮤니티</span>
+          <span className="sep util-left" />
+          <Link href="/about" className="util-left">소개</Link>
+          <span className="sep util-left" />
+          <Link href="/pricing" className="util-left">요금제</Link>
+          <span className="sep util-left" />
+          <Link href="/help/glossary" className="util-left">도움말</Link>
           <span className="app-nav__utility-spacer" />
+          {/* 우측 그룹 — 모바일에서도 표시 유지 (작업 1 픽스) */}
           {user ? (
             <>
               <Link href="/profile">{user.name}</Link>
@@ -148,19 +154,65 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
           </span>
         </Link>
 
-        {/* 탭 8개 — 가로 스크롤 가능 (CSS에서 overflow-x 처리) */}
+        {/* 탭 9개 — 가로 스크롤 가능 (CSS에서 overflow-x 처리)
+            "더보기"(kind: trigger) 탭은 Link 대신 button 으로 드롭다운 토글.
+            드롭다운 패널은 기존 컴포넌트 그대로 재사용 (moreOpen state 공유) */}
         <div className="app-nav__tabs">
-          {tabs.map((t) => (
-            <Link
-              key={t.id}
-              href={t.href}
-              prefetch
-              className="app-nav__tab"
-              data-active={isActive(t.href)}
-            >
-              {t.label}
-            </Link>
-          ))}
+          {tabs.map((t) => {
+            // 더보기 트리거: 일반 Link 가 아닌 button + 드롭다운 컨테이너
+            if (t.kind === "trigger") {
+              return (
+                <div
+                  key={t.id}
+                  ref={moreRef}
+                  style={{ position: "relative", display: "inline-flex" }}
+                >
+                  <button
+                    type="button"
+                    className="app-nav__tab"
+                    data-active={moreOpen}
+                    onClick={() => setMoreOpen((v) => !v)}
+                    aria-expanded={moreOpen}
+                    aria-haspopup="menu"
+                    style={{
+                      background: "transparent",
+                      border: 0,
+                      cursor: "pointer",
+                      font: "inherit",
+                      color: "inherit",
+                    }}
+                  >
+                    {t.label}
+                    <span
+                      aria-hidden
+                      style={{
+                        fontSize: 9,
+                        marginLeft: 4,
+                        display: "inline-block",
+                        transform: moreOpen ? "rotate(180deg)" : "none",
+                        transition: "transform .15s",
+                      }}
+                    >
+                      ▼
+                    </span>
+                  </button>
+                  {moreOpen && <MorePanel groups={MORE_GROUPS} user={user} isActive={isActive} onClose={() => setMoreOpen(false)} />}
+                </div>
+              );
+            }
+            // 일반 라우트 탭
+            return (
+              <Link
+                key={t.id}
+                href={t.href}
+                prefetch
+                className="app-nav__tab"
+                data-active={isActive(t.href)}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
         </div>
 
         {/* 우측 액션 영역 */}
@@ -203,253 +255,13 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
             </Link>
           )}
 
-          {/* 더보기 드롭다운 — v2 원본 moreItems 패턴 */}
-          <div ref={moreRef} style={{ position: "relative" }}>
-            <button
-              type="button"
-              className="btn btn--sm"
-              title="더보기"
-              onClick={() => setMoreOpen((v) => !v)}
-              aria-expanded={moreOpen}
-              style={{ fontSize: 12, fontWeight: 600, padding: "0 10px" }}
-            >
-              더보기
-              <span
-                style={{
-                  fontSize: 9,
-                  marginLeft: 4,
-                  display: "inline-block",
-                  transform: moreOpen ? "rotate(180deg)" : "none",
-                  transition: "transform .15s",
-                }}
-              >
-                ▼
-              </span>
-            </button>
-            {moreOpen && (
-              // 데스크톱: 680px 2-col 그리드 / 모바일(<=720px): globals.css의
-              // .app-nav__more-panel 룰이 풀스크린 시트로 변환 (1-col stack)
-              <div
-                role="menu"
-                className="app-nav__more-panel"
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  right: 0,
-                  width: 680,
-                  maxHeight: "70vh",
-                  overflowY: "auto",
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  boxShadow: "var(--sh-lift, var(--sh-lg))",
-                  borderRadius: 10,
-                  padding: 12,
-                  zIndex: 30,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "4px 18px",
-                }}
-              >
-                {/* 5그룹 그리드: 각 그룹은 헤더 + 항목 리스트 */}
-                {MORE_GROUPS.map((g) => (
-                  <div key={g.title} style={{ breakInside: "avoid" }}>
-                    {/* 그룹 헤더 — 시안 톤(uppercase + letter-spacing) */}
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: "0.08em",
-                        color: "var(--ink-mute)",
-                        textTransform: "uppercase",
-                        padding: "8px 10px 4px",
-                      }}
-                    >
-                      {g.title}
-                    </div>
-                    {g.items.map((m) => {
-                      const active = isActive(m.href);
-                      return (
-                        <Link
-                          key={m.id + g.title}
-                          href={m.href}
-                          role="menuitem"
-                          onClick={() => setMoreOpen(false)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            width: "100%",
-                            padding: "7px 10px",
-                            background: active ? "var(--bg-alt)" : "transparent",
-                            fontSize: 12.5,
-                            color: "var(--ink)",
-                            textDecoration: "none",
-                            borderRadius: 6,
-                            whiteSpace: "nowrap",
-                            fontWeight: active ? 700 : 500,
-                          }}
-                        >
-                          {/* 시안 인라인 이모지 그대로 (Material Symbols 변환 X) */}
-                          <span
-                            style={{
-                              width: 18,
-                              textAlign: "center",
-                              fontSize: 13,
-                              flexShrink: 0,
-                            }}
-                            aria-hidden
-                          >
-                            {m.icon}
-                          </span>
-                          <span
-                            style={{
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {m.label}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ))}
+          {/* [2026-04-29] 더보기 드롭다운 트리거: 메인 탭 9번째로 이동 (작업 2/4)
+                          드롭다운 패널은 MorePanel 컴포넌트로 보존 — 메인 탭에서 재사용 */}
 
-                {/* super_admin / 심판 전용은 별도 그룹으로 마지막에 배치 */}
-                {(user?.role === "super_admin" || user?.is_referee) && (
-                  <div style={{ breakInside: "avoid", gridColumn: "1 / -1" }}>
-                    <div
-                      aria-hidden
-                      style={{
-                        height: 1,
-                        background: "var(--border)",
-                        margin: "8px 0 4px",
-                      }}
-                    />
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: "0.08em",
-                        color: "var(--ink-mute)",
-                        textTransform: "uppercase",
-                        padding: "4px 10px",
-                      }}
-                    >
-                      운영
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "0 18px",
-                      }}
-                    >
-                      {user?.role === "super_admin" && (
-                        <Link
-                          href="/admin"
-                          role="menuitem"
-                          onClick={() => setMoreOpen(false)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "7px 10px",
-                            fontSize: 12.5,
-                            color: "var(--accent)",
-                            textDecoration: "none",
-                            fontWeight: 700,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <span
-                            style={{ width: 18, textAlign: "center", fontSize: 13 }}
-                            aria-hidden
-                          >
-                            🛠
-                          </span>
-                          <span>관리자</span>
-                        </Link>
-                      )}
-                      {user?.is_referee && (
-                        <Link
-                          href="/referee"
-                          role="menuitem"
-                          onClick={() => setMoreOpen(false)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            padding: "7px 10px",
-                            fontSize: 12.5,
-                            color: "var(--ink)",
-                            textDecoration: "none",
-                            fontWeight: 600,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <span
-                            style={{ width: 18, textAlign: "center", fontSize: 13 }}
-                            aria-hidden
-                          >
-                            🦓
-                          </span>
-                          <span>심판 센터</span>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* 아바타 — /profile 이동 Link (PM 확정안: 드롭다운 X, 직접 이동) */}
-          {user ? (
-            <Link
-              href="/profile"
-              className="btn btn--sm"
-              title="내 프로필"
-              aria-label="내 프로필"
-              style={{
-                padding: "0 8px 0 4px",
-                gap: 6,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  background: "var(--bdr-red)",
-                  color: "#fff",
-                  fontFamily: "var(--ff-mono)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  display: "grid",
-                  placeItems: "center",
-                  borderRadius: 3,
-                }}
-              >
-                {initials}
-              </span>
-              <span
-                className="hidden sm:inline"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  maxWidth: 100,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {user.name}
-              </span>
-            </Link>
-          ) : (
+          {/* [2026-04-29] 계정 아바타 + 닉네임 영역 제거 (작업 2)
+                          유틸리티 바에 이미 사용자 이름/설정/로그아웃 링크 존재.
+                          비로그인 시 "로그인" 버튼은 유일한 진입점이므로 유지. */}
+          {!user && (
             <Link href="/login" className="btn btn--accent btn--sm" title="로그인">
               로그인
             </Link>
@@ -490,6 +302,204 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
         user={user}
       />
     </nav>
+  );
+}
+
+/* ============================================================
+ * MorePanel — 더보기 드롭다운 패널 (메인 탭 "더보기" 트리거에서 사용)
+ *
+ * 이유(왜):
+ *   기존 우측 액션 영역의 "더보기" 트리거를 메인 탭으로 이동하면서,
+ *   드롭다운 패널 JSX를 별도 컴포넌트로 분리. 코드 폐기 X — 마크업 그대로
+ *   재사용. super_admin / 심판 전용 그룹도 동일하게 유지.
+ *
+ * 위치:
+ *   parent <div ref={moreRef}>는 메인 탭 내부의 "더보기" 버튼을 감싼다.
+ *   panel 자체는 absolute 포지셔닝으로 버튼 바로 아래에 펼쳐짐.
+ * ============================================================ */
+function MorePanel({
+  groups,
+  user,
+  isActive,
+  onClose,
+}: {
+  groups: MoreGroup[];
+  user: AppNavUser | null;
+  isActive: (href: string) => boolean;
+  onClose: () => void;
+}) {
+  return (
+    // 데스크톱: 680px 2-col 그리드 / 모바일(<=720px): globals.css의
+    // .app-nav__more-panel 룰이 풀스크린 시트로 변환 (1-col stack)
+    <div
+      role="menu"
+      className="app-nav__more-panel"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 6px)",
+        // [2026-04-29] 메인 탭 내부로 이동했으므로 left 기준 정렬
+        // (기존 우측 끝 정렬 → 탭 위치에 맞춘 좌측 정렬)
+        left: 0,
+        width: 680,
+        maxHeight: "70vh",
+        overflowY: "auto",
+        background: "var(--bg)",
+        border: "1px solid var(--border)",
+        boxShadow: "var(--sh-lift, var(--sh-lg))",
+        borderRadius: 10,
+        padding: 12,
+        zIndex: 30,
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "4px 18px",
+      }}
+    >
+      {/* 5그룹 그리드: 각 그룹은 헤더 + 항목 리스트 */}
+      {groups.map((g) => (
+        <div key={g.title} style={{ breakInside: "avoid" }}>
+          {/* 그룹 헤더 — 시안 톤(uppercase + letter-spacing) */}
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "var(--ink-mute)",
+              textTransform: "uppercase",
+              padding: "8px 10px 4px",
+            }}
+          >
+            {g.title}
+          </div>
+          {g.items.map((m) => {
+            const active = isActive(m.href);
+            return (
+              <Link
+                key={m.id + g.title}
+                href={m.href}
+                role="menuitem"
+                onClick={onClose}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  width: "100%",
+                  padding: "7px 10px",
+                  background: active ? "var(--bg-alt)" : "transparent",
+                  fontSize: 12.5,
+                  color: "var(--ink)",
+                  textDecoration: "none",
+                  borderRadius: 6,
+                  whiteSpace: "nowrap",
+                  fontWeight: active ? 700 : 500,
+                }}
+              >
+                {/* 시안 인라인 이모지 그대로 (Material Symbols 변환 X) */}
+                <span
+                  style={{
+                    width: 18,
+                    textAlign: "center",
+                    fontSize: 13,
+                    flexShrink: 0,
+                  }}
+                  aria-hidden
+                >
+                  {m.icon}
+                </span>
+                <span
+                  style={{
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {m.label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+
+      {/* super_admin / 심판 전용은 별도 그룹으로 마지막에 배치 */}
+      {(user?.role === "super_admin" || user?.is_referee) && (
+        <div style={{ breakInside: "avoid", gridColumn: "1 / -1" }}>
+          <div
+            aria-hidden
+            style={{
+              height: 1,
+              background: "var(--border)",
+              margin: "8px 0 4px",
+            }}
+          />
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "var(--ink-mute)",
+              textTransform: "uppercase",
+              padding: "4px 10px",
+            }}
+          >
+            운영
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "0 18px",
+            }}
+          >
+            {user?.role === "super_admin" && (
+              <Link
+                href="/admin"
+                role="menuitem"
+                onClick={onClose}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 10px",
+                  fontSize: 12.5,
+                  color: "var(--accent)",
+                  textDecoration: "none",
+                  fontWeight: 700,
+                  borderRadius: 6,
+                }}
+              >
+                <span style={{ width: 18, textAlign: "center", fontSize: 13 }} aria-hidden>
+                  🛠
+                </span>
+                <span>관리자</span>
+              </Link>
+            )}
+            {user?.is_referee && (
+              <Link
+                href="/referee"
+                role="menuitem"
+                onClick={onClose}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "7px 10px",
+                  fontSize: 12.5,
+                  color: "var(--ink)",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  borderRadius: 6,
+                }}
+              >
+                <span style={{ width: 18, textAlign: "center", fontSize: 13 }} aria-hidden>
+                  🦓
+                </span>
+                <span>심판 센터</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
