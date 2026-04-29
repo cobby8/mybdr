@@ -194,9 +194,17 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 
 ### 5-1. 반응형 기준점
 
-- **브레이크포인트**: `lg` = 1024px
-- lg 이상: 데스크탑 레이아웃
-- lg 미만: 모바일 레이아웃
+| 구간 | 폭 | 비고 |
+|------|-----|------|
+| **모바일** | ≤ 720px | mybdr 모바일 컨벤션 (Tailwind 기본 768px 대신 **720px** 우선) |
+| **태블릿** | 721px ~ 1023px | sm/md 영역 |
+| **데스크톱** | 1024px+ | `lg` 기준점, 사이드바 표시 |
+| **와이드** | 1280px+ | `xl`, max-w-7xl 콘텐츠 |
+
+- **글로벌 가드** (globals.css): `@media (max-width: 768px)`에서 `html, body` 가로 overflow 차단
+- **iOS 자동 줌 차단**: `@media (max-width: 720px)` 폼 input 16px 강제
+- **터치 타겟**: `@media (max-width: 720px)` `.btn` min-height 44px (iOS HIG)
+- 상세 모바일 안티패턴 10항목은 **`.claude/knowledge/conventions.md` "모바일 최적화 체크리스트"** 참조 (개발자용)
 
 ### 5-2. 데스크탑 (lg 이상)
 
@@ -268,6 +276,19 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | 라운딩 | `rounded-lg` (8px, `--radius-card`) | 동일 |
 | 그림자 | `0 2px 8px rgba(0,0,0,0.2)` | `0 2px 8px rgba(0,0,0,0.06)` |
 | 호버 배경 | `--color-card-hover` (#333333) | `--color-card-hover` (#F0F0F0) |
+| **min-height (데스크톱)** | 280px (game-card 기준) | 동일 |
+| **min-height (모바일)** | 240px | 동일 |
+| **제목 truncate** | `WebKitLineClamp: 2` + `overflow: hidden` + `display: -webkit-box` | 동일 |
+
+**카드 그리드 패턴** (안티패턴 방지):
+- ❌ 인라인 `gridTemplateColumns: "repeat(N, 1fr)"` 고정 (모바일에서 깨짐)
+- ✅ mobile-first 분기: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-N`
+- ✅ 또는 가변: `gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))"`
+- ✅ 1fr 컬럼 자식에 `minWidth: 0` 가드 (긴 텍스트 overflow 방지)
+
+**카드 세로 배치** (모바일 좁은 폭):
+- 로고 위, 텍스트 아래 — 가로 배치는 모바일에서 압축됨
+- Avatar 영문 텍스트는 `clamp(14px, 4vw, 28px)` 동적 폰트
 
 ### 6-3. 호버/인터랙션
 
@@ -330,7 +351,43 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 
 ---
 
-## 8. YouTube 히어로 영역
+## 8. Hero 카로셀 패턴
+
+홈/단체/대회 페이지 등에서 사용하는 슬라이드 카로셀의 표준 패턴.
+
+### 8-1. Stacking 방식 (권장)
+
+모든 슬라이드를 같은 위치에 `absolute`로 겹쳐 두고, 활성 슬라이드만 `opacity: 1`로 표시한다.
+
+```tsx
+<div className="relative">
+  {slides.map((slide, i) => (
+    <div
+      key={i}
+      className="absolute inset-0 transition-opacity duration-500"
+      style={{ opacity: i === activeIndex ? 1 : 0, pointerEvents: i === activeIndex ? 'auto' : 'none' }}
+    >
+      {/* 슬라이드 콘텐츠 */}
+    </div>
+  ))}
+</div>
+```
+
+**왜 transform translateX 대신 stacking?**
+- 가로 슬라이드는 모바일 좁은 viewport에서 트랜지션 중 가로 overflow 위험
+- stacking은 컨테이너 폭 100% 안에서만 동작 → globals.css의 가로 overflow 가드와 충돌 X
+- 다음/이전 버튼 + 자동 회전 + 인디케이터 모두 단순 `activeIndex` state로 제어
+
+### 8-2. 카드 세로 배치 (모바일)
+
+Hero 카로셀 안의 카드는 모바일에서 가로 배치를 피한다:
+- 로고/이미지 위, 텍스트 아래 (column flex)
+- 텍스트는 2줄 ellipsis (`WebKitLineClamp: 2`)
+- 카드 자체 min-height: 240px (모바일) / 280px (데스크톱)
+
+---
+
+## 9. YouTube 히어로 영역
 
 홈 페이지 상단에 YouTube 영상을 자동으로 표시하는 히어로 섹션:
 
@@ -342,11 +399,48 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 
 ---
 
-## 9. CSS 변수 레퍼런스
+---
+
+## 10. 글로벌 헤더 구조
+
+### 10-1. 단일 AppNav 원칙
+
+- **글로벌 헤더는 AppNav 한 개만** (`(web)/layout.tsx`)
+- 페이지에서 자체 nav/헤더 추가 렌더 금지 → **이중 헤더 안티패턴**
+- `(admin)`은 AdminSidebar, `(referee)`는 RefereeShell로 **독립 헤더** (별도 그룹)
+
+### 10-2. 2단 구조 (utility bar + main bar)
+
+```
++------------------------------------------------------------+
+| utility bar  (h-9, 파란 배경)                                |
+| MyBDR 커뮤니티 |                  소개 / 요금제 / 도움말 / 계정 |
++------------------------------------------------------------+
+| main bar     (h-16, 흰/다크 배경)                             |
+| 로고 | 메인 탭 9개            검색 | 알림 | 햄버거(모바일)      |
++------------------------------------------------------------+
+```
+
+| 영역 | 배경 | 높이 | 역할 |
+|------|------|------|------|
+| utility bar | `--color-accent` (Navy #1B3C87) | h-9 | 보조 메뉴 (소개/요금제/도움말/계정/설정/로그아웃) |
+| main bar | `--color-background` | h-16 | 로고 + 메인 탭 + 검색 + 알림 |
+
+### 10-3. 메인 탭 9개
+
+홈 | 경기 | 대회 | 단체 | 팀 | 코트 | 랭킹 | 커뮤니티 | 더보기
+
+- 데스크톱: 메인 바에 가로 배치
+- 모바일: 햄버거 메뉴 또는 SlideMenu로 표시
+- 활성 탭은 Material Symbols `FILL 1` + Primary 색상
+
+---
+
+## 11. CSS 변수 레퍼런스
 
 > `src/app/globals.css` 기준. `@theme` 블록 = 다크 기본값, `html.light` = 라이트 오버라이드.
 
-### 9-1. 배경/표면
+### 11-1. 배경/표면
 
 | 변수 | 다크 (기본) | 라이트 |
 |------|------------|--------|
@@ -359,7 +453,7 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | `--color-surface-high` | `#3A3A3A` | `#E8E8E8` |
 | `--color-surface-bright` | `#444444` | `#EEEEEE` |
 
-### 9-2. 브랜드/강조
+### 11-2. 브랜드/강조
 
 | 변수 | 값 |
 |------|-----|
@@ -373,7 +467,7 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | `--color-secondary` | `#1B3C87` |
 | `--color-tertiary` | `#0079B9` |
 
-### 9-3. 텍스트
+### 11-3. 텍스트
 
 | 변수 | 다크 (기본) | 라이트 |
 |------|------------|--------|
@@ -383,7 +477,7 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | `--color-text-disabled` | `#555555` | `#AAAAAA` |
 | `--color-text-on-primary` | `#FFFFFF` | (동일) |
 
-### 9-4. 상태
+### 11-4. 상태
 
 | 변수 | 값 |
 |------|-----|
@@ -394,14 +488,14 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | `--color-warning` | `#F59E0B` |
 | `--color-info` | `#0079B9` |
 
-### 9-5. 테두리
+### 11-5. 테두리
 
 | 변수 | 다크 (기본) | 라이트 |
 |------|------------|--------|
 | `--color-border` | `rgba(255,255,255,0.08)` | `#D0D0D0` |
 | `--color-border-subtle` | `rgba(255,255,255,0.04)` | `#E0E0E0` |
 
-### 9-6. 라운딩/그림자/폰트
+### 11-6. 라운딩/그림자/폰트
 
 | 변수 | 값 |
 |------|-----|
@@ -414,7 +508,7 @@ style={{ fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
 | `--font-sans` | `'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif` |
 | `--font-heading` | `'Space Grotesk', 'Pretendard', sans-serif` |
 
-### 9-7. 호환/기타
+### 11-7. 호환/기타
 
 | 변수 | 다크 (기본) | 라이트 |
 |------|------------|--------|

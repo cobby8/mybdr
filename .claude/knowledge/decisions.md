@@ -2,6 +2,46 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-29] 모바일 브레이크포인트 720px 통일 (Tailwind 768px 미사용)
+- **분류**: decision (디자인 시스템)
+- **결정자**: pm + 디자이너
+- **결정**: BDR v2 모바일/데스크톱 분기 브레이크포인트를 **720px로 통일**. Tailwind default(640px sm / 768px md)를 그대로 쓰지 않고 `@media (max-width: 720px)` 글로벌 룰 + Tailwind config 커스텀.
+- **배경**: (1) mybdr 기존 컨벤션이 720px (이전 작업물에서 720px 분기 다수 사용), (2) 768px(iPad mini portrait)을 데스크톱으로 보내면 가로 폭 부족, (3) 720px이 모바일/태블릿 경계로 직관적 (대부분 폰 가로/태블릿 세로 모두 모바일 처리).
+- **대안 배제**: (B) Tailwind 768px md 그대로 — iPad mini가 데스크톱 사이드바 받아 좁음. (C) 640px sm — 큰 폰(iPhone Pro Max 430px) 직후 데스크톱 받아 어색.
+- **영향**: globals.css `@media (max-width: 720px)` 글로벌 룰 (input 16px / btn 44px / overflow-x:hidden). v2 컴포넌트는 `sm:`/`md:` Tailwind 분기 + 720px global guard 이중 적용.
+- **참조**: conventions.md "모바일 최적화 체크리스트" 10번 / errors.md "모바일 가로 overflow"
+- **참조횟수**: 0
+
+### [2026-04-29] Hero 카로셀 외부 라이브러리 0 — 직접 touch 핸들러 + setInterval
+- **분류**: decision (의존성 관리)
+- **결정자**: pm + developer
+- **결정**: BDR v2 홈 Hero 카로셀에 embla-carousel / swiper / keen-slider 등 외부 라이브러리 미도입. 직접 구현 — useState로 currentIndex 관리 + setInterval 자동 슬라이드(5초) + onTouchStart/Move/End 3핸들러 + 좌우 화살표 버튼.
+- **배경**: (1) 슬라이드 5종 + 자동 전환 + 터치 스와이프 + 점 인디케이터 = 직접 구현 ~80줄로 충분, (2) embla 14kb / swiper 130kb 추가 묶음 비용 vs 80줄 코드 직관적 비교, (3) 카로셀 패턴이 단순(서버 슬라이드 5종 absolute stacking + opacity 토글)이라 라이브러리 추상화 불필요.
+- **대안 배제**: (B) embla-carousel — 가벼운 편이나 14kb 추가 + DOM 조작 추상화로 SEO 슬라이드 인덱싱 비표준화 위험. (C) swiper — 130kb 너무 무거움. (D) react-slick — jQuery 의존, deprecated 추세.
+- **영향**: 의존성 +0. `src/components/bdr-v2/hero-carousel.tsx` 1파일에 client controller 자체 포함. 향후 추가 카로셀 필요 시 동일 패턴 재사용 가능.
+- **참조**: lessons.md "Hero 카로셀 1일 → 2시간 단축" / decisions.md "카로셀 stacking 방식"
+- **참조횟수**: 0
+
+### [2026-04-29] Hero 카로셀 stacking 방식 — 모든 슬라이드 absolute + opacity 토글 (SEO 인덱싱)
+- **분류**: decision (component pattern)
+- **결정자**: planner-architect + developer
+- **결정**: 카로셀 슬라이드를 transform translate로 옆으로 미는 방식이 아닌, **모든 슬라이드를 동시에 DOM에 absolute로 배치 + opacity 0/1 토글**로 전환.
+- **배경**: (1) transform 슬라이딩은 active 슬라이드 1개만 viewport에 보이고 나머지는 off-screen → SEO crawler가 visible 슬라이드만 인덱싱 가능성, (2) 모든 슬라이드 동시 DOM 렌더는 5개 server 컴포넌트(prefetch 4종) 한꺼번에 SSR → 모든 슬라이드 콘텐츠가 HTML에 포함 → SEO/접근성 보장, (3) opacity 토글은 transition 250ms로 부드럽고 GPU 가속 가능.
+- **대안 배제**: (B) transform translateX — SEO crawler가 hidden 슬라이드를 인덱싱 안 할 위험 + virtualization 없으면 어차피 모두 DOM. (C) display:none 토글 — transition 불가. (D) conditional render(active만 렌더) — fade transition 불가 + prefetch 효과 상실.
+- **영향**: 5개 슬라이드 동시 SSR로 초기 HTML 폭 증가하나 prefetch가 어차피 4종 병렬이라 비용 동일. opacity 토글로 active만 클릭 가능하도록 `pointer-events: none` 분기 추가.
+- **참조**: decisions.md "Hero 카로셀 외부 라이브러리 0"
+- **참조횟수**: 0
+
+### [2026-04-29] 모바일 input font-size: 16px !important — iOS Safari 자동 줌 차단
+- **분류**: decision (모바일 UX)
+- **결정자**: pm
+- **결정**: 모바일에서 모든 폼 입력 요소(`input`/`select`/`textarea`)에 **`font-size: 16px !important` 강제 적용** (globals.css `@media (max-width: 720px)`).
+- **배경**: (1) iOS Safari는 input font-size가 16px 미만이면 포커스 시 자동으로 viewport를 확대(자동 줌)하는 동작 — 입력 후 줌이 풀리지 않아 UX 파괴, (2) 14px이 기본 디자인 토큰이라 모바일에서도 14px 유지하려면 자동 줌 발생, (3) Tailwind v4 + globals.css 글로벌 룰로 강제하면 컴포넌트별 분기 불필요.
+- **대안 배제**: (B) viewport meta `user-scalable=no` — 접근성 위반(WCAG 2.1 1.4.4 Resize text), (C) 컴포넌트별 font-size: 16px — 누락 위험 + 14px 디자인 의도 깨짐 일관 불가, (D) iOS detection JS — SSR 시점 detection 불가능.
+- **영향**: 모바일에서만 16px, 데스크톱은 디자인 토큰 14px 유지. !important는 Tailwind 클래스 우선순위 이김. 영향 범위 = `<input> <select> <textarea>` 모든 인스턴스.
+- **참조**: conventions.md "모바일 최적화 체크리스트" 5번 항목
+- **참조횟수**: 0
+
 ### [2026-04-27] Phase 10-1 경기 평가 — manner_score는 응답시점 aggregate(캐시 X) 권장
 - **분류**: decision (Phase 10-1 경기 평가/신고 시스템)
 - **결정자**: planner-architect (PM 결정 보고용 추천안)

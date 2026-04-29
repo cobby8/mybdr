@@ -2,6 +2,34 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-04-29] 모바일 가로 overflow — 인라인 gridTemplateColumns 모바일 미대응 안티패턴 (Phase 9-Mobile)
+- **분류**: error (UI, **재발 8건+** Phase 9-Mobile Refinement 1라운드)
+- **발견자**: pm + 사용자 (366px 강제 검증)
+- **증상**: 366px viewport에서 페이지 우측이 잘리거나 가로 스크롤바 발생. 데스크톱(≥1024px)에선 정상, 모바일에서만 깨짐. v2 컴포넌트 8건+에서 동일 패턴 발견 (DivisionGrid / RankingTable / TeamCard / EventCalendar / GameSchedule 등).
+- **원인**: 인라인 스타일에 `gridTemplateColumns: "repeat(N, 1fr)"` 또는 `"repeat(N, minmax(150px, 1fr))"`을 모바일 분기 없이 적용. (1) N이 3 이상이면 366px 안에서 1fr이 0보다 작아져 자식이 부모 폭 침범, (2) `minmax(150px, ...)` 값이 컨테이너 폭을 합쳐 넘김, (3) Tailwind sm:/md: 분기로 했어야 할 곳을 인라인 style로 처리.
+- **해결**:
+  1. 인라인 `gridTemplateColumns: "repeat(N, 1fr)"` → Tailwind `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-N` (mobile-first 분기)
+  2. 자식 1fr 컬럼에 `minWidth: 0` 가드 추가 (text overflow 차단)
+  3. globals.css `@media (max-width: 720px)` 글로벌 룰: `html, body { overflow-x: hidden; }`
+- **재발 방지**:
+  1. **컨벤션 문서화** (conventions.md "모바일 최적화 체크리스트 10항목" 2026-04-29 추가) — grid 인라인 repeat 금지 1순위
+  2. PR 리뷰 시 `gridTemplateColumns: "repeat(` 검색으로 1차 차단
+  3. 신규 컴포넌트는 366px 강제 검증을 빌드 체크리스트에 포함
+- **참조**: conventions.md "모바일 최적화 체크리스트" / lessons.md "Phase 9-Mobile 안티패턴 재발"
+- **참조횟수**: 0
+
+### [2026-04-29] Avatar 영문 텍스트 박스 밖 overflow (clamp + overflow:hidden 누락)
+- **분류**: error (UI)
+- **발견자**: pm + 사용자
+- **증상**: 모바일에서 Avatar 컴포넌트가 박스 모양은 유지되나 내부 영문/이니셜 텍스트가 박스 경계를 넘어 튀어나옴. 한글은 정상, 영문 닉네임 시 발생.
+- **원인**: (1) Avatar에 `font-size`만 px 고정 → 컨테이너가 작을 때 글자가 박스보다 큼. (2) `overflow: hidden` 누락 → 부모 박스가 자식 텍스트를 잘라주지 못함. (3) 영문 한 글자가 한글보다 폭이 넓어 같은 px에서도 한글은 안 튀어나오나 영문은 튀어나옴.
+- **해결**: Avatar 컴포넌트에 (a) `font-size: clamp(10px, 4vw, 16px)` (b) `overflow: hidden` (c) `display: flex; align-items: center; justify-content: center` 3종 동시 적용.
+- **재발 방지**:
+  1. 텍스트가 들어가는 작은 박스(Avatar/Badge/Tag)는 **clamp font-size + overflow:hidden 쌍**을 default로
+  2. 한글로만 테스트하지 말 것 — 영문/숫자 닉네임 케이스 추가 (DilDeRabbits / 5pointGuards 같은 폭 넓은 영문)
+- **참조**: conventions.md "모바일 최적화 체크리스트" 8번 항목
+- **참조횟수**: 0
+
 ### [2026-04-20] 다음카페 상세 HTML에 시간 소스가 `.num_subject` 단 하나 (함정)
 - **분류**: error (외부 시스템 함정, 재발 위험: 파서 확장 시)
 - **발견자**: pm + Explore (실측 tmp/cafe-debug-article-IVHA-{3919,3920,3923,3924,3925}.html 5건)

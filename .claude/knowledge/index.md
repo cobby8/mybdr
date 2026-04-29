@@ -1,23 +1,31 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-29 (Phase 9-Mobile Refinement 모바일 체크리스트 — conventions +1)
+> 최종 갱신: 2026-04-29 (Phase 9-Mobile + Hero 카로셀 — errors +2 / lessons +3 / decisions +4 / architecture +1)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
-| architecture.md | 32 | 2026-04-27 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), **Phase 10-1 경기 평가/신고 시스템(2026-04-27)** |
+| architecture.md | 33 | 2026-04-29 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), **BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29)** |
 | conventions.md | 28 | 2026-04-29 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix 언더스코어 문법(04-22)/any 예외 규칙 kakao·HOF·SW(04-22)/**모바일 최적화 체크리스트 10항목(04-29)** |
-| decisions.md | 82 | 2026-04-27 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 — 본 세션 = 카페 sync 전용 / **코트 대관 court_managers N:M 보류(2026-04-25) / 코트 대관 payments.payable_type 재활용(2026-04-25)**) |
-| errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
-| lessons.md | 20 | 2026-04-22 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, **점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생**) |
+| decisions.md | 86 | 2026-04-29 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 / 코트 대관 court_managers N:M 보류 / 코트 대관 payments 다형성 / **모바일 720px 통일 / Hero 카로셀 외부 lib 0 / 카로셀 absolute opacity stacking / iOS 16px input 강제(2026-04-29)**) |
+| errors.md | 20 | 2026-04-29 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 7회 재발, 카페 상세 HTML 시간 소스 `.num_subject` 단일, **모바일 가로 overflow grid 안티패턴(04-29) / Avatar 영문 overflow(04-29)**) |
+| lessons.md | 23 | 2026-04-29 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, 점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생, **헤더 변경 라우트 그룹별 영향 범위(04-29) / Phase 9-Mobile 안티패턴 재발 → 컨벤션 문서화(04-29) / Hero 카로셀 1일→2시간 단축(04-29)**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
 | ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 |
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-29] architecture: **BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드** — `src/components/bdr-v2/hero-carousel.tsx` + `hero-slides/` 5종(server) + 1 client. `src/lib/services/home.ts` `prefetchHeroSlides()` + 3종. (web) AppNav 단일 헤더, (admin)/(referee)는 의도된 분리. globals.css `@media (max-width:720px)` overflow-x:hidden + input 16px + button 44px
+- [04-29] decisions: **모바일 브레이크포인트 720px 통일** — Tailwind 768px md 미사용, mybdr 기존 컨벤션 유지. iPad mini portrait는 모바일 처리. globals.css `@media (max-width: 720px)` 글로벌 룰 + sm:/md: 이중 적용
+- [04-29] decisions: **Hero 카로셀 외부 라이브러리 0** — embla/swiper 미도입, 직접 touch 핸들러 + setInterval ~80줄. 의존성 +0 / 묶음 비용 0. 향후 카로셀 동일 패턴 재사용
+- [04-29] decisions: **Hero 카로셀 stacking — 모든 슬라이드 absolute + opacity 토글** — transform 슬라이딩이 아닌 동시 DOM 렌더 + opacity 토글. SEO crawler가 모든 슬라이드 인덱싱 보장 + 5종 서버 컴포넌트 prefetch 병렬 SSR
+- [04-29] decisions: **모바일 input font-size 16px !important** — iOS Safari 자동 줌 차단. globals.css `@media (max-width: 720px)` 강제. user-scalable=no는 WCAG 1.4.4 위반이라 배제
+- [04-29] errors: **모바일 가로 overflow — 인라인 gridTemplateColumns 모바일 미대응 안티패턴 (재발 8건+)** — Phase 9-Mobile 1~2라운드. v2 컴포넌트 `repeat(N,1fr)` 인라인이 366px에서 자식 침범. Tailwind sm:/md: 분기 + 1fr 컬럼 minWidth:0 + globals.css overflow-x:hidden 3가드
+- [04-29] errors: **Avatar 영문 텍스트 박스 밖 overflow** — font-size px 고정 + overflow:hidden 누락 → 영문/이니셜이 박스 침범. clamp(10px,4vw,16px) + overflow:hidden + flex 정렬 3종 동시 적용. 한글로만 테스트 X, 영문 케이스 추가 필수
+- [04-29] lessons: **헤더 변경의 라우트 그룹별 영향 범위** — (web)/layout.tsx만 변경 시 (admin)/(referee)는 별도 헤더 영향 X. 라우트 그룹 분리 = 레이아웃 격리 장점 vs 헤더 일괄 변경 시 그룹마다 별도 작업 trade-off
+- [04-29] lessons: **Phase 9-Mobile 안티패턴 재발 → 컨벤션 문서화** — 1라운드 픽스 후 v2 신규 컴포넌트에 동일 인라인 grid 안티패턴 재등장. v2 시안 코드 변환 시 인라인 style 검사 1단계 추가. 5+회 재발 → 개별 수정 대신 컨벤션 명문화로 grep 가능한 차단
+- [04-29] lessons: **Hero 카로셀 1일 → 2시간 단축** — server-first 분해 + 외부 라이브러리 0 + opacity stacking 패턴. 외부 라이브러리 도입 검토는 "5분 견적 → 100줄 미만이면 직접 구현"
+<!-- 04-27 항목 3건 절단 (10건 유지 규칙 — 04-29 신규 10건 추가로 인한 정리) — 필요 시 git log로 복원 가능 -->
 - [04-29] conventions: **모바일 최적화 체크리스트 10항목 (안티패턴 재발 방지)** — Phase 9-Mobile Refinement에서 픽스한 안티패턴 정리. (1) grid 인라인 repeat(N,1fr) 금지, mobile-first sm:/md: 분기 / (2) 1fr 컬럼 minWidth:0 가드 / (3) absolute 워터마크 hidden sm:block / (4) globals.css 가로 overflow 글로벌 가드 / (5) 폼 16px (iOS 자동 줌 차단) / (6) 버튼 44px (iOS HIG) / (7) 카드 min-height 통일 / (8) Avatar clamp font / (9) 이중 헤더 금지 (AppNav 단일) / (10) 브레이크포인트 720px 통일. 366px viewport 강제 검증. 참조 커밋 4afb4f9/f972aaf/87c59d4
-- [04-27] architecture: **Phase 10-1 경기 평가/신고 시스템 설계 — 신규 2테이블(game_reports + game_player_ratings) + games.final_mvp_user_id 캐시 1컬럼** — `/games/[id]/report` 박제 활성화. unique([game_id,reporter_user_id]) 1인1리포트, flags String[]+is_noshow 분리, MVP 다수결+tie-breaker(평균 rating). API 4(POST/GET/PATCH report + admin 큐). 권한 가드 4. 작업 분해 9단계(B-1~B-9, MVP 6~8h). PM 결정 7건, 위험 6건
-- [04-27] decisions: **Phase 10-1 manner_score는 응답시점 aggregate(캐시 X) 권장** — 리포트 제출 시 캐시 갱신은 race 위험 / cron은 24h 지연 / 응답시점 GROUP BY는 인덱스로 즉시 처리. 부하 증가 시 cron 전환 가능
-- [04-27] decisions: **Phase 10-1 신고 플래그 enum 미도입, String[]+zod 검증 채택** — Postgres enum은 ALTER TYPE 마이그 비용 / lookup은 over-engineering. flags TEXT[] + zod런타임 검증 + GIN 인덱스. noshow만 is_noshow boolean 별도 컬럼(시안 UI 분리)
 - [04-25] architecture: **코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP** — plans/court_rental + 토스결제 + payments 다형성 + court_infos.user_id 모두 기존 자산. court_bookings 1테이블 + court_infos 2컬럼 + User 백릴레이션 1줄로 Phase A MVP 가능. 4 Phase(A 무료 8~12h / B 결제 6~8h / C 정산 8~10h / D BDR+할인 6~8h). 사용자 결정 7건 도출(D-B1~D-B7)
 - [04-25] decisions: **코트 대관 court_managers N:M 모델 보류** — court_infos.user_id(1:1) + user_subscriptions(feature_key=court_rental, status=active) AND 검사로 단순화. Phase D에서 다중 운영자 요구 시 도입 + 가드만 교체
 - [04-25] decisions: **코트 대관 payments.payable_type 다형성 재활용** — "Plan"만 사용 중인 다형성에 "CourtBooking" 추가. 신규 booking_payments 모델 미생성. 환불·토스 응답 필드 그대로 재활용 + admin/payments 통합 조회 유지
@@ -107,6 +115,7 @@
 | 현장등록, Flutter, TournamentTeamPlayer | 대회 선수 등록 및 userId 연결 흐름 분석 |
 | 경기기록, match_events, MatchPlayerStat, 기록원 | 경기 기록 입력 시스템 전체 구조 분석 |
 | 대관, booking, court_bookings, court_rental, 멤버십 운영자 | 코트 대관(Booking) 시스템 설계 (2026-04-25) |
+| Hero 카로셀, hero-carousel, hero-slides, prefetchHeroSlides, BDR v2 홈, AppNav, 모바일 가드 | BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드 (2026-04-29) |
 
 ### 디자인/코딩 규칙을 알고 싶을 때 → conventions.md
 | 키워드 | 항목 제목 |
@@ -168,6 +177,8 @@
 | setLoggedIn, 경쟁 조건 | 커뮤니티 맞춤 필터 미적용 경쟁 조건 |
 | 체크인, SWR, POST 409 | SWR GET과 POST 409 응답 정보 불일치 |
 | 개발서버, hung, 무한 로딩, 메모리 | Next.js 개발서버 무한 로딩 |
+| 모바일 overflow, 366px, gridTemplateColumns, repeat 인라인, minWidth:0, 가로 스크롤바 | 모바일 가로 overflow grid 안티패턴 (2026-04-29) |
+| Avatar overflow, 영문 닉네임, clamp font-size, 박스 튀어나옴 | Avatar 영문 텍스트 박스 밖 overflow (2026-04-29) |
 
 ### 삽질 교훈을 알고 싶을 때 → lessons.md
 | 키워드 | 항목 제목 |

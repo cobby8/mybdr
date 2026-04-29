@@ -2,6 +2,18 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-29] BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드 (Phase 9-Mobile)
+- **분류**: architecture
+- **발견자**: pm + developer
+- **내용**: BDR v2 홈 영역 구조 개편 + 모바일 가드 추가.
+  - **Hero 카로셀 신규**: `src/components/bdr-v2/hero-carousel.tsx`(client controller) + `src/components/bdr-v2/hero-slides/`(slide-1~5 server 컴포넌트 5종 + slide-1-client.tsx 1개) — 모든 슬라이드 absolute stacking + opacity 토글 + setInterval 자동 슬라이드(5초) + 터치 스와이프 + 점 인디케이터.
+  - **신규 prefetch 함수**: `src/lib/services/home.ts`에 `prefetchHeroSlides()` + 3종 (`prefetchTournamentSlide()`/`prefetchGameSlide()`/`prefetchMvpSlide()`) — Hero 카로셀이 5종 서버 컴포넌트로 병렬 prefetch + SSR.
+  - **글로벌 헤더 단일화**: `(web)` 라우트 그룹의 단일 헤더는 AppNav (`src/components/bdr-v2/app-nav.tsx` 가정). `(admin)`은 AdminSidebar / `(referee)`는 referee-shell이 독자 헤더 — **의도된 분리**(헤더 변경 시 라우트 그룹별 별도 작업 필요).
+  - **모바일 가드 (globals.css)**: `@media (max-width: 720px)` 글로벌 룰 — `html, body { overflow-x: hidden }` + `input, select, textarea { font-size: 16px !important }` (iOS Safari 자동 줌 차단) + `button { min-height: 44px }` (iOS HIG 터치 타겟).
+  - **브레이크포인트**: 720px 통일 (Tailwind 768px 미사용, mybdr 기존 컨벤션).
+- **참조**: decisions.md "Hero 카로셀 외부 라이브러리 0" / "카로셀 stacking 방식" / "모바일 브레이크포인트 720px 통일" / conventions.md "모바일 최적화 체크리스트" 2026-04-29
+- **참조횟수**: 0
+
 ### [2026-04-27] Phase 10-1 경기 평가/신고 시스템 설계 — 신규 2테이블 + 캐시 1컬럼
 - **분류**: architecture
 - **발견자**: planner-architect
