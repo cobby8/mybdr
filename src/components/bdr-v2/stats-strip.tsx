@@ -25,16 +25,22 @@ export interface StatsStripProps {
 }
 
 /**
- * 4열(모바일은 responsive.css에서 2열로 줄어듦) 통계 카드 스트립.
- * 항목 개수에 관계없이 균등 분할 (repeat(N, 1fr)).
+ * 통계 카드 스트립 — 모바일 대응 자동 그리드.
+ *
+ * [2026-04-29 모바일 가로 overflow 픽스]
+ * 기존: `repeat(${items.length}, 1fr)` → items 4개일 때 366px 모바일에서 4열 강제 →
+ *       각 카드 ~75px로 좁아져 한국어 라벨이 세로 줄바꿈("지/금/접/속") + 가로 overflow 발생
+ * 변경: `repeat(auto-fit, minmax(140px, 1fr))` — 컨테이너 폭에 맞춰 자동으로 열 수 결정.
+ *       데스크톱은 4열 / 태블릿은 3~4열 / 모바일(<320~580px)은 2열 / 매우 좁으면 1열.
+ *       items.length 에 관계없이 안전 (가변 개수 대응).
  */
 export function StatsStrip({ items }: StatsStripProps) {
   return (
-    // 균등 그리드 — items 개수에 맞춰 자동 분할
+    // 자동 그리드 — minmax(140px, 1fr) 로 컬럼 최소폭 보장 + 부모 폭 안에서 자동 줄바꿈
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: `repeat(${items.length}, 1fr)`,
+        gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
         gap: 12,
         marginBottom: 24,
       }}
