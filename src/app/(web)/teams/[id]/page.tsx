@@ -160,11 +160,16 @@ export default async function TeamDetailPage({
       isMember = !!myMembership;
       // 운영진(captain/vice/manager) — 가입 신청/멤버 관리 진입 허용 대상.
       // 추가 쿼리 없이 본조회 결과 재활용 (성능/일관성 모두 이득).
+      // A-3 보강 (2026-04-29): team_members.role 외에도 team.captainId 직접 매칭.
+      // 이유: 김병곤 사례처럼 captain_id 가 유저로 설정됐지만 team_members 행이
+      // 'director' 같은 운영자 외 role 로 등록된 경우 위 조건에서 누락 → manage 진입 불가.
+      // captainId 매칭은 1쿼리도 추가 안 됨 (이미 위에서 team 본조회로 select 중).
       canManage =
-        !!myMembership &&
-        (myMembership.role === "captain" ||
-          myMembership.role === "vice" ||
-          myMembership.role === "manager");
+        team.captainId === userId ||
+        (!!myMembership &&
+          (myMembership.role === "captain" ||
+            myMembership.role === "vice" ||
+            myMembership.role === "manager"));
       // pending 가입 신청이 있는지 (멤버가 아닌 경우에만 의미 있음)
       if (!isMember) {
         const pending = await prisma.team_join_requests.findFirst({
