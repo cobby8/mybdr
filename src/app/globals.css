@@ -1283,9 +1283,17 @@ html.dark .hero-carousel__accent {
     position: static !important;
   }
 
-  /* Stat grid auto to 2 col where repeat(3,1fr) was used */
-  [style*="grid-template-columns: repeat(3, 1fr)"]:not(.onb__body):not(.drawer__body) {
-    grid-template-columns: repeat(3, 1fr) !important; /* keep, but smaller gap */
+  /* ============================================================
+     [v2.1 P0-1 G-2] 3-col 포스터 그리드 → 2-col
+     이유: v2 룰은 3열을 그대로 유지(`repeat(3,1fr)`)했으나, 375px 모바일에서
+           대회/경기 포스터 카드는 너무 좁아서 정보 식별이 어렵다. v2.1 시안은
+           2-col로 변경. .page 스코프 + .onb__body/.drawer__body 제외 매처를
+           시안 그대로 유지.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-2
+     ============================================================ */
+  .page div[style*="grid-template-columns: repeat(3, 1fr)"]:not(.onb__body):not(.drawer__body) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
   }
 
   /* ---- Court: hide sticky map on mobile ---- */
