@@ -236,7 +236,6 @@ export default async function TeamDetailPage({
         teamName={teamDisplayPrimary}
         teamNameSecondary={teamDisplaySecondary}
         foundedYear={foundedYear}
-        rating={rating}
         wins={wins}
         losses={losses}
         winRate={winRate}
