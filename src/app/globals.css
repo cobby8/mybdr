@@ -1030,8 +1030,10 @@ html.dark .hero-carousel__accent {
   /* ---- App nav: collapse tabs into hamburger ---- */
   .app-nav__utility-inner { gap: 8px; font-size: 11px; padding: 6px var(--gutter); }
   .app-nav__utility-inner > span:first-child { font-weight: 700; }
-  .app-nav__utility-inner .sep,
-  .app-nav__utility-inner a:not(:last-of-type) { display: none; }
+  /* [2026-04-29] 좌측 그룹(.util-left)만 모바일에서 숨김.
+     이전 셀렉터 a:not(:last-of-type)는 우측 "계정 / 설정" 까지 의도치 않게 숨김.
+     좌/우를 명시 클래스로 분리해 우측은 모두 표시. */
+  .app-nav__utility-inner .util-left { display: none; }
 
   .app-nav__main {
     padding: 10px var(--gutter);
