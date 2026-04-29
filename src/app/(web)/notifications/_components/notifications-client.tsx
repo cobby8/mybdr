@@ -253,6 +253,31 @@ export function NotificationsClient({
     }
   }
 
+  // 단일 알림 읽음 처리 (A-5: actionUrl 클릭 시 자동 호출)
+  // 이유: 시안 박제 후 알림을 클릭하면 actionUrl로 이동은 가능하나
+  // 서버에 read 상태가 반영되지 않아 다음 진입 시에도 unread로 보였음.
+  // markAsRead = 서버 PATCH + 로컬 readIds Set 갱신 + 헤더 벨 카운트 동기화 이벤트.
+  async function markAsRead(id: string) {
+    // 이미 read 처리된 ID는 skip — 중복 호출 방지
+    if (readIds.has(id)) return;
+    try {
+      const res = await fetch(`/api/web/notifications/${id}/read`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (res.ok) {
+        // 로컬 readIds 갱신 — 즉시 UI 반영 (배경/dot 사라짐)
+        setReadIds((prev) => new Set(prev).add(id));
+        // 헤더 벨 카운트 즉시 갱신 (read-all 이벤트 재사용)
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("notifications:read-all"));
+        }
+      }
+    } catch {
+      // 실패 시 무시 — 다음 시도 또는 서버 새로고침 시 재시도
+    }
+  }
+
   // "모두 읽음" 처리 (기존 로직 그대로)
   async function handleMarkAllRead() {
     if (activeTabUnread <= 0) return; // 시안 박제: 항상 노출하되 0건이면 noop
@@ -652,6 +677,14 @@ export function NotificationsClient({
                   <Link
                     key={n.id}
                     href={n.action_url}
+                    // A-5: 클릭 시 자동 read 처리 — 라우팅은 Link가 처리하고,
+                    // 서버 PATCH 는 fire-and-forget(백그라운드)로 호출.
+                    // unread 인 항목만 호출해 불필요한 PATCH 차단.
+                    onClick={() => {
+                      if (isUnread) {
+                        void markAsRead(n.id);
+                      }
+                    }}
                     style={{
                       display: "block",
                       textDecoration: "none",
@@ -662,7 +695,21 @@ export function NotificationsClient({
                   </Link>
                 );
               }
-              return <div key={n.id}>{itemContent}</div>;
+              // action_url 없는 경우에도 본문 클릭 시 read 처리 — 사용자가 "확인했다"고 인지.
+              // 다만 화살표 chevron 표시가 없어 다른 영역과 시각적으로 구분되므로 기본 div 유지.
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => {
+                    if (isUnread) {
+                      void markAsRead(n.id);
+                    }
+                  }}
+                  style={{ cursor: isUnread ? "pointer" : "default" }}
+                >
+                  {itemContent}
+                </div>
+              );
             })}
           </div>
 

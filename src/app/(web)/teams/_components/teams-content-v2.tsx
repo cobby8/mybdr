@@ -13,7 +13,10 @@ import { TeamCardV2 } from "./team-card-v2";
 //  - rating/tag 등 가짜 수치 금지 (wins 기반)
 // 2026-04-29: 옛 TeamsFilter 컴포넌트 사용 제거 (검색바 중복 + 필터 패널 깨짐 픽스)
 //   - 검색은 v2 헤더 내장 검색박스(아래 search chip)가 URL q 쿼리로 처리
-//   - 지역/정렬 필터 기능은 추후 v2 디자인으로 재구현 예정
+// A-1 (2026-04-29): 지역/정렬 v2 chip-bar 재구현
+//   - 지역: 전국 + API 가 응답하는 cities 배열 (상위 N개)
+//   - 정렬: 랭킹순(wins) / 최신순(newest) / 멤버 많은 순(members)
+//   - URL 동기화: ?city= / ?sort= (q 와 동일 정책)
 
 interface TeamFromApi {
   id: string;
@@ -41,6 +44,13 @@ interface TeamsApiResponse {
 // 페이지당 팀 수 — 시안은 auto-fill 그리드라 고정 열 수가 없지만
 // 260px min × 4~5열 × 2~3행 기준 12장이 적정.
 const TEAMS_PER_PAGE = 12;
+
+// A-1: 정렬 옵션 정의 (label/value). API 의 sort 화이트리스트와 1:1 매칭.
+const SORT_OPTIONS: { label: string; value: "wins" | "newest" | "members" }[] = [
+  { label: "랭킹순", value: "wins" },
+  { label: "최신순", value: "newest" },
+  { label: "멤버 많은 순", value: "members" },
+];
 
 // 스켈레톤 (v2 카드 비율 — 간소화 후: 로고 + 팀명 + 창단 + 상세 버튼 → 약 h-44)
 // 이유: 카드에서 stat 3종 + 매치신청 버튼이 빠지면서 높이 축소됨. 모바일 2열 강제.
@@ -145,10 +155,14 @@ export function TeamsContentV2() {
   const pathname = usePathname();
 
   const [teams, setTeams] = useState<TeamFromApi[]>([]);
-  // cities 는 추후 v2 필터 재구현 시 사용 예정 — API 응답 구조 유지를 위해 setter 만 보관
-  const [, setCities] = useState<string[]>([]);
+  // A-1: cities 를 chip-bar 의 지역 옵션으로 사용 (API 가 응답에 포함, 가나다 desc count 정렬)
+  const [cities, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // A-1: 현재 활성 city / sort — URL 쿼리 우선, 없으면 기본값
+  const currentCity = searchParams.get("city") || "all";
+  const currentSort = (searchParams.get("sort") || "wins") as "wins" | "newest" | "members";
 
   // 내장 검색박스(시안 우측 chip) — URL q 쿼리와 동기화
   // 이유: 기존 플로팅 필터에도 검색이 있지만 시안은 헤더 우측에 검색 chip 이 있음.
@@ -200,6 +214,17 @@ export function TeamsContentV2() {
       else sp.delete("q");
       router.push(`${pathname}?${sp.toString()}`);
     }, 380);
+  };
+
+  // A-1: city / sort 칩 클릭 핸들러 (공통)
+  // - "all" 또는 기본값(wins) 선택 시 해당 param 삭제 (URL 깔끔하게 유지)
+  // - 아니면 sp.set 으로 갱신
+  const updateParam = (key: "city" | "sort", value: string) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    const isDefault = (key === "city" && value === "all") || (key === "sort" && value === "wins");
+    if (isDefault) sp.delete(key);
+    else sp.set(key, value);
+    router.push(`${pathname}?${sp.toString()}`);
   };
 
   // 순위(rankIndex) 계산 제거 — PM 결정: 팀 레이팅 미구현 기능이라 카드 우상단 #랭크도 비표시 (2026-04-29)
@@ -287,8 +312,92 @@ export function TeamsContentV2() {
         </div>
       </div>
 
-      {/* 옛 플로팅 필터 제거 (2026-04-29) — 검색바 중복 + 패널 깨짐 픽스
-          지역/정렬 필터 기능은 추후 v2 디자인으로 재구현 (scratchpad 추후 구현 목록 참조) */}
+      {/* A-1: v2 chip-bar — 지역(가로 스크롤 + 전국 + cities) + 정렬(3종)
+          - 활성 칩: cafe-blue 배경 + 흰 텍스트 (FilterChipBar 와 동일 톤)
+          - 모바일은 가로 스크롤(scrollbar-hide), 데스크톱은 wrap. */}
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 12,
+          overflowX: "auto",
+          paddingBottom: 4,
+          flexWrap: "nowrap",
+        }}
+      >
+        {/* 지역: 전국 + cities (API 응답, 상위 N개) */}
+        {[{ value: "all", label: "전국" }, ...cities.map((c) => ({ value: c, label: c }))].map(
+          (opt) => {
+            const isActive = currentCity === opt.value;
+            return (
+              <button
+                key={`city-${opt.value}`}
+                type="button"
+                onClick={() => updateParam("city", opt.value)}
+                aria-pressed={isActive}
+                className="btn btn--sm"
+                style={{
+                  flexShrink: 0,
+                  ...(isActive
+                    ? {
+                        background: "var(--cafe-blue)",
+                        color: "#fff",
+                        borderColor: "var(--cafe-blue)",
+                      }
+                    : {}),
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          },
+        )}
+      </div>
+
+      {/* 정렬 칩 — 3종. 지역과 시각적으로 분리하기 위해 별도 줄 */}
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 16,
+          overflowX: "auto",
+          paddingBottom: 4,
+          flexWrap: "nowrap",
+        }}
+      >
+        {SORT_OPTIONS.map((opt) => {
+          const isActive = currentSort === opt.value;
+          return (
+            <button
+              key={`sort-${opt.value}`}
+              type="button"
+              onClick={() => updateParam("sort", opt.value)}
+              aria-pressed={isActive}
+              className="btn btn--sm"
+              style={{
+                flexShrink: 0,
+                ...(isActive
+                  ? {
+                      background: "var(--ink)",
+                      color: "var(--bg)",
+                      borderColor: "var(--ink)",
+                    }
+                  : {}),
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 14, marginRight: 4, verticalAlign: -2 }}
+              >
+                sort
+              </span>
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
 
       {loading ? (
         <TeamsListSkeletonV2 />

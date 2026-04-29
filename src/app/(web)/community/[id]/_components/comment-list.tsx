@@ -261,18 +261,29 @@ function CommentRow({
               {decodeHtmlEntities(c.content)}
             </p>
 
-            {/* 좋아요 + 답글 */}
+            {/* 좋아요 + 답글
+                A-4 (2026-04-29): 답글 기능은 server action(parent_id) + 폼 분기 등
+                추가 작업 필요해 phase-9-future-features 큐로. 클릭 시 안내 alert 만 표시.
+                좋아요는 toggleCommentLikeAction 이 server actions/community.ts 에
+                구현돼 있으나 본 컴포넌트가 아직 연결 안 됨 → 별도 후속 작업으로 분리.
+                두 버튼 모두 "준비 중" 시각적 표시(opacity .55) + 클릭 시 alert. */}
             <div className="flex items-center gap-4 mt-3">
               <button
+                type="button"
                 className="flex items-center gap-1 text-xs transition-colors"
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--color-text-muted)", opacity: 0.55, cursor: "not-allowed" }}
+                title="좋아요 준비 중"
+                onClick={() => alert("좋아요 기능은 준비 중입니다.")}
               >
                 <span className="material-symbols-outlined text-sm">thumb_up</span>
                 {c.likesCount > 0 ? c.likesCount : ""}
               </button>
               <button
+                type="button"
                 className="text-xs font-medium"
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--color-text-muted)", opacity: 0.55, cursor: "not-allowed" }}
+                title="답글 준비 중"
+                onClick={() => alert("답글 기능은 준비 중입니다.")}
               >
                 답글 쓰기
               </button>

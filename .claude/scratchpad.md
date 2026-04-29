@@ -19,13 +19,22 @@
 - 온보딩 데이터
 
 **미해결 ⏳**
-- 슛존 성공률 (heatmap)
-- 스카우팅 리포트
+- 슛존 성공률 (heatmap) — A-2 ghost (phase-9-future-features.md #12)
+- 스카우팅 리포트 — A-2 ghost (#13)
+- 프로필 시즌 통계 탭 — A-2 ghost (#11), season_stats 집계 테이블 필요
+- 프로필 VS 나 비교 — A-2 ghost (#14)
+- 커뮤니티 댓글 답글 — A-4 ghost (#15), parent_id DB 있음 + UI/action 미연결
+- 커뮤니티 댓글 좋아요 — A-4 ghost (#16), action 함수만 있고 UI 미연결
+- 커뮤니티 게시글 북마크 — bookmarks 테이블 미구현 (#5)
 - waitlist (대기열)
 - no-show 처리
 - QR 티켓 발급/검증
-- /teams 필터 기능 — v2 디자인으로 재구현 필요 (지역/정렬, 옛 FloatingFilterPanel 제거됨)
 - 기타 박제 시안 중 데이터 패칭이 필요한 항목들
+
+**해결됨 추가 ✅ (2026-04-29 P0-A)**
+- /teams v2 지역/정렬 chip-bar 재구현 (A-1)
+- /teams/[id] 부팀장·매니저 manage 진입점 — captainId 매칭 보강 (A-3)
+- /notifications actionUrl 클릭 시 자동 read 처리 (A-5)
 
 ## 현재 작업
 
@@ -48,6 +57,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (미커밋) | **유령 기능 P0-A 5건 일괄** (design_v2): A-5 /notifications actionUrl 클릭 시 markAsRead PATCH + 헤더 벨 동기화 이벤트 (notifications-client.tsx onClick 추가, action_url 없는 경우도 div onClick 처리) / A-3 /teams/[id] page.tsx canManage 조건에 team.captainId === userId OR 매칭 추가 (김병곤 사례 보강 — 본조회 select 재활용, 추가 쿼리 0) / A-1 /teams v2 chip-bar 재구현: API teams/route.ts 에 sort 화이트리스트(wins/newest/members) + orderBy 분기 + createdAt 응답 직렬화 추가, teams-content-v2.tsx 에 지역(전국+cities) chip-bar 1줄 + 정렬(랭킹/최신/멤버) chip-bar 1줄 추가, URL ?city=&sort= 동기화, scrollbar-hide 가로 스크롤 / A-4 /community/[id] 댓글 수정·삭제는 이미 완료된 상태 확인 후, 답글/좋아요는 phase-9-future-features 큐로 이전 (comment-list.tsx 답글·좋아요 버튼 onClick alert + opacity .55) / A-2 /profile 시즌 통계는 season_stats 테이블 미구현이라 phase-9-future-features.md #11~14 + scratchpad 추후 구현 목록 갱신. 5 파일: api/web/teams/route.ts, (web)/teams/_components/teams-content-v2.tsx, (web)/teams/[id]/page.tsx, (web)/notifications/_components/notifications-client.tsx, (web)/community/[id]/_components/comment-list.tsx + 문서 2 (phase-9-future-features.md, scratchpad.md). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 관리 권한 체크 captain_id 직접 매칭 추가 (김병곤 사례 — team_members.role='director'로 등록되어 TEAM_MANAGER_ROLES 필터 차단) — 3 파일: (web)/teams/manage/page.tsx (기존 memberships 외 prisma.team.findMany({where:{captainId}}) 합산 + dedup), api/web/teams/[id]/route.ts (isCaptain 함수에 team.captainId === userId 1차 매칭 추가 + GET 가드/my_role/is_captain 보강 — 기존 select 의 captainId 재활용), api/web/teams/[id]/members/route.ts (GET/PATCH 가드 — isManager 누락 시 team.captainId 추가 1쿼리 후 통과). DB 변경 0, 디자인 변경 0. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 관리 페이지 settings 탭 누락 3필드 추가 (design_v2): home_color/away_color 컬러 picker(기존 primary/secondary 카드 안에 분리선 + 2열 grid), logo_url 신규 카드(즉시 업로드 /api/web/upload, 5MB+image/* 검증, 미리보기/교체/제거). 4 파일: manage/page.tsx (TeamEditData 3필드+useState 5개+handleLogoFile 핸들러+fetchTeamData 폴백 로직+handleSaveSettings body), api/web/teams/[id]/route.ts (GET select+응답 매핑+PATCH updateData 3건), validation/team.ts (updateTeamSchema home_color/away_color/logo_url 추가). schema home_color/away_color는 @map 없는 snake, logoUrl은 @map "logo_url" camelCase. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | [debugger] 김병곤 사용자 "카카오 OAuth 후 루나틱 팀 분리" 보고 진단 — dev DB 직접 조회(scripts/debug-kakao-link-2026-04-29.ts) 결과 user 1명만 존재(id=3007, provider=kakao, captain_id=3007 ↔ team id=215 정상 연결, team_member id=2348 active director). 일반 가입 user A 자체가 없어 "분리" 재현 불가. user 생성(4-28) ← 팀 생성(4-29) 순서. 코드 결함 X. errors.md에 진단 절차 표준화 항목 추가 | ✅ |
@@ -57,4 +67,3 @@
 | 2026-04-29 | (미커밋) | 헤더 우측 영역 우측 정렬(design_v2) — globals.css `.app-nav__right`에 `margin-left:auto` 추가(모바일 .app-nav__tabs:none 시에도 우측 끝 보장), gap 10→6px(데스크톱)/4px(모바일). app-nav.tsx 무수정. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 헤더 컨트롤 3종 정리(design_v2): 다크모드 듀얼버튼→단일 해/달 아이콘 토글(theme-switch.tsx 재작성), 검색·알림 .btn--sm 박스 제거→.app-nav__icon-btn(아이콘만), 알림 빨간점 뱃지 .app-nav__notif-dot 클래스화. globals.css .app-nav__icon-btn 신규 + 모바일 .theme-switch 압축룰 제거(랭킹/요금제/캘린더는 .theme-switch 재사용 중이라 본 룰 유지). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 로고 Supabase Storage 실제 업로드 연결: step-emblem(file 선택→/api/web/upload POST→public URL), team-form state(logoFile/logoPreview→logoUrl 단일화)+hidden logo_url, validation/team(logo_url 스키마+url 검증), actions/teams(logoUrl prisma 저장), step-review 라벨 "업로드 완료". 운영: Supabase 'team-logos' 버킷 사용자 생성 필요. tsc 0건 | ✅ |
-| 2026-04-29 | (미커밋) | PWA 아이콘 BDR 로고 교체 — sharp(기존)로 5종 정사각 생성 (180/192/512 + maskable 192/512), 배경 BDR Navy #1B3C87, 로고 중앙 70% (maskable 55% safe zone). scripts/generate-pwa-icons.mjs 신규. manifest.ts 변경 X (경로 매칭). 사용자 안내: 디바이스에서 SW 등록취소 + 앱 재설치 필요 | ✅ |

@@ -124,12 +124,18 @@ DB 구현 후 메뉴 활성 복귀 순서. 사용자 임팩트 큰 것부터.
 
 ### Phase 11+ 후보 (DB 미적용)
 
-5. **북마크/저장** — `bookmarks` 테이블 + UI 활성화
+5. **북마크/저장** — `bookmarks` 테이블 + UI 활성화 (커뮤니티 게시글 스크랩 + 게임 저장 공통)
 6. **DM/쪽지** — DM 모델 (현재 messages는 알림 메시지만)
 7. **심판 배정 요청** — referee_requests 백엔드 완성
 8. **코트 사진 업로더** — S3 파이프라인
 9. **팀 ELO 레이팅** — `teams.rating` + 산정 로직
 10. **실시간 라이브 스코어** — websocket + tournament_matches.current_quarter 확장
+11. **프로필 시즌 통계 탭** — `season_stats` 또는 `user_season_stats` 집계 테이블 + cron 또는 마감 시점 일괄 집계 (A-2 ghost 처리, 2026-04-29)
+12. **프로필 슛존 성공률 (heatmap)** — `match_player_stat.zone` 컬럼 + 좌표 집계 (A-2 ghost)
+13. **프로필 스카우팅 리포트** — `scouting_reports` 테이블 + 작성/조회 API (A-2 ghost)
+14. **프로필 VS 나** — `match_player_stat` 양방향 조인 + 비교 UI (A-2 ghost)
+15. **커뮤니티 댓글 답글** — `comments.parent_id` DB는 있지만 createCommentAction + comment-list UI 미연결 (A-4 ghost, 2026-04-29). depth=1 1단계만 우선
+16. **커뮤니티 댓글 좋아요** — `comment_likes` 테이블 + toggleCommentLikeAction 연결 (A-4 ghost). action 함수는 이미 community.ts:370 에 작성돼 있음 — UI 만 연결하면 활성화 가능 (Phase 11 첫 후보)
 
 ---
 
