@@ -1296,6 +1296,17 @@ html.dark .hero-carousel__accent {
     gap: 10px !important;
   }
 
+  /* ============================================================
+     [v2.1 P0-1 G-3] season-stats 6열 → 3열
+     이유: 시즌 스탯 6열 그리드(예: 경기/득점/리바운드/어시스트/스틸/블락)는
+           모바일에서 칼럼당 60px 미만이 되어 판독 불가. 3열로 줄여 2행 표시.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-3
+     ============================================================ */
+  .page > div[style*="grid-template-columns: repeat(6, 1fr)"],
+  .page div[style*="grid-template-columns: repeat(6, 1fr)"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
   /* ---- Court: hide sticky map on mobile ---- */
   .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"] {
     grid-template-columns: 1fr !important;
