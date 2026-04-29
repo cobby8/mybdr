@@ -51,13 +51,22 @@ export default function OrganizationApplyPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "신청 중 오류가 발생했습니다.");
+        // 이유: apiError는 문자열을, validationError는 배열을 보낸다.
+        //       두 형태 모두 사용자에게 의미 있는 메시지로 보여준다.
+        const errMsg =
+          typeof data?.error === "string"
+            ? data.error
+            : Array.isArray(data?.error)
+              ? data.error.map((e: { message?: string }) => e?.message).filter(Boolean).join(", ")
+              : "신청 중 오류가 발생했습니다.";
+        setError(errMsg);
         return;
       }
 
-      // 성공: pending이면 승인 대기 안내, approved면 바로 이동
-      if (data.data?.status === "approved") {
-        router.push(`/organizations/${data.data.slug}`);
+      // 성공: apiSuccess는 객체를 그대로(snake_case로) 직렬화하므로
+      //       status / slug는 top-level로 접근한다 (data.data.* 아님).
+      if (data?.status === "approved" && data?.slug) {
+        router.push(`/organizations/${data.slug}`);
       } else {
         setSuccess(true);
       }
@@ -172,8 +181,15 @@ export default function OrganizationApplyPage() {
           <label className="mb-1 block text-sm font-medium text-[var(--color-text-primary)]">
             웹사이트
           </label>
+          {/*
+            이유: type="url"이면 브라우저(HTML5) native 검증이 강제 발동해서
+                  "https//mybdr.kr"처럼 콜론 빠진 입력에 즉시 토스트가 뜨고
+                  제출이 막힌다. 형식 검증은 zod(서버) 쪽에서 처리하고,
+                  여기선 모바일 키보드 힌트만 inputMode로 준다.
+          */}
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
             placeholder="https://..."

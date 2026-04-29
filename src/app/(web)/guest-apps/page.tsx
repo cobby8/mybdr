@@ -329,7 +329,8 @@ export default function GuestAppsPage() {
       </div>
 
       {/* 신뢰도 팁 3종 — 이모지 + 제목 + 설명 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+      {/* 2026-04-29: 모바일 1열 / sm 이상 3열 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[10px] mb-5">
         {RELIABILITY_TIPS.map((t) => (
           <div
             key={t.title}

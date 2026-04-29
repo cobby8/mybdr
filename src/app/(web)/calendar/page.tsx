@@ -256,12 +256,11 @@ export default function CalendarPage() {
       </div>
 
       {/* === 월간 뷰 === (시안 L113~L230) */}
+      {/* 2026-04-29: 모바일은 1열로 떨어지도록 className 분기. md(>=768) 이상에서만 320px 사이드 패널 노출 */}
       {view === "month" && (
         <div
+          className="grid gap-[18px] grid-cols-1 md:[grid-template-columns:minmax(0,1fr)_320px]"
           style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0,1fr) 320px",
-            gap: 18,
             alignItems: "flex-start",
           }}
         >
@@ -316,6 +315,11 @@ export default function CalendarPage() {
               </div>
             </div>
 
+            {/* 2026-04-29: 모바일에서 7일 1열씩 차지하면 셀이 너무 좁아져 가독성 손상 →
+                 요일 헤더 + 셀 그리드를 한 컨테이너로 묶어 가로 스크롤(minWidth 560).
+                 두 그리드가 같은 부모 폭을 공유하므로 컬럼 위치 자동 동기화. */}
+            <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <div style={{ minWidth: 560 }}>
             {/* 요일 헤더 (시안 L129~L133) */}
             <div
               style={{
@@ -435,6 +439,9 @@ export default function CalendarPage() {
                 );
               })}
             </div>
+              </div>
+            </div>
+            {/* /가로 스크롤 래퍼 종료 */}
           </div>
 
           {/* 우측 사이드 (시안 L182~L228) */}

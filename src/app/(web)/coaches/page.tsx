@@ -314,8 +314,9 @@ export default function CoachesPage() {
         </div>
       </div>
 
-      {/* 코치 카드 그리드 — 3열 (시안 그대로) */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      {/* 코치 카드 그리드 — 모바일 1열 / sm 2열 / md 3열 (시안 데스크톱 동일) */}
+      {/* 2026-04-29: 모바일에서 3열 강제로 카드가 찌부되는 문제 → mobile-first 분기 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-[14px]">
         {filtered.map((c) => (
           <div key={c.id} className="card" style={{ padding: 0, overflow: "hidden" }}>
             {/* 상단 헤더 — 색상 그라디언트 + role 배지 + 평점 배지 */}
