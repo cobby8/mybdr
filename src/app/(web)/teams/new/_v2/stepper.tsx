@@ -40,7 +40,16 @@ export function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
               >
                 {done ? "✓" : s.n}
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: reached ? "var(--ink)" : "var(--ink-dim)" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: reached ? "var(--ink)" : "var(--ink-dim)",
+                  // 모바일 픽스: 한국어 라벨 어절 단위 줄바꿈 (글자 단위 방지)
+                  wordBreak: "keep-all",
+                  textAlign: "center",
+                }}
+              >
                 {s.l}
               </div>
             </div>

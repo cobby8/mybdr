@@ -129,11 +129,14 @@ export function TeamFormV2() {
         <span style={{ color: "var(--ink)" }}>팀 등록</span>
       </div>
 
-      {/* 페이지 헤더 — 시안 그대로 (eyebrow + h1 + 부제) */}
+      {/* 페이지 헤더 — 시안 그대로 (eyebrow + h1 + 부제)
+          모바일 픽스(2026-04-29): 부제 한국어 어절 단위 줄바꿈 보강 */}
       <div style={{ marginBottom: 24 }}>
         <div className="eyebrow">CREATE TEAM · 새 팀 등록</div>
-        <h1 style={{ margin: "6px 0 0", fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em" }}>팀 만들기</h1>
-        <p style={{ margin: "4px 0 0", color: "var(--ink-mute)", fontSize: 13 }}>
+        <h1 style={{ margin: "6px 0 0", fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em", wordBreak: "keep-all" }}>
+          팀 만들기
+        </h1>
+        <p style={{ margin: "4px 0 0", color: "var(--ink-mute)", fontSize: 13, wordBreak: "keep-all" }}>
           최소 3명 이상부터 팀 등록 가능. 등록 후 팀원을 초대할 수 있어요.
         </p>
       </div>
