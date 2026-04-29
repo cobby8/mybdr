@@ -170,12 +170,20 @@ export async function updateProfile(
     where: { id: userId },
     data,
     select: {
+      // 이유: 클라이언트가 PATCH 응답을 그대로 폼 상태에 반영하므로
+      //       프로필 수정 페이지에 노출되는 9필드를 모두 응답에 포함시켜야
+      //       "저장 후 화면이 입력값을 잃는" 사일런트 폴백을 제거할 수 있음.
+      // 비고: 필드명은 schema.prisma User 모델의 컬럼명과 일치
+      //       (height/weight/birth_date/district는 @map snake_case).
       nickname: true,
       position: true,
       height: true,
+      weight: true,        // 추가 — 몸무게
       city: true,
+      district: true,      // 추가 — 활동 지역(구·시군)
       bio: true,
       name: true,
+      birth_date: true,    // 추가 — 생년월일
     },
   });
 }
