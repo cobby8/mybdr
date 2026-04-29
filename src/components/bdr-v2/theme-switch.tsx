@@ -6,21 +6,21 @@ import { useEffect, useState } from "react";
  * ThemeSwitch (BDR v2)
  *
  * 이유(왜):
- *   v2 원본 AppNav는 라이트/다크 2버튼 토글(.theme-switch__btn)을
- *   헤더 우측에 고정 배치한다. 기존 프로젝트의 ThemeToggle은 단일 아이콘
- *   토글 방식이라 v2 시안과 어긋나므로 별도 구현한다.
+ *   기존: 라이트/다크 2버튼 듀얼 토글 (.theme-switch 알약 컨테이너 + 라벨)
+ *   변경: 단일 아이콘 토글 버튼 (해/달 아이콘만 보이는 미니멀 형태)
+ *   PM 지시(2026-04-29): 글로벌 헤더 컨트롤 정리 — 검색/알림과 동일하게
+ *   박스 없이 아이콘만 노출하는 형태로 통일.
  *
- *   호환 포인트:
+ *   호환 포인트(기존 그대로):
  *   - v2 CSS 셀렉터 이중화: `[data-theme="dark"]` + `html.dark`
- *     → 두 가지를 모두 세팅해 기존 다크모드 분기(html.dark 기반 JS 체크)가
- *       깨지지 않도록 한다.
- *   - localStorage 키는 기존 `theme-preference` 재사용.
+ *   - localStorage 키: `theme-preference`
  *
  * 방법(어떻게):
  *   1. 마운트 시 html 태그에서 현재 테마 읽어 상태 초기화 (FOUC 방지 —
  *      layout.tsx의 beforeInteractive 스크립트가 이미 data-theme/class 세팅)
- *   2. 버튼 클릭 시 `document.documentElement.classList` + `dataset.theme`
- *      동시 세팅 + localStorage 저장
+ *   2. 버튼 1개로 클릭 시 light ↔ dark 즉시 토글
+ *   3. 표시 아이콘은 "다음에 전환될 모드" 기준 (라이트 상태 → 달 아이콘 표시)
+ *      → 사용자 멘탈 모델: "달 누르면 다크로 간다"
  * ============================================================ */
 
 type Theme = "light" | "dark";
@@ -59,33 +59,24 @@ export function ThemeSwitch() {
     setThemeState(next);
   };
 
+  // 다크 상태 → 해(light_mode) 표시: "누르면 라이트로 갑니다" 신호
+  // 라이트 상태 → 달(dark_mode) 표시: "누르면 다크로 갑니다" 신호
+  const isDark = theme === "dark";
+  const nextTheme: Theme = isDark ? "light" : "dark";
+  const iconName = isDark ? "light_mode" : "dark_mode";
+  const aria = isDark ? "라이트 모드로 전환" : "다크 모드로 전환";
+
   return (
-    <div className="theme-switch" role="group" aria-label="테마 선택">
-      <button
-        type="button"
-        className="theme-switch__btn"
-        data-active={theme === "light"}
-        onClick={() => applyTheme("light")}
-        aria-pressed={theme === "light"}
-      >
-        {/* 태양 아이콘 — Material Symbols */}
-        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-          light_mode
-        </span>
-        <span>라이트</span>
-      </button>
-      <button
-        type="button"
-        className="theme-switch__btn"
-        data-active={theme === "dark"}
-        onClick={() => applyTheme("dark")}
-        aria-pressed={theme === "dark"}
-      >
-        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-          dark_mode
-        </span>
-        <span>다크</span>
-      </button>
-    </div>
+    <button
+      type="button"
+      className="app-nav__icon-btn"
+      onClick={() => applyTheme(nextTheme)}
+      aria-label={aria}
+      title={aria}
+    >
+      <span className="material-symbols-outlined" aria-hidden="true">
+        {iconName}
+      </span>
+    </button>
   );
 }
