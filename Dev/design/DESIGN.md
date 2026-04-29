@@ -521,3 +521,8 @@ Hero 카로셀 안의 카드는 모바일에서 가로 배치를 피한다:
 | `--color-gradient-end` | `#1B3C87` | (동일) |
 | `--color-glass-bg` | `rgba(26,26,26,0.7)` | `rgba(255,255,255,0.7)` |
 | `--color-glass-blur` | `20px` | (동일) |
+
+---
+
+## 사용자 결정 영구 보존
+향후 디자인 변경 시 [user-design-decisions-2026-04-30.md](./user-design-decisions-2026-04-30.md) 의 "회귀 금지" 항목 확인 필수.
