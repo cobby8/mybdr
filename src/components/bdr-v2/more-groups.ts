@@ -9,6 +9,11 @@
  *
  * 시안 출처:
  *   Dev/design/BDR v2 (1)/components.jsx L117-161 moreGroups
+ *   [2026-04-29 P0-2 검증] BDR v2.1 components.jsx moreGroups 28개와 대조 →
+ *   v2.1 신규 후보 8건(courtAdd / teamManage / searchResults / editProfile /
+ *   notificationSettings / safety / passwordReset / onboardingV2)이 본 파일에
+ *   이미 모두 등록되어 있음을 확인. 추가 작업 없음. (가짜 링크 정책상
+ *   gameReport / guestApply / refereeRequest는 의도적 제외 유지)
  *
  * 라우트 매핑 메모:
  *   - achievements: /profile/achievements (실제 존재 페이지가 더 정확)
