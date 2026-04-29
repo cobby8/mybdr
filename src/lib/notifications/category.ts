@@ -69,6 +69,7 @@ export const TYPES_BY_CATEGORY: Record<NotifCategory, readonly string[]> = {
     "game.application.approved",
     "game.application.rejected",
     "game.cancelled",
+    "game.report.request", // Phase 10-2 — 경기 종료 후 평가 요청 알림
   ],
   team: [
     "team.join_request.received",

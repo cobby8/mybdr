@@ -6,6 +6,7 @@ export const NOTIFICATION_TYPES = {
   GAME_APPLICATION_APPROVED: "game.application.approved",     // 신청자: 승인됨
   GAME_APPLICATION_REJECTED: "game.application.rejected",     // 신청자: 거부됨
   GAME_CANCELLED: "game.cancelled",                           // 참가자: 경기 취소
+  GAME_REPORT_REQUEST: "game.report.request",                 // 참가자/호스트: 경기 종료 후 평가 작성 요청 (Phase 10-2)
 
   // 팀 관련
   TEAM_JOIN_REQUEST_RECEIVED: "team.join_request.received",   // 팀장: 가입신청 접수
