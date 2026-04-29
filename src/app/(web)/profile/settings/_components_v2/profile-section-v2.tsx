@@ -1,25 +1,28 @@
 "use client";
 
 /* ============================================================
- * ProfileSectionV2 — Settings "선수 프로필" 섹션 (시안 인라인 9필드 폼)
+ * ProfileSectionV2 — Settings "선수 프로필" 섹션 (재구성판)
  *
- * 왜:
- *  - 시안 Settings.jsx profile 섹션을 인라인 폼으로 그대로 이식.
- *  - 기존 PATCH /api/web/profile 가 받는 필드만 사용 → API 0 변경.
- *  - 시안의 "등번호 / 주로 뛰는 손" 2 필드는 DB 미지원 → 추후 구현 목록으로
- *    이관(scratchpad 🚧 Phase 5 Settings). 이번 9 필드는 PATCH 지원 필드 한정.
+ * 왜 (이번 재구성):
+ *  - 사용자 지시 (캡처 43):
+ *    1) 실명은 전화번호 인증 시 자동 입력 → 수정 불가 (readonly + disabled)
+ *       (Phase 2 별도 작업 — SMS 인증 도입 시 자동 채움. 지금은 readonly만)
+ *    2) 포지션 → onboarding 위저드의 3열 버튼 카드 패턴 재사용 (G/F/C)
+ *    3) 도시·구/동 → RegionPicker (cascading select) 재사용
+ *    4) 모바일 좁은 영역 → 1열 stack 기본 + 일부만 데스크톱 2열
+ *  - API/DB 0 변경. PATCH /api/web/profile 시그니처 그대로.
+ *  - submit body 에서 name 제외 (어차피 readonly — 변경 못 함).
  *
  * 어떻게:
- *  - 9 필드: nickname / name / position / height / weight / city / district /
- *           birth_date / bio
- *  - 초기값: 부모가 GET /api/web/profile 결과를 prop 으로 내려줌 (신규 fetch 0).
- *  - 저장 버튼 클릭 → fetch PATCH /api/web/profile (기존 호출 그대로).
- *  - 닉네임 2~20자 클라 검증(서버도 검증하지만 즉시 피드백).
- *  - 성공/실패 메시지 표시 + 진행중 disabled.
+ *  - 기존 form state 유지하되 city/district 는 RegionPicker(value: Region[]) 와 동기화.
+ *  - 첫 번째 region 의 city/district 를 PATCH 시 전송. 비어있으면 빈 문자열.
+ *  - 포지션 G/F/C 3개로 한정 (onboarding 와 동일).
+ *  - 레이아웃: space-y-4 1 열 stack + (포지션·키), (몸무게·생년월일) 만 2 열 grid.
  * ============================================================ */
 
 import { useState, useEffect, type FormEvent } from "react";
 import { SettingsHeader } from "./settings-ui";
+import { RegionPicker, type Region } from "@/components/shared/region-picker";
 
 // 부모에서 받는 사용자 정보 (GET /api/web/profile 의 user 필드 일부)
 export interface ProfileFormUser {
@@ -39,19 +42,27 @@ interface Props {
   onSaved?: (next: ProfileFormUser) => void;
 }
 
+// 포지션 3종 — onboarding setup-form.tsx L44-48 동일. 단 settings 에서는
+// 이미 포지션 + 다른 정보가 한 화면에 있으므로 "설명" 은 생략하고 라벨만.
+const POSITIONS = [
+  { v: "G", l: "가드" },
+  { v: "F", l: "포워드" },
+  { v: "C", l: "센터" },
+] as const;
+
 export function ProfileSectionV2({ user, onSaved }: Props) {
-  // 9 필드 로컬 상태. 빈 문자열 = "비우기" 의도. 서버는 빈 문자열을 null 로 저장.
+  // 단순 8 필드 로컬 상태. name 은 readonly 표시용으로만 보유 (PATCH 미전송).
   const [form, setForm] = useState({
     nickname: "",
     name: "",
     position: "",
     height: "",
     weight: "",
-    city: "",
-    district: "",
     birth_date: "",
     bio: "",
   });
+  // 활동 지역 (RegionPicker). 단일 region 만 사용하지만 컴포넌트 시그니처 상 배열.
+  const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
   const [saving, setSaving] = useState(false);
   // 저장 결과 메시지: success | error | null
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -65,11 +76,17 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
       position: user.position ?? "",
       height: user.height != null ? String(user.height) : "",
       weight: user.weight != null ? String(user.weight) : "",
-      city: user.city ?? "",
-      district: user.district ?? "",
       birth_date: user.birth_date ?? "",
       bio: user.bio ?? "",
     });
+    // 도시·구/동 → RegionPicker 의 첫 슬롯에 매핑.
+    // 둘 중 하나라도 있으면 채우고, 둘 다 없으면 빈 슬롯 유지.
+    setRegions([
+      {
+        city: user.city ?? "",
+        district: user.district ?? "",
+      },
+    ]);
   }, [user]);
 
   const setField = (key: keyof typeof form, value: string) =>
@@ -89,7 +106,10 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
 
     setSaving(true);
     try {
-      // PATCH /api/web/profile 기존 시그니처 그대로
+      // RegionPicker 의 첫 번째 region 만 사용 (Profile 은 단일 활동 지역).
+      const firstRegion = regions[0] ?? { city: "", district: "" };
+
+      // PATCH /api/web/profile — name 은 의도적으로 누락 (readonly).
       const res = await fetch("/api/web/profile", {
         method: "PATCH",
         credentials: "include",
@@ -97,13 +117,12 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
         body: JSON.stringify({
           // 빈 문자열은 서버에서 null 처리됨 (route.ts: `value as string || null`)
           nickname: form.nickname,
-          name: form.name,
           position: form.position,
           // height/weight 는 숫자 변환은 서버에서 처리. 빈문자열이면 null.
           height: form.height,
           weight: form.weight,
-          city: form.city,
-          district: form.district,
+          city: firstRegion.city,
+          district: firstRegion.district,
           // birth_date 도 빈문자열이면 서버에서 null 처리
           birth_date: form.birth_date,
           bio: form.bio,
@@ -127,12 +146,13 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
         const data = await res.json();
         onSaved?.({
           nickname: data?.nickname ?? form.nickname,
-          name: data?.name ?? form.name,
+          // name 은 변경 안 했으므로 기존값 그대로 전파
+          name: form.name,
           position: data?.position ?? form.position,
           height: data?.height ?? (form.height ? Number(form.height) : null),
           weight: data?.weight ?? (form.weight ? Number(form.weight) : null),
-          city: data?.city ?? form.city,
-          district: data?.district ?? form.district,
+          city: data?.city ?? firstRegion.city,
+          district: data?.district ?? firstRegion.district,
           birth_date: data?.birth_date ?? form.birth_date,
           bio: data?.bio ?? form.bio,
         });
@@ -154,15 +174,9 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
         desc="경기 및 랭킹에 표시되는 정보"
       />
 
-      {/* 시안의 2열 그리드 — 8 단순 필드 + 마지막 자기소개는 1열 풀폭 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 16,
-          marginBottom: 16,
-        }}
-      >
+      {/* 모바일 우선 1열 stack — 일부만 데스크톱(640px+) 2열 grid */}
+      <div className="space-y-4" style={{ marginBottom: 16 }}>
+        {/* 닉네임 (단독, 풀폭) */}
         <Field
           label="닉네임"
           name="nickname"
@@ -171,50 +185,108 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
           maxLength={20}
           placeholder="2~20자"
         />
-        <Field
-          label="실명"
-          name="name"
-          value={form.name}
-          onChange={(v) => setField("name", v)}
-          placeholder="공개하지 않음"
-        />
-        <Field
-          label="포지션"
-          name="position"
-          value={form.position}
-          onChange={(v) => setField("position", v)}
-          placeholder="가드 / 포워드 / 센터 등"
-        />
-        <Field
-          label="키 (cm)"
-          name="height"
-          value={form.height}
-          onChange={(v) => setField("height", v.replace(/[^0-9]/g, ""))}
-          placeholder="예: 182"
-          inputMode="numeric"
-        />
-        <Field
-          label="몸무게 (kg)"
-          name="weight"
-          value={form.weight}
-          onChange={(v) => setField("weight", v.replace(/[^0-9]/g, ""))}
-          placeholder="예: 78"
-          inputMode="numeric"
-        />
-        <Field
-          label="도시"
-          name="city"
-          value={form.city}
-          onChange={(v) => setField("city", v)}
-          placeholder="예: 서울"
-        />
-        <Field
-          label="활동 지역(구/동)"
-          name="district"
-          value={form.district}
-          onChange={(v) => setField("district", v)}
-          placeholder="예: 강남구"
-        />
+
+        {/* 실명 — readonly + disabled. 전화번호 인증 시 자동 입력될 예정 (Phase 2). */}
+        <div>
+          <label
+            htmlFor="profile-name"
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}
+          >
+            실명
+          </label>
+          <input
+            id="profile-name"
+            name="name"
+            type="text"
+            // 빈 값일 때도 placeholder 로 의도 전달 (readonly 도 placeholder 노출 됨)
+            value={form.name ?? ""}
+            readOnly
+            disabled
+            placeholder="전화번호 인증 시 자동 입력 (곧 출시)"
+            className="input"
+            style={{
+              marginTop: 6,
+              width: "100%",
+              backgroundColor: "var(--bg-alt)",
+              cursor: "not-allowed",
+              opacity: 0.7,
+            }}
+          />
+          <p style={{ marginTop: 4, fontSize: 11, color: "var(--ink-dim)" }}>
+            전화번호 인증 후 자동 입력됩니다. 직접 수정할 수 없습니다.
+          </p>
+        </div>
+
+        {/* 포지션 — 3열 버튼 카드 (onboarding setup-form.tsx 패턴 차용) */}
+        <div>
+          <label
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)", display: "block" }}
+          >
+            포지션
+          </label>
+          <div
+            style={{
+              marginTop: 6,
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 8,
+            }}
+          >
+            {POSITIONS.map((p) => {
+              const sel = form.position === p.v;
+              return (
+                <button
+                  key={p.v}
+                  type="button"
+                  onClick={() => setField("position", p.v)}
+                  // 선택 시 cafe-blue 테두리 + 옅은 배경 (onboarding 컬러 시스템과 통일)
+                  style={{
+                    padding: "12px 8px",
+                    textAlign: "center",
+                    background: sel ? "var(--bg-alt)" : "transparent",
+                    border: sel
+                      ? "2px solid var(--cafe-blue)"
+                      : "1px solid var(--border)",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <div style={{ fontFamily: "var(--ff-display)", fontSize: 16, fontWeight: 900 }}>
+                    {p.v}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>
+                    {p.l}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 키 / 몸무게 — 데스크톱 2열, 모바일 1열 (좁은 숫자 입력) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field
+            label="키 (cm)"
+            name="height"
+            value={form.height}
+            onChange={(v) => setField("height", v.replace(/[^0-9]/g, ""))}
+            placeholder="예: 182"
+            inputMode="numeric"
+          />
+          <Field
+            label="몸무게 (kg)"
+            name="weight"
+            value={form.weight}
+            onChange={(v) => setField("weight", v.replace(/[^0-9]/g, ""))}
+            placeholder="예: 78"
+            inputMode="numeric"
+          />
+        </div>
+
+        {/* 생년월일 (단독, 풀폭) */}
         <Field
           label="생년월일"
           name="birth_date"
@@ -222,27 +294,35 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
           value={form.birth_date}
           onChange={(v) => setField("birth_date", v)}
         />
+
+        {/* 활동 지역 — RegionPicker (cascading select). 단일 region (max=1) 사용. */}
+        <div>
+          {/* RegionPicker 는 자체 라벨을 가지고 있어 별도 label 불필요. max=1 로 추가버튼 차단. */}
+          <RegionPicker value={regions} onChange={setRegions} max={1} />
+        </div>
+
+        {/* 자기소개 — textarea (시안 동일) */}
+        <div>
+          <label
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}
+            htmlFor="profile-bio"
+          >
+            자기소개
+          </label>
+          <textarea
+            id="profile-bio"
+            className="input"
+            rows={3}
+            style={{ marginTop: 6, resize: "vertical", width: "100%" }}
+            value={form.bio}
+            onChange={(e) => setField("bio", e.target.value)}
+            placeholder="강남·송파 위주 픽업. 토요일 오전 고정."
+          />
+        </div>
       </div>
 
-      {/* 자기소개 — textarea (시안 동일) */}
-      <label
-        style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}
-        htmlFor="profile-bio"
-      >
-        자기소개
-      </label>
-      <textarea
-        id="profile-bio"
-        className="input"
-        rows={3}
-        style={{ marginTop: 6, resize: "vertical", width: "100%" }}
-        value={form.bio}
-        onChange={(e) => setField("bio", e.target.value)}
-        placeholder="강남·송파 위주 픽업. 토요일 오전 고정."
-      />
-
       {/* 저장 버튼 + 메시지 영역 */}
-      <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button
           type="submit"
           className="btn btn--primary"
