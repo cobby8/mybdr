@@ -25,8 +25,11 @@ export async function createTeamAction(_prevState: { error: string } | null, for
   // primary/secondary 도 별도로 받되, 없으면 home/away 와 동일 값으로 (하위 호환 데이터 정합)
   const primaryColor = (formData.get("primary_color") as string) || homeColor;
   const secondaryColor = (formData.get("secondary_color") as string) || awayColor;
+  // 2026-04-29: 팀 로고 Storage URL — 클라에서 /api/web/upload 경유로 이미 업로드 완료된 public URL.
+  // 빈 문자열/null 모두 logoUrlSchema 에서 null 로 정규화됨.
+  const rawLogoUrl = formData.get("logo_url") as string | null;
 
-  // Zod 검증 — 한글명 필수 + 영문명 엄격 규칙 + 대표언어 enum + 색상 4종
+  // Zod 검증 — 한글명 필수 + 영문명 엄격 규칙 + 대표언어 enum + 색상 4종 + 로고 URL
   const parsed = createTeamSchema.safeParse({
     name: rawName,
     name_en: rawNameEn, // nameEnSchema가 빈 문자열을 null로 변환
@@ -36,6 +39,7 @@ export async function createTeamAction(_prevState: { error: string } | null, for
     secondary_color: secondaryColor,
     home_color: homeColor,
     away_color: awayColor,
+    logo_url: rawLogoUrl,
   });
 
   if (!parsed.success) {
@@ -44,7 +48,7 @@ export async function createTeamAction(_prevState: { error: string } | null, for
     return { error: firstIssue?.message ?? "입력값이 올바르지 않습니다." };
   }
 
-  const { name, name_en, name_primary, description } = parsed.data;
+  const { name, name_en, name_primary, description, logo_url } = parsed.data;
 
   let createdTeamId: bigint;
   try {
@@ -72,6 +76,8 @@ export async function createTeamAction(_prevState: { error: string } | null, for
           secondaryColor,
           home_color: homeColor,
           away_color: awayColor,
+          // 2026-04-29: 팀 로고 Supabase Storage URL. 미업로드 시 null.
+          logoUrl: logo_url ?? null,
           captainId: userId,
           status: "active",
           members_count: 1,

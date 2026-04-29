@@ -61,10 +61,10 @@ export function TeamFormV2() {
   // - 서버는 home_color / away_color 신규 필드를 받고, 하위 호환을 위해 primary_color / secondary_color 도 동일 값으로 함께 저장.
   const [homeColor, setHomeColor] = useState<string>(TEAM_COLORS[0]); // 홈 유니폼 색상 (필수)
   const [awayColor, setAwayColor] = useState<string>(TEAM_COLORS[7]); // 어웨이 유니폼 색상 (필수, 기본 회색)
-  // 로고 파일 — 실제 storage 업로드는 별도 Phase. 지금은 미리보기 base64 만 폼 state 에 보유.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  // 로고 URL — Supabase Storage 업로드 완료된 public URL.
+  // 2026-04-29: 기존 base64 미리보기 state 폐기 → storage URL 단일 보유로 단순화.
+  // null 이면 hidden input 으로 빈 문자열 전송 (서버에서 null 처리)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   // === 시안 신규 필드 (UI 만, DB 미반영) ===
   const [tag, setTag] = useState(""); // 영문 태그 2~4자 (등록 시 미사용)
@@ -188,6 +188,8 @@ export function TeamFormV2() {
             <input type="hidden" name="away_color" value={awayColor} />
             <input type="hidden" name="primary_color" value={homeColor} />
             <input type="hidden" name="secondary_color" value={awayColor} />
+            {/* 로고 URL — 업로드 미완료 시 빈 문자열, 서버에서 null 처리 */}
+            <input type="hidden" name="logo_url" value={logoUrl ?? ""} />
 
             {/* === 스텝별 본문 === */}
             {step === 1 && (
@@ -216,11 +218,8 @@ export function TeamFormV2() {
                 onHomeColorChange={setHomeColor}
                 awayColor={awayColor}
                 onAwayColorChange={setAwayColor}
-                logoPreview={logoPreview}
-                onLogoFileChange={(file, preview) => {
-                  setLogoFile(file);
-                  setLogoPreview(preview);
-                }}
+                logoUrl={logoUrl}
+                onLogoUrlChange={setLogoUrl}
               />
             )}
 
@@ -245,7 +244,7 @@ export function TeamFormV2() {
                 tag={tag}
                 homeColor={homeColor}
                 awayColor={awayColor}
-                logoPreview={logoPreview}
+                logoUrl={logoUrl}
                 home={home}
                 level={level}
                 privacy={privacy}

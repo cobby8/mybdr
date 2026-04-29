@@ -5,12 +5,14 @@
 //  - 시안의 "tag 미리보기 + 컬러 팔레트(10) + 로고 업로더" 구조 재현
 //  - 2026-04-29: PM 요청 — 단일 "팀 컬러" → "홈/어웨이 유니폼" 2색으로 분리.
 //    홈 컬러는 미리보기 배경으로 사용, 어웨이 컬러는 작은 띠/배지로 표시.
-//  - 2026-04-29: 로고 업로드 활성화 (BDR+ 게이트 해제). 단, 실제 storage 업로드는 별도 Phase —
-//    이번엔 클라이언트 base64 미리보기 + File state 만 잡아둔다 (서버 저장 X).
+//  - 2026-04-29: 로고 업로드 활성화 (BDR+ 게이트 해제).
+//  - 2026-04-29 (v2): 실제 Supabase Storage 업로드 연결.
+//    파일 선택 즉시 /api/web/upload 호출 → public URL 받아 부모 state(logoUrl)에 저장.
+//    base64 미리보기 단계 폐기 (불필요한 메모리/state 낭비). 미리보기는 storage URL 그대로 사용.
 //  - 2026-04-29: PM 요청 — preset 10색 grid 제거 → HTML5 native color picker + hex text input 으로 교체.
 //    이유: 사용자가 로고에 정확히 매칭되는 임의 hex (예: 브랜드 색) 자유 선택 필요.
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 interface Props {
   // Step1 에서 입력한 tag (or fallback) — 미리보기 텍스트
@@ -21,9 +23,9 @@ interface Props {
   // 어웨이 유니폼 색상 (서버 제출: away_color + 하위호환 secondary_color)
   awayColor: string;
   onAwayColorChange: (v: string) => void;
-  // 로고 파일 (선택) — base64 미리보기는 부모에서 관리
-  logoPreview: string | null;
-  onLogoFileChange: (file: File | null, preview: string | null) => void;
+  // 로고 URL (Supabase Storage 업로드 완료된 public URL). 미업로드 시 null.
+  logoUrl: string | null;
+  onLogoUrlChange: (url: string | null) => void;
 }
 
 export function StepEmblem({
@@ -32,36 +34,76 @@ export function StepEmblem({
   onHomeColorChange,
   awayColor,
   onAwayColorChange,
-  logoPreview,
-  onLogoFileChange,
+  logoUrl,
+  onLogoUrlChange,
 }: Props) {
   // 파일 input ref — "클릭해서 업로드" 영역에서 트리거
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 로고 파일 선택 핸들러
-  // 이유: 실제 storage 업로드 로직은 별도 Phase. 지금은 선택 즉시 base64 미리보기만 갱신.
-  function handleFile(file: File | null) {
+  // 업로드 진행 상태 — true 인 동안 dropzone 영역 dim + 스피너 텍스트 표시
+  // 이유: Supabase 왕복(보통 0.5~3초) 동안 사용자가 다음 스텝으로 넘어가지 못하게 시각 피드백 + 중복 클릭 차단
+  const [uploading, setUploading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // 로고 파일 선택 → 즉시 Supabase Storage 업로드
+  // 이유: 폼 제출 시 일괄 업로드 vs 즉시 업로드 중 후자 채택.
+  //  - 사용자는 미리보기를 곧바로 보고 싶어함
+  //  - 폼 제출 시점에 업로드 실패하면 "팀은 만들어졌는데 로고만 안 됨" 같은 부분 실패가 더 까다로움
+  //  - 이미 Step2 → Step3/4 진행 중에 백그라운드 업로드 완료 가능 (UX 자연스러움)
+  async function handleFile(file: File | null) {
+    setErrorMsg(null);
     if (!file) {
-      onLogoFileChange(null, null);
+      onLogoUrlChange(null);
       return;
     }
-    // 2MB 제한 (시안 기준)
-    if (file.size > 2 * 1024 * 1024) {
-      alert("이미지 크기는 2MB 이하만 가능합니다.");
+    // 5MB 제한 (서버 /api/web/upload 와 동일)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("이미지 크기는 5MB 이하만 가능합니다.");
       return;
     }
-    // 이미지 타입만 허용
+    // 이미지 타입만 허용 (서버는 jpeg/png/webp/gif 만 받지만, 클라는 폭넓게 1차 차단만)
     if (!file.type.startsWith("image/")) {
-      alert("PNG 또는 JPG 이미지만 업로드 가능합니다.");
+      setErrorMsg("PNG, JPG, WEBP, GIF 이미지만 업로드 가능합니다.");
       return;
     }
-    // base64 미리보기 생성 — 실제 업로드는 차후 storage 연동 시
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : null;
-      onLogoFileChange(file, result);
-    };
-    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      // FormData 구성 — 서버 라우트가 file/bucket/path 3개 키 수용
+      // bucket: team-logos (Supabase 대시보드에 별도 생성 필요 — 운영 셋업 안내)
+      // path:   logos/{userId}/  형태가 이상적이지만 server 가 Date.now() 기반 unique name 으로 만들어주므로 prefix 만 logos/
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "team-logos");
+      fd.append("path", "logos");
+
+      // /api/web/upload — 인증 가드(getWebSession) 있음, 미로그인 시 401
+      const res = await fetch("/api/web/upload", {
+        method: "POST",
+        body: fd,
+      });
+      // 응답 구조 (apiSuccess/apiError 기준, snake_case 변환 적용):
+      //   - 성공 200: { url: "https://..." }
+      //   - 실패 4xx/5xx: { error: "...", code?: "..." }
+      const json = (await res.json().catch(() => null)) as
+        | { url?: string; error?: string }
+        | null;
+      if (!res.ok) {
+        setErrorMsg(json?.error ?? "업로드에 실패했습니다.");
+        return;
+      }
+      const url = json?.url;
+      if (!url) {
+        setErrorMsg("서버 응답에 URL이 없습니다.");
+        return;
+      }
+      onLogoUrlChange(url);
+    } catch (err) {
+      console.error("[StepEmblem upload]", err);
+      setErrorMsg("네트워크 오류로 업로드하지 못했습니다. 다시 시도해주세요.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -99,11 +141,12 @@ export function StepEmblem({
               position: "relative",
             }}
           >
-            {logoPreview ? (
-              // 이유: 다음 Phase에서 storage 업로드 시 next/image 로 교체. 지금은 base64 임시 미리보기.
+            {logoUrl ? (
+              // 이유: Supabase public URL 이라 외부 도메인. next/image 사용하려면 next.config domains 설정 필요해
+              // 현재는 <img> 유지 (eslint disable). 추후 Supabase 도메인 화이트리스트 후 next/image 마이그레이션 가능.
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={logoPreview}
+                src={logoUrl}
                 alt="팀 로고 미리보기"
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
@@ -245,9 +288,9 @@ export function StepEmblem({
             </div>
           </div>
 
-          {/* 팀 로고 업로더 — 2026-04-29 활성화 (모든 사용자 가능)
-              이유: 시안의 BDR+ 게이트 해제. file input 활성화 + base64 미리보기.
-              실제 storage 업로드는 별도 Phase — 지금은 클라 미리보기만 (DB 저장 X) */}
+          {/* 팀 로고 업로더 — 2026-04-29 활성화 + Supabase Storage 실제 업로드 연결
+              이유: 시안의 BDR+ 게이트 해제. 파일 선택 즉시 /api/web/upload POST → public URL 받음.
+              dropzone 클릭 비활성: uploading 중에는 중복 클릭 차단 */}
           <label
             style={{
               fontSize: 12,
@@ -260,9 +303,11 @@ export function StepEmblem({
           >
             팀 로고 이미지 <span style={{ fontWeight: 400, color: "var(--ink-mute)" }}>(선택)</span>
           </label>
-          {/* 클릭 가능한 영역 — 내부에서 hidden file input 트리거 */}
+          {/* 클릭 가능한 영역 — 내부에서 hidden file input 트리거.
+              uploading 중에는 disabled + opacity 낮춰 시각적 피드백 */}
           <button
             type="button"
+            disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
             style={{
               width: "100%",
@@ -272,38 +317,66 @@ export function StepEmblem({
               textAlign: "center",
               wordBreak: "keep-all",
               background: "transparent",
-              cursor: "pointer",
+              cursor: uploading ? "wait" : "pointer",
               color: "var(--ink)",
+              opacity: uploading ? 0.6 : 1,
             }}
           >
-            <div style={{ fontSize: 28, opacity: 0.5, marginBottom: 6 }}>📁</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {logoPreview ? "다른 이미지로 교체" : "클릭해서 이미지 업로드"}
+            <div style={{ fontSize: 28, opacity: 0.5, marginBottom: 6 }}>
+              {uploading ? "⏳" : "📁"}
             </div>
-            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>PNG · JPG · 정방형 권장 · 최대 2MB</div>
-            {logoPreview && (
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
+              {uploading
+                ? "업로드 중…"
+                : logoUrl
+                ? "다른 이미지로 교체"
+                : "클릭해서 이미지 업로드"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>
+              PNG · JPG · WEBP · 정방형 권장 · 최대 5MB
+            </div>
+            {logoUrl && !uploading && (
               <div style={{ fontSize: 11, color: "var(--color-success, #10B981)", marginTop: 6, fontWeight: 600 }}>
-                ✓ 이미지 선택됨 (등록 시 저장은 곧 출시 예정)
+                ✓ 업로드 완료
               </div>
             )}
           </button>
-          {/* 실제 file input — hidden, 위 버튼이 click 으로 트리거 */}
+          {/* 에러 메시지 — alert 대신 dropzone 아래 inline 표시 (모바일 친화) */}
+          {errorMsg && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 8,
+                padding: "8px 10px",
+                fontSize: 12,
+                color: "var(--color-error)",
+                background: "color-mix(in srgb, var(--color-error) 10%, transparent)",
+                borderRadius: 4,
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
+          {/* 실제 file input — hidden, 위 버튼이 click 으로 트리거.
+              accept 는 서버 허용 MIME 과 동기화 (jpeg/png/webp/gif) */}
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,image/webp,image/gif"
             onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
             style={{ display: "none" }}
           />
-          {logoPreview && (
+          {logoUrl && (
             <button
               type="button"
               onClick={() => {
-                onLogoFileChange(null, null);
+                onLogoUrlChange(null);
+                setErrorMsg(null);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
               className="btn btn--sm"
               style={{ marginTop: 8, fontSize: 12 }}
+              disabled={uploading}
             >
               로고 제거
             </button>

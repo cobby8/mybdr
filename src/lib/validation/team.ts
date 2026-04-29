@@ -51,6 +51,27 @@ const colorSchema = z
   .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
   .optional();
 
+// 2026-04-29: 로고 URL 스키마 — Supabase Storage public URL.
+// preprocess 로 빈 문자열/공백을 null 로 치환 (hidden input 의 기본값 "" 처리).
+// http(s) 만 허용. URL 길이 한도 600 자 (Supabase URL 일반 ~100자대지만 여유).
+const logoUrlSchema = z.preprocess(
+  (v) => {
+    if (v === undefined) return undefined;
+    if (v === null) return null;
+    if (typeof v === "string") {
+      const t = v.trim();
+      return t.length === 0 ? null : t;
+    }
+    return v;
+  },
+  z
+    .string()
+    .url("로고 URL 형식이 올바르지 않습니다")
+    .max(600, "로고 URL이 너무 깁니다")
+    .nullable()
+    .optional()
+);
+
 /**
  * 팀 생성 스키마 (POST /api/web/teams 또는 createTeamAction)
  *
@@ -66,6 +87,8 @@ export const createTeamSchema = z.object({
   secondary_color: colorSchema,
   home_color: colorSchema,
   away_color: colorSchema,
+  // 2026-04-29: 팀 로고 Storage URL (Supabase public URL). 선택 입력.
+  logo_url: logoUrlSchema,
 });
 
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
