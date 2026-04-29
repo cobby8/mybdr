@@ -630,6 +630,17 @@ html.dark .app-nav__tab[data-active="true"]::after {
   background: var(--bdr-red); color: #fff;
 }
 
+/* 헤더 ThemeSwitch 하이브리드 (2026-04-30 사용자 결정 — 사용자 결정 문서 §3):
+   모바일에서 .theme-switch 본체 룰의 display: inline-flex가 Tailwind hidden을 이기는
+   문제를 명시적 모바일 룰로 해소. AppNav 안의 .theme-switch는 데스크톱 두 라벨 토글,
+   모바일은 .app-nav__icon-btn (단일 아이콘) 으로 분기됨. */
+@media (max-width: 767px) {
+  .app-nav .theme-switch { display: none !important; }
+}
+@media (min-width: 768px) {
+  .app-nav .app-nav__icon-btn[aria-label*="모드"] { display: none !important; }
+}
+
 /* .app-nav__icon-btn — 헤더 우측 다크모드 토글 / 검색 / 알림 공용 아이콘 버튼.
    이유(왜): PM 지시(2026-04-29)로 박스(border + 배경) 제거하고 아이콘만
    노출하는 형태로 통일. 다크 테마에서도 "brutalist border" 룰이 적용되지

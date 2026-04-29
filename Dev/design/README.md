@@ -48,6 +48,7 @@
 | 문서 | 역할 | 상태 |
 |------|------|------|
 | [DESIGN.md](./DESIGN.md) | 디자인 시스템 (색상 / 타이포 / 컴포넌트 / 다크모드 룰) | 영구 |
+| [user-design-decisions-2026-04-30.md](./user-design-decisions-2026-04-30.md) | 사용자 직접 결정 영구 보존 (회귀 방지) | 영구 |
 | [BDR v2/](./BDR%20v2/) | 시안 폴더 (HTML 미리보기 + 70+ 화면 + 모바일 감사 인프라) | 영구 |
 | [BDR v2/_mobile_audit_report.html](./BDR%20v2/_mobile_audit_report.html) | 시안 작성자의 모바일 자체 감사 (High 3 / Med 8) | 참조 |
 | [team-logos/](./team-logos/) | 팀 로고 자산 | 영구 |
