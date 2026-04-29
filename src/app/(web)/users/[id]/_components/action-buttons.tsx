@@ -20,7 +20,10 @@ interface ActionButtonsProps {
 export function ActionButtons({ targetUserId, initialFollowed, isLoggedIn }: ActionButtonsProps) {
   return (
     <div className="flex flex-wrap justify-center md:justify-start gap-3">
-      {/* 메시지 보내기: 아직 미구현 */}
+      {/* 메시지 보내기: 아직 미구현
+          E-2 검증 (2026-04-29): /messages 페이지는 ?thread=<id>만 처리하고
+          ?to=<userId> 미지원 + DM DB 모델(message_threads/messages/thread_members)
+          없음. alert 유지. phase-9-future-features.md §1-B 큐 추가됨. */}
       {/*
         색상 규칙(2026-04-12 conventions): primary 배경 위 텍스트는
         `text-white` 같은 고정 색 금지 → var(--color-on-primary) 사용해야

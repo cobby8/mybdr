@@ -25,8 +25,8 @@ import type { ScheduleMatch, ScheduleTeam } from "./schedule-timeline";
 
 // 대시보드 헤더 (overview 탭에서 사용)
 import { TournamentDashboardHeader } from "../bracket/_components/tournament-dashboard-header";
-// 팀 카드 (팀 목록 페이지와 UI 통일)
-import { TeamCard } from "../../../teams/_components/team-card";
+// 팀 카드 — 팀 목록 페이지(/teams)와 동일한 v2 카드 사용 (B-1 디자인 일치)
+import { TeamCardV2 } from "../../../teams/_components/team-card-v2";
 
 // 대진표 v2 통합 래퍼 — 헤더/Status/메인트리/사이드 카드 전체를 자체적으로 처리
 // 기존 BracketView/LeagueStandings/GroupStandings/FinalsSidebar/BracketEmpty 등은
@@ -240,48 +240,45 @@ function TeamsTabContent({ tournamentId }: { tournamentId: string }) {
   // apiSuccess()는 .data 래핑 없이 직접 반환
   const teams = data?.teams ?? [];
 
-  // 팀 목록 페이지와 동일한 TeamCard 재사용 (UI 통일)
+  // /teams 페이지와 동일한 TeamCardV2 재사용 (B-1 디자인 일치)
+  // 이유: 기존 v2→v1 변환 로직이 BigInt 캐스팅·_count 매핑에서 깨졌고(W-3 TypeError),
+  //       /teams 와 카드 디자인도 달라 보임 → 변환을 없애고 v2 카드에 직접 전달.
+  // fetcher 가 응답 전체를 camelCase 로 변환하므로 API snake_case 필드는 camel 로 들어옴.
   type ApiTeam = {
     id: string;
     teamId: string;
     teamName: string;
-    // Phase 2C: 한/영 병기를 위해 API가 내려주는 영문명/대표언어 필드
     teamNameEn: string | null;
-    teamNamePrimary: string | null;
     primaryColor: string | null;
     secondaryColor: string | null;
     logoUrl: string | null;
     city: string | null;
     district: string | null;
-    wins: number | null;
-    losses: number | null;
-    accepting_members: boolean | null;
-    tournaments_count: number | null;
-    players: { id: string }[];
+    acceptingMembers: boolean | null;
+    createdAt: string | null;
   };
   return (
     <div>
       <h2 className="mb-6 text-xl font-bold sm:text-2xl">참가팀</h2>
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+      {/* /teams 와 동일한 그리드 (모바일 2열 / md 3열 / xl 4열) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         {(teams as ApiTeam[]).map((t) => (
-          <TeamCard
+          <TeamCardV2
             key={t.id}
             team={{
-              id: BigInt(t.teamId),
+              // Team 테이블 실제 id (TeamCardV2 내부 상세 링크용)
+              id: t.teamId,
               name: t.teamName,
-              // Phase 2C: TeamCard가 한/영 병기를 렌더링하도록 name_en/name_primary 전달 (snake_case key)
+              // TeamCardV2 인터페이스가 snake_case 키를 요구 — fetcher 변환된 camel 값을 그대로 매핑
               name_en: t.teamNameEn,
-              name_primary: t.teamNamePrimary,
-              logoUrl: t.logoUrl,
               primaryColor: t.primaryColor,
               secondaryColor: t.secondaryColor,
+              logoUrl: t.logoUrl,
               city: t.city,
               district: t.district,
-              wins: t.wins,
-              losses: t.losses,
-              accepting_members: t.accepting_members,
-              tournaments_count: t.tournaments_count,
-              _count: { teamMembers: t.players?.length ?? 0 },
+              accepting_members: t.acceptingMembers,
+              // 창단 연도 표시용 (API public-teams 가 created_at 내려줌)
+              created_at: t.createdAt,
             }}
           />
         ))}

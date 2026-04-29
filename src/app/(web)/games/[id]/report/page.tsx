@@ -31,9 +31,23 @@ export default async function GameReportPage({
   }
 
   // 2. uuid → game 조회 (route.ts 와 동일 컨벤션)
+  // 2026-04-29 (E-1): /api/web/games/[id]/apply/route.ts:38-51 와 동일하게
+  // 8자 단축 UUID도 허용. my-games "후기 작성" 링크는 /games/{uuid.slice(0,8)}/report
+  // 형태로 들어오므로 변환 안 하면 무조건 notFound() 됨.
+  // hex 8자 외 문자 차단(% 와일드카드 인젝션 방지) — TC-042와 동일 정책.
+  let fullUuid = id;
+  if (id.length === 8) {
+    if (!/^[a-f0-9]{8}$/.test(id)) notFound();
+    const rows = await prisma.$queryRaw<{ uuid: string }[]>`
+      SELECT uuid::text AS uuid FROM games WHERE uuid::text LIKE ${id + "%"} LIMIT 1
+    `;
+    if (!rows[0]?.uuid) notFound();
+    fullUuid = rows[0].uuid;
+  }
+
   // organizer는 시안 박제용 — 헤더 "호스트로서 리포트 작성" 라벨에 사용
   const game = await prisma.games.findUnique({
-    where: { uuid: id },
+    where: { uuid: fullUuid },
     select: {
       id: true,
       title: true,

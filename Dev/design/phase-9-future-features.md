@@ -62,6 +62,7 @@
 | `/profile` | "슛존 성공률" 카드 | `match_player_stat` zone 컬럼 없음 | 카드 숨김 처리 (현재 더미 표시) |
 | `/profile` | "스카우팅 리포트" | `scouting_reports` 없음 | 카드 숨김 |
 | `/profile` | "VS 나" 탭 | `match_player_stat` 조인 미구현 | 탭 숨김 |
+| `/users/[id]` | "메시지 보내기" 버튼 (E-2, 2026-04-29) | `/messages`는 `?thread=` 만 처리, `?to=<userId>` 미지원 + DM 모델 없음 | alert 유지. `/messages`에 `?to=` 핸들러 + 스레드 자동 생성 로직 + DM DB 모델 셋트 필요 |
 
 → 각 페이지 컴포넌트에 `FEATURE_FLAGS.<key>` 패턴으로 가드. 또는 단순히 해당 JSX를 주석 처리(코드는 유지). DB/API 구현 후 한 줄로 복귀.
 

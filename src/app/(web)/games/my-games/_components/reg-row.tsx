@@ -8,6 +8,10 @@
  *   - QR 티켓 / 후기 / 호스트 문의 버튼 alert (준비 중 기능)
  *   - 결제 버튼은 /pricing/checkout 으로 Link 이동
  *
+ * E형 검증 완료 (2026-04-29): "결제하기"·"후기 작성"만 라우트 존재.
+ *   나머지 alert 5건(QR 티켓·취소하기·호스트 문의·신청 철회·영수증)은
+ *   D형 — DB/API 미구현으로 phase-9-future-features 큐에 보존.
+ *
  * 시안 MyGames.jsx L166-304 의 RegRow 구조를 그대로 이식하되:
  *   - waitlistNum / no-show 분기는 DB 미지원 → 제거 (Q4 4종 상태만)
  *   - teamSize/teamName (대회) 은 Prisma include 로 얻은 값 사용
@@ -246,13 +250,27 @@ export function RegRow({ r }: { r: RegItem }) {
           )}
           {r.status === "completed" && (
             <>
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={() => alert("준비 중인 기능입니다")}
-              >
-                후기 작성
-              </button>
+              {/* E-1 (2026-04-29): 후기 작성 → /games/{uuid8}/report 라우트 연결.
+                  r.href가 "/games/{uuid8}" 형태(my-games/page.tsx:212-216)이므로
+                  뒤에 "/report"만 붙이면 됨. 대회(tournament)는 후기 라우트 미존재
+                  → 경기 종료 시점에서만 노출되므로 isTour 가드 추가. */}
+              {!isTour && r.href !== "#" ? (
+                <Link
+                  href={`${r.href}/report`}
+                  className="btn btn--sm"
+                  style={{ textAlign: "center", textDecoration: "none" }}
+                >
+                  후기 작성
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  onClick={() => alert("준비 중인 기능입니다")}
+                >
+                  후기 작성
+                </button>
+              )}
               <Link
                 href={r.href}
                 className="btn btn--sm"

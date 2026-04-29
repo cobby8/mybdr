@@ -36,6 +36,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
           losses: true,
           accepting_members: true,
           tournaments_count: true,
+          // TeamCardV2 가 창단 연도 표시에 사용 (B-1 디자인 일치, 2026-04-29)
+          createdAt: true,
         },
       },
       players: {
@@ -71,6 +73,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     losses: t.team.losses,
     accepting_members: t.team.accepting_members,
     tournaments_count: t.team.tournaments_count,
+    // 창단 연도 — TeamCardV2 가 사용 (Date → ISO 문자열 직렬화)
+    createdAt: t.team.createdAt ? t.team.createdAt.toISOString() : null,
     groupName: t.groupName,
     players: t.players.map((p) => ({
       id: p.id.toString(),
