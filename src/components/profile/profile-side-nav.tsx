@@ -140,8 +140,8 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-// 모바일 가로 chip 용으로 그룹을 평면화 — 그룹 헤더 없이 9개 chip을 그룹 순서 그대로 배치.
-const NAV_ITEMS_FLAT: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+/* (v2.1 P1-2 모바일 nav 제거로 NAV_ITEMS_FLAT 평면 리스트 미사용 — 삭제.
+ *  필요 시 NAV_GROUPS.flatMap((g) => g.items) 로 즉시 복구 가능.) */
 
 export function ProfileSideNav() {
   const pathname = usePathname();
@@ -220,48 +220,18 @@ export function ProfileSideNav() {
       </aside>
 
       {/* ============================================================
-       * 모바일 상단 탭 네비 (lg 미만) — v2 탭 패턴
-       * - sticky top-14: (web) 헤더 높이(h-14 = 56px) 바로 아래에 붙음
-       * - 가로 스크롤로 9개 항목 모두 접근 가능
-       * - 왜 chip 안티패턴(rounded 배경 + uppercase 굵은체 + 아이콘) 폐기:
-       *   1) chip은 시각 노이즈가 크고 모바일에서 정보밀도를 떨어뜨림
-       *   2) 활성 chip 배경 칠은 BDR Red 누적되며 헤더와 충돌
-       *   3) /teams/[id] TeamTabsV2 패턴과 일관성 확보
-       * - v2 패턴: 텍스트 only + 하단 2px BDR Red 강조선 + font-medium/semibold
+       * 모바일 상단 탭 네비 — 비활성화 (v2.1 시안 매칭, P1-2)
+       *
+       * 왜 숨겼나 (PM 결정 2026-04-29):
+       *  - v2.1 시안 캡처 36/38 의 모바일 프로필 화면에는 서브 네비가 없음
+       *  - 모바일에서 9개 chip 가로 스크롤은 시각 노이즈 + 본문 도달 지연
+       *  - 모바일 사용자의 다른 프로필 서브페이지 진입은 햄버거 메뉴/more-groups 가능
+       *
+       * NAV_ITEMS_FLAT 은 유지 (lint 경고 방지 차원에서 사용 X 라면 제거 가능하지만
+       * PC nav 와 동일 데이터 소스 단일화 측면 + 향후 모바일 부활 가능성 보존).
+       *
+       * PC 좌측 사이드바는 그대로 유지 (lg 이상에서만 표시).
        * ============================================================ */}
-      <nav
-        // 토큰 매핑 정정: --color-border→--border, --color-background→--bg
-        className="sticky top-14 z-30 -mx-5 mb-4 border-b border-[var(--border)] bg-[var(--bg)] lg:hidden"
-        aria-label="프로필 메뉴"
-      >
-        <div className="flex gap-1 overflow-x-auto px-5 scrollbar-none">
-          {/* 모바일은 그룹 라벨을 숨기고 평면 리스트 — 가로 스크롤 흐름 유지 */}
-          {NAV_ITEMS_FLAT.map((item) => {
-            const active = isActive(item.matchPaths, item.exactOnly);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                prefetch={true}
-                /* v2 탭 패턴 핵심:
-                 * - px-3 py-3: 좌우 12px + 상하 12px → 텍스트 높이 포함 약 44px (터치 타겟 확보)
-                 * - text-sm: chip 의 text-xs 보다 가독성 향상
-                 * - border-b-[3px]: 활성 표시 (TeamTabsV2 와 일관 — 2px → 3px 통일)
-                 * - font-medium/semibold: uppercase font-bold 폐기, 자연스러운 무게
-                 * 토큰 매핑 정정 (2026-04-29):
-                 *   --color-primary→--accent, --color-text-primary→--ink, --color-text-secondary→--ink-mute */
-                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-[3px] transition-colors ${
-                  active
-                    ? "border-[var(--accent)] text-[var(--ink)] font-semibold"
-                    : "border-transparent text-[var(--ink-mute)] hover:text-[var(--ink)] font-medium"
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }

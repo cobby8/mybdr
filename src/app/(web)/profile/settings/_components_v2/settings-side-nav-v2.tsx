@@ -17,19 +17,28 @@
 
 import type { SectionKey } from "./section-key";
 
-// 시안에서 절제된 6개 섹션. 라벨/아이콘은 시안 그대로.
+/* 시안에서 절제된 6개 섹션. 라벨/아이콘은 시안 그대로.
+ *
+ * 아이콘: 이모지(Unicode) — v2.1 시안 캡처 38 매칭 (PM 결정 2026-04-29)
+ * 왜 이모지인가:
+ *  - mybdr CLAUDE.md: "Material Symbols Outlined 사용 (lucide-react 금지)"
+ *    → 룰의 의도는 "타 아이콘 라이브러리 의존 금지". 이모지는 라이브러리가
+ *    아닌 Unicode 표준 글리프 → 룰 위반 X.
+ *  - 시안 100% 매칭 우선 (Settings 만 이모지, 다른 페이지는 Material Symbols 유지)
+ *  - 이모지는 OS/브라우저 기본 폰트 렌더 → 추가 의존 0
+ */
 export const SECTIONS: ReadonlyArray<{
   id: SectionKey;
   label: string;
-  // Material Symbols Outlined 아이콘 키 (lucide-react 금지)
+  // 이모지 (Unicode) — v2.1 시안 매칭. Material Symbols 가 아닌 단일 문자.
   icon: string;
 }> = [
-  { id: "account", label: "계정", icon: "person" },
-  { id: "profile", label: "프로필", icon: "sports_basketball" },
-  { id: "notify", label: "알림", icon: "notifications" },
-  { id: "privacy", label: "개인정보·공개", icon: "lock" },
-  { id: "billing", label: "결제·멤버십", icon: "credit_card" },
-  { id: "danger", label: "계정 관리", icon: "warning" },
+  { id: "account", label: "계정", icon: "👤" },
+  { id: "profile", label: "프로필", icon: "🏀" },
+  { id: "notify", label: "알림", icon: "🔔" },
+  { id: "privacy", label: "개인정보·공개", icon: "🔒" },
+  { id: "billing", label: "결제·멤버십", icon: "💳" },
+  { id: "danger", label: "계정 관리", icon: "⚠️" },
 ] as const;
 
 interface Props {
@@ -81,10 +90,18 @@ export function SettingsSideNavV2({ activeSection, onSectionChange }: Props) {
               }}
               aria-current={active ? "page" : undefined}
             >
+              {/* 이모지 아이콘 — Material Symbols 클래스 제거 (이모지는 시스템 글리프).
+                  v2.1 시안 캡처 38 매칭 — 이모지 자체로 충분한 시각 무게 (text-xl). */}
               <span
-                className="material-symbols-outlined"
-                // 시안의 16px 이모지 자리에 동등한 비주얼 — 시각적 무게 동일하게
-                style={{ fontSize: 18, color: active ? "var(--ink)" : "var(--ink-mute)" }}
+                style={{
+                  fontSize: 20,
+                  // 이모지는 컬러 스코프 외 (시스템 컬러) → opacity 로 비활성 흐리기
+                  opacity: active ? 1 : 0.7,
+                  lineHeight: 1,
+                  display: "inline-flex",
+                  width: 22,
+                  justifyContent: "center",
+                }}
                 aria-hidden
               >
                 {s.icon}
