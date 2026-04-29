@@ -119,7 +119,7 @@ export default function SafetyPage() {
       <div style={{ display: "flex", gap: 6, fontSize: 12, color: "var(--ink-mute)", marginBottom: 12 }}>
         <Link href="/" style={{ color: "inherit" }}>홈</Link>
         <span>›</span>
-        <Link href="/settings" style={{ color: "inherit" }}>설정</Link>
+        <Link href="/profile/settings" style={{ color: "inherit" }}>설정</Link>
         <span>›</span>
         <span style={{ color: "var(--ink)" }}>안전·차단</span>
       </div>
