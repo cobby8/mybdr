@@ -30,3 +30,15 @@ export const teamMatchRequestCreateSchema = z.object({
 export type TeamMatchRequestCreateInput = z.infer<
   typeof teamMatchRequestCreateSchema
 >;
+
+// 매치 신청 — PATCH body (수락/거절/취소)
+// 이유(왜): pending 상태의 신청을 처리하는 단일 PATCH 엔드포인트에서 status 전환만 받는다.
+// 권한 검증은 route 단에서 status 별로 분기 (accept/reject = to_team captain, cancel = from_team proposer/captain).
+export const teamMatchRequestPatchSchema = z.object({
+  // accepted/rejected/cancelled 중 하나만 허용. (pending 으로 되돌리는 경로는 차단)
+  status: z.enum(["accepted", "rejected", "cancelled"]),
+});
+
+export type TeamMatchRequestPatchInput = z.infer<
+  typeof teamMatchRequestPatchSchema
+>;

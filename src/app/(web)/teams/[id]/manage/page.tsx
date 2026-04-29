@@ -73,18 +73,48 @@ interface TeamEditData {
 // Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
 const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 
-// 시안 v2(1) 4탭 구조: 로스터 / 가입신청 / 초대링크 / 팀설정
-type ManageTab = "roster" | "applicants" | "invite" | "settings";
+// 시안 v2(1) 4탭 + Phase 10-4 후속 매치신청 탭 = 5탭 구조
+// 이유(왜): 호스트가 받은 매치 신청(team_match_requests)을 처리할 UI가 필요. 별도 페이지 없이
+// 기존 manage 페이지에 탭으로 추가해 컨텍스트 유지.
+type ManageTab = "roster" | "applicants" | "matches" | "invite" | "settings";
 
 // 쿼리 문자열 → 내부 탭 키로 정규화.
 // 이유: 팀 가입 신청 알림의 actionUrl은 `?tab=requests`로 보내지만 (의미 명확)
 // 실제 내부 탭 키는 `applicants`다. 두 표기 모두 허용해 외부 진입과 내부 표기를 분리한다.
+// matches: 매치 신청 알림(NOTIFICATION_TYPES.TEAM_MATCH_REQUEST_RECEIVED) 클릭 진입용
 function resolveInitialTab(raw: string | null): ManageTab {
   if (!raw) return "roster";
   // requests / request → applicants 매핑 (가입 신청 알림 호환)
   if (raw === "requests" || raw === "request" || raw === "applicants") return "applicants";
+  // matches / match-requests → matches 매핑 (매치 신청 알림 호환)
+  if (raw === "matches" || raw === "match-requests" || raw === "match") return "matches";
   if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
   return "roster";
+}
+
+// ─── 매치 신청 인박스 카드용 타입 ───
+// 이유(왜): GET /api/web/teams/[id]/match-requests 응답 형식과 1:1 매핑.
+// status 는 'pending' | 'accepted' | 'rejected' | 'cancelled' 등이 올 수 있으나
+// 클라이언트에서는 string 으로 받아 분기 처리 (서버가 enum 강제 안 함)
+interface MatchRequestRow {
+  id: string;
+  status: string;
+  message: string | null;
+  preferred_date: string | null;
+  created_at: string;
+  updated_at: string;
+  from_team: {
+    id: string;
+    name: string;
+    primary_color: string | null;
+    city: string | null;
+    district: string | null;
+  } | null;
+  proposer: {
+    id: string;
+    nickname: string;
+    profile_image: string | null;
+  } | null;
 }
 
 export default function TeamManagePage({ params }: { params: Promise<{ id: string }> }) {
@@ -105,6 +135,15 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState<string | null>(null);
   const [roleChanging, setRoleChanging] = useState<string | null>(null);
+
+  // ─── 매치 신청 인박스 상태 ───
+  // 이유(왜): roster/가입신청과 분리된 별도 fetch — 매치신청 탭 진입 시점에만 로드해
+  // 초기 페이지 로딩 부담을 줄인다. 다만 상단 배너 카운트 동기화를 위해 첫 마운트 시도 1회 호출.
+  const [matchRequests, setMatchRequests] = useState<MatchRequestRow[]>([]);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  // 수락/거절 처리 중인 신청 id (버튼 disabled + 처리 중 라벨용)
+  const [matchProcessing, setMatchProcessing] = useState<string | null>(null);
 
   // ─── 팀 설정 상태 ───
   const [teamData, setTeamData] = useState<TeamEditData | null>(null);
@@ -190,10 +229,73 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
     }
   }, [id]);
 
+  // ─── 매치 신청 인박스: 목록 조회 ───
+  // 이유(왜): captain/vice/manager 가드는 서버에서 처리. 클라이언트는 403/실패만 메시지 노출.
+  const fetchMatchRequests = useCallback(async () => {
+    setMatchLoading(true);
+    setMatchError(null);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/match-requests`);
+      if (res.status === 403) {
+        setMatchError("팀 운영진만 접근할 수 있습니다.");
+        return;
+      }
+      if (!res.ok) throw new Error("조회 실패");
+      const data = await res.json();
+      setMatchRequests(data.requests ?? []);
+    } catch {
+      setMatchError("매치 신청 목록을 불러오지 못했습니다.");
+    } finally {
+      setMatchLoading(false);
+    }
+  }, [id]);
+
+  // ─── 매치 신청: 수락/거절 액션 ───
+  // 이유(왜): PATCH 라우트는 별도 작업에서 신설 예정. 여기서는 호출만 — captain 만 가능.
+  // 단순화: rejection_reason 입력 UI 미포함 (가입신청과 달리 매치신청은 "취소"만 안내).
+  async function handleMatchAction(reqId: string, action: "approve" | "reject") {
+    setMatchProcessing(reqId);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/match-request/${reqId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // 서버가 아직 PATCH 미구현일 수도 있어 404 도 메시지화
+        const msg =
+          res.status === 404
+            ? "수락/거절 기능이 아직 준비되지 않았습니다."
+            : (data.message ?? data.error ?? "처리 중 오류가 발생했습니다.");
+        alert(msg);
+        return;
+      }
+      // 성공 시 status 를 즉시 업데이트 — 카드 색상 분기에 활용
+      setMatchRequests((prev) =>
+        prev.map((r) =>
+          r.id === reqId
+            ? { ...r, status: action === "approve" ? "accepted" : "rejected" }
+            : r
+        )
+      );
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMatchProcessing(null);
+    }
+  }
+
   // 초기 로드: 멤버/신청 (탭과 무관하게 항상 로드 — 탭 카운트 표시용)
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  // 매치 신청도 첫 마운트 시 1회 로드 — 탭 카운트 뱃지 표시용
+  // 이유(왜): 탭에 들어가기 전에도 "몇 건 대기 중" 정보를 노출해야 캡틴이 알아챈다.
+  useEffect(() => { fetchMatchRequests(); }, [fetchMatchRequests]);
   useEffect(() => {
-    if (tab === "settings" && !teamData) {
+    // settings 또는 matches 탭 진입 시 teamData 로드.
+    // 이유(왜): matches 탭의 수락/거절 버튼 노출 분기는 is_captain 에 의존 — 미로드 시 항상 비활성화로 보여
+    // 캡틴이 액션을 못 하는 사일런트 버그가 난다.
+    if ((tab === "settings" || tab === "matches") && !teamData) {
       fetchTeamData();
     }
   }, [tab, teamData, fetchTeamData]);
@@ -341,10 +443,15 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   // teamData가 아직 없을 때(=로딩 전)는 false로 두어도 무방 (폼 자체가 안 보임)
   const canEditTeam = teamData?.is_captain === true;
 
-  // 시안 4탭 정의 — 카운트는 실데이터 기반
+  // 매치신청 pending 카운트 — 탭 뱃지에 표시
+  // 이유(왜): 전체 신청 수가 아닌 처리 대기(pending) 만 노출해야 호스트의 행동 유도가 명확.
+  const pendingMatchCount = matchRequests.filter((r) => r.status === "pending").length;
+
+  // 시안 4탭 + 매치신청 = 5탭. 매치신청은 가입신청 다음(맥락이 가장 가까움) 위치.
   const tabs: { id: ManageTab; label: string; count: number }[] = [
     { id: "roster", label: "로스터", count: members.length },
     { id: "applicants", label: "가입 신청", count: requests.length },
+    { id: "matches", label: "매치 신청", count: pendingMatchCount },
     { id: "invite", label: "초대 링크", count: 0 },
     { id: "settings", label: "팀 설정", count: 0 },
   ];
@@ -661,6 +768,202 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                     {isProcessing ? "처리 중..." : "수락"}
                   </Button>
                 </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══════════ 매치 신청 탭 (Phase 10-4 후속) ═══════════ */}
+      {/* 이유(왜): 호스트(to_team)의 captain/vice/manager 가 받은 매치 신청을 한 곳에서 처리.
+          captain 만 수락/거절 가능 (vice/manager 는 조회만). 카드 색상은 status 별로 분기. */}
+      {tab === "matches" && (
+        <div className="flex flex-col gap-2.5">
+          {matchLoading && (
+            <div className="py-12 text-center text-sm text-[var(--color-text-secondary)]">불러오는 중...</div>
+          )}
+          {!matchLoading && matchError && (
+            <div
+              className="rounded-lg px-5 py-4 text-sm"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+                color: "var(--color-error)",
+              }}
+            >
+              {matchError}
+            </div>
+          )}
+          {!matchLoading && !matchError && matchRequests.length === 0 && (
+            <div className="rounded-lg bg-[var(--color-card)] py-16 text-center">
+              <span className="material-symbols-outlined mb-2 text-4xl text-[var(--color-text-muted)]">
+                sports_basketball
+              </span>
+              <p className="text-sm text-[var(--color-text-secondary)]">받은 매치 신청이 없습니다.</p>
+            </div>
+          )}
+
+          {/* captain 이 아니면 안내 배너 — 액션 버튼은 미노출 */}
+          {/* 이유(왜): 정책 결정 3A 일관성 — 팀 정보 수정/해산은 captain 전용. 매치 수락/거절도 동일 톤 적용 */}
+          {!matchLoading && !matchError && matchRequests.length > 0 && teamData && !teamData.is_captain && (
+            <div
+              className="rounded-lg border px-4 py-3 text-sm"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
+                color: "var(--color-info)",
+              }}
+            >
+              <span className="material-symbols-outlined mr-1.5 align-middle text-base">info</span>
+              <span className="align-middle">매치 신청 수락/거절은 팀장만 가능합니다. (조회만 가능)</span>
+            </div>
+          )}
+
+          {!matchLoading && !matchError && matchRequests.map((req) => {
+            const isPending = req.status === "pending";
+            const isAccepted = req.status === "accepted";
+            const isRejected = req.status === "rejected";
+            const isProcessing = matchProcessing === req.id;
+            // captain 만 액션 가능 — teamData 가 아직 없으면 일단 false (안전한 기본값)
+            const canAct = teamData?.is_captain === true && isPending;
+
+            const fromName = req.from_team?.name ?? "알 수 없는 팀";
+            const proposerName = req.proposer?.nickname ?? "운영진";
+            const fromLocation = [req.from_team?.city, req.from_team?.district].filter(Boolean).join(" ");
+            // primary_color 가 헥스로 들어오면 from_team 이니셜 박스 배경으로 사용
+            const teamColor = req.from_team?.primary_color ?? "var(--color-info)";
+            const createdAt = new Date(req.created_at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+            // preferred_date: 신청자가 선호한 경기일 — 없을 수도 있음
+            const preferred = req.preferred_date
+              ? new Date(req.preferred_date).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })
+              : null;
+
+            // 카드 배경 — status 별 분기
+            // pending: 기본 카드 / accepted: success tint / rejected: error tint
+            // 이유(왜): 처리 직후 카드 색상이 즉시 바뀌어 시각적 피드백을 명확히 한다.
+            const cardBg = isAccepted
+              ? "color-mix(in srgb, var(--color-success) 8%, var(--color-card))"
+              : isRejected
+                ? "color-mix(in srgb, var(--color-error) 6%, var(--color-card))"
+                : "var(--color-card)";
+            const cardBorder = isAccepted
+              ? "color-mix(in srgb, var(--color-success) 30%, transparent)"
+              : isRejected
+                ? "color-mix(in srgb, var(--color-error) 25%, transparent)"
+                : "transparent";
+
+            return (
+              <div
+                key={req.id}
+                className="rounded-lg border p-5"
+                style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+              >
+                {/* 시안 톤: 48px 팀 로고 박스 / 1fr 정보 / 우측 액션 */}
+                <div
+                  className="mb-3 grid items-center gap-3.5"
+                  style={{ gridTemplateColumns: "48px 1fr auto" }}
+                >
+                  {/* 팀 색상 박스 — primary_color 가 있으면 사용, 없으면 info 폴백 */}
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded text-base font-bold text-white"
+                    style={{ backgroundColor: teamColor }}
+                  >
+                    {fromName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
+                      {fromName}
+                    </div>
+                    <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                      {proposerName} {fromLocation && `· ${fromLocation}`} · 신청 {createdAt}
+                      {preferred && ` · 희망일 ${preferred}`}
+                    </div>
+                  </div>
+
+                  {/* 상태 라벨 — pending 외에는 액션 대신 status 뱃지 노출 */}
+                  {/* 데스크탑 액션 영역 */}
+                  <div className="hidden items-center gap-1.5 sm:flex">
+                    {isPending && canAct && (
+                      <>
+                        <button
+                          disabled={isProcessing}
+                          onClick={() => handleMatchAction(req.id, "reject")}
+                          className="rounded border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-surface-bright)] disabled:opacity-50"
+                          style={{ color: "var(--color-error)" }}
+                        >
+                          거절
+                        </button>
+                        <Button
+                          disabled={isProcessing}
+                          onClick={() => handleMatchAction(req.id, "approve")}
+                          className="!px-3 !py-1.5 text-xs"
+                        >
+                          {isProcessing ? "처리 중..." : "수락"}
+                        </Button>
+                      </>
+                    )}
+                    {isPending && !canAct && (
+                      <span className="rounded bg-[var(--color-surface)] px-2 py-1 text-[11px] font-bold text-[var(--color-text-muted)]">
+                        대기중
+                      </span>
+                    )}
+                    {isAccepted && (
+                      <span
+                        className="rounded px-2 py-1 text-[11px] font-bold"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, var(--color-success) 18%, transparent)",
+                          color: "var(--color-success)",
+                        }}
+                      >
+                        수락됨
+                      </span>
+                    )}
+                    {isRejected && (
+                      <span
+                        className="rounded px-2 py-1 text-[11px] font-bold"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, var(--color-error) 15%, transparent)",
+                          color: "var(--color-error)",
+                        }}
+                      >
+                        거절됨
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 신청 메시지 — 가입신청 카드와 동일 톤 (좌측 accent border) */}
+                {req.message && (
+                  <div
+                    className="rounded border-l-[3px] px-3 py-2.5 text-sm leading-relaxed text-[var(--color-text-secondary)]"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      borderLeftColor: "var(--color-primary)",
+                    }}
+                  >
+                    &ldquo;{req.message}&rdquo;
+                  </div>
+                )}
+
+                {/* 모바일 액션 — 카드 하단 가로 배치 (pending + canAct 일 때만) */}
+                {isPending && canAct && (
+                  <div className="mt-3 flex gap-2 sm:hidden">
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleMatchAction(req.id, "reject")}
+                      className="flex-1 rounded border border-[var(--color-border)] px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                      style={{ color: "var(--color-error)" }}
+                    >
+                      거절
+                    </button>
+                    <Button
+                      disabled={isProcessing}
+                      onClick={() => handleMatchAction(req.id, "approve")}
+                      className="flex-1"
+                    >
+                      {isProcessing ? "처리 중..." : "수락"}
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -75,6 +75,11 @@ export const TYPES_BY_CATEGORY: Record<NotifCategory, readonly string[]> = {
     "team.join_request.received",
     "team.join_request.approved",
     "team.join_request.rejected",
+    // Phase 10-4 — 매치 신청 4종 (received는 POST에서, 나머지 3종은 PATCH에서 발행)
+    "team.match_request.received",
+    "team.match_request.accepted",
+    "team.match_request.rejected",
+    "team.match_request.cancelled",
     "follow", // src/app/actions/follow.ts 에서 발행
   ],
   community: [

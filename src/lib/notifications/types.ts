@@ -14,6 +14,12 @@ export const NOTIFICATION_TYPES = {
   TEAM_JOIN_REQUEST_REJECTED: "team.join_request.rejected",   // 신청자: 가입 거부
   // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
   TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
+  // Phase 10-4 후속 — PATCH (수락/거절/취소) 시 발송되는 결과 알림.
+  // 이유(왜): 신청자(from_team proposer)는 자기가 보낸 매치 신청이 처리되면 즉시 알아야 하고,
+  //         to_team captain 도 from 측이 신청을 취소했을 때 인박스에서 사라진 사유를 알 수 있어야 함.
+  TEAM_MATCH_REQUEST_ACCEPTED: "team.match_request.accepted", // 신청자(proposer): 매치 신청 수락됨
+  TEAM_MATCH_REQUEST_REJECTED: "team.match_request.rejected", // 신청자(proposer): 매치 신청 거절됨
+  TEAM_MATCH_REQUEST_CANCELLED: "team.match_request.cancelled", // 호스트팀 captain: 매치 신청 취소됨
 
   // 대회 관련
   TOURNAMENT_JOIN_SUBMITTED: "tournament.join.submitted",     // 신청자: 대회 참가 신청 완료
