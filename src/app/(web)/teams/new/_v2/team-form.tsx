@@ -141,10 +141,13 @@ export function TeamFormV2() {
       {/* 스텝 진행 표시 */}
       <Stepper step={step} />
 
-      {/* 본문 — 시안 그리드 (메인 카드 + 우측 Tips aside) */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 320px", gap: 20, alignItems: "flex-start" }}>
-        {/* 메인 폼 카드 */}
-        <div className="card" style={{ padding: "28px 32px" }}>
+      {/* 본문 — 시안 그리드 (메인 카드 + 우측 Tips aside)
+          모바일 픽스(2026-04-29): 인라인 2열 grid는 모바일 366px viewport 에서 좌측 폼을
+          26px 폭으로 짜부라뜨려 라벨/textarea 가 글자 단위 줄바꿈되는 버그를 유발.
+          → Tailwind 반응형 grid 로 전환: 모바일 1열 stack, lg(≥1024px)부터 2열 */}
+      <div className="grid grid-cols-1 gap-5 items-start lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* 메인 폼 카드 — 모바일은 패딩 축소(20px), 데스크톱은 시안값(28/32) 유지 */}
+        <div className="card min-w-0 p-5 sm:p-7 sm:px-8">
           {/* 서버 에러 표시 */}
           {state?.error && (
             <div

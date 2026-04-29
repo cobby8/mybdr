@@ -47,6 +47,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (미커밋) | /teams/new 모바일 깨짐 픽스 — team-form.tsx 본문 grid `minmax(0,1fr) 320px` 고정 → Tailwind `grid-cols-1 lg:grid-cols-[...]` + 메인 카드 `min-w-0` (모바일 366px 폼이 26px로 짜부라지는 버그) | ✅ |
 | 2026-04-29 | (미커밋) | knowledge 5파일 갱신 — errors+2/lessons+3/decisions+4/architecture+1/index 갱신 (Phase 9-Mobile + Hero 카로셀 반영) | ✅ |
 | 2026-04-29 | (미커밋) | DESIGN.md 갱신 — 720px BP + 모바일 체크리스트 링크 + Hero 카로셀 + AppNav 단일 헤더 | ✅ |
 | 2026-04-29 | `0d12919` | 모바일 체크리스트 conventions.md (10항목) | ✅ |
@@ -56,4 +57,3 @@
 | 2026-04-29 | `aa61003` | 헤더 구조 정리 + 더보기 4건 제거 | ✅ |
 | 2026-04-29 | `f972aaf` | 모바일 가로 overflow 글로벌 가드 | ✅ |
 | 2026-04-29 | `79cc57e` | Hero 카로셀 (3슬라이드 + fallback) | ✅ |
-| 2026-04-29 | `35e54b0` | 단체 신청 폼 사일런트 실패 픽스 | ✅ |
