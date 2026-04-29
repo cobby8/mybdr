@@ -1,6 +1,106 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-04-29] 모바일 최적화 체크리스트 (안티패턴 재발 방지)
+- **분류**: convention (mobile/responsive)
+- **발견자**: pm + developer (Phase 9-Mobile Refinement, commit `87c59d4`/`f972aaf` 등)
+- **배경**: design_v2 전환 중 모바일 366px viewport에서 가로 overflow + 글자 겹침 + 카드 깨짐 등 안티패턴 누적 픽스 (8+ 건). 신규 페이지/컴포넌트 작성 시 아래 체크리스트를 통과해야 함.
+
+#### 1. 그리드 (가장 빈번한 안티패턴)
+- ❌ **금지**: 인라인 `gridTemplateColumns: "repeat(N, 1fr)"` 또는 `"AAA BBB"` 고정 폭
+- ❌ **금지**: Tailwind `grid-cols-N` 단독 (sm/md 분기 없음)
+- ✅ **권장**:
+  - className: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-N gap-X` (mobile-first)
+  - 또는 인라인: `gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))"` (가변 N열)
+- ✅ **의미 있는 다열 (달력 7열, 통계 14열)**: 가로 스크롤 래퍼 패턴
+  ```tsx
+  <div className="overflow-x-auto">
+    <div style={{ minWidth: 720, gridTemplateColumns: "repeat(7, 1fr)" }}>
+  ```
+
+#### 2. 1fr 컬럼 overflow 가드
+- 1fr column의 자식이 긴 한글 텍스트면 부모 폭을 강제로 늘림
+- ✅ **필수**: 1fr 컬럼 wrapper에 `minWidth: 0` 명시
+- ✅ **필수**: 텍스트 자식에 `overflow:hidden + textOverflow:ellipsis + whiteSpace:nowrap` 또는 `WebKitLineClamp:2`
+
+#### 3. Absolute 텍스트 (워터마크/장식)
+- 모바일 viewport에서 본문 위 겹침 위험
+- ✅ **권장**: 모바일에서 `hidden sm:block` 또는 fontSize 축소 (220px → 80px)
+
+#### 4. 글로벌 가드 (안전망)
+`globals.css`에 다음 가드 적용 중 (2026-04-29):
+```css
+@media (max-width: 768px) {
+  html, body { overflow-x: hidden; max-width: 100vw; }
+  .page { overflow-x: hidden; }
+}
+```
+신규 페이지가 가로 overflow를 유발해도 가드로 차단됨. 그러나 **근본 원인은 컴포넌트 픽스가 정답**.
+
+#### 5. 폼 요소 (iOS 자동 줌 차단)
+- ❌ **금지**: input/select/textarea 폰트 16px 미만 (모바일 자동 줌 트리거)
+- ✅ **글로벌 룰** (globals.css L1029-1041):
+  ```css
+  @media (max-width: 720px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select, textarea { font-size: 16px !important; }
+  }
+  ```
+
+#### 6. 버튼 터치 타겟
+- ❌ **금지**: 모바일에서 버튼 height 44px 미만 (iOS HIG 위반)
+- ✅ **글로벌 룰** (globals.css L1227-1233):
+  ```css
+  @media (max-width: 720px) {
+    .btn { min-height: 44px; }
+    .btn--sm { padding: 10px 14px; min-height: 44px; }
+    .btn--xl { min-height: 48px; }
+  }
+  ```
+
+#### 7. 카드 사이즈 통일
+- 그리드 안 카드가 콘텐츠 따라 들쭉날쭉 → 시각 어색
+- ✅ **권장**: 카드 컴포넌트에 `min-height` 명시
+  - 데스크톱 280px / 모바일 240px (game-card 기준)
+- ✅ **제목 truncate**: `WebKitLineClamp: 2 + overflow:hidden + display: -webkit-box`
+
+#### 8. 워터마크/Avatar 텍스트 overflow
+- ❌ **금지**: Avatar 박스 안 영문 텍스트 폰트 고정 (좁은 박스에서 튀어나옴)
+- ✅ **권장**:
+  - 컨테이너에 `overflow: hidden`
+  - 폰트 동적: `clamp(14px, 4vw, 28px)`
+
+#### 9. 헤더 충돌 방지
+- ❌ **금지**: `(web)/layout.tsx` 외 별도 페이지 헤더 추가 렌더 (이중 헤더)
+- ✅ **글로벌 헤더는 AppNav 단일** — 페이지 자체 nav 추가 X
+
+#### 10. 브레이크포인트 통일
+- mybdr 모바일 컨벤션: **720px** (Tailwind 768px 대신 720px 우선)
+- v2 컴포넌트 모두 `@media (max-width: 720px)` 통일
+
+---
+
+#### 검증 방법 (체크리스트 활용)
+1. 신규 컴포넌트 작성 시 위 10개 항목 체크
+2. dev 서버 (localhost:3001/) → DevTools → 반응형 모드 → **366px viewport** 강제 검증
+3. 가로 스크롤 발생 → 컴포넌트 안티패턴 의심
+4. 글자 겹침 → absolute 요소 + 본문 z-index 확인
+5. 폼 페이지 → iOS Safari (또는 Chrome iPhone simulation) 자동 줌 검증
+
+#### 관련 errors.md 항목
+- 2026-04-29 [모바일 가로 overflow 일괄 차단] (스크래치패드 작업 로그 참조)
+- 2026-04-29 [grid 안티패턴 8건 픽스]
+- 2026-04-29 [v2 컴포넌트 안티패턴 재발 + 글로벌 가드 추가]
+
+#### 참조 커밋
+- `4afb4f9` 모바일 grid 안티패턴 8건
+- `f972aaf` 모바일 가로 overflow 일괄 차단 + globals.css 가드
+- `87c59d4` Avatar/카드 모바일 폰트
+- (오늘 P1~P4 commit) Phase 9-Mobile Refinement
+
+- **참조횟수**: 0
+- **승격 후보**: 신규 페이지 PR 리뷰 자동 체크리스트화
+
 ### [2026-04-22] `any` 타입 예외 허용 규칙 (audit 재발 방지)
 - **분류**: convention (types)
 - **발견자**: developer + pm (any audit 2차 — 3f54daa)
