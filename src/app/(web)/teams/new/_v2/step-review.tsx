@@ -17,8 +17,8 @@ interface Props {
   // 2026-04-29: 단일 컬러 → 홈/어웨이 유니폼 분리
   homeColor: string;
   awayColor: string;
-  // 로고 미리보기 (storage 업로드는 별도 Phase)
-  logoPreview: string | null;
+  // 로고 URL (Supabase Storage public URL). 미업로드 시 null.
+  logoUrl: string | null;
   // UI 값
   tag: string;
   home: string;
@@ -37,7 +37,7 @@ export function StepReview({
   namePrimary,
   homeColor,
   awayColor,
-  logoPreview,
+  logoUrl,
   tag,
   home,
   level,
@@ -108,19 +108,19 @@ export function StepReview({
         </div>
 
         {/* 로고 미리보기 — 업로드한 경우에만 표시.
-            저장은 별도 Phase 이므로 "선택됨 · 저장은 곧 출시" 라벨 추가 */}
-        {logoPreview && (
+            2026-04-29 (v2): 실제 Supabase Storage URL 이라 next 등록 시 DB 의 logo_url 에 그대로 저장됨. */}
+        {logoUrl && (
           <>
             <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 로고</div>
             <div style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 600 }}>
-              {/* 이유: storage 업로드 전이라 base64 미리보기. 다음 Phase에서 next/image 로 교체. */}
+              {/* 이유: Supabase public URL. next/image domains 추가 시 마이그레이션 가능. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={logoPreview}
+                src={logoUrl}
                 alt="팀 로고 미리보기"
                 style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", border: "1px solid var(--border)" }}
               />
-              <span style={{ fontSize: 11, color: "var(--ink-mute)", fontWeight: 400 }}>(저장은 곧 출시 예정)</span>
+              <span style={{ fontSize: 11, color: "var(--color-success, #10B981)", fontWeight: 400 }}>업로드 완료</span>
             </div>
           </>
         )}

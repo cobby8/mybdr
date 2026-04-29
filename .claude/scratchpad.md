@@ -47,6 +47,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (미커밋) | 팀 로고 Supabase Storage 실제 업로드 연결: step-emblem(file 선택→/api/web/upload POST→public URL), team-form state(logoFile/logoPreview→logoUrl 단일화)+hidden logo_url, validation/team(logo_url 스키마+url 검증), actions/teams(logoUrl prisma 저장), step-review 라벨 "업로드 완료". 운영: Supabase 'team-logos' 버킷 사용자 생성 필요. tsc 0건 | ✅ |
+| 2026-04-29 | (미커밋) | PWA 아이콘 BDR 로고 교체 — sharp(기존)로 5종 정사각 생성 (180/192/512 + maskable 192/512), 배경 BDR Navy #1B3C87, 로고 중앙 70% (maskable 55% safe zone). scripts/generate-pwa-icons.mjs 신규. manifest.ts 변경 X (경로 매칭). 사용자 안내: 디바이스에서 SW 등록취소 + 앱 재설치 필요 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 생성 step-emblem: preset 10색 grid 제거 → HTML5 native color picker + hex text input (홈/어웨이 각 1조). TEAM_COLORS import 제거, 모바일 분기/미리보기/로고 영역 무수정. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 생성 폼: 단일 컬러→홈/어웨이 유니폼 2색 분리 + 로고 업로드 활성화. schema home_color/away_color 추가(logo_url 기존 재사용), dev DB push 완료, manual SQL 작성. step-emblem(2색 picker+로고 base64 미리보기), team-form/step-review/zod/server action 갱신. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | /teams/new Step 2~4 모바일 깨짐 일괄 픽스 — step-emblem(200px+1fr→1열 stack/sm:2열, 라벨 keep-all), step-review(140px+1fr→1열 stack/sm:2열), step-activity(요일 7개 flex-wrap), stepper(라벨 keep-all), team-form(헤더 keep-all). tsc 0건 | ✅ |
@@ -55,6 +57,3 @@
 | 2026-04-29 | (미커밋) | DESIGN.md 갱신 — 720px BP + 모바일 체크리스트 링크 + Hero 카로셀 + AppNav 단일 헤더 | ✅ |
 | 2026-04-29 | `0d12919` | 모바일 체크리스트 conventions.md (10항목) | ✅ |
 | 2026-04-29 | `dc1e38a` | Phase 9-Mobile Refinement P1~P5 | ✅ |
-| 2026-04-29 | `87c59d4` | 팀 Avatar overflow + 카드 세로 배치 | ✅ |
-| 2026-04-29 | `61a170d` | 팀 목록/상세 모바일 + 레이팅 제거 | ✅ |
-| 2026-04-29 | `aa61003` | 헤더 구조 정리 + 더보기 4건 제거 | ✅ |
