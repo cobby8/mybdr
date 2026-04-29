@@ -67,7 +67,9 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
       followingCount,
       nextGame,
     });
-  } catch {
+  } catch (e) {
+    // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
+    console.error("[GET /api/web/profile]", e);
     return apiError("Internal error", 500);
   }
 });
@@ -128,7 +130,9 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     }
 
     return apiSuccess(updated);
-  } catch {
+  } catch (e) {
+    // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
+    console.error("[PATCH /api/web/profile]", e);
     return apiError("Internal error", 500);
   }
 });
