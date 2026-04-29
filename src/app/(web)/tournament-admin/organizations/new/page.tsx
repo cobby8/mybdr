@@ -74,9 +74,16 @@ export default function NewOrganizationPage() {
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* 에러 메시지 */}
+        {/* 에러 메시지 — --danger 토큰 사용 (#E24C4B) + color-mix로 부드러운 배경 */}
         {error && (
-          <div className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
+          <div
+            className="rounded p-3 text-sm"
+            style={{
+              color: "var(--danger)",
+              backgroundColor: "color-mix(in srgb, var(--danger) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--danger) 30%, transparent)",
+            }}
+          >
             {error}
           </div>
         )}

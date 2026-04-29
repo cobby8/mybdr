@@ -152,7 +152,8 @@ export function AdvancedSection({ data, updateData }: Props) {
                   height: 16,
                   width: 16,
                   borderRadius: "50%",
-                  background: "#fff",
+                  // 토글 손잡이 — 토큰 사용
+                  background: "var(--bg-elev)",
                   transition: "left .2s",
                 }}
               />
@@ -240,7 +241,8 @@ export function AdvancedSection({ data, updateData }: Props) {
                   height: 16,
                   width: 16,
                   borderRadius: "50%",
-                  background: "#fff",
+                  // 토글 손잡이 — 토큰 사용
+                  background: "var(--bg-elev)",
                   transition: "left .2s",
                 }}
               />

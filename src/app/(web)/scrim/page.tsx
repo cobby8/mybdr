@@ -163,7 +163,8 @@ export default function ScrimPage() {
           style={{
             width: 40,
             height: 40,
-            background: "#DC2626",
+            // BDR Red 토큰 사용
+            background: "var(--accent)",
             color: "#fff",
             display: "grid",
             placeItems: "center",

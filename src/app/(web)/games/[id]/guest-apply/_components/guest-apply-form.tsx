@@ -352,7 +352,8 @@ export function GuestApplyForm({ gameId, game, host }: GuestApplyGameProps) {
                 width: 40,
                 height: 40,
                 borderRadius: 4,
-                background: "#0F5FCC",
+                // 디자인 토큰 사용 — Cafe Blue
+                background: "var(--cafe-blue)",
                 color: "#fff",
                 display: "grid",
                 placeItems: "center",

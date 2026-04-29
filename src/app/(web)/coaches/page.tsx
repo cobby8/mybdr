@@ -349,7 +349,8 @@ export default function CoachesPage() {
                   position: "absolute",
                   top: 10,
                   right: 12,
-                  background: "#fff",
+                  // 디자인 토큰 사용 — 라이트 #FFFFFF / 다크 #13171C
+                  background: "var(--bg-elev)",
                   color: c.color,
                   fontSize: 11,
                   fontFamily: "var(--ff-mono)",

@@ -159,7 +159,7 @@ export default function ShopPage() {
             커뮤니티 멤버 리뷰 4.5+ 제품 · 공식 파트너 직배송 · 팀 굿즈 맞춤 제작
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-            <button className="btn" style={{ background: "#fff", color: "#000", border: 0 }}>
+            <button className="btn" style={{ background: "var(--bg-elev)", color: "#000", border: 0 }}>
               시즌 신상 보기 →
             </button>
             <button
@@ -265,7 +265,8 @@ export default function ShopPage() {
                     <span
                       key={t}
                       style={{
-                        background: "#fff",
+                        // 태그 칩 배경 — 토큰 사용
+                        background: "var(--bg-elev)",
                         color: "#000",
                         fontSize: 9,
                         fontWeight: 800,

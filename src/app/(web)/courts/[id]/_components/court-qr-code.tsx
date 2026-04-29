@@ -151,7 +151,8 @@ export function CourtQrCode({ courtId, courtName }: CourtQrCodeProps) {
             <div className="flex justify-center mb-4">
               <div
                 className="rounded-md p-4"
-                style={{ backgroundColor: "#ffffff" }}
+                // QR 가독성을 위해 토큰 사용 (라이트 #FFFFFF / 다크 #13171C)
+                style={{ backgroundColor: "var(--bg-elev)" }}
               >
                 {/* crossOrigin으로 canvas 변환 허용 */}
                 <img

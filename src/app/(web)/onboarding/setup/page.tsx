@@ -636,7 +636,8 @@ export default function OnboardingSetupPage(): ReactElement {
                             width: 18,
                             height: 18,
                             borderRadius: "50%",
-                            background: "#fff",
+                            // 토글 손잡이 — 토큰 사용
+                            background: "var(--bg-elev)",
                             position: "absolute",
                             top: 3,
                             left: on ? 23 : 3,

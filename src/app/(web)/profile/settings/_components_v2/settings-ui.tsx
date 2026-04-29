@@ -186,7 +186,8 @@ export function SettingsToggle({
             left: 1,
             width: 20,
             height: 20,
-            background: "#fff",
+            // 토글 손잡이 — 토큰 사용
+            background: "var(--bg-elev)",
             borderRadius: "50%",
             transform: checked ? "translateX(20px)" : "translateX(0)",
             transition: "transform .2s",
