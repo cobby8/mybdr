@@ -129,17 +129,26 @@ export function TeamHeroV2({
         {/* 1행 (lg미만) / 좌열 (lg+) — Avatar + 텍스트 블록을 한 줄에 */}
         <div className="flex items-start gap-3 sm:gap-6 lg:items-end">
           {/* Avatar — 모바일 64px / sm 이상 96px (2026-04-29 모바일 최적화)
-              tag 이니셜 폴백. accent 위에 반투명 흰 배경(.2)으로 살짝 떠 보이게. */}
+              tag 이니셜 폴백. accent 위에 반투명 흰 배경(.2)으로 살짝 떠 보이게.
+              ─ Avatar 박스 외부 침범 방지 (2026-04-29 fix #1):
+                LUNATIC 처럼 영문 5자 이상 tag 가 64px 박스를 넘어 우측 한글 팀명과
+                겹치는 문제 발견 → 컨테이너에 `overflow-hidden` 추가 + 영문 폰트
+                모바일 사이즈를 clamp 로 가변(14px~22px)하여 박스 내부 여유 확보. */}
           <div
-            className="flex-shrink-0 grid place-items-center w-16 h-16 sm:w-24 sm:h-24"
+            className="flex-shrink-0 grid place-items-center w-16 h-16 sm:w-24 sm:h-24 overflow-hidden"
             style={{
               borderRadius: 12,
               background: "rgba(255,255,255,0.2)",
               color: ink,
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              fontSize: 22,
+              // 박스 폭에 맞춰 가변 (모바일 64px → 14~16px / sm+ 96px → 22px 도달)
+              fontSize: "clamp(14px, 4vw, 22px)",
               letterSpacing: "-0.02em",
+              // 폭 초과 시 박스 안에서 잘림 (텍스트 자체가 박스 밖으로 나가지 않도록)
+              padding: "0 4px",
+              textAlign: "center",
+              lineHeight: 1,
             }}
           >
             {tag}

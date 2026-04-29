@@ -62,28 +62,35 @@ export function TeamCardV2({ team }: { team: TeamCardV2Data }) {
         flexDirection: "column",
       }}
     >
-      {/* 상단 accent 블록: 로고 + 팀명 + 창단 (모바일 2열 폭 대응 — padding 축소) */}
+      {/* 상단 accent 블록: 로고 + 팀명 + 창단
+          ─ 모바일 2열(폭 ~170px) 가독성 개선 (2026-04-29 fix #2):
+            기존 가로 배치(로고 좌 + 텍스트 우)는 텍스트 영역이 ~100px 으로 좁아
+            "셋업(SE..." 같은 truncate 빈발 → 옵션 B 세로 배치로 변경.
+            로고는 카드 상단 중앙, 팀명+창단은 그 아래 카드 폭 전체 사용.
+            팀명은 2줄까지 허용(line-clamp:2)하여 truncate 빈도 대폭 감소. */}
       <div
         style={{
           background: accent,
           color: inkOnAccent,
-          padding: "14px 14px 12px",
+          padding: "14px 12px 12px",
           position: "relative",
-          minHeight: 86,
+          minHeight: 116,
           display: "flex",
-          gap: 10,
+          flexDirection: "column",
           alignItems: "center",
+          gap: 8,
+          textAlign: "center",
         }}
       >
-        {/* 로고 또는 이니셜 박스 — 모바일 폭 좁으니 44px (기존 54px → 축소) */}
+        {/* 로고 또는 이니셜 박스 — 세로 배치에서 카드 상단 중앙. 40px (가로 배치 시 44 → 미세 축소). */}
         {team.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지 최적화 불필요 (v2 시안 일관성)
           <img
             src={team.logoUrl}
             alt=""
             style={{
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               borderRadius: 8,
               objectFit: "cover",
               flexShrink: 0,
@@ -93,8 +100,8 @@ export function TeamCardV2({ team }: { team: TeamCardV2Data }) {
         ) : (
           <div
             style={{
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               borderRadius: 8,
               flexShrink: 0,
               background: "rgba(255,255,255,.18)",
@@ -103,26 +110,34 @@ export function TeamCardV2({ team }: { team: TeamCardV2Data }) {
               justifyContent: "center",
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              fontSize: 16,
+              fontSize: 14,
               letterSpacing: ".06em",
+              // 영문 tag 가 박스 폭(40px) 넘는 경우 잘림 방지
+              overflow: "hidden",
+              padding: "0 3px",
+              lineHeight: 1,
             }}
           >
             {tag}
           </div>
         )}
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* 팀명 — 모바일 2열 폭(~170px)에 맞춰 22px → 16px 축소 */}
+        {/* 텍스트 블록 — 카드 폭 전체 사용 (가로 배치 대비 ~70px 폭 확장 효과) */}
+        <div style={{ width: "100%", minWidth: 0 }}>
+          {/* 팀명 — 2줄까지 허용 (line-clamp:2). 폰트 14px 로 축소해 좁은 폭에서도 1줄에 더 많이 들어감. */}
           <div
             style={{
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              fontSize: 16,
+              fontSize: 14,
               letterSpacing: "-0.01em",
-              lineHeight: 1.15,
+              lineHeight: 1.2,
+              // 2줄까지 허용 — 더 길면 ellipsis
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              wordBreak: "keep-all",
             }}
           >
             {team.name}
