@@ -187,6 +187,25 @@ body {
   text-rendering: optimizeLegibility;
   font-feature-settings: "tnum", "ss01";
 }
+
+/* ============================================================
+ * [2026-04-29] 모바일 가로 overflow 안전망
+ *
+ * 왜: v2 컴포넌트들(StatsStrip / HotPostRow 등)이 인라인 grid 로 인해
+ *     모바일 366px 에서 자식이 부모 폭을 초과해 본문이 좌측으로 잘려보이는
+ *     사용자 보고 발생. 컴포넌트별 grid 모바일 대응을 우선 수정했지만,
+ *     향후 신규 컴포넌트가 같은 안티패턴을 재발할 가능성이 높아 시스템 레벨
+ *     안전망으로 가로 스크롤을 차단한다. (768px 이하만 적용 — 데스크톱은 무영향)
+ *     근본 픽스는 컴포넌트 grid 자체. 본 가드는 마지막 방어선.
+ * ============================================================ */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  /* .page = 본문 셸. 자식 grid 가 셸을 밀더라도 가로 스크롤은 차단 */
+  .page { overflow-x: hidden; max-width: 100%; }
+}
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }
 

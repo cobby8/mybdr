@@ -75,9 +75,12 @@ export function HotPostRow({
         {category}
       </span>
 
-      {/* 2열: 제목 + 댓글수. 긴 제목은 말줄임 처리 */}
+      {/* 2열: 제목 + 댓글수. 긴 제목은 말줄임 처리.
+       * [2026-04-29 모바일 overflow 픽스] grid 1fr 컬럼은 기본 min-width 가 auto(=콘텐츠 최소폭)이므로
+       * 긴 제목이 들어가면 컬럼이 부모를 밀어내 가로 overflow 발생. minWidth:0 으로 강제 차단. */}
       <span
         style={{
+          minWidth: 0,
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
