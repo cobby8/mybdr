@@ -2,6 +2,12 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-27] Phase 10-1 경기 평가/신고 시스템 설계 — 신규 2테이블 + 캐시 1컬럼
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 박제된 `/games/[id]/report` 페이지를 활성화하는 시스템 기획. **DB 신규 2 + 캐시 1컬럼**: (1) `game_reports` (id/game_id/reporter_user_id/overall_rating 1~5/comment/mvp_user_id?/status submitted|draft|reviewed|dismissed/created_at/updated_at) + `@@unique([game_id, reporter_user_id])` 1인1리포트 강제, (2) `game_player_ratings` (game_report_id/rated_user_id/rating 1~5/flags TEXT[]/is_noshow boolean) — flags는 enum 미도입(시안 5종 noshow/manner/foul/verbal/cheat) String[] 유지로 마이그 비용 절감, (3) `games.final_mvp_user_id BigInt?` 캐시 컬럼만 추가. **manner_score**는 응답시점 매번 aggregate(캐시 X) 권장 — Q1 결정에 따라 users 컬럼 신설(manner_score+manner_count) vs 기존 evaluation_rating 재활용. **API 4**: POST/GET/PATCH `/api/web/games/[id]/report` (24h 수정 윈도우) + admin GET `/api/web/admin/game-reports` (flags 있는 것 큐). **권한 가드 4**: status===3 종료 / game_applications.status===1 approved 참가자(or organizer_id 호스트) / unique 1인1 / 24h 윈도우. **MVP 집계**: 다수결 → tie-breaker는 ratings 평균 → games.final_mvp_user_id 캐시 (POST 시점 1회 호출, idempotent). **신규 lib 2**: `src/lib/games/report-auth.ts`(canReportGame) + `mvp-aggregate.ts`(recomputeFinalMvp). **page.tsx 활성화**: server wrapper + client form 분리, PLACEHOLDER_PLAYERS → game_applications include users 조회, alert→fetch, 24h 이내 진입 시 GET prefill. **마이그레이션**: prisma/migrations/manual/phase_10_1_game_reports.sql 별도 + 개발 DB migrate dev / 운영 DB migrate deploy는 PM 명시 승인 후 (lessons.md 04-18 .env=운영DB 사고 재방지). **PM 결정 7건(Q1~Q7)** 도출. **9단계 작업 분해(B-1~B-9)**, MVP 최소 범위 B-1~B-7 6~8h. **위험 6건**: IDOR / Race(P2002→409) / manner 캐시 정합 / 익명성(다른 reporter 노출 X) / MVP 동률 / 운영 DB 마이그.
+- **참조횟수**: 0
+
 ### [2026-04-25] 코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP
 - **분류**: architecture
 - **발견자**: planner-architect

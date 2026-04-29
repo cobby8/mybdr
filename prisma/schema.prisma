@@ -162,6 +162,19 @@ model User {
   // 운영자가 차단 슬롯을 등록할 때도 본 user_id 에 운영자 본인이 들어간다 (status="blocked")
   court_bookings                                                            court_bookings[]
 
+  // Phase 10-1 — 매너 점수 시스템
+  // manner_score: game_player_ratings.rating 평균(1.00~5.00). 평가 0건이면 null
+  // manner_count: 평가받은 누적 건수 (집계용 캐시)
+  manner_score Decimal? @db.Decimal(3, 2)
+  manner_count Int      @default(0)
+
+  // Phase 10-1 — 경기 평가/신고 시스템 관계
+  // 내가 작성한 리포트 / MVP 지목 받은 횟수 / 평가 받은 항목 / 최종 MVP로 확정된 경기
+  game_reports_as_reporter     game_reports[]        @relation("game_reports_reporter")
+  game_reports_as_mvp          game_reports[]        @relation("game_reports_mvp")
+  game_player_ratings_received game_player_ratings[] @relation("game_player_ratings_rated")
+  games_as_final_mvp           games[]               @relation("games_final_mvp")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -1261,6 +1274,8 @@ model games {
   recurrence_rule      String?             @db.VarChar
   applications_count   Int?                @default(0)
   views_count          Int?                @default(0)
+  // Phase 10-1 — 경기 종료 후 운영자가 확정한 최종 MVP (game_reports 집계 결과 또는 운영자 수동 지정)
+  final_mvp_user_id    BigInt?
   created_at           DateTime            @db.Timestamp(6)
   updated_at           DateTime            @db.Timestamp(6)
   game_applications    game_applications[]
@@ -1269,6 +1284,10 @@ model games {
   games                games?              @relation("gamesTogames", fields: [cloned_from_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_d09f1fe2ce")
   other_games          games[]             @relation("gamesTogames")
   users                User                @relation(fields: [organizer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_f7c3e2a7f2")
+  // Phase 10-1 — 최종 MVP 사용자 관계 (운영자 확정용)
+  final_mvp            User?               @relation("games_final_mvp", fields: [final_mvp_user_id], references: [id], onDelete: NoAction)
+  // Phase 10-1 — 경기 평가 리포트 (다대일 역참조)
+  game_reports         game_reports[]
 
   @@index([city], map: "index_games_on_city")
   @@index([city, game_type], map: "index_games_on_city_and_game_type")
@@ -1283,6 +1302,55 @@ model games {
   @@index([status], map: "index_games_on_status")
   @@index([status, scheduled_at], map: "index_games_on_status_and_scheduled_at")
   @@index([template_id], map: "index_games_on_template_id")
+}
+
+// Phase 10-1 — 경기 평가 리포트 (참가자 1인이 1경기당 1건 작성)
+// 1) 전체 평점(overall_rating 1-5)
+// 2) MVP 지목(mvp_user_id 선택)
+// 3) 동행자별 매너평가/신고는 game_player_ratings에 자식 row로 저장
+// status: submitted(제출완료) / draft(임시저장) / reviewed(운영자 검토완료) / dismissed(반려)
+model game_reports {
+  id               BigInt   @id @default(autoincrement())
+  game_id          BigInt
+  reporter_user_id BigInt
+  overall_rating   Int // 1-5점
+  comment          String? // 자유 코멘트
+  mvp_user_id      BigInt? // 본인 평가에서 지목한 MVP (없을 수 있음)
+  status           String   @default("submitted") @db.VarChar
+  created_at       DateTime @default(now()) @db.Timestamp(6)
+  updated_at       DateTime @updatedAt @db.Timestamp(6)
+
+  game       games                 @relation(fields: [game_id], references: [id], onDelete: NoAction)
+  reporter   User                  @relation("game_reports_reporter", fields: [reporter_user_id], references: [id], onDelete: NoAction)
+  mvp_player User?                 @relation("game_reports_mvp", fields: [mvp_user_id], references: [id], onDelete: NoAction)
+  ratings    game_player_ratings[]
+
+  // 한 경기에서 한 사람이 한 번만 제출 가능
+  @@unique([game_id, reporter_user_id])
+  @@index([game_id])
+  @@index([status])
+}
+
+// Phase 10-1 — 경기 평가 자식 테이블: 리포터가 동행자 1인에 대해 매긴 매너평가/신고
+// rating: 1-5점 (1=매우 나쁨, 5=매우 좋음)
+// flags: 위반 사유 태그 배열 (예: ["late", "rude", "noshow"]) — PostgreSQL TEXT[]
+// is_noshow: 노쇼 여부 별도 boolean (집계 편의)
+model game_player_ratings {
+  id             BigInt   @id @default(autoincrement())
+  game_report_id BigInt
+  rated_user_id  BigInt
+  rating         Int // 1-5점
+  flags          String[] // PostgreSQL TEXT[] — 신고 태그 배열
+  is_noshow      Boolean  @default(false)
+  created_at     DateTime @default(now()) @db.Timestamp(6)
+
+  // 부모 리포트 삭제 시 함께 삭제 (Cascade)
+  report     game_reports @relation(fields: [game_report_id], references: [id], onDelete: Cascade)
+  rated_user User         @relation("game_player_ratings_rated", fields: [rated_user_id], references: [id], onDelete: NoAction)
+
+  // 한 리포트에서 같은 사람을 두 번 평가하지 못함
+  @@unique([game_report_id, rated_user_id])
+  @@index([rated_user_id])
 }
 
 model marketplace_items {

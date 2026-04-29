@@ -2,6 +2,24 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-27] Phase 10-1 경기 평가 — manner_score는 응답시점 aggregate(캐시 X) 권장
+- **분류**: decision (Phase 10-1 경기 평가/신고 시스템)
+- **결정자**: planner-architect (PM 결정 보고용 추천안)
+- **결정**: game_player_ratings의 평균을 user별로 사전 캐시하지 않고, **프로필/리스트 응답 시점에 매번 `prisma.game_player_ratings.aggregate({ where:{rated_user_id}, _avg:rating })`** 호출. count도 함께 반환해 N건 미만이면 표시 안 함.
+- **배경**: (1) mybdr 사용자 규모상 GROUP BY 1회 비용 무시 가능, (2) 리포트 제출 트랜잭션에 캐시 갱신 끼우면 race condition 위험 + reporter 다중 동시 제출 시 정합성 깨짐, (3) cron 옵션은 24h 지연 — 사용자 체감 부정적, (4) 응답시점 aggregate는 인덱스(`@@index([rated_user_id])`)로 즉시 처리.
+- **대안 배제**: (B) 리포트 제출 시 캐시 갱신 — race + 트랜잭션 비대화, (C) nightly cron — 24h 지연 + cron job 추가 비용, (D) Postgres trigger — Prisma 외부 SQL 의존성 + DB 마이그 위험.
+- **영향**: schema에 별도 manner 캐시 컬럼 추가 불필요(Q1 옵션 A — evaluation_rating 재활용 또는 manner_score 컬럼 신설은 별도 결정). 응답 helper(`getMannerScore(userId)`) 1개 추가. 부하 증가 시 cron으로 전환 가능 (가드만 교체).
+- **참조횟수**: 0
+
+### [2026-04-27] Phase 10-1 — 신고 플래그 enum 미도입, String[] + zod 검증 채택
+- **분류**: decision (Phase 10-1)
+- **결정자**: planner-architect
+- **결정**: game_player_ratings.flags를 Postgres enum 또는 lookup 테이블이 아닌 **`String[]` (TEXT[]) + zod `z.enum(["noshow","manner","foul","verbal","cheat"])` 런타임 검증**으로 처리.
+- **배경**: (1) 신규 플래그 추가 시 enum은 ALTER TYPE 마이그 필요, lookup은 join 비용, (2) 시안 5종 외 추가 가능성 낮음 + 추가 시도 application layer 변경만, (3) Postgres GIN 인덱스 가능, (4) noshow는 시안에서 체크박스로 별도 UI → `is_noshow boolean` 별도 컬럼으로 분리(Q2 옵션 B).
+- **대안 배제**: (B) Postgres enum — 마이그 비용, (C) lookup 테이블 game_report_flag_types — over-engineering, (D) 단일 String + 콤마 분리 — 검색 X.
+- **영향**: prisma `flags String[] @default([])` + zod 검증 + admin 큐에서 GIN 인덱스 활용 가능. is_noshow는 unique 별도 컬럼이라 매너 점수 집계에서 제외 가능.
+- **참조횟수**: 0
+
 ### [2026-04-25] 코트 대관 — court_managers N:M 모델 보류, court_infos.user_id + user_subscriptions 검사로 단순화
 - **분류**: decision (코트 대관 시스템 Phase A MVP)
 - **결정자**: planner-architect (pm 결정 보고용 추천안)
