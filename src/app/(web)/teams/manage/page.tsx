@@ -76,8 +76,42 @@ export default async function TeamsManageHubPage() {
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
   });
 
+  // 2-B) team.captain_id 직접 매칭 — DB 데이터 일관성이 깨진 케이스 보강 (2026-04-29 김병곤 사례)
+  // 이유(왜): team.captain_id 는 정상이지만 team_members.role 이 'director' 등 비표준 값으로
+  // 등록된 사용자는 위 TEAM_MANAGER_ROLES 필터에 걸려 누락된다. captain_id 로 등록된 사용자는
+  // 정의상 무조건 팀장이므로 별도 쿼리로 합산한다 (N+1 방지: 팀당 1쿼리 아닌 단일 쿼리).
+  const captainTeams = await prisma.team.findMany({
+    where: { captainId: userId },
+    select: {
+      id: true,
+      name: true,
+      name_en: true,
+      city: true,
+      district: true,
+      primaryColor: true,
+      secondaryColor: true,
+      members_count: true,
+      status: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // 위 두 결과를 합산 — 중복(membership 에 captain 으로 이미 잡힌 팀)은 team.id 기준 dedup
+  // 형태를 memberships 와 동일하게 맞춰 아래 렌더 로직 재사용.
+  const membershipTeamIds = new Set(memberships.map((m) => m.team?.id?.toString()).filter(Boolean));
+  const captainOnlyAsMemberships = captainTeams
+    .filter((t) => !membershipTeamIds.has(t.id.toString()))
+    .map((t) => ({
+      // memberships 행과 호환되는 최소 필드 — id 는 team.id 를 그대로 사용 (Link key 충돌 방지 위해 prefix)
+      id: BigInt(`-${t.id.toString()}`), // 음수로 변환해 진짜 teamMember.id 와 충돌 회피
+      role: "captain" as string, // captain_id 로 잡힌 팀이므로 라벨은 captain
+      team: t,
+    }));
+
   // 해산된 팀은 manage 페이지가 막혀있으므로 허브 카드에서도 제외 (사용자 혼란 방지).
-  const activeTeams = memberships.filter((m) => m.team && m.team.status !== "dissolved");
+  const activeTeams = [...memberships, ...captainOnlyAsMemberships].filter(
+    (m) => m.team && m.team.status !== "dissolved"
+  );
 
   // 3-A) 0개 → 빈 상태 안내
   if (activeTeams.length === 0) {

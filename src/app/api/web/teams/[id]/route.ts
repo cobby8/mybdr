@@ -22,8 +22,20 @@ const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"] as const;
 /**
  * 팀장 여부 확인 유틸 — captain role + active 상태
  * (PATCH/DELETE 가드 그대로 사용)
+ *
+ * 2026-04-29: team.captain_id 직접 매칭 추가.
+ * 이유(왜): team_members.role 이 'director' 등 비표준 값이지만 team.captain_id 는 정상인
+ * 케이스(김병곤 사례)에서 PATCH/DELETE 가 막히던 문제. captain_id 가 본인이면 무조건 팀장으로 인정.
  */
 async function isCaptain(teamId: bigint, userId: bigint): Promise<boolean> {
+  // 1) 팀의 captain_id 직접 매칭 — 이게 정의상 가장 신뢰할 수 있는 팀장 판정 기준
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+    select: { captainId: true },
+  });
+  if (team?.captainId === userId) return true;
+
+  // 2) fallback: team_members 에 role='captain' active 도 인정 (기존 동작 보존)
   const member = await prisma.teamMember.findFirst({
     where: { teamId, userId, role: "captain", status: "active" },
   });
@@ -84,14 +96,19 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     },
     select: { role: true },
   });
-  if (!myMember && ctx.session.role !== "super_admin") {
+  // 2026-04-29: team.captainId 직접 매칭 보강 — team_members.role 이 비표준 값('director' 등)
+  // 으로 등록되어 myMember 조회에서 누락된 경우에도, captain_id 본인이면 무조건 통과.
+  const isCaptainById = team.captainId === ctx.userId;
+  if (!myMember && !isCaptainById && ctx.session.role !== "super_admin") {
     return apiError("팀 운영진만 접근할 수 있습니다.", 403, "FORBIDDEN");
   }
 
   // super_admin은 운영진이 아니지만 통과 — my_role은 null로 응답하되 is_captain은 true 처리
   // (super_admin은 운영 목적으로 captain 권한과 동일하게 다룸)
-  const myRole = myMember?.role ?? null;
-  const isCaptainFlag = myRole === "captain" || ctx.session.role === "super_admin";
+  // captain_id 로 잡힌 사용자는 myMember 가 null 일 수 있어 my_role 도 'captain' 으로 보정.
+  const myRole = myMember?.role ?? (isCaptainById ? "captain" : null);
+  const isCaptainFlag =
+    myRole === "captain" || isCaptainById || ctx.session.role === "super_admin";
 
   return apiSuccess({
     id: team.id.toString(),
