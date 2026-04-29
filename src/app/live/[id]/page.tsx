@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 // 헤더 우측에 테마 토글 버튼을 배치하기 위해 공통 컴포넌트 재사용
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-// 2026-04-27: Phase 9 P0-5 회귀 조정 — finished/completed 분기를 v2 GameResultV2로 갈아끼웠던 것을 제거.
-// 옛 페이지는 status 무관 단일 본체로 모든 기능(스코어카드/쿼터/14컬럼 박스스코어/프린트)을 보여줬으므로
-// finished/completed 도 옛 본체 그대로 사용한다. _v2/ 폴더 컴포넌트는 추후 옵션 토글용으로 보존만 함.
+// 2026-04-22: GameResult v2 — finished/completed 상태일 때 이 컴포넌트로 전체 렌더 갈아끼움.
+// 기존 라이브/진행중 UI 코드(약 1800줄)는 0 수정. 아래 분기 3줄만 추가.
+import { GameResultV2, type MatchDataV2 } from "./_v2/game-result";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -622,8 +622,11 @@ export default function LiveBoxScorePage() {
     })),
   ];
 
-  // 2026-04-27: Phase 9 P0-5 — finished/completed 분기 제거. 옛 본체로 단일 렌더.
-  // (분기 자체를 제거한 이유: 옛 페이지의 정보 밀도/위젯/프린트 동선을 그대로 회복)
+  // 2026-04-22: 종료된 경기는 v2 GameResult 컴포넌트로 전체 렌더 교체
+  // 기존 라이브/진행중 UI 코드는 0 수정. finished/completed 외 상태는 기존 그대로 렌더.
+  if (match.status === "finished" || match.status === "completed") {
+    return <GameResultV2 match={match as unknown as MatchDataV2} />;
+  }
 
   return (
     // 페이지 최상단 컨테이너 — 배경/글자 기본색은 모두 CSS 변수 사용 (테마 전환 대응)
