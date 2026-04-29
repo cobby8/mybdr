@@ -330,6 +330,19 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 [data-theme="dark"] .card, html.dark .card { border-width: 2px; border-color: var(--border-strong); }
 
 /* ============================================================
+   [Phase 9-Mobile P4] 카드 통일 정책 — 그리드 멤버 카드 min-height
+   이유: 그리드 안에 카드를 나열할 때 제목 길이/태그 개수에 따라
+        각 카드 높이가 들쭉날쭉 → 시각 정렬 어색. 최소 높이 통일로
+        깔끔한 카드 그리드 라인 형성.
+   적용 대상: .game-card (그 외 .card 일반 사용처는 영향 X)
+   - 데스크톱 280px / 모바일 240px (가로폭 따라 자연 절약)
+   ============================================================ */
+.game-card { min-height: 280px; }
+@media (max-width: 720px) {
+  .game-card { min-height: 240px; }
+}
+
+/* ============================================================
    Forms
    ============================================================ */
 .input, .textarea, .select {
@@ -1027,6 +1040,19 @@ html.dark .hero-carousel__accent {
 @media (max-width: 720px) {
   :root { --gutter: 14px; }
 
+  /* ============================================================
+     [Phase 9-Mobile P2] 폼 컨트롤 16px 강제 — iOS Safari 자동 줌 차단
+     이유: iOS Safari는 input 폰트 사이즈가 16px 미만이면 포커스 시 자동 줌인
+           하여 UX가 깨진다. 모바일 분기에서만 16px 강제로 자동 줌 방지.
+     - checkbox/radio 는 폰트 영향 없음 → 제외해 의도치 않은 시각 변화 방지
+     - !important 사용 정당화: iOS 줌 차단은 명세상 필수 조건 (16px 미만이면 무조건 줌)
+     ============================================================ */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
   /* ---- App nav: collapse tabs into hamburger ---- */
   .app-nav__utility-inner { gap: 8px; font-size: 11px; padding: 6px var(--gutter); }
   .app-nav__utility-inner > span:first-child { font-weight: 700; }
@@ -1166,15 +1192,28 @@ html.dark .hero-carousel__accent {
     font-size: 15px !important; color: var(--ink); font-weight: 500;
     margin-bottom: 6px;
   }
-  /* Hide all other cells but make meta line from author+date+views */
+  /* Hide all other cells but make meta line from author+date+views
+   * [Phase 9-Mobile P1] data-meta 마커가 부여된 셀들에 separator (·) 표시.
+   * 이전에는 "자유 홍길동 04-22 123" 처럼 공백으로만 구분되어 라벨 모호.
+   * 첫 메타 셀(board) 제외하고 :not(:first-of-type) 으로 앞에 " · " 추가. */
   .board__row > div:nth-child(n+3) {
     display: inline-block !important;
     font-size: 11px !important;
     color: var(--ink-dim) !important;
-    margin-right: 10px;
+    margin-right: 0;
   }
-  .board__row > div:nth-child(n+3)::before {
-    content: attr(data-label);
+  .board__row > div[data-meta]:not([data-meta="views"]) + div[data-meta]::before {
+    content: " · ";
+    color: var(--ink-dim);
+    margin: 0 6px;
+  }
+  /* 조회수 셀은 별도 prefix "조회 " 로 의미 명확화. 뷰포트가 매우 좁아도 한 줄 유지. */
+  .board__row > div[data-meta="views"] {
+    margin-left: 8px;
+  }
+  .board__row > div[data-meta="views"]::before {
+    content: "조회 ";
+    color: var(--ink-dim);
   }
 
   /* ---- Match list: 1 col ---- */
@@ -1206,10 +1245,14 @@ html.dark .hero-carousel__accent {
   /* ---- Board list filter row wraps smaller ---- */
   .page > main > div[style*="board"] { overflow: hidden; }
 
-  /* ---- Buttons: larger tap targets ---- */
-  .btn { padding: 12px 16px; font-size: 14px; }
-  .btn--sm { padding: 7px 10px; font-size: 12px; }
-  .btn--xl { padding: 14px 18px; font-size: 15px; }
+  /* ---- Buttons: larger tap targets ----
+   * [Phase 9-Mobile P3] iOS HIG 권장 44×44 터치 타겟 충족.
+   * 데스크톱 .btn--sm(28px height)는 모바일에서 손가락으로 누르기엔 너무 작음.
+   * min-height 44px + padding 보강으로 손가락 탭 정확도 향상.
+   * .btn 기본/btn--xl 도 같은 기준 적용. */
+  .btn { padding: 12px 16px; font-size: 14px; min-height: 44px; }
+  .btn--sm { padding: 10px 14px; font-size: 13px; min-height: 44px; }
+  .btn--xl { padding: 14px 18px; font-size: 15px; min-height: 48px; }
 
   /* ---- Typography tighter ---- */
   h1[style*="font-size:28px"], h1[style*="fontSize:28"] { font-size: 22px !important; }

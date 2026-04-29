@@ -163,7 +163,7 @@ export function GameCard({
     // padding:0 로 재정의하고 overflow:hidden 으로 상단 stripe 가 카드 경계에 붙게 함.
     <Link
       href={href}
-      className="card"
+      className="card game-card"
       style={{
         padding: 0,
         overflow: "hidden",

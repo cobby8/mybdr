@@ -113,17 +113,28 @@ export function BoardRow({
         )}
       </div>
 
-      {/* 3열: 게시판 이름 (모바일에서는 responsive.css로 재배치) */}
-      <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>{board}</div>
+      {/* 3열: 게시판 이름 (모바일에서는 responsive.css로 재배치)
+       * [Phase 9-Mobile P1] 모바일에서 board/author/date/views 셀이 인라인으로
+       * 일렬로 붙어 보였던 문제 → globals.css 모바일 룰 보강으로 셀 사이 separator (·) 표시.
+       * data-meta="true"는 모바일에서 메타 라인 셀임을 알리는 마커. */}
+      <div data-meta="true" style={{ fontSize: 12, color: "var(--ink-mute)" }}>
+        {board}
+      </div>
 
       {/* 4열: 작성자 */}
-      <div style={{ fontSize: 12 }}>{author}</div>
+      <div data-meta="true" style={{ fontSize: 12 }}>
+        {author}
+      </div>
 
       {/* 5열: 날짜 */}
-      <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{date}</div>
+      <div data-meta="true" style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+        {date}
+      </div>
 
-      {/* 6열: 조회수 */}
-      <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{views}</div>
+      {/* 6열: 조회수 — 라벨 "조회 " prefix로 의미 명확화 */}
+      <div data-meta="views" style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+        {views}
+      </div>
     </Link>
   );
 }
