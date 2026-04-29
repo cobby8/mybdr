@@ -7,9 +7,10 @@
 //    홈 컬러는 미리보기 배경으로 사용, 어웨이 컬러는 작은 띠/배지로 표시.
 //  - 2026-04-29: 로고 업로드 활성화 (BDR+ 게이트 해제). 단, 실제 storage 업로드는 별도 Phase —
 //    이번엔 클라이언트 base64 미리보기 + File state 만 잡아둔다 (서버 저장 X).
+//  - 2026-04-29: PM 요청 — preset 10색 grid 제거 → HTML5 native color picker + hex text input 으로 교체.
+//    이유: 사용자가 로고에 정확히 매칭되는 임의 hex (예: 브랜드 색) 자유 선택 필요.
 
 import { useRef } from "react";
-import { TEAM_COLORS } from "./team-form";
 
 interface Props {
   // Step1 에서 입력한 tag (or fallback) — 미리보기 텍스트
@@ -134,63 +135,112 @@ export function StepEmblem({
             min-w-0: grid item 의 기본 min-width:auto 때문에 내부 textarea/input
             이 부모 폭을 밀어내는 것을 방지 (모바일에서 핵심) */}
         <div className="min-w-0">
-          {/* 홈/어웨이 유니폼 색상 — 모바일 세로 stack, sm(≥640px) 가로 2열 */}
+          {/* 홈/어웨이 유니폼 색상 — 모바일 세로 stack, sm(≥640px) 가로 2열
+              2026-04-29: preset 10색 grid → HTML5 native color picker + hex text input.
+              왜 native picker?
+                - 외부 라이브러리(react-colorful 등) 추가 없이 모든 브라우저 지원
+                - OS 표준 UI라 모바일에서도 친숙
+              왜 hex text 동반?
+                - 사용자가 로고/브랜드 hex 코드를 직접 붙여넣기 가능
+                - 6자리 완성 시에만 적용, blur 시 미완성이면 직전 유효값으로 복원 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
             {/* 홈 유니폼 색상 */}
             <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 8 }}>
+              <label
+                htmlFor="home-color-picker"
+                style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 8 }}
+              >
                 홈 유니폼 색상 *
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-                {TEAM_COLORS.map((c) => {
-                  const selected = homeColor.toLowerCase() === c.toLowerCase();
-                  return (
-                    <button
-                      key={`home-${c}`}
-                      type="button"
-                      onClick={() => onHomeColorChange(c)}
-                      aria-label={`홈 유니폼 색상 ${c}`}
-                      style={{
-                        width: "100%",
-                        aspectRatio: "1/1",
-                        background: c,
-                        borderRadius: 6,
-                        border: selected ? "3px solid var(--ink)" : "2px solid var(--border)",
-                        cursor: "pointer",
-                        boxShadow: selected ? "0 0 0 2px var(--bg), 0 0 0 4px var(--ink)" : "none",
-                      }}
-                    />
-                  );
-                })}
+              <div className="flex items-center gap-3">
+                {/* native color picker — h-12 w-16 = 48×64px wrapper. padding:0 으로 내부 swatch 가 박스 꽉 채움 */}
+                <input
+                  id="home-color-picker"
+                  type="color"
+                  value={homeColor}
+                  onChange={(e) => onHomeColorChange(e.target.value)}
+                  aria-label="홈 유니폼 색상 선택"
+                  className="h-12 w-16 rounded-md cursor-pointer border"
+                  style={{
+                    padding: 0,
+                    borderColor: "var(--ink-mute)",
+                  }}
+                />
+                {/* hex text 입력 — 사용자가 임의 hex 직접 입력/붙여넣기 가능
+                    onChange: # + 0~6자리 hex 정규식 통과 시에만 state 반영 (입력 중 단계 허용)
+                    onBlur: 6자리 완성 안된 채 포커스 잃으면 BDR Red 기본값으로 복원 (silent rollback 방지) */}
+                <input
+                  type="text"
+                  value={homeColor.toUpperCase()}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                      onHomeColorChange(v.toLowerCase());
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                      onHomeColorChange("#E31B23");
+                    }
+                  }}
+                  className="flex-1 max-w-[140px] px-3 py-2 rounded border"
+                  style={{
+                    borderColor: "var(--ink-mute)",
+                    fontSize: 16, // iOS 자동 줌 차단 (전역 룰 있어도 명시 안전)
+                    fontFamily: "var(--ff-mono)",
+                  }}
+                  placeholder="#E31B23"
+                  maxLength={7}
+                  aria-label="홈 유니폼 hex 코드"
+                />
               </div>
             </div>
 
-            {/* 어웨이 유니폼 색상 */}
+            {/* 어웨이 유니폼 색상 — 홈과 동일 패턴, 기본값만 Navy(#1B3C87) */}
             <div>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 8 }}>
+              <label
+                htmlFor="away-color-picker"
+                style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 8 }}
+              >
                 어웨이 유니폼 색상 *
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
-                {TEAM_COLORS.map((c) => {
-                  const selected = awayColor.toLowerCase() === c.toLowerCase();
-                  return (
-                    <button
-                      key={`away-${c}`}
-                      type="button"
-                      onClick={() => onAwayColorChange(c)}
-                      aria-label={`어웨이 유니폼 색상 ${c}`}
-                      style={{
-                        width: "100%",
-                        aspectRatio: "1/1",
-                        background: c,
-                        borderRadius: 6,
-                        border: selected ? "3px solid var(--ink)" : "2px solid var(--border)",
-                        cursor: "pointer",
-                        boxShadow: selected ? "0 0 0 2px var(--bg), 0 0 0 4px var(--ink)" : "none",
-                      }}
-                    />
-                  );
-                })}
+              <div className="flex items-center gap-3">
+                <input
+                  id="away-color-picker"
+                  type="color"
+                  value={awayColor}
+                  onChange={(e) => onAwayColorChange(e.target.value)}
+                  aria-label="어웨이 유니폼 색상 선택"
+                  className="h-12 w-16 rounded-md cursor-pointer border"
+                  style={{
+                    padding: 0,
+                    borderColor: "var(--ink-mute)",
+                  }}
+                />
+                <input
+                  type="text"
+                  value={awayColor.toUpperCase()}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                      onAwayColorChange(v.toLowerCase());
+                    }
+                  }}
+                  onBlur={(e) => {
+                    if (!/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                      onAwayColorChange("#1B3C87");
+                    }
+                  }}
+                  className="flex-1 max-w-[140px] px-3 py-2 rounded border"
+                  style={{
+                    borderColor: "var(--ink-mute)",
+                    fontSize: 16,
+                    fontFamily: "var(--ff-mono)",
+                  }}
+                  placeholder="#1B3C87"
+                  maxLength={7}
+                  aria-label="어웨이 유니폼 hex 코드"
+                />
               </div>
             </div>
           </div>
