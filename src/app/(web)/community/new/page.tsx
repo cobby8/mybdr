@@ -158,6 +158,9 @@ export default function NewPostPage() {
                      - flexWrap: wrap → nowrap + overflowX: auto 로 1줄 가로 스크롤로 전환.
                      - 자식 button 에 flexShrink: 0 (이미 .btn 기본값이지만 명시).
                      - WebkitOverflowScrolling: "touch" 로 iOS 관성 스크롤 활성화. */}
+              {/* W-1 fix (2026-04-29): 모바일(320px)에서 13개 disabled 버튼이 가로 스크롤되며
+                  잘림 → flex-wrap 으로 변경. overflow-x/관성스크롤 제거(필요 없음).
+                  데스크톱은 가로 폭이 충분해 한 줄에 정렬되며, 모바일에서만 자연스럽게 줄바꿈. */}
               <div
                 style={{
                   display: "flex",
@@ -167,9 +170,7 @@ export default function NewPostPage() {
                   borderBottom: 0,
                   borderRadius: "var(--radius-chip) var(--radius-chip) 0 0",
                   background: "var(--bg-alt)",
-                  flexWrap: "nowrap",
-                  overflowX: "auto",
-                  WebkitOverflowScrolling: "touch",
+                  flexWrap: "wrap",
                 }}
                 title="에디터 툴바 준비 중"
               >
