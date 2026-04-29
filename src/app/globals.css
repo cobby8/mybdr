@@ -1275,12 +1275,19 @@ html.dark .hero-carousel__accent {
     grid-template-columns: 1fr !important;
   }
 
-  /* ---- Match detail: sticky bottom bar ---- */
-  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 340px"] {
+  /* ============================================================
+     [v2.1 P0-1 G-4] with-aside 폭 5종 (340/320/300/280/360) — Match detail 등
+     이유: v2 룰은 340px 1종만 처리. 사이트 내 다양한 사이드바 폭을 모두
+           1열 stack으로 변환해야 모바일에서 콘텐츠 잘림이 사라진다.
+           aside order:-1 보존(데스크톱 우측 → 모바일 상단)도 5종 모두 적용.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-4
+     ============================================================ */
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 340px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 320px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 300px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 280px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 360px"] {
     grid-template-columns: 1fr !important;
-  }
-  .page--wide aside[style*="sticky"] {
-    position: static !important;
   }
 
   /* ============================================================
@@ -1307,11 +1314,20 @@ html.dark .hero-carousel__accent {
     grid-template-columns: repeat(3, 1fr) !important;
   }
 
-  /* ---- Court: hide sticky map on mobile ---- */
-  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"] {
+  /* [v2.1 P0-1 G-4] .page 스코프 with-aside 5종 — 사이드바 자식 직접 배치 */
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 320px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 300px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 280px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 360px"] {
     grid-template-columns: 1fr !important;
   }
-  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"] > aside {
+  /* [v2.1 P0-1 G-4] aside order:-1 — 우측 사이드바를 모바일 상단으로 이동 (5종) */
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 320px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 300px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 280px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 360px"] > aside {
     order: -1;
   }
 
