@@ -1392,6 +1392,72 @@ html.dark .hero-carousel__accent {
     overflow-y: auto !important;
     z-index: 50 !important;
   }
+
+  /* ============================================================
+     [v2.1 P0-1 G-1] data-table 카드형 변환 룰
+     이유: v2.1 시안의 .data-table 컴포넌트가 모바일에서 헤더 행 숨기고
+           각 셀을 라벨/값 라인으로 카드형 변환. data-primary는 카드 제목,
+           data-actions는 하단 풀폭 버튼 영역.
+     출처: Dev/design/BDR v2.1/responsive.css §data-table
+     주의: 사이트 내 .data-table 사용 0건이지만, 신규 컴포넌트 도입 대비 선이식.
+     ============================================================ */
+  .data-table .data-table__head { display: none !important; }
+  .data-table .data-table__row {
+    display: block !important;
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-top: 0 !important;
+    gap: 0 !important;
+    grid-template-columns: none !important;
+  }
+  .data-table .data-table__row > div,
+  .data-table .data-table__row > span {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    text-align: right !important;
+    padding: 4px 0 !important;
+    font-size: 13px !important;
+    min-width: 0 !important;
+  }
+  .data-table .data-table__row > div[data-label]::before,
+  .data-table .data-table__row > span[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 12px;
+    text-align: left;
+  }
+  .data-table .data-table__row > div[data-primary="true"] {
+    display: block !important;
+    text-align: left !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 2px 0 8px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px dashed var(--border) !important;
+  }
+  .data-table .data-table__row > div[data-primary="true"]::before {
+    display: none !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"] {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    margin-top: 8px !important;
+    flex-wrap: wrap !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"]::before {
+    display: none !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"] .btn {
+    flex: 1 1 0 !important;
+    min-width: 80px !important;
+  }
 }
 
 /* Hamburger hidden on desktop by default */
