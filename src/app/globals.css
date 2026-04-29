@@ -1345,6 +1345,22 @@ html.dark .hero-carousel__accent {
     order: -1;
   }
 
+  /* ============================================================
+     [v2.1 P0-1 G-7] fontSize 96/48 모바일 축소
+     이유: 데스크톱 GameResult/MatchDetail 스코어보드의 96px 점수, 48px(opacity:.4)
+           서브 텍스트는 375px 모바일에서 너무 커서 두 자리 점수도 잘린다. v2.1
+           시안: 96 → 48, 48 → 24. 인라인 style 매처는 공백 있/없 양쪽 대응.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-7
+     ============================================================ */
+  .page div[style*="fontSize:96"],
+  .page div[style*="fontSize: 96"] {
+    font-size: 48px !important;
+  }
+  .page div[style*="fontSize:48"][style*="opacity:.4"],
+  .page div[style*="fontSize: 48"][style*="opacity: .4"] {
+    font-size: 24px !important;
+  }
+
   /* ---- Board list filter row wraps smaller ---- */
   .page > main > div[style*="board"] { overflow: hidden; }
 
