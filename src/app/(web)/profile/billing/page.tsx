@@ -82,7 +82,7 @@ export default function ProfileBillingPage() {
         role="tablist"
         aria-label="결제 카테고리"
         className="flex gap-6 border-b"
-        style={{ borderColor: "var(--color-border-subtle)", marginBottom: 16 }}
+        style={{ borderColor: "var(--border)", marginBottom: 16 }}
       >
         <TabButton
           label="구독"
@@ -146,10 +146,10 @@ function TabButton({
       className="relative -mb-px py-3 text-sm font-semibold transition-colors"
       style={{
         color: active
-          ? "var(--color-primary)"
-          : "var(--color-text-secondary)",
+          ? "var(--accent)"
+          : "var(--ink-mute)",
         borderBottom: active
-          ? "2px solid var(--color-primary)"
+          ? "2px solid var(--accent)"
           : "2px solid transparent",
       }}
     >
@@ -192,15 +192,15 @@ function getSubStatusInfo(
   isUsable: boolean
 ): { label: string; color: string } {
   if (status === "active") {
-    return { label: "이용중", color: "var(--color-success, #22C55E)" };
+    return { label: "이용중", color: "var(--ok)" };
   }
   if (status === "cancelled" && isUsable) {
-    return { label: "해지 예정", color: "var(--color-accent)" };
+    return { label: "해지 예정", color: "var(--accent)" };
   }
   if (status === "cancelled") {
-    return { label: "해지됨", color: "var(--color-text-muted)" };
+    return { label: "해지됨", color: "var(--ink-mute)" };
   }
-  return { label: status, color: "var(--color-text-muted)" };
+  return { label: status, color: "var(--ink-mute)" };
 }
 
 function SubscriptionSection() {
@@ -241,7 +241,7 @@ function SubscriptionSection() {
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
           불러오는 중...
         </p>
       </div>
@@ -257,13 +257,13 @@ function SubscriptionSection() {
           <div className="py-12 text-center">
             <span
               className="material-symbols-outlined text-4xl mb-3 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               card_membership
             </span>
             <p
               className="text-sm mb-3"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               구독 중인 요금제가 없습니다
             </p>
@@ -271,8 +271,8 @@ function SubscriptionSection() {
               href="/pricing"
               className="inline-block text-sm font-bold px-4 py-2 rounded"
               style={{
-                backgroundColor: "var(--color-primary)",
-                color: "var(--color-on-primary, #FFFFFF)",
+                backgroundColor: "var(--accent)",
+                color: "#fff",
               }}
             >
               요금제 보기
@@ -294,7 +294,7 @@ function SubscriptionSection() {
                   padding: 0,
                   overflow: "hidden",
                   marginBottom: 18,
-                  background: "var(--color-card)",
+                  background: "var(--bg-card)",
                   border: "1px solid var(--border)",
                   borderRadius: 4,
                 }}
@@ -543,17 +543,17 @@ function SubscriptionSection() {
         >
           <div
             className="w-[90%] max-w-[360px] rounded-md p-6"
-            style={{ backgroundColor: "var(--color-bg-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-4">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-alt)" }}
               >
                 <span
                   className="material-symbols-outlined text-3xl"
-                  style={{ color: "var(--color-error, #EF4444)" }}
+                  style={{ color: "var(--danger)" }}
                 >
                   cancel
                 </span>
@@ -562,20 +562,20 @@ function SubscriptionSection() {
 
             <h2
               className="text-center text-lg font-bold mb-2"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               구독을 해지하시겠습니까?
             </h2>
             <p
               className="text-center text-sm mb-1"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               <strong>{cancelTarget.plan.name}</strong> 구독이 해지됩니다.
             </p>
             {cancelTarget.expires_at && (
               <p
                 className="text-center text-sm mb-6"
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--ink-mute)" }}
               >
                 {new Date(cancelTarget.expires_at).toLocaleDateString("ko-KR")}
                 까지는 계속 이용할 수 있습니다.
@@ -586,8 +586,8 @@ function SubscriptionSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text-secondary)",
+                  backgroundColor: "var(--bg-alt)",
+                  color: "var(--ink-mute)",
                 }}
                 onClick={() => setCancelTarget(null)}
                 disabled={cancelling}
@@ -597,8 +597,8 @@ function SubscriptionSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-error, #EF4444)",
-                  color: "var(--color-on-primary, #FFFFFF)",
+                  backgroundColor: "var(--danger)",
+                  color: "#fff",
                   opacity: cancelling ? 0.6 : 1,
                 }}
                 onClick={handleCancel}
@@ -650,15 +650,15 @@ interface PaymentsResponse {
 function getStatusInfo(status: string): { label: string; color: string } {
   switch (status) {
     case "paid":
-      return { label: "결제완료", color: "var(--color-success, #22C55E)" };
+      return { label: "결제완료", color: "var(--ok)" };
     case "refunded":
-      return { label: "환불완료", color: "var(--color-text-muted)" };
+      return { label: "환불완료", color: "var(--ink-mute)" };
     case "pending":
-      return { label: "대기중", color: "var(--color-accent)" };
+      return { label: "대기중", color: "var(--accent)" };
     case "failed":
-      return { label: "실패", color: "var(--color-error, #EF4444)" };
+      return { label: "실패", color: "var(--danger)" };
     default:
-      return { label: status, color: "var(--color-text-muted)" };
+      return { label: status, color: "var(--ink-mute)" };
   }
 }
 
@@ -702,7 +702,7 @@ function PaymentsSection() {
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
           불러오는 중...
         </p>
       </div>
@@ -724,13 +724,13 @@ function PaymentsSection() {
           <div className="py-12 text-center">
             <span
               className="material-symbols-outlined text-4xl mb-3 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               receipt_long
             </span>
             <p
               className="text-sm"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               결제 내역이 없습니다
             </p>
@@ -892,7 +892,7 @@ function PaymentsSection() {
                       style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: "var(--cafe-blue, var(--color-primary))",
+                        color: "var(--cafe-blue, var(--accent))",
                         textDecoration: "none",
                       }}
                     >
@@ -916,9 +916,9 @@ function PaymentsSection() {
                         fontWeight: 700,
                         padding: "2px 10px",
                         borderRadius: "var(--radius-chip, 4px)",
-                        color: "var(--color-error, #EF4444)",
+                        color: "var(--danger)",
                         backgroundColor: "transparent",
-                        border: "1px solid var(--color-error, #EF4444)",
+                        border: "1px solid var(--danger)",
                         cursor: "pointer",
                       }}
                     >
@@ -940,13 +940,13 @@ function PaymentsSection() {
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
             className="text-sm font-bold px-3 py-1 rounded disabled:opacity-30"
-            style={{ color: "var(--color-primary)" }}
+            style={{ color: "var(--accent)" }}
           >
             이전
           </button>
           <span
             className="text-sm"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{ color: "var(--ink-mute)" }}
           >
             {page} / {pagination.total_pages}
           </span>
@@ -954,7 +954,7 @@ function PaymentsSection() {
             disabled={page >= pagination.total_pages}
             onClick={() => setPage(page + 1)}
             className="text-sm font-bold px-3 py-1 rounded disabled:opacity-30"
-            style={{ color: "var(--color-primary)" }}
+            style={{ color: "var(--accent)" }}
           >
             다음
           </button>
@@ -970,17 +970,17 @@ function PaymentsSection() {
         >
           <div
             className="w-[90%] max-w-[360px] rounded-md p-6"
-            style={{ backgroundColor: "var(--color-bg-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-4">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-alt)" }}
               >
                 <span
                   className="material-symbols-outlined text-3xl"
-                  style={{ color: "var(--color-error, #EF4444)" }}
+                  style={{ color: "var(--danger)" }}
                 >
                   currency_exchange
                 </span>
@@ -989,13 +989,13 @@ function PaymentsSection() {
 
             <h2
               className="text-center text-lg font-bold mb-2"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               환불하시겠습니까?
             </h2>
             <p
               className="text-center text-sm mb-6"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               {formatAmount(refundTarget.final_amount)}이 환불됩니다.
               <br />
@@ -1006,8 +1006,8 @@ function PaymentsSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text-secondary)",
+                  backgroundColor: "var(--bg-alt)",
+                  color: "var(--ink-mute)",
                 }}
                 onClick={() => setRefundTarget(null)}
                 disabled={refunding}
@@ -1017,8 +1017,8 @@ function PaymentsSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-error, #EF4444)",
-                  color: "var(--color-on-primary, #FFFFFF)",
+                  backgroundColor: "var(--danger)",
+                  color: "#fff",
                   opacity: refunding ? 0.6 : 1,
                 }}
                 onClick={handleRefund}
