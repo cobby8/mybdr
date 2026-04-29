@@ -92,22 +92,25 @@ const STRING_STATUS: Record<string, { label: string; tone: "warn" | "success" | 
 
 function StatusBadge({ tone, label }: { tone: "warn" | "success" | "error" | "muted"; label: string }) {
   // CSS 변수 기반 배지 — 하드코딩 색상 금지 (CLAUDE.md)
+  // 토큰 매핑 정정 (2026-04-29):
+  //   --color-success→--ok, --color-error→--danger, --color-primary→--accent,
+  //   --color-surface-bright→--bg-card, --color-text-muted→--ink-mute
   const bg =
     tone === "success"
-      ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
+      ? "color-mix(in srgb, var(--ok) 15%, transparent)"
       : tone === "error"
-        ? "color-mix(in srgb, var(--color-error) 15%, transparent)"
+        ? "color-mix(in srgb, var(--danger) 15%, transparent)"
         : tone === "warn"
-          ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
-          : "var(--color-surface-bright)";
+          ? "color-mix(in srgb, var(--accent) 15%, transparent)"
+          : "var(--bg-card)";
   const fg =
     tone === "success"
-      ? "var(--color-success)"
+      ? "var(--ok)"
       : tone === "error"
-        ? "var(--color-error)"
+        ? "var(--danger)"
         : tone === "warn"
-          ? "var(--color-primary)"
-          : "var(--color-text-muted)";
+          ? "var(--accent)"
+          : "var(--ink-mute)";
   return (
     <span
       className="inline-flex shrink-0 items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
@@ -352,7 +355,7 @@ export default function ProfileActivityPage() {
               borderTop: `3px solid ${c.tone}`,
               border: "1px solid var(--border)",
               borderRadius: 4,
-              background: "var(--color-card)",
+              background: "var(--bg-card)",
             }}
           >
             <div
@@ -390,7 +393,7 @@ export default function ProfileActivityPage() {
         role="tablist"
         aria-label="활동 카테고리"
         className="-mx-4 mb-3 border-b"
-        style={{ borderColor: "var(--color-border-subtle, var(--border))" }}
+        style={{ borderColor: "var(--border)" }}
       >
         <div className="flex gap-1 overflow-x-auto px-4 scrollbar-none">
           {TABS.map((t) => {
@@ -406,11 +409,12 @@ export default function ProfileActivityPage() {
                 /* v2 탭 패턴:
                  * - 텍스트 only (아이콘 제거)
                  * - px-3 py-3 → 약 44px 터치 타겟
-                 * - 활성: 하단 2px primary border + font-semibold
-                 * - 카운트는 inline 숫자 (mono) 그대로 유지 */
-                className={`flex shrink-0 items-center gap-1.5 px-3 py-3 text-sm border-b-2 transition-colors bg-transparent cursor-pointer ${
+                 * - 활성: 하단 3px accent border + font-semibold (TeamTabsV2 일관)
+                 * - 카운트는 inline 숫자 (mono) 그대로 유지
+                 * 토큰 매핑 정정: --color-primary 미정의 → --accent */
+                className={`flex shrink-0 items-center gap-1.5 px-3 py-3 text-sm border-b-[3px] transition-colors bg-transparent cursor-pointer ${
                   active
-                    ? "border-[var(--color-primary)] text-[var(--ink)] font-semibold"
+                    ? "border-[var(--accent)] text-[var(--ink)] font-semibold"
                     : "border-transparent text-[var(--ink-mute)] hover:text-[var(--ink)] font-medium"
                 }`}
               >
@@ -448,7 +452,7 @@ export default function ProfileActivityPage() {
             overflow: "hidden",
             border: "1px solid var(--border)",
             borderRadius: 4,
-            background: "var(--color-card)",
+            background: "var(--bg-card)",
           }}
         >
           {tab === "games" &&
@@ -535,14 +539,15 @@ function EmptyState({ tab }: { tab: Tab }) {
     <div
       className="flex flex-col items-center justify-center gap-3 py-12 text-center"
       style={{
-        border: "1px dashed var(--color-border)",
+        // 토큰 매핑 정정: --color-border→--border, --color-text-muted→--ink-mute
+        border: "1px dashed var(--border)",
         borderRadius: 4,
-        color: "var(--color-text-muted)",
+        color: "var(--ink-mute)",
       }}
     >
       <span
         className="material-symbols-outlined text-4xl"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
         aria-hidden
       >
         {c.icon}
@@ -552,7 +557,8 @@ function EmptyState({ tab }: { tab: Tab }) {
         href={c.href}
         className="inline-flex items-center gap-1 px-4 py-2 text-xs font-bold uppercase tracking-wide"
         style={{
-          backgroundColor: "var(--color-primary)",
+          // 토큰 매핑 정정: --color-primary→--accent (BDR Red)
+          backgroundColor: "var(--accent)",
           color: "#fff",
           borderRadius: 4,
         }}

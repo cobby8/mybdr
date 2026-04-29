@@ -123,11 +123,13 @@ export function SettingsSideNavV2({ activeSection, onSectionChange }: Props) {
                 /* v2 탭 패턴:
                  * - 아이콘 제거 (텍스트만)
                  * - px-3 py-3 → 약 44px 터치 타겟
-                 * - 활성: 하단 2px primary border + font-semibold + ink primary
-                 * - 비활성: 투명 border + font-medium + ink-soft */
-                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-2 transition-colors bg-transparent cursor-pointer ${
+                 * - 활성: 하단 3px accent border + font-semibold + ink primary (TeamTabsV2 일관)
+                 * - 비활성: 투명 border + font-medium + ink-soft
+                 * 토큰 매핑 정정 (2026-04-29):
+                 *   --color-primary 는 v2 미정의 → --accent (BDR Red) */
+                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-[3px] transition-colors bg-transparent cursor-pointer ${
                   active
-                    ? "border-[var(--color-primary)] text-[var(--ink)] font-semibold"
+                    ? "border-[var(--accent)] text-[var(--ink)] font-semibold"
                     : "border-transparent text-[var(--ink-soft)] hover:text-[var(--ink)] font-medium"
                 }`}
               >

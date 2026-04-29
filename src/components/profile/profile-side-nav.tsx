@@ -191,10 +191,14 @@ export function ProfileSideNav() {
                     key={item.href}
                     href={item.href}
                     prefetch={true}
+                    // 토큰 매핑 정정 (2026-04-29):
+                    // 기존 --color-* 는 globals.css에 미정의 → 브라우저 폴백(파란색)으로 표시되는 버그
+                    // v2 정의 토큰으로 교체: --color-primary→--accent, --color-text-secondary→--ink-mute,
+                    // --color-text-primary→--ink, --color-surface→--bg-alt
                     className={`flex items-center gap-3 px-4 py-3 text-sm font-black uppercase tracking-wide transition-all rounded-none ${
                       active
-                        ? "bg-[var(--color-surface)] text-[var(--color-primary)] border-l-4 border-[var(--color-primary)]"
-                        : "text-[var(--color-text-secondary)] border-l-4 border-transparent hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
+                        ? "bg-[var(--bg-alt)] text-[var(--accent)] border-l-4 border-[var(--accent)]"
+                        : "text-[var(--ink-mute)] border-l-4 border-transparent hover:bg-[var(--bg-alt)] hover:text-[var(--ink)]"
                     }`}
                   >
                     {/* 활성 시 아이콘 FILL 1 (글로벌 layout 패턴과 동일) */}
@@ -226,7 +230,8 @@ export function ProfileSideNav() {
        * - v2 패턴: 텍스트 only + 하단 2px BDR Red 강조선 + font-medium/semibold
        * ============================================================ */}
       <nav
-        className="sticky top-14 z-30 -mx-5 mb-4 border-b border-[var(--color-border)] bg-[var(--color-background)] lg:hidden"
+        // 토큰 매핑 정정: --color-border→--border, --color-background→--bg
+        className="sticky top-14 z-30 -mx-5 mb-4 border-b border-[var(--border)] bg-[var(--bg)] lg:hidden"
         aria-label="프로필 메뉴"
       >
         <div className="flex gap-1 overflow-x-auto px-5 scrollbar-none">
@@ -241,12 +246,14 @@ export function ProfileSideNav() {
                 /* v2 탭 패턴 핵심:
                  * - px-3 py-3: 좌우 12px + 상하 12px → 텍스트 높이 포함 약 44px (터치 타겟 확보)
                  * - text-sm: chip 의 text-xs 보다 가독성 향상
-                 * - border-b-2: 활성 표시 (배경 칠 대신 하단 강조선)
-                 * - font-medium/semibold: uppercase font-bold 폐기, 자연스러운 무게 */
-                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-2 transition-colors ${
+                 * - border-b-[3px]: 활성 표시 (TeamTabsV2 와 일관 — 2px → 3px 통일)
+                 * - font-medium/semibold: uppercase font-bold 폐기, 자연스러운 무게
+                 * 토큰 매핑 정정 (2026-04-29):
+                 *   --color-primary→--accent, --color-text-primary→--ink, --color-text-secondary→--ink-mute */
+                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-[3px] transition-colors ${
                   active
-                    ? "border-[var(--color-primary)] text-[var(--color-text-primary)] font-semibold"
-                    : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] font-medium"
+                    ? "border-[var(--accent)] text-[var(--ink)] font-semibold"
+                    : "border-transparent text-[var(--ink-mute)] hover:text-[var(--ink)] font-medium"
                 }`}
               >
                 {item.label}
