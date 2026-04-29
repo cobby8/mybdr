@@ -340,7 +340,10 @@ function MorePanel({
         // [2026-04-29] 메인 탭 내부로 이동했으므로 left 기준 정렬
         // (기존 우측 끝 정렬 → 탭 위치에 맞춘 좌측 정렬)
         left: 0,
-        width: 680,
+        // [2026-04-29] 모바일 viewport 320~360px 안전: min()로 화면 폭 초과 방지
+        // (데스크톱은 680px 그대로 유지, globals.css 풀스크린 시트 룰과 무충돌)
+        width: "min(680px, calc(100vw - 16px))",
+        maxWidth: "calc(100vw - 16px)",
         maxHeight: "70vh",
         overflowY: "auto",
         background: "var(--bg)",

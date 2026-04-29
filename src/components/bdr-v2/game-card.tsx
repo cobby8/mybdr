@@ -256,15 +256,35 @@ export function GameCard({
             {place || "-"}
           </span>
           <span style={{ color: "var(--ink-dim)" }}>일시</span>
-          <span>{formatScheduleFull(scheduledAt)}</span>
+          {/* [2026-04-29] 좁은 폭에서 1fr 컬럼 자식 ellipsis 통일 — 라벨/값 모두 보호 */}
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {formatScheduleFull(scheduledAt)}
+          </span>
           <span style={{ color: "var(--ink-dim)" }}>레벨</span>
-          <span>{skillText}</span>
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {skillText}
+          </span>
           <span style={{ color: "var(--ink-dim)" }}>비용</span>
           <span
             style={{
               // 시안 L71: 무료면 700+ok, 유료면 500+ink-soft
               fontWeight: isFree ? 700 : 500,
               color: isFree ? "var(--ok)" : "var(--ink-soft)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             {feeText}
