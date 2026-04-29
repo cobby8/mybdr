@@ -1,15 +1,17 @@
 "use client";
 
-// 경기 후 리포트 박제 페이지 — 시안: Dev/design/BDR v2 (1)/screens/GameReport.jsx (198줄)
+// 경기 후 리포트 페이지 — 시안: Dev/design/BDR v2 (1)/screens/GameReport.jsx (198줄)
 // 이유:
 //   - 시안이 단일 화면 + submitted 분기 (다단계 아님) → server wrapper 분리 시 props drill만 늘고 효용 0.
-//   - DB 미지원: game_reports / game_player_ratings 테이블 부재 → 모든 mutation은 alert("준비 중") + setSubmitted(true) 만.
-//   - 선수 6명은 PLACEHOLDER_PLAYERS 모듈 상수 박제. 추후 실 game.participants fetch 도입 시 placeholder 대체.
+//   - B-7: GET/POST/PATCH /api/web/games/[id]/report 연결 완료. 신규=POST, 기존+can_edit=PATCH, !can_edit=차단.
+//   - 선수 6명은 PLACEHOLDER_PLAYERS 모듈 상수 박제. 추후 실 game.participants fetch 도입 시 placeholder 대체
+//     (현재는 더미 ID라 실제 submit 시 FK 에러 가능 — 서버 응답 alert로 노출).
+//   - 임시저장은 LocalStorage 사용 (Q4 결정). 서버 리포트가 prefill되면 LocalStorage는 무시.
 //   - StarRating 컴포넌트는 "선수별 평점(작은 별 5칸)" 자리에 사용 (sm 사이즈). 시안의 "전반 평가" 큰 별(54×54px)은
 //     라벨 표시 + 인터랙션 변형이라 시안 박제를 위해 인라인 button 그대로 유지.
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { StarRating } from "@/components/ui/star-rating";
 
 // 시안 라인 12~19 박제 — 추후 실 game.participants 데이터로 교체
@@ -50,6 +52,13 @@ const PLACEHOLDER_META = {
   hostNote: "호스트로서 리포트 작성",
 };
 
+// 권한 가드 화면용 상태 (gate)
+// loading: GET prefill 중 / ok: 폼 진행 가능 / blocked: 진입 차단 (메시지 표시)
+type GateState =
+  | { kind: "loading" }
+  | { kind: "ok" }
+  | { kind: "blocked"; title: string; message: string; backHref?: string };
+
 export default function GameReportPage(): ReactElement {
   // Next.js 15 App Router: useParams는 client 에서만. id 미존재 케이스 폴백
   const params = useParams<{ id: string }>();
@@ -71,6 +80,170 @@ export default function GameReportPage(): ReactElement {
   // comment: 운영 특이사항 textarea
   const [comment, setComment] = useState("");
 
+  // B-7 추가 state
+  // reportId: 기존 리포트 있으면 PATCH 분기용 / null = 신규(POST)
+  const [reportId, setReportId] = useState<string | null>(null);
+  // canEdit: 24h 이내 여부. false면 제출 차단
+  const [canEdit, setCanEdit] = useState(true);
+  // submitting: 제출 중 중복 클릭 방지
+  const [submitting, setSubmitting] = useState(false);
+  // gate: 권한 가드 화면 분기 (401/403/400 시 폼 자체를 숨김)
+  const [gate, setGate] = useState<GateState>({ kind: "loading" });
+
+  // LocalStorage 임시저장 키 — gameId 별로 분리
+  const draftKey = gameId ? `game-report-draft-${gameId}` : "";
+
+  // 마운트 시: GET → 권한 가드 + prefill. 서버에 리포트 없으면 LocalStorage 임시저장 fallback prefill.
+  // 이유: 24h 내 재진입 시 서버 데이터 우선, 신규 작성 중 새로고침 대응은 LocalStorage로.
+  useEffect(() => {
+    if (!gameId) return;
+    let cancelled = false;
+
+    const loadDraftFromLocalStorage = () => {
+      // 서버 리포트 없을 때만 LocalStorage prefill 시도
+      if (typeof window === "undefined" || !draftKey) return;
+      try {
+        const raw = window.localStorage.getItem(draftKey);
+        if (!raw) return;
+        const draft = JSON.parse(raw) as {
+          overall?: number;
+          comment?: string;
+          mvp?: number | null;
+          ratings?: Record<number, number>;
+          reports?: Record<number, string[]>;
+          noshows?: number[];
+        };
+        if (typeof draft.overall === "number") setOverall(draft.overall);
+        if (typeof draft.comment === "string") setComment(draft.comment);
+        if (draft.mvp === null || typeof draft.mvp === "number") setMvp(draft.mvp ?? null);
+        if (draft.ratings && typeof draft.ratings === "object") setRatings(draft.ratings);
+        if (draft.reports && typeof draft.reports === "object") setReports(draft.reports);
+        if (Array.isArray(draft.noshows)) setNoshows(draft.noshows);
+      } catch {
+        // 파싱 실패 시 조용히 무시
+      }
+    };
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/web/games/${gameId}/report`);
+
+        // 401: 비로그인 → 로그인 페이지 redirect (returnTo 보존)
+        if (res.status === 401) {
+          if (!cancelled) {
+            router.replace(`/login?returnTo=/games/${gameId}/report`);
+          }
+          return;
+        }
+
+        // 403: 참가자가 아님 → 차단 화면
+        if (res.status === 403) {
+          if (!cancelled) {
+            setGate({
+              kind: "blocked",
+              title: "참가자만 평가할 수 있습니다",
+              message: "이 경기에 참가하지 않은 사용자는 리포트를 작성할 수 없습니다.",
+              backHref: `/games/${gameId}`,
+            });
+          }
+          return;
+        }
+
+        // 400: 종료 안 된 경기 → 차단 화면
+        if (res.status === 400) {
+          if (!cancelled) {
+            setGate({
+              kind: "blocked",
+              title: "아직 평가할 수 없습니다",
+              message: "종료된 경기만 평가할 수 있습니다. 경기 종료 후 다시 시도해주세요.",
+              backHref: `/games/${gameId}`,
+            });
+          }
+          return;
+        }
+
+        // 404: 리포트 없음 = 신규 작성 모드 (정상)
+        if (res.status === 404) {
+          if (!cancelled) {
+            loadDraftFromLocalStorage();
+            setGate({ kind: "ok" });
+          }
+          return;
+        }
+
+        if (!res.ok) {
+          // 기타 에러 — 일단 폼은 열어두고 alert만 (사용자가 작성할 수 있도록)
+          if (!cancelled) {
+            setGate({ kind: "ok" });
+          }
+          return;
+        }
+
+        // 200: 기존 리포트 prefill
+        // apiSuccess는 data 직접 반환 (data 래핑 X)
+        const json = (await res.json()) as {
+          report?: {
+            id: string;
+            overall_rating: number;
+            comment: string | null;
+            mvp_user_id: string | null;
+            ratings: Array<{
+              rated_user_id: string;
+              rating: number;
+              flags: string[];
+              is_noshow: boolean;
+            }>;
+          };
+          can_edit?: boolean;
+        };
+        const rep = json.report;
+        const ce = json.can_edit ?? false;
+        if (cancelled) return;
+
+        if (rep) {
+          setReportId(rep.id);
+          setOverall(rep.overall_rating);
+          setComment(rep.comment ?? "");
+          // mvp_user_id는 서버상 string(UUID), placeholder는 number — 매칭은 String(p.id) 비교로 처리.
+          // 현재 placeholder 더미라 mvp는 prefill 안 되는 케이스가 일반적.
+          // p.id 기반으로 number 추론 시도 (UUID라면 NaN → null 유지).
+          if (rep.mvp_user_id !== null && rep.mvp_user_id !== undefined) {
+            const n = Number(rep.mvp_user_id);
+            setMvp(Number.isFinite(n) ? n : null);
+          }
+          // ratings 배열 → state map 변환
+          const ratingMap: Record<number, number> = {};
+          const flagMap: Record<number, string[]> = {};
+          const noshowList: number[] = [];
+          for (const r of rep.ratings) {
+            const idNum = Number(r.rated_user_id);
+            if (!Number.isFinite(idNum)) continue; // UUID는 placeholder와 매핑 불가 — skip
+            ratingMap[idNum] = r.rating;
+            flagMap[idNum] = r.flags;
+            if (r.is_noshow) noshowList.push(idNum);
+          }
+          setRatings(ratingMap);
+          setReports(flagMap);
+          setNoshows(noshowList);
+          setCanEdit(ce);
+        } else {
+          loadDraftFromLocalStorage();
+        }
+        setGate({ kind: "ok" });
+      } catch {
+        // 네트워크 오류 등 — 폼은 열어두되 LocalStorage prefill만 시도
+        if (!cancelled) {
+          loadDraftFromLocalStorage();
+          setGate({ kind: "ok" });
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, draftKey, router]);
+
   // 선수별 평점 setter (StarRating onChange 와 호환)
   const setRating = (id: number, v: number) => {
     setRatings((prev) => ({ ...prev, [id]: v }));
@@ -90,18 +263,128 @@ export default function GameReportPage(): ReactElement {
     setNoshows((prev) => (prev.includes(id) ? prev.filter((n) => n !== id) : [...prev, id]));
   };
 
-  // 제출 핸들러 — DB 미지원이라 alert + state 전환만
-  const handleSubmit = () => {
-    alert(
-      "준비 중 — game_reports + game_player_ratings API 연결 후 활성화됩니다.\n\n현재는 박제 화면이라 실제 저장되지 않습니다."
-    );
-    setSubmitted(true);
+  // 제출 핸들러 — POST(신규) / PATCH(기존+수정가능) 분기
+  // 이유: 동일 endpoint에 method만 분기. 24h 경과 시 PATCH도 서버에서 차단되지만, UX 위해 클라이언트 선차단.
+  const handleSubmit = async () => {
+    if (!gameId) return;
+
+    // 기존 리포트 + 수정 불가 → 차단
+    if (reportId && !canEdit) {
+      alert("24시간이 경과되어 수정할 수 없습니다.");
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+
+    try {
+      // 페이로드 빌드 — 평점 0(미평가)은 제외. 주의: PLACEHOLDER_PLAYERS의 id가 number라
+      // 서버는 UUID(string) 기대 → 현재는 String(p.id) 변환만. 실 참가자 fetch 도입 시 교체 필요.
+      const ratingsBody = PLACEHOLDER_PLAYERS.filter(
+        (p) =>
+          (ratings[p.id] ?? 0) > 0 ||
+          (reports[p.id] ?? []).length > 0 ||
+          noshows.includes(p.id)
+      ).map((p) => ({
+        rated_user_id: String(p.id),
+        rating: ratings[p.id] ?? 3,
+        flags: reports[p.id] ?? [],
+        is_noshow: noshows.includes(p.id),
+      }));
+
+      const body = {
+        overall_rating: overall,
+        comment: comment.trim() ? comment.trim() : null,
+        mvp_user_id: mvp !== null ? String(mvp) : null,
+        ratings: ratingsBody,
+      };
+
+      const method = reportId ? "PATCH" : "POST";
+      const res = await fetch(`/api/web/games/${gameId}/report`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        let msg = "제출에 실패했습니다.";
+        try {
+          const err = (await res.json()) as { error?: { message?: string } };
+          if (err?.error?.message) msg = err.error.message;
+        } catch {
+          // ignore parse error
+        }
+        alert(msg);
+        return;
+      }
+
+      // 성공 시 LocalStorage 임시저장 정리
+      if (typeof window !== "undefined" && draftKey) {
+        try {
+          window.localStorage.removeItem(draftKey);
+        } catch {
+          // ignore
+        }
+      }
+      setSubmitted(true);
+    } catch {
+      alert("네트워크 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  // 임시 저장 핸들러 — 동일하게 alert만
+  // 임시 저장 — LocalStorage (Q4 결정). 서버 호출 없음.
   const handleDraft = () => {
-    alert("준비 중 — 임시 저장 기능은 추후 구현 예정입니다.");
+    if (typeof window === "undefined" || !draftKey) {
+      alert("임시 저장을 사용할 수 없습니다.");
+      return;
+    }
+    try {
+      const draft = { overall, comment, mvp, ratings, reports, noshows };
+      window.localStorage.setItem(draftKey, JSON.stringify(draft));
+      alert("임시 저장되었습니다.");
+    } catch {
+      alert("임시 저장에 실패했습니다 (저장 공간 부족 등).");
+    }
   };
+
+  // === gate 분기: loading / blocked === (B-7 권한 가드)
+  // 이유: 401/403/400 케이스에 폼 자체를 보여주면 혼란. 명확한 차단 화면으로 분리.
+  if (gate.kind === "loading") {
+    return (
+      <div className="page" style={{ maxWidth: 560 }}>
+        <div className="card" style={{ padding: "40px 36px", textAlign: "center" }}>
+          <p style={{ margin: 0, color: "var(--ink-mute)", fontSize: 13 }}>리포트 정보를 불러오는 중…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (gate.kind === "blocked") {
+    return (
+      <div className="page" style={{ maxWidth: 560 }}>
+        <div className="card" style={{ padding: "40px 36px", textAlign: "center" }}>
+          <h1 style={{ margin: "0 0 8px", fontSize: 22, fontWeight: 800 }}>{gate.title}</h1>
+          <p style={{ margin: "0 0 22px", fontSize: 13, color: "var(--ink-mute)", lineHeight: 1.6 }}>
+            {gate.message}
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <button className="btn btn--lg" onClick={() => router.push("/games/my-games")}>
+              내 경기로
+            </button>
+            {gate.backHref ? (
+              <button
+                className="btn btn--primary btn--lg"
+                onClick={() => router.push(gate.backHref ?? "/games/my-games")}
+              >
+                경기 상세
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // === submitted=true 분기 (시안 라인 28~54 박제) ===
   if (submitted) {
@@ -467,18 +750,29 @@ export default function GameReportPage(): ReactElement {
             >
               나중에 하기
             </button>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" className="btn" onClick={handleDraft}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {/* 24h 경과 시 안내 텍스트 — 폼 위에 별도 카드로도 보여주고 싶지만, 일단 버튼 옆 미니 라벨로 */}
+              {reportId && !canEdit ? (
+                <span style={{ fontSize: 11, color: "var(--ink-dim)", marginRight: 4 }}>
+                  24시간 경과 — 수정 불가
+                </span>
+              ) : null}
+              <button
+                type="button"
+                className="btn"
+                onClick={handleDraft}
+                disabled={submitting}
+              >
                 임시 저장
               </button>
-              {/* overall=0(평가 없음)이면 제출 disabled — 시안 라인 170 박제 */}
+              {/* overall=0(평가 없음) 또는 제출 중 또는 24h 경과 시 비활성 */}
               <button
                 type="button"
                 className="btn btn--primary btn--lg"
                 onClick={handleSubmit}
-                disabled={overall === 0}
+                disabled={overall === 0 || submitting || (!!reportId && !canEdit)}
               >
-                리포트 제출
+                {submitting ? "제출 중…" : reportId ? "리포트 수정" : "리포트 제출"}
               </button>
             </div>
           </div>
