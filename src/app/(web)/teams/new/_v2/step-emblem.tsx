@@ -34,7 +34,12 @@ export function StepEmblem({
         지금은 태그+컬러로 시작하고, 등록 후 이미지 엠블럼으로 바꿀 수 있어요.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 28, alignItems: "flex-start" }}>
+      {/* 모바일 픽스(2026-04-29):
+          기존 인라인 "200px 1fr" 2열 grid 는 366px viewport 에서 우측 컨트롤을
+          압축해 컬러 picker 5열을 강제로 1열로 짜부라뜨리고
+          엠블럼 라벨/업로드 텍스트가 글자 단위 세로 줄바꿈됨.
+          → 모바일 1열 stack (미리보기 위, 컨트롤 아래), sm(≥640px) 부터 200px+1fr 2열 유지 */}
+      <div className="grid grid-cols-1 gap-5 items-start sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-7">
         {/* 미리보기 — 큰 정사각형 카드 */}
         <div style={{ textAlign: "center" }}>
           <div
@@ -61,8 +66,10 @@ export function StepEmblem({
           </div>
         </div>
 
-        {/* 우측: 팔레트 + 엠블럼 업로더 */}
-        <div>
+        {/* 우측: 팔레트 + 엠블럼 업로더
+            min-w-0: grid item 의 기본 min-width:auto 때문에 내부 textarea/input
+            이 부모 폭을 밀어내는 것을 방지 (모바일에서 핵심) */}
+        <div className="min-w-0">
           {/* 팀 컬러 팔레트 */}
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 8 }}>
             팀 컬러 *
@@ -90,8 +97,19 @@ export function StepEmblem({
             })}
           </div>
 
-          {/* 엠블럼 업로더 — UI 만, 실제 업로드 없음 */}
-          <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 6 }}>
+          {/* 엠블럼 업로더 — UI 만, 실제 업로드 없음
+              모바일 keep-all: 한국어 라벨/업로드 안내가 어절 단위로 줄바꿈되도록
+              (영문 단어는 그대로, 한국어만 어절 보존) */}
+          <label
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--ink-dim)",
+              display: "block",
+              marginBottom: 6,
+              wordBreak: "keep-all",
+            }}
+          >
             엠블럼 이미지 <span style={{ fontWeight: 400, color: "var(--ink-mute)" }}>(준비 중 · BDR+ 멤버 전용)</span>
           </label>
           <div
@@ -101,6 +119,7 @@ export function StepEmblem({
               borderRadius: 8,
               textAlign: "center",
               opacity: 0.7,
+              wordBreak: "keep-all",
             }}
           >
             <div style={{ fontSize: 28, opacity: 0.3, marginBottom: 6 }}>📁</div>
@@ -112,7 +131,14 @@ export function StepEmblem({
           {/* 보조 색상 — 기존 기능 보존 (시안 외 항목) */}
           <div style={{ marginTop: 20 }}>
             <label
-              style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 6 }}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "var(--ink-dim)",
+                display: "block",
+                marginBottom: 6,
+                wordBreak: "keep-all",
+              }}
             >
               보조 색상 <span style={{ fontWeight: 400, color: "var(--ink-mute)" }}>(유니폼 서브 컬러)</span>
             </label>

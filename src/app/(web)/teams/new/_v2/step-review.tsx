@@ -55,17 +55,21 @@ export function StepReview({
         입력한 정보를 한 번 더 확인해주세요.
       </p>
 
-      {/* 검토 표 */}
+      {/* 검토 표
+          모바일 픽스(2026-04-29): 인라인 "140px 1fr" 2열 grid 는 366px viewport 에서
+          좌측 라벨 폭(140px) 이 본문 폭의 절반 가까이 잡아먹어 우측 값 영역이 좁아지고
+          긴 한국어 값이 글자 단위로 줄바꿈됨.
+          → Tailwind 반응형: 모바일은 1열 stack (라벨 위, 값 아래),
+             sm(≥640px) 부터 시안값(140px+1fr) 유지. gap-y 도 모바일은 작게(8px). */}
       <div
+        className="grid grid-cols-1 gap-x-3.5 gap-y-2 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-y-3.5"
         style={{
-          display: "grid",
-          gridTemplateColumns: "140px 1fr",
-          gap: 14,
           fontSize: 13,
           marginBottom: 20,
           padding: "16px 18px",
           background: "var(--bg-alt)",
           borderRadius: 6,
+          wordBreak: "keep-all",
         }}
       >
         <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 이름</div>

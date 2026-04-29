@@ -87,7 +87,9 @@ export function StepActivity({
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 6 }}>
             활동 요일 <span style={{ fontWeight: 400, color: "var(--ink-mute)" }}>(복수 선택)</span>
           </label>
-          <div style={{ display: "flex", gap: 6 }}>
+          {/* 모바일 픽스(2026-04-29): 요일 버튼 7개를 flex 한 줄로 강제하면
+              366px viewport 에서 가로 스크롤 또는 압축. flexWrap 으로 자연 줄바꿈 허용. */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {TEAM_DAYS.map((d) => {
               const selected = days.includes(d);
               return (
