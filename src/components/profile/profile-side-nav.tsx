@@ -216,24 +216,21 @@ export function ProfileSideNav() {
       </aside>
 
       {/* ============================================================
-       * 모바일 상단 chip 네비 (lg 미만)
+       * 모바일 상단 탭 네비 (lg 미만) — v2 탭 패턴
        * - sticky top-14: (web) 헤더 높이(h-14 = 56px) 바로 아래에 붙음
-       * - 가로 스크롤로 6개 항목 모두 접근 가능
-       * - chip 디자인: rounded 4px (BDR 컨벤션) + 활성 시 primary 배경
+       * - 가로 스크롤로 9개 항목 모두 접근 가능
+       * - 왜 chip 안티패턴(rounded 배경 + uppercase 굵은체 + 아이콘) 폐기:
+       *   1) chip은 시각 노이즈가 크고 모바일에서 정보밀도를 떨어뜨림
+       *   2) 활성 chip 배경 칠은 BDR Red 누적되며 헤더와 충돌
+       *   3) /teams/[id] TeamTabsV2 패턴과 일관성 확보
+       * - v2 패턴: 텍스트 only + 하단 2px BDR Red 강조선 + font-medium/semibold
        * ============================================================ */}
-      <div
+      <nav
         className="sticky top-14 z-30 -mx-5 mb-4 border-b border-[var(--color-border)] bg-[var(--color-background)] lg:hidden"
-        style={{
-          // 헤더와 동일한 backdrop-blur 톤으로 자연스러운 연결
-          backgroundColor:
-            "color-mix(in srgb, var(--color-background) 90%, transparent)",
-        }}
+        aria-label="프로필 메뉴"
       >
-        <nav
-          className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-none"
-          aria-label="프로필 메뉴"
-        >
-          {/* 모바일은 그룹 라벨을 숨기고 평면 chip 리스트 — chip 가로 스크롤 흐름이 끊기지 않도록 */}
+        <div className="flex gap-1 overflow-x-auto px-5 scrollbar-none">
+          {/* 모바일은 그룹 라벨을 숨기고 평면 리스트 — 가로 스크롤 흐름 유지 */}
           {NAV_ITEMS_FLAT.map((item) => {
             const active = isActive(item.matchPaths, item.exactOnly);
             return (
@@ -241,27 +238,23 @@ export function ProfileSideNav() {
                 key={item.href}
                 href={item.href}
                 prefetch={true}
-                className={`flex shrink-0 items-center gap-1.5 rounded px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${
+                /* v2 탭 패턴 핵심:
+                 * - px-3 py-3: 좌우 12px + 상하 12px → 텍스트 높이 포함 약 44px (터치 타겟 확보)
+                 * - text-sm: chip 의 text-xs 보다 가독성 향상
+                 * - border-b-2: 활성 표시 (배경 칠 대신 하단 강조선)
+                 * - font-medium/semibold: uppercase font-bold 폐기, 자연스러운 무게 */
+                className={`flex shrink-0 items-center px-3 py-3 text-sm border-b-2 transition-colors ${
                   active
-                    // conventions.md: primary 배경 위 텍스트는 --color-on-primary 사용 (text-white 금지)
-                    ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]"
-                    : "bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-bright)] hover:text-[var(--color-text-primary)]"
+                    ? "border-[var(--color-primary)] text-[var(--color-text-primary)] font-semibold"
+                    : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] font-medium"
                 }`}
               >
-                <span
-                  className="material-symbols-outlined text-base"
-                  style={
-                    active ? { fontVariationSettings: "'FILL' 1" } : undefined
-                  }
-                >
-                  {item.icon}
-                </span>
                 {item.label}
               </Link>
             );
           })}
-        </nav>
-      </div>
+        </div>
+      </nav>
     </>
   );
 }
