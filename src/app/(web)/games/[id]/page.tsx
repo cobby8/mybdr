@@ -23,6 +23,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getGame, listGameApplications } from "@/lib/services/game";
 import { getUserGameProfile } from "@/lib/services/user";
+// Phase 10-1 B-8: 종료 경기에서 final MVP 사용자 정보와 game_reports 제출 수를
+// 조회하기 위해 page 레벨에서 직접 prisma를 사용. getGame()을 수정하면 include 키가
+// 다른 모든 호출처(메타데이터/리스트 등)에도 노출돼 영향 범위가 커지므로,
+// 이 페이지 안에서 status===3일 때만 추가 쿼리 2개를 돌리는 방식으로 격리한다.
+import { prisma } from "@/lib/db/prisma";
 import { ProfileIncompleteBanner } from "./profile-banner";
 import { getWebSession } from "@/lib/auth/web-session";
 import { getMissingFields } from "@/lib/profile/completion";
@@ -151,6 +156,50 @@ export default async function GameDetailPage({
     game.description || game.requirements || game.notes
   );
 
+  /* ----------------------------------------------------------------
+   * Phase 10-1 B-8 — 종료된 경기에서 MVP 배지 + 평가 진행 상태 노출
+   *
+   * 왜 status===3일 때만 조회하는가:
+   *   완료되지 않은 경기에서는 final_mvp_user_id 가 없고 game_reports 도
+   *   유의미하게 쌓이지 않아 매번 추가 쿼리를 돌리면 비용 낭비. 종료된
+   *   경기에서만 조건부로 두 개의 가벼운 쿼리(findUnique + count)를 돌린다.
+   *
+   * 왜 page에서 직접 prisma를 호출하는가:
+   *   getGame()은 메타데이터/리스트 등 다른 호출처에서 공유되어 include 추가
+   *   비용이 크다. 이 한 페이지의 추가 노출만을 위해 공용 fetcher를 변경하지
+   *   않고 격리.
+   * -------------------------------------------------------------- */
+  let finalMvp: {
+    id: bigint;
+    nickname: string | null;
+    name: string | null;
+  } | null = null;
+  let reportCount = 0;
+  // 호스트 + 승인된 신청자 수 (status===1 만 카운트). 평가 모집단의 정의.
+  const participantCount = approvedParticipants.length + 1; // 호스트 포함
+
+  if (game.status === 3) {
+    // MVP 사용자 정보 — final_mvp_user_id 가 세팅된 경우에만 조회
+    const mvpId = game.final_mvp_user_id;
+    const [mvpUser, submittedCount] = await Promise.all([
+      mvpId
+        ? prisma.user
+            .findUnique({
+              where: { id: mvpId },
+              select: { id: true, nickname: true, name: true },
+            })
+            .catch(() => null)
+        : Promise.resolve(null),
+      prisma.game_reports
+        .count({
+          where: { game_id: game.id, status: "submitted" },
+        })
+        .catch(() => 0),
+    ]);
+    finalMvp = mvpUser;
+    reportCount = submittedCount;
+  }
+
   // 카페 댓글 (기존 유지)
   const meta = game.metadata as Record<string, unknown> | null;
   const cafeComments = (Array.isArray(meta?.cafe_comments)
@@ -201,6 +250,97 @@ export default async function GameDetailPage({
         >
           {/* 좌측 메인 스택 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Phase 10-1 B-8 — 종료된 경기 hero 띠: MVP 배지 + 평가 진행 상태.
+             * SummaryCard 위에 한 줄짜리 카드로 띄워 종료된 경기의 결과 요약을
+             * 가장 먼저 인지할 수 있도록 한다. status===3 (완료) 일 때만 노출. */}
+            {game.status === 3 && (
+              <section
+                className="card"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "12px 16px",
+                }}
+              >
+                {/* MVP 배지 — final_mvp_user_id 가 확정된 경우에만 강조 색으로 노출.
+                 * 미확정인 경우엔 "아직 확정 전" 보조 라벨을 보여 운영 흐름을 암시. */}
+                {finalMvp ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 12px",
+                      borderRadius: 4,
+                      background: "var(--accent)",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 18 }}
+                      aria-hidden
+                    >
+                      military_tech
+                    </span>
+                    MVP · {finalMvp.nickname || finalMvp.name || "익명"}
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 12px",
+                      borderRadius: 4,
+                      background: "var(--surface-2)",
+                      color: "var(--ink-mute)",
+                      fontWeight: 600,
+                      fontSize: 13,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 18 }}
+                      aria-hidden
+                    >
+                      military_tech
+                    </span>
+                    MVP 확정 전
+                  </span>
+                )}
+
+                {/* 평가 진행 상태 — 제출된 game_reports 수 / 모집단 수.
+                 * 모집단은 호스트 + 승인된 참가자(status===1) 수로 정의. */}
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 13,
+                    color: "var(--ink-mute)",
+                    fontFamily: "var(--ff-mono)",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined"
+                    style={{ fontSize: 16, color: "var(--ink-dim)" }}
+                    aria-hidden
+                  >
+                    rate_review
+                  </span>
+                  {reportCount}/{participantCount}명 평가 완료
+                </span>
+              </section>
+            )}
+
             {/* 1. SummaryCard — 타이틀/배지/info grid/진행바 */}
             <SummaryCard game={game} />
 
