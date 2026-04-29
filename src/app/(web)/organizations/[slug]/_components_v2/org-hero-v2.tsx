@@ -47,7 +47,9 @@ export function OrgHeroV2({
 
   return (
     <div
-      className="relative mb-5 overflow-hidden rounded-lg px-8 py-9 text-white"
+      // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
+      // 부모 wrapper(max-w-5xl)가 더 좁으면 그 폭이 우선되어 무해. wrapper 누락 시 안전망.
+      className="relative mx-auto mb-5 max-w-[1200px] overflow-hidden rounded-lg px-8 py-9 text-white"
       style={{
         // 시안 그대로: 단체 색상 → 60% 지점에서 어두운 배경으로 페이드
         background: `linear-gradient(135deg, ${color}, ${color}AA 60%, #0B0D10)`,

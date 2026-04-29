@@ -123,6 +123,12 @@ export function V2TournamentHero({
         gridTemplateColumns: hasPoster ? "200px 1fr" : "1fr",
         gap: 28,
         alignItems: "center",
+        // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
+        // 부모 wrapper가 누락된 경우에도 hero가 viewport 끝까지 늘어나지 않도록 안전망.
+        // 부모가 더 좁으면(예: max-w-7xl 1280) 그 폭이 우선 — 무해.
+        maxWidth: 1200,
+        marginLeft: "auto",
+        marginRight: "auto",
       }}
     >
       {/* 좌측 포스터 (hasPoster일 때만 렌더) */}
@@ -187,10 +193,27 @@ export function V2TournamentHero({
             marginBottom: 18,
           }}
         >
-          {dateStr && <span>📅 {dateStr}</span>}
-          {venueStr && <span>📍 {venueStr}</span>}
-          <span>💰 참가비 {feeStr}</span>
-          <span>👥 {teamsStr}</span>
+          {/* 이모지 → Material Symbols (디자인 시스템 일관성) */}
+          {dateStr && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>event</span>
+              {dateStr}
+            </span>
+          )}
+          {venueStr && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>place</span>
+              {venueStr}
+            </span>
+          )}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>payments</span>
+            참가비 {feeStr}
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>groups</span>
+            {teamsStr}
+          </span>
         </div>
 
         {/* 신청 완료 배지 — 로그인 유저 활성 신청 1건 이상일 때 */}

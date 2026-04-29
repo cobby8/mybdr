@@ -74,6 +74,11 @@ export function TeamHeroV2({
         borderRadius: "var(--radius-card)",
         padding: "36px 32px",
         marginBottom: 20,
+        // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
+        // 부모 .page wrapper가 1200px이므로 동일 폭 안전망. wrapper 누락 시에도 hero만 풀폭으로 튀지 않게.
+        maxWidth: 1200,
+        marginLeft: "auto",
+        marginRight: "auto",
       }}
     >
       {/* 우상단 거대 tag 워터마크 — 시안의 시그니처 장식.

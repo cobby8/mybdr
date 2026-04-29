@@ -464,6 +464,13 @@ export default async function TournamentDetailPage({
 
   return (
     <div>
+      {/*
+        풀폭 hero 깨짐 fix (P0 layout, 2026-04-27):
+        breadcrumb / hero / series-card 는 기존 .page wrapper 외부에 있어
+        viewport 풀폭으로 늘어났다. 본문(탭)이 max-w-7xl 가운데 정렬이므로
+        상단 영역도 동일 폭으로 감싸 일관성 확보. 패딩은 본문(L540)과 동일.
+      */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       {/* 브레드크럼: PC에서만 표시, 모바일은 뒤로가기 버튼이 대신
        * L3: 소속 시리즈/단체가 있으면 4단(홈 → 단체 → 시리즈 → 대회), 없으면 기존 2단(대회 → 대회명) */}
       <Breadcrumb
@@ -529,6 +536,8 @@ export default async function TournamentDetailPage({
           nextTournamentId={seriesCardProps.nextTournamentId}
         />
       )}
+      </div>
+      {/* ↑ 풀폭 fix wrapper 끝: 여기까지 max-w-7xl. 아래 본문 grid는 기존 그대로 자체 max-w-7xl. */}
 
       {/*
         데스크톱(lg+) 2열 레이아웃:
