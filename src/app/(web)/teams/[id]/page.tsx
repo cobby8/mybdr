@@ -147,6 +147,11 @@ export default async function TeamDetailPage({
   const isLoggedIn = !!session?.sub;
   let isMember = false;
   let hasPendingRequest = false;
+  // Phase 10-4 — 팔로우 / 매치 신청 활성화에 필요한 SSR 사전 계산
+  // isFollowing: 본 페이지 진입 시 팔로우 상태(첫 렌더 깜빡임 제거)
+  // myManagedTeams: 본인이 운영진(captain/vice/manager)인 *다른* 팀들 — 매치 신청 모달의 from_team 후보
+  let isFollowing = false;
+  let myManagedTeams: { id: string; name: string }[] = [];
   if (session?.sub) {
     try {
       const userId = BigInt(session.sub);
@@ -168,6 +173,29 @@ export default async function TeamDetailPage({
         });
         hasPendingRequest = !!pending;
       }
+
+      // Phase 10-4: 팔로우 상태 — 단일 행 조회 (uniq index 활용)
+      const followRow = await prisma.team_follows.findUnique({
+        where: { team_id_user_id: { team_id: BigInt(id), user_id: userId } },
+        select: { id: true },
+      });
+      isFollowing = !!followRow;
+
+      // Phase 10-4: 본인이 운영진인 다른 팀 목록 — 매치 신청 from_team 후보.
+      // 현재 보고 있는 팀(BigInt(id)) 은 제외 (자기 팀에 자기 신청 금지 — API에서도 차단).
+      const myMemberships = await prisma.teamMember.findMany({
+        where: {
+          userId,
+          status: "active",
+          role: { in: ["captain", "vice", "manager"] },
+          teamId: { not: BigInt(id) },
+        },
+        include: { team: { select: { id: true, name: true } } },
+        orderBy: [{ role: "asc" }],
+      });
+      myManagedTeams = myMemberships
+        .filter((m) => m.team) // FK NULL 안전망
+        .map((m) => ({ id: m.team.id.toString(), name: m.team.name }));
     } catch {
       canManage = false;
     }
@@ -214,6 +242,10 @@ export default async function TeamDetailPage({
         winRate={winRate}
         teamId={id}
         canManage={canManage}
+        // Phase 10-4 — 팔로우/매치 신청 활성화 props
+        isLoggedIn={isLoggedIn}
+        isFollowing={isFollowing}
+        myManagedTeams={myManagedTeams}
       />
 
       {/* 2) Tabs — sticky 네비 */}
@@ -266,6 +298,9 @@ export default async function TeamDetailPage({
               recentForm={recentForm}
               captainName={captainName}
               teamId={id}
+              // Phase 10-4 — 매치 신청 모달용
+              teamName={teamDisplayPrimary}
+              myManagedTeams={myManagedTeams}
               isLoggedIn={isLoggedIn}
               isMember={isMember}
               hasPendingRequest={hasPendingRequest}

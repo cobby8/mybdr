@@ -12,6 +12,8 @@ export const NOTIFICATION_TYPES = {
   TEAM_JOIN_REQUEST_RECEIVED: "team.join_request.received",   // 팀장: 가입신청 접수
   TEAM_JOIN_REQUEST_APPROVED: "team.join_request.approved",   // 신청자: 가입 승인
   TEAM_JOIN_REQUEST_REJECTED: "team.join_request.rejected",   // 신청자: 가입 거부
+  // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
+  TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
 
   // 대회 관련
   TOURNAMENT_JOIN_SUBMITTED: "tournament.join.submitted",     // 신청자: 대회 참가 신청 완료

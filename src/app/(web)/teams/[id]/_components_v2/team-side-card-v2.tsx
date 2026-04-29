@@ -1,4 +1,5 @@
 import { TeamJoinButtonV2 } from "./team-join-button-v2";
+import { TeamMatchRequestModalV2 } from "./team-match-request-modal";
 
 /**
  * TeamSideCardV2
@@ -16,22 +17,28 @@ import { TeamJoinButtonV2 } from "./team-join-button-v2";
  * - 메인 CTA "팀 가입 신청" — 시안의 "게스트 지원" 자리에 실제 동작하는
  *   가입 신청 복원 (1d53893 v2 재구성에서 누락된 기능 복원).
  *   멤버에게는 미렌더(아래 isMember 가드).
- * - 보조 버튼 "팀 매치 신청" (btn 전폭) — DB 미구현 → disabled + title="준비 중"
+ * - 보조 버튼 "팀 매치 신청" — Phase 10-4에서 활성화 (Hero 와 동일한 모달 재사용).
  * - 연락 카드: 팀장 닉네임 + 응답시간("준비 중")
  *   + "쪽지 보내기" 버튼 (btn--sm 전폭, disabled).
  *
  * DB 매핑 / 미지원:
  * - 최근 폼 → computeRecentForm (recent-tab-v2.tsx에서 import)
  * - 팀 가입 신청 → POST /api/web/teams/:id/join (구현됨)
- * - 팀 매치 신청 / 쪽지 → 준비 중
+ * - 팀 매치 신청 → POST /api/web/teams/:id/match-request (Phase 10-4 신설)
+ * - 쪽지 → 준비 중 (Phase 10 백로그)
  * - 응답시간 → "준비 중" 텍스트로 대체
  */
+
+type ManagedTeam = { id: string; name: string };
 
 type Props = {
   recentForm: ("W" | "L" | "-")[]; // 최대 5개
   captainName: string | null;
   // 가입 신청 UI 제어 (서버 컴포넌트에서 미리 계산해 전달)
   teamId: string;
+  // Phase 10-4 매치 신청 모달용 — to_team 이름 + 운영팀 후보
+  teamName: string;
+  myManagedTeams: ManagedTeam[];
   isLoggedIn: boolean;
   isMember: boolean; // 멤버면 "가입 신청" 자체를 숨긴다
   hasPendingRequest: boolean; // pending 신청 있으면 disabled "신청 완료"
@@ -41,6 +48,8 @@ export function TeamSideCardV2({
   recentForm,
   captainName,
   teamId,
+  teamName,
+  myManagedTeams,
   isLoggedIn,
   isMember,
   hasPendingRequest,
@@ -112,21 +121,16 @@ export function TeamSideCardV2({
             hasPendingRequest={hasPendingRequest}
           />
         )}
-        {/*
-          DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
-          team_match_requests 테이블 추가 후 활성. PM 정책에 따라 UI 숨김.
-
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title="준비 중인 기능입니다"
-            className="btn"
-            style={{ width: "100%", opacity: 0.6, cursor: "not-allowed" }}
-          >
-            팀 매치 신청
-          </button>
-        */}
+        {/* Phase 10-4 활성 — Hero 와 동일한 모달 재사용. width 100%로 사이드카드에 맞춤.
+            모달 자체는 fixed 백드롭이라 트리거 위치만 다르고 같은 컴포넌트. */}
+        <div style={{ marginTop: 8, width: "100%" }}>
+          <TeamMatchRequestModalV2
+            toTeamId={teamId}
+            toTeamName={teamName}
+            myManagedTeams={myManagedTeams}
+            isLoggedIn={isLoggedIn}
+          />
+        </div>
       </div>
 
       {/* ── 카드 2: 연락 ── */}

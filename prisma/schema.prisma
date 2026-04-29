@@ -175,6 +175,23 @@ model User {
   game_player_ratings_received game_player_ratings[] @relation("game_player_ratings_rated")
   games_as_final_mvp           games[]               @relation("games_final_mvp")
 
+  // Phase 10-5 — 온보딩 데이터 저장 (UI-only 박제 → 활성화)
+  // styles: 플레이 스타일 12종 中 최대 4개 (3점 슈터 / 돌파형 / 포스트업 등)
+  // active_areas: 주 활동 지역 18종 (강남 / 서초 / 송파 등)
+  // goals: 가입 목표 6종 (friends / fit / skill / compete / team / fun)
+  // play_frequency: 농구 빈도 4종 단일 (daily / weekly / monthly / rare)
+  // onboarding_completed_at: 완료 시각 — null 이면 setup 위저드 재진입 가능
+  styles                  String[]  @default([])
+  active_areas            String[]  @default([])
+  goals                   String[]  @default([])
+  play_frequency          String?   @db.VarChar
+  onboarding_completed_at DateTime? @db.Timestamp(6)
+
+  // Phase 10-4 — 팀 팔로우 + 매치 신청 시스템
+  // 내가 팔로우 중인 팀들 / 내가 제안자(보통 from_team captain)인 매치 신청
+  team_follows                 team_follows[]        @relation("team_follows_user")
+  team_match_requests_proposed team_match_requests[] @relation("team_match_requests_proposer")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -341,6 +358,14 @@ model Team {
   tournamentTeams                                                 TournamentTeam[]
   tournaments                                                     Tournament[]
 
+  // Phase 10-4 — 팀 팔로우 + 매치 신청 시스템
+  // team_follows: 이 팀을 팔로우 중인 회원 목록
+  // team_match_requests_received: 이 팀이 받은 매치 신청 (호스트 측)
+  // team_match_requests_sent: 이 팀이 보낸 매치 신청 (제안 측)
+  team_follows                  team_follows[]        @relation("team_follows_team")
+  team_match_requests_received  team_match_requests[] @relation("team_match_requests_to")
+  team_match_requests_sent      team_match_requests[] @relation("team_match_requests_from")
+
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
   @@index([manager_id], map: "index_teams_on_manager_id")
@@ -348,6 +373,53 @@ model Team {
   @@index([status], map: "index_teams_on_status")
   @@index([status, city], map: "index_teams_on_status_and_city")
   @@map("teams")
+}
+
+// Phase 10-4 — 팀 팔로우
+// 이유(왜): 팀 상세 페이지의 "팔로우" 버튼이 phase-9-future-features 5-2 백로그였는데
+// 이번 phase 10-4에서 팔로우 기능을 활성화하려면 (team_id, user_id) 1:1 관계가 필요.
+// 같은 (team_id, user_id) 조합은 1행만 허용 (@@unique). 언팔로우는 행 삭제로 처리.
+// 알림이 필요하지 않은 light action — 토글만 처리 (Phase 10-4 단순화 원칙).
+model team_follows {
+  id         BigInt   @id @default(autoincrement())
+  team_id    BigInt
+  user_id    BigInt
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  team Team @relation("team_follows_team", fields: [team_id], references: [id], onDelete: Cascade)
+  user User @relation("team_follows_user", fields: [user_id], references: [id], onDelete: Cascade)
+
+  // 동일 회원이 동일 팀을 두 번 팔로우 못 하게 차단 (UPSERT 단순화에도 사용)
+  @@unique([team_id, user_id], map: "index_team_follows_on_team_and_user")
+  @@index([user_id], map: "index_team_follows_on_user_id")
+  @@index([team_id], map: "index_team_follows_on_team_id")
+  @@map("team_follows")
+}
+
+// Phase 10-4 — 팀 매치 신청
+// 이유(왜): 시안의 "매치 신청" 버튼은 from_team(제안자 측 팀) → to_team(호스트 측 팀)에
+// 친선/연습경기 제안을 보내는 흐름. status는 pending/accepted/rejected/cancelled 4종이지만
+// 본 phase 10-4에서는 POST(생성)만 구현 (수락/거절은 후속 PATCH 작업).
+// to_team 의 captain 에게 알림 전송. 같은 (from→to) pending 중복 차단은 API 단에서 검사.
+model team_match_requests {
+  id             BigInt    @id @default(autoincrement())
+  from_team_id   BigInt
+  to_team_id     BigInt
+  proposer_id    BigInt
+  message        String?
+  preferred_date DateTime? @db.Timestamp(6)
+  status         String    @default("pending") @db.VarChar
+  created_at     DateTime  @default(now()) @db.Timestamp(6)
+  updated_at     DateTime  @updatedAt @db.Timestamp(6)
+
+  from_team Team @relation("team_match_requests_from", fields: [from_team_id], references: [id], onDelete: Cascade)
+  to_team   Team @relation("team_match_requests_to", fields: [to_team_id], references: [id], onDelete: Cascade)
+  proposer  User @relation("team_match_requests_proposer", fields: [proposer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // 호스트 팀의 인박스 정렬용 — to_team_id + status 복합 인덱스
+  @@index([to_team_id, status], map: "index_team_match_requests_on_to_team_status")
+  @@index([from_team_id], map: "index_team_match_requests_on_from_team_id")
+  @@map("team_match_requests")
 }
 
 model TeamMember {

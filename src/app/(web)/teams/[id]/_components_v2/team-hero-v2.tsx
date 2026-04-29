@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { TeamFollowButtonV2 } from "./team-follow-button";
+import { TeamMatchRequestModalV2 } from "./team-match-request-modal";
 
 /**
  * TeamHeroV2
@@ -17,15 +19,19 @@ import Link from "next/link";
  * - tag 워터마크: `position:absolute` + `font:var(--ff-display) 900 220px` + `opacity:.12`
  * - eyebrow: `TEAM · {tag} · 창단 {founded}`
  * - 스탯 4종: 레이팅(= wins 대체) / 승 / 패 / 승률
- * - CTA 2종: 팔로우 (disabled, 준비 중) / 매치 신청 (disabled, 준비 중)
+ * - CTA 2종: 팔로우 (Phase 10-4 활성) / 매치 신청 (Phase 10-4 활성)
  *   + 운영진(팀장/부팀장/매니저) 일 때만 "팀 관리" 링크 추가 노출
  *     (P1-A에서 captain only → captain+vice+manager로 권한 확대)
  *
+ * Phase 10-4 활성화:
+ * - 팔로우: TeamFollowButtonV2 (낙관적 토글, POST/DELETE /api/web/teams/:id/follow)
+ * - 매치 신청: TeamMatchRequestModalV2 (모달 폼, POST /api/web/teams/:id/match-request)
+ *
  * DB 미지원 항목:
  * - `rating`(별도 레이팅) → wins로 대체 표시 (기존 /teams 목록과 동일 규칙)
- * - 팔로우 기능 → UI만, disabled + title="준비 중"
- * - 매치 신청 → UI만, disabled + title="준비 중"
  */
+
+type ManagedTeam = { id: string; name: string };
 
 type Props = {
   accent: string;
@@ -42,6 +48,11 @@ type Props = {
   // P1-A: captain only → 운영진(captain/vice/manager) 으로 의미 확장.
   // 이름도 의미에 맞게 canManage 로 변경 (서버 컴포넌트에서 운영진 여부 판정).
   canManage: boolean;
+  // Phase 10-4 — 팔로우 / 매치 신청 활성화에 필요한 SSR 사전 계산 props
+  isLoggedIn: boolean;
+  isFollowing: boolean;
+  // 본인이 운영진(captain/vice/manager)인 다른 팀 목록 — 매치 신청 모달의 from_team 후보
+  myManagedTeams: ManagedTeam[];
 };
 
 export function TeamHeroV2({
@@ -57,6 +68,9 @@ export function TeamHeroV2({
   winRate,
   teamId,
   canManage,
+  isLoggedIn,
+  isFollowing,
+  myManagedTeams,
 }: Props) {
   // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, #0B0D10 140%.
   // 이유: 시안 TeamDetail.jsx은 끝점을 #0B0D10(거의 검정)으로 고정해
@@ -209,40 +223,20 @@ export function TeamHeroV2({
               <span className="ml-1.5">팀 관리</span>
             </Link>
           )}
-          {/*
-            DB 미구현 — Phase 10 백로그 (Dev/design/phase-9-future-features.md 5-2)
-            아래 두 버튼(팔로우 / 매치 신청)은 PM 정책에 따라 메뉴/UI에서 숨김.
-            - 팔로우: team_follows 테이블 추가 필요
-            - 매치 신청: team_match_requests 테이블 추가 필요
-            DB 구현 후 주석 해제 한 줄로 복귀.
-
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="준비 중인 기능입니다"
-              className="btn"
-              style={{
-                background: "rgba(255,255,255,0.16)",
-                color: ink,
-                borderColor: "rgba(255,255,255,0.35)",
-                opacity: 0.7,
-                cursor: "not-allowed",
-              }}
-            >
-              팔로우
-            </button>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              title="준비 중인 기능입니다"
-              className="btn btn--accent"
-              style={{ opacity: 0.7, cursor: "not-allowed" }}
-            >
-              매치 신청
-            </button>
-          */}
+          {/* Phase 10-4 활성화 — DB 신설(team_follows / team_match_requests)로 실제 동작.
+              팔로우: 즉시 토글, 매치 신청: 모달 폼 (from_team 선택 + 메시지 + 선호 일시) */}
+          <TeamFollowButtonV2
+            teamId={teamId}
+            initialFollowing={isFollowing}
+            isLoggedIn={isLoggedIn}
+            ink={ink}
+          />
+          <TeamMatchRequestModalV2
+            toTeamId={teamId}
+            toTeamName={teamName}
+            myManagedTeams={myManagedTeams}
+            isLoggedIn={isLoggedIn}
+          />
         </div>
       </div>
     </section>

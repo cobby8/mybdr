@@ -10,13 +10,13 @@
  *   다른 사용처(CourtAdd / RefereeRequest / GameReport / SeriesCreate)
  *   구축 시 패턴 추론이 어렵다.
  *
- * 데이터 정책:
- *   - 본 페이지는 **UI only**. DB 저장 없음.
- *   - styles / areas / frequency / goals / notifications 다섯 항목은
- *     모두 users 테이블에 컬럼 미존재 → 클라이언트 state 만 보유.
- *   - 완료 시 안내 문구 1줄 + "/profile" 이동 (별도 mutate 없음).
- *   - 추후 DB 컬럼 추가 시 server action / API 붙여 저장 활성화.
- *     (scratchpad "추후 구현 목록 — Phase 9 Onboarding" 참고)
+ * 데이터 정책 (Phase 10-5 활성화):
+ *   - styles / active_areas / goals / play_frequency 4개 컬럼 + 알림 토글을
+ *     onFinish 시 POST /api/web/onboarding/complete 로 저장한다.
+ *   - position / height 도 같은 호출에서 함께 갱신.
+ *   - level 은 users 테이블에 대응 컬럼이 없어 본 단계에선 저장하지 않음.
+ *   - onboarding_completed_at 은 서버에서 자동 기록 (재진입 차단은 후속 작업).
+ *   - 저장 실패해도 UX 차단하지 않고 "/profile" 이동은 가능 (인라인 에러 노출).
  *
  * 인증 정책:
  *   - 신규 가입 직후 진입을 가정하지만, 본 페이지는 비로그인도 체험 가능.
@@ -115,6 +115,9 @@ export default function OnboardingSetupPage(): ReactElement {
   // 위저드 진행 상태
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
+  // Phase 10-5: 완료 시 API 저장 상태 — 저장 중엔 다음 버튼 disabled, 실패 시 안내문 노출
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 단계별 입력 state — 시안 L4~L14 default 값 그대로
   const [pos, setPos] = useState<string>("G");
@@ -144,6 +147,48 @@ export default function OnboardingSetupPage(): ReactElement {
     }
     if (typeof max === "number" && arr.length >= max) return; // 한도 초과 무시
     setter([...arr, value]);
+  };
+
+  // ---------- Phase 10-5: 완료 핸들러 (DB 저장) ----------
+  // 이유: 모든 위저드 입력을 한 번의 POST 로 저장한다. 실패해도 done 화면은 띄우되
+  //       saveError 로 사용자에게 알려 "프로필 보기" 에서 재수정 유도.
+  const handleFinish = async () => {
+    if (saving) return; // 더블클릭 방지
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/web/onboarding/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // 웹세션 쿠키 동봉
+        body: JSON.stringify({
+          // 1~2단계
+          position: pos,
+          height,
+          level: level || null,
+          // 3~5단계
+          styles,
+          active_areas: areas,
+          goals,
+          play_frequency: frequency,
+          // 6단계 — 위저드 키 그대로 전송 (서버에서 호환 키도 병합)
+          notification_settings: notifications,
+        }),
+      });
+      if (!res.ok) {
+        // 비로그인(401)·검증 실패(400)·서버 오류(500) 모두 안내 문구만
+        setSaveError(
+          res.status === 401
+            ? "로그인이 필요합니다. 잠시 후 다시 시도해주세요."
+            : "저장에 실패했어요. 프로필에서 다시 설정할 수 있어요.",
+        );
+      }
+    } catch {
+      setSaveError("네트워크 오류가 발생했어요. 프로필에서 다시 설정해주세요.");
+    } finally {
+      setSaving(false);
+      setDone(true); // 실패해도 환영 화면 진입 (UX 차단 X)
+    }
   };
 
   // ---------- 완료 화면 ----------
@@ -178,10 +223,12 @@ export default function OnboardingSetupPage(): ReactElement {
             지금 바로 첫 경기를 찾아보세요.
           </p>
 
-          {/* DB 미지원 안내: 일부 항목은 추후 저장 (UI only) */}
-          <p style={{ margin: "0 0 20px", fontSize: 11, color: "var(--ink-dim)" }}>
-            ※ 일부 항목(스타일·지역·빈도·목표·알림)은 추후 저장 기능이 추가될 예정입니다.
-          </p>
+          {/* Phase 10-5: 저장 실패 시에만 인라인 안내 노출 */}
+          {saveError && (
+            <p style={{ margin: "0 0 20px", fontSize: 11, color: "var(--err)" }}>
+              {saveError}
+            </p>
+          )}
 
           {/* 통계 3칸 (시안 L34~L46) — 현재 더미값. 실 집계는 추후 구현 목록 */}
           <div
@@ -270,8 +317,8 @@ export default function OnboardingSetupPage(): ReactElement {
           steps={STEPS}
           currentStep={step}
           onStepChange={setStep}
-          onFinish={() => setDone(true)}
-          canGoNext={canGoNext}
+          onFinish={handleFinish}
+          canGoNext={canGoNext && !saving}
           finishLabel="완료 →"
           nextLabel="다음 →"
           prevLabel="← 이전"
