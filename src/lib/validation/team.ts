@@ -45,22 +45,27 @@ const nameSchema = z
   .min(2, "팀명은 2자 이상이어야 합니다")
   .max(30, "팀명은 30자 이하여야 합니다");
 
+// 2026-04-29: 홈/어웨이 유니폼 색상 신규 필드 검증 — primary/secondary 와 동일 규칙
+const colorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+  .optional();
+
 /**
  * 팀 생성 스키마 (POST /api/web/teams 또는 createTeamAction)
+ *
+ * 2026-04-29: home_color / away_color 신규 필드 추가 (홈/어웨이 유니폼 색상).
+ * 기존 primary_color / secondary_color 는 하위 호환 유지.
  */
 export const createTeamSchema = z.object({
   name: nameSchema,
   name_en: nameEnSchema,
   name_primary: namePrimarySchema,
   description: z.string().trim().max(1000).nullable().optional(),
-  primary_color: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
-    .optional(),
-  secondary_color: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
-    .optional(),
+  primary_color: colorSchema,
+  secondary_color: colorSchema,
+  home_color: colorSchema,
+  away_color: colorSchema,
 });
 
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;

@@ -47,7 +47,9 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
-| 2026-04-29 | (미커밋) | /teams/new 모바일 깨짐 픽스 — team-form.tsx 본문 grid `minmax(0,1fr) 320px` 고정 → Tailwind `grid-cols-1 lg:grid-cols-[...]` + 메인 카드 `min-w-0` (모바일 366px 폼이 26px로 짜부라지는 버그) | ✅ |
+| 2026-04-29 | (미커밋) | 팀 생성 폼: 단일 컬러→홈/어웨이 유니폼 2색 분리 + 로고 업로드 활성화. schema home_color/away_color 추가(logo_url 기존 재사용), dev DB push 완료, manual SQL 작성. step-emblem(2색 picker+로고 base64 미리보기), team-form/step-review/zod/server action 갱신. tsc 0건 | ✅ |
+| 2026-04-29 | (미커밋) | /teams/new Step 2~4 모바일 깨짐 일괄 픽스 — step-emblem(200px+1fr→1열 stack/sm:2열, 라벨 keep-all), step-review(140px+1fr→1열 stack/sm:2열), step-activity(요일 7개 flex-wrap), stepper(라벨 keep-all), team-form(헤더 keep-all). tsc 0건 | ✅ |
+| 2026-04-29 | (미커밋) | /teams/new 모바일 깨짐 픽스 (Step 1) — team-form.tsx 본문 grid `minmax(0,1fr) 320px` 고정 → Tailwind `grid-cols-1 lg:grid-cols-[...]` + 메인 카드 `min-w-0` (모바일 366px 폼이 26px로 짜부라지는 버그) | ✅ |
 | 2026-04-29 | (미커밋) | knowledge 5파일 갱신 — errors+2/lessons+3/decisions+4/architecture+1/index 갱신 (Phase 9-Mobile + Hero 카로셀 반영) | ✅ |
 | 2026-04-29 | (미커밋) | DESIGN.md 갱신 — 720px BP + 모바일 체크리스트 링크 + Hero 카로셀 + AppNav 단일 헤더 | ✅ |
 | 2026-04-29 | `0d12919` | 모바일 체크리스트 conventions.md (10항목) | ✅ |
@@ -56,4 +58,3 @@
 | 2026-04-29 | `61a170d` | 팀 목록/상세 모바일 + 레이팅 제거 | ✅ |
 | 2026-04-29 | `aa61003` | 헤더 구조 정리 + 더보기 4건 제거 | ✅ |
 | 2026-04-29 | `f972aaf` | 모바일 가로 overflow 글로벌 가드 | ✅ |
-| 2026-04-29 | `79cc57e` | Hero 카로셀 (3슬라이드 + fallback) | ✅ |
