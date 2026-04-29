@@ -59,6 +59,10 @@ interface TeamEditData {
   founded_year: number | null;
   primary_color: string | null;
   secondary_color: string | null;
+  // 2026-04-29: 생성 시 입력받지만 관리에 누락이었던 3 필드 추가
+  home_color: string | null;
+  away_color: string | null;
+  logo_url: string | null;
   is_public: boolean | null;
   accepting_members: boolean | null;
   max_members: number | null;
@@ -165,6 +169,15 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   const [foundedYear, setFoundedYear] = useState<number | "">("");
   const [primaryColor, setPrimaryColor] = useState("#FFFFFF");
   const [secondaryColor, setSecondaryColor] = useState("#000000");
+  // 2026-04-29: 신규 — 홈/어웨이 유니폼 색상 + 팀 로고 URL.
+  // 기본값은 BDR 브랜드 컬러 (생성 폼 step-emblem 과 동일) 로 맞춰
+  // 미설정 팀에서도 화면이 깨지지 않게 한다.
+  const [homeColor, setHomeColor] = useState("#E31B23");
+  const [awayColor, setAwayColor] = useState("#1B3C87");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  // 로고 업로드 진행 중 상태 — 중복 클릭 차단 + 시각 피드백
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(true);
   const [acceptingMembers, setAcceptingMembers] = useState(true);
   const [maxMembers, setMaxMembers] = useState(15);
@@ -219,6 +232,11 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       setFoundedYear(data.founded_year ?? "");
       setPrimaryColor(data.primary_color ?? "#FFFFFF");
       setSecondaryColor(data.secondary_color ?? "#000000");
+      // 2026-04-29: home/away 가 null 이면 primary/secondary 폴백,
+      // 그것도 없으면 BDR 기본값. 기존 팀(home_color 백필 전) UX 보호.
+      setHomeColor(data.home_color ?? data.primary_color ?? "#E31B23");
+      setAwayColor(data.away_color ?? data.secondary_color ?? "#1B3C87");
+      setLogoUrl(data.logo_url ?? null);
       setIsPublic(data.is_public ?? true);
       setAcceptingMembers(data.accepting_members ?? true);
       setMaxMembers(data.max_members ?? 15);
@@ -364,6 +382,53 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
     }
   }
 
+  // ─── 팀 로고 업로드 핸들러 ───
+  // 이유(왜): 생성 폼 step-emblem.tsx 와 동일한 즉시 업로드 패턴.
+  //   파일 선택 즉시 /api/web/upload (Supabase Storage) 호출 → public URL 받아 state 저장.
+  //   클라 1차 검증: 5MB 이하 + image/* MIME 만 허용 (서버는 jpeg/png/webp/gif).
+  // 부분 실패 방어: 업로드 실패 시 logoUrl 은 미변경 유지.
+  async function handleLogoFile(file: File | null) {
+    setLogoError(null);
+    if (!file) {
+      setLogoUrl(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError("이미지 크기는 5MB 이하만 가능합니다.");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setLogoError("PNG, JPG, WEBP, GIF 이미지만 업로드 가능합니다.");
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "team-logos");
+      fd.append("path", "logos");
+      const res = await fetch("/api/web/upload", { method: "POST", body: fd });
+      const json = (await res.json().catch(() => null)) as
+        | { url?: string; error?: string }
+        | null;
+      if (!res.ok) {
+        setLogoError(json?.error ?? "업로드에 실패했습니다.");
+        return;
+      }
+      const url = json?.url;
+      if (!url) {
+        setLogoError("서버 응답에 URL이 없습니다.");
+        return;
+      }
+      setLogoUrl(url);
+    } catch (err) {
+      console.error("[manage logo upload]", err);
+      setLogoError("네트워크 오류로 업로드하지 못했습니다.");
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
   // ─── 팀 설정: 수정 제출 핸들러 ───
   async function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
@@ -396,6 +461,12 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
           founded_year: foundedYear || null,
           primary_color: primaryColor,
           secondary_color: secondaryColor,
+          // 2026-04-29: 신규 필드 — Zod regex 가 #RRGGBB 형식 강제하므로
+          // 항상 6자리 hex 만 전송됨 (UI 에서 onBlur 복원 처리).
+          home_color: homeColor,
+          away_color: awayColor,
+          // null 도 허용 (logoUrlSchema 가 처리). 빈 문자열 -> null 로 보내면 logo 제거.
+          logo_url: logoUrl ?? null,
           is_public: isPublic,
           accepting_members: acceptingMembers,
           max_members: maxMembers,
@@ -1236,6 +1307,162 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                     </div>
                   </div>
                 </div>
+
+                {/* 2026-04-29: 홈/어웨이 유니폼 색상 — 생성 폼 step-emblem 과 동일 패턴.
+                    이유(왜): 팀 생성 시 입력받지만 관리에서 누락이었음.
+                    onBlur: 미완성 hex 면 기본값(BDR Red/Navy)으로 silent 복원해
+                    invalid 값으로 PATCH 요청해 400 받는 일을 사전 차단. */}
+                <div className="mt-4 grid gap-3 sm:gap-4 sm:grid-cols-2 border-t border-[var(--color-border)] pt-4">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]">
+                      홈 유니폼 색상
+                    </label>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <input
+                        type="color"
+                        value={homeColor}
+                        onChange={(e) => setHomeColor(e.target.value)}
+                        aria-label="홈 유니폼 색상 선택"
+                        className="h-8 w-8 sm:h-10 sm:w-10 cursor-pointer rounded border border-[var(--color-border)]"
+                      />
+                      <input
+                        type="text"
+                        value={homeColor.toUpperCase()}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          // 입력 중간 단계 허용: # + 0~6자리 hex
+                          if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                            setHomeColor(v.toLowerCase());
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // 미완성 hex 면 BDR Red 로 silent 복원 — invalid PATCH 차단
+                          if (!/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                            setHomeColor("#E31B23");
+                          }
+                        }}
+                        maxLength={7}
+                        placeholder="#E31B23"
+                        aria-label="홈 유니폼 hex 코드"
+                        className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-[var(--color-text-secondary)]">
+                      어웨이 유니폼 색상
+                    </label>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <input
+                        type="color"
+                        value={awayColor}
+                        onChange={(e) => setAwayColor(e.target.value)}
+                        aria-label="어웨이 유니폼 색상 선택"
+                        className="h-8 w-8 sm:h-10 sm:w-10 cursor-pointer rounded border border-[var(--color-border)]"
+                      />
+                      <input
+                        type="text"
+                        value={awayColor.toUpperCase()}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                            setAwayColor(v.toLowerCase());
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (!/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                            setAwayColor("#1B3C87");
+                          }
+                        }}
+                        maxLength={7}
+                        placeholder="#1B3C87"
+                        aria-label="어웨이 유니폼 hex 코드"
+                        className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2026-04-29: 팀 로고 카드 — 생성 시 입력받지만 관리에 누락이었음.
+                  이유(왜): step-emblem.tsx 와 동일한 즉시 업로드 패턴 (파일 선택 → /api/web/upload → public URL).
+                  미리보기는 Supabase 외부 도메인이라 next/image 대신 <img> 사용 (eslint disable). */}
+              <div className="rounded-lg bg-[var(--color-card)] p-5">
+                <h3 className="mb-4 flex items-center gap-1.5 text-base font-semibold text-[var(--color-text-primary)]">
+                  <span className="material-symbols-outlined text-base">image</span>
+                  팀 로고
+                </h3>
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                  {logoUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={logoUrl}
+                        alt="팀 로고 미리보기"
+                        className="h-20 w-20 rounded-lg border border-[var(--color-border)] object-cover"
+                      />
+                      <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                        <label className="btn btn--sm cursor-pointer text-center" style={{ fontSize: 13 }}>
+                          {/* 다른 이미지 교체 — 동일 input 재사용 (key 로 reset) */}
+                          {logoUploading ? "업로드 중…" : "다른 이미지로 교체"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            onChange={(e) => handleLogoFile(e.target.files?.[0] ?? null)}
+                            disabled={logoUploading}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // 로컬 state 만 비움 — 실제 DB 반영은 "수정 저장" 클릭 시
+                            setLogoUrl(null);
+                            setLogoError(null);
+                          }}
+                          disabled={logoUploading}
+                          className="btn btn--sm"
+                          style={{ fontSize: 13 }}
+                        >
+                          제거
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <label
+                      className="flex w-full cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-[var(--color-border)] p-6 text-center text-sm text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]"
+                      style={{ opacity: logoUploading ? 0.6 : 1, cursor: logoUploading ? "wait" : "pointer" }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 28 }}>
+                        {logoUploading ? "hourglass_empty" : "upload"}
+                      </span>
+                      <span className="font-medium text-[var(--color-text-primary)]">
+                        {logoUploading ? "업로드 중…" : "클릭해서 이미지 업로드"}
+                      </span>
+                      <span className="text-xs">PNG · JPG · WEBP · 정방형 권장 · 최대 5MB</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={(e) => handleLogoFile(e.target.files?.[0] ?? null)}
+                        disabled={logoUploading}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+                {/* 에러 메시지 — 시스템 alert 대신 inline 표시 (모바일 친화) */}
+                {logoError && (
+                  <div
+                    role="alert"
+                    className="mt-2 rounded px-2.5 py-2 text-xs"
+                    style={{
+                      color: "var(--color-error)",
+                      background: "color-mix(in srgb, var(--color-error) 10%, transparent)",
+                    }}
+                  >
+                    {logoError}
+                  </div>
+                )}
               </div>
 
               {/* 운영 설정 */}

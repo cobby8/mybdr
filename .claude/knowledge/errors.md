@@ -2,6 +2,28 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-04-29] "OAuth 후 팀 분리" 사용자 보고 → DB 정상 (재현 불가) — 진단 절차 표준화
+- **분류**: error (사용자 보고 vs 실제 데이터 불일치, 진단 패턴)
+- **발견자**: debugger
+- **증상**: 사용자가 "일반 가입으로 루나틱 팀을 만든 뒤 카카오 OAuth로 다시 로그인하니 팀이 본인 계정과 분리됐다"고 보고.
+- **실제 진단 결과 (dev DB, scripts/debug-kakao-link-2026-04-29.ts)**:
+  1. 김병곤 user는 단 1명 (id=3007, provider=kakao, uid=4868813440, email=ragonida@naver.com, phone=01033210922) — 일반 가입 user A는 존재하지 않음
+  2. 루나틱 팀(id=215) captain_id=3007 으로 정확히 연결
+  3. team_members(id=2348, team_id=215, user_id=3007, role=director, status=active) 정상 존재
+  4. 같은 phone/email로 다른 user 없음 → 가설 1(중복 user) 배제
+  5. user 생성일 2026-04-28, 팀 생성일 2026-04-29 → "OAuth 가입 후 팀 생성" 순서 (사용자 인식과 반대)
+- **원인 (확정)**: 사용자가 카카오로 가입한 뒤 팀을 만들었기 때문에 일반 가입 흔적이 애초에 없음. "분리됐다"는 인식은 (a) 다른 디바이스/브라우저에서 비로그인 상태였거나 (b) profile 페이지 캐시 문제, (c) 다른 계정으로 잘못 로그인한 가능성. **코드/DB 결함 아님.**
+- **OAuth 매칭 로직 검증**:
+  - 활성 핸들러는 `src/app/api/auth/callback/kakao/route.ts` → `src/lib/auth/oauth.ts#handleOAuthLogin` (다른 경로 `api/auth/kakao/callback`은 logout 복귀용)
+  - handleOAuthLogin: ① provider+uid로 검색 → ② email로 기존 계정 찾으면 provider/uid 업데이트(연결) → ③ 신규 생성 — **3단계 매칭 정상**
+  - JWT sub = user.id.toString(), withWebAuth가 BigInt(session.sub)로 복원 → 세션 id 불일치 가능성 0
+- **재발 방지 / 진단 절차 표준화**:
+  1. "OAuth 후 X가 사라졌다" 류 보고는 **DB 직접 조회를 1순위로**: 같은 이름/email/phone의 user row 개수, owner_id 일치 여부, 생성 timestamp 순서.
+  2. 1명만 나오면 코드 결함 아님 → 사용자에게 ① 어느 디바이스/브라우저, ② 로그인된 계정의 email/닉네임, ③ /profile 직접 접속 시 보이는 팀 카드 스크린샷 요청.
+  3. provider+uid 또는 email 매칭이 **두 번째**로 의심 — 매칭 실패 시 user row 2개가 만들어지므로 ①에서 잡힘.
+  4. 진단 스크립트 보존: `scripts/debug-kakao-link-2026-04-29.ts` (User + Team(captain/manager) + TeamMember + phone/email 중복 검사 4섹션 1회 실행)
+- **참조횟수**: 0
+
 ### [2026-04-29] schema 변경 + db push + prisma generate 후 dev 서버 미재시작 → `Invalid \`tx.team.create()\` invocation` (Unknown argument)
 - **분류**: error (워크플로우 함정)
 - **발견자**: debugger
