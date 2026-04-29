@@ -1361,6 +1361,53 @@ html.dark .hero-carousel__accent {
     font-size: 24px !important;
   }
 
+  /* ============================================================
+     [v2.1 P0-1 G-8] Wide tables 5종 → 1열 카드 stack
+     이유: 데스크톱 5~8열 표(예: 40 50 1fr 80 100 90 90 140)는 모바일에서
+           컬럼 폭이 60px 미만으로 압축되어 모든 셀이 잘림. 1열로 stack해
+           셀 단위 세로 배치. v2.1 시안 그대로 5종 매처 보존.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-8
+     ============================================================ */
+  .page div[style*="grid-template-columns: 40px 50px 1fr 80px 100px 90px 90px 140px"],
+  .page div[style*="grid-template-columns: 120px 1fr 110px 90px"],
+  .page div[style*="grid-template-columns: 80px 1.2fr 100px 80px 80px 90px"],
+  .page div[style*="grid-template-columns: 56px 1fr 90px 100px 80px"],
+  .page div[style*="grid-template-columns: 1fr 80px 100px 100px 120px"] {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 12px 14px !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-9] row 패턴 일괄 + card 1종
+     이유: 다양한 2-col 패턴(폼/매치카드/포스터+인포)을 모바일에서
+           1열 stack 또는 비율 조정. card 의 140px 포스터 → 100px 축소.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-9
+     ============================================================ */
+  /* G-9-a: Match list 카드 포스터 축소 (140 → 100) */
+  .page .card[style*="grid-template-columns: 140px 1fr"] {
+    grid-template-columns: 100px 1fr !important;
+  }
+  /* G-9-b: 2-col 폼 → 1열 stack (3종) */
+  .page div[style*="grid-template-columns: 200px 1fr"],
+  .page div[style*="grid-template-columns: 1fr 140px"],
+  .page div[style*="grid-template-columns: 1fr 120px 36px"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* G-9-c: Label/value rows (140/120/160px 1fr) — 카드 아닌 경우만 압축 (96px 1fr) */
+  .page div[style*="grid-template-columns: 140px 1fr"]:not(.card),
+  .page div[style*="grid-template-columns: 120px 1fr"]:not(.card),
+  .page div[style*="grid-template-columns: 160px 1fr"] {
+    grid-template-columns: 96px 1fr !important;
+    column-gap: 10px !important;
+    font-size: 13px !important;
+  }
+  /* G-9-d: GameResult 비교 (1fr 120px 1fr) — 중앙 컬럼 80px 압축 */
+  .page div[style*="grid-template-columns: 1fr 120px 1fr"] {
+    grid-template-columns: 1fr 80px 1fr !important;
+    column-gap: 8px !important;
+  }
+
   /* ---- Board list filter row wraps smaller ---- */
   .page > main > div[style*="board"] { overflow: hidden; }
 
