@@ -8,6 +8,30 @@
 > 모든 프롬프트는 `subin` 브랜치, `design_v2` 활성 상태에서 실행.
 > **시안 위치**: `Dev/design/BDR v2/` (단일 폴더로 통합 완료)
 > **모바일 감사 리포트**: `Dev/design/BDR v2/_mobile_audit_report.html`
+> **마지막 갱신**: 2026-04-29 (진행 상태 표시 추가)
+
+---
+
+## 📊 진행 현황 표 (2026-04-29)
+
+| 항목 | 상태 | 비고 |
+|------|------|------|
+| P0-1 gameResult 모바일 스크롤 힌트 | ❌ 미착수 | |
+| P0-2 messages 모바일 push 흐름 | ❌ 미착수 | |
+| P0-3 bracket 라운드 sticky 헤더 | ❌ 미착수 | |
+| P0-4 ResponsiveTable 컴포넌트화 + 4화면 | ❌ 미착수 | 컴포넌트만 일부 (`responsive-table.tsx` 존재) |
+| P0-5 `/live/[id]` 경기 기록 회귀 조정 | ❌ 미착수 | |
+| P1-1 NotFound + OnboardingV2 | ✅ 완료 | Phase 9 P1 박제 |
+| P1-2 CourtAdd + GuestApply | ✅ 완료 | A등급 박제. 진입점 CTA 후속 필요 |
+| P1-3 GameReport + RefereeRequest | ✅ 완료 | A등급 박제. 진입점 CTA 후속 필요 |
+| P1-4 SeriesCreate | ✅ 완료 | A등급 박제. 진입점 정책 결정 필요 |
+| P1-5 디자인 갱신 16종 | ⏳ 부분 | 16개 중 다수 박제. 1대1 비교 검수 잔여 |
+| P2-1 More 메뉴 5그룹 IA | ⏳ 부분 완료 | 5그룹 IA 완료 + 가짜 4건 제거 (`aa61003`). 핵심 액션 추가(/games/new, /community/new) 잔여 |
+| P2-2 모바일 폴리시 Med 잔여 5건 | ⏳ 부분 | Phase 9-Mobile Refinement(`dc1e38a`) + grid 안티패턴(`4afb4f9`) + overflow 가드(`f972aaf`)로 일부 처리 |
+| P3-1 Playwright 모바일 감사 스크립트 | ❌ 미착수 | |
+| P3-2 CI 통합 | ❌ 미착수 | |
+
+> **추가 완료 (Phase 9 외 추가 작업)**: Hero 카로셀(`79cc57e`) · 헤더 구조 정리(`aa61003`) · 팀 모바일 최적화(`61a170d` `87c59d4`) · AppNav 모바일 닉네임(`db69eea`) · 단체 신청 폼 사일런트 실패 픽스(`35e54b0`)
 
 ---
 
@@ -19,7 +43,7 @@
 
 ## P0 · 모바일 감사 High 3건 + 보드 테이블 컴포넌트화
 
-### P0-1 · gameResult 모바일 가로 스크롤 힌트
+### P0-1 · gameResult 모바일 가로 스크롤 힌트 — ❌ 미착수
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -47,7 +71,7 @@ DB 변경 금지. UI 전용. 커밋 메시지: "feat(design-v2): Phase 9 P0-1 ga
 
 ---
 
-### P0-2 · messages 모바일 push 흐름
+### P0-2 · messages 모바일 push 흐름 — ❌ 미착수
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -76,7 +100,7 @@ DB 변경 금지. 커밋: "feat(design-v2): Phase 9 P0-2 messages 모바일 push
 
 ---
 
-### P0-3 · bracket 라운드 sticky 헤더
+### P0-3 · bracket 라운드 sticky 헤더 — ❌ 미착수
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -105,7 +129,74 @@ DB 변경 금지. 커밋: "feat(design-v2): Phase 9 P0-3 bracket 라운드 stick
 
 ---
 
-### P0-4 · ResponsiveTable 컴포넌트화 + 4개 화면 적용 (가장 큼, 4-5h)
+### P0-5 · 경기 기록 페이지(`/live/[id]` finished 분기) 회귀 조정 (PM 직접 지시 — 3-4h) — ❌ 미착수
+
+```
+"오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
+
+목표: 경기 종료 후 보는 페이지(`/live/[id]` 의 `finished`/`completed` 분기)가 Phase 2 박제(커밋 5920ff7) 로 v2 시안 GameResult.jsx 형태로 전면 재구성됐는데, 결과적으로 기존 페이지의 구조와 기능이 무너짐. 이번 회귀 조정으로:
+
+✅ 유지할 것 (v2 디자인 시스템):
+- 색상 토큰 (var(--color-*) — 하드코딩 색상 0건)
+- 폰트 (Pretendard / Space Grotesk / Material Symbols Outlined)
+- 다크모드 / BDR Red / 쿨 그레이 팔레트
+- 버튼 border-radius 4px, 카드 토큰
+
+🔄 옛 모습으로 되돌릴 것:
+- 전체 레이아웃 / 페이지 구조
+- 기존에 있던 기능 (하이라이트 / 통계 테이블 / 스코어 흐름 / 쿼터별 점수 / 선수별 기록 / 팀 통계 / 경기 요약 등)
+- 옛 페이지의 정보 밀도와 동선
+
+대상 파일 (Phase 2 박제로 신설된 v2 컴포넌트):
+- src/app/live/[id]/_v2/game-result.tsx
+- src/app/live/[id]/_v2/hero-scoreboard.tsx
+- src/app/live/[id]/_v2/mvp-banner.tsx
+- src/app/live/[id]/_v2/tab-players.tsx
+- src/app/live/[id]/_v2/tab-summary.tsx
+- src/app/live/[id]/_v2/tab-team-stats.tsx
+- src/app/live/[id]/_v2/tab-timeline.tsx
+- src/app/live/[id]/page.tsx (finished 분기 라우팅)
+
+작업:
+1. 박제 전 옛 디자인 확인:
+   - git log --all --source -- "src/app/live/[id]/page.tsx" 로 5920ff7 이전 커밋 찾기
+   - git show <prev-sha>:src/app/live/[id]/page.tsx 로 옛 모습 확인
+   - 또는 dev 브랜치에 옛 디자인이 남아있다면 그것을 baseline 으로
+2. 옛 페이지 구조의 핵심을 식별:
+   - 옛 페이지에 있던 섹션/탭/카드 list-up
+   - 어떤 데이터(API 응답)를 어떤 위젯으로 표시했는지
+3. 회귀 조정 작업:
+   - _v2/ 폴더의 v2 GameResult 형태를 옛 구조로 재배치
+   - 색상/폰트/토큰은 v2 시스템 그대로 (하드코딩 색상 금지)
+   - 옛 기능 모두 복원 — 하이라이트 영상 자리, 통계 표 다열, 쿼터별 스코어, 선수별 기록 등
+   - 시안 GameResult.jsx 의 일부 좋은 요소(예: hero scoreboard 톤)는 옵션으로 보존 가능 — PM 판단
+4. 모바일 반응형:
+   - 옛 디자인의 다열 테이블이 모바일에서 카드 리스트로 자동 변환되도록
+   - phase-9-paste-completeness P0-4 의 ResponsiveTable 컴포넌트가 이미 있으면 재활용
+5. 박제 회귀 점검 (phase-9-audit.md 섹션 2-C 룰):
+   - 사라진 기능 진입점 모두 복원
+   - 새로 들어간 권한 분기(있다면) 검토
+
+검증:
+- npm run build 통과
+- /live/<id> 종료 모드 진입 — 옛 정보 밀도와 위젯 모두 복원
+- 모바일 375px 가로 스크롤 없음
+- 시안 hero/마이크로 카피 정도만 v2 톤이고 나머지는 옛 모습
+- 하드코딩 색상 0건 (var(--color-*) 토큰만)
+- PM 시각 검토 후 OK 시 커밋
+
+커밋 분할 권장 (4 단위):
+1. "refactor(live): GameResult finished 분기 — 옛 레이아웃으로 회귀 (skeleton)"
+2. "refactor(live): GameResult finished — 통계 테이블 복원"
+3. "refactor(live): GameResult finished — 쿼터별 스코어 + 하이라이트 복원"
+4. "refactor(live): GameResult finished — 모바일 반응형 (ResponsiveTable 재활용)"
+
+DB 변경 금지. UI 회귀 작업이므로 PM 검토 후 단계별 진행.
+```
+
+---
+
+### P0-4 · ResponsiveTable 컴포넌트화 + 4개 화면 적용 (가장 큼, 4-5h) — ❌ 미착수 (컴포넌트 일부 존재)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -145,7 +236,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ## P1 · 신규 라우트 7종 박제
 
-### P1-1 · NotFound + OnboardingV2 (가벼운 것 묶음)
+### P1-1 · NotFound + OnboardingV2 (가벼운 것 묶음) — ✅ 완료
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -185,7 +276,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P1-2 · CourtAdd + GuestApply
+### P1-2 · CourtAdd + GuestApply — ✅ 완료 (진입점 CTA 후속 필요)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -220,7 +311,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P1-3 · GameReport + RefereeRequest
+### P1-3 · GameReport + RefereeRequest — ✅ 완료 (진입점 CTA 후속 필요)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -259,7 +350,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P1-4 · SeriesCreate
+### P1-4 · SeriesCreate — ✅ 완료 (진입점 정책 결정 필요)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -286,7 +377,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P1-5 · 디자인 갱신 16종 (이미 박제된 라우트와 시안 비교)
+### P1-5 · 디자인 갱신 16종 (이미 박제된 라우트와 시안 비교) — ⏳ 부분 (1대1 비교 검수 잔여)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -343,7 +434,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ## P2 · IA 개선 + 모바일 폴리시 잔여
 
-### P2-1 · More 메뉴 5그룹 IA
+### P2-1 · More 메뉴 5그룹 IA — ⏳ 부분 완료 (가짜 4건 제거 `aa61003` / 핵심 액션 추가 잔여)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -377,7 +468,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P2-2 · 모바일 폴리시 Med 잔여 5건
+### P2-2 · 모바일 폴리시 Med 잔여 5건 — ⏳ 부분 (Phase 9-Mobile Refinement `dc1e38a` + grid 안티패턴 `4afb4f9` + overflow 가드 `f972aaf`)
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -400,7 +491,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ## P3 · 자동 검증 시스템
 
-### P3-1 · Playwright 모바일 감사 스크립트
+### P3-1 · Playwright 모바일 감사 스크립트 — ❌ 미착수
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
@@ -427,7 +518,7 @@ DB 변경 금지. 큰 작업이라 4 커밋으로 쪼개도 좋음:
 
 ---
 
-### P3-2 · CI 통합 (선택)
+### P3-2 · CI 통합 (선택) — ❌ 미착수
 
 ```
 "오늘 작업 시작하자" 체크리스트 먼저 통과시킨 뒤 시작.
