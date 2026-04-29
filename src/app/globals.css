@@ -1791,3 +1791,37 @@ html.light .watermark-text,
   [data-print-hide] { display: none !important; }
   [data-print-show] { display: block !important; visibility: visible !important; }
 }
+
+/* ============================================================
+   --color-* 호환 레이어 (live 페이지 등 Phase 1~9 이전 페이지용)
+   BDR v2 토큰으로 alias. 라이브 페이지 코드 수정 없이 CSS 적용.
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  --color-background:     var(--bg);
+  --color-surface:        var(--bg-elev);
+  --color-card:           var(--bg-card);
+  --color-elevated:       var(--bg-elev);
+  --color-border:         var(--border);
+  --color-text-primary:   var(--ink);
+  --color-text-secondary: var(--ink-soft);
+  --color-text-muted:     var(--ink-mute);
+  --color-primary:        var(--accent);
+  --color-info:           var(--info);
+  --color-status-live:    var(--bdr-red);
+}
+
+[data-theme="dark"],
+html.dark {
+  --color-background:     var(--bg);
+  --color-surface:        var(--bg-elev);
+  --color-card:           var(--bg-card);
+  --color-elevated:       var(--bg-elev);
+  --color-border:         var(--border);
+  --color-text-primary:   var(--ink);
+  --color-text-secondary: var(--ink-soft);
+  --color-text-muted:     var(--ink-mute);
+  --color-primary:        var(--accent);
+  --color-info:           var(--info);
+  --color-status-live:    var(--bdr-red);
+}
