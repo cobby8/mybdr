@@ -27,6 +27,8 @@ const navItems: NavItem[] = [
   { href: "/admin/plans", label: "요금제 관리", icon: "payments", roles: ["super_admin"] },
   { href: "/admin/payments", label: "결제", icon: "credit_card", roles: ["super_admin"] },
   { href: "/admin/suggestions", label: "건의사항", icon: "lightbulb", roles: ["super_admin"] },
+  // Phase 10-1 B-9 — 신고 검토 큐 (super_admin 전용)
+  { href: "/admin/game-reports", label: "신고 검토", icon: "report", roles: ["super_admin"] },
   { href: "/admin/analytics", label: "분석", icon: "analytics", roles: ["super_admin", "site_admin"] },
   { href: "/admin/settings", label: "시스템 설정", icon: "settings", roles: ["super_admin"] },
   { href: "/admin/logs", label: "활동 로그", icon: "list_alt", roles: ["super_admin"] },
