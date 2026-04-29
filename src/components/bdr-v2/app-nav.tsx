@@ -436,6 +436,7 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
                 {initials}
               </span>
               <span
+                className="hidden sm:inline"
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
