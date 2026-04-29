@@ -1,11 +1,11 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-27 (Phase 10-1 경기 평가/신고 시스템 설계 — architecture +1, decisions +2)
+> 최종 갱신: 2026-04-29 (Phase 9-Mobile Refinement 모바일 체크리스트 — conventions +1)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 32 | 2026-04-27 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), **Phase 10-1 경기 평가/신고 시스템(2026-04-27)** |
-| conventions.md | 27 | 2026-04-22 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/**Tailwind v4 color-mix 언더스코어 문법(04-22)**/**any 예외 규칙 kakao·HOF·SW(04-22)** |
+| conventions.md | 28 | 2026-04-29 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix 언더스코어 문법(04-22)/any 예외 규칙 kakao·HOF·SW(04-22)/**모바일 최적화 체크리스트 10항목(04-29)** |
 | decisions.md | 82 | 2026-04-27 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 — 본 세션 = 카페 sync 전용 / **코트 대관 court_managers N:M 보류(2026-04-25) / 코트 대관 payments.payable_type 재활용(2026-04-25)**) |
 | errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
 | lessons.md | 20 | 2026-04-22 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, **점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생**) |
@@ -14,15 +14,16 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [04-29] conventions: **모바일 최적화 체크리스트 10항목 (안티패턴 재발 방지)** — Phase 9-Mobile Refinement에서 픽스한 안티패턴 정리. (1) grid 인라인 repeat(N,1fr) 금지, mobile-first sm:/md: 분기 / (2) 1fr 컬럼 minWidth:0 가드 / (3) absolute 워터마크 hidden sm:block / (4) globals.css 가로 overflow 글로벌 가드 / (5) 폼 16px (iOS 자동 줌 차단) / (6) 버튼 44px (iOS HIG) / (7) 카드 min-height 통일 / (8) Avatar clamp font / (9) 이중 헤더 금지 (AppNav 단일) / (10) 브레이크포인트 720px 통일. 366px viewport 강제 검증. 참조 커밋 4afb4f9/f972aaf/87c59d4
 - [04-27] architecture: **Phase 10-1 경기 평가/신고 시스템 설계 — 신규 2테이블(game_reports + game_player_ratings) + games.final_mvp_user_id 캐시 1컬럼** — `/games/[id]/report` 박제 활성화. unique([game_id,reporter_user_id]) 1인1리포트, flags String[]+is_noshow 분리, MVP 다수결+tie-breaker(평균 rating). API 4(POST/GET/PATCH report + admin 큐). 권한 가드 4. 작업 분해 9단계(B-1~B-9, MVP 6~8h). PM 결정 7건, 위험 6건
 - [04-27] decisions: **Phase 10-1 manner_score는 응답시점 aggregate(캐시 X) 권장** — 리포트 제출 시 캐시 갱신은 race 위험 / cron은 24h 지연 / 응답시점 GROUP BY는 인덱스로 즉시 처리. 부하 증가 시 cron 전환 가능
 - [04-27] decisions: **Phase 10-1 신고 플래그 enum 미도입, String[]+zod 검증 채택** — Postgres enum은 ALTER TYPE 마이그 비용 / lookup은 over-engineering. flags TEXT[] + zod런타임 검증 + GIN 인덱스. noshow만 is_noshow boolean 별도 컬럼(시안 UI 분리)
 - [04-25] architecture: **코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP** — plans/court_rental + 토스결제 + payments 다형성 + court_infos.user_id 모두 기존 자산. court_bookings 1테이블 + court_infos 2컬럼 + User 백릴레이션 1줄로 Phase A MVP 가능. 4 Phase(A 무료 8~12h / B 결제 6~8h / C 정산 8~10h / D BDR+할인 6~8h). 사용자 결정 7건 도출(D-B1~D-B7)
 - [04-25] decisions: **코트 대관 court_managers N:M 모델 보류** — court_infos.user_id(1:1) + user_subscriptions(feature_key=court_rental, status=active) AND 검사로 단순화. Phase D에서 다중 운영자 요구 시 도입 + 가드만 교체
 - [04-25] decisions: **코트 대관 payments.payable_type 다형성 재활용** — "Plan"만 사용 중인 다형성에 "CourtBooking" 추가. 신규 booking_payments 모델 미생성. 환불·토스 응답 필드 그대로 재활용 + admin/payments 통합 조회 유지
-- [04-22] lessons: **점진 정비는 "영역 단위"로 묶어야 커밋 중복 비용 안 발생** — 오늘 tm 영역 6파일을 3차(3파일)+4차(3파일)로 쪼갠 실수. "파일 경로 prefix 공통성" 체크 후 같은 영역은 한 커밋으로 몰아가기. 건수 균등 < 영역 완결성
 - [04-22] conventions: **`any` 타입 예외 허용 규칙 (audit 재발 방지)** — kakao SDK 9 / Next.js HOF 3 / Service Worker 1은 예외. 정비 우선순위: API 응답 → Prisma WhereInput → props/SWR fallback → unsafe cast. 신규 예외는 PM 판단 후 여기 추가
 - [04-22] conventions: **Tailwind v4 arbitrary value color-mix 언더스코어 문법** — 공백을 `_`로 치환하면 hover/focus 의사클래스도 토큰화 가능. `hover:bg-[color-mix(in_srgb,var(--color-error)_20%,transparent)]`. hover 있으면 Tailwind arbitrary / 없으면 인라인 style. `hover:opacity-80` 대체 금지(희미해짐 = 의도 반대). next build PASS로 검증 완료
+<!-- 04-22 lessons "점진 정비 영역 단위" 절단 (10건 유지 규칙 — 04-29 신규 1건 추가) — 필요 시 git log로 복원 가능 -->
 - [04-21] decisions: **세션 역할 재정의 — 본 세션 = 다음카페 sync 전용** — 이전(04-20) "본=일반" 합의 폐기. 옵션 A 조합: `subin` 브랜치 공용 유지 + 커밋 `(cafe-sync)` 스코프 필수 + 신규 카페 전용 PR 분리 + scratchpad 공용+섹션 분리(담당 `pm-cafe`). 충돌 방지 push 전 `git fetch origin subin` 필수. 허용 파일 범위 명시
 - [04-21] decisions: **카페 sync 3게시판 전면 board 강제 + parser 힌트 metadata화** — IVHA/Dilr/MptT 모두 `board.gameType` 1:1 강제, `parsed.gameType` 무시. 불일치 시 `metadata.mixed_type_hint` + `parser_game_type` 보존. `resolveGameType`/`buildMetadataHints` 분리. 기존 IVHA 7건 `backfill-cafe-game-type.ts --execute` 로 UPDATE. `cafe-game-parser.ts` 무수정(vitest 59/59 보호). sync smoke 통과(혼재 0건)
 - [04-21] lessons: **parser 키워드 판정보다 운영자 명시 신호(게시판 선택)가 1순위** — IVHA 7건 오분류 사례. 신호 신뢰도 순서: (1)게시판/카테고리 명시 (2)구조화 라벨 (3)키워드 추정. `primary ?? fallback` 체인은 "값 유무"가 아니라 "신호 종류" 로 분기해야 함. 낮은 신호는 `metadata.hint` 로 보존(정보 손실 방지)
@@ -125,6 +126,7 @@
 | 대회 상태, 준비중/접수중/진행중/종료 | 대회 상태 4종 통일 규칙 |
 | admin, 테이블, 모달, 탭 | admin UI 공통 패턴 |
 | 다크모드, 텍스트 가시성, --color-on-*, text-white 금지 | 테마 반응형 배경 위 텍스트 --color-on-* 변수 |
+| 모바일, 366px, 가로 overflow, grid 안티패턴, minWidth:0, iOS 자동 줌, 터치 타겟 44px, 720px 브레이크포인트 | 모바일 최적화 체크리스트 10항목 (2026-04-29) |
 
 ### 왜 이렇게 결정했는지 알고 싶을 때 → decisions.md
 | 키워드 | 항목 제목 |
