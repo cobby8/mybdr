@@ -47,6 +47,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (미커밋) | [debugger] /teams/new prisma create 오류 진단: schema(home_color/away_color)+DB push+prisma generate 모두 정상, 직접 tsx 재현 시 성공 → dev 서버 PID 53552(15:38:34 시작)가 prisma client 재생성(20:35:08)보다 먼저 켜져 옛 client 메모리 캐싱이 원인. **코드 수정 0건**, dev 서버 재시작만으로 해결. errors.md 신규 항목 추가(워크플로우 함정 — schema 변경 후 dev 서버 재시작 필수) | ✅ |
+| 2026-04-29 | (미커밋) | 헤더 우측 영역 우측 정렬(design_v2) — globals.css `.app-nav__right`에 `margin-left:auto` 추가(모바일 .app-nav__tabs:none 시에도 우측 끝 보장), gap 10→6px(데스크톱)/4px(모바일). app-nav.tsx 무수정. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 헤더 컨트롤 3종 정리(design_v2): 다크모드 듀얼버튼→단일 해/달 아이콘 토글(theme-switch.tsx 재작성), 검색·알림 .btn--sm 박스 제거→.app-nav__icon-btn(아이콘만), 알림 빨간점 뱃지 .app-nav__notif-dot 클래스화. globals.css .app-nav__icon-btn 신규 + 모바일 .theme-switch 압축룰 제거(랭킹/요금제/캘린더는 .theme-switch 재사용 중이라 본 룰 유지). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 로고 Supabase Storage 실제 업로드 연결: step-emblem(file 선택→/api/web/upload POST→public URL), team-form state(logoFile/logoPreview→logoUrl 단일화)+hidden logo_url, validation/team(logo_url 스키마+url 검증), actions/teams(logoUrl prisma 저장), step-review 라벨 "업로드 완료". 운영: Supabase 'team-logos' 버킷 사용자 생성 필요. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | PWA 아이콘 BDR 로고 교체 — sharp(기존)로 5종 정사각 생성 (180/192/512 + maskable 192/512), 배경 BDR Navy #1B3C87, 로고 중앙 70% (maskable 55% safe zone). scripts/generate-pwa-icons.mjs 신규. manifest.ts 변경 X (경로 매칭). 사용자 안내: 디바이스에서 SW 등록취소 + 앱 재설치 필요 | ✅ |
@@ -55,5 +57,3 @@
 | 2026-04-29 | (미커밋) | /teams/new Step 2~4 모바일 깨짐 일괄 픽스 — step-emblem(200px+1fr→1열 stack/sm:2열, 라벨 keep-all), step-review(140px+1fr→1열 stack/sm:2열), step-activity(요일 7개 flex-wrap), stepper(라벨 keep-all), team-form(헤더 keep-all). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | /teams/new 모바일 깨짐 픽스 (Step 1) — team-form.tsx 본문 grid `minmax(0,1fr) 320px` 고정 → Tailwind `grid-cols-1 lg:grid-cols-[...]` + 메인 카드 `min-w-0` (모바일 366px 폼이 26px로 짜부라지는 버그) | ✅ |
 | 2026-04-29 | (미커밋) | knowledge 5파일 갱신 — errors+2/lessons+3/decisions+4/architecture+1/index 갱신 (Phase 9-Mobile + Hero 카로셀 반영) | ✅ |
-| 2026-04-29 | (미커밋) | DESIGN.md 갱신 — 720px BP + 모바일 체크리스트 링크 + Hero 카로셀 + AppNav 단일 헤더 | ✅ |
-| 2026-04-29 | `0d12919` | 모바일 체크리스트 conventions.md (10항목) | ✅ |

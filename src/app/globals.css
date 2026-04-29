@@ -431,7 +431,11 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
   font-weight: 700;
 }
 
-.app-nav__right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+/* [2026-04-29] margin-left:auto 추가 — 모바일에서 .app-nav__tabs(display:none)
+   가 사라져도 우측 영역이 항상 우측 끝으로 밀리도록 보장.
+   gap 10px → 6px: 4개 컨트롤(다크모드/검색/알림/햄버거) 좁은 모바일 viewport
+   에서도 여유 확보. */
+.app-nav__right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; }
 .app-nav__logo { flex: 0 0 auto; white-space: nowrap; }
 .app-nav__tabs { white-space: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .app-nav__tabs::-webkit-scrollbar { display: none; }
@@ -1130,6 +1134,10 @@ html.dark .hero-carousel__accent {
 
   /* [2026-04-29] .theme-switch 듀얼 버튼 → .app-nav__icon-btn 단일 아이콘으로
      교체. 모바일 압축 룰(.theme-switch__btn span display:none) 더 이상 불필요. */
+
+  /* [2026-04-29] 모바일 우측 영역 — 4개 컨트롤(다크/검색/알림/햄버거) 간격 더 좁게.
+     366px viewport에서도 여유 확보. margin-left:auto는 데스크톱 룰에서 상속. */
+  .app-nav__right { gap: 4px; }
 
   /* ---- Mobile drawer ---- */
   .drawer-backdrop {

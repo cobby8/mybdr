@@ -2,6 +2,21 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-04-29] schema 변경 + db push + prisma generate 후 dev 서버 미재시작 → `Invalid \`tx.team.create()\` invocation` (Unknown argument)
+- **분류**: error (워크플로우 함정)
+- **발견자**: debugger
+- **증상**: `/teams/new` 등 신규 필드를 쓰는 server action 실행 시 `Invalid \`tx.team.create()\` invocation in C:\…\.next\dev\server\chunks\ssr\…` 에러. 코드/schema/DB 모두 정상이고 직접 tsx로 같은 페이로드를 호출하면 성공.
+- **원인**: `prisma db push` + `prisma generate` 로 신규 필드(`home_color`, `away_color`)가 schema/DB/`node_modules/.prisma/client` 에는 반영됐지만, 이미 가동 중인 **Next.js dev 서버가 옛 PrismaClient 모듈을 메모리에 캐싱** 중이라 신규 필드를 모름 → `Unknown argument` 런타임 에러.
+- **해결**: dev 서버 재시작.
+  1. `netstat -ano | findstr :3001` → PID 확인
+  2. `taskkill //f //pid <PID>` (절대 `taskkill //f //im node.exe` 금지)
+  3. `npm run dev` 재기동
+- **재발 방지**:
+  - schema.prisma 변경 후 체크리스트: ① `prisma db push` ② `prisma generate` ③ **dev 서버 재시작** (3단계 모두 필수)
+  - actions/teams.ts 같이 `e.message.slice(0, 100)`로 잘라 보여주는 catch는 디버깅을 어렵게 만듦. 적어도 `console.error`로 풀 메시지를 남기는 패턴은 유지 (현재 라인 102 `console.error("[createTeamAction]", e)` OK).
+- **검증 방법**: `node_modules/.prisma/client/index.d.ts` 의 mtime 과 dev 서버 프로세스 StartTime 비교 → 후자가 더 빠르면 무조건 재시작 필요.
+- **참조횟수**: 0
+
 ### [2026-04-29] 모바일 가로 overflow — 인라인 gridTemplateColumns 모바일 미대응 안티패턴 (Phase 9-Mobile)
 - **분류**: error (UI, **재발 8건+** Phase 9-Mobile Refinement 1라운드)
 - **발견자**: pm + 사용자 (366px 강제 검증)
