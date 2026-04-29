@@ -33,6 +33,8 @@ interface DataTableV2Props<T> {
   rows: T[];
   rowKey: (row: T) => string;
   emptyMessage?: string;
+  // 행 전체 클릭 핸들러 (행 클릭으로 모달 열기 등)
+  onRowClick?: (row: T) => void;
 }
 
 export function DataTableV2<T>({
@@ -40,6 +42,7 @@ export function DataTableV2<T>({
   rows,
   rowKey,
   emptyMessage = "데이터 없음",
+  onRowClick,
 }: DataTableV2Props<T>): React.ReactElement {
   // 빈 상태: G-1 룰 외부에서 처리 (단순 메시지 박스)
   if (rows.length === 0) {
@@ -66,7 +69,12 @@ export function DataTableV2<T>({
         <div
           key={rowKey(row)}
           className="data-table__row"
-          style={{ display: "grid", gridTemplateColumns: gridTemplate }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridTemplate,
+            cursor: onRowClick ? "pointer" : undefined,
+          }}
+          onClick={onRowClick ? () => onRowClick(row) : undefined}
         >
           {columns.map((c) => (
             <span
