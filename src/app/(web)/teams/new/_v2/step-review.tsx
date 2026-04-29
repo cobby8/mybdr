@@ -14,7 +14,11 @@ interface Props {
   name: string;
   nameEn: string;
   namePrimary: "ko" | "en";
-  primaryColor: string;
+  // 2026-04-29: 단일 컬러 → 홈/어웨이 유니폼 분리
+  homeColor: string;
+  awayColor: string;
+  // 로고 미리보기 (storage 업로드는 별도 Phase)
+  logoPreview: string | null;
   // UI 값
   tag: string;
   home: string;
@@ -31,7 +35,9 @@ export function StepReview({
   name,
   nameEn,
   namePrimary,
-  primaryColor,
+  homeColor,
+  awayColor,
+  logoPreview,
   tag,
   home,
   level,
@@ -88,11 +94,36 @@ export function StepReview({
           {tag.trim() ? tag : <span style={{ color: "var(--ink-mute)" }}>(자동 생성 예정)</span>}
         </div>
 
-        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>컬러</div>
+        {/* 2026-04-29: 홈/어웨이 유니폼 행 분리 */}
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>홈 유니폼</div>
         <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600 }}>
-          <span style={{ width: 16, height: 16, background: primaryColor, borderRadius: 3, display: "inline-block" }} />
-          <code>{primaryColor}</code>
+          <span style={{ width: 16, height: 16, background: homeColor, borderRadius: 3, display: "inline-block", border: "1px solid var(--border)" }} />
+          <code>{homeColor}</code>
         </div>
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>어웨이 유니폼</div>
+        <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600 }}>
+          <span style={{ width: 16, height: 16, background: awayColor, borderRadius: 3, display: "inline-block", border: "1px solid var(--border)" }} />
+          <code>{awayColor}</code>
+        </div>
+
+        {/* 로고 미리보기 — 업로드한 경우에만 표시.
+            저장은 별도 Phase 이므로 "선택됨 · 저장은 곧 출시" 라벨 추가 */}
+        {logoPreview && (
+          <>
+            <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 로고</div>
+            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 600 }}>
+              {/* 이유: storage 업로드 전이라 base64 미리보기. 다음 Phase에서 next/image 로 교체. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoPreview}
+                alt="팀 로고 미리보기"
+                style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", border: "1px solid var(--border)" }}
+              />
+              <span style={{ fontSize: 11, color: "var(--ink-mute)", fontWeight: 400 }}>(저장은 곧 출시 예정)</span>
+            </div>
+          </>
+        )}
 
         <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>활동 코트</div>
         <div style={{ fontWeight: 600 }}>

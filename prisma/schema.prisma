@@ -343,6 +343,12 @@ model Team {
   tournaments_count                                               Int?                    @default(0)
   primaryColor                                                    String?                 @default("#FFFFFF") @map("primary_color") @db.VarChar
   secondaryColor                                                  String?                 @default("#000000") @map("secondary_color") @db.VarChar
+  // 2026-04-29: 홈/어웨이 유니폼 색상 분리 도입.
+  // - 기존 primary_color/secondary_color 는 하위 호환을 위해 유지 (deprecate 예정)
+  // - 신규 등록 시 home_color/away_color 를 사용. 동시에 primary/secondary 에도 동일 값 저장
+  // - 기존 데이터: SQL UPDATE 로 home_color = primary_color 백필 (manual SQL 파일 참조)
+  home_color                                                      String?                 @db.VarChar(20)
+  away_color                                                      String?                 @db.VarChar(20)
   createdAt                                                       DateTime                @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                       DateTime                @updatedAt @map("updated_at") @db.Timestamp(6)
   team_code                                                       String?                 @unique(map: "index_teams_on_team_code") @db.VarChar

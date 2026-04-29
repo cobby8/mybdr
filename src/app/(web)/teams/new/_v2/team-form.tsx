@@ -52,13 +52,19 @@ export function TeamFormV2() {
   // 현재 스텝 (1~4)
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // === FormData 6키 (실제 서버에 제출되는 값) ===
+  // === FormData 키 (실제 서버에 제출되는 값) ===
   const [name, setName] = useState(""); // 한글 팀명 (필수)
   const [nameEn, setNameEn] = useState(""); // 영문 팀명 (선택)
   const [namePrimary, setNamePrimary] = useState<"ko" | "en">("ko"); // 대표 언어
   const [description, setDescription] = useState(""); // 팀 소개
-  const [primaryColor, setPrimaryColor] = useState<string>(TEAM_COLORS[0]); // 대표 색상
-  const [secondaryColor, setSecondaryColor] = useState("#E76F51"); // 보조 색상
+  // 2026-04-29: 단일 팀 컬러 → 홈/어웨이 유니폼 2색으로 분리.
+  // - 서버는 home_color / away_color 신규 필드를 받고, 하위 호환을 위해 primary_color / secondary_color 도 동일 값으로 함께 저장.
+  const [homeColor, setHomeColor] = useState<string>(TEAM_COLORS[0]); // 홈 유니폼 색상 (필수)
+  const [awayColor, setAwayColor] = useState<string>(TEAM_COLORS[7]); // 어웨이 유니폼 색상 (필수, 기본 회색)
+  // 로고 파일 — 실제 storage 업로드는 별도 Phase. 지금은 미리보기 base64 만 폼 state 에 보유.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // === 시안 신규 필드 (UI 만, DB 미반영) ===
   const [tag, setTag] = useState(""); // 영문 태그 2~4자 (등록 시 미사용)
@@ -177,8 +183,11 @@ export function TeamFormV2() {
             <input type="hidden" name="name_en" value={nameEn} />
             <input type="hidden" name="name_primary" value={namePrimary} />
             <input type="hidden" name="description" value={description} />
-            <input type="hidden" name="primary_color" value={primaryColor} />
-            <input type="hidden" name="secondary_color" value={secondaryColor} />
+            {/* 2026-04-29: 신규 home/away_color 필드 + 하위 호환을 위해 기존 primary/secondary 도 동일 값으로 함께 전송 */}
+            <input type="hidden" name="home_color" value={homeColor} />
+            <input type="hidden" name="away_color" value={awayColor} />
+            <input type="hidden" name="primary_color" value={homeColor} />
+            <input type="hidden" name="secondary_color" value={awayColor} />
 
             {/* === 스텝별 본문 === */}
             {step === 1 && (
@@ -203,10 +212,15 @@ export function TeamFormV2() {
             {step === 2 && (
               <StepEmblem
                 tag={tag || (nameEn || name).trim().slice(0, 3).toUpperCase() || "TAG"}
-                primaryColor={primaryColor}
-                onPrimaryColorChange={setPrimaryColor}
-                secondaryColor={secondaryColor}
-                onSecondaryColorChange={setSecondaryColor}
+                homeColor={homeColor}
+                onHomeColorChange={setHomeColor}
+                awayColor={awayColor}
+                onAwayColorChange={setAwayColor}
+                logoPreview={logoPreview}
+                onLogoFileChange={(file, preview) => {
+                  setLogoFile(file);
+                  setLogoPreview(preview);
+                }}
               />
             )}
 
@@ -229,7 +243,9 @@ export function TeamFormV2() {
                 nameEn={nameEn}
                 namePrimary={namePrimary}
                 tag={tag}
-                primaryColor={primaryColor}
+                homeColor={homeColor}
+                awayColor={awayColor}
+                logoPreview={logoPreview}
                 home={home}
                 level={level}
                 privacy={privacy}

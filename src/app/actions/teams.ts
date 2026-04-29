@@ -17,10 +17,16 @@ export async function createTeamAction(_prevState: { error: string } | null, for
   const rawDescription = (formData.get("description") as string | null) ?? "";
   const rawNameEn = formData.get("name_en") as string | null; // 없으면 null
   const rawNamePrimary = (formData.get("name_primary") as string | null) ?? "ko";
-  const primaryColor = (formData.get("primary_color") as string) || "#E31B23";
-  const secondaryColor = (formData.get("secondary_color") as string) || "#E76F51";
+  // 2026-04-29: 홈/어웨이 유니폼 색상 도입.
+  // - 신규: home_color / away_color (실제 사용)
+  // - 기존: primary_color / secondary_color (하위 호환 — home/away 와 동일 값으로 함께 저장)
+  const homeColor = (formData.get("home_color") as string) || (formData.get("primary_color") as string) || "#E31B23";
+  const awayColor = (formData.get("away_color") as string) || (formData.get("secondary_color") as string) || "#E76F51";
+  // primary/secondary 도 별도로 받되, 없으면 home/away 와 동일 값으로 (하위 호환 데이터 정합)
+  const primaryColor = (formData.get("primary_color") as string) || homeColor;
+  const secondaryColor = (formData.get("secondary_color") as string) || awayColor;
 
-  // Zod 검증 — 한글명 필수 + 영문명 엄격 규칙 + 대표언어 enum
+  // Zod 검증 — 한글명 필수 + 영문명 엄격 규칙 + 대표언어 enum + 색상 4종
   const parsed = createTeamSchema.safeParse({
     name: rawName,
     name_en: rawNameEn, // nameEnSchema가 빈 문자열을 null로 변환
@@ -28,6 +34,8 @@ export async function createTeamAction(_prevState: { error: string } | null, for
     description: rawDescription || null,
     primary_color: primaryColor,
     secondary_color: secondaryColor,
+    home_color: homeColor,
+    away_color: awayColor,
   });
 
   if (!parsed.success) {
@@ -59,8 +67,11 @@ export async function createTeamAction(_prevState: { error: string } | null, for
           name_en: name_en ?? null,
           name_primary: name_primary ?? "ko",
           description: description || null,
+          // 2026-04-29: 홈/어웨이 유니폼 색상 신규 필드 + 하위 호환 primary/secondary 동시 저장
           primaryColor,
           secondaryColor,
+          home_color: homeColor,
+          away_color: awayColor,
           captainId: userId,
           status: "active",
           members_count: 1,
