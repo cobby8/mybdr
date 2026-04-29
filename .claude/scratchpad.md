@@ -48,6 +48,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (미커밋) | 프로필+설정 nav/탭 v2 통일 (design_v2) — 3 파일 수정: profile-side-nav.tsx 모바일 chip(rounded+bg-primary+icon+font-bold uppercase) → v2 탭(텍스트만 + border-b-2 primary + font-medium/semibold) | settings-side-nav-v2.tsx PC 사이드바 유지(hidden lg:block) + 모바일(<lg) 가로 v2 탭 추가 | activity/page.tsx 3탭 chip(btn--sm+cafe-blue 활성+icon+count) → v2 탭(텍스트 + count 보존). billing/page.tsx 이미 v2 패턴 무수정. PC 좌측 사이드바 모두 유지. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | /teams 검색바 중복 + 필터 패널 깨짐 픽스 (design_v2) — page.tsx + teams-content-v2.tsx에서 옛 TeamsFilterComponent prop/import/사용 제거. v2 헤더 내장 검색박스(URL q 동기화)만 유지. teams-filter.tsx는 v1 롤백용 보존. 지역/정렬 필터는 추후 v2 재구현 (scratchpad 추후 구현 목록 추가). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | [debugger] /teams/new prisma create 오류 진단: schema(home_color/away_color)+DB push+prisma generate 모두 정상, 직접 tsx 재현 시 성공 → dev 서버 PID 53552(15:38:34 시작)가 prisma client 재생성(20:35:08)보다 먼저 켜져 옛 client 메모리 캐싱이 원인. **코드 수정 0건**, dev 서버 재시작만으로 해결. errors.md 신규 항목 추가(워크플로우 함정 — schema 변경 후 dev 서버 재시작 필수) | ✅ |
 | 2026-04-29 | (미커밋) | 헤더 우측 영역 우측 정렬(design_v2) — globals.css `.app-nav__right`에 `margin-left:auto` 추가(모바일 .app-nav__tabs:none 시에도 우측 끝 보장), gap 10→6px(데스크톱)/4px(모바일). app-nav.tsx 무수정. tsc 0건 | ✅ |
@@ -57,4 +58,3 @@
 | 2026-04-29 | (미커밋) | 팀 생성 step-emblem: preset 10색 grid 제거 → HTML5 native color picker + hex text input (홈/어웨이 각 1조). TEAM_COLORS import 제거, 모바일 분기/미리보기/로고 영역 무수정. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 생성 폼: 단일 컬러→홈/어웨이 유니폼 2색 분리 + 로고 업로드 활성화. schema home_color/away_color 추가(logo_url 기존 재사용), dev DB push 완료, manual SQL 작성. step-emblem(2색 picker+로고 base64 미리보기), team-form/step-review/zod/server action 갱신. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | /teams/new Step 2~4 모바일 깨짐 일괄 픽스 — step-emblem(200px+1fr→1열 stack/sm:2열, 라벨 keep-all), step-review(140px+1fr→1열 stack/sm:2열), step-activity(요일 7개 flex-wrap), stepper(라벨 keep-all), team-form(헤더 keep-all). tsc 0건 | ✅ |
-| 2026-04-29 | (미커밋) | /teams/new 모바일 깨짐 픽스 (Step 1) — team-form.tsx 본문 grid `minmax(0,1fr) 320px` 고정 → Tailwind `grid-cols-1 lg:grid-cols-[...]` + 메인 카드 `min-w-0` (모바일 366px 폼이 26px로 짜부라지는 버그) | ✅ |

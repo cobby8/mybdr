@@ -379,61 +379,56 @@ export default function ProfileActivityPage() {
         ))}
       </div>
 
-      {/* 시안 v2(1): filter chips (탭 형태로 변환) — 우리 페이지는 도메인 3탭(경기/대회/팀)이 핵심 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
+      {/* v2 탭 패턴: 경기 / 대회 / 팀
+       * 왜 chip(btn--sm + cafe-blue 활성) 폐기:
+       *  - 프로필 + 설정 전체 v2 탭 통일 작업의 일부
+       *  - 아이콘 + uppercase 굵은체 chip 은 시각 노이즈가 큼
+       *  - /teams/[id] TeamTabsV2 패턴과 일관성 확보
+       * 보존:
+       *  - count 배지 (옆에 mono 숫자) — 검토중/예정 갯수 가시성에 필수 */}
+      <nav
+        role="tablist"
+        aria-label="활동 카테고리"
+        className="-mx-4 mb-3 border-b"
+        style={{ borderColor: "var(--color-border-subtle, var(--border))" }}
       >
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const count = counts[t.key];
-          return (
-            <button
-              key={t.key}
-              type="button"
-              className="btn btn--sm"
-              onClick={() => changeTab(t.key)}
-              style={
-                active
-                  ? {
-                      background: "var(--cafe-blue)",
-                      color: "#fff",
-                      borderColor: "var(--cafe-blue-deep)",
-                    }
-                  : {}
-              }
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{
-                  fontSize: 14,
-                  verticalAlign: "text-bottom",
-                  marginRight: 4,
-                  ...(active
-                    ? { fontVariationSettings: "'FILL' 1" }
-                    : {}),
-                }}
+        <div className="flex gap-1 overflow-x-auto px-4 scrollbar-none">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            const count = counts[t.key];
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => changeTab(t.key)}
+                /* v2 탭 패턴:
+                 * - 텍스트 only (아이콘 제거)
+                 * - px-3 py-3 → 약 44px 터치 타겟
+                 * - 활성: 하단 2px primary border + font-semibold
+                 * - 카운트는 inline 숫자 (mono) 그대로 유지 */
+                className={`flex shrink-0 items-center gap-1.5 px-3 py-3 text-sm border-b-2 transition-colors bg-transparent cursor-pointer ${
+                  active
+                    ? "border-[var(--color-primary)] text-[var(--ink)] font-semibold"
+                    : "border-transparent text-[var(--ink-mute)] hover:text-[var(--ink)] font-medium"
+                }`}
               >
-                {t.icon}
-              </span>
-              {t.label}
-              <span
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  opacity: 0.7,
-                  marginLeft: 4,
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                {t.label}
+                <span
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    opacity: 0.7,
+                    fontSize: 12,
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
       {/* 본문 — 시안 v2(1)의 단일 카드(.card padding:0) 안에 borderBottom 행으로 묶음 */}
       {loading ? (
