@@ -123,6 +123,18 @@ export const updateTeamSchema = z.object({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
     .optional(),
+  // 2026-04-29: 팀 관리 페이지 신규 필드 — 생성 폼과 동일 규칙 (createTeamSchema의 colorSchema와 동일)
+  // 이유(왜): 팀 생성 시 입력받지만 관리 화면에서 누락되어 있던 3 필드 보강.
+  home_color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+    .optional(),
+  away_color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+    .optional(),
+  // 2026-04-29: 로고 URL — Supabase Storage public URL. 빈 문자열 → null 치환은 logoUrlSchema 가 담당.
+  logo_url: logoUrlSchema,
   is_public: z.boolean().optional(),
   accepting_members: z.boolean().optional(),
   max_members: z

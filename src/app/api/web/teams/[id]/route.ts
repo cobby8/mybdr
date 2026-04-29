@@ -54,6 +54,12 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
       founded_year: true,
       primaryColor: true,
       secondaryColor: true,
+      // 2026-04-29: 관리 페이지에서 홈/어웨이 컬러 + 로고 편집을 위해 select 에 추가.
+      // home_color/away_color 는 prisma schema 에서 @map 없이 snake_case 그대로,
+      // logo_url 은 @map("logo_url") 매핑된 camelCase logoUrl.
+      home_color: true,
+      away_color: true,
+      logoUrl: true,
       is_public: true,
       accepting_members: true,
       max_members: true,
@@ -100,6 +106,11 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     founded_year: team.founded_year,
     primary_color: team.primaryColor,
     secondary_color: team.secondaryColor,
+    // 2026-04-29: 신규 필드 — apiSuccess 가 자동 snake_case 변환 적용하지만,
+    // prisma camelCase logoUrl 만 명시 매핑 (home_color/away_color 는 이미 snake).
+    home_color: team.home_color,
+    away_color: team.away_color,
+    logo_url: team.logoUrl,
     is_public: team.is_public,
     accepting_members: team.accepting_members,
     max_members: team.max_members,
@@ -210,6 +221,19 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   }
   if (body.secondary_color !== undefined) {
     updateData.secondaryColor = body.secondary_color;
+  }
+  // 2026-04-29: 홈/어웨이 유니폼 색상 (생성 폼에서 받지만 관리에서 누락이었음).
+  // schema 매핑: home_color/away_color 는 @map 없이 snake_case 그대로 사용.
+  if (body.home_color !== undefined) {
+    updateData.home_color = body.home_color;
+  }
+  if (body.away_color !== undefined) {
+    updateData.away_color = body.away_color;
+  }
+  // 2026-04-29: 팀 로고 URL — prisma 필드명은 logoUrl (@map "logo_url").
+  // logoUrlSchema preprocess 가 빈 문자열을 null 로 치환하므로, null 명시도 허용 (지우기).
+  if (body.logo_url !== undefined) {
+    updateData.logoUrl = body.logo_url;
   }
   // 공개 여부
   if (body.is_public !== undefined) {
