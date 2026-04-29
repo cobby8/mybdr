@@ -9,9 +9,11 @@ import { TeamCardV2 } from "./team-card-v2";
 // Phase 3 Teams — v2 시안 적용 목록 컨테이너
 // 원칙:
 //  - API/데이터 패칭 0 변경 (/api/web/teams 그대로 호출)
-//  - 기존 teams-content.tsx / team-card.tsx / teams-filter.tsx 보존
-//  - 기존 플로팅 필터(TeamsFilter) 유지 + 시안 내장 검색박스 추가 (두 검색은 URL q 쿼리 공유)
+//  - 기존 teams-content.tsx / team-card.tsx / teams-filter.tsx 보존(롤백용)
 //  - rating/tag 등 가짜 수치 금지 (wins 기반)
+// 2026-04-29: 옛 TeamsFilter 컴포넌트 사용 제거 (검색바 중복 + 필터 패널 깨짐 픽스)
+//   - 검색은 v2 헤더 내장 검색박스(아래 search chip)가 URL q 쿼리로 처리
+//   - 지역/정렬 필터 기능은 추후 v2 디자인으로 재구현 예정
 
 interface TeamFromApi {
   id: string;
@@ -132,21 +134,19 @@ function PaginationV2({
  *
  * 구조:
  *  1) 헤더 (eyebrow + "등록 팀 N팀" + 메타 + 우측: 내장 검색 + 팀 등록 버튼)
- *  2) 플로팅 필터 유지 (기존 TeamsFilter — 지역/정렬)
- *  3) auto-fill minmax(260px,1fr) 그리드 + TeamCardV2
- *  4) 페이지네이션
+ *  2) auto-fill minmax(260px,1fr) 그리드 + TeamCardV2
+ *  3) 페이지네이션
+ *
+ * 2026-04-29: 옛 TeamsFilter prop 제거 (검색 중복/필터 패널 깨짐 픽스)
  */
-export function TeamsContentV2({
-  TeamsFilterComponent,
-}: {
-  TeamsFilterComponent: React.ComponentType<{ cities: string[]; totalCount: number }>;
-}) {
+export function TeamsContentV2() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const [teams, setTeams] = useState<TeamFromApi[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
+  // cities 는 추후 v2 필터 재구현 시 사용 예정 — API 응답 구조 유지를 위해 setter 만 보관
+  const [, setCities] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -287,8 +287,8 @@ export function TeamsContentV2({
         </div>
       </div>
 
-      {/* 기존 플로팅 필터 (지역/정렬) — PM 결정: 데이터 조회 기능이라 보존 */}
-      <TeamsFilterComponent cities={cities} totalCount={teams.length} />
+      {/* 옛 플로팅 필터 제거 (2026-04-29) — 검색바 중복 + 패널 깨짐 픽스
+          지역/정렬 필터 기능은 추후 v2 디자인으로 재구현 (scratchpad 추후 구현 목록 참조) */}
 
       {loading ? (
         <TeamsListSkeletonV2 />
