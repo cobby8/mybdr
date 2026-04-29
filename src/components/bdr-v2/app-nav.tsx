@@ -219,39 +219,26 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
         <div className="app-nav__right">
           <ThemeSwitch />
 
-          {/* 검색 */}
-          <Link href="/search" className="btn btn--sm" title="검색" aria-label="검색">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+          {/* 검색 — 박스 제거, 아이콘만 (PM 지시 2026-04-29) */}
+          <Link href="/search" className="app-nav__icon-btn" title="검색" aria-label="검색">
+            <span className="material-symbols-outlined" aria-hidden="true">
               search
             </span>
           </Link>
 
-          {/* 알림 — 로그인 시에만 표시, 미확인 수 있으면 빨간 점 */}
+          {/* 알림 — 로그인 시에만 표시, 미확인 수 있으면 빨간 점.
+              박스 제거(.app-nav__icon-btn) + 빨간 점 뱃지 유지. */}
           {user && (
             <Link
               href="/notifications"
-              className="btn btn--sm"
+              className="app-nav__icon-btn app-nav__notif"
               title="알림"
               aria-label="알림"
-              style={{ position: "relative" }}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              <span className="material-symbols-outlined" aria-hidden="true">
                 notifications
               </span>
-              {unreadCount > 0 && (
-                <span
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: 4,
-                    right: 4,
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "var(--accent)",
-                  }}
-                />
-              )}
+              {unreadCount > 0 && <span aria-hidden className="app-nav__notif-dot" />}
             </Link>
           )}
 
