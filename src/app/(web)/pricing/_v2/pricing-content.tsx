@@ -176,12 +176,13 @@ export function PricingContent() {
         </div>
       </div>
 
-      {/* 카드 3종 — 시안 L21~L57 */}
+      {/* 카드 3종 — 시안 L21~L57
+       * 이유: 인라인 `repeat(3, 1fr)` 고정으로 모바일에서도 3열 강제 → FREE 카드 좌측 잘림.
+       *      className 반응형 grid (모바일 1열 / md+ 3열)로 전환. maxWidth/margin은 인라인 유지(컨테이너 정렬 의도).
+       */}
       <div
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
           maxWidth: 1080,
           margin: "0 auto",
         }}

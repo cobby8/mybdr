@@ -69,8 +69,10 @@ export default async function AdminDashboard() {
     <div>
       <AdminPageHeader title="대시보드" />
 
-      {/* 통계 카드 4개: Material Symbols 아이콘 사용 */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* 통계 카드 4개: Material Symbols 아이콘 사용
+       * 이유: 기존 sm(640+) 시점부터 2열 → admin layout `lg:ml-64` 사이드바 보상이 없는 모바일에서 카드가 좁게 몰림.
+       *      모바일 1열 / md(768+) 2열 / lg(1024+) 3열 / xl(1280+) 4열로 점진 확장. */}
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <StatCard
           label="전체 유저"
           value={userCount}

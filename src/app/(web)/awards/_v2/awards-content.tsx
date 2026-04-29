@@ -593,12 +593,9 @@ export function AwardsContent({ data }: Props) {
               {group.label}
             </div>
             {/* DB 미지원 → 5포지션 모두 "준비 중" 슬롯 */}
+            {/* 2026-04-29: 모바일에서 5열 슬롯이 찌부 → 모바일 2열 / md 이상 5열 */}
             <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: 8,
-              }}
+              className="grid grid-cols-2 md:grid-cols-5 gap-2"
             >
               {ALL_STAR_POSITIONS.map((pos) => (
                 <div

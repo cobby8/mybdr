@@ -175,14 +175,12 @@ export function ReviewsContent({ courts }: ReviewsContentProps) {
         <span style={{ color: "var(--ink)" }}>리뷰</span>
       </div>
 
-      {/* ====== 헤더 — 좌측 타이틀 + 우측 요약 카드 (시안 2열 그리드) ====== */}
+      {/* ====== 헤더 — 좌측 타이틀 + 우측 요약 카드 (시안 2열 그리드) ======
+       * 이유: 인라인 gridTemplateColumns 고정값이 모바일에서 좌측 컬럼을 ~55px로 압축 → 글자 단위 줄바꿈 발생.
+       *      반응형 분기를 위해 className 기반 grid로 전환 (모바일 1열 / sm+ [1fr 360px] 2열).
+       */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) 360px",
-          gap: 16,
-          marginBottom: 18,
-        }}
+        className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_360px] gap-4 mb-[18px]"
       >
         <div>
           <div className="eyebrow">커뮤니티 리뷰 · REVIEWS</div>

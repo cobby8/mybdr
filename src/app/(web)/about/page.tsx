@@ -162,13 +162,8 @@ export default function AboutPage() {
         {/* ===== 3. 우리가 만드는 것 (가치 6) ===== */}
         <div style={{ marginBottom: 40 }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 14 }}>우리가 만드는 것</h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 14,
-            }}
-          >
+          {/* 2026-04-29: 모바일 1열 / md 이상 3열 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[14px]">
             {values.map((b) => (
               <div key={b.t} className="card" style={{ padding: "20px 20px" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{b.icon}</div>
@@ -184,13 +179,8 @@ export default function AboutPage() {
         {/* ===== 4. 운영진 6 — 가데이터(예시) ===== */}
         <div style={{ marginBottom: 8 }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 14 }}>운영진</h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(6, 1fr)",
-              gap: 10,
-            }}
-          >
+          {/* 2026-04-29: 모바일 2열 / sm 3열 / md 이상 6열 (이름+아바타 카드라 1열은 너무 빈약) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-[10px]">
             {team.map((m) => (
               <div
                 key={m.name}
