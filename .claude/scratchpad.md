@@ -38,10 +38,42 @@
 
 ## 현재 작업
 
-- **요청**: scratchpad.md 100줄 이내 정리 (5814줄 → 압축)
-- **상태**: 진행 중 (doc-writer)
-- **현재 담당**: doc-writer
-- **백업**: `.claude/backup-2026-04-29/scratchpad-pre-cleanup-5814lines.md`
+- **요청**: BDR v2.1 모바일 분기 일괄 이식 P0-1 (Dev/design/v2.1-cli-prompts-2026-04-29.md)
+- **상태**: developer 완료 (7커밋)
+- **현재 담당**: developer → tester/reviewer
+- **브랜치**: design_v2 (미푸시 7건 누적 — G-1~G-9)
+
+### 구현 기록 (P0-1)
+
+7커밋으로 v2.1 모바일 분기(`@media max-width:720px`) 일괄 이식. 사이트 `globals.css` L1395 직전 모바일 분기 닫기 `}` 앞에 신규 룰 + 기존 1종 룰 5종 확장 교체.
+
+| 커밋 | 갭 | 라인 (+/-) | 내용 |
+|------|-----|----------|------|
+| 9b14439 | G-1 | +66/0 | `.data-table` 카드형 변환(헤더 숨김+data-label/primary/actions). 사용 0건이라 선이식 |
+| 1ad2c55 | G-2 | +11/-3 | 3-col 포스터 → 2-col(`minmax(0,1fr)`). v2의 3열 유지 룰 교체 |
+| c340f01 | G-3 | +11/0 | season-stats 6열 → 3열 |
+| d713d21 | G-4 | +24/-8 | with-aside 폭 5종(340/320/300/280/360) — `.page--wide` + `.page` + aside `order:-1` 모두 5종 |
+| f82974a | G-6 | +14/0 | sticky aside/nav static — `.page--wide` → `.page` 전체 + `nav[sticky]` 포함, `top:auto` 추가 |
+| db2d976 | G-7 | +16/0 | fontSize 96→48 / 48(opacity:.4)→24 (공백 있/없 양쪽 매처) |
+| 8401325 | G-8/G-9 | +47/0 | 5종 wide table → 1열 stack + row 4종 + .card 140→100 |
+
+총 +189/-11 = 순증 178줄. v2.1 추출본 538줄 중 P0-1 지정 9개 갭(7커밋)만 이식 — 나머지 ~360줄(메시지 3-col, 라이트박스, 브래킷, 캘린더, hero linear-gradient watermark, hscroll 등)은 P0-2~P1 후속 큐.
+
+💡 tester 참고:
+- 검증: `npm run check:design` → 신규 위반 0건 확인 (기존 issue: grid repeat 44건/lucide 1건/hex 342건은 P0-1 무관)
+- TS: `npx tsc --noEmit` 0건
+- 시각 확인: `/teams`, `/tournaments`, `/games/[id]`, `/courts/[id]` 모바일 375px viewport
+  - G-2: /teams 또는 /tournaments 포스터 그리드 2-col인지
+  - G-4: 코트 디테일/매치 디테일 사이드바가 상단으로 이동(order:-1) + 1열 stack
+  - G-6: sticky 사이드바(/courts/[id] 지도)가 모바일에서 static인지
+  - G-7: GameResult/MatchDetail 큰 점수가 48px로 줄었는지
+- 주의: `.data-table` 사용처 0건이라 G-1은 시각 변화 0 (기능 회귀 X 검증만)
+
+⚠️ reviewer 참고:
+- 매처 문자열 공백 1칸 차이 깨짐 — v2.1 시안 그대로 보존했는지 확인 (특히 `minmax(0,1fr)`/`minmax(0, 1fr)`, `fontSize:96`/`fontSize: 96`)
+- !important 강제 — 인라인 style 우선순위 이김 위해 모두 필수
+- G-4에서 의도적으로 v2 룰 8줄 삭제 후 5종으로 재작성 (revert 시 원본 복구는 git revert d713d21로 가능)
+- check:design 신규 위반 0건이지만 기존 hex 342건/lucide 1건은 별개 큐
 
 ## 진행 현황표
 
@@ -52,11 +84,13 @@
 | Hero 카로셀 | 3슬라이드 + fallback | ✅ |
 | 헤더 구조 정리 | 더보기 가짜 4건 제거 | ✅ |
 | 모바일 최적화 (P1~P5) | board separator + input 16px + btn 44px + card min-h | ✅ |
+| BDR v2.1 모바일 이식 P0-1 | G-1~G-9 7커밋 (+178줄) | ✅ |
 
 ## 작업 로그 (최근 10건)
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | 9b14439~8401325 (7건 미푸시) | **BDR v2.1 모바일 분기 일괄 이식 P0-1** (design_v2): globals.css 모바일 분기(`@media max-width:720px`) 7커밋 분리 이식. G-1 .data-table 카드형 변환 신규(+66 — 사용 0건 선이식) / G-2 3-col 포스터 → 2-col `.page` 스코프 교체(+11/-3) / G-3 season-stats 6열 → 3열(+11) / G-4 with-aside 폭 5종(340/320/300/280/360) `.page--wide`+`.page`+aside `order:-1` 모두 5종 확장(+24/-8) / G-6 sticky aside/nav static `.page` 전체+nav 포함+top:auto(+14) / G-7 fontSize 96→48 / 48(opacity:.4)→24 공백 양쪽 매처(+16) / G-8/G-9 5종 wide table → 1열 stack + row 4종 + .card 140→100(+47). 1604→1782줄(+178). v2.1 추출본 538줄 중 9개 갭만 이식, 나머지 ~360줄(메시지/라이트박스/브래킷/캘린더/hero watermark/hscroll)은 P0-2~P1 후속. tsc 0건 / check:design 신규 위반 0건. 근거: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 + v2.1-vs-site-gap-2026-04-29.md §3-1 | ✅ |
 | 2026-04-29 | (미커밋) | **시안 박제 하드코딩 텍스트 13건 일괄 처리** (design_v2): B형(개인정보) — `(web)/about/page.tsx` 운영진 6명 실명(김승철/이경진/박상우/최지혜/정혁수/한수민)→일반 팀 라벨(기획팀/개발팀/운영팀/디자인팀/커뮤니티팀/사업팀) + 직책 일반화. A형(글로벌 카피) — "서울 3x3 농구 커뮤니티"/"서울의 농구를 더 가깝게" 3곳 통일: about metadata description + Hero H1("농구를 더 가깝게") + Hero 리드("전국 농구 매칭 플랫폼") / login/page.tsx L81 sub-copy. C형(통계 4건) — about L48-51 통계는 L159 "예시" 라벨 명시되어 있어 변경 X, phase-9-future-features.md 섹션 4 Phase 11+ 큐에 항목 17 신규 추가(users/teams/tournaments COUNT + 운영기간 동적). 디자인/API/DB 0 변경. 3 파일 수정(about, login, phase-9-future-features) + 잔여 grep 검증(src/ 내 실명 0건, "서울 3x3" 본문 0건). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | **ProfileSideNav 미정의 토큰 픽스** (design_v2): globals.css 폐기 예정인 `--color-*` 토큰을 v2 정의 토큰으로 교체 — 4 파일: profile-side-nav.tsx (active+hover 6 토큰: --color-primary→--accent / --color-text-secondary→--ink-mute / --color-text-primary→--ink / --color-surface→--bg-alt / --color-background→--bg / --color-border→--border + 모바일 border-b-2→border-b-[3px] TeamTabsV2 일관) / settings-side-nav-v2.tsx (모바일 active border 1줄 --color-primary→--accent + 3px) / activity/page.tsx (StatusBadge 8건+탭 active+EmptyState+rejected/단일 카드 background 16건 매핑) / billing/page.tsx (sed 일괄 50+건 매핑: text/primary/error/success/surface/card/border/on-primary 전체). 잔여 var(--color-*) 0건. v1/레거시 페이지(complete/edit/loading)는 Phase 1~9 점진 마이그레이션 범위라 보류. tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | **선수 프로필 저장 안 됨 픽스 A+C** (design_v2): A안 — `(web)/settings/page.tsx` 박제 390줄 → redirect 5줄(`/profile/settings`로 영구 이동), `(web)/safety/page.tsx` L122 브레드크럼 링크 `/settings`→`/profile/settings`. C안 — `lib/services/user.ts` updateProfile select 6→9필드(weight/district/birth_date 추가, schema.prisma User 모델의 snake_case 필드명 매칭, @map 없음). 디자인/API 라우트/`/profile/settings` 페이지 변경 0. tsc 0건. 3 파일. | ✅ |
@@ -66,5 +100,3 @@
 | 2026-04-29 | (미커밋) | **B-1+W-1+W-2 일괄 픽스 (design_v2)**: B-1 tournaments [id] 참가팀 탭 TeamCard(v1)→TeamCardV2 — v2→v1 변환 로직(BigInt 캐스팅·_count 매핑) 통째 삭제 후 v2 카드 인터페이스에 직접 매핑(W-3 TypeError 자동 해결), public-teams API select에 createdAt 추가 + ISO 직렬화(창단 연도 표시), 그리드 /teams 와 동일 (grid-cols-2 md:3 xl:4). W-1 community/new 툴바 flexWrap:nowrap+overflowX:auto → flex-wrap:wrap (모바일 13개 disabled 버튼 잘림 방지). W-2 floating-filter-panel backdrop z-50 → z-40 (slide-menu와 충돌 방지, panel은 z-50 유지). 3 파일 + 1 API. tsc 0건. 근거: ghost-features-and-breakage-2026-04-29.md §3,§6 | ✅ |
 | 2026-04-29 | (미커밋) | **유령 기능 P0-A 5건 일괄** (design_v2): A-5 /notifications actionUrl 클릭 시 markAsRead PATCH + 헤더 벨 동기화 이벤트 (notifications-client.tsx onClick 추가, action_url 없는 경우도 div onClick 처리) / A-3 /teams/[id] page.tsx canManage 조건에 team.captainId === userId OR 매칭 추가 (김병곤 사례 보강 — 본조회 select 재활용, 추가 쿼리 0) / A-1 /teams v2 chip-bar 재구현: API teams/route.ts 에 sort 화이트리스트(wins/newest/members) + orderBy 분기 + createdAt 응답 직렬화 추가, teams-content-v2.tsx 에 지역(전국+cities) chip-bar 1줄 + 정렬(랭킹/최신/멤버) chip-bar 1줄 추가, URL ?city=&sort= 동기화, scrollbar-hide 가로 스크롤 / A-4 /community/[id] 댓글 수정·삭제는 이미 완료된 상태 확인 후, 답글/좋아요는 phase-9-future-features 큐로 이전 (comment-list.tsx 답글·좋아요 버튼 onClick alert + opacity .55) / A-2 /profile 시즌 통계는 season_stats 테이블 미구현이라 phase-9-future-features.md #11~14 + scratchpad 추후 구현 목록 갱신. 5 파일: api/web/teams/route.ts, (web)/teams/_components/teams-content-v2.tsx, (web)/teams/[id]/page.tsx, (web)/notifications/_components/notifications-client.tsx, (web)/community/[id]/_components/comment-list.tsx + 문서 2 (phase-9-future-features.md, scratchpad.md). tsc 0건 | ✅ |
 | 2026-04-29 | (미커밋) | 팀 관리 권한 체크 captain_id 직접 매칭 추가 (김병곤 사례 — team_members.role='director'로 등록되어 TEAM_MANAGER_ROLES 필터 차단) — 3 파일: (web)/teams/manage/page.tsx (기존 memberships 외 prisma.team.findMany({where:{captainId}}) 합산 + dedup), api/web/teams/[id]/route.ts (isCaptain 함수에 team.captainId === userId 1차 매칭 추가 + GET 가드/my_role/is_captain 보강 — 기존 select 의 captainId 재활용), api/web/teams/[id]/members/route.ts (GET/PATCH 가드 — isManager 누락 시 team.captainId 추가 1쿼리 후 통과). DB 변경 0, 디자인 변경 0. tsc 0건 | ✅ |
-| 2026-04-29 | (미커밋) | 팀 관리 페이지 settings 탭 누락 3필드 추가 (design_v2): home_color/away_color 컬러 picker(기존 primary/secondary 카드 안에 분리선 + 2열 grid), logo_url 신규 카드(즉시 업로드 /api/web/upload, 5MB+image/* 검증, 미리보기/교체/제거). 4 파일: manage/page.tsx (TeamEditData 3필드+useState 5개+handleLogoFile 핸들러+fetchTeamData 폴백 로직+handleSaveSettings body), api/web/teams/[id]/route.ts (GET select+응답 매핑+PATCH updateData 3건), validation/team.ts (updateTeamSchema home_color/away_color/logo_url 추가). schema home_color/away_color는 @map 없는 snake, logoUrl은 @map "logo_url" camelCase. tsc 0건 | ✅ |
-| 2026-04-29 | (미커밋) | [debugger] 김병곤 사용자 "카카오 OAuth 후 루나틱 팀 분리" 보고 진단 — dev DB 직접 조회(scripts/debug-kakao-link-2026-04-29.ts) 결과 user 1명만 존재(id=3007, provider=kakao, captain_id=3007 ↔ team id=215 정상 연결, team_member id=2348 active director). 일반 가입 user A 자체가 없어 "분리" 재현 불가. user 생성(4-28) ← 팀 생성(4-29) 순서. 코드 결함 X. errors.md에 진단 절차 표준화 항목 추가 | ✅ |
