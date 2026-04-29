@@ -139,16 +139,24 @@ export default async function GameDetailPage({
       position: a.users?.position ?? null,
     }));
 
-  // 호스트 전용 신청자 배열 (HostApplications 원형 그대로)
+  // 호스트 전용 신청자 배열
+  // Phase 10-3 B-7: 게스트 신청 라벨링 — is_guest=true 일 때 신청서에 입력된
+  //   position(G/F/C) / experience_years(0~4) / message 를 우선 노출.
+  //   회원 프로필 position 은 게스트가 아닌 경우의 fallback 으로만 사용.
   const hostApplicants = applications.map((a) => ({
     id: a.id.toString(),
     status: a.status,
     nickname: a.users?.nickname ?? null,
     name: a.users?.name ?? null,
     phone: a.users?.phone ?? null,
-    position: a.users?.position ?? null,
+    // 신청서 position(G/F/C) 우선, 없으면 회원 프로필 position
+    position: a.position ?? a.users?.position ?? null,
     city: a.users?.city ?? null,
     district: a.users?.district ?? null,
+    // 게스트 라벨링용 필드
+    is_guest: a.is_guest ?? false,
+    experience_years: a.experience_years ?? null,
+    message: a.message ?? null,
   }));
 
   // AboutCard 렌더 판단 — 3 필드 중 하나라도 있을 때만
