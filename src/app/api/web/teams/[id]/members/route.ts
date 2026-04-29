@@ -28,7 +28,17 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
       status: "active",
     },
   });
+  // 2026-04-29: team.captain_id 직접 매칭 보강 — team_members.role 이 'director' 등 비표준 값이라
+  // 위 isManager 에서 누락된 captain 사용자도 본 가드를 통과시킨다.
+  let isCaptainById = false;
   if (!isManager && ctx.session.role !== "super_admin") {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { captainId: true },
+    });
+    isCaptainById = team?.captainId === ctx.userId;
+  }
+  if (!isManager && !isCaptainById && ctx.session.role !== "super_admin") {
     return apiError("FORBIDDEN", 403);
   }
 
@@ -94,7 +104,16 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
       status: "active",
     },
   });
+  // 2026-04-29: GET 과 동일하게 captain_id 직접 매칭 보강.
+  let isCaptainById = false;
   if (!isManager && ctx.session.role !== "super_admin") {
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      select: { captainId: true },
+    });
+    isCaptainById = team?.captainId === ctx.userId;
+  }
+  if (!isManager && !isCaptainById && ctx.session.role !== "super_admin") {
     return apiError("FORBIDDEN", 403);
   }
 
