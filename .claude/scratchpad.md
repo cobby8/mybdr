@@ -83,32 +83,41 @@
 - 운영 DB SQL은 **트랜잭션 + IF NOT EXISTS 멱등**, 04-15 db push 사고 재방지
 - PR 3개 분리 (PR1=schema / PR2=시즌통계 / PR3=Portone) — revert 안전
 
-### 구현 기록 (P2-1 + P2-2 PATCH 후 JWT 재발급 — referee 영역 stale session.name 해소)
+### 구현 기록 (v2.3 마이페이지 hub 박제 — `/profile` Profile.jsx 1:1)
 
-📝 구현 내용: 사용자 nickname 변경 후 JWT 만료(7일)까지 (referee)/* 영역 3건이 옛 닉네임 유지 → PATCH 라우트에 새 JWT 발급 + Set-Cookie 추가 (재발급 후 모든 session.name 신선해짐 → referee 페이지 자체 수정 불필요).
+📝 구현 내용: v2.3 시안 `Dev/design/BDR v2.3/screens/Profile.jsx` 1:1 박제. 좌 320 sticky aside (HeroCard / TeamSideCard / BadgesSideCard) + 우 1fr (SeasonStats / UpcomingGames / ActivityTimeline) 그리드 보존. v2.2 박제와의 갭 5건 정합 — UpcomingGames 1건→3건 / SeasonStats 6열 모바일 분기 / HeroCard 등번호 / TeamSideCard W/L / 인증완료 name_verified 우선. API/data fetch 0 변경 (select 컬럼 추가만).
 
 | 파일 | 변경 | 신규/수정 |
 |------|------|----------|
-| src/app/api/web/profile/route.ts | (1) WEB_SESSION_COOKIE / generateToken / prisma import 추가 (2) PATCH 본체 끝 — apiSuccess 응답 객체에 res.cookies.set 추가 (3) nickname !== undefined 일 때만 prisma.user.findUnique({email/nickname/membershipType/isAdmin/admin_role}) 후 generateToken 호출, httpOnly + production secure + sameSite lax + path / + maxAge 7일 (4) JWT 재발급 실패해도 PATCH 자체 성공 처리(try/catch 내부 try/catch) | 수정 |
-| .claude/knowledge/errors.md | "[2026-05-01] PATCH 후 JWT 재발급 누락 → referee 영역 stale session.name (해소)" 항목 추가 (가장 최신 위치) | 수정 |
+| src/app/(web)/profile/page.tsx | (1) user select +name_verified (Phase 12 컬럼) (2) teamMember select 모드 변환 + jerseyNumber/team.wins/losses/draws (3) game_applications findFirst→findMany take:3 (4) primaryTeamMember.jerseyNumber 으로 jerseyNumber 변수 도출 (5) primaryTeam wins/losses/draws 0 폴백 (6) nextGames 배열 변환 — status:Int(0=pending/1=approved) 보존 (7) HeroCard prop +jerseyNumber / UpcomingGames prop game→games 배열 / 변수명 nextGameApp→nextGameApps | 수정 |
+| src/app/(web)/profile/_v2/hero-card.tsx | (1) HeroCardUser interface +jerseyNumber:number\|null (2) 메타 1줄 v2.3 시안 정합 — "팀 · 포지션 · #N" (지역 제외) (3) 메타 2줄 — 지역 + 성별 + ★ rating · join (4) flexWrap 추가로 모바일 줄바꿈 안전 | 수정 |
+| src/app/(web)/profile/_v2/team-side-card.tsx | (1) TeamSideItem interface +wins/losses/draws:number (2) "외 N팀" 메타 → "12W 5L · 외 N팀" 정합. 0/0 이면 전적 생략 | 수정 |
+| src/app/(web)/profile/_v2/upcoming-games.tsx | (1) UpcomingGame interface scheduledAt non-null + status:number\|null (2) UpcomingGamesProps game:single → games:array (3) 본체 — flex-column gap:10 list 렌더 + .upcoming-row className 추가 (모바일 분기용) (4) badgeFor() 헬퍼 — status===1 "참가확정" / 0 "신청중" / 그 외 D-N 폴백 | 수정 |
+| src/app/(web)/profile/_v2/season-stats.tsx | (1) 6열 grid 컨테이너 +.season-stats-grid className (2) 셀 +.season-stats-cell + data-cell-index 속성 (모바일 분기 selector 용) | 수정 |
+| src/app/globals.css | 720px @media block 내 Profile v2.3 룰 3종 추가: (1) .season-stats-grid → repeat(3,1fr) + cell-index 3/4/5 borderTop + 3 borderLeft:0 (2) .upcoming-row → 1fr/auto grid + grid-template-areas "date status / body body" + nth-child(1)/(2)/(3) area 매핑 | 수정 |
 
-🔧 패턴:
-- updateProfile select는 **건드리지 않음** (회귀 위험 0) — 별도 findUnique 1회로 JWT 인자 4 필드 조회
-- 쿠키 옵션은 기존 web-session.ts WEB_SESSION_COOKIE 재사용 (production: __Host-bdr_session, dev: bdr_session)
-- res.cookies.set (NextResponse method) 사용 — handleSave 1.5초 reload (f497eff) 직전에 Set-Cookie 박힘
+🔧 핵심 패턴:
+- **API/data fetch 0 변경** — select 컬럼만 확장 (Team.wins/losses/draws + TeamMember.jerseyNumber + User.name_verified). 새 fetch 0건.
+- **status: Int (game_applications)** — DB schema.prisma L1290 확인. 0=pending, 1=approved, 2=rejected, 3=cancelled (기존 my-games/page.tsx 동일 패턴)
+- **인증 컬럼 폴백 체인**: name_verified (Phase 12) || profile_completed (legacy) — Phase 12 SQL 적용 안 된 환경 보호
+- **모바일 분기 룰 13 충족** — 인라인 grid `repeat(6,1fr)` + `72px/1fr/auto` 두 곳 모두 720px 분기 추가
 
 💡 tester 참고:
-- /profile/edit 닉네임 변경 → 저장 → 1.5초 reload → 헤더 갱신 ✓ (기존)
-- referee 계정 로그인 → 닉네임 변경 → /referee, /referee/profile 진입 → 새 닉네임 노출 (JWT 재발급 효과)
-- 비referee 계정에 영향 0 (PATCH 라우트 동일)
+- 테스트 방법: `/profile` 진입 → 데스크톱 1280px 좌 320 + 우 1fr 2열 / 모바일 720px 이하 1열 stack 검증
+- 정상 동작: (1) 메타 "팀 · 포지션 · #N" 표시 (등번호 없으면 "팀 · 포지션") (2) SeasonStats 데스크톱 6열 / 모바일 3열 2행 + 사이 horizontal border (3) UpcomingGames 최대 3건, 신청 상태별 badge (참가확정 녹색/신청중 soft) (4) TeamSideCard "12W 5L" 표시 (전적 0/0 면 생략, 외 N팀만 표시)
+- 주의할 입력: (a) name_verified 컬럼 미적용 운영 DB → profile_completed fallback (b) 등번호 미등록 멤버 → "#N" 생략 (c) game_applications.status 코드 미존재 → D-N 폴백
+- viewport 4종: 366 / 390 / 768 / 1280 가로 overflow 0 검증
 
 ⚠️ reviewer 참고:
-- nickname !== undefined 분기로 다른 필드만 PATCH 시 불필요한 JWT 재발급 X
-- updateProfile 응답 형태(snake_case 9필드) 보존 — 프론트 폼 회귀 0
-- generateToken 인자 검증: schema.prisma User 모델 admin_role 컬럼 라인 152 확인됨, isAdmin/membershipType/email/nickname 모두 존재
+- TeamMember select 모드 전환 — 기존 include 모드를 select로 명시화하여 불필요 컬럼 차단 (createdAt/updatedAt 제외)
+- BigInt → string 직렬화 보존: primaryTeamMember.team.id.toString()
+- next/image 도메인 변경 0 — TeamSideCard logoUrl/HeroCard profile_image_url 기존 도메인 그대로
+- 720px 미디어 쿼리 내 룰 3종 — `.profile-grid` `.profile-aside` 하단에 추가하여 기존 룰 충돌 0
+- 박제 룰 자체 검수: var(--*) 토큰만 / Material Symbols person_off 1종 (lucide 0) / radius 4-6-8 / 720 분기 / repeat(N,1fr) 분기 필수 ✅
 
-📦 다음 액션 (후속):
-- 이메일/role 변경 PATCH 라우트 추가 시 동일 패턴 적용 (현재는 nickname 외 변경 라우트 0)
+📦 다음 액션 (후속, 본 작업 외):
+- v2.3 P1: /profile/edit / /profile/settings / /profile/billing / /profile/activity (각 1~1.5h)
+- v2.3 P2: 다른 변경 시안 61건 미세 동기화
 
 ## 진행 현황표
 
@@ -125,7 +134,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
-| 2026-05-01 | (미커밋, subin) | **P2-1 + P2-2 PATCH 후 JWT 재발급 + Set-Cookie — referee 영역 stale session.name 해소** (developer): `src/app/api/web/profile/route.ts` (1) WEB_SESSION_COOKIE / generateToken / prisma import 추가 (2) PATCH 본체 끝 — apiSuccess 응답 객체 보유 후 nickname !== undefined 분기에서 prisma.user.findUnique({email/nickname/membershipType/isAdmin/admin_role}) 1회 + generateToken → res.cookies.set 7d (httpOnly + production secure + sameSite lax + path /). updateProfile select 건드리지 않음(회귀 위험 0). JWT 재발급 실패해도 PATCH 자체 성공 처리(try/catch 내부 try/catch). (referee)/* 3건(referee/page L75/L135 + referee/profile L73) 자동 갱신 — server component 매번 cookie 검증으로 새 session.name 사용. handleSave 1.5초 reload(f497eff) 직전 Set-Cookie 박힘. errors.md 첫 항목 "[2026-05-01] PATCH 후 JWT 재발급 누락" 추가. tsc 0 에러. 변경: 수정 1 + knowledge 1 = 2 파일. | ✅ |
+| 2026-05-01 | (미커밋, subin) | **v2.3 마이페이지 hub 박제 — `/profile` Profile.jsx 1:1** (developer): 시안 `Dev/design/BDR v2.3/screens/Profile.jsx` 박제. 좌 320 sticky aside + 우 1fr grid는 v2.2 박제로 이미 적용 — 갭 5건 정합. (1) `page.tsx` user select +name_verified(Phase 12 컬럼) / teamMember select 모드로 변환 + jerseyNumber + team.wins/losses/draws / game_applications findFirst→findMany take:3 / primaryTeam wins/losses/draws + jerseyNumber 변환 / nextGames 배열 변환(status:Int 0/1 보존) / HeroCard prop +jerseyNumber, UpcomingGames prop game→games 배열. (2) `_v2/hero-card.tsx` HeroCardUser +jerseyNumber, 메타 1줄 v2.3 정합 "팀 · 포지션 · #N", 메타 2줄 지역+성별+★, flexWrap 모바일 안전. (3) `_v2/team-side-card.tsx` +wins/losses/draws, "12W 5L · 외 N팀" 표시(0/0 면 전적 생략). (4) `_v2/upcoming-games.tsx` UpcomingGame.status:number\|null + scheduledAt non-null, props game→games 배열, 본체 flex-column gap:10 list, badgeFor() 헬퍼(1=참가확정/0=신청중/그 외 D-N), .upcoming-row className 추가. (5) `_v2/season-stats.tsx` 컨테이너 .season-stats-grid + 셀 .season-stats-cell + data-cell-index. (6) `globals.css` 720 미디어 내 룰 3종 추가 — .season-stats-grid repeat(3,1fr) + cell 3/4/5 borderTop + 3 borderLeft:0, .upcoming-row 1fr/auto + grid-template-areas 재배치. **API/data fetch 0 변경** (select 컬럼 추가만). 인증 컬럼 폴백 체인: name_verified \|\| profile_completed (Phase 12 SQL 미적용 환경 보호). status 코드는 schema.prisma L1290 Int 0=pending/1=approved/2=rejected/3=cancelled. 박제 룰 준수: var(--*) 토큰만 / Material Symbols person_off 1종(lucide 0) / radius 4-6-8 / 720 분기 / repeat(N,1fr) 분기 필수 ✅. tsc 0 에러. 변경: 수정 6 파일(page.tsx + _v2 4종 + globals.css). | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **P0 Step 4 + Step 5 백버튼 컴포넌트 + 18 페이지 + 커뮤니티 모바일 탭 회귀** (developer): 인계 문서 §4 + §5. 사용자 직접 보고 2건 해소. (1) `src/components/shared/page-back-button.tsx`(60줄) 신규 — Material Symbols arrow_back + lg:hidden + history.length 가드 + fallbackHref + minHeight 44px + radius 4px. "use client" + useRouter + window.history.length>1 분기 → router.back() / fallback. (2) profile 9 페이지(page/achievements/activity/billing/bookings/complete/complete-preferences/edit/growth) + organizations 4 페이지(page/[slug]/[slug]/series/[seriesSlug]/apply) + courts 5 페이지(page/[id]/booking/[id]/booking/payment-fail/[id]/checkin/[id]/manage) = **18 페이지** 일괄 적용. 각 페이지 fallbackHref 의미 매핑(동적 slug params 보존). 인계 문서 21 vs 실제 18 차이 — LegacyRedirect 4 개(notification-settings/payments/preferences/subscription) 제외 + settings 누락. 서버 컴포넌트는 wrapper div padding `12px var(--gutter) 0` 패턴 + 클라이언트 페이지는 .page 첫 줄 직접 삽입. (3) `community-aside.tsx`(+27/-3) — 기존 단일 <aside> → fragment 분기: 모바일 `.aside-mobile-tabs lg:hidden` 가로 스크롤 탭 8 카테고리 + 데스크톱 `hidden lg:block` 사이드바 그대로. role=tablist/tab + aria-selected. (4) `globals.css`(+50) — `.aside-mobile-tabs` overflow-x:auto + scrollbar 숨김 + `padding 8px var(--gutter)` + 음수 margin으로 화면 끝까지 + border-bottom var(--border). `.aside-mobile-tab` radius 4px + min-height 36px + var(--ink-mute). `.active` var(--accent) 배경 + 흰 글씨. 박제 룰 준수: var(--*) 토큰만, Material Symbols arrow_back 1종, radius 4px, alert 신규 0, API/data 0 변경(UI 만), lg:hidden Tailwind 1024px 분기. tsc 0 에러. 변경: 신규 1 + 수정 20 = 21 파일. PageBackButton 적용 카운트 grep 18 페이지 확인. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **P0 Step 1 + Step 3 가입+대회 흐름 + 404** (developer): 대회 직전 §A-2 §C-1 §C-2 §D-3 4 영역 일괄(사용자 명시 "대회 시급부터"). (1) onboarding/setup done 화면 "프로필 추가 완성하기 →" 보조 CTA 추가(옵션 A, /profile/complete, text 링크 톤). (2) tournaments/[id]/join success "내 신청 내역 보기 →" `/games/my-games` 1순위 CTA(btn--primary minWidth 200) + 기존 "대회 페이지로" 2순위 보존. tournament 전용 탭 미존재 → 단순 라우트. (3) pricing/checkout L117 401 redirect → `?redirect=${encodeURIComponent(currentUrl)}` 보존. /login isValidRedirect open redirect 방어 확인(page.tsx L29 + L57) → 적용. SSR 안전 typeof window 가드. (4) (web)/not-found.tsx 신규(60줄) — search_off 64px + h1 24px + 3 CTA(홈→ btn--primary / 경기 둘러보기 / 대회 보기). (web) 한정으로 (site) 서브도메인 영향 0. 박제 룰: var(--*) 토큰만, Material Symbols 1종(search_off), .btn 클래스 radius 4px, alert/API fetch 신규 0. 변경: 신규 1 + 수정 3 = 4 파일. tsc 0 에러. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **프로필 입력창/버튼 모바일 가독성** (developer): 캡처 51 /profile/edit 닉네임+중복확인+이름 한 줄 우겨넣기 픽스. .profile-edit-row 클래스 768px 이하 1열 stack + globals.css 720px 이하 .input/.textarea/.select padding 44px 터치 타겟 + .btn--sm 보강. ProfileSectionV2 자동 보강. 변경 +33/-23 = 2 파일. tsc 0. | ✅ |

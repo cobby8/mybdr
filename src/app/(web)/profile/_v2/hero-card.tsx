@@ -52,6 +52,8 @@ export interface HeroCardUser {
   total_games_hosted: number | null;
   /** 유저 평가 점수 (0.00~5.00) — 별점으로 표시. 0 또는 null 이면 생략 */
   evaluation_rating: number | null;
+  /** v2.3 시안 "#7" — 등번호. TeamMember 우선, 없으면 user.preferred_jersey_number */
+  jerseyNumber: number | null;
 }
 
 export interface HeroCardLevel {
@@ -90,18 +92,19 @@ export function HeroCard({
   const displayName = user.nickname ?? user.name ?? "사용자";
   // 이미지 없을 때 이니셜 — 한글·영문 혼합 대비 trim 후 첫 글자 대문자화
   const initial = displayName.trim()[0]?.toUpperCase() ?? "U";
-  // 메타 1줄 — "팀명 · 포지션 · 지역"
+  // 메타 1줄 v2.3 시안 — "리딤 · 가드 · #7" 패턴: 팀명 + 포지션 + 등번호
   const metaParts: string[] = [];
   if (team?.teamName) metaParts.push(team.teamName);
   if (user.position) {
     // 포지션 매핑 없으면 원본 코드 그대로 사용
     metaParts.push(POSITION_KO[user.position] ?? user.position);
   }
-  const location = [user.city, user.district].filter(Boolean).join(" ");
-  if (location) metaParts.push(location);
+  // 등번호는 # 프리픽스 (시안 "#7")
+  if (user.jerseyNumber != null) metaParts.push(`#${user.jerseyNumber}`);
   const metaLine = metaParts.join(" · ");
 
-  // 메타 2줄 — gender + ★ evaluation_rating (둘 중 하나만 있어도 렌더)
+  // 메타 2줄 v2.3: 지역 + gender + ★ rating (위 1줄에 등번호가 들어가서 지역은 2줄로 강등)
+  const location = [user.city, user.district].filter(Boolean).join(" ");
   const genderLabel = user.gender ? (GENDER_KO[user.gender] ?? user.gender) : null;
   // evaluation_rating 은 Decimal(3,2) — Prisma 반환값은 Decimal 객체일 수 있어 Number() 변환 후 체크
   const ratingNum = user.evaluation_rating != null ? Number(user.evaluation_rating) : 0;
@@ -154,8 +157,8 @@ export function HeroCard({
         </div>
       )}
 
-      {/* 메타 2줄 — 성별 · ★ 평점 (있을 때만) */}
-      {(genderLabel || showRating) && (
+      {/* 메타 2줄 v2.3 — 지역 · 성별 · ★ 평점 (있는 항목만 · 로 join) */}
+      {(location || genderLabel || showRating) && (
         <div
           style={{
             fontSize: 12,
@@ -165,8 +168,11 @@ export function HeroCard({
             gap: 8,
             justifyContent: "center",
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
+          {location && <span>{location}</span>}
+          {location && (genderLabel || showRating) && <span>·</span>}
           {genderLabel && <span>{genderLabel}</span>}
           {genderLabel && showRating && <span>·</span>}
           {showRating && (

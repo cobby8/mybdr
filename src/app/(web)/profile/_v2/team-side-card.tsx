@@ -23,7 +23,10 @@ export interface TeamSideItem {
   primaryColor: string | null;
   /** 팀 로고 URL — 없으면 이니셜 폴백 */
   logoUrl: string | null;
-  /** 총 팀 개수 (복수일 때 "외 N팀" 표시용) */
+  /** v2.3 시안 "12W 5L" — 팀 전적. 0/0 이면 표시 생략 (신규 팀 잡음 방지) */
+  wins: number;
+  losses: number;
+  draws: number;
 }
 
 export interface TeamSideCardProps {
@@ -99,8 +102,8 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
           >
             {primaryTeam.name}
           </div>
-          {/* 복수 팀 메타 — 2팀 이상일 때만 */}
-          {totalTeams > 1 && (
+          {/* v2.3 시안 "12W 5L" — 0/0 이면 "전적 미기록" 대신 노출 생략. 외 N팀 정보는 "·" 로 join */}
+          {(primaryTeam.wins > 0 || primaryTeam.losses > 0 || totalTeams > 1) && (
             <div
               style={{
                 fontSize: 11,
@@ -108,7 +111,14 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
                 fontFamily: "var(--ff-mono)",
               }}
             >
-              외 {totalTeams - 1}팀
+              {primaryTeam.wins > 0 || primaryTeam.losses > 0 ? (
+                <>
+                  {primaryTeam.wins}W {primaryTeam.losses}L
+                  {primaryTeam.draws > 0 ? ` ${primaryTeam.draws}D` : ""}
+                </>
+              ) : null}
+              {(primaryTeam.wins > 0 || primaryTeam.losses > 0) && totalTeams > 1 && " · "}
+              {totalTeams > 1 && `외 ${totalTeams - 1}팀`}
             </div>
           )}
         </div>

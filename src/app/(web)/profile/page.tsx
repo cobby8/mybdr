@@ -85,7 +85,7 @@ export default async function ProfilePage() {
   const [
     user,
     teamMembers,
-    nextGameApp,
+    nextGameApps,
     playerStats,
     unreadCount,
     recentPosts,
@@ -93,6 +93,7 @@ export default async function ProfilePage() {
     userBadges,
   ] = await Promise.all([
     // 1) user 필수 필드 — profile API 보다 확장(gender/evaluation_rating/total_games_hosted/xp/subscription)
+    //   v2.3: name_verified(Phase 12 추가) + preferred_jersey_number(시안 "#7")
     prisma.user
       .findUnique({
         where: { id: userId },
@@ -113,21 +114,31 @@ export default async function ProfilePage() {
           xp: true,
           subscription_status: true,
           profile_completed: true,
+          // 시안 "인증완료" 뱃지 정합 — Phase 12-1 으로 추가된 본인인증 컬럼
+          name_verified: true,
+          // 등번호는 User 컬럼이 아닌 TeamMember.jerseyNumber 를 사용
+          // (preferred_jersey_number 는 team_join_requests 의 신청 옵션 — User 가입 시점이 아니라 팀 가입 요청 임시값).
         },
       })
       .catch(() => null),
 
     // 2) 소속 팀 (active만)
+    //    v2.3: TeamSideCard 의 "12W 5L" 표시 — team.wins/losses/draws + 시안 "#7" 등번호용 jerseyNumber
     prisma.teamMember
       .findMany({
         where: { userId, status: "active" },
-        include: {
+        select: {
+          id: true,
+          jerseyNumber: true,
           team: {
             select: {
               id: true,
               name: true,
               primaryColor: true,
               logoUrl: true,
+              wins: true,
+              losses: true,
+              draws: true,
             },
           },
         },
@@ -136,14 +147,18 @@ export default async function ProfilePage() {
       })
       .catch(() => []),
 
-    // 3) 다음 경기 — scheduled_at > now 인 가장 빠른 1건
+    // 3) 다가오는 일정 — v2.3 시안 GAMES.slice(0,3) 매칭. scheduled_at > now 가장 빠른 3건
+    //    findFirst → findMany 로 변경. 페이지 SSR 에서만 사용 (실시간 불필요).
     prisma.game_applications
-      .findFirst({
+      .findMany({
         where: {
           user_id: userId,
           games: { scheduled_at: { gt: now } },
         },
-        include: {
+        select: {
+          id: true,
+          status: true,
+          game_id: true,
           games: {
             select: {
               id: true,
@@ -155,8 +170,9 @@ export default async function ProfilePage() {
           },
         },
         orderBy: { games: { scheduled_at: "asc" } },
+        take: 3,
       })
-      .catch(() => null),
+      .catch(() => []),
 
     // 4) 승률 / 평균 스탯
     getPlayerStats(userId).catch(() => null),
@@ -231,16 +247,25 @@ export default async function ProfilePage() {
   const level = getProfileLevelInfo(user.xp);
   // subscription_status === "active" 이면 PRO
   const isPro = user.subscription_status === "active";
-  const isVerified = !!user.profile_completed;
+  // v2.3: 시안 "인증완료" — Phase 12 추가된 name_verified 우선, 폴백으로 profile_completed
+  const isVerified = !!user.name_verified || !!user.profile_completed;
   // evaluation_rating 은 Decimal → number
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
-  const primaryTeam = teamMembers[0]?.team
+  // v2.3: 시안 "#7" — 첫 활성 팀의 등번호 (User 모델에는 jersey 컬럼 없음)
+  const primaryTeamMember = teamMembers[0] ?? null;
+  const jerseyNumber = primaryTeamMember?.jerseyNumber ?? null;
+
+  const primaryTeam = primaryTeamMember?.team
     ? {
-        id: teamMembers[0].team.id.toString(),
-        name: teamMembers[0].team.name,
-        primaryColor: teamMembers[0].team.primaryColor,
-        logoUrl: teamMembers[0].team.logoUrl,
+        id: primaryTeamMember.team.id.toString(),
+        name: primaryTeamMember.team.name,
+        primaryColor: primaryTeamMember.team.primaryColor,
+        logoUrl: primaryTeamMember.team.logoUrl,
+        // v2.3 TeamSideCard "12W 5L" — 시안 정합. 시즌 레이팅은 DB 없음 (totalGames 표시로 대체)
+        wins: primaryTeamMember.team.wins ?? 0,
+        losses: primaryTeamMember.team.losses ?? 0,
+        draws: primaryTeamMember.team.draws ?? 0,
       }
     : null;
 
@@ -255,15 +280,18 @@ export default async function ProfilePage() {
     rating: evaluationRating,
   };
 
-  // ---- UpcomingGames 데이터 변환 ----
-  const nextGame = nextGameApp?.games
-    ? {
-        id: nextGameApp.games.uuid ?? nextGameApp.game_id.toString(),
-        title: nextGameApp.games.title ?? null,
-        scheduledAt: nextGameApp.games.scheduled_at?.toISOString() ?? null,
-        venueName: nextGameApp.games.venue_name ?? null,
-      }
-    : null;
+  // ---- UpcomingGames 데이터 변환 (v2.3: 1건 → 3건) ----
+  //   시안 GAMES.slice(0,3) 매칭. games 가 null 인 신청은 필터 제거.
+  const nextGames = nextGameApps
+    .filter((app) => app.games != null && app.games.scheduled_at != null)
+    .map((app) => ({
+      id: app.games!.uuid ?? app.game_id.toString(),
+      title: app.games!.title ?? null,
+      scheduledAt: app.games!.scheduled_at!.toISOString(),
+      venueName: app.games!.venue_name ?? null,
+      // 신청 상태 — "approved"/"confirmed" 면 시안의 "참가확정" badge 매핑
+      status: app.status ?? null,
+    }));
 
   // ---- Activity 타임라인 merge (posts + applications → created_at desc 상위 5건) ----
   const postItems: ActivityItem[] = recentPosts.map((p) => ({
@@ -338,6 +366,8 @@ export default async function ProfilePage() {
               gender: user.gender,
               total_games_hosted: user.total_games_hosted,
               evaluation_rating: evaluationRating,
+              // v2.3: 시안 "#7" — 등번호 표시
+              jerseyNumber,
             }}
             level={level}
             isPro={isPro}
@@ -358,7 +388,7 @@ export default async function ProfilePage() {
         {/* ========== 우측 main ========== */}
         <div>
           <SeasonStats data={seasonStatsData} seasonLabel="통산" />
-          <UpcomingGames game={nextGame} />
+          <UpcomingGames games={nextGames} />
           <ActivityTimeline items={activities} />
         </div>
       </div>
