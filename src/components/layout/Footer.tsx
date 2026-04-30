@@ -89,6 +89,17 @@ export function Footer() {
                 bdrbasket@gmail.com
               </a>
             </span>
+            <span className="hidden sm:inline" aria-hidden>·</span>
+            <span>
+              전화{" "}
+              <a
+                href="tel:+8270-4337-3000"
+                className="hover:underline"
+                style={{ color: "inherit" }}
+              >
+                070-4337-3000
+              </a>
+            </span>
           </div>
         </div>
       </div>
