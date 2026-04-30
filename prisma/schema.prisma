@@ -192,6 +192,25 @@ model User {
   team_follows                 team_follows[]        @relation("team_follows_user")
   team_match_requests_proposed team_match_requests[] @relation("team_match_requests_proposer")
 
+  // Phase 12-C — 본인인증 (PortOne 또는 외부 KYC 결과)
+  // 신규 가입자는 강제 인증 / 기존 사용자는 대회 신청 시점에 인증 (백필 X — 대회 게이트에서 검증)
+  // verified_name: 인증 시점의 실명 (User.name 과 별도 — 인증값은 변경 불가)
+  // verified_phone: 인증 시점의 휴대폰 번호 (E.164 또는 국내 010-XXXX-XXXX)
+  // verified_birth: 인증 시점의 생년월일 (User.birth_date 와 별도)
+  // name_verified: 인증 완료 여부 (대회 신청 게이트에서 true 검사)
+  // verified_at: 인증 완료 시각 (감사 로그용)
+  verified_name  String?   @db.VarChar(100)
+  verified_phone String?   @db.VarChar(20)
+  verified_birth DateTime? @db.Date
+  name_verified  Boolean   @default(false)
+  verified_at    DateTime? @db.Timestamp(6)
+
+  // Phase 12-A — 시즌 통계 / 슛존 / 스카우팅 리포트 (12-1 테이블만, UI/집계는 Phase 13+)
+  season_stats      UserSeasonStat[]
+  shot_zones        ShotZoneStat[]
+  scouting_received ScoutingReport[] @relation("ScoutingTarget")
+  scouting_given    ScoutingReport[] @relation("ScoutingEvaluator")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -2752,4 +2771,80 @@ model HealthCheckResult {
   @@index([run_id])
   @@index([passed, created_at(sort: Desc)])
   @@map("health_check_results")
+}
+
+// ============================================================
+// Phase 12-A — 시즌 통계 / 슛존 / 스카우팅 (2026-04-30)
+// 통합 마이그레이션: 12-1 테이블만 추가, 집계/UI 는 Phase 13+
+// ============================================================
+
+// Phase 12-A: 사용자 × 시즌 누적 집계 (랭킹 페이지 / 마이페이지 시즌 카드 용)
+// 한 유저가 한 시즌에 한 행 (@@unique user_id+season_year)
+// avg_rating: game_player_ratings 평균 (1.00~5.00)
+// rank_position: 시즌 순위 (NULL = 미집계 — 배치 잡이 채움)
+model UserSeasonStat {
+  id            BigInt   @id @default(autoincrement())
+  user_id       BigInt
+  season_year   Int // 시즌 연도 (예: 2026)
+  season_label  String?  @db.VarChar(50) // 표시용 라벨 ("2026 시즌" 등)
+  games_played  Int      @default(0)
+  wins          Int      @default(0)
+  losses        Int      @default(0)
+  avg_rating    Decimal? @db.Decimal(3, 2) // 1.00 ~ 5.00
+  mvp_count     Int      @default(0)
+  rank_position Int? // 시즌 종합 순위 (NULL = 미집계)
+  total_minutes Int      @default(0)
+  total_xp      Int      @default(0)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  updated_at    DateTime @default(now()) @db.Timestamp(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, season_year])
+  @@index([user_id])
+  @@index([season_year])
+  @@map("user_season_stats")
+}
+
+// Phase 12-A: 슛존 통계 (Phase 13+ 에서 집계 잡 + UI 추가 예정)
+// zone_code: "RA"(restricted area) / "PAINT" / "MID_LEFT" / "MID_RIGHT" / "3PT_CORNER_L" 등
+// efficiency: made / attempts (0.0000 ~ 1.0000) — 트리거 또는 배치로 채움
+model ShotZoneStat {
+  id          BigInt   @id @default(autoincrement())
+  user_id     BigInt
+  season_year Int
+  zone_code   String   @db.VarChar(20) // RA, PAINT, MID_LEFT, ...
+  attempts    Int      @default(0)
+  made        Int      @default(0)
+  efficiency  Decimal? @db.Decimal(5, 4) // 0.0000 ~ 1.0000
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, season_year, zone_code])
+  @@index([user_id])
+  @@map("shot_zone_stats")
+}
+
+// Phase 12-A: 스카우팅 리포트 (Phase 13+ UI / API 추가 예정)
+// 한 평가자가 한 대상에게 한 행만 작성 (@@unique target+evaluator)
+// is_anonymous: 기본 true — 평가자 신원 비공개. 대상에게는 평가 내용만 보임
+model ScoutingReport {
+  id                BigInt   @id @default(autoincrement())
+  target_user_id    BigInt // 평가 대상
+  evaluator_user_id BigInt // 평가자 (작성자)
+  strengths         String?  @db.Text
+  weaknesses        String?  @db.Text
+  rating            Int? // 1~5 종합 평점
+  comment           String?  @db.Text
+  is_anonymous      Boolean  @default(true)
+  created_at        DateTime @default(now()) @db.Timestamp(6)
+
+  target_user    User @relation("ScoutingTarget", fields: [target_user_id], references: [id], onDelete: Cascade)
+  evaluator_user User @relation("ScoutingEvaluator", fields: [evaluator_user_id], references: [id], onDelete: Cascade)
+
+  @@unique([target_user_id, evaluator_user_id])
+  @@index([target_user_id])
+  @@map("scouting_reports")
 }
