@@ -97,10 +97,36 @@ export default function VerifyPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        // P1-B (UI 진입점 감사): phone 인증 완료 → /onboarding/setup 자동 진입
-        // 이유: 신규 회원이 onboarding 위저드를 More 메뉴에서만 발견 가능 → 자동 redirect로 노출 보장
-        // 기존 /profile/complete 는 More 메뉴 / 마이페이지 경로에서 별도 진입 가능 (보존)
-        router.push("/onboarding/setup");
+        // P0-4 (BDR v2.2): 인증 완료 후 user 상태에 따라 redirect 분기
+        //   - profile_completed = false → /profile/complete (D등급 P0-4 박제 4 step wizard)
+        //   - onboarding_completed_at = null → /onboarding/setup (취향 풀 온보딩)
+        //   - 모두 완료 → /
+        // 이유: 신규 가입자에겐 압축형 4 step → 풀 온보딩 순서 노출이 자연스러움
+        //       기존 사용자(이미 완료)는 곧장 홈으로 보내 마찰 0
+        // 분기 실패 시 fallback: /onboarding/setup (기존 동작 유지)
+        try {
+          const profileRes = await fetch("/api/web/profile", {
+            credentials: "include",
+          });
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            // apiSuccess 자동 snake_case 변환 (errors.md 6회 재발 가드)
+            const u = profile?.user;
+            if (u && !u.profile_completed) {
+              router.push("/profile/complete");
+            } else if (u && !u.onboarding_completed_at) {
+              router.push("/onboarding/setup");
+            } else {
+              router.push("/");
+            }
+          } else {
+            // profile API 실패 시 안전한 fallback (기존 동작)
+            router.push("/onboarding/setup");
+          }
+        } catch {
+          // 네트워크 오류 fallback
+          router.push("/onboarding/setup");
+        }
       } else {
         setError(data.error ?? "저장 실패");
       }
