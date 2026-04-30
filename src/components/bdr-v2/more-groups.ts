@@ -90,6 +90,8 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "둘러보기",
     items: [
+      // v2.1 추가 — components.jsx (Dev/design/BDR v2.1)
+      { id: "refereeInfo", label: "심판 센터 안내", icon: "🦓", href: "/referee-info" },
       { id: "searchResults", label: "검색 결과", icon: "🔎", href: "/search" },
       // [2026-04-29] referee 제거 — phase-9 1-A: 일반 사용자 메뉴에서 노출 X.
       // is_referee=true 사용자는 AppNav 더보기 패널의 "운영" 그룹에 별도 노출됨.
