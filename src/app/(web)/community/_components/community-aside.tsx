@@ -61,7 +61,10 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
   const groupKeys: GroupKey[] = ["main", "play", "chat"];
 
   return (
-    <>
+    // 부모 .with-aside grid 가 자식 2개(사이드바+main) 기준으로 컬럼 배치하므로
+    // CommunityAside 는 반드시 단일 grid item 으로 반환해야 함 (Fragment 사용 시
+    // 자식이 3개로 카운트되어 컬럼 깨짐 — 2026-05-01 회귀).
+    <div>
       {/* Phase 12 §H — 모바일 카테고리 가로 스크롤 탭 (사용자 보고 회귀 픽스).
           이유: v2 박제 시 사이드바가 본문 위로 stack 되어 모바일 사용자가 본문 도달 어려움.
           해소: lg 미만에서만 가로 스크롤 8 카테고리 탭. lg+ 는 좌측 사이드바 유지. */}
@@ -128,6 +131,6 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
           );
         })}
       </aside>
-    </>
+    </div>
   );
 }
