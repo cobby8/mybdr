@@ -40,9 +40,12 @@ export const PROFILE_DETAIL_SELECT = {
   account_holder: true,
   // 소셜 로그인 제공자 표시용 (프로필 수정 페이지)
   provider: true,
-  // Phase 12-5: 본인인증 상태 — settings 화면 IdentityVerifyButton 의 initialVerified 로 사용
-  name_verified: true,
-  verified_at: true,
+  // Phase 12-5 회귀 방지 (2026-04-30): name_verified/verified_at 는
+  // 운영 DB Phase 12 SQL 적용 후에 다시 추가. 현재는 운영 DB 컬럼 X →
+  // SELECT 시 prisma 에러 → "Internal error" 회귀 발생함.
+  // TODO Phase 12 운영 적용 후 select에 다시 추가.
+  // name_verified: true,
+  // verified_at: true,
 } as const;
 
 /** 게임 상세에서 사용하는 유저 프로필 select */
