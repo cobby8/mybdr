@@ -73,6 +73,62 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
   // 저장 결과 메시지: success | error | null
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
+  // 닉네임 중복확인 state — /profile/edit 와 동일 패턴
+  // 입력값이 검증값과 달라지면 idle 로 리셋해 결과 메시지가 stale 되지 않도록.
+  const [nicknameCheck, setNicknameCheck] = useState<{
+    status: "idle" | "checking" | "available" | "taken" | "error";
+    message: string;
+    checkedNickname: string;
+  }>({ status: "idle", message: "", checkedNickname: "" });
+
+  // 중복확인 핸들러 — 동일 API 호출 (/profile/edit 와 동일 결과)
+  const handleCheckNickname = async () => {
+    const trimmed = form.nickname.trim();
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      setNicknameCheck({
+        status: "error",
+        message: "닉네임은 2자 이상 20자 이하여야 합니다.",
+        checkedNickname: trimmed,
+      });
+      return;
+    }
+    setNicknameCheck({ status: "checking", message: "확인 중...", checkedNickname: trimmed });
+    try {
+      const res = await fetch(
+        `/api/web/profile/check-nickname?nickname=${encodeURIComponent(trimmed)}`,
+        { credentials: "include" },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setNicknameCheck({
+          status: "error",
+          message: data?.error ?? "확인에 실패했습니다.",
+          checkedNickname: trimmed,
+        });
+        return;
+      }
+      if (data?.available === true) {
+        setNicknameCheck({
+          status: "available",
+          message: "사용 가능한 닉네임입니다.",
+          checkedNickname: trimmed,
+        });
+      } else {
+        setNicknameCheck({
+          status: "taken",
+          message: data?.message ?? "이미 사용 중인 닉네임입니다.",
+          checkedNickname: trimmed,
+        });
+      }
+    } catch {
+      setNicknameCheck({
+        status: "error",
+        message: "네트워크 오류로 확인에 실패했습니다.",
+        checkedNickname: trimmed,
+      });
+    }
+  };
+
   // 부모 user 가 도착/갱신될 때 폼 초기화
   useEffect(() => {
     if (!user) return;
@@ -183,15 +239,75 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
 
       {/* 모바일 우선 1열 stack — 일부만 데스크톱(640px+) 2열 grid */}
       <div className="space-y-4" style={{ marginBottom: 16 }}>
-        {/* 닉네임 (단독, 풀폭) */}
-        <Field
-          label="닉네임"
-          name="nickname"
-          value={form.nickname}
-          onChange={(v) => setField("nickname", v)}
-          maxLength={20}
-          placeholder="2~20자"
-        />
+        {/* 닉네임 — input + 중복확인 버튼 + 결과 메시지.
+            저장 전 사전 검증으로 PATCH 시점 P2002 회귀 차단 (76c9d26 픽스 후속). */}
+        <div>
+          <label
+            htmlFor="profile-nickname"
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}
+          >
+            닉네임
+          </label>
+          {/* input + 버튼 가로 배치 (모바일도 wrap 안 함) */}
+          <div style={{ display: "flex", gap: 8, alignItems: "stretch", marginTop: 6 }}>
+            <input
+              id="profile-nickname"
+              name="nickname"
+              className="input"
+              type="text"
+              value={form.nickname}
+              onChange={(e) => {
+                const next = e.target.value;
+                setField("nickname", next);
+                // 입력값이 검증값과 달라지면 결과 무효화
+                if (next.trim() !== nicknameCheck.checkedNickname) {
+                  setNicknameCheck({ status: "idle", message: "", checkedNickname: "" });
+                }
+              }}
+              maxLength={20}
+              placeholder="2~20자"
+              style={{ flex: 1, width: "100%" }}
+            />
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleCheckNickname}
+              disabled={
+                form.nickname.trim().length === 0 ||
+                saving ||
+                nicknameCheck.status === "checking"
+              }
+            >
+              {nicknameCheck.status === "checking" ? "확인 중..." : "중복확인"}
+            </button>
+          </div>
+          {/* 결과 메시지 — 검증값과 현재 입력값이 일치할 때만 노출 */}
+          {nicknameCheck.status !== "idle" &&
+            nicknameCheck.status !== "checking" &&
+            nicknameCheck.checkedNickname === form.nickname.trim() && (
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  fontSize: 12,
+                  color:
+                    nicknameCheck.status === "available"
+                      ? "var(--ok)"
+                      : nicknameCheck.status === "taken"
+                      ? "var(--danger)"
+                      : "var(--ink-mute)",
+                }}
+                role={
+                  nicknameCheck.status === "taken" || nicknameCheck.status === "error"
+                    ? "alert"
+                    : "status"
+                }
+              >
+                {nicknameCheck.status === "available" && "✓ "}
+                {nicknameCheck.status === "taken" && "✕ "}
+                {nicknameCheck.message}
+              </p>
+            )}
+        </div>
 
         {/* 실명 — readonly + disabled. Phase 12-5 부터 IdentityVerifyButton 으로 자동 입력. */}
         <div>

@@ -91,6 +91,15 @@ export default function ProfileEditPage() {
   });
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
 
+  // 닉네임 중복확인 state — 저장 전 사용자가 직접 검증할 수 있도록
+  // status: idle(미체크) | checking(요청 중) | available(사용 가능) | taken(사용 중) | error(네트워크/검증 실패)
+  // checkedNickname: 검증한 시점의 닉네임 — form.nickname 과 다르면 결과 무효 (입력값 변경 시 idle 리셋)
+  const [nicknameCheck, setNicknameCheck] = useState<{
+    status: "idle" | "checking" | "available" | "taken" | "error";
+    message: string;
+    checkedNickname: string;
+  }>({ status: "idle", message: "", checkedNickname: "" });
+
   const [bankForm, setBankForm] = useState({
     bank_name: "",
     bank_code: "",
@@ -162,6 +171,59 @@ export default function ProfileEditPage() {
   };
 
   const selectedPositions = form.position ? form.position.split(",") : [];
+
+  // 닉네임 중복확인 핸들러
+  // 왜: PATCH 시점 P2002 회귀를 사전 차단 + 사용자가 저장 전에 충돌 여부 확인 가능
+  // 어떻게: trim 후 GET /api/web/profile/check-nickname?nickname=... 호출, 결과로 status 갱신
+  const handleCheckNickname = async () => {
+    const trimmed = form.nickname.trim();
+    // 빈/길이 위반은 클라에서 즉시 차단 (서버도 검증하지만 왕복 절감)
+    if (trimmed.length < 2 || trimmed.length > 20) {
+      setNicknameCheck({
+        status: "error",
+        message: "닉네임은 2자 이상 20자 이하여야 합니다.",
+        checkedNickname: trimmed,
+      });
+      return;
+    }
+    setNicknameCheck({ status: "checking", message: "확인 중...", checkedNickname: trimmed });
+    try {
+      const res = await fetch(
+        `/api/web/profile/check-nickname?nickname=${encodeURIComponent(trimmed)}`,
+        { credentials: "include" },
+      );
+      const data = await res.json();
+      // 응답이 OK 가 아니면 에러로 분류 (400/500 등)
+      if (!res.ok) {
+        setNicknameCheck({
+          status: "error",
+          message: data?.error ?? "확인에 실패했습니다.",
+          checkedNickname: trimmed,
+        });
+        return;
+      }
+      // available: true / false 분기
+      if (data?.available === true) {
+        setNicknameCheck({
+          status: "available",
+          message: "사용 가능한 닉네임입니다.",
+          checkedNickname: trimmed,
+        });
+      } else {
+        setNicknameCheck({
+          status: "taken",
+          message: data?.message ?? "이미 사용 중인 닉네임입니다.",
+          checkedNickname: trimmed,
+        });
+      }
+    } catch {
+      setNicknameCheck({
+        status: "error",
+        message: "네트워크 오류로 확인에 실패했습니다.",
+        checkedNickname: trimmed,
+      });
+    }
+  };
 
   const handleGenerateBio = async () => {
     setGeneratingBio(true);
@@ -469,17 +531,65 @@ export default function ProfileEditPage() {
                   gap: 16,
                 }}
               >
-                <Field label="닉네임 *" sub="커뮤니티에 표시되는 이름">
-                  <input
-                    className="input"
-                    value={form.nickname}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, nickname: e.target.value }))
-                    }
-                    placeholder="표시될 이름"
-                  />
+                {/* B-1: 닉네임 — sub 제거(자명) + placeholder 형식 힌트(2~20자)로 단순화 */}
+                <Field label="닉네임 *">
+                  {/* input + 중복확인 버튼 가로 배치 — 모바일도 wrap 안 함 */}
+                  <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                    <input
+                      className="input"
+                      style={{ flex: 1 }}
+                      value={form.nickname}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setForm((p) => ({ ...p, nickname: next }));
+                        // 입력값이 검증한 값과 달라지면 결과 무효화 (사용자 혼동 방지)
+                        if (next.trim() !== nicknameCheck.checkedNickname) {
+                          setNicknameCheck({ status: "idle", message: "", checkedNickname: "" });
+                        }
+                      }}
+                      placeholder="2~20자"
+                    />
+                    {/* 왜 type="button": form 안 submit 트리거 방지 (이 페이지는 form 미사용이지만 방어적) */}
+                    <button
+                      type="button"
+                      className="btn btn--sm"
+                      onClick={handleCheckNickname}
+                      disabled={
+                        form.nickname.trim().length === 0 ||
+                        saving ||
+                        nicknameCheck.status === "checking"
+                      }
+                    >
+                      {nicknameCheck.status === "checking" ? "확인 중..." : "중복확인"}
+                    </button>
+                  </div>
+                  {/* 결과 메시지 — 입력값과 검증값이 일치할 때만 노출.
+                      available: var(--ok), taken: var(--danger), error: var(--ink-mute) */}
+                  {nicknameCheck.status !== "idle" &&
+                    nicknameCheck.status !== "checking" &&
+                    nicknameCheck.checkedNickname === form.nickname.trim() && (
+                      <p
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: 12,
+                          color:
+                            nicknameCheck.status === "available"
+                              ? "var(--ok)"
+                              : nicknameCheck.status === "taken"
+                              ? "var(--danger)"
+                              : "var(--ink-mute)",
+                        }}
+                        role={nicknameCheck.status === "taken" || nicknameCheck.status === "error" ? "alert" : "status"}
+                      >
+                        {/* 텍스트 마커만 — Material Symbols 없이 가벼운 표시 */}
+                        {nicknameCheck.status === "available" && "✓ "}
+                        {nicknameCheck.status === "taken" && "✕ "}
+                        {nicknameCheck.message}
+                      </p>
+                    )}
                 </Field>
-                <Field label="이름 (실명)" sub="비공개 · 대회 등록 시 확인용">
+                {/* B-2: 이름(실명) — 라벨 통일 + sub 제거(섹션 헤더에 일괄) */}
+                <Field label="이름 *">
                   <input
                     className="input"
                     value={form.name}
@@ -505,7 +615,8 @@ export default function ProfileEditPage() {
                     }
                   />
                 </Field>
-                <Field label="휴대폰" sub="대회 연락용">
+                {/* B-3: 휴대폰 — sub 제거(섹션 헤더에 일괄) */}
+                <Field label="휴대폰">
                   <input
                     type="tel"
                     inputMode="numeric"
@@ -584,12 +695,13 @@ export default function ProfileEditPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, height: e.target.value }))
                     }
-                    placeholder="예: 180"
+                    placeholder="180"
                     min={100}
                     max={250}
                   />
                 </Field>
-                <Field label="체중 (kg)" sub="비공개">
+                {/* B-5: 체중 — 라벨 단순화 + sub 제거 + placeholder 형식만 */}
+                <Field label="체중">
                   <input
                     className="input"
                     type="number"
@@ -597,7 +709,7 @@ export default function ProfileEditPage() {
                     onChange={(e) =>
                       setForm((p) => ({ ...p, weight: e.target.value }))
                     }
-                    placeholder="예: 75"
+                    placeholder="75"
                     min={30}
                     max={200}
                   />
