@@ -70,7 +70,12 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
   } catch (e) {
     // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
     console.error("[GET /api/web/profile]", e);
-    return apiError("Internal error", 500);
+    // 🚨 임시 진단 패치 (2026-04-30): 운영 PATCH/GET 500 회귀 원인 추적용
+    // 인증된 사용자(withWebAuth 통과)에게만 raw prisma error 노출.
+    // TODO 진단 캡처 받은 즉시 다시 "Internal error" 로 닫기.
+    const msg = e instanceof Error ? e.message : String(e);
+    const code = (e as { code?: string })?.code ?? "NO_CODE";
+    return apiError(`[DEBUG-GET] ${code} :: ${msg.slice(0, 400)}`, 500);
   }
 });
 
@@ -133,6 +138,13 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
   } catch (e) {
     // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
     console.error("[PATCH /api/web/profile]", e);
-    return apiError("Internal error", 500);
+    // 🚨 임시 진단 패치 (2026-04-30): 운영 PATCH 500 회귀 원인 추적용
+    // 인증된 사용자(withWebAuth 통과)에게만 raw prisma error 노출.
+    // TODO 진단 캡처 받은 즉시 다시 "Internal error" 로 닫기.
+    const msg = e instanceof Error ? e.message : String(e);
+    const code = (e as { code?: string })?.code ?? "NO_CODE";
+    const meta = (e as { meta?: unknown })?.meta;
+    const metaStr = meta ? ` meta=${JSON.stringify(meta).slice(0, 200)}` : "";
+    return apiError(`[DEBUG-PATCH] ${code} :: ${msg.slice(0, 400)}${metaStr}`, 500);
   }
 });
