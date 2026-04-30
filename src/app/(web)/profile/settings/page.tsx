@@ -110,6 +110,8 @@ export default function ProfileSettingsPage() {
           district: (u.district as string | null) ?? null,
           birth_date: (u.birth_date as string | null) ?? null,
           bio: (u.bio as string | null) ?? null,
+          // Phase 12-5: ProfileSectionV2 IdentityVerifyButton 의 initialVerified 로 전달
+          name_verified: (u.name_verified as boolean | null) ?? false,
         });
       }
 

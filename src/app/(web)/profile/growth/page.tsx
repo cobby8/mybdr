@@ -26,10 +26,15 @@
  *  - 로딩/비로그인 분기 동일
  *  - DB에서 받는 xp/level/streak 등은 hero에 직접 매핑
  *
+ * Phase 12-4 추가 (2026-04-30):
+ *  - SWR /api/web/profile/season-stats 추가 호출
+ *  - 4 마일스톤(누적 경기 / 평균 평점 / 시즌 MVP / 시즌 순위) 데이터 연결
+ *  - avg_rating === null 시점은 isDummy:true 유지 ("데이터 수집 중" 배지)
+ *  - rank_position === null 은 "집계 중" 표시
+ *
  * DB 미구현 (더미 + "준비 중" 배지):
- *  - 12주 주간 경기수 (집계 테이블 없음)
- *  - 12주 평점 추이 (집계 없음)
- *  - 마일스톤 6종 시즌 MVP / 커뮤니티 활동 / 팀 멤버 추천 등 일부
+ *  - 12주 주간 경기수 spark / 평점 line — UserSeasonStat 은 시즌 누적만, 주간 집계 별도 큐
+ *  - 마일스톤 중 커뮤니티 활동 (집계 미구현)
  */
 
 import useSWR from "swr";
@@ -68,6 +73,25 @@ interface GamificationData {
   };
 }
 
+// Phase 12-4: 시즌 통계 API 응답 타입
+// stats[0]은 항상 현재 시즌(연도 매칭이 없으면 0으로 채운 빈 시즌)
+interface SeasonStat {
+  id: string;
+  season_year: number;
+  season_label: string | null;
+  games_played: number;
+  wins: number;
+  losses: number;
+  avg_rating: number | null; // null = 데이터 수집 중
+  mvp_count: number;
+  rank_position: number | null; // null = 집계 중
+  total_minutes: number;
+  total_xp: number;
+}
+interface SeasonStatsResponse {
+  stats: SeasonStat[];
+}
+
 export default function GrowthPage() {
   // 게이미피케이션 API 호출 (기존과 동일한 엔드포인트 — 변경 0)
   const { data: gamification, isLoading } = useSWR<GamificationData>(
@@ -77,6 +101,18 @@ export default function GrowthPage() {
       dedupingInterval: 60000,
     }
   );
+
+  // Phase 12-4: 시즌 통계 호출 — 마일스톤 데이터 연결용
+  // gamification 과 병렬로 fetch (의존 관계 없음). 실패해도 페이지는 계속 렌더 (currentSeason 이 undefined → 더미 fallback).
+  const { data: seasonResp } = useSWR<SeasonStatsResponse>(
+    "/api/web/profile/season-stats",
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 60000,
+    }
+  );
+  // 현재 시즌은 stats[0] — API 가 누락 시 0으로 채운 빈 시즌을 항상 unshift 해줌
+  const currentSeason = seasonResp?.stats?.[0];
 
   // 로딩 상태
   if (isLoading) {
@@ -153,23 +189,30 @@ export default function GrowthPage() {
   const minR = 3.5;
   const maxR = 5.0;
 
-  // 마일스톤 6종 — 일부는 court_stamps API에서 매핑, 나머지는 더미 (DB 미구현)
-  // 첫 2개는 실제 DB 값(누적 경기·코트 도장) / 나머지 4개는 더미
+  // Phase 12-4: 마일스톤 6종 — 4종(누적/평점/MVP/순위) 시즌 통계 연결, 1종(연속 출석) gamification, 1종(커뮤니티) 더미
+  // 누적 경기는 season.games_played 우선, fallback 으로 court_stamps.count(코트 방문 수) 사용
   const totalCourts = gamification.court_stamps.count;
+  const seasonGames = currentSeason?.games_played ?? 0;
+  const totalGames = seasonGames > 0 ? seasonGames : totalCourts; // 시즌 집계 0이면 코트 방문 수 fallback
+  // avg_rating: null = "데이터 수집 중" 상태 (집계 cron 미실행 또는 게임 평가 데이터 없음)
+  const avgRating = currentSeason?.avg_rating ?? null;
+  const mvpCount = currentSeason?.mvp_count ?? 0;
+  const rankPos = currentSeason?.rank_position ?? null;
+
   const milestones = [
     {
       icon: "🏀",
       label: "누적 경기",
-      val: String(totalCourts), // 실제 DB
+      val: String(totalGames), // Phase 12-4: 시즌 집계 우선 → 코트 방문 fallback
       goal: "100",
-      pct: Math.min((totalCourts / 100) * 100, 100),
+      pct: Math.min((totalGames / 100) * 100, 100),
       tone: "var(--color-primary)",
       isDummy: false,
     },
     {
       icon: "🔥",
       label: "연속 출석",
-      val: `${gamification.streak}주`, // 실제 DB
+      val: `${gamification.streak}주`, // 실제 DB (gamification)
       goal: "24주",
       pct: Math.min((gamification.streak / 24) * 100, 100),
       tone: "#F59E0B",
@@ -178,21 +221,23 @@ export default function GrowthPage() {
     {
       icon: "⭐",
       label: "평균 평점",
-      val: "4.6",
+      // Phase 12-4: avg_rating null 이면 "수집 중" 표시 + isDummy:true 유지 (배지 노출)
+      val: avgRating !== null ? avgRating.toFixed(1) : "수집 중",
       goal: "5.0",
-      pct: 92,
+      pct: avgRating !== null ? Math.min((avgRating / 5.0) * 100, 100) : 0,
       tone: "var(--cafe-blue)",
-      isDummy: true,
+      isDummy: avgRating === null, // 데이터 있으면 정식 표시, 없으면 "준비 중" 배지
     },
     {
       icon: "🎯",
-      label: "시즌 MVP 후보",
-      val: "1회",
+      label: "시즌 MVP",
+      // Phase 12-4: season.mvp_count 매핑 — 0회도 정식 표시 (집계 결과)
+      val: `${mvpCount}회`,
       goal: "-",
-      pct: 100,
+      pct: mvpCount > 0 ? 100 : 0,
       tone: "var(--ok)",
-      earned: true,
-      isDummy: true,
+      earned: mvpCount > 0,
+      isDummy: false,
     },
     {
       icon: "💬",
@@ -204,13 +249,14 @@ export default function GrowthPage() {
       isDummy: true,
     },
     {
-      icon: "🤝",
-      label: "팀 멤버 추천",
-      val: "8",
-      goal: "10",
-      pct: 80,
+      icon: "🏆",
+      label: "시즌 순위",
+      // Phase 12-4: rank_position null = "집계 중" / 값 있으면 #N위 표시
+      val: rankPos !== null ? `#${rankPos}` : "집계 중",
+      goal: "-",
+      pct: rankPos !== null ? 100 : 0,
       tone: "#8B5CF6",
-      isDummy: true,
+      isDummy: rankPos === null,
     },
   ];
 
@@ -705,8 +751,9 @@ export default function GrowthPage() {
         </span>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>
+            {/* Phase 12-4: totalGames(시즌 집계 우선 → 코트 방문 fallback) 기준 통일 */}
             다음 목표 — 누적 50경기 (
-            {Math.max(50 - totalCourts, 0)}경기 남음)
+            {Math.max(50 - totalGames, 0)}경기 남음)
           </div>
           <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
             이번 주 추천 경기에 신청해 마일스톤을 달성해 보세요

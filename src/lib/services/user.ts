@@ -40,6 +40,9 @@ export const PROFILE_DETAIL_SELECT = {
   account_holder: true,
   // 소셜 로그인 제공자 표시용 (프로필 수정 페이지)
   provider: true,
+  // Phase 12-5: 본인인증 상태 — settings 화면 IdentityVerifyButton 의 initialVerified 로 사용
+  name_verified: true,
+  verified_at: true,
 } as const;
 
 /** 게임 상세에서 사용하는 유저 프로필 select */

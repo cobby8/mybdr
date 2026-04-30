@@ -23,6 +23,8 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { SettingsHeader } from "./settings-ui";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
+// Phase 12-5: 실명 필드 옆 본인인증 버튼 (mock 모드)
+import { IdentityVerifyButton } from "@/components/identity/identity-verify-button";
 
 // 부모에서 받는 사용자 정보 (GET /api/web/profile 의 user 필드 일부)
 export interface ProfileFormUser {
@@ -35,6 +37,8 @@ export interface ProfileFormUser {
   district?: string | null;
   birth_date?: string | null; // YYYY-MM-DD (PATCH 응답 / GET 변환 후)
   bio?: string | null;
+  // Phase 12-5: 본인인증 완료 여부 — true 면 실명 readonly + "✓ 인증완료" 배지
+  name_verified?: boolean | null;
 }
 
 interface Props {
@@ -52,6 +56,7 @@ const POSITIONS = [
 
 export function ProfileSectionV2({ user, onSaved }: Props) {
   // 단순 8 필드 로컬 상태. name 은 readonly 표시용으로만 보유 (PATCH 미전송).
+  // name_verified: 본인인증 완료 여부 — IdentityVerifyButton 의 initialVerified 로 전달.
   const [form, setForm] = useState({
     nickname: "",
     name: "",
@@ -60,6 +65,7 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
     weight: "",
     birth_date: "",
     bio: "",
+    name_verified: false,
   });
   // 활동 지역 (RegionPicker). 단일 region 만 사용하지만 컴포넌트 시그니처 상 배열.
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
@@ -78,6 +84,7 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
       weight: user.weight != null ? String(user.weight) : "",
       birth_date: user.birth_date ?? "",
       bio: user.bio ?? "",
+      name_verified: user.name_verified ?? false,
     });
     // 도시·구/동 → RegionPicker 의 첫 슬롯에 매핑.
     // 둘 중 하나라도 있으면 채우고, 둘 다 없으면 빈 슬롯 유지.
@@ -186,7 +193,7 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
           placeholder="2~20자"
         />
 
-        {/* 실명 — readonly + disabled. 전화번호 인증 시 자동 입력될 예정 (Phase 2). */}
+        {/* 실명 — readonly + disabled. Phase 12-5 부터 IdentityVerifyButton 으로 자동 입력. */}
         <div>
           <label
             htmlFor="profile-name"
@@ -194,26 +201,46 @@ export function ProfileSectionV2({ user, onSaved }: Props) {
           >
             실명
           </label>
-          <input
-            id="profile-name"
-            name="name"
-            type="text"
-            // 빈 값일 때도 placeholder 로 의도 전달 (readonly 도 placeholder 노출 됨)
-            value={form.name ?? ""}
-            readOnly
-            disabled
-            placeholder="전화번호 인증 시 자동 입력 (곧 출시)"
-            className="input"
-            style={{
-              marginTop: 6,
-              width: "100%",
-              backgroundColor: "var(--bg-alt)",
-              cursor: "not-allowed",
-              opacity: 0.7,
-            }}
-          />
+          {/* input + 본인인증 버튼/배지 → flex 가로 배치 (모바일 좁아도 wrap 안 함) */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6 }}>
+            <input
+              id="profile-name"
+              name="name"
+              type="text"
+              value={form.name ?? ""}
+              readOnly
+              disabled
+              placeholder="본인인증 시 자동 입력"
+              className="input"
+              style={{
+                flex: 1,
+                width: "100%",
+                backgroundColor: "var(--bg-alt)",
+                cursor: "not-allowed",
+                opacity: 0.7,
+              }}
+            />
+            {/* Phase 12-5: 미인증 시 "본인인증" 버튼, 인증 완료 시 "✓ 인증완료" 배지 표시.
+                onVerified 콜백에서 form.name 자동 갱신 + name_verified=true 전환. */}
+            <IdentityVerifyButton
+              initialVerified={form.name_verified}
+              onVerified={(data) => {
+                setForm((prev) => ({
+                  ...prev,
+                  name: data.verified_name,
+                  name_verified: true,
+                }));
+                // 부모(SettingsClient)에도 갱신 알림 → 헤더/사이드 등 공유 데이터 동기화
+                onSaved?.({
+                  ...user,
+                  name: data.verified_name,
+                  name_verified: true,
+                });
+              }}
+            />
+          </div>
           <p style={{ marginTop: 4, fontSize: 11, color: "var(--ink-dim)" }}>
-            전화번호 인증 후 자동 입력됩니다. 직접 수정할 수 없습니다.
+            본인인증 후 자동 입력됩니다. 직접 수정할 수 없습니다.
           </p>
         </div>
 
