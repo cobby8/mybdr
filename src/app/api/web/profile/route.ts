@@ -70,12 +70,7 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
   } catch (e) {
     // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
     console.error("[GET /api/web/profile]", e);
-    // 🚨 임시 진단 패치 (2026-04-30): 운영 PATCH/GET 500 회귀 원인 추적용
-    // 인증된 사용자(withWebAuth 통과)에게만 raw prisma error 노출.
-    // TODO 진단 캡처 받은 즉시 다시 "Internal error" 로 닫기.
-    const msg = e instanceof Error ? e.message : String(e);
-    const code = (e as { code?: string })?.code ?? "NO_CODE";
-    return apiError(`[DEBUG-GET] ${code} :: ${msg.slice(0, 400)}`, 500);
+    return apiError("Internal error", 500);
   }
 });
 
@@ -138,13 +133,19 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
   } catch (e) {
     // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
     console.error("[PATCH /api/web/profile]", e);
-    // 🚨 임시 진단 패치 (2026-04-30): 운영 PATCH 500 회귀 원인 추적용
-    // 인증된 사용자(withWebAuth 통과)에게만 raw prisma error 노출.
-    // TODO 진단 캡처 받은 즉시 다시 "Internal error" 로 닫기.
-    const msg = e instanceof Error ? e.message : String(e);
-    const code = (e as { code?: string })?.code ?? "NO_CODE";
-    const meta = (e as { meta?: unknown })?.meta;
-    const metaStr = meta ? ` meta=${JSON.stringify(meta).slice(0, 200)}` : "";
-    return apiError(`[DEBUG-PATCH] ${code} :: ${msg.slice(0, 400)}${metaStr}`, 500);
+    // P2002 nickname 중복 (2026-04-30 진단 결과) — 사용자 친화 메시지 (errors.md)
+    // 캡처 49: 사용자가 다른 사람이 사용 중인 닉네임으로 변경 시도 → P2002 → 'Internal error' 마스킹 → 진단 불가
+    // → 진단 패치(3a12221)로 P2002 확정 → 명시적 409 Conflict 응답으로 친화 메시지
+    const code = (e as { code?: string })?.code;
+    if (code === "P2002") {
+      const target = (e as { meta?: { target?: string[] | string } })?.meta?.target;
+      const targets = Array.isArray(target) ? target : target ? [target] : [];
+      if (targets.includes("nickname")) {
+        return apiError("이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.", 409);
+      }
+      // 다른 unique 제약 위반은 일반 메시지
+      return apiError("이미 등록된 정보입니다. 입력값을 확인해주세요.", 409);
+    }
+    return apiError("Internal error", 500);
   }
 });

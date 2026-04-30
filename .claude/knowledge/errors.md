@@ -2,6 +2,38 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-04-30] PATCH /api/web/profile P2002 nickname unique 위반 → 'Internal error' 마스킹으로 진단 1시간 지연
+- **분류**: error (catch 마스킹 + 사용자 친화 메시지 누락 패턴, 진단 절차 표준화)
+- **발견자**: pm
+- **증상**: 사용자가 /profile/edit 에서 닉네임을 다른 사용자가 이미 쓰고 있는 값으로 변경 후 저장 → 'Internal error' (500). raw error 미노출 → 진단 1시간 지연.
+- **잘못된 가설 (모두 헛수고)**:
+  1. Service Worker 캐시 (mybdr 자체 SW 등록 0건이라 무관)
+  2. Vercel CDN 캐시 (배포 헤더로 검증 후 기각)
+  3. Phase 12 schema 신규 컬럼 (`name_verified` 등) vs 운영 DB 불일치 (a2081ba 픽스 후에도 재현돼서 의심했지만 무관)
+  4. weight/district 컬럼 운영 DB 부재 (GET 통과로 기각)
+- **진짜 원인**:
+  1. PATCH /api/web/profile 의 catch 가 모든 에러를 `apiError("Internal error", 500)` 로 마스킹 → P2002 (Unique constraint failed on the fields: ["nickname"]) 도 동일 응답
+  2. 클라/서버 어디에도 닉네임 중복 사전 검증 없음 (길이 검증만 있음)
+  3. apiError 가 raw 노출 안 함 → 클라에선 무조건 'Internal error' → 사용자/PM 모두 운영 회귀로 오인
+- **진단 패턴 표준화 (앞으로 운영 catch 마스킹 500 추적 절차)**:
+  1. 코드 레벨 가능 가설 모두 점검 (schema, route, SW, CDN) — 본 사례에서 1시간 소요
+  2. 결정 안 나면 **임시 raw error 노출 패치** 1줄 → 운영 배포 → 사용자 1회 시도 캡처
+  3. 패치 형태:
+     ```ts
+     const code = (e as { code?: string })?.code ?? "NO_CODE";
+     const meta = (e as { meta?: unknown })?.meta;
+     const metaStr = meta ? ` meta=${JSON.stringify(meta).slice(0, 200)}` : "";
+     return apiError(`[DEBUG-PATCH] ${code} :: ${msg.slice(0, 400)}${metaStr}`, 500);
+     ```
+  4. P-code + meta 확보 후 즉시 닫기 (1분 내 별도 커밋)
+- **진짜 해결**: PATCH catch 에 P2002 + target=nickname 케이스 분기 → 409 "이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요." 친화 메시지
+- **재발 방지 체크리스트**:
+  1. **unique 제약이 있는 필드(nickname/email/phone 등)의 PATCH/POST 라우트는 모두 P2002 분기 필수**
+  2. **신규 @unique 컬럼 추가 시**: schema @unique → API route catch 분기 추가 → 친화 메시지 정의 → (선택) 클라 사전 검증
+  3. catch 에 raw `console.error` 는 유지 (errors.md 04-30 a2081ba 룰), 단 클라 응답에는 친화 메시지만
+  4. **운영 회귀 진단 우선순위**: (1) 사용자 입력값 의심 (가장 흔함) → (2) catch 마스킹 의심 → (3) 직전 커밋 회귀 → (4) DB 불일치
+- **참조횟수**: 0
+
 ### [2026-04-29] "OAuth 후 팀 분리" 사용자 보고 → DB 정상 (재현 불가) — 진단 절차 표준화
 - **분류**: error (사용자 보고 vs 실제 데이터 불일치, 진단 패턴)
 - **발견자**: debugger
