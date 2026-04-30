@@ -398,6 +398,7 @@ export default function ProfileEditPage() {
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
+                data-active={active}
                 style={{
                   textAlign: "left",
                   padding: "11px 14px",
@@ -1127,8 +1128,28 @@ export default function ProfileEditPage() {
             position: static !important;
             flex-direction: row !important;
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             border-bottom: 1px solid var(--border);
             padding-bottom: 4px;
+          }
+          /* 5탭 라벨 세로 글자 끊김 방지 — 가로 스크롤 + 충분한 폭 + 한 줄 강제 */
+          .profile-edit-grid > aside > button {
+            min-width: 100px !important;
+            white-space: nowrap !important;
+            flex-shrink: 0 !important;
+            border-left: 0 !important;
+            border-bottom: 3px solid transparent !important;
+            justify-content: center !important;
+          }
+          /* 활성 탭 표시를 좌측 → 하단으로 (가로 배치에 맞춤) */
+          .profile-edit-grid > aside > button[data-active="true"] {
+            border-bottom-color: var(--accent) !important;
+          }
+          /* 본문 영역 도움말/부제 한국어 어절 단위 줄바꿈 — "이/름" 글자 단위 끊김 방지 */
+          .profile-edit-grid > div p,
+          .profile-edit-grid > div label,
+          .profile-edit-grid > div span {
+            word-break: keep-all;
           }
         }
       `}</style>
