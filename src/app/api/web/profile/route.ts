@@ -1,8 +1,10 @@
-import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
+import { withWebAuth, WEB_SESSION_COOKIE, type WebAuthContext } from "@/lib/auth/web-session";
 import { encryptAccount, maskAccount } from "@/lib/security/account-crypto";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { getProfile, updateProfile } from "@/lib/services/user";
 import { matchPlayersByPhone } from "@/lib/services/player-matching";
+import { generateToken } from "@/lib/auth/jwt";
+import { prisma } from "@/lib/db/prisma";
 
 export const GET = withWebAuth(async (ctx: WebAuthContext) => {
   try {
@@ -129,7 +131,45 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
-    return apiSuccess(updated);
+    // 응답 객체 (snake_case 자동 변환)
+    const res = apiSuccess(updated);
+
+    // 이유: PATCH 후 JWT 재발급 누락 시 ctx.session.name(=nickname)이 토큰 만료(7d)까지 stale.
+    //       referee 영역(referee/page.tsx, referee/profile/page.tsx) 3건이 session.name 직접 사용 → 옛 닉네임 노출.
+    //       해결: nickname이 PATCH body에 포함되어 변경 가능성이 있으면 새 JWT 발급 + Set-Cookie.
+    // 방법: generateToken에 필요한 user 필드(email/membership/isAdmin/admin_role)를 별도 findUnique 1회로 조회.
+    //       JWT 재발급 실패는 best-effort — PATCH 자체 성공은 유지 (try/catch 내부 try/catch).
+    if (nickname !== undefined) {
+      try {
+        const userForToken = await prisma.user.findUnique({
+          where: { id: ctx.userId },
+          select: {
+            id: true,
+            email: true,
+            nickname: true,
+            membershipType: true,
+            isAdmin: true,
+            admin_role: true,
+          },
+        });
+        if (userForToken) {
+          const newToken = await generateToken(userForToken);
+          // 쿠키 옵션: 기존 로그인 시점과 동일하게 (httpOnly, prod=secure, sameSite=lax, path=/, 7일)
+          res.cookies.set(WEB_SESSION_COOKIE, newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24 * 7, // 7일
+          });
+        }
+      } catch (tokenErr) {
+        // 재발급 실패해도 프로필 수정 자체는 성공 처리 (errors.md 2026-05-01)
+        console.error("[PATCH /api/web/profile] JWT 재발급 실패:", tokenErr);
+      }
+    }
+
+    return res;
   } catch (e) {
     // errors.md 04-30: catch에서 raw 에러 삼키면 디버깅 불가 — console.error 명시
     console.error("[PATCH /api/web/profile]", e);

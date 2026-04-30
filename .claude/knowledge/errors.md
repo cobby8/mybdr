@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-01] PATCH 후 JWT 재발급 누락 → referee 영역 stale session.name (해소)
+- **분류**: error (세션 일관성, 7일 stale)
+- **발견자**: pm
+- **증상**: 사용자 nickname 변경 후 헤더는 즉시 갱신되지만 (referee)/* 영역에 session.name 직접 사용한 3건이 JWT 만료(7일) 까지 옛 값 유지
+- **원인**: PATCH /api/web/profile 가 DB만 update + JWT 재발급 누락 → 발급 시점 nickname 7일 박힘
+- **해결**: PATCH catch 위에서 nickname 변경 감지 → generateToken 재발급 + cookieStore.set Set-Cookie
+- **재발 방지**: nickname 외 다른 user 정보(이메일/role) 변경 PATCH 라우트도 JWT 재발급 추가 필요 시 동일 패턴
+- **참조횟수**: 0
+
 ### [2026-04-30] PATCH /api/web/profile P2002 nickname unique 위반 → 'Internal error' 마스킹으로 진단 1시간 지연
 - **분류**: error (catch 마스킹 + 사용자 친화 메시지 누락 패턴, 진단 절차 표준화)
 - **발견자**: pm

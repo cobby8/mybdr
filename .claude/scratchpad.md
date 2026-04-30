@@ -83,94 +83,32 @@
 - 운영 DB SQL은 **트랜잭션 + IF NOT EXISTS 멱등**, 04-15 db push 사고 재방지
 - PR 3개 분리 (PR1=schema / PR2=시즌통계 / PR3=Portone) — revert 안전
 
-### 구현 기록 (P0 Step 4 + Step 5 — 백버튼 컴포넌트 + 21 페이지 + 커뮤니티 모바일 탭 회귀)
+### 구현 기록 (P2-1 + P2-2 PATCH 후 JWT 재발급 — referee 영역 stale session.name 해소)
 
-📝 구현 내용: 인계 문서 `Dev/design/pre-tournament-cli-batch-prompt-2026-04-30.md` §4 + §5. 사용자 직접 보고 2건 해소.
-
-| 파일 | 변경 | 신규/수정 |
-|------|------|----------|
-| src/components/shared/page-back-button.tsx | PageBackButton 컴포넌트 신규(60줄) — Material Symbols arrow_back + lg:hidden + history.length 가드 + fallbackHref + minHeight 44px + radius 4px | 신규 |
-| src/app/(web)/profile/page.tsx (+8) | PageBackButton 추가 fallbackHref="/" | 수정 |
-| src/app/(web)/profile/achievements/page.tsx (+9) | wrapper div + PageBackButton fallbackHref="/profile" | 수정 |
-| src/app/(web)/profile/activity/page.tsx (+5) | PageBackButton fallbackHref="/profile" | 수정 |
-| src/app/(web)/profile/billing/page.tsx (+5) | PageBackButton fallbackHref="/profile/settings" (settings 하위 메뉴) | 수정 |
-| src/app/(web)/profile/bookings/page.tsx (+10) | wrapper div + PageBackButton fallbackHref="/profile" | 수정 |
-| src/app/(web)/profile/complete/page.tsx (+5) | PageBackButton fallbackHref="/" (위저드 진입 직후 폴백) | 수정 |
-| src/app/(web)/profile/complete/preferences/page.tsx (+5) | PageBackButton fallbackHref="/profile/complete" | 수정 |
-| src/app/(web)/profile/edit/page.tsx (+4) | PageBackButton fallbackHref="/profile" | 수정 |
-| src/app/(web)/profile/growth/page.tsx (+4) | PageBackButton fallbackHref="/profile" | 수정 |
-| src/app/(web)/organizations/page.tsx (+4) | PageBackButton fallbackHref="/" | 수정 |
-| src/app/(web)/organizations/[slug]/page.tsx (+5) | PageBackButton fallbackHref="/organizations" | 수정 |
-| src/app/(web)/organizations/[slug]/series/[seriesSlug]/page.tsx (+8) | PageBackButton 동적 fallbackHref(단체 정보 있으면 단체 상세, 없으면 /organizations) | 수정 |
-| src/app/(web)/organizations/apply/page.tsx (+5) | PageBackButton fallbackHref="/organizations" | 수정 |
-| src/app/(web)/courts/page.tsx (+10) | <> wrapper + PageBackButton fallbackHref="/" (Suspense 위) | 수정 |
-| src/app/(web)/courts/[id]/booking/page.tsx (+10) | <> wrapper + PageBackButton fallbackHref={`/courts/${id}`} | 수정 |
-| src/app/(web)/courts/[id]/booking/payment-fail/page.tsx (+6) | PageBackButton fallbackHref={`/courts/${courtId}/booking`} | 수정 |
-| src/app/(web)/courts/[id]/checkin/page.tsx (+6) | PageBackButton fallbackHref={`/courts/${courtId}`} | 수정 |
-| src/app/(web)/courts/[id]/manage/page.tsx (+10) | <> wrapper + PageBackButton fallbackHref={`/courts/${id}`} | 수정 |
-| src/app/(web)/community/_components/community-aside.tsx (+27/-3) | 기존 <aside> 단일 → 모바일 가로 탭(.aside-mobile-tabs lg:hidden) + 데스크톱 사이드바(hidden lg:block) 분기 | 수정 |
-| src/app/globals.css (+50) | .aside-mobile-tabs (overflow-x:auto + scrollbar 숨김 + var(--gutter) padding) + .aside-mobile-tab (radius 4px + min-height 36px) + .active(BDR Red 배경) | 수정 |
-
-🔧 §4 차이 (인계 문서 vs 실제):
-- 인계 문서 명시 21 페이지 → 실제 적용 18 페이지 (3 페이지 차이)
-- /profile/notification-settings, /profile/payments, /profile/preferences, /profile/subscription 4 개는 LegacyRedirect (단순 redirect → 백버튼 무의미) → 제외
-- /profile/settings 는 인계 문서 13개 목록에 누락이라 미적용
-- 적용 결과: profile 9 + organizations 4 + courts 5 = **18 페이지**
-
-💡 tester 참고:
-- 모바일 viewport 366px / 390px / 768px 진입
-- 18 페이지 좌상단에 ← 뒤로 노출 (lg:hidden)
-- 데스크톱 1024px+ 에서는 백버튼 숨김(breadcrumb/사이드바가 대체)
-- 클릭 시: 정상 → router.back() / 새 탭 직진 → fallbackHref 이동
-- /community 진입(모바일) → 본문 위 가로 스크롤 탭 8개(전체글/공지/자유/팀원모집/대회후기/농구장터/질문답변/정보공유)
-- 활성 카테고리 BDR Red 배경 + 흰 글씨, 비활성 회색 테두리
-- 데스크톱 lg+ 에서 가로 탭 hidden + 좌측 사이드바(글쓰기 + 그룹 트리) 그대로
-
-⚠️ 박제 룰 준수:
-- var(--ink-mute / --bg-alt / --accent / --border / --gutter / --ink) 토큰만
-- Material Symbols Outlined arrow_back 1종 추가
-- radius 4px (백버튼 + 모바일 탭 모두), pill 9999px 0건
-- alert 신규 0건, API/data fetch 0 변경 (UI 만)
-- lg:hidden / hidden lg:block (Tailwind) — 1024px 분기
-
-📦 다음 액션:
-- tester 모바일 viewport 366px·390px·768px 시각 검증 (18 페이지 백버튼 + 커뮤니티 가로 탭)
-- 데스크톱 1024px+ 에서 백버튼 숨김 + 사이드바 노출 검증
-- 빈 history (새 탭 직접 진입) 케이스 fallbackHref 이동 검증
-
-### 구현 기록 (P0 Step 1 + Step 3 — 가입+대회 흐름 + 404)
-
-📝 구현 내용: 대회 직전 §A-2 §C-1 §C-2 §D-3 4 영역 일괄. 사용자 명시 "대회 시급부터 진행" → 대회 신청 흐름 + 결제 redirect + 404 친화 페이지 + 온보딩 보조 CTA.
+📝 구현 내용: 사용자 nickname 변경 후 JWT 만료(7일)까지 (referee)/* 영역 3건이 옛 닉네임 유지 → PATCH 라우트에 새 JWT 발급 + Set-Cookie 추가 (재발급 후 모든 session.name 신선해짐 → referee 페이지 자체 수정 불필요).
 
 | 파일 | 변경 | 신규/수정 |
 |------|------|----------|
-| src/app/(web)/onboarding/setup/_components/setup-form.tsx | done 화면(L300 직후) "프로필 추가 완성하기 →" 보조 CTA 추가. text 링크 톤(밑줄 + var(--cafe-blue)). me/profile_completed 체크는 회귀 위험 vs 효과 미미로 단순 노출(옵션 A) | 수정 |
-| src/app/(web)/tournaments/[id]/join/page.tsx | success done 분기(`done && result`) CTA 순서 재배치: 1순위 "내 신청 내역 보기 →" `/games/my-games` (btn--primary minWidth 200) + 2순위 기존 "대회 페이지로" 보존. tournament 전용 탭 미존재 → 단순 라우트(upcoming 탭에 대회 함께 표시). flexWrap 추가 | 수정 |
-| src/app/(web)/pricing/checkout/page.tsx | L117 `router.push("/login")` → `?redirect=${encodeURIComponent(currentUrl)}` 보존. SSR 안전 typeof window 가드. /login isValidRedirect open redirect 방어 확인 (L29 + L57) | 수정 |
-| src/app/(web)/not-found.tsx | (web) 그룹 전용 404 신규 60줄 — search_off 아이콘 64px var(--ink-mute) + h1 24px + lead 14px + 3 CTA(홈→ btn--primary / 경기/대회 btn). 루트 not-found 가 아닌 (web) 안에 둬서 (site) 서브도메인 영향 0 | 신규 |
+| src/app/api/web/profile/route.ts | (1) WEB_SESSION_COOKIE / generateToken / prisma import 추가 (2) PATCH 본체 끝 — apiSuccess 응답 객체에 res.cookies.set 추가 (3) nickname !== undefined 일 때만 prisma.user.findUnique({email/nickname/membershipType/isAdmin/admin_role}) 후 generateToken 호출, httpOnly + production secure + sameSite lax + path / + maxAge 7일 (4) JWT 재발급 실패해도 PATCH 자체 성공 처리(try/catch 내부 try/catch) | 수정 |
+| .claude/knowledge/errors.md | "[2026-05-01] PATCH 후 JWT 재발급 누락 → referee 영역 stale session.name (해소)" 항목 추가 (가장 최신 위치) | 수정 |
 
-🔧 검증:
-- /login redirect 지원 확인: `redirect=` 쿼리 + isValidRedirect open redirect 방어 (page.tsx L29~58)
-- /games/my-games tournament 전용 탭 미존재 → upcoming 탭에 대회 등록 함께 표시(L151~ tournamentTeam 쿼리)
-- /profile/complete 라우트 존재 확인
-- (web)/not-found.tsx 미존재 → 신규 생성
+🔧 패턴:
+- updateProfile select는 **건드리지 않음** (회귀 위험 0) — 별도 findUnique 1회로 JWT 인자 4 필드 조회
+- 쿠키 옵션은 기존 web-session.ts WEB_SESSION_COOKIE 재사용 (production: __Host-bdr_session, dev: bdr_session)
+- res.cookies.set (NextResponse method) 사용 — handleSave 1.5초 reload (f497eff) 직전에 Set-Cookie 박힘
 
 💡 tester 참고:
-- /onboarding/setup 마지막 step → 완료 → done 화면에 "프로필 추가 완성하기 →" 보조 링크 노출 + /profile/complete 이동
-- /tournaments/[id]/join 4~5 step 통과 → success → 1순위 "내 신청 내역 보기 →" 클릭 → /games/my-games (예정 탭 활성)
-- /pricing/checkout 비로그인 진입 → 결제 버튼 클릭 → /login?redirect=%2Fpricing%2Fcheckout%3FplanId%3Dxxx → 로그인 후 자동 복귀
-- /존재안하는URL → (web) 헤더/푸터 그대로 + search_off + 3 CTA. 모바일 390px 가로 스크롤 0
+- /profile/edit 닉네임 변경 → 저장 → 1.5초 reload → 헤더 갱신 ✓ (기존)
+- referee 계정 로그인 → 닉네임 변경 → /referee, /referee/profile 진입 → 새 닉네임 노출 (JWT 재발급 효과)
+- 비referee 계정에 영향 0 (PATCH 라우트 동일)
 
-⚠️ 박제 룰 준수:
-- var(--*) 토큰만, 하드코딩 색상 0건 (search_off 아이콘 var(--ink-mute), CTA cafe-blue)
-- Material Symbols Outlined search_off 1종(404), lucide 0건
-- .btn 클래스(radius 4px) 사용
-- alert 신규 0건, API/data fetch 신규 0건
-- 모바일 분기 flex-wrap 자동 줄바꿈
+⚠️ reviewer 참고:
+- nickname !== undefined 분기로 다른 필드만 PATCH 시 불필요한 JWT 재발급 X
+- updateProfile 응답 형태(snake_case 9필드) 보존 — 프론트 폼 회귀 0
+- generateToken 인자 검증: schema.prisma User 모델 admin_role 컬럼 라인 152 확인됨, isAdmin/membershipType/email/nickname 모두 존재
 
-📦 다음 액션:
-- tester 모바일 viewport 366px·390px 시각 검증 (4 영역 + 404)
-- C-2 redirect 동작 — 비로그인 직접 진입 + 세션 만료 케이스
+📦 다음 액션 (후속):
+- 이메일/role 변경 PATCH 라우트 추가 시 동일 패턴 적용 (현재는 nickname 외 변경 라우트 0)
 
 ## 진행 현황표
 
@@ -187,6 +125,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-05-01 | (미커밋, subin) | **P2-1 + P2-2 PATCH 후 JWT 재발급 + Set-Cookie — referee 영역 stale session.name 해소** (developer): `src/app/api/web/profile/route.ts` (1) WEB_SESSION_COOKIE / generateToken / prisma import 추가 (2) PATCH 본체 끝 — apiSuccess 응답 객체 보유 후 nickname !== undefined 분기에서 prisma.user.findUnique({email/nickname/membershipType/isAdmin/admin_role}) 1회 + generateToken → res.cookies.set 7d (httpOnly + production secure + sameSite lax + path /). updateProfile select 건드리지 않음(회귀 위험 0). JWT 재발급 실패해도 PATCH 자체 성공 처리(try/catch 내부 try/catch). (referee)/* 3건(referee/page L75/L135 + referee/profile L73) 자동 갱신 — server component 매번 cookie 검증으로 새 session.name 사용. handleSave 1.5초 reload(f497eff) 직전 Set-Cookie 박힘. errors.md 첫 항목 "[2026-05-01] PATCH 후 JWT 재발급 누락" 추가. tsc 0 에러. 변경: 수정 1 + knowledge 1 = 2 파일. | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **P0 Step 4 + Step 5 백버튼 컴포넌트 + 18 페이지 + 커뮤니티 모바일 탭 회귀** (developer): 인계 문서 §4 + §5. 사용자 직접 보고 2건 해소. (1) `src/components/shared/page-back-button.tsx`(60줄) 신규 — Material Symbols arrow_back + lg:hidden + history.length 가드 + fallbackHref + minHeight 44px + radius 4px. "use client" + useRouter + window.history.length>1 분기 → router.back() / fallback. (2) profile 9 페이지(page/achievements/activity/billing/bookings/complete/complete-preferences/edit/growth) + organizations 4 페이지(page/[slug]/[slug]/series/[seriesSlug]/apply) + courts 5 페이지(page/[id]/booking/[id]/booking/payment-fail/[id]/checkin/[id]/manage) = **18 페이지** 일괄 적용. 각 페이지 fallbackHref 의미 매핑(동적 slug params 보존). 인계 문서 21 vs 실제 18 차이 — LegacyRedirect 4 개(notification-settings/payments/preferences/subscription) 제외 + settings 누락. 서버 컴포넌트는 wrapper div padding `12px var(--gutter) 0` 패턴 + 클라이언트 페이지는 .page 첫 줄 직접 삽입. (3) `community-aside.tsx`(+27/-3) — 기존 단일 <aside> → fragment 분기: 모바일 `.aside-mobile-tabs lg:hidden` 가로 스크롤 탭 8 카테고리 + 데스크톱 `hidden lg:block` 사이드바 그대로. role=tablist/tab + aria-selected. (4) `globals.css`(+50) — `.aside-mobile-tabs` overflow-x:auto + scrollbar 숨김 + `padding 8px var(--gutter)` + 음수 margin으로 화면 끝까지 + border-bottom var(--border). `.aside-mobile-tab` radius 4px + min-height 36px + var(--ink-mute). `.active` var(--accent) 배경 + 흰 글씨. 박제 룰 준수: var(--*) 토큰만, Material Symbols arrow_back 1종, radius 4px, alert 신규 0, API/data 0 변경(UI 만), lg:hidden Tailwind 1024px 분기. tsc 0 에러. 변경: 신규 1 + 수정 20 = 21 파일. PageBackButton 적용 카운트 grep 18 페이지 확인. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **P0 Step 1 + Step 3 가입+대회 흐름 + 404** (developer): 대회 직전 §A-2 §C-1 §C-2 §D-3 4 영역 일괄(사용자 명시 "대회 시급부터"). (1) onboarding/setup done 화면 "프로필 추가 완성하기 →" 보조 CTA 추가(옵션 A, /profile/complete, text 링크 톤). (2) tournaments/[id]/join success "내 신청 내역 보기 →" `/games/my-games` 1순위 CTA(btn--primary minWidth 200) + 기존 "대회 페이지로" 2순위 보존. tournament 전용 탭 미존재 → 단순 라우트. (3) pricing/checkout L117 401 redirect → `?redirect=${encodeURIComponent(currentUrl)}` 보존. /login isValidRedirect open redirect 방어 확인(page.tsx L29 + L57) → 적용. SSR 안전 typeof window 가드. (4) (web)/not-found.tsx 신규(60줄) — search_off 64px + h1 24px + 3 CTA(홈→ btn--primary / 경기 둘러보기 / 대회 보기). (web) 한정으로 (site) 서브도메인 영향 0. 박제 룰: var(--*) 토큰만, Material Symbols 1종(search_off), .btn 클래스 radius 4px, alert/API fetch 신규 0. 변경: 신규 1 + 수정 3 = 4 파일. tsc 0 에러. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **프로필 입력창/버튼 모바일 가독성** (developer): 캡처 51 /profile/edit 닉네임+중복확인+이름 한 줄 우겨넣기 픽스. .profile-edit-row 클래스 768px 이하 1열 stack + globals.css 720px 이하 .input/.textarea/.select padding 44px 터치 타겟 + .btn--sm 보강. ProfileSectionV2 자동 보강. 변경 +33/-23 = 2 파일. tsc 0. | ✅ |
@@ -194,4 +133,3 @@
 | 2026-04-30 | (미커밋, subin) | **Phase 12-1 + 12-2 schema + dev DB push + 운영 SQL** (developer): `prisma/schema.prisma` User 모델에 본인인증 5컬럼(verified_name/phone/birth/name_verified/verified_at) + 4 relation(season_stats/shot_zones/scouting_received/scouting_given) 추가, schema 끝에 신규 모델 3종(UserSeasonStat / ShotZoneStat / ScoutingReport, @@map snake_case 테이블명) 추가. `npx prisma db push --accept-data-loss` dev DB 적용 완료. 운영 DB SQL `prisma/migrations/manual/phase_12_combined.sql`(115줄) 신규 — BEGIN/COMMIT 트랜잭션 + IF NOT EXISTS 멱등. dev DB 검증: User 본인인증 컬럼 5/5 ✓ / 신규 테이블 3/3 ✓ / 인덱스 10개 ✓. tsc 0 에러 + prisma generate ✓. **운영 DB 미적용 — dev 1주 안정화 후 사용자 직접 실행(PM 결정 6번)**. 변경: schema +93/-4 + manual SQL 신규 115줄 = 2 파일. | ✅ |
 | 2026-04-30 | (계획서, subin) | **Phase 12 통합 계획서 작성** (planner-architect): `Dev/design/phase-12-plan-2026-04-30.md` 신규 — 옵션 3종(12-A 보수 6h / 12-B 통합 10h ⭐ / 12-AC 풀) + A 시즌 통계(user_season_stats / shot_zone_stats / scouting_reports 테이블 3) + C Portone 본인인증(User 컬럼 5: verified_name/phone/birth/name_verified/verified_at) 통합 마이그 SQL `phase_12_combined.sql`(멱등 IF NOT EXISTS + 트랜잭션) + 9단계 작업 분해(12-1~12-9) + 위험 6건/완화 + PR 3개 분리(schema/시즌통계/Portone) + PM 결정 7건(Q1~Q7) + B 디버깅 별도 분리(584c483 catch 로그). | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **BDR v2.2 P3-1 RefereeInfo 신규 라우트 박제** (subin): 시안 `Dev/design/BDR v2.2/screens/RefereeInfo.jsx` 1:1 박제 — 신규 라우트 `/referee-info` 신설 (사이트 `/referee` 는 심판 플랫폼 점유 → 별도 라우트). 공개 SEO 페이지(getWebSession 가드 X) + Open Graph 메타데이터. 박제 구성: (1) Hero full-bleed `linear-gradient(135deg, #1a1a1a, #000)` 다크 + eyebrow `BDR REFEREE PROGRAM` + h1 42px 2단(`var(--accent)` 강조 "심판") + lead 카피 + CTA 2단(가입하고 신청 → /signup, 활동 중인 심판 보기 → /referee) + 통계 strip 3종(활동 심판/주간 경기/평균 평점, auto-fit minmax). (2) Process 4 step grid(01~04, ff-display 34px 번호 + title/body, auto-fit minmax 모바일 1열). (3) Tiers 3등급 카드(BRONZE/SILVER/GOLD, fee/desc + 승급 요건 separator). (4) FAQ accordion 5건 — useState 필요해서 별도 클라이언트 컴포넌트 `_faq-client.tsx` 분리(서버 컴포넌트 page.tsx의 metadata export 보존), expand_more 회전 transition .2s. (5) Bottom CTA grad 배경 + 로그인/가입 2버튼(서버 컴포넌트라 isLoggedIn 분기 X — 공개 SEO 우선). more-groups.ts "둘러보기" 그룹 첫 항목으로 `refereeInfo` 추가({id, label:"심판 센터 안내", icon:"🦓", href:"/referee-info"}) + 시안 출처 코멘트 1줄. 박제 룰 준수: var(--accent/--ink-mute/--ink-dim/--ink-soft/--border/--ff-display) 토큰만, Material Symbols Outlined(expand_more) 1종, radius 4px(.btn .card 클래스 그대로), alert 신규 0건, 모바일 분기 인라인 auto-fit minmax. 시안 onClick(setRoute) → Next.js Link href 변환. 변경 +N/-N = 신규 2 파일 + 수정 1 파일. tsc 0 에러. | ✅ |
-| 2026-04-30 | a2fba92 (subin) | **BDR v2.2 P2-1 ProfileCompletePreferences 박제** (subin): 시안 `Dev/design/BDR v2.2/screens/ProfileCompletePreferences.jsx` 1:1 박제 — 기존 redirect 옵션 A(28줄, /profile/settings?tab=preferences로 이동)를 시안의 4 step wizard로 재작성. 진입: ProfileComplete(P0-4) 완료 후 follow-up + /profile "프로필 보강하기" 카드. 박제 구성: (1) JSDoc 헤더 회귀 검수 매트릭스 6행(스킬/스타일/요일·시간/목표/완료). (2) 진행 막대(height:4 + cafe-blue fill + transition .3s, ProfileComplete 동일 톤) + 우상단 건너뛰기 → router.push("/"). (3) STEP 1 SKILLS 5축(슈팅/돌파/수비/패스/리바운드) 1~5 버튼 (선택값 이하 모두 활성, ff-mono 스코어 표시). (4) STEP 2 STYLE 6 카드 multi-select 2-col grid(공격적/팀플레이/슈터형/골밑형/올라운드/재미우선, 이모지+라벨+desc, 선택 시 cafe-blue 8% 배경). (5) STEP 3 WHEN 요일 7-col grid(월~일) + 시간대 6 chips hscroll(새벽/오전/점심/오후/저녁/심야). (6) STEP 4 GOALS 4 카드 multi-select(재미/경쟁/실력향상/소셜, Material Symbols sports_basketball/emoji_events/trending_up/group + 우측 22px 선택 원형). (7) 완료 화면(grad 원형 + 🎯 + "취향 설정 완료!" + 홈으로 → CTA). 박제 룰 준수: var(--cafe-blue/--ink-mute/--ink-dim/--ink-soft/--ink/--bg-alt/--bg-elev/--border/--ff-mono) 토큰만, Material Symbols Outlined 4종(STEP 4 아이콘만), radius 4px(버튼 .btn 클래스 그대로), alert 신규 0건, 모바일 분기 인라인 `repeat(2, minmax(0,1fr))` + `repeat(7, minmax(0,1fr))` + hscroll(시간대) — globals.css 자동 처리. 데이터 fetching 사이트 기존 방식(없음) 유지 — 시안에도 API 저장 호출 없음, 클라이언트 state로만 보유(추후 PATCH /api/web/profile/preferences 연동 큐). 사용자 결정 §2 위반 0건. 변경 +467/-19 = 1 파일. tsc 0 에러. | ✅ |
