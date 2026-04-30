@@ -31,6 +31,8 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 // reason/code 코드 → 사용자 친화적 한글 메시지 매핑
 // 이유: 토스가 내려주는 영문 code 와 confirm/booking 의 영문 reason 을
@@ -95,6 +97,10 @@ export default function PaymentFailPage() {
 
   return (
     <div className="page" style={{ padding: "60px 20px" }}>
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). 결제 실패 → 부킹 페이지로 복귀 */}
+      <div style={{ maxWidth: 640, margin: "0 auto 0", padding: "0 0 12px" }}>
+        <PageBackButton fallbackHref={`/courts/${courtId}/booking`} />
+      </div>
       {/* 중앙 정렬 카드 — max-width 640 (요구사항) */}
       <div
         className="card"

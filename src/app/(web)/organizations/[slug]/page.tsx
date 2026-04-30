@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 // L3: 3계층 IA 브레드크럼 (홈 → 단체 → 단체명)
 import { Breadcrumb } from "@/components/shared/breadcrumb";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 // v2 컴포넌트 묶음
 import { OrgHeroV2 } from "./_components_v2/org-hero-v2";
 import {
@@ -102,6 +104,8 @@ export default async function OrganizationDetailPage({
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden, 데스크톱은 위 Breadcrumb 가 대체) */}
+      <PageBackButton fallbackHref="/organizations" />
       {/* 브레드크럼: 홈 → 단체 → 단체명 (PC 전용 컴포넌트 내부 hidden lg:block) */}
       <div className="mb-3">
         <Breadcrumb

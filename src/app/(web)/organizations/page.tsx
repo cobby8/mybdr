@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { OrgsListV2 } from "./_components/orgs-list-v2";
 import type { OrgCardData } from "./_components/org-card-v2";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 /* ============================================================
  * 단체 목록 (공개) — /organizations  [BDR v2 디자인 적용]
@@ -59,6 +61,8 @@ export default async function OrganizationsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+      <PageBackButton fallbackHref="/" />
       {/* 페이지 헤더: eyebrow + h1 + 부제 + 등록 버튼 */}
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-4">
         <div>

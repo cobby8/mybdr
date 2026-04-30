@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 export default function QrCheckinPage() {
   const params = useParams();
@@ -89,6 +91,11 @@ export default function QrCheckinPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). QR 자동 체크인 transitional 이지만
+          오류/이미 체크인 등 분기에서 복귀 동선 제공 */}
+      <div style={{ alignSelf: "stretch", marginBottom: 8 }}>
+        <PageBackButton fallbackHref={`/courts/${courtId}`} />
+      </div>
       {/* 상태 아이콘 */}
       <span
         className={`material-symbols-outlined mb-4 ${spin ? "animate-spin" : ""}`}

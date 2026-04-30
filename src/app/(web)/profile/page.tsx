@@ -33,6 +33,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 import { HeroCard } from "./_v2/hero-card";
 import { SeasonStats } from "./_v2/season-stats";
@@ -299,6 +301,8 @@ export default async function ProfilePage() {
 
   return (
     <div className="page">
+      {/* Phase 12 §G — 모바일 백버튼 (홈 fallback). 데스크톱 lg+ 에서는 hidden. */}
+      <PageBackButton fallbackHref="/" />
       {/* 레이아웃: 좌측 320px aside (sticky) + 우측 main 1fr — v2 Profile.jsx 그대로.
           모바일(<720px)에서는 1열 + sticky 해제 — globals.css "@media (max-width:720px)" 의
           .profile-grid / .profile-aside 룰이 처리 (P2-2 Med). */}

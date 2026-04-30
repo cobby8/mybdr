@@ -28,6 +28,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 import { BookingsListV2, type BookingItemV2 } from "./_bookings-list-v2";
 
 export const metadata: Metadata = {
@@ -217,5 +219,13 @@ export default async function MyBookingsPage() {
   // 시작 시각 내림차순 정렬 (가장 가까운 미래/최근 과거 먼저)
   items.sort((a, b) => b.sortAt - a.sortAt);
 
-  return <BookingsListV2 items={items} />;
+  // Phase 12 §G — 모바일 백버튼을 page wrapper 에 추가
+  return (
+    <>
+      <div style={{ padding: "12px var(--gutter) 0" }}>
+        <PageBackButton fallbackHref="/profile" />
+      </div>
+      <BookingsListV2 items={items} />
+    </>
+  );
 }

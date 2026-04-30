@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 // L3: 3계층 IA 브레드크럼 (홈 → 단체 → 시리즈) — 기존 인라인 nav 교체
 import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 /* ============================================================
  * 시리즈 상세 (공개) — /organizations/[slug]/series/[seriesSlug]
@@ -100,6 +102,11 @@ export default async function SeriesDetailPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden, 데스크톱은 Breadcrumb 가 대체).
+          fallbackHref: 단체 상세로. 단체 정보 없으면 단체 목록. */}
+      <PageBackButton
+        fallbackHref={series.organization ? `/organizations/${series.organization.slug}` : "/organizations"}
+      />
       {/* L3: 브레드크럼 (shared 컴포넌트로 통일 — 인라인 nav 교체) */}
       <div className="mb-4">
         <Breadcrumb items={breadcrumbItems} />

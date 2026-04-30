@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useToast } from "@/contexts/toast-context";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 /* ============================================================
  * /profile/activity — 내 활동 통합 뷰 (W4 M4)
@@ -288,6 +290,8 @@ export default function ProfileActivityPage() {
   return (
     // 시안 v2(1) 박제: page + 빵부스러기 + counters + filter chips + 카드 리스트
     <div className="page">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+      <PageBackButton fallbackHref="/profile" />
       {/* 시안 빵부스러기 */}
       <div
         style={{

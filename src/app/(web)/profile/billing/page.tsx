@@ -20,6 +20,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { mutate } from "swr";
 import Link from "next/link";
 import { TossCard } from "@/components/toss/toss-card";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 type TabKey = "subscription" | "payments";
 const VALID_TABS: TabKey[] = ["subscription", "payments"];
@@ -45,6 +47,8 @@ export default function ProfileBillingPage() {
   return (
     // 시안 v2(1) Billing.jsx — page max-width 880, 빵부스러기 + eyebrow + h1 박제
     <div className="page mx-auto" style={{ maxWidth: 880 }}>
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). billing 은 settings 하위 메뉴이므로 settings 로 fallback */}
+      <PageBackButton fallbackHref="/profile/settings" />
       {/* 시안 빵부스러기 (프로필 › 결제·구독) */}
       <div
         style={{

@@ -28,6 +28,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { BANKS } from "@/lib/constants/banks";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
 
@@ -433,6 +435,8 @@ export default function ProfileEditPage() {
   return (
     // 시안 v2(1) EditProfile.jsx 박제: page + 빵부스러기 + eyebrow/h1 + 사이드(220) + 카드 본문
     <div className="page">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+      <PageBackButton fallbackHref="/profile" />
       {/* 시안 빵부스러기: 홈 › 마이페이지 › 프로필 편집 */}
       <div
         style={{

@@ -16,6 +16,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { BookingClient } from "./_booking-client";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 export const dynamic = "force-dynamic";
 
@@ -143,5 +145,13 @@ export default async function CourtBookingPage({
     primary_color: "#E31B23",
   };
 
-  return <BookingClient court={courtData} />;
+  // Phase 12 §G — 모바일 백버튼을 BookingClient 위 wrapper 에 추가
+  return (
+    <>
+      <div style={{ padding: "12px var(--gutter) 0" }}>
+        <PageBackButton fallbackHref={`/courts/${id}`} />
+      </div>
+      <BookingClient court={courtData} />
+    </>
+  );
 }

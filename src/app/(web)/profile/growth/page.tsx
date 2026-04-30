@@ -39,6 +39,8 @@
 
 import useSWR from "swr";
 import Link from "next/link";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 // 게이미피케이션 API 응답 타입 (변경 없음)
 interface GamificationData {
@@ -263,6 +265,8 @@ export default function GrowthPage() {
   return (
     // 시안 v2.2 ProfileGrowth.jsx 1:1 박제 — page 컨테이너 + max-width 880
     <div className="page mx-auto" style={{ maxWidth: 880 }}>
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+      <PageBackButton fallbackHref="/profile" />
       {/* 빵부스러기 — 홈 › 내 프로필 › 내 성장 (시안 L40-44) */}
       <div
         style={{

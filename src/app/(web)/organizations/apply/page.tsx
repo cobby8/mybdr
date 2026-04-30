@@ -8,6 +8,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 export default function OrganizationApplyPage() {
   const router = useRouter();
@@ -104,6 +106,8 @@ export default function OrganizationApplyPage() {
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+      <PageBackButton fallbackHref="/organizations" />
       <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">
         단체 신청
       </h1>

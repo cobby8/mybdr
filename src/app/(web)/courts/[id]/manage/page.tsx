@@ -21,6 +21,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { checkCourtManager } from "@/lib/courts/court-manager-guard";
 import { ManageClient } from "./_manage-client";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 export const dynamic = "force-dynamic";
 
@@ -129,17 +131,23 @@ export default async function CourtManagePage({
   }
 
   // 운영자 통과 — 클라이언트 컴포넌트로 데이터 위임
+  // Phase 12 §G — 모바일 백버튼을 page wrapper 에 추가
   return (
-    <ManageClient
-      court={{
-        id: court.id.toString(),
-        name: court.name,
-        address: court.address,
-        booking_mode: court.booking_mode,
-        booking_fee_per_hour: court.booking_fee_per_hour
-          ? Number(court.booking_fee_per_hour)
-          : null,
-      }}
-    />
+    <>
+      <div style={{ padding: "12px var(--gutter) 0" }}>
+        <PageBackButton fallbackHref={`/courts/${court.id.toString()}`} />
+      </div>
+      <ManageClient
+        court={{
+          id: court.id.toString(),
+          name: court.name,
+          address: court.address,
+          booking_mode: court.booking_mode,
+          booking_fee_per_hour: court.booking_fee_per_hour
+            ? Number(court.booking_fee_per_hour)
+            : null,
+        }}
+      />
+    </>
   );
 }

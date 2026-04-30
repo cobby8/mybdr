@@ -33,6 +33,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+// Phase 12 §G: 모바일 백버튼 (사용자 보고)
+import { PageBackButton } from "@/components/shared/page-back-button";
 
 // 스킬 5축 — 시안 L80~L86
 type SkillKey = "shoot" | "drive" | "def" | "pass" | "reb";
@@ -142,6 +144,8 @@ export default function ProfileCompletePreferencesPage() {
 
   return (
     <div className="page" style={{ maxWidth: 620, paddingTop: 30 }}>
+      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). 위저드 진입 직후 ProfileComplete 로 복귀 */}
+      <PageBackButton fallbackHref="/profile/complete" />
       {/* 진행 막대 — 시안 L62~L71, ProfileComplete (P0-4) 와 동일 톤 */}
       <div style={{ marginBottom: 24 }}>
         <div
