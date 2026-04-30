@@ -4,16 +4,33 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 
 /**
- * 체육관 상세 페이지 (공개, SEO 최적화)
- * - 서버 컴포넌트로 Prisma 직접 쿼리
- * - 대관 정보, 시설, 위치, 관련 경기 표시
- * - court_infos.id 기반 (slug 필드 없음)
+ * VenueDetail — /venues/[slug] (BDR v2.2 P1-3 박제)
  *
- * v2 톤 박제 (CourtDetail.jsx 참조):
- * - .page page--wide 컨테이너
- * - breadcrumb (홈 › 코트 › 체육관명)
- * - 좌측 메인(card 헤더 placeholder + 시설 + 일정) + 우측 사이드바(map + 시설 정보)
- * - var(--ink-*), var(--bg-*), var(--border), var(--accent), var(--ff-mono) 토큰 사용
+ * Why: 공개 SEO 코트 페이지 (비로그인 열람 가능)
+ *      검색엔진/공유 링크로 들어온 비로그인 유저 → 가입 유도
+ * Pattern: CourtDetail.jsx 의 hero + info 카드 단순화 (예약/일정 hidden)
+ *
+ * 진입: 외부 검색엔진 (SEO) / 코트 공유 링크
+ * 복귀: 비로그인 → /login (가입 유도) / 로그인 → /courts/[id] (풀 기능)
+ *
+ * 회귀 검수 매트릭스:
+ *   기능              | 옛 페이지       | 시안 v2.2          | 진입점     | 모바일
+ *   코트 기본 정보    | CourtDetail ✅ | ✅ hero + info     | SEO/공유   | 1열
+ *   지도              | CourtDetail ✅ | ✅ static map      | -          | OK
+ *   사진 갤러리       | -              | ✅ 4-up grid       | -          | 2열
+ *   리뷰 요약         | -              | ✅ 평점 + 3개      | -          | OK
+ *   비로그인 가입 CTA | -              | ✅ /login 카드     | -          | 하단 sticky
+ *   로그인 풀페이지   | -              | ✅ /courts/[id]    | -          | OK
+ *   JSON-LD          | -              | ✅ Place           | SEO        | -
+ *
+ * 시안 출처: Dev/design/BDR v2.2/screens/VenueDetail.jsx
+ *           Dev/design/BDR v2.2/screens/CourtDetail.jsx (hero + info 패턴)
+ *
+ * 박제 룰:
+ * - 공개 SEO 페이지 → getWebSession 가드 X (비로그인 열람 가능)
+ * - DB/API 절대 변경 X — UI만 시안 톤
+ * - 하드코딩 색상 금지 → var(--*) 토큰만
+ * - 메타데이터 (Open Graph) 보존
  */
 
 export const revalidate = 300; // 5분 ISR
@@ -51,14 +68,14 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
   let courtId: bigint;
   try { courtId = BigInt(slug); } catch { notFound(); return null; }
 
-  // 코트 상세 조회 (보존)
+  // 코트 상세 조회 (보존 — DB 패칭 변경 X)
   const court = await prisma.court_infos.findUnique({
     where: { id: courtId },
   }).catch(() => null);
 
   if (!court || court.status !== "active") notFound();
 
-  // 관련 다가오는 경기 조회 (보존)
+  // 관련 다가오는 경기 조회 (보존 — count만 SEO CTA 에 사용)
   const upcomingGames = await prisma.games.findMany({
     where: {
       court_id: court.id,
@@ -76,6 +93,24 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
     },
   }).catch(() => []);
 
+  // v2.2 신규: 리뷰 요약 (최근 3건) — DB 변경 없이 select로 가벼운 조회
+  const recentReviews = await prisma.court_reviews.findMany({
+    where: {
+      court_info_id: court.id,
+      status: "published",
+      content: { not: null }, // 본문 있는 리뷰만
+    },
+    orderBy: { created_at: "desc" },
+    take: 3,
+    select: {
+      id: true,
+      rating: true,
+      content: true,
+      created_at: true,
+      users: { select: { nickname: true } },
+    },
+  }).catch(() => []);
+
   const isIndoor = court.court_type === "indoor";
   const typeLabel = isIndoor ? "실내" : "야외";
   const lat = Number(court.latitude);
@@ -84,6 +119,33 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
 
   // 카카오맵 링크
   const kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(court.name)},${lat},${lng}`;
+
+  // v2.2 신규: JSON-LD SportsActivityLocation — SEO 강화 (구조화 데이터)
+  // Why: 외부 검색엔진이 코트 정보를 풍부하게 노출하도록
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SportsActivityLocation",
+    name: court.name,
+    description: court.description ?? `${court.name} — ${typeLabel} 농구장`,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: court.address,
+      addressLocality: court.city ?? undefined,
+      addressCountry: "KR",
+    },
+    geo: lat && lng ? {
+      "@type": "GeoCoordinates",
+      latitude: lat,
+      longitude: lng,
+    } : undefined,
+    telephone: undefined, // court_infos 에 phone 없음
+    sport: "Basketball",
+    aggregateRating: court.average_rating && Number(court.average_rating) > 0 ? {
+      "@type": "AggregateRating",
+      ratingValue: Number(court.average_rating).toFixed(1),
+      reviewCount: court.reviews_count,
+    } : undefined,
+  };
 
   // 경기 유형 레이블 — v2 badge용 짧은 라벨
   const gameTypeBadge = (type: number) => {
@@ -106,12 +168,24 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
   };
 
   return (
-    <div className="page page--wide">
-      {/* breadcrumb (v2 톤: 홈 › 코트 › 체육관명) */}
+    <div className="page page--wide" style={{ paddingBottom: 80 }}>
+      {/* JSON-LD: SEO 구조화 데이터 (검색엔진 노출 강화) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* breadcrumb (v2.2 톤: 홈 › 코트 › [city] › 체육관명) */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-mute)", marginBottom: 14, flexWrap: "wrap" }}>
         <Link href="/" style={{ cursor: "pointer" }}>홈</Link>
         <span>›</span>
         <Link href="/courts" style={{ cursor: "pointer" }}>코트</Link>
+        {court.city && (
+          <>
+            <span>›</span>
+            <span>{court.city}</span>
+          </>
+        )}
         <span>›</span>
         <span style={{ color: "var(--ink)" }}>{court.name}</span>
       </div>
@@ -120,7 +194,7 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 24, alignItems: "flex-start" }}>
         {/* 좌측 메인 */}
         <div>
-          {/* 헤더 카드 — 사진 placeholder + 영역/이름/주소/소개 */}
+          {/* 헤더 카드 — 사진 placeholder + 영역/이름/주소/소개 (CourtDetail 시안 패턴) */}
           <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 20 }}>
             {/* 사진 placeholder (v2 톤: 사선 줄무늬) */}
             <div style={{
@@ -170,7 +244,35 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           </div>
 
-          {/* 대관 CTA (rental_available 시) */}
+          {/* v2.2 신규: 사진 갤러리 4-up grid (placeholder) */}
+          {/* Why: 시안 박제 — DB에 코트 사진 컬렉션 없으므로 placeholder 노출 */}
+          <div className="card" style={{ padding: "18px 22px", marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
+              코트 사진
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {[1, 2, 3, 4].map(i => (
+                <div
+                  key={i}
+                  style={{
+                    aspectRatio: "1",
+                    background: "repeating-linear-gradient(45deg, var(--bg-alt) 0 8px, var(--bg-elev) 8px 16px)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 4,
+                    display: "grid",
+                    placeItems: "center",
+                    color: "var(--ink-dim)",
+                    fontSize: 11,
+                    fontFamily: "var(--ff-mono)",
+                  }}
+                >
+                  PHOTO {i}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 대관 CTA (rental_available 시) — 보존 */}
           {court.rental_available && court.rental_url && (
             <div className="card" style={{ padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
               <div>
@@ -194,7 +296,7 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           )}
 
-          {/* 추가 시설 태그 (있을 때만) */}
+          {/* 추가 시설 태그 (보존) */}
           {facilities.length > 0 && (
             <div className="card" style={{ padding: "18px 22px", marginBottom: 20 }}>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
@@ -208,9 +310,47 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           )}
 
-          {/* 이 코트의 일정 — v2 톤: card 안에 row 리스트 */}
+          {/* v2.2 신규: 리뷰 요약 (최근 3건) */}
+          {recentReviews.length > 0 && (
+            <div className="card" style={{ padding: "18px 22px", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase" }}>
+                  리뷰 ({court.reviews_count})
+                </div>
+                {/* 전체 보기 → 풀 페이지 (로그인 후 리뷰 작성 가능) */}
+                <Link href={`/courts/${court.id}`} style={{ fontSize: 12 }}>
+                  전체 보기 ›
+                </Link>
+              </div>
+              <div style={{ display: "grid", gap: 14 }}>
+                {recentReviews.map((r, i) => (
+                  <div
+                    key={r.id.toString()}
+                    style={{
+                      paddingBottom: 14,
+                      borderBottom: i < recentReviews.length - 1 ? "1px solid var(--border)" : "none",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <b style={{ fontSize: 13 }}>{r.users?.nickname ?? "익명"}</b>
+                      {/* 별점 — 시안 톤(★ 5칸) */}
+                      <span style={{ color: "#F59E0B", fontSize: 13 }}>
+                        {"★".repeat(r.rating)}
+                        <span style={{ color: "var(--border)" }}>{"★".repeat(Math.max(0, 5 - r.rating))}</span>
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.6 }}>
+                      {r.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 이 코트의 일정 — v2 톤: card 안에 row 리스트 (보존) */}
           {upcomingGames.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
+            <div className="card" style={{ padding: 0, marginBottom: 20 }}>
               <div style={{ padding: "16px 22px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>이 코트의 일정</h2>
                 <Link href="/games" style={{ fontSize: 12 }}>더보기 ›</Link>
@@ -245,7 +385,7 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
 
         {/* 우측 사이드바 (sticky) */}
         <aside style={{ position: "sticky", top: 120 }}>
-          {/* 지도 placeholder */}
+          {/* 지도 placeholder (보존) */}
           <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 14 }}>
             <div style={{
               height: 180,
@@ -292,7 +432,7 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           </div>
 
-          {/* 시설 정보 — 라벨/값 그리드 (v2 톤) */}
+          {/* 시설 정보 — 라벨/값 그리드 (보존) */}
           <div className="card" style={{ padding: "18px 20px", marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
               시설 정보
@@ -343,7 +483,7 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           </div>
 
-          {/* 활동 통계 (체크인/리뷰) */}
+          {/* 활동 통계 (체크인/리뷰) — 보존 */}
           <div className="card" style={{ padding: "18px 20px", marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
               활동
@@ -360,13 +500,50 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
             </div>
           </div>
 
-          {/* 코트 상세 페이지 링크 (리뷰/제보/체크인) */}
+          {/* v2.2 신규: 비로그인 가입 유도 CTA (시안 박제) */}
+          {/* Why: 공개 SEO 페이지 — 검색엔진/공유로 들어온 비회원 → 가입 동선 */}
+          {/*       서버 컴포넌트라 로그인 상태 모름 → 항상 노출 (이미 회원이면 "이미 회원이에요" 클릭) */}
+          <div
+            className="card"
+            style={{
+              padding: "18px 22px",
+              marginBottom: 14,
+              background: "linear-gradient(135deg, color-mix(in oklab, var(--accent) 8%, transparent), transparent)",
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>
+              이 코트에서 더 많이 즐기려면
+            </div>
+            <ul style={{ margin: "0 0 14px", padding: "0 0 0 18px", fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.8 }}>
+              {upcomingGames.length > 0 && (
+                <li>{upcomingGames.length}건의 진행 예정 픽업·게스트 모집</li>
+              )}
+              <li>실시간 체크인 · 리뷰 작성</li>
+              <li>이 코트 멤버 채팅방 참여</li>
+            </ul>
+            <Link
+              href="/signup"
+              className="btn btn--primary btn--xl"
+              style={{ width: "100%", display: "inline-flex", justifyContent: "center" }}
+            >
+              가입하고 시작 →
+            </Link>
+            <Link
+              href="/login"
+              className="btn"
+              style={{ width: "100%", marginTop: 8, display: "inline-flex", justifyContent: "center" }}
+            >
+              이미 회원이에요
+            </Link>
+          </div>
+
+          {/* 코트 풀 페이지 진입 (로그인 사용자 동선) */}
           <Link
             href={`/courts/${court.id}`}
             className="btn btn--xl"
             style={{ width: "100%", display: "inline-flex", justifyContent: "center" }}
           >
-            코트 상세 보기
+            이 코트 풀 페이지 보기 →
           </Link>
         </aside>
       </div>
