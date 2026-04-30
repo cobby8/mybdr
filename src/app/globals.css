@@ -516,6 +516,58 @@ html.dark .app-nav__tab[data-active="true"]::after {
 .aside__link .count { font-size: 11px; color: var(--ink-dim); }
 .aside__divider { height: 1px; background: var(--border); margin: 6px 0; }
 
+/* ============================================================
+   커뮤니티 모바일 카테고리 가로 탭 — 사용자 회귀 픽스 (Phase 12 §H)
+   왜: v2 박제 시 사이드바가 본문 위로 stack 되어 모바일 사용자 본문 도달 어려움
+   해소: 모바일에서 가로 스크롤 탭 (8 카테고리). 데스크톱(lg+) 은 hidden(Tailwind)
+   사용 컴포넌트: src/app/(web)/community/_components/community-aside.tsx
+   ============================================================ */
+.aside-mobile-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px var(--gutter);
+  margin: 0 calc(-1 * var(--gutter)) 12px;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.aside-mobile-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.aside-mobile-tab {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px; /* 사용자 결정 §2-3 — pill 9999px 금지 */
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-mute);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  min-height: 36px;
+}
+
+.aside-mobile-tab:hover {
+  background: var(--bg-alt);
+  color: var(--ink);
+}
+
+.aside-mobile-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.aside-mobile-tab.active:hover {
+  /* 활성 상태에서 hover 색 유지 (BDR Red 그대로) */
+  background: var(--accent);
+  color: #fff;
+}
+
 [data-theme="dark"] .aside, html.dark .aside { border-color: var(--border-strong); border-width: 2px; border-radius: 0; }
 [data-theme="dark"] .aside__link, html.dark .aside__link { border-radius: 0; }
 [data-theme="dark"] .aside__link[data-active="true"], html.dark .aside__link[data-active="true"] {

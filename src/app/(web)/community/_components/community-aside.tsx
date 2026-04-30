@@ -61,49 +61,73 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
   const groupKeys: GroupKey[] = ["main", "play", "chat"];
 
   return (
-    <aside className="aside">
-      {/* 글쓰기 버튼 — 시안 그대로 상단 고정 */}
-      <div className="aside__group">
-        <Link
-          href="/community/new"
-          className="btn btn--primary"
-          style={{ width: "100%", justifyContent: "center" }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
-          글쓰기
-        </Link>
+    <>
+      {/* Phase 12 §H — 모바일 카테고리 가로 스크롤 탭 (사용자 보고 회귀 픽스).
+          이유: v2 박제 시 사이드바가 본문 위로 stack 되어 모바일 사용자가 본문 도달 어려움.
+          해소: lg 미만에서만 가로 스크롤 8 카테고리 탭. lg+ 는 좌측 사이드바 유지. */}
+      <div className="aside-mobile-tabs lg:hidden" role="tablist">
+        {BOARDS.map((b) => {
+          const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+          return (
+            <button
+              key={b.id ?? "all"}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onSelect(b.id)}
+              className={`aside-mobile-tab ${isActive ? "active" : ""}`}
+            >
+              {b.name}
+            </button>
+          );
+        })}
       </div>
-      <div className="aside__divider" />
 
-      {/* 그룹별 게시판 목록 */}
-      {groupKeys.map((g) => {
-        const items = BOARDS.filter((b) => b.group === g);
-        return (
-          <div key={g} className="aside__group">
-            <div className="aside__title">{GROUP_LABEL[g]}</div>
-            {items.map((b) => {
-              // 활성 판정: id가 null인 항목은 activeCategory가 null/빈값일 때
-              const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
-              return (
-                <a
-                  key={b.id ?? "all"}
-                  className="aside__link"
-                  data-active={isActive}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onSelect(b.id);
-                  }}
-                  href="#"
-                >
-                  <span>{b.name}</span>
-                  {/* 게시글 수: DB 집계 API 미존재 → "—" + 준비 중 툴팁 */}
-                  <span className="count" title="준비 중">—</span>
-                </a>
-              );
-            })}
-          </div>
-        );
-      })}
-    </aside>
+      {/* 데스크톱: 기존 사이드바 — lg+ 만 노출 (모바일은 위 가로 탭으로 대체) */}
+      <aside className="aside hidden lg:block">
+        {/* 글쓰기 버튼 — 시안 그대로 상단 고정 */}
+        <div className="aside__group">
+          <Link
+            href="/community/new"
+            className="btn btn--primary"
+            style={{ width: "100%", justifyContent: "center" }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
+            글쓰기
+          </Link>
+        </div>
+        <div className="aside__divider" />
+
+        {/* 그룹별 게시판 목록 */}
+        {groupKeys.map((g) => {
+          const items = BOARDS.filter((b) => b.group === g);
+          return (
+            <div key={g} className="aside__group">
+              <div className="aside__title">{GROUP_LABEL[g]}</div>
+              {items.map((b) => {
+                // 활성 판정: id가 null인 항목은 activeCategory가 null/빈값일 때
+                const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+                return (
+                  <a
+                    key={b.id ?? "all"}
+                    className="aside__link"
+                    data-active={isActive}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onSelect(b.id);
+                    }}
+                    href="#"
+                  >
+                    <span>{b.name}</span>
+                    {/* 게시글 수: DB 집계 API 미존재 → "—" + 준비 중 툴팁 */}
+                    <span className="count" title="준비 중">—</span>
+                  </a>
+                );
+              })}
+            </div>
+          );
+        })}
+      </aside>
+    </>
   );
 }
