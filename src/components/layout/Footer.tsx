@@ -59,6 +59,38 @@ export function Footer() {
             </a>
           </div>
         </div>
+
+        {/* 사업자 정보 — 한국 e-commerce 표준 표기 (사업자등록증 기준)
+            왜: 통신판매·전자상거래 사이트는 사업자 정보 표기 의무.
+            출처: 사업자등록증 (664-81-03299, 2024-08-01 개업).
+            레이아웃: 모바일 1열 stack, sm 이상 inline 구분자 (·) — 좁은 폭에서도 줄바꿈 자연스럽게. */}
+        <div
+          className="mt-4 sm:mt-6 pt-4 sm:pt-6 text-xs leading-relaxed"
+          style={{ borderTop: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span><strong style={{ color: "var(--color-text-primary)" }}>주식회사 비디알</strong> (BDR COMPANY)</span>
+            <span className="hidden sm:inline" aria-hidden>·</span>
+            <span>대표 김수빈</span>
+            <span className="hidden sm:inline" aria-hidden>·</span>
+            <span>사업자등록번호 664-81-03299</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>주소 서울특별시 중랑구 면목로74길 22, 가동 2층 2호 (면목동)</span>
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>
+              이메일{" "}
+              <a
+                href="mailto:bdrbasket@gmail.com"
+                className="hover:underline"
+                style={{ color: "inherit" }}
+              >
+                bdrbasket@gmail.com
+              </a>
+            </span>
+          </div>
+        </div>
       </div>
     </footer>
   );
