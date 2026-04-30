@@ -139,13 +139,14 @@ export default function NewPostPage() {
                 </div>
                 <div>
                   <label className="label" htmlFor="post-title">제목</label>
+                  {/* B-7: placeholder 단순화 — maxLength={80} 보존(서버 검증과 별개로 HTML 제약 유지) */}
                   <input
                     id="post-title"
                     name="title"
                     type="text"
                     required
                     className="input"
-                    placeholder="제목을 입력하세요 (최대 80자)"
+                    placeholder="제목"
                     maxLength={80}
                   />
                 </div>

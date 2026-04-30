@@ -57,15 +57,16 @@ export function StepBasic({
           <label style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-dim)", display: "block", marginBottom: 6 }}>
             팀 이름 *
           </label>
+          {/* B-6: placeholder 단순화(예: 접두사+다중 예시 제거) + helper 도 형식만 */}
           <input
             className="input"
             type="text"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
-            placeholder="예: REDEEM, 3POINT, 몽키즈"
+            placeholder="REDEEM"
             maxLength={20}
           />
-          <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>한글·영문 2~20자</div>
+          <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>2~20자</div>
         </div>
 
         {/* B 옵션: 영문 팀명 (선택) — 기존 기능 보존 */}

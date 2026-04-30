@@ -119,13 +119,14 @@ function RefereeSignupContent() {
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
+            {/* B-8: placeholder 단순화 — 형식 제약은 minLength/maxLength HTML 속성으로 보존 */}
             <input
               name="nickname"
               type="text"
               required
               minLength={2}
               maxLength={20}
-              placeholder="닉네임 (2~20자)"
+              placeholder="닉네임"
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
