@@ -1,0 +1,136 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MyBDR · Mobile audit (375px)</title>
+<style>
+  body { margin:0; background:#0f172a; padding:18px; font-family: ui-sans-serif, system-ui, Pretendard, sans-serif; color:#e5e7eb; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  .sub { color:#94a3b8; font-size:13px; margin: 0 0 16px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom: 16px; padding: 10px; background: #1e293b; border-radius: 8px; }
+  .toolbar button { padding: 6px 12px; font-size: 12px; border-radius: 6px; border: 1px solid #334155; background: #0f172a; color:#e5e7eb; cursor:pointer; }
+  .toolbar button:hover { border-color: #64748b; }
+  .toolbar button.active { background: #2563eb; border-color: #3b82f6; color:#fff; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(390px, 1fr)); gap:18px; }
+  .item { background: #1e293b; border-radius: 12px; padding: 12px; }
+  .label { display:flex; align-items:center; justify-content:space-between; font-size:12px; color:#94a3b8; margin-bottom:8px; font-family: ui-monospace, SF Mono, monospace; }
+  .label .name { color:#fff; font-weight: 600; font-family: inherit; }
+  .device { width:375px; height:667px; border:6px solid #0f172a; border-radius: 18px; overflow:hidden; box-shadow: 0 6px 24px rgba(0,0,0,.4); margin: 0 auto; background:#000; }
+  .device iframe { width:375px; height:667px; border:0; display:block; background:#fff; }
+  .placeholder { width: 375px; height: 667px; background: #0f172a; border:2px dashed #334155; display:flex; align-items:center; justify-content:center; color:#64748b; font-size:13px; margin: 0 auto; border-radius: 12px; }
+  .placeholder button { padding:8px 14px; background:#2563eb; border:0; color:#fff; border-radius:6px; cursor:pointer; font-size:13px; }
+  .group-title { color:#94a3b8; font-size:12px; text-transform: uppercase; letter-spacing: 0.06em; margin: 22px 0 10px; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>MyBDR · 모바일 감사 (375 × 667)</h1>
+<p class="sub">아이폰 SE 폭(375px)으로 각 화면을 미리봅니다. 그룹 버튼으로 한 번에 6개씩 로드합니다.</p>
+<div class="toolbar" id="toolbar"></div>
+<div id="content"></div>
+
+<script>
+const GROUPS = {
+  '메인 탐색': [
+    ['home', '\ud648'],
+    ['match', '\ub300\ud68c \ubaa9\ub85d'],
+    ['matchDetail', '\ub300\ud68c \uc0c1\uc138'],
+    ['team', '\ud300 \ubaa9\ub85d'],
+    ['teamDetail', '\ud300 \uc0c1\uc138'],
+    ['court', '\ucf54\ud2b8 \ubaa9\ub85d'],
+  ],
+  '코트·랭킹·게임': [
+    ['courtDetail', '\ucf54\ud2b8 \uc0c1\uc138'],
+    ['rank', '\ub7ad\ud0b9'],
+    ['games', '\uacbd\uae30 \ubaa9\ub85d'],
+    ['gameDetail', '\uacbd\uae30 \uc0c1\uc138'],
+    ['gameResult', '\uacbd\uae30 \uacb0\uacfc'],
+    ['live', '\ub77c\uc774\ube0c'],
+  ],
+  '내 활동·결제': [
+    ['mygames', '\ub0b4 \uacbd\uae30'],
+    ['myActivity', '\ub0b4 \ud65c\ub3d9'],
+    ['notifications', '\uc54c\ub9bc'],
+    ['messages', '\uba54\uc2dc\uc9c0'],
+    ['saved', '\uc800\uc7a5'],
+    ['calendar', '\ub2ec\ub825'],
+  ],
+  '계정·설정': [
+    ['settings', '\uc124\uc815'],
+    ['profile', '\ud504\ub85c\ud544'],
+    ['signup', '\uac00\uc785'],
+    ['verify', '\uc804\ud654 \uc778\uc99d'],
+    ['login', '\ub85c\uadf8\uc778'],
+    ['help', '\ub3c4\uc6c0\ub9d0'],
+  ],
+  '대회·팀 운영': [
+    ['createGame', '\uacbd\uae30 \uc0dd\uc131'],
+    ['createTeam', '\ud300 \uc0dd\uc131'],
+    ['scrim', '\uc2a4\ud06c\ub9bc'],
+    ['bracket', '\ub300\uc9c4\ud45c'],
+    ['stats', '\ud1b5\uacc4'],
+    ['gallery', '\uac24\ub7ec\ub9ac'],
+  ],
+  '결제·기타': [
+    ['checkout', '\uacb0\uc81c'],
+    ['billing', '\uacb0\uc81c \ub0b4\uc5ed'],
+    ['pricing', '\uc694\uae08\uc81c'],
+    ['pricingSuccess', '\uacb0\uc81c \uc131\uacf5'],
+    ['pricingFail', '\uacb0\uc81c \uc2e4\ud328'],
+    ['orgs', '\ub2e8\uccb4 \ubaa9\ub85d'],
+  ],
+  '기타': [
+    ['orgDetail', '\ub2e8\uccb4 \uc0c1\uc138'],
+    ['series', '\uc2dc\ub9ac\uc988'],
+    ['seriesDetail', '\uc2dc\ub9ac\uc988 \uc0c1\uc138'],
+    ['seriesCreate', '\uc2dc\ub9ac\uc988 \uac1c\ucd5c'],
+    ['teamInvite', '\ud300 \ucd08\ub300'],
+    ['guestApps', '\uc6a9\ubcd1 \uc2e0\uccad'],
+  ],
+  'v2.2 P0·필수': [
+    ['postEdit',         '\uac8c\uc2dc\uae00 \uc218\uc815 (P0-1)'],
+    ['gameEdit',         '\uacbd\uae30 \uc218\uc815 (P0-2)'],
+    ['liveResult',       '\ub77c\uc774\ube0c \uacb0\uacfc (P0-3)'],
+    ['profileComplete',  '\ud504\ub85c\ud544 \uc644\uc131 (P0-4)'],
+  ],
+  'v2.2 P1·내 프로필 강화': [
+    ['profileGrowth',    '\ub0b4 \uc131\uc7a5 (P1-6)'],
+    ['profileBookings',  '\ub0b4 \uc608\uc57d (P1-7)'],
+    ['venueDetail',      '\ucf54\ud2b8 \uacf5\uac1c \ud398\uc774\uc9c0 (P1-8)'],
+    ['profileWeekly',    '\uc8fc\uac04 \ub9ac\ud3ec\ud2b8 (P1-9)'],
+  ],
+  'v2.2 P2·P3': [
+    ['profileCompletePref', '\ucde8\ud5a5 \uc124\uc815 (P2-10)'],
+    ['helpGlossary',     '\uc6a9\uc5b4\uc9d1 redirect (P2-11)'],
+    ['refereeInfo',      '\uc2ec\ud310 \uc81c\ub3c4 \uc548\ub0b4 (P3-12)'],
+  ],
+};
+
+const toolbar = document.getElementById('toolbar');
+const content = document.getElementById('content');
+let currentGroup = Object.keys(GROUPS)[0];
+
+Object.keys(GROUPS).forEach(g => {
+  const b = document.createElement('button');
+  b.textContent = g;
+  b.onclick = () => render(g);
+  b.dataset.group = g;
+  toolbar.appendChild(b);
+});
+
+function render(group) {
+  currentGroup = group;
+  [...toolbar.children].forEach(b => b.classList.toggle('active', b.dataset.group === group));
+  content.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  GROUPS[group].forEach(([route, label]) => {
+    const card = document.createElement('div');
+    card.className = 'item';
+    card.innerHTML = '<div class="label"><span class="name">' + label + '</span><span>?route=' + route + '</span></div><div class="device"><iframe src="MyBDR.html?route=' + route + '" loading="lazy"></iframe></div>';
+    grid.appendChild(card);
+  });
+  content.appendChild(grid);
+}
+
+render(currentGroup);
+</script>
+</body></html>
