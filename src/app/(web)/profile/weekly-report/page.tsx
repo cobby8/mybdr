@@ -3,20 +3,36 @@
 /**
  * 주간 운동 리포트 페이지 (/profile/weekly-report)
  *
- * 이번주 + 지난주 운동 데이터를 카드형으로 시각화
- * - 핵심 수치: 운동 시간, 방문 코트, 운동 일수, 획득 XP
- * - 지난주 대비 변화율 표시
- * - 자주 방문한 코트 TOP 3
- * - 토스 디자인 시스템 적용 (TossCard, CSS 변수)
+ * Why: 주간 단위 활동 리포트 (이메일 주간 발송 미리보기 톤)
+ *      ProfileGrowth 가 12주 trends 라면, 이건 "이번 주 vs 지난 주" 비교 + 인사이트
+ * Pattern: 이메일 뉴스레터 레이아웃 — 좁은 칼럼 (max 720), 카드 stack, 명확한 섹션 헤더
+ *
+ * 시안 출처: Dev/design/BDR v2.2/screens/ProfileWeeklyReport.jsx (D등급 P1-4)
+ * 진입: /profile "주간 리포트" 카드 / 알림 "주간 리포트가 도착했어요"
+ * 복귀: AppNav 뒤로 / "이메일 구독 관리" → /profile/notification-settings
+ *
+ * 회귀 검수 매트릭스:
+ *   기능              | 옛 페이지                | v2.2          | 진입점     | 모바일
+ *   주차 navigation   | -                        | ✅ < W47 >    | -          | OK
+ *   요약 통계         | ✅ 4 StatCard            | ✅ 4 KPI      | -          | 2열
+ *   비교 (vs 지난주)  | ✅ row 비교              | ✅ delta KPI  | -          | OK
+ *   자주 방문 코트    | ✅ TOP 3                 | ✅ TOP 3      | -          | 1열
+ *   인사이트 카피     | -                        | ✅ 3 인사이트 | -          | 1열
+ *   이메일 구독 토글  | -                        | ✅ footer     | settings   | OK
+ *
+ * 박제 룰 준수:
+ * - var(--*) 토큰만 (시안 var(--accent) → 사이트 var(--color-primary) 매핑)
+ * - Material Symbols Outlined 만
+ * - radius 4px
+ * - alert 신규 X
+ * - API/데이터 패칭 0 변경 (SWR /api/web/profile/weekly-report 그대로)
  */
 
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
-import { TossCard } from "@/components/toss/toss-card";
-import { TossSectionHeader } from "@/components/toss/toss-section-header";
 
-// ── 타입 정의 ──
+// ── 타입 정의 ── (기존 그대로 보존)
 interface WeekData {
   session_count: number;
   total_minutes: number;
@@ -42,17 +58,21 @@ interface ReportData {
   };
 }
 
-// 분 -> "1시간 30분" 또는 "45분" 포맷
-function formatMinutes(minutes: number): string {
-  if (minutes <= 0) return "0분";
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h > 0 && m > 0) return `${h}시간 ${m}분`;
-  if (h > 0) return `${h}시간`;
-  return `${m}분`;
+// 분 -> "1.5시간" 또는 "45분" 포맷 (KPI 카드용)
+function formatHours(minutes: number): string {
+  if (minutes <= 0) return "0";
+  const h = minutes / 60;
+  // 1시간 미만은 분 단위 그대로, 이상은 시간(소수점 1자리)
+  if (h < 1) return `${minutes}`;
+  return h % 1 === 0 ? `${h}` : h.toFixed(1);
 }
 
-// 날짜 포맷: "3/24 (월)"
+// 단위 라벨
+function hoursUnit(minutes: number): string {
+  return minutes < 60 ? "분" : "시간";
+}
+
+// 날짜 포맷: "11/17 (월)"
 function formatDate(isoStr: string): string {
   const d = new Date(isoStr);
   // KST 변환
@@ -64,73 +84,98 @@ function formatDate(isoStr: string): string {
   return `${month}/${day} (${dayName})`;
 }
 
-// 변화율 표시 컴포넌트: +12% 녹색, -5% 빨간색
-function ChangeIndicator({ value }: { value: number }) {
-  if (value === 0) return null;
+// ISO 주차 계산 (W47 형태로 표기)
+function getWeekNumber(isoStr: string): number {
+  const d = new Date(isoStr);
+  const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const diff = target.getTime() - firstThursday.getTime();
+  return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+}
 
-  const isPositive = value > 0;
-  const color = isPositive ? "var(--color-success, #22C55E)" : "var(--color-primary)";
-  const icon = isPositive ? "trending_up" : "trending_down";
-
+// 시안의 Delta 컴포넌트 — KPI 카드 하단 변화량 표시 (var(--ok)/var(--bdr-red) 토큰)
+function Delta({ now, prev, prevWeek }: { now: number; prev: number; prevWeek: string }) {
+  const diff = now - prev;
+  const flat = Math.abs(diff) < 0.05;
+  const up = diff > 0;
+  const sign = flat ? "" : up ? "↑" : "↓";
+  const txt = Math.abs(diff).toFixed(diff % 1 === 0 ? 0 : 1);
+  // flat: 회색 / up: 성공색 / down: BDR red
+  const color = flat
+    ? "var(--color-text-muted)"
+    : up
+      ? "var(--ok, #22C55E)"
+      : "var(--bdr-red, var(--color-primary))";
   return (
-    <span className="inline-flex items-center gap-0.5 text-xs font-bold" style={{ color }}>
-      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
-        {icon}
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color,
+        fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+      }}
+    >
+      {sign} {txt}{" "}
+      <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>
+        vs {prevWeek}
       </span>
-      {isPositive ? "+" : ""}
-      {value}%
     </span>
   );
 }
 
-// ── 핵심 통계 카드 컴포넌트 ──
-function StatCard({
-  icon,
-  iconColor,
-  label,
-  value,
-  sub,
+// 시안의 Section 컴포넌트 — eyebrow 번호 + 제목 + 구분선
+function Section({
+  eyebrow,
+  title,
+  children,
 }: {
-  icon: string;
-  iconColor: string;
-  label: string;
-  value: string;
-  sub?: string;
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
-    <TossCard className="text-center py-5">
-      {/* 아이콘 */}
-      <div
-        className="flex h-10 w-10 items-center justify-center rounded-full mx-auto mb-3"
-        style={{ backgroundColor: iconColor }}
-      >
-        <span className="material-symbols-outlined text-xl text-white">{icon}</span>
+    <section style={{ marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+        <span
+          style={{
+            fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+            fontSize: 11,
+            color: "var(--color-text-muted)",
+            fontWeight: 700,
+          }}
+        >
+          {eyebrow}
+        </span>
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 16,
+            fontWeight: 800,
+            letterSpacing: "-0.01em",
+            color: "var(--color-text-primary)",
+          }}
+        >
+          {title}
+        </h2>
+        <div
+          style={{
+            flex: 1,
+            height: 1,
+            background: "var(--color-border-subtle)",
+          }}
+        />
       </div>
-      {/* 큰 숫자 */}
-      <p
-        className="text-2xl font-bold mb-0.5"
-        style={{ color: "var(--color-text-primary)" }}
-      >
-        {value}
-      </p>
-      {/* 라벨 */}
-      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-        {label}
-      </p>
-      {/* 부가 정보 (변화율 등) */}
-      {sub && (
-        <p className="text-xs mt-1" style={{ color: "var(--color-text-muted)" }}>
-          {sub}
-        </p>
-      )}
-    </TossCard>
+      {children}
+    </section>
   );
 }
 
 export default function WeeklyReportPage() {
   const router = useRouter();
 
-  // 주간 리포트 데이터 패칭
+  // 주간 리포트 데이터 패칭 (사이트 기존 방식 0 변경)
   const { data, isLoading, error } = useSWR<ReportData>(
     "/api/web/profile/weekly-report",
     { revalidateOnFocus: false, dedupingInterval: 60000 }
@@ -141,21 +186,6 @@ export default function WeeklyReportPage() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
-          <div className="mb-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="mx-auto h-8 w-8 animate-spin"
-              style={{ color: "var(--color-primary)" }}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-            </svg>
-          </div>
           <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
             리포트를 불러오는 중...
           </p>
@@ -192,323 +222,698 @@ export default function WeeklyReportPage() {
 
   const { this_week: tw, last_week: lw } = data;
 
-  // 이번주가 비어있으면 "아직 운동 기록이 없어요" 안내
+  // 주차 라벨 계산 (period.this_week_start 기반)
+  const weekNum = getWeekNumber(data.period.this_week_start);
+  const year = new Date(data.period.this_week_start).getFullYear();
+  const weekLabel = `${year}년 ${weekNum}주차`;
+  const prevWeekLabel = `W${weekNum - 1}`;
+  const nextWeekLabel = `W${weekNum + 1}`;
+
+  // 이번주가 비어있으면 안내
   const hasThisWeekData = tw.session_count > 0;
   const hasLastWeekData = lw.session_count > 0;
 
+  // 4 KPI 정의 — 사이트 데이터를 시안 KPI 슬롯에 매핑
+  const kpis = [
+    {
+      label: "경기",
+      val: tw.session_count,
+      prev: lw.session_count,
+      unit: "회",
+      tone: "var(--color-primary)", // 시안 var(--accent) 매핑
+    },
+    {
+      label: "운동 시간",
+      val: parseFloat(formatHours(tw.total_minutes)),
+      prev: parseFloat(formatHours(lw.total_minutes)),
+      unit: hoursUnit(tw.total_minutes),
+      tone: "var(--cafe-blue, #0079B9)",
+    },
+    {
+      label: "획득 XP",
+      val: tw.total_xp,
+      prev: lw.total_xp,
+      unit: "XP",
+      tone: "var(--ok, #22C55E)",
+    },
+    {
+      label: "방문 코트",
+      val: tw.unique_courts,
+      prev: lw.unique_courts,
+      unit: "곳",
+      tone: "var(--color-accent, #F59E0B)",
+    },
+  ];
+
+  // 인사이트 동적 생성 — streak/평균/변화율 기반 카피
+  const insights = [
+    // 인사이트 1: 연속 출석 — streak 기반
+    data.streak > 0
+      ? {
+          icon: "local_fire_department",
+          head: `${data.streak}일 연속 출석 중`,
+          body: "꾸준함이 가장 강력한 무기입니다. 다음 주에도 이 흐름을 이어가세요.",
+          tone: "var(--color-accent, #F59E0B)",
+        }
+      : {
+          icon: "calendar_month",
+          head: "이번 주 활동을 시작해보세요",
+          body: "코트에서 체크인하면 streak이 시작됩니다.",
+          tone: "var(--color-text-muted)",
+        },
+    // 인사이트 2: 운동 시간 변화
+    data.minutes_change > 0
+      ? {
+          icon: "trending_up",
+          head: "운동 시간이 늘었습니다",
+          body: `지난주 대비 ${data.minutes_change}% 증가. 체력이 붙고 있습니다.`,
+          tone: "var(--ok, #22C55E)",
+        }
+      : data.minutes_change < 0
+        ? {
+            icon: "trending_down",
+            head: "운동 시간이 줄었습니다",
+            body: `지난주 대비 ${Math.abs(data.minutes_change)}% 감소. 다음 주에 회복해봅시다.`,
+            tone: "var(--bdr-red, var(--color-primary))",
+          }
+        : {
+            icon: "fitness_center",
+            head: "안정적인 페이스를 유지 중",
+            body: "지난주와 비슷한 운동량을 유지하고 있습니다.",
+            tone: "var(--cafe-blue, #0079B9)",
+          },
+    // 인사이트 3: 다음 도전 (정적 카피, 추후 추천 엔진 연동 큐)
+    {
+      icon: "lightbulb",
+      head: "다음 도전: 새로운 코트",
+      body: "단골 코트 외 다른 곳도 방문해보세요. 새로운 멤버와의 매칭은 실력 향상의 지름길입니다.",
+      tone: "var(--color-accent, #F59E0B)",
+    },
+  ];
+
   return (
-    <div className="max-w-[640px] mx-auto space-y-6 pb-8">
-      {/* ── 헤더: 뒤로가기 + 제목 ── */}
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={() => router.back()}
-          className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-[var(--color-surface-bright)]"
-          aria-label="뒤로가기"
-        >
-          <span
-            className="material-symbols-outlined text-2xl"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            arrow_back
-          </span>
-        </button>
-        <h1
-          className="text-xl font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          주간 운동 리포트
-        </h1>
+    // 시안 max-width 720 — 이메일 뉴스레터 좁은 칼럼
+    <div className="page" style={{ maxWidth: 720, margin: "0 auto", padding: "0 16px" }}>
+      {/* 빵부스러기 — 시안 L80 */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+          marginBottom: 12,
+          flexWrap: "wrap",
+          paddingTop: 8,
+        }}
+      >
+        <Link href="/" style={{ cursor: "pointer" }}>
+          홈
+        </Link>
+        <span>›</span>
+        <Link href="/profile" style={{ cursor: "pointer" }}>
+          내 프로필
+        </Link>
+        <span>›</span>
+        <span style={{ color: "var(--color-text-primary)" }}>주간 리포트</span>
       </div>
 
-      {/* ── 인사 + 요약 카드 ── */}
-      <TossCard>
-        <div className="text-center">
-          {/* 레벨 이모지 + 인사 */}
-          <p className="text-3xl mb-2">{data.emoji || ""}</p>
-          <p
-            className="text-lg font-bold mb-1"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            {data.nickname}님의 주간 리포트
-          </p>
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-            Lv.{data.level} {data.title}
-            {data.streak > 0 && (
-              <span className="ml-2">
-                <span className="material-symbols-outlined align-middle" style={{ fontSize: "14px", color: "var(--color-accent, #F59E0B)" }}>
-                  local_fire_department
-                </span>
-                {" "}{data.streak}일 연속 출석
-              </span>
-            )}
-          </p>
+      {/* HERO — 이메일 뉴스레터 톤 (시안 L86-97) */}
+      <div
+        style={{
+          textAlign: "center",
+          padding: "24px 0 28px",
+          borderBottom: "1px solid var(--color-border-subtle)",
+          marginBottom: 20,
+        }}
+      >
+        {/* eyebrow — 발송 주기 표기 */}
+        <div
+          className="eyebrow"
+          style={{
+            marginBottom: 8,
+            fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            color: "var(--color-text-muted)",
+            textTransform: "uppercase",
+          }}
+        >
+          WEEKLY REPORT · 매주 월요일 도착
         </div>
-      </TossCard>
+        <h1
+          style={{
+            margin: "0 0 6px",
+            fontSize: 30,
+            fontWeight: 800,
+            letterSpacing: "-0.015em",
+            color: "var(--color-text-primary)",
+          }}
+        >
+          {weekLabel}
+        </h1>
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--color-text-muted)",
+            marginBottom: 16,
+          }}
+        >
+          {formatDate(data.period.this_week_start)} ~{" "}
+          {formatDate(data.period.last_week_end)}
+        </div>
+        {/* 주차 navigation — 시안 L92-96 (현재 주차 고정, 이전/다음은 disabled — 추후 확장 큐) */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 8 }}>
+          <button
+            type="button"
+            disabled
+            style={{
+              minWidth: 100,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 4,
+              border: "1px solid var(--color-border-subtle)",
+              background: "transparent",
+              color: "var(--color-text-disabled)",
+              cursor: "not-allowed",
+              opacity: 0.6,
+            }}
+          >
+            ← {prevWeekLabel}
+          </button>
+          <button
+            type="button"
+            disabled
+            style={{
+              minWidth: 120,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 700,
+              borderRadius: 4,
+              border: "1px solid var(--color-primary)",
+              background: "var(--color-primary)",
+              color: "#FFFFFF",
+              cursor: "default",
+            }}
+          >
+            이번 주
+          </button>
+          <button
+            type="button"
+            disabled
+            style={{
+              minWidth: 100,
+              padding: "8px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 4,
+              border: "1px solid var(--color-border-subtle)",
+              background: "transparent",
+              color: "var(--color-text-disabled)",
+              cursor: "not-allowed",
+              opacity: 0.6,
+            }}
+          >
+            {nextWeekLabel} →
+          </button>
+        </div>
+      </div>
 
-      {/* ── 이번주 핵심 통계 (2x2 그리드) ── */}
-      <div>
-        <TossSectionHeader title="이번주" />
+      {/* 인사 + 레벨 (사이트 고유 — 시안 미존재이지만 사용자 식별 정보 보존) */}
+      <div
+        style={{
+          textAlign: "center",
+          marginBottom: 20,
+          padding: "12px 0",
+        }}
+      >
+        <p style={{ fontSize: 24, marginBottom: 6 }}>{data.emoji || ""}</p>
+        <p
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--color-text-primary)",
+            marginBottom: 2,
+          }}
+        >
+          {data.nickname}님
+        </p>
+        <p
+          style={{
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+          }}
+        >
+          Lv.{data.level} {data.title}
+          {data.streak > 0 && (
+            <span style={{ marginLeft: 8 }}>
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: 14,
+                  color: "var(--color-accent, #F59E0B)",
+                  verticalAlign: "middle",
+                }}
+              >
+                local_fire_department
+              </span>{" "}
+              {data.streak}일 연속
+            </span>
+          )}
+        </p>
+      </div>
 
+      {/* SECTION 1: KPI 4 — 시안 L100-113 */}
+      <Section eyebrow="01" title="이번 주 요약">
         {hasThisWeekData ? (
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              icon="schedule"
-              iconColor="var(--color-primary)"
-              label="운동 시간"
-              value={formatMinutes(tw.total_minutes)}
-            />
-            <StatCard
-              icon="location_on"
-              iconColor="var(--color-info, #0079B9)"
-              label="방문 코트"
-              value={`${tw.unique_courts}곳`}
-            />
-            <StatCard
-              icon="calendar_today"
-              iconColor="var(--color-accent, #F59E0B)"
-              label="운동 일수"
-              value={`${tw.active_days}일`}
-            />
-            <StatCard
-              icon="bolt"
-              iconColor="var(--color-tertiary, #8B5CF6)"
-              label="획득 XP"
-              value={`+${tw.total_xp}`}
-            />
+          // 시안의 인라인 grid repeat(2, 1fr) — 모바일 분기는 globals.css 자동 처리 안 됨,
+          // 인라인이라 minmax 패턴으로 모바일 1열 자동 wrap 확보
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+              gap: 10,
+            }}
+          >
+            {kpis.map((k) => (
+              <div
+                key={k.label}
+                style={{
+                  padding: "16px 18px",
+                  background: "var(--color-surface, var(--color-bg-card))",
+                  border: "1px solid var(--color-border-subtle)",
+                  borderRadius: 4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--color-text-muted)",
+                    fontWeight: 700,
+                    letterSpacing: ".08em",
+                    textTransform: "uppercase",
+                    marginBottom: 6,
+                  }}
+                >
+                  {k.label}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 4,
+                    marginBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 900,
+                      fontFamily: "var(--ff-display, var(--ff-base))",
+                      color: k.tone,
+                    }}
+                  >
+                    {k.val}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "var(--color-text-muted)",
+                    }}
+                  >
+                    {k.unit}
+                  </span>
+                </div>
+                {hasLastWeekData && (
+                  <Delta now={k.val} prev={k.prev} prevWeek={prevWeekLabel} />
+                )}
+              </div>
+            ))}
           </div>
         ) : (
-          // 이번주 데이터 없음
-          <TossCard className="text-center py-8">
+          // 빈 상태 — 사이트 기존 카피 보존
+          <div
+            style={{
+              textAlign: "center",
+              padding: "32px 24px",
+              background: "var(--color-surface, var(--color-bg-card))",
+              border: "1px solid var(--color-border-subtle)",
+              borderRadius: 4,
+            }}
+          >
             <span
-              className="material-symbols-outlined text-4xl mb-3 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              className="material-symbols-outlined"
+              style={{
+                fontSize: 36,
+                color: "var(--color-text-disabled)",
+                display: "block",
+                marginBottom: 12,
+              }}
             >
               fitness_center
             </span>
             <p
-              className="text-sm font-medium mb-1"
-              style={{ color: "var(--color-text-secondary)" }}
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-text-secondary)",
+                marginBottom: 4,
+              }}
             >
-              이번주는 아직 운동 기록이 없어요
+              이번 주는 아직 운동 기록이 없어요
             </p>
-            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
               코트에서 체크인하면 리포트에 반영됩니다
             </p>
             <Link
               href="/courts"
-              className="mt-4 inline-flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              style={{ color: "var(--color-primary)" }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                marginTop: 16,
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "var(--color-primary)",
+                borderRadius: 4,
+              }}
             >
-              <span className="material-symbols-outlined text-base">search</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                search
+              </span>
               근처 코트 찾기
             </Link>
-          </TossCard>
+          </div>
         )}
-      </div>
+      </Section>
 
-      {/* ── 지난주 대비 비교 ── */}
-      {hasLastWeekData && (
-        <div>
-          <TossSectionHeader title="지난주 비교" />
-          <TossCard>
-            {/* 기간 표시 */}
-            <p className="text-xs mb-4" style={{ color: "var(--color-text-muted)" }}>
-              {formatDate(data.period.last_week_start)} ~ {formatDate(data.period.last_week_end)}
-            </p>
-
-            {/* 비교 행 목록 */}
-            <div className="space-y-3">
-              {/* 운동 시간 비교 */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                  운동 시간
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {formatMinutes(lw.total_minutes)}
+      {/* SECTION 2: 자주 방문 코트 — 사이트 데이터 (시안 하이라이트 슬롯에 매핑) */}
+      {tw.top_courts.length > 0 && (
+        <Section eyebrow="02" title="자주 방문한 코트">
+          <div
+            style={{
+              background: "var(--color-surface, var(--color-bg-card))",
+              border: "1px solid var(--color-border-subtle)",
+              borderRadius: 4,
+              overflow: "hidden",
+            }}
+          >
+            {tw.top_courts.map((court, idx) => (
+              <Link key={court.court_id} href={`/courts/${court.court_id}`}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 18px",
+                    borderBottom:
+                      idx === tw.top_courts.length - 1
+                        ? "none"
+                        : "1px solid var(--color-border-subtle)",
+                  }}
+                >
+                  {/* 순위 뱃지 — 1금/2은/3동 */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16, // 원형 — 순위 뱃지는 시안에서 시각 강조
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#FFFFFF",
+                      background:
+                        idx === 0
+                          ? "var(--color-accent, #F59E0B)"
+                          : idx === 1
+                            ? "var(--color-tier-silver, #94A3B8)"
+                            : "var(--color-tier-bronze, #CD7F32)",
+                    }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--color-text-primary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {court.name}
+                    </p>
+                  </div>
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--color-primary)",
+                    }}
+                  >
+                    {court.visits}회
                   </span>
-                  <span className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
-                    →
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      fontSize: 18,
+                      color: "var(--color-text-disabled)",
+                    }}
+                  >
+                    chevron_right
                   </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {formatMinutes(tw.total_minutes)}
-                  </span>
-                  <ChangeIndicator value={data.minutes_change} />
                 </div>
-              </div>
+              </Link>
+            ))}
+          </div>
+        </Section>
+      )}
 
-              {/* 운동 횟수 비교 */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                  운동 횟수
+      {/* SECTION 3: 인사이트 — 시안 L145-159 (3 인사이트 동적 카피) */}
+      <Section eyebrow="03" title="이번 주 인사이트">
+        <div style={{ display: "grid", gap: 10 }}>
+          {insights.map((ins, i) => (
+            <div
+              key={i}
+              style={{
+                padding: "14px 18px",
+                display: "grid",
+                gridTemplateColumns: "40px 1fr",
+                gap: 14,
+                alignItems: "flex-start",
+                background: "var(--color-surface, var(--color-bg-card))",
+                border: "1px solid var(--color-border-subtle)",
+                borderRadius: 4,
+              }}
+            >
+              {/* 아이콘 박스 — color-mix 14% 배경 (시안 L149) */}
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 4, // 4px 룰
+                  background: `color-mix(in oklab, ${ins.tone} 14%, transparent)`,
+                  color: ins.tone,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 22 }}
+                >
+                  {ins.icon}
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {lw.session_count}회
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
-                    →
-                  </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {tw.session_count}회
-                  </span>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    marginBottom: 3,
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  {ins.head}
                 </div>
-              </div>
-
-              {/* 방문 코트 비교 */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                  방문 코트
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {lw.unique_courts}곳
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
-                    →
-                  </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    {tw.unique_courts}곳
-                  </span>
-                </div>
-              </div>
-
-              {/* 획득 XP 비교 */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-                  획득 XP
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    +{lw.total_xp}
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
-                    →
-                  </span>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                    +{tw.total_xp}
-                  </span>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-secondary)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {ins.body}
                 </div>
               </div>
             </div>
-          </TossCard>
+          ))}
         </div>
-      )}
+      </Section>
 
-      {/* ── 자주 방문한 코트 TOP 3 ── */}
-      {tw.top_courts.length > 0 && (
-        <div>
-          <TossSectionHeader title="자주 방문한 코트" />
-          <TossCard className="p-0">
-            {tw.top_courts.map((court, idx) => (
-              <Link
-                key={court.court_id}
-                href={`/courts/${court.court_id}`}
-                className="block"
-              >
-                <div className="flex items-center gap-3 py-4 px-5 border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-surface-bright)]">
-                  {/* 순위 뱃지 */}
+      {/* SECTION 4: 지난주 비교 (사이트 고유 — 데이터 풍부함 보존) */}
+      {hasLastWeekData && (
+        <Section eyebrow="04" title="지난주 상세 비교">
+          <div
+            style={{
+              padding: "16px 18px",
+              background: "var(--color-surface, var(--color-bg-card))",
+              border: "1px solid var(--color-border-subtle)",
+              borderRadius: 4,
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                color: "var(--color-text-muted)",
+                marginBottom: 14,
+                fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+              }}
+            >
+              {formatDate(data.period.last_week_start)} ~{" "}
+              {formatDate(data.period.last_week_end)}
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* 행: 지난주 → 이번주 */}
+              {[
+                {
+                  label: "운동 횟수",
+                  prev: `${lw.session_count}회`,
+                  now: `${tw.session_count}회`,
+                },
+                {
+                  label: "운동 일수",
+                  prev: `${lw.active_days}일`,
+                  now: `${tw.active_days}일`,
+                },
+                {
+                  label: "방문 코트",
+                  prev: `${lw.unique_courts}곳`,
+                  now: `${tw.unique_courts}곳`,
+                },
+                {
+                  label: "획득 XP",
+                  prev: `+${lw.total_xp}`,
+                  now: `+${tw.total_xp}`,
+                },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{ color: "var(--color-text-secondary)" }}>
+                    {row.label}
+                  </span>
                   <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
                     style={{
-                      backgroundColor:
-                        idx === 0
-                          ? "var(--color-accent, #F59E0B)"
-                          : idx === 1
-                            ? "var(--color-tier-silver, #94A3B8)"
-                            : "var(--color-tier-bronze, #CD7F32)",
-                      color: "#FFFFFF",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
                     }}
                   >
-                    {idx + 1}
-                  </div>
-                  {/* 코트 이름 */}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "var(--color-text-primary)" }}
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: "var(--color-text-muted)",
+                      }}
                     >
-                      {court.name}
-                    </p>
+                      {row.prev}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--color-text-disabled)",
+                      }}
+                    >
+                      →
+                    </span>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        color: "var(--color-text-primary)",
+                      }}
+                    >
+                      {row.now}
+                    </span>
                   </div>
-                  {/* 방문 횟수 */}
-                  <span
-                    className="text-sm font-bold shrink-0"
-                    style={{ color: "var(--color-primary)" }}
-                  >
-                    {court.visits}회
-                  </span>
-                  <span
-                    className="material-symbols-outlined text-lg"
-                    style={{ color: "var(--color-text-disabled)" }}
-                  >
-                    chevron_right
-                  </span>
                 </div>
-              </Link>
-            ))}
-          </TossCard>
-        </div>
+              ))}
+            </div>
+          </div>
+        </Section>
       )}
 
-      {/* ── 지난주 자주 방문 코트 (이번주 데이터 없을 때 지난주 보여주기) ── */}
-      {!hasThisWeekData && lw.top_courts.length > 0 && (
-        <div>
-          <TossSectionHeader title="지난주 자주 방문한 코트" />
-          <TossCard className="p-0">
-            {lw.top_courts.map((court, idx) => (
-              <Link
-                key={court.court_id}
-                href={`/courts/${court.court_id}`}
-                className="block"
-              >
-                <div className="flex items-center gap-3 py-4 px-5 border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-surface-bright)]">
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                    style={{
-                      backgroundColor:
-                        idx === 0
-                          ? "var(--color-accent, #F59E0B)"
-                          : idx === 1
-                            ? "var(--color-tier-silver, #94A3B8)"
-                            : "var(--color-tier-bronze, #CD7F32)",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {court.name}
-                    </p>
-                  </div>
-                  <span
-                    className="text-sm font-bold shrink-0"
-                    style={{ color: "var(--color-primary)" }}
-                  >
-                    {court.visits}회
-                  </span>
-                  <span
-                    className="material-symbols-outlined text-lg"
-                    style={{ color: "var(--color-text-disabled)" }}
-                  >
-                    chevron_right
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </TossCard>
-        </div>
-      )}
+      {/* FOOTER — 구독 관리 + 12주 추이 (시안 L177-183) */}
+      <div
+        style={{
+          textAlign: "center",
+          padding: "28px 0 16px",
+          borderTop: "1px solid var(--color-border-subtle)",
+          marginTop: 24,
+          fontSize: 12,
+          color: "var(--color-text-muted)",
+          lineHeight: 1.7,
+        }}
+      >
+        매주 월요일 오전 9시에 받아보고 있습니다.
+        <br />
+        {/* 사용자 결정: 이메일 구독 관리 → /profile/notification-settings */}
+        <Link
+          href="/profile/notification-settings"
+          style={{
+            color: "var(--cafe-blue, #0079B9)",
+            cursor: "pointer",
+          }}
+        >
+          이메일 구독 관리
+        </Link>
+        {" · "}
+        <Link
+          href="/profile/growth"
+          style={{
+            color: "var(--cafe-blue, #0079B9)",
+            cursor: "pointer",
+          }}
+        >
+          12주 성장 추이 보기 →
+        </Link>
+      </div>
 
-      {/* ── 하단 안내 ── */}
-      <div className="text-center pb-4">
-        <p className="text-xs" style={{ color: "var(--color-text-disabled)" }}>
-          매주 월요일에 새로운 리포트가 업데이트됩니다
-        </p>
+      {/* 뒤로가기 — AppNav 호환 (사이트 기존 패턴 보존) */}
+      <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--color-text-muted)",
+            fontSize: 12,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          aria-label="뒤로가기"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            arrow_back
+          </span>
+          뒤로
+        </button>
       </div>
     </div>
   );
