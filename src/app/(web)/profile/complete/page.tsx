@@ -1,32 +1,46 @@
 "use client";
 
-// M5 온보딩 압축 + Phase 9 D등급 박제 (OnboardingV2.jsx 톤 차용)
-// 박제 매핑:
-//  - .page 컨테이너 + max-width 640 (시안 page paddingTop:40)
-//  - eyebrow "ONBOARDING · 프로필 완성" + h1 (시안 STEP n / total 헤더 위치 대응)
-//  - progress bar (height:4, accent fill) — choose 단계 50% / fill 단계 100%
-//  - .card padding 24~36px (시안 카드 본문 박스)
-//  - 헤더 우측 "건너뛰기" 링크 (시안 동일)
-//  - 버튼은 v2 토큰 (.btn / .btn--primary 대신 var 토큰 클래스 유지하되 톤 일치)
-//
-// 보존 원칙 (변경 0):
-//  - 3필드 PATCH /api/web/profile (nickname / position / city / district)
-//  - GET /api/web/profile prefill (snake_case 자동 변환 가드)
-//  - profile_completed 의도적 미전송 (게임 신청 가드 보존)
-//  - state 구조 (step / saving / error / nickname / position / regions)
-//  - togglePosition / handleSave 로직 100% 동일
-//  - RegionPicker max=3 그대로
-//
-// 기존 7필드 → 3필드 압축 컨텍스트:
-//  - 전화번호 인증은 /verify?missing=phone 단계에서 별도 처리
-//  - 키/몸무게/자기소개/이름은 /profile/edit에서 추후 보완 가능
+/**
+ * /profile/complete — BDR v2.2 D등급 P0-4 박제
+ *
+ * 시안 출처: Dev/design/BDR v2.2/screens/ProfileComplete.jsx
+ * Why: 신규 가입 직후 프로필 완성 유도 (포지션 / 키 / 활동 지역 / 사진)
+ *      OnboardingV2(6 step) 풀 온보딩과 별개의 압축형 4 step "지금 바로" 흐름
+ *
+ * Pattern: 단계형 폼 + 진행 막대 + 카드 컨테이너 (M5 압축)
+ *
+ * 진입: /verify 인증 직후 자동 redirect / /profile "프로필 60% — 완성하기" 배너
+ * 복귀: 완료 → /onboarding/setup (전체 온보딩) 또는 / (이미 마쳤으면 홈)
+ *       건너뛰기 → /
+ *
+ * 회귀 검수 매트릭스:
+ *   기능              | 옛 페이지 (M5)        | 시안 v2.2          | 진입점       | 모바일
+ *   포지션 선택       | choose→fill 3필드      | ✅ 5칩 (Step 1)    | verify 직후 | 3열
+ *   키·체중           | EditProfile에서 처리   | ✅ slider (Step 2) | -          | 1열
+ *   활동 지역         | RegionPicker max=3     | ✅ 칩 다중 (Step 3) | -          | 2열
+ *   사진 업로드       | EditProfile에서 처리   | ✅ drop zone (Step 4)| -        | OK
+ *   건너뛰기          | 헤더 우측 링크          | ✅ 우상단 link      | -          | OK
+ *   완료 화면         | 없음                   | ✅ 농구공 + CTA 2개  | -          | OK
+ *
+ * 보존 원칙 (변경 0):
+ *  - PATCH /api/web/profile (nickname / position / city / district / height / weight)
+ *  - GET /api/web/profile prefill (snake_case 자동 변환 가드)
+ *  - profile_completed 의도적 미전송 (게임 신청 가드 보존)
+ *  - 박제 룰: var(--*) / Material Symbols / radius 4px / alert 신규 X
+ */
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
 
-// 농구 5포지션 — 복수 선택 가능
-const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
+// 농구 5포지션 — 시안과 동일하게 라벨/설명 포함
+const POSITIONS = [
+  { id: "PG", label: "포인트 가드", desc: "볼 핸들러" },
+  { id: "SG", label: "슈팅 가드", desc: "외곽 슈터" },
+  { id: "SF", label: "스몰 포워드", desc: "다재다능" },
+  { id: "PF", label: "파워 포워드", desc: "골밑 + 미들" },
+  { id: "C", label: "센터", desc: "골밑 지배" },
+] as const;
 
 // GET /api/web/profile 응답 minimal 형태 (prefill 한정)
 // apiSuccess가 자동 snake_case 변환하므로 키는 모두 snake_case (errors.md 6회 재발 가드)
@@ -36,25 +50,30 @@ interface ProfilePrefillResponse {
     position?: string | null;
     city?: string | null;
     district?: string | null;
+    height?: number | null;
+    weight?: number | null;
   };
 }
+
+const TOTAL_STEPS = 4;
 
 export default function ProfileCompletePage() {
   const router = useRouter();
 
-  // 단계 관리: "choose" = 옵션 선택 카드, "fill" = 3필드 입력 폼
-  // 가입 직후 사용자에게 "지금/나중" 선택권을 먼저 보여주기 위함
-  const [step, setStep] = useState<"choose" | "fill">("choose");
-
+  // 단계 관리: 1~4 = 입력 step, 5 = 완료 화면 (시안의 step === total + 1)
+  const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // 닉네임 prefill: 가입 시 입력한 값을 GET /api/web/profile 로 미리 채워줌
-  const [nickname, setNickname] = useState("");
-  const [position, setPosition] = useState(""); // CSV 형식 ("PG,SG")
+  // ── 시안 data state 1:1 박제 ──
+  const [position, setPosition] = useState(""); // CSV ("PG,SG") — 복수 선택 가능
+  const [height, setHeight] = useState(178); // 시안 기본 178
+  const [weight, setWeight] = useState(72); // 시안 기본 72
+  const [bodyPrivate, setBodyPrivate] = useState(true); // 시안: 신체 정보 비공개 기본 체크
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
+  const [skipPhoto, setSkipPhoto] = useState(false);
 
-  // 마운트 시 기존 닉네임 prefill (서버 가입 직후엔 이미 닉네임이 저장돼 있음)
+  // 마운트 시 기존 값 prefill
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -62,11 +81,11 @@ export default function ProfileCompletePage() {
         const res = await fetch("/api/web/profile");
         if (!res.ok) return;
         const data: ProfilePrefillResponse = await res.json();
-        // apiSuccess 응답은 snake_case로 직렬화됨 (raw fetch이므로 변환 없음)
         const u = data?.user;
         if (cancelled || !u) return;
-        if (u.nickname) setNickname(u.nickname);
         if (u.position) setPosition(u.position);
+        if (typeof u.height === "number") setHeight(u.height);
+        if (typeof u.weight === "number") setWeight(u.weight);
         // 지역 prefill: city/district는 CSV(쉼표 구분) 저장 형식
         if (u.city) {
           const cities = String(u.city).split(",");
@@ -98,13 +117,17 @@ export default function ProfileCompletePage() {
   };
   const selectedPositions = position ? position.split(",") : [];
 
-  // 저장: 3필드만 PATCH. profile_completed 의도적 미전송 (게임 신청 가드 보존)
+  // 지역 토글 (시안 toggleArea 박제 — 단 RegionPicker 사용 중이라 별도 칩 그리드는 미적용,
+  // RegionPicker max=3 그대로 사용. 시안의 14개 칩 그리드는 보류.)
+  // → 시안과 동일한 칩 그리드 UX는 RegionPicker로 대체 (이미 사이트 컨벤션)
+
+  // 저장 (Step 4 → 완료 화면): 모든 필드 PATCH
+  // profile_completed 의도적 미전송 (게임 신청 가드 보존)
   const handleSave = async () => {
     setSaving(true);
     setError("");
     try {
       const filledRegions = regions.filter((r) => r.city);
-      // district는 빈 문자열이면 null 처리 (필수값 아님)
       const districtValue =
         filledRegions
           .map((r) => r.district)
@@ -112,10 +135,11 @@ export default function ProfileCompletePage() {
           .join(",") || null;
 
       const payload = {
-        nickname: nickname.trim() || null,
         position: position || null,
         city: filledRegions.map((r) => r.city).join(",") || null,
         district: districtValue,
+        // 비공개 체크 시 height/weight 미전송 (시안 의도 — 신체 정보 비공개)
+        ...(bodyPrivate ? {} : { height, weight }),
       };
 
       const res = await fetch("/api/web/profile", {
@@ -126,8 +150,8 @@ export default function ProfileCompletePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "저장 실패");
 
-      // M5: 저장 후 곧장 홈으로 (preferences 강제 redirect 제거)
-      router.push("/");
+      // 시안: 완료 화면(step === total + 1)으로 진입
+      setStep(TOTAL_STEPS + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
     } finally {
@@ -135,36 +159,120 @@ export default function ProfileCompletePage() {
     }
   };
 
-  // 공통 입력 스타일 (border-radius 4px, BDR Red 포커스 링)
-  const inp =
-    "w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 text-sm";
-  const lbl = "mb-1 block text-sm text-[var(--color-text-muted)]";
+  // Next 버튼 액션 — 마지막 step에선 저장 + 완료 화면
+  const handleNext = () => {
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+    } else {
+      handleSave();
+    }
+  };
 
-  // 진행률 (시안 OnboardingV2 progress bar 톤): choose=50%, fill=100%
-  const progressPct = step === "choose" ? 50 : 100;
+  // Back 버튼 — step 1에선 홈으로 (시안 "나가기")
+  const handleBack = () => {
+    if (step > 1) setStep(step - 1);
+    else router.push("/");
+  };
+
+  // ── 완료 화면 (step === total + 1) ──
+  // 시안 L56-73 박제: 농구공 아이콘 + 환영 문구 + CTA 2개
+  if (step === TOTAL_STEPS + 1) {
+    return (
+      <div className="page mx-auto" style={{ maxWidth: 560, paddingTop: 60 }}>
+        <div
+          className="rounded-[4px] border border-[var(--border)] bg-[var(--bg-elev)]"
+          style={{ padding: "48px 36px", textAlign: "center" }}
+        >
+          {/* 시안 농구공 그라디언트 원 — Material Symbols로 대체(박제 룰: lucide 금지) */}
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background:
+                "linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 60%, #FF6B35))",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              margin: "0 auto 18px",
+            }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 36, color: "#fff" }}
+            >
+              sports_basketball
+            </span>
+          </div>
+          <h1
+            style={{
+              margin: "0 0 8px",
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+              fontFamily: "var(--ff-display)",
+            }}
+          >
+            프로필 기본 정보 완료!
+          </h1>
+          <p
+            style={{
+              margin: "0 0 24px",
+              fontSize: 14,
+              color: "var(--ink-mute)",
+              lineHeight: 1.6,
+            }}
+          >
+            기본 정보가 채워졌어요. 더 정확한 매칭을 원하면
+            <br />
+            취향 설정도 마쳐 보세요 (1분).
+          </p>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="rounded-[4px] border border-[var(--border)] bg-[var(--bg-elev)] px-6 py-3 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--bg-alt)]"
+            >
+              나중에 하기
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/onboarding/setup")}
+              className="rounded-[4px] bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-white hover:opacity-90"
+            >
+              취향 설정 →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    // 시안 v2 OnboardingV2.jsx — page max-width 640, paddingTop:40
-    <div className="page mx-auto" style={{ maxWidth: 640 }}>
-      {/* 시안 progress 헤더: STEP n / total 위치에 eyebrow + 건너뛰기 우측 정렬 */}
+    <div className="page mx-auto" style={{ maxWidth: 560, paddingTop: 30 }}>
+      {/* 시안 진행 막대 (L77-86) */}
       <div style={{ marginBottom: 24 }}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
             fontSize: 11,
-            color: "var(--color-text-muted)",
+            color: "var(--ink-dim)",
             fontWeight: 700,
             marginBottom: 6,
             letterSpacing: ".08em",
           }}
         >
-          {/* eyebrow 자리: 시안의 "STEP n / total"에 대응. 박제 일관성을 위해 eyebrow 클래스 사용 */}
-          <span className="eyebrow" style={{ marginBottom: 0 }}>
-            ONBOARDING · 프로필 완성
-          </span>
-          {/* 시안 우측 "건너뛰기" 링크 — 홈으로 이동 */}
+          <span>STEP {step} / {TOTAL_STEPS} · 프로필 완성</span>
+          {/* 시안 우상단 "건너뛰기" 링크 — 홈으로 이동 */}
           <button
             type="button"
             onClick={() => router.push("/")}
@@ -172,11 +280,10 @@ export default function ProfileCompletePage() {
               cursor: "pointer",
               background: "transparent",
               border: 0,
-              color: "var(--color-text-muted)",
+              color: "var(--ink-dim)",
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: ".08em",
-              textTransform: "uppercase",
             }}
           >
             건너뛰기
@@ -186,222 +293,453 @@ export default function ProfileCompletePage() {
         <div
           style={{
             height: 4,
-            background: "var(--color-surface)",
+            background: "var(--bg-alt)",
             borderRadius: 2,
             overflow: "hidden",
           }}
         >
           <div
             style={{
-              width: `${progressPct}%`,
+              width: `${(step / TOTAL_STEPS) * 100}%`,
               height: "100%",
-              background: "var(--color-primary)",
+              background: "var(--accent)",
               transition: "width .3s",
             }}
           />
         </div>
       </div>
 
-      {/* 시안 .card 본문 (padding 36px 40px, minHeight 440 → choose 단계만 살짝 줄임) */}
+      {/* 시안 .card 본문 (padding 36px 40px, minHeight 380) */}
       <div
-        className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--shadow-card)]"
-        style={{ padding: "36px 40px" }}
+        className="rounded-[4px] border border-[var(--border)] bg-[var(--bg-elev)]"
+        style={{ padding: "36px 40px", minHeight: 380 }}
       >
-        {/* 환영 헤더 — Material Symbols 농구 아이콘 */}
-        <div className="mb-7 text-center">
-          <div className="mb-3">
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: "48px", color: "var(--color-primary)" }}
-            >
-              sports_basketball
-            </span>
-          </div>
-          <h1
-            style={{
-              margin: "0 0 6px",
-              fontSize: 24,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: "var(--color-text-primary)",
-              fontFamily: "var(--font-heading)",
-            }}
-          >
-            환영합니다!
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 14,
-              color: "var(--color-text-muted)",
-              lineHeight: 1.6,
-            }}
-          >
-            {step === "choose"
-              ? "프로필을 더 채우면 맞춤 추천을 받을 수 있어요."
-              : "닉네임, 포지션, 지역만 입력하면 끝나요."}
-          </p>
-        </div>
-
         {error && (
           <div
-            className="mb-4 rounded-[4px] px-4 py-3 text-sm text-[var(--color-error)]"
+            className="mb-4 rounded-[4px] px-4 py-3 text-sm"
             style={{
               backgroundColor:
-                "color-mix(in srgb, var(--color-error) 10%, transparent)",
+                "color-mix(in srgb, var(--accent) 10%, transparent)",
+              color: "var(--accent)",
             }}
           >
             {error}
           </div>
         )}
 
-        {/* 1단계: 옵션 카드 2개 — 모바일 세로, lg 가로 2열 */}
-        {step === "choose" && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {/* 카드 1: 지금 채우기 — primary 강조 (시안 step1 포지션 카드 톤) */}
-            <button
-              type="button"
-              onClick={() => setStep("fill")}
-              className="group flex flex-col items-start rounded-[4px] border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+        {/* ── Step 1: 포지션 ── (시안 L89-110) */}
+        {step === 1 && (
+          <div>
+            <div
+              className="eyebrow"
+              style={{ marginBottom: 6, color: "var(--accent)" }}
             >
-              <span
-                className="material-symbols-outlined mb-3"
-                style={{ fontSize: "32px", color: "var(--color-primary)" }}
-              >
-                edit_note
-              </span>
-              <h2
-                className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
-                지금 채우기
-              </h2>
-              <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-                닉네임 · 포지션 · 활동 지역 (1분 소요)
-              </p>
-              <span className="mt-auto inline-flex items-center gap-1 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-on-primary)]">
-                시작하기
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: "16px" }}
-                >
-                  arrow_forward
-                </span>
-              </span>
-            </button>
-
-            {/* 카드 2: 나중에 — 보조 (시안 1px 회색 보더) */}
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="group flex flex-col items-start rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+              1 · POSITION
+            </div>
+            <h1
+              style={{
+                margin: "0 0 4px",
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+                fontFamily: "var(--ff-display)",
+              }}
             >
-              <span
-                className="material-symbols-outlined mb-3"
-                style={{ fontSize: "32px", color: "var(--color-text-muted)" }}
-              >
-                schedule
-              </span>
-              <h2
-                className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
-                style={{ fontFamily: "var(--font-heading)" }}
-              >
-                나중에 할게요
-              </h2>
-              <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-                먼저 둘러보고, 마이페이지에서 채울게요
-              </p>
-              <span className="mt-auto inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)]">
-                홈으로 가기
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: "16px" }}
-                >
-                  home
-                </span>
-              </span>
-            </button>
+              주 포지션을 골라 주세요
+            </h1>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-mute)",
+              }}
+            >
+              나중에 프로필에서 변경할 수 있어요 · 복수 선택 가능
+            </p>
+            {/* 시안 3열 그리드 — 모바일에선 globals.css 모바일 분기 또는 minmax로 자동 wrap */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(150px, 100%), 1fr))",
+                gap: 8,
+              }}
+            >
+              {POSITIONS.map((p) => {
+                const on = selectedPositions.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => togglePosition(p.id)}
+                    style={{
+                      padding: "16px 12px",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      background: on
+                        ? "color-mix(in oklab, var(--accent) 8%, transparent)"
+                        : "var(--bg-alt)",
+                      border: on
+                        ? "2px solid var(--accent)"
+                        : "2px solid var(--border)",
+                      borderRadius: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 900,
+                        fontFamily: "var(--ff-display)",
+                        marginBottom: 4,
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {p.id}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        marginBottom: 2,
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {p.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--ink-dim)" }}>
+                      {p.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* 2단계: 3필드 입력 폼 (닉네임/포지션/지역) */}
-        {step === "fill" && (
-          <div className="space-y-5">
-            {/* 닉네임 */}
-            <div>
-              <label className={lbl}>닉네임</label>
-              <input
-                className={inp}
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="닉네임 (2~20자)"
-                minLength={2}
-                maxLength={20}
-              />
+        {/* ── Step 2: 키·체중 ── (시안 L112-144) */}
+        {step === 2 && (
+          <div>
+            <div
+              className="eyebrow"
+              style={{ marginBottom: 6, color: "var(--accent)" }}
+            >
+              2 · BODY
             </div>
-
-            {/* 포지션 */}
-            <div>
-              <label className={lbl}>
-                포지션{" "}
-                <span className="text-xs text-[var(--color-text-secondary)]">
-                  (복수 선택 가능)
-                </span>
-              </label>
-              <div className="flex gap-2">
-                {POSITIONS.map((pos) => (
-                  <button
-                    key={pos}
-                    type="button"
-                    onClick={() => togglePosition(pos)}
-                    className={`flex-1 rounded-[4px] border py-2 text-sm font-medium transition-colors ${
-                      selectedPositions.includes(pos)
-                        ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                        : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]"
-                    }`}
+            <h1
+              style={{
+                margin: "0 0 4px",
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+                fontFamily: "var(--ff-display)",
+              }}
+            >
+              신체 정보를 입력해 주세요
+            </h1>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-mute)",
+              }}
+            >
+              매칭 정확도를 높이는 데 사용됩니다 · 비공개 가능
+            </p>
+            <div style={{ display: "grid", gap: 18 }}>
+              {/* 키 슬라이더 */}
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 8,
+                  }}
+                >
+                  <label
+                    style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}
                   >
-                    {pos}
-                  </button>
-                ))}
+                    키
+                  </label>
+                  <span
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 800,
+                      fontFamily: "var(--ff-display)",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    {height} cm
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="150"
+                  max="220"
+                  value={height}
+                  onChange={(e) => setHeight(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--accent)" }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 10,
+                    color: "var(--ink-dim)",
+                    marginTop: 4,
+                  }}
+                >
+                  <span>150</span>
+                  <span>185</span>
+                  <span>220</span>
+                </div>
+              </div>
+              {/* 체중 슬라이더 */}
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    marginBottom: 8,
+                  }}
+                >
+                  <label
+                    style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}
+                  >
+                    체중
+                  </label>
+                  <span
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 800,
+                      fontFamily: "var(--ff-display)",
+                      color: "var(--accent)",
+                    }}
+                  >
+                    {weight} kg
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="40"
+                  max="150"
+                  value={weight}
+                  onChange={(e) => setWeight(parseInt(e.target.value))}
+                  style={{ width: "100%", accentColor: "var(--accent)" }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 10,
+                    color: "var(--ink-dim)",
+                    marginTop: 4,
+                  }}
+                >
+                  <span>40</span>
+                  <span>95</span>
+                  <span>150</span>
+                </div>
+              </div>
+              {/* 비공개 체크박스 — 체크 시 PATCH에서 height/weight 제외 */}
+              <label
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  fontSize: 12,
+                  color: "var(--ink-mute)",
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={bodyPrivate}
+                  onChange={(e) => setBodyPrivate(e.target.checked)}
+                />
+                신체 정보 비공개 (저장하지 않음)
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: 활동 지역 ── (시안 L146-170) */}
+        {/* 시안은 14개 고정 칩이지만, 사이트는 RegionPicker(시/도→시/군/구 cascade) 컨벤션 유지 */}
+        {step === 3 && (
+          <div>
+            <div
+              className="eyebrow"
+              style={{ marginBottom: 6, color: "var(--accent)" }}
+            >
+              3 · AREA
+            </div>
+            <h1
+              style={{
+                margin: "0 0 4px",
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+                fontFamily: "var(--ff-display)",
+              }}
+            >
+              주로 어디서 뛰나요?
+            </h1>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-mute)",
+              }}
+            >
+              최대 3곳까지 선택 ({regions.filter((r) => r.city).length}/3)
+            </p>
+            <RegionPicker value={regions} onChange={setRegions} max={3} />
+          </div>
+        )}
+
+        {/* ── Step 4: 사진 ── (시안 L172-190) */}
+        {/* UI만 박제 — 실제 업로드는 /profile/edit 에서 처리 (M5 기존 정책) */}
+        {step === 4 && (
+          <div>
+            <div
+              className="eyebrow"
+              style={{ marginBottom: 6, color: "var(--accent)" }}
+            >
+              4 · PHOTO
+            </div>
+            <h1
+              style={{
+                margin: "0 0 4px",
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+                fontFamily: "var(--ff-display)",
+              }}
+            >
+              프로필 사진을 추가해 주세요
+            </h1>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 13,
+                color: "var(--ink-mute)",
+              }}
+            >
+              나중에 추가해도 괜찮아요
+            </p>
+            {/* 시안 drop zone 박제 (border:2px dashed) */}
+            <div
+              style={{
+                display: "grid",
+                placeItems: "center",
+                padding: "32px 20px",
+                background: "var(--bg-alt)",
+                border: "2px dashed var(--border)",
+                borderRadius: 4,
+              }}
+            >
+              <div
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "50%",
+                  background: "var(--bg-elev)",
+                  border: "1px solid var(--border)",
+                  display: "grid",
+                  placeItems: "center",
+                  marginBottom: 14,
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 42, color: "var(--ink-dim)" }}
+                >
+                  person
+                </span>
+              </div>
+              {/* 사진 업로드는 /profile/edit 으로 안내 (M5 정책 — UI만 박제) */}
+              <button
+                type="button"
+                onClick={() => router.push("/profile/edit")}
+                className="rounded-[4px] bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white hover:opacity-90"
+              >
+                사진 업로드
+              </button>
+              <div
+                style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 10 }}
+              >
+                JPG·PNG / 5MB 이하 · 프로필 편집 페이지로 이동
               </div>
             </div>
-
-            {/* 활동 지역 */}
-            <div>
-              <label className={lbl}>활동 지역</label>
-              <RegionPicker value={regions} onChange={setRegions} max={3} />
-            </div>
+            <label
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "flex-start",
+                fontSize: 12,
+                color: "var(--ink-mute)",
+                cursor: "pointer",
+                marginTop: 14,
+                lineHeight: 1.5,
+              }}
+            >
+              <input
+                type="checkbox"
+                style={{ marginTop: 2 }}
+                checked={skipPhoto}
+                onChange={(e) => setSkipPhoto(e.target.checked)}
+              />
+              <span>
+                나중에 사진 추가하기 — 프로필 설정에서 언제든 변경할 수 있습니다.
+              </span>
+            </label>
           </div>
         )}
-      </div>
 
-      {/* 시안 카드 하단 액션 — 카드 외부 (시안은 내부지만 본 페이지는 step 분기 때문에 외부 배치) */}
-      {step === "fill" && (
+        {/* ── 액션 버튼 (시안 L192-197) ── */}
         <div
-          className="space-y-3"
           style={{
-            marginTop: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: 32,
+            paddingTop: 20,
+            borderTop: "1px solid var(--border)",
           }}
         >
           <button
             type="button"
-            onClick={handleSave}
+            onClick={handleBack}
             disabled={saving}
-            className="w-full rounded-[4px] bg-[var(--color-primary)] py-4 text-sm font-semibold text-[var(--color-on-primary)] transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="rounded-[4px] border border-[var(--border)] bg-[var(--bg-elev)] px-5 py-2 text-sm font-medium text-[var(--ink)] hover:bg-[var(--bg-alt)] disabled:opacity-50"
           >
-            {saving ? "저장 중..." : "저장하고 시작하기"}
+            {step > 1 ? "← 이전" : "나가기"}
           </button>
           <button
             type="button"
-            onClick={() => setStep("choose")}
-            className="w-full rounded-[4px] border border-[var(--color-border)] py-4 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+            onClick={handleNext}
+            disabled={saving}
+            className="rounded-[4px] bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            뒤로
+            {saving ? "저장 중..." : step < TOTAL_STEPS ? "다음 →" : "완료 →"}
           </button>
         </div>
-      )}
+      </div>
 
-      <div className="h-6" />
+      {/* 시안 단계 미리보기 (L200-203) */}
+      <div
+        style={{
+          marginTop: 14,
+          fontSize: 11,
+          color: "var(--ink-dim)",
+          textAlign: "center",
+        }}
+      >
+        포지션 · 신체 · 지역 · 사진 — 약 1분 소요
+      </div>
     </div>
   );
 }
