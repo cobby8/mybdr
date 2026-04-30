@@ -38,6 +38,9 @@ prisma/migrations/
 # OS
 .DS_Store
 
+# Office / 한글 임시 lock 파일 (문서 편집 중 자동 생성)
+~$*
+
 # outputs (기획 산출물 — 별도 관리)
 /outputs/
 
