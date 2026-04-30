@@ -43,6 +43,8 @@ export async function GET(
       notes: true,
       contact_phone: true,
       organizer_id: true,
+      // BDR v2.2 P0-2: edit 페이지의 잠금 배너/위험 액션 안내에 활용 (신청자 수 노출)
+      current_participants: true,
     },
   }).catch(() => null);
 
@@ -72,6 +74,8 @@ export async function GET(
     notes: game.notes,
     contact_phone: game.contact_phone,
     organizer_id: game.organizer_id.toString(),
+    // BDR v2.2 P0-2: edit 페이지 잠금 배너 (현재 신청/참가자 수)
+    current_participants: game.current_participants ?? 0,
   });
 }
 
