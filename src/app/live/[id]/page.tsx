@@ -6,6 +6,19 @@ import { useParams } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 // 2026-04-22: GameResult v2 — finished/completed 상태일 때 이 컴포넌트로 전체 렌더 갈아끼움.
 // 기존 라이브/진행중 UI 코드(약 1800줄)는 0 수정. 아래 분기 3줄만 추가.
+//
+// 2026-04-30 P0-3: BDR v2.2 LiveResult 회귀 픽스
+// 시안: Dev/design/BDR v2.2/screens/LiveResult.jsx (D등급 P0-3)
+// 시안 룰: 색/폰트만 v2 유지 + 레이아웃·기능 옛 디자인 복원
+// 회귀 검수 매트릭스 5건:
+//   기능              | 옛 v1 | 시안 v2.2          | 진입점               | 모바일
+//   FINAL 스코어보드  | ✅    | ✅ HeroScoreboard   | 라이브 종료 자동      | scoreboard 클래스 G-9 보호
+//   쿼터별 점수       | ✅    | ✅ ScrollableTable  | -                    | hscroll
+//   MVP 배너          | ✅    | ✅ MvpBanner        | playerStats 있을 때  | OK
+//   경기 평가 진입    | ✅    | ✅ Link CTA         | /games/[id]/report   | 1열 stack
+//   기록 보기 액션    | ✅    | ✅ Link CTA         | /profile/activity    | 1열 stack
+// 진입: /live/[id] (경기 종료 자동) / 알림 "경기 결과 보기" 클릭
+// 복귀: /games/[id] / /games/my-games / /live (다른 경기 보기)
 import { GameResultV2, type MatchDataV2 } from "./_v2/game-result";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능

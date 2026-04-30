@@ -38,9 +38,9 @@
 
 ## 현재 작업
 
-- **요청**: BDR v2.2 P0-2 GameEdit 박제 (Dev/design/v2.2-cli-batch-prompt-2026-04-30.md §3-2)
+- **요청**: BDR v2.2 P0-3 LiveResult 회귀 픽스 (Dev/design/v2.2-cli-batch-prompt-2026-04-30.md §3-3)
 - **상태**: developer 완료 (미커밋, subin 브랜치)
-- **현재 담당**: developer → tester/reviewer (or PM 커밋 후 P0-3 LiveResult 회귀 픽스)
+- **현재 담당**: developer → tester/reviewer (or PM 커밋 후 P0-4 ProfileComplete)
 - **브랜치**: subin
 
 ### 구현 기록 (P0-1)
@@ -90,6 +90,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-30 | (미커밋, subin) | **BDR v2.2 P0-3 LiveResult 회귀 픽스** (subin): 사이트 현황은 **이미 GameResultV2로 복원됨(부분 매칭)** — finished/completed 분기에서 `<GameResultV2 match={...} />` 단일 렌더 중. 시안 `Dev/design/BDR v2.2/screens/LiveResult.jsx` 회귀 검수 매트릭스 5건 중 **3건 기 매칭(FINAL/쿼터/MVP)** + **2건 미복원(평가/기록)** 보강. 시안 L94~L115 CTA 카드 2단을 `_v2/game-result.tsx` 탭 컨텐츠 하단에 추가 — `/games/[id]/report`(rate_review 아이콘 + cafe-blue 12% 배경) + `/profile/activity`(insights 아이콘 + accent 12% 배경) Link 카드, var(--cafe-blue/--accent/--ink-mute) 토큰 + Material Symbols Outlined + radius 4px 준수. `_v2/hero-scoreboard.tsx` 큰 점수 grid에 `className="scoreboard"` 추가 → globals.css L1593 G-9 보호 룰(`.page .scoreboard`) 자동 적용으로 모바일 720px 이하에서 1fr/auto/1fr 다열 유지(가로 스코어 보존). page.tsx 헤더 코멘트에 P0-3 회귀 검수 매트릭스 5건 + 시안 출처 + 진입/복귀 경로 명시. 보존: API/data fetch 0 변경, HeroScoreboard 쿼터 표·MvpBanner·5탭 구조 0 변경, 라이브/진행중 UI(L631+) 0 변경. 하이라이트 클립(시안 L68~L91)은 DB 데이터 없어 박제 보류(시안 §5-3 "옛 디자인 기능 복원" 원칙 — 옛 v1엔 클립 없음). 모바일 분기는 globals.css 모바일 룰이 자동 처리. 변경 +145/-1 = 3 파일 (_v2/game-result.tsx +129 / _v2/hero-scoreboard.tsx +3/-1 / page.tsx +13). tsc 0 에러. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **BDR v2.2 P0-2 GameEdit 박제** (subin): `(web)/games/[id]/edit/page.tsx` v2.2 시안 1:1 박제 (+472/-45) + `api/web/games/[id]/route.ts` GET 응답에 `current_participants` 1필드 추가 (+4). 시안 출처 `Dev/design/BDR v2.2/screens/GameEdit.jsx`. JSDoc 헤더 v2.2 형식 + Edge cases 5종 분기 적용: (1) noPermission view(forbidden state + lock 아이콘 + "/games/[id]" 복귀, fetch 403/PATCH 403 양쪽 잡기). (2) finished noEdit view(status 3=종료/4=완료/5=취소, event_busy 아이콘 + 종료 시만 `/games/[id]/report` 진입 링크). (3) applicantCount=0 → 모든 필드 편집(기존 유지). (4) applicantCount≥1 → 인원/회비/날짜 잠금 배너(warning + bdr-red 8% 배경 + 각 필드 `· 잠김` 라벨 + disabled). (5) 경기 시작<24h → "취소만 가능" danger 카드(schedule 아이콘 + bdr-red 12% 배경) + 모든 필드 disabled + 저장 버튼 disabled, hoursUntilStart 계산 헬퍼 추가. 위험 액션 카드(경기 취소) 신규 — DELETE /api/web/games/[id] 호출 + confirm 모달 + 신청자 수 안내 분기. 보존 사항: GET/PATCH/DELETE 라우트 0 변경(GET response 1필드만 추가 — 신규 키라 기존 호출처 영향 0), useEffect/handleSubmit/parseRequirements/buildRequirements 0 변경. 진입점 이미 존재(`_components/host-actions.tsx` "경기 수정" 버튼). 모바일 분기: 모든 grid를 `repeat(auto-fit, minmax(min(N, 100%), 1fr))` 패턴으로 — 인라인 `repeat(N,1fr)` 위반 0. var(--*) 토큰만, Material Symbols Outlined만, 버튼 4px 유지. tsc 0건. 2 파일. | ✅ |
 | 2026-04-29 | (미커밋) | **/profile/settings 선수 프로필 섹션 재구성** (design_v2): `_components_v2/profile-section-v2.tsx` 폼 마크업 재구성 — (1) 실명 readOnly+disabled 처리 + bg-alt 배경 + cursor-not-allowed + opacity 0.7 + 11px 안내문구("전화번호 인증 후 자동 입력. 직접 수정할 수 없습니다") + PATCH body에서 `name` 키 제외(서버 안 보냄). (2) 포지션 자유 입력 → 3열 버튼 카드(G/F/C, onboarding/setup-form.tsx L44-48 패턴 차용, 선택 시 cafe-blue 2px 테두리+bg-alt). (3) 도시/구·동 단일 input 2개 → `RegionPicker max=1` (cascading select, 시/도→시/군/구), regions Region[] state 추가, useEffect에서 user.city/district→첫 슬롯 매핑, submit 시 firstRegion.city/district로 PATCH. (4) 레이아웃 2열 grid 고정 → space-y-4 1열 stack 기본 + 키/몸무게만 sm:grid-cols-2(데스크톱 2열, 모바일 1열). API/DB/route.ts 0 변경. tsc 0 에러. 1 파일. 근거: 사용자 캡처 43 + Explore 분석 | ✅ |
 | 2026-04-30 | (미커밋) | **사용자 디자인 결정 영구 보존 문서 작성** (design_v2): 신규 `Dev/design/user-design-decisions-2026-04-30.md` 작성(~280줄, 10개 섹션 — 헤더/더보기/팀/프로필/메인/카피/모바일/인증/회귀방지/PWA). 각 결정에 commit hash + "회귀 금지" 명시 + 향후 변경 체크리스트 포함. README.md "영구 참조" 표에 신규 행 1줄 추가. DESIGN.md 마지막에 "사용자 결정 영구 보존" 섹션 + 참조 링크 1줄 추가. 목적: 자동 작업/리팩토링이 사용자 직접 결정을 되돌리지 않도록 명시적 가드. 3 파일(신규 1 + 갱신 2). | ✅ |

@@ -119,8 +119,10 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
         )}
 
         {/* 팀 스코어 3단 그리드 — 홈 / VS / 원정 */}
-        {/* 모바일에서 가독성을 위해 세로 스택으로 전환 */}
+        {/* 2026-04-30 P0-3: className="scoreboard" 추가 — globals.css L1593 G-9 보호 룰이
+            모바일 720px 이하에서 1fr auto 1fr 다열 유지 자동 적용 (큰 점수 가로 배치 보존). */}
         <div
+          className="scoreboard"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr auto 1fr",
