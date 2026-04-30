@@ -114,7 +114,15 @@ function CheckoutContent() {
     try {
       // ⚠️ 아래 로직(특히 toss.requestPayment 인자)은 한 글자도 건드리지 말 것
       const meRes = await fetch("/api/web/me");
-      if (!meRes.ok) { router.push("/login"); return; }
+      if (!meRes.ok) {
+        // 대회 직전 §C-2: 결제 직전 401 발생 시 로그인 후 자동 복귀(open redirect 방어는 /login 페이지 isValidRedirect 가 처리).
+        // SSR 안전 위해 typeof window 가드.
+        const currentUrl = typeof window !== "undefined"
+          ? window.location.pathname + window.location.search
+          : "/pricing/checkout";
+        router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`);
+        return;
+      }
       const me = await meRes.json();
 
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;

@@ -477,21 +477,27 @@ export default function TournamentJoinPage() {
               justifyContent: "center",
               gap: 10,
               marginTop: 24,
+              flexWrap: "wrap",
             }}
           >
+            {/* 1순위 CTA — 대회 직전 §C-1: 신청 후 다음 행동(내가 신청한 대회 확인)으로 자연 유도.
+                /games/my-games 의 'upcoming' 탭에 대회 신청도 함께 표시되므로 단순 라우트로 연결.
+                (tournament 전용 탭이 없으므로 ?tab=tournament 쿼리는 사용 X) */}
+            <button
+              type="button"
+              className="btn btn--primary"
+              style={{ minWidth: 200 }}
+              onClick={() => router.push("/games/my-games")}
+            >
+              내 신청 내역 보기 →
+            </button>
+            {/* 보조 액션 — 기존 흐름 보존 */}
             <button
               type="button"
               className="btn"
               onClick={() => router.push(`/tournaments/${id}`)}
             >
               대회 페이지로
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => router.push("/profile")}
-            >
-              내 신청 확인
             </button>
           </div>
         </div>

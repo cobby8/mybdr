@@ -298,6 +298,29 @@ export function OnboardingSetupForm(_props: Props): ReactElement {
               경기 찾기 →
             </button>
           </div>
+
+          {/* 보조 CTA — 대회 직전 §A-2 (사용자 결정 옵션 A) :
+              온보딩은 6 step 만 채우므로 키/체중·실명·자기소개 등 추가 입력은 /profile/complete 에서 보강.
+              메인 CTA(경기 찾기) 옆에 두면 흐름이 분산되므로 보조 라인으로 분리.
+              profile_completed 체크는 me API 추가 호출 비용 + 회귀 위험 vs 효과 미미해서 단순 노출 유지(이미 작업한 사용자는 한 번 더 확인하는 정도). */}
+          <div style={{ marginTop: 18 }}>
+            <button
+              type="button"
+              onClick={() => router.push("/profile/complete")}
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "var(--cafe-blue)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                textDecoration: "underline",
+                padding: "4px 8px",
+              }}
+            >
+              프로필 추가 완성하기 →
+            </button>
+          </div>
         </div>
       </div>
     );
