@@ -19,6 +19,10 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
     prisma.user.findUnique({
       where: { id: ctx.userId },
       select: {
+        // 헤더 표시명: DB nickname 을 ground truth 로 (2026-04-30 회귀 픽스).
+        // 이유: JWT payload.name = nickname 발급시점 박힘 + JWT 만료 7일 → 닉네임 변경해도 헤더가 옛 값.
+        // → me route 가 DB 에서 직접 읽으면 JWT stale 해도 헤더 즉시 갱신.
+        nickname: true,
         profile_image: true,
         profile_image_url: true,
         // 맞춤 보기 토글 상태를 DB에서 직접 읽어옴 (디비전 존재 여부가 아닌 실제 저장값)
@@ -80,7 +84,8 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
   return apiSuccess({
     id: ctx.session.sub,
     email: ctx.session.email,
-    name: ctx.session.name,
+    // DB nickname 우선, 없으면 JWT session.name 폴백 (2026-04-30 회귀 픽스 — 닉네임 변경 즉시 반영)
+    name: user?.nickname ?? ctx.session.name,
     role: ctx.session.role,
     profileImage: user?.profile_image_url || user?.profile_image || null,
     // DB에 저장된 실제 토글 상태값을 반환 (false면 OFF, true면 ON)

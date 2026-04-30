@@ -221,6 +221,12 @@ export default function ProfileEditPage() {
       // 시안: ✓ 저장됨 2초 표시
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+
+      // 저장 성공 후 1.5초 뒤 페이지 reload — 헤더의 닉네임/이미지 등 user state 갱신
+      // 이유 (errors.md 04-30): JWT payload.name=nickname 발급 시점 박힘 + 헤더 me mount 1회만 호출.
+      //                       닉네임/실명/지역 등 변경해도 헤더는 옛 값 유지 → reload 로 me 재호출 트리거.
+      // 1.5초 = 사용자가 "저장되었습니다" 메시지 읽을 시간.
+      setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
     } finally {
