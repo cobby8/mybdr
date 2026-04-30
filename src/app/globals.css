@@ -1116,6 +1116,22 @@ html.dark .hero-carousel__accent {
     font-size: 16px !important;
   }
 
+  /* ============================================================
+     [2026-04-30 캡처 51] /profile/edit, /profile/settings 모바일 가독성
+     - .input/.textarea/.select padding 12px 14px 로 보강 (높이 ≈44px = 터치 타겟)
+     - .btn--sm 모바일에서 .input 과 동일 높이 매칭 (중복확인 등 input 옆 인라인 버튼 정렬)
+     이유: 데스크톱 padding 10px 12px (~36px) 는 모바일에서 좁은 폭과 함께 답답.
+           Apple HIG / Google Material 권장 44px 터치 타겟 + iOS 16px 폰트(자동 줌 차단)
+           조합으로 모바일 가독성 확보. !important 는 인라인 style flex/width 와 충돌 방지.
+     ============================================================ */
+  .input, .textarea, .select {
+    padding: 12px 14px !important;
+  }
+  .btn--sm {
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+
   /* ---- App nav: collapse tabs into hamburger ---- */
   .app-nav__utility-inner { gap: 8px; font-size: 11px; padding: 6px var(--gutter); }
   .app-nav__utility-inner > span:first-child { font-weight: 700; }

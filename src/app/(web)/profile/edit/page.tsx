@@ -620,13 +620,8 @@ export default function ProfileEditPage() {
               >
                 기본 정보
               </h2>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                }}
-              >
+              {/* 모바일 1열 stack / 데스크톱 720px+ 2열 grid (캡처 51 — 닉네임+이름 가로 우겨넣기 픽스) */}
+              <div className="profile-edit-row">
                 {/* B-1: 닉네임 — sub 제거(자명) + placeholder 형식 힌트(2~20자)로 단순화 */}
                 <Field label="닉네임 *">
                   {/* input + 중복확인 버튼 가로 배치 — 모바일도 wrap 안 함 */}
@@ -775,14 +770,8 @@ export default function ProfileEditPage() {
                   })}
                 </div>
               </Field>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                  marginTop: 16,
-                }}
-              >
+              {/* 모바일 1열 / 데스크톱 2열 (신장·체중 가독성 캡처 51) */}
+              <div className="profile-edit-row" style={{ marginTop: 16 }}>
                 <Field label="신장 (cm)">
                   <input
                     className="input"
@@ -878,13 +867,8 @@ export default function ProfileEditPage() {
               >
                 공개 여부는 [공개·계정] 탭에서 개별 조정할 수 있습니다.
               </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 16,
-                }}
-              >
+              {/* 모바일 1열 / 데스크톱 2열 (휴대폰·실명 캡처 51) */}
+              <div className="profile-edit-row">
                 <Field label="휴대폰" sub="대회·환불 연락용">
                   <input
                     type="tel"
@@ -1360,9 +1344,20 @@ export default function ProfileEditPage() {
 
       {/* 모바일에서 사이드 → 상단 가로 스크롤 탭으로 전환 */}
       <style jsx>{`
+        /* 데스크톱(769px+): 2열 grid 기본 — 닉네임/이름 / 신장·체중 / 휴대폰·실명 */
+        .profile-edit-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
         @media (max-width: 768px) {
           .profile-edit-grid {
             grid-template-columns: 1fr !important;
+          }
+          /* 모바일(720px 룰 + 768px 사이드 분기 톤 통일): 1열 stack — 캡처 51 가독성 픽스 */
+          .profile-edit-row {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
           }
           .profile-edit-grid > aside {
             position: static !important;
