@@ -59,6 +59,66 @@ git push origin subin
 - 버튼 border-radius 4px
 - **하드코딩 색상 금지** → `var(--color-*)` 변수
 
+## 🎨 디자인 작업 시 (Cowork Project Knowledge — 매 세션 자동 적용)
+
+**모든 디자인 시안 / 박제 작업은 다음 패키지를 첫 번째로 읽고 시작**:
+
+`Dev/design/claude-project-knowledge/` (9 파일)
+- `00-master-guide.md` ⭐ — 마스터 진입점 + 13 룰
+- `01-user-design-decisions.md` — 사용자 직접 결정 8 영역 (영구 보존)
+- `02-design-system-tokens.md` — 색상/타이포/라운딩/모바일
+- `03-appnav-frozen-component.md` ⭐ — AppNav frozen 코드 + 7 룰 (절대 재구성 금지)
+- `04-page-inventory.md` — 117 페이지 박제 등급
+- `05-design-brief-template.md` — 의뢰 표준 템플릿
+- `06-self-checklist.md` ⭐ — 시안 완료 후 자체 검수
+- `07-custom-instructions.md` — Custom Instructions 텍스트 (Claude.ai Project 용)
+- `README.md` — 사용 가이드
+
+### 디자인 작업 13 룰 (위반 시 자동 reject)
+
+**A. AppNav (헤더) 7 룰** — `03-appnav-frozen-component.md` 코드 그대로 카피, 재구성 금지:
+1. 9 메인 탭 = 홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/더보기
+2. utility bar 우측 (계정/설정/로그아웃) 모바일에서도 표시
+3. main bar 우측 = 검색/알림/다크/햄버거 4개만 (더보기 dropdown trigger / 아바타 추가 ❌)
+4. 다크모드 — PC 듀얼 라벨 / 모바일 단일 아이콘
+5. 검색·알림 = `app-nav__icon-btn` (border/bg 박스 ❌)
+6. 모바일 닉네임 hidden
+7. 더보기 = 9번째 탭 (drawer + 5그룹 패널)
+
+**B. 더보기 5그룹 IA**:
+8. 가짜링크 4건 영구 제거: `gameResult / gameReport / guestApps / referee`
+9. `refereeInfo` (둘러보기 그룹) + `mypage` (계정·도움 첫 항목)
+
+**C. 디자인 토큰** (이미 위 §디자인 핵심):
+10. `var(--*)` 토큰만 / 핑크·살몬·코랄 ❌ / lucide-react ❌ / pill 9999px ❌
+
+**D. 카피 / 모바일**:
+11. "전국 농구 매칭 플랫폼" (서울 3x3 한정 표현 ❌)
+12. placeholder 5단어 이내 ("예: " 시작 ❌)
+13. 720px 분기 / iOS input 16px / 버튼 44px
+
+### 디자인 작업 시작 표준 절차
+
+```
+[Step 1] Dev/design/claude-project-knowledge/00-master-guide.md 읽기 (13 룰 인지)
+[Step 2] 의뢰 내용에 따라 01~06 보조 파일 참고
+[Step 3] 첫 응답 형식 (00 §3 참조):
+  ✅ BDR 디자인 의뢰 확인 — [작업명]
+  이해: [핵심] / 사용자 결정 §[N] 보존 / AppNav frozen — 03 카피
+  자체 검수: 06 §[해당 섹션]
+  작업 시작.
+[Step 4] 시안 작업 (AppNav 03 카피 / 토큰 02 / 카피 01)
+[Step 5] 완료 후 06-self-checklist.md 모든 항목 ✅ 검수
+[Step 6] 산출물 폴더: Dev/design/BDR v2.X/ (이전 카피 + 변경)
+```
+
+### 위반 시 즉시 중단
+
+다음 발견 시 작업 중단 + PM 보고:
+- 사용자 결정 §1~§8 위반 (헤더 / 더보기 / 카피 / 모바일)
+- 신규 메인 탭 추가 (메인 탭 9개 변경 — PM 확인 필수)
+- DB 미지원 기능을 시안에 (라우트 존재 / 데이터 출처 불명)
+
 ## 디렉토리
 ```
 src/app/(web)/       웹 페이지 (커스텀 세션)
