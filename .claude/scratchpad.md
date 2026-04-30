@@ -38,10 +38,50 @@
 
 ## 현재 작업
 
-- **요청**: BDR v2.2 P3-1 RefereeInfo 신규 라우트 박제 (Dev/design/v2.2-cli-batch-prompt-2026-04-30.md §5-3)
-- **상태**: developer 완료 — 커밋 2건 대기
-- **현재 담당**: → Step 5 통합 검증 진행 OK?
+- **요청**: Phase 12 통합 계획서 (시즌 통계 + Portone 본인인증 + 프로필 디버깅)
+- **상태**: planner-architect 완료 — `Dev/design/phase-12-plan-2026-04-30.md` 작성
+- **현재 담당**: PM 결정 7건 대기 (Q1~Q7) → 옵션 확정 시 developer 착수
 - **브랜치**: subin
+
+### 기획설계 (Phase 12)
+
+🎯 목표: 시즌 통계 DB + Portone 본인인증을 단일 마이그레이션으로 통합 (옵션 12-B 추천, 10h)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| prisma/schema.prisma | 신규 모델 3 + User 컬럼 5 | 수정 |
+| prisma/migrations/manual/phase_12_combined.sql | 통합 마이그 SQL (멱등) | 신규 |
+| src/app/api/web/identity/verify/route.ts | Portone 검증 + DB 저장 | 신규 |
+| src/app/api/web/profile/season-stats/route.ts | 시즌 통계 fetch | 신규 |
+| src/lib/identity/portone-client.ts | Portone API Secret 래퍼 | 신규 |
+| src/components/identity/verify-button.tsx | JS SDK 위젯 | 신규 |
+| src/app/(web)/profile/growth/page.tsx | 더미 → 실데이터 | 수정 |
+
+🔗 기존 코드 연결:
+- ProfileGrowth(P1-1 박제) `isDummy:true` 4건 → season_stats fetch 후 `isDummy:false` 전환
+- /profile/edit name 필드 → verify-button 삽입, name_verified=true면 readonly + 배지
+- .env에 `PORTONE_API_SECRET` + `PORTONE_CHANNEL_KEY` 2개 추가 (NEXT_PUBLIC_ 금지)
+
+📋 실행 계획 (옵션 12-B):
+| 순서 | 작업 | 담당 | 선행 조건 |
+|------|------|------|----------|
+| 12-1 | Prisma schema 신규 테이블 3 + User 컬럼 5 | developer | 없음 |
+| 12-2 | dev DB push + 운영 SQL 작성 | developer | 12-1 |
+| 12-3 | API 라우트 2종 (identity/verify + season-stats) | developer | 12-2 |
+| 12-4 | ProfileGrowth 더미→실데이터 (병렬 가능) | developer | 12-3 |
+| 12-5 | Portone JS SDK + 인증 버튼 (병렬 가능) | developer | 12-3 |
+| 12-6 | Portone 가입 + 키 발급 | **사용자** | 12-5 |
+| 12-7 | 실제 본인인증 테스트 | developer + 사용자 | 12-6 |
+| 12-8 | 운영 DB SQL 적용 | **사용자** | 12-7 (1주 안정화) |
+| 12-9 | 운영 배포 + 검증 | pm | 12-8 |
+
+⚠️ developer 주의사항:
+- prisma schema 변경 후 **dev 서버 재시작 필수** (errors.md 04-29 — Unknown argument 캐싱 함정)
+- Portone API Secret은 서버 사이드만, 클라가 보낸 verified_name 절대 신뢰 X (서버가 Portone 재조회)
+- name_verified=true 후 PATCH 차단 (재인증은 별도 API)
+- 운영 DB SQL은 **트랜잭션 + IF NOT EXISTS 멱등**, 04-15 db push 사고 재방지
+- PR 3개 분리 (PR1=schema / PR2=시즌통계 / PR3=Portone) — revert 안전
 
 ### 구현 기록 (P0-1)
 
@@ -90,6 +130,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-29 | (단독 커밋, subin) | **lucide-react 잔여 1건 → Material Symbols 교체** (subin): `src/components/home/personal-hero.tsx` 1 파일 — `import { Calendar, MapPin, Trophy, Users, Flame, ChevronLeft, ChevronRight } from "lucide-react"` 제거 + 사용처 11곳을 `<span className="material-symbols-outlined">{name}</span>`로 변환. 매핑: Calendar→event / MapPin→location_on / Trophy→emoji_events / Users→group / Flame→local_fire_department / ChevronLeft→chevron_left / ChevronRight→chevron_right. 시각 동일 보존: 색상(text-[#1B3C87]/text-[#E31B23]/회색 부모 상속) + 사이즈(`size={N}` → `style={{ fontSize: N }}` 32/14/13/16) + 위치(mb-2 등 className 그대로). chevron 버튼은 `lineHeight:1` + `block` + `aria-label` 추가 보강. 검증: `npx tsc --noEmit` 0 에러 / `npm run check:design` lucide-react **OK 0건** (1→0건). 변경 +24/-9 = 1 파일. **CLAUDE.md "Material Symbols Outlined 사용 (lucide-react 금지)" 룰 100% 달성**. | ✅ |
+| 2026-04-30 | (계획서, subin) | **Phase 12 통합 계획서 작성** (planner-architect): `Dev/design/phase-12-plan-2026-04-30.md` 신규 — 옵션 3종(12-A 보수 6h / 12-B 통합 10h ⭐ / 12-AC 풀) + A 시즌 통계(user_season_stats / shot_zone_stats / scouting_reports 테이블 3) + C Portone 본인인증(User 컬럼 5: verified_name/phone/birth/name_verified/verified_at) 통합 마이그 SQL `phase_12_combined.sql`(멱등 IF NOT EXISTS + 트랜잭션) + 9단계 작업 분해(12-1~12-9) + 위험 6건/완화 + PR 3개 분리(schema/시즌통계/Portone) + PM 결정 7건(Q1~Q7) + B 디버깅 별도 분리(584c483 catch 로그). | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **BDR v2.2 P3-1 RefereeInfo 신규 라우트 박제** (subin): 시안 `Dev/design/BDR v2.2/screens/RefereeInfo.jsx` 1:1 박제 — 신규 라우트 `/referee-info` 신설 (사이트 `/referee` 는 심판 플랫폼 점유 → 별도 라우트). 공개 SEO 페이지(getWebSession 가드 X) + Open Graph 메타데이터. 박제 구성: (1) Hero full-bleed `linear-gradient(135deg, #1a1a1a, #000)` 다크 + eyebrow `BDR REFEREE PROGRAM` + h1 42px 2단(`var(--accent)` 강조 "심판") + lead 카피 + CTA 2단(가입하고 신청 → /signup, 활동 중인 심판 보기 → /referee) + 통계 strip 3종(활동 심판/주간 경기/평균 평점, auto-fit minmax). (2) Process 4 step grid(01~04, ff-display 34px 번호 + title/body, auto-fit minmax 모바일 1열). (3) Tiers 3등급 카드(BRONZE/SILVER/GOLD, fee/desc + 승급 요건 separator). (4) FAQ accordion 5건 — useState 필요해서 별도 클라이언트 컴포넌트 `_faq-client.tsx` 분리(서버 컴포넌트 page.tsx의 metadata export 보존), expand_more 회전 transition .2s. (5) Bottom CTA grad 배경 + 로그인/가입 2버튼(서버 컴포넌트라 isLoggedIn 분기 X — 공개 SEO 우선). more-groups.ts "둘러보기" 그룹 첫 항목으로 `refereeInfo` 추가({id, label:"심판 센터 안내", icon:"🦓", href:"/referee-info"}) + 시안 출처 코멘트 1줄. 박제 룰 준수: var(--accent/--ink-mute/--ink-dim/--ink-soft/--border/--ff-display) 토큰만, Material Symbols Outlined(expand_more) 1종, radius 4px(.btn .card 클래스 그대로), alert 신규 0건, 모바일 분기 인라인 auto-fit minmax. 시안 onClick(setRoute) → Next.js Link href 변환. 변경 +N/-N = 신규 2 파일 + 수정 1 파일. tsc 0 에러. | ✅ |
 | 2026-04-30 | a2fba92 (subin) | **BDR v2.2 P2-1 ProfileCompletePreferences 박제** (subin): 시안 `Dev/design/BDR v2.2/screens/ProfileCompletePreferences.jsx` 1:1 박제 — 기존 redirect 옵션 A(28줄, /profile/settings?tab=preferences로 이동)를 시안의 4 step wizard로 재작성. 진입: ProfileComplete(P0-4) 완료 후 follow-up + /profile "프로필 보강하기" 카드. 박제 구성: (1) JSDoc 헤더 회귀 검수 매트릭스 6행(스킬/스타일/요일·시간/목표/완료). (2) 진행 막대(height:4 + cafe-blue fill + transition .3s, ProfileComplete 동일 톤) + 우상단 건너뛰기 → router.push("/"). (3) STEP 1 SKILLS 5축(슈팅/돌파/수비/패스/리바운드) 1~5 버튼 (선택값 이하 모두 활성, ff-mono 스코어 표시). (4) STEP 2 STYLE 6 카드 multi-select 2-col grid(공격적/팀플레이/슈터형/골밑형/올라운드/재미우선, 이모지+라벨+desc, 선택 시 cafe-blue 8% 배경). (5) STEP 3 WHEN 요일 7-col grid(월~일) + 시간대 6 chips hscroll(새벽/오전/점심/오후/저녁/심야). (6) STEP 4 GOALS 4 카드 multi-select(재미/경쟁/실력향상/소셜, Material Symbols sports_basketball/emoji_events/trending_up/group + 우측 22px 선택 원형). (7) 완료 화면(grad 원형 + 🎯 + "취향 설정 완료!" + 홈으로 → CTA). 박제 룰 준수: var(--cafe-blue/--ink-mute/--ink-dim/--ink-soft/--ink/--bg-alt/--bg-elev/--border/--ff-mono) 토큰만, Material Symbols Outlined 4종(STEP 4 아이콘만), radius 4px(버튼 .btn 클래스 그대로), alert 신규 0건, 모바일 분기 인라인 `repeat(2, minmax(0,1fr))` + `repeat(7, minmax(0,1fr))` + hscroll(시간대) — globals.css 자동 처리. 데이터 fetching 사이트 기존 방식(없음) 유지 — 시안에도 API 저장 호출 없음, 클라이언트 state로만 보유(추후 PATCH /api/web/profile/preferences 연동 큐). 사용자 결정 §2 위반 0건. 변경 +467/-19 = 1 파일. tsc 0 에러. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **BDR v2.2 P1-4 ProfileWeeklyReport 박제** (subin): 시안 `Dev/design/BDR v2.2/screens/ProfileWeeklyReport.jsx` 1:1 박제 — 기존 TossCard 기반 페이지(515줄)를 시안의 이메일 뉴스레터 톤(720 max-width 좁은 칼럼 + 섹션 stack + eyebrow 번호)으로 재작성. **API/data fetch 0 변경**: SWR `/api/web/profile/weekly-report` 그대로 + ReportData/WeekData 타입 0 변경 + isLoading/error 분기 0 변경. 박제 구성: (1) 빵부스러기 홈›내 프로필›주간 리포트(시안 L80). (2) HERO eyebrow `WEEKLY REPORT · 매주 월요일 도착` + h1 30px + period 표시 + 주차 navigation 3버튼(이전 W{n-1}/이번 주 활성/다음 W{n+1}, 모두 disabled — 추후 확장 큐, getWeekNumber ISO 주차 계산 헬퍼 추가). (3) 인사 + 레벨 (사이트 고유 데이터 nickname/emoji/level/title/streak 보존, 시안 미존재이지만 사용자 식별 정보 보존 의도). (4) SECTION 01 KPI 4 — 시안 슬롯에 사이트 데이터 매핑(경기=session_count / 운동시간=total_minutes 시간 단위 변환 / XP=total_xp / 방문코트=unique_courts), 인라인 grid `repeat(auto-fit, minmax(min(160px, 100%), 1fr))` 모바일 자동 1열, Delta 컴포넌트 동적 색상(flat 회색/up var(--ok)/down var(--bdr-red)) + ↑/↓ 부호. (5) SECTION 02 자주 방문 코트 — top_courts TOP 3 사이트 기존 데이터, 1금/2은/3동 원형 순위 뱃지 + chevron_right Link `/courts/[id]`. (6) SECTION 03 인사이트 3종 동적 카피 — streak 기반(연속 출석 vs 시작) / minutes_change 기반(증가 var(--ok)/감소 var(--bdr-red)/유지 var(--cafe-blue)) / 정적 다음 도전(추후 추천 엔진 연동 큐), 아이콘 박스 color-mix 14% 배경. (7) SECTION 04 지난주 상세 비교 — 사이트 고유 4행 비교(횟수/일수/코트/XP, 지난주 → 이번주 화살표). (8) FOOTER `이메일 구독 관리` Link `/profile/notification-settings` (사용자 결정 §4 준수, notification-settings 경로 실재 확인) + `12주 성장 추이 보기 → /profile/growth`. (9) 하단 뒤로가기 버튼 router.back() 보존. 박제 룰 준수: 시안 `var(--accent)` → 사이트 `var(--color-primary)` 매핑(이전 박제 컨벤션), `var(--ok/--bdr-red/--cafe-blue/--color-accent/--color-text-*/--color-border-subtle/--color-surface/--ff-mono/--ff-display)` 토큰만, Material Symbols Outlined만(local_fire_department/trending_up/trending_down/lightbulb/calendar_month/fitness_center/search/chevron_right/arrow_back/error_outline), radius 4px(아이콘 박스/카드/버튼 모두), alert 신규 0건, 인라인 `repeat(N,1fr)` 위반 0건(KPI grid는 auto-fit minmax, 코트 리스트는 flex). 모바일 분기는 인라인 minmax 자동 처리 + flex 1열. 기존 TossCard/TossSectionHeader/StatCard/ChangeIndicator 미사용 — 시안 톤 통일 위해 인라인 박스로 교체(다른 페이지 사용처 영향 0). 변경 +732/-327 = 1 파일. tsc 0 에러. 검수 매트릭스 page.tsx 헤더 6행 이식. | ✅ |
