@@ -10,11 +10,21 @@ export const metadata: Metadata = {
 
 /* ============================================================
  * 용어 사전 (Help > Glossary) — Phase 9 D-P3 v2 박제
+ * Phase 11 v2.2 검토 결과: 옵션 C 채택 (현행 유지)
  *
  * 이유: /help (Phase 6) 통합 허브의 "전체 용어 사전 보기 →" 링크
  *      대상 페이지. /help의 GLOSSARY(16건 짧은 정의)와 달리,
  *      이 페이지는 9건 핵심 용어를 더 풍부하게 (설명 + 예시 +
  *      관련 페이지 링크) 다룬다. 의도적 분리 — redirect 금지.
+ *
+ * Phase 11 v2.2 검토 (2026-04-30):
+ *  - v2.2 시안 (Dev/design/BDR v2.2/screens/HelpGlossary.jsx)은
+ *    /help/glossary → /help redirect 박제 (3초 카운트다운).
+ *  - 그러나 사이트는 이미 320줄 풍부한 별도 페이지로 박제 완료.
+ *  - /help의 "전체 용어 사전 보기 →" 링크가 이 페이지를 가리키므로
+ *    redirect 시 무한 루프 발생.
+ *  - 사용자 결정 영구 보존 룰(redirect 금지) 우선 → 옵션 C 채택.
+ *  - 시안 v2.2 redirect 패턴은 박제하지 않음 (회귀 0).
  *
  * 박제 변경 (Phase 9):
  *  - .page 래퍼 + eyebrow + h1(BDR v2 톤)
