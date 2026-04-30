@@ -22,9 +22,10 @@
  *  - 모든 form/bankForm/regions state
  * ============================================================ */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { BANKS } from "@/lib/constants/banks";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
 
@@ -48,6 +49,8 @@ interface ProfileEditData {
   has_account: boolean;
   // 소셜 로그인 제공자 (kakao, google, apple 등)
   provider: string | null;
+  // 프로필 사진 URL (Vercel Blob) — 업로드 후 헤더 UserDropdown 갱신용
+  profile_image_url: string | null;
 }
 
 // 소셜 제공자별 표시 정보 매핑
@@ -118,6 +121,16 @@ export default function ProfileEditPage() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
 
+  // 프로필 사진 업로드 state — Vercel Blob 연동
+  // profileImageUrl: 현재 등록된 이미지 URL (null = 이니셜 fallback 표시)
+  // imageUploading: POST 진행 중 (버튼 disabled + 스피너)
+  // imageError: 검증/업로드 실패 메시지 (인라인 표시 — alert 신규 0건 룰)
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageError, setImageError] = useState("");
+  // 숨겨진 file input 을 button onClick 으로 트리거하기 위한 ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetch("/api/web/profile")
       .then((r) => r.json())
@@ -152,6 +165,8 @@ export default function ProfileEditPage() {
         setMaskedAccount(u.account_number_masked);
         setHasExistingAccount(u.has_account);
         setProvider(u.provider ?? null);
+        // 프로필 사진 URL 초기화 — 사진 탭에서 96px 아바타 분기에 사용
+        setProfileImageUrl(u.profile_image_url ?? null);
       })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
@@ -171,6 +186,87 @@ export default function ProfileEditPage() {
   };
 
   const selectedPositions = form.position ? form.position.split(",") : [];
+
+  // 프로필 사진 업로드 핸들러
+  // 왜: file input onChange 시 클라 사이드 검증(빠른 실패) → multipart POST → 응답으로 URL 갱신
+  // 어떻게:
+  //  1) 파일 검증 (size 2MB, mime image/jpeg|png|webp) — 서버 도달 전 차단 (네트워크 절약)
+  //  2) FormData 에 file 필드로 첨부 → POST /api/web/profile/upload-image
+  //  3) 성공 시 profileImageUrl 갱신 + 1.5초 뒤 reload (헤더 UserDropdown 새 이미지 반영)
+  //  4) 실패 시 imageError 인라인 메시지 (alert 신규 0건 룰)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageError("");
+    const file = e.target.files?.[0];
+    // 파일 input 은 같은 파일 재선택 가능하게 즉시 리셋 (취소 후 동일 파일 재선택 동작 보장)
+    e.target.value = "";
+    if (!file) return;
+
+    // 클라 검증 1: MIME 타입 (서버와 동일 룰)
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setImageError("JPG, PNG, WEBP 형식만 업로드할 수 있습니다.");
+      return;
+    }
+    // 클라 검증 2: 크기 (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setImageError("이미지 크기는 2MB 이하여야 합니다.");
+      return;
+    }
+
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/web/profile/upload-image", {
+        method: "POST",
+        body: fd,
+        // multipart 는 Content-Type 헤더 자동 설정 (boundary 포함) — 직접 지정 금지
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        // 서버 친화 메시지 우선 (apiError 의 error 필드)
+        throw new Error(data?.error ?? "업로드에 실패했습니다.");
+      }
+      // 응답은 snake_case 자동 변환됨 (apiSuccess 룰)
+      const url = data?.profile_image_url as string | undefined;
+      if (url) {
+        setProfileImageUrl(url);
+      }
+      // 헤더 UserDropdown 갱신 — handleSave 와 동일 패턴 (1.5초 reload)
+      // 이유: 헤더의 me 호출은 mount 1회만 발생 → reload 로 재호출 트리거
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : "업로드 중 오류가 발생했습니다.");
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  // 프로필 사진 제거 핸들러
+  // 왜: profileImageUrl 있을 때만 활성화. DELETE 호출 → DB null + Blob 정리
+  // 어떻게: 즉시 DELETE (별도 confirm 모달 없이 — UI 가 단순한 토글 성격)
+  const handleImageDelete = async () => {
+    setImageError("");
+    setImageUploading(true);
+    try {
+      const res = await fetch("/api/web/profile/delete-image", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error ?? "제거에 실패했습니다.");
+      }
+      setProfileImageUrl(null);
+      // 헤더 갱신 — 1.5초 reload
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : "제거 중 오류가 발생했습니다.");
+    } finally {
+      setImageUploading(false);
+    }
+  };
 
   // 닉네임 중복확인 핸들러
   // 왜: PATCH 시점 P2002 회귀를 사전 차단 + 사용자가 저장 전에 충돌 여부 확인 가능
@@ -981,7 +1077,7 @@ export default function ProfileEditPage() {
             </div>
           )}
 
-          {/* 탭 5: 사진 (시안 박제 — 백엔드 미구현이라 자리만 잡음) */}
+          {/* 탭 5: 사진 (Vercel Blob 업로드 활성화) */}
           {tab === "photo" && (
             <div>
               <h2
@@ -1005,6 +1101,7 @@ export default function ProfileEditPage() {
                     alignItems: "center",
                   }}
                 >
+                  {/* 96x96 원형 아바타 — 이미지 있으면 <Image>, 없으면 이니셜 fallback */}
                   <div
                     style={{
                       width: 96,
@@ -1017,26 +1114,48 @@ export default function ProfileEditPage() {
                       fontWeight: 900,
                       fontSize: 32,
                       fontFamily: "var(--ff-display)",
+                      overflow: "hidden",
+                      position: "relative",
+                      flexShrink: 0,
                     }}
                   >
-                    {(form.nickname?.[0] || form.name?.[0] || "?").toUpperCase()}
+                    {profileImageUrl ? (
+                      <Image
+                        src={profileImageUrl}
+                        alt="프로필 사진"
+                        width={96}
+                        height={96}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        unoptimized
+                      />
+                    ) : (
+                      (form.nickname?.[0] || form.name?.[0] || "?").toUpperCase()
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
-                    {/* 백엔드 미구현 — 시안 자리만 박제 */}
+                    {/* 숨김 file input — 업로드 버튼 클릭 시 ref 로 트리거 */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleImageUpload}
+                      style={{ display: "none" }}
+                    />
                     <button
                       type="button"
                       className="btn btn--sm"
-                      disabled
-                      title="이 기능은 곧 제공됩니다"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={imageUploading}
                     >
-                      새 사진 업로드
+                      {imageUploading ? "업로드 중..." : "새 사진 업로드"}
                     </button>
+                    {/* 제거 버튼: 이미지 있을 때만 활성화 */}
                     <button
                       type="button"
                       className="btn btn--sm"
                       style={{ marginLeft: 6, color: "var(--danger)" }}
-                      disabled
-                      title="이 기능은 곧 제공됩니다"
+                      onClick={handleImageDelete}
+                      disabled={imageUploading || !profileImageUrl}
                     >
                       제거
                     </button>
@@ -1047,18 +1166,21 @@ export default function ProfileEditPage() {
                         marginTop: 8,
                       }}
                     >
-                      PNG·JPG · 정방형 권장 · 최대 2MB
+                      PNG·JPG·WEBP · 정방형 권장 · 최대 2MB
                     </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--warn)",
-                        marginTop: 4,
-                        fontWeight: 600,
-                      }}
-                    >
-                      ⓘ 사진 업로드는 곧 제공됩니다
-                    </div>
+                    {/* 인라인 에러 메시지 — alert 신규 0건 룰 */}
+                    {imageError && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "var(--danger)",
+                          marginTop: 6,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {imageError}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Field>

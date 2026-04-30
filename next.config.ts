@@ -72,6 +72,10 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "t1.kakaocdn.net", pathname: "/account_images/**" },
       { protocol: "https", hostname: "phinf.pstatic.net" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      // Vercel Blob (프로필 사진 업로드) — *.public.blob.vercel-storage.com
+      // 왜: /api/web/profile/upload-image 가 반환한 blob.url 을 헤더 UserDropdown / profile-hero
+      //     의 next/image (optimized) 로 표시하려면 remotePatterns 등록 필수
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
   },
   // Serwist(@serwist/next)가 webpack config를 추가함 → Turbopack이 경고 발생
