@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
+// v2.1 P2: DataTableV2 도입 — 모바일 ≤720px 자동 카드형 변환
+import { DataTableV2, type DataTableColumn } from "@/components/bdr-v2/data-table";
 
 interface SerializedUser {
   id: string;
@@ -48,6 +50,63 @@ function getRoleInfo(mt: number) {
     variant: ROLE_VARIANT[mt] ?? ("default" as const),
   };
 }
+
+// 상태 뱃지 — DataTableV2 columns 명세에서도 사용하므로 모듈 스코프로 끌어올림
+function statusBadge(s: string | null) {
+  if (s === "active") return <Badge variant="success">활성</Badge>;
+  if (s === "withdrawn") return <Badge variant="default">탈퇴</Badge>;
+  return <Badge variant="error">정지</Badge>;
+}
+
+// v2.1 P2: DataTableV2 컬럼 명세 — 닉네임 primary(카드 제목), 5컬럼
+const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
+  {
+    key: "nickname",
+    label: "닉네임",
+    primary: true,
+    width: "1.2fr",
+    render: (u) => (
+      <span className="font-medium">
+        {u.isAdmin && <span className="mr-1 text-[var(--color-error)]">★</span>}
+        {u.nickname ?? "-"}
+      </span>
+    ),
+  },
+  {
+    key: "email",
+    label: "이메일",
+    width: "1.5fr",
+    render: (u) => (
+      <span className="text-[var(--color-text-muted)] max-w-[200px] truncate inline-block align-middle">{u.email}</span>
+    ),
+  },
+  {
+    key: "role",
+    label: "역할",
+    width: "120px",
+    render: (u) => {
+      const role = getRoleInfo(u.membershipType);
+      return <Badge variant={role.variant}>{role.label}</Badge>;
+    },
+  },
+  {
+    key: "isAdmin",
+    label: "관리자",
+    width: "100px",
+    render: (u) =>
+      u.isAdmin ? (
+        <span className="text-[var(--color-error)] text-xs font-semibold">ON</span>
+      ) : (
+        <span className="text-[var(--color-text-muted)]">-</span>
+      ),
+  },
+  {
+    key: "status",
+    label: "상태",
+    width: "100px",
+    render: (u) => statusBadge(u.status),
+  },
+];
 
 interface Props {
   users: SerializedUser[];
@@ -102,54 +161,23 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
   const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleDateString("ko-KR") : "-";
   const fmtFull = (iso: string | null) => iso ? new Date(iso).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
 
-  const statusBadge = (s: string | null) => {
-    if (s === "active") return <Badge variant="success">활성</Badge>;
-    if (s === "withdrawn") return <Badge variant="default">탈퇴</Badge>;
-    return <Badge variant="error">정지</Badge>;
-  };
+  // statusBadge는 모듈 스코프로 이동됨 (DataTableV2 columns에서도 사용)
 
   return (
     <>
       {/* 역할별 필터 탭 */}
       <AdminStatusTabs tabs={roleTabs} activeTab={activeRoleTab} onChange={setActiveRoleTab} />
 
-      {/* 테이블 */}
+      {/* v2.1 P2: DataTableV2 — 데스크톱 표 + 모바일 ≤720px 자동 카드형 (G-1 룰) */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-3.5 font-medium">닉네임</th>
-                <th className="px-5 py-3.5 font-medium">이메일</th>
-                <th className="px-5 py-3.5 font-medium">역할</th>
-                <th className="px-5 py-3.5 font-medium text-center">관리자</th>
-                <th className="px-5 py-3.5 font-medium text-center">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => {
-                const role = getRoleInfo(user.membershipType);
-                return (
-                  <tr
-                    key={user.id}
-                    onClick={() => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
-                    className={`cursor-pointer border-b border-[var(--color-border-subtle)] transition-all hover:bg-[var(--color-elevated)]/60 active:bg-[var(--color-elevated)] ${user.isAdmin ? "bg-[var(--color-error)]/[0.02]" : ""}`}
-                  >
-                    <td className="px-5 py-3 font-medium">
-                      {user.isAdmin && <span className="mr-1 text-[var(--color-error)]">★</span>}
-                      {user.nickname ?? "-"}
-                    </td>
-                    <td className="px-5 py-3 text-[var(--color-text-muted)] max-w-[200px] truncate">{user.email}</td>
-                    <td className="px-5 py-3"><Badge variant={role.variant}>{role.label}</Badge></td>
-                    <td className="px-5 py-3 text-center">
-                      {user.isAdmin ? <span className="text-[var(--color-error)] text-xs font-semibold">ON</span> : <span className="text-[var(--color-text-muted)]">-</span>}
-                    </td>
-                    <td className="px-5 py-3 text-center">{statusBadge(user.status)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="px-2 py-1">
+          <DataTableV2<SerializedUser>
+            rowKey={(u) => u.id}
+            rows={filteredUsers}
+            columns={USER_COLUMNS}
+            onRowClick={(user) => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
+            emptyMessage="조건에 맞는 회원이 없습니다."
+          />
         </div>
       </Card>
 

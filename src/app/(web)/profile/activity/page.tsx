@@ -92,22 +92,25 @@ const STRING_STATUS: Record<string, { label: string; tone: "warn" | "success" | 
 
 function StatusBadge({ tone, label }: { tone: "warn" | "success" | "error" | "muted"; label: string }) {
   // CSS 변수 기반 배지 — 하드코딩 색상 금지 (CLAUDE.md)
+  // 토큰 매핑 정정 (2026-04-29):
+  //   --color-success→--ok, --color-error→--danger, --color-primary→--accent,
+  //   --color-surface-bright→--bg-card, --color-text-muted→--ink-mute
   const bg =
     tone === "success"
-      ? "color-mix(in srgb, var(--color-success) 15%, transparent)"
+      ? "color-mix(in srgb, var(--ok) 15%, transparent)"
       : tone === "error"
-        ? "color-mix(in srgb, var(--color-error) 15%, transparent)"
+        ? "color-mix(in srgb, var(--danger) 15%, transparent)"
         : tone === "warn"
-          ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
-          : "var(--color-surface-bright)";
+          ? "color-mix(in srgb, var(--accent) 15%, transparent)"
+          : "var(--bg-card)";
   const fg =
     tone === "success"
-      ? "var(--color-success)"
+      ? "var(--ok)"
       : tone === "error"
-        ? "var(--color-error)"
+        ? "var(--danger)"
         : tone === "warn"
-          ? "var(--color-primary)"
-          : "var(--color-text-muted)";
+          ? "var(--accent)"
+          : "var(--ink-mute)";
   return (
     <span
       className="inline-flex shrink-0 items-center px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
@@ -252,96 +255,257 @@ export default function ProfileActivityPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* 페이지 헤더 */}
-      <header>
-        <h1
-          className="text-xl font-extrabold uppercase tracking-wide sm:text-2xl"
-          style={{ fontFamily: "var(--font-heading)", color: "var(--color-text-primary)" }}
-        >
-          내 활동
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
-          내가 신청한 경기·대회, 가입 신청한 팀 현황을 한눈에 확인하세요.
-        </p>
-      </header>
+  // 시안 v2(1) MyActivity.jsx — 카운터 4종 계산
+  // pending/approved/rejected/cancelled 등 도메인별 상태값을 일괄로 환산
+  const allItems = [
+    ...cache.games.map((g) => ({
+      kind: "game" as const,
+      pending: g.status === 0,
+      approved: g.status === 1,
+      rejected: g.status === 2,
+      cancelled: false,
+    })),
+    ...cache.tournaments.map((t) => ({
+      kind: "tournament" as const,
+      pending: t.status === "pending",
+      approved: t.status === "approved" || t.status === "registered",
+      rejected: t.status === "rejected",
+      cancelled: t.status === "cancelled",
+    })),
+    ...cache.teams.map((t) => ({
+      kind: "team" as const,
+      pending: t.status === "pending",
+      approved: t.status === "approved",
+      rejected: t.status === "rejected",
+      cancelled: false,
+    })),
+  ];
+  const pendingCount = allItems.filter((x) => x.pending).length;
+  const approvedCount = allItems.filter((x) => x.approved).length;
+  const rejectedCount = allItems.filter((x) => x.rejected).length;
+  const cancelledCount = allItems.filter((x) => x.cancelled).length;
 
-      {/* 탭 바 */}
+  return (
+    // 시안 v2(1) 박제: page + 빵부스러기 + counters + filter chips + 카드 리스트
+    <div className="page">
+      {/* 시안 빵부스러기 */}
       <div
-        className="flex gap-1 border-b overflow-x-auto scrollbar-none"
-        style={{ borderColor: "var(--color-border)" }}
+        style={{
+          fontSize: 12,
+          color: "var(--ink-mute)",
+          marginBottom: 10,
+        }}
       >
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const count = counts[t.key];
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => changeTab(t.key)}
-              className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-bold transition-colors ${
-                active ? "" : "border-transparent"
-              }`}
-              style={{
-                borderColor: active ? "var(--color-primary)" : undefined,
-                color: active ? "var(--color-primary)" : "var(--color-text-muted)",
-              }}
-            >
-              <span
-                className="material-symbols-outlined text-base"
-                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {t.icon}
-              </span>
-              {t.label}
-              {/* 건수 배지 — 0건이거나 아직 로딩 중이면 숨김 */}
-              {count > 0 && (
-                <span
-                  className="inline-flex items-center justify-center px-1.5 text-[10px] font-black tabular-nums"
-                  style={{
-                    backgroundColor: active
-                      ? "var(--color-primary)"
-                      : "var(--color-surface-bright)",
-                    color: active ? "#fff" : "var(--color-text-muted)",
-                    borderRadius: 4,
-                    minWidth: "1.25rem",
-                    height: "1rem",
-                    lineHeight: 1,
-                  }}
-                >
-                  {count > 99 ? "99+" : count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        <Link href="/profile" style={{ color: "var(--ink-mute)" }}>
+          프로필
+        </Link>{" "}
+        › <span style={{ color: "var(--ink)" }}>내 활동</span>
       </div>
 
-      {/* 본문 */}
+      {/* 시안 헤더: eyebrow + h1 + sub */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 18,
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
+        <div>
+          <div className="eyebrow">내 활동 · MY ACTIVITY</div>
+          <h1
+            style={{
+              margin: "6px 0 4px",
+              fontSize: 28,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+            }}
+          >
+            신청한 모든 것
+          </h1>
+          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+            경기 · 대회 · 팀 가입 신청을 한 화면에서
+          </div>
+        </div>
+      </div>
+
+      {/* 시안 v2(1): counters 4종 (검토중 / 예정 / 완료 / 취소·거절) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 10,
+          marginBottom: 18,
+        }}
+      >
+        {[
+          { n: pendingCount, lbl: "검토중", tone: "var(--warn)" },
+          { n: approvedCount, lbl: "승인·확정", tone: "var(--cafe-blue)" },
+          { n: rejectedCount, lbl: "거절", tone: "var(--ink-mute)" },
+          { n: cancelledCount, lbl: "취소", tone: "var(--ink-dim)" },
+        ].map((c, i) => (
+          <div
+            key={i}
+            className="card"
+            style={{
+              padding: "14px 16px",
+              borderTop: `3px solid ${c.tone}`,
+              border: "1px solid var(--border)",
+              borderRadius: 4,
+              background: "var(--bg-card)",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--ff-display)",
+                fontSize: 32,
+                fontWeight: 900,
+                lineHeight: 1,
+                color: c.tone,
+              }}
+            >
+              {c.n}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--ink-mute)",
+                marginTop: 4,
+              }}
+            >
+              {c.lbl}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* v2 탭 패턴: 경기 / 대회 / 팀
+       * 왜 chip(btn--sm + cafe-blue 활성) 폐기:
+       *  - 프로필 + 설정 전체 v2 탭 통일 작업의 일부
+       *  - 아이콘 + uppercase 굵은체 chip 은 시각 노이즈가 큼
+       *  - /teams/[id] TeamTabsV2 패턴과 일관성 확보
+       * 보존:
+       *  - count 배지 (옆에 mono 숫자) — 검토중/예정 갯수 가시성에 필수 */}
+      <nav
+        role="tablist"
+        aria-label="활동 카테고리"
+        className="-mx-4 mb-3 border-b"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div className="flex gap-1 overflow-x-auto px-4 scrollbar-none">
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            const count = counts[t.key];
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => changeTab(t.key)}
+                /* v2 탭 패턴:
+                 * - 텍스트 only (아이콘 제거)
+                 * - px-3 py-3 → 약 44px 터치 타겟
+                 * - 활성: 하단 3px accent border + font-semibold (TeamTabsV2 일관)
+                 * - 카운트는 inline 숫자 (mono) 그대로 유지
+                 * 토큰 매핑 정정: --color-primary 미정의 → --accent */
+                className={`flex shrink-0 items-center gap-1.5 px-3 py-3 text-sm border-b-[3px] transition-colors bg-transparent cursor-pointer ${
+                  active
+                    ? "border-[var(--accent)] text-[var(--ink)] font-semibold"
+                    : "border-transparent text-[var(--ink-mute)] hover:text-[var(--ink)] font-medium"
+                }`}
+              >
+                {t.label}
+                <span
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    opacity: 0.7,
+                    fontSize: 12,
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* 본문 — 시안 v2(1)의 단일 카드(.card padding:0) 안에 borderBottom 행으로 묶음 */}
       {loading ? (
         <div
           className="py-12 text-center text-sm"
-          style={{ color: "var(--color-text-muted)" }}
+          style={{ color: "var(--ink-mute)" }}
         >
           불러오는 중...
         </div>
       ) : items.length === 0 ? (
         <EmptyState tab={tab} />
       ) : (
-        <div className="space-y-2">
+        <div
+          className="card"
+          style={{
+            padding: 0,
+            overflow: "hidden",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            background: "var(--bg-card)",
+          }}
+        >
           {tab === "games" &&
-            (items as GameItem[]).map((it) => <GameCard key={it.id} item={it} />)}
+            (items as GameItem[]).map((it, i, arr) => (
+              <GameCard
+                key={it.id}
+                item={it}
+                isLast={i === arr.length - 1}
+              />
+            ))}
           {tab === "tournaments" &&
-            (items as TournamentItem[]).map((it) => (
-              <TournamentCard key={it.id} item={it} />
+            (items as TournamentItem[]).map((it, i, arr) => (
+              <TournamentCard
+                key={it.id}
+                item={it}
+                isLast={i === arr.length - 1}
+              />
             ))}
           {tab === "teams" &&
-            (items as TeamItem[]).map((it) => (
-              <TeamCard key={it.id} item={it} onCancel={cancelTeamJoin} />
+            (items as TeamItem[]).map((it, i, arr) => (
+              <TeamCard
+                key={it.id}
+                item={it}
+                onCancel={cancelTeamJoin}
+                isLast={i === arr.length - 1}
+              />
             ))}
         </div>
       )}
+
+      {/* 시안 v2(1): 하단 빠른 이동 버튼 행 */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginTop: 16,
+          flexWrap: "wrap",
+        }}
+      >
+        <Link href="/games" className="btn" style={{ textDecoration: "none" }}>
+          경기 찾기
+        </Link>
+        <Link
+          href="/tournaments"
+          className="btn"
+          style={{ textDecoration: "none" }}
+        >
+          대회 찾기
+        </Link>
+        <Link href="/teams" className="btn" style={{ textDecoration: "none" }}>
+          팀 찾기
+        </Link>
+      </div>
     </div>
   );
 }
@@ -375,14 +539,15 @@ function EmptyState({ tab }: { tab: Tab }) {
     <div
       className="flex flex-col items-center justify-center gap-3 py-12 text-center"
       style={{
-        border: "1px dashed var(--color-border)",
+        // 토큰 매핑 정정: --color-border→--border, --color-text-muted→--ink-mute
+        border: "1px dashed var(--border)",
         borderRadius: 4,
-        color: "var(--color-text-muted)",
+        color: "var(--ink-mute)",
       }}
     >
       <span
         className="material-symbols-outlined text-4xl"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
         aria-hidden
       >
         {c.icon}
@@ -392,7 +557,8 @@ function EmptyState({ tab }: { tab: Tab }) {
         href={c.href}
         className="inline-flex items-center gap-1 px-4 py-2 text-xs font-bold uppercase tracking-wide"
         style={{
-          backgroundColor: "var(--color-primary)",
+          // 토큰 매핑 정정: --color-primary→--accent (BDR Red)
+          backgroundColor: "var(--accent)",
           color: "#fff",
           borderRadius: 4,
         }}
@@ -410,7 +576,22 @@ function EmptyState({ tab }: { tab: Tab }) {
  * 카드 3종 — 공통 레이아웃 + 도메인별 info
  * ============================================================ */
 
-function GameCard({ item }: { item: GameItem }) {
+// 시안 v2(1) 공용 행 스타일 — borderLeft accent + 좌측 아이콘 + 본문 + 우측 액션
+// tone 매핑: warn → 검토중, success → 확정, error → 거절, muted → 취소·완료
+function rowAccent(tone: "warn" | "success" | "error" | "muted"): string {
+  switch (tone) {
+    case "success":
+      return "var(--ok)";
+    case "error":
+      return "var(--danger)";
+    case "warn":
+      return "var(--warn)";
+    default:
+      return "var(--ink-mute)";
+  }
+}
+
+function GameCard({ item, isLast }: { item: GameItem; isLast: boolean }) {
   const st = GAME_APP_STATUS[item.status] ?? GAME_APP_STATUS[0];
   const g = item.game;
   const when = formatWhen(g?.scheduled_at);
@@ -418,33 +599,94 @@ function GameCard({ item }: { item: GameItem }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 border px-4 py-3 transition-colors hover:opacity-90"
+      // 시안 v2(1): 4열 grid (40px 1fr auto auto) + borderBottom 행 + borderLeft accent
       style={{
-        borderColor: "var(--color-border)",
-        backgroundColor: "var(--color-card)",
-        borderRadius: 4,
+        display: "grid",
+        gridTemplateColumns: "40px 1fr auto",
+        gap: 14,
+        alignItems: "center",
+        padding: "14px 18px",
+        borderBottom: isLast ? 0 : "1px solid var(--border)",
+        borderLeft: `3px solid ${rowAccent(st.tone)}`,
+        cursor: "pointer",
+        textDecoration: "none",
+        color: "inherit",
       }}
     >
-      <div className="min-w-0">
-        <p
-          className="truncate text-sm font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
+      <div style={{ fontSize: 22 }}>
+        {/* 시안: kindIcon 농구공 → 우리는 Material Symbol */}
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 22, color: "var(--ink-mute)" }}
+        >
+          sports_basketball
+        </span>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 4,
+          }}
+        >
+          <StatusBadge tone={st.tone} label={st.label} />
+          {when && (
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--ink-dim)",
+                fontFamily: "var(--ff-mono)",
+              }}
+            >
+              {when}
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 15,
+            marginBottom: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--ink)",
+          }}
         >
           {g?.title ?? "경기"}
-        </p>
-        <p className="mt-0.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
-          {[when, g?.venue_name ?? g?.city].filter(Boolean).join(" · ") || "-"}
-        </p>
-        <p className="mt-1 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-          {formatApplied(item.created_at)}
-        </p>
+        </div>
+        <div
+          style={{
+            fontSize: 13,
+            color: "var(--ink-mute)",
+          }}
+        >
+          {[g?.venue_name ?? g?.city, formatApplied(item.created_at)]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
       </div>
-      <StatusBadge tone={st.tone} label={st.label} />
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-dim)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+        }}
+      />
     </Link>
   );
 }
 
-function TournamentCard({ item }: { item: TournamentItem }) {
+function TournamentCard({
+  item,
+  isLast,
+}: {
+  item: TournamentItem;
+  isLast: boolean;
+}) {
   const st = STRING_STATUS[item.status] ?? { label: item.status, tone: "muted" as const };
   const t = item.tournament;
   const when = formatWhen(t.start_date);
@@ -452,30 +694,80 @@ function TournamentCard({ item }: { item: TournamentItem }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 border px-4 py-3 transition-colors hover:opacity-90"
       style={{
-        borderColor: "var(--color-border)",
-        backgroundColor: "var(--color-card)",
-        borderRadius: 4,
+        display: "grid",
+        gridTemplateColumns: "40px 1fr auto",
+        gap: 14,
+        alignItems: "center",
+        padding: "14px 18px",
+        borderBottom: isLast ? 0 : "1px solid var(--border)",
+        borderLeft: `3px solid ${rowAccent(st.tone)}`,
+        cursor: "pointer",
+        textDecoration: "none",
+        color: "inherit",
       }}
     >
-      <div className="min-w-0">
-        <p
-          className="truncate text-sm font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
+      <div>
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 22, color: "var(--ink-mute)" }}
+        >
+          emoji_events
+        </span>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 4,
+          }}
+        >
+          <StatusBadge tone={st.tone} label={st.label} />
+          {when && (
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--ink-dim)",
+                fontFamily: "var(--ff-mono)",
+              }}
+            >
+              {when}
+            </span>
+          )}
+        </div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 15,
+            marginBottom: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--ink)",
+          }}
         >
           {t.name}
-        </p>
-        <p className="mt-0.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
-          {[when, t.venue_name ?? t.city, `팀: ${item.team.name}`]
+        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+          {[
+            t.venue_name ?? t.city,
+            `팀: ${item.team.name}`,
+            formatApplied(item.created_at),
+          ]
             .filter(Boolean)
             .join(" · ")}
-        </p>
-        <p className="mt-1 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-          {formatApplied(item.created_at)}
-        </p>
+        </div>
       </div>
-      <StatusBadge tone={st.tone} label={st.label} />
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-dim)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+        }}
+      />
     </Link>
   );
 }
@@ -483,9 +775,11 @@ function TournamentCard({ item }: { item: TournamentItem }) {
 function TeamCard({
   item,
   onCancel,
+  isLast,
 }: {
   item: TeamItem;
   onCancel: (teamId: string) => void;
+  isLast: boolean;
 }) {
   const st = STRING_STATUS[item.status] ?? { label: item.status, tone: "muted" as const };
   const isPending = item.status === "pending";
@@ -493,48 +787,92 @@ function TeamCard({
   const href = `/teams/${item.team.uuid ?? item.team.id}`;
   return (
     <div
-      className="flex items-center justify-between gap-3 border px-4 py-3"
       style={{
-        borderColor: "var(--color-border)",
-        backgroundColor: "var(--color-card)",
-        borderRadius: 4,
+        display: "grid",
+        gridTemplateColumns: "40px 1fr auto",
+        gap: 14,
+        alignItems: "center",
+        padding: "14px 18px",
+        borderBottom: isLast ? 0 : "1px solid var(--border)",
+        borderLeft: `3px solid ${rowAccent(st.tone)}`,
       }}
     >
+      <div>
+        <span
+          className="material-symbols-outlined"
+          style={{ fontSize: 22, color: "var(--ink-mute)" }}
+        >
+          groups
+        </span>
+      </div>
       {/* 좌측: 링크 영역 (이름/지역/신청 시각/거부 사유) */}
-      <Link href={href} className="min-w-0 flex-1 transition-colors hover:opacity-90">
-        <p
-          className="truncate text-sm font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
+      <Link
+        href={href}
+        style={{
+          minWidth: 0,
+          textDecoration: "none",
+          color: "inherit",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 4,
+          }}
+        >
+          <StatusBadge tone={st.tone} label={st.label} />
+        </div>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 15,
+            marginBottom: 2,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--ink)",
+          }}
         >
           {item.team.name}
-        </p>
-        <p className="mt-0.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
-          {[location, formatApplied(item.created_at)].filter(Boolean).join(" · ") || "-"}
-        </p>
+        </div>
+        <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+          {[location, formatApplied(item.created_at)]
+            .filter(Boolean)
+            .join(" · ") || "-"}
+        </div>
         {item.status === "rejected" && item.rejection_reason && (
-          <p
-            className="mt-1 text-[11px]"
-            style={{ color: "var(--color-error)" }}
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--danger)",
+              marginTop: 4,
+            }}
           >
             사유: {item.rejection_reason}
-          </p>
+          </div>
         )}
       </Link>
-
-      {/* 우측: 상태 배지 + (pending일 때) 취소 버튼 — M7 4번 */}
-      <div className="flex shrink-0 items-center gap-2">
-        <StatusBadge tone={st.tone} label={st.label} />
+      {/* 우측: pending 시 취소 버튼 — M7 4번 */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-dim)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+        }}
+      >
         {isPending && (
           <button
             type="button"
+            className="btn btn--sm"
             onClick={(e) => {
               e.preventDefault();
               onCancel(item.team.id);
             }}
-            className="text-[11px] font-semibold underline-offset-2 hover:underline"
-            style={{ color: "var(--color-text-muted)" }}
           >
-            취소
+            신청 취소
           </button>
         )}
       </div>

@@ -43,13 +43,38 @@ export default function ProfileBillingPage() {
   );
 
   return (
-    <div className="max-w-[640px] mx-auto space-y-6 py-4 px-4">
-      {/* ============ 허브 단일 헤더 ============ */}
-      <h1
-        className="text-2xl font-bold"
-        style={{ color: "var(--color-text-primary)" }}
+    // 시안 v2(1) Billing.jsx — page max-width 880, 빵부스러기 + eyebrow + h1 박제
+    <div className="page mx-auto" style={{ maxWidth: 880 }}>
+      {/* 시안 빵부스러기 (프로필 › 결제·구독) */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-mute)",
+          marginBottom: 10,
+        }}
       >
-        결제
+        <Link
+          href="/profile"
+          style={{ cursor: "pointer", color: "var(--ink-mute)" }}
+        >
+          프로필
+        </Link>{" "}
+        ›{" "}
+        <span style={{ color: "var(--ink)" }}>결제·구독</span>
+      </div>
+
+      {/* 시안 eyebrow + h1 */}
+      <div className="eyebrow">결제 · BILLING</div>
+      <h1
+        style={{
+          margin: "6px 0 18px",
+          fontSize: 28,
+          fontWeight: 800,
+          letterSpacing: "-0.02em",
+          color: "var(--ink)",
+        }}
+      >
+        결제·구독 관리
       </h1>
 
       {/* ============ 탭 바 (border-b-2 절제형) ============ */}
@@ -57,7 +82,7 @@ export default function ProfileBillingPage() {
         role="tablist"
         aria-label="결제 카테고리"
         className="flex gap-6 border-b"
-        style={{ borderColor: "var(--color-border-subtle)" }}
+        style={{ borderColor: "var(--border)", marginBottom: 16 }}
       >
         <TabButton
           label="구독"
@@ -121,10 +146,10 @@ function TabButton({
       className="relative -mb-px py-3 text-sm font-semibold transition-colors"
       style={{
         color: active
-          ? "var(--color-primary)"
-          : "var(--color-text-secondary)",
+          ? "var(--accent)"
+          : "var(--ink-mute)",
         borderBottom: active
-          ? "2px solid var(--color-primary)"
+          ? "2px solid var(--accent)"
           : "2px solid transparent",
       }}
     >
@@ -167,15 +192,15 @@ function getSubStatusInfo(
   isUsable: boolean
 ): { label: string; color: string } {
   if (status === "active") {
-    return { label: "이용중", color: "var(--color-success, #22C55E)" };
+    return { label: "이용중", color: "var(--ok)" };
   }
   if (status === "cancelled" && isUsable) {
-    return { label: "해지 예정", color: "var(--color-accent)" };
+    return { label: "해지 예정", color: "var(--accent)" };
   }
   if (status === "cancelled") {
-    return { label: "해지됨", color: "var(--color-text-muted)" };
+    return { label: "해지됨", color: "var(--ink-mute)" };
   }
-  return { label: status, color: "var(--color-text-muted)" };
+  return { label: status, color: "var(--ink-mute)" };
 }
 
 function SubscriptionSection() {
@@ -216,7 +241,7 @@ function SubscriptionSection() {
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
           불러오는 중...
         </p>
       </div>
@@ -232,13 +257,13 @@ function SubscriptionSection() {
           <div className="py-12 text-center">
             <span
               className="material-symbols-outlined text-4xl mb-3 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               card_membership
             </span>
             <p
               className="text-sm mb-3"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               구독 중인 요금제가 없습니다
             </p>
@@ -246,8 +271,8 @@ function SubscriptionSection() {
               href="/pricing"
               className="inline-block text-sm font-bold px-4 py-2 rounded"
               style={{
-                backgroundColor: "var(--color-primary)",
-                color: "var(--color-on-primary, #FFFFFF)",
+                backgroundColor: "var(--accent)",
+                color: "#fff",
               }}
             >
               요금제 보기
@@ -261,100 +286,251 @@ function SubscriptionSection() {
             const canCancel = sub.status === "active";
 
             return (
-              <TossCard key={sub.id}>
-                <div className="flex items-start justify-between mb-3">
+              // 시안 v2(1) 박제: 그라디언트 헤더 + 메타 그리드 + 액션 버튼 행 (3섹션 카드)
+              <div
+                key={sub.id}
+                className="card"
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  marginBottom: 18,
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                }}
+              >
+                {/* 시안: 그라디언트 헤더 (cafe-blue → cafe-blue-deep) */}
+                <div
+                  style={{
+                    padding: "20px 24px",
+                    background:
+                      "linear-gradient(135deg, var(--cafe-blue), var(--cafe-blue-deep))",
+                    color: "#fff",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 14,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div>
-                    <h3
-                      className="text-base font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        opacity: 0.8,
+                        fontWeight: 700,
+                        letterSpacing: ".12em",
+                        textTransform: "uppercase",
+                        marginBottom: 6,
+                      }}
+                    >
+                      현재 구독
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--ff-display)",
+                        fontWeight: 900,
+                        fontSize: 30,
+                        letterSpacing: "-0.01em",
+                        marginBottom: 4,
+                      }}
                     >
                       {sub.plan.name}
-                    </h3>
-                    {sub.plan.description && (
-                      <p
-                        className="text-xs mt-0.5"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        {sub.plan.description}
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    className="text-xs font-bold px-2 py-0.5 rounded"
-                    style={{
-                      color: statusInfo.color,
-                      backgroundColor: "var(--color-surface)",
-                    }}
-                  >
-                    {statusInfo.label}
-                  </span>
-                </div>
-
-                <div
-                  className="space-y-2 text-xs sm:text-sm"
-                  style={{ color: "var(--color-text-muted)" }}
-                >
-                  <div className="flex justify-between">
-                    <span>요금</span>
-                    <span
-                      className="font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
+                    </div>
+                    <div style={{ fontSize: 13, opacity: 0.9 }}>
                       {sub.plan.price.toLocaleString("ko-KR")}원 /{" "}
                       {sub.plan.plan_type === "monthly" ? "월" : "회"}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>시작일</span>
-                    <span>
-                      {new Date(sub.started_at).toLocaleDateString("ko-KR")}
-                    </span>
-                  </div>
-                  {sub.expires_at && (
-                    <div className="flex justify-between">
-                      <span>만료일</span>
-                      <span>
-                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        padding: "4px 10px",
+                        background: "rgba(255,255,255,.18)",
+                        borderRadius: 3,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: ".06em",
+                        display: "inline-block",
+                        marginBottom: 6,
+                        color: statusInfo.color,
+                        // 그라디언트 헤더 위에선 가독성을 위해 흰색 글씨 + 색상 dot
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          backgroundColor: statusInfo.color,
+                          marginRight: 6,
+                          verticalAlign: "middle",
+                        }}
+                      />
+                      <span style={{ color: "#fff" }}>
+                        {statusInfo.label.toUpperCase()}
                       </span>
                     </div>
+                    {sub.expires_at && (
+                      <div style={{ fontSize: 12, opacity: 0.85 }}>
+                        {sub.status === "cancelled" && sub.is_usable
+                          ? "만료 · "
+                          : "다음 결제 · "}
+                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 시안: 메타 그리드 (140px 1fr 2열, 14px 폰트) */}
+                <div
+                  style={{
+                    padding: "18px 24px",
+                    display: "grid",
+                    gridTemplateColumns: "140px 1fr",
+                    rowGap: 10,
+                    fontSize: 14,
+                    color: "var(--ink)",
+                  }}
+                >
+                  <div style={{ color: "var(--ink-dim)" }}>요금</div>
+                  <div>
+                    {sub.plan.price.toLocaleString("ko-KR")}원 /{" "}
+                    {sub.plan.plan_type === "monthly" ? "월" : "회"}
+                  </div>
+                  <div style={{ color: "var(--ink-dim)" }}>시작일</div>
+                  <div>
+                    {new Date(sub.started_at).toLocaleDateString("ko-KR")}
+                  </div>
+                  {sub.expires_at && (
+                    <>
+                      <div style={{ color: "var(--ink-dim)" }}>
+                        {sub.status === "cancelled" ? "만료일" : "다음 갱신"}
+                      </div>
+                      <div>
+                        {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+                        {sub.status === "active" && " · 자동 갱신"}
+                      </div>
+                    </>
+                  )}
+                  {sub.plan.description && (
+                    <>
+                      <div style={{ color: "var(--ink-dim)" }}>혜택</div>
+                      <div>{sub.plan.description}</div>
+                    </>
                   )}
                 </div>
 
-                {canCancel && (
-                  <button
-                    className="w-full mt-4 py-2.5 rounded text-sm font-bold"
-                    style={{
-                      color: "var(--color-error, #EF4444)",
-                      backgroundColor: "var(--color-surface)",
-                      border: "1px solid var(--color-border-subtle)",
-                    }}
-                    onClick={() => setCancelTarget(sub)}
-                  >
-                    구독 해지
-                  </button>
-                )}
-
-                {sub.status === "cancelled" && sub.is_usable && sub.expires_at && (
-                  <div
-                    className="mt-4 p-3 rounded text-xs"
-                    style={{
-                      backgroundColor: "var(--color-surface)",
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    <span
-                      className="material-symbols-outlined text-sm align-text-bottom mr-1"
-                      style={{ color: "var(--color-accent)" }}
+                {/* 시안: 하단 액션 버튼 행 (border-top 구분) */}
+                <div
+                  style={{
+                    padding: "14px 24px",
+                    borderTop: "1px solid var(--border)",
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {canCancel && (
+                    <button
+                      className="btn btn--ghost"
+                      style={{
+                        marginLeft: "auto",
+                        color: "var(--danger)",
+                      }}
+                      onClick={() => setCancelTarget(sub)}
                     >
-                      info
-                    </span>
-                    {new Date(sub.expires_at).toLocaleDateString("ko-KR")}까지
-                    계속 이용 가능합니다.
-                  </div>
-                )}
-              </TossCard>
+                      구독 해지
+                    </button>
+                  )}
+                </div>
+
+                {/* 해지 예정 안내 (active 외 상태) */}
+                {sub.status === "cancelled" &&
+                  sub.is_usable &&
+                  sub.expires_at && (
+                    <div
+                      style={{
+                        margin: "0 24px 18px",
+                        padding: "12px 14px",
+                        borderRadius: 4,
+                        backgroundColor: "var(--bg-alt)",
+                        color: "var(--ink-mute)",
+                        fontSize: 12,
+                        borderLeft: "3px solid var(--accent)",
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: 14,
+                          color: "var(--accent)",
+                          verticalAlign: "text-bottom",
+                          marginRight: 4,
+                        }}
+                      >
+                        info
+                      </span>
+                      {new Date(sub.expires_at).toLocaleDateString("ko-KR")}까지
+                      계속 이용 가능합니다.
+                    </div>
+                  )}
+              </div>
             );
           })}
+
+          {/* 시안 v2(1): 업그레이드 프롬프트 카드 (border-left accent) */}
+          <div
+            className="card"
+            style={{
+              padding: "18px 22px",
+              marginBottom: 22,
+              background: "var(--bg-alt)",
+              borderLeft: "3px solid var(--accent)",
+              border: "1px solid var(--border)",
+              borderRadius: 4,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    marginBottom: 2,
+                    color: "var(--ink)",
+                  }}
+                >
+                  팀장이라면?{" "}
+                  <span style={{ color: "var(--accent)" }}>TEAM PRO</span>{" "}
+                  플랜으로
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--ink-mute)",
+                  }}
+                >
+                  로스터 무제한 · 대회 우선 신청 · 통합 통계
+                </div>
+              </div>
+              <Link
+                href="/pricing"
+                className="btn btn--primary"
+                style={{ textDecoration: "none" }}
+              >
+                요금제 비교 →
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 
@@ -367,17 +543,17 @@ function SubscriptionSection() {
         >
           <div
             className="w-[90%] max-w-[360px] rounded-md p-6"
-            style={{ backgroundColor: "var(--color-bg-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-4">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-alt)" }}
               >
                 <span
                   className="material-symbols-outlined text-3xl"
-                  style={{ color: "var(--color-error, #EF4444)" }}
+                  style={{ color: "var(--danger)" }}
                 >
                   cancel
                 </span>
@@ -386,20 +562,20 @@ function SubscriptionSection() {
 
             <h2
               className="text-center text-lg font-bold mb-2"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               구독을 해지하시겠습니까?
             </h2>
             <p
               className="text-center text-sm mb-1"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               <strong>{cancelTarget.plan.name}</strong> 구독이 해지됩니다.
             </p>
             {cancelTarget.expires_at && (
               <p
                 className="text-center text-sm mb-6"
-                style={{ color: "var(--color-text-muted)" }}
+                style={{ color: "var(--ink-mute)" }}
               >
                 {new Date(cancelTarget.expires_at).toLocaleDateString("ko-KR")}
                 까지는 계속 이용할 수 있습니다.
@@ -410,8 +586,8 @@ function SubscriptionSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text-secondary)",
+                  backgroundColor: "var(--bg-alt)",
+                  color: "var(--ink-mute)",
                 }}
                 onClick={() => setCancelTarget(null)}
                 disabled={cancelling}
@@ -421,8 +597,8 @@ function SubscriptionSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-error, #EF4444)",
-                  color: "var(--color-on-primary, #FFFFFF)",
+                  backgroundColor: "var(--danger)",
+                  color: "#fff",
                   opacity: cancelling ? 0.6 : 1,
                 }}
                 onClick={handleCancel}
@@ -474,15 +650,15 @@ interface PaymentsResponse {
 function getStatusInfo(status: string): { label: string; color: string } {
   switch (status) {
     case "paid":
-      return { label: "결제완료", color: "var(--color-success, #22C55E)" };
+      return { label: "결제완료", color: "var(--ok)" };
     case "refunded":
-      return { label: "환불완료", color: "var(--color-text-muted)" };
+      return { label: "환불완료", color: "var(--ink-mute)" };
     case "pending":
-      return { label: "대기중", color: "var(--color-accent)" };
+      return { label: "대기중", color: "var(--accent)" };
     case "failed":
-      return { label: "실패", color: "var(--color-error, #EF4444)" };
+      return { label: "실패", color: "var(--danger)" };
     default:
-      return { label: status, color: "var(--color-text-muted)" };
+      return { label: status, color: "var(--ink-mute)" };
   }
 }
 
@@ -526,7 +702,7 @@ function PaymentsSection() {
   if (isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
           불러오는 중...
         </p>
       </div>
@@ -536,6 +712,11 @@ function PaymentsSection() {
   const payments = data?.payments ?? [];
   const pagination = data?.pagination;
 
+  // 4열 board grid 정의
+  // 이유: 데스크톱에서 결제일/내역/금액/상태 컬럼 너비를 고정해 정렬을 안정시키고,
+  //       상태 컬럼은 라벨+inline 액션(영수증/환불)을 모두 담아야 해서 폭을 크게(220px) 잡음.
+  const BOARD_COLUMNS = "140px 1fr 120px 220px";
+
   return (
     <div className="space-y-6">
       {payments.length === 0 ? (
@@ -543,122 +724,213 @@ function PaymentsSection() {
           <div className="py-12 text-center">
             <span
               className="material-symbols-outlined text-4xl mb-3 block"
-              style={{ color: "var(--color-text-disabled)" }}
+              style={{ color: "var(--ink-dim)" }}
             >
               receipt_long
             </span>
             <p
               className="text-sm"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               결제 내역이 없습니다
             </p>
           </div>
         </TossCard>
       ) : (
-        <div className="space-y-3">
+        <>
+          {/* 시안 v2(1): 결제 내역 섹션 헤더 (h2 + 전체 다운로드 링크) */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--ink)",
+              }}
+            >
+              결제 내역
+            </h2>
+          </div>
+
+          {/* v2 .board 토큰 사용 — 다른 v2 보드(rankings/teams)와 동일 패턴 */}
+          <div className="board">
+          {/* 헤더: 4열 grid */}
+          <div
+            className="board__head"
+            style={{ gridTemplateColumns: BOARD_COLUMNS }}
+          >
+            <div>결제일</div>
+            <div>내역</div>
+            <div>금액</div>
+            <div>상태</div>
+          </div>
+
           {payments.map((p) => {
             const statusInfo = getStatusInfo(p.status);
+            // 결제일은 paid_at 우선, 없으면 created_at — 기존 동작 보존
             const dateStr = p.paid_at
               ? new Date(p.paid_at).toLocaleDateString("ko-KR", {
                   year: "numeric",
-                  month: "long",
-                  day: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
                 })
               : new Date(p.created_at).toLocaleDateString("ko-KR", {
                   year: "numeric",
-                  month: "long",
-                  day: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
                 });
 
             return (
-              <TossCard key={p.id}>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <span
-                      className="inline-block text-xs font-bold px-2 py-0.5 rounded mb-2"
-                      style={{
-                        color: statusInfo.color,
-                        backgroundColor: "var(--color-surface)",
-                      }}
-                    >
-                      {statusInfo.label}
-                    </span>
-                    <p
-                      className="text-sm font-semibold truncate"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {p.description || p.payable_type}
-                    </p>
-                    <p
-                      className="text-xs mt-1"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {dateStr}
-                      {p.payment_method ? ` · ${p.payment_method}` : ""}
-                    </p>
+              <div
+                key={p.id}
+                className="board__row"
+                style={{ gridTemplateColumns: BOARD_COLUMNS }}
+              >
+                {/* 결제일 — mono 폰트로 정렬 가독성 향상 */}
+                <div
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    fontSize: 13,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  {dateStr}
+                </div>
+
+                {/* 내역 — description 우선, 없으면 payable_type 폴백 + 결제수단/환불일 메타 */}
+                <div className="title" style={{ display: "block" }}>
+                  <p
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--ink)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.description || p.payable_type}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      marginTop: 2,
+                      color: "var(--ink-mute)",
+                    }}
+                  >
+                    {p.payment_method || "—"}
                     {p.status === "refunded" && p.refunded_at && (
-                      <p
-                        className="text-xs mt-1"
-                        style={{ color: "var(--color-text-muted)" }}
-                      >
-                        환불일:{" "}
+                      <>
+                        {" · 환불 "}
                         {new Date(p.refunded_at).toLocaleDateString("ko-KR")}
                         {p.refund_amount
-                          ? ` · ${formatAmount(p.refund_amount)}`
+                          ? ` (${formatAmount(p.refund_amount)})`
                           : ""}
-                      </p>
+                      </>
                     )}
-                  </div>
+                  </p>
+                </div>
 
-                  <div className="text-right shrink-0 ml-4">
-                    <p
-                      className="text-base font-bold"
+                {/* 금액 — refunded 상태는 line-through로 음소거 */}
+                <div
+                  style={{
+                    fontFamily: "var(--ff-mono)",
+                    fontWeight: 700,
+                    color:
+                      p.status === "refunded"
+                        ? "var(--ink-mute)"
+                        : "var(--ink)",
+                    textDecoration:
+                      p.status === "refunded" ? "line-through" : "none",
+                  }}
+                >
+                  {formatAmount(p.final_amount)}
+                </div>
+
+                {/* 상태 + inline 액션 (영수증/환불)
+                    이유: 4열 board 안에 별도 액션 컬럼을 추가하면 모바일에서 너무 좁아짐.
+                          상태 라벨 옆에 inline으로 배치해 시각적 그룹화. */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    className="badge"
+                    style={{
+                      color: statusInfo.color,
+                      backgroundColor: "var(--bg-alt)",
+                      border: "1px solid var(--border)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "var(--radius-chip, 4px)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {statusInfo.label}
+                  </span>
+
+                  {/* 영수증: 결제완료 건만 노출 — pricing/success 페이지 재활용 */}
+                  {p.status === "paid" && (
+                    <Link
+                      href={`/pricing/success?orderId=${encodeURIComponent(
+                        p.order_id
+                      )}&amount=${p.final_amount}&method=${encodeURIComponent(
+                        p.payment_method ?? "카드"
+                      )}`}
+                      className="inline-flex items-center gap-1"
                       style={{
-                        color:
-                          p.status === "refunded"
-                            ? "var(--color-text-muted)"
-                            : "var(--color-text-primary)",
-                        textDecoration:
-                          p.status === "refunded" ? "line-through" : "none",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "var(--cafe-blue, var(--accent))",
+                        textDecoration: "none",
                       }}
                     >
-                      {formatAmount(p.final_amount)}
-                    </p>
-                    {p.status === "paid" && (
-                      <Link
-                        href={`/pricing/success?orderId=${encodeURIComponent(p.order_id)}&amount=${p.final_amount}&method=${encodeURIComponent(p.payment_method ?? "카드")}`}
-                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium"
-                        style={{ color: "var(--color-primary)" }}
+                      <span
+                        className="material-symbols-outlined"
+                        style={{ fontSize: 14 }}
                       >
-                        <span
-                          className="material-symbols-outlined"
-                          style={{ fontSize: "14px" }}
-                        >
-                          receipt
-                        </span>
-                        영수증
-                      </Link>
-                    )}
-                    {p.can_refund && (
-                      <button
-                        className="mt-2 text-xs font-bold px-3 py-1 rounded"
-                        style={{
-                          color: "var(--color-error, #EF4444)",
-                          backgroundColor: "var(--color-surface)",
-                          border: "1px solid var(--color-error, #EF4444)",
-                        }}
-                        onClick={() => setRefundTarget(p)}
-                      >
-                        환불
-                      </button>
-                    )}
-                  </div>
+                        receipt
+                      </span>
+                      영수증
+                    </Link>
+                  )}
+
+                  {/* 환불: API에서 can_refund=true 일 때만 — 모달 트리거 */}
+                  {p.can_refund && (
+                    <button
+                      type="button"
+                      onClick={() => setRefundTarget(p)}
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: "2px 10px",
+                        borderRadius: "var(--radius-chip, 4px)",
+                        color: "var(--danger)",
+                        backgroundColor: "transparent",
+                        border: "1px solid var(--danger)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      환불
+                    </button>
+                  )}
                 </div>
-              </TossCard>
+              </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
 
       {/* 페이지네이션 */}
@@ -668,13 +940,13 @@ function PaymentsSection() {
             disabled={page <= 1}
             onClick={() => setPage(page - 1)}
             className="text-sm font-bold px-3 py-1 rounded disabled:opacity-30"
-            style={{ color: "var(--color-primary)" }}
+            style={{ color: "var(--accent)" }}
           >
             이전
           </button>
           <span
             className="text-sm"
-            style={{ color: "var(--color-text-muted)" }}
+            style={{ color: "var(--ink-mute)" }}
           >
             {page} / {pagination.total_pages}
           </span>
@@ -682,7 +954,7 @@ function PaymentsSection() {
             disabled={page >= pagination.total_pages}
             onClick={() => setPage(page + 1)}
             className="text-sm font-bold px-3 py-1 rounded disabled:opacity-30"
-            style={{ color: "var(--color-primary)" }}
+            style={{ color: "var(--accent)" }}
           >
             다음
           </button>
@@ -698,17 +970,17 @@ function PaymentsSection() {
         >
           <div
             className="w-[90%] max-w-[360px] rounded-md p-6"
-            style={{ backgroundColor: "var(--color-bg-elevated)" }}
+            style={{ backgroundColor: "var(--bg-elev)" }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center mb-4">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-full"
-                style={{ backgroundColor: "var(--color-surface)" }}
+                style={{ backgroundColor: "var(--bg-alt)" }}
               >
                 <span
                   className="material-symbols-outlined text-3xl"
-                  style={{ color: "var(--color-error, #EF4444)" }}
+                  style={{ color: "var(--danger)" }}
                 >
                   currency_exchange
                 </span>
@@ -717,13 +989,13 @@ function PaymentsSection() {
 
             <h2
               className="text-center text-lg font-bold mb-2"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               환불하시겠습니까?
             </h2>
             <p
               className="text-center text-sm mb-6"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               {formatAmount(refundTarget.final_amount)}이 환불됩니다.
               <br />
@@ -734,8 +1006,8 @@ function PaymentsSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text-secondary)",
+                  backgroundColor: "var(--bg-alt)",
+                  color: "var(--ink-mute)",
                 }}
                 onClick={() => setRefundTarget(null)}
                 disabled={refunding}
@@ -745,8 +1017,8 @@ function PaymentsSection() {
               <button
                 className="flex-1 py-3 rounded text-sm font-bold"
                 style={{
-                  backgroundColor: "var(--color-error, #EF4444)",
-                  color: "var(--color-on-primary, #FFFFFF)",
+                  backgroundColor: "var(--danger)",
+                  color: "#fff",
                   opacity: refunding ? 0.6 : 1,
                 }}
                 onClick={handleRefund}

@@ -8,13 +8,19 @@ import { prisma } from "@/lib/db/prisma";
  * - 서버 컴포넌트로 Prisma 직접 쿼리
  * - 대관 정보, 시설, 위치, 관련 경기 표시
  * - court_infos.id 기반 (slug 필드 없음)
+ *
+ * v2 톤 박제 (CourtDetail.jsx 참조):
+ * - .page page--wide 컨테이너
+ * - breadcrumb (홈 › 코트 › 체육관명)
+ * - 좌측 메인(card 헤더 placeholder + 시설 + 일정) + 우측 사이드바(map + 시설 정보)
+ * - var(--ink-*), var(--bg-*), var(--border), var(--accent), var(--ff-mono) 토큰 사용
  */
 
 export const revalidate = 300; // 5분 ISR
 
 type PageParams = { slug: string };
 
-// SEO: 동적 메타데이터 생성
+// SEO: 동적 메타데이터 생성 (보존 — 변경 0)
 export async function generateMetadata({ params }: { params: Promise<PageParams> }): Promise<Metadata> {
   const { slug } = await params;
   let courtId: bigint;
@@ -45,14 +51,14 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
   let courtId: bigint;
   try { courtId = BigInt(slug); } catch { notFound(); return null; }
 
-  // 코트 상세 조회
+  // 코트 상세 조회 (보존)
   const court = await prisma.court_infos.findUnique({
     where: { id: courtId },
   }).catch(() => null);
 
   if (!court || court.status !== "active") notFound();
 
-  // 관련 다가오는 경기 조회
+  // 관련 다가오는 경기 조회 (보존)
   const upcomingGames = await prisma.games.findMany({
     where: {
       court_id: court.id,
@@ -79,330 +85,290 @@ export default async function VenueDetailPage({ params }: { params: Promise<Page
   // 카카오맵 링크
   const kakaoMapUrl = `https://map.kakao.com/link/map/${encodeURIComponent(court.name)},${lat},${lng}`;
 
-  // 경기 유형 레이블
-  const gameTypeLabel = (type: number) => {
+  // 경기 유형 레이블 — v2 badge용 짧은 라벨
+  const gameTypeBadge = (type: number) => {
     switch (type) {
-      case 0: return "픽업게임";
+      case 0: return "픽업";
       case 1: return "팀매치";
-      case 2: return "대회경기";
+      case 2: return "대회";
       default: return "경기";
     }
   };
 
+  // 날짜 포맷 — v2 ff-mono 톤 (YYYY.MM.DD HH:mm)
+  const fmtDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${y}.${m}.${day} ${hh}:${mm}`;
+  };
+
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* 뒤로가기 */}
-      <Link
-        href="/courts"
-        className="inline-flex items-center gap-1 text-sm mb-4 transition-colors"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        <span className="material-symbols-outlined text-base">arrow_back</span>
-        농구장 목록
-      </Link>
-
-      {/* 히어로 섹션 */}
-      <div
-        className="rounded-md overflow-hidden mb-6"
-        style={{
-          background: isIndoor
-            ? "linear-gradient(135deg, var(--color-navy, #1B3C87), var(--color-info))"
-            : "linear-gradient(135deg, var(--color-primary), #FF6B35)",
-        }}
-      >
-        <div className="p-6 lg:p-8">
-          {/* 유형 뱃지 */}
-          <span
-            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium mb-3"
-            style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }}
-          >
-            <span className="material-symbols-outlined text-sm">
-              {isIndoor ? "stadium" : "sports_basketball"}
-            </span>
-            {typeLabel} 농구장
-          </span>
-
-          {/* 체육관 이름 */}
-          <h1 className="text-2xl lg:text-3xl font-bold text-white mb-1">
-            {court.name}
-          </h1>
-          {court.nickname && (
-            <p className="text-sm text-white/70 mb-2">{court.nickname}</p>
-          )}
-
-          {/* 주소 */}
-          <div className="flex items-center gap-1 text-sm text-white/80 mt-2">
-            <span className="material-symbols-outlined text-base">location_on</span>
-            {court.address}
-          </div>
-
-          {/* 평점 + 리뷰 */}
-          {court.average_rating && Number(court.average_rating) > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="material-symbols-outlined text-sm text-[var(--color-warning)]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                star
-              </span>
-              <span className="text-sm text-white font-medium">
-                {Number(court.average_rating).toFixed(1)}
-              </span>
-              <span className="text-xs text-white/60">
-                ({court.reviews_count}개 리뷰)
-              </span>
-            </div>
-          )}
-        </div>
+    <div className="page page--wide">
+      {/* breadcrumb (v2 톤: 홈 › 코트 › 체육관명) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-mute)", marginBottom: 14, flexWrap: "wrap" }}>
+        <Link href="/" style={{ cursor: "pointer" }}>홈</Link>
+        <span>›</span>
+        <Link href="/courts" style={{ cursor: "pointer" }}>코트</Link>
+        <span>›</span>
+        <span style={{ color: "var(--ink)" }}>{court.name}</span>
       </div>
 
-      {/* 2열 레이아웃 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 좌측: 메인 정보 */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* 대관 정보 (가장 중요) */}
-          {court.rental_available && (
-            <section
-              className="rounded-lg border p-5"
-              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: "var(--color-primary)" }} />
-                <h2 className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  대관 정보
-                </h2>
-                <span
-                  className="ml-auto px-2 py-0.5 rounded text-xs font-medium"
-                  style={{ backgroundColor: "rgba(34,197,94,0.1)", color: "var(--color-success, #22C55E)" }}
-                >
-                  대관 가능
-                </span>
+      {/* 메인 그리드: 좌측 본문 + 우측 사이드바 */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: 24, alignItems: "flex-start" }}>
+        {/* 좌측 메인 */}
+        <div>
+          {/* 헤더 카드 — 사진 placeholder + 영역/이름/주소/소개 */}
+          <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 20 }}>
+            {/* 사진 placeholder (v2 톤: 사선 줄무늬) */}
+            <div style={{
+              height: 220,
+              background: "repeating-linear-gradient(45deg, var(--bg-alt) 0 14px, var(--bg-elev) 14px 28px)",
+              position: "relative",
+              borderBottom: "1px solid var(--border)",
+            }}>
+              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontFamily: "var(--ff-mono)", fontSize: 12, color: "var(--ink-dim)" }}>
+                COURT PHOTO · placeholder
               </div>
+              {/* 좌측 상단 뱃지: 유형 + 대관/평점 */}
+              <div style={{ position: "absolute", left: 16, top: 16, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <span className="badge badge--soft">{typeLabel}</span>
+                {court.rental_available && <span className="badge badge--soft">대관 가능</span>}
+                {court.is_free && <span className="badge badge--soft">무료</span>}
+                {court.average_rating && Number(court.average_rating) > 0 && (
+                  <span className="badge badge--soft">★ {Number(court.average_rating).toFixed(1)}</span>
+                )}
+              </div>
+            </div>
 
-              <div className="space-y-3">
-                {court.fee && Number(court.fee) > 0 && (
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-lg" style={{ color: "var(--color-text-muted)" }}>payments</span>
-                    <div>
-                      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>대관 비용</p>
-                      <p className="text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-                        {Number(court.fee).toLocaleString()}원
-                      </p>
+            <div style={{ padding: "22px 24px" }}>
+              {/* 영역 (city 있으면 표시) */}
+              {court.city && (
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", letterSpacing: ".08em", textTransform: "uppercase", fontWeight: 700, marginBottom: 6 }}>
+                  {court.city}
+                </div>
+              )}
+              {/* 체육관 이름 */}
+              <h1 style={{ margin: "0 0 8px", fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em" }}>
+                {court.name}
+              </h1>
+              {court.nickname && (
+                <div style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 6 }}>{court.nickname}</div>
+              )}
+              {/* 주소 */}
+              <div style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 14 }}>
+                {court.address}
+              </div>
+              {/* 소개 */}
+              {court.description && (
+                <p style={{ margin: 0, color: "var(--ink-soft)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                  {court.description}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* 대관 CTA (rental_available 시) */}
+          {court.rental_available && court.rental_url && (
+            <div className="card" style={{ padding: "18px 22px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 4 }}>
+                  대관 신청
+                </div>
+                <div style={{ fontSize: 14, color: "var(--ink)" }}>
+                  {court.fee && Number(court.fee) > 0
+                    ? <>대관 비용 <span style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>{Number(court.fee).toLocaleString()}원</span></>
+                    : "외부 시스템에서 대관 신청"}
+                </div>
+              </div>
+              <a
+                href={court.rental_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn--primary"
+              >
+                대관 신청하기
+              </a>
+            </div>
+          )}
+
+          {/* 추가 시설 태그 (있을 때만) */}
+          {facilities.length > 0 && (
+            <div className="card" style={{ padding: "18px 22px", marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
+                추가 시설
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {facilities.map((f, i) => (
+                  <span key={i} className="badge badge--soft">{String(f)}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 이 코트의 일정 — v2 톤: card 안에 row 리스트 */}
+          {upcomingGames.length > 0 && (
+            <div className="card" style={{ padding: 0 }}>
+              <div style={{ padding: "16px 22px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>이 코트의 일정</h2>
+                <Link href="/games" style={{ fontSize: 12 }}>더보기 ›</Link>
+              </div>
+              {upcomingGames.map((g, i) => (
+                <Link
+                  key={g.id.toString()}
+                  href={`/games/${g.game_id}`}
+                  style={{
+                    padding: "14px 22px",
+                    borderBottom: i < upcomingGames.length - 1 ? "1px solid var(--border)" : 0,
+                    display: "grid",
+                    gridTemplateColumns: "72px 1fr auto",
+                    gap: 14,
+                    alignItems: "center",
+                    color: "var(--ink)",
+                  }}
+                >
+                  <span className="badge badge--soft">{gameTypeBadge(g.game_type)}</span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{g.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--ff-mono)", marginTop: 2 }}>
+                      {fmtDate(new Date(g.scheduled_at))}
                     </div>
                   </div>
-                )}
-
-                {court.rental_url && (
-                  <a
-                    href={court.rental_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-colors active:scale-95 w-full justify-center"
-                    style={{ backgroundColor: "var(--color-primary)", color: "#fff" }}
-                  >
-                    <span className="material-symbols-outlined text-lg">open_in_new</span>
-                    대관 신청하기
-                  </a>
-                )}
-              </div>
-            </section>
-          )}
-
-          {/* 설명 */}
-          {court.description && (
-            <section
-              className="rounded-lg border p-5"
-              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-            >
-              <h2 className="text-sm font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>소개</h2>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--color-text-secondary)" }}>
-                {court.description}
-              </p>
-            </section>
-          )}
-
-          {/* 시설 정보 */}
-          <section
-            className="rounded-lg border p-5"
-            style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: "var(--color-info)" }} />
-              <h2 className="text-base font-bold" style={{ color: "var(--color-text-primary)" }}>시설 정보</h2>
+                  <span style={{ fontFamily: "var(--ff-mono)", color: "var(--ink-dim)", fontSize: 13 }}>›</span>
+                </Link>
+              ))}
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {/* 골대 수 */}
-              {court.hoops_count && (
-                <InfoChip icon="sports_basketball" label="골대" value={`${court.hoops_count}개`} />
-              )}
-              {/* 코트 크기 */}
-              {court.court_size && (
-                <InfoChip icon="straighten" label="코트" value={court.court_size} />
-              )}
-              {/* 바닥재 */}
-              {court.surface_type && (
-                <InfoChip icon="texture" label="바닥" value={court.surface_type} />
-              )}
-              {/* 조명 */}
-              <InfoChip
-                icon="light"
-                label="조명"
-                value={court.has_lighting ? "있음" : "없음"}
-              />
-              {/* 주차장 */}
-              <InfoChip
-                icon="local_parking"
-                label="주차"
-                value={court.has_parking ? "가능" : "불가"}
-              />
-              {/* 화장실 */}
-              <InfoChip
-                icon="wc"
-                label="화장실"
-                value={court.has_restroom ? "있음" : "없음"}
-              />
-              {/* 무료/유료 */}
-              <InfoChip
-                icon="monetization_on"
-                label="이용료"
-                value={court.is_free ? "무료" : "유료"}
-              />
-            </div>
-
-            {/* 추가 시설 */}
-            {facilities.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {facilities.map((f, i) => (
-                  <span
-                    key={i}
-                    className="px-2 py-1 rounded text-xs"
-                    style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text-secondary)" }}
-                  >
-                    {String(f)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* 다가오는 경기 */}
-          {upcomingGames.length > 0 && (
-            <section
-              className="rounded-lg border p-5"
-              style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-            >
-              <h2 className="text-sm font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>
-                다가오는 경기
-              </h2>
-              <div className="space-y-2">
-                {upcomingGames.map((g) => (
-                  <Link
-                    key={g.id.toString()}
-                    href={`/games/${g.game_id}`}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg transition-colors hover:opacity-80"
-                    style={{ backgroundColor: "var(--color-surface)" }}
-                  >
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
-                        {g.title}
-                      </p>
-                      <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                        {gameTypeLabel(g.game_type)} · {new Date(g.scheduled_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric", weekday: "short" })}
-                      </p>
-                    </div>
-                    <span className="material-symbols-outlined text-sm" style={{ color: "var(--color-text-muted)" }}>
-                      chevron_right
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
           )}
         </div>
 
-        {/* 우측 사이드바 */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* 위치 */}
-          <div
-            className="rounded-lg border p-4"
-            style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-          >
-            <h3 className="text-sm font-bold mb-3" style={{ color: "var(--color-text-primary)" }}>위치</h3>
-            <p className="text-xs mb-2" style={{ color: "var(--color-text-secondary)" }}>
-              {court.address}
-            </p>
-            {court.nearest_station && (
-              <p className="text-xs mb-3" style={{ color: "var(--color-text-muted)" }}>
-                <span className="material-symbols-outlined text-sm align-middle mr-1">train</span>
-                {court.nearest_station}
-              </p>
-            )}
-            <a
-              href={kakaoMapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1 px-3 py-2 rounded text-xs font-medium transition-colors w-full"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                color: "var(--color-text-secondary)",
-              }}
-            >
-              <span className="material-symbols-outlined text-sm">map</span>
-              카카오맵에서 보기
-            </a>
+        {/* 우측 사이드바 (sticky) */}
+        <aside style={{ position: "sticky", top: 120 }}>
+          {/* 지도 placeholder */}
+          <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 14 }}>
+            <div style={{
+              height: 180,
+              background: "repeating-linear-gradient(45deg, var(--bg-alt) 0 10px, var(--bg-elev) 10px 20px)",
+              position: "relative",
+            }}>
+              {/* 핀 (v2 톤) */}
+              <div style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                width: 18,
+                height: 18,
+                background: "var(--accent)",
+                border: "3px solid #fff",
+                borderRadius: "50% 50% 50% 0",
+                transform: "translate(-50%,-100%) rotate(-45deg)",
+                boxShadow: "0 2px 8px rgba(0,0,0,.3)",
+              }} />
+              <div style={{
+                position: "absolute",
+                bottom: 8,
+                left: 8,
+                fontFamily: "var(--ff-mono)",
+                fontSize: 10,
+                color: "var(--ink-dim)",
+                background: "var(--bg-elev)",
+                padding: "3px 7px",
+                borderRadius: 3,
+              }}>
+                MAP · placeholder
+              </div>
+            </div>
+            <div style={{ padding: "14px 18px" }}>
+              <a
+                href={kakaoMapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn--sm"
+                style={{ width: "100%", display: "inline-flex", justifyContent: "center" }}
+              >
+                지도에서 열기
+              </a>
+            </div>
           </div>
 
-          {/* 체크인 */}
-          <div
-            className="rounded-lg border p-4"
-            style={{ backgroundColor: "var(--color-card)", borderColor: "var(--color-border)" }}
-          >
-            <h3 className="text-sm font-bold mb-2" style={{ color: "var(--color-text-primary)" }}>활동</h3>
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  {court.checkins_count}
-                </p>
-                <p className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>체크인</p>
+          {/* 시설 정보 — 라벨/값 그리드 (v2 톤) */}
+          <div className="card" style={{ padding: "18px 20px", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
+              시설 정보
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", rowGap: 9, fontSize: 13 }}>
+              <div style={{ color: "var(--ink-dim)" }}>유형</div>
+              <div>
+                {typeLabel}
+                {court.hoops_count ? ` · 골대 ${court.hoops_count}개` : ""}
               </div>
-              <div className="text-center">
-                <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
-                  {court.reviews_count}
-                </p>
-                <p className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>리뷰</p>
+
+              <div style={{ color: "var(--ink-dim)" }}>이용료</div>
+              <div>
+                {court.is_free
+                  ? "무료"
+                  : (court.fee && Number(court.fee) > 0 ? `${Number(court.fee).toLocaleString()}원` : "유료")}
+              </div>
+
+              {court.court_size && (
+                <>
+                  <div style={{ color: "var(--ink-dim)" }}>코트</div>
+                  <div>{court.court_size}</div>
+                </>
+              )}
+
+              {court.surface_type && (
+                <>
+                  <div style={{ color: "var(--ink-dim)" }}>바닥</div>
+                  <div>{court.surface_type}</div>
+                </>
+              )}
+
+              <div style={{ color: "var(--ink-dim)" }}>조명</div>
+              <div>{court.has_lighting ? "있음" : "없음"}</div>
+
+              <div style={{ color: "var(--ink-dim)" }}>주차</div>
+              <div>{court.has_parking ? "가능" : "불가"}</div>
+
+              <div style={{ color: "var(--ink-dim)" }}>화장실</div>
+              <div>{court.has_restroom ? "있음" : "없음"}</div>
+
+              {court.nearest_station && (
+                <>
+                  <div style={{ color: "var(--ink-dim)" }}>최근역</div>
+                  <div>{court.nearest_station}</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* 활동 통계 (체크인/리뷰) */}
+          <div className="card" style={{ padding: "18px 20px", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--ink-dim)", textTransform: "uppercase", marginBottom: 12 }}>
+              활동
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div>
+                <div style={{ fontFamily: "var(--ff-mono)", fontSize: 20, fontWeight: 800 }}>{court.checkins_count}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>체크인</div>
+              </div>
+              <div>
+                <div style={{ fontFamily: "var(--ff-mono)", fontSize: 20, fontWeight: 800 }}>{court.reviews_count}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>리뷰</div>
               </div>
             </div>
           </div>
 
-          {/* 코트 상세 페이지 링크 */}
+          {/* 코트 상세 페이지 링크 (리뷰/제보/체크인) */}
           <Link
             href={`/courts/${court.id}`}
-            className="flex items-center justify-center gap-1 px-4 py-3 rounded-lg text-sm font-medium transition-colors w-full"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              color: "var(--color-text-secondary)",
-            }}
+            className="btn btn--xl"
+            style={{ width: "100%", display: "inline-flex", justifyContent: "center" }}
           >
-            <span className="material-symbols-outlined text-lg">info</span>
-            코트 상세 보기 (리뷰/제보/체크인)
+            코트 상세 보기
           </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 시설 정보 칩 컴포넌트
-function InfoChip({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div
-      className="flex items-center gap-2 px-3 py-2 rounded-lg"
-      style={{ backgroundColor: "var(--color-surface)" }}
-    >
-      <span className="material-symbols-outlined text-sm" style={{ color: "var(--color-text-muted)" }}>
-        {icon}
-      </span>
-      <div>
-        <p className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>{label}</p>
-        <p className="text-xs font-medium" style={{ color: "var(--color-text-primary)" }}>{value}</p>
+        </aside>
       </div>
     </div>
   );

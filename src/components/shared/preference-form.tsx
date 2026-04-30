@@ -865,11 +865,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * 저장 버튼 영역 — TossButton (풀와이드 CTA)
        * 메시지 표시 + primary CTA + 온보딩 스킵 버튼
        * ======================================== */}
-      <div className="sticky bottom-4 space-y-3">
-        {/* 성공/실패 메시지 — 토스 스타일 라운드 카드 */}
+      <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-[var(--color-border-subtle)] bg-[var(--color-background)] px-4 pb-6 pt-4">
+        {/* 성공/실패 메시지 */}
         {message && (
           <div
-            className={`px-4 py-3 rounded-md text-sm font-medium ${
+            className={`rounded-md px-4 py-3 text-sm font-medium ${
               message.type === "success"
                 ? "bg-[var(--color-surface)] text-[var(--color-primary)]"
                 : "bg-[var(--color-surface)] text-[var(--color-error,#E31B23)]"
@@ -880,7 +880,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           </div>
         )}
 
-        {/* 메인 CTA — TossButton primary (풀와이드) */}
         <TossButton
           variant="primary"
           fullWidth
@@ -890,7 +889,6 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {saving ? "저장 중..." : "설정 저장"}
         </TossButton>
 
-        {/* 온보딩 모드에서만 스킵 버튼 — TossButton secondary */}
         {mode === "onboarding" && onSkip && (
           <TossButton
             variant="secondary"

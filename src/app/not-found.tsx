@@ -1,130 +1,114 @@
-"use client";
-
 import Link from "next/link";
+import type { Metadata } from "next";
 
-// 글로벌 404 페이지: "이전 페이지로" 버튼에 history.back()이 필요하므로 클라이언트 컴포넌트
+// SEO: 404 페이지 메타데이터
+export const metadata: Metadata = {
+  title: "페이지를 찾을 수 없어요 | MyBDR",
+};
+
+/* ============================================================
+ * 404 NotFound — BDR v2 (1) screens/NotFound.jsx 1:1 박제 (Phase 9 P1-1a)
+ *
+ * 이유(왜):
+ *   기존 Phase 5의 More.jsx L3-20 "에어볼!" 카피 → Phase 9 공식 시안
+ *   (screens/NotFound.jsx 24줄)으로 재교체. 시안의 maxWidth:480, eyebrow,
+ *   H1 카피("요청한 페이지를 찾을 수 없어요"), btn--ghost 도움말 패턴을
+ *   1:1로 박제.
+ *
+ * 디자인 토큰:
+ *   - color: var(--accent) 거대 404, var(--ink-mute) 본문
+ *   - font: var(--ff-display) 거대 숫자
+ *   - layout: .page + minHeight 60vh + grid placeItems center
+ *
+ * 버튼 라우팅 (시안 setRoute → Next.js Link):
+ *   - 홈으로 (primary)  → /
+ *   - 검색              → /search
+ *   - 도움말 (ghost)    → /help
+ *
+ * 서버 컴포넌트: 시안에 useState/onClick 인터랙션 없음 → "use client" 불필요.
+ * ============================================================ */
 export default function NotFound() {
   return (
     <div
+      className="page"
       style={{
-        // 화면 전체를 차지하는 중앙 정렬 레이아웃
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-        backgroundColor: "var(--color-bg)",
+        // 시안 그대로: 60vh 중앙 정렬
+        minHeight: "60vh",
+        display: "grid",
+        placeItems: "center",
+        textAlign: "center",
       }}
     >
-      {/* 토스 스타일 카드: 둥근 모서리 + 그림자 */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "400px",
-          padding: "48px 32px",
-          borderRadius: "20px",
-          backgroundColor: "var(--color-card)",
-          border: "1px solid var(--color-border)",
-          boxShadow: "var(--shadow-card)",
-          textAlign: "center",
-        }}
-      >
-        {/* 큰 아이콘: 페이지를 찾을 수 없음 */}
-        <span
-          className="material-symbols-outlined"
+      {/* 시안 maxWidth:480 컨테이너 */}
+      <div style={{ maxWidth: 480 }}>
+        {/* 거대 404 — 시안 fontSize:120, fontWeight:900, accent 컬러 */}
+        <div
           style={{
-            fontSize: "72px",
-            color: "var(--color-text-muted)",
-            marginBottom: "16px",
-            display: "block",
-          }}
-        >
-          explore_off
-        </span>
-
-        {/* 404 숫자 */}
-        <p
-          style={{
-            fontSize: "48px",
-            fontWeight: 800,
-            fontFamily: "var(--font-heading), sans-serif",
-            color: "var(--color-text-muted)",
+            fontFamily: "var(--ff-display)",
+            fontSize: 120,
+            fontWeight: 900,
+            letterSpacing: "-0.04em",
             lineHeight: 1,
-            marginBottom: "12px",
+            color: "var(--accent)",
           }}
         >
           404
-        </p>
+        </div>
 
-        {/* 제목 */}
+        {/* EYEBROW — v2 공통 .eyebrow 클래스, 중앙 정렬 */}
+        <div
+          className="eyebrow"
+          style={{ justifyContent: "center", marginTop: 8 }}
+        >
+          PAGE NOT FOUND
+        </div>
+
+        {/* 메인 카피 — 시안 24px/700, margin 14/0/10 */}
         <h1
           style={{
-            fontSize: "20px",
+            margin: "14px 0 10px",
+            fontSize: 24,
             fontWeight: 700,
-            color: "var(--color-text-primary)",
-            marginBottom: "8px",
           }}
         >
-          페이지를 찾을 수 없어요
+          요청한 페이지를 찾을 수 없어요
         </h1>
 
-        {/* 설명 */}
+        {/* 보조 설명 — 시안 lineHeight:1.7, marginBottom:24 */}
         <p
           style={{
-            fontSize: "14px",
-            color: "var(--color-text-secondary)",
-            lineHeight: "1.6",
-            marginBottom: "32px",
+            color: "var(--ink-mute)",
+            fontSize: 14,
+            lineHeight: 1.7,
+            marginBottom: 24,
           }}
         >
-          주소가 잘못되었거나, 삭제된 페이지입니다.
+          주소가 변경되었거나 삭제된 페이지일 수 있습니다.
+          <br />
+          홈으로 돌아가거나 검색을 통해 다시 찾아보세요.
         </p>
 
-        {/* CTA 버튼 영역 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {/* Primary CTA: 홈으로 돌아가기 */}
-          <Link
-            href="/"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              height: "48px",
-              backgroundColor: "var(--color-primary)",
-              color: "var(--color-text-on-primary)",
-              borderRadius: "12px",
-              fontSize: "15px",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>home</span>
-            홈으로 돌아가기
+        {/* CTA 3버튼 — Primary 홈 / Default 검색 / Ghost 도움말 */}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Primary CTA: 홈 */}
+          <Link href="/" className="btn btn--primary">
+            홈으로
           </Link>
-
-          {/* Outline CTA: 이전 페이지로 (history.back) */}
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              height: "48px",
-              backgroundColor: "transparent",
-              color: "var(--color-text-secondary)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "12px",
-              fontSize: "15px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>arrow_back</span>
-            이전 페이지로
-          </button>
+          {/* 검색 → Phase 2 글로벌 검색 페이지 */}
+          <Link href="/search" className="btn">
+            검색
+          </Link>
+          {/* 도움말 → 시안 /help (ghost 스타일) */}
+          <Link href="/help" className="btn btn--ghost">
+            도움말
+          </Link>
         </div>
       </div>
     </div>

@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     // 쿼리 파라미터 추출
     const q = searchParams.get("q") || undefined;
     const city = searchParams.get("city") || undefined;
+    // A-1 (2026-04-29): v2 정렬 칩 — newest(최신), members(멤버 많은 순), wins(승순=기본)
+    // 이유: v2 헤더 chip-bar 에 정렬 옵션 노출. 화이트리스트로만 받아 SQL 인젝션/잘못된 키 차단.
+    const sort = searchParams.get("sort") || undefined;
 
     // where 조건 구성 (기존 page.tsx에서 이동)
     const where: Record<string, unknown> = {
@@ -47,11 +50,26 @@ export async function GET(request: NextRequest) {
       where.city = { contains: city, mode: "insensitive" };
     }
 
+    // A-1: 정렬 옵션 결정 (화이트리스트 — wins/newest/members 만 허용)
+    // - wins (기본): 승수 desc → 최신 desc (기존)
+    // - newest: 최신 가입(생성) desc
+    // - members: _count.teamMembers desc (Prisma 가 _relation 정렬 지원)
+    type TeamOrderBy = NonNullable<Parameters<typeof prisma.team.findMany>[0]>["orderBy"];
+    let orderBy: TeamOrderBy;
+    if (sort === "newest") {
+      orderBy = [{ createdAt: "desc" }];
+    } else if (sort === "members") {
+      // Prisma: 관계 카운트 정렬은 _count.<relation> 형태로 표기
+      orderBy = [{ teamMembers: { _count: "desc" } }, { createdAt: "desc" }];
+    } else {
+      orderBy = [{ wins: "desc" }, { createdAt: "desc" }];
+    }
+
     // 팀 목록 + 도시 목록 병렬 조회 (네트워크 요청 1회로 최적화)
     const [teams, citiesRaw] = await Promise.all([
       prisma.team.findMany({
         where,
-        orderBy: [{ wins: "desc" }, { createdAt: "desc" }],
+        orderBy,
         take: 60,
         select: {
           id: true,
@@ -69,6 +87,8 @@ export async function GET(request: NextRequest) {
           losses: true,
           accepting_members: true,
           tournaments_count: true,
+          // A-1: 카드 v2 의 "창단 YYYY" 표시에 필요 — 응답 직렬화에 createdAt 포함
+          createdAt: true,
           _count: { select: { teamMembers: true } },
         },
       }).catch(() => []),
@@ -102,6 +122,8 @@ export async function GET(request: NextRequest) {
       acceptingMembers: t.accepting_members,
       tournamentsCount: t.tournaments_count,
       memberCount: t._count.teamMembers,            // _count를 평탄화
+      // A-1: 카드 v2 의 "창단 YYYY" 표시 — Date → ISO string 직렬화
+      createdAt: t.createdAt ? t.createdAt.toISOString() : null,
     }));
 
     // 1분 캐시: 팀 목록은 비교적 정적이므로 CDN/브라우저 캐시 활용

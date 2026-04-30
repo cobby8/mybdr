@@ -98,10 +98,12 @@ export function FloatingFilterPanel({
         )}
       </button>
 
-      {/* 백드롭: 반투명 검정, 클릭 시 닫기 */}
+      {/* 백드롭: 반투명 검정, 클릭 시 닫기
+          W-2 fix (2026-04-29): backdrop 과 패널이 모두 z-50 이라 slide-menu(z-50) 와
+          충돌 시 쌓임 순서가 모호 → backdrop 만 z-40 으로 낮춰 패널이 항상 위에 옴. */}
       <div
         aria-hidden="true"
-        className="fixed inset-0 z-50 transition-opacity duration-300"
+        className="fixed inset-0 z-40 transition-opacity duration-300"
         style={{
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? "auto" : "none",

@@ -99,11 +99,13 @@ export default function InvitePage() {
         {/* 배경 장식 원 */}
         <div
           className="absolute -top-20 -right-20 w-80 h-80 rounded-full opacity-10"
-          style={{ backgroundColor: "#fff" }}
+          // 배경 장식 — 토큰 사용
+          style={{ backgroundColor: "var(--bg-elev)" }}
         />
         <div
           className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full opacity-10"
-          style={{ backgroundColor: "#fff" }}
+          // 배경 장식 — 토큰 사용
+          style={{ backgroundColor: "var(--bg-elev)" }}
         />
       </section>
 

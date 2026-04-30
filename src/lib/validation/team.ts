@@ -45,22 +45,50 @@ const nameSchema = z
   .min(2, "팀명은 2자 이상이어야 합니다")
   .max(30, "팀명은 30자 이하여야 합니다");
 
+// 2026-04-29: 홈/어웨이 유니폼 색상 신규 필드 검증 — primary/secondary 와 동일 규칙
+const colorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+  .optional();
+
+// 2026-04-29: 로고 URL 스키마 — Supabase Storage public URL.
+// preprocess 로 빈 문자열/공백을 null 로 치환 (hidden input 의 기본값 "" 처리).
+// http(s) 만 허용. URL 길이 한도 600 자 (Supabase URL 일반 ~100자대지만 여유).
+const logoUrlSchema = z.preprocess(
+  (v) => {
+    if (v === undefined) return undefined;
+    if (v === null) return null;
+    if (typeof v === "string") {
+      const t = v.trim();
+      return t.length === 0 ? null : t;
+    }
+    return v;
+  },
+  z
+    .string()
+    .url("로고 URL 형식이 올바르지 않습니다")
+    .max(600, "로고 URL이 너무 깁니다")
+    .nullable()
+    .optional()
+);
+
 /**
  * 팀 생성 스키마 (POST /api/web/teams 또는 createTeamAction)
+ *
+ * 2026-04-29: home_color / away_color 신규 필드 추가 (홈/어웨이 유니폼 색상).
+ * 기존 primary_color / secondary_color 는 하위 호환 유지.
  */
 export const createTeamSchema = z.object({
   name: nameSchema,
   name_en: nameEnSchema,
   name_primary: namePrimarySchema,
   description: z.string().trim().max(1000).nullable().optional(),
-  primary_color: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
-    .optional(),
-  secondary_color: z
-    .string()
-    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
-    .optional(),
+  primary_color: colorSchema,
+  secondary_color: colorSchema,
+  home_color: colorSchema,
+  away_color: colorSchema,
+  // 2026-04-29: 팀 로고 Storage URL (Supabase public URL). 선택 입력.
+  logo_url: logoUrlSchema,
 });
 
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
@@ -95,6 +123,18 @@ export const updateTeamSchema = z.object({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
     .optional(),
+  // 2026-04-29: 팀 관리 페이지 신규 필드 — 생성 폼과 동일 규칙 (createTeamSchema의 colorSchema와 동일)
+  // 이유(왜): 팀 생성 시 입력받지만 관리 화면에서 누락되어 있던 3 필드 보강.
+  home_color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+    .optional(),
+  away_color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "색상 코드는 #RRGGBB 형식이어야 합니다")
+    .optional(),
+  // 2026-04-29: 로고 URL — Supabase Storage public URL. 빈 문자열 → null 치환은 logoUrlSchema 가 담당.
+  logo_url: logoUrlSchema,
   is_public: z.boolean().optional(),
   accepting_members: z.boolean().optional(),
   max_members: z

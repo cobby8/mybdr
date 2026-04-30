@@ -2,6 +2,82 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-04-29] 모바일 브레이크포인트 720px 통일 (Tailwind 768px 미사용)
+- **분류**: decision (디자인 시스템)
+- **결정자**: pm + 디자이너
+- **결정**: BDR v2 모바일/데스크톱 분기 브레이크포인트를 **720px로 통일**. Tailwind default(640px sm / 768px md)를 그대로 쓰지 않고 `@media (max-width: 720px)` 글로벌 룰 + Tailwind config 커스텀.
+- **배경**: (1) mybdr 기존 컨벤션이 720px (이전 작업물에서 720px 분기 다수 사용), (2) 768px(iPad mini portrait)을 데스크톱으로 보내면 가로 폭 부족, (3) 720px이 모바일/태블릿 경계로 직관적 (대부분 폰 가로/태블릿 세로 모두 모바일 처리).
+- **대안 배제**: (B) Tailwind 768px md 그대로 — iPad mini가 데스크톱 사이드바 받아 좁음. (C) 640px sm — 큰 폰(iPhone Pro Max 430px) 직후 데스크톱 받아 어색.
+- **영향**: globals.css `@media (max-width: 720px)` 글로벌 룰 (input 16px / btn 44px / overflow-x:hidden). v2 컴포넌트는 `sm:`/`md:` Tailwind 분기 + 720px global guard 이중 적용.
+- **참조**: conventions.md "모바일 최적화 체크리스트" 10번 / errors.md "모바일 가로 overflow"
+- **참조횟수**: 0
+
+### [2026-04-29] Hero 카로셀 외부 라이브러리 0 — 직접 touch 핸들러 + setInterval
+- **분류**: decision (의존성 관리)
+- **결정자**: pm + developer
+- **결정**: BDR v2 홈 Hero 카로셀에 embla-carousel / swiper / keen-slider 등 외부 라이브러리 미도입. 직접 구현 — useState로 currentIndex 관리 + setInterval 자동 슬라이드(5초) + onTouchStart/Move/End 3핸들러 + 좌우 화살표 버튼.
+- **배경**: (1) 슬라이드 5종 + 자동 전환 + 터치 스와이프 + 점 인디케이터 = 직접 구현 ~80줄로 충분, (2) embla 14kb / swiper 130kb 추가 묶음 비용 vs 80줄 코드 직관적 비교, (3) 카로셀 패턴이 단순(서버 슬라이드 5종 absolute stacking + opacity 토글)이라 라이브러리 추상화 불필요.
+- **대안 배제**: (B) embla-carousel — 가벼운 편이나 14kb 추가 + DOM 조작 추상화로 SEO 슬라이드 인덱싱 비표준화 위험. (C) swiper — 130kb 너무 무거움. (D) react-slick — jQuery 의존, deprecated 추세.
+- **영향**: 의존성 +0. `src/components/bdr-v2/hero-carousel.tsx` 1파일에 client controller 자체 포함. 향후 추가 카로셀 필요 시 동일 패턴 재사용 가능.
+- **참조**: lessons.md "Hero 카로셀 1일 → 2시간 단축" / decisions.md "카로셀 stacking 방식"
+- **참조횟수**: 0
+
+### [2026-04-29] Hero 카로셀 stacking 방식 — 모든 슬라이드 absolute + opacity 토글 (SEO 인덱싱)
+- **분류**: decision (component pattern)
+- **결정자**: planner-architect + developer
+- **결정**: 카로셀 슬라이드를 transform translate로 옆으로 미는 방식이 아닌, **모든 슬라이드를 동시에 DOM에 absolute로 배치 + opacity 0/1 토글**로 전환.
+- **배경**: (1) transform 슬라이딩은 active 슬라이드 1개만 viewport에 보이고 나머지는 off-screen → SEO crawler가 visible 슬라이드만 인덱싱 가능성, (2) 모든 슬라이드 동시 DOM 렌더는 5개 server 컴포넌트(prefetch 4종) 한꺼번에 SSR → 모든 슬라이드 콘텐츠가 HTML에 포함 → SEO/접근성 보장, (3) opacity 토글은 transition 250ms로 부드럽고 GPU 가속 가능.
+- **대안 배제**: (B) transform translateX — SEO crawler가 hidden 슬라이드를 인덱싱 안 할 위험 + virtualization 없으면 어차피 모두 DOM. (C) display:none 토글 — transition 불가. (D) conditional render(active만 렌더) — fade transition 불가 + prefetch 효과 상실.
+- **영향**: 5개 슬라이드 동시 SSR로 초기 HTML 폭 증가하나 prefetch가 어차피 4종 병렬이라 비용 동일. opacity 토글로 active만 클릭 가능하도록 `pointer-events: none` 분기 추가.
+- **참조**: decisions.md "Hero 카로셀 외부 라이브러리 0"
+- **참조횟수**: 0
+
+### [2026-04-29] 모바일 input font-size: 16px !important — iOS Safari 자동 줌 차단
+- **분류**: decision (모바일 UX)
+- **결정자**: pm
+- **결정**: 모바일에서 모든 폼 입력 요소(`input`/`select`/`textarea`)에 **`font-size: 16px !important` 강제 적용** (globals.css `@media (max-width: 720px)`).
+- **배경**: (1) iOS Safari는 input font-size가 16px 미만이면 포커스 시 자동으로 viewport를 확대(자동 줌)하는 동작 — 입력 후 줌이 풀리지 않아 UX 파괴, (2) 14px이 기본 디자인 토큰이라 모바일에서도 14px 유지하려면 자동 줌 발생, (3) Tailwind v4 + globals.css 글로벌 룰로 강제하면 컴포넌트별 분기 불필요.
+- **대안 배제**: (B) viewport meta `user-scalable=no` — 접근성 위반(WCAG 2.1 1.4.4 Resize text), (C) 컴포넌트별 font-size: 16px — 누락 위험 + 14px 디자인 의도 깨짐 일관 불가, (D) iOS detection JS — SSR 시점 detection 불가능.
+- **영향**: 모바일에서만 16px, 데스크톱은 디자인 토큰 14px 유지. !important는 Tailwind 클래스 우선순위 이김. 영향 범위 = `<input> <select> <textarea>` 모든 인스턴스.
+- **참조**: conventions.md "모바일 최적화 체크리스트" 5번 항목
+- **참조횟수**: 0
+
+### [2026-04-27] Phase 10-1 경기 평가 — manner_score는 응답시점 aggregate(캐시 X) 권장
+- **분류**: decision (Phase 10-1 경기 평가/신고 시스템)
+- **결정자**: planner-architect (PM 결정 보고용 추천안)
+- **결정**: game_player_ratings의 평균을 user별로 사전 캐시하지 않고, **프로필/리스트 응답 시점에 매번 `prisma.game_player_ratings.aggregate({ where:{rated_user_id}, _avg:rating })`** 호출. count도 함께 반환해 N건 미만이면 표시 안 함.
+- **배경**: (1) mybdr 사용자 규모상 GROUP BY 1회 비용 무시 가능, (2) 리포트 제출 트랜잭션에 캐시 갱신 끼우면 race condition 위험 + reporter 다중 동시 제출 시 정합성 깨짐, (3) cron 옵션은 24h 지연 — 사용자 체감 부정적, (4) 응답시점 aggregate는 인덱스(`@@index([rated_user_id])`)로 즉시 처리.
+- **대안 배제**: (B) 리포트 제출 시 캐시 갱신 — race + 트랜잭션 비대화, (C) nightly cron — 24h 지연 + cron job 추가 비용, (D) Postgres trigger — Prisma 외부 SQL 의존성 + DB 마이그 위험.
+- **영향**: schema에 별도 manner 캐시 컬럼 추가 불필요(Q1 옵션 A — evaluation_rating 재활용 또는 manner_score 컬럼 신설은 별도 결정). 응답 helper(`getMannerScore(userId)`) 1개 추가. 부하 증가 시 cron으로 전환 가능 (가드만 교체).
+- **참조횟수**: 0
+
+### [2026-04-27] Phase 10-1 — 신고 플래그 enum 미도입, String[] + zod 검증 채택
+- **분류**: decision (Phase 10-1)
+- **결정자**: planner-architect
+- **결정**: game_player_ratings.flags를 Postgres enum 또는 lookup 테이블이 아닌 **`String[]` (TEXT[]) + zod `z.enum(["noshow","manner","foul","verbal","cheat"])` 런타임 검증**으로 처리.
+- **배경**: (1) 신규 플래그 추가 시 enum은 ALTER TYPE 마이그 필요, lookup은 join 비용, (2) 시안 5종 외 추가 가능성 낮음 + 추가 시도 application layer 변경만, (3) Postgres GIN 인덱스 가능, (4) noshow는 시안에서 체크박스로 별도 UI → `is_noshow boolean` 별도 컬럼으로 분리(Q2 옵션 B).
+- **대안 배제**: (B) Postgres enum — 마이그 비용, (C) lookup 테이블 game_report_flag_types — over-engineering, (D) 단일 String + 콤마 분리 — 검색 X.
+- **영향**: prisma `flags String[] @default([])` + zod 검증 + admin 큐에서 GIN 인덱스 활용 가능. is_noshow는 unique 별도 컬럼이라 매너 점수 집계에서 제외 가능.
+- **참조횟수**: 0
+
+### [2026-04-25] 코트 대관 — court_managers N:M 모델 보류, court_infos.user_id + user_subscriptions 검사로 단순화
+- **분류**: decision (코트 대관 시스템 Phase A MVP)
+- **결정자**: planner-architect (pm 결정 보고용 추천안)
+- **결정**: 코트 운영자 ↔ 코트 매핑을 위해 신규 `court_managers` N:M 테이블을 만들지 않고, 기존 **`court_infos.user_id`(코트 등록자, 1:1)** + **`user_subscriptions.feature_key="court_rental" status="active"`(멤버십 활성)** 2개 조건의 AND 검사로 운영자 권한 판정. 가드 유틸 `src/lib/courts/court-manager-guard.ts` 1개로 모든 운영자 API에서 호출.
+- **배경**: (1) MVP 단계에 N:M 매핑 수요 0 (1코트=1운영자 충분), (2) Prisma 모델 1개 절감 + 마이그레이션 위험 감소, (3) 멤버십 만료 시 자동 권한 회수(가드만 통과 못함, DB row 정리 불요), (4) 향후 N:M 필요 시 Phase D에서 court_managers 도입 + 가드만 교체하면 페이지·API 수정 0.
+- **대안 배제**: (B) court_managers N:M 신규 테이블 — 1코트=다중운영자/권한 분리(owner/admin/member) 가능하나 MVP 과잉. (C) `users.role` 추가 — 권한 시스템 비대화 + 멤버십 분리 어려움.
+- **영향**: Phase A 신규 테이블 1개(court_bookings)로 한정. court_infos에는 booking_mode + booking_fee_per_hour 2컬럼만 추가. Phase D에서 다중 운영자 요구 발생 시 court_managers 도입 + 가드 교체 (페이지·API 0수정).
+- **참조횟수**: 0
+
+### [2026-04-25] 코트 대관 — payments.payable_type 다형성 재활용 ("CourtBooking" 추가)
+- **분류**: decision (코트 대관 시스템 Phase B 결제 통합)
+- **결정자**: planner-architect
+- **결정**: 코트 예약 결제를 위해 `payments` 모델을 신규 생성하지 않고, 기존 `payable_type` 다형성에 `"CourtBooking"` 값 추가로 처리. 토스페이먼츠 confirm 흐름은 `/api/web/payments/confirm/booking` 신규 라우트(또는 기존 confirm/route.ts 분기)에서 처리. court_bookings.payment_id로 1:1 연결.
+- **배경**: (1) 기존 payments 모델이 이미 `payable_type+payable_id` 인덱스 보유 (현재 "Plan"만 사용, 다형성 의도 명백), (2) 토스 secret key + confirm 호출 + 토스 응답 저장 + 환불 필드 전부 그대로 재활용 가능, (3) 신규 모델 생성 시 환불·실패 처리 등 중복 코드 발생.
+- **대안 배제**: (B) `booking_payments` 신규 테이블 — 환불·토스 응답 필드 중복, 코드 분기 비대화. (C) court_bookings에 결제 필드 직접 임베드 — payments 통합 조회/관리자 페이지 깨짐.
+- **영향**: Phase B에서 confirm 라우트 1개 신규(또는 분기) + payments에 `platform_fee` 1컬럼 추가만. payments 다형성으로 admin/payments 페이지에서도 통합 조회 가능.
+- **참조횟수**: 0
+
 ### [2026-04-21] 세션 역할 재정의 — 본 세션 = 다음카페 sync 전용
 - **분류**: decision (운영 워크플로우)
 - **결정자**: pm + 수빈 (2026-04-21 승인)

@@ -2,6 +2,36 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-04-29] BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드 (Phase 9-Mobile)
+- **분류**: architecture
+- **발견자**: pm + developer
+- **내용**: BDR v2 홈 영역 구조 개편 + 모바일 가드 추가.
+  - **Hero 카로셀 신규**: `src/components/bdr-v2/hero-carousel.tsx`(client controller) + `src/components/bdr-v2/hero-slides/`(slide-1~5 server 컴포넌트 5종 + slide-1-client.tsx 1개) — 모든 슬라이드 absolute stacking + opacity 토글 + setInterval 자동 슬라이드(5초) + 터치 스와이프 + 점 인디케이터.
+  - **신규 prefetch 함수**: `src/lib/services/home.ts`에 `prefetchHeroSlides()` + 3종 (`prefetchTournamentSlide()`/`prefetchGameSlide()`/`prefetchMvpSlide()`) — Hero 카로셀이 5종 서버 컴포넌트로 병렬 prefetch + SSR.
+  - **글로벌 헤더 단일화**: `(web)` 라우트 그룹의 단일 헤더는 AppNav (`src/components/bdr-v2/app-nav.tsx` 가정). `(admin)`은 AdminSidebar / `(referee)`는 referee-shell이 독자 헤더 — **의도된 분리**(헤더 변경 시 라우트 그룹별 별도 작업 필요).
+  - **모바일 가드 (globals.css)**: `@media (max-width: 720px)` 글로벌 룰 — `html, body { overflow-x: hidden }` + `input, select, textarea { font-size: 16px !important }` (iOS Safari 자동 줌 차단) + `button { min-height: 44px }` (iOS HIG 터치 타겟).
+  - **브레이크포인트**: 720px 통일 (Tailwind 768px 미사용, mybdr 기존 컨벤션).
+- **참조**: decisions.md "Hero 카로셀 외부 라이브러리 0" / "카로셀 stacking 방식" / "모바일 브레이크포인트 720px 통일" / conventions.md "모바일 최적화 체크리스트" 2026-04-29
+- **참조횟수**: 0
+
+### [2026-04-27] Phase 10-1 경기 평가/신고 시스템 설계 — 신규 2테이블 + 캐시 1컬럼
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 박제된 `/games/[id]/report` 페이지를 활성화하는 시스템 기획. **DB 신규 2 + 캐시 1컬럼**: (1) `game_reports` (id/game_id/reporter_user_id/overall_rating 1~5/comment/mvp_user_id?/status submitted|draft|reviewed|dismissed/created_at/updated_at) + `@@unique([game_id, reporter_user_id])` 1인1리포트 강제, (2) `game_player_ratings` (game_report_id/rated_user_id/rating 1~5/flags TEXT[]/is_noshow boolean) — flags는 enum 미도입(시안 5종 noshow/manner/foul/verbal/cheat) String[] 유지로 마이그 비용 절감, (3) `games.final_mvp_user_id BigInt?` 캐시 컬럼만 추가. **manner_score**는 응답시점 매번 aggregate(캐시 X) 권장 — Q1 결정에 따라 users 컬럼 신설(manner_score+manner_count) vs 기존 evaluation_rating 재활용. **API 4**: POST/GET/PATCH `/api/web/games/[id]/report` (24h 수정 윈도우) + admin GET `/api/web/admin/game-reports` (flags 있는 것 큐). **권한 가드 4**: status===3 종료 / game_applications.status===1 approved 참가자(or organizer_id 호스트) / unique 1인1 / 24h 윈도우. **MVP 집계**: 다수결 → tie-breaker는 ratings 평균 → games.final_mvp_user_id 캐시 (POST 시점 1회 호출, idempotent). **신규 lib 2**: `src/lib/games/report-auth.ts`(canReportGame) + `mvp-aggregate.ts`(recomputeFinalMvp). **page.tsx 활성화**: server wrapper + client form 분리, PLACEHOLDER_PLAYERS → game_applications include users 조회, alert→fetch, 24h 이내 진입 시 GET prefill. **마이그레이션**: prisma/migrations/manual/phase_10_1_game_reports.sql 별도 + 개발 DB migrate dev / 운영 DB migrate deploy는 PM 명시 승인 후 (lessons.md 04-18 .env=운영DB 사고 재방지). **PM 결정 7건(Q1~Q7)** 도출. **9단계 작업 분해(B-1~B-9)**, MVP 최소 범위 B-1~B-7 6~8h. **위험 6건**: IDOR / Race(P2002→409) / manner 캐시 정합 / 익명성(다른 reporter 노출 X) / MVP 동률 / 운영 DB 마이그.
+- **참조횟수**: 0
+
+### [2026-04-25] 코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: 코트 대관 시스템 4 Phase 기획. **기존 인프라 80% 재활용**: (1) `plans.feature_key="court_rental"` 이미 존재 (admin/plans/page.tsx + pricing/page.tsx 라벨 등록), (2) `/api/web/payments/confirm` 토스페이먼츠 승인 + `user_subscriptions` 30일 자동 발급 흐름 가동, (3) `payments.payable_type` 다형성 ("Plan"만 사용 중 → "CourtBooking" 추가 가능), (4) `court_infos.user_id` 등록자 추적 가능, (5) `court_infos.rental_available/rental_url/fee` 외부 링크 안내 수준 존재, (6) `partners`+`/partner-admin/venue` 광고용 별개 시스템 — 멤버십과 무관하므로 코트 운영자에 사용 X. **신규 필요**: court_bookings 테이블 1개 + court_infos에 booking_mode/booking_fee_per_hour 2컬럼 + User 백릴레이션 1줄. **운영자 ↔ 코트 매핑 단순화**: court_managers N:M 신규 모델 보류 → court_infos.user_id(1:1) + user_subscriptions(feature_key=court_rental, status=active) 검사 조합으로 충분. **가드 헬퍼**: `src/lib/courts/court-manager-guard.ts`(referee admin-guard 패턴 재사용). **동시성**: $transaction + FOR UPDATE + partial unique index(WHERE status='confirmed') + 슬롯 잠금 status=pending(15분 만료). **4 Phase**: A=무료 MVP(8~12h, final_amount=0) / B=토스결제(6~8h, payments 다형성 활용) / C=정산+자동환불+수익 대시보드(8~10h, court_settlements 신규 1테이블) / D=BDR+할인+운영자 신청 승인+court_managers N:M(6~8h). **사용자 결정 7건(D-B1~D-B7)**: 운영자 자격(추천 court_rental 구독자만) / 매핑 모델(추천 1:1) / 외부vs자체 토글(추천 booking_mode 토글) / 수수료(MVP 0%) / 정산(추천 출금 신청형) / 환불(MVP 수동승인) / KYC(MVP 생략). **Phase A 산출 파일 10개**: 신규 8(court-manager-guard.ts/booking-conflict.ts/api 3 route/page 3) + 수정 2(schema.prisma/court-detail-v2.tsx). **시안 위치**: Dev/design/BDR v2/screens/CourtBooking.jsx(199줄, 회원 관점만 — 운영자용 시안 없음 → Phase A에서 BDR v2 토큰 기반 신규 디자인 필요).
+- **참조횟수**: 0
+
+### [2026-04-24] BDR v2 전체 로드맵 — design_v2 브랜치, 74 페이지 10 Phase
+- **분류**: architecture
+- **발견자**: planner-architect
+- **내용**: v2 48 시안 × 기존 88 페이지 매핑 완료. 3 버킷 분류 — A) 1:1 직접 매핑 18건(Home/Games/Profile/Teams/Tournaments/Community/Courts/Login/Pricing/Settings/Help/Search/Orgs/Referee 등 코어 라우트), B) v2 전용 16건(Shop/Stats/Safety/Reviews/Gallery/Coaches/Rank/Achievements/Awards/Saved/Scrim/GuestApps/TeamInvite/TournamentEnroll/Messages/Calendar — 대부분 DB 모델 없음, 보류/흡수/정적 페이지화), C) 기존 전용 17건(tournament-admin 13 + partner-admin 4 + profile/growth·weekly-report·notification-settings·complete 등 — 옵션 2 "토큰만 교체" 추천). **10 Phase 구성**: 0(토큰+폰트+responsive, 2h) → 1(Home/Games/GameDetail/Live/Profile 8-10h) → 2(CreateGame/Result/MyGames/Noti/Search 6-8h) → 3(팀·대회 12페이지 18-22h) → 4(커뮤니티 4페이지 5-6h) → 5(프로필/랭킹 7페이지 8-10h) → 6(인증·결제 12페이지 10-12h) → 7(코트·Settings 10페이지 10-12h) → 8(admin 토큰 교체 19페이지 6-8h) → 9(정리+PR 4-6h). 총 77~94h (단축 시 62h). **공통 컴포넌트 위치**: `src/components/bdr-v2/` 신규 폴더, Phase 0에 AppNav/Drawer/Sidebar/Avatar/PromoCard/StatsStrip 6개 선제 추출, 이후 Phase별 점진 추출(3회 사용 기준). **PR 전략 C 혼합**: Phase 0+1 선 머지 → Phase 2~9 매주 rolling PR(6회) → 최종 정리 PR. 매주 design_v2 ← dev rebase. **전제 완화**: "API/데이터 패칭 절대 변경 금지" 규칙을 백엔드(route.ts)·Prisma 한정으로 좁힘. 클라이언트 페칭/상태/props shape는 v2 맞춤 조정 허용. **사용자 결정 8건** 중 D1(primary 반전)·D2(brutalist radius)·D8(PR 전략)만 Phase 0 착수 전 필수.
+- **참조횟수**: 0
+
 ### [2026-04-21] L2 본 설계 — 공용 컴포넌트 3종 + `/users/[id]` 본인 분기 + 티어 제거
 - **분류**: architecture
 - **발견자**: planner-architect

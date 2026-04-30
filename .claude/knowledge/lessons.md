@@ -2,6 +2,47 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-04-29] 헤더 변경 시 라우트 그룹별 영향 범위 확인 — (web)/(admin)/(referee) 별도 헤더
+- **분류**: lesson (architecture awareness)
+- **발견자**: pm
+- **배경**: BDR v2 헤더 단일화 작업에서 `src/app/(web)/layout.tsx`의 AppNav만 변경했으나, (admin)·(referee) 라우트 그룹은 별도 헤더(AdminSidebar / referee-shell)를 사용 중이라 영향 범위가 (web)에 국한됨.
+- **교훈**:
+  1. Next.js 라우트 그룹 분리는 **레이아웃 격리**의 장점이 있으나, 헤더 일괄 변경 시 **그룹마다 별도 작업** 필요한 trade-off 존재
+  2. 헤더/네비 변경 작업 착수 전 `src/app/(*)/layout.tsx` 전수 grep으로 영향 그룹 확인 1단계 추가
+  3. (admin)은 현재 별도 헤더 의도, (referee)도 의도된 분리 — v2 디자인 토큰만 일관되게 적용하면 OK
+- **재발 방지**: "헤더 단일화"라는 표현이 등장하면 PM은 "어느 라우트 그룹에서?"를 먼저 명확히 함.
+- **참조**: architecture.md "글로벌 헤더 단일화" 2026-04-29
+- **참조횟수**: 0
+
+### [2026-04-29] Phase 9-Mobile Refinement — 직전 픽스 후 v2 컴포넌트에 동일 안티패턴 재발 → 컨벤션 문서화
+- **분류**: lesson (anti-pattern recurrence)
+- **발견자**: pm + 사용자 (Phase 9-Mobile 1~2라운드)
+- **배경**: 1라운드(2026-04-28)에서 모바일 가로 overflow 4건 픽스 완료 후 Phase 9 작업 진행. v2 신규 컴포넌트 작성 시 동일 패턴(인라인 `gridTemplateColumns: "repeat(N,1fr)"`) 다시 등장 → 2라운드(2026-04-29)에서 추가 4건+ 픽스. 같은 안티패턴이 다른 컴포넌트에 반복.
+- **원인**: developer가 v2 시안 코드를 거의 그대로 옮기는 흐름이라 시안에 박혀있던 인라인 grid가 매번 따라옴. 시안은 데스크톱 mockup 기준이라 모바일 미고려.
+- **교훈**:
+  1. 같은 패턴 5+회 픽스 시 개별 수정 대신 **컨벤션 문서화로 재발 방지** 시도 (grep 가능한 안티패턴 명문화)
+  2. v2 시안 코드 → 실제 컴포넌트 변환 시 "인라인 style 검사" 1단계 추가 (특히 grid/flex/width)
+  3. errors.md "재발 8건+" 메타데이터로 재발 빈도 추적 → 임계치 초과 시 아키텍처 가드 도입 검토
+- **재발 방지**: conventions.md "모바일 최적화 체크리스트 10항목" 2026-04-29 추가. PR 리뷰 시 인라인 `gridTemplateColumns:` / `width: ...px` / 폼 `font-size: 14px` 등 안티패턴 grep로 1차 차단.
+- **참조**: errors.md "모바일 가로 overflow" 2026-04-29 / conventions.md 2026-04-29
+- **참조횟수**: 0
+
+### [2026-04-29] Hero 카로셀 1일 → 2시간 단축 — 적절한 분해 + 병렬 실행
+- **분류**: lesson (workflow efficiency)
+- **발견자**: pm
+- **배경**: BDR v2 Hero 카로셀 신규 도입 — 외부 라이브러리(embla 등) 미도입 결정 + 5개 슬라이드 컴포넌트(server) + 1개 client 컨트롤러 + 4종 prefetch 함수(home.ts) + Hero 영역 레이아웃 통합. 초기 견적 1일(8h)이었으나 2시간 내 완료.
+- **단축 요인**:
+  1. **명확한 분해** — Hero 카로셀 = (a) 슬라이드 5종 server 컴포넌트 (b) client 컨트롤러 1개 (c) prefetch 4종 (d) 통합 wrapper. 각 단위가 독립이라 병렬 가능.
+  2. **server-first 컴포넌트 분리** — 슬라이드 5종을 server 컴포넌트로 만들어 prefetch + SEO 인덱싱 + opacity 토글로 stacking. client는 controller 1개만.
+  3. **외부 라이브러리 0 결정** — embla/swiper 도입 검토에 시간 안 씀. 직접 touch 핸들러 + setInterval 자동 슬라이드가 충분 (코드 ~80줄).
+  4. **시안 그대로 변환 + globals.css transition 재사용** — 기존 var(--color-*) + transition 클래스 그대로 활용
+- **교훈**:
+  1. 외부 라이브러리 도입 검토는 "도입 비용 vs 직접 구현 비용" 5분 견적 → 직접 구현이 100줄 미만이면 도입 X
+  2. 카로셀/슬라이드 패턴은 **모든 슬라이드 absolute + opacity 토글** stacking이 SEO + a11y에 가장 단순 (transform 슬라이딩은 SEO crawler가 hidden 슬라이드를 못 봄)
+  3. 큰 작업이라도 적절한 단위 분해 + 병렬 실행으로 견적의 1/4 가능
+- **참조**: decisions.md "Hero 카로셀 외부 라이브러리 0" / "카로셀 stacking 방식" 2026-04-29
+- **참조횟수**: 0
+
 ### [2026-04-22] 점진 정비는 "영역 단위"로 묶어야 커밋 중복 비용 안 발생
 - **분류**: lesson (workflow)
 - **발견자**: pm + 사용자 피드백 (오늘 C 3차 → 4차 연속 커밋)

@@ -1,32 +1,43 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-04-22 (세션 분리 원칙 재정의 — 기본=일반 / 카페는 선언형 · conventions.md 2건 승격: Tailwind v4 color-mix 문법 + any 예외 규칙 · 하드코딩 색상/any audit 실질 완결)
+> 최종 갱신: 2026-04-29 (Phase 9-Mobile + Hero 카로셀 — errors +2 / lessons +3 / decisions +4 / architecture +1) + debugger /teams/new prisma 진단 (errors +1 — schema 변경 후 dev 서버 재시작 필수 함정)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
-| architecture.md | 30 | 2026-04-20 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, **L3 다음 단위(EditionSwitcher/SeriesCard)** |
-| conventions.md | 27 | 2026-04-22 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/**Tailwind v4 color-mix 언더스코어 문법(04-22)**/**any 예외 규칙 kakao·HOF·SW(04-22)** |
-| decisions.md | 78 | 2026-04-21 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / **세션 역할 재정의 — 본 세션 = 카페 sync 전용**) |
-| errors.md | 18 | 2026-04-20 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 6회 재발, **카페 상세 HTML 시간 소스 `.num_subject` 단일**) |
-| lessons.md | 20 | 2026-04-22 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, **점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생**) |
+| architecture.md | 33 | 2026-04-29 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), **BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29)** |
+| conventions.md | 28 | 2026-04-29 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix 언더스코어 문법(04-22)/any 예외 규칙 kakao·HOF·SW(04-22)/**모바일 최적화 체크리스트 10항목(04-29)** |
+| decisions.md | 86 | 2026-04-29 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 / 코트 대관 court_managers N:M 보류 / 코트 대관 payments 다형성 / **모바일 720px 통일 / Hero 카로셀 외부 lib 0 / 카로셀 absolute opacity stacking / iOS 16px input 강제(2026-04-29)**) |
+| errors.md | 21 | 2026-04-29 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 7회 재발, 카페 상세 HTML 시간 소스 `.num_subject` 단일, **모바일 가로 overflow grid 안티패턴(04-29) / Avatar 영문 overflow(04-29) / schema 변경 후 dev 서버 미재시작 prisma Unknown argument(04-29)**) |
+| lessons.md | 23 | 2026-04-29 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, 점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생, **헤더 변경 라우트 그룹별 영향 범위(04-29) / Phase 9-Mobile 안티패턴 재발 → 컨벤션 문서화(04-29) / Hero 카로셀 1일→2시간 단축(04-29)**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
 | ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 |
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
-- [04-22] lessons: **점진 정비는 "영역 단위"로 묶어야 커밋 중복 비용 안 발생** — 오늘 tm 영역 6파일을 3차(3파일)+4차(3파일)로 쪼갠 실수. "파일 경로 prefix 공통성" 체크 후 같은 영역은 한 커밋으로 몰아가기. 건수 균등 < 영역 완결성
+- [04-29] architecture: **BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드** — `src/components/bdr-v2/hero-carousel.tsx` + `hero-slides/` 5종(server) + 1 client. `src/lib/services/home.ts` `prefetchHeroSlides()` + 3종. (web) AppNav 단일 헤더, (admin)/(referee)는 의도된 분리. globals.css `@media (max-width:720px)` overflow-x:hidden + input 16px + button 44px
+- [04-29] decisions: **모바일 브레이크포인트 720px 통일** — Tailwind 768px md 미사용, mybdr 기존 컨벤션 유지. iPad mini portrait는 모바일 처리. globals.css `@media (max-width: 720px)` 글로벌 룰 + sm:/md: 이중 적용
+- [04-29] decisions: **Hero 카로셀 외부 라이브러리 0** — embla/swiper 미도입, 직접 touch 핸들러 + setInterval ~80줄. 의존성 +0 / 묶음 비용 0. 향후 카로셀 동일 패턴 재사용
+- [04-29] decisions: **Hero 카로셀 stacking — 모든 슬라이드 absolute + opacity 토글** — transform 슬라이딩이 아닌 동시 DOM 렌더 + opacity 토글. SEO crawler가 모든 슬라이드 인덱싱 보장 + 5종 서버 컴포넌트 prefetch 병렬 SSR
+- [04-29] decisions: **모바일 input font-size 16px !important** — iOS Safari 자동 줌 차단. globals.css `@media (max-width: 720px)` 강제. user-scalable=no는 WCAG 1.4.4 위반이라 배제
+- [04-29] errors: **schema 변경 + db push + prisma generate 후 dev 서버 미재시작 → Unknown argument** — `/teams/new` `Invalid \`tx.team.create()\` invocation`. 코드/DB/client 모두 정상이고 직접 tsx 재현은 성공 → dev 서버가 옛 PrismaClient 메모리 캐싱이 원인. **schema 변경 → push → generate → dev 서버 재시작** 4단계 모두 필수. mtime + StartTime 비교로 진단
+- [04-29] errors: **모바일 가로 overflow — 인라인 gridTemplateColumns 모바일 미대응 안티패턴 (재발 8건+)** — Phase 9-Mobile 1~2라운드. v2 컴포넌트 `repeat(N,1fr)` 인라인이 366px에서 자식 침범. Tailwind sm:/md: 분기 + 1fr 컬럼 minWidth:0 + globals.css overflow-x:hidden 3가드
+- [04-29] errors: **Avatar 영문 텍스트 박스 밖 overflow** — font-size px 고정 + overflow:hidden 누락 → 영문/이니셜이 박스 침범. clamp(10px,4vw,16px) + overflow:hidden + flex 정렬 3종 동시 적용. 한글로만 테스트 X, 영문 케이스 추가 필수
+- [04-29] lessons: **헤더 변경의 라우트 그룹별 영향 범위** — (web)/layout.tsx만 변경 시 (admin)/(referee)는 별도 헤더 영향 X. 라우트 그룹 분리 = 레이아웃 격리 장점 vs 헤더 일괄 변경 시 그룹마다 별도 작업 trade-off
+- [04-29] lessons: **Phase 9-Mobile 안티패턴 재발 → 컨벤션 문서화** — 1라운드 픽스 후 v2 신규 컴포넌트에 동일 인라인 grid 안티패턴 재등장. v2 시안 코드 변환 시 인라인 style 검사 1단계 추가. 5+회 재발 → 개별 수정 대신 컨벤션 명문화로 grep 가능한 차단
+- [04-29] lessons: **Hero 카로셀 1일 → 2시간 단축** — server-first 분해 + 외부 라이브러리 0 + opacity stacking 패턴. 외부 라이브러리 도입 검토는 "5분 견적 → 100줄 미만이면 직접 구현"
+<!-- 04-27 항목 3건 절단 (10건 유지 규칙 — 04-29 신규 10건 추가로 인한 정리) — 필요 시 git log로 복원 가능 -->
+- [04-29] conventions: **모바일 최적화 체크리스트 10항목 (안티패턴 재발 방지)** — Phase 9-Mobile Refinement에서 픽스한 안티패턴 정리. (1) grid 인라인 repeat(N,1fr) 금지, mobile-first sm:/md: 분기 / (2) 1fr 컬럼 minWidth:0 가드 / (3) absolute 워터마크 hidden sm:block / (4) globals.css 가로 overflow 글로벌 가드 / (5) 폼 16px (iOS 자동 줌 차단) / (6) 버튼 44px (iOS HIG) / (7) 카드 min-height 통일 / (8) Avatar clamp font / (9) 이중 헤더 금지 (AppNav 단일) / (10) 브레이크포인트 720px 통일. 366px viewport 강제 검증. 참조 커밋 4afb4f9/f972aaf/87c59d4
+- [04-25] architecture: **코트 대관(Booking) 시스템 설계 — feature_key=court_rental 재활용 + 신규 1테이블 MVP** — plans/court_rental + 토스결제 + payments 다형성 + court_infos.user_id 모두 기존 자산. court_bookings 1테이블 + court_infos 2컬럼 + User 백릴레이션 1줄로 Phase A MVP 가능. 4 Phase(A 무료 8~12h / B 결제 6~8h / C 정산 8~10h / D BDR+할인 6~8h). 사용자 결정 7건 도출(D-B1~D-B7)
+- [04-25] decisions: **코트 대관 court_managers N:M 모델 보류** — court_infos.user_id(1:1) + user_subscriptions(feature_key=court_rental, status=active) AND 검사로 단순화. Phase D에서 다중 운영자 요구 시 도입 + 가드만 교체
+- [04-25] decisions: **코트 대관 payments.payable_type 다형성 재활용** — "Plan"만 사용 중인 다형성에 "CourtBooking" 추가. 신규 booking_payments 모델 미생성. 환불·토스 응답 필드 그대로 재활용 + admin/payments 통합 조회 유지
 - [04-22] conventions: **`any` 타입 예외 허용 규칙 (audit 재발 방지)** — kakao SDK 9 / Next.js HOF 3 / Service Worker 1은 예외. 정비 우선순위: API 응답 → Prisma WhereInput → props/SWR fallback → unsafe cast. 신규 예외는 PM 판단 후 여기 추가
 - [04-22] conventions: **Tailwind v4 arbitrary value color-mix 언더스코어 문법** — 공백을 `_`로 치환하면 hover/focus 의사클래스도 토큰화 가능. `hover:bg-[color-mix(in_srgb,var(--color-error)_20%,transparent)]`. hover 있으면 Tailwind arbitrary / 없으면 인라인 style. `hover:opacity-80` 대체 금지(희미해짐 = 의도 반대). next build PASS로 검증 완료
+<!-- 04-22 lessons "점진 정비 영역 단위" 절단 (10건 유지 규칙 — 04-29 신규 1건 추가) — 필요 시 git log로 복원 가능 -->
 - [04-21] decisions: **세션 역할 재정의 — 본 세션 = 다음카페 sync 전용** — 이전(04-20) "본=일반" 합의 폐기. 옵션 A 조합: `subin` 브랜치 공용 유지 + 커밋 `(cafe-sync)` 스코프 필수 + 신규 카페 전용 PR 분리 + scratchpad 공용+섹션 분리(담당 `pm-cafe`). 충돌 방지 push 전 `git fetch origin subin` 필수. 허용 파일 범위 명시
 - [04-21] decisions: **카페 sync 3게시판 전면 board 강제 + parser 힌트 metadata화** — IVHA/Dilr/MptT 모두 `board.gameType` 1:1 강제, `parsed.gameType` 무시. 불일치 시 `metadata.mixed_type_hint` + `parser_game_type` 보존. `resolveGameType`/`buildMetadataHints` 분리. 기존 IVHA 7건 `backfill-cafe-game-type.ts --execute` 로 UPDATE. `cafe-game-parser.ts` 무수정(vitest 59/59 보호). sync smoke 통과(혼재 0건)
 - [04-21] lessons: **parser 키워드 판정보다 운영자 명시 신호(게시판 선택)가 1순위** — IVHA 7건 오분류 사례. 신호 신뢰도 순서: (1)게시판/카테고리 명시 (2)구조화 라벨 (3)키워드 추정. `primary ?? fallback` 체인은 "값 유무"가 아니라 "신호 종류" 로 분기해야 함. 낮은 신호는 `metadata.hint` 로 보존(정보 손실 방지)
 - [04-20] architecture: **L3 다음 단위 설계** — shared/edition-switcher.tsx + tournaments/[id]/_components/series-card.tsx 신규 2 + Organization/Series(under org)/Tournament 3페이지 수정. **신규 API 0** (기존 `/api/web/series/slug/[slug]`가 editions 포함). Prisma 변경 0. Organization 페이지는 **기존 활용**(브레드크럼만 추가)
-- [04-20] decisions: **L3 Organization 라우트 = 기존 `/organizations/[slug]` 활용** — 기획서에 신규/수정 명시 없었으나 실제 이미 존재 확인. 신규 라우트 금지. 브레드크럼만 삽입
-- [04-20] decisions: **EditionSwitcher 동작 규약** — 이전/전체/다음 3버튼, disabled는 span 폴백(Link 아님, aria-disabled), 키보드 ←→ 글로벌 미포함, Material Symbols 고정, CSS 변수 색상
-- [04-20] decisions: **운영 DB 동기화 계획 초안** — Dev/ops-db-sync-plan.md. 옵션 A(Supabase 두 번째 프로젝트) 추천 + 선결 조건 6개. 2026-04-18 ".env=운영 DB" 사고의 장기 해결책. 원영 협의 대기
-- [04-20] architecture: **L3 초입 — 대회·시리즈 브레드크럼 4단** — `/tournaments/[id]` + `/series/[slug]` 2개 페이지. 기존 `shared/breadcrumb.tsx` 재활용(신규 0). 다음 단위 = Organization / EditionSwitcher
-- [04-20] lessons: **하드코딩 색상 31파일 / `any` 9회 audit** — 점진 정비 숙제. 샘플로 manage/page.tsx 5곳 정비. 보이스카우트 규칙(파일 건드릴 때 함께) + 대규모 일괄 비추천
-- [04-20] decisions: **카페 sync Phase 3 #6 Pagination — `/api/v1/common-articles` cursor-based API** — 번들 역공학 + 실측 8패턴. `?page=N` 전부 무효. `afterBbsDepth`(커서) + `targetPage` + `pageSize`(상한 50). 1P HTML SSR + 2P~ JSON API 하이브리드, 이중 안전망. developer 착수 대기
+<!-- 04-20 항목 5건 절단 (10건 유지 규칙 — 04-27 신규 3건 추가로 인한 정리) — 필요 시 git log로 복원 가능 -->
 - [04-20] errors: **카페 상세 HTML 시간 소스 `.num_subject` 단일** — articleElapsedTime/regDttm/JSON-LD 전부 부재. 목록 HTML과 구조 다름. extractPostedAt 4번째 fallback 필수 (`c84aba0`)
 - [04-20] decisions: **카페 과거 글 시분 원천 미제공 확정** — 실측 5건 전부 YY.MM.DD만. dataid tie-break로 우회. 모바일 API 시도는 비추천 (`c84aba0`)
 - [04-20] architecture: **W4 마감 — M4 /profile/activity 통합 뷰 + M7 팀 가입 신청자 분기 UI + L1 /help/glossary 용어 사전** — 본 세션 5 커밋(12f71bf/e5071f0/c2b13c5/de2c712/642a8be). 기획 17h → 실제 ~2h
@@ -104,6 +115,8 @@
 | 전체 구조, 90개 페이지 | 전체 페이지 구조 분석 |
 | 현장등록, Flutter, TournamentTeamPlayer | 대회 선수 등록 및 userId 연결 흐름 분석 |
 | 경기기록, match_events, MatchPlayerStat, 기록원 | 경기 기록 입력 시스템 전체 구조 분석 |
+| 대관, booking, court_bookings, court_rental, 멤버십 운영자 | 코트 대관(Booking) 시스템 설계 (2026-04-25) |
+| Hero 카로셀, hero-carousel, hero-slides, prefetchHeroSlides, BDR v2 홈, AppNav, 모바일 가드 | BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드 (2026-04-29) |
 
 ### 디자인/코딩 규칙을 알고 싶을 때 → conventions.md
 | 키워드 | 항목 제목 |
@@ -123,6 +136,7 @@
 | 대회 상태, 준비중/접수중/진행중/종료 | 대회 상태 4종 통일 규칙 |
 | admin, 테이블, 모달, 탭 | admin UI 공통 패턴 |
 | 다크모드, 텍스트 가시성, --color-on-*, text-white 금지 | 테마 반응형 배경 위 텍스트 --color-on-* 변수 |
+| 모바일, 366px, 가로 overflow, grid 안티패턴, minWidth:0, iOS 자동 줌, 터치 타겟 44px, 720px 브레이크포인트 | 모바일 최적화 체크리스트 10항목 (2026-04-29) |
 
 ### 왜 이렇게 결정했는지 알고 싶을 때 → decisions.md
 | 키워드 | 항목 제목 |
@@ -164,6 +178,9 @@
 | setLoggedIn, 경쟁 조건 | 커뮤니티 맞춤 필터 미적용 경쟁 조건 |
 | 체크인, SWR, POST 409 | SWR GET과 POST 409 응답 정보 불일치 |
 | 개발서버, hung, 무한 로딩, 메모리 | Next.js 개발서버 무한 로딩 |
+| 모바일 overflow, 366px, gridTemplateColumns, repeat 인라인, minWidth:0, 가로 스크롤바 | 모바일 가로 overflow grid 안티패턴 (2026-04-29) |
+| Avatar overflow, 영문 닉네임, clamp font-size, 박스 튀어나옴 | Avatar 영문 텍스트 박스 밖 overflow (2026-04-29) |
+| Invalid tx.team.create invocation, Unknown argument, prisma client 캐싱, dev 서버 재시작, schema 변경, db push, prisma generate | schema 변경 후 dev 서버 미재시작 prisma 에러 (2026-04-29) |
 
 ### 삽질 교훈을 알고 싶을 때 → lessons.md
 | 키워드 | 항목 제목 |

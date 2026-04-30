@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     // where 조건: 해당 월에 걸치는 대회 (시작일이 월 끝 이전 AND (종료일이 월 시작 이후 OR 종료일 없으면 시작일이 월 시작 이후))
     // draft 제외 (공개된 대회만)
     const where: Record<string, unknown> = {
+      is_public: true,
       status: { not: "draft" },
       startDate: { lt: monthEnd },
       OR: [

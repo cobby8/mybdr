@@ -11,6 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "audit:mobile": "playwright test tests/e2e/mobile-audit --project=mobile",
+    "check:design": "bash scripts/check-design-regression.sh",
     "db:pull": "prisma db pull",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"

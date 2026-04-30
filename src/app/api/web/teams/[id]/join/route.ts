@@ -86,7 +86,8 @@ export const POST = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: W
         notificationType: NOTIFICATION_TYPES.TEAM_JOIN_REQUEST_RECEIVED,
         title: "새 팀 가입 신청",
         content: `${applicant?.nickname ?? "사용자"}님이 "${team.name}" 팀에 가입 신청했습니다.`,
-        actionUrl: `/teams/${team.id}`,
+        // 팀장이 알림 클릭 시 곧장 가입 신청 탭으로 진입 (manage 페이지 useSearchParams 처리됨)
+        actionUrl: `/teams/${team.id}/manage?tab=requests`,
         metadata: {
           team: {
             id: team.id.toString(),

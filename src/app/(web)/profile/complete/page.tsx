@@ -1,11 +1,25 @@
 "use client";
 
-// M5 온보딩 압축:
-// - 기존 7필드(이름/전화번호+인증/지역/포지션/키/몸무게/자기소개) → 3필드(닉네임/포지션/지역)로 축소
-// - 전화번호 인증은 가입 직후 /verify?missing=phone 단계에서 별도 처리되므로 여기서는 받지 않음
-// - 키/몸무게/자기소개/이름은 /profile/edit 등 마이페이지에서 추후 보완 가능 (게임 신청 가드와 무관)
-// - profile_completed 필드는 의도적으로 보내지 않음 → 게임 신청 시 기존 가드(src/lib/profile/completion.ts)가 자연스럽게 동작
-// - 옵션 카드 2개("지금 채우기" / "나중에 할게요")로 사용자 선택권을 명시적으로 노출
+// M5 온보딩 압축 + Phase 9 D등급 박제 (OnboardingV2.jsx 톤 차용)
+// 박제 매핑:
+//  - .page 컨테이너 + max-width 640 (시안 page paddingTop:40)
+//  - eyebrow "ONBOARDING · 프로필 완성" + h1 (시안 STEP n / total 헤더 위치 대응)
+//  - progress bar (height:4, accent fill) — choose 단계 50% / fill 단계 100%
+//  - .card padding 24~36px (시안 카드 본문 박스)
+//  - 헤더 우측 "건너뛰기" 링크 (시안 동일)
+//  - 버튼은 v2 토큰 (.btn / .btn--primary 대신 var 토큰 클래스 유지하되 톤 일치)
+//
+// 보존 원칙 (변경 0):
+//  - 3필드 PATCH /api/web/profile (nickname / position / city / district)
+//  - GET /api/web/profile prefill (snake_case 자동 변환 가드)
+//  - profile_completed 의도적 미전송 (게임 신청 가드 보존)
+//  - state 구조 (step / saving / error / nickname / position / regions)
+//  - togglePosition / handleSave 로직 100% 동일
+//  - RegionPicker max=3 그대로
+//
+// 기존 7필드 → 3필드 압축 컨텍스트:
+//  - 전화번호 인증은 /verify?missing=phone 단계에서 별도 처리
+//  - 키/몸무게/자기소개/이름은 /profile/edit에서 추후 보완 가능
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -36,7 +50,6 @@ export default function ProfileCompletePage() {
   const [error, setError] = useState("");
 
   // 닉네임 prefill: 가입 시 입력한 값을 GET /api/web/profile 로 미리 채워줌
-  // 사용자 입장에서는 "이미 입력한 닉네임을 또 묻지 않는" UX
   const [nickname, setNickname] = useState("");
   const [position, setPosition] = useState(""); // CSV 형식 ("PG,SG")
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
@@ -58,17 +71,21 @@ export default function ProfileCompletePage() {
         if (u.city) {
           const cities = String(u.city).split(",");
           const districts = String(u.district ?? "").split(",");
-          const restored: Region[] = cities.map((c, i) => ({
-            city: c.trim(),
-            district: (districts[i] ?? "").trim(),
-          })).filter((r) => r.city);
+          const restored: Region[] = cities
+            .map((c, i) => ({
+              city: c.trim(),
+              district: (districts[i] ?? "").trim(),
+            }))
+            .filter((r) => r.city);
           if (restored.length > 0) setRegions(restored);
         }
       } catch {
         // prefill 실패는 치명적이지 않음 — 빈 폼으로 진행
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 포지션 토글 (복수 선택)
@@ -88,7 +105,11 @@ export default function ProfileCompletePage() {
     try {
       const filledRegions = regions.filter((r) => r.city);
       // district는 빈 문자열이면 null 처리 (필수값 아님)
-      const districtValue = filledRegions.map((r) => r.district).filter(Boolean).join(",") || null;
+      const districtValue =
+        filledRegions
+          .map((r) => r.district)
+          .filter(Boolean)
+          .join(",") || null;
 
       const payload = {
         nickname: nickname.trim() || null,
@@ -119,180 +140,265 @@ export default function ProfileCompletePage() {
     "w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 text-sm";
   const lbl = "mb-1 block text-sm text-[var(--color-text-muted)]";
 
+  // 진행률 (시안 OnboardingV2 progress bar 톤): choose=50%, fill=100%
+  const progressPct = step === "choose" ? 50 : 100;
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      {/* 환영 헤더 — Material Symbols 농구 아이콘 */}
-      <div className="mb-8 text-center">
-        <div className="mb-3">
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: "48px", color: "var(--color-primary)" }}
-          >
-            sports_basketball
-          </span>
-        </div>
-        <h1
-          className="text-2xl font-extrabold uppercase tracking-wide text-[var(--color-text-primary)] sm:text-3xl"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          환영합니다!
-        </h1>
-        <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-          {step === "choose"
-            ? "프로필을 더 채우면 맞춤 추천을 받을 수 있어요."
-            : "닉네임, 포지션, 지역만 입력하면 끝나요."}
-        </p>
-      </div>
-
-      {error && (
+    // 시안 v2 OnboardingV2.jsx — page max-width 640, paddingTop:40
+    <div className="page mx-auto" style={{ maxWidth: 640 }}>
+      {/* 시안 progress 헤더: STEP n / total 위치에 eyebrow + 건너뛰기 우측 정렬 */}
+      <div style={{ marginBottom: 24 }}>
         <div
-          className="mb-4 rounded-[4px] px-4 py-3 text-sm text-[var(--color-error)]"
-          style={{ backgroundColor: "color-mix(in srgb, var(--color-error) 10%, transparent)" }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: 11,
+            color: "var(--color-text-muted)",
+            fontWeight: 700,
+            marginBottom: 6,
+            letterSpacing: ".08em",
+          }}
         >
-          {error}
-        </div>
-      )}
-
-      {/* 1단계: 옵션 카드 2개 — 모바일 세로, lg 가로 2열 */}
-      {step === "choose" && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* 카드 1: 지금 채우기 — primary 강조 */}
-          <button
-            type="button"
-            onClick={() => setStep("fill")}
-            className="group flex flex-col items-start rounded-[4px] border-2 border-[var(--color-primary)] bg-[var(--color-card)] p-6 text-left shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
-          >
-            <span
-              className="material-symbols-outlined mb-3"
-              style={{ fontSize: "32px", color: "var(--color-primary)" }}
-            >
-              edit_note
-            </span>
-            <h2
-              className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              지금 채우기
-            </h2>
-            <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-              닉네임 · 포지션 · 활동 지역 (1분 소요)
-            </p>
-            <span
-              className="mt-auto inline-flex items-center gap-1 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-on-primary)]"
-            >
-              시작하기
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-                arrow_forward
-              </span>
-            </span>
-          </button>
-
-          {/* 카드 2: 나중에 — 보조 */}
+          {/* eyebrow 자리: 시안의 "STEP n / total"에 대응. 박제 일관성을 위해 eyebrow 클래스 사용 */}
+          <span className="eyebrow" style={{ marginBottom: 0 }}>
+            ONBOARDING · 프로필 완성
+          </span>
+          {/* 시안 우측 "건너뛰기" 링크 — 홈으로 이동 */}
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="group flex flex-col items-start rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] p-6 text-left shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+            style={{
+              cursor: "pointer",
+              background: "transparent",
+              border: 0,
+              color: "var(--color-text-muted)",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: ".08em",
+              textTransform: "uppercase",
+            }}
           >
-            <span
-              className="material-symbols-outlined mb-3"
-              style={{ fontSize: "32px", color: "var(--color-text-muted)" }}
-            >
-              schedule
-            </span>
-            <h2
-              className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              나중에 할게요
-            </h2>
-            <p className="mb-4 text-sm text-[var(--color-text-muted)]">
-              먼저 둘러보고, 마이페이지에서 채울게요
-            </p>
-            <span
-              className="mt-auto inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)]"
-            >
-              홈으로 가기
-              <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-                home
-              </span>
-            </span>
+            건너뛰기
           </button>
         </div>
-      )}
-
-      {/* 2단계: 3필드 입력 폼 (닉네임/포지션/지역) */}
-      {step === "fill" && (
-        <>
+        {/* 시안 progress bar (height:4, accent fill, transition 0.3s) */}
+        <div
+          style={{
+            height: 4,
+            background: "var(--color-surface)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
           <div
-            className="mb-6 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] p-5 shadow-[var(--shadow-card)]"
+            style={{
+              width: `${progressPct}%`,
+              height: "100%",
+              background: "var(--color-primary)",
+              transition: "width .3s",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 시안 .card 본문 (padding 36px 40px, minHeight 440 → choose 단계만 살짝 줄임) */}
+      <div
+        className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] shadow-[var(--shadow-card)]"
+        style={{ padding: "36px 40px" }}
+      >
+        {/* 환영 헤더 — Material Symbols 농구 아이콘 */}
+        <div className="mb-7 text-center">
+          <div className="mb-3">
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: "48px", color: "var(--color-primary)" }}
+            >
+              sports_basketball
+            </span>
+          </div>
+          <h1
+            style={{
+              margin: "0 0 6px",
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: "var(--color-text-primary)",
+              fontFamily: "var(--font-heading)",
+            }}
           >
-            <div className="space-y-5">
-              {/* 닉네임 */}
-              <div>
-                <label className={lbl}>닉네임</label>
-                <input
-                  className={inp}
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="닉네임 (2~20자)"
-                  minLength={2}
-                  maxLength={20}
-                />
-              </div>
+            환영합니다!
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 14,
+              color: "var(--color-text-muted)",
+              lineHeight: 1.6,
+            }}
+          >
+            {step === "choose"
+              ? "프로필을 더 채우면 맞춤 추천을 받을 수 있어요."
+              : "닉네임, 포지션, 지역만 입력하면 끝나요."}
+          </p>
+        </div>
 
-              {/* 포지션 */}
-              <div>
-                <label className={lbl}>
-                  포지션{" "}
-                  <span className="text-xs text-[var(--color-text-secondary)]">
-                    (복수 선택 가능)
-                  </span>
-                </label>
-                <div className="flex gap-2">
-                  {POSITIONS.map((pos) => (
-                    <button
-                      key={pos}
-                      type="button"
-                      onClick={() => togglePosition(pos)}
-                      className={`flex-1 rounded-[4px] border py-2 text-sm font-medium transition-colors ${
-                        selectedPositions.includes(pos)
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                          : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]"
-                      }`}
-                    >
-                      {pos}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        {error && (
+          <div
+            className="mb-4 rounded-[4px] px-4 py-3 text-sm text-[var(--color-error)]"
+            style={{
+              backgroundColor:
+                "color-mix(in srgb, var(--color-error) 10%, transparent)",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-              {/* 활동 지역 */}
-              <div>
-                <label className={lbl}>활동 지역</label>
-                <RegionPicker value={regions} onChange={setRegions} max={3} />
+        {/* 1단계: 옵션 카드 2개 — 모바일 세로, lg 가로 2열 */}
+        {step === "choose" && (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* 카드 1: 지금 채우기 — primary 강조 (시안 step1 포지션 카드 톤) */}
+            <button
+              type="button"
+              onClick={() => setStep("fill")}
+              className="group flex flex-col items-start rounded-[4px] border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+            >
+              <span
+                className="material-symbols-outlined mb-3"
+                style={{ fontSize: "32px", color: "var(--color-primary)" }}
+              >
+                edit_note
+              </span>
+              <h2
+                className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                지금 채우기
+              </h2>
+              <p className="mb-4 text-sm text-[var(--color-text-muted)]">
+                닉네임 · 포지션 · 활동 지역 (1분 소요)
+              </p>
+              <span className="mt-auto inline-flex items-center gap-1 rounded-[4px] bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-on-primary)]">
+                시작하기
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "16px" }}
+                >
+                  arrow_forward
+                </span>
+              </span>
+            </button>
+
+            {/* 카드 2: 나중에 — 보조 (시안 1px 회색 보더) */}
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="group flex flex-col items-start rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-left transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+            >
+              <span
+                className="material-symbols-outlined mb-3"
+                style={{ fontSize: "32px", color: "var(--color-text-muted)" }}
+              >
+                schedule
+              </span>
+              <h2
+                className="mb-1 text-lg font-bold text-[var(--color-text-primary)]"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                나중에 할게요
+              </h2>
+              <p className="mb-4 text-sm text-[var(--color-text-muted)]">
+                먼저 둘러보고, 마이페이지에서 채울게요
+              </p>
+              <span className="mt-auto inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-muted)]">
+                홈으로 가기
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "16px" }}
+                >
+                  home
+                </span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* 2단계: 3필드 입력 폼 (닉네임/포지션/지역) */}
+        {step === "fill" && (
+          <div className="space-y-5">
+            {/* 닉네임 */}
+            <div>
+              <label className={lbl}>닉네임</label>
+              <input
+                className={inp}
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="닉네임 (2~20자)"
+                minLength={2}
+                maxLength={20}
+              />
+            </div>
+
+            {/* 포지션 */}
+            <div>
+              <label className={lbl}>
+                포지션{" "}
+                <span className="text-xs text-[var(--color-text-secondary)]">
+                  (복수 선택 가능)
+                </span>
+              </label>
+              <div className="flex gap-2">
+                {POSITIONS.map((pos) => (
+                  <button
+                    key={pos}
+                    type="button"
+                    onClick={() => togglePosition(pos)}
+                    className={`flex-1 rounded-[4px] border py-2 text-sm font-medium transition-colors ${
+                      selectedPositions.includes(pos)
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-[var(--color-border)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]"
+                    }`}
+                  >
+                    {pos}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* 액션 버튼: 저장 / 뒤로 */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full rounded-[4px] bg-[var(--color-primary)] py-4 text-sm font-semibold text-[var(--color-on-primary)] transition-opacity hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? "저장 중..." : "저장하고 시작하기"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStep("choose")}
-              className="w-full rounded-[4px] border border-[var(--color-border)] py-4 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
-            >
-              뒤로
-            </button>
+            {/* 활동 지역 */}
+            <div>
+              <label className={lbl}>활동 지역</label>
+              <RegionPicker value={regions} onChange={setRegions} max={3} />
+            </div>
           </div>
-        </>
+        )}
+      </div>
+
+      {/* 시안 카드 하단 액션 — 카드 외부 (시안은 내부지만 본 페이지는 step 분기 때문에 외부 배치) */}
+      {step === "fill" && (
+        <div
+          className="space-y-3"
+          style={{
+            marginTop: 20,
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full rounded-[4px] bg-[var(--color-primary)] py-4 text-sm font-semibold text-[var(--color-on-primary)] transition-opacity hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? "저장 중..." : "저장하고 시작하기"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStep("choose")}
+            className="w-full rounded-[4px] border border-[var(--color-border)] py-4 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+          >
+            뒤로
+          </button>
+        </div>
       )}
 
       <div className="h-6" />

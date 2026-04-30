@@ -5,7 +5,9 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 
 // 디자인 시안 컴포넌트: 히어로(배너) + About(대회 소개) + 탭
-import { TournamentHero } from "./_components/tournament-hero";
+// Phase 2 Match: 히어로/사이드바만 v2로 스왑. TournamentAbout/SeriesCard 등은 유지.
+import { V2TournamentHero } from "./_components/v2-tournament-hero";
+import { V2RegistrationSidebar } from "./_components/v2-registration-sidebar";
 import { TournamentAbout } from "./_components/tournament-about";
 // L3: 소속 시리즈 카드 + EditionSwitcher (Hero 직후에 배치)
 import { SeriesCard } from "./_components/series-card";
@@ -13,9 +15,6 @@ import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb"
 
 // 탭 전환 컴포넌트 (클라이언트) — lazy loading 방식으로 변경
 import { TournamentTabs } from "./_components/tournament-tabs";
-
-// 데스크톱(lg+) 우측 sticky 신청 카드 — M2
-import { RegistrationStickyCard } from "@/components/tournaments/registration-sticky-card";
 
 // 비공개 대회 가드 — 관계자(organizer/admin member/super_admin)만 접근
 import { getWebSession } from "@/lib/auth/web-session";
@@ -84,7 +83,8 @@ export default async function TournamentDetailPage({
 
   // ?tab= 쿼리 검증: 허용된 탭 키만 통과, 그 외(없음/오타/임의값)는 overview로 폴백
   // 이렇게 서버에서 화이트리스트로 거르면 TournamentTabs가 안전하게 initialTab 사용 가능
-  const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams"] as const;
+  // Phase 2 Match: "rules" 추가
+  const ALLOWED_TABS = ["overview", "bracket", "schedule", "teams", "rules"] as const;
   type AllowedTab = (typeof ALLOWED_TABS)[number];
   const initialTab: AllowedTab = (ALLOWED_TABS as readonly string[]).includes(tab ?? "")
     ? (tab as AllowedTab)
@@ -121,6 +121,9 @@ export default async function TournamentDetailPage({
       bank_account: true,
       bank_holder: true,
       maxTeams: true,
+      // Phase 2 Match: 규정 탭 콘텐츠(데이터 없으면 빈 상태 렌더) + 회차 라벨용
+      rules: true,
+      edition_number: true,
       // L3: 소속 시리즈/단체 브레드크럼에 사용
       series_id: true,
       // 비공개 대회 접근 가드에 사용
@@ -162,11 +165,19 @@ export default async function TournamentDetailPage({
 
   // 비공개 대회: 관계자(organizer/admin member/super_admin)만 접근, 아니면 존재 숨김(404)
   // session은 상단에서 1회 로드한 값을 재사용 — 기존 가드 동작 동일 (비로그인/비관계자 → 404)
-  if (tournament.is_public === false) {
-    if (!session) return notFound();
+  //
+  // P0-A: 운영자 전용 CTA(심판 배정 요청 등) 노출 여부도 동일 정책으로 판단해야 하므로,
+  // 기존에 if 블록 내부에서 한 번만 쓰던 `insider`를 블록 밖 변수(isInsider)로 끌어내
+  // 비공개 가드와 운영자 CTA 모두에서 재사용. 공개 대회 + 로그인 사용자는 여기서 1회 호출,
+  // 비공개 대회는 가드와 CTA 양쪽에 동일 결과 재사용. 비로그인은 false로 단축.
+  let isInsider = false;
+  if (session) {
     const userId = BigInt(session.sub);
-    const insider = await isTournamentInsider(userId, id, session);
-    if (!insider) return notFound();
+    isInsider = await isTournamentInsider(userId, id, session);
+  }
+  if (tournament.is_public === false) {
+    // 비공개 대회: 관계자(insider)가 아니면 존재 숨김(404)
+    if (!isInsider) return notFound();
   }
 
   // L3: 소속 시리즈/단체 메타 (브레드크럼 4단 + SeriesCard)
@@ -411,8 +422,55 @@ export default async function TournamentDetailPage({
     </>
   );
 
+  // ========================================
+  // 5) 규정 탭 콘텐츠 (Phase 2 Match 추가)
+  //    DB tournaments.rules 필드를 기반으로 서버에서 렌더. 데이터 없으면 빈 상태 카드.
+  //    탭 자체는 TournamentTabs에서 항상 표시되고, 이 콘텐츠만 내용물로 주입.
+  // ========================================
+  const rulesContent = tournament.rules ? (
+    <div
+      className="rounded-md border p-6"
+      style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
+    >
+      <h2 className="mb-4 text-lg font-bold sm:text-xl">경기 규정</h2>
+      {/* whitespace-pre-line으로 줄바꿈 보존 — rules는 일반 텍스트 필드(마크다운 파서 미적용) */}
+      <div
+        className="text-sm leading-relaxed whitespace-pre-line"
+        style={{ color: "var(--color-text-secondary)" }}
+      >
+        {tournament.rules}
+      </div>
+    </div>
+  ) : (
+    // 빈 상태: PM 결정 "데이터 없는 대회는 빈 상태로 표시, 탭 자체는 렌더"
+    <div
+      className="rounded-md border p-8 text-center"
+      style={{
+        borderColor: "var(--color-border)",
+        backgroundColor: "var(--color-card)",
+      }}
+    >
+      <span
+        className="material-symbols-outlined mb-2 block text-4xl"
+        style={{ color: "var(--color-text-disabled)" }}
+      >
+        gavel
+      </span>
+      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+        경기 규정이 아직 공개되지 않았습니다.
+      </p>
+    </div>
+  );
+
   return (
     <div>
+      {/*
+        풀폭 hero 깨짐 fix (P0 layout, 2026-04-27):
+        breadcrumb / hero / series-card 는 기존 .page wrapper 외부에 있어
+        viewport 풀폭으로 늘어났다. 본문(탭)이 max-w-7xl 가운데 정렬이므로
+        상단 영역도 동일 폭으로 감싸 일관성 확보. 패딩은 본문(L540)과 동일.
+      */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       {/* 브레드크럼: PC에서만 표시, 모바일은 뒤로가기 버튼이 대신
        * L3: 소속 시리즈/단체가 있으면 4단(홈 → 단체 → 시리즈 → 대회), 없으면 기존 2단(대회 → 대회명) */}
       <Breadcrumb
@@ -438,8 +496,10 @@ export default async function TournamentDetailPage({
         })()}
       />
 
-      {/* 히어로 배너: 사이드바 정보(참가비/참가신청)를 히어로에 통합 */}
-      <TournamentHero
+      {/* 히어로 배너 (Phase 2 Match v2): 그라디언트 + 포스터 200×280 + 제목/메타.
+          신청 CTA는 사이드바(V2RegistrationSidebar)로 역할 분리되어 이 히어로는
+          시각 정보만 담당. 세션/비공개 가드/메타데이터 로직은 상단에서 유지. */}
+      <V2TournamentHero
         name={tournament.name}
         format={tournament.format}
         status={tournament.status}
@@ -449,14 +509,13 @@ export default async function TournamentDetailPage({
         venueName={tournament.venue_name}
         teamCount={tournament._count.tournamentTeams}
         maxTeams={tournament.maxTeams}
-        designTemplate={tournament.design_template}
         logoUrl={tournament.logo_url}
         bannerUrl={tournament.banner_url}
         primaryColor={tournament.primary_color}
         secondaryColor={tournament.secondary_color}
+        // 회차 라벨: edition_number 있으면 "Vol.N", 없으면 하위 컴포넌트에서 format 폴백
+        editionLabel={tournament.edition_number ? `Vol.${tournament.edition_number}` : null}
         entryFee={tournament.entry_fee ? Number(tournament.entry_fee) : null}
-        isRegistrationOpen={isRegistrationOpen}
-        tournamentId={id}
         contactPhone={(tournament.settings as Record<string, unknown>)?.contact_phone as string ?? null}
         myApplicationsCount={myApplicationsCount}
       />
@@ -477,6 +536,8 @@ export default async function TournamentDetailPage({
           nextTournamentId={seriesCardProps.nextTournamentId}
         />
       )}
+      </div>
+      {/* ↑ 풀폭 fix wrapper 끝: 여기까지 max-w-7xl. 아래 본문 grid는 기존 그대로 자체 max-w-7xl. */}
 
       {/*
         데스크톱(lg+) 2열 레이아웃:
@@ -489,14 +550,34 @@ export default async function TournamentDetailPage({
         {/* min-w-0: grid 자식이 내부 콘텐츠(예: 스크롤 테이블)로 인해
             최소폭이 튕기며 우측 aside를 밀어내지 않도록 축소 허용. 필수. */}
         <main className="min-w-0">
-          {/* 탭: 개요는 서버 렌더링, 나머지는 클라이언트 lazy loading */}
+          {/* 탭: 개요/규정은 서버 렌더링, 대진표/일정/참가팀은 클라이언트 lazy loading
+              Bracket 탭 v2: 헤더/Status/사이드 카드용 메타를 서버 props로 전달.
+              seriesEditions는 같은 series_id 내 다른 회차 select 라우팅용 (데이터 부족 시 빈 배열). */}
           <TournamentTabs
             tournamentId={id}
             overviewContent={overviewContent}
+            rulesContent={rulesContent}
             initialTab={initialTab}
+            tournamentName={tournament.name}
+            editionNumber={tournament.edition_number}
+            startDate={tournament.startDate}
+            endDate={tournament.endDate}
+            venueName={tournament.venue_name}
+            seriesEditions={
+              series && series.tournaments.length > 0
+                ? series.tournaments
+                    // edition_number 있는 회차만
+                    .filter((t): t is typeof t & { edition_number: number } => t.edition_number !== null)
+                    .map((t) => ({
+                      id: t.id,
+                      label: `Vol.${t.edition_number} 본선`,
+                      isCurrent: t.id === tournament.id,
+                    }))
+                : []
+            }
           />
 
-          {/* 다음 액션 유도: 다른 대회 탐색 */}
+          {/* 다음 액션 유도: 다른 대회 탐색 + (운영자 한정) 심판 배정 요청 */}
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/tournaments"
@@ -505,14 +586,33 @@ export default async function TournamentDetailPage({
               <span className="material-symbols-outlined text-base">emoji_events</span>
               다른 대회 보기
             </Link>
+
+            {/* P0-A: 운영자 전용 CTA — 심판 배정 요청 (박제 라우트 진입점)
+             * 노출 조건: insider(organizer | tournamentAdminMember(active) | super_admin)
+             * 위치: 토너먼트 상세 메인 영역 하단. 일반 참가자에게는 노출되지 않음. */}
+            {isInsider && (
+              <Link
+                href={`/tournaments/${id}/referee-request`}
+                className="flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:opacity-90"
+                style={{
+                  borderColor: "var(--color-primary)",
+                  color: "var(--color-primary)",
+                  backgroundColor: "transparent",
+                }}
+              >
+                <span className="material-symbols-outlined text-base">sports_kabaddi</span>
+                심판 배정 요청
+              </Link>
+            )}
           </div>
         </main>
 
-        {/* 데스크톱(lg+) 전용 우측 영역: sticky 신청 카드.
-            top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음. */}
+        {/* 데스크톱(lg+) 전용 우측 영역: sticky 신청 카드 (Phase 2 Match v2).
+            top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음.
+            6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨. */}
         <aside className="hidden lg:block">
           <div className="sticky top-20">
-            <RegistrationStickyCard
+            <V2RegistrationSidebar
               tournamentId={tournament.id}
               registrationEndAt={tournament.registration_end_at}
               status={tournament.status ?? ""}
@@ -523,6 +623,12 @@ export default async function TournamentDetailPage({
               isRegistrationOpen={isRegistrationOpen}
               myApplicationsCount={myApplicationsCount}
               isLoggedIn={!!session}
+              // 접수 기간 문자열: 시작~종료 조합 (둘 다 있을 때만)
+              periodText={
+                tournament.registration_start_at && tournament.registration_end_at
+                  ? `${tournament.registration_start_at.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} ~ ${tournament.registration_end_at.toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}`
+                  : null
+              }
             />
           </div>
         </aside>

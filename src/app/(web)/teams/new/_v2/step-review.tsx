@@ -1,0 +1,174 @@
+"use client";
+
+// Phase 3 TeamCreate v2 — Step4 검토 및 약관
+// 이유:
+//  - 시안의 "검토 표 + 약관 체크 2개" 구조 그대로 재현
+//  - 약관 둘 다 체크해야 부모(team-form) 의 제출 버튼이 활성화 — 본 컴포넌트는 상태 끌어올림만 담당
+//  - 표시값은 부모 상태 6키 + 시안 신규 4필드 (tag/home/level/privacy) 통합
+
+import type { TEAM_LEVELS } from "./team-form";
+import { TEAM_PRIVACY } from "./team-form";
+
+interface Props {
+  // 서버 제출 값
+  name: string;
+  nameEn: string;
+  namePrimary: "ko" | "en";
+  // 2026-04-29: 단일 컬러 → 홈/어웨이 유니폼 분리
+  homeColor: string;
+  awayColor: string;
+  // 로고 URL (Supabase Storage public URL). 미업로드 시 null.
+  logoUrl: string | null;
+  // UI 값
+  tag: string;
+  home: string;
+  level: (typeof TEAM_LEVELS)[number];
+  privacy: "public" | "invite" | "closed";
+  // 약관 동의 (둘 다 체크해야 제출 가능)
+  agreeRules: boolean;
+  onAgreeRulesChange: (v: boolean) => void;
+  agreeAccuracy: boolean;
+  onAgreeAccuracyChange: (v: boolean) => void;
+}
+
+export function StepReview({
+  name,
+  nameEn,
+  namePrimary,
+  homeColor,
+  awayColor,
+  logoUrl,
+  tag,
+  home,
+  level,
+  privacy,
+  agreeRules,
+  onAgreeRulesChange,
+  agreeAccuracy,
+  onAgreeAccuracyChange,
+}: Props) {
+  // 표시용 fallback — 미입력 시 "(미입력)"
+  const fallback = (v: string | null | undefined) => (v && v.trim() ? v : "(미입력)");
+  const privacyLabel = TEAM_PRIVACY.find((p) => p.id === privacy)?.l ?? "—";
+
+  // 표시용 팀 이름 — 대표 언어에 따라 정렬
+  const displayName = namePrimary === "en" && nameEn.trim() ? `${nameEn} / ${name}` : name;
+
+  return (
+    <div>
+      <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>검토 및 생성</h2>
+      <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--ink-mute)" }}>
+        입력한 정보를 한 번 더 확인해주세요.
+      </p>
+
+      {/* 검토 표
+          모바일 픽스(2026-04-29): 인라인 "140px 1fr" 2열 grid 는 366px viewport 에서
+          좌측 라벨 폭(140px) 이 본문 폭의 절반 가까이 잡아먹어 우측 값 영역이 좁아지고
+          긴 한국어 값이 글자 단위로 줄바꿈됨.
+          → Tailwind 반응형: 모바일은 1열 stack (라벨 위, 값 아래),
+             sm(≥640px) 부터 시안값(140px+1fr) 유지. gap-y 도 모바일은 작게(8px). */}
+      <div
+        className="grid grid-cols-1 gap-x-3.5 gap-y-2 sm:grid-cols-[140px_minmax(0,1fr)] sm:gap-y-3.5"
+        style={{
+          fontSize: 13,
+          marginBottom: 20,
+          padding: "16px 18px",
+          background: "var(--bg-alt)",
+          borderRadius: 6,
+          wordBreak: "keep-all",
+        }}
+      >
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 이름</div>
+        <div style={{ fontWeight: 600 }}>{fallback(displayName)}</div>
+
+        {/* 영문명이 있을 때만 별도 행 표시 (대표 언어가 ko 일 때 영문명 노출) */}
+        {nameEn.trim() && namePrimary === "ko" && (
+          <>
+            <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>영문명</div>
+            <div style={{ fontWeight: 600 }}>{nameEn}</div>
+          </>
+        )}
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 태그</div>
+        <div style={{ fontWeight: 600, fontFamily: "var(--ff-mono)" }}>
+          {tag.trim() ? tag : <span style={{ color: "var(--ink-mute)" }}>(자동 생성 예정)</span>}
+        </div>
+
+        {/* 2026-04-29: 홈/어웨이 유니폼 행 분리 */}
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>홈 유니폼</div>
+        <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600 }}>
+          <span style={{ width: 16, height: 16, background: homeColor, borderRadius: 3, display: "inline-block", border: "1px solid var(--border)" }} />
+          <code>{homeColor}</code>
+        </div>
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>어웨이 유니폼</div>
+        <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontWeight: 600 }}>
+          <span style={{ width: 16, height: 16, background: awayColor, borderRadius: 3, display: "inline-block", border: "1px solid var(--border)" }} />
+          <code>{awayColor}</code>
+        </div>
+
+        {/* 로고 미리보기 — 업로드한 경우에만 표시.
+            2026-04-29 (v2): 실제 Supabase Storage URL 이라 next 등록 시 DB 의 logo_url 에 그대로 저장됨. */}
+        {logoUrl && (
+          <>
+            <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>팀 로고</div>
+            <div style={{ display: "inline-flex", gap: 8, alignItems: "center", fontWeight: 600 }}>
+              {/* 이유: Supabase public URL. next/image domains 추가 시 마이그레이션 가능. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt="팀 로고 미리보기"
+                style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", border: "1px solid var(--border)" }}
+              />
+              <span style={{ fontSize: 11, color: "var(--color-success, #10B981)", fontWeight: 400 }}>업로드 완료</span>
+            </div>
+          </>
+        )}
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>활동 코트</div>
+        <div style={{ fontWeight: 600 }}>
+          {home.trim() ? home : <span style={{ color: "var(--ink-mute)" }}>(미입력 · 준비 중)</span>}
+        </div>
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>실력 수준</div>
+        <div style={{ fontWeight: 600 }}>
+          {level} <span style={{ color: "var(--ink-mute)", fontWeight: 400, fontSize: 11 }}>(준비 중)</span>
+        </div>
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>공개 설정</div>
+        <div style={{ fontWeight: 600 }}>
+          {privacyLabel} <span style={{ color: "var(--ink-mute)", fontWeight: 400, fontSize: 11 }}>(준비 중)</span>
+        </div>
+
+        <div style={{ color: "var(--ink-dim)", fontWeight: 700 }}>최초 팀장</div>
+        <div style={{ fontWeight: 600 }}>나 (현재 로그인 계정)</div>
+      </div>
+
+      {/* 약관 동의 — 부모의 제출 버튼이 두 체크 모두 true일 때만 활성 */}
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, marginBottom: 8 }}>
+        <input
+          type="checkbox"
+          checked={agreeRules}
+          onChange={(e) => onAgreeRulesChange(e.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <span>
+          BDR 팀 운영 규칙에 동의합니다 (
+          <a href="/terms" style={{ color: "var(--cafe-blue)" }} target="_blank" rel="noreferrer">
+            전문보기
+          </a>
+          )
+        </span>
+      </label>
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+        <input
+          type="checkbox"
+          checked={agreeAccuracy}
+          onChange={(e) => onAgreeAccuracyChange(e.target.checked)}
+          style={{ marginTop: 3 }}
+        />
+        <span>허위 정보 등록 시 팀 삭제 가능함을 이해합니다</span>
+      </label>
+    </div>
+  );
+}

@@ -1,3 +1,6 @@
+// 시안 출처: Dev/design/BDR v2/screens/CreateTeam.jsx
+// - server wrapper: 세션 체크 → 클라이언트 폼(NewTeamForm)으로 위임
+// - v2 박제 본체는 ./new-team-form.tsx → ./_v2/team-form.tsx (4스텝 stepper + B옵션 영문 팀명 보존)
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";

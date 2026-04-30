@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
@@ -9,7 +10,6 @@ import {
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
 
-// 서버에서 직렬화된 경기 타입
 interface SerializedGame {
   id: string;
   title: string | null;
@@ -25,46 +25,45 @@ interface SerializedGame {
   hostEmail: string;
 }
 
-// 상태 라벨/뱃지 매핑
+interface Pagination {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalCount: number;
+}
+
 const STATUS_LABEL: Record<number, string> = {
-  1: "모집중",
-  2: "확정",
-  3: "완료",
-  4: "취소",
+  1: "모집중", 2: "확정", 3: "완료", 4: "취소",
 };
 
 const STATUS_BADGE: Record<number, "success" | "info" | "secondary" | "error"> = {
-  1: "success",
-  2: "info",
-  3: "secondary",
-  4: "error",
+  1: "success", 2: "info", 3: "secondary", 4: "error",
 };
 
-// 유형 라벨 (game_type은 숫자: 0=픽업, 1=게스트, 2=연습)
 const TYPE_LABEL: Record<number, string> = {
-  0: "픽업",
-  1: "게스트",
-  2: "연습",
+  0: "픽업", 1: "게스트", 2: "연습",
 };
 
-// 상태 전환 규칙
 const TRANSITIONS: Record<number, number[]> = {
-  1: [2, 4],
-  2: [3, 4],
-  3: [],
-  4: [],
+  1: [2, 4], 2: [3, 4], 3: [], 4: [],
 };
+
+const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 interface Props {
   games: SerializedGame[];
   updateStatusAction: (formData: FormData) => Promise<void>;
+  pagination: Pagination;
 }
 
-export function AdminGamesContent({ games, updateStatusAction }: Props) {
+export function AdminGamesContent({ games, updateStatusAction, pagination }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState("all");
   const [selected, setSelected] = useState<SerializedGame | null>(null);
 
-  // 탭별 필터링
   const filtered =
     activeTab === "all"
       ? games
@@ -81,20 +80,55 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
   const fmtDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("ko-KR") : "-";
 
+  const navigate = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const { page, pageSize, totalPages, totalCount } = pagination;
+  const rangeStart = (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, totalCount);
+
   return (
     <>
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* 축소된 테이블: 제목 / 유형 / 상태 / 날짜 (4칸) */}
+      {/* 페이지 크기 선택 */}
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm text-[var(--color-text-muted)]">
+          {totalCount > 0 ? `${rangeStart}–${rangeEnd} / ${totalCount}개` : "0개"}
+        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-[var(--color-text-muted)]">페이지당</span>
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <button
+              key={size}
+              onClick={() => navigate({ pageSize: String(size), page: "1" })}
+              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                pageSize === size
+                  ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
+              }`}
+            >
+              {size}개
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-5 py-4 font-medium">제목</th>
-                <th className="w-[90px] px-5 py-4 font-medium">유형</th>
-                <th className="w-[90px] px-5 py-4 font-medium">상태</th>
-                <th className="w-[100px] px-5 py-4 font-medium">날짜</th>
+                <th className="w-[60px] px-3 py-4 font-medium">유형</th>
+                <th className="w-[80px] px-3 py-4 font-medium">상태</th>
+                <th className="w-[95px] px-4 py-4 font-medium">예정일 ↓</th>
               </tr>
             </thead>
             <tbody>
@@ -112,15 +146,16 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
                       {g.hostName ?? g.hostEmail ?? "-"}
                     </p>
                   </td>
-                  <td className="px-5 py-3 text-[var(--color-text-muted)]">
+                  <td className="px-3 py-3 text-[var(--color-text-muted)]">
                     {TYPE_LABEL[g.gameType] ?? g.gameType}
                   </td>
-                  <td className="px-5 py-3">
+                  <td className="px-3 py-3">
                     <Badge variant={STATUS_BADGE[g.status] ?? "default"}>
                       {STATUS_LABEL[g.status] ?? "알 수 없음"}
                     </Badge>
                   </td>
-                  <td className="px-5 py-3 text-[var(--color-text-muted)]">
+                  {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
+                  <td className="whitespace-nowrap px-4 py-3 text-[var(--color-text-muted)]">
                     {fmtDate(g.scheduledAt)}
                   </td>
                 </tr>
@@ -135,6 +170,50 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
         )}
       </Card>
 
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-1">
+          <button
+            onClick={() => navigate({ page: String(page - 1) })}
+            disabled={page <= 1}
+            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] disabled:pointer-events-none disabled:opacity-30"
+          >
+            ←
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1)
+            .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+            .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+              if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("...");
+              acc.push(p);
+              return acc;
+            }, [])
+            .map((p, idx) =>
+              p === "..." ? (
+                <span key={`e-${idx}`} className="px-2 text-sm text-[var(--color-text-muted)]">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => navigate({ page: String(p) })}
+                  className={`min-w-[32px] rounded px-2 py-1.5 text-sm font-medium transition-colors ${
+                    page === p
+                      ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+                      : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+          <button
+            onClick={() => navigate({ page: String(page + 1) })}
+            disabled={page >= totalPages}
+            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] disabled:pointer-events-none disabled:opacity-30"
+          >
+            →
+          </button>
+        </div>
+      )}
+
       {/* 상세 모달 */}
       {selected && (
         <AdminDetailModal
@@ -143,7 +222,11 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
           title={selected.title ?? "(제목 없음)"}
           actions={
             (TRANSITIONS[selected.status] ?? []).length > 0 ? (
-              <form action={updateStatusAction} className="flex items-center gap-2">
+              <form
+                action={updateStatusAction}
+                className="flex items-center gap-2"
+                onSubmit={() => setSelected(null)}
+              >
                 <input type="hidden" name="game_id" value={selected.id} />
                 <select
                   name="status"
@@ -152,9 +235,7 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
                 >
                   <option value="" disabled>상태 변경</option>
                   {(TRANSITIONS[selected.status] ?? []).map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABEL[s] ?? String(s)}
-                    </option>
+                    <option key={s} value={s}>{STATUS_LABEL[s] ?? String(s)}</option>
                   ))}
                 </select>
                 <button
@@ -172,7 +253,7 @@ export function AdminGamesContent({ games, updateStatusAction }: Props) {
               title="경기 정보"
               rows={[
                 ["주최자", selected.hostName ?? selected.hostEmail ?? "-"],
-                ["유형", TYPE_LABEL[selected.gameType] ?? selected.gameType],
+                ["유형", TYPE_LABEL[selected.gameType] ?? String(selected.gameType)],
                 ["장소", selected.venueName ?? selected.city ?? "-"],
                 ["참가자", `${selected.currentParticipants ?? 0} / ${selected.maxParticipants ?? "-"}`],
               ]}

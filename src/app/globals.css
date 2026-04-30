@@ -4,369 +4,1610 @@
    text-[var(--...)] 같은 문자열이 CSS 클래스로 인식되어 파싱 에러 발생 방지) */
 @source not "../../.claude";
 
-@font-face {
-  font-family: 'GmarketSans';
-  font-weight: 300;
-  font-style: normal;
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
-}
-
-@font-face {
-  font-family: 'GmarketSans';
-  font-weight: 500;
-  font-style: normal;
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
-}
-
-@font-face {
-  font-family: 'GmarketSans';
-  font-weight: 700;
-  font-style: normal;
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
-}
-
+/* ============================================================
+   @theme — Tailwind 4에 breakpoint만 남김 (BDR v2 토큰은 아래에서 직접 선언)
+   기존 --color-* 변수는 전면 폐기. 페이지들은 Phase 1~9에서 순차 교체.
+   ============================================================ */
 @theme {
-  /* --- Breakpoints (Tailwind CSS 4 필수) --- */
   --breakpoint-sm: 640px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
   --breakpoint-xl: 1280px;
   --breakpoint-2xl: 1536px;
-
-  /* ========================================
-   * 토스 스타일 디자인 시스템
-   * - 라이트 모드 기본 (화이트 + 토스 블루)
-   * - 그림자 최소화, 배경색 차이로 계층 표현
-   * - toss-design-analysis.md 수치 기반
-   * ======================================== */
-
-  /* --- 배경/표면 계층 (라이트 모드 기본) --- */
-  --color-background: #FFFFFF;       /* 페이지 기본 배경 (화이트) */
-  --color-card: #FFFFFF;             /* 카드 배경 */
-  --color-elevated: #F2F4F6;         /* 떠있는 요소 (모달, 드롭다운) */
-  --color-surface: #F9FAFB;          /* 섹션/영역 배경 */
-
-  /* --- Surface 세분화 변수 --- */
-  --color-surface-lowest: #F2F4F6;   /* 입력 필드 배경 */
-  --color-surface-low: #F9FAFB;      /* surface와 동일 계층 */
-  --color-surface-high: #FFFFFF;     /* elevated와 동일 계층 */
-  --color-surface-bright: #F2F4F6;   /* 호버 시 배경 */
-
-  /* --- 브랜드 색상 (Primary = 토스 블루) --- */
-  --color-primary: #3182F6;          /* 토스 블루 */
-  --color-primary-hover: #1B64DA;    /* 호버 시 진한 블루 */
-  --color-primary-light: rgba(49, 130, 246, 0.08); /* 블루 반투명 배경 */
-  --color-on-primary: #FFFFFF;       /* primary 위 텍스트 */
-  --color-on-accent: #FFFFFF;        /* accent 배경 위 텍스트 (라이트모드) */
-  --color-on-text-primary: #FFFFFF;  /* text-primary 배경 위 텍스트 (라이트모드) */
-
-  /* --- 보조 색상 --- */
-  --color-accent: #191F28;           /* 진한 텍스트 활용 */
-  --color-accent-hover: #333D4B;     /* 호버 */
-  --color-accent-light: rgba(25, 31, 40, 0.08); /* 반투명 배경 */
-  --color-secondary: #4E5968;        /* 중간 회색 */
-  --color-tertiary: #3182F6;         /* primary와 통일 */
-
-  /* --- 텍스트 (토스 그레이 스케일) --- */
-  --color-text-primary: #191F28;     /* 헤드라인 (가장 진한 검정) */
-  --color-text-secondary: #4E5968;   /* 본문 텍스트 */
-  --color-text-muted: #7B8894;       /* 약한 텍스트 (캡션, 힌트) — 가독성 위해 +10% 진하게 */
-  --color-text-disabled: #B0B8C1;    /* 비활성 텍스트 */
-  --color-text-on-primary: #FFFFFF;  /* 브랜드 버튼 위 텍스트 */
-
-  /* --- 상태 색상 (토스 시맨틱) --- */
-  --color-success: #34C759;
-  --color-error: #F04452;            /* 토스 에러 레드 */
-  --color-error-light: rgba(240, 68, 82, 0.08); /* 에러 배경용 */
-  --color-warning: #FF9500;
-  --color-info: #3182F6;             /* primary와 통일 */
-
-  /* --- 테두리 (실선 보더) --- */
-  --color-border: #F2F4F6;           /* 기본 보더 (토스 기준 연하게) */
-  --color-border-subtle: #F2F4F6;    /* 미세한 구분선 */
-
-  /* --- 라운딩 (토스 스타일: 12~16px 둥근 모서리) --- */
-  --radius-card: 1rem;               /* 카드: 16px */
-  --radius-card-lg: 1.375rem;        /* 큰 카드: 22px */
-  --radius-pill: 0.75rem;            /* 버튼: 12px */
-  --radius-button: 12px;             /* 버튼 전용 별칭 */
-
-  /* --- 그림자 (토스 스타일: 매우 가볍게) --- */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
-
-  /* --- 폰트 (SUIT를 기본, GmarketSans를 헤딩으로 설정) --- */
-  --font-sans: 'SUIT Variable', 'SUIT', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-heading: 'GmarketSans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-
-  /* --- 기존 호환 변수 --- */
-  --color-bg-primary: #FFFFFF;       /* background와 동일 */
-  --color-bg-secondary: #F9FAFB;     /* surface와 동일 */
-  --color-bg-card: #FFFFFF;          /* card와 동일 */
-  --color-bg-hover: #F2F4F6;         /* 호버 배경 */
-  --color-card-hover: #F9FAFB;       /* 카드 호버 배경 */
-  --color-error-hover: #A51926;      /* 에러 호버 (진한 레드) */
-
-  /* --- 그라디언트/글래스모피즘 --- */
-  --color-gradient-start: #3182F6;   /* 블루 그라디언트 시작 */
-  --color-gradient-end: #1B64DA;     /* 진한 블루 그라디언트 끝 */
-  --color-glass-bg: rgba(255, 255, 255, 0.8); /* 밝은 글래스 배경 */
-  --color-glass-blur: 20px;          /* 글래스 블러 값 */
-
-  /* --- 경기 유형별 색상 (유지, primary만 블루로) --- */
-  --color-game-pickup: #3182F6;      /* 픽업 = 토스 블루 */
-  --color-game-guest: #60A5FA;       /* 게스트 모집 = 밝은 파랑 */
-  --color-game-team: #34C759;        /* 팀 대결 = 토스 그린 */
-
-  /* --- 경기 뱃지 색상 (Badge Colors) --- */
-  --color-badge-blue: #3182F6;       /* 픽업/확정 뱃지 (토스 블루) */
-  --color-badge-green: #34C759;      /* 게스트/모집중 뱃지 */
-  --color-badge-amber: #FF9500;      /* 연습 뱃지 (토스 워닝) */
-  --color-badge-red: #F04452;        /* 상급/에러 뱃지 (토스 에러) */
-  --color-badge-gray: #8B95A1;       /* 완료/비활성 뱃지 */
-
-  /* --- 상태 색상 (Status Semantic) --- */
-  --color-status-live: #F04452;      /* 라이브/진행중 */
-  --color-status-open: #34C759;      /* 모집중 */
-  --color-status-confirmed: #3182F6; /* 확정 */
-  --color-status-closed: #8B95A1;    /* 완료/마감 */
-  --color-status-cancelled: #F04452; /* 취소 */
-
-  /* --- 티어 색상 (Tier Colors, 유지) --- */
-  --color-tier-bronze: #CD7F32;
-  --color-tier-silver: #C0C0C0;
-  --color-tier-gold: #FFD700;
-  --color-tier-platinum: #A78BFA;
-  --color-tier-trophy: #F4A261;      /* 대회 트로피/하이라이트 */
-
-  /* --- AI/특수 기능 색상 --- */
-  --color-ai-purple: #7C3AED;       /* AI 기능 버튼 */
-
-  /* --- 토스 추가 변수 --- */
-  --color-text-strong: #333D4B;      /* 제목 바로 아래 강조 텍스트 */
-  --color-text-tertiary: #6B7684;    /* 3차 텍스트 (중간 회색) */
-  --color-primary-weak: #E8F3FF;     /* 연한 블루 배경 (뱃지, 태그) */
-  --color-primary-disabled: #C9E2FF; /* 비활성 블루 */
 }
 
-/* ---- Light Mode (기본) ---- */
-/* @theme 블록이 이미 라이트 값을 기본으로 가지므로,
-   :root에서는 color-scheme 선언만 유지 */
+/* ============================================================
+   BDR v2 — Dual Theme Tokens (Dev/design/BDR v2/tokens.css 이식)
+   LIGHT = Modernized Daum Café feel (friendly, familiar, blue)
+   DARK  = Refined brutalism (poster, red accent, big type)
+   ============================================================ */
+
 :root {
-  color-scheme: light;
+  /* Brand — shared */
+  --bdr-red: #E31B23;
+  --bdr-red-ink: #B3141A;
+  --bdr-red-hot: #FF2A33;
+
+  /* Radii */
+  --r-0: 0px;
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 6px;
+  --r-4: 8px;
+  --r-pill: 999px;
+
+  /* Spacing */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px;  --s-10: 40px;
+  --s-12: 48px; --s-16: 64px; --s-20: 80px;
+
+  /* Type families (layout.tsx에서 next/font 변수 주입 시 --font-archivo/--font-jetbrains로 덮어씀) */
+  --ff-display: 'Archivo', 'Bebas Neue', 'Impact', 'Noto Sans KR', system-ui, sans-serif;
+  --ff-body: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --ff-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Semantic */
+  --ok: #1CA05E;
+  --warn: #E8A33B;
+  --danger: #E24C4B;
+  --info: #0079B9;
+
+  /* Grid */
+  --maxw: 1200px;
+  --gutter: 24px;
 }
 
-/* ---- Dark Mode Variables ---- */
-/* 토스 다크모드: slash-21 컨퍼런스 참고 */
-html.dark {
-  color-scheme: dark;
-
-  /* 배경/표면 계층 (2K Console Dark / Deep Carbon) */
-  --color-background: #0A0A0A;       /* 딥 블랙 배경 */
-  --color-card: #141416;             /* 약간 밝은 카드 */
-  --color-elevated: #1F1F24;         /* 떠있는 요소 */
-  --color-surface: #141416;          /* 섹션 배경 */
-
-  --color-surface-lowest: #111116;   /* 입력 필드 배경 */
-  --color-surface-low: #1B1B21;      /* surface와 동일 */
-  --color-surface-high: #2C2C35;     /* elevated와 동일 */
-  --color-surface-bright: #3A3A45;   /* 호버 시 배경 */
-
-  /* 텍스트 */
-  --color-text-primary: #F2F4F6;     /* 헤드라인 텍스트 */
-  --color-text-secondary: #B0B8C1;   /* 본문 텍스트 */
-  --color-text-muted: #808B98;       /* 약한 텍스트 — 가독성 위해 +15% 밝게 */
-  --color-text-disabled: #4E5968;    /* 비활성 텍스트 */
-  --color-text-strong: #D1D6DB;      /* 강조 텍스트 */
-  --color-text-tertiary: #8B95A1;    /* 3차 텍스트 */
-
-  /* 테두리 */
-  --color-border: #1F1F24;           /* 기본 보더 */
-  --color-border-subtle: #141416;    /* 미세한 구분선 */
-
-  /* 그림자 (다크모드는 더 진하게) */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.3);
-
-  /* 기존 호환 변수 */
-  --color-bg-primary: #17171C;
-  --color-bg-secondary: #1B1B21;
-  --color-bg-card: #1B1B21;
-  --color-bg-hover: #2C2C35;
-  --color-card-hover: #23232B;
-  --color-error-hover: #A51926;
-
-  /* 글래스 */
-  --color-glass-bg: rgba(23, 23, 28, 0.8);
-
-  /* 보조 색상 (다크에서 밝게 조정) */
-  --color-accent: #F2F4F6;
-  --color-accent-hover: #D1D6DB;
-  --color-accent-light: rgba(242, 244, 246, 0.08);
-  --color-on-accent: #191F28;        /* accent 배경 위 텍스트 (다크모드) */
-  --color-on-text-primary: #191F28;  /* text-primary 배경 위 텍스트 (다크모드) */
+/* next/font/google 변수를 v2 타입 패밀리 토큰에 연결 (layout.tsx에서 html에 variable 주입) */
+html {
+  --ff-display: var(--font-archivo, 'Archivo'), 'Bebas Neue', 'Impact', 'Noto Sans KR', system-ui, sans-serif;
+  --ff-mono: var(--font-jetbrains, 'JetBrains Mono'), 'IBM Plex Mono', ui-monospace, monospace;
 }
 
+/* ============================================================
+   LIGHT THEME — Modern Daum Café
+   ============================================================ */
+[data-theme="light"], html.light, :root:not([data-theme]) {
+  /* Neutral surfaces */
+  --bg:          #F4F6FA;    /* page bg - slight blue tint */
+  --bg-elev:     #FFFFFF;    /* cards, panels */
+  --bg-card:     #FFFFFF;
+  --bg-alt:      #F8FAFD;    /* striped rows, subhead */
+  --bg-head:     #EEF2F7;    /* table headers */
+
+  /* Ink */
+  --ink:         #1A1E27;
+  --ink-soft:    #404755;
+  --ink-mute:    #6B7280;
+  --ink-dim:     #8C94A0;
+  --ink-on-brand:#FFFFFF;
+
+  /* Borders */
+  --border:        #E3E7ED;
+  --border-strong: #D0D5DD;
+  --border-hard:   #B5BCC6;
+
+  /* Brand (daum-ish blue as primary chrome) */
+  --cafe-blue:       #0F5FCC;
+  --cafe-blue-deep:  #0A4CA6;
+  --cafe-blue-soft:  #E8F1FC;
+  --cafe-blue-hair:  #C7DCF5;
+  --link:            #0066CC;
+  --link-visited:    #6544A6;
+
+  /* Accent stays BDR red for brand continuity */
+  --accent: var(--bdr-red);
+  --accent-soft: #FDE8E9;
+
+  /* Shadows — soft, modern */
+  --sh-xs: 0 1px 2px rgba(15, 23, 42, .04);
+  --sh-sm: 0 2px 6px rgba(15, 23, 42, .06);
+  --sh-md: 0 6px 18px rgba(15, 23, 42, .08);
+  --sh-lg: 0 12px 40px rgba(15, 23, 42, .10);
+
+  /* Type scale — light */
+  --fs-hero: clamp(28px, 3.4vw, 44px);
+  --fs-h1: 28px;
+  --fs-h2: 22px;
+  --fs-h3: 17px;
+  --fs-body: 14px;
+  --fs-small: 13px;
+  --fs-micro: 11px;
+
+  --lh-body: 1.6;
+  --radius-card: 10px;
+  --radius-chip: 6px;
+}
+
+/* ============================================================
+   DARK THEME — Refined brutalism
+   ============================================================ */
+[data-theme="dark"], html.dark {
+  --bg:          #0B0D10;
+  --bg-elev:     #13171C;
+  --bg-card:     #171C22;
+  --bg-alt:      #1B2128;
+  --bg-head:     #1D232B;
+
+  --ink:         #F6F7F9;
+  --ink-soft:    #D7DDE6;
+  --ink-mute:    #9BA5B3;
+  --ink-dim:     #6B7482;
+  --ink-on-brand:#FFFFFF;
+
+  --border:        #262D36;
+  --border-strong: #3A4450;
+  --border-hard:   #FFFFFF;
+
+  --cafe-blue:      #3B82F6;
+  --cafe-blue-deep: #1E3A8A;
+  --cafe-blue-soft: #1A2338;
+  --cafe-blue-hair: #23324F;
+  --link:           #6EA8FE;
+  --link-visited:   #B79BFF;
+
+  --accent: var(--bdr-red);
+  --accent-soft: #2A1214;
+
+  /* Hard offset shadows for the brutalist vibe */
+  --sh-xs: 2px 2px 0 0 rgba(0,0,0,.6);
+  --sh-sm: 4px 4px 0 0 rgba(0,0,0,.6);
+  --sh-md: 6px 6px 0 0 rgba(0,0,0,.7);
+  --sh-lg: 10px 10px 0 0 rgba(0,0,0,.75);
+
+  --fs-hero: clamp(40px, 5vw, 72px);
+  --fs-h1: 36px;
+  --fs-h2: 26px;
+  --fs-h3: 19px;
+  --fs-body: 15px;
+  --fs-small: 13px;
+  --fs-micro: 11px;
+
+  --lh-body: 1.55;
+  --radius-card: 0px;
+  --radius-chip: 2px;
+}
+
+/* Default to light so first paint is friendly */
+:root:not([data-theme]) { color-scheme: light; }
+[data-theme="light"], html.light { color-scheme: light; }
+[data-theme="dark"], html.dark { color-scheme: dark; }
+
+/* ============================================================
+   Base
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  font-size: 15px;              /* 14px → 15px: 본문 가독성 향상 */
-  line-height: 1.65;            /* 줄 간격 넉넉하게 */
-  letter-spacing: -0.01em;      /* 한글 자간 미세 조정 */
-  font-weight: 420;             /* Pretendard variable: 기본보다 살짝 굵게 */
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum", "ss01";
 }
 
-/* ====== Dark Mode Overrides (attribute selectors) ====== */
-
-/* Backgrounds: white → dark card */
-html.dark [class*="bg-[#FFFFFF]"],
-html.dark [class*="bg-[#FFFFFF]/95"],
-html.dark [class*="bg-white"] {
-  background-color: var(--color-card) !important;
-}
-
-html.dark [class*="bg-[#F5F7FA]"],
-html.dark [class*="bg-[#F5F6FA]"],
-html.dark [class*="bg-[#F5F5F5]"] {
-  background-color: var(--color-surface) !important;
-}
-
-html.dark [class*="bg-[#EEF2FF]"],
-html.dark [class*="bg-[#EDF0F8]"] {
-  background-color: var(--color-elevated) !important;
-}
-
-html.dark [class*="bg-[#F9FAFB]"] {
-  background-color: var(--color-elevated) !important;
-}
-
-html.dark [class*="bg-[#E8ECF0]"] {
-  background-color: var(--color-surface) !important;
-}
-
-/* Borders */
-html.dark [class*="border-[#E8ECF0]"] {
-  border-color: var(--color-border) !important;
-}
-
-html.dark [class*="border-[#F1F5F9]"],
-html.dark [class*="border-[#CBD5E1]"] {
-  border-color: var(--color-border-subtle) !important;
-}
-
-/* Text */
-html.dark [class*="text-[#111827]"] {
-  color: var(--color-text-primary) !important;
-}
-
-html.dark [class*="text-[#374151]"] {
-  color: var(--color-text-primary) !important;
-}
-
-html.dark [class*="text-[#6B7280]"] {
-  color: #D1D5DB !important;
-}
-
-html.dark [class*="text-[#9CA3AF]"] {
-  color: #D1D5DB !important;
-}
-
-/* Gradient overlays */
-html.dark [class*="from-[#1B3C87]"] {
-  --tw-gradient-from: rgba(91, 127, 214, 0.15) !important;
-}
-
-html.dark [class*="to-[#E31B23]"] {
-  --tw-gradient-to: rgba(240, 78, 84, 0.1) !important;
-}
-
-/* Dividers */
-html.dark [class*="bg-[#E8ECF0]"][class*="h-px"],
-html.dark [class*="bg-[#E8ECF0]"][class*="h-["] {
-  background-color: var(--color-border) !important;
-}
-
-/* Shadows on cards */
-html.dark [class*="shadow-["] {
-  --tw-shadow-color: rgba(0, 0, 0, 0.4) !important;
-}
-
-/* Backdrop blur header/nav */
-html.dark [class*="backdrop-blur"] {
-  background-color: rgba(26, 29, 39, 0.92) !important;
-}
-
-/* Hero card dark mode - more visible */
-html.dark {
-  --hero-bg: linear-gradient(135deg, rgba(91,127,214,0.18), rgba(240,78,84,0.12));
-}
-
-html.dark [class*="from-[#1B3C87]/10"][class*="to-[#E31B23]"],
-html.dark [class*="from-[#1B3C87]/15"][class*="to-[#E31B23]"] {
-  background: linear-gradient(135deg, rgba(91,127,214,0.20), rgba(240,78,84,0.14)) !important;
-  border-color: rgba(91,127,214,0.25) !important;
-}
-
-/* ====== Large Text Mode (큰글씨 모드) ====== */
-html.large-text {
-  font-size: 120%;
-}
-
-html.large-text [class*="text-xs"] {
-  font-size: 0.9rem !important;
-}
-
-html.large-text [class*="text-sm"] {
-  font-size: 1.05rem !important;
-}
-
-html.large-text [class*="text-base"] {
-  font-size: 1.2rem !important;
-}
-
-html.large-text [class*="text-lg"] {
-  font-size: 1.35rem !important;
-}
-
-html.large-text [class*="text-xl"] {
-  font-size: 1.5rem !important;
-}
-
-html.large-text [class*="text-2xl"] {
-  font-size: 1.8rem !important;
-}
-
-html.large-text [class*="text-[10px]"],
-html.large-text [class*="text-[9px]"] {
-  font-size: 0.8rem !important;
-}
-
-html.large-text [class*="text-[11px]"] {
-  font-size: 0.85rem !important;
-}
-
-/* ====== Typography (토스 스타일: SUIT 통일, 제목 GmarketSans) ====== */
-/* ====== Typography (토스/2K 혼합: SUIT 통일, 제목 GmarketSans) ====== */
-@layer base {
-  body {
-    font-family: var(--font-sans);
+/* ============================================================
+ * [2026-04-29] 모바일 가로 overflow 안전망
+ *
+ * 왜: v2 컴포넌트들(StatsStrip / HotPostRow 등)이 인라인 grid 로 인해
+ *     모바일 366px 에서 자식이 부모 폭을 초과해 본문이 좌측으로 잘려보이는
+ *     사용자 보고 발생. 컴포넌트별 grid 모바일 대응을 우선 수정했지만,
+ *     향후 신규 컴포넌트가 같은 안티패턴을 재발할 가능성이 높아 시스템 레벨
+ *     안전망으로 가로 스크롤을 차단한다. (768px 이하만 적용 — 데스크톱은 무영향)
+ *     근본 픽스는 컴포넌트 grid 자체. 본 가드는 마지막 방어선.
+ * ============================================================ */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
-    letter-spacing: -0.01em;
+  /* .page = 본문 셸. 자식 grid 가 셸을 밀더라도 가로 스크롤은 차단 */
+  .page { overflow-x: hidden; max-width: 100%; }
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+::selection { background: var(--bdr-red); color: #fff; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================================================
+   Typography utilities
+   ============================================================ */
+.t-display { font-family: var(--ff-display); font-weight: 900; letter-spacing: -0.01em; line-height: 1.05; }
+.t-mono { font-family: var(--ff-mono); }
+.t-mute { color: var(--ink-mute); }
+.t-dim  { color: var(--ink-dim); }
+.t-up   { text-transform: uppercase; letter-spacing: 0.04em; }
+.eyebrow {
+  font-family: var(--ff-body);
+  font-weight: 700; font-size: 11px;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-dim);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.eyebrow::before {
+  content: ""; width: 18px; height: 2px; background: var(--accent); display: inline-block;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--ff-body);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+  background: var(--bg-elev);
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s, transform .08s, box-shadow .12s;
+}
+.btn:hover { background: var(--bg-alt); border-color: var(--border-hard); text-decoration: none; }
+.btn--primary {
+  background: var(--cafe-blue); color: #fff; border-color: var(--cafe-blue-deep);
+}
+.btn--primary:hover { background: var(--cafe-blue-deep); }
+.btn--accent { background: var(--accent); color: #fff; border-color: var(--bdr-red-ink); }
+.btn--accent:hover { background: var(--bdr-red-ink); }
+.btn--ghost { background: transparent; }
+.btn--lg { padding: 14px 22px; font-size: 15px; }
+.btn--xl { padding: 16px 24px; font-size: 16px; width: 100%; font-weight: 700; }
+.btn--sm { padding: 6px 10px; font-size: 12px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+/* Dark theme turns buttons brutalist */
+[data-theme="dark"] .btn, html.dark .btn {
+  border: 2px solid var(--border-hard);
+  border-radius: 0;
+  font-family: var(--ff-display);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+[data-theme="dark"] .btn:hover, html.dark .btn:hover { transform: translate(-2px, -2px); box-shadow: var(--sh-sm); }
+[data-theme="dark"] .btn:active, html.dark .btn:active { transform: translate(0,0); box-shadow: none; }
+[data-theme="dark"] .btn--primary, html.dark .btn--primary { background: var(--bdr-red); color: #fff; border-color: #fff; }
+[data-theme="dark"] .btn--primary:hover, html.dark .btn--primary:hover { background: var(--bdr-red-hot); }
+
+/* ============================================================
+   Badges / chips
+   ============================================================ */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--ink-soft);
+  border-radius: var(--radius-chip);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.badge--red    { background: var(--bdr-red);     color: #fff; border-color: var(--bdr-red-ink); }
+.badge--blue   { background: var(--cafe-blue);   color: #fff; border-color: var(--cafe-blue-deep); }
+.badge--soft   { background: var(--cafe-blue-soft); color: var(--cafe-blue-deep); border-color: var(--cafe-blue-hair); }
+.badge--ok     { background: var(--ok);          color: #fff; border-color: transparent; }
+.badge--warn   { background: var(--warn);        color: #000; border-color: transparent; }
+.badge--ghost  { background: transparent; }
+.badge--new    {
+  background: var(--bdr-red); color: #fff; border: 0;
+  padding: 0 5px; font-size: 10px; font-weight: 800; letter-spacing: .04em;
+  border-radius: 3px; min-width: 16px; height: 16px; line-height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: 1px;
+}
+
+[data-theme="dark"] .badge, html.dark .badge {
+  font-family: var(--ff-display);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  padding: 3px 7px;
+}
+
+/* ============================================================
+   Cards
+   ============================================================ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+}
+[data-theme="dark"] .card, html.dark .card { border-width: 2px; border-color: var(--border-strong); }
+
+/* ============================================================
+   [Phase 9-Mobile P4] 카드 통일 정책 — 그리드 멤버 카드 min-height
+   이유: 그리드 안에 카드를 나열할 때 제목 길이/태그 개수에 따라
+        각 카드 높이가 들쭉날쭉 → 시각 정렬 어색. 최소 높이 통일로
+        깔끔한 카드 그리드 라인 형성.
+   적용 대상: .game-card (그 외 .card 일반 사용처는 영향 X)
+   - 데스크톱 280px / 모바일 240px (가로폭 따라 자연 절약)
+   ============================================================ */
+.game-card { min-height: 280px; }
+@media (max-width: 720px) {
+  .game-card { min-height: 240px; }
+}
+
+/* ============================================================
+   Forms
+   ============================================================ */
+.input, .textarea, .select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip);
+  background: var(--bg-elev);
+  color: var(--ink);
+  font-family: var(--ff-body);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: border-color .12s, box-shadow .12s;
+}
+.input:focus, .textarea:focus, .select:focus {
+  outline: none;
+  border-color: var(--cafe-blue);
+  box-shadow: 0 0 0 3px var(--cafe-blue-soft);
+}
+[data-theme="dark"] .input:focus, html.dark .input:focus,
+[data-theme="dark"] .textarea:focus, html.dark .textarea:focus,
+[data-theme="dark"] .select:focus, html.dark .select:focus {
+  border-color: var(--bdr-red);
+  box-shadow: 0 0 0 3px rgba(227,27,35,.25);
+}
+.textarea { min-height: 120px; resize: vertical; }
+.label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-soft); margin-bottom: 6px;
+}
+
+/* ============================================================
+   Layout — app nav
+   LIGHT: classic Daum-style blue bar + gray secondary
+   DARK:  black bar + red accent underline
+   ============================================================ */
+.app-nav { position: sticky; top: 0; z-index: 50; background: var(--bg-elev); }
+
+/* top brand/utility strip */
+.app-nav__utility {
+  background: var(--cafe-blue);
+  color: #fff;
+  font-size: 12px;
+}
+.app-nav__utility-inner {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 7px var(--gutter);
+  display: flex; align-items: center; gap: 14px;
+  white-space: nowrap;
+}
+.app-nav__utility-inner > * { flex: 0 0 auto; }
+.app-nav__utility a { color: #fff; opacity: .92; white-space: nowrap; }
+.app-nav__utility a:hover { opacity: 1; text-decoration: underline; }
+.app-nav__utility .sep { width: 1px; height: 10px; background: rgba(255,255,255,.35); }
+.app-nav__utility-spacer { flex: 1; }
+
+.app-nav__main {
+  max-width: var(--maxw); margin: 0 auto;
+  padding: 14px var(--gutter);
+  display: flex; align-items: center; gap: 28px;
+}
+.app-nav__logo {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--ff-display); font-weight: 900;
+  font-size: 22px; letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.app-nav__logo img { height: 28px; width: auto; display: block; }
+.app-nav__logo .dot { color: var(--accent); }
+
+.app-nav__tabs { display: flex; gap: 4px; flex: 1; }
+.app-nav__tab {
+  position: relative;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border: 0; background: transparent; cursor: pointer;
+  border-radius: 6px;
+}
+.app-nav__tab:hover { background: var(--bg-alt); color: var(--ink); }
+.app-nav__tab[data-active="true"] {
+  color: var(--cafe-blue-deep);
+  background: var(--cafe-blue-soft);
+  font-weight: 700;
+}
+
+/* [2026-04-29] margin-left:auto 추가 — 모바일에서 .app-nav__tabs(display:none)
+   가 사라져도 우측 영역이 항상 우측 끝으로 밀리도록 보장.
+   gap 10px → 6px: 4개 컨트롤(다크모드/검색/알림/햄버거) 좁은 모바일 viewport
+   에서도 여유 확보. */
+.app-nav__right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-left: auto; }
+.app-nav__logo { flex: 0 0 auto; white-space: nowrap; }
+.app-nav__tabs { white-space: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.app-nav__tabs::-webkit-scrollbar { display: none; }
+.app-nav__tab { white-space: nowrap; flex: 0 0 auto; }
+.app-nav__bottom-line { height: 1px; background: var(--border); }
+
+/* Dark theme nav */
+[data-theme="dark"] .app-nav, html.dark .app-nav { background: var(--bg); border-bottom: 2px solid var(--border-hard); }
+[data-theme="dark"] .app-nav__utility, html.dark .app-nav__utility { background: #000; }
+[data-theme="dark"] .app-nav__tab, html.dark .app-nav__tab { color: var(--ink-mute); font-family: var(--ff-display); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 13px; border-radius: 0; }
+[data-theme="dark"] .app-nav__tab:hover, html.dark .app-nav__tab:hover { background: transparent; color: var(--ink); }
+[data-theme="dark"] .app-nav__tab[data-active="true"], html.dark .app-nav__tab[data-active="true"] { background: transparent; color: var(--ink); }
+[data-theme="dark"] .app-nav__tab[data-active="true"]::after,
+html.dark .app-nav__tab[data-active="true"]::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px;
+  height: 3px; background: var(--accent);
+}
+[data-theme="dark"] .app-nav__bottom-line, html.dark .app-nav__bottom-line { background: var(--border-hard); height: 2px; }
+
+/* ============================================================
+   Page shell
+   ============================================================ */
+.page {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: var(--s-8) var(--gutter) var(--s-20);
+}
+.page--wide { max-width: 1440px; }
+
+/* Two-column grid (left sidebar + main) */
+.with-aside {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+}
+@media (max-width: 900px) { .with-aside { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   Sidebar (board list / cafe menu)
+   ============================================================ */
+.aside {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 4px 0;
+  position: sticky; top: 120px;
+  align-self: start;
+}
+.aside__group { padding: 10px 12px 6px; }
+.aside__title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim); padding: 8px 10px 6px;
+}
+.aside__link {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  gap: 8px;
+  white-space: nowrap;
+}
+.aside__link > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.aside__link .count { flex: 0 0 auto; }
+.aside__link:hover { background: var(--bg-alt); color: var(--ink); text-decoration: none; }
+.aside__link[data-active="true"] {
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  font-weight: 700;
+}
+.aside__link .count { font-size: 11px; color: var(--ink-dim); }
+.aside__divider { height: 1px; background: var(--border); margin: 6px 0; }
+
+[data-theme="dark"] .aside, html.dark .aside { border-color: var(--border-strong); border-width: 2px; border-radius: 0; }
+[data-theme="dark"] .aside__link, html.dark .aside__link { border-radius: 0; }
+[data-theme="dark"] .aside__link[data-active="true"], html.dark .aside__link[data-active="true"] {
+  background: var(--bg-alt); color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ============================================================
+   Board table (list of posts) — the daum-café heart
+   ============================================================ */
+.board {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.board__head {
+  display: grid;
+  grid-template-columns: 64px 1fr 120px 90px 72px 72px;
+  background: var(--bg-head);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; font-weight: 600;
+  color: var(--ink-mute);
+}
+.board__head > div { padding: 10px 12px; text-align: center; }
+.board__head > div:nth-child(2) { text-align: left; }
+.board__row {
+  display: grid;
+  grid-template-columns: 64px 1fr 120px 90px 72px 72px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background .1s;
+}
+.board__row:hover { background: var(--bg-alt); }
+.board__row:last-child { border-bottom: 0; }
+.board__row > div { padding: 11px 12px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.board__row .title { justify-content: flex-start; text-align: left; gap: 6px; color: var(--ink); font-weight: 500; }
+.board__row .title a { color: inherit; }
+.board__row .title a:hover { color: var(--link); text-decoration: underline; }
+.board__row.notice { background: var(--cafe-blue-soft); }
+.board__row.notice .num { color: var(--cafe-blue-deep); font-weight: 700; }
+.board__row .num { color: var(--ink-dim); font-family: var(--ff-mono); font-size: 12px; }
+.board__row .comment-count { color: var(--accent); font-weight: 700; font-size: 12px; margin-left: 2px; }
+
+[data-theme="dark"] .board, html.dark .board { border-width: 2px; border-color: var(--border-strong); border-radius: 0; }
+[data-theme="dark"] .board__head, html.dark .board__head { border-bottom: 2px solid var(--border-strong); font-family: var(--ff-display); letter-spacing: 0.08em; text-transform: uppercase; }
+[data-theme="dark"] .board__row.notice, html.dark .board__row.notice { background: rgba(227,27,35,0.08); }
+[data-theme="dark"] .board__row.notice .num, html.dark .board__row.notice .num { color: var(--accent); }
+
+/* ============================================================
+   Pagination — classic
+   ============================================================ */
+.pager {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  margin-top: 20px;
+}
+.pager__btn {
+  min-width: 32px; height: 32px; padding: 0 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--ink-soft);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--ff-mono);
+}
+.pager__btn:hover { background: var(--bg-alt); }
+.pager__btn[data-active="true"] {
+  background: var(--cafe-blue); color: #fff; border-color: var(--cafe-blue-deep); font-weight: 700;
+}
+[data-theme="dark"] .pager__btn, html.dark .pager__btn { border-radius: 0; border-width: 2px; border-color: var(--border-strong); }
+[data-theme="dark"] .pager__btn[data-active="true"], html.dark .pager__btn[data-active="true"] { background: var(--accent); border-color: var(--accent); }
+
+/* ============================================================
+   Theme switch + onboarding
+   ============================================================ */
+/* [2026-04-29] 헤더의 다크모드 토글은 단일 아이콘 버튼(.app-nav__icon-btn)으로
+   변경됐지만, .theme-switch / .theme-switch__btn 클래스는 랭킹/요금제/캘린더
+   페이지에서 "세그먼트 토글" 톤으로 그대로 재사용 중이므로 CSS 룰 유지. */
+.theme-switch {
+  display: inline-flex;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.theme-switch__btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-mute);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all .15s;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.theme-switch__btn svg { flex: 0 0 auto; }
+.theme-switch__btn:hover { color: var(--ink); }
+.theme-switch__btn[data-active="true"] {
+  background: var(--bg-elev); color: var(--ink);
+  box-shadow: var(--sh-xs);
+}
+[data-theme="dark"] .theme-switch, html.dark .theme-switch { border-width: 2px; border-color: var(--border-strong); }
+[data-theme="dark"] .theme-switch__btn[data-active="true"], html.dark .theme-switch__btn[data-active="true"] {
+  background: var(--bdr-red); color: #fff;
+}
+
+/* 헤더 ThemeSwitch 하이브리드 (2026-04-30 사용자 결정 — 사용자 결정 문서 §3):
+   모바일에서 .theme-switch 본체 룰의 display: inline-flex가 Tailwind hidden을 이기는
+   문제를 명시적 모바일 룰로 해소. AppNav 안의 .theme-switch는 데스크톱 두 라벨 토글,
+   모바일은 .app-nav__icon-btn (단일 아이콘) 으로 분기됨. */
+@media (max-width: 767px) {
+  .app-nav .theme-switch { display: none !important; }
+}
+@media (min-width: 768px) {
+  .app-nav .app-nav__icon-btn[aria-label*="모드"] { display: none !important; }
+}
+
+/* .app-nav__icon-btn — 헤더 우측 다크모드 토글 / 검색 / 알림 공용 아이콘 버튼.
+   이유(왜): PM 지시(2026-04-29)로 박스(border + 배경) 제거하고 아이콘만
+   노출하는 형태로 통일. 다크 테마에서도 "brutalist border" 룰이 적용되지
+   않도록 .btn 계열과 분리된 별도 클래스로 구현. */
+.app-nav__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+  flex: 0 0 auto;
+}
+.app-nav__icon-btn:hover {
+  background: var(--bg-alt);
+  color: var(--ink);
+}
+.app-nav__icon-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.app-nav__icon-btn .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+/* 알림 빨간 점 뱃지 — unreadCount > 0 시 표시 */
+.app-nav__notif { position: relative; }
+.app-nav__notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  pointer-events: none;
+}
+
+/* Onboarding modal */
+.onb-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(10, 14, 22, .55);
+  backdrop-filter: blur(4px);
+  display: grid; place-items: center;
+  padding: 20px;
+}
+.onb {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  max-width: 720px;
+  width: 100%;
+  box-shadow: var(--sh-lg);
+  overflow: hidden;
+}
+.onb__head {
+  padding: 22px 26px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.onb__head h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.onb__head p { margin: 0; color: var(--ink-mute); font-size: 14px; }
+.onb__body {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  padding: 20px;
+}
+.onb__card {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: left;
+  background: var(--bg-elev);
+  transition: border-color .15s, transform .15s;
+}
+.onb__card:hover { border-color: var(--cafe-blue); transform: translateY(-2px); }
+.onb__card[data-sel="true"] {
+  border-color: var(--cafe-blue);
+  box-shadow: 0 0 0 3px var(--cafe-blue-soft);
+}
+.onb__preview {
+  height: 120px; border-radius: 8px; margin-bottom: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden; position: relative;
+}
+.onb__preview.light {
+  background: linear-gradient(to bottom, #0F5FCC 0 26px, #fff 26px 100%);
+}
+.onb__preview.light::after {
+  content: ""; position: absolute; left: 12px; right: 12px; top: 36px; bottom: 12px;
+  background:
+    linear-gradient(#EEF2F7 0 10px, transparent 10px) 0 0 / 100% 100% no-repeat,
+    repeating-linear-gradient(#fff 0 12px, #E3E7ED 12px 13px);
+  border: 1px solid #E3E7ED;
+}
+.onb__preview.dark {
+  background: #0B0D10;
+  position: relative;
+}
+.onb__preview.dark::before {
+  content: "MYBDR"; position: absolute; left: 14px; top: 12px;
+  font-family: var(--ff-display); font-weight: 900; color: #fff; font-size: 18px; letter-spacing: .04em;
+}
+.onb__preview.dark::after {
+  content: ""; position: absolute; left: 14px; right: 14px; top: 44px; bottom: 14px;
+  background:
+    linear-gradient(var(--bdr-red) 0 4px, transparent 4px) 0 0 / 64px 100% no-repeat,
+    linear-gradient(#1B2128 0 100%) 0 10px / 100% 44px no-repeat;
+  border: 2px solid #fff;
+}
+.onb__tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-dim); margin-bottom: 4px;
+}
+.onb__card h3 { margin: 0 0 6px; font-size: 17px; font-weight: 700; }
+.onb__card p { margin: 0; font-size: 13px; color: var(--ink-mute); }
+.onb__foot {
+  padding: 14px 20px;
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--ink-mute);
+}
+.onb__foot .skip { color: var(--ink-mute); background: transparent; border: 0; cursor: pointer; font-size: 13px; text-decoration: underline; }
+
+/* ============================================================
+   Hero / promo strip
+   ============================================================ */
+.promo {
+  background: linear-gradient(135deg, var(--cafe-blue) 0%, var(--cafe-blue-deep) 100%);
+  color: #fff;
+  border-radius: var(--radius-card);
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+[data-promo="red"] .promo {
+  background: linear-gradient(135deg, var(--bdr-red) 0%, var(--bdr-red-ink) 60%, #3A0608 100%);
+}
+[data-promo="red"] .promo .promo__accent { background: #fff; opacity: .14; }
+.promo h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -0.015em; font-weight: 800; }
+.promo p { margin: 0 0 14px; opacity: .9; font-size: 14px; max-width: 60ch; }
+.promo .promo__accent {
+  position: absolute; right: -40px; top: -40px;
+  width: 200px; height: 200px;
+  background: var(--accent); opacity: .18;
+  border-radius: 50%;
+}
+
+[data-theme="dark"] .promo, html.dark .promo {
+  background: #000;
+  border: 2px solid #fff;
+  border-radius: 0;
+}
+[data-theme="dark"] .promo .promo__accent, html.dark .promo .promo__accent {
+  background: var(--accent); opacity: 1; border-radius: 0;
+  right: -20px; top: -20px; width: 140px; height: 140px;
+  transform: rotate(10deg);
+}
+
+/* ============================================================
+   Hero Carousel — 메인 4종 슬라이드 회전 영역
+   - 모든 슬라이드를 absolute로 겹쳐 두고 active 만 opacity:1 로 표시
+   - .promo 와 같은 라운딩/패딩 톤 유지 (디자인 일관성)
+   ============================================================ */
+.hero-carousel {
+  position: relative;
+  margin-bottom: 20px;
+  /* 포커스 외곽선은 키보드 사용자에게만 보이도록 제거 후 :focus-visible 로 표현 */
+  outline: none;
+}
+.hero-carousel:focus-visible {
+  /* 키보드 포커스 표시 — 색상은 BDR Red */
+  outline: 2px solid var(--bdr-red);
+  outline-offset: 2px;
+}
+
+/* viewport: 슬라이드 stacking 컨테이너. min-height 로 panel 높이 보장 */
+.hero-carousel__viewport {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  /* 슬라이드들이 absolute라 부모가 높이를 잃지 않도록 명시 */
+  min-height: 200px;
+}
+
+/* 개별 슬라이드 컨테이너 — 모두 동일 위치에 겹쳐서 fade 전환 */
+.hero-carousel__slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  /* 비활성 슬라이드의 CTA가 클릭되는 사고 방지 */
+  pointer-events: none;
+}
+.hero-carousel__slide--active {
+  opacity: 1;
+  pointer-events: auto;
+  /* z-index 는 시각적 겹침 순서일 뿐 — 키보드 탭 순서는 aria-hidden 이 제어 */
+  z-index: 1;
+}
+
+/* 슬라이드 내부 패널 — .promo 와 동일한 라운딩/패딩/색상 톤 */
+.hero-carousel__panel {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  border-radius: var(--radius-card);
+  padding: 28px;
+  color: #fff;
+  overflow: hidden;
+  /* viewport 가 absolute 자식의 높이를 잃지 않도록 box 채움 */
+  box-sizing: border-box;
+}
+.hero-carousel__accent {
+  position: absolute;
+  right: -40px;
+  top: -40px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  /* 색상은 shell 컴포넌트가 inline style 로 주입 */
+}
+
+/* 좌측 콘텐츠 영역 — z-index 로 accent 원형 위에 노출 */
+.hero-carousel__content {
+  position: relative;
+  z-index: 1;
+  max-width: 60ch;
+}
+.hero-carousel__badge {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hero-carousel__title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  letter-spacing: -0.015em;
+  font-weight: 800;
+  /* 너무 긴 타이틀은 2줄까지만 노출 (시각 일관성 확보) */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hero-carousel__meta {
+  margin: 0 0 14px;
+  opacity: 0.9;
+  font-size: 14px;
+}
+.hero-carousel__ctas {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 다크 모드: .promo 와 동일하게 검정 배경 + 흰 테두리 / 라운딩 0 */
+[data-theme="dark"] .hero-carousel__panel,
+html.dark .hero-carousel__panel {
+  background: #000 !important;
+  border: 2px solid #fff;
+  border-radius: 0;
+}
+[data-theme="dark"] .hero-carousel__viewport,
+html.dark .hero-carousel__viewport {
+  border-radius: 0;
+}
+[data-theme="dark"] .hero-carousel__accent,
+html.dark .hero-carousel__accent {
+  opacity: 1;
+  border-radius: 0;
+  right: -20px;
+  top: -20px;
+  width: 140px;
+  height: 140px;
+  transform: rotate(10deg);
+}
+
+/* 좌우 화살표 — viewport 양 끝에 absolute 배치 */
+.hero-carousel__arrows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.hero-carousel__arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.hero-carousel__arrow:hover {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+.hero-carousel__arrow:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.hero-carousel__arrow--prev {
+  left: 12px;
+}
+.hero-carousel__arrow--next {
+  right: 12px;
+}
+
+/* 점 indicator — viewport 하단 중앙 */
+.hero-carousel__indicators {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  z-index: 2;
+}
+.hero-carousel__indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  /* width 변화를 부드럽게 — active 시 가로로 늘어남 */
+  transition: background 0.2s ease, width 0.2s ease;
+}
+.hero-carousel__indicator:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+.hero-carousel__indicator--active {
+  width: 22px;
+  border-radius: 4px;
+  background: #fff;
+}
+.hero-carousel__indicator:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* 모바일 — 화살표 작게 + 패널 패딩 축소 (.promo 와 동일 톤) */
+@media (max-width: 768px) {
+  .hero-carousel__panel {
+    padding: 20px 18px;
+  }
+  .hero-carousel__title {
+    font-size: 22px;
+  }
+  .hero-carousel__meta {
+    font-size: 13px;
+  }
+  .hero-carousel__arrow {
+    width: 32px;
+    height: 32px;
+  }
+  .hero-carousel__arrow--prev {
+    left: 8px;
+  }
+  .hero-carousel__arrow--next {
+    right: 8px;
   }
 }
 
+/* 접근성 — OS 모션 감소 설정 시 fade 전환 제거 */
+@media (prefers-reduced-motion: reduce) {
+  .hero-carousel__slide {
+    transition: none;
+  }
+  .hero-carousel__indicator {
+    transition: none;
+  }
+  .hero-carousel__arrow {
+    transition: none;
+  }
+}
 
-/* Material Symbols 기본 설정: 아이콘 폰트의 기본 스타일 지정 */
+/* ============================================================
+   Tweaks panel (unchanged protocol, restyled)
+   ============================================================ */
+.tweaks {
+  position: fixed; bottom: 20px; right: 20px; z-index: 100;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  padding: 14px 16px 14px;
+  font-family: var(--ff-body);
+  font-size: 13px;
+  min-width: 240px;
+  display: none;
+  border-radius: 12px;
+}
+.tweaks[data-open="true"] { display: block; }
+[data-theme="dark"] .tweaks, html.dark .tweaks { border: 2px solid var(--border-hard); border-radius: 0; }
+.tweaks__title {
+  font-weight: 800;
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 10px; display: flex; align-items: center; justify-content: space-between;
+}
+.tweaks__row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.tweaks__btn {
+  flex: 1; min-width: 60px; padding: 7px 10px; font-size: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev); color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+}
+.tweaks__btn[data-active="true"] { background: var(--cafe-blue); color: #fff; border-color: var(--cafe-blue-deep); }
+[data-theme="dark"] .tweaks__btn, html.dark .tweaks__btn { border-radius: 0; border-width: 2px; border-color: var(--border-strong); font-family: var(--ff-display); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+[data-theme="dark"] .tweaks__btn[data-active="true"], html.dark .tweaks__btn[data-active="true"] { background: var(--accent); color: #fff; border-color: #fff; }
+.tweaks__lbl { color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; margin-top: 12px; font-weight: 600; }
+
+/* ============================================================
+   Utility (v2 내장)
+   ============================================================ */
+.hr-soft { height: 1px; background: var(--border); border: 0; margin: 0; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; } .gap-4 { gap: 16px; } .gap-6 { gap: 24px; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.mt-2 { margin-top: 8px; } .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }
+.text-center { text-align: center; }
+
+/* ============================================================
+   BDR v2 Responsive (Dev/design/BDR v2/responsive.css 통합)
+   Breakpoint: 720px (phone) · 900px handled inline (with-aside)
+   ============================================================ */
+
+@media (max-width: 720px) {
+  :root { --gutter: 14px; }
+
+  /* ============================================================
+     [Phase 9-Mobile P2] 폼 컨트롤 16px 강제 — iOS Safari 자동 줌 차단
+     이유: iOS Safari는 input 폰트 사이즈가 16px 미만이면 포커스 시 자동 줌인
+           하여 UX가 깨진다. 모바일 분기에서만 16px 강제로 자동 줌 방지.
+     - checkbox/radio 는 폰트 영향 없음 → 제외해 의도치 않은 시각 변화 방지
+     - !important 사용 정당화: iOS 줌 차단은 명세상 필수 조건 (16px 미만이면 무조건 줌)
+     ============================================================ */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* ---- App nav: collapse tabs into hamburger ---- */
+  .app-nav__utility-inner { gap: 8px; font-size: 11px; padding: 6px var(--gutter); }
+  .app-nav__utility-inner > span:first-child { font-weight: 700; }
+  /* [2026-04-29] 좌측 그룹(.util-left)만 모바일에서 숨김.
+     이전 셀렉터 a:not(:last-of-type)는 우측 "계정 / 설정" 까지 의도치 않게 숨김.
+     좌/우를 명시 클래스로 분리해 우측은 모두 표시. */
+  .app-nav__utility-inner .util-left { display: none; }
+
+  .app-nav__main {
+    padding: 10px var(--gutter);
+    gap: 10px;
+  }
+  .app-nav__logo { font-size: 18px; gap: 6px; }
+  .app-nav__logo img { height: 22px; }
+
+  /* Hide desktop tab strip; show hamburger */
+  .app-nav__tabs { display: none; }
+  .app-nav__burger {
+    display: inline-flex !important;
+    width: 38px; height: 38px;
+    align-items: center; justify-content: center;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--ink); cursor: pointer;
+    flex: 0 0 auto;
+  }
+  [data-theme="dark"] .app-nav__burger, html.dark .app-nav__burger { border-width: 2px; border-color: var(--border-strong); border-radius: 0; }
+
+  /* [2026-04-29] .theme-switch 듀얼 버튼 → .app-nav__icon-btn 단일 아이콘으로
+     교체. 모바일 압축 룰(.theme-switch__btn span display:none) 더 이상 불필요. */
+
+  /* [2026-04-29] 모바일 우측 영역 — 4개 컨트롤(다크/검색/알림/햄버거) 간격 더 좁게.
+     366px viewport에서도 여유 확보. margin-left:auto는 데스크톱 룰에서 상속. */
+  .app-nav__right { gap: 4px; }
+
+  /* ---- Mobile drawer ---- */
+  .drawer-backdrop {
+    position: fixed; inset: 0; z-index: 90;
+    background: rgba(8,10,14,.55); backdrop-filter: blur(2px);
+  }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
+    width: min(320px, 85vw);
+    background: var(--bg-elev);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 40px rgba(0,0,0,.25);
+    display: flex; flex-direction: column;
+    animation: drawerIn .22s ease-out;
+  }
+  [data-theme="dark"] .drawer, html.dark .drawer { border-left: 2px solid var(--border-hard); }
+  @keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+  .drawer__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .drawer__head-title {
+    font-family: var(--ff-display); font-weight: 900;
+    font-size: 18px; letter-spacing: -0.01em;
+  }
+  .drawer__head-title .dot { color: var(--accent); }
+  .drawer__close {
+    background: transparent; border: 0; font-size: 22px; line-height: 1;
+    color: var(--ink-mute); cursor: pointer; padding: 4px 8px;
+  }
+  .drawer__body { flex: 1; overflow: auto; padding: 8px 0; }
+  .drawer__item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; font-size: 15px; color: var(--ink);
+    background: transparent; border: 0; width: 100%; text-align: left;
+    cursor: pointer; font-weight: 600;
+  }
+  .drawer__item:hover, .drawer__item:focus { background: var(--bg-alt); }
+  .drawer__item[data-active="true"] {
+    color: var(--cafe-blue-deep); background: var(--cafe-blue-soft);
+  }
+  [data-theme="dark"] .drawer__item, html.dark .drawer__item {
+    font-family: var(--ff-display); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; font-size: 14px;
+  }
+  [data-theme="dark"] .drawer__item[data-active="true"],
+  html.dark .drawer__item[data-active="true"] {
+    color: var(--ink); background: transparent; box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .drawer__divider { height: 1px; background: var(--border); margin: 8px 0; }
+  .drawer__foot {
+    padding: 14px 16px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* ---- Page shell ---- */
+  .page { padding: 16px var(--gutter) 80px; }
+
+  /* Two-col layouts collapse */
+  .with-aside { grid-template-columns: 1fr !important; gap: 14px; }
+  .aside { display: none; }  /* desktop sidebar hidden; drawer covers it */
+
+  /* ---- Profile (P2-2 Med) ----
+     /profile 본인 프로필: 데스크톱은 320px sidebar + main, 모바일은 단일 컬럼.
+     이유 — 320px sidebar 가 모바일 폭(360~414px) 의 80~90% 를 차지해 본문 공간 부족.
+     sticky 도 해제: 모바일은 짧은 세로 스크롤이라 sticky 가 도리어 본문을 가림. */
+  .profile-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .profile-aside { position: static !important; top: auto !important; }
+
+  /* ---- Home ---- */
+  /* stat strip: 2x2 */
+  .page > div[style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  /* two-col (공지/대회) stacks */
+  .page > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Promo scales down */
+  .promo { padding: 20px 18px; }
+  .promo h2 { font-size: 22px; }
+  .promo p { font-size: 13px; }
+
+  /* ---- Board table → card list on mobile ---- */
+  .board__head { display: none !important; }
+  .board__row {
+    display: block !important;
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .board__row > div {
+    all: unset;
+    display: inline;
+  }
+  .board__row > div.num::before {
+    content: none;
+  }
+  .board__row > div.num {
+    display: inline-block;
+    font-family: var(--ff-mono); font-size: 11px;
+    color: var(--ink-dim); margin-right: 8px;
+  }
+  .board__row > div.title {
+    display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px;
+    font-size: 15px !important; color: var(--ink); font-weight: 500;
+    margin-bottom: 6px;
+  }
+  /* Hide all other cells but make meta line from author+date+views
+   * [Phase 9-Mobile P1] data-meta 마커가 부여된 셀들에 separator (·) 표시.
+   * 이전에는 "자유 홍길동 04-22 123" 처럼 공백으로만 구분되어 라벨 모호.
+   * 첫 메타 셀(board) 제외하고 :not(:first-of-type) 으로 앞에 " · " 추가. */
+  .board__row > div:nth-child(n+3) {
+    display: inline-block !important;
+    font-size: 11px !important;
+    color: var(--ink-dim) !important;
+    margin-right: 0;
+  }
+  .board__row > div[data-meta]:not([data-meta="views"]) + div[data-meta]::before {
+    content: " · ";
+    color: var(--ink-dim);
+    margin: 0 6px;
+  }
+  /* 조회수 셀은 별도 prefix "조회 " 로 의미 명확화. 뷰포트가 매우 좁아도 한 줄 유지. */
+  .board__row > div[data-meta="views"] {
+    margin-left: 8px;
+  }
+  .board__row > div[data-meta="views"]::before {
+    content: "조회 ";
+    color: var(--ink-dim);
+  }
+
+  /* ---- Match list: 1 col ---- */
+  .page > div[style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-4] with-aside 폭 5종 (340/320/300/280/360) — Match detail 등
+     이유: v2 룰은 340px 1종만 처리. 사이트 내 다양한 사이드바 폭을 모두
+           1열 stack으로 변환해야 모바일에서 콘텐츠 잘림이 사라진다.
+           aside order:-1 보존(데스크톱 우측 → 모바일 상단)도 5종 모두 적용.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-4
+     ============================================================ */
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 340px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 320px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 300px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 280px"],
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 360px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-6] sticky aside/nav → static (page--wide 외 모든 .page)
+     이유: v2 룰은 .page--wide 스코프만 처리하여 일반 .page 의 sticky 사이드바/
+           네비가 모바일에서 화면 점유. v2.1 시안은 모든 .page 스코프 + nav도
+           포함하여 모바일에서 일괄 static 변환. top:auto !important 도 함께
+           해제해 sticky 시 남는 잔여 오프셋 제거.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-6
+     ============================================================ */
+  .page aside[style*="position: sticky"],
+  .page nav[style*="position: sticky"] {
+    position: static !important;
+    top: auto !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-2] 3-col 포스터 그리드 → 2-col
+     이유: v2 룰은 3열을 그대로 유지(`repeat(3,1fr)`)했으나, 375px 모바일에서
+           대회/경기 포스터 카드는 너무 좁아서 정보 식별이 어렵다. v2.1 시안은
+           2-col로 변경. .page 스코프 + .onb__body/.drawer__body 제외 매처를
+           시안 그대로 유지.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-2
+     ============================================================ */
+  .page div[style*="grid-template-columns: repeat(3, 1fr)"]:not(.onb__body):not(.drawer__body) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-3] season-stats 6열 → 3열
+     이유: 시즌 스탯 6열 그리드(예: 경기/득점/리바운드/어시스트/스틸/블락)는
+           모바일에서 칼럼당 60px 미만이 되어 판독 불가. 3열로 줄여 2행 표시.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-3
+     ============================================================ */
+  .page > div[style*="grid-template-columns: repeat(6, 1fr)"],
+  .page div[style*="grid-template-columns: repeat(6, 1fr)"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* [v2.1 P0-1 G-4] .page 스코프 with-aside 5종 — 사이드바 자식 직접 배치 */
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 320px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 300px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 280px"],
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 360px"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* [v2.1 P0-1 G-4] aside order:-1 — 우측 사이드바를 모바일 상단으로 이동 (5종) */
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 340px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 320px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 300px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 280px"] > aside,
+  .page > div[style*="grid-template-columns: minmax(0,1fr) 360px"] > aside {
+    order: -1;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-7] fontSize 96/48 모바일 축소
+     이유: 데스크톱 GameResult/MatchDetail 스코어보드의 96px 점수, 48px(opacity:.4)
+           서브 텍스트는 375px 모바일에서 너무 커서 두 자리 점수도 잘린다. v2.1
+           시안: 96 → 48, 48 → 24. 인라인 style 매처는 공백 있/없 양쪽 대응.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-7
+     ============================================================ */
+  .page div[style*="fontSize:96"],
+  .page div[style*="fontSize: 96"] {
+    font-size: 48px !important;
+  }
+  .page div[style*="fontSize:48"][style*="opacity:.4"],
+  .page div[style*="fontSize: 48"][style*="opacity: .4"] {
+    font-size: 24px !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-8] Wide tables 5종 → 1열 카드 stack
+     이유: 데스크톱 5~8열 표(예: 40 50 1fr 80 100 90 90 140)는 모바일에서
+           컬럼 폭이 60px 미만으로 압축되어 모든 셀이 잘림. 1열로 stack해
+           셀 단위 세로 배치. v2.1 시안 그대로 5종 매처 보존.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-8
+     ============================================================ */
+  .page div[style*="grid-template-columns: 40px 50px 1fr 80px 100px 90px 90px 140px"],
+  .page div[style*="grid-template-columns: 120px 1fr 110px 90px"],
+  .page div[style*="grid-template-columns: 80px 1.2fr 100px 80px 80px 90px"],
+  .page div[style*="grid-template-columns: 56px 1fr 90px 100px 80px"],
+  .page div[style*="grid-template-columns: 1fr 80px 100px 100px 120px"] {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 12px 14px !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-9] row 패턴 일괄 + card 1종
+     이유: 다양한 2-col 패턴(폼/매치카드/포스터+인포)을 모바일에서
+           1열 stack 또는 비율 조정. card 의 140px 포스터 → 100px 축소.
+     출처: Dev/design/v2.1-cli-prompts-2026-04-29.md P0-1 G-9
+     ============================================================ */
+  /* G-9-a: Match list 카드 포스터 축소 (140 → 100) */
+  .page .card[style*="grid-template-columns: 140px 1fr"] {
+    grid-template-columns: 100px 1fr !important;
+  }
+  /* G-9-b: 2-col 폼 → 1열 stack (3종) */
+  .page div[style*="grid-template-columns: 200px 1fr"],
+  .page div[style*="grid-template-columns: 1fr 140px"],
+  .page div[style*="grid-template-columns: 1fr 120px 36px"] {
+    grid-template-columns: 1fr !important;
+  }
+  /* G-9-c: Label/value rows (140/120/160px 1fr) — 카드 아닌 경우만 압축 (96px 1fr) */
+  .page div[style*="grid-template-columns: 140px 1fr"]:not(.card),
+  .page div[style*="grid-template-columns: 120px 1fr"]:not(.card),
+  .page div[style*="grid-template-columns: 160px 1fr"] {
+    grid-template-columns: 96px 1fr !important;
+    column-gap: 10px !important;
+    font-size: 13px !important;
+  }
+  /* G-9-d: GameResult 비교 (1fr 120px 1fr) — 중앙 컬럼 80px 압축 */
+  .page div[style*="grid-template-columns: 1fr 120px 1fr"] {
+    grid-template-columns: 1fr 80px 1fr !important;
+    column-gap: 8px !important;
+  }
+
+  /* ---- Board list filter row wraps smaller ---- */
+  .page > main > div[style*="board"] { overflow: hidden; }
+
+  /* ---- Buttons: larger tap targets ----
+   * [Phase 9-Mobile P3] iOS HIG 권장 44×44 터치 타겟 충족.
+   * 데스크톱 .btn--sm(28px height)는 모바일에서 손가락으로 누르기엔 너무 작음.
+   * min-height 44px + padding 보강으로 손가락 탭 정확도 향상.
+   * .btn 기본/btn--xl 도 같은 기준 적용. */
+  .btn { padding: 12px 16px; font-size: 14px; min-height: 44px; }
+  .btn--sm { padding: 10px 14px; font-size: 13px; min-height: 44px; }
+  .btn--xl { padding: 14px 18px; font-size: 15px; min-height: 48px; }
+
+  /* ---- Typography tighter ---- */
+  h1[style*="font-size:28px"], h1[style*="fontSize:28"] { font-size: 22px !important; }
+  h1[style*="font-size:24px"], h1[style*="fontSize:24"] { font-size: 20px !important; }
+  .t-display { letter-spacing: -0.02em; }
+
+  /* Hero in match detail */
+  .page--wide > div[style*="linear-gradient"] { padding: 24px 20px !important; }
+  .page--wide > div[style*="linear-gradient"] h1 { font-size: 32px !important; }
+
+  /* ---- Onboarding modal fits phone ---- */
+  .onb__body { grid-template-columns: 1fr; padding: 14px; gap: 10px; }
+  .onb__head { padding: 18px 20px 12px; }
+  .onb__head h2 { font-size: 19px; }
+  .onb__head p { font-size: 13px; }
+  .onb__foot { padding: 12px 16px; }
+
+  /* ---- Tweaks panel fits mobile ---- */
+  .tweaks {
+    left: 10px; right: 10px; bottom: 10px;
+    min-width: 0; max-height: 70vh; overflow: auto;
+  }
+
+  /* Pager */
+  .pager { flex-wrap: wrap; }
+
+  /* Footer */
+  footer { padding: 20px 16px 40px !important; }
+
+  /* Breadcrumb, nav previews get smaller */
+  /* Disable hover transforms on touch */
+  .onb__card:hover { transform: none; }
+
+  /* ---- Messages: 3컬럼 → 1컬럼 + data-mobile-view 푸시-네비 ----
+     이유: 모바일에서 데스크톱 3컬럼(320/1fr/280)을 그대로 두면 첫 번째
+           목록 컬럼만 보이고 가운데 채팅·우측 정보가 잘림.
+           data-mobile-view="list|thread"로 컬럼 토글, 우측 정보 패널은 영구 숨김.
+     출처: Dev/design/BDR v2 (1)/responsive.css L207~L223 */
+  .page .msg-shell {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  /* 우측 프로필 패널은 모바일에서 영구 숨김 */
+  .page .msg-shell > *:nth-child(3) { display: none !important; }
+  /* list 뷰: 가운데 채팅 컬럼 숨김 */
+  .page .msg-shell[data-mobile-view="list"] > *:nth-child(2) { display: none !important; }
+  /* thread 뷰: 첫 번째 목록 컬럼 숨김 */
+  .page .msg-shell[data-mobile-view="thread"] > *:nth-child(1) { display: none !important; }
+  /* 목록·채팅 단일컬럼 높이 */
+  .page .msg-shell > *:nth-child(1),
+  .page .msg-shell > *:nth-child(2) {
+    height: calc(100vh - 160px) !important;
+    min-height: 520px !important;
+  }
+  /* 모바일에서만 백버튼 노출 — 데스크톱은 inline style display:none 유지 */
+  .page .msg-shell .msg-back {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ============================================================
+     [P2-1] 더보기 5그룹 패널 — 모바일 풀폭 시트 변환
+     이유: 데스크톱 680px 2-col 그리드는 모바일에서 너무 좁아 가로 스크롤이
+           발생한다. 720px 이하에서 풀스크린 시트로 띄워 1-col 세로 stack.
+     ============================================================ */
+  .app-nav__more-panel {
+    position: fixed !important;
+    top: var(--app-nav-h, 92px) !important; /* 유틸리티+메인바 높이 (대략) */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: auto !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    padding: 14px var(--gutter, 16px) 24px !important;
+    grid-template-columns: 1fr !important; /* 5그룹 세로 stack */
+    gap: 8px 0 !important;
+    overflow-y: auto !important;
+    z-index: 50 !important;
+  }
+
+  /* ============================================================
+     [v2.1 P0-1 G-1] data-table 카드형 변환 룰
+     이유: v2.1 시안의 .data-table 컴포넌트가 모바일에서 헤더 행 숨기고
+           각 셀을 라벨/값 라인으로 카드형 변환. data-primary는 카드 제목,
+           data-actions는 하단 풀폭 버튼 영역.
+     출처: Dev/design/BDR v2.1/responsive.css §data-table
+     주의: 사이트 내 .data-table 사용 0건이지만, 신규 컴포넌트 도입 대비 선이식.
+     ============================================================ */
+  .data-table .data-table__head { display: none !important; }
+  .data-table .data-table__row {
+    display: block !important;
+    padding: 12px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-top: 0 !important;
+    gap: 0 !important;
+    grid-template-columns: none !important;
+  }
+  .data-table .data-table__row > div,
+  .data-table .data-table__row > span {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    text-align: right !important;
+    padding: 4px 0 !important;
+    font-size: 13px !important;
+    min-width: 0 !important;
+  }
+  .data-table .data-table__row > div[data-label]::before,
+  .data-table .data-table__row > span[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 12px;
+    text-align: left;
+  }
+  .data-table .data-table__row > div[data-primary="true"] {
+    display: block !important;
+    text-align: left !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 2px 0 8px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px dashed var(--border) !important;
+  }
+  .data-table .data-table__row > div[data-primary="true"]::before {
+    display: none !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"] {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    margin-top: 8px !important;
+    flex-wrap: wrap !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"]::before {
+    display: none !important;
+  }
+  .data-table .data-table__row > div[data-actions="true"] .btn {
+    flex: 1 1 0 !important;
+    min-width: 80px !important;
+  }
+}
+
+/* Hamburger hidden on desktop by default */
+.app-nav__burger { display: none; }
+
+/* Medium screens: already handled by .with-aside @ 900px. Add some polish. */
+@media (max-width: 900px) and (min-width: 721px) {
+  .app-nav__tabs { gap: 0; }
+  .app-nav__tab { padding: 10px 10px; font-size: 13px; }
+  .page > div[style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  .page--wide > div[style*="grid-template-columns: minmax(0,1fr) 340px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================================
+   Preserved: Material Symbols base (기존 유지)
+   ============================================================ */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-/* 모바일 터치 개선 */
+/* ============================================================
+   Preserved: 터치/스크롤 유틸 (기존 유지)
+   ============================================================ */
 button,
 a,
 [role="button"] {
@@ -386,22 +1627,6 @@ a,
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
-
-@media (max-width: 1023px) {
-  .footer-mobile-space {
-    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-/* Sidebar scaling to 96% - 사이드바 내부 컨텐츠를 96%로 표시 (기존 80%에서 120% 확대 적용: 0.8 * 1.2 = 0.96) */
-.sidebar-scaled {
-  transform: scale(0.96);
-  transform-origin: top left;
-  width: 104.17%;
-  height: 104.17%;
-}
-
-/* Hide scrollbar for horizontal scroll sections - 수평 스크롤 영역 스크롤바 숨기기 */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -410,7 +1635,39 @@ a,
   scrollbar-width: none;
 }
 
-/* 페이지 전환 fade-in 애니메이션 — 살짝 위로 올라오며 나타남 */
+/* ============================================================
+   Preserved: 하단 모바일 네비 여백 + 사이드바 스케일 + large-text (기존 유지)
+   ============================================================ */
+@media (max-width: 1023px) {
+  .footer-mobile-space {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.sidebar-scaled {
+  transform: scale(0.96);
+  transform-origin: top left;
+  width: 104.17%;
+  height: 104.17%;
+}
+
+/* 큰글씨 모드 */
+html.large-text {
+  font-size: 120%;
+}
+html.large-text [class*="text-xs"] { font-size: 0.9rem !important; }
+html.large-text [class*="text-sm"] { font-size: 1.05rem !important; }
+html.large-text [class*="text-base"] { font-size: 1.2rem !important; }
+html.large-text [class*="text-lg"] { font-size: 1.35rem !important; }
+html.large-text [class*="text-xl"] { font-size: 1.5rem !important; }
+html.large-text [class*="text-2xl"] { font-size: 1.8rem !important; }
+html.large-text [class*="text-[10px]"],
+html.large-text [class*="text-[9px]"] { font-size: 0.8rem !important; }
+html.large-text [class*="text-[11px]"] { font-size: 0.85rem !important; }
+
+/* ============================================================
+   Preserved: 페이지 전환 애니메이션 (기존 유지)
+   ============================================================ */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -419,7 +1676,6 @@ a,
   animation: fade-in 0.3s ease-out;
 }
 
-/* 모바일 지도 하단 미니카드 슬라이드업 애니메이션 */
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -428,11 +1684,11 @@ a,
   animation: slide-up 0.25s ease-out;
 }
 
-/* ========================================
- * NBA 2K 스타일 커스텀 유틸리티 (Neon & Clip)
- * ======================================== */
+/* ============================================================
+   Preserved: NBA 2K 스타일 커스텀 유틸 (기존 페이지에서 사용 중 → 유지)
+   ============================================================ */
 
-/* 네온 글로우(빛 번짐) 효과 */
+/* 네온 글로우 효과 */
 .shadow-glow-primary {
   box-shadow: 0 0 10px rgba(227, 27, 35, 0.5), 0 0 20px rgba(227, 27, 35, 0.3);
 }
@@ -440,7 +1696,7 @@ a,
   box-shadow: 0 0 10px rgba(27, 60, 135, 0.5), 0 0 20px rgba(27, 60, 135, 0.3);
 }
 
-/* 평행사변형(Skew/Slant) 클리핑 효과 */
+/* 평행사변형 클리핑 */
 .clip-slant {
   clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
 }
@@ -451,7 +1707,7 @@ a,
   clip-path: polygon(2% 0, 100% 0, 98% 100%, 0% 100%);
 }
 
-/* 카드 내 워터마크 폰트 배치 (대형 넘버링 등) */
+/* 카드 내 워터마크 폰트 배치 */
 .watermark-text {
   position: absolute;
   top: 50%;
@@ -461,18 +1717,19 @@ a,
   font-weight: 800;
   color: rgba(255, 255, 255, 0.03);
   pointer-events: none;
-  font-family: var(--font-heading);
+  font-family: var(--ff-display);
   line-height: 1;
 }
-html.light .watermark-text {
+html.light .watermark-text,
+[data-theme="light"] .watermark-text {
   color: rgba(0, 0, 0, 0.03);
 }
 
-/* 2026-04-17: state 기반 프린트 모드 (모바일/태블릿 호환) — @media print 와 별도로 동작.
-   일부 모바일 브라우저가 @media print 를 뷰포트 스냅샷 모드로 처리해 가시성 전환이 실행되지 않는
-   문제가 있어, JS 에서 [data-printing="true"] 를 토글하면 CSS 가 즉시 반영되는 방식으로 바꿈.
-   window.print() 호출 전 state 가 true → main 콘텐츠 숨김 + 프린트 영역 보임 → afterprint 에서 해제.
-   데스크톱 브라우저도 동일하게 동작하므로 @media print 블록과 결과는 같지만, 모바일에서도 확실히 반영됨. */
+/* ============================================================
+   Preserved: 프린트 — data-printing 상태 + @media print (기존 유지, 수정 금지)
+   ============================================================ */
+
+/* state 기반 프린트 모드 (모바일/태블릿 호환) */
 [data-live-root][data-printing="true"] > *:not(#box-score-print-area) {
   display: none !important;
 }
@@ -480,31 +1737,21 @@ html.light .watermark-text {
   display: block !important;
 }
 
-/* 프린트: 박스스코어 A4 가로, 한 팀/한 기간 한 페이지
-   2026-04-16 재작성: visibility:hidden 방식은 공간을 유지해 빈 페이지가 생성되는 버그가 있어
-   display:none 방식으로 변경. data-live-root의 자식 중 프린트 영역만 남기고 완전히 제거. */
 @media print {
-  /* A4 landscape — 표준 키워드가 Chrome "PDF로 저장"에서 가장 안정적으로 동작.
-     이전에 시도한 명시적 치수(297mm 210mm)나 html/body width 강제는 오히려
-     Chrome PDF 엔진의 페이지 메타데이터 처리를 방해해 세로로 저장되는 문제 발생.
-     주의: Chrome은 @page size를 힌트로만 사용. 사용자가 프린트 대화상자의
-           "레이아웃: 세로"를 명시 선택하면 이를 무시함. 다이얼로그 안내 참조. */
   @page { size: A4 landscape; margin: 8mm; }
 
-  /* 색상 강제 변환: 모든 요소 검정 글자/흰 배경/회색 테두리, 그림자 제거 */
+  /* 색상 강제 변환 */
   * { color: #000 !important; background: #fff !important; border-color: #ccc !important; box-shadow: none !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
 
-  /* 라이브 페이지 전체 zoom 1.1 해제 — 프린트에서는 정상 배율 유지 */
+  /* 라이브 페이지 zoom 해제 */
   [data-live-root] { zoom: 1 !important; }
 
-  /* 핵심: 최상위 컨테이너의 자식 중 프린트 영역만 남기고 나머지는 display:none으로 완전 제거
-     (visibility:hidden은 공간을 유지해 빈 페이지를 생성하므로 display:none 사용) */
+  /* 최상위 컨테이너의 자식 중 프린트 영역만 남김 */
   [data-live-root] > *:not(#box-score-print-area) {
     display: none !important;
   }
 
-  /* 프린트 영역은 static 배치로 페이지 전체 사용 (position:absolute 제거) */
   #box-score-print-area {
     display: block !important;
     position: static !important;
@@ -513,22 +1760,16 @@ html.light .watermark-text {
     width: 100% !important;
   }
 
-  /* 테이블 스타일 */
+  /* 박스스코어 테이블 */
   #box-score-print-area table { font-size: 11px; border-collapse: collapse; width: 100%; table-layout: fixed; }
-  /* th/td 모두 중앙 정렬 — th 기본(center) vs td 기본(left)이 달라 헤더와 데이터 정렬이 어긋나던 문제 해결.
-     inline style의 textAlign:"left"(이름/TOTAL 셀)은 그대로 덮어써서 왼쪽 정렬 유지됨 */
   #box-score-print-area th { color: #555 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 3px !important; white-space: nowrap; text-align: center; }
   #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; text-align: center; }
-  /* 이름 컬럼 폭 — th와 td 둘 다 동일 폭으로 고정해야 뒤 컬럼이 밀리지 않음 */
   #box-score-print-area th:nth-child(2),
   #box-score-print-area td:nth-child(2) { max-width: 80px !important; min-width: 60px !important; }
-  /* # 컬럼 폭 고정 */
   #box-score-print-area th:nth-child(1),
   #box-score-print-area td:nth-child(1) { width: 28px !important; }
 
-  /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 — height: 100vh로 강제
-     + flex:1 테이블 + tbody 마지막 행(TOTAL) vertical-align:bottom으로 하단 고정
-     (2026-04-16: min-height 사용 시 긴 테이블이 2페이지로 분할되는 문제가 있어 height: 100vh로 복구) */
+  /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 */
   .print-team-page {
     page-break-after: always;
     page-break-inside: avoid;
@@ -543,7 +1784,7 @@ html.light .watermark-text {
   .print-team-table-wrap table { flex: 1; height: 100%; }
   .print-team-table-wrap table tbody tr:last-child { vertical-align: bottom; }
 
-  /* TOTAL 행 강조 — 굵게 + 상단 굵은 선 */
+  /* TOTAL 행 강조 */
   .print-total-row td { font-weight: 700 !important; border-top: 1.5px solid #000 !important; border-bottom: none !important; }
 
   /* 프린트 전용 표시/숨김 토글 */
@@ -551,3 +1792,36 @@ html.light .watermark-text {
   [data-print-show] { display: block !important; visibility: visible !important; }
 }
 
+/* ============================================================
+   --color-* 호환 레이어 (live 페이지 등 Phase 1~9 이전 페이지용)
+   BDR v2 토큰으로 alias. 라이브 페이지 코드 수정 없이 CSS 적용.
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  --color-background:     var(--bg);
+  --color-surface:        var(--bg-elev);
+  --color-card:           var(--bg-card);
+  --color-elevated:       var(--bg-elev);
+  --color-border:         var(--border);
+  --color-text-primary:   var(--ink);
+  --color-text-secondary: var(--ink-soft);
+  --color-text-muted:     var(--ink-mute);
+  --color-primary:        var(--accent);
+  --color-info:           var(--info);
+  --color-status-live:    var(--bdr-red);
+}
+
+[data-theme="dark"],
+html.dark {
+  --color-background:     var(--bg);
+  --color-surface:        var(--bg-elev);
+  --color-card:           var(--bg-card);
+  --color-elevated:       var(--bg-elev);
+  --color-border:         var(--border);
+  --color-text-primary:   var(--ink);
+  --color-text-secondary: var(--ink-soft);
+  --color-text-muted:     var(--ink-mute);
+  --color-primary:        var(--accent);
+  --color-info:           var(--info);
+  --color-status-live:    var(--bdr-red);
+}
