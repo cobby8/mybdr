@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Calendar, MapPin, Trophy, Users, Flame, ChevronLeft, ChevronRight } from "lucide-react";
+// Material Symbols Outlined 사용 (lucide-react 금지 룰 — CLAUDE.md 디자인 핵심)
+// 매핑: Calendar→event / MapPin→location_on / Trophy→emoji_events / Users→group
+//      Flame→local_fire_department / ChevronLeft→chevron_left / ChevronRight→chevron_right
 
 // --- Types ---
 interface DashboardData {
@@ -72,7 +74,8 @@ function SlideNextGame({ data }: { data: DashboardData["next_game"] }) {
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Calendar className="mb-2 text-[#1B3C87]" size={32} />
+        {/* Calendar(32) → event 32px, BDR Navy 색상 보존 */}
+        <span className="material-symbols-outlined mb-2 text-[#1B3C87]" style={{ fontSize: 32 }}>event</span>
         <p className="text-sm font-bold text-[#111827]">예정된 경기가 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">새로운 경기를 찾아보세요!</p>
         <Link href="/games" className="mt-3 rounded-full bg-[#1B3C87] px-4 py-2 text-xs font-semibold text-white">
@@ -94,11 +97,13 @@ function SlideNextGame({ data }: { data: DashboardData["next_game"] }) {
       </div>
       <div className="mt-2 space-y-1">
         <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
-          <Calendar size={13} />
+          {/* Calendar(13) → event 13px, 회색은 부모 text-[#6B7280] 상속 */}
+          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>event</span>
           <span>{formatDate(data.scheduled_at)} {formatTime(data.scheduled_at)}</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
-          <MapPin size={13} />
+          {/* MapPin(13) → location_on 13px */}
+          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>location_on</span>
           <span className="truncate">{[data.city, data.venue_name].filter(Boolean).join(" ")}</span>
         </div>
       </div>
@@ -110,7 +115,8 @@ function SlideRecentStats({ data }: { data: DashboardData["recent_stats"] }) {
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Flame className="mb-2 text-[#E31B23]" size={32} />
+        {/* Flame(32) → local_fire_department 32px, BDR Red 색상 보존 */}
+        <span className="material-symbols-outlined mb-2 text-[#E31B23]" style={{ fontSize: 32 }}>local_fire_department</span>
         <p className="text-sm font-bold text-[#111827]">아직 기록이 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">대회에 참가하면 스탯이 기록됩니다</p>
       </div>
@@ -126,7 +132,8 @@ function SlideRecentStats({ data }: { data: DashboardData["recent_stats"] }) {
     <div className="flex h-full flex-col justify-between">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Flame size={14} className="text-[#E31B23]" />
+          {/* Flame(14) → local_fire_department 14px, BDR Red */}
+          <span className="material-symbols-outlined text-[#E31B23]" style={{ fontSize: 14 }}>local_fire_department</span>
           <span className="text-[10px] font-medium text-[#6B7280]">내 최근 스탯</span>
         </div>
         {data.tournament_name && (
@@ -151,7 +158,8 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
   if (teams.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Users className="mb-2 text-[#1B3C87]" size={32} />
+        {/* Users(32) → group 32px, BDR Navy */}
+        <span className="material-symbols-outlined mb-2 text-[#1B3C87]" style={{ fontSize: 32 }}>group</span>
         <p className="text-sm font-bold text-[#111827]">소속 팀이 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">팀에 가입하거나 새로 만들어보세요</p>
         <Link href="/teams" className="mt-3 rounded-full bg-[#1B3C87] px-4 py-2 text-xs font-semibold text-white">
@@ -163,7 +171,8 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="mb-2 flex items-center gap-2">
-        <Users size={14} className="text-[#1B3C87]" />
+        {/* Users(14) → group 14px, BDR Navy */}
+        <span className="material-symbols-outlined text-[#1B3C87]" style={{ fontSize: 14 }}>group</span>
         <span className="text-[10px] font-medium text-[#6B7280]">내 팀 전적</span>
       </div>
       <div className="space-y-2">
@@ -193,7 +202,8 @@ function SlideActiveTournament({ data }: { data: DashboardData["active_tournamen
   if (!data) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <Trophy className="mb-2 text-[#E31B23]" size={32} />
+        {/* Trophy(32) → emoji_events 32px, BDR Red */}
+        <span className="material-symbols-outlined mb-2 text-[#E31B23]" style={{ fontSize: 32 }}>emoji_events</span>
         <p className="text-sm font-bold text-[#111827]">참가 중인 대회가 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">대회에 참가해서 실력을 겨뤄보세요</p>
         <Link href="/tournaments" className="mt-3 rounded-full bg-[#E31B23] px-4 py-2 text-xs font-semibold text-white">
@@ -211,7 +221,8 @@ function SlideActiveTournament({ data }: { data: DashboardData["active_tournamen
     <Link href={`/tournaments/${data.id}`} className="flex h-full flex-col justify-between">
       <div>
         <div className="mb-2 flex items-center gap-2">
-          <Trophy size={14} className="text-[#E31B23]" />
+          {/* Trophy(14) → emoji_events 14px, BDR Red */}
+          <span className="material-symbols-outlined text-[#E31B23]" style={{ fontSize: 14 }}>emoji_events</span>
           <span className="text-[10px] font-medium text-[#6B7280]">참가 중인 대회</span>
         </div>
         <h3 className="text-base font-bold text-[#111827] line-clamp-2">{data.name}</h3>
@@ -235,7 +246,8 @@ function SlideRecommended({ games }: { games: DashboardData["recommended_games"]
   if (games.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center text-center">
-        <MapPin className="mb-2 text-[#1B3C87]" size={32} />
+        {/* MapPin(32) → location_on 32px, BDR Navy */}
+        <span className="material-symbols-outlined mb-2 text-[#1B3C87]" style={{ fontSize: 32 }}>location_on</span>
         <p className="text-sm font-bold text-[#111827]">추천 경기가 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">프로필에 지역을 설정하면 맞춤 추천해드려요</p>
       </div>
@@ -244,7 +256,8 @@ function SlideRecommended({ games }: { games: DashboardData["recommended_games"]
   return (
     <div className="flex h-full flex-col justify-between">
       <div className="mb-2 flex items-center gap-2">
-        <MapPin size={14} className="text-[#1B3C87]" />
+        {/* MapPin(14) → location_on 14px, BDR Navy */}
+        <span className="material-symbols-outlined text-[#1B3C87]" style={{ fontSize: 14 }}>location_on</span>
         <span className="text-[10px] font-medium text-[#6B7280]">내 지역 추천 경기</span>
       </div>
       <div className="space-y-2">
@@ -364,14 +377,18 @@ export function PersonalHero({ preloadedData }: { preloadedData?: Record<string,
       <button
         onClick={prev}
         className="absolute left-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/80 p-1 shadow-sm backdrop-blur-sm md:block"
+        aria-label="이전 슬라이드"
       >
-        <ChevronLeft size={16} className="text-[#1B3C87]" />
+        {/* ChevronLeft(16) → chevron_left 16px, BDR Navy. Material Symbols는 leading 1 정렬을 위해 block 처리 */}
+        <span className="material-symbols-outlined block text-[#1B3C87]" style={{ fontSize: 16, lineHeight: 1 }}>chevron_left</span>
       </button>
       <button
         onClick={next}
         className="absolute right-2 top-1/2 hidden -translate-y-1/2 rounded-full bg-white/80 p-1 shadow-sm backdrop-blur-sm md:block"
+        aria-label="다음 슬라이드"
       >
-        <ChevronRight size={16} className="text-[#1B3C87]" />
+        {/* ChevronRight(16) → chevron_right 16px, BDR Navy */}
+        <span className="material-symbols-outlined block text-[#1B3C87]" style={{ fontSize: 16, lineHeight: 1 }}>chevron_right</span>
       </button>
 
       {/* Dots */}
