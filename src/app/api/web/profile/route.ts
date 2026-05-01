@@ -134,6 +134,14 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
+    // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 — 6 필드 추가
+    const dominant_hand = body.dominant_hand;
+    const skill_level = body.skill_level;
+    const strengths = body.strengths;
+    const privacy_settings = body.privacy_settings;
+    const instagram_url = body.instagram_url;
+    const youtube_url = body.youtube_url;
+
     const updated = await updateProfile(ctx.userId, {
       ...(nickname !== undefined && { nickname: nickname as string || null }),
       ...(position !== undefined && { position: position as string || null }),
@@ -148,6 +156,19 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       // 2026-05-01: 신규 필드 — 대회 출전 차단 검증 대상
       ...(default_jersey_number !== undefined && { default_jersey_number: parsedJersey }),
       ...(is_elite !== undefined && { is_elite: typeof is_elite === "boolean" ? is_elite : null }),
+      // 2026-05-02: §2 플레이 정보 (사용손/실력/강점)
+      ...(dominant_hand !== undefined && { dominant_hand: (dominant_hand as string) || null }),
+      ...(skill_level !== undefined && { skill_level: (skill_level as string) || null }),
+      ...(strengths !== undefined && {
+        strengths: Array.isArray(strengths) ? strengths : [],
+      }),
+      // 2026-05-02: §3 소셜 (인스타·유튜브)
+      ...(instagram_url !== undefined && { instagram_url: (instagram_url as string) || null }),
+      ...(youtube_url !== undefined && { youtube_url: (youtube_url as string) || null }),
+      // 2026-05-02: §4 공개 설정 (7항목 × 3옵션)
+      ...(privacy_settings !== undefined && {
+        privacy_settings: privacy_settings && typeof privacy_settings === "object" ? privacy_settings : {},
+      }),
       ...bankUpdate,
     });
 
