@@ -1,0 +1,89 @@
+/* =====================================================
+   BottomNav — Mobile-only fixed bottom tab bar
+
+   왜 (2026-05-01 Phase B 박제):
+     시안 BDR-current/bottom-nav.css L1-68 본체만 그대로 카피.
+     .bn-editor__* 편집기 CSS 는 Phase A 에서 별도 처리됨 (이 파일 제외).
+     .bn-editor__cat-pos 의 9999px 룰 위반은 Phase A 에서 50% 로 변경됨.
+
+   어떻게:
+     - PC (>720px): 완전 hidden (display:none)
+     - 모바일 (≤720px): position:fixed bottom 0, body padding-bottom 60px 예약
+     - 토큰만 사용 — var(--bg) / var(--border) / var(--ink-mute) / var(--accent) / var(--bg-alt)
+     - 다크모드: 약간 더 진한 그림자 (data-theme="dark" 셀렉터)
+     - safe-area-inset-bottom — iOS notch 대응
+
+   박제 룰 준수:
+     - 13 룰 #10: 토큰 var(--*) 만 / 9999px 0건 ✅ (grep 검증 대상)
+     - 13 룰 #13: 720px 분기 + iOS input 16px 무관 + 버튼 56px (44px 이상) ✅
+     - 시안 우선 카피 — 라인 단위 동일 (주석 추가만)
+   ===================================================== */
+
+.bottom-nav { display: none; }      /* PC: hidden */
+
+@media (max-width: 720px) {
+  /* 페이지 하단에 60px 예약 — fixed 바가 컨텐츠를 가리지 않도록 */
+  body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .bottom-nav__btn {
+    /* min-height 56px — 13 룰 #13 (버튼 44px+ 정합) */
+    min-height: 56px;
+    padding: 6px 4px 8px;
+    background: transparent;
+    border: 0;
+    color: var(--ink-mute);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1;
+    transition: color .12s ease;
+    -webkit-tap-highlight-color: transparent;
+    /* Next.js Link → a 태그 — 기본 underline 제거 */
+    text-decoration: none;
+  }
+  .bottom-nav__btn:active { background: var(--bg-alt); }
+  .bottom-nav__icon {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    /* Material Symbols Outlined 크기 — 22px 정합 */
+    font-size: 22px;
+    line-height: 1;
+  }
+  .bottom-nav__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .bottom-nav__btn.is-active {
+    color: var(--accent);
+  }
+  .bottom-nav__btn.is-active .bottom-nav__label { font-weight: 700; }
+}
+
+/* 다크 모드 — 약간 더 강한 상단 그림자 */
+[data-theme="dark"] .bottom-nav {
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4);
+}

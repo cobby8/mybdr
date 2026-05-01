@@ -564,10 +564,11 @@ export default function ProfileEditPage() {
             )}
           </div>
           <div className="edit-profile__hero-badges">
-            {/* 시안: Lv / PRO / ✓본인인증 — DB 미지원이라 정적 placeholder (UI 박제) */}
+            {/* 시안: Lv / PRO / ✓본인인증 — DB 미지원이라 정적 placeholder (UI 박제).
+                2026-05-01 (Phase A-2): ✓본인인증 뱃지 삭제 — PortOne 본인인증 페이지 신설 후
+                별도 흐름으로 분리 예정. 본인인증 진입점은 settings/account 섹션에 통합됨. */}
             <span className="badge badge--red">L.1</span>
             {provider && <span className="badge badge--blue">소셜 로그인</span>}
-            {form.phone && <span className="badge badge--ok">✓ 본인인증</span>}
           </div>
           {/* 사진 업로드 인라인 에러 (운영 보존 — alert 신규 0건 룰) */}
           {imageError && <div className="edit-profile__hero-error">{imageError}</div>}

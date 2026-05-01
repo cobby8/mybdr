@@ -7,6 +7,10 @@ import { PreferFilterProvider, usePreferFilter } from "@/contexts/prefer-filter-
 import { ToastProvider } from "@/contexts/toast-context";
 // BDR v2 신규 가로 네비 — 유틸리티 바 + 메인 탭 + 모바일 드로어 일체형
 import { AppNav, type AppNavUser } from "@/components/bdr-v2/app-nav";
+// BDR v2 모바일 fixed 하단 네비 — Phase B 풀 도입 (2026-05-01)
+// localStorage 기반 5슬롯 / 카탈로그 14항목 / ≤720px 만 노출 (CSS @media)
+import { BottomNav } from "@/components/BottomNav";
+import "@/components/bottom-nav.css";
 
 /* ============================================================
  * WebLayout (BDR v2 전환 후 전면 단순화)
@@ -109,6 +113,11 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
 
       {/* 푸터 — 기존 그대로 재사용, 풀폭 하단 */}
       <Footer />
+
+      {/* 모바일 fixed 하단 네비 — Phase B (2026-05-01).
+       * PC 에서는 CSS @media 로 hidden (display:none), 모바일 ≤720px 만 노출.
+       * (admin)/(referee) 라우트 그룹은 별도 layout 이라 영향 0. */}
+      <BottomNav />
     </div>
   );
 }

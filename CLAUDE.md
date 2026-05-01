@@ -123,7 +123,7 @@ Dev/design/
 9. `refereeInfo` (둘러보기 그룹) + `mypage` (계정·도움 첫 항목)
 
 **C. 디자인 토큰** (이미 위 §디자인 핵심):
-10. `var(--*)` 토큰만 / 핑크·살몬·코랄 ❌ / lucide-react ❌ / pill 9999px ❌
+10. `var(--*)` 토큰만 / 핑크·살몬·코랄 ❌ / lucide-react ❌ / pill 9999px ❌ — **단 정사각형(W=H) 원형은 50% 사용 (9999px 회피)**. 상세: `02-design-system-tokens.md` §4-1 (2026-05-01 명확화)
 
 **D. 카피 / 모바일**:
 11. 글로벌 카피 — **시안 우선** (사용자 결정 2026-05-01). "서울 3x3 농구 커뮤니티" / "다음카페" 카피 ✅ 시안 보존. About 운영진 실명 박제 ❌ (보존). 자세한 사유: `Dev/design/claude-project-knowledge/01-user-design-decisions.md` §6-1

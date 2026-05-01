@@ -17,7 +17,7 @@
 
 import type { SectionKey } from "./section-key";
 
-/* 시안에서 절제된 6개 섹션. 라벨/아이콘은 시안 그대로.
+/* 시안 v2.3 7개 섹션. 라벨은 시안 그대로 (사용자 결정 - 시안 카피 우선).
  *
  * 아이콘: 이모지(Unicode) — v2.1 시안 캡처 38 매칭 (PM 결정 2026-04-29)
  * 왜 이모지인가:
@@ -26,6 +26,10 @@ import type { SectionKey } from "./section-key";
  *    아닌 Unicode 표준 글리프 → 룰 위반 X.
  *  - 시안 100% 매칭 우선 (Settings 만 이모지, 다른 페이지는 Material Symbols 유지)
  *  - 이모지는 OS/브라우저 기본 폰트 렌더 → 추가 의존 0
+ *
+ * 2026-05-01 v2.3 갱신:
+ *  - 삭제: profile (🏀) / privacy (🔒)  ← 사용자 결정 B3-fallback (account 흡수)
+ *  - 신규: feed (🎯) / bottomNav (📱) / display (🎨)  ← 사용자 결정 A1/C3/D2
  */
 export const SECTIONS: ReadonlyArray<{
   id: SectionKey;
@@ -33,11 +37,12 @@ export const SECTIONS: ReadonlyArray<{
   // 이모지 (Unicode) — v2.1 시안 매칭. Material Symbols 가 아닌 단일 문자.
   icon: string;
 }> = [
-  { id: "account", label: "계정", icon: "👤" },
-  { id: "profile", label: "프로필", icon: "🏀" },
+  { id: "account", label: "계정 · 보안", icon: "👤" },
+  { id: "feed", label: "맞춤설정", icon: "🎯" },
   { id: "notify", label: "알림", icon: "🔔" },
-  { id: "privacy", label: "개인정보·공개", icon: "🔒" },
-  { id: "billing", label: "결제·멤버십", icon: "💳" },
+  { id: "bottomNav", label: "하단 자주가기", icon: "📱" },
+  { id: "billing", label: "결제 · 멤버십", icon: "💳" },
+  { id: "display", label: "표시 · 접근성", icon: "🎨" },
   { id: "danger", label: "계정 관리", icon: "⚠️" },
 ] as const;
 

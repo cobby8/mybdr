@@ -1,13 +1,21 @@
 "use client";
 
 /* ============================================================
- * ProfileSettingsPage — Settings v2 허브 (시안 6 섹션 + 좌측 sticky nav)
+ * ProfileSettingsPage — Settings v2.3 허브 (7 섹션 + 좌측 sticky nav)
  *
- * 왜 (Phase 5):
- *  - BDR v2 시안 Settings.jsx 의 6 섹션 구조(account/profile/notify/privacy/billing/danger)를
- *    그대로 이식해 흩어진 설정 진입점을 한 페이지에 통합한다.
+ * 왜 (Phase 5 → Phase A 재구성 2026-05-01):
+ *  - BDR v2.3 시안 Settings.jsx 의 7 섹션 구조로 재구성:
+ *      account / feed / notify / bottomNav / billing / display / danger
+ *  - 사용자 결정 7건 반영:
+ *      A1-DB-direct: feed = preferences 풀 흡수 (PreferenceForm mode="settings")
+ *      B3-fallback : profile 섹션 삭제 + IdentityVerifyButton → account 섹션 이전
+ *      C3          : BottomNav 풀 도입 (Phase B). 여기서는 편집기 (bottomNav 섹션)만
+ *      D2          : display 풀 박제 + 9999px → 50% (정사각형 원형)
+ *      Q1=①        : /profile/preferences redirect ?section=feed 매핑
+ *      Q2=전체     : PreferenceForm 8섹션 풀 폼 흡수
+ *      Q3=빼기     : 성별 chip 시안에서만 / DB 신설 안 함 (PreferenceForm 그대로 사용)
  *  - 기존 ?tab=preferences|notifications 외부 링크/북마크는 ?section= 로 폴백.
- *  - API/Prisma/서비스는 0 변경 — 신규 fetch도 추가하지 않고 이미 있던 호출만 사용.
+ *  - API/Prisma/서비스는 0 변경 — 신규 fetch 추가 안 함.
  *
  * 어떻게:
  *  - 활성 섹션은 URL ?section=... 으로 관리 (새로고침/공유/뒤로가기 보존).
@@ -23,21 +31,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { SettingsSideNavV2 } from "./_components_v2/settings-side-nav-v2";
 import { resolveSection, type SectionKey } from "./_components_v2/section-key";
 import { AccountSectionV2 } from "./_components_v2/account-section-v2";
-import {
-  ProfileSectionV2,
-  type ProfileFormUser,
-} from "./_components_v2/profile-section-v2";
+import { FeedSectionV2 } from "./_components_v2/feed-section-v2";
 import { NotifySectionV2 } from "./_components_v2/notify-section-v2";
-import { PrivacySectionV2 } from "./_components_v2/privacy-section-v2";
+import { BottomNavEditorSectionV2 } from "./_components_v2/bottom-nav-editor-v2";
 import {
   BillingSectionV2,
   type BillingSummary,
 } from "./_components_v2/billing-section-v2";
+import { DisplaySectionV2 } from "./_components_v2/display-section-v2";
 import { DangerSectionV2 } from "./_components_v2/danger-section-v2";
 
-// 섹션 사이에 공유되는 사용자 요약 (account/profile/billing 에 사용)
-interface ProfileApiUser extends ProfileFormUser {
+// 섹션 사이에 공유되는 사용자 요약 (account/billing 에 사용)
+interface ProfileApiUser {
   email?: string | null;
+  name?: string | null;
+  // Phase 12-5: AccountSectionV2 IdentityVerifyButton 의 initialVerified 로 전달
+  name_verified?: boolean | null;
 }
 
 // 단일 정수 → "₩4,900" 같은 표시 — Intl 사용 (브라우저 내장)
@@ -77,7 +86,7 @@ export default function ProfileSettingsPage() {
     [router],
   );
 
-  /* ----------- 공유 데이터 (account/profile/billing 사용) ----------- */
+  /* ----------- 공유 데이터 (account/billing 사용) ----------- */
   const [user, setUser] = useState<ProfileApiUser | null>(null);
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -101,16 +110,8 @@ export default function ProfileSettingsPage() {
         const u = profileData.user as Record<string, unknown>;
         setUser({
           email: (u.email as string | null) ?? null,
-          nickname: (u.nickname as string | null) ?? null,
           name: (u.name as string | null) ?? null,
-          position: (u.position as string | null) ?? null,
-          height: (u.height as number | null) ?? null,
-          weight: (u.weight as number | null) ?? null,
-          city: (u.city as string | null) ?? null,
-          district: (u.district as string | null) ?? null,
-          birth_date: (u.birth_date as string | null) ?? null,
-          bio: (u.bio as string | null) ?? null,
-          // Phase 12-5: ProfileSectionV2 IdentityVerifyButton 의 initialVerified 로 전달
+          // AccountSectionV2 IdentityVerifyButton 의 initialVerified 로 전달
           name_verified: (u.name_verified as boolean | null) ?? false,
         });
       }
@@ -164,17 +165,24 @@ export default function ProfileSettingsPage() {
     };
   }, []);
 
-  // profile 섹션 저장 후 화면 동기화 (header email 등은 유지)
-  const handleProfileSaved = useCallback((next: ProfileFormUser) => {
-    setUser((prev) => (prev ? { ...prev, ...next } : prev));
-  }, []);
+  // 본인인증 완료 후 user state 갱신 (헤더/공유 데이터 동기화)
+  const handleIdentityVerified = useCallback(
+    (data: { name: string; name_verified: boolean }) => {
+      setUser((prev) =>
+        prev
+          ? { ...prev, name: data.name, name_verified: data.name_verified }
+          : prev,
+      );
+    },
+    [],
+  );
 
   return (
     <div className="page" style={{ minHeight: "100vh" }}>
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 16px 80px" }}>
         {/* ============== 페이지 헤더 (시안 eyebrow + h1 + 캡션) ============== */}
         <div style={{ marginBottom: 20 }}>
-          <div className="eyebrow">설정 · SETTINGS</div>
+          <div className="eyebrow">SETTINGS · 환경 설정</div>
           <h1
             style={{
               margin: "6px 0 2px",
@@ -186,7 +194,17 @@ export default function ProfileSettingsPage() {
             환경 설정
           </h1>
           <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-            계정, 알림, 공개 범위를 관리합니다
+            계정·보안·알림·결제 등 시스템 설정. 프로필 콘텐츠 편집은{" "}
+            <a
+              href="/profile/edit"
+              style={{
+                color: "var(--cafe-blue)",
+                textDecoration: "underline",
+              }}
+            >
+              프로필 편집
+            </a>{" "}
+            으로 이동.
           </div>
         </div>
 
@@ -214,19 +232,18 @@ export default function ProfileSettingsPage() {
             {/* 비활성 섹션은 mount 안 함 → 불필요한 fetch/렌더 회피 */}
             {activeSection === "account" && (
               // user 가 아직 도착 안 했으면 자리 표시
-              <AccountSectionV2 user={loaded ? user : null} />
-            )}
-            {activeSection === "profile" && (
-              <ProfileSectionV2
+              <AccountSectionV2
                 user={loaded ? user : null}
-                onSaved={handleProfileSaved}
+                onIdentityVerified={handleIdentityVerified}
               />
             )}
+            {activeSection === "feed" && <FeedSectionV2 />}
             {activeSection === "notify" && <NotifySectionV2 />}
-            {activeSection === "privacy" && <PrivacySectionV2 />}
+            {activeSection === "bottomNav" && <BottomNavEditorSectionV2 />}
             {activeSection === "billing" && (
               <BillingSectionV2 summary={loaded ? billing : null} />
             )}
+            {activeSection === "display" && <DisplaySectionV2 />}
             {activeSection === "danger" && <DangerSectionV2 />}
           </div>
         </div>
