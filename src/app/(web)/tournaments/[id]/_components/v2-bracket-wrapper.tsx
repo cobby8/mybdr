@@ -266,39 +266,46 @@ export function V2BracketWrapper({
 
   return (
     <div>
-      {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼) */}
-      <V2BracketHeader
-        eyebrow={eyebrow}
-        title={title}
-        subtitle={subtitle}
-        seriesEditions={seriesEditions}
-        currentTournamentId={tournamentId}
-      />
+      {/* 2026-05-02 사용자 결정: dual_tournament 일 때는 V2BracketHeader + V2BracketStatusBar
+          섹션 모두 숨김. 페이지 상단에 이미 대회 정보가 있어 중복 노출 방지.
+          single elim/풀리그/group_stage 등 기존 format 은 그대로 표시 (회귀 0). */}
+      {!isDual && (
+        <>
+          {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼) */}
+          <V2BracketHeader
+            eyebrow={eyebrow}
+            title={title}
+            subtitle={subtitle}
+            seriesEditions={seriesEditions}
+            currentTournamentId={tournamentId}
+          />
 
-      {/* 2. Status Bar (5칸) — 로딩 시 스켈레톤, 에러 시 경량 안내 */}
-      {isLoading ? (
-        <Skeleton className="h-20 w-full rounded-md" />
-      ) : error ? (
-        <div
-          className="rounded-md border p-4 text-center text-sm"
-          style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-card)",
-            color: "var(--color-text-muted)",
-          }}
-        >
-          대진표 데이터를 불러오는 중 오류가 발생했습니다.
-        </div>
-      ) : (
-        <V2BracketStatusBar
-          totalTeams={totalTeams}
-          completedMatches={completedMatches}
-          totalMatches={totalMatches}
-          liveMatchCount={liveMatchCount}
-          currentRoundLabel={currentRoundLabel}
-          // 우승상금: tournament.prize_money 미존재 → 항상 null
-          prizeMoney={null}
-        />
+          {/* 2. Status Bar (5칸) — 로딩 시 스켈레톤, 에러 시 경량 안내 */}
+          {isLoading ? (
+            <Skeleton className="h-20 w-full rounded-md" />
+          ) : error ? (
+            <div
+              className="rounded-md border p-4 text-center text-sm"
+              style={{
+                borderColor: "var(--color-border)",
+                backgroundColor: "var(--color-card)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              대진표 데이터를 불러오는 중 오류가 발생했습니다.
+            </div>
+          ) : (
+            <V2BracketStatusBar
+              totalTeams={totalTeams}
+              completedMatches={completedMatches}
+              totalMatches={totalMatches}
+              liveMatchCount={liveMatchCount}
+              currentRoundLabel={currentRoundLabel}
+              // 우승상금: tournament.prize_money 미존재 → 항상 null
+              prizeMoney={null}
+            />
+          )}
+        </>
       )}
 
       {/* 3. 메인 트리 + 사이드 (반응형 grid)
