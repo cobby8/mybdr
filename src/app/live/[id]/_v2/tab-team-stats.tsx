@@ -188,9 +188,9 @@ function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: s
   const homePct = (row.homeNum / total) * 100;
   const awayPct = (row.awayNum / total) * 100;
 
-  // 단일 고정 색상
-  const winnerBar = "var(--cafe-blue)";
-  const loserBar = "var(--bg-elev)";
+  // 2026-05-02 v4 (사용자 요청): 양 팀 막대 색상 통일 — winner/loser 무관 단일 색
+  // winner 강조는 텍스트 굵기·색으로만 (막대 길이로 시각 비율 표현)
+  const barColor = "var(--cafe-blue)";
   const trackBg = "var(--bg-alt)";
 
   return (
@@ -243,7 +243,7 @@ function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: s
             style={{
               width: `${homePct}%`,
               height: "100%",
-              background: homeWin ? winnerBar : loserBar,
+              background: barColor,
               transition: "width 0.3s ease",
             }}
           />
@@ -285,7 +285,7 @@ function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: s
             style={{
               width: `${awayPct}%`,
               height: "100%",
-              background: awayWin ? winnerBar : loserBar,
+              background: barColor,
               transition: "width 0.3s ease",
             }}
           />
