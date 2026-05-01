@@ -168,29 +168,23 @@ function pct(made: number, attempt: number): number {
 }
 
 // 좌/우 비교 바 행 — 시안 StatRow (L64~L85)
-// 2026-05-02 사용자 요청 fix:
-//  1. team.color null/검정 fallback (var(--accent) / var(--cafe-blue))
-//  2. 막대 폭 60px 고정 → flex:1 grow (시각적 인상 강화 + 텍스트 가림 해소)
-//  3. 막대 height 5 → 8 (가독성)
-//  4. 수치는 막대 옆 (column 분리) → 막대 안 absolute overlay (textColor contrast 보장)
-function StatCompareRow({
-  row,
-  homeColor,
-  awayColor,
-}: {
-  row: StatRow;
-  homeColor: string;
-  awayColor: string;
-}) {
-  // fallback — null / "" / "#000" 인 경우 v2 토큰
-  const safeHomeColor = homeColor && homeColor !== "#000" && homeColor !== "#000000" ? homeColor : "var(--accent)";
-  const safeAwayColor = awayColor && awayColor !== "#000" && awayColor !== "#000000" ? awayColor : "var(--cafe-blue)";
-
+// 2026-05-02 v2 (사용자 재요청): 팀 컬러 무시하고 고정 색상으로 시인성 강화.
+//  - winner 막대: var(--cafe-blue) (진한 파랑) + 수치 흰색
+//  - loser 막대: var(--bg-elev) (연한 회색) + 수치 var(--ink) (진한 검정/흰색 토큰)
+//  - opacity 제거 (loser 도 가독성 확보)
+//  - 막대 높이 22 + 수치 overlay 유지
+function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: string }) {
   const total = row.homeNum + row.awayNum || 1;
   const homeWin = row.homeNum >= row.awayNum;
   const awayWin = row.awayNum >= row.homeNum;
   const homePct = (row.homeNum / total) * 100;
   const awayPct = (row.awayNum / total) * 100;
+
+  // 단일 고정 색상 — winner 강조, loser 가독성 모두 보장
+  const winnerBg = "var(--cafe-blue)";
+  const loserBg = "var(--bg-elev)";
+  const winnerText = "#fff";
+  const loserText = "var(--ink)";
 
   return (
     <div
@@ -203,7 +197,7 @@ function StatCompareRow({
         borderBottom: "1px solid var(--border)",
       }}
     >
-      {/* 좌: 홈팀 막대 (우측 정렬, 우측 끝에서 좌측으로 자람) + 막대 위 수치 overlay */}
+      {/* 좌: 홈팀 막대 (우측 끝에서 좌측으로 grow) */}
       <div
         style={{
           position: "relative",
@@ -213,7 +207,6 @@ function StatCompareRow({
           overflow: "hidden",
         }}
       >
-        {/* 막대 — 우측 끝에서 좌측으로 grow */}
         <div
           style={{
             position: "absolute",
@@ -221,12 +214,10 @@ function StatCompareRow({
             right: 0,
             height: "100%",
             width: `${homePct}%`,
-            background: safeHomeColor,
-            opacity: homeWin ? 1 : 0.3,
+            background: homeWin ? winnerBg : loserBg,
             transition: "width 0.3s ease",
           }}
         />
-        {/* 수치 — 막대 위 우측 정렬 */}
         <span
           style={{
             position: "absolute",
@@ -235,10 +226,9 @@ function StatCompareRow({
             transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
             fontSize: 11,
-            fontWeight: homeWin ? 700 : 500,
-            color: homeWin ? "var(--on-accent, #fff)" : "var(--ink)",
+            fontWeight: homeWin ? 700 : 600,
+            color: homeWin ? winnerText : loserText,
             whiteSpace: "nowrap",
-            textShadow: homeWin ? "0 0 2px rgba(0,0,0,0.4)" : "none",
             zIndex: 1,
           }}
         >
@@ -258,7 +248,7 @@ function StatCompareRow({
         {row.label}
       </div>
 
-      {/* 우: 원정팀 막대 (좌측 정렬, 좌측 끝에서 우측으로 자람) + 막대 위 수치 overlay */}
+      {/* 우: 원정팀 막대 (좌측 끝에서 우측으로 grow) */}
       <div
         style={{
           position: "relative",
@@ -275,8 +265,7 @@ function StatCompareRow({
             left: 0,
             height: "100%",
             width: `${awayPct}%`,
-            background: safeAwayColor,
-            opacity: awayWin ? 1 : 0.3,
+            background: awayWin ? winnerBg : loserBg,
             transition: "width 0.3s ease",
           }}
         />
@@ -288,10 +277,9 @@ function StatCompareRow({
             transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
             fontSize: 11,
-            fontWeight: awayWin ? 700 : 500,
-            color: awayWin ? "var(--on-accent, #fff)" : "var(--ink)",
+            fontWeight: awayWin ? 700 : 600,
+            color: awayWin ? winnerText : loserText,
             whiteSpace: "nowrap",
-            textShadow: awayWin ? "0 0 2px rgba(0,0,0,0.4)" : "none",
             zIndex: 1,
           }}
         >
