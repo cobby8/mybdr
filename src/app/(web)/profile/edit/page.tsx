@@ -99,6 +99,8 @@ export default function ProfileEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // 2026-05-02: 카메라 버튼 dropdown 메뉴 toggle (사진 변경 / 사진 제거)
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [saved, setSaved] = useState(false); // 시안 ✓ 저장됨 표시
 
@@ -537,13 +539,23 @@ export default function ProfileEditPage() {
             )}
           </div>
           {/* 카메라 버튼 — 시안 박제 (옛 photo 탭의 "새 사진 업로드" 흡수) */}
+          {/* 2026-05-02: 카메라 버튼 dropdown 통합 — 사진 있을 때 변경/제거 메뉴 / 없을 때 즉시 변경 */}
           <button
             type="button"
             className="edit-profile__camera"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => {
+              if (imageUploading) return;
+              if (profileImageUrl) {
+                setPhotoMenuOpen((v) => !v);
+              } else {
+                fileInputRef.current?.click();
+              }
+            }}
             disabled={imageUploading}
-            aria-label="프로필 사진 교체"
-            title={imageUploading ? "업로드 중..." : "사진 교체"}
+            aria-label={profileImageUrl ? "프로필 사진 메뉴" : "프로필 사진 교체"}
+            aria-expanded={photoMenuOpen}
+            aria-haspopup={profileImageUrl ? "menu" : undefined}
+            title={imageUploading ? "업로드 중..." : profileImageUrl ? "사진 옵션" : "사진 추가"}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
               {imageUploading ? "hourglass_top" : "photo_camera"}
@@ -557,6 +569,82 @@ export default function ProfileEditPage() {
             onChange={handleImageUpload}
             style={{ display: "none" }}
           />
+          {/* 사진 dropdown 메뉴 (사진 있을 때만) */}
+          {photoMenuOpen && profileImageUrl && (
+            <>
+              {/* 외부 클릭 닫기용 backdrop */}
+              <div
+                onClick={() => setPhotoMenuOpen(false)}
+                style={{ position: "fixed", inset: 0, zIndex: 10 }}
+              />
+              <div
+                role="menu"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  bottom: -8,
+                  transform: "translateY(100%)",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 4,
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+                  zIndex: 11,
+                  minWidth: 140,
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPhotoMenuOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: 0,
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    color: "var(--ink)",
+                    textAlign: "left",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
+                  사진 변경
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setPhotoMenuOpen(false);
+                    handleImageDelete();
+                  }}
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    padding: "10px 14px",
+                    border: 0,
+                    borderTop: "1px solid var(--border)",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    color: "var(--err)",
+                    textAlign: "left",
+                    gap: 8,
+                    alignItems: "center",
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                  사진 제거
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="edit-profile__hero-info">
@@ -588,17 +676,7 @@ export default function ProfileEditPage() {
           </div>
           {/* 사진 업로드 인라인 에러 (운영 보존 — alert 신규 0건 룰) */}
           {imageError && <div className="edit-profile__hero-error">{imageError}</div>}
-          {/* 사진 제거 (운영 보존 — 이미지 있을 때만) */}
-          {profileImageUrl && !imageUploading && (
-            <button
-              type="button"
-              className="btn btn--sm"
-              onClick={handleImageDelete}
-              style={{ marginTop: 4, alignSelf: "flex-start", color: "var(--danger)" }}
-            >
-              사진 제거
-            </button>
-          )}
+          {/* 2026-05-02: '사진 제거' 별도 버튼 삭제 — 카메라 버튼 dropdown 메뉴에 통합 (사용자 요청) */}
         </div>
       </section>
 

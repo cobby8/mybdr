@@ -521,22 +521,31 @@
   .edit-profile__title { font-size: 26px; }
   .edit-profile__actions .btn { min-height: 44px; flex: 1; }
 
+  /* 2026-05-02: 모바일도 PC 와 동일 가로 레이아웃 (사진 좌 + 정보 우) — 사용자 요청 */
   .edit-profile__hero {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    padding: 20px;
-    text-align: center;
+    grid-template-columns: 100px 1fr;
+    gap: 14px;
+    padding: 16px;
+    text-align: left;
   }
   .edit-profile__avatar-wrap {
-    width: 140px;
-    height: 140px;
-    margin: 0 auto;
+    width: 100px;
+    height: 100px;
+    margin: 0;
   }
-  .edit-profile__avatar-mono { font-size: 40px; }
-  .edit-profile__hero-eyebrow { justify-content: center; }
-  .edit-profile__hero-title { font-size: 28px; }
-  .edit-profile__hero-meta { justify-content: center; }
-  .edit-profile__hero-badges { justify-content: center; }
+  .edit-profile__avatar-mono { font-size: 32px; }
+  .edit-profile__camera {
+    width: 32px;
+    height: 32px;
+    right: 2px;
+    bottom: 2px;
+    border-width: 2px;
+  }
+  .edit-profile__camera .material-symbols-outlined { font-size: 16px !important; }
+  .edit-profile__hero-eyebrow { justify-content: flex-start; font-size: 11px; }
+  .edit-profile__hero-title { font-size: 22px; }
+  .edit-profile__hero-meta { justify-content: flex-start; font-size: 13px; }
+  .edit-profile__hero-badges { justify-content: flex-start; }
 
   .edit-profile__anchors {
     overflow-x: auto;
