@@ -1,0 +1,114 @@
+/* ============================================================
+ * HeroScoreboard CSS — PC / 모바일 비율 분기 (2026-05-02 신규)
+ *
+ * 왜:
+ *  - 사용자 요청: PC 에서 점수 / 팀명 / 쿼터 테이블 폰트·여백 비율 확대
+ *  - 모바일 쿼터 테이블 가로 스크롤 → 한 번에 노출 (폭 fit)
+ * ============================================================ */
+
+.hero-sb__quarter-grid {
+  display: grid;
+  /* 모바일: 컬럼 자동 fit (1fr 분배) — 가로 스크롤 X */
+  grid-template-columns: minmax(56px, 1fr) repeat(var(--qcount, 4), minmax(0, 1fr)) minmax(48px, 1fr);
+  gap: 4px;
+  padding: 12px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  width: 100%;
+}
+
+@media (min-width: 720px) {
+  .hero-sb__quarter-grid {
+    /* PC: 팀명 column 크게 (이름 길이 보장), 쿼터 + TOTAL 적정 폭 */
+    grid-template-columns: 1.5fr repeat(var(--qcount, 4), 64px) 80px;
+    gap: 8px;
+    padding: 14px 18px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-sb__quarter-grid {
+    /* 데스크톱: 컴팩트 max-width + 가운데 정렬 (부모에서 처리) */
+    grid-template-columns: 1.5fr repeat(var(--qcount, 4), 72px) 88px;
+    gap: 10px;
+    padding: 16px 20px;
+  }
+}
+
+/* PC max-width 컨테이너 — 부모 (.hero-sb__inner) */
+.hero-sb__inner {
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .hero-sb__inner {
+    max-width: 1100px;
+  }
+}
+
+/* PC 에서 팀명·점수·쿼터 영역 폰트 비율 확대 */
+.hero-sb__team-name {
+  font-family: var(--ff-display);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  .hero-sb__team-name {
+    font-size: 26px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-sb__team-name {
+    font-size: 32px;
+  }
+}
+
+.hero-sb__score {
+  font-family: var(--ff-display);
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-top: 10px;
+  color: #fff;
+}
+
+@media (min-width: 720px) {
+  .hero-sb__score {
+    font-size: 88px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-sb__score {
+    font-size: 112px;
+    margin-top: 14px;
+  }
+}
+
+.hero-sb__center-dash {
+  font-family: var(--ff-display);
+  font-size: 40px;
+  font-weight: 900;
+  opacity: 0.4;
+}
+
+@media (min-width: 720px) {
+  .hero-sb__center-dash {
+    font-size: 56px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-sb__center-dash {
+    font-size: 72px;
+  }
+}

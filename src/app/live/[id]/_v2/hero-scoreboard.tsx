@@ -9,8 +9,10 @@
 //  - 관중수 412명 생략 — DB 필드 없음
 //  - 하이라이트/공유/기록지 버튼 생략 — 기능 없음
 
-import { ScrollableTable } from "@/components/ui/scrollable-table";
 import type { MatchDataV2 } from "./game-result";
+
+// 2026-05-02: PC/모바일 비율 분기 CSS (사용자 요청 — WINNER 제거 + 쿼터 테이블 한번에 + PC 확대)
+import "./hero-scoreboard.css";
 
 export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
   const homeScore = match.home_score;
@@ -67,7 +69,7 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
         }}
       />
 
-      <div style={{ position: "relative" }}>
+      <div className="hero-sb__inner">
         {/* 상단 배지 — FINAL + 토너먼트/라운드 */}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
           <span
@@ -130,26 +132,16 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
             alignItems: "center",
           }}
         >
-          {/* 홈팀 — 우측 정렬 */}
+          {/* 홈팀 — 우측 정렬 (2026-05-02: WINNER 라벨 삭제 + 양쪽 점수 균형 #fff) */}
           <TeamScoreBlock
             team={match.home_team}
             score={homeScore}
-            isWinner={homeWin}
             align="right"
           />
 
-          {/* 중앙 구분선 — "–" + FINAL 라벨 */}
+          {/* 중앙 구분선 — "–" + FINAL 라벨 (PC 확대) */}
           <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontFamily: "var(--ff-display)",
-                fontSize: 40,
-                fontWeight: 900,
-                opacity: 0.4,
-              }}
-            >
-              –
-            </div>
+            <div className="hero-sb__center-dash">–</div>
             <div
               style={{
                 fontSize: 10,
@@ -167,29 +159,15 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           <TeamScoreBlock
             team={match.away_team}
             score={awayScore}
-            isWinner={awayWin}
             align="left"
           />
         </div>
 
-        {/* 쿼터 스코어 표 — ScrollableTable 로 모바일 가로 스크롤 힌트 + 페이드 제공.
-            OT 다수 시 표 폭이 넘어가는 경우 사용자가 스와이프 단서를 받음.
-            wrapper(grid)는 padding/background/borderRadius 그대로, overflow 만 ScrollableTable 위임 */}
-        <div style={{ marginTop: 24 }}>
-        <ScrollableTable hint="← 좌우로 스와이프해 모든 쿼터 보기">
+        {/* 쿼터 스코어 표 — 2026-05-02 사용자 요청: 가로 스크롤 X, 한 번에 노출 + PC 비율 확대.
+            ScrollableTable 제거 + .hero-sb__quarter-grid CSS 분기 (모바일 fit / PC 확대) */}
         <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `1fr repeat(${quarters.length}, 56px) 60px`,
-            gap: 6,
-            padding: "12px 16px",
-            background: "rgba(255,255,255,.08)",
-            borderRadius: 6,
-            // grid 가 컨테이너 폭을 넘어가면 ScrollableTable 의 overflowX:auto 가 처리.
-            // grid 자체에 width:max-content 를 주어 columns 가 줄어들지 않게 유지
-            width: "max-content",
-            minWidth: "100%",
-          }}
+          className="hero-sb__quarter-grid"
+          style={{ marginTop: 24, ["--qcount" as string]: String(quarters.length) }}
         >
           {/* 첫 행 — 헤더 (빈칸 + Q1~Q4 + TOTAL) */}
           <div />
@@ -277,70 +255,28 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
             {awayScore}
           </div>
         </div>
-        </ScrollableTable>
-        </div>
       </div>
     </div>
   );
 }
 
 // 팀 + 스코어 단일 블록 — 좌/우 정렬만 다름
+// 2026-05-02 사용자 요청: WINNER 라벨 삭제 + 양쪽 점수 색·굵기 동등 (밸런스)
 function TeamScoreBlock({
   team,
   score,
-  isWinner,
   align,
 }: {
   team: MatchDataV2["home_team"];
   score: number;
-  isWinner: boolean;
   align: "left" | "right";
 }) {
   return (
     <div style={{ textAlign: align, minWidth: 0 }}>
-      {/* 팀명 */}
-      <div
-        style={{
-          fontFamily: "var(--ff-display)",
-          fontWeight: 900,
-          fontSize: 20,
-          letterSpacing: "-0.02em",
-          // 모바일 좁은 화면에서 팀명 긴 경우 말줄임
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {team.name}
-      </div>
-      {/* 큰 스코어 */}
-      <div
-        style={{
-          fontFamily: "var(--ff-display)",
-          fontSize: 72,
-          fontWeight: 900,
-          letterSpacing: "-0.04em",
-          color: isWinner ? "#fff" : "rgba(255,255,255,.55)",
-          lineHeight: 1,
-          marginTop: 10,
-        }}
-      >
-        {score}
-      </div>
-      {/* WINNER 라벨 — 승자만 */}
-      {isWinner && (
-        <div
-          style={{
-            color: "#10B981",
-            fontWeight: 800,
-            letterSpacing: ".15em",
-            fontSize: 11,
-            marginTop: 4,
-          }}
-        >
-          WINNER
-        </div>
-      )}
+      {/* 팀명 — PC에서 확대 (CSS 분기) */}
+      <div className="hero-sb__team-name">{team.name}</div>
+      {/* 큰 스코어 — 양쪽 동일 색 (#fff) + PC 확대 */}
+      <div className="hero-sb__score">{score}</div>
     </div>
   );
 }
