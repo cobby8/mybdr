@@ -2,9 +2,12 @@ import Link from "next/link";
 
 // Phase 3 Teams — v2 시안 카드 (2026-04-29 모바일 최적화 간소화)
 // 이유: 모바일 2열 그리드(폭 ~170px)에 맞춰 카드 정보를 핵심만 남김.
-// - 제거: 우상단 #랭크 / 3열 stat (레이팅·승·패) / 매치 신청 버튼 / 매치 신청 disabled UI
+// - 제거: 3열 stat (레이팅·승·패) / 매치 신청 버튼 / 매치 신청 disabled UI
 // - 유지: 로고(이니셜) / 팀명 / 창단 연도 / 상세 버튼 (full-width)
 // - 가입 버튼은 카드에서 제거 — 상세 페이지에 이미 가입 액션이 있어 단순화
+// 2026-05-02 Phase B 갱신 (사용자 결정 1=B):
+// - #랭크 시안 정합 — PC (≥720px) 에서만 우상단 표시. 모바일은 폭 ~170px 라 노출 X.
+//   sm:block / hidden Tailwind 로 분기 (인라인 grid 안티패턴 회귀 차단).
 // API/Prisma 변경 없음.
 
 interface TeamCardV2Data {
@@ -44,7 +47,15 @@ function foundedYear(createdAt: string | null): string {
   return Number.isFinite(y) ? String(y) : "—";
 }
 
-export function TeamCardV2({ team }: { team: TeamCardV2Data }) {
+// 2026-05-02 Phase B: rankIndex prop 추가 — teams-content-v2 가 sorted index 전달.
+// undefined 면 #랭크 노출 X (방어적 — 다른 호출처 없음).
+export function TeamCardV2({
+  team,
+  rankIndex,
+}: {
+  team: TeamCardV2Data;
+  rankIndex?: number;
+}) {
   const accent = resolveAccent(team.primaryColor, team.secondaryColor);
   const tag = buildTag(team.name, team.name_en);
   const founded = foundedYear(team.created_at);
@@ -82,6 +93,28 @@ export function TeamCardV2({ team }: { team: TeamCardV2Data }) {
           textAlign: "center",
         }}
       >
+        {/* 우상단 #랭크 — 시안 Team.jsx L28 정합 (PC ≥720px 만, 모바일은 폭 ~170px 이라 숨김).
+            왜 (2026-05-02 Phase B): 시안에 있던 #랭크가 04-29 모바일 간소화 때 제거됐는데,
+            PC 에선 시각적 풍부함이 손실됨. Tailwind hidden / sm:block 으로 분기 (인라인 grid 회귀 차단). */}
+        {typeof rankIndex === "number" ? (
+          <span
+            className="hidden sm:block"
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 10,
+              fontFamily: "var(--ff-mono)",
+              fontSize: 11,
+              fontWeight: 700,
+              opacity: 0.75,
+              color: inkOnAccent,
+              letterSpacing: 0,
+            }}
+          >
+            #{rankIndex + 1}
+          </span>
+        ) : null}
+
         {/* 로고 또는 이니셜 박스 — 세로 배치에서 카드 상단 중앙. 40px (가로 배치 시 44 → 미세 축소). */}
         {team.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지 최적화 불필요 (v2 시안 일관성)

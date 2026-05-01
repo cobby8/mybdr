@@ -1,0 +1,32 @@
+/* ============================================================
+ * StatsTabV2 CSS — /teams/[id] 기록 탭 4카드 grid
+ *
+ * 왜 (2026-05-02 Phase C 신규):
+ *  - 기존 stats-tab-v2.tsx 는 인라인 `gridTemplateColumns: repeat(4, 1fr)` 사용.
+ *    모바일 ≤720px 분기 0 — errors.md 04-29 8건 재발 패턴 (PlayerHero/OverviewTab/Games
+ *    회귀 케이스와 동일). 320px 화면에서 4열은 카드 폭 ~70px 까지 좁아져 숫자 truncate
+ *    위험 + 라벨 가독성 저하.
+ *  - 사용자 결정 2 = A: 별도 .css 파일 + @media ≤720px 패턴으로 분기.
+ *    → conventions.md "모바일 가로 overflow grid 안티패턴" + player-hero.css /
+ *      participant-list.css 패턴 그대로 차용.
+ *
+ * 어떻게:
+ *  - 데스크톱 기본 (>720px): repeat(4, 1fr) — 시안 정합 4카드 가로 정렬.
+ *  - 모바일 ≤720px: repeat(2, 1fr) 2열 grid (카드 폭 ~140px 확보).
+ *  - 카드 자체 (padding/배경/라운드)는 인라인 그대로 유지 — 토큰만 사용.
+ * ============================================================ */
+
+.team-stats-grid {
+  display: grid;
+  /* 데스크톱 기본 — 시안 TeamDetail.jsx tab === 'stats' 정합 (4카드 가로) */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 720px) {
+  .team-stats-grid {
+    /* 모바일 — 2열 (320px 화면 카드 폭 ~140px 확보, 숫자 28px ff-display 안전 노출) */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}

@@ -227,7 +227,10 @@ export function TeamsContentV2() {
     router.push(`${pathname}?${sp.toString()}`);
   };
 
-  // 순위(rankIndex) 계산 제거 — PM 결정: 팀 레이팅 미구현 기능이라 카드 우상단 #랭크도 비표시 (2026-04-29)
+  // 2026-05-02 Phase B 갱신 (사용자 결정 1=B): #랭크 PC ≥720px 한정 복원.
+  // teams 배열은 API 가 sort=wins 등으로 정렬해 응답 — 그 응답 순서가 곧 랭크.
+  // paginatedTeams 는 현재 페이지의 슬라이스라 별도 globalIndex 계산 필요.
+  const pageStartIndex = (currentPage - 1) * TEAMS_PER_PAGE;
 
   // 페이지네이션 계산
   const totalPages = Math.max(1, Math.ceil(teams.length / TEAMS_PER_PAGE));
@@ -405,7 +408,7 @@ export function TeamsContentV2() {
         <>
           {/* v2 그리드 — 모바일 2열 강제, md 3열, xl 4열 (2026-04-29 모바일 최적화) */}
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-            {paginatedTeams.map((team) => {
+            {paginatedTeams.map((team, idx) => {
               // API snake_case → 카드 입력 타입으로 변환
               const cardData = {
                 id: team.id,
@@ -419,7 +422,11 @@ export function TeamsContentV2() {
                 accepting_members: team.accepting_members,
                 created_at: team.created_at ?? null,
               };
-              return <TeamCardV2 key={team.id} team={cardData} />;
+              // Phase B: 페이지네이션을 가로지르는 전체 정렬 인덱스. 1페이지 1번부터 N번까지 연속.
+              const rankIndex = pageStartIndex + idx;
+              return (
+                <TeamCardV2 key={team.id} team={cardData} rankIndex={rankIndex} />
+              );
             })}
           </div>
 

@@ -7,14 +7,21 @@
  * (득점 / 실점 / 리바 / 어시). 기존 프로젝트엔 대응 탭이 없었다.
  *
  * 방법(어떻게):
- * - `.card` 안에 `<h2>` + 4열 grid (repeat(4, 1fr), gap 14px).
+ * - `.card` 안에 `<h2>` + 4열 grid (PC) / 2열 grid (모바일 ≤720px).
  * - 각 카드: `var(--bg-alt)` 배경 + `var(--radius-chip)` radius
  *   + 라벨(11px ff-display 700 uppercase) + 값(28px ff-display 900).
+ *
+ * 2026-05-02 Phase C 갱신 (사용자 결정 2=A):
+ * - 인라인 `gridTemplateColumns: repeat(4, 1fr)` → `.team-stats-grid` className 교체.
+ * - 별도 `stats-tab-v2.css` 에서 모바일 ≤720px `repeat(2, 1fr)` 분기 정의.
+ * - errors.md 04-29 8건 재발 회귀 패턴 차단 (인라인 grid 안티패턴).
  *
  * DB 매핑 / 미지원:
  * - 팀 시즌 평균 집계 쿼리는 추후 추가 (match_player_stat 집계).
  *   현재는 전부 "—" placeholder. 섹션 상단에 "준비 중" 안내 문구 추가.
  */
+
+import "./stats-tab-v2.css";
 
 export function StatsTabV2() {
   // 시안 샘플 라벨 4종. 실데이터 붙이기 전까진 값=null.
@@ -48,13 +55,8 @@ export function StatsTabV2() {
           준비 중
         </span>
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-        }}
-      >
+      {/* className 분기 — stats-tab-v2.css 에서 PC repeat(4,1fr) / 모바일 ≤720px repeat(2,1fr) */}
+      <div className="team-stats-grid">
         {stats.map((s) => (
           <div
             key={s.label}
