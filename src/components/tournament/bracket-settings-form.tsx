@@ -14,6 +14,7 @@ export type BracketSettingsData = {
   teamsPerGroup: number;          // 조별 팀 수 (자동 계산 표시용 보조)
   advancePerGroup: number;        // 조별 진출 수 (1~3위)
   autoGenerateMatches: boolean;   // 경기 자동 생성 여부 (기본 true)
+  hasGroupFinal?: boolean;        // 조별 최종전(2위 결정전) 포함 여부 — dual_tournament 전용
 };
 
 type Props = {
@@ -25,12 +26,14 @@ type Props = {
 
 export function BracketSettingsForm({ data, onChange, teamCount, disabled = false }: Props) {
   // 포맷별 분기 — 어느 섹션을 보여줄지 결정
-  // single_elimination / dual_tournament: 순수 토너먼트 → knockoutSize만
+  // single_elimination / double_elimination: 순수 토너먼트 → knockoutSize만
+  // dual_tournament: 16팀 4조 미니 더블엘리미 + 8강 (모든 파라미터 고정 — knockoutSize 입력 X)
   // full_league_knockout: 풀리그 후 토너먼트 → knockoutSize (진출팀 수)
   // group_stage_knockout: 조별리그 후 토너먼트 → 조 설정 + knockoutSize
   // group_stage: 조별리그만 → 조 설정만
   // round_robin: 풀리그만 → 조 설정도 토너먼트도 없음
-  const isSingleElim = data.format === "single_elimination" || data.format === "double_elimination" || data.format === "dual_tournament";
+  const isSingleElim = data.format === "single_elimination" || data.format === "double_elimination";
+  const isDualTournament = data.format === "dual_tournament"; // 듀얼토너먼트 — 16팀 고정 포맷 (별도 UI)
   const isGroupOnly = data.format === "group_stage";
   const isGroupKnockout = data.format === "group_stage_knockout";
   const isFullLeagueKnockout = data.format === "full_league_knockout";
@@ -59,6 +62,63 @@ export function BracketSettingsForm({ data, onChange, teamCount, disabled = fals
         <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
           대회가 진행 중이거나 종료되어 대진 설정을 수정할 수 없습니다.
         </p>
+      )}
+
+      {/* --- 듀얼토너먼트 (dual_tournament) 전용 — 모든 파라미터 고정 --- */}
+      {/* 이유: 듀얼토너먼트는 16팀 4조×4팀 미니 더블엘리미 + 8강 + 4강 + 결승 = 27 매치 고정 포맷.
+              사용자가 변경할 수 있는 건 조 배정(별도 단계) 뿐이라 read-only 표시만 한다. */}
+      {isDualTournament && (
+        <>
+          <FieldRow label="조 수" hint="듀얼토너먼트 고정">
+            <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+              4조
+            </span>
+          </FieldRow>
+
+          <FieldRow label="조별 팀 수" hint="듀얼토너먼트 고정">
+            <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+              조별 4팀 (총 16팀)
+            </span>
+          </FieldRow>
+
+          <FieldRow label="조별 진출 수" hint="각 조 1·2위 진출">
+            <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+              각 조 1·2위 (총 8팀)
+            </span>
+          </FieldRow>
+
+          <FieldRow label="토너먼트 진출팀 수" hint="듀얼토너먼트 고정">
+            <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+              8강 토너먼트
+            </span>
+          </FieldRow>
+
+          <FieldRow label="조별 최종전" hint="2위 결정전 (승자전 패자 vs 패자전 승자)">
+            <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
+              포함
+            </span>
+          </FieldRow>
+
+          <FieldRow label="조 배정" hint="대진표 생성 단계에서 시드 매핑 별도 진행">
+            <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              4조 × 4팀 배정은 대회 관리 → 대진표에서 입력합니다.
+            </span>
+          </FieldRow>
+
+          {/* dual 은 3·4위전 미운영 (사진 정합) — 사용자 명시적 변경 시에만 활성화 */}
+          <FieldRow label="3/4위전" hint="듀얼토너먼트 기본 미운영 (4강 패자 = 공동 3위)">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={data.bronzeMatch}
+                disabled={disabled}
+                onChange={(e) => onChange("bronzeMatch", e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>포함</span>
+            </label>
+          </FieldRow>
+        </>
       )}
 
       {/* --- 조별리그 설정 (group_stage, group_stage_knockout 전용) --- */}
@@ -171,6 +231,12 @@ export function BracketSettingsForm({ data, onChange, teamCount, disabled = fals
         {isSingleElim && (
           <p>
             {data.knockoutSize}강 토너먼트
+            {data.bronzeMatch ? " + 3/4위전" : ""}
+          </p>
+        )}
+        {isDualTournament && (
+          <p>
+            16팀 4조 × 4팀 (조별 미니 더블엘리미 + 최종전) → 8강 → 4강 → 결승 = 27경기
             {data.bronzeMatch ? " + 3/4위전" : ""}
           </p>
         )}
