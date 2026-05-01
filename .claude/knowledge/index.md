@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-01 (D-3 ProfileWeeklyReport Hybrid 박제 — architecture +1 / decisions +1) | 이전: 2026-05-01 (D-6 + ProfileShell 폐기 — architecture +2 / decisions +2 / lessons +1)
+> 최종 갱신: 2026-05-01 (organizations status 필터 fix + 동호회최강전 정리 — errors +1) | 이전: 2026-05-01 (D-3 ProfileWeeklyReport Hybrid 박제 — architecture +1 / decisions +1)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -7,13 +7,14 @@
 | architecture.md | 38 | 2026-05-01 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29), Dev/design/ 단일 폴더 룰 + BDR-current 동기화(2026-05-01), Phase 13 마이페이지 hub 박제 — /profile = 3-tier + aside(2026-05-01), D-6 EditProfile Hybrid 박제 — 단일 스크롤 + Hero + 5섹션(2026-05-01), ProfileShell 폐기 — /profile/* sidebar 0(2026-05-01), **D-3 ProfileWeeklyReport Hybrid 박제 — 시안 v2.4 + TOP 3 코트 보존(2026-05-01)** |
 | conventions.md | 28 | 2026-04-29 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix 언더스코어 문법(04-22)/any 예외 규칙 kakao·HOF·SW(04-22)/**모바일 최적화 체크리스트 10항목(04-29)** |
 | decisions.md | 89 | 2026-05-01 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 / 코트 대관 court_managers N:M 보류 / 코트 대관 payments 다형성 / 모바일 720px 통일 / Hero 카로셀 외부 lib 0 / 카로셀 absolute opacity stacking / iOS 16px input 강제(2026-04-29) / ProfileShell 폐기 children passthrough(2026-05-01) / D-6 EditProfile Hybrid 옵션 B(2026-05-01) / **D-3 ProfileWeeklyReport 옵션 B Hybrid(2026-05-01)**) |
-| errors.md | 21 | 2026-04-29 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 7회 재발, 카페 상세 HTML 시간 소스 `.num_subject` 단일, **모바일 가로 overflow grid 안티패턴(04-29) / Avatar 영문 overflow(04-29) / schema 변경 후 dev 서버 미재시작 prisma Unknown argument(04-29)**) |
+| errors.md | 22 | 2026-05-01 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 7회 재발, 카페 상세 HTML 시간 소스 `.num_subject` 단일, 모바일 가로 overflow grid 안티패턴(04-29) / Avatar 영문 overflow(04-29) / schema 변경 후 dev 서버 미재시작 prisma Unknown argument(04-29) / **organizations 목록 status 필터에 실재하지 않는 'active' 값 — page ↔ 생성API ↔ schema cross-check 누락(05-01)**) |
 | lessons.md | 24 | 2026-05-01 | 교훈 (프린트 API, 모바일 zoom, 브랜치 drift, Flutter 테스트 오염, 팀 병합 logo, 동명이인, HTTP 5xx, API 미들웨어 재발 4회, 다음카페 정규식 파서 95%, 개발 DB라 믿은 .env가 운영 DB, parser 키워드보다 운영자 명시 신호(게시판)가 1순위, 점진 정비는 영역 단위로 묶어야 커밋 중복 비용 안 발생, 헤더 변경 라우트 그룹별 영향 범위(04-29) / Phase 9-Mobile 안티패턴 재발 → 컨벤션 문서화(04-29) / Hero 카로셀 1일→2시간 단축(04-29) / **revert + 부분 hub 패치 = sub 페이지 옛 sidebar 잔재(05-01)**) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
 | ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 |
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-01] errors: **organizations 목록 status 필터에 실재하지 않는 'active' 값** — `src/app/(web)/organizations/page.tsx:34` 가 `status: "active"` 로 필터링하던 1줄 버그. organizations.status 도메인은 'approved/pending/rejected' (schema/생성 API/admin approve 모두 일관) — 'active' 는 절대 발생 안 함. 영향: BDR 단체 등 모든 단체 노출 0 상태. 수정: `"active"` → `"approved"`. commit `08898cb` push. 재발 방지: status 필터 추가/수정 시 schema default + 생성 API + admin route 4지점 cross-check / 모델별 status 도메인 분리 인지(organizations ≠ tournament_series ≠ tournament). 관련: `api/web/organizations/route.ts:45,75` (생성), `prisma/schema.prisma:2222`. 동시 작업: DB 동호회최강전 중복 2건 정리 (A 폐기 cancelled+is_public=false / B 발행 registration_open+is_public=true)
 - [05-01] architecture: **D-3 ProfileWeeklyReport Hybrid 박제 — 시안 v2.4 + TOP 3 코트 보존** — `src/app/(web)/profile/weekly-report/page.tsx` 920→1125 (+205). 시안 v2.4 (KPI 4 라벨 + Highlight 1경기 + 다음 주 추천 3) 박제 + 옛 운영 §04 TOP 3 코트 + §06 지난주 비교 보존 (Hybrid 옵션 B). SWR `/api/web/profile/weekly-report` 패칭 1곳 변경 0. KPI 5종 모두 §01+§06 분산 표시. ComingSoonBadge 공통 컴포넌트 신설 (D-6 패턴 차용, 공통 격상 큐). DB 미지원 §02/§05 = placeholder + ComingSoonBadge + dashed border 시각 신호. tsc + 13 룰 + 회귀 4 통과
 - [05-01] decisions: **D-3 ProfileWeeklyReport 옵션 B Hybrid 채택** — 시안 v2.4 박제 + TOP 3 코트 보존. 대안 (A) 시안 그대로는 진짜 데이터 손실 + 더미 추가 = 사용자 가치 다운그레이드. 정보 손실 0 우선
 - [05-01] architecture: **ProfileShell 폐기 — /profile/* 깊은 페이지 sidebar 0 (v2.3 hub 모델)** — `src/app/(web)/profile/layout.tsx` 의 `<ProfileShell>` wrap 제거 → 단순 `<>{children}</>` passthrough. ProfileShell 의 isHubRoot 분기 (hub root only hide / sub 220px aside 노출) 가 v2.3 시안 sidebar 0 원칙 위반. 사용자가 dev server localhost:3001/profile/edit 에서 옛 좌측 sidebar 잔재 발견 → ad774d9 revert 시 옛 wrap 따라옴. Cowork 직접 patch. tsc 통과 + grep 의존성 0 (정의 파일만 잔존, 후속 cleanup commit 대상). 영향: 13 sub 페이지 모두 외부 sidebar 사라짐 (v2.3 hub 모델 일관 적용)
@@ -190,6 +191,7 @@
 | 모바일 overflow, 366px, gridTemplateColumns, repeat 인라인, minWidth:0, 가로 스크롤바 | 모바일 가로 overflow grid 안티패턴 (2026-04-29) |
 | Avatar overflow, 영문 닉네임, clamp font-size, 박스 튀어나옴 | Avatar 영문 텍스트 박스 밖 overflow (2026-04-29) |
 | Invalid tx.team.create invocation, Unknown argument, prisma client 캐싱, dev 서버 재시작, schema 변경, db push, prisma generate | schema 변경 후 dev 서버 미재시작 prisma 에러 (2026-04-29) |
+| organizations status, active, approved, status 필터 enum, page 생성API schema cross-check, 단체 노출 0 | organizations 목록 status 필터 'active' 버그 (2026-05-01) |
 
 ### 삽질 교훈을 알고 싶을 때 → lessons.md
 | 키워드 | 항목 제목 |

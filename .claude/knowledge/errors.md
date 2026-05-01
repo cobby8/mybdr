@@ -2,6 +2,20 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-01] organizations 목록 status 필터에 실재하지 않는 값 'active' 박힘
+- **분류**: error (status enum 불일치, 페이지 ↔ 생성 API ↔ 스키마 cross-check 누락)
+- **발견자**: pm
+- **증상**: `/organizations` 페이지가 항상 빈 목록. 단체 생성해도 노출 안 됨. 내일 동호회최강전 대회 세팅 중 발견 (2026-05-01).
+- **원인**: `src/app/(web)/organizations/page.tsx:34` 의 필터가 `where: { is_public: true, status: "active" }`. 하지만 schema/생성 API/admin approve route 등 모든 곳은 `"approved" | "pending" | "rejected"` 사용 (`api/web/organizations/route.ts:45,75` 생성 시 'approved'/'pending', `prisma/schema.prisma:2222`, `series/route.ts:49` 가드도 'approved'). `"active"` 는 organizations 컨텍스트에서 **절대 발생하지 않는 값** (tournament_series 의 status='active' 와 혼동 추정).
+- **수정**: 1줄. `status: "active"` → `status: "approved"`. commit `08898cb`.
+- **재발 방지 체크리스트**:
+  1. **status 필터 추가/수정 시**: schema.prisma default + 생성 API + admin approve/reject route 까지 cross-check (4지점 일관 검증)
+  2. **모델별 status 도메인 분리 인지**: `organizations.status` (approved/pending/rejected) ≠ `tournament_series.status` (active 등) ≠ `tournament.status` (draft/published/registration_open/...). 모델별 enum 다름
+  3. **회귀 점검 grep**: `prisma\.{모델}.*status.*"{값}"` 멀티라인으로 다른 사용처 동시 점검
+  4. (장기) 단체 생성 후 목록 페이지 노출 e2e/스모크 테스트 부재 → 추가 검토 큐
+- **관련**: `src/app/(web)/organizations/page.tsx:34` (수정), `src/app/api/web/organizations/route.ts:45,75` (생성 API), `prisma/schema.prisma:2222` (스키마), `src/app/api/web/series/route.ts:49` (다른 'approved' 가드 사용처)
+- **참조횟수**: 0
+
 ### [2026-05-01] PATCH 후 JWT 재발급 누락 → referee 영역 stale session.name (해소)
 - **분류**: error (세션 일관성, 7일 stale)
 - **발견자**: pm

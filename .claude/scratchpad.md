@@ -19,6 +19,8 @@
 - D-6 EditProfile §3 인스타·유튜브 (`instagram_url` / `youtube_url` 컬럼 추가 시 활성화)
 - D-3 §02 Highlight (MatchPlayerStat 평점 시스템 연동 시 활성화) / D-3 §05 다음 주 추천 (추천 엔진 연동)
 - ComingSoonBadge 공통 컴포넌트 격상 (다른 v3 페이지 재사용)
+- Tournament.status 'published' 잔재 cleanup (코드 허용 목록은 draft/registration_open/in_progress/completed/cancelled — 'published'는 enum 외 값. DB 다른 published 건수 점검 + 마이그레이션 큐)
+- organizations 단체 생성 → 목록 노출 e2e 스모크 테스트 부재 (errors.md 05-01 재발 방지)
 
 ## 현재 작업
 
@@ -79,6 +81,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-05-01 | 08898cb (push) | **내일 대회 세팅 — organizations status 필터 fix + 동호회최강전 정리**: (1) 코드 1줄 fix `src/app/(web)/organizations/page.tsx:34` `status: "active"` → `"approved"` (organizations 컨텍스트에 'active' 는 실재하지 않는 값 — schema/생성API/admin route 모두 'approved' 일관). 회귀 grep 0. (2) DB 동호회최강전 매칭 2건 발견 (중복) → A `a93590c3` (제 21회 MOLTEN배 BDR 동호회최강전 농구대회, status='published') 폐기 (cancelled + is_public=false), B `138b22d8` (제21회 몰텐배 동호회최강전, status='draft') 발행 (registration_open + is_public=true). 사용자 옵션 2 결정. SELECT 1건 가드 통과. 임시 스크립트 정리 완료. errors.md +1. | ✅ |
 | 2026-05-01 | (커밋 대기) | **D-3/8 ProfileWeeklyReport Hybrid 박제 (developer)**: page.tsx 920→1125 (+205). 시안 v2.4 6 섹션 박제 + §04 TOP 3 코트 + §06 지난주 비교 운영 진짜 데이터 보존. KPI 4 라벨 + §02 Highlight + §05 다음 주 추천 = ComingSoonBadge (D-6 패턴 차용, 공통 격상 큐). SWR 패칭 0 변경. 인사이트 동적 카피 (streak/minutes_change) 보존. tsc + 13 룰 (hex 16건 합법) + 회귀 4 통과. tester 정적 검증 5/5 통과. knowledge 갱신: architecture(+1) / decisions(+1) / index. | ✅ |
 | 2026-05-01 | (변경 0) | **Q1~Q4 4 페이지 일괄 분석 (planner)**: Q1 Reviews + ContextReviews = 분류 4 결정 필요 (4탭 → 1탭 / 신규 컴포넌트 / /courts/[id] 인라인). Q2 VenueDetail = 변경 0 (운영 JSON-LD/OG/recentReviews 우위). Q3 GameEdit = 변경 0 (운영 4 edge case + GameData fetch + parseRequirements 보존). Q4 PostEdit = 변경 0 (운영 useActionState Server Action + meId 권한 가드 우위). | ✅ |
 | 2026-05-01 | 8d0f1f2 (push) | **chore(cleanup) ProfileShell + ProfileSideNav 컴포넌트 삭제**: 의존성 0 검증 후 2 파일 -280줄 삭제. tsc 통과. | ✅ |
@@ -88,5 +91,4 @@
 | 2026-05-01 | 85944e3 (push) | **D-1/8 ProfileGrowth sync (BDR-current v2.4)**: 마일스톤 순서 + 6번째 "팀 멤버 추천" | ✅ |
 | 2026-05-01 | a2c0636 (push) | **gitignore + .backup.jsx 3건 제거** | ✅ |
 | 2026-05-01 | 22ce7f2 (push) | **v3-rebake P0 마이페이지 hub 박제** | ✅ |
-| 2026-05-01 | f2df385+8a5cb7b+1bc549d (push) | **Dev/design/ 정리 + revert 7 commit + BDR-current 동기화** | ✅ |
-<!-- 04-30 + 05-01 일부 절단 (10건 유지 — D-3 + Q분석 + cleanup 신규 추가로 인한 정리) -->
+<!-- 05-01 f2df385+8a5cb7b+1bc549d Dev/design/ 정리 절단 (10건 유지 — 08898cb 신규 추가로 인한 정리) -->
