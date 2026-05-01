@@ -85,6 +85,8 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       nickname, position, height, city, bio,
       // 신규 필드
       name, phone, birth_date, district, weight,
+      // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 시 필수 차단 검증)
+      default_jersey_number, is_elite,
       // 계좌 필드 (account_consent 필수)
       bank_name, bank_code, account_number, account_holder, account_consent,
     } = body;
@@ -121,6 +123,17 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
+    // 2026-05-01: default_jersey_number 범위 검증 (0~999)
+    let parsedJersey: number | null = null;
+    if (default_jersey_number !== undefined && default_jersey_number !== null && default_jersey_number !== "") {
+      const j = Number(default_jersey_number);
+      if (Number.isInteger(j) && j >= 0 && j <= 999) {
+        parsedJersey = j;
+      } else {
+        return apiError("등번호는 0~999 사이의 정수여야 합니다.", 400);
+      }
+    }
+
     const updated = await updateProfile(ctx.userId, {
       ...(nickname !== undefined && { nickname: nickname as string || null }),
       ...(position !== undefined && { position: position as string || null }),
@@ -132,6 +145,9 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       ...(birth_date !== undefined && { birth_date: parsedBirthDate }),
       ...(district !== undefined && { district: district as string || null }),
       ...(weight !== undefined && { weight: weight ? Number(weight) : null }),
+      // 2026-05-01: 신규 필드 — 대회 출전 차단 검증 대상
+      ...(default_jersey_number !== undefined && { default_jersey_number: parsedJersey }),
+      ...(is_elite !== undefined && { is_elite: typeof is_elite === "boolean" ? is_elite : null }),
       ...bankUpdate,
     });
 

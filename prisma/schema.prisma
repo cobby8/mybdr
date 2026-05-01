@@ -72,6 +72,11 @@ model User {
   onboarding_step                                                           Int                           @default(0)
   profile_completed                                                         Boolean                       @default(false)
   profileReminderShownAt                                                    DateTime?                     @map("profile_reminder_shown_at") @db.Timestamp(6)
+  // 2026-05-01 — 본인 선호 등번호 + 선출 여부.
+  // 회원가입 시 입력 X (선택). 대회 출전 신청 시 두 필드 모두 필수 (차단 검증).
+  // 본인 EditProfile §1 기본정보 에서 입력 / 추후 본인인증 시스템 자동입력 큐 (별도)
+  default_jersey_number                                                     Int?                          @map("default_jersey_number")
+  is_elite                                                                  Boolean?                      @default(false) @map("is_elite")
   admin_logs                                                                admin_logs[]
   board_favorites                                                           board_favorites[]
   comments                                                                  comments[]

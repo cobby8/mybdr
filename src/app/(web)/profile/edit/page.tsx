@@ -53,6 +53,9 @@ interface ProfileEditData {
   height: number | null;
   weight: number | null;
   bio: string | null;
+  // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 시 필수 차단 검증 대상)
+  default_jersey_number: number | null;
+  is_elite: boolean | null;
   bank_name: string | null;
   bank_code: string | null;
   account_number_masked: string | null;
@@ -108,6 +111,9 @@ export default function ProfileEditPage() {
     height: "",
     weight: "",
     bio: "",
+    // 2026-05-01: 본인 선호 등번호 + 선출 여부
+    default_jersey_number: "",
+    is_elite: false,
   });
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
 
@@ -177,6 +183,9 @@ export default function ProfileEditPage() {
           height: u.height?.toString() ?? "",
           weight: u.weight?.toString() ?? "",
           bio: u.bio ?? "",
+          // 2026-05-01: 본인 선호 등번호 + 선출 여부
+          default_jersey_number: u.default_jersey_number?.toString() ?? "",
+          is_elite: u.is_elite ?? false,
         });
         // city/district 콤마 구분 → Region[]으로 변환 (운영 보존)
         const cities = (u.city ?? "").split(",").filter(Boolean);
@@ -380,6 +389,11 @@ export default function ProfileEditPage() {
         height: form.height ? Number(form.height) : null,
         weight: form.weight ? Number(form.weight) : null,
         bio: form.bio || null,
+        // 2026-05-01: 본인 선호 등번호 + 선출 여부
+        default_jersey_number: form.default_jersey_number
+          ? Number(form.default_jersey_number)
+          : null,
+        is_elite: form.is_elite,
       };
 
       if (bankForm.account_consent) {
@@ -786,6 +800,41 @@ export default function ProfileEditPage() {
               min={30}
               max={200}
             />
+          </Field>
+        </div>
+
+        {/* 2026-05-01: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증) */}
+        <div className="edit-profile__grid edit-profile__grid--2" style={{ marginTop: 16 }}>
+          <Field label="등번호" sub="대회 출전 시 필수">
+            <input
+              className="input t-mono"
+              type="number"
+              value={form.default_jersey_number}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, default_jersey_number: e.target.value }))
+              }
+              placeholder="23"
+              min={0}
+              max={999}
+            />
+          </Field>
+          <Field label="선출 여부" sub="대회 출전 시 필수">
+            <div className="edit-profile__chips">
+              <button
+                type="button"
+                className={`chip ${form.is_elite === false ? "chip--active" : ""}`}
+                onClick={() => setForm((p) => ({ ...p, is_elite: false }))}
+              >
+                일반
+              </button>
+              <button
+                type="button"
+                className={`chip ${form.is_elite === true ? "chip--active" : ""}`}
+                onClick={() => setForm((p) => ({ ...p, is_elite: true }))}
+              >
+                선출
+              </button>
+            </div>
           </Field>
         </div>
 
