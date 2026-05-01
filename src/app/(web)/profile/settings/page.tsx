@@ -209,11 +209,12 @@ export default function ProfileSettingsPage() {
         </div>
 
         {/* ============== 좌측 sticky nav + 우측 카드 ============== */}
+        {/* grid 분기: <1024px 1열 + ≥1024px 220px+1fr (side-nav lg:block 과 일치).
+            inline style 의 gridTemplateColumns 는 제거 — inline 이 styled-jsx 보다
+            CSS specificity 가 높아 미디어 쿼리가 무시되는 회귀 (2026-05-01 fix). */}
         <div
           style={{
             display: "grid",
-            // 시안: 220 1fr. 모바일에서는 1열 스택.
-            gridTemplateColumns: "minmax(0, 1fr)",
             gap: 24,
             alignItems: "flex-start",
           }}
@@ -249,9 +250,14 @@ export default function ProfileSettingsPage() {
         </div>
       </div>
 
-      {/* ============== 반응형: 768px+ 에서 2열로 ============== */}
+      {/* ============== 반응형: <1024px 1열 + ≥1024px 2열 ==============
+          lg(1024px) — side-nav 의 `hidden lg:block` / 모바일 탭 `lg:hidden` 분기와 일치.
+          768~1023px 폭에서는 모바일 탭 + 본문(1열) 스택 (시안 동일). */}
       <style jsx>{`
-        @media (min-width: 768px) {
+        .settings-grid-v2 {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        @media (min-width: 1024px) {
           .settings-grid-v2 {
             grid-template-columns: 220px minmax(0, 1fr);
           }
