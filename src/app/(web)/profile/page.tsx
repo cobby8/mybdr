@@ -36,7 +36,8 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 import { PageBackButton } from "@/components/shared/page-back-button";
 
-import { HeroCard } from "./_v2/hero-card";
+// HeroCard import 제거 (2026-05-01 회귀 픽스) — 본문 상단 큰 Hero 배너로 대체
+// 우측 aside HeroCard 와 중복 표시되어 사용자 캡처 20 보고 — 제거.
 import { SeasonStats } from "./_v2/season-stats";
 import { UpcomingGames } from "./_v2/upcoming-games";
 import { ActivityTimeline, type ActivityItem } from "./_v2/activity-timeline";
@@ -605,34 +606,10 @@ export default async function ProfilePage() {
             gap: 14,
           }}
         >
-          {/* 기존 HeroCard 는 v2.3 좌측 사이드용 — v2.4 에서는 상단 큰 Hero 가 대체.
-              단 bio / 별점 등 좌측 사이드 카드만의 정보가 있어 우측 aside 하단으로 보존(선택 노출).
-              데이터 0 변경 룰 준수 — 컴포넌트 재사용. */}
-          <HeroCard
-            user={{
-              nickname: user.nickname,
-              name: user.name,
-              profile_image_url: user.profile_image_url,
-              position: user.position,
-              city: user.city,
-              district: user.district,
-              bio: user.bio,
-              gender: user.gender,
-              total_games_hosted: user.total_games_hosted,
-              evaluation_rating: evaluationRating,
-              jerseyNumber,
-            }}
-            level={level}
-            isPro={isPro}
-            isVerified={isVerified}
-            // v2.4: 팀 primaryColor 를 HeroCard 아바타 그라디언트에 전달
-            team={
-              primaryTeam
-                ? { teamName: primaryTeam.name, primaryColor: primaryTeam.primaryColor }
-                : null
-            }
-            unreadCount={unreadCount}
-          />
+          {/* 2026-05-01 회귀 픽스 — 우측 aside HeroCard 제거.
+              사유: 본문 상단의 큰 Hero 배너 (캡처 16) 와 우측 사이드 HeroCard 가 동일 정보(닉네임/메타/뱃지/버튼) 중복 표시.
+              사용자 캡처 20 보고: "BDR_Admin master" 가 좌·우 동시 노출 → 시안 의도와 불일치.
+              해소: 큰 Hero 배너만 노출 + 우측 aside 는 시즌스탯/다음 경기/팀/활동/뱃지 보조 정보만. */}
 
           {/* 시즌 스탯 (통산 6 KPI) */}
           <SeasonStats data={seasonStatsData} seasonLabel="통산" />
