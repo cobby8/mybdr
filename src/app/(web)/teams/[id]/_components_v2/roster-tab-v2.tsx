@@ -1,6 +1,28 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/db/prisma";
 import { getDisplayName } from "@/lib/utils/player-display-name";
+
+// 2026-05-02: birth_date → 만 나이 계산
+// null/Invalid Date 안전 — null 반환 시 카드에서 미표시
+function calcAge(birthDate: Date | null): number | null {
+  if (!birthDate) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const m = now.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birthDate.getDate())) age--;
+  return age >= 0 && age < 130 ? age : null;
+}
+
+// 2026-05-02: 지역 표시 — city + district 콤마 구분된 다중 값 처리
+// 첫 번째만 (예: "서울,경기" → "서울")
+function formatRegion(city: string | null, district: string | null): string | null {
+  const c = (city ?? "").split(",")[0]?.trim();
+  const d = (district ?? "").split(",")[0]?.trim();
+  if (c && d) return `${c} ${d}`;
+  if (c) return c;
+  return null;
+}
 
 import "./roster-tab-v2.css";
 
@@ -58,6 +80,12 @@ export async function RosterTabV2({ teamId, accent }: Props) {
             position: true,
             // 2026-05-02: 선수카드에 신장 표시 (사용자 결정)
             height: true,
+            // 2026-05-02 (옵션 A): 프로필 사진 + 나이 + 선출 + 지역
+            profile_image_url: true,
+            birth_date: true,
+            is_elite: true,
+            city: true,
+            district: true,
           },
         },
       },
@@ -106,7 +134,12 @@ export async function RosterTabV2({ teamId, accent }: Props) {
         const displayName = getDisplayName(m.user);
         const userId = m.user?.id?.toString();
         const position = m.user?.position ?? "—";
-        const height = m.user?.height ?? null; // 2026-05-02: 신장 (cm), null 이면 미표시
+        const height = m.user?.height ?? null;
+        // 2026-05-02 (옵션 A): 프로필 사진 + 나이 + 선출 + 지역
+        const profileImage = m.user?.profile_image_url ?? null;
+        const age = calcAge(m.user?.birth_date ?? null);
+        const isElite = m.user?.is_elite === true;
+        const region = formatRegion(m.user?.city ?? null, m.user?.district ?? null);
         const role = m.role ?? "member";
         const roleLabel = ROLE_LABEL[role] ?? role;
         const jersey = m.jerseyNumber ?? "—";
@@ -116,20 +149,39 @@ export async function RosterTabV2({ teamId, accent }: Props) {
             {/* 등번호 (큰, accent 색) */}
             <div className="roster-card__jersey">{jersey}</div>
 
-            {/* 이니셜 + 이름 */}
+            {/* 프로필 사진 (있으면) 또는 이니셜 fallback + 이름 */}
             <div className="roster-card__identity">
-              <span className="roster-card__avatar">
-                {displayName.charAt(0)}
-              </span>
+              {profileImage ? (
+                <span
+                  className="roster-card__avatar"
+                  style={{
+                    overflow: "hidden",
+                    padding: 0,
+                    position: "relative",
+                  }}
+                >
+                  <Image
+                    src={profileImage}
+                    alt={displayName}
+                    fill
+                    sizes="32px"
+                    style={{ objectFit: "cover" }}
+                    unoptimized
+                  />
+                </span>
+              ) : (
+                <span className="roster-card__avatar">
+                  {displayName.charAt(0)}
+                </span>
+              )}
               <span className="roster-card__name">{displayName}</span>
             </div>
 
-            {/* 포지션 + 신장 + 역할 (2026-05-02 신장 추가) */}
+            {/* 메타 1: 포지션 · 신장 · 나이 */}
             <div className="roster-card__meta">
               <span className="roster-card__position">{position}</span>
               {height && (
                 <span
-                  className="roster-card__height"
                   style={{
                     fontSize: 12,
                     color: "var(--ink-mute)",
@@ -139,6 +191,20 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                   {height}cm
                 </span>
               )}
+              {age !== null && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-mute)",
+                    fontFamily: "var(--ff-mono, monospace)",
+                  }}
+                >
+                  {age}세
+                </span>
+              )}
+              {/* 선출 뱃지 — 강조 */}
+              {isElite && <span className="badge badge--red">선출</span>}
+              {/* 역할 뱃지 — 주장 / 운영진 */}
               {role === "captain" ? (
                 <span className="badge badge--red">주장</span>
               ) : role === "director" ||
@@ -148,6 +214,25 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                 <span className="badge badge--soft">{roleLabel}</span>
               ) : null}
             </div>
+
+            {/* 메타 2: 지역 (있으면, 별도 줄) */}
+            {region && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  color: "var(--ink-mute)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                  location_on
+                </span>
+                {region}
+              </div>
+            )}
           </>
         );
 
