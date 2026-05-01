@@ -2,6 +2,18 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-01] Dev/design/ 단일 폴더 룰 + BDR-current 동기화
+- **분류**: architecture
+- **발견자**: pm
+- **내용**: 디자인 시안 폴더 구조 통합. **활성 시안 단일 룰**: `Dev/design/BDR-current/` 단 하나만 활성. 옛 시안은 `_archive/{BDR v2, v2.2, v2.3, v2.4, audit-results, ui_breaking, v2-original, prompts}/` 격리.
+  - **루트 보존 3 .md**: `DESIGN.md`(영구) / `README.md`(폴더 가이드) / `v3-rebake-prompt-2026-05-01.md`(P0/P1/P2 박제 가이드)
+  - **루트 보존 3 폴더**: `BDR-current/`(활성) / `claude-project-knowledge/`(13 룰 9 파일) / `team-logos/`(영구)
+  - **워크플로우 5단계** (새 zip 받았을 때): (1) 새 zip 풀이 → 임시 폴더 (2) 기존 `BDR-current/` → `_archive/BDR vX.Y/` 이동 (3) 새 zip의 `Dev/design/BDR vX.Y/` → `BDR-current/` 카피 (4) zip 최상위 옛 시안 → `_archive/v2-original/` (5) `Dev/design/README.md` 갱신 + commit `design: BDR-current sync vX.Y`
+  - **명명 룰**: zip 파일명 ≠ 시안 버전 (zip = 작업 일자 묶음 / 시안 버전 = `BDR vX.Y/` 안 / 활성 = `BDR-current/`). CLI 박제 작업의 모든 참조는 `BDR-current/` 만 사용 (`BDR vX.Y/` 직접 참조 자동 reject).
+  - **마이페이지 박제 7 commit revert**: `5f5cfac~8aea145` (캡처 16~30 매칭 시도) → `ad774d9` 시점 복원. v3-rebake-prompt-2026-05-01.md 기반 P0 박제로 재진행.
+- **참조**: CLAUDE.md §🗂️ Dev/design/ 폴더 구조 / Dev/design/README.md / v3-rebake-prompt-2026-05-01.md / 커밋 f2df385(revert) + 8a5cb7b(design)
+- **참조횟수**: 0
+
 ### [2026-04-29] BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드 (Phase 9-Mobile)
 - **분류**: architecture
 - **발견자**: pm + developer
