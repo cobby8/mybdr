@@ -79,9 +79,9 @@ git push origin subin
 **A. AppNav (헤더) 7 룰** — `03-appnav-frozen-component.md` 코드 그대로 카피, 재구성 금지:
 1. 9 메인 탭 = 홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/더보기
 2. utility bar 우측 (계정/설정/로그아웃) 모바일에서도 표시
-3. main bar 우측 = 검색/알림/다크/햄버거 4개만 (더보기 dropdown trigger / 아바타 추가 ❌)
+3. main bar 우측 = 검색/**쪽지**/알림/다크/햄버거 **5개**만 (더보기 dropdown trigger / 아바타 추가 ❌) — Phase 19 갱신 (2026-05-01)
 4. 다크모드 — PC 듀얼 라벨 / 모바일 단일 아이콘
-5. 검색·알림 = `app-nav__icon-btn` (border/bg 박스 ❌)
+5. 검색·**쪽지**·알림 = `app-nav__icon-btn` (border/bg 박스 ❌)
 6. 모바일 닉네임 hidden
 7. 더보기 = 9번째 탭 (drawer + 5그룹 패널)
 
@@ -111,6 +111,14 @@ git push origin subin
 [Step 5] 완료 후 06-self-checklist.md 모든 항목 ✅ 검수
 [Step 6] 산출물 폴더: Dev/design/BDR v2.X/ (이전 카피 + 변경)
 ```
+
+### 회귀 방지 — 위반 자동 검수 체크 (Phase 19)
+
+시안 측정 시 다음 4 케이스 자동 확인:
+- ❌ main bar 우측에 "더보기 ▼" dropdown 또는 아바타("RDM" 등) 노출
+- ❌ 모바일(≤768px)에서 "☀ 라이트 ☾ 다크" 듀얼 라벨 노출
+- ❌ 검색/쪽지/알림 버튼에 border/bg 박스 (`.btn` / `.btn--sm` 등) 적용
+- ❌ main bar 우측 아이콘 순서가 [다크, 검색, 쪽지, 알림, 햄버거] 이외로 변경·누락
 
 ### 위반 시 즉시 중단
 

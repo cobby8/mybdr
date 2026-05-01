@@ -98,7 +98,7 @@ function AppNav({ route, setRoute, theme, setTheme }) {
           ))}
         </div>
 
-        {/* 우측 컨트롤 = 검색 + 알림 + 다크 + 햄버거(모바일) — 4개만 (사용자 결정 §1-3) */}
+        {/* 우측 컨트롤 = 검색 + 쪽지 + 알림 + 다크 + 햄버거(모바일) — 5개 (Phase 19 추가: 쪽지·채팅) */}
         <div className="app-nav__right">
           {/* 다크모드 토글 — PC 듀얼 / 모바일 단일 (ThemeSwitch 내부 분기) */}
           <ThemeSwitch theme={theme} setTheme={setTheme}/>
@@ -106,6 +106,12 @@ function AppNav({ route, setRoute, theme, setTheme }) {
           {/* 검색 — 아이콘만 (.app-nav__icon-btn, border/bg X) */}
           <button className="app-nav__icon-btn" title="검색" onClick={()=>setRoute('search')}>
             <Icon.search/>
+          </button>
+
+          {/* 쪽지 · 채팅 — 아이콘 + 빨간 점 뱃지 (Phase 19) */}
+          <button className="app-nav__icon-btn" title="쪽지 · 채팅" onClick={()=>setRoute('messages')} style={{position:'relative'}}>
+            <Icon.mail/>
+            <span className="app-nav__notif-dot"/>
           </button>
 
           {/* 알림 — 아이콘 + 빨간 점 뱃지 */}
