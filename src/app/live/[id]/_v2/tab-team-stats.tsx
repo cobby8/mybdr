@@ -168,6 +168,11 @@ function pct(made: number, attempt: number): number {
 }
 
 // 좌/우 비교 바 행 — 시안 StatRow (L64~L85)
+// 2026-05-02 사용자 요청 fix:
+//  1. team.color null/검정 fallback (var(--accent) / var(--cafe-blue))
+//  2. 막대 폭 60px 고정 → flex:1 grow (시각적 인상 강화 + 텍스트 가림 해소)
+//  3. 막대 height 5 → 8 (가독성)
+//  4. 수치는 막대 옆 (column 분리) → 막대 안 absolute overlay (textColor contrast 보장)
 function StatCompareRow({
   row,
   homeColor,
@@ -177,6 +182,10 @@ function StatCompareRow({
   homeColor: string;
   awayColor: string;
 }) {
+  // fallback — null / "" / "#000" 인 경우 v2 토큰
+  const safeHomeColor = homeColor && homeColor !== "#000" && homeColor !== "#000000" ? homeColor : "var(--accent)";
+  const safeAwayColor = awayColor && awayColor !== "#000" && awayColor !== "#000000" ? awayColor : "var(--cafe-blue)";
+
   const total = row.homeNum + row.awayNum || 1;
   const homeWin = row.homeNum >= row.awayNum;
   const awayWin = row.awayNum >= row.homeNum;
@@ -187,82 +196,103 @@ function StatCompareRow({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr 110px 1fr",
-        gap: 10,
+        gridTemplateColumns: "minmax(0, 1fr) 70px minmax(0, 1fr)",
+        gap: 8,
         alignItems: "center",
-        padding: "8px 0",
+        padding: "10px 0",
         borderBottom: "1px solid var(--border)",
       }}
     >
-      {/* 좌: 홈팀 값 + 막대 */}
+      {/* 좌: 홈팀 막대 (우측 정렬, 우측 끝에서 좌측으로 자람) + 막대 위 수치 overlay */}
       <div
         style={{
-          textAlign: "right",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          justifyContent: "flex-end",
+          position: "relative",
+          height: 22,
+          background: "var(--bg-alt)",
+          borderRadius: 4,
+          overflow: "hidden",
         }}
       >
+        {/* 막대 — 우측 끝에서 좌측으로 grow */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            height: "100%",
+            width: `${homePct}%`,
+            background: safeHomeColor,
+            opacity: homeWin ? 1 : 0.3,
+            transition: "width 0.3s ease",
+          }}
+        />
+        {/* 수치 — 막대 위 우측 정렬 */}
         <span
           style={{
+            position: "absolute",
+            top: "50%",
+            right: 8,
+            transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
             fontSize: 11,
             fontWeight: homeWin ? 700 : 500,
-            color: homeWin ? homeColor : "var(--ink-soft)",
+            color: homeWin ? "var(--on-accent, #fff)" : "var(--ink)",
             whiteSpace: "nowrap",
+            textShadow: homeWin ? "0 0 2px rgba(0,0,0,0.4)" : "none",
+            zIndex: 1,
           }}
         >
           {row.homeValue}
         </span>
-        <div
-          style={{
-            flex: "0 0 60px",
-            height: 5,
-            background: "var(--bg-alt)",
-            borderRadius: 3,
-            overflow: "hidden",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <div style={{ width: `${homePct}%`, height: "100%", background: homeColor }} />
-        </div>
       </div>
 
       {/* 중앙 라벨 */}
       <div
         style={{
           textAlign: "center",
-          fontSize: 10,
-          color: "var(--ink-dim)",
+          fontSize: 11,
+          color: "var(--ink-soft)",
           fontWeight: 700,
-          letterSpacing: ".08em",
         }}
       >
         {row.label}
       </div>
 
-      {/* 우: 원정팀 막대 + 값 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {/* 우: 원정팀 막대 (좌측 정렬, 좌측 끝에서 우측으로 자람) + 막대 위 수치 overlay */}
+      <div
+        style={{
+          position: "relative",
+          height: 22,
+          background: "var(--bg-alt)",
+          borderRadius: 4,
+          overflow: "hidden",
+        }}
+      >
         <div
           style={{
-            flex: "0 0 60px",
-            height: 5,
-            background: "var(--bg-alt)",
-            borderRadius: 3,
-            overflow: "hidden",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            height: "100%",
+            width: `${awayPct}%`,
+            background: safeAwayColor,
+            opacity: awayWin ? 1 : 0.3,
+            transition: "width 0.3s ease",
           }}
-        >
-          <div style={{ width: `${awayPct}%`, height: "100%", background: awayColor }} />
-        </div>
+        />
         <span
           style={{
+            position: "absolute",
+            top: "50%",
+            left: 8,
+            transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
             fontSize: 11,
             fontWeight: awayWin ? 700 : 500,
-            color: awayWin ? awayColor : "var(--ink-soft)",
+            color: awayWin ? "var(--on-accent, #fff)" : "var(--ink)",
             whiteSpace: "nowrap",
+            textShadow: awayWin ? "0 0 2px rgba(0,0,0,0.4)" : "none",
+            zIndex: 1,
           }}
         >
           {row.awayValue}
