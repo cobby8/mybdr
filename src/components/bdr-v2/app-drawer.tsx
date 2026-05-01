@@ -24,9 +24,9 @@ import { MORE_GROUPS } from "./more-groups";
 interface AppDrawerProps {
   open: boolean;
   onClose: () => void;
-  // [2026-04-29] kind 필드 추가 — "trigger" 타입(더보기) 은 drawer 본문에서 제외.
-  // 모바일 drawer는 본문 하단에 MORE_GROUPS 별도 섹션을 이미 노출하므로 중복 방지.
-  tabs: { id: string; href: string; label: string; kind?: "link" | "trigger" }[];
+  // [재박제 R-C-4] kind 필드 제거 (단일 종류로 단순화). 'more' id sentinel 도 drawer 본문에서 제외.
+  // drawer 안에 MORE_GROUPS 별도 섹션을 이미 노출하므로 중복 방지.
+  tabs: { id: string; href: string; label: string }[];
   isActive: (href: string) => boolean;
   user: AppNavUser | null;
 }
@@ -99,9 +99,9 @@ export function AppDrawer({ open, onClose, tabs, isActive, user }: AppDrawerProp
 
         {/* 본문 — 탭 8개 + 보조 액션 */}
         <div className="drawer__body">
-          {/* [2026-04-29] kind: "trigger"(더보기) 는 drawer 본문에서 제외.
+          {/* [재박제 R-C-4] 'more' sentinel 은 drawer 본문에서 제외.
               아래 별도 MORE_GROUPS 섹션이 동일 IA를 노출하므로 중복 방지. */}
-          {tabs.filter((t) => t.kind !== "trigger").map((t) => (
+          {tabs.filter((t) => t.id !== "more").map((t) => (
             <Link
               key={t.id}
               href={t.href}
