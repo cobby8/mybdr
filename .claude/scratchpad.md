@@ -25,11 +25,44 @@
 
 ## 현재 작업
 
-- **요청 1**: v2.4 진짜 변경 시안 박제 (RefereeInfo A 등급 + Match/CourtAdd/SeriesCreate B 등급) — 완료
-- **요청 2**: v2.4 마이페이지 hub 박제 — Hero + 4 카드 그리드 + quick 카드 (의뢰서 + 캡처 16) — **완료 (이번 작업)**
-- **상태**: developer 두 작업 모두 완료
-- **현재 담당**: PM (테스트/리뷰 + 커밋 위임)
+- **요청 3**: v2.4 시안 풍부 디테일 통합 + _components/ 잔재 격리 (재박제) — **완료 (이번 작업)**
+- **상태**: developer 완료
+- **현재 담당**: PM (테스트 + 커밋)
 - **브랜치**: subin
+
+### 구현 기록 (v2.4 풍부 디테일 통합 — 재박제)
+
+📝 구현: 시안 v2.4 Profile.jsx (125줄) 의 풍부 디테일을 운영 /profile 에 옵션 B 통합 (이전 박제 83a9363 의 Hero+hub+aside 보존 + 시안 디테일 추가).
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| src/app/(web)/profile/_v2/hero-card.tsx | team.primaryColor 수신 + 96 그라디언트 (linear-gradient 145deg, team.color, #000) — 이미지 없을 때만 노출 | 수정 |
+| src/app/(web)/profile/_v2/activity-timeline.tsx | kind 5종 확장 (post/application/match/win/loss/team) + badgeClass 매핑 (win=ok, loss=red, post/match/team=soft) | 수정 |
+| src/app/(web)/profile/page.tsx | HeroCard team primaryColor 전달 + 상단 Hero 큰 배너도 heroAvatarBg(team color → 검정) 적용 | 수정 |
+| src/app/(web)/profile/_archived/* | _components/ 14종 격리 (radar-chart 제외 — users/[id] 사용 중) | 신규(이동) |
+| src/app/(web)/profile/_archived/ability-section.tsx | radar-chart import 경로 ../_components/radar-chart 로 수정 | 수정 |
+
+🔧 자동 검수:
+| 항목 | 결과 |
+|----|----|
+| tsc --noEmit | EXIT=0 ✓ |
+| 시안 v2.4 stats 6 매칭 | 경기/승률/PPG/APG/RPG/레이팅 ✓ |
+| 시안 v2.4 timeline 5 매칭 | kind 5종 + 색 매핑 ✓ |
+| 시안 v2.4 badges 4 매칭 | 2x2 grid 이모지+이름+날짜 ✓ |
+| 시안 v2.4 96 그라디언트 (team.color) | HeroCard + 큰 Hero 둘 다 ✓ |
+| _components/ 격리 | 14/15 (radar-chart 보존) ✓ |
+| API/route.ts 변경 | 0 ✓ |
+| 이전 박제 (83a9363) 풍부 hub 보존 | Hero+hub+quick+aside 그대로 ✓ |
+
+💡 tester 참고:
+- 테스트: 로그인 후 /profile → (1) 상단 큰 Hero 아바타가 팀 primary_color → 검정 그라디언트 (팀 없으면 BDR Red 폴백) (2) 우측 sticky aside HeroCard 도 동일 그라디언트 (3) ActivityTimeline 5건 + tag 색 (post=soft, application=ok)
+- _archived/ 14 컴포넌트가 운영 어디에서도 import 0 — 빌드/런타임 영향 0 (radar-chart 만 _components/ 잔존)
+
+⚠️ reviewer 참고:
+- 시안 vs 캡처 16 미스매치: 시안 v2.4 Profile.jsx 는 단순 hub (좌 320 / 우 1fr) — 이전 박제 83a9363 의 풍부 hub (Hero + hub + quick + aside) 와 다름. **옵션 B 채택**: 풍부 hub 보존 + 시안 디테일만 통합. 이유: 사용자 의뢰서 + 캡처 16 의 의도는 풍부 hub
+- timeline kind 5종 확장: 데이터는 현재 post/application 2종만 발생, 나머지(match/win/loss/team)는 향후 데이터 연결 시 자동 활성. 호환 0 깨짐
+- _components/radar-chart.tsx 만 보존: users/[id]/_components/user-radar-section.tsx 가 import 사용 중 (격리 시 빌드 깨짐)
+- _archived/ability-section.tsx 의 import 경로 수정: ../_components/radar-chart — _archived 자체가 미사용이지만 tsc 검사 대상이라 깨지면 안됨
 
 ### 구현 기록 (v2.4 마이페이지 hub 박제 — 이번 작업)
 
@@ -221,6 +254,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-30 | (미커밋, subin) | **v2.4 풍부 디테일 통합 — 재박제 (developer)**: 시안 v2.4 Profile.jsx (125줄) 풍부 디테일을 운영 /profile 에 옵션 B 통합. (1) HeroCard 96 아바타 = team.primaryColor → 검정 그라디언트 (이미지 없을 때만, 팀 없으면 BDR Red 폴백). (2) 상단 큰 Hero 배너 아바타도 heroAvatarBg 적용. (3) ActivityTimeline kind 5종 확장 (post/application/match/win/loss/team) + badgeClass 매핑 (win=ok, loss=red, post/match/team=soft). (4) _components/ 14종 → _archived/ 격리 (radar-chart만 보존 — users/[id] 사용 중). _archived/ability-section.tsx import 경로 ../_components/radar-chart 수정. tsc EXIT=0. 이전 박제 83a9363 의 Hero+hub+quick+aside 풍부 구조 100% 보존. API/route.ts 변경 0. 변경: 3 파일 수정 + 14 파일 이동. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **v2.4 마이페이지 hub 박제 — Hero + 4 카드 + quick (developer)**: 의뢰서 (852줄) + 캡처 16 기준. 신규 3 파일(_v2/mypage-hub-data.ts / mypage-hub-card.tsx / mypage-hub.tsx). 수정 3 파일(profile/page.tsx 상단 큰 Hero 카드+본문 좌우 swap+Tier 1 4 슬롯, more-groups.ts "마이페이지" 1 항목 추가, globals.css 720 분기 2 클래스). 옵션 B 통합 — 우측 sticky aside 에 기존 v2.3 컴포넌트 6종 보존. tsc EXIT=0. 박제 룰 검수 통과 (var(--*) 토큰 / Material Symbols / 720 분기 / API 0 / 신규 라우트 0). 변경: 6 파일. | ✅ |
 | 2026-04-30 | 002aeae+2661542 (subin, 미푸시) | **v2.4 진짜 변경 박제 — 4 영역 (developer)**: A 등급 RefereeInfo (215줄) — SEO 마케팅 hero+4-step+tier+FAQ → 정적 카드 3종(등록/교육/배정 borderLeft accent)+CTA 단일 재구성. _faq-client.tsx 제거. generateMetadata+Open Graph+비로그인 정책 보존. B 등급 CourtAdd/SeriesCreate placeholder 각 3곳 일반화. Match.jsx 변경 12줄은 운영 박제 대상 없음 확인(grep 0). tsc 0. /profile 영역 침범 0. 변경 4 파일(+112/-439). | ✅ |
 | 2026-04-30 | (변경 0, 커밋 0) | **v2.4 Games.jsx 박제 검증** (developer): `Dev/design/BDR v2.4/screens/Games.jsx` byte 차이 0 (v2.2=v2.3=v2.4 모두 101줄, `diff -w` 빈 출력) — Phase 1 박제 시점에 v2.4 시안도 100% 운영 동기화 완료. 운영 매칭 8 케이스(eyebrow/h1/CTA/탭4/칩7/카드 stripe/토큰/720분기) 모두 통과. tsc 0. 운영 코드 변경 0. PM 다음 박제 후보로 진행 권장. | ✅ |
@@ -231,4 +265,3 @@
 | 2026-04-30 | (커밋 2건 대기, subin) | **P0 Step 4 + 5 백버튼 18 페이지 + 커뮤니티 모바일 탭** (developer): `page-back-button.tsx`(60줄) 신규 + history.length 가드 + fallbackHref + lg:hidden + 44px. profile 9 + organizations 4 + courts 5 = 18 페이지 일괄. community-aside.tsx fragment 분기 모바일 8 카테고리 가로 스크롤 탭. globals.css `.aside-mobile-tabs` +50줄. tsc 0. 변경: 21 파일. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **P0 Step 1 + 3 가입+대회 흐름 + 404** (developer): onboarding/setup done "프로필 추가 완성하기 →" CTA / tournaments/[id]/join "내 신청 내역 보기" 1순위 CTA / pricing/checkout 401 redirect 보존 + isValidRedirect / (web)/not-found.tsx 신규(60줄, search_off + 3 CTA). 변경: 4 파일. tsc 0. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **프로필 입력창 모바일 가독성** (developer): /profile/edit 캡처 51 픽스 — .profile-edit-row 768 1열 stack + 720 input padding 44px 터치 + .btn--sm 보강. 변경: 2 파일. tsc 0. | ✅ |
-| 2026-04-30 | (미커밋, subin) | **Phase 12-3 + 12-4 API + ProfileGrowth 데이터 연결** (developer): `api/web/identity/verify`(87줄) Portone mock POST + zod + name 동기화. `api/web/profile/season-stats`(88줄) UserSeasonStat GET + Decimal·BigInt 직렬화 + 빈 시즌 unshift. profile/growth 마일스톤 4종 데이터 연결 (누적 경기/평균 평점/MVP/순위). 12주 spark/평점 line 더미 유지(별도 큐). 변경: 3 파일. tsc 0. | ✅ |

@@ -457,6 +457,10 @@ export default async function ProfilePage() {
   const heroInitial = primaryTeam?.name
     ? primaryTeam.name.slice(0, 3).toUpperCase()
     : displayName.trim()[0]?.toUpperCase() ?? "U";
+  // v2.4 시안: 96 아바타에 팀 색 → 검정 그라디언트 (Profile.jsx L32). 팀 없으면 BDR Red 폴백.
+  const heroAvatarBg = primaryTeam?.primaryColor
+    ? `linear-gradient(145deg, ${primaryTeam.primaryColor}, #000)`
+    : "linear-gradient(145deg, var(--accent), #1a0508)";
 
   return (
     <div className="page">
@@ -477,13 +481,13 @@ export default async function ProfilePage() {
           marginBottom: 16,
         }}
       >
-        {/* 아바타 — 96x96 빨간 그라디언트 (시안 캡처 16) */}
+        {/* 아바타 — 96x96 그라디언트. v2.4: 팀 primary_color 기반 (없으면 BDR Red) */}
         <div
           style={{
             width: 96,
             height: 96,
             borderRadius: "50%",
-            background: "linear-gradient(145deg, var(--accent), #1a0508)",
+            background: heroAvatarBg,
             display: "grid",
             placeItems: "center",
             color: "#fff",
@@ -621,7 +625,12 @@ export default async function ProfilePage() {
             level={level}
             isPro={isPro}
             isVerified={isVerified}
-            team={primaryTeam ? { teamName: primaryTeam.name } : null}
+            // v2.4: 팀 primaryColor 를 HeroCard 아바타 그라디언트에 전달
+            team={
+              primaryTeam
+                ? { teamName: primaryTeam.name, primaryColor: primaryTeam.primaryColor }
+                : null
+            }
             unreadCount={unreadCount}
           />
 

@@ -65,6 +65,8 @@ export interface HeroCardLevel {
 export interface HeroCardTeamSummary {
   /** 대표 팀 이름 — 없으면 "팀 없음" */
   teamName: string | null;
+  /** v2.4 시안 — 팀 primary_color (linear-gradient 시작점). 없으면 var(--accent) 폴백 */
+  primaryColor?: string | null;
 }
 
 export interface HeroCardProps {
@@ -111,10 +113,18 @@ export function HeroCard({
   // 0 초과일 때만 별점 표시 (시드값 0.0 은 숨김 처리해 UI 잡음 방지)
   const showRating = ratingNum > 0;
 
+  // v2.4 시안 (Profile.jsx L32) — 96 아바타에 팀 색 → 검정 그라디언트.
+  // 프로필 이미지 없을 때만 그라디언트 노출. 팀 없으면 var(--accent) 폴백.
+  const teamColor = team?.primaryColor ?? null;
+  const avatarBg = teamColor
+    ? `linear-gradient(145deg, ${teamColor}, #000)`
+    : "linear-gradient(145deg, var(--accent), #1a0508)";
+
   return (
     // v2 .card 토큰 + 중앙 정렬 레이아웃 (시안 구조)
     <div className="card" style={{ padding: "24px 22px", textAlign: "center" }}>
-      {/* 아바타 — 96px 원형, v2 border 2px */}
+      {/* 아바타 — 96px 원형. v2.4 시안: 프로필 이미지 없으면 팀 색 그라디언트 + 흰 이니셜.
+          이미지 있으면 그대로 둥근 마스크. */}
       <div
         style={{
           width: 96,
@@ -123,13 +133,15 @@ export function HeroCard({
           borderRadius: "50%",
           overflow: "hidden",
           border: "3px solid var(--border)",
-          background: "var(--bg-alt)",
+          // 이미지 있으면 var(--bg-alt) (이미지가 cover), 없으면 팀 그라디언트
+          background: user.profile_image_url ? "var(--bg-alt)" : avatarBg,
           display: "grid",
           placeItems: "center",
           fontFamily: "var(--ff-display)",
           fontWeight: 900,
           fontSize: 32,
-          color: "var(--ink)",
+          // 그라디언트 위 흰 이니셜 (시안 매칭). 이미지 있을 때는 안 보임
+          color: user.profile_image_url ? "var(--ink)" : "#fff",
         }}
       >
         {user.profile_image_url ? (
