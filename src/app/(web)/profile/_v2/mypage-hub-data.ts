@@ -29,6 +29,8 @@ export interface HubQuickLink {
   href: string;
   /** 우측 상단 코너 뱃지 — "NEW" 또는 unread count. 없으면 미표시 */
   cornerBadge?: { text: string; tone: "new" | "alert" };
+  /** 시안 캡처 30: 좌상단 큰 컬러 아이콘 — var(--*) 토큰 (룰 10) */
+  iconColor?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export const HUB_QUICK_BASE: HubQuickLink[] = [
     label: "예약 이력",
     icon: "event_note",
     href: "/profile/bookings",
+    iconColor: "var(--cafe-blue)", // 시안 캡처 30: 보라/파랑 톤 — BDR Navy
   },
   {
     id: "weekly-report",
@@ -48,6 +51,7 @@ export const HUB_QUICK_BASE: HubQuickLink[] = [
     icon: "summarize",
     href: "/profile/weekly-report",
     cornerBadge: { text: "NEW", tone: "new" },
+    iconColor: "var(--cafe-blue)", // 시안 캡처 30: 파랑
   },
   {
     id: "notifications",
@@ -55,12 +59,14 @@ export const HUB_QUICK_BASE: HubQuickLink[] = [
     icon: "notifications",
     href: "/notifications",
     // unreadCount 는 page.tsx 에서 주입 (cornerBadge 동적 계산)
+    iconColor: "var(--warn)", // 시안 캡처 30: 노랑/오렌지
   },
   {
     id: "achievements",
     label: "배지·업적",
     icon: "emoji_events",
     href: "/profile/achievements",
+    iconColor: "var(--accent)", // 시안 캡처 30: 빨강 (BDR Red 트로피)
   },
 ];
 
@@ -75,6 +81,8 @@ export interface HubCardMeta {
   href: string;
   /** "프로필 편집 →" 처럼 카드 하단 우측에 노출되는 마이크로 카피 */
   ctaLabel: string;
+  /** 시안 캡처 29: 카드별 다른 색상 아이콘 — var(--*) 토큰 (룰 10) */
+  iconColor: string;
 }
 
 export const HUB_CARDS_TIER1: HubCardMeta[] = [
@@ -84,6 +92,7 @@ export const HUB_CARDS_TIER1: HubCardMeta[] = [
     icon: "person",
     href: "/profile/edit",
     ctaLabel: "프로필 편집 →",
+    iconColor: "var(--cafe-blue)", // 시안 캡처 29: 보라/파랑 톤
   },
   {
     id: "basketball",
@@ -91,6 +100,7 @@ export const HUB_CARDS_TIER1: HubCardMeta[] = [
     icon: "sports_basketball",
     href: "/profile/basketball",
     ctaLabel: "경기 기록 →",
+    iconColor: "var(--ink)", // 시안 캡처 29: 검정 농구공
   },
   {
     id: "growth",
@@ -98,6 +108,7 @@ export const HUB_CARDS_TIER1: HubCardMeta[] = [
     icon: "trending_up",
     href: "/profile/growth",
     ctaLabel: "성장 추이 →",
+    iconColor: "var(--accent)", // 시안 캡처 29: 빨간 line graph
   },
   {
     id: "activity",
@@ -105,5 +116,6 @@ export const HUB_CARDS_TIER1: HubCardMeta[] = [
     icon: "bolt",
     href: "/profile/activity",
     ctaLabel: "활동 타임라인 →",
+    iconColor: "var(--warn)", // 시안 캡처 29: 노랑 번개
   },
 ];

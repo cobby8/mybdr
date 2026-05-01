@@ -550,7 +550,8 @@ export default async function ProfilePage() {
           <div className="eyebrow" style={{ marginBottom: 6 }}>
             MY PAGE · 마이페이지
           </div>
-          {/* h1 — "닉네임 의 농구" */}
+          {/* h1 — "닉네임 의 농구" — 시안 캡처 29: 닉네임 검정 (var(--ink)), "의 농구" 회색 (var(--ink-soft))
+              회귀 픽스 (캡처 29): 운영에서 닉네임을 빨강으로 박제했으나 시안은 검정 → 검정으로 정정. */}
           <h1
             style={{
               margin: "0 0 4px",
@@ -560,7 +561,7 @@ export default async function ProfilePage() {
               color: "var(--ink)",
             }}
           >
-            <span style={{ color: "var(--accent)" }}>{displayName}</span>
+            <span style={{ color: "var(--ink)" }}>{displayName}</span>
             <span style={{ color: "var(--ink-soft)" }}> 의 농구</span>
           </h1>
           {/* 메타 — 팀 · 포지션 · #등번호 · 시즌 */}
@@ -607,9 +608,10 @@ export default async function ProfilePage() {
                 </span>
               )}
             </Link>
+            {/* 공개 프로필 — 시안 캡처 29: 파란 배경 흰 글씨 (BDR Navy 강조 CTA) */}
             <Link
               href={`/users/${user.id.toString()}`}
-              className="btn btn--sm"
+              className="btn btn--sm btn--accent"
               style={{ textDecoration: "none" }}
             >
               공개 프로필 →

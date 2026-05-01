@@ -107,11 +107,11 @@ export function MyPageHub({ tier1Slots, unreadCount }: MyPageHubProps) {
                 minHeight: 180,
               }}
             >
-              {/* 카드 헤더: 아이콘 + 라벨 */}
+              {/* 카드 헤더: 아이콘 + 라벨 — 시안 캡처 29: 카드별 다른 색상 (보라/검정/빨강/노랑) */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   className="material-symbols-outlined"
-                  style={{ fontSize: 20, color: "var(--accent)" }}
+                  style={{ fontSize: 20, color: card.iconColor }}
                 >
                   {card.icon}
                 </span>

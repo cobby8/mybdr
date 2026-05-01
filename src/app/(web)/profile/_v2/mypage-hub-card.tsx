@@ -63,12 +63,12 @@ export function MyPageHubQuickCard({ link }: MyPageHubQuickCardProps) {
         </span>
       )}
 
-      {/* Material Symbols 아이콘 — 시안 룰 11 */}
+      {/* Material Symbols 아이콘 — 시안 캡처 30: 카드별 다른 색상 (보라/파랑/노랑/빨강 매핑) */}
       <span
         className="material-symbols-outlined"
         style={{
           fontSize: 28,
-          color: "var(--accent)",
+          color: link.iconColor ?? "var(--accent)",
           lineHeight: 1,
         }}
       >
