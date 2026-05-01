@@ -122,11 +122,10 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
         )}
 
         {/* 점수판 5 column — [홈로고][홈팀명+점수][dash][원정팀명+점수][원정로고]
-            2026-05-02 v3 사용자 재설계:
-              - 로고 inline (좌·우 끝 absolute → 점수판 안)
-              - PC dash 폭 확대 (양 팀 점수 떨어뜨림)
-              - 모바일 가운데 정렬 + 작게 + 로고 같이 노출 */}
-        <div className="hero-sb__row scoreboard">
+            2026-05-02 v4: globals.css `.scoreboard` G-9 룰이 모바일 ≤720px 에서
+            grid-template-columns: 1fr auto 1fr 로 override 하여 5 column 깨뜨림.
+            → .scoreboard className 제거. .hero-sb__row 만 사용 (CSS 분기 정상 적용). */}
+        <div className="hero-sb__row">
           {/* 홈팀 로고 */}
           <TeamLogo team={match.home_team} />
 
