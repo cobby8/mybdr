@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -197,14 +198,16 @@ export async function GET(
         ...(match.homeTeam?.players ?? []).filter(filterRoster).map((p) => ({
           id: Number(p.id),
           jerseyNumber: p.jerseyNumber,
-          name: p.users?.nickname ?? p.users?.name ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`,
+          // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+          name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
           isStarter: p.isStarter ?? false,
         })),
         ...(match.awayTeam?.players ?? []).filter(filterRoster).map((p) => ({
           id: Number(p.id),
           jerseyNumber: p.jerseyNumber,
-          name: p.users?.nickname ?? p.users?.name ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`,
+          // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+          name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
           isStarter: p.isStarter ?? false,
         })),
@@ -379,7 +382,8 @@ export async function GET(
         const row: PlayerRow = {
           id: Number(stat.id),
           jerseyNumber: player.jerseyNumber,
-          name: user?.nickname ?? user?.name ?? player.player_name ?? `#${player.jerseyNumber ?? "-"}`,
+          // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+          name: getDisplayName(user, { player_name: player.player_name, jerseyNumber: player.jerseyNumber }, `#${player.jerseyNumber ?? "-"}`),
           teamId: Number(player.tournamentTeamId),
           min: stat.minutesPlayed ?? 0,
           min_seconds: getSecondsPlayed(stat),
@@ -588,11 +592,13 @@ export async function GET(
     //      가 되어 PBP의 tournament_team_player_id와 매칭 실패. roster에서 직접 매핑해야 확실히 매칭됨.
     const playerNameById = new Map<number, { name: string; jersey_number: number | null }>();
     for (const p of match.homeTeam?.players ?? []) {
-      const name = p.users?.nickname ?? p.users?.name ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`;
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      const name = getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`);
       playerNameById.set(Number(p.id), { name, jersey_number: p.jerseyNumber });
     }
     for (const p of match.awayTeam?.players ?? []) {
-      const name = p.users?.nickname ?? p.users?.name ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`;
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      const name = getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`);
       playerNameById.set(Number(p.id), { name, jersey_number: p.jerseyNumber });
     }
     // allPbps 는 created_at 순서대로 insert 되어 있으므로 quarter + game_clock_seconds 로 정렬.

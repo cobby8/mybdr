@@ -23,11 +23,13 @@ export type DisplayPlayerInput = {
  * 표시명 1줄 반환.
  * @param user - User 부분 (name, nickname 만 필요)
  * @param ttp - TournamentTeamPlayer 부분 (옵션 — 등록명 fallback 용)
- * @returns 표시명. 모든 fallback 실패 시 '선수' 반환 (절대 빈 문자열 X)
+ * @param fallback - 모든 fallback 실패 시 표시할 값 (기본: '선수'). 예: `Player#${id}` (랭킹/시상 컨텍스트)
+ * @returns 표시명. 모든 fallback 실패 시 fallback 값 반환 (절대 빈 문자열 X)
  */
 export function getDisplayName(
   user: DisplayUserInput,
   ttp?: DisplayPlayerInput,
+  fallback?: string,
 ): string {
   if (user?.name && user.name.trim()) return user.name.trim();
   if (user?.nickname && user.nickname.trim()) return user.nickname.trim();
@@ -35,7 +37,7 @@ export function getDisplayName(
   if (ttp?.jerseyNumber !== null && ttp?.jerseyNumber !== undefined) {
     return `#${ttp.jerseyNumber}`;
   }
-  return "선수";
+  return fallback ?? "선수";
 }
 
 /**

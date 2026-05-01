@@ -37,6 +37,7 @@
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 import {
   officialMatchNestedFilter,
   OFFICIAL_MATCH_SQL_CONDITION,
@@ -227,7 +228,8 @@ export default async function AwardsPage({ searchParams }: PageProps) {
       seasonMvp = {
         player: {
           userId: u.id.toString(),
-          name: u.nickname || u.name || `Player#${u.id}`,
+          // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+          name: getDisplayName(u, undefined, `Player#${u.id}`),
           metricValue: dec(agg._avg.points),
           metricLabel: "PPG",
           teamName: ttp?.tournamentTeam?.team?.name ?? null,
@@ -298,7 +300,8 @@ export default async function AwardsPage({ searchParams }: PageProps) {
       const r = scoring[0];
       scoringLeader = {
         userId: r.user_id.toString(),
-        name: r.nickname || r.name || `Player#${r.user_id}`,
+        // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+        name: getDisplayName(r, undefined, `Player#${r.user_id}`),
         metricValue: r.avg_value,
         metricLabel: "PPG",
         teamName: r.team_name,
@@ -346,7 +349,8 @@ export default async function AwardsPage({ searchParams }: PageProps) {
       const r = assists[0];
       assistsLeader = {
         userId: r.user_id.toString(),
-        name: r.nickname || r.name || `Player#${r.user_id}`,
+        // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+        name: getDisplayName(r, undefined, `Player#${r.user_id}`),
         metricValue: r.avg_value,
         metricLabel: "APG",
         teamName: r.team_name,
@@ -394,7 +398,8 @@ export default async function AwardsPage({ searchParams }: PageProps) {
       const r = rebounds[0];
       reboundsLeader = {
         userId: r.user_id.toString(),
-        name: r.nickname || r.name || `Player#${r.user_id}`,
+        // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+        name: getDisplayName(r, undefined, `Player#${r.user_id}`),
         metricValue: r.avg_value,
         metricLabel: "RPG",
         teamName: r.team_name,
@@ -470,7 +475,8 @@ export default async function AwardsPage({ searchParams }: PageProps) {
       const apgVal = dec(agg._avg.assists);
       finalsMvp = {
         userId: mvpUser.id.toString(),
-        name: mvpUser.nickname || mvpUser.name || `Player#${mvpUser.id}`,
+        // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+        name: getDisplayName(mvpUser, undefined, `Player#${mvpUser.id}`),
         metricValue: ppgVal,
         // 시안 "31 PTS · 9 AST" 와 가까운 라벨 — 시즌 평균이라 PPG/APG로 표기
         metricLabel:
@@ -539,12 +545,15 @@ export default async function AwardsPage({ searchParams }: PageProps) {
 
     champions = winnerTournaments.map((t) => {
       const finalsMatch = t.tournamentMatches[0];
-      const finalsMvpName =
-        finalsMatch?.users?.nickname ||
-        finalsMatch?.users?.name ||
-        t.users_tournaments_mvp_player_idTousers?.nickname ||
-        t.users_tournaments_mvp_player_idTousers?.name ||
-        null;
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      // 2단 fallback: 결승 매치 mvp → tournament.mvp_player. 빈 fallback ""로 || 체인 가능.
+      const matchMvpName = finalsMatch?.users
+        ? getDisplayName(finalsMatch.users, undefined, "")
+        : "";
+      const tournamentMvpName = t.users_tournaments_mvp_player_idTousers
+        ? getDisplayName(t.users_tournaments_mvp_player_idTousers, undefined, "")
+        : "";
+      const finalsMvpName = matchMvpName || tournamentMvpName || null;
 
       return {
         seasonLabel: t.tournament_series?.name ?? (t.endDate ? new Date(t.endDate).getFullYear().toString() : "—"),
