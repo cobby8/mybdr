@@ -101,6 +101,9 @@ export default function ProfileEditPage() {
   const [error, setError] = useState("");
   // 2026-05-02: 카메라 버튼 dropdown 메뉴 toggle (사진 변경 / 사진 제거)
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  // 2026-05-02: 프로필 편집 진입 안전 장치 — confirm 모달 (Phase 1, 추후 PortOne 본인인증 교체)
+  // null = sessionStorage 검사 중 / false = 모달 노출 / true = 폼 노출
+  const [unlocked, setUnlocked] = useState<boolean | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [saved, setSaved] = useState(false); // 시안 ✓ 저장됨 표시
 
@@ -452,6 +455,113 @@ export default function ProfileEditPage() {
     }
   };
 
+  // 2026-05-02: 프로필 편집 진입 안전 장치 — sessionStorage TTL 30분
+  // PortOne 본인인증 도입 전 임시 confirm 모달. 같은 세션 내 재진입은 묻지 않음.
+  const UNLOCK_KEY = "profile-edit-unlock-ts";
+  const UNLOCK_TTL_MS = 30 * 60 * 1000; // 30분
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const ts = sessionStorage.getItem(UNLOCK_KEY);
+      if (ts && Date.now() - parseInt(ts, 10) < UNLOCK_TTL_MS) {
+        setUnlocked(true);
+      } else {
+        setUnlocked(false);
+      }
+    } catch {
+      setUnlocked(false);
+    }
+  }, []);
+
+  const handleUnlock = () => {
+    try {
+      sessionStorage.setItem(UNLOCK_KEY, String(Date.now()));
+    } catch {
+      // sessionStorage 막혀도 unlock 자체는 진행 (현 세션 메모리만 유지)
+    }
+    setUnlocked(true);
+  };
+
+  // unlocked 검사 중 — 짧은 로딩
+  if (unlocked === null) {
+    return (
+      <div className="page">
+        <div
+          className="flex min-h-[60vh] items-center justify-center"
+          style={{ color: "var(--ink-mute)" }}
+        >
+          <p>확인 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // unlocked === false → confirm 모달 (전체 화면)
+  if (unlocked === false) {
+    return (
+      <div className="page">
+        <div
+          className="flex min-h-[60vh] items-center justify-center"
+          style={{ padding: "0 16px" }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="프로필 편집 본인 확인"
+            className="card"
+            style={{ maxWidth: 420, width: "100%", padding: 28, textAlign: "center" }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: "var(--bg-alt)",
+                margin: "0 auto 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--cafe-blue)",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 28 }}>shield_person</span>
+            </div>
+            <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>
+              본인 확인이 필요합니다
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.6 }}>
+              프로필 편집은 개인정보 수정이 포함되어 있어 본인 확인이 필요합니다.
+              <br />
+              본인이 맞다면 아래 [본인이 맞습니다] 버튼을 눌러주세요.
+              <br />
+              <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>
+                (30분간 같은 세션 내에서는 다시 묻지 않습니다)
+              </span>
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <Link
+                href="/profile"
+                className="btn"
+                style={{ textDecoration: "none", flex: 1, maxWidth: 140 }}
+              >
+                취소
+              </Link>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleUnlock}
+                style={{ flex: 1, maxWidth: 200 }}
+              >
+                본인이 맞습니다
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // unlocked === true 부터 기존 로딩/폼 렌더
   if (loading) {
     return (
       <div className="page">
