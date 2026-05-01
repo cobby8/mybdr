@@ -1,0 +1,603 @@
+/* ============================================================
+   EditProfile — BDR-current v2.3 박제 (단일 스크롤 + Hero + 5섹션)
+   - 출처: Dev/design/BDR-current/profile-settings.css (EditProfile 부분)
+   - 13 룰: 토큰만 / 4px 라운딩 (아바타 50% 예외) / 모바일 720px / 44px 터치
+   - 5번째 섹션 (추가 설정 / Danger Zone) 신설 부분만 박제 카피 + 운영 hybrid
+   ============================================================ */
+
+.edit-profile {
+  max-width: 980px;
+  margin: 0 auto;
+  padding-bottom: 120px;
+}
+
+/* ===== 빵부스러기 ===== */
+.edit-profile__crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  margin-bottom: 16px;
+}
+.edit-profile__crumb a {
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-decoration: none;
+}
+.edit-profile__crumb a:hover { color: var(--accent); }
+.edit-profile__crumb-current { color: var(--ink); font-weight: 600; }
+
+/* ===== 상단 타이틀 + 액션 ===== */
+.edit-profile__topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.edit-profile__title {
+  font-family: var(--ff-display);
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 6px 0 0;
+}
+.edit-profile__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edit-profile__saved {
+  font-size: 13px;
+  color: var(--ok);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* ===== Hero — 큰 아바타(좌) + 정보(우) ===== */
+.edit-profile__hero {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.edit-profile__avatar-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+.edit-profile__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%; /* 아바타는 4px 룰 예외 */
+  background: var(--accent);
+  color: var(--ink-on-accent, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 4px solid var(--bg-card);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.edit-profile__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.edit-profile__avatar-mono {
+  font-family: var(--ff-display);
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.edit-profile__camera {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%; /* 동그라미 버튼 예외 */
+  background: var(--ink);
+  color: var(--bg);
+  border: 3px solid var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .15s, background .15s;
+}
+.edit-profile__camera:hover {
+  transform: scale(1.06);
+  background: var(--accent);
+  color: var(--ink-on-accent, #fff);
+}
+.edit-profile__camera:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.edit-profile__camera:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.edit-profile__hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0; /* grid overflow 방지 */
+}
+.edit-profile__hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+}
+.edit-profile__hero-eyebrow .eyebrow-mark {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.edit-profile__hero-title {
+  font-family: var(--ff-display);
+  font-size: 40px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.1;
+}
+.edit-profile__hero-nick { color: var(--ink); }
+.edit-profile__hero-particle { color: var(--ink-soft); font-weight: 800; }
+.edit-profile__hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.edit-profile__hero-meta .dot { color: var(--ink-dim); }
+.edit-profile__hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.edit-profile__hero-error {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* ===== 앵커 네비 ===== */
+.edit-profile__anchors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 24px;
+  position: sticky;
+  top: 60px;
+  z-index: 10;
+}
+.edit-profile__anchors a {
+  flex: 1;
+  text-align: center;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  white-space: nowrap;
+}
+.edit-profile__anchors a:hover {
+  background: var(--bg-card);
+  color: var(--ink);
+}
+
+/* ===== 섹션 카드 ===== */
+.edit-profile__sec {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 28px;
+  margin-bottom: 16px;
+  scroll-margin-top: 120px;
+}
+.edit-profile__sec-head {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.edit-profile__sec-head h3 {
+  font-family: var(--ff-display);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin: 0 0 4px;
+}
+.edit-profile__sec-head p {
+  font-size: 13px;
+  color: var(--ink-mute);
+  margin: 0;
+}
+.edit-profile__sec-head a {
+  color: var(--cafe-blue);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+.edit-profile__sec-head a:hover { text-decoration: underline; }
+
+/* ===== Grid ===== */
+.edit-profile__grid {
+  display: grid;
+  gap: 16px;
+}
+.edit-profile__grid--2 { grid-template-columns: 1fr 1fr; }
+.edit-profile__grid--3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ===== Field ===== */
+.edit-profile__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.edit-profile__field--full { grid-column: 1 / -1; }
+.edit-profile__field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.edit-profile__field-head label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+.edit-profile input.input:disabled,
+.edit-profile select.input:disabled,
+.edit-profile textarea.input:disabled {
+  background: var(--bg-alt);
+  color: var(--ink-mute);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+.edit-profile__field-sub {
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.edit-profile__inline {
+  display: flex;
+  gap: 6px;
+}
+.edit-profile__inline .input { flex: 1; }
+.edit-profile__verified {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  min-height: 40px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 10%, transparent);
+  border: 1px solid color-mix(in oklab, var(--ok) 30%, transparent);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* 닉네임 중복확인 결과 메시지 */
+.edit-profile__check-msg {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.edit-profile__check-msg--ok { color: var(--ok); }
+.edit-profile__check-msg--err { color: var(--danger); }
+.edit-profile__check-msg--mute { color: var(--ink-mute); }
+
+/* AI bio 버튼 — textarea 우상단 absolute */
+.edit-profile__bio-wrap { position: relative; }
+.edit-profile__bio-ai {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ===== Chips ===== */
+.edit-profile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.edit-profile__chips .chip {
+  border-radius: 4px;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+/* ===== 공개 설정 (Privacy rows) ===== */
+.edit-profile__priv {
+  display: flex;
+  flex-direction: column;
+}
+.edit-profile__priv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.edit-profile__priv-row:last-child { border-bottom: 0; }
+.edit-profile__priv-info { min-width: 0; }
+.edit-profile__priv-label {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.edit-profile__priv-desc {
+  font-size: 12px;
+  color: var(--ink-mute);
+}
+.edit-profile__priv-options {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.edit-profile__priv-options .chip {
+  border-radius: 4px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+.edit-profile__priv-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  background: var(--bg-alt);
+  border-radius: 4px;
+}
+
+/* ===== §5 추가 설정 — 환불 계좌 / 소셜 연동 / Danger Zone ===== */
+.edit-profile__refund-current {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: var(--bg-alt);
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.edit-profile__refund-current strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.edit-profile__refund-change {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--cafe-blue);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.edit-profile__consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink);
+}
+.edit-profile__consent input[type="checkbox"] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.edit-profile__consent-required { color: var(--danger); }
+
+/* 소셜 연동 카드 */
+.edit-profile__social {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-alt);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.edit-profile__social-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%; /* 원형 아이콘 예외 */
+}
+.edit-profile__social-info { flex: 1; min-width: 0; }
+.edit-profile__social-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.edit-profile__social-desc {
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+
+/* Danger Zone */
+.edit-profile__danger {
+  margin-top: 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--danger) 4%, transparent);
+}
+.edit-profile__danger-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--danger);
+  margin: 0 0 4px;
+}
+.edit-profile__danger-desc {
+  font-size: 12px;
+  color: var(--ink-mute);
+  margin: 0 0 12px;
+}
+.edit-profile__danger .btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ===== Sticky save bar ===== */
+.edit-profile__sticky {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  margin-top: 16px;
+  background: color-mix(in oklab, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  z-index: 5;
+}
+
+/* 알림 배너 (성공/에러) */
+.edit-profile__notice {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.edit-profile__notice--err {
+  background: color-mix(in oklab, var(--danger) 10%, transparent);
+  color: var(--danger);
+}
+.edit-profile__notice--ok {
+  background: color-mix(in oklab, var(--ok) 10%, transparent);
+  color: var(--ok);
+}
+
+/* ===== Mobile (≤720px) ===== */
+@media (max-width: 720px) {
+  .edit-profile { padding: 0 16px 120px; }
+  .edit-profile__topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .edit-profile__title { font-size: 26px; }
+  .edit-profile__actions .btn { min-height: 44px; flex: 1; }
+
+  .edit-profile__hero {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+  .edit-profile__avatar-wrap {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
+  }
+  .edit-profile__avatar-mono { font-size: 40px; }
+  .edit-profile__hero-eyebrow { justify-content: center; }
+  .edit-profile__hero-title { font-size: 28px; }
+  .edit-profile__hero-meta { justify-content: center; }
+  .edit-profile__hero-badges { justify-content: center; }
+
+  .edit-profile__anchors {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    position: static;
+    -webkit-overflow-scrolling: touch;
+  }
+  .edit-profile__anchors a { flex: 0 0 auto; }
+
+  .edit-profile__sec { padding: 18px 16px; }
+  .edit-profile__sec-head h3 { font-size: 17px; }
+
+  .edit-profile__grid--2,
+  .edit-profile__grid--3 { grid-template-columns: 1fr; }
+
+  .edit-profile__chips .chip,
+  .edit-profile__priv-options .chip { min-height: 44px; }
+
+  /* iOS 자동 줌 차단 + 44px 터치 (컨벤션 §모바일) */
+  .edit-profile input.input,
+  .edit-profile select.input,
+  .edit-profile textarea.input { font-size: 16px; min-height: 44px; }
+
+  .edit-profile__priv-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .edit-profile__sticky {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    border-radius: 4px;
+  }
+  .edit-profile__sticky .edit-profile__actions .btn { min-height: 44px; }
+}
+
+/* ===== chip 베이스 — globals.css 에 .chip 정의가 없어서 박제 ===== */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--ink-mute);
+  color: var(--ink);
+}
+.chip--active {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+}
+.chip--active:hover { border-color: var(--accent); color: var(--accent); }

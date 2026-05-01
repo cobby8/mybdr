@@ -2,6 +2,33 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-01] ProfileShell 폐기 — /profile/* 깊은 페이지 sidebar 0 (v2.3 hub 모델)
+- **분류**: architecture
+- **발견자**: pm + 사용자 (Cowork 직접 patch)
+- **내용**: `src/app/(web)/profile/layout.tsx`에서 `<ProfileShell>` wrap 제거 → 단순 children passthrough. metadata는 server layout에 보존.
+  - **변경 전**: `layout.tsx` → `<ProfileShell>{children}</ProfileShell>`. `ProfileShell`은 `usePathname()`으로 `/profile` 정확 일치만 hub 분기 + sub(`/profile/edit`/`/profile/billing` 등)는 220px `<ProfileSideNav>` aside 노출.
+  - **변경 후**: `layout.tsx` → `<>{children}</>`. 모든 `/profile/*` sub 페이지에서 외부 sidebar 0.
+  - **사유**: v2.3 시안 의도 = MyPage hub 카드 진입 → 깊은 페이지는 단독 풀폭(sidebar 0). `ProfileShell`의 isHubRoot 분기는 hub root만 hide / sub는 노출 = v2.3 sidebar 0 원칙 위반.
+  - **발견 경로**: 사용자가 dev server (localhost:3001/profile/edit)에서 옛 좌측 sidebar (개인정보/활동/농구/설정·결제) 잔재 발견. ad774d9 revert 시 옛 layout.tsx의 ProfileShell wrap이 그대로 따라옴.
+  - **검증**: `tsc --noEmit` profile 에러 0 / `grep ProfileShell` 실제 import/사용 0건 (정의 파일 `src/components/profile/profile-shell.tsx` + 주석만 잔존, 후속 cleanup 대상).
+  - **영향 범위**: `/profile` (hub) 무영향 (자체 layout) / `/profile/edit` (D-6 박제 단일 스크롤 정합) / `/profile/billing`·`basketball`·`growth`·`bookings`·`weekly-report`·`activity`·`complete`·`preferences`·`notification-settings`·`payments`·`subscription`·`achievements` 모두 외부 sidebar 사라짐 (v2.3 hub 모델 일관 적용).
+  - **후속 cleanup**: `src/components/profile/profile-shell.tsx` (+ 의존하던 `profile-side-nav.tsx`있다면) 의존성 0 → 별도 commit으로 삭제 가능.
+- **참조**: lessons.md 2026-05-01 "revert + 부분 hub 패치 잔재" / decisions.md 2026-05-01 "ProfileShell 폐기 결정"
+- **참조횟수**: 0
+
+### [2026-05-01] D-6 EditProfile Hybrid 박제 — 단일 스크롤 + Hero + 5섹션
+- **분류**: architecture
+- **발견자**: developer
+- **내용**: `src/app/(web)/profile/edit/page.tsx` 1547→1233줄 + `edit-profile.css` 신규 603줄. 시안 BDR-current/screens/EditProfile.jsx (v2.3) 단일 스크롤 + Hero + 4섹션 박제 + **5번째 "추가 설정" 섹션 신설** 으로 시안에 없는 진짜 기능 4종 (환불 계좌·회원 탈퇴·닉네임 중복확인·AI bio) 흡수 — Hybrid 옵션 B.
+  - **변경 전**: 5탭 사이드 + 220px aside (sticky top:120) + 6 sub-tab (basic/skill/contact/refund/photo/privacy)
+  - **변경 후**: 단일 스크롤 + Hero (200px RDM 아바타 + 카메라 버튼 photo_camera) + 5섹션 (§1 기본 / §2 플레이 / §3 연락 / §4 공개 / §5 추가) + Sticky save bar (`position:sticky bottom:0 backdrop-filter:blur(8px)`)
+  - **5섹션 흡수 매핑**: photo 탭 → Hero 카메라 / refund 탭 → §5 추가 설정 / privacy 탭 Danger Zone(withdraw) → §5 추가 설정 / 닉네임 중복확인 → §1 input 옆 / AI bio (POST `/profile/generate-bio`) → §1 자기소개 textarea 우상단 absolute
+  - **데이터 보존 (운영 진짜 기능 100%)**: handleSave (PATCH `/api/web/profile`) / handleImageUpload (POST `/profile/upload-image`) / handleImageDelete (DELETE `/profile/delete-image`) / handleCheckNickname (GET `/profile/check-nickname`) / handleGenerateBio (POST `/profile/generate-bio`) / handleWithdraw (DELETE `/auth/withdraw`) / 환불 계좌 (BANKS + bank_name/bank_code/account_number/account_holder/consent) / 소셜 연동 표시 (kakao/google/apple/naver) / RegionPicker (사이트 컨벤션) / formatPhone / nicknameCheck 입력값 변경 시 무효화 / PageBackButton / reload 1.5초 (헤더 me 재호출)
+  - **시안 박제 신규 UI** (DB 미저장, 시각만): §2 사용손 3칩 / 실력 6칩 / 강점 10칩 multi / §4 공개 7항목 × 3옵션 / §3 인스타·유튜브 disabled
+  - **검수 통과**: tsc / 13 룰 (hex 6건 모두 합법: 소셜 브랜드 4 + #fff 2 / pink-salmon-coral 0 / lucide 0 / pill 9999 0) / 회귀 4 케이스 (page.tsx만 수정, layout 별도 fix commit으로 분리)
+- **참조**: decisions.md 2026-05-01 "D-6 Hybrid 옵션 B" / 시안 Dev/design/BDR-current/screens/EditProfile.jsx
+- **참조횟수**: 0
+
 ### [2026-05-01] Phase 13 마이페이지 hub 박제 — /profile = 3-tier + aside
 - **분류**: architecture
 - **발견자**: pm

@@ -2,6 +2,19 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-01] revert + 부분 hub 패치 = sub 페이지 옛 sidebar 잔재 (ProfileShell 케이스)
+- **분류**: lesson (architecture awareness)
+- **발견자**: pm + 사용자 (Cowork 직접 patch)
+- **배경**: P0 마이페이지 hub 박제 7 commit 을 ad774d9 시점으로 revert 한 후 v3-rebake P0 박제 진행. `/profile` 루트만 자체 hub layout 으로 박제했고 layout.tsx 의 ProfileShell wrap 은 그대로 둠. ProfileShell 은 `isHubRoot` 분기 (`/profile` 정확 일치만 hide / sub 는 ProfileSideNav 220px aside 노출) → 사용자가 dev server (localhost:3001/profile/edit) 에서 옛 좌측 sidebar (개인정보/활동/농구/설정·결제) 잔재 발견. v2.3 시안 의도 (MyPage hub 카드 진입 → 깊은 페이지 sidebar 0) 위반.
+- **원인**: 시안 정합성을 "어느 path 가 어느 wrapper 통과하는지" 단위로 검토하지 않음. revert 후 layout 파일만 그대로 가져왔는데, 그 layout 이 의존하는 client component (ProfileShell) 의 분기 로직 (hub root only) 까지는 인지 못 함. P0 hub 박제 = `/profile/page.tsx` 만 수정하니 sub 페이지 영향 검토 누락.
+- **교훈**:
+  1. **revert 범위와 시안 정합 범위는 다르다** — revert 가 layout 파일만이어도, 그 layout 이 사용하는 wrapper 컴포넌트의 분기 로직도 시안 정합 검토 대상
+  2. **시안 정합성은 path × wrapper 단위** — `/profile` hub vs `/profile/*` sub 가 다른 wrapper 통과한다면 둘 다 시안 의도 일치하는지 path 단위로 grep
+  3. **dev server 사용자 검증이 정적 검증보다 빠르다** — tsc + grep 통과해도 wrapper 분기 동작은 브라우저 검증 없으면 발견 어려움
+- **재발 방지**: 시안 박제 시 path × wrapper 매핑 표 작성 1단계 추가 ("어느 path 가 어느 layout/Shell/Provider 통과? 각각 시안 의도 일치?"). PR 머지 전 dev server 새로고침 사용자 확인 1단계 추가 (Phase 13 hub 박제 사용자 검증 사이클 정착).
+- **참조**: architecture.md 2026-05-01 "ProfileShell 폐기" / decisions.md 2026-05-01 "ProfileShell 폐기 결정"
+- **참조횟수**: 0
+
 ### [2026-04-29] 헤더 변경 시 라우트 그룹별 영향 범위 확인 — (web)/(admin)/(referee) 별도 헤더
 - **분류**: lesson (architecture awareness)
 - **발견자**: pm

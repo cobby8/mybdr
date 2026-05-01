@@ -1,25 +1,32 @@
 "use client";
 
 /* ============================================================
- * /profile/edit — 시안 v2(1) EditProfile.jsx 박제 (5탭 구조)
+ * /profile/edit — BDR-current v2.3 박제 (단일 스크롤 + Hero + 5섹션 Hybrid)
  *
- * 왜 (Phase 9 P1-5):
- *  - 시안 v2(1) EditProfile은 좌측 사이드 네비 + 5탭 (기본/플레이/연락/사진/공개)
- *  - 우리 기존 페이지는 한 페이지에 모든 섹션 일렬 → 길이가 길어 사용성 떨어짐
- *  - 5탭 구조 박제 + 기존 환불 계좌·소셜 연동·회원 탈퇴는 "추가 탭"으로 보존
+ * 왜 (D-6 v3-rebake — 2026-05-01):
+ *  - 시안 v2.3 = 5탭 사이드 + 6 sub-tab 제거 → 단일 스크롤 + Hero + 4섹션 (앵커 네비)
+ *  - 운영 진짜 기능 4종 (환불계좌·AI bio·닉네임 중복확인·회원탈퇴) 손실 방지
+ *    → "5번째 섹션 추가 설정" 신설 (Hybrid 패턴) — 정보 손실 0
+ *  - API/데이터 패칭 절대 변경 금지 (CLAUDE.md 디자인 작업 13 룰)
  *
  * 어떻게:
- *  - 좌측 220px 사이드 + 우측 카드 본문
- *  - 탭은 React state로 관리 (URL 쿼리 미사용 — 시안 동일)
- *  - 모든 form state / fetch / save / withdraw API 100% 보존
- *  - photo / privacy 탭은 시안 박제하되 백엔드 미구현 → "준비 중" 안내
+ *  - Hero: 큰 RDM 아바타 (좌) + 카메라 클릭 = upload-image API 흡수 (옛 photo 탭 흡수)
+ *  - §1 기본 정보: 닉네임 + 중복확인 + 실명 + 지역 + 등번호 + 시작연도 + 생년월일 + 자기소개+AI
+ *  - §2 플레이 정보: 포지션 5칩 (시안은 단일, 운영은 multi — 운영 multi 보존) + 신장체중 + 사용손 + 실력수준 + 강점
+ *  - §3 연락 정보: 이메일 + 휴대폰 + 인스타 + 유튜브 + 소셜 연동 표시
+ *  - §4 공개 설정: 7항목 × 3옵션 chip (시안 placeholder — 백엔드 미구현 안내)
+ *  - §5 추가 설정 (NEW): 환불 계좌 (BANKS) + Danger Zone 회원 탈퇴
+ *  - Sticky save bar 하단 (시안 박제)
  *
- * 보존:
+ * 보존 (변경 금지):
  *  - GET /api/web/profile (초기 로드)
  *  - PATCH /api/web/profile (저장)
- *  - POST /api/web/profile/generate-bio (AI bio)
- *  - DELETE /api/web/auth/withdraw (회원 탈퇴)
- *  - 모든 form/bankForm/regions state
+ *  - POST /api/web/profile/upload-image
+ *  - DELETE /api/web/profile/delete-image
+ *  - GET /api/web/profile/check-nickname
+ *  - POST /api/web/profile/generate-bio
+ *  - DELETE /api/web/auth/withdraw
+ *  - 모든 form/bankForm/regions state + 6 핸들러
  * ============================================================ */
 
 import { useState, useEffect, useRef } from "react";
@@ -30,7 +37,9 @@ import { BANKS } from "@/lib/constants/banks";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고)
 import { PageBackButton } from "@/components/shared/page-back-button";
+import "./edit-profile.css";
 
+// 시안 포지션 5종 (PG/SG/SF/PF/C) — 운영은 multi 선택 보존 (DB 호환)
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
 
 interface ProfileEditData {
@@ -51,11 +60,11 @@ interface ProfileEditData {
   has_account: boolean;
   // 소셜 로그인 제공자 (kakao, google, apple 등)
   provider: string | null;
-  // 프로필 사진 URL (Vercel Blob) — 업로드 후 헤더 UserDropdown 갱신용
+  // 프로필 사진 URL (Vercel Blob)
   profile_image_url: string | null;
 }
 
-// 소셜 제공자별 표시 정보 매핑
+// 소셜 제공자별 표시 정보 매핑 (운영 보존 — 연락 정보 섹션에서 사용)
 const SOCIAL_PROVIDERS: Record<string, { label: string; icon: string; color: string }> = {
   kakao: { label: "카카오", icon: "chat_bubble", color: "#FEE500" },
   google: { label: "Google", icon: "mail", color: "#4285F4" },
@@ -63,21 +72,27 @@ const SOCIAL_PROVIDERS: Record<string, { label: string; icon: string; color: str
   naver: { label: "네이버", icon: "language", color: "#03C75A" },
 };
 
-// 시안 v2(1) 5탭 + 우리 추가 2탭(환불계좌/소셜+탈퇴) = 6탭
-type TabKey = "basic" | "skill" | "contact" | "refund" | "photo" | "privacy";
+// 시안 §4 공개 설정 7항목 × 3옵션 (UI placeholder — 백엔드 미구현)
+const PRIVACY_ROWS = [
+  { id: "profile", l: "프로필 전체", d: "나의 프로필 페이지 자체" },
+  { id: "realName", l: "실명", d: "본명 노출 여부" },
+  { id: "contact", l: "연락처", d: "휴대폰 · 이메일" },
+  { id: "record", l: "경기 기록", d: "스탯 · 이력" },
+  { id: "review", l: "매너 평가", d: "받은 리뷰" },
+  { id: "area", l: "활동 지역", d: "프로필 정보" },
+  { id: "body", l: "신장 · 체중", d: "프로필 정보" },
+] as const;
 
-const TABS: { id: TabKey; label: string; icon: string }[] = [
-  { id: "basic", label: "기본 정보", icon: "person" },
-  { id: "skill", label: "플레이 정보", icon: "sports_basketball" },
-  { id: "contact", label: "연락 정보", icon: "mail" },
-  { id: "refund", label: "환불 계좌", icon: "account_balance" },
-  { id: "photo", label: "사진", icon: "image" },
-  { id: "privacy", label: "공개·계정", icon: "lock" },
-];
+const PRIVACY_OPTIONS = [
+  { v: "all", l: "전체" },
+  { v: "friends", l: "친구" },
+  { v: "none", l: "비공개" },
+] as const;
+
+type PrivacyKey = (typeof PRIVACY_ROWS)[number]["id"];
 
 export default function ProfileEditPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<TabKey>("basic");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -96,15 +111,14 @@ export default function ProfileEditPage() {
   });
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
 
-  // 닉네임 중복확인 state — 저장 전 사용자가 직접 검증할 수 있도록
-  // status: idle(미체크) | checking(요청 중) | available(사용 가능) | taken(사용 중) | error(네트워크/검증 실패)
-  // checkedNickname: 검증한 시점의 닉네임 — form.nickname 과 다르면 결과 무효 (입력값 변경 시 idle 리셋)
+  // 닉네임 중복확인 state — PATCH 시점 P2002 회귀 방어 (운영 보존)
   const [nicknameCheck, setNicknameCheck] = useState<{
     status: "idle" | "checking" | "available" | "taken" | "error";
     message: string;
     checkedNickname: string;
   }>({ status: "idle", message: "", checkedNickname: "" });
 
+  // 환불 계좌 state — 운영 보존, §5 추가 설정 섹션에 흡수
   const [bankForm, setBankForm] = useState({
     bank_name: "",
     bank_code: "",
@@ -115,23 +129,35 @@ export default function ProfileEditPage() {
   const [maskedAccount, setMaskedAccount] = useState<string | null>(null);
   const [hasExistingAccount, setHasExistingAccount] = useState(false);
   const [generatingBio, setGeneratingBio] = useState(false);
-  // 소셜 계정 연동 상태 (읽기 전용 표시)
+  // 소셜 계정 연동 표시 (§3 연락 정보 섹션)
   const [provider, setProvider] = useState<string | null>(null);
-  // 회원 탈퇴 모달 상태
+  // 회원 탈퇴 모달 state (§5 추가 설정 Danger Zone)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawPassword, setWithdrawPassword] = useState("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [withdrawError, setWithdrawError] = useState("");
 
-  // 프로필 사진 업로드 state — Vercel Blob 연동
-  // profileImageUrl: 현재 등록된 이미지 URL (null = 이니셜 fallback 표시)
-  // imageUploading: POST 진행 중 (버튼 disabled + 스피너)
-  // imageError: 검증/업로드 실패 메시지 (인라인 표시 — alert 신규 0건 룰)
+  // 프로필 사진 업로드 state — Hero 카메라 버튼으로 흡수
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [imageError, setImageError] = useState("");
-  // 숨겨진 file input 을 button onClick 으로 트리거하기 위한 ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 시안 §4 공개 설정 state (UI placeholder — 백엔드 미구현, 시안 박제용)
+  const [privacy, setPrivacy] = useState<Record<PrivacyKey, string>>({
+    profile: "all",
+    realName: "none",
+    contact: "friends",
+    record: "all",
+    review: "all",
+    area: "all",
+    body: "friends",
+  });
+
+  // 시안 §2 플레이 정보 — 사용 손, 실력 수준, 강점 (UI placeholder, DB 미저장)
+  const [hand, setHand] = useState<"L" | "R" | "B">("R");
+  const [level, setLevel] = useState<string>("중급");
+  const [strengths, setStrengths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/web/profile")
@@ -152,7 +178,7 @@ export default function ProfileEditPage() {
           weight: u.weight?.toString() ?? "",
           bio: u.bio ?? "",
         });
-        // city/district 콤마 구분 → Region[]으로 변환
+        // city/district 콤마 구분 → Region[]으로 변환 (운영 보존)
         const cities = (u.city ?? "").split(",").filter(Boolean);
         const districts = (u.district ?? "").split(",").filter(Boolean);
         if (cities.length > 0) {
@@ -167,13 +193,13 @@ export default function ProfileEditPage() {
         setMaskedAccount(u.account_number_masked);
         setHasExistingAccount(u.has_account);
         setProvider(u.provider ?? null);
-        // 프로필 사진 URL 초기화 — 사진 탭에서 96px 아바타 분기에 사용
         setProfileImageUrl(u.profile_image_url ?? null);
       })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, [router]);
 
+  // 포지션 multi 토글 (운영 multi 보존 — DB 컬럼이 콤마 구분)
   const togglePosition = (pos: string) => {
     setForm((p) => {
       const selected = p.position ? p.position.split(",") : [];
@@ -186,21 +212,22 @@ export default function ProfileEditPage() {
       return { ...p, position: selected.join(",") };
     });
   };
-
   const selectedPositions = form.position ? form.position.split(",") : [];
 
-  // 프로필 사진 업로드 핸들러
-  // 왜: file input onChange 시 클라 사이드 검증(빠른 실패) → multipart POST → 응답으로 URL 갱신
-  // 어떻게:
-  //  1) 파일 검증 (size 2MB, mime image/jpeg|png|webp) — 서버 도달 전 차단 (네트워크 절약)
-  //  2) FormData 에 file 필드로 첨부 → POST /api/web/profile/upload-image
-  //  3) 성공 시 profileImageUrl 갱신 + 1.5초 뒤 reload (헤더 UserDropdown 새 이미지 반영)
-  //  4) 실패 시 imageError 인라인 메시지 (alert 신규 0건 룰)
+  const toggleStrength = (s: string) => {
+    setStrengths((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      return next;
+    });
+  };
+
+  // 프로필 사진 업로드 핸들러 (운영 그대로 보존 — Hero 카메라 클릭으로 호출)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setImageError("");
     const file = e.target.files?.[0];
-    // 파일 input 은 같은 파일 재선택 가능하게 즉시 리셋 (취소 후 동일 파일 재선택 동작 보장)
-    e.target.value = "";
+    e.target.value = ""; // 동일 파일 재선택 가능하도록 즉시 리셋
     if (!file) return;
 
     // 클라 검증 1: MIME 타입 (서버와 동일 룰)
@@ -222,21 +249,17 @@ export default function ProfileEditPage() {
       const res = await fetch("/api/web/profile/upload-image", {
         method: "POST",
         body: fd,
-        // multipart 는 Content-Type 헤더 자동 설정 (boundary 포함) — 직접 지정 금지
         credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) {
-        // 서버 친화 메시지 우선 (apiError 의 error 필드)
         throw new Error(data?.error ?? "업로드에 실패했습니다.");
       }
-      // 응답은 snake_case 자동 변환됨 (apiSuccess 룰)
       const url = data?.profile_image_url as string | undefined;
       if (url) {
         setProfileImageUrl(url);
       }
-      // 헤더 UserDropdown 갱신 — handleSave 와 동일 패턴 (1.5초 reload)
-      // 이유: 헤더의 me 호출은 mount 1회만 발생 → reload 로 재호출 트리거
+      // 헤더 UserDropdown 갱신 — 1.5초 reload (운영 보존)
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       setImageError(err instanceof Error ? err.message : "업로드 중 오류가 발생했습니다.");
@@ -245,9 +268,7 @@ export default function ProfileEditPage() {
     }
   };
 
-  // 프로필 사진 제거 핸들러
-  // 왜: profileImageUrl 있을 때만 활성화. DELETE 호출 → DB null + Blob 정리
-  // 어떻게: 즉시 DELETE (별도 confirm 모달 없이 — UI 가 단순한 토글 성격)
+  // 프로필 사진 제거 (운영 보존 — Hero 우클릭/롱프레스 미지원, "사진 제거" 보조 동작)
   const handleImageDelete = async () => {
     setImageError("");
     setImageUploading(true);
@@ -261,7 +282,6 @@ export default function ProfileEditPage() {
         throw new Error(data?.error ?? "제거에 실패했습니다.");
       }
       setProfileImageUrl(null);
-      // 헤더 갱신 — 1.5초 reload
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       setImageError(err instanceof Error ? err.message : "제거 중 오류가 발생했습니다.");
@@ -270,12 +290,9 @@ export default function ProfileEditPage() {
     }
   };
 
-  // 닉네임 중복확인 핸들러
-  // 왜: PATCH 시점 P2002 회귀를 사전 차단 + 사용자가 저장 전에 충돌 여부 확인 가능
-  // 어떻게: trim 후 GET /api/web/profile/check-nickname?nickname=... 호출, 결과로 status 갱신
+  // 닉네임 중복확인 (운영 보존 — §1 기본 정보 섹션 안)
   const handleCheckNickname = async () => {
     const trimmed = form.nickname.trim();
-    // 빈/길이 위반은 클라에서 즉시 차단 (서버도 검증하지만 왕복 절감)
     if (trimmed.length < 2 || trimmed.length > 20) {
       setNicknameCheck({
         status: "error",
@@ -291,7 +308,6 @@ export default function ProfileEditPage() {
         { credentials: "include" },
       );
       const data = await res.json();
-      // 응답이 OK 가 아니면 에러로 분류 (400/500 등)
       if (!res.ok) {
         setNicknameCheck({
           status: "error",
@@ -300,7 +316,6 @@ export default function ProfileEditPage() {
         });
         return;
       }
-      // available: true / false 분기
       if (data?.available === true) {
         setNicknameCheck({
           status: "available",
@@ -323,6 +338,7 @@ export default function ProfileEditPage() {
     }
   };
 
+  // AI 자기소개 생성 (운영 보존 — §1 기본 정보 자기소개 textarea 옆)
   const handleGenerateBio = async () => {
     setGeneratingBio(true);
     try {
@@ -341,6 +357,7 @@ export default function ProfileEditPage() {
     }
   };
 
+  // 저장 (운영 보존 — payload 구성 + PATCH /api/web/profile)
   const handleSave = async () => {
     setSaving(true);
     setError("");
@@ -378,14 +395,10 @@ export default function ProfileEditPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "저장 실패");
       setSuccessMsg("저장되었습니다.");
-      // 시안: ✓ 저장됨 2초 표시
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
 
-      // 저장 성공 후 1.5초 뒤 페이지 reload — 헤더의 닉네임/이미지 등 user state 갱신
-      // 이유 (errors.md 04-30): JWT payload.name=nickname 발급 시점 박힘 + 헤더 me mount 1회만 호출.
-      //                       닉네임/실명/지역 등 변경해도 헤더는 옛 값 유지 → reload 로 me 재호출 트리거.
-      // 1.5초 = 사용자가 "저장되었습니다" 메시지 읽을 시간.
+      // 1.5초 뒤 reload (운영 보존 — 헤더 me 재호출 트리거, errors.md 04-30)
       setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
@@ -394,7 +407,7 @@ export default function ProfileEditPage() {
     }
   };
 
-  // 회원 탈퇴 처리 함수
+  // 회원 탈퇴 (운영 보존 — §5 Danger Zone)
   const handleWithdraw = async () => {
     setWithdrawError("");
     if (!withdrawPassword) {
@@ -410,7 +423,6 @@ export default function ProfileEditPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "탈퇴 처리에 실패했습니다.");
-      // 탈퇴 완료 후 홈으로 이동
       router.push("/");
     } catch (e) {
       setWithdrawError(e instanceof Error ? e.message : "오류가 발생했습니다.");
@@ -432,69 +444,42 @@ export default function ProfileEditPage() {
     );
   }
 
+  // 휴대폰 자동 포맷 헬퍼 (운영 보존 — 011-, 010-)
+  const formatPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 11);
+    if (digits.length > 7) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    if (digits.length > 3) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return digits;
+  };
+
+  // Hero 표시용 닉네임 첫 글자 (이미지 없을 때 fallback)
+  const heroInitial = (form.nickname?.[0] || form.name?.[0] || "?").toUpperCase();
+  // Hero meta 줄 — 포지션 첫 번째만 + 시즌은 없으니 "프로필"
+  const heroPosition = selectedPositions[0] || "포지션 미설정";
+
   return (
-    // 시안 v2(1) EditProfile.jsx 박제: page + 빵부스러기 + eyebrow/h1 + 사이드(220) + 카드 본문
-    <div className="page">
-      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden) */}
+    // 시안 v2.3 박제: 단일 스크롤 + Hero + 5섹션 + sticky save bar
+    <div className="page edit-profile">
+      {/* Phase 12 §G — 모바일 백버튼 */}
       <PageBackButton fallbackHref="/profile" />
-      {/* 시안 빵부스러기: 홈 › 마이페이지 › 프로필 편집 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          fontSize: 12,
-          color: "var(--ink-mute)",
-          marginBottom: 12,
-        }}
-      >
-        <Link href="/" style={{ color: "var(--ink-mute)" }}>
-          홈
-        </Link>
+
+      {/* 시안 빵부스러기 */}
+      <div className="edit-profile__crumb">
+        <Link href="/">홈</Link>
         <span>›</span>
-        <Link href="/profile" style={{ color: "var(--ink-mute)" }}>
-          마이페이지
-        </Link>
+        <Link href="/profile">마이페이지</Link>
         <span>›</span>
-        <span style={{ color: "var(--ink)" }}>프로필 편집</span>
+        <span className="edit-profile__crumb-current">프로필 편집</span>
       </div>
 
-      {/* 시안 헤더: eyebrow + h1 좌측, 저장 액션 우측 */}
-      <div
-        style={{
-          marginBottom: 20,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: 10,
-          flexWrap: "wrap",
-        }}
-      >
+      {/* 시안 상단: eyebrow + h1 좌측, 저장 액션 우측 */}
+      <div className="edit-profile__topbar">
         <div>
           <div className="eyebrow">EDIT PROFILE · 프로필 편집</div>
-          <h1
-            style={{
-              margin: "6px 0 0",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: "var(--ink)",
-            }}
-          >
-            프로필 편집
-          </h1>
+          <h1 className="edit-profile__title">프로필 편집</h1>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {saved && (
-            <span
-              style={{
-                color: "var(--ok)",
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              ✓ 저장됨
-            </span>
-          )}
+        <div className="edit-profile__actions">
+          {saved && <span className="edit-profile__saved">✓ 저장됨</span>}
           <Link href="/profile" className="btn" style={{ textDecoration: "none" }}>
             취소
           </Link>
@@ -509,891 +494,616 @@ export default function ProfileEditPage() {
         </div>
       </div>
 
-      {/* 에러/성공 메시지 */}
-      {error && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "10px 14px",
-            background: "color-mix(in srgb, var(--danger) 10%, transparent)",
-            color: "var(--danger)",
-            borderRadius: 4,
-            fontSize: 13,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      {/* 알림 배너 (운영 보존) */}
+      {error && <div className="edit-profile__notice edit-profile__notice--err">{error}</div>}
       {successMsg && !saved && (
-        <div
-          style={{
-            marginBottom: 16,
-            padding: "10px 14px",
-            background: "color-mix(in srgb, var(--ok) 10%, transparent)",
-            color: "var(--ok)",
-            borderRadius: 4,
-            fontSize: 13,
-          }}
-        >
-          {successMsg}
-        </div>
+        <div className="edit-profile__notice edit-profile__notice--ok">{successMsg}</div>
       )}
 
-      {/* 시안 v2(1): 좌측 220px 사이드 + 우측 본문 카드 */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "220px minmax(0, 1fr)",
-          gap: 18,
-          alignItems: "flex-start",
-        }}
-        className="profile-edit-grid"
-      >
-        {/* 사이드 탭 네비 */}
-        <aside
-          style={{
-            position: "sticky",
-            top: 120,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                data-active={active}
-                style={{
-                  textAlign: "left",
-                  padding: "11px 14px",
-                  background: active ? "var(--bg-alt)" : "transparent",
-                  border: 0,
-                  borderLeft: active
-                    ? "3px solid var(--accent)"
-                    : "3px solid transparent",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: active ? 700 : 500,
-                  display: "flex",
-                  gap: 10,
-                  alignItems: "center",
-                  color: active ? "var(--ink)" : "var(--ink-soft)",
+      {/* ============================================================
+          HERO — 큰 아바타(좌, 카메라 클릭 = upload-image API 흡수) + 우측 정보
+          시안 v2.3 핵심 신규 — 옛 photo 탭 흡수
+          ============================================================ */}
+      <section className="edit-profile__hero">
+        <div className="edit-profile__avatar-wrap">
+          <div className="edit-profile__avatar" role="img" aria-label="프로필 사진">
+            {profileImageUrl ? (
+              <Image
+                src={profileImageUrl}
+                alt="프로필"
+                width={180}
+                height={180}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                unoptimized
+              />
+            ) : (
+              <span className="edit-profile__avatar-mono">{heroInitial}</span>
+            )}
+          </div>
+          {/* 카메라 버튼 — 시안 박제 (옛 photo 탭의 "새 사진 업로드" 흡수) */}
+          <button
+            type="button"
+            className="edit-profile__camera"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={imageUploading}
+            aria-label="프로필 사진 교체"
+            title={imageUploading ? "업로드 중..." : "사진 교체"}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>
+              {imageUploading ? "hourglass_top" : "photo_camera"}
+            </span>
+          </button>
+          {/* 숨김 file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleImageUpload}
+            style={{ display: "none" }}
+          />
+        </div>
+
+        <div className="edit-profile__hero-info">
+          <div className="edit-profile__hero-eyebrow">
+            <span className="eyebrow-mark" />
+            MY PAGE · 마이페이지
+          </div>
+          <h2 className="edit-profile__hero-title">
+            <span className="edit-profile__hero-nick">{form.nickname || "닉네임"}</span>
+            <span className="edit-profile__hero-particle">의 농구</span>
+          </h2>
+          <div className="edit-profile__hero-meta">
+            <span>{form.name || "이름 미설정"}</span>
+            <span className="dot">·</span>
+            <span>{heroPosition}</span>
+            {form.height && (
+              <>
+                <span className="dot">·</span>
+                <span className="t-mono">{form.height}cm</span>
+              </>
+            )}
+          </div>
+          <div className="edit-profile__hero-badges">
+            {/* 시안: Lv / PRO / ✓본인인증 — DB 미지원이라 정적 placeholder (UI 박제) */}
+            <span className="badge badge--red">L.1</span>
+            {provider && <span className="badge badge--blue">소셜 로그인</span>}
+            {form.phone && <span className="badge badge--ok">✓ 본인인증</span>}
+          </div>
+          {/* 사진 업로드 인라인 에러 (운영 보존 — alert 신규 0건 룰) */}
+          {imageError && <div className="edit-profile__hero-error">{imageError}</div>}
+          {/* 사진 제거 (운영 보존 — 이미지 있을 때만) */}
+          {profileImageUrl && !imageUploading && (
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={handleImageDelete}
+              style={{ marginTop: 4, alignSelf: "flex-start", color: "var(--danger)" }}
+            >
+              사진 제거
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* 앵커 네비 (시안 박제 — 5섹션) */}
+      <nav className="edit-profile__anchors" aria-label="페이지 내 섹션">
+        <a href="#sec-basic">기본 정보</a>
+        <a href="#sec-play">플레이 정보</a>
+        <a href="#sec-contact">연락 정보</a>
+        <a href="#sec-privacy">공개 설정</a>
+        <a href="#sec-extra">추가 설정</a>
+      </nav>
+
+      {/* ============================================================
+          §1 기본 정보 — 닉네임+중복확인 + 실명 + 지역 + 등번호 + 시작연도 + 생년월일 + 자기소개+AI
+          ============================================================ */}
+      <section id="sec-basic" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>① 기본 정보</h3>
+          <p>커뮤니티에 표시되는 핵심 정보. 닉네임은 매칭·랭킹·게시판에 노출됩니다.</p>
+        </header>
+        <div className="edit-profile__grid edit-profile__grid--2">
+          {/* 닉네임 + 중복확인 (운영 보존) */}
+          <Field label="닉네임 *" sub="2~20자">
+            <div className="edit-profile__inline">
+              <input
+                className="input"
+                value={form.nickname}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((p) => ({ ...p, nickname: next }));
+                  // 입력값이 검증값과 달라지면 결과 무효화
+                  if (next.trim() !== nicknameCheck.checkedNickname) {
+                    setNicknameCheck({ status: "idle", message: "", checkedNickname: "" });
+                  }
                 }}
+                placeholder="닉네임"
+              />
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={handleCheckNickname}
+                disabled={
+                  form.nickname.trim().length === 0 ||
+                  saving ||
+                  nicknameCheck.status === "checking"
+                }
+              >
+                {nicknameCheck.status === "checking" ? "확인 중..." : "중복확인"}
+              </button>
+            </div>
+            {/* 결과 메시지 — 입력값과 검증값이 일치할 때만 노출 */}
+            {nicknameCheck.status !== "idle" &&
+              nicknameCheck.status !== "checking" &&
+              nicknameCheck.checkedNickname === form.nickname.trim() && (
+                <p
+                  className={`edit-profile__check-msg ${
+                    nicknameCheck.status === "available"
+                      ? "edit-profile__check-msg--ok"
+                      : nicknameCheck.status === "taken"
+                      ? "edit-profile__check-msg--err"
+                      : "edit-profile__check-msg--mute"
+                  }`}
+                  role={
+                    nicknameCheck.status === "taken" || nicknameCheck.status === "error"
+                      ? "alert"
+                      : "status"
+                  }
+                >
+                  {nicknameCheck.status === "available" && "✓ "}
+                  {nicknameCheck.status === "taken" && "✕ "}
+                  {nicknameCheck.message}
+                </p>
+              )}
+          </Field>
+
+          {/* 실명 — 운영은 입력 허용 (시안은 readonly 박제지만, DB 호환 위해 입력 유지) */}
+          <Field label="이름 *" sub="대회 등록 시 확인용">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="홍길동"
+            />
+          </Field>
+
+          {/* 활동 지역 (운영 보존 — RegionPicker 사이트 컨벤션) */}
+          <Field label="활동 지역" sub="주 활동 시·구 (최대 3개)" full>
+            <RegionPicker value={regions} onChange={setRegions} max={3} />
+          </Field>
+
+          {/* 생년월일 */}
+          <Field label="생년월일" sub="비공개 · 나이별 대회 자격용">
+            <input
+              type="date"
+              className="input"
+              value={form.birth_date}
+              onChange={(e) => setForm((p) => ({ ...p, birth_date: e.target.value }))}
+            />
+          </Field>
+
+          {/* 휴대폰 (포맷팅 운영 보존) */}
+          <Field label="휴대폰" sub="대회·환불 연락용">
+            <input
+              type="tel"
+              inputMode="numeric"
+              className="input"
+              value={form.phone}
+              onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
+              placeholder="01012345678"
+            />
+          </Field>
+
+          {/* 자기소개 + AI (운영 보존) */}
+          <Field label="자기소개" sub={`${form.bio.length}/255 · AI 자동 작성 가능`} full>
+            <div className="edit-profile__bio-wrap">
+              <textarea
+                className="input"
+                rows={4}
+                value={form.bio}
+                onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
+                placeholder="간단한 자기소개 (최대 255자)"
+                maxLength={255}
+                style={{ resize: "vertical", paddingRight: 110 }}
+              />
+              <button
+                type="button"
+                onClick={handleGenerateBio}
+                disabled={generatingBio}
+                className="btn btn--sm edit-profile__bio-ai"
+              >
+                <span
+                  className={`material-symbols-outlined ${generatingBio ? "animate-spin" : ""}`}
+                  style={{ fontSize: 14 }}
+                >
+                  auto_awesome
+                </span>
+                {generatingBio ? "생성 중..." : "AI 작성"}
+              </button>
+            </div>
+          </Field>
+        </div>
+      </section>
+
+      {/* ============================================================
+          §2 플레이 정보 — 포지션 5칩 + 신장체중 + 사용손/실력/강점 (시안 박제)
+          ============================================================ */}
+      <section id="sec-play" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>② 플레이 정보</h3>
+          <p>매칭·게스트 모집에 노출됩니다. 자체 평가 — 레이팅에 영향 없음.</p>
+        </header>
+
+        {/* 주 포지션 — 시안은 단일이지만 운영 multi 보존 (DB 호환) */}
+        <div className="edit-profile__field" style={{ marginBottom: 16 }}>
+          <div className="edit-profile__field-head">
+            <label>주 포지션 *</label>
+            <span className="edit-profile__field-sub">복수 선택 가능 · 매칭 필터링에 사용</span>
+          </div>
+          <div className="edit-profile__chips">
+            {POSITIONS.map((p) => {
+              const active = selectedPositions.includes(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  className={`chip ${active ? "chip--active" : ""}`}
+                  onClick={() => togglePosition(p)}
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 신장 / 체중 */}
+        <div className="edit-profile__grid edit-profile__grid--2">
+          <Field label="신장 (cm)">
+            <input
+              className="input t-mono"
+              type="number"
+              value={form.height}
+              onChange={(e) => setForm((p) => ({ ...p, height: e.target.value }))}
+              placeholder="180"
+              min={100}
+              max={250}
+            />
+          </Field>
+          <Field label="체중 (kg)" sub="비공개">
+            <input
+              className="input t-mono"
+              type="number"
+              value={form.weight}
+              onChange={(e) => setForm((p) => ({ ...p, weight: e.target.value }))}
+              placeholder="75"
+              min={30}
+              max={200}
+            />
+          </Field>
+        </div>
+
+        {/* 시안 박제 — 사용 손 (UI placeholder, DB 미저장) */}
+        <div className="edit-profile__field" style={{ marginTop: 16 }}>
+          <div className="edit-profile__field-head">
+            <label>주 사용 손</label>
+            <span className="edit-profile__field-sub">자체 표시 · 저장 미연동</span>
+          </div>
+          <div className="edit-profile__chips">
+            {[
+              { v: "L" as const, l: "왼손" },
+              { v: "R" as const, l: "오른손" },
+              { v: "B" as const, l: "양손" },
+            ].map((h) => (
+              <button
+                key={h.v}
+                type="button"
+                className={`chip ${hand === h.v ? "chip--active" : ""}`}
+                onClick={() => setHand(h.v)}
+              >
+                {h.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 시안 박제 — 실력 수준 (UI placeholder) */}
+        <div className="edit-profile__field" style={{ marginTop: 16 }}>
+          <div className="edit-profile__field-head">
+            <label>실력 수준 *</label>
+            <span className="edit-profile__field-sub">자체 평가 · 레이팅 반영 안 됨</span>
+          </div>
+          <div className="edit-profile__chips">
+            {["초보", "초-중급", "중급", "중-상급", "상급", "선출급"].map((l) => (
+              <button
+                key={l}
+                type="button"
+                className={`chip ${level === l ? "chip--active" : ""}`}
+                onClick={() => setLevel(l)}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 시안 박제 — 강점 multi (UI placeholder) */}
+        <div className="edit-profile__field" style={{ marginTop: 16 }}>
+          <div className="edit-profile__field-head">
+            <label>강점 (복수 선택)</label>
+            <span className="edit-profile__field-sub">게스트 지원 시 호스트에게 보임</span>
+          </div>
+          <div className="edit-profile__chips">
+            {[
+              "3점슛",
+              "돌파",
+              "미드레인지",
+              "스크린",
+              "리바운드",
+              "스틸",
+              "패싱",
+              "체력",
+              "수비",
+              "스팟업",
+            ].map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${strengths.has(s) ? "chip--active" : ""}`}
+                onClick={() => toggleStrength(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          §3 연락 정보 — 이메일/휴대폰 + 인스타/유튜브 (시안 박제) + 소셜 연동 (운영 보존)
+          ============================================================ */}
+      <section id="sec-contact" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>③ 연락 정보</h3>
+          <p>
+            공개 여부는 [공개 설정] 섹션에서 조정합니다.
+            {" "}계정 보안·알림 ON/OFF는 <Link href="/settings">환경 설정</Link>에서 관리합니다.
+          </p>
+        </header>
+        <div className="edit-profile__grid edit-profile__grid--2">
+          {/* 휴대폰 (운영 보존) */}
+          <Field label="휴대폰 *" sub="대회·환불 연락용">
+            <input
+              type="tel"
+              inputMode="numeric"
+              className="input"
+              value={form.phone}
+              onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
+              placeholder="01012345678"
+            />
+          </Field>
+
+          {/* 시안 박제 — 인스타그램 (UI placeholder, DB 미저장) */}
+          <Field label="인스타그램" sub="@아이디만 (선택)">
+            <input className="input" placeholder="@rdm_hoops" disabled readOnly value="" />
+          </Field>
+
+          {/* 시안 박제 — 유튜브 (UI placeholder) */}
+          <Field label="유튜브" sub="개인 채널 (선택)" full>
+            <input className="input" placeholder="https://…" disabled readOnly value="" />
+          </Field>
+        </div>
+
+        {/* 소셜 연동 표시 (운영 보존 — provider 있을 때만) */}
+        {provider && SOCIAL_PROVIDERS[provider] && (
+          <div style={{ marginTop: 16 }}>
+            <div className="edit-profile__field-head" style={{ marginBottom: 8 }}>
+              <label>연동된 소셜 계정</label>
+            </div>
+            <div className="edit-profile__social">
+              <div
+                className="edit-profile__social-icon"
+                style={{ backgroundColor: SOCIAL_PROVIDERS[provider].color }}
               >
                 <span
                   className="material-symbols-outlined"
-                  style={{
-                    fontSize: 18,
-                    width: 20,
-                    textAlign: "center",
-                    color: active ? "var(--accent)" : "var(--ink-mute)",
-                  }}
+                  style={{ color: "#fff", fontSize: 20 }}
                 >
-                  {t.icon}
+                  {SOCIAL_PROVIDERS[provider].icon}
                 </span>
-                {t.label}
-              </button>
-            );
-          })}
-        </aside>
+              </div>
+              <div className="edit-profile__social-info">
+                <div className="edit-profile__social-label">
+                  {SOCIAL_PROVIDERS[provider].label} 계정 연동됨
+                </div>
+                <div className="edit-profile__social-desc">
+                  소셜 로그인으로 가입한 계정입니다
+                </div>
+              </div>
+              <span className="badge badge--ok">연동됨</span>
+            </div>
+          </div>
+        )}
+      </section>
 
-        {/* 우측 카드 본문 (탭별 패널) */}
-        <div
-          className="card"
+      {/* ============================================================
+          §4 공개 설정 — 7항목 × 3옵션 (시안 박제 — UI placeholder, 백엔드 미구현)
+          ============================================================ */}
+      <section id="sec-privacy" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>④ 공개 설정</h3>
+          <p>
+            항목별 노출 범위. <strong>전체 공개 / 친구 공개 / 비공개</strong> 3단계.
+          </p>
+        </header>
+        <div className="edit-profile__priv">
+          {PRIVACY_ROWS.map((r) => (
+            <div key={r.id} className="edit-profile__priv-row">
+              <div className="edit-profile__priv-info">
+                <div className="edit-profile__priv-label">{r.l}</div>
+                <div className="edit-profile__priv-desc">{r.d}</div>
+              </div>
+              <div className="edit-profile__priv-options">
+                {PRIVACY_OPTIONS.map((o) => (
+                  <button
+                    key={o.v}
+                    type="button"
+                    className={`chip ${privacy[r.id] === o.v ? "chip--active" : ""}`}
+                    onClick={() => setPrivacy((p) => ({ ...p, [r.id]: o.v }))}
+                  >
+                    {o.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="edit-profile__priv-note">
+          ⓘ 세부 공개 범위 저장은 곧 제공됩니다. (현재는 시각 박제)
+        </div>
+      </section>
+
+      {/* ============================================================
+          §5 추가 설정 (Hybrid 신설) — 환불 계좌 + Danger Zone 회원 탈퇴
+          ============================================================ */}
+      <section id="sec-extra" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>⑤ 추가 설정</h3>
+          <p>환불 계좌 등록과 회원 탈퇴를 관리합니다.</p>
+        </header>
+
+        {/* 환불 계좌 (운영 보존 — refund 탭 흡수) */}
+        <h4
           style={{
-            padding: "28px 32px",
-            background: "var(--color-card)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
+            margin: "0 0 4px",
+            fontSize: 15,
+            fontWeight: 700,
+            color: "var(--ink)",
           }}
         >
-          {/* 탭 1: 기본 정보 */}
-          {tab === "basic" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                }}
-              >
-                기본 정보
-              </h2>
-              {/* 모바일 1열 stack / 데스크톱 720px+ 2열 grid (캡처 51 — 닉네임+이름 가로 우겨넣기 픽스) */}
-              <div className="profile-edit-row">
-                {/* B-1: 닉네임 — sub 제거(자명) + placeholder 형식 힌트(2~20자)로 단순화 */}
-                <Field label="닉네임 *">
-                  {/* input + 중복확인 버튼 가로 배치 — 모바일도 wrap 안 함 */}
-                  <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-                    <input
-                      className="input"
-                      style={{ flex: 1 }}
-                      value={form.nickname}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        setForm((p) => ({ ...p, nickname: next }));
-                        // 입력값이 검증한 값과 달라지면 결과 무효화 (사용자 혼동 방지)
-                        if (next.trim() !== nicknameCheck.checkedNickname) {
-                          setNicknameCheck({ status: "idle", message: "", checkedNickname: "" });
-                        }
-                      }}
-                      placeholder="2~20자"
-                    />
-                    {/* 왜 type="button": form 안 submit 트리거 방지 (이 페이지는 form 미사용이지만 방어적) */}
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      onClick={handleCheckNickname}
-                      disabled={
-                        form.nickname.trim().length === 0 ||
-                        saving ||
-                        nicknameCheck.status === "checking"
-                      }
-                    >
-                      {nicknameCheck.status === "checking" ? "확인 중..." : "중복확인"}
-                    </button>
-                  </div>
-                  {/* 결과 메시지 — 입력값과 검증값이 일치할 때만 노출.
-                      available: var(--ok), taken: var(--danger), error: var(--ink-mute) */}
-                  {nicknameCheck.status !== "idle" &&
-                    nicknameCheck.status !== "checking" &&
-                    nicknameCheck.checkedNickname === form.nickname.trim() && (
-                      <p
-                        style={{
-                          margin: "6px 0 0",
-                          fontSize: 12,
-                          color:
-                            nicknameCheck.status === "available"
-                              ? "var(--ok)"
-                              : nicknameCheck.status === "taken"
-                              ? "var(--danger)"
-                              : "var(--ink-mute)",
-                        }}
-                        role={nicknameCheck.status === "taken" || nicknameCheck.status === "error" ? "alert" : "status"}
-                      >
-                        {/* 텍스트 마커만 — Material Symbols 없이 가벼운 표시 */}
-                        {nicknameCheck.status === "available" && "✓ "}
-                        {nicknameCheck.status === "taken" && "✕ "}
-                        {nicknameCheck.message}
-                      </p>
-                    )}
-                </Field>
-                {/* B-2: 이름(실명) — 라벨 통일 + sub 제거(섹션 헤더에 일괄) */}
-                <Field label="이름 *">
-                  <input
-                    className="input"
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, name: e.target.value }))
-                    }
-                    placeholder="홍길동"
-                  />
-                </Field>
-                <Field label="활동 지역" sub="주 활동 시·구 (최대 3개)" full>
-                  <RegionPicker value={regions} onChange={setRegions} max={3} />
-                </Field>
-                <Field
-                  label="생년월일"
-                  sub="비공개 · 나이별 대회용"
-                >
-                  <input
-                    type="date"
-                    className="input"
-                    value={form.birth_date}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, birth_date: e.target.value }))
-                    }
-                  />
-                </Field>
-                {/* B-3: 휴대폰 — sub 제거(섹션 헤더에 일괄) */}
-                <Field label="휴대폰">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    className="input"
-                    value={form.phone}
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 11);
-                      let formatted = digits;
-                      if (digits.length > 7)
-                        formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-                      else if (digits.length > 3)
-                        formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
-                      setForm((p) => ({ ...p, phone: formatted }));
-                    }}
-                    placeholder="01012345678"
-                  />
-                </Field>
-              </div>
-            </div>
-          )}
+          환불 계좌
+        </h4>
+        <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--ink-mute)" }}>
+          참가비·게스트비·픽업비 환불 시 사용됩니다.
+        </p>
 
-          {/* 탭 2: 플레이 정보 (포지션/신장/체중/자기소개) */}
-          {tab === "skill" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                }}
-              >
-                플레이 정보
-              </h2>
-              <Field
-                label="주 포지션 *"
-                sub="복수 선택 가능 · 게스트·매칭 필터링에 사용"
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {POSITIONS.map((pos) => {
-                    const selected = selectedPositions.includes(pos);
-                    return (
-                      <button
-                        key={pos}
-                        type="button"
-                        onClick={() => togglePosition(pos)}
-                        className={`btn btn--sm ${selected ? "btn--primary" : ""}`}
-                      >
-                        {pos}
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
-              {/* 모바일 1열 / 데스크톱 2열 (신장·체중 가독성 캡처 51) */}
-              <div className="profile-edit-row" style={{ marginTop: 16 }}>
-                <Field label="신장 (cm)">
-                  <input
-                    className="input"
-                    type="number"
-                    value={form.height}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, height: e.target.value }))
-                    }
-                    placeholder="180"
-                    min={100}
-                    max={250}
-                  />
-                </Field>
-                {/* B-5: 체중 — 라벨 단순화 + sub 제거 + placeholder 형식만 */}
-                <Field label="체중">
-                  <input
-                    className="input"
-                    type="number"
-                    value={form.weight}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, weight: e.target.value }))
-                    }
-                    placeholder="75"
-                    min={30}
-                    max={200}
-                  />
-                </Field>
-              </div>
-              <Field
-                label="자기소개"
-                sub={`${form.bio.length}/255 · AI 자동 작성 가능`}
-                full
-                style={{ marginTop: 16 }}
-              >
-                <div style={{ position: "relative" }}>
-                  <textarea
-                    className="input"
-                    rows={4}
-                    value={form.bio}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, bio: e.target.value }))
-                    }
-                    placeholder="간단한 자기소개 (최대 255자)"
-                    maxLength={255}
-                    style={{ resize: "vertical", paddingRight: 110 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleGenerateBio}
-                    disabled={generatingBio}
-                    className="btn btn--sm"
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      gap: 4,
-                      display: "inline-flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <span
-                      className={`material-symbols-outlined ${generatingBio ? "animate-spin" : ""}`}
-                      style={{ fontSize: 14 }}
-                    >
-                      auto_awesome
-                    </span>
-                    {generatingBio ? "생성 중..." : "AI 작성"}
-                  </button>
-                </div>
-              </Field>
-            </div>
-          )}
+        {hasExistingAccount && !bankForm.account_consent && (
+          <div className="edit-profile__refund-current">
+            현재 등록된 계좌: <strong>{maskedAccount}</strong>
+            <button
+              type="button"
+              className="edit-profile__refund-change"
+              onClick={() => setBankForm((p) => ({ ...p, account_consent: true }))}
+            >
+              변경하기
+            </button>
+          </div>
+        )}
 
-          {/* 탭 3: 연락 정보 */}
-          {tab === "contact" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 4px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                }}
-              >
-                연락 정보
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                }}
-              >
-                공개 여부는 [공개·계정] 탭에서 개별 조정할 수 있습니다.
-              </p>
-              {/* 모바일 1열 / 데스크톱 2열 (휴대폰·실명 캡처 51) */}
-              <div className="profile-edit-row">
-                <Field label="휴대폰" sub="대회·환불 연락용">
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    className="input"
-                    value={form.phone}
-                    onChange={(e) => {
-                      const digits = e.target.value
-                        .replace(/\D/g, "")
-                        .slice(0, 11);
-                      let formatted = digits;
-                      if (digits.length > 7)
-                        formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-                      else if (digits.length > 3)
-                        formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
-                      setForm((p) => ({ ...p, phone: formatted }));
-                    }}
-                    placeholder="01012345678"
-                  />
-                </Field>
-                <Field label="이름 (실명)" sub="대회 등록 시 확인용">
-                  <input
-                    className="input"
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, name: e.target.value }))
-                    }
-                    placeholder="홍길동"
-                  />
-                </Field>
-              </div>
-            </div>
-          )}
+        <label className="edit-profile__consent">
+          <input
+            type="checkbox"
+            checked={bankForm.account_consent}
+            onChange={(e) =>
+              setBankForm((p) => ({ ...p, account_consent: e.target.checked }))
+            }
+          />
+          <span>
+            개인정보(계좌번호) 수집·이용에 동의합니다{" "}
+            <span className="edit-profile__consent-required">(필수)</span>
+          </span>
+        </label>
 
-          {/* 탭 4: 환불 계좌 (시안에는 없는 우리 추가 탭 — 기존 기능 보존) */}
-          {tab === "refund" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 4px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
+        {bankForm.account_consent && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr",
+              gap: 16,
+            }}
+          >
+            <Field label="은행">
+              <select
+                className="input"
+                value={bankForm.bank_code}
+                onChange={(e) => {
+                  const selected = BANKS.find((b) => b.value === e.target.value);
+                  setBankForm((p) => ({
+                    ...p,
+                    bank_code: e.target.value,
+                    bank_name: selected?.label ?? "",
+                  }));
                 }}
               >
-                환불 계좌
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                }}
-              >
-                참가비·게스트비·픽업비 환불 시 사용됩니다
-              </p>
+                <option value="">은행 선택</option>
+                {BANKS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="계좌번호" sub="암호화되어 저장됩니다">
+              <input
+                className="input"
+                value={bankForm.account_number}
+                onChange={(e) =>
+                  setBankForm((p) => ({ ...p, account_number: e.target.value }))
+                }
+                placeholder={maskedAccount ?? "계좌번호 입력 (숫자만)"}
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="예금주명">
+              <input
+                className="input"
+                value={bankForm.account_holder}
+                onChange={(e) =>
+                  setBankForm((p) => ({ ...p, account_holder: e.target.value }))
+                }
+                placeholder="예금주 이름"
+                maxLength={20}
+              />
+            </Field>
+          </div>
+        )}
 
-              {hasExistingAccount && !bankForm.account_consent && (
-                <div
-                  style={{
-                    marginBottom: 16,
-                    padding: "12px 14px",
-                    borderRadius: 4,
-                    background: "var(--bg-alt)",
-                    fontSize: 13,
-                    color: "var(--ink-mute)",
-                  }}
-                >
-                  현재 등록된 계좌:{" "}
-                  <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                    {maskedAccount}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setBankForm((p) => ({ ...p, account_consent: true }))
-                    }
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 12,
-                      color: "var(--cafe-blue)",
-                      background: "transparent",
-                      border: 0,
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    변경하기
-                  </button>
-                </div>
-              )}
+        {/* Danger Zone — 회원 탈퇴 (운영 보존) */}
+        <div className="edit-profile__danger">
+          <h4 className="edit-profile__danger-title">회원 탈퇴</h4>
+          <p className="edit-profile__danger-desc">
+            탈퇴 시 모든 활동 기록이 익명화되며 복구할 수 없습니다.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowWithdrawModal(true)}
+            className="btn btn--sm btn--danger"
+          >
+            회원 탈퇴
+          </button>
+        </div>
+      </section>
 
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                  marginBottom: 16,
-                  cursor: "pointer",
-                  fontSize: 13,
-                  color: "var(--ink)",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={bankForm.account_consent}
-                  onChange={(e) =>
-                    setBankForm((p) => ({
-                      ...p,
-                      account_consent: e.target.checked,
-                    }))
-                  }
-                  style={{
-                    marginTop: 2,
-                    width: 16,
-                    height: 16,
-                    accentColor: "var(--accent)",
-                  }}
-                />
-                <span>
-                  개인정보(계좌번호) 수집·이용에 동의합니다{" "}
-                  <span style={{ color: "var(--danger)" }}>(필수)</span>
-                </span>
-              </label>
-
-              {bankForm.account_consent && (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr",
-                    gap: 16,
-                  }}
-                >
-                  <Field label="은행">
-                    <select
-                      className="input"
-                      value={bankForm.bank_code}
-                      onChange={(e) => {
-                        const selected = BANKS.find(
-                          (b) => b.value === e.target.value
-                        );
-                        setBankForm((p) => ({
-                          ...p,
-                          bank_code: e.target.value,
-                          bank_name: selected?.label ?? "",
-                        }));
-                      }}
-                    >
-                      <option value="">은행 선택</option>
-                      {BANKS.map((b) => (
-                        <option key={b.value} value={b.value}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label="계좌번호"
-                    sub="암호화되어 저장됩니다"
-                  >
-                    <input
-                      className="input"
-                      value={bankForm.account_number}
-                      onChange={(e) =>
-                        setBankForm((p) => ({
-                          ...p,
-                          account_number: e.target.value,
-                        }))
-                      }
-                      placeholder={maskedAccount ?? "계좌번호 입력 (숫자만)"}
-                      inputMode="numeric"
-                    />
-                  </Field>
-                  <Field label="예금주명">
-                    <input
-                      className="input"
-                      value={bankForm.account_holder}
-                      onChange={(e) =>
-                        setBankForm((p) => ({
-                          ...p,
-                          account_holder: e.target.value,
-                        }))
-                      }
-                      placeholder="예금주 이름"
-                      maxLength={20}
-                    />
-                  </Field>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 탭 5: 사진 (Vercel Blob 업로드 활성화) */}
-          {tab === "photo" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                }}
-              >
-                사진
-              </h2>
-              <Field
-                label="프로필 사진"
-                sub="정방형 권장 · 최대 2MB"
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 16,
-                    alignItems: "center",
-                  }}
-                >
-                  {/* 96x96 원형 아바타 — 이미지 있으면 <Image>, 없으면 이니셜 fallback */}
-                  <div
-                    style={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: "50%",
-                      background: "var(--cafe-blue)",
-                      color: "#fff",
-                      display: "grid",
-                      placeItems: "center",
-                      fontWeight: 900,
-                      fontSize: 32,
-                      fontFamily: "var(--ff-display)",
-                      overflow: "hidden",
-                      position: "relative",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {profileImageUrl ? (
-                      <Image
-                        src={profileImageUrl}
-                        alt="프로필 사진"
-                        width={96}
-                        height={96}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        unoptimized
-                      />
-                    ) : (
-                      (form.nickname?.[0] || form.name?.[0] || "?").toUpperCase()
-                    )}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    {/* 숨김 file input — 업로드 버튼 클릭 시 ref 로 트리거 */}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleImageUpload}
-                      style={{ display: "none" }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={imageUploading}
-                    >
-                      {imageUploading ? "업로드 중..." : "새 사진 업로드"}
-                    </button>
-                    {/* 제거 버튼: 이미지 있을 때만 활성화 */}
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      style={{ marginLeft: 6, color: "var(--danger)" }}
-                      onClick={handleImageDelete}
-                      disabled={imageUploading || !profileImageUrl}
-                    >
-                      제거
-                    </button>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-dim)",
-                        marginTop: 8,
-                      }}
-                    >
-                      PNG·JPG·WEBP · 정방형 권장 · 최대 2MB
-                    </div>
-                    {/* 인라인 에러 메시지 — alert 신규 0건 룰 */}
-                    {imageError && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--danger)",
-                          marginTop: 6,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {imageError}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Field>
-              <Field
-                label="배너 이미지"
-                sub="프로필 상단 · 1600×400 권장"
-                full
-                style={{ marginTop: 18 }}
-              >
-                <div
-                  style={{
-                    padding: 24,
-                    border: "2px dashed var(--border)",
-                    borderRadius: 8,
-                    textAlign: "center",
-                    background:
-                      "linear-gradient(135deg, color-mix(in srgb, var(--cafe-blue) 15%, transparent), color-mix(in srgb, var(--accent) 15%, transparent))",
-                  }}
-                >
-                  <span
-                    className="material-symbols-outlined"
-                    style={{ fontSize: 28, opacity: 0.3 }}
-                  >
-                    photo_library
-                  </span>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--ink)",
-                      marginTop: 6,
-                    }}
-                  >
-                    드래그 또는 클릭해서 업로드
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--ink-dim)",
-                      marginTop: 4,
-                    }}
-                  >
-                    💎 BDR+ 멤버 전용 · 곧 제공됩니다
-                  </div>
-                </div>
-              </Field>
-            </div>
-          )}
-
-          {/* 탭 6: 공개·계정 (시안 privacy + 우리 소셜연동/회원탈퇴 통합) */}
-          {tab === "privacy" && (
-            <div>
-              <h2
-                style={{
-                  margin: "0 0 20px",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                }}
-              >
-                공개 설정
-              </h2>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "var(--ink-mute)",
-                  marginBottom: 16,
-                }}
-              >
-                ⓘ 세부 공개 범위 설정은 곧 제공됩니다.
-              </div>
-
-              {/* 소셜 계정 연동 (provider 있을 때만) */}
-              {provider && SOCIAL_PROVIDERS[provider] && (
-                <>
-                  <h2
-                    style={{
-                      margin: "24px 0 12px",
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: "var(--ink)",
-                    }}
-                  >
-                    연동된 계정
-                  </h2>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 14px",
-                      background: "var(--bg-alt)",
-                      borderRadius: 4,
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: "50%",
-                        backgroundColor: SOCIAL_PROVIDERS[provider].color,
-                      }}
-                    >
-                      <span
-                        className="material-symbols-outlined"
-                        style={{ color: "#fff", fontSize: 20 }}
-                      >
-                        {SOCIAL_PROVIDERS[provider].icon}
-                      </span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--ink)",
-                        }}
-                      >
-                        {SOCIAL_PROVIDERS[provider].label} 계정 연동됨
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--ink-mute)",
-                          marginTop: 2,
-                        }}
-                      >
-                        소셜 로그인으로 가입한 계정입니다
-                      </div>
-                    </div>
-                    <span className="badge badge--ok">연동됨</span>
-                  </div>
-                </>
-              )}
-
-              {/* 회원 탈퇴 (Danger Zone) — 시안 privacy 탭 하단으로 이동 */}
-              <h2
-                id="danger"
-                style={{
-                  margin: "32px 0 4px",
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: "var(--danger)",
-                }}
-              >
-                회원 탈퇴
-              </h2>
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  fontSize: 12,
-                  color: "var(--ink-mute)",
-                }}
-              >
-                탈퇴 시 개인정보가 삭제되며, 동일 이메일로 재가입할 수 있습니다.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowWithdrawModal(true)}
-                className="btn btn--sm"
-                style={{
-                  borderColor: "var(--danger)",
-                  color: "var(--danger)",
-                }}
-              >
-                회원 탈퇴
-              </button>
-            </div>
-          )}
+      {/* Sticky save bar (시안 박제) */}
+      <div className="edit-profile__sticky">
+        <div>변경사항이 있으면 저장을 눌러주세요.</div>
+        <div className="edit-profile__actions">
+          {saved && <span className="edit-profile__saved">✓ 저장됨</span>}
+          <Link href="/profile" className="btn" style={{ textDecoration: "none" }}>
+            취소
+          </Link>
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? "저장중..." : "저장"}
+          </button>
         </div>
       </div>
 
-      {/* 모바일에서 사이드 → 상단 가로 스크롤 탭으로 전환 */}
-      <style jsx>{`
-        /* 데스크톱(769px+): 2열 grid 기본 — 닉네임/이름 / 신장·체중 / 휴대폰·실명 */
-        .profile-edit-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-        @media (max-width: 768px) {
-          .profile-edit-grid {
-            grid-template-columns: 1fr !important;
-          }
-          /* 모바일(720px 룰 + 768px 사이드 분기 톤 통일): 1열 stack — 캡처 51 가독성 픽스 */
-          .profile-edit-row {
-            grid-template-columns: 1fr !important;
-            gap: 14px !important;
-          }
-          .profile-edit-grid > aside {
-            position: static !important;
-            flex-direction: row !important;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 4px;
-          }
-          /* 5탭 라벨 세로 글자 끊김 방지 — 가로 스크롤 + 충분한 폭 + 한 줄 강제 */
-          .profile-edit-grid > aside > button {
-            min-width: 100px !important;
-            white-space: nowrap !important;
-            flex-shrink: 0 !important;
-            border-left: 0 !important;
-            border-bottom: 3px solid transparent !important;
-            justify-content: center !important;
-          }
-          /* 활성 탭 표시를 좌측 → 하단으로 (가로 배치에 맞춤) */
-          .profile-edit-grid > aside > button[data-active="true"] {
-            border-bottom-color: var(--accent) !important;
-          }
-          /* 본문 영역 도움말/부제 한국어 어절 단위 줄바꿈 — "이/름" 글자 단위 끊김 방지 */
-          .profile-edit-grid > div p,
-          .profile-edit-grid > div label,
-          .profile-edit-grid > div span {
-            word-break: keep-all;
-          }
-        }
-      `}</style>
-
-      {/* 회원 탈퇴 확인 모달 — 기존 그대로 보존 */}
+      {/* 회원 탈퇴 확인 모달 (운영 그대로 보존) */}
       {showWithdrawModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
@@ -1428,10 +1138,7 @@ export default function ProfileEditPage() {
                 정말 탈퇴하시겠습니까?
               </h3>
             </div>
-            <p
-              className="mb-4 text-sm"
-              style={{ color: "var(--ink-mute)" }}
-            >
+            <p className="mb-4 text-sm" style={{ color: "var(--ink-mute)" }}>
               탈퇴하면 모든 활동 기록이 익명화되며 복구할 수 없습니다. 계속하려면
               비밀번호를 입력해주세요.
             </p>
@@ -1496,9 +1203,7 @@ export default function ProfileEditPage() {
 }
 
 /* ============================================================
- * Field — 시안 v2(1) 라벨 컴포넌트
- *  - label과 sub(보조 설명)이 한 줄에 baseline 정렬
- *  - full=true 시 grid 전체 너비
+ * Field — 시안 v2.3 라벨 컴포넌트 (label + sub baseline 정렬)
  * ============================================================ */
 function Field({
   label,
@@ -1515,31 +1220,12 @@ function Field({
 }) {
   return (
     <div
-      style={{
-        gridColumn: full ? "1 / -1" : "auto",
-        ...style,
-      }}
+      className={`edit-profile__field ${full ? "edit-profile__field--full" : ""}`}
+      style={style}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          marginBottom: 6,
-        }}
-      >
-        <label
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            color: "var(--ink-dim)",
-          }}
-        >
-          {label}
-        </label>
-        {sub && (
-          <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>{sub}</span>
-        )}
+      <div className="edit-profile__field-head">
+        <label>{label}</label>
+        {sub && <span className="edit-profile__field-sub">{sub}</span>}
       </div>
       {children}
     </div>

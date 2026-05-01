@@ -2,6 +2,32 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-01] ProfileShell 폐기 결정 — children passthrough 채택 (분기 확장 대안 배제)
+- **분류**: decision (component lifecycle)
+- **결정자**: pm + 사용자 (Cowork 직접 patch)
+- **결정**: `src/app/(web)/profile/layout.tsx` 의 `<ProfileShell>` wrap 을 제거하고 단순 `<>{children}</>` passthrough 채택. ProfileShell 컴포넌트 자체 의존성 0 → 후속 cleanup commit 으로 삭제 예정.
+- **배경**: v2.3 마이페이지 hub 시안 = MyPage 카드 진입 → 깊은 페이지 단독 (sidebar 0). ProfileShell 의 isHubRoot 분기 (hub root only hide / sub 220px aside 노출) 가 v2.3 sidebar 0 원칙 위반. dev server 에서 사용자가 발견.
+- **대안 배제**:
+  - **(B) isHubRoot 조건 확장 — 모든 path hide** : `usePathname()` 분기를 `pathname.startsWith('/profile')` 등으로 확장하여 모든 sub 도 sidebar 0 처리. ProfileShell 컴포넌트는 살림.
+    → 배제 사유: v2.3 시안에서 sidebar 의도 자체 0 = ProfileShell 존재 자체가 부채. wrapper 가 항상 children 만 통과시킨다면 wrapper 자체가 무의미. component lifecycle 단순화 우선.
+  - **(C) ProfileShell 안에 다른 v2.3 정합 UI 추가** : sidebar 대신 다른 hub 카드 wrapper 등을 ProfileShell 에 흡수. → 배제: 시안에 그런 wrapper UI 자체 없음. YAGNI.
+- **영향**: `/profile/*` 모든 sub 페이지에서 외부 sidebar 사라짐 (v2.3 hub 모델 일관 적용). ProfileShell + ProfileSideNav 컴포넌트 의존성 0 → 후속 cleanup commit 가능.
+- **참조**: architecture.md 2026-05-01 "ProfileShell 폐기" / lessons.md 2026-05-01 "revert + 부분 hub 패치 잔재"
+- **참조횟수**: 0
+
+### [2026-05-01] D-6 EditProfile Hybrid 옵션 B 채택 — 시안 단일 스크롤 + 5번째 섹션으로 진짜 기능 흡수
+- **분류**: decision (시안 박제 + 데이터 보존)
+- **결정자**: pm + 사용자 (auto mode 옵션 B 선택)
+- **결정**: 시안 v2.3 (단일 스크롤 + Hero + 4섹션) 박제 + **§5 "추가 설정" 섹션 신설**로 운영의 진짜 기능 4종 (환불 계좌·회원 탈퇴·닉네임 중복확인·AI bio) 흡수. 정보 손실 0.
+- **배경**: 운영은 v2(1) 5탭 사이드 + 6 sub-tab 구조. 시안 v2.3 는 단일 스크롤 + 4섹션으로 전면 재구성됐으나 시안에 진짜 기능 4종 자리 없음.
+- **대안 배제**:
+  - **(A) 시안 그대로** : 진짜 기능 4종 별도 페이지 또는 누락. 회원 탈퇴 누락 = 법적 이슈 가능 / 환불 계좌 누락 = 결제 환불 불가. 손실 영향 D-3 (TOP 3 코트 손실)보다 큼.
+  - **(C) 보류** : 다음 세션 재검토. v3-rebake 박제 진행 정체.
+- **영향**: page.tsx 1547→1233 (-314 / 5탭 사이드 + 6 sub-tab → 단일 스크롤 + Hero + 5섹션). edit-profile.css 신규 603줄 (시안 profile-settings.css EditProfile 부분 1:1 박제 + chip 베이스). 운영 진짜 기능 100% 보존. 시안에 없는 §2/§4 신규 UI 는 DB 미저장 시각 박제 (백엔드 PATCH 확장 시 별도 작업 큐).
+- **후속 큐 (reviewer 권장)**: `.chip` 클래스 BEM 격리 또는 globals.css 승격 / §2 사용손/실력/강점 priv-note 추가 / §3 인스타·유튜브 sub "준비 중" 명시
+- **참조**: architecture.md 2026-05-01 "D-6 EditProfile Hybrid 박제" / 시안 Dev/design/BDR-current/screens/EditProfile.jsx
+- **참조횟수**: 0
+
 ### [2026-04-29] 모바일 브레이크포인트 720px 통일 (Tailwind 768px 미사용)
 - **분류**: decision (디자인 시스템)
 - **결정자**: pm + 디자이너
