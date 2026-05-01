@@ -34,11 +34,11 @@ function SeriesCreate({ setRoute }) {
           <h2 style={{margin:'0 0 18px', fontSize:18, fontWeight:700}}>시리즈 기본 정보</h2>
 
           <label className="label">시리즈 이름 *</label>
-          <input className="input" placeholder="시리즈 이름" value={data.name} onChange={e=>set('name', e.target.value)} autoFocus/>
+          <input className="input" placeholder="예) BDR CHALLENGE" value={data.name} onChange={e=>set('name', e.target.value)} autoFocus/>
 
           <div style={{height:14}}/>
           <label className="label">한 줄 태그라인</label>
-          <input className="input" placeholder="대회 슬로건" value={data.tagline} onChange={e=>set('tagline', e.target.value)}/>
+          <input className="input" placeholder="예) 서울 3x3 오픈 챔피언십" value={data.tagline} onChange={e=>set('tagline', e.target.value)}/>
 
           <div style={{height:14}}/>
           <label className="label">시리즈 색상</label>
@@ -65,7 +65,7 @@ function SeriesCreate({ setRoute }) {
           </p>
 
           <label className="label">개최 장소 *</label>
-          <input className="input" placeholder="개최 장소" value={data.venue} onChange={e=>set('venue', e.target.value)}/>
+          <input className="input" placeholder="예) 장충체육관" value={data.venue} onChange={e=>set('venue', e.target.value)}/>
 
           <div style={{height:14}}/>
           <label className="label">개최일 *</label>

@@ -25,12 +25,89 @@
 
 ## 현재 작업
 
-- **요청 3**: v2.4 시안 풍부 디테일 통합 + _components/ 잔재 격리 (재박제) — **완료 (이번 작업)**
+- **요청 4**: v2.4 새 다운로드 재박제 — R-A 시안 회귀 정리 + R-B' 룰 9 갱신 + R-C-4 운영 헤더 03 frozen 재적용 — **완료 (이번 작업)**
 - **상태**: developer 완료
-- **현재 담당**: PM (테스트 + 커밋)
+- **현재 담당**: PM (테스트 + 커밋 3건)
 - **브랜치**: subin
 
-### 구현 기록 (v2.4 풍부 디테일 통합 — 재박제)
+### 구현 기록 (R-A + R-B' + R-C-4 통합)
+
+📝 구현 내용:
+
+**R-A: v2.4 시안 회귀 정리**
+- components.jsx AppNav 함수 → uploads/03 §1 frozen 코드 그대로 카피
+  - moreOpen/setMoreOpen state 제거 + 더보기 ▼ dropdown trigger 제거 + RDM rdm_captain 아바타 제거
+  - main bar 우측 = 다크 + 검색 + 쪽지(Icon.mail 신규) + 알림 + 햄버거(모바일) 5컨트롤 (.app-nav__icon-btn 일관)
+  - 9번째 탭 '더보기' = drawer 토글 (dropdown 패널 X)
+  - util-left 클래스 분리 (좌측 모바일 hidden / 우측 그대로)
+  - drawer 안에 5그룹 IA (refereeInfo + mypage 포함, 가짜 4건 제외)
+- ThemeSwitch → uploads/03 §2 viewport 분기 (PC 듀얼 / 모바일 단일 .theme-switch--mobile)
+- screens/{Referee,GameReport,GameResult,GuestApps}.jsx 4 파일 제거 (_archived/ 에 보존)
+- MyBDR.html: script 참조 4건 + 라우트 매칭 4건 영구 제거 + RefereeInfo / mypage 매칭 신규 추가
+- 카피 (서울 3x3 / 다음카페) **변경 0** (사용자 결정 시안 보존)
+
+**R-B': 룰 9 갱신 (시안 우선 정책 2026-05-01)**
+- claude-project-knowledge/00-master-guide.md 룰 9: "전국 농구 매칭 플랫폼" → 시안 우선 + "서울 3x3 농구 커뮤니티" / "다음카페" 허용
+- claude-project-knowledge/01-user-design-decisions.md §6-1: 이전 결정 폐기 + 갱신 결정 명시 (commit 46e5d1b 운영 코드는 보존)
+- claude-project-knowledge/06-self-checklist.md §4 카피 검수 + §9 자동화 스크립트 [4] 항목 갱신 (서울 3x3 검수 폐기)
+- CLAUDE.md L96 룰 11 갱신 (시안 우선 명시)
+- About 운영진 실명 박제 금지 → **보존** (룰 9 후반부)
+- Footer.tsx → 변경 0 (사업자 정보 보존, 글로벌 슬로건 자체가 시안 톤 무관)
+
+**R-C-4: 운영 app-nav.tsx 03 frozen 재적용**
+- tabs 배열에서 `kind: "trigger"` 필드 영구 제거 (단일 종류)
+- moreOpen/setMoreOpen state 제거 + moreRef ref 제거 + 외부 클릭/ESC 닫힘 effect 제거
+- MorePanel 컴포넌트 함수 (~190줄) 영구 제거 — AppDrawer 가 동등한 5그룹 IA + super_admin/referee 운영 그룹 처리
+- 9번째 탭 'more' = drawer 토글 button (PC/모바일 동일)
+- import 정리: useRef 제거 / MORE_GROUPS, MoreGroup import 제거
+- AppDrawer prop type 갱신: kind 필드 제거 + 'more' id sentinel 만 본문 제외 (filter)
+- Phase 19 보존: 검색 / 쪽지(mail_outline + /messages) / 알림 + 빨간 점 뱃지
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| Dev/design/BDR v2.4/components.jsx | Icon.mail 추가 + AppNav 함수 03 §1 frozen 카피 + ThemeSwitch viewport 분기 | 수정 |
+| Dev/design/BDR v2.4/screens/Referee.jsx | _archived/ 에 보존 — 본 폴더에서 제거 | 삭제 |
+| Dev/design/BDR v2.4/screens/GameReport.jsx | _archived/ 에 보존 — 본 폴더에서 제거 | 삭제 |
+| Dev/design/BDR v2.4/screens/GameResult.jsx | _archived/ 에 보존 — 본 폴더에서 제거 | 삭제 |
+| Dev/design/BDR v2.4/screens/GuestApps.jsx | _archived/ 에 보존 — 본 폴더에서 제거 | 삭제 |
+| Dev/design/BDR v2.4/MyBDR.html | script 4 + 라우트 4 제거 + RefereeInfo + mypage 신규 매칭 | 수정 |
+| Dev/design/claude-project-knowledge/00-master-guide.md | 룰 9 갱신 (시안 우선) | 수정 |
+| Dev/design/claude-project-knowledge/01-user-design-decisions.md | §6-1 폐기 + 갱신 명시 | 수정 |
+| Dev/design/claude-project-knowledge/06-self-checklist.md | §4 + §9 자동화 [4] 갱신 | 수정 |
+| CLAUDE.md | L96 룰 11 갱신 | 수정 |
+| src/components/bdr-v2/app-nav.tsx | tabs kind 제거 + MorePanel 함수 제거 (~190줄) + state/ref 제거 + 9번째 'more' = drawer 토글 | 수정 |
+| src/components/bdr-v2/app-drawer.tsx | tabs prop kind 필드 제거 + 'more' id 본문 제외 filter | 수정 |
+
+🔧 자동 검수:
+| 항목 | 기대 | 결과 |
+|----|----|----|
+| 시안 회귀 (더보기 ▼/RDM/moreOpen 코드 매칭) | 0 | 0 (코멘트 가드만) ✓ |
+| 시안 Icon.mail | 1+ | 1 ✓ |
+| 시안 가짜 4 screens/ | 0 | 0 ✓ |
+| MyBDR.html 가짜 라우트 매칭 | 0 | 0 ✓ |
+| 운영 app-nav 회귀 코드 매칭 | 0 | 0 (코멘트 가드만) ✓ |
+| 운영 app-nav mail_outline + /messages | 1+ | 3 ✓ |
+| tsc --noEmit | EXIT=0 | EXIT=0 ✓ |
+
+💡 tester 참고:
+- 운영 헤더 9번째 '더보기' 탭 클릭 → drawer 열림 (PC/모바일 동일). dropdown 패널 X
+- main bar 우측 = 다크 + 검색 + 쪽지(로그인 시) + 알림(로그인 시) + 햄버거(모바일). RDM 아바타 X
+- 비로그인: 검색 + 로그인(btn--accent) + 햄버거. 더보기 탭은 비로그인도 클릭 시 drawer 열림
+- /messages 라우트 정상 동작 (Phase 8 박제). 빨간 점 뱃지: unreadCount > 0 시만 (알림만) — 쪽지는 No-badge
+- 룰 9 갱신: 시안 카피 (서울 3x3, 다음카페) 보존 — 운영 코드 변경 0
+- v2.4 시안 회귀 가드: components.jsx 의 코멘트 매칭은 의도된 가드 (실제 위반 0)
+
+⚠️ reviewer 참고:
+- MorePanel 제거로 PC dropdown 패널 사라짐 — 사용자 멘탈 모델 변화 (이전: PC=dropdown / 모바일=drawer → 변경 후: PC/모바일 모두 drawer). 우측 슬라이드 drawer 가 PC 에서도 작동 (CSS 그대로). 사용자 결정 §1-3 명시
+- AppDrawer 의 super_admin / referee 운영 그룹 보존 (drawer 안에서 처리)
+- AppDrawer 의 tabs prop 타입 변경 (kind 필드 제거) — 다른 호출처는 AppNav 만이라 영향 0
+- v2.4 시안 components.jsx 의 drawer 더보기 5그룹 패널 디자인은 03 §1 코드 그대로 + 운영의 AppDrawer 와 IA 정합 (refereeInfo + mypage + 가짜링크 4건 제외)
+
+📦 PM 액션:
+- 커밋 3건 분리 (R-A / R-B' / R-C-4)
+- subin 만 push, main/dev push 금지
+
+### 이전 구현 기록 (v2.4 풍부 디테일 통합 — 재박제)
 
 📝 구현: 시안 v2.4 Profile.jsx (125줄) 의 풍부 디테일을 운영 /profile 에 옵션 B 통합 (이전 박제 83a9363 의 Hero+hub+aside 보존 + 시안 디테일 추가).
 
@@ -254,6 +331,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-05-01 | (커밋 3건 대기, subin) | **R-A + R-B' + R-C-4 통합 (developer)**: v2.4 새 다운로드 재박제. R-A 시안 회귀 정리: components.jsx AppNav 함수 03 §1 frozen 카피 (moreOpen/dropdown trigger/RDM 아바타 영구 제거 + Icon.mail 신규 + util-left 분리 + drawer 5그룹) + ThemeSwitch viewport 분기 + screens/{Referee,GameReport,GameResult,GuestApps}.jsx 4 파일 제거 + MyBDR.html 가짜 라우트 4 매칭 + script 4 참조 제거 + RefereeInfo/mypage 매칭 신규. R-B' 룰 9 갱신 (시안 우선 정책 2026-05-01): 00-master-guide / 01-user-design-decisions §6-1 / 06-self-checklist §4+§9 / CLAUDE.md L96 "서울 3x3 / 다음카페" 허용. About 운영진 실명 박제 금지는 보존. Footer.tsx 변경 0. R-C-4 운영 app-nav.tsx 03 frozen 재적용: tabs kind 필드 제거 + moreOpen state 제거 + MorePanel 함수 (~190줄) 영구 제거 + 9번째 'more' = drawer 토글 (PC/모바일 동일). AppDrawer prop type 갱신. tsc EXIT=0. 자동 검수 7 케이스 모두 통과. 변경: 시안 7 + knowledge 3 + CLAUDE.md 1 + 운영 2 = 13 파일 (이 중 4 파일 삭제). | ✅ |
 | 2026-04-30 | (미커밋, subin) | **v2.4 풍부 디테일 통합 — 재박제 (developer)**: 시안 v2.4 Profile.jsx (125줄) 풍부 디테일을 운영 /profile 에 옵션 B 통합. (1) HeroCard 96 아바타 = team.primaryColor → 검정 그라디언트 (이미지 없을 때만, 팀 없으면 BDR Red 폴백). (2) 상단 큰 Hero 배너 아바타도 heroAvatarBg 적용. (3) ActivityTimeline kind 5종 확장 (post/application/match/win/loss/team) + badgeClass 매핑 (win=ok, loss=red, post/match/team=soft). (4) _components/ 14종 → _archived/ 격리 (radar-chart만 보존 — users/[id] 사용 중). _archived/ability-section.tsx import 경로 ../_components/radar-chart 수정. tsc EXIT=0. 이전 박제 83a9363 의 Hero+hub+quick+aside 풍부 구조 100% 보존. API/route.ts 변경 0. 변경: 3 파일 수정 + 14 파일 이동. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **v2.4 마이페이지 hub 박제 — Hero + 4 카드 + quick (developer)**: 의뢰서 (852줄) + 캡처 16 기준. 신규 3 파일(_v2/mypage-hub-data.ts / mypage-hub-card.tsx / mypage-hub.tsx). 수정 3 파일(profile/page.tsx 상단 큰 Hero 카드+본문 좌우 swap+Tier 1 4 슬롯, more-groups.ts "마이페이지" 1 항목 추가, globals.css 720 분기 2 클래스). 옵션 B 통합 — 우측 sticky aside 에 기존 v2.3 컴포넌트 6종 보존. tsc EXIT=0. 박제 룰 검수 통과 (var(--*) 토큰 / Material Symbols / 720 분기 / API 0 / 신규 라우트 0). 변경: 6 파일. | ✅ |
 | 2026-04-30 | 002aeae+2661542 (subin, 미푸시) | **v2.4 진짜 변경 박제 — 4 영역 (developer)**: A 등급 RefereeInfo (215줄) — SEO 마케팅 hero+4-step+tier+FAQ → 정적 카드 3종(등록/교육/배정 borderLeft accent)+CTA 단일 재구성. _faq-client.tsx 제거. generateMetadata+Open Graph+비로그인 정책 보존. B 등급 CourtAdd/SeriesCreate placeholder 각 3곳 일반화. Match.jsx 변경 12줄은 운영 박제 대상 없음 확인(grep 0). tsc 0. /profile 영역 침범 0. 변경 4 파일(+112/-439). | ✅ |
@@ -264,4 +342,3 @@
 | 2026-05-01 | (미커밋, subin) | **v2.3 마이페이지 hub 박제 — `/profile` Profile.jsx 1:1** (developer): Profile.jsx 시안 박제. page.tsx user select +name_verified / teamMember select 모드 / game_applications findMany take:3 / nextGames status:Int 0/1 보존 / HeroCard +jerseyNumber, UpcomingGames game→games 배열. _v2/hero-card.tsx 메타 1줄 "팀·포지션·#N" + flexWrap. _v2/team-side-card.tsx +wins/losses/draws + "12W 5L · 외 N팀". _v2/upcoming-games.tsx + status:number\|null + scheduledAt non-null + badgeFor() 헬퍼. _v2/season-stats.tsx + .season-stats-grid. globals.css 720 미디어 룰 3종 추가. **API fetch 0 변경** (select 컬럼만 추가). 변경: 6 파일. | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **P0 Step 4 + 5 백버튼 18 페이지 + 커뮤니티 모바일 탭** (developer): `page-back-button.tsx`(60줄) 신규 + history.length 가드 + fallbackHref + lg:hidden + 44px. profile 9 + organizations 4 + courts 5 = 18 페이지 일괄. community-aside.tsx fragment 분기 모바일 8 카테고리 가로 스크롤 탭. globals.css `.aside-mobile-tabs` +50줄. tsc 0. 변경: 21 파일. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **P0 Step 1 + 3 가입+대회 흐름 + 404** (developer): onboarding/setup done "프로필 추가 완성하기 →" CTA / tournaments/[id]/join "내 신청 내역 보기" 1순위 CTA / pricing/checkout 401 redirect 보존 + isValidRedirect / (web)/not-found.tsx 신규(60줄, search_off + 3 CTA). 변경: 4 파일. tsc 0. | ✅ |
-| 2026-04-30 | (미커밋, subin) | **프로필 입력창 모바일 가독성** (developer): /profile/edit 캡처 51 픽스 — .profile-edit-row 768 1열 stack + 720 input padding 44px 터치 + .btn--sm 보강. 변경: 2 파일. tsc 0. | ✅ |

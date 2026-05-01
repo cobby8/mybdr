@@ -20,7 +20,7 @@ const BOARDS = [
 ];
 
 const POSTS = [
-  { id: 201, board: 'notice', pinned: true,  title: '[공지] MyBDR 정식 오픈 — 이관하신 회원분들께', author: '운영팀',    level: 'ADMIN',  date: '2026.04.18', views: 4821, comments: 128, hasImage: true,  isNew: false },
+  { id: 201, board: 'notice', pinned: true,  title: '[공지] MyBDR 정식 오픈 — 다음카페에서 이관하신 분들께', author: '운영팀',    level: 'ADMIN',  date: '2026.04.18', views: 4821, comments: 128, hasImage: true,  isNew: false },
   { id: 200, board: 'notice', pinned: true,  title: '2026 BDR Challenge Spring 접수 시작 안내 (4/5까지)',    author: '운영팀',    level: 'ADMIN',  date: '2026.04.15', views: 2340, comments: 47,  hasImage: false, isNew: false },
   { id: 199, board: 'free',   pinned: false, title: '어제 장충체육관 픽업경기 후기 (사진 多)',                author: '리딤캡틴',   level: 'L.8',    date: '2026.04.20', views: 834,  comments: 32,  hasImage: true,  isNew: true  },
   { id: 198, board: 'match',  pinned: false, title: '[모집] 4/25 토요일 오후 3시 잠실 3대3 팀 구합니다',        author: '3POINT_슈',  level: 'L.5',    date: '2026.04.20', views: 421,  comments: 18,  hasImage: false, isNew: true  },

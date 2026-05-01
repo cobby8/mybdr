@@ -108,7 +108,7 @@ function GuestApply({ setRoute }) {
             rows={4}
             value={msg}
             onChange={e=>setMsg(e.target.value)}
-            placeholder="자기소개 · 농구 스타일 · 문의사항"
+            placeholder="예: 슛이 좋은 편이고, 처음이지만 열심히 뛰겠습니다. 혹시 주차 가능할까요?"
             style={{resize:'vertical'}}
           />
           <div style={{display:'flex', justifyContent:'space-between', marginTop:4}}>

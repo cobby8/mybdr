@@ -157,7 +157,7 @@ function OpenRunPanel({ setRoute }) {
             <div style={{padding:'18px 22px', display:'flex', flexDirection:'column', gap:14}}>
               <div>
                 <label className="label">코트</label>
-                <input className="input" placeholder="코트 이름" defaultValue=""/>
+                <input className="input" placeholder="예: 용산국민체육센터" defaultValue=""/>
               </div>
               <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
                 <div>
@@ -183,7 +183,7 @@ function OpenRunPanel({ setRoute }) {
               </div>
               <div>
                 <label className="label">한마디</label>
-                <textarea className="textarea" style={{minHeight:80}} placeholder="모집 메시지"/>
+                <textarea className="textarea" style={{minHeight:80}} placeholder="예: 한 명만 더 오면 풀게임. 캐주얼한 분위기."/>
               </div>
             </div>
             <div style={{padding:'14px 22px', background:'var(--bg-alt)', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -369,7 +369,7 @@ function MatchDetail({ setRoute }) {
             <div className="card" style={{padding:'24px 26px'}}>
               <h2 style={{margin:'0 0 12px', fontSize:20, fontWeight:700}}>대회 개요</h2>
               <p style={{color:'var(--ink-soft)', margin:'0 0 16px', lineHeight:1.7}}>
-                전국 농구 매칭 플랫폼이 매분기 개최하는 오픈 챔피언십. 더블 엘리미네이션 방식으로 16강부터 결승까지 이틀간 진행됩니다.
+                서울 3x3 농구의 정수를 겨루는 오픈 챔피언십. 더블 엘리미네이션 방식으로 16강부터 결승까지 이틀간 진행됩니다.
                 OPEN 레벨이므로 참가 자격 제한 없이, 팀 단위로 등록한 누구나 참가 가능합니다.
               </p>
               <div style={{display:'grid', gridTemplateColumns:'140px 1fr', rowGap:10, columnGap:16, fontSize:14, padding:'14px 16px', background:'var(--bg-alt)', borderRadius:'var(--radius-chip)'}}>

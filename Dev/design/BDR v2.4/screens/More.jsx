@@ -35,10 +35,10 @@ function About({ setRoute }) {
         <div style={{textAlign:'center', padding:'40px 0 32px'}}>
           <div className="eyebrow" style={{justifyContent:'center'}}>소개 · ABOUT</div>
           <h1 style={{margin:'10px 0 14px', fontSize:42, fontWeight:900, letterSpacing:'-0.025em'}}>
-            농구를 더 가깝게
+            서울의 농구를 더 가깝게
           </h1>
           <p style={{fontSize:16, color:'var(--ink-soft)', maxWidth:540, margin:'0 auto', lineHeight:1.7}}>
-            MyBDR은 20년의 농구 커뮤니티 경험을 이어가는 전국 농구 매칭 플랫폼입니다.
+            MyBDR은 다음카페 시절부터 20년을 이어온 서울 3x3 농구 커뮤니티입니다.
             흩어져 있던 픽업, 대회, 팀, 코트 정보를 한 곳에 모아 <strong style={{color:'var(--ink)'}}>누구나 쉽게 뛸 수 있는 환경</strong>을 만듭니다.
           </p>
         </div>

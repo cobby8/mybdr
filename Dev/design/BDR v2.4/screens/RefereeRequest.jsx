@@ -145,7 +145,7 @@ function RefereeRequest({ setRoute }) {
               </div>
 
               <h2 style={{margin:'24px 0 10px', fontSize:16, fontWeight:700}}>4. 메시지 (선택)</h2>
-              <textarea className="input" rows={3} value={msg} onChange={e=>setMsg(e.target.value)} placeholder="대회 특성·문의사항" style={{resize:'vertical'}}/>
+              <textarea className="input" rows={3} value={msg} onChange={e=>setMsg(e.target.value)} placeholder="예: 대회 특성·경기 분위기·챙겨오실 점 등을 알려주세요." style={{resize:'vertical'}}/>
 
               <div style={{display:'flex', justifyContent:'space-between', marginTop:24, paddingTop:20, borderTop:'1px solid var(--border)'}}>
                 <button className="btn" onClick={()=>setStep(1)}>← 이전</button>

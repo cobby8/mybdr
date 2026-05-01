@@ -28,7 +28,7 @@ function CreateTeam({ setRoute }) {
               <div style={{display:'grid', gridTemplateColumns:'1fr 140px', gap:14}}>
                 <div>
                   <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)'}}>팀 이름</label>
-                  <input className="input" style={{marginTop:6}} value={name} onChange={e=>setName(e.target.value)} placeholder="팀 이름"/>
+                  <input className="input" style={{marginTop:6}} value={name} onChange={e=>setName(e.target.value)} placeholder="예: 리딤 (REDEEM)"/>
                 </div>
                 <div>
                   <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)'}}>팀 태그 (3~4자)</label>

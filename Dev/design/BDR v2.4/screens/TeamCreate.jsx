@@ -62,7 +62,7 @@ function TeamCreate({ setRoute }) {
               <div style={{display:'flex', flexDirection:'column', gap:16}}>
                 <div>
                   <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>팀 이름 *</label>
-                  <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="팀 이름"/>
+                  <input className="input" value={name} onChange={e=>setName(e.target.value)} placeholder="예: REDEEM, 3POINT, 몽키즈"/>
                   <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:4}}>한글·영문 2~20자</div>
                 </div>
                 <div>
@@ -118,7 +118,7 @@ function TeamCreate({ setRoute }) {
               <div style={{display:'flex', flexDirection:'column', gap:16}}>
                 <div>
                   <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>주 활동 코트 *</label>
-                  <input className="input" value={home} onChange={e=>setHome(e.target.value)} placeholder="주 활동 코트"/>
+                  <input className="input" value={home} onChange={e=>setHome(e.target.value)} placeholder="예: 장충체육관, 미사강변체육관"/>
                 </div>
                 <div>
                   <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>실력 수준 *</label>
