@@ -2,6 +2,39 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-02] 단일 Supabase project 운영/개발 겸용 정책 확정
+- **분류**: decision (인프라 / 운영 정책 / 안전 가드)
+- **결정자**: 사용자 (PM 옵션 C 채택)
+- **배경**: lessons.md 04-18 "개발 DB라 믿은 .env가 사실 운영 DB" 발견 후 7개월간 옵션 결정 보류. 2026-05 동호회최강전 데이터 정리 (16팀 + 112선수 + 22 placeholder + Phase 1~5 schema 변경) 모두 .env 운영 DB 직접 작업으로 진행 — 별도 dev DB 미운영 현실 재확인.
+- **결정**: **단일 Supabase project = 운영/개발 겸용** (옵션 C). CLAUDE.md 룰 갱신:
+  - "🚨 절대 금지" #2,#3 갱신: ".env에 운영 DB URL 금지" → "destructive 작업 사용자 승인 없이 실행 금지" / "prisma migrate reset 금지" 등 더 정밀한 가드
+  - "🗄️ DB 정책" 신설: 단일 project + 위험 + 5단 안전 가드 (사용자 승인 / schema diff / 임시 스크립트 정리 / 사후 검증 / 운영 영향 0 작업)
+  - .env 표기 변경: "개발 DB" → "운영 DB + localhost"
+- **대안 배제**:
+  - **A 현 상태 유지** (룰 차이 무시): 신규 에이전트 헷갈림. lessons 4월 항목 vs 실제 다른 동작 → 같은 함정 재발 위험
+  - **B 분리 시도** (별도 dev DB): Supabase project 비용 증가 + 데이터 동기화 부담. 동호회최강전 같은 운영 데이터 작업 시 dev → 운영 마이그레이션 비용
+- **영향**: CLAUDE.md + lessons.md 룰 정합. 향후 모든 DB 작업 시 단일 운영 DB 가정 + 5단 가드 준수
+- **참조횟수**: 0
+
+### [2026-05-01] 선수명단 실명 표시 규칙 — 5건 결정 + 본인인증 자동입력 정책
+- **분류**: decision (표시 정책 / 운영 데이터 표현 일관성 / 미래 인증 시스템 연동)
+- **결정자**: pm + 사용자 (planner 추천안 모두 채택)
+- **배경**: 동호회최강전 데이터 정리 중 선수명단에 nickname 우선 표시 발견 (사진의 "w / 종훈 / LL" 등). 운영 8 패턴 혼재 — nickname 우선 7건 / name 우선 2건 / nickname 단독 5건 / player_name 단독 3건. placeholder User 22명 (`nickname=null, name=실명`) + 자동 매칭 9명 + 기존 활성 멤버 (짧은 닉네임) 시각 통일 필요.
+- **결정**:
+  1. **표시 우선순위**: `User.name → nickname → player_name → '#{jersey}'` fallback (실명 우선)
+  2. **헬퍼 위치**: lib 유틸 1개 (`getDisplayName(user, ttp?)`) — JSX/raw SQL/Flutter API 모두 호환
+  3. **Prisma select preset**: `USER_DISPLAY_SELECT` 상수 신설 (`{ id, name, nickname }`) — select 누락 회귀 방지
+  4. **Phase 분할**: A→B→C→D→E 순차 진행 (A 영향 0, 안전 시작)
+  5. **입력 폼 라벨**: "실명 (필수)" + placeholder "예: 홍길동" (강제 X, 가이드만)
+- **추가 정책 (사용자)**: **본인인증 작동 시 실명·전화 필수 라벨 폐기 + 자동입력 전환**. 간편가입(소셜 OAuth) 개선 시 동일. 현재 라벨은 임시 정책 — 인증 시스템 활성화 시 폐기. 본인인증 진입점은 D-6 EditProfile §1 hero 에 이미 존재 (`name_verified` 플래그)
+- **대안 배제**:
+  - **A nickname 우선** : 운영 다수 패턴이지만 사용자 의도(실명 표시) 위반. placeholder User 22명 (nickname=null) 가 "—" 표시되는 회귀
+  - **C 실명 강제 (fallback X)** : User.name=null 케이스 (자동 매칭된 진짜 가입자 일부) 빈 칸 노출 — 사용자 경험 열등
+  - **헬퍼 컴포넌트 (`<PlayerName />`)** : raw SQL/Flutter API 응답에서 사용 불가 (JSX 외 환경 미지원)
+  - **inline select 매번** : 17개소 회귀 가능성 — 신규 페이지 추가 시마다 누락 위험
+- **영향**: 신규 2 (헬퍼 + select preset) + 수정 17 (페이지/API) + DB schema **0**. API 응답 schema 변경 0 (값만 닉네임 → 실명). Flutter 앱 호환 — Phase D 진행 전 모바일팀 사전 공지 필요
+- **참조횟수**: 0
+
 ### [2026-05-01] Q1 Reviews 옵션 A 비노출 / B 코트만 / C 동시 마이그 채택
 - **분류**: decision (시안 박제 + 컴포넌트 재사용 범위 + 토큰 마이그 타이밍)
 - **결정자**: pm + 사용자 (auto mode 권장안 채택)

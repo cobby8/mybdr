@@ -24,14 +24,26 @@ git push origin subin
 
 ### 🚨 절대 금지
 1. `main` 직접 push
-2. `.env`에 운영 DB URL
-3. 운영 DB 대상 `prisma db push`/마이그레이션
+2. **운영 DB 대상 destructive 작업 사용자 승인 없이 실행** (DROP/TRUNCATE/대량 DELETE/대량 UPDATE)
+3. **`prisma migrate reset` 또는 `prisma db push --accept-data-loss` 운영 DB에 실행** (데이터 파괴)
+
+### 🗄️ DB 정책 (2026-05-02 단일 DB 정책 확정)
+- **단일 Supabase project 운영/개발 겸용** — `.env DATABASE_URL` = 운영 DB
+- **사유**: 별도 dev DB 미운영 (사용자 결정 2026-05-02). 비용 단순화 + 단일 source of truth
+- **위험**: 모든 로컬 작업 (Next.js dev / scripts) 이 운영 DB에 즉시 반영. `prisma db push` schema 변경 = 운영 즉시 적용
+- **안전 가드 (필수 준수)**:
+  1. **destructive SQL** (DROP/DELETE/UPDATE 대량) 전 → 사용자 명시 승인 + SELECT 1건 사전 검증
+  2. **prisma db push** 전 → schema diff 사용자 검토 후 진행 (NULL 허용 ADD COLUMN 같은 무중단 변경만 자동)
+  3. **임시 스크립트** (`scripts/_temp/`) 작업 후 즉시 정리 — 운영 DB credentials 노출 방지
+  4. **DB 작업 사후 검증** 항상 — count/groupBy 등 실측으로 확인
+  5. **운영 영향 0 작업** (SELECT만, schema 변경 0): 가드 없이 진행 가능
+- **임시 dev DB 필요 시**: `.env.local` 에 `DATABASE_URL=postgres://...dev...` 오버라이드 + `dotenv-cli -e .env.local npx prisma ...` 실행 (현재 미사용)
 
 ### 개발 환경
-- **개발 DB**: Supabase 개발 전용 (운영 분리)
+- **DB**: 운영 Supabase project 단일 사용 (위 §DB 정책 참조)
 - **개발 프리뷰**: https://mybdr-git-dev-mybdr.vercel.app/
 - **로컬 포트**: 3001 (package.json 고정). `subin-referee` 브랜치는 3002
-- **.env**: 개발 DB + localhost. **운영 DB URL 금지**
+- **.env**: 운영 DB + localhost (gitignored)
 - **.env.local**: 로컬 port 3001 auth/CORS 오버라이드 (gitignored)
 
 ### "오늘 작업 시작하자" 체크리스트
@@ -39,7 +51,7 @@ git push origin subin
 1. `git remote -v` (github.com/bdr-tech/mybdr)
 2. `git fetch origin --prune` + main/dev/subin 차이
 3. 현재 브랜치가 subin인지
-4. `.env` 존재 + DATABASE_URL이 개발 DB인지 (값 노출 금지)
+4. `.env` 존재 + DATABASE_URL 키만 확인 (값 노출 금지) — 운영 DB 정상
 5. `.env.local`에 localhost:3001 오버라이드 있는지
 6. 결과 요약 → "이대로 작업 시작해도 될까요?" 승인
 
