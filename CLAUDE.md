@@ -59,6 +59,39 @@ git push origin subin
 - 버튼 border-radius 4px
 - **하드코딩 색상 금지** → `var(--color-*)` 변수
 
+## 🗂️ Dev/design/ 폴더 구조 (단일 폴더 룰 — 2026-05-01)
+
+**핵심**: 활성 시안 = `Dev/design/BDR-current/` 단 하나. 옛 버전은 `_archive/` 별도 보관. CLI 박제 작업의 모든 참조는 `BDR-current/` 만 사용 (`BDR v2.X/` 직접 참조 ❌).
+
+```
+Dev/design/
+├── BDR-current/                  ⭐ 활성 시안 (박제 source — zip 동기화)
+├── claude-project-knowledge/     영구 — 9 파일 박제 룰
+├── DESIGN.md / README.md         영구 — 시스템 / 폴더 가이드
+├── v3-rebake-prompt-2026-05-01.md  활성 — 박제 재시작 프롬프트
+├── team-logos/                   영구
+└── _archive/
+    ├── BDR v2/, v2.2/, v2.3/, v2.4/  옛 버전들
+    ├── v2-original/              zip 최상위 옛 시안 보존
+    └── prompts/                  옛 phase-N / v2.X-cli-batch 등
+```
+
+### 워크플로우 5단계 (새 zip 받았을 때)
+
+1. 새 zip 풀이 → 임시 폴더
+2. 기존 `BDR-current/` → `_archive/BDR vX.Y/` 이동 (옛 버전화)
+3. 새 zip 의 `Dev/design/BDR vX.Y/` → `BDR-current/` 카피
+4. zip 최상위 옛 시안 (있으면) → `_archive/v2-original/`
+5. `Dev/design/README.md` 갱신 + commit `design: BDR-current sync vX.Y`
+
+### 명명 룰 — zip 파일명 ≠ 시안 버전
+
+- **zip 파일명** (`BDR v2.zip`): 사용자 회차 표시용 (작업 일자 묶음, 의미 약함)
+- **시안 버전** (zip 안 `BDR vX.Y/`): 실제 시안 버전 (예: v2.3 = Phase 13/19 마이페이지 hub)
+- **활성 폴더** (`BDR-current/`): 항상 최신 — 시안 버전 무관, CLI 의 단일 source
+
+→ 위반 자동 reject: `BDR v2.3/` `BDR v2.4/` 직접 참조하는 프롬프트는 `BDR-current/` 로 치환.
+
 ## 🎨 디자인 작업 시 (Cowork Project Knowledge — 매 세션 자동 적용)
 
 **모든 디자인 시안 / 박제 작업은 다음 패키지를 첫 번째로 읽고 시작**:
@@ -109,7 +142,7 @@ git push origin subin
   작업 시작.
 [Step 4] 시안 작업 (AppNav 03 카피 / 토큰 02 / 카피 01)
 [Step 5] 완료 후 06-self-checklist.md 모든 항목 ✅ 검수
-[Step 6] 산출물 폴더: Dev/design/BDR v2.X/ (이전 카피 + 변경)
+[Step 6] 박제 산출물 = src/ 코드 직접 수정 + git commit. 시안 폴더는 BDR-current/ 단일 (CLI 가 새 폴더 생성 ❌). 새 시안은 사용자가 새 zip 전달 시 §🗂️ 워크플로우 5단계로 동기화.
 ```
 
 ### 회귀 방지 — 위반 자동 검수 체크 (Phase 19)
