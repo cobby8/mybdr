@@ -461,7 +461,7 @@ function Step1Basic({
             className="input"
             value={data.name}
             onChange={(e) => update("name", e.target.value)}
-            placeholder="예: 한강공원 반포지구 농구장"
+            placeholder="코트 이름"
           />
         </div>
 
@@ -497,7 +497,7 @@ function Step1Basic({
             className="input"
             value={data.addr}
             onChange={(e) => update("addr", e.target.value)}
-            placeholder="예: 서울 서초구 반포동 한강공원 반포지구 내"
+            placeholder="도로명 또는 지번 주소"
           />
           <div
             style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}
@@ -829,7 +829,7 @@ function Step3Photo({
         rows={3}
         value={data.desc}
         onChange={(e) => update("desc", e.target.value)}
-        placeholder="예: 강변북로 바로 옆. 저녁엔 야경이 좋고 조명도 22시까지 켜짐. 평일 저녁·주말 붐빔."
+        placeholder="코트 분위기·이용 팁 등"
         style={{ resize: "vertical" }}
       />
 

@@ -311,7 +311,7 @@ function Step1Basics({
       <label style={labelStyle}>시리즈 이름 *</label>
       <input
         className="input"
-        placeholder="예) BDR CHALLENGE"
+        placeholder="시리즈 이름"
         value={data.name}
         onChange={(e) => update("name", e.target.value)}
         autoFocus
@@ -323,7 +323,7 @@ function Step1Basics({
       <label style={labelStyle}>한 줄 태그라인</label>
       <input
         className="input"
-        placeholder="예) 서울 3x3 오픈 챔피언십"
+        placeholder="대회 슬로건"
         value={data.tagline}
         onChange={(e) => update("tagline", e.target.value)}
       />
@@ -380,7 +380,7 @@ function Step2FirstEdition({
       <label style={labelStyle}>개최 장소 *</label>
       <input
         className="input"
-        placeholder="예) 장충체육관"
+        placeholder="개최 장소"
         value={data.venue}
         onChange={(e) => update("venue", e.target.value)}
       />
