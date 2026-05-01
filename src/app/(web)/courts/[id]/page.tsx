@@ -4,7 +4,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { CourtCheckin } from "./_components/court-checkin";
-import { CourtReviews } from "./_components/court-reviews";
+// v3 박제: ContextReviews 시안 + 5항목 평균 + ReviewForm 토글 통합 래퍼
+import { CourtReviewsSection } from "./_components/court-reviews-section";
 import { CourtReports } from "./_components/court-reports";
 import { CourtRankings } from "./_components/court-rankings";
 import { CourtEditSuggest } from "./_components/court-edit-suggest";
@@ -45,7 +46,7 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
   const court = await prisma.court_infos.findUnique({
     where: { id: BigInt(id) },
     include: {
-      // court_reviews는 CourtReviews 클라이언트 컴포넌트가 SWR로 직접 패치
+      // court_reviews는 CourtReviewsSection 클라이언트 컴포넌트가 SWR로 직접 패치
       court_checkins: {
         orderBy: { created_at: "desc" },
         take: 5,
@@ -300,8 +301,8 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
         </div>
       )}
 
-      {/* 리뷰 섹션 (클라이언트 컴포넌트 — SWR 자동 갱신) */}
-      <CourtReviews courtId={court.id.toString()} currentUserId={currentUserId} />
+      {/* 리뷰 섹션 v3 박제 (SWR 자동 갱신 + ContextReviews 시안 1:1) */}
+      <CourtReviewsSection courtId={court.id.toString()} currentUserId={currentUserId} />
 
       {/* 상태 제보 섹션 (클라이언트 컴포넌트) */}
       <CourtReports courtId={court.id.toString()} currentUserId={currentUserId} />

@@ -2,6 +2,23 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-01] Q1 Reviews + ContextReviews 박제 — 4탭 → 1탭 + 신규 재사용 컴포넌트
+- **분류**: architecture
+- **발견자**: developer
+- **내용**: 시안 [Phase 16] 통합 리뷰 페이지 4탭 → 1탭(코트만) + ContextReviews 신규 재사용 컴포넌트 + /courts/[id] 인라인 교체. 옛 v2 토큰 → BDR v3 토큰 동시 마이그.
+  - **신규 2 파일**:
+    - `src/components/reviews/context-reviews.tsx` (351줄) — 시안 ContextReviews.jsx 137줄 1:1 박제. props: `kind: "court"|"series"|"player"` / `targetName` / `reviews` / `summary` / `onWrite?` / `onViewAll?` / `maxVisible=3`. 헤더 (avg + 별점 + total) + 분포 막대 + 카드 3건. 시안 의도: 코트/대회/플레이어 상세에 인라인 사용 (Q1-B 결정에 따라 court 만 우선 도입, series/player 별도 큐).
+    - `src/app/(web)/courts/[id]/_components/court-reviews-section.tsx` (251줄) — SWR `/api/web/courts/${id}/reviews` + 5항목 평균 막대 + ContextReviews + ReviewForm 토글 + 본인 리뷰 삭제 통합 래퍼.
+  - **삭제 1 파일**: `src/app/(web)/courts/[id]/_components/court-reviews.tsx` (-287줄). 의존성 0 검증 후 삭제.
+  - **수정 5 파일**: `review-form.tsx` + `star-rating.tsx` (v3 토큰 마이그) / `courts/[id]/page.tsx` (CourtReviews → CourtReviewsSection 교체 3줄) / `reviews/page.tsx` (헤더 주석 정리) / `reviews/_v2/reviews-content.tsx` (4탭 → 1탭, 507→485, -22).
+  - **4탭 깔끔 제거 (Q1-A 비노출 결정)**: `tab` state / `TabBar` / `PENDING_TABS` / `TYPE_COLOR` / `TYPE_LABEL` / `?tab=` URL 잔재 0건 (주석 X). 외부 deep link 0 검증 (grep). git log 복구 가능.
+  - **v3 토큰 마이그 (Q1-C)**: 4 파일 토큰 매핑 — color-surface→bg / color-text-*→ink-* / color-primary→accent / color-error→err / color-text-disabled→ink-dim. 옛 `var(--color-*)` 패턴 grep 0건.
+  - **데이터 보존 (운영 진짜 기능 100%)**: SWR GET / POST / DELETE / mutate 모두 옛 court-reviews.tsx 패턴 그대로. REVIEW_CATEGORIES 5항목 (facility/accessibility/surface/lighting/atmosphere) 입력 폼 + API body 100% 보존.
+  - **검수 통과**: tsc / 13 룰 (lucide 0 / hex 0 / pill 9999 0 / pink-salmon-coral 0) / 회귀 4 (page.tsx만 수정, layout 미터치) / 작업 범위 외 침범 0
+  - **후속 큐 (별도)**: `_components/` 11 파일 + `courts/[id]/page.tsx` 19건 옛 토큰 잔존 (작업 범위 외) / ContextReviews series/player 도입 (/tournaments + /users) / `/reviews?courtId=...` deep-link → onViewAll 활성화
+- **참조**: decisions.md 2026-05-01 "Q1 Reviews 옵션 A/B/C 채택" / 시안 Dev/design/BDR-current/screens/Reviews.jsx + ContextReviews.jsx
+- **참조횟수**: 0
+
 ### [2026-05-01] D-3 ProfileWeeklyReport Hybrid 박제 — 시안 v2.4 + TOP 3 코트 보존
 - **분류**: architecture
 - **발견자**: developer

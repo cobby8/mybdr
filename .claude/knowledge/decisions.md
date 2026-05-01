@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-01] Q1 Reviews 옵션 A 비노출 / B 코트만 / C 동시 마이그 채택
+- **분류**: decision (시안 박제 + 컴포넌트 재사용 범위 + 토큰 마이그 타이밍)
+- **결정자**: pm + 사용자 (auto mode 권장안 채택)
+- **결정**: 시안 [Phase 16] 통합 리뷰 4탭 → 1탭 박제 시 3 결정:
+  - **A. 4탭 축소 처리** = **비노출** (탭 자체 깔끔 제거, 주석 X). 향후 복구는 git log 가능.
+  - **B. ContextReviews 도입 범위** = **코트만 우선** (kind="court"). /tournaments + /users 동시 도입은 별도 큐 (Phase 16~17).
+  - **C. court-reviews.tsx 옛 토큰 정리** = **동시 처리**. ContextReviews 도입 시 같이 BDR v3 토큰 마이그.
+- **배경**: 시안은 4탭(대회/코트/팀/심판) 통합 페이지였으나 사용자 결정으로 코트만 활성. 옛 court-reviews.tsx 가 v2 토큰 사용 중이라 마이그 타이밍이 별도 vs 동시 선택지.
+- **대안 배제**:
+  - **A 주석** : dead code 부채 + 4탭 복구 시 주석 해제만으로 작동 안 함 (다른 컴포넌트 변경 필요). git log 복구가 더 깔끔.
+  - **B /tournaments + /users 동시 도입** : 작업량 ×2~3 + 시리즈/플레이어 리뷰 시안 미정 + DB 확장 필요. 한 번에 너무 큼.
+  - **C 별도 commit** : v3 토큰 마이그가 ContextReviews 도입과 겹치는 4 파일이라 동시 처리가 효율적 (별도 commit 시 같은 파일 두 번 수정).
+- **영향**: 변경 7건 (신규 2 / 삭제 1 / 수정 4) / 정보 손실 0 / REVIEW_CATEGORIES 5항목 + SWR/POST/DELETE 100% 보존 / `_components/` 다른 파일 옛 토큰은 별도 큐.
+- **참조**: architecture.md 2026-05-01 "Q1 Reviews + ContextReviews 박제" / 시안 ContextReviews.jsx + Reviews.jsx
+- **참조횟수**: 0
+
 ### [2026-05-01] D-3 ProfileWeeklyReport 옵션 B (Hybrid) 채택 — TOP 3 코트 손실 0
 - **분류**: decision (시안 박제 + 데이터 보존)
 - **결정자**: pm + 사용자 (auto mode 옵션 B 선택)

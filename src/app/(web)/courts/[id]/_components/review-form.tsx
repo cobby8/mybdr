@@ -81,18 +81,20 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
     <div
       className="rounded-md p-4"
       style={{
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border-subtle)",
+        // BDR v3 토큰 마이그 — color-surface → bg / color-border-subtle → border-subtle
+        backgroundColor: "var(--bg)",
+        border: "1px solid var(--border-subtle)",
       }}
     >
       <h3
         className="text-sm font-bold mb-3"
-        style={{ color: "var(--color-text-primary)" }}
+        // color-text-primary → ink
+        style={{ color: "var(--ink)" }}
       >
         리뷰 작성
       </h3>
 
-      {/* 5개 항목별 별점 입력 */}
+      {/* 5개 항목별 별점 입력 — REVIEW_CATEGORIES 5항목 (facility/accessibility/surface/lighting/atmosphere) 100% 보존 */}
       <div className="space-y-2.5 mb-4">
         {REVIEW_CATEGORIES.map((cat) => (
           <div key={cat.key} className="flex items-center justify-between">
@@ -100,18 +102,20 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
             <div className="flex items-center gap-1.5">
               <span
                 className="material-symbols-outlined"
-                style={{ fontSize: "16px", color: "var(--color-text-muted)" }}
+                // color-text-muted → ink-mute
+                style={{ fontSize: "16px", color: "var(--ink-mute)" }}
               >
                 {cat.icon}
               </span>
               <span
                 className="text-sm"
-                style={{ color: "var(--color-text-secondary)" }}
+                // color-text-secondary → ink-soft
+                style={{ color: "var(--ink-soft)" }}
               >
                 {cat.label}
               </span>
             </div>
-            {/* 별점 입력 */}
+            {/* 별점 입력 (StarRating 자체도 v3 토큰으로 마이그됨) */}
             <StarRating
               value={ratings[cat.key]}
               onChange={(v) => handleRatingChange(cat.key, v)}
@@ -130,9 +134,10 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
         rows={3}
         className="w-full rounded-lg px-3 py-2 text-sm resize-none focus:outline-none"
         style={{
-          backgroundColor: "var(--color-surface-bright)",
-          color: "var(--color-text-primary)",
-          border: "1px solid var(--color-border-subtle)",
+          // color-surface-bright → bg-alt / color-text-primary → ink / color-border-subtle → border-subtle
+          backgroundColor: "var(--bg-alt)",
+          color: "var(--ink)",
+          border: "1px solid var(--border-subtle)",
         }}
       />
 
@@ -148,7 +153,8 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
 
       {/* 에러 메시지 */}
       {error && (
-        <p className="mt-2 text-xs" style={{ color: "var(--color-error)" }}>
+        // color-error → err
+        <p className="mt-2 text-xs" style={{ color: "var(--err)" }}>
           {error}
         </p>
       )}
@@ -159,7 +165,8 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
           onClick={handleSubmit}
           disabled={submitting}
           className="rounded-[4px] px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
-          style={{ backgroundColor: "var(--color-primary)" }}
+          // color-primary → accent
+          style={{ backgroundColor: "var(--accent)" }}
         >
           {submitting ? "작성 중..." : "리뷰 등록"}
         </button>
@@ -167,8 +174,9 @@ export function ReviewForm({ courtId, onSubmitted, onCancel }: ReviewFormProps) 
           onClick={onCancel}
           className="rounded-[4px] px-4 py-2 text-sm font-semibold transition-colors"
           style={{
-            backgroundColor: "var(--color-surface-bright)",
-            color: "var(--color-text-secondary)",
+            // color-surface-bright → bg-alt / color-text-secondary → ink-soft
+            backgroundColor: "var(--bg-alt)",
+            color: "var(--ink-soft)",
           }}
         >
           취소

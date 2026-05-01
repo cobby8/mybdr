@@ -31,7 +31,8 @@ export function StarRating({ value, onChange, size = 20 }: StarRatingProps) {
             fontSize: `${size}px`,
             // 현재 값 이하면 채워진 별 (FILL 1), 초과면 빈 별 (FILL 0)
             fontVariationSettings: star <= value ? "'FILL' 1" : "'FILL' 0",
-            color: star <= value ? "var(--color-primary)" : "var(--color-text-disabled)",
+            // BDR v3 토큰 마이그 — color-primary → accent / color-text-disabled → ink-dim
+            color: star <= value ? "var(--accent)" : "var(--ink-dim)",
             transition: "color 0.15s",
           }}
           onClick={() => {

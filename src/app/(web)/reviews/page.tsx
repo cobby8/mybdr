@@ -1,23 +1,20 @@
 /* ============================================================
- * /reviews — 커뮤니티 리뷰 (Reviews) v2 신규
+ * /reviews — 커뮤니티 리뷰 (Reviews) v3 박제
  *
  * 왜 서버 컴포넌트로:
- * - PM 결정(C안: Saved 패턴 응용): API/Prisma 0 변경. 기존 `court_reviews` 모델만 사용.
- *   서버에서 published 리뷰만 prefetch → 클라이언트가 4탭/정렬 필터링.
+ * - 시안 [Phase 16] 4탭 통합 → 1탭 (코트 단일) 축소.
+ *   기존 4탭 (대회/팀/심판) UI 코드는 모두 제거 (시안 결정 — 시안 우선 / 주석 X).
+ *   API/Prisma 0 변경. 기존 `court_reviews` 모델만 사용.
  * - 리뷰는 공개 콘텐츠 → 비로그인도 열람 가능. 세션 분기 없음.
  *
- * 데이터 소스 (4탭 중 1탭만 실데이터):
- *   1) court_reviews          — status='published' 최신순. court_infos + User join.
- *   2) tournament_reviews     — 모델 없음 → 빈 배열 + "준비 중" 카드
- *   3) team_reviews           — 모델 없음 → 빈 배열 + "준비 중" 카드
- *   4) referee_reviews        — 모델 없음 → 빈 배열 + "준비 중" 카드
+ * 데이터 소스 (코트만):
+ *   court_reviews — status='published' 최신순. court_infos + User join.
  *
- * 미지원 항목 (scratchpad "🚧 추후 구현 — Phase 5 Reviews"):
- *   - tournament_reviews / team_reviews / referee_reviews 모델 신규
+ * 미지원 항목 (scratchpad "🚧 추후 구현"):
  *   - helpful_count 컬럼 (현재 likes_count로 대체)
  *   - 리뷰 태그 시스템
  *   - User 레벨 (xp 기반)
- *   - 리뷰 작성 통합 폼
+ *   - 리뷰 작성 통합 폼 (코트 상세 페이지에서 작성 가능)
  *   - 신고 기능
  *
  * 보안:
