@@ -147,6 +147,12 @@ function TimelineRow({ event, match }: { event: PlayByPlayRowV2; match: MatchDat
       : "";
   const teamColor = isHome ? match.home_team.color : isAway ? match.away_team.color : "var(--ink-dim)";
 
+  // 2026-05-02: 칩 폰트/테두리 자동 대비 (사용자 요청 "팀 칩 색상과 폰트 색상 잘 보이도록").
+  //  - team.color 가 흰색/매우 밝은 경우 → 흰 폰트 + 흰 배경 시 보이지 않음.
+  //  - perceived luminance 계산 (Y = .299R + .587G + .114B).
+  //  - lum > 186 (밝음) → 검은 폰트 + 회색 테두리. 그 외 → 흰 폰트 + 동색 테두리.
+  const { textColor, borderColor } = pickChipColors(teamColor);
+
   const body = formatEventBody(event);
   const clockStr = formatGameClock(event.game_clock_seconds);
   const qLabel = event.quarter <= 4 ? `Q${event.quarter}` : `OT${event.quarter - 4}`;
@@ -181,7 +187,8 @@ function TimelineRow({ event, match }: { event: PlayByPlayRowV2; match: MatchDat
           <span
             style={{
               background: teamColor,
-              color: "#fff",
+              color: textColor,
+              border: `1px solid ${borderColor}`,
               fontSize: 10,
               padding: "2px 7px",
               borderRadius: 3,
@@ -208,6 +215,39 @@ function TimelineRow({ event, match }: { event: PlayByPlayRowV2; match: MatchDat
       </div>
     </div>
   );
+}
+
+// 2026-05-02: 팀 칩 폰트/테두리 자동 대비 (사용자 요청 — 흰 배경 시 흰 폰트로 안 보이는 문제 fix)
+//  - hex (#RRGGBB / #RGB) 기준 perceived luminance 계산 (Y = .299R + .587G + .114B).
+//  - 너무 밝으면 (lum > 200) → 검은 폰트 + 회색 테두리.
+//  - 너무 어두우면 (lum < 30) → 흰 폰트 + 흰색 약간 테두리.
+//  - 그 외 → 흰 폰트 + 동색 테두리.
+//  - hex 가 아닌 var(--*) / rgba 등은 안전 fallback (흰 폰트 + 투명 테두리).
+function pickChipColors(bg: string): { textColor: string; borderColor: string } {
+  if (!bg || !bg.startsWith("#")) {
+    return { textColor: "#fff", borderColor: "rgba(255,255,255,0.2)" };
+  }
+  const hex = bg.replace("#", "");
+  const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+  if (full.length !== 6) {
+    return { textColor: "#fff", borderColor: "rgba(255,255,255,0.2)" };
+  }
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) {
+    return { textColor: "#fff", borderColor: "rgba(255,255,255,0.2)" };
+  }
+  const lum = r * 0.299 + g * 0.587 + b * 0.114;
+  if (lum > 200) {
+    // 매우 밝음 (흰색/연노랑 등) → 검정 폰트 + 회색 테두리 (윤곽 확보)
+    return { textColor: "#1a1a1a", borderColor: "rgba(0,0,0,0.25)" };
+  }
+  if (lum < 30) {
+    // 매우 어두움 (검정 등) → 흰 폰트 + 흰색 약간 테두리 (다크 배경에서 윤곽 확보)
+    return { textColor: "#fff", borderColor: "rgba(255,255,255,0.25)" };
+  }
+  return { textColor: "#fff", borderColor: bg };
 }
 
 // action_type/subtype → 한국어 설명
