@@ -513,11 +513,8 @@ export default function ProfileEditPage() {
         </div>
       </div>
 
-      {/* 알림 배너 (운영 보존) */}
-      {error && <div className="edit-profile__notice edit-profile__notice--err">{error}</div>}
-      {successMsg && !saved && (
-        <div className="edit-profile__notice edit-profile__notice--ok">{successMsg}</div>
-      )}
+      {/* 2026-05-02: 알림 배너 위치 이전 — sticky 저장 바 안내 텍스트 자리로 (사용자 요청).
+          페이지 상단 노출 시 사용자가 폼 입력 중 안 보이는 회귀 해소. */}
 
       {/* ============================================================
           HERO — 큰 아바타(좌, 카메라 클릭 = upload-image API 흡수) + 우측 정보
@@ -1140,9 +1137,19 @@ export default function ProfileEditPage() {
         </div>
       </section>
 
-      {/* Sticky save bar (시안 박제) */}
+      {/* Sticky save bar (시안 박제 + 2026-05-02 알림 메시지 흡수)
+          빈 안내 텍스트 자리에 error/successMsg 우선 표시 → 사용자가 항상 볼 수 있음 */}
       <div className="edit-profile__sticky">
-        <div>변경사항이 있으면 저장을 눌러주세요.</div>
+        <div
+          style={{
+            color: error ? "var(--err)" : successMsg ? "var(--ok)" : undefined,
+            fontWeight: error || successMsg ? 600 : undefined,
+          }}
+          role={error ? "alert" : undefined}
+          aria-live={error || successMsg ? "polite" : undefined}
+        >
+          {error || successMsg || "변경사항이 있으면 저장을 눌러주세요."}
+        </div>
         <div className="edit-profile__actions">
           {saved && <span className="edit-profile__saved">✓ 저장됨</span>}
           <Link href="/profile" className="btn" style={{ textDecoration: "none" }}>
