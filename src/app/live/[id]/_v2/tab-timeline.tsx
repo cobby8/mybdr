@@ -3,15 +3,30 @@
 // 2026-04-22: Phase 2 GameResult v2 — 타임라인 탭
 // 시안: Dev/design/BDR v2/screens/GameResult.jsx L289~L308
 // play_by_plays 기반 경기 이벤트 역순 표시 (쿼터 + 게임클럭 + 팀 배지 + 설명)
-// D5 원칙:
-//  - 자동 내러티브 body 문장 생성은 action_type 매핑 테이블로 조립
-//  - PBP 필드에 아이콘 매핑(🛡/🎯/💥) 없음 → 생략
-//  - "big" 플래그(중요 이벤트 하이라이트) 없음 → 생략
+//
+// 2026-05-02 사용자 요청: 쿼터별 탭 + '모두 보기' 추가 (긴 타임라인 필터링)
 
+import { useState, useMemo } from "react";
 import type { MatchDataV2, PlayByPlayRowV2 } from "./game-result";
+
+type QuarterFilter = "all" | "1" | "2" | "3" | "4" | "5"; // 5 = OT1
 
 export function TabTimeline({ match }: { match: MatchDataV2 }) {
   const events = match.play_by_plays ?? [];
+  const [filter, setFilter] = useState<QuarterFilter>("all");
+
+  // OT 쿼터 존재 여부 — 탭에 OT 노출 분기
+  const hasOT = useMemo(
+    () => events.some((e) => e.quarter > 4),
+    [events],
+  );
+
+  // 필터 적용된 이벤트
+  const filteredEvents = useMemo(() => {
+    if (filter === "all") return events;
+    const targetQ = parseInt(filter, 10);
+    return events.filter((e) => e.quarter === targetQ);
+  }, [events, filter]);
 
   if (events.length === 0) {
     return (
@@ -38,16 +53,86 @@ export function TabTimeline({ match }: { match: MatchDataV2 }) {
     );
   }
 
+  // 쿼터 탭 정의 — 전체 + Q1~Q4 + (OT 있을 때만)
+  const tabs: { key: QuarterFilter; label: string }[] = [
+    { key: "all", label: "전체" },
+    { key: "1", label: "Q1" },
+    { key: "2", label: "Q2" },
+    { key: "3", label: "Q3" },
+    { key: "4", label: "Q4" },
+    ...(hasOT ? [{ key: "5" as QuarterFilter, label: "OT" }] : []),
+  ];
+
   return (
     <div className="card" style={{ padding: "18px 22px", borderRadius: 4 }}>
-      <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
-        경기 타임라인
-      </h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {events.map((e) => (
-          <TimelineRow key={e.id} event={e} match={match} />
-        ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
+          marginBottom: 14,
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
+          경기 타임라인
+        </h3>
+        {/* 쿼터별 탭 (사용자 요청 2026-05-02) */}
+        <div
+          role="tablist"
+          aria-label="쿼터 필터"
+          style={{ display: "flex", gap: 4, flexWrap: "wrap" }}
+        >
+          {tabs.map((t) => {
+            const active = filter === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setFilter(t.key)}
+                className="btn btn--sm"
+                style={{
+                  padding: "5px 10px",
+                  fontSize: 12,
+                  fontWeight: active ? 700 : 500,
+                  background: active ? "var(--accent)" : "var(--bg-alt)",
+                  color: active ? "var(--on-accent, #fff)" : "var(--ink-soft)",
+                  border: active
+                    ? "1px solid var(--accent)"
+                    : "1px solid var(--border)",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  minWidth: 44,
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {filteredEvents.length === 0 ? (
+        <div
+          style={{
+            padding: "24px 16px",
+            textAlign: "center",
+            fontSize: 13,
+            color: "var(--ink-dim)",
+          }}
+        >
+          이 쿼터에는 기록된 이벤트가 없습니다.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {filteredEvents.map((e) => (
+            <TimelineRow key={e.id} event={e} match={match} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

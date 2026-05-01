@@ -2,6 +2,24 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-02] 듀얼토너먼트 — schema 변경 0 + 5 Phase 점진 도입 + 결정 6건
+- **분류**: decision
+- **결정자**: planner-architect (사용자 결정 6건 추천안)
+- **참조횟수**: 0
+- **배경**: B 대회 (id=`138b22d8…`) format=`dual_tournament` 16팀 등록 완료, 매치 0건. 현재 코드 — `bracket-settings-form` 이 `dual_tournament` 도 `isSingleElim=true` 로 처리 (settings 분기 부재) / `bracket-generator.ts` 에 dual 함수 0 / `bracket/route.ts` POST 가 league vs single elim 만 분기 → dual 진입 시 잘못된 single elim 트리 생성. 사용자 요구 = 단순 INSERT 가 아닌 "system 기능 정착".
+- **결정 6건 (모두 추천안 채택)**:
+  - **결정 1 — 조 배정 방식**: B 옵션 채택 (`settings.bracket.groupAssignment` 수동) + C 옵션 (관리자 드래그&드롭 UI) Phase F 큐로 분리. 사유: B 대회 사진은 BDR 랭킹 + 운영자 수동 배정이라 snake 자동과 결과 다름 / 즉시 적용 필요
+  - **결정 2 — 시드 결정**: C 옵션 채택 (`TournamentTeam.seedNumber` 기존 컬럼 활용). 사유: BDR 랭킹 외부 API 의존성 회피 / 운영자가 16팀 사전 UPDATE 가능
+  - **결정 3 — 자동 진출 트리거**: A 옵션 채택 (`matches/[matchId]/route.ts` PATCH 통합). 사유: single elim / full_league_knockout 도 next_match 슬롯 채우기 부재 — 통합 시 3 format 모두 혜택. 회귀 테스트 Phase B5 + C7 게이트
+  - **결정 4 — 결승/3·4위전**: (a) 단판 + (b) 3·4위전 없음 (사진 그대로). 사유: 사진 일정 27 매치 정합. bracket-settings-form 옵션 노출은 유지하되 default
+  - **결정 5 — bracket route clear 정책**: A 옵션 채택 (single 패턴 그대로 — `clear: false` 시 ALREADY_EXISTS 409). 사유: B 대회 매치 0건이라 첫 생성은 OK / 재생성은 사용자 명시 확인 후 `clear: true`
+  - **결정 6 — bracket-builder dual 시각화**: A 옵션 채택 (Phase A~E 범위는 round_number 그룹핑 유지) + C 옵션 (Phase F 별도 큐 — `buildDualRoundGroups` 분기). 사유: 관리자 페이지는 Stage 5섹션 카드로 충분 / 공개 페이지 토너먼트 트리는 별도 시각화 작업 필요
+- **schema 변경 0 보장**: TournamentMatch 의 기존 컬럼 (`next_match_id` / `next_match_slot` / `group_name` / `bracket_level` / `bracket_position` / `roundName` / `settings JSON` / `winner_team_id`) 모두 활용. 패자 진출 추적은 `settings.loserNextMatchId+loserNextMatchSlot` 신규 필드 (JSON) 로 처리 — schema 변경 회피
+- **대안 배제**:
+  - schema 변경안 (loser_next_match_id 컬럼 신설): 운영 DB 작업 비용 + 기존 single elim 무관 = 과잉. settings JSON 으로 충분
+  - generator 1개 통합 (`generateBracket(format, ...)`): 유지보수성 ↓ + format 별 책임 분리 원칙 위배. 별도 파일 분리 (`dual-tournament-generator.ts`) 가 league-generator 와 동일 패턴
+- **위험**: 결정 3 (PATCH route 통합) 시 single elim 회귀 발생 가능 → Phase B5 + C7 회귀 테스트 게이트 명시. Phase E 운영 DB 작업은 사용자 승인 게이트 필수
+
 ### [2026-05-02] 단일 Supabase project 운영/개발 겸용 정책 확정
 - **분류**: decision (인프라 / 운영 정책 / 안전 가드)
 - **결정자**: 사용자 (PM 옵션 C 채택)

@@ -1,6 +1,26 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-01] 선수명단 실명 표시 — `getDisplayName` 헬퍼 + `USER_DISPLAY_SELECT` 강제
+- **분류**: convention (display / data formatting / SSR-CSR 통일)
+- **결정자**: pm + 사용자 (decisions.md 2026-05-01)
+- **배경**: 운영 8 패턴 혼재 (nickname 우선 7 / name 우선 2 / nickname 단독 5 / player_name 단독 3) → 사용자 본 페이지마다 다른 값 표시. 동호회최강전 placeholder User (nickname=null) 가 "—" 표시되는 회귀.
+- **규칙**:
+  1. **선수/유저 표시 시 직접 `user.nickname` 또는 `user.name` 접근 ❌** → 항상 `getDisplayName(user, ttp?)` 헬퍼 사용
+  2. **Prisma select 시 `{ name, nickname }` 둘 다 select 필요** → `USER_DISPLAY_SELECT` 상수 spread 사용 권장 (`select: { id: true, ...USER_DISPLAY_SELECT }`)
+  3. **우선순위**: `User.name → User.nickname → TournamentTeamPlayer.player_name → '#{jersey}' placeholder`
+  4. **닉네임 별도 표기 필요한 곳**: hero card 등에서 "이름 (nickname)" 형식으로 보조 라인 (실명이 메인)
+- **위치**: `src/lib/utils/player-display-name.ts` (헬퍼) + `src/lib/db/select-presets.ts` (preset)
+- **적용 범위**: 경기 관련 모든 페이지 — `/teams/[id]` 로스터·hero / `/tournaments/[id]` 팀·선수 / `/tournament-admin/...` / `/_site/...` (서브도메인) / `/awards` / `/games/[id]` 라이브·기록 / Flutter v1 API (`/api/v1/...`)
+- **검수 grep** (회귀 방지):
+  - `\.nickname\s*\?\?\s*\.name` 또는 `\.name\s*\?\?\s*\.nickname` → 헬퍼 미사용 의심
+  - Prisma `select.*nickname.*true` 시 `name: true` 동반 여부 확인
+- **예외 영역**:
+  - 채팅/메신저: 닉네임이 메인 (실명 노출 ❌)
+  - 커뮤니티 게시글/댓글: 닉네임이 메인 (실명 노출 ❌)
+  - 본인 프로필 편집/마이페이지: 사용자 본인 컨텍스트라 nickname/name 모두 노출 OK
+- **본인인증 연동 시 폐기 정책**: 입력 폼 "실명 (필수)" 라벨은 임시 — 본인인증 활성화 시 자동입력으로 전환 (사용자 결정 2026-05-01)
+
 ### [2026-04-29] 모바일 최적화 체크리스트 (안티패턴 재발 방지)
 - **분류**: convention (mobile/responsive)
 - **발견자**: pm + developer (Phase 9-Mobile Refinement, commit `87c59d4`/`f972aaf` 등)
