@@ -65,6 +65,13 @@ interface ProfileEditData {
   provider: string | null;
   // 프로필 사진 URL (Vercel Blob)
   profile_image_url: string | null;
+  // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
+  dominant_hand: string | null;       // §2 사용손 (L/R/B)
+  skill_level: string | null;          // §2 실력 수준 (초보/초-중급/중급/...)
+  strengths: string[] | null;          // §2 강점 (3점슛/돌파/...)
+  privacy_settings: Record<string, string> | null; // §4 공개 7항목 × 3옵션
+  instagram_url: string | null;        // §3 인스타그램 핸들
+  youtube_url: string | null;          // §3 유튜브 채널
 }
 
 // 소셜 제공자별 표시 정보 매핑 (운영 보존 — 연락 정보 섹션에서 사용)
@@ -119,6 +126,9 @@ export default function ProfileEditPage() {
     // 2026-05-01: 본인 선호 등번호 + 선출 여부
     default_jersey_number: "",
     is_elite: false,
+    // 2026-05-02: §3 소셜 (인스타·유튜브) — 운영 DB 컬럼 활성화
+    instagram_url: "",
+    youtube_url: "",
   });
   const [regions, setRegions] = useState<Region[]>([{ city: "", district: "" }]);
 
@@ -191,7 +201,22 @@ export default function ProfileEditPage() {
           // 2026-05-01: 본인 선호 등번호 + 선출 여부
           default_jersey_number: u.default_jersey_number?.toString() ?? "",
           is_elite: u.is_elite ?? false,
+          // 2026-05-02: §3 소셜
+          instagram_url: u.instagram_url ?? "",
+          youtube_url: u.youtube_url ?? "",
         });
+        // 2026-05-02: §2 플레이 정보 (사용손/실력/강점) state 초기화
+        if (u.dominant_hand === "L" || u.dominant_hand === "R" || u.dominant_hand === "B") {
+          setHand(u.dominant_hand);
+        }
+        if (u.skill_level) setLevel(u.skill_level);
+        if (Array.isArray(u.strengths)) {
+          setStrengths(new Set(u.strengths));
+        }
+        // 2026-05-02: §4 공개 설정 state 초기화
+        if (u.privacy_settings && typeof u.privacy_settings === "object") {
+          setPrivacy((prev) => ({ ...prev, ...u.privacy_settings }));
+        }
         // city/district 콤마 구분 → Region[]으로 변환 (운영 보존)
         const cities = (u.city ?? "").split(",").filter(Boolean);
         const districts = (u.district ?? "").split(",").filter(Boolean);
@@ -399,6 +424,16 @@ export default function ProfileEditPage() {
           ? Number(form.default_jersey_number)
           : null,
         is_elite: form.is_elite,
+        // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
+        // §2 플레이 정보
+        dominant_hand: hand,
+        skill_level: level,
+        strengths: Array.from(strengths),
+        // §3 소셜
+        instagram_url: form.instagram_url || null,
+        youtube_url: form.youtube_url || null,
+        // §4 공개 설정 (7항목 × 3옵션)
+        privacy_settings: privacy,
       };
 
       if (bankForm.account_consent) {
@@ -1124,14 +1159,26 @@ export default function ProfileEditPage() {
             />
           </Field>
 
-          {/* 시안 박제 — 인스타그램 (UI placeholder, DB 미저장) */}
+          {/* 2026-05-02: 인스타그램 — 운영 DB 컬럼 활성화 (사용자 옵션 B) */}
           <Field label="인스타그램" sub="@아이디만 (선택)">
-            <input className="input" placeholder="@rdm_hoops" disabled readOnly value="" />
+            <input
+              className="input"
+              placeholder="@rdm_hoops"
+              value={form.instagram_url ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, instagram_url: e.target.value }))}
+              maxLength={50}
+            />
           </Field>
 
-          {/* 시안 박제 — 유튜브 (UI placeholder) */}
+          {/* 2026-05-02: 유튜브 — 운영 DB 컬럼 활성화 (사용자 옵션 B) */}
           <Field label="유튜브" sub="개인 채널 (선택)" full>
-            <input className="input" placeholder="https://…" disabled readOnly value="" />
+            <input
+              className="input"
+              placeholder="https://youtube.com/@..."
+              value={form.youtube_url ?? ""}
+              onChange={(e) => setForm((p) => ({ ...p, youtube_url: e.target.value }))}
+              maxLength={200}
+            />
           </Field>
         </div>
 

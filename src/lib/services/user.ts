@@ -49,6 +49,13 @@ export const PROFILE_DETAIL_SELECT = {
   // TODO Phase 12 운영 적용 후 select에 다시 추가.
   // name_verified: true,
   // verified_at: true,
+  // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
+  dominant_hand: true,
+  skill_level: true,
+  strengths: true,
+  privacy_settings: true,
+  instagram_url: true,
+  youtube_url: true,
 } as const;
 
 /** 게임 상세에서 사용하는 유저 프로필 select */
@@ -196,6 +203,13 @@ export async function updateProfile(
       // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 차단 검증)
       default_jersey_number: true,
       is_elite: true,
+      // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 응답 select
+      dominant_hand: true,
+      skill_level: true,
+      strengths: true,
+      privacy_settings: true,
+      instagram_url: true,
+      youtube_url: true,
     },
   });
 }
