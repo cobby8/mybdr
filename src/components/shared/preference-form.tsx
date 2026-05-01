@@ -14,9 +14,8 @@ import { useState, useEffect, useCallback } from "react";
 import { CATEGORIES, getDivisionsForCategory, DIVISIONS } from "@/lib/constants/divisions";
 import type { CategoryCode, GenderCode } from "@/lib/constants/divisions";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
-import { TossCard } from "@/components/toss/toss-card";
-import { TossSectionHeader } from "@/components/toss/toss-section-header";
-import { TossButton } from "@/components/toss/toss-button";
+// 2026-05-01: Toss 컴포넌트 (TossCard / TossSectionHeader / TossButton) import 제거.
+// PreferenceForm 은 Settings v2 디자인 시스템으로 통일 — 인라인 .card / h2 / .btn 사용.
 
 /* ============================================================
  * 메뉴 항목 정의 — 사이드/슬라이드 메뉴와 동일한 slug(href) 사용
@@ -246,7 +245,7 @@ function TextSizeSelector() {
         })}
       </div>
       {/* 미리보기 텍스트 — 현재 크기 설정이 즉시 반영됨 */}
-      <p className="text-sm text-[var(--color-text-muted)] mt-2">
+      <p className="text-sm text-[var(--ink-mute)] mt-2">
         설정 변경 시 모든 페이지에 즉시 적용됩니다.
       </p>
     </div>
@@ -421,7 +420,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--color-primary)]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--accent)]" />
       </div>
     );
   }
@@ -432,7 +431,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
       {/* 온보딩 모드일 때만 안내 문구 표시 */}
       {mode === "onboarding" && (
-        <p className="text-[var(--color-text-secondary)] text-sm">
+        <p className="text-[var(--ink-soft)] text-sm">
           이 설정을 바탕으로 맞춤 경기와 게시글을 보여드릴게요!
         </p>
       )}
@@ -441,20 +440,20 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * "원하는 정보만 보기" 토글 — TossCard 사용
        * 토스 스타일 둥근 토글 스위치 (primary 색상)
        * ======================================== */}
-      <TossCard className="!p-5">
+      <div className="card" style={{ padding: 20 }}>
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">
             {/* 토글 라벨 */}
-            <h3 className="text-lg font-black uppercase tracking-widest text-[var(--color-text-primary)] pr-1">
+            <h3 className="text-lg font-black uppercase tracking-widest text-[var(--ink)] pr-1">
               원하는 정보만 보기
             </h3>
             {/* 토글 설명 - 모드에 따라 다른 안내 문구 */}
             {mode === "onboarding" ? (
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+              <p className="text-sm text-[var(--ink-soft)] mt-1.5 leading-relaxed">
                 켜면 경기, 대회, 게시판에서 내가 원하는 정보만 표시됩니다. 나중에 프로필에서 변경할 수 있습니다.
               </p>
             ) : (
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1.5 leading-relaxed">
+              <p className="text-sm text-[var(--ink-soft)] mt-1.5 leading-relaxed">
                 켜면 경기, 대회, 게시판에서 원하는 정보만 표시됩니다.
                 <br />
                 <span className="text-xs opacity-70">
@@ -499,18 +498,18 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
             />
           </button>
         </div>
-      </TossCard>
+      </div>
 
       {/* ========================================
        * 섹션 1: 관심 종별/디비전
        * 성별 단일 탭 + 종별 단일 탭 → 디비전 복수 선택 pill
        * ======================================== */}
       <div>
-        <TossSectionHeader title="관심 종별 / 디비전" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>관심 종별 / 디비전</h2>
+        <div className="card" style={{ padding: 16 }}>
           {/* 성별 단일 선택 탭 (남성부/여성부) */}
           <div>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>성별</p>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--ink-mute)" }}>성별</p>
             <div className="flex gap-2 mb-5">
               {(["male", "female"] as GenderCode[]).map((gender) => (
                 <PillButton
@@ -526,7 +525,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
           {/* 종별 단일 선택 탭 (일반부/유청소년/대학부/시니어) */}
           <div>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>종별</p>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--ink-mute)" }}>종별</p>
             <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
               {Object.entries(CATEGORIES).map(([code, cat]) => (
                 <PillButton
@@ -542,7 +541,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
           {/* 디비전 복수 선택 pill 목록 + 전체선택 버튼 */}
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>디비전</p>
+            <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>디비전</p>
             <button
               type="button"
               onClick={() => {
@@ -557,7 +556,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 }
               }}
               className="text-[11px] font-black uppercase pr-1"
-              style={{ color: "var(--color-primary)" }}
+              style={{ color: "var(--accent)" }}
             >
               {currentDivisions.every((d) => selectedDivisions.includes(d)) ? "전체해제" : "전체선택"}
             </button>
@@ -583,11 +582,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
           {/* 선택된 디비전 요약 */}
           {selectedDivisions.length > 0 && (
-            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-primary)]">{selectedDivisions.length}개</span> 선택됨
+            <p className="mt-4 text-sm text-[var(--ink-mute)]">
+              <span className="font-medium text-[var(--accent)]">{selectedDivisions.length}개</span> 선택됨
             </p>
           )}
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -595,11 +594,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * PICKUP / GUEST / PRACTICE pill 버튼
        * ======================================== */}
       <div>
-        <TossSectionHeader title="관심 경기 유형" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>관심 경기 유형</h2>
+        <div className="card" style={{ padding: 16 }}>
           {/* 경기 유형 + 전체선택 버튼 */}
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>경기 유형</p>
+            <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>경기 유형</p>
             <button
               type="button"
               onClick={() => {
@@ -608,7 +607,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 setSelectedGameTypes(allSelected ? [] : allCodes);
               }}
               className="text-sm font-medium"
-              style={{ color: "var(--color-primary)" }}
+              style={{ color: "var(--accent)" }}
             >
               {GAME_TYPES.every((g) => selectedGameTypes.includes(g.code)) ? "전체해제" : "전체선택"}
             </button>
@@ -630,15 +629,15 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           </div>
           {/* 경기 유형 선택 요약 */}
           {selectedGameTypes.length > 0 && (
-            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-primary)]">{selectedGameTypes.length}개</span> 선택됨
+            <p className="mt-4 text-sm text-[var(--ink-mute)]">
+              <span className="font-medium text-[var(--accent)]">{selectedGameTypes.length}개</span> 선택됨
             </p>
           )}
 
           {/* --- 서브섹션: 맞춤 실력 수준 + 전체선택 버튼 --- */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 실력</p>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>맞춤 실력</p>
               <button
                 type="button"
                 onClick={() => {
@@ -647,7 +646,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedSkills(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--accent)" }}
               >
                 {SKILL_LEVELS.every((s) => selectedSkills.includes(s.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -660,7 +659,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               ))}
             </div>
           </div>
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -668,12 +667,12 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * 지역 / 요일 / 시간대 pill 버튼
        * ======================================== */}
       <div>
-        <TossSectionHeader title="경기 일정 선호" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>경기 일정 선호</h2>
+        <div className="card" style={{ padding: 16 }}>
           {/* 맞춤 지역 + 전체선택 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 지역</p>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>맞춤 지역</p>
               <button
                 type="button"
                 onClick={() => {
@@ -681,7 +680,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedRegions(allSelected ? [] : [...REGIONS]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--accent)" }}
               >
                 {REGIONS.every((r) => selectedRegions.includes(r)) ? "전체해제" : "전체선택"}
               </button>
@@ -695,8 +694,8 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
             </div>
             {/* 지역 선택 요약 */}
             {selectedRegions.length > 0 && (
-              <p className="mt-3 text-sm text-[var(--color-text-muted)]">
-                <span className="font-medium text-[var(--color-primary)]">{selectedRegions.length}개</span> 선택됨
+              <p className="mt-3 text-sm text-[var(--ink-mute)]">
+                <span className="font-medium text-[var(--accent)]">{selectedRegions.length}개</span> 선택됨
               </p>
             )}
           </div>
@@ -704,7 +703,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {/* 맞춤 요일 + 전체선택 */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 요일</p>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>맞춤 요일</p>
               <button
                 type="button"
                 onClick={() => {
@@ -713,7 +712,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedDays(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--accent)" }}
               >
                 {DAYS.every((d) => selectedDays.includes(d.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -730,7 +729,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {/* 맞춤 시간대 + 전체선택 */}
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>맞춤 시간대</p>
+              <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>맞춤 시간대</p>
               <button
                 type="button"
                 onClick={() => {
@@ -739,7 +738,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedTimeSlots(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--accent)" }}
               >
                 {TIME_SLOTS.every((t) => selectedTimeSlots.includes(t.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -752,7 +751,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               ))}
             </div>
           </div>
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -760,11 +759,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * 자유게시판 / 정보게시판 / 후기게시판 / 장터게시판 pill 버튼
        * ======================================== */}
       <div>
-        <TossSectionHeader title="관심 게시판" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>관심 게시판</h2>
+        <div className="card" style={{ padding: 16 }}>
           {/* 게시판 + 전체선택 버튼 */}
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>게시판</p>
+            <p className="text-xs font-medium" style={{ color: "var(--ink-mute)" }}>게시판</p>
             <button
               type="button"
               onClick={() => {
@@ -773,7 +772,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 setSelectedBoardCategories(allSelected ? [] : [...allCodes]);
               }}
               className="text-sm font-medium"
-              style={{ color: "var(--color-primary)" }}
+              style={{ color: "var(--accent)" }}
             >
               {BOARD_CATEGORIES.every((b) => selectedBoardCategories.includes(b.code)) ? "전체해제" : "전체선택"}
             </button>
@@ -794,11 +793,11 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           </div>
           {/* 게시판 선택 요약 */}
           {selectedBoardCategories.length > 0 && (
-            <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-              <span className="font-medium text-[var(--color-primary)]">{selectedBoardCategories.length}개</span> 선택됨
+            <p className="mt-4 text-sm text-[var(--ink-mute)]">
+              <span className="font-medium text-[var(--accent)]">{selectedBoardCategories.length}개</span> 선택됨
             </p>
           )}
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -807,9 +806,9 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * hidden_menus에 포함된 메뉴는 사이드/슬라이드 메뉴에서 숨김
        * ======================================== */}
       <div>
-        <TossSectionHeader title="메뉴 설정" />
-        <TossCard>
-          <p className="text-sm text-[var(--color-text-secondary)] mb-4">
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>메뉴 설정</h2>
+        <div className="card" style={{ padding: 16 }}>
+          <p className="text-sm text-[var(--ink-soft)] mb-4">
             보고 싶은 메뉴만 켜두세요. 끄면 사이드 메뉴에서 숨겨집니다.
           </p>
           <div className="space-y-3">
@@ -821,20 +820,20 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   <div className="flex items-center gap-3">
                     <span
                       className="material-symbols-outlined text-xl"
-                      style={{ color: isVisible ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+                      style={{ color: isVisible ? "var(--ink)" : "var(--ink-mute)" }}
                     >
                       {item.icon}
                     </span>
                     <span
                       className={`text-sm font-medium ${
-                        isVisible ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"
+                        isVisible ? "text-[var(--ink)]" : "text-[var(--ink-mute)]"
                       }`}
                     >
                       {item.label}
                     </span>
                     {/* 보호 메뉴 표시 */}
                     {item.protected && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-surface-bright)] text-[var(--color-text-muted)]">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-elev)] text-[var(--ink-mute)]">
                         필수
                       </span>
                     )}
@@ -879,7 +878,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               );
             })}
           </div>
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -888,10 +887,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * 기존 ThemeToggle 로직을 재사용
        * ======================================== */}
       <div>
-        <TossSectionHeader title="테마" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>테마</h2>
+        <div className="card" style={{ padding: 16 }}>
           <ThemeSelector />
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
@@ -900,10 +899,10 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
        * 기존 TextSizeToggle 로직을 재사용
        * ======================================== */}
       <div>
-        <TossSectionHeader title="텍스트 크기" />
-        <TossCard>
+        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>텍스트 크기</h2>
+        <div className="card" style={{ padding: 16 }}>
           <TextSizeSelector />
-        </TossCard>
+        </div>
       </div>
 
       {/* ========================================
