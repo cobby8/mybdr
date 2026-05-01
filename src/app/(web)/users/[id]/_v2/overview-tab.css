@@ -1,0 +1,46 @@
+/* ============================================================
+ * OverviewTab CSS — /users/[id] v2 개요 탭 모바일 분기
+ *
+ * 왜 (2026-05-02 신규):
+ *  - 인라인 grid `minmax(0, 1fr) 320px` 외곽 + `repeat(6, 1fr)` 시즌 스탯
+ *    이 모바일 (≤720px) 에서 좁은 컬럼에 텍스트가 한 글자씩 세로 정렬되는 회귀.
+ *  - PlayerHero 와 동일한 conventions.md "모바일 가로 overflow grid 안티패턴" 재발.
+ *
+ * 어떻게:
+ *  - 외곽: PC 1fr + 320px aside / 모바일 1열 stack
+ *  - 시즌 스탯: PC 6열 / 모바일 3열 × 2줄
+ * ============================================================ */
+
+.overview-tab__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+}
+
+.overview-tab__season-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* ===== Mobile (≤720px) ===== */
+@media (max-width: 720px) {
+  .overview-tab__layout {
+    grid-template-columns: 1fr;
+  }
+  .overview-tab__season-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .overview-tab__season-grid > div {
+    border-top: 1px solid var(--border);
+  }
+  .overview-tab__season-grid > div:nth-child(-n + 3) {
+    border-top: 0;
+  }
+  /* 4번째 셀부터 좌측 border 리셋 — 모바일 3열 새 줄 시작 */
+  .overview-tab__season-grid > div:nth-child(3n + 1) {
+    border-left: 0 !important;
+  }
+}

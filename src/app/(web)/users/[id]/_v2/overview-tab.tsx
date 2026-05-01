@@ -16,6 +16,9 @@
 import Link from "next/link";
 import Image from "next/image";
 
+// 2026-05-02: 모바일 분기 CSS — grid 인라인 모바일 깨짐 해소
+import "./overview-tab.css";
+
 /** 시즌 스탯 셀 데이터 — overview 탭 전용 6열 */
 export interface OverviewSeasonStats {
   games: number;
@@ -109,28 +112,14 @@ export function OverviewTab({ stats, teams, badges, activity }: OverviewTabProps
   ];
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "minmax(0, 1fr) 320px",
-        gap: 16,
-      }}
-    >
+    <div className="overview-tab__layout">
       {/* ========== 좌측 main ========== */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div className="card" style={{ padding: "22px 24px" }}>
           <h2 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
             통산 시즌 스탯
           </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(6, 1fr)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}
-          >
+          <div className="overview-tab__season-grid">
             {seasonCells.map((s, i) => (
               <div
                 key={s.label}
