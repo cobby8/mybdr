@@ -367,7 +367,12 @@ export default function ProfileEditPage() {
       const payload: Record<string, unknown> = {
         name: form.name || null,
         nickname: form.nickname || null,
-        birth_date: form.birth_date || null,
+        // 2026-05-01: 잘못된 birth_date 형식이면 null 로 보내 백엔드 400 회피 (errors.md 박제).
+        // 백엔드(route.ts) 도 isNaN 가드 있음 — 이중 방어선.
+        birth_date:
+          form.birth_date && !isNaN(new Date(form.birth_date).getTime())
+            ? form.birth_date
+            : null,
         phone: form.phone || null,
         city: filledRegions.map((r) => r.city).join(",") || null,
         district: filledRegions.map((r) => r.district).join(",") || null,

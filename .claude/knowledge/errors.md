@@ -2,6 +2,22 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-01] profile PATCH 500 'Internal error' — birth_date Invalid Date 미가드
+- **분류**: error (API route 파싱 가드 누락 / Vercel 로그 접근 불가 환경 진단 패턴)
+- **발견자**: 사용자 + pm
+- **증상**: mybdr.kr/profile/edit 에서 저장 시 'Internal error' 메시지. 콘솔 1x 500. 응답 body `{"error":"Internal error"}` 만.
+- **원인**: `src/app/api/web/profile/route.ts:119` 의 `new Date(birth_date as string)` 가 잘못된 형식 (빈 문자열 아닌 부분 입력 "2024-13-45" / 사용자 임의 텍스트) 받으면 Invalid Date 객체 생성 → `prisma.user.update()` 가 `PrismaClientValidationError: Provided Date object is invalid. Expected Date.` throw → catch fallthrough → 500.
+- **진단 방법**: 로컬에서 `.env` 운영 DB 로 connect 후 prisma.user.update 를 단계별 (필드별) 직접 호출하는 진단 스크립트 (`scripts/_temp/diagnose-profile-save.ts` — 작업 후 정리됨) 로 재현. Test E (`new Date("")` Invalid Date 가설) 만 실패 → 원인 확정. **Vercel 로그 접근 불가 환경에서 효과적인 진단 패턴** (lessons.md 박제).
+- **수정 (이중 방어선)**:
+  1. 백엔드 (`route.ts:111-122`): birth_date 파싱을 update 호출 전 분리 + `isNaN(d.getTime())` 가드 → 잘못되면 `apiError("생년월일 형식이 올바르지 않습니다.", 400)` 명시 응답
+  2. 프론트 (`profile/edit/page.tsx:370-374`): payload 구성 시 동일 isNaN 체크 → 잘못된 입력은 null 로 송출 (UX 보정)
+- **회귀 방지 룰 (신설)**:
+  - API route 에서 `new Date(externalString)` 패턴 사용 시 **항상 `isNaN(d.getTime())` 가드 필수**. 가드 없으면 prisma 호출 시 PrismaClientValidationError 로 500 fallthrough.
+  - 점검 대상 후보 (이번 픽스 범위 밖, 추후 일괄 점검): tournament `startDate` / `endDate` / `registration_start_at` / `registration_end_at`, game `scheduled_at`, 기타 string→Date 변환 지점.
+- **부수 발견 (별건)**:
+  - 사용자 (id=2836, nickname=수빈) DB 의 `position` 컬럼 값이 `"PG,SG,SF"` — comma-separated multi. 시안 폼은 단일 선택만 보내므로 저장 시 multi 데이터 손실 위험. 별건 추적 필요.
+- **참조횟수**: 0
+
 ### [2026-05-01] organizations 목록 status 필터에 실재하지 않는 값 'active' 박힘
 - **분류**: error (status enum 불일치, 페이지 ↔ 생성 API ↔ 스키마 cross-check 누락)
 - **발견자**: pm
@@ -227,7 +243,7 @@
 - **원인**: Turbopack dev 서버는 HMR을 위해 Worker Pool을 메모리에 유지하는데, 짧은 시간에 여러 파일이 연속 수정되면 워커가 recompile을 겹쳐 받아 상태가 꼬이고 child process가 예외를 2회 이상 던지면 retry 한도를 넘어 에러. 코드 문법 이슈 아님 (빌드/운영은 멀쩡).
 - **해결**: (1) 포트 기반 dev 서버 재시작 — `netstat -ano | findstr :3001` → 해당 PID만 `taskkill //f //pid <PID>` → `npm run dev`. (2) 안 되면 `.next` 삭제 후 재시작. **절대 `taskkill //f //im node.exe` 쓰지 말 것** (다른 프로젝트 dev 서버/Claude Code까지 죽음).
 - **재발 방지**: 대량 파일 수정 시 중간에 dev 서버 한 번 재시작. 같은 PC에서 dev 서버 여러 개(worktree별) 동시 실행 시 메모리 압박 큼 — 하나씩만 돌리기. **신규 라우트/시드 추가 직후 첫 접근 전에도 재시작 권장**.
-- **참조횟수**: 1 (2026-04-21 L3 재발 — 신규 라우트 `/organizations/[slug]/series/[seriesSlug]` + BDR 시리즈 시드 직후 첫 접근 시 동일 500. `.next` 삭제 + PID 재시작으로 200 / 0.28s 복구)
+- **참조횟수**: 2 (2026-04-21 L3 재발 — 신규 라우트 `/organizations/[slug]/series/[seriesSlug]` + BDR 시리즈 시드 직후 첫 접근 시 동일 500. `.next` 삭제 + PID 재시작으로 200 / 0.28s 복구) (2026-05-01 재발 — 동호회최강전 데이터 대량 INSERT + Phase A 신규 2 파일 추가 + 다른 에이전트 Settings 박제 동시 변경 후 발생. PID 35872 단일 kill 로 해결)
 
 ### [2026-04-12] Prisma schema drift — users.gender 컬럼 누락 (db push 시 파괴적 DROP 예고)
 - **분류**: error / trap

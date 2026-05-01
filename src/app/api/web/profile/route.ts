@@ -108,6 +108,19 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
+    // 2026-05-01: birth_date Invalid Date 가드 (errors.md 박제 — PATCH 500 'Internal error' 원인)
+    // new Date("invalid string") → Invalid Date → prisma 에 넘기면 PrismaClientValidationError
+    // → catch fallthrough → 500. 명시적 400 응답으로 분기.
+    let parsedBirthDate: Date | null = null;
+    if (birth_date) {
+      const d = new Date(birth_date as string);
+      if (!isNaN(d.getTime())) {
+        parsedBirthDate = d;
+      } else {
+        return apiError("생년월일 형식이 올바르지 않습니다. (예: 1995-03-15)", 400);
+      }
+    }
+
     const updated = await updateProfile(ctx.userId, {
       ...(nickname !== undefined && { nickname: nickname as string || null }),
       ...(position !== undefined && { position: position as string || null }),
@@ -116,7 +129,7 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       ...(bio !== undefined && { bio: bio as string || null }),
       ...(name !== undefined && { name: name as string || null }),
       ...(phone !== undefined && { phone: phone as string || null }),
-      ...(birth_date !== undefined && { birth_date: birth_date ? new Date(birth_date as string) : null }),
+      ...(birth_date !== undefined && { birth_date: parsedBirthDate }),
       ...(district !== undefined && { district: district as string || null }),
       ...(weight !== undefined && { weight: weight ? Number(weight) : null }),
       ...bankUpdate,

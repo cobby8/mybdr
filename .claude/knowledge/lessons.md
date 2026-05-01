@@ -2,6 +2,18 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-01] Vercel 로그 접근 불가 환경에서 prisma 500 진단 — 로컬 tsx 직접 호출
+- **분류**: lesson (debugging pattern / Vercel 로그 우회)
+- **발견자**: pm + 사용자
+- **배경**: 운영 mybdr.kr/profile/edit 의 `PATCH /api/web/profile` 가 500 떨어지는데 응답 body 가 `{"error":"Internal error"}` 만 오고 Vercel 로그 접근이 막힌 상황 (배포·머지·로그 사이클 다 거칠 시간 부족 — 내일 대회 D-1).
+- **방법**: 로컬 tsx 스크립트로 `.env` 의 운영 DB 에 직접 connect → 같은 `prisma.user.update` 호출을 단계별 (필드별) 재현. `.env` DATABASE_URL 이 운영 가리키면 즉시 stack trace 추출 가능. 어느 필드/값 조합에서 `PrismaClientValidationError` 가 터지는지 좁히는 방식.
+- **장점**: 1분 내 stack trace 추출. 배포·머지·로그 사이클 모두 우회.
+- **단점 / 가드**: 다른 사용자 데이터 영향 위험 — **본인 user 한 명 update 만 시도하는 가드 필수**. 무해한 update (현재 값과 동일) 또는 Invalid value (Prisma 가 reject) 만 시도. 운영 DB UPDATE 는 항상 1명 본인만.
+- **결과**: profile PATCH 500 원인 = `birth_date` Invalid Date 미가드. 1분 내 확정.
+- **재사용 템플릿**: `Dev/cli-prompts/2026-05-01-profile-save-500-direct-diagnose.md` §2
+- **참조**: errors.md 2026-05-01 "profile PATCH 500 'Internal error'"
+- **참조횟수**: 0
+
 ### [2026-05-01] revert + 부분 hub 패치 = sub 페이지 옛 sidebar 잔재 (ProfileShell 케이스)
 - **분류**: lesson (architecture awareness)
 - **발견자**: pm + 사용자 (Cowork 직접 patch)
