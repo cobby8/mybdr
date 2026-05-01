@@ -64,6 +64,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         awayScore: true,
         winner_team_id: true,
         next_match_id: true,
+        // Phase D: dual_tournament 5섹션 그룹핑 + 매치 카드 표시 위한 추가 필드
+        // - group_name: A/B/C/D 조별 묶음 키 (Stage 1 추가 그룹핑용)
+        // - settings: homeSlotLabel/awaySlotLabel (빈 슬롯 표시 라벨)
+        // - scheduledAt/venue_name/court_number: 매치 카드 일정/장소 표시
+        group_name: true,
+        settings: true,
+        scheduledAt: true,
+        venue_name: true,
+        court_number: true,
         homeTeam: { select: { id: true, team: { select: { name: true, primaryColor: true } } } },
         awayTeam: { select: { id: true, team: { select: { name: true, primaryColor: true } } } },
       },

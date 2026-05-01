@@ -60,6 +60,8 @@ export interface OverviewTabProps {
   teams: OverviewTeam[];
   badges: OverviewBadge[];
   activity: OverviewActivitySummary;
+  /** 자기소개 (PlayerHero 에서 이전 — 카드 비대화 해소, 2026-05-02) */
+  bio?: string | null;
 }
 
 // badge_type → emoji (profile 쪽과 동일 매핑, 중복 수용)
@@ -101,7 +103,7 @@ function fmtYearMonth(iso: string): string {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function OverviewTab({ stats, teams, badges, activity }: OverviewTabProps) {
+export function OverviewTab({ stats, teams, badges, activity, bio }: OverviewTabProps) {
   const seasonCells = [
     { label: "경기", value: stats.games > 0 ? stats.games.toString() : "-" },
     { label: "승률", value: fmtWinRate(stats.winRate) },
@@ -115,9 +117,29 @@ export function OverviewTab({ stats, teams, badges, activity }: OverviewTabProps
     <div className="overview-tab__layout">
       {/* ========== 좌측 main ========== */}
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* 자기소개 — 2026-05-02: PlayerHero 에서 이전 (카드 비대화 해소). bio 있을 때만 노출 */}
+        {bio && (
+          <div className="card" style={{ padding: "18px 22px" }}>
+            <h2 style={{ margin: "0 0 10px", fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
+              자기소개
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: "var(--ink-soft)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              {bio}
+            </p>
+          </div>
+        )}
         <div className="card" style={{ padding: "22px 24px" }}>
           <h2 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
-            통산 시즌 스탯
+            통산 스탯
           </h2>
           <div className="overview-tab__season-grid">
             {seasonCells.map((s, i) => (

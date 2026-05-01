@@ -203,8 +203,7 @@ export function PlayerHero({
             )}
           </div>
 
-          {/* bio — 그라디언트 영역 안 하단 */}
-          {user.bio && <p className="player-hero__bio">{user.bio}</p>}
+          {/* 2026-05-02: bio 는 OverviewTab '자기소개' 카드로 이전 (hero 카드 비대화 해소) */}
         </div>
 
         {/* 액션 슬롯 — PC 우측 세로 / 모바일 두 번째 줄 가로 풀폭 */}
