@@ -144,18 +144,17 @@ export async function RosterTabV2({ teamId, accent }: Props) {
         const roleLabel = ROLE_LABEL[role] ?? role;
         const jersey = m.jerseyNumber ?? "—";
 
-        // 2026-05-02 (v2): 카드 크기 통일 + 정보 위치 재배치
+        // 2026-05-02 (v3): 컴팩트 + 나이 → 지역 우측
         //  ┌─────────────────────────┐
-        //  │ [등번호 큰]   포지션 신장  │  ← 상단 row
-        //  │              지역         │
-        //  │ ─────────────────────────│
-        //  │ [아바타] 이름             │  ← 메인
-        //  │ [선출][주장]              │  ← 뱃지
+        //  │ [등번호]    포지션 신장   │  ← 상단 row
+        //  │            📍 지역  나이  │  ← 지역 + 나이 한 줄
+        //  │ [아바타] 이름  [선출][주장]│
         //  └─────────────────────────┘
-        // 카드 min-height 로 정보량 차이 관계없이 통일
+        // 여백 줄임: gap 4, padding 0, 뱃지 minHeight 제거
+        const hasBadge = isElite || role === "captain" || role === "director" || role === "coach" || role === "manager" || role === "treasurer";
         const cardInner = (
-          <div style={{ display: "flex", flexDirection: "column", minHeight: 130, gap: 8 }}>
-            {/* 상단 row — 등번호 좌측 / 포지션·신장·지역 우측 */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* 상단 row — 등번호 좌 / 포지션·신장 + 지역·나이 우 */}
             <div
               style={{
                 display: "flex",
@@ -171,11 +170,11 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                   textAlign: "right",
                   display: "flex",
                   flexDirection: "column",
-                  gap: 2,
+                  gap: 1,
                   minWidth: 0,
                 }}
               >
-                {/* 포지션 · 신장 · 나이 (한 줄, 우측 정렬) */}
+                {/* 포지션 · 신장 (1줄, 우측 정렬) */}
                 <div
                   style={{
                     fontSize: 12,
@@ -191,36 +190,51 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                   {height && (
                     <span style={{ color: "var(--ink-mute)" }}>{height}cm</span>
                   )}
-                  {age !== null && (
-                    <span style={{ color: "var(--ink-mute)" }}>{age}세</span>
-                  )}
                 </div>
-                {/* 지역 (있으면 별도 줄, 우측 정렬) */}
-                {region && (
+                {/* 지역 + 나이 (1줄, 우측 정렬) — 둘 중 하나라도 있으면 표시 */}
+                {(region || age !== null) && (
                   <div
                     style={{
                       fontSize: 11,
                       color: "var(--ink-mute)",
                       display: "flex",
                       alignItems: "center",
-                      gap: 2,
+                      gap: 4,
                       justifyContent: "flex-end",
+                      flexWrap: "wrap",
                     }}
                   >
-                    <span
-                      className="material-symbols-outlined"
-                      style={{ fontSize: 12 }}
-                    >
-                      location_on
-                    </span>
-                    {region}
+                    {region && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <span
+                          className="material-symbols-outlined"
+                          style={{ fontSize: 12 }}
+                        >
+                          location_on
+                        </span>
+                        {region}
+                      </span>
+                    )}
+                    {age !== null && (
+                      <span style={{ fontFamily: "var(--ff-mono, monospace)" }}>
+                        {age}세
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
             </div>
 
-            {/* 하단 — 아바타 + 이름 (메인 정보) */}
-            <div className="roster-card__identity" style={{ marginTop: "auto" }}>
+            {/* 메인 — 아바타 + 이름 + 뱃지 (한 줄, 뱃지 우측) */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 0,
+              }}
+              className="roster-card__identity"
+            >
               {profileImage ? (
                 <span
                   className="roster-card__avatar"
@@ -244,27 +258,23 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                   {displayName.charAt(0)}
                 </span>
               )}
-              <span className="roster-card__name">{displayName}</span>
-            </div>
-
-            {/* 뱃지 영역 — 선출 / 주장 / 운영진 */}
-            <div
-              style={{
-                display: "flex",
-                gap: 4,
-                flexWrap: "wrap",
-                minHeight: 22, // 뱃지 0개일 때도 카드 통일
-              }}
-            >
-              {isElite && <span className="badge badge--red">선출</span>}
-              {role === "captain" ? (
-                <span className="badge badge--red">주장</span>
-              ) : role === "director" ||
-                role === "coach" ||
-                role === "manager" ||
-                role === "treasurer" ? (
-                <span className="badge badge--soft">{roleLabel}</span>
-              ) : null}
+              <span className="roster-card__name" style={{ flex: 1, minWidth: 0 }}>
+                {displayName}
+              </span>
+              {/* 뱃지 영역 — 우측 정렬, 있을 때만 (minHeight 제거 → 여백 0) */}
+              {hasBadge && (
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {isElite && <span className="badge badge--red">선출</span>}
+                  {role === "captain" ? (
+                    <span className="badge badge--red">주장</span>
+                  ) : role === "director" ||
+                    role === "coach" ||
+                    role === "manager" ||
+                    role === "treasurer" ? (
+                    <span className="badge badge--soft">{roleLabel}</span>
+                  ) : null}
+                </div>
+              )}
             </div>
           </div>
         );

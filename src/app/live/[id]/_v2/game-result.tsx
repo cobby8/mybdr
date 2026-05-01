@@ -28,9 +28,37 @@ import { TabPlayers } from "./tab-players";
 import { TabTimeline } from "./tab-timeline";
 import { TabShotChart } from "./tab-shot-chart";
 import { PrintBoxScoreArea } from "./print-box-score";
+// 2026-05-02: 옛 page.tsx 의 풀 프린트 다이얼로그 복원
+import { PrintOptionsDialog, type PrintOptions } from "./print-options-dialog";
 
 // page.tsx 의 MatchData 와 동일한 공용 타입 — 순환 참조 피하려 여기에 최소 정의를 다시 둠
 // (리팩토링 금지 원칙상 page.tsx export 를 건드리지 않기 위함)
+//
+// 2026-05-02: quarter_stats 필드 추가 — 옛 page.tsx 의 PlayerRow 와 동일 형태.
+// 이유: BoxScoreTable / PrintBoxScoreTable 의 쿼터 필터 기능 복원에 필수.
+// API (`/api/live/[id]`) 응답엔 이미 포함되어 있어 타입만 추가하면 됨.
+// 키: "1"=Q1, "2"=Q2, "3"=Q3, "4"=Q4, "5"=OT1.
+export interface PlayerQuarterStat {
+  min: number;
+  min_seconds: number;
+  pts: number;
+  fgm: number;
+  fga: number;
+  tpm: number;
+  tpa: number;
+  ftm: number;
+  fta: number;
+  oreb: number;
+  dreb: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  to: number;
+  fouls: number;
+  plus_minus: number;
+}
+
 export interface PlayerRowV2 {
   id: number;
   jersey_number: number | null;
@@ -56,6 +84,8 @@ export interface PlayerRowV2 {
   plus_minus?: number;
   dnp?: boolean;
   is_starter?: boolean;
+  // 2026-05-02: 쿼터별 집계 — 옛 BoxScoreTable 의 쿼터 필터에 사용
+  quarter_stats?: Record<string, PlayerQuarterStat>;
 }
 
 export interface PlayByPlayRowV2 {
@@ -121,7 +151,7 @@ type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";
 const TABS: { id: TabId; label: string }[] = [
   { id: "summary", label: "요약" },
   { id: "team", label: "팀 비교" },
-  { id: "players", label: "개인 기록" },
+  { id: "players", label: "박스스코어" }, // 2026-05-02: '개인 기록' → '박스스코어' (사용자 요청)
   { id: "timeline", label: "타임라인" },
   { id: "shotchart", label: "샷차트" },
 ];
@@ -130,33 +160,51 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
   // 탭 상태 — 기본 "요약". 시안 GameResult.jsx L4 와 동일.
   const [tab, setTab] = useState<TabId>("summary");
 
-  // 2026-05-02: 프린트 모드 — 옛 page.tsx 의 isPrinting state 패턴 카피
-  // 이유: globals.css 의 [data-live-root][data-printing="true"] 룰이
-  //       #box-score-print-area 외 모든 형제 노드를 display: none 처리.
-  //       @media print 의존 없이 모바일 브라우저 호환 (errors.md 2026-04-17 참조).
+  // 2026-05-02: 프린트 다이얼로그 + 옵션 state — 옛 page.tsx L443-453 풀 복원
+  // 이유: 사용자 요청 — "기존에 구현했었던 기록 UI와 순서 그대로 복구. 프린트 기능 아직 안 보임".
+  // printDialogOpen — 모달 열림/닫힘
+  // printOptions — 사용자가 확정한 옵션. null 이면 프린트 대기 X. 세팅 시 useEffect 가 window.print() 호출.
+  // isPrinting — DOM 가시성 토글 (data-printing="true" → globals.css 룰로 #box-score-print-area 외 hidden).
+  //              @media print 의존 없이 모바일 브라우저 호환 (errors.md 2026-04-17 참조).
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // 프린트 트리거 — "개인 기록" 탭에서 버튼 클릭 시 호출
-  // 동작: isPrinting=true → DOM 리렌더 (다른 형제 hide) → window.print() → afterprint 으로 복원
-  useEffect(() => {
-    if (!isPrinting) return;
+  // OT 쿼터 존재 여부 — 다이얼로그에 OT 옵션 노출 분기
+  const hasOT = (match.quarter_scores?.home?.ot?.length ?? 0) > 0;
 
-    // 프린트 시 문서 제목 = "YYMMDDHH_홈_원정" (옛 page.tsx 와 동일 포맷)
-    const originalTitle = document.title;
-    const homeName = match.home_team?.name ?? "home";
-    const awayName = match.away_team?.name ?? "away";
-    const now = new Date();
-    const yy = String(now.getFullYear()).slice(2);
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const hh = String(now.getHours()).padStart(2, "0");
+  // 프린트 트리거 — printOptions 세팅 시 다음 틱에 실제 프린트 실행 (옛 page.tsx L511-555 카피)
+  // 이유: printOptions 세팅으로 #box-score-print-area 가 리렌더되는 타이밍과
+  //       window.print() 타이밍을 분리해야 DOM 이 완전히 반영된 상태로 프린트.
+  // 추가: 프린트 직전 document.title 변경 → Chrome "PDF로 저장" 파일명에 사용. afterprint 으로 복원.
+  useEffect(() => {
+    if (!printOptions) return;
+
+    // 파일명용 날짜/시간: scheduled_at → started_at → 현재
+    const dateStr = match.scheduled_at ?? match.started_at ?? new Date().toISOString();
+    const d = new Date(dateStr);
+    const yy = String(d.getFullYear()).slice(2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const hh = String(d.getHours()).padStart(2, "0");
+    // 파일명 안전 문자만: 공백/특수문자 → _ (한글 허용)
+    const safe = (s: string) => s.replace(/[\s\\/:*?"<>|]+/g, "_").trim() || "team";
+    const homeName = safe(match.home_team.name);
+    const awayName = safe(match.away_team.name);
     const printTitle = `${yy}${mm}${dd}${hh}_${homeName}_${awayName}`;
+
+    const originalTitle = document.title;
     document.title = printTitle;
 
-    // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화
+    // state 기반 프린트 모드 진입 — @media print 의존 없이 모바일 호환
+    setIsPrinting(true);
+
+    // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화 + 다이얼로그 닫기
     const handleAfterPrint = () => {
       document.title = originalTitle;
       setIsPrinting(false);
+      setPrintOptions(null);
+      setPrintDialogOpen(false);
       window.removeEventListener("afterprint", handleAfterPrint);
     };
     window.addEventListener("afterprint", handleAfterPrint);
@@ -164,14 +212,16 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
     // 다음 tick 에서 window.print() — DOM 반영 후 실행
     const timer = setTimeout(() => {
       window.print();
-    }, 50);
+    }, 100);
 
     return () => {
       clearTimeout(timer);
+      // 안전장치: cleanup 시 title 복원 + 리스너 제거 + 프린트 모드 해제
       window.removeEventListener("afterprint", handleAfterPrint);
       if (document.title === printTitle) document.title = originalTitle;
+      setIsPrinting(false);
     };
-  }, [isPrinting, match]);
+  }, [printOptions, match]);
 
   return (
     // v2 디자인 토큰 사용 (globals.css 의 .page / --ink / --accent 등)
@@ -230,6 +280,10 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
             클릭 → setIsPrinting(true) → useEffect → window.print().
             data-print-hide 으로 프린트 영역에는 표시 안 됨.
           */}
+          {/*
+            2026-05-02: 클릭 시 즉시 print 대신 옵션 다이얼로그 열기 (옛 page.tsx L915 카피).
+            팀별 enabled + 누적/Q1~Q4/OT 체크 후 "프린트" 버튼 → printOptions 세팅 → useEffect → window.print().
+          */}
           <div
             data-print-hide
             style={{
@@ -240,7 +294,7 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
           >
             <button
               type="button"
-              onClick={() => setIsPrinting(true)}
+              onClick={() => setPrintDialogOpen(true)}
               className="btn btn--sm"
               style={{
                 display: "inline-flex",
@@ -389,11 +443,28 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
       </div>
 
       {/*
+        2026-05-02: 프린트 옵션 다이얼로그 — data-print-hide 로 프린트 시 렌더 X (화면 전용 UI).
+        옛 page.tsx L928-940 카피.
+      */}
+      <div data-print-hide>
+        <PrintOptionsDialog
+          open={printDialogOpen}
+          onClose={() => setPrintDialogOpen(false)}
+          onConfirm={(opts) => setPrintOptions(opts)}
+          homeTeamName={match.home_team.name}
+          awayTeamName={match.away_team.name}
+          hasOT={hasOT}
+          hasQuarterEventDetail={match.has_quarter_event_detail}
+        />
+      </div>
+
+      {/*
         2026-05-02: 프린트 전용 영역 — 평소엔 hidden, isPrinting=true 시에만
         globals.css 의 [data-printing="true"] 룰로 단독 표시.
         페이지 다른 형제 노드는 모두 display: none 처리됨.
+        printOptions 기반으로 (팀 × 기간) 조합마다 PrintBoxScoreTable 렌더 (옛 page.tsx 와 동일).
       */}
-      <PrintBoxScoreArea match={match} />
+      <PrintBoxScoreArea match={match} printOptions={printOptions} />
     </div>
   );
 }
