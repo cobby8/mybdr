@@ -31,7 +31,7 @@ export default async function OrganizationsPage() {
   // 빌드 시점 DB 연결 실패 시 빈 목록 fallback (ISR 60초로 복구)
   const orgs = await prisma.organizations
     .findMany({
-      where: { is_public: true, status: "active" },
+      where: { is_public: true, status: "approved" },
       orderBy: { series_count: "desc" },
       select: {
         id: true,
