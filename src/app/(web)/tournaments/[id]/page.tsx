@@ -639,18 +639,8 @@ export default async function TournamentDetailPage({
        * bottom-16 = 하단 네비(h-14) 위, z-40으로 콘텐츠 위에 뜸
        * 히어로에도 참가 신청 버튼이 있지만, 스크롤 후 접근성을 위해 모바일에서 유지
        * ======================================== */}
-      {isRegistrationOpen && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 lg:hidden">
-          <Link
-            href={`/tournaments/${id}/join`}
-            className="flex w-full items-center justify-center gap-2 rounded-md py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-[0.97]"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            <span className="material-symbols-outlined text-lg">edit_square</span>
-            참가 신청하기
-          </Link>
-        </div>
-      )}
+      {/* 2026-05-02: 모바일 sticky 참가 신청 버튼 삭제 (사용자 결정).
+          PC 사이드바 CTA (tournament-sidebar.tsx:131) 는 보존 — 추후 사용자 결정 시 별도 처리 */}
     </div>
   );
 }
