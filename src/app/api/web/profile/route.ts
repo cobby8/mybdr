@@ -205,6 +205,18 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     // P2002 nickname 중복 (2026-04-30 진단 결과) — 사용자 친화 메시지 (errors.md)
     // 캡처 49: 사용자가 다른 사람이 사용 중인 닉네임으로 변경 시도 → P2002 → 'Internal error' 마스킹 → 진단 불가
     // → 진단 패치(3a12221)로 P2002 확정 → 명시적 409 Conflict 응답으로 친화 메시지
+    // 2026-05-02: ACCOUNT_ENCRYPTION_KEY 누락 친화 메시지 (errors.md 박제)
+    // production Vercel 에 환경변수 미설정 시 encryptAccount → throw → 500 'Internal error'
+    // → 사용자에게 "운영자 설정 필요" 명시 + 진단 정보
+    const errMsg = (e as { message?: string })?.message ?? "";
+    if (errMsg.includes("ACCOUNT_ENCRYPTION_KEY")) {
+      console.error("[PATCH /api/web/profile] ACCOUNT_ENCRYPTION_KEY 누락:", errMsg);
+      return apiError(
+        "환불 계좌 암호화 설정이 누락되어 저장할 수 없습니다. 운영자에게 문의해주세요. (관리자: Vercel 환경변수 ACCOUNT_ENCRYPTION_KEY 추가 필요)",
+        503,
+      );
+    }
+
     const code = (e as { code?: string })?.code;
     if (code === "P2002") {
       const target = (e as { meta?: { target?: string[] | string } })?.meta?.target;
