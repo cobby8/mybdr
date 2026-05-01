@@ -142,22 +142,33 @@ export function V2DualBracketView({ rounds, tournamentId }: Props) {
         </h2>
       </div>
 
-      {/* 최종 토너먼트 트리 — 8강·4강·결승 SVG V자 트리 (NBA 크로스 정합) */}
+      {/* 사용자 결정 (2026-05-02 v3): 조편성을 먼저, 토너먼트 트리는 나중에 */}
+
+      {/* 1) 조편성 — 4조 × 4팀 (UI 개선: 조 헤더 색상 + 팀 색띠 + 시드 뱃지) */}
+      {hasGroupComposition && (
+        <GroupCompositionCard groups={groupComposition} />
+      )}
+
+      {/* 2) 최종 토너먼트 트리 — 8강·4강·결승 SVG V자 트리 (NBA 크로스 정합) */}
       {hasKnockoutTree && (
         <Card className="!p-4 sm:!p-6 overflow-x-auto">
           <BracketView rounds={knockoutRounds} tournamentId={tournamentId} />
         </Card>
       )}
-
-      {/* 조편성 — 4조 × 4팀 (조별 듀얼토너먼트 5경기 자체는 표시 안 함, 사용자 결정) */}
-      {hasGroupComposition && (
-        <GroupCompositionCard groups={groupComposition} />
-      )}
     </div>
   );
 }
 
-// 조편성 카드 — 4조 × 4팀 그리드
+// 조 색상 매핑 — A/B/C/D 별 accent 색상
+// BDR 토큰 기반 (cafe-blue / bdr-red / 그리고 기존 토큰 fallback)
+const GROUP_ACCENT: Record<string, string> = {
+  A: "var(--cafe-blue, #0079B9)",
+  B: "var(--bdr-red, #E31B23)",
+  C: "var(--color-success, #16a34a)",
+  D: "var(--color-warning, #d97706)",
+};
+
+// 조편성 카드 — 4조 × 4팀 그리드 (UI 개선)
 // 사용자 결정 (2026-05-02): 조별 경기 카드 표시 X, 조편성만 노출
 // 라벨: "조별 듀얼토너먼트" (G1·G2·승자전·패자전·최종전 = 5경기/조)
 function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
@@ -165,61 +176,116 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
 
   return (
     <Card className="!p-4 sm:!p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-bold text-[var(--color-text-primary)]">
-            조별 듀얼토너먼트
-          </h3>
-          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-            조별 5경기 (G1·G2·승자전·패자전·최종전) · 총 {totalMatches}경기 · 1·2위가 8강 진출
-          </p>
+      {/* 헤더 — 그라디언트 배경 강조 */}
+      <div
+        className="mb-5 -m-4 sm:-m-6 mb-5 sm:mb-5 rounded-t-md p-4 sm:p-6"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--color-elevated) 0%, var(--color-surface) 100%)",
+          borderBottom: "1px solid var(--color-border-subtle)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)] sm:text-xl">
+              조별 듀얼토너먼트
+            </h3>
+            <p className="mt-1 text-xs text-[var(--color-text-muted)] sm:text-sm">
+              조별 5경기 (G1·G2·승자전·패자전·최종전) · 총 {totalMatches}경기
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+              <span className="font-semibold text-[var(--color-text-secondary)]">1위</span>=
+              승자전 승자 · <span className="font-semibold text-[var(--color-text-secondary)]">2위</span>=
+              최종전 승자 · 1·2위 8강 진출
+            </p>
+          </div>
+          <span className="shrink-0 rounded-[4px] bg-[var(--color-card)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+            {groups.length}조 · 16팀
+          </span>
         </div>
-        <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-          {groups.length}조 · 16팀
-        </span>
       </div>
 
+      {/* 4조 그리드 */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {groups.map((g) => (
-          <div
-            key={g.groupName}
-            className="rounded-[8px] border p-3"
-            style={{
-              borderColor: "var(--color-border)",
-              backgroundColor: "var(--color-surface)",
-            }}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-[var(--color-text-primary)]">
-                {g.groupName}조
-              </p>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {g.teams.length}팀
-              </span>
-            </div>
-            <ul className="space-y-1.5">
-              {g.teams.map((t, idx) => (
-                <li key={t?.id ?? idx} className="flex items-center gap-2 text-sm">
-                  <span className="w-5 shrink-0 text-center font-mono text-xs text-[var(--color-text-muted)]">
-                    {idx + 1}
-                  </span>
-                  {t ? (
-                    <Link
-                      href={`/teams/${t.teamId}`}
-                      className="flex-1 truncate text-[var(--color-text-primary)] hover:underline"
+        {groups.map((g) => {
+          const accent = GROUP_ACCENT[g.groupName] ?? "var(--color-accent)";
+          return (
+            <div
+              key={g.groupName}
+              className="overflow-hidden rounded-[10px] border transition-shadow hover:shadow-md"
+              style={{
+                borderColor: "var(--color-border)",
+                backgroundColor: "var(--color-card)",
+              }}
+            >
+              {/* 조 헤더 — accent 색상 띠 */}
+              <div
+                className="flex items-center justify-between px-3 py-2"
+                style={{ backgroundColor: `color-mix(in srgb, ${accent} 12%, transparent)` }}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-5 w-1 rounded-[2px]"
+                    style={{ backgroundColor: accent }}
+                  />
+                  <p
+                    className="text-base font-bold sm:text-lg"
+                    style={{ color: accent }}
+                  >
+                    {g.groupName}조
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--color-text-muted)]">
+                  {g.teams.length}팀
+                </span>
+              </div>
+
+              {/* 4팀 리스트 — 호버 효과 + 색띠 */}
+              <ul className="divide-y" style={{ borderColor: "var(--color-border-subtle)" }}>
+                {g.teams.map((t, idx) => (
+                  <li
+                    key={t?.id ?? idx}
+                    className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--color-elevated)]"
+                  >
+                    {/* 시드 뱃지 — 조내 1·2·3·4 */}
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-xs font-bold"
+                      style={{
+                        backgroundColor: idx < 2
+                          ? `color-mix(in srgb, ${accent} 18%, transparent)`
+                          : "var(--color-elevated)",
+                        color: idx < 2 ? accent : "var(--color-text-muted)",
+                      }}
+                      title={idx < 2 ? "조내 상위 시드" : "조내 하위 시드"}
                     >
-                      {getTeamDisplayName(t.team)}
-                    </Link>
-                  ) : (
-                    <span className="flex-1 italic text-[var(--color-text-muted)]">
-                      미정
+                      {idx + 1}
                     </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+                    {/* 팀 유니폼 색띠 — home_color 우선 (대표 유니폼), 없으면 primaryColor */}
+                    {t && (t.team.homeColor || t.team.primaryColor) && (
+                      <span
+                        className="inline-block h-4 w-1 rounded-[2px]"
+                        style={{ backgroundColor: t.team.homeColor || t.team.primaryColor || undefined }}
+                      />
+                    )}
+                    {/* 팀명 (링크) */}
+                    {t ? (
+                      <Link
+                        href={`/teams/${t.teamId}`}
+                        className="flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] hover:underline"
+                      >
+                        {getTeamDisplayName(t.team)}
+                      </Link>
+                    ) : (
+                      <span className="flex-1 italic text-sm text-[var(--color-text-muted)]">
+                        미정
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </div>
     </Card>
   );
