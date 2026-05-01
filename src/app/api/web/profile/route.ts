@@ -209,11 +209,21 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     if (code === "P2002") {
       const target = (e as { meta?: { target?: string[] | string } })?.meta?.target;
       const targets = Array.isArray(target) ? target : target ? [target] : [];
+      // 2026-05-02: 친화 메시지 분기 확장 (errors.md 박제)
+      // 운영 DB 의 partial unique index 가 prisma schema 에 누락 → P2002 fallback 메시지 모호
+      // 진단 (scripts/_temp/diagnose-profile-p2002.ts) 결과 phone/email 도 unique
       if (targets.includes("nickname")) {
         return apiError("이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.", 409);
       }
-      // 다른 unique 제약 위반은 일반 메시지
-      return apiError("이미 등록된 정보입니다. 입력값을 확인해주세요.", 409);
+      if (targets.includes("phone")) {
+        return apiError("이미 등록된 전화번호입니다. 본인 인증된 다른 번호를 입력해주세요.", 409);
+      }
+      if (targets.includes("email")) {
+        return apiError("이미 사용 중인 이메일입니다.", 409);
+      }
+      // 다른 unique 제약 위반은 일반 메시지 + 어떤 필드인지 힌트
+      console.error("[PATCH /api/web/profile] P2002 unhandled target:", targets);
+      return apiError(`이미 등록된 정보입니다. (${targets.join(", ") || "확인 필요"})`, 409);
     }
     return apiError("Internal error", 500);
   }

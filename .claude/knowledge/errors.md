@@ -2,6 +2,25 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] profile PATCH 409 '이미 등록된 정보' — 운영 DB partial unique index 가 prisma schema 누락
+- **분류**: error (schema drift / P2002 친화 메시지 누락)
+- **발견자**: 사용자 + pm
+- **증상**: mybdr.kr/profile/edit 저장 시 "이미 등록된 정보입니다. 입력값을 확인해주세요." 빨간 메시지. nickname 충돌이 아닌 다른 unique 컬럼 충돌인데 친화 메시지 분기 누락.
+- **원인**: 운영 DB 의 `users` 테이블에 partial unique index 5종 (`email` / `nickname` partial / `phone` partial / `provider+uid` / `public_id`) 존재. **prisma schema 에는 phone/nickname @unique 누락** (Rails 시절 DB pull 후 schema 미반영 추정). PATCH 시 phone/email 변경 시 P2002 발생 → catch 에서 nickname target 만 친화 메시지 분기 → 다른 target 은 일반 fallback "이미 등록된 정보" 메시지 → 어떤 필드 충돌인지 사용자가 알 수 없음.
+- **진단 방법**: 로컬 tsx 스크립트 (`scripts/_temp/diagnose-profile-p2002.ts` — 작업 후 정리됨) 로 (1) `pg_indexes` 직접 쿼리 → unique index 5종 확인 (2) 사용자 (id=2836) 본인 값 update 성공 (3) 다른 user nickname 으로 update 시도 → P2002 (target: nickname) 재현.
+- **수정**: `src/app/api/web/profile/route.ts` catch 블록에 phone/email target 분기 추가 + unhandled target 은 console.error + targets.join 메시지로 디버깅 가능:
+  ```ts
+  if (targets.includes("phone")) return apiError("이미 등록된 전화번호입니다. ...", 409);
+  if (targets.includes("email")) return apiError("이미 사용 중인 이메일입니다.", 409);
+  console.error("[PATCH /api/web/profile] P2002 unhandled target:", targets);
+  return apiError(`이미 등록된 정보입니다. (${targets.join(", ")})`, 409);
+  ```
+- **회귀 방지**:
+  - prisma schema 와 운영 DB unique index 일치 검증 — 추후 큐 (schema 갱신 후 db pull 또는 수동 @unique 추가)
+  - 모든 P2002 catch 분기에 unhandled target console.error 필수 (Vercel logs 못 봐도 향후 진단 시 useful)
+- **참조**: 본 사례 의 친화 메시지 fix commit / lessons.md "운영 DB 직접 진단 패턴"
+- **참조횟수**: 0
+
 ### [2026-05-01] profile PATCH 500 'Internal error' — birth_date Invalid Date 미가드
 - **분류**: error (API route 파싱 가드 누락 / Vercel 로그 접근 불가 환경 진단 패턴)
 - **발견자**: 사용자 + pm
