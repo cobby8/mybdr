@@ -144,13 +144,83 @@ export async function RosterTabV2({ teamId, accent }: Props) {
         const roleLabel = ROLE_LABEL[role] ?? role;
         const jersey = m.jerseyNumber ?? "—";
 
+        // 2026-05-02 (v2): 카드 크기 통일 + 정보 위치 재배치
+        //  ┌─────────────────────────┐
+        //  │ [등번호 큰]   포지션 신장  │  ← 상단 row
+        //  │              지역         │
+        //  │ ─────────────────────────│
+        //  │ [아바타] 이름             │  ← 메인
+        //  │ [선출][주장]              │  ← 뱃지
+        //  └─────────────────────────┘
+        // 카드 min-height 로 정보량 차이 관계없이 통일
         const cardInner = (
-          <>
-            {/* 등번호 (큰, accent 색) */}
-            <div className="roster-card__jersey">{jersey}</div>
+          <div style={{ display: "flex", flexDirection: "column", minHeight: 130, gap: 8 }}>
+            {/* 상단 row — 등번호 좌측 / 포지션·신장·지역 우측 */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 8,
+              }}
+            >
+              <div className="roster-card__jersey">{jersey}</div>
+              <div
+                style={{
+                  flex: 1,
+                  textAlign: "right",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  minWidth: 0,
+                }}
+              >
+                {/* 포지션 · 신장 · 나이 (한 줄, 우측 정렬) */}
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink)",
+                    fontFamily: "var(--ff-mono, monospace)",
+                    display: "flex",
+                    gap: 4,
+                    justifyContent: "flex-end",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {position !== "—" && <span>{position}</span>}
+                  {height && (
+                    <span style={{ color: "var(--ink-mute)" }}>{height}cm</span>
+                  )}
+                  {age !== null && (
+                    <span style={{ color: "var(--ink-mute)" }}>{age}세</span>
+                  )}
+                </div>
+                {/* 지역 (있으면 별도 줄, 우측 정렬) */}
+                {region && (
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ink-mute)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 2,
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{ fontSize: 12 }}
+                    >
+                      location_on
+                    </span>
+                    {region}
+                  </div>
+                )}
+              </div>
+            </div>
 
-            {/* 프로필 사진 (있으면) 또는 이니셜 fallback + 이름 */}
-            <div className="roster-card__identity">
+            {/* 하단 — 아바타 + 이름 (메인 정보) */}
+            <div className="roster-card__identity" style={{ marginTop: "auto" }}>
               {profileImage ? (
                 <span
                   className="roster-card__avatar"
@@ -177,34 +247,16 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               <span className="roster-card__name">{displayName}</span>
             </div>
 
-            {/* 메타 1: 포지션 · 신장 · 나이 */}
-            <div className="roster-card__meta">
-              <span className="roster-card__position">{position}</span>
-              {height && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--ink-mute)",
-                    fontFamily: "var(--ff-mono, monospace)",
-                  }}
-                >
-                  {height}cm
-                </span>
-              )}
-              {age !== null && (
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--ink-mute)",
-                    fontFamily: "var(--ff-mono, monospace)",
-                  }}
-                >
-                  {age}세
-                </span>
-              )}
-              {/* 선출 뱃지 — 강조 */}
+            {/* 뱃지 영역 — 선출 / 주장 / 운영진 */}
+            <div
+              style={{
+                display: "flex",
+                gap: 4,
+                flexWrap: "wrap",
+                minHeight: 22, // 뱃지 0개일 때도 카드 통일
+              }}
+            >
               {isElite && <span className="badge badge--red">선출</span>}
-              {/* 역할 뱃지 — 주장 / 운영진 */}
               {role === "captain" ? (
                 <span className="badge badge--red">주장</span>
               ) : role === "director" ||
@@ -214,26 +266,7 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                 <span className="badge badge--soft">{roleLabel}</span>
               ) : null}
             </div>
-
-            {/* 메타 2: 지역 (있으면, 별도 줄) */}
-            {region && (
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 11,
-                  color: "var(--ink-mute)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                  location_on
-                </span>
-                {region}
-              </div>
-            )}
-          </>
+          </div>
         );
 
         return userId ? (
