@@ -94,7 +94,7 @@ export interface PreferenceFormProps {
 
 /* ============================================================
  * Settings v2 chip 버튼 (2026-05-01 통일) — 토스풍 → v2 디자인 토큰 정합
- * 선택됨: var(--accent) (BDR Red) 배경 + on-accent 글씨, 4px radius
+ * 선택됨: var(--cafe-blue) (BDR Red) 배경 + on-accent 글씨, 4px radius
  * 미선택: var(--bg-alt) 배경 + ink-soft 글씨 + border
  * 13 룰 #10: 토큰만 사용 / 4px radius / glow shadow 제거 (v2 정합)
  * ============================================================ */
@@ -114,9 +114,9 @@ function PillButton({
       className="px-3 py-2 text-sm font-semibold transition-colors duration-150"
       style={{
         borderRadius: 4,
-        background: selected ? "var(--accent)" : "var(--bg-alt)",
+        background: selected ? "var(--cafe-blue)" : "var(--bg-alt)",
         color: selected ? "var(--on-accent)" : "var(--ink-soft)",
-        border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+        border: selected ? "1px solid var(--cafe-blue)" : "1px solid var(--border)",
         cursor: "pointer",
       }}
     >
@@ -176,9 +176,9 @@ function ThemeSelector() {
             className="flex items-center gap-2 px-3 py-2 text-sm font-semibold transition-colors duration-150"
             style={{
               borderRadius: 4,
-              background: selected ? "var(--accent)" : "var(--bg-alt)",
+              background: selected ? "var(--cafe-blue)" : "var(--bg-alt)",
               color: selected ? "var(--on-accent)" : "var(--ink-soft)",
-              border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+              border: selected ? "1px solid var(--cafe-blue)" : "1px solid var(--border)",
               cursor: "pointer",
             }}
           >
@@ -232,9 +232,9 @@ function TextSizeSelector() {
               className="flex items-center gap-2 px-3 py-2 text-sm font-semibold transition-colors duration-150"
               style={{
                 borderRadius: 4,
-                background: selected ? "var(--accent)" : "var(--bg-alt)",
+                background: selected ? "var(--cafe-blue)" : "var(--bg-alt)",
                 color: selected ? "var(--on-accent)" : "var(--ink-soft)",
-                border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                border: selected ? "1px solid var(--cafe-blue)" : "1px solid var(--border)",
                 cursor: "pointer",
               }}
             >
@@ -271,8 +271,12 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   const [hiddenMenus, setHiddenMenus] = useState<string[]>([]);
 
   // 종별/성별 단일 선택 탭 (디비전 표시 필터용)
+  // 2026-05-02: 성별 chip UI 복구 — DB 저장 X (Q3=빼기 유지) but 디비전 필터에 필요 (ephemeral state).
   const [activeGender, setActiveGender] = useState<GenderCode>("male");
   const [activeCategory, setActiveCategory] = useState<CategoryCode>("general");
+
+  // 종별/디비전 안내 모달 toggle
+  const [helpModalOpen, setHelpModalOpen] = useState(false);
 
   // 로딩/저장 상태
   const [loading, setLoading] = useState(true);
@@ -420,7 +424,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--accent)]" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[var(--cafe-blue)]" />
       </div>
     );
   }
@@ -502,12 +506,26 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
 
       {/* ========================================
        * 섹션 1: 관심 종별/디비전
-       * 성별 단일 탭 + 종별 단일 탭 → 디비전 복수 선택 pill
+       * 종별 단일 탭 → 디비전 복수 선택 pill + 안내 모달
+       * 2026-05-02: 성별 chip 제거 / 디비전 칩 영문만 / 안내 모달 추가
        * ======================================== */}
       <div>
-        <h2 style={{ margin: "0 0 12px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>관심 종별 / 디비전</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>관심 종별 / 디비전</h2>
+          <button
+            type="button"
+            onClick={() => setHelpModalOpen(true)}
+            className="btn btn--sm"
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12 }}
+            aria-label="종별 디비전 안내"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>info</span>
+            종별·디비전 안내
+          </button>
+        </div>
         <div className="card" style={{ padding: 16 }}>
-          {/* 성별 단일 선택 탭 (남성부/여성부) */}
+          {/* 성별 단일 선택 탭 (남성부/여성부) — 2026-05-02 복구
+              디비전 필터에 필요 (ephemeral, DB 저장 X — Q3=빼기 유지) */}
           <div>
             <p className="text-xs font-medium mb-2" style={{ color: "var(--ink-mute)" }}>성별</p>
             <div className="flex gap-2 mb-5">
@@ -556,25 +574,22 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 }
               }}
               className="text-[11px] font-black uppercase pr-1"
-              style={{ color: "var(--accent)" }}
+              style={{ color: "var(--cafe-blue)" }}
             >
               {currentDivisions.every((d) => selectedDivisions.includes(d)) ? "전체해제" : "전체선택"}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
             {currentDivisions.map((code) => {
-              const info = DIVISIONS[code];
               const isSelected = selectedDivisions.includes(code);
+              // 2026-05-02: 시안 정합 — 디비전 칩은 영문 코드만 (D3, D4 등) 한 줄. leagueName 은 안내 모달로 이전.
               return (
                 <PillButton
                   key={code}
                   selected={isSelected}
                   onClick={() => toggleDivision(code)}
                 >
-                  <span>{info?.label ?? code}</span>
-                  {info?.leagueName && (
-                    <span className="block text-xs opacity-60 mt-0.5">{info.leagueName}</span>
-                  )}
+                  {code}
                 </PillButton>
               );
             })}
@@ -583,7 +598,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {/* 선택된 디비전 요약 */}
           {selectedDivisions.length > 0 && (
             <p className="mt-4 text-sm text-[var(--ink-mute)]">
-              <span className="font-medium text-[var(--accent)]">{selectedDivisions.length}개</span> 선택됨
+              <span className="font-medium text-[var(--cafe-blue)]">{selectedDivisions.length}개</span> 선택됨
             </p>
           )}
         </div>
@@ -607,22 +622,22 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 setSelectedGameTypes(allSelected ? [] : allCodes);
               }}
               className="text-sm font-medium"
-              style={{ color: "var(--accent)" }}
+              style={{ color: "var(--cafe-blue)" }}
             >
               {GAME_TYPES.every((g) => selectedGameTypes.includes(g.code)) ? "전체해제" : "전체선택"}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {GAME_TYPES.map(({ code, label, description }) => {
+            {GAME_TYPES.map(({ code, description }) => {
               const isSelected = selectedGameTypes.includes(code);
+              // 2026-05-02: 시안 정합 — 경기 유형 칩은 한글(description)만. 영문 label 은 안내 모달로.
               return (
                 <PillButton
                   key={code}
                   selected={isSelected}
                   onClick={() => toggleGameType(code)}
                 >
-                  <span>{label}</span>
-                  <span className="block text-xs opacity-60 mt-0.5">{description}</span>
+                  {description}
                 </PillButton>
               );
             })}
@@ -630,7 +645,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {/* 경기 유형 선택 요약 */}
           {selectedGameTypes.length > 0 && (
             <p className="mt-4 text-sm text-[var(--ink-mute)]">
-              <span className="font-medium text-[var(--accent)]">{selectedGameTypes.length}개</span> 선택됨
+              <span className="font-medium text-[var(--cafe-blue)]">{selectedGameTypes.length}개</span> 선택됨
             </p>
           )}
 
@@ -646,7 +661,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedSkills(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "var(--cafe-blue)" }}
               >
                 {SKILL_LEVELS.every((s) => selectedSkills.includes(s.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -680,7 +695,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedRegions(allSelected ? [] : [...REGIONS]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "var(--cafe-blue)" }}
               >
                 {REGIONS.every((r) => selectedRegions.includes(r)) ? "전체해제" : "전체선택"}
               </button>
@@ -695,7 +710,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
             {/* 지역 선택 요약 */}
             {selectedRegions.length > 0 && (
               <p className="mt-3 text-sm text-[var(--ink-mute)]">
-                <span className="font-medium text-[var(--accent)]">{selectedRegions.length}개</span> 선택됨
+                <span className="font-medium text-[var(--cafe-blue)]">{selectedRegions.length}개</span> 선택됨
               </p>
             )}
           </div>
@@ -712,7 +727,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedDays(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "var(--cafe-blue)" }}
               >
                 {DAYS.every((d) => selectedDays.includes(d.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -738,7 +753,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                   setSelectedTimeSlots(allSelected ? [] : [...allCodes]);
                 }}
                 className="text-sm font-medium"
-                style={{ color: "var(--accent)" }}
+                style={{ color: "var(--cafe-blue)" }}
               >
                 {TIME_SLOTS.every((t) => selectedTimeSlots.includes(t.code)) ? "전체해제" : "전체선택"}
               </button>
@@ -772,7 +787,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                 setSelectedBoardCategories(allSelected ? [] : [...allCodes]);
               }}
               className="text-sm font-medium"
-              style={{ color: "var(--accent)" }}
+              style={{ color: "var(--cafe-blue)" }}
             >
               {BOARD_CATEGORIES.every((b) => selectedBoardCategories.includes(b.code)) ? "전체해제" : "전체선택"}
             </button>
@@ -794,7 +809,7 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           {/* 게시판 선택 요약 */}
           {selectedBoardCategories.length > 0 && (
             <p className="mt-4 text-sm text-[var(--ink-mute)]">
-              <span className="font-medium text-[var(--accent)]">{selectedBoardCategories.length}개</span> 선택됨
+              <span className="font-medium text-[var(--cafe-blue)]">{selectedBoardCategories.length}개</span> 선택됨
             </p>
           )}
         </div>
@@ -946,6 +961,106 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
           )}
         </div>
       </div>
+
+      {/* ========================================
+       * 종별 / 디비전 안내 플로팅 모달 (2026-05-02 신규)
+       * - 헤더 옆 "종별·디비전 안내" 버튼 클릭 시 노출
+       * - 종별 4종 (일반부/유청소년/대학부/시니어) + 디비전 6종 (D3~D8) leagueName 설명
+       * - 외부 클릭 또는 ESC 로 닫기 (단순 backdrop click)
+       * ======================================== */}
+      {helpModalOpen && (
+        <div
+          onClick={() => setHelpModalOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 100,
+            padding: 16,
+          }}
+          role="dialog"
+          aria-label="종별 디비전 안내"
+          aria-modal="true"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card"
+            style={{
+              maxWidth: 520,
+              width: "100%",
+              maxHeight: "85vh",
+              overflow: "auto",
+              padding: 24,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>종별 · 디비전 안내</h3>
+              <button
+                type="button"
+                onClick={() => setHelpModalOpen(false)}
+                aria-label="닫기"
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  cursor: "pointer",
+                  padding: 4,
+                  color: "var(--ink-mute)",
+                  display: "inline-flex",
+                }}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* 종별 4종 */}
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>종별</h4>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                {Object.entries(CATEGORIES).map(([code, cat]) => (
+                  <li key={code} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--ink-soft)" }}>
+                    <span style={{ fontWeight: 700, color: "var(--ink)", minWidth: 60 }}>{cat.label}</span>
+                    <span>접두어 {cat.divisionPrefix} (예: {cat.divisionPrefix}3, {cat.divisionPrefix}4)</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* 일반부 디비전 D3~D8 */}
+            <div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>디비전 (일반부)</h4>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                {(["D3", "D4", "D5", "D6", "D7", "D8"] as const).map((code) => {
+                  const info = DIVISIONS[code];
+                  if (!info) return null;
+                  return (
+                    <li key={code} style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                        <span style={{ fontWeight: 700, color: "var(--ink)", minWidth: 32 }}>{code}</span>
+                        <span style={{ fontWeight: 600, color: "var(--ink)" }}>{info.leagueName}</span>
+                      </div>
+                      {info.description && (
+                        <div style={{ marginLeft: 40, marginTop: 2, fontSize: 12, color: "var(--ink-mute)" }}>{info.description}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setHelpModalOpen(false)}
+              className="btn btn--primary"
+              style={{ marginTop: 20, width: "100%" }}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
