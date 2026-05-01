@@ -8,6 +8,11 @@ import { getMatch, updateMatch, deleteMatch } from "@/lib/services/match";
 import { prisma } from "@/lib/db/prisma";
 import { createNotificationBulk } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
+// Phase C: 듀얼토너먼트 매치 종료 시 winner/loser 자동 진출 처리
+// (single elim 의 winner 진출은 services/match.ts 의 updateMatch 가 이미 처리하므로
+//  본 함수는 dual_tournament 분기에서만 호출하여 loser 진출만 신규 효과를 만든다.
+//  winner 진출 update 는 idempotent — 같은 슬롯/같은 winnerTeamId 두 번 UPDATE 안전)
+import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
 
@@ -151,12 +156,41 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
 
     // ✨ Phase 2A: full_league_knockout 대회의 리그 전부 완료 시 토너먼트 경기 자동 생성
+    // ✨ Phase C (2026-05-02): dual_tournament 매치 완료 시 winner/loser 자동 진출
     // 실패해도 경기 완료 응답 자체는 성공으로 처리 (사용자 요청 흐름 보존)
     try {
       const tournament = await prisma.tournament.findUnique({
         where: { id },
         select: { format: true, settings: true },
       });
+
+      // Phase C: dual_tournament 분기 — winner/loser 다음 매치 슬롯 자동 채움
+      // - winner 진출: services/match.ts:updateMatch 가 이미 처리 (next_match_id + slot UPDATE)
+      //   → 본 호출은 idempotent (같은 슬롯에 같은 winnerTeamId 두 번 UPDATE 안전)
+      // - loser 진출: settings.loserNextMatchId 매핑된 패자전 슬롯 채움 (신규 효과)
+      // - winner_team_id null / next_match_id null → progressDualMatch 내부에서 자체 가드
+      // 별도 트랜잭션으로 호출 (match.ts 트랜잭션은 이미 commit 됨, loser update 1건만 atomic 보장)
+      if (
+        tournament?.format === "dual_tournament" &&
+        winner_team_id != null
+      ) {
+        try {
+          await prisma.$transaction(async (tx) => {
+            await progressDualMatch(
+              tx,
+              matchBigInt,
+              BigInt(String(winner_team_id)),
+            );
+          });
+        } catch (e) {
+          // 진출 실패 = 매치 자체는 이미 update 됨 (trx 분리)
+          // → 사용자 응답은 성공 유지, 로그만 남김 (admin 이 수동 정정 가능)
+          console.error(
+            `[dual-progression] matchId=${matchBigInt} 자동 진출 실패:`,
+            e,
+          );
+        }
+      }
 
       if (tournament?.format === "full_league_knockout") {
         // 동적 import: 자동 생성 로직은 엣지 케이스이므로 번들 크기 최적화
