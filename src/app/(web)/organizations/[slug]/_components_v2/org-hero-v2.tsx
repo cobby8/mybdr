@@ -47,16 +47,17 @@ export function OrgHeroV2({
 
   return (
     <div
-      // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
+      // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27) + 모바일 분기 (2026-05-02)
       // 부모 wrapper(max-w-5xl)가 더 좁으면 그 폭이 우선되어 무해. wrapper 누락 시 안전망.
-      className="relative mx-auto mb-5 max-w-[1200px] overflow-hidden rounded-lg px-8 py-9 text-white"
+      // 모바일: padding 축소 (px-5 py-6) + 폰트 축소 (text-[28px])
+      className="relative mx-auto mb-5 max-w-[1200px] overflow-hidden rounded-lg px-5 py-6 text-white sm:px-8 sm:py-9"
       style={{
         // 시안 그대로: 단체 색상 → 60% 지점에서 어두운 배경으로 페이드
         background: `linear-gradient(135deg, ${color}, ${color}AA 60%, #0B0D10)`,
       }}
     >
-      <div className="flex flex-wrap items-end gap-5">
-        {/* 로고 또는 태그 박스 (96x96) */}
+      <div className="flex flex-wrap items-end gap-3 sm:gap-5">
+        {/* 로고 또는 태그 박스 — 모바일 64x64 / sm+ 96x96 (2026-05-02) */}
         {logoUrl ? (
           // 시안에서 정의된 96x96 라운드 박스. 현재 카드 v2와 동일하게
           // <img> 사용 (next/image 도입은 운영 DB 분리 후 일괄 작업 예정)
@@ -64,12 +65,12 @@ export function OrgHeroV2({
           <img
             src={logoUrl}
             alt={name}
-            className="h-24 w-24 flex-shrink-0 rounded-[10px] object-cover"
+            className="h-16 w-16 flex-shrink-0 rounded-[10px] object-cover sm:h-24 sm:w-24"
             style={{ background: "rgba(255,255,255,0.18)" }}
           />
         ) : (
           <div
-            className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-[10px] text-base font-extrabold tracking-wide"
+            className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[10px] text-sm font-extrabold tracking-wide sm:h-24 sm:w-24 sm:text-base"
             style={{ background: "rgba(255,255,255,0.18)" }}
           >
             {tag}
@@ -82,19 +83,19 @@ export function OrgHeroV2({
           <div className="text-[11px] font-extrabold tracking-[0.12em] opacity-85">
             단체 · {region || "전국"}
           </div>
-          {/* 단체명: 시안 fontSize 40 + tracking -0.02em */}
+          {/* 단체명: 모바일 28px → sm 34px → md 40px (시안). 자간/줄바꿈 보호 */}
           <h1
-            className="mt-1.5 text-[40px] font-black leading-tight tracking-[-0.02em]"
-            style={{ marginBottom: 4 }}
+            className="mt-1.5 break-keep text-[26px] font-black leading-tight tracking-[-0.02em] sm:text-[34px] md:text-[40px]"
+            style={{ marginBottom: 4, wordBreak: "keep-all" }}
           >
             {name}
           </h1>
           {/* 설명 (없으면 placeholder) */}
-          <div className="mb-2.5 text-sm opacity-90">
+          <div className="mb-2.5 text-[13px] opacity-90 sm:text-sm">
             {description || "단체 소개가 없습니다."}
           </div>
           {/* 메타: 회원 / 팀 / 설립 — 팀 수 + 설립연도는 "준비 중" */}
-          <div className="flex flex-wrap gap-[18px] text-[13px] opacity-90">
+          <div className="flex flex-wrap gap-x-[14px] gap-y-1 text-[12px] opacity-90 sm:gap-x-[18px] sm:text-[13px]">
             <span>
               <span className="material-symbols-outlined mr-0.5 align-middle text-base">
                 group
@@ -116,11 +117,11 @@ export function OrgHeroV2({
           </div>
         </div>
 
-        {/* 가입 신청 버튼 (alert) */}
+        {/* 가입 신청 버튼 — 모바일 풀폭 (2026-05-02) */}
         <button
           type="button"
           onClick={handleApply}
-          className="rounded bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+          className="w-full rounded bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-auto"
         >
           가입 신청
         </button>
