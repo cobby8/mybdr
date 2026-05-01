@@ -18,35 +18,45 @@
 
 ## 현재 작업
 
-- **요청**: v3-rebake P0 (마이페이지 hub) 박제 — **완료**
-- **상태**: tsc 통과 / 13 룰 검수 통과 / 커밋 대기
+- **요청**: v3-rebake P1+P2 — BDR-current 디테일까지 모두 일치 (사용자 결정)
+- **상태**: D-1/8 완료 / D-2/8 일치 / D-3 결정 필요 / 컨텍스트 한계
 - **현재 담당**: PM
 - **브랜치**: subin
 
-### P0 결과 요약
+### 진행 결과 (이번 세션)
 
-| 단계 | 내용 | 결과 |
-|------|------|------|
-| P0-1 | AppNav frozen Phase 19 검증 | ✅ 운영 이미 박제 (R-C-4) |
-| P0-3 | 더보기 "계정·도움" 첫 항목 🏠 mypage | ✅ 운영 이미 박제 (more-groups L111) |
-| P0-2 | /profile hub 본문 박제 | ✅ Hero + Tier1 큰4 + Tier2 중간4 + Tier3 작은2 + aside 4 |
-| 검증 | tsc --noEmit / 13 룰 / 회귀 4 케이스 | ✅ 전부 통과 |
-
-### 산출물
-
-| 파일 | 변경 |
+| 단계 | 결과 |
 |------|------|
-| `src/app/(web)/profile/page.tsx` | 367 → 580+ 줄 재작성 (8 쿼리 prefetch 보존 + hub 구조) |
-| `src/app/(web)/profile/mypage.css` | 신설 948줄 (BDR-current/mypage.css 1:1 카피) |
-| `.claude/knowledge/architecture.md` | +1 항목 (Phase 13 마이페이지 hub) |
-| `.claude/knowledge/index.md` | architecture 항목수 34→35 + 최근 추가 갱신 |
+| **P0** 마이페이지 hub | ✅ 22ce7f2 push |
+| **gitignore + .backup.jsx** | ✅ a2c0636 push |
+| **D-1/8** ProfileGrowth | ✅ 85944e3 push (마일스톤 순서 + 6번째 팀 멤버 추천) |
+| **D-2/8** ProfileBookings | ✅ 시안 1:1 박제 완벽 — 변경 0 |
+| **D-3/8** ProfileWeeklyReport | ⏳ **큰 구조 변경 결정 필요** |
+| **D-4~8** | ⏳ 미진행 (컨텍스트 한계) |
 
-### 다음 액션
+### D-3 ProfileWeeklyReport — 사용자 결정 필요
 
-- v3-rebake-prompt P1 (`/profile/*` 깊은 페이지 8건) — 별도 세션 예상 5~7h
-- v3-rebake-prompt P2 (신규 시안 7건) — 별도 세션 예상 4~6h
-- _v2/ 폴더 6 컴포넌트 (HeroCard/SeasonStats/UpcomingGames/ActivityTimeline/TeamSideCard/BadgesSideCard) — P1 작업 시 정리
-- globals.css 옛 .mypage-hub-grid/.mypage-quick-grid/.mypage-large-grid 룰 — P1 시 정리
+| 항목 | v2.2 (운영 박제) | v2.4 (BDR-current) |
+|------|---------------|-----------------|
+| 섹션 | KPI 4 + TOP 3 코트 + 인사이트 3 + 이메일 footer | KPI 4 + **Highlight 베스트 1경기** + 인사이트 3 + **다음 주 추천 3** + footer |
+| KPI | session_count / total_minutes / unique_courts / active_days / total_xp | 경기 / 평균 평점 / XP / 활동 시간 |
+| Top 3 코트 | ✅ 운영 진짜 데이터 | ❌ 시안 제거 |
+| Highlight | ❌ | ✅ 신규 (DB 미지원, 더미) |
+| 다음 주 추천 | ❌ | ✅ 신규 (DB 미지원, 더미) |
+
+→ 시안 v2.4 박제 시 진짜 데이터(TOP 3 코트) 손실 + 더미 추가. 사용자 결정 권장:
+- **A. 시안 v2.4 그대로** (손실 감수)
+- **B. Hybrid** (시안 KPI 4종 변경 + 옛 TOP 3 코트 보존)
+- **C. 보류** (다른 페이지 sync 후 재고)
+
+### 추후 큐 (사용자 결정 받은 것 / 보류)
+
+- **ContextReviews 작업**: 코트 리뷰만 활성 + 대회/팀/심판 탭 보존 (주석). ContextReviews 컴포넌트 신규 + /courts/[id] 인라인. /reviews 4탭 → 1탭
+- **Settings + BottomNavEditor**: 큰 구조 변경 (3 섹션 신규) — 결정 4건 필요
+- **VenueDetail / GameEdit / PostEdit**: P2 sync 가능 (다음 세션)
+- **HelpGlossary**: 옛 결정 보존 (옵션 C)
+- **LiveResult**: /games/[id] 흡수 검토 후속 큐
+- **D-4~8**: ProfileComplete / Preferences / Edit / MyActivity / Billing — 다음 세션
 
 ## 진행 현황표
 
@@ -63,7 +73,10 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
-| 2026-05-01 | (커밋 대기) | **v3-rebake P0 마이페이지 hub 박제 (PM 직접)**: BDR-current/screens/MyPage.jsx → src/app/(web)/profile/page.tsx 1:1 박제. Hero strip(아바타 76/56px + 닉네임 의 농구 + 팀·포지션·시즌 + L.N/PRO/✓본인인증 + 액션3) + Tier1 큰4(프로필/내 농구 PPG·APG·RPG·RTG/내 성장 SVG sparkline 12주/내 활동 13주 막대) + Tier2 중간4(예약·주간 NEW·알림 N건·배지·업적) + Tier3 작은2(설정/결제·멤버십) + aside 4(D-N 다음 경기/소속 팀/최근 활동 5건/도움말). mypage.css 948줄 1:1 카피. 8 쿼리 prefetch 보존 + setRoute → Link 10건 매핑. AppNav frozen(R-C-4) + more-groups 운영 이미 박제 — 변경 0. 13 룰 검수: hex 0(teamInk 토큰 fallback) / pink-salmon-coral 0 / lucide 0 / pill 0. 회귀 4 케이스 통과. tsc --noEmit 통과. _v2 6 컴포넌트 import 제거(미사용 dead code, P1 정리). | ✅ |
+| 2026-05-01 | 85944e3 (push) | **D-1/8 ProfileGrowth sync (BDR-current v2.4)**: 마일스톤 순서 [누적/연속/평점/MVP/커뮤/순위] → [누적/평점/MVP/연속/커뮤/팀멤버추천]. 6번째 항목 "시즌 순위" → "팀 멤버 추천" (DB 미지원, 더미 + 준비 중). 옛 시즌 순위 코드 주석 보존. tsc 통과. | ✅ |
+| 2026-05-01 | (변경 0) | **D-2/8 ProfileBookings 검증**: 시안 BDR-current vs 운영 BookingsListV2 1:1 박제 완벽 일치. sync 변경 0건. | ✅ |
+| 2026-05-01 | a2c0636 (push) | **gitignore + .backup.jsx 3건 제거**: Profile/Settings/EditProfile.backup.jsx 제거. gitignore 패턴 추가 (다음 zip 동기화 자동 제외). | ✅ |
+| 2026-05-01 | 22ce7f2 (push) | **v3-rebake P0 마이페이지 hub 박제 (PM 직접)**: BDR-current/screens/MyPage.jsx → src/app/(web)/profile/page.tsx 1:1 박제. Hero strip(아바타 76/56px + 닉네임 의 농구 + 팀·포지션·시즌 + L.N/PRO/✓본인인증 + 액션3) + Tier1 큰4(프로필/내 농구 PPG·APG·RPG·RTG/내 성장 SVG sparkline 12주/내 활동 13주 막대) + Tier2 중간4(예약·주간 NEW·알림 N건·배지·업적) + Tier3 작은2(설정/결제·멤버십) + aside 4(D-N 다음 경기/소속 팀/최근 활동 5건/도움말). mypage.css 948줄 1:1 카피. 8 쿼리 prefetch 보존 + setRoute → Link 10건 매핑. AppNav frozen(R-C-4) + more-groups 운영 이미 박제 — 변경 0. 13 룰 검수: hex 0(teamInk 토큰 fallback) / pink-salmon-coral 0 / lucide 0 / pill 0. 회귀 4 케이스 통과. tsc --noEmit 통과. _v2 6 컴포넌트 import 제거(미사용 dead code, P1 정리). | ✅ |
 | 2026-05-01 | f2df385 + 8a5cb7b + 1bc549d (subin push 완료) | **Dev/design/ 정리 + 마이페이지 박제 7 commit revert + BDR-current 동기화 (PM)**: (1) profile/ 디렉토리 ad774d9 시점 복원 (23 files, -1109/+178). 운영 헤더 Phase 19 보존 검증. (2) Dev/design/{BDR v2, v2.2, v2.3, v2.4, audit-results, ui_breaking}/ → _archive/ 이동 (사용자 결정 B). 옛 prompt 21 .md → _archive/prompts/. 보존 3: DESIGN.md / README.md / v3-rebake-prompt-2026-05-01.md. (3) Downloads/BDR v2/Dev/design/BDR v2.3/ → BDR-current/ (87 screens / MyPage.jsx / Phase 13 README / BottomNavEditor 2건 검증 통과). Downloads BDR v2.2 → _archive/v2-original/. zip-root CLAUDE.md → _archive/v2-original/zip-root-CLAUDE.md. (4) Cowork 갱신 3 파일 검증 통과 (CLAUDE.md §Dev/design/ 폴더 구조 + Dev/design/README.md 단일 폴더 룰 + v3-rebake-prompt P0 가이드). (5) commit 2 분리: revert(profile) + design(폴더 정리 + BDR-current sync). push origin subin. 단일 폴더 룰 적용 — CLI 박제 작업의 모든 참조는 BDR-current/ 만 사용. | ✅ |
 | 2026-04-30 | 749e9ba 외 6 (revert됨) | /profile v2.4 시안 1:1 완전 매칭 — 우측 aside SeasonStats 제거 / 큰 카드 2종(설정/결제·멤버십) / 다음 경기 D-N 빨간 박스 / 소속 팀 시안 톤 / 도움 영역 / 내 성장 SVG / Hero BDR Red fallback / 캡처 28-30 회귀 픽스. **2026-05-01 v3-rebake 진행으로 7 commit revert (f2df385)** | ✅↩️ |
 | 2026-05-01 | (변경 0) | /profile 연결 페이지 7 영역(Growth/Activity/Bookings/WeeklyReport/Achievements/Settings/Billing) 시안 매칭 검증 — 모두 박제 완료 상태 | ✅ |
