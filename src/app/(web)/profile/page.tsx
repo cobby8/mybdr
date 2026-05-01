@@ -496,10 +496,15 @@ export default async function ProfilePage() {
   const heroInitial = primaryTeam?.name
     ? primaryTeam.name.slice(0, 3).toUpperCase()
     : displayName.trim()[0]?.toUpperCase() ?? "U";
-  // v2.4 시안: 96 아바타에 팀 색 → 검정 그라디언트 (Profile.jsx L32). 팀 없으면 BDR Red 폴백.
-  const heroAvatarBg = primaryTeam?.primaryColor
-    ? `linear-gradient(145deg, ${primaryTeam.primaryColor}, #000)`
-    : "linear-gradient(145deg, var(--accent), #1a0508)";
+  // v2.4 시안: 96 아바타에 팀 색 → 검정 그라디언트 (Profile.jsx L32). 팀 없거나 어두운 팀 색일 때 BDR Red 폴백.
+  // 이유: 캡처 28 — 스티즈 남양주 팀 primaryColor 가 검은색이라 검정→검정 그라디언트 = 검은 단색이 됨.
+  // 시안 캡처 26 의 RDM 빨간 그라디언트 톤 보존 위해 어두운 색은 BDR Red 강제.
+  const teamColor = primaryTeam?.primaryColor?.toLowerCase().trim();
+  const isDarkOrEmpty =
+    !teamColor || teamColor === "#000" || teamColor === "#000000" || teamColor === "black" || teamColor === "#111" || teamColor === "#222";
+  const heroAvatarBg = isDarkOrEmpty
+    ? "linear-gradient(145deg, var(--accent), #1a0508)"
+    : `linear-gradient(145deg, ${teamColor}, #000)`;
 
   return (
     <div className="page">
