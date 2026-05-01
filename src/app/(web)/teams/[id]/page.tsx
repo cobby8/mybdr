@@ -10,6 +10,7 @@ import { officialMatchWhere } from "@/lib/tournaments/official-match";
 // 팀장 전용 "팀 관리" 버튼 노출 여부 판단에 현재 로그인 세션 필요
 import { getWebSession } from "@/lib/auth/web-session";
 import { Breadcrumb } from "@/components/shared/breadcrumb";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // Phase 3 Teams 상세 v2 — 8개 컴포넌트 조립
 import { TeamHeroV2 } from "./_components_v2/team-hero-v2";
@@ -209,7 +210,7 @@ export default async function TeamDetailPage({
   // 팀장 닉네임 추출 — 사이드 카드 연락 영역 표시용
   const captainMember = team.teamMembers.find((m) => m.role === "captain");
   const captainName =
-    captainMember?.user?.nickname ?? captainMember?.user?.name ?? null;
+    captainMember?.user ? getDisplayName(captainMember.user) : null;
 
   // 창단 연도 — founded_year 우선, 없으면 created_at 연도
   const foundedYear =

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 // Phase 3: 공식 기록 가드 (status + scheduledAt 조건 통합)
 import { officialMatchWhere } from "@/lib/tournaments/official-match";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 interface OverviewTabProps {
   teamId: bigint;
@@ -371,7 +372,8 @@ export async function OverviewTab({ teamId, accent, team }: OverviewTabProps) {
             </div>
             <div className="space-y-3">
               {topMembers.slice(0, 3).map((m) => {
-                const displayName = m.user?.nickname ?? m.user?.name ?? "멤버";
+                // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+                const displayName = getDisplayName(m.user);
                 const isCaptain = m.role === "captain";
                 const position = m.user?.position ?? "-";
                 const userId = m.user?.id?.toString();

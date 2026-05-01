@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 interface RosterTabProps {
   teamId: bigint;
@@ -59,7 +60,8 @@ export async function RosterTab({ teamId, accent }: RosterTabProps) {
 
   // 행 컴포넌트
   function MemberRow({ m }: { m: typeof members[0] }) {
-    const displayName = m.user?.nickname ?? m.user?.name ?? "멤버";
+    // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+    const displayName = getDisplayName(m.user);
     const isCaptain = m.role === "captain";
     const roleLabel = ROLE_LABEL[m.role ?? "member"] ?? m.role ?? "멤버";
     const userId = m.user?.id?.toString();

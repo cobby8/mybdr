@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 /**
  * RosterTabV2
@@ -122,7 +123,8 @@ export async function RosterTabV2({ teamId, accent }: Props) {
       </div>
 
       {sorted.map((m) => {
-        const displayName = m.user?.nickname ?? m.user?.name ?? "멤버";
+        // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+        const displayName = getDisplayName(m.user);
         const userId = m.user?.id?.toString();
         const position = m.user?.position ?? "—";
         const role = m.role ?? "member";
