@@ -362,7 +362,23 @@ export async function GET(
       }
     } else {
       // 종료된 경기 — playerStats 테이블 사용
-      // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback)
+      //
+      // 2026-05-02: B-2 — Flutter app 이 minutes_played=0 보낸 매치(예: 매치 101)의 MIN fallback.
+      //   matchPlayerStat.minutesPlayed === 0 + quarterStatsJson 도 비어있을 때만 PBP 시뮬레이션 추정.
+      //   DB 안 건드림 → Flutter sync 영향 0.
+      //   starter 정보는 playerStats[].isStarter (또는 player.isStarter fallback) 에서 추출.
+      const startersByTeam = new Map<number, Set<number>>();
+      for (const stat of match.playerStats) {
+        const player = stat.tournamentTeamPlayer;
+        const isStarter = stat.isStarter ?? player.isStarter ?? false;
+        if (!isStarter) continue;
+        const teamId = Number(player.tournamentTeamId);
+        if (!startersByTeam.has(teamId)) startersByTeam.set(teamId, new Set());
+        startersByTeam.get(teamId)!.add(Number(player.id));
+      }
+      const minEstimates = estimateMinutesFromPbp(allPbps, startersByTeam);
+
+      // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback → PBP 추정 fallback)
       const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): number => {
         // 1) quarterStatsJson에서 초 합산 (2인 모드)
         if (stat.quarterStatsJson) {
@@ -373,20 +389,28 @@ export async function GET(
           } catch {}
         }
         // 2) fallback: minutesPlayed (초 단위)
-        return stat.minutesPlayed ?? 0;
+        if (stat.minutesPlayed && stat.minutesPlayed > 0) return stat.minutesPlayed;
+        // 3) PBP 시뮬레이션 추정 (B-2 fallback) — DB 건드리지 않음
+        const est = minEstimates.get(Number(stat.tournamentTeamPlayer.id));
+        return est?.totalSec ?? 0;
       };
 
       const toPlayerRow = (stat: (typeof match.playerStats)[number]): PlayerRow => {
         const player = stat.tournamentTeamPlayer;
         const user = player.users;
+        const minSeconds = getSecondsPlayed(stat);
+        // 2026-05-02 B-2: stat.minutesPlayed 가 0 이면 minSeconds(PBP 추정)에서 분 단위로 변환
+        const minDerived = stat.minutesPlayed && stat.minutesPlayed > 0
+          ? stat.minutesPlayed
+          : Math.round(minSeconds / 60);
         const row: PlayerRow = {
           id: Number(stat.id),
           jerseyNumber: player.jerseyNumber,
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(user, { player_name: player.player_name, jerseyNumber: player.jerseyNumber }, `#${player.jerseyNumber ?? "-"}`),
           teamId: Number(player.tournamentTeamId),
-          min: stat.minutesPlayed ?? 0,
-          min_seconds: getSecondsPlayed(stat),
+          min: minDerived,
+          min_seconds: minSeconds,
           pts: stat.points ?? 0,
           fgm: stat.fieldGoalsMade ?? 0,
           fga: stat.fieldGoalsAttempted ?? 0,
@@ -422,6 +446,7 @@ export async function GET(
         }
         // 2026-04-15: quarterStatsJson의 쿼터별 min(초)/pm을 quarter_stats에 주입
         // "Q1"→"1", "OT1"→"5" 키 매핑. 이벤트 기반에 해당 쿼터가 없으면 0초기화 후 MIN/PM만 채움.
+        let appliedMinFromJson = false;
         if (stat.quarterStatsJson) {
           try {
             const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
@@ -443,8 +468,31 @@ export async function GET(
               row.quarter_stats[qKey].min_seconds = minSec;
               row.quarter_stats[qKey].min = Math.round(minSec / 60);
               row.quarter_stats[qKey].plus_minus = qv.pm ?? 0;
+              if (minSec > 0) appliedMinFromJson = true;
             }
           } catch {}
+        }
+
+        // 2026-05-02 B-2: quarterStatsJson 도 비어있으면 PBP 시뮬레이션 추정값을 quarter_stats 에 주입
+        // (응답만 채움, DB 안 건드림. 매치 101 같은 케이스 자동 처리)
+        if (!appliedMinFromJson) {
+          const est = minEstimates.get(Number(player.id));
+          if (est && est.byQuarter.size > 0) {
+            if (!row.quarter_stats) row.quarter_stats = {};
+            for (const [q, sec] of est.byQuarter.entries()) {
+              const qKey = String(q);
+              if (!row.quarter_stats[qKey]) {
+                row.quarter_stats[qKey] = {
+                  min: 0, min_seconds: 0, pts: 0,
+                  fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
+                  oreb: 0, dreb: 0, reb: 0,
+                  ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
+                };
+              }
+              row.quarter_stats[qKey].min_seconds = sec;
+              row.quarter_stats[qKey].min = Math.round(sec / 60);
+            }
+          }
         }
 
         return row;
@@ -746,6 +794,114 @@ interface PlayerRow {
     oreb: number; dreb: number; reb: number;
     ast: number; stl: number; blk: number; to: number; fouls: number; plus_minus: number;
   }>;
+}
+
+// 2026-05-02: PBP action_subtype "in:X,out:Y" 파싱 → 쿼터별 IN/OUT 시뮬레이션
+// 사용처: matchPlayerStat.minutesPlayed === 0 + quarterStatsJson 도 비어있는 매치의 fallback.
+//   예) 매치 101 — Flutter app이 minutes_played=0 보낸 케이스 (운영 DB 8 매치 중 유일).
+// 안전성:
+//  - DB 손대지 않고 응답에서만 추정값 채움 → Flutter sync 영향 0.
+//  - regex 미매칭/데이터 부정합 시 0 반환 (안전 fallback).
+//  - quarterLengthSec 600초 가정 (settings.quarter_length 우선 사용 가능).
+type EstimatedMin = { totalSec: number; byQuarter: Map<number, number> };
+
+function estimateMinutesFromPbp(
+  pbps: Array<{
+    quarter: number | null;
+    game_clock_seconds: number | null;
+    action_type: string;
+    action_subtype: string | null;
+    tournament_team_player_id: bigint | number | null;
+    tournament_team_id: bigint | number | null;
+    sub_in_player_id?: bigint | number | null;
+    sub_out_player_id?: bigint | number | null;
+  }>,
+  startersByTeam: Map<number, Set<number>>,
+  quarterLengthSec = 600,
+): Map<number, EstimatedMin> {
+  const out = new Map<number, EstimatedMin>();
+  const addSec = (pid: number, q: number, sec: number) => {
+    if (sec <= 0) return;
+    let r = out.get(pid);
+    if (!r) {
+      r = { totalSec: 0, byQuarter: new Map() };
+      out.set(pid, r);
+    }
+    r.totalSec += sec;
+    r.byQuarter.set(q, (r.byQuarter.get(q) ?? 0) + sec);
+  };
+
+  // 쿼터 그룹 (quarter > 0 만, 시간순 = clock 내림차순 10:00→0:00)
+  const byQ = new Map<number, typeof pbps>();
+  for (const p of pbps) {
+    const q = p.quarter ?? 0;
+    if (q < 1) continue;
+    if (!byQ.has(q)) byQ.set(q, []);
+    byQ.get(q)!.push(p);
+  }
+  for (const list of byQ.values()) {
+    list.sort((a, b) => (b.game_clock_seconds ?? 0) - (a.game_clock_seconds ?? 0));
+  }
+  const quarterKeys = Array.from(byQ.keys()).sort((a, b) => a - b);
+
+  // 팀별로 별도 시뮬레이션 (각 팀 코트 5명 트래킹)
+  for (const [teamId, starters] of startersByTeam.entries()) {
+    let prevQuarterEndCourt: Set<number> = new Set(starters);
+
+    for (const q of quarterKeys) {
+      const events = (byQ.get(q) ?? []).filter(
+        (p) => Number(p.tournament_team_id) === teamId,
+      );
+      // 쿼터 시작 코트 = 이전 쿼터 끝 코트 (Q1은 starter)
+      const onCourt = new Map<number, number>();
+      for (const pid of prevQuarterEndCourt) {
+        onCourt.set(pid, quarterLengthSec);
+      }
+
+      for (const e of events) {
+        if (e.action_type !== "substitution") continue;
+
+        // (a) 별도 컬럼 우선 (Flutter app이 향후 채울 경우)
+        let inPid = e.sub_in_player_id ? Number(e.sub_in_player_id) : 0;
+        let outPid = e.sub_out_player_id ? Number(e.sub_out_player_id) : 0;
+        // (b) 컬럼 비어있으면 action_subtype "in:X,out:Y" 파싱 (현재 Flutter 형식)
+        if (!inPid || !outPid) {
+          const m = e.action_subtype?.match(/in:(\d+),out:(\d+)/);
+          if (!m) continue;
+          inPid = inPid || Number(m[1]);
+          outPid = outPid || Number(m[2]);
+        }
+        const clock = e.game_clock_seconds ?? 0;
+
+        // 쿼터 시작 시점 (clock ≈ quarterLengthSec) 의 sub = 라인업 설정 이벤트로 간주
+        // (매치 101 처럼 Flutter가 Q 시작에 5명 라인업을 sub 형태로 기록)
+        if (clock >= quarterLengthSec - 1) {
+          if (onCourt.has(outPid)) onCourt.delete(outPid);
+          if (!onCourt.has(inPid)) onCourt.set(inPid, quarterLengthSec);
+          continue;
+        }
+
+        // 일반 sub: out 의 (in_clock - now) 누적, in 은 in_clock=now 로 새로 시작
+        if (onCourt.has(outPid)) {
+          const inClock = onCourt.get(outPid)!;
+          addSec(outPid, q, inClock - clock);
+          onCourt.delete(outPid);
+        }
+        if (!onCourt.has(inPid)) {
+          onCourt.set(inPid, clock);
+        }
+      }
+
+      // 쿼터 끝: 코트 잔존 선수 → (in_clock - 0) 누적
+      for (const [pid, inClock] of onCourt.entries()) {
+        addSec(pid, q, inClock);
+      }
+
+      prevQuarterEndCourt = new Set(onCourt.keys());
+    }
+  }
+
+  return out;
 }
 
 /// 선수가 "코트에서 뛴 기록이 전혀 없음" 여부 (DNP 판정)
