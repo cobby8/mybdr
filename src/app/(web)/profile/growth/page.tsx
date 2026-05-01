@@ -201,23 +201,18 @@ export default function GrowthPage() {
   const mvpCount = currentSeason?.mvp_count ?? 0;
   const rankPos = currentSeason?.rank_position ?? null;
 
+  // [BDR-current sync 2026-05-01] 시안 v2.4(BDR-current) ProfileGrowth.jsx 마일스톤 순서 + 6번째 항목 갱신:
+  // - 순서: [누적 경기 / 평균 평점 / 시즌 MVP / 연속 출석 / 커뮤니티 활동 / 팀 멤버 추천]
+  // - 6번째: "시즌 순위" → "팀 멤버 추천" (시안 변경, DB 미지원 → 더미 + 준비 중)
+  // - 시즌 순위 코드는 변수 + 주석 보존 — 추후 살릴 수 있음 (rankPos = currentSeason?.rank_position)
   const milestones = [
     {
       icon: "🏀",
       label: "누적 경기",
-      val: String(totalGames), // Phase 12-4: 시즌 집계 우선 → 코트 방문 fallback
+      val: String(totalGames),
       goal: "100",
       pct: Math.min((totalGames / 100) * 100, 100),
       tone: "var(--color-primary)",
-      isDummy: false,
-    },
-    {
-      icon: "🔥",
-      label: "연속 출석",
-      val: `${gamification.streak}주`, // 실제 DB (gamification)
-      goal: "24주",
-      pct: Math.min((gamification.streak / 24) * 100, 100),
-      tone: "#F59E0B",
       isDummy: false,
     },
     {
@@ -228,17 +223,26 @@ export default function GrowthPage() {
       goal: "5.0",
       pct: avgRating !== null ? Math.min((avgRating / 5.0) * 100, 100) : 0,
       tone: "var(--cafe-blue)",
-      isDummy: avgRating === null, // 데이터 있으면 정식 표시, 없으면 "준비 중" 배지
+      isDummy: avgRating === null,
     },
     {
       icon: "🎯",
       label: "시즌 MVP",
-      // Phase 12-4: season.mvp_count 매핑 — 0회도 정식 표시 (집계 결과)
+      // Phase 12-4: season.mvp_count 매핑 — 0회도 정식 표시
       val: `${mvpCount}회`,
       goal: "-",
       pct: mvpCount > 0 ? 100 : 0,
       tone: "var(--ok)",
       earned: mvpCount > 0,
+      isDummy: false,
+    },
+    {
+      icon: "🔥",
+      label: "연속 출석",
+      val: `${gamification.streak}주`,
+      goal: "24주",
+      pct: Math.min((gamification.streak / 24) * 100, 100),
+      tone: "#F59E0B",
       isDummy: false,
     },
     {
@@ -250,16 +254,27 @@ export default function GrowthPage() {
       tone: "#10B981",
       isDummy: true,
     },
+    // [BDR-current sync] 시안 v2.4 6번째 = "팀 멤버 추천" (DB 미지원 → 더미 + 준비 중)
     {
-      icon: "🏆",
-      label: "시즌 순위",
-      // Phase 12-4: rank_position null = "집계 중" / 값 있으면 #N위 표시
-      val: rankPos !== null ? `#${rankPos}` : "집계 중",
-      goal: "-",
-      pct: rankPos !== null ? 100 : 0,
+      icon: "🤝",
+      label: "팀 멤버 추천",
+      val: "8",
+      goal: "10",
+      pct: 80,
       tone: "#8B5CF6",
-      isDummy: rankPos === null,
+      isDummy: true,
     },
+    // [보존] 옛 v2.2 박제 6번째 = "시즌 순위" (rankPos 진짜 데이터). 시안 v2.4에서 "팀 멤버 추천"으로 교체됨.
+    // 추후 시안 변경 시 부활 가능. rankPos 변수도 위에서 보존 중.
+    // {
+    //   icon: "🏆",
+    //   label: "시즌 순위",
+    //   val: rankPos !== null ? `#${rankPos}` : "집계 중",
+    //   goal: "-",
+    //   pct: rankPos !== null ? 100 : 0,
+    //   tone: "#8B5CF6",
+    //   isDummy: rankPos === null,
+    // },
   ];
 
   return (
