@@ -23,6 +23,20 @@ type Match = {
   awayScore: number;
   homeTeam: TeamInfo | null;
   awayTeam: TeamInfo | null;
+  // Phase D: dual_tournament 5섹션 그룹핑 + 빈 슬롯 라벨 + 일정/장소 표시용
+  // apiSuccess() 가 응답 키를 자동 snake_case 로 변환하므로,
+  // 응답에 실제 도착하는 키 (snake_case) + 코드 안전성 위한 camelCase 폴백 둘 다 옵셔널 정의
+  group_name?: string | null;
+  settings?: {
+    homeSlotLabel?: string | null;
+    awaySlotLabel?: string | null;
+    home_slot_label?: string | null;
+    away_slot_label?: string | null;
+  } | null;
+  scheduledAt?: string | null;
+  scheduled_at?: string | null;
+  venue_name?: string | null;
+  court_number?: string | null;
 };
 
 type ApprovedTeam = { id: string; seedNumber: number | null; team: { name: string } };
@@ -49,6 +63,39 @@ type BracketData = {
 // 풀리그 계열 포맷 판별 — UI 분기용
 function isLeagueFormat(fmt: string | null | undefined): boolean {
   return fmt === "round_robin" || fmt === "full_league" || fmt === "full_league_knockout";
+}
+
+// 듀얼토너먼트 포맷 판별 — Phase D 5섹션 그룹핑 분기용
+function isDualFormat(fmt: string | null | undefined): boolean {
+  return fmt === "dual_tournament";
+}
+
+// 일정 표시 — KST yyyy.MM.dd HH:mm
+// 응답 키가 scheduled_at (snake_case) / scheduledAt (camelCase) 어느 쪽이든 안전 처리
+function formatSchedule(m: { scheduledAt?: string | null; scheduled_at?: string | null }): string {
+  const iso = m.scheduledAt ?? m.scheduled_at ?? null;
+  if (!iso) return "일정 미정";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "일정 미정";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 장소 표시 — venue_name 있으면 우선, court_number 보조
+function formatVenue(m: Match): string {
+  const venue = m.venue_name?.trim();
+  const court = m.court_number?.trim();
+  if (venue && court) return `${venue} · ${court}`;
+  if (venue) return venue;
+  if (court) return court;
+  return "장소 미정";
+}
+
+// 빈 팀 슬롯 라벨 — 팀 확정이면 팀명, 아니면 settings 의 슬롯 라벨, 그래도 없으면 "미정"
+function slotLabel(team: TeamInfo | null, fallback: string | null | undefined): string {
+  if (team) return team.team.name;
+  if (fallback && fallback.trim()) return fallback;
+  return "미정";
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -133,8 +180,11 @@ export default function BracketAdminPage() {
     return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
 
   // 풀리그는 라운드 개념이 없어 "1라운드 팀 배치 편집"을 숨긴다
+  // 듀얼토너먼트는 27 매치를 5섹션으로 표시 — 기존 1라운드 편집/전체 목록 UI 숨기고 dual 전용 섹션 사용
   const isLeague = isLeagueFormat(data?.format);
-  const round1Matches = isLeague ? [] : (data?.matches.filter((m) => m.round_number === 1) ?? []);
+  const isDual = isDualFormat(data?.format);
+  // 1라운드 팀 배치 편집: single elim 만 노출 (league/dual 은 숨김)
+  const round1Matches = isLeague || isDual ? [] : (data?.matches.filter((m) => m.round_number === 1) ?? []);
   const hasMatches = (data?.matches.length ?? 0) > 0;
   const versionUsed = data?.currentVersion ?? 0;
   const versionLimit = MAX_FREE_VERSIONS;
@@ -330,8 +380,16 @@ export default function BracketAdminPage() {
         </div>
       )}
 
-      {/* 전체 경기 목록 */}
-      {hasMatches && (
+      {/* Phase D: dual_tournament 일 때 5섹션 그룹핑 UI 우선 표시 */}
+      {hasMatches && isDual && (
+        <DualBracketSections
+          matches={data?.matches ?? []}
+          tournamentId={id}
+        />
+      )}
+
+      {/* 전체 경기 목록 — single elim / 풀리그 등 dual 외 포맷 */}
+      {hasMatches && !isDual && (
         <div>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
@@ -378,16 +436,277 @@ export default function BracketAdminPage() {
         <Card className="py-16 text-center text-[var(--color-text-muted)]">
           <div className="mb-3 text-4xl">🏆</div>
           <p className="font-medium">
-            {isLeague ? "생성된 경기가 없습니다" : "대진표가 없습니다"}
+            {isLeague
+              ? "생성된 경기가 없습니다"
+              : isDual
+                ? "듀얼토너먼트 대진표가 없습니다"
+                : "대진표가 없습니다"}
           </p>
           <p className="mt-1 text-sm">
             승인된 팀 {approvedCount}팀이 있습니다.
             {isLeague && approvedCount >= 2 && (
               <> · 생성 시 {expectedLeagueMatches}경기가 만들어집니다.</>
             )}
+            {isDual && approvedCount === 16 && (
+              <> · 생성 시 27경기 (조별 16 + 조별최종 4 + 8강 4 + 4강 2 + 결승 1) 가 만들어집니다.</>
+            )}
+            {isDual && approvedCount !== 16 && (
+              <> · 듀얼토너먼트는 정확히 16팀이 필요합니다.</>
+            )}
           </p>
         </Card>
       )}
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Phase D: Dual Tournament 5섹션 그룹핑 컴포넌트
+// 27 매치를 5단계로 명확히 보여줌 (조별 / 조별최종전 / 8강 / 4강 / 결승)
+// 각 섹션 collapsed/expanded 토글 (UX 개선 — 27매치 한 화면 표시 시 길어짐)
+// ────────────────────────────────────────────────────────────────────────────
+
+// dual 5단계 메타 — round_number 매핑
+type DualStage = {
+  key: string;
+  label: string;
+  // 매치 필터 — round_number 배열
+  rounds: number[];
+  // 조별 추가 그룹핑 여부 (Stage 1 만 true)
+  groupByGroup: boolean;
+};
+
+const DUAL_STAGES: DualStage[] = [
+  { key: "stage1", label: "조별 미니 더블엘리미", rounds: [1, 2], groupByGroup: true },
+  { key: "stage2", label: "조별 최종전 (2위 결정)", rounds: [3], groupByGroup: false },
+  { key: "stage3", label: "8강", rounds: [4], groupByGroup: false },
+  { key: "stage4", label: "4강", rounds: [5], groupByGroup: false },
+  { key: "stage5", label: "결승", rounds: [6], groupByGroup: false },
+];
+
+function DualBracketSections({
+  matches,
+  tournamentId,
+}: {
+  matches: Match[];
+  tournamentId: string;
+}) {
+  // 모든 섹션 기본 펼침. 사용자가 접고 싶을 때만 접도록.
+  // 이유: 관리자가 점수 입력 시 한 번에 보여야 효율적
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggle = (key: string) => {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // 단계별 매치 분류 — 1회만 계산
+  const stageMatches = DUAL_STAGES.map((stage) => ({
+    ...stage,
+    matches: matches.filter(
+      (m) => m.round_number != null && stage.rounds.includes(m.round_number),
+    ),
+  }));
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+          듀얼토너먼트 ({matches.length}경기)
+        </h2>
+        <Link
+          href={`/tournament-admin/tournaments/${tournamentId}/matches`}
+          className="text-xs text-[var(--color-accent)] hover:underline"
+        >
+          경기 관리로 이동 →
+        </Link>
+      </div>
+
+      {stageMatches.map((stage) => {
+        const isCollapsed = collapsed[stage.key] === true;
+        const count = stage.matches.length;
+
+        return (
+          <Card key={stage.key} className="!p-0 overflow-hidden">
+            {/* 섹션 헤더 — 클릭 시 토글 */}
+            <button
+              type="button"
+              onClick={() => toggle(stage.key)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--color-elevated)] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[var(--color-text-primary)]">
+                  {stage.label}
+                </span>
+                <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                  {count}경기
+                </span>
+              </div>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
+              </span>
+            </button>
+
+            {/* 섹션 본문 */}
+            {!isCollapsed && (
+              <div className="border-t border-[var(--color-border-subtle)] p-3">
+                {stage.groupByGroup ? (
+                  // Stage 1: A/B/C/D 4조 추가 그룹핑
+                  <DualGroupedMatches matches={stage.matches} />
+                ) : (
+                  // Stage 2~5: 단순 리스트
+                  <div className="space-y-2">
+                    {stage.matches.length === 0 ? (
+                      <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">
+                        해당 단계 경기가 없습니다.
+                      </p>
+                    ) : (
+                      stage.matches.map((m) => <DualMatchCard key={m.id} match={m} />)
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// Stage 1 전용 — A/B/C/D 조별로 한번 더 묶기
+function DualGroupedMatches({ matches }: { matches: Match[] }) {
+  // 조 키 추출 (group_name 기준 — A/B/C/D 순)
+  // 이유: generator 가 group_name 으로 구분 저장. round_number 만으로는 조 구분 불가
+  const groupKeys = ["A", "B", "C", "D"] as const;
+
+  return (
+    <div className="space-y-3">
+      {groupKeys.map((g) => {
+        const groupMatches = matches
+          .filter((m) => m.group_name === g)
+          // round_number 1 (G1/G2) → 2 (승자전/패자전) 순 + match_number 보조 정렬
+          .sort((a, b) => {
+            const r = (a.round_number ?? 0) - (b.round_number ?? 0);
+            if (r !== 0) return r;
+            return (a.match_number ?? 0) - (b.match_number ?? 0);
+          });
+
+        if (groupMatches.length === 0) return null;
+
+        return (
+          <div key={g} className="rounded-[8px] bg-[var(--color-surface)] p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+              {g}조 ({groupMatches.length}경기)
+            </p>
+            <div className="space-y-2">
+              {groupMatches.map((m) => <DualMatchCard key={m.id} match={m} />)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 듀얼 전용 매치 카드 — HOME/AWAY + 빈 슬롯 라벨 + 일정/장소 + 점수
+function DualMatchCard({ match }: { match: Match }) {
+  // 빈 슬롯 라벨 — settings JSON 의 homeSlotLabel/awaySlotLabel
+  // apiSuccess() 자동 변환으로 키가 home_slot_label / away_slot_label 일 가능성 모두 폴백
+  const homeFallback = match.settings?.homeSlotLabel ?? match.settings?.home_slot_label;
+  const awayFallback = match.settings?.awaySlotLabel ?? match.settings?.away_slot_label;
+  const homeLabel = slotLabel(match.homeTeam, homeFallback);
+  const awayLabel = slotLabel(match.awayTeam, awayFallback);
+  const isHomeUndecided = match.homeTeam == null;
+  const isAwayUndecided = match.awayTeam == null;
+  // 점수 비교로 승패 표시 (status=completed 일 때만)
+  // 향후 winner_team_id 기반 정확 판정으로 대체 가능
+  const completed = match.status === "completed";
+  const homeWon = completed && match.homeScore > match.awayScore;
+  const awayWon = completed && match.awayScore > match.homeScore;
+
+  return (
+    <div className="rounded-[8px] bg-[var(--color-elevated)] p-3">
+      {/* 상단 메타 — 매치번호 / 라운드명 / 상태 */}
+      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[var(--color-text-muted)]">
+            #{match.match_number ?? "-"}
+          </span>
+          <span className="font-medium text-[var(--color-text-secondary)]">
+            {match.roundName ?? `라운드 ${match.round_number ?? "?"}`}
+          </span>
+        </div>
+        <span
+          className={`rounded-full px-2 py-0.5 ${
+            completed
+              ? "bg-[rgba(74,222,128,0.1)] text-[var(--color-success)]"
+              : match.status === "in_progress"
+                ? "bg-[rgba(0,121,185,0.1)] text-[var(--color-info)]"
+                : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
+          }`}
+        >
+          {STATUS_LABEL[match.status] ?? match.status}
+        </span>
+      </div>
+
+      {/* 일정 / 장소 — 모바일에서도 한 줄 유지 (작게) */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[var(--color-text-muted)]">
+        <span>{formatSchedule(match)}</span>
+        <span>·</span>
+        <span>{formatVenue(match)}</span>
+      </div>
+
+      {/* 팀 + 점수 */}
+      <div className="flex items-center gap-2">
+        {/* HOME */}
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <span
+            className={`flex-1 truncate text-sm ${
+              isHomeUndecided
+                ? "italic text-[var(--color-text-muted)]"
+                : homeWon
+                  ? "font-bold text-[var(--color-text-primary)]"
+                  : "font-medium text-[var(--color-text-primary)]"
+            }`}
+            title={homeLabel}
+          >
+            {homeLabel}
+          </span>
+          <span
+            className={`min-w-[28px] text-right text-sm tabular-nums ${
+              homeWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+            }`}
+          >
+            {completed ? match.homeScore : "-"}
+          </span>
+        </div>
+
+        <span className="text-xs text-[var(--color-text-muted)]">vs</span>
+
+        {/* AWAY */}
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <span
+            className={`min-w-[28px] text-sm tabular-nums ${
+              awayWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
+            }`}
+          >
+            {completed ? match.awayScore : "-"}
+          </span>
+          <span
+            className={`flex-1 truncate text-sm ${
+              isAwayUndecided
+                ? "italic text-[var(--color-text-muted)]"
+                : awayWon
+                  ? "font-bold text-[var(--color-text-primary)]"
+                  : "font-medium text-[var(--color-text-primary)]"
+            }`}
+            title={awayLabel}
+          >
+            {awayLabel}
+          </span>
+        </div>
+      </div>
+
     </div>
   );
 }
