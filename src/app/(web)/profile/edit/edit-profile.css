@@ -514,12 +514,13 @@
 @media (max-width: 720px) {
   .edit-profile { padding: 0 16px 120px; }
   .edit-profile__topbar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
     gap: 12px;
   }
   .edit-profile__title { font-size: 26px; }
-  .edit-profile__actions .btn { min-height: 44px; flex: 1; }
+  /* 2026-05-02: 모바일에서 상단 [취소][저장] 액션 숨김 — sticky 저장 바만 사용 (PC와 동일 패턴, 사용자 요청) */
+  .edit-profile__topbar .edit-profile__actions { display: none; }
 
   /* 2026-05-02: 모바일도 PC 와 동일 가로 레이아웃 (사진 좌 + 정보 우) — 사용자 요청 */
   .edit-profile__hero {
