@@ -322,10 +322,12 @@ export function V2BracketWrapper({
               backgroundColor: "var(--color-card)",
             }}
           >
-            {/* Phase F3: dual_tournament 첫 분기 — admin Phase D 와 동일한 5섹션 카드 (BracketView X) */}
+            {/* Phase F3 (2026-05-02 갱신): dual_tournament 분기
+                - 5섹션 카드 + 상단에 8강~결승 SVG 트리 (NBA 크로스 재정렬)
+                - 사용자 피드백: 카드만 너무 단조 → 트리 추가 */}
             {isDual ? (
               hasKnockout ? (
-                <V2DualBracketView rounds={rounds} />
+                <V2DualBracketView rounds={rounds} tournamentId={tournamentId} />
               ) : (
                 <BracketEmpty tournamentId={tournamentId} />
               )
