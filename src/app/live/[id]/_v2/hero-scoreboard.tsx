@@ -70,23 +70,6 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
       />
 
       <div className="hero-sb__inner">
-        {/* 팀 로고 — PC 좌·우 끝 absolute (모바일 hidden) — 2026-05-02 사용자 요청 */}
-        <div className="hero-sb__logo hero-sb__logo--home" aria-hidden>
-          {match.home_team.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={match.home_team.logo_url} alt="" />
-          ) : (
-            <span className="hero-sb__logo-fallback">{match.home_team.name.charAt(0)}</span>
-          )}
-        </div>
-        <div className="hero-sb__logo hero-sb__logo--away" aria-hidden>
-          {match.away_team.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={match.away_team.logo_url} alt="" />
-          ) : (
-            <span className="hero-sb__logo-fallback">{match.away_team.name.charAt(0)}</span>
-          )}
-        </div>
 
         {/* 상단 배지 — FINAL + 토너먼트/라운드 */}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
@@ -138,47 +121,29 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           </div>
         )}
 
-        {/* 팀 스코어 3단 그리드 — 홈 / VS / 원정 */}
-        {/* 2026-04-30 P0-3: className="scoreboard" 추가 — globals.css L1593 G-9 보호 룰이
-            모바일 720px 이하에서 1fr auto 1fr 다열 유지 자동 적용 (큰 점수 가로 배치 보존). */}
-        <div
-          className="scoreboard"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            gap: 16,
-            alignItems: "center",
-          }}
-        >
-          {/* 홈팀 — 우측 정렬 (2026-05-02: WINNER 라벨 삭제 + 양쪽 점수 균형 #fff) */}
-          <TeamScoreBlock
-            team={match.home_team}
-            score={homeScore}
-            align="right"
-          />
+        {/* 점수판 5 column — [홈로고][홈팀명+점수][dash][원정팀명+점수][원정로고]
+            2026-05-02 v3 사용자 재설계:
+              - 로고 inline (좌·우 끝 absolute → 점수판 안)
+              - PC dash 폭 확대 (양 팀 점수 떨어뜨림)
+              - 모바일 가운데 정렬 + 작게 + 로고 같이 노출 */}
+        <div className="hero-sb__row scoreboard">
+          {/* 홈팀 로고 */}
+          <TeamLogo team={match.home_team} />
 
-          {/* 중앙 구분선 — "–" + FINAL 라벨 (PC 확대) */}
-          <div style={{ textAlign: "center" }}>
+          {/* 홈팀 정보 (팀명 + 점수, 가운데 정렬) */}
+          <TeamScoreBlock team={match.home_team} score={homeScore} />
+
+          {/* 중앙 dash + FINAL */}
+          <div className="hero-sb__center">
             <div className="hero-sb__center-dash">–</div>
-            <div
-              style={{
-                fontSize: 10,
-                opacity: 0.6,
-                fontFamily: "var(--ff-mono)",
-                letterSpacing: ".15em",
-                marginTop: 6,
-              }}
-            >
-              FINAL
-            </div>
+            <div className="hero-sb__center-final">FINAL</div>
           </div>
 
-          {/* 원정팀 — 좌측 정렬 */}
-          <TeamScoreBlock
-            team={match.away_team}
-            score={awayScore}
-            align="left"
-          />
+          {/* 원정팀 정보 */}
+          <TeamScoreBlock team={match.away_team} score={awayScore} />
+
+          {/* 원정팀 로고 */}
+          <TeamLogo team={match.away_team} />
         </div>
 
         {/* 쿼터 스코어 표 — 2026-05-02 사용자 요청: 가로 스크롤 X, 한 번에 노출 + PC 비율 확대.
@@ -187,88 +152,44 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           className="hero-sb__quarter-grid"
           style={{ marginTop: 24, ["--qcount" as string]: String(quarters.length) }}
         >
-          {/* 첫 행 — 헤더 (빈칸 + Q1~Q4 + TOTAL) */}
+          {/* 첫 행 — 헤더 (빈칸 + Q1~Q4 + TOTAL). 사용자 요청 2026-05-02:
+              모든 텍스트 흰색 / winner 레드+볼드 / 폰트 확대 / 시인성 강화 */}
           <div />
           {quarters.map((q) => (
-            <div
-              key={`h-${q.label}`}
-              style={{
-                textAlign: "center",
-                fontSize: 11,
-                opacity: 0.7,
-                fontFamily: "var(--ff-mono)",
-                fontWeight: 700,
-              }}
-            >
+            <div key={`h-${q.label}`} className="hero-sb__quarter-header">
               {q.label}
             </div>
           ))}
-          <div
-            style={{
-              textAlign: "center",
-              fontSize: 11,
-              fontFamily: "var(--ff-mono)",
-              fontWeight: 800,
-            }}
-          >
-            TOTAL
-          </div>
+          <div className="hero-sb__quarter-total-header">TOTAL</div>
 
-          {/* 홈팀 행 — 줄바꿈 방지 + ellipsis (사용자 요청 2026-05-02) */}
-          <div className="hero-sb__quarter-team" style={{ color: match.home_team.color }}>
-            {match.home_team.name}
-          </div>
+          {/* 홈팀 행 */}
+          <div className="hero-sb__quarter-team">{match.home_team.name}</div>
           {quarters.map((q) => (
             <div
               key={`home-${q.label}`}
-              style={{
-                textAlign: "center",
-                fontFamily: "var(--ff-display)",
-                fontWeight: 900,
-                fontSize: 15,
-                color: q.home > q.away ? match.home_team.color : "rgba(255,255,255,.6)",
-              }}
+              className={`hero-sb__quarter-cell${q.home > q.away ? " hero-sb__quarter-cell--win" : ""}`}
             >
               {q.home}
             </div>
           ))}
           <div
-            style={{
-              textAlign: "center",
-              fontFamily: "var(--ff-display)",
-              fontWeight: 900,
-              fontSize: 17,
-              color: match.home_team.color,
-            }}
+            className={`hero-sb__quarter-total${homeWin ? " hero-sb__quarter-total--win" : ""}`}
           >
             {homeScore}
           </div>
 
-          {/* 원정팀 행 — 줄바꿈 방지 + ellipsis */}
-          <div className="hero-sb__quarter-team" style={{ color: match.away_team.color }}>
-            {match.away_team.name}
-          </div>
+          {/* 원정팀 행 */}
+          <div className="hero-sb__quarter-team">{match.away_team.name}</div>
           {quarters.map((q) => (
             <div
               key={`away-${q.label}`}
-              style={{
-                textAlign: "center",
-                fontFamily: "var(--ff-display)",
-                fontWeight: 900,
-                fontSize: 15,
-                color: q.away > q.home ? match.away_team.color : "rgba(255,255,255,.6)",
-              }}
+              className={`hero-sb__quarter-cell${q.away > q.home ? " hero-sb__quarter-cell--win" : ""}`}
             >
               {q.away}
             </div>
           ))}
           <div
-            style={{
-              textAlign: "center",
-              fontFamily: "var(--ff-display)",
-              fontWeight: 900,
-              fontSize: 17,
-            }}
+            className={`hero-sb__quarter-total${awayWin ? " hero-sb__quarter-total--win" : ""}`}
           >
             {awayScore}
           </div>
@@ -278,22 +199,32 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
   );
 }
 
-// 팀 + 스코어 단일 블록 — 좌/우 정렬만 다름
-// 2026-05-02 사용자 요청: WINNER 라벨 삭제 + 양쪽 점수 색·굵기 동등 (밸런스)
+// 팀 로고 (좌·우 끝 inline) — 2026-05-02 v3 사용자 재설계
+function TeamLogo({ team }: { team: MatchDataV2["home_team"] }) {
+  return (
+    <div className="hero-sb__logo" aria-hidden>
+      {team.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={team.logo_url} alt="" />
+      ) : (
+        <span className="hero-sb__logo-fallback">{team.name.charAt(0)}</span>
+      )}
+    </div>
+  );
+}
+
+// 팀 정보 (팀명 + 점수, 가운데 정렬)
+// 2026-05-02 v3: 양 팀 모두 가운데 정렬 (좌/우 정렬 prop 제거 — 사용자 요청)
 function TeamScoreBlock({
   team,
   score,
-  align,
 }: {
   team: MatchDataV2["home_team"];
   score: number;
-  align: "left" | "right";
 }) {
   return (
-    <div style={{ textAlign: align, minWidth: 0 }}>
-      {/* 팀명 — PC에서 확대 (CSS 분기) */}
+    <div style={{ minWidth: 0 }}>
       <div className="hero-sb__team-name">{team.name}</div>
-      {/* 큰 스코어 — 양쪽 동일 색 (#fff) + PC 확대 */}
       <div className="hero-sb__score">{score}</div>
     </div>
   );
