@@ -1,7 +1,6 @@
 "use client";
 
-// v2.4 박제 시 _archived/ 격리 — radar-chart 는 users/[id] 에서 사용 중이라 _components/ 잔존
-import { RadarChart } from "../_components/radar-chart";
+import { RadarChart } from "./radar-chart";
 
 /**
  * AbilitySection - 능력치 분석 섹션 (2열: 헥사곤 차트 + 바 차트 6개)

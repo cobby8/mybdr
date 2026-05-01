@@ -23,10 +23,7 @@ export interface TeamSideItem {
   primaryColor: string | null;
   /** 팀 로고 URL — 없으면 이니셜 폴백 */
   logoUrl: string | null;
-  /** v2.3 시안 "12W 5L" — 팀 전적. 0/0 이면 표시 생략 (신규 팀 잡음 방지) */
-  wins: number;
-  losses: number;
-  draws: number;
+  /** 총 팀 개수 (복수일 때 "외 N팀" 표시용) */
 }
 
 export interface TeamSideCardProps {
@@ -42,40 +39,9 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
   const bgColor = primaryTeam.primaryColor ?? "var(--accent)";
 
   return (
-    // v2.4 시안 캡처 26 — 헤더에 빨간 12x2 막대 + "전체" 우측 링크
-    <div className="card" style={{ padding: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
-            style={{
-              width: 12,
-              height: 2,
-              background: "var(--accent)",
-              borderRadius: 2,
-            }}
-          />
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
-            소속 팀
-          </span>
-        </div>
-        {/* 우측 "전체" — 팀 목록 페이지로 이동 (/profile/teams 운영 미존재 → /teams 로 매핑) */}
-        <Link
-          href="/teams"
-          style={{
-            fontSize: 11,
-            color: "var(--ink-dim)",
-            textDecoration: "none",
-          }}
-        >
-          전체
-        </Link>
+    <div className="card" style={{ padding: "18px 20px" }}>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, color: "var(--ink)" }}>
+        소속 팀
       </div>
 
       <Link
@@ -83,7 +49,7 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: 10,
           padding: 8,
           background: "var(--bg-alt)",
           borderRadius: 6,
@@ -91,17 +57,17 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
           color: "inherit",
         }}
       >
-        {/* 팀 색 박스 — 시안 톤 40x40 (기존 32 → 40 으로 확대, 시안 캡처 26 비율) */}
+        {/* 팀 로고 / 이니셜 */}
         <span
           style={{
-            width: 40,
-            height: 40,
+            width: 32,
+            height: 32,
             background: bgColor,
             color: "#fff",
             display: "grid",
             placeItems: "center",
             fontFamily: "var(--ff-mono)",
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 700,
             borderRadius: 4,
             overflow: "hidden",
@@ -112,8 +78,8 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
             <Image
               src={primaryTeam.logoUrl}
               alt={primaryTeam.name}
-              width={40}
-              height={40}
+              width={32}
+              height={32}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
             />
           ) : (
@@ -124,7 +90,7 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
           <div
             style={{
               fontWeight: 700,
-              fontSize: 14,
+              fontSize: 13,
               color: "var(--ink)",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -133,29 +99,18 @@ export function TeamSideCard({ primaryTeam, totalTeams }: TeamSideCardProps) {
           >
             {primaryTeam.name}
           </div>
-          {/* v2.4 시안 "34W 12L · 1842" — wins/losses + 외 N팀. 데이터 없으면 "—" 폴백 */}
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--ink-dim)",
-              fontFamily: "var(--ff-mono)",
-              marginTop: 2,
-            }}
-          >
-            {primaryTeam.wins > 0 || primaryTeam.losses > 0 ? (
-              <>
-                {primaryTeam.wins}W {primaryTeam.losses}L
-                {primaryTeam.draws > 0 ? ` ${primaryTeam.draws}D` : ""}
-              </>
-            ) : (
-              "—"
-            )}
-            {totalTeams > 1 && (
-              <>
-                {" · "}외 {totalTeams - 1}팀
-              </>
-            )}
-          </div>
+          {/* 복수 팀 메타 — 2팀 이상일 때만 */}
+          {totalTeams > 1 && (
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--ink-dim)",
+                fontFamily: "var(--ff-mono)",
+              }}
+            >
+              외 {totalTeams - 1}팀
+            </div>
+          )}
         </div>
       </Link>
     </div>

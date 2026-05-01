@@ -1,16 +1,16 @@
 /* ============================================================
- * UpcomingGames — /profile v2.4 다음 경기 (단일 카드, D-N 빨간 박스 강조)
+ * UpcomingGames — /profile v2 다가오는 일정 (1건)
  *
  * 왜:
- * - v2.4 시안 캡처 26 우측 aside 첫 카드 — 단일 D-N 박스 강조 톤으로 변경.
- *   기존 다중 행(72px/제목/배지) 카드를 폐기하고, 가장 가까운 1건을 "다음 경기" 카드로 표시.
- * - D-N 영역(좌)은 var(--accent) 12% mix 박스 + 큰 ff-display 글자, 우측은 제목 + 장소·시간.
- * - 카드 푸터에 "경기 상세 →" 버튼 (시안 캡처 26 그대로).
+ * - v2 Profile.jsx L85~99 "다가오는 일정" 섹션 재현. 원본은 GAMES.slice(0,3) 으로
+ *   3건 렌더하나, PM 확정 D-P4: next_game API (실제 데이터 1건만) 사용.
+ * - getProfile 이 돌려주는 nextGameApp 또는 apiSuccess 응답의 nextGame 재사용.
  *
  * 어떻게:
- * - games[0] 만 사용 (1건). 데이터 없으면 빈 상태 메시지.
- * - D-N 계산: 오늘 KST 자정 기준 일수 차이.
- * - 시안 빨간 막대 헤더(좌측 12x2 div) + "다음 경기" 라벨.
+ * - 단일 행 카드: 72px D-N 표기 / 제목 + 장소·시간 / "참가확정" 배지.
+ * - scheduled_at 을 KST 기준 D-N 으로 계산 (기존 teams-tournaments-card 로직 차용).
+ * - 없으면 "예정된 경기 없음" empty state 1줄 (CardPanel 스타일 대신 간결 문구).
+ * - Link 로 /games/[id] 이동 (id 는 uuid slice 8자 or raw id).
  * ============================================================ */
 
 import Link from "next/link";
@@ -20,15 +20,12 @@ export interface UpcomingGame {
   id: string;
   title: string | null;
   /** ISO 문자열 */
-  scheduledAt: string;
+  scheduledAt: string | null;
   venueName: string | null;
-  /** game_applications.status — Int 코드 (0=pending, 1=approved, 2=rejected, 3=cancelled).
-   *  시안 v2.4 에선 사용 안 함 (D-N 강조만). 호환을 위해 prop 은 유지. */
-  status: number | null;
 }
 
 export interface UpcomingGamesProps {
-  games: UpcomingGame[];
+  game: UpcomingGame | null;
 }
 
 /** KST 기준 오늘 자정부터의 일수 차이. 과거면 null. */
@@ -58,6 +55,16 @@ function calcDDay(scheduledAtIso: string): number | null {
   return diffDays;
 }
 
+/** MM.DD 포맷 — 시안의 ff-mono D 컬럼용 */
+function fmtMonthDay(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "-";
+  // KST 로 표시 — Korea locale
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${m}.${day}`;
+}
+
 /** HH:mm 포맷 */
 function fmtTime(iso: string): string {
   const d = new Date(iso);
@@ -67,124 +74,85 @@ function fmtTime(iso: string): string {
   return `${h}:${mi}`;
 }
 
-export function UpcomingGames({ games }: UpcomingGamesProps) {
-  // v2.4 시안: 가장 빠른 1건만 D-N 강조 카드로 표시
-  const nextGame = games[0] ?? null;
-
-  // 데이터 없을 때 — 시안에 명시되어 있진 않지만 운영 폴백 필수
-  if (!nextGame) {
-    return (
-      <div
-        className="card"
-        style={{
-          padding: 16,
-          textAlign: "center",
-          color: "var(--ink-mute)",
-          fontSize: 13,
-        }}
-      >
-        예정된 경기가 없습니다.
-      </div>
-    );
-  }
-
-  // D-N 일수 계산 (음수면 0 처리)
-  const dDay = calcDDay(nextGame.scheduledAt);
-  // D-N 라벨 — null 이면 "PAST" 폴백 (지난 경기 들어왔을 때 안전망)
-  const dLabel = dDay === null ? "PAST" : dDay === 0 ? "D-DAY" : `D-${dDay}`;
+export function UpcomingGames({ game }: UpcomingGamesProps) {
+  // dDay 없으면 (null / 과거) 빈 상태로 폴백
+  const dDay = game?.scheduledAt ? calcDDay(game.scheduledAt) : null;
 
   return (
-    // 시안 캡처 26 — 단일 D-N 강조 카드 + 빨간 막대 헤더 + "경기 상세 →" 푸터
-    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      {/* 헤더 — 빨간 12x2 막대 + "다음 경기" 라벨 (시안 톤) */}
-      <div
-        style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <span
-          style={{
-            width: 12,
-            height: 2,
-            background: "var(--accent)",
-            borderRadius: 2,
-          }}
-        />
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>
-          다음 경기
-        </span>
-      </div>
+    <div className="card" style={{ padding: "22px 24px", marginBottom: 16 }}>
+      <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>
+        다가오는 일정
+      </h2>
 
-      {/* 본문 — 좌 D-N 박스 + 우 정보 */}
-      <div
-        style={{
-          padding: 16,
-          display: "flex",
-          gap: 14,
-          alignItems: "center",
-        }}
-      >
-        {/* D-N 빨간 박스 (12% mix 배경 + accent 텍스트) */}
-        <div
+      {game && game.scheduledAt && dDay !== null ? (
+        // 행 1건 — 시안 구조: 72px / 1fr / auto
+        <Link
+          href={`/games/${game.id.length >= 8 ? game.id.slice(0, 8) : game.id}`}
           style={{
-            width: 72,
-            height: 72,
-            // 시안 빨간 박스 톤 — color-mix 로 12% 투명. 토큰 룰 준수
-            background: "color-mix(in srgb, var(--accent) 12%, transparent)",
-            borderRadius: 8,
             display: "grid",
-            placeItems: "center",
-            fontFamily: "var(--ff-display)",
-            fontWeight: 900,
-            fontSize: 22,
-            color: "var(--accent)",
-            letterSpacing: "-0.04em",
-            flexShrink: 0,
+            gridTemplateColumns: "72px 1fr auto",
+            gap: 14,
+            padding: "12px 14px",
+            background: "var(--bg-alt)",
+            borderRadius: 6,
+            alignItems: "center",
+            textDecoration: "none",
+            color: "inherit",
           }}
         >
-          {dLabel}
-        </div>
-        {/* 우측: 제목 + 장소 · 시간 */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* 좌측: MM.DD (ff-mono, accent 색) */}
           <div
             style={{
-              fontSize: 14,
+              fontFamily: "var(--ff-mono)",
+              fontSize: 12,
               fontWeight: 700,
-              marginBottom: 2,
-              color: "var(--ink)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              color: "var(--accent)",
             }}
           >
-            {nextGame.title ?? "경기"}
+            {fmtMonthDay(game.scheduledAt)}
           </div>
-          <div style={{ fontSize: 12, color: "var(--ink-mute)" }}>
-            {[nextGame.venueName, fmtTime(nextGame.scheduledAt)]
-              .filter(Boolean)
-              .join(" · ")}
+          {/* 중앙: 제목 + 장소 · 시간 */}
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: 14,
+                color: "var(--ink)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {game.title ?? "경기"}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--ink-dim)",
+                marginTop: 2,
+              }}
+            >
+              {[game.venueName, fmtTime(game.scheduledAt)].filter(Boolean).join(" · ")}
+            </div>
           </div>
+          {/* 우측: D-N 배지 (시안의 "참가확정" 대체 — 실 데이터가 "신청 상태" 이고, D-N 이 대시보드 의미) */}
+          <span className="badge badge--ok">
+            {dDay === 0 ? "D-DAY" : `D-${dDay}`}
+          </span>
+        </Link>
+      ) : (
+        // 빈 상태 — 시안에 없는 case 지만 필수 폴백
+        <div
+          style={{
+            padding: "18px 14px",
+            textAlign: "center",
+            fontSize: 13,
+            color: "var(--ink-mute)",
+          }}
+        >
+          예정된 경기가 없습니다.
         </div>
-      </div>
-
-      {/* 푸터 — "경기 상세 →" 버튼 (시안 톤) */}
-      <Link
-        href={`/games/${nextGame.id.length >= 8 ? nextGame.id.slice(0, 8) : nextGame.id}`}
-        className="btn"
-        style={{
-          margin: "0 16px 16px",
-          display: "block",
-          textAlign: "center",
-          fontSize: 13,
-          textDecoration: "none",
-        }}
-      >
-        경기 상세 →
-      </Link>
+      )}
     </div>
   );
 }

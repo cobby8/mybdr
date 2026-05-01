@@ -89,14 +89,8 @@ export function SeasonStats({ data, seasonLabel }: SeasonStatsProps) {
         </h2>
       </div>
 
-      {/*
-        6열 grid — 데스크톱 시안 그대로 (border 1px 바깥틀 + 셀 좌측 border).
-        모바일 720px 분기: globals.css `.season-stats-grid` 룰이 3열 2행으로 재배치 +
-        4번째 셀(인덱스 3, 모바일 좌상단) borderLeft:0 처리.
-        룰 13 (인라인 grid repeat(N,1fr) 720 분기 필수) 충족.
-      */}
+      {/* 6열 grid — border 1px 바깥틀, 셀 사이 좌측 border */}
       <div
-        className="season-stats-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(6, 1fr)",
@@ -109,8 +103,6 @@ export function SeasonStats({ data, seasonLabel }: SeasonStatsProps) {
         {cells.map((s, i) => (
           <div
             key={s.label}
-            className="season-stats-cell"
-            data-cell-index={i}
             style={{
               padding: "14px 10px",
               textAlign: "center",

@@ -52,8 +52,6 @@ export interface HeroCardUser {
   total_games_hosted: number | null;
   /** 유저 평가 점수 (0.00~5.00) — 별점으로 표시. 0 또는 null 이면 생략 */
   evaluation_rating: number | null;
-  /** v2.3 시안 "#7" — 등번호. TeamMember 우선, 없으면 user.preferred_jersey_number */
-  jerseyNumber: number | null;
 }
 
 export interface HeroCardLevel {
@@ -65,8 +63,6 @@ export interface HeroCardLevel {
 export interface HeroCardTeamSummary {
   /** 대표 팀 이름 — 없으면 "팀 없음" */
   teamName: string | null;
-  /** v2.4 시안 — 팀 primary_color (linear-gradient 시작점). 없으면 var(--accent) 폴백 */
-  primaryColor?: string | null;
 }
 
 export interface HeroCardProps {
@@ -94,37 +90,28 @@ export function HeroCard({
   const displayName = user.nickname ?? user.name ?? "사용자";
   // 이미지 없을 때 이니셜 — 한글·영문 혼합 대비 trim 후 첫 글자 대문자화
   const initial = displayName.trim()[0]?.toUpperCase() ?? "U";
-  // 메타 1줄 v2.3 시안 — "리딤 · 가드 · #7" 패턴: 팀명 + 포지션 + 등번호
+  // 메타 1줄 — "팀명 · 포지션 · 지역"
   const metaParts: string[] = [];
   if (team?.teamName) metaParts.push(team.teamName);
   if (user.position) {
     // 포지션 매핑 없으면 원본 코드 그대로 사용
     metaParts.push(POSITION_KO[user.position] ?? user.position);
   }
-  // 등번호는 # 프리픽스 (시안 "#7")
-  if (user.jerseyNumber != null) metaParts.push(`#${user.jerseyNumber}`);
+  const location = [user.city, user.district].filter(Boolean).join(" ");
+  if (location) metaParts.push(location);
   const metaLine = metaParts.join(" · ");
 
-  // 메타 2줄 v2.3: 지역 + gender + ★ rating (위 1줄에 등번호가 들어가서 지역은 2줄로 강등)
-  const location = [user.city, user.district].filter(Boolean).join(" ");
+  // 메타 2줄 — gender + ★ evaluation_rating (둘 중 하나만 있어도 렌더)
   const genderLabel = user.gender ? (GENDER_KO[user.gender] ?? user.gender) : null;
   // evaluation_rating 은 Decimal(3,2) — Prisma 반환값은 Decimal 객체일 수 있어 Number() 변환 후 체크
   const ratingNum = user.evaluation_rating != null ? Number(user.evaluation_rating) : 0;
   // 0 초과일 때만 별점 표시 (시드값 0.0 은 숨김 처리해 UI 잡음 방지)
   const showRating = ratingNum > 0;
 
-  // v2.4 시안 (Profile.jsx L32) — 96 아바타에 팀 색 → 검정 그라디언트.
-  // 프로필 이미지 없을 때만 그라디언트 노출. 팀 없으면 var(--accent) 폴백.
-  const teamColor = team?.primaryColor ?? null;
-  const avatarBg = teamColor
-    ? `linear-gradient(145deg, ${teamColor}, #000)`
-    : "linear-gradient(145deg, var(--accent), #1a0508)";
-
   return (
     // v2 .card 토큰 + 중앙 정렬 레이아웃 (시안 구조)
     <div className="card" style={{ padding: "24px 22px", textAlign: "center" }}>
-      {/* 아바타 — 96px 원형. v2.4 시안: 프로필 이미지 없으면 팀 색 그라디언트 + 흰 이니셜.
-          이미지 있으면 그대로 둥근 마스크. */}
+      {/* 아바타 — 96px 원형, v2 border 2px */}
       <div
         style={{
           width: 96,
@@ -133,15 +120,13 @@ export function HeroCard({
           borderRadius: "50%",
           overflow: "hidden",
           border: "3px solid var(--border)",
-          // 이미지 있으면 var(--bg-alt) (이미지가 cover), 없으면 팀 그라디언트
-          background: user.profile_image_url ? "var(--bg-alt)" : avatarBg,
+          background: "var(--bg-alt)",
           display: "grid",
           placeItems: "center",
           fontFamily: "var(--ff-display)",
           fontWeight: 900,
           fontSize: 32,
-          // 그라디언트 위 흰 이니셜 (시안 매칭). 이미지 있을 때는 안 보임
-          color: user.profile_image_url ? "var(--ink)" : "#fff",
+          color: "var(--ink)",
         }}
       >
         {user.profile_image_url ? (
@@ -169,8 +154,8 @@ export function HeroCard({
         </div>
       )}
 
-      {/* 메타 2줄 v2.3 — 지역 · 성별 · ★ 평점 (있는 항목만 · 로 join) */}
-      {(location || genderLabel || showRating) && (
+      {/* 메타 2줄 — 성별 · ★ 평점 (있을 때만) */}
+      {(genderLabel || showRating) && (
         <div
           style={{
             fontSize: 12,
@@ -180,11 +165,8 @@ export function HeroCard({
             gap: 8,
             justifyContent: "center",
             alignItems: "center",
-            flexWrap: "wrap",
           }}
         >
-          {location && <span>{location}</span>}
-          {location && (genderLabel || showRating) && <span>·</span>}
           {genderLabel && <span>{genderLabel}</span>}
           {genderLabel && showRating && <span>·</span>}
           {showRating && (

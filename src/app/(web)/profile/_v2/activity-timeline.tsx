@@ -18,22 +18,14 @@
 
 import Link from "next/link";
 
-/** 활동 1건 — v2.4 시안: post/match/win/loss/team 5종 (현 데이터 = post/application 2종, 향후 확장 가능) */
+/** 활동 1건 — post 또는 application */
 export interface ActivityItem {
   /** 중복 방지용 고유 키 (type + id) */
   key: string;
   /** ISO 문자열 */
   createdAt: string;
-  /**
-   * 표시 태그 종류 — v2.4 시안 매핑:
-   *  · post        — 게시글 작성 (badge--soft)
-   *  · application — 경기 신청 (badge--ok, "match" 와 동급)
-   *  · match       — 대회 접수 (badge--soft) — 향후 토너먼트 신청 연결
-   *  · win         — 경기 완료·승 (badge--ok) — 승패 데이터 연결 후
-   *  · loss        — 경기 완료·패 (badge--red) — 승패 데이터 연결 후
-   *  · team        — 팀 합류 (badge--soft) — TeamMember.joined_at 연결 후
-   */
-  kind: "post" | "application" | "match" | "win" | "loss" | "team";
+  /** 표시 태그 종류 */
+  kind: "post" | "application";
   /** 태그 라벨 (예: "게시글 작성") */
   action: string;
   /** 중앙 텍스트 (예: "어제 픽업경기 후기") */
@@ -55,21 +47,13 @@ function fmtMonthDay(iso: string): string {
   return `${m}.${day}`;
 }
 
-/** v2.4 시안 kind → badge 클래스 매핑 (5종 + application 호환) */
+/** kind → badge 클래스 매핑 */
 function badgeClass(kind: ActivityItem["kind"]): string {
   switch (kind) {
-    case "win":
-      return "badge badge--ok"; // 녹색 — 승
-    case "loss":
-      return "badge badge--red"; // 빨강 — 패
     case "post":
       return "badge badge--soft"; // 카페블루 soft — 게시글 작성
-    case "match":
-      return "badge badge--soft"; // 대회 접수 (시안 ref)
     case "application":
-      return "badge badge--ok"; // 경기 신청 (긍정적 활동)
-    case "team":
-      return "badge badge--soft"; // 팀 합류
+      return "badge badge--ok"; // 녹색 — 경기 신청 (긍정적 활동)
     default:
       return "badge badge--ghost";
   }

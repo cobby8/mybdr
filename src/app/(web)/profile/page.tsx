@@ -36,16 +36,12 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 import { PageBackButton } from "@/components/shared/page-back-button";
 
-// HeroCard import 제거 (2026-05-01 회귀 픽스) — 본문 상단 큰 Hero 배너로 대체
-// 우측 aside HeroCard 와 중복 표시되어 사용자 캡처 20 보고 — 제거.
-// SeasonStats import 제거 (v2.4 시안 캡처 26: 우측 aside 에 시즌스탯 통산 카드 없음).
-//   본문 4 카드 안 "내 농구" 카드에 PPG/APG/RPG 표시로 대체.
+import { HeroCard } from "./_v2/hero-card";
+import { SeasonStats } from "./_v2/season-stats";
 import { UpcomingGames } from "./_v2/upcoming-games";
 import { ActivityTimeline, type ActivityItem } from "./_v2/activity-timeline";
 import { TeamSideCard } from "./_v2/team-side-card";
 import { BadgesSideCard } from "./_v2/badges-side-card";
-// v2.4 마이페이지 hub — Tier 1 큰 카드 4종 + Tier 2 quick 카드 4종 (의뢰서 §3-2)
-import { MyPageHub, type HubTier1Slot } from "./_v2/mypage-hub";
 
 // SSR 세션 기반 페이지 — 캐시 금지 (본인 데이터는 매 요청 최신)
 export const dynamic = "force-dynamic";
@@ -89,7 +85,7 @@ export default async function ProfilePage() {
   const [
     user,
     teamMembers,
-    nextGameApps,
+    nextGameApp,
     playerStats,
     unreadCount,
     recentPosts,
@@ -97,7 +93,6 @@ export default async function ProfilePage() {
     userBadges,
   ] = await Promise.all([
     // 1) user 필수 필드 — profile API 보다 확장(gender/evaluation_rating/total_games_hosted/xp/subscription)
-    //   v2.3: name_verified(Phase 12 추가) + preferred_jersey_number(시안 "#7")
     prisma.user
       .findUnique({
         where: { id: userId },
@@ -117,35 +112,22 @@ export default async function ProfilePage() {
           total_games_hosted: true,
           xp: true,
           subscription_status: true,
-          // v2.4: 결제·멤버십 큰 카드 — "다음 결제 YYYY.MM.DD" 표시용
-          subscription_expires_at: true,
-          membershipType: true,
           profile_completed: true,
-          // 시안 "인증완료" 뱃지 정합 — Phase 12-1 으로 추가된 본인인증 컬럼
-          name_verified: true,
-          // 등번호는 User 컬럼이 아닌 TeamMember.jerseyNumber 를 사용
-          // (preferred_jersey_number 는 team_join_requests 의 신청 옵션 — User 가입 시점이 아니라 팀 가입 요청 임시값).
         },
       })
       .catch(() => null),
 
     // 2) 소속 팀 (active만)
-    //    v2.3: TeamSideCard 의 "12W 5L" 표시 — team.wins/losses/draws + 시안 "#7" 등번호용 jerseyNumber
     prisma.teamMember
       .findMany({
         where: { userId, status: "active" },
-        select: {
-          id: true,
-          jerseyNumber: true,
+        include: {
           team: {
             select: {
               id: true,
               name: true,
               primaryColor: true,
               logoUrl: true,
-              wins: true,
-              losses: true,
-              draws: true,
             },
           },
         },
@@ -154,18 +136,14 @@ export default async function ProfilePage() {
       })
       .catch(() => []),
 
-    // 3) 다가오는 일정 — v2.3 시안 GAMES.slice(0,3) 매칭. scheduled_at > now 가장 빠른 3건
-    //    findFirst → findMany 로 변경. 페이지 SSR 에서만 사용 (실시간 불필요).
+    // 3) 다음 경기 — scheduled_at > now 인 가장 빠른 1건
     prisma.game_applications
-      .findMany({
+      .findFirst({
         where: {
           user_id: userId,
           games: { scheduled_at: { gt: now } },
         },
-        select: {
-          id: true,
-          status: true,
-          game_id: true,
+        include: {
           games: {
             select: {
               id: true,
@@ -177,9 +155,8 @@ export default async function ProfilePage() {
           },
         },
         orderBy: { games: { scheduled_at: "asc" } },
-        take: 3,
       })
-      .catch(() => []),
+      .catch(() => null),
 
     // 4) 승률 / 평균 스탯
     getPlayerStats(userId).catch(() => null),
@@ -254,25 +231,16 @@ export default async function ProfilePage() {
   const level = getProfileLevelInfo(user.xp);
   // subscription_status === "active" 이면 PRO
   const isPro = user.subscription_status === "active";
-  // v2.3: 시안 "인증완료" — Phase 12 추가된 name_verified 우선, 폴백으로 profile_completed
-  const isVerified = !!user.name_verified || !!user.profile_completed;
+  const isVerified = !!user.profile_completed;
   // evaluation_rating 은 Decimal → number
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
-  // v2.3: 시안 "#7" — 첫 활성 팀의 등번호 (User 모델에는 jersey 컬럼 없음)
-  const primaryTeamMember = teamMembers[0] ?? null;
-  const jerseyNumber = primaryTeamMember?.jerseyNumber ?? null;
-
-  const primaryTeam = primaryTeamMember?.team
+  const primaryTeam = teamMembers[0]?.team
     ? {
-        id: primaryTeamMember.team.id.toString(),
-        name: primaryTeamMember.team.name,
-        primaryColor: primaryTeamMember.team.primaryColor,
-        logoUrl: primaryTeamMember.team.logoUrl,
-        // v2.3 TeamSideCard "12W 5L" — 시안 정합. 시즌 레이팅은 DB 없음 (totalGames 표시로 대체)
-        wins: primaryTeamMember.team.wins ?? 0,
-        losses: primaryTeamMember.team.losses ?? 0,
-        draws: primaryTeamMember.team.draws ?? 0,
+        id: teamMembers[0].team.id.toString(),
+        name: teamMembers[0].team.name,
+        primaryColor: teamMembers[0].team.primaryColor,
+        logoUrl: teamMembers[0].team.logoUrl,
       }
     : null;
 
@@ -287,18 +255,15 @@ export default async function ProfilePage() {
     rating: evaluationRating,
   };
 
-  // ---- UpcomingGames 데이터 변환 (v2.3: 1건 → 3건) ----
-  //   시안 GAMES.slice(0,3) 매칭. games 가 null 인 신청은 필터 제거.
-  const nextGames = nextGameApps
-    .filter((app) => app.games != null && app.games.scheduled_at != null)
-    .map((app) => ({
-      id: app.games!.uuid ?? app.game_id.toString(),
-      title: app.games!.title ?? null,
-      scheduledAt: app.games!.scheduled_at!.toISOString(),
-      venueName: app.games!.venue_name ?? null,
-      // 신청 상태 — "approved"/"confirmed" 면 시안의 "참가확정" badge 매핑
-      status: app.status ?? null,
-    }));
+  // ---- UpcomingGames 데이터 변환 ----
+  const nextGame = nextGameApp?.games
+    ? {
+        id: nextGameApp.games.uuid ?? nextGameApp.game_id.toString(),
+        title: nextGameApp.games.title ?? null,
+        scheduledAt: nextGameApp.games.scheduled_at?.toISOString() ?? null,
+        venueName: nextGameApp.games.venue_name ?? null,
+      }
+    : null;
 
   // ---- Activity 타임라인 merge (posts + applications → created_at desc 상위 5건) ----
   const postItems: ActivityItem[] = recentPosts.map((p) => ({
@@ -334,410 +299,23 @@ export default async function ProfilePage() {
     earnedAt: b.earned_at.toISOString(),
   }));
 
-  // ---- v2.4 Hub: Tier 1 카드 본문 슬롯 4개 ----
-  //   각 카드별로 본문이 다름 (프로필=정보 dl / 내 농구=PPG/APG/RPG / 내 성장=차트 placeholder /
-  //   내 활동=막대 그래프). page.tsx 에서 직접 JSX 작성 후 MyPageHub 에 슬롯 props 로 전달.
-  const positionLabel = user.position ?? "포지션 미정";
-  // 프로필 카드 — 닉네임/실명/포지션/본인인증 4행
-  const profileSlot = (
-    <dl style={{ margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 4, fontSize: 13 }}>
-        <dt style={{ color: "var(--ink-dim)", margin: 0 }}>닉네임</dt>
-        <dd style={{ margin: 0, color: "var(--ink)" }}>{user.nickname ?? "—"}</dd>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 4, fontSize: 13 }}>
-        <dt style={{ color: "var(--ink-dim)", margin: 0 }}>실명</dt>
-        <dd style={{ margin: 0, color: "var(--ink)" }}>{user.name ?? "—"}</dd>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 4, fontSize: 13 }}>
-        <dt style={{ color: "var(--ink-dim)", margin: 0 }}>포지션</dt>
-        <dd style={{ margin: 0, color: "var(--ink)" }}>
-          {positionLabel}
-          {jerseyNumber != null && ` · #${jerseyNumber}`}
-        </dd>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "70px 1fr", gap: 4, fontSize: 13 }}>
-        <dt style={{ color: "var(--ink-dim)", margin: 0 }}>본인인증</dt>
-        <dd style={{ margin: 0 }}>
-          {/* Phase 12 name_verified 우선. 미인증 시 "미인증" 라벨 */}
-          {isVerified ? (
-            <span className="badge badge--ok">✓ 인증완료</span>
-          ) : (
-            <span className="badge badge--warn">미인증</span>
-          )}
-        </dd>
-      </div>
-    </dl>
-  );
-
-  // 내 농구 카드 — PPG/APG/RPG 3 통계 (의뢰서 §3-3 Tier 1)
-  const fmt = (v: number | null | undefined) => (v == null ? "—" : v.toFixed(1));
-  const basketballSlot = (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, padding: "8px 0" }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "var(--ff-display)", fontWeight: 900, fontSize: 22, color: "var(--ink)" }}>
-          {fmt(seasonStatsData.ppg)}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>PPG</div>
-      </div>
-      <div style={{ textAlign: "center", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)" }}>
-        <div style={{ fontFamily: "var(--ff-display)", fontWeight: 900, fontSize: 22, color: "var(--ink)" }}>
-          {fmt(seasonStatsData.apg)}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>APG</div>
-      </div>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "var(--ff-display)", fontWeight: 900, fontSize: 22, color: "var(--ink)" }}>
-          {fmt(seasonStatsData.rpg)}
-        </div>
-        <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 2 }}>RPG</div>
-      </div>
-    </div>
-  );
-
-  // 내 성장 카드 — v2.4 시안 톤: SVG line 그래프 (placeholder 더미 7 포인트)
-  //   실 데이터는 /profile/growth 클릭 후 로드 (의뢰서 §6 "API 0 변경" 룰 준수)
-  //   더미 폴리라인은 점진적 상승 곡선 (0,60 → 200,10) — 좌하단 → 우상단
-  const growthSlot = (
-    <div
-      style={{
-        height: 80,
-        background: "var(--bg-alt)",
-        borderRadius: 4,
-        padding: 8,
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
-      <svg
-        viewBox="0 0 200 80"
-        preserveAspectRatio="none"
-        style={{ width: "100%", height: "100%" }}
-      >
-        {/* 시안 톤: var(--accent) stroke 2px, 라인 캡 round (부드러운 끝) */}
-        <polyline
-          points="0,60 30,55 60,50 90,45 120,30 150,25 180,15 200,10"
-          fill="none"
-          stroke="var(--accent)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      </svg>
-    </div>
-  );
-
-  // 내 활동 카드 — 7일 막대 그래프 (placeholder, 실 활동량은 /profile/activity 에서)
-  // 막대 높이는 데모 정적값 — 데이터 패칭 0 변경 룰 준수 (의뢰서 §6 보존)
-  const activityBars = [40, 60, 30, 80, 70, 50, 90];
-  const activitySlot = (
-    <div
-      style={{
-        height: 80,
-        background: "var(--bg-alt)",
-        borderRadius: 4,
-        display: "flex",
-        alignItems: "flex-end",
-        padding: 6,
-        gap: 3,
-      }}
-    >
-      {activityBars.map((h, i) => (
-        <div
-          key={i}
-          style={{
-            flex: 1,
-            height: `${h}%`,
-            background: "var(--accent)",
-            opacity: 0.7,
-            borderRadius: 2,
-          }}
-        />
-      ))}
-    </div>
-  );
-
-  const tier1Slots: HubTier1Slot[] = [
-    { id: "profile", body: profileSlot },
-    { id: "basketball", body: basketballSlot },
-    { id: "growth", body: growthSlot },
-    { id: "activity", body: activitySlot },
-  ];
-
-  // ---- v2.4 결제·멤버십 큰 카드 데이터 ----
-  //   사유: 시안 캡처 27 의 "BDR+ PRO · 다음 결제 YYYY.MM.DD" 표시.
-  //   subscription_status === "active" → PRO. 만료일은 subscription_expires_at.
-  //   미가입 시 "BDR 베이직 · 무료 플랜" 폴백.
-  const billingPlanLabel = isPro ? "BDR+ PRO" : "BDR 베이직";
-  let billingSubLabel: string;
-  if (isPro && user.subscription_expires_at) {
-    // YYYY.MM.DD 형식 (시안 톤). KST locale 자동
-    const exp = user.subscription_expires_at;
-    const y = exp.getFullYear();
-    const m = String(exp.getMonth() + 1).padStart(2, "0");
-    const d = String(exp.getDate()).padStart(2, "0");
-    billingSubLabel = `다음 결제 ${y}.${m}.${d}`;
-  } else if (isPro) {
-    billingSubLabel = "구독 활성";
-  } else {
-    billingSubLabel = "무료 플랜";
-  }
-
-  // Hero 카드 메타 (의뢰서 §3-2 + 사용자 캡처 16): 닉네임 + 팀·포지션·#N·시즌 라벨
-  const displayName = user.nickname ?? user.name ?? "사용자";
-  const heroMetaParts: string[] = [];
-  if (primaryTeam) heroMetaParts.push(primaryTeam.name);
-  if (user.position) heroMetaParts.push(user.position);
-  if (jerseyNumber != null) heroMetaParts.push(`#${jerseyNumber}`);
-  // 시즌 라벨 — 의뢰서 캡처 16 "2026 Spring". 향후 시즌 데이터 연결 전까지 정적값
-  heroMetaParts.push("2026 Spring");
-  const heroMetaLine = heroMetaParts.join(" · ");
-  // Hero 아바타 — 팀 약어(3자) 또는 닉네임 이니셜 1자
-  const heroInitial = primaryTeam?.name
-    ? primaryTeam.name.slice(0, 3).toUpperCase()
-    : displayName.trim()[0]?.toUpperCase() ?? "U";
-  // v2.4 시안: 96 아바타에 팀 색 → 검정 그라디언트 (Profile.jsx L32). 팀 없거나 어두운 팀 색일 때 BDR Red 폴백.
-  // 이유: 캡처 28 — 스티즈 남양주 팀 primaryColor 가 검은색이라 검정→검정 그라디언트 = 검은 단색이 됨.
-  // 시안 캡처 26 의 RDM 빨간 그라디언트 톤 보존 위해 어두운 색은 BDR Red 강제.
-  const teamColor = primaryTeam?.primaryColor?.toLowerCase().trim();
-  const isDarkOrEmpty =
-    !teamColor || teamColor === "#000" || teamColor === "#000000" || teamColor === "black" || teamColor === "#111" || teamColor === "#222";
-  const heroAvatarBg = isDarkOrEmpty
-    ? "linear-gradient(145deg, var(--accent), #1a0508)"
-    : `linear-gradient(145deg, ${teamColor}, #000)`;
-
   return (
     <div className="page">
       {/* Phase 12 §G — 모바일 백버튼 (홈 fallback). 데스크톱 lg+ 에서는 hidden. */}
       <PageBackButton fallbackHref="/" />
-
-      {/* ============ Hero 카드 (전폭, 의뢰서 §3-2 + 캡처 16) ============
-          96x96 빨간 그라디언트 아바타 + MY PAGE eyebrow + h1 + 메타 + 뱃지 3 + 버튼 3.
-          기존 좌측 사이드 HeroCard 와 다른 — 사용자 캡처 16의 큰 배너 형태. */}
-      <section
-        className="card"
-        style={{
-          padding: "28px 24px",
-          display: "grid",
-          gridTemplateColumns: "120px 1fr",
-          gap: 24,
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        {/* 아바타 — 96x96 그라디언트. v2.4: 팀 primary_color 기반 (없으면 BDR Red) */}
-        <div
-          style={{
-            width: 96,
-            height: 96,
-            borderRadius: "50%",
-            background: heroAvatarBg,
-            display: "grid",
-            placeItems: "center",
-            color: "#fff",
-            fontFamily: "var(--ff-display)",
-            fontWeight: 900,
-            fontSize: 24,
-            border: "3px solid var(--border)",
-            letterSpacing: 0.5,
-          }}
-        >
-          {heroInitial}
-        </div>
-
-        <div>
-          {/* eyebrow */}
-          <div className="eyebrow" style={{ marginBottom: 6 }}>
-            MY PAGE · 마이페이지
-          </div>
-          {/* h1 — "닉네임 의 농구" — 시안 캡처 29: 닉네임 검정 (var(--ink)), "의 농구" 회색 (var(--ink-soft))
-              회귀 픽스 (캡처 29): 운영에서 닉네임을 빨강으로 박제했으나 시안은 검정 → 검정으로 정정. */}
-          <h1
-            style={{
-              margin: "0 0 4px",
-              fontSize: 32,
-              fontWeight: 900,
-              letterSpacing: "-0.02em",
-              color: "var(--ink)",
-            }}
-          >
-            <span style={{ color: "var(--ink)" }}>{displayName}</span>
-            <span style={{ color: "var(--ink-soft)" }}> 의 농구</span>
-          </h1>
-          {/* 메타 — 팀 · 포지션 · #등번호 · 시즌 */}
-          <div style={{ fontSize: 14, color: "var(--ink-mute)", marginBottom: 12 }}>
-            {heroMetaLine}
-          </div>
-          {/* 뱃지 3종 — Lv / PRO / 본인인증 */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-            {level && (
-              <span className="badge badge--red" title={level.title}>
-                {level.emoji} L.{level.level}
-              </span>
-            )}
-            {isPro && <span className="badge badge--soft">PRO 멤버</span>}
-            {isVerified && <span className="badge badge--ok">✓ 본인인증</span>}
-          </div>
-          {/* 버튼 3종 — 프로필 편집 / 알림 / 공개 프로필 */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Link
-              href="/profile/edit"
-              className="btn btn--sm"
-              style={{ textDecoration: "none" }}
-            >
-              프로필 편집
-            </Link>
-            <Link
-              href="/notifications"
-              className="btn btn--sm"
-              style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
-            >
-              알림
-              {unreadCount > 0 && (
-                <span
-                  style={{
-                    background: "var(--accent)",
-                    color: "#fff",
-                    borderRadius: 4,
-                    padding: "0 6px",
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                >
-                  {unreadCount}
-                </span>
-              )}
-            </Link>
-            {/* 공개 프로필 — 시안 캡처 29: 파란 배경 흰 글씨 (BDR Navy 강조 CTA) */}
-            <Link
-              href={`/users/${user.id.toString()}`}
-              className="btn btn--sm btn--accent"
-              style={{ textDecoration: "none" }}
-            >
-              공개 프로필 →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ============ 본문 2열: 좌 1fr (마이페이지 hub) | 우 320 sticky aside ============
-          v2.4 캡처 16+27 — "좌 1fr (hub + 큰 카드 2종) / 우 320 (다음 경기 + 팀 + 활동 + 뱃지 + 도움)".
-          - 좌 본문: 마이페이지 hub (Tier 1 큰 카드 4 + Tier 2 quick 카드 4) + 본문 끝 큰 카드 2종(설정/결제·멤버십)
-          - 우 사이드: 다음 경기(UpcomingGames D-N 강조) + 소속 팀(TeamSideCard 시안 톤) + 최근 활동(ActivityTimeline) + 뱃지(BadgesSideCard) + 도움 영역
-          - SeasonStats 제거 (v2.4 시안에 없음). 본문 4 카드 안 "내 농구" 가 통산 PPG/APG/RPG 표시.
-          모바일은 globals.css .profile-grid 룰이 1열로 stack. */}
+      {/* 레이아웃: 좌측 320px aside (sticky) + 우측 main 1fr — v2 Profile.jsx 그대로.
+          모바일(<720px)에서는 1열 + sticky 해제 — globals.css "@media (max-width:720px)" 의
+          .profile-grid / .profile-aside 룰이 처리 (P2-2 Med). */}
       <div
         className="profile-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 320px",
+          gridTemplateColumns: "320px 1fr",
           gap: 20,
           alignItems: "flex-start",
         }}
       >
-        {/* ========== 좌측 main — v2.4 마이페이지 hub + 본문 끝 큰 카드 2종 ========== */}
-        <div>
-          <MyPageHub tier1Slots={tier1Slots} unreadCount={unreadCount} />
-
-          {/* v2.4 시안 캡처 27 — 본문 끝 큰 카드 2종 (설정 / 결제·멤버십).
-              데스크톱 2 col → 모바일 1열 (mypage-large-grid 720 분기). */}
-          <div
-            className="mypage-large-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginTop: 12,
-            }}
-          >
-            {/* 설정 큰 카드 */}
-            <Link
-              href="/profile/settings"
-              className="card"
-              style={{
-                padding: "18px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 28, color: "var(--accent)" }}
-              >
-                settings
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
-                  설정
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--ink-mute)",
-                    marginTop: 2,
-                  }}
-                >
-                  계정·알림·개인정보·공개
-                </div>
-              </div>
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18, color: "var(--ink-dim)" }}
-              >
-                arrow_forward
-              </span>
-            </Link>
-
-            {/* 결제·멤버십 큰 카드 — billingPlanLabel + billingSubLabel 동적 표시 */}
-            <Link
-              href="/profile/billing"
-              className="card"
-              style={{
-                padding: "18px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 28, color: "var(--accent)" }}
-              >
-                credit_card
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
-                  결제·멤버십
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--ink-mute)",
-                    marginTop: 2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {billingPlanLabel} · {billingSubLabel}
-                </div>
-              </div>
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: 18, color: "var(--ink-dim)" }}
-              >
-                arrow_forward
-              </span>
-            </Link>
-          </div>
-        </div>
-
-        {/* ========== 우측 aside (sticky) — 다음 경기 + 팀 + 활동 + 뱃지 + 도움 ========== */}
+        {/* ========== 좌측 aside ========== */}
         <aside
           className="profile-aside"
           style={{
@@ -748,72 +326,41 @@ export default async function ProfilePage() {
             gap: 14,
           }}
         >
-          {/* 2026-05-01 회귀 픽스 — 우측 aside HeroCard 제거.
-              2026-04-30 v2.4 — SeasonStats 도 제거 (시안 캡처 26 우측 aside 에 통산 시즌스탯 카드 없음).
-              본문 4 카드 안 "내 농구" 카드(PPG/APG/RPG)로 대체. */}
-
-          {/* 다음 경기 — v2.4 D-N 빨간 박스 강조 (의뢰서 §3-3 보조 정보) */}
-          <UpcomingGames games={nextGames} />
+          <HeroCard
+            user={{
+              nickname: user.nickname,
+              name: user.name,
+              profile_image_url: user.profile_image_url,
+              position: user.position,
+              city: user.city,
+              district: user.district,
+              bio: user.bio,
+              gender: user.gender,
+              total_games_hosted: user.total_games_hosted,
+              evaluation_rating: evaluationRating,
+            }}
+            level={level}
+            isPro={isPro}
+            isVerified={isVerified}
+            team={primaryTeam ? { teamName: primaryTeam.name } : null}
+            unreadCount={unreadCount}
+          />
 
           {/* 소속 팀 — 1팀 이상일 때만 */}
           {primaryTeam && (
             <TeamSideCard primaryTeam={primaryTeam} totalTeams={teamMembers.length} />
           )}
 
-          {/* 최근 활동 — 5건 (의뢰서 §3-3 보조 정보) */}
-          <ActivityTimeline items={activities} />
-
           {/* 뱃지 — 1개 이상일 때만 */}
           {badges.length > 0 && <BadgesSideCard badges={badges} />}
-
-          {/* v2.4 시안 캡처 27 — 도움 영역 (도움말 + 안전·차단 2 버튼).
-              우측 aside 끝에 배치. 비로그인은 본 페이지 진입 자체가 차단되므로 가드 불필요. */}
-          <div className="card" style={{ padding: "16px 20px" }}>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                marginBottom: 4,
-                color: "var(--ink)",
-              }}
-            >
-              도움이 필요하세요?
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "var(--ink-mute)",
-                marginBottom: 12,
-              }}
-            >
-              계정 / 결제 / 환불 문의는 24시간 이내 답변드려요.
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Link
-                href="/help"
-                className="btn btn--sm"
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  textDecoration: "none",
-                }}
-              >
-                도움말
-              </Link>
-              <Link
-                href="/safety"
-                className="btn btn--sm"
-                style={{
-                  flex: 1,
-                  textAlign: "center",
-                  textDecoration: "none",
-                }}
-              >
-                안전·차단
-              </Link>
-            </div>
-          </div>
         </aside>
+
+        {/* ========== 우측 main ========== */}
+        <div>
+          <SeasonStats data={seasonStatsData} seasonLabel="통산" />
+          <UpcomingGames game={nextGame} />
+          <ActivityTimeline items={activities} />
+        </div>
       </div>
     </div>
   );
