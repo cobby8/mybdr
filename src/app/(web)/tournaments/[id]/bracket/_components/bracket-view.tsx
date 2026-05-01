@@ -43,7 +43,7 @@ export function BracketView({ rounds, tournamentId: _tournamentId }: BracketView
 
   return (
     <section>
-      {/* 섹션 헤더: 시안 bdr_3의 "토너먼트 대진표 (Knockout Stage)" 스타일 */}
+      {/* 섹션 헤더: 영문 부제 삭제 (사용자 결정 2026-05-02) */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h3 className="text-xl font-bold flex items-center gap-2">
           {/* 파란 세로 막대 (시안에서 secondary-navy 사용) */}
@@ -51,7 +51,7 @@ export function BracketView({ rounds, tournamentId: _tournamentId }: BracketView
             className="w-1.5 h-6 rounded-sm"
             style={{ backgroundColor: "var(--color-secondary)" }}
           />
-          토너먼트 대진표 (Knockout Stage)
+          토너먼트 대진표
         </h3>
         {/* 범례: 실시간 / 예정 표시 */}
         <div className="flex gap-4 items-center">
