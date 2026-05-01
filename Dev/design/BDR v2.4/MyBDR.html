@@ -76,7 +76,6 @@
 <script type="text/babel" src="screens/Settings.jsx"></script>
 <script type="text/babel" src="screens/CreateTeam.jsx"></script>
 <script type="text/babel" src="screens/CreateGame.jsx"></script>
-<!-- GameResult 제거 — 가짜링크 (uploads/03 §4) → screens/_archived/ -->
 <script type="text/babel" src="screens/Live.jsx"></script>
 <script type="text/babel" src="screens/Saved.jsx"></script>
 <script type="text/babel" src="screens/Messages.jsx"></script>
@@ -86,10 +85,7 @@
 <script type="text/babel" src="screens/MyGames.jsx"></script>
 <script type="text/babel" src="screens/Checkout.jsx"></script>
 <script type="text/babel" src="screens/TeamInvite.jsx"></script>
-<!-- GuestApps 제거 — 가짜링크 (DB 미존재) → screens/_archived/ -->
 <script type="text/babel" src="screens/PlayerProfile.jsx"></script>
-<!-- Referee 제거 — 가짜링크 (사이트 /referee 점유) → screens/_archived/ -->
-<!-- 옵션 B SEO 안내 라우트 (refereeInfo) -->
 <script type="text/babel" src="screens/RefereeInfo.jsx"></script>
 <script type="text/babel" src="screens/Reviews.jsx"></script>
 <script type="text/babel" src="screens/Awards.jsx"></script>
@@ -111,7 +107,6 @@
 <script type="text/babel" src="screens/OnboardingV2.jsx"></script>
 <script type="text/babel" src="screens/NotificationSettings.jsx"></script>
 <script type="text/babel" src="screens/CourtAdd.jsx"></script>
-<!-- GameReport 제거 — 가짜링크 (CTA 정책으로 전환) → screens/_archived/ -->
 <script type="text/babel" src="screens/SearchResults.jsx"></script>
 <script type="text/babel" src="screens/About.jsx"></script>
 <script type="text/babel" src="screens/NotFound.jsx"></script>
@@ -223,8 +218,6 @@ function App() {
   if (route === 'post')        screen = <PostDetail setRoute={setRoute} activeBoard={activeBoard} setActiveBoard={setActiveBoard}/>;
   else if (route === 'board')  screen = <BoardList activeBoard={activeBoard} setActiveBoard={setActiveBoard} setRoute={setRoute}/>;
   else if (route === 'write')  screen = <PostWrite activeBoard={activeBoard} setActiveBoard={setActiveBoard} setRoute={setRoute}/>;
-  /* communityNew = write 별칭 (drawer 5그룹 "내 활동" 글 작성 항목) */
-  else if (route === 'communityNew') screen = <PostWrite activeBoard={activeBoard} setActiveBoard={setActiveBoard} setRoute={setRoute}/>;
   else if (route === 'match')  screen = <MatchList setRoute={setRoute}/>;
   else if (route === 'matchDetail') screen = <MatchDetail setRoute={setRoute}/>;
   else if (route === 'team')   screen = <TeamList setRoute={setRoute}/>;
@@ -239,8 +232,6 @@ function App() {
   else if (route === 'help')   screen = <Help setRoute={setRoute}/>;
   else if (route === 'search') screen = <Search setRoute={setRoute}/>;
   else if (route === 'profile') screen = <Profile setRoute={setRoute}/>;
-  /* mypage = profile 별칭 (drawer 5그룹 "계정·도움" 첫 항목) */
-  else if (route === 'mypage')  screen = <Profile setRoute={setRoute}/>;
   else if (route === 'signup')  screen = <Signup setRoute={setRoute}/>;
   else if (route === 'gameDetail') screen = <GameDetail setRoute={setRoute}/>;
   else if (route === 'orgDetail') screen = <OrgDetail setRoute={setRoute}/>;
@@ -248,7 +239,6 @@ function App() {
   else if (route === 'settings') screen = <Settings setRoute={setRoute}/>;
   else if (route === 'createTeam') screen = <CreateTeam setRoute={setRoute}/>;
   else if (route === 'createGame') screen = <CreateGame setRoute={setRoute}/>;
-  /* gameResult 라우트 제거 — 가짜링크 (uploads/03 §4 사용자 결정 §2-2) */
   else if (route === 'live')       screen = <Live setRoute={setRoute}/>;
   else if (route === 'saved')      screen = <Saved setRoute={setRoute}/>;
   else if (route === 'messages')   screen = <Messages setRoute={setRoute}/>;
@@ -257,10 +247,12 @@ function App() {
   else if (route === 'mygames')      screen = <MyGames setRoute={setRoute}/>;
   else if (route === 'checkout')     screen = <Checkout setRoute={setRoute}/>;
   else if (route === 'teamInvite')   screen = <TeamInvite setRoute={setRoute}/>;
-  /* guestApps 라우트 제거 — 가짜링크 (DB 미존재) */
   else if (route === 'playerProfile') screen = <PlayerProfile setRoute={setRoute}/>;
-  /* referee 라우트 제거 — 가짜링크 (사이트 /referee 심판 플랫폼 점유 → refereeInfo 사용) */
+  /* [재박제 R-A-3] 가짜링크 4건 (gameResult/gameReport/guestApps/referee) 라우트 매칭 영구 제거.
+     refereeInfo = 심판 센터 안내 (운영 /referee-info 박제 매칭).
+     mypage = 마이페이지 hub (Profile.jsx 재사용 — 운영 /profile 매칭). */
   else if (route === 'refereeInfo')  screen = <RefereeInfo setRoute={setRoute}/>;
+  else if (route === 'mypage')       screen = <Profile setRoute={setRoute}/>;
   else if (route === 'reviews')    screen = <Reviews setRoute={setRoute}/>;
   else if (route === 'awards')     screen = <Awards setRoute={setRoute}/>;
   else if (route === 'gallery')    screen = <Gallery setRoute={setRoute}/>;
@@ -281,7 +273,6 @@ function App() {
   else if (route === 'onboardingV2')    screen = <OnboardingV2 setRoute={setRoute}/>;
   else if (route === 'notificationSettings') screen = <NotificationSettings setRoute={setRoute}/>;
   else if (route === 'courtAdd')        screen = <CourtAdd setRoute={setRoute}/>;
-  /* gameReport 라우트 제거 — 가짜링크 (종료된 경기 카드 CTA 정책으로 전환) */
   else if (route === 'searchResults')   screen = <SearchResults setRoute={setRoute}/>;
   else if (route === 'about')      screen = <About setRoute={setRoute}/>;
   else if (route === '404')        screen = <NotFound setRoute={setRoute}/>;
@@ -305,7 +296,7 @@ function App() {
       {onbOpen && <Onboarding onPick={finishOnb} onSkip={skipOnb}/>}
       <footer style={{padding:'32px 24px 60px', textAlign:'center', fontSize:12, color:'var(--ink-dim)', borderTop:'1px solid var(--border)', marginTop:40, background:'var(--bg-elev)'}}>
         <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:18, marginBottom:10, letterSpacing:'-0.01em', color:'var(--ink-soft)'}}>MyBDR</div>
-        <div>전국 농구 매칭 플랫폼 · 2026</div>
+        <div>서울 3x3 농구 커뮤니티 · 2026</div>
         <div style={{marginTop:10, display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap'}}>
           <a onClick={(e)=>{e.preventDefault();setRoute('about');}} style={{cursor:'pointer'}}>소개</a> ·
           <a onClick={(e)=>{e.preventDefault();setRoute('pricing');}} style={{cursor:'pointer'}}>요금제</a> ·
