@@ -34,13 +34,14 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       homeNum: homeStats.reb, awayNum: awayStats.reb,
     },
     {
-      label: "오펜스 리바운드",
+      // 2026-05-02: 줄바꿈 위치 명시 — '오펜스' 윗줄 / '리바운드' 아랫줄 (사용자 요청)
+      label: "오펜스\n리바운드",
       homeShort: String(homeStats.oreb), awayShort: String(awayStats.oreb),
       homeFull: String(homeStats.oreb), awayFull: String(awayStats.oreb),
       homeNum: homeStats.oreb, awayNum: awayStats.oreb,
     },
     {
-      label: "디펜스 리바운드",
+      label: "디펜스\n리바운드",
       homeShort: String(homeStats.dreb), awayShort: String(awayStats.dreb),
       homeFull: String(homeStats.dreb), awayFull: String(awayStats.dreb),
       homeNum: homeStats.dreb, awayNum: awayStats.dreb,
