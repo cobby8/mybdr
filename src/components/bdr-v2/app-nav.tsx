@@ -226,6 +226,24 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
             </span>
           </Link>
 
+          {/* [2026-04-30 Phase 19] 쪽지 · 채팅 — 로그인 시에만 표시.
+              이유(왜): AppNav frozen §1 (uploads/03) 시안 순서 = 검색 → 쪽지 → 알림.
+                       /messages 페이지는 이미 운영 중 (Phase 8 박제).
+              빨간 점 뱃지: 운영에는 messages unread count prop 미존재 — No-badge 로 시작.
+                          후속 큐 — messages unread API 연계 시 prop 추가 + 활성화. */}
+          {user && (
+            <Link
+              href="/messages"
+              className="app-nav__icon-btn"
+              title="쪽지 · 채팅"
+              aria-label="쪽지"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">
+                mail_outline
+              </span>
+            </Link>
+          )}
+
           {/* 알림 — 로그인 시에만 표시, 미확인 수 있으면 빨간 점.
               박스 제거(.app-nav__icon-btn) + 빨간 점 뱃지 유지. */}
           {user && (
