@@ -4,6 +4,9 @@
  * Service 함수는 순수 데이터만 반환한다 (NextResponse 사용 금지).
  */
 import { prisma } from "@/lib/db/prisma";
+// 2026-05-02: dual_tournament 자동 진출 (loser → 패자전 / 조별 최종전 home 등)
+// updateMatch + updateMatchStatus 가 호출. single elim 영향 0 (settings.loserNextMatchId 없으면 skip).
+import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 
 // ---------------------------------------------------------------------------
 // Select / Include 상수
@@ -154,6 +157,18 @@ export async function updateMatch(
       });
     }
 
+    // 2026-05-02: dual_tournament 면 loser 진출 + idempotent winner 진출 통합 처리
+    // (winner 는 위 코드가 이미 처리, progressDualMatch 도 같은 슬롯에 같은 값 덮어쓰기 = 안전)
+    if (input.winnerTeamId && input.status === "completed") {
+      const tournament = await tx.tournament.findUnique({
+        where: { id: u.tournamentId },
+        select: { format: true },
+      });
+      if (tournament?.format === "dual_tournament") {
+        await progressDualMatch(tx, matchId, input.winnerTeamId);
+      }
+    }
+
     return u;
   });
 
@@ -194,14 +209,89 @@ export async function updateMatchStatus(
   matchId: bigint,
   status: string
 ) {
-  return prisma.tournamentMatch.update({
-    where: { id: matchId },
-    data: {
-      status,
-      ...(status === "in_progress" && { started_at: new Date() }),
-      ...(status === "completed" && { ended_at: new Date() }),
-    },
-    select: { id: true, status: true, started_at: true, ended_at: true },
+  // 2026-05-02: status="completed" 시 자동 winner 결정 + dual 자동 진출 통합
+  // - homeScore vs awayScore 비교로 winner_team_id 자동 결정 (이미 채워져 있으면 그대로)
+  // - winner → next_match_id 슬롯 채움 (single elim 호환, 기존 updateMatch 동일 패턴)
+  // - dual_tournament 면 progressDualMatch 호출 (loser 진출 + idempotent winner 처리)
+  return prisma.$transaction(async (tx) => {
+    // 현재 매치 + tournament format 조회
+    const current = await tx.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: {
+        homeScore: true,
+        awayScore: true,
+        winner_team_id: true,
+        homeTeamId: true,
+        awayTeamId: true,
+        next_match_id: true,
+        next_match_slot: true,
+        tournamentId: true,
+      },
+    });
+    if (!current) {
+      throw new Error(`updateMatchStatus: 매치 ${matchId} 를 찾을 수 없습니다.`);
+    }
+
+    // status="completed" + winner 미결정 + 점수 있으면 자동 결정
+    let winnerTeamId: bigint | null = current.winner_team_id;
+    if (
+      status === "completed" &&
+      !winnerTeamId &&
+      current.homeTeamId &&
+      current.awayTeamId
+    ) {
+      const h = current.homeScore ?? 0;
+      const a = current.awayScore ?? 0;
+      if (h > a) winnerTeamId = current.homeTeamId;
+      else if (a > h) winnerTeamId = current.awayTeamId;
+      // 동점 시 winnerTeamId = null → 진출 처리 X (별도 결정 필요)
+    }
+
+    // 매치 status + winner_team_id update
+    const updated = await tx.tournamentMatch.update({
+      where: { id: matchId },
+      data: {
+        status,
+        ...(status === "in_progress" && { started_at: new Date() }),
+        ...(status === "completed" && { ended_at: new Date() }),
+        ...(winnerTeamId &&
+          winnerTeamId !== current.winner_team_id && {
+            winner_team_id: winnerTeamId,
+          }),
+      },
+      select: { id: true, status: true, started_at: true, ended_at: true },
+    });
+
+    // winner 진출 (single elim 호환) — 기존 updateMatch 와 같은 패턴
+    if (
+      winnerTeamId &&
+      status === "completed" &&
+      current.next_match_id &&
+      current.next_match_slot
+    ) {
+      const slot = current.next_match_slot as "home" | "away";
+      await tx.tournamentMatch.update({
+        where: { id: current.next_match_id },
+        data: {
+          ...(slot === "home" && { homeTeamId: winnerTeamId }),
+          ...(slot === "away" && { awayTeamId: winnerTeamId }),
+          status: "scheduled",
+        },
+      });
+    }
+
+    // dual_tournament 면 progressDualMatch (loser 진출 + idempotent winner 처리)
+    if (winnerTeamId && status === "completed") {
+      const tournament = await tx.tournament.findUnique({
+        where: { id: current.tournamentId },
+        select: { format: true },
+      });
+      if (tournament?.format === "dual_tournament") {
+        await progressDualMatch(tx, matchId, winnerTeamId);
+      }
+    }
+
+    return updated;
   });
 }
 
