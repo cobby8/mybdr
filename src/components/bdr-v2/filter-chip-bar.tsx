@@ -1,28 +1,21 @@
 "use client";
 
 /* ============================================================
- * FilterChipBar — BDR v2 Games 필터 칩 7종
+ * FilterChipBar — BDR-current Games 필터 칩 7종 (Phase B 박제)
  *
  * 왜 이 컴포넌트가 있는가:
- * v2 Games.jsx 시안의 ['오늘','이번주','주말','서울','경기','무료','초보환영']
- * 7개 필터 칩을 1줄(+flex-wrap)로 렌더한다.
+ * BDR-current/screens/Games.jsx 시안의
+ * ['오늘','이번주','주말','서울','경기','무료','초보환영'] 7개 필터 칩.
+ * Phase B 박제로 collapsible 영역 안에 들어가는 구조 (시안 동일).
+ * 펼침/접힘 상태는 부모(GamesClient) 가 관리. 본 컴포넌트는 칩 자체와
+ * "전체 해제" 버튼만 담당. 컨테이너 .games-filter-chips 박스 안에 렌더.
  *
  * DQ2 확정안에 따라 동작을 2종류로 나눠 처리:
  *   A. URL 조작 칩 (서버 재요청): 오늘 / 이번주 / 서울 / 경기
- *        - 오늘 ⇄ ?date=today
- *        - 이번주 ⇄ ?date=week
- *        - 서울 ⇄ ?city=서울
- *        - 경기 ⇄ ?city=경기
- *     (활성 상태를 토글 방식으로 운용 — 같은 칩 재클릭 시 쿼리 삭제)
+ *   B. 클라이언트 필터 칩 (부모 state): 주말 / 무료 / 초보환영
  *
- *   B. 클라이언트 필터 칩 (부모의 state 수정): 주말 / 무료 / 초보환영
- *        - 부모의 activeClientFilters: Set<"weekend"|"free"|"beginner"> 를 토글
- *        - 실제 필터링은 GamesClient 에서 JS 로 배열을 slice
- *
- * 두 그룹의 활성 판정 근원이 다르므로 판정 로직을 칩 별로 분기한다.
- *
- * 서버 컴포넌트가 아닌 클라이언트("use client") — useSearchParams / useRouter
- * 사용 + 상위 콜백 호출 때문.
+ * 활성 칩 N개 이상일 때 우측 끝에 "전체 해제" 버튼 표시.
+ * 전체 해제는 URL 칩 + 클라 칩 모두 한번에 초기화.
  * ============================================================ */
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -36,9 +29,11 @@ export interface FilterChipBarProps {
   activeClientFilters: Set<ClientFilterKey>;
   /** 클라 필터 토글 콜백 — 부모가 Set 업데이트 */
   onToggleClientFilter: (key: ClientFilterKey) => void;
+  /** 전체 클라 필터 초기화 콜백 (전체 해제 버튼용) */
+  onClearClientFilters?: () => void;
 }
 
-// 칩 타입 식별용 상수. URL 그룹은 param 키/값 명시, 클라 그룹은 key.
+// 칩 타입 식별용 상수.
 type ChipDef =
   | {
       kind: "url";
@@ -52,7 +47,7 @@ type ChipDef =
       key: ClientFilterKey;
     };
 
-// 시안 원본 순서 유지: 오늘 · 이번주 · 주말 · 서울 · 경기 · 무료 · 초보환영
+// 시안 원본 순서: 오늘 · 이번주 · 주말 · 서울 · 경기 · 무료 · 초보환영
 const CHIPS: ChipDef[] = [
   { kind: "url", label: "오늘", param: "date", value: "today" },
   { kind: "url", label: "이번주", param: "date", value: "week" },
@@ -63,22 +58,24 @@ const CHIPS: ChipDef[] = [
   { kind: "client", label: "초보환영", key: "beginner" },
 ];
 
+// URL 칩 활성 판정 시 검사할 param 키 목록 (전체 해제 시 일괄 삭제 용도)
+const URL_PARAMS_TO_CLEAR: Array<"date" | "city"> = ["date", "city"];
+
 export function FilterChipBar({
   activeClientFilters,
   onToggleClientFilter,
+  onClearClientFilters,
 }: FilterChipBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
 
-  // URL 칩 활성 판정 — 현재 query 의 param 값이 칩 value 와 같으면 활성
-  // (city 는 부분 매칭 허용. 예: ?city=서울특별시 는 "서울" 칩도 활성으로 본다)
+  // URL 칩 활성 판정 — city 는 부분 매칭 허용 (예: ?city=서울특별시 → "서울" 칩 활성)
   const isUrlChipActive = useCallback(
     (param: "date" | "city", value: string): boolean => {
       const current = params.get(param);
       if (!current) return false;
       if (param === "city") {
-        // "서울" 칩은 "서울특별시" 같은 확장 매칭도 활성으로 처리
         return current.includes(value);
       }
       return current === value;
@@ -86,7 +83,7 @@ export function FilterChipBar({
     [params],
   );
 
-  // URL 칩 클릭 — 활성 상태면 해당 param 삭제(토글), 아니면 주입
+  // URL 칩 클릭 — 활성이면 param 삭제(토글), 아니면 주입
   const handleUrlChipClick = useCallback(
     (param: "date" | "city", value: string) => {
       const sp = new URLSearchParams(params.toString());
@@ -99,23 +96,40 @@ export function FilterChipBar({
     [router, pathname, params, isUrlChipActive],
   );
 
+  // 전체 해제 — URL 칩 (date/city 둘 다 삭제) + 클라 칩 한꺼번에 초기화
+  // 왜: 시안에서 "전체 해제" 는 펼친 영역 내 모든 활성 칩을 즉시 비우는 동작.
+  const handleClearAll = useCallback(() => {
+    const sp = new URLSearchParams(params.toString());
+    let urlChanged = false;
+    for (const p of URL_PARAMS_TO_CLEAR) {
+      if (sp.has(p)) {
+        sp.delete(p);
+        urlChanged = true;
+      }
+    }
+    if (urlChanged) {
+      const qs = sp.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
+    }
+    onClearClientFilters?.();
+  }, [router, pathname, params, onClearClientFilters]);
+
+  // 활성 필터 개수 — 전체 해제 버튼 표시 여부 결정용
+  // (URL 칩은 isUrlChipActive 로 검사, 클라 칩은 Set 크기)
+  const activeUrlCount = CHIPS.filter(
+    (chip) => chip.kind === "url" && isUrlChipActive(chip.param, chip.value),
+  ).length;
+  const totalActiveCount = activeUrlCount + activeClientFilters.size;
+
   return (
-    // v2 시안과 동일한 flex + wrap 배치. 모바일에서 줄바꿈 자연스럽게 발생.
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginBottom: 16,
-        flexWrap: "wrap",
-      }}
-    >
+    // 시안 .games-filter-chips — collapsible 박스 (펼침 시 부모가 렌더)
+    <div className="games-filter-chips">
       {CHIPS.map((chip) => {
         const isActive =
           chip.kind === "url"
             ? isUrlChipActive(chip.param, chip.value)
             : activeClientFilters.has(chip.key);
 
-        // 클릭 핸들러 분기
         const handleClick = () => {
           if (chip.kind === "url") {
             handleUrlChipClick(chip.param, chip.value);
@@ -129,24 +143,25 @@ export function FilterChipBar({
             key={chip.label}
             type="button"
             onClick={handleClick}
-            className="btn btn--sm"
+            // 시안: 활성 칩은 .btn--primary, 비활성은 .btn.btn--sm
+            className={isActive ? "btn btn--sm btn--primary" : "btn btn--sm"}
             aria-pressed={isActive}
-            // 활성 칩은 cafe-blue 배경 + 흰 텍스트. 비활성은 기본 .btn.btn--sm 스타일.
-            // inline style 로 활성 색상만 주입해서 globals.css 의 hover 등은 유지.
-            style={
-              isActive
-                ? {
-                    background: "var(--cafe-blue)",
-                    color: "#fff",
-                    borderColor: "var(--cafe-blue)",
-                  }
-                : undefined
-            }
           >
             {chip.label}
           </button>
         );
       })}
+
+      {/* 전체 해제 — 활성 필터 1개 이상일 때만 노출 */}
+      {totalActiveCount > 0 && (
+        <button
+          type="button"
+          className="btn btn--sm games-filter-clear"
+          onClick={handleClearAll}
+        >
+          전체 해제
+        </button>
+      )}
     </div>
   );
 }

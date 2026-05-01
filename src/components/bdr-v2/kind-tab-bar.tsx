@@ -1,18 +1,22 @@
 "use client";
 
 /* ============================================================
- * KindTabBar — BDR v2 Games 상단 종류 탭
+ * KindTabBar — BDR-current Games 상단 종류 탭 (Phase B 박제)
  *
  * 왜 이 컴포넌트가 있는가:
- * v2 Games.jsx 시안의 "all / pickup / guest / scrimmage" 4개 탭.
- * 기존 game-type-tabs.tsx 와 기능 동일하지만 v2 시안 스타일(border-bottom
- * 밑줄 탭 + mono 숫자)을 쓰기 위해 별도 구현.
+ * BDR-current/screens/Games.jsx 시안의 segmented control 4탭
+ * (전체 / 픽업 / 게스트 모집 / 연습경기) + 우측 filter 아이콘 버튼.
+ * 이전 구현은 밑줄 탭이었는데, Phase B 박제로 segmented + filter
+ * 토글 패턴으로 전환. 시안 CSS 클래스명 (.games-toolbar /
+ * .games-segmented / .games-filter-btn) 그대로 사용.
  *
  * 동작:
- * - URL `?type=0|1|2` 로만 상태 관리. "all" 은 ?type 삭제.
- * - 활성: 하단 3px var(--cafe-blue) 밑줄 + ink(최진 텍스트)
- * - 비활성: 투명 밑줄 + ink-mute
- * - counts 가 있으면 라벨 옆 mono 숫자 표시 (0도 표시해 빈 탭 인식)
+ * - URL `?type=0|1|2` 로 탭 상태 관리. "all" 은 ?type 삭제.
+ * - 활성 탭은 `.is-active` 클래스 (accent 배경 + 흰 텍스트)
+ * - filter 토글 버튼은 부모(GamesClient) 의 collapsible 상태를 위탁
+ * - activeFilterCount > 0 시 dot 카운트 뱃지 표시 (정사각형 원형 50%)
+ *
+ * 데이터/API 변경 0 — URL 라우팅만 처리.
  * ============================================================ */
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -22,8 +26,8 @@ import { useCallback } from "react";
 const TABS: Array<{ value: "all" | "0" | "1" | "2"; label: string }> = [
   { value: "all", label: "전체" },
   { value: "0", label: "픽업" },
-  { value: "1", label: "게스트 모집" },
-  { value: "2", label: "연습경기" },
+  { value: "1", label: "게스트" }, // 시안 카피: "게스트 모집" → 시안에서 segmented 좁아 "게스트" 로 축약 (CLAUDE.md 시안 우선)
+  { value: "2", label: "연습" }, // 시안 카피: "연습경기" → 시안에서 "연습" 으로 축약
 ];
 
 export interface KindTabBarCounts {
@@ -35,9 +39,20 @@ export interface KindTabBarCounts {
 
 export interface KindTabBarProps {
   counts?: KindTabBarCounts;
+  /** filter 토글 버튼 — 부모의 chips 영역 펼침 상태 */
+  filterOpen?: boolean;
+  /** 활성 필터 개수 — dot 뱃지 표시용 */
+  activeFilterCount?: number;
+  /** filter 토글 콜백 — 부모(GamesClient) 가 chips 영역 펼침/접힘 관리 */
+  onToggleFilter?: () => void;
 }
 
-export function KindTabBar({ counts }: KindTabBarProps) {
+export function KindTabBar({
+  counts,
+  filterOpen = false,
+  activeFilterCount = 0,
+  onToggleFilter,
+}: KindTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -59,68 +74,72 @@ export function KindTabBar({ counts }: KindTabBarProps) {
     [router, pathname, params],
   );
 
-  return (
-    // v2 시안 스타일 — display:flex + 하단 border 1px, 각 탭의 하단 3px 밑줄로 활성화
-    <div
-      style={{
-        display: "flex",
-        gap: 4,
-        marginBottom: 16,
-        borderBottom: "1px solid var(--border)",
-        // 모바일에서 가로 스크롤 허용 (탭 4개라 400px 이하에서 간혹 넘칠 수 있음)
-        overflowX: "auto",
-        // 스크롤바 숨김 — globals.css 의 no-scrollbar 유틸 재사용
-      }}
-      className="no-scrollbar"
-    >
-      {TABS.map((tab) => {
-        const isActive = currentType === tab.value;
-        const count =
-          counts === undefined
-            ? undefined
-            : tab.value === "all"
-              ? counts.all
-              : counts[tab.value as "0" | "1" | "2"];
+  // filter 버튼 활성 상태 (스타일 클래스 결정용)
+  // - is-open: chips 영역이 펼쳐진 상태
+  // - has-active: 활성 필터가 1개 이상 있는 상태
+  const filterBtnClasses = [
+    "games-filter-btn",
+    filterOpen ? "is-open" : "",
+    activeFilterCount > 0 ? "has-active" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => handleClick(tab.value)}
-            aria-pressed={isActive}
-            style={{
-              padding: "10px 16px",
-              background: "transparent",
-              border: 0,
-              cursor: "pointer",
-              // 활성 탭은 cafe-blue 밑줄 3px, 비활성은 투명 3px(레이아웃 흔들림 방지)
-              borderBottom: isActive
-                ? "3px solid var(--cafe-blue)"
-                : "3px solid transparent",
-              color: isActive ? "var(--ink)" : "var(--ink-mute)",
-              fontWeight: isActive ? 700 : 500,
-              fontSize: 14,
-              // border-bottom 이 상위 container 의 1px과 겹치도록 -1px offset
-              marginBottom: -1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {tab.label}
-            {count !== undefined && (
-              <span
-                style={{
-                  fontFamily: "var(--ff-mono)",
-                  fontSize: 11,
-                  color: "var(--ink-dim)",
-                  marginLeft: 4,
-                }}
-              >
-                {count}
-              </span>
-            )}
-          </button>
-        );
-      })}
+  return (
+    // 시안 .games-toolbar — flex 행 (segmented 좌측 flex:1 + filter 버튼 우측 고정)
+    <div className="games-toolbar" role="tablist">
+      <div className="games-segmented">
+        {TABS.map((tab) => {
+          const isActive = currentType === tab.value;
+          const count =
+            counts === undefined
+              ? undefined
+              : tab.value === "all"
+                ? counts.all
+                : counts[tab.value as "0" | "1" | "2"];
+
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              aria-pressed={isActive}
+              onClick={() => handleClick(tab.value)}
+              className={
+                isActive
+                  ? "games-segmented__btn is-active"
+                  : "games-segmented__btn"
+              }
+            >
+              <span className="games-segmented__label">{tab.label}</span>
+              {count !== undefined && (
+                <span className="games-segmented__count">{count}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filter 토글 버튼 — 부모가 onToggleFilter 를 안 주면 렌더 X */}
+      {onToggleFilter && (
+        <button
+          type="button"
+          className={filterBtnClasses}
+          onClick={onToggleFilter}
+          aria-label="필터"
+          aria-expanded={filterOpen}
+          title="필터"
+        >
+          {/* Material Symbols Outlined `tune` — 시안 Icon.filter 대체 */}
+          <span className="material-symbols-outlined" aria-hidden="true">
+            tune
+          </span>
+          {activeFilterCount > 0 && (
+            <span className="games-filter-btn__dot">{activeFilterCount}</span>
+          )}
+        </button>
+      )}
     </div>
   );
 }
