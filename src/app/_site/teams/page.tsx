@@ -2,6 +2,8 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/card";
+import { getDisplayName } from "@/lib/utils/player-display-name";
+import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 
 export const revalidate = 300;
 
@@ -20,7 +22,7 @@ export default async function SiteTeamsPage() {
     where: { tournamentId: site.tournamentId, status: "approved" },
     include: {
       team: { select: { name: true, primaryColor: true, city: true } },
-      players: { select: { id: true, role: true, users: { select: { nickname: true, position: true } } } },
+      players: { select: { id: true, role: true, jerseyNumber: true, player_name: true, users: { select: { ...USER_DISPLAY_SELECT, position: true } } } },
     },
     orderBy: [{ wins: "desc" }, { losses: "asc" }],
   });
@@ -81,7 +83,8 @@ export default async function SiteTeamsPage() {
                           key={p.id.toString()}
                           className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs"
                         >
-                          {p.users?.nickname ?? "선수"}
+                          {/* 선수명단 실명 표시 규칙 (conventions.md 2026-05-01) */}
+                          {getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber })}
                           {p.users?.position ? ` (${p.users.position})` : ""}
                           {p.role === "captain" ? " ★" : ""}
                         </span>

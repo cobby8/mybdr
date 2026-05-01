@@ -23,6 +23,7 @@ import { EnrollStepper, type StepDef } from "./_v2/enroll-stepper";
 import { EnrollAside } from "./_v2/enroll-aside";
 import { EnrollPoster } from "./_v2/enroll-poster";
 import { EnrollStepDocs } from "./_v2/enroll-step-docs";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 /* ------------------------------------------------------------------ */
 /*  Types — 기존과 동일                                                  */
@@ -183,7 +184,8 @@ export default function TournamentJoinPage() {
         setPlayers(
           team.team_members.map((m) => ({
             userId: m.user_id,
-            name: m.user.name ?? m.user.nickname ?? `선수 ${m.user_id}`,
+            // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+            name: getDisplayName(m.user, { jerseyNumber: m.jersey_number }),
             jerseyNumber: m.jersey_number,
             position: m.position ?? m.user.position ?? null,
             birthDate: m.user.birth_date
