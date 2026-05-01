@@ -395,8 +395,8 @@ export function V2BracketWrapper({
 
           {/* 경기 일정 리스트 — 토너먼트 트리(rounds)가 있을 때만 표시
               풀리그 단독은 LeagueSchedule 영역이 별도이므로 시안의 일정 리스트는 토너먼트용
-           */}
-          {hasKnockout && <V2BracketScheduleList rounds={rounds} />}
+              2026-05-02: dual_tournament 는 별도 일정 표시 X (사용자 결정 — 조편성+트리만 노출) */}
+          {!isDual && hasKnockout && <V2BracketScheduleList rounds={rounds} />}
         </div>
 
         {/* 우측: 사이드 3카드 (시드 순위 / 우승 예측) */}

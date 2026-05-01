@@ -38,6 +38,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const [matches, tournamentTeams] = await Promise.all([
     // 매치 데이터
+    // Phase F1: dual_tournament 5섹션 그룹핑용 group_name + settings(homeSlotLabel/awaySlotLabel/loserNextMatchId) 추가
+    // bracket-builder가 옵셔널로 받기 때문에 single elim 회귀 0 (필드만 추가됨)
     prisma.tournamentMatch.findMany({
       where: { tournamentId: id },
       orderBy: [{ round_number: "asc" }, { bracket_position: "asc" }],
@@ -50,7 +52,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             id: true,
             teamId: true,
             seedNumber: true,
-            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true } },
+            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true } },
           },
         },
         awayTeam: {
@@ -58,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             id: true,
             teamId: true,
             seedNumber: true,
-            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true } },
+            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true } },
           },
         },
         // 핫픽스(2026-04-16): Flutter "최종 스탯 입력 모드"로 저장된 경기는

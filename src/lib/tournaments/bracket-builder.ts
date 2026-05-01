@@ -24,6 +24,10 @@ export type TeamSlot = {
     nameEn: string | null;
     namePrimary: string | null;
     primaryColor: string | null;
+    // 2026-05-02: 홈/어웨이 유니폼 색상 (사용자 결정 — 대진표 색띠 home_color/away_color)
+    // null 이면 primaryColor fallback (match-card 가 처리)
+    homeColor?: string | null;
+    awayColor?: string | null;
   };
 } | null;
 
@@ -49,6 +53,9 @@ export type BracketMatch = {
   // team이 null일 때만 MatchCard에서 이 라벨을 표시한다
   homeSlotLabel: string | null;
   awaySlotLabel: string | null;
+  // ✨ Phase F1: dual_tournament 5섹션 그룹핑용 — A/B/C/D 조 식별
+  // single elim 등 다른 포맷에서는 항상 null (옵셔널이라 호출자 무시 안전)
+  groupName?: string | null;
 };
 
 export type RoundGroup = {
@@ -79,6 +86,9 @@ type DbMatch = {
   // Phase 2C: JSON 컬럼에 슬롯 라벨 저장 (homeSlotLabel/awaySlotLabel)
   // 쿼리에서 settings를 포함하지 않아도 옵셔널이라 안전
   settings?: unknown;
+  // Phase F1: dual_tournament 5섹션 그룹핑용 group_name (A/B/C/D)
+  // single elim 등 다른 포맷에서는 null
+  group_name?: string | null;
   homeTeam: {
     id: bigint;
     teamId: bigint;
@@ -89,6 +99,8 @@ type DbMatch = {
       name_en?: string | null;
       name_primary?: string | null;
       primaryColor: string | null;
+      home_color?: string | null;
+      away_color?: string | null;
     };
   } | null;
   awayTeam: {
@@ -100,6 +112,8 @@ type DbMatch = {
       name_en?: string | null;
       name_primary?: string | null;
       primaryColor: string | null;
+      home_color?: string | null;
+      away_color?: string | null;
     };
   } | null;
 };
@@ -119,6 +133,9 @@ function toTeamSlot(
       nameEn: t.team.name_en ?? null,
       namePrimary: t.team.name_primary ?? null,
       primaryColor: t.team.primaryColor,
+      // 2026-05-02: 유니폼 색상 (사용자 결정 — 대진표 색띠)
+      homeColor: t.team.home_color ?? null,
+      awayColor: t.team.away_color ?? null,
     },
   };
 }
@@ -149,6 +166,8 @@ function toBracketMatch(m: DbMatch): BracketMatch {
     scheduledAt: m.scheduledAt?.toISOString() ?? null,
     homeSlotLabel,
     awaySlotLabel,
+    // Phase F1: dual_tournament 5섹션 그룹핑용 — null이면 그룹 없음 (single elim 등)
+    groupName: m.group_name ?? null,
   };
 }
 

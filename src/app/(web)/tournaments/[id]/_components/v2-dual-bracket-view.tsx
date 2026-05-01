@@ -260,11 +260,11 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
                     >
                       {idx + 1}
                     </span>
-                    {/* 팀 색띠 */}
-                    {t?.team.primaryColor && (
+                    {/* 팀 유니폼 색띠 — home_color 우선 (대표 유니폼), 없으면 primaryColor */}
+                    {t && (t.team.homeColor || t.team.primaryColor) && (
                       <span
                         className="inline-block h-4 w-1 rounded-[2px]"
-                        style={{ backgroundColor: t.team.primaryColor }}
+                        style={{ backgroundColor: t.team.homeColor || t.team.primaryColor || undefined }}
                       />
                     )}
                     {/* 팀명 (링크) */}

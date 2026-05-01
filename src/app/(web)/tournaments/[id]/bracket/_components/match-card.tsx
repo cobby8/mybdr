@@ -239,15 +239,25 @@ export function MobileMatchCard({
   const homeLoser = isLoser(match, match.homeTeam);
   const awayLoser = isLoser(match, match.awayTeam);
 
-  // 좌측 세로 띠 색상 (유니폼 / 미확정 시 home=red, away=navy)
+  // 좌측 세로 띠 색상 — 사용자 결정 (2026-05-02):
+  //   대진표 좌측·상단 = 홈팀 (밝은색 home_color)
+  //   대진표 우측·하단 = 어웨이팀 (어두운색 away_color)
+  // home_color/away_color 없으면 primaryColor 폴백, 그래도 흰색이면 토큰 fallback
   const isWhiteColor = (c: string | null | undefined) =>
     !c || c.toLowerCase() === "#ffffff" || c.toLowerCase() === "#fff";
-  const homeStripeColor = match.homeTeam && !isWhiteColor(match.homeTeam.team.primaryColor)
-    ? match.homeTeam.team.primaryColor!
-    : "var(--color-primary)";
-  const awayStripeColor = match.awayTeam && !isWhiteColor(match.awayTeam.team.primaryColor)
-    ? match.awayTeam.team.primaryColor!
-    : "var(--color-secondary)";
+  const pickStripe = (
+    team: { team: { homeColor?: string | null; awayColor?: string | null; primaryColor: string | null } } | null,
+    slot: "home" | "away",
+    fallbackVar: string,
+  ): string => {
+    if (!team) return fallbackVar;
+    const slotColor = slot === "home" ? team.team.homeColor : team.team.awayColor;
+    if (slotColor && !isWhiteColor(slotColor)) return slotColor;
+    if (!isWhiteColor(team.team.primaryColor)) return team.team.primaryColor!;
+    return fallbackVar;
+  };
+  const homeStripeColor = pickStripe(match.homeTeam, "home", "var(--color-primary)");
+  const awayStripeColor = pickStripe(match.awayTeam, "away", "var(--color-secondary)");
 
   return (
     <div
