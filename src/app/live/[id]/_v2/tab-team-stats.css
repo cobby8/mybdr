@@ -119,23 +119,26 @@
   }
 }
 
-/* ===== 막대 + 수치 (NBA 스타일) ===== */
+/* ===== 막대 + 수치 (NBA 스타일) =====
+   2026-05-02 v6 fix: bar-wrap 이 flex item 이라 폭 0 → 막대 안 보임. flex:1 + min-width:0 */
 .tts-bar-wrap {
   position: relative;
-  height: 24px;
+  height: 20px;
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 @media (min-width: 720px) {
   .tts-bar-wrap {
-    height: 28px;
+    height: 24px;
   }
 }
 
 @media (min-width: 1024px) {
   .tts-bar-wrap {
-    height: 32px;
+    height: 28px;
   }
 }
 
@@ -154,6 +157,8 @@
   border-radius: 2px;
   transition: width 0.3s ease;
   flex-shrink: 0;
+  /* 막대가 폭 0 일 때도 최소 노출 (디자인 가시성) */
+  min-width: 2px;
 }
 
 /* 수치 — 막대 끝에 inline. winner 큰 폰트, loser 약간 작게 */
