@@ -5,9 +5,9 @@
  * hero 카로셀 첫 슬롯에 "지금 신청 가능한/진행 중인 대회"를 강조 노출하기 위함.
  * 시안 톤(파란색 = 신뢰감)에 맞춰 cafe-blue 그라디언트.
  *
- * 라우팅 규칙:
- *  - 신청 페이지: /tournaments/{id} (현 시점 mybdr는 [id] 라우트에서 신청 처리)
- *  - 전체 보기:  /tournaments
+ * 라우팅 규칙 (2026-05-02 정정):
+ *  - 신청 페이지: /tournaments/{id}/join (실제 라우트, 옛 /apply 는 404)
+ *  - 대회 보기:   /tournaments/{id} (해당 대회 상세, 옛 /tournaments 목록 X)
  *
  * 데이터 가공:
  *  - start_date(ISO) → "M월 D일" 짧은 한국어 표기
@@ -59,12 +59,13 @@ export function HeroSlideTournament({ data }: Props) {
       meta={meta}
       primaryCta={{
         label: "지금 신청하기",
-        // tournament.id 가 UUID 그대로이므로 별도 uuid 변환 불필요
-        href: `/tournaments/${data.id}/apply`,
+        // 2026-05-02: 옛 /apply 라우트 부재 (404) → 실제 신청 라우트 /join 으로 정정
+        href: `/tournaments/${data.id}/join`,
       }}
       secondaryCta={{
-        label: "대회 전체 보기",
-        href: "/tournaments",
+        // 2026-05-02: "대회 전체 보기" → "대회 보기" + 해당 대회 페이지로 (사용자 결정)
+        label: "대회 보기",
+        href: `/tournaments/${data.id}`,
       }}
     />
   );
