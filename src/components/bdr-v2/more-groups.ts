@@ -107,6 +107,8 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "계정·도움",
     items: [
+      // v2.4 마이페이지 통합 진입점 — 의뢰서 §3-7 진입점 2 (더보기 메뉴)
+      { id: "mypage", label: "마이페이지", icon: "🏠", href: "/profile" },
       { id: "editProfile", label: "프로필 편집", icon: "✏", href: "/profile/edit" },
       {
         id: "notificationSettings",

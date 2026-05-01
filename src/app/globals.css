@@ -1312,6 +1312,15 @@ html.dark .hero-carousel__accent {
   .upcoming-row > :nth-child(2) { grid-area: body; }
   .upcoming-row > :nth-child(3) { grid-area: status; }
 
+  /* ---- Profile v2.4 마이페이지 hub (룰 13: repeat(N,1fr) 720 분기 필수) ----
+     Tier 1 큰 카드 4종: 데스크톱 2x2 → 모바일 1열 stack.
+     이유 — 모바일 폭(360~414px)에서 카드 2장이 좌우로 들어가면 본문(스탯/그래프) 시인성 저하. */
+  .mypage-hub-grid { grid-template-columns: 1fr !important; }
+
+  /* Tier 2 quick 카드 4종: 데스크톱 4 col → 모바일 2x2.
+     이유 — 4 col 를 모바일에 그대로 두면 카드당 ~80px 로 라벨 줄바꿈 발생. */
+  .mypage-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
   /* ---- Home ---- */
   /* stat strip: 2x2 */
   .page > div[style*="grid-template-columns: repeat(4, 1fr)"] {
