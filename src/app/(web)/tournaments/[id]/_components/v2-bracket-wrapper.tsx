@@ -45,6 +45,8 @@ import { V2BracketStatusBar } from "./v2-bracket-status-bar";
 import { V2BracketScheduleList } from "./v2-bracket-schedule-list";
 import { V2BracketSeedRanking, type SeedTeam } from "./v2-bracket-seed-ranking";
 import { V2BracketPrediction } from "./v2-bracket-prediction";
+// Phase F2-F3: 듀얼토너먼트 5섹션 카드 (옵션 D — BracketView SVG 트리 재사용 X)
+import { V2DualBracketView } from "./v2-dual-bracket-view";
 
 // API 응답 fetcher — 기존 tournament-tabs.tsx와 동일 패턴
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API 응답 구조 다양
@@ -81,6 +83,8 @@ function formatToEyebrow(format: string | null): string {
       return "BRACKET · SINGLE ELIMINATION";
     case "double_elimination":
       return "BRACKET · DOUBLE ELIMINATION";
+    case "dual_tournament":
+      return "BRACKET · DUAL TOURNAMENT";
     case "round_robin":
     case "full_league":
       return "BRACKET · ROUND ROBIN";
@@ -111,6 +115,8 @@ function buildSubtitle(opts: {
         return "싱글 엘리미네이션";
       case "double_elimination":
         return "더블 엘리미네이션";
+      case "dual_tournament":
+        return "듀얼토너먼트";
       case "round_robin":
       case "full_league":
         return "풀리그";
@@ -196,6 +202,8 @@ export function V2BracketWrapper({
     format === "round_robin" ||
     format === "full_league" ||
     format === "full_league_knockout";
+  // Phase F3: dual_tournament 분기 — admin Phase D 와 동일한 5섹션 카드 표시
+  const isDual = format === "dual_tournament";
 
   const hasLeagueData = isLeague && leagueTeams.length > 0;
   const hasKnockout = rounds.length > 0;
@@ -314,7 +322,14 @@ export function V2BracketWrapper({
               backgroundColor: "var(--color-card)",
             }}
           >
-            {hasLeagueData ? (
+            {/* Phase F3: dual_tournament 첫 분기 — admin Phase D 와 동일한 5섹션 카드 (BracketView X) */}
+            {isDual ? (
+              hasKnockout ? (
+                <V2DualBracketView rounds={rounds} />
+              ) : (
+                <BracketEmpty tournamentId={tournamentId} />
+              )
+            ) : hasLeagueData ? (
               <>
                 {/* 풀리그: 리그 순위표 (4강 진출 조편성 기준) */}
                 <LeagueStandings teams={leagueTeams} tournamentStatus={d.tournamentStatus} />

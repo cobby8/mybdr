@@ -1988,3 +1988,227 @@ html.dark {
   --color-info:           var(--info);
   --color-status-live:    var(--bdr-red);
 }
+
+/* =====================================================
+   Games page — header, segmented tabs, filter button
+   출처: Dev/design/BDR-current/games.css (Phase B 박제 2026-05-02)
+   왜: 시안 segmented control + 필터 토글 + collapsible chips 도입.
+   토큰만 사용 (var(--*)). 9999px 코드 0건 (정사각형 원형 50%, 13 룰 §10).
+   모바일 ≤720px 분기 + iOS input 16px 가드는 globals 글로벌 가드 적용.
+   ===================================================== */
+.games-page {
+  /* page container hook — 추가 스타일 없음. .page 레이아웃을 그대로 사용 */
+}
+
+/* ---------- Header (title + 만들기 button) ---------- */
+.games-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  column-gap: 12px;
+  margin-bottom: 16px;
+}
+.games-header__title { min-width: 0; }
+.games-header__h1 {
+  margin: 6px 0 4px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.games-header__sub {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+
+/* Compact "만들기" 버튼 — title block 우측 */
+.games-create-btn {
+  align-self: end;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  height: 36px;
+  white-space: nowrap;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Toolbar (segmented tabs + filter icon) ---------- */
+.games-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+/* Segmented tabs — light tray + accent active state */
+.games-segmented {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 4px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.games-segmented__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-mute);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background .12s ease, color .12s ease;
+}
+.games-segmented__btn:hover { color: var(--ink-soft); }
+.games-segmented__btn.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+.games-segmented__label { overflow: hidden; text-overflow: ellipsis; }
+.games-segmented__count {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 700;
+  opacity: .85;
+  flex: 0 0 auto;
+}
+.games-segmented__btn.is-active .games-segmented__count { opacity: 1; }
+
+/* Filter icon button — 토글 (chips 영역 펼침/접힘) */
+.games-filter-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.games-filter-btn:hover { color: var(--ink); border-color: var(--ink-dim); }
+.games-filter-btn.is-open,
+.games-filter-btn.has-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.games-filter-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+/* 필터 카운트 dot — 정사각형 원형은 50% (9999px 금지, 13 룰 §10) */
+.games-filter-btn__dot {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--ff-mono);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.games-filter-btn.is-open .games-filter-btn__dot,
+.games-filter-btn.has-active .games-filter-btn__dot {
+  background: #fff;
+  color: var(--accent);
+}
+
+/* Collapsible filter chip row — 펼침 시 표시 */
+.games-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.games-filter-clear {
+  margin-left: auto;
+  color: var(--ink-mute);
+}
+
+/* ---------- Cards grid ---------- */
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+/* ---------- Mobile (<= 720px) ---------- */
+@media (max-width: 720px) {
+  .games-header {
+    grid-template-columns: 1fr auto;
+    column-gap: 10px;
+    margin-bottom: 14px;
+  }
+  .games-header__h1 {
+    font-size: 22px;
+    line-height: 1.25;
+  }
+  .games-header__sub { font-size: 12px; }
+
+  .games-create-btn {
+    align-self: start;
+    margin-top: 2px;
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+    min-width: 44px;
+  }
+
+  .games-segmented__btn {
+    padding: 8px 4px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .games-segmented__count { font-size: 10px; }
+
+  .games-filter-btn { width: 36px; height: 36px; }
+
+  .games-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Very narrow phones — count tucks under */
+@media (max-width: 360px) {
+  .games-segmented__btn {
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 2px;
+  }
+}

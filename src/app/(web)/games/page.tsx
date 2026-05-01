@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { listGames, type GameListFilters } from "@/lib/services/game";
-import { KindTabBar, type KindTabBarCounts } from "@/components/bdr-v2/kind-tab-bar";
+import type { KindTabBarCounts } from "@/components/bdr-v2/kind-tab-bar";
 import {
   GamesClient,
   type GameForClient,
@@ -168,53 +168,30 @@ export default async function GamesPage({
   typeCounts.all = typeCounts["0"] + typeCounts["1"] + typeCounts["2"];
 
   return (
-    // v2 .page 쉘 — max-width + 중앙 정렬 + 상하 여백 (Home 과 동일 컨테이너)
-    <div className="page">
-      {/* 1. 헤더 영역 — eyebrow + h1 + 서브 문구 + 모집 글쓰기 버튼 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          marginBottom: 16,
-          gap: 16,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
+    // 시안 .page 쉘 + .games-page hook (page-specific overrides 용)
+    <div className="page games-page">
+      {/* 1. 헤더 — 시안 .games-header (grid 1fr auto, 좌측 title / 우측 만들기 버튼) */}
+      <div className="games-header">
+        <div className="games-header__title">
           <div className="eyebrow">경기 · GAMES</div>
-          <h1
-            style={{
-              margin: "6px 0 4px",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-            }}
-          >
-            픽업 · 게스트 모집
-          </h1>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+          <h1 className="games-header__h1">픽업 · 게스트 모집</h1>
+          <div className="games-header__sub">
             같이 뛸 사람을 찾는 {typeCounts.all}건의 모집이 열려 있습니다
           </div>
         </div>
         {/* 모집 글쓰기 — 기존 /games/new 라우트 재사용.
          * material-symbols "add" 로 시안의 Icon.plus 대체 (컨벤션). */}
-        <Link href="/games/new" className="btn btn--primary">
-          <span
-            className="material-symbols-outlined"
-            style={{ fontSize: 16, marginRight: 4 }}
-          >
+        <Link href="/games/new" className="btn btn--primary games-create-btn">
+          <span className="material-symbols-outlined" aria-hidden="true">
             add
           </span>
-          모집 글쓰기
+          <span>만들기</span>
         </Link>
       </div>
 
-      {/* 2. 종류 탭 — URL ?type 조작 + 건수 표시 */}
-      <KindTabBar counts={typeCounts} />
-
-      {/* 3~4. 필터 칩 + 카드 그리드 — 클라이언트 래퍼에 위임 */}
-      <GamesClient games={games} />
+      {/* 2~4. 종류 탭 (segmented + filter 토글) + 필터 칩 (collapsible) +
+       *      카드 그리드 — 클라이언트 래퍼에 위임. typeCounts 도 함께 전달. */}
+      <GamesClient games={games} typeCounts={typeCounts} />
     </div>
   );
 }
