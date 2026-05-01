@@ -73,6 +73,7 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-05-01 | cef0a2b (dev 머지 push) | **DEV 머지 — subin → dev fast-forward** (8aea145..cef0a2b, 7 commits). dev preview 자동 배포 트리거. 이번 세션 마무리. | ✅ |
 | 2026-05-01 | 85944e3 (push) | **D-1/8 ProfileGrowth sync (BDR-current v2.4)**: 마일스톤 순서 [누적/연속/평점/MVP/커뮤/순위] → [누적/평점/MVP/연속/커뮤/팀멤버추천]. 6번째 항목 "시즌 순위" → "팀 멤버 추천" (DB 미지원, 더미 + 준비 중). 옛 시즌 순위 코드 주석 보존. tsc 통과. | ✅ |
 | 2026-05-01 | (변경 0) | **D-2/8 ProfileBookings 검증**: 시안 BDR-current vs 운영 BookingsListV2 1:1 박제 완벽 일치. sync 변경 0건. | ✅ |
 | 2026-05-01 | a2c0636 (push) | **gitignore + .backup.jsx 3건 제거**: Profile/Settings/EditProfile.backup.jsx 제거. gitignore 패턴 추가 (다음 zip 동기화 자동 제외). | ✅ |
