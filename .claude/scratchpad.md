@@ -24,6 +24,7 @@
 - Q1 후속: `_components/` 11 파일 + `courts/[id]/page.tsx` 19건 옛 토큰 마이그
 - Q1 후속: ContextReviews kind="series" /tournaments[id] + kind="player" /users[id] 도입
 - Q1 후속: `/reviews?courtId=...` deep-link → onViewAll 활성화
+- **대회 선수 가입 시 이름 기준 자동 매칭 hook 부재** — 현재 `matchPlayersByPhone` 만 가입 hook에서 자동 호출 추정. `linkPlayersToUsers` (이름 기준) 는 수동 호출만 → 명단 사전 등록 시 phone 없으면 추후 가입해도 자동 연결 X. 가입 hook 또는 cron 추가 필요
 
 ## 현재 작업
 
@@ -65,7 +66,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
-| 2026-05-01 | (커밋 대기) | **Q1 Reviews + ContextReviews 박제 (developer)**: 시안 [Phase 16] 4탭 → 1탭(코트만) + ContextReviews 신규 351줄 (kind/targetName/reviews/summary/onWrite/onViewAll/maxVisible) + /courts/[id] 인라인 교체 (CourtReviewsSection 신규 251 + 옛 court-reviews 287 삭제). review-form/star-rating v3 토큰 동시 마이그 (Q1-C). 4탭 UI 깔끔 제거 (Q1-A). REVIEW_CATEGORIES 5항목 + SWR/POST/DELETE/mutate 100% 보존. tsc + 13 룰 + 회귀 4 + 작업 범위 외 침범 0. tester+reviewer 병렬 통과. knowledge: architecture(+1) / decisions(+1) / index. | ✅ |
+| 2026-05-01 | (DB only) | **크로스오버 팀 선수 18명 일괄 등록 + 자동 매칭 (예시 진행)**: B 대회 TournamentTeam id=242 (크로스오버 Team id=228) 에 18명 INSERT. 운영 패턴 정합 (`POST /api/web/tournaments/[id]/teams/[teamId]/players`): player_name + jerseyNumber + role="player" + is_active=true. 자동 매칭 = `linkPlayersToUsers` 인라인 (같은 Team 활성 TeamMember 중 nickname/name === player_name 정확 일치 + 1명만 매칭, 동명이인 안전). 결과: **18 등록 / 1 자동 매칭** (성윤호 → userId=3110). 크로스오버 Team 활성 멤버 3명뿐 → 17명은 미가입/팀 미등록 → userId=null 보존 (추후 phone 매칭 hook 자동 연결 대기). 백넘버 unique 검증 통과 + 사후 count=18 통과. 임시 스크립트 정리. | ✅ |
+| 2026-05-01 | (DB only) | **동호회최강전 B 참가팀 16팀 일괄 등록**: 사진 추출 16팀 모두 기존 Team 매칭 (id=233/232/231/230/229/228/227/226/225/224/223/222/221/220/218/196). false positive 4건 정리 (BDR✗→DR BASKET / DYNAMIC✗→MI / DASAN·MSA✗→SA / merged✗→196). 트랜잭션 INSERT 16건 + teams_count 0→16 (maxTeams 풀 채움). | ✅ |
 | 2026-05-01 | 5e21130 (push) | **docs(knowledge) organizations status fix 기록 (Cowork 다른 세션)**: errors.md +1 / lessons.md / index.md 갱신 | ✅ |
 | 2026-05-01 | 08898cb (push) | **fix(organizations) status 'active' → 'approved' (Cowork 다른 세션)**: page.tsx 1줄 fix. DB 동호회최강전 중복 2건 정리. | ✅ |
 | 2026-05-01 | 7883ed3 (push) | **D-3/8 ProfileWeeklyReport Hybrid 박제**: page.tsx 920→1125. v2.4 6섹션 + TOP 3 코트 보존. ComingSoonBadge 신설. | ✅ |
@@ -74,5 +76,4 @@
 | 2026-05-01 | 6e81996 (push) | **fix(profile) ProfileShell 제거**: layout.tsx → `<>{children}</>`. v2.3 hub sidebar 0 정합. | ✅ |
 | 2026-05-01 | cef0a2b (dev 머지) | DEV 머지 — subin → dev fast-forward (7 commits) | ✅ |
 | 2026-05-01 | 85944e3 (push) | D-1/8 ProfileGrowth sync | ✅ |
-| 2026-05-01 | 22ce7f2 (push) | v3-rebake P0 마이페이지 hub 박제 | ✅ |
-<!-- 04-30 + 05-01 일부 절단 (10건 유지 — Q1 + cowork 2건 신규 추가로 인한 정리) -->
+<!-- 04-30 + 05-01 일부 절단 (85944e3 D-1 + 22ce7f2 P0 hub 절단 — 크로스오버 선수 18명 + 16팀 등록 신규 추가로 인한 정리) -->
