@@ -1,0 +1,137 @@
+/* ============================================================
+ * RosterTabV2 CSS — 팀 로스터 카드 그리드 (2026-05-02 신규)
+ *
+ * 왜:
+ *  - 사용자 요청 (2026-05-02): 로스터 행 → 카드 형태 + 모바일 2열 / PC 4열
+ *  - 기존 .board.data-table 5열 행 → 시안 TeamCardV2 패턴 차용 카드 그리드
+ *
+ * 어떻게:
+ *  - 모바일 (≤720px): grid 2열 (1fr 1fr)
+ *  - 태블릿 (~720~1023px): grid 3열
+ *  - PC (≥1024px): grid 4열
+ *  - 카드: border + radius + padding + hover
+ *  - 카드 안: 등번호 큰 표시 (좌상) + 이니셜 원형 (가운데) + 이름 (강조) + 포지션·역할 칩
+ *
+ * 회귀 방지 (errors.md 04-29):
+ *  - 인라인 grid 안티패턴 ❌ → className + media query
+ * ============================================================ */
+
+.roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .roster-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .roster-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+}
+
+/* ===== 카드 본체 ===== */
+.roster-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+
+.roster-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--ink-dim);
+}
+
+/* ===== 상단 띠 (accent 색) ===== */
+.roster-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--roster-accent, var(--accent));
+}
+
+/* ===== 등번호 (큰, ff-display) ===== */
+.roster-card__jersey {
+  font-family: var(--ff-display);
+  font-weight: 900;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  color: var(--roster-accent, var(--accent));
+  line-height: 1;
+}
+
+/* ===== 이니셜 원형 + 이름 ===== */
+.roster-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.roster-card__avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-alt);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  border-radius: 50%; /* 정사각형 원형 — 50% (9999px ❌, §4-1) */
+  flex-shrink: 0;
+}
+
+.roster-card__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ===== 메타 (포지션 + 역할) ===== */
+.roster-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.roster-card__position {
+  font-family: var(--ff-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* PC 4열에서 카드 폭이 좁아지면 글자 줄바꿈 방지 */
+@media (min-width: 1024px) {
+  .roster-card__name {
+    font-size: 15px;
+  }
+  .roster-card__jersey {
+    font-size: 28px;
+  }
+}
