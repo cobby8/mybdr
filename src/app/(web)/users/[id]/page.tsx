@@ -324,6 +324,7 @@ export default async function UserProfilePage({
             teams={publicTeams}
             badges={badges}
             activity={activity}
+            bio={user.bio}
           />
         }
         games={<RecentGamesTab games={recentGameRows} />}
