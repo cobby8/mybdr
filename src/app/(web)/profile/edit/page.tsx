@@ -754,6 +754,41 @@ export default function ProfileEditPage() {
           <p>매칭·게스트 모집에 노출됩니다. 자체 평가 — 레이팅에 영향 없음.</p>
         </header>
 
+        {/* 2026-05-02: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증). 사용자 결정 §2 가장 위 배치 */}
+        <div className="edit-profile__grid edit-profile__grid--2" style={{ marginBottom: 16 }}>
+          <Field label="등번호" sub="대회 출전 시 필수">
+            <input
+              className="input t-mono"
+              type="number"
+              value={form.default_jersey_number}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, default_jersey_number: e.target.value }))
+              }
+              placeholder="23"
+              min={0}
+              max={999}
+            />
+          </Field>
+          <Field label="선출 여부" sub="대회 출전 시 필수">
+            <div className="edit-profile__chips">
+              <button
+                type="button"
+                className={`chip ${form.is_elite === false ? "chip--active" : ""}`}
+                onClick={() => setForm((p) => ({ ...p, is_elite: false }))}
+              >
+                일반
+              </button>
+              <button
+                type="button"
+                className={`chip ${form.is_elite === true ? "chip--active" : ""}`}
+                onClick={() => setForm((p) => ({ ...p, is_elite: true }))}
+              >
+                선출
+              </button>
+            </div>
+          </Field>
+        </div>
+
         {/* 주 포지션 — 시안은 단일이지만 운영 multi 보존 (DB 호환) */}
         <div className="edit-profile__field" style={{ marginBottom: 16 }}>
           <div className="edit-profile__field-head">
@@ -803,40 +838,6 @@ export default function ProfileEditPage() {
           </Field>
         </div>
 
-        {/* 2026-05-01: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증) */}
-        <div className="edit-profile__grid edit-profile__grid--2" style={{ marginTop: 16 }}>
-          <Field label="등번호" sub="대회 출전 시 필수">
-            <input
-              className="input t-mono"
-              type="number"
-              value={form.default_jersey_number}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, default_jersey_number: e.target.value }))
-              }
-              placeholder="23"
-              min={0}
-              max={999}
-            />
-          </Field>
-          <Field label="선출 여부" sub="대회 출전 시 필수">
-            <div className="edit-profile__chips">
-              <button
-                type="button"
-                className={`chip ${form.is_elite === false ? "chip--active" : ""}`}
-                onClick={() => setForm((p) => ({ ...p, is_elite: false }))}
-              >
-                일반
-              </button>
-              <button
-                type="button"
-                className={`chip ${form.is_elite === true ? "chip--active" : ""}`}
-                onClick={() => setForm((p) => ({ ...p, is_elite: true }))}
-              >
-                선출
-              </button>
-            </div>
-          </Field>
-        </div>
 
         {/* 시안 박제 — 사용 손 (UI placeholder, DB 미저장) */}
         <div className="edit-profile__field" style={{ marginTop: 16 }}>
