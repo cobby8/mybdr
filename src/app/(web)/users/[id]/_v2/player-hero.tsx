@@ -26,6 +26,9 @@ import {
   getSecondaryNickname,
 } from "@/lib/utils/player-display-name";
 
+// 2026-05-02: 모바일 분기 CSS — 인라인 grid auto 1fr auto 가 ≤720px 에서 깨지는 회귀 해소
+import "./player-hero.css";
+
 const POSITION_KO: Record<string, string> = {
   PG: "포인트가드",
   SG: "슈팅가드",
@@ -128,94 +131,42 @@ export function PlayerHero({
 
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-      {/* 그라디언트 영역 */}
-      <div
-        style={{
-          padding: "32px 32px 24px",
-          background: gradient,
-          color: "#fff",
-          display: "grid",
-          gridTemplateColumns: "auto 1fr auto",
-          gap: 24,
-          alignItems: "center",
-        }}
-      >
-        {/* 아바타 — 120px 원형 */}
-        <div style={{ position: "relative" }}>
-          <div
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,.18)",
-              border: "3px solid rgba(255,255,255,.35)",
-              display: "grid",
-              placeItems: "center",
-              fontFamily: "var(--ff-display)",
-              fontWeight: 900,
-              fontSize: 32,
-              color: "#fff",
-              overflow: "hidden",
-            }}
-          >
-            {user.profile_image_url ? (
-              <Image
-                src={user.profile_image_url}
-                alt={displayName}
-                width={120}
-                height={120}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              initial
-            )}
-          </div>
+      {/* 그라디언트 영역 — 2026-05-02: 인라인 grid → className 분기로 모바일 깨짐 해소 */}
+      <div className="player-hero__grid" style={{ background: gradient }}>
+        {/* 아바타 — PC 120px / 모바일 80px (CSS 분기) */}
+        <div className="player-hero__avatar">
+          {user.profile_image_url ? (
+            <Image
+              src={user.profile_image_url}
+              alt={displayName}
+              width={120}
+              height={120}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            initial
+          )}
         </div>
 
         {/* 이름 + 메타 */}
-        <div style={{ minWidth: 0 }}>
+        <div className="player-hero__info">
           {/* 포지션·팀명 eyebrow */}
           {(user.position || teamName) && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                marginBottom: 4,
-                fontSize: 11,
-                opacity: 0.85,
-                fontWeight: 700,
-                letterSpacing: ".08em",
-              }}
-            >
+            <div className="player-hero__eyebrow">
               {user.position && (
-                <>
-                  <span>{POSITION_KO[user.position] ?? user.position}</span>
-                </>
+                <span>{POSITION_KO[user.position] ?? user.position}</span>
               )}
               {user.position && teamName && <span>·</span>}
               {teamName && <span>{teamName.toUpperCase()}</span>}
             </div>
           )}
 
-          {/* 닉네임 h1 */}
-          <h1
-            style={{
-              margin: "0 0 4px",
-              fontSize: 36,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: "#fff",
-            }}
-          >
-            {displayName}
-          </h1>
+          {/* 이름 h1 — PC 36px / 모바일 22px */}
+          <h1 className="player-hero__name">{displayName}</h1>
 
           {/* 메타 줄 — 실명·지역·성별 */}
           {metaParts.length > 0 && (
-            <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 10 }}>
-              {metaParts.join(" · ")}
-            </div>
+            <div className="player-hero__meta">{metaParts.join(" · ")}</div>
           )}
 
           {/* 배지들 — Lv / ★평점 */}
@@ -253,26 +204,11 @@ export function PlayerHero({
           </div>
 
           {/* bio — 그라디언트 영역 안 하단 */}
-          {user.bio && (
-            <p
-              style={{
-                marginTop: 10,
-                fontSize: 13,
-                lineHeight: 1.6,
-                color: "rgba(255,255,255,0.92)",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
-              {user.bio}
-            </p>
-          )}
+          {user.bio && <p className="player-hero__bio">{user.bio}</p>}
         </div>
 
-        {/* 액션 슬롯 — 팔로우/메시지 버튼 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 140 }}>
-          {actionSlot}
-        </div>
+        {/* 액션 슬롯 — PC 우측 세로 / 모바일 두 번째 줄 가로 풀폭 */}
+        <div className="player-hero__actions">{actionSlot}</div>
       </div>
 
       {/* Physical strip — 3열 축소 (키 / 몸무게 / 최근접속) D-P3 */}

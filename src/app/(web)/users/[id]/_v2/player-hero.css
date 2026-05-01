@@ -1,0 +1,132 @@
+/* ============================================================
+ * PlayerHero CSS — /users/[id] v2 타인 프로필 Hero 모바일 분기
+ *
+ * 왜 (2026-05-02 신규):
+ *  - 인라인 grid `auto 1fr auto` 가 모바일 (≤720px) 폭 409px 에서 깨짐.
+ *    좌(아바타) + 우(액션) min-width 가 차지하면 가운데 1fr 이 매우 좁아져
+ *    이름·메타 텍스트가 한 글자씩 세로 정렬되는 회귀.
+ *  - conventions.md "모바일 가로 overflow grid 안티패턴" (04-29) 재발 케이스.
+ *
+ * 어떻게:
+ *  - 핵심 인라인 style 을 className 으로 분리 + media query 모바일 분기.
+ *  - PC 는 그라디언트 hero 그대로 (grid 3열, 큰 폰트, 우측 액션).
+ *  - 모바일 (≤720px) 은:
+ *    · grid 80px + 1fr (아바타 좌 + 정보 우, 가로 유지)
+ *    · 액션 슬롯은 grid-column 1 / -1 으로 두 번째 줄 풀폭
+ *    · 폰트 축소 (이름 36px → 22px / 메타 14px → 12px)
+ * ============================================================ */
+
+.player-hero__grid {
+  padding: 32px 32px 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 24px;
+  align-items: center;
+  color: #fff;
+}
+
+.player-hero__avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  display: grid;
+  place-items: center;
+  font-family: var(--ff-display);
+  font-weight: 900;
+  font-size: 32px;
+  color: #fff;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.player-hero__info {
+  min-width: 0;
+}
+
+.player-hero__name {
+  margin: 0 0 4px;
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.player-hero__eyebrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 11px;
+  opacity: 0.85;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  flex-wrap: wrap;
+}
+
+.player-hero__meta {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+  word-break: keep-all;
+}
+
+.player-hero__bio {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.player-hero__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+/* ===== Mobile (≤720px) ===== */
+@media (max-width: 720px) {
+  .player-hero__grid {
+    padding: 16px;
+    grid-template-columns: 80px 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .player-hero__avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 22px;
+    border-width: 2px;
+  }
+  .player-hero__name {
+    font-size: 22px;
+  }
+  .player-hero__eyebrow {
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  .player-hero__meta {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .player-hero__bio {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  /* 액션 슬롯 — grid 두 번째 줄 풀폭 + 가로 정렬 (메시지/팔로우 옆) */
+  .player-hero__actions {
+    grid-column: 1 / -1;
+    min-width: 0;
+    flex-direction: row;
+    margin-top: 4px;
+  }
+  .player-hero__actions > * {
+    flex: 1;
+  }
+}
