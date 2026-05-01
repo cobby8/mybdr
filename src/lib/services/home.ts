@@ -439,21 +439,26 @@ export const prefetchOpenTournaments = unstable_cache(async () => {
  * ============================================================ */
 export const prefetchUpcomingTournament = unstable_cache(async (): Promise<HeroSlideTournament["data"] | null> => {
   // 공통 where 절 — 공개 + 접수중/진행중 + 테스트 데이터 제외
+  // 2026-05-02: status 정합 — tournament-status.ts 의 "접수중" 라벨 매핑된
+  // registration / registration_open / published 모두 hero 노출 대상으로 확장
+  // (운영 DB 의 published 가 가장 다수 — 동호회최강전 B 도 registration_open)
   const baseWhere = {
     is_public: true,
-    status: { in: ["registration", "in_progress"] },
+    status: { in: ["registration", "registration_open", "published", "in_progress"] },
     NOT: { name: { contains: "test", mode: "insensitive" as const } },
   };
 
+  const now = new Date();
+
   // 마감 7일 이내 대회의 cutoff (NOW + 7일)
-  const sevenDaysLater = new Date();
+  const sevenDaysLater = new Date(now);
   sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
 
   // 1단계: 마감 임박(7일 이내) 대회 우선
   let t = await prisma.tournament.findFirst({
     where: {
       ...baseWhere,
-      registration_end_at: { gte: new Date(), lte: sevenDaysLater },
+      registration_end_at: { gte: now, lte: sevenDaysLater },
     },
     orderBy: [{ registration_end_at: "asc" }, { startDate: "asc" }],
     select: {
@@ -468,10 +473,18 @@ export const prefetchUpcomingTournament = unstable_cache(async (): Promise<HeroS
     },
   });
 
-  // 2단계: 임박 대회 없으면 일반 모집/진행중 1건 (시작일 빠른 순)
+  // 2단계: 임박 대회 없으면 시작일이 미래인 대회 1건 (시작일 빠른 순)
+  // 2026-05-02: 과거 대회 (startDate < now) 가 hero 차지하는 것 방지 가드 추가
+  // 시작일이 NULL 인 대회는 후순위로 (gte 가드는 NULL 자동 제외)
   if (!t) {
     t = await prisma.tournament.findFirst({
-      where: baseWhere,
+      where: {
+        ...baseWhere,
+        OR: [
+          { startDate: { gte: now } }, // 미래 대회
+          { startDate: null }, // 시작일 미정 (후순위)
+        ],
+      },
       orderBy: [{ startDate: "asc" }, { createdAt: "desc" }],
       select: {
         id: true,

@@ -129,7 +129,8 @@ export default async function GameDetailPage({
     }
   }
 
-  // 승인된 참가자 목록 — position 필드도 함께 전달 (ParticipantList 시안)
+  // 승인된 참가자 목록 — position + skill_level 필드 전달 (ParticipantList 시안 정합).
+  // Phase C (2026-05-02): skill_level 추가 → 시안의 "L.5 · 가드" 메타 노출용.
   const approvedParticipants = applications
     .filter((a) => a.status === 1)
     .map((a) => ({
@@ -137,6 +138,8 @@ export default async function GameDetailPage({
       nickname: a.users?.nickname ?? null,
       name: a.users?.name ?? null,
       position: a.users?.position ?? null,
+      // users.skill_level 은 string|null. 빈 문자열·null 인 경우 ParticipantRow 측에서 미노출
+      skill_level: a.users?.skill_level ?? null,
     }));
 
   // 호스트 전용 신청자 배열
@@ -573,6 +576,18 @@ export default async function GameDetailPage({
               myApplicationStatus={myApplication ? myApplication.status : null}
               profileCompleted={profileCompleted}
               missingFields={missingFields}
+              // Phase C (2026-05-02): 신청자 정보 카드 노출용. userRecord 없으면 (비로그인) null.
+              // 시안 결정 4 = A: skill_level select 1줄 추가, 그 외 정보는 user 자동.
+              myProfile={
+                userRecord
+                  ? {
+                      nickname: userRecord.nickname,
+                      name: userRecord.name,
+                      position: userRecord.position,
+                      skill_level: userRecord.skill_level,
+                    }
+                  : null
+              }
             />
           </div>
         </div>
