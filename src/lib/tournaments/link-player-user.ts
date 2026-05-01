@@ -27,8 +27,14 @@ export async function linkPlayersToUsers(
   if (unlinkedPlayers.length === 0) return 0;
 
   // 3) 같은 팀의 활성 멤버 조회 (userId + 닉네임/이름)
+  // ⚠️ placeholder User 제외 — 진짜 가입자가 placeholder 와 매칭되면 본인 데이터 못 받음
+  // 참조: knowledge/decisions.md [2026-05-01] placeholder 식별자 패턴 (provider="placeholder")
   const teamMembers = await prisma.teamMember.findMany({
-    where: { teamId: tournamentTeam.teamId, status: "active" },
+    where: {
+      teamId: tournamentTeam.teamId,
+      status: "active",
+      user: { provider: { not: "placeholder" } },
+    },
     include: { user: { select: { id: true, nickname: true, name: true } } },
   });
 
@@ -99,12 +105,14 @@ export async function findUserIdByName(
   if (!playerName) return null;
 
   // 같은 팀의 활성 멤버 중 이름이 일치하는 유저 검색
+  // ⚠️ placeholder User 제외 (위 linkPlayersToUsers 와 동일 정책)
   const members = await prisma.teamMember.findMany({
     where: {
       teamId,
       status: "active",
       user: {
         OR: [{ nickname: playerName }, { name: playerName }],
+        provider: { not: "placeholder" },
       },
     },
     select: { userId: true },
