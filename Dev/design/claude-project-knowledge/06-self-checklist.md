@@ -86,11 +86,14 @@ grep -rE "from ['\"]lucide-react['\"]" screens/
 
 ## §4. 카피 / 콘텐츠 검수
 
+> **2026-05-01 갱신**: 룰 9 변경 — 시안 우선 정책. "서울 3x3 농구 커뮤니티" / "다음카페" 카피 허용.
+
 | 항목 | 통과 기준 |
 |------|---------|
-| 글로벌 슬로건 | "전국 농구 매칭 플랫폼" |
-| "서울 3x3" 한정 표현 | 0 매칭 (3x3 = 게임 종류로만 OK) |
-| About 운영진 | 일반 라벨 (실명 박제 X) |
+| 글로벌 슬로건 | 시안 카피 그대로 보존 (시안 우선) |
+| "서울 3x3 농구 커뮤니티" | ✅ 허용 (v2.4 시안 보존) |
+| "다음카페" 출신 표현 | ✅ 허용 (v2.4 시안 보존) |
+| About 운영진 | 일반 라벨 (실명 박제 X) — 보존 |
 | placeholder 길이 | 5단어 이내 (사용자 결정 §B) |
 | "예: " / "ex)" placeholder | 0 매칭 (사용자 결정 §B) |
 | alert("준비 중") 신규 | 라우트 존재 시 Link 사용, alert 추가 X |
@@ -98,11 +101,13 @@ grep -rE "from ['\"]lucide-react['\"]" screens/
 ### 자동 검수
 
 ```bash
-grep -rE "서울 3x3|서울을 중심으로 한 3x3" screens/
-# → 0 매칭 기대 (3x3 만 단독은 OK)
-
+# placeholder 검수만 유지 (서울 3x3 / 다음카페 는 시안 보존이므로 검수 X)
 grep -rE 'placeholder=["\047]예: ' screens/
 # → 0 매칭 기대
+
+# alert("준비 중") 신규 추가 검수
+grep -rnE "alert\(['\"]준비 중" screens/
+# → 0 매칭 기대 (라우트 존재 시 Link 사용)
 ```
 
 ---
@@ -219,10 +224,9 @@ echo "[3] 가짜링크 추가..."
 GHOST=$(grep -E "id:\s*['\"](gameResult|gameReport|guestApps)['\"]" src/components/bdr-v2/more-groups.ts 2>/dev/null || true)
 [ -z "$GHOST" ] && echo "✅ 0건" || { echo "🚨 $GHOST"; exit 1; }
 
-# 4. "서울 3x3" 검사
-echo "[4] 서울 3x3 한정 표현..."
-SEOUL=$(rg -n "서울 3x3|서울을 중심으로 한 3x3" src 2>/dev/null || true)
-[ -z "$SEOUL" ] && echo "✅ 0건" || { echo "🚨 $SEOUL"; exit 1; }
+# 4. (폐기) 서울 3x3 한정 검사 — 룰 9 갱신 2026-05-01 (시안 우선 정책)
+#    이유: v2.4 시안에 "서울 3x3 농구 커뮤니티" / "다음카페" 카피 보존 의도
+#    → 자동 검수 항목에서 제거. 사용자가 시안 카피 그대로 박제 결정.
 
 # 5. AppNav 위반 검사
 echo "[5] AppNav 위반..."

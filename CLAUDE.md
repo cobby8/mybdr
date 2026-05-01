@@ -93,7 +93,7 @@ git push origin subin
 10. `var(--*)` 토큰만 / 핑크·살몬·코랄 ❌ / lucide-react ❌ / pill 9999px ❌
 
 **D. 카피 / 모바일**:
-11. "전국 농구 매칭 플랫폼" (서울 3x3 한정 표현 ❌)
+11. 글로벌 카피 — **시안 우선** (사용자 결정 2026-05-01). "서울 3x3 농구 커뮤니티" / "다음카페" 카피 ✅ 시안 보존. About 운영진 실명 박제 ❌ (보존). 자세한 사유: `Dev/design/claude-project-knowledge/01-user-design-decisions.md` §6-1
 12. placeholder 5단어 이내 ("예: " 시작 ❌)
 13. 720px 분기 / iOS input 16px / 버튼 44px
 
