@@ -68,6 +68,10 @@ export const USER_GAME_PROFILE_SELECT = {
   district: true,
   profile_completed: true,
   profileReminderShownAt: true,
+  // Phase C (2026-05-02) — ApplyPanel "신청자 정보" 카드 노출용 (시안 GameDetail.jsx L102-106).
+  // "L.5 · 가드 · 레이팅 1684" 형태로 본인 정보를 신청 폼 위에 미리 보여 자기 정보 확인을 돕는다.
+  // 응답 형식 변경 0 (서버 컴포넌트 직접 호출 — 외부 노출 API 없음).
+  skill_level: true,
 } as const;
 
 // ---------------------------------------------------------------------------

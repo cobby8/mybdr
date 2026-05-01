@@ -224,6 +224,10 @@ export async function listGameApplications(gameId: bigint) {
           position: true,
           city: true,
           district: true,
+          // Phase C (2026-05-02) — 참가자 행 메타 "L.5 · 가드" 노출용.
+          // 응답 형식 변경 0 (기존 키 유지, 추가 키 1개). 외부 노출 API 없음
+          // (서버 컴포넌트 직접 호출 → page.tsx 만 사용).
+          skill_level: true,
         },
       },
     },

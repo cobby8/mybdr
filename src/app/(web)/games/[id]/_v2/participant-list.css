@@ -1,0 +1,95 @@
+/* ============================================================
+ * ParticipantList CSS — /games/[id] v2 참가자 목록 Hybrid 분기
+ *
+ * 왜 (2026-05-02 Phase C 신규):
+ *  - 사용자 결정 3 = C Hybrid: 모바일 (≤720px) 1열 list (현재 운영) /
+ *    데스크톱 (>720px) grid 200px 카드 (시안 정합) 양립.
+ *  - 기존엔 인라인 스타일이었으나 Phase C 에서 grid 분기 추가가 필요.
+ *    → conventions.md "모바일 가로 overflow grid 안티패턴" (04-29) +
+ *       errors.md PlayerHero/OverviewTab 회귀 케이스 재발 방지를 위해
+ *       처음부터 className + @media 패턴으로 분리.
+ *  - player-hero.css 패턴 그대로 차용 (mobile-last 분기, PC 기본).
+ *
+ * 어떻게:
+ *  - 데스크톱 기본: grid auto-fill minmax(200px, 1fr) — 시안 GameDetail.jsx L75
+ *  - 모바일 (≤720px): 1열 list 으로 강제 (안전망)
+ *  - row 자체는 PC/모바일 동일 시안 (이니셜 + 닉네임/이름 + level/position)
+ * ============================================================ */
+
+/* ===== 본문 컨테이너 ===== */
+/* PC: grid 카드 그리드 / 모바일: 1열 list */
+.participant-list__body {
+  /* 데스크톱 기본 — auto-fill 자동 줄바꿈 (auto-fit 은 마지막 행이 늘어나는 이슈) */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  padding: 14px 20px;
+  margin: 0;
+  list-style: none;
+}
+
+/* ===== 1행 (PC 카드 / 모바일 row) ===== */
+/* 시안 정합: bg-alt 배경 + 6px 라운드 + 이니셜 + 닉네임/메타 2줄 */
+.participant-list__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-alt);
+  border-radius: 6px;
+  /* 모바일 list 모드의 borderBottom 은 @media 에서만 적용 (PC 카드는 borderBottom 0) */
+}
+
+.participant-list__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.participant-list__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.participant-list__name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* level · position 메타 — 시안 GameDetail.jsx L81 */
+.participant-list__meta {
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-family: var(--ff-mono);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Mobile (≤720px) — 1열 list 모드로 강제 ===== */
+@media (max-width: 720px) {
+  .participant-list__body {
+    /* 모바일은 grid 분리해서 1열 — 카드 형태 유지하되 가로 풀폭 */
+    grid-template-columns: 1fr;
+    /* padding 좌우 줄여 폭 확보 */
+    padding: 10px 12px;
+    gap: 6px;
+  }
+  .participant-list__row {
+    /* 모바일에선 카드 padding 약간 줄임 */
+    padding: 10px;
+  }
+}
