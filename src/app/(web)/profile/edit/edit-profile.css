@@ -582,6 +582,9 @@
     align-items: stretch;
     gap: 8px;
     border-radius: 4px;
+    /* 2026-05-02: 모바일 BottomNav (fixed bottom 60px) 위로 sticky 바 올림 — 사용자 요청
+        sticky 동작 + bottom: 60px → 스크롤 중에도 BottomNav 위에 항상 노출 */
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
   }
   .edit-profile__sticky .edit-profile__actions .btn { min-height: 44px; }
 }
