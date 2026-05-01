@@ -94,9 +94,10 @@ export interface PreferenceFormProps {
 }
 
 /* ============================================================
- * 토스 스타일 pill 버튼 — 선택/미선택 상태에 따라 스타일 변경
- * 선택됨: primary 배경 + 흰색 글씨 (토스의 강조 패턴)
- * 미선택: surface 배경 + muted 글씨
+ * Settings v2 chip 버튼 (2026-05-01 통일) — 토스풍 → v2 디자인 토큰 정합
+ * 선택됨: var(--accent) (BDR Red) 배경 + on-accent 글씨, 4px radius
+ * 미선택: var(--bg-alt) 배경 + ink-soft 글씨 + border
+ * 13 룰 #10: 토큰만 사용 / 4px radius / glow shadow 제거 (v2 정합)
  * ============================================================ */
 function PillButton({
   selected,
@@ -111,11 +112,14 @@ function PillButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-sm px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-all duration-200 ${
-        selected
-          ? "bg-[var(--color-primary)] text-white shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]"
-          : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
-      }`}
+      className="px-3 py-2 text-sm font-semibold transition-colors duration-150"
+      style={{
+        borderRadius: 4,
+        background: selected ? "var(--accent)" : "var(--bg-alt)",
+        color: selected ? "var(--on-accent)" : "var(--ink-soft)",
+        border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+        cursor: "pointer",
+      }}
     >
       {children}
     </button>
@@ -163,21 +167,27 @@ function ThemeSelector() {
 
   return (
     <div className="flex flex-wrap gap-2">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          onClick={() => applyTheme(opt.value)}
-          className={`flex items-center gap-2 rounded-sm px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all duration-200 ${
-            theme === opt.value
-              ? "bg-[var(--color-primary)] text-white shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]"
-              : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
-          }`}
-        >
-          <span className="material-symbols-outlined text-lg">{opt.icon}</span>
-          {opt.label}
-        </button>
-      ))}
+      {options.map((opt) => {
+        const selected = theme === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => applyTheme(opt.value)}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-semibold transition-colors duration-150"
+            style={{
+              borderRadius: 4,
+              background: selected ? "var(--accent)" : "var(--bg-alt)",
+              color: selected ? "var(--on-accent)" : "var(--ink-soft)",
+              border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+              cursor: "pointer",
+            }}
+          >
+            <span className="material-symbols-outlined text-lg">{opt.icon}</span>
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -213,21 +223,27 @@ function TextSizeSelector() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        {options.map((opt) => (
-          <button
-            key={String(opt.value)}
-            type="button"
-            onClick={() => applySize(opt.value)}
-            className={`flex items-center gap-2 rounded-sm px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-all duration-200 ${
-              large === opt.value
-                ? "bg-[var(--color-primary)] text-white shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.5)]"
-                : "bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface-bright)]"
-            }`}
-          >
-            <span className="material-symbols-outlined text-lg">{opt.icon}</span>
-            {opt.label}
-          </button>
-        ))}
+        {options.map((opt) => {
+          const selected = large === opt.value;
+          return (
+            <button
+              key={String(opt.value)}
+              type="button"
+              onClick={() => applySize(opt.value)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold transition-colors duration-150"
+              style={{
+                borderRadius: 4,
+                background: selected ? "var(--accent)" : "var(--bg-alt)",
+                color: selected ? "var(--on-accent)" : "var(--ink-soft)",
+                border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
+                cursor: "pointer",
+              }}
+            >
+              <span className="material-symbols-outlined text-lg">{opt.icon}</span>
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
       {/* 미리보기 텍스트 — 현재 크기 설정이 즉시 반영됨 */}
       <p className="text-sm text-[var(--color-text-muted)] mt-2">
@@ -447,24 +463,39 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
               </p>
             )}
           </div>
-          {/* 토스 스타일 토글 스위치: 둥근 pill, primary 색상 */}
+          {/* Settings v2 토글 스타일 (2026-05-01 통일) — settings-ui SettingsToggle 패턴
+              44×24 + cafe-blue (켜짐) / bg-alt (꺼짐) + 손잡이 50% bg-elev */}
           <button
             type="button"
             onClick={togglePreferFilter}
-            className={`relative inline-flex h-8 w-[52px] shrink-0 cursor-pointer items-center rounded-sm transition-colors duration-300 ${
-              preferFilter
-                ? "bg-[var(--color-primary)] shadow-[0_0_15px_var(--color-primary)]"
-                : "bg-[var(--color-surface-bright)] shadow-inner"
-            }`}
             role="switch"
             aria-checked={preferFilter}
             aria-label="원하는 정보만 보기"
+            style={{
+              position: "relative",
+              width: 44,
+              height: 24,
+              background: preferFilter ? "var(--cafe-blue)" : "var(--bg-alt)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              cursor: "pointer",
+              transition: "background .2s",
+              flexShrink: 0,
+            }}
           >
-            {/* 토글 원형 노브: ON=오른쪽, OFF=왼쪽 */}
             <span
-              className={`inline-block h-6 w-6 rounded-sm bg-white shadow-md transition-transform duration-300 ${
-                preferFilter ? "translate-x-[26px]" : "translate-x-[3px]"
-              }`}
+              style={{
+                position: "absolute",
+                top: 1,
+                left: 1,
+                width: 20,
+                height: 20,
+                background: "var(--bg-elev)",
+                borderRadius: "50%",
+                transform: preferFilter ? "translateX(20px)" : "translateX(0)",
+                transition: "transform .2s",
+                boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+              }}
             />
           </button>
         </div>
@@ -808,26 +839,40 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
                       </span>
                     )}
                   </div>
-                  {/* 토글 스위치 — 보호 메뉴는 비활성화 */}
+                  {/* Settings v2 토글 통일 (2026-05-01) — 보호 메뉴는 비활성 */}
                   <button
                     type="button"
                     onClick={() => !item.protected && toggleMenuVisibility(item.href)}
                     disabled={item.protected}
-                    className={`relative inline-flex h-7 w-11 shrink-0 items-center rounded-full transition-colors duration-300 ${
-                      item.protected
-                        ? "cursor-not-allowed bg-[var(--color-primary)] opacity-50"
-                        : isVisible
-                          ? "cursor-pointer bg-[var(--color-primary)]"
-                          : "cursor-pointer bg-[var(--color-surface-bright)]"
-                    }`}
                     role="switch"
                     aria-checked={isVisible}
                     aria-label={`${item.label} 메뉴 ${isVisible ? "표시" : "숨김"}`}
+                    style={{
+                      position: "relative",
+                      width: 44,
+                      height: 24,
+                      background: isVisible ? "var(--cafe-blue)" : "var(--bg-alt)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 12,
+                      cursor: item.protected ? "not-allowed" : "pointer",
+                      opacity: item.protected ? 0.5 : 1,
+                      transition: "background .2s",
+                      flexShrink: 0,
+                    }}
                   >
                     <span
-                      className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform duration-300 ${
-                        isVisible ? "translate-x-[22px]" : "translate-x-[3px]"
-                      }`}
+                      style={{
+                        position: "absolute",
+                        top: 1,
+                        left: 1,
+                        width: 20,
+                        height: 20,
+                        background: "var(--bg-elev)",
+                        borderRadius: "50%",
+                        transform: isVisible ? "translateX(20px)" : "translateX(0)",
+                        transition: "transform .2s",
+                        boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+                      }}
                     />
                   </button>
                 </div>
@@ -862,42 +907,45 @@ export function PreferenceForm({ mode, onComplete, onSkip }: PreferenceFormProps
       </div>
 
       {/* ========================================
-       * 저장 버튼 영역 — TossButton (풀와이드 CTA)
-       * 메시지 표시 + primary CTA + 온보딩 스킵 버튼
+       * 저장 버튼 영역 (Settings v2 통일 2026-05-01)
+       * 풀와이드 → 좌측 정렬 + 적정 폭 .btn--primary 정합
        * ======================================== */}
-      <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t border-[var(--color-border-subtle)] bg-[var(--color-background)] px-4 pb-6 pt-4">
+      <div className="space-y-3 pt-4">
         {/* 성공/실패 메시지 */}
         {message && (
           <div
-            className={`rounded-md px-4 py-3 text-sm font-medium ${
-              message.type === "success"
-                ? "bg-[var(--color-surface)] text-[var(--color-primary)]"
-                : "bg-[var(--color-surface)] text-[var(--color-error,#E31B23)]"
-            }`}
-            style={{ boxShadow: "var(--shadow-card)" }}
+            className="px-4 py-3 text-sm font-medium"
+            style={{
+              borderRadius: 4,
+              background: "var(--bg-alt)",
+              color: message.type === "success" ? "var(--ok)" : "var(--err)",
+              border: `1px solid ${message.type === "success" ? "var(--ok)" : "var(--err)"}`,
+            }}
           >
             {message.text}
           </div>
         )}
 
-        <TossButton
-          variant="primary"
-          fullWidth
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? "저장 중..." : "설정 저장"}
-        </TossButton>
-
-        {mode === "onboarding" && onSkip && (
-          <TossButton
-            variant="secondary"
-            fullWidth
-            onClick={onSkip}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={handleSave}
+            disabled={saving}
           >
-            기본 설정으로 시작
-          </TossButton>
-        )}
+            {saving ? "저장 중..." : "설정 저장"}
+          </button>
+
+          {mode === "onboarding" && onSkip && (
+            <button
+              type="button"
+              className="btn"
+              onClick={onSkip}
+            >
+              기본 설정으로 시작
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
