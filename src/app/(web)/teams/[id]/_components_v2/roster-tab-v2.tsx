@@ -13,13 +13,21 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
  *
  * 방법(어떻게):
  * - 기존 Prisma 쿼리 그대로 재사용 (teamMember.findMany where active)
- * - `.board` + `.board__head` + `.board__row` 5열 grid
- *   columns: `56px 1fr 80px 100px 80px`
+ * - `.board.data-table` + `.board__head.data-table__head` + `.board__row.data-table__row`
+ *   5열 grid columns: `56px 1fr 80px 100px 80px`
  * - 등번호: accent 색 / ff-display 900 16px
  * - 이름: 22px 원형 이니셜 + 이름
  * - 포지션: ff-mono 700
  * - 역할: "주장"→badge--red, "부주장"→badge--soft, 나머지→ink-mute 12px
  * - PPG: DB 없음 → "—" (준비 중 / match_player_stat 집계 추후 추가)
+ *
+ * 2026-05-02 Phase D 갱신 (사용자 결정 3=A):
+ * - 시안 정합 — `.board data-table` 마커 추가 + 셀에 `data-label` (#/포지션/역할/PPG)
+ *   + 이름 셀에 `data-primary="true"` 마커 추가.
+ * - globals.css L1634~1690 `.data-table` 모바일 카드 변환 룰 활용.
+ *   ≤720px 에서 자동 카드 변환 (헤더 행 hidden + key-value 라인 + primary 카드 제목).
+ * - 기존 `.board` 폴백보다 더 정교한 모바일 UX (시안 출처: BDR-current TeamDetail.jsx L323~).
+ * - 선수명단 실명 표시 보존 — `getDisplayName(m.user)` 호출 미터치 (Phase B-2 86fc51f).
  *
  * DB 매핑 / 미지원:
  * - jerseyNumber → #
@@ -110,9 +118,9 @@ export async function RosterTabV2({ teamId, accent }: Props) {
   const gridColumns = "56px 1fr 80px 100px 80px";
 
   return (
-    <div className="board">
+    <div className="board data-table">
       <div
-        className="board__head"
+        className="board__head data-table__head"
         style={{ gridTemplateColumns: gridColumns }}
       >
         <div>#</div>
@@ -133,11 +141,12 @@ export async function RosterTabV2({ teamId, accent }: Props) {
 
         const rowInner = (
           <div
-            className="board__row"
+            className="board__row data-table__row"
             style={{ gridTemplateColumns: gridColumns }}
           >
-            {/* # 등번호 — accent 색 (팀 고유색) + ff-display 900 16px */}
+            {/* # 등번호 — data-label "#" / accent 색 (팀 고유색) + ff-display 900 16px */}
             <div
+              data-label="#"
               style={{
                 fontFamily: "var(--ff-display)",
                 fontWeight: 900,
@@ -148,8 +157,8 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               {jersey}
             </div>
 
-            {/* 이름 + 이니셜 원형 */}
-            <div className="title" style={{ gap: 8 }}>
+            {/* 이름 + 이니셜 원형 — data-primary 모바일 카드 제목 (이름은 라벨 prefix 없이 큰 글씨) */}
+            <div data-primary="true" className="title" style={{ gap: 8 }}>
               <span
                 style={{
                   width: 22,
@@ -168,8 +177,9 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               <span style={{ fontWeight: 600 }}>{displayName}</span>
             </div>
 
-            {/* 포지션 — ff-mono 700 */}
+            {/* 포지션 — data-label "포지션" / ff-mono 700 */}
             <div
+              data-label="포지션"
               style={{
                 fontFamily: "var(--ff-mono)",
                 fontWeight: 700,
@@ -178,8 +188,8 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               {position}
             </div>
 
-            {/* 역할 — 주장 red / 나머지 soft or text */}
-            <div>
+            {/* 역할 — data-label "역할" / 주장 red / 나머지 soft or text */}
+            <div data-label="역할">
               {role === "captain" ? (
                 <span className="badge badge--red">주장</span>
               ) : role === "director" ||
@@ -194,8 +204,9 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               )}
             </div>
 
-            {/* PPG — DB 미지원 (match_player_stat 집계 추가 시 실제 평균) */}
+            {/* PPG — data-label "PPG" / DB 미지원 (match_player_stat 집계 추가 시 실제 평균) */}
             <div
+              data-label="PPG"
               title="준비 중 — 개인 평균 득점은 경기 기록이 쌓이면 표시됩니다"
               style={{
                 fontFamily: "var(--ff-mono)",

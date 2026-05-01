@@ -1,92 +1,43 @@
 "use client";
 
 /**
- * 듀얼토너먼트 공개 대진표 (Phase F2 — 옵션 D 채택)
+ * 듀얼토너먼트 공개 대진표 (Phase F2 — 2026-05-02 갱신)
  *
- * 왜 옵션 D (5섹션 모두 카드 그리드, BracketView SVG 트리 X):
- *  - planner 옵션 C 의 BracketView 재사용은 단순 i*2 페어링이라
- *    NBA 컨퍼런스 모형 4강 크로스 (8강 1+4 / 2+3) 와 시각 불일치 → 잘못된 트리
- *  - admin Phase D 의 5섹션 카드 패턴이 정확. 공개 페이지에도 그대로 이식
+ * 사용자 결정 (2026-05-02 갱신):
+ *  - 영문 부제 "(Knockout Stage)" 삭제 → "토너먼트 대진표" 만
+ *  - 조별 경기 카드 모두 제거 → "조편성" 단일 섹션만 표시
+ *  - 라벨 갱신: "조별 미니 더블엘리미" → "조별 듀얼토너먼트" (5경기 = G1·G2·G3 승자전·G4 패자전·최종전)
+ *  - 8강~결승 SVG V자 트리 (NBA 크로스 재정렬) 그대로 유지
  *
- * 5섹션 구조 (admin/bracket/page.tsx 의 DUAL_STAGES 동일):
- *  Stage 1: 조별 미니 더블엘리미 (rounds 1·2, A/B/C/D × 4매치 = 16)
- *  Stage 2: 조별 최종전 (round 3, 4매치)
- *  Stage 3: 8강 (round 4, 4매치)
- *  Stage 4: 4강 (round 5, 2매치)
- *  Stage 5: 결승 (round 6, 1매치)
+ * 듀얼토너먼트 명확화 (사용자 정의):
+ *  - 조별 5경기 = G1·G2 (1라) + G3 승자전·G4 패자전 (2라) + 최종전 (3라)
+ *  - 승자전 승자 = 조 1위 / 승자전 패자 vs 패자전 승자 → 최종전 → 승자 = 조 2위
+ *  - 4조 × 5경기 = 조별 20경기 / + 8강 4 + 4강 2 + 결승 1 = 27경기
  *
- * 빈 슬롯: settings.homeSlotLabel/awaySlotLabel italic muted
- * 점수: 진행 안 된 매치는 "—"
- * 모바일: 세로 스크롤 + sticky 단계명 헤더 (사용자 결정)
+ * 표시 구조:
+ *  ┌──────────────────────────────┐
+ *  │ 듀얼토너먼트 (27경기)         │
+ *  ├──────────────────────────────┤
+ *  │ [SVG V자 트리]                │
+ *  │ 8강 → 4강 → 결승 (7경기)      │
+ *  ├──────────────────────────────┤
+ *  │ 조편성 (4조 × 4팀 = 16팀)     │
+ *  │ A조: 4팀                     │
+ *  │ B조: 4팀                     │
+ *  │ C조: 4팀                     │
+ *  │ D조: 4팀                     │
+ *  └──────────────────────────────┘
  *
  * BDR v3 토큰만 (var(--*)) / lucide-react ❌ / pill 9999px ❌
  */
 
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import type { RoundGroup, BracketMatch } from "@/lib/tournaments/bracket-builder";
+import Link from "next/link";
+import type { RoundGroup, BracketMatch, TeamSlot } from "@/lib/tournaments/bracket-builder";
 import { BracketView } from "../bracket/_components/bracket-view";
 
-// ── Stage 메타 ────────────────────────────────────────
-type DualStage = {
-  key: string;
-  label: string;
-  rounds: number[];
-  groupByGroup: boolean;
-};
-
-const DUAL_STAGES: DualStage[] = [
-  { key: "stage1", label: "조별 미니 더블엘리미", rounds: [1, 2], groupByGroup: true },
-  { key: "stage2", label: "조별 최종전 (2위 결정)", rounds: [3], groupByGroup: false },
-  { key: "stage3", label: "8강", rounds: [4], groupByGroup: false },
-  { key: "stage4", label: "4강", rounds: [5], groupByGroup: false },
-  { key: "stage5", label: "결승", rounds: [6], groupByGroup: false },
-];
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "대기",
-  scheduled: "예정",
-  in_progress: "진행 중",
-  completed: "종료",
-  cancelled: "취소",
-  bye: "부전승",
-};
-
-// ── 일정 표시 (KST yyyy.MM.dd HH:mm) ─────────────────
-function formatSchedule(iso: string | null): string {
-  if (!iso) return "일정 미정";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "일정 미정";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-// 빈 슬롯 라벨 — 팀 확정이면 팀명, 아니면 settings 슬롯 라벨, 그래도 없으면 "미정"
-function slotLabel(team: BracketMatch["homeTeam"], fallback: string | null): string {
-  if (team) return team.team.name;
-  if (fallback && fallback.trim()) return fallback;
-  return "미정";
-}
-
-// ── Props ────────────────────────────────────────────
-interface Props {
-  rounds: RoundGroup[];
-  tournamentId: string;
-}
-
-/**
- * 8강~결승 SVG 트리용 매치 재정렬 (NBA 크로스 매핑)
- *
- * 왜 재정렬:
- * BracketView 의 computeMatchPositions 가 단순 i*2 페어링
- * (matches[0]+matches[1] → next[0], matches[2]+matches[3] → next[1])
- *
- * 듀얼 NBA 크로스: QF1+QF4 → SF1, QF2+QF3 → SF2
- * → 8강 매치 배열을 [QF1, QF4, QF2, QF3] 순서로 정렬하면
- *   BracketView 의 단순 페어링이 자동으로 NBA 크로스와 일치
- */
+// ── 8강~결승 SVG 트리용 매치 재정렬 (NBA 크로스 매핑) ───
 function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
-  // round 4·5·6 만 추출
   const qf = allMatches.filter((m) => m.roundNumber === 4);
   const sf = allMatches.filter((m) => m.roundNumber === 5);
   const f = allMatches.filter((m) => m.roundNumber === 6);
@@ -94,11 +45,12 @@ function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
   if (qf.length === 0) return [];
 
   // 8강 NBA 크로스 순서로 재정렬: [pos1, pos4, pos2, pos3]
+  // → BracketView 단순 i*2 페어링 = NBA 크로스 자동 일치
+  // (matches[0]+[1] → SF1 = QF1+QF4 / matches[2]+[3] → SF2 = QF2+QF3)
   const qfReordered = [1, 4, 2, 3]
     .map((p) => qf.find((m) => m.bracketPosition === p))
     .filter((m): m is BracketMatch => m !== undefined);
 
-  // 4강·결승은 bracket_position 순서 그대로 (이미 정렬됨)
   const result: RoundGroup[] = [
     {
       roundNumber: 4,
@@ -130,25 +82,57 @@ function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
   return result;
 }
 
+// ── 조편성 빌드 ─────────────────────────────────────
+// 각 조의 4팀 = round 1 (G1·G2) 매치 2건의 homeTeam + awayTeam
+// 정렬: bracket_position 1 (G1) home·away → bracket_position 2 (G2) home·away
+type GroupComposition = {
+  groupName: string;
+  teams: TeamSlot[]; // 4팀 (시드 1~4 순)
+};
+
+function buildGroupComposition(allMatches: BracketMatch[]): GroupComposition[] {
+  const byGroup = new Map<string, BracketMatch[]>();
+  for (const m of allMatches) {
+    if (m.roundNumber === 1 && m.groupName) {
+      if (!byGroup.has(m.groupName)) byGroup.set(m.groupName, []);
+      byGroup.get(m.groupName)!.push(m);
+    }
+  }
+
+  const result: GroupComposition[] = [];
+  for (const [g, matches] of byGroup.entries()) {
+    matches.sort((a, b) => a.bracketPosition - b.bracketPosition);
+    const teams: TeamSlot[] = [];
+    for (const m of matches) {
+      if (m.homeTeam) teams.push(m.homeTeam);
+      if (m.awayTeam) teams.push(m.awayTeam);
+    }
+    result.push({ groupName: g, teams });
+  }
+  return result.sort((a, b) => a.groupName.localeCompare(b.groupName));
+}
+
+// ── 팀 표시명 ─────────────────────────────────────
+// 한·영 병기 — name_primary === "en" 이면 영문, 아니면 한글
+// TeamSlot 이 union (object | null) 이라 NonNullable 추출
+type SlotTeam = NonNullable<TeamSlot>["team"];
+function getTeamDisplayName(team: SlotTeam): string {
+  if (team.namePrimary === "en" && team.nameEn) return team.nameEn;
+  return team.name;
+}
+
+// ── Props ────────────────────────────────────────────
+interface Props {
+  rounds: RoundGroup[];
+  tournamentId: string;
+}
+
 export function V2DualBracketView({ rounds, tournamentId }: Props) {
-  // 평평하게 매치 추출
   const allMatches = rounds.flatMap((r) => r.matches);
-
-  // 모든 섹션 기본 펼침
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const toggle = (key: string) => {
-    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  // 단계별 매치 분류
-  const stageMatches = DUAL_STAGES.map((stage) => ({
-    ...stage,
-    matches: allMatches.filter((m) => stage.rounds.includes(m.roundNumber)),
-  }));
-
-  // 8강~결승 SVG 트리 (NBA 크로스 재정렬)
   const knockoutRounds = buildKnockoutRounds(allMatches);
+  const groupComposition = buildGroupComposition(allMatches);
   const hasKnockoutTree = knockoutRounds.length > 0;
+  const hasGroupComposition = groupComposition.length > 0;
 
   return (
     <div className="space-y-4">
@@ -165,184 +149,78 @@ export function V2DualBracketView({ rounds, tournamentId }: Props) {
         </Card>
       )}
 
-      {stageMatches.map((stage) => {
-        const isCollapsed = collapsed[stage.key] === true;
-        const count = stage.matches.length;
-
-        return (
-          <Card key={stage.key} className="!p-0 overflow-hidden">
-            {/* sticky 헤더 — 스크롤 시 단계명 항상 보임 */}
-            <button
-              type="button"
-              onClick={() => toggle(stage.key)}
-              className="sticky top-0 z-10 flex w-full items-center justify-between bg-[var(--color-card)] px-4 py-3 text-left transition-colors hover:bg-[var(--color-elevated)]"
-              style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[var(--color-text-primary)]">
-                  {stage.label}
-                </span>
-                <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
-                  {count}경기
-                </span>
-              </div>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
-              </span>
-            </button>
-
-            {!isCollapsed && (
-              <div className="p-3">
-                {stage.groupByGroup ? (
-                  <DualGroupedMatches matches={stage.matches} />
-                ) : (
-                  <div className="space-y-2">
-                    {stage.matches.length === 0 ? (
-                      <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">
-                        해당 단계 경기가 없습니다.
-                      </p>
-                    ) : (
-                      stage.matches.map((m) => <DualMatchCard key={m.id} match={m} />)
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        );
-      })}
+      {/* 조편성 — 4조 × 4팀 (조별 듀얼토너먼트 5경기 자체는 표시 안 함, 사용자 결정) */}
+      {hasGroupComposition && (
+        <GroupCompositionCard groups={groupComposition} />
+      )}
     </div>
   );
 }
 
-// Stage 1 전용 — A/B/C/D 조별 추가 그룹핑
-function DualGroupedMatches({ matches }: { matches: BracketMatch[] }) {
-  const groupKeys = ["A", "B", "C", "D"] as const;
+// 조편성 카드 — 4조 × 4팀 그리드
+// 사용자 결정 (2026-05-02): 조별 경기 카드 표시 X, 조편성만 노출
+// 라벨: "조별 듀얼토너먼트" (G1·G2·승자전·패자전·최종전 = 5경기/조)
+function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
+  const totalMatches = groups.length * 5; // 4조 × 5경기 = 20
 
   return (
-    <div className="space-y-3">
-      {groupKeys.map((g) => {
-        const groupMatches = matches
-          .filter((m) => m.groupName === g)
-          .sort((a, b) => {
-            // round_number 1 (G1·G2) → 2 (G3 승자전·G4 패자전)
-            const r = a.roundNumber - b.roundNumber;
-            if (r !== 0) return r;
-            return (a.matchNumber ?? 0) - (b.matchNumber ?? 0);
-          });
-
-        if (groupMatches.length === 0) return null;
-
-        return (
-          <div key={g} className="rounded-[8px] bg-[var(--color-surface)] p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-              {g}조 ({groupMatches.length}경기)
-            </p>
-            <div className="space-y-2">
-              {groupMatches.map((m) => <DualMatchCard key={m.id} match={m} />)}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// 듀얼 전용 매치 카드 — BracketMatch 기반
-function DualMatchCard({ match }: { match: BracketMatch }) {
-  const homeLabel = slotLabel(match.homeTeam, match.homeSlotLabel);
-  const awayLabel = slotLabel(match.awayTeam, match.awaySlotLabel);
-  const isHomeUndecided = match.homeTeam == null;
-  const isAwayUndecided = match.awayTeam == null;
-  const completed = match.status === "completed";
-  // winnerTeamId 우선 (정확), 없으면 점수 비교 fallback
-  const homeWon = completed && (match.winnerTeamId
-    ? match.winnerTeamId === match.homeTeam?.id
-    : match.homeScore > match.awayScore);
-  const awayWon = completed && (match.winnerTeamId
-    ? match.winnerTeamId === match.awayTeam?.id
-    : match.awayScore > match.homeScore);
-
-  return (
-    <div className="rounded-[8px] bg-[var(--color-elevated)] p-3">
-      {/* 상단 메타 */}
-      <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[var(--color-text-muted)]">
-            #{match.matchNumber ?? "-"}
-          </span>
-          <span className="font-medium text-[var(--color-text-secondary)]">
-            {match.roundName}
-          </span>
+    <Card className="!p-4 sm:!p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+            조별 듀얼토너먼트
+          </h3>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            조별 5경기 (G1·G2·승자전·패자전·최종전) · 총 {totalMatches}경기 · 1·2위가 8강 진출
+          </p>
         </div>
-        <span
-          className={`rounded-[4px] px-2 py-0.5 ${
-            completed
-              ? "bg-[color-mix(in_srgb,var(--color-success)_15%,transparent)] text-[var(--color-success)]"
-              : match.status === "in_progress"
-                ? "bg-[color-mix(in_srgb,var(--color-info)_15%,transparent)] text-[var(--color-info)]"
-                : "bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-          }`}
-        >
-          {STATUS_LABEL[match.status] ?? match.status}
+        <span className="rounded-[4px] bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+          {groups.length}조 · 16팀
         </span>
       </div>
 
-      {/* 일정 */}
-      <div className="mb-2 flex items-center gap-x-2 text-[11px] text-[var(--color-text-muted)]">
-        <span>{formatSchedule(match.scheduledAt)}</span>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {groups.map((g) => (
+          <div
+            key={g.groupName}
+            className="rounded-[8px] border p-3"
+            style={{
+              borderColor: "var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                {g.groupName}조
+              </p>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {g.teams.length}팀
+              </span>
+            </div>
+            <ul className="space-y-1.5">
+              {g.teams.map((t, idx) => (
+                <li key={t?.id ?? idx} className="flex items-center gap-2 text-sm">
+                  <span className="w-5 shrink-0 text-center font-mono text-xs text-[var(--color-text-muted)]">
+                    {idx + 1}
+                  </span>
+                  {t ? (
+                    <Link
+                      href={`/teams/${t.teamId}`}
+                      className="flex-1 truncate text-[var(--color-text-primary)] hover:underline"
+                    >
+                      {getTeamDisplayName(t.team)}
+                    </Link>
+                  ) : (
+                    <span className="flex-1 italic text-[var(--color-text-muted)]">
+                      미정
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-
-      {/* 팀 + 점수 */}
-      <div className="flex items-center gap-2">
-        {/* HOME */}
-        <div className="flex flex-1 items-center gap-2 min-w-0">
-          <span
-            className={`flex-1 truncate text-sm ${
-              isHomeUndecided
-                ? "italic text-[var(--color-text-muted)]"
-                : homeWon
-                  ? "font-bold text-[var(--color-text-primary)]"
-                  : "font-medium text-[var(--color-text-primary)]"
-            }`}
-            title={homeLabel}
-          >
-            {homeLabel}
-          </span>
-          <span
-            className={`min-w-[28px] text-right text-sm tabular-nums ${
-              homeWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
-            }`}
-          >
-            {completed ? match.homeScore : "—"}
-          </span>
-        </div>
-
-        <span className="text-xs text-[var(--color-text-muted)]">vs</span>
-
-        {/* AWAY */}
-        <div className="flex flex-1 items-center gap-2 min-w-0 justify-end">
-          <span
-            className={`min-w-[28px] text-left text-sm tabular-nums ${
-              awayWon ? "font-bold text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]"
-            }`}
-          >
-            {completed ? match.awayScore : "—"}
-          </span>
-          <span
-            className={`flex-1 truncate text-sm text-right ${
-              isAwayUndecided
-                ? "italic text-[var(--color-text-muted)]"
-                : awayWon
-                  ? "font-bold text-[var(--color-text-primary)]"
-                  : "font-medium text-[var(--color-text-primary)]"
-            }`}
-            title={awayLabel}
-          >
-            {awayLabel}
-          </span>
-        </div>
-      </div>
-    </div>
+    </Card>
   );
 }

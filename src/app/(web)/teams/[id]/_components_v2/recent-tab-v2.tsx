@@ -26,6 +26,12 @@ import { officialMatchWhere } from "@/lib/tournaments/official-match";
  * - 결과: W → badge--ok, L → 다크 filled
  * - 대회: 12px muted
  *
+ * 2026-05-02 Phase D 갱신 (사용자 결정 3=A):
+ * - 시안 정합 — `.board data-table` 마커 추가 + 각 셀에 `data-label` (날짜/스코어/결과/대회)
+ *   + 상대 셀에 `data-primary="true"` 마커 추가.
+ * - globals.css L1634~1690 `.data-table` 모바일 카드 변환 룰 활용.
+ *   ≤720px 에서 자동 카드 변환 (헤더 행 hidden + key-value 라인 + primary 카드 제목).
+ *
  * DB 매핑 / 미지원:
  * - 스크림/정규리그 분류 → DB 없음 → tournament.name 표시로 대체
  */
@@ -88,9 +94,9 @@ export async function RecentTabV2({ teamId }: Props) {
   const gridColumns = "80px 1fr 120px 80px 160px";
 
   return (
-    <div className="board">
+    <div className="board data-table">
       <div
-        className="board__head"
+        className="board__head data-table__head"
         style={{ gridTemplateColumns: gridColumns }}
       >
         <div>날짜</div>
@@ -154,20 +160,32 @@ export async function RecentTabV2({ teamId }: Props) {
             style={{ textDecoration: "none", color: "inherit" }}
           >
             <div
-              className="board__row"
+              className="board__row data-table__row"
               style={{ gridTemplateColumns: gridColumns }}
             >
-              <div style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}>
+              {/* 날짜 — data-label "날짜" / ff-mono 12px */}
+              <div
+                data-label="날짜"
+                style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}
+              >
                 {dateLabel}
               </div>
-              <div className="title">
+              {/* 상대 — data-primary 모바일 카드 제목 */}
+              <div data-primary="true" className="title">
                 <span style={{ fontWeight: 600 }}>{oppName}</span>
               </div>
-              <div style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}>
+              {/* 스코어 — data-label "스코어" / ff-mono 700 */}
+              <div
+                data-label="스코어"
+                style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}
+              >
                 {myScore} : {oppScore}
               </div>
-              <div>{resultNode}</div>
+              {/* 결과 — data-label "결과" / W badge--ok / L 다크 filled / LIVE soft / 동점 — */}
+              <div data-label="결과">{resultNode}</div>
+              {/* 대회 — data-label "대회" / 12px muted */}
               <div
+                data-label="대회"
                 style={{ fontSize: 12, color: "var(--ink-mute)" }}
                 className="truncate"
               >
