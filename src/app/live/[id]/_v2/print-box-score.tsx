@@ -143,6 +143,11 @@ function PrintBoxScoreTable({
   // 쿼터 필터 시 이벤트 기록 없으면 플레이스홀더
   const showPlaceholder = filter !== "all" && !hasQuarterEventDetail;
 
+  // 2026-05-02: 빈 페이지 방지 (사용자 요청 — 데이터 없는 빈 페이지가 인쇄될 때만 fix)
+  // 쿼터 필터 + 이벤트 기록 없는 매치 → 모든 셀 "-" placeholder 만 출력되는 무의미 페이지 → skip
+  // (누적 / 이벤트 있는 쿼터는 정상 출력)
+  if (showPlaceholder) return null;
+
   // 화면용과 동일 applyQuarterFilter — 스탯만 치환, dnp 는 원본 유지
   const applyQuarterFilter = (p: PlayerRowV2): PlayerRowV2 => {
     if (filter === "all") return p;
@@ -196,6 +201,25 @@ function PrintBoxScoreTable({
   // 활성/DNP 분리 + 스타팅 우선 백넘버 오름차순 정렬
   const activePlayers = players.filter((p) => !p.dnp).map(applyQuarterFilter);
   const dnpPlayers = players.filter((p) => p.dnp);
+
+  // 2026-05-02: 쿼터 필터 시 활성 선수 모두 0 + 출전 시간 0 = 의미 없는 빈 페이지 → skip
+  // 예) 매치 101 의 OT 쿼터 (실제 OT 없으나 quarter_stats 키 없음) — 모든 row 0 으로 채워질 때
+  // (누적 페이지는 항상 출력 — 활성 선수 1명이라도 있으면 데이터 있음)
+  if (filter !== "all") {
+    const anyActivity = activePlayers.some(
+      (p) =>
+        (p.min_seconds ?? 0) > 0 ||
+        p.pts > 0 ||
+        p.fga > 0 ||
+        p.reb > 0 ||
+        p.ast > 0 ||
+        p.stl > 0 ||
+        p.blk > 0 ||
+        p.to > 0 ||
+        p.fouls > 0,
+    );
+    if (!anyActivity) return null;
+  }
   const sortByStarterJersey = (a: PlayerRowV2, b: PlayerRowV2) => {
     const aS = a.is_starter ? 1 : 0;
     const bS = b.is_starter ? 1 : 0;
