@@ -56,6 +56,8 @@ export async function RosterTabV2({ teamId, accent }: Props) {
             nickname: true,
             name: true,
             position: true,
+            // 2026-05-02: 선수카드에 신장 표시 (사용자 결정)
+            height: true,
           },
         },
       },
@@ -104,6 +106,7 @@ export async function RosterTabV2({ teamId, accent }: Props) {
         const displayName = getDisplayName(m.user);
         const userId = m.user?.id?.toString();
         const position = m.user?.position ?? "—";
+        const height = m.user?.height ?? null; // 2026-05-02: 신장 (cm), null 이면 미표시
         const role = m.role ?? "member";
         const roleLabel = ROLE_LABEL[role] ?? role;
         const jersey = m.jerseyNumber ?? "—";
@@ -121,9 +124,21 @@ export async function RosterTabV2({ teamId, accent }: Props) {
               <span className="roster-card__name">{displayName}</span>
             </div>
 
-            {/* 포지션 + 역할 */}
+            {/* 포지션 + 신장 + 역할 (2026-05-02 신장 추가) */}
             <div className="roster-card__meta">
               <span className="roster-card__position">{position}</span>
+              {height && (
+                <span
+                  className="roster-card__height"
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-mute)",
+                    fontFamily: "var(--ff-mono, monospace)",
+                  }}
+                >
+                  {height}cm
+                </span>
+              )}
               {role === "captain" ? (
                 <span className="badge badge--red">주장</span>
               ) : role === "director" ||
