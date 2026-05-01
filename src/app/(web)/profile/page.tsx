@@ -38,7 +38,8 @@ import { PageBackButton } from "@/components/shared/page-back-button";
 
 // HeroCard import 제거 (2026-05-01 회귀 픽스) — 본문 상단 큰 Hero 배너로 대체
 // 우측 aside HeroCard 와 중복 표시되어 사용자 캡처 20 보고 — 제거.
-import { SeasonStats } from "./_v2/season-stats";
+// SeasonStats import 제거 (v2.4 시안 캡처 26: 우측 aside 에 시즌스탯 통산 카드 없음).
+//   본문 4 카드 안 "내 농구" 카드에 PPG/APG/RPG 표시로 대체.
 import { UpcomingGames } from "./_v2/upcoming-games";
 import { ActivityTimeline, type ActivityItem } from "./_v2/activity-timeline";
 import { TeamSideCard } from "./_v2/team-side-card";
@@ -116,6 +117,9 @@ export default async function ProfilePage() {
           total_games_hosted: true,
           xp: true,
           subscription_status: true,
+          // v2.4: 결제·멤버십 큰 카드 — "다음 결제 YYYY.MM.DD" 표시용
+          subscription_expires_at: true,
+          membershipType: true,
           profile_completed: true,
           // 시안 "인증완료" 뱃지 정합 — Phase 12-1 으로 추가된 본인인증 컬럼
           name_verified: true,
@@ -391,20 +395,35 @@ export default async function ProfilePage() {
     </div>
   );
 
-  // 내 성장 카드 — 12주 spark line placeholder (실 데이터는 /profile/growth 페이지에서 로드)
+  // 내 성장 카드 — v2.4 시안 톤: SVG line 그래프 (placeholder 더미 7 포인트)
+  //   실 데이터는 /profile/growth 클릭 후 로드 (의뢰서 §6 "API 0 변경" 룰 준수)
+  //   더미 폴리라인은 점진적 상승 곡선 (0,60 → 200,10) — 좌하단 → 우상단
   const growthSlot = (
     <div
       style={{
         height: 80,
         background: "var(--bg-alt)",
         borderRadius: 4,
-        display: "grid",
-        placeItems: "center",
-        color: "var(--ink-dim)",
-        fontSize: 12,
+        padding: 8,
+        display: "flex",
+        alignItems: "center",
       }}
     >
-      성장 추이 차트
+      <svg
+        viewBox="0 0 200 80"
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: "100%" }}
+      >
+        {/* 시안 톤: var(--accent) stroke 2px, 라인 캡 round (부드러운 끝) */}
+        <polyline
+          points="0,60 30,55 60,50 90,45 120,30 150,25 180,15 200,10"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
     </div>
   );
 
@@ -444,6 +463,25 @@ export default async function ProfilePage() {
     { id: "growth", body: growthSlot },
     { id: "activity", body: activitySlot },
   ];
+
+  // ---- v2.4 결제·멤버십 큰 카드 데이터 ----
+  //   사유: 시안 캡처 27 의 "BDR+ PRO · 다음 결제 YYYY.MM.DD" 표시.
+  //   subscription_status === "active" → PRO. 만료일은 subscription_expires_at.
+  //   미가입 시 "BDR 베이직 · 무료 플랜" 폴백.
+  const billingPlanLabel = isPro ? "BDR+ PRO" : "BDR 베이직";
+  let billingSubLabel: string;
+  if (isPro && user.subscription_expires_at) {
+    // YYYY.MM.DD 형식 (시안 톤). KST locale 자동
+    const exp = user.subscription_expires_at;
+    const y = exp.getFullYear();
+    const m = String(exp.getMonth() + 1).padStart(2, "0");
+    const d = String(exp.getDate()).padStart(2, "0");
+    billingSubLabel = `다음 결제 ${y}.${m}.${d}`;
+  } else if (isPro) {
+    billingSubLabel = "구독 활성";
+  } else {
+    billingSubLabel = "무료 플랜";
+  }
 
   // Hero 카드 메타 (의뢰서 §3-2 + 사용자 캡처 16): 닉네임 + 팀·포지션·#N·시즌 라벨
   const displayName = user.nickname ?? user.name ?? "사용자";
@@ -576,10 +614,10 @@ export default async function ProfilePage() {
       </section>
 
       {/* ============ 본문 2열: 좌 1fr (마이페이지 hub) | 우 320 sticky aside ============
-          기존 v2.3 의 "좌 320 / 우 1fr" 구조를 v2.4 캡처 16 의 "좌 1fr / 우 320" 으로 재배치.
-          - 좌 본문: 마이페이지 hub (Tier 1 큰 카드 4 + Tier 2 quick 카드 4)
-          - 우 사이드: 다음 경기(UpcomingGames) + 소속 팀(TeamSideCard) + 최근 활동(ActivityTimeline)
-          - 시즌 스탯(SeasonStats)·기존 HeroCard·BadgesSideCard 도 우측 aside 상단에 유지.
+          v2.4 캡처 16+27 — "좌 1fr (hub + 큰 카드 2종) / 우 320 (다음 경기 + 팀 + 활동 + 뱃지 + 도움)".
+          - 좌 본문: 마이페이지 hub (Tier 1 큰 카드 4 + Tier 2 quick 카드 4) + 본문 끝 큰 카드 2종(설정/결제·멤버십)
+          - 우 사이드: 다음 경기(UpcomingGames D-N 강조) + 소속 팀(TeamSideCard 시안 톤) + 최근 활동(ActivityTimeline) + 뱃지(BadgesSideCard) + 도움 영역
+          - SeasonStats 제거 (v2.4 시안에 없음). 본문 4 카드 안 "내 농구" 가 통산 PPG/APG/RPG 표시.
           모바일은 globals.css .profile-grid 룰이 1열로 stack. */}
       <div
         className="profile-grid"
@@ -590,12 +628,109 @@ export default async function ProfilePage() {
           alignItems: "flex-start",
         }}
       >
-        {/* ========== 좌측 main — v2.4 마이페이지 hub ========== */}
+        {/* ========== 좌측 main — v2.4 마이페이지 hub + 본문 끝 큰 카드 2종 ========== */}
         <div>
           <MyPageHub tier1Slots={tier1Slots} unreadCount={unreadCount} />
+
+          {/* v2.4 시안 캡처 27 — 본문 끝 큰 카드 2종 (설정 / 결제·멤버십).
+              데스크톱 2 col → 모바일 1열 (mypage-large-grid 720 분기). */}
+          <div
+            className="mypage-large-grid"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 12,
+              marginTop: 12,
+            }}
+          >
+            {/* 설정 큰 카드 */}
+            <Link
+              href="/profile/settings"
+              className="card"
+              style={{
+                padding: "18px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 28, color: "var(--accent)" }}
+              >
+                settings
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
+                  설정
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-mute)",
+                    marginTop: 2,
+                  }}
+                >
+                  계정·알림·개인정보·공개
+                </div>
+              </div>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18, color: "var(--ink-dim)" }}
+              >
+                arrow_forward
+              </span>
+            </Link>
+
+            {/* 결제·멤버십 큰 카드 — billingPlanLabel + billingSubLabel 동적 표시 */}
+            <Link
+              href="/profile/billing"
+              className="card"
+              style={{
+                padding: "18px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 28, color: "var(--accent)" }}
+              >
+                credit_card
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
+                  결제·멤버십
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--ink-mute)",
+                    marginTop: 2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {billingPlanLabel} · {billingSubLabel}
+                </div>
+              </div>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18, color: "var(--ink-dim)" }}
+              >
+                arrow_forward
+              </span>
+            </Link>
+          </div>
         </div>
 
-        {/* ========== 우측 aside (sticky) — 시즌스탯 + 다음 경기 + 팀 + 활동 + 뱃지 ========== */}
+        {/* ========== 우측 aside (sticky) — 다음 경기 + 팀 + 활동 + 뱃지 + 도움 ========== */}
         <aside
           className="profile-aside"
           style={{
@@ -607,14 +742,10 @@ export default async function ProfilePage() {
           }}
         >
           {/* 2026-05-01 회귀 픽스 — 우측 aside HeroCard 제거.
-              사유: 본문 상단의 큰 Hero 배너 (캡처 16) 와 우측 사이드 HeroCard 가 동일 정보(닉네임/메타/뱃지/버튼) 중복 표시.
-              사용자 캡처 20 보고: "BDR_Admin master" 가 좌·우 동시 노출 → 시안 의도와 불일치.
-              해소: 큰 Hero 배너만 노출 + 우측 aside 는 시즌스탯/다음 경기/팀/활동/뱃지 보조 정보만. */}
+              2026-04-30 v2.4 — SeasonStats 도 제거 (시안 캡처 26 우측 aside 에 통산 시즌스탯 카드 없음).
+              본문 4 카드 안 "내 농구" 카드(PPG/APG/RPG)로 대체. */}
 
-          {/* 시즌 스탯 (통산 6 KPI) */}
-          <SeasonStats data={seasonStatsData} seasonLabel="통산" />
-
-          {/* 다음 경기 — D-N 카운트다운 (의뢰서 §3-3 보조 정보) */}
+          {/* 다음 경기 — v2.4 D-N 빨간 박스 강조 (의뢰서 §3-3 보조 정보) */}
           <UpcomingGames games={nextGames} />
 
           {/* 소속 팀 — 1팀 이상일 때만 */}
@@ -627,6 +758,54 @@ export default async function ProfilePage() {
 
           {/* 뱃지 — 1개 이상일 때만 */}
           {badges.length > 0 && <BadgesSideCard badges={badges} />}
+
+          {/* v2.4 시안 캡처 27 — 도움 영역 (도움말 + 안전·차단 2 버튼).
+              우측 aside 끝에 배치. 비로그인은 본 페이지 진입 자체가 차단되므로 가드 불필요. */}
+          <div className="card" style={{ padding: "16px 20px" }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                marginBottom: 4,
+                color: "var(--ink)",
+              }}
+            >
+              도움이 필요하세요?
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--ink-mute)",
+                marginBottom: 12,
+              }}
+            >
+              계정 / 결제 / 환불 문의는 24시간 이내 답변드려요.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link
+                href="/help"
+                className="btn btn--sm"
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  textDecoration: "none",
+                }}
+              >
+                도움말
+              </Link>
+              <Link
+                href="/safety"
+                className="btn btn--sm"
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  textDecoration: "none",
+                }}
+              >
+                안전·차단
+              </Link>
+            </div>
+          </div>
         </aside>
       </div>
     </div>

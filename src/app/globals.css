@@ -1321,6 +1321,10 @@ html.dark .hero-carousel__accent {
      이유 — 4 col 를 모바일에 그대로 두면 카드당 ~80px 로 라벨 줄바꿈 발생. */
   .mypage-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
 
+  /* 본문 끝 큰 카드 2종(설정/결제·멤버십): 데스크톱 2 col → 모바일 1열 stack.
+     이유 — 2 col 모바일에선 아이콘+라벨+서브 카피가 좁아 가독성 저하. 룰 13 분기 필수. */
+  .mypage-large-grid { grid-template-columns: 1fr !important; }
+
   /* ---- Home ---- */
   /* stat strip: 2x2 */
   .page > div[style*="grid-template-columns: repeat(4, 1fr)"] {

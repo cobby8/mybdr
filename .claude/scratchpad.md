@@ -25,10 +25,108 @@
 
 ## 현재 작업
 
-- **요청 4**: v2.4 새 다운로드 재박제 — R-A 시안 회귀 정리 + R-B' 룰 9 갱신 + R-C-4 운영 헤더 03 frozen 재적용 — **완료 (이번 작업)**
-- **상태**: developer 완료
-- **현재 담당**: PM (테스트 + 커밋 3건)
+- **요청 6**: /profile 본 hub 페이지 v2.4 시안 1:1 완전 매칭 — 우측 aside 정리(SeasonStats 제거) + 본문 끝 큰 카드 2종 + 다음 경기 D-N 빨간 박스 + 소속 팀 시안 톤 + 도움 영역 + 내 성장 SVG 그래프 — **완료 (이번 작업)**
+- **상태**: developer 완료 — 시안 vs 운영 차이 10건 모두 매칭 + tsc EXIT=0
+- **현재 담당**: PM (커밋 1건 + push 대기)
 - **브랜치**: subin
+
+### 구현 기록 (v2.4 /profile 1:1 완전 매칭 — 이번 작업)
+
+📝 구현한 기능: 시안 v2.4 Profile.jsx (125줄) + 사용자 캡처 26+27 의 10개 차이점 100% 박제. 이전 박제(83a9363+개선분) 의 풍부 hub 구조 보존 + 시안 정밀 디테일 통합.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/profile/page.tsx | SeasonStats import + 우측 aside 사용 제거. user select 에 subscription_expires_at + membershipType 추가. growthSlot SVG 폴리라인 그래프(정적 더미). 본문 끝 큰 카드 2종(설정/결제·멤버십) 신규 with mypage-large-grid 클래스. billing 동적 라벨(BDR+ PRO/베이직 + 다음 결제 YYYY.MM.DD/구독 활성/무료 플랜). 우측 aside 끝에 도움 영역(도움말+안전·차단 2 버튼) | 수정 |
+| src/app/(web)/profile/_v2/upcoming-games.tsx | 다중 행 카드 → v2.4 D-N 빨간 박스 강조 단일 카드. 헤더(빨간 12x2 막대 + "다음 경기" 라벨) + 본문(72x72 D-N color-mix 박스 + 제목/장소·시간) + 푸터("경기 상세 →" 버튼). games[0] 만 사용 | 수정 |
+| src/app/(web)/profile/_v2/team-side-card.tsx | v2.4 톤 — 헤더 빨간 12x2 막대 + 우상단 "전체" 링크(/teams). 팀 색 박스 32→40. wins/losses 0이면 "—" 폴백 | 수정 |
+| src/app/globals.css | .mypage-large-grid 720 분기 1열 stack 추가 (룰 13) | 수정 |
+
+🔧 시안 vs 운영 차이 10건 매칭 결과:
+
+| # | 차이점 | 결과 |
+|---|--------|------|
+| 1 | 우측 aside SeasonStats 제거 | ✓ |
+| 2 | 본문 끝 큰 카드 2종(설정/결제·멤버십) 추가 | ✓ |
+| 3 | Hero 알림 unread 카운트 [N] 빨간 박스 | ✓ (이미 적용) |
+| 4 | 다음 경기 D-N 빨간 박스 강조 카드 | ✓ |
+| 5 | 소속 팀 카드 시안 톤(40 박스+헤더 막대+전체 링크) | ✓ |
+| 6 | Hero 아바타 fallback BDR Red gradient | ✓ (이미 var(--accent), #1a0508) |
+| 7 | 내 성장 SVG line 그래프(정적 더미 8 포인트) | ✓ |
+| 8 | 도움 영역(도움이 필요하세요? + 도움말/안전·차단) | ✓ |
+| 9 | 전체 페이지 색인(16+5) | 박제 제외(디자인 미리보기 디버그 영역) ✓ |
+| 10 | Hero 알림 카운트(=#3) | ✓ |
+
+🔧 자동 검수:
+| 항목 | 기대 | 결과 |
+|----|----|----|
+| tsc --noEmit | EXIT=0 | EXIT=0 ✓ |
+| SeasonStats 사용처(page.tsx) | 0 | 0 (코멘트만) ✓ |
+| mypage-large-grid (CSS+JSX) | 2+ | 2 ✓ |
+| 720 분기 클래스 | 3 (hub-grid+quick-grid+large-grid) | 3 ✓ |
+| 하드코딩 hex 신규 | 0 | 0 (#fff/#000/#1a0508 모두 이전 코드 유지) ✓ |
+| lucide-react | 0 | 0 ✓ |
+| Material Symbols 신규 (settings/credit_card/arrow_forward x2) | 4 | 4 ✓ |
+| API/route.ts 변경 | 0 | 0 ✓ |
+| Prisma schema 변경 | 0 | 0 (select 컬럼만 추가) ✓ |
+| 신규 라우트 | 0 | 0 ✓ |
+| 라우트 매칭 | 모두 운영 존재 | 14/14 ✓ |
+
+💡 tester 참고:
+- 테스트 방법: 로그인 후 /profile 진입 → 8 차이점 시각 확인
+- 정상 동작:
+  (1) 우측 aside 첫 카드: 빨간 막대 헤더 "다음 경기" + D-N 빨간 박스(72x72 color-mix 12%) + 제목/장소·시간 + "경기 상세 →" 버튼
+  (2) 우측 aside 두번째 카드: 빨간 막대 "소속 팀" + 우상단 "전체" 링크 + 40px 팀 색 박스 + W/L mono 표시 (없으면 "—")
+  (3) 본문 hub 아래 큰 카드 2종: 좌 설정(settings + 계정·알림·개인정보·공개) / 우 결제·멤버십(credit_card + BDR+ PRO·다음 결제 2026.MM.DD)
+  (4) 우측 aside 끝 도움 영역: "도움이 필요하세요?" + 도움말/안전·차단 버튼 2개(flex 1:1)
+  (5) 내 성장 카드: SVG 폴리라인(좌하 → 우상 상승선, accent 2px stroke)
+  (6) 모바일 720px: 큰 카드 2종도 1열 stack (mypage-large-grid)
+- 주의할 입력:
+  (a) subscription_status="active" + subscription_expires_at=null → "BDR+ PRO · 구독 활성"
+  (b) subscription_status≠"active" → "BDR 베이직 · 무료 플랜"
+  (c) primaryTeam.wins=losses=0 + draws=0 → "—" 표시 (외 N팀만 있으면 그것만)
+  (d) games 배열 빈 배열 → "예정된 경기가 없습니다." 카드
+  (e) /safety 라우트 운영 존재 ✓ (/profile/teams 미존재 → /teams 매핑)
+
+⚠️ reviewer 참고:
+- **UpcomingGames 시그니처**: games[0] 만 사용. 페이지에서 nextGames.slice(0,3) prefetch 그대로 두어도 영향 0
+- **TeamSideCard "전체"**: 의뢰서는 /profile/teams 였으나 운영 미존재 → /teams 매핑. 사용자 요청 시 /profile/teams 신규 라우트 추가 가능 (별도 작업)
+- **Hero BDR Red fallback**: 이미 적용된 코드(`var(--accent), #1a0508`) 그대로. 팀 primaryColor 검은색 케이스는 향후 색 검출 가드 추가 가능
+- **SeasonStats 컴포넌트 파일**: import 제거됐지만 _v2/season-stats.tsx 파일은 보존(향후 다른 페이지에서 재사용 가능)
+- **growth SVG 더미**: 정적 8 포인트 폴리라인. 실 weekly_xp_history 연결 시 props 확장 가능
+- **billing 동적 라벨**: subscription_expires_at + subscription_status 조합. membershipType 은 select 만 추가, 향후 PRO/GOLD 구분 시 활용
+
+📦 PM 액션:
+- 커밋 1건(subin): `feat(profile): 시안 v2.4 1:1 완전 매칭 — 우측 aside 정리 + 큰 카드 + 도움 영역`
+- subin 만 push, main/dev push 금지
+
+### 이전 검증 결과 (7 영역)
+
+### 검증 결과 (7 영역)
+
+| 영역 | 시안 출처 | 운영 매칭도 | 변경 |
+|------|---------|-----------|------|
+| /profile/growth (P0) | v2.2 ProfileGrowth | Hero+12주spark+12주line+마일스톤6+CTA+"준비중" 1:1 박제 + Phase 12-4 시즌 통계 연결 | 0 |
+| /profile/activity (P0) | v2.4 MyActivity | 시안 v2(1) 박제 + counter4 + 본문 nav탭(games/tournaments/teams) + 4열 grid 카드 + borderLeft accent | 0 |
+| /profile/bookings (P1) | v2.2 ProfileBookings | 시안 v2.2 P1-7 박제 + 3 prisma 병렬(courts/tournaments/guest) + status 압축 매핑 | 0 |
+| /profile/weekly-report (P1) | v2.2 ProfileWeeklyReport | 시안 v2.2 P1-4 박제 (이메일 뉴스레터 톤 + KPI4 + Top코트 + 인사이트3 + 지난주 비교) | 0 |
+| /profile/achievements (P2) | v2.4 Achievements | _v2/achievements-content 박제 (eyebrow ACHIEVEMENTS / "내가 걸어온 기록" / tierColor / 상위%) | 0 |
+| /profile/settings (P2) | v2.4 Settings | _components_v2 6 섹션 박제 (이전 이력 박제 완료) | 0 |
+| /profile/billing (P2) | v2.4 Billing | 그라디언트 헤더 + 메타 grid + 업그레이드 프롬프트 + board 토큰 + 환불 모달 1:1 박제 | 0 |
+
+🔧 자동 검수:
+| 항목 | 결과 |
+|----|----|
+| tsc --noEmit | EXIT=0 ✓ |
+| API/route.ts 변경 | 0 ✓ |
+| /profile/page.tsx 변경 | 0 ✓ (다른 developer 영역) |
+| _v2/* 변경 | 0 ✓ |
+| 신규 파일 | 0 ✓ |
+
+💡 PM 참고:
+- 7 영역 모두 이전 박제 작업으로 시안 v2.2/v2.4 매칭 완료된 상태
+- /profile hub 카드 진입 동선 → 시각 일관성 모두 통과 (eyebrow/h1/카드 톤/border-radius/var(--*) 토큰)
+- 운영 코드 변경 0 → 커밋 0
+- 사용자 요청 "연결된 페이지도 시안 확인되면 매칭" 의 의도가 "시각 회귀 검증"이라면 PASS, "추가 미세 동기화"라면 추가 차이 식별 필요
 
 ### 구현 기록 (R-A + R-B' + R-C-4 통합)
 
@@ -331,6 +429,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
+| 2026-04-30 | (커밋 1건 대기, subin) | **/profile v2.4 시안 1:1 완전 매칭 (developer)**: 시안 vs 운영 차이 10건 모두 픽스. (1) 우측 aside SeasonStats 제거 (시안에 없음). (2) 본문 끝 큰 카드 2종 신규(설정/결제·멤버십, 720 1열 stack). (3) 다음 경기 카드 D-N 빨간 박스 강조 (color-mix accent 12% + 빨간 막대 헤더 + "경기 상세 →" 버튼). (4) 소속 팀 카드 시안 톤(헤더 빨간 막대 + 우상단 "전체"링크 + 40px 팀 색 박스 + W L 폴백 "—"). (5) 내 성장 SVG line 그래프(정적 8 포인트 폴리라인). (6) 도움 영역 신규(도움이 필요하세요? + 도움말/안전·차단 2 버튼). (7) Hero 알림 카운트 + Hero BDR Red fallback 이미 적용 확인. user select +subscription_expires_at +membershipType. globals.css .mypage-large-grid 720 분기 추가. tsc EXIT=0. API/route.ts/Prisma 변경 0. 변경: 4 파일(page.tsx + upcoming-games.tsx + team-side-card.tsx + globals.css). | ✅ |
+| 2026-05-01 | (변경 0, 커밋 0) | **/profile 연결 페이지 7 영역 시안 매칭 검증 (developer)**: Growth(P0)/Activity(P0)/Bookings(P1)/WeeklyReport(P1)/Achievements(P2)/Settings(P2)/Billing(P2) 7 영역 모두 시안 v2.2/v2.4 1:1 박제 완료 상태 확인. tsc EXIT=0. 운영 코드 변경 0. | ✅ |
 | 2026-05-01 | (커밋 3건 대기, subin) | **R-A + R-B' + R-C-4 통합 (developer)**: v2.4 새 다운로드 재박제. R-A 시안 회귀 정리: components.jsx AppNav 함수 03 §1 frozen 카피 (moreOpen/dropdown trigger/RDM 아바타 영구 제거 + Icon.mail 신규 + util-left 분리 + drawer 5그룹) + ThemeSwitch viewport 분기 + screens/{Referee,GameReport,GameResult,GuestApps}.jsx 4 파일 제거 + MyBDR.html 가짜 라우트 4 매칭 + script 4 참조 제거 + RefereeInfo/mypage 매칭 신규. R-B' 룰 9 갱신 (시안 우선 정책 2026-05-01): 00-master-guide / 01-user-design-decisions §6-1 / 06-self-checklist §4+§9 / CLAUDE.md L96 "서울 3x3 / 다음카페" 허용. About 운영진 실명 박제 금지는 보존. Footer.tsx 변경 0. R-C-4 운영 app-nav.tsx 03 frozen 재적용: tabs kind 필드 제거 + moreOpen state 제거 + MorePanel 함수 (~190줄) 영구 제거 + 9번째 'more' = drawer 토글 (PC/모바일 동일). AppDrawer prop type 갱신. tsc EXIT=0. 자동 검수 7 케이스 모두 통과. 변경: 시안 7 + knowledge 3 + CLAUDE.md 1 + 운영 2 = 13 파일 (이 중 4 파일 삭제). | ✅ |
 | 2026-04-30 | (미커밋, subin) | **v2.4 풍부 디테일 통합 — 재박제 (developer)**: 시안 v2.4 Profile.jsx (125줄) 풍부 디테일을 운영 /profile 에 옵션 B 통합. (1) HeroCard 96 아바타 = team.primaryColor → 검정 그라디언트 (이미지 없을 때만, 팀 없으면 BDR Red 폴백). (2) 상단 큰 Hero 배너 아바타도 heroAvatarBg 적용. (3) ActivityTimeline kind 5종 확장 (post/application/match/win/loss/team) + badgeClass 매핑 (win=ok, loss=red, post/match/team=soft). (4) _components/ 14종 → _archived/ 격리 (radar-chart만 보존 — users/[id] 사용 중). _archived/ability-section.tsx import 경로 ../_components/radar-chart 수정. tsc EXIT=0. 이전 박제 83a9363 의 Hero+hub+quick+aside 풍부 구조 100% 보존. API/route.ts 변경 0. 변경: 3 파일 수정 + 14 파일 이동. | ✅ |
 | 2026-04-30 | (미커밋, subin) | **v2.4 마이페이지 hub 박제 — Hero + 4 카드 + quick (developer)**: 의뢰서 (852줄) + 캡처 16 기준. 신규 3 파일(_v2/mypage-hub-data.ts / mypage-hub-card.tsx / mypage-hub.tsx). 수정 3 파일(profile/page.tsx 상단 큰 Hero 카드+본문 좌우 swap+Tier 1 4 슬롯, more-groups.ts "마이페이지" 1 항목 추가, globals.css 720 분기 2 클래스). 옵션 B 통합 — 우측 sticky aside 에 기존 v2.3 컴포넌트 6종 보존. tsc EXIT=0. 박제 룰 검수 통과 (var(--*) 토큰 / Material Symbols / 720 분기 / API 0 / 신규 라우트 0). 변경: 6 파일. | ✅ |
@@ -341,4 +441,3 @@
 | 2026-05-01 | (변경 0, 커밋 0) | **v2.3 P1 영역 A+B+C+D 동기화 검증** (developer): EditProfile/Settings/Billing/MyActivity v2.2 ↔ v2.3 시안 byte 차이는 EOL 변환만(`diff -w` 0) — 박제 코드 변경 0. tsc 0 에러. PM 액션: 시안 변경 의도 있었다면 시안 누락 가능성. | ✅ |
 | 2026-05-01 | (미커밋, subin) | **v2.3 마이페이지 hub 박제 — `/profile` Profile.jsx 1:1** (developer): Profile.jsx 시안 박제. page.tsx user select +name_verified / teamMember select 모드 / game_applications findMany take:3 / nextGames status:Int 0/1 보존 / HeroCard +jerseyNumber, UpcomingGames game→games 배열. _v2/hero-card.tsx 메타 1줄 "팀·포지션·#N" + flexWrap. _v2/team-side-card.tsx +wins/losses/draws + "12W 5L · 외 N팀". _v2/upcoming-games.tsx + status:number\|null + scheduledAt non-null + badgeFor() 헬퍼. _v2/season-stats.tsx + .season-stats-grid. globals.css 720 미디어 룰 3종 추가. **API fetch 0 변경** (select 컬럼만 추가). 변경: 6 파일. | ✅ |
 | 2026-04-30 | (커밋 2건 대기, subin) | **P0 Step 4 + 5 백버튼 18 페이지 + 커뮤니티 모바일 탭** (developer): `page-back-button.tsx`(60줄) 신규 + history.length 가드 + fallbackHref + lg:hidden + 44px. profile 9 + organizations 4 + courts 5 = 18 페이지 일괄. community-aside.tsx fragment 분기 모바일 8 카테고리 가로 스크롤 탭. globals.css `.aside-mobile-tabs` +50줄. tsc 0. 변경: 21 파일. | ✅ |
-| 2026-04-30 | (미커밋, subin) | **P0 Step 1 + 3 가입+대회 흐름 + 404** (developer): onboarding/setup done "프로필 추가 완성하기 →" CTA / tournaments/[id]/join "내 신청 내역 보기" 1순위 CTA / pricing/checkout 401 redirect 보존 + isValidRedirect / (web)/not-found.tsx 신규(60줄, search_off + 3 CTA). 변경: 4 파일. tsc 0. | ✅ |
