@@ -337,12 +337,8 @@ export default function SignupPage() {
                   </span>
                 </div>
                 <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: 6,
-                    marginTop: 6,
-                  }}
+                  // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 3 → sm 5 칸
+                  className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mt-1.5"
                 >
                   {["가드", "슈가", "스포", "파포", "센터"].map((p) => (
                     <button
@@ -442,12 +438,8 @@ export default function SignupPage() {
                   </span>
                 </div>
                 <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(4, 1fr)",
-                    gap: 6,
-                    marginTop: 8,
-                  }}
+                  // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 2 → sm 4 칸
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2"
                 >
                   {["강남", "강북", "강서", "강동", "분당", "일산", "수원", "인천"].map(
                     (a) => (
@@ -486,12 +478,8 @@ export default function SignupPage() {
                   </span>
                 </div>
                 <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(5, 1fr)",
-                    gap: 6,
-                    marginTop: 8,
-                  }}
+                  // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 3 → sm 5 칸 ("초중급" 등 3자라 5칸은 짤림)
+                  className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mt-2"
                 >
                   {["초보", "초중급", "중급", "중상급", "상급"].map((l) => (
                     <button

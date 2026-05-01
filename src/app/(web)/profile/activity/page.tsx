@@ -336,14 +336,10 @@ export default function ProfileActivityPage() {
         </div>
       </div>
 
-      {/* 시안 v2(1): counters 4종 (검토중 / 예정 / 완료 / 취소·거절) */}
+      {/* 시안 v2(1): counters 4종 (검토중 / 예정 / 완료 / 취소·거절)
+          2026-05-02 모바일 분기: 모바일 2x2 → sm 1x4 (errors.md 04-29 안티패턴 회피) */}
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
-          marginBottom: 18,
-        }}
+        className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-[18px]"
       >
         {[
           { n: pendingCount, lbl: "검토중", tone: "var(--warn)" },
