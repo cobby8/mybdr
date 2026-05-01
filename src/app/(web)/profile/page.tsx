@@ -327,8 +327,10 @@ export default async function ProfilePage() {
     { label: "RTG", value: rtg },
   ];
 
-  // 본인 공개 프로필 — /users/[id]
-  const publicProfileHref = `/users/${user.id.toString()}`;
+  // 본인 공개 프로필 — /users/[id]?preview=1
+  // 2026-05-02: ?preview=1 query 추가 — users/[id]/page.tsx 의 isOwner→/profile redirect (D-P7) 우회.
+  // 본인이 다른 사람 시점으로 자기 공개 프로필 미리보기 가능.
+  const publicProfileHref = `/users/${user.id.toString()}?preview=1`;
 
   return (
     <div className="page mypage">

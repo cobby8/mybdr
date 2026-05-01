@@ -57,17 +57,21 @@ export async function generateMetadata({
 
 export default async function UserProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { id } = await params;
+  const { preview } = await searchParams;
   const userIdBigInt = BigInt(id);
 
   // 세션 먼저 체크 — 본인이면 /profile redirect (D-P7)
+  // 2026-05-02: ?preview=1 query 시 본인도 공개 프로필 미리보기 가능 (마이페이지 → 공개 프로필 버튼 흐름)
   const session = await getWebSession();
   const isLoggedIn = !!session;
   const isOwner = !!session && BigInt(session.sub) === userIdBigInt;
-  if (isOwner) {
+  if (isOwner && preview !== "1") {
     redirect("/profile");
   }
 
