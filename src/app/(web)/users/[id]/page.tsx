@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
+import { getDisplayName } from "@/lib/utils/player-display-name";
+import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 
 import { PlayerHero } from "./_v2/player-hero";
 import { ProfileTabs } from "./_v2/profile-tabs";
@@ -41,13 +43,15 @@ export async function generateMetadata({
   const user = await prisma.user
     .findUnique({
       where: { id: BigInt(id) },
-      select: { nickname: true, position: true },
+      select: { ...USER_DISPLAY_SELECT, position: true },
     })
     .catch(() => null);
   if (!user) return { title: "선수 프로필 | MyBDR" };
+  // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+  const displayName = getDisplayName(user);
   return {
-    title: `${user.nickname || "선수"} 프로필 | MyBDR`,
-    description: `${user.nickname || "선수"}의 경기 기록과 능력치를 확인하세요.`,
+    title: `${displayName} 프로필 | MyBDR`,
+    description: `${displayName}의 경기 기록과 능력치를 확인하세요.`,
   };
 }
 

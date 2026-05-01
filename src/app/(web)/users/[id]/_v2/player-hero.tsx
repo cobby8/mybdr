@@ -21,6 +21,11 @@ import Image from "next/image";
 
 import type { ReactNode } from "react";
 
+import {
+  getDisplayName,
+  getSecondaryNickname,
+} from "@/lib/utils/player-display-name";
+
 const POSITION_KO: Record<string, string> = {
   PG: "포인트가드",
   SG: "슈팅가드",
@@ -95,16 +100,19 @@ export function PlayerHero({
   teamName,
   actionSlot,
 }: PlayerHeroProps) {
-  const displayName = user.nickname ?? user.name ?? "사용자";
+  // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01):
+  //   메인 = User.name 우선 fallback chain. 닉네임은 보조 라인.
+  const displayName = getDisplayName(user);
+  const secondaryNickname = getSecondaryNickname(user);
   // 이니셜: 2자 (한글 성+이름 or 영문 앞 2자)
   const initial = displayName.trim().slice(0, 2).toUpperCase();
   const bgColor = teamColor ?? "var(--bdr-red)";
   // 그라디언트 — v2 color-mix 사용. fallback 값은 라이트/다크 동일 톤 저하.
   const gradient = `linear-gradient(135deg, ${bgColor} 0%, color-mix(in oklab, ${bgColor} 50%, #000) 100%)`;
 
-  // 메타 줄: 실명 · 지역 · 성별 (시안의 "김민재 · 서울 송파 · 28세" 대체)
+  // 메타 줄: 닉네임(있으면) · 지역 · 성별 — 메인이 실명이라 닉네임을 보조로
   const metaParts: string[] = [];
-  if (user.name) metaParts.push(user.name);
+  if (secondaryNickname) metaParts.push(secondaryNickname);
   const location = [user.city, user.district].filter(Boolean).join(" ");
   if (location) metaParts.push(location);
   if (user.gender) {
