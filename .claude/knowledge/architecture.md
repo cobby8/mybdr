@@ -2,6 +2,27 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-01] Phase 13 마이페이지 hub 박제 — /profile = 3-tier + aside
+- **분류**: architecture
+- **발견자**: pm
+- **내용**: `src/app/(web)/profile/page.tsx` 본문을 BDR-current/screens/MyPage.jsx 시안 1:1 박제. 옛 좌측 320px aside (HeroCard + TeamSideCard + BadgesSideCard) + 우측 main (SeasonStats + UpcomingGames + ActivityTimeline) 6컴포넌트 구조 → **Hero strip + 3-tier hub + aside 4카드** 구조로 재구성.
+  - **Hero strip**: 아바타 76px (팀 색 그라디언트) + 닉네임 의 농구 + 팀명·포지션·시즌라벨 + L.N/PRO/✓본인인증 배지 + 우측 액션 3 버튼(편집/알림/공개프로필). 모바일 56px 아바타 + edge-to-edge.
+  - **Tier 1 큰 카드 4종** (.mypage-card--lg, 220min): 프로필(닉네임·실명·포지션·인증) / 내 농구(PPG/APG/RPG/RTG 4-stat) / 내 성장(SVG sparkline 12주) / 내 활동(13주 막대). 데스크톱 4col → 1023px 2x2 → 720px 2col 160min.
+  - **Tier 2 중간 카드 4종** (.mypage-card--md, 96min): 예약 이력 / 주간 리포트 NEW / 알림 N건 / 배지·업적. 720px 1col row 56min.
+  - **Tier 3 작은 카드 2종** (.mypage-card--sm, 64min): 설정 / 결제·멤버십. 720px 1col 56min.
+  - **Aside 4 카드**: D-N 다음 경기 (countdown 38px BDR Red) / 소속 팀 (tag+name+rec) / 최근 활동 5건 (post+application merge desc) / 도움말 (도움말+안전·차단). 1023px 2col → 720px 1col stack.
+  - **CSS**: BDR-current/mypage.css 948줄 1:1 카피 → `src/app/(web)/profile/mypage.css` 신설 + page.tsx에서 import (Next.js App Router 자동 글로벌 적용). 옛 globals.css `.mypage-hub-grid/.mypage-quick-grid/.mypage-large-grid` 룰은 새 시안 클래스 (`.mypage-hub__tier-1/tier-2/tier-3`) 와 다름 — 보존(추후 정리).
+  - **데이터 매핑**: 8 쿼리 prefetch 보존 + `user.nickname`/`user.name`/`user.position` Hero / `getProfileLevelInfo(xp)` 옵셔널 (xp null → null) / `subscription_status==="active"` PRO / `profile_completed` 본인인증 / `teamMembers[0].team` primaryTeam / `nextGameApp.games` D-N + venueName + scheduled_at / `unreadCount` Tier2 알림 + Hero 액션 / `playerStats.careerAverages` PPG/APG/RPG + `evaluation_rating` RTG / `recentPosts` + `recentApplications` merge desc 5건 → aside.
+  - **라우팅 (Next.js Link)**: 시안 `setRoute(...)` 10건 → /profile/edit / /profile/basketball / /profile/growth / /profile/activity / /profile/bookings / /profile/weekly-report / /notifications / /profile/achievements / /profile/settings / /profile/billing / /users/[id] (공개 프로필) / /games/[uuid8] (다음 경기) / /teams/[id] / /help / /safety.
+  - **시각 mock 보존**: sparkline 12주 + activity 13주 막대 = hub 카드 시각 hint. 진짜 데이터는 P1 깊은 페이지에서. 시안 의도 일치.
+  - **AppNav frozen Phase 19**: `src/components/bdr-v2/app-nav.tsx` (R-C-4 적용 — main bar 우측 [다크/검색/쪽지/알림/햄버거] 5개 / `app-nav__icon-btn` 클래스 / 더보기=drawer 토글 / mail_outline 쪽지) + `more-groups.ts` (계정·도움 첫 항목 🏠 mypage → /profile, 가짜링크 4건 제거) — 모두 운영 이미 박제 완료, page.tsx 변경 없음.
+  - **회귀 검수 4 통과**: ❌ 더보기 ▼ dropdown / ❌ 모바일 듀얼 라벨 / ❌ 검색·쪽지·알림 박스 / ❌ 우측 순서 변경 — 모두 0건.
+  - **13 룰 검수 통과**: 하드코딩 hex 0(teamInk = `var(--ink-on-accent, #fff)` 토큰 fallback) / 핑크·살몬·코랄 0 / lucide-react 0 / pill 9999px 0 (시안 카피 mypage.css의 .badge--ok 등은 4px) / placeholder "예: " 0.
+  - **보존**: API/route.ts/Prisma 스키마 0 변경 / getWebSession + Promise.all 8 쿼리 / snake_case 직렬화 / `/users/[id]` 분리 (본인 hub vs 타인 단순) / Page-BackButton 모바일 백버튼.
+  - **사용 중단**: HeroCard / SeasonStats / UpcomingGames / ActivityTimeline / TeamSideCard / BadgesSideCard 6 컴포넌트 (page.tsx에서만 import — grep 검증). _v2/ 폴더는 보존 (P1 작업 시 정리).
+- **참조**: Dev/design/v3-rebake-prompt-2026-05-01.md §1 P0 / claude-project-knowledge/00-master-guide.md 13 룰 / 06-self-checklist.md §1~§6
+- **참조횟수**: 0
+
 ### [2026-05-01] Dev/design/ 단일 폴더 룰 + BDR-current 동기화
 - **분류**: architecture
 - **발견자**: pm

@@ -1,10 +1,10 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-01 (Dev/design/ 단일 폴더 룰 + BDR-current 동기화 — architecture +1) | 이전: 2026-04-29 (Phase 9-Mobile + Hero 카로셀)
+> 최종 갱신: 2026-05-01 (Phase 13 마이페이지 hub 박제 — architecture +1) | 이전: 2026-05-01 (Dev/design/ 단일 폴더 룰 + BDR-current 동기화)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
-| architecture.md | 34 | 2026-05-01 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29), **Dev/design/ 단일 폴더 룰 + BDR-current 동기화(2026-05-01)** |
+| architecture.md | 35 | 2026-05-01 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29), Dev/design/ 단일 폴더 룰 + BDR-current 동기화(2026-05-01), **Phase 13 마이페이지 hub 박제 — /profile = 3-tier + aside(2026-05-01)** |
 | conventions.md | 28 | 2026-04-29 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix 언더스코어 문법(04-22)/any 예외 규칙 kakao·HOF·SW(04-22)/**모바일 최적화 체크리스트 10항목(04-29)** |
 | decisions.md | 86 | 2026-04-29 | 기술 결정 (KBL 순위/대진표/userId 연결/Referee v2/헬스체크 cron/공식 기록 가드/카페 정규식 파서/운영 DB 직접 연결/카페 dataid tie-break / 공지 방어 가드 / 과거 글 시분 원천 미제공 확정 / Phase 3 #6 Pagination / L3 Organization 기존 라우트 활용 / EditionSwitcher 동작 규약 / 카페 3게시판 전면 board 강제 + parser 힌트 metadata화 / 세션 역할 재정의 / 코트 대관 court_managers N:M 보류 / 코트 대관 payments 다형성 / **모바일 720px 통일 / Hero 카로셀 외부 lib 0 / 카로셀 absolute opacity stacking / iOS 16px input 강제(2026-04-29)**) |
 | errors.md | 21 | 2026-04-29 | 에러 패턴 (sticky, @page Hancom PDF, th/td 정렬, DB 사고, add 누락, next/image 외부 호스트, apiSuccess 미들웨어 7회 재발, 카페 상세 HTML 시간 소스 `.num_subject` 단일, **모바일 가로 overflow grid 안티패턴(04-29) / Avatar 영문 overflow(04-29) / schema 변경 후 dev 서버 미재시작 prisma Unknown argument(04-29)**) |
@@ -14,6 +14,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-01] architecture: **Phase 13 마이페이지 hub 박제 — /profile = 3-tier + aside** — `src/app/(web)/profile/page.tsx` 본문 BDR-current/screens/MyPage.jsx 1:1 박제. 옛 좌 320px aside (HeroCard+TeamSideCard+BadgesSideCard) + 우 main (SeasonStats+UpcomingGames+ActivityTimeline) 6컴포넌트 → Hero strip + 3-tier hub + aside 4 카드. Tier1 큰4 (프로필/내 농구 PPG·APG·RPG·RTG/내 성장 SVG sparkline 12주/내 활동 13주 막대) + Tier2 중간4 (예약·주간 NEW·알림 N건·배지·업적) + Tier3 작은2 (설정/결제·멤버십). Aside 4 (D-N 다음 경기/소속 팀/최근 활동 5건/도움말). mypage.css 948줄 BDR-current → `src/app/(web)/profile/mypage.css` 카피 + import. 8 쿼리 prefetch 보존 + setRoute(...) 10건 → Next.js Link 매핑. AppNav frozen + more-groups 운영 이미 박제 (R-C-4) — 변경 0. 13 룰 검수 통과 (hex 0 / pink-salmon-coral 0 / lucide-react 0 / pill 9999 0). _v2/ 6 컴포넌트 사용 중단 (P1 정리). 시각 mock(sparkline+막대)는 hub hint, 진짜 데이터는 P1 /profile/growth·activity.
 - [05-01] architecture: **Dev/design/ 단일 폴더 룰 + BDR-current 동기화** — 활성 시안 = `Dev/design/BDR-current/` 단 하나. 옛 버전은 `_archive/{BDR v2, v2.2, v2.3, v2.4, audit-results, ui_breaking, v2-original, prompts}/`. 보존 3 .md: DESIGN.md / README.md / v3-rebake-prompt-2026-05-01.md. 워크플로우 5단계 (새 zip 받았을 때): 풀이 → 옛 BDR-current 아카이브 → 새 zip BDR vX.Y → BDR-current 카피 → zip 최상위 옛 시안 → v2-original/ → README sync. CLI 박제 작업의 모든 참조는 BDR-current/ 만 사용 (BDR vX.Y/ 직접 참조 ❌). 명명 룰: zip 파일명 ≠ 시안 버전 (zip = 작업 일자 묶음 / 시안 버전 = `BDR vX.Y/` 안 / 활성 = `BDR-current/`). 마이페이지 박제 7 commit (5f5cfac~8aea145) revert ad774d9 시점 복원 — v3-rebake P0 박제 진행. 참조 커밋 f2df385 + 8a5cb7b
 - [04-29] architecture: **BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드** — `src/components/bdr-v2/hero-carousel.tsx` + `hero-slides/` 5종(server) + 1 client. `src/lib/services/home.ts` `prefetchHeroSlides()` + 3종. (web) AppNav 단일 헤더, (admin)/(referee)는 의도된 분리. globals.css `@media (max-width:720px)` overflow-x:hidden + input 16px + button 44px
 - [04-29] decisions: **모바일 브레이크포인트 720px 통일** — Tailwind 768px md 미사용, mybdr 기존 컨벤션 유지. iPad mini portrait는 모바일 처리. globals.css `@media (max-width: 720px)` 글로벌 룰 + sm:/md: 이중 적용

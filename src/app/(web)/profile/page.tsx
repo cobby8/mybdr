@@ -1,30 +1,37 @@
 /* ============================================================
- * /profile — v2 본인 프로필 대시보드 (서버 컴포넌트)
+ * /profile — v3 마이페이지 hub (서버 컴포넌트)
  *
- * 왜 서버 컴포넌트로 전환:
- * - PM 지시: "서버 컴포넌트에서 Prisma 직접 호출 OK" (D-P2 timeline, D-P8 badges).
- * - 기존 "use client" + useSWR 3개(profile/gamification/stats) 구조는 API 라운드트립 +
- *   snake_case 변환을 거쳐야 해서 profile 응답 select 에 빠진 필드
- *   (gender / evaluation_rating / total_games_hosted) 를 가져오려면 API 수정이 필요.
- *   PM 규칙 "API/route.ts/Prisma 스키마 0 변경" → 페이지에서 Prisma 직접 호출이 유일한 해법.
+ * Phase 13 박제 (2026-05-01) — 출처: Dev/design/BDR-current/screens/MyPage.jsx
+ * 룰: claude-project-knowledge/00-master-guide.md 13 룰 + 06-self-checklist.md
+ *
+ * 왜:
+ * - 기존 좌측 320px aside (HeroCard) + 우측 main (SeasonStats/UpcomingGames/ActivityTimeline) 구조에서
+ *   3-tier 카드 hub (Tier1 큰4 / Tier2 중간4 / Tier3 작은2) + aside (D-N/팀/최근활동/도움) 로 재구성.
+ * - /profile 단일 hub 진입점에서 16+ 깊은 페이지(/profile/*) 로 분기.
  *
  * 어떻게:
- * - getWebSession 으로 세션 확보 → 비로그인은 로그인 유도 UI.
- * - Promise.all 로 7 쿼리 병렬 prefetch:
- *   1) user (필요 필드 전부 — bio, gender, evaluation_rating, total_games_hosted, xp 등)
- *   2) 소속 팀 (TeamMember + team 요약)
- *   3) 다음 경기 (game_applications + games scheduled_at > now)
- *   4) 승률/평균 (getPlayerStats)
- *   5) 알림 미확인 수 (notifications.count)
- *   6) 활동 타임라인 — community_posts 최근 5건
- *   7) 활동 타임라인 — game_applications 최근 5건
- *   8) user_badges 최신 4건
- * - 6+7은 클라이언트에서 merge + sort 후 상위 5건만 표시.
+ * - 8 쿼리 병렬 prefetch 구조 보존 (Promise.all + Prisma 직접 호출).
+ * - HeroCard / SeasonStats / UpcomingGames / ActivityTimeline / TeamSideCard / BadgesSideCard
+ *   import 제거 (이 페이지에서만 사용 — 다른 페이지 영향 없음 grep 검증 완료).
+ * - 시안의 setRoute(...) 라우팅 → Next.js Link href 10건 매핑.
+ * - 시안 mock data (sparkline 12주 / activity bars 13주) 는 hub 카드 시각요소이므로 그대로 유지.
+ *   진짜 데이터는 P1 깊은 페이지 (/profile/growth, /profile/activity) 에서 표시.
+ *
+ * 운영 데이터 매핑:
+ *   user.nickname / user.name / user.position → 시안 hero
+ *   level (getProfileLevelInfo) → user.level (L.N)
+ *   isPro (subscription_status === "active") → PRO 배지
+ *   isVerified (profile_completed) → 본인인증 ✓
+ *   primaryTeam (teamMembers[0]) → 시안 team (이름/색상/태그)
+ *   nextGame (game_applications + games scheduled_at > now) → D-N countdown
+ *   unreadCount (notifications status="unread") → tier2 알림 카운트
+ *   activities (posts + applications merge desc 5건) → aside 최근 활동 5건
+ *   seasonStatsData (career averages) → tier1 basketball 카드 PPG/APG/RPG/RTG
  *
  * 보안/규칙:
  * - 세션 userId 기반 본인 데이터만 조회 (IDOR 없음).
- * - BigInt → string 변환, Date → ISO 변환 모두 여기서 처리.
- * - Prisma 직접 호출이지만 서비스 레이어(getPlayerStats, getProfileLevelInfo) 재사용으로 중복 축소.
+ * - BigInt → string, Date → ISO 변환 모두 여기서 처리.
+ * - API/route.ts/Prisma 스키마 0 변경 (PM 규칙).
  * ============================================================ */
 
 import Link from "next/link";
@@ -36,12 +43,8 @@ import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 import { PageBackButton } from "@/components/shared/page-back-button";
 
-import { HeroCard } from "./_v2/hero-card";
-import { SeasonStats } from "./_v2/season-stats";
-import { UpcomingGames } from "./_v2/upcoming-games";
-import { ActivityTimeline, type ActivityItem } from "./_v2/activity-timeline";
-import { TeamSideCard } from "./_v2/team-side-card";
-import { BadgesSideCard } from "./_v2/badges-side-card";
+// Phase 13 hub 전용 스타일 (BDR-current/mypage.css 1:1 카피)
+import "./mypage.css";
 
 // SSR 세션 기반 페이지 — 캐시 금지 (본인 데이터는 매 요청 최신)
 export const dynamic = "force-dynamic";
@@ -92,7 +95,6 @@ export default async function ProfilePage() {
     recentApplications,
     userBadges,
   ] = await Promise.all([
-    // 1) user 필수 필드 — profile API 보다 확장(gender/evaluation_rating/total_games_hosted/xp/subscription)
     prisma.user
       .findUnique({
         where: { id: userId },
@@ -117,7 +119,6 @@ export default async function ProfilePage() {
       })
       .catch(() => null),
 
-    // 2) 소속 팀 (active만)
     prisma.teamMember
       .findMany({
         where: { userId, status: "active" },
@@ -136,7 +137,6 @@ export default async function ProfilePage() {
       })
       .catch(() => []),
 
-    // 3) 다음 경기 — scheduled_at > now 인 가장 빠른 1건
     prisma.game_applications
       .findFirst({
         where: {
@@ -158,15 +158,12 @@ export default async function ProfilePage() {
       })
       .catch(() => null),
 
-    // 4) 승률 / 평균 스탯
     getPlayerStats(userId).catch(() => null),
 
-    // 5) 알림 미확인 수 — 실패 시 0. status="unread" 로 구분 (schema 상 read 여부 필드)
     prisma.notifications
       .count({ where: { user_id: userId, status: "unread" } })
       .catch(() => 0),
 
-    // 6) community_posts 최근 5건 (활동 타임라인용)
     prisma.community_posts
       .findMany({
         where: { user_id: userId, status: "published" },
@@ -181,7 +178,6 @@ export default async function ProfilePage() {
       })
       .catch(() => []),
 
-    // 7) game_applications 최근 5건 (활동 타임라인용)
     prisma.game_applications
       .findMany({
         where: { user_id: userId },
@@ -202,7 +198,6 @@ export default async function ProfilePage() {
       })
       .catch(() => []),
 
-    // 8) user_badges 최신 4건
     prisma.user_badges
       .findMany({
         where: { user_id: userId },
@@ -219,7 +214,6 @@ export default async function ProfilePage() {
   ]);
 
   if (!user) {
-    // 세션은 있으나 DB 조회 실패 — 드문 엣지
     return (
       <div style={{ minHeight: "40vh", display: "grid", placeItems: "center" }}>
         <p style={{ color: "var(--ink-mute)" }}>프로필을 불러올 수 없습니다.</p>
@@ -229,139 +223,561 @@ export default async function ProfilePage() {
 
   // ---- Hero 데이터 변환 ----
   const level = getProfileLevelInfo(user.xp);
-  // subscription_status === "active" 이면 PRO
   const isPro = user.subscription_status === "active";
   const isVerified = !!user.profile_completed;
-  // evaluation_rating 은 Decimal → number
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
 
+  // 닉네임 fallback — 닉네임 없으면 이름, 없으면 "사용자"
+  const displayNickname = user.nickname ?? user.name ?? "사용자";
+  const displayName = user.name ?? "—";
+  const positionLabel = user.position ?? "—";
+
+  // ---- Team 데이터 ----
   const primaryTeam = teamMembers[0]?.team
     ? {
         id: teamMembers[0].team.id.toString(),
         name: teamMembers[0].team.name,
-        primaryColor: teamMembers[0].team.primaryColor,
-        logoUrl: teamMembers[0].team.logoUrl,
+        primaryColor: teamMembers[0].team.primaryColor ?? "var(--accent)",
+        // tag = 팀 이름 첫 2글자 (영문이면 대문자)
+        tag: (teamMembers[0].team.name ?? "TM").slice(0, 2).toUpperCase(),
       }
     : null;
 
-  // ---- SeasonStats 데이터 변환 ----
-  const career = playerStats?.careerAverages ?? null;
-  const seasonStatsData = {
-    games: career?.gamesPlayed ?? 0,
-    winRate: playerStats?.winRate ?? null,
-    ppg: career?.avgPoints ?? null,
-    apg: career?.avgAssists ?? null,
-    rpg: career?.avgRebounds ?? null,
-    rating: evaluationRating,
-  };
+  // 팀 색상 기반 ink (대비) — 토큰 fallback 패턴 (mypage.css 의 --ink-on-accent 와 동일)
+  const teamInk = "var(--ink-on-accent, #fff)";
+  // 아바타 그라디언트 색상 — 팀 있으면 팀 색, 없으면 BDR Red
+  const avatarBg = primaryTeam
+    ? `linear-gradient(145deg, ${primaryTeam.primaryColor}, color-mix(in srgb, ${primaryTeam.primaryColor} 30%, var(--bg)))`
+    : `linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 30%, var(--bg)))`;
 
-  // ---- UpcomingGames 데이터 변환 ----
+  // ---- SeasonStats 매핑 (basketball 카드 4-stat) ----
+  const career = playerStats?.careerAverages ?? null;
+  const fmtStat = (v: number | null | undefined, decimals = 1): string =>
+    v == null ? "—" : v.toFixed(decimals);
+  const ppg = fmtStat(career?.avgPoints, 1);
+  const apg = fmtStat(career?.avgAssists, 1);
+  const rpg = fmtStat(career?.avgRebounds, 1);
+  // RTG = 평가 점수 (시안은 1684 같은 정수) — evaluation_rating 정수화
+  const rtg = evaluationRating != null ? Math.round(evaluationRating).toLocaleString() : "—";
+
+  // ---- 다음 경기 (D-N countdown) ----
   const nextGame = nextGameApp?.games
     ? {
-        id: nextGameApp.games.uuid ?? nextGameApp.game_id.toString(),
-        title: nextGameApp.games.title ?? null,
-        scheduledAt: nextGameApp.games.scheduled_at?.toISOString() ?? null,
-        venueName: nextGameApp.games.venue_name ?? null,
+        id: nextGameApp.games.uuid?.slice(0, 8) ?? nextGameApp.game_id.toString(),
+        title: nextGameApp.games.title ?? "예정된 경기",
+        scheduledAt: nextGameApp.games.scheduled_at,
+        venueName: nextGameApp.games.venue_name ?? "장소 미정",
       }
     : null;
 
-  // ---- Activity 타임라인 merge (posts + applications → created_at desc 상위 5건) ----
-  const postItems: ActivityItem[] = recentPosts.map((p) => ({
+  const dDays = nextGame?.scheduledAt
+    ? Math.max(0, Math.round((nextGame.scheduledAt.getTime() - now.getTime()) / 86400000))
+    : null;
+
+  // ---- 최근 활동 5건 (posts + applications merge) ----
+  type RecentItem = {
+    key: string;
+    date: string; // "MM.DD"
+    tag: "match" | "post" | "team" | "win" | "loss";
+    label: string;
+    target: string;
+  };
+  const fmtDate = (d: Date): string => {
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${mm}.${dd}`;
+  };
+  const postRecents: RecentItem[] = recentPosts.map((p) => ({
     key: `post-${p.id.toString()}`,
-    createdAt: p.created_at.toISOString(),
-    kind: "post" as const,
-    action: "게시글 작성",
+    date: fmtDate(p.created_at),
+    tag: "post",
+    label: "게시글",
     target: p.title ?? "제목 없음",
-    // 글 상세 링크 — public_id uuid 기반
-    href: `/community/${p.public_id}`,
   }));
-  const appItems: ActivityItem[] = recentApplications.map((a) => ({
+  const appRecents: RecentItem[] = recentApplications.map((a) => ({
     key: `app-${a.id.toString()}`,
-    createdAt: a.created_at.toISOString(),
-    kind: "application" as const,
-    action: "경기 신청",
+    date: fmtDate(a.created_at),
+    tag: "match",
+    label: "경기 신청",
     target: a.games?.title ?? "경기",
-    // game 상세 링크 — uuid 우선, slice 8자 (기존 패턴)
-    href: a.games?.uuid
-      ? `/games/${a.games.uuid.slice(0, 8)}`
-      : undefined,
   }));
-  // 날짜 desc 정렬 후 상위 5개
-  const activities = [...postItems, ...appItems]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const recent = [...postRecents, ...appRecents]
+    .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
 
-  // ---- Badges 변환 ----
-  const badges = userBadges.map((b) => ({
-    id: b.id.toString(),
-    badgeType: b.badge_type,
-    badgeName: b.badge_name,
-    earnedAt: b.earned_at.toISOString(),
-  }));
+  // ---- Tier 카드 정의 (시안 1:1 + 운영 라우트) ----
+  // Tier 1 큰 카드 4종
+  const tier1ProfileItems = [
+    { label: "닉네임", value: displayNickname, mono: true },
+    { label: "실명", value: displayName, mono: false },
+    { label: "포지션", value: positionLabel, mono: false },
+    {
+      label: "본인인증",
+      value: isVerified ? "✓ 인증완료" : "미인증",
+      mono: false,
+      verified: isVerified,
+    },
+  ];
+
+  // Tier 1 basketball stats
+  const basketballStats = [
+    { label: "PPG", value: ppg },
+    { label: "APG", value: apg },
+    { label: "RPG", value: rpg },
+    { label: "RTG", value: rtg },
+  ];
+
+  // 본인 공개 프로필 — /users/[id]
+  const publicProfileHref = `/users/${user.id.toString()}`;
 
   return (
-    <div className="page">
+    <div className="page mypage">
       {/* Phase 12 §G — 모바일 백버튼 (홈 fallback). 데스크톱 lg+ 에서는 hidden. */}
       <PageBackButton fallbackHref="/" />
-      {/* 레이아웃: 좌측 320px aside (sticky) + 우측 main 1fr — v2 Profile.jsx 그대로.
-          모바일(<720px)에서는 1열 + sticky 해제 — globals.css "@media (max-width:720px)" 의
-          .profile-grid / .profile-aside 룰이 처리 (P2-2 Med). */}
-      <div
-        className="profile-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "320px 1fr",
-          gap: 20,
-          alignItems: "flex-start",
-        }}
-      >
-        {/* ========== 좌측 aside ========== */}
-        <aside
-          className="profile-aside"
-          style={{
-            position: "sticky",
-            top: 120,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          <HeroCard
-            user={{
-              nickname: user.nickname,
-              name: user.name,
-              profile_image_url: user.profile_image_url,
-              position: user.position,
-              city: user.city,
-              district: user.district,
-              bio: user.bio,
-              gender: user.gender,
-              total_games_hosted: user.total_games_hosted,
-              evaluation_rating: evaluationRating,
-            }}
-            level={level}
-            isPro={isPro}
-            isVerified={isVerified}
-            team={primaryTeam ? { teamName: primaryTeam.name } : null}
-            unreadCount={unreadCount}
-          />
 
-          {/* 소속 팀 — 1팀 이상일 때만 */}
-          {primaryTeam && (
-            <TeamSideCard primaryTeam={primaryTeam} totalTeams={teamMembers.length} />
+      {/* HERO STRIP — identity ribbon */}
+      <header className="mypage__hero">
+        <div className="mypage__hero-id">
+          <div
+            className="mypage__avatar"
+            style={{
+              background: avatarBg,
+              color: teamInk,
+            }}
+          >
+            {primaryTeam?.tag ?? displayNickname.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="mypage__id-text">
+            <div className="eyebrow">MY PAGE · 마이페이지</div>
+            <h1 className="mypage__name">
+              {displayNickname}
+              <span className="mypage__name-suffix"> 의 농구</span>
+            </h1>
+            <div className="mypage__id-meta">
+              {primaryTeam && (
+                <>
+                  <span>{primaryTeam.name}</span>
+                  <span className="mypage__dot" />
+                </>
+              )}
+              <span>{positionLabel}</span>
+              <span className="mypage__dot" />
+              <span className="t-mono">통산</span>
+            </div>
+            <div className="mypage__id-badges">
+              <span className="badge badge--red">L.{level?.level ?? 1}</span>
+              {isPro && <span className="badge badge--soft">PRO 멤버</span>}
+              {isVerified && <span className="badge badge--ok">✓ 본인인증</span>}
+            </div>
+          </div>
+        </div>
+        <div className="mypage__hero-actions">
+          <Link href="/profile/edit" className="btn btn--sm">
+            프로필 편집
+          </Link>
+          <Link href="/notifications" className="btn btn--sm">
+            알림
+            {unreadCount > 0 && <span className="mypage__count-pip">{unreadCount}</span>}
+          </Link>
+          <Link href={publicProfileHref} className="btn btn--sm btn--primary">
+            공개 프로필 →
+          </Link>
+        </div>
+      </header>
+
+      {/* MAIN GRID: hub + aside */}
+      <div className="mypage__grid">
+        {/* HUB */}
+        <div className="mypage-hub">
+          <div className="mypage-hub__intro">
+            <h2 className="mypage-hub__title">내 활동을 한곳에서</h2>
+            <p className="mypage-hub__sub">
+              프로필·농구·활동·설정·결제를 한곳에서 빠르게 관리하세요.
+            </p>
+          </div>
+
+          {/* TIER 1 — 큰 카드 4종 */}
+          <section className="mypage-hub__tier mypage-hub__tier-1">
+            {/* 1-1. 프로필 */}
+            <Link href="/profile/edit" className="mypage-card mypage-card--lg">
+              <div className="mypage-card__head">
+                <span className="mypage-card__icon">👤</span>
+                <div className="mypage-card__heading">
+                  <h3>프로필</h3>
+                </div>
+              </div>
+              <ul className="mypage-card__items">
+                {tier1ProfileItems.map((m, i) => (
+                  <li key={i}>
+                    <span className="mypage-card__item-label">{m.label}</span>
+                    <span
+                      className={`mypage-card__item-value${m.mono ? " t-mono" : ""}`}
+                    >
+                      {"verified" in m ? (
+                        m.verified ? (
+                          <span className="badge badge--ok" style={{ fontSize: 10 }}>
+                            ✓ 인증완료
+                          </span>
+                        ) : (
+                          <span className="badge badge--warn" style={{ fontSize: 10 }}>
+                            미인증
+                          </span>
+                        )
+                      ) : (
+                        m.value
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mypage-card__cta">프로필 편집 →</div>
+            </Link>
+
+            {/* 1-2. 내 농구 */}
+            <Link href="/profile/basketball" className="mypage-card mypage-card--lg">
+              <div className="mypage-card__head">
+                <span className="mypage-card__icon">🏀</span>
+                <div className="mypage-card__heading">
+                  <h3>내 농구</h3>
+                </div>
+              </div>
+              <div className="mypage-card__statgrid">
+                {basketballStats.map((s) => (
+                  <div key={s.label} className="mypage-card__stat">
+                    <div className="mypage-card__stat-value">{s.value}</div>
+                    <div className="mypage-card__stat-label">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mypage-card__cta">경기 기록 →</div>
+            </Link>
+
+            {/* 1-3. 내 성장 (sparkline 시각 요소 — 진짜 데이터는 P1 /profile/growth) */}
+            <Link href="/profile/growth" className="mypage-card mypage-card--lg">
+              <div className="mypage-card__head">
+                <span className="mypage-card__icon">📈</span>
+                <div className="mypage-card__heading">
+                  <h3>내 성장</h3>
+                </div>
+              </div>
+              <Spark values={[2.1, 2.4, 2.0, 2.6, 2.8, 2.9, 3.1, 3.2, 3.0, 3.4, 3.6, 3.8]} />
+              <div className="mypage-card__cta">성장 추이 →</div>
+            </Link>
+
+            {/* 1-4. 내 활동 (12주 막대 시각 요소 — 진짜 데이터는 P1 /profile/activity) */}
+            <Link href="/profile/activity" className="mypage-card mypage-card--lg">
+              <div className="mypage-card__head">
+                <span className="mypage-card__icon">⚡</span>
+                <div className="mypage-card__heading">
+                  <h3>내 활동</h3>
+                </div>
+              </div>
+              <div className="mypage-card__act-bars">
+                {[3, 5, 2, 7, 4, 6, 8, 3, 5, 9, 4, 7, 12].map((v, i) => (
+                  <div
+                    key={i}
+                    className="mypage-card__act-bar"
+                    style={{ height: `${10 + v * 4}px` }}
+                  />
+                ))}
+              </div>
+              <div className="mypage-card__cta">활동 타임라인 →</div>
+            </Link>
+          </section>
+
+          {/* TIER 2 — 중간 카드 4종 */}
+          <section className="mypage-hub__tier mypage-hub__tier-2">
+            <Link href="/profile/bookings" className="mypage-card mypage-card--md">
+              <div className="mypage-card__md-head">
+                <span className="mypage-card__icon">📅</span>
+                <h3>예약 이력</h3>
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+
+            <Link href="/profile/weekly-report" className="mypage-card mypage-card--md">
+              <div className="mypage-card__md-head">
+                <span className="mypage-card__icon">📰</span>
+                <h3>주간 리포트</h3>
+                <span className="badge badge--new" style={{ marginLeft: "auto" }}>
+                  NEW
+                </span>
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+
+            <Link href="/notifications" className="mypage-card mypage-card--md">
+              <div className="mypage-card__md-head">
+                <span className="mypage-card__icon">🔔</span>
+                <h3>알림</h3>
+                {unreadCount > 0 && (
+                  <span className="mypage-card__pill">{unreadCount}</span>
+                )}
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+
+            <Link href="/profile/achievements" className="mypage-card mypage-card--md">
+              <div className="mypage-card__md-head">
+                <span className="mypage-card__icon">🏆</span>
+                <h3>배지·업적</h3>
+                {userBadges.length > 0 && (
+                  <span className="mypage-card__md-meta">{userBadges.length}개</span>
+                )}
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+          </section>
+
+          {/* TIER 3 — 작은 카드 2종 */}
+          <section className="mypage-hub__tier mypage-hub__tier-3">
+            <Link href="/profile/settings" className="mypage-card mypage-card--sm">
+              <span className="mypage-card__icon mypage-card__icon--sm">⚙</span>
+              <div className="mypage-card__sm-text">
+                <div className="mypage-card__sm-title">설정</div>
+                <div className="mypage-card__sm-meta">계정·알림·개인정보·공개</div>
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+
+            <Link href="/profile/billing" className="mypage-card mypage-card--sm">
+              <span className="mypage-card__icon mypage-card__icon--sm">💳</span>
+              <div className="mypage-card__sm-text">
+                <div className="mypage-card__sm-title">결제·멤버십</div>
+                <div className="mypage-card__sm-meta">
+                  {isPro ? "BDR+ PRO 활성" : "결제 내역·구독"}
+                </div>
+              </div>
+              <div className="mypage-card__md-arrow">→</div>
+            </Link>
+          </section>
+
+          {/* IA Footnote — 16+ 페이지 색인 (collapsed) */}
+          <details className="mypage-index">
+            <summary>전체 페이지 색인 (16 + 외부 5)</summary>
+            <div className="mypage-index__grid">
+              {[
+                ["/profile", "대시보드"],
+                ["/profile/edit", "프로필 편집"],
+                ["/profile/settings", "설정"],
+                ["/profile/activity", "내 활동"],
+                ["/profile/bookings", "예약 이력"],
+                ["/profile/billing", "결제 내역"],
+                ["/profile/achievements", "업적·배지"],
+                ["/profile/growth", "성장 추이"],
+                ["/profile/weekly-report", "주간 리포트"],
+                ["/profile/complete", "프로필 완성"],
+                ["/profile/notification-settings", "알림 설정"],
+                ["/profile/payments", "결제"],
+                ["/profile/preferences", "선호"],
+                ["/profile/subscription", "멤버십"],
+                ["/profile/basketball", "농구 데이터"],
+                ["/profile/complete/preferences", "취향"],
+                ["/games/my-games", "내 신청 내역", "ext"],
+                ["/community/new", "글 작성", "ext"],
+                ["/safety", "안전·차단", "ext"],
+                ["/stats", "통계 분석", "ext"],
+                ["/refund", "환불 정책", "ext"],
+              ].map(([href, label, kind], i) => (
+                <Link
+                  key={i}
+                  href={href as string}
+                  className={`mypage-index__row${kind ? " mypage-index__row--ext" : ""}`}
+                >
+                  <span className="t-mono">{href}</span>
+                  <span>{label}</span>
+                  {kind && (
+                    <span className="badge" style={{ fontSize: 9 }}>
+                      EXT
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </details>
+        </div>
+
+        {/* ASIDE */}
+        <aside className="mypage__aside">
+          {/* 다음 경기 — D-N countdown */}
+          {nextGame ? (
+            <div className="card mypage-aside-card">
+              <div className="mypage-aside-card__head">
+                <span className="eyebrow" style={{ fontSize: 10 }}>
+                  다음 경기
+                </span>
+              </div>
+              <div className="mypage-next">
+                <div className="mypage-next__d">D-{dDays ?? 0}</div>
+                <div className="mypage-next__body">
+                  <div className="mypage-next__title">{nextGame.title}</div>
+                  <div className="mypage-next__meta">
+                    {nextGame.venueName}
+                    {nextGame.scheduledAt && (
+                      <>
+                        {" · "}
+                        {nextGame.scheduledAt.toLocaleDateString("ko-KR", {
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </>
+                    )}
+                  </div>
+                  <Link
+                    href={`/games/${nextGame.id}`}
+                    className="btn btn--sm"
+                    style={{ marginTop: 8, width: "100%", display: "block", textAlign: "center" }}
+                  >
+                    경기 상세 →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="card mypage-aside-card">
+              <div className="mypage-aside-card__head">
+                <span className="eyebrow" style={{ fontSize: 10 }}>
+                  다음 경기
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-mute)", padding: "8px 0" }}>
+                예정된 경기가 없어요.
+              </div>
+              <Link href="/games" className="btn btn--sm" style={{ width: "100%", display: "block", textAlign: "center" }}>
+                경기 둘러보기 →
+              </Link>
+            </div>
           )}
 
-          {/* 뱃지 — 1개 이상일 때만 */}
-          {badges.length > 0 && <BadgesSideCard badges={badges} />}
-        </aside>
+          {/* 소속 팀 */}
+          {primaryTeam && (
+            <div className="card mypage-aside-card">
+              <div className="mypage-aside-card__head">
+                <span className="eyebrow" style={{ fontSize: 10 }}>
+                  소속 팀
+                </span>
+                <Link href="/teams" className="mypage-aside-card__more">
+                  전체
+                </Link>
+              </div>
+              <Link
+                href={`/teams/${primaryTeam.id}`}
+                className="mypage-team"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <span
+                  className="mypage-team__tag"
+                  style={{ background: primaryTeam.primaryColor, color: teamInk }}
+                >
+                  {primaryTeam.tag}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="mypage-team__name">{primaryTeam.name}</div>
+                  {teamMembers.length > 1 && (
+                    <div className="mypage-team__rec t-mono">+{teamMembers.length - 1} 팀</div>
+                  )}
+                </div>
+              </Link>
+            </div>
+          )}
 
-        {/* ========== 우측 main ========== */}
-        <div>
-          <SeasonStats data={seasonStatsData} seasonLabel="통산" />
-          <UpcomingGames game={nextGame} />
-          <ActivityTimeline items={activities} />
-        </div>
+          {/* 최근 활동 5건 */}
+          {recent.length > 0 && (
+            <div className="card mypage-aside-card">
+              <div className="mypage-aside-card__head">
+                <span className="eyebrow" style={{ fontSize: 10 }}>
+                  최근 활동
+                </span>
+                <Link href="/profile/activity" className="mypage-aside-card__more">
+                  전체
+                </Link>
+              </div>
+              <ul className="mypage-recent">
+                {recent.map((r) => (
+                  <li key={r.key} className="mypage-recent__row">
+                    <span className="mypage-recent__date t-mono">{r.date}</span>
+                    <span className={`mypage-recent__tag mypage-recent__tag--${r.tag}`} />
+                    <span className="mypage-recent__label">{r.label}</span>
+                    <span className="mypage-recent__target">{r.target}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* 도움말 */}
+          <div className="card mypage-aside-card mypage-aside-card--help">
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>
+              도움이 필요하세요?
+            </div>
+            <div style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 10 }}>
+              계정 / 결제 / 환불 문의는 24시간 이내 답변드려요.
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <Link
+                href="/help"
+                className="btn btn--sm"
+                style={{ flex: 1, textAlign: "center" }}
+              >
+                도움말
+              </Link>
+              <Link
+                href="/safety"
+                className="btn btn--sm"
+                style={{ flex: 1, textAlign: "center" }}
+              >
+                안전·차단
+              </Link>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
+  );
+}
+
+/* ============================================================
+ * Spark — 시안 inline sparkline (내 성장 카드 시각 요소)
+ *
+ * 출처: BDR-current/screens/MyPage.jsx L344-363
+ * 용도: hub 카드의 시각적 hint — 진짜 12주 데이터는 P1 /profile/growth 에서.
+ * Server Component 호환 (SVG 만 사용).
+ * ============================================================ */
+function Spark({ values }: { values: number[] }) {
+  const w = 220;
+  const h = 44;
+  const pad = 2;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const step = (w - pad * 2) / (values.length - 1);
+  const pts = values
+    .map((v, i) => {
+      const x = pad + i * step;
+      const y = h - pad - ((v - min) / range) * (h - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const lastX = pad + (values.length - 1) * step;
+  const lastY =
+    h - pad - ((values[values.length - 1] - min) / range) * (h - pad * 2);
+  return (
+    <svg
+      className="mypage-card__spark"
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+    >
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth="2"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <circle cx={lastX} cy={lastY} r="3" fill="var(--accent)" />
+    </svg>
   );
 }
