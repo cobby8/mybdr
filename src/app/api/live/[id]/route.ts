@@ -585,7 +585,9 @@ export async function GET(
     const mvpPlayer = allMvpCandidates[0] ?? null;
 
     // 2026-04-22: GameResult v2 — play_by_plays 타임라인 응답
-    // 이유: 시안 timeline 탭을 위해 최근 이벤트 역순 노출. 상위 50건까지만 내림.
+    // 이유: 시안 timeline 탭을 위해 최근 이벤트 역순 노출.
+    // 2026-05-02: 50 → 500 cap 으로 확대 (사용자 요청 "타임라인 전부 표시 안 됨").
+    //   한 경기 PBP 평균 200~400건. 500이면 실질 무제한. 응답 크기 영향 미미.
     // 기존 응답 구조(playByPlays: []) 자리에 채워넣음 → 프론트 필드명 불변.
     // 선수명/팀ID는 allPbps 의 BigInt 만으로는 못 내리므로 roster(TournamentTeamPlayer)로 직접 lookup.
     // BUG: home_players[].id 는 분기(진행중/종료)에 따라 (a) tournament_team_player.id 또는 (b) match_player_stat.id
@@ -609,7 +611,7 @@ export async function GET(
       // 같은 쿼터 안에서는 clock 값이 작은 쪽(후반)이 먼저 — 농구 클럭은 10:00→0:00 감소
       return (a.game_clock_seconds ?? 0) - (b.game_clock_seconds ?? 0);
     });
-    const playByPlays = sortedPbp.slice(0, 50).map((p, idx) => {
+    const playByPlays = sortedPbp.slice(0, 500).map((p, idx) => {
       const pid = p.tournament_team_player_id ? Number(p.tournament_team_player_id) : null;
       const playerInfo = pid ? playerNameById.get(pid) : null;
       return {
