@@ -25,6 +25,7 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import type { RoundGroup, BracketMatch } from "@/lib/tournaments/bracket-builder";
+import { BracketView } from "../bracket/_components/bracket-view";
 
 // ── Stage 메타 ────────────────────────────────────────
 type DualStage = {
@@ -70,9 +71,66 @@ function slotLabel(team: BracketMatch["homeTeam"], fallback: string | null): str
 // ── Props ────────────────────────────────────────────
 interface Props {
   rounds: RoundGroup[];
+  tournamentId: string;
 }
 
-export function V2DualBracketView({ rounds }: Props) {
+/**
+ * 8강~결승 SVG 트리용 매치 재정렬 (NBA 크로스 매핑)
+ *
+ * 왜 재정렬:
+ * BracketView 의 computeMatchPositions 가 단순 i*2 페어링
+ * (matches[0]+matches[1] → next[0], matches[2]+matches[3] → next[1])
+ *
+ * 듀얼 NBA 크로스: QF1+QF4 → SF1, QF2+QF3 → SF2
+ * → 8강 매치 배열을 [QF1, QF4, QF2, QF3] 순서로 정렬하면
+ *   BracketView 의 단순 페어링이 자동으로 NBA 크로스와 일치
+ */
+function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
+  // round 4·5·6 만 추출
+  const qf = allMatches.filter((m) => m.roundNumber === 4);
+  const sf = allMatches.filter((m) => m.roundNumber === 5);
+  const f = allMatches.filter((m) => m.roundNumber === 6);
+
+  if (qf.length === 0) return [];
+
+  // 8강 NBA 크로스 순서로 재정렬: [pos1, pos4, pos2, pos3]
+  const qfReordered = [1, 4, 2, 3]
+    .map((p) => qf.find((m) => m.bracketPosition === p))
+    .filter((m): m is BracketMatch => m !== undefined);
+
+  // 4강·결승은 bracket_position 순서 그대로 (이미 정렬됨)
+  const result: RoundGroup[] = [
+    {
+      roundNumber: 4,
+      roundName: "8강",
+      matches: qfReordered,
+      hasLive: qfReordered.some((m) => m.status === "in_progress"),
+      hasCompleted: qfReordered.some((m) => m.status === "completed"),
+    },
+  ];
+  if (sf.length > 0) {
+    const sfSorted = [...sf].sort((a, b) => a.bracketPosition - b.bracketPosition);
+    result.push({
+      roundNumber: 5,
+      roundName: "4강",
+      matches: sfSorted,
+      hasLive: sfSorted.some((m) => m.status === "in_progress"),
+      hasCompleted: sfSorted.some((m) => m.status === "completed"),
+    });
+  }
+  if (f.length > 0) {
+    result.push({
+      roundNumber: 6,
+      roundName: "결승",
+      matches: f,
+      hasLive: f.some((m) => m.status === "in_progress"),
+      hasCompleted: f.some((m) => m.status === "completed"),
+    });
+  }
+  return result;
+}
+
+export function V2DualBracketView({ rounds, tournamentId }: Props) {
   // 평평하게 매치 추출
   const allMatches = rounds.flatMap((r) => r.matches);
 
@@ -88,6 +146,10 @@ export function V2DualBracketView({ rounds }: Props) {
     matches: allMatches.filter((m) => stage.rounds.includes(m.roundNumber)),
   }));
 
+  // 8강~결승 SVG 트리 (NBA 크로스 재정렬)
+  const knockoutRounds = buildKnockoutRounds(allMatches);
+  const hasKnockoutTree = knockoutRounds.length > 0;
+
   return (
     <div className="space-y-4">
       <div className="mb-3 flex items-center justify-between">
@@ -95,6 +157,13 @@ export function V2DualBracketView({ rounds }: Props) {
           듀얼토너먼트 ({allMatches.length}경기)
         </h2>
       </div>
+
+      {/* 최종 토너먼트 트리 — 8강·4강·결승 SVG V자 트리 (NBA 크로스 정합) */}
+      {hasKnockoutTree && (
+        <Card className="!p-4 sm:!p-6 overflow-x-auto">
+          <BracketView rounds={knockoutRounds} tournamentId={tournamentId} />
+        </Card>
+      )}
 
       {stageMatches.map((stage) => {
         const isCollapsed = collapsed[stage.key] === true;
