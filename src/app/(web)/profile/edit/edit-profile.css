@@ -582,11 +582,19 @@
     align-items: stretch;
     gap: 8px;
     border-radius: 4px;
-    /* 2026-05-02: 모바일 BottomNav (fixed bottom 60px) 위로 sticky 바 올림 — 사용자 요청
-        sticky 동작 + bottom: 60px → 스크롤 중에도 BottomNav 위에 항상 노출 */
-    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    /* 2026-05-02: 모바일 sticky → fixed 변경
+        원인: globals.css `body { overflow-x: hidden }` (모바일 가로 overflow 차단 룰) 이 sticky 깨뜨림.
+        해결: fixed + bottom: 60px(BottomNav) + safe-area-inset-bottom + 8px 여백 → 항상 viewport 하단 노출 */
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 8px);
+    margin-top: 0;
+    z-index: 70;
   }
   .edit-profile__sticky .edit-profile__actions .btn { min-height: 44px; }
+  /* fixed sticky 바에 컨텐츠 가리지 않도록 페이지 padding-bottom 충분히 (sticky ~120 + BottomNav 60 + 여백) */
+  .edit-profile { padding: 0 16px 220px; }
 }
 
 /* ===== chip 베이스 — globals.css 에 .chip 정의가 없어서 박제 ===== */
