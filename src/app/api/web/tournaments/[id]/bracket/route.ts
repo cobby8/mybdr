@@ -7,6 +7,13 @@ import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // 풀리그(라운드 로빈) 자동 생성 유틸 — single_elimination 외 format 분기용
 import { generateRoundRobinMatches, isLeagueFormat } from "@/lib/tournaments/league-generator";
+// 듀얼토너먼트 자동 생성 유틸 (Phase A 신설) — 16팀 4조 27 매치 구조
+import {
+  generateDualTournament,
+  validateGroupAssignment,
+  type DualGroupAssignment,
+} from "@/lib/tournaments/dual-tournament-generator";
+import { Prisma } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -166,6 +173,186 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       if (err.code === "TEAMS_INSUFFICIENT" || err.message === "TEAMS_INSUFFICIENT") {
         return apiError("2팀 이상 승인되어야 풀리그 경기를 생성할 수 있습니다.", 400);
       }
+      if (err.code === "ALREADY_EXISTS" || err.message === "ALREADY_EXISTS") {
+        return apiError("이미 경기가 존재합니다. 재생성을 원하면 clear=true 로 요청하세요.", 409);
+      }
+      throw e;
+    }
+  }
+
+  // ── format 분기: 듀얼토너먼트 (16팀 4조 27 매치 고정 구조) ──
+  // 이유: dual 은 single elim 트리와 완전히 다른 구조 (조별 미니 더블엘리미 + 8강~결승 5단계).
+  //       generator 가 27 매치 + nextMatch/loserNext 매핑까지 전부 만들고,
+  //       caller(여기) 는 createMany + 받은 BigInt id 로 next_match_id 2단계 UPDATE 만 처리.
+  //       single elim 회귀 0 — 본 분기는 dual_tournament 일 때만 진입 후 조기 return.
+  if (tournamentMeta?.format === "dual_tournament") {
+    try {
+      // 1) settings.bracket.groupAssignment 검증 (사용자 수동 입력)
+      //    - 4조 × 4팀 = 16팀 unique
+      //    - 사진 그대로 입력: A=[피벗, SYBC, ...], B=[...], C=[...], D=[...]
+      const settings = tournamentMeta.settings as Record<string, unknown> | null;
+      const bracket = settings?.bracket as Record<string, unknown> | undefined;
+      const rawGroupAssignment = bracket?.groupAssignment as
+        | Record<string, Array<string | number>>
+        | undefined;
+
+      if (!rawGroupAssignment || !rawGroupAssignment.A || !rawGroupAssignment.B || !rawGroupAssignment.C || !rawGroupAssignment.D) {
+        return apiError(
+          "듀얼토너먼트는 settings.bracket.groupAssignment 에 4조(A/B/C/D) 배정이 필요합니다.",
+          400,
+        );
+      }
+
+      // string|number 입력을 BigInt 로 변환 (settings JSON 직렬화 안전성)
+      let groupAssignment: DualGroupAssignment;
+      try {
+        groupAssignment = {
+          A: rawGroupAssignment.A.map((id) => BigInt(id)) as [bigint, bigint, bigint, bigint],
+          B: rawGroupAssignment.B.map((id) => BigInt(id)) as [bigint, bigint, bigint, bigint],
+          C: rawGroupAssignment.C.map((id) => BigInt(id)) as [bigint, bigint, bigint, bigint],
+          D: rawGroupAssignment.D.map((id) => BigInt(id)) as [bigint, bigint, bigint, bigint],
+        };
+        validateGroupAssignment(groupAssignment); // 16팀 unique + 각 조 4팀
+      } catch (validateErr) {
+        const msg = validateErr instanceof Error ? validateErr.message : "조 배정 검증 실패";
+        return apiError(msg, 400);
+      }
+
+      // 2) 매치 0건 확인 (B 대회 첫 생성 OK / 재생성은 clear=true 필요)
+      //    + advisory lock + createMany + 27 update 까지 한 트랜잭션
+      const dualResult = await prisma.$transaction(
+        async (tx) => {
+          // tournament_id 기반 advisory lock (동시 생성 방지)
+          await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${id})::bigint)`;
+
+          // clear 처리: false 면 기존 매치 있을 때 ALREADY_EXISTS, true 면 모두 삭제 후 재생성
+          if (body.clear) {
+            await tx.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+          } else {
+            const existing = await tx.tournamentMatch.count({ where: { tournamentId: id } });
+            if (existing > 0) {
+              throw Object.assign(new Error("ALREADY_EXISTS"), { code: "ALREADY_EXISTS" });
+            }
+          }
+
+          // 3) generator 호출 — 27 DualMatchToCreate 반환
+          const dualMatches = generateDualTournament(groupAssignment, id);
+
+          // 4) createMany 27건 INSERT (next_match_id 는 null — 자기 참조 FK 회피)
+          //    settings JSON 에 슬롯 라벨 + (G1·G2·G3 의 loserNextMatchSlot) 임시 저장
+          //    실제 loserNextMatchId 는 INSERT 후 2단계 UPDATE 에서 채움
+          const matchNumberToIndex = new Map<number, number>(); // matchNumber → matches[] 인덱스 (역추적용)
+          const createData: Prisma.TournamentMatchCreateManyInput[] = dualMatches.map((m, idx) => {
+            matchNumberToIndex.set(m.matchNumber, idx);
+            // 슬롯 라벨은 항상 settings 에 저장 (UI 표시용)
+            const settingsJson: Record<string, unknown> = {
+              homeSlotLabel: m._homeSlotLabel,
+              awaySlotLabel: m._awaySlotLabel,
+            };
+            return {
+              tournamentId: m.tournamentId,
+              homeTeamId: m.homeTeamId,
+              awayTeamId: m.awayTeamId,
+              status: m.status,
+              bracket_position: m.bracketPosition,
+              bracket_level: m.bracketLevel,
+              roundName: m.roundName,
+              round_number: m.roundNumber,
+              match_number: m.matchNumber,
+              group_name: m.group_name,
+              homeScore: 0,
+              awayScore: 0,
+              settings: settingsJson as Prisma.InputJsonValue,
+              // next_match_id / next_match_slot 는 2단계 UPDATE 에서 채움
+            };
+          });
+
+          await tx.tournamentMatch.createMany({ data: createData });
+
+          // 5) 새로 생성된 27 매치를 match_number 순으로 다시 조회해서 BigInt id 매핑
+          //    matchNumber 는 generator 에서 1부터 순차 부여 = matches[] 인덱스 + 1
+          const insertedMatches = await tx.tournamentMatch.findMany({
+            where: { tournamentId: id },
+            orderBy: { match_number: "asc" },
+            select: { id: true, match_number: true, settings: true },
+          });
+
+          if (insertedMatches.length !== 27) {
+            throw new Error(
+              `듀얼토너먼트 INSERT 후 매치 수 불일치: 27 expected, ${insertedMatches.length} found`,
+            );
+          }
+
+          // matches[] 인덱스 → 새 BigInt id
+          const indexToId = new Map<number, bigint>();
+          for (const inserted of insertedMatches) {
+            const idx = matchNumberToIndex.get(inserted.match_number ?? -1);
+            if (idx === undefined) {
+              throw new Error(
+                `INSERT 결과 match_number ${inserted.match_number} 가 generator 출력에 없음`,
+              );
+            }
+            indexToId.set(idx, inserted.id);
+          }
+
+          // 6) 27건 UPDATE: next_match_id + next_match_slot + settings.loserNextMatchId/Slot
+          //    generator 의 _winnerNextMatchIndex / _loserNextMatchIndex 를 실제 BigInt id 로 변환
+          for (let idx = 0; idx < dualMatches.length; idx++) {
+            const m = dualMatches[idx];
+            const myId = indexToId.get(idx)!;
+
+            // 다음 winner 진출 매치 id (있으면)
+            const winnerNextId =
+              m._winnerNextMatchIndex != null ? indexToId.get(m._winnerNextMatchIndex) ?? null : null;
+            // 다음 loser 진출 매치 id (있으면) — settings JSON 에 저장
+            const loserNextId =
+              m._loserNextMatchIndex != null ? indexToId.get(m._loserNextMatchIndex) ?? null : null;
+
+            // settings JSON 갱신: 기존 슬롯 라벨 + loserNextMatchId/Slot 추가
+            // BigInt 직렬화 안전성: loserNextMatchId 는 string 으로 저장 (JSON 호환)
+            const updatedSettings: Record<string, unknown> = {
+              homeSlotLabel: m._homeSlotLabel,
+              awaySlotLabel: m._awaySlotLabel,
+            };
+            if (loserNextId != null && m._loserNextMatchSlot) {
+              updatedSettings.loserNextMatchId = loserNextId.toString();
+              updatedSettings.loserNextMatchSlot = m._loserNextMatchSlot;
+            }
+
+            await tx.tournamentMatch.update({
+              where: { id: myId },
+              data: {
+                next_match_id: winnerNextId,
+                next_match_slot: m._winnerNextMatchSlot,
+                settings: updatedSettings as Prisma.InputJsonValue,
+              },
+            });
+          }
+
+          // 7) Tournament.matches_count 캐시 업데이트
+          const total = await tx.tournamentMatch.count({ where: { tournamentId: id } });
+          await tx.tournament.update({
+            where: { id },
+            data: { matches_count: total },
+          });
+
+          return { created: dualMatches.length };
+        },
+        { timeout: 30000 }, // 27 매치 + 27 update = 54 쿼리. 여유 타임아웃
+      );
+
+      // 8) bracket_version 기록 (다른 format 과 일관성 유지)
+      await createBracketVersion(id, auth.userId);
+
+      return apiSuccess({
+        success: true,
+        type: "dual_tournament",
+        format: "dual_tournament",
+        created: dualResult.created,
+        versionNumber: versionStatus.currentVersion + 1,
+      });
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
       if (err.code === "ALREADY_EXISTS" || err.message === "ALREADY_EXISTS") {
         return apiError("이미 경기가 존재합니다. 재생성을 원하면 clear=true 로 요청하세요.", 409);
       }
