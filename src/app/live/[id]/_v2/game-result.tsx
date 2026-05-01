@@ -18,7 +18,7 @@
 // 진입: /live/[id] (경기 종료 자동) / 알림 "경기 결과 보기" 클릭
 // 복귀: /games/[id] / /games/my-games / /live (다른 경기 보기)
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroScoreboard } from "./hero-scoreboard";
 import { MvpBanner } from "./mvp-banner";
@@ -27,6 +27,7 @@ import { TabTeamStats } from "./tab-team-stats";
 import { TabPlayers } from "./tab-players";
 import { TabTimeline } from "./tab-timeline";
 import { TabShotChart } from "./tab-shot-chart";
+import { PrintBoxScoreArea } from "./print-box-score";
 
 // page.tsx 의 MatchData 와 동일한 공용 타입 — 순환 참조 피하려 여기에 최소 정의를 다시 둠
 // (리팩토링 금지 원칙상 page.tsx export 를 건드리지 않기 위함)
@@ -129,9 +130,58 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
   // 탭 상태 — 기본 "요약". 시안 GameResult.jsx L4 와 동일.
   const [tab, setTab] = useState<TabId>("summary");
 
+  // 2026-05-02: 프린트 모드 — 옛 page.tsx 의 isPrinting state 패턴 카피
+  // 이유: globals.css 의 [data-live-root][data-printing="true"] 룰이
+  //       #box-score-print-area 외 모든 형제 노드를 display: none 처리.
+  //       @media print 의존 없이 모바일 브라우저 호환 (errors.md 2026-04-17 참조).
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  // 프린트 트리거 — "개인 기록" 탭에서 버튼 클릭 시 호출
+  // 동작: isPrinting=true → DOM 리렌더 (다른 형제 hide) → window.print() → afterprint 으로 복원
+  useEffect(() => {
+    if (!isPrinting) return;
+
+    // 프린트 시 문서 제목 = "YYMMDDHH_홈_원정" (옛 page.tsx 와 동일 포맷)
+    const originalTitle = document.title;
+    const homeName = match.home_team?.name ?? "home";
+    const awayName = match.away_team?.name ?? "away";
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const printTitle = `${yy}${mm}${dd}${hh}_${homeName}_${awayName}`;
+    document.title = printTitle;
+
+    // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+      setIsPrinting(false);
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+    window.addEventListener("afterprint", handleAfterPrint);
+
+    // 다음 tick 에서 window.print() — DOM 반영 후 실행
+    const timer = setTimeout(() => {
+      window.print();
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("afterprint", handleAfterPrint);
+      if (document.title === printTitle) document.title = originalTitle;
+    };
+  }, [isPrinting, match]);
+
   return (
     // v2 디자인 토큰 사용 (globals.css 의 .page / --ink / --accent 등)
-    <div className="page" style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}>
+    // 2026-05-02: data-live-root + data-printing — 프린트 시 #box-score-print-area 외 노드 숨김
+    <div
+      data-live-root
+      data-printing={isPrinting ? "true" : undefined}
+      className="page"
+      style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}
+    >
       {/* Hero 스코어보드 — 시안 L118~L179 */}
       <HeroScoreboard match={match} />
 
@@ -172,7 +222,53 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
       {/* 탭별 컨텐츠 */}
       {tab === "summary" && <TabSummary match={match} />}
       {tab === "team" && <TabTeamStats match={match} />}
-      {tab === "players" && <TabPlayers match={match} />}
+      {tab === "players" && (
+        <>
+          {/*
+            2026-05-02: "개인 기록" 탭에서만 프린트 버튼 노출.
+            이유: 박스스코어 프린트는 본질적으로 개인 기록 데이터.
+            클릭 → setIsPrinting(true) → useEffect → window.print().
+            data-print-hide 으로 프린트 영역에는 표시 안 됨.
+          */}
+          <div
+            data-print-hide
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginBottom: 12,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsPrinting(true)}
+              className="btn btn--sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 14px",
+                background: "var(--bg-elev)",
+                color: "var(--ink)",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+              aria-label="박스스코어 프린트"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 18 }}
+              >
+                print
+              </span>
+              박스스코어 프린트
+            </button>
+          </div>
+          <TabPlayers match={match} />
+        </>
+      )}
       {tab === "timeline" && <TabTimeline match={match} />}
       {tab === "shotchart" && <TabShotChart match={match} />}
 
@@ -184,6 +280,7 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
       */}
       <div
         className="cta-grid"
+        data-print-hide
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
@@ -290,6 +387,13 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
           </span>
         </Link>
       </div>
+
+      {/*
+        2026-05-02: 프린트 전용 영역 — 평소엔 hidden, isPrinting=true 시에만
+        globals.css 의 [data-printing="true"] 룰로 단독 표시.
+        페이지 다른 형제 노드는 모두 display: none 처리됨.
+      */}
+      <PrintBoxScoreArea match={match} />
     </div>
   );
 }
