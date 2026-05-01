@@ -2,13 +2,30 @@
 
 // 2026-04-22: Phase 2 GameResult v2 — 개인 기록 탭
 // 시안: Dev/design/BDR v2/screens/GameResult.jsx L268~L287
-// 팀별 박스스코어 테이블 (No / 선수 / POS / MIN / PTS / REB / AST / STL / BLK / TOV / PF / FG / 3P / FT / +/-)
-// D5 원칙:
-//  - POS (포지션): tournamentTeamPlayer 에 position 필드 없음 → 생략 (14컬럼 유지)
-//  - 시안 star 표시: MVP 플레이어 id 매칭으로 star 표시
+// 팀별 박스스코어 테이블
+//
+// 2026-05-02: 슈팅 확률(FG%/3P%/FT%) 컬럼 추가
+// 이유: 사용자 요청 — 박스스코어에서 효율 지표가 핵심이라 누락된 % 컬럼 복원.
+// 변경: 14 컬럼 → 17 컬럼.
+//   기존: # / 선수 / MIN / PTS / REB / AST / STL / BLK / TOV / PF / FG / 3P / FT / +/-
+//   신규: # / 선수 / MIN / PTS / REB / AST / STL / BLK / TOV / PF / FG / FG% / 3P / 3P% / FT / FT% / +/-
+// 0/0 → "-" 로 표시 (DivByZero 방지). 그 외 Math.round((made/att)*100)% 표기.
+// minWidth 860 → 1020 으로 상향 (가로 스크롤 wrapper 는 ScrollableTable 이 제공).
 
 import { ScrollableTable } from "@/components/ui/scrollable-table";
-import type { MatchDataV2, MvpPlayerV2, PlayerRowV2 } from "./game-result";
+import type { MatchDataV2, PlayerRowV2 } from "./game-result";
+
+// 그리드 컬럼 정의 — 17 컬럼 (한 곳에서 관리해 헤더/행 동기화)
+// # / 선수 / MIN / PTS / REB / AST / STL / BLK / TOV / PF / FG / FG% / 3P / 3P% / FT / FT% / +/-
+const GRID_COLS =
+  "36px 1fr 42px 50px 40px 40px 40px 40px 40px 40px 56px 44px 56px 44px 56px 44px 50px";
+const GRID_MIN_WIDTH = 1020;
+
+// 슈팅 확률 헬퍼 — 시도 0 이면 "-" 반환 (NaN 방지)
+function pct(made: number, attempted: number): string {
+  if (!attempted || attempted <= 0) return "-";
+  return `${Math.round((made / attempted) * 100)}%`;
+}
 
 export function TabPlayers({ match }: { match: MatchDataV2 }) {
   const mvpId = match.mvp_player?.id ?? null;
@@ -83,14 +100,14 @@ function TeamTable({
         </div>
       </div>
 
-      {/* 테이블 — ScrollableTable 로 가로 스크롤 + 페이드 마스크 + 마이크로카피 제공.
-          홈/원정 두 테이블 각각 독립 인스턴스 → 스크롤 상태/끝 도달 여부 분리 추적 */}
+      {/* 테이블 — ScrollableTable 로 가로 스크롤 + 페이드 마스크.
+          17 컬럼이라 모바일은 가로 스크롤 필수 (minWidth 1020). */}
       <ScrollableTable>
         {/* 헤더 행 */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "36px 1fr 42px 50px 40px 40px 40px 40px 40px 40px 56px 56px 56px 50px",
+            gridTemplateColumns: GRID_COLS,
             gap: 6,
             padding: "8px 10px",
             background: "var(--bg-alt)",
@@ -98,7 +115,7 @@ function TeamTable({
             fontWeight: 700,
             color: "var(--ink-dim)",
             letterSpacing: ".06em",
-            minWidth: 860,
+            minWidth: GRID_MIN_WIDTH,
           }}
         >
           <span>#</span>
@@ -112,8 +129,11 @@ function TeamTable({
           <span>TOV</span>
           <span>PF</span>
           <span>FG</span>
+          <span>FG%</span>
           <span>3P</span>
+          <span>3P%</span>
           <span>FT</span>
+          <span>FT%</span>
           <span>+/-</span>
         </div>
 
@@ -164,25 +184,37 @@ function PlayerRow({
   const pm = player.plus_minus ?? 0;
   const pmStr = pm > 0 ? `+${pm}` : String(pm);
 
+  // 슈팅 확률 미리 계산 (DNP 가 아닐 때만 의미 있음)
+  const fgPct = pct(player.fgm, player.fga);
+  const tpPct = pct(player.tpm, player.tpa);
+  const ftPct = pct(player.ftm, player.fta);
+
   const cellBase = {
     fontFamily: "var(--ff-mono)",
     fontSize: 11,
     color: "var(--ink)",
   } as const;
 
+  // % 셀은 약간 더 톤다운 (보조 지표) — ink-soft 사용
+  const pctCell = {
+    fontFamily: "var(--ff-mono)",
+    fontSize: 10,
+    color: "var(--ink-soft)",
+  } as const;
+
   if (dnp) {
-    // DNP 행 — 배경 어둡게, 대부분 "-"
+    // DNP 행 — 배경 어둡게, 17 컬럼 모두 "-" (선수/MIN 제외)
     return (
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "36px 1fr 42px 50px 40px 40px 40px 40px 40px 40px 56px 56px 56px 50px",
+          gridTemplateColumns: GRID_COLS,
           gap: 6,
           padding: "10px",
           fontSize: 11,
           borderBottom: isLast ? 0 : "1px solid var(--border)",
           alignItems: "center",
-          minWidth: 860,
+          minWidth: GRID_MIN_WIDTH,
           background: "var(--bg-alt)",
           opacity: 0.6,
         }}
@@ -203,17 +235,12 @@ function PlayerRow({
           {player.name}
         </span>
         <span style={cellBase}>DNP</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
-        <span style={cellBase}>-</span>
+        {/* 나머지 15 컬럼은 모두 "-" — PTS/REB/AST/STL/BLK/TOV/PF/FG/FG%/3P/3P%/FT/FT%/+/- */}
+        {Array.from({ length: 15 }).map((_, idx) => (
+          <span key={idx} style={cellBase}>
+            -
+          </span>
+        ))}
       </div>
     );
   }
@@ -222,13 +249,13 @@ function PlayerRow({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "36px 1fr 42px 50px 40px 40px 40px 40px 40px 40px 56px 56px 56px 50px",
+        gridTemplateColumns: GRID_COLS,
         gap: 6,
         padding: "10px",
         fontSize: 11,
         borderBottom: isLast ? 0 : "1px solid var(--border)",
         alignItems: "center",
-        minWidth: 860,
+        minWidth: GRID_MIN_WIDTH,
       }}
     >
       <span style={{ color: "var(--ink-dim)", fontWeight: 700, fontFamily: "var(--ff-mono)" }}>
@@ -274,12 +301,16 @@ function PlayerRow({
       <span style={cellBase}>
         {player.fgm}/{player.fga}
       </span>
+      {/* 슈팅 확률 3종 — 보조 지표라 ink-soft 톤다운 */}
+      <span style={pctCell}>{fgPct}</span>
       <span style={cellBase}>
         {player.tpm}/{player.tpa}
       </span>
+      <span style={pctCell}>{tpPct}</span>
       <span style={cellBase}>
         {player.ftm}/{player.fta}
       </span>
+      <span style={pctCell}>{ftPct}</span>
       <span
         style={{
           ...cellBase,
