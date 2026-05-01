@@ -2,6 +2,23 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-02] 듀얼토너먼트(`dual_tournament`) 풀 시스템 설계 — 27 매치 generator + 5 Stage 시각화
+- **분류**: architecture
+- **발견자**: planner-architect
+- **참조횟수**: 0
+- **내용**: `dual_tournament` 포맷의 system 1급 시민화 설계. 동호회최강전 (B 대회, id=`138b22d8…`, 16팀 / 5/2~5/10) 사례 기반.
+  - **포맷 정의**: 16팀 → 4조×4팀 미니 더블엘리미 → 조별 1·2위 8팀 → 8강 단판 → 4강 NBA 크로스 (1+4 / 2+3) → 결승. 총 **27 매치**.
+  - **Stage 매핑**: round_number 1~6 (1·2 조별, 3 조별 최종전, 4 8강, 5 4강, 6 결승) + bracket_level 0~3 (조별/8강/4강/결승) + group_name "A"~"D".
+  - **schema 변경 0** — 활용 컬럼: `next_match_id` (승자 진출) / `settings.loserNextMatchId+loserNextMatchSlot` (조별 패자 진출) / `group_name` (A~D) / `bracket_level` (트리 단계) / `bracket_position` (라인) / `roundName` (조별 1라/승자전/패자전/조별 최종전/8강/4강/결승).
+  - **신규 파일 3**: `src/lib/tournaments/dual-tournament-generator.ts` (`generateDualTournament(teams, settings, tournamentId)` — 27 매치 + nextMatch/loserNext 매핑) / `src/lib/tournaments/dual-progression.ts` (`progressDualMatch(matchId, winnerId, tx)` — 승자/패자 자동 진출 단일 책임) / `scripts/_temp/seed-tournament-B-schedule.ts` (Phase E B 대회 일정 일괄 입력).
+  - **수정 파일 4**: `bracket-settings-form.tsx` dual 분기 / `api/web/tournaments/[id]/bracket/route.ts` POST dual 분기 (single/league 분기 신설) / `api/web/tournaments/[id]/matches/[matchId]/route.ts` PATCH 의 status=completed 시 progressDualMatch 호출 (모든 format 통합 효과) / `tournament-admin/[id]/bracket/page.tsx` Stage 5섹션 그룹핑.
+  - **변경 0 파일**: `tournament-admin/[id]/matches/page.tsx` (기존 일정·점수 UI 호환) / `score-updater.ts` (점수 atomic update 만 — winner 진출은 별도) / `bracket-builder.ts` (Phase F 별도 큐 — 공개 페이지 시각화).
+  - **알고리즘 핵심**: createMany 후 next_match_id 2단계 update (자기 참조 FK 회피, league-generator 패턴 차용). settings JSON 안전은 tournament-seeding `Prisma.JsonNull` 패턴 차용. 4강 크로스 = `8강1+8강4 / 8강2+8강3` 매핑 (bracket_position).
+  - **5 Phase 계획**: A 인프라(generator+progression, ~2h) / B settings+route(~1.5h) / C progression hook(~1.5h) / D admin UI(~1.5h) / E B 대회 운영 적용(~2h) — 총 ~9h. F 공개 페이지 시각화는 별도 큐.
+  - **결정 6건**: (1) 조 배정 = settings 수동 (snake 자동은 사진과 다름) (2) 시드 = TournamentTeam.seedNumber 활용 (3) 진출 트리거 = matches PATCH route 통합 (single/full_league_knockout 도 부재라 통합 효과) (4) 결승 단판/3·4위전 없음 (사진 그대로) (5) clear 정책 single 패턴 유지 (6) bracket-builder Phase F 까지 round_number 그룹핑 유지.
+  - **운영 영향**: Phase E 운영 DB 작업 (16팀 seedNumber UPDATE + settings.bracket.groupAssignment 입력 + bracket POST 27 매치 INSERT + scheduledAt/venue UPDATE) 사용자 명시 승인 게이트.
+  - **참고 자료**: `Dev/tournament-formats/dual-tournament/README.md` (포맷 정의 + 사진 일정 + 16팀 조 배정 + 5 Stage 흐름 100% 정리)
+
 ### [2026-05-01] Q1 Reviews + ContextReviews 박제 — 4탭 → 1탭 + 신규 재사용 컴포넌트
 - **분류**: architecture
 - **발견자**: developer
