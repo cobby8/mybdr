@@ -4,6 +4,8 @@ import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middlewa
 import { createStatSchema, bulkStatsSchema } from "@/lib/validation/match";
 import { apiSuccess, notFound, validationError, forbidden } from "@/lib/api/response";
 import { mapStatToPrisma } from "@/lib/utils/stat-mapper";
+import { getDisplayName } from "@/lib/utils/player-display-name";
+import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 
 // FR-026: 매치 스탯 조회
 async function getHandler(
@@ -12,14 +14,42 @@ async function getHandler(
 ) {
   const { id: matchId } = await ctx.params;
 
-  const stats = await prisma.matchPlayerStat.findMany({
+  const statsRaw = await prisma.matchPlayerStat.findMany({
     where: { tournamentMatchId: BigInt(matchId) },
     include: {
       tournamentTeamPlayer: {
-        select: { jerseyNumber: true, position: true, users: { select: { nickname: true } } },
+        select: {
+          jerseyNumber: true,
+          position: true,
+          player_name: true,
+          // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+          users: { select: USER_DISPLAY_SELECT },
+        },
       },
     },
   });
+
+  // Flutter 앱 호환: nickname 키 자리에 실명 우선 표시값 채움 (response schema 동일)
+  const stats = statsRaw.map((s) => ({
+    ...s,
+    tournamentTeamPlayer: s.tournamentTeamPlayer
+      ? {
+          jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
+          position: s.tournamentTeamPlayer.position,
+          users: s.tournamentTeamPlayer.users
+            ? {
+                nickname: getDisplayName(
+                  s.tournamentTeamPlayer.users,
+                  {
+                    player_name: s.tournamentTeamPlayer.player_name,
+                    jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
+                  },
+                ),
+              }
+            : null,
+        }
+      : null,
+  }));
 
   return apiSuccess(stats);
 }

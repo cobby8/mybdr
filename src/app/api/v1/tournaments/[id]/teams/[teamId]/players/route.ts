@@ -5,6 +5,7 @@ import { apiSuccess, apiError, forbidden, validationError } from "@/lib/api/resp
 import { verifyToken } from "@/lib/auth/jwt";
 import { onsitePlayerRegistrationSchema } from "@/lib/validation/player";
 import { findUserIdByName } from "@/lib/tournaments/link-player-user";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // ---------------------------------------------------------------------------
 // 인증 헬퍼: JWT 우선, API Token 폴백 (match sync 패턴 재사용)
@@ -201,7 +202,8 @@ async function handleGet(
       tournament_team_id: Number(p.tournamentTeamId),
       user_id: p.userId?.toString() ?? null,
       player_name: p.player_name,
-      user_name: p.users?.name ?? p.player_name ?? `Player #${p.jerseyNumber ?? p.id}`,
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      user_name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `Player #${p.jerseyNumber ?? p.id}`),
       jersey_number: p.jerseyNumber,
       position: p.position,
       is_active: p.is_active ?? true,

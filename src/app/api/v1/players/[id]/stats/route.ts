@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, notFound } from "@/lib/api/response";
+import { getDisplayName } from "@/lib/utils/player-display-name";
+import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 
 // FR-027: 선수 커리어 스탯
 async function handler(
@@ -11,12 +13,30 @@ async function handler(
   const { id: playerId } = await ctx.params;
   const playerIdBig = BigInt(playerId);
 
-  const player = await prisma.tournamentTeamPlayer.findUnique({
+  const playerRaw = await prisma.tournamentTeamPlayer.findUnique({
     where: { id: playerIdBig },
-    select: { id: true, position: true, jerseyNumber: true, users: { select: { nickname: true } } },
+    select: {
+      id: true,
+      position: true,
+      jerseyNumber: true,
+      player_name: true,
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      users: { select: USER_DISPLAY_SELECT },
+    },
   });
 
-  if (!player) return notFound("Player not found");
+  if (!playerRaw) return notFound("Player not found");
+
+  // Flutter 앱 호환: nickname 키 자리에 실명 우선 표시값 채움
+  // (response schema 동일 — Flutter 변경 0)
+  const player = {
+    id: playerRaw.id,
+    position: playerRaw.position,
+    jerseyNumber: playerRaw.jerseyNumber,
+    users: playerRaw.users
+      ? { nickname: getDisplayName(playerRaw.users, { player_name: playerRaw.player_name, jerseyNumber: playerRaw.jerseyNumber }) }
+      : null,
+  };
 
   const stats = await prisma.matchPlayerStat.findMany({
     where: { tournamentTeamPlayerId: playerIdBig },

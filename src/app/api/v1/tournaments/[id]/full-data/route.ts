@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, notFound, forbidden } from "@/lib/api/response";
 import { getTournamentFullData, hasAccessToTournament } from "@/lib/services/tournament";
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // FR-024: 토너먼트 전체 데이터 다운로드 (Flutter 오프라인 동기화)
 // 이 라우트는 Flutter와의 호환성을 위해 명시적 snake_case 사용
@@ -56,7 +57,8 @@ async function handler(
       id: Number(p.id),
       tournament_team_id: Number(p.tournamentTeamId),
       user_id: p.userId?.toString(),
-      user_name: p.users?.nickname ?? p.player_name ?? `#${p.jerseyNumber ?? p.id}`,
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      user_name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? p.id}`),
       jersey_number: p.jerseyNumber,
       position: p.position,
       role: p.role,

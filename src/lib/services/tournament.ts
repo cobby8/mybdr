@@ -511,7 +511,8 @@ export async function getTournamentFullData(tournamentId: string) {
     }),
     prisma.tournamentTeamPlayer.findMany({
       where: { tournamentTeam: { tournamentId } },
-      include: { users: { select: { nickname: true } } },
+      // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
+      include: { users: { select: { nickname: true, name: true } } },
     }),
     prisma.tournamentMatch.findMany({
       where: { tournamentId },
