@@ -2,6 +2,18 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-01] D-3 ProfileWeeklyReport Hybrid 박제 — 시안 v2.4 + TOP 3 코트 보존
+- **분류**: architecture
+- **발견자**: developer
+- **내용**: `src/app/(web)/profile/weekly-report/page.tsx` 920→1125 (+205). 시안 BDR-current/screens/ProfileWeeklyReport.jsx (v2.4) 박제 + 옛 운영 진짜 데이터 (TOP 3 코트 / §06 지난주 비교) 100% 보존 — Hybrid 옵션 B.
+  - **6 섹션 구조**: 빵부스러기 + HERO / 인사 + 레벨 / §01 KPI 4 (경기·평균평점·XP·활동시간) / §02 Highlight 베스트 1경기 (NEW DB 미지원 → ComingSoonBadge) / §03 인사이트 3 / **§04 자주 방문한 코트 TOP 3 (Hybrid 보존)** / §05 다음 주 추천 (NEW DB 미지원 → dashed border + ComingSoonBadge) / **§06 지난주 상세 비교 (Hybrid 보존)** / FOOTER + 뒤로가기
+  - **데이터 보존 (운영 진짜 기능 100%)**: SWR `/api/web/profile/weekly-report` 패칭 1곳 (변경 0) / `tw.top_courts` (§04) / KPI 5종 모두 표시 (session_count/total_minutes/total_xp/unique_courts/active_days → §01+§06 매핑) / streak/minutes_change 동적 인사이트 (§03)
+  - **신규 공통 컴포넌트**: `ComingSoonBadge` (D-6 패턴 차용 — 다른 v3 페이지 재사용 가능, 공통 컴포넌트 격상 큐)
+  - **DB 미지원 안내**: §01 평균 평점 카드 "-" + "평점 시스템 준비 중" / §02 Highlight + §05 다음 주 추천 = ComingSoonBadge + 시각 신호 (§05 dashed border)
+  - **검수 통과**: tsc / 13 룰 (lucide 0 / pink-salmon-coral 0 / pill 9999 0 / hex 16건 모두 fallback `var(--*, #fallback)` 14 + `#FFFFFF` primary text 2 합법) / 회귀 4 케이스 (page.tsx만 수정)
+- **참조**: decisions.md 2026-05-01 "D-3 ProfileWeeklyReport 옵션 B 채택" / 시안 Dev/design/BDR-current/screens/ProfileWeeklyReport.jsx
+- **참조횟수**: 0
+
 ### [2026-05-01] ProfileShell 폐기 — /profile/* 깊은 페이지 sidebar 0 (v2.3 hub 모델)
 - **분류**: architecture
 - **발견자**: pm + 사용자 (Cowork 직접 patch)

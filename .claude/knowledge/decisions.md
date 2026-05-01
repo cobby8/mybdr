@@ -2,6 +2,19 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-01] D-3 ProfileWeeklyReport 옵션 B (Hybrid) 채택 — TOP 3 코트 손실 0
+- **분류**: decision (시안 박제 + 데이터 보존)
+- **결정자**: pm + 사용자 (auto mode 옵션 B 선택)
+- **결정**: 시안 v2.4 (KPI 4종 변경 + Highlight + 다음 주 추천 신설) 박제 + **옛 운영 §04 TOP 3 코트 + §06 지난주 비교 보존**. 정보 손실 0.
+- **배경**: 시안 v2.4 가 KPI 라벨 변경 (session_count → 경기 / total_minutes → 활동 시간 / total_xp → XP / 평균 평점 신규) + Highlight 1경기 + 다음 주 추천 3 신설. TOP 3 코트 = 운영 진짜 데이터 (session_count 집계) → 시안 제거됨.
+- **대안 배제**:
+  - **(A) 시안 그대로** : TOP 3 코트 진짜 데이터 손실. Highlight + 다음 주 추천 = DB 미지원 더미. 진짜 데이터 손실 + 더미 추가 = 사용자 가치 다운그레이드.
+  - **(C) 보류** : 다음 세션 재검토. v3-rebake 박제 진행 정체.
+- **영향**: page.tsx 920→1125 (+205). KPI 4 라벨 (시안 박제) + §02/§05 placeholder + ComingSoonBadge / §04+§06 운영 진짜 데이터 보존. 운영 KPI 5종 (unique_courts 포함) 모두 §01+§06 분산 표시. 손실 0.
+- **후속 큐**: ComingSoonBadge 공통 컴포넌트 격상 (다른 v3 페이지 재사용) / §02 Highlight = MatchPlayerStat 평점 연동 시 활성화 / §05 추천 엔진 연동 시 시안 3카드 (GAME/COACH/TEAM) 교체
+- **참조**: architecture.md 2026-05-01 "D-3 ProfileWeeklyReport Hybrid 박제" / 시안 Dev/design/BDR-current/screens/ProfileWeeklyReport.jsx
+- **참조횟수**: 0
+
 ### [2026-05-01] ProfileShell 폐기 결정 — children passthrough 채택 (분기 확장 대안 배제)
 - **분류**: decision (component lifecycle)
 - **결정자**: pm + 사용자 (Cowork 직접 patch)

@@ -1,38 +1,41 @@
 "use client";
 
 /**
- * 주간 운동 리포트 페이지 (/profile/weekly-report)
+ * 주간 운동 리포트 페이지 (/profile/weekly-report) — D-3 Hybrid 박제 (BDR-current v2.4)
  *
- * Why: 주간 단위 활동 리포트 (이메일 주간 발송 미리보기 톤)
- *      ProfileGrowth 가 12주 trends 라면, 이건 "이번 주 vs 지난 주" 비교 + 인사이트
- * Pattern: 이메일 뉴스레터 레이아웃 — 좁은 칼럼 (max 720), 카드 stack, 명확한 섹션 헤더
+ * Why: 시안 v2.4 단일 페이지 디자인 박제 + 운영 진짜 데이터 (TOP 3 코트) 100% 보존
+ * Pattern: 이메일 뉴스레터 좁은 칼럼 (max 720) + 카드 stack + 명확한 섹션 헤더
  *
- * 시안 출처: Dev/design/BDR v2.2/screens/ProfileWeeklyReport.jsx (D등급 P1-4)
+ * 시안 출처: Dev/design/BDR-current/screens/ProfileWeeklyReport.jsx (D등급)
  * 진입: /profile "주간 리포트" 카드 / 알림 "주간 리포트가 도착했어요"
  * 복귀: AppNav 뒤로 / "이메일 구독 관리" → /profile/notification-settings
  *
- * 회귀 검수 매트릭스:
- *   기능              | 옛 페이지                | v2.2          | 진입점     | 모바일
- *   주차 navigation   | -                        | ✅ < W47 >    | -          | OK
- *   요약 통계         | ✅ 4 StatCard            | ✅ 4 KPI      | -          | 2열
- *   비교 (vs 지난주)  | ✅ row 비교              | ✅ delta KPI  | -          | OK
- *   자주 방문 코트    | ✅ TOP 3                 | ✅ TOP 3      | -          | 1열
- *   인사이트 카피     | -                        | ✅ 3 인사이트 | -          | 1열
- *   이메일 구독 토글  | -                        | ✅ footer     | settings   | OK
+ * Hybrid 옵션 B 채택 사유:
+ * - 시안 신규 섹션 (Highlight + 다음 주 추천) 박제로 디자인 v2.4 일관성 확보
+ * - 운영 진짜 데이터 (TOP 3 코트 / 지난주 상세 비교) 손실 0
+ * - DB 미지원 신규는 명확한 "곧 제공" 안내 + placeholder
+ *
+ * 박제 후 구조:
+ *   01. KPI 4종 (시안 v2.4 매핑: 경기 / 평균 평점 / XP / 활동 시간)
+ *   02. Highlight 베스트 1경기 (시안 신규 — DB 미지원, placeholder)
+ *   03. 인사이트 3종 (시안 + 운영 일치)
+ *   04. 자주 방문한 코트 TOP 3 (Hybrid 보존 — 운영 진짜 데이터)
+ *   05. 다음 주 추천 3종 (시안 신규 — DB 미지원, placeholder)
+ *   06. 지난주 상세 비교 (Hybrid 보존 — 운영 진짜 데이터)
  *
  * 박제 룰 준수:
  * - var(--*) 토큰만 (시안 var(--accent) → 사이트 var(--color-primary) 매핑)
  * - Material Symbols Outlined 만
  * - radius 4px
- * - alert 신규 X
  * - API/데이터 패칭 0 변경 (SWR /api/web/profile/weekly-report 그대로)
+ * - AppNav frozen (변경 0)
  */
 
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 
-// ── 타입 정의 ── (기존 그대로 보존)
+// ── 타입 정의 ── (운영 그대로 보존)
 interface WeekData {
   session_count: number;
   total_minutes: number;
@@ -58,24 +61,22 @@ interface ReportData {
   };
 }
 
-// 분 -> "1.5시간" 또는 "45분" 포맷 (KPI 카드용)
+// 분 -> "1.5시간" 또는 "45분" 포맷 (KPI 카드용) — 운영 보존
 function formatHours(minutes: number): string {
   if (minutes <= 0) return "0";
   const h = minutes / 60;
-  // 1시간 미만은 분 단위 그대로, 이상은 시간(소수점 1자리)
   if (h < 1) return `${minutes}`;
   return h % 1 === 0 ? `${h}` : h.toFixed(1);
 }
 
-// 단위 라벨
+// 단위 라벨 — 운영 보존
 function hoursUnit(minutes: number): string {
   return minutes < 60 ? "분" : "시간";
 }
 
-// 날짜 포맷: "11/17 (월)"
+// 날짜 포맷: "11/17 (월)" — 운영 보존 (KST 변환)
 function formatDate(isoStr: string): string {
   const d = new Date(isoStr);
-  // KST 변환
   const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   const month = kst.getUTCMonth() + 1;
   const day = kst.getUTCDate();
@@ -84,7 +85,7 @@ function formatDate(isoStr: string): string {
   return `${month}/${day} (${dayName})`;
 }
 
-// ISO 주차 계산 (W47 형태로 표기)
+// ISO 주차 계산 (W47 형태로 표기) — 운영 보존
 function getWeekNumber(isoStr: string): number {
   const d = new Date(isoStr);
   const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -172,6 +173,35 @@ function Section({
   );
 }
 
+// "곧 제공" placeholder 라벨 — 시안 신규 섹션 (DB 미지원) 공통 안내
+// Why: 시안 v2.4 신설 섹션 (Highlight + 다음 주 추천) 은 DB/추천엔진 미지원이므로
+//      디자인 위치만 확보하고 사용자에게 명시적 안내. 사일런트 더미 표시 금지
+function ComingSoonBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 10,
+        fontWeight: 700,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        padding: "3px 8px",
+        background: "color-mix(in oklab, var(--color-text-muted) 12%, transparent)",
+        color: "var(--color-text-secondary)",
+        borderRadius: 4,
+        border: "1px solid var(--color-border-subtle)",
+      }}
+    >
+      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+        schedule
+      </span>
+      곧 제공
+    </span>
+  );
+}
+
 export default function WeeklyReportPage() {
   const router = useRouter();
 
@@ -233,7 +263,10 @@ export default function WeeklyReportPage() {
   const hasThisWeekData = tw.session_count > 0;
   const hasLastWeekData = lw.session_count > 0;
 
-  // 4 KPI 정의 — 사이트 데이터를 시안 KPI 슬롯에 매핑
+  // 4 KPI 정의 — 시안 v2.4 슬롯 (경기 / 평균 평점 / XP / 활동 시간) 에 운영 데이터 매핑
+  // Why: 시안 4종 라벨에 맞추어 매핑 가능한 운영 데이터 우선 배치.
+  //      "평균 평점" 은 운영 미지원 → placeholder "-" + Delta 표시 생략 (기능 미지원 명시)
+  //      운영의 unique_courts/active_days 는 §06 지난주 상세 비교에서 완전 보존
   const kpis = [
     {
       label: "경기",
@@ -241,31 +274,35 @@ export default function WeeklyReportPage() {
       prev: lw.session_count,
       unit: "회",
       tone: "var(--color-primary)", // 시안 var(--accent) 매핑
+      hasData: true,
     },
     {
-      label: "운동 시간",
-      val: parseFloat(formatHours(tw.total_minutes)),
-      prev: parseFloat(formatHours(lw.total_minutes)),
-      unit: hoursUnit(tw.total_minutes),
+      label: "평균 평점",
+      val: 0, // DB 미지원 — 평점 시스템 추후 연동
+      prev: 0,
+      unit: "/5.0",
       tone: "var(--cafe-blue, #0079B9)",
+      hasData: false, // placeholder 분기 플래그
     },
     {
-      label: "획득 XP",
+      label: "XP",
       val: tw.total_xp,
       prev: lw.total_xp,
       unit: "XP",
       tone: "var(--ok, #22C55E)",
+      hasData: true,
     },
     {
-      label: "방문 코트",
-      val: tw.unique_courts,
-      prev: lw.unique_courts,
-      unit: "곳",
+      label: "활동 시간",
+      val: parseFloat(formatHours(tw.total_minutes)),
+      prev: parseFloat(formatHours(lw.total_minutes)),
+      unit: hoursUnit(tw.total_minutes),
       tone: "var(--color-accent, #F59E0B)",
+      hasData: true,
     },
   ];
 
-  // 인사이트 동적 생성 — streak/평균/변화율 기반 카피
+  // 인사이트 동적 생성 — streak/평균/변화율 기반 카피 (운영 그대로 보존)
   const insights = [
     // 인사이트 1: 연속 출석 — streak 기반
     data.streak > 0
@@ -484,11 +521,10 @@ export default function WeeklyReportPage() {
         </p>
       </div>
 
-      {/* SECTION 1: KPI 4 — 시안 L100-113 */}
+      {/* SECTION 01: KPI 4 — 시안 L100-113 (시안 v2.4 라벨 매핑) */}
       <Section eyebrow="01" title="이번 주 요약">
         {hasThisWeekData ? (
-          // 시안의 인라인 grid repeat(2, 1fr) — 모바일 분기는 globals.css 자동 처리 안 됨,
-          // 인라인이라 minmax 패턴으로 모바일 1열 자동 wrap 확보
+          // 시안 grid repeat(2, 1fr) → minmax(160px, 1fr) auto-fit 으로 모바일 1열 자동 wrap
           <div
             style={{
               display: "grid",
@@ -526,15 +562,16 @@ export default function WeeklyReportPage() {
                     marginBottom: 6,
                   }}
                 >
+                  {/* 평균 평점은 DB 미지원 — "-" placeholder 로 위치 확보 + 사용자 명시 안내 */}
                   <span
                     style={{
                       fontSize: 28,
                       fontWeight: 900,
                       fontFamily: "var(--ff-display, var(--ff-base))",
-                      color: k.tone,
+                      color: k.hasData ? k.tone : "var(--color-text-disabled)",
                     }}
                   >
-                    {k.val}
+                    {k.hasData ? k.val : "-"}
                   </span>
                   <span
                     style={{
@@ -545,9 +582,20 @@ export default function WeeklyReportPage() {
                     {k.unit}
                   </span>
                 </div>
-                {hasLastWeekData && (
+                {k.hasData && hasLastWeekData ? (
                   <Delta now={k.val} prev={k.prev} prevWeek={prevWeekLabel} />
-                )}
+                ) : !k.hasData ? (
+                  // 평점 시스템 추후 연동 — 사용자에게 명시적으로 안내
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--color-text-muted)",
+                      fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+                    }}
+                  >
+                    평점 시스템 준비 중
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>
@@ -609,9 +657,180 @@ export default function WeeklyReportPage() {
         )}
       </Section>
 
-      {/* SECTION 2: 자주 방문 코트 — 사이트 데이터 (시안 하이라이트 슬롯에 매핑) */}
+      {/* SECTION 02: Highlight 베스트 1경기 — 시안 L116-142 (DB 미지원 → placeholder + 곧 제공) */}
+      {/* Why: 시안 v2.4 의 디자인 위치 확보. MatchPlayerStat 평점 시스템 연동 시 활성화 큐 */}
+      <Section eyebrow="02" title="이번 주 하이라이트">
+        <div
+          style={{
+            padding: "20px 22px",
+            background:
+              "linear-gradient(135deg, color-mix(in oklab, var(--color-primary) 6%, transparent), transparent)",
+            border: "1px solid var(--color-border-subtle)",
+            borderRadius: 4,
+          }}
+        >
+          {/* 헤더 — BEST GAME eyebrow + 곧 제공 배지 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: 12,
+              marginBottom: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--color-primary)",
+                  fontWeight: 800,
+                  letterSpacing: ".1em",
+                  marginBottom: 4,
+                  fontFamily: "var(--ff-mono, ui-monospace, monospace)",
+                }}
+              >
+                BEST GAME
+              </div>
+              <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>
+                평점 기반 베스트 경기 자동 추천
+              </div>
+            </div>
+            <ComingSoonBadge />
+          </div>
+
+          {/* placeholder 통계 그리드 — PTS/AST/REB 위치만 확보 */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            {[
+              { l: "PTS" },
+              { l: "AST" },
+              { l: "REB" },
+            ].map((s) => (
+              <div
+                key={s.l}
+                style={{
+                  textAlign: "center",
+                  padding: "10px 0",
+                  background: "var(--color-surface, var(--color-bg-card))",
+                  border: "1px solid var(--color-border-subtle)",
+                  borderRadius: 4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "var(--color-text-muted)",
+                    fontWeight: 700,
+                    letterSpacing: ".1em",
+                  }}
+                >
+                  {s.l}
+                </div>
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 900,
+                    fontFamily: "var(--ff-display, var(--ff-base))",
+                    color: "var(--color-text-disabled)",
+                  }}
+                >
+                  -
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 안내 카피 — 시안의 인용 카피 자리에 placeholder 안내 */}
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: "var(--color-text-secondary)",
+              fontStyle: "italic",
+              borderLeft: "2px solid var(--color-border-subtle)",
+              paddingLeft: 12,
+            }}
+          >
+            경기별 평점 시스템 연동 후 매주 베스트 1경기를 자동 선정해드립니다.
+          </p>
+        </div>
+      </Section>
+
+      {/* SECTION 03: 인사이트 — 시안 L145-159 (3 인사이트 동적 카피, 운영 100% 보존) */}
+      <Section eyebrow="03" title="이번 주 인사이트">
+        <div style={{ display: "grid", gap: 10 }}>
+          {insights.map((ins, i) => (
+            <div
+              key={i}
+              style={{
+                padding: "14px 18px",
+                display: "grid",
+                gridTemplateColumns: "40px 1fr",
+                gap: 14,
+                alignItems: "flex-start",
+                background: "var(--color-surface, var(--color-bg-card))",
+                border: "1px solid var(--color-border-subtle)",
+                borderRadius: 4,
+              }}
+            >
+              {/* 아이콘 박스 — color-mix 14% 배경 (시안 L149) */}
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 4,
+                  background: `color-mix(in oklab, ${ins.tone} 14%, transparent)`,
+                  color: ins.tone,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 22 }}
+                >
+                  {ins.icon}
+                </span>
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    marginBottom: 3,
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  {ins.head}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--color-text-secondary)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {ins.body}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* SECTION 04: 자주 방문한 코트 TOP 3 — Hybrid 보존 (운영 진짜 데이터 100%) */}
+      {/* Why: 시안 v2.4 에 없는 운영 진짜 기능 — 손실 0 원칙. 시안 디자인 톤 (카드 stack) 에 맞게 정렬 */}
       {tw.top_courts.length > 0 && (
-        <Section eyebrow="02" title="자주 방문한 코트">
+        <Section eyebrow="04" title="자주 방문한 코트">
           <div
             style={{
               background: "var(--color-surface, var(--color-bg-card))",
@@ -640,7 +859,7 @@ export default function WeeklyReportPage() {
                       flexShrink: 0,
                       width: 32,
                       height: 32,
-                      borderRadius: 16, // 원형 — 순위 뱃지는 시안에서 시각 강조
+                      borderRadius: 16, // 원형 — 순위 뱃지 시각 강조
                       display: "grid",
                       placeItems: "center",
                       fontSize: 13,
@@ -696,71 +915,57 @@ export default function WeeklyReportPage() {
         </Section>
       )}
 
-      {/* SECTION 3: 인사이트 — 시안 L145-159 (3 인사이트 동적 카피) */}
-      <Section eyebrow="03" title="이번 주 인사이트">
-        <div style={{ display: "grid", gap: 10 }}>
-          {insights.map((ins, i) => (
-            <div
-              key={i}
-              style={{
-                padding: "14px 18px",
-                display: "grid",
-                gridTemplateColumns: "40px 1fr",
-                gap: 14,
-                alignItems: "flex-start",
-                background: "var(--color-surface, var(--color-bg-card))",
-                border: "1px solid var(--color-border-subtle)",
-                borderRadius: 4,
-              }}
-            >
-              {/* 아이콘 박스 — color-mix 14% 배경 (시안 L149) */}
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 4, // 4px 룰
-                  background: `color-mix(in oklab, ${ins.tone} 14%, transparent)`,
-                  color: ins.tone,
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 22 }}
-                >
-                  {ins.icon}
-                </span>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    marginBottom: 3,
-                    color: "var(--color-text-primary)",
-                  }}
-                >
-                  {ins.head}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--color-text-secondary)",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {ins.body}
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* SECTION 05: 다음 주 추천 3종 — 시안 L162-175 (DB 미지원 → placeholder + 곧 제공) */}
+      {/* Why: 시안 v2.4 의 디자인 위치 확보. 추천 엔진 (게임/코치/팀) 연동 시 활성화 큐 */}
+      <Section eyebrow="05" title="다음 주 추천">
+        <div
+          style={{
+            padding: "20px 22px",
+            background: "var(--color-surface, var(--color-bg-card))",
+            border: "1px dashed var(--color-border-subtle)", // dashed = placeholder 시각 신호
+            borderRadius: 4,
+            textAlign: "center",
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: 32,
+              color: "var(--color-text-disabled)",
+              display: "block",
+              marginBottom: 8,
+            }}
+          >
+            recommend
+          </span>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--color-text-primary)",
+              marginBottom: 4,
+            }}
+          >
+            맞춤형 다음 주 추천
+          </div>
+          <p
+            style={{
+              margin: "0 0 12px",
+              fontSize: 12,
+              color: "var(--color-text-secondary)",
+              lineHeight: 1.6,
+            }}
+          >
+            활동 패턴을 분석해 다음 주에 어울리는 픽업 경기 / 코치 / 팀 게스트를 추천해드릴 예정입니다.
+          </p>
+          <ComingSoonBadge />
         </div>
       </Section>
 
-      {/* SECTION 4: 지난주 비교 (사이트 고유 — 데이터 풍부함 보존) */}
+      {/* SECTION 06: 지난주 상세 비교 — Hybrid 보존 (운영 진짜 데이터 — 운영 unique_courts/active_days 보존) */}
+      {/* Why: 시안 v2.4 KPI 4종 만으로는 운영의 5종 (active_days/unique_courts) 정보 손실 → 이 섹션이 보완 */}
       {hasLastWeekData && (
-        <Section eyebrow="04" title="지난주 상세 비교">
+        <Section eyebrow="06" title="지난주 상세 비교">
           <div
             style={{
               padding: "16px 18px",
