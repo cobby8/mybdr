@@ -255,6 +255,8 @@
 }
 .edit-profile__grid--2 { grid-template-columns: 1fr 1fr; }
 .edit-profile__grid--3 { grid-template-columns: 1fr 1fr 1fr; }
+/* 2026-05-02: 모바일에서도 2열 강제 유지 (사용자 결정 — 등번호/선출, 신장/체중) */
+.edit-profile__grid--2-row { grid-template-columns: 1fr 1fr; }
 
 /* ===== Field ===== */
 .edit-profile__field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -549,6 +551,7 @@
 
   .edit-profile__grid--2,
   .edit-profile__grid--3 { grid-template-columns: 1fr; }
+  /* --2-row 는 모바일에서도 2열 강제 유지 (위 정의 그대로 유지) */
 
   .edit-profile__chips .chip,
   .edit-profile__priv-options .chip { min-height: 44px; }

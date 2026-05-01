@@ -754,8 +754,8 @@ export default function ProfileEditPage() {
           <p>매칭·게스트 모집에 노출됩니다. 자체 평가 — 레이팅에 영향 없음.</p>
         </header>
 
-        {/* 2026-05-02: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증). 사용자 결정 §2 가장 위 배치 */}
-        <div className="edit-profile__grid edit-profile__grid--2" style={{ marginBottom: 16 }}>
+        {/* 2026-05-02: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증). §2 가장 위 + 모바일도 2열 유지 + sub 1번만 */}
+        <div className="edit-profile__grid edit-profile__grid--2-row" style={{ marginBottom: 16 }}>
           <Field label="등번호" sub="대회 출전 시 필수">
             <input
               className="input t-mono"
@@ -769,7 +769,7 @@ export default function ProfileEditPage() {
               max={999}
             />
           </Field>
-          <Field label="선출 여부" sub="대회 출전 시 필수">
+          <Field label="선출 여부">
             <div className="edit-profile__chips">
               <button
                 type="button"
@@ -812,8 +812,8 @@ export default function ProfileEditPage() {
           </div>
         </div>
 
-        {/* 신장 / 체중 */}
-        <div className="edit-profile__grid edit-profile__grid--2">
+        {/* 신장 / 체중 — 2026-05-02: 모바일도 2열 유지 (사용자 결정) */}
+        <div className="edit-profile__grid edit-profile__grid--2-row">
           <Field label="신장 (cm)">
             <input
               className="input t-mono"
