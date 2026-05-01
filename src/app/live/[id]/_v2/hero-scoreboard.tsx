@@ -70,6 +70,24 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
       />
 
       <div className="hero-sb__inner">
+        {/* 팀 로고 — PC 좌·우 끝 absolute (모바일 hidden) — 2026-05-02 사용자 요청 */}
+        <div className="hero-sb__logo hero-sb__logo--home" aria-hidden>
+          {match.home_team.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={match.home_team.logo_url} alt="" />
+          ) : (
+            <span className="hero-sb__logo-fallback">{match.home_team.name.charAt(0)}</span>
+          )}
+        </div>
+        <div className="hero-sb__logo hero-sb__logo--away" aria-hidden>
+          {match.away_team.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={match.away_team.logo_url} alt="" />
+          ) : (
+            <span className="hero-sb__logo-fallback">{match.away_team.name.charAt(0)}</span>
+          )}
+        </div>
+
         {/* 상단 배지 — FINAL + 토너먼트/라운드 */}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 6, flexWrap: "wrap" }}>
           <span
@@ -196,8 +214,8 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
             TOTAL
           </div>
 
-          {/* 홈팀 행 */}
-          <div style={{ fontSize: 12, fontWeight: 700, color: match.home_team.color }}>
+          {/* 홈팀 행 — 줄바꿈 방지 + ellipsis (사용자 요청 2026-05-02) */}
+          <div className="hero-sb__quarter-team" style={{ color: match.home_team.color }}>
             {match.home_team.name}
           </div>
           {quarters.map((q) => (
@@ -226,8 +244,8 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
             {homeScore}
           </div>
 
-          {/* 원정팀 행 */}
-          <div style={{ fontSize: 12, fontWeight: 700, color: match.away_team.color }}>
+          {/* 원정팀 행 — 줄바꿈 방지 + ellipsis */}
+          <div className="hero-sb__quarter-team" style={{ color: match.away_team.color }}>
             {match.away_team.name}
           </div>
           {quarters.map((q) => (
