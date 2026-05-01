@@ -167,73 +167,87 @@ function pct(made: number, attempt: number): number {
   return Math.round((made / attempt) * 100);
 }
 
-// 좌/우 비교 바 행 — 시안 StatRow (L64~L85)
-// 2026-05-02 v2 (사용자 재요청): 팀 컬러 무시하고 고정 색상으로 시인성 강화.
-//  - winner 막대: var(--cafe-blue) (진한 파랑) + 수치 흰색
-//  - loser 막대: var(--bg-elev) (연한 회색) + 수치 var(--ink) (진한 검정/흰색 토큰)
-//  - opacity 제거 (loser 도 가독성 확보)
-//  - 막대 높이 22 + 수치 overlay 유지
+// 좌/우 비교 바 행 — 시안 StatRow
+// 2026-05-02 v3 (사용자 재요청 — 사진 41):
+//  1. 텍스트 잘림 해소 — 막대(트랙)와 수치 분리. 수치는 column 안 inline 노출 (overflow visible)
+//  2. winner 로직 — 턴오버/파울 은 low-is-better
+//  3. 색상 토큰 정합 — winner=var(--cafe-blue) / loser=var(--bg-elev), 텍스트 winner=var(--ink) / loser=var(--ink-soft)
+//  4. 막대는 작은 시각 인디케이터 (height 6) — 텍스트가 메인
 function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: string }) {
   const total = row.homeNum + row.awayNum || 1;
-  const homeWin = row.homeNum >= row.awayNum;
-  const awayWin = row.awayNum >= row.homeNum;
+
+  // 턴오버 / 파울 — low-is-better
+  const lowerIsBetter = row.label === "턴오버" || row.label === "파울";
+  const homeWin = lowerIsBetter
+    ? row.homeNum <= row.awayNum
+    : row.homeNum >= row.awayNum;
+  const awayWin = lowerIsBetter
+    ? row.awayNum <= row.homeNum
+    : row.awayNum >= row.homeNum;
+
   const homePct = (row.homeNum / total) * 100;
   const awayPct = (row.awayNum / total) * 100;
 
-  // 단일 고정 색상 — winner 강조, loser 가독성 모두 보장
-  const winnerBg = "var(--cafe-blue)";
-  const loserBg = "var(--bg-elev)";
-  const winnerText = "#fff";
-  const loserText = "var(--ink)";
+  // 단일 고정 색상
+  const winnerBar = "var(--cafe-blue)";
+  const loserBar = "var(--bg-elev)";
+  const trackBg = "var(--bg-alt)";
 
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: "minmax(0, 1fr) 70px minmax(0, 1fr)",
-        gap: 8,
+        gap: 10,
         alignItems: "center",
         padding: "10px 0",
         borderBottom: "1px solid var(--border)",
       }}
     >
-      {/* 좌: 홈팀 막대 (우측 끝에서 좌측으로 grow) */}
+      {/* 좌: 홈팀 (수치 + 막대, 우측 정렬) */}
       <div
         style={{
-          position: "relative",
-          height: 22,
-          background: "var(--bg-alt)",
-          borderRadius: 4,
-          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          gap: 8,
+          minWidth: 0,
         }}
       >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            height: "100%",
-            width: `${homePct}%`,
-            background: homeWin ? winnerBg : loserBg,
-            transition: "width 0.3s ease",
-          }}
-        />
         <span
           style={{
-            position: "absolute",
-            top: "50%",
-            right: 8,
-            transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
-            fontSize: 11,
-            fontWeight: homeWin ? 700 : 600,
-            color: homeWin ? winnerText : loserText,
+            fontSize: 12,
+            fontWeight: homeWin ? 700 : 500,
+            color: homeWin ? "var(--ink)" : "var(--ink-soft)",
             whiteSpace: "nowrap",
-            zIndex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
           }}
         >
           {row.homeValue}
         </span>
+        <div
+          style={{
+            flex: "0 0 60px",
+            height: 6,
+            background: trackBg,
+            borderRadius: 3,
+            overflow: "hidden",
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          <div
+            style={{
+              width: `${homePct}%`,
+              height: "100%",
+              background: homeWin ? winnerBar : loserBar,
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
       </div>
 
       {/* 중앙 라벨 */}
@@ -243,44 +257,49 @@ function StatCompareRow({ row }: { row: StatRow; homeColor: string; awayColor: s
           fontSize: 11,
           color: "var(--ink-soft)",
           fontWeight: 700,
+          letterSpacing: "0.04em",
         }}
       >
         {row.label}
       </div>
 
-      {/* 우: 원정팀 막대 (좌측 끝에서 우측으로 grow) */}
+      {/* 우: 원정팀 (막대 + 수치, 좌측 정렬) */}
       <div
         style={{
-          position: "relative",
-          height: 22,
-          background: "var(--bg-alt)",
-          borderRadius: 4,
-          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 0,
         }}
       >
         <div
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            height: "100%",
-            width: `${awayPct}%`,
-            background: awayWin ? winnerBg : loserBg,
-            transition: "width 0.3s ease",
+            flex: "0 0 60px",
+            height: 6,
+            background: trackBg,
+            borderRadius: 3,
+            overflow: "hidden",
           }}
-        />
+        >
+          <div
+            style={{
+              width: `${awayPct}%`,
+              height: "100%",
+              background: awayWin ? winnerBar : loserBar,
+              transition: "width 0.3s ease",
+            }}
+          />
+        </div>
         <span
           style={{
-            position: "absolute",
-            top: "50%",
-            left: 8,
-            transform: "translateY(-50%)",
             fontFamily: "var(--ff-mono)",
-            fontSize: 11,
-            fontWeight: awayWin ? 700 : 600,
-            color: awayWin ? winnerText : loserText,
+            fontSize: 12,
+            fontWeight: awayWin ? 700 : 500,
+            color: awayWin ? "var(--ink)" : "var(--ink-soft)",
             whiteSpace: "nowrap",
-            zIndex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
           }}
         >
           {row.awayValue}
