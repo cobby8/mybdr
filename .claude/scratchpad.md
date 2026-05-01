@@ -66,7 +66,8 @@
 
 | 날짜 | 커밋 | 작업 | 결과 |
 |------|------|------|------|
-| 2026-05-01 | (DB only) | **크로스오버 팀 선수 18명 일괄 등록 + 자동 매칭 (예시 진행)**: B 대회 TournamentTeam id=242 (크로스오버 Team id=228) 에 18명 INSERT. 운영 패턴 정합 (`POST /api/web/tournaments/[id]/teams/[teamId]/players`): player_name + jerseyNumber + role="player" + is_active=true. 자동 매칭 = `linkPlayersToUsers` 인라인 (같은 Team 활성 TeamMember 중 nickname/name === player_name 정확 일치 + 1명만 매칭, 동명이인 안전). 결과: **18 등록 / 1 자동 매칭** (성윤호 → userId=3110). 크로스오버 Team 활성 멤버 3명뿐 → 17명은 미가입/팀 미등록 → userId=null 보존 (추후 phone 매칭 hook 자동 연결 대기). 백넘버 unique 검증 통과 + 사후 count=18 통과. 임시 스크립트 정리. | ✅ |
+| 2026-05-01 | (DB only) | **피벗 팀 선수 13명 등록 + B 대회 16팀 디비전/결제 일괄 처리**: (1) 피벗 (TT id=245, Team id=225) 13명 INSERT, 자동 매칭 **8/13** (강동진/김명석/전인규/천호현/김수성/고상모/김도연/박성진 → userId 연결, 피벗 Team 활성 12명 풍부). (2) B 대회 categories 단일 디비전 ("일반부": ["D3"]) 확인 → 16팀 모두 division="D3" UPDATE → /tournaments/[id] page.tsx groupBy 카운트 0→16 (디비전별 현황 0/16 → 16/16). (3) 16팀 모두 payment_status="paid" + paid_at=now UPDATE (entry_fee 50만원 일괄). 사후 검증 통과 (groupBy division 16 / payment_status 16). | ✅ |
+| 2026-05-01 | (DB only) | **크로스오버 팀 선수 18명 일괄 등록 + 자동 매칭 (예시 진행)**: B 대회 TournamentTeam id=242 (크로스오버 Team id=228) 에 18명 INSERT. 운영 패턴 정합 (`POST /api/web/tournaments/[id]/teams/[teamId]/players`): player_name + jerseyNumber + role="player" + is_active=true. 자동 매칭 = `linkPlayersToUsers` 인라인 (같은 Team 활성 TeamMember 중 nickname/name === player_name 정확 일치 + 1명만 매칭, 동명이인 안전). 결과: **18 등록 / 1 자동 매칭** (성윤호 → userId=3110). 크로스오버 Team 활성 멤버 3명뿐 → 17명은 미가입/팀 미등록 → userId=null 보존. | ✅ |
 | 2026-05-01 | (DB only) | **동호회최강전 B 참가팀 16팀 일괄 등록**: 사진 추출 16팀 모두 기존 Team 매칭 (id=233/232/231/230/229/228/227/226/225/224/223/222/221/220/218/196). false positive 4건 정리 (BDR✗→DR BASKET / DYNAMIC✗→MI / DASAN·MSA✗→SA / merged✗→196). 트랜잭션 INSERT 16건 + teams_count 0→16 (maxTeams 풀 채움). | ✅ |
 | 2026-05-01 | 5e21130 (push) | **docs(knowledge) organizations status fix 기록 (Cowork 다른 세션)**: errors.md +1 / lessons.md / index.md 갱신 | ✅ |
 | 2026-05-01 | 08898cb (push) | **fix(organizations) status 'active' → 'approved' (Cowork 다른 세션)**: page.tsx 1줄 fix. DB 동호회최강전 중복 2건 정리. | ✅ |
@@ -74,6 +75,4 @@
 | 2026-05-01 | 8d0f1f2 (push) | **chore(cleanup) ProfileShell + ProfileSideNav 컴포넌트 삭제**: -280줄. | ✅ |
 | 2026-05-01 | c3676ed (push) | **D-6/8 EditProfile Hybrid 박제**: page.tsx 1547→1233 + edit-profile.css 603. 5탭 → 단일 스크롤 + Hero + 5섹션. | ✅ |
 | 2026-05-01 | 6e81996 (push) | **fix(profile) ProfileShell 제거**: layout.tsx → `<>{children}</>`. v2.3 hub sidebar 0 정합. | ✅ |
-| 2026-05-01 | cef0a2b (dev 머지) | DEV 머지 — subin → dev fast-forward (7 commits) | ✅ |
-| 2026-05-01 | 85944e3 (push) | D-1/8 ProfileGrowth sync | ✅ |
-<!-- 04-30 + 05-01 일부 절단 (85944e3 D-1 + 22ce7f2 P0 hub 절단 — 크로스오버 선수 18명 + 16팀 등록 신규 추가로 인한 정리) -->
+<!-- 05-01 일부 절단 (85944e3 D-1 + 22ce7f2 P0 hub + cef0a2b DEV 머지 절단 — 피벗+디비전+결제 신규 추가로 인한 정리) -->
