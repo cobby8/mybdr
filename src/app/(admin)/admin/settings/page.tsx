@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { useState, useTransition } from "react";
 import { clearCacheAction, toggleMaintenanceModeAction } from "@/app/actions/admin-settings";
 
@@ -32,13 +33,17 @@ export default function AdminSettingsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>시스템 설정</h1>
+      <AdminPageHeader
+        eyebrow="ADMIN · SYSTEM"
+        title="시스템 설정"
+        subtitle="점검 모드 전환 · 캐시 초기화 등 시스템 운영 도구"
+      />
       <div className="space-y-4">
 
-        {/* 점검 모드 */}
+        {/* 점검 모드 — 모바일 column / sm+ row 분기 */}
         <Card>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h3 className="font-semibold">점검 모드</h3>
               <p className="text-sm text-[var(--color-text-muted)]">사이트를 점검 모드로 전환합니다. 일반 유저 접근이 차단됩니다.</p>
               {maintenanceMsg && (
@@ -50,7 +55,7 @@ export default function AdminSettingsPage() {
             <button
               onClick={handleMaintenanceToggle}
               disabled={isPendingMaintenance}
-              className={`min-w-[80px] rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              className={`shrink-0 rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto sm:min-w-[100px] ${
                 maintenanceEnabled
                   ? "bg-[var(--color-error)]/10 text-[var(--color-error)] hover:bg-[var(--color-error)]/20"
                   : "bg-[var(--color-error)] text-white hover:bg-[var(--color-error-hover,#DC2626)]"
@@ -61,10 +66,10 @@ export default function AdminSettingsPage() {
           </div>
         </Card>
 
-        {/* 캐시 초기화 */}
+        {/* 캐시 초기화 — 모바일 column / sm+ row 분기 */}
         <Card>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <h3 className="font-semibold">캐시 초기화</h3>
               <p className="text-sm text-[var(--color-text-muted)]">전체 페이지 캐시를 초기화합니다. 잠시 응답 속도가 느려질 수 있습니다.</p>
               {cacheMsg && (
@@ -74,7 +79,7 @@ export default function AdminSettingsPage() {
             <button
               onClick={handleCacheClear}
               disabled={isPendingCache}
-              className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)] disabled:opacity-50"
+              className="btn btn--sm shrink-0 w-full sm:w-auto sm:min-w-[100px] disabled:opacity-50"
             >
               {isPendingCache ? "초기화중..." : "실행"}
             </button>

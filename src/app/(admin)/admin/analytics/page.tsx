@@ -75,7 +75,11 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <div>
-      <AdminPageHeader title="분석" />
+      <AdminPageHeader
+        eyebrow="ADMIN · ANALYTICS"
+        title="분석"
+        subtitle="이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이"
+      />
 
       {/* 이번 달 통계: Material Symbols 아이콘 사용 */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
