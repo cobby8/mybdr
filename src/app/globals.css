@@ -442,32 +442,17 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .app-nav__tab { white-space: nowrap; flex: 0 0 auto; }
 .app-nav__bottom-line { height: 1px; background: var(--border); }
 
-/* 2026-05-02 v2: BDR 로고를 utility bar 좌측으로 이동 (PC/모바일 모두 표시 — 사용자 요청)
-   메인 바 로고 제거 → 탭이 좌측에서 시작 */
+/* 2026-05-02 v3: BDR 이미지 로고만 utility bar 좌측 (사용자 요청 — MyBDR. 텍스트는 메인 바에 유지) */
 .app-nav__utility-logo {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: #fff;
-  text-decoration: none !important;
   flex-shrink: 0;
+  text-decoration: none !important;
 }
 .app-nav__utility-logo img {
   height: 18px;
   width: auto;
   display: block;
-  /* 흰색 배경 효과 (파란 utility bar 위에서 가독성) — 옵션: filter: brightness(0) invert(1) for white */
-}
-.app-nav__utility-logo-text {
-  font-family: var(--ff-display);
-  font-weight: 900;
-  font-size: 14px;
-  letter-spacing: -0.01em;
-  color: #fff;
-  white-space: nowrap;
-}
-.app-nav__utility-logo-text .dot {
-  color: rgba(255, 255, 255, 0.6);
 }
 .app-nav__utility-logo:hover {
   opacity: 0.85;
