@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/sidebar";
+// 2026-05-02 Phase A: 모바일 햄버거 + 드로어 (lg 미만 admin 메뉴 진입점)
+import { AdminMobileNav } from "@/components/admin/mobile-admin-nav";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 
@@ -70,11 +72,14 @@ export default async function AdminLayout({
   // 배경: 프론트 디자인 시스템과 동일한 CSS 변수 사용
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
-      {/* 역할 배열을 사이드바에 전달하여 권한별 메뉴 필터링 */}
+      {/* 데스크톱 사이드바 (lg+) — 기존 그대로 */}
       <AdminSidebar roles={roles} />
-      {/* ml-64: 사이드바 w-64에 맞춤 */}
+      {/* 모바일 햄버거 + 드로어 (lg 미만) — 2026-05-02 Phase A */}
+      <AdminMobileNav roles={roles} />
+      {/* ml-64: 사이드바 w-64에 맞춤 (lg+ 만)
+          모바일 pt-16: 햄버거 버튼 (top-3 left-3 + 40px) 자리 확보 */}
       <main className="lg:ml-64">
-        <div className="mx-auto max-w-7xl p-6">{children}</div>
+        <div className="mx-auto max-w-7xl p-6 pt-16 lg:pt-6">{children}</div>
       </main>
     </div>
   );
