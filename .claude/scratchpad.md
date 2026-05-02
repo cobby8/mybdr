@@ -96,3 +96,4 @@
 | 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) + scratchpad 정리 | ✅ |
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
 | 2026-05-02 | (검토만) | 셋업팀 가입 승인 위험 검토 — 17명 일괄 승인 시 9명 UNIQUE 충돌 ROLLBACK + ttp 4건 placeholder 참조 + stats 26 + pbp 32 영향. 안 A (대회 종료 후 처리) 채택. 실행 0건 | ✅ |
+| 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + set-up 갱신 + Team.logoUrl 16건 UPDATE | ✅ |
