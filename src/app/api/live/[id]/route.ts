@@ -377,14 +377,31 @@ export async function GET(
         // G1 (2026-05-02): DNP 선수는 sub 무효 — qsJson=0 + dbMin=0 + PBP 0건인 선수가
         //   F3 starter chain 으로 시간 받던 버그 (#136 +49.8m) fix.
         //   판정: stat 자체가 모든 누적 0 (qsJson/dbMin 모두 0) 일 때 sub 시간도 0 처리.
-        const subSecLive = subBasedMinutes.get(BigInt(pid)) ?? 0;
+        // G3 (2026-05-02): subBasedMinutes 가 PlayerTimeBreakdown 으로 변경 → 3채널 sum
+        const subBreakdownLive = subBasedMinutes.get(BigInt(pid));
+        const subSecLive = totalOf(subBreakdownLive);
         const hasAnyRealStat = (row.min_seconds ?? 0) > 0
           || row.pts > 0 || row.fgm > 0 || row.fga > 0 || row.tpm > 0 || row.tpa > 0
           || row.ftm > 0 || row.fta > 0 || row.oreb > 0 || row.dreb > 0
           || row.ast > 0 || row.stl > 0 || row.blk > 0 || row.to > 0 || row.fouls > 0;
-        if (subSecLive > 0 && subSecLive <= estimatedQL * 4 && hasAnyRealStat && subSecLive > (row.min_seconds ?? 0)) {
+        // 풀타임 검출 — sub trustedSec 이 4×qLen 근접 → 그대로 채택 (cap 보호)
+        const fullMatchSecLive = estimatedQL * 4;
+        if (
+          hasAnyRealStat &&
+          subBreakdownLive &&
+          subBreakdownLive.trustedSec >= fullMatchSecLive - 2
+        ) {
+          row.min_seconds = subBreakdownLive.trustedSec;
+          row.min = Math.round(subBreakdownLive.trustedSec / 60);
+          row._minBreakdown = { trustedSec: subBreakdownLive.trustedSec, mediumSec: 0, distributedSec: 0 };
+        } else if (subSecLive > 0 && subSecLive <= fullMatchSecLive && hasAnyRealStat && subSecLive > (row.min_seconds ?? 0)) {
+          // sub 채택: 3채널 그대로 보관 → cap 시 distributed 우선 축소
           row.min_seconds = subSecLive;
           row.min = Math.round(subSecLive / 60);
+          row._minBreakdown = subBreakdownLive ? { ...subBreakdownLive } : undefined;
+        } else if ((row.min_seconds ?? 0) > 0) {
+          // qsJson/dbMin 우위 — 외부 출처는 trustedSec 으로 (축소 금지)
+          row._minBreakdown = { trustedSec: row.min_seconds ?? 0, mediumSec: 0, distributedSec: 0 };
         }
         // +/- 보강 (전체 집계 레벨)
         if (stat.plusMinus != null) {
@@ -453,11 +470,18 @@ export async function GET(
       //
       // 이유: sub 기반은 substitution PBP 누락 시 (예: 올아웃 5명 일괄 교체 중 일부 미생성) 시간을 잃음.
       //       qsJson 이 더 정확한 경우가 다수 → sub 는 보강용 0순위가 아닌 "더 큰 값 선택" 전략.
-      const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): number => {
+      // G3 (2026-05-02): 신뢰도 기반 출전시간 선택 — 풀타임 보호 + cap 정확성.
+      // 반환: { sec, breakdown }
+      //   sec       : 응답에 들어갈 최종 min_seconds 후보 (cap 적용 전)
+      //   breakdown : 팀 cap 적용 시 distributed 우선 축소용 분리값
+      // 단, 마지막에 qsJson/dbMin/pbpSim 이 더 큰 경우는 그 값 자체를 trustedSec 으로 간주
+      // (외부 출처 = 우리 알고리즘이 회수 못한 시간이므로 축소 금지).
+      const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): { sec: number; breakdown: PlayerTimeBreakdown } => {
         const playerId = Number(stat.tournamentTeamPlayer.id);
-        const subSec = subBasedMinutes.get(BigInt(playerId)) ?? 0;
+        const subBreakdown = subBasedMinutes.get(BigInt(playerId));
+        const subTotal = totalOf(subBreakdown);
         // 합리성 가드: 쿼터당 평균 < quarter_length (4쿼터 = qLength × 4)
-        const subValid = subSec > 0 && subSec <= estimatedQL * 4 ? subSec : 0;
+        const subValid = subTotal > 0 && subTotal <= estimatedQL * 4;
 
         // 1) quarterStatsJson 합산
         let qsJsonSec = 0;
@@ -476,7 +500,6 @@ export async function GET(
         // G1 (2026-05-02): DNP 선수의 sub 시간 무효화
         //   qsJson === 0 + dbMin === 0 + PBP 시뮬레이션 === 0 + 통계 누적도 0
         //   → 이 선수는 매치 출전 0초. sub 가 가짜 시간 (#136 전효민 22m 류) 일 가능성 높음.
-        // 주의: 여기 stat 은 Prisma matchPlayerStat row → 필드명이 Prisma 정의 (points, fieldGoalsMade 등)
         const hasRealRecord =
           qsJsonSec > 0 || dbMinSec > 0 || pbpSimSec > 0 ||
           (stat.points ?? 0) > 0 ||
@@ -487,21 +510,54 @@ export async function GET(
           (stat.assists ?? 0) > 0 || (stat.steals ?? 0) > 0 || (stat.blocks ?? 0) > 0 ||
           (stat.turnovers ?? 0) > 0 || (stat.personal_fouls ?? 0) > 0 ||
           (stat.isStarter ?? false);
-        const subFinal = hasRealRecord ? subValid : 0;
 
-        // 채택: max(subFinal, qsJsonSec, dbMinSec, pbpSimSec)
-        // — Flutter 999s cap 회피 (subFinal 가 cap 미적용이라 더 큼)
-        // — qsJson last_clock 절단 회피 (subFinal 가 0초 자동 누적이라 더 큼)
-        // — qsJson 만점 매치는 sub 보다 qsJson 큼 → qsJson 유지
-        // — DNP 선수: subFinal=0 + 나머지도 0 → 결과 0 (정상)
-        const best = Math.max(subFinal, qsJsonSec, dbMinSec, pbpSimSec);
-        return best;
+        // DNP → 모든 채널 0
+        if (!hasRealRecord) {
+          return { sec: 0, breakdown: { trustedSec: 0, mediumSec: 0, distributedSec: 0 } };
+        }
+
+        const fullMatchSec = estimatedQL * 4;
+
+        // [1순위] 풀타임 검출 — sub 기반 trustedSec 가 풀매치(4×qLen)에 근접
+        //   → 한 번도 안 빠진 선수. 그대로 반환 (cap 시 절대 축소 X).
+        if (subBreakdown && subBreakdown.trustedSec >= fullMatchSec - 2) {
+          return {
+            sec: subBreakdown.trustedSec,
+            breakdown: { trustedSec: subBreakdown.trustedSec, mediumSec: 0, distributedSec: 0 },
+          };
+        }
+
+        // [2순위] qsJson 이 sub 와 비슷 (±60s) → qsJson 신뢰 (Flutter 정상 입력 매치)
+        //   qsJson 자체는 우리 알고리즘 외부 출처 → 전체 trustedSec 로 간주 (축소 금지).
+        if (qsJsonSec > 0 && subValid && Math.abs(qsJsonSec - subTotal) < 60) {
+          return {
+            sec: qsJsonSec,
+            breakdown: { trustedSec: qsJsonSec, mediumSec: 0, distributedSec: 0 },
+          };
+        }
+
+        // [3순위] sub 채택 (G1 가드 통과 + 합리값) — 3채널 그대로 반환 → cap 시 distributed 우선 축소
+        if (subValid && subBreakdown) {
+          return { sec: subTotal, breakdown: { ...subBreakdown } };
+        }
+
+        // [4순위] qsJson > dbMin > pbpSim 중 최대값 — 외부 출처는 trustedSec 처리
+        const fallback = Math.max(qsJsonSec, dbMinSec, pbpSimSec);
+        if (fallback > 0) {
+          return {
+            sec: fallback,
+            breakdown: { trustedSec: fallback, mediumSec: 0, distributedSec: 0 },
+          };
+        }
+
+        return { sec: 0, breakdown: { trustedSec: 0, mediumSec: 0, distributedSec: 0 } };
       };
 
       const toPlayerRow = (stat: (typeof match.playerStats)[number]): PlayerRow => {
         const player = stat.tournamentTeamPlayer;
         const user = player.users;
-        const minSeconds = getSecondsPlayed(stat);
+        // G3 (2026-05-02): getSecondsPlayed 가 { sec, breakdown } 반환 → cap 적용 단계용 breakdown 보관
+        const { sec: minSeconds, breakdown: minBreakdown } = getSecondsPlayed(stat);
         // 2026-05-02 B-2: stat.minutesPlayed 가 0 이면 minSeconds(PBP 추정)에서 분 단위로 변환
         const minDerived = stat.minutesPlayed && stat.minutesPlayed > 0
           ? stat.minutesPlayed
@@ -532,6 +588,8 @@ export async function GET(
           plus_minus: stat.plusMinus ?? 0,
           // 2026-04-15: 스타팅 여부 — MatchPlayerStat 우선, TournamentTeamPlayer fallback
           isStarter: stat.isStarter ?? player.isStarter ?? false,
+          // G3: cap 적용용 신뢰도 분리 breakdown
+          _minBreakdown: minBreakdown,
         };
 
         // 2026-04-18: MIN fallback 은 롤백 (DNP 조건까지만 조정, MIN fake 주입 안 함).
@@ -943,6 +1001,81 @@ export async function GET(
     // 경기장명: tournament_matches.venue_name 우선 → 없으면 tournament.venue_name fallback
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
 
+    // G3 (2026-05-02): 팀별 출전시간 cap 적용 — distributedSec 우선 축소, 풀타임 trustedSec 절대 보호
+    //
+    // 원칙:
+    //   total = trusted + medium + distributed  (선수 단위)
+    //   teamTotal = sum(total)                  (팀 단위)
+    //   cap = 5 × qLen × 4 (=4쿼터 풀 = 1팀 코트시간 합)
+    //
+    //   1) teamTotal <= cap : 변경 0 (이미 합 OK)
+    //   2) teamTotal >  cap :
+    //      a) trustedTotal > cap : 데이터 이상 — 경고 로그만 + 그대로 (풀타임 보호)
+    //      b) 그 외 : distributed 우선 축소 (distRatio = (cap - trusted - medium 잔여) / distributed)
+    //                distributed 만으론 부족하면 medium 도 축소 (mediumRatio)
+    //
+    //   trustedSec 은 절대 축소 X (풀타임 28분 선수 등 보장).
+    const applyTeamCap = (players: PlayerRow[]): void => {
+      const cap = 5 * estimatedQL * 4; // 한 팀의 최대 코트시간 합 (예: 7분 → 8400s, 10분 → 12000s)
+
+      // 합산 (cap 체크용)
+      let trustedTotal = 0;
+      let mediumTotal = 0;
+      let distributedTotal = 0;
+      for (const p of players) {
+        const b = p._minBreakdown;
+        if (!b) continue;
+        trustedTotal += b.trustedSec;
+        mediumTotal += b.mediumSec;
+        distributedTotal += b.distributedSec;
+      }
+      const total = trustedTotal + mediumTotal + distributedTotal;
+
+      if (total <= cap) return; // 이미 합 OK — 변경 0
+
+      // 데이터 이상 (풀타임 합만으로 cap 초과) — 경고만 + 그대로
+      if (trustedTotal > cap) {
+        console.warn(`[live/cap] team trustedSec ${trustedTotal} > cap ${cap} — 보호 우선, cap skip`);
+        return;
+      }
+
+      const remaining = cap - trustedTotal; // medium + distributed 가 차지할 수 있는 최대치
+
+      // 1차: distributed 우선 축소 — medium 은 가능한 살리기
+      if (mediumTotal <= remaining) {
+        // medium 은 그대로, distributed 만 축소
+        const distAllowed = remaining - mediumTotal;
+        const distRatio = distributedTotal > 0 ? distAllowed / distributedTotal : 0;
+        for (const p of players) {
+          if (!p._minBreakdown) continue;
+          p._minBreakdown.distributedSec = Math.round(p._minBreakdown.distributedSec * distRatio);
+        }
+      } else {
+        // medium 도 축소 필요 — distributed 0 + medium ratio 축소
+        const mediumRatio = mediumTotal > 0 ? remaining / mediumTotal : 0;
+        for (const p of players) {
+          if (!p._minBreakdown) continue;
+          p._minBreakdown.distributedSec = 0;
+          p._minBreakdown.mediumSec = Math.round(p._minBreakdown.mediumSec * mediumRatio);
+        }
+      }
+
+      // min_seconds / min 재계산
+      for (const p of players) {
+        if (!p._minBreakdown) continue;
+        const newSec = p._minBreakdown.trustedSec + p._minBreakdown.mediumSec + p._minBreakdown.distributedSec;
+        p.min_seconds = newSec;
+        p.min = Math.round(newSec / 60);
+      }
+    };
+    applyTeamCap(homePlayers);
+    applyTeamCap(awayPlayers);
+
+    // _minBreakdown 은 내부 cap 계산용 — 응답 직전 strip (외부 노출 X)
+    for (const p of [...homePlayers, ...awayPlayers]) {
+      delete p._minBreakdown;
+    }
+
     // 합계 점수: DB homeScore가 0이면 playerStats 합산으로 fallback
     // 이유: 종료된 경기에서 homeScore/awayScore가 sync 안 된 경우 있음 (e.g. match 102)
     // 우선순위: DB homeScore(>0) > playerStats pts 합산
@@ -1058,6 +1191,8 @@ interface PlayerRow {
     oreb: number; dreb: number; reb: number;
     ast: number; stl: number; blk: number; to: number; fouls: number; plus_minus: number;
   }>;
+  // G3 (2026-05-02): cap 적용용 신뢰도 분리 breakdown — 응답 직전 정리 (snake_case 변환 시 외부 노출 X)
+  _minBreakdown?: PlayerTimeBreakdown;
 }
 
 // 2026-05-02: PBP action_subtype "in:X,out:Y" 파싱 → 쿼터별 IN/OUT 시뮬레이션
@@ -1213,11 +1348,26 @@ function parseSubAction(subtype: string | null): { inId: bigint; outId: bigint }
   }
 }
 
-// 반환 타입 — DNP set 도 함께 노출 (G1 가드: getSecondsPlayed 에서 sub 무효 처리)
+// 반환 타입 — G3 (2026-05-02) 신뢰도 분리:
+//   trustedSec (HIGH)      : sub_in→sub_out 양 끝 명시 segment + 풀타임 (한 쿼터 sub 0건 starter — 정확히 qLen)
+//   mediumSec (MEDIUM)     : starter→sub_out (시작 qLen 추정) / sub_in→쿼터끝 (끝 0초 추정)
+//   distributedSec (LOW)   : F2 deficit 가중분배
+// totalSec = sum(3채널). 풀타임 선수 = trustedSec ≥ 4×qLen → cap 시 절대 축소 금지.
+type PlayerTimeBreakdown = {
+  trustedSec: number;
+  mediumSec: number;
+  distributedSec: number;
+};
 type SubBasedMinutesResult = {
-  perPlayer: Map<bigint, number>;
+  perPlayer: Map<bigint, PlayerTimeBreakdown>;
   dnpSet: Set<bigint>;
 };
+
+// 합산 헬퍼 — 3채널 sum
+function totalOf(b: PlayerTimeBreakdown | undefined): number {
+  if (!b) return 0;
+  return b.trustedSec + b.mediumSec + b.distributedSec;
+}
 
 function calculateSubBasedMinutes(
   pbps: Array<{
@@ -1271,12 +1421,26 @@ function calculateSubBasedMinutes(
   // → 외부 노출 dnpSet 은 "이 함수가 sub 시간을 0 으로 결정한 선수" (= 결과 perPlayer 에 없거나 0) 로 정의.
   // 결과적으로 호출부 G1 가드는 "subSec === 0 또는 미보유 = sub 무효" 와 동치 (이미 그렇게 동작).
 
-  // 쿼터별 / 선수별 누적 (F2 보정용)
-  const quarterPlayerSec = new Map<number, Map<bigint, number>>();
-  const addQSec = (q: number, pid: bigint, sec: number) => {
+  // 쿼터별 / 선수별 누적 (F2 보정용) — G3 (2026-05-02) 신뢰도 채널 분리
+  // 한 쿼터 내 한 선수의 시간을 trusted / medium / distributed 3채널로 누적.
+  // F2 deficit 가중분배 시 distributed 만 채워서 cap 시 우선 축소 가능.
+  type Channel = "trusted" | "medium" | "distributed";
+  const quarterPlayerSec = new Map<number, Map<bigint, PlayerTimeBreakdown>>();
+  const ensureBreakdown = (q: number, pid: bigint): PlayerTimeBreakdown => {
     if (!quarterPlayerSec.has(q)) quarterPlayerSec.set(q, new Map());
     const m = quarterPlayerSec.get(q)!;
-    m.set(pid, (m.get(pid) ?? 0) + sec);
+    let b = m.get(pid);
+    if (!b) {
+      b = { trustedSec: 0, mediumSec: 0, distributedSec: 0 };
+      m.set(pid, b);
+    }
+    return b;
+  };
+  const addQSec = (q: number, pid: bigint, sec: number, channel: Channel) => {
+    const b = ensureBreakdown(q, pid);
+    if (channel === "trusted") b.trustedSec += sec;
+    else if (channel === "medium") b.mediumSec += sec;
+    else b.distributedSec += sec;
   };
 
   // 쿼터 키 수집 + 정렬
@@ -1372,29 +1536,52 @@ function calculateSubBasedMinutes(
       }
 
       // 4) 각 선수의 segment 합산 + 쿼터 종료 시 코트 잔존 추적
+      // G3: segment 단위 신뢰도 분류
+      //   - "starter→sub_out" segment : 시작이 qLen 추정 → MEDIUM (단, 시작점만 추정. sub_out clock 은 명시.)
+      //   - "sub_in→sub_out" segment  : 양 끝 명시 → HIGH (가장 신뢰)
+      //   - "sub_in→쿼터끝(0초)" segment : 끝 0초 가정 → MEDIUM
+      //   - "starter→쿼터끝(0초)" segment : 양 끝 모두 가정값 (qLen, 0) BUT 한 쿼터 풀출전 = 정확히 qLen → HIGH
+      //     ※ 풀타임 (Q1~Q4 모두 이 패턴) 선수의 trustedSec = 4×qLen 보장 → cap 에서 절대 축소 금지.
       const endLineup = new Set<bigint>(); // 쿼터 종료 시 코트 잔존 = 다음 쿼터 starter
       for (const playerId of playersInQuarter) {
-        // starter 면 quarterLengthSec 부터 시작, 아니면 미진입 (sub_in 시 시작)
+        // starter 면 quarterLengthSec 부터 시작 (segment 시작이 추정값)
+        // segmentStartIsTrusted = 시작점이 명시 sub_in 인지 여부
         let activeStart: number | null = starters.has(playerId) ? quarterLengthSec : null;
-        let totalSec = 0;
+        let segmentStartIsTrusted = false; // starter 시작은 추정 (false), sub_in 시작은 명시 (true)
 
         for (const sub of subs) {
           if (sub.outId === playerId && activeStart != null) {
-            totalSec += activeStart - sub.clock;
+            const sec = activeStart - sub.clock;
+            if (sec > 0) {
+              // 끝점 = sub_out clock = 명시값. 신뢰도는 시작점에 의존.
+              const channel: Channel = segmentStartIsTrusted ? "trusted" : "medium";
+              addQSec(q, playerId, sec, channel);
+            }
             activeStart = null;
+            segmentStartIsTrusted = false;
           }
           if (sub.inId === playerId) {
+            // 새 segment 시작 = 명시 sub_in clock
             activeStart = sub.clock;
+            segmentStartIsTrusted = true;
           }
         }
 
-        // 쿼터 종료 (0초) 까지 잔존 → 누적
+        // 쿼터 종료 (0초) 까지 잔존 → 누적. 끝 0초는 가정값.
         if (activeStart != null) {
-          totalSec += activeStart - 0;
+          const sec = activeStart - 0;
+          if (sec > 0) {
+            // 풀타임 보호 룰: starter 가 sub 0건으로 한 쿼터 내내 출전 (qLen→0) = 정확히 qLen
+            // → 양끝 가정값이지만 qLen 자체가 농구 룰상 정확 → trusted 로 분류.
+            // 그 외 (sub_in 후 쿼터 끝까지) = sub_in 명시 + 끝 0초 가정 → medium.
+            const isFullQuarter = starters.has(playerId) && segmentStartIsTrusted === false && sec >= quarterLengthSec - 1;
+            const channel: Channel = isFullQuarter ? "trusted" : (segmentStartIsTrusted ? "medium" : "medium");
+            // 주: "sub_in 후 쿼터끝" 도 medium (시작 명시 + 끝 가정), starter 풀타임만 trusted.
+            // 단순화: starter 의 첫 segment 가 sub 없이 끝까지 = trusted, 그 외 = medium
+            addQSec(q, playerId, sec, channel);
+          }
           endLineup.add(playerId); // 다음 쿼터 starter 후보
         }
-
-        if (totalSec > 0) addQSec(q, playerId, totalSec);
       }
 
       // F3: 다음 쿼터 starter 로 전달
@@ -1408,38 +1595,47 @@ function calculateSubBasedMinutes(
       // F2: 쿼터별 팀 합 미달 보정 (이 팀 / 이 쿼터)
       // expected = 5명 × qLen. deficit > 0 && < qLen 일 때만 분배.
       // G1 가드: DNP 선수는 분배 대상 제외 (PBP 0건 + sub 0건 = 매치 출전 안 했음)
+      // G3 (2026-05-02): 분배는 distributed 채널에만 — cap 시 우선 축소 가능.
       const teamQMap = quarterPlayerSec.get(q);
       if (teamQMap) {
         // 이 팀의 이 쿼터 출전 선수만 합산 (DNP 제외 — everSeen 검증)
         const teamPlayers = [...playersInQuarter].filter(
           (pid) => teamQMap.has(pid) && everSeen.has(pid),
         );
-        const teamQTotal = teamPlayers.reduce((s, pid) => s + (teamQMap.get(pid) ?? 0), 0);
+        // 3채널 sum 으로 teamQTotal 계산
+        const teamQTotal = teamPlayers.reduce((s, pid) => s + totalOf(teamQMap.get(pid)), 0);
         const expected = 5 * quarterLengthSec;
         const deficit = expected - teamQTotal;
         // 가드: 0 < deficit < qLen (비합리값 제외) + 출전 선수 1명 이상
         if (deficit > 0 && deficit < quarterLengthSec && teamPlayers.length > 0) {
-          // 출전 시간 비율로 분배 (팀 출전 합이 0 이면 균등 분배)
+          // 출전 시간 비율로 분배 (팀 출전 합이 0 이면 균등 분배) — distributed 채널
           if (teamQTotal > 0) {
             for (const pid of teamPlayers) {
-              const cur = teamQMap.get(pid) ?? 0;
+              const cur = totalOf(teamQMap.get(pid));
               const weight = cur / teamQTotal;
-              addQSec(q, pid, Math.round(deficit * weight));
+              addQSec(q, pid, Math.round(deficit * weight), "distributed");
             }
           } else {
             const each = Math.round(deficit / teamPlayers.length);
-            for (const pid of teamPlayers) addQSec(q, pid, each);
+            for (const pid of teamPlayers) addQSec(q, pid, each, "distributed");
           }
         }
       }
     }
   }
 
-  // 최종 합산 — 모든 쿼터의 player-sec 누적 → 결과 Map
-  const result = new Map<bigint, number>();
+  // 최종 합산 — 모든 쿼터의 player breakdown 을 채널별로 누적 → 결과 Map
+  const result = new Map<bigint, PlayerTimeBreakdown>();
   for (const perPlayer of quarterPlayerSec.values()) {
-    for (const [pid, sec] of perPlayer.entries()) {
-      result.set(pid, (result.get(pid) ?? 0) + sec);
+    for (const [pid, b] of perPlayer.entries()) {
+      let agg = result.get(pid);
+      if (!agg) {
+        agg = { trustedSec: 0, mediumSec: 0, distributedSec: 0 };
+        result.set(pid, agg);
+      }
+      agg.trustedSec += b.trustedSec;
+      agg.mediumSec += b.mediumSec;
+      agg.distributedSec += b.distributedSec;
     }
   }
   // G1: dnpSet 외부 노출 — getSecondsPlayed / 진행중 분기에서 sub 무효 처리에 사용.

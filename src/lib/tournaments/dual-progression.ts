@@ -13,6 +13,7 @@
 // / settings.loserNextMatchSlot 에 저장되어 있다 (createMany 후 UPDATE 단계).
 
 import { Prisma } from "@prisma/client";
+import { recordMatchAudit } from "./match-audit";
 
 /**
  * 매치 settings JSON 구조 (loser 진출 추적용).
@@ -122,12 +123,32 @@ export async function progressDualMatch(
         where: { id: match.next_match_id },
         data: { [oppositeField]: null },
       });
+      // audit: 자가 치유 (반대 슬롯 NULL 정정)
+      await recordMatchAudit(
+        tx,
+        match.next_match_id,
+        { [oppositeField]: nextMatch[oppositeField] },
+        { [oppositeField]: null },
+        "system",
+        `progressDualMatch self-heal (반대 슬롯 ${oppositeField} NULL 정정)`,
+        null,
+      );
     }
 
     await tx.tournamentMatch.update({
       where: { id: match.next_match_id },
       data: { [targetField]: winnerTeamId },
     });
+    // audit: winner 진출
+    await recordMatchAudit(
+      tx,
+      match.next_match_id,
+      { [targetField]: nextMatch?.[targetField] ?? null },
+      { [targetField]: winnerTeamId },
+      "system",
+      `progressDualMatch winner 진출 (source match ${matchId})`,
+      null,
+    );
 
     winnerAdvancedTo = {
       matchId: match.next_match_id.toString(),
@@ -176,12 +197,32 @@ export async function progressDualMatch(
         where: { id: loserNextMatchId },
         data: { [oppositeField]: null },
       });
+      // audit: 자가 치유 (loser 반대 슬롯 NULL 정정)
+      await recordMatchAudit(
+        tx,
+        loserNextMatchId,
+        { [oppositeField]: loserNextMatch[oppositeField] },
+        { [oppositeField]: null },
+        "system",
+        `progressDualMatch self-heal loser (반대 슬롯 ${oppositeField} NULL 정정)`,
+        null,
+      );
     }
 
     await tx.tournamentMatch.update({
       where: { id: loserNextMatchId },
       data: { [targetField]: loserTeamId },
     });
+    // audit: loser 진출
+    await recordMatchAudit(
+      tx,
+      loserNextMatchId,
+      { [targetField]: loserNextMatch?.[targetField] ?? null },
+      { [targetField]: loserTeamId },
+      "system",
+      `progressDualMatch loser 진출 (source match ${matchId})`,
+      null,
+    );
 
     loserAdvancedTo = {
       matchId: loserNextMatchId.toString(),

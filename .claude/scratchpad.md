@@ -183,6 +183,264 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 
 ---
 
+## 기획설계 — Admin-Web 시각 통합 (2026-05-02 v2)
+
+**작업 일시**: 2026-05-02 (대회 후 큐). PM 의뢰 = "다크모드 강제 해제 + (web)와 라이트/다크 시각 일관성 100%" / 코드 수정 0, 계획만.
+
+### 1. 통합 원칙 (사용자 요구 반영)
+
+| # | 원칙 | 사유 |
+|---|------|------|
+| 1 | **다크모드 강제 ❌** — 사용자 토글 그대로 (`<html data-theme=...>` 그대로) | 사용자 명시 요구 |
+| 2 | **라이트/다크 모두 (web) 토큰 직접 참조** (`var(--bg)/--bg-elev/--bg-card/--bg-alt/--bg-head/--ink/--ink-soft/--ink-mute/--ink-dim/--accent/--cafe-blue/--border/--border-strong/--ok/--warn/--danger/--info`) | (web) 글로벌 클래스가 같은 토큰 직접 사용 → 100% 일관 |
+| 3 | **(web) 글로벌 클래스 우선** (`.btn .btn--primary .btn--accent .btn--ghost .btn--sm/.btn--lg / .input .textarea .select / .card / .badge .badge--red/--blue/--ok/--warn/--soft / .eyebrow / .board / .data-table`) | 인라인 스타일 → 글로벌 클래스 교체로 시각 통일 + 코드 행수 감소 |
+| 4 | **API/데이터 변경 0** | CLAUDE.md 리디자인 원칙 |
+| 5 | **(web) 페이지 영향 0** (admin 만 손댄다) | globals.css 보강은 alias 추가만 — 충돌 0 검증 후 |
+| 6 | **13 룰 정합** (var(--*) 토큰만 / 핑크·살몬·코랄 ❌ / lucide ❌ / pill 9999px ❌ — 정사각형 원형 50% 만 허용 / iOS input 16px / 720px 분기) | 디자인 13 룰 (CLAUDE.md §🎨) |
+| 7 | **라이트모드 BDR Red 강제 ❌** — 라이트 = `var(--accent)`(BDR Red) + `var(--cafe-blue)` 공존 (web 정책) | (web) 라이트 시안이 cafe-blue + accent 듀얼톤 — admin 만 BDR Red 단일톤 강제 시 web 과 갭 |
+
+---
+
+### 2. (web) vs (admin) 핵심 갭
+
+#### 2-1. 토큰 어휘 — 가장 큰 차이 (origin)
+
+| 영역 | (web) 사용 토큰 | (admin) 현재 사용 토큰 | 정의 상태 (globals.css) | 통합 방향 |
+|------|---------------|---------------------|------------------------|---------|
+| 배경 (page) | `var(--bg)` | `var(--color-background)` | ✅ alias 정의 (L2309/2327) | alias 유지 OK |
+| 배경 (card/elev) | `var(--bg-elev)`, `var(--bg-card)` | `var(--color-surface)`, `var(--color-card)`, `var(--color-elevated)` | ✅ alias 정의 | alias 유지 OK |
+| 배경 (alt/head) | `var(--bg-alt)`, `var(--bg-head)` | (admin 미사용) | — | admin 사이드바/탭 트레이에 도입 |
+| 텍스트 | `var(--ink)`/`--ink-soft`/`--ink-mute`/`--ink-dim` | `var(--color-text-primary)`/`-secondary)`/`-muted)` | ✅ alias 정의 | alias 유지 OK (4번째 `--color-text-dim` 누락 — 추가 필요) |
+| 보더 | `var(--border)`/`--border-strong`/`--border-hard` | `var(--color-border)`, `var(--color-border-subtle)` | `--color-border` ✅ / `--color-border-subtle` ❌ **미정의** | **alias 추가 필요** (`--color-border-subtle: var(--border)` 또는 `mix`) |
+| 액센트 (BDR Red) | `var(--accent)` (= `var(--bdr-red)`) | `var(--color-accent)`, `var(--color-primary)` | `--color-primary` ✅ / `--color-accent` ❌ **미정의** | **alias 추가 필요** (`--color-accent: var(--accent)`) |
+| 액센트 hover/light | (없음 — 직접 `var(--bdr-red-ink)` / `--bdr-red-hot`) | `var(--color-accent-hover)`, `var(--color-accent-light)` | ❌ **둘 다 미정의** | **alias 추가** (`--color-accent-hover: var(--bdr-red-ink)` / `--color-accent-light: var(--accent-soft)`) |
+| 카페블루 | `var(--cafe-blue)`/`--cafe-blue-deep`/`--cafe-blue-soft` | (admin 미사용) | `--cafe-blue` ✅ | admin 페이지네이션/info 강조에 도입 가능 (옵션) |
+| Status (성공) | `var(--ok)` | `var(--color-success)` | ❌ **미정의** | **alias 추가** (`--color-success: var(--ok)`) |
+| Status (경고) | `var(--warn)` | `var(--color-warning)` | ❌ **미정의** | **alias 추가** (`--color-warning: var(--warn)`) |
+| Status (위험) | `var(--danger)` | `var(--color-error)` | ❌ **미정의** | **alias 추가** (`--color-error: var(--danger)`) |
+| Info | `var(--info)` | `var(--color-info)` | ✅ alias 정의 (L2318) | OK |
+| 그림자 | `var(--sh-xs)`/`--sh-sm)`/`--sh-md)`/`--sh-lg)` | `var(--shadow-card)` | ❌ **미정의** | **alias 추가** (`--shadow-card: var(--sh-sm)`) |
+| 라운드 (card) | `var(--radius-card)` (라이트 10px / 다크 0px) | `rounded-[10px]` `[12px]` `[14px]` `[8px]` 인라인 px | — | 인라인 px → `var(--radius-card)` 또는 `var(--radius-chip)` (6px / 다크 2px) |
+| 라운드 (chip) | `var(--radius-chip)` (라이트 6px / 다크 2px) | `rounded-md` `rounded-lg` `rounded-sm` `rounded-full` 혼재 | — | `rounded-full` 22건 → 정사각형(W=H)만 50% 유지, 그 외 chip/4px |
+| 폰트 (body/display) | `var(--ff-body)` / `var(--ff-display)` | (web) 동일 | ✅ | OK (헤더는 이미 적용됨 Phase E) |
+| Type scale | `var(--fs-h1)`/`--fs-h2)`/`--fs-h3)`/`--fs-body)`/`--fs-small)`/`--fs-micro)` | 인라인 `text-[22px]` `text-sm` `text-xs` 등 | ✅ 정의 | 큰 차이는 없으나 admin 헤더 h1 = `var(--fs-h1)` 권장 (라이트 28 / 다크 36) |
+
+**핵심 결론**: admin이 사용하는 `--color-accent` `--color-error` `--color-warning` `--color-success` `--color-on-text-primary` `--color-border-subtle` `--shadow-card` `--color-accent-hover` `--color-accent-light` 9개 변수가 globals.css 에 **alias 정의 누락**. 현재 admin은 이 변수들이 빈 값(invalid CSS)으로 그려져 색상 미적용 또는 부모 색상 상속 → (web) 와 시각 갭의 가장 큰 원인.
+
+#### 2-2. 폰트 색상
+
+| 용도 | (web) 변수 | (admin) 사용 | 갭 | 통합 |
+|------|-----------|-------------|----|------|
+| 본문 (제목/본문) | `var(--ink)` | `var(--color-text-primary)` (alias = ink) | 0 | alias 유지 |
+| 부제 / soft | `var(--ink-soft)` | `var(--color-text-secondary)` (alias = ink-soft) | 0 | alias 유지 |
+| 뮤트 (라벨) | `var(--ink-mute)` | `var(--color-text-muted)` (alias = ink-mute) | 0 | alias 유지 |
+| dim (날짜/메타) | `var(--ink-dim)` | (admin은 muted 로 통일) | 약간의 디테일 부족 | alias 신설 권장 (`--color-text-dim: var(--ink-dim)`) |
+| 링크 | `var(--link)` | (admin은 사용 0 — 직접 색상 0) | — | admin 링크 사용처 거의 없음 (Next Link 텍스트색 inherit) — 무영향 |
+
+#### 2-3. 버튼
+
+| 종류 | (web) 글로벌 정의 | (admin) 현재 사용 | 갭 | 통합 |
+|------|-----------------|-----------------|----|------|
+| 주요 액션 (라이트=cafe-blue / 다크=bdr-red) | `.btn.btn--primary` | (admin) `bg-[var(--color-accent)]` 직접 (다크/라이트 무관 BDR Red 강제) | 라이트모드 갭 — admin은 라이트도 빨강 강제 (사용자 보고 = 검색 버튼이 카페블루 = 의도된 web 패턴) | admin 의 `var(--color-accent)` 직접 사용 → `.btn.btn--primary` 글로벌 클래스 교체. 라이트모드는 자동 cafe-blue / 다크는 자동 BDR Red |
+| 강조 액션 (BDR 강조 양쪽) | `.btn.btn--accent` | 동일 (admin 다수 — `bg-[var(--color-accent)]`) | 거의 동일 — admin BDR 강조 의도시 | 의미 분리: "create/save 등 메인 = primary" / "danger·강조 = accent" — Phase 2 결정 시 |
+| 보조 (ghost) | `.btn.btn--ghost` | `border border-[var(--color-border)] text-[var(--color-text-muted)]` 인라인 | 시각 톤 비슷, 코드 길이 ↑ | 인라인 → `.btn.btn--ghost` |
+| Small 변형 | `.btn--sm` (`6px 10px / 12px`) | `text-xs` + `px-2 py-1` 등 인라인 | 비슷 | `.btn--sm` |
+| 상태 토글 (success/warning) | (web) 미정의 — `var(--ok)/--warn` 직접 | `bg-[var(--color-warning)]/10 text-[var(--color-warning)]` 등 | alias 누락 → 색 미적용 | alias 추가만으로 즉시 시각 정상화 (코드 변경 0 가능) |
+| 위험 (delete) | (web) 사용 적음 — `var(--danger)` 직접 + `.badge--red` 일부 | `bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]` | alias 누락 + 톤 약간 다름 | alias 추가 + 향후 `.btn.btn--danger` 글로벌 신설 검토 |
+
+#### 2-4. 테이블 / 리스트
+
+| 패턴 | (web) | (admin) 현재 | 통합 방향 |
+|------|------|-------------|---------|
+| 데스크톱 표 | `.board.data-table` (grid 6열 + cafe-blue-soft 공지행 + ink-mute 라벨) | `<table class="admin-table">` (Phase B 박제 — 라이트는 ink-mute 라벨 + bg-elev 헤더) | 톤 일치 OK ✅ (이미 Phase D 정합 작업 완료 — globals.css L1974~) |
+| 모바일 카드 변환 | `.data-table` 자동 (≤720px) | `.admin-table` 자동 (≤720px, [Admin Phase B]) | 둘 다 같은 패턴 ✅ — 이미 정합 |
+| 로우 호버 | `.board__row:hover { background: var(--bg-alt) }` | `hover:bg-[var(--color-elevated)]` (=alias bg-alt) | 정합 ✅ |
+| 보더 색 | `var(--border)` | `var(--color-border)` / `var(--color-border-subtle)` | border-subtle 정의 누락 — alias 추가 시 정합 |
+| 헤더 톤 | 라이트 `--bg-head: #EEF2F7` (블루 톤) / 다크 `#1D232B` | admin은 `bg-[var(--color-surface)]` (= bg-elev = 흰색) | **갭**: web 라이트 헤더는 회청색 / admin 헤더는 흰색 → admin-table thead 도 `var(--bg-head)` 사용 필요 (Phase 1 보강) |
+
+#### 2-5. 카드 / 모달 / 탭 / 입력폼
+
+| 항목 | (web) | (admin) 현재 | 갭 | 통합 |
+|-----|------|-------------|----|------|
+| 카드 | `.card` (`var(--bg-card)` + `var(--border)` + `var(--radius-card)`) | `<Card>` 컴포넌트 (`var(--color-card)` + `var(--shadow-card)` + `rounded-[var(--radius-card)]`) | shadow-card 정의 누락 → 그림자 0 | alias 추가 (`--shadow-card: var(--sh-sm)`) |
+| 카드 padding | (web) 카드별 다름 (대략 16~22px) | `<Card>` 기본 `p-4 sm:p-5` (16/20px) | 정합 ✅ | OK |
+| 모달 | (web) 별도 글로벌 X — 페이지별 ad-hoc | `<AdminDetailModal>` 공통 (border-t-4 primary + 모바일 시트 + sm+ 가운데) | (web)에 표준 모달 없음 — admin이 더 세련 | (web) 모달 패턴 차후 admin 패턴으로 정합 (별도 큐) |
+| 탭 (status) | (web) `.eyebrow` + 밑줄 패턴 | `<AdminStatusTabs>` (밑줄 + accent — 정합 시도됨) | accent alias 누락 → 활성 탭 색 안 보임 | alias 추가 시 즉시 시각 정상화 |
+| 입력폼 | `.input.textarea.select` (`var(--bg-elev)` + `var(--border-strong)` + focus `var(--cafe-blue)` + `var(--cafe-blue-soft)` ring) | `rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)]` 인라인 | radius/focus 톤 다름 + 인라인 코드 행수 ↑ | 인라인 → `.input` 글로벌 (라이트=cafe-blue focus / 다크=BDR Red focus 자동) |
+| 사이드바 | (web) AppNav 가로 (글로벌) | admin `<AdminSidebar>` 세로 fixed | 형태 다름 (의도된) | 사이드바 자체는 유지 — 색상 톤만 정합 (지금 `bg-[var(--color-surface)]`=bg-elev 흰색, web AppNav 라이트 utility = cafe-blue) |
+
+---
+
+### 3. 통합 Phase 계획 (코드 충돌 최소 + 단계 commit)
+
+#### Phase 1: alias 보강 — 가장 큰 효과, 가장 적은 위험 ⭐
+
+| 항목 | 변경 |
+|------|------|
+| 파일 | `src/app/globals.css` 단 1 파일 |
+| 위치 | L2307~2341 의 `:root,[data-theme="light"]` + `[data-theme="dark"]` 블록 (이미 alias 레이어 존재) |
+| 추가할 alias 9개 | `--color-accent: var(--accent)` / `--color-accent-hover: var(--bdr-red-ink)` / `--color-accent-light: var(--accent-soft)` / `--color-error: var(--danger)` / `--color-warning: var(--warn)` / `--color-success: var(--ok)` / `--color-border-subtle: var(--border)` / `--color-text-dim: var(--ink-dim)` / `--shadow-card: var(--sh-sm)` |
+| (web) 영향 | 0 (web은 `var(--accent)` 등 원본 토큰 직접 사용 — alias 신설은 web 무영향) |
+| (admin) 효과 | **즉시 시각 정상화** — 빨간 ★ / 위험 영역 위험색 / 검색 버튼 카페블루 정상 / 모달 액센트 보더 / 탭 활성색 / 카드 그림자 / 페이지네이션 활성 색 등 9개 변수 사용처 405건 자동 정합 |
+| 위험 | 0 (alias 추가만 — 기존 변수 변경 0) |
+| 시간 | 5분 (alias 9줄 × 2 블록 = 18줄 추가) |
+
+**시각 변화 검증 포인트** (라이트·다크 양쪽):
+- `/admin` 대시보드 — `<StatCard>` 아이콘 배경 (color-mix on accent) / `<Card>` 그림자
+- `/admin/users` — ★ 빨간색 / 검색 버튼 카페블루 / 위험 영역 빨간 보더 / 정지·활성화 버튼 색
+- `/admin/tournaments` — 페이지네이션 활성 페이지 액센트 / 공개 뱃지
+- `/admin/courts` — 새 코트 등록 폼 입력 focus 색 / 삭제 버튼 빨간색
+- `/admin/community/games/teams/payments/plans` — 동일 패턴
+
+#### Phase 2: 헤더 thead 톤 정합
+
+| 항목 | 변경 |
+|------|------|
+| 파일 | `src/app/globals.css` (admin-table 정의 보강) |
+| 변경 | L1988 `background: var(--color-surface, var(--bg-elev))` → `var(--bg-head)` 로 톤 정합 (라이트 회청색 / 다크 #1D232B) |
+| (web) 영향 | 0 |
+| (admin) 효과 | admin 표 헤더가 web `.board__head` 와 시각 동일 (라이트 = `#EEF2F7` 회청색) |
+| 위험 | 0 (단일 CSS 변경) |
+| 시간 | 2분 |
+
+#### Phase 3: 사이드바 색상 정합
+
+| 항목 | 변경 |
+|------|------|
+| 파일 | `src/components/admin/sidebar.tsx` |
+| 현재 | `bg-[var(--color-surface)]` (= bg-elev = 흰색 라이트 / #13171C 다크) — web AppNav 와 같은 톤 |
+| 갭 | web AppNav 라이트 utility 바는 cafe-blue. main 바는 bg-elev 흰색 — admin 사이드바도 main 톤이라 정합 OK |
+| 결정 | **변경 0** — 이미 정합 (논의 후 admin 사이드바 상단 BDR/Admin 배지 영역만 cafe-blue strip 추가 옵션 — 사용자 결정 항목) |
+| 시간 | (옵션 시 5분) |
+
+#### Phase 4: 인라인 px 라운드 → 토큰 교체 (옛 토큰 정리)
+
+| 항목 | 변경 |
+|------|------|
+| 영향 파일 | admin courts(63건) / users(34건+17) / payments(17) / plans(34) / partners(34) 등 405건 색상 변수 + 102건 라운드 클래스 (Phase 1 완료 시 색상은 자동 정합 — 라운드는 별도) |
+| 변경 | `rounded-[10px]` `rounded-[14px]` `rounded-[12px]` 인라인 → `rounded-md` (~6px) 또는 `rounded` (~4px) — 13 룰 §10 (4px 기본) |
+| `rounded-full` 22건 점검 | (a) 정사각형 W=H 작은 dot/avatar = 50% 유지 OK / (b) 그 외 (페이지네이션 등) = `rounded-md` 로 교체 — 13 룰 §10 |
+| (web) 영향 | 0 |
+| (admin) 효과 | 시각 라운드 (web) 정합 (라이트 6~10px / 다크 0~2px) |
+| 위험 | 매우 작음 (라운드 시각만 변화) |
+| 시간 | 페이지당 5~10분 — 8 페이지 = 약 60분 |
+
+#### Phase 5: 인라인 버튼/입력 → 글로벌 클래스 교체
+
+| 항목 | 변경 |
+|------|------|
+| 대상 | admin courts/teams/games 등의 form 입력 필드 (`rounded-[10px] border ... bg-[var(--color-card)] px-3 py-2 text-sm`) |
+| 변경 | `<input className="input">` / `<select className="select">` / `<button className="btn btn--primary">` 글로벌 클래스 사용 |
+| (web) 영향 | 0 |
+| (admin) 효과 | 라이트 cafe-blue focus ring / 다크 BDR Red focus / 버튼 hover 정합 / 코드 행수 -50% |
+| 위험 | 매우 작음 (글로벌 클래스는 (web) 다수 페이지 사용 검증 끝) |
+| 시간 | 페이지당 10~15분 — 8 페이지 = 약 90분 |
+
+#### Phase 6: AdminSidebar / AdminMobileNav 활성 메뉴 톤 점검
+
+| 항목 | 변경 |
+|------|------|
+| 현재 | 활성 메뉴 = `bg-[var(--color-primary)] text-white` (=BDR Red) — 라이트·다크 동일 |
+| (web) 정합 | (web) AppNav 활성 탭 = `var(--accent)` 강조 — 동일 패턴 ✅ |
+| 결정 | **변경 0** — 정합 |
+| 옵션 | 사용자가 라이트모드 admin 사이드바 활성 메뉴를 cafe-blue로 변경 원하면 — `data-theme="light"` 분기에서만 `--color-primary`를 `var(--cafe-blue)` override 가능. 단 web 영향 검토 필수 (web 라이트는 primary=BDR Red 그대로) |
+| 시간 | (변경 시 사용자 결정 필요) |
+
+#### Phase 7: 17 페이지 점진 적용 우선순위
+
+| 우선 | 페이지 | 시간 | 사유 |
+|-----|------|------|------|
+| P1 | `/admin/users` | 25분 | 사용자 보고 1순위 (스크린샷 기준) — 옛 토큰 51건 |
+| P1 | `/admin/courts` | 35분 | 옛 토큰 87건 (admin 최다) — courts 등록폼 + 표 + 모달 |
+| P1 | `/admin` 대시보드 | 15분 | 진입점 — Phase E 헤더 적용됨, 그 외 카드 톤 정합만 |
+| P2 | `/admin/tournaments` | 20분 | 페이지네이션 활성 색 + 공개 뱃지 |
+| P2 | `/admin/community` | 15분 | 댓글/게시글 표 |
+| P2 | `/admin/teams` | 15분 | 팀 표 |
+| P2 | `/admin/games` | 20분 | 경기 표 + 액션 |
+| P3 | `/admin/payments` | 15분 | 결제 표 |
+| P3 | `/admin/plans` | 30분 | 옛 토큰 50건 |
+| P3 | `/admin/suggestions` `/admin/logs` `/admin/partners` `/admin/campaigns` `/admin/organizations` `/admin/notifications` `/admin/analytics` `/admin/game-reports` `/admin/settings` | 60분 | 잔여 9 페이지 |
+
+**총 예상**: P1 = 75분 / P2 = 70분 / P3 = 105분 / 합 250분 (= 약 4시간) — 단 Phase 1 alias 보강만으로 405건 색상 자동 정합되므로 P1~P3 의 색상 작업 대부분 자동.
+
+---
+
+### 4. 영향도 / 리스크
+
+| 항목 | 평가 | 근거 |
+|-----|------|------|
+| API/데이터 변경 | **0** | CLAUDE.md 리디자인 원칙 정합 |
+| (web) 페이지 시각 영향 | **0** (Phase 1) | alias 추가만 — web 은 alias 미사용 |
+| 라이트/다크 토글 영향 | **양쪽 정상화** | 9개 alias 가 라이트/다크 분기 모두 정의 (라이트 → ok/warn/danger / 다크 → 동일) |
+| Phase A~E 회귀 | **0** | Phase A~E 가 도입한 `<AdminPageHeader>` `<AdminStatusTabs>` `<AdminDetailModal>` `<AdminMobileNav>` `.admin-table` 모두 영향 0 (오히려 alias 정상화로 의도대로 동작) |
+| 13 룰 위반 | **0** | var(--*) 토큰만 / lucide ❌ / 9999px 정사각형만 / iOS 16px / 720px 분기 모두 유지 |
+| 다크모드 강제 | **❌ (사용자 요구 정합)** | `[data-theme=...]` 토글 그대로 — 어느 단계도 강제 0 |
+| 운영 DB 영향 | **0** | CSS만 변경 |
+| 성능 | 무영향 (CSS 9줄 추가) | — |
+
+**잠재 리스크**:
+1. (web) 페이지가 미래에 `--color-accent` 같은 alias 를 사용하기 시작하면 alias 가 (web) 가독성 저해 → 작업 후 문서화 필수 (decisions.md)
+2. `--shadow-card: var(--sh-sm)` 다크모드에서 `--sh-sm = 4px 4px 0 0 rgba(0,0,0,.6)` (브루탈 하드 그림자). admin 카드 다크모드 = 하드 오프셋 그림자 → web 카드 다크모드와 정합. 단 admin Card 컴포넌트가 라이트의 부드러운 그림자에 익숙한 사용자에게는 다크모드 카드가 "튀어나와 보임" 가능 — 사용자 결정 항목 (Q5)
+
+---
+
+### 5. 추천 진행 순서 + 시간
+
+| 우선 | Phase | 시간 | 사유 |
+|-----|------|------|------|
+| ⭐⭐⭐ | **Phase 1: alias 9개 추가** | 5분 | 단 1 파일 변경 / 위험 0 / 405건 자동 정합 / 즉시 시각 효과 |
+| ⭐⭐ | Phase 2: thead `--bg-head` 톤 정합 | 2분 | (web) 표 헤더 톤 일치 |
+| ⭐ | Phase 4 (P1): 인라인 px 라운드 정리 (users/courts/dashboard) | 75분 | 시각 정합 추가 향상 |
+| ⭐ | Phase 5 (P1): 인라인 → `.btn`/`.input` 글로벌 클래스 교체 (users/courts) | 60분 | 코드 행수 -50% + 라이트/다크 자동 분기 정합 |
+| 잔여 | Phase 4·5 (P2/P3): 나머지 페이지 점진 | 215분 | Phase 1 후 대부분 자동 정합되므로 점진 가능 |
+
+**이 회기 (오늘 작업 큐)**: Phase 1 + Phase 2 (총 7분) **단독** 추천. Phase 4·5 는 사용자 결정 후 별도 큐.
+
+---
+
+### 6. 사용자 결정 필요 사항
+
+| Q | 질문 | 옵션 |
+|---|------|------|
+| Q1 | **Phase 1 alias 9개 추가 진행할까?** (web 영향 0, 즉시 시각 효과) | A. 진행 / B. 보류 |
+| Q2 | **Phase 2 thead `--bg-head` 톤 정합 진행할까?** (admin 표 헤더 색만 변화) | A. 진행 / B. 현 흰색 유지 |
+| Q3 | **라이트모드 admin 사이드바 활성 메뉴**를 cafe-blue 로 바꿀까? | A. BDR Red 유지 (현행, web 일관) / B. cafe-blue 로 변경 (web AppNav utility 와 일관) |
+| Q4 | **Phase 4·5 (인라인 → 글로벌 클래스 교체)** 진행 시점 | A. Phase 1 직후 P1 3페이지만 / B. 별도 큐 (대회 후) / C. 페이지별 사용자 점검 |
+| Q5 | **다크모드 admin 카드 그림자**를 web 정합(하드 오프셋) 으로 갈까 vs 부드러운 그림자 유지 | A. web 정합 (하드 — `var(--sh-sm)`) / B. 부드러운 유지 (`var(--sh-xs)` 또는 alias 별도) |
+| Q6 | **Badge 컴포넌트** — 현재 `<Badge>` 가 `bg-color-*-light` Tailwind class 사용 중 (이게 Tailwind 4 신택스 미정합 → 색 안 보임) — `.badge.badge--ok` 로 교체할까? | A. 교체 (글로벌 클래스 활용) / B. 현 유지 (수정 없음) / C. Badge 컴포넌트 내부 구현만 갱신 |
+
+---
+
+### 7. 자체 검수 체크리스트 (계획 산출물)
+
+| # | 항목 | 상태 |
+|---|------|------|
+| 1 | API/데이터 변경 0 | ✅ (CSS alias만) |
+| 2 | (web) 페이지 영향 0 | ✅ (Phase 1 alias 추가 — web 토큰 변경 0) |
+| 3 | 13 룰 정합 (var(--*) / 라운드 4px / iOS 16px / 720px) | ✅ |
+| 4 | 라이트·다크 양쪽 검증 plan | ✅ (각 Phase 별 양쪽 검증 포인트 명시) |
+| 5 | 다크모드 강제 ❌ | ✅ (alias 만 추가 — 토글 영향 0) |
+| 6 | Phase A~E 회귀 0 | ✅ (admin-page-header / admin-status-tabs / admin-detail-modal / admin-table 무수정) |
+| 7 | 운영 DB 영향 0 | ✅ (CSS만) |
+| 8 | 사용자 결정 항목 명시 | ✅ (Q1~Q6 6건) |
+| 9 | 추천 진행 순서 + 시간 명시 | ✅ |
+| 10 | 영향도 / 리스크 표 | ✅ |
+| 11 | 산출물 = 코드 변경 0 (계획만) | ✅ |
+| 12 | 기존 §관리자페이지 UI 개선 섹션 (Phase A~E) 보존 | ✅ (별도 §F2 섹션 위에 새 섹션 추가만) |
+
+---
+
+### 8. developer 주의사항 (Phase 1 진행 시)
+
+1. **변경 위치 한정**: `src/app/globals.css` L2307~2341 의 alias 블록 2개 (라이트 + 다크) 만 편집. 다른 라인 수정 ❌.
+2. **alias 9개 모두 라이트/다크 양쪽에 정의** — 한쪽 빠뜨리면 토글 시 색 누락.
+3. **변수명 검증**: admin 코드 405건 grep 결과 = `--color-accent / --color-accent-hover / --color-accent-light / --color-error / --color-warning / --color-success / --color-border-subtle / --color-text-dim / --shadow-card` 9개. 추가 변수 발견 시 추가.
+4. **다크모드 `--shadow-card` 매핑 결정** — Q5 답변 받기 전엔 `var(--sh-sm)` (하드 오프셋, web 정합) 가 디폴트.
+5. **commit 메시지**: `style(admin): alias 9개 추가 — admin 색상 변수 web 토큰 정합 (Phase 1)`
+6. **검증** — 로컬 `/admin/users` 라이트·다크 양쪽 토글 → ★ 빨강 / 위험 영역 빨강 / 검색 버튼 카페블루(라이트) / 모달 보더 액센트 / 페이지네이션 활성색 모두 시각 확인.
+
+---
+
 ## 작업 로그 (최근 10건, 오래된 것부터 압축)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
@@ -195,3 +453,4 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 | 2026-05-02 | (DB UPDATE) | **B조 승자전 Match #7 양쪽 아울스 — awayTeamId NULL 정정** — Match #5(아울스 winner) 종료 직후 1초 만에 Match #7.away 가 잘못 250 set. progressDualMatch / updateMatch / updateMatchStatus / Flutter v1 모두 단일 슬롯 정상. 의심 경로=admin web matches PATCH (homeTeamId/awayTeamId 직접 set 가능). 즉시 fix=awayTeamId NULL UPDATE. Match #6 종료 시 자동 덮어쓰기 진행. errors.md 박제 + 회귀 방지 큐 (progressDualMatch 가드 / admin PATCH 슬롯 직접 set 차단 / audit log / cron 검출). 피벗 케이스도 동일 패턴 | ✅ |
 | 2026-05-02 | (DB 통합 트랜잭션) | **김영훈 placeholder ↔ real user 통합 (#94 셋업)** — uid 2954(placeholder, PBP 34건+Stat 2건) → uid 2853(실제 카카오 4/8 가입) 7단계 트랜잭션. ttp 2708.userId UPDATE 1줄로 PBP/Stat 자동 귀속. 빈 껍데기 ttp 2717 + 0점 stat 정리. tm captain 2853 jersey 94 보정. user 2954 status='deleted' + 추적 표식. 매치 #133 매칭률 80→96% / #135 9점 매핑. 16팀 점검 동시 진행: 명단 0팀=MI/SKD, 배번누락=다이나믹 6명 + 셋업 김영훈(완료). lessons.md 통합 패턴 박제 | ✅ |
 | 2026-05-02 | (G1 DNP 가드) | **api/live calculateSubBasedMinutes 에 DNP 가드 추가** — `route.ts` `calculateSubBasedMinutes` 에 everSeen Set (PBP 액션 + sub_in/out 등장 ttpId) 사전 계산. starter / playersInQuarter / F2 가중분배 3단계 모두에서 DNP 선수 (everSeen 미포함) 제외. return 객체화 (`{perPlayer, dnpSet}`) + 호출부 2곳 (149/376) 가드 적용 + `getSecondsPlayed` 에 hasRealRecord 검사 추가 (qsJson/dbMin/PBP-sim/통계누적/isStarter 모두 0 → subSec=0). **검증**: #132 283.3m→283.3m / #133 280→280 / #134 280→280 / #135 284.9→284.9 (DNP 영향 0) / #136 **329.8m→285.8m (-44m)** = 전효민 22.3m + 이상현 21.8m 가짜 시간 제거. 5.8m 잔여는 F2 over-distribution (G3 후속 큐). DB/Flutter 변경 0. tsc PASS | ✅ |
+| 2026-05-02 | (G3 신뢰도 분리 + cap) | **api/live 신뢰도 기반 출전시간 + 풀타임 보호 + 팀 cap** — `PlayerTimeBreakdown {trustedSec, mediumSec, distributedSec}` 도입. `calculateSubBasedMinutes` segment 단위 신뢰도 분류 (sub_in→sub_out=trusted / starter 풀쿼터=trusted / starter→sub_out=medium / sub_in→끝=medium / F2 가중분배=distributed). `getSecondsPlayed` 5순위 (풀타임>qsJson 근접>sub 채택>외부 fallback>DNP). `applyTeamCap` 팀별 cap=5×qLen×4 — distributed 우선 축소, trusted 절대 보호, mediumTotal>remaining 시 medium 도 축소. PlayerRow 임시 `_minBreakdown` 첨부 후 응답 직전 strip. **검증**: cap unit test 4/4 PASS (cap 미초과 / distributed 축소 / medium 축소 / 데이터 이상). 5매치 sub-based raw 측정 = cap 미발동 (sub_total<cap, 라이브 API의 STL R3 보충 후 280m 근접). #134 풀타임 조현철·강동진 trustedSec=28.00m 정확 보존. tsc PASS. DB/Flutter 변경 0. errors.md G3 박제 | ✅ |
