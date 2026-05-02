@@ -109,23 +109,20 @@ export function V2TournamentHero({
 
   return (
     <section
-      // 시안 Match.jsx L99: background:`linear-gradient(135deg, ${accent}, ${accent}AA 50%, #0B0D10)`
+      // 2026-05-02: 콤팩트 (사용자 요청 — 빈 공간 ↓ + 탭과 여백 ↓)
+      // padding 36/32 → clamp 모바일/PC 자연 적응 / marginBottom 20 → 10
       style={{
         background: `linear-gradient(135deg, ${accent}, ${accent}AA 50%, #0B0D10)`,
         color: "#fff",
-        padding: "36px 32px",
+        padding: "clamp(20px, 4vw, 28px) clamp(18px, 4vw, 28px)",
         borderRadius: "var(--radius-card, 12px)",
         position: "relative",
         overflow: "hidden",
-        marginBottom: 20,
+        marginBottom: 10,
         display: "grid",
-        // 포스터 있으면 200px 좌측 고정, 없으면 1열 풀와이드
         gridTemplateColumns: hasPoster ? "200px 1fr" : "1fr",
-        gap: 28,
+        gap: hasPoster ? 24 : 0,
         alignItems: "center",
-        // 풀폭 깨짐 방지 (P0 layout fix, 2026-04-27)
-        // 부모 wrapper가 누락된 경우에도 hero가 viewport 끝까지 늘어나지 않도록 안전망.
-        // 부모가 더 좁으면(예: max-w-7xl 1280) 그 폭이 우선 — 무해.
         maxWidth: 1200,
         marginLeft: "auto",
         marginRight: "auto",
@@ -159,7 +156,7 @@ export function V2TournamentHero({
               letterSpacing: ".12em",
               fontWeight: 800,
               opacity: 0.85,
-              marginBottom: 10,
+              marginBottom: 6,
               textTransform: "uppercase",
             }}
           >
@@ -167,12 +164,12 @@ export function V2TournamentHero({
           </div>
         )}
 
-        {/* 대회명 — 시안 L103: t-display / 48px */}
+        {/* 대회명 — 시안 L103: t-display / 모바일 콤팩트 28→24 */}
         <h1
           className="t-display"
           style={{
-            margin: "0 0 8px",
-            fontSize: "clamp(28px, 5vw, 48px)",
+            margin: "0 0 6px",
+            fontSize: "clamp(24px, 5vw, 40px)",
             letterSpacing: "-0.02em",
             fontWeight: 900,
             lineHeight: 1.1,
@@ -182,15 +179,15 @@ export function V2TournamentHero({
           {name}
         </h1>
 
-        {/* 메타 행: 시안 L105~110 (이모지 + 날짜/장소/상금/포맷) */}
+        {/* 메타 행: 시안 L105~110 (이모지 + 날짜/장소/상금/포맷) — 콤팩트 */}
         <div
           style={{
             display: "flex",
-            gap: 18,
+            gap: 14,
             fontSize: 13,
             opacity: 0.9,
             flexWrap: "wrap",
-            marginBottom: 18,
+            marginBottom: 12,
           }}
         >
           {/* 이모지 → Material Symbols (디자인 시스템 일관성) */}
