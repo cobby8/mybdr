@@ -349,7 +349,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.message ?? "처리 중 오류가 발생했습니다.");
+        alert(data.error ?? data.message ?? "처리 중 오류가 발생했습니다.");
         return;
       }
       setRequests((prev) => prev.filter((r) => r.id !== requestId));
@@ -474,7 +474,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        alert(data.message ?? "수정 중 오류가 발생했습니다.");
+        alert(data.error ?? data.message ?? "수정 중 오류가 발생했습니다.");
         return;
       }
       alert("팀 정보가 수정되었습니다.");
