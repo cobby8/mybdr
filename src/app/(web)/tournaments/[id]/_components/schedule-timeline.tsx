@@ -208,8 +208,8 @@ export function ScheduleTimeline({ matches, teams }: Props) {
             </div>
 
             {/* 2026-05-02: 카드 콤팩트 + 매치번호 표시 + 데스크톱 그리드 (사용자 요청)
-                — 모바일 1열 / md+ 2열 / xl+ 3열. PC 공백 ~70% 축소, 대진표 카드와 시각 통일. */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                — 모바일 1열 / md+ 2열. xl 3열은 카드 너비 좁아 팀명 잘림 → 2열로 통일 (2026-05-03 fix). */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {dayMatches.map((match) => {
                 // 이 경기에 선택된 팀이 참여하는지 확인 (하이라이트용)
                 const isHighlighted =
