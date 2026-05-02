@@ -11,7 +11,11 @@
  * - SSR 프리페치 결과도 동일하게 snake_case로 통일하여 클라이언트 접근 일관성 확보.
  */
 
-// 1) 대회 슬라이드 — 임박/접수중 대회 1건
+// 1) 대회 슬라이드 — 임박/접수중/진행 중 대회 1건
+// 2026-05-02: is_registration_open + live_match 추가 (사용자 요청)
+//  - 접수 중일 때만 "지금 신청하기" 노출
+//  - 진행 중인 매치 정보 (팀명/스코어/라이브 여부) 표시
+//  - 라이브 매치 시 LIVE 아이콘 → /live/[id] 진입
 export type HeroSlideTournament = {
   kind: "tournament";
   data: {
@@ -25,6 +29,17 @@ export type HeroSlideTournament = {
     teams_count: number;
     max_teams: number | null;
     cover_image_url: string | null; // 스키마의 banner_url 매핑
+    // 2026-05-02: 접수 가능 여부 — registration_end_at > NOW
+    is_registration_open: boolean;
+    // 2026-05-02: 진행 중인 매치 (없으면 null)
+    live_match: {
+      id: string; // tournamentMatch.id (BigInt → string)
+      home_team_name: string;
+      home_score: number;
+      away_team_name: string;
+      away_score: number;
+      is_live: boolean; // status='live' 또는 'in_progress'
+    } | null;
   };
 };
 
