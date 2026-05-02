@@ -84,10 +84,21 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
        * ============================================================ */}
       <div className="app-nav__utility">
         <div className="app-nav__utility-inner">
+          {/* 2026-05-02: BDR 로고를 utility bar 좌측으로 이동 (PC/모바일 모두 표시 — 사용자 요청) */}
+          <Link href="/" className="app-nav__utility-logo" prefetch aria-label="MyBDR 홈">
+            <Image
+              src="/images/logo.png"
+              alt="MyBDR"
+              width={140}
+              height={40}
+              priority
+              style={{ height: 18, width: "auto" }}
+            />
+            <span className="app-nav__utility-logo-text">MyBDR<span className="dot">.</span></span>
+          </Link>
+          <span className="sep util-left" />
           {/* [2026-04-29] 좌측 그룹 — 모바일에서 숨김 (CSS 셀렉터 .util-left 사용)
                           좌/우를 명시 클래스로 분리해 모바일에서 좌측만 hide. */}
-          <span className="util-left">MyBDR 커뮤니티</span>
-          <span className="sep util-left" />
           <Link href="/about" className="util-left">소개</Link>
           <span className="sep util-left" />
           <Link href="/pricing" className="util-left">요금제</Link>
@@ -117,20 +128,8 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
        * 메인 바 — 로고 / 탭 8개 / 우측 액션
        * ============================================================ */}
       <div className="app-nav__main">
-        {/* 로고 (홈 이동) */}
-        <Link href="/" className="app-nav__logo" prefetch>
-          <Image
-            src="/images/logo.png"
-            alt="MyBDR"
-            width={140}
-            height={40}
-            priority
-            style={{ height: 28, width: "auto" }}
-          />
-          <span>
-            MyBDR<span className="dot">.</span>
-          </span>
-        </Link>
+        {/* 2026-05-02: 메인 바 로고 제거 — utility bar 좌측으로 이동 (사용자 요청)
+            탭이 좌측에서 시작 + 우측 액션 그대로 */}
 
         {/* 탭 9개 — 가로 스크롤 가능 (CSS에서 overflow-x 처리)
             [재박제 R-C-4] 9번째 '더보기' = drawer 토글 button (PC/모바일 동일).
