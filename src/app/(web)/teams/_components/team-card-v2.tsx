@@ -125,7 +125,8 @@ export function TeamCardV2({
               width: 40,
               height: 40,
               borderRadius: 8,
-              objectFit: "cover",
+              // 팀 로고는 비율이 제각각 — contain 으로 잘림 방지. 여백은 background 가 받음 (2026-05-02)
+              objectFit: "contain",
               flexShrink: 0,
               background: "rgba(255,255,255,.18)",
             }}

@@ -238,7 +238,8 @@ export function OverviewTab({ stats, teams, badges, activity, bio }: OverviewTab
                           alt={t.name}
                           width={36}
                           height={36}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          // 팀 로고는 비율이 제각각 — contain 으로 잘림 방지 (2026-05-02)
+                          style={{ width: "100%", height: "100%", objectFit: "contain" }}
                         />
                       ) : (
                         tagInitial
