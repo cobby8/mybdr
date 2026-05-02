@@ -2,6 +2,21 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-03] 알기자 brief Phase 1 정책 재설계 + 데이터 풀 확장 + 다양한 관점 prompt
+- **분류**: architecture (LLM 기자봇 / 매치 페이지 통합)
+- **발견자**: pm + 사용자 통찰 ("어디 들어가는 어떤 기사냐에 따라 다르다")
+- **참조횟수**: 0
+- **위치**: `src/lib/news/{prompts/alkija-system.ts, match-brief-generator.ts, validate-brief.ts}` + `src/app/api/live/[id]/brief/route.ts`
+- **목적**: `/live/[id]` 요약 탭 [Lead] 섹션 LLM 단신. Header(대회/라운드/일시/장소) + Headline(점수) + Body(MVP) + Stats(통계) 와 중복 X.
+- **5/3 재설계 핵심**:
+  - **Phase 1 컨텍스트 명시**: prompt에 "매치 페이지 안 1 섹션, 점수/팀명/대회명 반복 X" 박제. 점프볼 D리그 단신(독립 기사, 600~1000자) 패턴 무차별 적용 시 길이 폭증 350자/검증실패 발생 → "흐름·영웅·서사" 만 다루는 150~250자 정책 채택.
+  - **데이터 풀 확장**: MatchBriefInput 에 `homeTeamStat`/`awayTeamStat`(야투/3점/리바/어시/스틸/블락/턴오버 합계+%) + `allPlayers[]`(모든 선수 stat) + `doubleDoubles`/`tripleDoubles`(자동 검출) + `topRebounder`/`topAssister`/`topStealer`/`topBlocker`/`topPlusMinus`/`bestThreeShooter`(임계값 충족 시 자동 추출).
+  - **다양한 관점 prompt**: system prompt에 10개 관점(야투율 우위/3점 폭격/리바 장악/어시 농구/스틸·블락 수비/더블더블/+/- 결정자/턴오버 차이/쿼터 흐름/승부처 영웅) 명시. 매치마다 데이터 부각된 관점 1~2개 선택 권장.
+  - **어조 ~다 통일** (5/3 사용자 결정): `~습니다` 금지, 모든 종결어미 `~다`.
+  - **validate-brief 단순화**: 점수 검증 제거 (쿼터/진행 점수 false positive 차단), 승팀명만 강제, 길이 400→350.
+- **검증 결과 (5/2 종료 8매치)**: 평균 188자(목표 150~250 적중), fallback 0건, 8건 모두 다른 관점, 점프볼 표현(사수/분전/발목 잡히며/폭격/시소 게임/해결사 면모) 다수, 더블더블 자동 표기(#8 김종민 10-10), +/- 활용(#3 전인규 +30, #7 정환조 +23).
+- **Phase 2 분기 큐**: 게시판 'news' 카테고리 발행 시 별도 prompt (점프볼 단신 패턴 풀 적용, 400~700자) — 현 Phase 1 prompt 와 분기 예정.
+
 ### [2026-05-03] 가입 신청 일괄 처리 함수 — `src/lib/teams/approve-join-requests.ts` 신규
 - **분류**: architecture (운영 lib / 박제 작업 + 추후 admin UI 공용)
 - **발견자**: pm

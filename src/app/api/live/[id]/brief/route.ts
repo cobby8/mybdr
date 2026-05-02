@@ -89,7 +89,7 @@ export async function GET(
         awayTeam: {
           include: { team: { select: { name: true } } },
         },
-        tournament: { select: { venue_name: true } },
+        tournament: { select: { venue_name: true, name: true } },
         playerStats: {
           include: {
             tournamentTeamPlayer: {
@@ -296,8 +296,11 @@ export async function GET(
 
     // round_name 추출 — schema: roundName (camelCase, @map("round_name"))
     const roundName = match.roundName ?? null;
+    // 2026-05-03: tournament.name 추가 (점프볼 패턴 정형 리드용)
+    const tournamentName = match.tournament?.name ?? null;
     // group_name 추출 — settings.group_name 또는 동등 필드 (없을 가능성 높음)
-    const groupName: string | null = null; // Phase 1 에서는 미추출 (Phase 2 보완)
+    // 2026-05-03: groupName 활성화 — schema: group_name (snake)
+    const groupName: string | null = match.group_name ?? null;
 
     // scheduledAt 포맷 — ISO → 한국시간 단순 표기
     let scheduledAtStr: string | null = null;
@@ -315,9 +318,126 @@ export async function GET(
     // 장소 — match.venue_name 우선, fallback tournament.venue_name
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
 
+    // 2026-05-03: 풍부한 데이터 풀 — 양 팀 통계 합산 + 모든 선수 + 특별 기록
+    type PStat = NonNullable<MatchBriefInput["allPlayers"]>[number];
+    const allPlayers: PStat[] = [];
+    for (const ps of match.playerStats) {
+      const ttp = ps.tournamentTeamPlayer;
+      if (!ttp) continue;
+      const u = ttp.users;
+      const name = u ? getDisplayName(u, ttp) : (ttp.player_name ?? "선수");
+      const teamSide: "home" | "away" =
+        ttp.tournamentTeamId === match.homeTeamId ? "home" : "away";
+      const pts = ps.points ?? 0;
+      const reb = ps.total_rebounds ?? 0;
+      const ast = ps.assists ?? 0;
+      const stl = ps.steals ?? 0;
+      const blk = ps.blocks ?? 0;
+      const to = ps.turnovers ?? 0;
+      const minutes = ps.minutesPlayed ?? 0;
+      // 출전시간 0 + 점수 0 + 모든 stat 0 = DNP → 제외
+      if (pts === 0 && reb === 0 && ast === 0 && stl === 0 && blk === 0 && minutes === 0) continue;
+      allPlayers.push({
+        team: teamSide,
+        name,
+        pts,
+        reb,
+        ast,
+        stl,
+        blk,
+        to,
+        fgMade: ps.fieldGoalsMade ?? 0,
+        fgAtt: ps.fieldGoalsAttempted ?? 0,
+        threesMade: ps.threePointersMade ?? 0,
+        threesAtt: ps.threePointersAttempted ?? 0,
+        ftMade: ps.freeThrowsMade ?? 0,
+        ftAtt: ps.freeThrowsAttempted ?? 0,
+        plusMinus: ps.plusMinus ?? 0,
+        minutes,
+      });
+    }
+
+    // 팀 통계 합산
+    function sumTeam(team: "home" | "away"): MatchBriefInput["homeTeamStat"] {
+      const players = allPlayers.filter((p) => p.team === team);
+      if (players.length === 0) return null;
+      const sum = players.reduce(
+        (acc, p) => {
+          acc.pts += p.pts;
+          acc.fgMade += p.fgMade;
+          acc.fgAtt += p.fgAtt;
+          acc.threesMade += p.threesMade;
+          acc.threesAtt += p.threesAtt;
+          acc.ftMade += p.ftMade;
+          acc.ftAtt += p.ftAtt;
+          acc.totalReb += p.reb;
+          acc.ast += p.ast;
+          acc.stl += p.stl;
+          acc.blk += p.blk;
+          acc.to += p.to;
+          return acc;
+        },
+        {
+          pts: 0,
+          fgMade: 0,
+          fgAtt: 0,
+          threesMade: 0,
+          threesAtt: 0,
+          ftMade: 0,
+          ftAtt: 0,
+          totalReb: 0,
+          ast: 0,
+          stl: 0,
+          blk: 0,
+          to: 0,
+        },
+      );
+      // off/def reb 직접 합산 (allPlayers엔 없음)
+      const homeIdLocal = match!.homeTeamId;
+      const psList = match!.playerStats.filter((ps) => {
+        const ttp = ps.tournamentTeamPlayer;
+        if (!ttp) return false;
+        const side = ttp.tournamentTeamId === homeIdLocal ? "home" : "away";
+        return side === team;
+      });
+      const offReb = psList.reduce((s, p) => s + (p.offensive_rebounds ?? 0), 0);
+      const defReb = psList.reduce((s, p) => s + (p.defensive_rebounds ?? 0), 0);
+      const pf = psList.reduce((s, p) => s + (p.personal_fouls ?? 0), 0);
+      return {
+        ...sum,
+        offReb,
+        defReb,
+        pf,
+        fgPct: sum.fgAtt > 0 ? (sum.fgMade / sum.fgAtt) * 100 : 0,
+        threesPct: sum.threesAtt > 0 ? (sum.threesMade / sum.threesAtt) * 100 : 0,
+        ftPct: sum.ftAtt > 0 ? (sum.ftMade / sum.ftAtt) * 100 : 0,
+      };
+    }
+    const homeTeamStat = sumTeam("home");
+    const awayTeamStat = sumTeam("away");
+
+    // 특별 기록 검출
+    const dDouble: PStat[] = allPlayers.filter((p) => {
+      const cats = [p.pts, p.reb, p.ast, p.stl, p.blk].filter((v) => v >= 10).length;
+      return cats >= 2 && cats < 3;
+    });
+    const tDouble: PStat[] = allPlayers.filter((p) => {
+      const cats = [p.pts, p.reb, p.ast, p.stl, p.blk].filter((v) => v >= 10).length;
+      return cats >= 3;
+    });
+    const topRebounder = [...allPlayers].sort((a, b) => b.reb - a.reb)[0];
+    const topAssister = [...allPlayers].sort((a, b) => b.ast - a.ast)[0];
+    const topStealer = [...allPlayers].sort((a, b) => b.stl - a.stl)[0];
+    const topBlocker = [...allPlayers].sort((a, b) => b.blk - a.blk)[0];
+    const topPlusMinus = [...allPlayers].sort((a, b) => b.plusMinus - a.plusMinus)[0];
+    const bestThreeShooter = [...allPlayers]
+      .filter((p) => p.threesMade >= 3)
+      .sort((a, b) => b.threesMade - a.threesMade)[0];
+
     // LLM 입력 구성
     const briefInput: MatchBriefInput = {
       matchId,
+      tournamentName,
       homeTeam: homeTeamName,
       awayTeam: awayTeamName,
       homeScore,
@@ -333,6 +453,17 @@ export async function GET(
       maxLead,
       leadChanges,
       quarterScores,
+      homeTeamStat,
+      awayTeamStat,
+      allPlayers,
+      doubleDoubles: dDouble,
+      tripleDoubles: tDouble,
+      topRebounder: topRebounder && topRebounder.reb >= 5 ? topRebounder : null,
+      topAssister: topAssister && topAssister.ast >= 3 ? topAssister : null,
+      topStealer: topStealer && topStealer.stl >= 2 ? topStealer : null,
+      topBlocker: topBlocker && topBlocker.blk >= 1 ? topBlocker : null,
+      topPlusMinus: topPlusMinus && topPlusMinus.plusMinus >= 5 ? topPlusMinus : null,
+      bestThreeShooter: bestThreeShooter ?? null,
     };
 
     // LLM 호출 (캐시 적용)
