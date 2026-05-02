@@ -176,6 +176,8 @@ function OverviewWithDashboard({ tournamentId, overviewContent }: { tournamentId
             totalMatches={d.totalMatches ?? 0}
             completedMatches={d.completedMatches ?? 0}
             liveMatchCount={d.liveMatchCount ?? 0}
+            liveMatchPreview={d.liveMatchPreview ?? null}
+            isAllCompleted={d.isAllCompleted ?? false}
             hotTeam={d.hotTeam ?? null}
           />
         </div>
