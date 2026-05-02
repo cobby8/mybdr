@@ -250,11 +250,19 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       // 2026-04-18: PBP snapshot replace — 앱 undo 가 서버에 즉시 반영되도록
       // 앱 로컬 DB 에서 삭제된 PBP 는 sync data 에 없으므로, incoming local_id 목록에 없는 기존 서버 PBP 삭제.
       // player_id=0 인 PBP(타임아웃/쿼터시작 등)도 incoming 에 있을 수 있으므로 먼저 전체 local_id 목록 수집.
+      // 2026-05-02: 운영자 수동 보정 PBP 보존 — local_id="manual-fix-*" prefix 는 deleteMany 에서 제외.
+      //   사례: 매치 132 임강휘 2점 슛이 Flutter app PBP 에 누락 (matchPlayerStat 만 들어감) → 운영자가 수동 INSERT.
+      //   향후 Flutter sync 시 이 PBP 가 자동 삭제되지 않도록 보호.
       const incomingLocalIds = play_by_plays.map((pbp) => pbp.local_id);
       await prisma.play_by_plays.deleteMany({
         where: {
           tournament_match_id: matchId,
-          NOT: { local_id: { in: incomingLocalIds } },
+          NOT: {
+            OR: [
+              { local_id: { in: incomingLocalIds } },
+              { local_id: { startsWith: "manual-fix-" } },
+            ],
+          },
         },
       });
 
