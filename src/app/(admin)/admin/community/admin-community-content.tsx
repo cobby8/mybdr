@@ -77,8 +77,9 @@ export function AdminCommunityContent({
 
       {/* 축소된 테이블: 제목 / 카테고리 / 작성자 / 날짜 (4칸) */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto admin-table-wrap">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+          <table className="admin-table w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-5 py-4 font-medium">제목</th>
@@ -100,7 +101,7 @@ export function AdminCommunityContent({
                         : "hover:bg-[var(--color-elevated)]"
                     }`}
                   >
-                    <td className="px-5 py-3">
+                    <td data-primary="true" className="px-5 py-3">
                       <p className="truncate font-medium text-[var(--color-text-primary)]">
                         {isHidden && (
                           <span className="mr-1.5 text-xs text-[var(--color-error)]">[숨김]</span>
@@ -108,15 +109,15 @@ export function AdminCommunityContent({
                         {p.title}
                       </p>
                     </td>
-                    <td className="px-5 py-3">
+                    <td data-label="카테고리" className="px-5 py-3">
                       <Badge variant="default">
                         {CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타"}
                       </Badge>
                     </td>
-                    <td className="px-5 py-3 truncate text-[var(--color-text-muted)]">
+                    <td data-label="작성자" className="px-5 py-3 truncate text-[var(--color-text-muted)]">
                       {p.authorName ?? p.authorEmail ?? "-"}
                     </td>
-                    <td className="px-5 py-3 text-[var(--color-text-muted)]">
+                    <td data-label="날짜" className="px-5 py-3 text-[var(--color-text-muted)]">
                       {fmtDate(p.createdAt)}
                     </td>
                   </tr>

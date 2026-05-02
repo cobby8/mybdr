@@ -182,9 +182,10 @@ export default function AdminPartnersPage() {
           등록된 파트너가 없습니다
         </div>
       ) : (
-        <div className="rounded-md border overflow-hidden"
+        <div className="rounded-md border overflow-hidden admin-table-wrap"
           style={{ borderColor: "var(--color-border)" }}>
-          <table className="w-full text-sm">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+          <table className="admin-table w-full text-sm">
             <thead>
               <tr style={{ backgroundColor: "var(--color-surface)" }}>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-text-secondary)" }}>파트너사</th>
@@ -199,23 +200,23 @@ export default function AdminPartnersPage() {
                 const badge = statusBadge(p.status);
                 return (
                   <tr key={p.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
-                    <td className="px-4 py-3">
+                    <td data-primary="true" className="px-4 py-3">
                       <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>{p.name}</p>
                       <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{p.contact_email || "-"}</p>
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
+                    <td data-label="소유자" className="px-4 py-3" style={{ color: "var(--color-text-secondary)" }}>
                       {p.owner.nickname || p.owner.email}
                     </td>
-                    <td className="px-4 py-3 text-center" style={{ color: "var(--color-text-secondary)" }}>
+                    <td data-label="캠페인" className="px-4 py-3 text-center" style={{ color: "var(--color-text-secondary)" }}>
                       {p.campaigns_count}개
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-label="상태" className="px-4 py-3 text-center">
                       <span className="inline-block px-2 py-0.5 rounded text-xs font-bold"
                         style={{ backgroundColor: badge.bg, color: badge.text }}>
                         {badge.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td data-actions="true" className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         {/* 승인 대기 상태일 때 승인/반려 버튼 */}
                         {p.status === "pending" && (

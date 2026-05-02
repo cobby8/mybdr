@@ -194,8 +194,9 @@ export default function AdminPlansPage() {
         </Card>
       ) : (
         <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-sm">
+          <div className="overflow-x-auto admin-table-wrap">
+            {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+            <table className="admin-table w-full table-fixed text-sm">
               <colgroup>
                 <col />
                 <col className="w-[130px]" />
@@ -217,21 +218,21 @@ export default function AdminPlansPage() {
               <tbody>
                 {plans.map((plan) => (
                   <tr key={plan.id} className="border-b border-[var(--color-card)] hover:bg-[var(--color-elevated)]/50">
-                    <td className="py-3 pr-4 font-medium">
+                    <td data-primary="true" className="py-3 pr-4 font-medium">
                       {plan.name}
                       {plan.description && (
                         <div className="text-xs text-[var(--color-text-muted)]">{plan.description}</div>
                       )}
                     </td>
-                    <td className="py-3 pr-4 font-mono text-xs text-[var(--color-text-muted)]">{plan.feature_key}</td>
-                    <td className="py-3 pr-4 text-xs text-[var(--color-text-muted)]">{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
-                    <td className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
-                    <td className="py-3 pr-4">
+                    <td data-label="기능 키" className="py-3 pr-4 font-mono text-xs text-[var(--color-text-muted)]">{plan.feature_key}</td>
+                    <td data-label="타입" className="py-3 pr-4 text-xs text-[var(--color-text-muted)]">{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
+                    <td data-label="금액" className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
+                    <td data-label="상태" className="py-3 pr-4">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${plan.is_active ? "bg-[var(--color-success)]/10 text-[var(--color-success)]" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"}`}>
                         {plan.is_active ? "활성" : "비활성"}
                       </span>
                     </td>
-                    <td className="py-3">
+                    <td data-actions="true" className="py-3">
                       <div className="flex gap-2">
                         <button onClick={() => openEdit(plan)} className="rounded-[8px] bg-[var(--color-elevated)] px-3 py-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
                           수정
