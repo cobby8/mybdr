@@ -123,6 +123,9 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     id: String(m.id ?? m.Id ?? ''),
     homeTeamName: (m.homeTeamName ?? m.home_team_name ?? null) as string | null,
     awayTeamName: (m.awayTeamName ?? m.away_team_name ?? null) as string | null,
+    // 2026-05-02: 일정 탭 매치 카드 팀 로고 (없으면 fallback 회색 원 + 첫 글자 렌더)
+    homeTeamLogoUrl: (m.homeTeamLogoUrl ?? m.home_team_logo_url ?? null) as string | null,
+    awayTeamLogoUrl: (m.awayTeamLogoUrl ?? m.away_team_logo_url ?? null) as string | null,
     homeScore: (m.homeScore ?? m.home_score ?? 0) as number,
     awayScore: (m.awayScore ?? m.away_score ?? 0) as number,
     status: (m.status ?? null) as string | null,

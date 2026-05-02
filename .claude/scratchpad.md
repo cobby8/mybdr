@@ -85,6 +85,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-02 | (코드만, 미커밋) | **일정 탭 매치 카드 팀 로고 추가** — `public-schedule/route.ts` Team select + 응답에 logoUrl 추가 / `tournament-tabs.tsx` 매핑 확장 / `schedule-timeline.tsx` ScheduleMatch 인터페이스 확장 + TeamLogo 컴포넌트 (24px mobile / 28px desktop, 원형, contain, fallback 첫글자) + 카드 하단 홈/어웨이 팀명 좌/우에 inline 배치. DB 변경 0 / API 응답 키 추가만 / 다른 페이지 영향 0. tsc 통과 | ✅ |
 | 2026-05-02 | (코드만, 미커밋) | **팀 로고 업로드 자동 정규화 통합** — `image-processor.ts` 에 `normalizeTeamLogo` 추가 + `/api/web/upload` 에서 `bucket==="team-logos"` 일 때만 sharp pipeline (512×512 + 8% padding + PNG) 적용. 호출자 3곳 (step-emblem/manage/image-uploader) 변경 0. tsc 통과 + tsx 5 케이스 검증 통과. 다른 bucket 영향 0 | ✅ |
 | 2026-05-02 | (Teams Phase B+C+D 일괄) | Teams 박제 — 카드 #랭크 PC 복원 + stats 4카드 모바일 분기 + Roster/Recent .data-table 마커 | ✅ |
 | 2026-05-02 | (Live v2 박스스코어 일괄) | Live `/live/[id]` 옛 BoxScoreTable + PrintBoxScoreTable + PrintOptionsDialog 풀 복원 | ✅ |
