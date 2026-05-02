@@ -11,6 +11,8 @@ import { type NextRequest } from "next/server";
 import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess, apiError, unauthorized } from "@/lib/api/response";
 import { supabase } from "@/lib/supabase";
+// 2026-05-02: 팀 로고 업로드 시 sharp pipeline 자동 적용 (16팀 일괄 작업 commit 637c55e 의 정규화를 신규 업로드에도 일관 적용).
+import { normalizeTeamLogo } from "@/lib/services/image-processor";
 
 // 허용할 이미지 MIME 타입 목록
 // SVG는 XSS 공격 벡터가 될 수 있어 차단 (스크립트 삽입 가능)
@@ -71,18 +73,43 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 7) 고유한 파일명 생성 — 충돌 방지를 위해 타임스탬프 + 랜덤 문자 추가
-  const ext = file.name.split(".").pop() ?? "jpg";
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  // 7) 파일을 ArrayBuffer 로 변환
+  // 타입 명시: sharp 의 toBuffer() 는 Buffer<ArrayBufferLike> 를 반환하므로
+  // 좁은 타입 (Buffer<ArrayBuffer>) 으로 추론되면 재할당 시 TS2322 발생 → Buffer 로 wide 하게 선언.
+  let buffer: Buffer = Buffer.from(await file.arrayBuffer());
+  // 업로드 시 사용할 contentType / 확장자 — 기본은 원본 그대로
+  let outContentType = file.type;
+  let outExt = file.name.split(".").pop() ?? "jpg";
+
+  // 8) 팀 로고 자동 정규화 (bucket === "team-logos" 일 때만)
+  // 사유:
+  //  - 사용자 업로드 로고가 가로형/세로형 등 비율이 제각각 → 카드/헤더 슬롯에서 잘림 or 빈공간 회귀.
+  //  - 16팀 일괄 작업 (commit 637c55e) 과 동일 pipeline (정방형 + 8% padding + 512×512 + PNG) 으로 신규 업로드도 자동 통일.
+  //  - 다른 bucket (tournament-images / court-photos) 은 원본 비율 유지가 중요 (16:9 배너 등) → 적용 ❌.
+  // 안전:
+  //  - 정규화 실패 시 원본 그대로 업로드 (사용자 경험 단절 방지). 로그만 남김.
+  //  - 입력 5MB 제한은 변환 전 기준 (이미 위에서 검증). 변환 후는 보통 더 작음.
+  if (bucket === "team-logos") {
+    try {
+      buffer = await normalizeTeamLogo(buffer);
+      // sharp 출력은 무조건 PNG (투명 배경 보존 + 무손실). 확장자 / contentType 강제 동기화.
+      outContentType = "image/png";
+      outExt = "png";
+    } catch (normErr) {
+      // 정규화 실패는 치명적이지 않음 — 원본 그대로 진행. 운영자 추적용으로만 로그.
+      console.warn("[Upload] team-logos normalize 실패, 원본 그대로 진행:", normErr);
+    }
+  }
+
+  // 9) 고유한 파일명 생성 — 충돌 방지를 위해 타임스탬프 + 랜덤 문자 추가
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${outExt}`;
   const storagePath = pathPrefix ? `${pathPrefix}/${uniqueName}` : uniqueName;
 
-  // 8) 파일을 ArrayBuffer로 변환 후 Supabase에 업로드
-  const buffer = Buffer.from(await file.arrayBuffer());
-
+  // 10) Supabase Storage 업로드
   const { error: uploadError } = await supabase.storage
     .from(bucket)
     .upload(storagePath, buffer, {
-      contentType: file.type,
+      contentType: outContentType,
       upsert: false, // 같은 이름 덮어쓰기 방지
     });
 

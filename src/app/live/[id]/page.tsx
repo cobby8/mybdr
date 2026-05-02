@@ -300,7 +300,9 @@ function TeamLogo({
         style={{ width: px, height: px, backgroundColor: "var(--color-surface)" }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={team.logo_url} alt={team.name} className="w-full h-full object-cover" />
+        {/* 이유(왜): 팀 로고는 가로/세로 비율이 제각각이라 object-cover 시 잘림 발생.
+            object-contain 으로 비율 보존 + 원형 마스크 안 여백은 surface 배경이 받음 (2026-05-02). */}
+        <img src={team.logo_url} alt={team.name} className="w-full h-full object-contain" />
       </div>
     );
   }

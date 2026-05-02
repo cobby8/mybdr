@@ -1,6 +1,26 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-02] 팀 로고 업로드 자동 정규화 pipeline
+- **분류**: convention (image / upload / sharp)
+- **발견자**: developer (16팀 일괄 작업 commit 637c55e 의 검증된 pipeline 을 신규 업로드에도 일관 적용)
+- **배경**: 사용자가 업로드하는 팀 로고는 가로형/세로형/정사각 비율 제각각 → 카드/헤더/hero 정사각 슬롯에서 잘림(cover) or 빈공간(contain) 회귀 반복.
+- **규칙**:
+  1. 팀 로고 업로드는 반드시 `bucket === "team-logos"` 로 `/api/web/upload` 호출 (기존 호출자 변경 없음 — 자동 적용)
+  2. 서버는 sharp pipeline 으로 정규화 후 Supabase 에 저장 — **정방형 + 8% padding + 512×512 + PNG 압축**
+  3. 출력 contentType / 확장자는 항상 `image/png` 강제 (입력이 jpg/webp/gif 라도)
+  4. 다른 bucket (`tournament-images`, `court-photos`) 은 적용 ❌ — 16:9 배너 등 원본 비율 유지가 중요
+  5. 정규화 실패 시 원본 그대로 업로드 (best effort, 사용자 경험 단절 방지) + console.warn 로그
+- **함수 위치**: `src/lib/services/image-processor.ts` → `normalizeTeamLogo(buf): Promise<Buffer>`
+- **통합 위치**: `src/app/api/web/upload/route.ts` (line ~90)
+- **클라이언트 측 sharp 절대 금지** — sharp 는 Node only. 변환은 무조건 서버에서.
+- **호출자 (자동 적용 3곳)**:
+  - `src/app/(web)/teams/new/_v2/step-emblem.tsx` (팀 생성)
+  - `src/app/(web)/teams/[id]/manage/page.tsx` (팀 관리)
+  - `src/components/shared/image-uploader.tsx` (공통 컴포넌트, bucket prop 으로 분기)
+- **검증**: `tsx` 단위 검증 5 케이스 (가로/세로/정사각/초소형/초대형) 모두 512×512 PNG 출력 확인 (2026-05-02)
+- **참조횟수**: 0
+
 ### [2026-05-01] 선수명단 실명 표시 — `getDisplayName` 헬퍼 + `USER_DISPLAY_SELECT` 강제
 - **분류**: convention (display / data formatting / SSR-CSR 통일)
 - **결정자**: pm + 사용자 (decisions.md 2026-05-01)
