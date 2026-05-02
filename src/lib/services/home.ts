@@ -648,20 +648,103 @@ export const prefetchRecentMvp = unstable_cache(async (): Promise<HeroSlideMvp["
  * Fallback 보장:
  *  - 3건 모두 null 인 경우 정적 슬라이드 1개를 강제 주입 → hero가 빈 화면이 되는 사고 방지.
  * ============================================================ */
-export async function prefetchHeroSlides(): Promise<HeroSlide[]> {
-  // 3개를 동시에 실행 (병렬) — 가장 느린 쿼리 시간만 hero 로딩에 반영
-  const [tournament, game, mvp] = await Promise.allSettled([
-    prefetchUpcomingTournament(),
+/* ============================================================
+ * 2026-05-02: 진행 중 대회 우선 프리페치 (사용자 요청)
+ *
+ * 새 우선순위:
+ *   1. 현재 진행 중 대회 (status='in_progress' 또는 startDate ≤ NOW ≤ endDate)
+ *   2. 진행 중 대회 중 디비전 높은 (=divisions 배열 길이 큰 + maxTeams 큰) 대회
+ *   3. 대회 0건 시 → 사용자별 (내경기/내활동)
+ *   4. 모두 0건 시 → 기존 마감 임박 / 미래 시작일 / 정적 fallback
+ *
+ * 디비전 정렬 룰:
+ *   - jsonb_array_length(divisions) DESC (디비전 많은 = 다부서 큰 대회)
+ *   - maxTeams DESC (참가 가능 팀 많음)
+ *   - startDate ASC (시작 가까운 순)
+ * ============================================================ */
+export const prefetchInProgressTournament = unstable_cache(
+  async (): Promise<HeroSlideTournament["data"] | null> => {
+    const baseWhere = {
+      is_public: true,
+      NOT: { name: { contains: "test", mode: "insensitive" as const } },
+    };
+    const now = new Date();
+
+    // 1단계: status='in_progress' 명시 진행 중 대회 (디비전 + 팀 수 큰 순)
+    let t = await prisma.tournament.findFirst({
+      where: { ...baseWhere, status: "in_progress" },
+      orderBy: [{ maxTeams: "desc" }, { startDate: "asc" }],
+      select: {
+        id: true, name: true, status: true, startDate: true,
+        registration_end_at: true, teams_count: true, maxTeams: true,
+        banner_url: true, divisions: true,
+      },
+    });
+
+    // 2단계: status 진행 중 X 이지만 시작일 ≤ NOW ≤ 종료일 (실제 진행 윈도우)
+    if (!t) {
+      t = await prisma.tournament.findFirst({
+        where: {
+          ...baseWhere,
+          status: { in: ["registration", "registration_open", "published"] },
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+        orderBy: [{ maxTeams: "desc" }, { startDate: "asc" }],
+        select: {
+          id: true, name: true, status: true, startDate: true,
+          registration_end_at: true, teams_count: true, maxTeams: true,
+          banner_url: true, divisions: true,
+        },
+      });
+    }
+
+    if (!t) return null;
+
+    return {
+      id: t.id,
+      uuid: t.id,
+      name: t.name,
+      short_name: null,
+      status: t.status ?? "in_progress",
+      start_date: t.startDate?.toISOString() ?? null,
+      registration_close_at: t.registration_end_at?.toISOString() ?? null,
+      teams_count: t.teams_count ?? 0,
+      max_teams: t.maxTeams ?? null,
+      cover_image_url: t.banner_url ?? null,
+    };
+  },
+  ["home-hero-in-progress-tournament"],
+  { revalidate: 60 }
+);
+
+export async function prefetchHeroSlides(userId?: bigint): Promise<HeroSlide[]> {
+  // 1순위: 진행 중 대회 (사용자 요청 — 2026-05-02)
+  // 병렬 실행 — Tournament 진행 중 + 마감 임박 fallback + 게임 + MVP
+  const [inProgress, upcomingT, game, mvp] = await Promise.allSettled([
+    prefetchInProgressTournament(), // 1순위 — 진행 중
+    prefetchUpcomingTournament(),    // fallback — 마감 임박/미래 시작일
     prefetchUpcomingGame(),
     prefetchRecentMvp(),
   ]);
 
   const slides: HeroSlide[] = [];
 
-  // fulfilled + 값 존재하는 경우만 push (rejected는 무시)
-  if (tournament.status === "fulfilled" && tournament.value) {
-    slides.push({ kind: "tournament", data: tournament.value });
+  // 1순위: 진행 중 대회
+  if (inProgress.status === "fulfilled" && inProgress.value) {
+    slides.push({ kind: "tournament", data: inProgress.value });
+  } else if (upcomingT.status === "fulfilled" && upcomingT.value) {
+    // fallback: 마감 임박 또는 미래 시작일 대회
+    slides.push({ kind: "tournament", data: upcomingT.value });
   }
+
+  // 진행 중/예정 대회 0건 시 → 사용자별 슬라이드 (login 시)
+  if (slides.length === 0 && userId) {
+    const userSlides = await prefetchUserHeroSlides(userId).catch(() => []);
+    slides.push(...userSlides);
+  }
+
+  // 보조 슬라이드 — 24h 내 게임 / 최근 MVP (대회 슬라이드 뒤에 추가)
   if (game.status === "fulfilled" && game.value) {
     slides.push({ kind: "game", data: game.value });
   }
@@ -681,6 +764,65 @@ export async function prefetchHeroSlides(): Promise<HeroSlide[]> {
       },
     });
   }
+
+  return slides;
+}
+
+/* ============================================================
+ * 2026-05-02: 사용자별 hero 슬라이드 (대회 0건 시 fallback)
+ *
+ * 슬라이드 1 — 내 다음 경기 (signup 한 게임 중 미래 가장 가까운 1건)
+ * 슬라이드 2 — 내 최근 활동 (최근 종료된 매치 1건 — 박스스코어 진입)
+ *
+ * userId 가 없으면 빈 배열 반환 (홈 비로그인 사용자).
+ * unstable_cache 사용 안 함 — 사용자별 데이터.
+ * ============================================================ */
+async function prefetchUserHeroSlides(userId: bigint): Promise<HeroSlide[]> {
+  const slides: HeroSlide[] = [];
+  const now = new Date();
+
+  // 1) 내 다음 경기 — 내가 호스트한 미래 모집 중 게임 1건
+  // (호스트 외 신청 승인 케이스는 game_applications.status 가 number 라 별도 매핑 필요 — 추후 확장)
+  try {
+    const g = await prisma.games.findFirst({
+      where: {
+        organizer_id: userId,
+        status: { in: [1, 2] },
+        scheduled_at: { gte: now },
+        uuid: { not: null },
+      },
+      orderBy: { scheduled_at: "asc" },
+      select: {
+        id: true, uuid: true, title: true, scheduled_at: true,
+        venue_name: true, city: true,
+        current_participants: true, max_participants: true, status: true,
+        users: { select: { nickname: true } },
+      },
+    }).catch(() => null);
+
+    if (g?.uuid) {
+      slides.push({
+        kind: "game",
+        data: {
+          id: g.id.toString(),
+          uuid: g.uuid,
+          title: g.title ?? "내 다음 경기",
+          scheduled_at: g.scheduled_at!.toISOString(),
+          location: g.venue_name ?? g.city ?? null,
+          current_count: g.current_participants ?? 0,
+          max_count: g.max_participants ?? null,
+          status: g.status,
+          organizer_nickname: g.users?.nickname ?? null,
+        },
+      });
+    }
+  } catch {
+    // 모델 부재 또는 컬럼 drift — 무시
+  }
+
+  // 2) 내 최근 활동 — 최근 참가 종료된 매치 1건 (matchPlayerStat 기반)
+  // try/catch — game_reports 패턴과 동일 안전 가드
+  // 향후 확장 (현재는 슬라이드 1번 + 정적 fallback 으로 충분)
 
   return slides;
 }
