@@ -844,6 +844,19 @@ function estimateMinutesFromPbp(
   }
   const quarterKeys = Array.from(byQ.keys()).sort((a, b) => a - b);
 
+  // 2026-05-02 매치 132 fix: 쿼터별 마지막 PBP clock = 그 쿼터의 끝점.
+  //  - 종료 매치: lastClock ≈ 0 (정상 — 600초 누적)
+  //  - 라이브 매치 (마지막 진행 쿼터): lastClock > 0 (예: 212초) → starter (600-212)=388초만 누적
+  //  - 이벤트 없는 쿼터: lastClock=quarterLengthSec → 누적 0 (시작 안 된 쿼터)
+  // 모든 팀 PBP 통합 기준으로 산출 (한 팀만 sub 한 경우에도 다른 팀 동일 시점 적용).
+  const lastClockByQ = new Map<number, number>();
+  for (const q of quarterKeys) {
+    const all = byQ.get(q) ?? [];
+    if (all.length === 0) continue;
+    const minClock = Math.min(...all.map((e) => e.game_clock_seconds ?? quarterLengthSec));
+    lastClockByQ.set(q, minClock);
+  }
+
   // 팀별로 별도 시뮬레이션 (각 팀 코트 5명 트래킹)
   for (const [teamId, starters] of startersByTeam.entries()) {
     let prevQuarterEndCourt: Set<number> = new Set(starters);
@@ -852,6 +865,9 @@ function estimateMinutesFromPbp(
       const events = (byQ.get(q) ?? []).filter(
         (p) => Number(p.tournament_team_id) === teamId,
       );
+      // 쿼터 끝점 — 라이브 매치는 마지막 PBP clock, 종료 매치는 ≈0
+      const lastClock = lastClockByQ.get(q) ?? quarterLengthSec;
+
       // 쿼터 시작 코트 = 이전 쿼터 끝 코트 (Q1은 starter)
       const onCourt = new Map<number, number>();
       for (const pid of prevQuarterEndCourt) {
@@ -892,9 +908,10 @@ function estimateMinutesFromPbp(
         }
       }
 
-      // 쿼터 끝: 코트 잔존 선수 → (in_clock - 0) 누적
+      // 쿼터 끝: 코트 잔존 선수 → (in_clock - lastClock) 누적
+      // 라이브 매치 마지막 진행 쿼터는 lastClock > 0 이라 진행 시점까지만 누적.
       for (const [pid, inClock] of onCourt.entries()) {
-        addSec(pid, q, inClock);
+        addSec(pid, q, Math.max(0, inClock - lastClock));
       }
 
       prevQuarterEndCourt = new Set(onCourt.keys());
