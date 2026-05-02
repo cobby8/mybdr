@@ -131,6 +131,7 @@ model User {
   recorderAssigned                                                          tournament_recorders[]        @relation("TournamentRecorderAssigner")
   match_events_recorded                                                     match_events[]                @relation("MatchEventRecorder")
   match_events_undone                                                       match_events[]                @relation("MatchEventUndoner")
+  match_audits_changed                                                      tournament_match_audits[]     @relation("MatchAuditChanger")
   // 팔로우 시스템: 나를 팔로우하는 사람들 / 내가 팔로우하는 사람들
   followers                                                                 follows[]                     @relation("user_followers")
   following                                                                 follows[]                     @relation("user_following")
@@ -605,6 +606,7 @@ model TournamentMatch {
   playerStats                                                          MatchPlayerStat[]
   play_by_plays                                                        play_by_plays[]
   matchEvents                                                          match_events[]
+  audits                                                               tournament_match_audits[]
   tournament_teams_tournament_matches_winner_team_idTotournament_teams TournamentTeam?   @relation("tournament_matches_winner_team_idTotournament_teams", fields: [winner_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_2fcdbd557c")
   homeTeam                                                             TournamentTeam?   @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3dae6e19e5")
   users                                                                User?             @relation(fields: [mvp_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_5e679cd202")
@@ -2015,6 +2017,26 @@ model match_events {
   @@index([matchId, createdAt])
   @@index([tournamentId, teamId])
   @@map("match_events")
+}
+
+// 2026-05-02 회귀 방지 audit log (errors.md "양쪽 같은 팀 (피벗·아울스)" 케이스 대응)
+// TournamentMatch 의 주요 필드 변경 이력 추적 — homeTeamId/awayTeamId/winner_team_id/status/score/scheduledAt
+// source = "admin" (web admin PATCH) | "flutter" (v1 API) | "system" (progressDualMatch 등 자동)
+model tournament_match_audits {
+  id        BigInt   @id @default(autoincrement())
+  matchId   BigInt   @map("match_id")
+  changedAt DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedBy BigInt?  @map("changed_by") // userId — null 가능 (system/flutter 자동)
+  source    String   @db.VarChar // "admin" | "flutter" | "system"
+  context   String?  @db.VarChar // 호출 컨텍스트 (예: "progressDualMatch winner", "PATCH /matches/[matchId]")
+  changes   Json // { field: { before, after }, ... }
+
+  match   TournamentMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  changer User?           @relation("MatchAuditChanger", fields: [changedBy], references: [id])
+
+  @@index([matchId, changedAt])
+  @@index([changedBy, changedAt])
+  @@map("tournament_match_audits")
 }
 
 model site_registrations {

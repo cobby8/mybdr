@@ -45,7 +45,11 @@ export async function PATCH(
       return apiError(`'${current}' 상태에서 '${status}'로 변경할 수 없습니다.`, 400);
     }
 
-    const updated = await updateMatchStatus(matchId, status);
+    const updated = await updateMatchStatus(matchId, status, {
+      source: "flutter",
+      context: `PATCH /api/v1/matches/${id}/status`,
+      changedBy: (auth as { userId: bigint }).userId,
+    });
 
     // 경기가 live(in_progress)되면 대회도 자동으로 in_progress 전환
     if (status === "in_progress" && match.tournamentId) {

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 // 2026-05-02: dual_tournament 자동 진출 (loser → 패자전 / 조별 최종전 home 등)
 // updateMatch + updateMatchStatus 가 호출. single elim 영향 0 (settings.loserNextMatchId 없으면 skip).
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
+import { recordMatchAudit, type AuditSource } from "@/lib/tournaments/match-audit";
 
 // ---------------------------------------------------------------------------
 // Select / Include 상수
@@ -117,11 +118,23 @@ export async function createMatch(input: CreateMatchInput) {
 export async function updateMatch(
   matchId: bigint,
   current: { status: string | null },
-  input: UpdateMatchInput
+  input: UpdateMatchInput,
+  audit?: { source: AuditSource; context: string; changedBy: bigint | null },
 ) {
   const alreadyCompleted = current.status === "completed";
 
   const updated = await prisma.$transaction(async (tx) => {
+    // audit 용 before 스냅샷 (audit 옵션 있을 때만)
+    const before = audit
+      ? await tx.tournamentMatch.findUnique({
+          where: { id: matchId },
+          select: {
+            homeTeamId: true, awayTeamId: true, winner_team_id: true,
+            status: true, homeScore: true, awayScore: true, scheduledAt: true,
+          },
+        })
+      : null;
+
     const u = await tx.tournamentMatch.update({
       where: { id: matchId },
       data: {
@@ -143,6 +156,19 @@ export async function updateMatch(
         ...(input.status === "in_progress" && { started_at: new Date() }),
       },
     });
+
+    // audit 기록 — caller 가 audit 옵션 전달한 경우만
+    if (audit && before) {
+      const after: Record<string, unknown> = {};
+      if (input.homeScore !== undefined) after.homeScore = input.homeScore;
+      if (input.awayScore !== undefined) after.awayScore = input.awayScore;
+      if (input.status !== undefined) after.status = input.status;
+      if (input.winnerTeamId !== undefined) after.winner_team_id = input.winnerTeamId;
+      if (input.scheduledAt !== undefined) after.scheduledAt = input.scheduledAt;
+      if (input.homeTeamId !== undefined) after.homeTeamId = input.homeTeamId;
+      if (input.awayTeamId !== undefined) after.awayTeamId = input.awayTeamId;
+      await recordMatchAudit(tx, matchId, before, after, audit.source, audit.context, audit.changedBy);
+    }
 
     // 승자가 확정되고 next_match_id가 있으면 다음 경기에 팀 배치
     if (input.winnerTeamId && u.next_match_id) {
@@ -207,7 +233,8 @@ export async function deleteMatch(matchId: bigint, tournamentId: string) {
  */
 export async function updateMatchStatus(
   matchId: bigint,
-  status: string
+  status: string,
+  audit?: { source: AuditSource; context: string; changedBy: bigint | null },
 ) {
   // 2026-05-02: status="completed" 시 자동 winner 결정 + dual 자동 진출 통합
   // - homeScore vs awayScore 비교로 winner_team_id 자동 결정 (이미 채워져 있으면 그대로)
@@ -261,6 +288,28 @@ export async function updateMatchStatus(
       },
       select: { id: true, status: true, started_at: true, ended_at: true },
     });
+
+    // audit 기록 (caller 가 audit 옵션 전달한 경우만)
+    if (audit) {
+      const after: Record<string, unknown> = { status };
+      if (winnerTeamId && winnerTeamId !== current.winner_team_id) {
+        after.winner_team_id = winnerTeamId;
+      }
+      // before status 는 별도 조회 (current.status 없음)
+      const beforeRow = await tx.tournamentMatch.findUnique({
+        where: { id: matchId },
+        select: { status: true, winner_team_id: true },
+      });
+      await recordMatchAudit(
+        tx,
+        matchId,
+        { status: beforeRow?.status ?? null, winner_team_id: current.winner_team_id },
+        after,
+        audit.source,
+        audit.context,
+        audit.changedBy,
+      );
+    }
 
     // winner 진출 (single elim 호환) — 기존 updateMatch 와 같은 패턴
     if (
