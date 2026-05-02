@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import Link from "next/link";
 import { updateUserRoleAction, updateUserStatusAction, toggleUserAdminAction, forceWithdrawUserAction, deleteUserAction } from "@/app/actions/admin-users";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
 
 export const dynamic = "force-dynamic";
@@ -75,28 +76,14 @@ export default async function AdminUsersPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold sm:text-2xl">유저 관리</h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            전체 <span className="font-semibold text-[var(--color-text-primary)]">{totalCount.toLocaleString()}명</span>
-            {totalCount > 0 && <span className="ml-1">· {from}–{to}번째</span>}
-            <span className="ml-2 rounded-full bg-[var(--color-error)]/10 px-2 py-0.5 text-xs text-[var(--color-error)]">
-              슈퍼관리자 {superAdminCount}/4
-            </span>
-          </p>
-        </div>
-        <form method="GET" className="flex gap-2">
-          <input
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="닉네임/이메일 검색"
-            className="rounded-full border border-[var(--color-border)] bg-[var(--color-card)] px-4 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]"
-          />
-          {/* accent 배경은 테마 반응형이므로 글씨 색상도 on-accent 변수로 자동 전환 */}
-          <button type="submit" className="rounded-full bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold" style={{ color: "var(--color-on-accent)" }}>검색</button>
-        </form>
-      </div>
+      <AdminPageHeader
+        eyebrow="ADMIN · USERS"
+        title="유저 관리"
+        subtitle={`전체 ${totalCount.toLocaleString()}명${totalCount > 0 ? ` · ${from}–${to}번째` : ""} · 슈퍼관리자 ${superAdminCount}/4`}
+        searchPlaceholder="닉네임/이메일 검색"
+        searchName="q"
+        searchDefaultValue={q ?? ""}
+      />
 
       {error && (
         <div className="mb-4 rounded-[12px] bg-[var(--color-error)]/10 px-4 py-3 text-sm text-[var(--color-error)]">{error}</div>
