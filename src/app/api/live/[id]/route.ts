@@ -88,6 +88,9 @@ export async function GET(
         game_clock_seconds: true,
         sub_in_player_id: true,
         sub_out_player_id: true,
+        // 2026-05-02 STL R1: 쿼터 점수 보정 — 절대 점수 시계열로 누락 쿼터 식별
+        home_score_at_time: true,
+        away_score_at_time: true,
       },
     });
 
@@ -574,6 +577,143 @@ export async function GET(
     for (const q of Object.keys(qMap).map(Number).filter(n => n > 4).sort()) {
       quarterScores.home.ot.push(qMap[q].home);
       quarterScores.away.ot.push(qMap[q].away);
+    }
+
+    // 2026-05-02 STL Phase 1 — R1 쿼터 점수 보정 (PBP score_at_time 시계열 + 매치 헤더 cap)
+    //
+    // 배경: Flutter app 의 점수 입력 단축 또는 박스스코어 직접 편집 시 made_shot PBP 가
+    //       생성되지 않는 케이스 발생 → PBP points_scored 합산 기반 quarterScores 가 부정확.
+    // 해결 (3 단계):
+    //   Step 1) PBP score_at_time 시계열로 쿼터별 누락 점수 식별 + 그 쿼터에 직접 분배
+    //           (매치 102 gap +4/+4 → Q1 +2/0, Q2 0/+2, Q3 +2/+2 정확 식별)
+    //   Step 2) 보정 합 vs 매치 헤더 cap — score_at_time 자체가 정확하지 않은 케이스
+    //           (예: 매치 103 score_at_time 64 vs 헤더 60 → 4점 차감 필요)
+    //   Step 3) 매치 헤더 < PBP 합 (음수 gap) 케이스: 매치 헤더 미갱신 의심 → 보정 미적용 (PBP 그대로)
+    // 검증: 매치 101/102/103/132/133 모두 보정 후 합계 = 매치 헤더 정확 일치.
+    // 안전: matchPlayerStat 합 = 매치 헤더 100% 일치 (운영 18 매치 검증) → 매치 헤더가 SSOT.
+    {
+      const homeHeaderScore = match.homeScore ?? 0;
+      const awayHeaderScore = match.awayScore ?? 0;
+      // 현재 PBP 합산
+      const pbpSumHome = quarterScores.home.q1 + quarterScores.home.q2 + quarterScores.home.q3 + quarterScores.home.q4 + quarterScores.home.ot.reduce((a, b) => a + b, 0);
+      const pbpSumAway = quarterScores.away.q1 + quarterScores.away.q2 + quarterScores.away.q3 + quarterScores.away.q4 + quarterScores.away.ot.reduce((a, b) => a + b, 0);
+
+      // Step 3 (사전 가드): 음수 gap 케이스 — 매치 헤더 < PBP 합. 매치 헤더가 갱신 안 된 라이브 매치 의심 → 보정 X.
+      const homeNeedsCorrection = homeHeaderScore >= pbpSumHome;
+      const awayNeedsCorrection = awayHeaderScore >= pbpSumAway;
+
+      if (homeNeedsCorrection || awayNeedsCorrection) {
+        // Step 1: score_at_time 시계열로 쿼터별 누락 식별 + 분배
+        type QEnd = { home: number; away: number; lastClock: number };
+        const qEnd = new Map<number, QEnd>();
+        for (const p of allPbps) {
+          const q = p.quarter ?? 0;
+          if (q < 1) continue;
+          const clock = p.game_clock_seconds ?? 0;
+          const cur = qEnd.get(q);
+          // 가장 작은 clock = 그 쿼터의 마지막 이벤트 (농구 시계 10:00→0:00 감소)
+          if (!cur || clock < cur.lastClock) {
+            qEnd.set(q, {
+              home: p.home_score_at_time ?? 0,
+              away: p.away_score_at_time ?? 0,
+              lastClock: clock,
+            });
+          }
+        }
+        const sortedQs = [...qEnd.keys()].sort((a, b) => a - b);
+        let prevHome = 0;
+        let prevAway = 0;
+        for (const q of sortedQs) {
+          const end = qEnd.get(q)!;
+          const deltaHome = end.home - prevHome;
+          const deltaAway = end.away - prevAway;
+          if (q <= 4) {
+            const key = `q${q}` as "q1" | "q2" | "q3" | "q4";
+            if (homeNeedsCorrection) {
+              const missingHome = deltaHome - (quarterScores.home[key] ?? 0);
+              if (missingHome > 0) quarterScores.home[key] = (quarterScores.home[key] ?? 0) + missingHome;
+            }
+            if (awayNeedsCorrection) {
+              const missingAway = deltaAway - (quarterScores.away[key] ?? 0);
+              if (missingAway > 0) quarterScores.away[key] = (quarterScores.away[key] ?? 0) + missingAway;
+            }
+          } else {
+            const otIdx = q - 5;
+            if (quarterScores.home.ot.length <= otIdx) {
+              while (quarterScores.home.ot.length < otIdx) quarterScores.home.ot.push(0);
+              while (quarterScores.away.ot.length < otIdx) quarterScores.away.ot.push(0);
+              quarterScores.home.ot.push(0);
+              quarterScores.away.ot.push(0);
+            }
+            if (homeNeedsCorrection) {
+              const missingHome = deltaHome - (quarterScores.home.ot[otIdx] ?? 0);
+              if (missingHome > 0) quarterScores.home.ot[otIdx] = (quarterScores.home.ot[otIdx] ?? 0) + missingHome;
+            }
+            if (awayNeedsCorrection) {
+              const missingAway = deltaAway - (quarterScores.away.ot[otIdx] ?? 0);
+              if (missingAway > 0) quarterScores.away.ot[otIdx] = (quarterScores.away.ot[otIdx] ?? 0) + missingAway;
+            }
+          }
+          prevHome = end.home;
+          prevAway = end.away;
+        }
+
+        // Step 2: 보정 합 vs 매치 헤더 cap — over/under correction 처리.
+        //   over (보정합 > 헤더): 마지막 쿼터부터 차감
+        //   under (보정합 < 헤더): 마지막 쿼터에 추가
+        const adjustQuarter = (
+          team: "home" | "away",
+          qIdx: number, // 1~4 또는 5+ (OT)
+          delta: number, // 양수=추가, 음수=차감
+        ) => {
+          if (qIdx <= 4) {
+            const key = `q${qIdx}` as "q1" | "q2" | "q3" | "q4";
+            const cur = quarterScores[team][key] ?? 0;
+            quarterScores[team][key] = Math.max(0, cur + delta);
+            return Math.max(0, cur + delta) - cur; // 실제 변경량
+          } else {
+            const otIdx = qIdx - 5;
+            const cur = quarterScores[team].ot[otIdx] ?? 0;
+            quarterScores[team].ot[otIdx] = Math.max(0, cur + delta);
+            return Math.max(0, cur + delta) - cur;
+          }
+        };
+
+        const newSumHome = quarterScores.home.q1 + quarterScores.home.q2 + quarterScores.home.q3 + quarterScores.home.q4 + quarterScores.home.ot.reduce((a, b) => a + b, 0);
+        const newSumAway = quarterScores.away.q1 + quarterScores.away.q2 + quarterScores.away.q3 + quarterScores.away.q4 + quarterScores.away.ot.reduce((a, b) => a + b, 0);
+
+        // 마지막 진행 쿼터 결정 (PBP 보유)
+        const lastQuarter = sortedQs.length > 0 ? sortedQs[sortedQs.length - 1] : 1;
+
+        // home cap
+        if (homeNeedsCorrection) {
+          let homeDelta = homeHeaderScore - newSumHome;
+          // 마지막 쿼터부터 역순으로 적용 (한 쿼터 점수 ≥0 유지)
+          const orderedQs = [...sortedQs].reverse();
+          orderedQs.unshift(lastQuarter); // 마지막 쿼터 우선
+          const tried = new Set<number>();
+          for (const q of orderedQs) {
+            if (tried.has(q) || homeDelta === 0) continue;
+            tried.add(q);
+            const applied = adjustQuarter("home", q, homeDelta);
+            homeDelta -= applied;
+          }
+        }
+        // away cap
+        if (awayNeedsCorrection) {
+          let awayDelta = awayHeaderScore - newSumAway;
+          const orderedQs = [...sortedQs].reverse();
+          orderedQs.unshift(lastQuarter);
+          const tried = new Set<number>();
+          for (const q of orderedQs) {
+            if (tried.has(q) || awayDelta === 0) continue;
+            tried.add(q);
+            const applied = adjustQuarter("away", q, awayDelta);
+            awayDelta -= applied;
+          }
+        }
+      }
+      // 음수 gap 케이스 (homeHeaderScore < pbpSumHome 등): PBP 그대로 유지 (Flutter app 의 매치 헤더 미갱신 의심).
     }
 
     // 진행 중인 쿼터 계산 — 가장 최근 PBP 이벤트의 quarter
