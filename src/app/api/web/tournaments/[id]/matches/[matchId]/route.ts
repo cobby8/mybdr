@@ -129,7 +129,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
   }
 
-  // Service 호출: 매치 업데이트 + 다음 경기 팀 배치 (트랜잭션)
+  // Service 호출: 매치 업데이트 + 다음 경기 팀 배치 (트랜잭션) + audit
   const { updated, alreadyCompleted } = await updateMatch(
     matchBigInt,
     { status: match.status },
@@ -152,7 +152,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       ...(awayTeamId !== undefined && {
         awayTeamId: awayTeamId ? BigInt(String(awayTeamId)) : null,
       }),
-    }
+    },
+    {
+      source: "admin",
+      context: `PATCH /api/web/tournaments/${id}/matches/${matchId}`,
+      changedBy: "userId" in auth ? auth.userId : null,
+    },
   );
 
   // 경기 취소 시 참가자(양 팀 선수)에게 알림 발송 (fire-and-forget)

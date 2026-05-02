@@ -19,7 +19,7 @@
   - ✅ B. admin web matches PATCH 의 진출 슬롯 차단 — 다른 매치의 next_match_id/loserNextMatchId 가 가리키는 매치는 home/away 변경 거부 (route.ts +35줄)
   - ✅ C. **admin frontend dirty tracking** — 변경된 필드만 PATCH body 에 포함 (page.tsx, **근본 원인 fix**)
   - ✅ D. 검출 스크립트 — scripts/_templates/detect-dual-conflicts.ts (수동 실행, 5/2 첫 실행 0건)
-  - ⏳ audit log 신규 테이블 — 별건 큐 (DB schema 변경 = 운영 DB 영향, 사용자 결정 필요)
+  - ✅ E. **TournamentMatch audit log** — `tournament_match_audits` 신규 테이블 + `match-audit.ts` helper. 추적 필드: homeTeamId/awayTeamId/winner_team_id/status/homeScore/awayScore/scheduledAt. source: admin/flutter/system. progressDualMatch (자가 치유 + winner/loser 진출) + updateMatch (admin PATCH) + updateMatchStatus (Flutter v1) 모두 audit 호출. 다음 회귀 시 정확한 출처 + before/after + changedBy 추적 가능.
 - **참조**: 5/2 commit (A+B+C+D) / 즉시 fix DB UPDATE
 - **관련 작업 로그**: 5/2 e3df321(피벗 케이스) + 5/2 (아울스 #7) 두 건 동일 패턴 — 회귀 방지 후 재발 0 예상
 - **참조횟수**: 0
