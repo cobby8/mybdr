@@ -69,6 +69,37 @@
     | #134 | 273.95m | **280.00m** |
     | #135 | 267.70m | **280.00m** |
   - **MAX 전략 유지**: getSecondsPlayed 의 `MAX(sub, qsJson, dbMin, pbpSim)` 그대로. F3+F2 강화로 sub 가 항상 280 근접 → 4매치 sub 채택. 회귀 영향 0 (sub PBP 없는 매치는 알고리즘 진입 X)
+- **✅ 2026-05-02 G3 — 신뢰도 기반 분리 + 풀타임 보호 + 팀 cap**:
+  - **배경**: G1 DNP 가드 후 #132 +3.3m, #135 +4.9m, #136 +5.8m 잔여 over-distribution. F2 가중분배가 정상 출전 선수에게도 시간 추가 → 합 cap 초과. 단순 비율 축소 (F4) 는 풀타임 28m 선수도 비율 축소되는 문제. 사용자 결정: **풀타임 선수 시간을 비율 축소하면 안 됨** → 신뢰도 기반 분리 필수.
+  - **신뢰도 채널 분리** (PlayerTimeBreakdown):
+    | 채널 | 출처 | 보호 룰 |
+    |------|------|---------|
+    | 🟢 trustedSec (HIGH) | `sub_in→sub_out` 양 끝 명시 segment + 풀타임 starter (한 쿼터 sub 0건 = 정확히 qLen) + qsJson/dbMin/pbpSim fallback (외부 출처) | 절대 축소 X |
+    | 🟡 mediumSec (MEDIUM) | `starter→sub_out` (시작 qLen 추정) / `sub_in→쿼터끝` (끝 0초 추정) | 우선 보존, distributed 부족 시만 축소 |
+    | 🔴 distributedSec (LOW) | F2 deficit 가중분배 | cap 초과 시 첫 축소 대상 |
+  - **`getSecondsPlayed` 우선순위 (G3)**:
+    1. trustedSec ≥ 4×qLen-2 → 풀타임 선수, 그대로 채택 (cap 보호)
+    2. qsJson ±60s 근접 sub_total → qsJson 채택 (외부 출처 = trustedSec)
+    3. sub_total 합리값 → 3채널 그대로 (cap 시 distributed 우선 축소)
+    4. max(qsJson, dbMin, pbpSim) → trustedSec (외부 출처)
+    5. DNP → 0
+  - **`applyTeamCap` (응답 직전 팀별)**: cap = 5×qLen×4 (팀 코트시간). teamTotal > cap 시:
+    - trustedTotal > cap → 데이터 이상 경고 + 그대로 (풀타임 절대 보호)
+    - medium ≤ remaining → distributed 만 비율 축소 (medium 살림)
+    - 그 외 → distributed=0 + medium 비율 축소
+  - **데이터 구조 변경**:
+    - `SubBasedMinutesResult.perPlayer`: `Map<bigint, number>` → `Map<bigint, PlayerTimeBreakdown>`
+    - `quarterPlayerSec`: 쿼터별 채널 분리 누적 (`ensureBreakdown` + `addQSec(channel)`)
+    - `getSecondsPlayed` return: `number` → `{ sec, breakdown }`
+    - PlayerRow 에 임시 `_minBreakdown` 첨부 → cap 적용 후 응답 직전 strip
+  - **검증**:
+    - cap 함수 unit test 4 시나리오 모두 PASS (cap 미초과 / distributed 만 축소 / medium 까지 축소 / trusted > cap 데이터 이상)
+    - 5매치 (#132~#136) sub-based raw output 측정: cap 미발동 (sub_total < cap) — 라이브 API 의 STL R3 추가 보충 후에야 280m 근접. cap 은 distributed 가 큰 이상치 매치에서만 발동.
+    - **풀타임 보호 검증**: #134 조현철·강동진 trustedSec=28.00m 정확 보존, cap 적용 후에도 변화 0
+  - **회귀 영향 0**:
+    - sub PBP 없는 매치 → quarterPlayerSec 비어있음 → cap 발동 안 함 → 기존 동작
+    - qsJson 만점 매치 → getSecondsPlayed 2순위 (qsJson trustedSec) → cap 미초과 → 변화 0
+    - DNP 가드 (G1) 동작 유지 (everSeen Set + hasRealRecord 검사)
 - **회귀 방지 / 진단 패턴**:
   - 출전시간 미달 신고 시 → PBP 쿼터별 last_clock 1차 확인 (`SELECT MIN(game_clock_seconds) GROUP BY quarter`)
   - last_clock > 0 이면 그 시간 × 5명 ≈ qsJson 미달 시간 확인
