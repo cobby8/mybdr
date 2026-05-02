@@ -84,7 +84,7 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
        * ============================================================ */}
       <div className="app-nav__utility">
         <div className="app-nav__utility-inner">
-          {/* 2026-05-02: BDR 로고를 utility bar 좌측으로 이동 (PC/모바일 모두 표시 — 사용자 요청) */}
+          {/* 2026-05-02 v2: BDR 이미지 로고만 utility bar 좌측 (사용자 요청 — 'MyBDR.' 텍스트는 메인 바에 유지) */}
           <Link href="/" className="app-nav__utility-logo" prefetch aria-label="MyBDR 홈">
             <Image
               src="/images/logo.png"
@@ -94,7 +94,6 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
               priority
               style={{ height: 18, width: "auto" }}
             />
-            <span className="app-nav__utility-logo-text">MyBDR<span className="dot">.</span></span>
           </Link>
           <span className="sep util-left" />
           {/* [2026-04-29] 좌측 그룹 — 모바일에서 숨김 (CSS 셀렉터 .util-left 사용)
@@ -128,8 +127,12 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
        * 메인 바 — 로고 / 탭 8개 / 우측 액션
        * ============================================================ */}
       <div className="app-nav__main">
-        {/* 2026-05-02: 메인 바 로고 제거 — utility bar 좌측으로 이동 (사용자 요청)
-            탭이 좌측에서 시작 + 우측 액션 그대로 */}
+        {/* 2026-05-02 v2: 메인 바 로고 — 'MyBDR.' 텍스트만 (이미지는 utility bar 좌측으로 이동, 사용자 요청) */}
+        <Link href="/" className="app-nav__logo" prefetch>
+          <span>
+            MyBDR<span className="dot">.</span>
+          </span>
+        </Link>
 
         {/* 탭 9개 — 가로 스크롤 가능 (CSS에서 overflow-x 처리)
             [재박제 R-C-4] 9번째 '더보기' = drawer 토글 button (PC/모바일 동일).
