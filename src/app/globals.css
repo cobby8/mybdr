@@ -986,44 +986,44 @@ html.dark .app-nav__tab[data-active="true"]::after {
   z-index: 5;
 }
 
-/* 매치 카드 — Link 자체 (클릭 → /live/[id]) */
-a.hero-carousel__match-card,
-.hero-carousel__match-card {
-  position: relative;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 4px;
-  margin: 8px 0 14px;
-  padding: 10px 36px 10px 12px;
+/* 2026-05-02 v4: 매치 pill (한 줄 가로) + 인라인 액션 row
+   매치 + 대회 보기 + 지금 신청하기 한 줄 배치. */
+.hero-carousel__action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* 매치 pill — SYBC 47 vs 28 셋업 한 줄 (Link, 클릭 → /live/[id]) */
+a.hero-carousel__match-pill,
+.hero-carousel__match-pill {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  height: 38px; /* btn 높이와 동일 (var(--btn-height) 또는 표준 .btn 패딩 8/12 + line-height 결과 ≈ 38) */
+  padding: 0 14px;
   background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
-  max-width: 280px;
-  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
   z-index: 2;
-  backdrop-filter: blur(2px);
   text-decoration: none !important;
   color: #fff !important;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
 }
-a.hero-carousel__match-card:hover {
+a.hero-carousel__match-pill:hover {
   transform: translateY(-1px);
   background: rgba(0, 0, 0, 0.45);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-.hero-carousel__match-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  border-color: rgba(255, 255, 255, 0.45);
 }
 .hero-carousel__match-team {
   font-weight: 700;
   font-size: 13px;
   letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.95);
-  flex: 1;
-  min-width: 0;
+  max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1031,27 +1031,18 @@ a.hero-carousel__match-card:hover {
 .hero-carousel__match-score {
   font-family: var(--ff-display);
   font-weight: 900;
-  font-size: 22px;
+  font-size: 18px;
   letter-spacing: -0.02em;
   color: #fff;
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.hero-carousel__match-chevron {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--ff-display);
+.hero-carousel__match-vs {
+  font-size: 11px;
   font-weight: 700;
-  font-size: 18px;
+  letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.7);
-  pointer-events: none;
-  transition: transform 0.15s ease, color 0.15s ease;
-}
-a.hero-carousel__match-card:hover .hero-carousel__match-chevron {
-  color: #fff;
-  transform: translateY(-50%) translateX(2px);
+  text-transform: uppercase;
 }
 
 /* LIVE 배지 우측 상단 (corner) — 라이브 페이지 헤더 스타일과 동일
