@@ -498,27 +498,51 @@ export async function GET(
           } catch {}
         }
 
-        // 2026-05-02 B-2: quarterStatsJson 도 비어있으면 PBP 시뮬레이션 추정값을 quarter_stats 에 주입
-        // (응답만 채움, DB 안 건드림. 매치 101 같은 케이스 자동 처리)
-        if (!appliedMinFromJson) {
-          const est = minEstimates.get(Number(player.id));
-          if (est && est.byQuarter.size > 0) {
-            if (!row.quarter_stats) row.quarter_stats = {};
-            for (const [q, sec] of est.byQuarter.entries()) {
-              const qKey = String(q);
-              if (!row.quarter_stats[qKey]) {
-                row.quarter_stats[qKey] = {
-                  min: 0, min_seconds: 0, pts: 0,
-                  fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
-                  oreb: 0, dreb: 0, reb: 0,
-                  ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
-                };
-              }
-              row.quarter_stats[qKey].min_seconds = sec;
-              row.quarter_stats[qKey].min = Math.round(sec / 60);
+        // 2026-05-02 STL R3 — quarterStatsJson 부분 누락 쿼터에 PBP 시뮬 주입
+        //
+        // 배경 (매치 133 케이스): Flutter app 의 quarterStatsJson 갱신이
+        //   라이브 매치의 마지막 진행 쿼터를 종종 누락 (예: Q3 시작 후 sub 없는 동안 min=0).
+        //   양팀 starter 모두 동일 패턴 → 양팀 합계 차이 0 이지만 진행 시간 미달.
+        //
+        // 해결:
+        //   B-2 (이전): quarterStatsJson 비었을 때만 PBP 시뮬 fallback (전체 대체).
+        //   R3 (신규): quarterStatsJson 일부 채워진 케이스에서, "누락 쿼터(Q*.min=0 또는 키 없음)"만
+        //              PBP 시뮬값으로 보충. 정상 쿼터는 그대로 유지.
+        //
+        // 발동 조건:
+        //   - estimateMinutesFromPbp 결과 (minEstimates) 가 그 선수에 대해 존재
+        //   - 그 쿼터의 quarter_stats[q].min_seconds = 0 (json 누락 또는 0)
+        //   - PBP 시뮬값 > 0 (실제 코트 출전한 선수)
+        const est = minEstimates.get(Number(player.id));
+        if (est && est.byQuarter.size > 0) {
+          if (!row.quarter_stats) row.quarter_stats = {};
+          for (const [q, sec] of est.byQuarter.entries()) {
+            if (sec <= 0) continue;
+            const qKey = String(q);
+            const cur = row.quarter_stats[qKey];
+            // 정상 쿼터는 건드리지 않음 — 누락된 쿼터(min_seconds=0)만 보충
+            if (cur && cur.min_seconds > 0) continue;
+            if (!cur) {
+              row.quarter_stats[qKey] = {
+                min: 0, min_seconds: 0, pts: 0,
+                fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
+                oreb: 0, dreb: 0, reb: 0,
+                ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
+              };
             }
+            row.quarter_stats[qKey].min_seconds = sec;
+            row.quarter_stats[qKey].min = Math.round(sec / 60);
+          }
+          // row.min_seconds / row.min 도 quarter_stats 합으로 재계산 (보충 반영)
+          // 단, matchPlayerStat.minutesPlayed 가 더 크면 그 값 유지 (Flutter 우선)
+          const qsTotal = Object.values(row.quarter_stats).reduce((a, q) => a + (q.min_seconds ?? 0), 0);
+          if (qsTotal > (row.min_seconds ?? 0)) {
+            row.min_seconds = qsTotal;
+            row.min = Math.round(qsTotal / 60);
           }
         }
+        // appliedMinFromJson 사용 흔적 정리 (변수 자체는 stat.quarterStatsJson 처리에 여전히 사용됨)
+        void appliedMinFromJson;
 
         return row;
       };
