@@ -699,16 +699,35 @@ export default function LiveBoxScorePage() {
           borderColor: "var(--color-border)",
         }}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* 2026-05-02: 나가는 액션 강화 — chevron + "뒤로" 텍스트 + history fallback "/" */}
           <button
-            onClick={() => window.history.back()}
-            className="shrink-0 transition-colors"
+            onClick={() => {
+              // history 비어있을 때 (직접 URL 접속) "/" 로 fallback
+              if (typeof window !== "undefined" && window.history.length > 1) {
+                window.history.back();
+              } else if (typeof window !== "undefined") {
+                window.location.href = "/";
+              }
+            }}
+            aria-label="뒤로 가기"
+            className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            <span className="text-xs font-medium hidden sm:inline">뒤로</span>
           </button>
+          {/* 홈 진입점 — 모바일/PC 모두 노출 (직접 URL 접속 시 history fallback 외 추가 보조) */}
+          <a
+            href="/"
+            aria-label="홈"
+            className="shrink-0 flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <span className="material-symbols-outlined text-lg">home</span>
+          </a>
           {/* 토너먼트명: text-sm → text-base (두 단계 확대의 헤더 버전) */}
-          <span className="text-base truncate" style={{ color: "var(--color-text-secondary)" }}>
+          <span className="text-base truncate ml-1" style={{ color: "var(--color-text-secondary)" }}>
             {match.tournament_name}
           </span>
         </div>
