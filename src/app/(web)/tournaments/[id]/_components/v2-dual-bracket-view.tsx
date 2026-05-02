@@ -128,9 +128,11 @@ function buildGroupComposition(allMatches: BracketMatch[]): GroupComposition[] {
 
     // 3) 각 팀의 W/L 결과 추출
     // 이유: 같은 조 내에서만 매치 검색 (다른 조 매치는 무관)
+    // 2026-05-02 fix: TeamSlot.id (TournamentTeam.id) 와 winnerTeamId 비교.
+    //   기존 코드의 `teamId` (Team.id) 비교는 항상 false → 모두 L 표시 버그.
     const teams: TeamWithResults[] = teamSlots.map((slot) => {
       if (!slot) return { slot, results: [] };
-      const teamId = slot.teamId;
+      const ttId = slot.id; // TournamentTeam.id (winnerTeamId 와 같은 도메인)
 
       // 같은 조 내 status=completed 매치 중 이 팀이 출전한 매치 추출
       const teamMatches = groupMatches
@@ -138,13 +140,13 @@ function buildGroupComposition(allMatches: BracketMatch[]): GroupComposition[] {
           (m) =>
             m.groupName === g &&
             m.status === "completed" &&
-            (m.homeTeam?.teamId === teamId || m.awayTeam?.teamId === teamId),
+            (m.homeTeam?.id === ttId || m.awayTeam?.id === ttId),
         )
         .sort((a, b) => a.roundNumber - b.roundNumber); // round_number 오름차순
 
-      // winnerTeamId 비교로 W/L 판정 (BracketMatch 타입에 이미 존재 — derive 불필요)
+      // winnerTeamId === slot.id (TournamentTeam.id) 비교
       const results: ("W" | "L")[] = teamMatches.map((m) =>
-        m.winnerTeamId === teamId ? "W" : "L",
+        m.winnerTeamId === ttId ? "W" : "L",
       );
 
       return { slot, results };
@@ -340,14 +342,15 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
                               style={
                                 r === "W"
                                   ? {
+                                      // 사용자 결정 (2026-05-02): W=BDR Red / L=BDR Navy(Info)
                                       backgroundColor:
-                                        "color-mix(in srgb, var(--color-success) 18%, transparent)",
-                                      color: "var(--color-success)",
+                                        "color-mix(in srgb, var(--color-primary) 18%, transparent)",
+                                      color: "var(--color-primary)",
                                     }
                                   : {
                                       backgroundColor:
-                                        "color-mix(in srgb, var(--color-error) 14%, transparent)",
-                                      color: "var(--color-error)",
+                                        "color-mix(in srgb, var(--color-info) 18%, transparent)",
+                                      color: "var(--color-info)",
                                     }
                               }
                               title={r === "W" ? "승" : "패"}
