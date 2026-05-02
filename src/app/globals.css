@@ -966,25 +966,38 @@ html.dark .app-nav__tab[data-active="true"]::after {
   flex-wrap: wrap;
 }
 
-/* 2026-05-02: hero 대회 슬라이드의 진행 중 매치 박스
-   팀명 + 스코어 + LIVE 아이콘. 컬러풀 배경 위라 흰색 + 반투명 BG. */
-.hero-carousel__match {
-  display: inline-flex;
+/* 2026-05-02 v2: hero 대회 슬라이드의 진행 중 매치 카드 (UI 재설계)
+   세로 2행 (홈/원정) + 풀폭 LIVE 배지. 컬러 배경 위 어두운 카드 + 명확한 폰트. */
+.hero-carousel__meta-line {
+  margin-bottom: 10px;
+  opacity: 0.9;
+  font-size: 14px;
+}
+.hero-carousel__match-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  max-width: 280px;
+  backdrop-filter: blur(2px);
+}
+.hero-carousel__match-row {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 6px 0 10px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  font-size: 13px;
-  color: #fff;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
 }
 .hero-carousel__match-team {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 13px;
   letter-spacing: -0.01em;
-  max-width: 90px;
+  color: rgba(255, 255, 255, 0.95);
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -992,41 +1005,43 @@ html.dark .app-nav__tab[data-active="true"]::after {
 .hero-carousel__match-score {
   font-family: var(--ff-display);
   font-weight: 900;
-  font-size: 16px;
+  font-size: 22px;
   letter-spacing: -0.02em;
-}
-.hero-carousel__match-sep {
-  opacity: 0.5;
-  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
-/* LIVE 배지 — 클릭 시 /live/[id] 진입. live-air-dot 으로 온에어 펄스. */
+/* LIVE 배지 — 풀폭 클릭 가능. BDR Red 강조 + 온에어 펄스 dot. */
 .hero-carousel__live-badge {
-  display: inline-flex;
+  display: flex !important;
   align-items: center;
-  gap: 4px;
-  margin-left: 4px;
-  padding: 3px 8px;
-  background: var(--bdr-red, #E31B23);
-  color: #fff;
-  border-radius: 4px;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 7px 12px;
+  background: #E31B23 !important;
+  color: #fff !important;
+  border-radius: 6px;
   font-family: var(--ff-display);
   font-weight: 800;
-  font-size: 11px;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
 }
 .hero-carousel__live-badge:hover {
-  transform: scale(1.05);
-  box-shadow: 0 0 0 3px rgba(227, 27, 35, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(227, 27, 35, 0.4);
 }
 .hero-carousel__live-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #fff;
+  flex-shrink: 0;
 }
 .hero-carousel__live-label {
   line-height: 1;
