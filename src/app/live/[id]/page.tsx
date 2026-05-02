@@ -437,6 +437,8 @@ export default function LiveBoxScorePage() {
   const { id } = useParams<{ id: string }>();
   const [match, setMatch] = useState<MatchData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 2026-05-02: 일시 에러(429/5xx/네트워크) 표시용 — match 데이터는 유지하면서 작은 알림만 노출
+  const [transientError, setTransientError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [homeFlash, setHomeFlash] = useState(false);
@@ -460,7 +462,19 @@ export default function LiveBoxScorePage() {
     try {
       const res = await fetch(`/api/live/${id}`, { cache: "no-store" });
       if (!res.ok) {
-        setError("경기 정보를 찾을 수 없습니다");
+        // 2026-05-02 에러 처리 분기:
+        //  - 404: 진짜 매치 없음 → 풀스크린 에러 (영구)
+        //  - 429/5xx: 일시 에러 → match 데이터 유지 + 작은 알림 (다음 폴링에서 자동 복구)
+        if (res.status === 404) {
+          setError("경기 정보를 찾을 수 없습니다");
+          setTransientError(null);
+        } else if (res.status === 429) {
+          // rate limit — match 데이터 유지 + 알림
+          setTransientError("연결 지연 · 자동 재시도 중");
+        } else {
+          // 5xx 또는 기타 — match 데이터 유지 + 알림
+          setTransientError("일시 오류 · 자동 재시도 중");
+        }
         return;
       }
       const data = await res.json();
@@ -483,6 +497,8 @@ export default function LiveBoxScorePage() {
       setLastUpdated(new Date());
       setIsLive(m.status === "live" || m.status === "in_progress");
       setError(null);
+      // 정상 응답 시 transientError 클리어 (자동 복구 표시)
+      setTransientError(null);
 
       // 경기 종료 시 폴링 중단 — 깜빡임 방지
       if (m.status === "completed" || m.status === "finished") {
@@ -492,7 +508,8 @@ export default function LiveBoxScorePage() {
         }
       }
     } catch {
-      setError("데이터를 불러오는 중 오류가 발생했습니다");
+      // 네트워크 끊김/timeout — match 데이터 유지 + 알림
+      setTransientError("네트워크 오류 · 자동 재시도 중");
     }
   }, [id]);
 
@@ -653,6 +670,27 @@ export default function LiveBoxScorePage() {
       className="min-h-screen"
       style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: isPrinting ? 1 : 1.1 }}
     >
+      {/* 2026-05-02: 일시 에러 (rate limit 429 / 5xx / 네트워크) 알림 — 우상단 작은 토스트
+          match 데이터 유지하면서 사용자에게 재시도 중임을 표시. 다음 폴링 (3s) 에 자동 사라짐. */}
+      {transientError && !error && (
+        <div
+          role="status"
+          aria-live="polite"
+          data-print-hide
+          className="fixed right-3 top-3 z-30 flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium shadow-sm"
+          style={{
+            backgroundColor: "var(--color-card)",
+            borderColor: "var(--color-warning, #f59e0b)",
+            color: "var(--color-warning, #f59e0b)",
+          }}
+        >
+          <span className="material-symbols-outlined text-sm animate-spin" style={{ animationDuration: "1.5s" }}>
+            sync
+          </span>
+          {transientError}
+        </div>
+      )}
+
       {/* 헤더 — border와 배경을 모두 CSS 변수로 */}
       <div
         className="px-4 py-3 flex items-center justify-between border-b"
