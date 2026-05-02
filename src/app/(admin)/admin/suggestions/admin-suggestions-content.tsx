@@ -76,8 +76,9 @@ export function AdminSuggestionsContent({
 
       {/* 축소된 테이블: 제목 / 작성자 / 상태 / 날짜 (4칸) */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto admin-table-wrap">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+          <table className="admin-table w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-5 py-4 font-medium">제목</th>
@@ -93,7 +94,7 @@ export function AdminSuggestionsContent({
                   onClick={() => setSelected(s)}
                   className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
                 >
-                  <td className="px-5 py-3">
+                  <td data-primary="true" className="px-5 py-3">
                     <p className="truncate font-medium text-[var(--color-text-primary)]">
                       {s.title}
                     </p>
@@ -101,15 +102,15 @@ export function AdminSuggestionsContent({
                       {s.content}
                     </p>
                   </td>
-                  <td className="px-5 py-3 truncate text-[var(--color-text-muted)]">
+                  <td data-label="작성자" className="px-5 py-3 truncate text-[var(--color-text-muted)]">
                     {s.authorName ?? s.authorEmail ?? "-"}
                   </td>
-                  <td className="px-5 py-3">
+                  <td data-label="상태" className="px-5 py-3">
                     <Badge variant={STATUS_BADGE[s.status] ?? "default"}>
                       {STATUS_LABEL[s.status] ?? s.status}
                     </Badge>
                   </td>
-                  <td className="px-5 py-3 text-[var(--color-text-muted)]">
+                  <td data-label="날짜" className="px-5 py-3 text-[var(--color-text-muted)]">
                     {fmtDate(s.createdAt)}
                   </td>
                 </tr>

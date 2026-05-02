@@ -63,8 +63,9 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
 
       {/* 축소된 테이블: 팀명 / 도시 / 상태 (3칸) */}
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto admin-table-wrap">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B], 2026-05-02) */}
+          <table className="admin-table w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-5 py-4 font-medium">팀명</th>
@@ -79,7 +80,7 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
                   onClick={() => setSelected(t)}
                   className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
                 >
-                  <td className="px-5 py-3">
+                  <td data-primary="true" className="px-5 py-3">
                     <p className="truncate font-medium text-[var(--color-text-primary)]">
                       {t.name}
                     </p>
@@ -87,10 +88,10 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
                       {t.membersCount}명
                     </p>
                   </td>
-                  <td className="px-5 py-3 text-[var(--color-text-muted)]">
+                  <td data-label="도시" className="px-5 py-3 text-[var(--color-text-muted)]">
                     {t.city ?? "-"}
                   </td>
-                  <td className="px-5 py-3">
+                  <td data-label="상태" className="px-5 py-3">
                     <Badge variant={STATUS_BADGE[t.status] ?? "default"}>
                       {STATUS_LABEL[t.status] ?? t.status}
                     </Badge>
