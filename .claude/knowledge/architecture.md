@@ -2,6 +2,25 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-03] 가입 신청 일괄 처리 함수 — `src/lib/teams/approve-join-requests.ts` 신규
+- **분류**: architecture (운영 lib / 박제 작업 + 추후 admin UI 공용)
+- **발견자**: pm
+- **참조횟수**: 0
+- **위치**: `src/lib/teams/approve-join-requests.ts` (130줄, 신규 1 파일)
+- **목적**: `team_join_requests` pending 일괄 처리 — 박제 작업 (5/3 슬로우 케이스) + 추후 admin 일괄 승인 UI 공용 라이브러리.
+- **API**:
+  - `approveJoinRequests(actions: ApproveAction[], opts?: { processedById?: bigint }): Promise<ApproveResult>`
+  - 3 액션: `approve_with_jersey` (team_members + 옵션 tt_players) / `approve_no_jersey` (비활성 멤버) / `reject` (사유 기록)
+  - 결과: `{ approved, rejected, teamMembersCreated, ttPlayersCreated, skipped, errors }`
+- **핵심 보장**:
+  - 트랜잭션: `prisma.$transaction` (timeout 60s, 일부 실패 시 롤백)
+  - 멱등성: 이미 approved/rejected 상태인 신청은 skip (중복 호출 안전)
+  - 중복 INSERT 차단: team_members `(teamId, userId)` UNIQUE / tt_players `(tournamentTeamId, userId)` UNIQUE 사전 검사
+  - playerName fallback: 명시 → User.name → User.nickname → null
+- **5/3 첫 적용**: 슬로우 8건 (approve_with_jersey 2 + approve_no_jersey 4 + reject 2 + 별도 placeholder 1) — pending 8→0 / tt_players 5→8 ✅
+- **호출 측 영향 0**: 기존 코드 변경 0, 신규 함수만 추가. 기존 `merge-temp-member.ts` 와 동일 디렉토리 + 동일 패턴 (prisma 임포트, $transaction).
+- **다음 적용 큐**: SKD 7 / MI 8 / 블랙라벨 9 (5/3 잔여 24건) / 업템포·피벗·아울스·MZ 7건. 추후 admin UI에서도 호출 가능.
+
 ### [2026-05-02] STL (Single Truth Layer) Phase 1 — 라이브 페이지 데이터 무결성 응답 가공 레이어
 - **분류**: architecture (라이브 페이지 / 데이터 무결성 / Flutter 의존성 격리)
 - **발견자**: pm + 사용자 통찰

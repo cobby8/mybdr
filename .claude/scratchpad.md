@@ -39,53 +39,18 @@
 
 **예상 시간**: ~3~4시간 (Phase 1~6)
 
+#### 🔍 5/2 추가 분석 — 자동 생성 규칙 (HOLD, 결정 4건 대기)
+- 운영 56건 SELECT 결과: BDR 시리즈 11건만 자동 가능 / 라인농구교실배 동일명 4건 등 충돌 / 한국어 약어 추출 모호 → 단일 알고리즘 ❌
+- **권장 = C 하이브리드** (자동 추천 후보 + 운영자 확정)
+- 다음 세션 결정 4건: Q1 A/B/C / Q2 형식(3~7자/영대+숫자/첫글자영문) / Q3 변경정책(영구 추천) / Q4 series.short_code 컬럼 신설 여부
+
 ---
 
 ### 🟡 HOLD 큐
 - **자율 QA 봇 시스템** (사용자: "내가 얘기 안 꺼내면 환기해줘") — Phase 1~5 / 9d
 - **BDR 기자봇 v2** — Phase 1 완료 (알기자 / Gemini 2.5 Flash). Phase 2~7 (DB articles + 게시판 'news' 카테고리 + 사용자 선별 + 피드백) 대기
 
-### 구현 기록 — BDR NEWS 알기자 Phase 1 (2026-05-02)
-
-📝 매치 종료 매치 단신 기사 LLM (Gemini 2.5 Flash) 통합. 진행 중 매치는 호출 X / 종료 매치만 메모리 캐시 후 1회 생성.
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| `package.json` | `@google/genai@^1.51.0` 추가 (Google 공식 신규 SDK) | 수정 |
-| `.env.example` | `GEMINI_API_KEY` 항목 추가 | 수정 |
-| `src/lib/news/gemini-client.ts` | Gemini SDK 래퍼 / `generateText()` / thinkingBudget=0 | 신규 (45줄) |
-| `src/lib/news/prompts/alkija-system.ts` | 알기자 system prompt (격식70+친근30, 300자 룰) | 신규 (35줄) |
-| `src/lib/news/match-brief-generator.ts` | MatchBriefInput 정의 + buildUserPrompt + 메모리 캐시 | 신규 (155줄) |
-| `src/lib/news/validate-brief.ts` | 점수/팀명/길이/hallucination 키워드 검증 | 신규 (75줄) |
-| `src/app/api/live/[id]/brief/route.ts` | GET endpoint — completed 매치만 LLM 호출 | 신규 (290줄) |
-| `src/app/live/[id]/_v2/tab-summary.tsx` | LLM brief fetch (useEffect) + Phase 0 fallback + "✍️ 알기자" 시그니처 | 수정 (+62줄) |
-
-💡 tester 참고:
-- 테스트 방법:
-  1. `.env` 에 `GEMINI_API_KEY=` 설정 (운영 .env 에 이미 추가됨)
-  2. dev server `npm run dev` (port 3001)
-  3. 종료 매치 페이지 (예: `/live/134`) 접속 → 요약 탭 Lead 부분이 LLM 응답으로 교체되는지 확인
-  4. 시그니처 "✍️ 알기자 · BDR NEWS AI" 표기 확인
-- 정상 동작:
-  - 종료 매치 (status=completed) → LLM 단신 기사 (3~5문장, 300자 이내) 표시
-  - 진행 중 매치 (status=live) → Phase 0 템플릿 그대로 (LLM 호출 X)
-  - GEMINI_API_KEY 미설정 / LLM 실패 → Phase 0 템플릿 fallback (시그니처 X)
-- 검증 통과 케이스 (스크립트 단위): "셋업 55-43 MZ" 가상 입력 → 259자 단신 기사 (점수 정확, 양 팀명 등장)
-- 주의할 입력:
-  - 점수 0-0 매치 → flow="default" 분기 OK
-  - 양 팀 모두 DNP만 (playerStats 0건) → MVP/최다득점 null + 흐름 hint 만으로 LLM 호출 (정상 처리되어야)
-  - PBP 0건 매치 → quarterScores 빈 배열 + flow="default" — 점수차 + 팀명 만으로 LLM 호출
-
-⚠️ reviewer 참고:
-- 특별히 봐줬으면 하는 부분:
-  - `match-brief-generator.ts` 메모리 캐시 (Map) — Vercel serverless 인스턴스 별이라 cold start 시 재생성. 무료 tier 1500 RPD 충분 (운영 평소 360 호출).
-  - `validate-brief.ts` hallucination 키워드 11개 — 운영 데이터에 없는 사실 ("관중", "환호" 등) 검출. 운영 후 LLM 응답 패턴 보면서 추가 가능.
-  - `tab-summary.tsx` SWR 미사용 — 매치당 1회 fetch 라 단순 useEffect 채택. 다중 탭 동시 접속 시 중복 호출 가능하나 서버 메모리 캐시로 LLM 비용 0.
-- 안전 가드:
-  - DB schema 변경 0 (Phase 2 영역)
-  - Flutter `/api/v1/...` 응답 변경 0
-  - 진행 중 매치 LLM 호출 0
-  - LLM 실패 시 Phase 0 템플릿 영구 fallback (사용자 영향 0)
+<!-- 알기자 Phase 1 상세 섹션 압축 (2026-05-03) — 작업 로그에 한 줄로 보존, 전체 기록은 git log -- .claude/scratchpad.md 참고 -->
 
 ---
 
@@ -93,12 +58,13 @@
 
 | # | 항목 | 상태 |
 |---|---|---|
-| 1 | 셋업팀 가입 대기 17명 정리 | ✅ |
+| 1 | 셋업팀 가입 대기 17명 정리 + **자동 approve 함수 추출 ✅** (`src/lib/teams/approve-join-requests.ts`) | ✅ |
 | 2 | 셋업팀 ttp user 매핑 (6/9, 잔여 3명: 김병주/이영기/이준호) | ⏳ |
-| 3 | 셋업팀 placeholder user 5명 정리 | ⏳ |
-| 4 | mergeTempMember 함수 강화 (name 매칭 추가) | ⏳ |
-| 5 | 16팀 미매핑 8팀 `tournament_team_players` 보정 (잔여 = MI / SKD 명단 0팀) | ⏳ |
-| 6 | 11명 명단 미가입 (블랙라벨 11 + MSA 5 + 슬로우 3 = 19명, userId=null INSERT 또는 가입 후 매칭) | ⏳ |
+| 3 | placeholder User **94명** 정리 (5/3 블랙라벨+11 / MSA+4 / 슬로우+1 = +16) | ⏳ |
+| 4 | mergeTempMember 함수 강화 (FK 7단계 통합 추가 — 김영훈 케이스 패턴 표준화) | ⏳ |
+| 5 | 16팀 미매핑 8팀 `tournament_team_players` 보정 (잔여 = MI / SKD 명단 대기) | 🟡 |
+| 6 | 미가입 명단 placeholder INSERT — **블랙라벨 11 ✅ + MSA 5 ✅ + 슬로우 8 ✅ (5/3)** / SKD/MI 명단 대기 | 🟡 부분 |
+| 7 | **16팀 가입신청 39건 정리** (5/3 발견) — 슬로우 8 ✅ / 블랙라벨 9 ✅ / 업템포 3 ✅ / 피벗 2 ✅ / 아울스 1 ✅ / MZ 1 ✅ / 잔여 SKD 7 + MI 8 (명단 대기) | 🟡 24/39 |
 
 ---
 
@@ -139,14 +105,14 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
+| 2026-05-03 | (DB 트랜잭션 3 phase) | **블랙라벨 정리 + 잔여 가입대기 정리 (16건 처리)** — Phase1 approveJoinRequests 14건 (블랙라벨 7 reject + 업템포 3 / 피벗 2 / 아울스 1 / MZ 1 = 7 approve_no_jersey) / Phase2 권도윤 3168→3318 통합 (tt+tm+captainId+req+merged 5단계) / Phase3 이삭 3326→3171 통합 (4단계). 블랙라벨 pending 9→0 ✅, tt_players 21 유지 ✅. status=merged +2 (총 11명) | ✅ |
+| 2026-05-03 | (lib 신규+DB) | **자동 approve 함수 추출 + 슬로우 처리** — `src/lib/teams/approve-join-requests.ts` 신규 (130줄, 3 액션 트랜잭션 멱등). 슬로우 가입신청 8건 일괄 처리. 출전 8/8 ✅ + pending 0 ✅. 16팀 가입대기 39건 발견(스크래치패드 큐 #1) | ✅ |
+| 2026-05-03 | (DB 트랜잭션) | **MSA 5명 INSERT** (5/3 11:00 경기 대비) — 왕준일 (uid=3108 기존) tt_players만 1건 + placeholder 4명(장동영/김승한/조우성/김병윤) 3단계 트랜잭션. 출전 17/17 ✅ + 마스터 18/18 ✅. placeholder 부채 89→93 | ✅ |
+| 2026-05-03 | (DB 트랜잭션) | **블랙라벨 11명 placeholder INSERT** (5/3 11:00 경기 대비) — User+TeamMember+tt_players 3단계 트랜잭션 (id 3320~3330 / 2636~2646 / 2786~2796). 출전 명단 21/21 ✅ + 마스터 21/21 ✅. 사용자 명단 검증 100% 일치. 매치 코드 자동생성 작업은 복잡도 사유 다음 세션 이연 (4 결정 대기). placeholder User 부채 78→89명 발견 (scratchpad outdated 갱신) | ✅ |
 | 2026-05-02 | (Phase 1) | **알기자 BDR NEWS Phase 1** — Gemini 2.5 Flash + system prompt + match-brief-generator + validate-brief + `/api/live/[id]/brief` route + tab-summary LLM 통합 (Phase 0 fallback 영구 유지). 신규 5 + 수정 3 파일. 검증 매치 #134 가상 입력 259자 단신 통과. tsc PASS. completed 매치만 LLM 호출 — 라이브 영향 0 | ✅ |
 | 2026-05-02 | (DB UPDATE+박제) | **5팀 명단/배번 보정** (MZ id=233 정정 + 동명이인 발견) — 1차 매칭 32명 + [유사] User 15명 INSERT. MZ 11/11 ✅ / 우아한 9/9 ✅ / 잔여 19명 (User 미가입) | ✅ |
 | 2026-05-02 | (DB 트랜잭션) | **김영훈 placeholder ↔ real user 통합** (uid 2954→2853) — ttp/Stat/PBP/tm 7단계 트랜잭션. 매치#133 매칭률 80%→96%. lessons.md 박제 | ✅ |
 | 2026-05-02 | cf2eea1 | **dual 진출 회귀 방지 4종** (A 자가치유 + B PATCH 차단 + C dirty tracking + D 검출). errors.md 박제 | ✅ |
 | 2026-05-02 | ebd335f | api/live G1 DNP 가드 (#136 -44m 회복) | ✅ |
 | 2026-05-02 | 90759d5 | **audit log E** — `tournament_match_audits` 신규 테이블 + helper + admin/flutter/system 통합. prisma db push 무중단 | ✅ |
-| 2026-05-02 | b728abb | PC 우승 예측 → 참가비 박스 아래 이동 + 대진표 풀폭 (모든 탭 sticky) | ✅ |
-| 2026-05-02 | a437829 | PC 일정 카드 콤팩트 + 매치번호 표시 + 그리드 (md 2열/xl 3열). 매치번호 부여 미흡 발견 (TEST 0/16, 열혈 3/34) | ✅ |
-| 2026-05-02 | (DB UPDATE) | **Match #21 8강 home=away fix** (피벗·아울스 2번째 케이스). audit log 9건 self-heal 자동 정정 흔적 추적 | ✅ |
-| 2026-05-02 | cfa64a6 | **트리 배정 로직 점검** — progressDualMatch self-heal context 강화 (source 명시) + updateMatch/updateMatchStatus legacy 진출에 self-heal+audit 추가 | ✅ |
-| 2026-05-02 | (시뮬 ROLLBACK) | **결승 시뮬레이션 검증** — 27매치 결승까지 가상 진행. self-heal 8건 자동 정정 / 양쪽 같은 팀 0건 / 우승=아울스 (가상). 운영 영향 0 | ✅ |
