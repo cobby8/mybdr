@@ -2,6 +2,28 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] dual_tournament 진출 후 next_match 양 슬롯 같은 팀 (피벗·아울스 케이스)
+- **분류**: error (data corruption — 진출 슬롯 충돌)
+- **증상**: 듀얼 조별 승자전 매치의 `homeTeamId === awayTeamId` (양쪽 같은 팀). 운영 발생 2건 (피벗 / 아울스 B조 #7).
+- **재현 조건**: Match #5(B조 G1) 완료 → progressDualMatch 정상 → next #7.home set ✅. 그러나 1초 후 Match #7.awayTeamId 도 같은 winnerTeamId 로 잘못 set.
+- **추적 시도** (모두 정상 코드):
+  - `progressDualMatch` (dual-progression.ts) — 단일 슬롯 (`targetField` 동적, home or away 한 쪽만)
+  - `updateMatch` (match.ts L148) — slot==='home' / slot==='away' 분기
+  - `updateMatchStatus` (match.ts L266) — 단일 슬롯
+  - Flutter v1 `/matches/[id]/status` — updateMatchStatus 만 호출
+- **의심 경로**: **`/api/web/tournaments/[id]/matches/[matchId]` PATCH (L104~109) 가 `homeTeamId` / `awayTeamId` 를 body 로 직접 받아 set 가능**. admin frontend 가 진출 처리 후 stale data 로 추가 PATCH 또는 운영자 수동 슬롯 설정 실수 추정.
+- **즉시 fix 패턴**: `awayTeamId` 또는 `homeTeamId` (잘못 set 된 쪽) NULL UPDATE. Match 가 pending 이고 next_match_slot 의 source 매치가 아직 진행중이면 안전 (그 매치 종료 시 progressDualMatch 가 자동 덮어쓰기).
+- **근본 원인 정확 식별 (2026-05-02 코드 점검)**: `/tournament-admin/tournaments/[id]/matches/page.tsx` (운영자 매치 관리 페이지) 가 변경 안 된 필드도 항상 PATCH body 에 포함. 운영자가 venue/scheduledAt 만 수정해도 React state 의 초기값 (homeTeamId/awayTeamId) 이 그대로 send 되어, progressDualMatch 가 채운 슬롯이 stale data 로 덮어써짐.
+- **회귀 방지 (2026-05-02 적용 완료)**:
+  - ✅ A. progressDualMatch 자가 치유 가드 — 반대 슬롯에 같은 team 있으면 NULL 정정 후 정상 진출 (dual-progression.ts +30줄)
+  - ✅ B. admin web matches PATCH 의 진출 슬롯 차단 — 다른 매치의 next_match_id/loserNextMatchId 가 가리키는 매치는 home/away 변경 거부 (route.ts +35줄)
+  - ✅ C. **admin frontend dirty tracking** — 변경된 필드만 PATCH body 에 포함 (page.tsx, **근본 원인 fix**)
+  - ✅ D. 검출 스크립트 — scripts/_templates/detect-dual-conflicts.ts (수동 실행, 5/2 첫 실행 0건)
+  - ⏳ audit log 신규 테이블 — 별건 큐 (DB schema 변경 = 운영 DB 영향, 사용자 결정 필요)
+- **참조**: 5/2 commit (A+B+C+D) / 즉시 fix DB UPDATE
+- **관련 작업 로그**: 5/2 e3df321(피벗 케이스) + 5/2 (아울스 #7) 두 건 동일 패턴 — 회귀 방지 후 재발 0 예상
+- **참조횟수**: 0
+
 ### [2026-05-02] quarterStatsJson 쿼터별 미달 — Flutter app 이 last_clock 까지의 lineup 시간만 누적 (140 player-min 기준 미달 케이스)
 - **분류**: error (Flutter app 데이터 산출 룰 / 데이터 자체는 일관 — 사용자 기대값과 차이)
 - **발견자**: 사용자 (검증 시 매치별 양팀 합 280 player-min 기준 비교) + debugger
