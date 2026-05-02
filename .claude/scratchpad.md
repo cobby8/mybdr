@@ -12,6 +12,24 @@
 - D-day 셋업 완료 (DB 16팀 + 듀얼토너먼트 27경기 + Phase A~E 풀 시스템). 현장에서 발견되는 문제는 즉시 디버깅 프롬프트로 처리.
 - 디버그 패턴: `Dev/cli-prompts/2026-05-01-profile-save-500-{debug|direct-diagnose|fix}.md` 3단계 카피.
 
+### 🔴 대회 종료 후 즉시 처리 큐 (5/2 23:59 이후)
+
+**1) 셋업팀(team_id=196) 가입 대기 17명 정리** — 안 3-α 패턴 적용
+- **8명 신규 승인**: uid 2866(hifabric)/2867(영기)/2868(BB)/2872(준호)/3026(임태웅)/3030(김동욱)/3032(정세훈)/3286(곽규현) — UNIQUE 충돌 0건, mergeTempMember 매칭 0건 → 일반 가입 승인
+- **9명 reject**: uid 2854/2855/2859/2865/2871/2874/2876/2922/2931 — 본인이 이미 team_members 에 real user 로 등록되어 있음 (provider=kakao + last_login=null). status=rejected + rejection_reason="이미 팀 멤버" 처리
+
+**2) 셋업팀 placeholder 5명 정리** — uid 2953(백주익)/2954(김영훈)/2955(이영기)/2956(백배흠)/2957(이준호)
+- `tournament_team_players` 4건이 placeholder uid 참조 (#0/#7/#17/#94)
+- `MatchPlayerStat` 26건 + `play_by_plays` 32건 일부 placeholder uid 참조 가능
+- 처리 옵션 (사용자 결정 필요):
+  - (a) 본인 가입 시 mergeTempMember 자동 매칭 활용 (이름 매칭 → ttp/stats/pbp uid 일괄 UPDATE)
+  - (b) 사용자 결정 후 일괄 매핑 SQL UPDATE (수동 매칭 표 작성)
+  - (c) placeholder 유지 (통계는 placeholder 에 박힌 채 영구 보존)
+
+**3) 16팀 중 잔여 8팀 `tournament_team_players` 0명 보정** (5/2 PM 큐 — 대회 후 진행해도 무방, 매치 시작 전이라면 즉시)
+- MZ / 블랙라벨 / 다이나믹 / MI / 슬로우 / 우아한스포츠 / MSA / SKD
+- 셋업팀 패턴 (`scripts/_temp/sync-setup-tournament-players-2026-05-02.ts` git log 복원) 일괄 적용 가능 — **단 placeholder/real user 정체 사전 점검 필수** (셋업팀 케이스처럼 본인이 멤버에 있을 수 있음)
+
 ### 우선순위 2 — 결정 대기 큐 (사용자 판단 받고 구현 진행)
 | 영역 | 결정 건수 | 산출물 위치 |
 |------|---------|------------|
@@ -77,3 +95,4 @@
 | 2026-05-02 | 27d2bd7+(28건) | **5/2 동호회최강전 D-day 풀 셋업** — DB 16팀 / 듀얼토너먼트 27경기 / placeholder↔real 통합 5쌍 / 카드 HIGH4+컴팩트 v3 / Hero 5col+막대 통일 / 장소 "스포라운드" 고정 / 원영 캡틴 양도+탈퇴 | ✅ D-day 준비 완료 |
 | 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) + scratchpad 정리 | ✅ |
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
+| 2026-05-02 | (검토만) | 셋업팀 가입 승인 위험 검토 — 17명 일괄 승인 시 9명 UNIQUE 충돌 ROLLBACK + ttp 4건 placeholder 참조 + stats 26 + pbp 32 영향. 안 A (대회 종료 후 처리) 채택. 실행 0건 | ✅ |
