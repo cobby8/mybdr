@@ -26,8 +26,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       orderBy: { scheduledAt: "asc" },
       include: {
         // Phase 2C: 일정 카드 팀명 한/영 표시를 위해 name_en/name_primary 포함
-        homeTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true } } } },
-        awayTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true } } } },
+        // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시를 위해 logoUrl 추가
+        homeTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } } } },
+        awayTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } } } },
       },
     }),
     // 일정 탭: 참가팀 목록
@@ -49,9 +50,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     // Phase 2C: 일정 카드에서 한 줄 대표 언어 표기용
     homeTeamNameEn: m.homeTeam?.team.name_en ?? null,
     homeTeamNamePrimary: m.homeTeam?.team.name_primary ?? null,
+    // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시 (TBD/예정 매치는 null → fallback 렌더)
+    homeTeamLogoUrl: m.homeTeam?.team.logoUrl ?? null,
     awayTeamName: m.awayTeam?.team.name ?? null,
     awayTeamNameEn: m.awayTeam?.team.name_en ?? null,
     awayTeamNamePrimary: m.awayTeam?.team.name_primary ?? null,
+    awayTeamLogoUrl: m.awayTeam?.team.logoUrl ?? null,
     homeScore: m.homeScore,
     awayScore: m.awayScore,
     status: m.status,
