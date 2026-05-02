@@ -688,10 +688,12 @@ export default function LiveBoxScorePage() {
               LIVE
             </span>
           )}
-          {/* 상태 라벨: text-xs → text-sm */}
-          <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-            {STATUS_LABEL[match.status] ?? match.status}
-          </span>
+          {/* 상태 라벨: 라이브 외 상태 (예정/종료)에서만 표시 — 빨간 LIVE 펄스와 회색 LIVE 텍스트 중복 제거 (2026-05-02) */}
+          {!isLive && (
+            <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+              {STATUS_LABEL[match.status] ?? match.status}
+            </span>
+          )}
           {/* 헤더 우측: 테마 토글만 유지. 새로고침 버튼은 스코어카드 가운데로 이동 (Phase 1) */}
           <ThemeToggle />
         </div>
