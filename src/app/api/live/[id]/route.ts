@@ -106,6 +106,48 @@ export async function GET(
       if (p.sub_in_player_id) playedPlayerIds.add(Number(p.sub_in_player_id));
     }
 
+    // 2026-05-02 STL Phase 2 — quarter length 동적 추정 (양 분기 공통 사용)
+    // 이유: 진행 중 + 종료 매치 모두에 sub 기반 출전시간 재계산을 적용하려면 분기 밖에서 산정.
+    // (기존: 종료 매치 분기 안에서만 계산 — Phase 1 R8 commit f0278b4)
+    // PBP 의 max game_clock_seconds = 쿼터 시작 시점 = quarter length.
+    // 일반 농구 룰: 420(7분) / 480(8분) / 600(10분) / 720(12분).
+    // 비정상값(<300 또는 >1200) → 600 default.
+    const estimatedQL = (() => {
+      if (allPbps.length === 0) return 600;
+      const maxClock = Math.max(...allPbps.map((p) => p.game_clock_seconds ?? 0));
+      if (maxClock < 300 || maxClock > 1200) return 600;
+      const candidates = [420, 480, 600, 720];
+      let best = 600;
+      let bestDiff = Infinity;
+      for (const c of candidates) {
+        const diff = Math.abs(c - maxClock);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = c;
+        }
+      }
+      return bestDiff <= 30 ? best : maxClock;
+    })();
+
+    // 2026-05-02 STL Phase 2 — sub 기반 출전시간 재계산 (모든 매치 0순위)
+    //
+    // 목적:
+    //   (1) Flutter app 의 minutesPlayed 999s hard cap (2697 등 — 16~28분 실제 출전이 999s/16m 캡)
+    //   (2) quarterStatsJson 의 last_clock 절단 (Q4 113s 남기고 끊긴 매치 등 — qsJson에 미반영 시간)
+    //   두 문제를 동시에 회피.
+    //
+    // 알고리즘 (kebab-spec 기획안):
+    //   - 쿼터별 lineup tracking
+    //   - starter = 쿼터 내 등장한 선수 중 한번도 sub_in 으로 들어온 적 없는 선수
+    //   - sub_in 시점 = lineup 진입 시각, sub_out 시점 = lineup 이탈 시각
+    //   - 쿼터 종료 시 코트 잔존 선수 → 0초까지 자동 누적
+    //   - DB / Flutter 응답 변경 0. 응답 가공만 (best-effort fallback 가드 포함).
+    //
+    // 안전망:
+    //   - sub 기반 결과가 비합리적 (qLength × 4 초과 = 1쿼터 평균 초과) 시 기존 fallback
+    //   - sub 결과 0 (PBP/sub 미입력 매치) 시 기존 fallback
+    const subBasedMinutes = calculateSubBasedMinutes(allPbps, estimatedQL);
+
 
     // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
     // min/min_seconds/plus_minus 는 PBP 만으로 산출 불가 → 0 고정. quarterStatsJson 에서 나중에 주입.
@@ -327,6 +369,15 @@ export async function GET(
           row.min_seconds = stat.minutesPlayed;
           row.min = Math.round(stat.minutesPlayed / 60);
         }
+        // 0) STL Phase 2 — sub 기반 lineup tracking 결과 (진행 중 매치 분기)
+        //   "더 큰 값 선택" 전략 (종료 매치 분기와 동일).
+        //   라이브 매치 (D-day #133/#134/#135) 의 999s cap + last_clock 절단 동시 회피.
+        //   sub 가 qsJson/minutesPlayed 보다 큰 경우만 갱신 → 정상 매치 (qsJson 만점) 영향 0.
+        const subSecLive = subBasedMinutes.get(BigInt(pid)) ?? 0;
+        if (subSecLive > 0 && subSecLive <= estimatedQL * 4 && subSecLive > (row.min_seconds ?? 0)) {
+          row.min_seconds = subSecLive;
+          row.min = Math.round(subSecLive / 60);
+        }
         // +/- 보강 (전체 집계 레벨)
         if (stat.plusMinus != null) {
           row.plus_minus = stat.plusMinus;
@@ -380,45 +431,46 @@ export async function GET(
         if (!startersByTeam.has(teamId)) startersByTeam.set(teamId, new Set());
         startersByTeam.get(teamId)!.add(Number(player.id));
       }
-      // 2026-05-02 매치 132 fix: quarter length 동적 추정 (7분 4쿼터 등 다양한 룰 지원)
-      // PBP 의 max game_clock_seconds = 쿼터 시작 시점 = quarter length.
-      // 일반 농구 룰: 420(7분) / 480(8분) / 600(10분) / 720(12분).
-      // 비정상값(<300 또는 >1200) → 600 default.
-      const estimatedQL = (() => {
-        if (allPbps.length === 0) return 600;
-        const maxClock = Math.max(...allPbps.map((p) => p.game_clock_seconds ?? 0));
-        if (maxClock < 300 || maxClock > 1200) return 600;
-        // 일반 농구 룰에 가장 가까운 값으로 round (420/480/600/720)
-        const candidates = [420, 480, 600, 720];
-        let best = 600;
-        let bestDiff = Infinity;
-        for (const c of candidates) {
-          const diff = Math.abs(c - maxClock);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            best = c;
-          }
-        }
-        // 후보 중 가장 가까운 값과 30초 이내면 그 값, 아니면 maxClock 그대로
-        return bestDiff <= 30 ? best : maxClock;
-      })();
+      // 2026-05-02 STL Phase 2: estimatedQL 은 분기 밖에서 산정 (양 분기 공통 사용).
+      // 기존 estimateMinutesFromPbp 는 STL R3 (quarterStatsJson 부분 누락 보충) 용으로 그대로 유지.
       const minEstimates = estimateMinutesFromPbp(allPbps, startersByTeam, estimatedQL);
 
       // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback → PBP 추정 fallback)
+      // 2026-05-02 STL Phase 2: sub 기반 lineup tracking 결과 — "qsJson/minutesPlayed 보다 큰 경우만" 채택.
+      //
+      // 검증 결과 (매치 #132~#135 4건):
+      //   #134 (last_clock 절단): sub 273.95m > qsJson 264.17m → sub 채택 (+9.78m 회복)
+      //   #132/#135 (qsJson 만점): sub 264~267m < qsJson 280m → qsJson 유지
+      //   #133: qsJson 278.67m > sub 255.05m → qsJson 유지
+      //
+      // 이유: sub 기반은 substitution PBP 누락 시 (예: 올아웃 5명 일괄 교체 중 일부 미생성) 시간을 잃음.
+      //       qsJson 이 더 정확한 경우가 다수 → sub 는 보강용 0순위가 아닌 "더 큰 값 선택" 전략.
       const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): number => {
-        // 1) quarterStatsJson에서 초 합산 (2인 모드)
+        const playerId = Number(stat.tournamentTeamPlayer.id);
+        const subSec = subBasedMinutes.get(BigInt(playerId)) ?? 0;
+        // 합리성 가드: 쿼터당 평균 < quarter_length (4쿼터 = qLength × 4)
+        const subValid = subSec > 0 && subSec <= estimatedQL * 4 ? subSec : 0;
+
+        // 1) quarterStatsJson 합산
+        let qsJsonSec = 0;
         if (stat.quarterStatsJson) {
           try {
             const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
-            const total = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
-            if (total > 0) return total;
+            qsJsonSec = Object.values(parsed).reduce((sum, q) => sum + (q.min ?? 0), 0);
           } catch {}
         }
-        // 2) fallback: minutesPlayed (초 단위)
-        if (stat.minutesPlayed && stat.minutesPlayed > 0) return stat.minutesPlayed;
-        // 3) PBP 시뮬레이션 추정 (B-2 fallback) — DB 건드리지 않음
+        // 2) minutesPlayed (Flutter 999s cap 가능성 있음)
+        const dbMinSec = stat.minutesPlayed && stat.minutesPlayed > 0 ? stat.minutesPlayed : 0;
+        // 3) PBP 시뮬레이션 (B-2 fallback)
         const est = minEstimates.get(Number(stat.tournamentTeamPlayer.id));
-        return est?.totalSec ?? 0;
+        const pbpSimSec = est?.totalSec ?? 0;
+
+        // 채택: max(subValid, qsJsonSec, dbMinSec, pbpSimSec)
+        // — Flutter 999s cap 회피 (subValid 가 cap 미적용이라 더 큼)
+        // — qsJson last_clock 절단 회피 (subValid 가 0초 자동 누적이라 더 큼)
+        // — qsJson 만점 매치는 sub 보다 qsJson 큼 → qsJson 유지
+        const best = Math.max(subValid, qsJsonSec, dbMinSec, pbpSimSec);
+        return best;
       };
 
       const toPlayerRow = (stat: (typeof match.playerStats)[number]): PlayerRow => {
@@ -1106,6 +1158,123 @@ function estimateMinutesFromPbp(
   }
 
   return out;
+}
+
+// 2026-05-02 STL Phase 2 — sub 기반 lineup tracking 알고리즘
+//
+// 목적: Flutter 999s cap + qsJson last_clock 절단 동시 회피.
+//       응답 가공만 / DB·Flutter 변경 0.
+//
+// 입력: PBP 전체 (모든 쿼터, 모든 팀, 모든 액션 타입)
+// 출력: Map<ttp_id, total_seconds>
+//
+// 핵심 로직 (쿼터별):
+//   1) 쿼터 내 등장한 모든 선수 수집 (action 또는 sub_in/out 으로 등장)
+//   2) substitution 이벤트 파싱 (action_subtype="in:X,out:Y" 문자열 — schema 컬럼은 미사용)
+//   3) starter 추정 = 쿼터 내 등장 + 한번도 sub_in 으로 들어온 적 없는 선수
+//   4) starter 는 quarterLengthSec 시점부터 시작, sub_out 시 lineup 이탈, sub_in 시 진입
+//   5) 쿼터 종료 (clock=0) 시 잔존 선수는 0초까지 자동 누적
+//
+// ⚠️ schema 의 sub_in_player_id / sub_out_player_id 컬럼은 현재 모두 null
+//    (Flutter app 이 안 채움). action_subtype 문자열 파싱이 정답.
+function parseSubAction(subtype: string | null): { inId: bigint; outId: bigint } | null {
+  if (!subtype) return null;
+  const m = subtype.match(/^in:(\d+),out:(\d+)$/);
+  if (!m) return null;
+  try {
+    return { inId: BigInt(m[1]), outId: BigInt(m[2]) };
+  } catch {
+    return null;
+  }
+}
+
+function calculateSubBasedMinutes(
+  pbps: Array<{
+    quarter: number | null;
+    game_clock_seconds: number | null;
+    action_type: string;
+    action_subtype: string | null;
+    tournament_team_player_id: bigint | number | null;
+    tournament_team_id: bigint | number | null;
+  }>,
+  quarterLengthSec: number,
+): Map<bigint, number> {
+  const result = new Map<bigint, number>();
+
+  // 쿼터 1~4 + OT (5~6) 순회. 1쿼터부터 시작이라 단순 for 루프.
+  // 쿼터 키 수집 (실제 데이터에 존재하는 쿼터만)
+  const allQuarters = new Set<number>();
+  for (const p of pbps) {
+    if (p.quarter != null && p.quarter >= 1) allQuarters.add(p.quarter);
+  }
+  const sortedQuarters = [...allQuarters].sort((a, b) => a - b);
+
+  for (const q of sortedQuarters) {
+    // 쿼터 내 PBP 추출 + 시간순 정렬 (clock 큰 → 작은 순 = 쿼터 시작 → 종료)
+    const qPbps = pbps
+      .filter((p) => p.quarter === q)
+      .sort((a, b) => (b.game_clock_seconds ?? 0) - (a.game_clock_seconds ?? 0));
+    if (qPbps.length === 0) continue;
+
+    // 1) 쿼터 내 등장한 모든 선수 (자기 액션) — substitution 의 in/out 도 추가
+    const playersInQuarter = new Set<bigint>();
+    for (const p of qPbps) {
+      if (p.tournament_team_player_id) {
+        playersInQuarter.add(BigInt(p.tournament_team_player_id));
+      }
+    }
+
+    // 2) substitution 이벤트 파싱
+    type SubEvent = { clock: number; inId: bigint; outId: bigint };
+    const subs: SubEvent[] = [];
+    for (const p of qPbps) {
+      if (p.action_type !== "substitution") continue;
+      const parsed = parseSubAction(p.action_subtype);
+      if (!parsed) continue;
+      subs.push({
+        clock: p.game_clock_seconds ?? 0,
+        inId: parsed.inId,
+        outId: parsed.outId,
+      });
+      // sub IN/OUT 으로 등장한 선수도 playersInQuarter 에 추가 (개인 액션 없는 선수 포함)
+      playersInQuarter.add(parsed.inId);
+      playersInQuarter.add(parsed.outId);
+    }
+
+    // 3) starter 추정 = 쿼터 내 등장 + sub_in 으로 들어온 적 없는 선수
+    const subInIds = new Set(subs.map((s) => s.inId.toString()));
+    const starters = [...playersInQuarter].filter((id) => !subInIds.has(id.toString()));
+
+    // 4) 각 선수의 segment 합산
+    for (const playerId of playersInQuarter) {
+      // starter 면 quarterLengthSec 부터 시작, 아니면 미진입 상태 (sub_in 시 시작)
+      let activeStart: number | null = starters.some((s) => s === playerId) ? quarterLengthSec : null;
+      let totalSec = 0;
+
+      for (const sub of subs) {
+        if (sub.outId === playerId && activeStart != null) {
+          // 코트에 있는 선수 → out: in_clock - out_clock 만큼 누적
+          totalSec += activeStart - sub.clock;
+          activeStart = null;
+        }
+        if (sub.inId === playerId) {
+          // 코트로 진입
+          activeStart = sub.clock;
+        }
+      }
+
+      // 쿼터 종료 시 코트 잔존 → 0초까지 자동 누적
+      // (라이브 매치 마지막 진행 쿼터: lineup 이 0초까지 안 가지만 PBP 가 마지막 시점까지만 있으므로
+      //  코트 잔존 선수는 lastClock 까지가 아니라 "쿼터 종료 = 0" 까지 누적 — 999 cap 회피 핵심)
+      if (activeStart != null) {
+        totalSec += activeStart - 0;
+      }
+
+      result.set(playerId, (result.get(playerId) ?? 0) + totalSec);
+    }
+  }
+
+  return result;
 }
 
 /// 선수가 "코트에서 뛴 기록이 전혀 없음" 여부 (DNP 판정)
