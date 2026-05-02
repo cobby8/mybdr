@@ -8,38 +8,28 @@ import type { MatchBriefInput } from "./match-brief-generator";
 export type ValidationResult = { valid: true } | { valid: false; reason: string };
 
 // 단신 기사 검증
-// 통과 조건:
-//   1. 점수 등장 — "{home}-{away}" 또는 "{away}-{home}" 패턴 (공백 허용)
-//   2. 양 팀명 모두 등장 (정확 일치)
-//   3. 길이 400자 이내 (LLM 가끔 maxOutputTokens 초과)
+// 2026-05-03: Phase 1 컨텍스트 정책 — 매치 페이지 안 [흐름·영웅] 섹션이라 점수/팀명 반복 X 권장.
+// 통과 조건 (재설계):
+//   1. 점수가 들어가 있을 경우만 정확성 검증 (없어도 OK — 페이지 Headline 에 이미 표기)
+//   2. 승팀명 1회 등장 권장 (패팀명은 선택 — 페이지에 이미 있음)
+//   3. 길이 350자 이내 (Phase 1 250자 룰 + 마진 100자)
 //   4. 추측 키워드 부재 ("관중" / "환호" / "긴장한" 등 검증 안 된 사실)
 export function validateBrief(brief: string, input: MatchBriefInput): ValidationResult {
-  // 1. 점수 정확성 — 공백 허용 패턴
-  // 예: "55-43", "55 - 43", "55:43" 모두 통과
-  const expectedScores = [
-    `${input.homeScore}-${input.awayScore}`,
-    `${input.awayScore}-${input.homeScore}`,
-    `${input.homeScore} - ${input.awayScore}`,
-    `${input.awayScore} - ${input.homeScore}`,
-    `${input.homeScore}:${input.awayScore}`,
-    `${input.awayScore}:${input.homeScore}`,
-  ];
-  const hasScore = expectedScores.some((s) => brief.includes(s));
-  if (!hasScore) {
-    return { valid: false, reason: `점수(${input.homeScore}-${input.awayScore}) 누락` };
+  // 1. 점수 검증 제거 (Phase 1 정책 — 점수 반복 금지)
+  // 점수는 페이지 Headline 에 이미 표기됨 → 알기자가 매치 합계 점수 안 적어도 OK.
+  // 쿼터 점수(예: "10-2") 또는 흐름 점수(예: "한때 14점차") 는 허용.
+  // hallucination 방어는 hallucinationKeywords 로 처리.
+
+  // 2. 승팀명 1회 등장 권장 (없으면 reject — 매치 식별 가능성)
+  // 패팀명은 선택 — 페이지에 이미 표기됨.
+  const winnerTeam =
+    input.homeScore > input.awayScore ? input.homeTeam : input.awayTeam;
+  if (!brief.includes(winnerTeam)) {
+    return { valid: false, reason: `승팀명(${winnerTeam}) 누락` };
   }
 
-  // 2. 양 팀명 등장 — 정확 일치 (LLM 이 팀명 변형 시 차단)
-  if (!brief.includes(input.homeTeam)) {
-    return { valid: false, reason: `홈팀명(${input.homeTeam}) 누락` };
-  }
-  if (!brief.includes(input.awayTeam)) {
-    return { valid: false, reason: `어웨이팀명(${input.awayTeam}) 누락` };
-  }
-
-  // 3. 길이 — 한글 + 공백 + 구두점 합계 400자 이내
-  // 시안 300자 + 마진 100자. 너무 길면 단신 톤 이탈.
-  if (brief.length > 400) {
+  // 3. 길이 — Phase 1 정책: 250자 권장 + 마진 100 = 350자 reject
+  if (brief.length > 350) {
     return { valid: false, reason: `길이 초과 (${brief.length}자)` };
   }
 

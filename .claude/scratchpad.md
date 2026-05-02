@@ -105,6 +105,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (lib 4파일+테스트) | **알기자 brief Phase 1 정책 재설계 + 데이터 풀 확장 + ~다 통일** — 점프볼 단신 패턴 시도(평균 350자 폭증) → Phase 1 컨텍스트(매치 페이지 안 흐름·영웅 섹션) 재정의(평균 188자 적중). validate-brief 점수 검증 제거(쿼터/진행 점수 false positive 차단), 길이 400→350. 데이터 풀 확장: 양 팀 통계(야투/3점/리바/어시/스틸/블락/턴오버) + 모든 선수 stat + 더블더블/트리플더블 자동 검출 + 리바/어시/스틸/블락/+/-/3점 1위 자동 추출. 8건 모두 다른 관점(수비/3점폭격/턴오버/+/-/더블더블/야투율 비교) 작성. 어조 ~다 통일(~습니다 금지). 데이터 정확 (전인규 3점 11개 / 이영교 동명이인 닥터바스켓 OK 사용자 확인) | ✅ |
 | 2026-05-02 | (developer / tsc PASS) | **일정 탭 TBD → slotLabel 표시** — public-schedule API settings JSON 추출(homeSlotLabel/awaySlotLabel) + tournament-tabs 매핑 + schedule-timeline interface 확장 + italic muted 스타일 (DualMatchCard 동일 패턴). 3 파일 / 팀 확정 매치 표시 변경 0 / DB 변경 0 | ✅ |
 | 2026-05-03 | (검증 only) | **5/2 종료 9매치 전수 재조사 (debugger)** — DB 12건 발견 (몰텐배 8 ✅ + 열혈 4건 / 단 ended_at=5/2 기준 1건=#121만 사용자 진술 일치). G4 적용 후 9매치 모두 100.0% 정확 — 몰텐배 8건 280.0m/280.0m (qLen=420), 열혈 #121 400.0m/400.0m (qLen=600). 풀타임/DNP 산출 정상. 잔여 fix 필요 케이스 0건. 임시 스크립트 정리 완료 | ✅ |
 | 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
