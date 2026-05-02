@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 
 // 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
 // PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
+import { getWebSession } from "@/lib/auth/web-session";
 import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
 import { BoardRow } from "@/components/bdr-v2/board-row";
@@ -41,8 +42,10 @@ import {
   prefetchHeroSlides,
 } from "@/lib/services/home";
 
-/* ISR: 60초마다 재생성. getWebSession() 호출 없음 → 정적 캐시 유효 */
-export const revalidate = 60;
+/* 2026-05-02: 사용자별 hero 슬라이드 (대회 0건 시 fallback) 위해 dynamic 으로 변경.
+   대회 진행 중일 때는 unstable_cache 가 60초 캐시 → 사용자별 분기는 거의 없으나,
+   비로그인/로그인 분기 위해 SSG/ISR 비활성. */
+export const dynamic = "force-dynamic";
 
 /* -- 유틸: ISO 날짜 → "MM-DD" 짧은 포맷 (BoardRow의 date 컬럼용) -- */
 function formatShortDate(iso: string | null): string {
@@ -94,15 +97,17 @@ function tournamentAccent(idx: number): string {
 }
 
 export default async function HomePage() {
+  // 2026-05-02: 사용자별 hero 슬라이드 위해 session 조회 (login 사용자만 내경기 fallback)
+  const session = await getWebSession().catch(() => null);
+  const userId = session ? BigInt(session.sub) : undefined;
+
   // 4개 데이터를 병렬 프리페치 — 하나 실패해도 나머지는 정상 반영
-  // 왜 hero를 별도 호출: prefetchHeroSlides 내부에서 이미 3종(대회/게임/MVP)을
-  // Promise.allSettled로 병렬 처리하므로, 여기서는 4번째 슬롯에 "묶음 1개"로만 추가.
   const [statsResult, communityResult, tournamentsResult, heroResult] =
     await Promise.allSettled([
       prefetchStats(),
       prefetchCommunity(),
       prefetchOpenTournaments(),
-      prefetchHeroSlides(),
+      prefetchHeroSlides(userId), // 진행 중 대회 우선 + 대회 0건 시 사용자 슬라이드
     ]);
 
   // 성공한 결과만 추출 (실패 시 undefined → 빈 상태 fallback)
