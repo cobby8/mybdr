@@ -1994,6 +1994,9 @@ html.light .watermark-text,
   --color-primary:        var(--accent);
   --color-info:           var(--info);
   --color-status-live:    var(--bdr-red);
+  /* Button primary variant 의 대비 텍스트색 — 라이트모드 ink=어두운 색이므로 글자는 흰색 */
+  --color-on-text-primary: #ffffff;
+  --color-on-accent:      #ffffff;
 }
 
 [data-theme="dark"],
@@ -2009,6 +2012,9 @@ html.dark {
   --color-primary:        var(--accent);
   --color-info:           var(--info);
   --color-status-live:    var(--bdr-red);
+  /* Button primary variant 의 대비 텍스트색 — 다크모드 ink=밝은 색이므로 글자는 어두운 배경색 */
+  --color-on-text-primary: var(--bg);
+  --color-on-accent:      #ffffff;
 }
 
 /* =====================================================
