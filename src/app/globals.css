@@ -1774,6 +1774,56 @@ html.dark .hero-carousel__accent {
 }
 
 /* ============================================================
+   [Admin 디자인 시스템 통합] (web) 일관성 적용 (2026-05-02 Phase D)
+   ------------------------------------------------------------
+   배경: admin (`/admin/*`) 페이지가 (web) 와 시각 분리되어 있던 부분 통합.
+        토큰(`var(--color-*)`) 은 alias 레이어로 이미 일관 (L1958~).
+        추가로 데이터 테이블 / 폰트 / 카드 스타일 정합.
+   ============================================================ */
+
+/* admin-table 데스크톱 (web `.board.data-table` 톤 일치) */
+.admin-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--ff-display);
+  letter-spacing: -0.005em;
+}
+.admin-table thead th {
+  font-family: var(--ff-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, var(--ink-mute));
+  background: var(--color-surface, var(--bg-elev));
+}
+.admin-table tbody td {
+  font-size: 14px;
+  color: var(--color-text-primary, var(--ink));
+  vertical-align: middle;
+}
+.admin-table tbody tr {
+  transition: background 0.15s ease;
+}
+.admin-table tbody tr:hover {
+  background: var(--color-elevated, var(--bg-alt));
+}
+
+/* admin 페이지 카드 — web `.card` 톤 일치 (radius 4 + 보더 + 살짝 그림자) */
+.admin-card {
+  background: var(--color-card, var(--bg-card));
+  border: 1px solid var(--color-border, var(--border));
+  border-radius: 6px;
+  padding: 16px;
+}
+@media (min-width: 720px) {
+  .admin-card {
+    padding: 20px;
+    border-radius: 8px;
+  }
+}
+
+/* ============================================================
    [v2.2 G-9 보호 + G-10] 큰 N열 표 + 사용자 의도 다열 보호
    v2.1 매처가 잡지 못한 패턴 + 사용자 의도 데이터 비교는 가로 유지.
    출처: Dev/design/BDR v2.2/responsive.css 마지막 블록
