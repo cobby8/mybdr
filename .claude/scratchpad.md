@@ -85,13 +85,13 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-02 | (코드만, 미커밋) | **v1 sync route 듀얼 자동 진출 fix (D-day)** — `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` 에 (1) progressDualMatch import (2) tournament.format 1회 SELECT (3) status="completed" 시 winner_team_id 점수 비교 자동 결정 + UPDATE data 조건부 추가 (4) post-process 에 dual 분기 hook (Promise.allSettled tasks 배열). 운영 DB 영향 0 (코드만), tsc 통과. **단일/듀얼 모두 진출 hook 정상화** (이전엔 winner_team_id null → advanceWinner 도 skip 됐음). errors.md 박제 1건. 매치 132 첫 매치는 운영자 수동 UPDATE 3건으로 이미 보정됨. | ✅ |
-| 2026-05-02 | (코드만, 미커밋) | **일정 탭 매치 카드 팀 로고 추가** — `public-schedule/route.ts` Team select + 응답에 logoUrl 추가 / `tournament-tabs.tsx` 매핑 확장 / `schedule-timeline.tsx` ScheduleMatch 인터페이스 확장 + TeamLogo 컴포넌트 (24px mobile / 28px desktop, 원형, contain, fallback 첫글자) + 카드 하단 홈/어웨이 팀명 좌/우에 inline 배치. DB 변경 0 / API 응답 키 추가만 / 다른 페이지 영향 0. tsc 통과 | ✅ |
-| 2026-05-02 | (코드만, 미커밋) | **팀 로고 업로드 자동 정규화 통합** — `image-processor.ts` 에 `normalizeTeamLogo` 추가 + `/api/web/upload` 에서 `bucket==="team-logos"` 일 때만 sharp pipeline (512×512 + 8% padding + PNG) 적용. 호출자 3곳 (step-emblem/manage/image-uploader) 변경 0. tsc 통과 + tsx 5 케이스 검증 통과. 다른 bucket 영향 0 | ✅ |
-| 2026-05-02 | (Teams Phase B+C+D 일괄) | Teams 박제 — 카드 #랭크 PC 복원 + stats 4카드 모바일 분기 + Roster/Recent .data-table 마커 | ✅ |
-| 2026-05-02 | (Live v2 박스스코어 일괄) | Live `/live/[id]` 옛 BoxScoreTable + PrintBoxScoreTable + PrintOptionsDialog 풀 복원 | ✅ |
-| 2026-05-02 | 27d2bd7+(28건) | **5/2 동호회최강전 D-day 풀 셋업** — DB 16팀 / 듀얼토너먼트 27경기 / placeholder↔real 통합 5쌍 / 카드 HIGH4+컴팩트 v3 / Hero 5col+막대 통일 / 장소 "스포라운드" 고정 / 원영 캡틴 양도+탈퇴 | ✅ D-day 준비 완료 |
-| 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) + scratchpad 정리 | ✅ |
-| 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
-| 2026-05-02 | (검토만) | 셋업팀 가입 승인 위험 검토 — 17명 일괄 승인 시 9명 UNIQUE 충돌 ROLLBACK + ttp 4건 placeholder 참조 + stats 26 + pbp 32 영향. 안 A (대회 종료 후 처리) 채택. 실행 0건 | ✅ |
-| 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + set-up 갱신 + Team.logoUrl 16건 UPDATE | ✅ |
+| 2026-05-02 | 0f8da8e+b18227c+8ccd4dd+f0278b4+1bec5c3 | **STL (Single Truth Layer) Phase 1 — Flutter PBP 누락 응답 가공 보정** — `src/app/api/live/[id]/route.ts` +200줄. 4 출처 데이터 일관 통합. R1 (score_at_time 시계열 + 매치 헤더 cap, 사용자 통찰 반영) / R3 (quarterStatsJson 부분 누락 보충) / R4 (minutesPlayed=0 fallback) / R8 (quarter length 동적). PBP sync 이중 가드 (manual-fix-* + [수동 보정] description). 매치 6건 검증 통과. 보고서 2종 작성 (원영 전달용 — Flutter app fix 권장). architecture/decisions/errors/lessons +5 | ✅ |
+| 2026-05-02 | 6dda1a0 | **HOT 카드 — 진행 중 직전 경기 MVP 노출** — public-bracket route 에 recentMvp 응답 추가 (mvp_player_id null fallback → playerStats GameScore 공식). HOT 카드 3-tier (대회 종료 → 핫팀 / 진행 중 → MVP / 종료 매치 0건 → 안내). 클릭 시 /live/[matchId]. 검증 매치 3건 (133/132/99) 합리적 MVP 추출 | ✅ |
+| 2026-05-02 | 28c7b23 | **대시보드 3카드 동작 개선** — 진행률 (completed+live)/total / LIVE 카드 클릭 시 /live/[id] 이동 + 첫 라이브 매치 정보 표시 / status='in_progress' → status IN ['live', 'in_progress'] 이중 인식 | ✅ |
+| 2026-05-02 | c1c9d87+76ea5ac | **LIVE 표기 중복 제거 + 온에어 펄스 효과** — isLive 시 STATUS_LABEL 회색 LIVE 숨김 (빨간 펄스만). globals.css `@keyframes live-air-pulse` 신규 (opacity + box-shadow ring 5px 동시 변화, 1.6s ease-in-out) | ✅ |
+| 2026-05-02 | d046ab1 | **폴드5 외부 (~388px) Hero 팀명/TOTAL 잘림 fix** — hero-scoreboard.css 에 `<400px` base + `400px+` 분기 추가 (3-tier). 일반 모바일 (400px+) 변경 0. errors.md 박제 (회귀 방지 룰: Tailwind xs: 또는 < 400 명시 분기 권장) | ✅ |
+| 2026-05-02 | 06d67c3+1a9737c | **단체 상세 모바일 히어로 fix + 인라인 grid 4 케이스 모바일 분기** — org-hero-v2 폰트/패딩/로고 분기 (text-[40px] 고정 → 28/34/40 sm:md:) + word-break:keep-all / signup·activity 의 repeat(4-5) 인라인 grid → Tailwind grid-cols-2 sm:grid-cols-N (errors.md 04-29 안티패턴) | ✅ |
+| 2026-05-02 | (DB 보정 1건) | **매치 132 임강휘 누락 PBP 1건 INSERT** — local_id `manual-fix-132-imkangwhi-q1-2pt-*` (description `[수동 보정]`). Flutter sync 이중 가드 (commit 1bec5c3) 로 영구 보존. 매치 132 종료 후 Flutter 최종 sync 시 헤더=PBP 합 자연 일치 | ✅ |
+| 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) | ✅ |
+| 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
+| 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + Team.logoUrl 16건 UPDATE | ✅ |

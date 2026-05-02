@@ -2,6 +2,49 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] Flutter app 의 PBP 누락 패턴 — 박스스코어 입력 vs PBP 생성 분리 (운영 18 매치 56% 발생)
+- **분류**: error (Flutter app 데이터 무결성 / 서버 측 fallback 으로 보완)
+- **발견자**: 사용자 (라이브 매치 132/133 점수 합 불일치 발견) + 분석
+- **증상**: 운영 18 매치 중 10건 (56%) 매치 헤더 점수 vs PBP 점수 합 불일치. 매치당 평균 4.8점 누락. 양팀 minutesPlayed 합도 정상값 미달.
+  - 매치 132: SYBC Q1 헤더 17 vs PBP 합 15 (임강휘 2점 made_shot PBP 미생성)
+  - 매치 133: 양팀 starter Q3.min=0 (Q3 진행 시간 quarterStatsJson 미반영)
+  - 매치 102: gap +4/+4 / 매치 103: gap +4/+2 / 매치 99: gap +2/0
+- **원인 (Flutter app 측 8가지 시나리오)**:
+  1. 빠른 점수 입력 단축 버튼 (선수 +2/+3) → matchPlayerStat 만 갱신, made_shot PBP 미생성
+  2. 박스스코어 직접 편집 (운영자 수동 점수 보정) → matchPlayerStat 만 수정
+  3. PBP 입력 후 undo → PBP 삭제 + matchPlayerStat 차감 누락
+  4. 자유투 시퀀스 (3-shot) 일부만 PBP 생성
+  5. 2점/3점 정정 → PBP update 누락
+  6. **올아웃 기능 (작전타임/쿼터 시작 5명 일괄 교체)** — sub PBP 5건 일괄 생성에서 일부 누락 (매치 132: 15건 중 7건만 PBP)
+  7. 네트워크 끊김 (PBP 생성 후 sync 실패)
+  8. 앱 crash (로컬 저장 시점 의존)
+- **다른 이벤트는 정상 player_id**: matchPlayerStat 100% 정확, sub_in/out/rebound/foul 등 부속 PBP 정상 — made_shot/sub PBP 만 일부 누락
+- **서버 측 해결 (Flutter app 수정 0)**: STL Phase 1 (Single Truth Layer) 도입 — `src/app/api/live/[id]/route.ts`
+  - **R1**: PBP `home_score_at_time`/`away_score_at_time` 시계열로 쿼터별 누락 점수 식별 + 그 쿼터에 직접 분배 + 매치 헤더 cap (사용자 통찰: 마지막 쿼터 일괄 분배보다 정확)
+  - **R3**: quarterStatsJson 부분 누락 쿼터 (Q*.min=0) 에 PBP 시뮬값 보충 (매치 133 Q3 케이스)
+  - **R4**: minutesPlayed=0 fallback (B-2)
+  - **R8**: quarter length 동적 추정 (7분/10분 매치 자동 인식)
+- **PBP sync 가드** (`/api/v1/tournaments/[id]/matches/sync`): 운영자 수동 INSERT PBP (`local_id` startsWith `manual-fix-` OR `description` startsWith `[수동 보정]`) 는 Flutter sync 시 deleteMany 에서 제외 — 영구 보존
+- **검증**: 매치 101/102/103/132/133/95 6 케이스 모두 매치 헤더 = 쿼터 합 정확 일치 (음수 gap 케이스만 안전 미보정)
+- **관련 commit**: 0f8da8e (R1) / b18227c (R3) / 1bec5c3 (sync 이중 가드) / f0278b4 (R8)
+- **관련 보고서**: `Dev/bug-report-flutter-allout-pbp-2026-05-02.md` + `Dev/bug-report-quarter-score-mismatch-2026-05-02.md` (원영 전달용)
+
+### [2026-05-02] 폴드5 외부 (~388px) 등 극세 viewport 분기 부재 — 480 미만 단일 분기 → 팀명/TOTAL 헤더 잘림
+- **분류**: error (반응형 분기 누락 / 모바일 안티패턴)
+- **발견자**: 사용자 (갤럭시폴드5 외부 화면 ~388px 캡처)
+- **증상**: 라이브 페이지 (`/live/[id]`) Hero 팀명 "셋업(SET UP)" → "셋업(S..." ellipsis / 쿼터 테이블 TOTAL 헤더 → "TOTA..." 잘림.
+- **원인**: 모바일 분기가 0~479px 단일 — 폴드5 외부 (388px) / 갤럭시 일부 좁은 viewport / 작은 폰 폭 미고려. 480px+ 분기 활성화는 일반 모바일에 맞춤이라 그 이하에서는 base 가 그대로 적용.
+  - Hero 팀명 13px × 8자 ≈ 95~100px / 5 column grid `48/1fr/40/1fr/48` 에서 1fr 폭 ≈ 102px → 한계점 ellipsis
+  - 쿼터 테이블 TOTAL `minmax(48px, 1fr)` → 11px "TOTAL" 5자 (≈55px) 들어가야 하는데 1fr 분배 후 약 57px → 한계
+- **수정**: `hero-scoreboard.css` 에 `< 400px` base + `400px+` 분기 추가 (3-tier: base/400/480/720/1024)
+  - Hero 그리드 base: 40/1fr/32/1fr/40 (gap 3px) → 400+: 기존 48/1fr/40/1fr/48
+  - 팀명 폰트 base: 11px (letter-spacing -0.03em) → 400+: 13px → 480+: 16px
+  - 점수 폰트 base: 28px → 400+: 36px → 480+: 52px
+  - dash base: 18px → 400+: 22px
+  - 쿼터 테이블 TOTAL: minmax(48px, 1fr) → minmax(60px, 1fr) (모바일 base, "TOTAL" 5자 fit)
+- **회귀 방지 룰**: 모바일 분기 작성 시 폴드5 외부 (~388px) 와 갤럭시 일반 (~400px) 양쪽 검증. 단일 분기로 묶으면 한쪽 깨짐 가능. **Tailwind `xs:` (≤479px) 또는 명시적 `< 400px` base + `400px+` 분기 권장**.
+- **관련 commit**: d046ab1 (폴드5 외부 fix)
+
 ### [2026-05-02] Flutter v1 sync 가 winner_team_id 미설정 + dual 진출 hook 누락 — 듀얼토너먼트 자동 진출 안 됨 (D-day 발견)
 - **분류**: error (API route 흐름 누락 / web PATCH 와 v1 sync 패턴 불일치)
 - **발견자**: 사용자 (5/2 동호회최강전 D-day 운영 중) + developer
