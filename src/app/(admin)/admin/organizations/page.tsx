@@ -126,8 +126,9 @@ export default function AdminOrganizationsPage() {
           {filter === "pending" ? "대기 중인 신청이 없습니다." : "해당 단체가 없습니다."}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded border border-[var(--color-border)]">
-          <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto admin-table-wrap rounded border border-[var(--color-border)]">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+          <table className="admin-table w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-bright)]">
               <tr>
                 <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">단체명</th>
@@ -143,7 +144,7 @@ export default function AdminOrganizationsPage() {
                 const badge = statusBadge(org.status);
                 return (
                   <tr key={org.id} className="border-b border-[var(--color-border)] last:border-0">
-                    <td className="px-4 py-3">
+                    <td data-primary="true" className="px-4 py-3">
                       <div className="font-medium text-[var(--color-text-primary)]">{org.name}</div>
                       {org.apply_note && (
                         <div className="mt-0.5 text-xs text-[var(--color-text-muted)]">
@@ -151,14 +152,14 @@ export default function AdminOrganizationsPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+                    <td data-label="지역" className="px-4 py-3 text-[var(--color-text-secondary)]">
                       {org.region || "-"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="신청자" className="px-4 py-3">
                       <div className="text-[var(--color-text-primary)]">{org.owner.nickname}</div>
                       <div className="text-xs text-[var(--color-text-muted)]">{org.owner.email}</div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="상태" className="px-4 py-3">
                       <span
                         className="inline-block rounded px-2 py-0.5 text-xs font-semibold text-white"
                         style={{ backgroundColor: badge.bg }}
@@ -166,10 +167,10 @@ export default function AdminOrganizationsPage() {
                         {badge.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-[var(--color-text-muted)]">
+                    <td data-label="신청일" className="px-4 py-3 text-[var(--color-text-muted)]">
                       {new Date(org.created_at).toLocaleDateString("ko-KR")}
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-actions="true" className="px-4 py-3">
                       {/* pending일 때만 승인/거절 버튼 표시 */}
                       {org.status === "pending" && (
                         <div className="flex items-center gap-2">
