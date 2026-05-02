@@ -986,63 +986,93 @@ html.dark .app-nav__tab[data-active="true"]::after {
   z-index: 5;
 }
 
-/* 2026-05-02 v4: 매치 pill (한 줄 가로) + 인라인 액션 row
-   매치 + 대회 보기 + 지금 신청하기 한 줄 배치. */
+/* 2026-05-02 v5: 매치 pill 풀폭 (flex:1) + 대회 보기 우측 끝
+   - action-row: 한 줄 강제 (no wrap) + 매치 pill 풀폭 + 대회 보기 ml-auto
+   - 매치 pill 시인성 강화: border 굵게 + 배경 진하게 + box-shadow
+   - accent 원형 z-index 0 명시 (매치 pill 가림 방지) */
 .hero-carousel__action-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
+  position: relative;
+  z-index: 2; /* accent 원형 (z:0) 위 */
 }
 
-/* 매치 pill — SYBC 47 vs 28 셋업 한 줄 (Link, 클릭 → /live/[id]) */
+/* accent 원형 z-index 0 명시 — 매치 pill 가리지 않도록 */
+.hero-carousel__accent {
+  z-index: 0;
+}
+
+/* 매치 pill — 풀폭 (flex: 1) + 클릭 명확 (사용자 요청 시인성) */
 a.hero-carousel__match-pill,
 .hero-carousel__match-pill {
-  display: inline-flex !important;
+  display: flex !important;
+  flex: 1;
+  min-width: 0;
   align-items: center;
-  gap: 8px;
-  height: 38px; /* btn 높이와 동일 (var(--btn-height) 또는 표준 .btn 패딩 8/12 + line-height 결과 ≈ 38) */
+  justify-content: center;
+  gap: 10px;
+  height: 40px;
   padding: 0 14px;
-  background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 6px;
-  z-index: 2;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
   text-decoration: none !important;
   color: #fff !important;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
   white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
 }
 a.hero-carousel__match-pill:hover {
   transform: translateY(-1px);
-  background: rgba(0, 0, 0, 0.45);
-  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 .hero-carousel__match-team {
   font-weight: 700;
   font-size: 13px;
   letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.95);
-  max-width: 90px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.hero-carousel__match-team:first-of-type {
+  text-align: right;
+}
+.hero-carousel__match-team:last-of-type {
+  text-align: left;
+}
 .hero-carousel__match-score {
   font-family: var(--ff-display);
   font-weight: 900;
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: -0.02em;
   color: #fff;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  flex-shrink: 0;
 }
 .hero-carousel__match-vs {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
   text-transform: uppercase;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+
+/* action-row 안 .btn 들 — flex-shrink 0 (매치 pill flex:1 이라 나머지는 자연스럽게 우측) */
+.hero-carousel__action-row > .btn {
+  flex-shrink: 0;
 }
 
 /* LIVE 배지 우측 상단 (corner) — 라이브 페이지 헤더 스타일과 동일
