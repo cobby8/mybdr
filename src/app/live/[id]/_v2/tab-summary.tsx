@@ -10,14 +10,28 @@
 // 5섹션 구조:
 //   Header   토너먼트명 · 라운드명 · 일시 · 장소 (메타라인)
 //   Headline {승팀} {스코어} {패팀} — {N}점차 {flow 분류} (font-display, 굵게)
-//   Lead     8 flow 분류별 분기 1~2 문장
+//   Lead     8 flow 분류별 분기 1~2 문장 (Phase 0 템플릿) → Phase 1 LLM 응답 우선
 //   Body     MVP 라인 + 양 팀 최다득점
 //   Stats    4 카드: 점수차 / 쿼터 승 / 총 득점 / 리드체인지
 // flow 8 분류 (overtime/lastminute/comeback/seesaw/blowout/dominant/narrow/default).
 // 한글 조사 처리: josa(name, "이/가"|"을/를"|"은/는") — 받침 검사.
 // PBP score_at_time 필드 부재 → points_scored 누적으로 score 시계열 직접 계산.
+//
+// 2026-05-02: Phase 1 — Gemini 2.5 Flash 단신 기사 통합 (알기자 페르소나)
+// /api/live/[id]/brief 에서 LLM 응답 fetch (SWR). 종료 매치만 호출 + 캐시.
+// 정책:
+//   - 로딩 중: Phase 0 템플릿 노출 (즉시 표시 보장)
+//   - LLM 성공: brief 텍스트 + "✍️ 알기자 (BDR NEWS AI)" 시그니처
+//   - LLM 실패 (검증/네트워크/키 미설정): Phase 0 템플릿 영구 fallback
+// completed 매치만 LLM 호출 — 진행 중 매치는 fetch 자체 skip.
 
+import { useEffect, useState } from "react";
 import type { MatchDataV2, MvpPlayerV2, PlayerRowV2, PlayByPlayRowV2 } from "./game-result";
+
+// LLM brief 응답 타입 — /api/live/[id]/brief 응답 (snake_case 자동 변환 후)
+type BriefResponse =
+  | { ok: true; brief: string; matchId: number; generated_at: string }
+  | { ok: false; reason: string };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수 (module-level)
@@ -231,6 +245,50 @@ function formatScheduledAt(iso: string | null | undefined): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TabSummary({ match }: { match: MatchDataV2 }) {
+  // 2026-05-02 Phase 1: LLM 단신 기사 fetch (알기자)
+  // 정책: completed 매치만 호출. 로딩 중/실패 시 Phase 0 템플릿 fallback.
+  // SWR 미사용 — 캐시는 서버 측 메모리 (match-brief-generator.ts) 라 클라 SWR 불필요.
+  // useState + useEffect 단순 패턴으로 1회 fetch.
+  const [llmBrief, setLlmBrief] = useState<string | null>(null);
+  // briefStatus: "idle"=초기 / "loading"=fetch 중 / "ok"=LLM 성공 / "fallback"=Phase 0 사용
+  const [briefStatus, setBriefStatus] = useState<"idle" | "loading" | "ok" | "fallback">(
+    "idle",
+  );
+
+  useEffect(() => {
+    // 진행 중 매치 → fetch skip (서버 측에서도 거부)
+    if (match.status !== "completed") {
+      setBriefStatus("fallback");
+      return;
+    }
+    let cancelled = false;
+    setBriefStatus("loading");
+    void (async () => {
+      try {
+        const res = await fetch(`/api/live/${match.id}/brief`, {
+          // 라이브 페이지 폴링과 분리 — brief 은 매치당 1회만 fetch
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const json: BriefResponse = await res.json();
+        if (cancelled) return;
+        if (json.ok) {
+          setLlmBrief(json.brief);
+          setBriefStatus("ok");
+        } else {
+          // LLM 검증 실패 / 네트워크 / API 키 미설정 → Phase 0 fallback
+          setBriefStatus("fallback");
+        }
+      } catch {
+        // 네트워크 에러 → Phase 0 fallback
+        if (!cancelled) setBriefStatus("fallback");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [match.id, match.status]);
+
   // TOP 퍼포머 계산 — 득점/리바/어시/스틸 각 1위 (우측 카드)
   const allPlayers = [...match.home_players, ...match.away_players].filter((p) => !p.dnp);
   const topScorer = maxByStat(allPlayers, (p) => p.pts);
@@ -397,16 +455,46 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
         </h4>
 
         {/* [Lead] flow 별 1~2 문장 분기 */}
-        <p
-          style={{
-            margin: "0 0 12px",
-            fontSize: 13,
-            lineHeight: 1.7,
-            color: "var(--ink-soft)",
-          }}
-        >
-          {leadSentence}
-        </p>
+        {/* 2026-05-02 Phase 1: LLM 응답 우선 + Phase 0 템플릿 fallback */}
+        {/* status="ok" 일 때만 LLM brief 노출. 그 외 (loading/fallback/idle) Phase 0 노출. */}
+        {briefStatus === "ok" && llmBrief ? (
+          <>
+            <p
+              style={{
+                margin: "0 0 6px",
+                fontSize: 13,
+                lineHeight: 1.7,
+                color: "var(--ink-soft)",
+                whiteSpace: "pre-wrap", // LLM 가끔 줄바꿈 포함
+              }}
+            >
+              {llmBrief}
+            </p>
+            {/* 시그니처 — 알기자 (BDR NEWS AI) */}
+            <div
+              style={{
+                margin: "0 0 12px",
+                fontSize: 11,
+                color: "var(--ink-dim)",
+                fontStyle: "italic",
+                letterSpacing: ".02em",
+              }}
+            >
+              ✍️ 알기자 · BDR NEWS AI
+            </div>
+          </>
+        ) : (
+          <p
+            style={{
+              margin: "0 0 12px",
+              fontSize: 13,
+              lineHeight: 1.7,
+              color: "var(--ink-soft)",
+            }}
+          >
+            {leadSentence}
+          </p>
+        )}
 
         {/* [Body] MVP + 양 팀 최다득점 */}
         <div
