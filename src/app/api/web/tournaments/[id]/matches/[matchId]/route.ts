@@ -84,6 +84,51 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
   }
 
+  // 2026-05-02 회귀 방지 가드 (errors.md "양쪽 같은 팀 (피벗·아울스)" 케이스):
+  // 진출 destination 매치 (다른 매치의 next_match_id 또는 settings.loserNextMatchId 가
+  // 이 매치를 가리키는 경우) 는 home/away 직접 set 금지.
+  // 이유: admin frontend page.tsx 가 변경 안 된 필드도 항상 PATCH body 에 포함하므로,
+  // 운영자가 venue/scheduledAt 만 수정해도 home/away 가 같이 send 되어
+  // progressDualMatch 가 채운 슬롯이 stale data 로 덮어써질 위험.
+  if (homeTeamId !== undefined || awayTeamId !== undefined) {
+    const newHome = homeTeamId !== undefined
+      ? (homeTeamId ? BigInt(String(homeTeamId)) : null)
+      : match.homeTeamId;
+    const newAway = awayTeamId !== undefined
+      ? (awayTeamId ? BigInt(String(awayTeamId)) : null)
+      : match.awayTeamId;
+
+    // 변경되는 경우만 검증
+    const homeChanged = homeTeamId !== undefined && newHome !== match.homeTeamId;
+    const awayChanged = awayTeamId !== undefined && newAway !== match.awayTeamId;
+
+    if (homeChanged || awayChanged) {
+      // 이 매치를 next_match_id 로 가리키는 source 매치 존재 여부
+      const isWinnerDest = await prisma.tournamentMatch.count({
+        where: { tournamentId: id, next_match_id: matchBigInt },
+      });
+      // settings.loserNextMatchId 가 이 매치를 가리키는 source 매치 존재 여부 (JSON path)
+      const matchIdStr = String(matchBigInt);
+      const isLoserDest = await prisma.tournamentMatch.count({
+        where: {
+          tournamentId: id,
+          OR: [
+            { settings: { path: ["loserNextMatchId"], equals: matchIdStr } },
+            { settings: { path: ["loserNextMatchId"], equals: Number(matchBigInt) } },
+          ],
+        },
+      });
+
+      if (isWinnerDest > 0 || isLoserDest > 0) {
+        return apiError(
+          "이 경기는 다른 경기 결과로 자동 채워지는 슬롯입니다. " +
+            "홈팀/원정팀을 직접 수정할 수 없습니다 (자동 진출 처리에 의해 갱신됩니다).",
+          400,
+        );
+      }
+    }
+  }
+
   // Service 호출: 매치 업데이트 + 다음 경기 팀 배치 (트랜잭션)
   const { updated, alreadyCompleted } = await updateMatch(
     matchBigInt,

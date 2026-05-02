@@ -85,19 +85,37 @@ function ScoreModal({
     setSaving(true);
     setError("");
     try {
+      // 2026-05-02 회귀 방지 (errors.md "양쪽 같은 팀" 케이스):
+      // 변경된 필드만 PATCH body 에 포함 — 운영자가 venue/scheduledAt 만 수정해도
+      // home/away 가 같이 send 되어 진출 처리된 슬롯이 stale data 로 덮어써지는 문제 방지.
+      const initialHomeTeamId = match.homeTeamId ?? "";
+      const initialAwayTeamId = match.awayTeamId ?? "";
+      const initialWinnerId = match.winner_team_id ?? "";
+      const initialScheduledAt = match.scheduledAt
+        ? new Date(match.scheduledAt).toISOString().slice(0, 16)
+        : "";
+      const initialVenueName = match.venue_name ?? "";
+
+      const body: Record<string, unknown> = {};
+      if (homeScore !== match.homeScore) body.homeScore = homeScore;
+      if (awayScore !== match.awayScore) body.awayScore = awayScore;
+      if (status !== match.status) body.status = status;
+      if (winnerId !== initialWinnerId) body.winner_team_id = winnerId || null;
+      if (scheduledAt !== initialScheduledAt) body.scheduledAt = scheduledAt || null;
+      if (venueName !== initialVenueName) body.venue_name = venueName || null;
+      if (homeTeamId !== initialHomeTeamId) body.homeTeamId = homeTeamId || null;
+      if (awayTeamId !== initialAwayTeamId) body.awayTeamId = awayTeamId || null;
+
+      // 변경 사항 0 → 저장 skip
+      if (Object.keys(body).length === 0) {
+        onClose();
+        return;
+      }
+
       const res = await fetch(`/api/web/tournaments/${id}/matches/${match.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          homeScore,
-          awayScore,
-          status,
-          winner_team_id: winnerId || null,
-          scheduledAt: scheduledAt || null,
-          venue_name: venueName || null,
-          homeTeamId: homeTeamId || null,
-          awayTeamId: awayTeamId || null,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json();

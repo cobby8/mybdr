@@ -2,6 +2,25 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-02] placeholder user ↔ real user 통합 패턴 (Phase 7단계 트랜잭션)
+- **분류**: lesson (data integrity / dedup pattern)
+- **발견자**: 사용자 제안 ("같은 유저면 두 계정 기록 합치자") + 진단/통합
+- **배경**: 셋업 김영훈 — uid 2853 (실제 카카오, 4/8 가입) + uid 2954 (placeholder, 4/10 셋업팀이 신청서 만들 때 자동 생성). placeholder 쪽에 모든 활동 데이터 (PBP 34건 + #133 8점 / #135 9점). 실제 user 는 빈 ttp 만. 매치 #133 통계 매칭률 80% → 96% 로 회복 가능.
+- **통합 단계** (트랜잭션 1회):
+  1. 빈 ttp 의 stat 삭제 (중복 0점 stat 정리)
+  2. 빈 ttp 삭제 (PBP/stat 0건 → 안전)
+  3. **활동 ttp.userId: placeholder → real (UPDATE 1줄로 PBP/Stat 모두 자동 귀속)**
+  4. placeholder team_member 삭제
+  5. real team_member.jerseyNumber 보정
+  6. user 잔여 참조 (community_posts/team_follows/notifications) `user_id` 컬럼 updateMany
+  7. user.status='deleted' + nickname 추적 표식 (`[merged→<uid>] ...`) — 삭제는 외래키 잔재 위험으로 후순위
+- **핵심 인사이트**: PBP/MatchPlayerStat 은 `tournament_team_player_id` 참조이므로 **ttp 의 userId 만 변경하면 모든 통계 자동 이전** (개별 stat/pbp UPDATE 불필요).
+- **컬럼명 함정**: `community_posts.user_id` / `team_follows.user_id` / `notifications.user_id` 모두 snake_case (no @map). prisma 키도 `user_id` 사용.
+- **사전 가드**: 트랜잭션 시작 시 ttp.userId 가 진단 시점과 일치하는지 검증 (데이터 변경 감지).
+- **재사용**: 셋업 placeholder 5명 (백주익/백배흠/김영훈/이영기/이준호) 동일 패턴 적용 가능.
+- **관련 운영 작업**: 5/2 김영훈 통합 완료 (PBP 34건 + Stat 2건 → uid 2853)
+- **참조횟수**: 0
+
 ### [2026-05-02] PBP `score_at_time` 시계열 활용 — 사용자 통찰로 보정 알고리즘 정확도 향상
 - **분류**: lesson (data integrity pattern / 사용자 도메인 통찰)
 - **발견자**: 사용자 ("누락된 쿼터에 합쳐서 올려야하지 않을까?" 질문) + 분석

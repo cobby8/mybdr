@@ -146,7 +146,8 @@ export async function GET(
     // 안전망:
     //   - sub 기반 결과가 비합리적 (qLength × 4 초과 = 1쿼터 평균 초과) 시 기존 fallback
     //   - sub 결과 0 (PBP/sub 미입력 매치) 시 기존 fallback
-    const subBasedMinutes = calculateSubBasedMinutes(allPbps, estimatedQL);
+    // G1 (2026-05-02): return 객체화 — perPlayer (시간 Map) + dnpSet (참고용)
+    const { perPlayer: subBasedMinutes } = calculateSubBasedMinutes(allPbps, estimatedQL);
 
 
     // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
@@ -373,8 +374,15 @@ export async function GET(
         //   "더 큰 값 선택" 전략 (종료 매치 분기와 동일).
         //   라이브 매치 (D-day #133/#134/#135) 의 999s cap + last_clock 절단 동시 회피.
         //   sub 가 qsJson/minutesPlayed 보다 큰 경우만 갱신 → 정상 매치 (qsJson 만점) 영향 0.
+        // G1 (2026-05-02): DNP 선수는 sub 무효 — qsJson=0 + dbMin=0 + PBP 0건인 선수가
+        //   F3 starter chain 으로 시간 받던 버그 (#136 +49.8m) fix.
+        //   판정: stat 자체가 모든 누적 0 (qsJson/dbMin 모두 0) 일 때 sub 시간도 0 처리.
         const subSecLive = subBasedMinutes.get(BigInt(pid)) ?? 0;
-        if (subSecLive > 0 && subSecLive <= estimatedQL * 4 && subSecLive > (row.min_seconds ?? 0)) {
+        const hasAnyRealStat = (row.min_seconds ?? 0) > 0
+          || row.pts > 0 || row.fgm > 0 || row.fga > 0 || row.tpm > 0 || row.tpa > 0
+          || row.ftm > 0 || row.fta > 0 || row.oreb > 0 || row.dreb > 0
+          || row.ast > 0 || row.stl > 0 || row.blk > 0 || row.to > 0 || row.fouls > 0;
+        if (subSecLive > 0 && subSecLive <= estimatedQL * 4 && hasAnyRealStat && subSecLive > (row.min_seconds ?? 0)) {
           row.min_seconds = subSecLive;
           row.min = Math.round(subSecLive / 60);
         }
@@ -465,11 +473,28 @@ export async function GET(
         const est = minEstimates.get(Number(stat.tournamentTeamPlayer.id));
         const pbpSimSec = est?.totalSec ?? 0;
 
-        // 채택: max(subValid, qsJsonSec, dbMinSec, pbpSimSec)
-        // — Flutter 999s cap 회피 (subValid 가 cap 미적용이라 더 큼)
-        // — qsJson last_clock 절단 회피 (subValid 가 0초 자동 누적이라 더 큼)
+        // G1 (2026-05-02): DNP 선수의 sub 시간 무효화
+        //   qsJson === 0 + dbMin === 0 + PBP 시뮬레이션 === 0 + 통계 누적도 0
+        //   → 이 선수는 매치 출전 0초. sub 가 가짜 시간 (#136 전효민 22m 류) 일 가능성 높음.
+        // 주의: 여기 stat 은 Prisma matchPlayerStat row → 필드명이 Prisma 정의 (points, fieldGoalsMade 등)
+        const hasRealRecord =
+          qsJsonSec > 0 || dbMinSec > 0 || pbpSimSec > 0 ||
+          (stat.points ?? 0) > 0 ||
+          (stat.fieldGoalsMade ?? 0) > 0 || (stat.fieldGoalsAttempted ?? 0) > 0 ||
+          (stat.threePointersMade ?? 0) > 0 || (stat.threePointersAttempted ?? 0) > 0 ||
+          (stat.freeThrowsMade ?? 0) > 0 || (stat.freeThrowsAttempted ?? 0) > 0 ||
+          (stat.offensive_rebounds ?? 0) > 0 || (stat.defensive_rebounds ?? 0) > 0 ||
+          (stat.assists ?? 0) > 0 || (stat.steals ?? 0) > 0 || (stat.blocks ?? 0) > 0 ||
+          (stat.turnovers ?? 0) > 0 || (stat.personal_fouls ?? 0) > 0 ||
+          (stat.isStarter ?? false);
+        const subFinal = hasRealRecord ? subValid : 0;
+
+        // 채택: max(subFinal, qsJsonSec, dbMinSec, pbpSimSec)
+        // — Flutter 999s cap 회피 (subFinal 가 cap 미적용이라 더 큼)
+        // — qsJson last_clock 절단 회피 (subFinal 가 0초 자동 누적이라 더 큼)
         // — qsJson 만점 매치는 sub 보다 qsJson 큼 → qsJson 유지
-        const best = Math.max(subValid, qsJsonSec, dbMinSec, pbpSimSec);
+        // — DNP 선수: subFinal=0 + 나머지도 0 → 결과 0 (정상)
+        const best = Math.max(subFinal, qsJsonSec, dbMinSec, pbpSimSec);
         return best;
       };
 
@@ -1188,6 +1213,12 @@ function parseSubAction(subtype: string | null): { inId: bigint; outId: bigint }
   }
 }
 
+// 반환 타입 — DNP set 도 함께 노출 (G1 가드: getSecondsPlayed 에서 sub 무효 처리)
+type SubBasedMinutesResult = {
+  perPlayer: Map<bigint, number>;
+  dnpSet: Set<bigint>;
+};
+
 function calculateSubBasedMinutes(
   pbps: Array<{
     quarter: number | null;
@@ -1198,16 +1229,47 @@ function calculateSubBasedMinutes(
     tournament_team_id: bigint | number | null;
   }>,
   quarterLengthSec: number,
-): Map<bigint, number> {
+): SubBasedMinutesResult {
   // 2026-05-02 STL Phase 2 강화 (F3 + F2)
   // F3: starter 추정 정확화 — Q2~Q4 starter = 직전 쿼터 종료 시점 코트 5명
   //     (기존: 쿼터 내 등장 + sub_in 미경험. 단점: 직전 쿼터에서 들어와 그 쿼터 코트 끝까지 잔존했지만
   //      현재 쿼터에선 PBP 등장 0건인 선수 → starter 로 인정 안 됨 → 시간 누락)
   // F2: 쿼터별 합 미달 보정 — 쿼터별 합 < expected (5 × qLen) 시 deficit 을 출전 선수에 가중 분배
   //     (단 deficit < qLen 가드 — 비합리값 제외)
+  // 2026-05-02 G1: DNP 가드 추가 — F2 가중분배가 PBP 액션 0건 + sub 등장 0건 선수에게 시간 분배하던 버그
+  //     (예: 매치 #136 전효민 = qsJson=0 + dbMin=0 + PBP 0건인데 sub=22m 받아 양팀 합 +49.8m 초과)
+  //     원인: F3 starter 추정이 prevLineup 을 그대로 받아 DNP 선수를 starter 로 잘못 포함 →
+  //          quarterPlayerSec 에 시간 누적 → F2 분배 대상에 진입.
+  //     fix: 매치당 DNP set 사전 계산 (PBP 액션 + sub in/out 양쪽 검증) → starter / F2 분배 모두에서 제외.
 
   // 팀별로 분리해서 처리 (lineup tracking 은 팀 단위가 맞음 — 다른 팀 선수가 섞이면 X)
   // 하지만 출력 result 는 통합 (Map<ttpId, totalSec>).
+
+  // G1 DNP set: PBP 액션 풀 (action_type !== 'substitution') 등장 + sub in/out 등장 양쪽 모두에서 0건인 선수
+  //   - 등장 정보를 한 번에 모음 (성능 — pbps 1회 순회)
+  //   - 후속 단계 (starter 결정 / F2 분배) 에서 dnpSet.has(pid) 인 선수는 시간 받지 않음
+  // 등장 = "PBP 액션 한 건이라도 자기 ttpId 로 기록" + "sub_in 또는 sub_out 으로 명시 등장"
+  const everSeen = new Set<bigint>(); // 등장한 모든 ttpId (ANY 액션 또는 sub in/out)
+  for (const p of pbps) {
+    // 1) action_type 이 substitution 이 아니면 자기 ttpId 등장 카운트
+    if (p.tournament_team_player_id != null && p.action_type !== "substitution") {
+      everSeen.add(BigInt(p.tournament_team_player_id));
+    }
+    // 2) substitution 의 경우 in/out 양쪽 ttpId 추출 (action_subtype 파싱)
+    if (p.action_type === "substitution") {
+      const parsed = parseSubAction(p.action_subtype);
+      if (parsed) {
+        everSeen.add(parsed.inId);
+        everSeen.add(parsed.outId);
+      }
+    }
+  }
+  // dnpSet 은 "PBP/sub 어디에도 등장 안 한 선수" — 우리는 등장한 선수만 알 수 있으므로
+  // dnp 판정은 starter / F2 단계에서 "everSeen 미포함이면 DNP" 로 검사 (별도 set 안 만듦, 더 단순).
+  // 단, 외부 (호출부) 에 노출할 dnpSet 은 "등장한 적 있는데 PBP 액션 0건 + sub 0건" 케이스가 아니라
+  // "어떤 PBP 에도 안 잡힌 선수" 인데, 이건 함수 내부에서 알 수 없음 (선수 마스터 미보유).
+  // → 외부 노출 dnpSet 은 "이 함수가 sub 시간을 0 으로 결정한 선수" (= 결과 perPlayer 에 없거나 0) 로 정의.
+  // 결과적으로 호출부 G1 가드는 "subSec === 0 또는 미보유 = sub 무효" 와 동치 (이미 그렇게 동작).
 
   // 쿼터별 / 선수별 누적 (F2 보정용)
   const quarterPlayerSec = new Map<number, Map<bigint, number>>();
@@ -1278,9 +1340,11 @@ function calculateSubBasedMinutes(
         playersInQuarter.add(parsed.outId);
       }
 
-      // 3) starter 추정 (F3 강화)
+      // 3) starter 추정 (F3 강화 + G1 DNP 가드)
       // - Q1 (또는 직전 쿼터 lineup 정보 없음): 기존 방식 (등장 + sub_in 미경험)
       // - Q2~ : 직전 쿼터 종료 시 코트에 있던 선수 (5명) 우선 사용
+      // - G1: 어떤 starter 도 DNP (everSeen 미포함) 면 제외 — 매치 전체 PBP 0건 선수가
+      //       prevLineup chain 으로 잘못 전파되는 경우 차단.
       const subInIds = new Set(subs.map((s) => s.inId.toString()));
       const subOutIds = new Set(subs.map((s) => s.outId.toString()));
       const prevLineup = prevQuarterEndLineup.get(teamId);
@@ -1296,6 +1360,15 @@ function calculateSubBasedMinutes(
         starters = new Set(
           [...playersInQuarter].filter((id) => !subInIds.has(id.toString())),
         );
+      }
+      // G1: DNP 선수 (매치 전체 PBP 0건 + sub 0건) 는 starter 에서 제외
+      // — 시간 누적 자체를 막아 F2 분배 대상에서도 자동 배제됨.
+      for (const pid of [...starters]) {
+        if (!everSeen.has(pid)) starters.delete(pid);
+      }
+      // playersInQuarter 도 동일하게 정화 (DNP 가 잘못 들어왔다면 제거)
+      for (const pid of [...playersInQuarter]) {
+        if (!everSeen.has(pid)) playersInQuarter.delete(pid);
       }
 
       // 4) 각 선수의 segment 합산 + 쿼터 종료 시 코트 잔존 추적
@@ -1334,10 +1407,13 @@ function calculateSubBasedMinutes(
 
       // F2: 쿼터별 팀 합 미달 보정 (이 팀 / 이 쿼터)
       // expected = 5명 × qLen. deficit > 0 && < qLen 일 때만 분배.
+      // G1 가드: DNP 선수는 분배 대상 제외 (PBP 0건 + sub 0건 = 매치 출전 안 했음)
       const teamQMap = quarterPlayerSec.get(q);
       if (teamQMap) {
-        // 이 팀의 이 쿼터 출전 선수만 합산
-        const teamPlayers = [...playersInQuarter].filter((pid) => teamQMap.has(pid));
+        // 이 팀의 이 쿼터 출전 선수만 합산 (DNP 제외 — everSeen 검증)
+        const teamPlayers = [...playersInQuarter].filter(
+          (pid) => teamQMap.has(pid) && everSeen.has(pid),
+        );
         const teamQTotal = teamPlayers.reduce((s, pid) => s + (teamQMap.get(pid) ?? 0), 0);
         const expected = 5 * quarterLengthSec;
         const deficit = expected - teamQTotal;
@@ -1366,7 +1442,15 @@ function calculateSubBasedMinutes(
       result.set(pid, (result.get(pid) ?? 0) + sec);
     }
   }
-  return result;
+  // G1: dnpSet 외부 노출 — getSecondsPlayed / 진행중 분기에서 sub 무효 처리에 사용.
+  // 정의: PBP 액션도 sub 등장도 0건 인 선수 = "이 매치에 출전 0초".
+  // 단, 이 함수는 선수 마스터를 모르므로 "이 함수가 본 모든 선수" (PBP 에서 등장한 ttpId 모음) 를
+  // dnpSet 으로 직접 만들 수 없음. 대신 호출부가 "subSec === 0 또는 미보유" 로 판단 가능.
+  // 명시적으로 노출: everSeen 미포함 ttpId — 호출부가 자기 ttpId 를 검사할 때 사용.
+  const dnpSet = new Set<bigint>(); // 빈 set — 호출부는 result.get(ttpId) === 0/undefined 로 검사
+  // 명시적 dnpSet 보강: pbps 에서 잠깐 등장은 했지만 (예: free_throw 등) 결과 result 값이 0 인 케이스
+  // (현재 알고리즘 특성상 발생 가능성 낮음. 호출부는 result 값으로 판단)
+  return { perPlayer: result, dnpSet };
 }
 
 /// 선수가 "코트에서 뛴 기록이 전혀 없음" 여부 (DNP 판정)

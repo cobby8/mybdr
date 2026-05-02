@@ -287,7 +287,23 @@
       "Bash(git -C \"C:/0. Programing/mybdr\" diff HEAD -- \"src/app/\\(web\\)/courts/_components/courts-content.tsx\")",
       "Bash(git -C \"C:/0. Programing/mybdr\" blame -L 481,512 \"src/app/\\(web\\)/courts/_components/courts-content.tsx\")",
       "Bash(echo \"---EXIT:$?---\")",
-      "Bash(git cherry-pick *)"
+      "Bash(git cherry-pick *)",
+      "Bash(ls \"Dev/design/BDR v2.4/\")",
+      "Bash(ls \"Dev/design/BDR v2.4/screens/\")",
+      "Bash(mkdir -p \"Dev/design/_archive/prompts\")",
+      "Bash(mkdir -p \"Dev/design/_archive/v2-original\")",
+      "Bash(git mv *)",
+      "Bash(cp *)",
+      "Bash(git status *)",
+      "PowerShell(npx tsc --noEmit; Write-Output \"EXIT=$LASTEXITCODE\")",
+      "Bash(ls \"src/app/\\(referee\\)/\")",
+      "Bash(ls \"src/app/\\(admin\\)/\")",
+      "PowerShell(netstat *)",
+      "Bash(tee scripts/_temp/diagnose-output.log)",
+      "Bash(tee scripts/_temp/diagnose-output-p2002.log)",
+      "Bash(npm i *)",
+      "Bash(vercel *)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); ap=d.get\\('data',{}\\).get\\('awayPlayers'\\) or d.get\\('away_players'\\) or []; hp=d.get\\('data',{}\\).get\\('homePlayers'\\) or d.get\\('home_players'\\) or []; print\\(f'home={len\\(hp\\)}, away={len\\(ap\\)}'\\); print\\('away sample:', [{'#':p.get\\('jersey_number'\\) or p.get\\('jerseyNumber'\\), 'name':p.get\\('player_name'\\) or p.get\\('name'\\)} for p in ap[:3]]\\)\")"
     ]
   }
 }
