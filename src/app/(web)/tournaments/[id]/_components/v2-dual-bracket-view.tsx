@@ -87,12 +87,28 @@ function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
 // ── 조편성 빌드 ─────────────────────────────────────
 // 각 조의 4팀 = round 1 (G1·G2) 매치 2건의 homeTeam + awayTeam
 // 정렬: bracket_position 1 (G1) home·away → bracket_position 2 (G2) home·away
+//
+// 2026-05-02 갱신: 각 팀의 조별 미니 더블엘리미 W/L 결과를 함께 추출
+//  - 이유: 사용자 피드백 — 조편성 카드 한눈에 진행 상황 파악 가능하게
+//  - 추출 기준: status === 'completed' 매치만, round_number 순서
+//  - 한 팀당 최대 3개 (G1/G2 1건 + 승자전·패자전 1건 + 최종전 1건 = 3매치 가능)
+type TeamWithResults = {
+  slot: TeamSlot;
+  results: ("W" | "L")[]; // round_number 오름차순으로 정렬된 W/L 시퀀스
+};
+
 type GroupComposition = {
   groupName: string;
-  teams: TeamSlot[]; // 4팀 (시드 1~4 순)
+  teams: TeamWithResults[]; // 4팀 (시드 1~4 순)
 };
 
 function buildGroupComposition(allMatches: BracketMatch[]): GroupComposition[] {
+  // 1) 조별 매치 (round 1·2·3 = group_name 있는 매치) 만 분리
+  // 이유: 조별 미니 더블엘리미는 round 1(G1·G2) → round 2(승자전·패자전) → round 3(최종전)
+  //       knockout(round 4~6)의 W/L 은 조별 결과와 무관하므로 제외
+  const groupMatches = allMatches.filter((m) => m.groupName && m.roundNumber <= 3);
+
+  // 2) round 1 매치로 4팀 시드 순서 결정 (기존 로직 유지)
   const byGroup = new Map<string, BracketMatch[]>();
   for (const m of allMatches) {
     if (m.roundNumber === 1 && m.groupName) {
@@ -104,11 +120,36 @@ function buildGroupComposition(allMatches: BracketMatch[]): GroupComposition[] {
   const result: GroupComposition[] = [];
   for (const [g, matches] of byGroup.entries()) {
     matches.sort((a, b) => a.bracketPosition - b.bracketPosition);
-    const teams: TeamSlot[] = [];
+    const teamSlots: TeamSlot[] = [];
     for (const m of matches) {
-      if (m.homeTeam) teams.push(m.homeTeam);
-      if (m.awayTeam) teams.push(m.awayTeam);
+      if (m.homeTeam) teamSlots.push(m.homeTeam);
+      if (m.awayTeam) teamSlots.push(m.awayTeam);
     }
+
+    // 3) 각 팀의 W/L 결과 추출
+    // 이유: 같은 조 내에서만 매치 검색 (다른 조 매치는 무관)
+    const teams: TeamWithResults[] = teamSlots.map((slot) => {
+      if (!slot) return { slot, results: [] };
+      const teamId = slot.teamId;
+
+      // 같은 조 내 status=completed 매치 중 이 팀이 출전한 매치 추출
+      const teamMatches = groupMatches
+        .filter(
+          (m) =>
+            m.groupName === g &&
+            m.status === "completed" &&
+            (m.homeTeam?.teamId === teamId || m.awayTeam?.teamId === teamId),
+        )
+        .sort((a, b) => a.roundNumber - b.roundNumber); // round_number 오름차순
+
+      // winnerTeamId 비교로 W/L 판정 (BracketMatch 타입에 이미 존재 — derive 불필요)
+      const results: ("W" | "L")[] = teamMatches.map((m) =>
+        m.winnerTeamId === teamId ? "W" : "L",
+      );
+
+      return { slot, results };
+    });
+
     result.push({ groupName: g, teams });
   }
   return result.sort((a, b) => a.groupName.localeCompare(b.groupName));
@@ -246,48 +287,79 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
                 </span>
               </div>
 
-              {/* 4팀 리스트 — 호버 효과 + 색띠 */}
+              {/* 4팀 리스트 — 호버 효과 + 색띠 + W/L 칩 (2026-05-02) */}
               <ul className="divide-y" style={{ borderColor: "var(--color-border-subtle)" }}>
-                {g.teams.map((t, idx) => (
-                  <li
-                    key={t?.id ?? idx}
-                    className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--color-elevated)]"
-                  >
-                    {/* 시드 뱃지 — 조내 1·2·3·4 */}
-                    <span
-                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-xs font-bold"
-                      style={{
-                        backgroundColor: idx < 2
-                          ? `color-mix(in srgb, ${accent} 18%, transparent)`
-                          : "var(--color-elevated)",
-                        color: idx < 2 ? accent : "var(--color-text-muted)",
-                      }}
-                      title={idx < 2 ? "조내 상위 시드" : "조내 하위 시드"}
+                {g.teams.map((tw, idx) => {
+                  const t = tw.slot;
+                  return (
+                    <li
+                      key={t?.id ?? idx}
+                      className="flex items-center gap-2 px-3 py-2.5 transition-colors hover:bg-[var(--color-elevated)]"
                     >
-                      {idx + 1}
-                    </span>
-                    {/* 팀 유니폼 색띠 — home_color 우선 (대표 유니폼), 없으면 primaryColor */}
-                    {t && (t.team.homeColor || t.team.primaryColor) && (
+                      {/* 시드 뱃지 — 조내 1·2·3·4 */}
                       <span
-                        className="inline-block h-4 w-1 rounded-[2px]"
-                        style={{ backgroundColor: t.team.homeColor || t.team.primaryColor || undefined }}
-                      />
-                    )}
-                    {/* 팀명 (링크) */}
-                    {t ? (
-                      <Link
-                        href={`/teams/${t.teamId}`}
-                        className="flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] hover:underline"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[4px] text-xs font-bold"
+                        style={{
+                          backgroundColor: idx < 2
+                            ? `color-mix(in srgb, ${accent} 18%, transparent)`
+                            : "var(--color-elevated)",
+                          color: idx < 2 ? accent : "var(--color-text-muted)",
+                        }}
+                        title={idx < 2 ? "조내 상위 시드" : "조내 하위 시드"}
                       >
-                        {getTeamDisplayName(t.team)}
-                      </Link>
-                    ) : (
-                      <span className="flex-1 italic text-sm text-[var(--color-text-muted)]">
-                        미정
+                        {idx + 1}
                       </span>
-                    )}
-                  </li>
-                ))}
+                      {/* 팀 유니폼 색띠 — home_color 우선 (대표 유니폼), 없으면 primaryColor */}
+                      {t && (t.team.homeColor || t.team.primaryColor) && (
+                        <span
+                          className="inline-block h-4 w-1 rounded-[2px]"
+                          style={{ backgroundColor: t.team.homeColor || t.team.primaryColor || undefined }}
+                        />
+                      )}
+                      {/* 팀명 (링크) */}
+                      {t ? (
+                        <Link
+                          href={`/teams/${t.teamId}`}
+                          className="flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] hover:underline"
+                        >
+                          {getTeamDisplayName(t.team)}
+                        </Link>
+                      ) : (
+                        <span className="flex-1 italic text-sm text-[var(--color-text-muted)]">
+                          미정
+                        </span>
+                      )}
+                      {/* W/L 칩 — round_number 순으로 (G1/G2 → 승자전/패자전 → 최종전 = 최대 3개) */}
+                      {/* 이유: 한눈에 조별 진행 상황 파악. 13 룰 정합 (var(--*) / 4px 라운드 / lucide 0) */}
+                      {tw.results.length > 0 && (
+                        <span className="flex shrink-0 gap-1">
+                          {tw.results.map((r, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded-[4px] text-[10px] font-bold"
+                              style={
+                                r === "W"
+                                  ? {
+                                      backgroundColor:
+                                        "color-mix(in srgb, var(--color-success) 18%, transparent)",
+                                      color: "var(--color-success)",
+                                    }
+                                  : {
+                                      backgroundColor:
+                                        "color-mix(in srgb, var(--color-error) 14%, transparent)",
+                                      color: "var(--color-error)",
+                                    }
+                              }
+                              title={r === "W" ? "승" : "패"}
+                            >
+                              {r}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           );

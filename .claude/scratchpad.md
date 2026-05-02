@@ -201,3 +201,4 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
 | 2026-05-02 | 3d82a44+(8건) | **D-day 셋업팀 풀 패치** — 16팀 로고 등록/sharp 정규화/일정탭 표시 + dual sync fix (winner_team_id + progressDualMatch) + globals 색상 변수 + logoUrl 상대경로 fix + manage 에러메시지 키 | ✅ |
 | 2026-05-02 | (DB UPDATE) | **셋업팀 가입+매핑 정리** — 17건 처리 (8 승인 / 9 reject, pending=0) + ttp 5명 매핑 (곽규현/정세훈/임태웅/백주익/백배흠) → 매치#133 통계 매칭률 80%. 잔여 4명 (김영훈8점/김병주2점/이영기/이준호) 패자전 후 진행 | ✅ |
+| 2026-05-02 | (W/L 칩) | **조편성 카드 W/L 칩 표시** — `v2-dual-bracket-view.tsx` `buildGroupComposition` 확장 (TeamWithResults 타입 + status='completed' 매치를 round_number 순으로 winnerTeamId 비교 → W/L 시퀀스). `GroupCompositionCard` 팀명 Link 직후 5×5 정사각 칩 (success/error 색 / 4px 라운드). 칩 최대 3개 (G1/G2 1건 + 승자전·패자전 1건 + 최종전 1건). API/DB 변경 0. tsc PASS | ✅ |
