@@ -373,8 +373,8 @@ function DualMatchCard({
           ) : (
             // 빈 슬롯 — italic muted
             <span
-              className="truncate text-base italic leading-tight"
-              style={{ color: "var(--color-text-muted)" }}
+              className="truncate text-sm italic leading-tight sm:text-base"
+              style={{ color: "var(--color-text-muted)", opacity: 0.7 }}
               title={homeDisplay}
             >
               {homeDisplay}
@@ -447,8 +447,8 @@ function DualMatchCard({
             </span>
           ) : (
             <span
-              className="truncate text-base italic leading-tight"
-              style={{ color: "var(--color-text-muted)" }}
+              className="truncate text-sm italic leading-tight sm:text-base"
+              style={{ color: "var(--color-text-muted)", opacity: 0.7 }}
               title={awayDisplay}
             >
               {awayDisplay}
