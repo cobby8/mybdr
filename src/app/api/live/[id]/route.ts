@@ -1199,81 +1199,173 @@ function calculateSubBasedMinutes(
   }>,
   quarterLengthSec: number,
 ): Map<bigint, number> {
-  const result = new Map<bigint, number>();
+  // 2026-05-02 STL Phase 2 강화 (F3 + F2)
+  // F3: starter 추정 정확화 — Q2~Q4 starter = 직전 쿼터 종료 시점 코트 5명
+  //     (기존: 쿼터 내 등장 + sub_in 미경험. 단점: 직전 쿼터에서 들어와 그 쿼터 코트 끝까지 잔존했지만
+  //      현재 쿼터에선 PBP 등장 0건인 선수 → starter 로 인정 안 됨 → 시간 누락)
+  // F2: 쿼터별 합 미달 보정 — 쿼터별 합 < expected (5 × qLen) 시 deficit 을 출전 선수에 가중 분배
+  //     (단 deficit < qLen 가드 — 비합리값 제외)
 
-  // 쿼터 1~4 + OT (5~6) 순회. 1쿼터부터 시작이라 단순 for 루프.
-  // 쿼터 키 수집 (실제 데이터에 존재하는 쿼터만)
+  // 팀별로 분리해서 처리 (lineup tracking 은 팀 단위가 맞음 — 다른 팀 선수가 섞이면 X)
+  // 하지만 출력 result 는 통합 (Map<ttpId, totalSec>).
+
+  // 쿼터별 / 선수별 누적 (F2 보정용)
+  const quarterPlayerSec = new Map<number, Map<bigint, number>>();
+  const addQSec = (q: number, pid: bigint, sec: number) => {
+    if (!quarterPlayerSec.has(q)) quarterPlayerSec.set(q, new Map());
+    const m = quarterPlayerSec.get(q)!;
+    m.set(pid, (m.get(pid) ?? 0) + sec);
+  };
+
+  // 쿼터 키 수집 + 정렬
   const allQuarters = new Set<number>();
   for (const p of pbps) {
     if (p.quarter != null && p.quarter >= 1) allQuarters.add(p.quarter);
   }
   const sortedQuarters = [...allQuarters].sort((a, b) => a - b);
 
-  for (const q of sortedQuarters) {
-    // 쿼터 내 PBP 추출 + 시간순 정렬 (clock 큰 → 작은 순 = 쿼터 시작 → 종료)
-    const qPbps = pbps
-      .filter((p) => p.quarter === q)
-      .sort((a, b) => (b.game_clock_seconds ?? 0) - (a.game_clock_seconds ?? 0));
-    if (qPbps.length === 0) continue;
+  // 팀 키 수집
+  const teamIds = new Set<bigint>();
+  for (const p of pbps) {
+    if (p.tournament_team_id) teamIds.add(BigInt(p.tournament_team_id));
+  }
 
-    // 1) 쿼터 내 등장한 모든 선수 (자기 액션) — substitution 의 in/out 도 추가
-    const playersInQuarter = new Set<bigint>();
-    for (const p of qPbps) {
-      if (p.tournament_team_player_id) {
-        playersInQuarter.add(BigInt(p.tournament_team_player_id));
-      }
-    }
+  // 팀별 직전 쿼터 종료 lineup (F3 핵심 — starter 정확도 강화)
+  // teamId → Set<ttpId> (Q[N-1] 끝 시점 코트 5명)
+  const prevQuarterEndLineup = new Map<bigint, Set<bigint>>();
 
-    // 2) substitution 이벤트 파싱
-    type SubEvent = { clock: number; inId: bigint; outId: bigint };
-    const subs: SubEvent[] = [];
-    for (const p of qPbps) {
-      if (p.action_type !== "substitution") continue;
-      const parsed = parseSubAction(p.action_subtype);
-      if (!parsed) continue;
-      subs.push({
-        clock: p.game_clock_seconds ?? 0,
-        inId: parsed.inId,
-        outId: parsed.outId,
-      });
-      // sub IN/OUT 으로 등장한 선수도 playersInQuarter 에 추가 (개인 액션 없는 선수 포함)
-      playersInQuarter.add(parsed.inId);
-      playersInQuarter.add(parsed.outId);
-    }
+  // 팀별 / 쿼터별 PBP 그룹핑 (시간순 정렬: clock 큰 → 작은)
+  type PbpRow = (typeof pbps)[number];
+  const byTeamQ = new Map<string, PbpRow[]>();
+  for (const p of pbps) {
+    if (p.quarter == null || p.tournament_team_id == null) continue;
+    const key = `${p.tournament_team_id}|${p.quarter}`;
+    if (!byTeamQ.has(key)) byTeamQ.set(key, []);
+    byTeamQ.get(key)!.push(p);
+  }
+  for (const arr of byTeamQ.values()) {
+    arr.sort((a, b) => (b.game_clock_seconds ?? 0) - (a.game_clock_seconds ?? 0));
+  }
 
-    // 3) starter 추정 = 쿼터 내 등장 + sub_in 으로 들어온 적 없는 선수
-    const subInIds = new Set(subs.map((s) => s.inId.toString()));
-    const starters = [...playersInQuarter].filter((id) => !subInIds.has(id.toString()));
+  // 팀 단위 처리
+  for (const teamId of teamIds) {
+    for (const q of sortedQuarters) {
+      const qPbps = byTeamQ.get(`${teamId}|${q}`) ?? [];
+      if (qPbps.length === 0) continue;
 
-    // 4) 각 선수의 segment 합산
-    for (const playerId of playersInQuarter) {
-      // starter 면 quarterLengthSec 부터 시작, 아니면 미진입 상태 (sub_in 시 시작)
-      let activeStart: number | null = starters.some((s) => s === playerId) ? quarterLengthSec : null;
-      let totalSec = 0;
-
-      for (const sub of subs) {
-        if (sub.outId === playerId && activeStart != null) {
-          // 코트에 있는 선수 → out: in_clock - out_clock 만큼 누적
-          totalSec += activeStart - sub.clock;
-          activeStart = null;
-        }
-        if (sub.inId === playerId) {
-          // 코트로 진입
-          activeStart = sub.clock;
+      // 1) 쿼터 내 등장한 모든 선수 (자기 액션 + sub in/out)
+      const playersInQuarter = new Set<bigint>();
+      for (const p of qPbps) {
+        if (p.tournament_team_player_id) {
+          playersInQuarter.add(BigInt(p.tournament_team_player_id));
         }
       }
 
-      // 쿼터 종료 시 코트 잔존 → 0초까지 자동 누적
-      // (라이브 매치 마지막 진행 쿼터: lineup 이 0초까지 안 가지만 PBP 가 마지막 시점까지만 있으므로
-      //  코트 잔존 선수는 lastClock 까지가 아니라 "쿼터 종료 = 0" 까지 누적 — 999 cap 회피 핵심)
-      if (activeStart != null) {
-        totalSec += activeStart - 0;
+      // 2) substitution 이벤트 파싱
+      type SubEvent = { clock: number; inId: bigint; outId: bigint };
+      const subs: SubEvent[] = [];
+      for (const p of qPbps) {
+        if (p.action_type !== "substitution") continue;
+        const parsed = parseSubAction(p.action_subtype);
+        if (!parsed) continue;
+        subs.push({
+          clock: p.game_clock_seconds ?? 0,
+          inId: parsed.inId,
+          outId: parsed.outId,
+        });
+        // sub IN/OUT 으로 등장한 선수도 playersInQuarter 에 추가
+        playersInQuarter.add(parsed.inId);
+        playersInQuarter.add(parsed.outId);
       }
 
-      result.set(playerId, (result.get(playerId) ?? 0) + totalSec);
+      // 3) starter 추정 (F3 강화)
+      // - Q1 (또는 직전 쿼터 lineup 정보 없음): 기존 방식 (등장 + sub_in 미경험)
+      // - Q2~ : 직전 쿼터 종료 시 코트에 있던 선수 (5명) 우선 사용
+      const subInIds = new Set(subs.map((s) => s.inId.toString()));
+      const subOutIds = new Set(subs.map((s) => s.outId.toString()));
+      const prevLineup = prevQuarterEndLineup.get(teamId);
+      let starters: Set<bigint>;
+      if (prevLineup && prevLineup.size > 0) {
+        // F3: 직전 쿼터 종료 lineup 을 그대로 starter 로 사용
+        // (현재 쿼터 PBP 미등장 선수도 포함 → 시간 미누락)
+        starters = new Set(prevLineup);
+        // playersInQuarter 에도 starter 추가 (자기 PBP 없어도 출전 시간은 계산되어야 함)
+        for (const pid of starters) playersInQuarter.add(pid);
+      } else {
+        // Q1 또는 직전 lineup 미보유 → 기존 추정 (등장 + sub_in 미경험)
+        starters = new Set(
+          [...playersInQuarter].filter((id) => !subInIds.has(id.toString())),
+        );
+      }
+
+      // 4) 각 선수의 segment 합산 + 쿼터 종료 시 코트 잔존 추적
+      const endLineup = new Set<bigint>(); // 쿼터 종료 시 코트 잔존 = 다음 쿼터 starter
+      for (const playerId of playersInQuarter) {
+        // starter 면 quarterLengthSec 부터 시작, 아니면 미진입 (sub_in 시 시작)
+        let activeStart: number | null = starters.has(playerId) ? quarterLengthSec : null;
+        let totalSec = 0;
+
+        for (const sub of subs) {
+          if (sub.outId === playerId && activeStart != null) {
+            totalSec += activeStart - sub.clock;
+            activeStart = null;
+          }
+          if (sub.inId === playerId) {
+            activeStart = sub.clock;
+          }
+        }
+
+        // 쿼터 종료 (0초) 까지 잔존 → 누적
+        if (activeStart != null) {
+          totalSec += activeStart - 0;
+          endLineup.add(playerId); // 다음 쿼터 starter 후보
+        }
+
+        if (totalSec > 0) addQSec(q, playerId, totalSec);
+      }
+
+      // F3: 다음 쿼터 starter 로 전달
+      // (단 endLineup 사이즈가 비현실적이면 — 0명 또는 6명+ — 전달 skip = 다음 쿼터 fallback)
+      if (endLineup.size >= 3 && endLineup.size <= 7) {
+        prevQuarterEndLineup.set(teamId, endLineup);
+      } else {
+        prevQuarterEndLineup.delete(teamId);
+      }
+
+      // F2: 쿼터별 팀 합 미달 보정 (이 팀 / 이 쿼터)
+      // expected = 5명 × qLen. deficit > 0 && < qLen 일 때만 분배.
+      const teamQMap = quarterPlayerSec.get(q);
+      if (teamQMap) {
+        // 이 팀의 이 쿼터 출전 선수만 합산
+        const teamPlayers = [...playersInQuarter].filter((pid) => teamQMap.has(pid));
+        const teamQTotal = teamPlayers.reduce((s, pid) => s + (teamQMap.get(pid) ?? 0), 0);
+        const expected = 5 * quarterLengthSec;
+        const deficit = expected - teamQTotal;
+        // 가드: 0 < deficit < qLen (비합리값 제외) + 출전 선수 1명 이상
+        if (deficit > 0 && deficit < quarterLengthSec && teamPlayers.length > 0) {
+          // 출전 시간 비율로 분배 (팀 출전 합이 0 이면 균등 분배)
+          if (teamQTotal > 0) {
+            for (const pid of teamPlayers) {
+              const cur = teamQMap.get(pid) ?? 0;
+              const weight = cur / teamQTotal;
+              addQSec(q, pid, Math.round(deficit * weight));
+            }
+          } else {
+            const each = Math.round(deficit / teamPlayers.length);
+            for (const pid of teamPlayers) addQSec(q, pid, each);
+          }
+        }
+      }
     }
   }
 
+  // 최종 합산 — 모든 쿼터의 player-sec 누적 → 결과 Map
+  const result = new Map<bigint, number>();
+  for (const perPlayer of quarterPlayerSec.values()) {
+    for (const [pid, sec] of perPlayer.entries()) {
+      result.set(pid, (result.get(pid) ?? 0) + sec);
+    }
+  }
   return result;
 }
 

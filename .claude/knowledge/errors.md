@@ -31,6 +31,22 @@
   - 알고리즘: PBP `action_subtype="in:X,out:Y"` 파싱 → 쿼터별 lineup tracking → 쿼터 종료 시 코트 잔존 선수 0초까지 자동 누적
   - 채택 룰: `max(subBased, qsJson, minutesPlayed, pbpSim)` — sub 가 더 큰 경우만 회복 (정상 매치 영향 0)
   - 검증 결과: #134 +11.38m 회복 (264.17→275.55), #133 +0.53m 회복, #132/#135 280m 만점 유지
+- **✅ 2026-05-02 STL Phase 2 강화 (F3 + F2) — 4매치 모두 정확히 280m 회복**:
+  - **F3 (starter 추정 정확화)**: Q2~Q4 starter = 직전 쿼터 종료 시 코트 5명 (lineup chain 추적)
+    - 기존 단점 해소: "직전 쿼터에서 들어와 그 쿼터 코트 끝까지 잔존 + 현재 쿼터 PBP 등장 0건" 선수가 starter 미인정 → 시간 누락 케이스
+    - `prevQuarterEndLineup: Map<teamId, Set<ttpId>>` 팀별 chain 보유. endLineup 사이즈 비현실 (3명 미만 / 7명 초과) 시 fallback (Q1 방식)
+  - **F2 (쿼터별 합 미달 보정)**: 팀별 / 쿼터별 합 < 5×qLen 시 deficit 을 출전 선수에 가중 분배
+    - 가드: `0 < deficit < quarterLengthSec` (음수 / 비합리 큰 값 제외) + 팀 출전 1명 이상
+    - 분배: 팀 내 출전 시간 비율 가중치 (출전 0 시 균등)
+  - **데이터 구조 변경**: `result: Map<bigint, number>` 단일 → `quarterPlayerSec: Map<quarter, Map<ttpId, sec>>` 쿼터별 분리 → 최종 합산
+  - **검증 결과 (4매치 모두 PASS ±0.1m)**:
+    | 매치 | sub-only (F3+F2 전) | F3+F2 후 |
+    |------|---------------------|----------|
+    | #132 | 264.63m | **280.02m** |
+    | #133 | 255.05m | **280.00m** |
+    | #134 | 273.95m | **280.00m** |
+    | #135 | 267.70m | **280.00m** |
+  - **MAX 전략 유지**: getSecondsPlayed 의 `MAX(sub, qsJson, dbMin, pbpSim)` 그대로. F3+F2 강화로 sub 가 항상 280 근접 → 4매치 sub 채택. 회귀 영향 0 (sub PBP 없는 매치는 알고리즘 진입 X)
 - **회귀 방지 / 진단 패턴**:
   - 출전시간 미달 신고 시 → PBP 쿼터별 last_clock 1차 확인 (`SELECT MIN(game_clock_seconds) GROUP BY quarter`)
   - last_clock > 0 이면 그 시간 × 5명 ≈ qsJson 미달 시간 확인
