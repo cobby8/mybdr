@@ -2,6 +2,58 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-02] 매치 코드 신규 체계 v3 — `{T}-[XY]-{NNN}` 7~10자 (다음 세션 진입점)
+- **분류**: decision (DB schema / 매치 식별 체계 / 미구현 — 계획 확정)
+- **결정자**: pm + 사용자 (계획 v1 → v2 간소화 → v3 정정)
+- **배경**: 매치번호 부여 일관성 부재 (몰텐배 27/27 ✅ / TEST 0/16 ❌ / 열혈 3/34 ❌). UNIQUE 인덱스 부재. 단순 숫자만으론 글로벌 식별 불가.
+- **거부된 옵션**:
+  - v1: `SEL-MOLTEN-V21-AMA-D1-G1A03` 24자 — 너무 김. 사용자 거부.
+  - 종별/디비전 혼동 — 종별=일반부/유청소년 등, 디비전=D3/D4 등. 사용자 정정.
+- **채택 v3**: `{토너먼트 short_code}-[종별letter][디비전숫자]-{NNN}` 7~10자
+  - ① 단일/단일: `M21-001`
+  - ② 디비전만 분리: `M21-D1-001`
+  - ③ 종별만 분리: `M21-A-001` (A=일반/Y=유청/S=시니어/W=여성/U=대학)
+  - ④ 둘 다 분리: `M21-A1-001`
+- **운영 대회 25개 분석 결과**:
+  - `tournaments.divisions/division_tiers` 거의 비어있음 (legacy)
+  - `tournaments.categories` JSON `{종별: [디비전]}` 만 채워짐 (몰텐배·TEST 만)
+  - 약 60% 가 케이스 ① / 30% 케이스 ③ / 10% 케이스 ②
+- **Phase 1~7 미구현** — 구현 시작 시점이 다음 세션 진입점
+- **참조횟수**: 0
+
+### [2026-05-02] dual_tournament 진출 슬롯 회귀 방지 5종 (A~E)
+- **분류**: decision (data integrity / 회귀 가드 다층화)
+- **결정자**: pm + 사용자 (5/2 운영 중 양쪽 같은 팀 케이스 2회 = 피벗·아울스 / 8강 #21)
+- **5종 가드**:
+  - A. progressDualMatch 자가 치유 (반대 슬롯 NULL 정정)
+  - B. admin web matches PATCH 진출 슬롯 차단 (next_match destination 매치)
+  - C. **admin frontend dirty tracking** (변경된 필드만 PATCH — 근본 원인 fix)
+  - D. 검출 스크립트 (`scripts/_templates/detect-dual-conflicts.ts`)
+  - E. **TournamentMatch audit log** (신규 `tournament_match_audits` 테이블 + helper + admin/flutter/system 통합)
+- **추가 강화 (cfa64a6)**: progressDualMatch self-heal context 에 source matchId 명시 + updateMatch/updateMatchStatus legacy 진출에도 self-heal+audit 추가 (single elim 보호)
+- **시뮬레이션 검증**: 27매치 결승까지 가상 진행 → self-heal 8건 발동 / 양쪽 같은 팀 0건
+- **관련**: errors.md "양쪽 같은 팀 (피벗·아울스)" / commit cf2eea1, 90759d5, cfa64a6
+- **참조횟수**: 0
+
+### [2026-05-02] Admin-Web 시각 통합 — alias 보강 방식 채택 (admin 코드 변경 0 / web 영향 0)
+- **분류**: decision (디자인 시스템 / 토큰 통합 / 점진 마이그레이션)
+- **결정자**: pm + 사용자 (Q1·Q2 추천안 채택)
+- **참조횟수**: 0
+- **배경**: `mybdr.kr/admin/users` 운영 화면이 (web) BDR-current 디자인 시스템과 시각 갭 (검색 버튼 카페블루 대신 색 미적용 / ★ 빨간색 안 보임 등). 진단: admin 코드 405건이 사용 중인 alias 9개가 `globals.css` 에 미정의 → 빈 값으로 그려짐.
+- **검토 옵션 3개**:
+  1. **alias 9개 추가** ⭐ — `globals.css` 1 파일만 변경, admin 코드 0 수정, web 무영향
+  2. admin 코드 405건 일괄 변경 — `var(--color-accent)` → `var(--accent)` 직접 참조로
+  3. admin 다크모드 강제 — 라이트모드 시안 부재 회피용. **사용자 명시 거부** ("다크모드 강제는 안 됨")
+- **채택**: **옵션 1 ⭐⭐⭐** — `:root,[data-theme="light"]` + `[data-theme="dark"]` 양쪽 블록에 9 alias 추가 (commit f8fe8f0). 라이트=cafe-blue / 다크=BDR Red 사용자 토글 그대로 유지.
+- **추가된 alias 9개**: `--color-accent` `--color-accent-hover` `--color-accent-light` `--color-error` `--color-warning` `--color-success` `--color-border-subtle` `--color-text-dim` `--shadow-card`
+- **Phase 2 동시 진행**: `.admin-table thead` background → `var(--bg-head)` (web `.board__head` 톤 일치)
+- **사유 — 옵션 1 vs 옵션 2**:
+  - 옵션 1: 5분 작업 / 위험 0 / 점진 후속 가능 / Phase A~E 회귀 0
+  - 옵션 2: 8h+ 작업 / 페이지별 회귀 위험 / 점진 불가 / 운영 중 D-day 작업과 충돌
+- **사유 — 다크모드 강제 거부**: 사용자가 라이트/다크 토글을 운영자 선호로 존중. (admin) 라이트모드 시안 부재는 alias 매핑이 (web) 라이트와 자동 정합되도록 해결.
+- **추후 큐 (Phase 3~7)**: 인라인 라운드 px → 토큰 / 인라인 buttons-inputs → `.btn`/`.input` 글로벌 클래스 / 17 페이지 점진 적용. 별도 큐 (대회 후).
+- **확장 가능성**: 같은 패턴으로 `(referee)/referee/admin/` `(web)/tournament-admin/` 영역도 alias 보강 가능.
+
 ### [2026-05-02] STL Phase 1 도입 — Flutter app 수정 없이 라이브 데이터 무결성 보장 (사용자 화면)
 - **분류**: decision (architecture / 데이터 무결성 / Flutter 의존성 격리)
 - **결정자**: pm + 사용자 (옵션 분석 후 진행 승인)
