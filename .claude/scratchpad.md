@@ -85,7 +85,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-02 | (Games Phase B+C 일괄) | Games 박제 Phase B (segmented + collapsible) + C (ParticipantList Hybrid + ApplyPanel 신청자정보) | ✅ |
+| 2026-05-02 | (코드만, 미커밋) | **팀 로고 업로드 자동 정규화 통합** — `image-processor.ts` 에 `normalizeTeamLogo` 추가 + `/api/web/upload` 에서 `bucket==="team-logos"` 일 때만 sharp pipeline (512×512 + 8% padding + PNG) 적용. 호출자 3곳 (step-emblem/manage/image-uploader) 변경 0. tsc 통과 + tsx 5 케이스 검증 통과. 다른 bucket 영향 0 | ✅ |
 | 2026-05-02 | (Teams Phase B+C+D 일괄) | Teams 박제 — 카드 #랭크 PC 복원 + stats 4카드 모바일 분기 + Roster/Recent .data-table 마커 | ✅ |
 | 2026-05-02 | (Live v2 박스스코어 일괄) | Live `/live/[id]` 옛 BoxScoreTable + PrintBoxScoreTable + PrintOptionsDialog 풀 복원 | ✅ |
 | 2026-05-02 | 27d2bd7+(28건) | **5/2 동호회최강전 D-day 풀 셋업** — DB 16팀 / 듀얼토너먼트 27경기 / placeholder↔real 통합 5쌍 / 카드 HIGH4+컴팩트 v3 / Hero 5col+막대 통일 / 장소 "스포라운드" 고정 / 원영 캡틴 양도+탈퇴 | ✅ D-day 준비 완료 |

@@ -48,6 +48,61 @@ export async function optimizeDocumentImage(
     .toBuffer();
 }
 
+// ──────────────────────────────────────────────────────────
+// 팀 로고 자동 정규화 — 정방형 + padding + 512×512 + PNG 압축
+// ──────────────────────────────────────────────────────────
+
+// 출력 캔버스 크기 (정방형). 512px 는 모바일 카드/헤더 어디에 써도 충분 + 파일 크기도 적정.
+const TEAM_LOGO_TARGET_SIZE = 512;
+// 가장자리 padding 비율. 8% = 좌우상하 합 16% 여백.
+// 사유: 가로형 로고가 정사각 캔버스에 꽉 차면 "잘려 보이는 느낌" 발생 → 일정 여백 강제.
+//       16팀 작업 (commit 637c55e) 에서 8% 가 "여유 + 답답하지 않음" 균형으로 검증됨.
+const TEAM_LOGO_PADDING_RATIO = 0.08;
+
+/**
+ * 팀 로고 자동 정규화.
+ *
+ * 이유:
+ *   - 사용자가 업로드하는 로고는 가로형/세로형/정사각 비율이 제각각.
+ *     → 카드 / 헤더 / hero 등 정사각 슬롯에 그대로 박으면 잘림(cover) or 빈공간(contain) 둘 다 미관 나쁨.
+ *   - 사전에 "정방형 + 적정 padding" 으로 통일하면 어디 박아도 일관된 룩.
+ *   - 16팀 일괄 처리 pipeline 그대로 재사용 (검증 완료).
+ *
+ * 어떻게:
+ *   1) inner = TARGET * (1 - PADDING*2). resize(inner, inner, contain) — 비율 유지하며 inner 안에 맞춤.
+ *   2) extend(pad) — contain 결과를 가운데 정렬하여 TARGET×TARGET 으로 확장. 배경은 투명.
+ *   3) png(compressionLevel: 9) — 무손실 최대 압축. 컬러 로고 보존 (그레이스케일 ❌).
+ *
+ * @param inputBuf 원본 이미지 Buffer (sharp 가 읽을 수 있는 모든 포맷 — PNG/JPEG/WebP/GIF/AVIF 등)
+ * @returns 512×512 PNG Buffer (투명 배경 보존)
+ */
+export async function normalizeTeamLogo(inputBuf: Buffer): Promise<Buffer> {
+  // inner: 패딩을 뺀 실제 로고가 그려질 영역 (예: 512 * 0.84 ≈ 430)
+  const innerSize = Math.floor(TEAM_LOGO_TARGET_SIZE * (1 - TEAM_LOGO_PADDING_RATIO * 2));
+
+  // 1단계: 원본을 inner × inner 안에 비율 유지 + 투명 배경으로 contain 리사이즈
+  const resized = await sharp(inputBuf)
+    .resize(innerSize, innerSize, {
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .toBuffer();
+
+  // 2단계: 양옆/상하에 padding 만큼 투명 영역 추가 → 정확히 TARGET × TARGET 캔버스 완성
+  // pad 가 홀수일 때 floor/ceil 로 좌우 1px 차이 보정 (sharp 가 정수 요구).
+  const pad = (TEAM_LOGO_TARGET_SIZE - innerSize) / 2;
+  return sharp(resized)
+    .extend({
+      top: Math.floor(pad),
+      bottom: Math.ceil(pad),
+      left: Math.floor(pad),
+      right: Math.ceil(pad),
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
 /**
  * 파일 유효성 검증.
  *
