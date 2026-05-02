@@ -171,16 +171,49 @@ export async function updateMatch(
     }
 
     // 승자가 확정되고 next_match_id가 있으면 다음 경기에 팀 배치
-    if (input.winnerTeamId && u.next_match_id) {
-      const slot = u.next_match_slot; // "home" | "away"
+    // 2026-05-02: self-heal 가드 + audit 추가 (errors.md "양쪽 같은 팀" 회귀 방지)
+    if (input.winnerTeamId && u.next_match_id && u.next_match_slot) {
+      const slot = u.next_match_slot as "home" | "away";
+      const targetField = slot === "home" ? "homeTeamId" : "awayTeamId";
+      const oppositeField = slot === "home" ? "awayTeamId" : "homeTeamId";
+
+      // self-heal: next_match 의 반대 슬롯에 같은 winnerTeamId 가 있으면 NULL 정정
+      const nextBefore = await tx.tournamentMatch.findUnique({
+        where: { id: u.next_match_id },
+        select: { homeTeamId: true, awayTeamId: true, status: true },
+      });
+      if (nextBefore && nextBefore[oppositeField] === input.winnerTeamId) {
+        await tx.tournamentMatch.update({
+          where: { id: u.next_match_id },
+          data: { [oppositeField]: null },
+        });
+        await recordMatchAudit(
+          tx,
+          u.next_match_id,
+          { [oppositeField]: nextBefore[oppositeField] },
+          { [oppositeField]: null },
+          audit?.source ?? "system",
+          `updateMatch self-heal (source match ${matchId}, winnerTeamId=${input.winnerTeamId}, ${oppositeField} NULL 정정)`,
+          audit?.changedBy ?? null,
+        );
+      }
+
       await tx.tournamentMatch.update({
         where: { id: u.next_match_id },
         data: {
-          ...(slot === "home" && { homeTeamId: input.winnerTeamId }),
-          ...(slot === "away" && { awayTeamId: input.winnerTeamId }),
+          [targetField]: input.winnerTeamId,
           status: "scheduled",
         },
       });
+      await recordMatchAudit(
+        tx,
+        u.next_match_id,
+        { [targetField]: nextBefore?.[targetField] ?? null },
+        { [targetField]: input.winnerTeamId },
+        audit?.source ?? "system",
+        `updateMatch winner 진출 (source match ${matchId}, slot=${slot})`,
+        audit?.changedBy ?? null,
+      );
     }
 
     // 2026-05-02: dual_tournament 면 loser 진출 + idempotent winner 진출 통합 처리
@@ -312,6 +345,7 @@ export async function updateMatchStatus(
     }
 
     // winner 진출 (single elim 호환) — 기존 updateMatch 와 같은 패턴
+    // 2026-05-02: self-heal 가드 + audit 추가 (errors.md "양쪽 같은 팀" 회귀 방지)
     if (
       winnerTeamId &&
       status === "completed" &&
@@ -319,14 +353,45 @@ export async function updateMatchStatus(
       current.next_match_slot
     ) {
       const slot = current.next_match_slot as "home" | "away";
+      const targetField = slot === "home" ? "homeTeamId" : "awayTeamId";
+      const oppositeField = slot === "home" ? "awayTeamId" : "homeTeamId";
+
+      const nextBefore = await tx.tournamentMatch.findUnique({
+        where: { id: current.next_match_id },
+        select: { homeTeamId: true, awayTeamId: true },
+      });
+      if (nextBefore && nextBefore[oppositeField] === winnerTeamId) {
+        await tx.tournamentMatch.update({
+          where: { id: current.next_match_id },
+          data: { [oppositeField]: null },
+        });
+        await recordMatchAudit(
+          tx,
+          current.next_match_id,
+          { [oppositeField]: nextBefore[oppositeField] },
+          { [oppositeField]: null },
+          audit?.source ?? "system",
+          `updateMatchStatus self-heal (source match ${matchId}, winnerTeamId=${winnerTeamId}, ${oppositeField} NULL 정정)`,
+          audit?.changedBy ?? null,
+        );
+      }
+
       await tx.tournamentMatch.update({
         where: { id: current.next_match_id },
         data: {
-          ...(slot === "home" && { homeTeamId: winnerTeamId }),
-          ...(slot === "away" && { awayTeamId: winnerTeamId }),
+          [targetField]: winnerTeamId,
           status: "scheduled",
         },
       });
+      await recordMatchAudit(
+        tx,
+        current.next_match_id,
+        { [targetField]: nextBefore?.[targetField] ?? null },
+        { [targetField]: winnerTeamId },
+        audit?.source ?? "system",
+        `updateMatchStatus winner 진출 (source match ${matchId}, slot=${slot})`,
+        audit?.changedBy ?? null,
+      );
     }
 
     // dual_tournament 면 progressDualMatch (loser 진출 + idempotent winner 처리)
