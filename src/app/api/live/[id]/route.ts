@@ -376,7 +376,29 @@ export async function GET(
         if (!startersByTeam.has(teamId)) startersByTeam.set(teamId, new Set());
         startersByTeam.get(teamId)!.add(Number(player.id));
       }
-      const minEstimates = estimateMinutesFromPbp(allPbps, startersByTeam);
+      // 2026-05-02 매치 132 fix: quarter length 동적 추정 (7분 4쿼터 등 다양한 룰 지원)
+      // PBP 의 max game_clock_seconds = 쿼터 시작 시점 = quarter length.
+      // 일반 농구 룰: 420(7분) / 480(8분) / 600(10분) / 720(12분).
+      // 비정상값(<300 또는 >1200) → 600 default.
+      const estimatedQL = (() => {
+        if (allPbps.length === 0) return 600;
+        const maxClock = Math.max(...allPbps.map((p) => p.game_clock_seconds ?? 0));
+        if (maxClock < 300 || maxClock > 1200) return 600;
+        // 일반 농구 룰에 가장 가까운 값으로 round (420/480/600/720)
+        const candidates = [420, 480, 600, 720];
+        let best = 600;
+        let bestDiff = Infinity;
+        for (const c of candidates) {
+          const diff = Math.abs(c - maxClock);
+          if (diff < bestDiff) {
+            bestDiff = diff;
+            best = c;
+          }
+        }
+        // 후보 중 가장 가까운 값과 30초 이내면 그 값, 아니면 maxClock 그대로
+        return bestDiff <= 30 ? best : maxClock;
+      })();
+      const minEstimates = estimateMinutesFromPbp(allPbps, startersByTeam, estimatedQL);
 
       // quarter_stats_json에서 초 단위 MIN 합계 계산 (없으면 minutesPlayed * 60 fallback → PBP 추정 fallback)
       const getSecondsPlayed = (stat: (typeof match.playerStats)[number]): number => {
