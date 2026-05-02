@@ -23,12 +23,20 @@
 
 /* ===== 점수판 5 column — [로고][팀명+점수][dash][팀명+점수][로고] =====
    2026-05-02 v4: 모바일 점수 폭 부족으로 줄바꿈 깨짐 → 더 작은 비율로 재설계 */
+/* base = 폴드5 외부 (~388px) 등 극세 viewport 대응 (2026-05-02 v5) */
 .hero-sb__row {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 40px minmax(0, 1fr) 48px;
-  gap: 4px;
+  grid-template-columns: 40px minmax(0, 1fr) 32px minmax(0, 1fr) 40px;
+  gap: 3px;
   align-items: center;
   width: 100%;
+}
+
+@media (min-width: 400px) {
+  .hero-sb__row {
+    grid-template-columns: 48px minmax(0, 1fr) 40px minmax(0, 1fr) 48px;
+    gap: 4px;
+  }
 }
 
 @media (min-width: 480px) {
@@ -52,11 +60,11 @@
   }
 }
 
-/* ===== 팀 로고 ===== */
+/* ===== 팀 로고 — 폴드5 외부 388px 기준 base 축소 (2026-05-02 v5) ===== */
 .hero-sb__logo {
   display: flex;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   border: 1.5px solid rgba(255, 255, 255, 0.12);
@@ -79,8 +87,18 @@
   font-family: var(--ff-display);
   font-weight: 900;
   color: #fff;
-  font-size: 16px;
+  font-size: 14px;
   letter-spacing: -0.02em;
+}
+
+@media (min-width: 400px) {
+  .hero-sb__logo {
+    width: 48px;
+    height: 48px;
+  }
+  .hero-sb__logo-fallback {
+    font-size: 16px;
+  }
 }
 
 @media (min-width: 480px) {
@@ -114,17 +132,24 @@
   }
 }
 
-/* ===== 팀명 ===== */
+/* ===== 팀명 — base 폴드5 외부 11px (긴 한글 팀명 ellipsis 회피) (2026-05-02 v5) ===== */
 .hero-sb__team-name {
   font-family: var(--ff-display);
   font-weight: 900;
-  font-size: 13px;
-  letter-spacing: -0.02em;
+  font-size: 11px;
+  letter-spacing: -0.03em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: center;
   margin-bottom: 2px;
+}
+
+@media (min-width: 400px) {
+  .hero-sb__team-name {
+    font-size: 13px;
+    letter-spacing: -0.02em;
+  }
 }
 
 @media (min-width: 480px) {
@@ -146,15 +171,21 @@
   }
 }
 
-/* ===== 점수 ===== */
+/* ===== 점수 — base 폴드5 외부 28px 축소 (2026-05-02 v5) ===== */
 .hero-sb__score {
   font-family: var(--ff-display);
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 900;
   letter-spacing: -0.04em;
   line-height: 1;
   color: #fff;
   text-align: center;
+}
+
+@media (min-width: 400px) {
+  .hero-sb__score {
+    font-size: 36px;
+  }
 }
 
 @media (min-width: 480px) {
@@ -182,9 +213,15 @@
 
 .hero-sb__center-dash {
   font-family: var(--ff-display);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
   opacity: 0.4;
+}
+
+@media (min-width: 400px) {
+  .hero-sb__center-dash {
+    font-size: 22px;
+  }
 }
 
 @media (min-width: 480px) {
@@ -220,12 +257,15 @@
   }
 }
 
-/* ===== 쿼터 테이블 — 시인성 강화 (사용자 요청) ===== */
+/* ===== 쿼터 테이블 — TOTAL 헤더 잘림 fix (2026-05-02 v5)
+   기존: TOTAL minmax(48px) → 폴드5 외부 388px 에서 'TOTA...' ellipsis
+   수정: TOTAL minmax(60px) — 'TOTAL' 5자 + 11px 폰트 여유
+   추가: 좌측 컬럼 minmax 96 → 80 (모바일 좁힘) + padding 12 → 8 */
 .hero-sb__quarter-grid {
   display: grid;
-  grid-template-columns: minmax(96px, 1.4fr) repeat(var(--qcount, 4), minmax(32px, 1fr)) minmax(48px, 1fr);
+  grid-template-columns: minmax(80px, 1.2fr) repeat(var(--qcount, 4), minmax(28px, 1fr)) minmax(60px, 1fr);
   gap: 4px;
-  padding: 14px 12px;
+  padding: 12px 8px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   width: 100%;
