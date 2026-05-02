@@ -2,6 +2,25 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] Flutter v1 sync 가 winner_team_id 미설정 + dual 진출 hook 누락 — 듀얼토너먼트 자동 진출 안 됨 (D-day 발견)
+- **분류**: error (API route 흐름 누락 / web PATCH 와 v1 sync 패턴 불일치)
+- **발견자**: 사용자 (5/2 동호회최강전 D-day 운영 중) + developer
+- **증상**: Flutter 기록앱이 매치 종료 후 sync 호출했지만 듀얼토너먼트 다음 매치(승자전/패자전)에 home/away 팀이 자동 채워지지 않음. 첫 매치 (피벗 vs SYBC, matchId=132) 운영 DB 수동 UPDATE 3건으로 보정.
+- **원인**: `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` 가 (1) `winner_team_id` 자동 결정 코드 없음 — Flutter sync 가 winner 를 안 보냄 → DB winner_team_id=null → `advanceWinner` 가 즉시 return (winner_team_id 가드) → single elim 진출조차 안 됨. (2) `tournament.format === "dual_tournament"` 분기 없음 → `progressDualMatch` 호출 0건 → loser 진출 + idempotent winner 진출 모두 누락. **web PATCH 흐름 (`src/lib/services/match.ts:160~170`) 에는 dual 분기가 있는데 v1 sync route 에는 누락** — Flutter 가 sync 만 사용하므로 web PATCH 분기는 한 번도 안 타는 코드 경로였음.
+- **진단 방법**: 매치 132 종료 후 운영 DB 의 다음 매치 home/away 팀 NULL 확인 → sync route 코드 읽기 → `advanceWinner` 의 winner_team_id 가드 확인 → web PATCH (`updateMatch` / `updateMatchStatus`) 에는 dual 분기 + winner 자동 결정 있는데 v1 sync 에는 둘 다 없는 것 확인.
+- **수정 (2026-05-02 commit 예정)**:
+  1. `import { progressDualMatch }` 추가
+  2. `existing` 매치 조회 후 `tournament.format` 1회 SELECT
+  3. `correctedHomeScore/AwayScore` 보정 후 winner 자동 결정 (`existing.winner_team_id` 없고 status="completed" 시 점수 비교)
+  4. `update data` 에 `winner_team_id` 조건부 추가 (변경 시만)
+  5. `match.status === "completed"` 후처리에 `progressDualMatch` 추가 (`tasks` 배열에 푸시 + Promise.allSettled)
+  6. `dualResult` rejected 시 warnings 추가 (best effort, sync 자체는 성공 유지)
+- **회귀 방지**:
+  - **API 패턴 룰 (신설)**: web 과 v1 (Flutter) 양쪽이 같은 도메인 동작 (매치 완료 후 진출) 을 처리할 때 한쪽만 fix 하면 다른 쪽이 silent break. **반드시 `src/lib/services/` 공통 함수로 추출 후 양쪽 호출** 또는 양쪽 동시 검증 (해당 작업은 최소 변경 원칙으로 추출 안 함, 추후 리팩토링 큐).
+  - **검증 룰**: web PATCH 와 v1 sync 동시 점검 — 매치 종료 시 winner_team_id / next_match 진출 / dual loser 진출 3가지 모두 양쪽 흐름에서 동작하는지 확인.
+  - **Flutter 의존 흐름**: Flutter 앱이 사용하는 v1 route 는 web PATCH 와 별도 흐름 — web 만 fix 하면 Flutter 사용자가 사일런트 break. v1 변경 시 Flutter 재빌드 불필요 (서버만 배포) 인 점 활용.
+- **참조횟수**: 0
+
 ### [2026-05-02] `/live/[id]` 라이브 페이지 awayTeam 선수명단 빈칸 — TournamentTeam 등록 시 team_members 동기화 누락
 - **분류**: error (DB 데이터 결손 / 코드 버그 아님)
 - **발견자**: 사용자 + debugger
