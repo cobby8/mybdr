@@ -232,6 +232,81 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
       className="page"
       style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 16px" }}
     >
+      {/* 2026-05-02: 종료 매치 페이지 nav bar — 뒤로/홈 + 토너먼트명 (페이지 나가기 기능)
+          data-print-hide 으로 프린트 시 자동 숨김 */}
+      <div
+        data-print-hide
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 14,
+          paddingBottom: 12,
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== "undefined" && window.history.length > 1) {
+              window.history.back();
+            } else if (typeof window !== "undefined") {
+              window.location.href = "/";
+            }
+          }}
+          aria-label="뒤로 가기"
+          className="btn btn--sm"
+          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          뒤로
+        </button>
+        <a
+          href="/"
+          aria-label="홈"
+          className="btn btn--sm"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            padding: 0,
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            home
+          </span>
+        </a>
+        {/* 토너먼트명 — 1줄 ellipsis */}
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 13,
+            color: "var(--ink-soft)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {match.tournament_name}
+        </span>
+        {/* 경기 종료 라벨 */}
+        <span
+          style={{
+            fontSize: 11,
+            fontFamily: "var(--ff-mono)",
+            color: "var(--ink-mute)",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
+        >
+          FINAL
+        </span>
+      </div>
+
       {/* Hero 스코어보드 — 시안 L118~L179 */}
       <HeroScoreboard match={match} />
 
