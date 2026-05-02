@@ -2,6 +2,18 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] team_members.userId NOT NULL → 명단 INSERT 시 placeholder User CREATE 강제
+- **분류**: convention/trap (schema 제약 → 부채 패턴)
+- **증상**: 미가입 선수 (회원가입 전, 명단만 받은 사람)를 `team_members` 에 등록하려면 `userId` FK 가 NOT NULL 이라 placeholder User 신규 생성 강제. `tournament_team_players` 는 nullable 이라 placeholder 안 만들어도 되지만, 팀 마스터 명단 노출이 필요하면 둘 다 INSERT 필요.
+- **운영 영향**: placeholder User 부채 누적. 5/2 이전 약 78명, 5/3 블랙라벨 11명 추가 → **89명**. scratchpad 큐 #3 카운트 outdated (5명 → 89명).
+- **표준 패턴** (placeholder INSERT 3단계 트랜잭션):
+  1. `User CREATE { email: "placeholder-{teamId}-{jersey}@bdr.placeholder", passwordDigest: "$2a$12$placeholderHASH.NEVER...", name: "{실명}", nickname: "{실명}", status: "active" }` — email UNIQUE 충돌 방지 + 로그인 영구 차단
+  2. `TeamMember CREATE { teamId, userId: <new>, jerseyNumber, role: "member", status: "active", joined_at: now() }`
+  3. `TournamentTeamPlayer CREATE { tournamentTeamId, userId: <new>, jerseyNumber, player_name: "{실명}", role: "player", is_active: true, auto_registered: true }`
+- **사전 검증 필수**: email 충돌 / `(teamId, jerseyNumber)` UNIQUE 충돌 / `(tournamentTeamId, jerseyNumber)` UNIQUE 충돌 3건 SELECT 후 진행.
+- **사후 통합 패턴**: 실제 가입 시 `mergeTempMember` 함수가 placeholder User → real User ID 통합 (FK 7단계 트랜잭션, 4-30 김영훈 케이스). 단 함수 강화 큐 #4 미완 — name 매칭만으로는 불충분.
+- **회귀 방지**: 신규 placeholder INSERT 시 email 패턴 `placeholder-{teamId}-{jersey}@bdr.placeholder` 통일 (mergeTempMember 의 SQL LIKE 검색 일관성).
+
 ### [2026-05-02] dual_tournament 진출 후 next_match 양 슬롯 같은 팀 (피벗·아울스 케이스)
 - **분류**: error (data corruption — 진출 슬롯 충돌)
 - **증상**: 듀얼 조별 승자전 매치의 `homeTeamId === awayTeamId` (양쪽 같은 팀). 운영 발생 2건 (피벗 / 아울스 B조 #7).
