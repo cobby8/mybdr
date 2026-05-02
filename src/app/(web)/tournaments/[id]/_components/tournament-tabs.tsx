@@ -13,6 +13,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -307,6 +308,18 @@ export function TournamentTabs({
 }: TournamentTabsProps) {
   // 초기 탭: 서버에서 searchParams로 파싱한 값. 유효하지 않으면 overview로 폴백됨(상위에서 이미 검증)
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 2026-05-02: 탭 클릭 시 URL ?tab=X 동기화
+  // 이유: /live/{id} → 뒤로가기 시 원 탭 + 스크롤 위치 정확 복귀
+  //   - scroll: false → URL 만 변경 (현재 스크롤 유지)
+  //   - replace: 매 탭 클릭이 history 누적 안 되도록 (원 페이지 진입 1건만 유지)
+  function handleTabChange(key: TabKey) {
+    setActiveTab(key);
+    const url = key === "overview" ? pathname : `${pathname}?tab=${key}`;
+    router.replace(url, { scroll: false });
+  }
 
   return (
     <div>
@@ -324,7 +337,7 @@ export function TournamentTabs({
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`flex-1 whitespace-nowrap rounded-md px-3 py-2.5 text-sm font-medium transition-all sm:px-4 ${
                 isActive
                   ? "bg-[var(--color-card)] text-[var(--color-text-primary)] shadow-sm font-bold"
