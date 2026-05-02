@@ -52,7 +52,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             id: true,
             teamId: true,
             seedNumber: true,
-            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true } },
+            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true, logoUrl: true } },
           },
         },
         awayTeam: {
@@ -60,7 +60,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             id: true,
             teamId: true,
             seedNumber: true,
-            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true } },
+            team: { select: { name: true, name_en: true, name_primary: true, primaryColor: true, home_color: true, away_color: true, logoUrl: true } },
           },
         },
         // 핫픽스(2026-04-16): Flutter "최종 스탯 입력 모드"로 저장된 경기는
