@@ -46,41 +46,61 @@ export function HeroSlideTournament({ data }: Props) {
   const metaParts = ["경기", dateStr, teamsStr].filter(Boolean);
   const metaText = metaParts.join(" · ");
 
-  // 2026-05-02 v3: 매치 카드 전체를 Link 로 감쌈 (클릭 시 /live/[id])
-  //   - 홈팀+점수 한 줄, 원정팀+점수 한 줄
-  //   - 카드 hover 강조 + 우측 chevron 아이콘
-  //   - LIVE 배지는 우측 상단 (panel topRightSlot 으로 분리)
+  // 2026-05-02 v4: 매치 카드 한 줄 pill (SYBC 47 vs 28 셋업) + 대회 보기와 inline
+  //   - 매치 카드 + 대회 보기 + (선택)지금 신청하기 = 한 줄 row 배치
+  //   - 매치 카드 화살표 제거 + 높이 = 버튼과 동일
+  //   - LIVE 배지는 우측 상단 그대로 (corner)
   const matchHref = data.live_match ? `/live/${data.live_match.id}` : null;
 
+  // meta = 메타 텍스트 한 줄 + 인라인 액션 row (매치 + 버튼들)
   const meta = (
     <>
       <div className="hero-carousel__meta-line">{metaText}</div>
-      {data.live_match && matchHref && (
-        <Link
-          href={matchHref}
-          className="hero-carousel__match-card"
-          aria-label={`${data.live_match.home_team_name} ${data.live_match.home_score} : ${data.live_match.away_score} ${data.live_match.away_team_name} 라이브 보기`}
-        >
-          <div className="hero-carousel__match-row">
+      <div className="hero-carousel__action-row">
+        {/* 매치 카드 — 한 줄 pill: SYBC 47 vs 28 셋업 (라이브/종료 모두 노출) */}
+        {data.live_match && matchHref && (
+          <Link
+            href={matchHref}
+            className="hero-carousel__match-pill"
+            aria-label={`${data.live_match.home_team_name} ${data.live_match.home_score} 대 ${data.live_match.away_score} ${data.live_match.away_team_name} 라이브 보기`}
+          >
             <span className="hero-carousel__match-team" title={data.live_match.home_team_name}>
               {data.live_match.home_team_name}
             </span>
             <strong className="hero-carousel__match-score">
               {data.live_match.home_score}
             </strong>
-          </div>
-          <div className="hero-carousel__match-row">
-            <span className="hero-carousel__match-team" title={data.live_match.away_team_name}>
-              {data.live_match.away_team_name}
-            </span>
+            <span className="hero-carousel__match-vs">vs</span>
             <strong className="hero-carousel__match-score">
               {data.live_match.away_score}
             </strong>
-          </div>
-          {/* 우측 끝 chevron — 클릭 진입 단서 */}
-          <span className="hero-carousel__match-chevron" aria-hidden>→</span>
+            <span className="hero-carousel__match-team" title={data.live_match.away_team_name}>
+              {data.live_match.away_team_name}
+            </span>
+          </Link>
+        )}
+        {/* 지금 신청하기 — 접수 중일 때만 */}
+        {data.is_registration_open && (
+          <Link
+            href={`/tournaments/${data.id}/join`}
+            className="btn btn--accent"
+          >
+            지금 신청하기
+          </Link>
+        )}
+        {/* 대회 보기 — 항상 노출 */}
+        <Link
+          href={`/tournaments/${data.id}`}
+          className="btn"
+          style={{
+            background: "rgba(255,255,255,.12)",
+            color: "#fff",
+            borderColor: "rgba(255,255,255,.3)",
+          }}
+        >
+          대회 보기
         </Link>
-      )}
+      </div>
     </>
   );
 
@@ -96,14 +116,6 @@ export function HeroSlideTournament({ data }: Props) {
     </Link>
   ) : null;
 
-  // 2026-05-02: "지금 신청하기" 버튼 — `is_registration_open === true` 일 때만
-  const primaryCta = data.is_registration_open
-    ? {
-        label: "지금 신청하기",
-        href: `/tournaments/${data.id}/join`,
-      }
-    : undefined;
-
   return (
     <HeroSlideShell
       accentVar="var(--cafe-blue)"
@@ -111,13 +123,7 @@ export function HeroSlideTournament({ data }: Props) {
       badge={badge}
       title={data.name}
       meta={meta}
-      primaryCta={primaryCta}
-      secondaryCta={{
-        label: "대회 보기",
-        href: `/tournaments/${data.id}`,
-      }}
-      // 라이브 매치 진행 중 + 신청 마감 시 → 대회 보기 우측 정렬 (사용자 요청)
-      ctaAlign={!primaryCta && data.live_match ? "right" : "left"}
+      // CTA 영역 미사용 — meta 안에 인라인 배치 (사용자 요청)
       topRightSlot={topRightSlot}
     />
   );
