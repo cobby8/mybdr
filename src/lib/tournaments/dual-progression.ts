@@ -104,6 +104,25 @@ export async function progressDualMatch(
 
     // home/away 컬럼 동적 선택 (Prisma 데이터 객체 키)
     const targetField = winnerSlot === "home" ? "homeTeamId" : "awayTeamId";
+    const oppositeField = winnerSlot === "home" ? "awayTeamId" : "homeTeamId";
+
+    // 자가 치유 가드 (2026-05-02 errors.md "양쪽 같은 팀" 회귀 방지):
+    // next_match 의 반대 슬롯에 이미 같은 winnerTeamId 가 있으면, 잘못된 set 흔적 → NULL 정정
+    // (정상 흐름: 같은 팀이 자기 자신과 진출은 dual_tournament 에서 발생 불가)
+    const nextMatch = await tx.tournamentMatch.findUnique({
+      where: { id: match.next_match_id },
+      select: { homeTeamId: true, awayTeamId: true },
+    });
+    if (nextMatch && nextMatch[oppositeField] === winnerTeamId) {
+      console.warn(
+        `[progressDualMatch] next_match ${match.next_match_id} ${oppositeField} 에 ` +
+          `같은 winnerTeamId(${winnerTeamId}) 가 있음 — 잘못된 흔적, NULL 정정`,
+      );
+      await tx.tournamentMatch.update({
+        where: { id: match.next_match_id },
+        data: { [oppositeField]: null },
+      });
+    }
 
     await tx.tournamentMatch.update({
       where: { id: match.next_match_id },
@@ -141,6 +160,23 @@ export async function progressDualMatch(
     }
 
     const targetField = loserNextMatchSlot === "home" ? "homeTeamId" : "awayTeamId";
+    const oppositeField = loserNextMatchSlot === "home" ? "awayTeamId" : "homeTeamId";
+
+    // loser 도 동일 자가 치유 가드
+    const loserNextMatch = await tx.tournamentMatch.findUnique({
+      where: { id: loserNextMatchId },
+      select: { homeTeamId: true, awayTeamId: true },
+    });
+    if (loserNextMatch && loserNextMatch[oppositeField] === loserTeamId) {
+      console.warn(
+        `[progressDualMatch] loser_next_match ${loserNextMatchId} ${oppositeField} 에 ` +
+          `같은 loserTeamId(${loserTeamId}) 가 있음 — 잘못된 흔적, NULL 정정`,
+      );
+      await tx.tournamentMatch.update({
+        where: { id: loserNextMatchId },
+        data: { [oppositeField]: null },
+      });
+    }
 
     await tx.tournamentMatch.update({
       where: { id: loserNextMatchId },

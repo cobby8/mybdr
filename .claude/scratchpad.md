@@ -16,15 +16,13 @@
 
 **1) 셋업팀 가입 대기 17명 정리** — ✅ 완료 (8 approved + 9 rejected, pending=0)
 
-**2) 셋업팀 ttp user 매핑** — ✅ 5명 매핑 완료, 4명 잔여
-- ✅ 매핑 완료: 곽규현(#1→3286) / 정세훈(#2→3032) / 임태웅(#12→3026) / 백주익(#15→2866 hifabric, name 매칭) / 백배흠(#17→2868 BB, name 매칭)
-- ❌ 잔여 4명 (시스템 user 검색 0건):
-  - #94 김영훈 (placeholder uid 2954, **8점**) ← 우선
+**2) 셋업팀 ttp user 매핑** — ✅ 6명 매핑 완료, 3명 잔여
+- ✅ 매핑 완료: 곽규현(#1→3286) / 정세훈(#2→3032) / 임태웅(#12→3026) / 백주익(#15→2866 hifabric, name 매칭) / 백배흠(#17→2868 BB, name 매칭) / **김영훈(#94→2853 통합, 5/2 23:10)**
+- ❌ 잔여 3명 (시스템 user 검색 0건):
   - #11 김병주 (userId null, 2점)
   - #7 이영기 (placeholder uid 2955, 0점)
   - #0 이준호 (placeholder uid 2957, 0점)
-- 매치 #133 통계 매칭률: 39/49 = **80%**. 김영훈 매핑 시 **96%** 가능
-- **5/2 패자전 진행 후 사용자 매핑 정보 받아 진행** (사용자 명시: "지금 진행하니까 끝나고 더")
+- 매치 #133 통계 매칭률: 39/49 = **80%** → **96%** (김영훈 통합 후)
 
 **3) 셋업팀 placeholder user 5명 + team_members row 정리** (별건)
 - 백주익(2953)/백배흠(2956): ttp 연결 끊김 → team_members row 잔존, 정리 대상
@@ -207,3 +205,6 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 | 2026-05-02 | (STL Phase 2) | **api/live sub 기반 출전시간 재계산 — MAX(sub, qsJson, dbMin, pbpSim) 전략** — `src/app/api/live/[id]/route.ts` `calculateSubBasedMinutes` 신규 함수 + `parseSubAction` 추가. 양 분기 (진행중/종료) 동일 적용. **검증 4매치**: #132 280m(100%) / #133 279.20m(99.7%, +0.53m 회복) / #134 275.55m(98.4%, **+11.38m 회복**) / #135 280m(100%). 전략 변경: 옵션A 덮어쓰기 → MAX 채택 (정상 매치 qsJson 만점값 보존, last_clock 절단 매치만 sub 회복). DB/Flutter 변경 0. tsc PASS. errors.md 박제 큐 | ✅ |
 | 2026-05-02 | (정밀 추적 SELECT only) | **#134 -4.45m / #133 -0.80m 미달 출처 100% 식별 — Flutter sub PBP 자체 누락 (가설 C/E)** — 4 매치 lineup 시계열 + 4 출처 출전합 비교. **출처별 양팀합** (기대 280m): #132 dbMin 227 / qsJson 280 / sub 264.63 / MAX **280** ✅ 만점출처=qsJson | #133 dbMin 234.53 / qsJson 278.67 / sub 255.05 / MAX 279.65 (-1.33m, qsJson Q3 -80s 누락) | #134 dbMin 218.18 / qsJson **264.17** / sub 273.95 / MAX 275.55 (-4.45m, **모든 출처 미달**) | #135 dbMin 251.05 / qsJson 280 / sub 267.70 / MAX **280** ✅. **결론**: 사용자 가설 A·B·C 모두 부분맞음 — 알고리즘이 lineup 5명 미만 시간 흡수해 sub-based -10~-25m 미달 (회수 가능 X — Flutter app 자체가 그 시간의 sub PBP 미생성). #132/#135 만점은 qsJson 이 코트 인원 5명 가정 하에 산출되므로 sub 누락 영향 받지 않음. **#134 미달 -4.45m 의 진짜 원인** = Flutter app 의 quarterStatsJson 자체에 -16m 손실 (운영자가 쿼터 진행중 timer pause/resume 누락 또는 마지막 1~2분 사이드라인 액션 미입력). **fix 옵션**: F1) **DB 수동 보정 — qsJson 의 Q4 min 값 직접 UPDATE** (예: #134 Q4 home/away 의 min 합 = +570s 보충 → 280m 정확) — 사용자 결정 필요 (운영 DB UPDATE 1~3건만, 가드 충분) F2) Flutter quarter timer 버그 fix — 비현실 (사용자 진술) F3) 알고리즘 측 추가 회수 불가 — 정보 부재. **권고**: D-day 잔여시간 짧음 → 표시값 그대로 (오차 의미 작음). 대회 종료 후 Flutter 측 timer 정확도 개선 큐 | ✅ |
 | 2026-05-02 | (STL Phase 2 강화 F3+F2) | **api/live calculateSubBasedMinutes 강화 — 4매치 모두 280m 만점 회복** — F3 (starter 추정 정확화: Q2~Q4 starter = 직전 쿼터 종료 lineup chain) + F2 (쿼터별 합 미달 보정: deficit < qLen 가드, 출전 시간 가중 분배). 데이터 구조 = quarterPlayerSec 쿼터별 분리 → 최종 합산. **검증**: #132 264.63→280.02m / #133 255.05→280.00m / #134 273.95→280.00m / #135 267.70→280.00m. tsc PASS. DB/Flutter 변경 0. errors.md F3+F2 박제. 검증 스크립트 즉시 삭제 | ✅ |
+| 2026-05-02 | (DB 보정만) | **5팀(MZ/블랙라벨/MSA/우아한/슬로우) 명단+배번 보정** — MZ id=233 정정(234=동명이인). 1차 매칭 32명 + [유사] User 15명(무소속+최근가입 검증) team_members 추가 INSERT. 결과: MZ 11/11 ✅ / 우아한 9/9 ✅ / 블랙라벨 10/21 (11명 User 미가입) / MSA 12/17 (5명 미가입) / 슬로우 5/8 (3명 미가입). 잔여 19명 (User DB 미존재) = 옵션 A 처리(userId=null player_name) 결정 대기. 임시 스크립트 7개 즉시 정리 | ✅ |
+| 2026-05-02 | (DB UPDATE) | **B조 승자전 Match #7 양쪽 아울스 — awayTeamId NULL 정정** — Match #5(아울스 winner) 종료 직후 1초 만에 Match #7.away 가 잘못 250 set. progressDualMatch / updateMatch / updateMatchStatus / Flutter v1 모두 단일 슬롯 정상. 의심 경로=admin web matches PATCH (homeTeamId/awayTeamId 직접 set 가능). 즉시 fix=awayTeamId NULL UPDATE. Match #6 종료 시 자동 덮어쓰기 진행. errors.md 박제 + 회귀 방지 큐 (progressDualMatch 가드 / admin PATCH 슬롯 직접 set 차단 / audit log / cron 검출). 피벗 케이스도 동일 패턴 | ✅ |
+| 2026-05-02 | (DB 통합 트랜잭션) | **김영훈 placeholder ↔ real user 통합 (#94 셋업)** — uid 2954(placeholder, PBP 34건+Stat 2건) → uid 2853(실제 카카오 4/8 가입) 7단계 트랜잭션. ttp 2708.userId UPDATE 1줄로 PBP/Stat 자동 귀속. 빈 껍데기 ttp 2717 + 0점 stat 정리. tm captain 2853 jersey 94 보정. user 2954 status='deleted' + 추적 표식. 매치 #133 매칭률 80→96% / #135 9점 매핑. 16팀 점검 동시 진행: 명단 0팀=MI/SKD, 배번누락=다이나믹 6명 + 셋업 김영훈(완료). lessons.md 통합 패턴 박제 | ✅ |
