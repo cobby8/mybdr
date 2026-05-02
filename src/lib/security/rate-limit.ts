@@ -15,6 +15,9 @@ export const RATE_LIMITS: Record<string, RateLimitConfig> = {
   upload: { maxRequests: 10, windowMs: 60 * 1000 },
   admin: { maxRequests: 200, windowMs: 60 * 1000 },
   subdomain: { maxRequests: 30, windowMs: 60 * 1000 },
+  // 2026-05-02: 라이브 페이지 전용 — 폴링 3초 간격 + 다중 매치 / 탭 / 새로고침 합산 고려.
+  // 분당 호출 = 20 req/min (단독) → IP당 최대 6 매치 동시 폴링까지 안전. 60 req 까지 허용.
+  liveDetail: { maxRequests: 120, windowMs: 60 * 1000 },
 };
 
 export interface RateLimitResult {
