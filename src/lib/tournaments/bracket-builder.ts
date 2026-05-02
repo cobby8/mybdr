@@ -28,6 +28,9 @@ export type TeamSlot = {
     // null 이면 primaryColor fallback (match-card 가 처리)
     homeColor?: string | null;
     awayColor?: string | null;
+    // 2026-05-02: 듀얼 매치 카드 시각 통일 — 일정 카드와 동일한 팀 로고 표시
+    // DB Team.logo_url. 미등록 팀은 null (TeamLogo 컴포넌트가 첫 글자 fallback 처리)
+    logoUrl?: string | null;
   };
 } | null;
 
@@ -101,6 +104,8 @@ type DbMatch = {
       primaryColor: string | null;
       home_color?: string | null;
       away_color?: string | null;
+      // 2026-05-02: 듀얼 매치 카드 로고 표시용 (일정 카드와 시각 통일)
+      logoUrl?: string | null;
     };
   } | null;
   awayTeam: {
@@ -114,6 +119,8 @@ type DbMatch = {
       primaryColor: string | null;
       home_color?: string | null;
       away_color?: string | null;
+      // 2026-05-02: 듀얼 매치 카드 로고 표시용 (일정 카드와 시각 통일)
+      logoUrl?: string | null;
     };
   } | null;
 };
@@ -136,6 +143,8 @@ function toTeamSlot(
       // 2026-05-02: 유니폼 색상 (사용자 결정 — 대진표 색띠)
       homeColor: t.team.home_color ?? null,
       awayColor: t.team.away_color ?? null,
+      // 2026-05-02: 매치 카드 로고 (일정 카드와 시각 통일)
+      logoUrl: t.team.logoUrl ?? null,
     },
   };
 }

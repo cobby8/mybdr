@@ -57,18 +57,19 @@ function groupByDate(matches: ScheduleMatch[]): Map<string, ScheduleMatch[]> {
 
 // -- 시간 포맷: 공통 유틸 사용 (format-date.ts의 formatShortTime) --
 
-// -- 팀 로고 (24px mobile / 28px desktop, 원형, contain) --
+// -- 팀 로고 (32px mobile / 36px desktop, 원형, contain) --
 // 왜 이런 구조? 16팀 PNG 가 이미 512×512 padding 정규화된 상태이므로 contain 사용이
 // 잘림 0 + 비율 보존 + 일관 표시를 동시에 만족. logoUrl 없으면 회색 원 + 팀명 첫 글자.
 // img 태그 직접 사용 — Next/Image 의 도메인 화이트리스트 제약 회피 + 외부 이미지 비대상.
+// 2026-05-02 사용자 요청: 24/28 → 32/36 (약 30% 확대) — 팀 식별 가독성 강화
 function TeamLogo({ logoUrl, name }: { logoUrl: string | null; name: string | null }) {
   // 첫 글자 fallback: 한글/영문 모두 1자만. 팀명 없으면 "·" placeholder.
   const initial = name && name.length > 0 ? name.charAt(0) : "·";
 
   return (
     <span
-      // h/w 24px 모바일, sm:28px 데스크톱. flex-shrink-0 으로 팀명 길어져도 로고 축소 방지
-      className="flex h-6 w-6 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-7 sm:w-7"
+      // h/w 32px 모바일, sm:36px 데스크톱. flex-shrink-0 으로 팀명 길어져도 로고 축소 방지
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-9 sm:w-9"
       style={{
         // 옅은 회색 보더 (다크모드에서도 자연스럽도록 토큰 사용)
         border: "1px solid var(--color-border)",
@@ -87,8 +88,9 @@ function TeamLogo({ logoUrl, name }: { logoUrl: string | null; name: string | nu
         />
       ) : (
         // logoUrl null 일 때 첫 글자 표시 (TBD/예정 또는 미등록 팀)
+        // 폰트도 로고 확대에 맞춰 키움 (xs/sm)
         <span
-          className="text-[10px] font-bold sm:text-xs"
+          className="text-xs font-bold sm:text-sm"
           style={{ color: "var(--color-text-tertiary)", fontFamily: "var(--font-heading)" }}
         >
           {initial}
@@ -264,14 +266,15 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                     {/* 카드 하단: 팀 VS 팀 + 스코어 (기존 로직 유지)
                         2026-05-02: 팀명 좌/우에 로고 inline 추가 (홈은 좌측, 어웨이는 우측 = 안쪽 spectroscope 로고 → 팀명 → 가운데 스코어 → 팀명 → 로고). 모바일에서도 24px 로 공간 영향 최소. */}
                     <div className="flex items-center justify-between">
-                      {/* 홈팀: 로고(좌) + 팀명 — gap-2 (8px) 로 시안 일관 */}
-                      <div className="flex flex-1 items-center gap-2 text-left">
+                      {/* 홈팀: 로고(좌) + 팀명 — gap-2 (8px) 로 시안 일관
+                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (text-sm 14px → text-base 16px / sm:text-lg 18px) */}
+                      <div className="flex flex-1 items-center gap-2 text-left min-w-0">
                         <TeamLogo
                           logoUrl={match.homeTeamLogoUrl}
                           name={match.homeTeamName}
                         />
                         <span
-                          className="truncate text-sm font-bold"
+                          className="truncate text-base font-bold sm:text-lg"
                           style={{
                             color: homeWins
                               ? "var(--color-text-primary)"
@@ -284,22 +287,26 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                         </span>
                       </div>
 
-                      {/* 스코어 or VS */}
+                      {/* 스코어 or VS
+                          2026-05-02 사용자 요청: 점수 박스 30% 확대 (팀명 30% 확대와 비례 맞춤)
+                          - 글자: text-sm(14) → text-lg(18) ≈ 28%↑, 콜론 text-xs → text-sm
+                          - 박스: px-3 py-1 → px-4 py-1.5 (가로 12→16 / 상하 4→6)
+                          - VS: text-xs → text-base 동일 비율 */}
                       <div className="mx-3 flex-shrink-0">
                         {isCompleted || match.status === "live" || match.status === "in_progress" ? (
                           <div
-                            className="flex items-center gap-1 rounded-full px-3 py-1"
+                            className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
                             style={{ backgroundColor: "var(--color-elevated)" }}
                           >
                             <span
-                              className="text-sm font-bold"
+                              className="text-lg font-bold tabular-nums"
                               style={{ fontFamily: "var(--font-heading)", color: homeWins ? "var(--color-primary)" : "var(--color-text-secondary)" }}
                             >
                               {match.homeScore ?? 0}
                             </span>
-                            <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>:</span>
+                            <span className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>:</span>
                             <span
-                              className="text-sm font-bold"
+                              className="text-lg font-bold tabular-nums"
                               style={{ fontFamily: "var(--font-heading)", color: awayWins ? "var(--color-primary)" : "var(--color-text-secondary)" }}
                             >
                               {match.awayScore ?? 0}
@@ -307,7 +314,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                           </div>
                         ) : (
                           <span
-                            className="rounded-full px-3 py-1 text-xs font-bold"
+                            className="rounded-full px-4 py-1.5 text-base font-bold"
                             style={{
                               backgroundColor: "var(--color-primary)",
                               color: "white",
@@ -318,10 +325,11 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                         )}
                       </div>
 
-                      {/* 어웨이팀: 팀명 + 로고(우) — justify-end 로 스코어 쪽으로 붙임 */}
-                      <div className="flex flex-1 items-center justify-end gap-2 text-right">
+                      {/* 어웨이팀: 팀명 + 로고(우) — justify-end 로 스코어 쪽으로 붙임
+                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (홈팀과 동일) */}
+                      <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
                         <span
-                          className="truncate text-sm font-bold"
+                          className="truncate text-base font-bold sm:text-lg"
                           style={{
                             color: awayWins
                               ? "var(--color-text-primary)"
