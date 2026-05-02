@@ -132,6 +132,15 @@ export default function SignupPage() {
       {/* ─────────── 본문 카드 ─────────── */}
       {/* form action을 카드 전체에 두는 이유: Step 3 "시작하기" 버튼이 type=submit으로 signupAction 호출 */}
       <form action={formAction}>
+        {/* 2026-05-02 fix: 3-step 위저드 입력값을 hidden input 으로 항상 form 에 보존
+            이유: {step === N && <input>} 조건부 렌더링 시 React 가 step 변경 시 input 을 DOM 에서 unmount.
+                  step 3 submit 시점에는 step 1/2 input 이 사라져 formData 가 비어있고
+                  signupAction 의 "모든 항목을 입력하세요" 검증 실패 → 사용자 "가입 안 된다" 제보 원인.
+            해결: hidden input 4건을 form 에 항상 두어 state 값을 form 에 동기화. */}
+        <input type="hidden" name="email" value={email} />
+        <input type="hidden" name="password" value={password} />
+        <input type="hidden" name="password_confirm" value={passwordConfirm} />
+        <input type="hidden" name="nickname" value={nickname} />
         <div className="card" style={{ padding: "28px 28px" }}>
           {/* OAuth 에러 표시 (있을 때만) */}
           {oauthError && OAUTH_ERRORS[oauthError] && (
