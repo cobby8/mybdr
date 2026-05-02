@@ -46,28 +46,32 @@ export function HeroSlideTournament({ data }: Props) {
   const metaParts = ["경기", dateStr, teamsStr].filter(Boolean);
   const metaText = metaParts.join(" · ");
 
-  // 2026-05-02: 진행 중 매치 표시 — 팀명 + 스코어 + LIVE 아이콘 (있을 때만)
-  // meta = 기본 텍스트 + 매치 박스 (있으면)
+  // 2026-05-02: 진행 중 매치 표시 — 세로 2행 (홈/원정) + LIVE 배지 클릭 가능
+  // 시각적 분리 강화: 어두운 카드 배경 + 명확한 점수 폰트 + 풀폭 LIVE 버튼
   const meta = (
     <>
-      {metaText}
+      <div className="hero-carousel__meta-line">{metaText}</div>
       {data.live_match && (
-        <div className="hero-carousel__match" aria-label="진행 중 매치 정보">
-          {/* 팀명 + 스코어 */}
-          <span className="hero-carousel__match-team" title={data.live_match.home_team_name}>
-            {data.live_match.home_team_name}
-          </span>
-          <strong className="hero-carousel__match-score">
-            {data.live_match.home_score}
-          </strong>
-          <span className="hero-carousel__match-sep">:</span>
-          <strong className="hero-carousel__match-score">
-            {data.live_match.away_score}
-          </strong>
-          <span className="hero-carousel__match-team" title={data.live_match.away_team_name}>
-            {data.live_match.away_team_name}
-          </span>
-          {/* 라이브 아이콘 + 라이브 페이지 진입 */}
+        <div className="hero-carousel__match-card" aria-label="진행 중 매치 정보">
+          {/* 홈팀 행 */}
+          <div className="hero-carousel__match-row">
+            <span className="hero-carousel__match-team" title={data.live_match.home_team_name}>
+              {data.live_match.home_team_name}
+            </span>
+            <strong className="hero-carousel__match-score">
+              {data.live_match.home_score}
+            </strong>
+          </div>
+          {/* 원정팀 행 */}
+          <div className="hero-carousel__match-row">
+            <span className="hero-carousel__match-team" title={data.live_match.away_team_name}>
+              {data.live_match.away_team_name}
+            </span>
+            <strong className="hero-carousel__match-score">
+              {data.live_match.away_score}
+            </strong>
+          </div>
+          {/* LIVE 배지 — 풀폭 버튼 (라이브 매치만) */}
           {data.live_match.is_live && (
             <Link
               href={`/live/${data.live_match.id}`}
@@ -75,7 +79,7 @@ export function HeroSlideTournament({ data }: Props) {
               aria-label="라이브 페이지로 이동"
             >
               <span className="hero-carousel__live-dot live-air-dot" />
-              <span className="hero-carousel__live-label">LIVE</span>
+              <span className="hero-carousel__live-label">LIVE 보기 →</span>
             </Link>
           )}
         </div>
