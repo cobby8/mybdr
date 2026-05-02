@@ -2,6 +2,27 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-02] STL (Single Truth Layer) Phase 1 — 라이브 페이지 데이터 무결성 응답 가공 레이어
+- **분류**: architecture (라이브 페이지 / 데이터 무결성 / Flutter 의존성 격리)
+- **발견자**: pm + 사용자 통찰
+- **참조횟수**: 0
+- **위치**: `src/app/api/live/[id]/route.ts` (단일 파일, +200줄)
+- **목적**: Flutter app 의 PBP 누락 (made_shot/올아웃 sub) 으로 발생하는 4개 데이터 출처 (`match.homeScore`/`matchPlayerStat`/`quarterStatsJson`/`play_by_plays`) 간 불일치를 서버 응답 단계에서 일관된 1개 데이터셋으로 재구성.
+- **3 계층 설계**:
+  - **Layer 1** — 신뢰도 우선순위: 매치 헤더(=matchPlayerStat 합) > quarterStatsJson > PBP > 시뮬
+  - **Layer 2** — 자동 보정 룰 (R1/R3/R4/R8): 출처 비교 → 차이 발견 시 상위 출처 우선 보정
+  - **Layer 3** — DB 영구 보정 (선택): 종료 매치 manual-fix-* PBP INSERT (현재 Phase 1 미적용)
+- **적용 룰**:
+  - **R1** (쿼터 점수): PBP `home/away_score_at_time` 시계열 → 쿼터별 누락 점수 식별 + 그 쿼터에 분배 → 매치 헤더 cap (over/under correction) → 음수 gap 가드
+  - **R3** (출전 시간): quarterStatsJson 부분 누락 쿼터 (Q*.min=0) 에 `estimateMinutesFromPbp` 시뮬값 주입 (정상 쿼터 건드리지 않음)
+  - **R4** (B-2 fallback): minutesPlayed=0 인 선수에게 PBP "in:X,out:Y" 시뮬 적용
+  - **R8** (quarter length): PBP max clock 기반 420/480/600/720 동적 매핑 (7분/10분 매치 자동 인식)
+- **PBP sync 가드** (`/api/v1/tournaments/[id]/matches/sync`): 운영자 수동 INSERT 보존 — `local_id` startsWith `manual-fix-` OR `description` startsWith `[수동 보정]` 두 prefix 중 하나만 매치되면 deleteMany 에서 제외 (이중 가드)
+- **검증 매치 6건**: 101/102/103/132/133/95 모두 매치 헤더 = 쿼터 합 정확 일치
+- **Flutter app 영향 0**: 응답만 가공, DB/sync 변경 0
+- **확장 가능**: 새 누락 패턴 발견 시 새 룰 1개만 추가 → 시스템 확장. 무결성 메타 정보 응답 (옵션 — `data_integrity` 필드) 으로 운영자 알림 가능.
+- **관련 commit**: 0f8da8e (R1) / b18227c (R3) / 8ccd4dd (R4) / f0278b4 (R8) / 1bec5c3 (sync 가드)
+
 ### [2026-05-02] 듀얼토너먼트(`dual_tournament`) 풀 시스템 설계 — 27 매치 generator + 5 Stage 시각화
 - **분류**: architecture
 - **발견자**: planner-architect

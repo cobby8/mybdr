@@ -2,6 +2,36 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-02] STL Phase 1 도입 — Flutter app 수정 없이 라이브 데이터 무결성 보장 (사용자 화면)
+- **분류**: decision (architecture / 데이터 무결성 / Flutter 의존성 격리)
+- **결정자**: pm + 사용자 (옵션 분석 후 진행 승인)
+- **참조횟수**: 0
+- **배경**: Flutter app 의 PBP 누락 (made_shot/올아웃 sub) 이 운영 18 매치 중 10건 (56%) 발생. 매치 헤더 vs 쿼터 점수 합 불일치. Flutter app fix 가 근본 해결이지만 별도 프로젝트 (원영 담당) 라 시간 소요. 서버 측에서 즉시 보완 필요.
+- **검토 옵션 5개**:
+  1. **응답 가공** (DB 안 건드림) ⭐ — score_at_time 시계열 + 매치 헤더 cap
+  2. 자동 PBP INSERT (DB 영구 보정 cron)
+  3. 무결성 알림만 (운영자 인지)
+  4. quarterStatsJson 점수 활용 — ❌ **불가** (필드 = `min`/`pm` 만, 점수 X)
+  5. 음수 gap 처리 (헤더 < PBP) — 별도 검토
+- **채택**: **옵션 1 (응답 가공) 단독 ⭐⭐⭐** — DB 무결성 0, Flutter sync 영향 0, 라이브 매치 즉시 효과.
+- **STL 룰 (8개 → 7개로 정비, R5 폐기)**:
+  - **R1** 쿼터 점수 score_at_time 보정 + 매치 헤더 cap (사용자 통찰: 마지막 쿼터 일괄 분배 ❌ → score_at_time 시계열 정확 분배)
+  - **R2** 음수 gap 가드 (R1 Step 3 통합)
+  - **R3** quarterStatsJson 부분 누락 쿼터 PBP 시뮬 보충
+  - **R4** minutesPlayed=0 fallback (B-2)
+  - ~~R5~~ 코트 정원 위반 — **폐기** (사용자 지적: 농구 룰상 발생 불가)
+  - **R6** matchPlayerStat 우선 (R1 흡수)
+  - **R7** 누락 쿼터 추정 (R1 흡수)
+  - **R8** quarter length 동적 추정 (PBP max clock → 420/480/600/720 매핑)
+- **검증 매치 6건 모두 통과**: 101/102/103/132/133/95
+- **사용자 통찰 반영 사례**: R1 알고리즘 v1 (마지막 쿼터 일괄 분배) → v2 (score_at_time 시계열 + cap) — 사용자가 "나중에 문제될 것 같다" 지적 후 매치 102 검증으로 정확한 쿼터 식별 가능 확인.
+- **배제 대안**:
+  - 옵션 2 (DB INSERT) — 가짜 PBP 시점 부정확 + Flutter sync 가드 추가 부담
+  - 옵션 4 (quarterStatsJson 점수) — 데이터 불가
+  - Flutter app 수정 단독 — 별도 프로젝트 + 즉시 효과 X
+- **관련 commit**: 0f8da8e (R1) / b18227c (R3) / 1bec5c3 (sync 이중 가드) / f0278b4 (R8) / 8ccd4dd (R4 라이브 fix)
+- **관련 보고서**: `Dev/bug-report-flutter-allout-pbp-2026-05-02.md` (원영 전달용) / `Dev/bug-report-quarter-score-mismatch-2026-05-02.md`
+
 ### [2026-05-02] 듀얼토너먼트 — schema 변경 0 + 5 Phase 점진 도입 + 결정 6건
 - **분류**: decision
 - **결정자**: planner-architect (사용자 결정 6건 추천안)
