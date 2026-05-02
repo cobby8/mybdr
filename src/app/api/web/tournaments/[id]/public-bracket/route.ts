@@ -176,6 +176,99 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       return b.pointsFor - a.pointsFor;
     });
 
+  // 2026-05-02: 직전 종료 매치 MVP 추출 (HOT 카드 — 대회 진행 중 표시)
+  // mvp_player_id 컬럼은 Flutter app 이 자동 채우지 않음 → playerStats 기반 GameScore 공식으로 추정.
+  // 가장 최근 종료 매치 1건만 별도 fetch (응답 부담 최소화).
+  let recentMvp: {
+    matchId: string;
+    homeTeamName: string;
+    awayTeamName: string;
+    playerId: number;
+    name: string;
+    jerseyNumber: number | null;
+    teamName: string;
+    pts: number;
+    reb: number;
+    ast: number;
+  } | null = null;
+  const completedSorted = matches
+    .filter((m) => m.status === "completed" && m.ended_at)
+    .sort((a, b) => (b.ended_at?.getTime() ?? 0) - (a.ended_at?.getTime() ?? 0));
+  const recentMatch = completedSorted[0];
+  if (recentMatch) {
+    const recentDetail = await prisma.tournamentMatch.findUnique({
+      where: { id: recentMatch.id },
+      select: {
+        id: true,
+        homeTeam: { select: { team: { select: { name: true } } } },
+        awayTeam: { select: { team: { select: { name: true } } } },
+        playerStats: {
+          select: {
+            tournamentTeamPlayerId: true,
+            points: true,
+            fieldGoalsMade: true,
+            fieldGoalsAttempted: true,
+            freeThrowsMade: true,
+            freeThrowsAttempted: true,
+            offensive_rebounds: true,
+            defensive_rebounds: true,
+            total_rebounds: true,
+            assists: true,
+            steals: true,
+            blocks: true,
+            personal_fouls: true,
+            turnovers: true,
+            tournamentTeamPlayer: {
+              select: {
+                id: true,
+                jerseyNumber: true,
+                player_name: true,
+                users: { select: { name: true, nickname: true } },
+                tournamentTeam: { select: { team: { select: { name: true } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (recentDetail && recentDetail.playerStats.length > 0) {
+      // GameScore 공식 (route.ts /api/live/[id] 와 동일)
+      const candidates = recentDetail.playerStats.map((s) => {
+        const fgm = s.fieldGoalsMade ?? 0;
+        const fga = s.fieldGoalsAttempted ?? 0;
+        const fta = s.freeThrowsAttempted ?? 0;
+        const ftm = s.freeThrowsMade ?? 0;
+        const oreb = s.offensive_rebounds ?? 0;
+        const dreb = s.defensive_rebounds ?? 0;
+        const score = (s.points ?? 0) + 0.4 * fgm - 0.7 * fga - 0.4 * (fta - ftm)
+          + 0.7 * oreb + 0.3 * dreb + (s.steals ?? 0) + 0.7 * (s.assists ?? 0)
+          + 0.7 * (s.blocks ?? 0) - 0.4 * (s.personal_fouls ?? 0) - (s.turnovers ?? 0);
+        return { stat: s, score };
+      });
+      candidates.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (b.stat.points ?? 0) - (a.stat.points ?? 0);
+      });
+      const top = candidates[0];
+      if (top && (top.stat.points ?? 0) > 0) {
+        const p = top.stat.tournamentTeamPlayer;
+        const playerName = p.users?.name ?? p.users?.nickname ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`;
+        recentMvp = {
+          matchId: recentDetail.id.toString(),
+          homeTeamName: recentDetail.homeTeam?.team.name ?? "",
+          awayTeamName: recentDetail.awayTeam?.team.name ?? "",
+          playerId: Number(p.id),
+          name: playerName,
+          jerseyNumber: p.jerseyNumber,
+          teamName: p.tournamentTeam?.team.name ?? "",
+          pts: top.stat.points ?? 0,
+          reb: top.stat.total_rebounds ?? 0,
+          ast: top.stat.assists ?? 0,
+        };
+      }
+    }
+  }
+
   const hotTeam = ranked[0]
     ? {
         teamId: ranked[0].teamId.toString(),
@@ -293,8 +386,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     finalsDate,
     totalMatches: totalMatchCount,
     completedMatches: completedMatchCount,
-    isAllCompleted, // 2026-05-02: HOT 카드 — 모든 경기 종료 후만 노출
+    isAllCompleted, // 2026-05-02: HOT 카드 — 모든 경기 종료 후 핫팀 노출
     hotTeam,
+    recentMvp, // 2026-05-02: HOT 카드 — 진행 중에는 직전 종료 매치 MVP 노출
     groupTeams,
     rounds,
     venueName: tournament.venue_name,
