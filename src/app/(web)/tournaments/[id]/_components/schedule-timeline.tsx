@@ -26,6 +26,9 @@ export interface ScheduleMatch {
   roundName: string | null;
   scheduledAt: string | null; // ISO 문자열로 직렬화됨
   courtNumber: string | null;
+  // 2026-05-02: 일정 카드 콤팩트 + 매치번호/조 표시 (사용자 요청)
+  matchNumber?: number | null;
+  groupName?: string | null;
 }
 
 export interface ScheduleTeam {
@@ -204,8 +207,9 @@ export function ScheduleTimeline({ matches, teams }: Props) {
               </span>
             </div>
 
-            {/* 경기 카드 목록 — 타임라인 제거, 시간을 카드 내부로 이동 */}
-            <div className="space-y-3">
+            {/* 2026-05-02: 카드 콤팩트 + 매치번호 표시 + 데스크톱 그리드 (사용자 요청)
+                — 모바일 1열 / md+ 2열 / xl+ 3열. PC 공백 ~70% 축소, 대진표 카드와 시각 통일. */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {dayMatches.map((match) => {
                 // 이 경기에 선택된 팀이 참여하는지 확인 (하이라이트용)
                 const isHighlighted =
@@ -221,7 +225,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                   <Link
                     key={match.id}
                     href={`/live/${match.id}`}
-                    className="block rounded-lg border p-4 transition-all hover:opacity-80"
+                    className="block rounded-lg border p-3 transition-all hover:opacity-80"
                     style={{
                       borderColor: isHighlighted ? "var(--color-primary)" : "var(--color-border)",
                       backgroundColor: "var(--color-card)",
@@ -229,35 +233,53 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                       borderLeftColor: isHighlighted ? "var(--color-primary)" : undefined,
                     }}
                   >
-                    {/* 카드 상단: 시간 + 라운드명 + 코트 + 상태 배지 */}
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {/* 시간 표시 — 기존 왼쪽 타임라인에서 카드 내부로 이동 */}
-                        <span
-                          className="text-xs font-bold"
-                          style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-heading)" }}
-                        >
-                          {formatShortTime(match.scheduledAt)}
-                        </span>
-                        {/* 시간과 라운드명 사이 구분선 */}
-                        {(match.roundName || match.courtNumber) && (
-                          <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                    {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): #번호 | 라운드 | 시간 | 코트 ... [상태] */}
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        {/* 매치번호 — 부여되어 있을 때만 (포맷별 부여 일관성 X 큐) */}
+                        {match.matchNumber != null && (
+                          <>
+                            <span
+                              className="font-mono text-xs"
+                              style={{ color: "var(--color-text-muted)" }}
+                            >
+                              #{match.matchNumber}
+                            </span>
+                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                          </>
                         )}
+                        {/* 라운드명 */}
                         {match.roundName && (
                           <span
-                            className="text-xs font-medium"
+                            className="truncate text-xs font-medium"
                             style={{ color: "var(--color-text-tertiary)" }}
                           >
                             {match.roundName}
                           </span>
                         )}
+                        {/* 시간 */}
+                        {match.scheduledAt && (
+                          <>
+                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                            <span
+                              className="whitespace-nowrap text-xs font-bold"
+                              style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-heading)" }}
+                            >
+                              {formatShortTime(match.scheduledAt)}
+                            </span>
+                          </>
+                        )}
+                        {/* 코트 */}
                         {match.courtNumber && (
-                          <span
-                            className="text-xs"
-                            style={{ color: "var(--color-text-tertiary)" }}
-                          >
-                            {match.courtNumber}코트
-                          </span>
+                          <>
+                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                            <span
+                              className="text-xs"
+                              style={{ color: "var(--color-text-tertiary)" }}
+                            >
+                              {match.courtNumber}코트
+                            </span>
+                          </>
                         )}
                       </div>
                       <StatusBadge status={match.status} />
