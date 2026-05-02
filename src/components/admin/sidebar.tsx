@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 
 // 권한별 메뉴 접근 정의
 // "all" = 모든 관리자 권한에서 노출
-type AdminRole = "super_admin" | "site_admin" | "tournament_admin" | "partner_member" | "org_member";
+export type AdminRole = "super_admin" | "site_admin" | "tournament_admin" | "partner_member" | "org_member";
 
-interface NavItem {
+export interface AdminNavItem {
   href: string;
   label: string;
   icon: string;
@@ -16,7 +16,8 @@ interface NavItem {
 }
 
 // 전체 관리 메뉴 정의 + 역할별 접근 권한
-const navItems: NavItem[] = [
+// 2026-05-02 export — mobile-admin-nav 에서 재사용 (Phase A 모바일 햄버거 드로어)
+export const navItems: AdminNavItem[] = [
   { href: "/admin", label: "대시보드", icon: "dashboard", roles: "all" },
   { href: "/admin/users", label: "유저 관리", icon: "group", roles: ["super_admin", "site_admin"] },
   { href: "/admin/tournaments", label: "토너먼트", icon: "emoji_events", roles: ["super_admin", "site_admin"] },
@@ -43,7 +44,8 @@ const navItems: NavItem[] = [
 ];
 
 // 역할 배열에서 해당 역할에게 보일 메뉴만 필터링
-function filterMenuByRoles(roles: AdminRole[]): NavItem[] {
+// 2026-05-02 export — mobile-admin-nav 재사용
+export function filterMenuByRoles(roles: AdminRole[]): AdminNavItem[] {
   return navItems.filter((item) => {
     if (item.roles === "all") return true;
     // 유저가 가진 역할 중 하나라도 메뉴의 허용 역할에 포함되면 표시
