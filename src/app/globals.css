@@ -442,6 +442,14 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .app-nav__tab { white-space: nowrap; flex: 0 0 auto; }
 .app-nav__bottom-line { height: 1px; background: var(--border); }
 
+/* 2026-05-02: 모바일 (≤720px) BDR 로고 이미지 숨김 — 헤더 우측 메뉴 공간 확보 (사용자 요청)
+   "MyBDR." 텍스트는 유지 (브랜드 식별). 이미지만 hidden. */
+@media (max-width: 720px) {
+  .app-nav__logo img {
+    display: none;
+  }
+}
+
 /* Dark theme nav */
 [data-theme="dark"] .app-nav, html.dark .app-nav { background: var(--bg); border-bottom: 2px solid var(--border-hard); }
 [data-theme="dark"] .app-nav__utility, html.dark .app-nav__utility { background: #000; }
@@ -1067,6 +1075,37 @@ a.hero-carousel__match-pill:hover {
 /* 마지막 버튼 (대회 보기) — 우측 끝 정렬 (배포본 기준) */
 .hero-carousel__action-row > .btn:last-child {
   margin-left: auto;
+}
+
+/* 2026-05-02: 모바일 (≤720px) hero 매치 pill + 버튼 크기 축소 (사용자 요청) */
+@media (max-width: 720px) {
+  /* 매치 pill — 좁은 viewport 에서 폭/높이 축소 */
+  a.hero-carousel__match-pill,
+  .hero-carousel__match-pill {
+    height: 34px;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .hero-carousel__match-team {
+    font-size: 12px;
+    max-width: 80px;
+  }
+  .hero-carousel__match-score {
+    font-size: 17px;
+  }
+  .hero-carousel__match-vs {
+    font-size: 9px;
+  }
+  /* action-row 안 .btn — 모바일 작은 버튼 (.btn--sm 톤) */
+  .hero-carousel__action-row > .btn {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+  /* gap 축소 */
+  .hero-carousel__action-row {
+    gap: 6px;
+  }
 }
 
 /* LIVE 배지 우측 상단 (corner) — 라이브 페이지 헤더 스타일과 동일
