@@ -14,7 +14,8 @@ export async function GET(
   const { id } = await params;
 
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(`live-detail:${ip}`, RATE_LIMITS.subdomain);
+  // 2026-05-02: subdomain (30/60s) → liveDetail (120/60s) — 라이브 페이지 폴링 3초 + 다중 탭 합산 고려
+  const rl = await checkRateLimit(`live-detail:${ip}`, RATE_LIMITS.liveDetail);
   if (!rl.allowed) {
     return apiError("Too many requests", 429);
   }
