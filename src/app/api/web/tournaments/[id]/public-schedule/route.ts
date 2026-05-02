@@ -44,28 +44,40 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   ]);
 
   // 직렬화 (page.tsx의 scheduleMatches/scheduleTeams 변환 로직과 동일)
-  const serializedMatches = matches.map((m) => ({
-    id: m.id.toString(),
-    homeTeamName: m.homeTeam?.team.name ?? null,
-    // Phase 2C: 일정 카드에서 한 줄 대표 언어 표기용
-    homeTeamNameEn: m.homeTeam?.team.name_en ?? null,
-    homeTeamNamePrimary: m.homeTeam?.team.name_primary ?? null,
-    // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시 (TBD/예정 매치는 null → fallback 렌더)
-    homeTeamLogoUrl: m.homeTeam?.team.logoUrl ?? null,
-    awayTeamName: m.awayTeam?.team.name ?? null,
-    awayTeamNameEn: m.awayTeam?.team.name_en ?? null,
-    awayTeamNamePrimary: m.awayTeam?.team.name_primary ?? null,
-    awayTeamLogoUrl: m.awayTeam?.team.logoUrl ?? null,
-    homeScore: m.homeScore,
-    awayScore: m.awayScore,
-    status: m.status,
-    roundName: m.roundName,
-    scheduledAt: m.scheduledAt?.toISOString() ?? null,
-    courtNumber: m.court_number,
-    // 2026-05-02: 일정 카드 콤팩트 + 매치번호 표시 (사용자 요청)
-    matchNumber: m.match_number,
-    groupName: m.group_name,
-  }));
+  const serializedMatches = matches.map((m) => {
+    // 2026-05-02: 팀 미확정 매치의 slot 라벨 추출
+    // 왜? 일정 카드에서 "TBD" 대신 generator 가 부여한 의미있는 라벨
+    // (예: "A조 1경기 패자" / "8강 1경기 승자") 를 보여주기 위함.
+    // 데이터 출처 = tournament_matches.settings JSON (dual-tournament-generator 등이 저장).
+    // public-bracket route 와 동일한 추출 패턴 사용 → 일관성 유지.
+    const settings = m.settings as { homeSlotLabel?: string; awaySlotLabel?: string } | null;
+
+    return {
+      id: m.id.toString(),
+      homeTeamName: m.homeTeam?.team.name ?? null,
+      // Phase 2C: 일정 카드에서 한 줄 대표 언어 표기용
+      homeTeamNameEn: m.homeTeam?.team.name_en ?? null,
+      homeTeamNamePrimary: m.homeTeam?.team.name_primary ?? null,
+      // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시 (TBD/예정 매치는 null → fallback 렌더)
+      homeTeamLogoUrl: m.homeTeam?.team.logoUrl ?? null,
+      awayTeamName: m.awayTeam?.team.name ?? null,
+      awayTeamNameEn: m.awayTeam?.team.name_en ?? null,
+      awayTeamNamePrimary: m.awayTeam?.team.name_primary ?? null,
+      awayTeamLogoUrl: m.awayTeam?.team.logoUrl ?? null,
+      // 2026-05-02: 미정 매치 라벨 (팀 확정 시 무시됨, fallback 우선순위: 팀명 > slotLabel > "미정")
+      homeSlotLabel: settings?.homeSlotLabel ?? null,
+      awaySlotLabel: settings?.awaySlotLabel ?? null,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      status: m.status,
+      roundName: m.roundName,
+      scheduledAt: m.scheduledAt?.toISOString() ?? null,
+      courtNumber: m.court_number,
+      // 2026-05-02: 일정 카드 콤팩트 + 매치번호 표시 (사용자 요청)
+      matchNumber: m.match_number,
+      groupName: m.group_name,
+    };
+  });
 
   const serializedTeams = teams.map((t) => ({
     id: t.id.toString(),

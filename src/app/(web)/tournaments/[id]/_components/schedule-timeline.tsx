@@ -20,6 +20,10 @@ export interface ScheduleMatch {
   // 2026-05-02: 일정 탭 매치 카드 팀 로고 (TBD/예정 매치 또는 logoUrl 미등록 팀은 null)
   homeTeamLogoUrl: string | null;
   awayTeamLogoUrl: string | null;
+  // 2026-05-02: 팀 미확정 슬롯 라벨 (예: "A조 1경기 패자" / "8강 1경기 승자")
+  // 팀 확정 시 무시됨. settings.homeSlotLabel/awaySlotLabel 출처.
+  homeSlotLabel?: string | null;
+  awaySlotLabel?: string | null;
   homeScore: number | null;
   awayScore: number | null;
   status: string | null;
@@ -289,23 +293,30 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                         2026-05-02: 팀명 좌/우에 로고 inline 추가 (홈은 좌측, 어웨이는 우측 = 안쪽 spectroscope 로고 → 팀명 → 가운데 스코어 → 팀명 → 로고). 모바일에서도 24px 로 공간 영향 최소. */}
                     <div className="flex items-center justify-between">
                       {/* 홈팀: 로고(좌) + 팀명 — gap-2 (8px) 로 시안 일관
-                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (text-sm 14px → text-base 16px / sm:text-lg 18px) */}
+                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (text-sm 14px → text-base 16px / sm:text-lg 18px)
+                          2026-05-02: 팀 미확정 시 slotLabel ("A조 1경기 패자" 등) → 없으면 "미정"
+                          → italic + muted 색상으로 시각적 구분 (DualMatchCard 동일 패턴) */}
                       <div className="flex flex-1 items-center gap-2 text-left min-w-0">
                         <TeamLogo
                           logoUrl={match.homeTeamLogoUrl}
                           name={match.homeTeamName}
                         />
                         <span
-                          className="truncate text-base font-bold sm:text-lg"
+                          // 팀 확정: 기존 색상 / 미확정: muted + italic
+                          className={`truncate text-base font-bold sm:text-lg ${
+                            match.homeTeamName ? "" : "italic"
+                          }`}
                           style={{
-                            color: homeWins
-                              ? "var(--color-text-primary)"
-                              : isCompleted
-                              ? "var(--color-text-secondary)"
-                              : "var(--color-text-primary)",
+                            color: match.homeTeamName
+                              ? homeWins
+                                ? "var(--color-text-primary)"
+                                : isCompleted
+                                ? "var(--color-text-secondary)"
+                                : "var(--color-text-primary)"
+                              : "var(--color-text-muted)",
                           }}
                         >
-                          {match.homeTeamName ?? "TBD"}
+                          {match.homeTeamName ?? match.homeSlotLabel ?? "미정"}
                         </span>
                       </div>
 
@@ -348,19 +359,24 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                       </div>
 
                       {/* 어웨이팀: 팀명 + 로고(우) — justify-end 로 스코어 쪽으로 붙임
-                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (홈팀과 동일) */}
+                          2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (홈팀과 동일)
+                          2026-05-02: 미확정 시 slotLabel → "미정" fallback (홈팀과 동일 패턴) */}
                       <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
                         <span
-                          className="truncate text-base font-bold sm:text-lg"
+                          className={`truncate text-base font-bold sm:text-lg ${
+                            match.awayTeamName ? "" : "italic"
+                          }`}
                           style={{
-                            color: awayWins
-                              ? "var(--color-text-primary)"
-                              : isCompleted
-                              ? "var(--color-text-secondary)"
-                              : "var(--color-text-primary)",
+                            color: match.awayTeamName
+                              ? awayWins
+                                ? "var(--color-text-primary)"
+                                : isCompleted
+                                ? "var(--color-text-secondary)"
+                                : "var(--color-text-primary)"
+                              : "var(--color-text-muted)",
                           }}
                         >
-                          {match.awayTeamName ?? "TBD"}
+                          {match.awayTeamName ?? match.awaySlotLabel ?? "미정"}
                         </span>
                         <TeamLogo
                           logoUrl={match.awayTeamLogoUrl}
