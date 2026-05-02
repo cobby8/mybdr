@@ -8,6 +8,12 @@
 
 ## 🚀 다음 세션 진입점 (2026-05-02 종료 시점 기준)
 
+### 🟡 HOLD — 자율 QA 봇 시스템 (사용자 요청 2026-05-02)
+- 계획 완료 (Phase 1~5 / 9d / Q1~Q8 결정 대기)
+- **사용자 명시**: "이건 일단 홀드하고 나중에 내가 얘기 안 꺼내면 얘기해줘"
+- → PM 이 적당한 시점에 환기 필요 (D-day 종료 후 또는 1주일 후)
+- 박제: scratchpad 기획설계 섹션 또는 `Dev/bot-qa-system-plan-2026-05-02.md` 분리 예정
+
 ### 우선순위 1 — 5/2 동호회최강전 현장 피드백 대응
 - D-day 셋업 완료 (DB 16팀 + 듀얼토너먼트 27경기 + Phase A~E 풀 시스템). 현장에서 발견되는 문제는 즉시 디버깅 프롬프트로 처리.
 - 디버그 패턴: `Dev/cli-prompts/2026-05-01-profile-save-500-{debug|direct-diagnose|fix}.md` 3단계 카피.
@@ -35,6 +41,16 @@
 **5) 16팀 중 잔여 8팀 `tournament_team_players` 0명 보정** (5/2 PM 큐)
 - MZ / 블랙라벨 / 다이나믹 / MI / 슬로우 / 우아한스포츠 / MSA / SKD
 - 셋업팀 패턴 (`scripts/_temp/sync-setup-tournament-players-2026-05-02.ts` git log 복원) 일괄 적용 가능 — placeholder/real user 정체 사전 점검 필수
+
+**6) BDR 기자봇 시스템 v2** (다양한 기사 6종 + 일 300매치 + 저비용 LLM) — v2 계획서 박제 ✅
+- v1: `Dev/bdr-reporter-bot-plan-2026-05-02.md` (매치 단신 1종 / Sonnet 4.5)
+- **v2: `Dev/bdr-reporter-bot-plan-v2-2026-05-02.md` (15 섹션)** — 사용자 비전 확장 후속
+- **기사 6종**: 매치 요약 / 매치 풀 리포트 / 일자별 종합 / 대회 프리뷰 / 리뷰 / 중간 상황
+- **LLM**: Gemini 2.0 Flash (무료 tier 1500 RPD = 일 300매치 흡수, paid 시 월 $5~17)
+- **DB**: articles + article_versions + article_feedback 신규 3 테이블 (무중단 ADD)
+- **Phase 0~7 / 합 ~38h** — Phase 1 시작 시점 추천 = 5/10 대회 종료 후 (D-day 영향 0 + dataset 12건 확보)
+- **사용자 결정 Q1~Q10 (10건)**: LLM/tier/이름/톤/시작시점/few-shot/자동발행/피드백/UI위치/A·B
+- 결정 받기 전 코드 / DB / LLM 호출 0
 
 ### 우선순위 2 — 결정 대기 큐 (사용자 판단 받고 구현 진행)
 | 영역 | 결정 건수 | 산출물 위치 |
@@ -186,6 +202,8 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 ## 기획설계 — Admin-Web 시각 통합 (2026-05-02 v2)
 
 **작업 일시**: 2026-05-02 (대회 후 큐). PM 의뢰 = "다크모드 강제 해제 + (web)와 라이트/다크 시각 일관성 100%" / 코드 수정 0, 계획만.
+
+> **Phase 1+2 완료 (commit f8fe8f0, 미푸시)** — alias 9개 + thead `--bg-head`. 1 파일 / 23 라인 / web 영향 0 / admin 405건 자동 정합. 운영 배포 후 라이트·다크 양쪽 시각 검증 큐. Phase 3~7 (인라인 → 글로벌 클래스 / 라운드 정리) 별도 큐.
 
 ### 1. 통합 원칙 (사용자 요구 반영)
 
@@ -441,11 +459,203 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 
 ---
 
+## 기획설계 — 자율 QA 봇 시스템 도입 계획 (2026-05-02 v1)
+
+**작업 일시**: 2026-05-02 / **요청**: PM (사용자 큰 비전 — 코드 0, 계획만)
+**상태**: 계획 수립 단계. 구현은 사용자 결정 + Phase 1 승인 후 별도 큐.
+
+### 🎯 목표
+
+봇 user 6종이 사이트 전체 흐름(가입→활동→탈퇴)을 자동 점검하고, 발견한 이상을 위험도별로 분류해 사용자/PM에 보고. 위험도 0 만 자동 수정 PR 생성. 운영 데이터 오염 0 + (web) 사용자 영향 0.
+
+### 1. 봇 페르소나 6종
+
+| 봇 유형 | 식별 (User 컬럼) | 권한 | 주요 행동 | 데이터 의존 |
+|---------|----------------|------|----------|------------|
+| 슈퍼관리자봇 | `email LIKE 'bot-superadmin%@mybdr.test'` + `admin_role='super_admin'` | /admin 전체 | 대시보드 / 페이지네이션 / 통계 / 위험 영역 (DELETE 시도 X) | admin_users / admin_tournaments |
+| 대회관리자봇 | `bot-tournadmin%` + `admin_role='tournament_admin'` (또는 organization 소속) | 대회 CRUD | 대회 생성 → 시드 → 대진표 → 매치 진행(가짜) → 정산 | organizations / tournaments / matches |
+| 팀장봇 | `bot-captain%` + `team_members.role='captain'` | 팀 captain | 팀 생성 → 멤버 초대 → 가입 신청 승인 → 매치 신청 | teams / team_members / tournament_teams |
+| 팀원봇 | `bot-member%` + `team_members.role='member'` | 일반 user + 팀 멤버 | 팀 가입 신청 → 활동 → 매치 참여 → 출석 | team_members / matches |
+| 일반유저봇 | `bot-user%` (default) | 일반 user | 코트 검색 / 게임 보기 / 게시글 작성 / 댓글 / 좋아요 / 팔로우 | courts / games / community |
+| 심판봇 | `bot-referee%` + `Referee` 모델 row | referee | 심판 등록 → 자격증 점검 → 배정 조회 → 정산 조회 | referees / assignments |
+
+**격리 컬럼 신설 추천**: `User.is_bot Boolean @default(false)` (별 alias 보다 명시적). UI 모든 list (랭킹/검색/리뷰) 에서 `where: { is_bot: false }` 자동 필터.
+
+### 2. 시나리오 list (Phase 1 우선 5개 + 확장 큐 5개)
+
+| 우선 | 시나리오 | 봇 조합 | 점검 포인트 | 시간 |
+|-----|--------|--------|-----------|------|
+| P1 | **가입 → 프로필 작성 → 로그아웃** | 일반유저봇 | signupAction / profile PATCH / 세션 cookie | 5분 |
+| P1 | **로그인 → 마이페이지 6 카드 로드** | 일반유저봇 | /profile hub / SWR / 8 쿼리 prefetch | 3분 |
+| P1 | **팀 생성 → 멤버 초대 → 가입 승인** | 팀장봇 + 팀원봇 | /teams/new / team_members CRUD | 8분 |
+| P1 | **대회 신청 → 시드 → 매치 조회** | 팀장봇 + 대회관리자봇 | /tournaments/[id]/register / admin/tournaments PATCH | 10분 |
+| P1 | **코트 검색 → 상세 → 리뷰 작성** | 일반유저봇 | /courts / ContextReviews POST | 4분 |
+| P2 | 게시글 작성 → 댓글 → 좋아요 | 일반유저봇 ×2 | /community / likes ServerAction | 5분 |
+| P2 | 라이브 매치 조회 → 박스스코어 | 일반유저봇 | /live/[id] / api/live | 3분 |
+| P2 | 심판 등록 → 자격증 입력 | 심판봇 | /referee/register | 7분 |
+| P3 | 회원 탈퇴 → 데이터 처리 | 일반유저봇 | /profile/edit/withdraw / cascade | 5분 |
+| P3 | 단체 생성 → 시리즈 → 대회 3계층 | 대회관리자봇 | organizations / series / tournaments | 12분 |
+
+### 3. 인프라 옵션 비교 + 추천
+
+| 옵션 | 장점 | 단점 | 추천 |
+|------|------|------|------|
+| A. 직접 prisma 호출 | 가장 빠름 / 격리 쉬움 | 진짜 user flow 미검증 (signupAction 우회) | 보조 |
+| B. fetch + cookie 시뮬 | server action 호출 어려움 | next-action header 핸들링 복잡 | ❌ |
+| C. Playwright 브라우저 자동화 | 진짜 흐름 100% 검증 / 스크린샷 / 시각 회귀 | 무거움 (CI 8~15분) | ⭐ P1 |
+| D. API route 호출 | 빠름 / 90% flow 커버 | server action (signup 등) 미커버 | ⭐ P1 보조 |
+
+**추천 조합**: **C (Playwright) 메인 + D (API) 보조**.
+- Playwright = signup / login / 페이지 시각 검증
+- API = 대량 데이터 시드 / 매치 진행 시뮬레이션 (브라우저 불필요)
+
+**인프라 위치**:
+```
+scripts/bots/
+├── personas/                # 봇 페르소나 6종 정의 (TS)
+├── scenarios/               # 시나리오 10개 (Playwright + API mix)
+├── findings/                # 봇 발견 결과 (JSON) → DB 동기화
+├── runner.ts                # 봇 실행 entry point
+└── README.md
+```
+
+### 4. 피드백 수집 데이터 구조
+
+**옵션 A (DB 테이블 신설)** ⭐ 추천:
+```prisma
+model BotFinding {
+  id          String   @id @default(cuid())
+  bot_type    String   // 'superadmin'|'captain'|...
+  scenario    String   // 'signup-flow'|'team-create'
+  step        String   // '/teams/new POST'
+  severity    String   // 'low'|'medium'|'high'|'critical'
+  category    String   // 'ui'|'logic'|'security'|'performance'|'data'
+  title       String
+  description String   @db.Text
+  evidence    Json?    // screenshot path / DOM snippet / API response
+  status      String   @default("open") // 'open'|'auto-fixed'|'reviewed'|'dismissed'
+  created_at  DateTime @default(now())
+  resolved_at DateTime?
+  resolved_by String?
+  @@index([severity, status])
+  @@index([scenario, status])
+  @@map("bot_findings")
+}
+```
+
+**옵션 B (파일)**: `.claude/bot-feedback/{date}.json` — 가벼우나 통계 어려움.
+
+**채택**: **A (DB 테이블)**. 통계 / 중복 차단 / admin 페이지 통합 가능.
+
+### 5. 위험도 분류 룰
+
+| 위험도 | 자동 수정 | 예시 |
+|-------|---------|------|
+| **low** (자동 수정 OK) | ⭐ PR 자동 생성 → 사용자 review only | 오타 / 한글 누락 / placeholder 영문 / `var(--*)` 미사용 1건 / 라운드 px 인라인 |
+| **medium** (사용자 결정) | ❌ scratchpad 보고 | API 로직 / 신규 핸들러 / form validation 추가 |
+| **high** (즉시 보고) | ❌ PM 호출 | 보안 (IDOR / withAuth 누락) / 데이터 손실 위험 / N+1 쿼리 |
+| **critical** (즉시 중단) | ❌ 사용자 SMS/카톡 알림 | 운영 중단 / DB 파괴 / 인증 우회 |
+
+**자동 수정 가드**:
+- 변경 파일 ≤ 2개 + 변경 라인 ≤ 20줄
+- 테스트 통과 (tsc + 시나리오 재실행)
+- API/DB schema 변경 0
+- 새 파일 생성 0
+- 위 모두 만족해도 사용자 review 단계는 항상 유지 (auto-merge ❌)
+
+### 6. Phase 1~5 산출물 표
+
+| Phase | 작업 | 산출물 | 시간 | 검증 기준 |
+|-------|-----|------|------|----------|
+| **Phase 1** | 봇 페르소나 + 시나리오 정의 (문서) | `scripts/bots/personas/*.ts` 6 파일 + `scenarios/*.md` 5 파일 + `User.is_bot` schema 추가 | 1d | 문서 review |
+| **Phase 2** | 봇 실행 인프라 (수동) | `runner.ts` + Playwright 설치 + 시나리오 P1 5개 구현 | 2d | 5 시나리오 수동 실행 PASS |
+| **Phase 3** | 피드백 수집 (수동 분류) | `BotFinding` 테이블 + `/admin/bot-findings` 페이지 + 봇이 자동 INSERT | 1d | 시나리오 1회 실행 → DB row 생성 |
+| **Phase 4** | 자동 분류 (위험도 평가) | 룰 엔진 (`scripts/bots/severity-classifier.ts`) — 키워드 / 응답코드 / DOM 분석 | 2d | 100건 샘플 → 분류 정확도 80%+ |
+| **Phase 5** | 자동 수정 (위험도 0 만) | `scripts/bots/auto-fix-bot.ts` (Claude API 호출 → PR 생성) + 가드 | 3d | low 5건 → PR 5건 (검토 후 머지) |
+
+**총 예상**: 9일 (단계별 사용자 승인 후 진행, 한꺼번에 X).
+
+### 7. 봇 격리 / 운영 데이터 보호 룰 (필수)
+
+| # | 룰 | 구현 |
+|---|-----|------|
+| 1 | 봇 user 식별 컬럼 | `User.is_bot Boolean @default(false)` schema 추가 (NULL 허용 ADD COLUMN, 운영 영향 0) |
+| 2 | 모든 공개 list 에서 봇 자동 제외 | 랭킹 / 검색 / 리뷰 / 팀 멤버 카운트 — 공통 prisma where helper (`excludeBots()`) |
+| 3 | 봇 활동 격리 — 별도 namespace | 봇이 만든 team/tournament 는 prefix `bot-{date}-` 강제 + status `bot-only` |
+| 4 | 봇 매치는 공식 기록에서 제외 | `officialMatchWhere()` 에 `team.is_bot=false` 추가 |
+| 5 | 봇 발견 무한 루프 방지 | 같은 (scenario+step+title) 24h 내 재발견 → 무시 (`findings @@unique` partial) |
+| 6 | 봇 commit 분리 | 자동 PR 브랜치 = `bot/auto-fix-{YYYY-MM-DD}-{slug}` / 사용자 PR 와 충돌 방지 |
+| 7 | 봇 활동 로그 보존 | `bot_runs` 테이블 (run_id / started_at / scenarios / findings_count) — 사후 추적 |
+| 8 | 봇 실행 환경 제한 | 운영 배포에서는 실행 ❌ (preview 또는 로컬만). cron 도 dev 환경만 |
+| 9 | UI 봇 user 숨김 | 마이페이지 / 프로필 / 팔로우 / 검색 결과 모두 `is_bot=false` 필터 |
+| 10 | 봇 활동 비용 cap | LLM 호출 일일 한도 (예: 1000 call/day) + 비용 알림 |
+
+### 8. 사용자 결정 필요 사항 (Q1~Q8)
+
+| Q | 질문 | 옵션 |
+|---|-----|------|
+| Q1 | **봇 user DB 격리** = `is_bot` 컬럼 신설 vs `email LIKE 'bot%@mybdr.test'` 패턴만 | A. 컬럼 신설 (운영 영향 0 ADD COLUMN) ⭐ / B. 이메일 패턴만 |
+| Q2 | **운영 DB vs 별도 dev DB** — 봇 데이터를 어디에 둘까? | A. 운영 DB + 격리 (cost 0, 가드 9개) / B. 별도 dev DB (cost ↑, 정책 변경) |
+| Q3 | **봇 실행 빈도** | A. 수동 실행만 (사용자 트리거) / B. 일 1회 cron / C. PR 마다 CI |
+| Q4 | **자동 수정 — 위험도 0만** PR 생성 허용? | A. 허용 (auto-merge ❌, review 필수) / B. 비허용 (모두 수동) |
+| Q5 | **인프라 도입 — Playwright** (의존성 +1, ~80MB) | A. 도입 / B. API + prisma 만 (시각 검증 포기) |
+| Q6 | **봇 발견 보고 채널** | A. /admin/bot-findings 페이지만 / B. + 카톡 알림 (high/critical) / C. + 슬랙 |
+| Q7 | **Phase 1 산출물 review 시점** | A. 문서 작성 직후 즉시 / B. Phase 2 (실행 인프라) 와 함께 |
+| Q8 | **봇 LLM 비용 한도** | A. 일 1000 call (~$5) / B. 일 100 call (~$0.5) / C. 0 (deterministic 룰만) |
+
+### 9. 위험 / 한계
+
+| # | 위험 | 완화 |
+|---|-----|------|
+| 1 | 운영 DB 봇 user 통계 왜곡 | §7 룰 1·2·9 (모든 list 자동 필터) |
+| 2 | 봇 활동이 실제 매치/게시글로 들어가 운영 데이터 오염 | §7 룰 3·4 (namespace + 공식 기록 제외) |
+| 3 | 자동 수정 코드 품질 저하 | §5 가드 (≤2 파일 / ≤20 줄 / tsc PASS / review 필수) |
+| 4 | LLM agent 비용 폭증 | §7 룰 10 (일 cap + 알림) / Q8 결정 |
+| 5 | 봇 무한 루프 (같은 발견 N회) | §7 룰 5 (24h 중복 차단) |
+| 6 | Playwright CI 시간 증가 | §3 옵션 D 보조 (대량 데이터는 API 로) |
+| 7 | 봇 실행 중 운영 사용자와 race condition | §7 룰 8 (운영 환경 차단) |
+
+### 10. 추천 진행 순서
+
+| 우선 | 작업 | 시간 | 사유 |
+|-----|------|------|------|
+| ⭐⭐⭐ | **Q1~Q8 사용자 결정** (특히 Q1·Q2·Q5) | 30분 | Phase 1 문서 분기점 |
+| ⭐⭐ | Phase 1 — 봇 페르소나 + 시나리오 5개 + `is_bot` schema | 1d | 코드 변경 0 (문서 + schema 1줄) |
+| ⭐ | Phase 2 — Playwright 설치 + P1 5 시나리오 구현 | 2d | 사용자 review 후 진행 |
+| 잔여 | Phase 3·4·5 점진 | 6d | Phase 2 검증 후 |
+
+### 11. 자체 검수 체크리스트 (계획 산출물)
+
+| # | 항목 | 상태 |
+|---|------|------|
+| 1 | API/데이터 변경 0 (계획만) | ✅ |
+| 2 | (web) 페이지 영향 0 | ✅ (봇 격리 룰 9가 보호) |
+| 3 | 운영 DB 영향 0 (계획만) | ✅ (Phase 1 schema는 ADD COLUMN nullable — 운영 무중단) |
+| 4 | 13 룰 정합 (디자인) | N/A (봇은 데이터 / 흐름 점검) |
+| 5 | 사용자 결정 항목 명시 | ✅ Q1~Q8 8건 |
+| 6 | Phase 1~5 산출물 표 | ✅ |
+| 7 | 위험 / 한계 표 | ✅ 7건 |
+| 8 | 봇 격리 / 운영 데이터 보호 룰 | ✅ 10건 |
+| 9 | 시나리오 우선순위 | ✅ P1 5 + P2 3 + P3 2 |
+| 10 | 추천 진행 순서 + 시간 | ✅ |
+| 11 | 코드 / DB 수정 0 (계획만) | ✅ |
+| 12 | 봇 1명 (uid=3316) 추가 생성 0 | ✅ |
+
+### 12. developer 주의사항 (Phase 1 진행 시)
+
+1. **schema 변경**: `User.is_bot Boolean @default(false)` 만 추가 — `prisma db push` 가능 (NULL 허용 ADD COLUMN, 운영 즉시 적용 OK). 그 외 schema 변경 0.
+2. **현재 봇 user (uid=3316) 갱신**: `is_bot=true` UPDATE 1줄 (단 1 row).
+3. **BotFinding / bot_runs 테이블은 Phase 3 에서**: Phase 1 에서는 schema 추가 ❌ (계획 문서만).
+4. **Playwright 설치는 Phase 2 에서**: Phase 1 = 문서 + 시나리오 markdown 만.
+5. **봇 ID prefix 룰**: `bot-{role}-{uid}@mybdr.test` (예: `bot-captain-3317@mybdr.test`) — 식별 + grep 용이.
+6. **운영 사용자 영향 검증** (Phase 1 후): `is_bot` 컬럼 추가 후 모든 공개 list (랭킹·검색·팀멤버) where 절에 `is_bot: false` 자동 추가 안 되어 있으면 봇이 운영 화면 노출.
+
+---
+
 ## 작업 로그 (최근 10건, 오래된 것부터 압축)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-02 | (압축 16건) | LIVE/펄스 + 폴드5 hero fix + 단체 hero/grid + #132 PBP INSERT + Phase F2 박제+활성화 + #133 명단 INSERT + 셋업팀 풀패치(8건 commit) + 가입/매핑 17건 + W/L 칩 + minutesPlayed 진단 + 카드 30%↑ + #133/#134 last_clock 추적 + sub_in/out 가설검증 | ✅ |
 | 2026-05-02 | (STL Phase 2) | **api/live sub 기반 출전시간 재계산 — MAX(sub, qsJson, dbMin, pbpSim) 전략** — `src/app/api/live/[id]/route.ts` `calculateSubBasedMinutes` 신규 함수 + `parseSubAction` 추가. 양 분기 (진행중/종료) 동일 적용. **검증 4매치**: #132 280m(100%) / #133 279.20m(99.7%, +0.53m 회복) / #134 275.55m(98.4%, **+11.38m 회복**) / #135 280m(100%). 전략 변경: 옵션A 덮어쓰기 → MAX 채택 (정상 매치 qsJson 만점값 보존, last_clock 절단 매치만 sub 회복). DB/Flutter 변경 0. tsc PASS. errors.md 박제 큐 | ✅ |
 | 2026-05-02 | (정밀 추적 SELECT only) | **#134 -4.45m / #133 -0.80m 미달 출처 100% 식별 — Flutter sub PBP 자체 누락 (가설 C/E)** — 4 매치 lineup 시계열 + 4 출처 출전합 비교. **출처별 양팀합** (기대 280m): #132 dbMin 227 / qsJson 280 / sub 264.63 / MAX **280** ✅ 만점출처=qsJson | #133 dbMin 234.53 / qsJson 278.67 / sub 255.05 / MAX 279.65 (-1.33m, qsJson Q3 -80s 누락) | #134 dbMin 218.18 / qsJson **264.17** / sub 273.95 / MAX 275.55 (-4.45m, **모든 출처 미달**) | #135 dbMin 251.05 / qsJson 280 / sub 267.70 / MAX **280** ✅. **결론**: 사용자 가설 A·B·C 모두 부분맞음 — 알고리즘이 lineup 5명 미만 시간 흡수해 sub-based -10~-25m 미달 (회수 가능 X — Flutter app 자체가 그 시간의 sub PBP 미생성). #132/#135 만점은 qsJson 이 코트 인원 5명 가정 하에 산출되므로 sub 누락 영향 받지 않음. **#134 미달 -4.45m 의 진짜 원인** = Flutter app 의 quarterStatsJson 자체에 -16m 손실 (운영자가 쿼터 진행중 timer pause/resume 누락 또는 마지막 1~2분 사이드라인 액션 미입력). **fix 옵션**: F1) **DB 수동 보정 — qsJson 의 Q4 min 값 직접 UPDATE** (예: #134 Q4 home/away 의 min 합 = +570s 보충 → 280m 정확) — 사용자 결정 필요 (운영 DB UPDATE 1~3건만, 가드 충분) F2) Flutter quarter timer 버그 fix — 비현실 (사용자 진술) F3) 알고리즘 측 추가 회수 불가 — 정보 부재. **권고**: D-day 잔여시간 짧음 → 표시값 그대로 (오차 의미 작음). 대회 종료 후 Flutter 측 timer 정확도 개선 큐 | ✅ |
 | 2026-05-02 | (STL Phase 2 강화 F3+F2) | **api/live calculateSubBasedMinutes 강화 — 4매치 모두 280m 만점 회복** — F3 (starter 추정 정확화: Q2~Q4 starter = 직전 쿼터 종료 lineup chain) + F2 (쿼터별 합 미달 보정: deficit < qLen 가드, 출전 시간 가중 분배). 데이터 구조 = quarterPlayerSec 쿼터별 분리 → 최종 합산. **검증**: #132 264.63→280.02m / #133 255.05→280.00m / #134 273.95→280.00m / #135 267.70→280.00m. tsc PASS. DB/Flutter 변경 0. errors.md F3+F2 박제. 검증 스크립트 즉시 삭제 | ✅ |
@@ -453,4 +663,8 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 | 2026-05-02 | (DB UPDATE) | **B조 승자전 Match #7 양쪽 아울스 — awayTeamId NULL 정정** — Match #5(아울스 winner) 종료 직후 1초 만에 Match #7.away 가 잘못 250 set. progressDualMatch / updateMatch / updateMatchStatus / Flutter v1 모두 단일 슬롯 정상. 의심 경로=admin web matches PATCH (homeTeamId/awayTeamId 직접 set 가능). 즉시 fix=awayTeamId NULL UPDATE. Match #6 종료 시 자동 덮어쓰기 진행. errors.md 박제 + 회귀 방지 큐 (progressDualMatch 가드 / admin PATCH 슬롯 직접 set 차단 / audit log / cron 검출). 피벗 케이스도 동일 패턴 | ✅ |
 | 2026-05-02 | (DB 통합 트랜잭션) | **김영훈 placeholder ↔ real user 통합 (#94 셋업)** — uid 2954(placeholder, PBP 34건+Stat 2건) → uid 2853(실제 카카오 4/8 가입) 7단계 트랜잭션. ttp 2708.userId UPDATE 1줄로 PBP/Stat 자동 귀속. 빈 껍데기 ttp 2717 + 0점 stat 정리. tm captain 2853 jersey 94 보정. user 2954 status='deleted' + 추적 표식. 매치 #133 매칭률 80→96% / #135 9점 매핑. 16팀 점검 동시 진행: 명단 0팀=MI/SKD, 배번누락=다이나믹 6명 + 셋업 김영훈(완료). lessons.md 통합 패턴 박제 | ✅ |
 | 2026-05-02 | (G1 DNP 가드) | **api/live calculateSubBasedMinutes 에 DNP 가드 추가** — `route.ts` `calculateSubBasedMinutes` 에 everSeen Set (PBP 액션 + sub_in/out 등장 ttpId) 사전 계산. starter / playersInQuarter / F2 가중분배 3단계 모두에서 DNP 선수 (everSeen 미포함) 제외. return 객체화 (`{perPlayer, dnpSet}`) + 호출부 2곳 (149/376) 가드 적용 + `getSecondsPlayed` 에 hasRealRecord 검사 추가 (qsJson/dbMin/PBP-sim/통계누적/isStarter 모두 0 → subSec=0). **검증**: #132 283.3m→283.3m / #133 280→280 / #134 280→280 / #135 284.9→284.9 (DNP 영향 0) / #136 **329.8m→285.8m (-44m)** = 전효민 22.3m + 이상현 21.8m 가짜 시간 제거. 5.8m 잔여는 F2 over-distribution (G3 후속 큐). DB/Flutter 변경 0. tsc PASS | ✅ |
+| 2026-05-02 | (planner v2 박제) | **BDR 기자봇 v2 계획 박제** — 사용자 비전 확장 (기사 6종 + 일 300매치 + 저비용 LLM). v1 (Sonnet 4.5) → v2 (Gemini 2.0 Flash). 6종 기사 (단신/풀리포트/일자별종합/대회프리뷰/리뷰/중간상황) + DB 3 테이블 (articles + versions + feedback) + Vercel Cron + DB queue. 비용 = 무료 tier 1500 RPD 흡수 가능 (paid 시 월 $5~17). Phase 0~7 / ~38h. 사용자 결정 Q1~Q10 (10건). 산출물: `Dev/bdr-reporter-bot-plan-v2-2026-05-02.md` (15 섹션). 코드/DB/LLM 호출 0. 우선순위 1 큐 항목 6 v2 갱신 | ✅ |
 | 2026-05-02 | (G3 신뢰도 분리 + cap) | **api/live 신뢰도 기반 출전시간 + 풀타임 보호 + 팀 cap** — `PlayerTimeBreakdown {trustedSec, mediumSec, distributedSec}` 도입. `calculateSubBasedMinutes` segment 단위 신뢰도 분류 (sub_in→sub_out=trusted / starter 풀쿼터=trusted / starter→sub_out=medium / sub_in→끝=medium / F2 가중분배=distributed). `getSecondsPlayed` 5순위 (풀타임>qsJson 근접>sub 채택>외부 fallback>DNP). `applyTeamCap` 팀별 cap=5×qLen×4 — distributed 우선 축소, trusted 절대 보호, mediumTotal>remaining 시 medium 도 축소. PlayerRow 임시 `_minBreakdown` 첨부 후 응답 직전 strip. **검증**: cap unit test 4/4 PASS (cap 미초과 / distributed 축소 / medium 축소 / 데이터 이상). 5매치 sub-based raw 측정 = cap 미발동 (sub_total<cap, 라이브 API의 STL R3 보충 후 280m 근접). #134 풀타임 조현철·강동진 trustedSec=28.00m 정확 보존. tsc PASS. DB/Flutter 변경 0. errors.md G3 박제 | ✅ |
+| 2026-05-02 | f8fe8f0 | **admin Phase 1+2 — Admin-Web 시각 통합 alias 9개 + thead 톤** — `globals.css` L2321/L2349 라이트·다크 alias 블록에 9 변수 추가 (`--color-accent`/`-hover`/`-light`, `--color-error`/`-warning`/`-success`, `--color-border-subtle`, `--color-text-dim`, `--shadow-card`) + L1988 `.admin-table thead` background → `var(--bg-head)` 회청색 톤. 1 파일 / 22 insertions / 1 deletion. (web) 영향 0 (alias 추가만 — web은 원본 토큰 직접 사용) / admin 코드 변경 0 (405건 자동 정합) / Phase A~E 회귀 0 / 다크모드 강제 ❌. tsc PASS. 미푸시 1건. Phase 3~7 (인라인 → 글로벌 클래스) 별도 큐 | ✅ |
+| 2026-05-02 | (Phase 0 단신 형식) | **/live/[id] 요약 탭 — 단신 기사 5섹션 형식 도입** — `tab-summary.tsx` 단일 파일. 5섹션 구조 (Header 메타라인 / Headline 표제 / Lead flow별 1~2문장 / Body MVP+양팀 최다득점 / Stats 4카드 점수차·쿼터승·총득점·리드체인지). 헬퍼 5개 module-level: `josa()` 한글 받침→조사 / `buildScoreSeries()` PBP points_scored 누적 (score_at_time 부재 회피) / `countLeadChanges()` 부호 변화 카운트 / `findMaxLead()` 최대점수차+leader / `classifyFlow()` 8 flow 분류 (overtime/lastminute/comeback/seesaw/blowout/dominant/narrow/default) + `hasLastMinuteLeadChange()` 마지막 60s + `generateLead()` flow별 템플릿. LLM 호출 0 / API·DB 변경 0 / 13룰 정합 (var(--*), lucide ❌, pill 9999 ❌) / 모바일 분기 (1열 + Stats 4→2). tsc PASS. 5/2 D-day 라이브 매치 즉시 효과. Phase 1 (Gemini 2.0 Flash) 의 fallback 으로 자연 활용. | ✅ |
+| 2026-05-02 | (계획만) | **BDR 기자봇 시스템 기획 — LLM 기반 매치 단신 기사 생성 (옵션 A→B 확장)** — `Dev/bdr-reporter-bot-plan-2026-05-02.md` 박제 (16 섹션 / 페르소나·LLM비교·prompt초안·few-shot 2건·검증룰 7·캐시·Phase 0~6·비용·UI·학습사이클·확장콘텐츠 7·위험 10·Q1~Q7). 추천: Sonnet 4.5 + prompt caching → 매치당 $0.012, 월 $2.4 (200매치). Phase 0 (옵션 A 템플릿 30분) D-day 즉시 + Phase 1+ (LLM) D-day 종료 후 사용자 결정 Q1~Q7. 코드/DB/LLM 호출 0 | ✅ |

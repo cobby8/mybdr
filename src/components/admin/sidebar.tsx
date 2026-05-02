@@ -3,6 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+// 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — admin 영역에서도 라이트/다크 토글 가능하도록 (web)와 같은 ThemeSwitch 마운트
+import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
 
 // 권한별 메뉴 접근 정의
 // "all" = 모든 관리자 권한에서 노출
@@ -105,8 +107,12 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* 하단: 사이트로 돌아가기 */}
-      <div className="border-t border-[var(--color-border)] pt-4">
+      {/* 하단: 테마 토글 + 사이트로 돌아가기 */}
+      <div className="border-t border-[var(--color-border)] pt-4 space-y-2">
+        {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
+        <div className="px-2">
+          <ThemeSwitch />
+        </div>
         <Link
           href="/"
           className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-[var(--color-text-muted)] transition-all duration-200 hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
