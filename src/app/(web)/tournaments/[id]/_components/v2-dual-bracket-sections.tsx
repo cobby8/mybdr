@@ -267,13 +267,14 @@ function DualMatchCard({
   const showScore = completed || isLive;
 
   // 승자 판별 — winnerTeamId 우선, 없으면 점수 비교 (completed 일 때만)
+  // 2026-05-02 fix: TournamentTeam.id (slot.id) 비교. teamId(Team.id) 비교는 도메인 다름 → 항상 false
   const homeWon =
     match.winnerTeamId != null
-      ? match.homeTeam?.teamId === match.winnerTeamId
+      ? match.homeTeam?.id === match.winnerTeamId
       : completed && match.homeScore > match.awayScore;
   const awayWon =
     match.winnerTeamId != null
-      ? match.awayTeam?.teamId === match.winnerTeamId
+      ? match.awayTeam?.id === match.winnerTeamId
       : completed && match.awayScore > match.homeScore;
 
   // 빈 슬롯 라벨 — 팀 미확정 시 settings.homeSlotLabel/awaySlotLabel 표시
@@ -285,9 +286,11 @@ function DualMatchCard({
   const awayDisplay = awayName ?? match.awaySlotLabel ?? "미정";
 
   // 카드 외곽 — LIVE 강조 / 그 외 일반 보더
+  // 2026-05-02 사용자 요청: 카드 클릭 시 /live/[id] 매치 상세로 이동 (일정 카드와 동일)
   return (
-    <div
-      className="rounded-lg border p-3 transition-colors"
+    <Link
+      href={`/live/${match.id}`}
+      className="block rounded-lg border p-3 transition-all hover:opacity-80"
       style={{
         borderColor: isLive ? "var(--color-primary)" : "var(--color-border)",
         backgroundColor: "var(--color-card)",
@@ -352,10 +355,9 @@ function DualMatchCard({
             name={homeName}
           />
           {match.homeTeam ? (
-            // 팀 확정 — 팀 페이지 링크
-            <Link
-              href={`/teams/${match.homeTeam.teamId}`}
-              className={`truncate text-base leading-tight hover:underline ${
+            // 팀 확정 — 카드 전체가 매치 상세 Link 라 중첩 회피 위해 span 처리
+            <span
+              className={`truncate text-base leading-tight ${
                 homeWon ? "font-bold" : "font-medium"
               }`}
               style={{
@@ -367,7 +369,7 @@ function DualMatchCard({
               }}
             >
               {homeDisplay}
-            </Link>
+            </span>
           ) : (
             // 빈 슬롯 — italic muted
             <span
@@ -429,9 +431,8 @@ function DualMatchCard({
         {/* 어웨이팀 — 우측 (팀명 + 로고) */}
         <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
           {match.awayTeam ? (
-            <Link
-              href={`/teams/${match.awayTeam.teamId}`}
-              className={`truncate text-base leading-tight hover:underline ${
+            <span
+              className={`truncate text-base leading-tight ${
                 awayWon ? "font-bold" : "font-medium"
               }`}
               style={{
@@ -443,7 +444,7 @@ function DualMatchCard({
               }}
             >
               {awayDisplay}
-            </Link>
+            </span>
           ) : (
             <span
               className="truncate text-base italic leading-tight"
@@ -459,7 +460,7 @@ function DualMatchCard({
           />
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
