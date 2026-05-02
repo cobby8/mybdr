@@ -156,8 +156,10 @@ export function AdminTournamentsContent({
       </div>
 
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        {/* admin-table-wrap: 모바일 카드 변환 시 overflow-x: visible 강제 (globals.css [Admin Phase B]) */}
+        <div className="overflow-x-auto admin-table-wrap">
+          {/* admin-table: 모바일 (≤720px) 카드형 자동 변환 (globals.css [Admin Phase B], 2026-05-02) */}
+          <table className="admin-table w-full text-left text-sm">
             <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-5 py-4 font-medium">대회명</th>
@@ -176,7 +178,8 @@ export function AdminTournamentsContent({
                     onClick={() => setSelected(t)}
                     className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
                   >
-                    <td className="px-5 py-3">
+                    {/* data-primary="true": 모바일에서 카드 헤딩 (큰 폰트 + dashed border) */}
+                    <td data-primary="true" className="px-5 py-3">
                       <p className="truncate font-medium text-[var(--color-text-primary)]">
                         {t.name}
                       </p>
@@ -184,12 +187,12 @@ export function AdminTournamentsContent({
                         {t.organizerName ?? t.organizerEmail ?? "-"}
                       </p>
                     </td>
-                    <td className="px-5 py-3">
+                    <td data-label="상태" className="px-5 py-3">
                       <Badge variant={STATUS_BADGE[tabKey] ?? "default"}>
                         {STATUS_LABEL[status] ?? status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3">
+                    <td data-label="공개" className="px-4 py-3">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                           t.isPublic
@@ -201,7 +204,7 @@ export function AdminTournamentsContent({
                       </span>
                     </td>
                     {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
-                    <td className="whitespace-nowrap px-5 py-3 text-[var(--color-text-muted)]">
+                    <td data-label="날짜" className="whitespace-nowrap px-5 py-3 text-[var(--color-text-muted)]">
                       {fmtDate(t.createdAt)}
                     </td>
                   </tr>
