@@ -516,6 +516,11 @@ export const prefetchUpcomingTournament = unstable_cache(async (): Promise<HeroS
     teams_count: t.teams_count ?? 0,
     max_teams: t.maxTeams ?? null,
     cover_image_url: t.banner_url ?? null,
+    // 2026-05-02: 마감 임박 / 미래 시작 대회는 보통 접수 중 — registration_end_at > now 확인
+    is_registration_open: t.registration_end_at
+      ? t.registration_end_at > now
+      : true, // registration_end_at NULL 이면 무제한 접수 가정
+    live_match: null, // 마감 임박 / 미래 시작 대회는 라이브 매치 없음 (진행 전)
   };
 }, ["home-hero-tournament"], { revalidate: 60 });
 
@@ -701,6 +706,48 @@ export const prefetchInProgressTournament = unstable_cache(
 
     if (!t) return null;
 
+    // 2026-05-02: 진행 중 매치 1건 fetch — 라이브 우선, 없으면 가장 최근 매치
+    const liveMatch = await prisma.tournamentMatch
+      .findFirst({
+        where: {
+          tournamentId: t.id,
+          status: { in: ["live", "in_progress"] },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          homeScore: true,
+          awayScore: true,
+          homeTeam: { select: { team: { select: { name: true } } } },
+          awayTeam: { select: { team: { select: { name: true } } } },
+        },
+      })
+      .catch(() => null);
+
+    let displayMatch = liveMatch;
+    if (!displayMatch) {
+      // 라이브 없으면 가장 최근 종료 매치 (스코어만 표시용)
+      displayMatch = await prisma.tournamentMatch
+        .findFirst({
+          where: {
+            tournamentId: t.id,
+            status: "completed",
+            ended_at: { not: null },
+          },
+          orderBy: { ended_at: "desc" },
+          select: {
+            id: true,
+            status: true,
+            homeScore: true,
+            awayScore: true,
+            homeTeam: { select: { team: { select: { name: true } } } },
+            awayTeam: { select: { team: { select: { name: true } } } },
+          },
+        })
+        .catch(() => null);
+    }
+
     return {
       id: t.id,
       uuid: t.id,
@@ -712,6 +759,20 @@ export const prefetchInProgressTournament = unstable_cache(
       teams_count: t.teams_count ?? 0,
       max_teams: t.maxTeams ?? null,
       cover_image_url: t.banner_url ?? null,
+      // 2026-05-02 신규
+      is_registration_open: t.registration_end_at
+        ? t.registration_end_at > now
+        : false, // registration_end_at NULL 이면 접수 중 X (진행 중 가정)
+      live_match: displayMatch
+        ? {
+            id: displayMatch.id.toString(),
+            home_team_name: displayMatch.homeTeam?.team.name ?? "?",
+            home_score: displayMatch.homeScore ?? 0,
+            away_team_name: displayMatch.awayTeam?.team.name ?? "?",
+            away_score: displayMatch.awayScore ?? 0,
+            is_live: ["live", "in_progress"].includes(displayMatch.status ?? ""),
+          }
+        : null,
     };
   },
   ["home-hero-in-progress-tournament"],
