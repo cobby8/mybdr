@@ -53,7 +53,8 @@ const colorSchema = z
 
 // 2026-04-29: 로고 URL 스키마 — Supabase Storage public URL.
 // preprocess 로 빈 문자열/공백을 null 로 치환 (hidden input 의 기본값 "" 처리).
-// http(s) 만 허용. URL 길이 한도 600 자 (Supabase URL 일반 ~100자대지만 여유).
+// 2026-05-02: 정적 자산(`/team-logos/{slug}.png`) 도 허용 — Vercel public 폴더 경로 패턴.
+//   기존 z.url() 은 절대 URL 만 통과 → 16팀 일괄 등록한 상대 경로가 PATCH 시 reject 되던 버그 fix.
 const logoUrlSchema = z.preprocess(
   (v) => {
     if (v === undefined) return undefined;
@@ -66,8 +67,11 @@ const logoUrlSchema = z.preprocess(
   },
   z
     .string()
-    .url("로고 URL 형식이 올바르지 않습니다")
     .max(600, "로고 URL이 너무 깁니다")
+    .refine(
+      (v) => /^https?:\/\//.test(v) || v.startsWith("/"),
+      { message: "로고 URL 형식이 올바르지 않습니다 (http(s):// 또는 / 시작 경로만 허용)" }
+    )
     .nullable()
     .optional()
 );
