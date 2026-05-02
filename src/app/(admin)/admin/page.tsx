@@ -67,7 +67,11 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <AdminPageHeader title="대시보드" />
+      <AdminPageHeader
+        eyebrow="ADMIN · DASHBOARD"
+        title="대시보드"
+        subtitle="유저 / 토너먼트 / 경기 / 팀 통계 + 최근 활동"
+      />
 
       {/* 통계 카드 4개: Material Symbols 아이콘 사용
        * 이유: 기존 sm(640+) 시점부터 2열 → admin layout `lg:ml-64` 사이드바 보상이 없는 모바일에서 카드가 좁게 몰림.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 type Plan = {
   id: string;
@@ -139,10 +140,12 @@ export default function AdminPlansPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>요금제 관리</h1>
-        <Button onClick={openCreate}>+ 요금제 추가</Button>
-      </div>
+      <AdminPageHeader
+        eyebrow="ADMIN · PLANS"
+        title="요금제 관리"
+        subtitle="기능별 요금제 / 프로모션 관리"
+        actions={<Button onClick={openCreate}>+ 요금제 추가</Button>}
+      />
 
       {/* 프로모션 관리 */}
       <Card className="mb-6">
