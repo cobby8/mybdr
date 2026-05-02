@@ -85,10 +85,6 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-01 | c3676ed,8d0f1f2 | D-6 EditProfile Hybrid 박제 + ProfileShell cleanup | ✅ |
-| 2026-05-02 | (계획만) | 듀얼토너먼트 풀 시스템 — 영향 분석 + Phase A~E 계획 + 결정 6건 도출 | ✅ |
-| 2026-05-02 | (Phase B+C+D commit 일괄) | 듀얼토너먼트 Phase B (bracket-settings-form 분기 + POST dual 분기), C (matches PATCH progressDualMatch 통합), D (admin 5섹션 그룹핑) | ✅ |
-| 2026-05-02 | (계획만) | Phase F 공개 시각화 분석 (옵션 C 하이브리드 추천, 결정 6건) / Games 박제 분석 (결정 6건) / 관리자 UI 개선 분석 (Phase A~E, 결정 6건) | ⏳ 결정 대기 |
 | 2026-05-02 | (Games Phase B+C 일괄) | Games 박제 Phase B (segmented + collapsible) + C (ParticipantList Hybrid + ApplyPanel 신청자정보) | ✅ |
 | 2026-05-02 | (Teams Phase B+C+D 일괄) | Teams 박제 — 카드 #랭크 PC 복원 + stats 4카드 모바일 분기 + Roster/Recent .data-table 마커 | ✅ |
 | 2026-05-02 | (Live v2 박스스코어 일괄) | Live `/live/[id]` 옛 BoxScoreTable + PrintBoxScoreTable + PrintOptionsDialog 풀 복원 | ✅ |
@@ -97,3 +93,4 @@
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
 | 2026-05-02 | (검토만) | 셋업팀 가입 승인 위험 검토 — 17명 일괄 승인 시 9명 UNIQUE 충돌 ROLLBACK + ttp 4건 placeholder 참조 + stats 26 + pbp 32 영향. 안 A (대회 종료 후 처리) 채택. 실행 0건 | ✅ |
 | 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + set-up 갱신 + Team.logoUrl 16건 UPDATE | ✅ |
+| 2026-05-02 | (CSS+PNG) | 동호회최강전 16팀 로고 잘림 일괄 최적화 — CSS object-fit cover→contain 7파일 (hero-scoreboard.css / live page TeamLogo / team-card-v2 / team-side-card / overview-tab / classic.tsx / manage page) + PNG 16개 sharp 정규화 (512×512 + 8% padding, 2.09MB→1.36MB, 백업 _original-2026-05-02/) | ✅ |

@@ -1399,7 +1399,8 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                       <img
                         src={logoUrl}
                         alt="팀 로고 미리보기"
-                        className="h-20 w-20 rounded-lg border border-[var(--color-border)] object-cover"
+                        // 팀 로고는 비율이 제각각 — contain 으로 잘림 방지 (2026-05-02)
+                        className="h-20 w-20 rounded-lg border border-[var(--color-border)] object-contain"
                       />
                       <div className="flex flex-1 flex-col gap-2 sm:flex-row">
                         <label className="btn btn--sm cursor-pointer text-center" style={{ fontSize: 13 }}>

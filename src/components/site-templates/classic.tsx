@@ -109,7 +109,8 @@ function TeamAvatar({ name, logoUrl, size = 8 }: { name: string; logoUrl: string
         alt={name}
         width={size * 4}
         height={size * 4}
-        className={`h-${size} w-${size} rounded-full object-cover`}
+        // 팀 로고는 비율이 제각각 — contain 으로 잘림 방지 (2026-05-02)
+        className={`h-${size} w-${size} rounded-full object-contain`}
         unoptimized /* 외부 도메인이 다양하므로 최적화 생략 */
       />
     );

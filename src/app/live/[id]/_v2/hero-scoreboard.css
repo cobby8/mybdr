@@ -70,7 +70,9 @@
 .hero-sb__logo img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  /* 팀 로고는 가로/세로 비율이 제각각이라 cover 시 잘려 보이는 문제가 있음.
+     contain 으로 비율 보존 + 잘림 방지. 원형 마스크 안에서 여백이 생겨도 의도된 결과 (2026-05-02). */
+  object-fit: contain;
 }
 
 .hero-sb__logo-fallback {
