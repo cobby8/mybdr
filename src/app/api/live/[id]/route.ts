@@ -1001,75 +1001,142 @@ export async function GET(
     // 경기장명: tournament_matches.venue_name 우선 → 없으면 tournament.venue_name fallback
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
 
-    // G3 (2026-05-02): 팀별 출전시간 cap 적용 — distributedSec 우선 축소, 풀타임 trustedSec 절대 보호
+    // G4 (2026-05-02): 팀별 출전시간 cap 양방향 정확 매칭 — medium+distributed 동시 비율, 풀타임 trustedSec 절대 보호
     //
     // 원칙:
     //   total = trusted + medium + distributed  (선수 단위)
     //   teamTotal = sum(total)                  (팀 단위)
-    //   cap = 5 × qLen × 4 (=4쿼터 풀 = 1팀 코트시간 합)
+    //   cap = 5 × qLen × 4 (=4쿼터 풀 = 1팀 코트시간 합 = 정확히 140분)
     //
-    //   1) teamTotal <= cap : 변경 0 (이미 합 OK)
-    //   2) teamTotal >  cap :
-    //      a) trustedTotal > cap : 데이터 이상 — 경고 로그만 + 그대로 (풀타임 보호)
-    //      b) 그 외 : distributed 우선 축소 (distRatio = (cap - trusted - medium 잔여) / distributed)
-    //                distributed 만으론 부족하면 medium 도 축소 (mediumRatio)
+    //   1) |teamTotal - cap| < 1s : 변경 0 (이미 정확 일치)
+    //   2) trustedTotal > cap : 데이터 이상 — 경고 로그만 + 그대로 (풀타임 보호)
+    //   3) variableTotal > 0 (medium/distributed 존재) :
+    //      remaining = cap - trustedTotal           ← medium+distributed 가 차지할 정확 양
+    //      ratio = remaining / (mediumTotal + distributedTotal)
+    //      medium *= ratio + distributed *= ratio   ← ratio < 1 이면 축소, ratio > 1 이면 확대
+    //   4) variableTotal = 0 (옵션 B fallback — sub_in/sub_out 명시 매치 #133 케이스):
+    //      풀타임 선수 (trustedSec >= qLen×4 - 5s) 는 절대 보호 + partial trustedSec 만 비례 확대.
+    //      remainingForPartial = cap - fullTimeSum
+    //      trustedRatio = remainingForPartial / partialSum
+    //      partial.trustedSec *= trustedRatio       ← partial 만 확대해 cap 정확 매칭
     //
-    //   trustedSec 은 절대 축소 X (풀타임 28분 선수 등 보장).
-    const applyTeamCap = (players: PlayerRow[]): void => {
+    //   풀타임 선수의 trustedSec 은 절대 변경 X (28분 선수 1680s 보장).
+    //
+    //   G3 와 차이: G3 는 합 > cap 시만 축소. G4 는 합 < cap 도 정확히 cap 에 맞춤.
+    //   → #132/#134/#135 (medium/distributed 있음) = 케이스 3 / #133 (없음) = 케이스 4
+    //   → 4매치 모두 280m 정확 매칭.
+    // G4 디버그 정보 (debug=1 시 응답에 포함)
+    const capDebug: Array<Record<string, unknown>> = [];
+    const applyTeamCap = (players: PlayerRow[], teamLabel: string): void => {
+      // G4 (2026-05-02 양방향): 일치하지 않을 때 medium+distributed 비례 매칭
       const cap = 5 * estimatedQL * 4; // 한 팀의 최대 코트시간 합 (예: 7분 → 8400s, 10분 → 12000s)
 
-      // 합산 (cap 체크용)
+      // 합산 (cap 체크용) — _minBreakdown 부재 선수는 min_seconds 그대로 부재합산 (G4 디버그)
       let trustedTotal = 0;
       let mediumTotal = 0;
       let distributedTotal = 0;
+      let unmappedTotal = 0; // _minBreakdown 가 없는 선수의 min_seconds 합 (cap 적용 외부 영역)
+      let mappedCount = 0;
+      let unmappedCount = 0;
       for (const p of players) {
         const b = p._minBreakdown;
-        if (!b) continue;
+        if (!b) {
+          unmappedTotal += p.min_seconds ?? 0;
+          unmappedCount++;
+          continue;
+        }
         trustedTotal += b.trustedSec;
         mediumTotal += b.mediumSec;
         distributedTotal += b.distributedSec;
+        mappedCount++;
       }
       const total = trustedTotal + mediumTotal + distributedTotal;
+      capDebug.push({
+        team: teamLabel, cap, total, trustedTotal, mediumTotal, distributedTotal,
+        unmappedTotal, mappedCount, unmappedCount,
+      });
 
-      if (total <= cap) return; // 이미 합 OK — 변경 0
+      // 1초 이내 일치 → 변경 0 (이미 정확)
+      if (Math.abs(total - cap) < 1) return;
 
-      // 데이터 이상 (풀타임 합만으로 cap 초과) — 경고만 + 그대로
+      // 데이터 이상 (풀타임 합만으로 cap 초과) — 경고만 + 그대로 (풀타임 보호 우선)
       if (trustedTotal > cap) {
-        console.warn(`[live/cap] team trustedSec ${trustedTotal} > cap ${cap} — 보호 우선, cap skip`);
+        console.warn(`[live/cap] team trustedSec ${trustedTotal} > cap ${cap} — 풀타임 보호 우선, cap skip`);
         return;
       }
 
-      const remaining = cap - trustedTotal; // medium + distributed 가 차지할 수 있는 최대치
+      // medium + distributed 가 채워야 할 정확 양
+      const remaining = cap - trustedTotal;
+      const variableTotal = mediumTotal + distributedTotal;
 
-      // 1차: distributed 우선 축소 — medium 은 가능한 살리기
-      if (mediumTotal <= remaining) {
-        // medium 은 그대로, distributed 만 축소
-        const distAllowed = remaining - mediumTotal;
-        const distRatio = distributedTotal > 0 ? distAllowed / distributedTotal : 0;
+      // 가변 풀이 0 이면 분배 불가가 아니라 — G4 옵션 B fallback 으로 진입 (trustedSec 만 비례 확대)
+      // 이유: #133 케이스 (sub_in/sub_out 명시 매치) 는 medium/distributed = 0 이고 trustedTotal < cap.
+      //       이때 풀타임 선수는 보호하고, partial 출전 trusted 만 비례 확대해 280m 정확 매칭.
+      if (variableTotal < 1) {
+        // 풀타임 임계값 — 풀타임 = 4쿼터 출전 = qLen × 4 (예: 7분 → 1680s, 10분 → 2400s)
+        // ±5s 마진을 둬서 1675s 이상이면 "풀타임 선수" 로 간주 (ratio 적용 X)
+        const fullTimeThreshold = estimatedQL * 4 - 5;
+
+        let fullTimeSum = 0;   // 풀타임 선수의 trustedSec 합 (보호 영역)
+        let partialSum = 0;    // 비풀타임 선수의 trustedSec 합 (비례 확대 대상)
         for (const p of players) {
-          if (!p._minBreakdown) continue;
-          p._minBreakdown.distributedSec = Math.round(p._minBreakdown.distributedSec * distRatio);
+          const b = p._minBreakdown;
+          if (!b) continue;
+          if (b.trustedSec >= fullTimeThreshold) {
+            fullTimeSum += b.trustedSec;
+          } else {
+            partialSum += b.trustedSec;
+          }
         }
-      } else {
-        // medium 도 축소 필요 — distributed 0 + medium ratio 축소
-        const mediumRatio = mediumTotal > 0 ? remaining / mediumTotal : 0;
+
+        // partial 합이 0 이거나, 풀타임 합이 cap 을 넘으면 분배 불가 — 그대로
+        // (풀타임 선수가 cap 초과는 trustedTotal > cap 케이스에서 이미 걸러짐. 안전망)
+        const remainingForPartial = cap - fullTimeSum;
+        if (partialSum < 1 || remainingForPartial < 0) {
+          capDebug.push({ team: teamLabel, optionB: "skip", fullTimeSum, partialSum, remainingForPartial });
+          return;
+        }
+
+        // partial 만 비례 확대 (풀타임은 그대로 보호)
+        const trustedRatio = remainingForPartial / partialSum;
+        capDebug.push({ team: teamLabel, optionB: "applied", fullTimeSum, partialSum, trustedRatio });
+
         for (const p of players) {
-          if (!p._minBreakdown) continue;
-          p._minBreakdown.distributedSec = 0;
-          p._minBreakdown.mediumSec = Math.round(p._minBreakdown.mediumSec * mediumRatio);
+          const b = p._minBreakdown;
+          if (!b) continue;
+          // 풀타임 선수는 trustedSec 그대로 (1680s ±5s 절대 보호)
+          if (b.trustedSec < fullTimeThreshold) {
+            b.trustedSec = b.trustedSec * trustedRatio;
+          }
+          // medium/distributed 는 0 이지만 안전하게 합산
+          p.min_seconds = Math.round(b.trustedSec + b.mediumSec + b.distributedSec);
+          p.min = Math.round(p.min_seconds / 60);
         }
+        return;
       }
 
-      // min_seconds / min 재계산
+      // 양방향 비율 (ratio < 1 = 축소 / ratio > 1 = 확대)
+      const ratio = remaining / variableTotal;
+
       for (const p of players) {
         if (!p._minBreakdown) continue;
-        const newSec = p._minBreakdown.trustedSec + p._minBreakdown.mediumSec + p._minBreakdown.distributedSec;
+        // trustedSec 은 절대 변경 X (풀타임 선수 1680s 보호)
+        p._minBreakdown.mediumSec = p._minBreakdown.mediumSec * ratio;
+        p._minBreakdown.distributedSec = p._minBreakdown.distributedSec * ratio;
+      }
+
+      // min_seconds / min 재계산 (반올림은 최종 단계에서만 — 누적 오차 최소화)
+      for (const p of players) {
+        if (!p._minBreakdown) continue;
+        const newSec = Math.round(
+          p._minBreakdown.trustedSec + p._minBreakdown.mediumSec + p._minBreakdown.distributedSec,
+        );
         p.min_seconds = newSec;
         p.min = Math.round(newSec / 60);
       }
     };
-    applyTeamCap(homePlayers);
-    applyTeamCap(awayPlayers);
+    applyTeamCap(homePlayers, "home");
+    applyTeamCap(awayPlayers, "away");
 
     // _minBreakdown 은 내부 cap 계산용 — 응답 직전 strip (외부 노출 X)
     for (const p of [...homePlayers, ...awayPlayers]) {
@@ -1088,6 +1155,7 @@ export async function GET(
     const debugEnabled = req.nextUrl.searchParams.get("debug") === "1";
     const debugPayload = debugEnabled
       ? {
+          cap_debug: capDebug,
           pbp_count: allPbps.length,
           pbp_sample: allPbps.slice(0, 10).map((p) => ({
             player_id: p.tournament_team_player_id != null ? String(p.tournament_team_player_id) : null,

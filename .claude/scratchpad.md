@@ -64,7 +64,7 @@
 | 4 | mergeTempMember 함수 강화 (FK 7단계 통합 추가 — 김영훈 케이스 패턴 표준화) | ⏳ |
 | 5 | 16팀 미매핑 8팀 `tournament_team_players` 보정 (잔여 = MI / SKD 명단 대기) | 🟡 |
 | 6 | 미가입 명단 placeholder INSERT — **블랙라벨 11 ✅ + MSA 5 ✅ + 슬로우 8 ✅ (5/3)** / SKD/MI 명단 대기 | 🟡 부분 |
-| 7 | **16팀 가입신청 39건 정리** (5/3 발견) — 슬로우 8 ✅ / SKD 7 / MI 8 / 블랙라벨 9 (7 reject + 권도윤 통합 + 이삭 통합) / 업템포 3 / 피벗 2 / 아울스 1 / MZ 1 | 🟡 8/39 |
+| 7 | **16팀 가입신청 39건 정리** (5/3 발견) — 슬로우 8 ✅ / 블랙라벨 9 ✅ / 업템포 3 ✅ / 피벗 2 ✅ / 아울스 1 ✅ / MZ 1 ✅ / 잔여 SKD 7 + MI 8 (명단 대기) | 🟡 24/39 |
 
 ---
 
@@ -105,7 +105,9 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-03 | (lib 신규+DB) | **자동 approve 함수 추출 + 슬로우 처리** — `src/lib/teams/approve-join-requests.ts` 신규 (130줄, 3 액션 트랜잭션 멱등). 슬로우 가입신청 8건 일괄 처리 (강찬영+박종은 approve+jersey+ttp / 김성호 등 4명 approve+tm only / 곽시훈+강남구 reject 중복 / 나은호 placeholder). 출전 8/8 ✅ + pending 0 ✅. 16팀 가입대기 39건 발견(스크래치패드 큐 #1) | ✅ |
+| 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
+| 2026-05-03 | (DB 트랜잭션 3 phase) | **블랙라벨 정리 + 잔여 가입대기 정리 (16건 처리)** — Phase1 approveJoinRequests 14건 (블랙라벨 7 reject + 업템포 3 / 피벗 2 / 아울스 1 / MZ 1 = 7 approve_no_jersey) / Phase2 권도윤 3168→3318 통합 (tt+tm+captainId+req+merged 5단계) / Phase3 이삭 3326→3171 통합 (4단계). 블랙라벨 pending 9→0 ✅, tt_players 21 유지 ✅. status=merged +2 (총 11명) | ✅ |
+| 2026-05-03 | (lib 신규+DB) | **자동 approve 함수 추출 + 슬로우 처리** — `src/lib/teams/approve-join-requests.ts` 신규 (130줄, 3 액션 트랜잭션 멱등). 슬로우 가입신청 8건 일괄 처리. 출전 8/8 ✅ + pending 0 ✅. 16팀 가입대기 39건 발견(스크래치패드 큐 #1) | ✅ |
 | 2026-05-03 | (DB 트랜잭션) | **MSA 5명 INSERT** (5/3 11:00 경기 대비) — 왕준일 (uid=3108 기존) tt_players만 1건 + placeholder 4명(장동영/김승한/조우성/김병윤) 3단계 트랜잭션. 출전 17/17 ✅ + 마스터 18/18 ✅. placeholder 부채 89→93 | ✅ |
 | 2026-05-03 | (DB 트랜잭션) | **블랙라벨 11명 placeholder INSERT** (5/3 11:00 경기 대비) — User+TeamMember+tt_players 3단계 트랜잭션 (id 3320~3330 / 2636~2646 / 2786~2796). 출전 명단 21/21 ✅ + 마스터 21/21 ✅. 사용자 명단 검증 100% 일치. 매치 코드 자동생성 작업은 복잡도 사유 다음 세션 이연 (4 결정 대기). placeholder User 부채 78→89명 발견 (scratchpad outdated 갱신) | ✅ |
 | 2026-05-02 | (Phase 1) | **알기자 BDR NEWS Phase 1** — Gemini 2.5 Flash + system prompt + match-brief-generator + validate-brief + `/api/live/[id]/brief` route + tab-summary LLM 통합 (Phase 0 fallback 영구 유지). 신규 5 + 수정 3 파일. 검증 매치 #134 가상 입력 259자 단신 통과. tsc PASS. completed 매치만 LLM 호출 — 라이브 영향 0 | ✅ |
@@ -114,8 +116,3 @@
 | 2026-05-02 | cf2eea1 | **dual 진출 회귀 방지 4종** (A 자가치유 + B PATCH 차단 + C dirty tracking + D 검출). errors.md 박제 | ✅ |
 | 2026-05-02 | ebd335f | api/live G1 DNP 가드 (#136 -44m 회복) | ✅ |
 | 2026-05-02 | 90759d5 | **audit log E** — `tournament_match_audits` 신규 테이블 + helper + admin/flutter/system 통합. prisma db push 무중단 | ✅ |
-| 2026-05-02 | b728abb | PC 우승 예측 → 참가비 박스 아래 이동 + 대진표 풀폭 (모든 탭 sticky) | ✅ |
-| 2026-05-02 | a437829 | PC 일정 카드 콤팩트 + 매치번호 표시 + 그리드 (md 2열/xl 3열). 매치번호 부여 미흡 발견 (TEST 0/16, 열혈 3/34) | ✅ |
-| 2026-05-02 | (DB UPDATE) | **Match #21 8강 home=away fix** (피벗·아울스 2번째 케이스). audit log 9건 self-heal 자동 정정 흔적 추적 | ✅ |
-| 2026-05-02 | cfa64a6 | **트리 배정 로직 점검** — progressDualMatch self-heal context 강화 (source 명시) + updateMatch/updateMatchStatus legacy 진출에 self-heal+audit 추가 | ✅ |
-| 2026-05-02 | (시뮬 ROLLBACK) | **결승 시뮬레이션 검증** — 27매치 결승까지 가상 진행. self-heal 8건 자동 정정 / 양쪽 같은 팀 0건 / 우승=아울스 (가상). 운영 영향 0 | ✅ |
