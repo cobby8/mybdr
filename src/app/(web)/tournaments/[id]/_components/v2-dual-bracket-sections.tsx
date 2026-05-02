@@ -42,13 +42,60 @@ const STAGE_2: DualStage = {
   rounds: [3],
 };
 
-// ── 일정 포맷 — KST yyyy.MM.dd HH:mm ──
-function formatSchedule(iso: string | null): string {
-  if (!iso) return "일정 미정";
+// ── 날짜+시간 짧은 포맷 — "5/2(토) 10:00" ──
+// 이유: 2026-05-02 사용자 요청 — 대진표 매치 카드에 날짜 정보 추가
+// (이전엔 시간만 표시했으나, 다일 대회 / 카드 단독 조회 케이스에서 날짜 식별 필요).
+// 폴드5 (~388px) 대응: "5/2(토) 10:00" = 약 12자 — flex-wrap 으로 줄바꿈 안전.
+// 기존 schedule-timeline 의 formatGroupDate 와 다른 형태인 이유: 카드 inline 메타 한 줄에
+// 욱여넣기 위해 더 짧은 표기가 필요 (formatGroupDate 는 "5월 2일 (토)" — 날짜 헤더용).
+function formatDateTimeShort(iso: string | null): string {
+  if (!iso) return "--/-- (-) --:--";
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "일정 미정";
+  if (Number.isNaN(d.getTime())) return "--/-- (-) --:--";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // 한국어 요일 단축 (일~토)
+  const dow = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  return `${d.getMonth() + 1}/${d.getDate()}(${dow}) ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ── 팀 로고 (일정 카드와 동일 패턴) ──
+// 이유: 일정 탭/대진표 탭에서 팀 식별 기준이 일관되어야 사용자 인지 부하 0.
+// 사이즈 32/36 (모바일/데스크톱) — schedule-timeline 의 24/28 대비 30% 확대 (사용자 결정)
+function DualTeamLogo({
+  logoUrl,
+  name,
+}: {
+  logoUrl: string | null | undefined;
+  name: string | null;
+}) {
+  // 첫 글자 fallback — 한글/영문 모두 1자
+  const initial = name && name.length > 0 ? name.charAt(0) : "·";
+  return (
+    <span
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-full sm:h-9 sm:w-9"
+      style={{
+        border: "1px solid var(--color-border)",
+        backgroundColor: logoUrl ? "var(--color-surface)" : "var(--color-elevated)",
+      }}
+      aria-hidden="true"
+    >
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt=""
+          className="h-full w-full object-contain"
+          loading="lazy"
+        />
+      ) : (
+        <span
+          className="text-xs font-bold sm:text-sm"
+          style={{ color: "var(--color-text-tertiary)", fontFamily: "var(--font-heading)" }}
+        >
+          {initial}
+        </span>
+      )}
+    </span>
+  );
 }
 
 // ── 점수 표시 — completed/in_progress 만 숫자, 그 외 "—" (사용자 결정 #4) ──
@@ -202,8 +249,11 @@ function DualFinalsGrid({ matches }: { matches: BracketMatch[] }) {
 }
 
 // ── 듀얼 전용 매치 카드 ──
-// admin DualMatchCard 디자인을 BDR v3 토큰으로 재작성.
-// 빈 슬롯 라벨 italic muted (사용자 결정 #3) + 미진행 점수 "—" (사용자 결정 #4)
+// 2026-05-02 사용자 요청: 일정 탭 카드 (schedule-timeline.tsx) 와 시각 통일.
+// 구조: 가로 inline 1줄.
+//   상단: [#매치번호 | 라운드명 (조뱃지) | 시간] | [LIVE/상태]
+//   하단: [로고 홈팀명] | [점수:점수 / VS] | [어웨이팀명 로고]
+// 빈 슬롯 라벨 italic muted (사용자 결정 #3) + 미진행 "VS" (일정 카드와 동일)
 function DualMatchCard({
   match,
   showGroupBadge = false,
@@ -213,6 +263,8 @@ function DualMatchCard({
 }) {
   const completed = match.status === "completed";
   const isLive = match.status === "in_progress";
+  // 점수/VS 표시 분기 — 진행 중·종료만 점수, 그 외는 VS
+  const showScore = completed || isLive;
 
   // 승자 판별 — winnerTeamId 우선, 없으면 점수 비교 (completed 일 때만)
   const homeWon =
@@ -224,29 +276,45 @@ function DualMatchCard({
       ? match.awayTeam?.teamId === match.winnerTeamId
       : completed && match.awayScore > match.homeScore;
 
+  // 빈 슬롯 라벨 — 팀 미확정 시 settings.homeSlotLabel/awaySlotLabel 표시
+  const homeName = match.homeTeam?.team.name ?? null;
+  const awayName = match.awayTeam?.team.name ?? null;
+  const homeIsTbd = match.homeTeam == null;
+  const awayIsTbd = match.awayTeam == null;
+  const homeDisplay = homeName ?? match.homeSlotLabel ?? "미정";
+  const awayDisplay = awayName ?? match.awaySlotLabel ?? "미정";
+
+  // 카드 외곽 — LIVE 강조 / 그 외 일반 보더
   return (
     <div
-      className="rounded-md border p-3 transition-colors"
+      className="rounded-lg border p-3 transition-colors"
       style={{
         borderColor: isLive ? "var(--color-primary)" : "var(--color-border)",
         backgroundColor: "var(--color-card)",
       }}
     >
-      {/* 상단 메타 — 매치번호 / 라운드명 / 조 뱃지 (Stage 2 만) / 상태 */}
-      <div className="mb-2 flex items-center justify-between gap-2 text-[11px]">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* 상단 메타 — schedule-timeline 카드 패턴: 좌측 inline (시간|구분선|라운드명|조뱃지), 우측 상태 배지 */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+          {/* 매치번호 */}
           <span
-            className="font-mono"
+            className="font-mono text-xs"
             style={{ color: "var(--color-text-muted)" }}
           >
             #{match.matchNumber ?? "-"}
           </span>
+          {/* 구분선 */}
+          <span className="text-xs" style={{ color: "var(--color-border)" }}>
+            |
+          </span>
+          {/* 라운드명 */}
           <span
-            className="font-medium truncate"
-            style={{ color: "var(--color-text-secondary)" }}
+            className="text-xs font-medium truncate"
+            style={{ color: "var(--color-text-tertiary)" }}
           >
             {match.roundName}
           </span>
+          {/* 조 뱃지 — Stage 2 (조별 최종전)에서만 표시 */}
           {showGroupBadge && match.groupName && (
             <span
               className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold"
@@ -259,115 +327,181 @@ function DualMatchCard({
               {match.groupName}조
             </span>
           )}
-        </div>
-        {/* LIVE 표시만 (예정/종료는 숨김 — 점수와 중복) */}
-        {isLive && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
-            style={{
-              backgroundColor: "var(--color-error)",
-              color: "#ffffff",
-            }}
-          >
-            LIVE
+          {/* 날짜+시간 — 2026-05-02 사용자 요청으로 시간만→날짜+시간 확장
+              폴드5 388px 대응: 부모 div 가 flex-wrap 이미 적용 — 메타 길어지면 다음 줄로 wrap. */}
+          <span className="text-xs" style={{ color: "var(--color-border)" }}>
+            |
           </span>
-        )}
+          <span
+            className="text-xs font-bold whitespace-nowrap"
+            style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-heading)" }}
+          >
+            {formatDateTimeShort(match.scheduledAt)}
+          </span>
+        </div>
+        {/* 상태 배지 — LIVE/종료/예정 모두 표시 (일정 카드와 동일 패턴) */}
+        <DualStatusBadge status={match.status} />
       </div>
 
-      {/* 일정 — 작게 한 줄 */}
-      <div
-        className="mb-2 text-[11px]"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        {formatSchedule(match.scheduledAt)}
+      {/* 하단: 팀 로고 + 팀명 — 가운데 점수/VS — 팀명 + 팀 로고 */}
+      <div className="flex items-center justify-between">
+        {/* 홈팀 — 좌측 (로고 + 팀명) */}
+        <div className="flex flex-1 items-center gap-2 text-left min-w-0">
+          <DualTeamLogo
+            logoUrl={match.homeTeam?.team.logoUrl ?? null}
+            name={homeName}
+          />
+          {match.homeTeam ? (
+            // 팀 확정 — 팀 페이지 링크
+            <Link
+              href={`/teams/${match.homeTeam.teamId}`}
+              className={`truncate text-base leading-tight hover:underline ${
+                homeWon ? "font-bold" : "font-medium"
+              }`}
+              style={{
+                color: homeWon
+                  ? "var(--color-text-primary)"
+                  : completed && !homeWon
+                  ? "var(--color-text-secondary)"
+                  : "var(--color-text-primary)",
+              }}
+            >
+              {homeDisplay}
+            </Link>
+          ) : (
+            // 빈 슬롯 — italic muted
+            <span
+              className="truncate text-base italic leading-tight"
+              style={{ color: "var(--color-text-muted)" }}
+              title={homeDisplay}
+            >
+              {homeDisplay}
+            </span>
+          )}
+        </div>
+
+        {/* 가운데 — 점수 박스 또는 VS (일정 카드와 동일 패턴)
+            2026-05-02 사용자 요청: 점수 박스 30% 확대 (일정 카드와 동일 비율)
+            - 글자: text-sm(14) → text-lg(18) ≈ 28%↑, 콜론 text-xs → text-sm
+            - 박스: px-3 py-1 → px-4 py-1.5
+            - VS: text-xs → text-base */}
+        <div className="mx-3 flex-shrink-0">
+          {showScore ? (
+            <div
+              className="flex items-center gap-1.5 rounded-full px-4 py-1.5"
+              style={{ backgroundColor: "var(--color-elevated)" }}
+            >
+              <span
+                className="text-lg font-bold tabular-nums"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: homeWon ? "var(--color-primary)" : "var(--color-text-secondary)",
+                }}
+              >
+                {homeIsTbd ? "—" : formatScore(match, "home")}
+              </span>
+              <span className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>
+                :
+              </span>
+              <span
+                className="text-lg font-bold tabular-nums"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  color: awayWon ? "var(--color-primary)" : "var(--color-text-secondary)",
+                }}
+              >
+                {awayIsTbd ? "—" : formatScore(match, "away")}
+              </span>
+            </div>
+          ) : (
+            <span
+              className="rounded-full px-4 py-1.5 text-base font-bold"
+              style={{
+                backgroundColor: "var(--color-primary)",
+                color: "white",
+              }}
+            >
+              VS
+            </span>
+          )}
+        </div>
+
+        {/* 어웨이팀 — 우측 (팀명 + 로고) */}
+        <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
+          {match.awayTeam ? (
+            <Link
+              href={`/teams/${match.awayTeam.teamId}`}
+              className={`truncate text-base leading-tight hover:underline ${
+                awayWon ? "font-bold" : "font-medium"
+              }`}
+              style={{
+                color: awayWon
+                  ? "var(--color-text-primary)"
+                  : completed && !awayWon
+                  ? "var(--color-text-secondary)"
+                  : "var(--color-text-primary)",
+              }}
+            >
+              {awayDisplay}
+            </Link>
+          ) : (
+            <span
+              className="truncate text-base italic leading-tight"
+              style={{ color: "var(--color-text-muted)" }}
+              title={awayDisplay}
+            >
+              {awayDisplay}
+            </span>
+          )}
+          <DualTeamLogo
+            logoUrl={match.awayTeam?.team.logoUrl ?? null}
+            name={awayName}
+          />
+        </div>
       </div>
-
-      {/* HOME 행 */}
-      <DualTeamRow
-        match={match}
-        side="home"
-        won={homeWon}
-        loser={completed && !homeWon}
-      />
-
-      {/* 구분선 */}
-      <div
-        className="my-1 h-px"
-        style={{ backgroundColor: "var(--color-border)" }}
-      />
-
-      {/* AWAY 행 */}
-      <DualTeamRow
-        match={match}
-        side="away"
-        won={awayWon}
-        loser={completed && !awayWon}
-      />
     </div>
   );
 }
 
-// ── 한 줄 팀 행 ──
-function DualTeamRow({
-  match,
-  side,
-  won,
-  loser,
-}: {
-  match: BracketMatch;
-  side: "home" | "away";
-  won: boolean;
-  loser: boolean;
-}) {
-  const team = side === "home" ? match.homeTeam : match.awayTeam;
-  const slotLabel =
-    side === "home" ? match.homeSlotLabel : match.awaySlotLabel;
-  const score = formatScore(match, side);
-
-  return (
-    <div className="flex items-center justify-between gap-2">
-      {team ? (
-        // 팀 확정 — 팀 페이지 링크
-        <Link
-          href={`/teams/${team.teamId}`}
-          className={`flex-1 truncate text-sm leading-tight hover:underline ${
-            won ? "font-bold" : "font-medium"
-          }`}
-          style={{
-            color: loser
-              ? "var(--color-text-secondary)"
-              : "var(--color-text-primary)",
-          }}
-        >
-          {team.team.name}
-        </Link>
-      ) : (
-        // 빈 슬롯 — settings.{home|away}SlotLabel italic muted (사용자 결정 #3)
-        <span
-          className="flex-1 truncate text-sm italic leading-tight"
-          style={{ color: "var(--color-text-muted)" }}
-          title={slotLabel ?? "TBD"}
-        >
-          {slotLabel ?? "미정"}
-        </span>
-      )}
-
-      {/* 점수 — 미진행 "—" / 승자 강조 */}
+// ── 듀얼 매치 카드 상태 배지 ──
+// 일정 탭 StatusBadge 와 동일 시각 (Badge ui 컴포넌트 미사용 — 박제 컴포넌트 의존 최소화)
+function DualStatusBadge({ status }: { status: BracketMatch["status"] }) {
+  if (status === "completed") {
+    return (
       <span
-        className={`min-w-[28px] text-right text-sm tabular-nums ${
-          won ? "font-extrabold" : "font-medium"
-        }`}
+        className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold flex-shrink-0"
         style={{
-          color: won
-            ? "var(--color-primary)"
-            : loser
-            ? "var(--color-text-secondary)"
-            : "var(--color-text-primary)",
-          fontFamily: "var(--font-heading, var(--font-display))",
+          backgroundColor: "color-mix(in srgb, var(--color-info) 14%, transparent)",
+          color: "var(--color-info)",
         }}
       >
-        {score}
+        종료
       </span>
-    </div>
+    );
+  }
+  if (status === "in_progress") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold flex-shrink-0"
+        style={{
+          backgroundColor: "var(--color-error)",
+          color: "#ffffff",
+        }}
+      >
+        LIVE
+      </span>
+    );
+  }
+  // 예정/그 외
+  return (
+    <span
+      className="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold flex-shrink-0"
+      style={{
+        backgroundColor: "var(--color-elevated)",
+        color: "var(--color-text-tertiary)",
+      }}
+    >
+      예정
+    </span>
   );
 }

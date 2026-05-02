@@ -189,9 +189,7 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-02 | 0f8da8e+b18227c+8ccd4dd+f0278b4+1bec5c3 | **STL (Single Truth Layer) Phase 1 — Flutter PBP 누락 응답 가공 보정** — `src/app/api/live/[id]/route.ts` +200줄. 4 출처 데이터 일관 통합. R1 (score_at_time 시계열 + 매치 헤더 cap, 사용자 통찰 반영) / R3 (quarterStatsJson 부분 누락 보충) / R4 (minutesPlayed=0 fallback) / R8 (quarter length 동적). PBP sync 이중 가드 (manual-fix-* + [수동 보정] description). 매치 6건 검증 통과. 보고서 2종 작성 (원영 전달용 — Flutter app fix 권장). architecture/decisions/errors/lessons +5 | ✅ |
-| 2026-05-02 | 6dda1a0 | **HOT 카드 — 진행 중 직전 경기 MVP 노출** — public-bracket route 에 recentMvp 응답 추가 (mvp_player_id null fallback → playerStats GameScore 공식). HOT 카드 3-tier (대회 종료 → 핫팀 / 진행 중 → MVP / 종료 매치 0건 → 안내). 클릭 시 /live/[matchId]. 검증 매치 3건 (133/132/99) 합리적 MVP 추출 | ✅ |
-| 2026-05-02 | 28c7b23 | **대시보드 3카드 동작 개선** — 진행률 (completed+live)/total / LIVE 카드 클릭 시 /live/[id] 이동 + 첫 라이브 매치 정보 표시 / status='in_progress' → status IN ['live', 'in_progress'] 이중 인식 | ✅ |
+| 2026-05-02 | (압축 3건) | STL Phase1(api/live PBP 누락 가공) + HOT 카드 MVP fallback + 대시보드 3카드(진행률/LIVE 클릭) | ✅ |
 | 2026-05-02 | c1c9d87+76ea5ac | **LIVE 표기 중복 제거 + 온에어 펄스 효과** — isLive 시 STATUS_LABEL 회색 LIVE 숨김 (빨간 펄스만). globals.css `@keyframes live-air-pulse` 신규 (opacity + box-shadow ring 5px 동시 변화, 1.6s ease-in-out) | ✅ |
 | 2026-05-02 | d046ab1 | **폴드5 외부 (~388px) Hero 팀명/TOTAL 잘림 fix** — hero-scoreboard.css 에 `<400px` base + `400px+` 분기 추가 (3-tier). 일반 모바일 (400px+) 변경 0. errors.md 박제 (회귀 방지 룰: Tailwind xs: 또는 < 400 명시 분기 권장) | ✅ |
 | 2026-05-02 | 06d67c3+1a9737c | **단체 상세 모바일 히어로 fix + 인라인 grid 4 케이스 모바일 분기** — org-hero-v2 폰트/패딩/로고 분기 (text-[40px] 고정 → 28/34/40 sm:md:) + word-break:keep-all / signup·activity 의 repeat(4-5) 인라인 grid → Tailwind grid-cols-2 sm:grid-cols-N (errors.md 04-29 안티패턴) | ✅ |
@@ -202,3 +200,4 @@ API 변경 0 / 신규 파일 0 / DB 변경 0.
 | 2026-05-02 | 3d82a44+(8건) | **D-day 셋업팀 풀 패치** — 16팀 로고 등록/sharp 정규화/일정탭 표시 + dual sync fix (winner_team_id + progressDualMatch) + globals 색상 변수 + logoUrl 상대경로 fix + manage 에러메시지 키 | ✅ |
 | 2026-05-02 | (DB UPDATE) | **셋업팀 가입+매핑 정리** — 17건 처리 (8 승인 / 9 reject, pending=0) + ttp 5명 매핑 (곽규현/정세훈/임태웅/백주익/백배흠) → 매치#133 통계 매칭률 80%. 잔여 4명 (김영훈8점/김병주2점/이영기/이준호) 패자전 후 진행 | ✅ |
 | 2026-05-02 | (W/L 칩) | **조편성 카드 W/L 칩 표시** — `v2-dual-bracket-view.tsx` `buildGroupComposition` 확장 (TeamWithResults 타입 + status='completed' 매치를 round_number 순으로 winnerTeamId 비교 → W/L 시퀀스). `GroupCompositionCard` 팀명 Link 직후 5×5 정사각 칩 (success/error 색 / 4px 라운드). 칩 최대 3개 (G1/G2 1건 + 승자전·패자전 1건 + 최종전 1건). API/DB 변경 0. tsc PASS | ✅ |
+| 2026-05-02 | (시각통일+30%) | **대진표 듀얼 매치 카드 = 일정 카드 스타일 통일 + 양쪽 30% 확대** — (a) `v2-dual-bracket-sections.tsx` DualMatchCard 가로 inline 1줄 구조 (상단: #번호\|라운드\|조뱃지\|날짜+시간 \| 상태 / 하단: 로고 홈팀 - 점수:점수/VS - 어웨이팀 로고) + DualTeamLogo + DualStatusBadge inline + 시간만→`5/2(토) 10:00` 짧은 날짜+시간. (b) `bracket-builder.ts` TeamSlot.team 에 logoUrl 추가 + `public-bracket/route.ts` include 에 logoUrl: true. (c) 양쪽 카드 팀명 text-sm→text-base sm:text-lg (30%↑) + TeamLogo 24/28→32/36 (30%↑) + 점수 박스 text-sm/px-3 py-1→text-lg/px-4 py-1.5 (30%↑). tsc PASS | ✅ |
