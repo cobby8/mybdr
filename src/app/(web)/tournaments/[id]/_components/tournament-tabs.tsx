@@ -182,6 +182,7 @@ function OverviewWithDashboard({ tournamentId, overviewContent }: { tournamentId
             liveMatchPreview={d.liveMatchPreview ?? null}
             isAllCompleted={d.isAllCompleted ?? false}
             hotTeam={d.hotTeam ?? null}
+            recentMvp={d.recentMvp ?? null}
           />
         </div>
       )}
