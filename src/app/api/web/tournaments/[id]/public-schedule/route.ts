@@ -62,6 +62,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     roundName: m.roundName,
     scheduledAt: m.scheduledAt?.toISOString() ?? null,
     courtNumber: m.court_number,
+    // 2026-05-02: 일정 카드 콤팩트 + 매치번호 표시 (사용자 요청)
+    matchNumber: m.match_number,
+    groupName: m.group_name,
   }));
 
   const serializedTeams = teams.map((t) => ({

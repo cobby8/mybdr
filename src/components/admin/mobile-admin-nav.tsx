@@ -31,6 +31,8 @@ import {
   filterMenuByRoles,
   type AdminRole,
 } from "./sidebar";
+// 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
+import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
 
 interface Props {
   roles: AdminRole[];
@@ -164,8 +166,12 @@ export function AdminMobileNav({ roles }: Props) {
           })}
         </nav>
 
-        {/* 하단: 사이트로 돌아가기 */}
-        <div className="border-t border-[var(--color-border)] pt-4">
+        {/* 하단: 테마 토글 + 사이트로 돌아가기 */}
+        <div className="border-t border-[var(--color-border)] pt-4 space-y-2">
+          {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (모바일 단일 아이콘 / md+ 듀얼 라벨) */}
+          <div className="px-2">
+            <ThemeSwitch />
+          </div>
           <Link
             href="/"
             onClick={() => setOpen(false)}
