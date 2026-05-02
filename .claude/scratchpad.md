@@ -67,7 +67,6 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-04-30 | 7883ed3~6e81996 | profile PATCH 500 birth_date 가드 / Settings 7섹션 + BottomNav 박제 (commit 3111e25) / 선수명단 실명 Phase A 인프라 / B 대회 DB 셋업 5건 / organizations status fix | ✅ |
 | 2026-05-01 | c3676ed,8d0f1f2 | D-6 EditProfile Hybrid 박제 + ProfileShell cleanup | ✅ |
 | 2026-05-02 | (계획만) | 듀얼토너먼트 풀 시스템 — 영향 분석 + Phase A~E 계획 + 결정 6건 도출 | ✅ |
 | 2026-05-02 | (Phase B+C+D commit 일괄) | 듀얼토너먼트 Phase B (bracket-settings-form 분기 + POST dual 분기), C (matches PATCH progressDualMatch 통합), D (admin 5섹션 그룹핑) | ✅ |
@@ -77,3 +76,4 @@
 | 2026-05-02 | (Live v2 박스스코어 일괄) | Live `/live/[id]` 옛 BoxScoreTable + PrintBoxScoreTable + PrintOptionsDialog 풀 복원 | ✅ |
 | 2026-05-02 | 27d2bd7+(28건) | **5/2 동호회최강전 D-day 풀 셋업** — DB 16팀 / 듀얼토너먼트 27경기 / placeholder↔real 통합 5쌍 / 카드 HIGH4+컴팩트 v3 / Hero 5col+막대 통일 / 장소 "스포라운드" 고정 / 원영 캡틴 양도+탈퇴 | ✅ D-day 준비 완료 |
 | 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) + scratchpad 정리 | ✅ |
+| 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |

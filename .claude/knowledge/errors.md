@@ -2,6 +2,20 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] `/live/[id]` 라이브 페이지 awayTeam 선수명단 빈칸 — TournamentTeam 등록 시 team_members 동기화 누락
+- **분류**: error (DB 데이터 결손 / 코드 버그 아님)
+- **발견자**: 사용자 + debugger
+- **증상**: `/live/133` 셋업팀 명단 0명 표시 (홈 SA 9명 정상). API/UI 정상, DB 의 `tournament_team_players` 가 비어있음. 5/2 동호회최강전 16팀 중 9팀이 동일 증상 (셋업/MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD).
+- **원인**: `Team` → `TournamentTeam` (대회 등록) 시 원본 `team_members` 를 `tournament_team_players` 로 자동 복사하는 hook 누락. 등록 row 만 생기고 선수 명단은 0건. API (`src/app/api/live/[id]/route.ts:36-48`) 는 `tournament_team.players` 만 조회하므로 빈 배열 응답 → UI 빈칸.
+- **진단 방법**: prisma 로 `tournamentTeam.findUnique({ id, include: { players, team: { include: { members } } } })` 호출 → `players=0` vs `members=15` 비교로 결손 즉시 확인.
+- **수정 (1팀 임시 보정)**: `scripts/_temp/sync-setup-tournament-players-2026-05-02.ts` 일회성 스크립트 — DRY-RUN → role 분포 확인 (manager/coach 제외, member/captain 만) → INSERT createMany. 13건 INSERT 후 검증 후 스크립트 즉시 삭제. **코드 변경 0**.
+- **회귀 방지**:
+  1. **장기**: 대회 가입/팀 등록 hook (`linkPlayersToUsers` 인근) 에 `team_members → tournament_team_players` 동기화 추가 검토 (장기 큐 추후 구현 목록에 이미 등재)
+  2. **단기 운영 룰**: 대회 시작 전 16팀 명단 일괄 점검 SELECT (player_count=0 인 tournament_team 검출) — 추후 admin 페이지에 노출 검토
+  3. **CLI 진단 패턴**: 라이브 페이지 빈칸 신고 → 즉시 prisma `tournament_team.players.length` vs `team.members.length` 비교 → 0 vs 양수면 동기화 누락 확정
+- **잔여**: 8팀 (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) 동일 보정 PM 큐 — 같은 스크립트 패턴으로 일괄 가능
+- **참조횟수**: 0
+
 ### [2026-05-02] profile PATCH 409 '이미 등록된 정보' — 운영 DB partial unique index 가 prisma schema 누락
 - **분류**: error (schema drift / P2002 친화 메시지 누락)
 - **발견자**: 사용자 + pm
