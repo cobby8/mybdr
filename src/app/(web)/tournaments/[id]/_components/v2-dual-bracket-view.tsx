@@ -35,6 +35,8 @@ import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import type { RoundGroup, BracketMatch, TeamSlot } from "@/lib/tournaments/bracket-builder";
 import { BracketView } from "../bracket/_components/bracket-view";
+// Phase F2 활성화 (2026-05-02) — 조별 듀얼토너먼트 round 1~3 시각화 (20매치 카드 그리드)
+import { V2DualBracketSections } from "./v2-dual-bracket-sections";
 
 // ── 8강~결승 SVG 트리용 매치 재정렬 (NBA 크로스 매핑) ───
 function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
@@ -149,7 +151,11 @@ export function V2DualBracketView({ rounds, tournamentId }: Props) {
         <GroupCompositionCard groups={groupComposition} />
       )}
 
-      {/* 2) 최종 토너먼트 트리 — 8강·4강·결승 SVG V자 트리 (NBA 크로스 정합) */}
+      {/* 2) 조별 듀얼토너먼트 round 1~3 — Phase F2 박제 컴포넌트 (20매치 카드 그리드) */}
+      {/* 자체 round_number 필터 → matches prop 전체(27매치) 전달 OK */}
+      <V2DualBracketSections matches={allMatches} />
+
+      {/* 3) 최종 토너먼트 트리 — 8강·4강·결승 SVG V자 트리 (NBA 크로스 정합) */}
       {hasKnockoutTree && (
         <Card className="!p-4 sm:!p-6 overflow-x-auto">
           <BracketView rounds={knockoutRounds} tournamentId={tournamentId} />

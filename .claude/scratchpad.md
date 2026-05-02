@@ -89,6 +89,102 @@
 
 ---
 
+## 기획설계 (planner-architect) — Phase F2 조별 미니 더블엘리미 시각화
+
+**작업 일시**: 2026-05-02 D-day 현장
+**대상**: 듀얼토너먼트 (id=`138b22d8…`) 대진표 페이지 — 16강 조별 영역 미시각화
+
+### 현재 구조 (BracketView / Wrapper)
+
+`v2-bracket-wrapper.tsx` 는 이미 `isDual` 분기를 보유 (line 206 / 335):
+- `format === "dual_tournament"` 일 때 `<V2DualBracketView rounds={rounds} tournamentId={...} />` 렌더 (line 337).
+- `V2DualBracketView` 는 현재 **2개 섹션만 표시**:
+  1. `GroupCompositionCard` — 4조 × 4팀 명단 (조편성 — 경기 정보 X)
+  2. 8강·4강·결승 SVG V자 트리 (`buildKnockoutRounds` + `BracketView` 재사용, NBA 크로스 정합)
+- **빠진 영역**: 조별 G1/G2/G3 승자전/G4 패자전/최종전 (round 1·2·3 = 20경기) — 매치 단위 카드 시각화 없음. 사용자 결정으로 "조편성만" 보였으나, 현장에서 "조별 진행 상황 어디서 보냐" 피드백 유효.
+- API (`public-bracket/route.ts`): `rounds` 가 round_number 1~6 모든 매치 포함 (`buildRoundGroups`) — 추가 fetch 0.
+
+### 박제 컴포넌트 분석 (`v2-dual-bracket-sections.tsx`, 374줄)
+
+- **현재 import 0건** — 어디서도 mount 안 됨 (commit 2dc9af8 박제만).
+- **Props**: `{ matches: BracketMatch[] }` — 27 매치 모두 받고 자체 필터.
+- **렌더**: 두 섹션 sticky 헤더 (Stage 1 / Stage 2)
+  - `DualGroupedGrid` (Stage 1 — round 1·2): A/B/C/D 4조 × 4매치 카드 (G1·G2·승자전·패자전), 데스크톱 2열 / 모바일 1열
+  - `DualFinalsGrid` (Stage 2 — round 3): 조별 최종전 4매치, lg 4열 / sm 2열 / 모바일 1열
+  - `DualMatchCard`: 매치번호 + 라운드명 + 조뱃지(Stage2만) + LIVE 배지 + 일정 + HOME/AWAY 행 (팀명 link / 빈슬롯 italic / 점수)
+- **시안 정합 OK**: var(--*) 토큰 / lucide-react 0 / 9999px 0 (LIVE 만 rounded-full — 정사각형 아님이지만 작은 배지로 허용 범위). italic muted 빈 슬롯 / "—" 미진행 점수.
+- **단, `BracketMatch` 의 round_number 매핑 의존**: STAGE_1.rounds=[1,2] / STAGE_2.rounds=[3] — DB generator (`dual-tournament-generator.ts` line 48 주석) 와 1:1 일치. 안전.
+
+### 연결 위치 결정 — V2DualBracketView 내부 끼워넣기
+
+**옵션 비교** (3안):
+
+| 옵션 | 장점 | 단점 |
+|------|------|------|
+| A. wrapper 분기 별도 mount | wrapper level 책임 명확 | dual-bracket-view 와 dual-bracket-sections 가 같은 page에 같은 데이터 두 번 렌더 (관심사 중복) |
+| **B. V2DualBracketView 안에 끼워넣기** ⭐ | 단일 진입점 / 조편성→경기카드→트리 자연 흐름 / API 변경 0 | dual-bracket-view 파일 길이 +30~50줄 |
+| C. BracketView 내부 분기 | 모든 곳에 자동 적용 | 회귀 위험 (single elim/풀리그 영향 가능) |
+
+**채택**: **옵션 B**. `V2DualBracketView` 의 `groupComposition` 섹션 직후, knockoutTree 섹션 직전에 `<V2DualBracketSections matches={allMatches} />` 추가.
+
+### 표시 순서 (사용자 흐름 우선)
+
+```
+┌────────────────────────────────────┐
+│ 듀얼토너먼트 (27경기) 헤더          │
+├────────────────────────────────────┤
+│ 1) 조편성 (4조 × 4팀)               │  ← 기존 (참가자 빠른 조회)
+├────────────────────────────────────┤
+│ 2) Stage 1 — 조별 미니 더블엘리미   │  ← 신규 (조별 진행 카드)
+│    A조 | B조  (md+ 2열)             │
+│    C조 | D조                        │
+├────────────────────────────────────┤
+│ 3) Stage 2 — 조별 최종전 (2위)      │  ← 신규 (4매치 그리드)
+│    A·B·C·D 4매치                    │
+├────────────────────────────────────┤
+│ 4) 8강·4강·결승 SVG V자 트리        │  ← 기존 (NBA 크로스)
+└────────────────────────────────────┘
+```
+
+### 변경 파일 (1 파일만)
+
+| 파일 | 변경 | 추정 라인 |
+|------|------|---------|
+| `src/app/(web)/tournaments/[id]/_components/v2-dual-bracket-view.tsx` | import + 섹션 1줄 추가 | +5줄 |
+
+API 변경 0 / 신규 파일 0 / DB 변경 0.
+
+### 구현 계획 (실행 단계)
+
+| 순서 | 작업 | 담당 | 선행 조건 | 시간 |
+|------|------|------|---------|------|
+| 1 | wrapper view 에 `V2DualBracketSections` import + mount | developer | 사용자 승인 | 5분 |
+| 2 | `npm run typecheck` (또는 `npx tsc --noEmit`) | tester | 1단계 | 1분 |
+| 3 | 로컬 `/tournaments/[id]` 대진표 탭 — A/B/C/D 4조 카드 + 최종전 4매치 시각 검증 (현장 매치 #133 LIVE 표시 / 진행 매치 점수 노출 / 빈 슬롯 italic) | tester | 2단계 | 3분 |
+| 4 | git commit `feat(tournaments/[id]): 듀얼 조별 16강 영역 시각화 활성화` | PM | 3단계 | 1분 |
+
+**총 예상 시간**: ~10분 (소규모 — 박제 그대로 활용).
+
+### 위험 / 주의 (회귀 영향 0)
+
+- `isDual === false` 케이스 영향 0 — 변경 위치는 `V2DualBracketView` 내부, 다른 포맷은 분기에 진입조차 안 함.
+- 현장 진행 중 매치 (#133/134/135 등): `match.status === "in_progress"` 카드 — LIVE 배지 + 빨간 테두리 + 점수 정상 표시 (박제 컴포넌트 line 215 / 264).
+- "─" 미진행 점수 / italic 빈 슬롯 — 사용자 결정 #3·#4 그대로.
+- **모바일 분기**: Stage 1 = 1열 (md+ 2열) / Stage 2 = 1열 (sm+ 2열, lg+ 4열). 720px 분기 정합. 가로 스크롤 0 (조별 카드 세로 stack).
+- **13 룰 검증**:
+  - var(--*) 토큰 ✅ / lucide-react ❌ ✅ / 9999px (rounded-full) — LIVE 배지 작은 텍스트 라벨 (예외 허용 범위, admin DualMatchCard 와 동일) / iOS input 16px (input 없음 — 무관) / placeholder 5단어 — text 만 (무관).
+- **타입 호환 확인**: `V2DualBracketView` 의 `allMatches: BracketMatch[]` ↔ `V2DualBracketSections` 의 `matches: BracketMatch[]` — 동일 타입.
+
+### developer 주의사항
+
+1. import 위치: `v2-dual-bracket-view.tsx` 의 `BracketView` import 옆에 `V2DualBracketSections` 추가.
+2. mount 위치: `{hasGroupComposition && <GroupCompositionCard ... />}` 직후, `{hasKnockoutTree && <Card ...>` 직전.
+3. 조건부 렌더: `allMatches.length > 0` (조별 매치 존재) 가드는 박제 컴포넌트가 자체 처리 (빈 배열 → 빈 grid). 추가 가드 불필요.
+4. **수정 금지 범위**: 박제 `v2-dual-bracket-sections.tsx` 의 코드 (사용자 결정 8 영역 보존 — italic muted / "—" / sticky header).
+5. commit 메시지: `feat(tournaments/[id]): 듀얼 조별 16강 영역 시각화 활성화 (박제 컴포넌트 wrapper 연결)`
+
+---
+
 ## 작업 로그 (최근 10건, 오래된 것부터 압축)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
@@ -101,6 +197,7 @@
 | 2026-05-02 | 06d67c3+1a9737c | **단체 상세 모바일 히어로 fix + 인라인 grid 4 케이스 모바일 분기** — org-hero-v2 폰트/패딩/로고 분기 (text-[40px] 고정 → 28/34/40 sm:md:) + word-break:keep-all / signup·activity 의 repeat(4-5) 인라인 grid → Tailwind grid-cols-2 sm:grid-cols-N (errors.md 04-29 안티패턴) | ✅ |
 | 2026-05-02 | (DB 보정 1건) | **매치 132 임강휘 누락 PBP 1건 INSERT** — local_id `manual-fix-132-imkangwhi-q1-2pt-*` (description `[수동 보정]`). Flutter sync 이중 가드 (commit 1bec5c3) 로 영구 보존. 매치 132 종료 후 Flutter 최종 sync 시 헤더=PBP 합 자연 일치 | ✅ |
 | 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) | ✅ |
+| 2026-05-02 | (mount) | **Phase F2 활성화 — 박제 V2DualBracketSections mount** — `v2-dual-bracket-view.tsx` 에 import + GroupCompositionCard 직후 mount (조별 round 1~3 = 20매치 카드 그리드 표시). API/박제 코드 변경 0. tsc 통과 | ✅ |
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
 | 2026-05-02 | 3d82a44+(8건) | **D-day 셋업팀 풀 패치** — 16팀 로고 등록/sharp 정규화/일정탭 표시 + dual sync fix (winner_team_id + progressDualMatch) + globals 색상 변수 + logoUrl 상대경로 fix + manage 에러메시지 키 | ✅ |
 | 2026-05-02 | (DB UPDATE) | **셋업팀 가입+매핑 정리** — 17건 처리 (8 승인 / 9 reject, pending=0) + ttp 5명 매핑 (곽규현/정세훈/임태웅/백주익/백배흠) → 매치#133 통계 매칭률 80%. 잔여 4명 (김영훈8점/김병주2점/이영기/이준호) 패자전 후 진행 | ✅ |
