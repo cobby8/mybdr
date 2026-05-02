@@ -676,13 +676,14 @@ export default function LiveBoxScorePage() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isLive && (
-            // LIVE 인디케이터: 상태 시맨틱 변수 사용 (text-xs → text-sm)
+            // LIVE 인디케이터: 상태 시맨틱 변수 + 온에어 스타일 펄스 (2026-05-02)
+            // animate-pulse → live-air-dot (외곽 ring 이 퍼지는 방송 온에어 스타일)
             <span
-              className="flex items-center gap-1 text-sm font-semibold"
+              className="flex items-center gap-1.5 text-sm font-semibold"
               style={{ color: "var(--color-status-live)" }}
             >
               <span
-                className="w-2 h-2 rounded-full animate-pulse"
+                className="w-2 h-2 rounded-full live-air-dot"
                 style={{ backgroundColor: "var(--color-status-live)" }}
               />
               LIVE
