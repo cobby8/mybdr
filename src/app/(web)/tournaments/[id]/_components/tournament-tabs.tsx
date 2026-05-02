@@ -127,6 +127,10 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     // 2026-05-02: 일정 탭 매치 카드 팀 로고 (없으면 fallback 회색 원 + 첫 글자 렌더)
     homeTeamLogoUrl: (m.homeTeamLogoUrl ?? m.home_team_logo_url ?? null) as string | null,
     awayTeamLogoUrl: (m.awayTeamLogoUrl ?? m.away_team_logo_url ?? null) as string | null,
+    // 2026-05-02: 미정 매치 slotLabel — apiSuccess 가 snake_case 로 변환하므로 양쪽 대비
+    // (예: "A조 1경기 패자" / "8강 1경기 승자"). 팀 확정 시 무시됨.
+    homeSlotLabel: (m.homeSlotLabel ?? m.home_slot_label ?? null) as string | null,
+    awaySlotLabel: (m.awaySlotLabel ?? m.away_slot_label ?? null) as string | null,
     homeScore: (m.homeScore ?? m.home_score ?? 0) as number,
     awayScore: (m.awayScore ?? m.away_score ?? 0) as number,
     status: (m.status ?? null) as string | null,

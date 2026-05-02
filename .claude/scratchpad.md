@@ -105,6 +105,8 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-02 | (developer / tsc PASS) | **일정 탭 TBD → slotLabel 표시** — public-schedule API settings JSON 추출(homeSlotLabel/awaySlotLabel) + tournament-tabs 매핑 + schedule-timeline interface 확장 + italic muted 스타일 (DualMatchCard 동일 패턴). 3 파일 / 팀 확정 매치 표시 변경 0 / DB 변경 0 | ✅ |
+| 2026-05-03 | (검증 only) | **5/2 종료 9매치 전수 재조사 (debugger)** — DB 12건 발견 (몰텐배 8 ✅ + 열혈 4건 / 단 ended_at=5/2 기준 1건=#121만 사용자 진술 일치). G4 적용 후 9매치 모두 100.0% 정확 — 몰텐배 8건 280.0m/280.0m (qLen=420), 열혈 #121 400.0m/400.0m (qLen=600). 풀타임/DNP 산출 정상. 잔여 fix 필요 케이스 0건. 임시 스크립트 정리 완료 | ✅ |
 | 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
 | 2026-05-03 | (DB 트랜잭션 3 phase) | **블랙라벨 정리 + 잔여 가입대기 정리 (16건 처리)** — Phase1 approveJoinRequests 14건 (블랙라벨 7 reject + 업템포 3 / 피벗 2 / 아울스 1 / MZ 1 = 7 approve_no_jersey) / Phase2 권도윤 3168→3318 통합 (tt+tm+captainId+req+merged 5단계) / Phase3 이삭 3326→3171 통합 (4단계). 블랙라벨 pending 9→0 ✅, tt_players 21 유지 ✅. status=merged +2 (총 11명) | ✅ |
 | 2026-05-03 | (lib 신규+DB) | **자동 approve 함수 추출 + 슬로우 처리** — `src/lib/teams/approve-join-requests.ts` 신규 (130줄, 3 액션 트랜잭션 멱등). 슬로우 가입신청 8건 일괄 처리. 출전 8/8 ✅ + pending 0 ✅. 16팀 가입대기 39건 발견(스크래치패드 큐 #1) | ✅ |
@@ -113,6 +115,3 @@
 | 2026-05-02 | (Phase 1) | **알기자 BDR NEWS Phase 1** — Gemini 2.5 Flash + system prompt + match-brief-generator + validate-brief + `/api/live/[id]/brief` route + tab-summary LLM 통합 (Phase 0 fallback 영구 유지). 신규 5 + 수정 3 파일. 검증 매치 #134 가상 입력 259자 단신 통과. tsc PASS. completed 매치만 LLM 호출 — 라이브 영향 0 | ✅ |
 | 2026-05-02 | (DB UPDATE+박제) | **5팀 명단/배번 보정** (MZ id=233 정정 + 동명이인 발견) — 1차 매칭 32명 + [유사] User 15명 INSERT. MZ 11/11 ✅ / 우아한 9/9 ✅ / 잔여 19명 (User 미가입) | ✅ |
 | 2026-05-02 | (DB 트랜잭션) | **김영훈 placeholder ↔ real user 통합** (uid 2954→2853) — ttp/Stat/PBP/tm 7단계 트랜잭션. 매치#133 매칭률 80%→96%. lessons.md 박제 | ✅ |
-| 2026-05-02 | cf2eea1 | **dual 진출 회귀 방지 4종** (A 자가치유 + B PATCH 차단 + C dirty tracking + D 검출). errors.md 박제 | ✅ |
-| 2026-05-02 | ebd335f | api/live G1 DNP 가드 (#136 -44m 회복) | ✅ |
-| 2026-05-02 | 90759d5 | **audit log E** — `tournament_match_audits` 신규 테이블 + helper + admin/flutter/system 통합. prisma db push 무중단 | ✅ |
