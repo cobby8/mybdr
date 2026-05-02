@@ -123,14 +123,14 @@ export async function progressDualMatch(
         where: { id: match.next_match_id },
         data: { [oppositeField]: null },
       });
-      // audit: 자가 치유 (반대 슬롯 NULL 정정)
+      // audit: 자가 치유 (반대 슬롯 NULL 정정) — source matchId 명시 (추적성)
       await recordMatchAudit(
         tx,
         match.next_match_id,
         { [oppositeField]: nextMatch[oppositeField] },
         { [oppositeField]: null },
         "system",
-        `progressDualMatch self-heal (반대 슬롯 ${oppositeField} NULL 정정)`,
+        `progressDualMatch self-heal (source match ${matchId}, winnerTeamId=${winnerTeamId}, ${oppositeField} NULL 정정)`,
         null,
       );
     }
@@ -197,14 +197,14 @@ export async function progressDualMatch(
         where: { id: loserNextMatchId },
         data: { [oppositeField]: null },
       });
-      // audit: 자가 치유 (loser 반대 슬롯 NULL 정정)
+      // audit: 자가 치유 (loser 반대 슬롯 NULL 정정) — source matchId 명시
       await recordMatchAudit(
         tx,
         loserNextMatchId,
         { [oppositeField]: loserNextMatch[oppositeField] },
         { [oppositeField]: null },
         "system",
-        `progressDualMatch self-heal loser (반대 슬롯 ${oppositeField} NULL 정정)`,
+        `progressDualMatch self-heal loser (source match ${matchId}, loserTeamId=${loserTeamId}, ${oppositeField} NULL 정정)`,
         null,
       );
     }
