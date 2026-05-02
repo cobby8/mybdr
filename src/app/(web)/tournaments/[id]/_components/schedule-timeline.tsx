@@ -302,9 +302,12 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                           name={match.homeTeamName}
                         />
                         <span
-                          // 팀 확정: 기존 색상 / 미확정: muted + italic
-                          className={`truncate text-base font-bold sm:text-lg ${
-                            match.homeTeamName ? "" : "italic"
+                          // 팀 확정: 기존 폰트(base/lg) + 정상 색
+                          // 미확정 (slotLabel): -2pt (sm/base) + italic + 톤 다운 (opacity 0.7)
+                          className={`truncate font-bold ${
+                            match.homeTeamName
+                              ? "text-base sm:text-lg"
+                              : "text-sm italic sm:text-base"
                           }`}
                           style={{
                             color: match.homeTeamName
@@ -314,6 +317,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                                 ? "var(--color-text-secondary)"
                                 : "var(--color-text-primary)"
                               : "var(--color-text-muted)",
+                            opacity: match.homeTeamName ? 1 : 0.7,
                           }}
                         >
                           {match.homeTeamName ?? match.homeSlotLabel ?? "미정"}
@@ -363,8 +367,11 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                           2026-05-02: 미확정 시 slotLabel → "미정" fallback (홈팀과 동일 패턴) */}
                       <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
                         <span
-                          className={`truncate text-base font-bold sm:text-lg ${
-                            match.awayTeamName ? "" : "italic"
+                          // 미확정: -2pt (sm/base) + italic + opacity 0.7 (홈과 동일 패턴)
+                          className={`truncate font-bold ${
+                            match.awayTeamName
+                              ? "text-base sm:text-lg"
+                              : "text-sm italic sm:text-base"
                           }`}
                           style={{
                             color: match.awayTeamName
@@ -374,6 +381,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                                 ? "var(--color-text-secondary)"
                                 : "var(--color-text-primary)"
                               : "var(--color-text-muted)",
+                            opacity: match.awayTeamName ? 1 : 0.7,
                           }}
                         >
                           {match.awayTeamName ?? match.awaySlotLabel ?? "미정"}
