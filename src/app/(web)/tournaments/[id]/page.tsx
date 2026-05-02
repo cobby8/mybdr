@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 // Phase 2 Match: 히어로/사이드바만 v2로 스왑. TournamentAbout/SeriesCard 등은 유지.
 import { V2TournamentHero } from "./_components/v2-tournament-hero";
 import { V2RegistrationSidebar } from "./_components/v2-registration-sidebar";
+import { V2BracketPrediction } from "./_components/v2-bracket-prediction";
 import { TournamentAbout } from "./_components/tournament-about";
 // L3: 소속 시리즈 카드 + EditionSwitcher (Hero 직후에 배치)
 import { SeriesCard } from "./_components/series-card";
@@ -611,7 +612,7 @@ export default async function TournamentDetailPage({
             top-20 = 상단 네비 높이(h-16) + 약간의 숨통. 탭 전환 시 리마운트 없음.
             6상태 CTA 분기 로직은 기존 RegistrationStickyCard와 동일, UI만 v2 스킨. */}
         <aside className="hidden lg:block">
-          <div className="sticky top-20">
+          <div className="sticky top-20 flex flex-col gap-4">
             <V2RegistrationSidebar
               tournamentId={tournament.id}
               registrationEndAt={tournament.registration_end_at}
@@ -630,6 +631,9 @@ export default async function TournamentDetailPage({
                   : null
               }
             />
+            {/* 2026-05-02: 우승 예측을 참가비 박스 아래로 이동 (PC UI 사용자 요청)
+                — 모든 탭에서 우측 sticky 표시 + 대진표 영역 풀폭 확장 */}
+            <V2BracketPrediction />
           </div>
         </aside>
       </div>
