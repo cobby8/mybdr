@@ -89,11 +89,25 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
   ]);
 
-  const liveMatchCount = matches.filter((m) => m.status === "in_progress").length;
+  // 2026-05-02: live + in_progress 둘 다 라이브로 인식 (Flutter app 은 'live' 사용)
+  const liveMatchList = matches.filter((m) => m.status === "live" || m.status === "in_progress");
+  const liveMatchCount = liveMatchList.length;
+  // LIVE 카드 클릭 → /live/[id] 이동용 — 첫 라이브 매치 정보 (단일 매치만)
+  // 응답 가벼움 위해 첫 매치만 포함. 여러 라이브 시 클라이언트는 count 만 활용.
+  const firstLive = liveMatchList[0];
+  const liveMatchPreview = firstLive
+    ? {
+        id: firstLive.id.toString(),
+        homeName: firstLive.homeTeam?.team.name ?? null,
+        awayName: firstLive.awayTeam?.team.name ?? null,
+      }
+    : null;
 
   // 전체/완료 경기 수 (대시보드 진행률 카드용)
+  // 2026-05-02 사용자 요청: 진행률 = (completed + live) / total — 라이브 경기도 진행 중으로 카운트
   const totalMatchCount = matches.length;
   const completedMatchCount = matches.filter((m) => m.status === "completed").length;
+  const isAllCompleted = totalMatchCount > 0 && completedMatchCount === totalMatchCount;
 
   // 핫팀 계산: 경기 결과 기반 승률→득실차→다득점 1위 팀
   // Phase 2C: teamStats에 name_en/name_primary도 캐시해두어 리그 순위표/핫팀 응답에 함께 내려줌
@@ -275,9 +289,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     tournamentName: tournament.name,
     totalTeams: tournamentTeams.length,
     liveMatchCount,
+    liveMatchPreview, // 2026-05-02: LIVE 카드 클릭 → /live/[id] 이동용
     finalsDate,
     totalMatches: totalMatchCount,
     completedMatches: completedMatchCount,
+    isAllCompleted, // 2026-05-02: HOT 카드 — 모든 경기 종료 후만 노출
     hotTeam,
     groupTeams,
     rounds,
