@@ -4,6 +4,7 @@ import { withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, apiError, forbidden, validationError } from "@/lib/api/response";
 import { verifyToken } from "@/lib/auth/jwt";
 import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
+import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 import { z } from "zod";
 import { SYNC_ALLOWED_STATUSES } from "@/lib/constants/match-status";
 
@@ -111,6 +112,8 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
 
   try {
     // 경기 존재 확인
+    // 2026-05-02: winner_team_id 자동 결정 (변경 1) 을 위해 homeTeamId/awayTeamId/winner_team_id 가 필요.
+    // findFirst 는 전체 row 를 가져오므로 별도 select 불필요 (existing.homeTeamId 등 그대로 사용 가능).
     const existing = await prisma.tournamentMatch.findFirst({
       where: { id: BigInt(match.server_id), tournamentId },
     });
@@ -118,6 +121,20 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
 
     const matchId = BigInt(match.server_id);
     const now = new Date();
+
+    // 2026-05-02: dual 자동 진출 (변경 2) 을 위해 tournament.format 1회 조회.
+    // 운영 영향 0 (SELECT only), Flutter sync 응답 구조 유지.
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { format: true },
+    });
+
+    // 2026-05-02: status="completed" 시 winner_team_id 자동 결정 (Flutter sync 가 winner 를 보내지 않음).
+    // - homeScore vs awayScore 비교 (correctedHomeScore/awayScore 는 아래 BUG-04 보정 후에 계산되므로
+    //   여기서는 일단 declaration 만 하고, 보정된 점수가 확정된 후 결정).
+    // - 동점일 경우 null 유지 (수동 결정 필요 — advanceWinner/progressDualMatch 양쪽 모두 null 시 skip).
+    // - 이미 winner_team_id 가 채워져 있으면 그대로 보존 (idempotent).
+    let winnerTeamId: bigint | null = existing.winner_team_id;
 
     // BUG-04 fix: quarterScores 합계와 home_score/away_score 정합성 보정
     let correctedHomeScore = match.home_score;
@@ -146,6 +163,20 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       }
     }
 
+    // 2026-05-02: 보정된 점수로 winner 자동 결정 (status="completed" + winner 미결정 시).
+    // Flutter sync 는 winner_team_id 를 보내지 않으므로 서버에서 점수 비교로 결정.
+    // 동점이면 null 유지 — 진출/전적 후처리 모두 skip (수동 결정 필요).
+    if (
+      match.status === "completed" &&
+      !winnerTeamId &&
+      existing.homeTeamId &&
+      existing.awayTeamId
+    ) {
+      if (correctedHomeScore > correctedAwayScore) winnerTeamId = existing.homeTeamId;
+      else if (correctedAwayScore > correctedHomeScore) winnerTeamId = existing.awayTeamId;
+      // 동점 → winnerTeamId = null 유지
+    }
+
     // 1. 경기 정보 업데이트 (트랜잭션 없이 개별 처리 — PgBouncer 타임아웃 방지)
     await prisma.tournamentMatch.update({
       where: { id: matchId },
@@ -153,6 +184,11 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         homeScore: correctedHomeScore,
         awayScore: correctedAwayScore,
         status: match.status,
+        // 2026-05-02: winner_team_id 자동 결정 결과 반영.
+        // 새로 결정된 경우만 UPDATE (기존 값 유지 시 undefined 로 무영향).
+        ...(winnerTeamId && winnerTeamId !== existing.winner_team_id
+          ? { winner_team_id: winnerTeamId }
+          : {}),
         // I-01: current_quarter는 sync data에 포함되지만 DB 컬럼 미존재.
         // quarter_scores JSON 내부에 current_quarter 값을 함께 보관한다.
         quarterScores: match.quarter_scores
@@ -325,10 +361,29 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
     let postProcessStatus: "ok" | "partial_failure" | "skipped" = "skipped";
 
     if (match.status === "completed") {
-      const [advanceResult, standingsResult] = await Promise.allSettled([
+      // 2026-05-02: dual_tournament 면 progressDualMatch 추가 (loser 진출 + idempotent winner 진출).
+      // - 기존 advanceWinner/updateTeamStandings 와 병렬 (서로 독립).
+      // - winnerTeamId 가 null 이면 (동점) skip.
+      // - 실패 시 warnings 에 추가하지만 sync 자체는 성공 (best effort).
+      // - 트랜잭션은 progressDualMatch 내부에서 관리 (caller 가 tx 전달).
+      const isDual = tournament?.format === "dual_tournament";
+
+      const tasks: Promise<unknown>[] = [
         advanceWinner(matchId),
         updateTeamStandings(matchId),
-      ]);
+      ];
+      if (isDual && winnerTeamId) {
+        tasks.push(
+          prisma.$transaction(async (tx) => {
+            await progressDualMatch(tx, matchId, winnerTeamId!);
+          })
+        );
+      }
+
+      const results = await Promise.allSettled(tasks);
+      const advanceResult = results[0];
+      const standingsResult = results[1];
+      const dualResult = isDual && winnerTeamId ? results[2] : null;
 
       // 각 후처리 결과를 개별 확인하여 실패 항목만 warnings에 추가
       if (advanceResult.status === "rejected") {
@@ -339,8 +394,12 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         console.error(`[match-sync:post-process] updateTeamStandings failed matchId=${match.server_id}:`, standingsResult.reason);
         warnings.push("전적 갱신 실패 — 관리자에게 문의하세요");
       }
+      if (dualResult && dualResult.status === "rejected") {
+        console.error(`[match-sync:post-process] progressDualMatch failed matchId=${match.server_id}:`, dualResult.reason);
+        warnings.push("듀얼토너먼트 자동 진출 실패 — 관리자에게 문의하세요");
+      }
 
-      // 둘 다 성공이면 "ok", 하나라도 실패면 "partial_failure"
+      // 모두 성공이면 "ok", 하나라도 실패면 "partial_failure"
       postProcessStatus = warnings.length === 0 ? "ok" : "partial_failure";
     }
 

@@ -85,6 +85,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-02 | (코드만, 미커밋) | **v1 sync route 듀얼 자동 진출 fix (D-day)** — `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` 에 (1) progressDualMatch import (2) tournament.format 1회 SELECT (3) status="completed" 시 winner_team_id 점수 비교 자동 결정 + UPDATE data 조건부 추가 (4) post-process 에 dual 분기 hook (Promise.allSettled tasks 배열). 운영 DB 영향 0 (코드만), tsc 통과. **단일/듀얼 모두 진출 hook 정상화** (이전엔 winner_team_id null → advanceWinner 도 skip 됐음). errors.md 박제 1건. 매치 132 첫 매치는 운영자 수동 UPDATE 3건으로 이미 보정됨. | ✅ |
 | 2026-05-02 | (코드만, 미커밋) | **일정 탭 매치 카드 팀 로고 추가** — `public-schedule/route.ts` Team select + 응답에 logoUrl 추가 / `tournament-tabs.tsx` 매핑 확장 / `schedule-timeline.tsx` ScheduleMatch 인터페이스 확장 + TeamLogo 컴포넌트 (24px mobile / 28px desktop, 원형, contain, fallback 첫글자) + 카드 하단 홈/어웨이 팀명 좌/우에 inline 배치. DB 변경 0 / API 응답 키 추가만 / 다른 페이지 영향 0. tsc 통과 | ✅ |
 | 2026-05-02 | (코드만, 미커밋) | **팀 로고 업로드 자동 정규화 통합** — `image-processor.ts` 에 `normalizeTeamLogo` 추가 + `/api/web/upload` 에서 `bucket==="team-logos"` 일 때만 sharp pipeline (512×512 + 8% padding + PNG) 적용. 호출자 3곳 (step-emblem/manage/image-uploader) 변경 0. tsc 통과 + tsx 5 케이스 검증 통과. 다른 bucket 영향 0 | ✅ |
 | 2026-05-02 | (Teams Phase B+C+D 일괄) | Teams 박제 — 카드 #랭크 PC 복원 + stats 4카드 모바일 분기 + Roster/Recent .data-table 마커 | ✅ |
@@ -94,4 +95,3 @@
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT (tt_id=252, team_members 196→tournament_team_players, 감독·코치 제외). errors.md 패턴 박제. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
 | 2026-05-02 | (검토만) | 셋업팀 가입 승인 위험 검토 — 17명 일괄 승인 시 9명 UNIQUE 충돌 ROLLBACK + ttp 4건 placeholder 참조 + stats 26 + pbp 32 영향. 안 A (대회 종료 후 처리) 채택. 실행 0건 | ✅ |
 | 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + set-up 갱신 + Team.logoUrl 16건 UPDATE | ✅ |
-| 2026-05-02 | (CSS+PNG) | 동호회최강전 16팀 로고 잘림 일괄 최적화 — CSS object-fit cover→contain 7파일 (hero-scoreboard.css / live page TeamLogo / team-card-v2 / team-side-card / overview-tab / classic.tsx / manage page) + PNG 16개 sharp 정규화 (512×512 + 8% padding, 2.09MB→1.36MB, 백업 _original-2026-05-02/) | ✅ |
