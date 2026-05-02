@@ -46,14 +46,21 @@ export function HeroSlideTournament({ data }: Props) {
   const metaParts = ["경기", dateStr, teamsStr].filter(Boolean);
   const metaText = metaParts.join(" · ");
 
-  // 2026-05-02: 진행 중 매치 표시 — 세로 2행 (홈/원정) + LIVE 배지 클릭 가능
-  // 시각적 분리 강화: 어두운 카드 배경 + 명확한 점수 폰트 + 풀폭 LIVE 버튼
+  // 2026-05-02 v3: 매치 카드 전체를 Link 로 감쌈 (클릭 시 /live/[id])
+  //   - 홈팀+점수 한 줄, 원정팀+점수 한 줄
+  //   - 카드 hover 강조 + 우측 chevron 아이콘
+  //   - LIVE 배지는 우측 상단 (panel topRightSlot 으로 분리)
+  const matchHref = data.live_match ? `/live/${data.live_match.id}` : null;
+
   const meta = (
     <>
       <div className="hero-carousel__meta-line">{metaText}</div>
-      {data.live_match && (
-        <div className="hero-carousel__match-card" aria-label="진행 중 매치 정보">
-          {/* 홈팀 행 */}
+      {data.live_match && matchHref && (
+        <Link
+          href={matchHref}
+          className="hero-carousel__match-card"
+          aria-label={`${data.live_match.home_team_name} ${data.live_match.home_score} : ${data.live_match.away_score} ${data.live_match.away_team_name} 라이브 보기`}
+        >
           <div className="hero-carousel__match-row">
             <span className="hero-carousel__match-team" title={data.live_match.home_team_name}>
               {data.live_match.home_team_name}
@@ -62,7 +69,6 @@ export function HeroSlideTournament({ data }: Props) {
               {data.live_match.home_score}
             </strong>
           </div>
-          {/* 원정팀 행 */}
           <div className="hero-carousel__match-row">
             <span className="hero-carousel__match-team" title={data.live_match.away_team_name}>
               {data.live_match.away_team_name}
@@ -71,21 +77,24 @@ export function HeroSlideTournament({ data }: Props) {
               {data.live_match.away_score}
             </strong>
           </div>
-          {/* LIVE 배지 — 풀폭 버튼 (라이브 매치만) */}
-          {data.live_match.is_live && (
-            <Link
-              href={`/live/${data.live_match.id}`}
-              className="hero-carousel__live-badge"
-              aria-label="라이브 페이지로 이동"
-            >
-              <span className="hero-carousel__live-dot live-air-dot" />
-              <span className="hero-carousel__live-label">LIVE 보기 →</span>
-            </Link>
-          )}
-        </div>
+          {/* 우측 끝 chevron — 클릭 진입 단서 */}
+          <span className="hero-carousel__match-chevron" aria-hidden>→</span>
+        </Link>
       )}
     </>
   );
+
+  // 2026-05-02: 라이브 배지 — 우측 상단 topRightSlot (Link 자체)
+  const topRightSlot = data.live_match?.is_live ? (
+    <Link
+      href={`/live/${data.live_match.id}`}
+      className="hero-carousel__live-badge--corner"
+      aria-label="라이브 페이지로 이동"
+    >
+      <span className="hero-carousel__live-dot live-air-dot" />
+      <span className="hero-carousel__live-label">LIVE</span>
+    </Link>
+  ) : null;
 
   // 2026-05-02: "지금 신청하기" 버튼 — `is_registration_open === true` 일 때만
   const primaryCta = data.is_registration_open
@@ -107,6 +116,9 @@ export function HeroSlideTournament({ data }: Props) {
         label: "대회 보기",
         href: `/tournaments/${data.id}`,
       }}
+      // 라이브 매치 진행 중 + 신청 마감 시 → 대회 보기 우측 정렬 (사용자 요청)
+      ctaAlign={!primaryCta && data.live_match ? "right" : "left"}
+      topRightSlot={topRightSlot}
     />
   );
 }

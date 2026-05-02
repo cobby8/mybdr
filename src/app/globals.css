@@ -966,24 +966,47 @@ html.dark .app-nav__tab[data-active="true"]::after {
   flex-wrap: wrap;
 }
 
-/* 2026-05-02 v2: hero 대회 슬라이드의 진행 중 매치 카드 (UI 재설계)
-   세로 2행 (홈/원정) + 풀폭 LIVE 배지. 컬러 배경 위 어두운 카드 + 명확한 폰트. */
+/* 2026-05-02 v3: hero 대회 슬라이드 매치 카드 + 우측 상단 LIVE 배지
+   변경:
+   - 매치 카드 자체를 Link 로 (전체 클릭 가능 → /live/[id])
+   - LIVE 배지를 우측 상단 panel absolute (.top-right slot)
+   - 카드 hover 강조 + chevron 표시
+   - 대회 보기 CTA 우측 정렬 (ctaAlign='right' Shell prop) */
 .hero-carousel__meta-line {
   margin-bottom: 10px;
   opacity: 0.9;
   font-size: 14px;
 }
-.hero-carousel__match-card {
+
+/* panel 우측 상단 slot — accent 원형 위 layer */
+.hero-carousel__top-right {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+}
+
+/* 매치 카드 — Link 자체 (클릭 → /live/[id]) */
+a.hero-carousel__match-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin: 8px 0 14px;
-  padding: 10px 12px;
+  padding: 10px 36px 10px 12px; /* 우측 chevron 자리 36px */
   background: rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
   max-width: 280px;
   backdrop-filter: blur(2px);
+  text-decoration: none !important;
+  color: #fff !important;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+a.hero-carousel__match-card:hover {
+  transform: translateY(-1px);
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 .hero-carousel__match-row {
   display: flex;
@@ -1011,34 +1034,48 @@ html.dark .app-nav__tab[data-active="true"]::after {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
+.hero-carousel__match-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+a.hero-carousel__match-card:hover .hero-carousel__match-chevron {
+  color: #fff;
+  transform: translateY(-50%) translateX(2px);
+}
 
-/* LIVE 배지 — 풀폭 클릭 가능. BDR Red 강조 + 온에어 펄스 dot. */
-.hero-carousel__live-badge {
-  display: flex !important;
+/* LIVE 배지 우측 상단 (corner) — Link 자체 */
+.hero-carousel__live-badge--corner {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 7px 12px;
+  gap: 5px;
+  padding: 5px 10px;
   background: #E31B23 !important;
   color: #fff !important;
-  border-radius: 6px;
+  border-radius: 4px;
   font-family: var(--ff-display);
   font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none !important;
+  box-shadow: 0 2px 8px rgba(227, 27, 35, 0.35);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  width: 100%;
 }
-.hero-carousel__live-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(227, 27, 35, 0.4);
+.hero-carousel__live-badge--corner:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(227, 27, 35, 0.5);
 }
 .hero-carousel__live-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #fff;
   flex-shrink: 0;

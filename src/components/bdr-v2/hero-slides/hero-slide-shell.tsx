@@ -38,6 +38,10 @@ export interface HeroSlideShellProps {
   primaryCta?: HeroSlideCta;
   /** 보조 CTA — 반투명 고스트 버튼 */
   secondaryCta?: HeroSlideCta;
+  /** 2026-05-02: 우측 상단 슬롯 — 라이브 배지 등 (선택, panel absolute) */
+  topRightSlot?: React.ReactNode;
+  /** 2026-05-02: CTA 정렬 — 'left' (기본) / 'right' (대회 슬라이드 진행 중일 때) */
+  ctaAlign?: "left" | "right";
 }
 
 /**
@@ -52,6 +56,8 @@ export function HeroSlideShell({
   meta,
   primaryCta,
   secondaryCta,
+  topRightSlot,
+  ctaAlign = "left",
 }: HeroSlideShellProps) {
   // 끝 색상이 없으면 시작 색상의 어두운 톤을 색상-혼합으로 만든다.
   // color-mix는 모던 브라우저(2023~)에서 지원. 그라디언트 자연스러움 확보.
@@ -73,6 +79,11 @@ export function HeroSlideShell({
         style={{ background: "rgba(255,255,255,.18)" }}
       />
 
+      {/* 2026-05-02: 우측 상단 slot — 라이브 배지 등 (accent 원형 위 layer) */}
+      {topRightSlot && (
+        <div className="hero-carousel__top-right">{topRightSlot}</div>
+      )}
+
       {/* 좌측 콘텐츠 영역 — 텍스트 + CTA */}
       <div className="hero-carousel__content">
         {badge && <div className="hero-carousel__badge">{badge}</div>}
@@ -82,7 +93,10 @@ export function HeroSlideShell({
         {meta && <div className="hero-carousel__meta">{meta}</div>}
 
         {(primaryCta || secondaryCta) && (
-          <div className="hero-carousel__ctas">
+          <div
+            className="hero-carousel__ctas"
+            style={ctaAlign === "right" ? { justifyContent: "flex-end" } : undefined}
+          >
             {primaryCta && (
               // .btn--accent: BDR Red 강조 (시안 .promo 와 동일)
               <Link href={primaryCta.href} className="btn btn--accent">
