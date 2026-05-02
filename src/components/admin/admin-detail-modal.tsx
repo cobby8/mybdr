@@ -40,40 +40,50 @@ export function AdminDetailModal({
   if (!isOpen) return null;
 
   return (
-    // 반투명 백드롭 — 클릭 시 모달 닫기
+    // 반투명 백드롭 — 모바일: items-end (시트), sm+: items-center (가운데 모달) (2026-05-02 Phase C)
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      {/* 중앙 모달 컨테이너 — fade-in + scale 애니메이션 */}
-      <div className="relative mx-4 flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-md border-t-4 border-[var(--color-primary)] bg-[var(--color-card)] shadow-[0_0_25px_rgba(0,0,0,0.5)] animate-[modal-in_0.2s_ease-out]">
+      {/*
+        모달/시트 컨테이너 — 모바일/데스크톱 분기 (Phase C):
+        - 모바일 (<sm): 하단 시트 (rounded-t-[20px] + 풀폭 + slide-up 애니메이션)
+        - sm+: 가운데 모달 (mx-4 + max-w-lg + scale-in 애니메이션)
+      */}
+      <div className="relative flex w-full sm:mx-4 sm:max-w-lg max-h-[92vh] sm:max-h-[85vh] flex-col overflow-hidden rounded-t-[20px] sm:rounded-md border-t-4 border-[var(--color-primary)] bg-[var(--color-card)] shadow-[0_-8px_25px_rgba(0,0,0,0.4)] sm:shadow-[0_0_25px_rgba(0,0,0,0.5)] animate-[modal-slide-up_0.25s_ease-out] sm:animate-[modal-in_0.2s_ease-out]">
+        {/* 모바일 드래그 핸들 (시각 단서) — sm+ 숨김 */}
+        <div className="sm:hidden flex justify-center pt-2 pb-1">
+          <div className="h-1 w-10 rounded-full bg-[var(--color-border)]" />
+        </div>
+
         {/* 상단: 제목 + X 닫기 버튼 */}
-        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 sm:px-5 py-3 sm:py-4">
           <h2 className="text-[15px] font-black uppercase tracking-wide text-[var(--color-text-primary)] pr-1">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
+            aria-label="닫기"
+            className="flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
         </div>
 
         {/* 본문: 스크롤 가능한 콘텐츠 영역 */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3 sm:py-4">{children}</div>
 
         {/* 하단: 액션 버튼 영역 (actions가 있을 때만 렌더링) */}
         {actions && (
-          <div className="border-t border-[var(--color-border)] px-5 py-3">
+          <div className="border-t border-[var(--color-border)] px-4 sm:px-5 py-3">
             {actions}
           </div>
         )}
       </div>
 
-      {/* 모달 애니메이션 정의 */}
+      {/* 모달 애니메이션 — 모바일 slide-up + 데스크톱 scale-in 정의 */}
       <style jsx global>{`
         @keyframes modal-in {
           from {
@@ -82,6 +92,16 @@ export function AdminDetailModal({
           }
           to {
             transform: scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes modal-slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
             opacity: 1;
           }
         }
