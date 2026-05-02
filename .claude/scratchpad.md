@@ -14,21 +14,29 @@
 
 ### 🔴 대회 종료 후 즉시 처리 큐 (5/2 23:59 이후)
 
-**1) 셋업팀(team_id=196) 가입 대기 17명 정리** — 안 3-α 패턴 적용
-- **8명 신규 승인**: uid 2866(hifabric)/2867(영기)/2868(BB)/2872(준호)/3026(임태웅)/3030(김동욱)/3032(정세훈)/3286(곽규현) — UNIQUE 충돌 0건, mergeTempMember 매칭 0건 → 일반 가입 승인
-- **9명 reject**: uid 2854/2855/2859/2865/2871/2874/2876/2922/2931 — 본인이 이미 team_members 에 real user 로 등록되어 있음 (provider=kakao + last_login=null). status=rejected + rejection_reason="이미 팀 멤버" 처리
+**1) 셋업팀 가입 대기 17명 정리** — ✅ 완료 (8 approved + 9 rejected, pending=0)
 
-**2) 셋업팀 placeholder 5명 정리** — uid 2953(백주익)/2954(김영훈)/2955(이영기)/2956(백배흠)/2957(이준호)
-- `tournament_team_players` 4건이 placeholder uid 참조 (#0/#7/#17/#94)
-- `MatchPlayerStat` 26건 + `play_by_plays` 32건 일부 placeholder uid 참조 가능
-- 처리 옵션 (사용자 결정 필요):
-  - (a) 본인 가입 시 mergeTempMember 자동 매칭 활용 (이름 매칭 → ttp/stats/pbp uid 일괄 UPDATE)
-  - (b) 사용자 결정 후 일괄 매핑 SQL UPDATE (수동 매칭 표 작성)
-  - (c) placeholder 유지 (통계는 placeholder 에 박힌 채 영구 보존)
+**2) 셋업팀 ttp user 매핑** — ✅ 5명 매핑 완료, 4명 잔여
+- ✅ 매핑 완료: 곽규현(#1→3286) / 정세훈(#2→3032) / 임태웅(#12→3026) / 백주익(#15→2866 hifabric, name 매칭) / 백배흠(#17→2868 BB, name 매칭)
+- ❌ 잔여 4명 (시스템 user 검색 0건):
+  - #94 김영훈 (placeholder uid 2954, **8점**) ← 우선
+  - #11 김병주 (userId null, 2점)
+  - #7 이영기 (placeholder uid 2955, 0점)
+  - #0 이준호 (placeholder uid 2957, 0점)
+- 매치 #133 통계 매칭률: 39/49 = **80%**. 김영훈 매핑 시 **96%** 가능
+- **5/2 패자전 진행 후 사용자 매핑 정보 받아 진행** (사용자 명시: "지금 진행하니까 끝나고 더")
 
-**3) 16팀 중 잔여 8팀 `tournament_team_players` 0명 보정** (5/2 PM 큐 — 대회 후 진행해도 무방, 매치 시작 전이라면 즉시)
+**3) 셋업팀 placeholder user 5명 + team_members row 정리** (별건)
+- 백주익(2953)/백배흠(2956): ttp 연결 끊김 → team_members row 잔존, 정리 대상
+- 김영훈(2954)/이영기(2955)/이준호(2957): ttp 그대로 참조, 매핑 후 정리
+
+**4) mergeTempMember 함수 강화** (별건) — name 매칭 추가
+- 현재 nickname 만. 백주익(nick=hifabric, name=백주익) 케이스 자동 매칭 0건 발견
+- name 도 매칭 후보로 추가 시 비슷한 케이스 자동 처리
+
+**5) 16팀 중 잔여 8팀 `tournament_team_players` 0명 보정** (5/2 PM 큐)
 - MZ / 블랙라벨 / 다이나믹 / MI / 슬로우 / 우아한스포츠 / MSA / SKD
-- 셋업팀 패턴 (`scripts/_temp/sync-setup-tournament-players-2026-05-02.ts` git log 복원) 일괄 적용 가능 — **단 placeholder/real user 정체 사전 점검 필수** (셋업팀 케이스처럼 본인이 멤버에 있을 수 있음)
+- 셋업팀 패턴 (`scripts/_temp/sync-setup-tournament-players-2026-05-02.ts` git log 복원) 일괄 적용 가능 — placeholder/real user 정체 사전 점검 필수
 
 ### 우선순위 2 — 결정 대기 큐 (사용자 판단 받고 구현 진행)
 | 영역 | 결정 건수 | 산출물 위치 |
@@ -94,4 +102,5 @@
 | 2026-05-02 | (DB 보정 1건) | **매치 132 임강휘 누락 PBP 1건 INSERT** — local_id `manual-fix-132-imkangwhi-q1-2pt-*` (description `[수동 보정]`). Flutter sync 이중 가드 (commit 1bec5c3) 로 영구 보존. 매치 132 종료 후 Flutter 최종 sync 시 헤더=PBP 합 자연 일치 | ✅ |
 | 2026-05-02 | 2dc9af8,3a519c8 | Dev/tournament-formats 학습자료 박제 + Phase F2 카드 그리드 박제 (wrapper 미연결) | ✅ |
 | 2026-05-02 | (DB 보정만) | `/live/133` 셋업팀 명단 0→13명 INSERT. **잔여 8팀 동일 보정 PM 큐** (MZ/블랙라벨/다이나믹/MI/슬로우/우아한스포츠/MSA/SKD) | ✅ |
-| 2026-05-02 | 3d82a44 | 동호회최강전 16팀 로고 일괄 등록 — public/team-logos/ 15신규 + Team.logoUrl 16건 UPDATE | ✅ |
+| 2026-05-02 | 3d82a44+(8건) | **D-day 셋업팀 풀 패치** — 16팀 로고 등록/sharp 정규화/일정탭 표시 + dual sync fix (winner_team_id + progressDualMatch) + globals 색상 변수 + logoUrl 상대경로 fix + manage 에러메시지 키 | ✅ |
+| 2026-05-02 | (DB UPDATE) | **셋업팀 가입+매핑 정리** — 17건 처리 (8 승인 / 9 reject, pending=0) + ttp 5명 매핑 (곽규현/정세훈/임태웅/백주익/백배흠) → 매치#133 통계 매칭률 80%. 잔여 4명 (김영훈8점/김병주2점/이영기/이준호) 패자전 후 진행 | ✅ |
