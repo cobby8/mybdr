@@ -2,6 +2,42 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-02] quarterStatsJson 쿼터별 미달 — Flutter app 이 last_clock 까지의 lineup 시간만 누적 (140 player-min 기준 미달 케이스)
+- **분류**: error (Flutter app 데이터 산출 룰 / 데이터 자체는 일관 — 사용자 기대값과 차이)
+- **발견자**: 사용자 (검증 시 매치별 양팀 합 280 player-min 기준 비교) + debugger
+- **증상**: 운영 매치 일부에서 quarterStatsJson 의 양팀 분당 합이 정확히 8400s/140m 미달.
+  - 매치 #133 Q3: 2060s/팀 (Δ-40s × 2팀 = -80s, 약 -0.7m/팀)
+  - 매치 #134 Q3: 1955s/팀 (Δ-145s × 2팀)
+  - 매치 #134 Q4: 1770s/팀 (Δ-330s × 2팀, 합 -7.9m/팀)
+- **원인 (PBP 시계열 분석으로 100% 확정)**:
+  - PBP `game_clock_seconds` 의 마지막 값(last_clock) = 쿼터 종료 시점이 0초 미달:
+    - 매치 #134 Q4 last_clock = **113s** (1:53 남기고 끊김) → qsJson Q4 = 1770s 정확 일치 (2100 - 330 = 1770 / 코트 5명 × 113s ≈ 565s 미반영, 근사값)
+    - 매치 #134 Q3 last_clock = 29s → qsJson Q3 = 1955s
+    - 매치 #133 Q3 last_clock = 31s → qsJson Q3 = 2060s
+  - 비교 정상 매치 (#132 Q4 last_clock=11s / #135 Q4 last_clock=64s) 은 끝점 가까워서 미달 미미.
+  - **Flutter app 의 quarterStatsJson 산출 알고리즘 = 마지막 PBP clock 까지의 lineup 시간만 누적**. 그 이후 시간 (예: #134 Q4 113→0초 1:53) 은 PBP 가 생성되지 않아 qsJson 에 반영 안 됨.
+- **트리거 시나리오 (Flutter app 측)**:
+  - 점수 격차 → 운영자가 의미 없는 마지막 시간 동안 사이드라인 액션 미입력
+  - 경기 조기 종료 (시간 만료 부저 X)
+  - undo/정정 후 재입력 누락
+  - matchPlayerStat 의 minutesPlayed 는 Flutter app 이 sync 시 직접 보냄 (별도 산출) — qsJson 과 다른 데이터 출처
+- **데이터 자체는 일관**: lineup 의 실제 "코트 위 기록된 시간" 이므로 의미상 정확. 사용자 기대값 (= 7m × 4Q × 5명 = 140m 기계적 합) 과 다를 뿐.
+- **보정 옵션 (사용자 결정 필요)**:
+  1. **DB 그대로 유지** (현 상태) — qsJson 표시값 = 실제 PBP 입력된 시간. 의미 일관
+  2. **STL Phase 1 R8 패턴 응답 가공** — 매치 헤더 quarter end (0초) 까지 last_clock 이후 시간을 마지막 lineup 5명에 균등 분배. lineup 추적 (substitution PBP) 시점 정확하면 가능. 별도 작업 필요 (~1h)
+  3. **운영자 가이드** — Flutter app 에서 쿼터 종료 직전 부저까지 마지막 액션 입력 권장 (행동 변경)
+- **✅ 2026-05-02 STL Phase 2 채택 — sub 기반 lineup tracking + MAX 전략**:
+  - `src/app/api/live/[id]/route.ts` `calculateSubBasedMinutes` 함수 추가
+  - 알고리즘: PBP `action_subtype="in:X,out:Y"` 파싱 → 쿼터별 lineup tracking → 쿼터 종료 시 코트 잔존 선수 0초까지 자동 누적
+  - 채택 룰: `max(subBased, qsJson, minutesPlayed, pbpSim)` — sub 가 더 큰 경우만 회복 (정상 매치 영향 0)
+  - 검증 결과: #134 +11.38m 회복 (264.17→275.55), #133 +0.53m 회복, #132/#135 280m 만점 유지
+- **회귀 방지 / 진단 패턴**:
+  - 출전시간 미달 신고 시 → PBP 쿼터별 last_clock 1차 확인 (`SELECT MIN(game_clock_seconds) GROUP BY quarter`)
+  - last_clock > 0 이면 그 시간 × 5명 ≈ qsJson 미달 시간 확인
+  - 정확히 일치하면 Flutter 산출 룰 = 사용자 기대값 차이 → 코드 버그 아님
+- **관련**: STL Phase 1 R3 (quarterStatsJson 부분 누락 보충 = 다른 케이스, Q*.min=0 인 쿼터 전체 누락 보충용 / 본 케이스는 부분 미달)
+- **참조횟수**: 1
+
 ### [2026-05-02] Flutter app 의 PBP 누락 패턴 — 박스스코어 입력 vs PBP 생성 분리 (운영 18 매치 56% 발생)
 - **분류**: error (Flutter app 데이터 무결성 / 서버 측 fallback 으로 보완)
 - **발견자**: 사용자 (라이브 매치 132/133 점수 합 불일치 발견) + 분석
