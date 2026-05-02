@@ -44,7 +44,7 @@ import { V2BracketHeader, type SeriesEdition } from "./v2-bracket-header";
 import { V2BracketStatusBar } from "./v2-bracket-status-bar";
 import { V2BracketScheduleList } from "./v2-bracket-schedule-list";
 import { V2BracketSeedRanking, type SeedTeam } from "./v2-bracket-seed-ranking";
-import { V2BracketPrediction } from "./v2-bracket-prediction";
+// 2026-05-02: V2BracketPrediction 은 page.tsx aside 로 이동됨 (참가비 박스 아래 sticky 노출)
 // Phase F2-F3: 듀얼토너먼트 5섹션 카드 (옵션 D — BracketView SVG 트리 재사용 X)
 import { V2DualBracketView } from "./v2-dual-bracket-view";
 
@@ -207,6 +207,8 @@ export function V2BracketWrapper({
 
   const hasLeagueData = isLeague && leagueTeams.length > 0;
   const hasKnockout = rounds.length > 0;
+  // 2026-05-02: 우승 예측이 page.tsx aside 로 이동. 시드 순위가 있을 때만 wrapper 자체 우측 사이드 유지.
+  // seedTeams 는 아래에서 정의되지만 직접 length 로 판단 — 위치 의존 회피 위해 IIFE 또는 이후 평가.
 
   // 현재 라운드 라벨 — 미완료 매치 첫 번째 라운드, 없으면 마지막 라운드
   const currentRoundLabel = (() => {
@@ -250,6 +252,9 @@ export function V2BracketWrapper({
     }
     return [];
   })();
+
+  // 우측 사이드 (시드 순위 카드) 렌더 여부 — seedTeams 정의 후 평가
+  const hasSidebar = seedTeams.length > 0;
 
   // 헤더 props 조립
   const eyebrow = formatToEyebrow(d.format ?? null);
@@ -318,7 +323,9 @@ export function V2BracketWrapper({
           <Skeleton className="h-96 w-full rounded-md" />
         </div>
       ) : error ? null : (
-      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+      // 2026-05-02: 우승 예측이 page.tsx aside 로 이동 (사용자 요청).
+      // 시드 순위가 있을 때만 우측 320px 사이드 유지, 없으면 풀폭 1컬럼 (대진표 영역 확장).
+      <div className={hasSidebar ? "mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]" : "mt-5"}>
         {/* 좌측: 메인 트리 영역 + 경기 일정 리스트 */}
         <div className="min-w-0 flex flex-col gap-5">
           {/* 메인 트리 — 포맷별 분기 (기존 BracketTabContent 로직 그대로) */}
@@ -399,15 +406,13 @@ export function V2BracketWrapper({
           {!isDual && hasKnockout && <V2BracketScheduleList rounds={rounds} />}
         </div>
 
-        {/* 우측: 사이드 3카드 (시드 순위 / 우승 예측) */}
-        <aside className="flex flex-col gap-4">
-          {/* 시드 순위 — 데이터 있을 때만 (없으면 카드 자체 미표시) */}
-          {seedTeams.length > 0 && <V2BracketSeedRanking teams={seedTeams} />}
-
-          {/* 우승 예측 — 사용자 원칙: 자리 유지 + "투표 준비 중" placeholder
-              데이터(predictions) 미전달 → 컴포넌트 내부에서 placeholder 모드 자동 표시 */}
-          <V2BracketPrediction />
-        </aside>
+        {/* 2026-05-02: 우승 예측은 page.tsx aside 로 이동 (사용자 요청 — 참가비 박스 아래).
+            시드 순위만 있을 때만 우측 사이드 표시. seedTeams 0 일 때 grid 가 1컬럼이라 본 aside 자체 미렌더. */}
+        {seedTeams.length > 0 && (
+          <aside className="flex flex-col gap-4">
+            <V2BracketSeedRanking teams={seedTeams} />
+          </aside>
+        )}
       </div>
       )}
     </div>
