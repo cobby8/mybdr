@@ -368,8 +368,11 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       // - 트랜잭션은 progressDualMatch 내부에서 관리 (caller 가 tx 전달).
       const isDual = tournament?.format === "dual_tournament";
 
+      // 2026-05-03: dual_tournament 은 advanceWinner skip — progressDualMatch 가 진출 처리 전담.
+      // - 과거 버그: advanceWinner 가 dual 매치에도 호출되어 빈 슬롯에 winner 자동 배치 → progressDualMatch self-heal 이 nullify → advanceWinner 다시 채움 무한 루프 corrupt (5/2 C조 + 5/3 D조 audit 11~12회 확인).
+      // - guard: isDual 일 때 tasks 에서 advanceWinner 제외. updateTeamStandings 는 항상 실행 (전적 산정 공통).
       const tasks: Promise<unknown>[] = [
-        advanceWinner(matchId),
+        ...(isDual ? [] : [advanceWinner(matchId)]),
         updateTeamStandings(matchId),
       ];
       if (isDual && winnerTeamId) {
@@ -381,12 +384,15 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       }
 
       const results = await Promise.allSettled(tasks);
-      const advanceResult = results[0];
-      const standingsResult = results[1];
-      const dualResult = isDual && winnerTeamId ? results[2] : null;
+      // 2026-05-03: tasks 구성이 isDual 에 따라 가변(dual=advanceWinner 제외) → 인덱스 동적 산출.
+      // 순서 = [advanceWinner?, updateTeamStandings, progressDualMatch?]
+      let cursor = 0;
+      const advanceResult = isDual ? null : results[cursor++];
+      const standingsResult = results[cursor++];
+      const dualResult = isDual && winnerTeamId ? results[cursor++] : null;
 
       // 각 후처리 결과를 개별 확인하여 실패 항목만 warnings에 추가
-      if (advanceResult.status === "rejected") {
+      if (advanceResult && advanceResult.status === "rejected") {
         console.error(`[match-sync:post-process] advanceWinner failed matchId=${match.server_id}:`, advanceResult.reason);
         warnings.push("승자 진출 처리 실패 — 관리자에게 문의하세요");
       }

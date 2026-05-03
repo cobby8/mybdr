@@ -2,6 +2,41 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-03] 가드만 5겹 쌓아도 본질 hook 버그는 해결 안 됨 — audit 호출 누락 경로가 진짜 범인
+- **분류**: lesson (디버깅 절차 / 가드 vs 근본 원인 분리)
+- **발견자**: debugger (5/3 D-day D조 진출 슬롯 충돌 재발 — 5/2 fix 직후 동일 패턴)
+- **배경**: 5/2 C조 dual 진출 슬롯 충돌 (피벗·아울스) 발견 후 5겹 회귀 방지 (자가 치유 / PATCH 차단 / dirty tracking / 검출 스크립트 / audit log) 적용 + 1bec5c3 + 08b7e1e 추가 가드. 그러나 5/3 D조 동일 매치 (조별 승자전) 동일 증상 재발.
+- **삽질 패턴**:
+  1. **증상이 같으면 같은 fix 가 작동할 거라 가정** → C조 fix 5종 후 안심
+  2. **audit log 에 안 보이면 corrupt 안 일어났다고 오판** → audit 미호출 update 경로 (advanceWinner) 의 corrupt 가 invisible
+  3. **가드를 추가할수록 진짜 범인 찾기 어려워짐** — self-heal 가 매번 작동해서 corrupt 무한 루프 발생을 audit 가 정확히 보여줬는데 (5/2 142 audit 7회), "self-heal 작동 = OK" 로 오판
+- **이번 디버깅이 효과적이었던 이유**:
+  1. **audit log 시간 패턴 분석** — 20초 간격 11회 self-heal → "주기적 외부 source 가 있다" 추론
+  2. **sync route + advanceWinner + progressDualMatch 호출 관계 정밀 추적** — 코드 5개 파일 동시 read
+  3. **`prisma.tournamentMatch.update` 모든 호출 위치 grep** → audit 미호출 update 경로 후보 압축 → advanceWinner L33 발견
+- **재사용 룰**:
+  - **회귀 방지 가드 추가 후 동일 증상 재발 시 = 본질 미해결** — 추가 가드 말고 새 angle (audit 미호출 경로, 새 caller, race condition) 점검
+  - **audit log 가 모든 변경을 추적하는지 확인 필수** — 누락 경로 = invisible corrupt source
+  - **무한 루프 self-heal 패턴 = 외부에서 매번 corrupt 시키는 source 존재** (single fix 로 해결 안 됨, source 차단 필수)
+  - **dual / single 등 분기별 유틸 호출 시 중복 호출 위험** — `Promise.allSettled([general, dual])` 패턴은 general 이 dual 데이터 모델 모르고 실행 → corrupt 가능
+- **관련 errors.md 항목**: `[2026-05-03] dual_tournament 진출 매치 양팀 동일 — advanceWinner 가 진짜 범인`
+
+### [2026-05-03] 출전시간 미달 분석 = "엔진 정확도" vs "데이터 부족" 분리 필수
+- **분류**: lesson (디버깅 절차 / 코드 vs 데이터 원인 분리)
+- **발견자**: debugger (PBP-only 엔진 적용 후 95~98% 미달 발생 — 사용자가 "본질 원인" 요청)
+- **배경**: PBP-only 출전시간 엔진 적용 후 일부 매치에서 합 95~98% 미달. cap (옵션 C) 으로 합은 정확화되지만 본질적으로 PBP 데이터 부족 케이스. 코드 fix 만 보면 "cap 으로 해결" 결론이지만, 본질은 Flutter 운영자 입력 누락.
+- **분석 절차** (재사용 가능):
+  1. **샘플 확보** — 종료 매치 11~22 팀 대량 SELECT (작은 샘플로는 분포 안 보임)
+  2. **카테고리 분류** — 미달 원인 5가지로 사전 분류 (starter / sub / lastClock / firstClock / 기타)
+  3. **쿼터별 boundary 분석** — firstClock (qLen 이어야 정상), lastClock (0 이어야 정상) 측정 → 운영자 set 누락 시점 정확 식별
+  4. **lineup 일치 검증** — Q[N] 종료 active 5명 vs Q[N+1] 시작 starter 5명 비교 → sub 누락 신호 (starter 추정 실패 케이스)
+- **결과**: 22 팀 중 21 팀 (95%) lastClock 절단 + 22 팀 모두 쿼터 전환 lineup 불일치 → "엔진 코드 문제 아님 / Flutter 앱 starter lineup 미입력 + set 종료 지연 입력 = 1차 원인" 결론.
+- **재사용 룰**:
+  - 산출 정확도 95~99% 미달 시 "엔진 fix" 보다 "데이터 부족" 가정 우선 (대량 샘플 분포 보면 명확).
+  - PBP 시계열 분석 시 firstClock / lastClock / 쿼터 전환 lineup 3종 자동 측정 헬퍼 추출 가치 있음 (재사용성 높음).
+  - cap (옵션 C) 같은 사후 보정은 합은 맞추되 개별 선수 sec 분배 신뢰도 ↓ — 코드/UI 양쪽에 "추정값 (~5%)" 명시 검토 가치 있음.
+- **부수 발견**: errors.md 에 동일 패턴 (2026-05-02 quarterStatsJson 미달 = lastClock 절단) 이미 기록됨. 한 번 발견된 운영 패턴은 재발 — knowledge 누적 가치 확인.
+
 ### [2026-05-03] LLM prompt 는 노출 위치 컨텍스트 명시 필수 — 같은 데이터도 위치별 다른 prompt
 - **분류**: lesson (LLM prompt engineering / 매체 정합성)
 - **발견자**: 사용자 통찰 ("어디 들어가는 어떤 기사냐에 따라 달라질 거 같은데")

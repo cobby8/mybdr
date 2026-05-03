@@ -109,10 +109,39 @@
 
 ---
 
+## 구현 기록 (developer / 2026-05-03 D-day fix)
+
+📝 구현한 기능: dual_tournament advanceWinner 호출 차단 (이중 가드)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` | tasks 배열에서 isDual 시 advanceWinner skip + results 인덱스 cursor 패턴 동적 산출 (advanceResult/standingsResult/dualResult) | 수정 |
+| `src/lib/tournaments/update-standings.ts` | advanceWinner 진입부에 format 조회 → dual_tournament 면 early return guard 추가 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법 (D-day 진행 중이라 운영 sync 자체로 검증):
+  1. dual_tournament 매치 종료 → sync 후 audit log 확인 — `progressDualMatch` 만 호출되어야 (advanceWinner 호출 0)
+  2. single_elimination 매치 종료 → sync 후 next_match 의 빈 슬롯에 winner 배치 정상 동작 확인
+  3. dual 매치의 next_match 가 빈 채로 유지되어야 (progressDualMatch 가 별도 처리)
+- 정상 동작:
+  - dual 매치 종료 → home/away 슬롯 corrupt 0건 (5/2 C조 / 5/3 D조 같은 무한 루프 0건)
+  - single elim 매치 종료 → 기존과 동일 동작 (회귀 0)
+  - sync 응답의 post_process_status, warnings 정상 (인덱스 cursor 패턴 정확)
+- 주의할 입력:
+  - dual_tournament 인데 winnerTeamId=null (동점) → progressDualMatch skip + advanceWinner 도 skip → next_match 빈 채 유지 (의도)
+  - 미존재 matchId → guard 의 findUnique=null → format !== 'dual_tournament' 분기로 빠짐 (그 후 advanceWinner 의 기존 가드가 처리)
+
+⚠️ reviewer 참고:
+- results 인덱스 cursor 패턴: tasks 가변 길이라 기존 results[0]/[1]/[2] 고정 인덱스 가정이 깨짐 → cursor 패턴으로 재구성. advanceResult 가 null 일 수 있어 `if (advanceResult && ...)` 가드 추가
+- advanceWinner 의 dual guard 는 query 1회 추가 비용 — single_elim 에도 매번 발생. 영향 미미하나 향후 caller 시그니처 변경(format 인자 전달) 으로 최적화 여지
+
 ## 작업 로그 (최근 10건)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / D-day fix / 145 Q1 진행 중 / tsc PASS) | **dual_tournament advanceWinner 무한 루프 corrupt 영구 fix** — 2 패치 이중 가드. ① `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` L371~377: tasks 배열에서 isDual 일 때 advanceWinner skip + results 인덱스 동적 산출 (cursor 패턴, advanceWinner 빠질 때 standings/dual 인덱스 어긋남 방지). ② `src/lib/tournaments/update-standings.ts` L7~22: advanceWinner 진입부 dual_tournament guard (format 조회 후 dual 이면 early return). dual 진출은 progressDualMatch 가 전담 (loser bracket 포함). 5/2 C조 / 5/3 D조 audit 11~12회 self-heal 무한 루프 본질 차단. tsc 0 에러. self-heal (progressDualMatch) 코드 무변 (작동 중) | ✅ |
+| 2026-05-03 | (debugger / D-day 긴급 / SELECT only / errors+lessons 기록) | **D조 진출 슬롯 양팀 동일 본질 fix 발견** — 5/3 D조 승자전 (#15, m146) audit 12회 분석: 144 종료 후 5분간 ~20초 간격 11회 self-heal → 본질 = `advanceWinner` (update-standings.ts L30~36) 가 dual 매치도 호출되어 빈 슬롯(146.away) 에 winner=246(슬로우) 자동 채움 → progressDualMatch self-heal 이 nullify → advanceWinner 가 다시 채움 무한 루프. 5/2 C조 동일 패턴 7회 audit 확인. 5/2 회귀 방지 5종 모두 우회 (audit 미호출 경로). **현재 146 stable** (home=슬로우/away=null). **임시 fix 불필요** (현재 OK). **영구 fix 권장**: sync route L371~381 isDual 시 advanceWinner skip (중복+잘못된 슬롯 위험). 145 종료 전 적용 필수. 임시 스크립트 정리 | ✅ 진단 |
+| 2026-05-03 | (debugger / SELECT only / errors+lessons 기록) | **PBP 미달 본질 원인 분석 (5/2+5/3 11매치 22팀)** — 분포: 100% 정확 0팀 / lastClock 절단 21팀(95%) / firstClock 절단 1팀 / 쿼터 전환 lineup 불일치 22팀 모두. 본질 = Flutter 앱 운영자 입력 누락 3종: ① **starter lineup PBP 미입력** (1차, 22팀 모두) ② **lastClock 절단** (set 종료 지연, 21팀) ③ **firstClock 절단** (set 시작 지연, 1팀+OT). 코드 cap 은 합 정확화 OK / 개별 sec 신뢰도 ~5%. Flutter fix 권장 = quarter_start/quarter_end boundary PBP + starter lineup 자동 INSERT (원영 검토). errors.md + lessons.md 신규 entry 1건씩. 임시 스크립트 정리 완료 | ✅ 분석 |
 | 2026-05-03 | (옵션 C cap / tsc PASS / 11/11 test PASS) | **종료 매치 풀타임 보호 cap 추가** — `applyCompletedCap()` neuf (`src/lib/live/minutes-engine.ts`, +59줄) export. route.ts (status === 'completed' 일 때만 home/away 별 sec map 분리 후 cap 호출, +21줄). 풀타임 임계 = qLen×numQ-5s. 풀타임 sec 절대 변경 X / 풀타임 외 비례 분배. 단위 테스트 +3 (만점 매칭 / 풀타임 보호 / edge 풀타임만 expected 도달) → 11/11 PASS. 운영 검증 (5/2+5/3 5매치): #132 home 137:40→139:59 / #134 home 127:05→140:00 / #142 home 131:42→140:00 / #143 home 134:12→140:00 / #144 (live) 57:45 그대로 ✅ cap 미적용. tsc 0 에러. DB/Flutter 영향 0 | ✅ |
 | 2026-05-03 | (api/live PBP-only 단순화) | **출전시간 PBP-only 단일 엔진 분리** — `src/lib/live/minutes-engine.ts` (~140줄) 신규: PBP substitution → starter 추정(swap 케이스 보강: subOut+seenBeforeFirstSub 룰) → active set 시뮬 → 쿼터별/총 출전초. route.ts 시간 부분만 교체 (점수/DNP/라인업 무변): minutesQL/minutesEngineInput/calculateMinutes 1회 호출 → getPbpSec/getPbpQuarterSec 헬퍼 → 진행중/종료 분기 모두 row.min/min_seconds + quarter_stats[q].min_seconds 일괄 주입. 폐기: estimateMinutesFromPbp / getSecondsPlayed / R3 보충 / startersByTeam / quarterStatsJson 의 min 추출 (plus_minus 만 유지). 단위 테스트 8/8 PASS (풀타임/swap/DNP/라이브/OT/빈입력/컬럼sub/byQuarter). 운영 회귀 29매치 — 부풀림 0건 (max ≤ qLen×Q cap), 합 ~135분/팀 (qLen=420×4) 정확. tsc 0 에러 | ✅ |
 | 2026-05-03 | (Phase E 신규 2 페이지) | **알기자 Phase E /news 노출 UI** — `/news` 매거진 메인(카드 그리드 + 페이지네이션 + SEO metadata) + `/news/match/[matchId]` 상세(LinkifyNewsBody + 알기자 뱃지 🤖 + 매치 헤드라인 + view_count +1 + 좋아요/댓글 표준). published 만 노출 / draft·rejected 숨김. tsc PASS, smoke test HTTP 200. (Phase B 확장 = 라운드/일자 종합 prompt + Phase F 작성자 페이지 큐) | ✅ |
@@ -121,6 +150,3 @@
 | 2026-05-03 | (debugger / 분석 only) | **라이브 cap 부풀림 진단** — 운영 11 라이브 매치 SELECT. cap = 5×qLen×4 (Q4 만점, 200분/팀) 을 status 무관 적용 → Q1 진행 매치 id=84 (#5 starter 모두 999s = Flutter 999s cap) → applyTeamCap 의 partial 비례 확대 (12000/4995 ≈ 2.4배) → 각 선수 ~40분 부풀림. **fix 방향**: status='live' 일 때 cap = 5×qLen×(완료쿼터+(qLen-lastClock)/qLen) 동적 산출. F2 expected 도 진행 중 쿼터에선 5×(qLen-lastClock) 로 축소. 옵션 D 권장 (사용자 결정 대기) | ✅ 진단 |
 | 2026-05-02 | (developer / tsc PASS) | **mergeTempMember 4-way 매칭 강화** — `realName = nickname \|\| name` 단일값 → `candidates[]` 양쪽값 수집 후 placeholder 의 nickname/name 컬럼과 교차(4가지 조합) OR 매칭. placeholder 가드 추가 (provider='placeholder' OR email LIKE 'temp_%') — 동명이인 미로그인 실사용자 오통합 방지. 백주익 (real nick=hifabric/name=백주익 ↔ ph nick=백주익) 케이스 매칭 가능 | ✅ |
 | 2026-05-03 | (lib 4파일+테스트) | **알기자 brief Phase 1 정책 재설계 + 데이터 풀 확장 + ~다 통일** — 점프볼 단신 패턴 시도(평균 350자 폭증) → Phase 1 컨텍스트(매치 페이지 안 흐름·영웅 섹션) 재정의(평균 188자 적중). validate-brief 점수 검증 제거(쿼터/진행 점수 false positive 차단), 길이 400→350. 데이터 풀 확장: 양 팀 통계(야투/3점/리바/어시/스틸/블락/턴오버) + 모든 선수 stat + 더블더블/트리플더블 자동 검출 + 리바/어시/스틸/블락/+/-/3점 1위 자동 추출. 8건 모두 다른 관점(수비/3점폭격/턴오버/+/-/더블더블/야투율 비교) 작성. 어조 ~다 통일(~습니다 금지). 데이터 정확 (전인규 3점 11개 / 이영교 동명이인 닥터바스켓 OK 사용자 확인) | ✅ |
-| 2026-05-02 | (developer / tsc PASS) | **일정 탭 TBD → slotLabel 표시** — public-schedule API settings JSON 추출(homeSlotLabel/awaySlotLabel) + tournament-tabs 매핑 + schedule-timeline interface 확장 + italic muted 스타일 (DualMatchCard 동일 패턴). 3 파일 / 팀 확정 매치 표시 변경 0 / DB 변경 0 | ✅ |
-| 2026-05-03 | (검증 only) | **5/2 종료 9매치 전수 재조사 (debugger)** — DB 12건 발견 (몰텐배 8 ✅ + 열혈 4건 / 단 ended_at=5/2 기준 1건=#121만 사용자 진술 일치). G4 적용 후 9매치 모두 100.0% 정확 — 몰텐배 8건 280.0m/280.0m (qLen=420), 열혈 #121 400.0m/400.0m (qLen=600). 풀타임/DNP 산출 정상. 잔여 fix 필요 케이스 0건. 임시 스크립트 정리 완료 | ✅ |
-| 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
