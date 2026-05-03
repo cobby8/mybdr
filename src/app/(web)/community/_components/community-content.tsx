@@ -27,6 +27,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
+import { LoadMoreButton } from "@/components/load-more-button";
 import { CommunityAside } from "./community-aside";
 import { V2Pager } from "@/components/bdr-v2/v2-pager";
 
@@ -234,7 +235,7 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
   // 이유: 시안에서 pinned는 항상 상단 고정. DB에 is_pinned 컬럼이 없으므로
   //       category=notice를 사실상 공지로 간주해 항상 상단 노출.
   //       단, 사용자가 notice 카테고리를 선택한 경우엔 분리하지 않음(자체 목록).
-  const { pinnedPosts, regularPosts, totalPages, paginatedRegular } = useMemo(() => {
+  const { pinnedPosts, regularPosts, totalPages, paginatedRegular, hasMore, remaining } = useMemo(() => {
     const isNoticeBoard = category === "notice";
     const pinned = isNoticeBoard ? [] : posts.filter((p) => p.category === "notice");
     const rest = isNoticeBoard ? posts : posts.filter((p) => p.category !== "notice");
@@ -255,16 +256,16 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
       }
     });
 
-    const total = Math.ceil(sorted.length / POSTS_PER_PAGE);
-    const slice = sorted.slice(
-      (currentPage - 1) * POSTS_PER_PAGE,
-      currentPage * POSTS_PER_PAGE,
-    );
+    // 2026-05-03: 페이지네이션 → 더보기 누적 슬라이스
+    const visibleCount = currentPage * POSTS_PER_PAGE;
+    const slice = sorted.slice(0, visibleCount);
     return {
       pinnedPosts: pinned,
       regularPosts: sorted,
-      totalPages: total,
+      totalPages: Math.ceil(sorted.length / POSTS_PER_PAGE),
       paginatedRegular: slice,
+      hasMore: sorted.length > visibleCount,
+      remaining: Math.max(0, sorted.length - visibleCount),
     };
   }, [posts, sortKey, currentPage, category]);
 
@@ -479,12 +480,12 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
             </div>
           )}
 
-          {/* 4. 페이지네이션 — 일반 글이 1페이지 초과일 때만 */}
-          {!loading && totalPages > 1 && (
-            <V2Pager
-              current={currentPage}
-              total={totalPages}
-              onGo={(p) => setCurrentPage(p)}
+          {/* 2026-05-03: 페이지네이션 → 더보기 버튼 */}
+          {!loading && (
+            <LoadMoreButton
+              hasMore={hasMore ?? false}
+              onMore={() => setCurrentPage((p) => p + 1)}
+              remaining={remaining}
             />
           )}
         </main>

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TeamCardV2 } from "./team-card-v2";
+import { LoadMoreButton } from "@/components/load-more-button";
 
 // Phase 3 Teams — v2 시안 적용 목록 컨테이너
 // 원칙:
@@ -227,17 +228,14 @@ export function TeamsContentV2() {
     router.push(`${pathname}?${sp.toString()}`);
   };
 
-  // 2026-05-02 Phase B 갱신 (사용자 결정 1=B): #랭크 PC ≥720px 한정 복원.
-  // teams 배열은 API 가 sort=wins 등으로 정렬해 응답 — 그 응답 순서가 곧 랭크.
-  // paginatedTeams 는 현재 페이지의 슬라이스라 별도 globalIndex 계산 필요.
-  const pageStartIndex = (currentPage - 1) * TEAMS_PER_PAGE;
-
-  // 페이지네이션 계산
-  const totalPages = Math.max(1, Math.ceil(teams.length / TEAMS_PER_PAGE));
-  const paginatedTeams = teams.slice(
-    (currentPage - 1) * TEAMS_PER_PAGE,
-    currentPage * TEAMS_PER_PAGE
-  );
+  // 2026-05-02 Phase B 갱신: #랭크 PC ≥720px 한정 복원.
+  // 2026-05-03: 페이지네이션 → 더보기 누적 슬라이스
+  // 더보기 모드에서 globalIndex = i (slice 시작이 0이라 인덱스 그대로 랭크)
+  const pageStartIndex = 0;
+  const visibleCount = currentPage * TEAMS_PER_PAGE;
+  const paginatedTeams = teams.slice(0, visibleCount);
+  const hasMore = teams.length > visibleCount;
+  const remaining = Math.max(0, teams.length - visibleCount);
 
   return (
     // 모바일 좌우 여백 보강 — .page 컨테이너 padding 외에 추가 안전망 (2026-04-29)
@@ -453,13 +451,10 @@ export function TeamsContentV2() {
             </div>
           )}
 
-          <PaginationV2
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={(page) => {
-              setCurrentPage(page);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
+          <LoadMoreButton
+            hasMore={hasMore}
+            onMore={() => setCurrentPage((p) => p + 1)}
+            remaining={remaining}
           />
         </>
       )}
