@@ -19,6 +19,8 @@ import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 // 2026-05-04: 알기자 (BDR NEWS) 카테고리 본문 자동 링크 (선수/팀 → /users/{id}, /teams/{id})
 import { LinkifyNewsBody } from "@/lib/news/linkify-news-body";
 import { buildLinkifyEntries } from "@/lib/news/build-linkify-entries";
+// 2026-05-04: 알기자 기사 사진 (Hero + 갤러리)
+import { NewsPhotoHero, NewsPhotoGallery, type NewsPhotoForGallery } from "@/lib/news/news-photo-gallery";
 
 export const revalidate = 30;
 
@@ -121,13 +123,41 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
   // 카페 댓글
   const cafeComments = getCafeComments(post.images);
 
-  // 2026-05-04: 알기자 (BDR NEWS) 게시물이면 본문 자동 링크 entries 빌드
+  // 2026-05-04: 알기자 (BDR NEWS) 게시물이면 본문 자동 링크 entries 빌드 + 사진 fetch
   // - category=news + tournament_match_id 둘 다 있을 때만 (외부 글이 news 카테고리일 가능성 0이지만 안전 가드)
   // - admin/news 미리보기 + /news/match/[id] deep link 와 동일 룰 (선수 = 출전+is_active+이름>=2글자)
   const isAlkijaPost = post.category === "news" && !!post.tournament_match_id;
-  const linkifyEntries = isAlkijaPost
-    ? await buildLinkifyEntries(post.tournament_match_id!).catch(() => [])
-    : [];
+  const [linkifyEntries, newsPhotos] = isAlkijaPost
+    ? await Promise.all([
+        buildLinkifyEntries(post.tournament_match_id!).catch(() => []),
+        prisma.news_photo
+          .findMany({
+            where: { match_id: post.tournament_match_id! },
+            orderBy: [{ is_hero: "desc" }, { display_order: "asc" }],
+            select: {
+              id: true,
+              url: true,
+              width: true,
+              height: true,
+              is_hero: true,
+              display_order: true,
+              caption: true,
+            },
+          })
+          .then((rows): NewsPhotoForGallery[] =>
+            rows.map((r) => ({
+              id: r.id.toString(),
+              url: r.url,
+              width: r.width,
+              height: r.height,
+              isHero: r.is_hero,
+              displayOrder: r.display_order,
+              caption: r.caption,
+            })),
+          )
+          .catch(() => [] as NewsPhotoForGallery[]),
+      ])
+    : [[] as never[], [] as NewsPhotoForGallery[]];
 
   // 2단계: post.id가 필요한 댓글 + 좋아요/팔로우를 병렬 실행
   let isLiked = false;
@@ -334,7 +364,7 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
 
             {/* 2-2. Body — 시안 padding 28px 26px / fs 15 / lh 1.8 / color ink-soft.
                    D3 결정: DB가 block type 미지원 → 줄바꿈 split <p> 그대로 (h3/img 미적용)
-                   2026-05-04: 알기자 (BDR NEWS) 게시물은 LinkifyNewsBody 사용 (선수/팀 자동 링크) */}
+                   2026-05-04: 알기자 (BDR NEWS) 게시물은 LinkifyNewsBody + Hero/갤러리 사진 마운트 */}
             <div
               style={{
                 padding: "28px 26px",
@@ -343,6 +373,14 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                 color: "var(--ink-soft)",
               }}
             >
+              {/* Hero 사진 — 알기자 게시물 + 사진 1장 이상 시 본문 위 */}
+              {isAlkijaPost && newsPhotos.length > 0 && (
+                <div style={{ margin: "0 0 20px" }}>
+                  <NewsPhotoHero photos={newsPhotos} />
+                </div>
+              )}
+
+              {/* 본문 */}
               {isAlkijaPost && linkifyEntries.length > 0 ? (
                 <LinkifyNewsBody
                   content={decodeHtmlEntities(post.content) ?? ""}
@@ -352,6 +390,13 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                 decodeHtmlEntities(post.content)?.split("\n").map((line, i) => (
                   <p key={i} style={{ margin: "0 0 14px" }}>{line}</p>
                 ))
+              )}
+
+              {/* 갤러리 — Hero 외 사진 grid (본문 아래) */}
+              {isAlkijaPost && newsPhotos.length > 1 && (
+                <div style={{ margin: "20px 0 0" }}>
+                  <NewsPhotoGallery photos={newsPhotos} excludeHero />
+                </div>
               )}
             </div>
 

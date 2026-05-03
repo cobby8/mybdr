@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 알기자 기사 사진 schema = `news_photos` 별도 테이블 채택 (옵션 B)
+- **분류**: decision (사진 메타 저장 위치 / 확장성)
+- **결정자**: PM + 사용자 ("추천대로 진행")
+- **참조횟수**: 0
+- **배경**: 알기자 기사 사진 첨부 기능 도입. 매치당 N장 사진 + 메타 (Hero 지정 / 정렬 / caption / EXIF / 업로드자 / size) 저장 위치 옵션 검토.
+- **검토된 옵션**:
+  - **A. `community_posts.images` JSON 활용**: 기존 컬럼 재사용, 새 테이블 X — 단 검색/정렬/메타 풍부도 ↓ (JSON 구조 변경 시 마이그 비용 / EXIF 메타 확장 어려움 / matchId 인덱스 X)
+  - **C. 사진 URL 만 별도 테이블 + 메타 X (단순 list)**: 메타 부재로 Hero/정렬/caption 모두 미지원
+- **채택 옵션 B**: `news_photos` 별도 테이블 신설 (NULL ADD COLUMN + 신규 테이블, 무중단)
+  - **사유 1**: 매치 1:N 관계 자연스러움 (사진은 매치 종속)
+  - **사유 2**: 인덱스 풍부 (match_id / match_id+is_hero / match_id+display_order) — 갤러리 정렬/Hero 조회 빠름
+  - **사유 3**: 메타 풍부 (caption / exif_meta JSON / size_bytes / uploaded_by) — Phase 2 EXIF 매핑 / Phase 3 AI Vision 메타 확장 용이
+  - **사유 4**: Cascade 정책 (매치 삭제 시 사진 자동 정리, 운영 사고 방지)
+- **결과**: schema 변경 +25줄 (모델 1개 + 인덱스 3종 + relation 2종) / `community_posts.images` 영향 0 (카페 댓글 메타용 그대로 유지)
+- **추후 확장**: 라운드/일자 종합 기사 도입 시 `news_photos.round_id` / `daily_date` 같은 추가 컬럼 검토 가능 (현재 매치 1:N 만)
+
 ### [2026-05-04] 도메인 sub-agent 시스템 도입 — 옵션 A 채택 + 시범 live-expert 단독 시작
 - **분류**: decision (메타 / 에이전트 시스템 확장 / 도메인별 관리자)
 - **결정자**: 사용자 (옵션 A 직진 명시) + planner-architect (8 도메인 / 시범 영역 / Phase 5단계)
