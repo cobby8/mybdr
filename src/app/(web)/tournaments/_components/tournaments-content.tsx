@@ -321,10 +321,11 @@ export function TournamentsContent({
         }}
       >
         <div>
-          {/* 2026-05-03: 헤더 단순화 — eyebrow + 통계라인 제거, 제목 "대회" 단순화 */}
+          {/* 2026-05-03: eyebrow 복구 + 제목 "대회" 단순화 (통계라인은 제거 유지) */}
+          <div className="eyebrow">대회 · TOURNAMENTS</div>
           <h1
             style={{
-              margin: 0,
+              margin: "6px 0 0",
               fontSize: 28,
               fontWeight: 800,
               letterSpacing: "-0.015em",
@@ -362,17 +363,9 @@ export function TournamentsContent({
             <TournamentGridSkeleton />
           ) : (
             <>
-              {/* 필터 결과 카운트 — 기타 필터 적용 시 안내 */}
-              {hasFilters && (
-                <p className="mb-4 text-sm" style={{ color: "var(--ink-mute)" }}>
-                  검색 결과{" "}
-                  <span style={{ fontWeight: 700, color: "var(--ink)" }}>
-                    {filteredTournaments.length}개
-                  </span>
-                </p>
-              )}
+              {/* 2026-05-03: "검색 결과 N개" 문구 제거 (사용자 요청) */}
 
-              {/* v2 목록 래퍼: 6상태 탭 + 포스터 카드 그리드 */}
+              {/* v2 목록 래퍼: 4상태 탭 + 카드 그리드 */}
               <V2TournamentList
                 tournaments={paginatedTournaments}
                 photoMap={photoMap}
