@@ -144,6 +144,9 @@ export interface MatchDataV2 {
   venue_name?: string | null;
   current_quarter?: number | null;
   has_quarter_event_detail: boolean;
+  // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing)
+  // 운영자가 매치 종료 sync 시 PBP 미입력한 매치 박제용 (#141 블랙라벨 vs MSA 등)
+  time_data_missing?: boolean;
 }
 
 type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";
@@ -309,6 +312,40 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
 
       {/* Hero 스코어보드 — 시안 L118~L179 */}
       <HeroScoreboard match={match} />
+
+      {/* 2026-05-03: 시간 데이터 소실 안내 배너 — 운영자 매치 종료 sync 누락 매치 박제용 */}
+      {match.time_data_missing && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            marginBottom: 14,
+            borderRadius: 6,
+            background:
+              "color-mix(in oklab, var(--warn, #F59E0B) 12%, transparent)",
+            border:
+              "1px solid color-mix(in oklab, var(--warn, #F59E0B) 35%, transparent)",
+            color: "var(--ink)",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            aria-hidden="true"
+            style={{ fontSize: 18, color: "var(--warn, #F59E0B)", flexShrink: 0 }}
+          >
+            info
+          </span>
+          <span>
+            이 경기는 시간 데이터가 소실되어 출전 시간이 기록되지 않았습니다.
+          </span>
+        </div>
+      )}
 
       {/* MVP 배너 — playerStats 기반. MVP 없으면(=playerStats 0건) 렌더 안 함 */}
       {match.mvp_player && <MvpBanner mvp={match.mvp_player} match={match} />}
