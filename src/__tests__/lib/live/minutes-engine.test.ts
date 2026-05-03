@@ -194,6 +194,112 @@ describe("calculateMinutes — PBP-only 출전시간 엔진", () => {
     expect(byQuarterSec.get(ID(1))?.get(2)).toBe(QLEN);
     expect(byQuarterSec.get(ID(1))?.get(3)).toBeUndefined(); // Q3 미진행
   });
+
+  // 2026-05-03 Tier 2 — DB starter 주입 + endLineup chain 테스트 (케이스 G/H/I)
+  it("케이스 G (Tier 2): dbStartersByTeam 주입 시 Q1 starter = DB 값 (PBP 추정 무시)", () => {
+    // 시나리오: PBP 만 보면 starter 추정이 [10,11,12,13,14] 이지만
+    //          DB 가 [1,2,3,4,5] 로 명시 → DB 우선 사용
+    // PBP 구성: 10~14 가 쿼터 시작에 액션 (sub 받은 적 없음 → PBP 추정에서는 starter)
+    //          DB 주입: team A=[1,2,3] / team B=[4,5] → union={1..5}
+    //          Q1 시뮬은 starter=[1..5] 로 시작. PBP 에 1..5 액션 0건 + sub 0건 →
+    //          1..5 가 active 인 채 풀타임(qLen=600s) 누적된다.
+    const pbps: MinutesPbp[] = [
+      // Q1: PBP 등장 선수 = 10..14 (이들은 모두 sub_in 받은 적 없음)
+      { ttpId: ID(10), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(11), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(12), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(13), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(14), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // 쿼터 끝 표시
+      { ttpId: ID(10), quarter: 1, clock: 0, type: "shot", subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const dbStartersByTeam = new Map<bigint, Set<bigint>>();
+    dbStartersByTeam.set(BigInt(100), new Set([ID(1), ID(2), ID(3)])); // team A
+    dbStartersByTeam.set(BigInt(200), new Set([ID(4), ID(5)]));         // team B
+
+    const { bySec } = calculateMinutes({
+      pbps,
+      qLen: QLEN,
+      numQuarters: 1,
+      dbStartersByTeam,
+    });
+
+    // DB starter [1..5] 가 active 였으므로 Q1 풀타임 600s 누적
+    for (let i = 1; i <= 5; i++) {
+      expect(bySec.get(ID(i))).toBe(QLEN);
+    }
+    // PBP 에만 등장한 10~14 는 active 가 아니므로 0 (Map 미등록 또는 0)
+    for (let i = 10; i <= 14; i++) {
+      expect(bySec.get(ID(i)) ?? 0).toBe(0);
+    }
+  });
+
+  it("케이스 H (Tier 2): dbStartersByTeam 미주입 시 기존 PBP 추정 동작 (호환성)", () => {
+    // 케이스 1 과 동일 시나리오 — 회귀 검증. dbStartersByTeam 옵션 없이 호출.
+    const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
+    const pbps: MinutesPbp[] = [
+      ...makeQuarterStarters(1, starters),
+      ...makeQuarterStarters(2, starters),
+      ...makeQuarterStarters(3, starters),
+      ...makeQuarterStarters(4, starters),
+    ];
+
+    const { bySec } = calculateMinutes({ pbps, qLen: QLEN, numQuarters: 4 });
+
+    let total = 0;
+    for (const id of starters) {
+      const sec = bySec.get(id) ?? 0;
+      expect(sec).toBe(QLEN * 4);
+      total += sec;
+    }
+    expect(total).toBe(5 * QLEN * 4);
+  });
+
+  it("케이스 I (Tier 2): Q2 endLineup chain — 이전 쿼터 active 5명이 다음 starter 로 사용", () => {
+    // 시나리오: Q1 에서 5번 → 6번 swap (영구) 후 그대로 Q2 진입.
+    //   Q1 종료 시점 active = {1,2,3,4,6} (5번 빠지고 6번 들어와 있음)
+    //   Q2 PBP 액션 = 1번만 (시작/끝). sub 0건 → PBP 만으론 starter=[1번] 1명뿐.
+    //   Tier 2 endLineup chain 사용 시 starter = {1,2,3,4,6} (Q1 active 그대로)
+    const pbps: MinutesPbp[] = [
+      // Q1: starter [1..5] + Q1 중간 5번 → 6번 swap (영구)
+      { ttpId: ID(1), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(2), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(3), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(4), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(5), quarter: 1, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // 5분에 5번 → 6번 swap (영구)
+      { ttpId: null, quarter: 1, clock: 300, type: "substitution", subtype: null, subInId: ID(6), subOutId: ID(5) },
+      { ttpId: ID(1), quarter: 1, clock: 0, type: "shot", subtype: null, subInId: null, subOutId: null },
+
+      // Q2: PBP 액션 = 1번만 (시작/끝). sub 0건.
+      { ttpId: ID(1), quarter: 2, clock: QLEN, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(1), quarter: 2, clock: 0, type: "shot", subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const { bySec, byQuarterSec } = calculateMinutes({
+      pbps,
+      qLen: QLEN,
+      numQuarters: 2,
+      // dbStartersByTeam 미주입 — Q1 은 PBP 추정으로 [1..5], Q2 는 endLineup chain 으로 {1,2,3,4,6}
+    });
+
+    // Q1: 1~4 는 풀타임 600s, 5번 0~5분 = 300s, 6번 5~10분 = 300s
+    expect(byQuarterSec.get(ID(1))?.get(1)).toBe(QLEN);
+    expect(byQuarterSec.get(ID(5))?.get(1)).toBe(300);
+    expect(byQuarterSec.get(ID(6))?.get(1)).toBe(300);
+
+    // Q2: endLineup chain 작동 시 starter = {1,2,3,4,6} → 모두 600s 풀타임
+    //     (PBP 추정이었으면 1번만 starter → 1번만 600s 누적)
+    expect(byQuarterSec.get(ID(1))?.get(2)).toBe(QLEN);
+    expect(byQuarterSec.get(ID(2))?.get(2)).toBe(QLEN); // ← chain 핵심
+    expect(byQuarterSec.get(ID(3))?.get(2)).toBe(QLEN);
+    expect(byQuarterSec.get(ID(4))?.get(2)).toBe(QLEN);
+    expect(byQuarterSec.get(ID(6))?.get(2)).toBe(QLEN); // ← 6번 chain 으로 starter
+    // 5번은 Q2 active 아님 → Q2 0 (Q1 만 300s)
+    expect(byQuarterSec.get(ID(5))?.get(2) ?? 0).toBe(0);
+    expect(bySec.get(ID(5))).toBe(300); // Q1 만
+  });
 });
 
 // 2026-05-03 옵션 C — 종료 매치 cap (풀타임 보호) 테스트

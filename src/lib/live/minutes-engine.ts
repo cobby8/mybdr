@@ -33,6 +33,13 @@ export type MinutesInput = {
   pbps: MinutesPbp[];
   qLen: number;                   // quarter length (sec) — 보통 420/480/600/720
   numQuarters: number;            // 4 (정규) or 5+ (OT 포함)
+  // 2026-05-03 Tier 2 보강: Q1 starter 를 DB 에서 직접 주입 (MatchPlayerStat.isStarter 출처).
+  // 왜: PBP 추정은 sub_in/seenBeforeFirstSub 룰 기반으로 92~93% 정확도. DB starter 는
+  //      Flutter 가 매치 시작 시 5명 정확히 sync 하므로 100% 정확. 주입 시 Q1 추정 무시.
+  // 형식: Map<teamId, Set<ttp_id>> — calculateMinutes 는 모든 Set 을 union 하여 사용.
+  // 미주입 (undefined) 또는 union 결과 <5 명 시 기존 PBP 추정 fallback (호환성).
+  // Q2 이후는 직전 쿼터 시뮬 끝 active set 을 endLineup chain 으로 자동 사용 (별도 입력 불필요).
+  dbStartersByTeam?: Map<bigint, Set<bigint>>;
 };
 
 export type MinutesResult = {
@@ -41,9 +48,29 @@ export type MinutesResult = {
 };
 
 export function calculateMinutes(input: MinutesInput): MinutesResult {
-  const { pbps, qLen, numQuarters } = input;
+  const { pbps, qLen, numQuarters, dbStartersByTeam } = input;
   const result = new Map<bigint, number>();
   const resultByQ = new Map<bigint, Map<number, number>>();
+
+  // 2026-05-03 Tier 2: DB starter (Q1) union — 모든 팀의 isStarter=true ttp_id 합집합.
+  // 왜 union: Q1 시뮬은 ttp 단위로만 동작. 팀 분리는 호출자(route.ts)가 cap 단계에서 수행.
+  //          union 결과가 양팀 starter 10명(보통)이므로 Q1 active set 의 정답.
+  // 자료 무결성: 한 매치당 양팀 합 ≥ 5 명 + 비현실 검증 (3~12명) 통과 시만 사용.
+  const dbStartersUnion = (() => {
+    if (!dbStartersByTeam || dbStartersByTeam.size === 0) return null;
+    const u = new Set<bigint>();
+    for (const set of dbStartersByTeam.values()) {
+      for (const id of set) u.add(id);
+    }
+    // 비현실 케이스 (양팀 starter 합 5명 미만 또는 12명 초과) → fallback
+    if (u.size < 5 || u.size > 12) return null;
+    return u;
+  })();
+
+  // 2026-05-03 Tier 2: 직전 쿼터 endLineup chain 용 — 쿼터별 종료 시점 active set 보존.
+  //   Q2 이후 starter 추정 시 Q(N-1) 의 active 가 5명±2 (3~7) 면 그대로 다음 starter 로 사용.
+  //   비현실(<3 또는 >7) 시 fallback (PBP 추정).
+  const prevEndLineupByQ = new Map<number, Set<bigint>>();
 
   // 쿼터별 누적 헬퍼 — total + byQuarter 동시 갱신
   const addSec = (id: bigint, q: number, sec: number) => {
@@ -113,18 +140,39 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
         if (p.clock > firstSubClock) seenBeforeFirstSub.add(p.ttpId);
       }
     }
-    const starters: bigint[] = [];
+    // PBP 추정 starter (fallback / Q1 미주입 / Q2+ endLineup 비현실 시 사용)
+    const pbpEstimatedStarters: bigint[] = [];
     for (const id of everSeen) {
       // (a) sub_in 받은 적 없음 → starter (풀타임 또는 sub_out 만 됨)
       if (!subInIds.has(id)) {
-        starters.push(id);
+        pbpEstimatedStarters.push(id);
         continue;
       }
       // (b) sub_in 받았지만 한 번이라도 sub_out 도 됨 → 코트에 있던 선수 (starter 후보)
       //     + 첫 sub 이전에 액션도 있으면 starter 확정
       if (subOutIds.has(id) && seenBeforeFirstSub.has(id)) {
-        starters.push(id);
+        pbpEstimatedStarters.push(id);
       }
+    }
+
+    // 2026-05-03 Tier 2: starter 결정 우선순위
+    //   Q1: dbStartersUnion 우선 (DB isStarter=true 양팀 합 union) → fallback PBP 추정
+    //   Q2+: 직전 쿼터 endLineup (3~7명 범위) → fallback PBP 추정
+    let starters: bigint[];
+    if (q === 1 && dbStartersUnion) {
+      // DB starter 우선 — PBP 추정 무시 (Tier 2 핵심)
+      starters = Array.from(dbStartersUnion);
+    } else if (q > 1) {
+      // endLineup chain — 이전 쿼터 active 5명±2 면 그대로 다음 starter
+      const prevEnd = prevEndLineupByQ.get(q - 1);
+      if (prevEnd && prevEnd.size >= 3 && prevEnd.size <= 7) {
+        starters = Array.from(prevEnd);
+      } else {
+        starters = pbpEstimatedStarters; // fallback
+      }
+    } else {
+      // Q1 + DB 미주입 → 기존 PBP 추정 (호환성 유지)
+      starters = pbpEstimatedStarters;
     }
 
     // active set 시뮬레이션
@@ -156,6 +204,11 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
         addSec(id, q, remaining);
       }
     }
+
+    // 2026-05-03 Tier 2: 쿼터 종료 시점 active set 저장 (다음 쿼터 starter chain 용).
+    //   active 는 쿼터 마지막 sub 적용 후 lineup → 작전타임 교체 발생률 2.5% (debugger 분석)
+    //   라 거의 동일 lineup 이 다음 쿼터 시작.
+    prevEndLineupByQ.set(q, new Set(active));
   }
 
   return { bySec: result, byQuarterSec: resultByQ };

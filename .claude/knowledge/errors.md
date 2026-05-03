@@ -2,6 +2,24 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] minutes-engine 의 starter PBP-only 추정 = `MatchPlayerStat.isStarter` 미사용 (정확도 손실 ~10%)
+- **분류**: error/lesson (기존 데이터 미활용으로 인한 추정 의존)
+- **발견자**: debugger (사용자 제안 "starter 등록되어 있으면 자동 sub_in 처리" 검증 중)
+- **본질**: `MatchPlayerStat.isStarter` 컬럼이 **모든 종료 매치에 양팀 정확히 5명씩 (총 10명) 100% 채워져 있음에도** minutes-engine 은 이 데이터를 무시하고 PBP 만으로 starter 추정 → "쿼터 첫 sub 이전 액션 없는 starter" 미식별 → 시간 누락.
+- **실측 (t388 몰텐배 13 매치)**:
+  - DB `isStarter` 데이터 존재율: 13/13 매치 (100%) / 매치당 정확히 양팀 10명
+  - DB starter vs PBP-only Q1 추정 일치율: 24/26 팀×Q1 (92.3%) — 불일치 2건 모두 "DB 5명 / PBP 추정 3~4명" (DB 가 더 정확)
+  - PBP-only 출전시간 정확도: 92.16% (205157s / 222600s)
+  - DB starter + endLineup chain + lastGap=0 보강: **103.21% (over-shoot, LRM cap 으로 정확화 가능)**
+- **데이터 출처**: Flutter 앱이 매치 시작 시 운영자 입력으로 `MatchPlayerStat` INSERT 시 `isStarter` 같이 sync. 즉 **운영자는 이미 starter 정보를 입력하고 있음**. minutes-engine 만 모를 뿐.
+- **fix 권장**:
+  1. **단순 — Q1 starter 만 isStarter 사용**: 영향 ~5~7% 정확도 향상. minutes-engine input 에 `dbStartersByTeam` 추가, Q1 만 PBP 추정 대신 DB 값 채택.
+  2. **중간 — Q1 isStarter + Q2~Q4 endLineup chain**: 영향 ~10% 향상. Q2~Q4 starter = 직전 쿼터 endLineup (영역 4 97.5% 정확).
+  3. **고급 — 영역 1+2+3+4 모두**: 영역 2 (firstGap/lastGap=0 강제) 추가, LRM cap 으로 over-shoot 흡수. 100% 회복 가능. DB 무변경.
+- **회귀 위험 0**: DB 무변경, minutes-engine input 에 `dbStarters` 옵션 추가 + 분기. 기존 PBP-only 동작은 그대로 유지 (옵션 미주입 시 fallback).
+- **참조횟수**: 0
+- **관련**: 직전 entry "PBP 미달 본질 원인" — Flutter 앱 측 fix 안 하고도 서버측에서 80% 회복 가능
+
 ### [2026-05-03] PBP 0건 종료 매치 — minutes-engine cap 알고리즘 무효화 (#141 블랙라벨 vs MSA 패턴)
 - **분류**: error (sync 누락 — 데이터 손상 X / live 페이지 출전시간 전부 00:00 표시)
 - **발견자**: debugger (t388 전수 검증 13/13 매치 cap 일치도 측정 중)
