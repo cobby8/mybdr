@@ -222,34 +222,20 @@ function PosterBlock({
 /* ---------- 개별 대회 카드 ---------- */
 function V2TournamentCard({
   tournament: t,
-  photoUrl,
-  accent,
 }: {
   tournament: TournamentFromApi;
-  photoUrl?: string | null;
-  accent: string;
+  photoUrl?: string | null; // 호환성 유지 (호출처 변경 최소화) — 사용 X
+  accent?: string;
 }) {
   const v2Status = deriveV2Status(t);
   const badge = STATUS_BADGE[v2Status];
 
-  // 종별 라벨 1개만 (카드 공간 절약) — 태그 역할
+  // 종별 라벨 1개만 — 칩 역할
   const categoryLabel =
     Object.entries(t.categories ?? {})
       .filter(([, v]) => v === true)
       .map(([key]) => CATEGORIES[key as keyof typeof CATEGORIES]?.label ?? key)
       .filter(Boolean)[0] ?? null;
-
-  // 레벨 약어 — 포맷 기반 단순 매핑 (OPEN/LIVE/INFO 등)
-  const level =
-    v2Status === "진행중"
-      ? "LIVE"
-      : v2Status === "접수중"
-        ? "OPEN"
-        : v2Status === "마감임박"
-          ? "FULL"
-          : v2Status === "종료"
-            ? "END"
-            : "SOON";
 
   // 날짜 포맷: 시작~종료일
   const dateStr = t.start_date
@@ -258,19 +244,39 @@ function V2TournamentCard({
       : formatShortDate(t.start_date)
     : null;
 
-  // 장소: city + venue_name
-  const location = [t.city, t.venue_name].filter(Boolean).join(" ");
+  // D-day 계산 (시작일 기준, 미래만)
+  const dDay = t.start_date
+    ? Math.ceil(
+        (new Date(t.start_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      )
+    : null;
+  const dDayLabel =
+    dDay === null
+      ? null
+      : dDay > 0
+        ? `D-${dDay}`
+        : dDay === 0
+          ? "D-DAY"
+          : v2Status === "진행중"
+            ? "진행중"
+            : null;
 
-  // 참가비
+  // 도시 (venue_name 제외 — "남양주시" 같은 단순 표기)
+  const cityShort = t.city ?? null;
+
+  // 참가비 — 라벨 제거 (숫자만)
   const hasFee = t.entry_fee && Number(t.entry_fee) > 0;
-  const feeText = hasFee ? `${Number(t.entry_fee).toLocaleString()}원` : "무료";
+  const feeText = hasFee
+    ? `${Math.round(Number(t.entry_fee) / 10000)}만원`
+    : "무료";
 
   // 진행바 데이터
   const maxTeams = t.max_teams ?? 0;
-  const progressPct = maxTeams > 0 ? Math.min((t.team_count / maxTeams) * 100, 100) : 0;
+  const progressPct =
+    maxTeams > 0 ? Math.min((t.team_count / maxTeams) * 100, 100) : 0;
   const isFull = maxTeams > 0 && t.team_count >= maxTeams;
 
-  // CTA 라벨 (시안 L73) — 상태별
+  // CTA 라벨
   const ctaLabel =
     v2Status === "접수중" || v2Status === "마감임박"
       ? "신청"
@@ -279,146 +285,152 @@ function V2TournamentCard({
         : "상세";
 
   return (
-    // 시안 L42: card padding:0 + 2열 grid (포스터 140px + 본문 1fr)
+    // 2026-05-03: 컴팩트 카드 — 좌측 포스터 제거, 1열 본문, 4행 (칩/제목/메타/CTA)
     <Link
       href={`/tournaments/${t.id}`}
       prefetch={true}
       className="card"
       style={{
-        padding: 0,
-        display: "grid",
-        gridTemplateColumns: "140px 1fr",
-        overflow: "hidden",
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
         cursor: "pointer",
         textDecoration: "none",
         color: "inherit",
+        minWidth: 0,
       }}
     >
-      {/* 좌측: 포스터 or 그라디언트 */}
-      <PosterBlock
-        photoUrl={photoUrl}
-        accent={accent}
-        level={level}
-        title={t.name}
-      />
-
-      {/* 우측: 정보 영역 */}
+      {/* 1행: 상태 + 디비전 칩 + D-day (우측) */}
       <div
         style={{
-          padding: 16,
           display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          minWidth: 0,
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
         }}
       >
-        {/* 상태 배지 + 카테고리 태그 */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <span className={badge.className}>{badge.label}</span>
-          {categoryLabel && (
-            <span className="badge badge--ghost" style={{ fontSize: 10 }}>
-              {categoryLabel}
-            </span>
-          )}
-        </div>
-
-        {/* 제목 */}
-        <div
-          style={{
-            fontWeight: 700,
-            fontSize: 16,
-            letterSpacing: "-0.01em",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-          }}
-        >
-          {t.name}
-        </div>
-
-        {/* 정보 그리드 (시안 L62~66) */}
-        <div
-          style={{
-            fontSize: 13,
-            color: "var(--ink-mute)",
-            display: "grid",
-            gridTemplateColumns: "auto 1fr",
-            columnGap: 10,
-            rowGap: 4,
-          }}
-        >
-          {dateStr && (
-            <>
-              <span>📅</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {dateStr}
-              </span>
-            </>
-          )}
-          {location && (
-            <>
-              <span>📍</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {location}
-              </span>
-            </>
-          )}
-          <span>💰</span>
-          <span>참가비 {feeText}</span>
-        </div>
-
-        {/* 하단: 진행바 + 인원 + CTA */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: "auto" }}>
-          {maxTeams > 0 && (
-            <>
-              <div
-                style={{
-                  flex: 1,
-                  height: 6,
-                  background: "var(--bg-alt)",
-                  borderRadius: 3,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    width: `${progressPct}%`,
-                    height: "100%",
-                    // 마감임박은 accent(red), 그 외는 cafe-blue
-                    background:
-                      v2Status === "마감임박" ? "var(--accent)" : "var(--cafe-blue, #2563eb)",
-                  }}
-                />
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--ink-mute)",
-                  fontFamily: "var(--ff-mono)",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {t.team_count}/{maxTeams}
-              </div>
-            </>
-          )}
-          {maxTeams === 0 && (
-            <div style={{ flex: 1, fontSize: 12, color: "var(--ink-mute)" }}>
-              {t.team_count}팀 신청
-            </div>
-          )}
+        <span className={badge.className}>{badge.label}</span>
+        {categoryLabel && (
+          <span className="badge badge--ghost" style={{ fontSize: 10 }}>
+            {categoryLabel}
+          </span>
+        )}
+        {dDayLabel && (
           <span
-            className="btn btn--sm btn--primary"
             style={{
-              pointerEvents: "none",
-              opacity: isFull && v2Status !== "진행중" ? 0.6 : 1,
+              marginLeft: "auto",
+              fontSize: 11,
+              fontWeight: 700,
+              color:
+                v2Status === "진행중"
+                  ? "var(--cafe-blue, #2563eb)"
+                  : v2Status === "마감임박"
+                    ? "var(--accent)"
+                    : "var(--ink-mute)",
+              fontFamily: "var(--ff-mono)",
             }}
           >
-            {ctaLabel}
+            {dDayLabel}
           </span>
-        </div>
+        )}
+      </div>
+
+      {/* 2행: 대회명 (1줄 ellipsis) */}
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: 15,
+          letterSpacing: "-0.01em",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          lineHeight: 1.3,
+        }}
+      >
+        {t.name}
+      </div>
+
+      {/* 3행: 메타 (날짜 · 도시 · 참가비) */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "var(--ink-mute)",
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          flexWrap: "wrap",
+          minHeight: 16,
+        }}
+      >
+        {dateStr && <span>{dateStr}</span>}
+        {dateStr && cityShort && <span style={{ opacity: 0.4 }}>·</span>}
+        {cityShort && <span>{cityShort}</span>}
+        {(dateStr || cityShort) && <span style={{ opacity: 0.4 }}>·</span>}
+        <span style={{ fontWeight: 600, color: "var(--ink-soft)" }}>
+          {feeText}
+        </span>
+      </div>
+
+      {/* 4행: 진행바 + 카운트 + CTA (한 줄 통합) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginTop: "auto",
+          paddingTop: 4,
+        }}
+      >
+        {maxTeams > 0 ? (
+          <>
+            <div
+              style={{
+                flex: 1,
+                height: 4,
+                background: "var(--bg-alt)",
+                borderRadius: 2,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${progressPct}%`,
+                  height: "100%",
+                  background:
+                    v2Status === "마감임박"
+                      ? "var(--accent)"
+                      : "var(--cafe-blue, #2563eb)",
+                }}
+              />
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--ink-mute)",
+                fontFamily: "var(--ff-mono)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {t.team_count}/{maxTeams}
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, fontSize: 11, color: "var(--ink-mute)" }}>
+            {t.team_count}팀
+          </div>
+        )}
+        <span
+          className="btn btn--sm btn--primary"
+          style={{
+            pointerEvents: "none",
+            opacity: isFull && v2Status !== "진행중" ? 0.6 : 1,
+            fontSize: 12,
+            padding: "4px 12px",
+          }}
+        >
+          {ctaLabel}
+        </span>
       </div>
     </Link>
   );
@@ -529,8 +541,9 @@ export function V2TournamentList({
         <div
           style={{
             display: "grid",
-            // 모바일 1열 → 640px↑ 2열 (media query 대신 auto-fit + minmax)
-            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 340px), 1fr))",
+            // 2026-05-03: 컴팩트 카드 — 280px 최소폭 (이전 340px) → 한 행 카드 수 ↑
+            // 모바일 1열 → 640px↑ 2~3열, 1280px↑ 4열 (auto-fill + minmax)
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
             gap: 14,
           }}
         >
