@@ -249,4 +249,87 @@ describe("applyCompletedCap — 종료 매치 cap (풀타임 보호)", () => {
       expect(bySec.get(ID(i))).toBe(QLEN * 4); // 변경 X
     }
   });
+
+  // 2026-05-03 LRM (Largest Remainder Method) 정확도 — ±1초 오차 0 보장
+  it("케이스 D (LRM): 5명 fractional 분배 시 합계 = expected 정확 일치", () => {
+    // 시나리오: raw sum=7000 → ratio=8400/7000=1.2 → fractional 발생 케이스
+    // 각 선수 1400s × 1.2 = 1680s (fractional 0이지만, 다른 분포로 fractional 유발)
+    // 비대칭 분포 사용: 1500/1400/1400/1400/1300 → ratio=1.2 → 1800/1680/1680/1680/1560
+    const bySec = new Map<bigint, number>();
+    bySec.set(ID(1), 1500);
+    bySec.set(ID(2), 1400);
+    bySec.set(ID(3), 1400);
+    bySec.set(ID(4), 1400);
+    bySec.set(ID(5), 1300);
+    const rawSum = 1500 + 1400 + 1400 + 1400 + 1300; // 7000
+    const expected = 8400; // ratio = 8400/7000 = 1.2
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    // 합계가 정확히 expected (toBeCloseTo 가 아니라 toBe — 정확 일치 검증)
+    let total = 0;
+    for (const sec of bySec.values()) total += sec;
+    expect(total).toBe(expected);
+    // 모든 값은 정수
+    for (const sec of bySec.values()) {
+      expect(Number.isInteger(sec)).toBe(true);
+    }
+    // raw sum 검증 (테스트 의도 명시)
+    expect(rawSum).toBe(7000);
+  });
+
+  it("케이스 E (LRM): 동일 ratio fractional 케이스 — 합계 정확 + ±1초 분배", () => {
+    // 시나리오: 3명 모두 동일 sec → ratio 비례 시 모두 동일 fractional
+    // 1000/1000/1000 → expected=3001 → ratio=1.001 → 각 1001 (정수 fractional 0)
+    // 더 정확한 fractional 케이스: 1000/1000/1000 → expected=3002 → ratio=3002/3000
+    //   = exact 1000.667 → floor=1000, remainder = 3002 - 3000 = 2
+    //   → 상위 2명 +1 → [1001, 1001, 1000] = 3002 정확
+    const bySec = new Map<bigint, number>();
+    bySec.set(ID(1), 1000);
+    bySec.set(ID(2), 1000);
+    bySec.set(ID(3), 1000);
+    const expected = 3002;
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    let total = 0;
+    for (const sec of bySec.values()) total += sec;
+    expect(total).toBe(expected); // 정확 일치 (Math.round 였다면 1001×3 = 3003 으로 +1 오차)
+    // 각 선수 sec 는 1000 또는 1001 (±1 분배)
+    for (const sec of bySec.values()) {
+      expect([1000, 1001]).toContain(sec);
+    }
+    // 정확히 2명만 1001 (remainder=2)
+    let count1001 = 0;
+    for (const sec of bySec.values()) {
+      if (sec === 1001) count1001++;
+    }
+    expect(count1001).toBe(2);
+  });
+
+  it("케이스 F (LRM): 풀타임 + partial 혼합 — partial 내에서만 LRM 적용", () => {
+    // 풀타임 2명(2400×2 = 4800) + partial 3명(700/700/700 = 2100)
+    // expected = 12000, remaining = 12000-4800 = 7200, partialSum=2100
+    // ratio = 7200/2100 ≈ 3.4286 → exact 각 2400 (fractional 0)
+    // → floor 2400×3 = 7200 = remaining 정확. remainder=0, +1 분배 0
+    // 다른 분포: 800/700/600 = 2100 → ratio ≈ 3.4286
+    //   exact: 2742.857 / 2400 / 2057.143
+    //   floor: 2742 / 2400 / 2057 = 7199. remainder = 7200 - 7199 = 1
+    //   fractional: 0.857 / 0 / 0.143 → 상위 1명(ID3) +1 → 2743/2400/2057 = 7200
+    const bySec = new Map<bigint, number>();
+    bySec.set(ID(1), QLEN * 4); // 풀타임
+    bySec.set(ID(2), QLEN * 4); // 풀타임
+    bySec.set(ID(3), 800);
+    bySec.set(ID(4), 700);
+    bySec.set(ID(5), 600);
+    const expected = QLEN * 4 * 5; // 12000
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    // 풀타임 변경 X
+    expect(bySec.get(ID(1))).toBe(QLEN * 4);
+    expect(bySec.get(ID(2))).toBe(QLEN * 4);
+    // 합계 정확 일치
+    let total = 0;
+    for (const sec of bySec.values()) total += sec;
+    expect(total).toBe(expected);
+    // 모두 정수
+    for (const sec of bySec.values()) {
+      expect(Number.isInteger(sec)).toBe(true);
+    }
+  });
 });

@@ -2,6 +2,19 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] PBP 0건 종료 매치 — minutes-engine cap 알고리즘 무효화 (#141 블랙라벨 vs MSA 패턴)
+- **분류**: error (sync 누락 — 데이터 손상 X / live 페이지 출전시간 전부 00:00 표시)
+- **발견자**: debugger (t388 전수 검증 13/13 매치 cap 일치도 측정 중)
+- **증상**: status=`completed` + homeScore/awayScore 정상 (52:31) 인데 `play_by_plays` 0건 + `match_player_stats` 0건. live 페이지 박스스코어 = 모든 선수 DNP / 출전시간 합 = 0s.
+- **재현 매치**: tournament `138b22d8...` (몰텐배 동호회최강전) match_id=141 (#10, C조 2경기, 블랙라벨 vs MSA, qLen=600 추정 default).
+- **근본 원인**: Flutter 운영자가 매치 결과 집계 화면에서 점수만 manual entry → PBP/박스 sync API 호출 단계 자체 누락. `applyCompletedCap` 은 `bySec` 에 등록된 선수가 1명이라도 있어야 비례 분배 가능 — 비어 있으면 expected 도달 X (raw=0, partial=0 → early return).
+- **신뢰도 영향**: 13 매치 중 1 매치 = 7.7% 매치 신뢰도 누락. capped 합 정확도 89.6% (PBP 0건 매치 1건이 expected 24000s 통째로 누락 → 분모 229800 의 ~10.4% 차감). 매치 0~12 만 보면 100% 정확.
+- **fix 방향 1 (권장 — Flutter 측)**: 매치 종료 sync 시 PBP 0건 + score 양수 인 케이스 경고 + 운영자에게 sync 재실행 prompt. (원영 영역)
+- **fix 방향 2 (대시보드 표시 가드)**: live 페이지/대시보드 카드 노출 시 `pbp_count = 0 && status = completed` → "출전시간 미입력" 배지 + sec 표시 숨김 (현재 모두 00:00 표시 → 사용자 혼란).
+- **fix 방향 3 (cap 보강 — 미권장)**: PBP 0건 시 roster 전원에 expected/N 균등 분배 — 가짜 출전시간 생성 위험으로 비추천.
+- **검증 방법**: `SELECT m.id, m.status, m.home_score, m.away_score, COUNT(p.id) AS pbp FROM tournament_matches m LEFT JOIN play_by_plays p ON p.tournament_match_id = m.id WHERE m.status = 'completed' GROUP BY m.id HAVING COUNT(p.id) = 0;`
+- **참고**: PBP 일부 누락 케이스(이전 entry "PBP 미달 본질 원인 분석" 22팀 / 2026-05-03)는 cap 으로 흡수되지만, **PBP 전무 케이스는 cap 으로 복구 불가**. 분리 처리 필요.
+
 ### [2026-05-03] dual_tournament 진출 매치 양팀 동일 — `advanceWinner` 가 진짜 범인 (5/2 fix 무효 재발)
 - **분류**: error (data corruption — 진출 슬롯 충돌, 5/2 회귀 방지 5종 우회)
 - **발견자**: debugger (5/3 D-day D조 승자전 재발 audit log 추적)
