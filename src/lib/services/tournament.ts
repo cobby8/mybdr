@@ -294,12 +294,31 @@ export async function listTournaments(filters: TournamentListFilters = {}) {
     ];
   }
 
-  return prisma.tournament.findMany({
+  // 2026-05-03: 진행중 대회 최상단 우선 정렬 (사용자 요청).
+  // Prisma orderBy 는 status priority 직접 미지원 → 메모리 정렬로 처리.
+  // 1순위: status=in_progress (진행중) → 0
+  // 2순위: status=registration_open (접수중) → 1
+  // 3순위: 나머지 → 2
+  // 같은 priority 안에서는 startDate desc.
+  const rows = await prisma.tournament.findMany({
     where,
-    orderBy: { startDate: "desc" },
     take,
     select: TOURNAMENT_LIST_SELECT,
   });
+  const priority = (s: string | null | undefined): number => {
+    if (s === "in_progress") return 0;
+    if (s === "registration_open") return 1;
+    return 2;
+  };
+  rows.sort((a, b) => {
+    const pa = priority(a.status);
+    const pb = priority(b.status);
+    if (pa !== pb) return pa - pb;
+    const ta = a.startDate?.getTime() ?? 0;
+    const tb = b.startDate?.getTime() ?? 0;
+    return tb - ta;
+  });
+  return rows;
 }
 
 /**
