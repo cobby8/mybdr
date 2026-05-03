@@ -129,39 +129,6 @@ export async function GET(
       return bestDiff <= 30 ? best : maxClock;
     })();
 
-    // 2026-05-03 옵션 D — 매치 진행도 (초) 산출
-    // 이유: 라이브 매치(status='live'/'in_progress')는 cap = 5×qLen×4 (만점) 적용 시
-    //       partial trustedSec 비례 확대 → 비정상 출전시간 부풀림 (Q1 진행 5분인데 40분 표시).
-    //       → status-aware cap 으로 완료 매치 회귀 0 + 라이브 매치 동적 cap 적용.
-    //
-    // 알고리즘:
-    //   - 매치 PBP 의 max quarter = 현재 진행 중인 쿼터 (또는 마지막 진행 쿼터)
-    //   - 해당 쿼터의 min(game_clock_seconds) = 가장 진행된 시점 (clock=0 = 쿼터 종료)
-    //   - clock=0 도달 → 해당 쿼터 만점 카운트 (qLen)
-    //   - clock>0 (진행 중) → (qLen - lastClock) 카운트
-    //   - 이전 쿼터들 = (maxQ - 1) × qLen 만점 카운트 (이미 종료됨)
-    const estimateProgressedSec = (
-      pbpsArg: typeof allPbps,
-      qLen: number,
-    ): number => {
-      if (pbpsArg.length === 0) return 0;
-      const maxQ = Math.max(...pbpsArg.map((p) => p.quarter ?? 0));
-      if (maxQ <= 0) return 0;
-      // maxQ 쿼터의 가장 작은 clock = 가장 진행된 시점
-      const clocksInMaxQ = pbpsArg
-        .filter((p) => p.quarter === maxQ)
-        .map((p) => p.game_clock_seconds ?? qLen);
-      if (clocksInMaxQ.length === 0) return (maxQ - 1) * qLen;
-      const lastClockInMaxQ = Math.min(...clocksInMaxQ);
-      // clock=0 도달 = 쿼터 종료 → maxQ 쿼터 만점 카운트
-      // clock>0 = 진행 중 → (qLen - lastClock) 카운트
-      const lastQSec = lastClockInMaxQ <= 0 ? qLen : (qLen - lastClockInMaxQ);
-      return (maxQ - 1) * qLen + Math.max(0, Math.min(lastQSec, qLen));
-    };
-    const progressedSec = estimateProgressedSec(allPbps, estimatedQL);
-    // status-aware: 'completed' 만 만점 cap, 그 외 (live/in_progress/scheduled) 는 진행도 기반.
-    const isMatchCompleted = match.status === "completed";
-
     // 2026-05-02 STL Phase 2 — sub 기반 출전시간 재계산 (모든 매치 0순위)
     //
     // 목적:
@@ -180,12 +147,7 @@ export async function GET(
     //   - sub 기반 결과가 비합리적 (qLength × 4 초과 = 1쿼터 평균 초과) 시 기존 fallback
     //   - sub 결과 0 (PBP/sub 미입력 매치) 시 기존 fallback
     // G1 (2026-05-02): return 객체화 — perPlayer (시간 Map) + dnpSet (참고용)
-    // 2026-05-03 옵션 D: matchStatus 전달 — 진행 중 매치는 F2 expected 도 진행도 기반.
-    const { perPlayer: subBasedMinutes } = calculateSubBasedMinutes(
-      allPbps,
-      estimatedQL,
-      match.status ?? "scheduled",
-    );
+    const { perPlayer: subBasedMinutes } = calculateSubBasedMinutes(allPbps, estimatedQL);
 
 
     // 쿼터별 스탯 집계 헬퍼 — playerId → { "1": {...}, "2": {...}, ... }
@@ -1067,14 +1029,7 @@ export async function GET(
     const capDebug: Array<Record<string, unknown>> = [];
     const applyTeamCap = (players: PlayerRow[], teamLabel: string): void => {
       // G4 (2026-05-02 양방향): 일치하지 않을 때 medium+distributed 비례 매칭
-      // 2026-05-03 옵션 D: status-aware cap.
-      //   - 완료(completed): 만점 cap = 5 × qLen × 4 (예: 7분 → 8400s, 10분 → 12000s)
-      //   - 라이브/진행 중: 진행도 기반 cap = 5 × progressedSec
-      //     (예: Q1 진행 296s @ 600s qLen → cap = 5 × 296 = 1480s/팀)
-      //   사유: 라이브 매치에 만점 cap 적용 → partial trustedSec 비례 확대로 비정상 부풀림 발생.
-      const cap = isMatchCompleted
-        ? 5 * estimatedQL * 4
-        : 5 * progressedSec;
+      const cap = 5 * estimatedQL * 4; // 한 팀의 최대 코트시간 합 (예: 7분 → 8400s, 10분 → 12000s)
 
       // 합산 (cap 체크용) — _minBreakdown 부재 선수는 min_seconds 그대로 부재합산 (G4 디버그)
       let trustedTotal = 0;
@@ -1492,9 +1447,6 @@ function calculateSubBasedMinutes(
     tournament_team_id: bigint | number | null;
   }>,
   quarterLengthSec: number,
-  // 2026-05-03 옵션 D: 진행 중 매치는 F2 expected 를 진행도 기반으로 산출.
-  // 기본값 'completed' = 호출부 미전달 시 안전한 기존 동작 (만점 expected) 유지.
-  matchStatus: string = "completed",
 ): SubBasedMinutesResult {
   // 2026-05-02 STL Phase 2 강화 (F3 + F2)
   // F3: starter 추정 정확화 — Q2~Q4 starter = 직전 쿼터 종료 시점 코트 5명
@@ -1712,10 +1664,6 @@ function calculateSubBasedMinutes(
       // expected = 5명 × qLen. deficit > 0 && < qLen 일 때만 분배.
       // G1 가드: DNP 선수는 분배 대상 제외 (PBP 0건 + sub 0건 = 매치 출전 안 했음)
       // G3 (2026-05-02): 분배는 distributed 채널에만 — cap 시 우선 축소 가능.
-      // 2026-05-03 옵션 D: 라이브 매치는 진행 중 쿼터의 expected 를 (qLen - lastClock) 로 축소.
-      //   - 종료 매치 / 종료된 쿼터: expected = 5 × qLen (기존)
-      //   - 라이브 매치 + 진행 중 쿼터: expected = 5 × (qLen - lastClockInQ)
-      //   사유: 진행 중 쿼터의 만점 expected 적용 → deficit 부풀림 → distributed 시간 부풀림.
       const teamQMap = quarterPlayerSec.get(q);
       if (teamQMap) {
         // 이 팀의 이 쿼터 출전 선수만 합산 (DNP 제외 — everSeen 검증)
@@ -1724,26 +1672,10 @@ function calculateSubBasedMinutes(
         );
         // 3채널 sum 으로 teamQTotal 계산
         const teamQTotal = teamPlayers.reduce((s, pid) => s + totalOf(teamQMap.get(pid)), 0);
-
-        // 쿼터 진행도 산출 (해당 팀/쿼터의 PBP 의 min clock = 가장 진행된 시점)
-        // qPbps 는 이 팀/이 쿼터 PBP. 비어 있으면 만점 expected.
-        const isLive = matchStatus === "live" || matchStatus === "in_progress";
-        let expected: number;
-        if (!isLive) {
-          // 종료 매치: 기존 만점 expected
-          expected = 5 * quarterLengthSec;
-        } else {
-          // 라이브 매치: 쿼터별 진행도 기반
-          const clocksInQ = qPbps.map((p) => p.game_clock_seconds ?? quarterLengthSec);
-          const lastClockInQ = clocksInQ.length > 0 ? Math.min(...clocksInQ) : quarterLengthSec;
-          // clock=0 도달 = 쿼터 종료 → 만점 expected (qLen)
-          // clock>0 = 진행 중 → (qLen - lastClock) (예: clock=304 @ 600s → expected = 296s/선수)
-          const qProgressed = lastClockInQ <= 0 ? quarterLengthSec : (quarterLengthSec - lastClockInQ);
-          expected = 5 * Math.max(0, Math.min(qProgressed, quarterLengthSec));
-        }
+        const expected = 5 * quarterLengthSec;
         const deficit = expected - teamQTotal;
-        // 가드: 0 < deficit < qLen (비합리값 제외) + 출전 선수 1명 이상 + expected > 0
-        if (expected > 0 && deficit > 0 && deficit < quarterLengthSec && teamPlayers.length > 0) {
+        // 가드: 0 < deficit < qLen (비합리값 제외) + 출전 선수 1명 이상
+        if (deficit > 0 && deficit < quarterLengthSec && teamPlayers.length > 0) {
           // 출전 시간 비율로 분배 (팀 출전 합이 0 이면 균등 분배) — distributed 채널
           if (teamQTotal > 0) {
             for (const pid of teamPlayers) {

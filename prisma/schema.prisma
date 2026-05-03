@@ -942,6 +942,13 @@ model community_posts {
   images               Json? // 이미지 URL 배열 + 카페 메타 (cafe_source_id, cafe_author, cafe_comments)
   likes_count          Int                    @default(0)
   author_nickname      String?                @db.VarChar(255) // 카페 크롤링 글쓴이 닉네임
+  // 2026-05-03: 알기자 (BDR NEWS AI) Phase 2 — 매치/라운드/일자 종합 기사 메타.
+  // 알기자 게시물만 set, 다른 게시물 모두 null. category="news" 알기자 게시물 식별용.
+  // FK는 NoAction (매치 삭제 시 게시물 보존, period_key는 round_id 또는 "YYYY-MM-DD")
+  tournament_match_id  BigInt?                // 매치 단신 (period_type="match")
+  tournament_id        String?                @db.Uuid // 모든 알기자 게시물 (대회 컨텍스트)
+  period_type          String?                @db.VarChar(16) // "match" | "round" | "daily"
+  period_key           String?                @db.VarChar(64) // round_id 또는 "YYYY-MM-DD"
   users                User                   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_0b2d1de074")
   teams                Team?                  @relation(fields: [team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_e4a581c07d")
   community_post_likes community_post_likes[]
@@ -952,6 +959,9 @@ model community_posts {
   @@index([status], map: "index_community_posts_on_status")
   @@index([team_id], map: "index_community_posts_on_team_id")
   @@index([user_id], map: "index_community_posts_on_user_id")
+  @@index([tournament_match_id], map: "index_community_posts_on_tournament_match_id")
+  @@index([tournament_id], map: "index_community_posts_on_tournament_id")
+  @@index([period_type, period_key], map: "index_community_posts_on_period")
 }
 
 // 커뮤니티 게시글 좋아요 테이블 (유저당 게시글 1회만 좋아요 가능)

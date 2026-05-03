@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db/prisma";
 // updateMatch + updateMatchStatus 가 호출. single elim 영향 0 (settings.loserNextMatchId 없으면 skip).
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 import { recordMatchAudit, type AuditSource } from "@/lib/tournaments/match-audit";
+// 2026-05-03: Phase 2 — 매치 종료 시 알기자 단신 자동 생성 (fire-and-forget)
+import { triggerMatchBriefPublishAsync } from "@/lib/news/auto-publish-match-brief";
 
 // ---------------------------------------------------------------------------
 // Select / Include 상수
@@ -231,6 +233,12 @@ export async function updateMatch(
     return u;
   });
 
+  // 2026-05-03: 새로 completed 로 전환된 경우만 알기자 자동 발행 트리거
+  // (이미 completed 였던 매치 점수 수정 시 중복 생성 X — triggerMatchBriefPublish 자체도 멱등)
+  if (input.status === "completed" && !alreadyCompleted) {
+    triggerMatchBriefPublishAsync(matchId);
+  }
+
   return { updated, alreadyCompleted };
 }
 
@@ -406,6 +414,12 @@ export async function updateMatchStatus(
     }
 
     return updated;
+  }).then((result) => {
+    // 2026-05-03: status="completed" 변경 시 알기자 자동 발행 (fire-and-forget, 트랜잭션 외부)
+    if (status === "completed") {
+      triggerMatchBriefPublishAsync(matchId);
+    }
+    return result;
   });
 }
 
