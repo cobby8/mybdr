@@ -1028,6 +1028,12 @@ export async function GET(
     // G4 디버그 정보 (debug=1 시 응답에 포함)
     const capDebug: Array<Record<string, unknown>> = [];
     const applyTeamCap = (players: PlayerRow[], teamLabel: string): void => {
+      // 2026-05-03: 라이브 매치는 cap 적용 skip (status-aware 단순화).
+      // 사유: 진행 중 매치는 partial total < cap → 비례 확대 13배+ 부풀림.
+      //       라이브에서는 raw 값 그대로 표시, 종료 매치만 cap 정확 매칭 적용.
+      if (match.status !== "completed") {
+        return;
+      }
       // G4 (2026-05-02 양방향): 일치하지 않을 때 medium+distributed 비례 매칭
       const cap = 5 * estimatedQL * 4; // 한 팀의 최대 코트시간 합 (예: 7분 → 8400s, 10분 → 12000s)
 
