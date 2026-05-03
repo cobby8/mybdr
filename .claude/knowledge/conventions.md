@@ -1,6 +1,21 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-03] minutes-engine 가드 범위 — 양팀 union 기준 통일
+- **분류**: convention (live / minutes-engine / 가드 일관성)
+- **발견자**: debugger (5/3 저녁 라이브 매치 #147 양팀 합 -17%p 손실 분석 중)
+- **위치**: `src/lib/live/minutes-engine.ts` L131 (DB starter union 가드) + L196 (endLineup chain 가드)
+- **규칙**: minutes-engine 의 starter 관련 가드 범위는 모두 **양팀 union 기준 (5~12명)** 으로 통일. 단일팀 기준 (3~7) 사용 금지.
+  - DB starter union (L131): `dbStartersUnion.size >= 5 && size <= 12`
+  - endLineup chain (L196): `prevEndLineup.size >= 5 && size <= 12`
+- **사유**: 알고리즘이 양팀 starter 를 union 으로 시뮬 (Q1 endLineup 자연스럽게 size=10) → 가드도 union 기준이어야 함. 단일팀 기준 사용 시:
+  - 정상 매치 (양팀 5+5=10) 도 가드 fail → fallback `inferStartersFromPbp` 강제 발동
+  - PBP-only 추정으로 starter 3~5명만 추출 → active size=3 segment 시뮬 → 양팀 합 -15~20% 손실 (5/3 저녁 매치 #147 SKD vs MI Q2 home=82%/away=84%)
+- **회귀 방지 test**: 케이스 L (`src/__tests__/lib/live/minutes-engine.test.ts`) — 양팀 5+5 starter 주입 → Q2 chain 통과 → 양팀 6000s 정확. 가드를 단일팀 기준 (3~7) 으로 되돌리면 즉시 fail.
+- **참조횟수**: 0
+- **참조 커밋**: d3984db
+- **관련**: errors.md 2026-05-03 "endLineup chain 가드 범위 버그"
+
 ### [2026-05-03] Placeholder ↔ Real User 통합 표준 함수
 - **분류**: convention (data integrity / dedup pattern)
 - **결정자**: PM (셋업 + 18건 + #4 강화 누적 패턴 표준화)
