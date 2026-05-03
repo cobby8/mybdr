@@ -599,6 +599,9 @@ model TournamentMatch {
   mvp_player_id                                                        BigInt?
   notes                                                                String?
   settings                                                             Json?             @default("{}")
+  // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션). 매치 종료 시 1회 자동 생성.
+  // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
+  summary_brief                                                        Json?             @map("summary_brief")
   createdAt                                                            DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                            DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
   tournamentId                                                         String            @map("tournament_id") @db.Uuid

@@ -1001,6 +1001,10 @@ export async function GET(
         // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing 플래그)
         // 운영자 sync 누락 매치 (#141 블랙라벨 vs MSA 등) — 박제 stat 만 입력 + 출전시간 0 표시
         timeDataMissing: ((match.settings as Record<string, unknown> | null)?.timeDataMissing as boolean | undefined) ?? false,
+        // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션) — DB 영구 저장 (매치 종료 시 자동 생성)
+        // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
+        // null 이면 클라이언트가 Phase 0 템플릿 fallback (silent fail / 미생성 / 진행 중 매치)
+        summaryBrief: match.summary_brief,
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",

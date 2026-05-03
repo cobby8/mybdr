@@ -2,6 +2,62 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 도메인 sub-agent 시스템 도입 — 옵션 A 채택 + 시범 live-expert 단독 시작
+- **분류**: decision (메타 / 에이전트 시스템 확장 / 도메인별 관리자)
+- **결정자**: 사용자 (옵션 A 직진 명시) + planner-architect (8 도메인 / 시범 영역 / Phase 5단계)
+- **참조횟수**: 0
+- **배경**: mybdr 프로젝트가 (web) 페이지 30+ / api/web 50+ / api/v1 27 / lib 다수 + architecture.md 26K 토큰으로 일반 8 에이전트 (developer/debugger 등) 의 전수조사 디버깅 한계 도달. 사용자 진단: "전수조사 방식으로는 디버깅·기능조사를 정확하게 할 수 없다."
+- **거부된 옵션**:
+  - **B (knowledge 도메인 분할)**: architecture.md 등을 도메인별로 쪼개고 index 라우팅 — 토큰 회피는 되지만 "에이전트가 자기 도메인을 깊이 안다"는 효과 부재
+  - **C (feature-map 인덱스 파일)**: 영역별 진입점 1페이지 요약 — 효과 점진적, 시범 측정 어려움
+  - **D (MCP-style 도메인 search agent)**: 좁은 검색 권한만 — 코드 변경·판단은 일반 에이전트가 해야 해 분리 효과 약함
+  - **E (A+B+C 조합)**: 가장 강력하나 초기 비용 ↑, 시범 단계 KPI 분리 어려움
+- **채택 옵션 A**: 도메인별 sub-agent 신설 — 각 에이전트가 자기 영역만 깊이 알고, 영역 knowledge·핵심 파일 경로를 system prompt 에 박제
+  - **사유**: ① 시범 1개로 KPI 명확 측정 가능 ② 기존 8 일반 에이전트와 충돌 없이 점진 도입 ③ 도메인 지식 누적 가시화 ④ 사용자가 명시 선택
+- **8 도메인 확정** (정량 근거 = (web)/api/lib 파일 수 + 200 commits scope 빈도):
+  - tournaments-expert (43 commits) / live-expert ⭐ (44, 시범) / referee-expert (31) / flutter-api-expert (~10, 저빈도·고위험)
+  - admin-expert (54) / teams-courts-expert (29) / profile-community-expert (57) / design-system-expert (133)
+- **단독 도메인 안 한 것**: community(profile 결합) / auth-security(저빈도 안정) / games(tournaments+live 분산) / news(admin 결합)
+- **시범 영역 = live-expert 단독** (4가지 결정타): ① 알고리즘 깊이 압도적 (minutes-engine v3 메인 path 4단계 + LRM cap) ② 측정 용이성 (test 21/21 / commit hash 별 정확도 추적) ③ 회복 비용 최저 (단일 파일 + STL 응답 가공만 / DB 영구 보정 0) ④ 반복 작업 빈번 ("왜 X 출전시간이 Y인가?" 디버깅 패턴 전형)
+- **KPI 3종** (2주 측정): grep/read 횟수 -50% / 작업 시간 -30% / 잘못된 파일 0회
+- **Phase 5단계** (~6주): P1 박제 1.5h → P2 첫 케이스 측정 → P3 KPI 2주 + Go/No-Go → P4 확대 3개 (tournaments+admin) → P5 전체 8개 + PM 호출 룰 갱신
+- **롤백 6종**: 도메인 모호 (3건+ PM 30초+ 고민) / 잘못된 호출 30%+ / KPI 미달 (개선 1회 후도) / 잘못된 파일 1회+ / 사용자 부정 평가 / knowledge sync 30일+ 미갱신
+- **리스크 8종 + 완화 명시**: 도메인 경계 모호 / sync 이중 관리 / 에이전트 수 폭증 (8+8=16) / 테스트·리뷰 잘못 처리 / 시범 1개 실패 → 전체 부정 / 운영 DB 사고 (admin) / 도메인 미특정 영역 / Flutter 앱 깨짐
+- **system prompt vs knowledge sync 룰**: 절대 룰만 system prompt 직접 박제 (변하지 않는 것) + 핵심 지식은 knowledge 단일 source 인용 1줄 (single source) + PM 작업 완료 체크리스트에 sync 검토 1줄 추가
+- **저장 위치**: `C:\0. Programing\mybdr\.claude\agents\<name>.md` (프로젝트 폴더 — mybdr 전용 도메인 격리)
+- **참조 산출물**: 전체 plan = `C:\Users\user\.claude\plans\dreamy-wobbling-wolf-agent-aaff2dda867c98b9c.md` (10 섹션 + 부록 A/B / 8 에이전트 system prompt 풀 텍스트 ~150줄/each)
+- **P1 박제 완료**: `.claude/agents/live-expert.md` (2026-05-04, 본 결정과 동일 커밋)
+
+### [2026-05-04] 알기자 Phase 1 영구 저장 위치 = `tournament_matches.summary_brief` JSON 컬럼 채택
+- **분류**: decision (LLM 결과 영구 저장 위치 / DB 스키마)
+- **결정자**: PM + 사용자 ("추천대로 진행")
+- **참조횟수**: 0
+- **배경**: 알기자 Phase 1 (라이브 페이지 [Lead] 요약) 가 메모리 캐시만 사용 → cold start 마다 재호출 + Vercel instance 별 다중 호출. 영구 저장으로 마이그 결정 후 위치 옵션 3개 비교.
+- **검토된 옵션**:
+  - **A. `community_posts` 같은 테이블에 `phase` 컬럼 추가**: 단일 테이블 / 검수 액션 재사용 가능 — 단 community_posts 에 사용자 비공개 요약이 섞이고 status 분기 복잡화
+  - **C. 별도 `match_summaries` 테이블 신설**: 의미 분리 명확 / 라운드·일자 종합 요약 확장 용이 — 단 테이블 추가 + migration 필요 + JOIN 1번 추가
+- **채택 옵션 B**: `tournament_matches.summary_brief Json?` 컬럼 추가 (NULL 허용 ADD COLUMN 무중단 변경)
+  - **사유 1**: 매치와 1:1 관계라 가장 자연스러움 (요약은 특정 매치에 종속, 라운드/일자는 별도 큐)
+  - **사유 2**: 라이브 페이지 fetch 시 매치 데이터와 함께 1번에 가져옴 (JOIN 추가 X, 응답 latency 영향 0)
+  - **사유 3**: JSON 형식 `{ brief, generated_at, mode }` 으로 metadata 함께 저장 — 검색/필터링 약함은 trade-off (요약은 매치 단위 read 위주라 무관)
+- **결과**: schema 변경 1줄 + auto-publish-match-brief.ts 분기 추가 + tab-summary.tsx client fetch 제거 = 깔끔한 마이그
+- **추후 확장**: 라운드/일자 종합 요약 도입 시 별도 테이블 (`match_summaries` 또는 `news_summaries`) 신설 검토 — 매치 1:1 형태와 다른 1:N 관계라 분리 자연스러움
+
+### [2026-05-04] 알기자 트리거 통합 = `Promise.allSettled` 패턴 채택 (Phase 1 + Phase 2 독립 실행)
+- **분류**: decision (트리거 흐름 / 에러 격리 패턴)
+- **결정자**: PM + 사용자 ("매치당 본 1 + 요약 1 = 2개 보장")
+- **참조횟수**: 0
+- **배경**: 5/3 까지 본기사 (Phase 2) 만 자동 트리거. 요약 (Phase 1) 은 client fetch 분리. 사용자 의도 = 경기 종료 1회 트리거 → 2개 동시 생성. 통합 패턴 옵션 검토.
+- **검토된 옵션**:
+  - **A. 순차 실행 (`await phase1; await phase2`)**: Phase 1 실패 시 Phase 2 미진행 — 한쪽 실패가 다른쪽 차단
+  - **C. 단일 함수에 합치기 (한 LLM 호출로 두 결과 추출)**: prompt 복잡화 + 검증 로직 분리 어려움
+- **채택 옵션 B**: `Promise.allSettled([publishPhase1Summary, publishPhase2MatchBrief])` — 두 작업 독립 병렬 실행
+  - **사유 1**: 한쪽 실패 ≠ 다른쪽 영향 (사용자 의도 "매치당 정확히 2개" 보장)
+  - **사유 2**: fire-and-forget 패턴 유지 (호출자 = match.ts PATCH route 응답 시간 영향 0)
+  - **사유 3**: 각 함수 멱등성 독립 (Phase 1=summary_brief 있으면 skip / Phase 2=community_post 있으면 skip)
+  - **사유 4**: 향후 Phase 3 (라운드/일자 종합) 추가 시 같은 패턴으로 확장 가능
+- **결과**: `triggerMatchBriefPublish(matchId)` 함수 시그니처 유지 (호출자 변경 0) + 내부 흐름만 변경
+
 ### [2026-05-03] minutes-engine B 옵션 채택 — PBP 추정 fallback 격리 + 메인 path 명확화
 - **분류**: decision (코드 정리 옵션 / 안전망 vs 가독성 균형)
 - **결정자**: PM + 사용자 (5/3 D-day 동안 7회 보강 후 정리 시점)
