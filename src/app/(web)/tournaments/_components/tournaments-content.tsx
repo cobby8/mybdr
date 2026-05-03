@@ -311,19 +311,11 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 2026-05-03: 제목만 한 줄 (컨트롤은 V2TournamentList 탭 옆 우측으로 이동) */}
-      <div style={{ marginBottom: 16 }}>
-        <div className="eyebrow">대회 · TOURNAMENTS</div>
-        <h1
-          style={{
-            margin: "6px 0 0",
-            fontSize: 28,
-            fontWeight: 800,
-            letterSpacing: "-0.015em",
-          }}
-        >
-          대회
-        </h1>
+      {/* 2026-05-03: 제목만 한 줄 (컨트롤은 V2TournamentList 탭 옆 우측으로 이동).
+          2026-05-03 (Hero 공통화): 인라인 style → .page-hero (모바일 압축 룰 적용). */}
+      <div className="page-hero">
+        <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
+        <h1 className="page-hero__title">대회</h1>
       </div>
 
       {/* 2026-05-03: 컨트롤 노드 — list 뷰는 V2TournamentList toolbar prop / 다른 뷰는 별도 div */}

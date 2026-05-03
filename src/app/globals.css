@@ -537,18 +537,105 @@ html.dark .app-nav__tab[data-active="true"]::after {
   gap: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 8px var(--gutter);
-  margin: 0 calc(-1 * var(--gutter)) 12px;
-  border-bottom: 1px solid var(--border);
-  scrollbar-width: none;
+  /* 2026-05-03 (위치 이동): 사이드바 외곽 → 본문 안쪽 "전체 N개의 글" 위로.
+     gutter 음수 마진 제거 + 하단 border 제거 (본문 컨텐츠와 자연스럽게 연결) */
+  padding: 4px 0 8px;
+  margin: 0 0 10px;
+  /* 2026-05-03 (스크롤바 표시): 사용자가 가로 스크롤 가능함을 인지하도록 얇은 인디케이터 노출.
+     Firefox: scrollbar-width:thin / WebKit: 4px height + accent 색 thumb */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
 }
 .aside-mobile-tabs::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+  display: block;
+}
+.aside-mobile-tabs::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 2px;
+}
+.aside-mobile-tabs::-webkit-scrollbar-track {
+  background: transparent;
 }
 /* 2026-05-03 fix: PC (lg+) 에서 모바일 가로탭 강제 숨김 — Tailwind lg:hidden 이
  * .aside-mobile-tabs { display:flex } specificity 충돌로 미적용되는 케이스 보정 */
 @media (min-width: 1024px) {
   .aside-mobile-tabs { display: none !important; }
+}
+
+/* ============================================================
+   정렬 바 가로 스크롤 (모바일) — 사용자 회귀 픽스 (2026-05-03)
+   왜: 정렬/최신순/인기순/댓글많은순/조회순 + 캡션이 가로 폭 초과 시 스크롤 불가
+   해소: overflow-x:auto + 4px 인디케이터 (커뮤니티 카테고리 탭과 동일 패턴)
+   ============================================================ */
+.sort-bar-mobile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+.sort-bar-mobile::-webkit-scrollbar {
+  height: 4px;
+  display: block;
+}
+.sort-bar-mobile::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 2px;
+}
+.sort-bar-mobile::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============================================================
+   페이지 Hero 공통 클래스 (.page-hero) — 모바일 압축 규칙 (2026-05-03)
+   왜: 인라인 style 로 페이지마다 6px/4px 마진 다르게 박혀 빈공간 누적 →
+       모바일에서 첫 컨텐츠 도달 늦음. 공통 토큰 도입으로 일괄 압축.
+   적용: community / tournaments / teams / rankings / courts Hero
+   원칙: 모바일 = 최대한 압축 (정보 가시성 우선) / 데스크톱(720px+) = 시각적 여백 확보
+   ============================================================ */
+.page-hero {
+  /* 모바일: 상하 패딩 압축 (.page 컨테이너 padding 안에서 추가 여백 최소화) */
+  margin-bottom: 12px;
+}
+.page-hero__eyebrow {
+  /* .eyebrow 스타일을 그대로 inherit — 별도 색/폰트 지정 X */
+  margin-bottom: 4px;
+}
+.page-hero__title {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.page-hero__subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  .page-hero {
+    margin-bottom: 16px;
+  }
+  .page-hero__title {
+    font-size: 26px;
+  }
+  .page-hero__subtitle {
+    font-size: 13px;
+  }
 }
 
 .aside-mobile-tab {
