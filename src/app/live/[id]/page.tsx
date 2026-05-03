@@ -341,6 +341,31 @@ function TeamLogo({
 // 공통 빌딩블록으로 뽑아 모바일/데스크톱 양쪽에서 재사용.
 // ─────────────────────────────────────────────────────────────
 
+// 팀명 약칭 helper — 모바일 미니스코어용 (sticky 헤더 좁은 공간)
+// 왜 인라인 helper:
+//   - DB 에 약칭 필드 없음 (team_abbr 컬럼 미존재)
+//   - 한글 팀명: 처음 2자 (예: "라이징스타" → "라이")
+//   - 영문/혼합: 단어 머릿글자 최대 4자 (예: "BDR Black Label" → "BBL")
+//   - 단일 단어 영문: 처음 4자 (예: "Lakers" → "Lake")
+function abbreviateTeamName(name: string): string {
+  if (!name) return "";
+  const trimmed = name.trim();
+  // 한글 포함 여부 (Hangul Syllables 범위)
+  const hasHangul = /[가-힯]/.test(trimmed);
+  if (hasHangul) {
+    // 한글이면 공백 제거 후 처음 2자 (CJK 폭 좁아 2자만으로 충분)
+    return trimmed.replace(/\s+/g, "").slice(0, 2);
+  }
+  // 영문 — 공백으로 단어 분리
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    // 다단어: 머릿글자 최대 4자 (대문자)
+    return words.slice(0, 4).map((w) => w[0]?.toUpperCase() ?? "").join("");
+  }
+  // 단일 단어: 처음 4자
+  return trimmed.slice(0, 4);
+}
+
 // 팀 블록: 로고 + 팀명(+홈 아이콘)
 // logoSize는 호출부에서 모바일 48 / 데스크톱 72로 지정
 function TeamBlock({
@@ -692,10 +717,19 @@ export default function LiveBoxScorePage() {
         </div>
       )}
 
-      {/* 헤더 — border와 배경을 모두 CSS 변수로 */}
+      {/*
+        헤더 — sticky 적용 (라이브 모드만 의미 있음 — 스크롤 내려도 스코어/뒤로 항상 노출).
+        왜 sticky 인가:
+          - 라이브 진행 중 사용자가 박스/플레이어 탭으로 스크롤 내려도 스코어 + LIVE 인디케이터 + 뒤로가기 항상 시야 유지
+          - 토큰 일치: var(--color-card) 배경 + var(--color-border) 테두리 (BDR-current 13룰 §C-10 준수)
+          - z-20 = AppNav (z-30+) 보다 낮게 — 글로벌 헤더 우선
+          - data-print-hide 인쇄 시 숨김 (transientError 와 동일 패턴)
+       */}
       <div
-        className="px-4 py-3 flex items-center justify-between border-b"
+        data-print-hide
+        className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between border-b backdrop-blur"
         style={{
+          // 반투명 + backdrop-blur 로 sticky 시 자연스러운 오버레이 (스크롤 컨텐츠가 살짝 비치게)
           backgroundColor: "var(--color-card)",
           borderColor: "var(--color-border)",
         }}
@@ -727,17 +761,51 @@ export default function LiveBoxScorePage() {
           >
             <span className="material-symbols-outlined text-lg">home</span>
           </a>
-          {/* 토너먼트명: text-sm → text-base (두 단계 확대의 헤더 버전) */}
-          <span className="text-base truncate ml-1" style={{ color: "var(--color-text-secondary)" }}>
+          {/*
+            토너먼트명 — 모바일에서 미니스코어 자리 확보 위해 sm:inline 으로 PC 만 노출.
+            모바일은 미니스코어가 더 중요 (라이브 중계 시 가장 자주 보고 싶은 정보).
+          */}
+          <span className="text-base truncate ml-1 hidden sm:inline" style={{ color: "var(--color-text-secondary)" }}>
             {match.tournament_name}
           </span>
         </div>
+        {/*
+          모바일 미니스코어 — 라이브 매치만 / 모바일 전용 (sm:hidden = ≥640px 에서 숨김).
+          왜 모바일만:
+            - PC 는 HeroScoreboard (L770~) 가 항상 보이는 위치에 있어 미니스코어 중복
+            - 모바일은 화면 좁아 sticky 헤더에 미니스코어를 끼워 넣어야 스크롤 내려도 스코어 인지 가능
+          왜 라이브만:
+            - 종료 매치는 헤더 sticky 만으로 충분 (게임 결과는 박스스코어/요약 탭에서 확인)
+            - scheduled/cancelled 는 스코어 자체가 0:0
+        */}
+        {isLive && (
+          <div
+            className="flex items-center gap-1.5 sm:hidden font-mono text-sm font-bold tabular-nums shrink-0"
+            style={{ color: "var(--color-text-primary)" }}
+            aria-label={`${match.home_team.name} ${match.home_score} 대 ${match.away_score} ${match.away_team.name}`}
+          >
+            {/* 홈팀 약칭 (한글 2자 / 영문 단어 머릿글자 4자 이내) */}
+            <span className="truncate max-w-[3.5rem]">{abbreviateTeamName(match.home_team.name)}</span>
+            {/* 점수: 홈 우세 시 진하게 / 동점 시 동등 / 원정 우세 시 원정 진하게 */}
+            <span className={match.home_score >= match.away_score ? "" : "opacity-60"}>{match.home_score}</span>
+            <span style={{ color: "var(--color-text-muted)" }}>:</span>
+            <span className={match.away_score >= match.home_score ? "" : "opacity-60"}>{match.away_score}</span>
+            <span className="truncate max-w-[3.5rem]">{abbreviateTeamName(match.away_team.name)}</span>
+            {/* Q 표기 (current_quarter 있을 때만) */}
+            {match.current_quarter != null && (
+              <span className="ml-0.5 text-[10px] font-normal" style={{ color: "var(--color-text-muted)" }}>
+                Q{match.current_quarter}
+              </span>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2 shrink-0">
           {isLive && (
             // LIVE 인디케이터: 상태 시맨틱 변수 + 온에어 스타일 펄스 (2026-05-02)
             // animate-pulse → live-air-dot (외곽 ring 이 퍼지는 방송 온에어 스타일)
+            // 모바일에서는 미니스코어가 자리 차지 → LIVE 라벨은 PC 만 (sm:flex 로 노출)
             <span
-              className="flex items-center gap-1.5 text-sm font-semibold"
+              className="hidden sm:flex items-center gap-1.5 text-sm font-semibold"
               style={{ color: "var(--color-status-live)" }}
             >
               <span

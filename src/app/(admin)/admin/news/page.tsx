@@ -57,12 +57,57 @@ export default async function AdminNewsPage({
   const matchIds = posts
     .map((p) => p.tournament_match_id)
     .filter((m): m is bigint => m !== null);
-  const linkifyMap = await buildLinkifyEntriesBatch(matchIds);
+  const [linkifyMap, photos] = await Promise.all([
+    buildLinkifyEntriesBatch(matchIds),
+    // 2026-05-04: 알기자 기사 사진 — 매치별 N장 (admin/news 검수 페이지에서 업로드/삭제/Hero 지정)
+    matchIds.length > 0
+      ? prisma.news_photo.findMany({
+          where: { match_id: { in: matchIds } },
+          orderBy: [{ is_hero: "desc" }, { display_order: "asc" }],
+          select: {
+            id: true,
+            match_id: true,
+            url: true,
+            width: true,
+            height: true,
+            is_hero: true,
+            display_order: true,
+            caption: true,
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+  // matchId → photos[] map
+  const photosByMatch = new Map<string, Array<{
+    id: string;
+    url: string;
+    width: number | null;
+    height: number | null;
+    isHero: boolean;
+    displayOrder: number;
+    caption: string | null;
+  }>>();
+  for (const ph of photos) {
+    const key = ph.match_id.toString();
+    if (!photosByMatch.has(key)) photosByMatch.set(key, []);
+    photosByMatch.get(key)!.push({
+      id: ph.id.toString(),
+      url: ph.url,
+      width: ph.width,
+      height: ph.height,
+      isHero: ph.is_hero,
+      displayOrder: ph.display_order,
+      caption: ph.caption,
+    });
+  }
 
-  // BigInt → string serialize (Server → Client) + linkify entries
+  // BigInt → string serialize (Server → Client) + linkify entries + photos
   const serialized = posts.map((p) => {
     const linkifyEntries = p.tournament_match_id
       ? linkifyMap.get(p.tournament_match_id.toString()) ?? []
+      : [];
+    const matchPhotos = p.tournament_match_id
+      ? photosByMatch.get(p.tournament_match_id.toString()) ?? []
       : [];
     return {
       id: p.id.toString(),
@@ -79,6 +124,7 @@ export default async function AdminNewsPage({
       period_type: p.period_type ?? null,
       period_key: p.period_key ?? null,
       linkifyEntries,
+      photos: matchPhotos,
     };
   });
 

@@ -1,6 +1,26 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] 알기자 기사 사진 정규화 룰 — long-edge 1920px + WebP 80% + EXIF 회전 자동 + isHero 단일 보장
+- **분류**: convention (이미지 처리 / 모바일 업로드 / 저장 효율)
+- **발견자**: pm (사진 첨부 시스템 P2 업로드 API 설계 시점)
+- **위치**: `src/app/api/web/upload/news-photo/route.ts` + `news-photos` Supabase Storage bucket
+- **규칙**: 알기자 기사 사진 업로드 시 sharp pipeline 의무 적용:
+  1. **long-edge 1920px**: 비율 유지 리사이즈 (origW >= origH 면 width=1920 / 그 외 height=1920) + `withoutEnlargement: true` (작은 사진은 확대 X)
+  2. **WebP 80% quality**: 모든 출력 webp 변환 + quality 80 (모바일 사진 평균 5MB → ~500KB)
+  3. **EXIF 회전 자동 적용** (`.rotate()`): 모바일 세로 사진의 EXIF orientation 메타 → 픽셀 회전 적용 (사이드웨이 표시 방지)
+  4. **isHero 단일 보장**: 매치당 is_hero=true 1장 — `prisma.$transaction` 으로 신규 isHero=true 시 기존 모두 false 후 INSERT
+  5. **display_order 자동 증가**: `max(display_order) + 1`
+  6. **Storage path 형식**: `match-{matchId}/{timestamp}-{random}.webp` (매치별 폴더 분리, 충돌 방지 + 매치 삭제 시 cascade 청소 용이)
+- **파일 검증**:
+  - 허용 MIME: image/jpeg / png / webp / heic / heif (HEIC = iPhone 기본)
+  - 최대 크기: 10MB (모바일 고화질 허용, 변환 후 평균 ~500KB)
+- **에러 정책**:
+  - sharp 정규화 실패 → 500 (원본 그대로 업로드 X — admin 운영자가 인지 후 다른 사진 시도)
+  - DB INSERT 실패 시 Storage orphan 정리 (best effort)
+- **모바일 카메라 직접 호출**: `<input type="file" accept="image/*" capture="environment">` — 모바일 브라우저에서 즉시 카메라 앱 호출 (갤러리 선택 우회 가능)
+- **참조횟수**: 0
+
 ### [2026-05-04] community_posts 사용자 노출 query 4단계 status 필터 의무 — 검수 카테고리 도입 시 점검 룰
 - **분류**: convention (보안 / 검수 흐름 / 사용자 노출 query)
 - **발견자**: pm (5/4 알기자 draft 7건 무단 노출 사고 후속 박제)

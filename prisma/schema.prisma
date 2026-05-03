@@ -219,10 +219,12 @@ model User {
   verified_at    DateTime? @db.Timestamp(6)
 
   // Phase 12-A — 시즌 통계 / 슛존 / 스카우팅 리포트 (12-1 테이블만, UI/집계는 Phase 13+)
-  season_stats      UserSeasonStat[]
-  shot_zones        ShotZoneStat[]
-  scouting_received ScoutingReport[] @relation("ScoutingTarget")
-  scouting_given    ScoutingReport[] @relation("ScoutingEvaluator")
+  season_stats         UserSeasonStat[]
+  shot_zones           ShotZoneStat[]
+  scouting_received    ScoutingReport[] @relation("ScoutingTarget")
+  scouting_given       ScoutingReport[] @relation("ScoutingEvaluator")
+  // 2026-05-04: 알기자 기사 사진 업로드자 역참조
+  news_photos_uploaded news_photo[]     @relation("NewsPhotoUploader")
 
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
@@ -400,9 +402,9 @@ model Team {
   // team_follows: 이 팀을 팔로우 중인 회원 목록
   // team_match_requests_received: 이 팀이 받은 매치 신청 (호스트 측)
   // team_match_requests_sent: 이 팀이 보낸 매치 신청 (제안 측)
-  team_follows                  team_follows[]        @relation("team_follows_team")
-  team_match_requests_received  team_match_requests[] @relation("team_match_requests_to")
-  team_match_requests_sent      team_match_requests[] @relation("team_match_requests_from")
+  team_follows                 team_follows[]        @relation("team_follows_team")
+  team_match_requests_received team_match_requests[] @relation("team_match_requests_to")
+  team_match_requests_sent     team_match_requests[] @relation("team_match_requests_from")
 
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
@@ -574,50 +576,52 @@ model TournamentTeamPlayer {
 }
 
 model TournamentMatch {
-  id                                                                   BigInt            @id @default(autoincrement())
-  uuid                                                                 String            @unique(map: "index_tournament_matches_on_uuid") @default(uuid()) @db.VarChar
-  homeTeamId                                                           BigInt?           @map("home_team_id")
-  awayTeamId                                                           BigInt?           @map("away_team_id")
-  roundName                                                            String?           @map("round_name") @db.VarChar
+  id                                                                   BigInt                    @id @default(autoincrement())
+  uuid                                                                 String                    @unique(map: "index_tournament_matches_on_uuid") @default(uuid()) @db.VarChar
+  homeTeamId                                                           BigInt?                   @map("home_team_id")
+  awayTeamId                                                           BigInt?                   @map("away_team_id")
+  roundName                                                            String?                   @map("round_name") @db.VarChar
   round_number                                                         Int?
   match_number                                                         Int?
-  group_name                                                           String?           @db.VarChar
+  group_name                                                           String?                   @db.VarChar
   bracket_position                                                     Int?
   bracket_level                                                        Int?
-  scheduledAt                                                          DateTime?         @map("scheduled_at") @db.Timestamp(6)
-  started_at                                                           DateTime?         @db.Timestamp(6)
-  ended_at                                                             DateTime?         @db.Timestamp(6)
+  scheduledAt                                                          DateTime?                 @map("scheduled_at") @db.Timestamp(6)
+  started_at                                                           DateTime?                 @db.Timestamp(6)
+  ended_at                                                             DateTime?                 @db.Timestamp(6)
   venue_id                                                             BigInt?
-  court_number                                                         String?           @db.VarChar
-  homeScore                                                            Int?              @default(0) @map("home_score")
-  awayScore                                                            Int?              @default(0) @map("away_score")
-  quarterScores                                                        Json?             @default("{\"away\": {\"ot\": [], \"q1\": 0, \"q2\": 0, \"q3\": 0, \"q4\": 0}, \"home\": {\"ot\": [], \"q1\": 0, \"q2\": 0, \"q3\": 0, \"q4\": 0}}") @map("quarter_scores")
-  status                                                               String?           @default("scheduled") @db.VarChar
+  court_number                                                         String?                   @db.VarChar
+  homeScore                                                            Int?                      @default(0) @map("home_score")
+  awayScore                                                            Int?                      @default(0) @map("away_score")
+  quarterScores                                                        Json?                     @default("{\"away\": {\"ot\": [], \"q1\": 0, \"q2\": 0, \"q3\": 0, \"q4\": 0}, \"home\": {\"ot\": [], \"q1\": 0, \"q2\": 0, \"q3\": 0, \"q4\": 0}}") @map("quarter_scores")
+  status                                                               String?                   @default("scheduled") @db.VarChar
   winner_team_id                                                       BigInt?
   next_match_id                                                        BigInt?
-  next_match_slot                                                      String?           @db.VarChar
+  next_match_slot                                                      String?                   @db.VarChar
   mvp_player_id                                                        BigInt?
   notes                                                                String?
-  settings                                                             Json?             @default("{}")
+  settings                                                             Json?                     @default("{}")
   // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션). 매치 종료 시 1회 자동 생성.
   // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
-  summary_brief                                                        Json?             @map("summary_brief")
-  createdAt                                                            DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt                                                            DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
-  tournamentId                                                         String            @map("tournament_id") @db.Uuid
-  venue_name                                                           String?           @db.VarChar
+  summary_brief                                                        Json?                     @map("summary_brief")
+  createdAt                                                            DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                                                            DateTime                  @updatedAt @map("updated_at") @db.Timestamp(6)
+  tournamentId                                                         String                    @map("tournament_id") @db.Uuid
+  venue_name                                                           String?                   @db.VarChar
   playerStats                                                          MatchPlayerStat[]
   play_by_plays                                                        play_by_plays[]
   matchEvents                                                          match_events[]
   audits                                                               tournament_match_audits[]
-  tournament_teams_tournament_matches_winner_team_idTotournament_teams TournamentTeam?   @relation("tournament_matches_winner_team_idTotournament_teams", fields: [winner_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_2fcdbd557c")
-  homeTeam                                                             TournamentTeam?   @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3dae6e19e5")
-  users                                                                User?             @relation(fields: [mvp_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_5e679cd202")
-  tournament                                                           Tournament        @relation(fields: [tournamentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_94280ecdeb")
-  tournament_matches                                                   TournamentMatch?  @relation("tournament_matchesTotournament_matches", fields: [next_match_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_ca6ee2fd50")
-  other_tournament_matches                                             TournamentMatch[] @relation("tournament_matchesTotournament_matches")
-  courts                                                               courts?           @relation(fields: [venue_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_dcf69d6480")
-  awayTeam                                                             TournamentTeam?   @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_f45580aec7")
+  // 2026-05-04: 알기자 기사 사진 (Phase 1 = 운영자 수동 업로드, Phase 2 = EXIF 반자동 매핑 큐)
+  news_photos                                                          news_photo[]
+  tournament_teams_tournament_matches_winner_team_idTotournament_teams TournamentTeam?           @relation("tournament_matches_winner_team_idTotournament_teams", fields: [winner_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_2fcdbd557c")
+  homeTeam                                                             TournamentTeam?           @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3dae6e19e5")
+  users                                                                User?                     @relation(fields: [mvp_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_5e679cd202")
+  tournament                                                           Tournament                @relation(fields: [tournamentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_94280ecdeb")
+  tournament_matches                                                   TournamentMatch?          @relation("tournament_matchesTotournament_matches", fields: [next_match_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_ca6ee2fd50")
+  other_tournament_matches                                             TournamentMatch[]         @relation("tournament_matchesTotournament_matches")
+  courts                                                               courts?                   @relation(fields: [venue_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_dcf69d6480")
+  awayTeam                                                             TournamentTeam?           @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_f45580aec7")
 
   @@index([awayTeamId], map: "index_tournament_matches_on_away_team_id")
   @@index([homeTeamId], map: "index_tournament_matches_on_home_team_id")
@@ -948,7 +952,7 @@ model community_posts {
   // 2026-05-03: 알기자 (BDR NEWS AI) Phase 2 — 매치/라운드/일자 종합 기사 메타.
   // 알기자 게시물만 set, 다른 게시물 모두 null. category="news" 알기자 게시물 식별용.
   // FK는 NoAction (매치 삭제 시 게시물 보존, period_key는 round_id 또는 "YYYY-MM-DD")
-  tournament_match_id  BigInt?                // 매치 단신 (period_type="match")
+  tournament_match_id  BigInt? // 매치 단신 (period_type="match")
   tournament_id        String?                @db.Uuid // 모든 알기자 게시물 (대회 컨텍스트)
   period_type          String?                @db.VarChar(16) // "match" | "round" | "daily"
   period_key           String?                @db.VarChar(64) // round_id 또는 "YYYY-MM-DD"
@@ -2894,4 +2898,40 @@ model ScoutingReport {
   @@unique([target_user_id, evaluator_user_id])
   @@index([target_user_id])
   @@map("scouting_reports")
+}
+
+// 2026-05-04: 알기자 (BDR NEWS) 기사 사진 — 매치당 N장
+// Phase 1 (MVP) = 운영자 admin/news 에서 수동 업로드 + 매치 dropdown 선택
+// Phase 2 큐 = EXIF 메타 (촬영 시각/GPS) 기반 자동 매치 추천
+// Phase 3 큐 = AI Vision 기반 사진 자동 분류 (덩크/3점/MVP 시상 등)
+//
+// 노출 위치 (3곳):
+//   - community/[id] 본문 — Hero (is_hero=true 1장) + 갤러리 (display_order)
+//   - news/match/[matchId] deep link — 동일
+//   - community list 카드 — 첫 사진 썸네일 우측
+//
+// 저장: Supabase Storage `news-photos` bucket. URL = public, storage_path = bucket 내 경로 (삭제용).
+model news_photo {
+  id            BigInt   @id @default(autoincrement())
+  match_id      BigInt // tournamentMatch.id (1:N)
+  url           String   @db.VarChar // Supabase Storage public URL
+  storage_path  String   @db.VarChar // bucket 내 경로 (삭제 시 사용)
+  width         Int?
+  height        Int?
+  size_bytes    Int?
+  is_hero       Boolean  @default(false) // 대표 사진 — 매치당 1개 (application level 보장)
+  display_order Int      @default(0) // 갤러리 정렬 (0 부터, 작은 수가 먼저)
+  uploaded_by   BigInt // User.id (감사 추적)
+  caption       String?  @db.Text // 운영자 설명 (옵션)
+  exif_meta     Json? // EXIF metadata (Phase 2 EXIF 매핑 용 — 촬영시각/GPS/카메라)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  updated_at    DateTime @updatedAt @db.Timestamp(6)
+
+  match TournamentMatch @relation(fields: [match_id], references: [id], onDelete: Cascade)
+  user  User            @relation("NewsPhotoUploader", fields: [uploaded_by], references: [id], onDelete: NoAction)
+
+  @@index([match_id])
+  @@index([match_id, is_hero])
+  @@index([match_id, display_order])
+  @@map("news_photos")
 }

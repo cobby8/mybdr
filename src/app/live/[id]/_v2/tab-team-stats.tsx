@@ -20,18 +20,20 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
   const awayPts = match.away_score;
 
   const statRows: StatRow[] = [
-    // 득점 (NBA 정합 — 맨 위)
+    // 득점 (NBA 정합 — 맨 위) — count: 합 정규화 (양팀 합 대비 비율)
     {
       label: "득점",
       homeShort: String(homePts), awayShort: String(awayPts),
       homeFull: String(homePts), awayFull: String(awayPts),
       homeNum: homePts, awayNum: awayPts,
+      kind: "count",
     },
     {
       label: "리바운드",
       homeShort: String(homeStats.reb), awayShort: String(awayStats.reb),
       homeFull: String(homeStats.reb), awayFull: String(awayStats.reb),
       homeNum: homeStats.reb, awayNum: awayStats.reb,
+      kind: "count",
     },
     {
       // 2026-05-02: 줄바꿈 위치 명시 — '오펜스' 윗줄 / '리바운드' 아랫줄 (사용자 요청)
@@ -39,19 +41,21 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       homeShort: String(homeStats.oreb), awayShort: String(awayStats.oreb),
       homeFull: String(homeStats.oreb), awayFull: String(awayStats.oreb),
       homeNum: homeStats.oreb, awayNum: awayStats.oreb,
+      kind: "count",
     },
     {
       label: "디펜스\n리바운드",
       homeShort: String(homeStats.dreb), awayShort: String(awayStats.dreb),
       homeFull: String(homeStats.dreb), awayFull: String(awayStats.dreb),
       homeNum: homeStats.dreb, awayNum: awayStats.dreb,
+      kind: "count",
     },
-    { label: "어시스트", homeShort: String(homeStats.ast), awayShort: String(awayStats.ast), homeFull: String(homeStats.ast), awayFull: String(awayStats.ast), homeNum: homeStats.ast, awayNum: awayStats.ast },
-    { label: "스틸", homeShort: String(homeStats.stl), awayShort: String(awayStats.stl), homeFull: String(homeStats.stl), awayFull: String(awayStats.stl), homeNum: homeStats.stl, awayNum: awayStats.stl },
-    { label: "블록", homeShort: String(homeStats.blk), awayShort: String(awayStats.blk), homeFull: String(homeStats.blk), awayFull: String(awayStats.blk), homeNum: homeStats.blk, awayNum: awayStats.blk },
-    { label: "턴오버", homeShort: String(homeStats.to), awayShort: String(awayStats.to), homeFull: String(homeStats.to), awayFull: String(awayStats.to), homeNum: homeStats.to, awayNum: awayStats.to },
-    { label: "파울", homeShort: String(homeStats.fouls), awayShort: String(awayStats.fouls), homeFull: String(homeStats.fouls), awayFull: String(awayStats.fouls), homeNum: homeStats.fouls, awayNum: awayStats.fouls },
-    // 슈팅 확률 (NBA 정합 — 분리 행)
+    { label: "어시스트", homeShort: String(homeStats.ast), awayShort: String(awayStats.ast), homeFull: String(homeStats.ast), awayFull: String(awayStats.ast), homeNum: homeStats.ast, awayNum: awayStats.ast, kind: "count" },
+    { label: "스틸", homeShort: String(homeStats.stl), awayShort: String(awayStats.stl), homeFull: String(homeStats.stl), awayFull: String(awayStats.stl), homeNum: homeStats.stl, awayNum: awayStats.stl, kind: "count" },
+    { label: "블록", homeShort: String(homeStats.blk), awayShort: String(awayStats.blk), homeFull: String(homeStats.blk), awayFull: String(awayStats.blk), homeNum: homeStats.blk, awayNum: awayStats.blk, kind: "count" },
+    { label: "턴오버", homeShort: String(homeStats.to), awayShort: String(awayStats.to), homeFull: String(homeStats.to), awayFull: String(awayStats.to), homeNum: homeStats.to, awayNum: awayStats.to, kind: "count" },
+    { label: "파울", homeShort: String(homeStats.fouls), awayShort: String(awayStats.fouls), homeFull: String(homeStats.fouls), awayFull: String(awayStats.fouls), homeNum: homeStats.fouls, awayNum: awayStats.fouls, kind: "count" },
+    // 슈팅 확률 (NBA 정합 — 분리 행) — percent: 절대 0~100 스케일 (50% = 절반 막대)
     {
       label: "FG%",
       homeShort: `${pct(homeStats.fgm, homeStats.fga)}%`,
@@ -60,6 +64,7 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       awayFull: `${pct(awayStats.fgm, awayStats.fga)}% (${awayStats.fgm}/${awayStats.fga})`,
       homeNum: pct(homeStats.fgm, homeStats.fga),
       awayNum: pct(awayStats.fgm, awayStats.fga),
+      kind: "percent",
     },
     {
       label: "3P%",
@@ -69,6 +74,7 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       awayFull: `${pct(awayStats.tpm, awayStats.tpa)}% (${awayStats.tpm}/${awayStats.tpa})`,
       homeNum: pct(homeStats.tpm, homeStats.tpa),
       awayNum: pct(awayStats.tpm, awayStats.tpa),
+      kind: "percent",
     },
     {
       label: "FT%",
@@ -78,6 +84,7 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       awayFull: `${pct(awayStats.ftm, awayStats.fta)}% (${awayStats.ftm}/${awayStats.fta})`,
       homeNum: pct(homeStats.ftm, homeStats.fta),
       awayNum: pct(awayStats.ftm, awayStats.fta),
+      kind: "percent",
     },
   ];
 
@@ -103,6 +110,11 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
   );
 }
 
+// 2026-05-04 옵션 C: count(합 정규화) vs percent(절대 0~100 스케일) 분기
+//  - count: 득점/리바/AST/STL/BLK/TO/PF — 양팀 합 대비 비율로 시각화
+//  - percent: FG%/3P%/FT% — 50% 가 절반 막대로 보이도록 절대 스케일
+type StatKind = "count" | "percent";
+
 interface StatRow {
   label: string;
   homeShort: string;
@@ -111,6 +123,38 @@ interface StatRow {
   awayFull: string;
   homeNum: number;
   awayNum: number;
+  kind: StatKind;
+}
+
+// 막대 정규화 — 옵션 C 분기 처리
+//  - percent: home/away 가 이미 0~100 비율 → 그대로 사용 (50% = 절반)
+//  - count: 합 정규화 (home/(home+away) * 100). 합 0 이면 양쪽 0 + visualWeak
+//  - count + 합 ≤ 2 (블록 1 vs 0 같은 극단값) → visualWeak 플래그로 시각 약화 (opacity 0.4)
+function normalizeBar(
+  home: number,
+  away: number,
+  kind: StatKind,
+): { homePct: number; awayPct: number; visualWeak: boolean } {
+  if (kind === "percent") {
+    // % 항목: 0~100 절대 스케일 (안전 clamp)
+    return {
+      homePct: Math.max(0, Math.min(100, home)),
+      awayPct: Math.max(0, Math.min(100, away)),
+      visualWeak: false,
+    };
+  }
+  // count: 합 정규화
+  const total = home + away;
+  if (total === 0) {
+    return { homePct: 0, awayPct: 0, visualWeak: true };
+  }
+  // 합 ≤ 2 = 통계적 의미 약함 (블록 1 vs 0, 스틸 0 vs 1 등) → 시각 약화
+  const visualWeak = total <= 2;
+  return {
+    homePct: (home / total) * 100,
+    awayPct: (away / total) * 100,
+    visualWeak,
+  };
 }
 
 interface TeamAgg {
@@ -142,9 +186,7 @@ function pct(made: number, attempt: number): number {
 
 // 좌/우 비교 바 행 — NBA.com 스타일
 function StatCompareRow({ row }: { row: StatRow }) {
-  const total = row.homeNum + row.awayNum || 1;
-
-  // 턴오버 / 파울 — low-is-better
+  // 턴오버 / 파울 — low-is-better (작을수록 좋음)
   const lowerIsBetter = row.label === "턴오버" || row.label === "파울";
   const homeWin = lowerIsBetter
     ? row.homeNum <= row.awayNum
@@ -153,15 +195,19 @@ function StatCompareRow({ row }: { row: StatRow }) {
     ? row.awayNum <= row.homeNum
     : row.awayNum >= row.homeNum;
 
-  const homePct = (row.homeNum / total) * 100;
-  const awayPct = (row.awayNum / total) * 100;
+  // 옵션 C 정규화 분기 (count: 합 정규화 / percent: 절대 0~100 / 합≤2: weak)
+  const { homePct, awayPct, visualWeak } = normalizeBar(row.homeNum, row.awayNum, row.kind);
+
+  // weak 모디파이어 — count 항목 합≤2 또는 0/0 시 시각 약화 (opacity 0.4)
+  const homeBarClass = `tts-bar tts-bar--home${visualWeak ? " tts-bar--weak" : ""}`;
+  const awayBarClass = `tts-bar tts-bar--away${visualWeak ? " tts-bar--weak" : ""}`;
 
   return (
     <div className="tts-row">
       {/* 좌: 홈팀 (막대 우측 정렬 + 수치) */}
       <div className="tts-side--home">
         <div className="tts-bar-wrap tts-bar-wrap--home">
-          <div className="tts-bar" style={{ width: `${homePct}%` }} />
+          <div className={homeBarClass} style={{ width: `${homePct}%` }} />
         </div>
         <span className={`tts-value ${homeWin ? "tts-value--win" : "tts-value--lose"}`}>
           <span className="tts-value--mobile">{row.homeShort}</span>
@@ -179,7 +225,7 @@ function StatCompareRow({ row }: { row: StatRow }) {
           <span className="tts-value--full">{row.awayFull}</span>
         </span>
         <div className="tts-bar-wrap tts-bar-wrap--away">
-          <div className="tts-bar" style={{ width: `${awayPct}%` }} />
+          <div className={awayBarClass} style={{ width: `${awayPct}%` }} />
         </div>
       </div>
     </div>
