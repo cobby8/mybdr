@@ -24,6 +24,7 @@ const VIEW_OPTIONS: { mode: ViewMode; icon: string; label: string }[] = [
 ];
 
 export function ViewToggle({ current, onChange }: ViewToggleProps) {
+  // 2026-05-03: 모바일 컨트롤 사이즈 축소 (옵션 A) — 모바일 px-1.5 py-1 / 데스크톱 px-2.5 py-1.5
   return (
     <div className="flex items-center gap-0.5 rounded-lg bg-[var(--color-surface)] p-0.5">
       {VIEW_OPTIONS.map(({ mode, icon, label }) => {
@@ -34,16 +35,14 @@ export function ViewToggle({ current, onChange }: ViewToggleProps) {
             type="button"
             onClick={() => onChange(mode)}
             title={label}
-            className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all"
+            className="flex items-center gap-1 rounded-md px-1.5 py-1 sm:px-2.5 sm:py-1.5 text-xs font-medium transition-all"
             style={{
-              // 활성 탭: 카드 배경 + 텍스트 강조
               backgroundColor: isActive ? "var(--color-card)" : "transparent",
               color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
               boxShadow: isActive ? "var(--shadow-card)" : "none",
             }}
           >
-            <span className="material-symbols-outlined text-base">{icon}</span>
-            {/* 모바일에서는 아이콘만, 데스크톱에서는 라벨도 표시 */}
+            <span className="material-symbols-outlined text-sm sm:text-base">{icon}</span>
             <span className="hidden sm:inline">{label}</span>
           </button>
         );

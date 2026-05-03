@@ -73,11 +73,11 @@ export function FloatingFilterPanel({
 
   return (
     <>
-      {/* 트리거 버튼: "tune" 아이콘 (MY 버튼과 동일 크기/스타일) */}
+      {/* 트리거 버튼: "tune" 아이콘 — 2026-05-03 모바일 28px / 데스크톱 36px (옵션 A) */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+        className="relative flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-colors"
         style={{
           backgroundColor: "var(--color-accent)",
           // 하드코딩 #fff 대신 --color-on-accent 사용: 다크모드에서 accent가 밝아지면 글씨도 자동으로 검정으로 전환됨
@@ -86,7 +86,7 @@ export function FloatingFilterPanel({
         aria-label="필터 열기"
         title="필터"
       >
-        <span className="material-symbols-outlined text-lg">tune</span>
+        <span className="material-symbols-outlined text-base sm:text-lg">tune</span>
         {/* 활성 필터 수 뱃지: 1개 이상일 때만 표시 */}
         {activeCount > 0 && (
           <span

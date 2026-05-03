@@ -92,29 +92,41 @@ function useCategoryNewCounts() {
  *      "전체 N개의 글" 위가 직관적. CommunityAside 에서 분리해 community-content
  *      안에서 "전체 N개의 글" 직전에 렌더한다.
  *
- * lg+ 에서는 globals.css `.aside-mobile-tabs` 의 미디어쿼리로 자동 숨김.
+ * 2026-05-04 (3차 fix): mask-image 만으로는 시각 신호 약함 (사용자 3회 보고 — 카테고리 4개만
+ *   보이고 우측 잘림 인지 못함). 마크업에 `aside-mobile-tabs-wrap` 래퍼 + 우측 fade overlay div
+ *   (chevron_right 아이콘) 를 박는다. overlay 는 스크롤 따라가지 않고 항상 우측 고정 표시.
+ *   lg+ 에서는 globals.css `.aside-mobile-tabs-wrap` 미디어쿼리로 자동 숨김.
  */
 export function CommunityMobileTabs({ activeCategory, onSelect }: CommunityAsideProps) {
   const { newCountFor } = useCategoryNewCounts();
   return (
-    <div className="aside-mobile-tabs lg:hidden" role="tablist">
-      {BOARDS.map((b) => {
-        const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
-        const newCount = newCountFor(b.id);
-        return (
-          <button
-            key={b.id ?? "all"}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onSelect(b.id)}
-            className={`aside-mobile-tab ${isActive ? "active" : ""}`}
-          >
-            {b.name}
-            {newCount > 0 && <NavBadge variant="new" inline />}
-          </button>
-        );
-      })}
+    // 래퍼: position:relative — fade overlay 가 absolute 로 우측 고정되도록 base 제공
+    <div className="aside-mobile-tabs-wrap">
+      <div className="aside-mobile-tabs" role="tablist">
+        {BOARDS.map((b) => {
+          const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+          const newCount = newCountFor(b.id);
+          return (
+            <button
+              key={b.id ?? "all"}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onSelect(b.id)}
+              className={`aside-mobile-tab ${isActive ? "active" : ""}`}
+            >
+              {b.name}
+              {newCount > 0 && <NavBadge variant="new" inline />}
+            </button>
+          );
+        })}
+      </div>
+      {/* 우측 fade + 화살표 — 가로 스크롤 가능 시각 신호.
+          aria-hidden: 시각 보조용일 뿐 의미 정보 없음 (탭 자체는 위 .aside-mobile-tabs 가 책임).
+          pointer-events:none (CSS) → 탭 클릭 가로채지 않음. */}
+      <div className="aside-mobile-tabs-fade" aria-hidden="true">
+        <span className="material-symbols-outlined">chevron_right</span>
+      </div>
     </div>
   );
 }
