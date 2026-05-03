@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "prisma generate && NODE_OPTIONS='--max-old-space-size=8192' next build",
   "outputDirectory": ".next",
   "framework": "nextjs",
   "installCommand": "npm install",
