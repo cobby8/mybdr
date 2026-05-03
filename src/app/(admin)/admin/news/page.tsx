@@ -12,6 +12,8 @@ import {
   editNewsAction,
 } from "@/app/actions/admin-news";
 import { AdminNewsContent } from "./admin-news-content";
+// 2026-05-04: 헬퍼 분리 (community/news/match/admin 3곳 일관성) — buildLinkifyEntriesBatch
+import { buildLinkifyEntriesBatch } from "@/lib/news/build-linkify-entries";
 
 export const dynamic = "force-dynamic";
 
@@ -50,86 +52,18 @@ export default async function AdminNewsPage({
     prisma.community_posts.count({ where: { category: "news", status: "rejected" } }),
   ]);
 
-  // 매치별 출전 선수 + 양 팀 정보 (linkify 용)
+  // 매치별 LinkifyEntry[] (헬퍼 사용 — community/news/match/admin 3곳 일관)
+  // 2026-05-04: 인라인 코드 → buildLinkifyEntriesBatch 헬퍼로 통합 (중복 제거)
   const matchIds = posts
     .map((p) => p.tournament_match_id)
     .filter((m): m is bigint => m !== null);
-  const matches = matchIds.length
-    ? await prisma.tournamentMatch.findMany({
-        where: { id: { in: matchIds } },
-        select: {
-          id: true,
-          homeTeam: {
-            select: {
-              team: { select: { id: true, name: true } },
-              players: {
-                where: { is_active: true },
-                select: {
-                  userId: true,
-                  player_name: true,
-                  users: { select: { id: true, name: true, nickname: true } },
-                },
-              },
-            },
-          },
-          awayTeam: {
-            select: {
-              team: { select: { id: true, name: true } },
-              players: {
-                where: { is_active: true },
-                select: {
-                  userId: true,
-                  player_name: true,
-                  users: { select: { id: true, name: true, nickname: true } },
-                },
-              },
-            },
-          },
-        },
-      })
-    : [];
-  const matchInfoMap = new Map<
-    string,
-    {
-      teams: Array<{ id: string; name: string }>;
-      players: Array<{ id: string; name: string }>;
-    }
-  >();
-  for (const m of matches) {
-    const teams: Array<{ id: string; name: string }> = [];
-    const players: Array<{ id: string; name: string }> = [];
-    for (const tt of [m.homeTeam, m.awayTeam]) {
-      if (!tt) continue;
-      if (tt.team) teams.push({ id: tt.team.id.toString(), name: tt.team.name });
-      for (const p of tt.players) {
-        if (!p.userId) continue;
-        const name = p.users?.name || p.player_name || p.users?.nickname;
-        if (name && name.trim().length >= 2) {
-          players.push({ id: p.userId.toString(), name: name.trim() });
-        }
-      }
-    }
-    matchInfoMap.set(m.id.toString(), { teams, players });
-  }
+  const linkifyMap = await buildLinkifyEntriesBatch(matchIds);
 
   // BigInt → string serialize (Server → Client) + linkify entries
   const serialized = posts.map((p) => {
-    const info = p.tournament_match_id
-      ? matchInfoMap.get(p.tournament_match_id.toString())
-      : null;
-    const linkifyEntries: Array<{ name: string; href: string; type: "player" | "team" }> = [];
-    if (info) {
-      info.teams.forEach((t) =>
-        linkifyEntries.push({ name: t.name, href: `/teams/${t.id}`, type: "team" }),
-      );
-      // 같은 이름 중복 제거 (id 우선 1명)
-      const seenNames = new Set<string>();
-      info.players.forEach((pl) => {
-        if (seenNames.has(pl.name)) return;
-        seenNames.add(pl.name);
-        linkifyEntries.push({ name: pl.name, href: `/users/${pl.id}`, type: "player" });
-      });
-    }
+    const linkifyEntries = p.tournament_match_id
+      ? linkifyMap.get(p.tournament_match_id.toString()) ?? []
+      : [];
     return {
       id: p.id.toString(),
       title: p.title,
