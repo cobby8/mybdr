@@ -18,8 +18,9 @@ const ROW_EVEN_BG = "var(--color-card)";
 
 // 게임 클럭 포맷 — 초 → "M:SS" (옛 page.tsx L165-169)
 function formatGameClock(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 

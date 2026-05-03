@@ -207,9 +207,9 @@ export function applyCompletedCap(
   // edge case: 풀타임 합이 expected 초과/동일 또는 partial 0 → cap 적용 무의미 (그대로)
   if (remainingForPartial <= 0 || partialSum <= 0) return;
 
-  // 비례 적용 (현재 partial sec 기준 ratio)
+  // 비례 적용 (현재 partial sec 기준 ratio) — 정수 초로 반올림 (MM:SS 표시용)
   const ratio = remainingForPartial / partialSum;
   for (const id of partialIds) {
-    bySec.set(id, (bySec.get(id) ?? 0) * ratio);
+    bySec.set(id, Math.round((bySec.get(id) ?? 0) * ratio));
   }
 }

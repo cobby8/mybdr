@@ -309,7 +309,8 @@ function formatEventBody(e: PlayByPlayRowV2): string {
 
 // 초 → "M:SS" (게임클럭)
 function formatGameClock(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 }
