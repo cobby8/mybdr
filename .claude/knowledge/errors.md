@@ -2,6 +2,28 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-04] 🚨 community_posts.status 필터 부재 — 알기자 draft 7건 사용자 무단 노출 (검수 우회 사고)
+- **분류**: error/security (사용자 노출 query 의 status 필터 부재 — draft/rejected 권한 우회)
+- **발견자**: 사용자 직접 보고 (스크린샷: BDR NEWS 카테고리에 5/4 draft 7건이 모두 노출됨)
+- **본질**: 5/4 알기자 Phase 1 마이그 작업으로 7매치 backfill (post_id 1373~1379, status=draft) 정상 INSERT 완료. 사용자 의도 = "본기사 = admin 검수 후 게시" → status=draft 로 INSERT, admin/news 검수 후 publish 흐름. **그러나 community list query (`/api/web/community/route.ts` L72~94) `where` 객체에 status 필터 0건** → draft 도 list 에 노출 → 검수 우회. 운영 deploy (5/4 main push c8a0ea8) 직후 사용자 화면 확인.
+- **DB 실측 (사고 시점)**:
+  - draft 7건 (1373~1379, 알기자 5/4 backfill)
+  - published 1251건 (정상)
+  - deleted 1건 (notice — 같이 노출되고 있던 사이드 사고)
+- **영향 범위 (사용자 노출 query 4파일)**:
+  - 🔴 `/api/web/community/route.ts` L72 — list query (status 필터 X) — **사용자 보고 화면**
+  - 🔴 `(web)/community/[id]/page.tsx` L111 — 상세 (`status === "deleted"` 만 차단, draft 통과) — 직접 URL 접근 시 draft 노출
+  - 🟡 `(web)/community/[id]/_components/post-detail-sidebar.tsx` L47, L57 — 작성자 글 수 + 인기글 (status 필터 X)
+  - 🟡 `app/sitemap.ts` L124 — SEO 인덱싱 (`status: { not: "deleted" }` 만, draft 인덱싱)
+- **이미 정상이었던 query** (비교용 — 룰 일관성 부재): nav-badges/feed/search 모두 `status: "published"` 명시 ✅
+- **fix (4파일 일괄)**: 위 4 파일 모두 `where.status = "published"` 추가 (draft/rejected/deleted 모두 차단). 일반 사용자 영향 0 (1251건 published 그대로 노출).
+- **회귀 방지 룰**:
+  - **community_posts.findMany/findUnique/count 사용 시 status 필터 의무** — admin actions (admin-news.ts/admin-community.ts) 외 모든 사용자 노출 query 는 `where.status = "published"` 명시
+  - **검수 흐름 도입 시 사용자 노출 query 일괄 점검 필수** — 새 카테고리/검수 흐름 도입 전 grep `community_posts\.(findMany|findUnique|count|groupBy)` 후 status 필터 부재 query 일괄 fix
+  - **conventions.md 추가 큐**: "검수 필요 카테고리 도입 시 4단계 점검 (INSERT status / list filter / 상세 filter / sitemap filter)"
+- **재발 위험**: 향후 다른 카테고리에 검수 흐름 도입 시 동일 버그 가능성 (예: notice 검수, info 검수 등). 위 회귀 방지 룰 미적용 시 재발.
+- **참조횟수**: 0
+
 ### [2026-05-03] 알기자 Phase 2 자동 트리거 silent fail — 운영 GEMINI_API_KEY 미설정 + fire-and-forget catch swallow
 - **분류**: error/trap (운영 환경 변수 누락 + fire-and-forget 패턴의 silent fail 함정)
 - **발견자**: debugger (PM 의뢰 "5/2~5/3 종료 매치인데 알기자 작동 안 함" 진단)
