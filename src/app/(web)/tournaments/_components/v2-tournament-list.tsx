@@ -52,20 +52,22 @@ interface TournamentFromApi {
   registration_end_at?: string | null;
 }
 
-// 6상태 탭 — 시안 Match.jsx L11 순서 그대로
+// 4상태 탭 — 2026-05-03 사용자 결정:
+// - "마감임박" 탭 제거 → 카드 뱃지로 표시 (registration_end_at 기준 7일 이내)
+// - "접수예정" 탭 제거 → 프리미엄 큐 (현재 listTournaments 에서도 제외)
 export const V2_MATCH_TABS = [
   "전체",
   "접수중",
-  "마감임박",
   "진행중",
-  "접수예정",
   "종료",
 ] as const;
 export type V2MatchTab = (typeof V2_MATCH_TABS)[number];
 
+// 카드 상태 (deriveV2Status 반환) — 탭과 분리 (마감임박/접수예정은 탭 X but 카드 라벨 O)
+type CardStatus = "접수중" | "마감임박" | "진행중" | "접수예정" | "종료";
+
 // 상태 배지 매핑 — 시안 L7~9 (ok=green, red=accent-red, ghost=gray, soft=blue)
-const STATUS_BADGE: Record<V2MatchTab, { label: string; className: string }> = {
-  전체: { label: "", className: "" }, // 카드 자체에는 안 쓰이고, 탭 라벨용
+const STATUS_BADGE: Record<CardStatus, { label: string; className: string }> = {
   접수중: { label: "접수중", className: "badge badge--ok" },
   마감임박: { label: "마감임박", className: "badge badge--red" },
   진행중: { label: "진행중", className: "badge badge--red" },
@@ -89,7 +91,7 @@ const FALLBACK_ACCENTS = [
  *  - 상위 탭 필터와 카드 배지가 동일한 규칙을 써야 하므로 단일 소스로 유지.
  *  - 마감임박은 DB status 하나로 결정 안 됨 → registration_end_at 기준 동적 계산.
  */
-export function deriveV2Status(t: TournamentFromApi): Exclude<V2MatchTab, "전체"> {
+export function deriveV2Status(t: TournamentFromApi): CardStatus {
   const st = (t.status ?? "").toLowerCase();
 
   // 종료

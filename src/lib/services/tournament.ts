@@ -225,8 +225,12 @@ export async function listTournaments(filters: TournamentListFilters = {}) {
   const { status, cities, divisions, gender, take = 60, viewerUserId, viewerIsSuperAdmin } = filters;
 
   // where 조건을 동적으로 구성
+  // 2026-05-03: draft + upcoming(접수예정) 제외 — 접수예정은 프리미엄 기능 큐로 보류
   const where: Record<string, unknown> = {
-    status: status && status !== "all" ? status : { not: "draft" },
+    status:
+      status && status !== "all"
+        ? status
+        : { notIn: ["draft", "upcoming"] },
   };
 
   // 공개 여부 필터 — super_admin이 아닌 경우에만 적용
