@@ -2,6 +2,55 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] minutes-engine endLineup chain 가드 범위 버그 — Q2+ starter fallback 강제 발동 (라이브 매치 양팀 합 -18% 손실)
+- **분류**: error (alg 가드 범위 불일치 — DB starter union 가드 5~12 vs endLineup chain 가드 3~7)
+- **발견자**: debugger (PM 의뢰 "라이브 매치 양팀 합 비대칭 정밀 분석" / 매치 147 SKD vs MI Q2 추적)
+- **본질**: `calculateMinutes` 가 양팀 union 으로 active set 시뮬 → Q1 endLineup 자연스럽게 size=10 (양팀 5+5). 그런데 Q2+ starter chain 가드 `prevEndLineup.size >= 3 && size <= 7` 가 단일팀 기준이라 size=10 fail → **강제로 `inferStartersFromPbp(qPbps)` fallback 발동**. PBP 추정은 한 쿼터 PBP 만 보므로 `firstSubClock` 이 쿼터 시작 시각 (예: 420) 일 때 `seenBeforeFirstSub` = empty → starters = "sub_in 받은 적 없는 선수" 만 추출 → 양팀 합쳐 3~5명 (정상 10명 대비 부족). active size=3 인 segment 가 시뮬 시간만큼 누적되어 양팀 합 -15~20% 손실.
+- **실측 (매치 147 SKD vs MI Q2)**:
+  - Q1 endLineup size=10 (정상, 양팀 5+5)
+  - Q2 chain 가드 fail (10 > 7) → fallback inferStartersFromPbp 발동
+  - inferStartersFromPbp 결과 starters=3 (H 2명 + A 1명) — 정상 10 대비 -7명
+  - Q2 시뮬 합: home=1717s/2100 (82%), away=1762s/2100 (84%) — diff=45s
+  - 직접 chain 보존 시뮬: home=2100s/2100 (100%), away=2100s/2100 (100%) — diff=0s
+- **fix 권장**: `src/lib/live/minutes-engine.ts` L196 `prevEndLineup.size >= 3 && size <= 7` → **`size >= 5 && size <= 12`** 로 변경 (DB starter 가드 L131 과 일치). 단일팀 기준이 아니라 양팀 union 기준.
+- **회귀 위험 0**: 가드 범위만 확장. fallback 진입 조건이 더 좁아짐 → 정확한 chain 사용 빈도 증가. 단 이미 배포된 종료 매치는 LRM cap 으로 정확화되어 영향 없음 (cap 단계가 흡수). **라이브 매치만 영향** — 양팀 합 정확도 +15%p 회복 예상.
+- **검증 방법**: 매치 147 (현재 라이브) GET /api/live/147 → 박스스코어 양팀 출전시간 합 비교. Q1=Q3 정확 / Q2 만 부족 → fix 후 Q2 도 정확해져야 함.
+- **참조횟수**: 0
+- **관련**: 직전 entry "starter PBP-only 추정" — 같은 union 처리 알고리즘이지만 가드 임계치 불일치로 fallback 강제
+
+### [2026-05-03] placeholder ↔ real user 통합 시 3종 UNIQUE 충돌 — DELETE→UPDATE 순서 + nickname 변경 + skipTm 모드 분리 필수
+- **분류**: error/lesson (DB 통합 작업의 표준 회피 패턴 — 누적 발견)
+- **발견자**: PM (셋업 통합 → 18건 일괄 통합 → #4 mergeTempMember 강화 작업 중 누적)
+- **본질**: placeholder.user.id 의 ttp/tm 을 real.user.id 로 transfer 시 다음 3 UNIQUE 충돌이 모두 발생 가능. 한 번에 다 우회 안 하면 트랜잭션 롤백 반복.
+- **3 UNIQUE 충돌 + 우회 방법**:
+  1. **`teamMember (team_id, jersey_number)` UNIQUE** — ph tm jersey 흡수 시 real tm jersey UPDATE 가 충돌 (ph tm 이 아직 같은 jersey 보유)
+     → **fix**: ph tm `DELETE 먼저`, real tm jersey `UPDATE 나중`. 같은 트랜잭션 안에서도 순서 결정적
+  2. **`User nickname` UNIQUE** — 운영팀이 placeholder INSERT 시 본명을 nickname 에 박는 패턴 → real.nickname 을 본명으로 set 시 충돌
+     → **fix**: ph nickname `{realName}_merged_{phUid}` 변경 후 status=merged. status=merged 만으로는 nickname 컬럼 그대로 → 충돌 풀리지 않음
+  3. **`teamMember (team_id, user_id)` UNIQUE** — `mergeTempMember` 가 ph tm 의 userId 를 real 로 UPDATE 시, 호출자 (members/join route) 의 후속 `teamMember.create` 와 충돌
+     → **fix**: 가입 hook 모드 (`skipTmTransfer:true`) — ph tm `DELETE` + `members_count.decrement(1)`. 호출자가 `create` + `increment(1)` 로 net 0 보장
+- **표준 함수**: `src/lib/teams/merge-placeholder-user.ts` 의 `mergePlaceholderUser(phUid, realUid, opts?)`. 가입 hook 시 `mergeTempMember` 가 `skipTmTransfer:true` 로 자동 위임.
+- **회귀 위험**: 트랜잭션 ROLLBACK 자동 → 충돌 시 DB 변경 0. 단 운영 일괄 통합 시 사후 검증 (count) 필수.
+- **참조횟수**: 0
+- **관련**: 2026-05-02 lessons.md "placeholder ↔ real user 통합 패턴 (Phase 7단계)" — 7단계 김영훈 케이스 + 이번 3종 UNIQUE 우회 추가 = mergePlaceholderUser 표준화 완료
+
+### [2026-05-03] raw 정확도 비교 시 알고리즘 버전 명시 필수 — 두 토너먼트 차이 +12.85%p 가 +0.84%p 로 줄어든 사례
+- **분류**: lesson/process (측정 시점에 따라 raw 값이 크게 달라져 가설이 왜곡됨)
+- **발견자**: debugger (PM 의뢰 "두 토너먼트 raw 정확도 차이 +12.85%p 원인 분석" 검증 중)
+- **본질**: minutes-engine 이 **빠르게 진화**하는 동안 (2026-05-03 하루에 LRM cap → DB starter → endLineup chain → boundary 강제 → 리팩토링 4번 commit) 매번 다른 버전으로 raw 측정. **같은 토너먼트도 측정 시점에 따라 raw 정확도가 12%p 까지 변동**.
+- **실측**:
+  - **PM 보고 (boundary 적용 전 측정)**: t388=82.6% / 열혈=95.45% / 차이=+12.85%p
+  - **현재 알고리즘 (Tier 3 boundary + Tier 2 chain + DB starter 모두 적용)**: t388=94.52% / 열혈=95.36% / 차이=+0.84%p
+  - 두 토너먼트 **쿼터당 절대 손실 거의 동등** (t388 20.7s/쿼터 / 열혈 21.1s/쿼터)
+  - qLen 효과 (420 vs 600) 만으로 ~1.4%p 자연 차이 발생 (절대 손실 ÷ qLen 비율)
+- **fix 방향**:
+  1. **raw 정확도 측정 시 알고리즘 git commit hash + 적용 옵션 (DB starter on/off) 같이 보고**
+  2. 가설 검증 전 **현재 코드 기준 재측정** 필수 — 옛 측정값으로 가설 세우면 잘못된 결론
+  3. 토너먼트 비교 시 qLen 정규화 (절대 손실/qLen 비율) 같이 보고 — qLen 차이 효과 분리
+- **회귀 위험**: 0 (process). 하지만 향후 minutes-engine 추가 개선 후에도 같은 함정 재발 가능 → 측정 스크립트에 commit hash 자동 기록 권장
+- **참조횟수**: 0
+- **관련**: 직전 entry "starter PBP-only 추정" — 알고리즘 진화의 시작점
+
 ### [2026-05-03] minutes-engine 의 starter PBP-only 추정 = `MatchPlayerStat.isStarter` 미사용 (정확도 손실 ~10%)
 - **분류**: error/lesson (기존 데이터 미활용으로 인한 추정 의존)
 - **발견자**: debugger (사용자 제안 "starter 등록되어 있으면 자동 sub_in 처리" 검증 중)

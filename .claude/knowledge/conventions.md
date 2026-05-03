@@ -1,6 +1,33 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-03] Placeholder ↔ Real User 통합 표준 함수
+- **분류**: convention (data integrity / dedup pattern)
+- **결정자**: PM (셋업 + 18건 + #4 강화 누적 패턴 표준화)
+- **함수 위치**:
+  - 일반화: `src/lib/teams/merge-placeholder-user.ts` 의 `mergePlaceholderUser(phUid, realUid, opts?)`
+  - 가입 hook (자동): `src/lib/teams/merge-temp-member.ts` 의 `mergeTempMember(teamId, realUserId)` — 내부에서 `mergePlaceholderUser({skipTmTransfer:true})` 위임
+- **사용 패턴**:
+  ```ts
+  // 가입 hook (자동, members/join route 에서 이미 호출 중)
+  const merged = await mergeTempMember(teamId, realUserId);
+
+  // 운영 backfill (수동 일괄 통합 — 다음 LOW 86건 등)
+  await mergePlaceholderUser(phUid, realUid, { realName: "이영기" });
+  // → ttp transfer (충돌 시 skip) + tm transfer/absorb + UNIQUE 우회 + status=merged 일괄
+  ```
+- **사전 검증 필수** (호출자 책임): phUid 와 realUid 가 **같은 사람** 인지 확인. 동명이인 시그널 ↓
+  - 🚨 real 이 같은 대회의 다른 팀 ttp 활발 보유 = 명백한 다른 사람 (5/3 오승준/이상현/이정민 케이스)
+  - 🟢 안전 시그널: 같은 팀 멤버 / req approved 이력 / phone 일치 / nickname 한글자판→영문 매칭
+- **stat/PBP 자동 보존**: ttp.id 변경 0 (`ttp.userId` UPDATE 만) → MatchPlayerStat / play_by_plays FK 그대로
+- **헬퍼**:
+  - `isPlaceholderEmail(email)` — 4가지 패턴 식별 (`@bdr.placeholder` / `@mybdr.temp` / `temp_` / `placeholder-`)
+  - `getMergedNicknamePattern(realName, phUid)` — 통합된 placeholder 검색용 (`{name}_merged_{uid}`)
+- **테스트**: `src/__tests__/lib/teams/merge-placeholder-user.test.ts` (vitest 10 케이스 — 헬퍼 단위 검증)
+- **회귀 검증**: 호출자 (members/join route) 시그니처 변경 0 + members_count net 0 보장
+- **참조횟수**: 0
+- **관련**: errors.md 2026-05-03 "3종 UNIQUE 충돌" / lessons.md 2026-05-02 "Phase 7단계 트랜잭션"
+
 ### [2026-05-02] 팀 로고 업로드 자동 정규화 pipeline
 - **분류**: convention (image / upload / sharp)
 - **발견자**: developer (16팀 일괄 작업 commit 637c55e 의 검증된 pipeline 을 신규 업로드에도 일관 적용)
