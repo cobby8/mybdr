@@ -2,6 +2,21 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-03] 알기자 BDR NEWS Phase 2 — 게시판 'news' 통합 발행 시스템
+- **분류**: architecture (LLM 기자봇 / community 게시판 통합 / admin 검수)
+- **발견자**: pm + 사용자 결정 8건 (Q1~Q8)
+- **참조횟수**: 0
+- **위치**: `prisma/schema.prisma` + `src/lib/news/{prompts/alkija-system-phase2-match.ts, match-brief-generator.ts, validate-brief.ts, auto-publish-match-brief.ts, linkify-news-body.tsx}` + `src/app/api/live/[id]/brief/route.ts` + `src/lib/services/match.ts` + `src/app/(admin)/admin/news/{page.tsx, admin-news-content.tsx}` + `src/app/actions/admin-news.ts` + `src/app/(web)/community/_components/community-content.tsx` + 알기자 User uid=3350
+- **8 결정** (사용자 Q&A): Q1 community_posts 하이브리드(컬럼 +4) / Q2 자동 트리거 (fire-and-forget) / Q3 검수 발행 (draft→published) / Q4 다층 단위 (매치+라운드+일자, MVP는 매치만) / Q5 deep link `/news/match/[id]` (Phase E 큐) / Q6 통합 admin `/admin/news` / Q7 알기자 placeholder User (`alkija@bdr.system`) / Q8 댓글+좋아요 활성
+- **흐름**: 매치 종료(`status=completed` 변경) → `triggerMatchBriefPublishAsync(matchId)` fire-and-forget → 내부 fetch `/api/live/[id]/brief?mode=phase2-match` → LLM 호출 (alkija-system-phase2-match.ts: 400~700자 / 정형 4단락 / 다양한 관점 / 어조 ~다 / 제목 분리 `TITLE: ...`) → community_posts INSERT (status=draft, category=news, tournament_match_id, tournament_id, period_type=match, user_id=알기자) → 운영자 `/admin/news` 검수 (publish/reject/regenerate/edit) → published 시 `/community?category=news` + (Phase E) `/news/match/[id]` 노출
+- **schema 변경 (community_posts +4 컬럼, NULL 허용 ADD COLUMN, 무중단)**: `tournament_match_id BigInt? + tournament_id String? @db.Uuid + period_type String?(VarChar 16) + period_key String?(VarChar 64)` + 인덱스 3종
+- **prompt 분기**: BriefMode = "phase1-section" (매치 페이지 lead, 150~250자) | "phase2-match" (게시판 독립 기사, 400~700자, 정형). 캐시 키 `${mode}:${matchId}` 분리.
+- **검증**: validateBrief(brief, input, mode) — Phase 1 350자 / Phase 2 900자 한도. 점수 검증 제거 (쿼터/진행 점수 false positive 방지).
+- **검수 UI** (`/admin/news`): 좌 sidebar (draft/published/rejected 탭 + count) + 우 main (목록 + 미리보기 + 액션 4종). Server Actions = `publishNewsAction / rejectNewsAction / regenerateNewsAction / editNewsAction` (revalidatePath 자동).
+- **자동 링크**: `LinkifyNewsBody` 컴포넌트 — 매치 출전 선수(name>player_name>nickname fallback) + 양 팀 → `<Link href="/users/{id}">` / `/teams/{id}` 자동 변환. 이름 길이 desc 정렬 (prefix 충돌 방지).
+- **5/2 backfill 결과**: 9 매치 draft 9건 생성 (평균 565자, 모두 다양한 관점). 6건 placeholder↔real 통합 후 영향 4건 자동 재생성.
+- **Phase E 큐**: `/news` 매거진 메인 + `/news/match/[id]` deep link + `/news/round/[id]` + `/news/daily/[date]` (라운드/일자 종합 prompt 추가).
+
 ### [2026-05-03] 알기자 brief Phase 1 정책 재설계 + 데이터 풀 확장 + 다양한 관점 prompt
 - **분류**: architecture (LLM 기자봇 / 매치 페이지 통합)
 - **발견자**: pm + 사용자 통찰 ("어디 들어가는 어떤 기사냐에 따라 다르다")

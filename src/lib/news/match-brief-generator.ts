@@ -6,7 +6,13 @@
 
 import { generateText } from "./gemini-client";
 import { ALKIJA_SYSTEM_PROMPT } from "./prompts/alkija-system";
+import { ALKIJA_PHASE2_MATCH_PROMPT } from "./prompts/alkija-system-phase2-match";
 import { validateBrief } from "./validate-brief";
+
+// 2026-05-03: Phase 2 — 게시판 'news' 발행용 독립 기사 mode 추가
+// "phase1-section" = 매치 페이지 1 섹션 (150~250자, Header/Headline 중복 X)
+// "phase2-match"   = 게시판 독립 기사 (400~700자, 점프볼 D리그 단신 패턴, 제목 + 본문)
+export type BriefMode = "phase1-section" | "phase2-match";
 
 // 2026-05-03: 데이터 풀 확장 — 양 팀 통계 + 모든 선수 stat + 핵심 스트레치
 // LLM 이 다양한 관점 (야투/리바/어시/스틸/+/-/더블더블/스트레치 등) 으로 작성하도록 풍부화
@@ -97,7 +103,8 @@ export type MatchBriefInput = {
 // LLM 결과 캐시 — matchId → brief 텍스트
 // Vercel serverless instance 별 메모리. 운영 평소 360 매치 / 1500 RPD 무료 tier 충분.
 // Phase 2 에서 DB articles 테이블로 영구 저장 예정.
-const briefCache = new Map<number, string>();
+// 2026-05-03: cacheKey = `${mode}:${matchId}` 형태로 변경 (Phase 1/Phase 2 응답 분리)
+const briefCache = new Map<string, string>();
 
 // flow 한국어 라벨 — LLM 에 흐름 hint 로 전달
 const FLOW_LABEL: Record<MatchBriefInput["flow"], string> = {
@@ -125,17 +132,30 @@ function formatQuarters(qs: { home: number[]; away: number[] }): string {
 }
 
 // User prompt 구성 — system prompt 가 페르소나/톤, user prompt 는 데이터만
-function buildUserPrompt(input: MatchBriefInput): string {
+// mode 별 안내 메시지만 다르고 데이터 본체는 동일.
+function buildUserPrompt(input: MatchBriefInput, mode: BriefMode): string {
   const lines: string[] = [];
-  lines.push("아래 동호회 농구 매치의 [흐름·영웅] 섹션을 작성해주세요.");
-  lines.push("- 길이: 150~250자, 2~3문장");
-  lines.push("- 점수/대회명/일시/장소는 페이지 Header/Headline 에 이미 표시됨 → 반복 X");
-  lines.push("- 팀명은 첫 문장 승팀 1회만 (패팀은 자연스러우면 1회)");
-  lines.push("- 매치의 서사 (역전·시소·완승·접전) + 승부처 영웅만 다룸");
+  if (mode === "phase2-match") {
+    lines.push("아래 동호회 농구 매치의 [독립 단신 기사]를 작성해주세요.");
+    lines.push("- 길이: 400~700자, 4~6문장 (3~4 단락)");
+    lines.push("- 본문에 점수/팀명/대회 풀명/일시/장소 모두 포함 (게시판 독립 기사)");
+    lines.push("- 첫 줄에 'TITLE: 제목' (30자 이내)");
+    lines.push("- 다양한 관점 활용 (야투·3점·리바·어시·스틸·블락·+/-·더블더블·턴오버 중)");
+  } else {
+    lines.push("아래 동호회 농구 매치의 [흐름·영웅] 섹션을 작성해주세요.");
+    lines.push("- 길이: 150~250자, 2~3문장");
+    lines.push("- 점수/대회명/일시/장소는 페이지 Header/Headline 에 이미 표시됨 → 반복 X");
+    lines.push("- 팀명은 첫 문장 승팀 1회만 (패팀은 자연스러우면 1회)");
+    lines.push("- 매치의 서사 (역전·시소·완승·접전) + 승부처 영웅만 다룸");
+  }
   lines.push("");
   lines.push("[매치 정보 — 입력 데이터, 모두 정확히 사용]");
   if (input.tournamentName) {
-    lines.push(`- 대회: ${input.tournamentName} (※ 본문에 풀명 X)`);
+    if (mode === "phase2-match") {
+      lines.push(`- 대회: ${input.tournamentName} (※ 본문에 풀명 포함)`);
+    } else {
+      lines.push(`- 대회: ${input.tournamentName} (※ 본문에 풀명 X)`);
+    }
   }
   lines.push(
     `- ${input.homeTeam} ${input.homeScore} vs ${input.awayScore} ${input.awayTeam}`,
@@ -262,41 +282,86 @@ function buildUserPrompt(input: MatchBriefInput): string {
 }
 
 // 매치 단신 기사 생성 (메모리 캐시 적용)
+// 2026-05-03: mode 파라미터 추가 — Phase 1 (페이지 섹션) vs Phase 2 (독립 기사) 분기.
 // 반환:
-//   - { ok: true, brief }  : LLM 생성 + 검증 통과
-//   - { ok: false, reason }: 검증 실패 / API 키 미설정 / 네트워크 에러 등 → 상위에서 fallback
+//   - phase1-section: { ok: true, brief }              — Lead 텍스트만
+//   - phase2-match  : { ok: true, brief, title }       — 제목 + 본문 분리
+//   - { ok: false, reason }                            — 검증 실패 / API 키 미설정 / 네트워크 에러
 export async function generateMatchBrief(
   input: MatchBriefInput,
-): Promise<{ ok: true; brief: string } | { ok: false; reason: string }> {
-  // 캐시 hit — 이미 생성한 기사가 있으면 재호출 X (LLM 비용 0)
-  const cached = briefCache.get(input.matchId);
+  mode: BriefMode = "phase1-section",
+): Promise<
+  | { ok: true; brief: string; title?: string }
+  | { ok: false; reason: string }
+> {
+  // 캐시 — mode 별로 분리 (Phase 1 / Phase 2 응답 다름)
+  const cacheKey = `${mode}:${input.matchId}`;
+  const cached = briefCache.get(cacheKey);
   if (cached) {
+    if (mode === "phase2-match") {
+      // 제목/본문 분리
+      const split = parsePhase2Output(cached);
+      return { ok: true, brief: split.brief, title: split.title };
+    }
     return { ok: true, brief: cached };
   }
+
+  // mode 별 system prompt 선택
+  const systemPrompt =
+    mode === "phase2-match" ? ALKIJA_PHASE2_MATCH_PROMPT : ALKIJA_SYSTEM_PROMPT;
 
   // LLM 호출 — 네트워크 에러 / API 키 미설정 모두 catch
   let raw: string;
   try {
-    const userPrompt = buildUserPrompt(input);
-    raw = await generateText(ALKIJA_SYSTEM_PROMPT, userPrompt);
+    const userPrompt = buildUserPrompt(input, mode);
+    raw = await generateText(systemPrompt, userPrompt);
   } catch (e) {
     const reason = e instanceof Error ? e.message : "LLM 호출 실패";
     return { ok: false, reason };
   }
 
-  // 검증 — 점수 / 팀명 / 길이 (hallucination 방어)
-  const v = validateBrief(raw, input);
+  // 검증 — mode 별 길이 한도 다름 (validate-brief 내부에서 분기 처리)
+  const v = validateBrief(raw, input, mode);
   if (!v.valid) {
     return { ok: false, reason: `검증 실패: ${v.reason}` };
   }
 
-  // 캐시 저장 후 반환
-  briefCache.set(input.matchId, raw);
+  // 캐시 저장
+  briefCache.set(cacheKey, raw);
+
+  // Phase 2 — 제목/본문 분리
+  if (mode === "phase2-match") {
+    const split = parsePhase2Output(raw);
+    return { ok: true, brief: split.brief, title: split.title };
+  }
   return { ok: true, brief: raw };
 }
 
+// Phase 2 LLM 응답 파싱 — 첫 줄 "TITLE: ..." 추출
+function parsePhase2Output(raw: string): { title: string; brief: string } {
+  const trimmed = raw.trim();
+  const firstNewline = trimmed.indexOf("\n");
+  if (firstNewline === -1) {
+    // 줄바꿈 없음 — 본문만 있다고 가정 (제목 없음)
+    return { title: "", brief: trimmed };
+  }
+  const firstLine = trimmed.slice(0, firstNewline).trim();
+  // "TITLE: " 또는 "제목: " 접두사 매칭
+  const titleMatch = firstLine.match(/^(?:TITLE|제목)\s*[:：]\s*(.+)$/i);
+  if (titleMatch) {
+    const title = titleMatch[1].trim().replace(/^["'`]|["'`]$/g, ""); // 양 끝 따옴표 제거
+    const brief = trimmed.slice(firstNewline + 1).trim();
+    return { title, brief };
+  }
+  // 첫 줄이 TITLE 이 아니면 전체가 본문
+  return { title: "", brief: trimmed };
+}
+
 // 캐시 강제 무효화 — 운영 중 수동 재생성 필요 시 사용 (admin 등에서 호출 가능)
-// Phase 1 에서는 미노출. Phase 2 DB 도입 시 함께 노출.
+// 2026-05-03: mode 별 분리 캐시 모두 삭제.
 export function invalidateBriefCache(matchId: number): void {
-  briefCache.delete(matchId);
+  briefCache.delete(`phase1-section:${matchId}`);
+  briefCache.delete(`phase2-match:${matchId}`);
+  // 기존 mode 미명시 캐시 (legacy) 도 정리
+  briefCache.delete(String(matchId));
 }

@@ -2,6 +2,18 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] NEXT_PUBLIC_APP_URL 을 server-side internal fetch 에 사용 시 dev → 운영 서버로 가는 사고
+- **분류**: error/trap (env var 함정 / dev → 운영 cross-call)
+- **증상**: `auto-publish-match-brief.ts` 에서 매치 종료 hook fire-and-forget 으로 `/api/live/[id]/brief?mode=phase2-match` 호출 → 모두 `missing_api_key` 응답. 같은 dev server 에 curl 직접 호출은 정상.
+- **원인**: `getBaseUrl()` 우선순위에서 `process.env.NEXT_PUBLIC_APP_URL` 가 먼저 읽힘 → `.env` 의 운영 URL `https://www.mybdr.kr` 가 set 되어 있어서 dev 환경에서 운영 서버로 fetch. 운영 서버에는 `GEMINI_API_KEY` 미설정 → `missing_api_key` 응답.
+- **검증**: fetch URL 출력 추가 → `https://www.mybdr.kr/api/live/132/brief?mode=phase2-match` 확인 → 즉시 인지.
+- **fix**: `NEXT_PUBLIC_APP_URL` 사용 제거. `VERCEL_URL` (Vercel deployment 자기 자신) → fallback `http://localhost:3001`.
+- **회귀 방지 룰**:
+  - **NEXT_PUBLIC_* 환경변수는 client-side 용** — server-side internal fetch 에 사용 금지.
+  - server-side 자기 자신 fetch 시 baseUrl: `process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3001"`.
+  - 더 안전한 방법: server internal call 시 fetch 대신 함수 직접 호출 (input 빌드 로직 추출).
+- **부수 발견**: dev 환경에서 운영 DB 작업 + 운영 fetch 가 섞여 있었음. dev 작업이 운영 환경으로 leak 가능 — 서비스 분리 강화 필요.
+
 ### [2026-05-03] team_members.userId NOT NULL → 명단 INSERT 시 placeholder User CREATE 강제
 - **분류**: convention/trap (schema 제약 → 부채 패턴)
 - **증상**: 미가입 선수 (회원가입 전, 명단만 받은 사람)를 `team_members` 에 등록하려면 `userId` FK 가 NOT NULL 이라 placeholder User 신규 생성 강제. `tournament_team_players` 는 nullable 이라 placeholder 안 만들어도 되지만, 팀 마스터 명단 노출이 필요하면 둘 다 INSERT 필요.
