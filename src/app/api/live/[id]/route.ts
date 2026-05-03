@@ -821,8 +821,25 @@ export async function GET(
       fta: number;
       game_score: number;
     };
+    // 2026-05-03: MVP 승팀 한정 (사용자 요청). 승팀에서만 추출.
+    // - 승부 미결정 (동점/미입력/라이브) 시 양 팀 합산 fallback
+    const _hs = match.homeScore ?? 0;
+    const _as = match.awayScore ?? 0;
+    const winnerTeamIdForMvp =
+      _hs > _as
+        ? Number(match.homeTeamId ?? 0)
+        : _as > _hs
+          ? Number(match.awayTeamId ?? 0)
+          : null;
+    const mvpSourcePlayers =
+      winnerTeamIdForMvp && match.status === "completed"
+        ? [...homePlayers, ...awayPlayers].filter(
+            (p) => p.teamId === winnerTeamIdForMvp,
+          )
+        : [...homePlayers, ...awayPlayers];
+
     const allMvpCandidates: MvpPlayer[] = [];
-    for (const p of [...homePlayers, ...awayPlayers]) {
+    for (const p of mvpSourcePlayers) {
       // DNP(완전 출전 없음) 제외
       if (p.dnp === true) continue;
       // 득점/시도/기록이 전부 0인 선수는 제외

@@ -120,12 +120,26 @@ export async function GET(
     const awayTeamName = match.awayTeam?.team?.name ?? "어웨이";
 
     // MVP 산출 — playerStats 중 game_score 1위 (없으면 pts 1위)
-    // tab-summary 의 mvp_player 와 동일 산식이지만 server-side 단독 계산.
+    // 2026-05-03: 승팀 한정 (사용자 요청). 종료 매치만 적용 (라이브는 양 팀 합산)
     let mvpData: MatchBriefInput["mvp"] = null;
     if (match.playerStats.length > 0) {
-      // game_score = pts + reb*1.2 + ast*1.5 + stl*3 + blk*3 - to*1.5 (간이)
-      // 정확한 산식은 live route 와 다를 수 있으나 LLM hint 용이라 큰 영향 X
-      const ranked = [...match.playerStats]
+      const _hs = match.homeScore ?? 0;
+      const _as = match.awayScore ?? 0;
+      const winnerTtTeamId =
+        match.status === "completed"
+          ? _hs > _as
+            ? match.homeTeamId
+            : _as > _hs
+              ? match.awayTeamId
+              : null
+          : null;
+      const sourceStats = winnerTtTeamId
+        ? match.playerStats.filter(
+            (p) =>
+              p.tournamentTeamPlayer?.tournamentTeamId === winnerTtTeamId,
+          )
+        : match.playerStats;
+      const ranked = [...sourceStats]
         .filter((p) => (p.points ?? 0) + (p.total_rebounds ?? 0) + (p.assists ?? 0) > 0)
         .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
       const top = ranked[0];
