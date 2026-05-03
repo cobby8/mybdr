@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 // 캘린더/주간 뷰 관련 import
 import { ViewToggle, type ViewMode } from "./view-toggle";
+import { LoadMoreButton } from "@/components/load-more-button";
 import { CalendarView } from "./calendar-view";
 import { WeekView } from "./week-view";
 // Phase 2 Match v2 래퍼 — 리스트 뷰의 카드·탭만 교체. 필터·API는 기존 유지.
@@ -272,11 +273,12 @@ export function TournamentsContent({
     return counts;
   }, [tournaments]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredTournaments.length / TOURNAMENTS_PER_PAGE));
-  const paginatedTournaments = filteredTournaments.slice(
-    (currentPage - 1) * TOURNAMENTS_PER_PAGE,
-    currentPage * TOURNAMENTS_PER_PAGE
-  );
+  // 2026-05-03: 페이지네이션 → 더보기 누적 슬라이스
+  // currentPage = 누적 페이지 (1=10건, 2=20건, ...). filteredTournaments 변경 시 1로 리셋.
+  const visibleCount = currentPage * TOURNAMENTS_PER_PAGE;
+  const paginatedTournaments = filteredTournaments.slice(0, visibleCount);
+  const hasMore = filteredTournaments.length > visibleCount;
+  const remaining = filteredTournaments.length - visibleCount;
 
   const handleSearchChange = useCallback((q: string) => setSearchQuery(q), []);
   const handleRegionChange = useCallback((region: string) => setRegionFilter(region), []);
@@ -385,13 +387,10 @@ export function TournamentsContent({
                   counts={v2TabCounts}
                   toolbar={controlsNode}
                 />
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={(page) => {
-                    setCurrentPage(page);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
+                <LoadMoreButton
+                  hasMore={hasMore}
+                  onMore={() => setCurrentPage((p) => p + 1)}
+                  remaining={remaining}
                 />
               </>
             )}
