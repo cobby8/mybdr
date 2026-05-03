@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { LinkifyNewsBody } from "@/lib/news/linkify-news-body";
 // 2026-05-04: 헬퍼 분리 (community/news/match/admin 3곳 일관성) — buildLinkifyEntries
 import { buildLinkifyEntries } from "@/lib/news/build-linkify-entries";
+// 2026-05-04: 알기자 기사 사진 (Hero + 갤러리)
+import { NewsPhotoHero, NewsPhotoGallery, type NewsPhotoForGallery } from "@/lib/news/news-photo-gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +73,8 @@ export default async function NewsMatchDetailPage({
 
   // 매치 사이드바 정보 (얕은 select — players 미포함, linkify 는 헬퍼로 별도 처리)
   // 2026-05-04: linkify 인라인 코드 → buildLinkifyEntries 헬퍼로 통합 (community/news/match/admin 3곳 일관)
-  const [match, linkifyEntries] = await Promise.all([
+  // 2026-05-04: 알기자 사진도 같이 fetch (Promise.all 병렬)
+  const [match, linkifyEntries, newsPhotoRows] = await Promise.all([
     prisma.tournamentMatch.findUnique({
       where: { id: matchIdBig },
       select: {
@@ -96,7 +99,31 @@ export default async function NewsMatchDetailPage({
       },
     }),
     buildLinkifyEntries(matchIdBig).catch(() => []),
+    prisma.news_photo
+      .findMany({
+        where: { match_id: matchIdBig },
+        orderBy: [{ is_hero: "desc" }, { display_order: "asc" }],
+        select: {
+          id: true,
+          url: true,
+          width: true,
+          height: true,
+          is_hero: true,
+          display_order: true,
+          caption: true,
+        },
+      })
+      .catch(() => []),
   ]);
+  const newsPhotos: NewsPhotoForGallery[] = newsPhotoRows.map((r) => ({
+    id: r.id.toString(),
+    url: r.url,
+    width: r.width,
+    height: r.height,
+    isHero: r.is_hero,
+    displayOrder: r.display_order,
+    caption: r.caption,
+  }));
 
   const homeName = match?.homeTeam?.team?.name ?? "홈";
   const awayName = match?.awayTeam?.team?.name ?? "어웨이";
@@ -188,12 +215,26 @@ export default async function NewsMatchDetailPage({
           </div>
         )}
 
+        {/* 2026-05-04: Hero 사진 — 본문 위 (있을 때만) */}
+        {newsPhotos.length > 0 && (
+          <div className="mb-5">
+            <NewsPhotoHero photos={newsPhotos} />
+          </div>
+        )}
+
         {/* 본문 (linkify) */}
         <LinkifyNewsBody
           content={post.content ?? ""}
           entries={linkifyEntries}
           className="text-base leading-relaxed text-[var(--color-text)]"
         />
+
+        {/* 2026-05-04: 갤러리 — Hero 외 사진 (본문 아래) */}
+        {newsPhotos.length > 1 && (
+          <div className="mt-5">
+            <NewsPhotoGallery photos={newsPhotos} excludeHero />
+          </div>
+        )}
 
         {/* 메타 + 액션 */}
         <div className="mt-6 flex items-center gap-4 border-t border-[var(--color-border)] pt-4 text-sm text-[var(--color-text-dim)]">

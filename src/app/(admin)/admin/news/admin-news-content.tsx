@@ -7,6 +7,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LinkifyNewsBody, type LinkifyEntry } from "@/lib/news/linkify-news-body";
+// 2026-05-04: 알기자 기사 사진 업로드/관리 (모바일 카메라 + 멀티 + Hero 지정 + 삭제)
+import { NewsPhotoManager, type NewsPhoto } from "./_components/news-photo-manager";
 
 type NewsPost = {
   id: string;
@@ -23,6 +25,8 @@ type NewsPost = {
   period_type: string | null;
   period_key: string | null;
   linkifyEntries: LinkifyEntry[];
+  // 2026-05-04: 알기자 사진 (server props)
+  photos: NewsPhoto[];
 };
 
 type Counts = { draft: number; published: number; rejected: number };
@@ -289,6 +293,14 @@ export function AdminNewsContent({
                       </Link>
                     )}
                   </div>
+
+                  {/* 2026-05-04: 알기자 사진 업로드/관리 — 매치 있을 때만 노출 */}
+                  {selected.tournament_match_id && (
+                    <NewsPhotoManager
+                      matchId={selected.tournament_match_id}
+                      initialPhotos={selected.photos}
+                    />
+                  )}
                 </>
               )}
             </div>

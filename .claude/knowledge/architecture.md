@@ -2,6 +2,29 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-04] 알기자 기사 사진 첨부 시스템 (Phase 1 MVP) — news_photos 테이블 + admin 모바일 카메라 + Hero/갤러리
+- **분류**: architecture (LLM 기자봇 / 운영자 모바일 업로드 / 사진 노출)
+- **발견자**: pm + 사용자 의도 ("담당자가 핸드폰으로 사진 업로드하면 인식해서 함께 넣을 수 있는 방법")
+- **참조횟수**: 0
+- **위치**: `prisma/schema.prisma` (news_photos 신규 테이블) + `src/app/api/web/upload/news-photo/route.ts` (POST/DELETE) + `src/lib/news/news-photo-gallery.tsx` (Hero/Gallery 컴포넌트) + `src/app/(admin)/admin/news/_components/news-photo-manager.tsx` (admin 업로드/관리 UI) + `src/app/(admin)/admin/news/{page.tsx, admin-news-content.tsx}` (검수 페이지 통합) + `src/app/(web)/community/[id]/page.tsx` (본문 노출) + `src/app/(web)/news/match/[matchId]/page.tsx` (deep link 노출)
+- **5 결정** (사용자 추천대로 채택): Q1=A 수동 매핑 (매치 dropdown) / Q2=A Supabase Storage `news-photos` bucket / Q3=A+B Hero(1장 본문 위) + 갤러리(나머지 본문 아래) / Q4=A admin/news 통합 + 모바일 카메라 (`<input capture="environment">`) / Q5=B 발행 후도 추가 가능 / Q6=B `news_photos` 별도 테이블 (`community_posts.images` JSON 활용 X)
+- **schema (NULL ADD COLUMN + 신규 테이블, 무중단)**:
+  - `tournament_matches.news_photos news_photo[]` (역참조)
+  - `news_photo` 테이블 신규: id BigInt + match_id (Cascade) + url + storage_path + width/height/size_bytes + is_hero Boolean + display_order Int + uploaded_by (User) + caption Text? + exif_meta Json? (Phase 2 큐) + created_at + updated_at + index 3종 (match_id / match_id+is_hero / match_id+display_order)
+- **흐름** (운영자 매치 종료 후):
+  - admin/news 검수 페이지 진입 → 게시물 선택 → NewsPhotoManager 노출 (사진 list + 업로드 버튼 3종)
+  - 모바일: `📷 카메라` 버튼 = `<input capture="environment">` 즉시 카메라 앱 호출 / `🖼️ 갤러리(멀티)` = 멀티 파일 선택 / `⭐ 대표 사진` = isHero=true 단일
+  - 업로드 → POST `/api/web/upload/news-photo` (admin only) → sharp 정규화 (long-edge 1920 + WebP 80% + EXIF 회전 자동 적용) → Supabase Storage `news-photos` bucket → news_photo INSERT (트랜잭션: isHero 면 기존 isHero 모두 false, display_order = max+1)
+  - DELETE `?id={photoId}` → Storage + DB 둘 다 정리
+- **노출** (3곳 동일 룰, `news-photo-gallery.tsx` 컴포넌트):
+  - **Hero** (`<NewsPhotoHero>`): is_hero=true 1장 → 본문 위 (없으면 첫 사진), aspect-ratio = 원본 비율, priority loading
+  - **갤러리** (`<NewsPhotoGallery excludeHero>`): Hero 외 사진 grid (3~4 열), 클릭 시 새 탭 원본
+  - 사진 0건 → 컴포넌트 자체 렌더 X (조건부 마운트)
+- **운영 요구**: Supabase 콘솔에서 `news-photos` bucket 생성 (public access) — 1회 수동 작업
+- **Phase 2 큐**: EXIF 메타 (촬영시각/GPS) 기반 자동 매치 추천 (현재 `exif_meta.has_exif` 만 저장, 파싱은 exif-reader 도입 시)
+- **Phase 3 큐**: AI Vision (Gemini/Claude) — 사진 → 매치 자동 매칭 + 핵심 순간 분류 (덩크/3점 등)
+- **community list 카드 썸네일** (큐): tournament_match_id select 추가 + batch fetch 후 첫 사진 노출 (별도 commit)
+
 ### [2026-05-04] 알기자 Phase 1 DB 영구 저장 마이그 — 트리거 통합 + tournament_matches.summary_brief
 - **분류**: architecture (LLM 기자봇 / 라이브 페이지 / 트리거 통합)
 - **발견자**: pm + 사용자 의도 명확화 ("경기 종료 → 본 + 요약 2개 동시, 매치당 정확히 2개")
