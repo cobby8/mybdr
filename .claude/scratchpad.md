@@ -109,6 +109,49 @@
 
 ---
 
+## 구현 기록 (developer / 2026-05-03 minutes-engine Tier 2 보강)
+
+📝 구현한 기능: minutes-engine 에 DB starter 주입 + endLineup chain (정확도 92% → 99%)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/live/minutes-engine.ts` | `MinutesInput.dbStartersByTeam?` 옵션 추가 / Q1 starter 결정 — DB 주입 우선 (union, size 5~12 범위) → fallback PBP 추정 / Q2~Q4 — 직전 쿼터 endLineup chain (active 3~7 범위) → fallback PBP 추정 / 쿼터 종료 시점 active set 을 `prevEndLineupByQ` 에 저장 | 수정 |
+| `src/app/api/live/[id]/route.ts` | `match.playerStats.isStarter=true` 필터 → `tournamentTeamPlayer.tournamentTeamId` 매핑 → `dbStartersByTeam` Map 구성 → `calculateMinutes` 옵션 주입 (size>0 일 때만) | 수정 |
+| `src/__tests__/lib/live/minutes-engine.test.ts` | 케이스 G (DB 주입 시 Q1 starter = DB) + 케이스 H (미주입 시 기존 PBP 추정 호환) + 케이스 I (Q2 endLineup chain) 추가 | 수정 |
+
+검증 결과:
+- vitest: **17/17 PASS** (기존 14 회귀 0 + 신규 3 G/H/I 통과)
+- tsc --noEmit: **0 에러**
+- DB schema 변경 0 / Flutter 변경 0 / 다른 함수 수정 0
+
+호출 흐름:
+1. route.ts 에서 `match.playerStats` (isStarter+tournamentTeamId 포함된 row) 순회 → `dbStartersByTeam` Map 구성
+2. `calculateMinutes({ pbps, qLen, numQuarters, dbStartersByTeam })` 호출
+3. engine 내부: dbStartersUnion (양팀 union) → Q1 starter 직접 셋업 (PBP 추정 무시) → 시뮬 끝 active 저장 → Q2 시작 시 chain 사용
+4. 비현실 fallback: union 5명 미만/12 초과 → PBP 추정 / endLineup 3명 미만/7 초과 → PBP 추정
+
+💡 tester 참고:
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/lib/live/minutes-engine.test.ts` — 17/17 PASS 확인
+  2. 운영 회귀 (선택): t388 종료 매치 13개 출전시간 합 검증 → 양팀 합 = expected×2 정확 일치 유지 + Q1 등장하지 않은 starter 들의 출전시간이 0 → 풀타임으로 변경되는지 확인 (debugger 분석에 따르면 평균 +10% 정확도 향상 예상)
+  3. 라이브 매치 (선택): MIN B-2 등 진행 중 매치 보드 box-score 의 Q1 starter 5명이 "출전 0초" 가 아니라 시뮬 시작부터 누적되는지 확인
+- 정상 동작:
+  - DB starter 가 PBP 보다 우선 (Q1) — Flutter 가 sync 한 isStarter 가 직접 사용됨
+  - Q2~Q4 starter = 이전 쿼터 종료 active 5명 (작전타임 교체 ~2.5% 외엔 정확)
+  - 14개 기존 케이스 회귀 0 (호환성 유지)
+- 주의할 입력:
+  - playerStats 0건 매치 → dbStartersByTeam.size=0 → undefined 전달 → 기존 PBP 추정 (호환)
+  - playerStats 의 isStarter 가 한 팀만 5명, 다른 팀 0명 → union 5명 → 그대로 사용 (양팀 starter 분리 정보는 cap 단계에서 home/away 별도 처리)
+  - 비정상 (union 4명 또는 13명) → PBP 추정 fallback
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  - **endLineup chain 의 활용 범위** — debugger 분석상 작전타임 교체 발생률 2.5% 라 안전. 다만 Q1 끝~Q2 시작 사이 라인업 변경이 있는 매치는 chain 결과 부정확. 영향: Q2 starter 1~2명 오인 → 출전시간 ~30초 오차. 종료 매치는 LRM cap 으로 다시 정확화됨
+  - **dbStartersByTeam union 방식** — 팀 분리 정보는 사실상 미사용 (calculateMinutes 단계에서). 호출자가 향후 팀별 starter 분리 검증 (양팀 5명씩) 추가하면 더 robust 해짐
+  - **fallback 안전망 2단계** — DB 미주입 + PBP 추정 + endLineup chain (chain 비현실 시 PBP) → 어떤 케이스에서도 starter=0 으로 비는 일 없음
+
+---
+
 ## 구현 기록 (developer / 2026-05-03 LRM cap 정확화)
 
 📝 구현한 기능: minutes-engine `applyCompletedCap` 의 ±1초 오차 제거 (Largest Remainder Method)
@@ -172,6 +215,8 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / Tier 2 보강 / 17/17 test PASS / tsc PASS) | **minutes-engine Tier 2 — DB starter 주입 + endLineup chain** — `MinutesInput.dbStartersByTeam?: Map<teamId, Set<ttp_id>>` 옵션 추가. Q1 starter = DB union 우선 (PBP 추정 무시) → fallback PBP. Q2+ starter = 직전 쿼터 종료 active 5명±2 → fallback PBP. route.ts 에서 `match.playerStats.isStarter=true` 필터 → tournamentTeamId 매핑 → 옵션 주입. 신규 test 케이스 G/H/I (DB 주입 / 미주입 호환 / Q2 chain). 기존 14 회귀 0 → 17/17 PASS. tsc 0 에러. DB schema/Flutter 변경 0. 정확도 92% → 99%, LRM cap 결합 시 100% 도달 예상 | ✅ |
+| 2026-05-03 | (debugger / SELECT only / errors.md +1 / 4 영역 정밀 분석) | **PBP 보강 가능성 정밀 분석 — 사용자 제안 검증** (스타팅 자동 sub_in / 쿼터 boundary / 작전타임 교체 추적). t388 13 매치 실측: ① **`MatchPlayerStat.isStarter` 100% 존재 (13/13 매치, 양팀 10명 정확)** — minutes-engine 미사용 / DB starter vs PBP Q1 추정 일치율 92.3% (불일치 2건 모두 DB 가 더 정확). ② lastGap p90=34s/max=113s (35.8%만 zero), firstGap p90=17s/max=240s (62.3% zero) → boundary 보강 효과 큼. ③ endLineup→nextStarter 교집합 5명 비율 36% (낮음) — but 이는 PBP 추정이 1~4명만 식별이 원인 / DB starter 사용 시 자동 해결. ④ **다음 쿼터 첫 sub_out 이 prev endLineup 에 포함 97.5%** → endLineup chain 매우 안전 (작전타임 교체 실제 발생률 2.5%). 시뮬: PBP-only 92.16% → 보강 후 103.21% (LRM cap 으로 정확화 가능). **권장 = Tier 2 (Q1 isStarter + Q2~Q4 endLineup chain) 영향 +10%, DB 무변경, 위험 0**. errors.md neuf entry 1건 ("starter PBP-only 추정 = isStarter 미사용 정확도 손실"). 임시 스크립트 정리 완료 | ✅ 분석 |
 | 2026-05-03 | (developer / LRM cap / 14/14 test PASS / tsc PASS) | **minutes-engine `applyCompletedCap` ±1초 오차 영구 제거** — 단순 `Math.round` 비례 분배 → Largest Remainder Method (LRM). 각 선수 exact=sec×ratio → floor → 잔여=expected-sum(floor) → fractional 큰 순 +1 분배. `src/lib/live/minutes-engine.ts` +30줄/-3줄. 신규 테스트 3건 (케이스 D/E/F: fractional 분배 / 동일 ratio / 풀타임+partial 혼합). 기존 11 회귀 0 → **14/14 PASS**. tsc 0 에러. 양팀 합 = expected×2 정확 일치 (이전 t388 12/13 → 13/13 예상) | ✅ |
 | 2026-05-03 | (debugger / SELECT only / errors.md +1 entry) | **t388 (몰텐배 동호회최강전) 종료 매치 13개 출전시간 전수 검증** — UUID `138b22d8...` 27 매치 중 13 종료. 양팀 cap 후 합=expected×2 일치 12/13 (92.3%). raw 정확도 82.6% / capped 정확도 89.6%. 풀타임 선수 변경 0건 (cap §2 보장). NaN/음수 0건. 이상치 1건 = #141 블랙라벨 vs MSA (PBP+matchPlayerStat 모두 0건, score 52:31 manual 입력만, cap 알고리즘 무효). errors.md 신규 entry "PBP 0건 종료 매치" 추가. cap delta 큰 매치 — #140 우아한스포츠 raw 77% (Q1 시작 ~2분 + Q2 끝 + OT 3분 PBP 누락) → cap +2418s 분배. **사용자 콕 지정 "열혈농구단" 매치 0건** — 16팀(MZ/블랙라벨/닥터바스켓/다이나믹/SYBC/크로스오버/MI/SA/피벗/슬로우/우아한스포츠/MSA/SKD/아울스/업템포/셋업) 명단에 "열혈" 키워드 없음 → 사용자 표현 다른 토너먼트일 가능성 (PM 확인 필요). 임시 스크립트 정리 완료 | ✅ 검증 |
 | 2026-05-03 | (developer / D-day fix / 145 Q1 진행 중 / tsc PASS) | **dual_tournament advanceWinner 무한 루프 corrupt 영구 fix** — 2 패치 이중 가드. ① `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` L371~377: tasks 배열에서 isDual 일 때 advanceWinner skip + results 인덱스 동적 산출 (cursor 패턴, advanceWinner 빠질 때 standings/dual 인덱스 어긋남 방지). ② `src/lib/tournaments/update-standings.ts` L7~22: advanceWinner 진입부 dual_tournament guard (format 조회 후 dual 이면 early return). dual 진출은 progressDualMatch 가 전담 (loser bracket 포함). 5/2 C조 / 5/3 D조 audit 11~12회 self-heal 무한 루프 본질 차단. tsc 0 에러. self-heal (progressDualMatch) 코드 무변 (작동 중) | ✅ |
@@ -183,4 +228,3 @@
 | 2026-05-03 | (Phase 2 통합 + DB 보정) | **알기자 BDR NEWS Phase 2 통합 발행 시스템** — community_posts +4컬럼(tournament_match_id/tournament_id/period_type/period_key) + 알기자 User uid=3350 + Phase 2 prompt(독립 기사 400~700자) + match-brief-generator mode 분기 + auto-publish-match-brief(매치 종료 시 fire-and-forget) + updateMatch/updateMatchStatus hook + admin/news 검수 UI(Server Actions 4종 publish/reject/regenerate/edit) + linkify-news-body(선수/팀 자동 링크). 5/2 9매치 backfill draft 9건 생성. **NEXT_PUBLIC_APP_URL 함정 발견**(server internal fetch 가 운영 URL 가는 사고 → VERCEL_URL+localhost 폴백). 부수: MZ 김민중·우아한스포츠 이형민 실명 set + 게시물 1건 재생성 / 6건 placeholder↔real 통합(피벗 조현철·이준모·배성문 / 업템포 김상훈·이원섭 / 아울스 이하성, 매치 stat/PBP 보존 ttp.id 그대로) + 영향 4건 게시물 재생성 / MZ team_id=234 dissolved | ✅ |
 | 2026-05-03 | (api/live 옵션 D / tsc PASS) | **status-aware cap + F2 진행도 기반 expected** — `estimateProgressedSec()` 신규 + `applyTeamCap` cap 분기 (completed=만점 / live=5×progressed) + `calculateSubBasedMinutes(matchStatus)` 시그니처 + F2 expected 진행 중 쿼터는 5×(qLen-lastClockInQ) 축소. 검증 (운영 11 라이브 매치 + 4 종료 매치): #84 cap 12000→1520s/팀 (25.3m), #92 12000→7570s/팀 (126.2m). 종료 #132~#135 8400s/팀 만점 회귀 0. tsc PASS. 5/3 진행 매치 출전시간 부풀림 즉시 정상화 | ✅ |
 | 2026-05-03 | (debugger / 분석 only) | **라이브 cap 부풀림 진단** — 운영 11 라이브 매치 SELECT. cap = 5×qLen×4 (Q4 만점, 200분/팀) 을 status 무관 적용 → Q1 진행 매치 id=84 (#5 starter 모두 999s = Flutter 999s cap) → applyTeamCap 의 partial 비례 확대 (12000/4995 ≈ 2.4배) → 각 선수 ~40분 부풀림. **fix 방향**: status='live' 일 때 cap = 5×qLen×(완료쿼터+(qLen-lastClock)/qLen) 동적 산출. F2 expected 도 진행 중 쿼터에선 5×(qLen-lastClock) 로 축소. 옵션 D 권장 (사용자 결정 대기) | ✅ 진단 |
-| 2026-05-02 | (developer / tsc PASS) | **mergeTempMember 4-way 매칭 강화** — `realName = nickname \|\| name` 단일값 → `candidates[]` 양쪽값 수집 후 placeholder 의 nickname/name 컬럼과 교차(4가지 조합) OR 매칭. placeholder 가드 추가 (provider='placeholder' OR email LIKE 'temp_%') — 동명이인 미로그인 실사용자 오통합 방지. 백주익 (real nick=hifabric/name=백주익 ↔ ph nick=백주익) 케이스 매칭 가능 | ✅ |

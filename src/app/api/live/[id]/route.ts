@@ -134,10 +134,29 @@ export async function GET(
       subInId: p.sub_in_player_id ?? null,
       subOutId: p.sub_out_player_id ?? null,
     }));
+    // 2026-05-03 Tier 2: DB starter 주입 (MatchPlayerStat.isStarter 활용).
+    //   왜: PBP 만으로 Q1 starter 추정 시 92~93% 정확. Flutter 가 매치 시작 시 양팀 5명씩
+    //        is_starter=true 로 sync 하므로 이 데이터를 직접 주입하면 Q1 100% 정확.
+    //   매핑: ttp_id → tournamentTeamId (palyerStats include 의 tournamentTeamPlayer 통해)
+    //   formatting: Map<teamId, Set<ttp_id>> — minutes-engine 이 union 후 사용.
+    const dbStartersByTeam = new Map<bigint, Set<bigint>>();
+    for (const s of match.playerStats) {
+      if (s.isStarter !== true) continue;
+      const teamId = s.tournamentTeamPlayer?.tournamentTeamId;
+      if (teamId == null) continue;
+      let set = dbStartersByTeam.get(teamId);
+      if (!set) {
+        set = new Set();
+        dbStartersByTeam.set(teamId, set);
+      }
+      set.add(s.tournamentTeamPlayerId);
+    }
     const { bySec: pbpMinutesBySec, byQuarterSec: pbpMinutesByQ } = calculateMinutes({
       pbps: minutesEngineInput,
       qLen: minutesQL,
       numQuarters: minutesQs,
+      // 비어있을 때(0개) 는 undefined 와 동일 효과 (engine 내부 size===0 가드 처리)
+      dbStartersByTeam: dbStartersByTeam.size > 0 ? dbStartersByTeam : undefined,
     });
 
     // 2026-05-03 옵션 C: 종료 매치만 풀타임 보호 cap 적용.
