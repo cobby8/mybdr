@@ -4,7 +4,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { LinkifyNewsBody, type LinkifyEntry } from "@/lib/news/linkify-news-body";
+import { LinkifyNewsBody } from "@/lib/news/linkify-news-body";
+// 2026-05-04: 헬퍼 분리 (community/news/match/admin 3곳 일관성) — buildLinkifyEntries
+import { buildLinkifyEntries } from "@/lib/news/build-linkify-entries";
 
 export const dynamic = "force-dynamic";
 
@@ -67,76 +69,34 @@ export default async function NewsMatchDetailPage({
     })
     .catch(() => {});
 
-  // 매치 정보 + 출전 선수 + 양 팀 (LinkifyEntry 빌드)
-  const match = await prisma.tournamentMatch.findUnique({
-    where: { id: matchIdBig },
-    select: {
-      id: true,
-      match_number: true,
-      group_name: true,
-      roundName: true,
-      scheduledAt: true,
-      homeScore: true,
-      awayScore: true,
-      tournament: { select: { id: true, name: true } },
-      homeTeam: {
-        select: {
-          team: { select: { id: true, name: true, logoUrl: true } },
-          players: {
-            where: { is_active: true },
-            select: {
-              userId: true,
-              jerseyNumber: true,
-              player_name: true,
-              users: { select: { id: true, name: true, nickname: true } },
-            },
+  // 매치 사이드바 정보 (얕은 select — players 미포함, linkify 는 헬퍼로 별도 처리)
+  // 2026-05-04: linkify 인라인 코드 → buildLinkifyEntries 헬퍼로 통합 (community/news/match/admin 3곳 일관)
+  const [match, linkifyEntries] = await Promise.all([
+    prisma.tournamentMatch.findUnique({
+      where: { id: matchIdBig },
+      select: {
+        id: true,
+        match_number: true,
+        group_name: true,
+        roundName: true,
+        scheduledAt: true,
+        homeScore: true,
+        awayScore: true,
+        tournament: { select: { id: true, name: true } },
+        homeTeam: {
+          select: {
+            team: { select: { id: true, name: true, logoUrl: true } },
+          },
+        },
+        awayTeam: {
+          select: {
+            team: { select: { id: true, name: true, logoUrl: true } },
           },
         },
       },
-      awayTeam: {
-        select: {
-          team: { select: { id: true, name: true, logoUrl: true } },
-          players: {
-            where: { is_active: true },
-            select: {
-              userId: true,
-              jerseyNumber: true,
-              player_name: true,
-              users: { select: { id: true, name: true, nickname: true } },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  // LinkifyEntries 빌드
-  const linkifyEntries: LinkifyEntry[] = [];
-  if (match) {
-    for (const tt of [match.homeTeam, match.awayTeam]) {
-      if (!tt) continue;
-      if (tt.team) {
-        linkifyEntries.push({
-          name: tt.team.name,
-          href: `/teams/${tt.team.id}`,
-          type: "team",
-        });
-      }
-      const seen = new Set<string>();
-      for (const p of tt.players) {
-        if (!p.userId) continue;
-        const name = (p.users?.name || p.player_name || p.users?.nickname || "").trim();
-        if (name.length >= 2 && !seen.has(name)) {
-          seen.add(name);
-          linkifyEntries.push({
-            name,
-            href: `/users/${p.userId}`,
-            type: "player",
-          });
-        }
-      }
-    }
-  }
+    }),
+    buildLinkifyEntries(matchIdBig).catch(() => []),
+  ]);
 
   const homeName = match?.homeTeam?.team?.name ?? "홈";
   const awayName = match?.awayTeam?.team?.name ?? "어웨이";
