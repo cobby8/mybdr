@@ -2,6 +2,25 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-03] minutes-engine B 옵션 채택 — PBP 추정 fallback 격리 + 메인 path 명확화
+- **분류**: decision (코드 정리 옵션 / 안전망 vs 가독성 균형)
+- **결정자**: PM + 사용자 (5/3 D-day 동안 7회 보강 후 정리 시점)
+- **참조횟수**: 0
+- **배경**: 5/3 D-day 동안 minutes-engine 7회 보강 후 코드가 메인 path + fallback 혼재 → 가독성 저하. calculateMinutes 본체 191줄 (절반 이상이 PBP 추정 fallback). 정리 옵션 3개 검토.
+- **거부된 옵션**:
+  - **A1 (PBP 추정 fallback 완전 제거)**: isStarter 누락 매치 발생 시 starter=0 으로 시작 → 양팀 출전시간 0초 위험. DB 데이터 100% 입력 보장 못함 → 거부
+  - **A2 (제거 + 풀타임 안전 fallback)**: PBP 추정보다 단순하나 starter 식별 정확도 ↓. raw 정확도 회귀 위험
+- **채택 옵션 B**: PBP 추정 fallback 별도 헬퍼 함수 격리 + 메인 path 명확화 + 알고리즘 설계 문서 주석
+  - **사유**: 시간 정확도 최우선, 안전망 유지 + 가독성 향상 균형
+- **결과**:
+  - `inferStartersFromPbp(qPbps)` 헬퍼 분리 (PBP-only fallback 전용, "fallback only" 명시)
+  - `calculateMinutes` 본체 191→133줄 (-58줄, -30%)
+  - 메인 path 4단계 (#1 DB / #2 chain / #3 boundary / #4 LRM cap) 인라인 주석 명확화
+  - 파일 헤더 알고리즘 설계 문서 주석 +22줄 추가
+  - 동작 변경 0 (회귀 0) — vitest 20/20 PASS (당시), 후속 endLineup 가드 fix 후 21/21
+- **확장 가능성**: 향후 PBP 추정 룰 변경/실험 시 `inferStartersFromPbp` 만 수정. 메인 path 와 분리되어 회귀 위험 낮음
+- **참조 커밋**: 72aa643
+
 ### [2026-05-02] 매치 코드 신규 체계 v3 — `{T}-[XY]-{NNN}` 7~10자 (다음 세션 진입점)
 - **분류**: decision (DB schema / 매치 식별 체계 / 미구현 — 계획 확정)
 - **결정자**: pm + 사용자 (계획 v1 → v2 간소화 → v3 정정)

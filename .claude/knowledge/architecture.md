@@ -2,6 +2,22 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-03] minutes-engine v3 — 출전시간 계산 엔진 메인 path 4단계 구조 확정
+- **분류**: architecture (live 페이지 / 출전시간 알고리즘 / Flutter 의존성 격리)
+- **발견자**: developer + debugger (사용자 제안 검증 후 채택, 5/3 D-day 동안 7회 보강)
+- **참조횟수**: 0
+- **위치**: `src/lib/live/minutes-engine.ts` (333줄, 333은 +8 헤더 주석 포함) + `src/__tests__/lib/live/minutes-engine.test.ts` (test 21건) + `src/app/api/live/[id]/route.ts` (`dbStartersByTeam` Map 주입)
+- **메인 path 4단계** (calculateMinutes 본체 133줄):
+  1. **Q1 starter** = `MatchPlayerStat.isStarter` (Flutter 가 sync, DB 100% 입력 — t388 13/13, 열혈 9/9 매치 양팀 5+5 정확)
+  2. **Q2~ starter** = endLineup chain (직전 쿼터 시뮬 종료 active set, 작전타임 교체 ~2.5% 외 정확)
+  3. **Boundary 강제**: starter firstSegment = qLen (첫 PBP clock < qLen 이라도 풀 시작) / 다음 쿼터 PBP 존재 시 endClock=0 강제 (lastGap 회복)
+  4. **LRM cap (종료 매치만)**: Largest Remainder Method — exact = sec×ratio → floor → 잔여 = expected - sum(floor) → fractional 큰 순 +1 분배 → 양팀 합 = expected×2 정확 일치
+- **Fallback**: `inferStartersFromPbp(qPbps)` 헬퍼 분리 — PBP-only 추정 (sub_in 받은 적 없는 + sub_out 등장한 + 첫 sub 이전 등장한 union). 메인 path 가드 fail 시만 발동 (실측 0회).
+- **가드 일관성**: DB starter union 가드 (L131) `>=5 && <=12` + endLineup chain 가드 (L196) `>=5 && <=12` 모두 양팀 union 기준 통일 (단일팀 기준 사용 금지 — 5/3 저녁 fix d3984db).
+- **정확도**: 종료 100% (LRM cap) / 라이브 ~99% (메인 path 4단계) / Unit test 21/21 PASS / Fallback 발동 0회
+- **B 옵션 리팩토링 효과** (72aa643): 알고리즘 설계 헤더 주석 +22줄 / `inferStartersFromPbp` 헬퍼 격리 / `calculateMinutes` 본체 191→133줄 (-30%) / 동작 변경 0
+- **참조 커밋**: 7ea0174 (LRM) / 678a875 (Tier 2 chain) / 133d0de (Tier 3 boundary) / 72aa643 (B 옵션 리팩토링) / d3984db (가드 union)
+
 ### [2026-05-03] 알기자 BDR NEWS Phase 2 — 게시판 'news' 통합 발행 시스템
 - **분류**: architecture (LLM 기자봇 / community 게시판 통합 / admin 검수)
 - **발견자**: pm + 사용자 결정 8건 (Q1~Q8)
