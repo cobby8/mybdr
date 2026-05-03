@@ -327,38 +327,44 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 2026-05-03: 제목 행 — 좌측 제목(.page-hero) / 우측 컨트롤 묶음 (View toggle + 검색 + 필터) */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 12,
-        }}
-      >
-        <div className="page-hero" style={{ marginBottom: 0 }}>
-          <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
-          <h1 className="page-hero__title">대회</h1>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          {controlsNode}
-        </div>
+      {/* 2026-05-03: 제목 단독 행 — 컨트롤은 V2TournamentList toolbar prop 으로 탭 우측에 배치 */}
+      <div className="page-hero">
+        <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
+        <h1 className="page-hero__title">대회</h1>
       </div>
 
-      {/* 본문 — list / calendar / week 뷰 분기 (controlsNode 는 위 헤더에 단일 mount) */}
+      {/* 본문 — list / calendar / week 뷰 분기 */}
       {viewMode === "calendar" ? (
-        <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        <>
+          {/* calendar/week 뷰는 탭이 없으므로 컨트롤 별도 우측 정렬 */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
+            {controlsNode}
+          </div>
+          <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        </>
       ) : viewMode === "week" ? (
-        <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        <>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
+            {controlsNode}
+          </div>
+          <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+        </>
       ) : loading ? (
         <TournamentGridSkeleton />
       ) : (
@@ -374,6 +380,7 @@ export function TournamentsContent({
                 : "등록된 대회가 없습니다."
             }
             counts={v2TabCounts}
+            toolbar={controlsNode}
           />
           <LoadMoreButton
             hasMore={hasMore}

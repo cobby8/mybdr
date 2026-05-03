@@ -446,6 +446,8 @@ interface V2TournamentListProps {
   onTabChange: (tab: V2MatchTab) => void;
   emptyMessage?: string;
   counts?: Partial<Record<V2MatchTab, number>>;
+  // 2026-05-03: 탭 우측에 렌더할 toolbar (View toggle + 검색 + 필터) — KindTabBar 와 동일 패턴
+  toolbar?: React.ReactNode;
 }
 
 export function V2TournamentList({
@@ -455,37 +457,52 @@ export function V2TournamentList({
   onTabChange,
   emptyMessage,
   counts,
+  toolbar,
 }: V2TournamentListProps) {
   const shown = tournaments;
 
   return (
     <div>
-      {/* 2026-05-03: 4상태 탭 — 경기 카테고리 KindTabBar 와 동일한 .games-segmented 클래스 재사용 */}
-      <div className="games-segmented" role="tablist" style={{ marginBottom: 16 }}>
-        {V2_MATCH_TABS.map((tab) => {
-          const isActive = activeTab === tab;
-          const count = counts?.[tab];
-          return (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              aria-pressed={isActive}
-              onClick={() => onTabChange(tab)}
-              className={
-                isActive
-                  ? "games-segmented__btn is-active"
-                  : "games-segmented__btn"
-              }
-            >
-              <span className="games-segmented__label">{tab}</span>
-              {count !== undefined && count > 0 && (
-                <span className="games-segmented__count">{count}</span>
-              )}
-            </button>
-          );
-        })}
+      {/* 2026-05-03: .games-toolbar 패턴 — segmented 좌측 fill + toolbar 우측 고정 */}
+      <div className="games-toolbar">
+        <div className="games-segmented" role="tablist">
+          {V2_MATCH_TABS.map((tab) => {
+            const isActive = activeTab === tab;
+            const count = counts?.[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-pressed={isActive}
+                onClick={() => onTabChange(tab)}
+                className={
+                  isActive
+                    ? "games-segmented__btn is-active"
+                    : "games-segmented__btn"
+                }
+              >
+                <span className="games-segmented__label">{tab}</span>
+                {count !== undefined && count > 0 && (
+                  <span className="games-segmented__count">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {toolbar && (
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            {toolbar}
+          </div>
+        )}
       </div>
 
       {/* 카드 그리드: 데스크톱 2열, 모바일 1열 */}

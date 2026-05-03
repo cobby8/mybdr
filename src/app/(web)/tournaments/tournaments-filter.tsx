@@ -221,19 +221,18 @@ export function TournamentsFilter({
 
   return (
     <div className="flex items-center gap-2">
-      {/* 검색 아이콘 버튼 (클릭 시 검색창 토글) */}
+      {/* 검색 아이콘 버튼 (클릭 시 검색창 토글) — 2026-05-03 모바일 28px / 데스크톱 36px (옵션 A) */}
       <button
         type="button"
         onClick={() => setShowSearch((prev) => !prev)}
-        className="flex h-9 w-9 items-center justify-center rounded-full transition-colors"
+        className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full transition-colors"
         style={{
           backgroundColor: showSearch ? "var(--color-primary)" : "var(--color-accent)",
-          // 배경이 테마에 따라 바뀌므로, 텍스트 색상도 대응하는 on-* 변수로 자동 전환
           color: showSearch ? "var(--color-on-primary)" : "var(--color-on-accent)",
         }}
         title="검색"
       >
-        <span className="material-symbols-outlined text-lg">search</span>
+        <span className="material-symbols-outlined text-base sm:text-lg">search</span>
       </button>
 
       {/* 검색 input: 토글 시 표시 */}
