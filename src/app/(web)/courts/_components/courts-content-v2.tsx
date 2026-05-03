@@ -310,30 +310,21 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
   return (
     <div className="max-w-[1200px] mx-auto">
       {/* ─── 시안 헤더 ─── */}
+      {/* 2026-05-03 (Hero 공통화): 텍스트 블록 → .page-hero__* (모바일 압축 룰). */}
       <div
         style={{
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
-          marginBottom: 16,
           gap: 16,
           flexWrap: "wrap",
         }}
+        className="page-hero"
       >
         <div>
-          <div className="eyebrow">코트 · COURTS</div>
-          <h1
-            style={{
-              margin: "6px 0 4px",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-              color: "var(--ink)",
-            }}
-          >
-            등록 코트 {stats.total}곳
-          </h1>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+          <div className="eyebrow page-hero__eyebrow">코트 · COURTS</div>
+          <h1 className="page-hero__title">등록 코트 {stats.total}곳</h1>
+          <div className="page-hero__subtitle">
             실내 {stats.indoor} · 실외 {stats.outdoor} · 필터 결과 {filtered.length}개
           </div>
         </div>

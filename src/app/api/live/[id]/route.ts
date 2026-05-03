@@ -998,6 +998,9 @@ export async function GET(
         // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부 (프론트 안내 배너 + "—" 처리용)
         // apiSuccess가 camelCase → snake_case 변환하므로 클라이언트는 has_quarter_event_detail로 수신
         hasQuarterEventDetail,
+        // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing 플래그)
+        // 운영자 sync 누락 매치 (#141 블랙라벨 vs MSA 등) — 박제 stat 만 입력 + 출전시간 0 표시
+        timeDataMissing: ((match.settings as Record<string, unknown> | null)?.timeDataMissing as boolean | undefined) ?? false,
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",
