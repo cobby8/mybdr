@@ -43,9 +43,9 @@ export async function PostDetailSidebar({
 }: PostDetailSidebarProps) {
   // 자기 자신 게시글이면 팔로우 버튼 숨김
   const isOwnPost = currentUserId ? BigInt(currentUserId) === authorId : false;
-  // 작성자의 게시글 수 조회
+  // 작성자의 게시글 수 조회 (published 만 카운트)
   const authorPostCount = await prisma.community_posts.count({
-    where: { user_id: authorId },
+    where: { user_id: authorId, status: "published" },
   }).catch(() => 0);
 
   // 작성자의 댓글 수 조회
@@ -53,8 +53,10 @@ export async function PostDetailSidebar({
     where: { user_id: authorId },
   }).catch(() => 0);
 
-  // 실시간 인기글: 최근 게시글 중 조회수 높은 것 3개
+  // 실시간 인기글: 최근 게시글 중 조회수 높은 것 3개 (published 만)
+  // 2026-05-04: status 필터 추가 — draft/rejected 인기글 노출 방지
   const trendingPosts = await prisma.community_posts.findMany({
+    where: { status: "published" },
     orderBy: { view_count: "desc" },
     take: 3,
     select: {

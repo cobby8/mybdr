@@ -119,9 +119,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     }));
 
-    // 커뮤니티 게시글: 삭제되지 않은 게시글 (public_id 기반 URL)
+    // 커뮤니티 게시글: published 게시글만 (draft/rejected/deleted 모두 SEO 인덱싱 제외)
+    // 2026-05-04: 알기자 draft 7건 SEO 인덱싱 방지 (5/4 backfill 사고 박제)
     const posts = await prisma.community_posts.findMany({
-      where: { status: { not: "deleted" } },
+      where: { status: "published" },
       select: { public_id: true, updated_at: true },
       orderBy: { updated_at: "desc" },
       take: 500,
