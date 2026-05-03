@@ -74,11 +74,13 @@ const CATEGORY_LABEL: Record<string, string> = {
   qna:         "질문답변",
   notice:      "공지사항",
   marketplace: "농구장터",
+  news:        "BDR NEWS", // 2026-05-03: 알기자 (BDR NEWS AI) Phase 2
 };
 
 // 카테고리 → 그룹 (헤더 eyebrow 표시용)
 const CATEGORY_TO_GROUP: Record<string, "메인" | "플레이" | "이야기"> = {
   notice:      "메인",
+  news:        "메인", // 2026-05-03: 알기자 BDR NEWS
   general:     "메인",
   recruit:     "플레이",
   review:      "플레이",
