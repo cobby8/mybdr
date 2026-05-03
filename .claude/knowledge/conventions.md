@@ -1,6 +1,34 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] community_posts 사용자 노출 query 4단계 status 필터 의무 — 검수 카테고리 도입 시 점검 룰
+- **분류**: convention (보안 / 검수 흐름 / 사용자 노출 query)
+- **발견자**: pm (5/4 알기자 draft 7건 무단 노출 사고 후속 박제)
+- **위치**: `src/app/api/web/community/route.ts` (list) + `src/app/(web)/community/[id]/page.tsx` (상세) + `src/app/(web)/community/[id]/_components/post-detail-sidebar.tsx` (작성자 글 수 + 인기글) + `src/app/sitemap.ts` (SEO) — 4 파일 모두 `where.status = "published"` 필수
+- **규칙**: `community_posts.findMany / findUnique / count / groupBy` 사용 시 사용자 노출 query 는 **반드시 status 필터 명시** (`status: "published"` 또는 `status === "published"` 검사). admin actions 외 모든 사용자 노출 query 적용.
+  - **admin actions 예외** (status 필터 X 정상): `actions/admin-news.ts`, `actions/admin-community.ts`, `(admin)/admin/community/page.tsx`, `(admin)/admin/news/page.tsx` (모두 검수 도구라 draft/rejected 조회 의무)
+  - **이미 정상 적용 위치** (참고용): `nav-badges/route.ts`, `feed/route.ts`, `search/route.ts`, `(web)/news/page.tsx`, `(web)/news/match/[id]/page.tsx` 모두 `status: "published"` 명시
+- **검수 카테고리 도입 시 4단계 점검** (회귀 방지 체크리스트):
+  1. **INSERT status**: 자동 생성/일괄 INSERT 시 `status="draft"` 명시 (검수 흐름 탑승)
+  2. **list filter**: 사용자 노출 list query 에 `where.status = "published"` 명시
+  3. **상세 filter**: 직접 URL 접근 (`(web)/community/[id]/page.tsx` 등) 에서 `status !== "published"` 시 notFound (deleted 만 차단 X)
+  4. **sitemap filter**: SEO 인덱싱 query 에서 `status: "published"` 명시 (draft 인덱싱 방지)
+- **점검 명령**: 검수 흐름 도입 전 grep `community_posts\.(findMany|findUnique|count|groupBy)` → status 필터 부재 query 일괄 fix
+- **사고 사례**: 5/4 알기자 backfill 7건 (post 1373~1379) status=draft 정상 INSERT 후 BDR NEWS 카테고리에 모두 노출 → 사용자 직접 보고 → 4 파일 일괄 fix (commit `05677ed`)
+- **참조횟수**: 0
+
+### [2026-05-04] 알기자 (BDR NEWS) 본문 노출 위치 = LinkifyNewsBody 의무 사용 — 헬퍼 buildLinkifyEntries 통합
+- **분류**: convention (LLM 기자봇 / 본문 렌더링 / 일관성)
+- **발견자**: pm (5/4 사용자 보고 — admin 미리보기에는 자동 링크 적용되는데 community 본문에는 안 됨)
+- **위치**: `src/lib/news/build-linkify-entries.ts` (헬퍼) + 호출처 3곳 (`(web)/community/[id]/page.tsx`, `(web)/news/match/[matchId]/page.tsx`, `(admin)/admin/news/page.tsx`)
+- **규칙**: 알기자 게시물 (category=news + tournament_match_id 보유) 본문 렌더링 위치 모두 `LinkifyNewsBody` 의무 사용. plain text 렌더링 (split/p) 금지. 일반 게시물은 기존 split/p 그대로.
+- **헬퍼 시그니처**:
+  - `buildLinkifyEntries(matchId: bigint): Promise<LinkifyEntry[]>` — 단일 매치 (community/news/match 페이지)
+  - `buildLinkifyEntriesBatch(matchIds: bigint[]): Promise<Map<string, LinkifyEntry[]>>` — N개 매치 (admin/news 일괄, N+1 query 방지)
+- **사유**: 5/3 LinkifyNewsBody 신설 시 community/[id]/page.tsx 통합 누락 → admin/news 미리보기 + news/match deep link 두 곳에만 적용 → 일관성 부재 + 사용자 본문에서 링크 못 봄. 헬퍼 분리로 3곳 일관성 보장 + 향후 추가 노출 위치도 헬퍼 호출만으로 정합.
+- **알기자 게시물 식별**: `post.category === "news" && !!post.tournament_match_id` (안전 가드 — 외부 글이 news 카테고리일 가능성 0이지만 명시).
+- **참조횟수**: 0
+
 ### [2026-05-03] minutes-engine 가드 범위 — 양팀 union 기준 통일
 - **분류**: convention (live / minutes-engine / 가드 일관성)
 - **발견자**: debugger (5/3 저녁 라이브 매치 #147 양팀 합 -17%p 손실 분석 중)
