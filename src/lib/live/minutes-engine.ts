@@ -160,3 +160,56 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
 
   return { bySec: result, byQuarterSec: resultByQ };
 }
+
+// 종료 매치 cap (풀타임 보호) — 2026-05-03 옵션 C
+//
+// 왜 필요:
+//   PBP-only 엔진은 sub 누락/지연 입력 케이스에서 한 팀 합이 만점(qLen×numQ×5)
+//   미달 가능 (예: #132 home 137:40 / 만점 140:00). 종료 매치는 만점이 확정값이므로
+//   cap 으로 정확화한다.
+//
+// 핵심 원칙:
+//   1. 라이브 매치 cap X (호출자가 status='completed' 일 때만 호출)
+//   2. 풀타임 선수 sec 절대 변경 X (sub 0건 = qLen×numQ 만점)
+//   3. 풀타임 외 선수만 비례 분배로 cap 매칭
+//
+// 입력:
+//   bySec       — 한 팀 선수들의 sec map (호출자가 home/away 로 분리 후 호출)
+//   expected    — 한 팀 코트시간 합 (qLen × numQuarters × 5)
+//   qLen        — 쿼터 길이 (풀타임 임계값 산출)
+//   numQuarters — 쿼터 수 (풀타임 임계값 산출)
+//
+// 동작: bySec in-place 수정 (Map mutation)
+export function applyCompletedCap(
+  bySec: Map<bigint, number>,
+  expected: number,
+  qLen: number,
+  numQuarters: number,
+): void {
+  // 풀타임 임계값: qLen×numQ - 5초 (sub 미세 오차 흡수)
+  const fullTimeThreshold = qLen * numQuarters - 5;
+
+  // 풀타임 / 풀타임 외 분리
+  let fullTimeSum = 0;
+  let partialSum = 0;
+  const partialIds: bigint[] = [];
+  for (const [id, sec] of bySec) {
+    if (sec >= fullTimeThreshold) {
+      fullTimeSum += sec; // 풀타임 — 변경 X
+    } else {
+      partialSum += sec;
+      partialIds.push(id);
+    }
+  }
+
+  // 풀타임 외 선수에게 분배 가능한 잔여 sec
+  const remainingForPartial = expected - fullTimeSum;
+  // edge case: 풀타임 합이 expected 초과/동일 또는 partial 0 → cap 적용 무의미 (그대로)
+  if (remainingForPartial <= 0 || partialSum <= 0) return;
+
+  // 비례 적용 (현재 partial sec 기준 ratio)
+  const ratio = remainingForPartial / partialSum;
+  for (const id of partialIds) {
+    bySec.set(id, (bySec.get(id) ?? 0) * ratio);
+  }
+}
