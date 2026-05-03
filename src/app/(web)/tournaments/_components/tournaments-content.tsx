@@ -327,27 +327,30 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 2026-05-03: 제목 행 — 좌측 제목(.page-hero) / 우측 컨트롤 묶음 (View toggle + 검색 + 필터) */}
+      {/* 2026-05-03: 제목 행 — 좌측 제목(.page-hero) / 우측 컨트롤 묶음 한 줄 (모바일 wrap 금지) */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: 12,
-          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 8,
           marginBottom: 12,
+          minWidth: 0,
         }}
       >
-        <div className="page-hero" style={{ marginBottom: 0 }}>
+        <div
+          className="page-hero"
+          style={{ marginBottom: 0, flex: "1 1 auto", minWidth: 0 }}
+        >
           <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
           <h1 className="page-hero__title">대회</h1>
         </div>
         <div
           style={{
             display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
+            gap: 8,
             alignItems: "center",
+            flexShrink: 0,
           }}
         >
           {controlsNode}
