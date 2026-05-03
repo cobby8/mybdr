@@ -59,6 +59,11 @@ export async function GET(request: NextRequest) {
       where.category = { in: preferredCategories };
     }
 
+    // 2026-05-04: status 필터 — 사용자 노출은 published 만 (draft/rejected/deleted 숨김)
+    // - 알기자 (BDR NEWS) Phase 2 흐름 = INSERT status=draft → admin/news 검수 → publish
+    // - 본 필터 부재 시 draft 게시물이 검수 전 사용자 노출 (5/4 backfill 7건 사고 박제)
+    where.status = "published";
+
     // 검색어가 있으면 제목 + 본문에서 검색 (대소문자 무시)
     if (q) {
       where.OR = [

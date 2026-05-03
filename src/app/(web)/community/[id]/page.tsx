@@ -108,7 +108,10 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
     getPost(id),
     getWebSession(),
   ]);
-  if (!post || post.status === "deleted") return notFound();
+  // 2026-05-04: published 만 노출 (draft/rejected/deleted 모두 차단)
+  // 알기자 (BDR NEWS) Phase 2 흐름 = INSERT status=draft → admin/news 검수 → publish
+  // 직접 URL 접근으로 draft 노출 방지 (5/4 backfill 7건 사고 박제)
+  if (!post || post.status !== "published") return notFound();
 
   // 카페 크롤링 글쓴이 우선, 없으면 users 테이블
   const displayNickname = post.author_nickname || post.users?.nickname || "익명";
