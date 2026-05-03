@@ -310,20 +310,38 @@ export async function generateMatchBrief(
   const systemPrompt =
     mode === "phase2-match" ? ALKIJA_PHASE2_MATCH_PROMPT : ALKIJA_SYSTEM_PROMPT;
 
-  // LLM 호출 — 네트워크 에러 / API 키 미설정 모두 catch
-  let raw: string;
-  try {
-    const userPrompt = buildUserPrompt(input, mode);
-    raw = await generateText(systemPrompt, userPrompt);
-  } catch (e) {
-    const reason = e instanceof Error ? e.message : "LLM 호출 실패";
-    return { ok: false, reason };
-  }
+  // 2026-05-04: validate fail 시 retry 1회 (LLM 비결정성으로 다른 응답 받을 가능성)
+  // 사례: 매치 #88 첫 호출 "땀" 키워드 reject → 두번째 호출 정상 brief 150자 (5/4 backfill 재시도 검증).
+  // hallucination 키워드 11종은 엄격 유지 — retry 만 추가해서 false positive 완화.
+  const MAX_ATTEMPTS = 2;
+  const userPrompt = buildUserPrompt(input, mode);
+  let raw = "";
+  let lastReason = "";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // LLM 호출 — 네트워크 에러 / API 키 미설정 모두 catch
+    try {
+      raw = await generateText(systemPrompt, userPrompt);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "LLM 호출 실패";
+      // 네트워크/키 에러는 재시도 무의미 — 즉시 반환
+      return { ok: false, reason };
+    }
 
-  // 검증 — mode 별 길이 한도 다름 (validate-brief 내부에서 분기 처리)
-  const v = validateBrief(raw, input, mode);
-  if (!v.valid) {
-    return { ok: false, reason: `검증 실패: ${v.reason}` };
+    // 검증 — mode 별 길이 한도 다름 (validate-brief 내부에서 분기 처리)
+    const v = validateBrief(raw, input, mode);
+    if (v.valid) {
+      lastReason = "";
+      break;
+    }
+    lastReason = v.reason;
+    if (attempt < MAX_ATTEMPTS) {
+      console.warn(
+        `[brief] match=${input.matchId} mode=${mode} attempt=${attempt} validate fail: ${v.reason} — retry`,
+      );
+    }
+  }
+  if (lastReason) {
+    return { ok: false, reason: `검증 실패 (${MAX_ATTEMPTS}회 시도): ${lastReason}` };
   }
 
   // 캐시 저장

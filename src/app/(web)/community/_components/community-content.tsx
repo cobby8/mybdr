@@ -44,6 +44,9 @@ interface PostFromApi {
   author_nickname: string;
   author_profile_image: string | null;   // 작성자 프로필 이미지 URL (현재 v2 board 테이블에서는 미사용)
   content_preview: string;               // 본문 미리보기 (현재 v2 board 테이블에서는 미사용)
+  // 2026-05-04: 알기자 (BDR NEWS) 카드 썸네일 — Hero 사진 우선, news 카테고리만 채워짐
+  // SSR fallback (community/page.tsx) 호환 위해 optional
+  thumbnail_url?: string | null;
 }
 
 interface CommunityApiResponse {
@@ -152,6 +155,10 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
   const [preferredCategories, setPreferredCategories] = useState<string[]>([]);
   const [initialLoadDone, setInitialLoadDone] = useState(!!fallbackPosts);
   const [currentPage, setCurrentPage] = useState(1);
+  // 2026-05-04 (5차 fix): games 헤더 패턴 차용 — 검색/정렬을 아이콘 토글로.
+  // searchOpen / sortOpen 으로 펼침 panel 표시. 기본은 닫힘 (Hero 압축 효과).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
 
   // 정렬 상태 — 클라이언트 사이드 (시안 4종)
   const [sortKey, setSortKey] = useState<SortKey>("latest");
@@ -294,6 +301,44 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
   // (현재 설계는 선호 카테고리 토글 UI는 헤더 영역에 두지 않음 — 전역 컨텍스트가 담당)
   void preferredCategories;
 
+  /* Hero 우측 액션 영역 — 검색 / 정렬 / 만들기 3 아이콘 (games 헤더 패턴 차용).
+     2026-05-04 (5차 fix): 사용자 요청 "games 페이지처럼 우측 상단에 3개 아이콘".
+     - 검색: 토글 → searchOpen 시 .page-hero 직후 input row 펼침
+     - 정렬: 토글 → sortOpen 시 .page-hero 직후 sort-bar-mobile-wrap 펼침
+     - 만들기: Link (PC/모바일 동일 "+ 만들기")
+     클래스: .games-filter-btn (검색/정렬 32×32 정사각형) + .games-create-btn (만들기). */
+  const renderHeaderActions = () => (
+    <div
+      className="community-header__actions"
+      style={{ display: "flex", gap: 8, alignItems: "center" }}
+    >
+      <button
+        type="button"
+        className={`games-filter-btn${searchOpen ? " is-open" : ""}`}
+        onClick={() => setSearchOpen((o) => !o)}
+        aria-label="검색"
+        aria-expanded={searchOpen}
+        title="검색"
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">search</span>
+      </button>
+      <button
+        type="button"
+        className={`games-filter-btn${sortOpen ? " is-open" : ""}`}
+        onClick={() => setSortOpen((o) => !o)}
+        aria-label="정렬"
+        aria-expanded={sortOpen}
+        title="정렬"
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">swap_vert</span>
+      </button>
+      <Link href="/community/new" className="btn btn--primary games-create-btn">
+        <span className="material-symbols-outlined" aria-hidden="true">add</span>
+        <span>만들기</span>
+      </Link>
+    </div>
+  );
+
   return (
     <div className="page">
       <div className="with-aside">
@@ -305,15 +350,15 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
 
         {/* 우측 메인: 헤더 + 카테고리 탭(모바일) + 정렬 바 + 게시글 테이블 + 페이저 */}
         <main>
-          {/* 1. 헤더 — eyebrow + 제목 + 글 수 + 검색 + 글쓰기.
-              2026-05-03: 인라인 style → .page-hero 공통 클래스 (모바일 압축, 가시성 우선). */}
+          {/* 1. 헤더 — eyebrow + 제목 + 글 수 + 우측 actions(검색/정렬/만들기 3 아이콘).
+              2026-05-04 (5차 fix): games 헤더 패턴 차용 — grid 1fr auto 로 좌측 title / 우측 actions.
+              인라인 flex+wrap 폐기 (4차 옵션 B의 wrap 본질 영구 차단). */}
           <div
             style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: 16,
-              flexWrap: "wrap",
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              alignItems: "start",
+              columnGap: 12,
             }}
             className="page-hero"
           >
@@ -327,59 +372,54 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
               </div>
             </div>
 
-            {/* 검색 + 글쓰기 — 시안과 동일하게 우측 상단 */}
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <form
-                onSubmit={handleSearch}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "8px 10px",
-                  background: "var(--bg-elev)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-chip)",
-                }}
-              >
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 16, color: "var(--ink-dim)" }}
-                >
-                  search
-                </span>
-                <input
-                  className="input"
-                  style={{
-                    border: 0,
-                    padding: 0,
-                    background: "transparent",
-                    width: 180,
-                    fontSize: 13,
-                  }}
-                  placeholder="게시판 내 검색"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </form>
-              <Link href="/community/new" className="btn btn--primary">
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
-                글쓰기
-              </Link>
-            </div>
+            {/* 우측 액션 — 검색 / 정렬 / 만들기 3 아이콘 (games 패턴) */}
+            {renderHeaderActions()}
           </div>
 
-          {/* 2. 모바일 카테고리 가로 탭 — 2026-05-03 위치 이동 (사이드바 → "전체 N개의 글" 직전).
-              이유: 사용자 보고 — 카테고리가 본문에서 멀어 사용자가 첫 글 직전에 분류를 바꾸기 어려움.
-              .aside-mobile-tabs 는 lg+ 에서 CSS 미디어쿼리로 자동 숨김 → 데스크톱 영향 0. */}
-          <CommunityMobileTabs
-            activeCategory={category}
-            onSelect={handleCategoryChange}
-          />
+          {/* 검색 펼침 row — searchOpen 시에만. 검색 아이콘 토글 결과. */}
+          {searchOpen && (
+            <form
+              onSubmit={handleSearch}
+              className="community-search-row"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "8px 10px",
+                background: "var(--bg-elev)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-chip)",
+                marginBottom: 10,
+              }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16, color: "var(--ink-dim)", flexShrink: 0 }}
+              >
+                search
+              </span>
+              <input
+                className="input"
+                style={{
+                  flex: 1,
+                  border: 0,
+                  padding: 0,
+                  background: "transparent",
+                  fontSize: 13,
+                  minWidth: 0,
+                }}
+                placeholder="게시판 내 검색"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+            </form>
+          )}
 
-          {/* 3. 정렬 바 — 4종 토글 + 우측 "한 페이지 N개" 캡션.
-              2026-05-03: 인라인 style → .sort-bar-mobile (가로 스크롤 + 4px accent 인디케이터).
-              2026-05-04 (3차 fix): wrap 래퍼 + fade overlay 추가 (카테고리 탭과 동일 패턴 — mask 만으로
-              시각 신호 약해 사용자 인지 실패). lg+ 는 globals.css 에서 wrap 숨김. */}
+          {/* 2. 정렬 바 — 4종 토글 + 우측 "한 페이지 N개" 캡션.
+              2026-05-04 (5차 fix): sortOpen 조건부 렌더 — 정렬 아이콘 클릭 시에만 펼침.
+              기본 hidden 으로 Hero 직후 빈공간 최소화 (사용자 요청 "games 페이지처럼 컴팩트"). */}
+          {sortOpen && (
           <div className="sort-bar-mobile-wrap">
             <div className="sort-bar-mobile">
               <span style={{ color: "var(--ink-dim)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
@@ -422,8 +462,17 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
               <span className="material-symbols-outlined">chevron_right</span>
             </div>
           </div>
+          )}
 
-          {/* 3. 게시글 테이블 — 로딩/빈상태/정상 분기 */}
+          {/* 3. 모바일 카테고리 가로 탭 — 2026-05-04 위치 swap (사용자 요청).
+              이유: "정렬 바 → 카테고리 탭 → 첫 게시글" 순서가 첫 게시글 직전 분류 변경에 가장 자연스러움.
+              .aside-mobile-tabs 는 lg+ 에서 CSS 미디어쿼리로 자동 숨김 → 데스크톱 영향 0. */}
+          <CommunityMobileTabs
+            activeCategory={category}
+            onSelect={handleCategoryChange}
+          />
+
+          {/* 4. 게시글 테이블 — 로딩/빈상태/정상 분기 */}
           {loading ? (
             <BoardSkeleton />
           ) : posts.length === 0 ? (
@@ -514,7 +563,23 @@ function PostRow({ post, pinned, num }: { post: PostFromApi; pinned?: boolean; n
       {/* 제목 칸 — 배지/이미지/제목/댓글수/N뱃지 */}
       <div className="title" data-label="제목">
         {pinned && <span className="badge badge--blue">공지</span>}
-        {/* has_image: DB 미지원 → 항상 false (TODO: thumbnail_url 컬럼 추가 시 활성) */}
+        {/* 2026-05-04: 알기자 (BDR NEWS) Hero 사진 썸네일 — news 카테고리 + 사진 1장 이상 시 노출 */}
+        {post.thumbnail_url && (
+          <img
+            src={post.thumbnail_url}
+            alt=""
+            loading="lazy"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 4,
+              objectFit: "cover",
+              verticalAlign: "middle",
+              marginRight: 6,
+              border: "1px solid var(--color-border)",
+            }}
+          />
+        )}
         <span>{decodeHtmlEntities(post.title)}</span>
         {post.comments_count > 0 && (
           <span className="comment-count">[{post.comments_count}]</span>

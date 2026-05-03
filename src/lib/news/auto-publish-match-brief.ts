@@ -46,6 +46,28 @@ type BriefRouteResponse = {
   reason?: string;
 };
 
+/**
+ * 2026-05-04: silent fail 모니터링 — news_publish_attempts 테이블에 결과 기록.
+ * 본 흐름 영향 0 (기록 실패도 catch + console.warn).
+ */
+async function recordAttempt(
+  matchId: bigint,
+  phase: "phase1-section" | "phase2-match",
+  status: "success" | "skipped" | "failed",
+  reason: string | null = null,
+): Promise<void> {
+  try {
+    await prisma.news_publish_attempt.create({
+      data: { match_id: matchId, phase, status, reason },
+    });
+  } catch (e) {
+    console.warn(
+      `[news_publish_attempt] record fail (match=${matchId} phase=${phase}):`,
+      e instanceof Error ? e.message : e,
+    );
+  }
+}
+
 // brief route 호출 헬퍼 — mode 별 응답 파싱
 async function fetchBrief(
   matchId: bigint,
@@ -76,8 +98,11 @@ async function fetchBrief(
 /**
  * Phase 1 — 라이브 페이지 [Lead] 요약 생성 + tournament_matches.summary_brief UPDATE
  * 즉시 노출 (검수 X). 매치당 1회.
+ *
+ * export 사유: admin/news 의 "요약 재생성" 액션 (regenerateSummaryBriefAction) 에서 호출.
+ * 자동 트리거 흐름은 triggerMatchBriefPublish() 사용.
  */
-async function publishPhase1Summary(matchId: bigint): Promise<void> {
+export async function publishPhase1Summary(matchId: bigint): Promise<void> {
   try {
     // 1. 멱등성 — 이미 summary_brief 있으면 skip
     const match = await prisma.tournamentMatch.findUnique({
@@ -86,22 +111,28 @@ async function publishPhase1Summary(matchId: bigint): Promise<void> {
     });
     if (!match) {
       console.warn(`[auto-publish:phase1] match=${matchId} 없음`);
+      await recordAttempt(matchId, "phase1-section", "failed", "match_not_found");
       return;
     }
     if (match.status !== "completed") {
       console.log(
         `[auto-publish:phase1] match=${matchId} status=${match.status} (not completed) — skip`,
       );
+      await recordAttempt(matchId, "phase1-section", "skipped", `not_completed: ${match.status}`);
       return;
     }
     if (match.summary_brief) {
       console.log(`[auto-publish:phase1] match=${matchId} summary_brief 이미 존재 — skip`);
+      await recordAttempt(matchId, "phase1-section", "skipped", "already_exists");
       return;
     }
 
     // 2. brief route 호출 — Phase 1 mode (라이브 페이지 1 섹션, 150~250자)
     const result = await fetchBrief(matchId, "phase1-section");
-    if (!result) return;
+    if (!result) {
+      await recordAttempt(matchId, "phase1-section", "failed", "brief_route_failed");
+      return;
+    }
 
     // 3. tournament_matches.summary_brief UPDATE
     await prisma.tournamentMatch.update({
@@ -118,11 +149,11 @@ async function publishPhase1Summary(matchId: bigint): Promise<void> {
     console.log(
       `[auto-publish:phase1] match=${matchId} summary_brief UPDATE ✅ (${result.brief.length}자)`,
     );
+    await recordAttempt(matchId, "phase1-section", "success", `${result.brief.length}자`);
   } catch (e) {
-    console.error(
-      `[auto-publish:phase1] match=${matchId} 예외:`,
-      e instanceof Error ? e.message : e,
-    );
+    const reason = e instanceof Error ? e.message : String(e);
+    console.error(`[auto-publish:phase1] match=${matchId} 예외:`, reason);
+    await recordAttempt(matchId, "phase1-section", "failed", `exception: ${reason}`);
   }
 }
 
@@ -141,6 +172,7 @@ async function publishPhase2MatchBrief(matchId: bigint): Promise<void> {
       console.log(
         `[auto-publish:phase2] match=${matchId} 이미 community_post 존재 (id=${existing.id}) — skip`,
       );
+      await recordAttempt(matchId, "phase2-match", "skipped", `already_exists: post=${existing.id}`);
       return;
     }
 
@@ -151,12 +183,14 @@ async function publishPhase2MatchBrief(matchId: bigint): Promise<void> {
     });
     if (!match) {
       console.warn(`[auto-publish:phase2] match=${matchId} 없음`);
+      await recordAttempt(matchId, "phase2-match", "failed", "match_not_found");
       return;
     }
     if (match.status !== "completed") {
       console.log(
         `[auto-publish:phase2] match=${matchId} status=${match.status} (not completed) — skip`,
       );
+      await recordAttempt(matchId, "phase2-match", "skipped", `not_completed: ${match.status}`);
       return;
     }
 
@@ -167,12 +201,16 @@ async function publishPhase2MatchBrief(matchId: bigint): Promise<void> {
     });
     if (!alkija) {
       console.error(`[auto-publish:phase2] 알기자 User 없음 (email=${ALKIJA_EMAIL})`);
+      await recordAttempt(matchId, "phase2-match", "failed", "alkija_user_not_found");
       return;
     }
 
     // 4. brief route 호출 — Phase 2 mode (독립 기사, 400~700자, 제목+본문)
     const result = await fetchBrief(matchId, "phase2-match");
-    if (!result) return;
+    if (!result) {
+      await recordAttempt(matchId, "phase2-match", "failed", "brief_route_failed");
+      return;
+    }
 
     // 5. community_posts INSERT (draft)
     const created = await prisma.community_posts.create({
@@ -195,11 +233,16 @@ async function publishPhase2MatchBrief(matchId: bigint): Promise<void> {
     console.log(
       `[auto-publish:phase2] match=${matchId} community_post draft 생성 ✅ (post_id=${created.id}, title="${result.title}", brief=${result.brief.length}자)`,
     );
-  } catch (e) {
-    console.error(
-      `[auto-publish:phase2] match=${matchId} 예외:`,
-      e instanceof Error ? e.message : e,
+    await recordAttempt(
+      matchId,
+      "phase2-match",
+      "success",
+      `post=${created.id} title_len=${(result.title ?? "").length} brief_len=${result.brief.length}`,
     );
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    console.error(`[auto-publish:phase2] match=${matchId} 예외:`, reason);
+    await recordAttempt(matchId, "phase2-match", "failed", `exception: ${reason}`);
   }
 }
 
