@@ -300,6 +300,99 @@ describe("calculateMinutes — PBP-only 출전시간 엔진", () => {
     expect(byQuarterSec.get(ID(5))?.get(2) ?? 0).toBe(0);
     expect(bySec.get(ID(5))).toBe(300); // Q1 만
   });
+
+  // 2026-05-03 Tier 3 — starter 첫 segment = qLen 강제 + lastGap 보정 (케이스 J/K)
+  it("케이스 J (Tier 3): 첫 PBP clock=414 (qLen=420 기준 6초 늦음) → starter 5명 모두 풀타임 420s", () => {
+    // 시나리오: 라이브 매치에서 운영자가 쿼터 시작 직후 PBP 입력을 6초 늦게 시작.
+    //   첫 PBP clock=414 < qLen=420.
+    //   sub 0건 → starter 5명은 쿼터 처음~끝 풀타임 (다음 쿼터 PBP 존재 → 종료된 쿼터)
+    //   기대: starter 5명 모두 sec=420 (qLen 풀타임), firstGap 6초 손실 0
+    const QLEN_J = 420;
+    const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
+    const pbps: MinutesPbp[] = [
+      // Q1 첫 PBP — 5명 모두 clock=414 (6초 늦음)
+      { ttpId: ID(1), quarter: 1, clock: 414, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(2), quarter: 1, clock: 414, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(3), quarter: 1, clock: 414, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(4), quarter: 1, clock: 414, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(5), quarter: 1, clock: 414, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // Q1 끝 (clock=0 까지 입력 정상)
+      { ttpId: ID(1), quarter: 1, clock: 0, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // Q2 시작 PBP 1건만 — 다음 쿼터 PBP 존재 신호 (Q1 종료된 쿼터로 간주됨)
+      { ttpId: ID(1), quarter: 2, clock: QLEN_J, type: "shot", subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const { bySec, byQuarterSec } = calculateMinutes({ pbps, qLen: QLEN_J, numQuarters: 4 });
+
+    // Tier 3 핵심: starter 5명 모두 Q1 = 420s 풀타임 (firstGap 6초 손실 0)
+    for (const id of starters) {
+      expect(byQuarterSec.get(id)?.get(1)).toBe(QLEN_J);
+    }
+    // 5명 합 = 5 × 420 = 2100s = 35:00 (이전 동작이었으면 ±0 동일하지만 lastGap 누락 시 34:30)
+    let totalQ1 = 0;
+    for (const id of starters) totalQ1 += byQuarterSec.get(id)?.get(1) ?? 0;
+    expect(totalQ1).toBe(5 * QLEN_J); // 정확히 35:00
+    // bySec 도 동일 (Q1 만 누적, Q2 는 endLineup chain 으로 풀타임 또 받지만 케이스 J 는 Q1 검증)
+    for (const id of starters) {
+      expect(bySec.get(id)).toBeGreaterThanOrEqual(QLEN_J); // Q1 풀타임 이상
+    }
+  });
+
+  it("케이스 K (Tier 3): 마지막 PBP clock=4 + 다음 쿼터 PBP 존재 → 마지막 4초 active 5명 누적", () => {
+    // 시나리오: Q1 마지막 PBP clock=4 (lastGap 4초 운영자 입력 누락).
+    //   다음 쿼터 (Q2) PBP 존재 → Q1 종료된 쿼터로 간주 → endClock=0 강제
+    //   기대: 마지막 4초 active 5명 모두 +4s 추가 누적
+    const QLEN_K = 600;
+    const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
+    const pbps: MinutesPbp[] = [
+      // Q1 starter 5명 정상 풀타임 (시작 clock=qLen, 끝 clock=4)
+      { ttpId: ID(1), quarter: 1, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(2), quarter: 1, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(3), quarter: 1, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(4), quarter: 1, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(5), quarter: 1, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // Q1 마지막 PBP clock=4 (4초 lastGap 누락)
+      { ttpId: ID(1), quarter: 1, clock: 4, type: "shot", subtype: null, subInId: null, subOutId: null },
+      // Q2 시작 PBP — Q1 종료 신호
+      { ttpId: ID(1), quarter: 2, clock: QLEN_K, type: "shot", subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const { byQuarterSec } = calculateMinutes({ pbps, qLen: QLEN_K, numQuarters: 4 });
+
+    // Tier 3 lastGap 보정: 마지막 4초까지 누적 → starter 5명 모두 Q1 = 600s 풀타임
+    // (이전 동작이었으면 endClock=4 → 596s)
+    for (const id of starters) {
+      expect(byQuarterSec.get(id)?.get(1)).toBe(QLEN_K); // 600s 정확 (596s 가 아님)
+    }
+  });
+
+  it("케이스 K-2 (Tier 3 회귀 방지): 마지막 쿼터 라이브 진행 중 → endClock 보존 (cap 부풀림 방지)", () => {
+    // 시나리오: 마지막 쿼터 (Q4) 진행 중 — clock=200 까지만 PBP. 다음 쿼터 PBP 없음.
+    //   기대: Q4 endClock=200 유지 (라이브 진행도만 누적, 0 으로 강제 X)
+    //   이 케이스가 깨지면 라이브 매치 부풀림 재발 (5/3 새벽 옵션 D fix 회귀)
+    const QLEN_K2 = 600;
+    const starters = [ID(1), ID(2), ID(3), ID(4), ID(5)];
+    const pbps: MinutesPbp[] = [
+      // Q1~Q3 각각 풀타임 정상 (전 쿼터 PBP)
+      ...makeQuarterStarters(1, starters, QLEN_K2),
+      ...makeQuarterStarters(2, starters, QLEN_K2),
+      ...makeQuarterStarters(3, starters, QLEN_K2),
+      // Q4 진행 중 — 시작 clock=qLen, 마지막 clock=200 (400초 진행, 200초 잔여)
+      { ttpId: ID(1), quarter: 4, clock: QLEN_K2, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(2), quarter: 4, clock: QLEN_K2, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(3), quarter: 4, clock: QLEN_K2, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(4), quarter: 4, clock: QLEN_K2, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(5), quarter: 4, clock: QLEN_K2, type: "shot", subtype: null, subInId: null, subOutId: null },
+      { ttpId: ID(1), quarter: 4, clock: 200, type: "shot", subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const { byQuarterSec } = calculateMinutes({ pbps, qLen: QLEN_K2, numQuarters: 4 });
+
+    // Q4 = 600 - 200 = 400s (진행도만, 600s 풀타임 X)
+    for (const id of starters) {
+      expect(byQuarterSec.get(id)?.get(4)).toBe(400); // 라이브 진행도 보존
+    }
+  });
 });
 
 // 2026-05-03 옵션 C — 종료 매치 cap (풀타임 보호) 테스트
