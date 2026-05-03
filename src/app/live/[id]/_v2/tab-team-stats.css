@@ -155,12 +155,34 @@
 
 .tts-bar {
   height: 100%;
+  /* 기본 색은 fallback (모디파이어 미적용 회귀 방지) */
   background: var(--cafe-blue);
   border-radius: 2px;
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, opacity 0.3s ease;
   flex-shrink: 0;
   /* 막대가 폭 0 일 때도 최소 노출 (디자인 가시성) */
   min-width: 2px;
+}
+
+/* 2026-05-04 옵션 C 색 분리 — 좌우 시각 구별 (사용자 보고 "스틸 2:2 도 동일색이라 구별 X" fix) */
+/* HOME = BDR Red (accent) — 좌측 */
+.tts-bar--home {
+  background: var(--accent);
+}
+
+/* AWAY = cafe-blue (기존 유지) — 우측 */
+.tts-bar--away {
+  background: var(--cafe-blue);
+}
+
+/*
+  시각 약화 — count 항목 합 ≤ 2 (블록 1 vs 0 같은 극단값) 또는 양쪽 0 일 때.
+  왜 opacity 0.4:
+    - 통계적 의미가 약한 데이터 (블록 1개로 풀폭 = 비현실적) 를 시각적으로 톤다운
+    - 색은 유지 (HOME/AWAY 구별 보존) + 채도만 낮춰 사용자가 "이 항목은 의미 약함" 인지
+*/
+.tts-bar--weak {
+  opacity: 0.4;
 }
 
 /* 수치 — 막대 끝에 inline. winner 큰 폰트, loser 약간 작게 */
