@@ -2552,16 +2552,20 @@ html.dark {
 
 /* Compact "만들기" 버튼 — title block 우측 */
 .games-create-btn {
-  align-self: end;
-  padding: 8px 12px;
+  /* 2026-05-04: 필터 버튼(.games-filter-btn)과 동일한 height 로 통일 — 시각 정렬 */
+  align-self: center;
+  padding: 0 10px;
   font-size: 13px;
   font-weight: 700;
-  height: 36px;
+  height: 32px;
   white-space: nowrap;
   border-radius: 4px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+.games-create-btn .material-symbols-outlined {
+  font-size: 16px;
 }
 
 /* ---------- Toolbar (segmented tabs + filter icon) ---------- */
@@ -2623,10 +2627,11 @@ html.dark {
 
 /* Filter icon button — 토글 (chips 영역 펼침/접힘) */
 .games-filter-btn {
+  /* 2026-05-04: 만들기 버튼(.games-create-btn)과 동일 height 통일 */
   position: relative;
   flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2712,12 +2717,13 @@ html.dark {
   .games-header__sub { font-size: 12px; }
 
   .games-create-btn {
-    align-self: start;
-    margin-top: 2px;
-    height: 36px;
-    padding: 0 12px;
-    font-size: 13px;
-    min-width: 44px;
+    /* 2026-05-04: 모바일도 필터 버튼 높이와 통일 */
+    align-self: center;
+    margin-top: 0;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    min-width: 0;
   }
 
   .games-segmented__btn {
@@ -2727,7 +2733,7 @@ html.dark {
   }
   .games-segmented__count { font-size: 10px; }
 
-  .games-filter-btn { width: 36px; height: 36px; }
+  .games-filter-btn { width: 32px; height: 32px; }
 
   .games-grid {
     grid-template-columns: 1fr;
