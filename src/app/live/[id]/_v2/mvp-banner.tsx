@@ -148,16 +148,17 @@ export function MvpBanner({ mvp, match }: { mvp: MvpPlayerV2; match: MatchDataV2
               <div
                 role="tooltip"
                 style={{
+                  // 2026-05-03: 모바일 잘림 fix — ? 버튼 우측 정렬 (right:0)
                   position: "absolute",
                   top: "calc(100% + 8px)",
-                  left: 0,
+                  right: 0,
                   zIndex: 30,
                   background: "var(--bg)",
                   border: "1px solid var(--border)",
                   borderRadius: 6,
                   padding: "12px 14px",
                   boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
-                  width: "min(360px, 90vw)",
+                  width: "min(340px, calc(100vw - 32px))",
                   fontSize: 12,
                   color: "var(--ink)",
                   lineHeight: 1.5,
@@ -166,12 +167,12 @@ export function MvpBanner({ mvp, match }: { mvp: MvpPlayerV2; match: MatchDataV2
                   pointerEvents: "auto",
                 }}
               >
-                {/* 화살표 */}
+                {/* 화살표 — ? 버튼 위치 기준 우측 상단 */}
                 <div
                   style={{
                     position: "absolute",
                     top: -6,
-                    left: 50,
+                    right: 12,
                     width: 10,
                     height: 10,
                     background: "var(--bg)",
@@ -191,8 +192,11 @@ export function MvpBanner({ mvp, match }: { mvp: MvpPlayerV2; match: MatchDataV2
                   BDR Game Score
                 </div>
                 <div style={{ marginBottom: 8, color: "var(--ink-mute)" }}>
-                  NBA John Hollinger 의 GameScore 공식 단순화. 한 선수의 종합
-                  활약을 1개 숫자로. 승팀 선수 중 1위가 GAME MVP.
+                  미국 NBA 의 통계학자 John Hollinger 가 만든 GameScore 공식을
+                  바탕으로 한 지표예요. 득점·야투 효율·리바운드·어시스트 등
+                  주요 기록을 종합해 한 선수의 활약을 하나의 숫자로 보여줍니다.
+                  승리한 팀에서 가장 높은 점수를 기록한 선수가 게임 MVP 로
+                  선정돼요.
                 </div>
                 <code
                   style={{
