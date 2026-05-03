@@ -44,7 +44,7 @@ interface TeamsApiResponse {
 
 // 페이지당 팀 수 — 시안은 auto-fill 그리드라 고정 열 수가 없지만
 // 260px min × 4~5열 × 2~3행 기준 12장이 적정.
-const TEAMS_PER_PAGE = 12;
+const TEAMS_PER_PAGE = 36; // 2026-05-03: 최초 노출 3배 확대 (12→36)
 
 // A-1: 정렬 옵션 정의 (label/value). API 의 sort 화이트리스트와 1:1 매칭.
 const SORT_OPTIONS: { label: string; value: "wins" | "newest" | "members" }[] = [
