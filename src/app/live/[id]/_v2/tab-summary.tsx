@@ -395,12 +395,49 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
     match.venue_name,
   ].filter((v): v is string => Boolean(v && v.length > 0));
 
-  // Stats 4 카드 (점수차/쿼터 승/총 득점/리드체인지)
+  // 2026-05-03: Stats 4 카드 변경 (사용자 요청)
+  // - 점수차 → "최대점수차" (한때 가장 벌어진 차이, leader 함께)
+  // - 쿼터승 (의미 모호) → "최고 쿼터" (한 쿼터 최고 폭격 — 승부처 강조)
+  const qs2 = match.quarter_scores;
+  // 단일 쿼터 최고 득점 산출
+  let bestQTeam = "";
+  let bestQLabel = "";
+  let bestQPts = 0;
+  if (qs2) {
+    const arr = [
+      { team: match.home_team.name, label: "Q1", pts: qs2.home.q1 },
+      { team: match.home_team.name, label: "Q2", pts: qs2.home.q2 },
+      { team: match.home_team.name, label: "Q3", pts: qs2.home.q3 },
+      { team: match.home_team.name, label: "Q4", pts: qs2.home.q4 },
+      ...qs2.home.ot.map((v, i) => ({
+        team: match.home_team.name,
+        label: `OT${i + 1}`,
+        pts: v,
+      })),
+      { team: match.away_team.name, label: "Q1", pts: qs2.away.q1 },
+      { team: match.away_team.name, label: "Q2", pts: qs2.away.q2 },
+      { team: match.away_team.name, label: "Q3", pts: qs2.away.q3 },
+      { team: match.away_team.name, label: "Q4", pts: qs2.away.q4 },
+      ...qs2.away.ot.map((v, i) => ({
+        team: match.away_team.name,
+        label: `OT${i + 1}`,
+        pts: qs2.away.ot[i] ?? 0,
+      })),
+    ];
+    for (const q of arr) {
+      if (q.pts > bestQPts) {
+        bestQPts = q.pts;
+        bestQTeam = q.team;
+        bestQLabel = q.label;
+      }
+    }
+  }
+
   const summaryBlocks = [
-    { l: "점수차", v: `${scoreDiff}점` },
+    { l: "최대점수차", v: maxLead > 0 ? `${maxLead}점` : `${scoreDiff}점` },
     {
-      l: "쿼터 승",
-      v: totalQuarters > 0 ? `${winnerName} ${winnerQuarters}` : "—",
+      l: "최고 쿼터",
+      v: bestQPts > 0 ? `${bestQTeam} ${bestQLabel} ${bestQPts}점` : "—",
     },
     { l: "총 득점", v: `${homeTotal + awayTotal}점` },
     { l: "리드 체인지", v: leadChanges > 0 ? `${leadChanges}회` : "—" },
