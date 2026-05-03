@@ -40,6 +40,8 @@ interface Props {
   publishAction: (id: bigint) => Promise<ActionResult>;
   rejectAction: (id: bigint) => Promise<ActionResult>;
   regenerateAction: (id: bigint) => Promise<ActionResult>;
+  // 2026-05-04: Phase 1 (라이브 페이지 [Lead] 요약) 재생성 액션
+  regenerateSummaryAction: (matchId: bigint) => Promise<ActionResult>;
   editAction: (
     id: bigint,
     data: { title?: string; content?: string },
@@ -53,6 +55,7 @@ export function AdminNewsContent({
   publishAction,
   rejectAction,
   regenerateAction,
+  regenerateSummaryAction,
   editAction,
 }: Props) {
   const router = useRouter();
@@ -90,6 +93,10 @@ export function AdminNewsContent({
   const handleRegenerate = (id: string) => {
     if (!confirm("재생성하시겠습니까? (기존 게시물 삭제 + LLM 새로 호출, 30~60초 소요)")) return;
     handleAction(() => regenerateAction(BigInt(id)), "재생성 완료");
+  };
+  const handleRegenerateSummary = (matchId: string) => {
+    if (!confirm("라이브 페이지 요약을 재생성하시겠습니까? (LLM 재호출, 본기사 영향 X)")) return;
+    handleAction(() => regenerateSummaryAction(BigInt(matchId)), "요약 재생성 완료");
   };
   const handleEditStart = (post: NewsPost) => {
     setEditTitle(post.title);
@@ -281,8 +288,19 @@ export function AdminNewsContent({
                       disabled={isPending}
                       className="rounded border border-[var(--color-border)] px-4 py-2 text-sm disabled:opacity-50"
                     >
-                      🔄 재생성
+                      🔄 본기사 재생성
                     </button>
+                    {/* 2026-05-04: Phase 1 (라이브 페이지 [Lead] 요약) 재생성 — 본기사와 독립 */}
+                    {selected.tournament_match_id && (
+                      <button
+                        onClick={() => handleRegenerateSummary(selected.tournament_match_id!)}
+                        disabled={isPending}
+                        className="rounded border border-[var(--color-border)] px-4 py-2 text-sm disabled:opacity-50"
+                        title="라이브 페이지 [Lead] 요약 재생성 (본기사 영향 X)"
+                      >
+                        📝 요약 재생성
+                      </button>
+                    )}
                     {selected.tournament_match_id && (
                       <Link
                         href={`/live/${selected.tournament_match_id}`}

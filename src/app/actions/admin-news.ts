@@ -12,10 +12,14 @@
 // 권한: getWebSession + isAdmin 검증
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { invalidateBriefCache } from "@/lib/news/match-brief-generator";
-import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
+import {
+  triggerMatchBriefPublish,
+  publishPhase1Summary,
+} from "@/lib/news/auto-publish-match-brief";
 
 async function requireAdmin(): Promise<bigint> {
   const session = await getWebSession();
@@ -89,6 +93,46 @@ export async function regenerateNewsAction(id: bigint): Promise<{ ok: boolean; e
     await triggerMatchBriefPublish(post.tournament_match_id);
 
     revalidatePath("/admin/news");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "ERROR" };
+  }
+}
+
+/**
+ * 2026-05-04: Phase 1 (라이브 페이지 [Lead] 요약) 재생성 액션.
+ * tournament_matches.summary_brief = null 초기화 + 캐시 무효화 + publishPhase1Summary 재호출.
+ * Phase 2 (community_post) 와 독립 — 본기사는 그대로 유지.
+ */
+export async function regenerateSummaryBriefAction(
+  matchId: bigint,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+
+    const match = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: { id: true, status: true },
+    });
+    if (!match) return { ok: false, error: "MATCH_NOT_FOUND" };
+    if (match.status !== "completed") {
+      return { ok: false, error: `NOT_COMPLETED (status=${match.status})` };
+    }
+
+    // 1. 기존 summary_brief null 로 초기화 (publishPhase1Summary 의 멱등성 우회)
+    await prisma.tournamentMatch.update({
+      where: { id: matchId },
+      data: { summary_brief: Prisma.JsonNull },
+    });
+
+    // 2. LLM 캐시 무효화 (Phase 1 캐시도 같이 정리 — 메모리 instance 별)
+    invalidateBriefCache(Number(matchId));
+
+    // 3. 재생성 (await — 결과 보장)
+    await publishPhase1Summary(matchId);
+
+    revalidatePath("/admin/news");
+    revalidatePath(`/live/${matchId}`);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "ERROR" };

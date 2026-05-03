@@ -614,6 +614,8 @@ model TournamentMatch {
   audits                                                               tournament_match_audits[]
   // 2026-05-04: 알기자 기사 사진 (Phase 1 = 운영자 수동 업로드, Phase 2 = EXIF 반자동 매핑 큐)
   news_photos                                                          news_photo[]
+  // 2026-05-04: 알기자 자동 발행 시도 기록 — silent fail 모니터링
+  news_publish_attempts                                                news_publish_attempt[]
   tournament_teams_tournament_matches_winner_team_idTotournament_teams TournamentTeam?           @relation("tournament_matches_winner_team_idTotournament_teams", fields: [winner_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_2fcdbd557c")
   homeTeam                                                             TournamentTeam?           @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_3dae6e19e5")
   users                                                                User?                     @relation(fields: [mvp_player_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_5e679cd202")
@@ -2934,4 +2936,34 @@ model news_photo {
   @@index([match_id, is_hero])
   @@index([match_id, display_order])
   @@map("news_photos")
+}
+
+// 2026-05-04: 알기자 (BDR NEWS) 자동 발행 시도 기록 — silent fail 모니터링
+// 자동 트리거 (auto-publish-match-brief.ts) 의 publishPhase1Summary / publishPhase2MatchBrief
+// 가 매번 결과 INSERT (success/failed/skipped). 사후 진단 + admin 모니터링 큐 활용.
+//
+// status:
+//   - "success"   : 정상 완료 (Phase 1 = summary_brief UPDATE / Phase 2 = community_post INSERT)
+//   - "skipped"   : 멱등성 skip (이미 결과 존재 또는 매치 not_completed)
+//   - "failed"    : LLM 호출 실패 / 검증 실패 / DB 에러
+//
+// reason:
+//   - success/skipped: 짧은 메모 (예: "already_exists", "not_completed", "ok")
+//   - failed: 에러 메시지 / validate-brief reason / HTTP status
+//
+// 정책: 매번 INSERT (UPDATE X) — append-only audit log. 30일+ 오래된 기록 cleanup 큐.
+model news_publish_attempt {
+  id         BigInt   @id @default(autoincrement())
+  match_id   BigInt
+  phase      String   @db.VarChar // "phase1-section" | "phase2-match"
+  status     String   @db.VarChar // "success" | "skipped" | "failed"
+  reason     String?  @db.Text
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  match TournamentMatch @relation(fields: [match_id], references: [id], onDelete: Cascade)
+
+  @@index([match_id])
+  @@index([status, created_at])
+  @@index([phase, status])
+  @@map("news_publish_attempts")
 }

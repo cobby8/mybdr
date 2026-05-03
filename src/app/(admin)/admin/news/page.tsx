@@ -9,6 +9,7 @@ import {
   publishNewsAction,
   rejectNewsAction,
   regenerateNewsAction,
+  regenerateSummaryBriefAction,
   editNewsAction,
 } from "@/app/actions/admin-news";
 import { AdminNewsContent } from "./admin-news-content";
@@ -145,6 +146,7 @@ export default async function AdminNewsPage({
         publishAction={publishNewsAction}
         rejectAction={rejectNewsAction}
         regenerateAction={regenerateNewsAction}
+        regenerateSummaryAction={regenerateSummaryBriefAction}
         editAction={editNewsAction}
       />
     </div>

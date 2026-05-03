@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
         comments_count: true,
         likes_count: true,
         author_nickname: true,  // 카페 크롤링 글쓴이 (우선)
+        // 2026-05-04: 알기자 (BDR NEWS) 카드 썸네일용 — news 카테고리만 활용
+        tournament_match_id: true,
         users: {
           select: {
             nickname: true,
@@ -97,6 +99,26 @@ export async function GET(request: NextRequest) {
         },
       },
     }).catch(() => []);
+
+    // 2026-05-04: 알기자 카드 썸네일 — 매치별 첫 사진 (is_hero=true 우선) batch fetch
+    // news 카테고리 + tournament_match_id 보유한 게시물만 대상 (성능: news 게시물 9건 등 소규모 → 1 batch query)
+    const newsMatchIds = posts
+      .filter((p) => p.category === "news" && p.tournament_match_id)
+      .map((p) => p.tournament_match_id!)
+      .filter((id, i, arr) => arr.indexOf(id) === i); // unique
+    const thumbnailMap = new Map<string, string>();
+    if (newsMatchIds.length > 0) {
+      const photos = await prisma.news_photo.findMany({
+        where: { match_id: { in: newsMatchIds } },
+        orderBy: [{ is_hero: "desc" }, { display_order: "asc" }],
+        select: { match_id: true, url: true },
+      }).catch(() => []);
+      // 첫 등장 사진만 저장 (is_hero=true 우선 정렬되어 있으므로 자동으로 Hero 우선)
+      for (const ph of photos) {
+        const key = ph.match_id.toString();
+        if (!thumbnailMap.has(key)) thumbnailMap.set(key, ph.url);
+      }
+    }
 
     // BigInt/Date 필드를 직렬화 가능한 형태로 변환
     const serializedPosts = posts.map((p) => ({
@@ -111,6 +133,10 @@ export async function GET(request: NextRequest) {
       authorNickname: p.author_nickname || p.users?.nickname || "익명",  // 카페 글쓴이 우선
       authorProfileImage: p.users?.profile_image_url ?? null,  // 작성자 프로필 이미지 URL
       contentPreview: "",                                        // 목록에서 본문 미리보기 제거 (성능 최적화)
+      // 2026-05-04: 알기자 카드 썸네일 (Hero 사진 우선) — news 카테고리만, 사진 0건 시 null
+      thumbnailUrl: p.tournament_match_id
+        ? thumbnailMap.get(p.tournament_match_id.toString()) ?? null
+        : null,
     }));
 
     // 선호 카테고리 목록도 함께 반환 (프론트엔드에서 하이라이트 표시용)
