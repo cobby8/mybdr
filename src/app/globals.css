@@ -539,20 +539,25 @@ html.dark .app-nav__tab[data-active="true"]::after {
   -webkit-overflow-scrolling: touch;
   /* 2026-05-03 (위치 이동): 사이드바 외곽 → 본문 안쪽 "전체 N개의 글" 위로.
      gutter 음수 마진 제거 + 하단 border 제거 (본문 컨텐츠와 자연스럽게 연결) */
-  padding: 4px 0 8px;
+  padding: 4px 24px 8px 0;
+  /* 우측 padding 24px = mask fade 영역 확보 (마지막 탭이 fade 뒤에 가려지지 않게) */
   margin: 0 0 10px;
-  /* 2026-05-03 (스크롤바 표시): 사용자가 가로 스크롤 가능함을 인지하도록 얇은 인디케이터 노출.
-     Firefox: scrollbar-width:thin / WebKit: 4px height + accent 색 thumb */
+  /* 2026-05-03 (스크롤바 표시 + fade): 사용자가 가로 스크롤 가능함을 시각으로 강하게 인지.
+     Firefox: scrollbar-width:thin / WebKit: 6px (4 → 6 강화) accent thumb
+     mask-image: 우측 24px fade — iOS Safari / Android Chrome 에서 scrollbar 무시되어도
+     "더 있음" 시각 신호로 작용. 컨테이너 자체에 mask 적용 → 스크롤 따라가지 않음 (고정) */
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
+  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
 }
 .aside-mobile-tabs::-webkit-scrollbar {
-  height: 4px;
+  height: 6px;
   display: block;
 }
 .aside-mobile-tabs::-webkit-scrollbar-thumb {
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: 3px;
 }
 .aside-mobile-tabs::-webkit-scrollbar-track {
   background: transparent;
@@ -573,7 +578,8 @@ html.dark .app-nav__tab[data-active="true"]::after {
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
-  padding: 10px 12px;
+  /* 2026-05-03 2차: 우측 fade 영역 확보 — padding-right 12 → 24 */
+  padding: 10px 24px 10px 12px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-chip);
@@ -583,14 +589,17 @@ html.dark .app-nav__tab[data-active="true"]::after {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
+  /* 2026-05-03 2차: 우측 fade — 스크롤 가능성 시각 신호 (커뮤니티 카테고리 탭 동일 패턴) */
+  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
 }
 .sort-bar-mobile::-webkit-scrollbar {
-  height: 4px;
+  height: 6px;
   display: block;
 }
 .sort-bar-mobile::-webkit-scrollbar-thumb {
   background: var(--accent);
-  border-radius: 2px;
+  border-radius: 3px;
 }
 .sort-bar-mobile::-webkit-scrollbar-track {
   background: transparent;
@@ -604,15 +613,16 @@ html.dark .app-nav__tab[data-active="true"]::after {
    원칙: 모바일 = 최대한 압축 (정보 가시성 우선) / 데스크톱(720px+) = 시각적 여백 확보
    ============================================================ */
 .page-hero {
-  /* 모바일: 상하 패딩 압축 (.page 컨테이너 padding 안에서 추가 여백 최소화) */
-  margin-bottom: 12px;
+  /* 모바일: 최대한 압축 — 사용자 보고 "게임 페이지 Hero 처럼 더 압축" (2026-05-03 2차) */
+  margin-bottom: 6px;
 }
 .page-hero__eyebrow {
   /* .eyebrow 스타일을 그대로 inherit — 별도 색/폰트 지정 X */
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .page-hero__title {
-  margin: 0 0 2px;
+  /* 2026-05-03 2차: title→subtitle 간격 0px (시각 밀착, 빈공간 0) */
+  margin: 0;
   font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -628,7 +638,8 @@ html.dark .app-nav__tab[data-active="true"]::after {
 
 @media (min-width: 720px) {
   .page-hero {
-    margin-bottom: 16px;
+    /* 데스크톱: 약간만 여유 (모바일 6 → PC 12) */
+    margin-bottom: 12px;
   }
   .page-hero__title {
     font-size: 26px;
@@ -1430,6 +1441,16 @@ html.dark .hero-carousel__accent {
 
 @media (max-width: 720px) {
   :root { --gutter: 14px; }
+
+  /* ============================================================
+     [2026-05-03] 모바일 .page 컨테이너 상하 패딩 압축
+     왜: 데스크톱 32px(--s-8) 상단 패딩이 모바일에서도 그대로 → Hero 위 빈 공간 큼.
+         사용자 보고 "게임 페이지 Hero 처럼 더 압축" — 첫 컨텐츠 도달 빠르게.
+     해소: padding-top 32→16px, padding-bottom 80→40px (모바일 스크롤 부담 감소)
+     ============================================================ */
+  .page {
+    padding: 16px var(--gutter) 40px;
+  }
 
   /* ============================================================
      [Phase 9-Mobile P2] 폼 컨트롤 16px 강제 — iOS Safari 자동 줌 차단
