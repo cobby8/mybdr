@@ -67,9 +67,9 @@
 | # | 항목 | 상태 |
 |---|---|---|
 | 1 | 셋업팀 가입 대기 17명 정리 + **자동 approve 함수 추출 ✅** (`src/lib/teams/approve-join-requests.ts`) | ✅ |
-| 2 | 셋업팀 ttp user 매핑 (6/9, 잔여 3명: 김병주/이영기/이준호) | ⏳ |
-| 3 | placeholder User **94명** 정리 (5/3 블랙라벨+11 / MSA+4 / 슬로우+1 = +16) | ⏳ |
-| 4 | mergeTempMember 함수 강화 (FK 7단계 통합 추가 — 김영훈 케이스 패턴 표준화) | ⏳ |
+| 2 | 셋업팀 ttp user 매핑 — **완료** (김병주는 이미 매핑됨 / 이영기·이준호 2026-05-03 통합) | ✅ |
+| 3 | placeholder User **89명** (5/3 박백호 -1 + 셋업 -2 + 18건 일괄 -18 = 누적 -21). 보류 3건 (오승준/이상현/이정민 — 동명이인). 잔여 86건 LOW (본인 미가입). | 🟡 89/107 |
+| 4 | mergeTempMember 함수 강화 — **완료** (`mergePlaceholderUser` 신규 + 기존 위임 / commit e029fac / vitest 30/30 PASS) | ✅ |
 | 5 | 16팀 미매핑 8팀 `tournament_team_players` 보정 (잔여 = MI / SKD 명단 대기) | 🟡 |
 | 6 | 미가입 명단 placeholder INSERT — **블랙라벨 11 ✅ + MSA 5 ✅ + 슬로우 8 ✅ (5/3)** / SKD/MI 명단 대기 | 🟡 부분 |
 | 7 | **16팀 가입신청 39건 정리** (5/3 발견) — 슬로우 8 ✅ / 블랙라벨 9 ✅ / 업템포 3 ✅ / 피벗 2 ✅ / 아울스 1 ✅ / MZ 1 ✅ / 잔여 SKD 7 + MI 8 (명단 대기) | 🟡 24/39 |
@@ -106,6 +106,61 @@
 | Live `/live/[id]` v2 | ✅ STL Phase 1~2 (출전시간 280m 만점) |
 | 마이페이지 D-1~D-8 | ✅ 8/8 |
 | Reviews 통합 (Q1) | ✅ |
+
+---
+
+## 구현 기록 (developer / 2026-05-03 minutes-engine endLineup chain 가드 범위 fix)
+
+📝 구현한 기능: endLineup chain 가드 범위 단일팀(3~7) → 양팀 union(5~12) 수정 — 라이브 매치 양팀 ~17%p 시간 손실 버그 fix
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/live/minutes-engine.ts` | L196 endLineup chain 가드 `size >= 3 && size <= 7` → `size >= 5 && size <= 12` 변경 (DB starter 가드 L131 과 일관) + 주석 보강 (단일팀 기준 오기 → 양팀 union 기준 명시 + debugger 분석 출처) | 수정 (1줄 변경 + 주석 +3줄) |
+| `src/__tests__/lib/live/minutes-engine.test.ts` | 신규 케이스 L 추가: 양팀 starter 5+5=10명 DB 주입 → Q1 풀타임 → Q2 chain 가드 통과 검증 (size=10 통과 → starter 10명 그대로 사용 → 양팀 시간 6000s 정확) + 회귀 방지 (가드를 3~7 로 되돌리면 이 케이스 fail) | 수정 (+72줄) |
+
+검증 결과:
+- vitest: **21/21 PASS** (기존 20 회귀 0 + 신규 케이스 L 통과)
+- tsc --noEmit: **0 에러**
+- DB 변경 0 / Flutter 변경 0 / route.ts 변경 0 / LRM cap 함수 변경 0 / format 함수 변경 0 / inferStartersFromPbp 함수 변경 0
+
+핵심 변경 (1줄):
+```ts
+// Before: if (prevEndLineup && prevEndLineup.size >= 3 && prevEndLineup.size <= 7)
+// After:  if (prevEndLineup && prevEndLineup.size >= 5 && prevEndLineup.size <= 12)
+```
+
+원인 — debugger 분석 (작업 로그 5/3 entry):
+- minutes-engine 은 양팀 union ttp 기준으로 시뮬 (Q1 starter union → endLineup union)
+- DB starter 가드 L131 은 이미 `5~12` (양팀 union 기준) 으로 일관됨
+- endLineup 가드만 단일팀 기준 (3~7) 로 잘못 설정 → 양팀 endLineup size=10 도 가드 fail
+- → fallback inferStartersFromPbp 강제 발동 → starters=3명 (H 2 + A 1) 만 추출
+- → Q2 active size=3 만으로 시뮬 → 양팀 합 -17%p 손실
+- 라이브 매치 #147 (SKD vs MI) 실측: home=5795s/away=5840s, expected/팀=6265s, Q2 home 82% / away 84%
+
+💡 tester 참고:
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/lib/live/minutes-engine.test.ts` — **21/21 PASS** 확인
+  2. (선택) 라이브 매치 #147 또는 진행 중 매치 보드 → Q2+ 양팀 시간 정확도 측정 (이전 ~82~84% → ~98~100% 회복 예상)
+  3. (선택) 운영 회귀: 종료 매치는 LRM cap 으로 흡수되므로 cap 후 합 변화 0 (안전)
+- 정상 동작:
+  - 양팀 starter 5+5=10명 매치 → Q2~Q4 starter = 직전 쿼터 endLineup 10명 그대로 (chain 작동)
+  - 라이브 매치 #147 Q2 1717→2100s 등 양팀 시간 회복 (시뮬 시 Q2 만점=3000s/팀)
+  - 종료 매치는 LRM cap 으로 흡수되어 이미 100% (변화 0)
+- 주의할 입력:
+  - endLineup union size=4 (한 팀 0명, 다른 팀 4명) → fallback 발동 (의도된 안전망)
+  - endLineup union size=13 (이상 데이터) → fallback (의도)
+  - 종료 매치 LRM cap 결합 — 변화 0 보장 (cap 가 합을 expected 로 정확화)
+
+⚠️ reviewer 참고:
+- **가드 범위 일관성**: DB starter 가드 (L131) `5~12` 와 동일. 단일팀 기준 오기를 양팀 union 기준으로 통일 → 호출자 (route.ts) 의 시뮬 모델과 일치
+- **회귀 위험 0**: 종료 매치는 LRM cap 흡수, 라이브만 영향. 라이브 영향도 양팀 시간 누적 확대 방향 (정확화)
+- **fallback 함수 무변경**: inferStartersFromPbp 그대로 유지 — 비현실 데이터 (size <5 또는 >12) 에 대한 안전망 보존
+- **케이스 L 회귀 방지**: 향후 누군가 가드를 단일팀 기준 (3~7) 으로 되돌리면 즉시 fail (5+5 양팀 starter 가 가장 흔한 시나리오)
+
+라이브 매치 영향 예상치 (debugger 분석):
+- 라이브 매치 #147 SKD vs MI Q2: home 1717s → ~2100s (+22%) / away 1755s → ~2100s (+20%)
+- 양팀 합 11635s → ~12530s (전체 기준 ~7.7% 개선, Q2 단독 ~36% 회복)
+- 종료 매치: cap 후 합 = expected×2 로 이미 정확 → 변화 0
 
 ---
 
@@ -292,18 +347,16 @@ function inferStartersFromPbp(qPbps: MinutesPbp[]): Set<bigint>
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / 1줄 fix + 신규 test L / 21/21 PASS / tsc PASS) | **minutes-engine endLineup chain 가드 범위 fix — 라이브 매치 양팀 시간 손실 버그 해소** — `src/lib/live/minutes-engine.ts` L196 `size >= 3 && size <= 7` (단일팀 기준 오기) → `size >= 5 && size <= 12` (DB starter 가드 L131 과 일관, 양팀 union 기준). 신규 test 케이스 L 추가 (양팀 5+5=10명 starter → Q2 chain 통과 → 양팀 시간 6000s 정확 검증, 가드 회귀 시 즉시 fail). 기존 20 회귀 0 → **21/21 PASS**. tsc 0 에러. DB/Flutter/route.ts/LRM/format/inferStartersFromPbp 무변경. 라이브 매치 #147 Q2 home 1717→~2100s / away 1755→~2100s 회복 예상 (양팀 합 +895s, Q2 +36%). 종료 매치는 LRM cap 흡수로 변화 0 (안전) | ✅ |
+| 2026-05-03 | (debugger / SELECT only / 6 임시 스크립트 정리 / errors.md +1) | **라이브 매치 양팀 출전시간 비대칭 정밀 분석 — minutes-engine endLineup chain 가드 범위 버그 발견**. 라이브 매치 1건 (#147 SKD vs MI Q3 진행 중) 식별. **A 표**: home=5795s/away=5840s, expected/팀=6265s, diff=45s (0.7% — 작아 보이지만 양팀 모두 ~470s 부족). Q1=Q3 정확 100%/96%, **Q2 만 home=82%, away=84%** (양쪽 -17%). **B 정밀**: starter 양팀 5/5 정상 / PBP 분포 정상 (112/115) / 풀타임 0/0. **C 원인**: `calculateMinutes` 양팀 union 시뮬 → Q1 endLineup size=10 (정상 5+5) → **Q2 chain 가드 `>=3 && <=7` 단일팀 기준이라 fail → fallback inferStartersFromPbp 강제 발동 → starters=3명 (H 2 + A 1) 추출 → active size=3 segment 시뮬 시간만큼 누적되어 양팀 합 -18% 손실**. 직접 chain 보존 시뮬은 home/away 각 2100/2100 정확 일치 검증. **D fix 권장**: `src/lib/live/minutes-engine.ts` L196 `size >= 3 && size <= 7` → `size >= 5 && size <= 12` (DB starter 가드 L131 과 일치). 회귀 위험 0 — 종료 매치는 LRM cap 흡수, 라이브만 영향. errors.md 신규 entry 1건. SELECT only / DB 변경 0 / 운영 영향 0 | ✅ 분석 |
+| 2026-05-03 | e029fac (feat / vitest 30/30 / tsc PASS) | **#4 mergeTempMember 강화 — `mergePlaceholderUser` 신규 함수 + 기존 위임** — 신규 `src/lib/teams/merge-placeholder-user.ts` (~190줄) = 일반화 함수: ttp transfer (충돌 시 skip) + tm transfer/absorb / `skipTmTransfer` 시 DELETE+decrement + (team_id, jersey_number) UNIQUE 우회 (DELETE→UPDATE) + (nickname) UNIQUE 우회 (`{realName}_merged_{phUid}`) + real.name set (null 일 때만) + status=merged. 옵션 `skipTmTransfer` (가입 hook vs 운영 backfill 분리). 기존 `mergeTempMember` 가 내부에서 `skipTmTransfer:true` 위임 (호출자의 `teamMember.create` + `members_count.increment` 와 net 0 보장). 신규 헬퍼 `isPlaceholderEmail` / `getMergedNicknamePattern`. vitest 신규 10건 (대소문자 / 4가지 placeholder 패턴 / nickname unique 보장) + minutes-engine 20건 = **30/30 PASS**. tsc 0 에러. 호출자 (members/join route) 시그니처 변경 0. 다음 LOW 86건 통합 시 `mergePlaceholderUser({skipTmTransfer:false})` 직접 호출. | ✅ |
+| 2026-05-03 | (debugger / SELECT only / 2 임시 스크립트 정리 / errors.md +1) | **두 토너먼트 RAW 정확도 차이 (+12.85%p) 정밀 분석 — 결과: PM 보고 raw 측정 시점 ≠ 현재 알고리즘**. 현재 minutes-engine (Tier 3 boundary + Tier 2 chain + DB starter 모두 적용) 으로 재측정: **t388 raw avg=94.52% / 열혈 raw avg=95.36% / 차이 +0.84%p** (PM 보고 +12.85%p 와 큰 차이). **결정적 증거**: 양 토너먼트 쿼터당 절대 손실 거의 동등 (t388 20.7s/쿼터 / 열혈 21.1s/쿼터). **H1 (qLen 효과) 확인**: 절대 손실은 동등하나 qLen 정규화 시 t388 4.92% / 열혈 3.52% — 기여도 **~1.4%p**. **H2 (운영자 패턴) 미발견**: PBP rate 분당 9.73 (t388) vs 8.02 (열혈) 큰 차이 없음. **H3 (format)**: 매치 간격 t388 65~93분 / 열혈 62~145분 — 유의한 패턴 없음. **H4 (OT)**: t388 #140 OT 매치 raw=94.02% (전체 평균과 동등) — OT 영향 없음. **H5 (분포 outlier)**: t388 0.68%~6.82% (median 1.49%) / 열혈 0.48%~3.77% (median 1.50%) — long tail 약간 있으나 결정적 차이 아님. **결론: 메인 path 4단계 도입 후 두 토너먼트 raw 정확도 거의 동등화. PM 보고 +12.85%p 차이는 boundary 강제 적용 전 옛 측정값 + qLen 효과 (~1.4%p). 현재 minutes-engine 개선 여지 매우 낮음 — Flutter 운영 가이드 우선순위 변화 없음** | ✅ 분석 |
+| 2026-05-03 | (PM / DB only / 트랜잭션 1회 / 18건 일괄) | **placeholder 18건 일괄 통합 (107→89, -18)** — 107명 fuzzy 진단 후 21건 컨텍스트 보강 → 18건 통합 가능 (방덕원 같은 팀 / Group B 17건 본인 가능성 매우 높음 — 이름 정확 일치 + 다른 팀 활동 0 + 가입일 5/1~5/2 일치) + 보류 3건 (오승준/이상현/이정민 — real 이 다른 팀 ttp 활발 = 동명이인). 트랜잭션 단일 함수 mergeSingle (ttp.userId UPDATE 충돌 시 skip / tm 흡수 시 ph DELETE 먼저 → real jersey UPDATE 순서로 (team_id, jersey_number) UNIQUE 우회 / real.name null 일 때만 본명 set / ph nickname `_merged_{uid}` + status=merged). stat/PBP 자동 보존 (ttp.id 변경 0). 18건 모두 ✅. 잔여 86건 LOW (본인 미가입 — 본인 가입 시점에 핸들). 임시 스크립트 3건 정리. tsc/Flutter 무변경. 패턴: ph→real jersey 흡수 시 UNIQUE 풀기 위해 DELETE 우선 / real.name 보존 (기존 값 있으면 안 건드림). | ✅ |
+| 2026-05-03 | (debugger / SELECT only / 4 임시 스크립트 정리) | **열혈농구단 SEASON2 전국 최강전 (TID=d83e8b83...) 출전시간 전수 검증** — 단일 토너먼트 / 8팀 (몽키즈 미경기) / 34매치 중 9 종료 / 25 scheduled (round/bracket/match_number 모두 null) / format=full_league_knockout / 시작일=2024-04-11 (옛 토너먼트, status=in_progress 정리 안 됨) / 라이브 0건. **A**: 9/9 매치 cap 후 양팀 합 = 24000s 정확 일치 (100%). **B**: cap delta 평균 +585s (raw avg 95.45% → cap 100%) — 가장 큰 cap delta 매치 100 +1481s home / 102 +1438s home / 101 +1345s away (raw 90% 대 매치들). **C**: 풀타임 5명 매치 4건 / 풀타임 0명 매치 6건 (출전 분배 평탄). DNP 0~6명/매치. OT 0건. **D**: **isStarter 9/9 매치 양팀 정확 5/5 입력 (100%)** = t388 와 동일. 메인 path #1 (DB starter union) 9/9 발동, **Fallback 0회**. **E**: 이상 매치 0건 — PBP 0건 매치 0 (t388 #141 같은 케이스 없음) / raw <70% 0건 / cap 합 불일치 0건. **F (메인 path 평가)**: B 옵션 리팩토링 직후 메인 path 4단계 100% 작동 — Q1 DB starter / Q2~ endLineup chain / boundary 강제 / LRM cap 모두 정상. PBP 추정 fallback 발동 0회. **신뢰도 종합: cap 후 100%, raw 95.45% (t388 89.6% 대비 +5.8%p 향상)**. **vs t388**: 매치 9 vs 13 / format full_league_knockout vs dual_tournament / 8팀 vs 16팀 / **PBP 0 매치 0건** (t388 1건) → 신뢰도 더 높음. errors.md / lessons.md 신규 entry 0건 (기존 패턴 동일) | ✅ 검증 |
+| 2026-05-03 | (PM / DB only / 트랜잭션 1회) | **셋업팀 이영기·이준호 placeholder ↔ real 통합 + 박백호47 status=merged** — 셋업 잔여 매핑 진단 시 fuzzy 검색으로 본인 발견 (이영기 uid=2867 nick="영기" email=`dldudrl89@gmail.com` 한글자판→영문 / 이준호 uid=2872 nick="준호" email=`junho0621junho@gmail.com`). 둘 다 셋업팀 가입신청 approved (req_id=10, 8 / 2026-04-09). 트랜잭션 7단계 (ttp.userId UPDATE + placeholder tm DELETE + real tm jersey 부여 + name/nickname 정규화 + placeholder status=merged + nickname unique 풀기). stat 보존 (각 2건) / PBP 보존 (이영기 2건). 별도: 빈 유령 박백호47 (uid=2943) status=merged 처리. placeholder 부채 109 → **107명** (-2). 임시 스크립트 4건 정리. tsc/Flutter 무변경. 김병주는 이미 매핑되어 있었음 (#11 uid=3082 real). | ✅ |
 | 2026-05-03 | (developer / 리팩토링 B 옵션 / 20/20 test PASS / tsc PASS) | **minutes-engine 리팩토링 — PBP 추정 fallback 격리 + 메인 path 명확화** — `src/lib/live/minutes-engine.ts` 파일 헤더 알고리즘 설계 문서 주석 추가 (메인 path 4단계 + Fallback). `inferStartersFromPbp(qPbps)` 헬퍼 함수 분리 (PBP-only fallback, "fallback only" 명시). `calculateMinutes` 내부 starter 결정을 if/else 4분기 (Q1 DB / Q1 fallback / Q2+ chain / Q2+ fallback) 로 명확화. Boundary / LRM cap 헤더 주석 보강. 동작 변경 0 (회귀 0). calculateMinutes 함수 191→133줄 (-58줄 -30%). 파일 전체 325→333 (+8, 헤더 주석 +22 포함). 20/20 PASS, tsc 0 에러. DB/route.ts/Flutter/LRM 알고리즘 변경 0 | ✅ |
 | 2026-05-03 | (developer / Tier 3 / 20/20 test PASS / tsc PASS) | **minutes-engine Tier 3 — starter 첫 segment qLen 강제 + lastGap 보정** — `src/lib/live/minutes-engine.ts` 시뮬 진입 시 `lastClock=qLen` 명시적 보장 (이상치 방어 주석 추가) + endClock 결정 분기 추가: 다음 쿼터 PBP 존재 시 endClock=0 강제 (lastGap p90=34s × 5명 × 4Q = 평균 11분/팀 회복), 없으면 lastPbpClock 보존 (라이브 마지막 쿼터 cap 부풀림 방지). `quartersWithPbp` Set 사전 수집. 신규 test J (clock=414, qLen=420 → starter 5명 풀타임 420s) + K (lastGap clock=4 → 마지막 4초 누적) + K-2 (라이브 마지막 쿼터 200s 보존, 회귀 방지). 기존 17 회귀 0 → **20/20 PASS**. tsc 0 에러. DB/Flutter/cap 함수 변경 0. 예상 효과: 강찬영 414 → 420 등 starter firstGap 손실 0, 종료 매치 raw 정확도 89.6% → 95%+ (LRM cap 결합 시 100%) | ✅ |
 | 2026-05-03 | (developer / Tier 2 보강 / 17/17 test PASS / tsc PASS) | **minutes-engine Tier 2 — DB starter 주입 + endLineup chain** — `MinutesInput.dbStartersByTeam?: Map<teamId, Set<ttp_id>>` 옵션 추가. Q1 starter = DB union 우선 (PBP 추정 무시) → fallback PBP. Q2+ starter = 직전 쿼터 종료 active 5명±2 → fallback PBP. route.ts 에서 `match.playerStats.isStarter=true` 필터 → tournamentTeamId 매핑 → 옵션 주입. 신규 test 케이스 G/H/I (DB 주입 / 미주입 호환 / Q2 chain). 기존 14 회귀 0 → 17/17 PASS. tsc 0 에러. DB schema/Flutter 변경 0. 정확도 92% → 99%, LRM cap 결합 시 100% 도달 예상 | ✅ |
 | 2026-05-03 | (debugger / SELECT only / errors.md +1 / 4 영역 정밀 분석) | **PBP 보강 가능성 정밀 분석 — 사용자 제안 검증** (스타팅 자동 sub_in / 쿼터 boundary / 작전타임 교체 추적). t388 13 매치 실측: ① **`MatchPlayerStat.isStarter` 100% 존재 (13/13 매치, 양팀 10명 정확)** — minutes-engine 미사용 / DB starter vs PBP Q1 추정 일치율 92.3% (불일치 2건 모두 DB 가 더 정확). ② lastGap p90=34s/max=113s (35.8%만 zero), firstGap p90=17s/max=240s (62.3% zero) → boundary 보강 효과 큼. ③ endLineup→nextStarter 교집합 5명 비율 36% (낮음) — but 이는 PBP 추정이 1~4명만 식별이 원인 / DB starter 사용 시 자동 해결. ④ **다음 쿼터 첫 sub_out 이 prev endLineup 에 포함 97.5%** → endLineup chain 매우 안전 (작전타임 교체 실제 발생률 2.5%). 시뮬: PBP-only 92.16% → 보강 후 103.21% (LRM cap 으로 정확화 가능). **권장 = Tier 2 (Q1 isStarter + Q2~Q4 endLineup chain) 영향 +10%, DB 무변경, 위험 0**. errors.md neuf entry 1건 ("starter PBP-only 추정 = isStarter 미사용 정확도 손실"). 임시 스크립트 정리 완료 | ✅ 분석 |
 | 2026-05-03 | (developer / LRM cap / 14/14 test PASS / tsc PASS) | **minutes-engine `applyCompletedCap` ±1초 오차 영구 제거** — 단순 `Math.round` 비례 분배 → Largest Remainder Method (LRM). 각 선수 exact=sec×ratio → floor → 잔여=expected-sum(floor) → fractional 큰 순 +1 분배. `src/lib/live/minutes-engine.ts` +30줄/-3줄. 신규 테스트 3건 (케이스 D/E/F: fractional 분배 / 동일 ratio / 풀타임+partial 혼합). 기존 11 회귀 0 → **14/14 PASS**. tsc 0 에러. 양팀 합 = expected×2 정확 일치 (이전 t388 12/13 → 13/13 예상) | ✅ |
 | 2026-05-03 | (debugger / SELECT only / errors.md +1 entry) | **t388 (몰텐배 동호회최강전) 종료 매치 13개 출전시간 전수 검증** — UUID `138b22d8...` 27 매치 중 13 종료. 양팀 cap 후 합=expected×2 일치 12/13 (92.3%). raw 정확도 82.6% / capped 정확도 89.6%. 풀타임 선수 변경 0건 (cap §2 보장). NaN/음수 0건. 이상치 1건 = #141 블랙라벨 vs MSA (PBP+matchPlayerStat 모두 0건, score 52:31 manual 입력만, cap 알고리즘 무효). errors.md 신규 entry "PBP 0건 종료 매치" 추가. cap delta 큰 매치 — #140 우아한스포츠 raw 77% (Q1 시작 ~2분 + Q2 끝 + OT 3분 PBP 누락) → cap +2418s 분배. **사용자 콕 지정 "열혈농구단" 매치 0건** — 16팀(MZ/블랙라벨/닥터바스켓/다이나믹/SYBC/크로스오버/MI/SA/피벗/슬로우/우아한스포츠/MSA/SKD/아울스/업템포/셋업) 명단에 "열혈" 키워드 없음 → 사용자 표현 다른 토너먼트일 가능성 (PM 확인 필요). 임시 스크립트 정리 완료 | ✅ 검증 |
-| 2026-05-03 | (developer / D-day fix / 145 Q1 진행 중 / tsc PASS) | **dual_tournament advanceWinner 무한 루프 corrupt 영구 fix** — 2 패치 이중 가드. ① `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` L371~377: tasks 배열에서 isDual 일 때 advanceWinner skip + results 인덱스 동적 산출 (cursor 패턴, advanceWinner 빠질 때 standings/dual 인덱스 어긋남 방지). ② `src/lib/tournaments/update-standings.ts` L7~22: advanceWinner 진입부 dual_tournament guard (format 조회 후 dual 이면 early return). dual 진출은 progressDualMatch 가 전담 (loser bracket 포함). 5/2 C조 / 5/3 D조 audit 11~12회 self-heal 무한 루프 본질 차단. tsc 0 에러. self-heal (progressDualMatch) 코드 무변 (작동 중) | ✅ |
-| 2026-05-03 | (debugger / D-day 긴급 / SELECT only / errors+lessons 기록) | **D조 진출 슬롯 양팀 동일 본질 fix 발견** — 5/3 D조 승자전 (#15, m146) audit 12회 분석: 144 종료 후 5분간 ~20초 간격 11회 self-heal → 본질 = `advanceWinner` (update-standings.ts L30~36) 가 dual 매치도 호출되어 빈 슬롯(146.away) 에 winner=246(슬로우) 자동 채움 → progressDualMatch self-heal 이 nullify → advanceWinner 가 다시 채움 무한 루프. 5/2 C조 동일 패턴 7회 audit 확인. 5/2 회귀 방지 5종 모두 우회 (audit 미호출 경로). **현재 146 stable** (home=슬로우/away=null). **임시 fix 불필요** (현재 OK). **영구 fix 권장**: sync route L371~381 isDual 시 advanceWinner skip (중복+잘못된 슬롯 위험). 145 종료 전 적용 필수. 임시 스크립트 정리 | ✅ 진단 |
-| 2026-05-03 | (debugger / SELECT only / errors+lessons 기록) | **PBP 미달 본질 원인 분석 (5/2+5/3 11매치 22팀)** — 분포: 100% 정확 0팀 / lastClock 절단 21팀(95%) / firstClock 절단 1팀 / 쿼터 전환 lineup 불일치 22팀 모두. 본질 = Flutter 앱 운영자 입력 누락 3종: ① **starter lineup PBP 미입력** (1차, 22팀 모두) ② **lastClock 절단** (set 종료 지연, 21팀) ③ **firstClock 절단** (set 시작 지연, 1팀+OT). 코드 cap 은 합 정확화 OK / 개별 sec 신뢰도 ~5%. Flutter fix 권장 = quarter_start/quarter_end boundary PBP + starter lineup 자동 INSERT (원영 검토). errors.md + lessons.md 신규 entry 1건씩. 임시 스크립트 정리 완료 | ✅ 분석 |
-| 2026-05-03 | (옵션 C cap / tsc PASS / 11/11 test PASS) | **종료 매치 풀타임 보호 cap 추가** — `applyCompletedCap()` neuf (`src/lib/live/minutes-engine.ts`, +59줄) export. route.ts (status === 'completed' 일 때만 home/away 별 sec map 분리 후 cap 호출, +21줄). 풀타임 임계 = qLen×numQ-5s. 풀타임 sec 절대 변경 X / 풀타임 외 비례 분배. 단위 테스트 +3 (만점 매칭 / 풀타임 보호 / edge 풀타임만 expected 도달) → 11/11 PASS. 운영 검증 (5/2+5/3 5매치): #132 home 137:40→139:59 / #134 home 127:05→140:00 / #142 home 131:42→140:00 / #143 home 134:12→140:00 / #144 (live) 57:45 그대로 ✅ cap 미적용. tsc 0 에러. DB/Flutter 영향 0 | ✅ |
-| 2026-05-03 | (api/live PBP-only 단순화) | **출전시간 PBP-only 단일 엔진 분리** — `src/lib/live/minutes-engine.ts` (~140줄) 신규: PBP substitution → starter 추정(swap 케이스 보강: subOut+seenBeforeFirstSub 룰) → active set 시뮬 → 쿼터별/총 출전초. route.ts 시간 부분만 교체 (점수/DNP/라인업 무변): minutesQL/minutesEngineInput/calculateMinutes 1회 호출 → getPbpSec/getPbpQuarterSec 헬퍼 → 진행중/종료 분기 모두 row.min/min_seconds + quarter_stats[q].min_seconds 일괄 주입. 폐기: estimateMinutesFromPbp / getSecondsPlayed / R3 보충 / startersByTeam / quarterStatsJson 의 min 추출 (plus_minus 만 유지). 단위 테스트 8/8 PASS (풀타임/swap/DNP/라이브/OT/빈입력/컬럼sub/byQuarter). 운영 회귀 29매치 — 부풀림 0건 (max ≤ qLen×Q cap), 합 ~135분/팀 (qLen=420×4) 정확. tsc 0 에러 | ✅ |
-| 2026-05-03 | (Phase E 신규 2 페이지) | **알기자 Phase E /news 노출 UI** — `/news` 매거진 메인(카드 그리드 + 페이지네이션 + SEO metadata) + `/news/match/[matchId]` 상세(LinkifyNewsBody + 알기자 뱃지 🤖 + 매치 헤드라인 + view_count +1 + 좋아요/댓글 표준). published 만 노출 / draft·rejected 숨김. tsc PASS, smoke test HTTP 200. (Phase B 확장 = 라운드/일자 종합 prompt + Phase F 작성자 페이지 큐) | ✅ |
-| 2026-05-03 | (Phase 2 통합 + DB 보정) | **알기자 BDR NEWS Phase 2 통합 발행 시스템** — community_posts +4컬럼(tournament_match_id/tournament_id/period_type/period_key) + 알기자 User uid=3350 + Phase 2 prompt(독립 기사 400~700자) + match-brief-generator mode 분기 + auto-publish-match-brief(매치 종료 시 fire-and-forget) + updateMatch/updateMatchStatus hook + admin/news 검수 UI(Server Actions 4종 publish/reject/regenerate/edit) + linkify-news-body(선수/팀 자동 링크). 5/2 9매치 backfill draft 9건 생성. **NEXT_PUBLIC_APP_URL 함정 발견**(server internal fetch 가 운영 URL 가는 사고 → VERCEL_URL+localhost 폴백). 부수: MZ 김민중·우아한스포츠 이형민 실명 set + 게시물 1건 재생성 / 6건 placeholder↔real 통합(피벗 조현철·이준모·배성문 / 업템포 김상훈·이원섭 / 아울스 이하성, 매치 stat/PBP 보존 ttp.id 그대로) + 영향 4건 게시물 재생성 / MZ team_id=234 dissolved | ✅ |
-| 2026-05-03 | (api/live 옵션 D / tsc PASS) | **status-aware cap + F2 진행도 기반 expected** — `estimateProgressedSec()` 신규 + `applyTeamCap` cap 분기 (completed=만점 / live=5×progressed) + `calculateSubBasedMinutes(matchStatus)` 시그니처 + F2 expected 진행 중 쿼터는 5×(qLen-lastClockInQ) 축소. 검증 (운영 11 라이브 매치 + 4 종료 매치): #84 cap 12000→1520s/팀 (25.3m), #92 12000→7570s/팀 (126.2m). 종료 #132~#135 8400s/팀 만점 회귀 0. tsc PASS. 5/3 진행 매치 출전시간 부풀림 즉시 정상화 | ✅ |
-| 2026-05-03 | (debugger / 분석 only) | **라이브 cap 부풀림 진단** — 운영 11 라이브 매치 SELECT. cap = 5×qLen×4 (Q4 만점, 200분/팀) 을 status 무관 적용 → Q1 진행 매치 id=84 (#5 starter 모두 999s = Flutter 999s cap) → applyTeamCap 의 partial 비례 확대 (12000/4995 ≈ 2.4배) → 각 선수 ~40분 부풀림. **fix 방향**: status='live' 일 때 cap = 5×qLen×(완료쿼터+(qLen-lastClock)/qLen) 동적 산출. F2 expected 도 진행 중 쿼터에선 5×(qLen-lastClock) 로 축소. 옵션 D 권장 (사용자 결정 대기) | ✅ 진단 |
