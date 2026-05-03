@@ -72,6 +72,16 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
   //   비현실(<3 또는 >7) 시 fallback (PBP 추정).
   const prevEndLineupByQ = new Map<number, Set<bigint>>();
 
+  // 2026-05-03 Tier 3: 종료된 쿼터 식별용 — 어느 쿼터에 PBP 가 있는지 사전 수집.
+  //   "이 쿼터의 다음 쿼터에 PBP 가 1건이라도 있으면" 이 쿼터는 종료된 쿼터로 간주
+  //   → endClock 을 PBP 마지막 clock 이 아닌 0 으로 강제 (lastGap 보정).
+  //   왜: Flutter 운영자가 쿼터 끝 (clock=0~몇초) 입력을 누락하는 경우가 많음 (debugger 분석:
+  //   lastGap p90=34s/max=113s). 다음 쿼터 PBP 가 있다는 것은 이 쿼터가 분명히 종료됐다는
+  //   증거이므로 마지막 segment 를 0 까지 강제 누적해도 안전 (active 5명 시간 손실 방지).
+  //   라이브 진행 중인 마지막 쿼터 (다음 쿼터 PBP 없음) 는 기존대로 endClock=lastPbpClock 유지.
+  const quartersWithPbp = new Set<number>();
+  for (const p of pbps) quartersWithPbp.add(p.quarter);
+
   // 쿼터별 누적 헬퍼 — total + byQuarter 동시 갱신
   const addSec = (id: bigint, q: number, sec: number) => {
     if (sec <= 0) return;
@@ -177,7 +187,13 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
 
     // active set 시뮬레이션
     const active = new Set<bigint>(starters);
-    let lastClock = qLen; // 쿼터 시작 시점 (clock = qLen)
+    // 2026-05-03 Tier 3: starter 의 첫 segment 시작 시각 = 무조건 qLen 강제.
+    //   왜: 첫 PBP clock=414 (qLen=420 기준 6초 늦음) 이어도 starter 5명은 쿼터 시작
+    //   (game_clock=qLen) 부터 코트에 있던 것이 농구 규칙상 자명. firstGap (qLen → 첫 PBP clock)
+    //   을 starter 시간에 포함시켜야 정확. 현재 코드도 lastClock=qLen 으로 시작하지만
+    //   명시적 보장 + 향후 누가 lastClock 을 첫 PBP clock 으로 바꾸지 못하도록 주석으로 못박음.
+    //   이상치 방어: 첫 PBP clock > qLen (예: clock=425, qLen=420) 같은 데이터 오류는 무시 — qLen 사용.
+    let lastClock = qLen;
 
     for (const sub of subs) {
       // sub 시점 직전까지 active 전원에게 segment 시간 누적
@@ -194,10 +210,19 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
     }
 
     // 쿼터 종료까지 잔여 segment
-    // - 종료 매치: 마지막 PBP clock ≈ 0 → lastClock 부터 0 까지
-    // - 라이브 진행 중 쿼터: 마지막 PBP clock > 0 → 그 시점까지만 (이후는 미진행)
-    // 단순화: 쿼터의 마지막 PBP 의 clock 을 endClock 으로 사용.
-    const endClock = qPbps[qPbps.length - 1].clock;
+    // 2026-05-03 Tier 3 lastGap 보정:
+    //   - 다음 쿼터 PBP 존재 (= 이 쿼터 분명 종료) → endClock=0 강제 (마지막 4~30초 lastGap 보정)
+    //     debugger 분석상 lastGap p90=34s 라 평균적으로 active 5명 × 30s = 150s/팀 회복 가능
+    //   - 다음 쿼터 PBP 없음 (= 마지막 쿼터, 라이브 진행 중일 수 있음) → endClock=lastPbpClock (기존 동작)
+    //     라이브 cap 부풀림 방지 — 진행도만큼만 누적
+    //   주의: 마지막 쿼터가 종료 매치여도 endClock=lastPbpClock → 후속 applyCompletedCap 이 만점 보정함
+    let endClock: number;
+    const hasNextQuarterPbp = quartersWithPbp.has(q + 1);
+    if (hasNextQuarterPbp) {
+      endClock = 0; // 다음 쿼터 PBP 존재 → 이 쿼터는 분명 종료 → 0 까지 누적
+    } else {
+      endClock = qPbps[qPbps.length - 1].clock; // 마지막 쿼터 (라이브 가능성) → 기존 동작
+    }
     const remaining = lastClock - endClock;
     if (remaining > 0) {
       for (const id of active) {
