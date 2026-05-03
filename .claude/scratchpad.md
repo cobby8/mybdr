@@ -109,6 +109,43 @@
 
 ---
 
+## 구현 기록 (developer / 2026-05-03 minutes-engine 리팩토링 — B 옵션 격리+명확화)
+
+📝 구현한 기능: PBP 추정 fallback 격리 + 메인 path (DB starter / endLineup chain / boundary / LRM cap) 명확화
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/live/minutes-engine.ts` | 파일 헤더 알고리즘 설계 문서 주석 추가 (메인 path 4단계 + Fallback + 정확도) / `inferStartersFromPbp(qPbps)` 신규 헬퍼 함수 분리 (PBP-only fallback 격리, "fallback only" 명시) / `calculateMinutes` 내부 starter 결정 로직을 if/else 4분기로 명확화 (Q1 DB / Q1 fallback / Q2+ chain / Q2+ fallback) / Boundary 강제 / LRM cap 함수 헤더 주석 보강 | 수정 |
+
+신규 헬퍼 시그니처:
+```ts
+function inferStartersFromPbp(qPbps: MinutesPbp[]): Set<bigint>
+```
+- 입력: 한 쿼터의 PBP 배열 (clock 내림차순 정렬 가정)
+- 출력: starter 후보 ttp_id Set (sub_in 받은 적 없는 + sub_out 등장한 + 첫 sub 이전 등장한 union)
+
+검증 결과:
+- vitest: **20/20 PASS** (회귀 0 — 기존 J/K/K-2/G/H/I/D/E/F + 11개 모두 통과)
+- tsc --noEmit: **0 에러**
+- DB schema 변경 0 / Flutter 변경 0 / route.ts 변경 0 / format 함수 변경 0 / LRM 알고리즘 변경 0
+
+라인 수 변화:
+- 파일 전체: 325 → 333 (+8, 헤더 알고리즘 설계 주석 +22줄 포함)
+- `calculateMinutes` 함수만: 191 → 133 (**-58줄, -30%**) — 메인 path 가 훨씬 짧고 명확
+- `inferStartersFromPbp` 헬퍼 분리로 fallback 로직이 본체에서 제거됨
+
+💡 tester 참고:
+- 테스트 방법: `npx vitest run src/__tests__/lib/live/minutes-engine.test.ts` — 20/20 PASS 확인
+- 정상 동작: 동작 변경 0 (회귀 0). 기존 모든 케이스 (J starter firstGap / K lastGap / K-2 라이브 마지막쿼터 / G DB starter / H PBP fallback / I Q2 chain / D/E/F LRM) 모두 통과
+- 주의할 입력: 없음 — 리팩토링만, 알고리즘 동일
+
+⚠️ reviewer 참고:
+- **inferStartersFromPbp 격리 효과**: 향후 PBP 추정 룰 변경/실험 시 이 함수만 수정하면 됨. 메인 path 와 분리되어 회귀 위험 낮음
+- **메인 path 4분기 if/else**: Q1 DB → Q1 fallback / Q2+ chain → Q2+ fallback 로 starter 결정 로직이 한눈에 보임. "메인 path #N" 주석 4곳 (#1 DB / #2 chain / #3 boundary / #4 LRM cap) 일관 표시
+- **LRM 알고리즘 무변경**: applyCompletedCap 함수는 본체 변경 0, 헤더 주석만 보강. fractional 정렬/+1 분배 동일
+
+---
+
 ## 구현 기록 (developer / 2026-05-03 minutes-engine Tier 3 — starter boundary 강제)
 
 📝 구현한 기능: starter 첫 segment = qLen 명시적 강제 + lastGap 보정 (firstGap/lastGap 손실 0)
@@ -255,6 +292,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / 리팩토링 B 옵션 / 20/20 test PASS / tsc PASS) | **minutes-engine 리팩토링 — PBP 추정 fallback 격리 + 메인 path 명확화** — `src/lib/live/minutes-engine.ts` 파일 헤더 알고리즘 설계 문서 주석 추가 (메인 path 4단계 + Fallback). `inferStartersFromPbp(qPbps)` 헬퍼 함수 분리 (PBP-only fallback, "fallback only" 명시). `calculateMinutes` 내부 starter 결정을 if/else 4분기 (Q1 DB / Q1 fallback / Q2+ chain / Q2+ fallback) 로 명확화. Boundary / LRM cap 헤더 주석 보강. 동작 변경 0 (회귀 0). calculateMinutes 함수 191→133줄 (-58줄 -30%). 파일 전체 325→333 (+8, 헤더 주석 +22 포함). 20/20 PASS, tsc 0 에러. DB/route.ts/Flutter/LRM 알고리즘 변경 0 | ✅ |
 | 2026-05-03 | (developer / Tier 3 / 20/20 test PASS / tsc PASS) | **minutes-engine Tier 3 — starter 첫 segment qLen 강제 + lastGap 보정** — `src/lib/live/minutes-engine.ts` 시뮬 진입 시 `lastClock=qLen` 명시적 보장 (이상치 방어 주석 추가) + endClock 결정 분기 추가: 다음 쿼터 PBP 존재 시 endClock=0 강제 (lastGap p90=34s × 5명 × 4Q = 평균 11분/팀 회복), 없으면 lastPbpClock 보존 (라이브 마지막 쿼터 cap 부풀림 방지). `quartersWithPbp` Set 사전 수집. 신규 test J (clock=414, qLen=420 → starter 5명 풀타임 420s) + K (lastGap clock=4 → 마지막 4초 누적) + K-2 (라이브 마지막 쿼터 200s 보존, 회귀 방지). 기존 17 회귀 0 → **20/20 PASS**. tsc 0 에러. DB/Flutter/cap 함수 변경 0. 예상 효과: 강찬영 414 → 420 등 starter firstGap 손실 0, 종료 매치 raw 정확도 89.6% → 95%+ (LRM cap 결합 시 100%) | ✅ |
 | 2026-05-03 | (developer / Tier 2 보강 / 17/17 test PASS / tsc PASS) | **minutes-engine Tier 2 — DB starter 주입 + endLineup chain** — `MinutesInput.dbStartersByTeam?: Map<teamId, Set<ttp_id>>` 옵션 추가. Q1 starter = DB union 우선 (PBP 추정 무시) → fallback PBP. Q2+ starter = 직전 쿼터 종료 active 5명±2 → fallback PBP. route.ts 에서 `match.playerStats.isStarter=true` 필터 → tournamentTeamId 매핑 → 옵션 주입. 신규 test 케이스 G/H/I (DB 주입 / 미주입 호환 / Q2 chain). 기존 14 회귀 0 → 17/17 PASS. tsc 0 에러. DB schema/Flutter 변경 0. 정확도 92% → 99%, LRM cap 결합 시 100% 도달 예상 | ✅ |
 | 2026-05-03 | (debugger / SELECT only / errors.md +1 / 4 영역 정밀 분석) | **PBP 보강 가능성 정밀 분석 — 사용자 제안 검증** (스타팅 자동 sub_in / 쿼터 boundary / 작전타임 교체 추적). t388 13 매치 실측: ① **`MatchPlayerStat.isStarter` 100% 존재 (13/13 매치, 양팀 10명 정확)** — minutes-engine 미사용 / DB starter vs PBP Q1 추정 일치율 92.3% (불일치 2건 모두 DB 가 더 정확). ② lastGap p90=34s/max=113s (35.8%만 zero), firstGap p90=17s/max=240s (62.3% zero) → boundary 보강 효과 큼. ③ endLineup→nextStarter 교집합 5명 비율 36% (낮음) — but 이는 PBP 추정이 1~4명만 식별이 원인 / DB starter 사용 시 자동 해결. ④ **다음 쿼터 첫 sub_out 이 prev endLineup 에 포함 97.5%** → endLineup chain 매우 안전 (작전타임 교체 실제 발생률 2.5%). 시뮬: PBP-only 92.16% → 보강 후 103.21% (LRM cap 으로 정확화 가능). **권장 = Tier 2 (Q1 isStarter + Q2~Q4 endLineup chain) 영향 +10%, DB 무변경, 위험 0**. errors.md neuf entry 1건 ("starter PBP-only 추정 = isStarter 미사용 정확도 손실"). 임시 스크립트 정리 완료 | ✅ 분석 |
