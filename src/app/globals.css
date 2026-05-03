@@ -531,25 +531,28 @@ html.dark .app-nav__tab[data-active="true"]::after {
    왜: v2 박제 시 사이드바가 본문 위로 stack 되어 모바일 사용자 본문 도달 어려움
    해소: 모바일에서 가로 스크롤 탭 (8 카테고리). 데스크톱(lg+) 은 hidden(Tailwind)
    사용 컴포넌트: src/app/(web)/community/_components/community-aside.tsx
+
+   2026-05-04 (3차 fix): mask-image 만으로 시각 신호 약함 (사용자 3회 보고 — 카테고리 4개만
+     보이고 우측 잘림 인지 실패). 마크업에 wrap 래퍼 + fade overlay div (chevron_right 아이콘)
+     추가. mask-image 제거. wrap (position:relative) + fade (position:absolute, 우측 고정,
+     스크롤 따라가지 않음) 패턴으로 명시적 시각 신호.
    ============================================================ */
+.aside-mobile-tabs-wrap {
+  /* fade overlay 가 absolute right:0 으로 우측 고정되도록 base 제공 */
+  position: relative;
+  margin: 0 0 10px;
+}
 .aside-mobile-tabs {
   display: flex;
   gap: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  /* 2026-05-03 (위치 이동): 사이드바 외곽 → 본문 안쪽 "전체 N개의 글" 위로.
-     gutter 음수 마진 제거 + 하단 border 제거 (본문 컨텐츠와 자연스럽게 연결) */
-  padding: 4px 24px 8px 0;
-  /* 우측 padding 24px = mask fade 영역 확보 (마지막 탭이 fade 뒤에 가려지지 않게) */
-  margin: 0 0 10px;
-  /* 2026-05-03 (스크롤바 표시 + fade): 사용자가 가로 스크롤 가능함을 시각으로 강하게 인지.
-     Firefox: scrollbar-width:thin / WebKit: 6px (4 → 6 강화) accent thumb
-     mask-image: 우측 24px fade — iOS Safari / Android Chrome 에서 scrollbar 무시되어도
-     "더 있음" 시각 신호로 작용. 컨테이너 자체에 mask 적용 → 스크롤 따라가지 않음 (고정) */
+  /* 우측 padding 36px = fade overlay (32px) 공간 + 약간의 여유.
+     마지막 탭이 fade overlay 뒤에 가려지지 않게 확보 */
+  padding: 4px 36px 8px 0;
+  /* 6px scrollbar (Firefox: thin / WebKit: 아래 별도 룰) — 보조 신호. 메인 신호는 fade overlay */
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
-  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
-          mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
 }
 .aside-mobile-tabs::-webkit-scrollbar {
   height: 6px;
@@ -562,24 +565,49 @@ html.dark .app-nav__tab[data-active="true"]::after {
 .aside-mobile-tabs::-webkit-scrollbar-track {
   background: transparent;
 }
-/* 2026-05-03 fix: PC (lg+) 에서 모바일 가로탭 강제 숨김 — Tailwind lg:hidden 이
- * .aside-mobile-tabs { display:flex } specificity 충돌로 미적용되는 케이스 보정 */
+/* 우측 fade overlay — 항상 우측 고정 (스크롤 따라가지 않음). 메인 시각 신호 */
+.aside-mobile-tabs-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* scrollbar 6px 만큼 띄움 — 화살표가 스크롤바 위에 올라타지 않게 */
+  bottom: 6px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 좌→우 transparent → bg fade — 끝에 더 있다는 신호 강화 */
+  background: linear-gradient(to right, transparent 0%, var(--bg) 70%);
+  /* 클릭 가로채지 않음 — 탭 자체는 항상 클릭 가능 */
+  pointer-events: none;
+  z-index: 1;
+  color: var(--accent);
+}
+.aside-mobile-tabs-fade .material-symbols-outlined {
+  font-size: 22px;
+  font-weight: 700;
+}
+/* PC (lg+) 강제 숨김 — wrap 자체를 숨겨 fade overlay 도 함께 사라짐 */
 @media (min-width: 1024px) {
-  .aside-mobile-tabs { display: none !important; }
+  .aside-mobile-tabs-wrap { display: none !important; }
 }
 
 /* ============================================================
    정렬 바 가로 스크롤 (모바일) — 사용자 회귀 픽스 (2026-05-03)
    왜: 정렬/최신순/인기순/댓글많은순/조회순 + 캡션이 가로 폭 초과 시 스크롤 불가
-   해소: overflow-x:auto + 4px 인디케이터 (커뮤니티 카테고리 탭과 동일 패턴)
+   해소: overflow-x:auto + 6px 인디케이터 + fade overlay (커뮤니티 카테고리 탭과 동일 패턴)
+   2026-05-04 (3차 fix): mask-image → wrap+fade overlay 마크업 패턴으로 통일
    ============================================================ */
+.sort-bar-mobile-wrap {
+  position: relative;
+  margin-bottom: 10px;
+}
 .sort-bar-mobile {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
-  /* 2026-05-03 2차: 우측 fade 영역 확보 — padding-right 12 → 24 */
-  padding: 10px 24px 10px 12px;
+  /* 우측 padding 36px = fade overlay (32px) 공간 + 약간의 여유. 마지막 캡션이 가려지지 않게 */
+  padding: 10px 36px 10px 12px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-chip);
@@ -589,9 +617,6 @@ html.dark .app-nav__tab[data-active="true"]::after {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
-  /* 2026-05-03 2차: 우측 fade — 스크롤 가능성 시각 신호 (커뮤니티 카테고리 탭 동일 패턴) */
-  -webkit-mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
-          mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
 }
 .sort-bar-mobile::-webkit-scrollbar {
   height: 6px;
@@ -604,6 +629,31 @@ html.dark .app-nav__tab[data-active="true"]::after {
 .sort-bar-mobile::-webkit-scrollbar-track {
   background: transparent;
 }
+/* 우측 fade overlay — sort-bar 는 border-radius 가 있으므로 우측만 살짝 둥글게.
+   bg-elev 컬러로 fade — sort-bar 배경과 동일하게 자연스럽게 사라지도록 */
+.sort-bar-mobile-fade {
+  position: absolute;
+  top: 1px; /* border 1px 회피 */
+  right: 1px;
+  bottom: 7px; /* border 1px + scrollbar 6px */
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to right, transparent 0%, var(--bg-elev) 70%);
+  /* 우측 둥근 모서리 — sort-bar border-radius 와 맞춤 */
+  border-radius: 0 var(--radius-chip) var(--radius-chip) 0;
+  pointer-events: none;
+  z-index: 1;
+  color: var(--accent);
+}
+.sort-bar-mobile-fade .material-symbols-outlined {
+  font-size: 22px;
+  font-weight: 700;
+}
+/* PC (lg+) 에서도 정렬 바 자체는 보일 수 있으나, fade overlay 는 가로 폭 충분하면
+   불필요한 시각 잡음. 다만 정렬 바 wrap 은 모바일 전용 컨테이너이므로 그대로 표시.
+   필요 시 추후 wrap 자체 lg+ 숨김 룰 추가 (현재 .sort-bar-mobile 은 모바일 단독 사용) */
 
 /* ============================================================
    페이지 Hero 공통 클래스 (.page-hero) — 모바일 압축 규칙 (2026-05-03)

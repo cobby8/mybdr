@@ -377,42 +377,50 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
           />
 
           {/* 3. 정렬 바 — 4종 토글 + 우측 "한 페이지 N개" 캡션.
-              2026-05-03: 인라인 style → .sort-bar-mobile (가로 스크롤 + 4px accent 인디케이터). */}
-          <div className="sort-bar-mobile">
-            <span style={{ color: "var(--ink-dim)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
-              정렬
-            </span>
-            {SORT_OPTIONS.map((opt) => {
-              const active = sortKey === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => {
-                    setSortKey(opt.key);
-                    setCurrentPage(1); // 정렬 변경 시 1페이지로
-                  }}
-                  style={{
-                    padding: "4px 8px",
-                    border: 0,
-                    background: active ? "var(--cafe-blue-soft)" : "transparent",
-                    color: active ? "var(--cafe-blue-deep)" : "var(--ink-mute)",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    fontWeight: active ? 700 : 500,
-                    fontSize: 13,
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-            <span style={{ flex: 1, minWidth: 8 }} />
-            <span style={{ color: "var(--ink-dim)", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>
-              한 페이지 {POSTS_PER_PAGE}개
-            </span>
+              2026-05-03: 인라인 style → .sort-bar-mobile (가로 스크롤 + 4px accent 인디케이터).
+              2026-05-04 (3차 fix): wrap 래퍼 + fade overlay 추가 (카테고리 탭과 동일 패턴 — mask 만으로
+              시각 신호 약해 사용자 인지 실패). lg+ 는 globals.css 에서 wrap 숨김. */}
+          <div className="sort-bar-mobile-wrap">
+            <div className="sort-bar-mobile">
+              <span style={{ color: "var(--ink-dim)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
+                정렬
+              </span>
+              {SORT_OPTIONS.map((opt) => {
+                const active = sortKey === opt.key;
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => {
+                      setSortKey(opt.key);
+                      setCurrentPage(1); // 정렬 변경 시 1페이지로
+                    }}
+                    style={{
+                      padding: "4px 8px",
+                      border: 0,
+                      background: active ? "var(--cafe-blue-soft)" : "transparent",
+                      color: active ? "var(--cafe-blue-deep)" : "var(--ink-mute)",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontWeight: active ? 700 : 500,
+                      fontSize: 13,
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+              <span style={{ flex: 1, minWidth: 8 }} />
+              <span style={{ color: "var(--ink-dim)", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>
+                한 페이지 {POSTS_PER_PAGE}개
+              </span>
+            </div>
+            {/* 우측 fade + 화살표 — 카테고리 탭과 동일. aria-hidden + pointer-events:none(CSS). */}
+            <div className="sort-bar-mobile-fade" aria-hidden="true">
+              <span className="material-symbols-outlined">chevron_right</span>
+            </div>
           </div>
 
           {/* 3. 게시글 테이블 — 로딩/빈상태/정상 분기 */}
