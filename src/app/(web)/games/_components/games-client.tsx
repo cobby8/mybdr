@@ -22,6 +22,7 @@
  * ============================================================ */
 
 import { useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GameCard } from "@/components/bdr-v2/game-card";
 import {
@@ -56,6 +57,54 @@ export interface GamesClientProps {
   games: GameForClient[];
   /** 종류 탭 카운트 — page.tsx 에서 prisma.groupBy 로 계산해 내려줌 */
   typeCounts: KindTabBarCounts;
+}
+
+// 2026-05-03: 헤더 우측 actions = filter 토글 + 만들기 버튼 묶음 (사용자 요청 — 필터를 만들기 좌측으로 이동)
+function HeaderActions({
+  filterOpen,
+  activeFilterCount,
+  onToggleFilter,
+}: {
+  filterOpen: boolean;
+  activeFilterCount: number;
+  onToggleFilter: () => void;
+}) {
+  const filterBtnClasses = [
+    "games-filter-btn",
+    filterOpen ? "is-open" : "",
+    activeFilterCount > 0 ? "has-active" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div
+      className="games-header__actions"
+      style={{ display: "flex", gap: 8, alignItems: "center" }}
+    >
+      <button
+        type="button"
+        className={filterBtnClasses}
+        onClick={onToggleFilter}
+        aria-label="필터"
+        aria-expanded={filterOpen}
+        title="필터"
+      >
+        <span className="material-symbols-outlined" aria-hidden="true">
+          tune
+        </span>
+        {activeFilterCount > 0 && (
+          <span className="games-filter-btn__dot">{activeFilterCount}</span>
+        )}
+      </button>
+      <Link href="/games/new" className="btn btn--primary games-create-btn">
+        <span className="material-symbols-outlined" aria-hidden="true">
+          add
+        </span>
+        <span>만들기</span>
+      </Link>
+    </div>
+  );
 }
 
 /* -- 태그 자동 파생 유틸 (DQ3) -- */
@@ -164,13 +213,24 @@ export function GamesClient({ games, typeCounts }: GamesClientProps) {
 
   return (
     <>
-      {/* 종류 탭 (segmented) + filter 토글 버튼 — 시안 .games-toolbar */}
-      <KindTabBar
-        counts={typeCounts}
-        filterOpen={filterOpen}
-        activeFilterCount={activeFilterCount}
-        onToggleFilter={handleToggleFilter}
-      />
+      {/* 2026-05-03: 헤더 — 좌측 title / 우측 actions(필터+만들기) — 사용자 요청 (필터를 만들기 좌측으로) */}
+      <div className="games-header">
+        <div className="games-header__title">
+          <div className="eyebrow">경기 · GAMES</div>
+          <h1 className="games-header__h1">픽업 · 게스트 모집</h1>
+          <div className="games-header__sub">
+            같이 뛸 사람을 찾는 {typeCounts.all}건의 모집이 열려 있습니다
+          </div>
+        </div>
+        <HeaderActions
+          filterOpen={filterOpen}
+          activeFilterCount={activeFilterCount}
+          onToggleFilter={handleToggleFilter}
+        />
+      </div>
+
+      {/* 종류 탭 (segmented만) — filter 토글 prop 안 넘김 → 자동으로 우측 filter 버튼 렌더 X */}
+      <KindTabBar counts={typeCounts} />
 
       {/* 필터 칩 영역 — collapsible (filterOpen 일 때만 렌더) */}
       {filterOpen && (

@@ -309,86 +309,79 @@ export function TournamentsContent({
     categoryFilter !== "all" ||
     divisionFilter !== "all";
 
+  // 2026-05-03: 컨트롤 묶음 (View toggle + 검색 + 필터) — 제목 행 우측에 배치
+  const controlsNode = (
+    <>
+      <ViewToggle current={viewMode} onChange={setViewMode} />
+      <TournamentsFilterComponent
+        onSearchChange={handleSearchChange}
+        onRegionChange={handleRegionChange}
+        onGenderChange={handleGenderChange}
+        onCategoryChange={handleCategoryChange}
+        onDivisionChange={handleDivisionChange}
+        selectedCategory={categoryFilter}
+        selectedGender={genderFilter}
+      />
+    </>
+  );
+
   return (
     <div className="page">
-      {/* 2026-05-03: 제목만 한 줄 (컨트롤은 V2TournamentList 탭 옆 우측으로 이동).
-          2026-05-03 (Hero 공통화): 인라인 style → .page-hero (모바일 압축 룰 적용). */}
-      <div className="page-hero">
-        <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
-        <h1 className="page-hero__title">대회</h1>
+      {/* 2026-05-03: 제목 행 — 좌측 제목(.page-hero) / 우측 컨트롤 묶음 (View toggle + 검색 + 필터) */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-end",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 12,
+        }}
+      >
+        <div className="page-hero" style={{ marginBottom: 0 }}>
+          <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
+          <h1 className="page-hero__title">대회</h1>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          {controlsNode}
+        </div>
       </div>
 
-      {/* 2026-05-03: 컨트롤 노드 — list 뷰는 V2TournamentList toolbar prop / 다른 뷰는 별도 div */}
-      {(() => {
-        const controlsNode = (
-          <>
-            <ViewToggle current={viewMode} onChange={setViewMode} />
-            <TournamentsFilterComponent
-              onSearchChange={handleSearchChange}
-              onRegionChange={handleRegionChange}
-              onGenderChange={handleGenderChange}
-              onCategoryChange={handleCategoryChange}
-              onDivisionChange={handleDivisionChange}
-              selectedCategory={categoryFilter}
-              selectedGender={genderFilter}
-            />
-          </>
-        );
-
-        if (viewMode === "calendar" || viewMode === "week") {
-          return (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  flexWrap: "wrap",
-                  alignItems: "center",
-                  justifyContent: "flex-end",
-                  marginBottom: 16,
-                }}
-              >
-                {controlsNode}
-              </div>
-              {viewMode === "calendar" ? (
-                <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-              ) : (
-                <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-              )}
-            </>
-          );
-        }
-
-        // list 뷰
-        return (
-          <>
-            {loading ? (
-              <TournamentGridSkeleton />
-            ) : (
-              <>
-                <V2TournamentList
-                  tournaments={paginatedTournaments}
-                  photoMap={photoMap}
-                  activeTab={v2StatusTab}
-                  onTabChange={setV2StatusTab}
-                  emptyMessage={
-                    hasFilters
-                      ? "조건에 맞는 대회가 없습니다."
-                      : "등록된 대회가 없습니다."
-                  }
-                  counts={v2TabCounts}
-                  toolbar={controlsNode}
-                />
-                <LoadMoreButton
-                  hasMore={hasMore}
-                  onMore={() => setCurrentPage((p) => p + 1)}
-                  remaining={remaining}
-                />
-              </>
-            )}
-          </>
-        );
-      })()}
+      {/* 본문 — list / calendar / week 뷰 분기 (controlsNode 는 위 헤더에 단일 mount) */}
+      {viewMode === "calendar" ? (
+        <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+      ) : viewMode === "week" ? (
+        <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+      ) : loading ? (
+        <TournamentGridSkeleton />
+      ) : (
+        <>
+          <V2TournamentList
+            tournaments={paginatedTournaments}
+            photoMap={photoMap}
+            activeTab={v2StatusTab}
+            onTabChange={setV2StatusTab}
+            emptyMessage={
+              hasFilters
+                ? "조건에 맞는 대회가 없습니다."
+                : "등록된 대회가 없습니다."
+            }
+            counts={v2TabCounts}
+          />
+          <LoadMoreButton
+            hasMore={hasMore}
+            onMore={() => setCurrentPage((p) => p + 1)}
+            remaining={remaining}
+          />
+        </>
+      )}
     </div>
   );
 }

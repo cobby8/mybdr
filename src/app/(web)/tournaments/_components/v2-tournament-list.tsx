@@ -446,8 +446,6 @@ interface V2TournamentListProps {
   onTabChange: (tab: V2MatchTab) => void;
   emptyMessage?: string;
   counts?: Partial<Record<V2MatchTab, number>>;
-  // 2026-05-03: 탭 우측에 렌더할 toolbar (뷰 토글 + 검색/필터) — 같은 줄에 좌탭/우툴바
-  toolbar?: React.ReactNode;
 }
 
 export function V2TournamentList({
@@ -457,24 +455,13 @@ export function V2TournamentList({
   onTabChange,
   emptyMessage,
   counts,
-  toolbar,
 }: V2TournamentListProps) {
   const shown = tournaments;
 
   return (
     <div>
-      {/* 2026-05-03: 탭 (좌) + toolbar (우) 한 줄 묶음 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          marginBottom: 16,
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      {/* 2026-05-03: 4상태 탭 — 경기 카테고리 KindTabBar 와 동일한 .games-segmented 클래스 재사용 */}
+      <div className="games-segmented" role="tablist" style={{ marginBottom: 16 }}>
         {V2_MATCH_TABS.map((tab) => {
           const isActive = activeTab === tab;
           const count = counts?.[tab];
@@ -482,40 +469,23 @@ export function V2TournamentList({
             <button
               key={tab}
               type="button"
-              className="btn btn--sm"
+              role="tab"
+              aria-selected={isActive}
+              aria-pressed={isActive}
               onClick={() => onTabChange(tab)}
-              style={
+              className={
                 isActive
-                  ? {
-                      background: "var(--cafe-blue, #2563eb)",
-                      color: "#fff",
-                      borderColor: "var(--cafe-blue-deep, #1d4ed8)",
-                    }
-                  : {}
+                  ? "games-segmented__btn is-active"
+                  : "games-segmented__btn"
               }
             >
-              {tab}
+              <span className="games-segmented__label">{tab}</span>
               {count !== undefined && count > 0 && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 11,
-                    opacity: isActive ? 0.9 : 0.6,
-                    fontFamily: "var(--ff-mono)",
-                  }}
-                >
-                  {count}
-                </span>
+                <span className="games-segmented__count">{count}</span>
               )}
             </button>
           );
         })}
-        </div>
-        {toolbar && (
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            {toolbar}
-          </div>
-        )}
       </div>
 
       {/* 카드 그리드: 데스크톱 2열, 모바일 1열 */}
