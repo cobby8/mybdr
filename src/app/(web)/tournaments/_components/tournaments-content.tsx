@@ -309,9 +309,8 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 2026-05-03: 헤더 레이아웃 분리 — 제목 라인 / 컨트롤 라인 / (V2TournamentList 안 탭) 순서 */}
-      {/* 라인 1: 제목 (eyebrow + h1) */}
-      <div style={{ marginBottom: 12 }}>
+      {/* 2026-05-03: 제목만 한 줄 (컨트롤은 V2TournamentList 탭 옆 우측으로 이동) */}
+      <div style={{ marginBottom: 16 }}>
         <div className="eyebrow">대회 · TOURNAMENTS</div>
         <h1
           style={{
@@ -324,72 +323,81 @@ export function TournamentsContent({
           대회
         </h1>
       </div>
-      {/* 라인 2: 컨트롤 (리스트/월간/주간 + 검색/필터, 우측 정렬) — 탭 바로 위로 묶음 */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          marginBottom: 12,
-        }}
-      >
-        <ViewToggle current={viewMode} onChange={setViewMode} />
-        <TournamentsFilterComponent
-          onSearchChange={handleSearchChange}
-          onRegionChange={handleRegionChange}
-          onGenderChange={handleGenderChange}
-          onCategoryChange={handleCategoryChange}
-          onDivisionChange={handleDivisionChange}
-          selectedCategory={categoryFilter}
-          selectedGender={genderFilter}
-        />
-      </div>
 
-      {/* 뷰 모드별 콘텐츠 렌더링 */}
-      {viewMode === "calendar" ? (
-        /* 월간 캘린더 뷰: 자체 API 호출, 필터만 전달 (기능 보존) */
-        <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-      ) : viewMode === "week" ? (
-        /* 주간 뷰: 자체 API 호출, 필터만 전달 (기능 보존) */
-        <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-      ) : (
-        /* 리스트 뷰: V2TournamentList (시안 Match 목록) — 6상태 칩 + 포스터 카드 */
-        <>
-          {loading ? (
-            <TournamentGridSkeleton />
-          ) : (
+      {/* 2026-05-03: 컨트롤 노드 — list 뷰는 V2TournamentList toolbar prop / 다른 뷰는 별도 div */}
+      {(() => {
+        const controlsNode = (
+          <>
+            <ViewToggle current={viewMode} onChange={setViewMode} />
+            <TournamentsFilterComponent
+              onSearchChange={handleSearchChange}
+              onRegionChange={handleRegionChange}
+              onGenderChange={handleGenderChange}
+              onCategoryChange={handleCategoryChange}
+              onDivisionChange={handleDivisionChange}
+              selectedCategory={categoryFilter}
+              selectedGender={genderFilter}
+            />
+          </>
+        );
+
+        if (viewMode === "calendar" || viewMode === "week") {
+          return (
             <>
-              {/* 2026-05-03: "검색 결과 N개" 문구 제거 (사용자 요청) */}
-
-              {/* v2 목록 래퍼: 4상태 탭 + 카드 그리드 */}
-              <V2TournamentList
-                tournaments={paginatedTournaments}
-                photoMap={photoMap}
-                activeTab={v2StatusTab}
-                onTabChange={setV2StatusTab}
-                emptyMessage={
-                  hasFilters
-                    ? "조건에 맞는 대회가 없습니다."
-                    : "등록된 대회가 없습니다."
-                }
-                counts={v2TabCounts}
-              />
-
-              {/* 페이지네이션 — 기존 그대로 */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={(page) => {
-                  setCurrentPage(page);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  marginBottom: 16,
                 }}
-              />
+              >
+                {controlsNode}
+              </div>
+              {viewMode === "calendar" ? (
+                <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+              ) : (
+                <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
+              )}
             </>
-          )}
-        </>
-      )}
+          );
+        }
+
+        // list 뷰
+        return (
+          <>
+            {loading ? (
+              <TournamentGridSkeleton />
+            ) : (
+              <>
+                <V2TournamentList
+                  tournaments={paginatedTournaments}
+                  photoMap={photoMap}
+                  activeTab={v2StatusTab}
+                  onTabChange={setV2StatusTab}
+                  emptyMessage={
+                    hasFilters
+                      ? "조건에 맞는 대회가 없습니다."
+                      : "등록된 대회가 없습니다."
+                  }
+                  counts={v2TabCounts}
+                  toolbar={controlsNode}
+                />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(page) => {
+                    setCurrentPage(page);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+              </>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
