@@ -466,8 +466,15 @@ export async function GET(
       bestThreeShooter: bestThreeShooter ?? null,
     };
 
+    // 2026-05-03: mode query param 추가 — Phase 1 (default) / Phase 2 분기
+    // ?mode=phase2-match : 게시판 독립 기사용 (auto-publish-match-brief 가 호출)
+    const url = new URL(req.url);
+    const modeParam = url.searchParams.get("mode");
+    const mode: "phase1-section" | "phase2-match" =
+      modeParam === "phase2-match" ? "phase2-match" : "phase1-section";
+
     // LLM 호출 (캐시 적용)
-    const result = await generateMatchBrief(briefInput);
+    const result = await generateMatchBrief(briefInput, mode);
     if (!result.ok) {
       // GEMINI_API_KEY 미설정은 별도 reason 으로 분기 (관측성)
       const reason = result.reason.includes("GEMINI_API_KEY")
@@ -481,7 +488,9 @@ export async function GET(
     return apiSuccess({
       ok: true,
       brief: result.brief,
+      ...(result.title !== undefined && { title: result.title }),
       matchId,
+      mode,
       generated_at: new Date().toISOString(),
     });
   } catch (e) {
