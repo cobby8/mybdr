@@ -13,6 +13,7 @@ const categoryLabelMap: Record<string, string> = {
   recruit: "팀원모집",
   qna: "질문답변",
   notice: "공지사항",
+  news: "BDR NEWS", // 2026-05-03 알기자
 };
 
 interface PostDetailSidebarProps {

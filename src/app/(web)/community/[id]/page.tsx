@@ -62,6 +62,7 @@ const categoryLabelMap: Record<string, string> = {
   recruit: "팀원모집",
   qna: "질문답변",
   notice: "공지사항",
+  news: "BDR NEWS", // 2026-05-03 알기자
 };
 
 // 상대 시간 포맷 (시안은 "2025.04.22" 형식이지만 운영 일관성 위해 기존 상대시간 유지)

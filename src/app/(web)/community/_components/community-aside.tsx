@@ -28,11 +28,12 @@ interface BoardItem {
   group: GroupKey;
 }
 
-// 시안의 BOARDS 패턴을 그대로 따르되, DB 카테고리 7개로 매핑
+// 시안의 BOARDS 패턴을 그대로 따르되, DB 카테고리 8개로 매핑 (2026-05-03 BDR NEWS 추가)
 const BOARDS: BoardItem[] = [
   // 메인
   { id: null,          name: "전체글",    group: "main" },
   { id: "notice",      name: "공지사항",  group: "main" },
+  { id: "news",        name: "BDR NEWS", group: "main" }, // 2026-05-03 알기자 자동 발행
   { id: "general",     name: "자유게시판", group: "main" },
   // 플레이
   { id: "recruit",     name: "팀원모집",  group: "play" },
