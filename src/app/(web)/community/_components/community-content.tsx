@@ -52,7 +52,7 @@ interface CommunityApiResponse {
 }
 
 // 페이지당 게시글 수 — PM 결정: 시안 충실 (한 페이지 20개)
-const POSTS_PER_PAGE = 20;
+const POSTS_PER_PAGE = 60; // 2026-05-03: 최초 노출 3배 확대 (20→60)
 
 // 새글 판정 임계: 24시간 (시안의 isNew 패턴)
 const NEW_BADGE_MS = 24 * 60 * 60 * 1000;

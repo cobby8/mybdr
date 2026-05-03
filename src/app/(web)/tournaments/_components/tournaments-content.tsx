@@ -62,7 +62,7 @@ interface TournamentsApiResponse {
   tournaments: TournamentFromApi[];
 }
 
-const TOURNAMENTS_PER_PAGE = 10;
+const TOURNAMENTS_PER_PAGE = 30; // 2026-05-03: 최초 노출 3배 확대 (10→30)
 
 /* 스켈레톤: 토스 스타일 (기존과 동일) */
 function TournamentGridSkeleton() {
