@@ -327,44 +327,30 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 2026-05-03: 제목 단독 행 — 컨트롤은 V2TournamentList toolbar prop 으로 탭 우측에 배치 */}
-      <div className="page-hero">
-        <div className="eyebrow page-hero__eyebrow">대회 · TOURNAMENTS</div>
-        <h1 className="page-hero__title">대회</h1>
+      {/* 2026-05-03: 헤더 — 좌측 제목 / 우측 컨트롤 5개 (경기 페이지의 [필터][만들기] 위치와 동일 패턴) */}
+      <div className="games-header">
+        <div className="games-header__title">
+          <div className="eyebrow">대회 · TOURNAMENTS</div>
+          <h1 className="games-header__h1">대회</h1>
+        </div>
+        <div
+          className="games-header__actions"
+          style={{
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            flexShrink: 0,
+          }}
+        >
+          {controlsNode}
+        </div>
       </div>
 
-      {/* 본문 — list / calendar / week 뷰 분기 */}
+      {/* 본문 — list / calendar / week 뷰 분기 (segmented 탭은 풀폭, 컨트롤 미전달 = 잘림 0) */}
       {viewMode === "calendar" ? (
-        <>
-          {/* calendar/week 뷰는 탭이 없으므로 컨트롤 별도 우측 정렬 */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            {controlsNode}
-          </div>
-          <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-        </>
+        <CalendarView categoryFilter={categoryFilter} genderFilter={genderFilter} />
       ) : viewMode === "week" ? (
-        <>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            {controlsNode}
-          </div>
-          <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
-        </>
+        <WeekView categoryFilter={categoryFilter} genderFilter={genderFilter} />
       ) : loading ? (
         <TournamentGridSkeleton />
       ) : (
@@ -380,7 +366,6 @@ export function TournamentsContent({
                 : "등록된 대회가 없습니다."
             }
             counts={v2TabCounts}
-            toolbar={controlsNode}
           />
           <LoadMoreButton
             hasMore={hasMore}

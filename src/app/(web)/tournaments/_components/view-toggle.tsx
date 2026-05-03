@@ -24,7 +24,7 @@ const VIEW_OPTIONS: { mode: ViewMode; icon: string; label: string }[] = [
 ];
 
 export function ViewToggle({ current, onChange }: ViewToggleProps) {
-  // 2026-05-03: 모바일 컨트롤 사이즈 축소 (옵션 A) — 모바일 px-1.5 py-1 / 데스크톱 px-2.5 py-1.5
+  // 2026-05-03: 90% 축소 — 모바일 px-1 py-0.5 / 데스크톱 px-2 py-1.5
   return (
     <div className="flex items-center gap-0.5 rounded-lg bg-[var(--color-surface)] p-0.5">
       {VIEW_OPTIONS.map(({ mode, icon, label }) => {
@@ -35,7 +35,7 @@ export function ViewToggle({ current, onChange }: ViewToggleProps) {
             type="button"
             onClick={() => onChange(mode)}
             title={label}
-            className="flex items-center gap-1 rounded-md px-1.5 py-1 sm:px-2.5 sm:py-1.5 text-xs font-medium transition-all"
+            className="flex items-center gap-1 rounded-md px-1 py-0.5 sm:px-2 sm:py-1.5 text-xs font-medium transition-all"
             style={{
               backgroundColor: isActive ? "var(--color-card)" : "transparent",
               color: isActive ? "var(--color-text-primary)" : "var(--color-text-muted)",
