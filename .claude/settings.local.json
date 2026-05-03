@@ -303,7 +303,9 @@
       "Bash(tee scripts/_temp/diagnose-output-p2002.log)",
       "Bash(npm i *)",
       "Bash(vercel *)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); ap=d.get\\('data',{}\\).get\\('awayPlayers'\\) or d.get\\('away_players'\\) or []; hp=d.get\\('data',{}\\).get\\('homePlayers'\\) or d.get\\('home_players'\\) or []; print\\(f'home={len\\(hp\\)}, away={len\\(ap\\)}'\\); print\\('away sample:', [{'#':p.get\\('jersey_number'\\) or p.get\\('jerseyNumber'\\), 'name':p.get\\('player_name'\\) or p.get\\('name'\\)} for p in ap[:3]]\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); ap=d.get\\('data',{}\\).get\\('awayPlayers'\\) or d.get\\('away_players'\\) or []; hp=d.get\\('data',{}\\).get\\('homePlayers'\\) or d.get\\('home_players'\\) or []; print\\(f'home={len\\(hp\\)}, away={len\\(ap\\)}'\\); print\\('away sample:', [{'#':p.get\\('jersey_number'\\) or p.get\\('jerseyNumber'\\), 'name':p.get\\('player_name'\\) or p.get\\('name'\\)} for p in ap[:3]]\\)\")",
+      "WebFetch(domain:jumpball.co.kr)",
+      "Bash(awk '{print $5}')"
     ]
   }
 }
