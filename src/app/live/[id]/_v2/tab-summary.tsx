@@ -444,7 +444,7 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
   const summaryBlocks = [
     { l: "최대점수차", v: maxLead > 0 ? `${maxLead}점` : `${scoreDiff}점` },
     {
-      l: "스코어링 런",
+      l: "최다 스코어링 런",
       v:
         bestRunPts > 0 && bestRunTeam
           ? `${bestRunTeam} Q${bestRunQuarter} ${bestRunPts}-0`
