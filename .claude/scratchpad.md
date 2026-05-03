@@ -8,14 +8,7 @@
 
 ## 🎯 현재 작업
 
-**5/3~5/4 양일 작업 종료 (2026-05-04 PC 재부팅 전)** — 50+ commit 모두 push 완료. 미푸시 0. dev server (PID 79764) 종료. 다음 진입점 = 매치 코드 신규 체계 (Phase 1~7).
-
-**오늘 작업 5대 영역**:
-1. **알기자 BDR NEWS Phase 1+2+E** — LLM 매치 요약 / 통합 발행 / `/news` 매거진 + `match/[id]` 상세 + linkify
-2. **minutes-engine v3** — LRM cap → DB starter → endLineup chain → Tier 3 boundary → 리팩토링 B → 가드 fix (단일팀→양팀 union). 종료 100% / 라이브 99% / 21/21 PASS
-3. **placeholder ↔ real 통합** — 셋업 + 18건 + #4 `mergeTempMember` 강화 (`mergePlaceholderUser` 신규 + 3 UNIQUE 우회). 부채 107→**89명** / 가입신청 16건 일괄 approve
-4. **UI 개편** — 카드 컴팩트화 / MVP+Stats 변경 / AppNav NEW 뱃지 / 더보기 페이지네이션 / 대회·경기 헤더 통합 (컨트롤 90% 축소 + segmented + 만들기·필터 32px 통일) / 시간 데이터 소실 매치 안내 배너
-5. **dual_tournament 무한 루프 fix** + 매치 #141 stat 14건 박제 (블랙라벨 vs MSA)
+**5/4 알기자 backfill 완료** — 운영 GEMINI_API_KEY 설정 후 누락 7매치(#141~#147) draft INSERT (post 1373~1379). 운영자 admin/news 검수 후 publish 대기. 다음 진입점 = 매치 코드 신규 체계 (Phase 1~7).
 
 ---
 
@@ -87,6 +80,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-04 | 9b4019a (dev) + 887b89c (main) merge + 운영 DB INSERT 7건 (post 1373~1379) | **알기자 누락 7매치 backfill 완료 (#141~#147)** — (a) subin→dev→main 머지 (settings.local.json conflict 해결: jumpball/awk/xargs git 3개 권한 통합) (b) 일회성 스크립트가 운영 endpoint `/api/live/{141..147}/brief?mode=phase2-match` 7번 fetch (1초 간격, rate-limit 회피) → 응답 brief 받아 운영 DB community_posts INSERT (status=draft, category=news, alkija user_id=3350, period_type=match) (c) 결과: 7/7 created, 0 skipped, 0 failed (post_id 1373~1379) (d) 임시 스크립트 2개 (`scripts/_temp/check-news-backfill.ts` + `backfill-news-141-147.ts`) 즉시 삭제 (e) errors.md 알기자 silent fail entry fix 항목에 ✅ backfill 완료 박제 (f) 운영자 admin/news 검수 → publish 대기 | ✅ |
 | 2026-05-04 | 0b47489 + 9d72cf5 + 2bfb873 + 78b0bae + b141e53 (5 commits push) | **대회·경기 헤더 UI 개편** — (a) 대회 헤더 좌측 제목 + 우측 컨트롤 5개 (.games-header 패턴, 경기와 동일) (b) segmented 탭 풀폭 (글자 잘림 0) (c) 컨트롤 90% 축소: 검색/필터 36→32 (모바일 25 → 사용자 의도로 28 복원) / ViewToggle 모바일 px-1 py-0.5 (d) `.games-create-btn` height 36→32 + padding 0×10 / `.games-filter-btn` 32×32 통일 (e) GamesClient 가 헤더 통합 렌더 (filterOpen state 같은 client tree 보장) / KindTabBar filter 토글 prop 미전달. 미푸시 0 | ✅ |
 | 2026-05-04 | 4658963 | **시간 데이터 소실 매치 안내 배너 + #141 stat 14건 박제** — 매치 #141 (블랙라벨 vs MSA 52:31) matchPlayerStat 14건 INSERT (블랙 8 + MSA 6 / minutesPlayed=null / isStarter=null). settings.timeDataMissing=true 플래그 + reason 메모. API route timeDataMissing 응답 추가 + game-result.tsx 인터페이스 +1 + Hero 직후 안내 배너 (info 아이콘 + warn 색). 합산 검증 PTS/FG/3P/REB/AST 모두 TEAM 합 정확 일치 | ✅ |
 | 2026-05-04 | (debugger / 진단) | **카테고리 가로 스크롤 fade overlay 미표시 — 코드/CSS/배포 모두 정상 = 사용자 브라우저 캐시 본질** — 운영 HTML(`https://www.mybdr.kr/community`) curl + CSS chunk 4종 다운로드 검증. ① `community-aside.tsx` L100~131 wrap+fade 마크업 정상 (`<div className="aside-mobile-tabs-wrap">` + `<div className="aside-mobile-tabs-fade" aria-hidden>` + `chevron_right`). ② `community-content.tsx` L383~424 sort-bar-mobile-wrap+fade 정상. ③ `globals.css` L540~593 + L601~656 wrap/fade/PC 숨김 모두 정상. ④ 운영 CSS 빌드 정상: `.aside-mobile-tabs-wrap{margin:0 0 10px;position:relative}` + `.aside-mobile-tabs-fade{...display:flex;position:absolute;top:0;bottom:6px;right:0}` + `@media (min-width:1024px){.aside-mobile-tabs-wrap{display:none!important}}`. ⑤ 운영 머지 정상 (a049dcd → main `22e11e3`). ⑥ Material Symbols 폰트 운영 head 정상 로드 (Google Fonts). ⑦ Vercel cache STALE → revalidate 정상 (서버는 새 HTML/CSS 보유). **본질 = 시나리오 1(브라우저 캐시) — 사용자가 머지(05:04 01:52) 이전부터 열린 community 탭에서 hard reload 안 해 옛 hydrated 상태 유지**. SSR 미렌더 (community-content가 `"use client"` + fallbackPosts JSON props만 SSR) 이므로 hydration 후 client에서만 wrap/fade 마크업 생성됨. 옛 빌드 client bundle은 wrap 마크업 없음. **즉시 fix = 사용자에게 "Ctrl+F5 (또는 모바일 시크릿창)으로 hard reload 안내"**. 추가 코드 수정 불필요 | ✅ |
@@ -96,6 +90,4 @@
 | 2026-05-03 | (debugger / SELECT only + curl) | **알기자 Phase 2 자동 트리거 진단** — 5/2~5/3 종료 매치 30건 vs 알기자 게시물 9건 (모두 published / cat=news / tournament_match_id 보유 / 132~139 매치). 자동 트리거 deploy = 5/3 13:44 (commit 2e6d367 / PR #130). deploy 이후 종료 7매치 (141,142,143,144,145,146,147) **게시물 0건**. 운영 curl 검증: 7매치 모두 `{ok:false, reason:"missing_api_key"}`. **본질 = 운영 GEMINI_API_KEY 미설정 + fire-and-forget silent fail (호출은 발동했으나 brief route 가 missing_api_key 응답 → community_posts INSERT skip)**. fix = 사용자가 Vercel production env 에 GEMINI_API_KEY 추가 + 재배포 + (옵션) admin/news 에서 누락 7매치 regenerate. errors.md 신규 entry 1건 추가. _temp 스크립트 정리 | ✅ |
 | 2026-05-03 | (debugger / SELECT only) | **SKD #5 안원교 중복 진단** — User 3342(ph) status=merged + ttp/tm 잔재 0건 / User 3351(real) ttp 1건+tm 1건+stat 2경기 정상 / 같은 팀·대회 중복 0건. 진단 = 시나리오 B/C **캐시 문제** (DB 통합 완료 / API roster·members 응답 1건만 반환). 권장 = 운영자에게 앱 새로고침 안내. 처리 큐 ttp_id=2829/tm_id=2670 = 이미 3351 가리킴. _temp 스크립트 정리 완료 | ✅ |
 | 2026-05-03 | f8fe8f0 + fcb6f92 | **Admin-Web 시각 통합 Phase 1+2+3** — `globals.css` alias 9개 보강 (`--color-accent` `-hover` `-light` `-error` `-warning` `-success` `-border-subtle` `-text-dim` `--shadow-card`) + `.admin-table thead` `var(--bg-head)` 톤 정합 + admin sidebar/mobile-admin-nav 에 `ThemeSwitch` 마운트 (theme-preference localStorage 키 web 일관). admin 코드 변경 0 (alias 보강만으로 405건 자동 정합) / web 영향 0 / 다크모드 강제 ❌ / decisions.md +1 박제 | ✅ |
-| 2026-05-03 | (시뮬 ROLLBACK) | **듀얼 트리 홈승 시뮬 검증 (138b22d8 27매치)** — 트랜잭션+ROLLBACK. next_match_id/loserNextMatchId 누락 0건 / NBA 크로스 정확 (B1↔A2 / A1↔B2 / D1↔C2 / C1↔D2) / 결승까지 빈슬롯 0 / self-heal 0 / 가상 우승=아울스. 운영 영향 0 | ✅ |
-| 2026-05-03 | (debugger / SELECT only) | **매치 #145 이진회/유기태 출전시간 0 진단** — 이진회 = DB minutesPlayed=0 (Flutter sync 누락, 별건) / 유기태 = DB 233초 정상이나 화면 0 (minutes-engine v2 starter 추정 누락 케이스: 직접 액션 0 + sub_out + sub_in 복귀). v3 가드 fix `d3984db` 도입으로 동시 해결 (라이브 +15~17%p) | ✅ |
-| 2026-05-03 | (마무리 압축) | **시간 시스템 작업 종료 + minutes-engine v3 압축** — scratchpad 363→100줄 압축 + knowledge 5파일 갱신 (architecture/conventions/decisions/lessons/index 각 +1 minutes-engine v3 박제). v3 = Tier 3 (`133d0de`) + 리팩토링 B (`72aa643`) + 가드 union fix (`d3984db`) 통합. 21/21 PASS. 종료 raw 89.6% → 100% / 라이브 99% | ✅ |
+<!-- 5/3 마무리 압축 / 매치 #145 진단 / 듀얼 시뮬 ROLLBACK 3건 절단 (10건 유지 — 신규 1건 prepend, 5/4 알기자 backfill 추가) — 필요 시 git log -- .claude/scratchpad.md 로 복원 -->
