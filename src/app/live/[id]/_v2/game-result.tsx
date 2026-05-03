@@ -147,6 +147,10 @@ export interface MatchDataV2 {
   // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing)
   // 운영자가 매치 종료 sync 시 PBP 미입력한 매치 박제용 (#141 블랙라벨 vs MSA 등)
   time_data_missing?: boolean;
+  // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션) — DB 영구 저장 (매치 종료 시 자동 생성)
+  // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
+  // null 이면 Phase 0 템플릿 fallback (silent fail / 미생성 / 진행 중 매치)
+  summary_brief?: { brief: string; generated_at: string; mode: string } | null;
 }
 
 type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";

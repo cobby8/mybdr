@@ -2,6 +2,24 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-04] 알기자 Phase 1 DB 영구 저장 마이그 — 트리거 통합 + tournament_matches.summary_brief
+- **분류**: architecture (LLM 기자봇 / 라이브 페이지 / 트리거 통합)
+- **발견자**: pm + 사용자 의도 명확화 ("경기 종료 → 본 + 요약 2개 동시, 매치당 정확히 2개")
+- **참조횟수**: 0
+- **위치**: `prisma/schema.prisma` (`tournament_matches.summary_brief Json?` 컬럼 추가) + `src/lib/news/auto-publish-match-brief.ts` (Phase 1+2 통합) + `src/app/api/live/[id]/route.ts` (`summaryBrief` 응답 필드) + `src/app/live/[id]/_v2/{tab-summary.tsx, game-result.tsx}` (client fetch 제거)
+- **사용자 의도 vs 5/3 구현 Gap**: G2 트리거 시점 (방문→자동) / G3 영구 저장 (메모리→DB) / G4 트리거 통합 (Phase 1+2 동시) / G5 매치당 1회 보장 — 5/4 모두 해소
+- **흐름** (1회 트리거 → 2개 결과 동시 생성):
+  - 매치 PATCH `status=completed` → `triggerMatchBriefPublishAsync(matchId)` fire-and-forget
+  - 내부 `Promise.allSettled([publishPhase1Summary, publishPhase2MatchBrief])` — 한쪽 실패 ≠ 다른쪽 영향
+  - **Phase 1 (요약, 라이브 페이지)**: brief?mode=phase1-section GET → `tournament_matches.summary_brief` UPDATE (즉시 노출, 검수 X)
+  - **Phase 2 (본기사, 게시판)**: brief?mode=phase2-match GET → `community_posts` INSERT (status=draft, admin 검수)
+- **schema 변경 (NULL 허용 ADD COLUMN, 무중단)**: `summary_brief Json? @map("summary_brief")` — 형식 `{ brief, generated_at, mode: "phase1-section" } | null`
+- **라이브 페이지 변경**: tab-summary.tsx 의 client fetch (`useEffect + fetch /api/live/[id]/brief`) 완전 제거 → `match.summary_brief` props 직접 사용. `useState/useEffect/BriefResponse` 모두 제거. cold start 마다 LLM 재호출 X / Vercel instance 다중 호출 X / 인스턴스별 메모리 캐시 의존 X.
+- **5/4 backfill 결과**: completed 35매치 중 34건 UPDATE 성공 (평균 175자, 목표 150~250 적중) / 실패 1건 (#88 validate-brief "땀" reject — prompt 개선 큐). 운영 endpoint phase1-section 7번 호출 + tournament_matches UPDATE.
+- **멱등성**: Phase 1 = `summary_brief` 있으면 skip / Phase 2 = `community_posts(news)` 있으면 skip — 각각 독립
+- **regenerate 호환성**: admin/news 의 regenerateNewsAction 은 Phase 2만 처리 (community_post 삭제 + 재생성). 통합 트리거 호출하지만 Phase 1 은 멱등성으로 자동 skip. Phase 1 regenerate 별도 액션 큐 (현재 미구현).
+- **운영 deploy 의존**: 5/4 backfill 은 운영 brief route 만 사용 (이미 운영). `auto-publish-match-brief.ts` 신규 publishPhase1Summary 는 deploy 후 신규 매치 종료 시 자동 작동.
+
 ### [2026-05-03] minutes-engine v3 — 출전시간 계산 엔진 메인 path 4단계 구조 확정
 - **분류**: architecture (live 페이지 / 출전시간 알고리즘 / Flutter 의존성 격리)
 - **발견자**: developer + debugger (사용자 제안 검증 후 채택, 5/3 D-day 동안 7회 보강)

@@ -13,9 +13,10 @@
   - **모든 게시물 status='published'** (draft 0건) — 자동 트리거가 INSERT 한 적 없다는 강한 시그널 (자동 INSERT 시 default 'draft')
 - **운영 검증 (curl 7매치 일관)**: `curl https://www.mybdr.kr/api/live/{142..147}/brief?mode=phase2-match` → 모두 `{"ok":false,"reason":"missing_api_key"}`
 - **fix**:
-  1. **운영**: Vercel project 의 production env 에 `GEMINI_API_KEY` 추가 + 재배포 — 사용자 액션 필요
+  1. **운영**: Vercel project 의 production env 에 `GEMINI_API_KEY` 추가 + 재배포 — ✅ 5/4 사용자 완료
   2. **검증**: 신규 종료 매치 1건 후 community_posts.tournament_match_id 로 SELECT — INSERT 확인
-  3. **운영 backfill (옵션)**: deploy 이후 누락 7매치 (141~147) admin/news 의 regenerate 액션으로 재생성 — 단 운영 GEMINI_API_KEY 설정 후
+  3. **운영 backfill**: ✅ 5/4 완료 — 일회성 스크립트가 운영 endpoint `https://www.mybdr.kr/api/live/{141..147}/brief?mode=phase2-match` 7번 fetch → 응답 brief 받아 운영 DB community_posts INSERT (status=draft, alkija user_id=3350). post_id=1373~1379. ⏭️ regenerateNewsAction 사용 불가 (post_id 없는 상태라 직접 INSERT 필요). 임시 스크립트 즉시 삭제. 운영자 admin/news 검수 → publish 대기
+  4. **영구 해소**: ✅ 5/4 — 알기자 Phase 1 DB 영구 저장 마이그 (architecture.md 신규 entry) — Phase 1 도 자동 트리거 통합 + tournament_matches.summary_brief DB 저장. Phase 2 silent fail 시에도 Phase 1 은 독립 실행 (Promise.allSettled). 라이브 페이지 client fetch 제거로 cold start LLM 재호출 X.
 - **회귀 방지 룰**:
   - **fire-and-forget LLM 호출의 silent fail 패턴**: 운영 모니터링 = (a) 운영 로그 `[auto-publish] match=X 응답 raw:` 검색 (b) 신규 매치 종료 후 `community_posts.tournament_match_id` 0 row 검출 알림 (c) Phase 3 도입 시 `news_publish_attempts` 테이블 (matchId, status, reason, ts) 추가 검토
   - **운영 환경변수 셋팅 검증 protocol**: 사용자 "api 추가했어" 발언만 신뢰 X. `vercel env ls production` (CLI 링크 시) 또는 운영 endpoint curl 1회 검증 필수
