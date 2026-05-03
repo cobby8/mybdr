@@ -14,6 +14,9 @@
  */
 import { type NextRequest } from "next/server";
 import sharp from "sharp";
+// 2026-05-04: EXIF 메타 파싱 (Phase 2 EXIF 자동 매치 추천)
+// exifr — 표준 EXIF lib, ~30KB, DateTimeOriginal + GPS 추출
+import exifr from "exifr";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess, apiError, unauthorized } from "@/lib/api/response";
@@ -89,20 +92,54 @@ export async function POST(req: NextRequest) {
   let width = 0;
   let height = 0;
   let exifMeta: Record<string, unknown> | null = null;
+  // 2026-05-04: EXIF 자동 매치 추천 — try 밖에서 접근하기 위해 호이스팅
+  let photoTakenAt: string | null = null;
   try {
     const meta = await sharp(inputBuffer).metadata();
     const origW = meta.width ?? 0;
     const origH = meta.height ?? 0;
     const longEdge = Math.max(origW, origH);
 
-    // EXIF 메타 (Phase 2 EXIF 매핑 큐 — 일단 기본 메타만 저장)
+    // 2026-05-04: EXIF 파싱 — DateTimeOriginal (촬영시각) + GPS (위도/경도) + 카메라
+    // Phase 2 EXIF 자동 매치 추천에 활용 (촬영시각 ± 60분 범위 매치 검색)
+    // photoTakenAt 은 try 밖에서 호이스팅됨 (응답에 포함하기 위함)
+    let gpsLatitude: number | null = null;
+    let gpsLongitude: number | null = null;
+    let cameraMake: string | null = null;
+    let cameraModel: string | null = null;
+    if (meta.exif) {
+      try {
+        const parsed = await exifr.parse(inputBuffer, {
+          pick: ["DateTimeOriginal", "CreateDate", "GPSLatitude", "GPSLongitude", "Make", "Model"],
+        });
+        if (parsed) {
+          const dt = parsed.DateTimeOriginal ?? parsed.CreateDate;
+          if (dt instanceof Date && !isNaN(dt.getTime())) {
+            photoTakenAt = dt.toISOString();
+          }
+          if (typeof parsed.GPSLatitude === "number") gpsLatitude = parsed.GPSLatitude;
+          if (typeof parsed.GPSLongitude === "number") gpsLongitude = parsed.GPSLongitude;
+          if (typeof parsed.Make === "string") cameraMake = parsed.Make;
+          if (typeof parsed.Model === "string") cameraModel = parsed.Model;
+        }
+      } catch (exifErr) {
+        // EXIF 파싱 실패는 치명적이지 않음 — meta 만 저장
+        console.warn(`[news-photo upload] EXIF parse 실패 (matchId=${matchId}):`, exifErr);
+      }
+    }
+
     exifMeta = {
       original_width: origW,
       original_height: origH,
       original_format: meta.format ?? null,
       original_size: file.size,
-      // Phase 2 큐: exif 파싱 (촬영시각/GPS/카메라) — exif-reader 등 라이브러리 도입 시 확장
       has_exif: !!meta.exif,
+      // 2026-05-04: EXIF 자동 매핑 큐 — 추천 시스템 활용
+      photo_taken_at: photoTakenAt,
+      gps_latitude: gpsLatitude,
+      gps_longitude: gpsLongitude,
+      camera_make: cameraMake,
+      camera_model: cameraModel,
     };
 
     if (longEdge > TARGET_LONG_EDGE) {
@@ -195,6 +232,38 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    // 2026-05-04: EXIF 추천 매치 — photo_taken_at 있으면 ± 60분 범위 매치 검색
+    // 첫 1건만 반환 (현재 매치와 다르면 클라이언트가 경고 노출)
+    let recommendedMatchId: string | null = null;
+    let recommendedMatchInfo: { matchNumber: number | null; tournamentName: string | null } | null = null;
+    if (photoTakenAt) {
+      const taken = new Date(photoTakenAt);
+      const before = new Date(taken.getTime() - 60 * 60 * 1000);
+      const after = new Date(taken.getTime() + 60 * 60 * 1000);
+      const candidate = await prisma.tournamentMatch.findFirst({
+        where: {
+          status: "completed",
+          OR: [
+            { ended_at: { gte: before, lte: after } },
+            { scheduledAt: { gte: before, lte: after } },
+          ],
+        },
+        select: {
+          id: true,
+          match_number: true,
+          tournament: { select: { name: true } },
+        },
+        orderBy: { ended_at: "desc" },
+      }).catch(() => null);
+      if (candidate) {
+        recommendedMatchId = candidate.id.toString();
+        recommendedMatchInfo = {
+          matchNumber: candidate.match_number,
+          tournamentName: candidate.tournament?.name ?? null,
+        };
+      }
+    }
+
     return apiSuccess({
       id: created.id.toString(),
       url: created.url,
@@ -204,6 +273,10 @@ export async function POST(req: NextRequest) {
       displayOrder: created.display_order,
       caption: created.caption,
       createdAt: created.created_at.toISOString(),
+      // EXIF 자동 추천 (다르면 클라이언트가 운영자에게 경고)
+      photoTakenAt,
+      recommendedMatchId,
+      recommendedMatchInfo,
     });
   } catch (e) {
     // DB 실패 시 Storage 정리 (best effort)

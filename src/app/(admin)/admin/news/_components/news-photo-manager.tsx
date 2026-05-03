@@ -34,15 +34,19 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
     total: 0,
   });
   const [error, setError] = useState<string | null>(null);
+  // 2026-05-04: EXIF 추천 매치 — 업로드된 사진 EXIF 가 현재 selected 매치와 다른 시각이면 경고
+  const [exifWarning, setExifWarning] = useState<string | null>(null);
 
   // 업로드 핸들러 — 멀티 파일 순차 처리
   const handleUpload = async (files: FileList | null, isHero: boolean) => {
     if (!files || files.length === 0) return;
     setError(null);
+    setExifWarning(null);
     setUploading(true);
     setProgress({ current: 0, total: files.length });
 
     let lastError: string | null = null;
+    const warnings: string[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const fd = new FormData();
@@ -61,6 +65,18 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
           lastError = body?.error?.message ?? `HTTP ${res.status}`;
           break;
         }
+        // EXIF 추천 매치 검증 — 현재 matchId 와 다르면 경고
+        const body = await res.json().catch(() => ({}));
+        const data = body?.data ?? body;
+        if (data?.recommendedMatchId && data.recommendedMatchId !== matchId) {
+          const info = data.recommendedMatchInfo;
+          const label = info
+            ? `매치 #${info.matchNumber ?? "?"} (${info.tournamentName ?? "?"})`
+            : `매치 ID ${data.recommendedMatchId}`;
+          warnings.push(
+            `📷 ${file.name}: EXIF 촬영시각이 ${label} 와 일치 (현재 매치와 다를 수 있음)`,
+          );
+        }
       } catch (e) {
         lastError = e instanceof Error ? e.message : "업로드 실패";
         break;
@@ -73,6 +89,7 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
     if (lastError) {
       setError(lastError);
     } else {
+      if (warnings.length > 0) setExifWarning(warnings.join("\n"));
       // 성공 — server props 갱신
       startTransition(() => router.refresh());
     }
@@ -155,6 +172,12 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
       )}
       {error && (
         <div className="text-xs text-[var(--color-err)]">❌ {error}</div>
+      )}
+      {/* 2026-05-04: EXIF 자동 매핑 — 추천 매치가 현재와 다를 때 경고 */}
+      {exifWarning && (
+        <div className="rounded border border-[var(--color-warning)] bg-[var(--color-warning-light)] p-2 text-xs whitespace-pre-line text-[var(--color-text)]">
+          ⚠️ EXIF 촬영시각 불일치 가능성{"\n"}{exifWarning}
+        </div>
       )}
 
       {/* 사진 grid */}
