@@ -3,8 +3,19 @@ import { prisma } from "@/lib/db/prisma";
 /**
  * 경기 결과 기록 후 승자 진출 처리
  * TournamentMatch.winner_team_id → next_match_id의 빈 슬롯에 배치
+ *
+ * ⚠️ single elim 전용. dual_tournament 는 progressDualMatch 가 진출 처리 (loser bracket 포함).
+ * (2026-05-03 가드 추가: dual 매치에 본 함수가 호출되어 home/away 모두 winner 로 set 되는
+ *  무한 루프 corrupt 발생 — sync route 의 진입 차단과 더불어 함수 자체에도 이중 가드.)
  */
 export async function advanceWinner(matchId: bigint): Promise<void> {
+  // dual_tournament 가드 — format 만 조회하여 본 함수 대상 외이면 즉시 종료
+  const matchForGuard = await prisma.tournamentMatch.findUnique({
+    where: { id: matchId },
+    select: { tournament: { select: { format: true } } },
+  });
+  if (matchForGuard?.tournament?.format === "dual_tournament") return;
+
   const match = await prisma.tournamentMatch.findUnique({
     where: { id: matchId },
     select: {

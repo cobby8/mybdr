@@ -2,6 +2,71 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] dual_tournament 진출 매치 양팀 동일 — `advanceWinner` 가 진짜 범인 (5/2 fix 무효 재발)
+- **분류**: error (data corruption — 진출 슬롯 충돌, 5/2 회귀 방지 5종 우회)
+- **발견자**: debugger (5/3 D-day D조 승자전 재발 audit log 추적)
+- **증상**: 듀얼 조별 승자전 매치 (`bracket_position`=3) 의 `homeTeamId === awayTeamId`. 5/3 D조 (#15, matchId=146) 144 종료 직후 11번 self-heal 발생. **5/2 C조 (#11, matchId=142) 동일 패턴 7번** (errors.md 위 entry 와 같은 매치).
+- **재현 시퀀스 (5/3 D조 audit 정확)**:
+  - 06:54:06 — 144 sync 첫 호출 → `progressDualMatch(144, 246)` → 146.home=246 ✅ + `advanceWinner(144)` → 146 조회 시 home=246 (방금 set) → **slot=`awayTeamId` (home 채워짐) → 146.away=246 set 🚨** (audit X)
+  - 06:54:40~06:58:20 — Flutter 144 sync 11번 반복 (5분 동안 ~20초 간격) → 매번 progressDualMatch self-heal (away=246→null, audit O) + 매번 advanceWinner 가 다시 away=246 set (audit X)
+- **근본 원인 코드 위치**: `src/lib/tournaments/update-standings.ts` L30~36 `advanceWinner`
+  ```ts
+  const slot = nextMatch.homeTeamId === null ? "homeTeamId" : "awayTeamId";  // ← 빈 슬롯 자동 선택 = dual 에서 잘못된 슬롯
+  await prisma.tournamentMatch.update({
+    where: { id: match.next_match_id },
+    data: { [slot]: match.winner_team_id },  // ← audit 호출 X
+  });
+  ```
+- **호출 경로**: `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` L371~381 `Promise.allSettled([advanceWinner, updateTeamStandings, dual])` — dual 매치도 advanceWinner 항상 실행. dual 은 next_match_slot 이 source 매치별로 명시되어 있어 advanceWinner 의 "빈 슬롯 자동 채움" 로직이 잘못된 슬롯에 들어감.
+- **5/2 회귀 방지 5종 우회 이유**: A(자가 치유) = self-heal 가드는 작동하지만 corrupt 가 매번 재발생 → 무한 루프. B(admin PATCH 차단) = 작동 OK 이나 범인이 admin 이 아님. C(dirty tracking) = 무관. D(검출 스크립트) = 수동 실행 — 실시간 감지 X. E(audit log) = audit 호출 안 하는 경로(advanceWinner)가 corrupt source 라 보이지 않았음.
+- **즉시 fix (수동, 매치 종료 시)**:
+  ```sql
+  UPDATE tournament_matches
+  SET away_team_id = NULL
+  WHERE id = <next_match_id>
+    AND away_team_id = home_team_id;
+  ```
+  단, **다음 sync 가 또 corrupt** 시키므로 영구 fix 까지 fix 후 즉시 코드 패치 필요.
+- **영구 fix (권장)**: sync route L371~381 `advanceWinner` 호출을 **dual 매치 시 skip** (progressDualMatch 가 winner+loser 둘 다 처리하므로 중복 + 잘못된 슬롯 채움 위험만 만듦):
+  ```ts
+  const tasks: Promise<unknown>[] = [
+    ...(isDual ? [] : [advanceWinner(matchId)]),  // dual 면 advanceWinner skip
+    updateTeamStandings(matchId),
+  ];
+  ```
+  추가 안전: `advanceWinner` 자체도 tournament.format 체크 후 dual 이면 early return (이중 가드).
+- **재발 위험 매치**: 145 (D조 2경기) 종료 시 동일 패턴 — 145.next_match_slot=away 이므로 progressDualMatch 가 146.away set, 그 후 advanceWinner 가 146.home (이미 246=슬로우) 을 또 손대지는 않음 — 그러나 **147 (D조 패자전)** 도 144→loserNextMatchSlot=home, 145→loserNextMatchSlot=away 동일 시나리오 — 145 종료 시 147.away=loser(245) set + advanceWinner 가 147.home (이미 247=SKD) 을 안 건드림 → 안전. **단 그 이후 8강·4강 (151/154/155) 진출 시 모두 동일 위험**. 영구 fix 필수.
+- **검증 방법**: fix 후 145 종료 → audit log 에서 self-heal 0 회 확인 + 146.home=슬로우 / 146.away=145winner 정상 확인.
+- **참조횟수**: 0
+- **관련 commit**: 5/2 e3df321(C조 첫 fix) + 1bec5c3(sync 가드) + 08b7e1e(manual-fix prefix) — 모두 본질 원인 미해결
+
+### [2026-05-03] PBP 미달 = Flutter 운영자 sub 입력 누락 (출전시간 95~98% 미달의 본질 원인)
+- **분류**: error/trap (Flutter 앱 운영 패턴 — 데이터 자체는 일관, 운영자 입력 누락이 본질)
+- **발견자**: debugger (5/2+5/3 종료 11매치 22팀 전수 분석)
+- **증상**: PBP-only 출전시간 엔진 적용 후 종료 매치 합 95~98% 미달 (140분 기대값 대비 -1~25분). cap (옵션 C) 으로 합은 정확화 되지만 본질 데이터 부족.
+- **분석 결과 (22 팀 분포)**:
+  - 100% 정확: 0 팀
+  - lastClock 절단 (쿼터 종료 PBP 누락): **21 팀 (95%)**
+  - firstClock 절단 (쿼터 시작 PBP 누락): 1 팀
+  - 쿼터 전환 lineup 불일치 (sub 누락): 22 팀 모두 (사실상 1차 원인)
+- **원인 (Flutter 앱 운영 패턴 3가지)**:
+  - **A. 쿼터 시작 starter lineup 명시 PBP 미입력** — Flutter 앱이 쿼터 시작 시 starter 5명을 PBP 에 기록 안 함. 엔진은 `everSeen ∩ ¬sub_in` 로 추정 → 첫 sub 이전 액션 0 명 = 추정 실패 (예: 22 팀 모두 다음 쿼터 starter 1~4명만 식별, 나머지 2~4명 미식별 → 0초 산출).
+  - **B. 쿼터 종료 직전 PBP 누락 (lastClock > 0)** — 쿼터 종료 직전 N초 (5~113초) PBP 무이벤트 / 운영자가 다음 쿼터 시작 후 set 종료 처리. 엔진은 마지막 PBP clock 까지만 누적 → N초 × 5명 = 25~565초 미달.
+  - **C. 쿼터 시작 직후 PBP 지연 입력 (firstClockGap > 0)** — 쿼터 시작 후 N초 (10~125초) 무이벤트 (운영자 set 시작 지연 또는 사이드 미기록). 엔진은 첫 PBP clock 부터 시작 → 동일 미달.
+- **검증** (대표 매치):
+  - #133 home (81.7%) — Q1 firstGap=42s + Q3 lastCut=34s + Q3->Q4 lineup 4명 변경 (sub 미입력)
+  - #140 away (76.5%) — Q5 OT firstGap=240s (4분 시작 지연) + Q4->Q5 lineup 3명 변경
+  - #134 home/away (88~90%) — Q4 lastCut=113s (마지막 1:53 PBP 0건) → 양팀 동시 절단 = 운영자가 Q4 종료 1:53 전 set 종료
+- **fix 방향**:
+  - **단기 (코드)**: 종료 매치 cap (`applyCompletedCap`) 적용 완료 — 합은 100% 정확. 풀타임 보호.
+  - **중장기 (Flutter 앱 — 원영 검토 대상)**:
+    1. 🔴 **쿼터 시작 시 starter 5명 lineup PBP 자동 INSERT** (action_type='lineup_start' 또는 substitution sub_in 5건) — 1차 원인 해결.
+    2. 🟡 **쿼터 종료 시 lastClock=0 자동 boundary PBP INSERT** (action_type='quarter_end') — lastClock 절단 방지.
+    3. 🟡 **쿼터 시작 시 firstClock=qLen 자동 boundary PBP INSERT** (action_type='quarter_start') — firstClock 절단 방지.
+    4. 🟡 운영자 가이드: "set 종료 즉시 누르기 (지연 금지)" / "쿼터 시작 시 lineup 확정 후 시작 누르기"
+- **회귀 방지**: applyCompletedCap (옵션 C) 으로 종료 매치 합 100% 정확화 — 라이브 / 진행 중 매치는 cap 미적용 (부풀림 방지). Flutter app fix 미적용 시 라이브 매치 출전시간 정확도 90~98% 유지.
+- **참조횟수**: 0
+
 ### [2026-05-03] NEXT_PUBLIC_APP_URL 을 server-side internal fetch 에 사용 시 dev → 운영 서버로 가는 사고
 - **분류**: error/trap (env var 함정 / dev → 운영 cross-call)
 - **증상**: `auto-publish-match-brief.ts` 에서 매치 종료 hook fire-and-forget 으로 `/api/live/[id]/brief?mode=phase2-match` 호출 → 모두 `missing_api_key` 응답. 같은 dev server 에 curl 직접 호출은 정상.
