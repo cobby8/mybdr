@@ -309,44 +309,42 @@ export function TournamentsContent({
 
   return (
     <div className="page">
-      {/* 헤더: eyebrow + 대형 제목 + 요약 카운트 (시안 Match.jsx L24~31) */}
+      {/* 2026-05-03: 헤더 레이아웃 분리 — 제목 라인 / 컨트롤 라인 / (V2TournamentList 안 탭) 순서 */}
+      {/* 라인 1: 제목 (eyebrow + h1) */}
+      <div style={{ marginBottom: 12 }}>
+        <div className="eyebrow">대회 · TOURNAMENTS</div>
+        <h1
+          style={{
+            margin: "6px 0 0",
+            fontSize: 28,
+            fontWeight: 800,
+            letterSpacing: "-0.015em",
+          }}
+        >
+          대회
+        </h1>
+      </div>
+      {/* 라인 2: 컨트롤 (리스트/월간/주간 + 검색/필터, 우측 정렬) — 탭 바로 위로 묶음 */}
       <div
         style={{
           display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          marginBottom: 16,
+          gap: 12,
           flexWrap: "wrap",
-          gap: 10,
+          alignItems: "center",
+          justifyContent: "flex-end",
+          marginBottom: 12,
         }}
       >
-        <div>
-          {/* 2026-05-03: eyebrow 복구 + 제목 "대회" 단순화 (통계라인은 제거 유지) */}
-          <div className="eyebrow">대회 · TOURNAMENTS</div>
-          <h1
-            style={{
-              margin: "6px 0 0",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-            }}
-          >
-            대회
-          </h1>
-        </div>
-        {/* 뷰 모드 전환 + 필터: 기존 그대로 유지 */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <ViewToggle current={viewMode} onChange={setViewMode} />
-          <TournamentsFilterComponent
-            onSearchChange={handleSearchChange}
-            onRegionChange={handleRegionChange}
-            onGenderChange={handleGenderChange}
-            onCategoryChange={handleCategoryChange}
-            onDivisionChange={handleDivisionChange}
-            selectedCategory={categoryFilter}
-            selectedGender={genderFilter}
-          />
-        </div>
+        <ViewToggle current={viewMode} onChange={setViewMode} />
+        <TournamentsFilterComponent
+          onSearchChange={handleSearchChange}
+          onRegionChange={handleRegionChange}
+          onGenderChange={handleGenderChange}
+          onCategoryChange={handleCategoryChange}
+          onDivisionChange={handleDivisionChange}
+          selectedCategory={categoryFilter}
+          selectedGender={genderFilter}
+        />
       </div>
 
       {/* 뷰 모드별 콘텐츠 렌더링 */}
