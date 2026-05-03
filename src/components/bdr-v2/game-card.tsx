@@ -158,9 +158,24 @@ export function GameCard({
   // 장소 — venue 우선, HTML 엔티티 디코드
   const place = decodeHtmlEntities(venueName ?? areaLabel ?? "");
 
+  // 2026-05-03: 컴팩트 카드 — tournaments 카드 패턴 적용 (1열 4행)
+  // 기존: 4행 info grid (장소/일시/레벨/비용) + 푸터 분리 → 카드 높이 큼
+  // 신규: 메타 1행 (날짜 · 장소 · 비용) + 칩(태그)/CTA 한 줄 통합
+
+  // 짧은 날짜 포맷 — "M/D(요일)" 또는 "M/D HH:mm" (오늘 이내면 시간만)
+  const dateShort = (() => {
+    if (!scheduledAt) return null;
+    const d = new Date(scheduledAt);
+    if (isNaN(d.getTime())) return null;
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const w = KO_WEEKDAY[d.getDay()];
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${m}/${day}(${w}) ${hh}:${mm}`;
+  })();
+
   return (
-    // Link 자체가 카드 컨테이너. .card 클래스는 globals.css v2 토큰 스타일.
-    // padding:0 로 재정의하고 overflow:hidden 으로 상단 stripe 가 카드 경계에 붙게 함.
     <Link
       href={href}
       className="card game-card"
@@ -172,24 +187,30 @@ export function GameCard({
         textDecoration: "none",
         color: "inherit",
         opacity: isDisabled ? 0.6 : 1,
+        minWidth: 0,
       }}
     >
-      {/* 1. kind stripe — 4px 색상 바, 종류를 한눈에 구분 (v2 원본 토큰 직접 참조) */}
+      {/* kind stripe */}
       <div style={{ height: 4, background: kindColor }} />
 
-      {/* 2. 본문 padding 영역 — 시안 L58: "16px 18px 12px" */}
-      <div style={{ padding: "16px 18px 12px" }}>
-        {/* 2-1. 상단 배지 줄: 종류 / 마감임박 / 지역(우측) */}
+      <div
+        style={{
+          padding: 14,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        {/* 1행: 종류 칩 + 마감/만석 + 자동 태그 + 우측 지역 */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 6,
-            marginBottom: 8,
             flexWrap: "wrap",
           }}
         >
-          {/* 종류 배지 — 시안 L60: background=kindColor, color=#fff, borderColor=kindColor */}
           <span
             className="badge"
             style={{
@@ -202,196 +223,160 @@ export function GameCard({
           </span>
           {isClosing && <span className="badge badge--red">마감임박</span>}
           {isFull && <span className="badge">만석</span>}
+          {tags.slice(0, 2).map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 10,
+                padding: "2px 6px",
+                color: "var(--ink-mute)",
+                border: "1px solid var(--border)",
+                borderRadius: "var(--radius-chip, 6px)",
+              }}
+            >
+              {t}
+            </span>
+          ))}
           <span
             style={{
+              marginLeft: "auto",
               fontSize: 11,
               fontFamily: "var(--ff-mono)",
               color: "var(--ink-dim)",
-              marginLeft: "auto",
             }}
           >
             {areaLabel || "-"}
           </span>
         </div>
 
-        {/* 2-2. 타이틀 — 시안 L64: fontWeight:700, fontSize:15, lineHeight:1.4, letterSpacing:-0.005em */}
+        {/* 2행: 타이틀 1줄 ellipsis */}
         <div
           style={{
             fontWeight: 700,
             fontSize: 15,
-            lineHeight: 1.4,
             letterSpacing: "-0.005em",
-            marginBottom: 10,
             color: "var(--ink)",
-            // 2줄 넘어가면 말줄임
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+            lineHeight: 1.3,
             overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
           {decodeHtmlEntities(title) || "제목 없음"}
         </div>
 
-        {/* 2-3. 4행 info grid — 시안 L67: 라벨 68px / 값 1fr, rowGap:4, columnGap:8, fontSize:13 */}
+        {/* 3행: 메타 (날짜 · 장소 · 비용 · 레벨) */}
         <div
           style={{
-            fontSize: 13,
+            fontSize: 12,
             color: "var(--ink-mute)",
-            display: "grid",
-            gridTemplateColumns: "68px 1fr",
-            rowGap: 4,
-            columnGap: 8,
-            marginBottom: 12,
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            flexWrap: "wrap",
+            minHeight: 16,
           }}
         >
-          <span style={{ color: "var(--ink-dim)" }}>장소</span>
+          {dateShort && <span>{dateShort}</span>}
+          {dateShort && place && <span style={{ opacity: 0.4 }}>·</span>}
+          {place && (
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                maxWidth: 120,
+              }}
+            >
+              {place}
+            </span>
+          )}
+          {(dateShort || place) && <span style={{ opacity: 0.4 }}>·</span>}
           <span
             style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {place || "-"}
-          </span>
-          <span style={{ color: "var(--ink-dim)" }}>일시</span>
-          {/* [2026-04-29] 좁은 폭에서 1fr 컬럼 자식 ellipsis 통일 — 라벨/값 모두 보호 */}
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {formatScheduleFull(scheduledAt)}
-          </span>
-          <span style={{ color: "var(--ink-dim)" }}>레벨</span>
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {skillText}
-          </span>
-          <span style={{ color: "var(--ink-dim)" }}>비용</span>
-          <span
-            style={{
-              // 시안 L71: 무료면 700+ok, 유료면 500+ink-soft
-              fontWeight: isFree ? 700 : 500,
+              fontWeight: isFree ? 700 : 600,
               color: isFree ? "var(--ok)" : "var(--ink-soft)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {feeText}
           </span>
+          {skillText && skillText !== "-" && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <span>{skillText}</span>
+            </>
+          )}
         </div>
 
-        {/* 2-4. 자동 파생 태그 — 시안 L75: fontSize:11, padding:2px 7px, border, radius-chip */}
-        {tags.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              gap: 4,
-              flexWrap: "wrap",
-              marginBottom: 10,
-            }}
-          >
-            {tags.map((t) => (
-              <span
-                key={t}
+        {/* 4행: 진행바 + 카운트 + CTA (한 줄 통합) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginTop: "auto",
+            paddingTop: 4,
+          }}
+        >
+          {max > 0 ? (
+            <>
+              <div
                 style={{
-                  fontSize: 11,
-                  padding: "2px 7px",
-                  color: "var(--ink-mute)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius-chip, 6px)",
+                  flex: 1,
+                  height: 4,
+                  background: "var(--bg-alt)",
+                  borderRadius: 2,
+                  overflow: "hidden",
                 }}
               >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 3. 푸터 — 시안 L79: padding "12px 18px 14px", 상단 dashed border, marginTop:auto */}
-      <div
-        style={{
-          padding: "12px 18px 14px",
-          borderTop: "1px dashed var(--border)",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginTop: "auto",
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 11,
-              marginBottom: 4,
-            }}
-          >
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    background: isClosing ? "var(--accent)" : kindColor,
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: isClosing ? "var(--accent)" : "var(--ink-mute)",
+                  fontFamily: "var(--ff-mono)",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {cur}/{max}
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1 }} />
+          )}
+          {isDisabled ? (
             <span
+              className="btn btn--sm"
               style={{
-                color: "var(--ink-dim)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                pointerEvents: "none",
+                opacity: 0.7,
+                fontSize: 12,
+                padding: "4px 12px",
               }}
             >
-              {authorNickname ? decodeHtmlEntities(authorNickname) : "익명"}
+              마감
             </span>
+          ) : (
             <span
+              className="btn btn--sm btn--primary"
               style={{
-                fontFamily: "var(--ff-mono)",
-                fontWeight: 700,
-                // 시안 L83: 마감임박이면 accent(red), 아니면 ink-soft
-                color: isClosing ? "var(--accent)" : "var(--ink-soft)",
+                pointerEvents: "none",
+                fontSize: 12,
+                padding: "4px 12px",
               }}
             >
-              {cur}/{max || "?"}
+              신청
             </span>
-          </div>
-          {/* 진행바 — 시안 L87: 높이 4px, 채움은 마감임박이면 accent, 아니면 kindColor */}
-          <div
-            style={{
-              height: 4,
-              background: "var(--bg-alt)",
-              borderRadius: 2,
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                width: `${pct}%`,
-                height: "100%",
-                background: isClosing ? "var(--accent)" : kindColor,
-              }}
-            />
-          </div>
+          )}
         </div>
-        {/* 신청 버튼 — 비활성(만석/종료)이면 회색 "마감" 표기.
-         * Link 안의 button 은 클릭이 부모 Link로 버블링되는데,
-         * 카드 전체가 상세 이동 Link이므로 의도된 동작(버튼 클릭도 상세로 이동).
-         * 별도 신청 플로우가 생기면 stopPropagation 처리 필요. */}
-        {isDisabled ? (
-          <span
-            className="btn btn--sm"
-            style={{ pointerEvents: "none", opacity: 0.7 }}
-          >
-            마감
-          </span>
-        ) : (
-          <span className="btn btn--sm btn--primary">신청</span>
-        )}
       </div>
     </Link>
   );
