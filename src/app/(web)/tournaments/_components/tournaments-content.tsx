@@ -215,10 +215,16 @@ export function TournamentsContent({
   const filteredTournaments = useMemo(() => {
     let result = tournaments;
 
-    // v2 6상태 탭 필터 — "전체"는 통과
+    // 2026-05-03: 4상태 탭 (마감임박 탭 제거 → 접수중에 흡수, 접수예정 → 숨김)
     if (v2StatusTab !== "전체") {
-      result = result.filter((t) => deriveV2Status(t) === v2StatusTab);
+      result = result.filter((t) => {
+        const s = deriveV2Status(t);
+        if (v2StatusTab === "접수중") return s === "접수중" || s === "마감임박";
+        return s === v2StatusTab;
+      });
     }
+    // 접수예정(draft/upcoming) 카드는 모든 탭에서 숨김 (프리미엄 큐)
+    result = result.filter((t) => deriveV2Status(t) !== "접수예정");
 
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
@@ -249,10 +255,19 @@ export function TournamentsContent({
   // 이유: 탭 라벨 옆 숫자는 "어느 상태에 몇 건이 있나"를 보여주는 용도이므로
   //      다른 필터와 결합하면 0건만 보여 탭 의미가 퇴색됨.
   const v2TabCounts = useMemo(() => {
-    const counts: Partial<Record<V2MatchTab, number>> = { "전체": tournaments.length };
-    for (const t of tournaments) {
+    // 2026-05-03: 4탭 카운트 — 접수중에 마감임박 합산, 접수예정 제외
+    const visible = tournaments.filter((t) => deriveV2Status(t) !== "접수예정");
+    const counts: Partial<Record<V2MatchTab, number>> = {
+      전체: visible.length,
+      접수중: 0,
+      진행중: 0,
+      종료: 0,
+    };
+    for (const t of visible) {
       const s = deriveV2Status(t);
-      counts[s] = (counts[s] ?? 0) + 1;
+      if (s === "접수중" || s === "마감임박") counts["접수중"] = (counts["접수중"] ?? 0) + 1;
+      else if (s === "진행중") counts["진행중"] = (counts["진행중"] ?? 0) + 1;
+      else if (s === "종료") counts["종료"] = (counts["종료"] ?? 0) + 1;
     }
     return counts;
   }, [tournaments]);
@@ -306,20 +321,17 @@ export function TournamentsContent({
         }}
       >
         <div>
-          <div className="eyebrow">대회 · TOURNAMENTS</div>
+          {/* 2026-05-03: 헤더 단순화 — eyebrow + 통계라인 제거, 제목 "대회" 단순화 */}
           <h1
             style={{
-              margin: "6px 0 4px",
+              margin: 0,
               fontSize: 28,
               fontWeight: 800,
               letterSpacing: "-0.015em",
             }}
           >
-            열린 대회 · 예정 대회
+            대회
           </h1>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-            접수중 {v2TabCounts["접수중"] ?? 0} · 마감임박 {v2TabCounts["마감임박"] ?? 0} · 진행중 {v2TabCounts["진행중"] ?? 0} · 예정 {v2TabCounts["접수예정"] ?? 0}
-          </div>
         </div>
         {/* 뷰 모드 전환 + 필터: 기존 그대로 유지 */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
