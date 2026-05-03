@@ -109,6 +109,46 @@
 
 ---
 
+## 구현 기록 (developer / 2026-05-03 minutes-engine Tier 3 — starter boundary 강제)
+
+📝 구현한 기능: starter 첫 segment = qLen 명시적 강제 + lastGap 보정 (firstGap/lastGap 손실 0)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/live/minutes-engine.ts` | `quartersWithPbp` Set 사전 수집 (어느 쿼터에 PBP 있는지) / 시뮬 루프 진입 시 `let lastClock = qLen` 명시적 보장 (이상치 방어 주석 추가) / endClock 결정: 다음 쿼터 PBP 존재 → endClock=0 강제 (lastGap 보정), 없으면 기존대로 lastPbpClock 보존 (라이브 마지막 쿼터 cap 부풀림 방지) | 수정 (+30/-5) |
+| `src/__tests__/lib/live/minutes-engine.test.ts` | 신규 케이스 J (첫 PBP clock=414, qLen=420 → starter 5명 풀타임 420s 보장) + K (lastGap clock=4 → 마지막 4초 active 누적, Q1 600s 정확) + K-2 (마지막 쿼터 라이브 진행 중 → endClock=200 보존, 회귀 방지) | 수정 (+93줄) |
+
+검증 결과:
+- vitest: **20/20 PASS** (기존 17 회귀 0 + 신규 3 J/K/K-2 통과)
+- tsc --noEmit: **0 에러**
+- DB schema 변경 0 / Flutter 변경 0 / LRM cap 함수 변경 0 / format 함수 변경 0
+
+핵심 변경:
+1. **firstGap 보장**: starter active 시작 시각 = 무조건 qLen → 첫 PBP clock=414 (qLen=420 기준 6초 늦음) 케이스에서도 starter 5명이 시작 시점부터 누적 (이미 동작 중이지만 명시적 주석으로 못박음)
+2. **lastGap 보정**: 다음 쿼터에 PBP 가 1건이라도 있으면 이 쿼터는 종료된 것으로 간주 → endClock=0 강제. 마지막 ~4~30초 active 5명 시간 회복 (debugger 분석 lastGap p90=34s)
+3. **라이브 회귀 방지**: 마지막 쿼터 (다음 쿼터 PBP 없음) 는 endClock=lastPbpClock 보존 → 진행 중 매치 부풀림 0건 (5/3 옵션 D fix 보존)
+
+💡 tester 참고:
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/lib/live/minutes-engine.test.ts` — 20/20 PASS 확인
+  2. 운영 회귀 (선택): t388 종료 13매치 출전시간 합 측정 → 양팀 합 = expected×2 정확 일치 + 평균 raw 정확도 89.6% → ~95%+ 향상 예상 (lastGap p90=34s × 5명 × 4쿼터 = 평균 11분/팀 회복)
+  3. 라이브 매치 (선택): 진행 중 매치 보드 → starter 5명 Q1 풀타임 출전 정확 / 마지막 쿼터 부풀림 0
+- 정상 동작:
+  - starter 5명 Q1 출전 = qLen 정확 일치 (firstGap 손실 0)
+  - 종료된 쿼터 마지막 PBP clock=N → active 5명 +N초 추가 누적 (lastGap 보정)
+  - 라이브 마지막 쿼터는 진행도만 누적 (cap 부풀림 0)
+- 주의할 입력:
+  - 한 매치 안에서 Q1 PBP 만 있고 Q2~Q4 없음 → Q1 도 endClock=lastPbpClock (마지막 쿼터 취급) → 라이브 안전
+  - 첫 PBP clock > qLen (이상 데이터) → lastClock=qLen 그대로 (delta 음수 → addSec 0 차단)
+  - 모든 쿼터 풀타임 PBP 정상 → 회귀 0 (기존 14 케이스 모두 유지)
+
+⚠️ reviewer 참고:
+- **endClock=0 강제의 위험성**: 다음 쿼터 PBP 가 존재한다는 것이 "이 쿼터 분명 종료" 의 충분조건인가? → 네 (PBP 는 시간 단조감소 + 쿼터 단위 입력). 단 Flutter 가 잘못된 quarter 번호 (예: Q3 입력 시점에 quarter=2 로 잘못 sync) 부여 시 잘못된 보정 가능 → 이 경우는 Flutter 버그라 별도 처리
+- **LRM cap 과의 결합**: 종료 매치는 endClock=0 강제 적용 후 합 = 거의 정확 (lastGap 회복) → applyCompletedCap 의 비례 분배 폭이 줄어듦 → 더 정확. raw 89.6% → ~95%+ 후 cap = 100%
+- **케이스 K-2 보존 의미**: 라이브 마지막 쿼터는 endClock 보존 룰을 가장 명확히 검증. 향후 누군가 quartersWithPbp 룰을 단순화하다 라이브 부풀림 회귀 시 즉시 검출
+
+---
+
 ## 구현 기록 (developer / 2026-05-03 minutes-engine Tier 2 보강)
 
 📝 구현한 기능: minutes-engine 에 DB starter 주입 + endLineup chain (정확도 92% → 99%)
@@ -215,6 +255,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / Tier 3 / 20/20 test PASS / tsc PASS) | **minutes-engine Tier 3 — starter 첫 segment qLen 강제 + lastGap 보정** — `src/lib/live/minutes-engine.ts` 시뮬 진입 시 `lastClock=qLen` 명시적 보장 (이상치 방어 주석 추가) + endClock 결정 분기 추가: 다음 쿼터 PBP 존재 시 endClock=0 강제 (lastGap p90=34s × 5명 × 4Q = 평균 11분/팀 회복), 없으면 lastPbpClock 보존 (라이브 마지막 쿼터 cap 부풀림 방지). `quartersWithPbp` Set 사전 수집. 신규 test J (clock=414, qLen=420 → starter 5명 풀타임 420s) + K (lastGap clock=4 → 마지막 4초 누적) + K-2 (라이브 마지막 쿼터 200s 보존, 회귀 방지). 기존 17 회귀 0 → **20/20 PASS**. tsc 0 에러. DB/Flutter/cap 함수 변경 0. 예상 효과: 강찬영 414 → 420 등 starter firstGap 손실 0, 종료 매치 raw 정확도 89.6% → 95%+ (LRM cap 결합 시 100%) | ✅ |
 | 2026-05-03 | (developer / Tier 2 보강 / 17/17 test PASS / tsc PASS) | **minutes-engine Tier 2 — DB starter 주입 + endLineup chain** — `MinutesInput.dbStartersByTeam?: Map<teamId, Set<ttp_id>>` 옵션 추가. Q1 starter = DB union 우선 (PBP 추정 무시) → fallback PBP. Q2+ starter = 직전 쿼터 종료 active 5명±2 → fallback PBP. route.ts 에서 `match.playerStats.isStarter=true` 필터 → tournamentTeamId 매핑 → 옵션 주입. 신규 test 케이스 G/H/I (DB 주입 / 미주입 호환 / Q2 chain). 기존 14 회귀 0 → 17/17 PASS. tsc 0 에러. DB schema/Flutter 변경 0. 정확도 92% → 99%, LRM cap 결합 시 100% 도달 예상 | ✅ |
 | 2026-05-03 | (debugger / SELECT only / errors.md +1 / 4 영역 정밀 분석) | **PBP 보강 가능성 정밀 분석 — 사용자 제안 검증** (스타팅 자동 sub_in / 쿼터 boundary / 작전타임 교체 추적). t388 13 매치 실측: ① **`MatchPlayerStat.isStarter` 100% 존재 (13/13 매치, 양팀 10명 정확)** — minutes-engine 미사용 / DB starter vs PBP Q1 추정 일치율 92.3% (불일치 2건 모두 DB 가 더 정확). ② lastGap p90=34s/max=113s (35.8%만 zero), firstGap p90=17s/max=240s (62.3% zero) → boundary 보강 효과 큼. ③ endLineup→nextStarter 교집합 5명 비율 36% (낮음) — but 이는 PBP 추정이 1~4명만 식별이 원인 / DB starter 사용 시 자동 해결. ④ **다음 쿼터 첫 sub_out 이 prev endLineup 에 포함 97.5%** → endLineup chain 매우 안전 (작전타임 교체 실제 발생률 2.5%). 시뮬: PBP-only 92.16% → 보강 후 103.21% (LRM cap 으로 정확화 가능). **권장 = Tier 2 (Q1 isStarter + Q2~Q4 endLineup chain) 영향 +10%, DB 무변경, 위험 0**. errors.md neuf entry 1건 ("starter PBP-only 추정 = isStarter 미사용 정확도 손실"). 임시 스크립트 정리 완료 | ✅ 분석 |
 | 2026-05-03 | (developer / LRM cap / 14/14 test PASS / tsc PASS) | **minutes-engine `applyCompletedCap` ±1초 오차 영구 제거** — 단순 `Math.round` 비례 분배 → Largest Remainder Method (LRM). 각 선수 exact=sec×ratio → floor → 잔여=expected-sum(floor) → fractional 큰 순 +1 분배. `src/lib/live/minutes-engine.ts` +30줄/-3줄. 신규 테스트 3건 (케이스 D/E/F: fractional 분배 / 동일 ratio / 풀타임+partial 혼합). 기존 11 회귀 0 → **14/14 PASS**. tsc 0 에러. 양팀 합 = expected×2 정확 일치 (이전 t388 12/13 → 13/13 예상) | ✅ |
