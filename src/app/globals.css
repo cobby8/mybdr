@@ -330,17 +330,11 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 [data-theme="dark"] .card, html.dark .card { border-width: 2px; border-color: var(--border-strong); }
 
 /* ============================================================
-   [Phase 9-Mobile P4] 카드 통일 정책 — 그리드 멤버 카드 min-height
-   이유: 그리드 안에 카드를 나열할 때 제목 길이/태그 개수에 따라
-        각 카드 높이가 들쭉날쭉 → 시각 정렬 어색. 최소 높이 통일로
-        깔끔한 카드 그리드 라인 형성.
-   적용 대상: .game-card (그 외 .card 일반 사용처는 영향 X)
-   - 데스크톱 280px / 모바일 240px (가로폭 따라 자연 절약)
+   [Phase 9-Mobile P4] .game-card min-height 정책 — 2026-05-03 폐기
+   이유: 카드 컴팩트화 후 정보량 ~120px 인데 min-height 280px 강제로
+        빈 공간 발생. align-items: start (.games-grid) 로 대체 — 카드들
+        자연 높이 유지 + grid 정렬 깔끔.
    ============================================================ */
-.game-card { min-height: 280px; }
-@media (max-width: 720px) {
-  .game-card { min-height: 240px; }
-}
 
 /* ============================================================
    Forms
