@@ -442,13 +442,12 @@ function V2TournamentCard({
 interface V2TournamentListProps {
   tournaments: TournamentFromApi[];
   photoMap?: Record<string, string | null>;
-  // 현재 선택된 6상태 탭
   activeTab: V2MatchTab;
   onTabChange: (tab: V2MatchTab) => void;
-  // 빈 상태 메시지 맞춤 (필터 적용 여부)
   emptyMessage?: string;
-  // v2 6상태 카운트(탭 라벨 옆 숫자용) — 상위에서 전체 목록 기준으로 계산해 전달
   counts?: Partial<Record<V2MatchTab, number>>;
+  // 2026-05-03: 탭 우측에 렌더할 toolbar (뷰 토글 + 검색/필터) — 같은 줄에 좌탭/우툴바
+  toolbar?: React.ReactNode;
 }
 
 export function V2TournamentList({
@@ -458,21 +457,24 @@ export function V2TournamentList({
   onTabChange,
   emptyMessage,
   counts,
+  toolbar,
 }: V2TournamentListProps) {
-  // 알림/로깅 목적의 총 건수 — 상위에서 이미 필터 적용 완료된 배열을 받음
   const shown = tournaments;
 
   return (
     <div>
-      {/* 6상태 칩 (시안 L33~38) — btn--sm + active 시 cafe-blue 배경 */}
+      {/* 2026-05-03: 탭 (좌) + toolbar (우) 한 줄 묶음 */}
       <div
         style={{
           display: "flex",
-          gap: 8,
+          gap: 12,
           marginBottom: 16,
           flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {V2_MATCH_TABS.map((tab) => {
           const isActive = activeTab === tab;
           const count = counts?.[tab];
@@ -508,6 +510,12 @@ export function V2TournamentList({
             </button>
           );
         })}
+        </div>
+        {toolbar && (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            {toolbar}
+          </div>
+        )}
       </div>
 
       {/* 카드 그리드: 데스크톱 2열, 모바일 1열 */}
