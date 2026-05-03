@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ThemeSwitch } from "./theme-switch";
 import { AppDrawer } from "./app-drawer";
+import { NavBadge } from "./nav-badge";
 
 /* ============================================================
  * AppNav (BDR v2 상단 네비게이션)
@@ -43,6 +44,9 @@ interface AppNavProps {
   user: AppNavUser | null;
   unreadCount: number;
   // [2026-04-22] rightAccessory(별 아이콘) prop 제거 — v2 시안에 존재하지 않음
+  // [2026-05-03] 메뉴 NEW 뱃지 — 경기 LIVE / 커뮤니티 24h NEW (MVP)
+  liveMatchCount?: number;
+  newCommunityCount?: number;
 }
 
 // 메인 탭 9개 — 마지막 '더보기'는 drawer 토글 트리거 (kind: "trigger" 제거됨)
@@ -62,7 +66,12 @@ const tabs: { id: string; href: string; label: string }[] = [
 
 // 더보기 메뉴 5그룹은 AppDrawer 안에서 ./more-groups.ts 의 MORE_GROUPS 를 직접 사용
 
-export function AppNav({ user, unreadCount }: AppNavProps) {
+export function AppNav({
+  user,
+  unreadCount,
+  liveMatchCount = 0,
+  newCommunityCount = 0,
+}: AppNavProps) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -163,7 +172,8 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
                 </button>
               );
             }
-            // 일반 라우트 탭
+            // 일반 라우트 탭 — id 별로 NEW 뱃지 분기
+            // 2026-05-03 MVP: 경기 (LIVE) + 커뮤니티 (24h NEW)
             return (
               <Link
                 key={t.id}
@@ -173,6 +183,12 @@ export function AppNav({ user, unreadCount }: AppNavProps) {
                 data-active={isActive(t.href)}
               >
                 {t.label}
+                {t.id === "games" && liveMatchCount > 0 && (
+                  <NavBadge variant="live" />
+                )}
+                {t.id === "community" && newCommunityCount > 0 && (
+                  <NavBadge variant="new" />
+                )}
               </Link>
             );
           })}

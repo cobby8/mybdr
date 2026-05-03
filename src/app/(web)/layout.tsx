@@ -43,6 +43,9 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const { setLoggedIn } = usePreferFilter();
   const [user, setUser] = useState<AppNavUser | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  // 2026-05-03 — AppNav NEW 뱃지 (MVP: 경기 LIVE + 커뮤니티 24h NEW)
+  const [liveMatchCount, setLiveMatchCount] = useState(0);
+  const [newCommunityCount, setNewCommunityCount] = useState(0);
 
   // 마운트 시 유저 + 알림 병렬 fetch — 기존 로직 그대로 이식
   useEffect(() => {
@@ -102,11 +105,40 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  // 2026-05-03 — AppNav NEW 뱃지 폴링 (60s, 비로그인도 동일 — 공개 데이터)
+  // ⚠️ apiSuccess 미들웨어 snake_case 변환 → live_match_count / new_community_count
+  useEffect(() => {
+    const poll = () => {
+      fetch("/api/web/nav-badges", { credentials: "include" })
+        .then(async (r) => {
+          if (!r.ok) return;
+          const body = (await r.json()) as {
+            ok?: boolean;
+            data?: { live_match_count?: number; new_community_count?: number };
+            live_match_count?: number;
+            new_community_count?: number;
+          };
+          const d = body.data ?? body;
+          setLiveMatchCount(d.live_match_count ?? 0);
+          setNewCommunityCount(d.new_community_count ?? 0);
+        })
+        .catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)" }}>
       {/* 상단 가로 네비 — utility bar + 메인 탭 + 모바일 drawer 일체.
        * [2026-04-22] v2 시안 매칭: rightAccessory(별 아이콘) 제거. */}
-      <AppNav user={user} unreadCount={unreadCount} />
+      <AppNav
+        user={user}
+        unreadCount={unreadCount}
+        liveMatchCount={liveMatchCount}
+        newCommunityCount={newCommunityCount}
+      />
 
       {/* 메인 — 풀폭. 각 페이지가 자체 `.page` 컨테이너로 폭 제어 */}
       <main className="flex-1">{children}</main>

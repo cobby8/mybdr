@@ -1,0 +1,83 @@
+/* 2026-05-03: AppNav 메뉴 NEW 뱃지 — variant 별 스타일 */
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  margin-left: 4px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* dot — 작은 빨간 점 */
+.nav-badge--dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent, #E31B23);
+  margin-left: 6px;
+  vertical-align: super;
+}
+
+/* count — 빨간 동그라미 + 숫자 */
+.nav-badge--count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 50%;
+  background: var(--color-accent, #E31B23);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* new — 빨간 N 표시 */
+.nav-badge--new {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent, #E31B23);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* live — 초록 LIVE 텍스트 (깜빡임) */
+.nav-badge--live {
+  padding: 1px 6px;
+  border-radius: 9999px; /* 정사각형 X — 텍스트라 alignment 우선 */
+  background: #16a34a; /* green-600 */
+  color: #fff;
+  font-size: 9px;
+  line-height: 1.4;
+  animation: nav-badge-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes nav-badge-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
+  }
+}
+
+/* 모바일 — 약간 작게 */
+@media (max-width: 720px) {
+  .nav-badge--count,
+  .nav-badge--new {
+    min-width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+  .nav-badge--live {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+}
