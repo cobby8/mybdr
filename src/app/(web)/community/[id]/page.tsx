@@ -16,6 +16,9 @@ import { CommunityAsideNav } from "../_components/community-aside-nav";
 import { getWebSession } from "@/lib/auth/web-session";
 // [2026-04-22] 카페 원문 HTML entity 디코드 — Stage A 확장 후속
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
+// 2026-05-04: 알기자 (BDR NEWS) 카테고리 본문 자동 링크 (선수/팀 → /users/{id}, /teams/{id})
+import { LinkifyNewsBody } from "@/lib/news/linkify-news-body";
+import { buildLinkifyEntries } from "@/lib/news/build-linkify-entries";
 
 export const revalidate = 30;
 
@@ -117,6 +120,14 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
   const displayNickname = post.author_nickname || post.users?.nickname || "익명";
   // 카페 댓글
   const cafeComments = getCafeComments(post.images);
+
+  // 2026-05-04: 알기자 (BDR NEWS) 게시물이면 본문 자동 링크 entries 빌드
+  // - category=news + tournament_match_id 둘 다 있을 때만 (외부 글이 news 카테고리일 가능성 0이지만 안전 가드)
+  // - admin/news 미리보기 + /news/match/[id] deep link 와 동일 룰 (선수 = 출전+is_active+이름>=2글자)
+  const isAlkijaPost = post.category === "news" && !!post.tournament_match_id;
+  const linkifyEntries = isAlkijaPost
+    ? await buildLinkifyEntries(post.tournament_match_id!).catch(() => [])
+    : [];
 
   // 2단계: post.id가 필요한 댓글 + 좋아요/팔로우를 병렬 실행
   let isLiked = false;
@@ -322,7 +333,8 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
             </header>
 
             {/* 2-2. Body — 시안 padding 28px 26px / fs 15 / lh 1.8 / color ink-soft.
-                   D3 결정: DB가 block type 미지원 → 줄바꿈 split <p> 그대로 (h3/img 미적용) */}
+                   D3 결정: DB가 block type 미지원 → 줄바꿈 split <p> 그대로 (h3/img 미적용)
+                   2026-05-04: 알기자 (BDR NEWS) 게시물은 LinkifyNewsBody 사용 (선수/팀 자동 링크) */}
             <div
               style={{
                 padding: "28px 26px",
@@ -331,9 +343,16 @@ export default async function CommunityPostPage({ params }: { params: Promise<{ 
                 color: "var(--ink-soft)",
               }}
             >
-              {decodeHtmlEntities(post.content)?.split("\n").map((line, i) => (
-                <p key={i} style={{ margin: "0 0 14px" }}>{line}</p>
-              ))}
+              {isAlkijaPost && linkifyEntries.length > 0 ? (
+                <LinkifyNewsBody
+                  content={decodeHtmlEntities(post.content) ?? ""}
+                  entries={linkifyEntries}
+                />
+              ) : (
+                decodeHtmlEntities(post.content)?.split("\n").map((line, i) => (
+                  <p key={i} style={{ margin: "0 0 14px" }}>{line}</p>
+                ))
+              )}
             </div>
 
             {/* 2-3. Reactions — 시안 좋아요/공유/스크랩 3버튼 가로 정렬 (.btn.btn--lg 통일)
