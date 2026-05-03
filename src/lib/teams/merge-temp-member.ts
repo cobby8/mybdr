@@ -1,15 +1,23 @@
 import { prisma } from "@/lib/db/prisma";
+import { mergePlaceholderUser } from "@/lib/teams/merge-placeholder-user";
 
 /**
- * 사전 생성 계정 병합 로직
+ * 사전 생성 계정 병합 로직 (가입 hook 시점 자동 호출)
  *
  * 실제 사용자가 팀에 가입할 때, 같은 닉네임이면서
  * 한 번도 로그인하지 않은(사전 등록된) 멤버가 있으면
- * 등번호/포지션/역할을 이관하고 사전 등록 멤버를 제거한다.
+ * 등번호/포지션/역할을 이관하고 placeholder 의 모든 활동(ttp/tm) 을 real 로 이전한다.
+ *
+ * **2026-05-03 강화**: 내부에서 `mergePlaceholderUser` 호출 → ttp 통합 (stat/PBP 자동 보존)
+ * + UNIQUE 우회 + nickname 변경 + status=merged 까지 일괄 처리.
+ *
+ * **호환성**: 반환 타입 (jerseyNumber/position/role) 기존 호출자 보호 위해 유지.
  *
  * 대상: @mybdr.temp, @placeholder.mybdr.kr, 실제 이메일이지만 미로그인 계정
  *
- * @returns 이관된 데이터 { jerseyNumber, position, role } 또는 null
+ * @param teamId 가입 대상 팀
+ * @param realUserId 실제 가입자 user.id
+ * @returns 이관된 데이터 { jerseyNumber, position, role } 또는 null (매칭 placeholder 없음)
  */
 export async function mergeTempMember(
   teamId: bigint,
@@ -59,34 +67,25 @@ export async function mergeTempMember(
 
   if (!tempMember) return null;
 
+  // 반환 데이터 (호출자 보호용 — 기존 시그니처)
+  // ※ tempMember.jerseyNumber 는 mergePlaceholderUser 가 흡수해서 real tm 으로 이전.
+  //   호출자는 이 반환값을 별도 처리할 필요 없음 (참고용 카운트 정도).
   const transferred = {
     jerseyNumber: tempMember.jerseyNumber,
     position: tempMember.position,
     role: tempMember.role !== "member" ? tempMember.role : null,
   };
 
-  const tempUserId = tempMember.userId;
-
-  // 임시 멤버 삭제 + members_count 감소 (트랜잭션)
-  await prisma.$transaction([
-    prisma.teamMember.delete({ where: { id: tempMember.id } }),
-    prisma.team.update({
-      where: { id: teamId },
-      data: { members_count: { decrement: 1 } },
-    }),
-  ]);
-
-  // 사전 생성 사용자가 다른 팀에도 속해있는지 확인
-  const otherMemberships = await prisma.teamMember.count({
-    where: { userId: tempUserId },
+  // ====== 강화: mergePlaceholderUser 위임 ======
+  // ttp 통합 + UNIQUE 우회 + name 정규화 + status=merged 일괄 처리
+  // ※ skipTmTransfer: true — 가입 hook 모드. ph tm 만 DELETE (호출자가 곧 teamMember.create 함)
+  //                          → (team_id, user_id) UNIQUE 충돌 회피
+  // realName = real.name (있으면) 또는 매칭된 candidate (placeholder 의 name/nickname)
+  const realName = realUser.name ?? candidates[0] ?? undefined;
+  await mergePlaceholderUser(tempMember.userId, realUserId, {
+    realName,
+    skipTmTransfer: true,
   });
-  if (otherMemberships === 0) {
-    // 다른 팀 소속이 없으면 비활성화
-    await prisma.user.update({
-      where: { id: tempUserId },
-      data: { status: "merged" },
-    });
-  }
 
   return transferred;
 }
