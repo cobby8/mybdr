@@ -106,7 +106,7 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
               className={`aside-mobile-tab ${isActive ? "active" : ""}`}
             >
               {b.name}
-              {newCount > 0 && <NavBadge variant="new" />}
+              {newCount > 0 && <NavBadge variant="new" inline />}
             </button>
           );
         })}
@@ -150,7 +150,7 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
                   >
                     <span>
                       {b.name}
-                      {newCount > 0 && <NavBadge variant="new" />}
+                      {newCount > 0 && <NavBadge variant="new" inline />}
                     </span>
                     {/* 게시글 수: DB 집계 API 미존재 → "—" + 준비 중 툴팁 */}
                     <span className="count" title="준비 중">—</span>

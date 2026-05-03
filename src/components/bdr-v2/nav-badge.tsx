@@ -15,25 +15,41 @@ interface Props {
   variant: NavBadgeVariant;
   count?: number; // count variant 에서만 사용
   hidden?: boolean; // count===0 일 때 숨김 등
+  // 2026-05-03: inline=true 시 absolute 해제 (사이드바/모바일탭 등)
+  // default false = absolute (AppNav 탭 폭 변동 방지)
+  inline?: boolean;
 }
 
-export function NavBadge({ variant, count, hidden }: Props) {
+export function NavBadge({ variant, count, hidden, inline }: Props) {
   if (hidden) return null;
   if (variant === "count" && (count === undefined || count <= 0)) return null;
 
+  const inlineClass = inline ? " nav-badge--inline" : "";
+
   if (variant === "dot") {
-    return <span className="nav-badge nav-badge--dot" aria-label="새 활동" />;
+    return (
+      <span
+        className={`nav-badge nav-badge--dot${inlineClass}`}
+        aria-label="새 활동"
+      />
+    );
   }
   if (variant === "live") {
     return (
-      <span className="nav-badge nav-badge--live" aria-label="라이브 진행 중">
+      <span
+        className={`nav-badge nav-badge--live${inlineClass}`}
+        aria-label="라이브 진행 중"
+      >
         LIVE
       </span>
     );
   }
   if (variant === "new") {
     return (
-      <span className="nav-badge nav-badge--new" aria-label="새 게시물">
+      <span
+        className={`nav-badge nav-badge--new${inlineClass}`}
+        aria-label="새 게시물"
+      >
         N
       </span>
     );
@@ -41,7 +57,7 @@ export function NavBadge({ variant, count, hidden }: Props) {
   // count
   return (
     <span
-      className="nav-badge nav-badge--count"
+      className={`nav-badge nav-badge--count${inlineClass}`}
       aria-label={`알림 ${count}건`}
     >
       {count! > 99 ? "99+" : count}

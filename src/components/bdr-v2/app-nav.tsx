@@ -44,8 +44,8 @@ interface AppNavProps {
   user: AppNavUser | null;
   unreadCount: number;
   // [2026-04-22] rightAccessory(별 아이콘) prop 제거 — v2 시안에 존재하지 않음
-  // [2026-05-03] 메뉴 NEW 뱃지 — 경기 LIVE / 커뮤니티 24h NEW (MVP)
-  liveMatchCount?: number;
+  // [2026-05-03] 메뉴 NEW 뱃지 — 경기/커뮤니티 24h 내 새 글·매치 카운트
+  newGameCount?: number;
   newCommunityCount?: number;
 }
 
@@ -69,7 +69,7 @@ const tabs: { id: string; href: string; label: string }[] = [
 export function AppNav({
   user,
   unreadCount,
-  liveMatchCount = 0,
+  newGameCount = 0,
   newCommunityCount = 0,
 }: AppNavProps) {
   const pathname = usePathname();
@@ -183,8 +183,8 @@ export function AppNav({
                 data-active={isActive(t.href)}
               >
                 {t.label}
-                {t.id === "games" && liveMatchCount > 0 && (
-                  <NavBadge variant="live" />
+                {t.id === "games" && newGameCount > 0 && (
+                  <NavBadge variant="new" />
                 )}
                 {t.id === "community" && newCommunityCount > 0 && (
                   <NavBadge variant="new" />

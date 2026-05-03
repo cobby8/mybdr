@@ -44,7 +44,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppNavUser | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   // 2026-05-03 — AppNav NEW 뱃지 (MVP: 경기 LIVE + 커뮤니티 24h NEW)
-  const [liveMatchCount, setLiveMatchCount] = useState(0);
+  const [newGameCount, setNewGameCount] = useState(0);
   const [newCommunityCount, setNewCommunityCount] = useState(0);
 
   // 마운트 시 유저 + 알림 병렬 fetch — 기존 로직 그대로 이식
@@ -106,7 +106,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // 2026-05-03 — AppNav NEW 뱃지 폴링 (60s, 비로그인도 동일 — 공개 데이터)
-  // ⚠️ apiSuccess 미들웨어 snake_case 변환 → live_match_count / new_community_count
+  // ⚠️ apiSuccess 미들웨어 snake_case 변환 → new_game_count / new_community_count
   useEffect(() => {
     const poll = () => {
       fetch("/api/web/nav-badges", { credentials: "include" })
@@ -114,12 +114,12 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
           if (!r.ok) return;
           const body = (await r.json()) as {
             ok?: boolean;
-            data?: { live_match_count?: number; new_community_count?: number };
-            live_match_count?: number;
+            data?: { new_game_count?: number; new_community_count?: number };
+            new_game_count?: number;
             new_community_count?: number;
           };
           const d = body.data ?? body;
-          setLiveMatchCount(d.live_match_count ?? 0);
+          setNewGameCount(d.new_game_count ?? 0);
           setNewCommunityCount(d.new_community_count ?? 0);
         })
         .catch(() => {});
@@ -136,7 +136,7 @@ function WebLayoutInner({ children }: { children: React.ReactNode }) {
       <AppNav
         user={user}
         unreadCount={unreadCount}
-        liveMatchCount={liveMatchCount}
+        newGameCount={newGameCount}
         newCommunityCount={newCommunityCount}
       />
 

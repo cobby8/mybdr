@@ -1,15 +1,19 @@
 /* 2026-05-03: AppNav 메뉴 NEW 뱃지 — variant 별 스타일 */
 
+/* 2026-05-03 fix: 탭 폭 변동 방지 — absolute 로 띄움 (탭 우측 상단)
+ * 부모 (.app-nav__tab) 은 이미 position:relative 패턴 가정. 없으면 inline 으로 fallback. */
 .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: -2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   letter-spacing: 0.02em;
-  vertical-align: middle;
-  margin-left: 4px;
   user-select: none;
   pointer-events: none;
+  z-index: 1;
 }
 
 /* dot — 작은 빨간 점 */
@@ -66,6 +70,13 @@
     opacity: 0.85;
     box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
   }
+}
+
+/* inline mode — 사이드바/모바일탭 등 (absolute 해제, 옆에 inline 표시) */
+.nav-badge--inline {
+  position: static;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 /* 모바일 — 약간 작게 */

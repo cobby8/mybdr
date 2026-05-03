@@ -14,11 +14,15 @@ export async function GET() {
   try {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // 병렬 카운트 — 라이브 매치 + 24h 신규 커뮤니티 + 카테고리별
-    const [liveMatchCount, newCommunityCount, byCategory] = await Promise.all([
-      // 진행 중 (status="live") 토너먼트 매치 — Flutter 기록원 활동 매치
-      prisma.tournamentMatch.count({
-        where: { status: "live" },
+    // 병렬 카운트 — 24h 내 새 매치 (게스트/픽업/연습경기) + 24h 신규 커뮤니티 + 카테고리별
+    // 2026-05-03: live → new game 으로 변경 (사용자 결정 — 라이브 표시 X, 새 매치만)
+    const [newGameCount, newCommunityCount, byCategory] = await Promise.all([
+      // 24h 내 등록된 새 매치 (모든 game_type, scheduled_at 가 미래인 것만)
+      prisma.games.count({
+        where: {
+          created_at: { gte: oneDayAgo },
+          scheduled_at: { gte: new Date() },
+        },
       }),
       // 24h 내 새 게시물 (모든 카테고리, status=published)
       prisma.community_posts.count({
@@ -45,7 +49,7 @@ export async function GET() {
     }
 
     return apiSuccess({
-      liveMatchCount,
+      newGameCount,
       newCommunityCount,
       categoryNew,
       generated_at: new Date().toISOString(),
