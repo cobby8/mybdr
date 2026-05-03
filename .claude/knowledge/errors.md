@@ -2,6 +2,26 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-03] 알기자 Phase 2 자동 트리거 silent fail — 운영 GEMINI_API_KEY 미설정 + fire-and-forget catch swallow
+- **분류**: error/trap (운영 환경 변수 누락 + fire-and-forget 패턴의 silent fail 함정)
+- **발견자**: debugger (PM 의뢰 "5/2~5/3 종료 매치인데 알기자 작동 안 함" 진단)
+- **본질**: 매치 status='completed' 전환 → `triggerMatchBriefPublishAsync` fire-and-forget 발동 → 내부에서 `/api/live/[id]/brief?mode=phase2-match` GET → 운영 환경 GEMINI_API_KEY 미설정으로 `{ok:false, reason:"missing_api_key"}` 응답 → `auto-publish-match-brief.ts` 의 `if (!brief) console.error(...)` 분기로 community_posts INSERT 0건 → **호출자 (PATCH route) 영향 0 + 운영 로그만 발생 + DB 흔적 0**.
+- **실측 (5/2~5/3, 30 종료 매치)**:
+  - 자동 트리거 deploy = 5/3 13:44:49 (PR #130, commit 2e6d367)
+  - deploy 이후 종료 매치: 7건 (141, 142, 143, 144, 145, 146, 147) — 알기자 게시물 **0건** (모두 silent fail)
+  - deploy 이전 132~139 게시물 9건 = 수동/스크립트 INSERT (created_at 12:16~13:18 < deploy 13:44)
+  - **모든 게시물 status='published'** (draft 0건) — 자동 트리거가 INSERT 한 적 없다는 강한 시그널 (자동 INSERT 시 default 'draft')
+- **운영 검증 (curl 7매치 일관)**: `curl https://www.mybdr.kr/api/live/{142..147}/brief?mode=phase2-match` → 모두 `{"ok":false,"reason":"missing_api_key"}`
+- **fix**:
+  1. **운영**: Vercel project 의 production env 에 `GEMINI_API_KEY` 추가 + 재배포 — 사용자 액션 필요
+  2. **검증**: 신규 종료 매치 1건 후 community_posts.tournament_match_id 로 SELECT — INSERT 확인
+  3. **운영 backfill (옵션)**: deploy 이후 누락 7매치 (141~147) admin/news 의 regenerate 액션으로 재생성 — 단 운영 GEMINI_API_KEY 설정 후
+- **회귀 방지 룰**:
+  - **fire-and-forget LLM 호출의 silent fail 패턴**: 운영 모니터링 = (a) 운영 로그 `[auto-publish] match=X 응답 raw:` 검색 (b) 신규 매치 종료 후 `community_posts.tournament_match_id` 0 row 검출 알림 (c) Phase 3 도입 시 `news_publish_attempts` 테이블 (matchId, status, reason, ts) 추가 검토
+  - **운영 환경변수 셋팅 검증 protocol**: 사용자 "api 추가했어" 발언만 신뢰 X. `vercel env ls production` (CLI 링크 시) 또는 운영 endpoint curl 1회 검증 필수
+  - **NEXT_PUBLIC_APP_URL 함정 (선행 entry) 과 다른 케이스**: 이번은 baseUrl 자체는 운영 자기 자신 정상 + GEMINI_API_KEY 만 미설정. baseUrl fix 적용 (5/3) 이후의 별개 운영 누락
+- **참조횟수**: 0
+
 ### [2026-05-03] minutes-engine endLineup chain 가드 범위 버그 — Q2+ starter fallback 강제 발동 (라이브 매치 양팀 합 -18% 손실)
 - **분류**: error (alg 가드 범위 불일치 — DB starter union 가드 5~12 vs endLineup chain 가드 3~7)
 - **발견자**: debugger (PM 의뢰 "라이브 매치 양팀 합 비대칭 정밀 분석" / 매치 147 SKD vs MI Q2 추적)

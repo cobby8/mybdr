@@ -240,30 +240,22 @@ export function TeamsContentV2() {
   return (
     // 모바일 좌우 여백 보강 — .page 컨테이너 padding 외에 추가 안전망 (2026-04-29)
     <div className="max-w-[1200px] mx-auto px-3 sm:px-0">
-      {/* v2 헤더 — 시안 L7~L20 */}
+      {/* v2 헤더 — 시안 L7~L20.
+          2026-05-03 (Hero 공통화): 텍스트 블록은 .page-hero__* 클래스화 (모바일 압축 룰).
+          외곽 flex row 는 우측 검색/등록 버튼과 동일 라인 유지 위해 보존. */}
       <div
         style={{
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
-          marginBottom: 16,
           gap: 16,
           flexWrap: "wrap",
         }}
+        className="page-hero"
       >
         <div>
-          <div className="eyebrow">팀 · TEAMS</div>
-          <h1
-            style={{
-              margin: "6px 0 4px",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-              color: "var(--ink)",
-            }}
-          >
-            등록 팀 {teams.length}팀
-          </h1>
+          <div className="eyebrow page-hero__eyebrow">팀 · TEAMS</div>
+          <h1 className="page-hero__title">등록 팀 {teams.length}팀</h1>
           {/* 레이팅 순 라벨 제거 — PM 결정: 팀 레이팅은 미구현 기능이므로 표시 X (2026-04-29) */}
         </div>
 

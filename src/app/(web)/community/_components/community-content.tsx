@@ -28,7 +28,7 @@ import Link from "next/link";
 import { usePreferFilter } from "@/contexts/prefer-filter-context";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 import { LoadMoreButton } from "@/components/load-more-button";
-import { CommunityAside } from "./community-aside";
+import { CommunityAside, CommunityMobileTabs } from "./community-aside";
 import { V2Pager } from "@/components/bdr-v2/v2-pager";
 
 // API에서 내려오는 게시글 데이터 타입 (apiSuccess가 snake_case로 자동 변환)
@@ -303,34 +303,25 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
           onSelect={handleCategoryChange}
         />
 
-        {/* 우측 메인: 헤더 + 정렬 바 + 게시글 테이블 + 페이저 */}
+        {/* 우측 메인: 헤더 + 카테고리 탭(모바일) + 정렬 바 + 게시글 테이블 + 페이저 */}
         <main>
-          {/* 1. 헤더 — eyebrow + 제목 + 글 수 + 검색 + 글쓰기 */}
+          {/* 1. 헤더 — eyebrow + 제목 + 글 수 + 검색 + 글쓰기.
+              2026-05-03: 인라인 style → .page-hero 공통 클래스 (모바일 압축, 가시성 우선). */}
           <div
             style={{
               display: "flex",
               alignItems: "baseline",
               justifyContent: "space-between",
-              marginBottom: 16,
               gap: 16,
               flexWrap: "wrap",
             }}
+            className="page-hero"
           >
             <div style={{ minWidth: 0 }}>
-              <div className="eyebrow">{headerInfo.eyebrow}</div>
-              {/* 시안 충실: h1/글수에 whiteSpace:nowrap 박제 */}
-              <h1
-                style={{
-                  margin: "6px 0 4px",
-                  fontSize: 24,
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {headerInfo.title}
-              </h1>
-              <div style={{ fontSize: 13, color: "var(--ink-mute)", whiteSpace: "nowrap" }}>
+              <div className="eyebrow page-hero__eyebrow">{headerInfo.eyebrow}</div>
+              {/* 시안 충실: h1/글수에 whiteSpace:nowrap 박제 (.page-hero__title 에 포함) */}
+              <h1 className="page-hero__title">{headerInfo.title}</h1>
+              <div className="page-hero__subtitle">
                 {/* 공지(pinned)도 합산 */}
                 전체 {(pinnedPosts.length + regularPosts.length).toLocaleString()}개의 글
               </div>
@@ -377,22 +368,17 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
             </div>
           </div>
 
-          {/* 2. 정렬 바 — 4종 토글 + 우측 "한 페이지 20개" 캡션 */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 10,
-              padding: "10px 12px",
-              background: "var(--bg-elev)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-chip)",
-              fontSize: 13,
-              whiteSpace: "nowrap",
-              flexWrap: "wrap",
-            }}
-          >
+          {/* 2. 모바일 카테고리 가로 탭 — 2026-05-03 위치 이동 (사이드바 → "전체 N개의 글" 직전).
+              이유: 사용자 보고 — 카테고리가 본문에서 멀어 사용자가 첫 글 직전에 분류를 바꾸기 어려움.
+              .aside-mobile-tabs 는 lg+ 에서 CSS 미디어쿼리로 자동 숨김 → 데스크톱 영향 0. */}
+          <CommunityMobileTabs
+            activeCategory={category}
+            onSelect={handleCategoryChange}
+          />
+
+          {/* 3. 정렬 바 — 4종 토글 + 우측 "한 페이지 N개" 캡션.
+              2026-05-03: 인라인 style → .sort-bar-mobile (가로 스크롤 + 4px accent 인디케이터). */}
+          <div className="sort-bar-mobile">
             <span style={{ color: "var(--ink-dim)", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
               정렬
             </span>
@@ -423,8 +409,8 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
                 </button>
               );
             })}
-            <span style={{ flex: 1 }} />
-            <span style={{ color: "var(--ink-dim)", fontSize: 12, whiteSpace: "nowrap" }}>
+            <span style={{ flex: 1, minWidth: 8 }} />
+            <span style={{ color: "var(--ink-dim)", fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>
               한 페이지 {POSTS_PER_PAGE}개
             </span>
           </div>

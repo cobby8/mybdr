@@ -107,31 +107,22 @@ export function RankingsContent() {
   return (
     <div className="page">
       {/* ─── 상단 헤더 + 토글 ─── */}
+      {/* 2026-05-03 (Hero 공통화): 텍스트 블록 → .page-hero__* (모바일 압축 룰). */}
       <div
         style={{
           display: "flex",
           alignItems: "baseline",
           justifyContent: "space-between",
-          marginBottom: 16,
           gap: 16,
           flexWrap: "wrap",
         }}
+        className="page-hero"
       >
         <div>
           {/* 시안의 eyebrow 라벨 */}
-          <div className="eyebrow">랭킹 · LEADERBOARD</div>
-          <h1
-            style={{
-              margin: "6px 0 4px",
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: "-0.015em",
-              color: "var(--ink)",
-            }}
-          >
-            2026 시즌 랭킹
-          </h1>
-          <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
+          <div className="eyebrow page-hero__eyebrow">랭킹 · LEADERBOARD</div>
+          <h1 className="page-hero__title">2026 시즌 랭킹</h1>
+          <div className="page-hero__subtitle">
             공식전 · 프리시즌 반영 · 매주 월요일 갱신
           </div>
         </div>

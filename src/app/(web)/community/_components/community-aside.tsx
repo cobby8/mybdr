@@ -52,11 +52,12 @@ interface CommunityAsideProps {
   onSelect: (categoryKey: string | null) => void;
 }
 
-export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps) {
-  // 그룹 순서 고정: 메인 → 플레이 → 이야기
-  const groupKeys: GroupKey[] = ["main", "play", "chat"];
-
-  // 2026-05-03 — 카테고리별 24h NEW 카운트 fetch (60s 폴링)
+/**
+ * 2026-05-03 — 카테고리별 24h NEW 카운트 fetch hook (CommunityAside / CommunityMobileTabs 공유).
+ * 이유: 모바일 탭이 community-content 본문으로 분리됨에 따라 같은 fetch 로직이 두 컴포넌트에서 필요.
+ *      서버 폴링 부하 방지를 위해 단일 hook 으로 격리.
+ */
+function useCategoryNewCounts() {
   const [categoryNew, setCategoryNew] = useState<Record<string, number>>({});
   useEffect(() => {
     const poll = () => {
@@ -76,43 +77,63 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
     const id = setInterval(poll, 60000);
     return () => clearInterval(id);
   }, []);
-
-  // 전체 NEW = 카테고리별 합 (= newCommunityCount 와 동일하지만 client 자체 산출)
   const totalNew = Object.values(categoryNew).reduce((s, n) => s + n, 0);
   const newCountFor = (id: string | null): number => {
     if (id === null) return totalNew;
     return categoryNew[id] ?? 0;
   };
+  return { newCountFor };
+}
+
+/**
+ * CommunityMobileTabs — 모바일 전용 카테고리 가로 스크롤 탭 (2026-05-03 위치 이동)
+ *
+ * 이유: 사용자 보고 — 카테고리 탭이 Hero 와 사이드바 사이에 위치해 본문에서 멀고
+ *      "전체 N개의 글" 위가 직관적. CommunityAside 에서 분리해 community-content
+ *      안에서 "전체 N개의 글" 직전에 렌더한다.
+ *
+ * lg+ 에서는 globals.css `.aside-mobile-tabs` 의 미디어쿼리로 자동 숨김.
+ */
+export function CommunityMobileTabs({ activeCategory, onSelect }: CommunityAsideProps) {
+  const { newCountFor } = useCategoryNewCounts();
+  return (
+    <div className="aside-mobile-tabs lg:hidden" role="tablist">
+      {BOARDS.map((b) => {
+        const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+        const newCount = newCountFor(b.id);
+        return (
+          <button
+            key={b.id ?? "all"}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onSelect(b.id)}
+            className={`aside-mobile-tab ${isActive ? "active" : ""}`}
+          >
+            {b.name}
+            {newCount > 0 && <NavBadge variant="new" inline />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps) {
+  // 그룹 순서 고정: 메인 → 플레이 → 이야기
+  const groupKeys: GroupKey[] = ["main", "play", "chat"];
+
+  // 2026-05-03 — 카테고리별 24h NEW 카운트 fetch (60s 폴링) → 데스크톱 사이드바 전용
+  const { newCountFor } = useCategoryNewCounts();
 
   return (
     // 부모 .with-aside grid 가 자식 2개(사이드바+main) 기준으로 컬럼 배치하므로
     // CommunityAside 는 반드시 단일 grid item 으로 반환해야 함 (Fragment 사용 시
     // 자식이 3개로 카운트되어 컬럼 깨짐 — 2026-05-01 회귀).
+    // 2026-05-03 — 모바일 가로 탭은 CommunityMobileTabs 로 분리되어 community-content
+    // "전체 N개의 글" 위에서 렌더된다. 여기서는 데스크톱 사이드바만 책임진다.
     <div>
-      {/* Phase 12 §H — 모바일 카테고리 가로 스크롤 탭 (사용자 보고 회귀 픽스).
-          이유: v2 박제 시 사이드바가 본문 위로 stack 되어 모바일 사용자가 본문 도달 어려움.
-          해소: lg 미만에서만 가로 스크롤 8 카테고리 탭. lg+ 는 좌측 사이드바 유지. */}
-      <div className="aside-mobile-tabs lg:hidden" role="tablist">
-        {BOARDS.map((b) => {
-          const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
-          const newCount = newCountFor(b.id);
-          return (
-            <button
-              key={b.id ?? "all"}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => onSelect(b.id)}
-              className={`aside-mobile-tab ${isActive ? "active" : ""}`}
-            >
-              {b.name}
-              {newCount > 0 && <NavBadge variant="new" inline />}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 데스크톱: 기존 사이드바 — lg+ 만 노출 (모바일은 위 가로 탭으로 대체) */}
+      {/* 데스크톱: 기존 사이드바 — lg+ 만 노출 (모바일은 CommunityMobileTabs 로 대체) */}
       <aside className="aside hidden lg:block">
         {/* 글쓰기 버튼 — 시안 그대로 상단 고정 */}
         <div className="aside__group">
