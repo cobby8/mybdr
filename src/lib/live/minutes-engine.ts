@@ -207,9 +207,41 @@ export function applyCompletedCap(
   // edge case: 풀타임 합이 expected 초과/동일 또는 partial 0 → cap 적용 무의미 (그대로)
   if (remainingForPartial <= 0 || partialSum <= 0) return;
 
-  // 비례 적용 (현재 partial sec 기준 ratio) — 정수 초로 반올림 (MM:SS 표시용)
+  // Largest Remainder Method (LRM) — 합계가 정확히 remainingForPartial 와 일치하도록 보정
+  // 왜 LRM:
+  //   기존 Math.round 단순 비례 시 누적 round 오차로 양팀 합 ±1초 발생 (예: 139:59 / 140:01).
+  //   LRM 은 floor 후 fractional 큰 순 +1 분배로 합계를 정확히 expected 와 일치시킨다.
+  // 동작:
+  //   1. 각 선수 exact = sec × ratio 계산
+  //   2. floor 적용 (정수 초)
+  //   3. 잔여 = expected - sum(floor) (≥0 정수)
+  //   4. fractional (exact - floor) 큰 순으로 정렬 → 상위 잔여 명에게 +1
   const ratio = remainingForPartial / partialSum;
+  const exactValues = new Map<bigint, number>();
+  const floorValues = new Map<bigint, number>();
+  let floorSum = 0;
   for (const id of partialIds) {
-    bySec.set(id, Math.round((bySec.get(id) ?? 0) * ratio));
+    const exact = (bySec.get(id) ?? 0) * ratio;
+    const floor = Math.floor(exact);
+    exactValues.set(id, exact);
+    floorValues.set(id, floor);
+    floorSum += floor;
+  }
+  // 잔여 = expected - floor 합계 (0 이상 정수)
+  const remainder = remainingForPartial - floorSum;
+  // fractional 큰 순 정렬 → 상위 remainder 명에게 +1 분배
+  const sortedByFraction = partialIds.slice().sort((a, b) => {
+    const fracA = exactValues.get(a)! - floorValues.get(a)!;
+    const fracB = exactValues.get(b)! - floorValues.get(b)!;
+    return fracB - fracA;
+  });
+  // 일단 모두 floor 값으로 set
+  for (const id of partialIds) {
+    bySec.set(id, floorValues.get(id)!);
+  }
+  // 상위 remainder 명에게 +1
+  for (let i = 0; i < remainder; i++) {
+    const id = sortedByFraction[i];
+    bySec.set(id, (bySec.get(id) ?? 0) + 1);
   }
 }

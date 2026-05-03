@@ -109,6 +109,39 @@
 
 ---
 
+## 구현 기록 (developer / 2026-05-03 LRM cap 정확화)
+
+📝 구현한 기능: minutes-engine `applyCompletedCap` 의 ±1초 오차 제거 (Largest Remainder Method)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/live/minutes-engine.ts` | `applyCompletedCap` 끝부분 비례 분배를 단순 `Math.round` → LRM 으로 교체 (+30줄, -3줄). 각 선수 exact = sec×ratio → floor → 잔여 = expected - sum(floor) → fractional 큰 순 +1 분배 | 수정 |
+| `src/__tests__/lib/live/minutes-engine.test.ts` | LRM 정확도 테스트 3건 추가 (케이스 D/E/F) — fractional 분배 / 동일 ratio / 풀타임+partial 혼합 | 수정 |
+
+검증 결과:
+- vitest: **14/14 PASS** (기존 11 회귀 0 + 신규 3 통과)
+- tsc --noEmit: **0 에러**
+
+💡 tester 참고:
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/lib/live/minutes-engine.test.ts` — 14/14 통과 확인
+  2. 운영 매치 회귀 검증 (선택): t388 종료 매치 13개 다시 출전시간 합계 측정 → 양팀 합 정확히 expected×2 일치 (이전 ±1초 오차 12/13 → 13/13)
+- 정상 동작:
+  - 종료 매치 양팀 출전시간 합 = qLen×numQ×5×2 정확 일치 (139:59 / 140:01 → 140:00 / 140:00)
+  - 모든 선수 sec 는 정수 (반올림 X, floor + 0/1 분배)
+  - 풀타임 선수 sec 절대 변경 X (cap 진입 전 분리됨)
+- 주의할 입력:
+  - 풀타임만으로 expected 도달: remainingForPartial ≤ 0 → early return (변경 X)
+  - partial 선수 1명: remainder 0 또는 1, 그 1명에게만 +0/+1 분배
+
+⚠️ reviewer 참고:
+- LRM 의 안정 정렬 — JS `Array.prototype.sort` 는 V8/모던 엔진에서 stable. fractional 동일 시 partialIds 원래 순서 보존 → 결과 결정론적
+- exactValues / floorValues Map 추가로 메모리 ~2× (한 팀 partial 5~10명 수준이라 미미)
+- ratio 계산 자체는 그대로 (1회 division) — 알고리즘 복잡도 O(n log n) (sort) — 영향 무시
+- (선택) 향후 호출자가 양팀 합도 다시 검증하면 100% 안전
+
+---
+
 ## 구현 기록 (developer / 2026-05-03 D-day fix)
 
 📝 구현한 기능: dual_tournament advanceWinner 호출 차단 (이중 가드)
@@ -139,6 +172,8 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (developer / LRM cap / 14/14 test PASS / tsc PASS) | **minutes-engine `applyCompletedCap` ±1초 오차 영구 제거** — 단순 `Math.round` 비례 분배 → Largest Remainder Method (LRM). 각 선수 exact=sec×ratio → floor → 잔여=expected-sum(floor) → fractional 큰 순 +1 분배. `src/lib/live/minutes-engine.ts` +30줄/-3줄. 신규 테스트 3건 (케이스 D/E/F: fractional 분배 / 동일 ratio / 풀타임+partial 혼합). 기존 11 회귀 0 → **14/14 PASS**. tsc 0 에러. 양팀 합 = expected×2 정확 일치 (이전 t388 12/13 → 13/13 예상) | ✅ |
+| 2026-05-03 | (debugger / SELECT only / errors.md +1 entry) | **t388 (몰텐배 동호회최강전) 종료 매치 13개 출전시간 전수 검증** — UUID `138b22d8...` 27 매치 중 13 종료. 양팀 cap 후 합=expected×2 일치 12/13 (92.3%). raw 정확도 82.6% / capped 정확도 89.6%. 풀타임 선수 변경 0건 (cap §2 보장). NaN/음수 0건. 이상치 1건 = #141 블랙라벨 vs MSA (PBP+matchPlayerStat 모두 0건, score 52:31 manual 입력만, cap 알고리즘 무효). errors.md 신규 entry "PBP 0건 종료 매치" 추가. cap delta 큰 매치 — #140 우아한스포츠 raw 77% (Q1 시작 ~2분 + Q2 끝 + OT 3분 PBP 누락) → cap +2418s 분배. **사용자 콕 지정 "열혈농구단" 매치 0건** — 16팀(MZ/블랙라벨/닥터바스켓/다이나믹/SYBC/크로스오버/MI/SA/피벗/슬로우/우아한스포츠/MSA/SKD/아울스/업템포/셋업) 명단에 "열혈" 키워드 없음 → 사용자 표현 다른 토너먼트일 가능성 (PM 확인 필요). 임시 스크립트 정리 완료 | ✅ 검증 |
 | 2026-05-03 | (developer / D-day fix / 145 Q1 진행 중 / tsc PASS) | **dual_tournament advanceWinner 무한 루프 corrupt 영구 fix** — 2 패치 이중 가드. ① `src/app/api/v1/tournaments/[id]/matches/sync/route.ts` L371~377: tasks 배열에서 isDual 일 때 advanceWinner skip + results 인덱스 동적 산출 (cursor 패턴, advanceWinner 빠질 때 standings/dual 인덱스 어긋남 방지). ② `src/lib/tournaments/update-standings.ts` L7~22: advanceWinner 진입부 dual_tournament guard (format 조회 후 dual 이면 early return). dual 진출은 progressDualMatch 가 전담 (loser bracket 포함). 5/2 C조 / 5/3 D조 audit 11~12회 self-heal 무한 루프 본질 차단. tsc 0 에러. self-heal (progressDualMatch) 코드 무변 (작동 중) | ✅ |
 | 2026-05-03 | (debugger / D-day 긴급 / SELECT only / errors+lessons 기록) | **D조 진출 슬롯 양팀 동일 본질 fix 발견** — 5/3 D조 승자전 (#15, m146) audit 12회 분석: 144 종료 후 5분간 ~20초 간격 11회 self-heal → 본질 = `advanceWinner` (update-standings.ts L30~36) 가 dual 매치도 호출되어 빈 슬롯(146.away) 에 winner=246(슬로우) 자동 채움 → progressDualMatch self-heal 이 nullify → advanceWinner 가 다시 채움 무한 루프. 5/2 C조 동일 패턴 7회 audit 확인. 5/2 회귀 방지 5종 모두 우회 (audit 미호출 경로). **현재 146 stable** (home=슬로우/away=null). **임시 fix 불필요** (현재 OK). **영구 fix 권장**: sync route L371~381 isDual 시 advanceWinner skip (중복+잘못된 슬롯 위험). 145 종료 전 적용 필수. 임시 스크립트 정리 | ✅ 진단 |
 | 2026-05-03 | (debugger / SELECT only / errors+lessons 기록) | **PBP 미달 본질 원인 분석 (5/2+5/3 11매치 22팀)** — 분포: 100% 정확 0팀 / lastClock 절단 21팀(95%) / firstClock 절단 1팀 / 쿼터 전환 lineup 불일치 22팀 모두. 본질 = Flutter 앱 운영자 입력 누락 3종: ① **starter lineup PBP 미입력** (1차, 22팀 모두) ② **lastClock 절단** (set 종료 지연, 21팀) ③ **firstClock 절단** (set 시작 지연, 1팀+OT). 코드 cap 은 합 정확화 OK / 개별 sec 신뢰도 ~5%. Flutter fix 권장 = quarter_start/quarter_end boundary PBP + starter lineup 자동 INSERT (원영 검토). errors.md + lessons.md 신규 entry 1건씩. 임시 스크립트 정리 완료 | ✅ 분석 |
@@ -149,4 +184,3 @@
 | 2026-05-03 | (api/live 옵션 D / tsc PASS) | **status-aware cap + F2 진행도 기반 expected** — `estimateProgressedSec()` 신규 + `applyTeamCap` cap 분기 (completed=만점 / live=5×progressed) + `calculateSubBasedMinutes(matchStatus)` 시그니처 + F2 expected 진행 중 쿼터는 5×(qLen-lastClockInQ) 축소. 검증 (운영 11 라이브 매치 + 4 종료 매치): #84 cap 12000→1520s/팀 (25.3m), #92 12000→7570s/팀 (126.2m). 종료 #132~#135 8400s/팀 만점 회귀 0. tsc PASS. 5/3 진행 매치 출전시간 부풀림 즉시 정상화 | ✅ |
 | 2026-05-03 | (debugger / 분석 only) | **라이브 cap 부풀림 진단** — 운영 11 라이브 매치 SELECT. cap = 5×qLen×4 (Q4 만점, 200분/팀) 을 status 무관 적용 → Q1 진행 매치 id=84 (#5 starter 모두 999s = Flutter 999s cap) → applyTeamCap 의 partial 비례 확대 (12000/4995 ≈ 2.4배) → 각 선수 ~40분 부풀림. **fix 방향**: status='live' 일 때 cap = 5×qLen×(완료쿼터+(qLen-lastClock)/qLen) 동적 산출. F2 expected 도 진행 중 쿼터에선 5×(qLen-lastClock) 로 축소. 옵션 D 권장 (사용자 결정 대기) | ✅ 진단 |
 | 2026-05-02 | (developer / tsc PASS) | **mergeTempMember 4-way 매칭 강화** — `realName = nickname \|\| name` 단일값 → `candidates[]` 양쪽값 수집 후 placeholder 의 nickname/name 컬럼과 교차(4가지 조합) OR 매칭. placeholder 가드 추가 (provider='placeholder' OR email LIKE 'temp_%') — 동명이인 미로그인 실사용자 오통합 방지. 백주익 (real nick=hifabric/name=백주익 ↔ ph nick=백주익) 케이스 매칭 가능 | ✅ |
-| 2026-05-03 | (lib 4파일+테스트) | **알기자 brief Phase 1 정책 재설계 + 데이터 풀 확장 + ~다 통일** — 점프볼 단신 패턴 시도(평균 350자 폭증) → Phase 1 컨텍스트(매치 페이지 안 흐름·영웅 섹션) 재정의(평균 188자 적중). validate-brief 점수 검증 제거(쿼터/진행 점수 false positive 차단), 길이 400→350. 데이터 풀 확장: 양 팀 통계(야투/3점/리바/어시/스틸/블락/턴오버) + 모든 선수 stat + 더블더블/트리플더블 자동 검출 + 리바/어시/스틸/블락/+/-/3점 1위 자동 추출. 8건 모두 다른 관점(수비/3점폭격/턴오버/+/-/더블더블/야투율 비교) 작성. 어조 ~다 통일(~습니다 금지). 데이터 정확 (전인규 3점 11개 / 이영교 동명이인 닥터바스켓 OK 사용자 확인) | ✅ |
