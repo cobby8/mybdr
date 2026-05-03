@@ -1,0 +1,162 @@
+// PBP-only 출전시간 산출 엔진 (2026-05-03)
+//
+// 왜 분리했나:
+//   기존 route.ts 는 quarterStatsJson / minutesPlayed / sub-based MAX 등 여러 source 를
+//   섞어 cap/fallback/보정 다중 단계로 처리 → 5/3 라이브 매치 부풀림 + ≥30분 만점 cap 누락 등
+//   재발 다수. PBP substitution 은 농구 출전시간의 단일 진실 원천이므로
+//   "PBP only" 단일 알고리즘으로 단순화.
+//
+// 알고리즘:
+//   1. 쿼터별로 PBP 를 clock 내림차순(쿼터 시작 → 종료) 정렬
+//   2. starter 추정 = 쿼터 내 등장 선수 중 sub_in 으로 들어온 적 없는 선수
+//   3. active set = starter 로 초기화 (쿼터 시작 = qLen 초)
+//   4. sub PBP 따라 active set 갱신 + 직전 segment 시간을 active 전원에게 누적
+//   5. 쿼터 종료 (clock 0 또는 라이브 진행 중 = lastClock) 까지 잔여 누적
+//
+// 자연 처리 항목:
+//   - DNP: PBP 미등장 → Map 미등록 → 0
+//   - 풀타임 선수: sub 없음 → 쿼터 시작~종료 전체 누적 (qLen × N쿼터)
+//   - 라이브 진행 중 쿼터: lastClock > 0 → progressed 만큼만 누적 (cap 불필요)
+//   - OT: numQuarters 5+ 자동 처리
+
+export type MinutesPbp = {
+  ttpId: bigint | null;          // tournament_team_player_id
+  quarter: number;
+  clock: number;                  // game_clock_seconds (쿼터 시작 = qLen, 종료 = 0)
+  type: string;                   // action_type (특히 'substitution')
+  subtype: string | null;         // action_subtype ("in:X,out:Y" 형태)
+  subInId: bigint | null;         // sub_in_player_id 컬럼 (있으면 우선)
+  subOutId: bigint | null;        // sub_out_player_id 컬럼
+};
+
+export type MinutesInput = {
+  pbps: MinutesPbp[];
+  qLen: number;                   // quarter length (sec) — 보통 420/480/600/720
+  numQuarters: number;            // 4 (정규) or 5+ (OT 포함)
+};
+
+export type MinutesResult = {
+  bySec: Map<bigint, number>;                        // ttpId → 총 출전 초
+  byQuarterSec: Map<bigint, Map<number, number>>;    // ttpId → quarter → 초
+};
+
+export function calculateMinutes(input: MinutesInput): MinutesResult {
+  const { pbps, qLen, numQuarters } = input;
+  const result = new Map<bigint, number>();
+  const resultByQ = new Map<bigint, Map<number, number>>();
+
+  // 쿼터별 누적 헬퍼 — total + byQuarter 동시 갱신
+  const addSec = (id: bigint, q: number, sec: number) => {
+    if (sec <= 0) return;
+    result.set(id, (result.get(id) ?? 0) + sec);
+    let qMap = resultByQ.get(id);
+    if (!qMap) {
+      qMap = new Map();
+      resultByQ.set(id, qMap);
+    }
+    qMap.set(q, (qMap.get(q) ?? 0) + sec);
+  };
+
+  for (let q = 1; q <= numQuarters; q++) {
+    // 쿼터별 PBP 추출 + 시간순 정렬 (clock 큰 쪽 = 쿼터 시작 → 작은 쪽 = 쿼터 종료)
+    const qPbps = pbps
+      .filter((p) => p.quarter === q)
+      .sort((a, b) => b.clock - a.clock);
+
+    if (qPbps.length === 0) continue; // 시작 안 된 쿼터
+
+    // sub_in/out 파싱: 컬럼 우선, 없으면 action_subtype "in:X,out:Y" 정규식
+    type Sub = { clock: number; inId: bigint; outId: bigint };
+    const subs: Sub[] = [];
+    for (const p of qPbps) {
+      if (p.type !== "substitution") continue;
+      let inId = p.subInId;
+      let outId = p.subOutId;
+      if (!inId || !outId) {
+        const m = p.subtype?.match(/^in:(\d+),out:(\d+)$/);
+        if (m) {
+          inId = inId ?? BigInt(m[1]);
+          outId = outId ?? BigInt(m[2]);
+        }
+      }
+      if (inId && outId) {
+        subs.push({ clock: p.clock, inId, outId });
+      }
+    }
+
+    // 쿼터 내 등장 선수 (PBP 액션 + sub 양쪽)
+    const everSeen = new Set<bigint>();
+    for (const p of qPbps) {
+      if (p.ttpId) everSeen.add(p.ttpId);
+    }
+    for (const s of subs) {
+      everSeen.add(s.inId);
+      everSeen.add(s.outId);
+    }
+
+    // starter 추정 (정확한 룰):
+    //   1) "첫 sub_in" 보다 먼저 코트에 있어야만 starter 후보
+    //      → 즉 [첫 sub_in 시점 이전에 액션 1건 이상] OR [한 번이라도 sub_out 됨]
+    //   2) 쿼터 내내 sub 무관하게 액션만 있는 선수도 starter (풀타임)
+    //   3) 어느 sub 에서도 in 으로 등장하지 않은 선수는 무조건 starter
+    //
+    // 핵심: swap 케이스 (5번 out → 6번 in → 5번 in 으로 다시 복귀) 에서
+    //   5번을 starter 로 잡아야 정확. "sub_in 받은 적 있다" 만으로 제외하면 오류.
+    const firstSubClock = subs.length > 0 ? subs[0].clock : -1;
+    const subInIds = new Set(subs.map((s) => s.inId));
+    const subOutIds = new Set(subs.map((s) => s.outId));
+    // 쿼터 내 첫 sub 이전 (clock > firstSubClock) 에 액션을 한 선수 — starter 확정
+    const seenBeforeFirstSub = new Set<bigint>();
+    if (firstSubClock >= 0) {
+      for (const p of qPbps) {
+        if (!p.ttpId) continue;
+        if (p.clock > firstSubClock) seenBeforeFirstSub.add(p.ttpId);
+      }
+    }
+    const starters: bigint[] = [];
+    for (const id of everSeen) {
+      // (a) sub_in 받은 적 없음 → starter (풀타임 또는 sub_out 만 됨)
+      if (!subInIds.has(id)) {
+        starters.push(id);
+        continue;
+      }
+      // (b) sub_in 받았지만 한 번이라도 sub_out 도 됨 → 코트에 있던 선수 (starter 후보)
+      //     + 첫 sub 이전에 액션도 있으면 starter 확정
+      if (subOutIds.has(id) && seenBeforeFirstSub.has(id)) {
+        starters.push(id);
+      }
+    }
+
+    // active set 시뮬레이션
+    const active = new Set<bigint>(starters);
+    let lastClock = qLen; // 쿼터 시작 시점 (clock = qLen)
+
+    for (const sub of subs) {
+      // sub 시점 직전까지 active 전원에게 segment 시간 누적
+      const delta = lastClock - sub.clock;
+      if (delta > 0) {
+        for (const id of active) {
+          addSec(id, q, delta);
+        }
+      }
+      // sub 적용: out 제거, in 추가
+      active.delete(sub.outId);
+      active.add(sub.inId);
+      lastClock = sub.clock;
+    }
+
+    // 쿼터 종료까지 잔여 segment
+    // - 종료 매치: 마지막 PBP clock ≈ 0 → lastClock 부터 0 까지
+    // - 라이브 진행 중 쿼터: 마지막 PBP clock > 0 → 그 시점까지만 (이후는 미진행)
+    // 단순화: 쿼터의 마지막 PBP 의 clock 을 endClock 으로 사용.
+    const endClock = qPbps[qPbps.length - 1].clock;
+    const remaining = lastClock - endClock;
+    if (remaining > 0) {
+      for (const id of active) {
+        addSec(id, q, remaining);
+      }
+    }
+  }
+
+  return { bySec: result, byQuarterSec: resultByQ };
+}
