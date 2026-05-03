@@ -396,48 +396,59 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
   ].filter((v): v is string => Boolean(v && v.length > 0));
 
   // 2026-05-03: Stats 4 카드 변경 (사용자 요청)
-  // - 점수차 → "최대점수차" (한때 가장 벌어진 차이, leader 함께)
-  // - 쿼터승 (의미 모호) → "최고 쿼터" (한 쿼터 최고 폭격 — 승부처 강조)
-  const qs2 = match.quarter_scores;
-  // 단일 쿼터 최고 득점 산출
-  let bestQTeam = "";
-  let bestQLabel = "";
-  let bestQPts = 0;
-  if (qs2) {
-    const arr = [
-      { team: match.home_team.name, label: "Q1", pts: qs2.home.q1 },
-      { team: match.home_team.name, label: "Q2", pts: qs2.home.q2 },
-      { team: match.home_team.name, label: "Q3", pts: qs2.home.q3 },
-      { team: match.home_team.name, label: "Q4", pts: qs2.home.q4 },
-      ...qs2.home.ot.map((v, i) => ({
-        team: match.home_team.name,
-        label: `OT${i + 1}`,
-        pts: v,
-      })),
-      { team: match.away_team.name, label: "Q1", pts: qs2.away.q1 },
-      { team: match.away_team.name, label: "Q2", pts: qs2.away.q2 },
-      { team: match.away_team.name, label: "Q3", pts: qs2.away.q3 },
-      { team: match.away_team.name, label: "Q4", pts: qs2.away.q4 },
-      ...qs2.away.ot.map((v, i) => ({
-        team: match.away_team.name,
-        label: `OT${i + 1}`,
-        pts: qs2.away.ot[i] ?? 0,
-      })),
-    ];
-    for (const q of arr) {
-      if (q.pts > bestQPts) {
-        bestQPts = q.pts;
-        bestQTeam = q.team;
-        bestQLabel = q.label;
+  // - 점수차 → "최대점수차" (한때 가장 벌어진 차이, maxLead)
+  // - 쿼터승 (의미 모호) → "스코어링 런" (한 팀이 상대 0점 동안 연속 득점 최대)
+  //   예: "MZ Q3 14-0" — MZ 가 Q3 동안 우아 0점 사이 14점 연속 득점
+
+  // 스코어링 런 산출 — PBP 시계열에서 같은 팀 연속 득점 (다른 팀 사이 0점)
+  let bestRunTeam = "";
+  let bestRunQuarter = 0;
+  let bestRunPts = 0;
+  let curRunTeamId: number | null = null;
+  let curRunPts = 0;
+  let curRunQuarter = 0;
+  for (const e of match.play_by_plays) {
+    if (!e.is_made || !e.points_scored || e.points_scored <= 0) continue;
+    if (e.team_id === curRunTeamId) {
+      // 같은 팀 연속 득점 누적
+      curRunPts += e.points_scored;
+    } else {
+      // 다른 팀 득점 — 직전 run 평가 후 reset
+      if (curRunPts > bestRunPts) {
+        bestRunPts = curRunPts;
+        bestRunTeam =
+          curRunTeamId === match.home_team.id
+            ? match.home_team.name
+            : curRunTeamId === match.away_team.id
+              ? match.away_team.name
+              : "";
+        bestRunQuarter = curRunQuarter;
       }
+      curRunTeamId = e.team_id;
+      curRunPts = e.points_scored;
+      curRunQuarter = e.quarter;
     }
+  }
+  // 마지막 run 평가
+  if (curRunPts > bestRunPts) {
+    bestRunPts = curRunPts;
+    bestRunTeam =
+      curRunTeamId === match.home_team.id
+        ? match.home_team.name
+        : curRunTeamId === match.away_team.id
+          ? match.away_team.name
+          : "";
+    bestRunQuarter = curRunQuarter;
   }
 
   const summaryBlocks = [
     { l: "최대점수차", v: maxLead > 0 ? `${maxLead}점` : `${scoreDiff}점` },
     {
-      l: "최고 쿼터",
-      v: bestQPts > 0 ? `${bestQTeam} ${bestQLabel} ${bestQPts}점` : "—",
+      l: "스코어링 런",
+      v:
+        bestRunPts > 0 && bestRunTeam
+          ? `${bestRunTeam} Q${bestRunQuarter} ${bestRunPts}-0`
+          : "—",
     },
     { l: "총 득점", v: `${homeTotal + awayTotal}점` },
     { l: "리드 체인지", v: leadChanges > 0 ? `${leadChanges}회` : "—" },
