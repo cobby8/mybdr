@@ -18,20 +18,16 @@
 // PBP score_at_time 필드 부재 → points_scored 누적으로 score 시계열 직접 계산.
 //
 // 2026-05-02: Phase 1 — Gemini 2.5 Flash 단신 기사 통합 (알기자 페르소나)
-// /api/live/[id]/brief 에서 LLM 응답 fetch (SWR). 종료 매치만 호출 + 캐시.
+// 2026-05-04: client fetch 제거 → match.summary_brief props 사용 (DB 영구 저장 마이그)
+//   - 매치 종료 시 자동 생성 (auto-publish-match-brief.ts 의 publishPhase1Summary)
+//   - tournament_matches.summary_brief JSON 컬럼에 영구 저장
+//   - 라이브 페이지 fetch 시 /api/live/[id] 응답에 함께 내려옴 (별도 fetch X)
+//   - cold start 마다 LLM 재호출 X / 매치당 1회 비용
 // 정책:
-//   - 로딩 중: Phase 0 템플릿 노출 (즉시 표시 보장)
-//   - LLM 성공: brief 텍스트 + "✍️ 알기자 (BDR NEWS AI)" 시그니처
-//   - LLM 실패 (검증/네트워크/키 미설정): Phase 0 템플릿 영구 fallback
-// completed 매치만 LLM 호출 — 진행 중 매치는 fetch 자체 skip.
+//   - summary_brief 있음: brief 텍스트 + "✍️ 알기자 (BDR NEWS AI)" 시그니처
+//   - summary_brief 없음 (진행 중 / 미생성 / silent fail): Phase 0 템플릿 fallback
 
-import { useEffect, useState } from "react";
 import type { MatchDataV2, MvpPlayerV2, PlayerRowV2, PlayByPlayRowV2 } from "./game-result";
-
-// LLM brief 응답 타입 — /api/live/[id]/brief 응답 (snake_case 자동 변환 후)
-type BriefResponse =
-  | { ok: true; brief: string; matchId: number; generated_at: string }
-  | { ok: false; reason: string };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수 (module-level)
@@ -245,49 +241,10 @@ function formatScheduledAt(iso: string | null | undefined): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TabSummary({ match }: { match: MatchDataV2 }) {
-  // 2026-05-02 Phase 1: LLM 단신 기사 fetch (알기자)
-  // 정책: completed 매치만 호출. 로딩 중/실패 시 Phase 0 템플릿 fallback.
-  // SWR 미사용 — 캐시는 서버 측 메모리 (match-brief-generator.ts) 라 클라 SWR 불필요.
-  // useState + useEffect 단순 패턴으로 1회 fetch.
-  const [llmBrief, setLlmBrief] = useState<string | null>(null);
-  // briefStatus: "idle"=초기 / "loading"=fetch 중 / "ok"=LLM 성공 / "fallback"=Phase 0 사용
-  const [briefStatus, setBriefStatus] = useState<"idle" | "loading" | "ok" | "fallback">(
-    "idle",
-  );
-
-  useEffect(() => {
-    // 진행 중 매치 → fetch skip (서버 측에서도 거부)
-    if (match.status !== "completed") {
-      setBriefStatus("fallback");
-      return;
-    }
-    let cancelled = false;
-    setBriefStatus("loading");
-    void (async () => {
-      try {
-        const res = await fetch(`/api/live/${match.id}/brief`, {
-          // 라이브 페이지 폴링과 분리 — brief 은 매치당 1회만 fetch
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const json: BriefResponse = await res.json();
-        if (cancelled) return;
-        if (json.ok) {
-          setLlmBrief(json.brief);
-          setBriefStatus("ok");
-        } else {
-          // LLM 검증 실패 / 네트워크 / API 키 미설정 → Phase 0 fallback
-          setBriefStatus("fallback");
-        }
-      } catch {
-        // 네트워크 에러 → Phase 0 fallback
-        if (!cancelled) setBriefStatus("fallback");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [match.id, match.status]);
+  // 2026-05-04: DB 저장 마이그 — props 에서 직접 읽기 (별도 fetch X)
+  // - 매치 종료 시 auto-publish-match-brief.ts 가 자동 생성하여 tournament_matches.summary_brief 에 저장
+  // - 진행 중 매치 / 미생성 / silent fail 시 null → Phase 0 템플릿 fallback
+  const llmBrief = match.summary_brief?.brief ?? null;
 
   // TOP 퍼포머 계산 — 득점/리바/어시/스틸 각 1위 (우측 카드)
   const allPlayers = [...match.home_players, ...match.away_players].filter((p) => !p.dnp);
@@ -503,9 +460,8 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
         </h4>
 
         {/* [Lead] flow 별 1~2 문장 분기 */}
-        {/* 2026-05-02 Phase 1: LLM 응답 우선 + Phase 0 템플릿 fallback */}
-        {/* status="ok" 일 때만 LLM brief 노출. 그 외 (loading/fallback/idle) Phase 0 노출. */}
-        {briefStatus === "ok" && llmBrief ? (
+        {/* 2026-05-04: DB 저장 마이그 — match.summary_brief 있으면 LLM brief 노출, 없으면 Phase 0 템플릿 fallback */}
+        {llmBrief ? (
           <>
             <p
               style={{
