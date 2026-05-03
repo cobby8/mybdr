@@ -314,7 +314,6 @@ export function GameCard({
             display: "flex",
             alignItems: "center",
             gap: 10,
-            marginTop: "auto",
             paddingTop: 4,
           }}
         >

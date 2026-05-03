@@ -2542,6 +2542,8 @@ html.dark {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
+  /* 2026-05-03: 카드 컴팩트화 후 grid stretch 시 빈 공간 발생 → start 정렬 */
+  align-items: start;
 }
 
 /* ---------- Mobile (<= 720px) ---------- */

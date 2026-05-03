@@ -554,6 +554,8 @@ export function V2TournamentList({
             // 2026-05-03: 컴팩트 카드 — 280px 최소폭 (이전 340px) → 한 행 카드 수 ↑
             // 모바일 1열 → 640px↑ 2~3열, 1280px↑ 4열 (auto-fill + minmax)
             gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
+            // grid stretch 시 빈 공간 발생 → start 정렬 (카드 자연 높이 유지)
+            alignItems: "start",
             gap: 14,
           }}
         >
