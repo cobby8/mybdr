@@ -4,19 +4,14 @@
  * CommunityAside — 커뮤니티 좌측 게시판 그룹 트리 (BDR v2 시안)
  *
  * 이유: BDR v2 시안 `components.jsx`의 `<Sidebar>` 패턴을 그대로 적용.
- *       DB 카테고리 7개를 시안의 3그룹(메인/플레이/이야기)으로 재배치한다.
+ *       DB 카테고리 8개를 시안의 3그룹(메인/플레이/이야기)으로 재배치한다.
  *
- * CSS 의존: `.aside`, `.aside__group`, `.aside__title`, `.aside__link`, `.aside__divider`, `.btn--primary`, `.badge--new`
- *           모두 globals.css에 정의됨.
- *
- * 동작: 활성 카테고리 표시 + 클릭 시 onSelect 콜백 호출. 부모가 router.push로 URL 동기화.
- *       글쓰기 버튼은 Link로 /community/new 이동.
- *
- * 게시글 수: DB에 카테고리별 글 수 집계 API가 없으므로 "—" 표시 + title="준비 중" 툴팁.
- *           (추후 구현: API 도입 후 props로 count 주입)
+ * 2026-05-03: 카테고리별 24h NEW 뱃지 추가 — /api/web/nav-badges 자체 fetch (60s 폴링)
  */
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { NavBadge } from "@/components/bdr-v2/nav-badge";
 
 // 카테고리 그룹 정의 — PM 결정 (메인/플레이/이야기 3그룹)
 // DB key는 community-content.tsx의 categoryMap과 일치해야 함
@@ -61,6 +56,34 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
   // 그룹 순서 고정: 메인 → 플레이 → 이야기
   const groupKeys: GroupKey[] = ["main", "play", "chat"];
 
+  // 2026-05-03 — 카테고리별 24h NEW 카운트 fetch (60s 폴링)
+  const [categoryNew, setCategoryNew] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const poll = () => {
+      fetch("/api/web/nav-badges", { credentials: "include" })
+        .then(async (r) => {
+          if (!r.ok) return;
+          const body = (await r.json()) as {
+            data?: { category_new?: Record<string, number> };
+            category_new?: Record<string, number>;
+          };
+          const d = body.data ?? body;
+          setCategoryNew(d.category_new ?? {});
+        })
+        .catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // 전체 NEW = 카테고리별 합 (= newCommunityCount 와 동일하지만 client 자체 산출)
+  const totalNew = Object.values(categoryNew).reduce((s, n) => s + n, 0);
+  const newCountFor = (id: string | null): number => {
+    if (id === null) return totalNew;
+    return categoryNew[id] ?? 0;
+  };
+
   return (
     // 부모 .with-aside grid 가 자식 2개(사이드바+main) 기준으로 컬럼 배치하므로
     // CommunityAside 는 반드시 단일 grid item 으로 반환해야 함 (Fragment 사용 시
@@ -72,6 +95,7 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
       <div className="aside-mobile-tabs lg:hidden" role="tablist">
         {BOARDS.map((b) => {
           const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+          const newCount = newCountFor(b.id);
           return (
             <button
               key={b.id ?? "all"}
@@ -82,6 +106,7 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
               className={`aside-mobile-tab ${isActive ? "active" : ""}`}
             >
               {b.name}
+              {newCount > 0 && <NavBadge variant="new" inline />}
             </button>
           );
         })}
@@ -111,6 +136,7 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
               {items.map((b) => {
                 // 활성 판정: id가 null인 항목은 activeCategory가 null/빈값일 때
                 const isActive = b.id === null ? !activeCategory : activeCategory === b.id;
+                const newCount = newCountFor(b.id);
                 return (
                   <a
                     key={b.id ?? "all"}
@@ -122,7 +148,10 @@ export function CommunityAside({ activeCategory, onSelect }: CommunityAsideProps
                     }}
                     href="#"
                   >
-                    <span>{b.name}</span>
+                    <span>
+                      {b.name}
+                      {newCount > 0 && <NavBadge variant="new" inline />}
+                    </span>
                     {/* 게시글 수: DB 집계 API 미존재 → "—" + 준비 중 툴팁 */}
                     <span className="count" title="준비 중">—</span>
                   </a>
