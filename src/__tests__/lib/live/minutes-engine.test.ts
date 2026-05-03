@@ -12,7 +12,7 @@
 // 주의: tsconfig target=ES2017 라 BigInt 리터럴(`1n`) 사용 불가 → BigInt(1) 형태.
 
 import { describe, it, expect } from "vitest";
-import { calculateMinutes, type MinutesPbp } from "@/lib/live/minutes-engine";
+import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live/minutes-engine";
 
 const QLEN = 600; // 10분 쿼터
 const ID = (n: number) => BigInt(n);
@@ -193,5 +193,60 @@ describe("calculateMinutes — PBP-only 출전시간 엔진", () => {
     expect(byQuarterSec.get(ID(1))?.get(1)).toBe(QLEN);
     expect(byQuarterSec.get(ID(1))?.get(2)).toBe(QLEN);
     expect(byQuarterSec.get(ID(1))?.get(3)).toBeUndefined(); // Q3 미진행
+  });
+});
+
+// 2026-05-03 옵션 C — 종료 매치 cap (풀타임 보호) 테스트
+describe("applyCompletedCap — 종료 매치 cap (풀타임 보호)", () => {
+  it("케이스 A: 합 = qLen × numQ × 5 (만점 매칭)", () => {
+    // 5명 모두 partial (sub 누락으로 1800s/명, 합 9000s, 만점 12000s)
+    const bySec = new Map<bigint, number>();
+    bySec.set(ID(1), 1800);
+    bySec.set(ID(2), 1800);
+    bySec.set(ID(3), 1800);
+    bySec.set(ID(4), 1800);
+    bySec.set(ID(5), 1800);
+    const expected = QLEN * 4 * 5; // 12000s
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    let total = 0;
+    for (const sec of bySec.values()) total += sec;
+    expect(total).toBeCloseTo(expected, 1);
+    // 비례 분배 → 모두 동일 (1800 × 12000/9000 = 2400)
+    expect(bySec.get(ID(1))).toBeCloseTo(2400, 1);
+  });
+
+  it("케이스 B: 풀타임 선수 sec 절대 변경 X (조현철/강동진 케이스)", () => {
+    // 풀타임 2명 (각 2400s) + partial 5명 (각 800s = 4000s)
+    // 합 = 4800 + 4000 = 8800. 만점 12000 → partial 만 비례 확대 (800 × (12000-4800)/4000 = 1440)
+    const bySec = new Map<bigint, number>();
+    bySec.set(ID(1), QLEN * 4); // 풀타임 (2400)
+    bySec.set(ID(2), QLEN * 4); // 풀타임
+    bySec.set(ID(3), 800);
+    bySec.set(ID(4), 800);
+    bySec.set(ID(5), 800);
+    bySec.set(ID(6), 800);
+    bySec.set(ID(7), 800);
+    const expected = QLEN * 4 * 5;
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    // 풀타임 sec 절대 변경 X
+    expect(bySec.get(ID(1))).toBe(QLEN * 4);
+    expect(bySec.get(ID(2))).toBe(QLEN * 4);
+    // partial 비례 확대: 800 × (12000-4800)/4000 = 800 × 1.8 = 1440
+    expect(bySec.get(ID(3))).toBeCloseTo(1440, 1);
+    // 합 만점
+    let total = 0;
+    for (const sec of bySec.values()) total += sec;
+    expect(total).toBeCloseTo(expected, 1);
+  });
+
+  it("케이스 C: edge — 풀타임만으로 expected 초과/동일 → 변경 X", () => {
+    // 풀타임 5명 = 12000s = expected 정확
+    const bySec = new Map<bigint, number>();
+    for (let i = 1; i <= 5; i++) bySec.set(ID(i), QLEN * 4);
+    const expected = QLEN * 4 * 5;
+    applyCompletedCap(bySec, expected, QLEN, 4);
+    for (let i = 1; i <= 5; i++) {
+      expect(bySec.get(ID(i))).toBe(QLEN * 4); // 변경 X
+    }
   });
 });

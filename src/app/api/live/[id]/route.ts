@@ -5,7 +5,7 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 2026-05-03: PBP-only 출전시간 산출 엔진 (단일 source) — quarterStatsJson/minutesPlayed/MAX 전략 폐기
-import { calculateMinutes, type MinutesPbp } from "@/lib/live/minutes-engine";
+import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live/minutes-engine";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -139,6 +139,30 @@ export async function GET(
       qLen: minutesQL,
       numQuarters: minutesQs,
     });
+
+    // 2026-05-03 옵션 C: 종료 매치만 풀타임 보호 cap 적용.
+    //   - sub 누락/지연으로 한 팀 합이 만점(qLen×numQ×5) 미달 케이스 정확화 (#132 home 137:40 → 140:00 등)
+    //   - 라이브 매치 cap X (진행 중 출전시간은 PBP 그대로)
+    //   - 풀타임 선수 sec 절대 변경 X. 풀타임 외 선수만 비례 분배
+    //   - byQuarterSec(쿼터별)은 cap 미적용 — 시각화/디버깅용 PBP 원본 유지
+    if (match.status === "completed") {
+      const expectedTeamSec = minutesQL * minutesQs * 5; // 한 팀 코트시간 합
+      // home/away 별 sec map 분리 (cap 은 팀 단위로 적용해야 정확)
+      const homeMap = new Map<bigint, number>();
+      const awayMap = new Map<bigint, number>();
+      for (const ttp of match.homeTeam?.players ?? []) {
+        if (pbpMinutesBySec.has(ttp.id)) homeMap.set(ttp.id, pbpMinutesBySec.get(ttp.id)!);
+      }
+      for (const ttp of match.awayTeam?.players ?? []) {
+        if (pbpMinutesBySec.has(ttp.id)) awayMap.set(ttp.id, pbpMinutesBySec.get(ttp.id)!);
+      }
+      applyCompletedCap(homeMap, expectedTeamSec, minutesQL, minutesQs);
+      applyCompletedCap(awayMap, expectedTeamSec, minutesQL, minutesQs);
+      // cap 결과를 pbpMinutesBySec 에 반영 (헬퍼 getPbpSec 가 이 Map 을 참조)
+      for (const [id, sec] of homeMap) pbpMinutesBySec.set(id, sec);
+      for (const [id, sec] of awayMap) pbpMinutesBySec.set(id, sec);
+    }
+
     // 헬퍼: ttp.id (number 또는 bigint) → PBP-only 출전시간 (sec). 미등장(DNP) 시 0.
     const getPbpSec = (ttpId: number | bigint | null | undefined): number => {
       if (ttpId == null) return 0;

@@ -54,6 +54,14 @@
 
 ---
 
+## 🟡 경기 종료 후 즉시 처리 (5/3 14:30 SKD vs 슬로우 종료 후)
+
+| # | 항목 | 우선 |
+|---|---|------|
+| **HOT** | **SKD #5 안원교 (uid=3342→3351) 통합** — placeholder 와 본인 직접 가입자 (awk122@naver.com) 분리 발견. 진행 중 경기 영향 우려로 종료 후 처리. ttp_id=2829 + tm_id=2670 의 userId 3342→3351 UPDATE + User 3342 status=merged. 권도윤/이삭 통합 패턴 동일 | 🔴 |
+
+---
+
 ## 🔴 5/2 대회 종료 후 즉시 처리 큐
 
 | # | 항목 | 상태 |
@@ -105,6 +113,8 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-03 | (옵션 C cap / tsc PASS / 11/11 test PASS) | **종료 매치 풀타임 보호 cap 추가** — `applyCompletedCap()` neuf (`src/lib/live/minutes-engine.ts`, +59줄) export. route.ts (status === 'completed' 일 때만 home/away 별 sec map 분리 후 cap 호출, +21줄). 풀타임 임계 = qLen×numQ-5s. 풀타임 sec 절대 변경 X / 풀타임 외 비례 분배. 단위 테스트 +3 (만점 매칭 / 풀타임 보호 / edge 풀타임만 expected 도달) → 11/11 PASS. 운영 검증 (5/2+5/3 5매치): #132 home 137:40→139:59 / #134 home 127:05→140:00 / #142 home 131:42→140:00 / #143 home 134:12→140:00 / #144 (live) 57:45 그대로 ✅ cap 미적용. tsc 0 에러. DB/Flutter 영향 0 | ✅ |
+| 2026-05-03 | (api/live PBP-only 단순화) | **출전시간 PBP-only 단일 엔진 분리** — `src/lib/live/minutes-engine.ts` (~140줄) 신규: PBP substitution → starter 추정(swap 케이스 보강: subOut+seenBeforeFirstSub 룰) → active set 시뮬 → 쿼터별/총 출전초. route.ts 시간 부분만 교체 (점수/DNP/라인업 무변): minutesQL/minutesEngineInput/calculateMinutes 1회 호출 → getPbpSec/getPbpQuarterSec 헬퍼 → 진행중/종료 분기 모두 row.min/min_seconds + quarter_stats[q].min_seconds 일괄 주입. 폐기: estimateMinutesFromPbp / getSecondsPlayed / R3 보충 / startersByTeam / quarterStatsJson 의 min 추출 (plus_minus 만 유지). 단위 테스트 8/8 PASS (풀타임/swap/DNP/라이브/OT/빈입력/컬럼sub/byQuarter). 운영 회귀 29매치 — 부풀림 0건 (max ≤ qLen×Q cap), 합 ~135분/팀 (qLen=420×4) 정확. tsc 0 에러 | ✅ |
 | 2026-05-03 | (Phase E 신규 2 페이지) | **알기자 Phase E /news 노출 UI** — `/news` 매거진 메인(카드 그리드 + 페이지네이션 + SEO metadata) + `/news/match/[matchId]` 상세(LinkifyNewsBody + 알기자 뱃지 🤖 + 매치 헤드라인 + view_count +1 + 좋아요/댓글 표준). published 만 노출 / draft·rejected 숨김. tsc PASS, smoke test HTTP 200. (Phase B 확장 = 라운드/일자 종합 prompt + Phase F 작성자 페이지 큐) | ✅ |
 | 2026-05-03 | (Phase 2 통합 + DB 보정) | **알기자 BDR NEWS Phase 2 통합 발행 시스템** — community_posts +4컬럼(tournament_match_id/tournament_id/period_type/period_key) + 알기자 User uid=3350 + Phase 2 prompt(독립 기사 400~700자) + match-brief-generator mode 분기 + auto-publish-match-brief(매치 종료 시 fire-and-forget) + updateMatch/updateMatchStatus hook + admin/news 검수 UI(Server Actions 4종 publish/reject/regenerate/edit) + linkify-news-body(선수/팀 자동 링크). 5/2 9매치 backfill draft 9건 생성. **NEXT_PUBLIC_APP_URL 함정 발견**(server internal fetch 가 운영 URL 가는 사고 → VERCEL_URL+localhost 폴백). 부수: MZ 김민중·우아한스포츠 이형민 실명 set + 게시물 1건 재생성 / 6건 placeholder↔real 통합(피벗 조현철·이준모·배성문 / 업템포 김상훈·이원섭 / 아울스 이하성, 매치 stat/PBP 보존 ttp.id 그대로) + 영향 4건 게시물 재생성 / MZ team_id=234 dissolved | ✅ |
 | 2026-05-03 | (api/live 옵션 D / tsc PASS) | **status-aware cap + F2 진행도 기반 expected** — `estimateProgressedSec()` 신규 + `applyTeamCap` cap 분기 (completed=만점 / live=5×progressed) + `calculateSubBasedMinutes(matchStatus)` 시그니처 + F2 expected 진행 중 쿼터는 5×(qLen-lastClockInQ) 축소. 검증 (운영 11 라이브 매치 + 4 종료 매치): #84 cap 12000→1520s/팀 (25.3m), #92 12000→7570s/팀 (126.2m). 종료 #132~#135 8400s/팀 만점 회귀 0. tsc PASS. 5/3 진행 매치 출전시간 부풀림 즉시 정상화 | ✅ |
@@ -114,7 +124,3 @@
 | 2026-05-02 | (developer / tsc PASS) | **일정 탭 TBD → slotLabel 표시** — public-schedule API settings JSON 추출(homeSlotLabel/awaySlotLabel) + tournament-tabs 매핑 + schedule-timeline interface 확장 + italic muted 스타일 (DualMatchCard 동일 패턴). 3 파일 / 팀 확정 매치 표시 변경 0 / DB 변경 0 | ✅ |
 | 2026-05-03 | (검증 only) | **5/2 종료 9매치 전수 재조사 (debugger)** — DB 12건 발견 (몰텐배 8 ✅ + 열혈 4건 / 단 ended_at=5/2 기준 1건=#121만 사용자 진술 일치). G4 적용 후 9매치 모두 100.0% 정확 — 몰텐배 8건 280.0m/280.0m (qLen=420), 열혈 #121 400.0m/400.0m (qLen=600). 풀타임/DNP 산출 정상. 잔여 fix 필요 케이스 0건. 임시 스크립트 정리 완료 | ✅ |
 | 2026-05-03 | (api/live G4 옵션 B) | **applyTeamCap trustedTotal-only fallback 추가** — variableTotal=0 케이스(#133 sub_in/sub_out 명시 매치) 처리. 풀타임 선수 (trustedSec >= qLen×4 - 5s) 절대 보호 + partial trusted 만 비례 확대. 검증: 4매치(#132~#135) 모두 280m 100% 정확 + #134 풀타임 (조현철/강동진) 1680s 그대로. tsc PASS | ✅ |
-| 2026-05-03 | (DB 트랜잭션 3 phase) | **블랙라벨 정리 + 잔여 가입대기 정리 (16건 처리)** — Phase1 approveJoinRequests 14건 (블랙라벨 7 reject + 업템포 3 / 피벗 2 / 아울스 1 / MZ 1 = 7 approve_no_jersey) / Phase2 권도윤 3168→3318 통합 (tt+tm+captainId+req+merged 5단계) / Phase3 이삭 3326→3171 통합 (4단계). 블랙라벨 pending 9→0 ✅, tt_players 21 유지 ✅. status=merged +2 (총 11명) | ✅ |
-| 2026-05-03 | (lib 신규+DB) | **자동 approve 함수 추출 + 슬로우 처리** — `src/lib/teams/approve-join-requests.ts` 신규 (130줄, 3 액션 트랜잭션 멱등). 슬로우 가입신청 8건 일괄 처리. 출전 8/8 ✅ + pending 0 ✅. 16팀 가입대기 39건 발견(스크래치패드 큐 #1) | ✅ |
-| 2026-05-03 | (DB 트랜잭션) | **MSA 5명 INSERT** (5/3 11:00 경기 대비) — 왕준일 (uid=3108 기존) tt_players만 1건 + placeholder 4명(장동영/김승한/조우성/김병윤) 3단계 트랜잭션. 출전 17/17 ✅ + 마스터 18/18 ✅. placeholder 부채 89→93 | ✅ |
-| 2026-05-03 | (DB 트랜잭션) | **블랙라벨 11명 placeholder INSERT** (5/3 11:00 경기 대비) — User+TeamMember+tt_players 3단계 트랜잭션 (id 3320~3330 / 2636~2646 / 2786~2796). 출전 명단 21/21 ✅ + 마스터 21/21 ✅. 사용자 명단 검증 100% 일치. 매치 코드 자동생성 작업은 복잡도 사유 다음 세션 이연 (4 결정 대기). placeholder User 부채 78→89명 발견 (scratchpad outdated 갱신) | ✅ |
