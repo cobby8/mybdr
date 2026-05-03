@@ -366,6 +366,80 @@ describe("calculateMinutes — PBP-only 출전시간 엔진", () => {
     }
   });
 
+  // 2026-05-03 endLineup chain 가드 범위 fix (케이스 L)
+  it("케이스 L (chain 가드 union): Q1 양팀 starter 10명 (5+5) → Q2 chain 으로 10명 그대로 사용", () => {
+    // 시나리오: 양팀 starter 5명씩 DB 주입 (union=10).
+    //   Q1 시뮬 종료 시 active size=10. Q2 starter 결정 시 chain 가드가 size 10 을 허용해야 함.
+    //   이전 가드 (3~7) 였으면 size=10 → fail → fallback inferStartersFromPbp 발동 →
+    //     Q2 PBP 가 sub 1건뿐이라 추정 starter 부족 → 양팀 시간 누적 손실 (~17%p)
+    //   현재 가드 (5~12) 는 size=10 통과 → chain 으로 10명 그대로 starter 사용 → 정확 시간 보존
+    //
+    // 이 테스트가 깨지면 (가드를 3~7 로 되돌렸을 때) 라이브 매치 양팀 시간 손실 회귀 발생.
+    const teamA = new Set([ID(1), ID(2), ID(3), ID(4), ID(5)]);
+    const teamB = new Set([ID(11), ID(12), ID(13), ID(14), ID(15)]);
+    const dbStartersByTeam = new Map<bigint, Set<bigint>>();
+    dbStartersByTeam.set(BigInt(100), teamA);
+    dbStartersByTeam.set(BigInt(200), teamB);
+
+    const allStarters = [...teamA, ...teamB]; // 10명
+
+    const pbps: MinutesPbp[] = [
+      // Q1: 양팀 10명 모두 시작/끝 PBP — 풀타임 600s 누적
+      ...allStarters.map((id) => ({
+        ttpId: id, quarter: 1, clock: QLEN, type: "shot",
+        subtype: null, subInId: null, subOutId: null,
+      } as MinutesPbp)),
+      ...allStarters.map((id) => ({
+        ttpId: id, quarter: 1, clock: 0, type: "shot",
+        subtype: null, subInId: null, subOutId: null,
+      } as MinutesPbp)),
+
+      // Q2: PBP sub 1건만 (1번 → 6번 swap, A팀)
+      //   PBP 만으로 추정하면 starter 식별 안 됨 (액션 0건)
+      //   chain 가드가 작동해야만 Q2 starter = Q1 endLineup 10명 유지
+      { ttpId: null, quarter: 2, clock: 300, type: "substitution",
+        subtype: null, subInId: ID(6), subOutId: ID(1) },
+      // Q2 끝 표시 (clock=0)
+      { ttpId: ID(6), quarter: 2, clock: 0, type: "shot",
+        subtype: null, subInId: null, subOutId: null },
+    ];
+
+    const { byQuarterSec } = calculateMinutes({
+      pbps,
+      qLen: QLEN,
+      numQuarters: 2,
+      dbStartersByTeam,
+    });
+
+    // Q1: 양팀 10명 모두 풀타임 600s
+    for (const id of allStarters) {
+      expect(byQuarterSec.get(id)?.get(1)).toBe(QLEN);
+    }
+
+    // Q2 핵심 검증: chain 가드 통과 → 10명 (단, 1번은 5분에 sub_out)
+    //   1번: 600~300 = 300s (sub_out)
+    //   6번: 300~0 = 300s (sub_in)
+    //   2~5,11~15 (9명): 풀타임 600s
+    expect(byQuarterSec.get(ID(1))?.get(2)).toBe(300);
+    expect(byQuarterSec.get(ID(6))?.get(2)).toBe(300);
+    for (const id of [ID(2), ID(3), ID(4), ID(5)]) {
+      expect(byQuarterSec.get(id)?.get(2)).toBe(QLEN); // A팀 chain 보존
+    }
+    for (const id of [...teamB]) {
+      expect(byQuarterSec.get(id)?.get(2)).toBe(QLEN); // B팀 chain 보존
+    }
+
+    // Q2 양팀 합 = 5×600 (A: 1=300 + 6=300 + 2,3,4,5=각 600 = 2700) + 5×600 (B teamB 풀타임=3000)
+    // = 2700 + 3000 = 5700? — 아니, A 팀: 300+300+600+600+600+600=3000. B 팀: 600×5=3000.
+    // 합 6000s = 5명×600×2팀 (정확 만점).
+    // 이전 가드 (3~7) 였으면 fallback 추정 → starter ~3명 → Q2 active 부족 → 합 ~3000s 미만
+    let totalQ2 = 0;
+    for (const id of [...allStarters, ID(6)]) {
+      totalQ2 += byQuarterSec.get(id)?.get(2) ?? 0;
+    }
+    expect(totalQ2).toBe(QLEN * 10); // 6000s = 양팀 풀타임 (chain 작동 증거)
+  });
+
   it("케이스 K-2 (Tier 3 회귀 방지): 마지막 쿼터 라이브 진행 중 → endClock 보존 (cap 부풀림 방지)", () => {
     // 시나리오: 마지막 쿼터 (Q4) 진행 중 — clock=200 까지만 PBP. 다음 쿼터 PBP 없음.
     //   기대: Q4 endClock=200 유지 (라이브 진행도만 누적, 0 으로 강제 X)

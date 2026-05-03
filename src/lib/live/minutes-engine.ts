@@ -193,7 +193,10 @@ export function calculateMinutes(input: MinutesInput): MinutesResult {
     } else {
       // === Q2+ starter 결정 ===
       const prevEndLineup = prevEndLineupByQ.get(q - 1);
-      if (prevEndLineup && prevEndLineup.size >= 3 && prevEndLineup.size <= 7) {
+      // 양팀 union 기준 (DB starter 가드 L131 과 일치 — 5~12)
+      // 이전 (3~7) 은 단일팀 기준 오기 → 양팀 endLineup size=10 도 fallback 으로 잘못 빠지는 버그
+      // (라이브 매치 양팀 ~17%p 합계 손실 원인 — 2026-05-03 debugger 분석)
+      if (prevEndLineup && prevEndLineup.size >= 5 && prevEndLineup.size <= 12) {
         // 메인 path #2: endLineup chain (작전타임 교체 발생률 ~2.5%)
         starters = new Set(prevEndLineup);
       } else {
