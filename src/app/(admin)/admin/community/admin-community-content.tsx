@@ -1,8 +1,11 @@
 "use client";
 
+// 2026-05-04: (web) community 디자인 시스템 통일 (Phase C-1)
+// - <Card> wrapper 제거 → 직접 .admin-table-wrap (5/2 통일된 board 톤)
+// - <Badge> → .badge--soft (web 동일 클래스)
+// - admin-table 은 이미 5/2 작업으로 (web) .board.data-table 톤 정합 (globals.css L2174~)
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
@@ -75,63 +78,58 @@ export function AdminCommunityContent({
     <>
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* 축소된 테이블: 제목 / 카테고리 / 작성자 / 날짜 (4칸) */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">제목</th>
-                <th className="w-[100px] px-5 py-4 font-medium">카테고리</th>
-                <th className="w-[100px] px-5 py-4 font-medium">작성자</th>
-                <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => {
-                const isHidden = p.status === "hidden";
-                return (
-                  <tr
-                    key={p.id}
-                    onClick={() => setSelected(p)}
-                    className={`cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors ${
-                      isHidden
-                        ? "opacity-60"
-                        : "hover:bg-[var(--color-elevated)]"
-                    }`}
-                  >
-                    <td data-primary="true" className="px-5 py-3">
-                      <p className="truncate font-medium text-[var(--color-text-primary)]">
-                        {isHidden && (
-                          <span className="mr-1.5 text-xs text-[var(--color-error)]">[숨김]</span>
-                        )}
-                        {p.title}
-                      </p>
-                    </td>
-                    <td data-label="카테고리" className="px-5 py-3">
-                      <Badge variant="default">
-                        {CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타"}
-                      </Badge>
-                    </td>
-                    <td data-label="작성자" className="px-5 py-3 truncate text-[var(--color-text-muted)]">
-                      {p.authorName ?? p.authorEmail ?? "-"}
-                    </td>
-                    <td data-label="날짜" className="px-5 py-3 text-[var(--color-text-muted)]">
-                      {fmtDate(p.createdAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* 2026-05-04: <Card> wrapper 제거 — (web) board 와 동일 단순 구조 */}
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">제목</th>
+              <th className="w-[100px] px-5 py-4 font-medium">카테고리</th>
+              <th className="w-[100px] px-5 py-4 font-medium">작성자</th>
+              <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => {
+              const isHidden = p.status === "hidden";
+              return (
+                <tr
+                  key={p.id}
+                  onClick={() => setSelected(p)}
+                  className={`cursor-pointer ${isHidden ? "opacity-60" : ""}`}
+                >
+                  <td data-primary="true" className="px-5 py-3">
+                    <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
+                      {isHidden && (
+                        <span className="mr-1.5 text-xs" style={{ color: "var(--color-error)" }}>[숨김]</span>
+                      )}
+                      {p.title}
+                    </p>
+                  </td>
+                  <td data-label="카테고리" className="px-5 py-3">
+                    {/* (web) .badge--soft 패턴 — community 게시판 카테고리 뱃지와 동일 */}
+                    <span className="badge badge--soft">
+                      {CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타"}
+                    </span>
+                  </td>
+                  <td data-label="작성자" className="px-5 py-3 truncate" style={{ color: "var(--color-text-muted)" }}>
+                    {p.authorName ?? p.authorEmail ?? "-"}
+                  </td>
+                  <td data-label="날짜" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                    {fmtDate(p.createdAt)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         {filtered.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
+          <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
             게시글이 없습니다.
           </div>
         )}
-      </Card>
+      </div>
 
       {/* 상세 모달 */}
       {selected && (
