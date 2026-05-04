@@ -30,17 +30,32 @@ const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
   cancelled: { label: "종료", color: "var(--color-text-disabled)" },
 };
 
-export default async function TournamentAdminDashboard() {
+// 탭 키별 status 매핑
+const TAB_STATUS_MAP: Record<string, string[]> = {
+  preparing: ["draft", "upcoming"],
+  registration: ["registration", "active", "open"],
+  in_progress: ["in_progress", "live", "ongoing"],
+  completed: ["completed", "ended", "cancelled"],
+};
+
+export default async function TournamentAdminDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string; q?: string }>;
+}) {
   const session = await getWebSession();
   if (!session) redirect("/login");
 
+  const { status: statusParam, q: qParam } = await searchParams;
+  const currentTab = statusParam && TAB_STATUS_MAP[statusParam] ? statusParam : "all";
+
   const organizerId = BigInt(session.sub);
 
-  // 내 대회 목록 + 각 대회별 참가팀 통계
-  const myTournaments = await prisma.tournament.findMany({
+  // 내 대회 목록 (전체 — in-memory filter + count 위해 모든 status 받음)
+  const allTournaments = await prisma.tournament.findMany({
     where: { organizerId },
     orderBy: { createdAt: "desc" },
-    take: 50,
+    take: 200,
     select: {
       id: true,
       name: true,
@@ -54,14 +69,32 @@ export default async function TournamentAdminDashboard() {
     },
   });
 
-  // 통계 — 전체/진행중/완료
-  const totalTournaments = myTournaments.length;
-  const activeTournaments = myTournaments.filter(
-    (t) => ["active", "registration", "in_progress", "live", "ongoing"].includes(t.status || ""),
+  // 탭별 카운트 (in-memory)
+  const totalTournaments = allTournaments.length;
+  const preparingCount = allTournaments.filter((t) =>
+    TAB_STATUS_MAP.preparing.includes(t.status || ""),
   ).length;
-  const completedTournaments = myTournaments.filter(
-    (t) => ["completed", "ended", "cancelled"].includes(t.status || ""),
+  const registrationCount = allTournaments.filter((t) =>
+    TAB_STATUS_MAP.registration.includes(t.status || ""),
   ).length;
+  const activeTournaments = allTournaments.filter((t) =>
+    TAB_STATUS_MAP.in_progress.includes(t.status || ""),
+  ).length;
+  const completedTournaments = allTournaments.filter((t) =>
+    TAB_STATUS_MAP.completed.includes(t.status || ""),
+  ).length;
+
+  // 탭 + 검색어 필터링
+  const myTournaments = allTournaments.filter((t) => {
+    if (currentTab !== "all") {
+      const allowedStatuses = TAB_STATUS_MAP[currentTab] || [];
+      if (!allowedStatuses.includes(t.status || "")) return false;
+    }
+    if (qParam && qParam.trim()) {
+      if (!t.name.toLowerCase().includes(qParam.toLowerCase())) return false;
+    }
+    return true;
+  });
 
   return (
     <div>
@@ -129,8 +162,11 @@ export default async function TournamentAdminDashboard() {
 
       {/* 검색 form — 별도 row (admin/users 패턴 일치) */}
       <form method="GET" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {/* 검색 시 현재 탭 유지 */}
+        {currentTab !== "all" && <input type="hidden" name="status" value={currentTab} />}
         <input
           name="q"
+          defaultValue={qParam ?? ""}
           placeholder="대회명 검색"
           className="input"
           style={{ flex: 1, minWidth: 0, maxWidth: 320 }}
@@ -139,6 +175,87 @@ export default async function TournamentAdminDashboard() {
           검색
         </button>
       </form>
+
+      {/* 탭 — admin/users 패턴 (전체/준비중/접수중/진행중/종료) */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          borderBottom: "1px solid var(--color-border)",
+          marginBottom: 16,
+          overflowX: "auto",
+        }}
+      >
+        {(
+          [
+            { key: "all", label: "전체", count: totalTournaments },
+            { key: "preparing", label: "준비중", count: preparingCount },
+            { key: "registration", label: "접수중", count: registrationCount },
+            { key: "in_progress", label: "진행중", count: activeTournaments },
+            { key: "completed", label: "종료", count: completedTournaments },
+          ] as const
+        ).map((tab) => {
+          const isActive = currentTab === tab.key;
+          // 탭 클릭 시 q 유지 + status 변경
+          const params = new URLSearchParams();
+          if (tab.key !== "all") params.set("status", tab.key);
+          if (qParam) params.set("q", qParam);
+          const href =
+            params.toString().length > 0
+              ? `/tournament-admin?${params.toString()}`
+              : "/tournament-admin";
+
+          return (
+            <Link
+              key={tab.key}
+              href={href}
+              style={{
+                position: "relative",
+                padding: "10px 16px",
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: "var(--ff-display)",
+                letterSpacing: "-0.01em",
+                color: isActive ? "var(--color-accent)" : "var(--color-text-muted)",
+                textDecoration: "none",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              {tab.label}
+              <span
+                style={{
+                  marginLeft: 6,
+                  padding: "2px 6px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: "var(--ff-mono)",
+                  borderRadius: 4,
+                  backgroundColor: isActive
+                    ? "color-mix(in oklab, var(--color-accent) 12%, transparent)"
+                    : "var(--color-elevated)",
+                  color: isActive ? "var(--color-accent)" : "var(--color-text-muted)",
+                }}
+              >
+                {tab.count}
+              </span>
+              {/* 활성 탭 밑줄 */}
+              {isActive && (
+                <span
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: -1,
+                    height: 2,
+                    backgroundColor: "var(--color-accent)",
+                  }}
+                />
+              )}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* 대회 리스트 — admin-table 패턴 (다른 관리자 페이지와 일치) */}
       {myTournaments.length === 0 ? (
