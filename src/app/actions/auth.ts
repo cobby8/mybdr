@@ -90,6 +90,11 @@ export async function loginAction(_prevState: { error: string } | null, formData
 
     if (user.status !== "active") {
       await recordLoginAttempt(email, ip);
+      // 2026-05-05 fix: status 별 메시지 분기 (사용자 보고: "탈퇴한 계정입니다 가 더 적절").
+      //   withdrawn = 탈퇴 / suspended = 정지 / 그 외 = 일반 정지 메시지
+      if (user.status === "withdrawn") {
+        return { error: "탈퇴한 계정입니다." };
+      }
       return { error: "정지된 계정입니다." };
     }
 

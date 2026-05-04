@@ -22,6 +22,8 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
         // 헤더 표시명: DB nickname 을 ground truth 로 (2026-04-30 회귀 픽스).
         // 이유: JWT payload.name = nickname 발급시점 박힘 + JWT 만료 7일 → 닉네임 변경해도 헤더가 옛 값.
         // → me route 가 DB 에서 직접 읽으면 JWT stale 해도 헤더 즉시 갱신.
+        // 2026-05-05: status 추가 — 탈퇴 회원 (status="withdrawn") 응답 차단용.
+        status: true,
         nickname: true,
         profile_image: true,
         profile_image_url: true,
@@ -52,6 +54,16 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
     // getAssociationAdmin은 내부적으로 세션 + User.admin_role + AssociationAdmin을 모두 체크
     getAssociationAdmin().catch(() => null),
   ]);
+
+  // 2026-05-05 fix: 탈퇴 회원 응답 차단 — JWT 살아있어도 status="withdrawn" 시 401 반환.
+  //   본질: 탈퇴 후 브라우저 쿠키 잔존 → SWR fetch 가 user 정보 노출 위험.
+  //   fix: 탈퇴 회원이면 401 응답으로 SWR 클라이언트가 비로그인 처리.
+  if (user && user.status === "withdrawn") {
+    return new Response(JSON.stringify({ error: "탈퇴한 계정입니다." }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   // 관리자인 경우, 현재 role이 속한 모든 permission 키를 추출
   // 이유: 클라이언트가 각 메뉴 항목의 requires 값과 비교하여 가시성을 결정

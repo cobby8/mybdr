@@ -114,6 +114,10 @@ export async function GET(req: NextRequest) {
         const existing = await prisma.user.findUnique({ where: { email } });
 
         if (existing) {
+          // 2026-05-05 fix: 탈퇴 회원 재로그인 차단 — status="withdrawn" 시 OAuth 연동 ❌
+          if (existing.status === "withdrawn") {
+            return redirectTo("/login?withdrawn=expired");
+          }
           // 기존 이메일 계정에 카카오 연동
           user = await prisma.user.update({
             where: { id: existing.id },

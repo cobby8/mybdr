@@ -36,10 +36,23 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
     where: { provider, uid },
   });
 
+  // 2026-05-05 fix: 탈퇴 회원 OAuth 재로그인 차단 (newer-style callback 3종 = kakao/google/naver 일괄).
+  //   본질: handleOAuthLogin 은 callback/[provider]/route.ts 가 위임 호출 — 단일 위치 fix.
+  //   분기: provider+uid 매칭 또는 email 매칭 후 status="withdrawn" 검증 → /login?withdrawn=expired
+  if (user && user.status === "withdrawn") {
+    const baseUrlEarly = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+    return Response.redirect(new URL("/login?withdrawn=expired", baseUrlEarly));
+  }
+
   // 2. email로 기존 계정 검색 → OAuth 연결
   if (!user && email) {
     user = await prisma.user.findUnique({ where: { email } });
     if (user) {
+      // 2026-05-05 fix: email 매칭 분기에서도 탈퇴 회원 차단 (uid 재연결 ❌)
+      if (user.status === "withdrawn") {
+        const baseUrlEarly = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
+        return Response.redirect(new URL("/login?withdrawn=expired", baseUrlEarly));
+      }
       await prisma.user.update({
         where: { id: user.id },
         data: { provider, uid },

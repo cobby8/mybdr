@@ -6,9 +6,10 @@ import {
   forceWithdrawUserAction,
   deleteUserAction,
   loadMoreUsersAction,
-  // 2026-05-05: Phase A (상세 lazy fetch) + Step 2 (인라인 편집)
+  // 2026-05-05: Phase A (상세 lazy fetch) + Step 2 (긴급 변경 3필드 + 사유) + Phase B (배번 수정)
   getUserDetailAction,
   updateUserProfileAction,
+  updateTournamentPlayerJerseyAction,
 } from "@/app/actions/admin-users";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
@@ -127,6 +128,7 @@ export default async function AdminUsersPage({
         deleteAction={deleteUserAction}
         getDetailAction={getUserDetailAction}
         updateProfileAction={updateUserProfileAction}
+        updateJerseyAction={updateTournamentPlayerJerseyAction}
       />
     </div>
   );

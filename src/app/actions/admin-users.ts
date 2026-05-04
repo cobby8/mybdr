@@ -290,6 +290,7 @@ export async function getUserDetailAction(userId: string): Promise<{
     joined_at: string | null;
   }>;
   tournaments: Array<{
+    playerId: string; // 2026-05-05: 배번 인라인 수정용
     tournamentId: string;
     tournamentName: string;
     teamName: string | null;
@@ -391,6 +392,7 @@ export async function getUserDetailAction(userId: string): Promise<{
       joined_at: m.joined_at?.toISOString() ?? null,
     })),
     tournaments: tournaments.map((p) => ({
+      playerId: p.id.toString(),
       tournamentId: p.tournamentTeam.tournament.id,
       tournamentName: p.tournamentTeam.tournament.name,
       teamName: p.tournamentTeam.team?.name ?? null,
@@ -414,74 +416,65 @@ export async function getUserDetailAction(userId: string): Promise<{
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// 2026-05-05: 관리자 유저 프로필 인라인 편집 — 일괄 update
-//   왜: 부적절한 닉네임 강제 변경 / 연락처 보정 / 대회 출전 자격 (is_elite) 직접 조정
-//   어떻게: FormData 받아서 빈 값은 무시 (null 허용 필드 한정), undefined 는 변경 X
-//   권한: super_admin (다른 액션과 동일)
-//   기록: admin_logs 에 변경 전/후 값 저장
-//   안전: nickname 변경 시 unique 제약 없음 (DB 에서 nickname 은 unique 아님)
-//        email 은 변경 불가 (unique + 인증 체계 영향) — 별도 액션 필요
+// 2026-05-05 (revised): 관리자 유저 프로필 긴급 변경 — 개인정보 보호 강화
+//   왜 (개인정보 취급 방침 PIPA + GDPR 준수):
+//     - 본인 정정권 우선 — name/phone/birth_date/city/district 등은 본인 수정
+//     - 신원 정보 보호 — name/phone 변경은 위조/사고 위험
+//     - 신체 민감정보 — height/weight 본인 입력 (관리자 변경 X)
+//     - 본인 선호 — position/jersey 본인이 정확
+//   허용 (운영 긴급, 3필드만):
+//     - nickname: 부적절한 닉네임 강제 변경 (신고/차단어 처리)
+//     - bio: 부적절한 소개글 강제 삭제
+//     - is_elite: 대회 출전 자격 운영 검증 (선출/비선출 토글)
+//   필수: 사유 입력 (admin_logs.description 에 박제 — 감사 추적)
+//   기록: admin_logs severity=warning (긴급 변경)
 // ────────────────────────────────────────────────────────────────────────────────
-const EDITABLE_TEXT_FIELDS = ["nickname", "name", "phone", "city", "district", "position", "bio"] as const;
-const EDITABLE_INT_FIELDS = ["height", "weight", "default_jersey_number"] as const;
+const ADMIN_EDITABLE_FIELDS = ["nickname", "bio", "is_elite"] as const;
+type AdminEditableField = (typeof ADMIN_EDITABLE_FIELDS)[number];
 
 export async function updateUserProfileAction(formData: FormData): Promise<{ error?: string }> {
   await requireSuperAdmin();
 
   const userId = formData.get("user_id") as string;
+  const reason = (formData.get("reason") as string)?.trim();
   if (!userId) return { error: "user_id 누락" };
+  if (!reason || reason.length < 5) {
+    return { error: "변경 사유는 5자 이상 필수입니다 (감사 추적)" };
+  }
 
   const id = BigInt(userId);
   const prev = await prisma.user.findUnique({
     where: { id },
     select: {
       nickname: true,
-      name: true,
-      phone: true,
-      birth_date: true,
-      city: true,
-      district: true,
-      position: true,
-      height: true,
-      weight: true,
       bio: true,
       is_elite: true,
-      default_jersey_number: true,
       email: true,
     },
   });
 
   if (!prev) return { error: "유저 없음" };
 
-  // FormData → Partial<UpdateInput> 매핑 (빈 문자열은 null 로, 미전달은 undefined 로 — Prisma 가 무시)
-  const data: Record<string, unknown> = {};
+  // 3필드만 처리 — Prisma update input 타입 직접 구성 (string vs boolean 분리)
+  const data: { nickname?: string; bio?: string | null; is_elite?: boolean } = {};
 
-  for (const f of EDITABLE_TEXT_FIELDS) {
-    const v = formData.get(f);
-    if (v === null) continue; // 폼에 필드 자체가 없음 — 변경 X
-    const s = String(v).trim();
-    data[f] = s === "" ? null : s;
+  // nickname — 빈 문자열 시 자동 닉네임 (user_<id>) 부여 (계정 식별 깨짐 방지)
+  const nicknameRaw = formData.get("nickname");
+  if (nicknameRaw !== null) {
+    const s = String(nicknameRaw).trim();
+    data.nickname = s === "" ? `user_${userId}` : s;
   }
-  for (const f of EDITABLE_INT_FIELDS) {
-    const v = formData.get(f);
-    if (v === null) continue;
-    const s = String(v).trim();
-    if (s === "") data[f] = null;
-    else {
-      const n = parseInt(s, 10);
-      if (!Number.isNaN(n)) data[f] = n;
-    }
+
+  // bio — 빈 문자열 시 null (삭제)
+  const bioRaw = formData.get("bio");
+  if (bioRaw !== null) {
+    const s = String(bioRaw).trim();
+    data.bio = s === "" ? null : s;
   }
-  // birth_date — date input "YYYY-MM-DD"
-  const birthRaw = formData.get("birth_date");
-  if (birthRaw !== null) {
-    const s = String(birthRaw).trim();
-    data.birth_date = s === "" ? null : new Date(s);
-  }
-  // is_elite — checkbox "true" / 미전달
-  const eliteRaw = formData.get("is_elite");
-  if (eliteRaw !== null) {
-    data.is_elite = eliteRaw === "true";
+
+  // is_elite — checkbox "true" / 미전달 시 false 로 간주 (toggle)
+  if (formData.has("is_elite_present")) {
+    data.is_elite = formData.get("is_elite") === "true";
   }
 
   if (Object.keys(data).length === 0) return { error: "변경 사항 없음" };
@@ -491,32 +484,102 @@ export async function updateUserProfileAction(formData: FormData): Promise<{ err
     data,
   });
 
-  // 변경 전/후 비교 추출 (실제 변경된 필드만 로그)
+  // 변경 전/후 비교
   const changes: Record<string, { before: unknown; after: unknown }> = {};
-  for (const k of Object.keys(data)) {
-    const before = (prev as unknown as Record<string, unknown>)[k];
-    const after = data[k];
-    if (before instanceof Date && after instanceof Date) {
-      if (before.getTime() !== after.getTime()) {
-        changes[k] = { before: before.toISOString(), after: after.toISOString() };
-      }
-    } else if (before !== after) {
+  for (const k of Object.keys(data) as AdminEditableField[]) {
+    const before = (prev as Record<string, unknown>)[k];
+    const after = (data as Record<string, unknown>)[k];
+    if (before !== after) {
       changes[k] = { before, after };
     }
   }
 
-  await adminLog("user.profile_update", "User", {
+  await adminLog("user.profile_emergency_update", "User", {
     resourceId: userId,
-    description: `${prev.email} 프로필 편집 (${Object.keys(changes).length}필드)`,
+    description: `${prev.email} 긴급 변경 (${Object.keys(changes).length}필드) — 사유: ${reason}`,
     previousValues: Object.fromEntries(
       Object.entries(changes).map(([k, v]) => [k, v.before]),
     ),
     changesMade: Object.fromEntries(
       Object.entries(changes).map(([k, v]) => [k, v.after]),
     ),
-    severity: "info",
+    severity: "warning", // 긴급 변경은 warning 톤
   });
 
   revalidatePath("/admin/users");
+  return {};
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 2026-05-05: 토너먼트 출전 선수 배번 수정 — admin 직접 입력
+//   왜: 출전 선수 중 배번 미입력 케이스 (예: 다이나믹팀 6명 전원). 운영자가
+//        모달에서 즉시 채울 수 있도록.
+//   어떻게: TournamentTeamPlayer.jerseyNumber 만 update.
+//        unique 제약 (tournamentTeamId + jerseyNumber) — 충돌 시 에러 반환.
+//   권한: super_admin
+//   기록: admin_logs severity=info
+// ────────────────────────────────────────────────────────────────────────────────
+export async function updateTournamentPlayerJerseyAction(
+  playerId: string,
+  jerseyNumber: number | null,
+): Promise<{ error?: string }> {
+  await requireSuperAdmin();
+
+  const id = BigInt(playerId);
+
+  // 입력 검증
+  if (jerseyNumber !== null) {
+    if (!Number.isInteger(jerseyNumber) || jerseyNumber < 0 || jerseyNumber > 99) {
+      return { error: "배번은 0~99 사이 정수" };
+    }
+  }
+
+  const prev = await prisma.tournamentTeamPlayer.findUnique({
+    where: { id },
+    select: {
+      jerseyNumber: true,
+      tournamentTeamId: true,
+      userId: true,
+      tournamentTeam: {
+        select: {
+          team: { select: { name: true } },
+          tournament: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+  if (!prev) return { error: "선수 없음" };
+  if (prev.jerseyNumber === jerseyNumber) return { error: "동일 배번 — 변경 없음" };
+
+  // 동일 팀 내 배번 충돌 확인 (unique 제약 사전 검증 — 친절한 에러 메시지)
+  if (jerseyNumber !== null) {
+    const conflict = await prisma.tournamentTeamPlayer.findFirst({
+      where: {
+        tournamentTeamId: prev.tournamentTeamId,
+        jerseyNumber,
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      return { error: `같은 팀에 이미 #${jerseyNumber} 배번 사용 중` };
+    }
+  }
+
+  await prisma.tournamentTeamPlayer.update({
+    where: { id },
+    data: { jerseyNumber },
+  });
+
+  await adminLog("tournament_player.jersey_update", "TournamentTeamPlayer", {
+    resourceId: playerId,
+    description: `${prev.tournamentTeam.tournament.name} - ${prev.tournamentTeam.team?.name ?? "?"} 배번 변경 (${prev.jerseyNumber ?? "없음"} → ${jerseyNumber ?? "없음"})`,
+    previousValues: { jerseyNumber: prev.jerseyNumber },
+    changesMade: { jerseyNumber },
+    severity: "info",
+  });
+
+  // /admin/users 모달 lazy fetch 라 revalidate 직접 영향 X. 호출측에서 detail 재fetch.
   return {};
 }
