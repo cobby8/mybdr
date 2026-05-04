@@ -54,6 +54,9 @@ type Props = {
   isFollowing: boolean;
   // 본인이 운영진(captain/vice/manager)인 다른 팀 목록 — 매치 신청 모달의 from_team 후보
   myManagedTeams: ManagedTeam[];
+  // 2026-05-04: 팀 로고 — 사용자 보고 "팀 페이지 상세 들어가면 팀 로고 안 나와".
+  // 이전: tag 이니셜만 표시. logoUrl 있으면 <img>, 없으면 tag 이니셜 fallback.
+  logoUrl?: string | null;
 };
 
 export function TeamHeroV2({
@@ -71,6 +74,7 @@ export function TeamHeroV2({
   isLoggedIn,
   isFollowing,
   myManagedTeams,
+  logoUrl,
 }: Props) {
   // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, #0B0D10 140%.
   // 이유: 시안 TeamDetail.jsx은 끝점을 #0B0D10(거의 검정)으로 고정해
@@ -135,15 +139,16 @@ export function TeamHeroV2({
                 겹치는 문제 발견 → 컨테이너에 `overflow-hidden` 추가 + 영문 폰트
                 모바일 사이즈를 clamp 로 가변(14px~22px)하여 박스 내부 여유 확보. */}
           <div
-            className="flex-shrink-0 grid place-items-center w-16 h-16 sm:w-24 sm:h-24 overflow-hidden"
+            className="flex-shrink-0 grid place-items-center w-24 h-24 sm:w-36 sm:h-36 overflow-hidden"
             style={{
               borderRadius: 12,
               background: "rgba(255,255,255,0.2)",
               color: ink,
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              // 박스 폭에 맞춰 가변 (모바일 64px → 14~16px / sm+ 96px → 22px 도달)
-              fontSize: "clamp(14px, 4vw, 22px)",
+              // 2026-05-04 (사용자 요청): 박스 150% 확대 (64→96 모바일 / 96→144 PC).
+              // 폰트 사이즈도 비례 확장 (clamp 22→33).
+              fontSize: "clamp(22px, 6vw, 33px)",
               letterSpacing: "-0.02em",
               // 폭 초과 시 박스 안에서 잘림 (텍스트 자체가 박스 밖으로 나가지 않도록)
               padding: "0 4px",
@@ -151,7 +156,21 @@ export function TeamHeroV2({
               lineHeight: 1,
             }}
           >
-            {tag}
+            {/* 2026-05-04: logoUrl 있으면 <img>, 없으면 tag 이니셜 fallback (사용자 fix). */}
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지 최적화 불필요 (v2 시안 일관성)
+              <img
+                src={logoUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            ) : (
+              tag
+            )}
           </div>
 
           <div className="min-w-0">

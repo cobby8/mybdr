@@ -133,12 +133,9 @@ export function AdminNewsContent({
       </aside>
 
       {/* 본문 — 모바일 stack / 데스크톱 2컬럼 (list + 미리보기, 1:1.5 비율)
-          2026-05-04: Tailwind 임의값 grid-cols-[minmax(...)] 가 작동 안 해서 inline style 로 명시
-          (lg:grid 표준 클래스 + inline gridTemplateColumns — 모바일 flex 시엔 무시됨) */}
-      <div
-        className="flex flex-col lg:grid gap-4"
-        style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.5fr)" }}
-      >
+          2026-05-04: Tailwind v4 lg:grid + lg:grid-cols-[...] 임의값 빌드 누락 이슈 →
+          globals.css 명시 미디어쿼리 클래스 .admin-news-body-grid 사용 (확실 작동) */}
+      <div className="admin-news-body-grid">
       {/* 목록 — 데스크톱 좌측 컬럼 / 모바일 stack */}
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden">
         {/* 2026-05-04: sticky 헤더 z-index 명시 + 첫 카드 잘림 fix */}
