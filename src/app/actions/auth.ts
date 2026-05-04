@@ -56,7 +56,19 @@ async function getRequestIp(): Promise<string> {
   return "unknown";
 }
 
-export async function loginAction(_prevState: { error: string } | null, formData: FormData) {
+// 2026-05-05 fix: 로그인 성공 시 server action 의 redirect 대신 success+redirectTo 반환.
+//   본질: server action 안에서 cookies.set + redirect 같은 cycle 처리 시
+//         redirect target SSR 가 새 쿠키 인지 못 함 (Next.js 15 알려진 미묘 동작).
+//         → 사용자 신고: "가입 후 로그인했는데 비로그인 헤더, 새로고침해야 정상".
+//   fix: 클라이언트가 응답 받은 후 window.location.href 로 hard reload.
+//        → fresh GET 요청 = 새 쿠키 포함 = SSR 정상 = 첫 paint 부터 로그인 헤더.
+//   탈퇴 처리 (window.location.href "/login?withdrawn=success") 와 동일 패턴.
+export type LoginActionState =
+  | { error: string }
+  | { success: true; redirectTo: string }
+  | null;
+
+export async function loginAction(_prevState: LoginActionState, formData: FormData): Promise<LoginActionState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   // 로그인 성공 후 돌아갈 경로 (로그인 페이지에서 hidden input으로 전달)
@@ -124,11 +136,10 @@ export async function loginAction(_prevState: { error: string } | null, formData
     return { error: "로그인 중 오류가 발생했습니다." };
   }
 
-  revalidatePath("/", "layout");
-
-  // redirect 경로가 유효하면 해당 경로로, 아니면 홈으로
+  // 2026-05-05 fix: redirect → success 반환 (클라이언트 hard reload 위임).
+  //   revalidatePath 도 제거 — 클라이언트 hard reload = fresh request 라 layout 캐시 무관.
   const validRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//");
-  redirect(validRedirect ? redirectTo : "/");
+  return { success: true, redirectTo: validRedirect ? redirectTo : "/" };
 }
 
 export async function signupAction(_prevState: { error: string } | null, formData: FormData) {
