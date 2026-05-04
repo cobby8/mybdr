@@ -241,6 +241,34 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return apiError(`최대 ${rosterMax}명까지 등록 가능합니다.`, 422);
   }
 
+  // 2026-05-05: 선수 배번 필수 (사용자 정책 결정)
+  //   - 대회 출전 = 선수(player) 활동 → 배번 필수 식별
+  //   - 감독/팀장/매니저는 별도 흐름 (admin 추가 API). join 폼은 모두 player.
+  //   - 누락 시 차단 + 친절 메시지 (어느 선수가 누락인지 표시)
+  const noJersey = data.players.filter(
+    (p) => p.jerseyNumber === undefined || p.jerseyNumber === null,
+  );
+  if (noJersey.length > 0) {
+    // userId 로 닉네임 조회 (운영자가 누구 누락인지 즉시 파악)
+    const userIds = noJersey.map((p) => BigInt(p.userId));
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nickname: true, name: true },
+    });
+    const names = noJersey
+      .map((p) => {
+        const u = users.find((x) => x.id === BigInt(p.userId));
+        return u?.nickname ?? u?.name ?? p.playerName ?? `userId=${p.userId}`;
+      })
+      .join(", ");
+    return apiError(
+      `다음 선수의 등번호가 입력되지 않았습니다: ${names}\n` +
+        `대회 출전을 위해서는 모든 선수의 등번호가 필요합니다. ` +
+        `각 선수의 본인 프로필에서 기본 등번호를 설정한 후 다시 시도해 주세요.`,
+      422,
+    );
+  }
+
   // 등번호 중복 체크
   const jerseyNumbers = data.players
     .map((p) => p.jerseyNumber)
