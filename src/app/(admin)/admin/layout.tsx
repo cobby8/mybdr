@@ -70,12 +70,19 @@ export default async function AdminLayout({
   }
 
   // 배경: 프론트 디자인 시스템과 동일한 CSS 변수 사용
+  // 2026-05-04: 모바일 사이드바 노출 사고 fix —
+  //   AdminSidebar 의 자체 className `hidden lg:flex` 만으로는 어떤 이유로 무효화 가능 (사용자 보고).
+  //   layout 에서 명시적 wrapper div 로 viewport 분기 (CSS 안전망 이중화).
   return (
     <div className="min-h-screen bg-[var(--color-background)]">
-      {/* 데스크톱 사이드바 (lg+) — 기존 그대로 */}
-      <AdminSidebar roles={roles} />
-      {/* 모바일 햄버거 + 드로어 (lg 미만) — 2026-05-02 Phase A */}
-      <AdminMobileNav roles={roles} />
+      {/* 데스크톱 사이드바 (lg+) — wrapper hidden lg:block 로 강제 가드 */}
+      <div className="hidden lg:block">
+        <AdminSidebar roles={roles} />
+      </div>
+      {/* 모바일 햄버거 + 드로어 (lg 미만) — wrapper lg:hidden 로 강제 가드 */}
+      <div className="lg:hidden">
+        <AdminMobileNav roles={roles} />
+      </div>
       {/* ml-64: 사이드바 w-64에 맞춤 (lg+ 만)
           모바일 pt-16: 햄버거 버튼 (top-3 left-3 + 40px) 자리 확보 */}
       <main className="lg:ml-64">
