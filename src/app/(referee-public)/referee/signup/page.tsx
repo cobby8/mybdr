@@ -11,6 +11,8 @@ import { useActionState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signupAction } from "@/app/actions/auth";
+// 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 + autoComplete 정밀 제어)
+import { PasswordInput } from "@/components/ui/password-input";
 
 const OAUTH_ERRORS: Record<string, string> = {
   kakao_token: "카카오 로그인에 실패했습니다.",
@@ -111,10 +113,12 @@ function RefereeSignupContent() {
           )}
 
           <form action={formAction} className="space-y-3">
+            {/* 2026-05-04: autoComplete="username" — 이메일 클릭 시 dropdown */}
             <input
               name="email"
               type="email"
               required
+              autoComplete="username"
               placeholder="이메일"
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
@@ -130,20 +134,23 @@ function RefereeSignupContent() {
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
-            <input
+            {/* 2026-05-04: PasswordInput (보기 버튼 통합) + autoComplete="new-password"
+                (가입 페이지 = 신규 비밀번호, 자동 채움 차단)
+                커스텀 Tailwind className 보존 — 페이지별 디자인 유지 */}
+            <PasswordInput
               name="password"
-              type="password"
               required
               minLength={8}
+              autoComplete="new-password"
               placeholder="비밀번호 (8자 이상, 영문+숫자+특수문자)"
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
-            <input
+            <PasswordInput
               name="password_confirm"
-              type="password"
               required
               minLength={8}
+              autoComplete="new-password"
               placeholder="비밀번호 확인"
               className="w-full rounded-[4px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
               style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)", color: "var(--color-text-primary)" }}

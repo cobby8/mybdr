@@ -4,6 +4,7 @@ import { useState, useActionState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signupAction } from "@/app/actions/auth";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // 이유: OAuth 콜백 실패 시 ?error=... 쿼리로 진입 → 사용자에게 안내 (기존 패턴 유지)
 const OAUTH_ERRORS: Record<string, string> = {
@@ -195,11 +196,13 @@ export default function SignupPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <div className="label">이메일</div>
-                {/* name="email" — signupAction이 formData.get("email")로 수신 */}
+                {/* 2026-05-04 fix: autoComplete="username" — 클릭 시 dropdown 방식, 페이지 진입 자동 채움 차단
+                    name="email" — signupAction이 formData.get("email")로 수신 */}
                 <input
                   className="input"
                   name="email"
                   type="email"
+                  autoComplete="username"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -209,10 +212,11 @@ export default function SignupPage() {
               </div>
               <div>
                 <div className="label">비밀번호</div>
-                <input
-                  className="input"
+                {/* 2026-05-04 fix: PasswordInput (보기 버튼 통합) + autoComplete="new-password"
+                    (가입 페이지 = 신규 비밀번호, 브라우저 저장된 비밀번호 자동완성 차단) */}
+                <PasswordInput
                   name="password"
-                  type="password"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -226,10 +230,9 @@ export default function SignupPage() {
               <div>
                 <div className="label">비밀번호 확인</div>
                 {/* name="password_confirm" — signupAction이 formData.get("password_confirm")로 수신 */}
-                <input
-                  className="input"
+                <PasswordInput
                   name="password_confirm"
-                  type="password"
+                  autoComplete="new-password"
                   required
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}

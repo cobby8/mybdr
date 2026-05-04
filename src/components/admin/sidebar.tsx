@@ -45,7 +45,25 @@ export const navStructure: AdminNavEntry[] = [
     type: "group",
     label: "콘텐츠",
     items: [
-      { type: "item", href: "/admin/tournaments", label: "토너먼트", icon: "emoji_events", roles: ["super_admin", "site_admin"] },
+      {
+        type: "item",
+        href: "/admin/tournaments",
+        // 2026-05-04: "토너먼트" → "대회 관리" 통일 (사용자 요청).
+        label: "대회 관리",
+        icon: "emoji_events",
+        roles: ["super_admin", "site_admin"],
+        // 2026-05-04: 대회 관리자(tournament_admin) 전용 진입점을 sub-item 으로 통합.
+        // 이전 외부 관리 그룹에 별도 위치 → "대회 관리" 메뉴 안으로 삽입 (사용자 요청).
+        children: [
+          {
+            type: "item",
+            href: "/tournament-admin",
+            label: "대회 운영자 도구",
+            icon: "manage_accounts",
+            roles: ["super_admin", "site_admin", "tournament_admin"],
+          },
+        ],
+      },
       { type: "item", href: "/admin/games", label: "경기 관리", icon: "sports_basketball", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/teams", label: "팀 관리", icon: "groups", roles: ["super_admin", "site_admin"] },
       { type: "item", href: "/admin/courts", label: "코트 관리", icon: "location_on", roles: ["super_admin", "site_admin"] },
@@ -103,12 +121,12 @@ export const navStructure: AdminNavEntry[] = [
     ],
   },
 
-  // 그룹: 외부 관리 (별도 권한 — tournament_admin / partner_member)
+  // 그룹: 외부 관리 (별도 권한 — partner_member)
+  // 2026-05-04: tournament_admin 진입점은 "콘텐츠 > 대회 관리 > 대회 운영자 도구" sub-item 으로 통합 (사용자 요청).
   {
     type: "group",
     label: "외부 관리",
     items: [
-      { type: "item", href: "/tournament-admin", label: "대회 관리", icon: "emoji_events", roles: ["tournament_admin"] },
       { type: "item", href: "/partner-admin", label: "협력업체 관리", icon: "storefront", roles: ["partner_member"] },
     ],
   },
