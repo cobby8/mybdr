@@ -11,11 +11,11 @@
  *  (1) 햄버거 + 좌측 드로어 (오버레이)
  *  (2) 클릭 시 좌측에서 슬라이드
  *  (3) 외부 영역 클릭 + 닫기 버튼 + ESC 키 + 페이지 이동 시 자동 닫힘
- *  (4) 햄버거: 페이지 상단 좌측 고정 (lg:hidden)
+ *  (4) 햄버거: 페이지 상단 우측 고정 (lg:hidden) — 2026-05-04 (web) AppNav 와 동일 위치 정합
  *  (5) 활성 메뉴 표시: 데스크톱과 동일 (BDR Red 배경 + 흰 텍스트)
  *
  * 구조:
- *  - 햄버거 버튼: lg:hidden fixed top-3 left-3 z-50
+ *  - 햄버거 버튼: lg:hidden fixed top-3 right-3 z-50
  *  - 백드롭: lg:hidden fixed inset-0 bg-black/50 z-40 (open 시)
  *  - 드로어 패널: lg:hidden fixed left-0 top-0 z-50 h-screen w-72
  *                 transform transition-transform translate-x-(-100% / 0)
@@ -110,12 +110,13 @@ export function AdminMobileNav({ roles }: Props) {
 
   return (
     <>
-      {/* 햄버거 버튼 — 모바일/태블릿만 (lg 미만) */}
+      {/* 햄버거 버튼 — 모바일/태블릿만 (lg 미만)
+          2026-05-04: 좌상단 → 우상단 이동 (web AppNav 햄버거와 위치 정합) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="관리자 메뉴 열기"
-        className="lg:hidden fixed top-3 left-3 z-30 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm transition-colors hover:bg-[var(--color-elevated)]"
+        className="lg:hidden fixed top-3 right-3 z-30 flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm transition-colors hover:bg-[var(--color-elevated)]"
       >
         <span
           className="material-symbols-outlined text-xl"
