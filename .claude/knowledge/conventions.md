@@ -1,6 +1,28 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] 알기자 기사 사진 업로드 정책 — 매치당 15장 + 클라이언트 압축 (트래픽 80% 절감)
+- **분류**: convention (사진 업로드 한도 / 클라이언트 측 최적화 / 트래픽 절감)
+- **발견자**: pm (사용자 우려 "DB 용량 차지 + 일반 커뮤니티 정책 + 자동 축소 방법 검토")
+- **위치**: `src/app/api/web/upload/news-photo/route.ts` (서버 한도) + `src/app/(admin)/admin/news/_components/news-photo-manager.tsx` (클라이언트 압축)
+- **시장 비교 (5/4 검색)**: Discord 10MB, Reddit 20MB, 네이버 카페 ~10MB/30장, 다음 카페 ~5MB. 모바일 친화 권장 = 5~10MB.
+- **mybdr 정책**:
+  1. **업로드 한도 = 10MB** (모바일 고화질 jpeg/png/webp/heic/heif 허용, sharp 정규화로 ~500KB 압축)
+  2. **매치당 사진 최대 15장** (`MAX_PHOTOS_PER_MATCH = 15`) — UI 가독성 + Storage 무제한 방지. 16장+ 업로드 시 400 reject + 안내
+  3. **클라이언트 압축** (`browser-image-compression@2`, ~14KB gzip): 1MB+ 사진만 Web Worker 압축 (maxSizeMB=1.5 / maxWidthOrHeight=2048 / preserveExif=true) → 작은 사진은 원본 그대로
+  4. **서버 정규화** (그대로 유지): sharp long-edge 1920 + WebP 80% + EXIF 회전 자동 + isHero 단일 트랜잭션 + display_order auto
+- **트래픽 효과**:
+  - 모바일 5MB 사진 → 클라이언트 1MB 압축 → 서버 도착 후 sharp 500KB → 사용자 download 500KB
+  - 업로드 트래픽: **80% 절감** (5MB → 1MB)
+  - 모바일 LTE/5G 데이터 부담 ↓ + 업로드 시간 ↓ + 서버 sharp 부담 ↓ (입력 작아짐)
+- **EXIF 보존**: `preserveExif: true` 옵션 — 클라이언트 압축 후에도 DateTimeOriginal/GPS 메타 유지 → 서버 EXIF 자동 매치 추천 (Phase 2) 정상 작동
+- **Fallback 안전망**:
+  - 클라이언트 압축 실패 (OffscreenCanvas 미지원 브라우저 등) → 원본 그대로 업로드 + console.warn
+  - 서버 sharp 정규화는 그대로 동작 → 화질/용량 보장
+- **Storage 비용 분석 (5/4 시뮬)**: 평균 8장/매치 × 월 108매치 → 1년 5GB / Pro tier 100GB 의 5% 수준. 8~50년 안전 (적극 시나리오라도 8년+).
+- **Egress 차후 큐**: 100K PV/월 도달 시 다층 썸네일 (300px + 1920px) + AVIF + next/image 최적화 (Phase 3)
+- **참조횟수**: 0
+
 ### [2026-05-04] 알기자 기사 사진 정규화 룰 — long-edge 1920px + WebP 80% + EXIF 회전 자동 + isHero 단일 보장
 - **분류**: convention (이미지 처리 / 모바일 업로드 / 저장 효율)
 - **발견자**: pm (사진 첨부 시스템 P2 업로드 API 설계 시점)

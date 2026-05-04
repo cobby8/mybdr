@@ -9,6 +9,10 @@
 import { useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+// 2026-05-04: 클라이언트 측 이미지 압축 (browser-image-compression)
+// 모바일 5MB 사진 → 브라우저 Web Worker 로 ~1MB 압축 → 업로드 트래픽 80% 절감
+// OffscreenCanvas API 미지원 시 메인스레드 fallback (자동 처리)
+import imageCompression from "browser-image-compression";
 
 export type NewsPhoto = {
   id: string;
@@ -36,19 +40,47 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
   const [error, setError] = useState<string | null>(null);
   // 2026-05-04: EXIF 추천 매치 — 업로드된 사진 EXIF 가 현재 selected 매치와 다른 시각이면 경고
   const [exifWarning, setExifWarning] = useState<string | null>(null);
+  // 2026-05-04: 압축 통계 (디버깅 + 운영자 안내) — 원본 / 압축 후 합계
+  const [compressStats, setCompressStats] = useState<{ original: number; compressed: number } | null>(null);
+
+  // 2026-05-04: 클라이언트 측 압축 — 1MB+ 사진만 압축 (작은 사진은 원본 그대로)
+  // EXIF 메타는 lib 가 보존 — 서버 EXIF 자동 매핑에 영향 0
+  const compressIfNeeded = async (file: File): Promise<File> => {
+    if (file.size < 1024 * 1024) return file; // 1MB 이하 그대로
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1.5,             // 1.5MB 이하로
+        maxWidthOrHeight: 2048,     // long-edge 2048 (서버 sharp 1920 보다 약간 크게 — 화질 마진)
+        useWebWorker: true,         // 메인스레드 미차단
+        preserveExif: true,         // EXIF 보존 (서버 EXIF 자동 매핑 위해)
+      });
+      return compressed;
+    } catch (e) {
+      console.warn("[image-compression] 실패, 원본 사용:", e);
+      return file;
+    }
+  };
 
   // 업로드 핸들러 — 멀티 파일 순차 처리
   const handleUpload = async (files: FileList | null, isHero: boolean) => {
     if (!files || files.length === 0) return;
     setError(null);
     setExifWarning(null);
+    setCompressStats(null);
     setUploading(true);
     setProgress({ current: 0, total: files.length });
 
     let lastError: string | null = null;
     const warnings: string[] = [];
+    let totalOriginal = 0;
+    let totalCompressed = 0;
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+      const original = files[i];
+      // 1) 클라이언트 측 압축 (1MB+ 사진만, 그 외 원본)
+      const file = await compressIfNeeded(original);
+      totalOriginal += original.size;
+      totalCompressed += file.size;
+
       const fd = new FormData();
       fd.append("file", file);
       fd.append("matchId", matchId);
@@ -90,6 +122,10 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
       setError(lastError);
     } else {
       if (warnings.length > 0) setExifWarning(warnings.join("\n"));
+      // 압축 통계 (트래픽 절감 안내)
+      if (totalOriginal > totalCompressed) {
+        setCompressStats({ original: totalOriginal, compressed: totalCompressed });
+      }
       // 성공 — server props 갱신
       startTransition(() => router.refresh());
     }
@@ -179,6 +215,14 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
           ⚠️ EXIF 촬영시각 불일치 가능성{"\n"}{exifWarning}
         </div>
       )}
+      {/* 2026-05-04: 클라이언트 압축 통계 (트래픽 절감 안내) */}
+      {compressStats && (
+        <div className="text-[10px] text-[var(--color-text-dim)]">
+          📦 압축: {(compressStats.original / 1024 / 1024).toFixed(2)}MB →{" "}
+          {(compressStats.compressed / 1024 / 1024).toFixed(2)}MB (
+          {Math.round((1 - compressStats.compressed / compressStats.original) * 100)}% 절감)
+        </div>
+      )}
 
       {/* 사진 grid */}
       {initialPhotos.length === 0 ? (
@@ -219,6 +263,7 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
 
       <div className="text-[10px] text-[var(--color-text-dim)]">
         💡 모바일 카메라 = 즉시 촬영 / 갤러리 = 여러 장 / 대표 사진 = 카드 썸네일 + 본문 상단 Hero
+        {" · "}매치당 최대 15장
       </div>
     </div>
   );
