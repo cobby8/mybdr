@@ -1,4 +1,4 @@
-import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
+import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -13,7 +13,17 @@ export const dynamic = "force-dynamic";
 // 세션 확인 + 프로필 이미지 + 심판 매칭 + 관리자 정보 엔드포인트
 // 이유: referee-shell에서 메뉴를 역할별로 필터링하려면 admin_info가 필요.
 //      별도 호출 대신 기존 /api/web/me 응답에 합쳐서 네트워크 라운드트립을 줄인다.
-export const GET = withWebAuth(async (ctx: WebAuthContext) => {
+//
+// 2026-05-05 fix (옵션 B): 비로그인 시 200 + null 응답으로 변경 (이전 401 → SWR 폭주 방지).
+//   본질: withWebAuth = 비로그인 시 401 → SWR 클라이언트 catch/null fallback 부담.
+//   fix: 직접 getWebSession 분기 → 비로그인 = 200 + { id: null } / 로그인 = 정상 응답.
+//   호출자 안전성 ↑ — me?.id 단순 null check 만으로 비로그인 판정.
+export async function GET() {
+  const session = await getWebSession();
+  if (!session) {
+    return apiSuccess({ id: null });
+  }
+  const ctx = { userId: BigInt(session.sub), session };
   // 유저 정보 + 심판 매칭 여부 + 관리자 매핑을 병렬로 조회 (waterfall 방지)
   const [user, referee, admin] = await Promise.all([
     prisma.user.findUnique({
@@ -121,4 +131,4 @@ export const GET = withWebAuth(async (ctx: WebAuthContext) => {
     preferred_skill_levels: (user?.preferred_skill_levels as unknown) ?? [],
     preferred_game_types: (user?.preferred_game_types as unknown) ?? [],
   });
-});
+}

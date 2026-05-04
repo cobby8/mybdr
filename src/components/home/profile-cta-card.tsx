@@ -44,6 +44,13 @@ const fetchMeOrNull = async (url: string) => {
 };
 
 export function ProfileCtaCard() {
+  // 2026-05-05 fix: hydration mismatch 차단 — React error #418 본질.
+  //   본질: SSR 시점 useSWR data=undefined → return null / client mount 후 fetch → 렌더 불일치.
+  //         Hydration 실패 → React 전체 tree reset → 페이지 응답 지연 + 비로그인 표시.
+  //   fix: mounted state — SSR 시점 무조건 null 반환 → client mount 후만 useSWR 결과 반영.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   // useSWR — ProfileCompletionBanner 와 동일 endpoint 캐시 공유 (dedupingInterval 30s)
   const { data: me } = useSWR<MeResponse | null>("/api/web/me", fetchMeOrNull, {
     dedupingInterval: 30000,
@@ -63,6 +70,8 @@ export function ProfileCtaCard() {
     }
   }, []);
 
+  // SSR 시점 무조건 숨김 (hydration mismatch 차단) — client mount 후 useSWR/localStorage 결과 반영
+  if (!mounted) return null;
   // 비로그인(me 없음) / 닫힘 / 이미 완성 상태 → 숨김
   if (!me || !me.id || dismissed) return null;
   if (me.profile_completed === true) return null;
