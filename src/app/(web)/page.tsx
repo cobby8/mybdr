@@ -35,6 +35,9 @@ import { BoardRow } from "@/components/bdr-v2/board-row";
 import { HotPostRow } from "@/components/bdr-v2/hot-post-row";
 import { TournamentRow } from "@/components/bdr-v2/tournament-row";
 import { CardPanel } from "@/components/bdr-v2/card-panel";
+// 2026-05-04 가입 흐름 통합 (F5): 가입 직후 미완성 사용자 대상 CTA 카드.
+// useSWR("/api/web/me") 자체 fetch + localStorage 7일 dismiss → server component 영향 0.
+import { ProfileCtaCard } from "@/components/home/profile-cta-card";
 import {
   prefetchStats,
   prefetchCommunity,
@@ -137,6 +140,12 @@ export default async function HomePage() {
     // page: v2 globals.css의 .page 쉘 — max-width + 중앙 정렬 + 기본 상하 여백
     // (이전 "pb-10"은 좌우 maxw/gutter 제한이 없어 콘텐츠가 전폭으로 퍼져 시안과 어긋났음)
     <div className="page">
+      {/* 0. 프로필 완성 CTA — Hero 카로셀 위 최상단 배치
+       * 이유: 가입 흐름 1-step 단순화 (F1) 결과 신규 가입자는 포지션/지역/실력 미입력.
+       *      Hero 보다 위에 두어 가장 먼저 시야에 노출 + 완성 후 X 닫기 시 7일 억제.
+       *      비로그인 / 이미 완성 / dismiss 시 자체적으로 null 반환 (조건부 렌더). */}
+      <ProfileCtaCard />
+
       {/* 1. Hero 카로셀 — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 5초 간격
        * prefetchHeroSlides가 정적 fallback 1개를 항상 보장하지만, 만일의 rejected
        * 케이스(heroSlides=[])에 대비해 length>0 가드 추가. */}

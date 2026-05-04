@@ -1,52 +1,19 @@
-/* ============================================================
- * /onboarding/setup — server wrapper
+/**
+ * /onboarding/setup — 2026-05-04 가입 흐름 통합 (F2-2) 폐기 redirect
  *
  * 이유(왜):
- *   Phase 10-5 후속 — onboarding 재진입 차단.
- *   기존 단일 "use client" 페이지는 server redirect 가 불가능해
- *   이미 온보딩을 완료한 사용자가 URL 직접 입력 / 뒤로가기 등으로
- *   재진입할 때 위저드를 다시 거치는 어색한 UX 가 발생했다.
+ *   가입 이후 프로필 입력 페이지를 /profile/edit 단일 페이지로 통합.
+ *   기존 onboarding 위저드 (Phase 10-5 server wrapper + onboarding_completed_at 가드)
+ *   는 더 이상 신규 가입자 흐름에 노출되지 않음.
+ *   POST /api/web/onboarding/complete 는 보존 (기존 위저드 진입 사용자 영향 0).
+ *   _components/setup-form.tsx 는 unused 가 되지만 본 1차 작업에서 미삭제 (별도 cleanup 큐).
  *
- *   server wrapper 에서:
- *     1) 비로그인 → /login?next=/onboarding/setup 로 redirect
- *     2) onboarding_completed_at 이 이미 있으면 → /profile?onboarded=already
- *     3) 그 외에만 client form 렌더
- *
- *   verify 페이지에서 setup 으로 redirect 한 사용자도 이 가드를 통과하므로
- *   verify 단계엔 별도 체크를 두지 않는다 (이중 redirect 로 자연스럽게 처리).
- *
- * 변경 정책:
- *   - POST /api/web/onboarding/complete 0 변경
- *   - 위저드 form 본문 0 변경 (그대로 _components/setup-form.tsx 로 이전)
- * ============================================================ */
-
+ * 어떻게:
+ *   server component + redirect("/profile/edit") — 비로그인/온보딩 완료 가드 모두 제거.
+ *   /profile/edit 페이지가 자체 세션 가드 보유.
+ */
 import { redirect } from "next/navigation";
-import { getWebSession } from "@/lib/auth/web-session";
-import { prisma } from "@/lib/db/prisma";
-import { OnboardingSetupForm } from "./_components/setup-form";
 
-// 동적 렌더링 강제: 세션 쿠키 + DB 조회를 매 요청마다 실행해야 정확한 redirect 가 가능
-export const dynamic = "force-dynamic";
-
-export default async function OnboardingSetupPage() {
-  // 1) 비로그인 차단 — 로그인 후 다시 setup 으로 돌아오도록 next 파라미터 동봉
-  const session = await getWebSession();
-  if (!session) {
-    redirect("/login?next=/onboarding/setup");
-  }
-
-  // 2) 재진입 차단 — onboarding_completed_at 이 이미 기록돼 있으면 위저드 스킵
-  //    select 로 필요한 1개 컬럼만 조회 (가벼운 가드)
-  const user = await prisma.user.findUnique({
-    where: { id: BigInt(session.sub) },
-    select: { onboarding_completed_at: true },
-  });
-
-  if (user?.onboarding_completed_at) {
-    // ?onboarded=already — /profile 측에서 안내 토스트 등에 활용 가능 (현재는 단순 마커)
-    redirect("/profile?onboarded=already");
-  }
-
-  // 3) 정상 케이스 — 위저드 form 렌더 (BigInt → string 으로 직렬화 친화)
-  return <OnboardingSetupForm currentUserId={String(session.sub)} />;
+export default function OnboardingSetupRedirect() {
+  redirect("/profile/edit");
 }
