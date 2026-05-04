@@ -33,10 +33,23 @@ interface MeResponse {
   profile_completed?: boolean;
 }
 
+// 2026-05-05 fix: 비로그인 사용자는 /api/web/me 가 401 반환 → SWR 무한 재시도 폭주.
+//   콘솔 GET 401 30+ 반복 + 메인 스레드 부담 + 로그인 버튼 클릭 응답 지연.
+//   fix: 401 받으면 null 반환 (throw ❌) + retry/refocus 비활성.
+const fetchMeOrNull = async (url: string) => {
+  const res = await fetch(url, { credentials: "include" });
+  if (res.status === 401) return null; // 비로그인/탈퇴 → null (재시도 ❌)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+};
+
 export function ProfileCtaCard() {
   // useSWR — ProfileCompletionBanner 와 동일 endpoint 캐시 공유 (dedupingInterval 30s)
-  const { data: me } = useSWR<MeResponse>("/api/web/me", {
+  const { data: me } = useSWR<MeResponse | null>("/api/web/me", fetchMeOrNull, {
     dedupingInterval: 30000,
+    shouldRetryOnError: false,   // 401/error 시 재시도 ❌ (비로그인 무한 폭주 차단)
+    revalidateOnFocus: false,    // 포커스 시 재시도 ❌
+    revalidateOnReconnect: false,// 네트워크 복귀 시 재시도 ❌
   });
 
   const [dismissed, setDismissed] = useState(false);
