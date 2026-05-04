@@ -28,8 +28,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  filterMenuByRoles,
+  filterStructureByRoles,
   type AdminRole,
+  type AdminNavItem,
 } from "./sidebar";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
 import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
@@ -38,12 +39,47 @@ interface Props {
   roles: AdminRole[];
 }
 
+// 2026-05-04: 메뉴 항목 1개 렌더링 (children 들여쓰기 + 클릭 시 드로어 닫기)
+function renderMobileItem(
+  item: AdminNavItem,
+  pathname: string,
+  closeFn: () => void,
+  depth = 0,
+) {
+  const isActive =
+    item.href === "/admin"
+      ? pathname === "/admin"
+      : pathname.startsWith(item.href);
+  const indent = depth > 0 ? "ml-4" : "";
+  return (
+    <div key={item.href}>
+      <Link
+        href={item.href}
+        onClick={closeFn}
+        className={`${indent} flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200 ${
+          isActive
+            ? "bg-[var(--color-primary)] font-bold text-white shadow-sm"
+            : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
+        }`}
+      >
+        <span className="material-symbols-outlined text-xl">{item.icon}</span>
+        {item.label}
+      </Link>
+      {item.children && item.children.length > 0 && (
+        <div className="mt-0.5 space-y-0.5">
+          {item.children.map((c) => renderMobileItem(c, pathname, closeFn, depth + 1))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminMobileNav({ roles }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // 유저 역할에 맞는 메뉴만 필터링 (sidebar 와 동일)
-  const visibleItems = filterMenuByRoles(roles);
+  // 유저 역할에 맞는 메뉴만 필터링 (sidebar 와 동일 — 그룹화 구조)
+  const visibleStructure = filterStructureByRoles(roles);
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -139,29 +175,21 @@ export function AdminMobileNav({ roles }: Props) {
           </button>
         </div>
 
-        {/* 메뉴 — 활성 표시 데스크톱과 동일 (BDR Red 배경 + 흰 텍스트) */}
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto">
-          {visibleItems.map((item) => {
-            const isActive =
-              item.href === "/admin"
-                ? pathname === "/admin"
-                : pathname.startsWith(item.href);
+        {/* 메뉴 — 활성 표시 데스크톱과 동일 (BDR Red 배경 + 흰 텍스트)
+            2026-05-04: 그룹화 + children 들여쓰기 + overflow-y-auto */}
+        <nav className="flex flex-1 flex-col overflow-y-auto pr-1 -mr-1 space-y-3">
+          {visibleStructure.map((entry, idx) => {
+            if (entry.type === "item") {
+              return renderMobileItem(entry, pathname, () => setOpen(false));
+            }
+            // 그룹 — 헤더 + items
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all duration-200 ${
-                  isActive
-                    ? "bg-[var(--color-primary)] font-bold text-white shadow-sm"
-                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                <span className="material-symbols-outlined text-xl">
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
+              <div key={`group-${idx}`} className="space-y-0.5">
+                <div className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
+                  {entry.label}
+                </div>
+                {entry.items.map((item) => renderMobileItem(item, pathname, () => setOpen(false)))}
+              </div>
             );
           })}
         </nav>
