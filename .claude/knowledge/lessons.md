@@ -2,6 +2,20 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-04] `prisma generate` Windows EPERM — dev server query_engine.dll 잠금
+- **분류**: lesson/prisma (Windows 환경 / dev server ↔ prisma client 충돌)
+- **발견자**: developer (매치 코드 v4 Phase 1 schema push 후)
+- **배경**: `npx prisma db push` 또는 `npx prisma generate` 실행 시 Windows 환경에서 dev server (port 3001 PID 20952) 가 `node_modules/.prisma/client/query_engine-windows.dll.node` 를 잠금 → 재생성 EPERM 에러.
+- **fix 절차** (PM 직접 처리 가능):
+  1. `netstat -ano | findstr :3001` → PID 확인
+  2. `taskkill //f //pid <PID>` (CLAUDE.md 룰: `taskkill //f //im node.exe` 절대 금지)
+  3. `npx prisma generate`
+  4. `npm run dev` (백그라운드 재기동)
+- **재발 방지**: schema 변경 후 dev server 가 떠있는 상태에서 `prisma generate` 시도 ❌. 사전 PID 종료 → generate → 재기동 순서. 또는 schema 변경을 dev server 종료 직후에 진행.
+- **운영 무관**: 본 함정은 Windows + dev server 동시 동작 환경만. 운영 배포 (Vercel) 와는 무관 (CI 가 generate 자동 실행).
+- **참조 발견**: 매치 코드 v4 Phase 1 (commit 8af51eb)
+- **참조횟수**: 0
+
 ### [2026-05-04] CSS Grid item `min-width: auto` (default) 함정 — 자식 nowrap 컨텐츠로 컨테이너 viewport 너머 확장
 - **분류**: lesson/css (CSS Grid item default min-width 본질 + 디버그 outline 패턴)
 - **발견자**: pm + debugger (사용자 보고 "community 헤더 우측 검색/정렬/만들기 actions 가 모바일에서 안 보임" → 6차 fix 끝에 본질 확정)
