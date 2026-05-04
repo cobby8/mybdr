@@ -86,7 +86,12 @@ export default async function AdminUsersPage({
       />
 
       {error && (
-        <div className="mb-4 rounded-[12px] bg-[var(--color-error)]/10 px-4 py-3 text-sm text-[var(--color-error)]">{error}</div>
+        <div
+          className="mb-4 rounded-[12px] px-4 py-3 text-sm"
+          style={{ background: "color-mix(in srgb, var(--color-error) 10%, transparent)", color: "var(--color-error)" }}
+        >
+          {error}
+        </div>
       )}
 
       <AdminUsersTable
@@ -98,21 +103,22 @@ export default async function AdminUsersPage({
         deleteAction={deleteUserAction}
       />
 
+      {/* 페이지네이션 — (web) .btn 패턴 */}
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-2">
           {page > 1 && (
             <Link
               href={`?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
-              className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
+              className="btn btn--sm"
             >
               이전
             </Link>
           )}
-          <span className="text-sm text-[var(--color-text-muted)]">{page} / {totalPages}</span>
+          <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>{page} / {totalPages}</span>
           {page < totalPages && (
             <Link
               href={`?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
-              className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
+              className="btn btn--sm"
             >
               다음
             </Link>

@@ -1,9 +1,20 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> 컴포넌트 wrapper 제거 → div + 직접 토큰 (admin/* 단순화)
+// - 점검 모드 활성화 버튼: 자체 rounded bg-error → .btn (위험 톤은 inline color 만 유지)
+
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { useState, useTransition } from "react";
 import { clearCacheAction, toggleMaintenanceModeAction } from "@/app/actions/admin-settings";
+
+// (web) 시안 카드 패턴 — Card 컴포넌트와 동일 룩 (rounded + border + bg + p)
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 export default function AdminSettingsPage() {
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
@@ -41,39 +52,44 @@ export default function AdminSettingsPage() {
       <div className="space-y-4">
 
         {/* 점검 모드 — 모바일 column / sm+ row 분기 */}
-        <Card>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h3 className="font-semibold">점검 모드</h3>
-              <p className="text-sm text-[var(--color-text-muted)]">사이트를 점검 모드로 전환합니다. 일반 유저 접근이 차단됩니다.</p>
+              <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>사이트를 점검 모드로 전환합니다. 일반 유저 접근이 차단됩니다.</p>
               {maintenanceMsg && (
-                <p className={`mt-1 text-sm font-medium ${maintenanceEnabled ? "text-[var(--color-warning)]" : "text-[var(--color-accent)]"}`}>
+                <p
+                  className="mt-1 text-sm font-medium"
+                  style={{ color: maintenanceEnabled ? "var(--color-warning)" : "var(--color-accent)" }}
+                >
                   {maintenanceMsg}
                 </p>
               )}
             </div>
+            {/* (web) .btn 패턴 — 활성화 시 위험 톤은 inline style 로만 (.btn--sm + 색상) */}
             <button
               onClick={handleMaintenanceToggle}
               disabled={isPendingMaintenance}
-              className={`shrink-0 rounded-md px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 w-full sm:w-auto sm:min-w-[100px] ${
+              className="btn btn--sm shrink-0 w-full sm:w-auto sm:min-w-[100px] disabled:opacity-50"
+              style={
                 maintenanceEnabled
-                  ? "bg-[var(--color-error)]/10 text-[var(--color-error)] hover:bg-[var(--color-error)]/20"
-                  : "bg-[var(--color-error)] text-white hover:bg-[var(--color-error-hover,#DC2626)]"
-              }`}
+                  ? { borderColor: "var(--color-error)", color: "var(--color-error)" }
+                  : { background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }
+              }
             >
               {isPendingMaintenance ? "처리중..." : maintenanceEnabled ? "비활성화" : "활성화"}
             </button>
           </div>
-        </Card>
+        </div>
 
         {/* 캐시 초기화 — 모바일 column / sm+ row 분기 */}
-        <Card>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <h3 className="font-semibold">캐시 초기화</h3>
-              <p className="text-sm text-[var(--color-text-muted)]">전체 페이지 캐시를 초기화합니다. 잠시 응답 속도가 느려질 수 있습니다.</p>
+              <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>전체 페이지 캐시를 초기화합니다. 잠시 응답 속도가 느려질 수 있습니다.</p>
               {cacheMsg && (
-                <p className="mt-1 text-sm font-medium text-[var(--color-accent)]">{cacheMsg}</p>
+                <p className="mt-1 text-sm font-medium" style={{ color: "var(--color-accent)" }}>{cacheMsg}</p>
               )}
             </div>
             <button
@@ -84,7 +100,7 @@ export default function AdminSettingsPage() {
               {isPendingCache ? "초기화중..." : "실행"}
             </button>
           </div>
-        </Card>
+        </div>
 
       </div>
     </div>

@@ -98,7 +98,7 @@ export default function AdminGameReportsPage() {
         subtitle="경기 평가에 누적된 신고 플래그를 검토합니다."
       />
 
-      {/* 상태 필터 탭 */}
+      {/* 상태 필터 탭 — (web) .btn 패턴 (활성 .btn--primary) */}
       <div className="mb-4 flex gap-2">
         {[
           { value: "submitted", label: "검토 대기" },
@@ -109,11 +109,7 @@ export default function AdminGameReportsPage() {
           <button
             key={tab.value}
             onClick={() => setFilter(tab.value)}
-            className={`rounded px-4 py-2 text-sm font-medium transition ${
-              filter === tab.value
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-[var(--color-surface-bright)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className={`btn btn--sm ${filter === tab.value ? "btn--primary" : ""}`}
           >
             {tab.label}
           </button>

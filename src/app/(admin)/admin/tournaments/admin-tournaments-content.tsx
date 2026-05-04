@@ -1,9 +1,11 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper 제거 / <Badge> → .badge--soft + 상태별 inline color
+// - 페이지 크기 / 페이지네이션 → .btn .btn--sm
+
 import { useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
@@ -40,8 +42,20 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "종료", ended: "종료", closed: "종료", cancelled: "종료",
 };
 
-const STATUS_BADGE: Record<string, "default" | "success" | "info" | "warning" | "secondary"> = {
-  draft: "default", registration: "info", in_progress: "success", completed: "secondary",
+// 탭별 .badge--soft inline color (default / info / success / secondary)
+const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
+  draft: undefined, // .badge--soft 기본
+  registration: {
+    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+    color: "var(--color-info)",
+    borderColor: "transparent",
+  },
+  in_progress: {
+    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    color: "var(--color-success)",
+    borderColor: "transparent",
+  },
+  completed: undefined, // .badge--soft 기본 (secondary 톤)
 };
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -134,20 +148,16 @@ export function AdminTournamentsContent({
 
       {/* 리스트 헤더: 표시 개수 + 페이지 크기 선택 */}
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm text-[var(--color-text-muted)]">
+        <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           {totalCount > 0 ? `${rangeStart}–${rangeEnd} / ${totalCount}개` : "0개"}
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-xs text-[var(--color-text-muted)]">페이지당</span>
+          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>페이지당</span>
           {PAGE_SIZE_OPTIONS.map((size) => (
             <button
               key={size}
               onClick={() => handlePageSize(size)}
-              className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
-                pageSize === size
-                  ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
-                  : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
-              }`}
+              className={`btn btn--sm ${pageSize === size ? "btn--primary" : ""}`}
             >
               {size}개
             </button>
@@ -155,78 +165,73 @@ export function AdminTournamentsContent({
         </div>
       </div>
 
-      <Card className="overflow-hidden p-0">
-        {/* admin-table-wrap: 모바일 카드 변환 시 overflow-x: visible 강제 (globals.css [Admin Phase B]) */}
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 (≤720px) 카드형 자동 변환 (globals.css [Admin Phase B], 2026-05-02) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">대회명</th>
-                <th className="w-[90px] px-5 py-4 font-medium">상태</th>
-                <th className="w-[70px] px-4 py-4 font-medium">공개</th>
-                <th className="w-[100px] px-5 py-4 font-medium">날짜</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => {
-                const status = t.status ?? "draft";
-                const tabKey = toTabKey(status);
-                return (
-                  <tr
-                    key={t.id}
-                    onClick={() => setSelected(t)}
-                    className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
-                  >
-                    {/* data-primary="true": 모바일에서 카드 헤딩 (큰 폰트 + dashed border) */}
-                    <td data-primary="true" className="px-5 py-3">
-                      <p className="truncate font-medium text-[var(--color-text-primary)]">
-                        {t.name}
-                      </p>
-                      <p className="text-xs text-[var(--color-text-muted)]">
-                        {t.organizerName ?? t.organizerEmail ?? "-"}
-                      </p>
-                    </td>
-                    <td data-label="상태" className="px-5 py-3">
-                      <Badge variant={STATUS_BADGE[tabKey] ?? "default"}>
-                        {STATUS_LABEL[status] ?? status}
-                      </Badge>
-                    </td>
-                    <td data-label="공개" className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                          t.isPublic
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"
-                        }`}
-                      >
-                        {t.isPublic ? "공개" : "비공개"}
-                      </span>
-                    </td>
-                    {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
-                    <td data-label="날짜" className="whitespace-nowrap px-5 py-3 text-[var(--color-text-muted)]">
-                      {fmtDate(t.createdAt)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* admin-table-wrap: 모바일 카드 변환 시 overflow-x: visible 강제 (globals.css [Admin Phase B]) */}
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 (≤720px) 카드형 자동 변환 (globals.css [Admin Phase B], 2026-05-02) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">대회명</th>
+              <th className="w-[90px] px-5 py-4 font-medium">상태</th>
+              <th className="w-[70px] px-4 py-4 font-medium">공개</th>
+              <th className="w-[100px] px-5 py-4 font-medium">날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((t) => {
+              const status = t.status ?? "draft";
+              const tabKey = toTabKey(status);
+              return (
+                <tr key={t.id} onClick={() => setSelected(t)} className="cursor-pointer">
+                  {/* data-primary="true": 모바일에서 카드 헤딩 (큰 폰트 + dashed border) */}
+                  <td data-primary="true" className="px-5 py-3">
+                    <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
+                      {t.name}
+                    </p>
+                    <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      {t.organizerName ?? t.organizerEmail ?? "-"}
+                    </p>
+                  </td>
+                  <td data-label="상태" className="px-5 py-3">
+                    <span className="badge badge--soft" style={STATUS_STYLE[tabKey]}>
+                      {STATUS_LABEL[status] ?? status}
+                    </span>
+                  </td>
+                  <td data-label="공개" className="px-4 py-3">
+                    <span
+                      className="badge badge--soft"
+                      style={
+                        t.isPublic
+                          ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }
+                          : undefined
+                      }
+                    >
+                      {t.isPublic ? "공개" : "비공개"}
+                    </span>
+                  </td>
+                  {/* whitespace-nowrap으로 날짜 줄바꿈 방지 */}
+                  <td data-label="날짜" className="whitespace-nowrap px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                    {fmtDate(t.createdAt)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {filtered.length === 0 && (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          해당하는 토너먼트가 없습니다.
         </div>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
-            해당하는 토너먼트가 없습니다.
-          </div>
-        )}
-      </Card>
+      )}
 
-      {/* 페이지네이션 */}
+      {/* 페이지네이션 — (web) .btn 패턴 적용 */}
       {totalPages > 1 && (
         <div className="mt-4 flex items-center justify-center gap-1">
           <button
             onClick={() => handlePage(page - 1)}
             disabled={page <= 1}
-            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] disabled:pointer-events-none disabled:opacity-30"
+            className="btn btn--sm disabled:pointer-events-none disabled:opacity-30"
           >
             ←
           </button>
@@ -239,16 +244,12 @@ export function AdminTournamentsContent({
             }, [])
             .map((p, idx) =>
               p === "..." ? (
-                <span key={`ellipsis-${idx}`} className="px-2 text-sm text-[var(--color-text-muted)]">…</span>
+                <span key={`ellipsis-${idx}`} className="px-2 text-sm" style={{ color: "var(--color-text-muted)" }}>…</span>
               ) : (
                 <button
                   key={p}
                   onClick={() => handlePage(p as number)}
-                  className={`min-w-[32px] rounded px-2 py-1.5 text-sm font-medium transition-colors ${
-                    page === p
-                      ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
-                      : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
-                  }`}
+                  className={`btn btn--sm min-w-[32px] ${page === p ? "btn--primary" : ""}`}
                 >
                   {p}
                 </button>
@@ -257,7 +258,7 @@ export function AdminTournamentsContent({
           <button
             onClick={() => handlePage(page + 1)}
             disabled={page >= totalPages}
-            className="rounded px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] disabled:pointer-events-none disabled:opacity-30"
+            className="btn btn--sm disabled:pointer-events-none disabled:opacity-30"
           >
             →
           </button>
@@ -276,14 +277,16 @@ export function AdminTournamentsContent({
               <form action={toggleVisibilityAction} className="flex items-center gap-2">
                 <input type="hidden" name="tournament_id" value={selected.id} />
                 <input type="hidden" name="is_public" value={selected.isPublic ? "false" : "true"} />
+                {/* (web) .btn 패턴 — 공개로 변경은 success 톤 inline */}
                 <button
                   type="submit"
                   onClick={() => setSelected((prev) => prev ? { ...prev, isPublic: !prev.isPublic } : null)}
-                  className={`flex-1 rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors ${
-                    selected.isPublic
-                      ? "border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]"
-                      : "bg-emerald-600 text-white hover:bg-emerald-700"
-                  }`}
+                  className="btn btn--sm flex-1"
+                  style={
+                    !selected.isPublic
+                      ? { background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }
+                      : undefined
+                  }
                 >
                   {selected.isPublic ? "비공개로 변경" : "공개로 변경"}
                 </button>
@@ -295,17 +298,16 @@ export function AdminTournamentsContent({
                   <select
                     name="status"
                     defaultValue=""
-                    className="flex-1 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-secondary)] outline-none focus:border-[var(--color-accent)]"
+                    className="flex-1 rounded-[10px] border px-3 py-2 text-sm outline-none"
+                    style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)" }}
                   >
                     <option value="" disabled>상태 변경</option>
                     {(TRANSITIONS[selected.status ?? "draft"] ?? []).map((s) => (
                       <option key={s} value={s}>{STATUS_LABEL[s] ?? s}</option>
                     ))}
                   </select>
-                  <button
-                    type="submit"
-                    className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
-                  >
+                  {/* (web) .btn .btn--primary 패턴 */}
+                  <button type="submit" className="btn btn--primary btn--sm">
                     적용
                   </button>
                 </form>

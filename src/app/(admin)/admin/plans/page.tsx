@@ -1,9 +1,22 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper → div + 토큰 (admin/* 단순화)
+// - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--ghost / .btn--sm
+// - thead 자체 className 제거 (admin-table CSS 자동)
+// - tr hover className 제거 (admin-table CSS 자동)
+
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 type Plan = {
   id: string;
@@ -148,7 +161,7 @@ export default function AdminPlansPage() {
       />
 
       {/* 프로모션 관리 */}
-      <Card className="mb-6">
+      <div className={`${CARD_CLASS} mb-6`} style={CARD_STYLE}>
         <h2 className="mb-4 text-base font-semibold">프로모션 관리</h2>
         <div className="space-y-3">
           {PROMO_TIERS.map((tier) => {
@@ -157,103 +170,111 @@ export default function AdminPlansPage() {
             return (
               <div
                 key={tier.membershipType}
-                className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface)] px-4 py-3"
+                className="flex items-center justify-between rounded-[12px] px-4 py-3"
+                style={{ background: "var(--color-surface)" }}
               >
                 <div>
-                  <p className="font-medium text-[var(--color-text-primary)]">{tier.label}</p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
+                  <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>{tier.label}</p>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                     정가 {tier.price} ·{" "}
-                    <span className="font-medium text-[var(--color-primary)]">프로모션 무료 {count}명</span>
+                    <span className="font-medium" style={{ color: "var(--color-primary)" }}>프로모션 무료 {count}명</span>
                   </p>
                 </div>
                 {count > 0 ? (
+                  // (web) .btn 패턴 — 위험 톤은 inline color 만 유지
                   <button
                     onClick={() => endPromotion(tier.membershipType, tier.label)}
                     disabled={endingPromo === tier.membershipType}
-                    className="rounded-[10px] bg-[var(--color-error)]/10 px-4 py-2 text-xs font-semibold text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
+                    className="btn btn--sm disabled:opacity-50"
+                    style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
                   >
                     {endingPromo === tier.membershipType ? "처리 중..." : "프로모션 종료"}
                   </button>
                 ) : (
-                  <span className="rounded-[10px] bg-[var(--color-elevated)] px-3 py-1 text-xs text-[var(--color-text-muted)]">
-                    프로모션 없음
-                  </span>
+                  <span className="badge badge--soft">프로모션 없음</span>
                 )}
               </div>
             );
           })}
         </div>
-        <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+        <p className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
           * 프로모션 종료 시 해당 티어의 subscription_expires_at = NULL 인 유저가 즉시 만료됩니다.
         </p>
-      </Card>
+      </div>
 
       {loading ? (
-        <div className="py-12 text-center text-[var(--color-text-muted)]">로딩 중...</div>
+        <div className="py-12 text-center" style={{ color: "var(--color-text-muted)" }}>로딩 중...</div>
       ) : plans.length === 0 ? (
-        <Card className="py-12 text-center text-[var(--color-text-muted)]">
-          <div className="mb-2 text-3xl text-[var(--color-text-muted)]">--</div>
+        <div className={`${CARD_CLASS} py-12 text-center`} style={{ ...CARD_STYLE, color: "var(--color-text-muted)" }}>
+          <div className="mb-2 text-3xl" style={{ color: "var(--color-text-muted)" }}>--</div>
           등록된 요금제가 없습니다.
-        </Card>
+        </div>
       ) : (
-        <Card>
-          <div className="overflow-x-auto admin-table-wrap">
-            {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-            <table className="admin-table w-full table-fixed text-sm">
-              <colgroup>
-                <col />
-                <col className="w-[130px]" />
-                <col className="w-[90px]" />
-                <col className="w-[105px]" />
-                <col className="w-[75px]" />
-                <col className="w-[165px]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-[var(--color-elevated)] text-left text-xs text-[var(--color-text-muted)]">
-                  <th className="pb-3 pr-4">이름</th>
-                  <th className="pb-3 pr-4">기능 키</th>
-                  <th className="pb-3 pr-4">타입</th>
-                  <th className="pb-3 pr-4">금액</th>
-                  <th className="pb-3 pr-4">상태</th>
-                  <th className="pb-3">관리</th>
+        <div className="overflow-x-auto admin-table-wrap">
+          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+          <table className="admin-table w-full table-fixed text-sm">
+            <colgroup>
+              <col />
+              <col className="w-[130px]" />
+              <col className="w-[90px]" />
+              <col className="w-[105px]" />
+              <col className="w-[75px]" />
+              <col className="w-[165px]" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="pb-3 pr-4">이름</th>
+                <th className="pb-3 pr-4">기능 키</th>
+                <th className="pb-3 pr-4">타입</th>
+                <th className="pb-3 pr-4">금액</th>
+                <th className="pb-3 pr-4">상태</th>
+                <th className="pb-3">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((plan) => (
+                <tr key={plan.id}>
+                  <td data-primary="true" className="py-3 pr-4 font-medium">
+                    {plan.name}
+                    {plan.description && (
+                      <div className="text-xs" style={{ color: "var(--color-text-muted)" }}>{plan.description}</div>
+                    )}
+                  </td>
+                  <td data-label="기능 키" className="py-3 pr-4 font-mono text-xs" style={{ color: "var(--color-text-muted)" }}>{plan.feature_key}</td>
+                  <td data-label="타입" className="py-3 pr-4 text-xs" style={{ color: "var(--color-text-muted)" }}>{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
+                  <td data-label="금액" className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
+                  <td data-label="상태" className="py-3 pr-4">
+                    <span
+                      className="badge badge--soft"
+                      style={
+                        plan.is_active
+                          ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }
+                          : undefined
+                      }
+                    >
+                      {plan.is_active ? "활성" : "비활성"}
+                    </span>
+                  </td>
+                  <td data-actions="true" className="py-3">
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(plan)} className="btn btn--sm">수정</button>
+                      <button onClick={() => handleToggle(plan)} className="btn btn--sm">
+                        {plan.is_active ? "비활성화" : "활성화"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(plan)}
+                        className="btn btn--sm"
+                        style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {plans.map((plan) => (
-                  <tr key={plan.id} className="border-b border-[var(--color-card)] hover:bg-[var(--color-elevated)]/50">
-                    <td data-primary="true" className="py-3 pr-4 font-medium">
-                      {plan.name}
-                      {plan.description && (
-                        <div className="text-xs text-[var(--color-text-muted)]">{plan.description}</div>
-                      )}
-                    </td>
-                    <td data-label="기능 키" className="py-3 pr-4 font-mono text-xs text-[var(--color-text-muted)]">{plan.feature_key}</td>
-                    <td data-label="타입" className="py-3 pr-4 text-xs text-[var(--color-text-muted)]">{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
-                    <td data-label="금액" className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
-                    <td data-label="상태" className="py-3 pr-4">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${plan.is_active ? "bg-[var(--color-success)]/10 text-[var(--color-success)]" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)]"}`}>
-                        {plan.is_active ? "활성" : "비활성"}
-                      </span>
-                    </td>
-                    <td data-actions="true" className="py-3">
-                      <div className="flex gap-2">
-                        <button onClick={() => openEdit(plan)} className="rounded-[8px] bg-[var(--color-elevated)] px-3 py-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-                          수정
-                        </button>
-                        <button onClick={() => handleToggle(plan)} className="rounded-[8px] bg-[var(--color-elevated)] px-3 py-1 text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">
-                          {plan.is_active ? "비활성화" : "활성화"}
-                        </button>
-                        <button onClick={() => handleDelete(plan)} className="rounded-[8px] bg-[var(--color-error)]/10 px-3 py-1 text-xs text-[var(--color-error)] hover:bg-[var(--color-error)]/20">
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Modal */}
