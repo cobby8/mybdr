@@ -1,14 +1,29 @@
 import { redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";
+import { prisma } from "@/lib/db/prisma";
+import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminMobileNav } from "@/components/admin/mobile-admin-nav";
 import { TournamentAdminNav } from "./_components/tournament-admin-nav";
+
+// AdminSidebar/AdminMobileNav role 타입 (admin/layout.tsx 와 동일)
+type AdminRole =
+  | "super_admin"
+  | "site_admin"
+  | "tournament_admin"
+  | "partner_member"
+  | "org_member";
 
 /**
  * 대회 관리 레이아웃 — 서버 컴포넌트로 권한 검증 수행.
- * role이 tournament_admin 또는 super_admin인 경우만 접근 가능.
+ * 2026-05-04 (사용자 요청): (web) 그룹 → (admin) 그룹으로 이동. admin sidebar + mobile nav 적용.
+ * URL 경로 (`/tournament-admin/...`) 는 그대로 유지 (라우트 그룹은 URL 미반영).
+ *
+ * role: tournament_admin 또는 super_admin 만 접근 가능 (admin/layout.tsx 와 동일 권한 체크).
  * 미로그인 또는 권한 부족 시 홈으로 리다이렉트.
+ *
+ * UI: admin sidebar (lg+) + AdminMobileNav (모바일) + TournamentAdminNav (sub-nav 대시보드/단체/내 대회/시리즈/템플릿).
  */
 export default async function TournamentAdminLayout({ children }: { children: React.ReactNode }) {
-  // 서버사이드 권한 체크: 대회관리자 또는 슈퍼관리자만 허용
   const session = await getWebSession();
   if (!session) {
     redirect("/login");
@@ -18,11 +33,47 @@ export default async function TournamentAdminLayout({ children }: { children: Re
     redirect("/login?error=no_permission");
   }
 
+  // AdminSidebar 표시용 role 목록 — admin/layout.tsx 와 동일 패턴
+  const roles: AdminRole[] = [];
+  const userId = BigInt(session.sub);
+
+  if (session.role === "super_admin") roles.push("super_admin");
+  if (session.admin_role === "site_admin") roles.push("site_admin");
+  if (session.role === "tournament_admin") roles.push("tournament_admin");
+
+  // partner_member / org_member 체크 (super_admin 외)
+  if (!roles.includes("super_admin")) {
+    const [partnerMembership, orgMembership] = await Promise.all([
+      prisma.partner_members.findFirst({
+        where: { user_id: userId, is_active: true },
+        select: { id: true },
+      }),
+      prisma.organization_members.findFirst({
+        where: { user_id: userId, is_active: true },
+        select: { id: true },
+      }),
+    ]);
+    if (partnerMembership) roles.push("partner_member");
+    if (orgMembership) roles.push("org_member");
+  }
+
   return (
-    <div className="min-h-screen bg-[var(--color-card)]">
-      {/* 클라이언트 네비게이션 (usePathname 사용) */}
-      <TournamentAdminNav />
-      <main className="mx-auto max-w-7xl p-6">{children}</main>
+    <div className="min-h-screen bg-[var(--color-background)]">
+      {/* 데스크톱 사이드바 (lg+) — admin/layout.tsx 와 동일 패턴 */}
+      <div className="hidden lg:block">
+        <AdminSidebar roles={roles} />
+      </div>
+      {/* 모바일 햄버거 + 드로어 (lg 미만) */}
+      <div className="lg:hidden">
+        <AdminMobileNav roles={roles} />
+      </div>
+      <main className="lg:ml-64">
+        <div className="mx-auto max-w-7xl p-6 pt-16 lg:pt-6">
+          {/* 대회 관리 sub-nav (대시보드/단체/내 대회/시리즈/템플릿) */}
+          <TournamentAdminNav />
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

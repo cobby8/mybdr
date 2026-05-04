@@ -8,7 +8,7 @@
 
 ## 🎯 현재 작업
 
-**[P3 결정 완료 — C 채택]** 도메인 sub-agent P3 = **C 확정** (사용자 승인 / live-expert 유지 + 신규 박제 0). decisions.md +1 + lessons.md +3 + index.md 카운트 갱신 (decisions 100, lessons 35) + 최근 추가 prepend 4건 완료. live-expert.md 영구 운영 + KPI 측정 종료. PM 호출 룰 미갱신 (기존 9개 유지). 본 세션 대규모 작업 모두 완료 (매치 코드 v4 전 Phase + 도메인 sub-agent P1+P2+P3).
+**[기획설계 완료 — 사용자 승인 대기]** 듀얼토너먼트 표준 포맷화 + 대회관리자 자동 적용 분석. 옵션 C 권장 (점진 수정 — generator는 대부분 OK / settings 표준화 + admin UI 신설 / bracket-builder UI fix 1건). 7 Phase 추정 7~10시간. 본 turn은 **분석만** — PM 승인 후 실작업 진입. 상세는 §기획설계 섹션.
 
 ---
 
