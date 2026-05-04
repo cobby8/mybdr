@@ -277,13 +277,17 @@ export function AppNav({
       {/* 하단 1px 구분선 (다크 모드에서 2px hard 강조) */}
       <div className="app-nav__bottom-line" />
 
-      {/* 모바일 드로어 — open 상태 관리는 여기서 */}
+      {/* 모바일 드로어 — open 상태 관리는 여기서.
+          2026-05-04: NEW 뱃지 props (경기/커뮤니티/알림) 전달 — drawer 메뉴 항목별 시각 표시. */}
       <AppDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         tabs={tabs}
         isActive={isActive}
         user={user}
+        newGameCount={newGameCount}
+        newCommunityCount={newCommunityCount}
+        unreadCount={unreadCount}
       />
     </nav>
   );

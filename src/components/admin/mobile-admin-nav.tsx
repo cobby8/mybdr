@@ -8,8 +8,8 @@
  *      대회 현장에서 모바일로 접속 시 운영 차질 발생 가능.
  *
  * 해결 (Phase A 결정):
- *  (1) 햄버거 + 좌측 드로어 (오버레이)
- *  (2) 클릭 시 좌측에서 슬라이드
+ *  (1) 햄버거 + 우측 드로어 (오버레이) — 2026-05-04 햄버거 우상단 이동 후 일관성
+ *  (2) 클릭 시 우측에서 슬라이드 (web AppNav drawer 와 동일 방향)
  *  (3) 외부 영역 클릭 + 닫기 버튼 + ESC 키 + 페이지 이동 시 자동 닫힘
  *  (4) 햄버거: 페이지 상단 우측 고정 (lg:hidden) — 2026-05-04 (web) AppNav 와 동일 위치 정합
  *  (5) 활성 메뉴 표시: 데스크톱과 동일 (BDR Red 배경 + 흰 텍스트)
@@ -17,8 +17,8 @@
  * 구조:
  *  - 햄버거 버튼: lg:hidden fixed top-3 right-3 z-50
  *  - 백드롭: lg:hidden fixed inset-0 bg-black/50 z-40 (open 시)
- *  - 드로어 패널: lg:hidden fixed left-0 top-0 z-50 h-screen w-72
- *                 transform transition-transform translate-x-(-100% / 0)
+ *  - 드로어 패널: lg:hidden fixed right-0 top-0 z-50 h-screen w-72
+ *                 transform transition-transform translate-x-(0 / 100%)
  *
  * AdminSidebar (sidebar.tsx) 와 메뉴 데이터 공유: navItems + filterMenuByRoles export 재사용.
  * ============================================================ */
@@ -135,13 +135,13 @@ export function AdminMobileNav({ roles }: Props) {
         />
       )}
 
-      {/* 드로어 패널 — 좌측 슬라이드 (transform translate-x) */}
+      {/* 드로어 패널 — 2026-05-04 우측 슬라이드 (햄버거 우상단 일관 + web AppNav 동일 방향) */}
       <aside
         role="dialog"
         aria-modal="true"
         aria-label="관리자 메뉴"
-        className={`lg:hidden fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-transform duration-300 ease-out ${
-          open ? "translate-x-0" : "-translate-x-full"
+        className={`lg:hidden fixed right-0 top-0 z-50 flex h-screen w-72 flex-col border-l border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-transform duration-300 ease-out ${
+          open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* 상단: 로고 + 닫기 버튼 */}
