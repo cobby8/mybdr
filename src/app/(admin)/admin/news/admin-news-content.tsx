@@ -113,37 +113,19 @@ export function AdminNewsContent({
 
   return (
     <div className="flex gap-4 p-4">
-      {/* 좌 sidebar — status 탭 */}
-      <aside className="w-48 shrink-0 space-y-2">
-        <Link
-          href="/admin/news?status=draft"
-          className={`block rounded-md px-3 py-2 text-sm ${
-            currentStatus === "draft"
-              ? "bg-[var(--color-accent)] text-white"
-              : "bg-[var(--color-bg-elev1)] text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]"
-          }`}
-        >
-          🟡 검수 대기 ({counts.draft})
+      {/* 좌 sidebar — status 탭 (2026-05-04 (web) .aside__link 패턴 통일) */}
+      <aside className="w-48 shrink-0">
+        <Link href="/admin/news?status=draft" className="aside__link" data-active={currentStatus === "draft"}>
+          <span>🟡 검수 대기</span>
+          <span className="count">{counts.draft}</span>
         </Link>
-        <Link
-          href="/admin/news?status=published"
-          className={`block rounded-md px-3 py-2 text-sm ${
-            currentStatus === "published"
-              ? "bg-[var(--color-accent)] text-white"
-              : "bg-[var(--color-bg-elev1)] text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]"
-          }`}
-        >
-          ✅ 발행됨 ({counts.published})
+        <Link href="/admin/news?status=published" className="aside__link" data-active={currentStatus === "published"}>
+          <span>✅ 발행됨</span>
+          <span className="count">{counts.published}</span>
         </Link>
-        <Link
-          href="/admin/news?status=rejected"
-          className={`block rounded-md px-3 py-2 text-sm ${
-            currentStatus === "rejected"
-              ? "bg-[var(--color-accent)] text-white"
-              : "bg-[var(--color-bg-elev1)] text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]"
-          }`}
-        >
-          🚫 거절됨 ({counts.rejected})
+        <Link href="/admin/news?status=rejected" className="aside__link" data-active={currentStatus === "rejected"}>
+          <span>🚫 거절됨</span>
+          <span className="count">{counts.rejected}</span>
         </Link>
       </aside>
 
@@ -229,13 +211,13 @@ export function AdminNewsContent({
                     <button
                       onClick={() => handleEditSave(selected.id)}
                       disabled={isPending}
-                      className="rounded bg-[var(--color-accent)] px-4 py-2 text-sm text-white disabled:opacity-50"
+                      className="btn btn--primary btn--sm"
                     >
                       저장
                     </button>
                     <button
                       onClick={() => setEditing(false)}
-                      className="rounded border border-[var(--color-border)] px-4 py-2 text-sm"
+                      className="btn btn--sm"
                     >
                       취소
                     </button>
@@ -263,21 +245,23 @@ export function AdminNewsContent({
                     {selected.content.length}자
                   </div>
 
-                  {/* 액션 — draft 상태에서만 publish/reject, 모든 상태에서 regenerate */}
+                  {/* 액션 — draft 상태에서만 publish/reject, 모든 상태에서 regenerate
+                      2026-05-04: (web) .btn 클래스 통일 */}
                   <div className="flex flex-wrap gap-2 pt-2">
                     {selected.status === "draft" && (
                       <>
                         <button
                           onClick={() => handlePublish(selected.id)}
                           disabled={isPending}
-                          className="rounded bg-[var(--color-accent)] px-4 py-2 text-sm text-white disabled:opacity-50"
+                          className="btn btn--primary btn--sm"
                         >
                           ✅ 발행
                         </button>
                         <button
                           onClick={() => handleReject(selected.id)}
                           disabled={isPending}
-                          className="rounded border border-[var(--color-err)] px-4 py-2 text-sm text-[var(--color-err)] disabled:opacity-50"
+                          className="btn btn--sm"
+                          style={{ borderColor: "var(--color-err)", color: "var(--color-err)" }}
                         >
                           🚫 거절
                         </button>
@@ -286,7 +270,7 @@ export function AdminNewsContent({
                     <button
                       onClick={() => handleRegenerate(selected.id)}
                       disabled={isPending}
-                      className="rounded border border-[var(--color-border)] px-4 py-2 text-sm disabled:opacity-50"
+                      className="btn btn--ghost btn--sm"
                     >
                       🔄 본기사 재생성
                     </button>
@@ -295,7 +279,7 @@ export function AdminNewsContent({
                       <button
                         onClick={() => handleRegenerateSummary(selected.tournament_match_id!)}
                         disabled={isPending}
-                        className="rounded border border-[var(--color-border)] px-4 py-2 text-sm disabled:opacity-50"
+                        className="btn btn--ghost btn--sm"
                         title="라이브 페이지 [Lead] 요약 재생성 (본기사 영향 X)"
                       >
                         📝 요약 재생성
@@ -305,7 +289,7 @@ export function AdminNewsContent({
                       <Link
                         href={`/live/${selected.tournament_match_id}`}
                         target="_blank"
-                        className="rounded border border-[var(--color-border)] px-4 py-2 text-sm"
+                        className="btn btn--ghost btn--sm"
                       >
                         매치 페이지 ↗
                       </Link>

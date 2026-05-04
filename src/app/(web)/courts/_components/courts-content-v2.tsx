@@ -111,6 +111,9 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
   const [filter, setFilter] = useState<FilterKey>("all");
   // 지역 드롭다운: 시안에는 없지만 기존 데이터 가치(필터링) 보존
   const [cityFilter, setCityFilter] = useState<string>("all");
+  // 2026-05-04 (B작업): 지역 select 를 .games-filter-btn 아이콘 토글로 변경 — community 패턴.
+  // 기본 닫힘. 클릭 시 펼침 panel 에 지역 select. cityFilter 가 "all" 외면 활성 표시.
+  const [regionOpen, setRegionOpen] = useState<boolean>(false);
 
   // ─── 지도/선택 상태 ───
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
@@ -330,22 +333,57 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
           </div>
         </div>
 
-        {/* 우측: 지역 드롭다운 (보존) */}
+        {/* 우측: 지역 아이콘 토글 — 2026-05-04 B작업: 큰 select → .games-filter-btn 통일.
+            cityFilter 활성 시 has-active 시각 표시. 클릭 시 .page-hero 직후 펼침 panel 에 select. */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <button
+            type="button"
+            className={`games-filter-btn${regionOpen ? " is-open" : ""}${cityFilter !== "all" ? " has-active" : ""}`}
+            onClick={() => setRegionOpen((o) => !o)}
+            aria-label="지역 필터"
+            aria-expanded={regionOpen}
+            title="지역"
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">place</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 지역 펼침 panel — regionOpen 시. select 그대로 유지 (cities 데이터 보존). */}
+      {regionOpen && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 10px",
+            background: "var(--bg-elev)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-chip)",
+            marginBottom: 10,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 16, color: "var(--ink-dim)", flexShrink: 0 }}
+          >
+            place
+          </span>
           <select
             value={cityFilter}
             onChange={(e) => {
               setCityFilter(e.target.value);
               setSelectedCourtId(null);
             }}
-            className="input"
             style={{
+              flex: 1,
+              border: 0,
+              padding: 0,
+              background: "transparent",
               fontSize: 13,
-              padding: "8px 12px",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-chip)",
-              background: "var(--bg-elev)",
               color: "var(--ink)",
+              outline: "none",
+              minWidth: 0,
             }}
           >
             <option value="all">전체 지역</option>
@@ -356,10 +394,21 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
             ))}
           </select>
         </div>
-      </div>
+      )}
 
-      {/* ─── 5필터칩 (시안 핵심) ─── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      {/* ─── 5필터칩 + 히트맵 — 2026-05-04 B작업: flex-wrap → nowrap + overflow-x:auto.
+          모바일에서 wrap 대신 가로 스크롤로 한 row 유지 → Hero 영역 컴팩트화. ─── */}
+      <div
+        className="scrollbar-hide"
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 16,
+          flexWrap: "nowrap",
+          overflowX: "auto",
+          paddingBottom: 4,
+        }}
+      >
         {FILTERS.map((f) => {
           const isActive = filter === f.key;
           return (
@@ -370,15 +419,16 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
                 setSelectedCourtId(null);
               }}
               className="btn btn--sm"
-              style={
-                isActive
+              style={{
+                flexShrink: 0,
+                ...(isActive
                   ? {
                       background: "var(--cafe-blue, var(--accent))",
                       color: "#fff",
                       borderColor: "var(--cafe-blue-deep, var(--accent))",
                     }
-                  : {}
-              }
+                  : {}),
+              }}
             >
               {f.label}
             </button>
@@ -392,6 +442,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
             alignSelf: "stretch",
             background: "var(--border)",
             margin: "0 4px",
+            flexShrink: 0,
           }}
         />
 
@@ -399,15 +450,16 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
         <button
           onClick={() => setHeatmapOn((p) => !p)}
           className="btn btn--sm"
-          style={
-            heatmapOn
+          style={{
+            flexShrink: 0,
+            ...(heatmapOn
               ? {
                   background: "var(--accent)",
                   color: "#fff",
                   borderColor: "var(--accent)",
                 }
-              : {}
-          }
+              : {}),
+          }}
         >
           <span className="material-symbols-outlined" style={{ fontSize: 14, marginRight: 2 }}>
             whatshot
@@ -424,7 +476,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
         </button>
 
         {heatmapOn && (
-          <div style={{ display: "flex", gap: 4 }}>
+          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
             {HEATMAP_PERIODS.map((p) => (
               <button
                 key={p.key}
@@ -437,8 +489,9 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
                         color: "#fff",
                         borderColor: "var(--accent)",
                         fontSize: 11,
+                        flexShrink: 0,
                       }
-                    : { fontSize: 11 }
+                    : { fontSize: 11, flexShrink: 0 }
                 }
               >
                 {p.label}

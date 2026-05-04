@@ -5,8 +5,6 @@ import { prisma } from "@/lib/db/prisma";
 // Phase 3 Court v2 시안 적용: CourtsContent → CourtsContentV2 교체
 // 기존 CourtsContent (courts-content.tsx) 는 보존 — 필요 시 import 1줄만 되돌리면 즉시 롤백
 import { CourtsContentV2 } from "./_components/courts-content-v2";
-// Phase 12 §G: 모바일 백버튼 (사용자 보고)
-import { PageBackButton } from "@/components/shared/page-back-button";
 
 // SEO: 코트 찾기 페이지 메타데이터
 export const metadata: Metadata = {
@@ -146,14 +144,10 @@ export default async function CourtsPage() {
   const { courts, cities } = await getCourtsData();
 
   return (
-    <>
-      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). page wrapper 부재 → 페이지 좌우 패딩만 부여 */}
-      <div style={{ padding: "12px var(--gutter) 0" }}>
-        <PageBackButton fallbackHref="/" />
-      </div>
-      <Suspense fallback={null}>
-        <CourtsContentV2 courts={courts} cities={cities} />
-      </Suspense>
-    </>
+    // 2026-05-04: 메인 페이지에서 PageBackButton 제거 (BottomNav 가 홈 이동 대체).
+    // courts 는 1차 진입 페이지이므로 모바일 뒤로 버튼 불필요 — 사용자 보고 (UX 어색).
+    <Suspense fallback={null}>
+      <CourtsContentV2 courts={courts} cities={cities} />
+    </Suspense>
   );
 }

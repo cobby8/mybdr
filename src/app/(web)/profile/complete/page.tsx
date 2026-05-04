@@ -33,7 +33,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고)
-import { PageBackButton } from "@/components/shared/page-back-button";
 
 // 농구 5포지션 — 시안과 동일하게 라벨/설명 포함
 const POSITIONS = [
@@ -260,9 +259,7 @@ export default function ProfileCompletePage() {
 
   return (
     <div className="page mx-auto" style={{ maxWidth: 560, paddingTop: 30 }}>
-      {/* Phase 12 §G — 모바일 백버튼 (lg+ hidden). 위저드 step 1 진입 직후만 의미.
-          진입은 verify 직후 자동 redirect → 외부에서 직접 들어왔을 때 fallback "/" */}
-      <PageBackButton fallbackHref="/" />
+      {/* 2026-05-04: 메인 페이지에서 PageBackButton 제거 (BottomNav 가 홈 이동 대체) */}
       {/* 시안 진행 막대 (L77-86) */}
       <div style={{ marginBottom: 24 }}>
         <div
