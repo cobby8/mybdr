@@ -40,6 +40,7 @@ interface Props {
 }
 
 // 2026-05-04: 메뉴 항목 1개 렌더링 (children 들여쓰기 + 클릭 시 드로어 닫기)
+// (web) community-aside 패턴 (.aside__link + data-active) 적용 — 데스크톱 사이드바와 시각 통일
 function renderMobileItem(
   item: AdminNavItem,
   pathname: string,
@@ -50,23 +51,23 @@ function renderMobileItem(
     item.href === "/admin"
       ? pathname === "/admin"
       : pathname.startsWith(item.href);
-  const indent = depth > 0 ? "ml-4" : "";
+  const indentStyle = depth > 0 ? { paddingLeft: 28 } : undefined;
   return (
     <div key={item.href}>
       <Link
         href={item.href}
         onClick={closeFn}
-        className={`${indent} flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200 ${
-          isActive
-            ? "bg-[var(--color-primary)] font-bold text-white shadow-sm"
-            : "text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
-        }`}
+        className="aside__link"
+        data-active={isActive}
+        style={indentStyle}
       >
-        <span className="material-symbols-outlined text-xl">{item.icon}</span>
-        {item.label}
+        <span>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{item.icon}</span>
+          {item.label}
+        </span>
       </Link>
       {item.children && item.children.length > 0 && (
-        <div className="mt-0.5 space-y-0.5">
+        <div>
           {item.children.map((c) => renderMobileItem(c, pathname, closeFn, depth + 1))}
         </div>
       )}
@@ -175,19 +176,17 @@ export function AdminMobileNav({ roles }: Props) {
           </button>
         </div>
 
-        {/* 메뉴 — 활성 표시 데스크톱과 동일 (BDR Red 배경 + 흰 텍스트)
-            2026-05-04: 그룹화 + children 들여쓰기 + overflow-y-auto */}
-        <nav className="flex flex-1 flex-col overflow-y-auto pr-1 -mr-1 space-y-3">
+        {/* 메뉴 — 활성 표시 데스크톱과 동일 (.aside__link[data-active=true])
+            2026-05-04: 그룹화 + community-aside 패턴 적용 (.aside__title + .aside__link) */}
+        <nav className="flex flex-1 flex-col overflow-y-auto pr-1 -mr-1">
           {visibleStructure.map((entry, idx) => {
             if (entry.type === "item") {
               return renderMobileItem(entry, pathname, () => setOpen(false));
             }
-            // 그룹 — 헤더 + items
+            // 그룹 — .aside__title 헤더 + items
             return (
-              <div key={`group-${idx}`} className="space-y-0.5">
-                <div className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-                  {entry.label}
-                </div>
+              <div key={`group-${idx}`}>
+                <div className="aside__title">{entry.label}</div>
                 {entry.items.map((item) => renderMobileItem(item, pathname, () => setOpen(false)))}
               </div>
             );
@@ -195,20 +194,15 @@ export function AdminMobileNav({ roles }: Props) {
         </nav>
 
         {/* 하단: 테마 토글 + 사이트로 돌아가기 */}
-        <div className="border-t border-[var(--color-border)] pt-4 space-y-2">
-          {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (모바일 단일 아이콘 / md+ 듀얼 라벨) */}
-          <div className="px-2">
+        <div className="border-t border-[var(--color-border)] pt-3">
+          <div className="px-3 pb-2">
             <ThemeSwitch />
           </div>
-          <Link
-            href="/"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm text-[var(--color-text-muted)] transition-all duration-200 hover:bg-[var(--color-elevated)] hover:text-[var(--color-text-primary)]"
-          >
-            <span className="material-symbols-outlined text-xl">
-              arrow_back
+          <Link href="/" onClick={() => setOpen(false)} className="aside__link">
+            <span>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+              사이트로 돌아가기
             </span>
-            사이트로 돌아가기
           </Link>
         </div>
       </aside>
