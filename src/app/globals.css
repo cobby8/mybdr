@@ -481,6 +481,14 @@ html.dark .app-nav__tab[data-active="true"]::after {
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 24px;
 }
+/* 2026-05-04 (6차 fix — 최종 본질): grid item 의 min-width default = auto (min-content) 라서
+   main 안 자식(게시글 board 등)의 nowrap max-content 가 main 을 viewport 너머로 확장.
+   결과: .page-hero 폭이 viewport 2배 → 우측 column actions 가 viewport 밖으로 밀림.
+   해소: main 에 min-width:0 강제 → main 이 1fr column 폭에 맞춰지고 자식 overflow 는
+   main 안에서 처리 (.page overflow-x:hidden 으로 시각적 잘림). actions 정상 표시. */
+.with-aside > main {
+  min-width: 0;
+}
 @media (max-width: 900px) { .with-aside { grid-template-columns: 1fr; } }
 
 /* ============================================================
@@ -547,9 +555,9 @@ html.dark .app-nav__tab[data-active="true"]::after {
   gap: 6px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  /* 우측 padding 36px = fade overlay (32px) 공간 + 약간의 여유.
-     마지막 탭이 fade overlay 뒤에 가려지지 않게 확보 */
-  padding: 4px 36px 8px 0;
+  /* 우측 padding 48px = fade overlay (44px) 공간 + 여유 4px.
+     마지막 탭이 fade overlay 뒤에 가려지지 않게 확보 (2026-05-04 4차 fix). */
+  padding: 4px 48px 8px 0;
   /* 6px scrollbar (Firefox: thin / WebKit: 아래 별도 룰) — 보조 신호. 메인 신호는 fade overlay */
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
@@ -565,27 +573,43 @@ html.dark .app-nav__tab[data-active="true"]::after {
 .aside-mobile-tabs::-webkit-scrollbar-track {
   background: transparent;
 }
-/* 우측 fade overlay — 항상 우측 고정 (스크롤 따라가지 않음). 메인 시각 신호 */
+/* 우측 fade overlay — 항상 우측 고정 (스크롤 따라가지 않음). 메인 시각 신호.
+   2026-05-04 (4차 fix): width 32→44 / gradient 70→40% (fade 일찍 시작) / chevron 22→24
+   — 사용자 보고 "여전히 잘림 인지 못함". gradient 시작점 앞당겨 fade 영역 넓히고,
+   chevron 더 크게. */
 .aside-mobile-tabs-fade {
   position: absolute;
   top: 0;
   right: 0;
   /* scrollbar 6px 만큼 띄움 — 화살표가 스크롤바 위에 올라타지 않게 */
   bottom: 6px;
-  width: 32px;
+  width: 44px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  /* 좌→우 transparent → bg fade — 끝에 더 있다는 신호 강화 */
-  background: linear-gradient(to right, transparent 0%, var(--bg) 70%);
+  justify-content: flex-end;
+  padding-right: 6px;
+  /* 좌→우 transparent → bg fade — 시작점 40% 로 앞당겨 fade 영역 확장 */
+  background: linear-gradient(to right, transparent 0%, var(--bg) 40%);
   /* 클릭 가로채지 않음 — 탭 자체는 항상 클릭 가능 */
   pointer-events: none;
   z-index: 1;
   color: var(--accent);
 }
+/* 2026-05-04 (4차 fix): chevron 원형 배지 — fade gradient 끝색 = 부모 배경(#F4F6FA) 동일이라
+   무대비. chevron 자체에 bg-elev 배경 + border + 원형 + box-shadow 박아 배경 무관 명확 표시. */
 .aside-mobile-tabs-fade .material-symbols-outlined {
-  font-size: 22px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   font-weight: 700;
+  box-shadow: var(--sh-sm);
+  color: var(--accent);
 }
 /* PC (lg+) 강제 숨김 — wrap 자체를 숨겨 fade overlay 도 함께 사라짐 */
 @media (min-width: 1024px) {
@@ -606,8 +630,8 @@ html.dark .app-nav__tab[data-active="true"]::after {
   display: flex;
   align-items: center;
   gap: 10px;
-  /* 우측 padding 36px = fade overlay (32px) 공간 + 약간의 여유. 마지막 캡션이 가려지지 않게 */
-  padding: 10px 36px 10px 12px;
+  /* 우측 padding 48px = fade overlay (44px) 공간 + 여유 4px. 마지막 캡션이 가려지지 않게 (2026-05-04 4차 fix). */
+  padding: 10px 48px 10px 12px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius-chip);
@@ -630,26 +654,39 @@ html.dark .app-nav__tab[data-active="true"]::after {
   background: transparent;
 }
 /* 우측 fade overlay — sort-bar 는 border-radius 가 있으므로 우측만 살짝 둥글게.
-   bg-elev 컬러로 fade — sort-bar 배경과 동일하게 자연스럽게 사라지도록 */
+   bg-elev 컬러로 fade — sort-bar 배경과 동일하게 자연스럽게 사라지도록.
+   2026-05-04 (4차 fix): width 32→44 / gradient 70→40% / chevron 22→24 (카테고리 탭과 동일 강화) */
 .sort-bar-mobile-fade {
   position: absolute;
   top: 1px; /* border 1px 회피 */
   right: 1px;
   bottom: 7px; /* border 1px + scrollbar 6px */
-  width: 32px;
+  width: 44px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(to right, transparent 0%, var(--bg-elev) 70%);
+  justify-content: flex-end;
+  padding-right: 6px;
+  background: linear-gradient(to right, transparent 0%, var(--bg-elev) 40%);
   /* 우측 둥근 모서리 — sort-bar border-radius 와 맞춤 */
   border-radius: 0 var(--radius-chip) var(--radius-chip) 0;
   pointer-events: none;
   z-index: 1;
   color: var(--accent);
 }
+/* 2026-05-04 (4차 fix): chevron 원형 배지 — 카테고리 탭과 동일 패턴 (fade 색상 무대비 본질 fix). */
 .sort-bar-mobile-fade .material-symbols-outlined {
-  font-size: 22px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   font-weight: 700;
+  box-shadow: var(--sh-sm);
+  color: var(--accent);
 }
 /* PC (lg+) 에서도 정렬 바 자체는 보일 수 있으나, fade overlay 는 가로 폭 충분하면
    불필요한 시각 잡음. 다만 정렬 바 wrap 은 모바일 전용 컨테이너이므로 그대로 표시.
@@ -1619,11 +1656,17 @@ html.dark .hero-carousel__accent {
     display: flex; flex-direction: column; gap: 8px;
   }
 
-  /* ---- Page shell ---- */
-  .page { padding: 16px var(--gutter) 80px; }
+  /* ---- Page shell ----
+     2026-05-04: 모바일 padding-top 16 → 8 — 사용자 요청 "헤더 ↔ Hero eyebrow 사이
+     마진 압축, games 페이지처럼". 5 페이지 (community/games/tournaments/teams/rankings/
+     courts) 일괄 영향 — 시안 우선, 첫 컨텐츠 도달 더 빠르게. */
+  .page { padding: 8px var(--gutter) 80px; }
 
-  /* Two-col layouts collapse */
-  .with-aside { grid-template-columns: 1fr !important; gap: 14px; }
+  /* Two-col layouts collapse.
+     2026-05-04 (4차 fix): row-gap 0 — 사이드바 hidden 모바일에서 grid row gap 14px 불필요.
+     기존: gap:14px → grid 1행이지만 일부 브라우저에서 row-gap 적용되어 헤더 ↔ main 사이 +14px 빈공간 발생.
+     해소: column-gap 만 14px (PC 와 동일), row-gap 0 으로 모바일 wrap 시 빈공간 제거. */
+  .with-aside { grid-template-columns: 1fr !important; column-gap: 14px; row-gap: 0; }
   .aside { display: none; }  /* desktop sidebar hidden; drawer covers it */
 
   /* ---- Profile (P2-2 Med) ----

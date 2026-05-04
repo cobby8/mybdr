@@ -310,18 +310,19 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
   return (
     <div className="max-w-[1200px] mx-auto">
       {/* ─── 시안 헤더 ─── */}
-      {/* 2026-05-03 (Hero 공통화): 텍스트 블록 → .page-hero__* (모바일 압축 룰). */}
+      {/* 2026-05-03 (Hero 공통화): 텍스트 블록 → .page-hero__* (모바일 압축 룰).
+          2026-05-04 (재발 방지): flex+wrap 폐기 → grid 1fr auto (community 5차 fix와 동일 패턴).
+          이유: 모바일에서 우측 select 가 wrap 되어 .page-hero 자체 height 증가하던 잠재 회귀. */}
       <div
         style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          alignItems: "start",
+          columnGap: 12,
         }}
         className="page-hero"
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div className="eyebrow page-hero__eyebrow">코트 · COURTS</div>
           <h1 className="page-hero__title">등록 코트 {stats.total}곳</h1>
           <div className="page-hero__subtitle">
@@ -330,7 +331,7 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
         </div>
 
         {/* 우측: 지역 드롭다운 (보존) */}
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
           <select
             value={cityFilter}
             onChange={(e) => {
