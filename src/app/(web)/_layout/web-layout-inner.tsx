@@ -55,13 +55,19 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
         .catch(() => null),
     ]).then(([userData, notifData]) => {
       // userData는 라우트에서 snake_case/camelCase 혼재 가능성 → AppNav에는 최소 필드만
-      if (userData) {
-        const u = userData as {
-          name?: string;
-          role?: string;
-          prefer_filter_enabled?: boolean;
-          is_referee?: boolean;
-        };
+      // 2026-05-05 fix: 옵션 B 후속 — /api/web/me 가 비로그인 시 200 + {id: null} 응답 (이전 401).
+      //   본질: 사용자 신고 — "새로고침하면 로그인 버튼 떴다가 다시 이 화면 (헤더 사용자/설정/로그아웃)".
+      //         SSR initialUser=null (비로그인) → 첫 paint 정상 → client useEffect fetch 200+{id:null}
+      //         → if (userData) truthy 통과 → setUser({name:undefined??"사용자"}) → 헤더 잘못 표시.
+      //   fix: id 검증 추가 — userData.id 없으면 비로그인 처리.
+      const u = userData as {
+        id?: string | number | null;
+        name?: string;
+        role?: string;
+        prefer_filter_enabled?: boolean;
+        is_referee?: boolean;
+      } | null;
+      if (u && u.id) {
         setUser({
           name: u.name ?? "사용자",
           role: u.role ?? "user",
@@ -70,7 +76,7 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
         setLoggedIn(true, u.prefer_filter_enabled ?? false);
         if (notifData) setUnreadCount(notifData.unread_count ?? 0);
       } else {
-        // 401 등 → 비로그인 (SSR 과 일치)
+        // 401 또는 200+{id:null} → 비로그인 (SSR 과 일치)
         setUser(null);
         setLoggedIn(false, false);
       }
