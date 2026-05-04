@@ -1678,13 +1678,14 @@ html.dark .hero-carousel__accent {
   }
   .drawer__body { flex: 1; overflow: auto; padding: 8px 0; }
   .drawer__item {
-    /* 2026-05-04: 여백 압축 — padding 14→10 (사용자 보고 "여백 너무 많음").
-       min-height 44px 터치 타겟 유지. gap 8 = 라벨 ↔ NavBadge 간격. */
+    /* 2026-05-04: 여백 압축 (2차) — padding 10→8 + min-height 44 제거 (사용자 보고 "크게 변한게 없음").
+       1차 (10/44px) 는 min-height 가 padding 효과 무력화 → 시각 압축 0. min-height 제거 후
+       padding 8px 상하 + line-height 1.4 = row 약 30px (이전 ~52px 대비 -22px, ~42% 압축).
+       터치 타겟 가이드(44px) 미만이지만 햄버거 메뉴는 dense layout 허용 + 사용자 의도 우선. */
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 10px 16px; font-size: 15px; color: var(--ink);
+    padding: 8px 16px; font-size: 15px; line-height: 1.4; color: var(--ink);
     background: transparent; border: 0; width: 100%; text-align: left;
     cursor: pointer; font-weight: 600;
-    min-height: 44px;
   }
   .drawer__item:hover, .drawer__item:focus { background: var(--bg-alt); }
   .drawer__item[data-active="true"] {
