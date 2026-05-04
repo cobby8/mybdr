@@ -42,13 +42,9 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "내 활동",
     items: [
-      // [2026-05-04] 11건 정리 — 메인 페이지 하위 / BottomNav 중복 제거 (사용자 결정).
-      // 제거: mygames(/games/my-games games하위) / achievements(/profile/achievements) /
-      //       communityNew(/community/new community하위 — 글쓰기 버튼 있음)
-      // 각 페이지에서 직접 진입 (games my-games 탭 / profile activity / community 글쓰기 버튼).
+      // [2026-05-04] 1차 11건 정리 + 2차 추가 제거 — messages (헤더 메시지 아이콘 중복)
       { id: "calendar", label: "내 일정", icon: "📅", href: "/calendar" },
       { id: "saved", label: "보관함", icon: "🔖", href: "/saved" },
-      { id: "messages", label: "쪽지", icon: "💬", href: "/messages" },
       { id: "stats", label: "스탯 분석", icon: "📈", href: "/stats" },
     ],
   },
@@ -67,13 +63,8 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "둘러보기",
     items: [
-      // v2.1 추가 — components.jsx (Dev/design/BDR v2.1)
+      // [2026-05-04] 추가 제거 — searchResults(/search 헤더 검색 + drawer 보조 검색 3중 중복)
       { id: "refereeInfo", label: "심판 센터 안내", icon: "🦓", href: "/referee-info" },
-      { id: "searchResults", label: "검색 결과", icon: "🔎", href: "/search" },
-      // [2026-04-29] referee 제거 — phase-9 1-A: 일반 사용자 메뉴에서 노출 X.
-      // is_referee=true 사용자는 AppNav 더보기 패널의 "운영" 그룹에 별도 노출됨.
-      // 추후 구현 (일반 사용자 진입점이 필요해질 때):
-      //   { id: "referee", label: "심판 센터", icon: "🦓", href: "/referee" },
       { id: "coaches", label: "코치·트레이너", icon: "👔", href: "/coaches" },
       { id: "reviews", label: "리뷰", icon: "⭐", href: "/reviews" },
       { id: "awards", label: "수상 아카이브", icon: "🏆", href: "/awards" },
@@ -84,12 +75,8 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "계정·도움",
     items: [
-      // [2026-05-04] 제거: mypage(/profile BottomNav 마이) / editProfile(/profile/edit profile하위) /
-      //                    notificationSettings(/profile/notification-settings profile하위)
-      // 마이페이지 (BottomNav) → 편집/알림설정 진입.
+      // [2026-05-04] 추가 제거 — passwordReset(로그인 상태 의미 없음) / onboardingV2(가입 wizard 1회성)
       { id: "safety", label: "안전·차단", icon: "🛡", href: "/safety" },
-      { id: "passwordReset", label: "비밀번호 찾기", icon: "🔑", href: "/forgot-password" },
-      { id: "onboardingV2", label: "가입 설정", icon: "🎯", href: "/onboarding/setup" },
       { id: "about", label: "소개", icon: "ℹ", href: "/about" },
       { id: "pricing", label: "요금제", icon: "💎", href: "/pricing" },
       { id: "help", label: "도움말", icon: "❓", href: "/help" },

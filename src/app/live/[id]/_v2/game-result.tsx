@@ -128,6 +128,10 @@ export interface MatchDataV2 {
   away_score: number;
   round_name: string | null;
   tournament_name: string;
+  // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드
+  // 형식: `26-GG-MD21-001` (14자 영숫자) 또는 null (short_code/region_code 미부여 대회)
+  // hero-scoreboard 가 NULL 안전 분기로 표시
+  match_code?: string | null;
   quarter_scores: {
     home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };

@@ -2,13 +2,15 @@
  * POST /api/web/upload/news-photo
  * 알기자 (BDR NEWS) 기사 사진 업로드 — admin only.
  *
+ * 2026-05-04: Supabase Storage → Vercel Blob 마이그 (운영 일관성 + BLOB_READ_WRITE_TOKEN 자동 주입)
+ *
  * 흐름:
  *   1. 인증: getWebSession + isAdmin
  *   2. FormData 파싱: file + matchId (required) + isHero? + caption?
  *   3. 파일 검증: image/* 타입, 최대 10MB
- *   4. 매치 검증: TournamentMatch.findUnique
- *   5. sharp 정규화: long-edge 1920px + WebP 80% (모바일 사진 정리 + 용량 절감)
- *   6. Supabase Storage `news-photos` bucket 업로드 (path: match-{id}/{timestamp}-{random}.webp)
+ *   4. 매치 검증 + 매치당 사진 개수 한도 (15장)
+ *   5. sharp 정규화: long-edge 1920px + WebP 80% + EXIF 회전 자동
+ *   6. Vercel Blob 업로드 (path: news-photos/match-{id}/{timestamp}-{random}.webp)
  *   7. isHero=true 일 때 트랜잭션 — 같은 매치 기존 isHero 모두 false 후 신규 INSERT
  *   8. display_order = 같은 매치 max(display_order) + 1
  */
@@ -17,16 +19,17 @@ import sharp from "sharp";
 // 2026-05-04: EXIF 메타 파싱 (Phase 2 EXIF 자동 매치 추천)
 // exifr — 표준 EXIF lib, ~30KB, DateTimeOriginal + GPS 추출
 import exifr from "exifr";
+// 2026-05-04: Vercel Blob — 운영/dev 모두 BLOB_READ_WRITE_TOKEN 자동 주입 (Vercel Integration)
+import { put, del } from "@vercel/blob";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { apiSuccess, apiError, unauthorized } from "@/lib/api/response";
-import { supabase } from "@/lib/supabase";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB (모바일 고화질 허용)
 const TARGET_LONG_EDGE = 1920;
 const WEBP_QUALITY = 80;
-const BUCKET = "news-photos";
+const BLOB_PATH_PREFIX = "news-photos";
 // 2026-05-04: 매치당 사진 최대 개수 — UI 가독성 + Storage 무제한 방지
 // 일반 커뮤니티 기준 (Reddit gallery 20장, 네이버 카페 30장) 대비 보수
 // 알기자 기사 = 단신 위주라 5~10장이 적정 / 15장은 여유 한도
@@ -43,10 +46,10 @@ export async function POST(req: NextRequest) {
   });
   if (!user?.isAdmin) return apiError("관리자 권한이 필요합니다.", 403);
 
-  // 2) Supabase Storage 사용 가능 여부
-  if (!supabase) {
+  // 2) Vercel Blob 사용 가능 여부 (BLOB_READ_WRITE_TOKEN 검증)
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return apiError(
-      "이미지 업로드가 설정되지 않았습니다. Supabase Service Role Key를 .env에 추가하세요.",
+      "이미지 업로드가 설정되지 않았습니다. BLOB_READ_WRITE_TOKEN 을 .env.local 또는 Vercel env 에 추가하세요.",
       503,
       "STORAGE_NOT_CONFIGURED",
     );
@@ -182,24 +185,24 @@ export async function POST(req: NextRequest) {
     return apiError("이미지 처리에 실패했습니다.", 500);
   }
 
-  // 6) Supabase Storage 업로드
+  // 6) Vercel Blob 업로드
+  // path: news-photos/match-{id}/{timestamp}-{random}.webp
   const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
-  const storagePath = `match-${matchId}/${uniqueName}`;
+  const storagePath = `${BLOB_PATH_PREFIX}/match-${matchId}/${uniqueName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, processed, {
+  let publicUrl: string;
+  try {
+    const blob = await put(storagePath, processed, {
+      access: "public",
       contentType: "image/webp",
-      upsert: false,
+      addRandomSuffix: false, // 자체 timestamp + random 으로 충돌 방지
     });
-
-  if (uploadError) {
-    console.error("[news-photo upload] Supabase Storage 실패:", uploadError);
-    return apiError(`업로드에 실패했습니다: ${uploadError.message}`, 500);
+    publicUrl = blob.url;
+  } catch (uploadErr) {
+    console.error("[news-photo upload] Vercel Blob 실패:", uploadErr);
+    const msg = uploadErr instanceof Error ? uploadErr.message : "unknown";
+    return apiError(`업로드에 실패했습니다: ${msg}`, 500);
   }
-
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
-  const publicUrl = urlData.publicUrl;
 
   // 7) DB INSERT — isHero=true 면 트랜잭션 (기존 isHero 모두 false)
   // 8) display_order = 같은 매치 max(display_order) + 1
@@ -292,16 +295,16 @@ export async function POST(req: NextRequest) {
       recommendedMatchInfo,
     });
   } catch (e) {
-    // DB 실패 시 Storage 정리 (best effort)
+    // DB 실패 시 Blob 정리 (best effort)
     console.error("[news-photo upload] DB INSERT 실패:", e);
-    void supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {});
+    void del(publicUrl).catch(() => {});
     return apiError("DB 저장에 실패했습니다.", 500);
   }
 }
 
 /**
  * DELETE /api/web/upload/news-photo?id={photoId}
- * 사진 삭제 — admin only. DB row + Supabase Storage 둘 다 정리.
+ * 사진 삭제 — admin only. DB row + Vercel Blob 둘 다 정리.
  */
 export async function DELETE(req: NextRequest) {
   const session = await getWebSession();
@@ -313,7 +316,7 @@ export async function DELETE(req: NextRequest) {
   });
   if (!user?.isAdmin) return apiError("관리자 권한이 필요합니다.", 403);
 
-  if (!supabase) return apiError("Storage 미설정", 503);
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return apiError("Blob 미설정", 503);
 
   const { searchParams } = new URL(req.url);
   const idStr = searchParams.get("id");
@@ -328,13 +331,14 @@ export async function DELETE(req: NextRequest) {
 
   const photo = await prisma.news_photo.findUnique({
     where: { id: photoId },
-    select: { id: true, storage_path: true },
+    select: { id: true, url: true },
   });
   if (!photo) return apiError("사진을 찾을 수 없습니다.", 404);
 
-  // Storage 먼저 삭제 (실패해도 DB row 는 삭제 진행 — orphan storage 는 별도 cleanup 큐)
-  await supabase.storage.from(BUCKET).remove([photo.storage_path]).catch((e) => {
-    console.warn("[news-photo delete] Storage 삭제 실패 (DB 는 진행):", e);
+  // Blob 먼저 삭제 (실패해도 DB row 는 삭제 진행 — orphan blob 은 별도 cleanup 큐)
+  // 2026-05-04: Vercel Blob `del()` 은 URL 또는 pathname 모두 받음
+  await del(photo.url).catch((e) => {
+    console.warn("[news-photo delete] Blob 삭제 실패 (DB 는 진행):", e);
   });
 
   await prisma.news_photo.delete({ where: { id: photoId } });

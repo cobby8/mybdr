@@ -299,13 +299,25 @@ function DualMatchCard({
       {/* 상단 메타 — schedule-timeline 카드 패턴: 좌측 inline (시간|구분선|라운드명|조뱃지), 우측 상태 배지 */}
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          {/* 매치번호 */}
-          <span
-            className="font-mono text-xs"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            #{match.matchNumber ?? "-"}
-          </span>
+          {/* Phase 5 (매치 코드 v4) — 글로벌 코드 우선 표시 (NULL 시 매치번호 fallback)
+              이유: 코드(`26-GG-MD21-001`) = 대회+회차+지역+번호 통합 식별자 — 사용자 공유·검색 효과 ↑
+              NULL 안전: matchCode 없으면 기존 #매치번호 유지 → 호환성 보장 */}
+          {match.matchCode ? (
+            <span
+              className="match-code"
+              title={`매치 코드: ${match.matchCode}`}
+              aria-label={`매치 코드 ${match.matchCode}`}
+            >
+              {match.matchCode}
+            </span>
+          ) : (
+            <span
+              className="font-mono text-xs"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              #{match.matchNumber ?? "-"}
+            </span>
+          )}
           {/* 구분선 */}
           <span className="text-xs" style={{ color: "var(--color-border)" }}>
             |

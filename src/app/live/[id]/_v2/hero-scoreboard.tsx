@@ -102,6 +102,19 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
               {tournamentLine}
             </span>
           )}
+          {/* Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 배지
+              이유: FINAL/대회명 옆에 작게 — 사용자가 매치를 글로벌 코드로 인지·공유 가능.
+              NULL 안전: short_code/region_code 미부여 대회 매치는 미표시 (조용히 fallback).
+              .match-code--hero 클래스 = 어두운 그라디언트 대비 + Space Grotesk 폰트. */}
+          {match.match_code && (
+            <span
+              className="match-code--hero"
+              aria-label={`매치 코드 ${match.match_code}`}
+              title={`매치 코드: ${match.match_code}`}
+            >
+              {match.match_code}
+            </span>
+          )}
         </div>
 
         {/* 날짜/장소 라인 */}

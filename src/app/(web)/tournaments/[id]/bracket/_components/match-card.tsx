@@ -270,10 +270,23 @@ export function MobileMatchCard({
       }`}
     >
       {/* 매치 헤더 */}
+      {/* Phase 5 (매치 코드 v4) — 매치 코드 우선 표시 (NULL 시 매치번호 fallback)
+          이유: 글로벌 코드 = 14자 영숫자 (`26-GG-MD21-001`) 가 매치 식별 정보 풍부 (대회+회차+지역+번호 1코드)
+          NULL 안전: matchCode 없으면 기존 "경기 N" 표시 유지 → 호환성 보장 */}
       <div className="flex items-center justify-between px-4 py-2 bg-[var(--color-surface)]">
-        <span className="text-xs text-[var(--color-text-muted)]">
-          {match.matchNumber ? `경기 ${match.matchNumber}` : ""}
-        </span>
+        {match.matchCode ? (
+          <span
+            className="match-code"
+            title={`매치 코드: ${match.matchCode}`}
+            aria-label={`매치 코드 ${match.matchCode}`}
+          >
+            {match.matchCode}
+          </span>
+        ) : (
+          <span className="text-xs text-[var(--color-text-muted)]">
+            {match.matchNumber ? `경기 ${match.matchNumber}` : ""}
+          </span>
+        )}
         <StatusBadge status={match.status} />
       </div>
 
