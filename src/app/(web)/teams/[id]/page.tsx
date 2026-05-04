@@ -251,6 +251,8 @@ export default async function TeamDetailPage({
         isLoggedIn={isLoggedIn}
         isFollowing={isFollowing}
         myManagedTeams={myManagedTeams}
+        // 2026-05-04: 팀 로고 표시 fix (사용자 보고)
+        logoUrl={team.logoUrl}
       />
 
       {/* 2) Tabs — sticky 네비 */}

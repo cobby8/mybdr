@@ -54,6 +54,9 @@ type Props = {
   isFollowing: boolean;
   // 본인이 운영진(captain/vice/manager)인 다른 팀 목록 — 매치 신청 모달의 from_team 후보
   myManagedTeams: ManagedTeam[];
+  // 2026-05-04: 팀 로고 — 사용자 보고 "팀 페이지 상세 들어가면 팀 로고 안 나와".
+  // 이전: tag 이니셜만 표시. logoUrl 있으면 <img>, 없으면 tag 이니셜 fallback.
+  logoUrl?: string | null;
 };
 
 export function TeamHeroV2({
@@ -71,6 +74,7 @@ export function TeamHeroV2({
   isLoggedIn,
   isFollowing,
   myManagedTeams,
+  logoUrl,
 }: Props) {
   // 시안 그라디언트 — accent 0%, accent+CC(80% 불투명) 60%, #0B0D10 140%.
   // 이유: 시안 TeamDetail.jsx은 끝점을 #0B0D10(거의 검정)으로 고정해
@@ -151,7 +155,21 @@ export function TeamHeroV2({
               lineHeight: 1,
             }}
           >
-            {tag}
+            {/* 2026-05-04: logoUrl 있으면 <img>, 없으면 tag 이니셜 fallback (사용자 fix). */}
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지 최적화 불필요 (v2 시안 일관성)
+              <img
+                src={logoUrl}
+                alt=""
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            ) : (
+              tag
+            )}
           </div>
 
           <div className="min-w-0">
