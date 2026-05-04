@@ -38,11 +38,21 @@ export const DELETE = withWebAuth(async (req: NextRequest, ctx: WebAuthContext) 
 
     // soft delete: 상태를 withdrawn으로 변경 + 개인정보 익명화
     const withdrawnAt = new Date();
+    // 2026-05-05 fix (B3): email/uid 정리 — 같은 email/카카오 ID 재가입 가능
+    //   본질: 기존 email/uid 보존 시 → 재가입 시 "이미 사용 중인 이메일" 에러 + OAuth callback
+    //         가 기존 row 매칭 시도 (탈퇴 가드 통과해도 영구 차단).
+    //   fix: 탈퇴 시 email = withdrawn_{id}_{ts}@deleted.local 로 변경 + uid=null
+    //        → 같은 email 또는 OAuth ID 로 재가입 시 신규 row (의도된 동작).
+    //   주의: email UNIQUE 제약 보존 — withdrawn_*@deleted.local 도 UNIQUE 충돌 0 (id+ts 포함).
+    const anonymizedEmail = `withdrawn_${user.id}_${withdrawnAt.getTime()}@deleted.local`;
     await prisma.user.update({
       where: { id: user.id },
       data: {
         status: "withdrawn",
         suspended_at: withdrawnAt,
+        // email/uid 정리 — 재가입 가능 보장
+        email: anonymizedEmail,
+        uid: null,
         // 개인정보 익명화 (GDPR/개인정보보호법 대응)
         name: null,
         nickname: `탈퇴회원_${user.id}`,

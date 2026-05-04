@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getWebSession } from "@/lib/auth/web-session";
+import { prisma } from "@/lib/db/prisma";
 
 // SEO: 내 프로필 페이지 메타데이터 (page.tsx가 "use client"이므로 layout에서 설정)
 export const metadata: Metadata = {
@@ -26,5 +27,26 @@ export default async function ProfileLayout({ children }: { children: React.Reac
     // 비로그인 → /login + redirect 쿼리 (로그인 후 /profile 으로 복귀)
     redirect("/login?redirect=/profile");
   }
+
+  // [2026-05-05 fix] 탈퇴 회원 가드 — status="withdrawn" 시 /login redirect.
+  //   왜: 사용자 신고 — 탈퇴 후 브라우저 쿠키 잔존 시 /profile 진입 가능.
+  //   본질: getWebSession 은 JWT 검증만 (DB 조회 ❌) → status 검증 부재.
+  //   fix: 가드 layer 에서 user.status DB SELECT 1회 + withdrawn 차단.
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: BigInt(session.sub) },
+      select: { status: true },
+    });
+    if (!user || user.status === "withdrawn") {
+      redirect("/login?withdrawn=expired");
+    }
+  } catch (e) {
+    // redirect throw 는 catch 에 의해 무시되면 안 됨 — Next.js redirect 는 NEXT_REDIRECT throw
+    if (e && typeof e === "object" && "digest" in e && String(e.digest).startsWith("NEXT_REDIRECT")) {
+      throw e;
+    }
+    // DB 실패 시에도 진행 (가용성 우선) — JWT session 만으로 인증
+  }
+
   return <>{children}</>;
 }
