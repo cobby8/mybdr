@@ -297,6 +297,7 @@ export async function getUserDetailAction(userId: string): Promise<{
     startDate: string | null;
     status: string | null;
     jerseyNumber: number | null;
+    role: string | null; // 2026-05-05: player 만 배번 누락 경고 표시
   }>;
   activity: {
     posts: number;
@@ -338,6 +339,7 @@ export async function getUserDetailAction(userId: string): Promise<{
         select: {
           id: true,
           jerseyNumber: true,
+          role: true, // 2026-05-05: 배번 누락 경고를 role=player 만 적용
           tournamentTeam: {
             select: {
               team: { select: { name: true } },
@@ -399,6 +401,7 @@ export async function getUserDetailAction(userId: string): Promise<{
       startDate: p.tournamentTeam.tournament.startDate?.toISOString() ?? null,
       status: p.tournamentTeam.tournament.status,
       jerseyNumber: p.jerseyNumber,
+      role: p.role,
     })),
     activity: {
       posts: postsCount,
