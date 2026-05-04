@@ -53,7 +53,7 @@ export const MORE_GROUPS: MoreGroup[] = [
     items: [
       // [2026-05-04] 제거: gameNew(/games/new games하위 — games + 만들기 버튼 있음)
       { id: "live", label: "라이브 중계", icon: "🔴", href: "/live" },
-      { id: "scrim", label: "스크림 매칭", icon: "🆚", href: "/scrim" },
+      { id: "scrim", label: "연습경기 매칭", icon: "🆚", href: "/scrim" },
     ],
   },
   // [2026-05-04] "등록·예약" 그룹 전체 제거 — 4 항목 모두 메인 페이지 하위 또는 중복:

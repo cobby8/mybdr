@@ -3,7 +3,7 @@
 /* ============================================================
  * /calendar — 내 일정(My Calendar) v2 신규
  *
- * 이유: BDR v2 디자인 적용 작업의 일환. 픽업·게스트·스크림·대회·완료
+ * 이유: BDR v2 디자인 적용 작업의 일환. 픽업·게스트·연습경기·대회·완료
  *      이벤트를 한 화면에서 관리하는 캘린더 집계 뷰가 필요함.
  *      시안(Dev/design/BDR v2/screens/Calendar.jsx 279줄)을 그대로 박제.
  *
@@ -19,7 +19,7 @@
  *
  * 데이터 추후 마이그레이션 (스코프 외 — 백로그):
  *  - 사용자별 일정 집계 API (/api/web/calendar?from=YYYY-MM-DD&to=...)
- *  - 픽업/게스트/스크림/대회/완료 이벤트 통합 쿼리 (game_applications +
+ *  - 픽업/게스트/연습경기/대회/완료 이벤트 통합 쿼리 (game_applications +
  *    guest_applications + tournament_matches + scrim_matches)
  *  - ICS 내보내기 (text/calendar 응답 + UID/DTSTART/DTEND)
  *  - "+ 일정 등록" → 사용자 정의 일정 모델 (`user_calendar_events`)
@@ -51,7 +51,7 @@ const EVENTS: CalendarEvent[] = [
   { date: "2026-04-26", type: "pickup", title: "회룡역 토요 픽업", time: "12:00", court: "회룡역사거리", color: "var(--cafe-blue)" },
   { date: "2026-04-26", type: "pickup", title: "반포 주말 3x3", time: "09:00", court: "반포종합사회복지관", color: "var(--cafe-blue)" },
   { date: "2026-04-27", type: "guest", title: "SWEEP 게스트 3명", time: "13:00", court: "성동구민체육관", color: "var(--accent)" },
-  { date: "2026-04-28", type: "scrim", title: "3POINT vs 몽키즈 스크림", time: "20:00", court: "장충체육관", color: "#8B5CF6" },
+  { date: "2026-04-28", type: "scrim", title: "3POINT vs 몽키즈 연습경기", time: "20:00", court: "장충체육관", color: "#8B5CF6" },
   { date: "2026-04-28", type: "pickup", title: "수원 새벽 농구", time: "06:00", court: "수원청소년문화센터", color: "var(--cafe-blue)" },
   { date: "2026-04-29", type: "guest", title: "테크노마트 게스트", time: "19:30", court: "강변테크노마트", color: "var(--accent)" },
   { date: "2026-05-01", type: "tournament", title: "BDR Challenge Spring · 접수마감", time: "23:59", court: "온라인", color: "#F59E0B" },
@@ -74,7 +74,7 @@ const DOWS = ["일", "월", "화", "수", "목", "금", "토"];
 const TYPE_LABEL: Record<EventType, string> = {
   pickup: "픽업",
   guest: "게스트",
-  scrim: "스크림",
+  scrim: "연습경기",
   tournament: "대회",
   done: "완료",
 };
@@ -225,7 +225,7 @@ export default function CalendarPage() {
           { id: "all" as FilterId, label: `전체 · ${EVENTS.length}` },
           { id: "pickup" as FilterId, label: `픽업 · ${EVENTS.filter((e) => e.type === "pickup").length}` },
           { id: "guest" as FilterId, label: `게스트 · ${EVENTS.filter((e) => e.type === "guest").length}` },
-          { id: "scrim" as FilterId, label: `스크림 · ${EVENTS.filter((e) => e.type === "scrim").length}` },
+          { id: "scrim" as FilterId, label: `연습경기 · ${EVENTS.filter((e) => e.type === "scrim").length}` },
           { id: "tournament" as FilterId, label: `대회 · ${EVENTS.filter((e) => e.type === "tournament").length}` },
           { id: "done" as FilterId, label: `완료 · ${EVENTS.filter((e) => e.type === "done").length}` },
         ]).map((f) => {

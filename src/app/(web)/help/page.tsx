@@ -59,7 +59,7 @@ const HELP_FAQ: { q: string; a: string }[] = [
 const GLOSSARY: { term: string; desc: string }[] = [
   { term: "픽업 (Pick-up)", desc: "사전 팀 구성 없이 현장에서 인원을 모아 즉석으로 진행하는 경기." },
   { term: "게스트 (Guest)", desc: "기존 팀에 일회성으로 합류하는 외부 선수. 팀원 공백을 메우기 위함." },
-  { term: "스크림 (Scrimmage)", desc: "팀 간 합의된 비공식 연습경기. 기록은 개인 기록에만 반영." },
+  { term: "연습경기 (Scrimmage)", desc: "팀 간 합의된 비공식 연습경기. 기록은 개인 기록에만 반영." },
   { term: "픽앤롤 (Pick & Roll)", desc: "스크리너가 스크린 후 골대 방향으로 돌아 공을 받는 공격 전술." },
   { term: "풀코트 (Full-court)", desc: "농구장 전체를 사용하는 5v5 경기. 국내 아마추어 표준." },
   { term: "하프코트 (Half-court)", desc: "골대 한 쪽만 사용. 3v3·픽업의 기본 형식." },

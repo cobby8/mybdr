@@ -5,9 +5,9 @@
  *
  * 왜 이 컴포넌트가 필요한가:
  * 기존 위자드는 드롭다운으로 유형을 골랐으나, 시안은 3버튼 카드
- * (픽업/게스트/스크림)로 즉시 보이게끔 변경.
+ * (픽업/게스트/연습경기)로 즉시 보이게끔 변경.
  * - 시안 id값: pickup / guest / scrimmage
- * - DB game_type: 0=픽업 / 1=게스트 / 2=팀대결(=스크림)
+ * - DB game_type: 0=픽업 / 1=게스트 / 2=팀대결(=연습경기, 영문 코드는 scrim 보존)
  * - 권한 체크는 기존 로직 그대로(UpgradeModal 재사용)
  *
  * 선택 시 화면에서 버튼 테두리 하이라이트(파란색) + 배경 틴트.
@@ -28,8 +28,8 @@ const KINDS: {
   { value: "0", label: "픽업", desc: "개인 단위 즉석 경기", lockCheck: "canCreatePickup", upgradeReason: "pickup_hosting" },
   // 게스트 — 우리 팀에 일회성 게스트 모집 (권한 프리)
   { value: "1", label: "게스트", desc: "우리 팀에 일회성 게스트 모집", lockCheck: "canCreatePickup", upgradeReason: "pickup_hosting" },
-  // 스크림 — 팀 vs 팀 연습경기 (= 팀 대결)
-  { value: "2", label: "스크림", desc: "팀 vs 팀 연습경기", lockCheck: "canCreateTeamMatch", upgradeReason: "team_creation" },
+  // 연습경기 — 팀 vs 팀 (= 팀 대결, 영문 식별자는 scrim/scrimmage 보존)
+  { value: "2", label: "연습경기", desc: "팀 vs 팀 연습경기", lockCheck: "canCreateTeamMatch", upgradeReason: "team_creation" },
 ];
 
 interface KindSelectorProps {
