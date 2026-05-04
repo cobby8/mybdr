@@ -274,8 +274,225 @@ export function isValidShortCode(code: string): boolean {
 }
 
 // ============================================================
-// 5) Phase 4 generator 위임 (TODO)
+// 5) 종별/디비전 자동 분류 (Q9 — 매치별 category_letter / division_tier)
 // ============================================================
-//
-// generateUniqueMatchCode(input, prisma): 충돌 시 matchNumber+1 재시도 max 10회
-// → Phase 4 에서 신규 파일 (`match-code-generator.ts`) 으로 분리. 본 모듈은 순수 함수 유지.
+
+/**
+ * 종별 한글명 → 영문 1자 매핑 (사용자 결정 Q9 — 종별/디비전 별도 컬럼)
+ *
+ * 운영 데이터 발견 시 점진 보강:
+ * - 일반부 = A (Adult / 일반 성인부)
+ * - 유청소년부 = Y (Youth)
+ * - 시니어부 = S (Senior)
+ * - 여성부 = W (Women)
+ * - 대학부 = U (University)
+ *
+ * 매핑 외 종별은 null 반환 (운영자가 admin 에서 수동 입력 가능).
+ */
+export function categoryNameToLetter(name: string): string | null {
+  if (!name || typeof name !== "string") return null;
+  const map: Record<string, string> = {
+    일반부: "A",
+    유청소년부: "Y",
+    시니어부: "S",
+    여성부: "W",
+    대학부: "U",
+  };
+  return map[name.trim()] ?? null;
+}
+
+/**
+ * tournament.categories JSON 분석 → category_letter / division_tier 추정
+ *
+ * categories JSON 형식 예: `{"일반부": ["D3"]}` (단일 종별 + 단일 디비전)
+ * - 운영 케이스 ④ (몰텐배): `{"일반부": ["D3"]}` → A / D3 일괄 부여
+ * - 운영 케이스 ① (열혈): categories 비어있음 (또는 다중) → 둘 다 NULL
+ *
+ * 다중 종별/디비전 (미래): 매치 자체에 category_letter/division_tier 가 이미 부여돼 있다면 우선 사용.
+ *
+ * @param categoriesJson tournament.categories (Prisma Json? 타입)
+ * @param matchOverride 매치별 오버라이드 (이미 category_letter/division_tier 가 부여된 경우)
+ * @returns { categoryLetter, divisionTier } — 둘 다 null 가능
+ */
+export function parseCategoryDivision(
+  categoriesJson: unknown,
+  matchOverride?: { category_letter?: string | null; division_tier?: string | null },
+): { categoryLetter: string | null; divisionTier: string | null } {
+  // 1) 매치 자체에 이미 category_letter/division_tier 가 있으면 우선 사용 (admin 수동 입력 시나리오)
+  if (matchOverride?.category_letter || matchOverride?.division_tier) {
+    return {
+      categoryLetter: matchOverride.category_letter ?? null,
+      divisionTier: matchOverride.division_tier ?? null,
+    };
+  }
+
+  // 2) categoriesJson 가 없거나 비어있으면 NULL (케이스 ① — 열혈 패턴)
+  if (!categoriesJson || typeof categoriesJson !== "object") {
+    return { categoryLetter: null, divisionTier: null };
+  }
+  const entries = Object.entries(categoriesJson as Record<string, unknown>);
+  if (entries.length === 0) {
+    return { categoryLetter: null, divisionTier: null };
+  }
+
+  // 3) 단일 종별 + 단일 디비전 (케이스 ④ — 몰텐배 패턴 = 가장 흔함)
+  if (entries.length === 1) {
+    const [name, divs] = entries[0];
+    const categoryLetter = categoryNameToLetter(name);
+    const divisionTier =
+      Array.isArray(divs) && divs.length === 1 && typeof divs[0] === "string"
+        ? (divs[0] as string)
+        : null;
+    return { categoryLetter, divisionTier };
+  }
+
+  // 4) 다중 종별 — 매치 단위 분기 필요. 현재 운영 데이터 없음 → 둘 다 NULL.
+  //    미래 운영자가 admin 에서 매치별로 입력하면 step 1 에서 흡수됨.
+  return { categoryLetter: null, divisionTier: null };
+}
+
+// ============================================================
+// 6) Phase 4 generator 통합 헬퍼 — applyMatchCodeFields
+// ============================================================
+
+/**
+ * generator INSERT 전 매치 데이터에 v4 필드 자동 부여
+ *
+ * 동작:
+ * 1. tournament.short_code + region_code 둘 다 있으면 match_code 생성 (둘 중 하나라도 NULL → match_code NULL)
+ * 2. tournament.categories 분석 → category_letter / division_tier 일괄 부여
+ * 3. group_letter = match.group_name 그대로 복사 (dual_tournament 의 A/B/C/D 조)
+ *
+ * 호출자 영향 0 보장:
+ * - matches 배열을 in-place 변형하지 않음 — 새 배열 반환
+ * - tournament 메타 인자 받기만 함 (조회는 caller 책임)
+ * - match_number 가 부여돼 있어야 match_code 생성 가능 (없으면 match_code NULL)
+ *
+ * @param matches 매치 데이터 배열 (Prisma createMany input 형식)
+ * @param tournamentMeta tournament 메타 (short_code / region_code / categories / startDate)
+ * @returns v4 필드가 부여된 새 매치 배열
+ */
+export function applyMatchCodeFields<
+  T extends {
+    match_number?: number | null;
+    group_name?: string | null;
+    category_letter?: string | null;
+    division_tier?: string | null;
+    match_code?: string | null;
+    group_letter?: string | null;
+  },
+>(
+  matches: T[],
+  tournamentMeta: {
+    short_code: string | null;
+    region_code: string | null;
+    categories: unknown;
+    startDate: Date | null;
+  },
+): T[] {
+  // 매치 코드 생성 가능 여부 (둘 다 있어야 함)
+  const canGenerateCode =
+    !!tournamentMeta.short_code &&
+    !!tournamentMeta.region_code &&
+    isValidShortCode(tournamentMeta.short_code) &&
+    tournamentMeta.region_code.length === 2;
+
+  // 연도 = startDate 기반 (없으면 현재 연도 fallback — 운영 무중단)
+  const year = tournamentMeta.startDate
+    ? tournamentMeta.startDate.getFullYear()
+    : new Date().getFullYear();
+
+  // categories 일괄 분석 (단일 종별/디비전이면 모든 매치 동일 부여)
+  const { categoryLetter: defaultCategory, divisionTier: defaultDivision } =
+    parseCategoryDivision(tournamentMeta.categories);
+
+  return matches.map((m) => {
+    // match_code 생성 (조건 충족 + match_number 존재 시)
+    let matchCode: string | null = m.match_code ?? null;
+    if (canGenerateCode && typeof m.match_number === "number" && m.match_number > 0) {
+      matchCode = generateMatchCode({
+        year,
+        regionCode: tournamentMeta.region_code as RegionCode,
+        shortCode: tournamentMeta.short_code as string,
+        matchNumber: m.match_number,
+      });
+    }
+
+    // category_letter / division_tier — 매치별 오버라이드 우선, 없으면 default
+    const categoryLetter = m.category_letter ?? defaultCategory;
+    const divisionTier = m.division_tier ?? defaultDivision;
+
+    // group_letter — dual_tournament 의 group_name (A/B/C/D) 그대로 복사
+    // group_name 이 한 글자가 아닌 케이스는 null (안전 가드 — VarChar(1) 제약)
+    const groupLetter =
+      m.group_letter ??
+      (typeof m.group_name === "string" && m.group_name.length === 1 ? m.group_name : null);
+
+    return {
+      ...m,
+      match_code: matchCode,
+      category_letter: categoryLetter,
+      division_tier: divisionTier,
+      group_letter: groupLetter,
+    };
+  });
+}
+
+// ============================================================
+// 7) UNIQUE 충돌 fallback — generateUniqueMatchCode
+// ============================================================
+
+/**
+ * Prisma client 타입 (트랜잭션 client 호환)
+ *
+ * 인터페이스만 명시 — generator 가 prisma 또는 tx 둘 다 받을 수 있도록.
+ * @prisma/client 의 PrismaClient 또는 Prisma.TransactionClient 둘 다 호환.
+ */
+type PrismaCodeChecker = {
+  tournamentMatch: {
+    findUnique: (args: {
+      where: { match_code: string };
+      select: { id: true };
+    }) => Promise<{ id: bigint } | null>;
+  };
+};
+
+/**
+ * UNIQUE 충돌 시 fallback — matchNumber+1 재시도 max 10회
+ *
+ * 사용 시나리오:
+ * - **운영 backfill 의 백업용** (Phase 3 에서는 사용 안 했음 — UNIQUE 충돌 0)
+ * - **generator** 가 단조 증가 match_number 사용해 1차 시도 성공 보장 → 본 함수는 백업
+ * - **점진 backfill 가드** (관리자 페이지에서 수동 부여 시나리오)
+ *
+ * 동작:
+ * 1. matchNumber 로 코드 생성 → DB findUnique
+ * 2. 존재하면 matchNumber+1 재시도 (max 10회)
+ * 3. 10회 내 성공 시 코드 반환 / 실패 시 throw
+ *
+ * @param prisma Prisma client (트랜잭션 client 가능)
+ * @param input 매치 코드 입력
+ * @param maxRetry 최대 재시도 횟수 (default 10)
+ * @returns 충돌 없는 match_code
+ * @throws maxRetry 회 재시도 후도 충돌 시 Error
+ */
+export async function generateUniqueMatchCode(
+  prisma: PrismaCodeChecker,
+  input: MatchCodeInput,
+  maxRetry = 10,
+): Promise<string> {
+  for (let i = 0; i < maxRetry; i++) {
+    const candidate = generateMatchCode({
+      ...input,
+      matchNumber: input.matchNumber + i,
+    });
+    const existing = await prisma.tournamentMatch.findUnique({
+      where: { match_code: candidate },
+      select: { id: true },
+    });
+    if (!existing) return candidate;
+  }
+  throw new Error(
+    `generateUniqueMatchCode: ${maxRetry}회 재시도 후도 충돌 — input=${JSON.stringify(input)}`,
+  );
+}
