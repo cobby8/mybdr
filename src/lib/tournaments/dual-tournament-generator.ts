@@ -1,12 +1,20 @@
 // 듀얼토너먼트(`dual_tournament`) 27 매치 자동 생성기
 //
 // 포맷 정의: 16팀 → 4조×4팀 미니 더블엘리미 → 조별 1·2위 8팀 → 8강 단판
-//          → 4강 NBA 크로스(1+4 / 2+3) → 결승. 총 27 매치.
+//          → 4강 (1+2 / 3+4 페어) → 결승. 총 27 매치.
+//
+// 2026-05-04 사용자 표준 결정 (planner-architect 분석 + 5/2 운영 후):
+//   - sequential (default): A1+D2 / B1+C2 / C1+B2 / D1+A2  → 같은 조 출신 결승까지 분리
+//   - adjacent (옵션 X 보존): B1+A2 / D1+C2 / A1+B2 / C1+D2  → 5/2 동호회최강전 패턴
+//   - 4강 매핑은 양쪽 동일: 4강 1=8강 1+2, 4강 2=8강 3+4
 //
 // 사용 컨텍스트:
 //   bracket route POST 의 dual 분기에서 호출 (Phase B).
 //   본 함수는 매치 정의 배열만 반환하고, DB INSERT + next_match_id 2단계
 //   UPDATE 는 caller(route) 책임.
+
+import type { SemifinalPairingMode } from "./dual-defaults";
+import { DUAL_DEFAULT_PAIRING } from "./dual-defaults";
 //
 // 매치 생성 후 caller 가 처리해야 할 후처리:
 //   1) tx.tournamentMatch.createMany 로 27 건 INSERT (next_match_id 는 null 로)
@@ -119,41 +127,51 @@ export function validateGroupAssignment(assignment: DualGroupAssignment): void {
   }
 }
 
-// ── 내부: 8강 매핑 테이블 ───────────────────────────────────────────────
-// 사진 정합 (Stage 4):
-//   8강 1: B조 1위 vs A조 2위
-//   8강 2: A조 1위 vs B조 2위
-//   8강 3: D조 1위 vs C조 2위
-//   8강 4: C조 1위 vs D조 2위
-//
-// 의미: 같은 조 1·2위는 만나지 않고, 인접 조 끼리 크로스.
+// ── 내부: 8강 매핑 테이블 (페어링 모드별) ───────────────────────────────
+// 2026-05-04: 사용자 결정 (5/2 운영 후) — 표준 default = sequential
+// dual-defaults.ts QUARTERFINAL_SPECS 와 정합. 본 파일은 generator 자체 인덱싱(1~4) 으로 변환.
 type GroupKey = "A" | "B" | "C" | "D";
 interface QuarterFinalSpec {
   matchIndex: number; // 8강 매치 번호 (1~4) — bracketPosition 도 동일
-  // home = N조 1위 (해당 조 G3 승자) / away = M조 2위 (해당 조 최종전 승자)
-  home: { group: GroupKey };
-  away: { group: GroupKey };
+  home: { group: GroupKey }; // home = 조 1위 (해당 조 G3 승자)
+  away: { group: GroupKey }; // away = 조 2위 (해당 조 최종전 승자)
 }
-const QUARTER_FINAL_SPECS: QuarterFinalSpec[] = [
-  { matchIndex: 1, home: { group: "B" }, away: { group: "A" } }, // 8강 1: B1 vs A2
-  { matchIndex: 2, home: { group: "A" }, away: { group: "B" } }, // 8강 2: A1 vs B2
-  { matchIndex: 3, home: { group: "D" }, away: { group: "C" } }, // 8강 3: D1 vs C2
-  { matchIndex: 4, home: { group: "C" }, away: { group: "D" } }, // 8강 4: C1 vs D2
+
+// sequential = 표준 default (사용자 단일 코트 순차 진행 표준)
+//   8강 1: A1 vs D2 → 4강 1
+//   8강 2: B1 vs C2 → 4강 1
+//   8강 3: C1 vs B2 → 4강 2
+//   8강 4: D1 vs A2 → 4강 2
+const QUARTER_FINAL_SPECS_SEQUENTIAL: QuarterFinalSpec[] = [
+  { matchIndex: 1, home: { group: "A" }, away: { group: "D" } },
+  { matchIndex: 2, home: { group: "B" }, away: { group: "C" } },
+  { matchIndex: 3, home: { group: "C" }, away: { group: "B" } },
+  { matchIndex: 4, home: { group: "D" }, away: { group: "A" } },
 ];
 
-// ── 내부: 4강 매핑 테이블 ───────────────────────────────────────────────
-// NBA 컨퍼런스 모형 (1+4 / 2+3 크로스):
-//   4강 1: 8강 1 승자 vs 8강 4 승자
-//   4강 2: 8강 2 승자 vs 8강 3 승자
-// 효과: 모든 조 1위가 결승 전까지 분산.
+// adjacent = 5/2 동호회최강전 패턴 (옵션 X 보존)
+//   8강 1: B1 vs A2 → 4강 1
+//   8강 2: D1 vs C2 → 4강 1
+//   8강 3: A1 vs B2 → 4강 2
+//   8강 4: C1 vs D2 → 4강 2
+const QUARTER_FINAL_SPECS_ADJACENT: QuarterFinalSpec[] = [
+  { matchIndex: 1, home: { group: "B" }, away: { group: "A" } },
+  { matchIndex: 2, home: { group: "D" }, away: { group: "C" } },
+  { matchIndex: 3, home: { group: "A" }, away: { group: "B" } },
+  { matchIndex: 4, home: { group: "C" }, away: { group: "D" } },
+];
+
+// ── 내부: 4강 매핑 테이블 (양쪽 페어링 모드 공통) ──────────────────────────
+// 2026-05-04: 사용자 표준 통일 — 4강 1 = 8강 1+2 / 4강 2 = 8강 3+4 (인접 인덱스)
+// (이전 NBA 1+4 / 2+3 크로스 → 사용자 의도와 다름, 사용자 명시 표준으로 통일)
 interface SemiFinalSpec {
   matchIndex: number; // 4강 매치 번호 (1~2)
   homeFromQfIndex: number; // home 슬롯에 들어갈 8강 매치 인덱스
   awayFromQfIndex: number; // away 슬롯에 들어갈 8강 매치 인덱스
 }
 const SEMI_FINAL_SPECS: SemiFinalSpec[] = [
-  { matchIndex: 1, homeFromQfIndex: 1, awayFromQfIndex: 4 }, // 4강 1: QF1 winner vs QF4 winner
-  { matchIndex: 2, homeFromQfIndex: 2, awayFromQfIndex: 3 }, // 4강 2: QF2 winner vs QF3 winner
+  { matchIndex: 1, homeFromQfIndex: 1, awayFromQfIndex: 2 }, // 4강 1: QF1 + QF2
+  { matchIndex: 2, homeFromQfIndex: 3, awayFromQfIndex: 4 }, // 4강 2: QF3 + QF4
 ];
 
 /**
@@ -177,9 +195,18 @@ const SEMI_FINAL_SPECS: SemiFinalSpec[] = [
 export function generateDualTournament(
   groupAssignment: DualGroupAssignment,
   tournamentId: string,
+  // 2026-05-04: pairing 인자 추가 — 표준 default = sequential (사용자 결정)
+  // adjacent = 5/2 동호회최강전 옵션 보존 (settings.bracket.semifinalPairing 으로 운영자 변경 가능)
+  pairing: SemifinalPairingMode = DUAL_DEFAULT_PAIRING,
 ): DualMatchToCreate[] {
   // 0) 입력 검증 — 16팀 unique
   validateGroupAssignment(groupAssignment);
+
+  // pairing 모드별 8강 SPEC 선택 (4강 SPEC 은 양쪽 동일)
+  const QUARTER_FINAL_SPECS =
+    pairing === "adjacent"
+      ? QUARTER_FINAL_SPECS_ADJACENT
+      : QUARTER_FINAL_SPECS_SEQUENTIAL;
 
   const matches: DualMatchToCreate[] = [];
 

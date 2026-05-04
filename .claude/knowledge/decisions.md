@@ -2,6 +2,24 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 듀얼 토너먼트 표준 default = sequential pairing + adjacent 옵션 보존
+- **분류**: decision (대회 포맷 표준 / generator 설계)
+- **결정자**: 사용자 (5/2 동호회최강전 운영 후 + planner-architect 분석)
+- **참조횟수**: 0
+- **배경**: 5/2 동호회최강전 (138b22d8) 운영 후 듀얼 토너먼트 포맷 표준화 필요. 기존 generator 코드는 NBA 크로스 (1+4 / 2+3 4강 매핑)이었으나 운영 데이터는 5/4 PM fix로 1+2 / 3+4 매핑이 됨. 사용자 검토 후 두 8강 페어링 패턴 (옵션 X / 옵션 Y) 비교.
+- **옵션 비교** (사용자 명확화 후 — 단일 코트 순차 진행 가정):
+  - **옵션 X (5/2 adjacent)**: B1+A2, D1+C2, A1+B2, C1+D2 — AB / CD 진영 분리, 같은 조 4강 가능
+  - **옵션 Y (sequential)**: A1+D2, B1+C2, C1+B2, D1+A2 — 같은 조 출신 결승까지 분리, 단일 코트 순차 진행 효율, 매치 다양성 ↑
+- **사용자 채택**: **옵션 Y = 표준 default** (모든 신규 대회) + **옵션 X = 5/2 운영 패턴 보존** (settings.bracket.semifinalPairing="adjacent")
+- **사유 4건**:
+  1. **시드 분리** — 같은 조 1위/2위 결승까지 안 만남 (시드 정의 충실)
+  2. **단일 코트 순차 효율** — 8강 1+2 종료 직후 4강 1 시작 가능
+  3. **매치 다양성** — 4그룹 모두 8강 등장 (대진 흥미도 ↑)
+  4. **인덱스 단순성** — 4강 1=8강 1+2 / 4강 2=8강 3+4 (인접 인덱스, 사용자 인지)
+- **5/2 운영 데이터 처리**: 매치 27건 그대로 유지 (5/4 PM fix 결과) + settings.bracket.semifinalPairing="adjacent" 명시 추가 (운영 패턴 식별) + 영향 0
+- **결과**: schema 변경 0 + 점진 수정 (P1~P7 ~8.5h) — P1+P2 (이번 commit) = `dual-defaults.ts` 신설 + `dual-tournament-generator.ts` pairing 분기 + 4강 SPEC 통일 (1+4/2+3 → 1+2/3+4). P3~P7 별도 진행 (settings-form / admin UI / bracket-builder 옵션 / E2E 검증)
+- **거부된 옵션**: 옵션 X 만 표준 (5/2 통일) → 정식 대회 시드 균형 약함 / 옵션 Y 만 (X 미지원) → 5/2 운영자 익숙한 패턴 손실
+
 ### [2026-05-04] 도메인 sub-agent 시스템 P3 결정 — C 채택 (live-expert 유지 + 신규 박제 0)
 - **분류**: decision (메타 / 에이전트 시스템 / 시범 종료 평가)
 - **결정자**: 사용자 (C 직진) + planner-architect (KPI 6건 누적 본질 분석 + 7 사유)
