@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/db/prisma";
-import Link from "next/link";
-import { updateUserRoleAction, updateUserStatusAction, toggleUserAdminAction, forceWithdrawUserAction, deleteUserAction } from "@/app/actions/admin-users";
+import {
+  updateUserRoleAction,
+  updateUserStatusAction,
+  toggleUserAdminAction,
+  forceWithdrawUserAction,
+  deleteUserAction,
+  loadMoreUsersAction,
+} from "@/app/actions/admin-users";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
 
@@ -11,24 +17,29 @@ const PAGE_SIZE = 50;
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; error?: string }>;
+  searchParams: Promise<{ q?: string; error?: string }>;
 }) {
-  const { page: pageStr, q, error } = await searchParams;
-  const page = Math.max(1, parseInt(pageStr ?? "1", 10));
-  const skip = (page - 1) * PAGE_SIZE;
+  const { q, error } = await searchParams;
 
   const where = q
-    ? { OR: [{ email: { contains: q, mode: "insensitive" as const } }, { nickname: { contains: q, mode: "insensitive" as const } }] }
+    ? {
+        OR: [
+          { email: { contains: q, mode: "insensitive" as const } },
+          { nickname: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
     : undefined;
 
   const superAdminCount = await prisma.user.count({ where: { isAdmin: true } });
 
+  // 2026-05-04: 정렬 변경 — 기존 [membershipType desc, createdAt desc] →
+  //             [isAdmin desc, createdAt desc]
+  //   사용자 요구: 슈퍼관리자 4명 맨 위 → 그 아래 가입일시 최신순
   const [users, totalCount] = await Promise.all([
     prisma.user.findMany({
       where,
-      orderBy: [{ membershipType: "desc" }, { createdAt: "desc" }],
+      orderBy: [{ isAdmin: "desc" }, { createdAt: "desc" }],
       take: PAGE_SIZE,
-      skip,
       select: {
         id: true,
         email: true,
@@ -59,10 +70,6 @@ export default async function AdminUsersPage({
     prisma.user.count({ where }),
   ]);
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
-  const from = skip + 1;
-  const to = Math.min(skip + users.length, totalCount);
-
   // BigInt, Date, Decimal을 직렬화 가능한 형태로 변환
   const serializedUsers = users.map((u) => ({
     ...u,
@@ -74,13 +81,18 @@ export default async function AdminUsersPage({
     updatedAt: u.updatedAt.toISOString(),
   }));
 
+  // 부제: 검색 시에는 검색 결과 / 평소에는 전체 + 첫 N명 표시
+  const subtitle = q
+    ? `검색 결과 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/4`
+    : `전체 ${totalCount.toLocaleString()}명 · 슈퍼관리자 ${superAdminCount}/4`;
+
   return (
     <div>
       <AdminPageHeader
         eyebrow="ADMIN · USERS"
         title="유저 관리"
-        subtitle={`전체 ${totalCount.toLocaleString()}명${totalCount > 0 ? ` · ${from}–${to}번째` : ""} · 슈퍼관리자 ${superAdminCount}/4`}
-        searchPlaceholder="닉네임/이메일 검색"
+        subtitle={subtitle}
+        searchPlaceholder="닉네임/이메일 검색 (전체 DB)"
         searchName="q"
         searchDefaultValue={q ?? ""}
       />
@@ -88,43 +100,26 @@ export default async function AdminUsersPage({
       {error && (
         <div
           className="mb-4 rounded-[12px] px-4 py-3 text-sm"
-          style={{ background: "color-mix(in srgb, var(--color-error) 10%, transparent)", color: "var(--color-error)" }}
+          style={{
+            background: "color-mix(in srgb, var(--color-error) 10%, transparent)",
+            color: "var(--color-error)",
+          }}
         >
           {error}
         </div>
       )}
 
       <AdminUsersTable
-        users={serializedUsers}
+        initialUsers={serializedUsers}
+        totalCount={totalCount}
+        searchQuery={q ?? null}
+        loadMoreAction={loadMoreUsersAction}
         updateUserRoleAction={updateUserRoleAction}
         updateUserStatusAction={updateUserStatusAction}
         toggleUserAdminAction={toggleUserAdminAction}
         forceWithdrawAction={forceWithdrawUserAction}
         deleteAction={deleteUserAction}
       />
-
-      {/* 페이지네이션 — (web) .btn 패턴 */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          {page > 1 && (
-            <Link
-              href={`?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) })}`}
-              className="btn btn--sm"
-            >
-              이전
-            </Link>
-          )}
-          <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>{page} / {totalPages}</span>
-          {page < totalPages && (
-            <Link
-              href={`?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) })}`}
-              className="btn btn--sm"
-            >
-              다음
-            </Link>
-          )}
-        </div>
-      )}
     </div>
   );
 }
