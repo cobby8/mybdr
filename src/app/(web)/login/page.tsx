@@ -94,7 +94,15 @@ export default function LoginPage() {
             <button
               key={k}
               type="button"
-              onClick={() => setTab(k)}
+              // 2026-05-04 fix: 회원가입 탭 = 인라인 폼 disabled 상태라 사용자 혼란 → 즉시 /signup 으로 이동.
+              // 추후 Phase 6 Login (인라인 폼) 구현 완료 시 setTab(k) 로 복원.
+              onClick={() => {
+                if (k === "signup") {
+                  router.push("/signup");
+                  return;
+                }
+                setTab(k);
+              }}
               style={{
                 flex: 1,
                 padding: "14px 0",
