@@ -67,8 +67,10 @@ export default async function TournamentAdminDashboard() {
   return (
     <div>
       <AdminPageHeader
+        eyebrow="ADMIN · TOURNAMENT"
         title="대회 운영자 도구"
-        subtitle={`내 대회 ${totalTournaments}개`}
+        subtitle={`내 대회 ${totalTournaments}개 · 진행 중 ${activeTournaments} · 완료 ${completedTournaments}`}
+        searchPlaceholder="대회명 검색"
         actions={
           <Link
             href="/tournament-admin/tournaments/new/wizard"
@@ -79,24 +81,6 @@ export default async function TournamentAdminDashboard() {
           </Link>
         }
       />
-
-      {/* 통계 mini bar — 텍스트 한 줄 (admin 스타일 단순화) */}
-      <div
-        className="mb-4 flex flex-wrap gap-3 text-sm"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        <span>
-          전체 <strong style={{ color: "var(--color-text-primary)" }}>{totalTournaments}</strong>
-        </span>
-        <span>·</span>
-        <span>
-          진행 중 <strong style={{ color: "var(--color-primary)" }}>{activeTournaments}</strong>
-        </span>
-        <span>·</span>
-        <span>
-          완료 <strong style={{ color: "var(--color-text-disabled)" }}>{completedTournaments}</strong>
-        </span>
-      </div>
 
       {/* 대회 리스트 — admin-table 패턴 (다른 관리자 페이지와 일치) */}
       {myTournaments.length === 0 ? (
