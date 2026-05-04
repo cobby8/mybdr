@@ -2,6 +2,40 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-04] 도메인 sub-agent system prompt 주입 효과 marginal — planner 사전 분석이 진짜 본질
+- **분류**: lesson/agent-system (메타 / 에이전트 세분화 ROI / KPI 측정 함정)
+- **발견자**: planner-architect + pm (P3 Go/No-Go 결정 KPI 6건 누적 분석)
+- **배경**: 옵션 A 도메인 sub-agent 시스템 시범 (live-expert P1 박제 후 P2 KPI 측정 6건 / 매치 코드 v4 작업 진행 중). 시범 가설 = "도메인 sub-agent 의 system prompt 주입으로 잘못된 파일 read 0회 + 디버깅 효율 ↑". 실측 결과 = **잘못된 파일 0회 6/6 ✅** but **그 중 5건은 system prompt 주입 ❌ (일반 dev 컨텍스트)** → 주입 marginal gain ≈ 0 입증.
+- **본질**: planner-architect 가 사전 분석으로 파일 경로 / 절대 룰 / 핵심 지식을 정확 박제 → developer 가 system prompt 없이도 잘못된 파일 0회 달성. system prompt 주입은 planner 가 이미 해준 일을 중복 박제하는 것에 불과.
+- **재발 방지 (PM 호출 룰)**:
+  - 명확 정의 작업 (예: "page.tsx L696 헤더 sticky 추가") = planner 사전 분석만으로 충분, 도메인 sub-agent 불필요
+  - 모호 디버깅 (예: "왜 X가 안 되지?" — 영역 미특정) = 도메인 sub-agent 진짜 가치 발휘 가능 (단, 본 시범에서는 케이스 0건 발견)
+  - knowledge sync 룰 = 절대 룰 = system prompt 직접 박제 / 핵심 지식 = knowledge 인용 1줄 (single source) — 이중 관리 회피
+- **운영 결정**: P3 = C 채택 (live-expert 유지 + 신규 박제 0). 미래 모호 디버깅 케이스 발견 시 재진입 옵션 보존
+- **참조 발견**: 도메인 sub-agent P3 결정 (decisions.md 동일 날짜 항목)
+- **참조횟수**: 0
+
+### [2026-05-04] KPI 측정 시 작업 복잡도 통제 없으면 비교 불가 (P2 시범 함정)
+- **분류**: lesson/measurement (KPI 설계 / 비교군 통제)
+- **발견자**: planner-architect (P3 결정 KPI 분석)
+- **배경**: 도메인 sub-agent P2 시범 측정 6건. KPI 1 (디버깅 첫 5분 grep/read -50%) + KPI 2 (작업 시간 -30%) 모두 **비교 불가**. 이유 = 작업별 복잡도 너무 다름 (live-expert P2 #1 = page.tsx 1926줄 헤더+팀비교+미니스코어 / tournaments P2 #2 = schema 6컬럼 + helper).
+- **함정**: "도메인 sub-agent 시범 시간 < 일반 dev 시간"으로 효과 측정하려 했지만, 같은 작업을 양쪽으로 한 번씩 하지 않으면 비교 불가. 매번 다른 작업이라 노이즈 ↑↑.
+- **재발 방지**: KPI 측정 설계 시 ① 동일 작업 양쪽 적용 (시범 vs baseline) ② 또는 작업 복잡도 정규화 변수 (LOC / 파일 수 / 파일 깊이) 사전 정의. 통제 없으면 KPI 1·2 같은 시간/횟수 비교는 의미 ❌. 단 KPI 3 같은 binary 지표 (잘못된 파일 0회 vs 1+회) 는 통제 무관.
+- **재사용 가치**: 미래 메타 시범 (예: 새 도구 도입 / 새 워크플로우) 측정 시 동일 함정 회피. binary 지표 우선 + 절대값 비교 기피.
+- **참조 발견**: 도메인 sub-agent P3 결정
+- **참조횟수**: 0
+
+### [2026-05-04] Task subagent_type 미등록 = 도메인 에이전트 자동 호출 불가 (CC 한계)
+- **분류**: lesson/agent-system (Claude Code Task 도구 / 프로젝트 로컬 에이전트 한계)
+- **발견자**: pm + planner (live-expert P2 #1 시범 시 발견)
+- **배경**: `.claude/agents/<name>.md` 박제 후 Task 도구의 `subagent_type` 파라미터 목록에 자동 등록 ❌. 글로벌 8 에이전트 (planner-architect / developer / debugger / tester / reviewer / doc-writer / vibe-coder / pm + scratchpad) 만 등록. 프로젝트 로컬 박제 = system prompt 컨텍스트 자동 주입 불가능.
+- **우회**: planner-architect 또는 developer 위임 시 system prompt 풀텍스트를 prompt 첫머리에 주입 → 에이전트가 그 컨텍스트로 작업. 단 planner 단계 거쳐야 함 = 추가 비용.
+- **본질**: Claude Code 가 프로젝트별 `.claude/agents/` 폴더를 자동 인식하지 않으므로, 박제만으로는 Task 도구에서 직접 호출 불가. 향후 CC 업데이트로 해결 가능성 있으나 현재는 한계.
+- **운영 결정**: P3 = C (신규 박제 0) 의 핵심 사유. 도메인 에이전트 박제 비용 vs 자동 호출 불가 한계 = ROI 부정.
+- **재진입 조건**: CC 가 프로젝트 로컬 에이전트 자동 등록 지원 시 P3 재평가 가능
+- **참조 발견**: 도메인 sub-agent P3 결정
+- **참조횟수**: 0
+
 ### [2026-05-04] `prisma generate` Windows EPERM — dev server query_engine.dll 잠금
 - **분류**: lesson/prisma (Windows 환경 / dev server ↔ prisma client 충돌)
 - **발견자**: developer (매치 코드 v4 Phase 1 schema push 후)
