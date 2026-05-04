@@ -60,6 +60,28 @@ export default function SignupPage() {
     );
   };
 
+  // 이유: Step 3 — 활동 환경 (2026-05-04 활성화)
+  // 17 시도 = 매치 코드 v4 REGION_CODE_MAP 와 동일 한글 (서울/부산/.../제주)
+  const REGION_OPTIONS = [
+    "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+    "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
+  ];
+  // 실력 5단계 (단일 선택)
+  const SKILL_OPTIONS = ["초보", "초중급", "중급", "중상급", "상급"];
+  // 관심 경기 유형 (스크림 → 연습경기 / 정기팀 → 길농 라벨 변경 — UI 만 / DB 값은 한글 그대로 저장)
+  const GAME_TYPE_OPTIONS = ["픽업", "게스트", "연습경기", "대회", "길농"];
+
+  // 이유: 멀티/단일 state — 저장은 JSON 배열 (preferred_regions / preferred_game_types) 또는 String (skill_level)
+  const [regions, setRegions] = useState<string[]>([]);
+  const [skill, setSkill] = useState<string>("");
+  const [gameTypes, setGameTypes] = useState<string[]>([]);
+
+  // 멀티 토글 — togglePosition 동일 패턴
+  const toggleRegion = (r: string) =>
+    setRegions((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
+  const toggleGameType = (g: string) =>
+    setGameTypes((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]));
+
   // 이유: 클라이언트 진입 가드 에러 메시지 (서버 액션 에러와 별도 노출)
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -170,6 +192,12 @@ export default function SignupPage() {
         <input type="hidden" name="position" value={positions.join(",")} />
         <input type="hidden" name="height" value={height} />
         <input type="hidden" name="jersey_number" value={jerseyNumber} />
+        {/* 2026-05-04 Step 3 활성화: preferred_regions / skill_level / preferred_game_types
+            이유: signupAction 이 formData 로 수신 → JSON parse 후 User.create 에 그대로 저장.
+            저장 형식: regions/gameTypes = JSON array (한글 그대로) / skill = String (한글 그대로 또는 NULL) */}
+        <input type="hidden" name="preferred_regions" value={JSON.stringify(regions)} />
+        <input type="hidden" name="skill_level" value={skill} />
+        <input type="hidden" name="preferred_game_types" value={JSON.stringify(gameTypes)} />
         <div className="card" style={{ padding: "28px 28px" }}>
           {/* OAuth 에러 표시 (있을 때만) */}
           {oauthError && OAUTH_ERRORS[oauthError] && (
@@ -423,119 +451,104 @@ export default function SignupPage() {
             </div>
           )}
 
-          {/* ─────────── Step 3: 활동 환경 (UI만, 모두 "준비 중") ─────────── */}
+          {/* ─────────── Step 3: 활동 환경 (2026-05-04 활성화) ─────────── */}
+          {/* 이유: 17 시도 / 5 실력 / 5 게임유형 모두 실작동.
+              "스크림" → "연습경기" / "정기팀" → "길농" UI 라벨 변경 (DB 값은 한글 그대로 저장). */}
           {step === 3 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div>
+                <div className="label">주 활동 지역 (복수선택)</div>
                 <div
-                  className="label"
-                  style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  // 모바일 4칸 / sm 5칸 — 17 개 시도 깔끔히 배치
+                  className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 mt-2"
                 >
-                  주 활동 지역 (복수선택)
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      borderRadius: 4,
-                      background: "var(--bg-alt)",
-                      color: "var(--ink-mute)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    준비 중
-                  </span>
-                </div>
-                <div
-                  // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 2 → sm 4 칸
-                  className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2"
-                >
-                  {["강남", "강북", "강서", "강동", "분당", "일산", "수원", "인천"].map(
-                    (a) => (
+                  {REGION_OPTIONS.map((r) => {
+                    // 멀티 선택 — 활성 시 accent 컬러
+                    const active = regions.includes(r);
+                    return (
                       <button
-                        key={a}
+                        key={r}
                         type="button"
-                        disabled
-                        title="준비 중"
                         className="btn btn--sm"
-                        style={{ cursor: "not-allowed" }}
+                        onClick={() => toggleRegion(r)}
+                        style={
+                          active
+                            ? {
+                                background: "var(--accent-soft)",
+                                color: "var(--accent)",
+                                borderColor: "var(--accent)",
+                              }
+                            : undefined
+                        }
                       >
-                        {a}
+                        {r}
                       </button>
-                    ),
-                  )}
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
+                <div className="label">실력 수준</div>
                 <div
-                  className="label"
-                  style={{ display: "flex", alignItems: "center", gap: 8 }}
-                >
-                  실력 수준
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      borderRadius: 4,
-                      background: "var(--bg-alt)",
-                      color: "var(--ink-mute)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    준비 중
-                  </span>
-                </div>
-                <div
-                  // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 3 → sm 5 칸 ("초중급" 등 3자라 5칸은 짤림)
+                  // 모바일 3칸 / sm 5칸 (Step 2 포지션 패턴과 동일)
                   className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mt-2"
                 >
-                  {["초보", "초중급", "중급", "중상급", "상급"].map((l) => (
-                    <button
-                      key={l}
-                      type="button"
-                      disabled
-                      title="준비 중"
-                      className="btn btn--sm"
-                      style={{ cursor: "not-allowed" }}
-                    >
-                      {l}
-                    </button>
-                  ))}
+                  {SKILL_OPTIONS.map((l) => {
+                    // 단일 선택 — radio 패턴 (skill === l 비교)
+                    const active = skill === l;
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        className="btn btn--sm"
+                        // 단일 선택: 같은 항목 클릭 시 해제, 다른 항목 클릭 시 교체
+                        onClick={() => setSkill((prev) => (prev === l ? "" : l))}
+                        style={
+                          active
+                            ? {
+                                background: "var(--accent-soft)",
+                                color: "var(--accent)",
+                                borderColor: "var(--accent)",
+                              }
+                            : undefined
+                        }
+                      >
+                        {l}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
+                <div className="label">관심 경기 유형 (복수선택)</div>
                 <div
-                  className="label"
-                  style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  // 모바일 3칸 / sm 5칸
+                  className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mt-2"
                 >
-                  관심 경기 유형
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      borderRadius: 4,
-                      background: "var(--bg-alt)",
-                      color: "var(--ink-mute)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    준비 중
-                  </span>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {["픽업", "게스트", "스크림", "대회", "정기팀"].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      disabled
-                      title="준비 중"
-                      className="btn btn--sm"
-                      style={{ cursor: "not-allowed" }}
-                    >
-                      {t}
-                    </button>
-                  ))}
+                  {GAME_TYPE_OPTIONS.map((t) => {
+                    const active = gameTypes.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        className="btn btn--sm"
+                        onClick={() => toggleGameType(t)}
+                        style={
+                          active
+                            ? {
+                                background: "var(--accent-soft)",
+                                color: "var(--accent)",
+                                borderColor: "var(--accent)",
+                              }
+                            : undefined
+                        }
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

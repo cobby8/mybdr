@@ -137,6 +137,12 @@ export async function signupAction(_prevState: { error: string } | null, formDat
   const heightRaw = formData.get("height") as string | null;
   const jerseyRaw = formData.get("jersey_number") as string | null;
 
+  // 2026-05-04 Step 3 활성화: 활동 환경 3 필드 추가 (선택 — 빈 배열/NULL 허용).
+  // 모두 한글 값 그대로 저장 — UI 라벨과 DB 값이 동일 (코드 매핑 없음, 단순함 우선).
+  const regionsRaw = formData.get("preferred_regions") as string | null;
+  const skillRaw = formData.get("skill_level") as string | null;
+  const gameTypesRaw = formData.get("preferred_game_types") as string | null;
+
   if (!email || !nickname || !password || !passwordConfirm) {
     return { error: "모든 항목을 입력하세요." };
   }
@@ -171,6 +177,35 @@ export async function signupAction(_prevState: { error: string } | null, formDat
     if (!isNaN(n) && n >= 0 && n <= 99) defaultJerseyNumber = n;
   }
 
+  // 2026-05-04 Step 3 파싱: JSON 배열 → string[] (잘못된 입력은 빈 배열 fallback — 가입 흐름 보존)
+  // 이유: 클라이언트가 JSON.stringify 로 직렬화 → 서버는 JSON.parse + Array 검증 + 문자열만 필터링.
+  let preferred_regions: string[] = [];
+  if (regionsRaw) {
+    try {
+      const parsed = JSON.parse(regionsRaw);
+      if (Array.isArray(parsed)) {
+        preferred_regions = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      // 잘못된 JSON → 빈 배열 (default 와 동일)
+    }
+  }
+
+  let preferred_game_types: string[] = [];
+  if (gameTypesRaw) {
+    try {
+      const parsed = JSON.parse(gameTypesRaw);
+      if (Array.isArray(parsed)) {
+        preferred_game_types = parsed.filter((s): s is string => typeof s === "string");
+      }
+    } catch {
+      // 잘못된 JSON → 빈 배열
+    }
+  }
+
+  // skill_level: String? — 빈 문자열은 NULL 로 저장 (선택 안 한 사용자 = 미입력)
+  const skill_level = skillRaw && skillRaw.trim() ? skillRaw.trim() : null;
+
   try {
     // 이메일 중복 확인
     const existingEmail = await prisma.user.findUnique({ where: { email }, select: { id: true } });
@@ -199,6 +234,11 @@ export async function signupAction(_prevState: { error: string } | null, formDat
         position,
         height,
         default_jersey_number: defaultJerseyNumber,
+        // 2026-05-04 Step 3 활성화: 활동 환경 3 필드 (한글 그대로 저장).
+        // preferred_regions: Json @default("[]") / preferred_game_types: Json @default("[]") / skill_level: String?
+        preferred_regions,
+        preferred_game_types,
+        skill_level,
       },
     });
 

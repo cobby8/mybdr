@@ -133,7 +133,7 @@ const ACTIVE: ActiveApp[] = [
     teamColor: "#F59E0B",
     teamInk: "#000",
     game: {
-      title: "스크림 옵저버 모집 — 잠실",
+      title: "연습경기 옵저버 모집 — 잠실",
       court: "잠실학생체육관",
       date: "2026.04.29 (수)",
       time: "19:30 – 21:30",
@@ -142,7 +142,7 @@ const ACTIVE: ActiveApp[] = [
     appliedAt: "2026.04.21 19:47",
     role: "옵저버",
     teamMessage: "고려 중입니다. 내일 최종 결정해서 알려드릴게요.",
-    myMessage: "스크림 관전도 좋고, 필요하면 합류도 가능합니다.",
+    myMessage: "연습경기 관전도 좋고, 필요하면 합류도 가능합니다.",
     fee: "관람 무료",
     paid: null,
   },
@@ -177,7 +177,7 @@ const PAST: PastApp[] = [
     teamColor: "#8B5CF6",
     teamInk: "#fff",
     game: {
-      title: "스크림 게스트 — 용산",
+      title: "연습경기 게스트 — 용산",
       court: "용산국민체육센터",
       date: "2026.04.02 (수)",
       time: "20:00 – 22:00",

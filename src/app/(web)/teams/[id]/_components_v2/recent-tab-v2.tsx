@@ -33,7 +33,7 @@ import { officialMatchWhere } from "@/lib/tournaments/official-match";
  *   ≤720px 에서 자동 카드 변환 (헤더 행 hidden + key-value 라인 + primary 카드 제목).
  *
  * DB 매핑 / 미지원:
- * - 스크림/정규리그 분류 → DB 없음 → tournament.name 표시로 대체
+ * - 연습경기/정규리그 분류 → DB 없음 → tournament.name 표시로 대체
  */
 
 type Props = {

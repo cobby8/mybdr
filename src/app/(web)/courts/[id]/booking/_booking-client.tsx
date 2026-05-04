@@ -49,7 +49,7 @@ const HOURS = Array.from({ length: 16 }, (_, i) => 6 + i);
 const PURPOSES = [
   { id: "pickup", l: "픽업경기", d: "개인 모집" },
   { id: "team", l: "팀 훈련", d: "팀원 전용" },
-  { id: "scrim", l: "스크림", d: "팀간 연습" },
+  { id: "scrim", l: "연습경기", d: "팀간 연습" },
   { id: "private", l: "개인 연습", d: "혼자/소규모" },
 ] as const;
 
