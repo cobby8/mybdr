@@ -16,6 +16,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { SettingsHeader } from "./settings-ui";
+// 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 — 계정 삭제 본인 확인용)
+import { PasswordInput } from "@/components/ui/password-input";
 
 export function DangerSectionV2() {
   const router = useRouter();
@@ -148,13 +150,14 @@ export function DangerSectionV2() {
               계정 삭제 후 모든 활동 기록이 익명화되며 복구할 수 없습니다. 본인
               확인을 위해 현재 비밀번호를 입력하세요.
             </p>
-            <input
-              type="password"
-              className="input"
+            {/* 2026-05-04: PasswordInput (보기 버튼 통합) + autoComplete="current-password"
+                (계정 삭제 본인 확인 = 현재 비밀번호 자동 채움 활성) */}
+            <PasswordInput
               placeholder="현재 비밀번호"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={submitting}
+              autoComplete="current-password"
               style={{ width: "100%", marginBottom: 12 }}
               autoFocus
             />
