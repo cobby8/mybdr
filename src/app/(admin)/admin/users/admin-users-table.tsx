@@ -54,6 +54,7 @@ interface UserDetail {
     joined_at: string | null;
   }>;
   tournaments: Array<{
+    playerId: string; // 2026-05-05: 배번 인라인 수정용
     tournamentId: string;
     tournamentName: string;
     teamName: string | null;
@@ -224,9 +225,13 @@ interface Props {
   toggleUserAdminAction: (formData: FormData) => Promise<void>;
   forceWithdrawAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
-  // 2026-05-05: 관리자 모달 강화 — 상세 lazy fetch + 인라인 편집
+  // 2026-05-05: 관리자 모달 강화 — 상세 lazy fetch + 인라인 편집 + 배번 수정
   getDetailAction: (userId: string) => Promise<UserDetail>;
   updateProfileAction: (formData: FormData) => Promise<{ error?: string }>;
+  updateJerseyAction: (
+    playerId: string,
+    jerseyNumber: number | null,
+  ) => Promise<{ error?: string }>;
 }
 
 export function AdminUsersTable({
@@ -241,6 +246,7 @@ export function AdminUsersTable({
   deleteAction,
   getDetailAction,
   updateProfileAction,
+  updateJerseyAction,
 }: Props) {
   const [selectedUser, setSelectedUser] = useState<SerializedUser | null>(null);
   const [tab, setTab] = useState<"info" | "edit">("info");
@@ -477,7 +483,8 @@ export function AdminUsersTable({
                       )}
                     </div>
 
-                    {/* 2026-05-05: Phase A — 토너먼트 참가 (최근 10건) */}
+                    {/* 2026-05-05: Phase B — 토너먼트 참가 (최근 10건) + 배번 인라인 수정
+                          배번 누락 시 빨간 "배번 누락" 경고 + 즉시 입력 가능 */}
                     <div>
                       <p className="mb-1.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
                         토너먼트 참가 {detail && `(${detail.tournaments.length})`}
@@ -489,15 +496,18 @@ export function AdminUsersTable({
                       ) : (
                         <div className="rounded-[12px] border border-[var(--color-border)] overflow-hidden">
                           {detail.tournaments.map((t, i) => (
-                            <div key={t.tournamentId + i} className={`flex items-center px-4 py-2 gap-2 ${i > 0 ? "border-t border-[var(--color-border-subtle)]" : ""}`}>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{t.tournamentName}</p>
-                                <p className="text-xs text-[var(--color-text-muted)] truncate">
-                                  {[t.teamName, t.jerseyNumber != null ? `#${t.jerseyNumber}` : null, fmt(t.startDate)].filter(Boolean).join(" · ")}
-                                </p>
-                              </div>
-                              <span className="badge badge--soft text-[10px] whitespace-nowrap">{t.status ?? "-"}</span>
-                            </div>
+                            <TournamentRow
+                              key={t.playerId}
+                              row={t}
+                              isFirst={i === 0}
+                              updateJerseyAction={updateJerseyAction}
+                              onUpdated={() => {
+                                // 배번 수정 후 detail 재fetch
+                                if (selectedUser) {
+                                  getDetailAction(selectedUser.id).then(setDetail);
+                                }
+                              }}
+                            />
                           ))}
                         </div>
                       )}
@@ -656,6 +666,141 @@ export function AdminUsersTable({
   );
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// 2026-05-05: 토너먼트 참가 행 — 배번 누락 시 빨간 경고 + 즉시 수정 input
+//   왜: 출전 선수 배번 누락 케이스 (예: 다이나믹팀 6명 전원, 라이징이글스 4명).
+//        운영자가 모달에서 즉시 채우는 UX.
+//   동작:
+//     - 배번 있음 → "#5" 표시 + 클릭 시 편집 모드
+//     - 배번 없음 → "배번 누락" 빨간 라벨 + 클릭 시 편집 모드
+//     - 편집 모드 → input(0~99) + 저장/취소
+// ────────────────────────────────────────────────────────────────────────────────
+function TournamentRow({
+  row,
+  isFirst,
+  updateJerseyAction,
+  onUpdated,
+}: {
+  row: UserDetail["tournaments"][number];
+  isFirst: boolean;
+  updateJerseyAction: (
+    playerId: string,
+    jerseyNumber: number | null,
+  ) => Promise<{ error?: string }>;
+  onUpdated: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState<string>(row.jerseyNumber != null ? String(row.jerseyNumber) : "");
+  const [saving, setSaving] = useState(false);
+
+  const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("ko-KR") : "-");
+
+  const handleSave = async () => {
+    setSaving(true);
+    const trimmed = value.trim();
+    const next = trimmed === "" ? null : parseInt(trimmed, 10);
+    if (next !== null && (Number.isNaN(next) || next < 0 || next > 99)) {
+      alert("배번은 0~99 사이 정수");
+      setSaving(false);
+      return;
+    }
+    const r = await updateJerseyAction(row.playerId, next);
+    setSaving(false);
+    if (r.error) {
+      alert(r.error);
+      return;
+    }
+    setEditing(false);
+    onUpdated();
+  };
+
+  return (
+    <div className={`flex items-center px-4 py-2 gap-2 ${isFirst ? "" : "border-t border-[var(--color-border-subtle)]"}`}>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{row.tournamentName}</p>
+        <p className="text-xs text-[var(--color-text-muted)] truncate">
+          {[row.teamName, fmtDate(row.startDate)].filter(Boolean).join(" · ")}
+        </p>
+      </div>
+
+      {/* 배번 영역 */}
+      {editing ? (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <input
+            type="number"
+            min="0"
+            max="99"
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              else if (e.key === "Escape") {
+                setEditing(false);
+                setValue(row.jerseyNumber != null ? String(row.jerseyNumber) : "");
+              }
+            }}
+            disabled={saving}
+            className="w-12 rounded border px-1.5 py-0.5 text-xs text-center outline-none"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-card)",
+              color: "var(--color-text-primary)",
+            }}
+            placeholder="0~99"
+          />
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="text-[10px] underline disabled:opacity-50"
+            style={{ color: "var(--color-success)" }}
+          >
+            저장
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(false);
+              setValue(row.jerseyNumber != null ? String(row.jerseyNumber) : "");
+            }}
+            disabled={saving}
+            className="text-[10px] underline"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            취소
+          </button>
+        </div>
+      ) : row.jerseyNumber != null ? (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-xs font-mono px-2 py-0.5 rounded hover:bg-[var(--color-surface)] flex-shrink-0"
+          style={{ color: "var(--color-text-secondary)" }}
+          title="클릭하여 배번 수정"
+        >
+          #{row.jerseyNumber}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-[10px] font-bold px-2 py-0.5 rounded flex-shrink-0"
+          style={{
+            background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+            color: "var(--color-error)",
+          }}
+          title="클릭하여 배번 입력"
+        >
+          ⚠ 배번 누락
+        </button>
+      )}
+
+      <span className="badge badge--soft text-[10px] whitespace-nowrap flex-shrink-0">{row.status ?? "-"}</span>
+    </div>
+  );
+}
+
 function InfoSection({ title, rows }: { title: string; rows: [string, string | null | undefined][] }) {
   return (
     <div>
@@ -673,11 +818,12 @@ function InfoSection({ title, rows }: { title: string; rows: [string, string | n
 }
 
 // ────────────────────────────────────────────────────────────────────────────────
-// 2026-05-05: 관리자 프로필 인라인 편집 폼 (Step 2)
-//   왜: 부적절한 닉네임 강제 변경 / 연락처 보정 / 대회 출전 자격 직접 조정
-//   필드: nickname, name, phone, birth_date, city, district, position, height, weight,
-//        bio, is_elite, default_jersey_number (12개)
-//   미지원: email (unique + 인증 영향) / role / status / isAdmin (별도 액션)
+// 2026-05-05 (revised): 관리자 프로필 긴급 변경 폼 — 개인정보 보호 강화
+//   왜 (PIPA + GDPR 본인정정권):
+//     - name/phone/birth_date/city/district/height/weight/position/jersey
+//       9필드는 본인 수정 영역 → 모달에서 읽기 전용 (관리자 변경 권한 회수)
+//     - 관리자 변경 가능: nickname / bio / is_elite (3필드 + 사유 필수)
+//   톤: 위험 영역 강조 (warning border) — 일반 편집 아님을 시각화
 // ────────────────────────────────────────────────────────────────────────────────
 function ProfileEditForm({
   user,
@@ -688,39 +834,72 @@ function ProfileEditForm({
   pending: boolean;
   onSubmit: (formData: FormData) => Promise<void>;
 }) {
-  // birth_date YYYY-MM-DD 변환 (date input 호환)
-  const birthValue = user.birth_date ? user.birth_date.slice(0, 10) : "";
-
   return (
     <form
       action={onSubmit}
       className="rounded-[14px] border p-4 space-y-3"
-      style={{ borderColor: "var(--color-border)" }}
+      style={{
+        borderColor: "color-mix(in srgb, var(--color-warning) 40%, transparent)",
+        background: "color-mix(in srgb, var(--color-warning) 4%, transparent)",
+      }}
     >
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>
-          프로필 편집
-        </p>
-        <span className="text-[10px] text-[var(--color-text-muted)]">이메일은 변경 불가</span>
+        <div>
+          <p className="text-xs font-bold" style={{ color: "var(--color-warning)" }}>
+            ⚠ 긴급 변경 (3필드)
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: "var(--color-text-muted)" }}>
+            개인정보 보호 — 신원/연락처/거주지/신체정보는 본인만 수정 가능
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <EditField label="닉네임" name="nickname" defaultValue={user.nickname ?? ""} />
-        <EditField label="이름" name="name" defaultValue={user.name ?? ""} />
-        <EditField label="연락처" name="phone" defaultValue={user.phone ?? ""} placeholder="01012345678" />
-        <EditField label="생년월일" name="birth_date" type="date" defaultValue={birthValue} />
-        <EditField label="도시" name="city" defaultValue={user.city ?? ""} placeholder="예: 서울" />
-        <EditField label="구/군" name="district" defaultValue={user.district ?? ""} placeholder="예: 강남구" />
-        <EditField label="포지션" name="position" defaultValue={user.position ?? ""} placeholder="PG/SG/SF/PF/C" />
-        <EditField label="기본 등번호" name="default_jersey_number" type="number" defaultValue={user.default_jersey_number != null ? String(user.default_jersey_number) : ""} placeholder="0~99" />
-        <EditField label="키 (cm)" name="height" type="number" defaultValue={user.height != null ? String(user.height) : ""} />
-        <EditField label="몸무게 (kg)" name="weight" type="number" defaultValue={user.weight != null ? String(user.weight) : ""} />
-      </div>
-
-      {/* 자기소개 — 전체 폭 textarea */}
+      {/* 닉네임 — 부적절 닉네임 강제 변경 */}
       <div>
-        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-          자기소개
+        <label className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <span>닉네임</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              const form = (e.currentTarget as HTMLButtonElement).closest("form");
+              const input = form?.querySelector('input[name="nickname"]') as HTMLInputElement | null;
+              if (input) input.value = `user_${user.id}`;
+            }}
+            className="text-[9px] underline"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            자동 닉네임으로 초기화
+          </button>
+        </label>
+        <input
+          name="nickname"
+          type="text"
+          defaultValue={user.nickname ?? ""}
+          className="w-full rounded-[10px] border px-2.5 py-1.5 text-sm outline-none"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+          }}
+        />
+      </div>
+
+      {/* 자기소개 — 부적절 소개글 강제 삭제 */}
+      <div>
+        <label className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          <span>자기소개</span>
+          <button
+            type="button"
+            onClick={(e) => {
+              const form = (e.currentTarget as HTMLButtonElement).closest("form");
+              const input = form?.querySelector('textarea[name="bio"]') as HTMLTextAreaElement | null;
+              if (input) input.value = "";
+            }}
+            className="text-[9px] underline"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            전체 삭제
+          </button>
         </label>
         <textarea
           name="bio"
@@ -735,8 +914,10 @@ function ProfileEditForm({
         />
       </div>
 
-      {/* 선출 여부 — 대회 출전 자격 */}
+      {/* 선출 여부 — 대회 출전 자격 (운영 검증) */}
       <label className="flex items-center gap-2 cursor-pointer">
+        {/* hidden marker — 체크 안 됐을 때 (false) 도 전송하기 위함 */}
+        <input type="hidden" name="is_elite_present" value="1" />
         <input
           type="checkbox"
           name="is_elite"
@@ -746,53 +927,44 @@ function ProfileEditForm({
         />
         <span className="text-sm text-[var(--color-text-primary)]">선출 (대회 출전 자격)</span>
         <span className="text-[10px] text-[var(--color-text-muted)]">
-          체크 해제 시 일반부 대회 신청 가능
+          해제 시 일반부 대회 신청 가능
         </span>
       </label>
+
+      {/* 변경 사유 — 필수 (감사 추적) */}
+      <div>
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--color-warning)" }}>
+          변경 사유 (필수, 5자 이상)
+        </label>
+        <textarea
+          name="reason"
+          required
+          minLength={5}
+          rows={2}
+          placeholder="예: 부적절한 닉네임 신고 처리, 운영 검증 결과 비선출 확인 등"
+          className="w-full rounded-[10px] border px-3 py-2 text-sm outline-none resize-none"
+          style={{
+            borderColor: "color-mix(in srgb, var(--color-warning) 40%, transparent)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+          }}
+        />
+      </div>
 
       <div className="flex justify-end pt-1">
         <button
           type="submit"
           disabled={pending}
-          className="btn btn--primary btn--sm disabled:opacity-50"
+          className="btn btn--sm disabled:opacity-50"
+          style={{
+            background: "var(--color-warning)",
+            color: "#fff",
+            borderColor: "var(--color-warning)",
+          }}
         >
-          {pending ? "저장 중..." : "프로필 저장"}
+          {pending ? "저장 중..." : "긴급 변경 적용"}
         </button>
       </div>
     </form>
-  );
-}
-
-function EditField({
-  label,
-  name,
-  defaultValue,
-  type = "text",
-  placeholder,
-}: {
-  label: string;
-  name: string;
-  defaultValue: string;
-  type?: "text" | "number" | "date";
-  placeholder?: string;
-}) {
-  return (
-    <div>
-      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-        {label}
-      </label>
-      <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        placeholder={placeholder}
-        className="w-full rounded-[10px] border px-2.5 py-1.5 text-sm outline-none"
-        style={{
-          borderColor: "var(--color-border)",
-          background: "var(--color-card)",
-          color: "var(--color-text-primary)",
-        }}
-      />
-    </div>
   );
 }
