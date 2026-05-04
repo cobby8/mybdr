@@ -42,6 +42,11 @@ export type BracketMatch = {
   bracketLevel: number;
   bracketPosition: number;
   matchNumber: number | null;
+  // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드
+  // 형식: `{YY}-{지역2자}-{대회이니셜+회차4자}-{매치번호3자}` 예: `26-GG-MD21-001`
+  // NULL 가능 — short_code/region_code 둘 중 하나라도 NULL인 대회의 매치는 null
+  // UI 가 NULL 안전 분기 (`{m.matchCode && ...}`) 의무.
+  matchCode: string | null;
   status: MatchStatus;
   homeTeam: TeamSlot;
   awayTeam: TeamSlot;
@@ -79,6 +84,9 @@ type DbMatch = {
   bracket_level: number | null;
   bracket_position: number | null;
   match_number: number | null;
+  // Phase 5 (매치 코드 v4) — DB tournament_matches.match_code 컬럼 직매핑
+  // 옵셔널 — 호출자가 select 안 하면 undefined → toBracketMatch 에서 ?? null 변환
+  match_code?: string | null;
   status: string | null;
   homeScore: number | null;
   awayScore: number | null;
@@ -164,6 +172,8 @@ function toBracketMatch(m: DbMatch): BracketMatch {
     bracketLevel: m.bracket_level ?? 0,
     bracketPosition: m.bracket_position ?? 0,
     matchNumber: m.match_number,
+    // Phase 5 — DB match_code 매핑 (NULL 안전)
+    matchCode: m.match_code ?? null,
     status: (m.status as MatchStatus) ?? "scheduled",
     homeTeam: toTeamSlot(m.homeTeam),
     awayTeam: toTeamSlot(m.awayTeam),

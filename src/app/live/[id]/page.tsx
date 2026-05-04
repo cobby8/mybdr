@@ -94,6 +94,9 @@ interface MatchData {
   away_score: number;
   round_name: string | null;
   tournament_name: string;
+  // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 (snake_case 그대로 유지: 이 페이지는 camelCase 변환 안 함)
+  // 형식: `26-GG-MD21-001` (14자) 또는 null. v2 hero-scoreboard 가 NULL 안전 분기 표시.
+  match_code?: string | null;
   quarter_scores: {
     home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };

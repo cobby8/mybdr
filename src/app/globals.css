@@ -1630,12 +1630,25 @@ html.dark .hero-carousel__accent {
   /* Hide desktop tab strip; show hamburger */
   .app-nav__tabs { display: none; }
   .app-nav__burger {
+    /* 2026-05-04 (R3 강조): 햄버거 = drawer 게이트웨이 → 시각 weight ↑.
+       border + 아이콘 = accent (BDR Red). 다른 4 아이콘 (회색) 과 차별화. position:relative
+       추가 — NavBadge dot 부착 위치 기준. */
+    position: relative;
     display: inline-flex !important;
     width: 38px; height: 38px;
     align-items: center; justify-content: center;
-    background: transparent; border: 1px solid var(--border);
-    border-radius: 8px; color: var(--ink); cursor: pointer;
+    background: transparent;
+    border: 1.5px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    cursor: pointer;
     flex: 0 0 auto;
+    transition: background 0.15s, color 0.15s;
+  }
+  .app-nav__burger:hover,
+  .app-nav__burger:focus {
+    background: var(--accent);
+    color: #fff;
   }
   [data-theme="dark"] .app-nav__burger, html.dark .app-nav__burger { border-width: 2px; border-color: var(--border-strong); border-radius: 0; }
 
@@ -1652,11 +1665,12 @@ html.dark .hero-carousel__accent {
     background: rgba(8,10,14,.55); backdrop-filter: blur(2px);
   }
   .drawer {
-    /* 2026-05-04: 좌우 폭 60vw 축소 — 사용자 보고 "여백 줄이기".
-       기존 85vw (440px viewport 시 374px) → 60vw (264px). 우측 여백 ~176px 노출. */
+    /* 2026-05-04 (3차 축소): 60vw → 42vw (현재의 70%). 사용자 "더 줄여".
+       440 viewport 시 ~185px. min-width 220 = 작은 viewport (< 524) 보호.
+       라벨 "내 신청 내역" 같은 긴 글자 줄바꿈 회피. */
     position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
-    width: min(320px, 60vw);
-    min-width: 260px;
+    width: min(320px, 42vw);
+    min-width: 220px;
     background: var(--bg-elev);
     border-left: 1px solid var(--border);
     box-shadow: -12px 0 40px rgba(0,0,0,.25);

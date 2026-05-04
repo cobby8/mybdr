@@ -251,7 +251,9 @@ export function AppNav({
             </Link>
           )}
 
-          {/* 모바일 햄버거 — 900px 이하에서만 보이도록 CSS에서 처리 */}
+          {/* 모바일 햄버거 — 900px 이하에서만 보이도록 CSS에서 처리.
+              2026-05-04 (R3 강조): NavBadge dot — drawer 안 신규 컨텐츠 (경기/커뮤니티/알림) 있을 때
+              빨간 점 표시. 사용자 진입 유도. */}
           <button
             type="button"
             className="app-nav__burger"
@@ -270,6 +272,9 @@ export function AppNav({
             >
               <path d="M3 7h18M3 12h18M3 17h18" />
             </svg>
+            {(newGameCount > 0 || newCommunityCount > 0 || unreadCount > 0) && (
+              <NavBadge variant="dot" />
+            )}
           </button>
         </div>
       </div>

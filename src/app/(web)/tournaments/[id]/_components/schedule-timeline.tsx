@@ -33,6 +33,10 @@ export interface ScheduleMatch {
   // 2026-05-02: 일정 카드 콤팩트 + 매치번호/조 표시 (사용자 요청)
   matchNumber?: number | null;
   groupName?: string | null;
+  // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 (NULL 가능)
+  // 형식: `26-GG-MD21-001` (14자 영숫자) — 대회 short_code/region_code 미부여 시 null
+  // 카드 매치번호 자리에 우선 표시, NULL 이면 기존 #매치번호 fallback
+  matchCode?: string | null;
 }
 
 export interface ScheduleTeam {
@@ -237,11 +241,24 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                       borderLeftColor: isHighlighted ? "var(--color-primary)" : undefined,
                     }}
                   >
-                    {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): #번호 | 라운드 | 시간 | 코트 ... [상태] */}
+                    {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): 코드/번호 | 라운드 | 시간 | 코트 ... [상태] */}
                     <div className="mb-2.5 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        {/* 매치번호 — 부여되어 있을 때만 (포맷별 부여 일관성 X 큐) */}
-                        {match.matchNumber != null && (
+                        {/* Phase 5 (매치 코드 v4) — 글로벌 코드 우선, NULL 시 매치번호 fallback
+                            이유: 코드(`26-GG-MD21-001`) 14자 = 대회+회차+지역+번호 정보 풍부.
+                            모바일 360px viewport flex-wrap 으로 줄바꿈 안전 (font-size 10px). */}
+                        {match.matchCode ? (
+                          <>
+                            <span
+                              className="match-code"
+                              title={`매치 코드: ${match.matchCode}`}
+                              aria-label={`매치 코드 ${match.matchCode}`}
+                            >
+                              {match.matchCode}
+                            </span>
+                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                          </>
+                        ) : match.matchNumber != null ? (
                           <>
                             <span
                               className="font-mono text-xs"
@@ -251,7 +268,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
                             </span>
                             <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
                           </>
-                        )}
+                        ) : null}
                         {/* 라운드명 */}
                         {match.roundName && (
                           <span
