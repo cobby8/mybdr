@@ -223,7 +223,13 @@ export async function signupAction(_prevState: { error: string } | null, formDat
     }
 
     const passwordDigest = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
+    // 2026-05-04 P1 fix: 회원가입 자동 로그인 ❌ 제거.
+    // 이유(왜): 운영 사용자 신고 — "회원가입 마치고 로그아웃 화면 유지 중인데 로그인 된 것처럼 메뉴 접근 가능".
+    //   기존 흐름은 signup 직후 cookies.set(WEB_SESSION_COOKIE) 으로 자동 로그인 → /verify?missing=phone 진입.
+    //   사용자 의도 = 가입 후 /login 진입 + 사용자 직접 로그인 (보안 + 명확한 흐름).
+    // 어떻게: generateToken + cookies.set 호출 제거. User.create 만 남기고 redirect.
+    // OAuth 흐름 (kakao/google/naver callback) 은 별도 — 이 변경 영향 없음 (callback 라우트는 자체 cookies.set).
+    await prisma.user.create({
       data: {
         email,
         nickname,
@@ -240,11 +246,8 @@ export async function signupAction(_prevState: { error: string } | null, formDat
         preferred_game_types,
         skill_level,
       },
+      select: { id: true },
     });
-
-    const token = await generateToken(user);
-    const cookieStore = await cookies();
-    cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
   } catch (e) {
     const message = e instanceof Error ? e.message : "";
     if (message.includes("Unique constraint")) {
@@ -254,13 +257,10 @@ export async function signupAction(_prevState: { error: string } | null, formDat
     return { error: "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." };
   }
 
-  // M5 온보딩 압축 (옵션 B + A):
-  // 이메일 가입자는 phone 미인증 상태이므로 OAuth 흐름과 통일하기 위해
-  // verify 페이지로 보낸다. (SMS/픽업 핵심 기능 사일런트 실패 방지)
-  // verify/page.tsx L80~83에서 phone 인증 성공 시 /profile/complete 로 push,
-  // 거기서 닉네임/포지션/지역 3필드 압축 폼이 옵션 카드로 나오고
-  // "나중에" 1클릭으로 홈 도달 가능 (압축 정신 + 자연 진입 동시 보장).
-  redirect("/verify?missing=phone");
+  // 2026-05-04 P1: signup → /login?signup=success redirect.
+  //   query "signup=success" 는 로그인 페이지에서 안내 배지 노출용 (자동 로그인 ❌ / 사용자 직접 로그인).
+  //   verify?missing=phone 흐름은 OAuth 신규 가입 시점에만 의미 — email 가입자는 로그인 후 verify 자동 진입 가능.
+  redirect("/login?signup=success");
 }
 
 export async function devLoginAction(_prevState: { error: string } | null, _formData: FormData) {
