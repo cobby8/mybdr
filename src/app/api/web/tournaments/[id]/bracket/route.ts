@@ -13,6 +13,11 @@ import {
   validateGroupAssignment,
   type DualGroupAssignment,
 } from "@/lib/tournaments/dual-tournament-generator";
+// 2026-05-04 (P3) — 듀얼 표준 default: 4강 페어링 모드 (sequential/adjacent)
+import {
+  DUAL_DEFAULT_PAIRING,
+  type SemifinalPairingMode,
+} from "@/lib/tournaments/dual-defaults";
 // Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
 import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
 import { Prisma } from "@prisma/client";
@@ -89,7 +94,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }),
     prisma.tournament.findUnique({
       where: { id },
-      select: { format: true },
+      // 2026-05-04 (P4) — settings 추가: dual 조 배정 에디터가 기존 settings.bracket.groupAssignment + semifinalPairing 복원
+      select: { format: true, settings: true },
     }),
   ]);
 
@@ -99,6 +105,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     matches,
     approvedTeams,
     format: tournamentMeta?.format ?? null, // UI 가 풀리그/토너먼트 분기할 때 사용
+    // 2026-05-04 (P4) — settings.bracket 노출 (dual editor 복원용 / 다른 포맷도 안전 — 무시)
+    settings: tournamentMeta?.settings ?? null,
   });
 }
 
@@ -259,7 +267,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           }
 
           // 3) generator 호출 — 27 DualMatchToCreate 반환
-          const dualMatches = generateDualTournament(groupAssignment, id);
+          // 2026-05-04 (P3) — settings.bracket.semifinalPairing 참조 (default = sequential)
+          //   sequential = 표준 / adjacent = 5/2 동호회최강전 호환 옵션
+          //   bracket 변수는 위 1) 단계에서 추출 완료
+          const pairing: SemifinalPairingMode =
+            bracket?.semifinalPairing === "adjacent"
+              ? "adjacent"
+              : bracket?.semifinalPairing === "sequential"
+                ? "sequential"
+                : DUAL_DEFAULT_PAIRING;
+          const dualMatches = generateDualTournament(groupAssignment, id, pairing);
 
           // 4) createMany 27건 INSERT (next_match_id 는 null — 자기 참조 FK 회피)
           //    settings JSON 에 슬롯 라벨 + (G1·G2·G3 의 loserNextMatchSlot) 임시 저장

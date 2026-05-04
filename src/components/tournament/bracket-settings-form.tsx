@@ -5,6 +5,12 @@
 //       조건부 UI로 전환하고, settings.bracket JSON에 저장한다.
 // 사용처: new wizard + edit wizard 공통
 import type React from "react";
+// 2026-05-04: 듀얼 토너먼트 표준 default 적용 (P3) — DUAL_DEFAULT_BRACKET 상수 + 4강 페어링 모드
+// dual_tournament 선택 시 자동 채우기 + 운영자가 페어링 모드만 변경 가능
+import {
+  DUAL_DEFAULT_PAIRING,
+  type SemifinalPairingMode,
+} from "@/lib/tournaments/dual-defaults";
 
 export type BracketSettingsData = {
   format: string;                 // 현재 선택된 대회 방식 (wizard state와 동기화)
@@ -15,6 +21,9 @@ export type BracketSettingsData = {
   advancePerGroup: number;        // 조별 진출 수 (1~3위)
   autoGenerateMatches: boolean;   // 경기 자동 생성 여부 (기본 true)
   hasGroupFinal?: boolean;        // 조별 최종전(2위 결정전) 포함 여부 — dual_tournament 전용
+  // 2026-05-04: 듀얼 표준 default (P3) — 4강 페어링 모드 (sequential = 표준 / adjacent = 5/2 운영 패턴)
+  // dual_tournament 일 때만 사용. 다른 포맷은 무시.
+  semifinalPairing?: SemifinalPairingMode;
 };
 
 type Props = {
@@ -103,6 +112,26 @@ export function BracketSettingsForm({ data, onChange, teamCount, disabled = fals
             <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
               4조 × 4팀 배정은 대회 관리 → 대진표에서 입력합니다.
             </span>
+          </FieldRow>
+
+          {/* 2026-05-04: 4강 페어링 모드 (P3) — 표준 default = sequential
+              운영자가 변경 가능. adjacent = 5/2 동호회최강전 호환 옵션 보존. */}
+          <FieldRow
+            label="4강 페어링 모드"
+            hint="표준 = 같은 조 결승까지 분리 + 단일 코트 효율 / 5/2 패턴 = AB·CD 진영 분리"
+          >
+            <select
+              value={data.semifinalPairing ?? DUAL_DEFAULT_PAIRING}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange("semifinalPairing", e.target.value as SemifinalPairingMode)
+              }
+              className={`${inputCls}`}
+              style={inputStyle}
+            >
+              <option value="sequential">표준 (시드 분리, 단일 코트 순차 진행)</option>
+              <option value="adjacent">5/2 패턴 (AB/CD 진영 분리, 멀티 코트 묶기)</option>
+            </select>
           </FieldRow>
 
           {/* dual 은 3·4위전 미운영 (사진 정합) — 사용자 명시적 변경 시에만 활성화 */}
@@ -237,6 +266,10 @@ export function BracketSettingsForm({ data, onChange, teamCount, disabled = fals
         {isDualTournament && (
           <p>
             16팀 4조 × 4팀 (조별 미니 더블엘리미 + 최종전) → 8강 → 4강 → 결승 = 27경기
+            {" · 4강 페어링: "}
+            {(data.semifinalPairing ?? DUAL_DEFAULT_PAIRING) === "adjacent"
+              ? "5/2 패턴"
+              : "표준"}
             {data.bronzeMatch ? " + 3/4위전" : ""}
           </p>
         )}
