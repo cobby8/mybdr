@@ -306,7 +306,15 @@
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); ap=d.get\\('data',{}\\).get\\('awayPlayers'\\) or d.get\\('away_players'\\) or []; hp=d.get\\('data',{}\\).get\\('homePlayers'\\) or d.get\\('home_players'\\) or []; print\\(f'home={len\\(hp\\)}, away={len\\(ap\\)}'\\); print\\('away sample:', [{'#':p.get\\('jersey_number'\\) or p.get\\('jerseyNumber'\\), 'name':p.get\\('player_name'\\) or p.get\\('name'\\)} for p in ap[:3]]\\)\")",
       "WebFetch(domain:jumpball.co.kr)",
       "Bash(awk '{print $5}')",
-      "Bash(xargs git *)"
+      "Bash(xargs git *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell($logs = git log --oneline -n 200 --pretty=format:\"%s\"; $scopes = $logs | ForEach-Object { if \\($_ -match '\\\\\\(\\([\\\\w,\\\\-/]+\\)\\\\\\)'\\) { $matches[1] } }; $scopes | Group-Object | Sort-Object Count -Descending | Select-Object Count, Name -First 30 | Format-Table -AutoSize)",
+      "PowerShell(Test-Path *)",
+      "Bash(sed -n '7378,7384p' /tmp/root.css)",
+      "Bash(sed -n '7879,7885p' /tmp/root.css)",
+      "Bash(sed -n '9393,9400p' /tmp/root.css)",
+      "Bash(sed -n '9385,9405p' /tmp/root.css)",
+      "PowerShell($logs = git log --since='2026-04-01' --pretty=format:'%s'; $domains = @{}; foreach \\($l in $logs\\) { if \\($l -match '^[a-z]+\\\\\\(\\([\\\\w,\\\\-/]+\\)\\\\\\)'\\) { $sc = $matches[1]; foreach \\($p in $sc.Split\\(','\\)\\) { $key = $p.Split\\('/'\\)[0]; if \\($domains.ContainsKey\\($key\\)\\) { $domains[$key]++ } else { $domains[$key]=1 } } } }; $domains.GetEnumerator\\(\\) | Sort-Object Value -Descending | Select-Object -First 25 | ForEach-Object { '{0,4}  {1}' -f $_.Value, $_.Key })"
     ]
   }
 }

@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
+// Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
+import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
 
 // 팀별 순위 결과 타입
 // rank는 1부터 시작 (1위, 2위, ...)
@@ -300,8 +302,23 @@ export async function generateKnockoutMatches(
     });
   }
 
-  // 7) 일괄 insert — createMany는 트랜잭션 내부에서 원자적으로 처리
-  await prisma.tournamentMatch.createMany({ data: matchData });
+  // 7) Phase 4 — 매치 코드 v4 필드 자동 부여 (호출자 영향 0)
+  //    tournamentMeta 조회 + applyMatchCodeFields. short_code/region_code NULL → match_code NULL.
+  const tournamentMeta = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      short_code: true,
+      region_code: true,
+      categories: true,
+      startDate: true,
+    },
+  });
+  const matchDataWithCode = tournamentMeta
+    ? applyMatchCodeFields(matchData, tournamentMeta)
+    : matchData;
+
+  // 8) 일괄 insert — createMany는 트랜잭션 내부에서 원자적으로 처리
+  await prisma.tournamentMatch.createMany({ data: matchDataWithCode });
 
   return matchData.length;
 }
@@ -434,8 +451,23 @@ export async function generateEmptyKnockoutSkeleton(
     });
   }
 
-  // 6) 일괄 insert
-  await prisma.tournamentMatch.createMany({ data: matchData });
+  // 6) Phase 4 — 매치 코드 v4 필드 자동 부여 (호출자 영향 0)
+  //    빈 뼈대도 매치 코드 부여 — 운영자가 토너먼트 슬롯 채우기 전부터 코드로 매치 식별 가능
+  const tournamentMeta = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: {
+      short_code: true,
+      region_code: true,
+      categories: true,
+      startDate: true,
+    },
+  });
+  const matchDataWithCode = tournamentMeta
+    ? applyMatchCodeFields(matchData, tournamentMeta)
+    : matchData;
+
+  // 7) 일괄 insert
+  await prisma.tournamentMatch.createMany({ data: matchDataWithCode });
 
   return matchData.length;
 }
