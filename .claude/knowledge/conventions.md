@@ -1,6 +1,33 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] 비밀번호 입력란 — 보기 버튼 의무 + autoComplete 정밀 제어 (글로벌 룰)
+- **분류**: convention/ui (모든 비밀번호 input 공통 / UX 표준)
+- **발견자**: pm + 사용자 (회원가입 페이지 운영 보고: 자동 채움 + 보기 버튼 미존재)
+- **글로벌 룰** (사용자 결정 — 모든 프로젝트 공통, 본인 작업 영구):
+  - **모든 `type="password"` input** = 보기/숨기기 토글 버튼 **의무 삽입**
+  - 아이콘 = Material Symbols Outlined `visibility` ↔ `visibility_off`
+  - 위치 = input 우측 (absolute) / `tabIndex={-1}` (Tab 자연 흐름)
+  - 패턴 = 재사용 컴포넌트 추출 (`PasswordInput` 등) 후 일괄 사용
+  - aria-label = "비밀번호 보기" / "비밀번호 숨기기" (a11y)
+  - 토큰만 (var(--*)) / 하드코딩 색 ❌
+- **autoComplete 룰** (브라우저 자동 채움 정밀 제어):
+  - 이메일/아이디 → `autoComplete="username"` 또는 `"email"` (클릭 시 dropdown)
+  - 가입 비밀번호 → `autoComplete="new-password"` (자동 채움 차단)
+  - 로그인 비밀번호 → `autoComplete="current-password"` (저장된 값 자동 채움 활성)
+  - 비밀번호 변경 → 현재=`current-password` / 새=`new-password` 분리
+  - 페이지 진입 시 즉시 채움 ❌ / 클릭 시 dropdown ✅
+- **mybdr 위치**: `src/components/ui/password-input.tsx` (신규 컴포넌트, 2026-05-04)
+- **현재 적용**: signup/page.tsx (1 페이지 / commit bc6838e 후속)
+- **점진 적용 큐** (5 파일):
+  - `(web)/login/page.tsx` (로그인 비밀번호 — `current-password`)
+  - `(web)/profile/edit/page.tsx` (현재 비밀번호 + 새 비밀번호)
+  - `(web)/profile/settings/_components_v2/danger-section-v2.tsx` (탈퇴 확인 비밀번호)
+  - `(referee-public)/referee/signup/page.tsx` (심판 가입)
+  - `(referee)/referee/admin/members/new/page.tsx` (admin 회원 등록)
+- **참조 발견**: 사용자 카톡 보고 (인라인 회원가입 UX 사각지대 fix 후속)
+- **참조횟수**: 0
+
 ### [2026-05-04] `prisma db push --accept-data-loss` 회피 = `prisma db execute` 직접 SQL 우회 (CLAUDE.md DB 정책 준수)
 - **분류**: convention/prisma (운영 DB 안전 가드 / destructive 방지)
 - **발견자**: developer (매치 코드 v4 Phase 1 schema push 시)
