@@ -131,6 +131,11 @@ export async function signupAction(_prevState: { error: string } | null, formDat
   const nickname = formData.get("nickname") as string;
   const password = formData.get("password") as string;
   const passwordConfirm = formData.get("password_confirm") as string;
+  // 2026-05-04 Step 2 활성화: 프로필 3 필드 추가 (선택 — NULL 허용).
+  // 빈 값 또는 잘못된 값 ⇒ NULL 저장 (가입 흐름 무영향). 사용자는 추후 profile/edit 에서 입력 가능.
+  const positionRaw = formData.get("position") as string | null;
+  const heightRaw = formData.get("height") as string | null;
+  const jerseyRaw = formData.get("jersey_number") as string | null;
 
   if (!email || !nickname || !password || !passwordConfirm) {
     return { error: "모든 항목을 입력하세요." };
@@ -146,6 +151,24 @@ export async function signupAction(_prevState: { error: string } | null, formDat
   }
   if (password !== passwordConfirm) {
     return { error: "비밀번호가 일치하지 않습니다." };
+  }
+
+  // 이유: 선택 필드 — 잘못된 입력은 NULL 저장 (에러 throw 안 함, 가입은 그대로 진행).
+  // position: CSV 형식 그대로 저장 (profile/edit 와 동일 패턴 — split(",") 으로 파싱 가능).
+  const position = positionRaw && positionRaw.trim() ? positionRaw.trim() : null;
+
+  // height: 100~250 범위 검증 — 범위 외/NaN 은 NULL.
+  let height: number | null = null;
+  if (heightRaw && heightRaw.trim()) {
+    const n = parseInt(heightRaw.trim(), 10);
+    if (!isNaN(n) && n >= 100 && n <= 250) height = n;
+  }
+
+  // jersey_number: 0~99 범위 검증 — 범위 외/NaN 은 NULL.
+  let defaultJerseyNumber: number | null = null;
+  if (jerseyRaw && jerseyRaw.trim()) {
+    const n = parseInt(jerseyRaw.trim(), 10);
+    if (!isNaN(n) && n >= 0 && n <= 99) defaultJerseyNumber = n;
   }
 
   try {
@@ -171,6 +194,11 @@ export async function signupAction(_prevState: { error: string } | null, formDat
         nickname,
         passwordDigest,
         status: "active",
+        // 2026-05-04 Step 2 활성화: 프로필 3 필드 (모두 NULL 허용).
+        // schema 컬럼명: position / height / default_jersey_number (snake_case 직접 — @map 없음)
+        position,
+        height,
+        default_jersey_number: defaultJerseyNumber,
       },
     });
 

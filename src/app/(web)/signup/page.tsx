@@ -34,8 +34,31 @@ export default function SignupPage() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
 
-  // 이유: Step 2 — 닉네임만 실작동, 나머지(포지션·키·등번호)는 UI만 (DB 컬럼 없음)
+  // 이유: Step 2 — 닉네임 + 프로필 (포지션·키·등번호) 모두 DB 저장 (2026-05-04 Step 2 활성화)
   const [nickname, setNickname] = useState("");
+
+  // 이유: 시안 라벨(한글) → DB 코드(영문) 매핑 — profile/edit POSITIONS 와 일관성 유지
+  // DB 운영 패턴: User.position = "PG,SG,SF" (CSV 멀티 선택 — profile/edit 와 동일)
+  const POSITION_OPTIONS = [
+    { code: "PG", label: "가드" },
+    { code: "SG", label: "슈가" },
+    { code: "SF", label: "스포" },
+    { code: "PF", label: "파포" },
+    { code: "C", label: "센터" },
+  ] as const;
+
+  // 이유: 멀티 선택 (영문 코드 array — submit 시 join(",") 으로 CSV 변환)
+  const [positions, setPositions] = useState<string[]>([]);
+  // 이유: 키/등번호는 string state (input value 호환) — 저장 시 parseInt + 범위 검증
+  const [height, setHeight] = useState("");
+  const [jerseyNumber, setJerseyNumber] = useState("");
+
+  // 이유: profile/edit togglePosition 와 동일 패턴 — 멀티 토글
+  const togglePosition = (code: string) => {
+    setPositions((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
+  };
 
   // 이유: 클라이언트 진입 가드 에러 메시지 (서버 액션 에러와 별도 노출)
   const [stepError, setStepError] = useState<string | null>(null);
@@ -142,6 +165,11 @@ export default function SignupPage() {
         <input type="hidden" name="password" value={password} />
         <input type="hidden" name="password_confirm" value={passwordConfirm} />
         <input type="hidden" name="nickname" value={nickname} />
+        {/* 2026-05-04 Step 2 활성화: position(CSV) / height / jersey_number 추가 hidden inputs.
+            이유: state 가 form data 에 포함되어야 signupAction 이 수신 가능. 모두 선택 필드 (NULL 허용). */}
+        <input type="hidden" name="position" value={positions.join(",")} />
+        <input type="hidden" name="height" value={height} />
+        <input type="hidden" name="jersey_number" value={jerseyNumber} />
         <div className="card" style={{ padding: "28px 28px" }}>
           {/* OAuth 에러 표시 (있을 때만) */}
           {oauthError && OAUTH_ERRORS[oauthError] && (
@@ -328,99 +356,67 @@ export default function SignupPage() {
                 />
               </div>
 
-              {/* 포지션 — UI만, "준비 중" 뱃지 (DB 컬럼 없음, Phase 6 예정) */}
+              {/* 포지션 — 2026-05-04 활성화: 멀티 토글 (DB CSV 저장 — User.position) */}
               <div>
-                <div
-                  className="label"
-                  style={{ display: "flex", alignItems: "center", gap: 8 }}
-                >
-                  포지션
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      fontSize: 10,
-                      borderRadius: 4,
-                      background: "var(--bg-alt)",
-                      color: "var(--ink-mute)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    준비 중
-                  </span>
-                </div>
+                <div className="label">포지션 (복수 선택 가능)</div>
                 <div
                   // 2026-05-02 모바일 분기 (errors.md 04-29): 모바일 3 → sm 5 칸
                   className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 mt-1.5"
                 >
-                  {["가드", "슈가", "스포", "파포", "센터"].map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      disabled
-                      title="준비 중"
-                      className="btn btn--sm"
-                      style={{ cursor: "not-allowed" }}
-                    >
-                      {p}
-                    </button>
-                  ))}
+                  {POSITION_OPTIONS.map((opt) => {
+                    // 이유: 선택 상태 시 accent 색상 적용 (profile/edit chip--active 패턴과 등가)
+                    const active = positions.includes(opt.code);
+                    return (
+                      <button
+                        key={opt.code}
+                        type="button"
+                        className="btn btn--sm"
+                        onClick={() => togglePosition(opt.code)}
+                        style={
+                          active
+                            ? {
+                                background: "var(--accent-soft)",
+                                color: "var(--accent)",
+                                borderColor: "var(--accent)",
+                              }
+                            : undefined
+                        }
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* 키 / 등번호 — UI만, "준비 중" */}
+              {/* 키 / 등번호 — 2026-05-04 활성화: number input + 범위 검증 (서버 validation 동시 수행) */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 <div>
-                  <div
-                    className="label"
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    키 (cm)
-                    <span
-                      style={{
-                        padding: "1px 6px",
-                        fontSize: 10,
-                        borderRadius: 4,
-                        background: "var(--bg-alt)",
-                        color: "var(--ink-mute)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      준비 중
-                    </span>
-                  </div>
+                  <div className="label">키 (cm)</div>
                   <input
                     className="input"
-                    disabled
+                    type="number"
+                    min={100}
+                    max={250}
+                    inputMode="numeric"
+                    value={height}
+                    onChange={(e) => setHeight(e.target.value)}
                     placeholder="예: 182"
-                    title="준비 중"
-                    style={{ marginTop: 6, cursor: "not-allowed" }}
+                    style={{ marginTop: 6 }}
                   />
                 </div>
                 <div>
-                  <div
-                    className="label"
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
-                    등번호
-                    <span
-                      style={{
-                        padding: "1px 6px",
-                        fontSize: 10,
-                        borderRadius: 4,
-                        background: "var(--bg-alt)",
-                        color: "var(--ink-mute)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      준비 중
-                    </span>
-                  </div>
+                  <div className="label">등번호</div>
                   <input
                     className="input"
-                    disabled
+                    type="number"
+                    min={0}
+                    max={99}
+                    inputMode="numeric"
+                    value={jerseyNumber}
+                    onChange={(e) => setJerseyNumber(e.target.value)}
                     placeholder="예: 7"
-                    title="준비 중"
-                    style={{ marginTop: 6, cursor: "not-allowed" }}
+                    style={{ marginTop: 6 }}
                   />
                 </div>
               </div>
