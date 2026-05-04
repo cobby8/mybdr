@@ -88,6 +88,17 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
     },
   ];
 
+  // 2026-05-04 (A안 — 행 간 절대 비교): count kind 행들의 전체 max 계산.
+  // 이전 합 정규화 (home/total) 는 모든 행이 비슷한 막대 길이 (행 간 비교 불가).
+  // 변경 후: 모든 count 통계의 max(home, away) 를 100% 기준 → 큰 통계는 긴 막대 / 작은 통계는 짧은 막대.
+  // 사용자 의도: "다른 행의 숫자와 비율도 맞추는게 좋을거 같아" → 행 간 절대 비교 가능.
+  const globalCountMax = Math.max(
+    1, // 0 division 방지
+    ...statRows
+      .filter((r) => r.kind === "count")
+      .flatMap((r) => [r.homeNum, r.awayNum]),
+  );
+
   return (
     <div className="card tts-card">
       {/* 상단 팀 vs 팀 헤더 */}
@@ -104,7 +115,7 @@ export function TabTeamStats({ match }: { match: MatchDataV2 }) {
       </div>
 
       {statRows.map((row) => (
-        <StatCompareRow key={row.label} row={row} />
+        <StatCompareRow key={row.label} row={row} globalCountMax={globalCountMax} />
       ))}
     </div>
   );
@@ -126,14 +137,21 @@ interface StatRow {
   kind: StatKind;
 }
 
-// 막대 정규화 — 옵션 C 분기 처리
+// 막대 정규화 — 옵션 C 분기 + A안 (행 간 절대 비교)
 //  - percent: home/away 가 이미 0~100 비율 → 그대로 사용 (50% = 절반)
-//  - count: 합 정규화 (home/(home+away) * 100). 합 0 이면 양쪽 0 + visualWeak
+//  - count: 전체 count max 절대 정규화 (home / globalMax * 100) — 행 간 비교 가능
 //  - count + 합 ≤ 2 (블록 1 vs 0 같은 극단값) → visualWeak 플래그로 시각 약화 (opacity 0.4)
+//
+// 2026-05-04 (A안 — 행 간 절대 비교 fix): 합 정규화 → 절대값 정규화로 변경.
+// 사용자 의도 "다른 행의 숫자와 비율도 맞추는게 좋을거 같아" → 큰 통계 (득점 73) 는 긴 막대,
+// 작은 통계 (블록 1) 는 짧은 막대. globalCountMax 기준 절대 비율 사용.
+// 작은 값 (visualWeak) 은 절대 정규화 자체로 자연스럽게 짧음 — width cap 제거 (절대값 신뢰).
+// opacity 0.4 (CSS .tts-bar--weak) 만 유지 → "통계적 의미 약함" 시각 신호 보존.
 function normalizeBar(
   home: number,
   away: number,
   kind: StatKind,
+  globalCountMax: number,
 ): { homePct: number; awayPct: number; visualWeak: boolean } {
   if (kind === "percent") {
     // % 항목: 0~100 절대 스케일 (안전 clamp)
@@ -143,16 +161,16 @@ function normalizeBar(
       visualWeak: false,
     };
   }
-  // count: 합 정규화
+  // count: A안 — 전체 count max 절대 정규화 (행 간 비교 가능)
   const total = home + away;
   if (total === 0) {
     return { homePct: 0, awayPct: 0, visualWeak: true };
   }
-  // 합 ≤ 2 = 통계적 의미 약함 (블록 1 vs 0, 스틸 0 vs 1 등) → 시각 약화
+  // 합 ≤ 2 = 통계적 의미 약함 (블록 1 vs 0 등) → opacity 0.4 만 적용 (cap 없음)
   const visualWeak = total <= 2;
   return {
-    homePct: (home / total) * 100,
-    awayPct: (away / total) * 100,
+    homePct: (home / globalCountMax) * 100,
+    awayPct: (away / globalCountMax) * 100,
     visualWeak,
   };
 }
@@ -185,7 +203,7 @@ function pct(made: number, attempt: number): number {
 }
 
 // 좌/우 비교 바 행 — NBA.com 스타일
-function StatCompareRow({ row }: { row: StatRow }) {
+function StatCompareRow({ row, globalCountMax }: { row: StatRow; globalCountMax: number }) {
   // 턴오버 / 파울 — low-is-better (작을수록 좋음)
   const lowerIsBetter = row.label === "턴오버" || row.label === "파울";
   const homeWin = lowerIsBetter
@@ -195,8 +213,8 @@ function StatCompareRow({ row }: { row: StatRow }) {
     ? row.awayNum <= row.homeNum
     : row.awayNum >= row.homeNum;
 
-  // 옵션 C 정규화 분기 (count: 합 정규화 / percent: 절대 0~100 / 합≤2: weak)
-  const { homePct, awayPct, visualWeak } = normalizeBar(row.homeNum, row.awayNum, row.kind);
+  // A안 정규화 — count: globalCountMax 절대 / percent: 0~100 / weak: opacity 0.4
+  const { homePct, awayPct, visualWeak } = normalizeBar(row.homeNum, row.awayNum, row.kind, globalCountMax);
 
   // weak 모디파이어 — count 항목 합≤2 또는 0/0 시 시각 약화 (opacity 0.4)
   const homeBarClass = `tts-bar tts-bar--home${visualWeak ? " tts-bar--weak" : ""}`;

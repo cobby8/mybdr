@@ -1,6 +1,32 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] `prisma db push --accept-data-loss` 회피 = `prisma db execute` 직접 SQL 우회 (CLAUDE.md DB 정책 준수)
+- **분류**: convention/prisma (운영 DB 안전 가드 / destructive 방지)
+- **발견자**: developer (매치 코드 v4 Phase 1 schema push 시)
+- **배경**: 신규 NULL 허용 ADD COLUMN 6개 + UNIQUE 제약 2개 추가 시 `prisma db push` 가 UNIQUE 제약 추가에 대해 `--accept-data-loss` 플래그 요구. CLAUDE.md DB 정책 절대 금지 룰 = "prisma migrate reset 또는 prisma db push --accept-data-loss 운영 DB 에 실행 ❌ (데이터 파괴)".
+- **우회 패턴** (안전):
+  ```bash
+  # 직접 SQL 작성 + prisma db execute (--accept-data-loss 플래그 없이 실행)
+  npx prisma db execute --file=scripts/_temp/v4-schema-add-columns.sql --schema=prisma/schema.prisma
+  ```
+  ```sql
+  -- v4-schema-add-columns.sql
+  ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS short_code VARCHAR(7);
+  ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS region_code VARCHAR(2);
+  ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS match_code VARCHAR(20);
+  -- ... 4컬럼
+  CREATE UNIQUE INDEX IF NOT EXISTS tournaments_short_code_key ON tournaments(short_code);
+  CREATE UNIQUE INDEX IF NOT EXISTS tournament_matches_match_code_key ON tournament_matches(match_code);
+  ```
+- **사전 SELECT 1건 + 사후 verify 필수** (CLAUDE.md 룰):
+  - 사전: `SELECT COUNT(*) FROM tournaments` (count 보존 확인 baseline)
+  - 사후: `information_schema.columns WHERE table_name = 'tournaments' AND column_name IN ('short_code', 'region_code')` (컬럼 존재 검증)
+- **NULL 허용 ADD COLUMN 만 무중단** — NOT NULL ADD COLUMN 또는 DROP COLUMN 또는 ALTER TYPE 은 사용자 명시 추가 승인 필요.
+- **임시 SQL 파일 즉시 삭제** (CLAUDE.md `scripts/_temp/` 룰).
+- **참조 발견**: 매치 코드 v4 Phase 1 (commit 8af51eb)
+- **참조횟수**: 0
+
 ### [2026-05-04] 알기자 기사 사진 업로드 정책 — 매치당 15장 + 클라이언트 압축 (트래픽 80% 절감)
 - **분류**: convention (사진 업로드 한도 / 클라이언트 측 최적화 / 트래픽 절감)
 - **발견자**: pm (사용자 우려 "DB 용량 차지 + 일반 커뮤니티 정책 + 자동 축소 방법 검토")
