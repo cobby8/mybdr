@@ -2,6 +2,45 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 회원가입 흐름 단순화 — 가입=인증 / 프로필=활동 / 선호=정밀화 분리 (3단계 통합 폐기)
+- **분류**: decision (가입 흐름 / UX / 데이터 분류 통일)
+- **결정자**: 사용자 ("가입은 간단하게, 로그인 이후 활동을 위해 정보 설정을 쉽게")
+- **참조횟수**: 0
+- **배경**: 회원가입 → onboarding → profile/complete → verify 4 wizard 흐름이 데이터 분류 불일치 (포지션 5/3종, 실력 5/6단계, 지역 17시도/서울 18구) + 중복 입력 + 사용자 혼란
+- **거부된 옵션**:
+  - 3-step signup 유지 + onboarding 통합 (분류 불일치 해소 못함)
+  - signup 1-step + onboarding 1회 위저드 진입 (별도 wizard 페이지 추가 = 사용자 부담)
+- **채택 패턴**: **3단계 분리**
+  1. **가입 = 인증** (signup 1-step): 이메일 + 비밀번호 + 닉네임 + 약관 4가지만
+  2. **프로필 = 활동 준비** (profile/edit § 활동 환경): 포지션 + 신장 + 등번호 + 17시도 + 5단계 실력 + 5종 게임유형
+  3. **선호 = 정밀화** (profile/edit § 활동 환경 확장): 12 스타일 + 4 빈도 + 6 목표 (알림은 settings 별도)
+- **사용자 동선**:
+  - signup 1-step (1분 이내) → /login → 홈
+  - 홈 ProfileCtaCard "프로필 완성하기" CTA (선택, 7일 닫기 가능)
+  - profile/edit 에서 점진적 입력 → profile_completed 자동 갱신 → CTA 자동 숨김
+- **데이터 분류 통일** (signup 기준):
+  - 포지션 5종 (PG/SG/SF/PF/C) — onboarding 3종 폐기
+  - 실력 5단계 (초보/초중급/중급/중상급/상급) — onboarding 6단계 (선출급) 폐기, 선출은 `is_elite` Boolean 분리
+  - 지역 17 시도 (전국 목표) — onboarding 서울 18구 폐기
+  - 게임 유형 5종 (픽업/게스트/연습경기/대회/길농)
+- **폐기 페이지 (server redirect)**:
+  - `/profile/complete` → `/profile/edit`
+  - `/profile/complete/preferences` → `/profile/edit`
+  - `/onboarding/setup` → `/profile/edit` (외부 링크/북마크 안전)
+- **자동 로그인 비활성** (직전 d248e50 commit):
+  - signupAction → cookies.set 제거 + redirect("/login?signup=success")
+  - 헤더 SSR 세션 인지 + /profile 가드 추가
+- **profile_completed 자동 갱신**:
+  - PATCH /api/web/profile 시 핵심 5필드 (position+height+preferred_regions+skill_level+preferred_game_types) 모두 입력 → true
+  - 빈배열 안전 가드 + 응답에 포함
+  - ProfileCtaCard SWR revalidate 시 자동 숨김
+- **schema 변경 0** (모든 컬럼 기존 존재 — Phase 10-5 적용분 + preferred_*)
+- **운영 영향**:
+  - 신규 가입자: 1분 이내 가입 + 점진 보완 (편의 ↑)
+  - 기존 사용자: profile/edit § 활동 환경 신규 섹션 → NULL/빈배열 → 점진 입력
+  - DB 마이그 0 (NULL default 활용)
+- **참조 commit**: d248e50 (P1+P4 자동 로그인 비활성) → 5cfd586 (F1+F2+F5 가입 간소화) → 6531452 (F3+F4 profile/edit 통합)
+
 ### [2026-05-04] "길농" 신규 게임 유형 도입 — 길거리농구 줄임말 / 야외코트 매칭용
 - **분류**: decision (게임 유형 / 매칭 시스템 / 신규 카테고리)
 - **결정자**: 사용자 ("정기팀 → 길농 변경 / 길거리농구의 줄임말로 추후 야외코트 주로 활동하는 유저의 선호로 매칭 예정")

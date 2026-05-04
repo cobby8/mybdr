@@ -1,16 +1,12 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Footer } from "@/components/layout/Footer";
-import { SWRProvider } from "@/components/providers/swr-provider";
-import { PreferFilterProvider, usePreferFilter } from "@/contexts/prefer-filter-context";
-import { ToastProvider } from "@/contexts/toast-context";
-// BDR v2 신규 가로 네비 — 유틸리티 바 + 메인 탭 + 모바일 드로어 일체형
-import { AppNav, type AppNavUser } from "@/components/bdr-v2/app-nav";
-// BDR v2 모바일 fixed 하단 네비 — Phase B 풀 도입 (2026-05-01)
-// localStorage 기반 5슬롯 / 카탈로그 14항목 / ≤720px 만 노출 (CSS @media)
-import { BottomNav } from "@/components/BottomNav";
-import "@/components/bottom-nav.css";
+// 2026-05-04 P4 fix: server component 로 전환.
+//   왜: 기존 "use client" 에서 useEffect 로 /api/web/me fetch → SSR 시 user=null → 첫 paint 가 비로그인 헤더 노출.
+//       운영 사용자 신고 — 로그아웃 화면 + 로그인 메뉴 잠깐 노출 (hydration 전).
+//   어떻게: layout 자체는 server 로 전환하고, getWebSession() 결과를 initialUser 로 client 자식에 prop 주입.
+//          기존 client 상태/폴링/이벤트 로직은 WebLayoutInner (client) 로 분리.
+import { getWebSession } from "@/lib/auth/web-session";
+import { prisma } from "@/lib/db/prisma";
+import { WebLayoutInner } from "./_layout/web-layout-inner";
+import type { AppNavUser } from "@/components/bdr-v2/app-nav";
 
 /* ============================================================
  * WebLayout (BDR v2 전환 후 전면 단순화)
@@ -39,129 +35,47 @@ import "@/components/bottom-nav.css";
  *   AppNav 노출만 제거. usePreferFilter 는 setLoggedIn 훅 호출용으로 여전히 필요.
  * ============================================================ */
 
-function WebLayoutInner({ children }: { children: React.ReactNode }) {
-  const { setLoggedIn } = usePreferFilter();
-  const [user, setUser] = useState<AppNavUser | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  // 2026-05-03 — AppNav NEW 뱃지 (MVP: 경기 LIVE + 커뮤니티 24h NEW)
-  const [newGameCount, setNewGameCount] = useState(0);
-  const [newCommunityCount, setNewCommunityCount] = useState(0);
+// 2026-05-04 P4 fix: server component 진입점.
+//   - SSR 시점에 getWebSession() 으로 세션 read → 비로그인이면 initialUser=null,
+//     로그인 사용자면 DB 에서 nickname/role/is_referee 를 SELECT (한 번 — useEffect 첫 fetch 대체).
+//   - 결과를 client (WebLayoutInner) 에 prop 주입 → AppNav 가 첫 paint 부터 정확한 상태 표시.
+//   - 보안 속성 보존: cookies 는 getWebSession() 내부에서 httpOnly 쿠키 read (기존 그대로).
+//   - 기존 폴링/이벤트 (alert 30s / nav-badges 60s) 는 client 에 보존 (실시간성 필요).
+export default async function WebLayout({ children }: { children: React.ReactNode }) {
+  const session = await getWebSession();
 
-  // 마운트 시 유저 + 알림 병렬 fetch — 기존 로직 그대로 이식
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/web/me", { credentials: "include" })
-        .then(async (r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch("/api/web/notifications", { credentials: "include" })
-        // ⚠️ apiSuccess snake_case 변환: unread_count 로 접근 (errors.md 재발 이력 참조)
-        .then(async (r) => (r.ok ? (r.json() as Promise<{ unread_count?: number }>) : null))
-        .catch(() => null),
-    ]).then(([userData, notifData]) => {
-      // userData는 라우트에서 snake_case/camelCase 혼재 가능성 → AppNav에는 최소 필드만
-      if (userData) {
-        const u = userData as {
-          name?: string;
-          role?: string;
-          prefer_filter_enabled?: boolean;
-          is_referee?: boolean;
-        };
-        setUser({
-          name: u.name ?? "사용자",
-          role: u.role ?? "user",
-          is_referee: u.is_referee ?? false,
-        });
-        setLoggedIn(true, u.prefer_filter_enabled ?? false);
-        if (notifData) setUnreadCount(notifData.unread_count ?? 0);
-      } else {
-        setLoggedIn(false, false);
-      }
-    });
-  }, [setLoggedIn]);
+  // 초기 user prop — 비로그인이면 null
+  let initialUser: AppNavUser | null = null;
+  if (session) {
+    // me route 와 동일한 select 룰: nickname (ground truth) / role / referee 매칭 여부
+    // 이유(왜): JWT name 은 발급 시점 박힘 → DB nickname 우선 (2026-04-30 회귀 픽스 동일).
+    // 어떻게: SELECT 만 (캐시·운영 영향 0). 비로그인 사용자는 0 쿼리 — DB 부담 0.
+    try {
+      const userId = BigInt(session.sub);
+      const [user, referee] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { nickname: true },
+        }),
+        prisma.referee.findFirst({
+          where: { user_id: userId },
+          select: { id: true },
+        }),
+      ]);
+      initialUser = {
+        name: user?.nickname ?? session.name ?? "사용자",
+        role: session.role ?? "user",
+        is_referee: !!referee,
+      };
+    } catch {
+      // SSR DB 실패 시에도 헤더 렌더는 보장 — JWT session 만으로 폴백
+      initialUser = {
+        name: session.name ?? "사용자",
+        role: session.role ?? "user",
+        is_referee: false,
+      };
+    }
+  }
 
-  // 알림 30초 폴링 + "모두 읽음" 이벤트 즉시 갱신 (기존 로직 유지)
-  useEffect(() => {
-    if (!user) return;
-    const poll = () => {
-      fetch("/api/web/notifications", { credentials: "include" })
-        .then(async (r) => {
-          if (r.ok) {
-            const data = (await r.json()) as { unread_count?: number };
-            setUnreadCount(data.unread_count ?? 0);
-          }
-        })
-        .catch(() => {});
-    };
-    poll();
-    const id = setInterval(poll, 30000);
-
-    // notifications 페이지에서 "모두 읽음" 시 헤더 뱃지 즉시 0으로 (M6)
-    const handleReadAll = () => setUnreadCount(0);
-    window.addEventListener("notifications:read-all", handleReadAll);
-
-    return () => {
-      clearInterval(id);
-      window.removeEventListener("notifications:read-all", handleReadAll);
-    };
-  }, [user]);
-
-  // 2026-05-03 — AppNav NEW 뱃지 폴링 (60s, 비로그인도 동일 — 공개 데이터)
-  // ⚠️ apiSuccess 미들웨어 snake_case 변환 → new_game_count / new_community_count
-  useEffect(() => {
-    const poll = () => {
-      fetch("/api/web/nav-badges", { credentials: "include" })
-        .then(async (r) => {
-          if (!r.ok) return;
-          const body = (await r.json()) as {
-            ok?: boolean;
-            data?: { new_game_count?: number; new_community_count?: number };
-            new_game_count?: number;
-            new_community_count?: number;
-          };
-          const d = body.data ?? body;
-          setNewGameCount(d.new_game_count ?? 0);
-          setNewCommunityCount(d.new_community_count ?? 0);
-        })
-        .catch(() => {});
-    };
-    poll();
-    const id = setInterval(poll, 60000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)" }}>
-      {/* 상단 가로 네비 — utility bar + 메인 탭 + 모바일 drawer 일체.
-       * [2026-04-22] v2 시안 매칭: rightAccessory(별 아이콘) 제거. */}
-      <AppNav
-        user={user}
-        unreadCount={unreadCount}
-        newGameCount={newGameCount}
-        newCommunityCount={newCommunityCount}
-      />
-
-      {/* 메인 — 풀폭. 각 페이지가 자체 `.page` 컨테이너로 폭 제어 */}
-      <main className="flex-1">{children}</main>
-
-      {/* 푸터 — 기존 그대로 재사용, 풀폭 하단 */}
-      <Footer />
-
-      {/* 모바일 fixed 하단 네비 — Phase B (2026-05-01).
-       * PC 에서는 CSS @media 로 hidden (display:none), 모바일 ≤720px 만 노출.
-       * (admin)/(referee) 라우트 그룹은 별도 layout 이라 영향 0. */}
-      <BottomNav />
-    </div>
-  );
-}
-
-export default function WebLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <SWRProvider>
-      <PreferFilterProvider>
-        <ToastProvider>
-          <WebLayoutInner>{children}</WebLayoutInner>
-        </ToastProvider>
-      </PreferFilterProvider>
-    </SWRProvider>
-  );
+  return <WebLayoutInner initialUser={initialUser}>{children}</WebLayoutInner>;
 }

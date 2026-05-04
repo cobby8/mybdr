@@ -53,6 +53,11 @@ export default function LoginPage() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // 2026-05-04 P1: 회원가입 완료 후 /login?signup=success redirect (auth.ts signupAction).
+  //   왜: 가입 직후 자동 로그인 ❌ → 사용자가 로그인 페이지에 도착하면 "가입 성공" 안내 노출.
+  //   loginState.error 가 있을 때는 노출 ❌ (에러 우선) — 안내는 첫 진입 / 에러 발생 전까지만.
+  const signupSuccess = searchParams.get("signup") === "success";
+
   const oauthError = searchParams.get("error");
   // OAuth 에러를 InfoDialog(모달)로 노출: URL 쿼리가 있으면 열림, 확인 시 쿼리에서 제거하여 재열림 방지
   // 로컬 state를 두는 이유: 사용자가 확인을 눌러도 URL에는 error가 남아있는 타이밍에 모달이 재열리는 걸 막음
@@ -133,6 +138,23 @@ export default function LoginPage() {
           {tab === "login" ? (
             // ─────────── 로그인 탭 ───────────
             <>
+              {/* 2026-05-04 P1: 회원가입 성공 안내 박스 — /login?signup=success 시 노출.
+                  loginState.error 와 동시 노출 ❌ (에러 우선). InfoDialog 가 아닌 인라인 박스 = 사용자 흐름 차단 ❌. */}
+              {signupSuccess && !loginState?.error && (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "var(--accent-soft)",
+                    color: "var(--accent)",
+                    fontSize: 13,
+                  }}
+                >
+                  가입이 완료됐어요. 로그인해서 시작하세요.
+                </div>
+              )}
+
               {/* 서버 액션 에러 메시지 */}
               {loginState?.error && (
                 <div

@@ -44,6 +44,49 @@ import "./edit-profile.css";
 // 시안 포지션 5종 (PG/SG/SF/PF/C) — 운영은 multi 선택 보존 (DB 호환)
 const POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const;
 
+// ============================================================
+// 2026-05-04: F3+F4 회원가입 통합 — §6 활동 환경 옵션 상수 (signup 데이터 분류 통일 기준)
+// ============================================================
+
+// F3: 활동 지역 17 시도 (한글) — DB preferred_regions Json 배열로 저장
+const REGIONS_17 = [
+  "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
+  "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주",
+] as const;
+
+// F3: 게임 유형 5종 — DB preferred_game_types Json 배열
+const GAME_TYPES = [
+  { v: "pickup",    l: "픽업게임" },
+  { v: "guest",     l: "게스트" },
+  { v: "scrimmage", l: "연습경기" },
+  { v: "tournament", l: "대회" },
+  { v: "street",    l: "길농" },
+] as const;
+
+// F4: 스타일 12종 — DB styles String[] (≤4 권장, 강제 X)
+const STYLES_12 = [
+  "3점 슈터", "돌파형", "포스트업", "올라운더", "수비형", "리바운더",
+  "포인트가드형", "캐치앤슛", "픽앤롤", "빠른발", "패서", "스팟업",
+] as const;
+
+// F4: 빈도 4단계 — DB play_frequency String? (단일)
+const FREQUENCIES = [
+  { v: "daily",   l: "거의 매일" },
+  { v: "weekly",  l: "주 1~3회" },
+  { v: "monthly", l: "월 1~3회" },
+  { v: "rare",    l: "가끔" },
+] as const;
+
+// F4: 가입 목표 6종 — DB goals String[] (멀티 + 이모지)
+const GOALS_6 = [
+  { v: "friends", l: "친구 만들기", e: "🤝" },
+  { v: "fit",     l: "운동·체력",   e: "💪" },
+  { v: "skill",   l: "실력 향상",   e: "🎯" },
+  { v: "compete", l: "대회 출전",   e: "🏆" },
+  { v: "team",    l: "팀 합류",     e: "👥" },
+  { v: "fun",     l: "재미·취미",   e: "🎉" },
+] as const;
+
 interface ProfileEditData {
   name: string | null;
   nickname: string | null;
@@ -74,6 +117,14 @@ interface ProfileEditData {
   privacy_settings: Record<string, string> | null; // §4 공개 7항목 × 3옵션
   instagram_url: string | null;        // §3 인스타그램 핸들
   youtube_url: string | null;          // §3 유튜브 채널
+  // 2026-05-04: F3+F4 회원가입 통합 — §6 활동 환경 6필드
+  preferred_regions: string[] | null;       // F3: 17 시도 멀티
+  preferred_game_types: string[] | null;    // F3: 5종 게임유형 멀티
+  styles: string[] | null;                  // F4: 12종 스타일 ≤4
+  active_areas: string[] | null;            // F4: 활동지역 (Phase 10-5)
+  goals: string[] | null;                   // F4: 6종 목표
+  play_frequency: string | null;            // F4: 4단계 빈도
+  profile_completed: boolean | null;        // F5: 핵심 5필드 자동 계산 boolean
 }
 
 // 소셜 제공자별 표시 정보 매핑 (운영 보존 — 연락 정보 섹션에서 사용)
@@ -177,10 +228,21 @@ export default function ProfileEditPage() {
     body: "friends",
   });
 
-  // 시안 §2 플레이 정보 — 사용 손, 실력 수준, 강점 (UI placeholder, DB 미저장)
+  // 시안 §2 플레이 정보 — 사용 손, 실력 수준, 강점
+  // 2026-05-04: F5 profile_completed 자동 갱신 정확성 위해 default 빈값 (DB NULL 케이스 보존).
+  // 기존 default "중급" 박힘 시 가입 직후 사용자가 저장 누르면 skill_level 강제 입력 = profile_completed 오작동.
   const [hand, setHand] = useState<"L" | "R" | "B">("R");
-  const [level, setLevel] = useState<string>("중급");
+  const [level, setLevel] = useState<string>("");
   const [strengths, setStrengths] = useState<Set<string>>(new Set());
+
+  // 2026-05-04: F3+F4 회원가입 통합 — §6 활동 환경 state 6종
+  // 이유: 가입 1-step 단순화 후 사용자가 profile/edit 한 곳에서 모두 입력. 멀티 토글은 Set 으로 효율 관리.
+  const [preferredRegions, setPreferredRegions] = useState<Set<string>>(new Set());        // F3: 17 시도 멀티
+  const [preferredGameTypes, setPreferredGameTypes] = useState<Set<string>>(new Set());    // F3: 5종 멀티
+  const [stylesSel, setStylesSel] = useState<Set<string>>(new Set());                       // F4: 12종 ≤4
+  const [activeAreas, setActiveAreas] = useState<Set<string>>(new Set());                   // F4: Phase 10-5 영역 — UI는 §1 RegionPicker 가 우선이지만 onboarding 컬럼 보존을 위해 state 유지
+  const [goalsSel, setGoalsSel] = useState<Set<string>>(new Set());                          // F4: 6종 멀티
+  const [playFrequency, setPlayFrequency] = useState<string>("");                            // F4: 4단계 단일
 
   useEffect(() => {
     fetch("/api/web/profile")
@@ -219,6 +281,13 @@ export default function ProfileEditPage() {
         if (u.privacy_settings && typeof u.privacy_settings === "object") {
           setPrivacy((prev) => ({ ...prev, ...u.privacy_settings }));
         }
+        // 2026-05-04: F3+F4 §6 활동 환경 state 초기화 (배열 → Set / 단일 enum → string)
+        if (Array.isArray(u.preferred_regions)) setPreferredRegions(new Set(u.preferred_regions));
+        if (Array.isArray(u.preferred_game_types)) setPreferredGameTypes(new Set(u.preferred_game_types));
+        if (Array.isArray(u.styles)) setStylesSel(new Set(u.styles));
+        if (Array.isArray(u.active_areas)) setActiveAreas(new Set(u.active_areas));
+        if (Array.isArray(u.goals)) setGoalsSel(new Set(u.goals));
+        if (typeof u.play_frequency === "string") setPlayFrequency(u.play_frequency);
         // city/district 콤마 구분 → Region[]으로 변환 (운영 보존)
         const cities = (u.city ?? "").split(",").filter(Boolean);
         const districts = (u.district ?? "").split(",").filter(Boolean);
@@ -263,6 +332,22 @@ export default function ProfileEditPage() {
       return next;
     });
   };
+
+  // 2026-05-04: F3+F4 §6 멀티 토글 헬퍼 — Set 기반 (불변 갱신)
+  // 이유: 토글 4건 코드 중복 회피. 동일 패턴 (has → delete / add).
+  const makeToggleFn = (setter: (fn: (prev: Set<string>) => Set<string>) => void) =>
+    (v: string) => {
+      setter((prev) => {
+        const next = new Set(prev);
+        if (next.has(v)) next.delete(v);
+        else next.add(v);
+        return next;
+      });
+    };
+  const toggleRegion = makeToggleFn(setPreferredRegions);
+  const toggleGameType = makeToggleFn(setPreferredGameTypes);
+  const toggleStyle = makeToggleFn(setStylesSel);
+  const toggleGoal = makeToggleFn(setGoalsSel);
 
   // 프로필 사진 업로드 핸들러 (운영 그대로 보존 — Hero 카메라 클릭으로 호출)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -429,13 +514,21 @@ export default function ProfileEditPage() {
         // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
         // §2 플레이 정보
         dominant_hand: hand,
-        skill_level: level,
+        skill_level: level || null,
         strengths: Array.from(strengths),
         // §3 소셜
         instagram_url: form.instagram_url || null,
         youtube_url: form.youtube_url || null,
         // §4 공개 설정 (7항목 × 3옵션)
         privacy_settings: privacy,
+        // 2026-05-04: F3+F4 §6 활동 환경 — Set → 배열 변환 (DB Json/String[] 호환)
+        preferred_regions: Array.from(preferredRegions),
+        preferred_game_types: Array.from(preferredGameTypes),
+        styles: Array.from(stylesSel),
+        active_areas: Array.from(activeAreas),
+        goals: Array.from(goalsSel),
+        // F4 빈도 — 빈문자열은 null 로 전달 (백엔드 enum 검증 통과)
+        play_frequency: playFrequency || null,
       };
 
       if (bankForm.account_consent) {
@@ -827,10 +920,11 @@ export default function ProfileEditPage() {
         </div>
       </section>
 
-      {/* 앵커 네비 (시안 박제 — 5섹션) */}
+      {/* 앵커 네비 — 2026-05-04: F3+F4 §6 활동 환경 섹션 추가로 6 앵커 */}
       <nav className="edit-profile__anchors" aria-label="페이지 내 섹션">
         <a href="#sec-basic">기본 정보</a>
         <a href="#sec-play">플레이 정보</a>
+        <a href="#sec-environ">활동 환경</a>
         <a href="#sec-contact">연락 정보</a>
         <a href="#sec-privacy">공개 설정</a>
         <a href="#sec-extra">추가 설정</a>
@@ -1091,8 +1185,9 @@ export default function ProfileEditPage() {
             <label>실력 수준 *</label>
             <span className="edit-profile__field-sub">자체 평가 · 레이팅 반영 안 됨</span>
           </div>
+          {/* 2026-05-04: 5단계 통일 (signup 기준) — "선출급" 제거 (선출 여부는 §2 상단 is_elite 칩으로 분리) */}
           <div className="edit-profile__chips">
-            {["초보", "초-중급", "중급", "중-상급", "상급", "선출급"].map((l) => (
+            {["초보", "초중급", "중급", "중상급", "상급"].map((l) => (
               <button
                 key={l}
                 type="button"
@@ -1131,6 +1226,133 @@ export default function ProfileEditPage() {
                 onClick={() => toggleStrength(s)}
               >
                 {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          §6 활동 환경 (2026-05-04 F3+F4 신규) — 지역/게임유형/스타일/빈도/목표
+          이유: 가입 1-step 단순화 후 사용자가 한 곳에서 모두 입력 가능해야 함.
+          F3 핵심: 활동 지역 + 관심 경기 유형 (실력 수준은 §2 그대로)
+          F4 확장: 스타일 / 빈도 / 목표 (onboarding 컬럼 마이그)
+          ============================================================ */}
+      <section id="sec-environ" className="edit-profile__sec">
+        <header className="edit-profile__sec-head">
+          <h3>⑥ 활동 환경</h3>
+          <p>
+            지역·게임 유형·스타일을 설정하면 맞춤 추천이 정확해집니다.
+            지역과 게임 유형은 <strong>매칭 필터</strong>에 사용됩니다.
+          </p>
+        </header>
+
+        {/* 활동 지역 — 17 시도 멀티 토글 (F3 핵심) */}
+        <div className="edit-profile__field" style={{ marginBottom: 20 }}>
+          <div className="edit-profile__field-head">
+            <label>활동 지역 *</label>
+            <span className="edit-profile__field-sub">
+              주 활동 시·도 (복수 선택) · 매칭 필터 사용
+            </span>
+          </div>
+          <div className="edit-profile__chips">
+            {REGIONS_17.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`chip ${preferredRegions.has(r) ? "chip--active" : ""}`}
+                onClick={() => toggleRegion(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 관심 경기 유형 — 5종 멀티 토글 (F3 핵심) */}
+        <div className="edit-profile__field" style={{ marginBottom: 20 }}>
+          <div className="edit-profile__field-head">
+            <label>관심 경기 유형 *</label>
+            <span className="edit-profile__field-sub">
+              참여하고 싶은 경기 유형 (복수 선택)
+            </span>
+          </div>
+          <div className="edit-profile__chips">
+            {GAME_TYPES.map((g) => (
+              <button
+                key={g.v}
+                type="button"
+                className={`chip ${preferredGameTypes.has(g.v) ? "chip--active" : ""}`}
+                onClick={() => toggleGameType(g.v)}
+              >
+                {g.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 스타일 — 12종 멀티 (F4) */}
+        <div className="edit-profile__field" style={{ marginBottom: 20 }}>
+          <div className="edit-profile__field-head">
+            <label>플레이 스타일</label>
+            <span className="edit-profile__field-sub">
+              본인 스타일 (4개 권장) · 매칭 추천에 반영
+            </span>
+          </div>
+          <div className="edit-profile__chips">
+            {STYLES_12.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${stylesSel.has(s) ? "chip--active" : ""}`}
+                onClick={() => toggleStyle(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 활동 빈도 — 4단계 단일 (F4) */}
+        <div className="edit-profile__field" style={{ marginBottom: 20 }}>
+          <div className="edit-profile__field-head">
+            <label>활동 빈도</label>
+            <span className="edit-profile__field-sub">평소 농구 빈도</span>
+          </div>
+          <div className="edit-profile__chips">
+            {FREQUENCIES.map((f) => (
+              <button
+                key={f.v}
+                type="button"
+                className={`chip ${playFrequency === f.v ? "chip--active" : ""}`}
+                onClick={() =>
+                  setPlayFrequency((prev) => (prev === f.v ? "" : f.v))
+                }
+              >
+                {f.l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 가입 목표 — 6종 멀티 + 이모지 (F4) */}
+        <div className="edit-profile__field">
+          <div className="edit-profile__field-head">
+            <label>가입 목표</label>
+            <span className="edit-profile__field-sub">
+              BDR에서 이루고 싶은 것 (복수 선택)
+            </span>
+          </div>
+          <div className="edit-profile__chips">
+            {GOALS_6.map((g) => (
+              <button
+                key={g.v}
+                type="button"
+                className={`chip ${goalsSel.has(g.v) ? "chip--active" : ""}`}
+                onClick={() => toggleGoal(g.v)}
+              >
+                <span style={{ marginRight: 4 }}>{g.e}</span>
+                {g.l}
               </button>
             ))}
           </div>
