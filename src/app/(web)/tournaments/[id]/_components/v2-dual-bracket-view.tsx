@@ -46,12 +46,10 @@ function buildKnockoutRounds(allMatches: BracketMatch[]): RoundGroup[] {
 
   if (qf.length === 0) return [];
 
-  // 8강 NBA 크로스 순서로 재정렬: [pos1, pos4, pos2, pos3]
-  // → BracketView 단순 i*2 페어링 = NBA 크로스 자동 일치
-  // (matches[0]+[1] → SF1 = QF1+QF4 / matches[2]+[3] → SF2 = QF2+QF3)
-  const qfReordered = [1, 4, 2, 3]
-    .map((p) => qf.find((m) => m.bracketPosition === p))
-    .filter((m): m is BracketMatch => m !== undefined);
+  // 2026-05-04: 사용자 표준 (4강 1=8강 1+2, 4강 2=8강 3+4) — bracketPosition asc 그대로
+  // 이전: NBA 크로스 [1,4,2,3] 강제 재정렬 (NBA 컨퍼런스 모형 가정 — 사용자 의도와 다름)
+  // 신규 sequential default + adjacent 옵션 모두 8강 인접 인덱스 페어링이라 asc 정렬이 자연스러움
+  const qfReordered = [...qf].sort((a, b) => a.bracketPosition - b.bracketPosition);
 
   const result: RoundGroup[] = [
     {
