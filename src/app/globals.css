@@ -1678,10 +1678,13 @@ html.dark .hero-carousel__accent {
   }
   .drawer__body { flex: 1; overflow: auto; padding: 8px 0; }
   .drawer__item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px; font-size: 15px; color: var(--ink);
+    /* 2026-05-04: 여백 압축 — padding 14→10 (사용자 보고 "여백 너무 많음").
+       min-height 44px 터치 타겟 유지. gap 8 = 라벨 ↔ NavBadge 간격. */
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 16px; font-size: 15px; color: var(--ink);
     background: transparent; border: 0; width: 100%; text-align: left;
     cursor: pointer; font-weight: 600;
+    min-height: 44px;
   }
   .drawer__item:hover, .drawer__item:focus { background: var(--bg-alt); }
   .drawer__item[data-active="true"] {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ThemeSwitch } from "./theme-switch";
 import type { AppNavUser } from "./app-nav";
 import { MORE_GROUPS } from "./more-groups";
+import { NavBadge } from "./nav-badge";
 
 /* ============================================================
  * AppDrawer (BDR v2 모바일 드로어)
@@ -29,9 +30,23 @@ interface AppDrawerProps {
   tabs: { id: string; href: string; label: string }[];
   isActive: (href: string) => boolean;
   user: AppNavUser | null;
+  // 2026-05-04: NEW 뱃지 — 경기/커뮤니티 24h 신규 카운트 + 알림 unread.
+  // AppNav 헤더와 동일 데이터 소스 (layout.tsx 폴링).
+  newGameCount?: number;
+  newCommunityCount?: number;
+  unreadCount?: number;
 }
 
-export function AppDrawer({ open, onClose, tabs, isActive, user }: AppDrawerProps) {
+export function AppDrawer({
+  open,
+  onClose,
+  tabs,
+  isActive,
+  user,
+  newGameCount = 0,
+  newCommunityCount = 0,
+  unreadCount = 0,
+}: AppDrawerProps) {
   // body scroll lock (v2 원본 동작 동일)
   useEffect(() => {
     if (!open) return;
@@ -109,7 +124,16 @@ export function AppDrawer({ open, onClose, tabs, isActive, user }: AppDrawerProp
               data-active={isActive(t.href)}
               onClick={onClose}
             >
-              <span>{t.label}</span>
+              {/* 2026-05-04: NEW 뱃지 — 경기/커뮤니티 24h 신규 (AppNav 헤더와 동일 데이터). */}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                {t.label}
+                {t.id === "games" && newGameCount > 0 && (
+                  <NavBadge variant="new" inline />
+                )}
+                {t.id === "community" && newCommunityCount > 0 && (
+                  <NavBadge variant="new" inline />
+                )}
+              </span>
               {/* chevron — v2 원본 SVG 그대로 */}
               <svg
                 width="14"
@@ -147,10 +171,13 @@ export function AppDrawer({ open, onClose, tabs, isActive, user }: AppDrawerProp
             </svg>
           </Link>
 
-          {/* 보조: 알림 (로그인 시에만) */}
+          {/* 보조: 알림 (로그인 시에만) — 2026-05-04: unreadCount 숫자 뱃지 inline 추가 */}
           {user && (
             <Link href="/notifications" className="drawer__item" onClick={onClose}>
-              <span>알림</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                알림
+                {unreadCount > 0 && <NavBadge variant="count" count={unreadCount} inline />}
+              </span>
               <svg
                 width="14"
                 height="14"
