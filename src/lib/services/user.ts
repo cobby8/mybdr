@@ -56,6 +56,17 @@ export const PROFILE_DETAIL_SELECT = {
   privacy_settings: true,
   instagram_url: true,
   youtube_url: true,
+  // 2026-05-04: F3+F4 회원가입 통합 — profile/edit §6 활동 환경 신규 6필드
+  // F3 핵심 3종 (지역/게임유형) + skill_level 은 위 §2에 이미 포함. 본 select에 통합 추가.
+  preferred_regions: true,        // F3: 17 시도 멀티 (Json 배열)
+  preferred_game_types: true,     // F3: 5종 게임유형 멀티 (Json 배열)
+  // F4 onboarding 5컬럼 (Phase 10-5)
+  styles: true,                   // F4: 12종 스타일 ≤4 (String[])
+  active_areas: true,             // F4: 활동지역 (Phase 10-5 onboarding 18종)
+  goals: true,                    // F4: 6종 목표 (String[])
+  play_frequency: true,           // F4: 4단계 빈도 (String?)
+  // F5 자동 갱신 — 핵심 5필드 입력 시 true
+  profile_completed: true,
 } as const;
 
 /** 게임 상세에서 사용하는 유저 프로필 select */
@@ -214,6 +225,14 @@ export async function updateProfile(
       privacy_settings: true,
       instagram_url: true,
       youtube_url: true,
+      // 2026-05-04: F3+F4 회원가입 통합 — PATCH 응답에서도 클라가 입력값 유지 가능하도록 select
+      preferred_regions: true,
+      preferred_game_types: true,
+      styles: true,
+      active_areas: true,
+      goals: true,
+      play_frequency: true,
+      profile_completed: true,
     },
   });
 }

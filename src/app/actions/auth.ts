@@ -131,17 +131,11 @@ export async function signupAction(_prevState: { error: string } | null, formDat
   const nickname = formData.get("nickname") as string;
   const password = formData.get("password") as string;
   const passwordConfirm = formData.get("password_confirm") as string;
-  // 2026-05-04 Step 2 활성화: 프로필 3 필드 추가 (선택 — NULL 허용).
-  // 빈 값 또는 잘못된 값 ⇒ NULL 저장 (가입 흐름 무영향). 사용자는 추후 profile/edit 에서 입력 가능.
-  const positionRaw = formData.get("position") as string | null;
-  const heightRaw = formData.get("height") as string | null;
-  const jerseyRaw = formData.get("jersey_number") as string | null;
 
-  // 2026-05-04 Step 3 활성화: 활동 환경 3 필드 추가 (선택 — 빈 배열/NULL 허용).
-  // 모두 한글 값 그대로 저장 — UI 라벨과 DB 값이 동일 (코드 매핑 없음, 단순함 우선).
-  const regionsRaw = formData.get("preferred_regions") as string | null;
-  const skillRaw = formData.get("skill_level") as string | null;
-  const gameTypesRaw = formData.get("preferred_game_types") as string | null;
+  // 2026-05-04 가입 흐름 통합 (F1): 가입 단계 = 이메일 + 비밀번호 + 닉네임 + 약관 4 항목만.
+  // 이유(왜): 기존 3-step 위저드 (포지션/키/등번호/지역/실력/게임유형) 가입 직후 모두 받아 이탈률 증가.
+  //   사용자 결정 — 위 6 필드는 /profile/edit 에서 가입 이후 천천히 입력하도록 흐름 통합.
+  //   User schema 의 해당 컬럼은 NULL 허용 default 이므로 User.create 시 미지정 시 자동 NULL.
 
   if (!email || !nickname || !password || !passwordConfirm) {
     return { error: "모든 항목을 입력하세요." };
@@ -158,53 +152,6 @@ export async function signupAction(_prevState: { error: string } | null, formDat
   if (password !== passwordConfirm) {
     return { error: "비밀번호가 일치하지 않습니다." };
   }
-
-  // 이유: 선택 필드 — 잘못된 입력은 NULL 저장 (에러 throw 안 함, 가입은 그대로 진행).
-  // position: CSV 형식 그대로 저장 (profile/edit 와 동일 패턴 — split(",") 으로 파싱 가능).
-  const position = positionRaw && positionRaw.trim() ? positionRaw.trim() : null;
-
-  // height: 100~250 범위 검증 — 범위 외/NaN 은 NULL.
-  let height: number | null = null;
-  if (heightRaw && heightRaw.trim()) {
-    const n = parseInt(heightRaw.trim(), 10);
-    if (!isNaN(n) && n >= 100 && n <= 250) height = n;
-  }
-
-  // jersey_number: 0~99 범위 검증 — 범위 외/NaN 은 NULL.
-  let defaultJerseyNumber: number | null = null;
-  if (jerseyRaw && jerseyRaw.trim()) {
-    const n = parseInt(jerseyRaw.trim(), 10);
-    if (!isNaN(n) && n >= 0 && n <= 99) defaultJerseyNumber = n;
-  }
-
-  // 2026-05-04 Step 3 파싱: JSON 배열 → string[] (잘못된 입력은 빈 배열 fallback — 가입 흐름 보존)
-  // 이유: 클라이언트가 JSON.stringify 로 직렬화 → 서버는 JSON.parse + Array 검증 + 문자열만 필터링.
-  let preferred_regions: string[] = [];
-  if (regionsRaw) {
-    try {
-      const parsed = JSON.parse(regionsRaw);
-      if (Array.isArray(parsed)) {
-        preferred_regions = parsed.filter((s): s is string => typeof s === "string");
-      }
-    } catch {
-      // 잘못된 JSON → 빈 배열 (default 와 동일)
-    }
-  }
-
-  let preferred_game_types: string[] = [];
-  if (gameTypesRaw) {
-    try {
-      const parsed = JSON.parse(gameTypesRaw);
-      if (Array.isArray(parsed)) {
-        preferred_game_types = parsed.filter((s): s is string => typeof s === "string");
-      }
-    } catch {
-      // 잘못된 JSON → 빈 배열
-    }
-  }
-
-  // skill_level: String? — 빈 문자열은 NULL 로 저장 (선택 안 한 사용자 = 미입력)
-  const skill_level = skillRaw && skillRaw.trim() ? skillRaw.trim() : null;
 
   try {
     // 이메일 중복 확인
@@ -223,28 +170,22 @@ export async function signupAction(_prevState: { error: string } | null, formDat
     }
 
     const passwordDigest = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
+    // 2026-05-04 P1 fix (보존): 회원가입 자동 로그인 ❌ 제거.
+    //   기존 흐름은 signup 직후 cookies.set(WEB_SESSION_COOKIE) 으로 자동 로그인 → /verify?missing=phone 진입.
+    //   사용자 의도 = 가입 후 /login 진입 + 사용자 직접 로그인 (보안 + 명확한 흐름).
+    //   OAuth 흐름 (kakao/google/naver callback) 은 별도 — 이 변경 영향 없음 (callback 라우트는 자체 cookies.set).
+    // 2026-05-04 가입 흐름 통합 (F1): User.create data 단순화.
+    //   position/height/default_jersey_number/preferred_regions/preferred_game_types/skill_level 모두 제거.
+    //   schema NULL 허용 default — User.create 시 미지정 = NULL 저장.
+    await prisma.user.create({
       data: {
         email,
         nickname,
         passwordDigest,
         status: "active",
-        // 2026-05-04 Step 2 활성화: 프로필 3 필드 (모두 NULL 허용).
-        // schema 컬럼명: position / height / default_jersey_number (snake_case 직접 — @map 없음)
-        position,
-        height,
-        default_jersey_number: defaultJerseyNumber,
-        // 2026-05-04 Step 3 활성화: 활동 환경 3 필드 (한글 그대로 저장).
-        // preferred_regions: Json @default("[]") / preferred_game_types: Json @default("[]") / skill_level: String?
-        preferred_regions,
-        preferred_game_types,
-        skill_level,
       },
+      select: { id: true },
     });
-
-    const token = await generateToken(user);
-    const cookieStore = await cookies();
-    cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
   } catch (e) {
     const message = e instanceof Error ? e.message : "";
     if (message.includes("Unique constraint")) {
@@ -254,13 +195,10 @@ export async function signupAction(_prevState: { error: string } | null, formDat
     return { error: "회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요." };
   }
 
-  // M5 온보딩 압축 (옵션 B + A):
-  // 이메일 가입자는 phone 미인증 상태이므로 OAuth 흐름과 통일하기 위해
-  // verify 페이지로 보낸다. (SMS/픽업 핵심 기능 사일런트 실패 방지)
-  // verify/page.tsx L80~83에서 phone 인증 성공 시 /profile/complete 로 push,
-  // 거기서 닉네임/포지션/지역 3필드 압축 폼이 옵션 카드로 나오고
-  // "나중에" 1클릭으로 홈 도달 가능 (압축 정신 + 자연 진입 동시 보장).
-  redirect("/verify?missing=phone");
+  // 2026-05-04 P1: signup → /login?signup=success redirect.
+  //   query "signup=success" 는 로그인 페이지에서 안내 배지 노출용 (자동 로그인 ❌ / 사용자 직접 로그인).
+  //   verify?missing=phone 흐름은 OAuth 신규 가입 시점에만 의미 — email 가입자는 로그인 후 verify 자동 진입 가능.
+  redirect("/login?signup=success");
 }
 
 export async function devLoginAction(_prevState: { error: string } | null, _formData: FormData) {

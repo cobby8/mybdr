@@ -1,6 +1,37 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] 가입·프로필 흐름 분리 패턴 — 가입=인증 / 프로필=활동 / 선호=정밀화 (3단계)
+- **분류**: convention/ux-flow (가입 단순화 / 점진적 정보 보완 / profile_completed 자동 갱신)
+- **발견자**: pm + 사용자 ("가입은 간단하게, 로그인 후 활동 정보 설정 쉽게")
+- **3단계 분리 룰**:
+  - **단계 1 가입 (인증)**: signup 1-step — 이메일 + 비밀번호 + 닉네임 + 약관만 (필수 최소)
+  - **단계 2 프로필 (활동)**: profile/edit § 활동 환경 — 포지션·신장·등번호·지역·실력·게임유형 (매칭 핵심)
+  - **단계 3 선호 (정밀화)**: profile/edit § 활동 환경 확장 — 스타일·빈도·목표 (추천 정밀화)
+- **CTA 유도 패턴** (홈 ProfileCtaCard):
+  - 표시 조건 = 로그인 + `!user.profile_completed` + localStorage 7일 미억제
+  - 닫기 = localStorage `profile_cta_dismissed_at` 7일 (DB 영향 0)
+  - 자동 숨김 = profile_completed=true 시 SWR revalidate
+- **profile_completed 자동 갱신 룰** (API PATCH 시):
+  - 핵심 5필드 = position + height + preferred_regions + skill_level + preferred_game_types
+  - 5/5 입력 = true / 빈배열 안전 가드 (`Array.isArray && length > 0`)
+  - PATCH 시 findUnique 1회 + 머지 후 boolean 계산 + updateProfile 자동 반영
+- **데이터 분류 통일 룰**:
+  - 포지션 = 5종 (PG/SG/SF/PF/C) — onboarding 3종 (G/F/C) 도입 ❌
+  - 실력 = 5단계 (초보/초중급/중급/중상급/상급) — 선출급 = `is_elite` Boolean 분리
+  - 지역 = 17 시도 (preferred_regions) — 서울 18구 chip 도입 ❌ (대신 city/district 시·구 유지 = 정밀 매칭용 별도 의미)
+  - 게임 유형 = 5종 (픽업/게스트/연습경기/대회/길농)
+  - 신규 wizard 추가 시 본 분류 위반 ❌
+- **폐기 페이지 redirect 패턴**:
+  - server component + `import { redirect } from "next/navigation"` + 즉시 발동
+  - 외부 링크/북마크 안전 (사용자 client 도달 전)
+  - 폐기 컴포넌트 (`_components/setup-form.tsx` 등) 본문 보존 — 별도 cleanup 큐
+- **회귀 방지**:
+  - signup wizard 추가 ❌ (1-step 유지)
+  - profile/edit 외 별도 wizard 페이지 신설 ❌
+  - 신규 컬럼 추가 시 profile_completed 핵심 5필드 검토
+- **참조 commit**: d248e50 (자동 로그인 비활성) → 5cfd586 (1차 F1+F2+F5) → 6531452 (2차 F3+F4)
+
 ### [2026-05-04] 게임 유형 표준 라벨 — UI "연습경기" / DB·코드 `scrim` 분리 + "길농" 신규
 - **분류**: convention/i18n-ui (사용자 노출 라벨 vs 코드 식별자 분리 / 게임 유형 표준)
 - **발견자**: pm + 사용자 (스크림 → 연습경기 / 정기팀 → 길농 변경 결정)
