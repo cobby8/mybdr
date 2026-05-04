@@ -55,18 +55,27 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       const [user, referee] = await Promise.all([
         prisma.user.findUnique({
           where: { id: userId },
-          select: { nickname: true },
+          select: { nickname: true, status: true },
         }),
         prisma.referee.findFirst({
           where: { user_id: userId },
           select: { id: true },
         }),
       ]);
-      initialUser = {
-        name: user?.nickname ?? session.name ?? "사용자",
-        role: session.role ?? "user",
-        is_referee: !!referee,
-      };
+      // 2026-05-05 fix: 탈퇴 회원 (status="withdrawn") 은 비로그인으로 처리.
+      //   왜: 사용자 신고 — 탈퇴 후 새로고침 시 헤더에 "탈퇴회원_3369" 익명화 닉네임 노출.
+      //   본질: layout SSR 가 status 검증 없이 nickname 그대로 사용 + 브라우저 쿠키 잔존 시
+      //         탈퇴 회원의 익명화 닉네임이 헤더에 표시.
+      //   fix: user.status === "withdrawn" 시 initialUser=null (비로그인 표시).
+      //   추가 보안: /profile/layout.tsx 의 가드도 status 검증 추가 (탈퇴 회원 → /login redirect).
+      if (user && user.status !== "withdrawn") {
+        initialUser = {
+          name: user.nickname ?? session.name ?? "사용자",
+          role: session.role ?? "user",
+          is_referee: !!referee,
+        };
+      }
+      // user 없거나 탈퇴 회원이면 initialUser 는 null 유지 (비로그인 헤더)
     } catch {
       // SSR DB 실패 시에도 헤더 렌더는 보장 — JWT session 만으로 폴백
       initialUser = {
