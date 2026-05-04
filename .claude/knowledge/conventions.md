@@ -1,6 +1,35 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-05] 관리자 강제 변경 액션 패턴 — 사유 필수 + admin_logs warning + 권한 최소
+- **분류**: convention/admin-action (PIPA 본인정정권 + 감사 추적)
+- **발견자**: pm + 사용자 (개인정보 취급 방침 검토 결과)
+- **변경 가능 필드 (운영 긴급만)**: nickname (부적절 신고) / bio (부적절 소개) / is_elite (대회 자격). 신원/연락처/거주지/신체/선호 = 본인 정정권 = 변경 X
+- **사유 입력 필수**: textarea minLength 5 — 5자 미만 시 server action 422 반환
+- **admin_logs**: `severity="warning"` (긴급 변경 표시) + description 에 사유 박제 + previousValues + changesMade
+- **UI 톤**: warning 색상 border + "⚠ 긴급 변경" 라벨 (일반 편집과 시각 구분)
+- **편의 액션**: 닉네임 자동 초기화 버튼 (`user_<id>` 채움) / 소개글 전체 삭제 버튼
+- **분기 처리**: `is_elite_present` hidden marker (체크 해제도 false 전송)
+- **참조**: `actions/admin-users.ts` `updateUserProfileAction` (3필드만)
+
+### [2026-05-05] role 별 배번 정책 — player 필수 / coach·captain 선택 (대회 신청 분기)
+- **분류**: convention/tournament-validation (선수 자격 / 데이터 정합성)
+- **발견자**: pm + 사용자 (출전 선수 배번 누락 11건 점검)
+- **role 매트릭스**:
+  - `player` (또는 default) → jerseyNumber 필수 (대회 출전 식별)
+  - `coach` → jerseyNumber 선택 (벤치)
+  - `captain` → jerseyNumber 선택 (운영진)
+- **신청 차단 위치 (web)**: `/api/web/tournaments/[id]/join` — zod 통과 후 누락 선수 닉네임 나열 + 422
+- **admin 추가 위치 (web)**: `/api/web/tournaments/[id]/teams/[teamId]/players` — role==="player" + jersey null 차단
+- **현장 등록 (Flutter)**: zod schema 에서 jersey_number required (이미 안전)
+- **UI 표시 (admin/users 모달)**:
+  - player + 배번 → "#5" 회색
+  - player + 누락 → "⚠ 배번 누락" 빨간 (인라인 입력 가능)
+  - coach/captain + 배번 → "#5" 회색
+  - coach/captain + 누락 → "—" 회색 (정상)
+  - 대회명 우측 role 라벨 ("코치"/"주장") — player 라벨 X
+- **참조**: `admin-users-table.tsx` `TournamentRow` + `actions/admin-users.ts` `updateTournamentPlayerJerseyAction`
+
 ### [2026-05-04] 가입·프로필 흐름 분리 패턴 — 가입=인증 / 프로필=활동 / 선호=정밀화 (3단계)
 - **분류**: convention/ux-flow (가입 단순화 / 점진적 정보 보완 / profile_completed 자동 갱신)
 - **발견자**: pm + 사용자 ("가입은 간단하게, 로그인 후 활동 정보 설정 쉽게")
