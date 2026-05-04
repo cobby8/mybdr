@@ -87,7 +87,7 @@ type ConditionOption = (typeof CONDITION_OPTIONS)[number];
 const GAME_TYPE_LABELS: Record<number, string> = {
   0: "픽업",
   1: "게스트",
-  2: "스크림",
+  2: "연습경기",
 };
 
 // requirements 문자열 → 체크박스 + 기타로 분해

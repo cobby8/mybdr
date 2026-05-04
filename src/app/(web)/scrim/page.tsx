@@ -1,7 +1,7 @@
 "use client";
 
 /* ============================================================
- * /scrim — 스크림 매칭(Scrimmage) v2 신규
+ * /scrim — 연습경기 매칭(Scrimmage) v2 신규
  *
  * 이유: BDR v2 디자인 적용 작업의 일환. 팀 vs 팀 연습경기 매칭 페이지를
  *      v2 시안 그대로 박제. DB 0% — 시안 더미 상수만 사용.
@@ -11,7 +11,7 @@
  *  - API/Prisma/서비스 0 변경. 데이터는 시안 박제(상수).
  *  - 인라인 이모지(📅 📍)는 시안 그대로 박제 (Material Symbols 변환 금지).
  *  - 모든 버튼(제안 보내기/메시지/수락/거절/상세/매칭 조건 편집/내 요청 관리/
- *    + 스크림 등록)은 noop. UI 미리보기 전용.
+ *    + 연습경기 등록)은 noop. UI 미리보기 전용.
  *  - lucide-react 사용 안 함.
  *  - 페이지 상단에 "준비 중" 안내 1줄.
  *
@@ -82,13 +82,13 @@ const OPEN_REQS: OpenReq[] = [
 ];
 
 const INCOMING: IncomingProposal[] = [
-  { id: "in1", from: "몽키즈", tag: "MNK", color: "#F59E0B", msg: "토요일 스크림 어떠세요?", at: "2시간 전", status: "new" },
+  { id: "in1", from: "몽키즈", tag: "MNK", color: "#F59E0B", msg: "토요일 연습경기 어떠세요?", at: "2시간 전", status: "new" },
   { id: "in2", from: "3POINT", tag: "3PT", color: "#E31B23", msg: "4/30 저녁 용산 같이 뛰시죠", at: "어제", status: "replied" },
 ];
 
 const OUTGOING: OutgoingProposal[] = [
   { id: "o1", to: "킹스크루", tag: "KGS", color: "#0F5FCC", msg: "금요일 저녁 풀코트 제안드려요", at: "1시간 전", status: "pending" },
-  { id: "o2", to: "IRON WOLVES", tag: "IRN", color: "#374151", msg: "5/2 스크림 가능하신지", at: "3일 전", status: "accepted" },
+  { id: "o2", to: "IRON WOLVES", tag: "IRN", color: "#374151", msg: "5/2 연습경기 가능하신지", at: "3일 전", status: "accepted" },
 ];
 
 const HISTORY: HistoryRow[] = [
@@ -109,7 +109,7 @@ export default function ScrimPage() {
           홈
         </Link>
         <span>›</span>
-        <span style={{ color: "var(--ink)" }}>스크림 매칭</span>
+        <span style={{ color: "var(--ink)" }}>연습경기 매칭</span>
       </div>
 
       {/* 헤더 (시안 L35~L45) */}
@@ -124,7 +124,7 @@ export default function ScrimPage() {
         }}
       >
         <div>
-          <div className="eyebrow">스크림 · SCRIMMAGE</div>
+          <div className="eyebrow">연습경기 · SCRIMMAGE</div>
           <h1 style={{ margin: "4px 0 6px", fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em" }}>
             팀 vs 팀, 연습경기 잡기
           </h1>
@@ -133,16 +133,16 @@ export default function ScrimPage() {
           </p>
           {/* 준비 중 안내 (PM 지시) */}
           <p style={{ margin: "6px 0 0", color: "var(--ink-dim)", fontSize: 12 }}>
-            현재 스크림 매칭은 준비 중입니다. UI 미리보기로만 동작합니다.
+            현재 연습경기 매칭은 준비 중입니다. UI 미리보기로만 동작합니다.
           </p>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {/* 내 요청 관리/스크림 등록 — noop */}
+          {/* 내 요청 관리/연습경기 등록 — noop */}
           <button className="btn" type="button" disabled title="준비 중">
             내 요청 관리
           </button>
           <button className="btn btn--accent" type="button" disabled title="준비 중">
-            + 스크림 등록
+            + 연습경기 등록
           </button>
         </div>
       </div>
@@ -195,7 +195,7 @@ export default function ScrimPage() {
           { id: "find" as TabId, label: "상대 찾기", n: OPEN_REQS.length },
           { id: "incoming" as TabId, label: "받은 제안", n: INCOMING.length },
           { id: "outgoing" as TabId, label: "보낸 제안", n: OUTGOING.length },
-          { id: "history" as TabId, label: "지난 스크림", n: HISTORY.length },
+          { id: "history" as TabId, label: "지난 연습경기", n: HISTORY.length },
         ]).map((t) => (
           <button
             key={t.id}
@@ -435,7 +435,7 @@ export default function ScrimPage() {
         </div>
       )}
 
-      {/* === 지난 스크림 === (시안 L148~L164) */}
+      {/* === 지난 연습경기 === (시안 L148~L164) */}
       {/* 2026-04-27 Phase 9 P0-4-E: 6열 board → ResponsiveTable 교체.
          이유: 모바일(<=720px)에서 헤더가 사라지면 "+14 / -12" 같은 값이 무엇의 변동인지
               식별 불가 (mobile_audit_report.html L188 Med). data-label 패턴으로 라벨 보존. */}

@@ -64,7 +64,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
 const PURPOSE_LABELS: Record<string, string> = {
   pickup: "픽업경기",
   team: "팀 훈련",
-  scrim: "스크림",
+  scrim: "연습경기",
   private: "개인 연습",
 };
 

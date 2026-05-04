@@ -30,7 +30,7 @@ import { AdvancedSection } from "./advanced-section";
 
 // --- Types ---
 
-export type GameType = "0" | "1" | "2"; // 0=픽업, 1=게스트모집, 2=팀대결(스크림)
+export type GameType = "0" | "1" | "2"; // 0=픽업, 1=게스트모집, 2=팀대결(연습경기 — 영문 식별자 scrim 보존)
 export type UpgradeReason = "pickup_hosting" | "team_creation";
 
 export interface Permissions {
@@ -431,7 +431,7 @@ export function GameFormV2({ permissions }: { permissions: Permissions }) {
   const handleCancel = () => router.back();
 
   // 지난 경기 유형 라벨 & 경과 시간 (copy 버튼 UI용)
-  const typeLabel = (gt: number) => (gt === 0 ? "픽업" : gt === 1 ? "게스트" : "스크림");
+  const typeLabel = (gt: number) => (gt === 0 ? "픽업" : gt === 1 ? "게스트" : "연습경기");
   const timeSince = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const days = Math.floor(diff / 86400000);
@@ -550,7 +550,7 @@ export function GameFormV2({ permissions }: { permissions: Permissions }) {
               경기 개설
             </h1>
             <div style={{ fontSize: 13, color: "var(--ink-mute)" }}>
-              픽업·게스트·스크림 중 하나를 열고 참가자를 모집하세요
+              픽업·게스트·연습경기 중 하나를 열고 참가자를 모집하세요
             </div>
           </div>
 

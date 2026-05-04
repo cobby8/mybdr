@@ -67,7 +67,7 @@ type Message = {
 // 시안 박제 — 좌측 스레드 목록 (총 8건)
 const THREADS: Thread[] = [
   { id: "t1", name: "block (블럭)", tag: "BK", color: "#10B981", online: true, last: "목요일 저녁 하남미사 픽업 자리 확정됐습니다", time: "14:32", unread: 2, team: "BLOCK", pinned: true },
-  { id: "t2", name: "3POINT_슈", tag: "3P", color: "#0F5FCC", online: true, last: "내일 스크림 몇시쯤 시작하나요?", time: "13:08", unread: 1, team: "3POINT" },
+  { id: "t2", name: "3POINT_슈", tag: "3P", color: "#0F5FCC", online: true, last: "내일 연습경기 몇시쯤 시작하나요?", time: "13:08", unread: 1, team: "3POINT" },
   { id: "t3", name: "몽키즈_센터", tag: "MK", color: "#F59E0B", online: false, last: "영상 편집본 받아보시면 말씀해주세요", time: "어제", unread: 0, team: "MONKEYS" },
   { id: "t4", name: "SWEEP 팀 단톡", tag: "SW", color: "#F59E0B", online: false, last: "SWEEP: 이번주 경기 준비물 공지합니다", time: "어제", unread: 0, team: "SWEEP", group: true, members: 12 },
   { id: "t5", name: "kings_cap", tag: "KG", color: "#7C2D12", online: false, last: "5월 첫째주 가능하신가요?", time: "04.21", unread: 0 },
