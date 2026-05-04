@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-04 (듀얼 토너먼트 표준 default P3~P7 — admin UI + bracket-builder 옵션 + E2E 79/79 + 5/2 영향 0 / conventions +1 sequential pairing) | 이전: 2026-05-04 (도메인 sub-agent P3 결정 — C 채택)
+> 최종 갱신: 2026-05-04 (5/4 UI 통합 세션 — 햄버거 4단계 + 팀 카드/상세 + tournament-admin (web)→(admin) + admin/users 패턴 + Hero 6차 본질 + fade chevron + PageBackButton 메인 4곳 제거 — 17 commits 메인까지 push) | 이전: 2026-05-04 (듀얼 토너먼트 표준 default P3~P7)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
