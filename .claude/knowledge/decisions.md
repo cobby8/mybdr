@@ -2,6 +2,44 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 도메인 sub-agent 시스템 P3 결정 — C 채택 (live-expert 유지 + 신규 박제 0)
+- **분류**: decision (메타 / 에이전트 시스템 / 시범 종료 평가)
+- **결정자**: 사용자 (C 직진) + planner-architect (KPI 6건 누적 본질 분석 + 7 사유)
+- **참조횟수**: 0
+- **배경**: 옵션 A 도메인 sub-agent 시스템 도입 (5/4 결정 = 8 도메인 + 시범 live-expert) Phase 1 박제 후 Phase 2 KPI 측정 6건 누적 (live #1 + tournaments #2~6, 매치 코드 v4 작업 진행 중). 시범 시작 +14일 (5/18) 전 조기 결정 (사용자 의도 = 에이전트 세분화 흐름 진행). 본질 데이터로 P3 Go/No-Go 평가.
+- **거부된 옵션**:
+  - **A (Go 전체 8개 확대)**: ~6h 비용 + 효과 입증 0 = 매몰비용
+  - **B (부분 Go 2~3개)**: ~3h 비용 + 효과 입증 0 = 매몰비용 축소판
+  - **D (No-Go 전체 종료)**: live-expert 박제 보존 가치 손실 (5/3 7회 보강된 알고리즘 깊이)
+  - **E (5/18 정식 대기)**: 14일 추가 측정 한계 효용 ≈ 0 (본 6건으로 본질 명확)
+- **채택 C**: live-expert 유지 + 신규 박제 0 (실용적 균형점)
+- **본질 데이터 (KPI 6건)**:
+  - 잘못된 파일 0회 = **6/6 = 100%** ✅
+  - 그 중 system prompt 주입 적용 = **1/6** (P2 #1 live만, planner 거쳐 수동 주입)
+  - 나머지 5건 (P2 #2~#6 tournaments) = **일반 dev 컨텍스트** = 주입 ❌ → 그래도 잘못된 파일 0회
+  - 결론: **system prompt 주입 marginal gain ≈ 0**, planner 사전 분석 (파일 경로 정확 박제) 이 진짜 효과의 본질
+- **사유 7건**:
+  1. system prompt 주입 marginal gain ≈ 0 (5/6 일반 dev 0회 달성)
+  2. 본질 가치 4종 모두 약함/미작동 (KPI 1·2 측정 불가 / KPI 3 planner 동등 / Task subagent_type 미등록 / knowledge 인용 동등)
+  3. 명확 정의 작업 위주 한계 — 모호 디버깅 케이스 0건 (도메인 에이전트 진짜 가치 미발견)
+  4. 확대 비용 > 효과 (A 6h / B 3h 모두 매몰비용)
+  5. live-expert 박제 보존 가치 (알고리즘 깊은 도메인 재활용)
+  6. 5/18 대기 한계 효용 ≈ 0
+  7. 사용자 의도 부분 존중 (시범 1개 영구 = 에이전트 세분화 정신 보존)
+- **후속 액션 (C 채택)**:
+  - `.claude/agents/live-expert.md` 영구 운영 (삭제 ❌)
+  - 신규 도메인 에이전트 박제 0 (tournaments-expert / admin-expert 등 보류)
+  - KPI 측정 종료 (P2 #6 마지막)
+  - PM 호출 룰 미갱신 (기존 8 일반 에이전트 + live-expert 1개 = 9개 운영)
+  - lessons.md 박제 3건 (system prompt marginal / KPI 작업 복잡도 통제 / Task 미등록 한계)
+  - 미래 모호 디버깅 케이스 발생 시 재진입 옵션 보존 (문 열어둠)
+- **Task subagent_type 미등록 한계** (P2 시범 발견 → P3 결정 핵심 인풋):
+  - `.claude/agents/<name>.md` 박제만으로는 Task 도구의 subagent_type 목록 자동 등록 ❌
+  - planner/dev 에 system prompt 컨텍스트 주입으로 우회 가능 but planner 거쳐야 함 = 비용 ↑
+  - 본 한계 자체가 도메인 에이전트 자동화의 critical bottleneck → 향후 해결 시 P3 재평가 가능
+- **참조 산출물**: plan §11 = `C:\Users\user\.claude\plans\dreamy-wobbling-wolf-agent-aaff2dda867c98b9c.md` (P3 결정 결과 7섹션)
+- **이전 결정 무효화 ❌**: 5/4 옵션 A 도입 결정 (decisions.md 직전 항목) 은 **Phase 1+2 시범 적용 단계까지 유효** + Phase 3~5 (확대) **본 P3 결정으로 보류**
+
 ### [2026-05-04] 매치 코드 v4 체계 채택 — `{YY}-{지역}-{대회이니셜+회차}-{매치번호}` (전국 + 운영 2대회 컨텍스트)
 - **분류**: decision (DB schema / 매치 식별 체계 / v3 폐기)
 - **결정자**: 사용자 ("A v4 + 권장" 직진) + planner-architect (사용자 정보 2건 반영 재수립)

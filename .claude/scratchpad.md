@@ -8,7 +8,7 @@
 
 ## 🎯 현재 작업
 
-**[P3 결정 완료 / 사용자 승인 대기] 도메인 sub-agent P3 = C 권장 (live-expert 유지 + 신규 박제 0)** — 본질 분석: 6/6 잘못된 파일 0회 중 5건 = 일반 dev (system prompt 주입 ❌) → planner 사전 분석이 진짜 효과 / system prompt 주입 marginal gain ≈ 0. 7 사유로 C 권장 (A/B/D/E 거부). plan §11 갱신 + decisions.md 박제 형식 제안 완료. PM 액션: 사용자 결정 받기 → C 채택 시 lessons 3건 박제 + KPI 측정 종료.
+**[P3 결정 완료 — C 채택]** 도메인 sub-agent P3 = **C 확정** (사용자 승인 / live-expert 유지 + 신규 박제 0). decisions.md +1 + lessons.md +3 + index.md 카운트 갱신 (decisions 100, lessons 35) + 최근 추가 prepend 4건 완료. live-expert.md 영구 운영 + KPI 측정 종료. PM 호출 룰 미갱신 (기존 9개 유지). 본 세션 대규모 작업 모두 완료 (매치 코드 v4 전 Phase + 도메인 sub-agent P1+P2+P3).
 
 ---
 
@@ -74,7 +74,7 @@ tester+reviewer 병렬 후 누적 커밋 1건 (3 Phase 묶음) — PM 처리.
 | Reviews 통합 (Q1) | ✅ |
 | 듀얼토너먼트 풀 시스템 | ✅ Phase A~F2 |
 | 디자인 시안 박제 | ⏳ 38% (40+/117) |
-| **도메인 sub-agent (옵션 A)** | ✅ P1 박제 + P2 6건 + P3 결정 (C 권장) / 사용자 승인 대기 |
+| **도메인 sub-agent (옵션 A)** | ✅ P1+P2+P3 완료 (C 채택 — live-expert 영구 / 신규 박제 0) |
 | **매치 코드 v4** | ✅ Phase 1+2+3+4+5+7 (전 Phase 완료) |
 
 ---
