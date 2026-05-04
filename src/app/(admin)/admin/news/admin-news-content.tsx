@@ -184,14 +184,23 @@ export function AdminNewsContent({
         </section>
 
         {/* 미리보기 — 데스크톱 인라인 컬럼 / 모바일 fixed inset-0 모달 (previewOpen 토글)
-            2026-05-04: Phase 1+2 레이아웃 — 모바일에서 list 클릭 시 모달 진입 */}
+            2026-05-04: Phase 1+2 레이아웃 — 모바일에서 list 클릭 시 모달 진입
+            2026-05-04 추가 fix: 백드롭 (bg-black/50 z-40) + 모달 명시적 불투명 배경 (var(--color-surface)) */}
+        {previewOpen && (
+          <div
+            aria-hidden="true"
+            onClick={() => setPreviewOpen(false)}
+            className="lg:hidden fixed inset-0 z-40 bg-black/50 transition-opacity"
+          />
+        )}
         <section
           className={`
-            rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden flex flex-col
+            rounded-lg border border-[var(--color-border)] overflow-hidden flex flex-col
             ${previewOpen
               ? "fixed inset-0 z-50 lg:relative lg:inset-auto lg:z-auto rounded-none lg:rounded-lg"
               : "hidden lg:flex"}
           `}
+          style={{ background: "var(--color-surface, var(--bg-elev, #fff))" }}
         >
           <header className="border-b border-[var(--color-border)] p-3 text-sm font-medium flex justify-between items-center shrink-0">
             <span className="flex items-center gap-2">
