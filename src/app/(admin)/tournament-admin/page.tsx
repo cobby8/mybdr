@@ -66,11 +66,13 @@ export default async function TournamentAdminDashboard() {
 
   return (
     <div>
+      {/* 2026-05-04 (사용자 fix): AdminPageHeader 의 actions+검색 같은 row 묶임 → 사용자 의도 "새 대회 만들기 title 옆 우측 상단" 와 충돌.
+          fix: AdminPageHeader searchPlaceholder 제거 → actions 만 박아 title 옆 우측 정렬 보장.
+          검색 form 은 admin-table 위 별도 row 로 분리 (admin/users 패턴 일치). */}
       <AdminPageHeader
         eyebrow="ADMIN · TOURNAMENT"
         title="대회 운영자 도구"
         subtitle={`내 대회 ${totalTournaments}개 · 진행 중 ${activeTournaments} · 완료 ${completedTournaments}`}
-        searchPlaceholder="대회명 검색"
         actions={
           <Link
             href="/tournament-admin/tournaments/new/wizard"
@@ -81,6 +83,19 @@ export default async function TournamentAdminDashboard() {
           </Link>
         }
       />
+
+      {/* 검색 form — 별도 row (admin/users 패턴 일치) */}
+      <form method="GET" className="mb-4 flex gap-2">
+        <input
+          name="q"
+          placeholder="대회명 검색"
+          className="input flex-1 sm:flex-initial sm:w-80"
+          style={{ minWidth: 0 }}
+        />
+        <button type="submit" className="btn btn--primary btn--sm shrink-0">
+          검색
+        </button>
+      </form>
 
       {/* 대회 리스트 — admin-table 패턴 (다른 관리자 페이지와 일치) */}
       {myTournaments.length === 0 ? (
