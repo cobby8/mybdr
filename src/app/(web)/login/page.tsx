@@ -4,6 +4,8 @@ import { useState, useActionState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loginAction, devLoginAction } from "@/app/actions/auth";
 import { InfoDialog } from "@/components/ui/info-dialog";
+// 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 + autoComplete 정밀 제어 — conventions.md 룰)
+import { PasswordInput } from "@/components/ui/password-input";
 
 // OAuth 콜백 에러 코드 → 사용자용 한국어 메시지 매핑
 // (기존 로직 유지 — UI만 교체하므로 동일)
@@ -41,6 +43,11 @@ export default function LoginPage() {
   const [loginState, loginFormAction, loginPending] = useActionState(loginAction, null);
   // 개발 환경 자동 로그인 (NODE_ENV !== production일 때만 노출)
   const [devState, devFormAction, devPending] = useActionState(devLoginAction, null);
+
+  // 2026-05-04: 자동 로그인 체크박스 — default on (사용자 편의 우선, 보안 vs 편의 trade-off)
+  // on  = 세션 쿠키 maxAge 30일 (기본 동작 — 기존 사용자 회귀 0)
+  // off = maxAge 8시간 (브라우저 닫아도 같은 PC 라면 8시간 유지 — 공용 PC 일부 안전)
+  const [rememberMe, setRememberMe] = useState(true);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -94,7 +101,15 @@ export default function LoginPage() {
             <button
               key={k}
               type="button"
-              onClick={() => setTab(k)}
+              // 2026-05-04 fix: 회원가입 탭 = 인라인 폼 disabled 상태라 사용자 혼란 → 즉시 /signup 으로 이동.
+              // 추후 Phase 6 Login (인라인 폼) 구현 완료 시 setTab(k) 로 복원.
+              onClick={() => {
+                if (k === "signup") {
+                  router.push("/signup");
+                  return;
+                }
+                setTab(k);
+              }}
               style={{
                 flex: 1,
                 padding: "14px 0",
@@ -139,21 +154,28 @@ export default function LoginPage() {
                 {/* 로그인 성공 후 복귀할 경로를 hidden input으로 전달 */}
                 {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
 
+                {/* 2026-05-04: 자동 로그인 hidden — 체크박스 state 가 form 데이터로 전송되도록 보존
+                    (체크박스가 form 안에 있어도 OK 지만, name 명시 + state 동기화로 안전 보장) */}
+                <input type="hidden" name="remember_me" value={rememberMe ? "on" : "off"} />
+
                 <div className="label">이메일</div>
+                {/* 2026-05-04 fix: autoComplete="username" — 클릭 시 dropdown, 페이지 진입 자동 채움 차단 */}
                 <input
                   className="input"
                   name="email"
                   type="email"
+                  autoComplete="username"
                   required
                   placeholder="email@example.com"
                   style={{ marginBottom: 14 }}
                 />
 
                 <div className="label">비밀번호</div>
-                <input
-                  className="input"
+                {/* 2026-05-04 fix: PasswordInput (보기 버튼 통합) + autoComplete="current-password"
+                    (로그인 페이지 = 저장된 비밀번호 자동 채움 활성) */}
+                <PasswordInput
                   name="password"
-                  type="password"
+                  autoComplete="current-password"
                   required
                   placeholder="비밀번호"
                   style={{ marginBottom: 12 }}
@@ -169,33 +191,24 @@ export default function LoginPage() {
                     marginBottom: 18,
                   }}
                 >
-                  {/* 자동 로그인: UI만 배치 + disabled + tooltip ("준비 중")
-                      추후 구현 — Phase 6 Login (token 시스템 필요) */}
+                  {/* 2026-05-04: 자동 로그인 활성화 — default on (사용자 편의)
+                      on  → 세션 쿠키 maxAge 30일 (기존 동작 — 회귀 0)
+                      off → maxAge 8시간 (공용 PC 보호) */}
                   <label
                     style={{
                       display: "flex",
                       gap: 6,
                       alignItems: "center",
-                      cursor: "not-allowed",
-                      color: "var(--ink-dim)",
+                      cursor: "pointer",
+                      color: "var(--ink)",
                     }}
-                    title="준비 중"
                   >
-                    <input type="checkbox" disabled />
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
                     자동 로그인
-                    <span
-                      style={{
-                        marginLeft: 4,
-                        padding: "1px 6px",
-                        fontSize: 10,
-                        borderRadius: 4,
-                        background: "var(--bg-alt)",
-                        color: "var(--ink-mute)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      준비 중
-                    </span>
                   </label>
                   {/* 비밀번호 찾기 — 기존 /forgot-password 라우트 유지 */}
                   <button

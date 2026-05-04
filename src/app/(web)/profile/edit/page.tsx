@@ -37,6 +37,8 @@ import { BANKS } from "@/lib/constants/banks";
 import { RegionPicker, type Region } from "@/components/shared/region-picker";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고)
 import { PageBackButton } from "@/components/shared/page-back-button";
+// 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 — 회원 탈퇴 모달에서 사용)
+import { PasswordInput } from "@/components/ui/password-input";
 import "./edit-profile.css";
 
 // 시안 포지션 5종 (PG/SG/SF/PF/C) — 운영은 multi 선택 보존 (DB 호환)
@@ -1454,12 +1456,13 @@ export default function ProfileEditPage() {
               </div>
             )}
 
-            <input
-              type="password"
+            {/* 2026-05-04: PasswordInput (보기 버튼 통합) + autoComplete="current-password"
+                (회원 탈퇴 본인 확인 = 현재 비밀번호 자동 채움 활성) */}
+            <PasswordInput
               value={withdrawPassword}
               onChange={(e) => setWithdrawPassword(e.target.value)}
               placeholder="현재 비밀번호"
-              className="input"
+              autoComplete="current-password"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleWithdraw();
               }}

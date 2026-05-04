@@ -36,9 +36,15 @@ const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction,
   sameSite: "lax" as const,
-  maxAge: 60 * 60 * 24 * 30, // 30일
+  maxAge: 60 * 60 * 24 * 30, // 30일 (default — signupAction / devLoginAction / OAuth 보존)
   path: "/",
 };
+
+// 2026-05-04: 자동 로그인 분기용 maxAge
+// - on  = 30일 (기존 동작 — 사용자 편의 default)
+// - off = 8시간 (공용 PC 보호 — 같은 PC 8시간 후 자동 로그아웃)
+const LOGIN_MAX_AGE_REMEMBER = 60 * 60 * 24 * 30; // 30일
+const LOGIN_MAX_AGE_SHORT = 60 * 60 * 8; // 8시간
 
 async function getRequestIp(): Promise<string> {
   // Server Action에서는 headers()로 IP 추출 (Next.js 15: async)
@@ -55,6 +61,9 @@ export async function loginAction(_prevState: { error: string } | null, formData
   const password = formData.get("password") as string;
   // 로그인 성공 후 돌아갈 경로 (로그인 페이지에서 hidden input으로 전달)
   const redirectTo = formData.get("redirect") as string | null;
+  // 2026-05-04: 자동 로그인 체크박스 — "on" / "off" / null (구버전 호환)
+  // 누락 시 default on (기존 사용자 회귀 0 — 30일 세션 유지)
+  const rememberMe = formData.get("remember_me") !== "off";
 
   if (!email || !password) {
     return { error: "이메일과 비밀번호를 입력하세요." };
@@ -94,9 +103,14 @@ export async function loginAction(_prevState: { error: string } | null, formData
     await clearLoginAttempts(email);
 
     const token = await generateToken(user);
-    console.log("[loginAction] SUCCESS:", email, "cookie:", WEB_SESSION_COOKIE);
+    console.log("[loginAction] SUCCESS:", email, "cookie:", WEB_SESSION_COOKIE, "remember:", rememberMe);
     const cookieStore = await cookies();
-    cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
+    // 2026-05-04: 자동 로그인 체크 여부에 따라 세션 쿠키 maxAge 분기
+    // 보안 속성 (httpOnly / secure / sameSite / path) 은 동일 — maxAge 만 변경
+    cookieStore.set(WEB_SESSION_COOKIE, token, {
+      ...COOKIE_OPTIONS,
+      maxAge: rememberMe ? LOGIN_MAX_AGE_REMEMBER : LOGIN_MAX_AGE_SHORT,
+    });
 
     // 사전 등록 심판 자동 매칭 시도 (로그인 성공 후)
     await tryAutoMatch(user.id, user.name ?? null, user.phone ?? null);

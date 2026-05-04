@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+// 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 — 주민번호 admin 입력 확인용)
+import { PasswordInput } from "@/components/ui/password-input";
 
 /**
  * /referee/admin/members/new — 심판 사전 등록 폼.
@@ -236,8 +238,10 @@ export default function AdminMemberNewPage() {
             >
               주민등록번호 (정산용, 선택)
             </label>
-            <input
-              type="password"
+            {/* 2026-05-04: PasswordInput (보기 버튼 통합) + autoComplete="off"
+                주민번호는 비밀번호가 아니므로 password manager 자동 저장 차단 (off)
+                보기 버튼은 admin 이 입력 확인 용도로 활용 */}
+            <PasswordInput
               value={residentId}
               onChange={(e) => {
                 // 하이픈 자동 삽입: 6자리 입력 후 자동으로 하이픈 추가
@@ -250,6 +254,7 @@ export default function AdminMemberNewPage() {
               }}
               placeholder="000000-0000000"
               maxLength={14}
+              autoComplete="off"
               className="w-full px-3 py-2 text-sm"
               style={{
                 backgroundColor: "var(--color-surface)",

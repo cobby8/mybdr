@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const DEFAULT_PAGE_SIZE = 20;
 const VALID_PAGE_SIZES = [10, 20, 30];
 
-// FR-062: 토너먼트 관리 (Admin)
+// FR-062: 대회 관리 (Admin) — 2026-05-04 "토너먼트 관리" → "대회 관리" 통일 (사용자 요청)
 export default async function AdminTournamentsPage({
   searchParams,
 }: {
@@ -69,7 +69,7 @@ export default async function AdminTournamentsPage({
   return (
     <div>
       <AdminPageHeader
-        title="토너먼트 관리"
+        title="대회 관리"
         subtitle={`전체 ${totalCount}개`}
         searchPlaceholder="대회명 검색"
         searchDefaultValue={q ?? ""}
