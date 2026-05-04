@@ -1,6 +1,29 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-05] 인증 가드 추가 규칙 — getAuthUser() 단일 진입점 위임 (직접 getWebSession+findUnique 패턴 금지)
+- **분류**: convention/auth (가드 일관성 / 누락 회귀 영구 차단)
+- **발견자**: developer (옵션 B-PR1 구현 후 박제)
+- **본질**: 가드 5개소 분산 + 신규 가드 추가 시 같은 패턴 반복 → 누락 회귀 발생 (fa5bd90 signup 누락 1례). `getAuthUser()` 단일 헬퍼로 통합하여 신규 가드 추가 시 1줄로 끝나도록.
+- **신규 보호 페이지 추가 룰**:
+  - **금지**: `const session = await getWebSession()` + `prisma.user.findUnique({ where, select: { status } })` 직접 사용 패턴 ❌
+  - **의무**: `const auth = await getAuthUser()` + `auth.state` 분기 ✅
+  - **분기 패턴 표준**:
+    ```ts
+    const auth = await getAuthUser();
+    if (auth.state === "anonymous") redirect("/login?redirect=/path");
+    if (auth.state === "withdrawn" || auth.state === "missing") redirect("/login?withdrawn=expired");
+    // state === "active" 통과
+    ```
+- **5 보장**:
+  1. JWT verify + DB SELECT + status 분기 단일 캡슐화
+  2. React.cache dedup → 4 layout 동시 호출해도 DB 1회
+  3. 탈퇴/미존재 쿠키 자동 cleanup → 1회 진입으로 영구 제거
+  4. DB 실패 = anonymous fallback (안전 우선)
+  5. cookies.delete 실패 = silent fail (try/catch)
+- **사용 위치**: server component layout / server action 만. route handler 는 기존 `withWebAuth` 유지.
+- **참조**: `src/lib/auth/get-auth-user.ts` (신규) + 4 layout 위임 (commit `d8bba4a`)
+
 ### [2026-05-05] 관리자 강제 변경 액션 패턴 — 사유 필수 + admin_logs warning + 권한 최소
 - **분류**: convention/admin-action (PIPA 본인정정권 + 감사 추적)
 - **발견자**: pm + 사용자 (개인정보 취급 방침 검토 결과)

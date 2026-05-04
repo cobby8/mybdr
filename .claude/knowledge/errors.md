@@ -17,6 +17,7 @@
   - **JWT 살아있음 ≠ 사용자 정상** — DB user.status === "active" 별도 검증 필수 (탈퇴 회원 쿠키 7일 잔존 케이스)
   - **사용자 신고 "쿠키 삭제하면 정상"** = 쿠키 잔존 + 가드 누락 1순위 의심
 - **참조 fix**: commit fa5bd90
+- **B-PR1 후속 영구 차단 (2026-05-05, commit `d8bba4a`)**: `getAuthUser()` 단일 헬퍼 도입으로 회귀 패턴 영구 차단. JWT verify + DB SELECT + status 분기 + 쿠키 자동 cleanup 단일 함수 + React.cache dedup. 4 layout (web/login/signup/profile) 모두 위임. 신규 가드 추가 시 `auth.state` 분기 1줄. 더 이상 가드 5개소 분산 패턴 반복 ❌. **conventions.md "인증 가드 추가 규칙" 참조**.
 - **참조횟수**: 0
 
 ### [2026-05-04] Prisma relation 명 camelCase ↔ schema `@@map` snake_case 분리 — 첫 시도 fail

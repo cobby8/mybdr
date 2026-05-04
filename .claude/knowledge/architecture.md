@@ -2,6 +2,33 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-05] 인증 흐름 단일 진입점 — getAuthUser() 헬퍼 + 4 layout 위임 + 쿠키 자동 cleanup
+- **분류**: architecture (인증 / 세션 / 가드)
+- **발견자**: planner-architect + developer (옵션 B-PR1 구현)
+- **참조횟수**: 0
+- **위치**: `src/lib/auth/get-auth-user.ts` (신규 단일 진입점) + `src/app/(web)/{layout,login/layout,signup/layout,profile/layout}.tsx` (4 layout 위임) + `src/app/api/web/me/route.ts` (응답 통일)
+- **본질**: 5/5 사용자 신고 — 탈퇴 회원 쿠키 7일 잔존 시 매번 layout 가드 의존. 가드 5개소 (web/login/signup/profile layout + me API) 분산 → 신규 가드 추가 시 같은 패턴 반복 + 누락 회귀 (errors.md fa5bd90 → signup 누락).
+- **`getAuthUser()` 4 케이스 응답 (`AuthState`)**:
+  - `anonymous` — 쿠키 없음 또는 JWT 검증 실패
+  - `active` — 정상 회원 (status !== "withdrawn")
+  - `withdrawn` — 탈퇴 회원 (status === "withdrawn") — **쿠키 자동 cleanup**
+  - `missing` — JWT 살아있지만 DB user 없음 (관리자 hard delete 등) — **쿠키 자동 cleanup**
+- **3대 보장**:
+  1. **JWT verify + DB user.status SELECT + status 분기 단일 함수 캡슐화**
+  2. **React.cache dedup** — 동일 요청 내 4 layout 동시 호출해도 DB SELECT 1회
+  3. **쿠키 자동 cleanup** — withdrawn/missing 시 cookies.delete 호출 → 사용자가 페이지 진입 1회만으로 잘못된 쿠키 영구 제거 (5/5 사용자 신고 본질 해결)
+- **안전 가드**:
+  - DB SELECT 실패 = anonymous 반환 (가드는 비로그인 처리)
+  - cookies.delete 실패 (read-only context) = silent fail (try/catch)
+- **4 layout 동작 매트릭스**:
+  - `(web)/layout.tsx` — `state==="active"` 만 initialUser 채움 (referee SELECT 별도 유지). 그 외 null.
+  - `(web)/login/layout.tsx` — `state==="active"` 만 / redirect.
+  - `(web)/signup/layout.tsx` — `state==="active"` 만 / redirect (login 과 대칭, 5/5 신규 가드).
+  - `(web)/profile/layout.tsx` — `anonymous` → /login?redirect=/profile, `withdrawn`/`missing` → /login?withdrawn=expired, `active` 통과.
+- **me API 응답 통일** (옵션 A-3): 탈퇴 회원 응답 401 → 200 + `{id:null, state:"withdrawn"}` 단일 path. 7 호출처 `if (u && u.id)` 검증 패턴 호환 → 회귀 0.
+- **사용 위치**: server component layout / server action 만. route handler 는 기존 `withWebAuth` 유지 (별도 PR 검토).
+- **B-PR2/PR3 큐**: me API 통합 응답 + 7개 호출처 일관 처리 (PR2) / `withWebAuth` 안에 status 검증 옵션 (PR3) — 본 PR 범위 외.
+
 ### [2026-05-04] 알기자 기사 사진 첨부 시스템 (Phase 1 MVP) — news_photos 테이블 + admin 모바일 카메라 + Hero/갤러리
 - **분류**: architecture (LLM 기자봇 / 운영자 모바일 업로드 / 사진 노출)
 - **발견자**: pm + 사용자 의도 ("담당자가 핸드폰으로 사진 업로드하면 인식해서 함께 넣을 수 있는 방법")
