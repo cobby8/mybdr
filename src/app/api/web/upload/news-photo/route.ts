@@ -27,6 +27,10 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB (모바일 고화질 허용)
 const TARGET_LONG_EDGE = 1920;
 const WEBP_QUALITY = 80;
 const BUCKET = "news-photos";
+// 2026-05-04: 매치당 사진 최대 개수 — UI 가독성 + Storage 무제한 방지
+// 일반 커뮤니티 기준 (Reddit gallery 20장, 네이버 카페 30장) 대비 보수
+// 알기자 기사 = 단신 위주라 5~10장이 적정 / 15장은 여유 한도
+const MAX_PHOTOS_PER_MATCH = 15;
 
 export async function POST(req: NextRequest) {
   // 1) 인증 + admin 검증
@@ -79,12 +83,21 @@ export async function POST(req: NextRequest) {
 
   const isHero = isHeroRaw === "true";
 
-  // 4) 매치 검증
+  // 4) 매치 검증 + 매치당 사진 개수 한도 검증 (15장)
   const match = await prisma.tournamentMatch.findUnique({
     where: { id: matchId },
     select: { id: true },
   });
   if (!match) return apiError("매치를 찾을 수 없습니다.", 404);
+
+  // 4-1) 매치당 사진 개수 한도
+  const photoCount = await prisma.news_photo.count({ where: { match_id: matchId } });
+  if (photoCount >= MAX_PHOTOS_PER_MATCH) {
+    return apiError(
+      `매치당 사진은 최대 ${MAX_PHOTOS_PER_MATCH}장까지 업로드 가능합니다. (현재 ${photoCount}장) 기존 사진 삭제 후 추가해주세요.`,
+      400,
+    );
+  }
 
   // 5) sharp 정규화 — long-edge 1920 / WebP 80%
   const inputBuffer = Buffer.from(await file.arrayBuffer());
