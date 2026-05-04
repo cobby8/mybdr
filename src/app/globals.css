@@ -2836,3 +2836,113 @@ html.dark {
     padding: 6px 2px;
   }
 }
+
+/* ============================================================
+ * 2026-05-04: DataTableV2 (.data-table) 시각 룰 — admin-table 톤 정합
+ *
+ * 배경: src/components/bdr-v2/data-table.tsx 가 .data-table / .data-table__head /
+ *      .data-table__row / .data-table__empty 4 클래스 사용. 그러나 globals.css 에
+ *      해당 룰 부재 → admin/users 등 unstyled 노출 (사용자 보고 5/4).
+ *
+ * 정책:
+ *  - 데스크톱: admin-table 과 동일 톤 (border / hover / 헤더 굵기)
+ *  - 모바일 ≤720px: G-1 카드형 자동 변환 (admin-table 와 동일 패턴)
+ *
+ * 사용처: admin/users, referee/admin/members 외 향후 확장
+ * ============================================================ */
+.data-table {
+  border: 1px solid var(--color-border, var(--border));
+  border-radius: 10px;
+  background: var(--color-bg-elev1, var(--bg-elev));
+  overflow: hidden;
+}
+.data-table__head {
+  background: var(--bg-head, var(--bg-elev));
+  border-bottom: 1px solid var(--color-border, var(--border));
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted, var(--ink-dim));
+  letter-spacing: 0.02em;
+}
+.data-table__head > span {
+  padding: 0 8px;
+}
+.data-table__row {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border-subtle, var(--border-subtle, var(--border)));
+  font-size: 14px;
+  color: var(--color-text, var(--ink-soft));
+  align-items: center;
+  transition: background-color 0.15s ease;
+}
+.data-table__row:last-child {
+  border-bottom: 0;
+}
+.data-table__row:hover {
+  background: var(--bg-row-hover, var(--bg-alt, var(--color-elevated)));
+}
+.data-table__row > span {
+  padding: 0 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.data-table__row > span[data-primary="true"] {
+  font-weight: 600;
+  color: var(--color-text-primary, var(--ink));
+}
+.data-table__empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--color-text-muted, var(--ink-dim));
+  font-size: 14px;
+  border: 1px solid var(--color-border, var(--border));
+  border-radius: 10px;
+  background: var(--color-bg-elev1, var(--bg-elev));
+}
+
+/* G-1 모바일 카드형 (≤720px) — admin-table 와 동일 패턴 */
+@media (max-width: 720px) {
+  .data-table__head {
+    display: none !important;
+  }
+  .data-table__row {
+    display: block !important;
+    padding: 14px 16px;
+  }
+  .data-table__row > span {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    text-align: right !important;
+    font-size: 13px !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  .data-table__row > span[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted, var(--ink-dim));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 12px;
+    text-align: left;
+  }
+  .data-table__row > span[data-primary="true"] {
+    display: block !important;
+    text-align: left !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 2px 0 8px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px dashed var(--color-border, var(--border)) !important;
+  }
+  .data-table__row > span[data-primary="true"]::before {
+    display: none !important;
+  }
+}
