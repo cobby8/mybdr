@@ -156,26 +156,37 @@ export function AdminNewsContent({
                       // 2026-05-04: 모바일에서 클릭 시 미리보기 모달 자동 열림 (데스크톱은 인라인 그대로)
                       setPreviewOpen(true);
                     }}
-                    className={`cursor-pointer border-b border-[var(--color-border)] p-3 text-sm ${
+                    className={`cursor-pointer border-b border-[var(--color-border)] p-3 text-sm flex gap-2 items-start ${
                       selectedId === p.id
                         ? "bg-[var(--color-bg-elev1)]"
                         : "hover:bg-[var(--color-bg-hover)]"
                     }`}
                   >
-                    <div className="font-medium line-clamp-2">{p.title}</div>
-                    <div className="mt-1 flex gap-2 text-xs text-[var(--color-text-dim)]">
-                      <span>match {p.tournament_match_id ?? "-"}</span>
-                      <span>·</span>
-                      <span>{new Date(p.created_at).toLocaleString("ko-KR")}</span>
-                      {p.status === "published" && (
-                        <>
-                          <span>·</span>
-                          <span>👁 {p.view_count}</span>
-                          <span>❤ {p.likes_count}</span>
-                          <span>💬 {p.comments_count}</span>
-                        </>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium line-clamp-2">{p.title}</div>
+                      {/* 2026-05-04: 모든 status 에 조회수/좋아요/댓글 표시 (사용자 요청) */}
+                      <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-[var(--color-text-dim)]">
+                        <span>match {p.tournament_match_id ?? "-"}</span>
+                        <span>·</span>
+                        <span>{new Date(p.created_at).toLocaleString("ko-KR")}</span>
+                        <span>·</span>
+                        <span>👁 {p.view_count}</span>
+                        <span>❤ {p.likes_count}</span>
+                        <span>💬 {p.comments_count}</span>
+                      </div>
                     </div>
+                    {/* 2026-05-04: 매치 페이지 빠른 링크 — 카드 우측 (클릭 시 새 탭, list 선택과 분리) */}
+                    {p.tournament_match_id && (
+                      <Link
+                        href={`/live/${p.tournament_match_id}`}
+                        target="_blank"
+                        onClick={(e) => e.stopPropagation()}
+                        title="매치 페이지로 이동"
+                        className="shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded text-[var(--color-text-dim)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-accent)]"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
