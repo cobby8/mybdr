@@ -91,8 +91,35 @@ function statusBadge(s: string | null) {
   );
 }
 
-// v2.1 P2: DataTableV2 컬럼 명세 — 닉네임 primary(카드 제목), 5컬럼
+// 2026-05-04: 가입일시 압축 표시 — "26.05.04 14:23" (테이블 1열에 들어가도록 짧게)
+function fmtCreatedAt(iso: string): string {
+  const d = new Date(iso);
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${yy}.${mm}.${dd} ${hh}:${mi}`;
+}
+
+// v2.1 P2: DataTableV2 컬럼 명세 — 가입일시 1열 추가 (사용자 요구 2026-05-04)
+//   기존: [닉네임 / 이메일 / 역할 / 관리자 / 상태] = 5컬럼
+//   변경: [가입일시 / 닉네임 / 이메일 / 역할 / 관리자 / 상태] = 6컬럼
+//   닉네임 primary 유지 (모바일 카드 제목)
 const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
+  {
+    key: "createdAt",
+    label: "가입일시",
+    width: "150px",
+    render: (u) => (
+      <span
+        className="text-xs tabular-nums whitespace-nowrap"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        {fmtCreatedAt(u.createdAt)}
+      </span>
+    ),
+  },
   {
     key: "nickname",
     label: "닉네임",
@@ -146,7 +173,15 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
 ];
 
 interface Props {
-  users: SerializedUser[];
+  // 2026-05-04: page=N 페이지네이션 → 무한 스크롤 (더보기 버튼) 전환.
+  //   initialUsers = SSR 첫 50명 / totalCount = 검색조건 적용 전체 / searchQuery = ?q= 값 / loadMoreAction = 더보기 server action
+  initialUsers: SerializedUser[];
+  totalCount: number;
+  searchQuery: string | null;
+  loadMoreAction: (
+    offset: number,
+    q: string | null,
+  ) => Promise<{ users: Array<Record<string, unknown>>; hasMore: boolean }>;
   updateUserRoleAction: (formData: FormData) => Promise<void>;
   updateUserStatusAction: (formData: FormData) => Promise<void>;
   toggleUserAdminAction: (formData: FormData) => Promise<void>;
@@ -154,7 +189,17 @@ interface Props {
   deleteAction: (formData: FormData) => Promise<void>;
 }
 
-export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusAction, toggleUserAdminAction, forceWithdrawAction, deleteAction }: Props) {
+export function AdminUsersTable({
+  initialUsers,
+  totalCount,
+  searchQuery,
+  loadMoreAction,
+  updateUserRoleAction,
+  updateUserStatusAction,
+  toggleUserAdminAction,
+  forceWithdrawAction,
+  deleteAction,
+}: Props) {
   const [selectedUser, setSelectedUser] = useState<SerializedUser | null>(null);
   const [tab, setTab] = useState<"info" | "edit">("info");
   const [confirm, setConfirm] = useState<"withdraw" | "delete" | null>(null);
@@ -162,7 +207,33 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
   // 역할별 필터링 탭 상태
   const [activeRoleTab, setActiveRoleTab] = useState("all");
 
-  // 역할별 탭 목록 + 개수 계산
+  // 2026-05-04: 더보기 누적 로딩 — initialUsers 부터 시작해서 server action 으로 추가
+  const [users, setUsers] = useState<SerializedUser[]>(initialUsers);
+  const [hasMore, setHasMore] = useState<boolean>(initialUsers.length < totalCount);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // SSR 데이터가 갱신되면 (검색어 변경 등) state reset
+  useEffect(() => {
+    setUsers(initialUsers);
+    setHasMore(initialUsers.length < totalCount);
+  }, [initialUsers, totalCount]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await loadMoreAction(users.length, searchQuery);
+      // 직렬화된 SerializedUser 형태로 캐스팅 (server action 이 동일 select 룰 사용 — actions/admin-users.ts 참조)
+      const next = result.users as unknown as SerializedUser[];
+      setUsers((prev) => [...prev, ...next]);
+      setHasMore(result.hasMore);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  // 역할별 탭 목록 + 개수 계산 — 현재 누적 로딩된 users 기준
+  // (전체 카운트는 totalCount 별도, 탭은 표시된 데이터 분류 용도)
   const roleTabs = useMemo(() => [
     { key: "all", label: "전체", count: users.length },
     { key: "normal", label: "일반", count: users.filter((u) => u.membershipType === 0 && !u.isAdmin).length },
@@ -213,6 +284,27 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
         onRowClick={(user) => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
         emptyMessage="조건에 맞는 회원이 없습니다."
       />
+
+      {/* 2026-05-04: 더보기 버튼 (페이지네이션 대체) — 검색 시에도 동일하게 작동
+            누적 표시 / hasMore=false 면 "전체 표시 완료" 메시지 / 활성 탭 필터는 client side */}
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          {users.length.toLocaleString()} / {totalCount.toLocaleString()}명 표시
+        </p>
+        {hasMore ? (
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="btn btn--sm disabled:opacity-50"
+          >
+            {loadingMore ? "불러오는 중..." : `더보기 (+${Math.min(50, totalCount - users.length)}명)`}
+          </button>
+        ) : users.length > 0 ? (
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+            전체 표시 완료
+          </p>
+        ) : null}
+      </div>
 
       {/* 상세 모달 */}
       {selectedUser && (() => {
