@@ -127,6 +127,14 @@ export async function loginAction(_prevState: { error: string } | null, formData
 }
 
 export async function signupAction(_prevState: { error: string } | null, formData: FormData) {
+  // 2026-05-05 fix: 신규 가입 시 기존 세션 강제 로그아웃 (세션 충돌 fix)
+  // 본질: 사용자가 다른 계정으로 로그인된 상태에서 신규 가입 시도 → 가입 직후 /login?signup=success
+  //       redirect 되어도 헤더 SSR 가 기존 세션의 user 정보 (이름/사진/phone) 표시 = 사용자 혼란
+  //       (cobby8@stiz.kr 케이스: 5/4 11:41 신규 이메일 가입 후 사용자가 본 화면 = 김수빈 본인 계정).
+  // fix: signupAction 시작부에 기존 세션 쿠키 삭제 → 가입 흐름은 항상 비로그인 상태에서 시작.
+  const cookieStoreClear = await cookies();
+  cookieStoreClear.delete(WEB_SESSION_COOKIE);
+
   const email = formData.get("email") as string;
   const nickname = formData.get("nickname") as string;
   const password = formData.get("password") as string;
