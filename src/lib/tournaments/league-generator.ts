@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
+// Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
+import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
 
 /**
  * 풀리그(라운드 로빈) 경기 자동 생성 유틸
@@ -53,6 +55,18 @@ export async function generateRoundRobinMatches(
         select: { id: true, seedNumber: true },
       });
 
+      // Phase 4 — 매치 코드 v4 자동 부여를 위한 tournament 메타 조회
+      // short_code / region_code 둘 중 하나라도 NULL 이면 match_code 미부여 (안전)
+      const tournamentMeta = await tx.tournament.findUnique({
+        where: { id: tournamentId },
+        select: {
+          short_code: true,
+          region_code: true,
+          categories: true,
+          startDate: true,
+        },
+      });
+
       if (teams.length < 2) {
         // 경기를 만들려면 최소 2팀 필요 (1팀끼리는 경기 불성립)
         throw Object.assign(new Error("TEAMS_INSUFFICIENT"), {
@@ -96,10 +110,18 @@ export async function generateRoundRobinMatches(
         }
       }
 
-      // 5) 대량 insert — 쿼리 1회로 처리 (성능)
-      await tx.tournamentMatch.createMany({ data: matchData });
+      // 5) 매치 코드 v4 필드 자동 부여 (Phase 4)
+      //    - tournamentMeta 가 있고 short_code+region_code 둘 다 있으면 match_code 생성
+      //    - 풀리그는 group_letter / group_name 부재 → null 그대로
+      //    - categories 단일 종별/디비전이면 category_letter/division_tier 일괄 부여
+      const matchDataWithCode = tournamentMeta
+        ? applyMatchCodeFields(matchData, tournamentMeta)
+        : matchData;
 
-      // 6) Tournament.matches_count 캐시 업데이트 (bracket API 와 동일 패턴)
+      // 6) 대량 insert — 쿼리 1회로 처리 (성능)
+      await tx.tournamentMatch.createMany({ data: matchDataWithCode });
+
+      // 7) Tournament.matches_count 캐시 업데이트 (bracket API 와 동일 패턴)
       const total = await tx.tournamentMatch.count({ where: { tournamentId } });
       await tx.tournament.update({
         where: { id: tournamentId },

@@ -13,6 +13,8 @@ import {
   validateGroupAssignment,
   type DualGroupAssignment,
 } from "@/lib/tournaments/dual-tournament-generator";
+// Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
+import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
 import { Prisma } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -135,7 +137,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // 기존 single_elimination 로직 보존 + 분기만 최소 추가
   const tournamentMeta = await prisma.tournament.findUnique({
     where: { id },
-    select: { format: true, settings: true },
+    // Phase 4 — 매치 코드 v4 자동 부여를 위해 short_code/region_code/categories/startDate 추가 select
+    // (호출자 영향 0 — 추가 select 만이고 기존 분기 로직 영향 0)
+    select: {
+      format: true,
+      settings: true,
+      short_code: true,
+      region_code: true,
+      categories: true,
+      startDate: true,
+    },
   });
 
   if (isLeagueFormat(tournamentMeta?.format)) {
@@ -276,7 +287,21 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             };
           });
 
-          await tx.tournamentMatch.createMany({ data: createData });
+          // Phase 4 — 매치 코드 v4 필드 자동 부여 (dual_tournament 통합)
+          //   - tournamentMeta 의 short_code/region_code 둘 다 있으면 match_code 생성
+          //   - dual 의 group_name (A/B/C/D) → group_letter 자동 복사
+          //   - categories 단일 종별/디비전이면 일괄 부여
+          //   호출자 영향 0 — createData 형식 그대로 유지하며 신규 4컬럼만 추가
+          const createDataWithCode = tournamentMeta
+            ? applyMatchCodeFields(createData, {
+                short_code: tournamentMeta.short_code ?? null,
+                region_code: tournamentMeta.region_code ?? null,
+                categories: tournamentMeta.categories,
+                startDate: tournamentMeta.startDate,
+              })
+            : createData;
+
+          await tx.tournamentMatch.createMany({ data: createDataWithCode });
 
           // 5) 새로 생성된 27 매치를 match_number 순으로 다시 조회해서 BigInt id 매핑
           //    matchNumber 는 generator 에서 1부터 순차 부여 = matches[] 인덱스 + 1
@@ -397,6 +422,23 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const roundMatchIds: Record<number, bigint[]> = {};
     let matchCounter = 1;
 
+    // Phase 4 — 매치 코드 v4 자동 부여 closure (single_elimination 통합)
+    // 매치 단위 create 패턴이라 createMany 와 달리 각 매치 데이터에 즉시 적용
+    // - tournamentMeta 의 short_code/region_code 둘 다 있으면 match_code 생성
+    // - single_elimination 은 group_letter/category_letter 보통 부재 → 단일 카테고리만 일괄
+    const applyV4 = <T extends { match_number?: number | null; group_name?: string | null }>(
+      data: T,
+    ): T => {
+      if (!tournamentMeta) return data;
+      const [withCode] = applyMatchCodeFields([data], {
+        short_code: tournamentMeta.short_code ?? null,
+        region_code: tournamentMeta.region_code ?? null,
+        categories: tournamentMeta.categories,
+        startDate: tournamentMeta.startDate,
+      });
+      return withCode;
+    };
+
     for (let r = totalRounds; r >= 1; r--) {
       const matchCount = slots / Math.pow(2, r);
       roundMatchIds[r] = [];
@@ -431,8 +473,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
               },
             });
           }
+          // Phase 4 — applyV4 로 v4 필드 자동 부여 (match_code 등)
           const match = await tx.tournamentMatch.create({
-            data: {
+            data: applyV4({
               tournamentId: id,
               homeTeamId,
               awayTeamId: null,
@@ -445,14 +488,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
               winner_team_id: homeTeamId,
               next_match_id: nextMatchId,
               next_match_slot: nextMatchSlot,
-            },
+            }),
           });
           roundMatchIds[r].push(match.id);
           continue;
         }
 
+        // Phase 4 — applyV4 로 v4 필드 자동 부여 (match_code 등)
         const match = await tx.tournamentMatch.create({
-          data: {
+          data: applyV4({
             tournamentId: id,
             homeTeamId,
             awayTeamId,
@@ -464,7 +508,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             status: r === 1 ? "scheduled" : "pending",
             next_match_id: nextMatchId,
             next_match_slot: nextMatchSlot,
-          },
+          }),
         });
         roundMatchIds[r].push(match.id);
       }
