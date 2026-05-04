@@ -168,9 +168,24 @@ export async function signupAction(_prevState: { error: string } | null, formDat
 
   try {
     // 이메일 중복 확인
-    const existingEmail = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    // 2026-05-05 fix: 탈퇴 회원 email 자동 정리 (B3 소급 적용)
+    //   본질: B3 fix 이전 탈퇴자는 email 그대로 보존 → 재가입 시 "이미 사용 중인 이메일" 에러.
+    //   사용자 보고: cobby8 5/4 20:41 탈퇴 (B3 fix 이전) → 5/5 재가입 시도 시 차단됨.
+    //   fix: existingEmail.status === "withdrawn" 시 자동 anonymize + 신규 가입 진행.
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, status: true },
+    });
     if (existingEmail) {
-      return { error: "이미 사용 중인 이메일입니다." };
+      if (existingEmail.status === "withdrawn") {
+        // 탈퇴 회원의 email 자동 정리 → 신규 가입 진행 가능
+        await prisma.user.update({
+          where: { id: existingEmail.id },
+          data: { email: `withdrawn_${existingEmail.id}_${Date.now()}@deleted.local` },
+        });
+      } else {
+        return { error: "이미 사용 중인 이메일입니다." };
+      }
     }
 
     // 닉네임 중복 확인
