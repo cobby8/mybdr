@@ -986,6 +986,11 @@ export async function GET(
         homeScore: finalHomeScore,
         awayScore: finalAwayScore,
         roundName: match.roundName,
+        // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드
+        // 형식: `{YY}-{지역2자}-{대회이니셜+회차4자}-{매치번호3자}` 예: `26-GG-MD21-001`
+        // null 가능 (short_code/region_code 미부여 대회). 클라이언트 NULL 안전 분기 의무.
+        // apiSuccess camelCase → snake_case 변환으로 클라이언트는 match_code 로 수신
+        matchCode: match.match_code,
         quarterScores,
         // 경기 날짜 필드 — 프런트에서 4/11~12 게임 클럭 부정확 안내 분기에 사용
         // scheduledAt(예정일) / started_at(실제 시작 시각) 둘 다 내려줘서 프런트가 우선순위로 선택 가능하게 함

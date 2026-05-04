@@ -137,6 +137,13 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     roundName: (m.roundName ?? m.round_name ?? null) as string | null,
     scheduledAt: (m.scheduledAt ?? m.scheduled_at ?? null) as string | null,
     courtNumber: (m.courtNumber ?? m.court_number ?? null) as string | null,
+    // 2026-05-02: 일정 카드 콤팩트 + 매치번호/조 표시 (사용자 요청)
+    // apiSuccess camelCase → snake_case 자동 변환 → 양쪽 키 fallback
+    matchNumber: (m.matchNumber ?? m.match_number ?? null) as number | null,
+    groupName: (m.groupName ?? m.group_name ?? null) as string | null,
+    // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 (NULL 가능)
+    // 형식: `26-GG-MD21-001` (14자) 또는 null. ScheduleMatch 카드에서 우선 표시.
+    matchCode: (m.matchCode ?? m.match_code ?? null) as string | null,
   }));
   const teams: ScheduleTeam[] = (data?.data?.teams ?? data?.teams ?? []).map((t: Record<string, unknown>) => ({
     id: String(t.id ?? ''),

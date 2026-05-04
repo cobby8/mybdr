@@ -76,6 +76,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       // 2026-05-02: 일정 카드 콤팩트 + 매치번호 표시 (사용자 요청)
       matchNumber: m.match_number,
       groupName: m.group_name,
+      // Phase 5 (매치 코드 v4) — 일정 카드에 글로벌 코드 표시
+      // null 가능: short_code/region_code 미부여 대회의 매치는 null
+      // 클라이언트는 NULL 안전 분기로 매치번호 fallback
+      matchCode: m.match_code,
     };
   });
 

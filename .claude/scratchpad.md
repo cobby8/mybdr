@@ -8,18 +8,16 @@
 
 ## 🎯 현재 작업
 
-**[Phase 4 진행중] 매치 코드 v4 generator 4종 통합** — Phase 1+2+3 + knowledge 박제 모두 push 완료 (5efca2d). developer 위임 — generator 4종 (single elim / full league / hybrid / dual) 신규 매치 생성 시 `generateMatchCode()` 자동 호출 + `generateUniqueMatchCode()` UNIQUE 충돌 fallback. 호출자 영향 0 (generator 내부 변경만). tester+reviewer 병렬 후 커밋.
+**[Phase 5 완료 / 미커밋] 매치 코드 v4 UI 노출** — 3페이지 (`/live/[id]` v2 hero / `/tournaments/[id]?tab=bracket` / `?tab=schedule`) 매치 카드에 `match_code` 표시. NULL 안전 + 13룰 토큰. 8파일 변경. tsc 0 / vitest 65/65 회귀 0. tester+reviewer 병렬 대기.
 
 ---
 
 ## 🎯 다음 세션 진입점
 
-### 🚀 1순위 — 매치 코드 v4 Phase 4~7 (~3.5h 잔여)
+### 🚀 1순위 — 매치 코드 v4 Phase 7 (~1h 옵션 잔여)
 
-**진행 상태**: Phase 1+2+3 완료. 미푸시 1 (bec591b).
+**진행 상태**: Phase 1+2+3+4+5 완료. 미커밋 (Phase 4 + Phase 5).
 
-- **Phase 4 (~1.5h)**: generator 4종 통합 — `dual-tournament-generator.ts` + `generator.ts` (single elim / full league / hybrid) 신규 매치 생성 시 `generateMatchCode()` 자동 호출 + `generateUniqueMatchCode()` (UNIQUE 충돌 fallback max 10회) 추가
-- **Phase 5 (~1h)**: UI 노출 (3~5 페이지) — `/games`, `/tournaments/[id]/bracket`, `/live/[id]` 매치 카드에 `match_code` 표시
 - **Phase 7 (~1h, 옵션)**: deep link `/match/[code]` 라우트 — `parseMatchCode()` + tournament_match findFirst → `/live/[id]` redirect
 
 **plan**: `~/.claude/plans/silvery-prowling-falcon-match-code-v4-feasibility.md`
@@ -77,7 +75,7 @@
 | 듀얼토너먼트 풀 시스템 | ✅ Phase A~F2 |
 | 디자인 시안 박제 | ⏳ 38% (40+/117) |
 | **도메인 sub-agent (옵션 A)** | ✅ P1 박제 / ⏳ P2 측정 누적 / P3 5/18 |
-| **매치 코드 v4** | ✅ Phase 1+2+3 / ⏳ Phase 4~7 (~3.5h) |
+| **매치 코드 v4** | ✅ Phase 1+2+3+4+5 / ⏳ Phase 7 (~1h 옵션) |
 
 ---
 
@@ -85,6 +83,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-04 | (developer / 미커밋) | **매치 코드 v4 Phase 5 — UI 노출 (3페이지)** — 3페이지 매치 카드에 `match_code` 표시. ① `/live/[id]` v2 hero-scoreboard 상단 배지 (FINAL · 대회명 옆 `.match-code--hero` 어두운 배경 대비) ② `/tournaments/[id]?tab=bracket` MobileMatchCard + DualMatchCard 매치번호 자리 우선 표시 (NULL 시 `#매치번호` fallback) ③ `/tournaments/[id]?tab=schedule` schedule-timeline 카드 inline 메타 우선 표시. 변경 8 파일: globals.css(.match-code+.match-code--hero 클래스 신규) / bracket-builder.ts(BracketMatch.matchCode + DbMatch.match_code 옵셔널 추가) / public-bracket route(include 자동) / public-schedule route(matchCode select+직렬화) / admin bracket route(select 명시) / live route(응답 matchCode 추가) / hero-scoreboard.tsx(배지) / match-card.tsx MobileMatchCard / v2-dual-bracket-sections.tsx DualMatchCard / schedule-timeline.tsx + tournament-tabs.tsx 매핑. NULL 안전 (모두 `{match.matchCode && ...}` 분기). BDR-current 13룰 토큰만 (var(--*)) / Material Symbols X / pill 9999px X / 하드코딩 색 X. 모바일 360px viewport 14자 영숫자 한 줄 안전 (font-size 10px + tabular-nums). tsc 0 / vitest 65/65 (minutes-engine 21 + match-code 44) 회귀 0. KPI: 12 grep + 14 read + 잘못된 파일 0회 + ~70분 (tournaments+UI 영역, live-expert 영역 침범 1건 — `/live/[id]` 헤더). | ✅ |
 | 2026-05-04 | (developer / 미커밋) | **매치 코드 v4 Phase 4 — generator 4종 통합** — `match-code.ts` 신규 함수 4종 (`categoryNameToLetter` 5매핑 / `parseCategoryDivision` 케이스①+④ 분기 / `applyMatchCodeFields` 호출자영향0 헬퍼 / `generateUniqueMatchCode` UNIQUE fallback maxRetry10) + 4 generator 통합 (league-generator createMany / tournament-seeding knockout+skeleton 2곳 / bracket route dual createMany + single elim closure 인라인). NULL 안전 (short_code/region_code 둘 중 하나라도 NULL → match_code NULL). 호출자 영향 0 (generator 내부 변경만). vitest 27→44 (8 신규 케이스, 사실상 17건 신규 — describe 블록 분리). tsc 0 / minutes-engine 21/21 회귀 0. KPI: 7 grep + 9 read + 잘못된 파일 0회 + ~50분 (as of 작업 시점) — 일반 dev 컨텍스트 (tournaments-expert 미박제). plan: `~/.claude/plans/silvery-prowling-falcon-match-code-v4-feasibility.md` | ✅ |
 | 2026-05-04 | 8af51eb push + bec591b 미푸시 + knowledge +3 | **매치 코드 v4 Phase 1+2+3 + knowledge 박제** — P1 schema 6컬럼 (Tournament short_code/region_code + Match match_code/category_letter/division_tier/group_letter, 운영 무중단 prisma db execute 우회) + P2 helper (`src/lib/tournaments/match-code.ts` 순수 함수 4종 + REGION_CODE_MAP 17 + alias 6 + CITY_TO_SIDO 26, vitest 27/27) + P3 backfill 61매치 (몰텐 27 case④ A/D3/group A-D + 열혈 34 case① 모두 NULL, 트랜잭션 wrap, UNIQUE 충돌 0). knowledge: errors+1 prisma relation camelCase / lessons+1 prisma generate EPERM Windows / conventions+1 prisma db execute 우회. tester+reviewer 모두 ✅. KPI P2 #2~#3 baseline (일반 dev 컨텍스트, tournaments 영역). plan: `~/.claude/plans/silvery-prowling-falcon-match-code-v4-feasibility.md` | ✅ |
 | 2026-05-04 | 1f8ee19 push | **[live] P2 #1 — 라이브 sticky 헤더 + 모바일 미니스코어 + 팀 비교 막대 옵션 C + P1 박제** — live-expert 시범 첫 케이스. 3파일 (page.tsx / tab-team-stats.tsx StatRow.kind+normalizeBar / .css HOME=accent AWAY=cafe-blue weak=opacity 0.4) + `.claude/agents/live-expert.md` P1. tsc 0 / vitest 21/21. KPI baseline 4에이전트: 21grep+18read+잘못된파일 0회+62분. 한계 1건: subagent_type 미등록 | ✅ |
@@ -94,5 +93,4 @@
 | 2026-05-04 | 9b4019a + 887b89c + 운영 DB 7건 | **알기자 누락 7매치 backfill (#141~#147)** — community_posts INSERT 7건 (post 1373~1379) | ✅ |
 | 2026-05-04 | 0b47489 + 4 commits | **대회·경기 헤더 UI 개편** — 좌제목+우컨트롤5 / segmented 풀폭 / 컨트롤 90% 축소 | ✅ |
 | 2026-05-04 | 4658963 | **시간 데이터 소실 매치 안내 배너 + #141 stat 14건** — settings.timeDataMissing 플래그 + Hero 직후 안내 배너 | ✅ |
-| 2026-05-04 | (debugger) | **카테고리 가로 스크롤 fade overlay = 브라우저 캐시 본질** — fix=hard reload 안내 | ✅ |
-<!-- 5/4 가로 스크롤 indicator 1건 + 5/3 알기자 진단 1건 절단 (매치 코드 v4 Phase 1~4 누적 prepend로 10건 유지) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 5/4 가로 스크롤 indicator 1건 + 5/3 알기자 진단 1건 + 5/4 카테고리 fade overlay 1건 절단 (매치 코드 v4 Phase 1~5 누적 prepend로 10건 유지) — 복원: git log -- .claude/scratchpad.md -->

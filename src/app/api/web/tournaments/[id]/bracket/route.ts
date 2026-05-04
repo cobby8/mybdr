@@ -59,6 +59,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         round_number: true,
         bracket_position: true,
         match_number: true,
+        // Phase 5 (매치 코드 v4) — admin bracket 응답에도 코드 포함
+        // bracket-builder DbMatch 가 옵셔널이라 호출자 영향 0 (필드만 추가)
+        match_code: true,
         status: true,
         homeTeamId: true,
         awayTeamId: true,
