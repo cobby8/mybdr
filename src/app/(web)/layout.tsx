@@ -75,8 +75,12 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       //   fix: user.status === "withdrawn" 시 initialUser=null (비로그인 표시).
       //   추가 보안: /profile/layout.tsx 의 가드도 status 검증 추가 (탈퇴 회원 → /login redirect).
       if (user && user.status !== "withdrawn") {
+        // 2026-05-05 방어선 강화: nickname=null 시 이메일 prefix → "사용자" fallback.
+        //   사용자 신고: 모바일 헤더에 "사용자" 표시 (DB nickname=null 0건 검증됐지만
+        //   향후 OAuth 신규 가입 등에서 nickname 미설정 케이스 방어).
+        const fallbackName = session.email ? session.email.split("@")[0] : "사용자";
         initialUser = {
-          name: user.nickname ?? session.name ?? "사용자",
+          name: user.nickname ?? session.name ?? fallbackName,
           role: session.role ?? "user",
           is_referee: !!referee,
         };
@@ -84,8 +88,10 @@ export default async function WebLayout({ children }: { children: React.ReactNod
       // user 없거나 탈퇴 회원이면 initialUser 는 null 유지 (비로그인 헤더)
     } catch {
       // SSR DB 실패 시에도 헤더 렌더는 보장 — JWT session 만으로 폴백
+      // 2026-05-05 방어선 강화: session.name 도 null 시 이메일 prefix
+      const fallbackName = session.email ? session.email.split("@")[0] : "사용자";
       initialUser = {
-        name: session.name ?? "사용자",
+        name: session.name ?? fallbackName,
         role: session.role ?? "user",
         is_referee: false,
       };
