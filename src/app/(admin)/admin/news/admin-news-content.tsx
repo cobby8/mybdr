@@ -114,25 +114,27 @@ export function AdminNewsContent({
   };
 
   return (
-    <div className="flex flex-col lg:grid lg:grid-cols-[200px_1fr_1.5fr] gap-4 p-4">
-      {/* 좌 sidebar — status 탭 (2026-05-04 (web) .aside__link 패턴 통일)
-          모바일: 가로 탭 (flex-row) / 데스크톱: 세로 list */}
-      <aside className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-        <Link href="/admin/news?status=draft" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "draft"}>
+    <div className="flex flex-col gap-4 p-4">
+      {/* 상단 status 탭 — 가로 배치 (모바일/데스크톱 모두)
+          2026-05-04 사용자 요청: "검수대기/발행됨/거절됨 탭 가로 배치" */}
+      <aside className="flex flex-row gap-1 overflow-x-auto">
+        <Link href="/admin/news?status=draft" className="aside__link shrink-0 flex-1 lg:flex-initial lg:min-w-[180px]" data-active={currentStatus === "draft"}>
           <span>🟡 검수 대기</span>
           <span className="count">{counts.draft}</span>
         </Link>
-        <Link href="/admin/news?status=published" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "published"}>
+        <Link href="/admin/news?status=published" className="aside__link shrink-0 flex-1 lg:flex-initial lg:min-w-[180px]" data-active={currentStatus === "published"}>
           <span>✅ 발행됨</span>
           <span className="count">{counts.published}</span>
         </Link>
-        <Link href="/admin/news?status=rejected" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "rejected"}>
+        <Link href="/admin/news?status=rejected" className="aside__link shrink-0 flex-1 lg:flex-initial lg:min-w-[180px]" data-active={currentStatus === "rejected"}>
           <span>🚫 거절됨</span>
           <span className="count">{counts.rejected}</span>
         </Link>
       </aside>
 
-      {/* 목록 — 데스크톱 grid 중앙 컬럼 / 모바일 stack */}
+      {/* 본문 — 모바일 stack / 데스크톱 2컬럼 (list + 미리보기, 1:1.5 비율) */}
+      <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-4">
+      {/* 목록 — 데스크톱 좌측 컬럼 / 모바일 stack */}
       <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden">
         {/* 2026-05-04: sticky 헤더 z-index 명시 + 첫 카드 잘림 fix */}
         <header
@@ -356,6 +358,7 @@ export function AdminNewsContent({
             </div>
           )}
         </section>
+      </div>
     </div>
   );
 }
