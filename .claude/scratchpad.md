@@ -8,7 +8,7 @@
 
 ## 🎯 현재 작업
 
-**[Phase 1+2 완료] 매치 코드 v4 schema + helper** — developer 작업 완료. tester+reviewer 병렬 대기. **사용자 액션 1건 필요**: dev server 재시작 후 `npx prisma generate` (Windows EPERM 으로 dev server 가 query_engine 잠금 중).
+**[Phase 3 진행중] 매치 코드 v4 운영 2대회 61매치 backfill** — Phase 1+2 완료 (commit 8af51eb push) + dev server 재기동 + prisma generate ✅ + tsc exit 0. 사용자 모호점 1건 (마지막 두자리 의미) 해소: MD21의 21=시즌/회차 정확 = 사용자 의도. v4 그대로 진행. Phase 3 작업: 임시 스크립트 → 운영 DB UPDATE (Tournament 2건 short_code+region_code 부여 + TournamentMatch 61건 match_code+case 분기 — 몰텐배 27 case④ A/D3/group A-D / 열혈 34 case①) + 사전 SELECT + 사후 verify + 즉시 삭제. 트랜잭션 wrap.
 
 ---
 
@@ -230,6 +230,8 @@ model TournamentMatch {
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-04 | 47ff97c push | **메인 4곳 PageBackButton 제거 + courts B작업 (Hero+필터 통일)** — courts/organizations/profile/profile-complete 1차 진입 페이지 백버튼 제거 (BottomNav 가 홈 이동 대체). courts Hero 우측 지역 select(52×130px) → `.games-filter-btn` 아이콘 토글 (place 아이콘) + 클릭 시 펼침 panel 에 select. 5필터칩+구분선+히트맵+HEATMAP_PERIODS: flex-wrap:wrap → nowrap+overflow-x:auto + 자식 flex-shrink:0 강제 → 가로 스크롤 한 row. regionOpen state 추가. PageBackButton 사용처 전수조사 27곳 (메인 4 + 하위 13 + arrow_back 6 + router.back 4). 5 files +80/-40 | ✅ |
+| 2026-05-04 | 2927756 push | **5/6차 fix — Hero games 패턴 통일 + grid item min-width:0 본질 + fade chevron 원형 배지** — community 5차: .page-hero flex+wrap → grid 1fr auto / 검색·정렬·만들기 3 아이콘 (.games-filter-btn) / "+ 만들기" → "+ 글쓰기" / 카테고리 탭 ↔ 정렬바 swap. **6차 본질 fix**: `.with-aside > main { min-width: 0 }` 글로벌 룰 — CSS Grid item min-width default(auto)가 자식 nowrap 컨텐츠로 main 을 viewport 너머 확장시키던 본질 (.page-hero width 845px = viewport 440 의 2배 → actions x:704 viewport 밖). 모든 .with-aside 페이지 자동 보호. fade chevron 원형 배지 (28×28 + bg-elev + border + shadow) — fade 끝색이 부모 배경(#F4F6FA) 동일이라 무대비였던 본질. tournaments 검색/필터 → .games-filter-btn 통일. teams 검색 토글 + 팀 등록 통일. courts/rankings flexWrap 폐기 → grid 1fr auto. 7 files +162/-108 | ✅ |
 | 2026-05-04 | (developer / 미커밋) | **매치 코드 v4 Phase 1+2 구현** — schema +12줄 (Tournament 2 + Match 4 = 6컬럼 + 2 UNIQUE) / 운영 DB `prisma db execute` 직접 SQL 무중단 push (사전 SELECT + 사후 verify, tournaments 56 + matches 77 무영향) / `match-code.ts` 순수 helper 5종 (REGION 17 + alias 6 + CITY_TO_SIDO 26) / vitest 27/27 PASS / tsc 0. 사용자 액션: dev server 재시작 + `npx prisma generate` | ✅ |
 | 2026-05-04 | (planner) | **[메타] v4 계획 재수립 — 사용자 정보 2건 (전국 미래 + 운영 2대회) → 직전 하이브리드 권장 무효 → v4 직진 권장** — 운영 2대회 SELECT (몰텐 27 + 열혈 34 = 61매치 / 몰텐=케이스④ ⭐ / 풀리그 group_name 발견 → Q10 NEW). 56대회 수도권 84%. 단호 권장 = v4 직진 (7사유). Phase 5h (목 백필 생략). plan 갱신 (~280줄). | ✅ |
 | 2026-05-04 | (planner) | **매치 코드 v3 Phase 1 기획설계 박제** — 운영 SELECT (56 대회 / 77 매치 / 30 팀) 검증. Q1~Q4 옵션·권장 (C 하이브리드 / A 3~7자 수동 / A 영구 / B series 미신설). schema 4 컬럼. Phase 1~7 ~6h | ✅ |
@@ -238,6 +240,4 @@ model TournamentMatch {
 | 2026-05-04 | (P1 schema + 코드 + P4 backfill + P5 박제) | **알기자 Phase 1 DB 영구 저장 마이그** — `tournament_matches.summary_brief Json?` ADD COLUMN + `Promise.allSettled` 트리거 통합 + tab-summary client fetch 제거 + backfill 34/35. architecture +1, decisions +2 | ✅ |
 | 2026-05-04 | (planner / 메타) | **옵션 A 도메인 sub-agent 신설 상세 계획 박제** — 8도메인 + 시범 live-expert + KPI 3 + Phase 5 + 롤백 6 + 리스크 8. plan 파일 풀텍스트 박제 | ✅ |
 | 2026-05-04 | 9b4019a + 887b89c + 운영 DB 7건 | **알기자 누락 7매치 backfill (#141~#147)** — subin→dev→main 머지 + 운영 endpoint fetch + community_posts INSERT 7건 (post 1373~1379) | ✅ |
-| 2026-05-04 | 0b47489 + 9d72cf5 + 2bfb873 + 78b0bae + b141e53 | **대회·경기 헤더 UI 개편** — 좌제목+우컨트롤5 / segmented 풀폭 / 컨트롤 90% 축소 / GamesClient 헤더 통합 | ✅ |
-| 2026-05-04 | 4658963 | **시간 데이터 소실 매치 안내 배너 + #141 stat 14건** — matchPlayerStat INSERT + settings.timeDataMissing 플래그 + Hero 직후 안내 배너 | ✅ |
 <!-- 5/3~5/4 압축 (모바일 Hero / SKD #5 / Admin-Web / 듀얼시뮬 / #145 등 6건 절단). P2 #1 분석/구현/테스트/리뷰 섹션은 1f8ee19 commit + 작업 로그 한 줄로 흡수. 복원: git log -- .claude/scratchpad.md / plan 파일 / commit hash diff -->
