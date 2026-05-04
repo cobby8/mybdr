@@ -90,12 +90,15 @@ function BracketTreeView({
   const config: BracketConfig = { cardWidth, cardHeight, columnGap };
 
   // 모든 좌표 계산은 순수 함수 — useMemo로 캐싱
+  // 2026-05-04: useNextMatchId: true — next_match_id 기반 정확 페어링 (P5 옵션)
+  // 5/2 동호회최강전 등 NBA 크로스가 아닌 페어링 (1+2 / 3+4) 정확 표시
+  const builderOptions = { useNextMatchId: true };
   const positions = useMemo(
-    () => computeMatchPositions(rounds, config),
+    () => computeMatchPositions(rounds, config, builderOptions),
     [rounds, cardWidth, cardHeight, columnGap],
   );
   const connectorPaths = useMemo(
-    () => computeConnectorPaths(rounds, config),
+    () => computeConnectorPaths(rounds, config, builderOptions),
     [rounds, cardWidth, cardHeight, columnGap],
   );
   const dimensions = useMemo(
