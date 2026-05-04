@@ -142,6 +142,60 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     const instagram_url = body.instagram_url;
     const youtube_url = body.youtube_url;
 
+    // 2026-05-04: F3+F4 회원가입 통합 — profile/edit §6 활동 환경 6 필드 (지역/게임유형/스타일/지역/목표/빈도)
+    // 이유: 가입 1-step 단순화 후 사용자가 profile/edit 한 곳에서 모두 입력 가능해야 함.
+    // F3 (preferred_regions / preferred_game_types) 는 Json 배열 컬럼.
+    // F4 (styles / active_areas / goals) 는 String[] 컬럼 (Phase 10-5).
+    // play_frequency 는 String? 단일 enum.
+    const preferred_regions = body.preferred_regions;
+    const preferred_game_types = body.preferred_game_types;
+    const styles = body.styles;
+    const active_areas = body.active_areas;
+    const goals = body.goals;
+    const play_frequency = body.play_frequency;
+
+    // F4 enum 가드 — play_frequency 4단계 (daily/weekly/monthly/rare). 그 외 입력은 null.
+    const VALID_PLAY_FREQUENCIES = ["daily", "weekly", "monthly", "rare"] as const;
+    let parsedPlayFrequency: string | null | undefined = undefined;
+    if (play_frequency !== undefined) {
+      if (typeof play_frequency === "string" && VALID_PLAY_FREQUENCIES.includes(play_frequency as typeof VALID_PLAY_FREQUENCIES[number])) {
+        parsedPlayFrequency = play_frequency;
+      } else {
+        parsedPlayFrequency = null; // 잘못된 enum 또는 빈문자 → null
+      }
+    }
+
+    // F5 profile_completed 자동 갱신 — 핵심 5필드 (position/height/preferred_regions/skill_level/preferred_game_types) 모두 입력 시 true
+    // 이유: 홈 CTA 카드 (profile-cta-card.tsx) 가 profile_completed===false 일 때만 표시. PATCH 시점에 boolean 자동 계산.
+    // 방법: 본 PATCH body 의 신규값과 DB 기존값을 머지하여 5종 모두 truthy 인지 검사.
+    //       기존값 조회 1회 추가 (findUnique) — 부분 업데이트 케이스 안전.
+    const existing = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: {
+        position: true,
+        height: true,
+        preferred_regions: true,
+        skill_level: true,
+        preferred_game_types: true,
+      },
+    });
+    // 머지 후 핵심 5필드 검증
+    const mergedPosition = position !== undefined ? (position as string || null) : existing?.position ?? null;
+    const mergedHeight = height !== undefined ? (height ? Number(height) : null) : existing?.height ?? null;
+    const mergedRegions = preferred_regions !== undefined ? preferred_regions : existing?.preferred_regions;
+    const mergedSkillLevel = skill_level !== undefined ? (skill_level as string || null) : existing?.skill_level ?? null;
+    const mergedGameTypes = preferred_game_types !== undefined ? preferred_game_types : existing?.preferred_game_types;
+
+    // 배열 비어있지 않은지 (Json 배열) — 빈배열은 미입력으로 간주
+    const isNonEmptyArray = (v: unknown) => Array.isArray(v) && v.length > 0;
+    const profileCompleted = !!(
+      mergedPosition &&
+      mergedHeight &&
+      isNonEmptyArray(mergedRegions) &&
+      mergedSkillLevel &&
+      isNonEmptyArray(mergedGameTypes)
+    );
+
     const updated = await updateProfile(ctx.userId, {
       ...(nickname !== undefined && { nickname: nickname as string || null }),
       ...(position !== undefined && { position: position as string || null }),
@@ -169,6 +223,30 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       ...(privacy_settings !== undefined && {
         privacy_settings: privacy_settings && typeof privacy_settings === "object" ? privacy_settings : {},
       }),
+      // 2026-05-04: F3+F4 회원가입 통합 — §6 활동 환경 (Json/String[] 컬럼들)
+      // F3 Json: 배열이 아니면 빈배열로 정규화 (DB Json 컬럼 default "[]" 일관성)
+      ...(preferred_regions !== undefined && {
+        preferred_regions: Array.isArray(preferred_regions) ? preferred_regions : [],
+      }),
+      ...(preferred_game_types !== undefined && {
+        preferred_game_types: Array.isArray(preferred_game_types) ? preferred_game_types : [],
+      }),
+      // F4 String[]: prisma scalar list 입력은 set 필요 X (배열 그대로 전달)
+      ...(styles !== undefined && {
+        styles: Array.isArray(styles) ? (styles as string[]) : [],
+      }),
+      ...(active_areas !== undefined && {
+        active_areas: Array.isArray(active_areas) ? (active_areas as string[]) : [],
+      }),
+      ...(goals !== undefined && {
+        goals: Array.isArray(goals) ? (goals as string[]) : [],
+      }),
+      // F4 enum 검증된 단일값 (또는 null)
+      ...(parsedPlayFrequency !== undefined && {
+        play_frequency: parsedPlayFrequency,
+      }),
+      // F5 profile_completed 자동 갱신 — 핵심 5필드 머지 후 boolean 계산값
+      profile_completed: profileCompleted,
       ...bankUpdate,
     });
 
