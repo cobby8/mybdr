@@ -14,11 +14,25 @@ type MatchCardProps = {
 
 // 이유: 모바일 375px 한 화면에 4강 트리(3컬럼)가 들어가려면 카드를 더 작게.
 // 기존 120/140/160 → 100/120/140로 20px씩 축소. 높이도 비율 맞춰 축소.
+// 2026-05-04: 시간 표시 1줄 추가로 min-h +12px (62→74 / 70→82 / 80→92)
 const SIZE_MAP = {
-  sm: "w-[120px] min-h-[62px]",
-  md: "w-[144px] min-h-[70px]",
-  lg: "w-[168px] min-h-[80px]",
+  sm: "w-[120px] min-h-[74px]",
+  md: "w-[144px] min-h-[82px]",
+  lg: "w-[168px] min-h-[92px]",
 } as const;
+
+// 2026-05-04: 카드 시간 라벨 압축 포맷 — "5/9(토) 10:00"
+// scheduledAt(ISO) → 한국시간 변환 + 단순화 (모바일 패턴과 일관 — line 407 참고)
+function formatScheduledShort(iso: string): string {
+  const d = new Date(iso);
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+  const dn = dayNames[d.getDay()];
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${m}/${day}(${dn}) ${hh}:${mm}`;
+}
 
 function isWinner(match: BracketMatch, team: TeamSlot): boolean {
   if (!team || !match.winnerTeamId) return false;
@@ -210,6 +224,20 @@ export function MatchCard({ match, size = "lg", showBadge = false, className = "
       <div className={rowBase}>
         <TeamRow match={match} team={match.awayTeam} score={match.awayScore} position="away" />
       </div>
+
+      {/* 2026-05-04: 경기 시간 표시 — 카드 하단 1줄 (모바일 MobileMatchCard 패턴 정합)
+          상태별 분기: bye/cancelled/scheduledAt=null 미표시 / 그 외 모두 표시 */}
+      {match.scheduledAt && !isBye && match.status !== "cancelled" && (
+        <div
+          className="px-1 pt-0.5 text-center leading-tight"
+          style={{
+            fontSize: "9px",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          {formatScheduledShort(match.scheduledAt)}
+        </div>
+      )}
 
       {/* 상태 뱃지 (모바일에서 사용) */}
       {showBadge && (isLive || match.status === "completed" || isBye) && (

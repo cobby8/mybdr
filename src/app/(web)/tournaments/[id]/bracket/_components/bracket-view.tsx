@@ -29,10 +29,11 @@ function getCardSize(_rounds: RoundGroup[]): "sm" | "md" | "lg" {
 
 // 이유: SIZE_MAP과 동기화. match-card의 Tailwind 클래스와 이 상수가 일치해야
 // bracket-builder의 좌표 계산이 정확함 (카드 실제 픽셀 크기 기준으로 선 그림).
+// 2026-05-04: 시간 표시 1줄 추가로 +12px (62→74 / 70→82 / 80→92) — match-card SIZE_MAP 정합
 const CARD_DIMENSIONS = {
-  sm: { width: 120, height: 62 },
-  md: { width: 144, height: 70 },
-  lg: { width: 168, height: 80 },
+  sm: { width: 120, height: 74 },
+  md: { width: 144, height: 82 },
+  lg: { width: 168, height: 92 },
 } as const;
 
 // ── 메인 컴포넌트 ──────────────────────────────────────
