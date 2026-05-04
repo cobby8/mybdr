@@ -84,6 +84,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const { player_name, phone, jersey_number, position, role } = parsed.data;
 
+  // 2026-05-05: role 별 배번 정책 (사용자 결정)
+  //   - role === "player" (or default): 등번호 필수 (대회 출전)
+  //   - role === "captain" / "coach": 등번호 선택 (운영진/벤치)
+  const effectiveRole = role ?? "player";
+  const isPlayer = effectiveRole === "player";
+  if (isPlayer && (jersey_number === undefined || jersey_number === null)) {
+    return apiError(
+      `선수(player)는 등번호 입력이 필수입니다. ` +
+        `등번호 없이 등록하려면 역할을 코치(coach) 또는 주장(captain)으로 변경하세요.`,
+      422,
+    );
+  }
+
   // 등번호 중복 검사 (jersey_number가 있는 경우)
   if (jersey_number !== undefined && jersey_number !== null) {
     const existing = await prisma.tournamentTeamPlayer.findFirst({

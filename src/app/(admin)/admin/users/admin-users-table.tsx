@@ -61,6 +61,7 @@ interface UserDetail {
     startDate: string | null;
     status: string | null;
     jerseyNumber: number | null;
+    role: string | null; // 2026-05-05: player 만 배번 누락 경고
   }>;
   activity: {
     posts: number;
@@ -714,10 +715,35 @@ function TournamentRow({
     onUpdated();
   };
 
+  // 2026-05-05: role 별 표시 분기 (사용자 정책)
+  //   - role="player"  : 배번 필수 → 누락 시 빨간 "⚠ 배번 누락" 경고
+  //   - role="coach"   : 배번 선택 → 누락 시 회색 "—" (정상)
+  //   - role="captain" : 배번 선택 → 회색 "—"
+  //   - role=null/etc  : player 로 간주 (default)
+  const effectiveRole = row.role ?? "player";
+  const isPlayer = effectiveRole === "player";
+  const roleLabel =
+    effectiveRole === "coach" ? "코치"
+    : effectiveRole === "captain" ? "주장"
+    : null; // player 는 라벨 X
+
   return (
     <div className={`flex items-center px-4 py-2 gap-2 ${isFirst ? "" : "border-t border-[var(--color-border-subtle)]"}`}>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{row.tournamentName}</p>
+        <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
+          {row.tournamentName}
+          {roleLabel && (
+            <span
+              className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded align-middle"
+              style={{
+                background: "var(--color-surface)",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              {roleLabel}
+            </span>
+          )}
+        </p>
         <p className="text-xs text-[var(--color-text-muted)] truncate">
           {[row.teamName, fmtDate(row.startDate)].filter(Boolean).join(" · ")}
         </p>
@@ -781,7 +807,8 @@ function TournamentRow({
         >
           #{row.jerseyNumber}
         </button>
-      ) : (
+      ) : isPlayer ? (
+        // 선수 + 배번 누락 → 빨간 경고 (대회 출전 차단)
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -790,9 +817,20 @@ function TournamentRow({
             background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
             color: "var(--color-error)",
           }}
-          title="클릭하여 배번 입력"
+          title="선수는 배번 필수 — 클릭하여 입력"
         >
           ⚠ 배번 누락
+        </button>
+      ) : (
+        // coach/captain + 배번 누락 → 회색 "—" (정상)
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="text-xs px-2 py-0.5 rounded hover:bg-[var(--color-surface)] flex-shrink-0"
+          style={{ color: "var(--color-text-muted)" }}
+          title="클릭하여 배번 입력 (선택사항)"
+        >
+          —
         </button>
       )}
 
