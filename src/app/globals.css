@@ -1630,25 +1630,25 @@ html.dark .hero-carousel__accent {
   /* Hide desktop tab strip; show hamburger */
   .app-nav__tabs { display: none; }
   .app-nav__burger {
-    /* 2026-05-04 (R3 강조): 햄버거 = drawer 게이트웨이 → 시각 weight ↑.
-       border + 아이콘 = accent (BDR Red). 다른 4 아이콘 (회색) 과 차별화. position:relative
-       추가 — NavBadge dot 부착 위치 기준. */
+    /* 2026-05-04 (R3 강조 보정): 색상 강조 폐기 — 사용자 "기존이 세련됨".
+       border/color 원복. position:relative 유지 — NavBadge dot 부착 위치 기준. */
     position: relative;
     display: inline-flex !important;
     width: 38px; height: 38px;
     align-items: center; justify-content: center;
     background: transparent;
-    border: 1.5px solid var(--accent);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    color: var(--accent);
+    color: var(--ink);
     cursor: pointer;
     flex: 0 0 auto;
-    transition: background 0.15s, color 0.15s;
   }
-  .app-nav__burger:hover,
-  .app-nav__burger:focus {
-    background: var(--accent);
-    color: #fff;
+  /* 2026-05-04: NavBadge dot 박스 안쪽 우측 상단 정렬 (사용자 요청).
+     기본 .nav-badge { top: 4 / right: -2 } 는 박스 밖에 살짝 튀어나옴 → top: 6 right: 6 으로
+     박스 안쪽으로 들여 정렬. */
+  .app-nav__burger .nav-badge--dot {
+    top: 6px;
+    right: 6px;
   }
   [data-theme="dark"] .app-nav__burger, html.dark .app-nav__burger { border-width: 2px; border-color: var(--border-strong); border-radius: 0; }
 
