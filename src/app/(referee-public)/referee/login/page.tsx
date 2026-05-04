@@ -28,6 +28,14 @@ function RefereeLoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   // 서버 액션 상태 (로그인/Dev로그인)
   const [loginState, loginFormAction, loginPending] = useActionState(loginAction, null);
+  // 2026-05-05: union 타입 narrow — error 추출
+  const loginError = loginState && "error" in loginState ? loginState.error : null;
+  // 2026-05-05: 로그인 성공 시 hard reload (server action redirect 대신 SSR 새 쿠키 인지 보장)
+  useEffect(() => {
+    if (loginState && "success" in loginState && loginState.success) {
+      window.location.href = loginState.redirectTo;
+    }
+  }, [loginState]);
   const [devState, devFormAction, devPending] = useActionState(devLoginAction, null);
   const searchParams = useSearchParams();
 
@@ -176,8 +184,8 @@ function RefereeLoginContent() {
             </div>
 
             {/* 로그인 에러 — 하드코딩 red-500 → CSS 변수 토큰 (bg: color-mix 10%, text: error) */}
-            {loginState?.error && (
-              <div className="mb-3 rounded-[4px] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-3 py-2 text-sm text-[var(--color-error)]">{loginState.error}</div>
+            {loginError && (
+              <div className="mb-3 rounded-[4px] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-3 py-2 text-sm text-[var(--color-error)]">{loginError}</div>
             )}
 
             {/* 로그인 폼: redirect hidden input 으로 복귀 경로 전달 */}
