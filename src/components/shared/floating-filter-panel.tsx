@@ -73,28 +73,19 @@ export function FloatingFilterPanel({
 
   return (
     <>
-      {/* 트리거 버튼: "tune" 아이콘 — 2026-05-03 90% 축소: 모바일 25px / 데스크톱 32px */}
+      {/* 트리거 버튼: "tune" 아이콘 — 2026-05-04: community 헤더와 동일한 .games-filter-btn 스타일 통일.
+          32×32 정사각 + border + radius 4px. has-active (활성 필터 1+) 시 accent 배경. */}
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="relative flex h-[25px] w-[25px] sm:h-8 sm:w-8 items-center justify-center rounded-full transition-colors"
-        style={{
-          backgroundColor: "var(--color-accent)",
-          // 하드코딩 #fff 대신 --color-on-accent 사용: 다크모드에서 accent가 밝아지면 글씨도 자동으로 검정으로 전환됨
-          color: "var(--color-on-accent)",
-        }}
+        className={`games-filter-btn${activeCount > 0 ? " has-active" : ""}`}
         aria-label="필터 열기"
         title="필터"
       >
-        <span className="material-symbols-outlined text-sm sm:text-base">tune</span>
-        {/* 활성 필터 수 뱃지: 1개 이상일 때만 표시 */}
+        <span className="material-symbols-outlined" aria-hidden="true">tune</span>
+        {/* 활성 필터 수 뱃지: .games-filter-btn__dot (globals.css 통일 패턴) */}
         {activeCount > 0 && (
-          <span
-            className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-xs font-bold text-white"
-            style={{ backgroundColor: "var(--color-primary)" }}
-          >
-            {activeCount}
-          </span>
+          <span className="games-filter-btn__dot">{activeCount}</span>
         )}
       </button>
 

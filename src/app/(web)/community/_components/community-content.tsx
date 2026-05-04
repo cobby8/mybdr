@@ -334,7 +334,7 @@ export function CommunityContent({ fallbackPosts }: CommunityContentProps) {
       </button>
       <Link href="/community/new" className="btn btn--primary games-create-btn">
         <span className="material-symbols-outlined" aria-hidden="true">add</span>
-        <span>만들기</span>
+        <span>글쓰기</span>
       </Link>
     </div>
   );

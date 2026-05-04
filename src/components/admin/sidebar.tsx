@@ -149,35 +149,32 @@ interface AdminSidebarProps {
 }
 
 // 메뉴 항목 1개 렌더링 (children 들여쓰기 포함)
+// 2026-05-04: (web) community-aside 패턴 (.aside__link + data-active) 적용 — 시각 통일
 function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
   const isActive =
     item.href === "/admin"
       ? pathname === "/admin"
       : pathname.startsWith(item.href);
-  const hasActiveChild = item.children?.some((c) =>
-    c.href === "/admin" ? pathname === "/admin" : pathname.startsWith(c.href),
-  );
-  const indent = depth > 0 ? "ml-4" : "";
+  const indentStyle = depth > 0 ? { paddingLeft: 28 } : undefined;
   return (
     <div key={item.href}>
       <Link
         href={item.href}
-        className={`${indent} flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-all duration-200 ${
-          isActive
-            ? "bg-[var(--color-primary)] font-bold text-white shadow-sm"
-            : "text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
-        }`}
+        className="aside__link"
+        data-active={isActive}
+        style={indentStyle}
       >
-        <span className="material-symbols-outlined text-xl">{item.icon}</span>
-        {item.label}
+        <span>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{item.icon}</span>
+          {item.label}
+        </span>
       </Link>
-      {/* children — 들여쓰기, 항상 노출 (collapsible 은 Phase 2 큐) */}
+      {/* children — 들여쓰기 (28px), 항상 노출 */}
       {item.children && item.children.length > 0 && (
-        <div className="mt-0.5 space-y-0.5">
+        <div>
           {item.children.map((child) => renderItem(child, pathname, depth + 1))}
         </div>
       )}
-      {hasActiveChild && !isActive && null}
     </div>
   );
 }
@@ -200,18 +197,17 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
         </span>
       </Link>
 
-      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능 */}
-      <nav className="flex-1 overflow-y-auto pr-1 -mr-1 space-y-3">
+      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능
+          2026-05-04: (web) community-aside 패턴 (.aside__title + .aside__link) 적용 */}
+      <nav className="flex-1 overflow-y-auto pr-1 -mr-1">
         {visibleStructure.map((entry, idx) => {
           if (entry.type === "item") {
             return renderItem(entry, pathname);
           }
-          // 그룹 — 작은 헤더 + items
+          // 그룹 — .aside__title 헤더 + items (community-aside 와 동일 클래스)
           return (
-            <div key={`group-${idx}`} className="space-y-0.5">
-              <div className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-dim)]">
-                {entry.label}
-              </div>
+            <div key={`group-${idx}`}>
+              <div className="aside__title">{entry.label}</div>
               {entry.items.map((item) => renderItem(item, pathname))}
             </div>
           );
@@ -219,17 +215,16 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
       </nav>
 
       {/* 하단: 테마 토글 + 사이트로 돌아가기 */}
-      <div className="mt-3 border-t border-[var(--color-border)] pt-3 space-y-2 shrink-0">
+      <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
         {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
-        <div className="px-2">
+        <div className="px-3 pb-2">
           <ThemeSwitch />
         </div>
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm text-[var(--color-text-muted)] transition-all duration-200 hover:bg-[var(--color-surface)] hover:text-[var(--color-text-primary)]"
-        >
-          <span className="material-symbols-outlined text-xl">arrow_back</span>
-          사이트로 돌아가기
+        <Link href="/" className="aside__link">
+          <span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
+            사이트로 돌아가기
+          </span>
         </Link>
       </div>
     </aside>

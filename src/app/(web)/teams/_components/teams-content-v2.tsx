@@ -169,6 +169,9 @@ export function TeamsContentV2() {
   // 이유: 기존 플로팅 필터에도 검색이 있지만 시안은 헤더 우측에 검색 chip 이 있음.
   // 동일 q 파라미터를 공유하므로 두 입력이 일관되게 동작.
   const [searchLocal, setSearchLocal] = useState<string>(searchParams.get("q") ?? "");
+  // 2026-05-04 (재발 방지): community 5차 fix 패턴 적용 — 검색을 아이콘 토글로.
+  // 기본 닫힘 (Hero 압축). URL에 q 가 있으면 자동 펼침 (사용자가 직접 진입한 검색 상태).
+  const [searchOpen, setSearchOpen] = useState<boolean>(!!searchParams.get("q"));
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -240,70 +243,86 @@ export function TeamsContentV2() {
   return (
     // 모바일 좌우 여백 보강 — .page 컨테이너 padding 외에 추가 안전망 (2026-04-29)
     <div className="max-w-[1200px] mx-auto px-3 sm:px-0">
-      {/* v2 헤더 — 시안 L7~L20.
-          2026-05-03 (Hero 공통화): 텍스트 블록은 .page-hero__* 클래스화 (모바일 압축 룰).
-          외곽 flex row 는 우측 검색/등록 버튼과 동일 라인 유지 위해 보존. */}
+      {/* v2 헤더 — 2026-05-04 (재발 방지): community 5차 fix 패턴 통일.
+          flex+wrap 폐기 → grid 1fr auto. 우측 actions = 검색 아이콘 토글 + 팀 등록.
+          검색 input 은 searchOpen 시 .page-hero 직후 별도 row 로 펼침. */}
       <div
         style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 16,
-          flexWrap: "wrap",
+          display: "grid",
+          gridTemplateColumns: "1fr auto",
+          alignItems: "start",
+          columnGap: 12,
         }}
         className="page-hero"
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div className="eyebrow page-hero__eyebrow">팀 · TEAMS</div>
           <h1 className="page-hero__title">등록 팀 {teams.length}팀</h1>
           {/* 레이팅 순 라벨 제거 — PM 결정: 팀 레이팅은 미구현 기능이므로 표시 X (2026-04-29) */}
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {/* 시안 내장 검색 chip — URL q 와 동기화 */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 10px",
-              background: "var(--bg-elev)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius-chip)",
-            }}
+        <div
+          style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}
+        >
+          {/* 검색 아이콘 토글 — community 헤더와 동일한 .games-filter-btn 스타일 */}
+          <button
+            type="button"
+            className={`games-filter-btn${searchOpen ? " is-open" : ""}`}
+            onClick={() => setSearchOpen((o) => !o)}
+            aria-label="검색"
+            aria-expanded={searchOpen}
+            title="검색"
           >
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18, color: "var(--ink-mute)" }}
-            >
-              search
-            </span>
-            <input
-              className="input"
-              style={{
-                border: 0,
-                padding: 0,
-                background: "transparent",
-                width: 180,
-                fontSize: 13,
-                color: "var(--ink)",
-                outline: "none",
-              }}
-              placeholder="팀 이름·태그 검색"
-              value={searchLocal}
-              onChange={(e) => handleInlineSearch(e.target.value)}
-            />
-          </div>
+            <span className="material-symbols-outlined" aria-hidden="true">search</span>
+          </button>
 
-          {/* 팀 등록 버튼 — 기존 /teams/new 라우트 유지 */}
-          <Link href="/teams/new" className="btn btn--primary">
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-              add
-            </span>
-            팀 등록
+          {/* 팀 등록 버튼 — community + 만들기와 동일한 .games-create-btn 스타일 */}
+          <Link href="/teams/new" className="btn btn--primary games-create-btn">
+            <span className="material-symbols-outlined" aria-hidden="true">add</span>
+            <span>팀 등록</span>
           </Link>
         </div>
       </div>
+
+      {/* 검색 펼침 row — searchOpen 시에만 (community 패턴 동일). */}
+      {searchOpen && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 10px",
+            background: "var(--bg-elev)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-chip)",
+            marginBottom: 10,
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 16, color: "var(--ink-dim)", flexShrink: 0 }}
+          >
+            search
+          </span>
+          <input
+            className="input"
+            style={{
+              flex: 1,
+              border: 0,
+              padding: 0,
+              background: "transparent",
+              fontSize: 13,
+              color: "var(--ink)",
+              outline: "none",
+              minWidth: 0,
+            }}
+            placeholder="팀 이름·태그 검색"
+            value={searchLocal}
+            onChange={(e) => handleInlineSearch(e.target.value)}
+            autoFocus
+          />
+        </div>
+      )}
 
       {/* A-1: v2 chip-bar — 지역(가로 스크롤 + 전국 + cities) + 정렬(3종)
           - 활성 칩: cafe-blue 배경 + 흰 텍스트 (FilterChipBar 와 동일 톤)

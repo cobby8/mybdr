@@ -221,18 +221,17 @@ export function TournamentsFilter({
 
   return (
     <div className="flex items-center gap-2">
-      {/* 검색 아이콘 버튼 — 2026-05-03 90% 축소: 모바일 25px / 데스크톱 32px */}
+      {/* 검색 아이콘 버튼 — 2026-05-04: community 헤더와 동일한 .games-filter-btn 스타일 통일.
+          32×32 정사각 + border + radius 4px. is-open 시 accent 배경. */}
       <button
         type="button"
         onClick={() => setShowSearch((prev) => !prev)}
-        className="flex h-[25px] w-[25px] sm:h-8 sm:w-8 items-center justify-center rounded-full transition-colors"
-        style={{
-          backgroundColor: showSearch ? "var(--color-primary)" : "var(--color-accent)",
-          color: showSearch ? "var(--color-on-primary)" : "var(--color-on-accent)",
-        }}
+        className={`games-filter-btn${showSearch ? " is-open" : ""}`}
+        aria-label="검색"
+        aria-expanded={showSearch}
         title="검색"
       >
-        <span className="material-symbols-outlined text-sm sm:text-base">search</span>
+        <span className="material-symbols-outlined" aria-hidden="true">search</span>
       </button>
 
       {/* 검색 input: 토글 시 표시 */}
