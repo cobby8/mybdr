@@ -2,6 +2,24 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-04] Supabase Storage bucket 생성 우회 — DATABASE_URL 권한으로 storage.buckets 직접 INSERT
+- **분류**: lesson (인프라 / Supabase / 우회 패턴)
+- **발견자**: pm (사용자 "Supabase bucket 생성 다시 시도해봐" 의뢰 후 1차 실패 → 우회 발견)
+- **배경**: 알기자 사진 시스템 Phase 1 완료 후 Supabase Storage `news-photos` bucket 생성 필요. PM 환경에 `SUPABASE_SERVICE_ROLE_KEY` 부재 → Supabase Storage API (`supabase.storage.createBucket`) 호출 불가. 1차 보고 = "사용자 콘솔 직접 클릭 필요". 사용자 재시도 요청 → 우회 발견.
+- **본질**: Supabase Storage 는 PostgreSQL 위에 구축됨 (`storage.buckets` / `storage.objects` 테이블). DATABASE_URL 이 service role 또는 postgres 권한이면 raw SQL 로 bucket 생성 가능 — Storage API 없이 우회.
+- **우회 패턴**:
+  ```sql
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('bucket-name', 'bucket-name', true, 10485760, ARRAY['image/jpeg', ...])
+  ```
+- **검증 함정**: SELECT 결과 file_size_limit 가 BigInt 반환 → JS 연산 (`/ 1024 / 1024`) 시 "Cannot mix BigInt and other types" 에러. INSERT 자체는 성공이라 별도 SELECT 검증 시 `Number(b.file_size_limit)` 명시.
+- **재사용 가치**: 향후 다른 bucket 생성 시 (예: profile-avatars / event-banners 등) 동일 패턴 적용 가능. Storage API key 없는 환경에서도 인프라 작업 가능.
+- **주의**:
+  1. RLS 정책은 자동 생성 X — public bucket = read public OK, write 는 service role key 운영 환경에서만
+  2. team-logos 가 같은 패턴으로 작동 중 (이미 운영 검증됨) → news-photos 도 즉시 사용 가능
+  3. 운영 SUPABASE_SERVICE_ROLE_KEY 가 설정되어 있어야 업로드 작동 (team-logos 작동 = 키 설정 입증)
+- **참조횟수**: 0
+
 ### [2026-05-03] raw 정확도 비교 시 알고리즘 버전 명시 필수 — 측정 함정
 - **분류**: lesson/process (측정 시점 알고리즘 차이로 가설이 왜곡됨)
 - **발견자**: debugger (PM 의뢰 "두 토너먼트 raw 차이 +12.85%p 원인 분석" 검증 중)
