@@ -41,7 +41,6 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
-import { PageBackButton } from "@/components/shared/page-back-button";
 
 // Phase 13 hub 전용 스타일 (BDR-current/mypage.css 1:1 카피)
 import "./mypage.css";
@@ -334,8 +333,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="page mypage">
-      {/* Phase 12 §G — 모바일 백버튼 (홈 fallback). 데스크톱 lg+ 에서는 hidden. */}
-      <PageBackButton fallbackHref="/" />
+      {/* 2026-05-04: 메인 페이지에서 PageBackButton 제거 (BottomNav 가 홈 이동 대체) */}
 
       {/* HERO STRIP — identity ribbon */}
       <header className="mypage__hero">
