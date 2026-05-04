@@ -2,6 +2,40 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-04] 매치 코드 v4 체계 채택 — `{YY}-{지역}-{대회이니셜+회차}-{매치번호}` (전국 + 운영 2대회 컨텍스트)
+- **분류**: decision (DB schema / 매치 식별 체계 / v3 폐기)
+- **결정자**: 사용자 ("A v4 + 권장" 직진) + planner-architect (사용자 정보 2건 반영 재수립)
+- **참조횟수**: 0
+- **배경**: v3 (`{T}-[XY]-{NNN}`) 직전 분석 완료 후 사용자 핵심 정보 2건 추가 → 권장 뒤집힘
+  - 향후 목표 = **전국 사용** (수도권 90% 편중 무효, v4 region 정보가치 미래 ↑)
+  - 실 운영 대회 = **2개만** (동호회 최강전 / 열혈농구단 전국최강전) — 나머지 54건 목 데이터
+- **거부된 옵션**:
+  - **v3** (`M21-001` 7~10자): 미래 v3→v4 재구축 비용 / 글로벌 식별성 약 / 사용자 의도 (v4 직접 제안) 어긋남
+  - **하이브리드** (v3 코드 + region_code 컬럼): 직전 분석 권장이었으나 "수도권 90% 편중" 사유 무효되며 폐기
+- **채택 v4**: `{YY}-{region 17시도 영문약어 2자}-{대회 영문 이니셜 2자 + 시즌/회차 2자리}-{매치번호 3자리}`
+  - 예: `26-GG-MD21-001` (2026-경기-몰텐배제21회-001번 매치) / `26-GG-HJ02-001` (2026-경기-열혈SEASON2-001번 매치)
+- **6 결정 (Q5~Q10) — 권장안 그대로 채택**:
+  - Q5 구분자 = `-` (가독성+파싱)
+  - Q6 매치번호 자릿수 = 3자리 (001~999)
+  - Q7 17시도 = 영문약어 2자 (SE/BS/DG/IC/GJ/DJ/US/SJ/GG/GW/CB/CN/JB/JN/GB/GN/JJ)
+  - Q8 두자리 숫자 = 시즌/회차 (몰텐=21 / 열혈=02)
+  - Q9 종별/디비전 = 별도 컬럼 (`category_letter` + `division_tier`) — 케이스 ① 시 NULL
+  - Q10 풀리그 group_name = 별도 컬럼 (`group_letter` VarChar(1)) — 몰텐 A/B/C/D 4조 (planner 재수립 시 NEW 발견)
+- **schema 6컬럼** (NULL 허용 ADD COLUMN 무중단):
+  - `Tournament.short_code VarChar(7) UNIQUE` (대회 이니셜+회차 — MD21/HJ02)
+  - `Tournament.region_code VarChar(2)` (17시도 영문약어 — GG/SE)
+  - `TournamentMatch.match_code VarChar(20) UNIQUE` (전체 코드)
+  - `TournamentMatch.category_letter VarChar(1)` (A/Y/S/W/U)
+  - `TournamentMatch.division_tier VarChar(2)` (D1~D9)
+  - `TournamentMatch.group_letter VarChar(1)` (A/B/C/D 풀리그)
+- **사유 7건**: ① 사용자 v4 직접 제안 → 의도 정합성 ② 미래 전국 17시도 → region_code 정보가치 ↑ ③ 백필 비용 ≈ 0 (운영 2대회 10분, 목 54대회 생략) ④ 글로벌 식별성 (단일 코드 = 4 정보) ⑤ Phase 5h ≤ v3 6h ≤ 하이브리드 6.5h ⑥ 미래 v3→v4 재구축 비용 회피 ⑦ Q5~Q10 1회 일괄 결정 5분
+- **운영 2 대회 검증** (61매치):
+  - 몰텐배 동호회최강전 (제21회): id=138b22d8 / 27매치 / 남양주→GG / 케이스 ④ (일반부+D3) + group A/B/C/D 4조 풀리그
+  - 열혈농구단 SEASON2 전국최강전: id=d83e8b83 / 34매치 / 화성→GG / 케이스 ① + 풀리그+토너 혼합
+- **Phase 1~7 (~5h)**: ① schema 6컬럼 (사용자 승인 받음 / 무중단) 30분 → ② match-code.ts helper + region 정규화 1.5h → ③ 운영 2대회 61매치 backfill (사용자 승인 필요) 30분 → ④ generator 4종 통합 1.5h → ⑤ UI 노출 1h → ⑥ 목 54대회 **생략** → ⑦ deep link `/match/[code]` (옵션) 1h
+- **참조 산출물**: 전체 plan = `~/.claude/plans/silvery-prowling-falcon-match-code-v4-feasibility.md` (~280줄)
+- **v3 (decisions 2026-05-02 항목) 무효화**: 본 v4 결정으로 v3 (`{T}-[XY]-{NNN}`) 항목은 deprecated. 형식 ① M21-001 / ② M21-D1-001 / ③ M21-A-001 / ④ M21-A1-001 모두 폐기.
+
 ### [2026-05-04] 알기자 기사 사진 schema = `news_photos` 별도 테이블 채택 (옵션 B)
 - **분류**: decision (사진 메타 저장 위치 / 확장성)
 - **결정자**: PM + 사용자 ("추천대로 진행")

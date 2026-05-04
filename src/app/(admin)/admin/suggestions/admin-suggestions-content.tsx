@@ -1,8 +1,11 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper 제거 / <Badge> → .badge--soft + 상태별 inline color
+// - thead/tr 자체 className 제거 (admin-table CSS 자동)
+// - 자체 rounded bg-accent 버튼 → .btn .btn--primary
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
@@ -27,11 +30,24 @@ const STATUS_LABEL: Record<string, string> = {
   resolved: "완료",
 };
 
-const STATUS_BADGE: Record<string, "default" | "success" | "warning"> = {
-  pending: "default",
-  open: "warning",
-  in_progress: "warning",
-  resolved: "success",
+// 상태별 .badge--soft inline color (default / warning / success)
+const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
+  pending: undefined, // default = .badge--soft 기본
+  open: {
+    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+    color: "var(--color-warning)",
+    borderColor: "transparent",
+  },
+  in_progress: {
+    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+    color: "var(--color-warning)",
+    borderColor: "transparent",
+  },
+  resolved: {
+    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    color: "var(--color-success)",
+    borderColor: "transparent",
+  },
 };
 
 // 상태 전환 규칙
@@ -75,55 +91,49 @@ export function AdminSuggestionsContent({
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* 축소된 테이블: 제목 / 작성자 / 상태 / 날짜 (4칸) */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">제목</th>
-                <th className="w-[100px] px-5 py-4 font-medium">작성자</th>
-                <th className="w-[90px] px-5 py-4 font-medium">상태</th>
-                <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">제목</th>
+              <th className="w-[100px] px-5 py-4 font-medium">작성자</th>
+              <th className="w-[90px] px-5 py-4 font-medium">상태</th>
+              <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((s) => (
+              <tr key={s.id} onClick={() => setSelected(s)} className="cursor-pointer">
+                <td data-primary="true" className="px-5 py-3">
+                  <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
+                    {s.title}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {s.content}
+                  </p>
+                </td>
+                <td data-label="작성자" className="px-5 py-3 truncate" style={{ color: "var(--color-text-muted)" }}>
+                  {s.authorName ?? s.authorEmail ?? "-"}
+                </td>
+                <td data-label="상태" className="px-5 py-3">
+                  <span className="badge badge--soft" style={STATUS_STYLE[s.status]}>
+                    {STATUS_LABEL[s.status] ?? s.status}
+                  </span>
+                </td>
+                <td data-label="날짜" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                  {fmtDate(s.createdAt)}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => setSelected(s)}
-                  className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
-                >
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="truncate font-medium text-[var(--color-text-primary)]">
-                      {s.title}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">
-                      {s.content}
-                    </p>
-                  </td>
-                  <td data-label="작성자" className="px-5 py-3 truncate text-[var(--color-text-muted)]">
-                    {s.authorName ?? s.authorEmail ?? "-"}
-                  </td>
-                  <td data-label="상태" className="px-5 py-3">
-                    <Badge variant={STATUS_BADGE[s.status] ?? "default"}>
-                      {STATUS_LABEL[s.status] ?? s.status}
-                    </Badge>
-                  </td>
-                  <td data-label="날짜" className="px-5 py-3 text-[var(--color-text-muted)]">
-                    {fmtDate(s.createdAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {filtered.length === 0 && (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          건의사항이 없습니다.
         </div>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
-            건의사항이 없습니다.
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* 상세 모달 — 내용 전체 + 상태변경 */}
       {selected && (
@@ -138,7 +148,8 @@ export function AdminSuggestionsContent({
                 <select
                   name="status"
                   defaultValue=""
-                  className="flex-1 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-secondary)] outline-none focus:border-[var(--color-accent)]"
+                  className="flex-1 rounded-[10px] border px-3 py-2 text-sm outline-none"
+                  style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)" }}
                 >
                   <option value="" disabled>상태 변경</option>
                   {(TRANSITIONS[selected.status] ?? []).map((st) => (
@@ -147,10 +158,8 @@ export function AdminSuggestionsContent({
                     </option>
                   ))}
                 </select>
-                <button
-                  type="submit"
-                  className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
-                >
+                {/* (web) .btn .btn--primary 패턴 */}
+                <button type="submit" className="btn btn--primary btn--sm">
                   적용
                 </button>
               </form>
@@ -168,12 +177,15 @@ export function AdminSuggestionsContent({
             />
             {/* 내용 전체 표시 */}
             <div>
-              <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <p className="mb-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
                 내용
               </p>
-              <div className="rounded-[12px] border border-[var(--color-border)] p-4 text-sm leading-relaxed text-[var(--color-text-primary)]">
+              <div
+                className="rounded-[12px] border p-4 text-sm leading-relaxed"
+                style={{ borderColor: "var(--color-border)", color: "var(--color-text-primary)" }}
+              >
                 {selected.content || (
-                  <span className="text-[var(--color-text-muted)]">내용 없음</span>
+                  <span style={{ color: "var(--color-text-muted)" }}>내용 없음</span>
                 )}
               </div>
             </div>

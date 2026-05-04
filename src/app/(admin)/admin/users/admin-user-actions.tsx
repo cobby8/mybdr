@@ -23,24 +23,27 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
     setConfirm(null);
   };
 
+  // 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+  // 자체 rounded bg-* → .btn .btn--sm + 위험 톤 inline color
   if (confirm) {
     const isDelete = confirm === "delete";
     return (
       <div className="flex items-center gap-1">
-        <span className="text-xs text-[var(--color-error)]">
+        <span className="text-xs" style={{ color: "var(--color-error)" }}>
           {isDelete ? "삭제" : "탈퇴"}?
         </span>
         <button
           onClick={() => handleAction(isDelete ? deleteAction : forceWithdrawAction)}
           disabled={pending}
-          className="rounded-full bg-[var(--color-error)] px-2 py-0.5 text-xs font-semibold text-white hover:bg-[var(--color-error-hover,#DC2626)] disabled:opacity-50"
+          className="btn btn--sm disabled:opacity-50"
+          style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
         >
           {pending ? "..." : "확인"}
         </button>
         <button
           onClick={() => setConfirm(null)}
           disabled={pending}
-          className="rounded-full border border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+          className="btn btn--sm"
         >
           취소
         </button>
@@ -53,14 +56,16 @@ export function AdminUserActions({ userId, nickname, isWithdrawn, forceWithdrawA
       {!isWithdrawn && (
         <button
           onClick={() => setConfirm("withdraw")}
-          className="rounded-full bg-[var(--color-warning)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-warning)] hover:bg-[var(--color-warning)]/20"
+          className="btn btn--sm"
+          style={{ borderColor: "var(--color-warning)", color: "var(--color-warning)" }}
         >
           강제탈퇴
         </button>
       )}
       <button
         onClick={() => setConfirm("delete")}
-        className="rounded-full bg-[var(--color-error)]/10 px-2 py-0.5 text-xs font-semibold text-[var(--color-error)] hover:bg-[var(--color-error)]/20"
+        className="btn btn--sm"
+        style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
       >
         삭제
       </button>

@@ -617,6 +617,50 @@ html.dark .app-nav__tab[data-active="true"]::after {
 }
 
 /* ============================================================
+   가로 스크롤 칩 바 generic 패턴 (.h-scroll-bar-wrap + .h-scroll-bar-fade) — 2026-05-04 신규
+   재사용 대상: courts 필터칩 (전체/실내/실외/무료/지금한산/구분선/히트맵), teams 지역칩+정렬칩,
+   기타 PC/모바일 모두 보이는 가로 스크롤 chip-bar 영역.
+   community .aside-mobile-tabs-wrap 과 동일 패턴이지만 lg+ hidden 룰 없음 (PC 도 표시).
+   fade overlay 는 모바일(<1024px) 전용 — PC viewport 에서는 칩이 다 보이므로 fade 불필요.
+   ============================================================ */
+.h-scroll-bar-wrap {
+  position: relative;
+}
+.h-scroll-bar-fade {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 6px; /* 자식 scrollbar 자리 회피 */
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  background: linear-gradient(to right, transparent 0%, var(--bg) 40%);
+  pointer-events: none;
+  z-index: 1;
+  color: var(--accent);
+}
+.h-scroll-bar-fade .material-symbols-outlined {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: var(--sh-sm);
+  color: var(--accent);
+}
+/* PC (lg+) 에서는 fade 숨김 — 칩이 viewport 안에 다 보이므로 fade 무의미 */
+@media (min-width: 1024px) {
+  .h-scroll-bar-fade { display: none !important; }
+}
+
+/* ============================================================
    정렬 바 가로 스크롤 (모바일) — 사용자 회귀 픽스 (2026-05-03)
    왜: 정렬/최신순/인기순/댓글많은순/조회순 + 캡션이 가로 폭 초과 시 스크롤 불가
    해소: overflow-x:auto + 6px 인디케이터 + fade overlay (커뮤니티 카테고리 탭과 동일 패턴)

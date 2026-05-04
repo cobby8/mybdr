@@ -397,16 +397,18 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
       )}
 
       {/* ─── 5필터칩 + 히트맵 — 2026-05-04 B작업: flex-wrap → nowrap + overflow-x:auto.
-          모바일에서 wrap 대신 가로 스크롤로 한 row 유지 → Hero 영역 컴팩트화. ─── */}
+          모바일에서 wrap 대신 가로 스크롤로 한 row 유지 → Hero 영역 컴팩트화.
+          .h-scroll-bar-wrap + .h-scroll-bar-fade chevron 원형 배지 (모바일 전용, community 패턴 통일). ─── */}
+      <div className="h-scroll-bar-wrap" style={{ marginBottom: 16 }}>
       <div
         className="scrollbar-hide"
         style={{
           display: "flex",
           gap: 8,
-          marginBottom: 16,
           flexWrap: "nowrap",
           overflowX: "auto",
           paddingBottom: 4,
+          paddingRight: 48,
         }}
       >
         {FILTERS.map((f) => {
@@ -499,6 +501,11 @@ export function CourtsContentV2({ courts, cities }: CourtsContentV2Props) {
             ))}
           </div>
         )}
+      </div>
+        {/* fade overlay + chevron 원형 배지 — 모바일 전용 (lg+ hidden) */}
+        <div className="h-scroll-bar-fade" aria-hidden="true">
+          <span className="material-symbols-outlined">chevron_right</span>
+        </div>
       </div>
 
       {/* ─── 시안 그리드: 좌측 카드 + 우측 sticky 지도 ─── */}

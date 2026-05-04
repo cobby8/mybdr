@@ -1,6 +1,17 @@
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper → div + 토큰. StatCard 는 통계 시각화 의도 유지
+
 import { prisma } from "@/lib/db/prisma";
-import { Card, StatCard } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -102,18 +113,18 @@ export default async function AdminAnalyticsPage() {
 
       {/* 누적 통계 */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">전체 유저</p>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 유저</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalUsers.toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">전체 대회</p>
+        </div>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 대회</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalTournaments.toLocaleString()}</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">전체 경기</p>
+        </div>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>전체 경기</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{data.totalGames.toLocaleString()}</p>
-        </Card>
+        </div>
       </div>
 
       {/* 코트 / 커뮤니티 / 앰배서더 통계 */}
@@ -141,7 +152,7 @@ export default async function AdminAnalyticsPage() {
       </div>
 
       {/* 월별 가입 추이 */}
-      <Card>
+      <div className={CARD_CLASS} style={CARD_STYLE}>
         <h2 className="mb-4 text-lg font-semibold">월별 가입 추이 (최근 6개월)</h2>
         {data.monthlyUsers.length > 0 ? (
           <div className="flex h-48 items-end gap-3">
@@ -164,11 +175,11 @@ export default async function AdminAnalyticsPage() {
             })}
           </div>
         ) : (
-          <div className="flex h-48 items-center justify-center text-[var(--color-text-muted)]">
+          <div className="flex h-48 items-center justify-center" style={{ color: "var(--color-text-muted)" }}>
             데이터가 없습니다.
           </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

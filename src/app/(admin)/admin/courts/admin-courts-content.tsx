@@ -1,14 +1,25 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper 제거 → div + 토큰 (코트 등록 폼 / 표 / 제안·앰배서더 카드)
+// - <Badge> → .badge--soft + 상태별 inline color
+// - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--sm
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
 import { EDITABLE_FIELDS, type EditableFieldKey } from "@/lib/constants/court";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 // 서버에서 직렬화된 코트 타입
 interface SerializedCourt {
@@ -62,9 +73,18 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: "비활성",
 };
 
-const STATUS_BADGE: Record<string, "success" | "error"> = {
-  active: "success",
-  inactive: "error",
+// 상태별 .badge--soft inline color (success / error)
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  active: {
+    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    color: "var(--color-success)",
+    borderColor: "transparent",
+  },
+  inactive: {
+    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+    color: "var(--color-error)",
+    borderColor: "transparent",
+  },
 };
 
 interface Props {
@@ -162,111 +182,108 @@ export function AdminCourtsContent({
       {/* ─── 코트 관리 탭 (기존) ─── */}
       {activeTab === "courts" && <>
       {/* 코트 등록 폼 — 기존 유지 */}
-      <Card className="mb-6 p-5">
-        <h2 className="mb-4 text-sm font-bold text-[var(--color-text-primary)]">
+      <div className={`${CARD_CLASS} mb-6 p-5`} style={CARD_STYLE}>
+        <h2 className="mb-4 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
           <span className="material-symbols-outlined mr-1 align-middle text-base">add_circle</span>
           새 코트 등록
         </h2>
         <form action={createCourtAction} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[var(--color-text-muted)]">코트명 *</label>
+            <label className="text-xs" style={{ color: "var(--color-text-muted)" }}>코트명 *</label>
             <input
               name="name"
               required
               placeholder="예: 서울숲 농구장"
-              className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]"
+              className="rounded-[10px] border px-3 py-2 text-sm outline-none"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[var(--color-text-muted)]">주소 *</label>
+            <label className="text-xs" style={{ color: "var(--color-text-muted)" }}>주소 *</label>
             <input
               name="address"
               required
               placeholder="예: 서울시 성동구 ..."
-              className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]"
+              className="rounded-[10px] border px-3 py-2 text-sm outline-none"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[var(--color-text-muted)]">도시 *</label>
+            <label className="text-xs" style={{ color: "var(--color-text-muted)" }}>도시 *</label>
             <input
               name="city"
               required
               placeholder="예: 서울"
-              className="w-24 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]"
+              className="w-24 rounded-[10px] border px-3 py-2 text-sm outline-none"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[var(--color-text-muted)]">구/군</label>
+            <label className="text-xs" style={{ color: "var(--color-text-muted)" }}>구/군</label>
             <input
               name="district"
               placeholder="예: 성동구"
-              className="w-24 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none focus:border-[var(--color-accent)]"
+              className="w-24 rounded-[10px] border px-3 py-2 text-sm outline-none"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)" }}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-[var(--color-text-muted)]">유형 *</label>
+            <label className="text-xs" style={{ color: "var(--color-text-muted)" }}>유형 *</label>
             <select
               name="court_type"
               defaultValue="outdoor"
-              className="rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-secondary)] outline-none focus:border-[var(--color-accent)]"
+              className="rounded-[10px] border px-3 py-2 text-sm outline-none"
+              style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)" }}
             >
               <option value="outdoor">실외</option>
               <option value="indoor">실내</option>
             </select>
           </div>
-          <button
-            type="submit"
-            className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
-          >
+          {/* (web) .btn .btn--primary 패턴 */}
+          <button type="submit" className="btn btn--primary btn--sm">
             등록
           </button>
         </form>
-      </Card>
+      </div>
 
       {/* 축소된 테이블: 코트명 / 도시 / 유형 (3칸) */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">코트명</th>
-                <th className="w-[120px] px-5 py-4 font-medium">도시</th>
-                <th className="w-[80px] px-5 py-4 font-medium">유형</th>
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">코트명</th>
+              <th className="w-[120px] px-5 py-4 font-medium">도시</th>
+              <th className="w-[80px] px-5 py-4 font-medium">유형</th>
+            </tr>
+          </thead>
+          <tbody>
+            {courts.map((c) => (
+              <tr key={c.id} onClick={() => setSelected(c)} className="cursor-pointer">
+                <td data-primary="true" className="px-5 py-3">
+                  <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
+                    {c.name}
+                  </p>
+                  <p className="truncate text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {c.address}
+                  </p>
+                </td>
+                <td data-label="도시" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                  {c.city}{c.district ? ` ${c.district}` : ""}
+                </td>
+                <td data-label="유형" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                  {COURT_TYPE_LABEL[c.courtType] ?? c.courtType}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {courts.map((c) => (
-                <tr
-                  key={c.id}
-                  onClick={() => setSelected(c)}
-                  className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
-                >
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="truncate font-medium text-[var(--color-text-primary)]">
-                      {c.name}
-                    </p>
-                    <p className="truncate text-xs text-[var(--color-text-muted)]">
-                      {c.address}
-                    </p>
-                  </td>
-                  <td data-label="도시" className="px-5 py-3 text-[var(--color-text-muted)]">
-                    {c.city}{c.district ? ` ${c.district}` : ""}
-                  </td>
-                  <td data-label="유형" className="px-5 py-3 text-[var(--color-text-muted)]">
-                    {COURT_TYPE_LABEL[c.courtType] ?? c.courtType}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {courts.length === 0 && (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          등록된 코트가 없습니다.
         </div>
-        {courts.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
-            등록된 코트가 없습니다.
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* 상세 모달 */}
       </>}
@@ -290,10 +307,7 @@ export function AdminCourtsContent({
                   name="court_type"
                   value={selected.courtType === "indoor" ? "outdoor" : "indoor"}
                 />
-                <button
-                  type="submit"
-                  className="w-full rounded-[10px] border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
-                >
+                <button type="submit" className="btn btn--sm w-full">
                   <span className="material-symbols-outlined mr-1 align-middle text-base">swap_horiz</span>
                   {selected.courtType === "indoor" ? "실외로 변경" : "실내로 변경"}
                 </button>
@@ -303,7 +317,8 @@ export function AdminCourtsContent({
                 <input type="hidden" name="court_id" value={selected.id} />
                 <button
                   type="submit"
-                  className="rounded-[10px] bg-[var(--color-error)]/10 px-4 py-2 text-sm font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20"
+                  className="btn btn--sm"
+                  style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
                 >
                   <span className="material-symbols-outlined mr-1 align-middle text-base">delete</span>
                   삭제
@@ -320,9 +335,9 @@ export function AdminCourtsContent({
                 ["도시", `${selected.city}${selected.district ? ` ${selected.district}` : ""}`],
                 ["유형", COURT_TYPE_LABEL[selected.courtType] ?? selected.courtType],
                 ["상태", (
-                  <Badge variant={STATUS_BADGE[selected.status] ?? "default"}>
+                  <span className="badge badge--soft" style={STATUS_STYLE[selected.status]}>
                     {STATUS_LABEL[selected.status] ?? selected.status}
-                  </Badge>
+                  </span>
                 )],
                 ["무료 여부", selected.isFree === null ? "미확인" : selected.isFree ? "무료" : "유료"],
                 ["리뷰수", `${selected.reviewsCount}건`],
@@ -386,7 +401,7 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
 
   if (suggestions.length === 0) {
     return (
-      <Card className="p-8 text-center">
+      <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
         <span
           className="material-symbols-outlined text-4xl mb-2"
           style={{ color: "var(--color-text-disabled)" }}
@@ -396,14 +411,14 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           대기 중인 수정 제안이 없습니다
         </p>
-      </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
       {suggestions.map((s) => (
-        <Card key={s.id} className="p-4">
+        <div key={s.id} className={`${CARD_CLASS} p-4`} style={CARD_STYLE}>
           {/* 헤더: 코트명 + 제안자 + 날짜 */}
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -414,7 +429,7 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
                 {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
               </p>
             </div>
-            <Badge variant="default">대기중</Badge>
+            <span className="badge badge--soft">대기중</span>
           </div>
 
           {/* 변경 내용 diff */}
@@ -460,29 +475,26 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
             }}
           />
 
-          {/* 승인/거절 버튼 */}
+          {/* 승인/거절 버튼 — (web) .btn 패턴 (success / error 톤은 inline) */}
           <div className="flex gap-2">
             <button
               onClick={() => handleAction(s, "approve")}
               disabled={processing === s.id}
-              className="rounded-[4px] px-4 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-success)" }}
+              className="btn btn--sm disabled:opacity-50"
+              style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
             >
               {processing === s.id ? "처리 중..." : "승인 (코트 정보 반영 + 10XP)"}
             </button>
             <button
               onClick={() => handleAction(s, "reject")}
               disabled={processing === s.id}
-              className="rounded-[4px] px-4 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-              style={{
-                backgroundColor: "color-mix(in srgb, var(--color-error) 15%, transparent)",
-                color: "var(--color-error)",
-              }}
+              className="btn btn--sm disabled:opacity-50"
+              style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
             >
               거절
             </button>
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );
@@ -558,7 +570,7 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
 
   if (ambassadors.length === 0) {
     return (
-      <Card className="p-8 text-center">
+      <div className={`${CARD_CLASS} p-8 text-center`} style={CARD_STYLE}>
         <span
           className="material-symbols-outlined text-4xl mb-2"
           style={{ color: "var(--color-text-disabled)" }}
@@ -568,23 +580,19 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
         <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
           앰배서더 신청이 없습니다
         </p>
-      </Card>
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {/* 상태별 필터 탭 */}
+      {/* 상태별 필터 탭 — (web) .btn 패턴 (활성 .btn--primary) */}
       <div className="flex gap-2 mb-4">
         {filterTabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            className="flex items-center gap-1.5 rounded-[4px] px-3 py-1.5 text-xs font-semibold transition-colors"
-            style={{
-              backgroundColor: filter === tab.key ? "var(--color-primary)" : "var(--color-surface)",
-              color: filter === tab.key ? "#FFFFFF" : "var(--color-text-muted)",
-            }}
+            className={`btn btn--sm flex items-center gap-1.5 ${filter === tab.key ? "btn--primary" : ""}`}
           >
             {tab.label}
             {/* 건수 뱃지 */}
@@ -605,15 +613,15 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
 
       {/* 필터된 결과가 없을 때 */}
       {filteredAmbassadors.length === 0 && (
-        <Card className="p-6 text-center">
+        <div className={`${CARD_CLASS} p-6 text-center`} style={CARD_STYLE}>
           <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
             해당 상태의 앰배서더가 없습니다
           </p>
-        </Card>
+        </div>
       )}
 
       {filteredAmbassadors.map((a) => (
-        <Card key={a.id} className="p-4">
+        <div key={a.id} className={`${CARD_CLASS} p-4`} style={CARD_STYLE}>
           {/* 헤더: 코트명 + 상태 뱃지 */}
           <div className="flex items-center justify-between mb-2">
             <div>
@@ -657,26 +665,23 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
             </div>
           </div>
 
-          {/* 상태별 액션 버튼 */}
+          {/* 상태별 액션 버튼 — (web) .btn 패턴 (success / error 톤은 inline) */}
           <div className="flex gap-2">
             {a.status === "pending" && (
               <>
                 <button
                   onClick={() => handleAction(a, "approve")}
                   disabled={processing === a.id}
-                  className="rounded-[4px] px-4 py-1.5 text-xs font-semibold text-white transition-colors disabled:opacity-50"
-                  style={{ backgroundColor: "var(--color-success)" }}
+                  className="btn btn--sm disabled:opacity-50"
+                  style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
                 >
                   {processing === a.id ? "처리 중..." : "승인 (앰배서더 임명)"}
                 </button>
                 <button
                   onClick={() => handleAction(a, "reject")}
                   disabled={processing === a.id}
-                  className="rounded-[4px] px-4 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-                  style={{
-                    backgroundColor: "color-mix(in srgb, var(--color-error) 15%, transparent)",
-                    color: "var(--color-error)",
-                  }}
+                  className="btn btn--sm disabled:opacity-50"
+                  style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
                 >
                   거절
                 </button>
@@ -686,17 +691,14 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
               <button
                 onClick={() => handleAction(a, "revoke")}
                 disabled={processing === a.id}
-                className="rounded-[4px] px-4 py-1.5 text-xs font-semibold transition-colors disabled:opacity-50"
-                style={{
-                  backgroundColor: "color-mix(in srgb, var(--color-error) 15%, transparent)",
-                  color: "var(--color-error)",
-                }}
+                className="btn btn--sm disabled:opacity-50"
+                style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}
               >
                 {processing === a.id ? "처리 중..." : "해임"}
               </button>
             )}
           </div>
-        </Card>
+        </div>
       ))}
     </div>
   );

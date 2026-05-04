@@ -1,8 +1,11 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper 제거 → DataTableV2 직접 노출
+// - <Badge> → .badge--soft + 역할/상태별 inline color
+// - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--sm
+
 import { useState, useEffect, useMemo } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { MEMBERSHIP_LABELS, type MembershipType } from "@/lib/auth/roles";
 // v2.1 P2: DataTableV2 도입 — 모바일 ≤720px 자동 카드형 변환
@@ -35,27 +38,57 @@ interface SerializedUser {
   updatedAt: string;
 }
 
-// 역할 라벨은 공통 상수(roles.ts)에서, 뱃지 색상은 UI 전용 매핑
-const ROLE_VARIANT: Record<number, "default" | "success" | "error" | "info" | "warning"> = {
-  0: "default",
-  1: "info",
-  2: "warning",
-  3: "info",
+// 역할별 .badge--soft inline color (default / info / warning / info)
+const ROLE_STYLE: Record<number, React.CSSProperties | undefined> = {
+  0: undefined, // .badge--soft 기본
+  1: {
+    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+    color: "var(--color-info)",
+    borderColor: "transparent",
+  },
+  2: {
+    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+    color: "var(--color-warning)",
+    borderColor: "transparent",
+  },
+  3: {
+    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+    color: "var(--color-info)",
+    borderColor: "transparent",
+  },
 };
 
-// 공통 라벨 + UI variant를 합쳐서 반환하는 헬퍼
+// 공통 라벨 + UI inline style 을 합쳐서 반환하는 헬퍼
 function getRoleInfo(mt: number) {
   return {
     label: MEMBERSHIP_LABELS[mt as MembershipType] ?? String(mt),
-    variant: ROLE_VARIANT[mt] ?? ("default" as const),
+    style: ROLE_STYLE[mt],
   };
 }
 
 // 상태 뱃지 — DataTableV2 columns 명세에서도 사용하므로 모듈 스코프로 끌어올림
 function statusBadge(s: string | null) {
-  if (s === "active") return <Badge variant="success">활성</Badge>;
-  if (s === "withdrawn") return <Badge variant="default">탈퇴</Badge>;
-  return <Badge variant="error">정지</Badge>;
+  if (s === "active") {
+    return (
+      <span
+        className="badge badge--soft"
+        style={{ background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }}
+      >
+        활성
+      </span>
+    );
+  }
+  if (s === "withdrawn") {
+    return <span className="badge badge--soft">탈퇴</span>;
+  }
+  return (
+    <span
+      className="badge badge--soft"
+      style={{ background: "color-mix(in srgb, var(--color-error) 12%, transparent)", color: "var(--color-error)", borderColor: "transparent" }}
+    >
+      정지
+    </span>
+  );
 }
 
 // v2.1 P2: DataTableV2 컬럼 명세 — 닉네임 primary(카드 제목), 5컬럼
@@ -67,7 +100,7 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
     width: "1.2fr",
     render: (u) => (
       <span className="font-medium">
-        {u.isAdmin && <span className="mr-1 text-[var(--color-error)]">★</span>}
+        {u.isAdmin && <span className="mr-1" style={{ color: "var(--color-error)" }}>★</span>}
         {u.nickname ?? "-"}
       </span>
     ),
@@ -77,7 +110,7 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
     label: "이메일",
     width: "1.5fr",
     render: (u) => (
-      <span className="text-[var(--color-text-muted)] max-w-[200px] truncate inline-block align-middle">{u.email}</span>
+      <span className="max-w-[200px] truncate inline-block align-middle" style={{ color: "var(--color-text-muted)" }}>{u.email}</span>
     ),
   },
   {
@@ -86,7 +119,11 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
     width: "120px",
     render: (u) => {
       const role = getRoleInfo(u.membershipType);
-      return <Badge variant={role.variant}>{role.label}</Badge>;
+      return (
+        <span className="badge badge--soft" style={role.style}>
+          {role.label}
+        </span>
+      );
     },
   },
   {
@@ -95,9 +132,9 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
     width: "100px",
     render: (u) =>
       u.isAdmin ? (
-        <span className="text-[var(--color-error)] text-xs font-semibold">ON</span>
+        <span className="text-xs font-semibold" style={{ color: "var(--color-error)" }}>ON</span>
       ) : (
-        <span className="text-[var(--color-text-muted)]">-</span>
+        <span style={{ color: "var(--color-text-muted)" }}>-</span>
       ),
   },
   {
@@ -169,17 +206,13 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
       <AdminStatusTabs tabs={roleTabs} activeTab={activeRoleTab} onChange={setActiveRoleTab} />
 
       {/* v2.1 P2: DataTableV2 — 데스크톱 표 + 모바일 ≤720px 자동 카드형 (G-1 룰) */}
-      <Card className="overflow-hidden p-0">
-        <div className="px-2 py-1">
-          <DataTableV2<SerializedUser>
-            rowKey={(u) => u.id}
-            rows={filteredUsers}
-            columns={USER_COLUMNS}
-            onRowClick={(user) => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
-            emptyMessage="조건에 맞는 회원이 없습니다."
-          />
-        </div>
-      </Card>
+      <DataTableV2<SerializedUser>
+        rowKey={(u) => u.id}
+        rows={filteredUsers}
+        columns={USER_COLUMNS}
+        onRowClick={(user) => { setSelectedUser(user); setTab("info"); setConfirm(null); }}
+        emptyMessage="조건에 맞는 회원이 없습니다."
+      />
 
       {/* 상세 모달 */}
       {selectedUser && (() => {
@@ -208,7 +241,7 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <Badge variant={role.variant}>{role.label}</Badge>
+                  <span className="badge badge--soft" style={role.style}>{role.label}</span>
                   {statusBadge(u.status)}
                   {u.provider && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80">{u.provider}</span>}
                 </div>
@@ -255,62 +288,74 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                 ) : (
                   <div className="space-y-4">
                     {/* 역할 변경 */}
-                    <div className="rounded-[14px] border border-[var(--color-border)] p-4">
-                      <p className="mb-2.5 text-xs font-bold text-[var(--color-text-secondary)]">역할 변경</p>
+                    <div className="rounded-[14px] border p-4" style={{ borderColor: "var(--color-border)" }}>
+                      <p className="mb-2.5 text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>역할 변경</p>
                       <form action={async (fd: FormData) => { fd.set("user_id", u.id); await updateUserRoleAction(fd); closeModal(); }}
                         className="flex items-center gap-2">
                         <select name="membership_type" defaultValue={u.membershipType}
-                          className="flex-1 rounded-[10px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-secondary)] outline-none focus:border-[var(--color-accent)]">
+                          className="flex-1 rounded-[10px] border px-3 py-2 text-sm outline-none"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)" }}>
                           <option value={0}>일반유저</option>
                           <option value={1}>픽업호스트</option>
                           <option value={2}>팀장</option>
                           <option value={3}>대회관리자</option>
                         </select>
-                        <button type="submit" className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent)]">변경</button>
+                        <button type="submit" className="btn btn--primary btn--sm">변경</button>
                       </form>
                     </div>
 
                     {/* 슈퍼관리자 */}
-                    <div className="rounded-[14px] border border-[var(--color-border)] p-4 flex items-center justify-between">
+                    <div className="rounded-[14px] border p-4 flex items-center justify-between" style={{ borderColor: "var(--color-border)" }}>
                       <div>
-                        <p className="text-xs font-bold text-[var(--color-text-secondary)]">슈퍼관리자</p>
-                        <p className="text-xs text-[var(--color-text-muted)]">시스템 전체 관리 권한</p>
+                        <p className="text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>슈퍼관리자</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>시스템 전체 관리 권한</p>
                       </div>
+                      {/* (web) .btn 패턴 — 해제는 위험 톤 inline */}
                       <button onClick={() => runAction(toggleUserAdminAction, { user_id: u.id, make_admin: u.isAdmin ? "false" : "true" })}
                         disabled={pending}
-                        className={`rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors ${u.isAdmin ? "bg-[var(--color-error)] text-white hover:bg-[var(--color-error)]" : "bg-[var(--color-elevated)] text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]"}`}>
+                        className="btn btn--sm disabled:opacity-50"
+                        style={u.isAdmin ? { background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" } : undefined}>
                         {u.isAdmin ? "해제" : "지정"}
                       </button>
                     </div>
 
                     {/* 계정 상태 */}
-                    <div className="rounded-[14px] border border-[var(--color-border)] p-4 flex items-center justify-between">
+                    <div className="rounded-[14px] border p-4 flex items-center justify-between" style={{ borderColor: "var(--color-border)" }}>
                       <div>
-                        <p className="text-xs font-bold text-[var(--color-text-secondary)]">계정 상태</p>
-                        <p className="text-xs text-[var(--color-text-muted)]">현재: {u.status === "active" ? "활성" : u.status === "withdrawn" ? "탈퇴" : "정지"}</p>
+                        <p className="text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>계정 상태</p>
+                        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>현재: {u.status === "active" ? "활성" : u.status === "withdrawn" ? "탈퇴" : "정지"}</p>
                       </div>
                       <button onClick={() => runAction(updateUserStatusAction, { user_id: u.id, status: u.status === "active" ? "suspended" : "active" })}
                         disabled={pending}
-                        className={`rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors ${u.status === "active" ? "bg-[var(--color-warning)]/10 text-[var(--color-warning)] hover:bg-[var(--color-warning)]/20" : "bg-[var(--color-success)]/10 text-[var(--color-success)] hover:bg-[var(--color-success)]/20"}`}>
+                        className="btn btn--sm disabled:opacity-50"
+                        style={
+                          u.status === "active"
+                            ? { borderColor: "var(--color-warning)", color: "var(--color-warning)" }
+                            : { borderColor: "var(--color-success)", color: "var(--color-success)" }
+                        }>
                         {u.status === "active" ? "정지" : "활성화"}
                       </button>
                     </div>
 
                     {/* 위험 영역 */}
                     {!u.isAdmin && (
-                      <div className="rounded-[14px] border border-[var(--color-error)]/30 bg-[var(--color-error)]/[0.03] p-4">
-                        <p className="mb-1 text-xs font-bold text-[var(--color-error)]">위험 영역</p>
-                        <p className="mb-3 text-xs text-[var(--color-text-muted)]">이 작업은 되돌릴 수 없습니다.</p>
+                      <div
+                        className="rounded-[14px] border p-4"
+                        style={{ borderColor: "color-mix(in srgb, var(--color-error) 30%, transparent)", background: "color-mix(in srgb, var(--color-error) 3%, transparent)" }}
+                      >
+                        <p className="mb-1 text-xs font-bold" style={{ color: "var(--color-error)" }}>위험 영역</p>
+                        <p className="mb-3 text-xs" style={{ color: "var(--color-text-muted)" }}>이 작업은 되돌릴 수 없습니다.</p>
                         {confirm ? (
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-[var(--color-error)]">
+                            <span className="text-xs font-medium" style={{ color: "var(--color-error)" }}>
                               {confirm === "delete" ? "DB에서 완전히 삭제합니다." : "개인정보를 삭제하고 탈퇴 처리합니다."}
                             </span>
                             <div className="flex gap-1.5 ml-auto">
-                              <button onClick={() => setConfirm(null)} className="rounded-[8px] border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]">취소</button>
+                              <button onClick={() => setConfirm(null)} className="btn btn--sm">취소</button>
                               <button onClick={() => runAction(confirm === "delete" ? deleteAction : forceWithdrawAction, { user_id: u.id })}
                                 disabled={pending}
-                                className="rounded-[8px] bg-[var(--color-error)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--color-error)] disabled:opacity-50">
+                                className="btn btn--sm disabled:opacity-50"
+                                style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}>
                                 {pending ? "처리 중..." : "확인"}
                               </button>
                             </div>
@@ -319,12 +364,14 @@ export function AdminUsersTable({ users, updateUserRoleAction, updateUserStatusA
                           <div className="flex items-center gap-2">
                             {u.status !== "withdrawn" && (
                               <button onClick={() => setConfirm("withdraw")}
-                                className="rounded-[10px] border border-[var(--color-warning)]/40 px-4 py-2 text-sm font-semibold text-[var(--color-warning)] hover:bg-[var(--color-warning)]/10 transition-colors">
+                                className="btn btn--sm"
+                                style={{ borderColor: "var(--color-warning)", color: "var(--color-warning)" }}>
                                 강제탈퇴
                               </button>
                             )}
                             <button onClick={() => setConfirm("delete")}
-                              className="rounded-[10px] border border-[var(--color-error)]/40 px-4 py-2 text-sm font-semibold text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors">
+                              className="btn btn--sm"
+                              style={{ borderColor: "var(--color-error)", color: "var(--color-error)" }}>
                               완전 삭제
                             </button>
                           </div>

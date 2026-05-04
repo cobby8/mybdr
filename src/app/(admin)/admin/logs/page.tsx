@@ -1,7 +1,18 @@
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper → div + 토큰 (admin/* 단순화)
+// - 날짜 필터 칩: 자체 rounded → .btn .btn--sm (활성은 .btn--primary)
+
 import { prisma } from "@/lib/db/prisma";
-import { Card } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import Link from "next/link";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -87,22 +98,13 @@ export default async function AdminLogsPage({
       {/* 날짜 필터 칩 — 다중 행이라 별도 영역 (AdminPageHeader actions slot 에 안 넣음) */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
         {dateFilter && (
-          <Link
-            href="/admin/logs"
-            className="rounded-[10px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
-          >
-            전체 보기
-          </Link>
+          <Link href="/admin/logs" className="btn btn--sm">전체 보기</Link>
         )}
           {availableDates.slice(0, 7).map((d) => (
             <Link
               key={d}
               href={`?date=${d}`}
-              className={`rounded-[10px] px-3 py-1.5 text-xs transition-colors ${
-                dateFilter === d
-                  ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
-                  : "border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
-              }`}
+              className={`btn btn--sm ${dateFilter === d ? "btn--primary" : ""}`}
             >
               {d.slice(5)}
             </Link>
@@ -110,9 +112,9 @@ export default async function AdminLogsPage({
       </div>
 
       {logs.length === 0 ? (
-        <Card className="p-8 text-center text-[var(--color-text-muted)]">
+        <div className={`${CARD_CLASS} p-8 text-center`} style={{ ...CARD_STYLE, color: "var(--color-text-muted)" }}>
           {dateFilter ? `${dateFilter}에 기록된 활동이 없습니다.` : "활동 로그가 없습니다."}
-        </Card>
+        </div>
       ) : (
         <div className="space-y-8">
           {availableDates.map((dateKey) => {
@@ -157,7 +159,7 @@ export default async function AdminLogsPage({
                   </a>
                 </div>
 
-                <Card className="overflow-hidden p-0">
+                <div className={`${CARD_CLASS} overflow-hidden`} style={CARD_STYLE}>
                   <div className="divide-y divide-[var(--color-border-subtle)]">
                     {dayLogs.map((log) => {
                       const changes = log.changes_made as Record<string, unknown> | null;
@@ -222,7 +224,7 @@ export default async function AdminLogsPage({
                       );
                     })}
                   </div>
-                </Card>
+                </div>
               </div>
             );
           })}
