@@ -1,12 +1,23 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - 통계 <Card> → div + 토큰 (3 카드 단순화)
+// - 본문 <Card> wrapper 제거 / 상태 뱃지 → .badge--soft + 상태별 inline color
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 // 서버에서 직렬화된 결제 타입
 interface SerializedPayment {
@@ -32,14 +43,35 @@ const STATUS_LABEL: Record<string, string> = {
   partial_refunded: "부분 환불",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  pending: "text-[var(--color-warning)] bg-[var(--color-warning)]/10",
-  paid: "text-[var(--color-success)] bg-[var(--color-success)]/10",
-  failed: "text-[var(--color-error)] bg-[var(--color-error)]/10",
-  cancelled: "text-[var(--color-text-muted)] bg-[var(--color-elevated)]",
-  refunded: "text-[var(--color-info)] bg-[var(--color-info)]/10",
+// 상태별 .badge--soft inline color (warning / success / error / info)
+const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
+  pending: {
+    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+    color: "var(--color-warning)",
+    borderColor: "transparent",
+  },
+  paid: {
+    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    color: "var(--color-success)",
+    borderColor: "transparent",
+  },
+  failed: {
+    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+    color: "var(--color-error)",
+    borderColor: "transparent",
+  },
+  cancelled: undefined, // .badge--soft 기본
+  refunded: {
+    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+    color: "var(--color-info)",
+    borderColor: "transparent",
+  },
   // 부분 환불은 환불(info)과 같은 톤 유지 — 시각적 일관성
-  partial_refunded: "text-[var(--color-info)] bg-[var(--color-info)]/10",
+  partial_refunded: {
+    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+    color: "var(--color-info)",
+    borderColor: "transparent",
+  },
 };
 
 interface Props {
@@ -74,76 +106,66 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
     <>
       {/* 통계 카드 */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">총 결제 건수</p>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>총 결제 건수</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{stats.totalCount.toLocaleString()}건</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">완료 건수</p>
-          <p className="mt-1 text-xl font-bold text-[var(--color-success)] sm:text-2xl">{stats.paidCount.toLocaleString()}건</p>
-        </Card>
-        <Card>
-          <p className="text-xs text-[var(--color-text-muted)]">총 결제 금액</p>
+        </div>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>완료 건수</p>
+          <p className="mt-1 text-xl font-bold sm:text-2xl" style={{ color: "var(--color-success)" }}>{stats.paidCount.toLocaleString()}건</p>
+        </div>
+        <div className={CARD_CLASS} style={CARD_STYLE}>
+          <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>총 결제 금액</p>
           <p className="mt-1 text-xl font-bold sm:text-2xl">{stats.totalPaid.toLocaleString()}원</p>
-        </Card>
+        </div>
       </div>
 
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* 축소된 테이블: 유저 / 금액 / 상태 / 날짜 (4칸) */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">유저</th>
-                <th className="w-[120px] px-5 py-4 font-medium">금액</th>
-                <th className="w-[80px] px-5 py-4 font-medium">상태</th>
-                <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">유저</th>
+              <th className="w-[120px] px-5 py-4 font-medium">금액</th>
+              <th className="w-[80px] px-5 py-4 font-medium">상태</th>
+              <th className="w-[90px] px-5 py-4 font-medium">날짜</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p) => (
+              <tr key={p.id} onClick={() => setSelected(p)} className="cursor-pointer">
+                <td data-primary="true" className="px-5 py-3">
+                  <p className="font-medium" style={{ color: "var(--color-text-primary)" }}>
+                    {p.userName ?? "사용자"}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {p.userEmail ?? "-"}
+                  </p>
+                </td>
+                <td data-label="금액" className="px-5 py-3 font-semibold">
+                  {p.finalAmount.toLocaleString()}원
+                </td>
+                <td data-label="상태" className="px-5 py-3">
+                  <span className="badge badge--soft" style={STATUS_STYLE[p.status]}>
+                    {STATUS_LABEL[p.status] ?? p.status}
+                  </span>
+                </td>
+                <td data-label="날짜" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                  {fmtDate(p.createdAt)}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => setSelected(p)}
-                  className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
-                >
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="font-medium text-[var(--color-text-primary)]">
-                      {p.userName ?? "사용자"}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {p.userEmail ?? "-"}
-                    </p>
-                  </td>
-                  <td data-label="금액" className="px-5 py-3 font-semibold">
-                    {p.finalAmount.toLocaleString()}원
-                  </td>
-                  <td data-label="상태" className="px-5 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_COLOR[p.status] ?? "text-[var(--color-text-muted)] bg-[var(--color-elevated)]"
-                      }`}
-                    >
-                      {STATUS_LABEL[p.status] ?? p.status}
-                    </span>
-                  </td>
-                  <td data-label="날짜" className="px-5 py-3 text-[var(--color-text-muted)]">
-                    {fmtDate(p.createdAt)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {filtered.length === 0 && (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          결제 내역이 없습니다.
         </div>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
-            결제 내역이 없습니다.
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* 상세 모달 */}
       {selected && (
@@ -162,11 +184,7 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                 ["금액", `${selected.finalAmount.toLocaleString()}원`],
                 ["결제 방법", selected.paymentMethod ?? "-"],
                 ["상태", (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      STATUS_COLOR[selected.status] ?? ""
-                    }`}
-                  >
+                  <span className="badge badge--soft" style={STATUS_STYLE[selected.status]}>
                     {STATUS_LABEL[selected.status] ?? selected.status}
                   </span>
                 )],

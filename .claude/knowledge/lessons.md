@@ -2,6 +2,21 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-04] CSS Grid item `min-width: auto` (default) 함정 — 자식 nowrap 컨텐츠로 컨테이너 viewport 너머 확장
+- **분류**: lesson/css (CSS Grid item default min-width 본질 + 디버그 outline 패턴)
+- **발견자**: pm + debugger (사용자 보고 "community 헤더 우측 검색/정렬/만들기 actions 가 모바일에서 안 보임" → 6차 fix 끝에 본질 확정)
+- **배경**: community 페이지 모바일 viewport 440px에서 Hero 우측 actions 가 보이지 않음. PC에서는 정상. 1~5차 fix (mask → wrap+fade → width/gradient 강화 → chevron 원형 배지 → games 헤더 패턴) 모두 부분 해결. 진단 순서 함정 = 캐시 가설 우선 → SW 검토 → chunk hash 변경 → 시크릿 창 → 모두 무효. 결국 콘솔 `getBoundingClientRect()` 측정으로 actions x: 704, parent (.page-hero) width: 845 (viewport 440의 2배) 확인 후 본질 노출.
+- **본질**: `.with-aside { display: grid; }` 안의 `<main>` 이 grid item 인데, **CSS Grid item 의 `min-width` default = `auto` (= `min-content`)**. main 안 자식 (게시글 board 등) 의 nowrap max-content 가 main 을 viewport 너머로 확장 → main width 845px → .page-hero 845px → 우측 column actions 가 viewport 밖으로 밀림 + `.page` overflow-x:hidden 이 잘라먹음.
+- **fix (1줄)**: `globals.css` 에 `.with-aside > main { min-width: 0; }` 글로벌 룰. main 이 1fr column 폭에 강제로 맞춰지고 자식 overflow 는 main 안에서 처리. 모든 `.with-aside` 사용 페이지 자동 보호.
+- **재사용 가치**: CSS Grid + main grid item + 자식 nowrap 패턴 (테이블, 긴 제목, 가로 스크롤 컨테이너) 가 있는 모든 페이지에 동일 본질. 재발 방지 = grid item 에 `min-width: 0` 명시 의무화.
+- **진단 순서 권장 (함정 회피)**:
+  1. **DOM 검증 우선**: `document.querySelector(SEL).getBoundingClientRect()` 로 좌표/크기 즉시 확인 (캐시/SW 가설 전에)
+  2. **부모 width 측정**: viewport 초과면 부모 chain 의 grid/flex 레이아웃 추적
+  3. **임시 디버그 outline + 배경**: `style={{ outline: "3px solid red", background: "yellow", zIndex: 999 }}` 인라인 박아 시각 위치 즉시 확인 (PC/모바일 차이 발견 결정적)
+  4. **캐시/SW 는 마지막**: chunk grep + curl 로 새 룰 서빙 검증 후에만 캐시 가설
+- **부수 발견**: 디버그 outline 패턴이 PC/모바일 차이를 한 번에 노출 — 사용자 직접 "PC에 노출되고 모바일에 노출 안되는거 발견!" (스크린샷 #14)
+- **참조횟수**: 0
+
 ### [2026-05-04] Supabase Storage bucket 생성 우회 — DATABASE_URL 권한으로 storage.buckets 직접 INSERT
 - **분류**: lesson (인프라 / Supabase / 우회 패턴)
 - **발견자**: pm (사용자 "Supabase bucket 생성 다시 시도해봐" 의뢰 후 1차 실패 → 우회 발견)

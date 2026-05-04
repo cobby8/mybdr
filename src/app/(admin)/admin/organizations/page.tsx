@@ -94,7 +94,7 @@ export default function AdminOrganizationsPage() {
         subtitle="단체 신청 승인/거절 및 전체 단체 목록을 관리합니다."
       />
 
-      {/* 상태 필터 탭 */}
+      {/* 상태 필터 탭 — (web) .btn 패턴 */}
       <div className="mb-4 flex gap-2">
         {[
           { value: "pending", label: "대기" },
@@ -105,11 +105,7 @@ export default function AdminOrganizationsPage() {
           <button
             key={tab.value}
             onClick={() => setFilter(tab.value)}
-            className={`rounded px-4 py-2 text-sm font-medium transition ${
-              filter === tab.value
-                ? "bg-[var(--color-primary)] text-white"
-                : "bg-[var(--color-surface-bright)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-            }`}
+            className={`btn btn--sm ${filter === tab.value ? "btn--primary" : ""}`}
           >
             {tab.label}
           </button>
@@ -126,24 +122,24 @@ export default function AdminOrganizationsPage() {
           {filter === "pending" ? "대기 중인 신청이 없습니다." : "해당 단체가 없습니다."}
         </p>
       ) : (
-        <div className="overflow-x-auto admin-table-wrap rounded border border-[var(--color-border)]">
+        <div className="overflow-x-auto admin-table-wrap">
           {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B]) */}
           <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface-bright)]">
+            <thead>
               <tr>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">단체명</th>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">지역</th>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">신청자</th>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">상태</th>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">신청일</th>
-                <th className="px-4 py-3 font-medium text-[var(--color-text-secondary)]">액션</th>
+                <th className="px-4 py-3 font-medium">단체명</th>
+                <th className="px-4 py-3 font-medium">지역</th>
+                <th className="px-4 py-3 font-medium">신청자</th>
+                <th className="px-4 py-3 font-medium">상태</th>
+                <th className="px-4 py-3 font-medium">신청일</th>
+                <th className="px-4 py-3 font-medium">액션</th>
               </tr>
             </thead>
             <tbody>
               {orgs.map((org) => {
                 const badge = statusBadge(org.status);
                 return (
-                  <tr key={org.id} className="border-b border-[var(--color-border)] last:border-0">
+                  <tr key={org.id}>
                     <td data-primary="true" className="px-4 py-3">
                       <div className="font-medium text-[var(--color-text-primary)]">{org.name}</div>
                       {org.apply_note && (
@@ -171,20 +167,22 @@ export default function AdminOrganizationsPage() {
                       {new Date(org.created_at).toLocaleDateString("ko-KR")}
                     </td>
                     <td data-actions="true" className="px-4 py-3">
-                      {/* pending일 때만 승인/거절 버튼 표시 */}
+                      {/* pending일 때만 승인/거절 버튼 표시 — (web) .btn 패턴 (success/error 톤 inline) */}
                       {org.status === "pending" && (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleApprove(org.id)}
                             disabled={actionLoading === org.id}
-                            className="rounded bg-[var(--color-success)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                            className="btn btn--sm disabled:opacity-50"
+                            style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
                           >
                             승인
                           </button>
                           <button
                             onClick={() => setRejectId(org.id)}
                             disabled={actionLoading === org.id}
-                            className="rounded bg-[var(--color-error)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                            className="btn btn--sm disabled:opacity-50"
+                            style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                           >
                             거절
                           </button>
@@ -198,18 +196,20 @@ export default function AdminOrganizationsPage() {
                             value={rejectReason}
                             onChange={(e) => setRejectReason(e.target.value)}
                             placeholder="거절 사유"
-                            className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs text-[var(--color-text-primary)]"
+                            className="flex-1 rounded border px-2 py-1 text-xs"
+                            style={{ borderColor: "var(--color-border)", background: "var(--color-surface)", color: "var(--color-text-primary)" }}
                           />
                           <button
                             onClick={() => handleReject(org.id)}
                             disabled={!rejectReason.trim() || actionLoading === org.id}
-                            className="rounded bg-[var(--color-error)] px-2 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                            className="btn btn--sm disabled:opacity-50"
+                            style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
                           >
                             확인
                           </button>
                           <button
                             onClick={() => { setRejectId(null); setRejectReason(""); }}
-                            className="rounded px-2 py-1 text-xs text-[var(--color-text-muted)]"
+                            className="btn btn--sm"
                           >
                             취소
                           </button>

@@ -326,15 +326,17 @@ export function TeamsContentV2() {
 
       {/* A-1: v2 chip-bar — 지역(가로 스크롤 + 전국 + cities) + 정렬(3종)
           - 활성 칩: cafe-blue 배경 + 흰 텍스트 (FilterChipBar 와 동일 톤)
-          - 모바일은 가로 스크롤(scrollbar-hide), 데스크톱은 wrap. */}
+          - 모바일은 가로 스크롤(scrollbar-hide), 데스크톱은 wrap.
+          - 2026-05-04: .h-scroll-bar-wrap + fade chevron 원형 배지 (community 패턴 통일). */}
+      <div className="h-scroll-bar-wrap" style={{ marginBottom: 12 }}>
       <div
         className="scrollbar-hide"
         style={{
           display: "flex",
           gap: 8,
-          marginBottom: 12,
           overflowX: "auto",
           paddingBottom: 4,
+          paddingRight: 48,
           flexWrap: "nowrap",
         }}
       >
@@ -366,16 +368,23 @@ export function TeamsContentV2() {
           },
         )}
       </div>
+        {/* 지역 chip-bar fade chevron — 모바일 전용 */}
+        <div className="h-scroll-bar-fade" aria-hidden="true">
+          <span className="material-symbols-outlined">chevron_right</span>
+        </div>
+      </div>
 
-      {/* 정렬 칩 — 3종. 지역과 시각적으로 분리하기 위해 별도 줄 */}
+      {/* 정렬 칩 — 3종. 지역과 시각적으로 분리하기 위해 별도 줄.
+          2026-05-04: .h-scroll-bar-wrap + fade chevron 원형 배지 통일. */}
+      <div className="h-scroll-bar-wrap" style={{ marginBottom: 16 }}>
       <div
         className="scrollbar-hide"
         style={{
           display: "flex",
           gap: 8,
-          marginBottom: 16,
           overflowX: "auto",
           paddingBottom: 4,
+          paddingRight: 48,
           flexWrap: "nowrap",
         }}
       >
@@ -409,6 +418,11 @@ export function TeamsContentV2() {
             </button>
           );
         })}
+      </div>
+        {/* 정렬 chip-bar fade chevron — 모바일 전용 */}
+        <div className="h-scroll-bar-fade" aria-hidden="true">
+          <span className="material-symbols-outlined">chevron_right</span>
+        </div>
       </div>
 
       {loading ? (

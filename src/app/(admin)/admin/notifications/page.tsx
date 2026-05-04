@@ -8,9 +8,20 @@
  * POST /api/web/admin/notifications 호출
  */
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper → div + 토큰
+// - 발송 버튼 → .btn .btn--primary
+
 import { useState, FormEvent } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { Card } from "@/components/ui/card";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 // 발송 대상 옵션 (User 모델에 role 없음, isAdmin으로 구분)
 const TARGET_OPTIONS = [
@@ -73,7 +84,7 @@ export default function AdminNotificationsPage() {
     <div>
       <AdminPageHeader title="알림 발송" />
 
-      <Card>
+      <div className={CARD_CLASS} style={CARD_STYLE}>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* 알림 제목 (필수) */}
           <div>
@@ -194,12 +205,11 @@ export default function AdminNotificationsPage() {
             </div>
           )}
 
-          {/* 발송 버튼 */}
+          {/* 발송 버튼 — (web) .btn .btn--primary 패턴 */}
           <button
             type="submit"
             disabled={sending || !title.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-bold text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: "var(--color-primary)" }}
+            className="btn btn--primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {sending ? (
               <>
@@ -214,7 +224,7 @@ export default function AdminNotificationsPage() {
             )}
           </button>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }

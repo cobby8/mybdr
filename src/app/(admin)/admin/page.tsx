@@ -1,7 +1,18 @@
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper → div + 토큰 (admin/* 단순화). StatCard 는 통계 시각화 의도 유지
+
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
-import { StatCard, Card } from "@/components/ui/card";
+import { StatCard } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
+
+// (web) 시안 카드 패턴
+const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
+const CARD_STYLE: React.CSSProperties = {
+  borderColor: "var(--color-border)",
+  backgroundColor: "var(--color-card)",
+  boxShadow: "var(--shadow-card)",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -100,7 +111,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* 7일 활동 추이 차트: CSS bar chart (외부 라이브러리 없음) */}
-      <Card>
+      <div className={`${CARD_CLASS} mb-6`} style={CARD_STYLE}>
         <h2 className="mb-4 text-lg font-semibold">7일 활동 추이</h2>
         <div className="flex items-end gap-2" style={{ height: 120 }}>
           {chartData.map((d) => {
@@ -130,10 +141,10 @@ export default async function AdminDashboard() {
             );
           })}
         </div>
-      </Card>
+      </div>
 
       {/* 최근 활동 로그: admin_logs 테이블에서 최근 5건 */}
-      <Card>
+      <div className={CARD_CLASS} style={CARD_STYLE}>
         <h2 className="mb-4 text-lg font-semibold">최근 활동</h2>
         {recentLogs.length > 0 ? (
           <div className="divide-y divide-[var(--color-border-subtle)]">
@@ -179,11 +190,11 @@ export default async function AdminDashboard() {
             })}
           </div>
         ) : (
-          <p className="text-sm text-[var(--color-text-muted)]">
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
             아직 기록된 활동이 없습니다.
           </p>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

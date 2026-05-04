@@ -301,6 +301,10 @@ model Tournament {
   primary_color                          String?                       @db.VarChar
   secondary_color                        String?                       @db.VarChar
   apiToken                               String?                       @unique(map: "index_tournaments_on_api_token") @map("api_token") @db.VarChar
+  // 2026-05-04: 매치 코드 v4 — 대회 영문 이니셜 2자 + 시즌/회차 2자리 (예: MD21=몰텐배제21회 / HJ02=열혈SEASON2). NULL = backfill 점진 안전, UNIQUE = 동일 short_code 재사용 방지.
+  short_code                             String?                       @unique @db.VarChar(7)
+  // 2026-05-04: 매치 코드 v4 — 17시도 영문약어 2자 (SE/BS/DG/IC/GJ/DJ/US/SJ/GG/GW/CB/CN/JB/JN/GB/GN/JJ). city/district 자유 텍스트 → normalizeRegion() 으로 정규화.
+  region_code                            String?                       @db.VarChar(2)
   adminMembers                           TournamentAdminMember[]
   tournamentMatches                      TournamentMatch[]
   tournamentSite                         TournamentSite[]
@@ -604,6 +608,14 @@ model TournamentMatch {
   // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션). 매치 종료 시 1회 자동 생성.
   // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
   summary_brief                                                        Json?                     @map("summary_brief")
+  // 2026-05-04: 매치 코드 v4 — 전체 코드 (예: 26-GG-MD21-001 = 2026-경기-몰텐배제21회-001번 매치). UNIQUE = 동일 코드 중복 방지 / NULL = 백필 점진.
+  match_code                                                           String?                   @unique @db.VarChar(20)
+  // 2026-05-04: 매치 코드 v4 — 종별 1자 (A=일반/Y=유청/S=시니어/W=여성/U=대학). 케이스 ① (단일 카테고리) 시 NULL.
+  category_letter                                                      String?                   @db.VarChar(1)
+  // 2026-05-04: 매치 코드 v4 — 디비전 D1~D9 (2자, "D" + 숫자 1자리). 디비전 무시 (단순 카테고리) 시 NULL.
+  division_tier                                                        String?                   @db.VarChar(2)
+  // 2026-05-04: 매치 코드 v4 — 풀리그 조 1자 (A/B/C/D). 토너먼트 매치는 NULL. 몰텐배 (4조 풀리그) 같은 케이스만 사용.
+  group_letter                                                         String?                   @db.VarChar(1)
   createdAt                                                            DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                            DateTime                  @updatedAt @map("updated_at") @db.Timestamp(6)
   tournamentId                                                         String                    @map("tournament_id") @db.Uuid

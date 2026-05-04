@@ -1,8 +1,11 @@
 "use client";
 
+// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
+// - <Card> wrapper 제거 → 직접 .admin-table-wrap (community/news 패턴 일치)
+// - <Badge> → .badge--soft + 상태별 inline color
+// - thead/tr 자체 className 제거 (admin-table CSS 자동)
+
 import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
   AdminDetailModal,
@@ -29,9 +32,18 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: "비활성",
 };
 
-const STATUS_BADGE: Record<string, "success" | "error"> = {
-  active: "success",
-  inactive: "error",
+// 상태별 .badge--soft inline color (success / error 톤)
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  active: {
+    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    color: "var(--color-success)",
+    borderColor: "transparent",
+  },
+  inactive: {
+    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+    color: "var(--color-error)",
+    borderColor: "transparent",
+  },
 };
 
 interface Props {
@@ -62,51 +74,45 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
       <AdminStatusTabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
       {/* 축소된 테이블: 팀명 / 도시 / 상태 (3칸) */}
-      <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto admin-table-wrap">
-          {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B], 2026-05-02) */}
-          <table className="admin-table w-full text-left text-sm">
-            <thead className="border-b border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-              <tr>
-                <th className="px-5 py-4 font-medium">팀명</th>
-                <th className="w-[100px] px-5 py-4 font-medium">도시</th>
-                <th className="w-[90px] px-5 py-4 font-medium">상태</th>
+      <div className="overflow-x-auto admin-table-wrap">
+        {/* admin-table: 모바일 ≤720px 카드 변환 (globals.css [Admin Phase B], 2026-05-02) */}
+        <table className="admin-table w-full text-left text-sm">
+          <thead>
+            <tr>
+              <th className="px-5 py-4 font-medium">팀명</th>
+              <th className="w-[100px] px-5 py-4 font-medium">도시</th>
+              <th className="w-[90px] px-5 py-4 font-medium">상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((t) => (
+              <tr key={t.id} onClick={() => setSelected(t)} className="cursor-pointer">
+                <td data-primary="true" className="px-5 py-3">
+                  <p className="truncate font-medium" style={{ color: "var(--color-text-primary)" }}>
+                    {t.name}
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                    {t.membersCount}명
+                  </p>
+                </td>
+                <td data-label="도시" className="px-5 py-3" style={{ color: "var(--color-text-muted)" }}>
+                  {t.city ?? "-"}
+                </td>
+                <td data-label="상태" className="px-5 py-3">
+                  <span className="badge badge--soft" style={STATUS_STYLE[t.status]}>
+                    {STATUS_LABEL[t.status] ?? t.status}
+                  </span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filtered.map((t) => (
-                <tr
-                  key={t.id}
-                  onClick={() => setSelected(t)}
-                  className="cursor-pointer border-b border-[var(--color-border-subtle)] transition-colors hover:bg-[var(--color-elevated)]"
-                >
-                  <td data-primary="true" className="px-5 py-3">
-                    <p className="truncate font-medium text-[var(--color-text-primary)]">
-                      {t.name}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {t.membersCount}명
-                    </p>
-                  </td>
-                  <td data-label="도시" className="px-5 py-3 text-[var(--color-text-muted)]">
-                    {t.city ?? "-"}
-                  </td>
-                  <td data-label="상태" className="px-5 py-3">
-                    <Badge variant={STATUS_BADGE[t.status] ?? "default"}>
-                      {STATUS_LABEL[t.status] ?? t.status}
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {filtered.length === 0 && (
+        <div className="p-8 text-center" style={{ color: "var(--color-text-muted)" }}>
+          해당하는 팀이 없습니다.
         </div>
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-[var(--color-text-muted)]">
-            해당하는 팀이 없습니다.
-          </div>
-        )}
-      </Card>
+      )}
 
       {/* 상세 모달 */}
       {selected && (
@@ -126,13 +132,15 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
                 name="status"
                 value={selected.status === "active" ? "inactive" : "active"}
               />
+              {/* (web) .btn 패턴 — 활성화는 success 톤 inline color */}
               <button
                 type="submit"
-                className={`w-full rounded-[10px] px-4 py-2 text-sm font-semibold transition-colors ${
-                  selected.status === "active"
-                    ? "border border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)]"
-                    : "bg-emerald-600 text-white hover:bg-emerald-700"
-                }`}
+                className={`btn btn--sm ${selected.status !== "active" ? "btn--primary" : ""}`}
+                style={
+                  selected.status !== "active"
+                    ? { background: "var(--color-success)", borderColor: "var(--color-success)", color: "#fff" }
+                    : undefined
+                }
               >
                 {selected.status === "active" ? "비활성화" : "활성화"}
               </button>

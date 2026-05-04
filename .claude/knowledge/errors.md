@@ -2,6 +2,24 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-04] 모바일 Hero 우측 actions 시각 invisible — CSS Grid item `min-width: auto` 함정 + 캐시 가설 우선 함정
+- **분류**: error/css (CSS Grid 레이아웃 + 진단 순서 함정)
+- **발견자**: pm + debugger (사용자 5차 fix 후에도 "헤더 우측 actions 안 보임" 반복 보고 → 6차 fix 끝에 본질 확정)
+- **본질**: `.with-aside` grid 의 `<main>` 자식이 grid item 인데 **CSS Grid item `min-width` default = `auto` (= `min-content`)** → main 안 자식 (게시글 board 등) nowrap max-content 가 main 을 viewport 너머로 확장 (모바일 viewport 440 → main 845px). 우측 column actions 가 viewport 밖으로 밀림 + `.page overflow-x:hidden` 이 잘라먹음. SSR HTML/CSS chunk 모두 정상이지만 시각 invisible.
+- **진단 순서 함정 (5차 fix 까지 재시도 한 함정)**:
+  1. ❌ Service Worker 캐시 가설 — `@serwist/next` 발견했지만 dev 모드 disable 이라 무관
+  2. ❌ Disk cache / SW unregister 시도 — 의미 없음
+  3. ❌ chunk hash 변경 (dev 서버 재시작) — chunk 자체는 정상 서빙
+  4. ❌ Turbopack HMR 검증 — 정상 작동
+  5. ✅ **콘솔 `getBoundingClientRect()` 측정** — actions x:704 (viewport 440 밖) / parent.width 845 즉시 발견
+- **fix**: `globals.css` 글로벌 룰 1줄 → `.with-aside > main { min-width: 0; }`
+- **회귀 방지 룰**:
+  - **CSS Grid 컨테이너의 자식 (특히 main, content area) 에 `min-width: 0` 명시 의무** — grid item default `min-width: auto` 가 자식 max-content 따라 확장
+  - **모바일 시각 invisible 진단 순서**: ① DOM 검증 (`querySelector` + `getBoundingClientRect`) ② 부모 width 측정 ③ grid/flex 레이아웃 추적 ④ 디버그 outline + 노란 배경 즉시 박기 ⑤ 캐시/SW 는 마지막
+  - **사용자 보고 "PC에 노출되고 모바일에 노출 안 됨"** 패턴은 grid item min-width 함정 1순위 의심
+- **재발 위험**: 모든 grid 컨테이너 + 자식 nowrap 컨텐츠 (테이블/긴제목/가로스크롤) 패턴에 동일 가능. `.with-aside` 외 다른 grid 컨테이너 도입 시 본 함정 재발.
+- **참조횟수**: 0
+
 ### [2026-05-04] 🚨 community_posts.status 필터 부재 — 알기자 draft 7건 사용자 무단 노출 (검수 우회 사고)
 - **분류**: error/security (사용자 노출 query 의 status 필터 부재 — draft/rejected 권한 우회)
 - **발견자**: 사용자 직접 보고 (스크린샷: BDR NEWS 카테고리에 5/4 draft 7건이 모두 노출됨)
