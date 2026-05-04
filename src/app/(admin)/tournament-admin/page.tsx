@@ -2,7 +2,6 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 /* ============================================================
  * 대회 운영자 도구 — /tournament-admin (대시보드)
@@ -66,21 +65,80 @@ export default async function TournamentAdminDashboard() {
 
   return (
     <div>
-      <AdminPageHeader
-        eyebrow="ADMIN · TOURNAMENT"
-        title="대회 운영자 도구"
-        subtitle={`내 대회 ${totalTournaments}개 · 진행 중 ${activeTournaments} · 완료 ${completedTournaments}`}
-        searchPlaceholder="대회명 검색"
-        actions={
-          <Link
-            href="/tournament-admin/tournaments/new/wizard"
-            className="btn btn--primary"
-            style={{ textDecoration: "none" }}
+      {/* 2026-05-04 (사용자 fix 2차): AdminPageHeader 폐기 + 인라인 마크업.
+          본질: AdminPageHeader 의 sm:flex-row 가 어떤 이유로 미적용 → actions 가 title 아래 좌측 정렬됨.
+          해결: 인라인 마크업으로 직접 제어 — title block 좌 + 새 대회 만들기 우측 상단 (style 인라인). */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+          marginBottom: 24,
+          flexWrap: "wrap",
+        }}
+      >
+        {/* 좌측: eyebrow + h1 + subtitle */}
+        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--color-text-muted)",
+              marginBottom: 4,
+            }}
           >
-            + 새 대회 만들기
-          </Link>
-        }
-      />
+            ADMIN · TOURNAMENT
+          </div>
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 800,
+              fontFamily: "var(--ff-display)",
+              letterSpacing: "-0.015em",
+              color: "var(--color-text-primary)",
+              margin: 0,
+              lineHeight: 1.2,
+            }}
+          >
+            대회 운영자 도구
+          </h1>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--color-text-muted)",
+              marginTop: 4,
+              marginBottom: 0,
+            }}
+          >
+            내 대회 {totalTournaments}개 · 진행 중 {activeTournaments} · 완료 {completedTournaments}
+          </p>
+        </div>
+
+        {/* 우측 상단: + 새 대회 만들기 (인라인 정렬, sm:flex-row 의존 X) */}
+        <Link
+          href="/tournament-admin/tournaments/new/wizard"
+          className="btn btn--primary"
+          style={{ textDecoration: "none", flexShrink: 0 }}
+        >
+          + 새 대회 만들기
+        </Link>
+      </div>
+
+      {/* 검색 form — 별도 row (admin/users 패턴 일치) */}
+      <form method="GET" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <input
+          name="q"
+          placeholder="대회명 검색"
+          className="input"
+          style={{ flex: 1, minWidth: 0, maxWidth: 320 }}
+        />
+        <button type="submit" className="btn btn--primary btn--sm" style={{ flexShrink: 0 }}>
+          검색
+        </button>
+      </form>
 
       {/* 대회 리스트 — admin-table 패턴 (다른 관리자 페이지와 일치) */}
       {myTournaments.length === 0 ? (

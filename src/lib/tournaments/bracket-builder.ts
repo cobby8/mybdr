@@ -239,16 +239,54 @@ export type MatchPosition = {
 };
 
 /**
+ * 2026-05-04 (P5) — bracket-builder 옵션
+ *
+ * useNextMatchId:
+ *   - false (default, 기존 동작): i/2 페어링 (i 와 i+1 → next round 의 i/2 매치)
+ *     · single elim 트리 표준 패턴 (회귀 0)
+ *   - true: nextMatchId 기반 페어링 (현재 매치의 nextMatchId 가 가리키는 다음 라운드 매치 사용)
+ *     · 듀얼 토너먼트 등 NBA 크로스/sequential 페어링이 i/2 와 다른 경우 정확 매핑
+ *     · 5/4 v2-dual-bracket-view 의 qfReordered 우회 제거 가능
+ *     · nextMatchId 가 NULL 이면 페어링 0 (해당 매치만 누락 — 결승 등 안전)
+ */
+export type BracketBuilderOptions = {
+  useNextMatchId?: boolean;
+};
+
+// 한 매치 → 다음 라운드 매치 인덱스 매핑 — useNextMatchId 옵션 분기 헬퍼
+// 반환값: nextRound 안에서 다음 매치의 인덱스 (없으면 -1)
+function findNextMatchIndex(
+  match: BracketMatch,
+  nextRound: RoundGroup,
+  fallbackI: number,
+  useNextMatchId: boolean,
+): number {
+  if (useNextMatchId && match.nextMatchId != null) {
+    // nextMatchId 정확 매핑 — 다음 라운드 매치 배열에서 id 일치 검색
+    const idx = nextRound.matches.findIndex((m) => m.id === match.nextMatchId);
+    if (idx >= 0) return idx;
+    // nextMatchId 가 다음 라운드에 없으면 (cross-round skip 등) -1
+    return -1;
+  }
+  // 기존 동작 — i/2 페어링
+  return Math.floor(fallbackI / 2);
+}
+
+/**
  * 각 매치 카드의 절대 위치(좌상단 기준) 계산
  *
  * 첫 라운드: 등간격 배치
- * 이후 라운드: 이전 라운드에서 페어를 이루는 두 매치의 중간값
+ * 이후 라운드:
+ *   - useNextMatchId=false (default): i/2 페어링 (이전 라운드 i*2, i*2+1 의 중간값)
+ *   - useNextMatchId=true: 이전 라운드에서 본 매치를 가리키는 매치들의 중간값 (정확 매핑)
  */
 export function computeMatchPositions(
   rounds: RoundGroup[],
   config: BracketConfig,
+  options: BracketBuilderOptions = {},
 ): MatchPosition[] {
   const { cardWidth, cardHeight, columnGap } = config;
+  const useNextMatchId = options.useNextMatchId === true;
   const positions: MatchPosition[] = [];
   const posMap = new Map<string, { x: number; y: number }>();
 
@@ -272,19 +310,48 @@ export function computeMatchPositions(
 
     for (let i = 0; i < currentRound.matches.length; i++) {
       const match = currentRound.matches[i];
-      const prevIdx1 = i * 2;
-      const prevIdx2 = i * 2 + 1;
 
       let y = 0;
-      if (prevIdx1 < prevRound.matches.length && prevIdx2 < prevRound.matches.length) {
-        const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
-        const pos2 = posMap.get(prevRound.matches[prevIdx2].id);
-        if (pos1 && pos2) {
-          y = (pos1.y + pos2.y) / 2;
+      if (useNextMatchId) {
+        // nextMatchId 기반 — 이전 라운드에서 본 매치를 nextMatchId 로 가리키는 모든 매치 수집
+        const feeders = prevRound.matches.filter(
+          (m) => m.nextMatchId === match.id,
+        );
+        if (feeders.length === 2) {
+          const p1 = posMap.get(feeders[0].id);
+          const p2 = posMap.get(feeders[1].id);
+          if (p1 && p2) y = (p1.y + p2.y) / 2;
+        } else if (feeders.length === 1) {
+          const p1 = posMap.get(feeders[0].id);
+          if (p1) y = p1.y;
+        } else {
+          // feeders 0 — nextMatchId 미설정 매치 (skeleton 등) → fallback i/2 위치
+          // 안전 폴백: 같은 인덱스 위치 사용 (기존 i/2 와 일치)
+          const prevIdx1 = i * 2;
+          const prevIdx2 = i * 2 + 1;
+          if (prevIdx1 < prevRound.matches.length && prevIdx2 < prevRound.matches.length) {
+            const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
+            const pos2 = posMap.get(prevRound.matches[prevIdx2].id);
+            if (pos1 && pos2) y = (pos1.y + pos2.y) / 2;
+          } else if (prevIdx1 < prevRound.matches.length) {
+            const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
+            if (pos1) y = pos1.y;
+          }
         }
-      } else if (prevIdx1 < prevRound.matches.length) {
-        const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
-        if (pos1) y = pos1.y;
+      } else {
+        // 기존 i/2 페어링 — 회귀 0 (single elim 표준)
+        const prevIdx1 = i * 2;
+        const prevIdx2 = i * 2 + 1;
+        if (prevIdx1 < prevRound.matches.length && prevIdx2 < prevRound.matches.length) {
+          const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
+          const pos2 = posMap.get(prevRound.matches[prevIdx2].id);
+          if (pos1 && pos2) {
+            y = (pos1.y + pos2.y) / 2;
+          }
+        } else if (prevIdx1 < prevRound.matches.length) {
+          const pos1 = posMap.get(prevRound.matches[prevIdx1].id);
+          if (pos1) y = pos1.y;
+        }
       }
 
       const pos = { x: xOffset, y };
@@ -300,17 +367,23 @@ export function computeMatchPositions(
  * SVG 연결선 경로 계산
  *
  * 계단형(step) 경로: 카드 우측 → 수평 → 수직 → 수평 → 다음 카드 좌측
+ *
+ * 2026-05-04 (P5) — useNextMatchId 옵션:
+ *   - true: 본 매치의 nextMatchId 가 가리키는 다음 라운드 매치로 정확 페어링 (듀얼 등)
+ *   - false (default): i/2 매핑 (single elim 표준)
  */
 export function computeConnectorPaths(
   rounds: RoundGroup[],
   config: BracketConfig,
+  options: BracketBuilderOptions = {},
 ): ConnectorPath[] {
   const { cardWidth, cardHeight, columnGap } = config;
+  const useNextMatchId = options.useNextMatchId === true;
   const paths: ConnectorPath[] = [];
 
-  // 위치 맵 재사용
+  // 위치 맵 재사용 — 옵션도 동일하게 전달 (위치/연결선 정합)
   const posMap = new Map<string, { x: number; y: number }>();
-  const allPositions = computeMatchPositions(rounds, config);
+  const allPositions = computeMatchPositions(rounds, config, options);
   for (const p of allPositions) {
     posMap.set(p.matchId, { x: p.x, y: p.y });
   }
@@ -321,9 +394,10 @@ export function computeConnectorPaths(
 
     for (let i = 0; i < currentRound.matches.length; i++) {
       const match = currentRound.matches[i];
-      const nextMatchIdx = Math.floor(i / 2);
+      const nextMatchIdx = findNextMatchIndex(match, nextRound, i, useNextMatchId);
 
-      if (nextMatchIdx >= nextRound.matches.length) continue;
+      // useNextMatchId=true 인데 nextMatchId 가 다음 라운드에 없으면 skip (3·4위전 등 안전)
+      if (nextMatchIdx < 0 || nextMatchIdx >= nextRound.matches.length) continue;
 
       const nextMatch = nextRound.matches[nextMatchIdx];
       const fromPos = posMap.get(match.id);

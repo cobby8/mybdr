@@ -1,6 +1,21 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-04] 듀얼 토너먼트 표준 default = sequential (페어링 모드 분기 패턴)
+- **분류**: convention/business-logic (듀얼 토너먼트 16팀 4조 27 매치)
+- **발견자**: developer (P3~P7 박제)
+- **표준 default**: `DUAL_DEFAULT_PAIRING = "sequential"` (`src/lib/tournaments/dual-defaults.ts`)
+  - 신규 듀얼 대회 자동 적용 — wizard format 변경 시 `DUAL_DEFAULT_BRACKET` 일괄 채움
+  - 8강: A1+D2 / B1+C2 / C1+B2 / D1+A2 (같은 조 결승까지 분리, 단일 코트 효율)
+  - 4강: 8강 1+2 / 8강 3+4 (양 모드 동일)
+- **옵션 X (adjacent)**: 5/2 동호회최강전 호환 옵션 보존
+  - 8강: B1+A2 / D1+C2 / A1+B2 / C1+D2 (AB/CD 진영 분리, 멀티 코트 묶기)
+  - 5/2 운영 데이터 (`138b22d8`) `settings.bracket.semifinalPairing="adjacent"` 박힘
+- **분기 위치**: `generateDualTournament(assignment, tournamentId, pairing)` 3번째 인자 / `bracket/route.ts` POST 가 `settings.bracket.semifinalPairing` 참조 (default DUAL_DEFAULT_PAIRING)
+- **운영자 변경 가능**: BracketSettingsForm + DualGroupAssignmentEditor 모두 select dropdown 노출
+- **bracket-builder 옵션**: `useNextMatchId?: boolean` — true 시 `nextMatchId` 기반 정확 페어링 (i/2 fallback 안전), false (default) 기존 i/2 페어링 (single elim 회귀 0)
+- **참조횟수**: 0
+
 ### [2026-05-04] 비밀번호 입력란 — 보기 버튼 의무 + autoComplete 정밀 제어 (글로벌 룰)
 - **분류**: convention/ui (모든 비밀번호 input 공통 / UX 표준)
 - **발견자**: pm + 사용자 (회원가입 페이지 운영 보고: 자동 채움 + 보기 버튼 미존재)
