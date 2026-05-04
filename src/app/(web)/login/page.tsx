@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { loginAction, devLoginAction } from "@/app/actions/auth";
 import { InfoDialog } from "@/components/ui/info-dialog";
@@ -41,6 +41,19 @@ export default function LoginPage() {
 
   // 로그인 폼 상태 (서버 액션 바인딩) — 기존 로직 그대로
   const [loginState, loginFormAction, loginPending] = useActionState(loginAction, null);
+  // 2026-05-05: union 타입 ({error}|{success}|null) narrow — error 접근만 추출.
+  const loginError = loginState && "error" in loginState ? loginState.error : null;
+
+  // 2026-05-05 fix: 로그인 성공 시 hard reload — server action redirect 대신.
+  //   본질: server action 안에서 cookies.set + redirect 같은 cycle 처리 시
+  //         redirect target SSR 가 새 쿠키 인지 못 함 (헤더 비로그인 표시 회귀).
+  //   fix: success 반환 받으면 window.location.href = redirectTo 로 fresh GET.
+  //        → SSR 가 새 쿠키 인지 → 첫 paint 부터 로그인 헤더 정확.
+  useEffect(() => {
+    if (loginState && "success" in loginState && loginState.success) {
+      window.location.href = loginState.redirectTo;
+    }
+  }, [loginState]);
   // 개발 환경 자동 로그인 (NODE_ENV !== production일 때만 노출)
   const [devState, devFormAction, devPending] = useActionState(devLoginAction, null);
 
@@ -143,7 +156,7 @@ export default function LoginPage() {
             <>
               {/* 2026-05-04 P1: 회원가입 성공 안내 박스 — /login?signup=success 시 노출.
                   loginState.error 와 동시 노출 ❌ (에러 우선). InfoDialog 가 아닌 인라인 박스 = 사용자 흐름 차단 ❌. */}
-              {signupSuccess && !loginState?.error && (
+              {signupSuccess && !loginError && (
                 <div
                   style={{
                     marginBottom: 12,
@@ -159,7 +172,7 @@ export default function LoginPage() {
               )}
 
               {/* 2026-05-05: 회원 탈퇴 완료 안내 박스 — /login?withdrawn=success 시 노출. */}
-              {withdrawnSuccess && !loginState?.error && (
+              {withdrawnSuccess && !loginError && (
                 <div
                   style={{
                     marginBottom: 12,
@@ -175,7 +188,7 @@ export default function LoginPage() {
               )}
 
               {/* 서버 액션 에러 메시지 */}
-              {loginState?.error && (
+              {loginError && (
                 <div
                   style={{
                     marginBottom: 12,
@@ -186,7 +199,7 @@ export default function LoginPage() {
                     fontSize: 13,
                   }}
                 >
-                  {loginState.error}
+                  {loginError}
                 </div>
               )}
 
