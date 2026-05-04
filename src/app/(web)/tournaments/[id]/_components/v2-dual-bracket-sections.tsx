@@ -240,7 +240,8 @@ function DualFinalsGrid({ matches }: { matches: BracketMatch[] }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    // 2026-05-04: PC에서 4열 → 2열 변경 (사용자 보고: UI 깨짐, Stage 1 과 동일 패턴 정합)
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
       {sorted.map((m) => (
         <DualMatchCard key={m.id} match={m} showGroupBadge />
       ))}
