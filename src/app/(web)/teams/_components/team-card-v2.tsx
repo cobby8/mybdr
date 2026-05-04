@@ -74,11 +74,9 @@ export function TeamCardV2({
       }}
     >
       {/* 상단 accent 블록: 로고 + 팀명 + 창단
-          ─ 모바일 2열(폭 ~170px) 가독성 개선 (2026-04-29 fix #2):
-            기존 가로 배치(로고 좌 + 텍스트 우)는 텍스트 영역이 ~100px 으로 좁아
-            "셋업(SE..." 같은 truncate 빈발 → 옵션 B 세로 배치로 변경.
-            로고는 카드 상단 중앙, 팀명+창단은 그 아래 카드 폭 전체 사용.
-            팀명은 2줄까지 허용(line-clamp:2)하여 truncate 빈도 대폭 감소. */}
+          2026-05-04: 사용자 요청 — 가로 배치 (로고 좌측 / 팀명+정보 우측) + 로고 150% (40→60px).
+          이전 (04-29) 세로 배치는 모바일 2열 truncate 회피 목적이었으나, 사용자 새 결정으로 가로 복귀.
+          로고 60px 확장 + 텍스트 좌측 정렬 + line-clamp:2 유지 (긴 팀명 보호). */}
       <div
         style={{
           background: accent,
@@ -87,10 +85,10 @@ export function TeamCardV2({
           position: "relative",
           minHeight: 116,
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           alignItems: "center",
-          gap: 8,
-          textAlign: "center",
+          gap: 10,
+          textAlign: "left",
         }}
       >
         {/* 우상단 #랭크 — 시안 Team.jsx L28 정합 (PC ≥720px 만, 모바일은 폭 ~170px 이라 숨김).
@@ -115,15 +113,15 @@ export function TeamCardV2({
           </span>
         ) : null}
 
-        {/* 로고 또는 이니셜 박스 — 세로 배치에서 카드 상단 중앙. 40px (가로 배치 시 44 → 미세 축소). */}
+        {/* 로고 또는 이니셜 박스 — 2026-05-04 가로 배치 + 150% 확장 (40→60px). */}
         {team.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- 외부 이미지 최적화 불필요 (v2 시안 일관성)
           <img
             src={team.logoUrl}
             alt=""
             style={{
-              width: 40,
-              height: 40,
+              width: 60,
+              height: 60,
               borderRadius: 8,
               // 팀 로고는 비율이 제각각 — contain 으로 잘림 방지. 여백은 background 가 받음 (2026-05-02)
               objectFit: "contain",
@@ -134,8 +132,8 @@ export function TeamCardV2({
         ) : (
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 60,
+              height: 60,
               borderRadius: 8,
               flexShrink: 0,
               background: "rgba(255,255,255,.18)",
@@ -144,9 +142,9 @@ export function TeamCardV2({
               justifyContent: "center",
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              fontSize: 14,
+              fontSize: 18,
               letterSpacing: ".06em",
-              // 영문 tag 가 박스 폭(40px) 넘는 경우 잘림 방지
+              // 영문 tag 가 박스 폭(60px) 넘는 경우 잘림 방지
               overflow: "hidden",
               padding: "0 3px",
               lineHeight: 1,

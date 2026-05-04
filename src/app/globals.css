@@ -2998,3 +2998,25 @@ html.dark {
   border-radius: 3px;
   padding: 3px 8px;
 }
+
+/* ============================================================
+ * 2026-05-04: admin/news 본문 2컬럼 grid (list + 미리보기)
+ *
+ * Tailwind v4 의 lg:grid 클래스 + 임의값 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] 가
+ * 빌드에서 인식 안 되는 이슈 보고 (사용자 5/4) → globals.css 명시 미디어쿼리로 해결.
+ *
+ * 모바일 (<1024px): flex column stack
+ * 데스크톱 (≥1024px): grid 2컬럼 (1fr : 1.5fr 비율)
+ * ============================================================ */
+.admin-news-body-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+@media (min-width: 1024px) {
+  .admin-news-body-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    gap: 1rem;
+  }
+}
