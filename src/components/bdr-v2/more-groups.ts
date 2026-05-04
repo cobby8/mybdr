@@ -42,51 +42,28 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "내 활동",
     items: [
-      { id: "mygames", label: "내 신청 내역", icon: "📋", href: "/games/my-games" },
-      // [2026-04-29] guestApps 제거 — phase-9 1-A: guest_applications DB 미존재.
-      // 게임 상세 "게스트 모집중" 배지 활성 시에만 CTA 노출 정책. 추후 구현:
-      //   { id: "guestApps", label: "게스트 지원", icon: "🎟️", href: "/guest-apps" },
+      // [2026-05-04] 11건 정리 — 메인 페이지 하위 / BottomNav 중복 제거 (사용자 결정).
+      // 제거: mygames(/games/my-games games하위) / achievements(/profile/achievements) /
+      //       communityNew(/community/new community하위 — 글쓰기 버튼 있음)
+      // 각 페이지에서 직접 진입 (games my-games 탭 / profile activity / community 글쓰기 버튼).
       { id: "calendar", label: "내 일정", icon: "📅", href: "/calendar" },
       { id: "saved", label: "보관함", icon: "🔖", href: "/saved" },
       { id: "messages", label: "쪽지", icon: "💬", href: "/messages" },
-      // achievements: 실제 라우트 /profile/achievements 가 존재하므로 그쪽 우선
-      { id: "achievements", label: "업적·배지", icon: "🎖", href: "/profile/achievements" },
       { id: "stats", label: "스탯 분석", icon: "📈", href: "/stats" },
-      // P0-C: 글 작성 핵심 액션 — 커뮤니티 작성 페이지 직진입
-      { id: "communityNew", label: "글 작성", icon: "✍", href: "/community/new" },
     ],
   },
   {
     title: "경기·대회",
     items: [
+      // [2026-05-04] 제거: gameNew(/games/new games하위 — games + 만들기 버튼 있음)
       { id: "live", label: "라이브 중계", icon: "🔴", href: "/live" },
-      // P0-C: 경기 등록 핵심 액션 — 신규 경기 생성 페이지 직진입
-      { id: "gameNew", label: "경기 등록", icon: "➕", href: "/games/new" },
-      // [2026-04-29] gameResult / gameReport 제거 — phase-9 1-A: 가짜 링크.
-      // 두 항목 모두 /games/my-games 로 fallback 되는 placeholder. 종료된 경기 카드에
-      // "결과/평가" CTA 활성화 정책으로 전환. game_reports / game_player_ratings DB 신규
-      // 필요. 추후 구현:
-      //   { id: "gameResult", label: "경기 결과", icon: "📊", href: "/games/my-games" },
-      //   { id: "gameReport", label: "경기 신고·평가", icon: "🚩", href: "/games/my-games" },
       { id: "scrim", label: "스크림 매칭", icon: "🆚", href: "/scrim" },
-      // P0-B 제거: bracket / tournamentEnroll / guestApply
-      //   - 대진표/대회 접수: 토너먼트 선택 후 진입이 자연스러워 가짜 링크 제거
-      //   - 게스트 지원 신청: /games 상세에서 직접 진입 흐름이라 가짜 링크 제거
     ],
   },
-  {
-    title: "등록·예약",
-    items: [
-      { id: "courtBooking", label: "코트 예약", icon: "📍", href: "/courts" },
-      { id: "courtAdd", label: "코트 제보", icon: "📮", href: "/courts/submit" },
-      { id: "teamCreate", label: "팀 등록", icon: "➕", href: "/teams/new" },
-      // P1-A: 기존 `/teams`(전체 디렉토리) → 운영팀 선택 허브로 직접 진입.
-      // 0개=빈 상태 / 1개=자동 redirect / N개=선택 화면 분기.
-      { id: "teamManage", label: "팀 관리", icon: "⚙", href: "/teams/manage" },
-      // P0-B 제거: refereeRequest
-      //   심판 배정은 토너먼트 운영 영역에서 직접 처리되므로 가짜 링크 제거
-    ],
-  },
+  // [2026-05-04] "등록·예약" 그룹 전체 제거 — 4 항목 모두 메인 페이지 하위 또는 중복:
+  //   courtBooking(/courts BottomNav 코트) / courtAdd(/courts/submit courts하위) /
+  //   teamCreate(/teams/new teams하위 — 팀등록 버튼) / teamManage(/teams/manage teams하위)
+  // 각 페이지에서 직접 진입.
   {
     title: "둘러보기",
     items: [
@@ -107,15 +84,9 @@ export const MORE_GROUPS: MoreGroup[] = [
   {
     title: "계정·도움",
     items: [
-      // v2.4 마이페이지 통합 진입점 — 의뢰서 §3-7 진입점 2 (더보기 메뉴)
-      { id: "mypage", label: "마이페이지", icon: "🏠", href: "/profile" },
-      { id: "editProfile", label: "프로필 편집", icon: "✏", href: "/profile/edit" },
-      {
-        id: "notificationSettings",
-        label: "알림 설정",
-        icon: "🔔",
-        href: "/profile/notification-settings",
-      },
+      // [2026-05-04] 제거: mypage(/profile BottomNav 마이) / editProfile(/profile/edit profile하위) /
+      //                    notificationSettings(/profile/notification-settings profile하위)
+      // 마이페이지 (BottomNav) → 편집/알림설정 진입.
       { id: "safety", label: "안전·차단", icon: "🛡", href: "/safety" },
       { id: "passwordReset", label: "비밀번호 찾기", icon: "🔑", href: "/forgot-password" },
       { id: "onboardingV2", label: "가입 설정", icon: "🎯", href: "/onboarding/setup" },

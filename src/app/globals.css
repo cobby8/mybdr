@@ -1652,8 +1652,11 @@ html.dark .hero-carousel__accent {
     background: rgba(8,10,14,.55); backdrop-filter: blur(2px);
   }
   .drawer {
+    /* 2026-05-04: 좌우 폭 60vw 축소 — 사용자 보고 "여백 줄이기".
+       기존 85vw (440px viewport 시 374px) → 60vw (264px). 우측 여백 ~176px 노출. */
     position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
-    width: min(320px, 85vw);
+    width: min(320px, 60vw);
+    min-width: 260px;
     background: var(--bg-elev);
     border-left: 1px solid var(--border);
     box-shadow: -12px 0 40px rgba(0,0,0,.25);
@@ -1678,13 +1681,14 @@ html.dark .hero-carousel__accent {
   }
   .drawer__body { flex: 1; overflow: auto; padding: 8px 0; }
   .drawer__item {
-    /* 2026-05-04: 여백 압축 — padding 14→10 (사용자 보고 "여백 너무 많음").
-       min-height 44px 터치 타겟 유지. gap 8 = 라벨 ↔ NavBadge 간격. */
+    /* 2026-05-04: 여백 압축 (2차) — padding 10→8 + min-height 44 제거 (사용자 보고 "크게 변한게 없음").
+       1차 (10/44px) 는 min-height 가 padding 효과 무력화 → 시각 압축 0. min-height 제거 후
+       padding 8px 상하 + line-height 1.4 = row 약 30px (이전 ~52px 대비 -22px, ~42% 압축).
+       터치 타겟 가이드(44px) 미만이지만 햄버거 메뉴는 dense layout 허용 + 사용자 의도 우선. */
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 10px 16px; font-size: 15px; color: var(--ink);
+    padding: 8px 16px; font-size: 15px; line-height: 1.4; color: var(--ink);
     background: transparent; border: 0; width: 100%; text-align: left;
     cursor: pointer; font-weight: 600;
-    min-height: 44px;
   }
   .drawer__item:hover, .drawer__item:focus { background: var(--bg-alt); }
   .drawer__item[data-active="true"] {
@@ -2948,4 +2952,35 @@ html.dark {
   .data-table__row > span[data-primary="true"]::before {
     display: none !important;
   }
+}
+
+/* ────────────────────────────────────────────────────
+   Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 표시 클래스
+   이유: match_code 형식 `26-GG-MD21-001` 14자 영숫자 → 모바일 360px viewport 한 줄 안전.
+   가독성을 위해 mono 폰트 + tabular-nums + tracking-wide.
+   토큰만 (var(--*)) — 13룰 준수.
+   사용처: live/hero-scoreboard / bracket/match-card / tournaments/schedule-timeline 등
+   ──────────────────────────────────────────────────── */
+.match-code {
+  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 라이브 헤더용 — 어두운 그라디언트 배경에 대비 (모바일 11px 살짝 큼) */
+.match-code--hero {
+  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 3px 8px;
 }
