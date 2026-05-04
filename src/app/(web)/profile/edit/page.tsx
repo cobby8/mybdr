@@ -577,7 +577,10 @@ export default function ProfileEditPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "탈퇴 처리에 실패했습니다.");
-      router.push("/");
+      // 2026-05-05 fix: 탈퇴 후 router.push 만으로는 layout SSR (initialUser) 재실행 ❌
+      // → 헤더에 탈퇴 회원 정보 그대로 표시 (사용자 신고: "탈퇴했는데 로그인된 화면 유지").
+      // window.location.href = full page reload → 서버에서 삭제된 세션 쿠키 인지 + 헤더 SSR 재실행.
+      window.location.href = "/login?withdrawn=success";
     } catch (e) {
       setWithdrawError(e instanceof Error ? e.message : "오류가 발생했습니다.");
     } finally {

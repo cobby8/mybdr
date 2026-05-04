@@ -36,6 +36,43 @@ interface SerializedUser {
   last_login_at: string | null;
   createdAt: string;
   updatedAt: string;
+  // 2026-05-05: 관리자 모달 인라인 편집 강화 — 대회 출전 자격 필드
+  is_elite: boolean | null;
+  default_jersey_number: number | null;
+}
+
+// 2026-05-05: 관리자 유저 모달 lazy fetch 결과 — getUserDetailAction 응답 그대로
+interface UserDetail {
+  teams: Array<{
+    id: string;
+    name: string;
+    role: string | null;
+    position: string | null;
+    jerseyNumber: number | null;
+    isCaptain: boolean;
+    status: string | null;
+    joined_at: string | null;
+  }>;
+  tournaments: Array<{
+    tournamentId: string;
+    tournamentName: string;
+    teamName: string | null;
+    startDate: string | null;
+    status: string | null;
+    jerseyNumber: number | null;
+  }>;
+  activity: {
+    posts: number;
+    comments: number;
+    lastPostAt: string | null;
+    lastCommentAt: string | null;
+  };
+  subscription: {
+    membershipType: number;
+    status: string | null;
+    startedAt: string | null;
+    expiresAt: string | null;
+  };
 }
 
 // 역할별 .badge--soft inline color (default / info / warning / info)
@@ -187,6 +224,9 @@ interface Props {
   toggleUserAdminAction: (formData: FormData) => Promise<void>;
   forceWithdrawAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
+  // 2026-05-05: 관리자 모달 강화 — 상세 lazy fetch + 인라인 편집
+  getDetailAction: (userId: string) => Promise<UserDetail>;
+  updateProfileAction: (formData: FormData) => Promise<{ error?: string }>;
 }
 
 export function AdminUsersTable({
@@ -199,6 +239,8 @@ export function AdminUsersTable({
   toggleUserAdminAction,
   forceWithdrawAction,
   deleteAction,
+  getDetailAction,
+  updateProfileAction,
 }: Props) {
   const [selectedUser, setSelectedUser] = useState<SerializedUser | null>(null);
   const [tab, setTab] = useState<"info" | "edit">("info");
@@ -206,6 +248,33 @@ export function AdminUsersTable({
   const [pending, setPending] = useState(false);
   // 역할별 필터링 탭 상태
   const [activeRoleTab, setActiveRoleTab] = useState("all");
+
+  // 2026-05-05: 모달 lazy detail (팀/대회/활동/구독) — selectedUser 변경 시 fetch
+  const [detail, setDetail] = useState<UserDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedUser) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setDetailLoading(true);
+    setDetail(null);
+    getDetailAction(selectedUser.id)
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedUser, getDetailAction]);
 
   // 2026-05-04: 더보기 누적 로딩 — initialUsers 부터 시작해서 server action 으로 추가
   const [users, setUsers] = useState<SerializedUser[]>(initialUsers);
@@ -370,7 +439,86 @@ export function AdminUsersTable({
                       ["평가점수", u.evaluation_rating?.toFixed(1) ?? null],
                       ["주최 경기", String(u.total_games_hosted ?? 0)],
                       ["참여 경기", String(u.total_games_participated ?? 0)],
+                      // 2026-05-05: 대회 출전 자격 — 시안 §1 (1열 추가)
+                      ["선출 여부", u.is_elite ? "선출" : "비선출"],
+                      ["기본 등번호", u.default_jersey_number != null ? `#${u.default_jersey_number}` : null],
                     ]} />
+
+                    {/* 2026-05-05: Phase A — 소속 팀 (팀명 + 역할 + 포지션/등번호) */}
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                        소속 팀 {detail && `(${detail.teams.length})`}
+                      </p>
+                      {detailLoading ? (
+                        <p className="text-xs text-[var(--color-text-muted)] py-2">불러오는 중...</p>
+                      ) : !detail || detail.teams.length === 0 ? (
+                        <p className="text-xs text-[var(--color-text-muted)] py-2 px-3 rounded-[10px] border border-[var(--color-border)]">소속 팀 없음</p>
+                      ) : (
+                        <div className="rounded-[12px] border border-[var(--color-border)] overflow-hidden">
+                          {detail.teams.map((t, i) => (
+                            <div key={t.id} className={`flex items-center px-4 py-2 gap-2 ${i > 0 ? "border-t border-[var(--color-border-subtle)]" : ""}`}>
+                              <span className="flex-1 text-sm font-medium text-[var(--color-text-primary)] truncate">
+                                {t.isCaptain && <span className="mr-1" style={{ color: "var(--color-warning)" }}>★</span>}
+                                {t.name}
+                              </span>
+                              <span className="text-xs text-[var(--color-text-muted)] whitespace-nowrap">
+                                {[
+                                  t.isCaptain ? "팀장" : t.role === "manager" ? "매니저" : "멤버",
+                                  t.position,
+                                  t.jerseyNumber != null ? `#${t.jerseyNumber}` : null,
+                                ].filter(Boolean).join(" · ")}
+                              </span>
+                              {t.status !== "active" && (
+                                <span className="badge badge--soft text-[10px]">{t.status}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2026-05-05: Phase A — 토너먼트 참가 (최근 10건) */}
+                    <div>
+                      <p className="mb-1.5 text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">
+                        토너먼트 참가 {detail && `(${detail.tournaments.length})`}
+                      </p>
+                      {detailLoading ? (
+                        <p className="text-xs text-[var(--color-text-muted)] py-2">불러오는 중...</p>
+                      ) : !detail || detail.tournaments.length === 0 ? (
+                        <p className="text-xs text-[var(--color-text-muted)] py-2 px-3 rounded-[10px] border border-[var(--color-border)]">참가 이력 없음</p>
+                      ) : (
+                        <div className="rounded-[12px] border border-[var(--color-border)] overflow-hidden">
+                          {detail.tournaments.map((t, i) => (
+                            <div key={t.tournamentId + i} className={`flex items-center px-4 py-2 gap-2 ${i > 0 ? "border-t border-[var(--color-border-subtle)]" : ""}`}>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-[var(--color-text-primary)] truncate">{t.tournamentName}</p>
+                                <p className="text-xs text-[var(--color-text-muted)] truncate">
+                                  {[t.teamName, t.jerseyNumber != null ? `#${t.jerseyNumber}` : null, fmt(t.startDate)].filter(Boolean).join(" · ")}
+                                </p>
+                              </div>
+                              <span className="badge badge--soft text-[10px] whitespace-nowrap">{t.status ?? "-"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2026-05-05: Phase A — 활동 통계 (글/댓글) */}
+                    <InfoSection title="활동 통계" rows={[
+                      ["커뮤니티 글", detailLoading ? "..." : detail ? String(detail.activity.posts) : "-"],
+                      ["댓글", detailLoading ? "..." : detail ? String(detail.activity.comments) : "-"],
+                      ["마지막 글", detailLoading ? "..." : fmtFull(detail?.activity.lastPostAt ?? null)],
+                      ["마지막 댓글", detailLoading ? "..." : fmtFull(detail?.activity.lastCommentAt ?? null)],
+                    ]} />
+
+                    {/* 2026-05-05: Phase B 일부 — 구독/결제 (관리자 운영용) */}
+                    <InfoSection title="구독" rows={[
+                      ["회원 등급", String(detail?.subscription.membershipType ?? u.membershipType)],
+                      ["구독 상태", detail?.subscription.status ?? "-"],
+                      ["구독 시작", fmtFull(detail?.subscription.startedAt ?? null)],
+                      ["구독 만료", fmtFull(detail?.subscription.expiresAt ?? null)],
+                    ]} />
+
                     <InfoSection title="계정" rows={[
                       ["OAuth", u.provider ?? "이메일"],
                       ["가입일", fmtFull(u.createdAt)],
@@ -379,6 +527,26 @@ export function AdminUsersTable({
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {/* 2026-05-05: Phase 1 — 프로필 인라인 편집
+                        부적절한 닉네임 강제 변경 / 연락처 보정 / 대회 출전 자격 (is_elite) 직접 조정
+                        email 은 변경 불가 (unique + 인증 영향) */}
+                    <ProfileEditForm
+                      user={u}
+                      pending={pending}
+                      onSubmit={async (fd) => {
+                        setPending(true);
+                        fd.set("user_id", u.id);
+                        const r = await updateProfileAction(fd);
+                        setPending(false);
+                        if (r.error) {
+                          alert(`수정 실패: ${r.error}`);
+                          return;
+                        }
+                        // 성공 시 모달 닫기 — page.tsx revalidate 로 list 갱신
+                        closeModal();
+                      }}
+                    />
+
                     {/* 역할 변경 */}
                     <div className="rounded-[14px] border p-4" style={{ borderColor: "var(--color-border)" }}>
                       <p className="mb-2.5 text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>역할 변경</p>
@@ -500,6 +668,131 @@ function InfoSection({ title, rows }: { title: string; rows: [string, string | n
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// 2026-05-05: 관리자 프로필 인라인 편집 폼 (Step 2)
+//   왜: 부적절한 닉네임 강제 변경 / 연락처 보정 / 대회 출전 자격 직접 조정
+//   필드: nickname, name, phone, birth_date, city, district, position, height, weight,
+//        bio, is_elite, default_jersey_number (12개)
+//   미지원: email (unique + 인증 영향) / role / status / isAdmin (별도 액션)
+// ────────────────────────────────────────────────────────────────────────────────
+function ProfileEditForm({
+  user,
+  pending,
+  onSubmit,
+}: {
+  user: SerializedUser;
+  pending: boolean;
+  onSubmit: (formData: FormData) => Promise<void>;
+}) {
+  // birth_date YYYY-MM-DD 변환 (date input 호환)
+  const birthValue = user.birth_date ? user.birth_date.slice(0, 10) : "";
+
+  return (
+    <form
+      action={onSubmit}
+      className="rounded-[14px] border p-4 space-y-3"
+      style={{ borderColor: "var(--color-border)" }}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold" style={{ color: "var(--color-text-secondary)" }}>
+          프로필 편집
+        </p>
+        <span className="text-[10px] text-[var(--color-text-muted)]">이메일은 변경 불가</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <EditField label="닉네임" name="nickname" defaultValue={user.nickname ?? ""} />
+        <EditField label="이름" name="name" defaultValue={user.name ?? ""} />
+        <EditField label="연락처" name="phone" defaultValue={user.phone ?? ""} placeholder="01012345678" />
+        <EditField label="생년월일" name="birth_date" type="date" defaultValue={birthValue} />
+        <EditField label="도시" name="city" defaultValue={user.city ?? ""} placeholder="예: 서울" />
+        <EditField label="구/군" name="district" defaultValue={user.district ?? ""} placeholder="예: 강남구" />
+        <EditField label="포지션" name="position" defaultValue={user.position ?? ""} placeholder="PG/SG/SF/PF/C" />
+        <EditField label="기본 등번호" name="default_jersey_number" type="number" defaultValue={user.default_jersey_number != null ? String(user.default_jersey_number) : ""} placeholder="0~99" />
+        <EditField label="키 (cm)" name="height" type="number" defaultValue={user.height != null ? String(user.height) : ""} />
+        <EditField label="몸무게 (kg)" name="weight" type="number" defaultValue={user.weight != null ? String(user.weight) : ""} />
+      </div>
+
+      {/* 자기소개 — 전체 폭 textarea */}
+      <div>
+        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+          자기소개
+        </label>
+        <textarea
+          name="bio"
+          defaultValue={user.bio ?? ""}
+          rows={2}
+          className="w-full rounded-[10px] border px-3 py-2 text-sm outline-none resize-none"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+          }}
+        />
+      </div>
+
+      {/* 선출 여부 — 대회 출전 자격 */}
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          name="is_elite"
+          value="true"
+          defaultChecked={user.is_elite ?? false}
+          className="h-4 w-4"
+        />
+        <span className="text-sm text-[var(--color-text-primary)]">선출 (대회 출전 자격)</span>
+        <span className="text-[10px] text-[var(--color-text-muted)]">
+          체크 해제 시 일반부 대회 신청 가능
+        </span>
+      </label>
+
+      <div className="flex justify-end pt-1">
+        <button
+          type="submit"
+          disabled={pending}
+          className="btn btn--primary btn--sm disabled:opacity-50"
+        >
+          {pending ? "저장 중..." : "프로필 저장"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function EditField({
+  label,
+  name,
+  defaultValue,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  defaultValue: string;
+  type?: "text" | "number" | "date";
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+        {label}
+      </label>
+      <input
+        name={name}
+        type={type}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        className="w-full rounded-[10px] border px-2.5 py-1.5 text-sm outline-none"
+        style={{
+          borderColor: "var(--color-border)",
+          background: "var(--color-card)",
+          color: "var(--color-text-primary)",
+        }}
+      />
     </div>
   );
 }
