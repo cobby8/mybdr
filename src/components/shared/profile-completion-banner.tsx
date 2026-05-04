@@ -172,7 +172,9 @@ export function ProfileCompletionBanner(_props: ProfileCompletionBannerProps) {
   }, []);
 
   // 로딩 중 or 닫힘 상태면 일찍 리턴
-  if (!me || dismissed) return null;
+  // 2026-05-05 fix: 옵션 B 후속 — /api/web/me 비로그인 = 200 + {id: null}.
+  //   me.id 검증 추가 — 비로그인 사용자에게 배너 노출 차단.
+  if (!me || !me.id || dismissed) return null;
 
   // 단계 판정 — 완료면 배너 숨김
   const info = getCompletionStep(me);
