@@ -33,15 +33,14 @@ interface MeResponse {
   profile_completed?: boolean;
 }
 
-// 2026-05-05 fix: 비로그인 사용자는 /api/web/me 가 401 반환 → SWR 무한 재시도 폭주.
-//   콘솔 GET 401 30+ 반복 + 메인 스레드 부담 + 로그인 버튼 클릭 응답 지연.
-//   fix: 401 받으면 null 반환 (throw ❌) + retry/refocus 비활성.
-const fetchMeOrNull = async (url: string) => {
-  const res = await fetch(url, { credentials: "include" });
-  if (res.status === 401) return null; // 비로그인/탈퇴 → null (재시도 ❌)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-};
+// 2026-05-05 fix (옵션 A-4): 자체 fetcher 제거 → 글로벌 SWR fetcher 위임.
+//   본질 (planner 보고서 §2-2 (A)): 자체 fetcher 사용 시 SWR 가 캐시 entry 를 별도로
+//   인식 (cache key = url + serializeFetcher) → ProfileCompletionBanner / profile-widget
+//   (글로벌 fetcher 사용) 와 캐시 entry 분리 → me API 중복 호출 = 콘솔 401 ×2 의 진짜 원인.
+//   fix: 자체 fetcher (fetchMeOrNull) 제거 → useSWR 가 글로벌 fetcher (swr-provider.tsx)
+//        사용 → 다른 컴포넌트와 캐시 entry 통합 → me API 1회만 호출.
+//   글로벌 fetcher 가 이미 401→null + shouldRetryOnError:false + revalidateOnFocus:false 처리.
+//   본 컴포넌트의 추가 옵션 (dedupingInterval 30s) 만 유지 — 비로그인 무한 폭주 차단 유지.
 
 export function ProfileCtaCard() {
   // 2026-05-05 fix: hydration mismatch 차단 — React error #418 본질.
@@ -51,12 +50,11 @@ export function ProfileCtaCard() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // useSWR — ProfileCompletionBanner 와 동일 endpoint 캐시 공유 (dedupingInterval 30s)
-  const { data: me } = useSWR<MeResponse | null>("/api/web/me", fetchMeOrNull, {
+  // useSWR — 글로벌 fetcher 사용 (swr-provider.tsx 등록).
+  // ProfileCompletionBanner / profile-widget 와 동일 캐시 entry 공유 → me API 중복 호출 0.
+  // dedupingInterval 30s 만 본 컴포넌트에서 명시 (다른 컴포넌트도 동일 값 사용 → cache 통합).
+  const { data: me } = useSWR<MeResponse | null>("/api/web/me", {
     dedupingInterval: 30000,
-    shouldRetryOnError: false,   // 401/error 시 재시도 ❌ (비로그인 무한 폭주 차단)
-    revalidateOnFocus: false,    // 포커스 시 재시도 ❌
-    revalidateOnReconnect: false,// 네트워크 복귀 시 재시도 ❌
   });
 
   const [dismissed, setDismissed] = useState(false);
