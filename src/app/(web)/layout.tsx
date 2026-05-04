@@ -3,7 +3,13 @@
 //       운영 사용자 신고 — 로그아웃 화면 + 로그인 메뉴 잠깐 노출 (hydration 전).
 //   어떻게: layout 자체는 server 로 전환하고, getWebSession() 결과를 initialUser 로 client 자식에 prop 주입.
 //          기존 client 상태/폴링/이벤트 로직은 WebLayoutInner (client) 로 분리.
-import { getWebSession } from "@/lib/auth/web-session";
+//
+// 2026-05-05 fix (옵션 B-PR1): getAuthUser() 단일 헬퍼 위임.
+//   왜: 가드 5개소 분산 → 신규 가드 추가 시 같은 패턴 반복 + 누락 회귀 (errors.md 2026-05-05).
+//       탈퇴 회원 쿠키 잔존 시 매번 layout 가드에 의존 → 1회 진입으로 영구 제거 필요.
+//   어떻게: getAuthUser() = JWT verify + DB SELECT + status 분기 + 쿠키 자동 cleanup 단일 함수.
+//          React.cache 로 동일 요청 내 dedup → DB 부담 0 (4 layout 동시 호출해도 1회).
+import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { prisma } from "@/lib/db/prisma";
 import { WebLayoutInner } from "./_layout/web-layout-inner";
 import type { AppNavUser } from "@/components/bdr-v2/app-nav";
@@ -42,61 +48,46 @@ export const dynamic = "force-dynamic";
  * ============================================================ */
 
 // 2026-05-04 P4 fix: server component 진입점.
-//   - SSR 시점에 getWebSession() 으로 세션 read → 비로그인이면 initialUser=null,
-//     로그인 사용자면 DB 에서 nickname/role/is_referee 를 SELECT (한 번 — useEffect 첫 fetch 대체).
+//   - SSR 시점에 인증 정보 read → 비로그인이면 initialUser=null, 로그인 사용자면 DB nickname/role/is_referee 주입.
 //   - 결과를 client (WebLayoutInner) 에 prop 주입 → AppNav 가 첫 paint 부터 정확한 상태 표시.
-//   - 보안 속성 보존: cookies 는 getWebSession() 내부에서 httpOnly 쿠키 read (기존 그대로).
 //   - 기존 폴링/이벤트 (alert 30s / nav-badges 60s) 는 client 에 보존 (실시간성 필요).
+//
+// 2026-05-05 (옵션 B-PR1): getAuthUser() 단일 헬퍼 위임 — JWT verify + DB SELECT + status 분기
+//   + 쿠키 자동 cleanup. state==="active" 일 때만 initialUser 채움. 그 외는 null (비로그인 헤더).
 export default async function WebLayout({ children }: { children: React.ReactNode }) {
-  const session = await getWebSession();
+  // 단일 진입점으로 인증 정보 + 쿠키 cleanup (탈퇴/미존재 시 자동 cleanup).
+  // React.cache 로 4 layout 동시 호출해도 DB SELECT 1회.
+  const auth = await getAuthUser();
 
-  // 초기 user prop — 비로그인이면 null
+  // 초기 user prop — state==="active" 만 채움. 그 외 (anonymous / withdrawn / missing) 모두 null.
   let initialUser: AppNavUser | null = null;
-  if (session) {
-    // me route 와 동일한 select 룰: nickname (ground truth) / role / referee 매칭 여부
-    // 이유(왜): JWT name 은 발급 시점 박힘 → DB nickname 우선 (2026-04-30 회귀 픽스 동일).
-    // 어떻게: SELECT 만 (캐시·운영 영향 0). 비로그인 사용자는 0 쿼리 — DB 부담 0.
+  if (auth.state === "active" && auth.user && auth.session) {
+    // referee 매칭 여부는 별도 SELECT (getAuthUser 는 referee join 안 함 — 책임 분리).
+    // 비로그인 (anonymous) 케이스는 본 분기 자체 진입 X → DB 부담 0.
     try {
-      const userId = BigInt(session.sub);
-      const [user, referee] = await Promise.all([
-        prisma.user.findUnique({
-          where: { id: userId },
-          select: { nickname: true, status: true },
-        }),
-        prisma.referee.findFirst({
-          where: { user_id: userId },
-          select: { id: true },
-        }),
-      ]);
-      // 2026-05-05 fix: 탈퇴 회원 (status="withdrawn") 은 비로그인으로 처리.
-      //   왜: 사용자 신고 — 탈퇴 후 새로고침 시 헤더에 "탈퇴회원_3369" 익명화 닉네임 노출.
-      //   본질: layout SSR 가 status 검증 없이 nickname 그대로 사용 + 브라우저 쿠키 잔존 시
-      //         탈퇴 회원의 익명화 닉네임이 헤더에 표시.
-      //   fix: user.status === "withdrawn" 시 initialUser=null (비로그인 표시).
-      //   추가 보안: /profile/layout.tsx 의 가드도 status 검증 추가 (탈퇴 회원 → /login redirect).
-      if (user && user.status !== "withdrawn") {
-        // 2026-05-05 방어선 강화: nickname=null 시 이메일 prefix → "사용자" fallback.
-        //   사용자 신고: 모바일 헤더에 "사용자" 표시 (DB nickname=null 0건 검증됐지만
-        //   향후 OAuth 신규 가입 등에서 nickname 미설정 케이스 방어).
-        const fallbackName = session.email ? session.email.split("@")[0] : "사용자";
-        initialUser = {
-          name: user.nickname ?? session.name ?? fallbackName,
-          role: session.role ?? "user",
-          is_referee: !!referee,
-        };
-      }
-      // user 없거나 탈퇴 회원이면 initialUser 는 null 유지 (비로그인 헤더)
-    } catch {
-      // SSR DB 실패 시에도 헤더 렌더는 보장 — JWT session 만으로 폴백
-      // 2026-05-05 방어선 강화: session.name 도 null 시 이메일 prefix
-      const fallbackName = session.email ? session.email.split("@")[0] : "사용자";
+      const referee = await prisma.referee.findFirst({
+        where: { user_id: auth.user.id },
+        select: { id: true },
+      });
+      // 2026-05-05 방어선: nickname=null 시 이메일 prefix → "사용자" fallback (OAuth 신규 가입 케이스 등).
+      const fallbackName = auth.session.email ? auth.session.email.split("@")[0] : "사용자";
       initialUser = {
-        name: session.name ?? fallbackName,
-        role: session.role ?? "user",
+        name: auth.user.nickname ?? auth.session.name ?? fallbackName,
+        role: auth.session.role ?? "user",
+        is_referee: !!referee,
+      };
+    } catch {
+      // referee SELECT 실패 시에도 헤더 렌더 보장 — auth 정보로 폴백 (referee=false).
+      const fallbackName = auth.session.email ? auth.session.email.split("@")[0] : "사용자";
+      initialUser = {
+        name: auth.user.nickname ?? auth.session.name ?? fallbackName,
+        role: auth.session.role ?? "user",
         is_referee: false,
       };
     }
   }
+  // anonymous / withdrawn / missing → initialUser=null (비로그인 헤더).
+  // withdrawn / missing 은 getAuthUser 내부에서 cookies.delete 자동 호출 — 다음 진입부터 anonymous.
 
   return <WebLayoutInner initialUser={initialUser}>{children}</WebLayoutInner>;
 }
