@@ -139,15 +139,16 @@ export function TeamHeroV2({
                 겹치는 문제 발견 → 컨테이너에 `overflow-hidden` 추가 + 영문 폰트
                 모바일 사이즈를 clamp 로 가변(14px~22px)하여 박스 내부 여유 확보. */}
           <div
-            className="flex-shrink-0 grid place-items-center w-16 h-16 sm:w-24 sm:h-24 overflow-hidden"
+            className="flex-shrink-0 grid place-items-center w-24 h-24 sm:w-36 sm:h-36 overflow-hidden"
             style={{
               borderRadius: 12,
               background: "rgba(255,255,255,0.2)",
               color: ink,
               fontFamily: "var(--ff-display)",
               fontWeight: 900,
-              // 박스 폭에 맞춰 가변 (모바일 64px → 14~16px / sm+ 96px → 22px 도달)
-              fontSize: "clamp(14px, 4vw, 22px)",
+              // 2026-05-04 (사용자 요청): 박스 150% 확대 (64→96 모바일 / 96→144 PC).
+              // 폰트 사이즈도 비례 확장 (clamp 22→33).
+              fontSize: "clamp(22px, 6vw, 33px)",
               letterSpacing: "-0.02em",
               // 폭 초과 시 박스 안에서 잘림 (텍스트 자체가 박스 밖으로 나가지 않도록)
               padding: "0 4px",
