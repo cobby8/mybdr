@@ -2,6 +2,15 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-04] Prisma relation 명 camelCase ↔ schema `@@map` snake_case 분리 — 첫 시도 fail
+- **분류**: error/prisma (relation 명명 컨벤션 / 스크립트 작성 시 헷갈림)
+- **발견자**: developer (매치 코드 v4 Phase 3 backfill 작성 중)
+- **본질**: `prisma/schema.prisma` 의 `@@map("tournament_matches")` 가 DB 테이블명을 snake_case 로 매핑하지만, **prisma client field 명은 모델명 (`TournamentMatch`) 의 camelCase 복수형 (`tournamentMatches`)**. 첫 시도에서 `tournament.tournament_matches` 사용 시 "Unknown field" 에러 발생.
+- **fix**: `tournament.tournamentMatches` 로 정정 (camelCase). `include: { tournamentMatches: { orderBy: { match_number: "asc" } } }` 형태.
+- **재발 방지**: 임시 스크립트 작성 시 prisma client 명명 = camelCase relation 명 우선 확인. `prisma/schema.prisma` 의 `model` 블록에서 relation 필드명 직접 검색 (`Tournament.*Match` 등). schema `@@map` / `@map` 은 DB 컬럼/테이블명, TS field 와 별개.
+- **참조 발견**: 매치 코드 v4 Phase 3 backfill (commit bec591b)
+- **참조횟수**: 0
+
 ### [2026-05-04] 모바일 Hero 우측 actions 시각 invisible — CSS Grid item `min-width: auto` 함정 + 캐시 가설 우선 함정
 - **분류**: error/css (CSS Grid 레이아웃 + 진단 순서 함정)
 - **발견자**: pm + debugger (사용자 5차 fix 후에도 "헤더 우측 actions 안 보임" 반복 보고 → 6차 fix 끝에 본질 확정)

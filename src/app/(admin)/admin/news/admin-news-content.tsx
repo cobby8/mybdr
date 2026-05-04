@@ -60,6 +60,8 @@ export function AdminNewsContent({
 }: Props) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState<string | null>(posts[0]?.id ?? null);
+  // 2026-05-04: 모바일 미리보기 모달 토글 — 데스크톱 인라인은 항상 표시 (selectedId 기반)
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -112,30 +114,32 @@ export function AdminNewsContent({
   };
 
   return (
-    <div className="flex gap-4 p-4">
-      {/* 좌 sidebar — status 탭 (2026-05-04 (web) .aside__link 패턴 통일) */}
-      <aside className="w-48 shrink-0">
-        <Link href="/admin/news?status=draft" className="aside__link" data-active={currentStatus === "draft"}>
+    <div className="flex flex-col lg:grid lg:grid-cols-[200px_1fr_1.5fr] gap-4 p-4">
+      {/* 좌 sidebar — status 탭 (2026-05-04 (web) .aside__link 패턴 통일)
+          모바일: 가로 탭 (flex-row) / 데스크톱: 세로 list */}
+      <aside className="flex flex-row gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+        <Link href="/admin/news?status=draft" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "draft"}>
           <span>🟡 검수 대기</span>
           <span className="count">{counts.draft}</span>
         </Link>
-        <Link href="/admin/news?status=published" className="aside__link" data-active={currentStatus === "published"}>
+        <Link href="/admin/news?status=published" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "published"}>
           <span>✅ 발행됨</span>
           <span className="count">{counts.published}</span>
         </Link>
-        <Link href="/admin/news?status=rejected" className="aside__link" data-active={currentStatus === "rejected"}>
+        <Link href="/admin/news?status=rejected" className="aside__link shrink-0 lg:shrink" data-active={currentStatus === "rejected"}>
           <span>🚫 거절됨</span>
           <span className="count">{counts.rejected}</span>
         </Link>
       </aside>
 
-      {/* 우 main — 목록 + 미리보기 */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 목록 */}
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden">
-          <header className="border-b border-[var(--color-border)] p-3 text-sm font-medium">
-            {currentStatus === "draft" ? "검수 대기" : currentStatus === "published" ? "발행됨" : "거절됨"} ({posts.length}건)
-          </header>
+      {/* 목록 — 데스크톱 grid 중앙 컬럼 / 모바일 stack */}
+      <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden">
+        {/* 2026-05-04: sticky 헤더 z-index 명시 + 첫 카드 잘림 fix */}
+        <header
+          className="border-b border-[var(--color-border)] p-3 text-sm font-medium sticky top-0 z-10 bg-[var(--color-bg)]"
+        >
+          {currentStatus === "draft" ? "검수 대기" : currentStatus === "published" ? "발행됨" : "거절됨"} ({posts.length}건)
+        </header>
           <div className="max-h-[70vh] overflow-y-auto">
             {posts.length === 0 ? (
               <div className="p-8 text-center text-sm text-[var(--color-text-dim)]">
@@ -149,6 +153,8 @@ export function AdminNewsContent({
                     onClick={() => {
                       setSelectedId(p.id);
                       setEditing(false);
+                      // 2026-05-04: 모바일에서 클릭 시 미리보기 모달 자동 열림 (데스크톱은 인라인 그대로)
+                      setPreviewOpen(true);
                     }}
                     className={`cursor-pointer border-b border-[var(--color-border)] p-3 text-sm ${
                       selectedId === p.id
@@ -177,10 +183,28 @@ export function AdminNewsContent({
           </div>
         </section>
 
-        {/* 미리보기 */}
-        <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden">
-          <header className="border-b border-[var(--color-border)] p-3 text-sm font-medium flex justify-between items-center">
-            <span>미리보기</span>
+        {/* 미리보기 — 데스크톱 인라인 컬럼 / 모바일 fixed inset-0 모달 (previewOpen 토글)
+            2026-05-04: Phase 1+2 레이아웃 — 모바일에서 list 클릭 시 모달 진입 */}
+        <section
+          className={`
+            rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] overflow-hidden flex flex-col
+            ${previewOpen
+              ? "fixed inset-0 z-50 lg:relative lg:inset-auto lg:z-auto rounded-none lg:rounded-lg"
+              : "hidden lg:flex"}
+          `}
+        >
+          <header className="border-b border-[var(--color-border)] p-3 text-sm font-medium flex justify-between items-center shrink-0">
+            <span className="flex items-center gap-2">
+              {/* 모바일 뒤로가기 버튼 — previewOpen 닫기 */}
+              <button
+                onClick={() => setPreviewOpen(false)}
+                aria-label="목록으로"
+                className="lg:hidden flex h-7 w-7 items-center justify-center rounded hover:bg-[var(--color-bg-hover)]"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>arrow_back</span>
+              </button>
+              미리보기
+            </span>
             {selected && !editing && (
               <button
                 onClick={() => handleEditStart(selected)}
@@ -191,7 +215,7 @@ export function AdminNewsContent({
             )}
           </header>
           {selected ? (
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-3 overflow-y-auto flex-1">
               {editing ? (
                 <>
                   <input
@@ -312,7 +336,6 @@ export function AdminNewsContent({
             </div>
           )}
         </section>
-      </main>
     </div>
   );
 }
