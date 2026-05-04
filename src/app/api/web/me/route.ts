@@ -65,14 +65,15 @@ export async function GET() {
     getAssociationAdmin().catch(() => null),
   ]);
 
-  // 2026-05-05 fix: 탈퇴 회원 응답 차단 — JWT 살아있어도 status="withdrawn" 시 401 반환.
-  //   본질: 탈퇴 후 브라우저 쿠키 잔존 → SWR fetch 가 user 정보 노출 위험.
-  //   fix: 탈퇴 회원이면 401 응답으로 SWR 클라이언트가 비로그인 처리.
+  // 2026-05-05 fix (옵션 A-3): 탈퇴 회원 응답 401 → 200 + {id:null} 통일.
+  //   본질: 콘솔 401 노이즈 (사용자 신고) — 탈퇴 회원 쿠키 잔존 시 me 가 401 반환 → 화면 정상이지만 콘솔 GET 표기.
+  //   이전 fix (7437d27) 의도 = SWR 클라이언트 비로그인 처리. 그러나 글로벌 fetcher (2284212) 가 401→null
+  //   처리하므로 데이터 노출 위험 0. 401 vs 200+null 의 차이는 콘솔 노출 + SWR 분기 부담만.
+  //   fix: 200 + { id: null, state: "withdrawn" } 단일 응답 — 비로그인 (200+{id:null}) 와 동일 path.
+  //   호환성: 클라이언트 7개 호출처 모두 `if (u && u.id)` 검증 패턴 → id=null 이면 비로그인 처리. 회귀 0.
+  //   추가 보안: getAuthUser() (별도 commit) 가 cookies.delete 로 잘못된 쿠키 자동 cleanup.
   if (user && user.status === "withdrawn") {
-    return new Response(JSON.stringify({ error: "탈퇴한 계정입니다." }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return apiSuccess({ id: null, state: "withdrawn" });
   }
 
   // 관리자인 경우, 현재 role이 속한 모든 permission 키를 추출
