@@ -8,6 +8,12 @@ import { prisma } from "@/lib/db/prisma";
 import { WebLayoutInner } from "./_layout/web-layout-inner";
 import type { AppNavUser } from "@/components/bdr-v2/app-nav";
 
+// 2026-05-05 fix: force-dynamic — 로그인 직후 헤더 SSR 가 세션 미인지 (캐시) 문제 해결.
+//   본질: cookies() 사용 시 자동 dynamic 인식되지만 일부 케이스 (revalidatePath 후 SSR) 에서
+//         캐시된 비로그인 결과 표시. 사용자 신고 — "가입완료 후 로그인했는데 비로그인 화면".
+//   fix: 명시적 force-dynamic 으로 layout SSR 매 요청마다 재실행 + 최신 쿠키 인지 보장.
+export const dynamic = "force-dynamic";
+
 /* ============================================================
  * WebLayout (BDR v2 전환 후 전면 단순화)
  *
