@@ -13,6 +13,12 @@ import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
 // 대진 포맷 세부 설정 폼 — format 선택 UI 아래에 삽입
 import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
+// 2026-05-04 (P3) — 듀얼 토너먼트 표준 default 자동 적용 + 페어링 모드 type
+import {
+  DUAL_DEFAULT_BRACKET,
+  DUAL_DEFAULT_PAIRING,
+  type SemifinalPairingMode,
+} from "@/lib/tournaments/dual-defaults";
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
 
@@ -164,6 +170,8 @@ export default function TournamentEditWizardPage() {
     teamsPerGroup: 4,
     advancePerGroup: 2,
     autoGenerateMatches: true,
+    // 2026-05-04 (P3) — 듀얼 표준 default
+    semifinalPairing: DUAL_DEFAULT_PAIRING,
   });
 
   // 현재 참가팀 수 (미리보기/조별 팀수 계산용)
@@ -269,6 +277,14 @@ export default function TournamentEditWizardPage() {
       // settings.bracket이 없으면 format 기반 기본값으로 초기화
       const bracket = (settings.bracket ?? {}) as Record<string, unknown>;
       const loadedFormat = LEGACY_FORMAT_MAP[dbFormat] ?? dbFormat;
+      // 2026-05-04 (P3) — semifinalPairing 복원 (DB 저장값 우선 / 미존재 시 표준 default)
+      // 5/2 운영 대회 (138b22d8) 는 settings.bracket.semifinalPairing="adjacent" 가 박혀 있어야 영향 0
+      const loadedPairing: SemifinalPairingMode =
+        bracket.semifinalPairing === "adjacent"
+          ? "adjacent"
+          : bracket.semifinalPairing === "sequential"
+            ? "sequential"
+            : DUAL_DEFAULT_PAIRING;
       setBracketSettings({
         format: loadedFormat,
         knockoutSize: typeof bracket.knockoutSize === "number" ? bracket.knockoutSize : 8,
@@ -277,6 +293,8 @@ export default function TournamentEditWizardPage() {
         teamsPerGroup: typeof bracket.teamsPerGroup === "number" ? bracket.teamsPerGroup : 4,
         advancePerGroup: typeof bracket.advancePerGroup === "number" ? bracket.advancePerGroup : 2,
         autoGenerateMatches: typeof bracket.autoGenerateMatches === "boolean" ? bracket.autoGenerateMatches : true,
+        hasGroupFinal: typeof bracket.hasGroupFinal === "boolean" ? bracket.hasGroupFinal : undefined,
+        semifinalPairing: loadedPairing,
       });
 
       // 현재 참가팀 수 — _count.tournamentTeams 우선, 없으면 teams_count, 그것도 없으면 maxTeams
@@ -298,8 +316,27 @@ export default function TournamentEditWizardPage() {
   }, [loadTournament]);
 
   // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약/분기용)
+  // 2026-05-04 (P3) — dual_tournament 로 변경 시 표준 default 자동 적용
+  //   기존 dual 대회는 loadTournament 가 settings.bracket 복원 (semifinalPairing 보존)
+  //   사용자가 다른 포맷에서 dual 로 전환 시 표준값 자동 채움 (전환 직후 저장 시 표준 적용)
   useEffect(() => {
-    setBracketSettings((prev) => (prev.format === format ? prev : { ...prev, format }));
+    setBracketSettings((prev) => {
+      if (prev.format === format) return prev;
+      if (format === "dual_tournament") {
+        return {
+          ...prev,
+          format,
+          groupCount: DUAL_DEFAULT_BRACKET.groupCount,
+          teamsPerGroup: DUAL_DEFAULT_BRACKET.teamsPerGroup,
+          advancePerGroup: DUAL_DEFAULT_BRACKET.advancePerGroup,
+          knockoutSize: DUAL_DEFAULT_BRACKET.knockoutSize,
+          bronzeMatch: DUAL_DEFAULT_BRACKET.bronzeMatch,
+          hasGroupFinal: DUAL_DEFAULT_BRACKET.hasGroupFinal,
+          semifinalPairing: prev.semifinalPairing ?? DUAL_DEFAULT_PAIRING,
+        };
+      }
+      return { ...prev, format };
+    });
   }, [format]);
 
   // 다음 단계 이동 — Step 0에서 대회명 필수 검증
@@ -382,12 +419,17 @@ export default function TournamentEditWizardPage() {
           settings: {
             ...rawSettings,
             contact_phone: contactPhone || null,
+            // 2026-05-04 (P3) — dual 표준 default: semifinalPairing/hasGroupFinal/teamsPerGroup 추가
+            //   bracket route 의 generateDualTournament 가 settings.bracket.semifinalPairing 참조
             bracket: {
               knockoutSize: bracketSettings.knockoutSize,
               bronzeMatch: bracketSettings.bronzeMatch,
               groupCount: bracketSettings.groupCount,
+              teamsPerGroup: bracketSettings.teamsPerGroup,
               advancePerGroup: bracketSettings.advancePerGroup,
               autoGenerateMatches: bracketSettings.autoGenerateMatches,
+              hasGroupFinal: bracketSettings.hasGroupFinal,
+              semifinalPairing: bracketSettings.semifinalPairing,
             },
           },
         }),

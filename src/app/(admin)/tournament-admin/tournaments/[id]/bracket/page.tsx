@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+// 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
+import { DualGroupAssignmentEditor } from "./_components/dual-group-assignment-editor";
+import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
 
 const MAX_FREE_VERSIONS = 3;
 
@@ -58,6 +61,16 @@ type BracketData = {
   approvedTeams: ApprovedTeam[];
   /** 풀리그/토너먼트 UI 분기용 — API 가 함께 내려줌 */
   format: string | null;
+  // 2026-05-04 (P4) — settings.bracket (dual 조 배정 + 페어링 모드 복원용)
+  // apiSuccess() 자동 변환으로 settings 안 키는 snake_case 가능 — 옵셔널로 안전 분기
+  settings?: {
+    bracket?: {
+      groupAssignment?: Record<string, Array<string | number>>;
+      group_assignment?: Record<string, Array<string | number>>;
+      semifinalPairing?: SemifinalPairingMode;
+      semifinal_pairing?: SemifinalPairingMode;
+    } | null;
+  } | null;
 };
 
 // 풀리그 계열 포맷 판별 — UI 분기용
@@ -378,6 +391,30 @@ export default function BracketAdminPage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* 2026-05-04 (P4) — dual_tournament + 매치 0건 → 조 배정 에디터 표시
+          매치 생성된 5/2 영향 0 (hasMatches 가 true 면 진입 X) */}
+      {!hasMatches && isDual && (data?.approvedTeams.length ?? 0) === 16 && (
+        <DualGroupAssignmentEditor
+          tournamentId={id}
+          approvedTeams={data?.approvedTeams ?? []}
+          // settings.bracket 의 groupAssignment 복원 — apiSuccess snake_case 변환 양쪽 폴백
+          initialAssignment={
+            (data?.settings?.bracket?.groupAssignment ??
+              data?.settings?.bracket?.group_assignment) as
+              | Record<"A" | "B" | "C" | "D", string[]>
+              | undefined
+          }
+          initialPairing={
+            data?.settings?.bracket?.semifinalPairing ??
+            data?.settings?.bracket?.semifinal_pairing
+          }
+          onGenerate={() => generate(false)}
+          onSaved={() => load()}
+          generating={generating}
+          canGenerate={canGenerate}
+        />
       )}
 
       {/* Phase D: dual_tournament 일 때 5섹션 그룹핑 UI 우선 표시 */}

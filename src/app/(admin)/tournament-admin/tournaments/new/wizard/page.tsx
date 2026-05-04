@@ -14,6 +14,8 @@ import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
 // 대진 포맷 세부 설정 폼 — format 선택 UI 아래에 삽입
 import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
+// 2026-05-04 (P3) — 듀얼 토너먼트 표준 default 자동 적용 (format 변경 시 dual 선택 → DUAL_DEFAULT_BRACKET)
+import { DUAL_DEFAULT_BRACKET, DUAL_DEFAULT_PAIRING } from "@/lib/tournaments/dual-defaults";
 // GameMethodInput 제거 — 대회 방식은 FORMAT_OPTIONS 4종으로 통합
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
@@ -137,11 +139,33 @@ export default function NewTournamentWizardPage() {
     teamsPerGroup: 4,
     advancePerGroup: 2,
     autoGenerateMatches: true,
+    // 2026-05-04 (P3) — 듀얼 표준 default (다른 포맷에서도 무해 — wizard payload 시 dual 일 때만 사용)
+    semifinalPairing: DUAL_DEFAULT_PAIRING,
   });
 
   // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약 표시 + 분기용)
+  // 2026-05-04 (P3) — dual_tournament 선택 시 표준 default 자동 적용
+  //   - groupCount/teamsPerGroup/advancePerGroup/knockoutSize/bronzeMatch/semifinalPairing 일괄
+  //   - 운영자가 페어링 모드만 select 로 변경 가능 (BracketSettingsForm 의 select)
   useEffect(() => {
-    setBracketSettings((prev) => ({ ...prev, format }));
+    setBracketSettings((prev) => {
+      if (format === "dual_tournament") {
+        // 듀얼 선택 → 16팀 4조 27매치 표준 자동 채우기
+        // 단 semifinalPairing 은 사용자가 이전에 선택했을 수 있으므로 기존값 보존
+        return {
+          ...prev,
+          format,
+          groupCount: DUAL_DEFAULT_BRACKET.groupCount,
+          teamsPerGroup: DUAL_DEFAULT_BRACKET.teamsPerGroup,
+          advancePerGroup: DUAL_DEFAULT_BRACKET.advancePerGroup,
+          knockoutSize: DUAL_DEFAULT_BRACKET.knockoutSize,
+          bronzeMatch: DUAL_DEFAULT_BRACKET.bronzeMatch,
+          hasGroupFinal: DUAL_DEFAULT_BRACKET.hasGroupFinal,
+          semifinalPairing: prev.semifinalPairing ?? DUAL_DEFAULT_PAIRING,
+        };
+      }
+      return { ...prev, format };
+    });
   }, [format]);
 
   // --- Step 3에서 사용하는 state (디자인) ---
@@ -340,13 +364,18 @@ export default function NewTournamentWizardPage() {
           subdomain: subdomain || undefined,
           // 대진 포맷 세부 설정 — settings.bracket에 저장
           // (API의 PATCH 로직은 기존 settings와 머지. 신규 POST는 아래 값이 바로 settings에 들어감)
+          // 2026-05-04 (P3): dual 표준 default — semifinalPairing/hasGroupFinal/teamsPerGroup 추가 전달
+          //   bracket route 의 generateDualTournament 호출 시 settings.bracket.semifinalPairing 참조
           settings: {
             bracket: {
               knockoutSize: bracketSettings.knockoutSize,
               bronzeMatch: bracketSettings.bronzeMatch,
               groupCount: bracketSettings.groupCount,
+              teamsPerGroup: bracketSettings.teamsPerGroup,
               advancePerGroup: bracketSettings.advancePerGroup,
               autoGenerateMatches: bracketSettings.autoGenerateMatches,
+              hasGroupFinal: bracketSettings.hasGroupFinal,
+              semifinalPairing: bracketSettings.semifinalPairing,
             },
           },
         }),
