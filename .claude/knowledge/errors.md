@@ -2,6 +2,23 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-05] layout 가드 status 검증 누락 — 탈퇴 회원 쿠키 잔존 시 /login 진입 차단
+- **분류**: error/auth (회귀 패턴 — layout 가드 status 검증 누락)
+- **발견자**: pm + 사용자 ("로그인 버튼 작동 안 해, 쿠키 삭제 후 정상")
+- **본질**: `(web)/login/layout.tsx` 의 가드가 JWT 만 검증 (`if (session) redirect("/")`). 탈퇴 회원의 JWT 쿠키가 7일 만료 전까지 살아있으면 /login 진입 시 즉시 / 로 redirect → 사용자가 다른 계정 로그인 시도 자체 불가능. (web)/layout.tsx 는 status 검증 추가했지만 (web)/login/layout.tsx 는 누락 = 회귀.
+- **진단 함정 (3차 fix 까지 헛수고 한 흐름)**:
+  1. ❌ /api/web/me 옵션 B (200+null) — 다른 이슈 fix 였음
+  2. ❌ swr-provider 401 → null fetcher — 다른 이슈 fix
+  3. ❌ web-layout-inner 의 `if (u && u.id)` — 다른 이슈 fix
+  4. ✅ **사용자가 쿠키 삭제 후 정상 = 쿠키 잔존이 원인** 확정 후 login layout 가드 발견
+- **fix**: login layout 에 DB user.status 검증 추가. 정상 회원만 / 로 redirect, 탈퇴/미존재 = login 노출 (다른 계정 로그인 시 쿠키 덮어씀).
+- **회귀 방지 룰**:
+  - **인증 가드 추가/수정 시 모든 layout 일괄 점검** — (web)/layout / login/layout / signup/layout / profile/layout / api/web/me 5개소 일관성 검증
+  - **JWT 살아있음 ≠ 사용자 정상** — DB user.status === "active" 별도 검증 필수 (탈퇴 회원 쿠키 7일 잔존 케이스)
+  - **사용자 신고 "쿠키 삭제하면 정상"** = 쿠키 잔존 + 가드 누락 1순위 의심
+- **참조 fix**: commit fa5bd90
+- **참조횟수**: 0
+
 ### [2026-05-04] Prisma relation 명 camelCase ↔ schema `@@map` snake_case 분리 — 첫 시도 fail
 - **분류**: error/prisma (relation 명명 컨벤션 / 스크립트 작성 시 헷갈림)
 - **발견자**: developer (매치 코드 v4 Phase 3 backfill 작성 중)

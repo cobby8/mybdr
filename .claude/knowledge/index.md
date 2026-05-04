@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-05 (5/5 admin/users 권한 12→3필드 PIPA + 선수 배번 정책 role 분기 + onboarding 10단계 설계 옵션 B 합의 + 토너먼트 트리 시간 표시 + 5/2 매치 매핑 fix DB 12건 + admin/users 무한스크롤 + 모달 4섹션) | 이전: 2026-05-04 (5/4 UI 통합 세션)
+> 최종 갱신: 2026-05-05 (5/5 /login layout status 가드 누락 회귀 fix + 열혈 SEASON2 PDF 비교 + 이도균 가입 검증 / 이전: admin/users 권한 12→3필드 PIPA + 선수 배번 정책 + onboarding 10단계 옵션 B)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -7,13 +7,14 @@
 | architecture.md | 47 | 2026-05-04 | 페이지 구조, 대회/대진표, 팀명 2필드, Referee 시스템, Flutter API 호환, L3 다음 단위, 코트 대관 시스템 설계(2026-04-25), Phase 10-1 경기 평가/신고 시스템(2026-04-27), BDR v2 Hero 카로셀 + 글로벌 헤더 단일화 + 모바일 가드(2026-04-29), Dev/design/ 단일 폴더 룰 + BDR-current 동기화(2026-05-01), Phase 13 마이페이지 hub 박제(2026-05-01), D-6 EditProfile Hybrid 박제(2026-05-01), ProfileShell 폐기(2026-05-01), D-3 ProfileWeeklyReport Hybrid 박제(2026-05-01), Q1 Reviews + ContextReviews 박제(2026-05-01), 듀얼토너먼트 풀 시스템 설계(2026-05-02), STL (Single Truth Layer) Phase 1(2026-05-02), minutes-engine v3 — 출전시간 계산 엔진 메인 path 4단계 (2026-05-03), 알기자 Phase 1 DB 영구 저장 마이그(2026-05-04) |
 | conventions.md | 39 | 2026-05-05 | 디자인/색상/경기집계/sticky/프린트CSS/공식 기록 가드/에이전트 호출 기준/스크립트 템플릿 재사용/세션 분리 원칙/Tailwind v4 color-mix(04-22)/any 예외 규칙(04-22)/모바일 최적화 체크리스트 10항목(04-29) / 팀 로고 업로드 정규화(05-02) / placeholder ↔ real user 통합(05-03) / minutes-engine 가드 범위(05-03) / community_posts status 필터 의무(05-04) / 알기자 LinkifyNewsBody 의무(05-04) / prisma db execute 직접 SQL 우회(05-04) / 듀얼 토너먼트 sequential default + bracket-builder useNextMatchId(05-04) / **관리자 강제 변경 액션 패턴 = 사유 필수 + admin_logs warning + 권한 최소 (12→3필드 PIPA 본인정정권)(05-05) / role 별 배번 정책 = player 필수 / coach·captain 선택 (대회 신청 분기)(05-05 첫 항목)** |
 | decisions.md | 103 | 2026-05-05 | 기술 결정 (이전 100건) + **첫 로그인 onboarding 10단계 옵션 B 합의 — User.preferred_game_types Json 키 6종 (street-ball/pickup/guest/practice/regular/tournament) / 분기 룰 길농만 → 3,4 선택 / DB schema 변경 0 / PR1~5 분해 (05-05) / admin/users 관리자 권한 12→3필드 축소 — PIPA 본인정정권 / nickname·bio·is_elite 만 / 사유 5자 이상 필수 (05-05) / 선수 배번 필수 정책 — role 분기 / player 필수 / coach·captain 선택 / join API + admin players API + admin/users 모달 분기 (05-05 첫 항목)** |
-| errors.md | 33 | 2026-05-04 | 에러 패턴 (이전 그대로) |
+| errors.md | 34 | 2026-05-05 | 에러 패턴 (이전 33건) + **layout 가드 status 검증 누락 — 탈퇴 회원 쿠키 잔존 시 /login 진입 차단 (회귀 패턴 — login layout 누락) (05-05)** |
 | lessons.md | 38 | 2026-05-05 | 교훈 (이전 35건) + **다중 동시 commit 묶임 함정 — PM 작업이 사용자/다른 세션 commit 에 흡수 (auth fix 안에 admin/users feature 묶임 2회 발생) (05-05) / settings JSON 안 키는 Prisma schema select 불가 (homeSlotLabel/awaySlotLabel 함정) (05-05) / 작업 영향 범위 점검 후 옵션 분리 — 56파일 영향 작업 즉시 진행 X / B 먼저 + A 별도 PR (05-05 첫 항목)** |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
 | ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 |
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-05] errors: **layout 가드 status 검증 누락 — 탈퇴 회원 쿠키 잔존 시 /login 진입 차단** — `(web)/login/layout.tsx` 의 `if (session) redirect("/")` 가 JWT 만 검증 → 탈퇴 회원 쿠키 7일 잔존 시 /login 진입 즉시 / 로 보내져 시도 자체 불가. (web)/layout.tsx status 검증 추가했지만 login/layout 누락 = 회귀 패턴. fix: DB user.status 검증 추가. 회귀 방지 룰: 인증 가드 5개소 일괄 점검 + JWT 살아있음 ≠ 사용자 정상. commit `fa5bd90`
 - [05-05] decisions: **첫 로그인 onboarding 10단계 — 옵션 B 합의 (선호값 6종, DB 영향 0)** — 1 본인인증 / 2 활동환경 (17시도+게임유형 6종) / 3 출전정보 / 4 팀 / 5 사진 / 6 자기소개+SNS / 7 스타일 / 8 테마/표시 / 9 맞춤보기 (settings/feed PreferenceForm 흡수) / 10 알림. 6종 = `street-ball`/`pickup`/`guest`/`practice`/`regular`/`tournament`. 분기 룰 = `selected===["street-ball"]` 단독 → 3,4 선택 / 그 외 → 필수. PR1~5 분해 (~5.5d). game.game_type DB 마이그레이션 (옵션 A) 보류. 본 turn 합의만, 코드 변경 0
 - [05-05] decisions: **admin/users 관리자 권한 12→3필드 축소 — PIPA 본인정정권** — 5/5 사용자 결정. 변경 가능 = nickname (부적절 신고) / bio (부적절 소개) / is_elite (대회 자격). 회수 9필드 = name/phone/birth_date(신원)/city/district(거주지)/height/weight(신체)/position/default_jersey_number(본인 선호). 사유 5자 이상 필수 + admin_logs warning + 자동 닉네임 초기화 버튼. commit `06d1376` + `8c95565` (auth fix 묶임)
 - [05-05] decisions: **선수 배번 필수 정책 — role 분기** — `player` (default) → 배번 필수 (대회 신청 차단) / `coach`·`captain` → 선택. 차단 위치 (web): join API + admin players API. Flutter v1 = 변경 0 (zod 이미 required). admin/users 모달 = role 분기 표시 (player+누락 빨간 ⚠ / coach+누락 회색 —). commit `ef7e78e`
