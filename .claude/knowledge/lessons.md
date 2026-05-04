@@ -2,6 +2,43 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-05] 다중 동시 commit 묶임 함정 — PM 작업이 사용자/다른 세션 commit 에 흡수
+- **분류**: lesson/git-workflow (병렬 작업 / commit 격리)
+- **발견자**: pm (admin/users Step 1+2 작업 중 2회 발생)
+- **현상**: PM 이 코드 수정 후 `git add` + `git commit` 시도 → "Changes not staged" 에러 + 직전 사용자(또는 다른 세션) commit (`06d1376` "fix(auth)" / `8c95565` "fix(auth)") 안에 PM 변경 5~6 파일이 모두 묶여서 들어감. PM 작업과 사용자 작업이 한 commit 메시지 아래 섞임.
+- **확인 방법**: `git show --stat <commit>` 으로 파일 리스트 확인 → PM 변경 파일이 사용자 commit에 포함되어 있음을 발견
+- **영향**: 변경은 보존됨 (origin push 도 성공) but commit 메시지가 부정확 ("fix(auth)" 안에 admin/users feature 가 묶임). git history 가독성 저하.
+- **추정 원인**: 사용자가 다른 터미널/세션에서 동시 작업 + 어떤 hook 이 모든 변경을 자동 stage 후 commit (또는 `git commit -a` 류). PM 의 staged 변경이 `git status` 시점에 다른 commit 에 흡수.
+- **재발 방지**:
+  - PM 작업 시작 전 `git status` 로 untracked / modified 점검
+  - tsc 검증 → 즉시 `git add` + `git commit` (시간 간격 최소화)
+  - 큰 작업 (~5분 이상) 은 중간에 `git stash` 로 격리 후 작업
+  - 사용자에게 "동시 작업 중인지" 확인 (특히 fix 류 commit 시)
+- **사후 처리**: 변경 파일 모두 보존 + dev/main 머지 시 commit 메시지에 묶인 작업 명시 ("auth fix + admin/users 강화")
+
+### [2026-05-05] settings JSON 안의 키는 Prisma schema select 불가 — relation 매핑 함정
+- **분류**: lesson/prisma (schema 직접 매핑 vs JSON 컬럼)
+- **발견자**: pm (DB UPDATE 5/2 동호회최강전 4강 슬롯 라벨 수정 작업 중)
+- **현상**: `home_slot_label` / `away_slot_label` 같은 슬롯 라벨이 `tournamentMatch.findMany({ select: { home_slot_label: true } })` 에서 `Unknown field` 에러. schema 에 직접 매핑된 컬럼 아니라 `settings` Json 컬럼 안의 `homeSlotLabel` / `awaySlotLabel` 키.
+- **확인**: `bracket-builder.ts` 에서 `const homeSlotLabel = settings?.homeSlotLabel ?? null` 로 settings 파싱
+- **재발 방지**:
+  - schema 매핑 필드 vs settings JSON 키 사전 구분
+  - 신규 필드 추가 시 — 자주 query 한다면 schema 컬럼 / 가끔 / 변동성 있다면 settings JSON
+  - 검증: `prisma.X.findFirst({})` 한 번 raw 출력으로 필드 형태 확인
+  - JSON 키 update 시 = 기존 settings 객체 머지 후 update (덮어쓰기 X) — `merge(existing, patch)` 헬퍼 패턴
+
+### [2026-05-05] 작업 영향 범위 점검 후 옵션 분리 — 56파일 영향 작업은 즉시 진행 X
+- **분류**: lesson/scope-management (작업 분해 / 운영 위험 통제)
+- **발견자**: pm (onboarding 6종 게임 유형 도입 시 game.game_type 마이그레이션 vs 선호값만 분리 결정)
+- **현상**: 사용자 요청 "총 6가지 유형으로 재구성"의 두 가지 해석 — (A) game.game_type 0~2 → 0~5 마이그레이션 (56 파일 + DB 영향) vs (B) User.preferred_game_types Json 키만 6종 (3~4 파일, 영향 0)
+- **함정**: 사용자가 "재구성"이라고 하면 무의식적으로 전체 시스템 재설계로 해석 → 큰 마이그레이션 시도 → 운영 위험 + 작업 폭발
+- **본질**: 영향 범위를 grep 으로 사전 정량화 (파일 수 + DB 영향 + 운영 데이터 변경 필요 여부) → 옵션 보고 → 사용자가 진짜 의도 선택
+- **재발 방지**:
+  - 모든 "재구성" / "확장" / "통합" 요청 = 영향 범위 grep 카운트 사전 보고 의무
+  - 옵션 분기 = 최소 영향 (B) vs 전체 영향 (A) 둘 다 제시
+  - PR 분해 추천 = B 먼저 + A 별도 PR (운영 위험 분산)
+  - 사용자 결정 후 진행 (auto mode 라도 영향 큰 작업은 사용자 동기화)
+
 ### [2026-05-04] 도메인 sub-agent system prompt 주입 효과 marginal — planner 사전 분석이 진짜 본질
 - **분류**: lesson/agent-system (메타 / 에이전트 세분화 ROI / KPI 측정 함정)
 - **발견자**: planner-architect + pm (P3 Go/No-Go 결정 KPI 6건 누적 분석)
