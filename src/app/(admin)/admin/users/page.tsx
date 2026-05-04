@@ -6,6 +6,9 @@ import {
   forceWithdrawUserAction,
   deleteUserAction,
   loadMoreUsersAction,
+  // 2026-05-05: Phase A (상세 lazy fetch) + Step 2 (인라인 편집)
+  getUserDetailAction,
+  updateUserProfileAction,
 } from "@/app/actions/admin-users";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
@@ -65,6 +68,9 @@ export default async function AdminUsersPage({
         last_login_at: true,
         createdAt: true,
         updatedAt: true,
+        // 2026-05-05: 관리자 모달 강화 — 대회 출전 자격 필드
+        is_elite: true,
+        default_jersey_number: true,
       },
     }),
     prisma.user.count({ where }),
@@ -119,6 +125,8 @@ export default async function AdminUsersPage({
         toggleUserAdminAction={toggleUserAdminAction}
         forceWithdrawAction={forceWithdrawUserAction}
         deleteAction={deleteUserAction}
+        getDetailAction={getUserDetailAction}
+        updateProfileAction={updateUserProfileAction}
       />
     </div>
   );

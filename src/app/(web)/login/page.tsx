@@ -57,6 +57,9 @@ export default function LoginPage() {
   //   왜: 가입 직후 자동 로그인 ❌ → 사용자가 로그인 페이지에 도착하면 "가입 성공" 안내 노출.
   //   loginState.error 가 있을 때는 노출 ❌ (에러 우선) — 안내는 첫 진입 / 에러 발생 전까지만.
   const signupSuccess = searchParams.get("signup") === "success";
+  // 2026-05-05: 회원 탈퇴 완료 후 /login?withdrawn=success redirect (profile/edit handleWithdraw).
+  //   왜: 탈퇴 직후 window.location.href full reload → 헤더 SSR 비로그인 표시 + 탈퇴 안내 노출.
+  const withdrawnSuccess = searchParams.get("withdrawn") === "success";
 
   const oauthError = searchParams.get("error");
   // OAuth 에러를 InfoDialog(모달)로 노출: URL 쿼리가 있으면 열림, 확인 시 쿼리에서 제거하여 재열림 방지
@@ -152,6 +155,22 @@ export default function LoginPage() {
                   }}
                 >
                   가입이 완료됐어요. 로그인해서 시작하세요.
+                </div>
+              )}
+
+              {/* 2026-05-05: 회원 탈퇴 완료 안내 박스 — /login?withdrawn=success 시 노출. */}
+              {withdrawnSuccess && !loginState?.error && (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "var(--bg-alt)",
+                    color: "var(--ink-mute)",
+                    fontSize: 13,
+                  }}
+                >
+                  회원 탈퇴가 완료됐어요. 그동안 이용해 주셔서 감사합니다.
                 </div>
               )}
 
