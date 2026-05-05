@@ -35,13 +35,14 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   const parsed = PostBodySchema.safeParse(bodyRaw);
   if (!parsed.success) {
     return apiError(
-      `INVALID_PAYLOAD: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
+      `요청 데이터가 올바르지 않습니다: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
       400,
+      "INVALID_PAYLOAD",
     );
   }
 
@@ -51,13 +52,13 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
     fromTeamId = BigInt(parsed.data.fromTeamId);
     toTeamId = BigInt(parsed.data.toTeamId);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
   const reason = parsed.data.reason ?? null;
 
   // fromTeam ≠ toTeam — 같은 팀 이적은 의미 없음
   if (fromTeamId === toTeamId) {
-    return apiError("SAME_TEAM", 400, "이적할 팀은 현 팀과 달라야 합니다.");
+    return apiError("이적할 팀은 현 팀과 달라야 합니다.", 400, "SAME_TEAM");
   }
 
   // 본인이 fromTeam active 멤버인지 확인 (이적 자격)
@@ -67,9 +68,9 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   });
   if (!fromMembership) {
     return apiError(
-      "NOT_FROM_TEAM_MEMBER",
-      403,
       "현재 팀의 활성 멤버만 이적을 신청할 수 있습니다.",
+      403,
+      "NOT_FROM_TEAM_MEMBER",
     );
   }
 
@@ -80,9 +81,9 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   });
   if (existingToMember) {
     return apiError(
-      "ALREADY_TO_TEAM_MEMBER",
-      409,
       "이미 해당 팀의 활성 멤버입니다.",
+      409,
+      "ALREADY_TO_TEAM_MEMBER",
     );
   }
 
@@ -93,9 +94,9 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   });
   if (pendingTransfer) {
     return apiError(
-      "ALREADY_PENDING_TRANSFER",
-      409,
       "이미 처리 대기 중인 이적 신청이 있습니다. 먼저 처리되어야 새 신청을 보낼 수 있습니다.",
+      409,
+      "ALREADY_PENDING_TRANSFER",
     );
   }
 
@@ -108,9 +109,9 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   });
   if (pendingMember) {
     return apiError(
-      "ALREADY_PENDING_MEMBER_REQUEST",
-      409,
       `현 팀에 처리 대기 중인 멤버 신청 (${pendingMember.requestType}) 이 있습니다. 먼저 처리되어야 이적을 신청할 수 있습니다.`,
+      409,
+      "ALREADY_PENDING_MEMBER_REQUEST",
     );
   }
 
@@ -120,10 +121,10 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
     select: { id: true, name: true, captainId: true, status: true },
   });
   if (!toTeam) {
-    return apiError("TO_TEAM_NOT_FOUND", 404, "이적할 팀을 찾을 수 없습니다.");
+    return apiError("이적할 팀을 찾을 수 없습니다.", 404, "TO_TEAM_NOT_FOUND");
   }
   if (toTeam.status === "dissolved") {
-    return apiError("TO_TEAM_DISSOLVED", 409, "해당 팀은 해산되어 이적이 불가능합니다.");
+    return apiError("해당 팀은 해산되어 이적이 불가능합니다.", 409, "TO_TEAM_DISSOLVED");
   }
 
   // fromTeam 정보 (알림 대상)
@@ -132,7 +133,7 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
     select: { id: true, name: true, captainId: true },
   });
   if (!fromTeam) {
-    return apiError("FROM_TEAM_NOT_FOUND", 404);
+    return apiError("현 팀을 찾을 수 없습니다.", 404, "FROM_TEAM_NOT_FOUND");
   }
 
   // INSERT — DB default fromTeamStatus/toTeamStatus/finalStatus = 'pending'
