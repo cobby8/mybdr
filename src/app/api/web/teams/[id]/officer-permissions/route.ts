@@ -74,14 +74,14 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { id: true, captainId: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
 
   const isCaptain = team.captainId === ctx.userId;
 
@@ -142,27 +142,28 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   let bodyRaw: unknown;
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   let parsed: z.infer<typeof PostBodySchema>;
   try {
     const result = PostBodySchema.safeParse(bodyRaw);
     if (!result.success) {
       return apiError(
-        `INVALID_PAYLOAD: ${result.error.issues.map((i) => i.message).join(", ")}`,
+        `요청 데이터가 올바르지 않습니다: ${result.error.issues.map((i) => i.message).join(", ")}`,
         400,
+        "INVALID_PAYLOAD",
       );
     }
     parsed = result.data;
   } catch {
-    return apiError("INVALID_USER_ID", 400);
+    return apiError("사용자 ID가 올바르지 않습니다.", 400, "INVALID_USER_ID");
   }
   const { userId: targetUserId, permissions } = parsed;
 
@@ -171,14 +172,14 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     where: { id: teamId },
     select: { id: true, captainId: true, name: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
   if (team.captainId !== ctx.userId) {
-    return apiError("FORBIDDEN", 403, "팀장만 권한을 위임할 수 있습니다.");
+    return apiError("팀장만 권한을 위임할 수 있습니다.", 403, "FORBIDDEN");
   }
 
   // 자기 자신에게 위임 차단 (captain 은 이미 모든 권한 보유)
   if (targetUserId === ctx.userId) {
-    return apiError("CANNOT_GRANT_TO_SELF", 400, "본인에게는 위임할 수 없습니다.");
+    return apiError("본인에게는 위임할 수 없습니다.", 400, "CANNOT_GRANT_TO_SELF");
   }
 
   // 위임 대상 검증 — 본 팀 active 멤버 + role IN (manager/coach/treasurer/director)
@@ -188,16 +189,16 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   });
   if (!targetMember) {
     return apiError(
-      "TARGET_NOT_TEAM_MEMBER",
-      404,
       "위임 대상이 본 팀의 활성 멤버가 아닙니다.",
+      404,
+      "TARGET_NOT_TEAM_MEMBER",
     );
   }
   if (!DELEGABLE_ROLES.includes(targetMember.role as (typeof DELEGABLE_ROLES)[number])) {
     return apiError(
-      "TARGET_ROLE_NOT_DELEGABLE",
-      400,
       `위임 가능한 직급(${DELEGABLE_ROLES.join("/")}) 만 위임 가능합니다. 현재 직급: ${targetMember.role ?? "없음"}`,
+      400,
+      "TARGET_ROLE_NOT_DELEGABLE",
     );
   }
 
@@ -254,27 +255,28 @@ export const DELETE = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: 
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   let bodyRaw: unknown;
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   let parsed: z.infer<typeof DeleteBodySchema>;
   try {
     const result = DeleteBodySchema.safeParse(bodyRaw);
     if (!result.success) {
       return apiError(
-        `INVALID_PAYLOAD: ${result.error.issues.map((i) => i.message).join(", ")}`,
+        `요청 데이터가 올바르지 않습니다: ${result.error.issues.map((i) => i.message).join(", ")}`,
         400,
+        "INVALID_PAYLOAD",
       );
     }
     parsed = result.data;
   } catch {
-    return apiError("INVALID_USER_ID", 400);
+    return apiError("사용자 ID가 올바르지 않습니다.", 400, "INVALID_USER_ID");
   }
   const { userId: targetUserId } = parsed;
 
@@ -283,9 +285,9 @@ export const DELETE = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: 
     where: { id: teamId },
     select: { id: true, captainId: true, name: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
   if (team.captainId !== ctx.userId) {
-    return apiError("FORBIDDEN", 403, "팀장만 권한을 회수할 수 있습니다.");
+    return apiError("팀장만 권한을 회수할 수 있습니다.", 403, "FORBIDDEN");
   }
 
   // 활성 row 조회
@@ -294,7 +296,7 @@ export const DELETE = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: 
     select: { id: true },
   });
   if (!active) {
-    return apiError("NOT_FOUND", 404, "회수할 활성 권한이 없습니다.");
+    return apiError("회수할 활성 권한이 없습니다.", 404, "NOT_FOUND");
   }
 
   // soft delete

@@ -28,24 +28,24 @@ export const DELETE = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx:
     teamId = BigInt(id);
     memberIdBig = BigInt(memberId);
   } catch {
-    return apiError("INVALID_PARAMS", 400);
+    return apiError("ID 값이 올바르지 않습니다.", 400, "INVALID_PARAMS");
   }
 
   // captain 만 가능 — 위임 X (사용자 결정 #5)
   // 이유: 명단 row 영구 삭제는 데이터 파괴. captain 의 직접 결정만 허용.
   const isCaptain = await isTeamCaptain(teamId, ctx.userId);
-  if (!isCaptain) return apiError("FORBIDDEN", 403);
+  if (!isCaptain) return apiError("팀장만 명단 영구 삭제를 할 수 있습니다.", 403, "FORBIDDEN");
 
   // 멤버 조회 — 본 팀 + status='withdrawn' 만 통과 (active/dormant 차단)
   const member = await prisma.teamMember.findFirst({
     where: { id: memberIdBig, teamId, status: "withdrawn" },
     select: { id: true, userId: true },
   });
-  if (!member) return apiError("MEMBER_NOT_FOUND_OR_NOT_WITHDRAWN", 404);
+  if (!member) return apiError("멤버를 찾을 수 없거나 탈퇴 상태가 아닙니다.", 404, "MEMBER_NOT_FOUND_OR_NOT_WITHDRAWN");
 
   // 자기 자신 row 삭제 차단 (captain 본인이 withdrawn 상태일 일은 거의 없지만 방어)
   if (member.userId === ctx.userId) {
-    return apiError("CANNOT_DELETE_SELF", 403);
+    return apiError("본인 row 는 삭제할 수 없습니다.", 403, "CANNOT_DELETE_SELF");
   }
 
   // DELETE — history 는 보존 (eventType='permanent_deleted' INSERT 로 사실 기록)

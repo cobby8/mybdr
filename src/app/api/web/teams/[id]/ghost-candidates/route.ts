@@ -25,18 +25,18 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { id: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
 
   // 권한 — captain 또는 ghostClassify 위임받은 자
   const canClassify = await hasTeamOfficerPermission(teamId, ctx.userId, "ghostClassify");
-  if (!canClassify) return apiError("FORBIDDEN", 403);
+  if (!canClassify) return apiError("팀장 또는 유령 분류 권한을 위임받은 운영진만 조회할 수 있습니다.", 403, "FORBIDDEN");
 
   // 3개월 전 시점 — 본 endpoint 의 단일 기준
   // 이유: 보고서 §3-3 룰 — last_activity_at < now-3m 또는 (NULL AND createdAt < now-3m)

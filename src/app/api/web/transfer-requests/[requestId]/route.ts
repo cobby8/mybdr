@@ -39,7 +39,7 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   try {
     reqId = BigInt(requestId);
   } catch {
-    return apiError("INVALID_ID", 400);
+    return apiError("ID 값이 올바르지 않습니다.", 400, "INVALID_ID");
   }
 
   // body 파싱
@@ -47,13 +47,14 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   const parsed = PatchBodySchema.safeParse(bodyRaw);
   if (!parsed.success) {
     return apiError(
-      `INVALID_PAYLOAD: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
+      `요청 데이터가 올바르지 않습니다: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
       400,
+      "INVALID_PAYLOAD",
     );
   }
   const { side, action, rejectionReason } = parsed.data;
@@ -67,14 +68,14 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
       user: { select: { id: true, nickname: true, name: true } },
     },
   });
-  if (!transfer) return apiError("NOT_FOUND", 404);
+  if (!transfer) return apiError("이적 신청을 찾을 수 없습니다.", 404, "NOT_FOUND");
 
   // 최종 종결된 신청은 재처리 불가
   if (transfer.finalStatus !== "pending") {
     return apiError(
-      "ALREADY_FINALIZED",
-      409,
       `이미 종결된 신청입니다 (${transfer.finalStatus}).`,
+      409,
+      "ALREADY_FINALIZED",
     );
   }
 
@@ -84,11 +85,11 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const allowed = await hasTeamOfficerPermission(targetTeamId, ctx.userId, "transferApprove");
   if (!allowed) {
     return apiError(
-      "FORBIDDEN",
-      403,
       side === "from"
         ? "현 팀의 팀장 또는 이적 승인 위임받은 운영진만 처리할 수 있습니다."
         : "새 팀의 팀장 또는 이적 승인 위임받은 운영진만 처리할 수 있습니다.",
+      403,
+      "FORBIDDEN",
     );
   }
 
@@ -96,9 +97,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const sideStatus = side === "from" ? transfer.fromTeamStatus : transfer.toTeamStatus;
   if (sideStatus !== "pending") {
     return apiError(
-      "ALREADY_PROCESSED",
-      409,
       `해당 사이드는 이미 처리되었습니다 (${sideStatus}).`,
+      409,
+      "ALREADY_PROCESSED",
     );
   }
 
@@ -106,9 +107,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const otherStatus = side === "from" ? transfer.toTeamStatus : transfer.fromTeamStatus;
   if (otherStatus === "rejected") {
     return apiError(
-      "ALREADY_REJECTED",
-      409,
       "다른 사이드에서 이미 거부된 신청입니다.",
+      409,
+      "ALREADY_REJECTED",
     );
   }
 
@@ -192,9 +193,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     });
     if (!fromMemberSnapshot) {
       return apiError(
-        "APPLICANT_NOT_ACTIVE",
-        409,
         "신청자가 더 이상 현 팀의 활성 멤버가 아닙니다.",
+        409,
+        "APPLICANT_NOT_ACTIVE",
       );
     }
 
@@ -205,9 +206,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     });
     if (reCheckTo) {
       return apiError(
-        "ALREADY_TO_TEAM_MEMBER",
-        409,
         "신청자가 이미 새 팀의 활성 멤버입니다.",
+        409,
+        "ALREADY_TO_TEAM_MEMBER",
       );
     }
 

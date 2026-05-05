@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
  *
  * UX:
  *  - 새 팀 검색 input + 자동완성 dropdown (debounce 250ms / 글자 수 ≥ 2)
- *  - 검색 API = `/api/web/teams/search?q=` (없으면 자동 fallback 내부 list 호출)
+ *  - 검색 API = `/api/web/teams?q=` (기존 endpoint 활용 — search 전용 endpoint 미존재)
  *  - 사유 textarea (선택, 200자)
  *  - 안내 박스: "현 팀장 + 새 팀장 모두 승인 시 이적 완료. 한쪽이라도 거부 시 취소."
  *  - 신청 버튼 → POST → 성공 시 800ms 토스트 후 닫기 + router.refresh
@@ -80,9 +80,9 @@ export function TransferRequestModal({
   async function searchTeams(q: string) {
     setSearchLoading(true);
     try {
-      // 이유: 1차 = /api/web/teams/search 시도. 없으면 silent fallback (검색 결과 0).
-      // 향후 검색 API 신설 시 별도 작업 0.
-      const res = await fetch(`/api/web/teams/search?q=${encodeURIComponent(q)}`);
+      // 이유: /api/web/teams 는 q 파라미터로 팀명 검색 지원. /api/web/teams/search 는 미존재 → 500 발생.
+      // 응답 envelope (`json.data.teams` 또는 `json.teams`) 호환 처리는 그대로 유지.
+      const res = await fetch(`/api/web/teams?q=${encodeURIComponent(q)}`);
       if (!res.ok) {
         setCandidates([]);
         return;

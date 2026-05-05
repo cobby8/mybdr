@@ -35,7 +35,7 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     teamId = BigInt(id);
     reqId = BigInt(requestId);
   } catch {
-    return apiError("INVALID_ID", 400);
+    return apiError("ID 값이 올바르지 않습니다.", 400, "INVALID_ID");
   }
 
   // body 파싱
@@ -43,13 +43,14 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   const parsed = PatchBodySchema.safeParse(bodyRaw);
   if (!parsed.success) {
     return apiError(
-      `INVALID_PAYLOAD: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
+      `요청 데이터가 올바르지 않습니다: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
       400,
+      "INVALID_PAYLOAD",
     );
   }
   const { action, rejectionReason } = parsed.data;
@@ -63,10 +64,10 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     },
   });
   if (!memberRequest || memberRequest.teamId !== teamId) {
-    return apiError("NOT_FOUND", 404);
+    return apiError("신청을 찾을 수 없습니다.", 404, "NOT_FOUND");
   }
   if (memberRequest.status !== "pending") {
-    return apiError("ALREADY_PROCESSED", 409, "이미 처리된 신청입니다.");
+    return apiError("이미 처리된 신청입니다.", 409, "ALREADY_PROCESSED");
   }
 
   // 권한 검증 — PR13: captain (자동) 또는 requestType 별 위임 권한 보유자
@@ -80,7 +81,7 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   };
   const requiredPermission = PERMISSION_BY_TYPE[memberRequest.requestType];
   if (!requiredPermission) {
-    return apiError("INVALID_REQUEST_TYPE", 400, `알 수 없는 신청 유형: ${memberRequest.requestType}`);
+    return apiError(`알 수 없는 신청 유형: ${memberRequest.requestType}`, 400, "INVALID_REQUEST_TYPE");
   }
   const allowed = await hasTeamOfficerPermission(teamId, ctx.userId, requiredPermission);
   if (!allowed) {
@@ -90,9 +91,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
       withdraw: "탈퇴 승인",
     };
     return apiError(
-      "FORBIDDEN",
-      403,
       `팀장 또는 ${labelByType[memberRequest.requestType] ?? "해당"} 권한을 위임받은 운영진만 처리할 수 있습니다.`,
+      403,
+      "FORBIDDEN",
     );
   }
 
@@ -127,7 +128,7 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     // payload 에서 newJersey 추출 (POST 시 zod 로 0~99 정수 보장됨)
     const payload = memberRequest.payload as { newJersey?: number } | null;
     if (!payload || typeof payload.newJersey !== "number") {
-      return apiError("INVALID_PAYLOAD", 400, "신청 데이터가 손상되었습니다.");
+      return apiError("신청 데이터가 손상되었습니다.", 400, "INVALID_PAYLOAD");
     }
     newJersey = payload.newJersey;
 
@@ -139,9 +140,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     if (!myActive) {
       // 신청자가 그 사이 탈퇴했거나 휴면 처리된 경우
       return apiError(
-        "APPLICANT_NOT_ACTIVE",
-        409,
         "신청자가 더 이상 활성 멤버가 아닙니다.",
+        409,
+        "APPLICANT_NOT_ACTIVE",
       );
     }
     oldJersey = myActive.jerseyNumber ?? null;
@@ -158,9 +159,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     });
     if (conflict) {
       return apiError(
-        "JERSEY_CONFLICT",
-        409,
         `등번호 #${newJersey} 가 이미 사용 중입니다. 신청자에게 다른 번호를 신청하도록 안내해 주세요.`,
+        409,
+        "JERSEY_CONFLICT",
       );
     }
     // ⚠ 실제 UPDATE 는 아래 트랜잭션에서 status UPDATE/history INSERT 와 함께 수행.
@@ -177,9 +178,9 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     if (!myActive) {
       // 신청자가 그 사이 다른 흐름으로 active 가 아닌 경우 (예: 휴면 또는 강퇴)
       return apiError(
-        "APPLICANT_NOT_ACTIVE",
-        409,
         "신청자가 더 이상 활성 멤버가 아닙니다.",
+        409,
+        "APPLICANT_NOT_ACTIVE",
       );
     }
     prevMemberStatus = myActive.status ?? "active";
