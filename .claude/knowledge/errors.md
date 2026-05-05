@@ -2,6 +2,22 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-05] 마이페이지 등번호 입력 = `user.default_jersey_number` 만 저장 (team/대회 미동기화) — 사용자 인지 mismatch 버그
+- **분류**: error/ux + data-sync (사용자 시점 vs 시스템 동작 mismatch)
+- **발견자**: pm + 사용자 (이도균 출전 명단 누락 사례)
+- **증상**: 사용자가 "마이페이지에서 등번호 70번 등록 완료" 라고 인지하지만, 실제로는 출전 명단(`tournament_team_players`) 에 반영 안 됨 → 출전 불가 상태. 운영자가 수동 INSERT 해줘야 함.
+- **본질**:
+  - `PATCH /api/web/profile` (마이페이지) 가 갱신하는 것 = `user.default_jersey_number` (개인 선호값) **단 1곳**.
+  - `team_members.jersey_number` / `tournament_team_players.jerseyNumber` 와 자동 sync 로직 0건.
+  - 사용자는 UI에서 "등번호" 라벨만 보고 "내 등번호 = 등록 완료" 로 인지. 실제로는 메모만 남긴 상태.
+- **연관 함정**: errors.md `[2026-05-02] TournamentTeam 등록 시 team_members 동기화 누락` 과 동일 패턴 (양방향 동기화 hook 부재). 장기 큐 미해결.
+- **재발 방지 (단기)**:
+  1. **마이페이지 등번호 입력 UI 라벨/안내 추가** — "본인 선호 등번호. 대회 출전 시 별도 등록 필요" 명확화
+  2. **사용자가 "등록했는데 안 된다"고 신고** = 1순위 의심 = `user.default_jersey_number` 만 입력했을 가능성 → SELECT 로 확인
+- **재발 방지 (장기)**: `default_jersey_number` 변경 시 `team_members.jersey_number=NULL` row 자동 채우기 hook + TournamentTeam 등록 시 team_members → ttp 자동 복사 hook (`[2026-05-02]` 항목 통합)
+- **본 사례 fix**: `tournament_team_players` INSERT (ttpId=2830) + `team_members.jersey_number` UPDATE (memberId=2701) 트랜잭션 (코드 변경 0)
+- **참조횟수**: 0
+
 ### [2026-05-05] layout 가드 status 검증 누락 — 탈퇴 회원 쿠키 잔존 시 /login 진입 차단
 - **분류**: error/auth (회귀 패턴 — layout 가드 status 검증 누락)
 - **발견자**: pm + 사용자 ("로그인 버튼 작동 안 해, 쿠키 삭제 후 정상")

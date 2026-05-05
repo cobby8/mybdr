@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (게시판 작성 = 활동 5종 중 #4)
+import { trackTeamMemberActivityForUser } from "@/lib/team-members/track-activity";
 
 /**
  * toggleLikeAction - 게시글 좋아요 토글 (추가/취소)
@@ -149,6 +151,11 @@ export async function createPostAction(_prevState: { error: string } | null, for
     });
 
     publicId = post.public_id;
+
+    // Phase 5 PR14 — 본인 모든 active 팀 활동 갱신 (게시판 작성)
+    // 이유: 본 사용자가 active 멤버인 모든 팀에 활동 마킹.
+    //   fire-and-forget — 글 작성 자체 흐름 영향 0.
+    trackTeamMemberActivityForUser(BigInt(session.sub)).catch(() => {});
   } catch {
     return { error: "글 작성 중 오류가 발생했습니다." };
   }

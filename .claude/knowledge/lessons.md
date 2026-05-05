@@ -2,6 +2,34 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-05] 토큰 비효율 5건 회고 — jersey 도메인 turn 분석
+- **분류**: lesson/efficiency (사용자 메타 질문 — "토큰 효율 사용 방법")
+- **발견자**: pm + 사용자
+- **이번 turn 비효율 5건**:
+  1. **planner agent idle timeout** → 재호출 (토큰 ~2배). prompt 광범위 + 분량/시간 미명시
+  2. **보고서 prefix 매 응답 재게재** (옵션 비교표 등 동일 정보 반복, 응답당 +500토큰)
+  3. **결정 항목 7~10건 묶음** (사용자 인지 부담 + 응답 길이 ↑)
+  4. **SELECT 스크립트 prisma schema 미확인** → 1~2회 재시도 (토큰 ~1.5배). model 필드명 / @map 미리 못 봄
+  5. **scratchpad 122줄 (100줄 초과 방치)** — turn 마다 read 시 초과분 토큰 누적
+- **개선 룰** (conventions.md 박제됨, 응답 품질 영향 0 검증):
+  - agent prompt 산출물 형식 + 분량 + 시간 명시
+  - 보고서 long-form 1회 → 후속 diff-only
+  - 결정 핵심 3건 + 옵션 분리
+  - 스크립트 작성 전 schema 1회 grep
+  - scratchpad 즉시 압축 (turn 종료 시 1줄 통합)
+- **재발 방지**: 새 큰 작업 시작 시 위 5 룰 사전 점검 1회
+
+### [2026-05-05] "등록했는데 반영 안 됨" 신고 = 도메인 모델 단방향 함정 1순위 의심
+- **분류**: lesson/diagnosis (사용자 신고 진단 패턴)
+- **발견자**: pm (이도균 출전 명단 누락 — 본인은 마이페이지에서 70번 등록 완료라 인지)
+- **교훈**: mybdr 의 jersey 도메인 모델은 **단방향 단절**: `user.default_jersey_number` (선호) → `team_members.jersey_number` (팀 소속) → `tournament_team_players.jerseyNumber` (대회 출전). **3개 테이블 각각 독립**, 자동 sync hook 0건. 사용자 시점에서는 "등번호 = 1개" 라고 인지하지만 시스템에는 3개의 별개 컬럼.
+- **진단 빠르게 하기**:
+  1. 사용자가 "등록했다" 한 페이지 묻기 (마이페이지 / 팀 페이지 / 대회 신청)
+  2. 해당 페이지가 갱신하는 컬럼만 SELECT 검증 (cross-table 비교 빠른 1회 SELECT)
+  3. mismatch 확인 → 필요한 테이블 manual fill
+- **유사 도메인 잠재 함정**: position / 선출(is_elite) / 활동지역 / 사진(profile_image) — 사용자/팀/대회 3계층에서 각각 독립 컬럼 가질 가능성. 신고 시 동일 패턴 의심.
+- **재발 방지 룰 (즉시 적용)**: jersey 류 신고 = 3 테이블 SELECT 한 번에 ✓ 하는 검증 스크립트 표준화. 출전 명단 데이터 정합성 점검에 매번 사용.
+
 ### [2026-05-05] 다중 동시 commit 묶임 함정 — PM 작업이 사용자/다른 세션 commit 에 흡수
 - **분류**: lesson/git-workflow (병렬 작업 / commit 격리)
 - **발견자**: pm (admin/users Step 1+2 작업 중 2회 발생)

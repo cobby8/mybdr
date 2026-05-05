@@ -4,6 +4,8 @@ import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middlewa
 import { apiSuccess } from "@/lib/api/response";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
+// PR5: 매치 시점 jersey 우선순위 적용 (다중 매치 + 다중 ttp 일괄)
+import { resolveMatchJerseysMulti } from "@/lib/jersey/resolve";
 
 // FR-027: 토너먼트 전체 선수 스탯
 async function handler(_req: NextRequest, _ctx: AuthContext, tournamentId: string) {
@@ -23,28 +25,50 @@ async function handler(_req: NextRequest, _ctx: AuthContext, tournamentId: strin
     },
   });
 
+  // PR5: 다중 매치 + 다중 ttp 일괄 jersey 결정 (단일 SELECT)
+  // stats row 의 (matchId, ttpId) 페어마다 매치 시점 정확값으로 매핑
+  const resolveEntries = statsRaw
+    .filter((s) => s.tournamentTeamPlayer !== null)
+    .map((s) => ({
+      matchId: s.tournamentMatchId,
+      ttpId: s.tournamentTeamPlayer!.id,
+      ttpJersey: s.tournamentTeamPlayer!.jerseyNumber,
+      teamJersey: null as number | null, // 본 endpoint 는 team_members 미조회
+    }));
+  const jerseyMap = await resolveMatchJerseysMulti(resolveEntries);
+
   // Flutter 앱 호환: nickname 키 자리에 실명 우선 채움 (response schema 동일)
-  const stats = statsRaw.map((s) => ({
-    ...s,
-    tournamentTeamPlayer: s.tournamentTeamPlayer
-      ? {
-          id: s.tournamentTeamPlayer.id,
-          jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
-          position: s.tournamentTeamPlayer.position,
-          users: s.tournamentTeamPlayer.users
-            ? {
-                nickname: getDisplayName(
-                  s.tournamentTeamPlayer.users,
-                  {
-                    player_name: s.tournamentTeamPlayer.player_name,
-                    jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
-                  },
-                ),
-              }
-            : null,
-        }
-      : null,
-  }));
+  const stats = statsRaw.map((s) => {
+    // PR5: (매치, ttp) 페어 키로 결정값 lookup
+    const key = s.tournamentTeamPlayer
+      ? `${s.tournamentMatchId.toString()}:${s.tournamentTeamPlayer.id.toString()}`
+      : null;
+    const resolvedJersey = key
+      ? jerseyMap.get(key) ?? s.tournamentTeamPlayer!.jerseyNumber
+      : null;
+    return {
+      ...s,
+      tournamentTeamPlayer: s.tournamentTeamPlayer
+        ? {
+            id: s.tournamentTeamPlayer.id,
+            jerseyNumber: resolvedJersey,
+            position: s.tournamentTeamPlayer.position,
+            users: s.tournamentTeamPlayer.users
+              ? {
+                  nickname: getDisplayName(
+                    s.tournamentTeamPlayer.users,
+                    {
+                      player_name: s.tournamentTeamPlayer.player_name,
+                      // 표시명 폴백도 매치 시점 번호 사용
+                      jerseyNumber: resolvedJersey,
+                    },
+                  ),
+                }
+              : null,
+          }
+        : null,
+    };
+  });
 
   return apiSuccess(stats);
 }

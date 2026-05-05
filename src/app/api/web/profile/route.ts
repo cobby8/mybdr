@@ -85,8 +85,9 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       nickname, position, height, city, bio,
       // 신규 필드
       name, phone, birth_date, district, weight,
-      // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 시 필수 차단 검증)
-      default_jersey_number, is_elite,
+      // 2026-05-01: 선출 여부 (대회 출전 시 필수 차단 검증)
+      // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source 로 일원화
+      is_elite,
       // 계좌 필드 (account_consent 필수)
       bank_name, bank_code, account_number, account_holder, account_consent,
     } = body;
@@ -123,16 +124,9 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
-    // 2026-05-01: default_jersey_number 범위 검증 (0~999)
-    let parsedJersey: number | null = null;
-    if (default_jersey_number !== undefined && default_jersey_number !== null && default_jersey_number !== "") {
-      const j = Number(default_jersey_number);
-      if (Number.isInteger(j) && j >= 0 && j <= 999) {
-        parsedJersey = j;
-      } else {
-        return apiError("등번호는 0~999 사이의 정수여야 합니다.", 400);
-      }
-    }
+    // 2026-05-05 PR1: default_jersey_number 검증 블록 제거
+    // 이유: 등번호는 team_members.jersey_number (팀별 row) 단일 source 로 일원화.
+    // user 컬럼 default_jersey_number 는 PR1e (별도 명시 승인) 에서 schema DROP COLUMN.
 
     // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 — 6 필드 추가
     const dominant_hand = body.dominant_hand;
@@ -207,8 +201,8 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       ...(birth_date !== undefined && { birth_date: parsedBirthDate }),
       ...(district !== undefined && { district: district as string || null }),
       ...(weight !== undefined && { weight: weight ? Number(weight) : null }),
-      // 2026-05-01: 신규 필드 — 대회 출전 차단 검증 대상
-      ...(default_jersey_number !== undefined && { default_jersey_number: parsedJersey }),
+      // 2026-05-01: 선출 여부 — 대회 출전 차단 검증 대상
+      // 2026-05-05 PR1: default_jersey_number 제거 (team_members 단일 source)
       ...(is_elite !== undefined && { is_elite: typeof is_elite === "boolean" ? is_elite : null }),
       // 2026-05-02: §2 플레이 정보 (사용손/실력/강점)
       ...(dominant_hand !== undefined && { dominant_hand: (dominant_hand as string) || null }),

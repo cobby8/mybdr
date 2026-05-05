@@ -36,9 +36,9 @@ interface SerializedUser {
   last_login_at: string | null;
   createdAt: string;
   updatedAt: string;
-  // 2026-05-05: 관리자 모달 인라인 편집 강화 — 대회 출전 자격 필드
+  // 2026-05-05: 관리자 모달 인라인 편집 강화 — 대회 출전 자격 필드 (선출 여부)
+  // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source
   is_elite: boolean | null;
-  default_jersey_number: number | null;
 }
 
 // 2026-05-05: 관리자 유저 모달 lazy fetch 결과 — getUserDetailAction 응답 그대로
@@ -446,9 +446,9 @@ export function AdminUsersTable({
                       ["평가점수", u.evaluation_rating?.toFixed(1) ?? null],
                       ["주최 경기", String(u.total_games_hosted ?? 0)],
                       ["참여 경기", String(u.total_games_participated ?? 0)],
-                      // 2026-05-05: 대회 출전 자격 — 시안 §1 (1열 추가)
+                      // 2026-05-05: 대회 출전 자격 — 시안 §1
+                      // 2026-05-05 PR1: "기본 등번호" 행 제거 — 등번호는 team_members 단일 source (소속 팀 섹션에서 표시)
                       ["선출 여부", u.is_elite ? "선출" : "비선출"],
-                      ["기본 등번호", u.default_jersey_number != null ? `#${u.default_jersey_number}` : null],
                     ]} />
 
                     {/* 2026-05-05: Phase A — 소속 팀 (팀명 + 역할 + 포지션/등번호) */}
