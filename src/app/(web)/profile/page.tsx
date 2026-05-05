@@ -457,6 +457,9 @@ export default async function ProfilePage() {
         </div>
       </header>
 
+      {/* 5/6 — 소속 팀 카드 (히어로 바로 아래 풀 width) — 각 팀 활동 관리 + 팀페이지 이동 */}
+      <TeamsListCard teams={teamsList} />
+
       {/* MAIN GRID: hub + aside */}
       <div className="mypage__grid">
         {/* HUB */}
@@ -726,8 +729,7 @@ export default async function ProfilePage() {
           {/* 2026-05-05 Phase 3 PR10+PR11 — 본인 pending 이적 진행 카드 (있으면 표시) */}
           <TransferProgressCard />
 
-          {/* 소속 팀 — PR2: 다중 팀 목록 카드 (0팀 빈 상태 포함) */}
-          <TeamsListCard teams={teamsList} />
+          {/* 5/6: 소속 팀 카드 = 히어로 아래로 이동 (aside 에서 제거) */}
 
           {/* 최근 활동 5건 */}
           {recent.length > 0 && (
