@@ -52,8 +52,8 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ## 기획설계 (planner-architect / 5/5)
 
-- **jersey 도메인 재설계 (v2 옵션 C)** — 보고서: `Dev/jersey-redesign-2026-05-05.md`. 권장 = 옵션 C (`match_player_jersey` 테이블 신설, 매치 단위 override). 3 계층: team_members 영구 / ttp 대회 스냅샷 / match override. v1 응답 스키마 유지 (Flutter 코드 변경 0). 진입점 = W1 (라이브 페이지 운영자 모달, captain 제외) Explore 권장. **결정 대기**: W1 채택 + 운영자 only.
-- **인증 흐름 재설계 (옵션 A+B-PR1)** — ✅ 완료 (`Dev/auth-flow-redesign-2026-05-05.md` / commits `60e8468` `61e9ab1` `5fd1716` `d8bba4a` → main `3f016c9`). `getAuthUser()` 헬퍼 + 4 layout 위임 + 쿠키 자동 cleanup.
+- **팀 멤버 라이프사이클 + Jersey 통합 재설계** (보고서 `Dev/team-member-lifecycle-2026-05-05.md` — jersey 보고서 흡수). **8 결정 모두 Y + 미묘 6건 룰 반영 + (b) Phase 1+2 통합 진입**. 5 Phase 분해 (~13~14d, $100 으로 Phase 1+2 + 일부 4 가능 / 3+5 다음 세션). **Phase 1 PR1 진입 (default_jersey_number 사용처 정리 + DROP COLUMN 별도 명시 승인)**.
+- **인증 흐름 재설계** — ✅ 완료 (`Dev/auth-flow-redesign-2026-05-05.md` / `3f016c9` main).
 
 ---
 
