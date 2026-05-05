@@ -60,7 +60,8 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    // 사용자 친화 한국어 메시지로 표기 + code 는 식별자로 보존
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   // body 파싱 + zod 검증 (discriminatedUnion 으로 type 별 payload 자동 분기)
@@ -68,13 +69,14 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   try {
     bodyRaw = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   const parsed = RequestBodySchema.safeParse(bodyRaw);
   if (!parsed.success) {
     return apiError(
-      `INVALID_PAYLOAD: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
+      `신청 데이터가 올바르지 않습니다: ${parsed.error.issues.map((i) => i.message).join(", ")}`,
       400,
+      "INVALID_PAYLOAD",
     );
   }
   const { requestType, payload, reason } = parsed.data;
@@ -85,7 +87,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     select: { id: true, jerseyNumber: true },
   });
   if (!myMembership) {
-    return apiError("NOT_TEAM_MEMBER", 403, "해당 팀의 활성 멤버만 신청할 수 있습니다.");
+    return apiError("해당 팀의 활성 멤버만 신청할 수 있습니다.", 403, "NOT_TEAM_MEMBER");
   }
 
   // 미묘 룰 #1: 같은 (team, user) status='pending' 1건만 허용
@@ -96,9 +98,9 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   });
   if (pendingExisting) {
     return apiError(
-      "ALREADY_PENDING",
-      409,
       `이미 처리 대기 중인 신청이 있습니다 (type: ${pendingExisting.requestType}). 먼저 처리되어야 새 신청을 보낼 수 있습니다.`,
+      409,
+      "ALREADY_PENDING",
     );
   }
 
@@ -109,7 +111,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     const { newJersey } = payload;
     // 본인 현재 번호와 동일하면 의미 없는 신청 — 차단
     if (myMembership.jerseyNumber === newJersey) {
-      return apiError("SAME_JERSEY", 400, "현재 번호와 동일합니다.");
+      return apiError("현재 번호와 동일합니다.", 400, "SAME_JERSEY");
     }
     const conflict = await prisma.teamMember.findFirst({
       where: {
@@ -122,9 +124,9 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     });
     if (conflict) {
       return apiError(
-        "JERSEY_CONFLICT",
-        409,
         `등번호 #${newJersey} 는 이미 사용 중입니다. 다른 번호를 선택해 주세요.`,
+        409,
+        "JERSEY_CONFLICT",
       );
     }
   } else if (requestType === "dormant") {
@@ -134,7 +136,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     if (until) {
       untilDate = new Date(until);
       if (Number.isNaN(untilDate.getTime())) {
-        return apiError("INVALID_UNTIL", 400, "휴면 종료일 형식이 올바르지 않습니다.");
+        return apiError("휴면 종료일 형식이 올바르지 않습니다.", 400, "INVALID_UNTIL");
       }
     } else {
       untilDate = new Date();
@@ -228,14 +230,14 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { id: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
 
   // 권한 결정 — PR13: captain 또는 jersey/dormant/withdraw 중 1개라도 위임받은 자
   // 이유(왜): 위임받은 운영진이 본인이 처리할 수 있는 신청 종류를 인박스에서 확인 가능해야 함.
@@ -253,7 +255,7 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
       where: { teamId, userId: ctx.userId, status: "active" },
       select: { id: true },
     });
-    if (!myMembership) return apiError("FORBIDDEN", 403);
+    if (!myMembership) return apiError("해당 팀의 활성 멤버만 조회할 수 있습니다.", 403, "FORBIDDEN");
   }
 
   // optional status 필터 — ?status=pending|approved|rejected|cancelled

@@ -23,7 +23,7 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
   try {
     teamId = BigInt(id);
   } catch {
-    return apiError("INVALID_TEAM_ID", 400);
+    return apiError("팀 ID가 올바르지 않습니다.", 400, "INVALID_TEAM_ID");
   }
 
   // 팀 존재 + 권한 검증 (PR13: captain 또는 transferApprove 위임받은 자)
@@ -33,11 +33,11 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
     where: { id: teamId },
     select: { id: true },
   });
-  if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
+  if (!team) return apiError("팀을 찾을 수 없습니다.", 404, "TEAM_NOT_FOUND");
 
   const allowed = await hasTeamOfficerPermission(teamId, ctx.userId, "transferApprove");
   if (!allowed) {
-    return apiError("FORBIDDEN", 403, "팀장 또는 이적 승인 위임받은 운영진만 조회할 수 있습니다.");
+    return apiError("팀장 또는 이적 승인 위임받은 운영진만 조회할 수 있습니다.", 403, "FORBIDDEN");
   }
 
   // 본 팀이 fromTeam 또는 toTeam 인 신청 (양쪽 사이드 모두 본 captain 결정 대상)

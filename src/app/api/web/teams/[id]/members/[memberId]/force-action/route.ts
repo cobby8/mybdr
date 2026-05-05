@@ -66,7 +66,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     teamId = BigInt(id);
     memberIdBig = BigInt(memberId);
   } catch {
-    return apiError("INVALID_PARAMS", 400);
+    return apiError("ID 값이 올바르지 않습니다.", 400, "INVALID_PARAMS");
   }
 
   // body 파싱
@@ -74,11 +74,11 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   try {
     body = await req.json();
   } catch {
-    return apiError("INVALID_JSON", 400);
+    return apiError("요청 데이터를 읽을 수 없습니다.", 400, "INVALID_JSON");
   }
   const parsed = RequestBodySchema.safeParse(body);
   if (!parsed.success) {
-    return apiError("VALIDATION_FAILED", 400);
+    return apiError("요청 데이터가 올바르지 않습니다.", 400, "VALIDATION_FAILED");
   }
   const data = parsed.data;
 
@@ -94,16 +94,16 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
       team: { select: { id: true, name: true, captainId: true } },
     },
   });
-  if (!member) return apiError("MEMBER_NOT_FOUND_OR_INACTIVE", 404);
+  if (!member) return apiError("멤버를 찾을 수 없거나 이미 비활성 상태입니다.", 404, "MEMBER_NOT_FOUND_OR_INACTIVE");
 
   // captain 본인 강제 변경 차단 (별도 transfer captain API 필요)
   if (member.userId === member.team.captainId) {
-    return apiError("CANNOT_FORCE_CAPTAIN", 403);
+    return apiError("팀장은 강제 액션 대상이 될 수 없습니다.", 403, "CANNOT_FORCE_CAPTAIN");
   }
 
   // 자기 자신 강제 변경 차단
   if (member.userId === ctx.userId) {
-    return apiError("CANNOT_FORCE_SELF", 403);
+    return apiError("본인에게 강제 액션을 적용할 수 없습니다.", 403, "CANNOT_FORCE_SELF");
   }
 
   // 권한 검증 — action 별 분기
@@ -112,7 +112,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   const requiredPermission =
     data.action === "force_withdraw" ? "withdrawApprove" : "forceChange";
   const allowed = await hasTeamOfficerPermission(teamId, ctx.userId, requiredPermission);
-  if (!allowed) return apiError("FORBIDDEN", 403);
+  if (!allowed) return apiError("팀장 또는 해당 권한을 위임받은 운영진만 처리할 수 있습니다.", 403, "FORBIDDEN");
 
   // 액션 실행
   if (data.action === "force_jersey_change") {
@@ -127,7 +127,7 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
         },
         select: { id: true },
       });
-      if (conflict) return apiError("JERSEY_CONFLICT", 409);
+      if (conflict) return apiError("이미 사용 중인 등번호입니다.", 409, "JERSEY_CONFLICT");
     }
 
     // 트랜잭션: jersey UPDATE + history INSERT
