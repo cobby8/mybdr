@@ -196,41 +196,43 @@ export function TransferRequestModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--surface)",
+          // 디자인 토큰 통일 — match-jersey-override-modal 패턴 (--color-* 호환 레이어)
+          background: "var(--color-card)",
           borderRadius: 8,
           padding: 20,
           maxWidth: 500,
           width: "100%",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--color-border)",
           maxHeight: "90vh",
           overflowY: "auto",
+          color: "var(--color-text-primary)",
         }}
       >
         <h2
           id="transfer-request-modal-title"
-          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}
+          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--color-text-primary)" }}
         >
           이적 신청
         </h2>
-        <p style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
           현 팀:{" "}
-          <strong style={{ color: "var(--ink)" }}>{fromTeamName ?? "현재 팀"}</strong>
+          <strong style={{ color: "var(--color-text-primary)" }}>{fromTeamName ?? "현재 팀"}</strong>
         </p>
 
-        {/* 안내 박스 — 양쪽 팀장 승인 흐름 설명 */}
+        {/* 안내 박스 — 양쪽 팀장 승인 흐름. --surface-2 미정의 fix → --color-elevated */}
         <div
           style={{
             fontSize: 12,
-            color: "var(--ink-mute)",
+            color: "var(--color-text-muted)",
             marginBottom: 14,
             padding: "10px 12px",
-            background: "var(--surface-2, var(--bg))",
+            background: "var(--color-elevated)",
             borderRadius: 4,
-            borderLeft: "3px solid var(--info, #0079B9)",
+            borderLeft: "3px solid var(--color-info, #0079B9)",
             lineHeight: 1.55,
           }}
         >
-          <strong style={{ color: "var(--ink)" }}>현 팀장 + 새 팀장 모두 승인</strong>해야 이적이
+          <strong style={{ color: "var(--color-text-primary)" }}>현 팀장 + 새 팀장 모두 승인</strong>해야 이적이
           완료됩니다. 한쪽이라도 거부하면 신청이 취소됩니다. 이적 완료 후 새 팀에서 등번호를 다시
           등록해 주세요.
         </div>
@@ -240,12 +242,12 @@ export function TransferRequestModal({
           <span
             style={{
               fontSize: 13,
-              color: "var(--ink)",
+              color: "var(--color-text-primary)",
               display: "block",
               marginBottom: 4,
             }}
           >
-            이적할 팀 <span style={{ color: "var(--danger)" }}>*</span>
+            이적할 팀 <span style={{ color: "var(--color-error)" }}>*</span>
           </span>
           <input
             type="text"
@@ -256,17 +258,18 @@ export function TransferRequestModal({
                 setSelectedTeam(null);
               }
             }}
-            placeholder="팀명 2자 이상 입력"
+            placeholder="팀명 2자 이상"
             disabled={loading}
             className="input"
             style={{
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 14,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+              // iOS 자동 줌 차단
+              fontSize: 16,
             }}
           />
           {/* 검색 결과 dropdown — selectedTeam 없을 때만 표시 */}
@@ -277,8 +280,8 @@ export function TransferRequestModal({
                 top: "calc(100% + 4px)",
                 left: 0,
                 right: 0,
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
+                background: "var(--color-card)",
+                border: "1px solid var(--color-border)",
                 borderRadius: 4,
                 boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 zIndex: 10,
@@ -300,13 +303,13 @@ export function TransferRequestModal({
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    color: "var(--ink)",
-                    borderBottom: "1px solid var(--border)",
+                    color: "var(--color-text-primary)",
+                    borderBottom: "1px solid var(--color-border)",
                   }}
                 >
                   <div style={{ fontWeight: 600 }}>{t.name}</div>
                   {(t.city || t.district) && (
-                    <div style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 2 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>
                       {[t.city, t.district].filter(Boolean).join(" ")}
                     </div>
                   )}
@@ -315,12 +318,12 @@ export function TransferRequestModal({
             </div>
           )}
           {!selectedTeam && query.trim().length >= 2 && !searchLoading && candidates.length === 0 && (
-            <span style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 4, display: "block" }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 4, display: "block" }}>
               검색 결과가 없습니다.
             </span>
           )}
           {selectedTeam && (
-            <div style={{ marginTop: 6, fontSize: 12, color: "var(--ok, #16a34a)" }}>
+            <div style={{ marginTop: 6, fontSize: 12, color: "var(--color-success)" }}>
               선택됨: <strong>{selectedTeam.name}</strong>{" "}
               <button
                 type="button"
@@ -331,10 +334,10 @@ export function TransferRequestModal({
                   marginLeft: 6,
                   padding: "2px 6px",
                   background: "transparent",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--color-border)",
                   borderRadius: 3,
                   cursor: "pointer",
-                  color: "var(--ink-mute)",
+                  color: "var(--color-text-muted)",
                 }}
               >
                 변경
@@ -343,31 +346,31 @@ export function TransferRequestModal({
           )}
         </label>
 
-        {/* 사유 textarea */}
+        {/* 사유 textarea / placeholder 5단어 이내 + "예) " 제거 */}
         <label style={{ display: "block", marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
-            사유 (선택, 200자 이내)
+          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
+            이적 사유 (선택)
           </span>
           <textarea
             maxLength={200}
             rows={3}
             value={reasonInput}
             onChange={(e) => setReasonInput(e.target.value)}
-            placeholder="예) 활동 지역 이동 / 친한 친구가 있는 팀 / 더 잘 맞는 팀 분위기"
+            placeholder="활동 지역 이동"
             disabled={loading}
             style={{
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 13,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+              fontSize: 16,
               resize: "vertical",
               fontFamily: "inherit",
             }}
           />
-          <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
             {reasonInput.trim().length}/200
           </span>
         </label>
@@ -377,7 +380,7 @@ export function TransferRequestModal({
             style={{
               fontSize: 12,
               marginBottom: 12,
-              color: message.type === "success" ? "var(--ok)" : "var(--danger)",
+              color: message.type === "success" ? "var(--color-success)" : "var(--color-error)",
             }}
           >
             {message.text}

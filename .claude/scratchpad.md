@@ -57,6 +57,83 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (UI fix — 디자인 시스템 통일 + reviewer 13건 / 5/6)
+
+📝 구현 범위: 5/5+5/6 신규 UI 컴포넌트 디자인 토큰 통일 + 미정의 토큰 제거 + 06 self-checklist 위반 4건 fix + 모바일 호환 강화 + window.prompt → 모달화.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/teams/[id]/_components_v2/jersey-change-request-modal.tsx` | `--surface`/`--surface-2` 미정의 → `--color-card`/`--color-elevated` / `--ink*` → `--color-text-*` / `--danger`/`--ok` → `--color-error`/`--color-success` / placeholder 5단어 + "예) " 제거 / iOS 16px input | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/dormant-request-modal.tsx` | 동일 토큰 통일 + placeholder "예) 군 입대..." → "군 입대 / 부상" / iOS 16px | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/withdraw-request-modal.tsx` | 동일 토큰 통일 + placeholder "예) 개인 사정..." → "개인 사정으로 활동 중단" / iOS 16px | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/transfer-request-modal.tsx` | 동일 토큰 통일 + placeholder "예) 활동 지역 이동..." → "활동 지역 이동" / dropdown 토큰 통일 / iOS 16px | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/member-actions-menu.tsx` | dropdown `--surface` → `--color-card` / `max-width: calc(100vw - 32px)` overflow 보완 / `--danger` → `--color-error` | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/team-join-button-v2.tsx` | (주변 UI 통일) 동일 패턴 적용 — `--surface` → `--color-card` / iOS 16px / placeholder 단순화 | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/roster-tab-v2.tsx` | P3-10 본인 휴면 안내 추가 — "휴면 중 · 복귀일 도래 시 자동 복귀" 텍스트 | 수정 |
+| `src/app/(web)/tournaments/[id]/join/page.tsx` | P1-3 grid 모바일 분기 — `repeat(2, 1fr)` → `repeat(auto-fit, minmax(140px, 1fr))` (iPhone SE 320px 호환) | 수정 |
+| `src/app/(web)/profile/_v2/teams-list-card.tsx` | P2-7 `--ink-on-accent` 미정의 → `--color-on-accent` 정의된 토큰 | 수정 |
+| `src/app/(web)/profile/_v2/transfer-progress-card.tsx` | P2-8 fallback hex 동기화 (`#16a34a` → `#1CA05E` / `#dc2626` → `#E24C4B`) + `--surface-2` → `--bg-alt` | 수정 |
+| `src/app/(web)/teams/[id]/manage/_components/ghost-candidates-tab.tsx` | P2-9 window.prompt/alert/confirm 제거 → ForceActionModal 통합 + toast 안내 + `--color-surface-bright` → `--color-elevated` | 수정 |
+| `src/app/(web)/teams/[id]/manage/_components/force-action-modal.tsx` | 신규 — jersey/withdraw 두 모드 모달 (window.prompt 대체) | 신규 |
+
+### 작업 P0~P3 매핑
+
+| 우선순위 | 항목 | 상태 |
+|---------|------|------|
+| P0-1 | 5 모달 + dropdown `--surface` 미정의 → `--color-card` | 완료 |
+| P0-2 | placeholder "예) " prefix 4건 + 5단어 룰 위반 | 완료 |
+| P1-3 | tournaments/[id]/join grid 모바일 분기 | 완료 |
+| P1-4 | 토큰 시스템 `--color-*` 레이어 통일 (5 모달 + member-actions-menu + team-join-button-v2) | 완료 |
+| P2-5 | dropdown `max-width: calc(100vw - 32px)` overflow 보완 | 완료 |
+| P2-6 | manage 탭 8~9개 그룹화 | 보류 (시각 깨짐 0, 기능 변경 0 룰) |
+| P2-7 | `--ink-on-accent` → `--color-on-accent` | 완료 |
+| P2-8 | transfer-progress-card fallback hex 동기화 | 완료 |
+| P2-9 | window.prompt/alert/confirm → ForceActionModal + toast | 완료 |
+| P3-10 | roster-tab 본인 dormant 안내 | 완료 |
+| P3-11 | jersey-change-button 데드 코드 정리 | 보류 (사용처 0, 삭제는 PM 판단) |
+
+### 디자인 시스템 통일 검증
+
+| 검증 항목 | 결과 |
+|----------|------|
+| `--surface` / `--surface-2` 미정의 토큰 (작업 범위) | 0건 |
+| `--ink-on-accent` 미정의 (작업 범위) | 0건 |
+| placeholder "예) " / "예: " prefix | 0건 |
+| placeholder 5단어 초과 | 0건 |
+| 핑크/살몬/코랄/`#FF8x` 류 hex | 0건 |
+| `border-radius: 9999px` | 0건 |
+| lucide-react import | 0건 |
+| iOS input 16px (모바일 자동 줌 차단) | 5 모달 + team-join 모두 적용 |
+| 모달 max-width 420~500 | 모두 준수 |
+| AppNav 7 룰 영향 | 0 (작업 파일 = 모달/카드/탭만) |
+
+### tsc 결과
+
+`npx tsc --noEmit` → **EXIT=0** (errors 0)
+
+💡 tester 참고:
+- **P0-1 검증**: 다크모드에서 5 모달 + member dropdown 의 배경이 `--surface` 미정의로 투명/검정이었던 회귀가 fix. 다크모드에서 모달 열기 → 카드 배경이 `--bg-card` (다크 #171C22) 로 정상 표시되는지 시각 확인.
+- **P0-2 검증**: jersey/dormant/withdraw/transfer 모달 진입 시 placeholder가 시안 룰 (5단어 이내, "예) " prefix 0) 준수. 직접 모달 4개 열어 placeholder 텍스트 확인.
+- **P1-3 검증**: tournaments/[id]/join 페이지 출전 선수 선택 grid를 iPhone SE (320px) 또는 Chrome devtools 320px 모바일 모드로 확인. auto-fit + minmax(140px) 으로 자동 1column 떨어짐.
+- **P2-5 검증**: 팀 페이지 본인 카드 우측 "내 액션 ▾" dropdown 을 모바일 (≤720px) 화면 우측에서 열어 화면 밖으로 overflow 안 되는지.
+- **P2-9 검증**: 팀 manage 탭 → 유령 후보 탭에서 "jersey 변경" / "강제 탈퇴" 버튼 클릭 → window.prompt 가 아닌 신규 모달이 뜨는지. 모달 닫으면 toast (3초 자동 닫힘) 동작.
+- **P3-10 검증**: 본인이 휴면 상태로 팀 페이지 접속 시 본인 카드 하단에 "휴면 중 · 복귀일 도래 시 자동 복귀" 안내 노출.
+
+⚠️ reviewer 참고:
+- **기능 변경 0 룰 준수** — 디자인 토큰 / placeholder / 모바일 호환 / 모달화만. API/데이터/비즈니스 로직 미변경.
+- **schema 변경 X / prisma db push X** — 운영 영향 0.
+- **작업 범위 외 파일도 1건 추가 fix** — `team-join-button-v2.tsx` (사용자 명시 요구 "주변 UI 통일" 반영, 같은 `--surface` 미정의 패턴이라 일괄 처리). 영향 = 모달 열림 시 다크모드 배경 정상화.
+- **manage 탭 그룹화 (P2-6) 보류** — 권한 분기 + 사용자 결정 필요한 IA 변경. PM 결정 영역.
+- **jersey-change-button 데드 코드 (P3-11) 보류** — 사용처 0건이지만 삭제 = PM 결정. 자동 회수 안 함.
+- **reviewer 13건 중 11건 처리 / 2건 보류 (P2-6 + P3-11)**.
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 5/6 | 신규 5 모달 + 관련 4 파일 + 신규 1 파일 / P0~P3 13건 중 11건 fix | 위 표 12 파일 | reviewer 정적 분석 13건 + 사용자 "주변 UI 통일" 요구 |
+
+---
+
 ## 구현 기록 (Phase 5 PR14+PR15+PR16 — 활동 추적 + 유령회원 시스템 + 회원 상태 정비) 🎉 Phase 5 완료
 
 📝 구현한 기능: TeamMember.last_activity_at 컬럼 + INDEX / trackTeamMemberActivity 5분 throttle helper + 5종 호출 위치 wiring / 유령 후보 조회 API + manage 탭 UI / 강제 액션 API (jersey/withdraw/role) + 모달 / 회원 상태 정비 (탈퇴 멤버 별도 탭 + 완전 삭제 API) / 알림 3종 (GHOST_CLASSIFIED / FORCE_WITHDRAWN / FORCE_JERSEY_CHANGED).
@@ -856,6 +933,7 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-06 | (PM 커밋 대기) | **UI fix — 디자인 시스템 통일 + reviewer 13건 / 11건 fix** — 12 파일 (신규 1: force-action-modal / 수정 11): 5 모달 + member-actions-menu + team-join-button-v2 토큰 통일 (`--surface` 미정의 → `--color-card` / `--ink*` → `--color-text-*` / `--danger`/`--ok` → `--color-error`/`--color-success`) / placeholder "예) " prefix 4건 + 5단어 룰 위반 fix (4 모달) / iOS input 16px 적용 (자동 줌 차단) / tournaments/join grid 모바일 분기 (`repeat(2, 1fr)` → `auto-fit minmax(140px)`) / dropdown overflow 보완 (`max-width: calc(100vw - 32px)`) / `--ink-on-accent` → `--color-on-accent` / fallback hex 동기화 (transfer-progress) / window.prompt/alert/confirm → ForceActionModal + toast (ghost-candidates) / 본인 dormant 안내 추가. tsc 0 / schema 변경 0 / 운영 영향 0 / commit X. P2-6(탭 그룹화) + P3-11(데드 코드) 보류. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 3 PR10+PR11 — 팀 이적 양쪽 팀장 승인 state machine + UI 통합** — 12 파일 (신규 6 / 수정 6): TransferRequest 모델 신설 (양쪽 사이드 status + finalStatus + processedBy 양쪽 + 5 FK + 3 인덱스) / User 3 + Team 2 reverse relation / 알림 4종 추가 / POST/GET API (pending 1건 + member_request 동시 차단 + 현 팀장 알림) / PATCH state machine (사이드별 captain 검증 + ALREADY_PROCESSED/REJECTED + approve+approve 자동 이동 트리거 + 단일 트랜잭션 fromMember status='withdrawn' + toMember INSERT active jersey=NULL + history 2건 transferred_out/in) / captain 시야 GET endpoint (OR 양쪽 사이드 pending) / 이적 모달 (검색 debounce 250ms + 사유 200자) / MemberActionsMenu 4번째 메뉴 + transfer 우선 검사 / roster+page teamName 전달 / manage 변경요청 탭 하단 이적 섹션 (sideLabel 분기 + 상대 팀 진척도) / 마이페이지 TransferProgressCard 양쪽 사이드 뱃지. tsc 0 / schema 변경 = 1 모델 + 5 reverse relation / commit X / db push X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR8+PR9 — 휴면+탈퇴 신청 dispatcher 활성화 + UI** — 9 파일 (신규 4 / 수정 5): dispatcher dormant/withdraw 활성화 (active row prev* 박제 + history payload 분기 3종 + status UPDATE 트랜잭션) / lazy 복구 helper 신설 (until < now → active 자동 + 'reactivated' history) / teams/[id] page + profile page 에 hook 호출 추가 / dormant-request-modal 신규 (until date 기본 +3개월 / 7일~12개월 / 사유 100자) / withdraw-request-modal 신규 (사유 5~200자 필수 + danger 경고 박스) / member-actions-menu 신규 (dropdown "내 액션 ▾" → 3 액션 통합 + clickOutside·Esc + pending 분기 라벨) / roster-tab-v2 status `['active','dormant']` 확장 + 휴면 뱃지(soft) + 카드 opacity 0.6 + JerseyChangeButton→MemberActionsMenu 교체 / manage 안내 문구 갱신. schema 변경 0 (status 컬럼 값만 추가) / tsc 0 / commit X / db push X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR7 — 번호 변경 신청 흐름 활성화 (모달 + 팀장 승인 UI + dispatcher)** — 6 파일 (신규 2 / 수정 4): dispatcher jersey_change approve 활성화 (재충돌 검증 + team_members.jersey_number UPDATE + history INSERT eventType='jersey_changed' payload {old,new,reason} — 단일 트랜잭션) / jersey-change-request-modal 신규 (PR2 jerseys-in-use 재사용 + 새 번호 0~99 + 사유 100자) / jersey-change-button client wrapper 신규 (mount 시 ?status=pending GET 1회 → loading/none/jersey_change/other 분기 라벨) / roster-tab-v2 currentUserId prop + 본인 row Link 외부 div 마운트 / page.tsx session.sub 전달 / manage page.tsx ManageTab 'member-requests' 추가 + 변경 요청 탭 (type 별 분기 라벨/색상 + 사유 accent border + 데스크탑/모바일 액션 분기). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 표시만 (PR8/PR9 후속). tsc 0 / 운영 DB 영향 0 / commit X. | ✅ |
@@ -865,10 +943,4 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR2 — 가입 폼 jersey input + 자동 복사 + 마이페이지 다중 팀** — 6 파일 (신규 2 / 수정 4): jerseys-in-use API 신설 / join API zod + 충돌 검증 + preferred_jersey_number 저장 / members PATCH approve 자동 복사 + 409 JERSEY_CONFLICT / team-join-button-v2 모달 (jersey input + 사용 중 표시) / TeamsListCard 신규 / profile/page.tsx SELECT 확장 + 카드 교체 + name_primary 매핑. tsc 0 / schema 변경 0 / 운영 DB 영향 0. | ✅ |
 | 2026-05-05 | DB UPDATE 3건 + INSERT 1건 + UPDATE 1건 (코드 변경 0) | **열혈농구단 SEASON2 출전 명단 정비 4건** — (1) jersey UPDATE 3건: 쓰리포인트/백승훈 ttpId=2540 (18→39) / 몽키즈/이지환 ttpId=2583 (0→4) / 몽키즈/최원영 ttpId=2581 (10→20). (2) 이도균 #70 등록 옵션 2 트랜잭션: tournament_team_players INSERT ttpId=2830 (제주 리딤 ttId=231 / userId=3352 / role=player) + team_members.jersey_number NULL→70 UPDATE (memberId=2701). 매 건 사전 검증 (동명이인 0 / 충돌 0) → 사용자 명시 승인 → 사후 SELECT 재확인 PASS. 임시 스크립트 즉시 삭제. 운영 DB 정책 준수. | ✅ |
 | 2026-05-05 | `7f26b6f` + `60e8468` + `61e9ab1` + `5fd1716` + `d8bba4a` + `eb015aa` → main `3f016c9` | **인증 흐름 전체 재설계 main 배포 — 로그인 hard reload + getAuthUser() 단일 헬퍼 + 쿠키 자동 cleanup** — `7f26b6f` 로그인 server action redirect → return success + window.location.href hard reload (SSR 새 쿠키 인지 보장). C1~C4 옵션 A+B-PR1: signup layout 가드 / me API 탈퇴 401→200 통일 / ProfileCtaCard 글로벌 fetcher 위임 / `src/lib/auth/get-auth-user.ts` 신규 (JWT verify + DB SELECT + status 분기 + 쿠키 자동 cleanup + React.cache dedup) + 4 layout (web/login/signup/profile) 위임. **사용자 검증 통과 — 탈퇴 회원 쿠키 본질 해결** (1회 진입 후 잘못된 쿠키 자동 제거). 회귀: 빈 본문 chunk 404 = 배포 직후 chunk 캐시 mismatch (강력 새로고침 안내, 일시적). tsc 0 / 운영 DB 영향 0 / scratchpad+architecture+conventions+errors+index 박제. | ✅ |
-| 2026-05-05 | (조사 only / 코드 변경 0) | **인증/세션/쿠키 흐름 전체 조사 + 재설계 옵션 보고서** — `Dev/auth-flow-redesign-2026-05-05.md` 작성. 14건 fix 분류 (활성 13 / dead code 1 / 충돌 0 / 누락 1=signup 가드). 콘솔 401 ×2 = 탈퇴 회원 me API 의도 분기 + ProfileCtaCard 자체 fetcher 중복 호출 (글로벌 fetcher 우회). 옵션 A (0.5d 작은 변경) + 옵션 B (1.5~2d 전면 재설계 = `getAuthUser()` 단일 헬퍼 + 쿠키 자동 cleanup) 비교. 권장 = A 즉시 + B-PR1 후속. 사용자 옵션 선택 대기. | ✅ |
-| 2026-05-05 | `fa5bd90` → main `76e4ca3` | **로그인 버튼 작동 안 함 본질 fix — /login layout 가드 status 검증 누락** — 본질: `(web)/login/layout.tsx` 의 `if (session) redirect("/")` 가 JWT 만 검증 → 탈퇴 회원 쿠키 7일 잔존 시 /login 진입 즉시 / 로 보내져 시도 자체 불가. (web)/layout.tsx status 검증 추가했지만 login/layout 누락 = 회귀. fix: DB user.status 검증 추가 — 정상 회원만 / redirect, 탈퇴/미존재 = login 노출. errors.md 박제 (회귀 방지 룰: 인증 가드 5개소 일괄 점검 + JWT 살아있음 ≠ 사용자 정상). 사용자 검증 = 쿠키 삭제 후 정상 → fix 후 쿠키 삭제 없이도 정상 예상. | ✅ |
-| 2026-05-05 | (조사 only / 코드 변경 0) | **열혈농구단 SEASON2 전국최강전 PDF (5/5 6팀 69명) vs DB 비교 + 이도균 가입 검증** — 종합: PDF 69 / DB 73 / 매칭 67. PDF only 2명 (리딤 #70 이도균 / 펜타곤 #21 박성후). DB only 6명 (5/5 미출전 = 그대로 유지). 이도균 = users id=3352 (5/3 가입) + 제주 리딤 멤버 active + 가입신청 approved 확인 → tournament_team_players 만 누락. 박성후 = users 0건 (완전 미가입, 내일 처리). 이도균 INSERT 스크립트 작성 완료 (사전 검증 + 사후 검증), 사용자 명시 승인 대기. | ✅ |
-| 2026-05-05 | (PM 정리 / 코드 변경 0) | **onboarding 10단계 시스템 설계 합의 — 옵션 B (선호값 6종, DB 영향 0)** — 사용자 정책 합의: 첫 로그인 필수 3단계 + 자율 7단계 + 100점 게이미피케이션. 1 본인인증 (IdentityVerifyButton 재사용) / 2 활동환경 (17시도 + 게임유형 6종) / 3 출전정보 / 4 팀 / 5 사진 / 6 자기소개+SNS / 7 스타일 / 8 테마/표시 (신규) / 9 맞춤보기 (settings/feed PreferenceForm 흡수) / 10 알림. 6종 = `street-ball`(길농) + 기존 5종. 분기 룰 = 길농 단독 → 3,4 선택 / 그 외 → 필수. 옵션 A (game.game_type 마이그레이션 56파일+DB 영향) 보류. PR1~5 분해 (~5.5d). decisions/conventions/lessons +6 항목 박제. 다음 세션 PR1 진입 (또는 PR5 가시 효과 우선). | ✅ |
-| 2026-05-05 | `ef7e78e` → main | **선수 배번 필수 정책 + role 분기 (3 API + admin/users 모달)** — 정책: player 배번 필수 / coach·captain 선택. join API zod 통과 후 누락 선수 닉네임 나열 + 422 / admin players API role==="player" + jersey null 차단 / Flutter v1 변경 0 (이미 required). admin/users 모달 TournamentRow role 분기 (player+누락 빨간 ⚠ / coach+누락 회색 — / 대회명 우측 role 라벨). 점검: 출전 339명 중 11명 누락 = player 7 (진짜) + coach 4 (정상). decisions+1 / conventions+1. | ✅ |
-| 2026-05-05 | `06d1376` + `8c95565` 묶임 → main | **admin/users 강화 — 모달 4섹션 + 인라인 편집 12→3필드 PIPA + 배번 인라인 수정** — Phase A (4섹션): 소속팀 / 토너먼트 참가 / 활동 통계 / 구독 + 농구정보 2행 (선출/기본 등번호). Phase 1 (인라인 편집) → 12필드 → 3필드 축소 (PIPA 본인정정권). 변경 가능 = nickname/bio/is_elite + 사유 5자 이상 필수 + admin_logs warning. updateTournamentPlayerJerseyAction 신설 (배번 인라인 수정 + 동일 팀 unique 사전 검증). 사용자 commit (auth fix 류) 와 묶임 — lessons "다중 동시 commit 묶임 함정" 박제. | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 세션 + 5/5 auth 4건 묶임 홈/SWR/hydration fix + 5/5 auth 6건 묶임 탈퇴/가입/세션 가드 + 듀얼 P3~P7 + Step 2 활성화 + 듀얼 표준화 + 도메인 sub-agent P3 + 매치 코드 v4 Phase 1~7 + 5/5 58af36a 트리 카드 시간 표시) — 5/5 인증 재설계 옵션 A+B-PR1 prepend / 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 세션 + 5/5 auth 4건 묶임 홈/SWR/hydration fix + 5/5 auth 6건 묶임 탈퇴/가입/세션 가드 + 듀얼 P3~P7 + Step 2 활성화 + 듀얼 표준화 + 도메인 sub-agent P3 + 매치 코드 v4 Phase 1~7 + 5/5 58af36a 트리 카드 시간 표시 + 5/5 auth 흐름 조사 보고서 + 5/5 login layout 가드 fix + 5/5 SEASON2 PDF vs DB 비교 + 5/5 onboarding 10단계 합의 + 5/5 배번 정책 ef7e78e + 5/5 admin/users 4섹션 06d1376) — 5/5 인증 재설계 옵션 A+B-PR1 prepend + 5/6 UI fix prepend / 복원: git log -- .claude/scratchpad.md -->

@@ -224,29 +224,31 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "var(--surface)",
+              // 디자인 토큰 통일 — match-jersey-override-modal 패턴 (--color-* 호환 레이어)
+              background: "var(--color-card)",
               borderRadius: 8,
               padding: 20,
               maxWidth: 420,
               width: "100%",
-              border: "1px solid var(--border)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-primary)",
             }}
           >
             <h2
               id="join-modal-title"
-              style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "var(--ink)" }}
+              style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "var(--color-text-primary)" }}
             >
               팀 가입 신청
             </h2>
 
-            {/* 사용 중 등번호 안내 */}
+            {/* 사용 중 등번호 안내 — --surface-2 미정의 fix → --color-elevated */}
             <div
               style={{
                 fontSize: 12,
-                color: "var(--ink-mute)",
+                color: "var(--color-text-muted)",
                 marginBottom: 12,
                 padding: "8px 10px",
-                background: "var(--surface-2, var(--bg))",
+                background: "var(--color-elevated)",
                 borderRadius: 4,
                 minHeight: 32,
               }}
@@ -256,7 +258,7 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
               ) : jerseysInUse && jerseysInUse.length > 0 ? (
                 <span>
                   팀 내 사용 중 번호:{" "}
-                  <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>
                     {jerseysInUse.map((n) => `#${n}`).join(", ")}
                   </span>
                 </span>
@@ -267,7 +269,7 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
 
             {/* Jersey input */}
             <label style={{ display: "block", marginBottom: 12 }}>
-              <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
                 선호 등번호 (선택, 0~99)
               </span>
               <input
@@ -284,17 +286,18 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
                   width: "100%",
                   padding: "8px 10px",
                   borderRadius: 4,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  color: "var(--ink)",
-                  fontSize: 14,
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
+                  // iOS 자동 줌 차단
+                  fontSize: 16,
                 }}
               />
             </label>
 
             {/* Position input */}
             <label style={{ display: "block", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
                 선호 포지션 (선택)
               </span>
               <input
@@ -302,17 +305,17 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
                 maxLength={20}
                 value={positionInput}
                 onChange={(e) => setPositionInput(e.target.value)}
-                placeholder="PG / SG / SF / PF / C 등"
+                placeholder="PG / SG / SF / PF / C"
                 disabled={loading}
                 className="input"
                 style={{
                   width: "100%",
                   padding: "8px 10px",
                   borderRadius: 4,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                  color: "var(--ink)",
-                  fontSize: 14,
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
+                  fontSize: 16,
                 }}
               />
             </label>
@@ -323,7 +326,7 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
                 style={{
                   fontSize: 12,
                   marginBottom: 12,
-                  color: message.type === "success" ? "var(--ok)" : "var(--danger)",
+                  color: message.type === "success" ? "var(--color-success)" : "var(--color-error)",
                 }}
               >
                 {message.text}

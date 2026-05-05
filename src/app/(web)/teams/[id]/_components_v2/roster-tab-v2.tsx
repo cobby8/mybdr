@@ -321,6 +321,20 @@ export async function RosterTabV2({ teamId, accent, currentUserId, teamName }: P
                 />
               </div>
             )}
+            {/* P3-10: 본인 휴면 안내 — 액션 메뉴 미노출 보완 (자동 복귀 hook 안내) */}
+            {isMe && isDormant && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  color: "var(--ink-mute)",
+                  textAlign: "right",
+                  fontStyle: "italic",
+                }}
+              >
+                휴면 중 · 복귀일 도래 시 자동 복귀
+              </div>
+            )}
           </div>
         );
 
