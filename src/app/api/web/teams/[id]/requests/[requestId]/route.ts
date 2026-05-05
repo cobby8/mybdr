@@ -89,47 +89,94 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const newStatus = action === "approve" ? "approved" : "rejected";
 
   // ─────────────────────────────────────────────────────
-  // dispatcher (PR6 = placeholder TODO, PR7+ 에서 실제 동작 구현)
+  // dispatcher (PR7 부터 jersey_change 활성화 — dormant/withdraw 는 PR8/PR9)
   // ─────────────────────────────────────────────────────
-  // status UPDATE + history INSERT 는 트랜잭션으로 묶어 일관성 보장.
-  // type 별 실제 변경 (jersey UPDATE / team_members.status='dormant' / 명단 삭제) 은
-  // 본 트랜잭션 안에 PR7+ 에서 추가될 예정.
-  if (action === "approve") {
-    switch (memberRequest.requestType) {
-      case "jersey_change":
-        // TODO: PR7 — jersey_change 실제 처리
-        // 1) 본인 team_members.jersey_number = payload.newJersey UPDATE (재충돌 검증)
-        // 2) 본인 ttp.jerseyNumber 도 sync (선택, 활성 대회 한정)
-        // 3) team_member_history INSERT (eventType='jersey_changed', payload={old, new})
-        break;
-      case "dormant":
-        // TODO: PR8 — dormant 실제 처리
-        // 1) team_members.status = 'dormant' UPDATE + dormant_until 컬럼 (Phase 2 추가)
-        // 2) team_member_history INSERT (eventType='dormant')
-        // 3) lazy 복구 룰 (보고서 §8 미묘 #2): 페이지 진입 시 expires_at 체크
-        break;
-      case "withdraw":
-        // TODO: PR9 — withdraw 실제 처리
-        // 1) team_members row DELETE (또는 status='withdrawn' 후 분기)
-        // 2) team_member_history INSERT (eventType='withdrawn') — 명단 삭제해도 이력 보존
-        // 3) tournament_team_players 활성 대회 영향 검토 (별도 룰)
-        break;
+  // 이유(왜): approve 시점에 type 별 실제 동작을 수행. status UPDATE + history INSERT
+  //   와 함께 같은 prisma.$transaction 으로 묶어 일관성 보장.
+  // jersey_change 경우 사전 검증(POST 시점)은 통과했어도 그 사이에 다른 멤버가 같은
+  //   번호를 사용했을 수 있으므로 **승인 시점 재충돌 검증** 필수.
+  // ⚠ ttp.jerseyNumber 자동 sync 는 의도적으로 제외 (옵션 C+UI = historical 보존).
+  //   미래 대회 신청부터 PR3 의 자동 복사 hook 으로 새 번호가 적용된다.
+  let oldJersey: number | null = null;
+  let newJersey: number | null = null;
+  if (action === "approve" && memberRequest.requestType === "jersey_change") {
+    // payload 에서 newJersey 추출 (POST 시 zod 로 0~99 정수 보장됨)
+    const payload = memberRequest.payload as { newJersey?: number } | null;
+    if (!payload || typeof payload.newJersey !== "number") {
+      return apiError("INVALID_PAYLOAD", 400, "신청 데이터가 손상되었습니다.");
     }
+    newJersey = payload.newJersey;
+
+    // 신청자의 현재 active 멤버 row 조회 (oldJersey 기록 + UPDATE 대상 식별)
+    const myActive = await prisma.teamMember.findFirst({
+      where: { teamId, userId: memberRequest.userId, status: "active" },
+      select: { id: true, jerseyNumber: true },
+    });
+    if (!myActive) {
+      // 신청자가 그 사이 탈퇴했거나 휴면 처리된 경우
+      return apiError(
+        "APPLICANT_NOT_ACTIVE",
+        409,
+        "신청자가 더 이상 활성 멤버가 아닙니다.",
+      );
+    }
+    oldJersey = myActive.jerseyNumber ?? null;
+
+    // 재충돌 검증 — 같은 팀 active 멤버 중 새 번호 사용자가 신청자 본인이 아니어야 함
+    const conflict = await prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        jerseyNumber: newJersey,
+        status: "active",
+        NOT: { userId: memberRequest.userId },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      return apiError(
+        "JERSEY_CONFLICT",
+        409,
+        `등번호 #${newJersey} 가 이미 사용 중입니다. 신청자에게 다른 번호를 신청하도록 안내해 주세요.`,
+      );
+    }
+    // ⚠ 실제 UPDATE 는 아래 트랜잭션에서 status UPDATE/history INSERT 와 함께 수행.
   }
+  // dormant / withdraw 는 PR8/PR9 에서 활성화 — 현재는 status UPDATE + history INSERT 만.
 
-  // request 상태 UPDATE + history INSERT 트랜잭션
-  // history.eventType 명명: '{requestType}_{approved|rejected}' (예: jersey_change_approved)
-  const eventType = `${memberRequest.requestType}_${newStatus}`;
-  const historyPayload: Prisma.InputJsonValue = {
-    requestId: memberRequest.id.toString(),
-    requestType: memberRequest.requestType,
-    requestPayload: memberRequest.payload as Prisma.InputJsonValue,
-    oldStatus: "pending",
-    newStatus,
-    ...(rejectionReasonClean && { rejectionReason: rejectionReasonClean }),
-  };
+  // request 상태 UPDATE + history INSERT (+ jersey_change approve 시 team_members UPDATE) 트랜잭션
+  // 이유(왜): jersey_change approve 분기 활성화 — status/history/team_members 3 작업을
+  //   하나의 트랜잭션으로 묶어 부분 실패 시 일관성 보장 (request 만 approved 인데
+  //   team_members.jersey_number 미반영 같은 사일런트 분기 방지).
+  // history.eventType 명명:
+  //   - reject 시: '{requestType}_rejected' (예: jersey_change_rejected)
+  //   - approve 시: jersey_change → 'jersey_changed' (보고서 §3 명세) / 그 외 → '{requestType}_approved'
+  const eventType =
+    action === "approve" && memberRequest.requestType === "jersey_change"
+      ? "jersey_changed"
+      : `${memberRequest.requestType}_${newStatus}`;
 
-  const [updated] = await prisma.$transaction([
+  // history payload — jersey_change approve 는 보고서 §3 형식 ({old, new, reason}) 적용
+  const historyPayload: Prisma.InputJsonValue =
+    action === "approve" && memberRequest.requestType === "jersey_change"
+      ? {
+          requestId: memberRequest.id.toString(),
+          requestType: memberRequest.requestType,
+          old: oldJersey, // 변경 전 번호 (null 가능 — 미배정 상태)
+          new: newJersey, // 변경 후 번호 (재충돌 검증 통과)
+          reason: memberRequest.reason ?? null,
+        }
+      : {
+          requestId: memberRequest.id.toString(),
+          requestType: memberRequest.requestType,
+          requestPayload: memberRequest.payload as Prisma.InputJsonValue,
+          oldStatus: "pending",
+          newStatus,
+          ...(rejectionReasonClean && { rejectionReason: rejectionReasonClean }),
+        };
+
+  // 트랜잭션 작업 배열 — jersey_change approve 시에만 team_members UPDATE 추가
+  // 이유: prisma.$transaction 은 동일 batch 내 작업 모두 성공 or 모두 롤백 보장.
+  const txOps: Prisma.PrismaPromise<unknown>[] = [
     prisma.teamMemberRequest.update({
       where: { id: reqId },
       data: {
@@ -155,7 +202,29 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
         createdById: ctx.userId,
       },
     }),
-  ]);
+  ];
+
+  // jersey_change approve — team_members.jersey_number UPDATE 추가
+  if (action === "approve" && memberRequest.requestType === "jersey_change" && newJersey !== null) {
+    txOps.push(
+      prisma.teamMember.updateMany({
+        // 이유: updateMany 사용 — (teamId, userId, status='active') 복합 조건 매칭.
+        //   team_members.id 단일키 UPDATE 를 쓰려면 위에서 myActive.id 로 조회해뒀지만,
+        //   updateMany 가 status 보호 + 중복 row 방지 (가능성 낮지만 안전망)
+        where: { teamId, userId: memberRequest.userId, status: "active" },
+        data: { jerseyNumber: newJersey },
+      }),
+    );
+  }
+
+  const txResults = await prisma.$transaction(txOps);
+  // 첫 번째 결과 = teamMemberRequest.update — select 한 필드 반환
+  const updated = txResults[0] as {
+    id: bigint;
+    requestType: string;
+    status: string;
+    processedAt: Date | null;
+  };
 
   // 신청자에게 결과 알림
   const typeLabel =

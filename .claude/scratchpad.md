@@ -57,6 +57,85 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (PR7 — 번호 변경 신청 흐름 활성화)
+
+📝 구현한 기능: PR6 dispatcher jersey_change 분기 활성화 + 본인 row 번호 변경 모달 + 팀장/매니저 변경요청 탭 (UI). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 는 표시만 (PR8/PR9 후속).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/teams/[id]/requests/[requestId]/route.ts` | dispatcher placeholder TODO → jersey_change approve 활성화 (재충돌 검증 + team_members.jersey_number UPDATE + history INSERT eventType='jersey_changed' + payload {old,new,reason} 형식 적용) — 모두 단일 트랜잭션 | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/jersey-change-request-modal.tsx` | 신청 모달 (현재 번호 표시 + 사용 중 번호 안내 PR2 jerseys-in-use 재사용 + 새 번호 0~99 input + 사유 100자 textarea + POST /api/web/teams/[id]/requests + 성공 시 router.refresh + 800ms 후 닫기) | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/jersey-change-button.tsx` | 본인 row 버튼 client wrapper (mount 시 GET ?status=pending 1회 조회 → kind=loading/none/jersey_change/other 분기 → "번호 변경" / "#N번 승인 대기" / "신청 대기 중" 라벨) + 모달 토글 + onSuccess 후 재조회 | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/roster-tab-v2.tsx` | currentUserId prop 추가 (BigInt 비교 isMe) + 본인 row 만 Link 외부 div 로 감싸 클릭 충돌 회피 + JerseyChangeButton 마운트 | 수정 |
+| `src/app/(web)/teams/[id]/page.tsx` | RosterTabV2 호출에 currentUserId={session?.sub ? BigInt(session.sub) : null} 전달 | 수정 |
+| `src/app/(web)/teams/[id]/manage/page.tsx` | ManageTab type 'member-requests' 추가 + resolveInitialTab 매핑 (member-requests/memberRequests/jersey-change) + MemberRequestRow 인터페이스 신설 + state 4종 + fetchMemberRequests + handleMemberRequestAction + 첫 마운트 1회 로드 + 탭 배열에 "변경 요청" 추가 (count=pending) + 변경 요청 탭 UI (type 별 분기 라벨/색상 — jersey_change=info/dormant=muted/withdraw=error + 사유 좌측 accent border + 데스크탑/모바일 액션 분기) | 수정 |
+
+### dispatcher 활성화 흐름 (PATCH approve)
+
+```ts
+if (action === "approve" && requestType === "jersey_change") {
+  // 1. payload.newJersey 추출 (zod 보장 0~99)
+  // 2. 신청자 active row 조회 → oldJersey 기록
+  // 3. 재충돌 검증 (status='active' AND NOT 본인 AND jersey_number=newJersey) → 409
+  // 4. 트랜잭션 ops 배열에 teamMember.updateMany 추가
+}
+const txOps = [request.update, history.create, ...(jersey_change ? [teamMember.updateMany] : [])];
+await prisma.$transaction(txOps);
+```
+
+### 미묘 룰 검증 (재충돌)
+
+POST 시점 사전 검증 통과 → PATCH approve 시점 재검증 (그 사이 다른 멤버가 같은 번호 사용 가능). 둘 다 통과해야 UPDATE.
+
+### history payload 형식 분기
+
+- jersey_change approve: `{requestId, requestType, old, new, reason}` (보고서 §3 명세)
+- 그 외 (jersey_change reject / dormant·withdraw): `{requestId, requestType, requestPayload, oldStatus, newStatus, rejectionReason?}` (PR6 기존 형식 유지)
+
+### 본인 row 버튼 표시 분기 (JerseyChangeButton)
+
+| pending 상태 | 라벨 | disabled |
+|--------------|------|----------|
+| loading (mount 직후 fetch 중) | 확인 중... | true |
+| none | 번호 변경 | false |
+| jersey_change (newJersey=N) | #N번 승인 대기 | true |
+| other (dormant/withdraw) | 신청 대기 중 | true |
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = 0 (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PR6 schema (team_member_requests + team_member_history) 가 운영 DB 에 push 되어 있어야 prisma 에러 0.
+- **테스트 시나리오 (jersey_change 핵심 흐름)**:
+  1. 팀 페이지 진입 (로그인 본인 active 멤버) → 본인 row 카드 우하단에 "번호 변경" 버튼 표시
+  2. 비로그인 / 타 팀 / 본인 아닌 멤버 row → 버튼 미표시 (currentUserId 분기)
+  3. "번호 변경" 클릭 → 모달 열림 → "사용 중 번호" 미리 표시 (PR2 jerseys-in-use)
+  4. 새 번호 입력 + 사유 입력 → "신청" → 성공 토스트 → 800ms 후 모달 닫기 + router.refresh
+  5. 즉시 본인 row 버튼이 "#[N]번 승인 대기" disabled 상태로 변경
+  6. 팀장 계정으로 /teams/[id]/manage 진입 → "변경 요청" 탭 (카운트 1) → 신청 카드 표시 (등번호 변경 라벨 + → #N + 사유)
+  7. "승인" 클릭 → row 제거 → 팀 페이지 로스터 새로고침 시 본인 jersey_number = N 으로 변경 + 알림 발송
+  8. "거부" 클릭 → prompt 사유 입력 → row 제거 + 거부 알림 발송
+- **회귀 검증**:
+  1. 같은 사용자 즉시 다시 신청 시도 → 409 ALREADY_PENDING (PR6 미묘 룰 #1)
+  2. 본인 현재 번호 = 신청 시 → 400 SAME_JERSEY (서버 + 클라이언트 둘 다 차단)
+  3. 사용 중 번호 신청 → 409 JERSEY_CONFLICT (POST + PATCH approve 둘 다)
+  4. 승인 시점에 다른 멤버가 같은 번호 가져간 경우 → PATCH 가 409 차단 (트랜잭션 안 들어감)
+  5. dormant/withdraw 신청도 변경 요청 탭에 표시 (라벨/색상만 분기). 승인 시 status UPDATE + history INSERT 만 (실제 변경 0)
+  6. 일반 멤버 가 manage 진입 → fetchMemberRequests 응답에 canSeeAll=false → 빈 목록 (서버 + 클라 양쪽 가드)
+
+⚠️ reviewer 참고:
+- **트랜잭션 안전성**: prisma.$transaction([request.update, history.create, teamMember.updateMany]) — 한 작업 실패 시 모두 롤백. team_members 만 변경되고 request 는 pending 인 사일런트 분기 0.
+- **재충돌 검증 시점**: POST 시 + PATCH approve 시 2회. 사이 시점에 다른 신청 승인되어 충돌하면 두 번째 approve 가 409 — 의도된 동작 (먼저 승인된 신청이 우선).
+- **history.eventType 명명**: jersey_change approve 만 'jersey_changed' (보고서 §3) / 그 외는 '{type}_{approved|rejected}' 패턴. 통합 SELECT 시 다양한 eventType 처리 필요.
+- **본인 row Link 회피**: `isMe` 일 때만 `<div>` 로 감싸 클릭 충돌 0. 타 멤버 카드는 기존대로 `/users/[id]` Link 그대로 (회귀 0).
+- **server component 의 onClick 금지**: roster-tab-v2 는 async server component → 본인 row div 에 onClick 추가 시 빌드 에러. 모든 인터랙션은 JerseyChangeButton (client) 으로 위임.
+- **manage 탭 6탭 구조**: roster / applicants / 변경 요청 / matches / invite / settings — 멤버 관리 맥락 기준 변경 요청을 가입 신청 직후 배치. 알림 actionUrl 호환 매핑 추가 (`?tab=member-requests` / `?tab=jersey-change`).
+- **PR8/PR9 호환**: dormant/withdraw 탭에 표시되지만 승인 시 status UPDATE + history INSERT 만 (PR6 기존 흐름). PR8/PR9 에서 dispatcher 분기 추가만 하면 됨.
+- **commit X / db push X** — PM 검토 후 진행.
+
+---
+
 ## 구현 기록 (PR6 — Phase 2 신청/승인 인프라)
 
 📝 구현한 기능: `team_member_requests` 통합 테이블 + `team_member_history` 신설 + 신청/조회/승인/거부 API + 알림 3종 — type 별 실제 동작은 PR7+ placeholder TODO
@@ -329,6 +408,7 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR7 — 번호 변경 신청 흐름 활성화 (모달 + 팀장 승인 UI + dispatcher)** — 6 파일 (신규 2 / 수정 4): dispatcher jersey_change approve 활성화 (재충돌 검증 + team_members.jersey_number UPDATE + history INSERT eventType='jersey_changed' payload {old,new,reason} — 단일 트랜잭션) / jersey-change-request-modal 신규 (PR2 jerseys-in-use 재사용 + 새 번호 0~99 + 사유 100자) / jersey-change-button client wrapper 신규 (mount 시 ?status=pending GET 1회 → loading/none/jersey_change/other 분기 라벨) / roster-tab-v2 currentUserId prop + 본인 row Link 외부 div 마운트 / page.tsx session.sub 전달 / manage page.tsx ManageTab 'member-requests' 추가 + 변경 요청 탭 (type 별 분기 라벨/색상 + 사유 accent border + 데스크탑/모바일 액션 분기). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 표시만 (PR8/PR9 후속). tsc 0 / 운영 DB 영향 0 / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 2 PR6 — team_member_requests 통합 + team_member_history 신설 + 신청/조회/승인거부 API + 알림 3종** — schema +2 모델 (Rails team_member_histories 와 명명 충돌 회피 단수 신설) + Team 2 + User 4 reverse relation. 신규 API 2개: POST/GET /api/web/teams/[id]/requests (zod discriminatedUnion type 별 payload + 미묘 룰 #1 ALREADY_PENDING 1건만 + jersey 충돌 사전 검증) + PATCH /api/web/teams/[id]/requests/[requestId] (approve/reject dispatcher placeholder TODO PR7~9 + 트랜잭션 status UPDATE + history INSERT + 신청자 알림). 권한 = captain + manager (Phase 4 PR12 위임 통합 예정). 알림 3종 추가 (TEAM_MEMBER_REQUEST_NEW/APPROVED/REJECTED). dispatcher 패턴 = approve 시 type 별 실제 변경은 placeholder TODO (PR7 jersey UPDATE / PR8 dormant / PR9 withdraw). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 1 PR4 — match_player_jersey 신설 + 라이브 W1 운영자 모달 + admin_logs** — schema +1 모델 (BigInt fk 통일, 지시서 String @db.Uuid 오기 수정) + 3 reverse relation. 신규 API 2개 (jersey-override POST UPSERT/DELETE 해제 + admin-check GET boolean). 신규 컴포넌트 1개 (모달 = 선수 dropdown + 0~99 input + 사용 중 표시 + 사유 + onSuccess refetch). 라이브 API 응답에 tournamentId 추가 + ttp.id → override jersey 매핑 후처리 (진행중·종료 분기 별도 statId→ttpId Map). 라이브 페이지 헤더 우측 PC/모바일 운영자 버튼 + 모달 마운트. 권한 = 운영자만 (organizer + admin_members.is_active). admin_logs warning 2 액션 (match_jersey_override / _release). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR3 — tournament join 자동 sync (옵션 C+UI 본질)** — 2 파일 수정: api/web/tournaments/[id]/join/route.ts (team_members 일괄 SELECT → memberMap → role 분기 검증 → ttp INSERT 자동 복사 / 사용 안 하는 data.players jersey 검증 제거 / UNIQUE 중복 체크 source 변경) + (web)/tournaments/[id]/join/page.tsx (로스터 stage 안내 박스 추가 + jersey/position input UI 제거 + POST body 미전송). 5/5 ef7e78e role 분기 룰 보존 (player 필수 / coach 선택). schema 변경 0 / Flutter `/api/v1/*` 변경 0 / tsc 0. 운영자/캡틴 jersey 직접 입력 진입점 X = single source = team_members. | ✅ |

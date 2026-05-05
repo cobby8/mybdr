@@ -290,7 +290,12 @@ export default async function TeamDetailPage({
                 />
               )}
               {currentTab === "roster" && (
-                <RosterTabV2 teamId={team.id} accent={accent} />
+                <RosterTabV2
+                  teamId={team.id}
+                  accent={accent}
+                  // 2026-05-05 Phase 2 PR7 — 본인 row 등번호 변경 버튼 노출용
+                  currentUserId={session?.sub ? BigInt(session.sub) : null}
+                />
               )}
               {currentTab === "recent" && (
                 <RecentTabV2 teamId={team.id} />

@@ -77,10 +77,11 @@ interface TeamEditData {
 // Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
 const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 
-// 시안 v2(1) 4탭 + Phase 10-4 후속 매치신청 탭 = 5탭 구조
+// 시안 v2(1) 4탭 + Phase 10-4 매치신청 + Phase 2 PR7 멤버 변경요청 = 6탭 구조
 // 이유(왜): 호스트가 받은 매치 신청(team_match_requests)을 처리할 UI가 필요. 별도 페이지 없이
 // 기존 manage 페이지에 탭으로 추가해 컨텍스트 유지.
-type ManageTab = "roster" | "applicants" | "matches" | "invite" | "settings";
+// member-requests: 본인 멤버가 보낸 번호변경/휴면/탈퇴 신청을 팀장/매니저가 처리.
+type ManageTab = "roster" | "applicants" | "matches" | "member-requests" | "invite" | "settings";
 
 // 쿼리 문자열 → 내부 탭 키로 정규화.
 // 이유: 팀 가입 신청 알림의 actionUrl은 `?tab=requests`로 보내지만 (의미 명확)
@@ -92,6 +93,8 @@ function resolveInitialTab(raw: string | null): ManageTab {
   if (raw === "requests" || raw === "request" || raw === "applicants") return "applicants";
   // matches / match-requests → matches 매핑 (매치 신청 알림 호환)
   if (raw === "matches" || raw === "match-requests" || raw === "match") return "matches";
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경요청 탭 (번호변경/휴면/탈퇴 알림 호환)
+  if (raw === "member-requests" || raw === "memberRequests" || raw === "jersey-change") return "member-requests";
   if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
   return "roster";
 }
@@ -118,6 +121,36 @@ interface MatchRequestRow {
     id: string;
     nickname: string;
     profile_image: string | null;
+  } | null;
+}
+
+// 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (번호변경/휴면/탈퇴 통합)
+// 이유: PR6 GET /api/web/teams/[id]/requests 응답 형식과 1:1 매핑.
+// requestType = jersey_change | dormant | withdraw / status = pending | approved | rejected | cancelled
+// payload 는 type 별 다름 (snake_case 변환 0 — JSON 컬럼)
+interface MemberRequestRow {
+  id: string;
+  teamId: string;
+  userId: string;
+  requestType: "jersey_change" | "dormant" | "withdraw";
+  payload: unknown;
+  reason: string | null;
+  status: string;
+  processedById: string | null;
+  processedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    nickname: string | null;
+    name: string | null;
+    profile_image: string | null;
+  } | null;
+  processedBy: {
+    id: string;
+    nickname: string | null;
+    name: string | null;
   } | null;
 }
 
@@ -148,6 +181,14 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   const [matchError, setMatchError] = useState<string | null>(null);
   // 수락/거절 처리 중인 신청 id (버튼 disabled + 처리 중 라벨용)
   const [matchProcessing, setMatchProcessing] = useState<string | null>(null);
+
+  // ─── 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (번호변경/휴면/탈퇴) 인박스 상태 ───
+  // 이유: 팀장/매니저가 받은 멤버 신청 (jersey_change/dormant/withdraw) 을 한 곳에서 처리.
+  // PR7 = jersey_change 만 실제 작동 / dormant + withdraw 는 표시만 (PR8/PR9 에서 활성화).
+  const [memberRequests, setMemberRequests] = useState<MemberRequestRow[]>([]);
+  const [memberReqLoading, setMemberReqLoading] = useState(false);
+  const [memberReqError, setMemberReqError] = useState<string | null>(null);
+  const [memberReqProcessing, setMemberReqProcessing] = useState<string | null>(null);
 
   // ─── 팀 설정 상태 ───
   const [teamData, setTeamData] = useState<TeamEditData | null>(null);
@@ -304,11 +345,78 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
     }
   }
 
+  // ─── 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 목록 조회 ───
+  // 이유: GET /api/web/teams/[id]/requests?status=pending 으로 pending 만 조회.
+  // captain/manager 권한 검증은 서버에서 수행 (canSeeAll=true 일 때만 팀 전체 응답).
+  const fetchMemberRequests = useCallback(async () => {
+    setMemberReqLoading(true);
+    setMemberReqError(null);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/requests?status=pending`);
+      if (res.status === 403) {
+        setMemberReqError("팀장 또는 매니저만 접근할 수 있습니다.");
+        return;
+      }
+      if (!res.ok) throw new Error("조회 실패");
+      const data = await res.json();
+      // apiSuccess envelope: { data: { requests, canSeeAll } }
+      const list = (data?.data?.requests ?? data?.requests ?? []) as MemberRequestRow[];
+      const canSeeAll = data?.data?.canSeeAll ?? data?.canSeeAll ?? false;
+      // canSeeAll=false 면 본인 신청만 응답 — 일반 멤버 시야이므로 빈 처리
+      setMemberRequests(canSeeAll ? list : []);
+    } catch {
+      setMemberReqError("멤버 신청 목록을 불러오지 못했습니다.");
+    } finally {
+      setMemberReqLoading(false);
+    }
+  }, [id]);
+
+  // ─── 멤버 변경 요청: 승인/거부 액션 ───
+  // 이유: PATCH /api/web/teams/[id]/requests/[requestId] 호출.
+  // PR7 에서 jersey_change 는 실제 동작 (team_members.jersey_number UPDATE) /
+  // dormant·withdraw 는 status 변경만 (PR8/PR9 에서 활성화).
+  async function handleMemberRequestAction(reqId: string, action: "approve" | "reject") {
+    let rejectionReason: string | null = null;
+    if (action === "reject") {
+      const input = window.prompt(
+        "거부 사유를 입력하세요 (선택, 신청자에게 노출됩니다. 비워두면 사유 없이 거부):",
+        "",
+      );
+      if (input === null) return;
+      const trimmed = input.trim();
+      rejectionReason = trimmed ? trimmed.slice(0, 500) : null;
+    }
+    setMemberReqProcessing(reqId);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/requests/${reqId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ...(action === "reject" && rejectionReason ? { rejectionReason } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? data.message ?? "처리 중 오류가 발생했습니다.");
+        return;
+      }
+      // 성공 시 row 제거 (pending 만 표시 중이므로)
+      setMemberRequests((prev) => prev.filter((r) => r.id !== reqId));
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMemberReqProcessing(null);
+    }
+  }
+
   // 초기 로드: 멤버/신청 (탭과 무관하게 항상 로드 — 탭 카운트 표시용)
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
   // 매치 신청도 첫 마운트 시 1회 로드 — 탭 카운트 뱃지 표시용
   // 이유(왜): 탭에 들어가기 전에도 "몇 건 대기 중" 정보를 노출해야 캡틴이 알아챈다.
   useEffect(() => { fetchMatchRequests(); }, [fetchMatchRequests]);
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경 요청도 첫 마운트 시 1회 로드 (탭 카운트용)
+  useEffect(() => { fetchMemberRequests(); }, [fetchMemberRequests]);
   useEffect(() => {
     // settings 또는 matches 탭 진입 시 teamData 로드.
     // 이유(왜): matches 탭의 수락/거절 버튼 노출 분기는 is_captain 에 의존 — 미로드 시 항상 비활성화로 보여
@@ -517,11 +625,14 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   // 매치신청 pending 카운트 — 탭 뱃지에 표시
   // 이유(왜): 전체 신청 수가 아닌 처리 대기(pending) 만 노출해야 호스트의 행동 유도가 명확.
   const pendingMatchCount = matchRequests.filter((r) => r.status === "pending").length;
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (이미 status=pending 만 조회하므로 length 그대로)
+  const pendingMemberReqCount = memberRequests.length;
 
-  // 시안 4탭 + 매치신청 = 5탭. 매치신청은 가입신청 다음(맥락이 가장 가까움) 위치.
+  // 시안 4탭 + 매치신청 + 멤버 변경요청 = 6탭. 변경요청은 가입신청 다음 (멤버 관리 맥락) 위치.
   const tabs: { id: ManageTab; label: string; count: number }[] = [
     { id: "roster", label: "로스터", count: members.length },
     { id: "applicants", label: "가입 신청", count: requests.length },
+    { id: "member-requests", label: "변경 요청", count: pendingMemberReqCount },
     { id: "matches", label: "매치 신청", count: pendingMatchCount },
     { id: "invite", label: "초대 링크", count: 0 },
     { id: "settings", label: "팀 설정", count: 0 },
@@ -1035,6 +1146,173 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                     </Button>
                   </div>
                 )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ═══════════ 변경 요청 탭 (Phase 2 PR7) ═══════════ */}
+      {/* 이유(왜): 멤버가 보낸 번호변경/휴면/탈퇴 신청을 팀장/매니저가 처리.
+          PR7 = jersey_change 만 실제 동작 (team_members.jersey_number UPDATE).
+          dormant/withdraw 는 status='approved' UPDATE 만 — PR8/PR9 에서 실제 동작 추가. */}
+      {tab === "member-requests" && (
+        <div className="flex flex-col gap-2.5">
+          {memberReqLoading && (
+            <div className="py-12 text-center text-sm text-[var(--color-text-secondary)]">불러오는 중...</div>
+          )}
+          {!memberReqLoading && memberReqError && (
+            <div
+              className="rounded-lg px-5 py-4 text-sm"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+                color: "var(--color-error)",
+              }}
+            >
+              {memberReqError}
+            </div>
+          )}
+          {!memberReqLoading && !memberReqError && memberRequests.length === 0 && (
+            <div className="rounded-lg bg-[var(--color-card)] py-16 text-center">
+              <span className="material-symbols-outlined mb-2 text-4xl text-[var(--color-text-muted)]">
+                inbox
+              </span>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                대기 중인 변경 요청이 없습니다.
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                멤버가 등번호 변경 / 휴면 / 탈퇴를 신청하면 여기에 표시됩니다.
+              </p>
+            </div>
+          )}
+
+          {/* 안내 — PR7 = jersey_change 만 실제 작동 */}
+          {!memberReqLoading && !memberReqError && memberRequests.length > 0 && (
+            <div
+              className="rounded-lg border px-4 py-2.5 text-xs"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
+                color: "var(--color-info)",
+              }}
+            >
+              <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
+              <span className="align-middle">
+                현재는 등번호 변경만 즉시 반영됩니다. 휴면/탈퇴 신청은 표시 후 PR8/PR9 에서 실제 처리가 활성화됩니다.
+              </span>
+            </div>
+          )}
+
+          {!memberReqLoading && !memberReqError && memberRequests.map((req) => {
+            const isProcessing = memberReqProcessing === req.id;
+            const applicantName = req.user?.nickname ?? req.user?.name ?? "회원";
+            const when = new Date(req.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+
+            // 종류 라벨 + 내용 — type 별 분기
+            let typeLabel: string;
+            let typeColor: string;
+            let contentText: string;
+            if (req.requestType === "jersey_change") {
+              const p = req.payload as { newJersey?: number } | null;
+              const newJ = typeof p?.newJersey === "number" ? p.newJersey : "?";
+              typeLabel = "등번호 변경";
+              typeColor = "var(--color-info)";
+              contentText = `→ #${newJ}`;
+            } else if (req.requestType === "dormant") {
+              const p = req.payload as { until?: string } | null;
+              const until = p?.until
+                ? new Date(p.until).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })
+                : "기한 미정";
+              typeLabel = "휴면 신청";
+              typeColor = "var(--color-text-muted)";
+              contentText = `복귀 예정: ${until}`;
+            } else {
+              typeLabel = "탈퇴 신청";
+              typeColor = "var(--color-error)";
+              contentText = "팀 명단 제외";
+            }
+
+            return (
+              <div key={req.id} className="rounded-lg bg-[var(--color-card)] p-5">
+                {/* 시안 톤: 48px 아이콘박스 / 1fr 정보 / 우측 액션 */}
+                <div className="mb-3 grid items-center gap-3.5" style={{ gridTemplateColumns: "48px 1fr auto" }}>
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded text-base font-bold text-white"
+                    style={{ backgroundColor: typeColor }}
+                  >
+                    {applicantName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
+                        {applicantName}
+                      </span>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, " + typeColor + " 16%, transparent)",
+                          color: typeColor,
+                        }}
+                      >
+                        {typeLabel}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                      {contentText} · 신청 {when}
+                    </div>
+                  </div>
+                  {/* 데스크탑 액션 — captain or manager 가 보는 페이지 (서버 GET 가드)
+                      — 모든 표시된 row 는 처리 가능 */}
+                  <div className="hidden items-center gap-1.5 sm:flex">
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleMemberRequestAction(req.id, "reject")}
+                      className="rounded border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-surface-bright)] disabled:opacity-50"
+                      style={{ color: "var(--color-error)" }}
+                    >
+                      거부
+                    </button>
+                    <Button
+                      disabled={isProcessing}
+                      onClick={() => handleMemberRequestAction(req.id, "approve")}
+                      className="!px-3 !py-1.5 text-xs"
+                    >
+                      {isProcessing ? "처리 중..." : "승인"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 사유 — 좌측 accent border (가입 신청 카드와 동일 톤) */}
+                {req.reason && (
+                  <div
+                    className="rounded border-l-[3px] px-3 py-2.5 text-sm leading-relaxed text-[var(--color-text-secondary)]"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      borderLeftColor: typeColor,
+                    }}
+                  >
+                    &ldquo;{req.reason}&rdquo;
+                  </div>
+                )}
+
+                {/* 모바일 액션 — 카드 하단 가로 배치 */}
+                <div className="mt-3 flex gap-2 sm:hidden">
+                  <button
+                    disabled={isProcessing}
+                    onClick={() => handleMemberRequestAction(req.id, "reject")}
+                    className="flex-1 rounded border border-[var(--color-border)] px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                    style={{ color: "var(--color-error)" }}
+                  >
+                    거부
+                  </button>
+                  <Button
+                    disabled={isProcessing}
+                    onClick={() => handleMemberRequestAction(req.id, "approve")}
+                    className="flex-1"
+                  >
+                    {isProcessing ? "처리 중..." : "승인"}
+                  </Button>
+                </div>
               </div>
             );
           })}

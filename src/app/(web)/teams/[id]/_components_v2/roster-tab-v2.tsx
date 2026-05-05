@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db/prisma";
 import { getDisplayName } from "@/lib/utils/player-display-name";
+// 2026-05-05 Phase 2 PR7 — 본인 row 등번호 변경 신청 버튼 (client wrapper)
+import { JerseyChangeButton } from "./jersey-change-button";
 
 // 2026-05-02: birth_date → 만 나이 계산
 // null/Invalid Date 안전 — null 반환 시 카드에서 미표시
@@ -47,6 +49,10 @@ import "./roster-tab-v2.css";
 type Props = {
   teamId: bigint;
   accent: string;
+  // 2026-05-05 Phase 2 PR7 — 본인 row 식별 (로그인 안 했으면 null)
+  // 이유: server component 단에서 본인 row 만 client 버튼을 마운트해 불필요한
+  //   fetch 호출 차단. null 이면 모든 row 에서 버튼 미노출 (비로그인/타인 시야).
+  currentUserId?: bigint | null;
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -67,7 +73,7 @@ const ROLE_ORDER: Record<string, number> = {
   member: 5,
 };
 
-export async function RosterTabV2({ teamId, accent }: Props) {
+export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
   const members = await prisma.teamMember
     .findMany({
       where: { teamId, status: "active" },
@@ -135,6 +141,9 @@ export async function RosterTabV2({ teamId, accent }: Props) {
         const userId = m.user?.id?.toString();
         const position = m.user?.position ?? "—";
         const height = m.user?.height ?? null;
+        // 2026-05-05 Phase 2 PR7 — 본인 row 식별 (BigInt 비교)
+        const isMe = currentUserId !== undefined && currentUserId !== null && m.userId === currentUserId;
+        const myJersey = m.jerseyNumber ?? null;
         // 2026-05-02 (옵션 A): 프로필 사진 + 나이 + 선출 + 지역
         const profileImage = m.user?.profile_image_url ?? null;
         const age = calcAge(m.user?.birth_date ?? null);
@@ -276,8 +285,35 @@ export async function RosterTabV2({ teamId, accent }: Props) {
                 </div>
               )}
             </div>
+            {/* 2026-05-05 Phase 2 PR7 — 본인 row: 등번호 변경 신청 버튼
+                이유: 본인 카드는 Link 외부 div 로 감싸므로 클릭 충돌 0. server component
+                JSX 에서 onClick 사용 불가 → JerseyChangeButton (client) 으로 위임. */}
+            {isMe && (
+              <div
+                style={{
+                  marginTop: 4,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <JerseyChangeButton
+                  teamId={teamId.toString()}
+                  currentJersey={myJersey}
+                />
+              </div>
+            )}
           </div>
         );
+
+        // 본인 카드는 Link 로 감싸지 않음 — 버튼 클릭이 /users/[id] 이동과 충돌하기 때문.
+        // 이유: Link 안에서 button onClick 은 stopPropagation 해도 일부 브라우저에서 navigate 트리거.
+        if (isMe) {
+          return (
+            <div key={m.id.toString()} className="roster-card">
+              {cardInner}
+            </div>
+          );
+        }
 
         return userId ? (
           <Link
