@@ -6,6 +6,7 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
 //   기존 JerseyChangeButton 대체 (PR7 단독 버튼 → 3 액션 통합 메뉴).
 //   기존 컴포넌트 파일은 보존 (역사 추적용 — 외부 import 0건 검증 완료 2026-05-05).
 import { MemberActionsMenu } from "./member-actions-menu";
+import MemberPendingBadge from "./member-pending-badge";
 
 // 2026-05-02: birth_date → 만 나이 계산
 // null/Invalid Date 안전 — null 반환 시 카드에서 미표시
@@ -311,9 +312,14 @@ export async function RosterTabV2({ teamId, accent, currentUserId, teamName }: P
                 style={{
                   marginTop: 4,
                   display: "flex",
-                  justifyContent: "flex-end",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
                 }}
               >
+                {/* 5/6 — 본인 신청 중 뱃지 (좌하단) — pending 0건 시 null (자동 빈 div) */}
+                <MemberPendingBadge teamId={teamId.toString()} />
                 <MemberActionsMenu
                   teamId={teamId.toString()}
                   teamName={teamName ?? null}
