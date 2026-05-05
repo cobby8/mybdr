@@ -345,8 +345,12 @@ export async function RosterTabV2({ teamId, accent, currentUserId, teamName }: P
           ? { opacity: 0.6 }
           : undefined;
         if (isMe) {
+          // 5/6 fix: 본인 카드는 dropdown 메뉴 (MemberActionsMenu) 가 카드 밖으로
+          // 펼쳐져야 함. .roster-card 의 overflow: hidden 을 inline 으로 visible 오버라이드.
+          // 다른 멤버 카드는 hover 효과 등을 위해 hidden 유지.
+          const meStyle: React.CSSProperties = { ...dormantStyle, overflow: "visible" };
           return (
-            <div key={m.id.toString()} className="roster-card" style={dormantStyle}>
+            <div key={m.id.toString()} className="roster-card" style={meStyle}>
               {cardInner}
             </div>
           );
