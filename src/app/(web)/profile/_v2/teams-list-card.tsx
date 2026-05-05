@@ -1,30 +1,33 @@
 /* ============================================================
- * TeamsListCard — 마이페이지 aside 다중 팀 목록 카드 (PR2)
+ * TeamsListCard — 마이페이지 소속 팀 카드 (PR2 + 5/6 확장)
  *
- * 이유(왜): 기존 단일 primaryTeam (teamMembers[0]) 표시 한계.
- *   여러 팀 가입 사용자가 본인 jersey + 지역 + 팀명을 한눈에 보고
- *   /teams/[id] 로 이동할 수 있어야 한다.
+ * 5/6 변경:
+ *   - 위치: aside → 히어로 바로 아래 풀 width
+ *   - row Link 제거 → 좌측 정보 (Link) + 우측 액션 (활동 관리 dropdown + 팀페이지 버튼)
+ *   - MemberActionsMenu 마운트 (팀 페이지 본인 카드와 동일 4종 신청)
  *
- * 어떻게:
- *   - Server Component (Link 사용 — 별도 클라이언트 hook 없음)
- *   - row 표시: [로고] [지역] [팀명(name_primary)] [#jersey]
- *   - 0 팀 = "가입한 팀이 없습니다" 빈 상태 + CTA
- *
- * 보안: SSR 단계에서 본인 teamMembers 만 조회 (page.tsx 가 IDOR 처리)
+ * row 구조:
+ *   ┌────────────────────────────────────────────────────────────┐
+ *   │ [로고] 지역             #N (jersey)                        │
+ *   │       팀명 (한/영)                                          │
+ *   │ ───────────────────────                                    │
+ *   │                       [활동 관리 ▾]    [팀페이지 →]       │
+ *   └────────────────────────────────────────────────────────────┘
  * ============================================================ */
 
 import Link from "next/link";
+import { MemberActionsMenu } from "../../teams/[id]/_components_v2/member-actions-menu";
+import MemberPendingBadge from "../../teams/[id]/_components_v2/member-pending-badge";
 
 export type TeamsListItem = {
   teamId: string;
-  teamName: string; // 표시용 (한글 또는 영문 — name_primary 결정)
-  teamNameSecondary: string | null; // 보조 표기 (한글 vs 영문 — primary 가 ko 면 en 보조)
+  teamName: string;
+  teamNameSecondary: string | null;
   city: string | null;
   district: string | null;
   logoUrl: string | null;
   primaryColor: string | null;
   jerseyNumber: number | null;
-  // 팀 이름 첫 2글자 — 로고 fallback
   tag: string;
 };
 
@@ -36,19 +39,19 @@ export function TeamsListCard({ teams }: Props) {
   // 0 팀 빈 상태
   if (teams.length === 0) {
     return (
-      <div className="card mypage-aside-card">
-        <div className="mypage-aside-card__head">
-          <span className="eyebrow" style={{ fontSize: 10 }}>
+      <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <span className="eyebrow" style={{ fontSize: 11 }}>
             소속 팀
           </span>
         </div>
-        <div style={{ fontSize: 12, color: "var(--ink-mute)", padding: "8px 0" }}>
+        <div style={{ fontSize: 13, color: "var(--ink-mute)", padding: "8px 0" }}>
           가입한 팀이 없습니다.
         </div>
         <Link
           href="/teams"
           className="btn btn--sm"
-          style={{ width: "100%", display: "block", textAlign: "center" }}
+          style={{ width: "100%", display: "block", textAlign: "center", marginTop: 8 }}
         >
           팀 둘러보기 →
         </Link>
@@ -57,63 +60,70 @@ export function TeamsListCard({ teams }: Props) {
   }
 
   return (
-    <div className="card mypage-aside-card">
-      <div className="mypage-aside-card__head">
-        <span className="eyebrow" style={{ fontSize: 10 }}>
+    <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <span className="eyebrow" style={{ fontSize: 11 }}>
           소속 팀{" "}
           <span style={{ color: "var(--ink-mute)", fontWeight: 400 }}>({teams.length})</span>
         </span>
-        <Link href="/teams" className="mypage-aside-card__more">
-          전체
+        <Link href="/teams" style={{ fontSize: 11, color: "var(--ink-mute)", textDecoration: "none" }}>
+          전체 →
         </Link>
       </div>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
         {teams.map((t) => {
-          // 지역 표시: city + district 합치기 (둘 다 있으면 "서울 강남구")
           const region = [t.city, t.district].filter(Boolean).join(" ") || "지역 미설정";
-          // 로고 fallback 색상 — primaryColor 또는 accent
           const tagBg = t.primaryColor ?? "var(--accent)";
-          // 정의된 토큰 사용 — 미정의 --ink-on-accent 대신 --color-on-accent (#ffffff)
           const tagInk = "var(--color-on-accent, #fff)";
 
           return (
-            <li key={t.teamId}>
+            <li
+              key={t.teamId}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                background: "var(--bg-alt, var(--bg))",
+                borderRadius: 8,
+                border: "1px solid var(--color-border, var(--line))",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* 좌측: 로고 + 정보 (Link — 팀 페이지 이동 — 클릭 영역) */}
               <Link
                 href={`/teams/${t.teamId}`}
-                className="mypage-team"
                 style={{
                   textDecoration: "none",
                   color: "inherit",
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "6px 0",
+                  flex: 1,
+                  minWidth: 200,
                 }}
               >
-                {/* 로고 (있으면 img, 없으면 tag) */}
                 {t.logoUrl ? (
-                  // 이유: 다음 이미지 도메인 미설정 가능 — 일반 img 태그 (작은 사이즈, 성능 영향 0)
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={t.logoUrl}
                     alt={t.teamName}
-                    width={32}
-                    height={32}
+                    width={36}
+                    height={36}
                     style={{ borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
                   />
                 ) : (
                   <span
-                    className="mypage-team__tag"
                     style={{
                       background: tagBg,
                       color: tagInk,
-                      width: 32,
-                      height: 32,
+                      width: 36,
+                      height: 36,
                       borderRadius: 4,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 700,
                       flexShrink: 0,
                     }}
@@ -123,22 +133,12 @@ export function TeamsListCard({ teams }: Props) {
                 )}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* 1행: 지역 (작은 글자) */}
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "var(--ink-mute)",
-                      lineHeight: 1.2,
-                      marginBottom: 2,
-                    }}
-                  >
+                  <div style={{ fontSize: 11, color: "var(--ink-mute)", lineHeight: 1.2, marginBottom: 2 }}>
                     {region}
                   </div>
-                  {/* 2행: 팀명 (한글/영문 우선순위 적용) */}
                   <div
-                    className="mypage-team__name"
                     style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: 600,
                       color: "var(--ink)",
                       lineHeight: 1.3,
@@ -151,7 +151,7 @@ export function TeamsListCard({ teams }: Props) {
                     {t.teamNameSecondary && (
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
                           color: "var(--ink-mute)",
                           fontWeight: 400,
                           marginLeft: 6,
@@ -163,16 +163,16 @@ export function TeamsListCard({ teams }: Props) {
                   </div>
                 </div>
 
-                {/* 본인 jersey (없으면 미표시) */}
+                {/* jersey */}
                 {t.jerseyNumber != null && (
                   <span
                     className="t-mono"
                     style={{
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: 700,
                       color: "var(--accent)",
                       flexShrink: 0,
-                      padding: "2px 8px",
+                      padding: "3px 9px",
                       background: "color-mix(in srgb, var(--accent) 12%, transparent)",
                       borderRadius: 4,
                     }}
@@ -181,6 +181,35 @@ export function TeamsListCard({ teams }: Props) {
                   </span>
                 )}
               </Link>
+
+              {/* 우측: 액션 영역 (활동 관리 dropdown + 팀페이지 버튼 + pending 뱃지) */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <MemberPendingBadge teamId={t.teamId} />
+                <MemberActionsMenu
+                  teamId={t.teamId}
+                  teamName={t.teamName}
+                  currentJersey={t.jerseyNumber}
+                />
+                <Link
+                  href={`/teams/${t.teamId}`}
+                  className="btn btn--sm"
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 10px",
+                    minHeight: 28,
+                    textDecoration: "none",
+                  }}
+                >
+                  팀페이지 →
+                </Link>
+              </div>
             </li>
           );
         })}

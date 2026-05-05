@@ -138,7 +138,7 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
   }
 
   // 트리거 버튼 라벨 — pending 분기
-  let triggerLabel = "내 액션 ▾";
+  let triggerLabel = "활동 관리 ▾";
   let triggerDisabled = false;
   if (pending.kind === "loading") {
     triggerLabel = "확인 중...";
