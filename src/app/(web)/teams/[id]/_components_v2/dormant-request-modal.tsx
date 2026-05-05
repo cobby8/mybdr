@@ -160,47 +160,49 @@ export function DormantRequestModal({ teamId, open, onClose, onSuccess }: Props)
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--surface)",
+          // 디자인 토큰 통일 — match-jersey-override-modal 패턴 (--color-* 호환 레이어)
+          background: "var(--color-card)",
           borderRadius: 8,
           padding: 20,
           maxWidth: 460,
           width: "100%",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--color-border)",
           maxHeight: "90vh",
           overflowY: "auto",
+          color: "var(--color-text-primary)",
         }}
       >
         <h2
           id="dormant-request-modal-title"
-          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}
+          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--color-text-primary)" }}
         >
           휴면 신청
         </h2>
-        <p style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 12 }}>
-          승인 시 로스터에 <strong style={{ color: "var(--ink)" }}>휴면</strong> 뱃지로 표시됩니다.
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
+          승인 시 로스터에 <strong style={{ color: "var(--color-text-primary)" }}>휴면</strong> 뱃지로 표시됩니다.
         </p>
 
-        {/* 안내 박스 — 자동 복귀 설명 */}
+        {/* 안내 박스 — 자동 복귀 설명. --surface-2 미정의 fix → --color-elevated */}
         <div
           style={{
             fontSize: 12,
-            color: "var(--ink-mute)",
+            color: "var(--color-text-muted)",
             marginBottom: 12,
             padding: "10px 12px",
-            background: "var(--surface-2, var(--bg))",
+            background: "var(--color-elevated)",
             borderRadius: 4,
-            borderLeft: "3px solid var(--info, #0079B9)",
+            borderLeft: "3px solid var(--color-info, #0079B9)",
             lineHeight: 1.55,
           }}
         >
-          복귀 예정일이 지나면 다음 접속 시 <strong style={{ color: "var(--ink)" }}>자동으로 활동
+          복귀 예정일이 지나면 다음 접속 시 <strong style={{ color: "var(--color-text-primary)" }}>자동으로 활동
           상태로 복귀</strong>합니다. 별도 신청은 필요 없습니다.
         </div>
 
         {/* until date */}
         <label style={{ display: "block", marginBottom: 12 }}>
-          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
-            복귀 예정일 <span style={{ color: "var(--danger)" }}>*</span>
+          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
+            복귀 예정일 <span style={{ color: "var(--color-error)" }}>*</span>
           </span>
           <input
             type="date"
@@ -214,42 +216,43 @@ export function DormantRequestModal({ teamId, open, onClose, onSuccess }: Props)
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 14,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+              // iOS 자동 줌 차단 — 16px 미만 input 시 발생
+              fontSize: 16,
             }}
           />
-          <span style={{ fontSize: 11, color: "var(--ink-mute)", marginTop: 2, display: "block" }}>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2, display: "block" }}>
             최소 7일 이후 ~ 최대 12개월 이내
           </span>
         </label>
 
-        {/* 사유 textarea */}
+        {/* 사유 textarea / placeholder 5단어 이내 + "예) " 제거 */}
         <label style={{ display: "block", marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
-            사유 (선택, 100자 이내)
+          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
+            휴면 사유 (선택)
           </span>
           <textarea
             maxLength={100}
             rows={3}
             value={reasonInput}
             onChange={(e) => setReasonInput(e.target.value)}
-            placeholder="예) 군 입대 / 부상 회복 / 학업"
+            placeholder="군 입대 / 부상"
             disabled={loading}
             style={{
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 13,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+              fontSize: 16,
               resize: "vertical",
               fontFamily: "inherit",
             }}
           />
-          <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>
+          <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>
             {reasonInput.trim().length}/100
           </span>
         </label>
@@ -259,7 +262,7 @@ export function DormantRequestModal({ teamId, open, onClose, onSuccess }: Props)
             style={{
               fontSize: 12,
               marginBottom: 12,
-              color: message.type === "success" ? "var(--ok)" : "var(--danger)",
+              color: message.type === "success" ? "var(--color-success)" : "var(--color-error)",
             }}
           >
             {message.text}
