@@ -5,6 +5,8 @@ import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import type { Prisma } from "@prisma/client";
+// Phase 4 PR13 — captain 또는 transferApprove 위임받은 자 통과
+import { hasTeamOfficerPermission } from "@/lib/team-members/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026-05-05 Phase 3 PR10 — 팀 이적 승인/거부 (양쪽 팀장 state machine)
@@ -76,15 +78,18 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     );
   }
 
-  // 권한 검증 — 해당 사이드 captain 만 자기 사이드 처리 가능
-  const isFromCaptain = transfer.fromTeam.captainId === ctx.userId;
-  const isToCaptain = transfer.toTeam.captainId === ctx.userId;
-
-  if (side === "from" && !isFromCaptain) {
-    return apiError("FORBIDDEN", 403, "현 팀의 팀장만 이 사이드를 처리할 수 있습니다.");
-  }
-  if (side === "to" && !isToCaptain) {
-    return apiError("FORBIDDEN", 403, "새 팀의 팀장만 이 사이드를 처리할 수 있습니다.");
+  // 권한 검증 — 해당 사이드 captain 또는 transferApprove 위임받은 자
+  // PR13: hasTeamOfficerPermission 단일 진입점으로 통일. captain 은 자동 true.
+  const targetTeamId = side === "from" ? transfer.fromTeamId : transfer.toTeamId;
+  const allowed = await hasTeamOfficerPermission(targetTeamId, ctx.userId, "transferApprove");
+  if (!allowed) {
+    return apiError(
+      "FORBIDDEN",
+      403,
+      side === "from"
+        ? "현 팀의 팀장 또는 이적 승인 위임받은 운영진만 처리할 수 있습니다."
+        : "새 팀의 팀장 또는 이적 승인 위임받은 운영진만 처리할 수 있습니다.",
+    );
   }
 
   // 이미 처리한 사이드 재처리 차단

@@ -6,6 +6,8 @@ import Link from "next/link";
 // 곧바로 "가입 신청" 탭으로 진입시키기 위해 초기 탭을 쿼리에서 결정
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+// Phase 4 PR12 — 운영진 권한 위임 탭 (captain only)
+import { OfficerPermissionsTab } from "./_components/officer-permissions-tab";
 
 // ─────────────────────────────────────────────────
 // 타입 정의
@@ -77,11 +79,19 @@ interface TeamEditData {
 // Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
 const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 
-// 시안 v2(1) 4탭 + Phase 10-4 매치신청 + Phase 2 PR7 멤버 변경요청 = 6탭 구조
+// 시안 v2(1) 4탭 + Phase 10-4 매치신청 + Phase 2 PR7 멤버 변경요청 + Phase 4 PR12 운영진 권한 = 7탭 구조
 // 이유(왜): 호스트가 받은 매치 신청(team_match_requests)을 처리할 UI가 필요. 별도 페이지 없이
 // 기존 manage 페이지에 탭으로 추가해 컨텍스트 유지.
 // member-requests: 본인 멤버가 보낸 번호변경/휴면/탈퇴 신청을 팀장/매니저가 처리.
-type ManageTab = "roster" | "applicants" | "matches" | "member-requests" | "invite" | "settings";
+// officers: captain 만 진입 — manager/coach/treasurer/director 에게 권한 분배.
+type ManageTab =
+  | "roster"
+  | "applicants"
+  | "matches"
+  | "member-requests"
+  | "officers"
+  | "invite"
+  | "settings";
 
 // 쿼리 문자열 → 내부 탭 키로 정규화.
 // 이유: 팀 가입 신청 알림의 actionUrl은 `?tab=requests`로 보내지만 (의미 명확)
@@ -95,6 +105,8 @@ function resolveInitialTab(raw: string | null): ManageTab {
   if (raw === "matches" || raw === "match-requests" || raw === "match") return "matches";
   // 2026-05-05 Phase 2 PR7 — 멤버 변경요청 탭 (번호변경/휴면/탈퇴 알림 호환)
   if (raw === "member-requests" || raw === "memberRequests" || raw === "jersey-change") return "member-requests";
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 탭 (captain only)
+  if (raw === "officers" || raw === "officer-permissions") return "officers";
   if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
   return "roster";
 }
@@ -732,12 +744,16 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   // 2026-05-05 Phase 3 PR10+PR11 — 이적 신청도 합산 (양쪽 사이드 미처리)
   const pendingMemberReqCount = memberRequests.length + transferRequests.length;
 
-  // 시안 4탭 + 매치신청 + 멤버 변경요청 = 6탭. 변경요청은 가입신청 다음 (멤버 관리 맥락) 위치.
+  // 시안 4탭 + 매치신청 + 멤버 변경요청 + (captain) 운영진 권한 = 7탭.
+  // 운영진 권한 탭은 captain 만 노출 (위임 가능 권한자 = captain only — 보고서 §4 결정 #4)
   const tabs: { id: ManageTab; label: string; count: number }[] = [
     { id: "roster", label: "로스터", count: members.length },
     { id: "applicants", label: "가입 신청", count: requests.length },
     { id: "member-requests", label: "변경 요청", count: pendingMemberReqCount },
     { id: "matches", label: "매치 신청", count: pendingMatchCount },
+    ...((teamData?.is_captain === true)
+      ? ([{ id: "officers" as ManageTab, label: "운영진 권한", count: 0 }] as const)
+      : []),
     { id: "invite", label: "초대 링크", count: 0 },
     { id: "settings", label: "팀 설정", count: 0 },
   ];
@@ -1592,6 +1608,30 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
           >
             가입 신청 보기
           </button>
+        </div>
+      )}
+
+      {/* ═══════════ 운영진 권한 탭 (Phase 4 PR12 — captain only) ═══════════ */}
+      {tab === "officers" && teamData?.is_captain === true && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            운영진 권한 위임
+          </h2>
+          <OfficerPermissionsTab
+            teamId={id}
+            members={members.map((m) => ({
+              id: m.id,
+              user_id: m.user_id,
+              nickname: m.nickname,
+              role: m.role,
+              profile_image: m.profile_image,
+            }))}
+          />
+        </div>
+      )}
+      {tab === "officers" && teamData?.is_captain !== true && (
+        <div className="py-12 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
+          운영진 권한 위임은 팀장만 관리할 수 있습니다.
         </div>
       )}
 

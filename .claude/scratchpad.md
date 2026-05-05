@@ -57,6 +57,104 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (Phase 4 PR12+PR13 — 운영진 권한 위임 인프라 + 모든 승인 API 통합)
+
+📝 구현한 기능: TeamOfficerPermissions 모델 + 위임 API (POST/DELETE/GET) + manage 운영진 권한 탭 + permissions helper (hasTeamOfficerPermission/isTeamCaptain) + 자동 회수 helper + PR6/7/8/9/10 권한 검증 통합 (5 endpoint).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | TeamOfficerPermissions 모델 신설 (BigInt id + permissions JSON + grantedById + revokedAt + UNIQUE(teamId,userId,revokedAt) + 1 index + 3 FK) + User 2 reverse + Team 1 reverse | 수정 |
+| `src/lib/team-members/permissions.ts` | `hasTeamOfficerPermission(teamId,userId,permission)` (captain 자동 true / 위임 row revokedAt=null + permissions JSON 키 true) + `isTeamCaptain` helper | 신규 |
+| `src/lib/team-members/auto-revoke-officer-permissions.ts` | captain 변경 시 본 팀 활성 권한 일괄 회수 (revokedAt=now) + 위임받은 자 알림 | 신규 |
+| `src/lib/notifications/types.ts` | TEAM_OFFICER_PERMISSION_GRANTED/REVOKED 2종 추가 | 수정 |
+| `src/app/api/web/teams/[id]/officer-permissions/route.ts` | POST (captain only, 자기위임차단, 대상 active+role∈delegable, 기존 활성 row UPDATE or 신설, 알림) / DELETE (revokedAt=now soft delete + 알림) / GET (captain: 본 팀 grants 전체 / member: 본인 grant 1건) | 신규 |
+| `src/app/api/web/teams/[id]/requests/[requestId]/route.ts` | PR13 권한 통합 — captain+manager 직접 검증 → `hasTeamOfficerPermission` (requestType 별 매핑: jersey_change→jerseyChangeApprove / dormant→dormantApprove / withdraw→withdrawApprove) | 수정 |
+| `src/app/api/web/teams/[id]/requests/route.ts` | GET 시야 결정 = 3 권한 중 1개라도 보유 시 canSeeAll / POST 알림 = captain + 해당 type 위임 운영진 N명 (Set 중복 제거) | 수정 |
+| `src/app/api/web/transfer-requests/[requestId]/route.ts` | PATCH 권한 통합 — side 별 captain 직접 검증 → `hasTeamOfficerPermission(targetTeamId, transferApprove)` | 수정 |
+| `src/app/api/web/transfer-requests/route.ts` | POST 알림 확장 — fromTeam captain + transferApprove 위임받은 자 N명 | 수정 |
+| `src/app/api/web/teams/[id]/transfer-requests/route.ts` | GET 권한 통합 — captain 직접 검증 → `hasTeamOfficerPermission(transferApprove)` | 수정 |
+| `src/app/(web)/teams/[id]/manage/_components/officer-permissions-tab.tsx` | OfficerPermissionsTab 컴포넌트 — DELEGABLE_ROLES 필터 + 6 권한 체크박스 + dirty 검사 + 저장/회수 버튼 + 위임됨 뱃지 + 빈 상태 안내 | 신규 |
+| `src/app/(web)/teams/[id]/manage/page.tsx` | ManageTab 'officers' 추가 + tabs 배열 captain 한정 노출 + 운영진 권한 탭 컨텐츠 마운트 + 비-captain fallback 메시지 + import | 수정 |
+
+### 권한 매트릭스 BEFORE/AFTER
+
+| Endpoint | BEFORE | AFTER |
+|----------|--------|-------|
+| `PATCH /teams/[id]/requests/[requestId]` | captain 또는 role='manager' 직접 검증 | `hasTeamOfficerPermission(teamId, userId, jerseyChangeApprove\|dormantApprove\|withdrawApprove)` (type 별 매핑) |
+| `GET /teams/[id]/requests` | captain 또는 manager 시야 / 일반 멤버 본인만 | 3 권한 중 1개라도 보유 시 canSeeAll / 일반 멤버 본인만 |
+| `PATCH /transfer-requests/[id]` | side 별 captain 직접 매칭 | `hasTeamOfficerPermission(targetTeamId, transferApprove)` |
+| `GET /teams/[id]/transfer-requests` | captain 직접 매칭 | `hasTeamOfficerPermission(teamId, transferApprove)` |
+
+### permissions JSON 키 (보고서 §4-2 권한 매트릭스 동기)
+
+```ts
+type TeamOfficerPermission =
+  | "jerseyChangeApprove"  // PR7
+  | "dormantApprove"       // PR8
+  | "withdrawApprove"      // PR9
+  | "transferApprove"      // PR10 (양쪽 사이드 공통 키)
+  | "ghostClassify"        // Phase 5 PR15 사전 준비
+  | "forceChange";         // Phase 5 PR15 사전 준비
+```
+
+### captain 변경 자동 회수 hook 위치 (작업 5)
+
+- 현재 코드베이스 grep 결과 — Team.captainId UPDATE 직접 호출 위치 = **0건**.
+- `src/app/actions/teams.ts` = INSERT 시점 captainId 만 (변경 X). PATCH `/teams/[id]/route.ts` updateTeamSchema 에 captainId 키 X.
+- 결론: helper `auto-revoke-officer-permissions.ts` 박제만 해두고, 향후 captain 양도 API 가 추가될 때 호출 (예: `/teams/[id]/transfer-captain`). 현 PR12 범위에서는 helper 위치 = **사용 0건 (지연 wired)**.
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = **0** (errors 0).
+
+### POST 위임 흐름 (요약)
+
+```ts
+// 1. captain 검증 (team.captainId === ctx.userId)
+// 2. 자기 자신에게 위임 차단 (CANNOT_GRANT_TO_SELF)
+// 3. 대상 active 멤버 + role IN ('manager','coach','treasurer','director')
+// 4. 기존 활성 row 조회 → 있으면 permissions UPDATE, 없으면 INSERT
+// 5. 위임받은 자에게 알림 (silent fail)
+// 6. UNIQUE 룰: (teamId, userId, revokedAt) — revokedAt=null 끼리 distinct → 활성 1건만
+```
+
+💡 tester 참고:
+- **사전 조건**: PM 사용자 승인 후 `npx prisma db push` 로 team_officer_permissions 테이블 생성 필요.
+- **테스트 시나리오 (정상 흐름)**:
+  1. captain 으로 manage 진입 → "운영진 권한" 탭 노출 → 클릭
+  2. 본 팀 manager/coach/treasurer/director 멤버 row 표시 (member 직급은 표시 안 함)
+  3. 6 체크박스 중 일부 체크 → "위임" 클릭 → POST 200 + 위임됨 뱃지
+  4. 비-captain 으로 같은 manage 진입 → "운영진 권한" 탭 미노출
+  5. 위임받은 manager 로 변경요청 탭 진입 → 본인 권한 (jerseyChangeApprove=true) 신청만 인박스 표시
+  6. 위임받은 manager 로 PATCH 승인 → 200 (권한 통과)
+  7. 위임 안받은 manager 로 같은 PATCH → 403 FORBIDDEN
+  8. captain 으로 "회수" 클릭 → DELETE 200 → revokedAt 갱신, 위임됨 뱃지 사라짐
+  9. 같은 user 에게 다시 위임 → 신규 row INSERT (UNIQUE 룰 통과)
+- **테스트 시나리오 (회귀)**:
+  1. captain 자기 자신에게 위임 시도 → 400 CANNOT_GRANT_TO_SELF
+  2. 일반 member (role='member') 에게 위임 → 400 TARGET_ROLE_NOT_DELEGABLE
+  3. 비-active (withdrawn/dormant) 멤버에게 위임 → 404 TARGET_NOT_TEAM_MEMBER
+  4. 비-captain 으로 POST → 403 FORBIDDEN
+  5. PATCH transfer-request side='from' 위임받은 자 (transferApprove=true) → 200
+  6. PATCH transfer-request side='from' 위임 X → 403 FORBIDDEN
+
+⚠️ reviewer 참고:
+- **단일 진입점**: 모든 승인 API 가 `hasTeamOfficerPermission` 호출 — captain 자동 + 위임 row 활성 검증 통합.
+- **재위임 차단**: POST 라우트가 `team.captainId !== ctx.userId` 직접 검증 (hasTeamOfficerPermission 호출 X — captain only 룰 명확). 위임받은 자가 다시 위임 API 호출 시 403.
+- **soft delete**: 회수 = revokedAt UPDATE (DELETE X). 같은 (team, user) 에 재위임 시 INSERT 가능 — UNIQUE 룰이 NULL 분기로 통과.
+- **알림 확장**: PR6/PR10 의 알림이 captain 단일 → captain + 위임받은 자 N명 (Set 중복 제거). silent fail 보존.
+- **권한 GET 시야 (requests/route.ts)**: 3 권한 중 1개라도 있으면 본 팀 신청 전체 표시 — 인박스 UI 단순화. 실제 PATCH 시 type 별 권한 재검증.
+- **자동 회수 helper 박제만**: 현재 captain 변경 endpoint 0건. 향후 추가 시 호출 위치 1곳.
+- **commit X / db push X** — PM 검토 후 진행.
+
+### 다음 작업 (PM)
+
+1. PM 검토 + `npx prisma db push` (team_officer_permissions 신규 테이블 + UNIQUE/INDEX)
+2. captain 으로 운영진 권한 탭 검증
+3. 위임받은 manager 로 변경요청 처리 검증
+
+---
+
 ## 구현 기록 (Phase 3 PR10+PR11 — 팀 이적 양쪽 팀장 승인 state machine)
 
 📝 구현한 기능: TransferRequest 모델 + 양쪽 팀장 승인 state machine API + 자동 이동 트랜잭션 + 이적 모달 + manage 변경요청 탭 통합 + 마이페이지 진행 카드 + 알림 4종.

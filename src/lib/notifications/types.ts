@@ -24,6 +24,9 @@ export const NOTIFICATION_TYPES = {
   TRANSFER_REQUEST_NEW_TO: "transfer.request.new_to",         // 새 팀장: 현 팀장 승인 후 결정 요청
   TRANSFER_REQUEST_APPROVED: "transfer.request.approved",     // 신청자: 양쪽 모두 승인 → 자동 이동 완료
   TRANSFER_REQUEST_REJECTED: "transfer.request.rejected",     // 신청자: 한쪽이라도 거부 → 종결
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임/회수
+  TEAM_OFFICER_PERMISSION_GRANTED: "team.officer_permission.granted",   // 위임받은 자: captain 이 권한 위임
+  TEAM_OFFICER_PERMISSION_REVOKED: "team.officer_permission.revoked",   // 위임받은 자: captain 이 권한 회수 (또는 자동 회수)
   // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
   TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
   // Phase 10-4 후속 — PATCH (수락/거절/취소) 시 발송되는 결과 알림.

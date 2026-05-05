@@ -5,6 +5,8 @@ import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import type { Prisma } from "@prisma/client";
+// Phase 4 PR13 — GET 시야 결정 (captain 또는 jersey/dormant/withdraw 중 1개 위임받은 자)
+import { hasTeamOfficerPermission } from "@/lib/team-members/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026-05-05 Phase 2 PR6 — 팀 멤버 라이프사이클 통합 신청 API
@@ -153,8 +155,9 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     select: { id: true, requestType: true, status: true, createdAt: true },
   });
 
-  // 팀장(captainId)에게 알림 — manager 권한자도 처리 가능하지만 알림은 captain 기본 (UI 에서 매니저도 동일 inbox 노출)
-  // 이유: 다중 알림 발송은 본 PR6 범위 외 (Phase 4 PR12 권한 위임 후 일괄 알림 룰 검토).
+  // 팀장 + 위임받은 자(해당 type 권한 보유) 에게 알림 (PR13)
+  // 이유(왜): captain 만 알림 받으면 위임받은 운영진이 인박스 신청을 모르고 미처리. 따라서
+  //   captain 자동 + permissions JSON 의 해당 키 true 인 활성 권한 row 모두 발송.
   const team = await prisma.team.findUnique({
     where: { id: teamId },
     select: { name: true, captainId: true },
@@ -167,11 +170,33 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
   const typeLabel =
     requestType === "jersey_change" ? "번호 변경" : requestType === "dormant" ? "휴면" : "탈퇴";
 
-  if (team?.captainId) {
+  // 권한 키 매핑 — type → 위임 키
+  const permissionKey =
+    requestType === "jersey_change"
+      ? "jerseyChangeApprove"
+      : requestType === "dormant"
+      ? "dormantApprove"
+      : "withdrawApprove";
+
+  // 알림 대상자 후보 = captain + 활성 권한 row 의 userId 들
+  const recipientIds = new Set<bigint>();
+  if (team?.captainId) recipientIds.add(team.captainId);
+  const grants = await prisma.teamOfficerPermissions.findMany({
+    where: { teamId, revokedAt: null },
+    select: { userId: true, permissions: true },
+  });
+  for (const g of grants) {
+    const perms = g.permissions as Record<string, unknown> | null;
+    if (perms && perms[permissionKey] === true) {
+      recipientIds.add(g.userId);
+    }
+  }
+
+  for (const uid of recipientIds) {
     createNotification({
-      userId: team.captainId,
+      userId: uid,
       notificationType: NOTIFICATION_TYPES.TEAM_MEMBER_REQUEST_NEW,
-      title: `[${team.name ?? "팀"}] 새 ${typeLabel} 신청`,
+      title: `[${team?.name ?? "팀"}] 새 ${typeLabel} 신청`,
       content: `${applicantName} 님이 ${typeLabel} 신청을 보냈습니다.`,
       actionUrl: `/teams/${teamId}/manage/requests`,
       notifiableType: "team_member_request",
@@ -208,22 +233,19 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
 
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    select: { id: true, captainId: true },
+    select: { id: true },
   });
   if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
 
-  // 권한 결정 — captain 또는 manager(active) 면 팀 전체 조회, 아니면 본인 신청만
-  // (Phase 4 PR12 에서 team_officer_permissions 통합 — 본 PR6 은 captain + manager 만)
-  const isCaptain = team.captainId === ctx.userId;
-  let isManager = false;
-  if (!isCaptain) {
-    const mgr = await prisma.teamMember.findFirst({
-      where: { teamId, userId: ctx.userId, role: "manager", status: "active" },
-      select: { id: true },
-    });
-    isManager = !!mgr;
-  }
-  const canSeeAll = isCaptain || isManager;
+  // 권한 결정 — PR13: captain 또는 jersey/dormant/withdraw 중 1개라도 위임받은 자
+  // 이유(왜): 위임받은 운영진이 본인이 처리할 수 있는 신청 종류를 인박스에서 확인 가능해야 함.
+  //   3 권한 중 어느 하나라도 있으면 본 팀 신청 전체 조회 (실제 PATCH 시 권한별 재검증).
+  const [canJersey, canDormant, canWithdraw] = await Promise.all([
+    hasTeamOfficerPermission(teamId, ctx.userId, "jerseyChangeApprove"),
+    hasTeamOfficerPermission(teamId, ctx.userId, "dormantApprove"),
+    hasTeamOfficerPermission(teamId, ctx.userId, "withdrawApprove"),
+  ]);
+  const canSeeAll = canJersey || canDormant || canWithdraw;
 
   // 일반 멤버는 active 멤버 자격 확인 (탈퇴 후엔 본인 이력만 별도 확인 — Phase 2 PR9 에서)
   if (!canSeeAll) {

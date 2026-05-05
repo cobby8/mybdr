@@ -2,6 +2,8 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import type { Prisma } from "@prisma/client";
+// Phase 4 PR13 — 운영진 권한 위임 검증 (captain 또는 transferApprove 위임받은 자)
+import { hasTeamOfficerPermission } from "@/lib/team-members/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026-05-05 Phase 3 PR10+PR11 — 팀 인박스용 이적 신청 조회 (captain 시야)
@@ -24,14 +26,18 @@ export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: Web
     return apiError("INVALID_TEAM_ID", 400);
   }
 
-  // 팀 존재 + captain 검증
+  // 팀 존재 + 권한 검증 (PR13: captain 또는 transferApprove 위임받은 자)
+  // 이유(왜): 위임받은 운영진(manager/coach/treasurer/director)도 인박스 조회 가능해야
+  //   POST /transfer-requests/[id] PATCH 도 같은 권한으로 처리할 수 있다.
   const team = await prisma.team.findUnique({
     where: { id: teamId },
-    select: { id: true, captainId: true },
+    select: { id: true },
   });
   if (!team) return apiError("팀을 찾을 수 없습니다.", 404);
-  if (team.captainId !== ctx.userId) {
-    return apiError("FORBIDDEN", 403, "팀장만 이적 신청을 조회할 수 있습니다.");
+
+  const allowed = await hasTeamOfficerPermission(teamId, ctx.userId, "transferApprove");
+  if (!allowed) {
+    return apiError("FORBIDDEN", 403, "팀장 또는 이적 승인 위임받은 운영진만 조회할 수 있습니다.");
   }
 
   // 본 팀이 fromTeam 또는 toTeam 인 신청 (양쪽 사이드 모두 본 captain 결정 대상)

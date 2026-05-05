@@ -5,6 +5,8 @@ import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import type { Prisma } from "@prisma/client";
+// Phase 4 PR13 — requestType 별 권한 매핑 (jersey_change → jerseyChangeApprove 등)
+import { hasTeamOfficerPermission, type TeamOfficerPermission } from "@/lib/team-members/permissions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026-05-05 Phase 2 PR6 — 팀 멤버 신청 승인/거부 (단건 PATCH)
@@ -67,18 +69,31 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     return apiError("ALREADY_PROCESSED", 409, "이미 처리된 신청입니다.");
   }
 
-  // 권한 검증 — captain or manager(active)
-  const isCaptain = memberRequest.team.captainId === ctx.userId;
-  let isManager = false;
-  if (!isCaptain) {
-    const mgr = await prisma.teamMember.findFirst({
-      where: { teamId, userId: ctx.userId, role: "manager", status: "active" },
-      select: { id: true },
-    });
-    isManager = !!mgr;
+  // 권한 검증 — PR13: captain (자동) 또는 requestType 별 위임 권한 보유자
+  // 이유(왜): PR12 운영진 권한 위임 인프라 — captain 만 위임 가능, 위임받은 자는
+  //   permissions JSON 의 해당 키 true 시 처리 가능. captain + manager 직접 검증 →
+  //   hasTeamOfficerPermission 단일 진입점으로 교체.
+  const PERMISSION_BY_TYPE: Record<string, TeamOfficerPermission> = {
+    jersey_change: "jerseyChangeApprove",
+    dormant: "dormantApprove",
+    withdraw: "withdrawApprove",
+  };
+  const requiredPermission = PERMISSION_BY_TYPE[memberRequest.requestType];
+  if (!requiredPermission) {
+    return apiError("INVALID_REQUEST_TYPE", 400, `알 수 없는 신청 유형: ${memberRequest.requestType}`);
   }
-  if (!isCaptain && !isManager) {
-    return apiError("FORBIDDEN", 403, "팀장 또는 매니저만 처리할 수 있습니다.");
+  const allowed = await hasTeamOfficerPermission(teamId, ctx.userId, requiredPermission);
+  if (!allowed) {
+    const labelByType: Record<string, string> = {
+      jersey_change: "번호 변경 승인",
+      dormant: "휴면 승인",
+      withdraw: "탈퇴 승인",
+    };
+    return apiError(
+      "FORBIDDEN",
+      403,
+      `팀장 또는 ${labelByType[memberRequest.requestType] ?? "해당"} 권한을 위임받은 운영진만 처리할 수 있습니다.`,
+    );
   }
 
   // 거부 사유 정리

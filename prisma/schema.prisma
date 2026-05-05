@@ -243,6 +243,11 @@ model User {
   transfer_requests_from_processed TransferRequest[] @relation("TransferRequestFromProcessor")
   transfer_requests_to_processed   TransferRequest[] @relation("TransferRequestToProcessor")
 
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 (captain 만 위임 가능)
+  // owner: 위임받은 자 본인 / granted: captain 이 위임한 row (grantedBy = 본인 captain)
+  team_officer_permissions_owner   TeamOfficerPermissions[] @relation("TeamOfficerPermissionsUser")
+  team_officer_permissions_granted TeamOfficerPermissions[] @relation("TeamOfficerPermissionsGrantor")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -436,6 +441,9 @@ model Team {
   // 2026-05-05 Phase 3 PR10 — 팀 이적 양쪽 사이드 역참조
   transfer_requests_from TransferRequest[] @relation("TransferRequestFromTeam")
   transfer_requests_to   TransferRequest[] @relation("TransferRequestToTeam")
+
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 역참조
+  team_officer_permissions TeamOfficerPermissions[]
 
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
@@ -3156,4 +3164,45 @@ model TransferRequest {
   @@index([fromTeamId, fromTeamStatus])
   @@index([toTeamId, toTeamStatus])
   @@map("transfer_requests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 (보고서 §4)
+// ─────────────────────────────────────────────────────────────────────────────
+// 이유(왜): captain (Team.captainId) 이 manager/coach/treasurer/director (team_members.role)
+//   에게 6 종 액션 권한을 분배. 위임받은 자는 재위임 불가 (보고서 결정 #4 — captain only).
+// permissions JSON 구조 (TS 타입 src/lib/team-members/permissions.ts):
+//   {
+//     jerseyChangeApprove?: boolean
+//     dormantApprove?: boolean
+//     withdrawApprove?: boolean
+//     transferApprove?: boolean
+//     ghostClassify?: boolean      (Phase 5 PR15 사전 준비)
+//     forceChange?: boolean        (Phase 5 PR15 사전 준비)
+//   }
+// 회수: revoked_at = now() (DELETE X — 위임 이력 보존). 활성 권한 = revoked_at IS NULL.
+// 미묘 룰 #4 (보고서 §8): captain 변경 시 본 팀의 모든 활성 권한 row 자동 회수
+//   (helper src/lib/team-members/auto-revoke-officer-permissions.ts).
+// UNIQUE 룰: 같은 (team, user) 활성 권한 1건만 — (teamId, userId, revokedAt) 복합. revokedAt
+//   이 NULL 이면 활성, NULL 끼리는 PostgreSQL distinct 처리되어 중복 차단됨.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TeamOfficerPermissions {
+  id          BigInt    @id @default(autoincrement())
+  teamId      BigInt    @map("team_id")
+  userId      BigInt    @map("user_id")
+  permissions Json      @default("{}")
+  grantedById BigInt    @map("granted_by_id")
+  grantedAt   DateTime  @default(now()) @map("granted_at") @db.Timestamp(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User @relation("TeamOfficerPermissionsUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy User @relation("TeamOfficerPermissionsGrantor", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId, revokedAt])
+  @@index([teamId, revokedAt])
+  @@map("team_officer_permissions")
 }

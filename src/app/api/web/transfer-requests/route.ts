@@ -160,9 +160,23 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
   });
   const applicantName = applicant?.nickname ?? applicant?.name ?? "회원";
 
-  if (fromTeam.captainId) {
+  // PR13 — captain + transferApprove 위임받은 자 모두에게 알림
+  // 이유: 위임받은 자가 인박스 알림 없으면 신청을 모르고 미처리 가능.
+  const fromRecipientIds = new Set<bigint>();
+  if (fromTeam.captainId) fromRecipientIds.add(fromTeam.captainId);
+  const fromGrants = await prisma.teamOfficerPermissions.findMany({
+    where: { teamId: fromTeamId, revokedAt: null },
+    select: { userId: true, permissions: true },
+  });
+  for (const g of fromGrants) {
+    const perms = g.permissions as Record<string, unknown> | null;
+    if (perms && perms.transferApprove === true) {
+      fromRecipientIds.add(g.userId);
+    }
+  }
+  for (const uid of fromRecipientIds) {
     createNotification({
-      userId: fromTeam.captainId,
+      userId: uid,
       notificationType: NOTIFICATION_TYPES.TRANSFER_REQUEST_NEW_FROM,
       title: `[${fromTeam.name ?? "팀"}] ${applicantName} 님의 이적 신청`,
       content: `${applicantName} 님이 ${toTeam.name ?? "다른 팀"} 으로의 이적을 신청했습니다.`,
