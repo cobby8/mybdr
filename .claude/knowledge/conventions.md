@@ -1,6 +1,22 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-05] 토큰 효율 룰 — agent prompt 분량 명시 + 보고서 diff-only 응답 + 결정 3건 분리
+- **분류**: convention/efficiency (토큰 효율 / 응답 품질 영향 0 검증됨)
+- **발견자**: pm + 사용자 (jersey 도메인 재설계 turn 회고)
+- **5 룰 (모두 응답/코드 품질 영향 0)**:
+  1. **agent 위임 prompt** = 산출물 형식 + 분량 ("1500자 이내") + 시간 ("30분 이내") 명시. timeout 위험 ↓ + 산출물 명확. 광범위 prompt → 분해 (Explore "5개 파일만" / planner "옵션 3개만").
+  2. **보고서 long-form 1회만** — 첫 응답 후 후속 turn = "보고서 §X 변경 / 결정 항목만" diff 형식. 옵션 비교표 등 동일 정보 반복 금지. 보고서 파일 참조로 충분.
+  3. **사용자 결정 = 핵심 Y/N 3건 이내** + 옵션은 "다른 의견 있으면 1줄로". 7~10건 묶음 ❌. 충돌 항목만 노출.
+  4. **임시 SELECT/UPDATE 스크립트 작성 전 prisma schema 1회 `Grep "model X"`** — 모델 필드명 / @map / unique 사전 확인. 재시도 ↓.
+  5. **scratchpad 즉시 압축** — turn 종료 시 직전 작업의 "기획설계" / "구현 기록" 섹션 = 작업 로그 1줄로 통합. 결정 후 옵션 보고 섹션도 1~2줄로. 100줄 초과 방치 X.
+- **PM 직접 vs agent 위임 기준 강화**:
+  - PM 직접: SELECT 1~2회 / 파일 1~2개 / Grep 단일 패턴 1회
+  - Explore: 파일 3개+ / 키워드 애매 / 광범위 검색
+  - planner: 구조적 결정 / 옵션 분석 / 영향 평가
+- **system-reminder TaskCreate 무시 룰**: 작업 단위 작은 경우 (jersey UPDATE 1건 등) task tracking 불필요. 룰 따라 무시.
+- **참조횟수**: 0
+
 ### [2026-05-05] 인증 가드 추가 규칙 — getAuthUser() 단일 진입점 위임 (직접 getWebSession+findUnique 패턴 금지)
 - **분류**: convention/auth (가드 일관성 / 누락 회귀 영구 차단)
 - **발견자**: developer (옵션 B-PR1 구현 후 박제)
