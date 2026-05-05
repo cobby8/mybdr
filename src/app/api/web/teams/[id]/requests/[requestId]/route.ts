@@ -89,7 +89,7 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   const newStatus = action === "approve" ? "approved" : "rejected";
 
   // ─────────────────────────────────────────────────────
-  // dispatcher (PR7 부터 jersey_change 활성화 — dormant/withdraw 는 PR8/PR9)
+  // dispatcher (PR7 jersey_change / PR8 dormant / PR9 withdraw 모두 활성화)
   // ─────────────────────────────────────────────────────
   // 이유(왜): approve 시점에 type 별 실제 동작을 수행. status UPDATE + history INSERT
   //   와 함께 같은 prisma.$transaction 으로 묶어 일관성 보장.
@@ -97,8 +97,17 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
   //   번호를 사용했을 수 있으므로 **승인 시점 재충돌 검증** 필수.
   // ⚠ ttp.jerseyNumber 자동 sync 는 의도적으로 제외 (옵션 C+UI = historical 보존).
   //   미래 대회 신청부터 PR3 의 자동 복사 hook 으로 새 번호가 적용된다.
+  // PR8 dormant: team_members.status='dormant' UPDATE — 미묘 룰 #6 status 컬럼 값만 추가
+  //   (신규 컬럼 0). until/oldJersey/oldPosition 등 부가 정보는 history.payload 보존.
+  // PR9 withdraw: team_members.status='withdrawn' UPDATE — 명단 완전 삭제 X (Phase 5
+  //   에서 옵션화). prevStatus / prevJersey / prevPosition history 보존.
   let oldJersey: number | null = null;
   let newJersey: number | null = null;
+  // PR8/PR9 — 본인 active row 정보 (history.payload 박제용)
+  let prevMemberStatus: string | null = null;
+  let prevMemberJersey: number | null = null;
+  let prevMemberPosition: string | null = null;
+  let dormantUntil: string | null = null; // PR8 — payload.until ISO 보존
   if (action === "approve" && memberRequest.requestType === "jersey_change") {
     // payload 에서 newJersey 추출 (POST 시 zod 로 0~99 정수 보장됨)
     const payload = memberRequest.payload as { newJersey?: number } | null;
@@ -140,39 +149,105 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
       );
     }
     // ⚠ 실제 UPDATE 는 아래 트랜잭션에서 status UPDATE/history INSERT 와 함께 수행.
+  } else if (
+    action === "approve" &&
+    (memberRequest.requestType === "dormant" || memberRequest.requestType === "withdraw")
+  ) {
+    // 이유: 본인 active row 가 존재해야 status 전이 가능. jersey/position 은 history
+    //   에 박제해 추후 복귀 시점에 시야 회복 (현재는 status 만 변경 — 미묘 룰 #6).
+    const myActive = await prisma.teamMember.findFirst({
+      where: { teamId, userId: memberRequest.userId, status: "active" },
+      select: { id: true, status: true, jerseyNumber: true, position: true },
+    });
+    if (!myActive) {
+      // 신청자가 그 사이 다른 흐름으로 active 가 아닌 경우 (예: 휴면 또는 강퇴)
+      return apiError(
+        "APPLICANT_NOT_ACTIVE",
+        409,
+        "신청자가 더 이상 활성 멤버가 아닙니다.",
+      );
+    }
+    prevMemberStatus = myActive.status ?? "active";
+    prevMemberJersey = myActive.jerseyNumber ?? null;
+    prevMemberPosition = myActive.position ?? null;
+
+    // PR8 dormant — payload.until 보존 (POST 시점에 +3개월 기본값으로 채워져 있음)
+    if (memberRequest.requestType === "dormant") {
+      const payload = memberRequest.payload as { until?: string } | null;
+      if (payload && typeof payload.until === "string") {
+        const d = new Date(payload.until);
+        if (!Number.isNaN(d.getTime())) {
+          dormantUntil = d.toISOString();
+        }
+      }
+      // until 이 손상되어도 신청 자체는 진행 (lazy 복구 hook 이 until 없는 row 는 그대로 유지)
+    }
   }
-  // dormant / withdraw 는 PR8/PR9 에서 활성화 — 현재는 status UPDATE + history INSERT 만.
 
   // request 상태 UPDATE + history INSERT (+ jersey_change approve 시 team_members UPDATE) 트랜잭션
   // 이유(왜): jersey_change approve 분기 활성화 — status/history/team_members 3 작업을
   //   하나의 트랜잭션으로 묶어 부분 실패 시 일관성 보장 (request 만 approved 인데
   //   team_members.jersey_number 미반영 같은 사일런트 분기 방지).
-  // history.eventType 명명:
-  //   - reject 시: '{requestType}_rejected' (예: jersey_change_rejected)
-  //   - approve 시: jersey_change → 'jersey_changed' (보고서 §3 명세) / 그 외 → '{requestType}_approved'
-  const eventType =
-    action === "approve" && memberRequest.requestType === "jersey_change"
-      ? "jersey_changed"
-      : `${memberRequest.requestType}_${newStatus}`;
+  // history.eventType 명명 (보고서 §3):
+  //   - reject 시: '{requestType}_rejected' (예: jersey_change_rejected / dormant_rejected / withdraw_rejected)
+  //   - approve 시 분기:
+  //       jersey_change → 'jersey_changed'
+  //       dormant       → 'dormant'      (PR8)
+  //       withdraw      → 'withdrawn'    (PR9)
+  let eventType: string;
+  if (action !== "approve") {
+    eventType = `${memberRequest.requestType}_${newStatus}`;
+  } else if (memberRequest.requestType === "jersey_change") {
+    eventType = "jersey_changed";
+  } else if (memberRequest.requestType === "dormant") {
+    eventType = "dormant";
+  } else if (memberRequest.requestType === "withdraw") {
+    eventType = "withdrawn";
+  } else {
+    eventType = `${memberRequest.requestType}_${newStatus}`;
+  }
 
-  // history payload — jersey_change approve 는 보고서 §3 형식 ({old, new, reason}) 적용
-  const historyPayload: Prisma.InputJsonValue =
-    action === "approve" && memberRequest.requestType === "jersey_change"
-      ? {
-          requestId: memberRequest.id.toString(),
-          requestType: memberRequest.requestType,
-          old: oldJersey, // 변경 전 번호 (null 가능 — 미배정 상태)
-          new: newJersey, // 변경 후 번호 (재충돌 검증 통과)
-          reason: memberRequest.reason ?? null,
-        }
-      : {
-          requestId: memberRequest.id.toString(),
-          requestType: memberRequest.requestType,
-          requestPayload: memberRequest.payload as Prisma.InputJsonValue,
-          oldStatus: "pending",
-          newStatus,
-          ...(rejectionReasonClean && { rejectionReason: rejectionReasonClean }),
-        };
+  // history payload 분기 — type 별 박제 정보 차등
+  // jersey_change approve: 보고서 §3 형식 ({old, new, reason})
+  // dormant approve: {until, reason, prevStatus} (PR8)
+  // withdraw approve: {reason, prevStatus, prevJersey, prevPosition} (PR9 — 복귀 시 시야 회복)
+  // 그 외 (reject 모두): PR6 기존 형식 유지
+  let historyPayload: Prisma.InputJsonValue;
+  if (action === "approve" && memberRequest.requestType === "jersey_change") {
+    historyPayload = {
+      requestId: memberRequest.id.toString(),
+      requestType: memberRequest.requestType,
+      old: oldJersey, // 변경 전 번호 (null 가능 — 미배정 상태)
+      new: newJersey, // 변경 후 번호 (재충돌 검증 통과)
+      reason: memberRequest.reason ?? null,
+    };
+  } else if (action === "approve" && memberRequest.requestType === "dormant") {
+    historyPayload = {
+      requestId: memberRequest.id.toString(),
+      requestType: memberRequest.requestType,
+      until: dormantUntil, // ISO 또는 null (손상 시)
+      reason: memberRequest.reason ?? null,
+      prevStatus: prevMemberStatus ?? "active",
+    };
+  } else if (action === "approve" && memberRequest.requestType === "withdraw") {
+    historyPayload = {
+      requestId: memberRequest.id.toString(),
+      requestType: memberRequest.requestType,
+      reason: memberRequest.reason ?? null,
+      prevStatus: prevMemberStatus ?? "active",
+      prevJersey: prevMemberJersey, // 복귀 시 시야 회복용 (재가입 신청 시점에 참고)
+      prevPosition: prevMemberPosition,
+    };
+  } else {
+    historyPayload = {
+      requestId: memberRequest.id.toString(),
+      requestType: memberRequest.requestType,
+      requestPayload: memberRequest.payload as Prisma.InputJsonValue,
+      oldStatus: "pending",
+      newStatus,
+      ...(rejectionReasonClean && { rejectionReason: rejectionReasonClean }),
+    };
+  }
 
   // 트랜잭션 작업 배열 — jersey_change approve 시에만 team_members UPDATE 추가
   // 이유: prisma.$transaction 은 동일 batch 내 작업 모두 성공 or 모두 롤백 보장.
@@ -213,6 +288,30 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
         //   updateMany 가 status 보호 + 중복 row 방지 (가능성 낮지만 안전망)
         where: { teamId, userId: memberRequest.userId, status: "active" },
         data: { jerseyNumber: newJersey },
+      }),
+    );
+  }
+
+  // PR8 dormant approve — team_members.status='dormant' UPDATE
+  // 이유: 미묘 룰 #6 — status 컬럼 값만 추가 (신규 컬럼 0). until 은 history.payload 박제.
+  // lazy 복구 hook (`checkAndExpireDormant`) 이 본인 SSR 시점에 until < now 자동 active 복귀.
+  if (action === "approve" && memberRequest.requestType === "dormant") {
+    txOps.push(
+      prisma.teamMember.updateMany({
+        where: { teamId, userId: memberRequest.userId, status: "active" },
+        data: { status: "dormant" },
+      }),
+    );
+  }
+
+  // PR9 withdraw approve — team_members.status='withdrawn' UPDATE
+  // 이유: 명단 완전 삭제 X (Phase 5 옵션). status='withdrawn' = roster 자동 제외 (active 필터),
+  //   history 영구 보존 → 활동 기록/통계 회귀 0. 재가입은 별도 가입 신청 흐름으로.
+  if (action === "approve" && memberRequest.requestType === "withdraw") {
+    txOps.push(
+      prisma.teamMember.updateMany({
+        where: { teamId, userId: memberRequest.userId, status: "active" },
+        data: { status: "withdrawn" },
       }),
     );
   }

@@ -40,6 +40,8 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
+// 2026-05-05 Phase 2 PR8 — 휴면 만료 lazy 복구 hook (본인 시야 진입 시 자동 active)
+import { checkAndExpireDormant } from "@/lib/team-members/check-dormant-expiry";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 
 // Phase 13 hub 전용 스타일 (BDR-current/mypage.css 1:1 카피)
@@ -228,6 +230,26 @@ export default async function ProfilePage() {
         <p style={{ color: "var(--ink-mute)" }}>프로필을 불러올 수 없습니다.</p>
       </div>
     );
+  }
+
+  // 2026-05-05 PR8 — 본인 휴면 만료 lazy 복구
+  // 이유: 본인이 가입 중인 팀들 중 dormant row 가 있고 until 이 지났으면 자동 active 복귀.
+  //   별도 SELECT 1쿼리 (대다수 사용자는 dormant row 0건 → 즉시 종료).
+  //   복귀가 발생해도 위 teamMembers 응답에는 반영되지 않으므로 다음 새로고침에 active 표시.
+  try {
+    const dormantRows = await prisma.teamMember.findMany({
+      where: { userId, status: "dormant" },
+      select: { teamId: true },
+      take: 20, // 비정상 데이터 안전망
+    });
+    if (dormantRows.length > 0) {
+      // 병렬 실행 — 각 row 독립적
+      await Promise.all(
+        dormantRows.map((r) => checkAndExpireDormant(r.teamId, userId).catch(() => false)),
+      );
+    }
+  } catch {
+    // silent — 페이지 로딩 영향 X
   }
 
   // ---- Hero 데이터 변환 ----

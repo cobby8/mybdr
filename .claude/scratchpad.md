@@ -57,6 +57,110 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (PR8+PR9 — 휴면 + 탈퇴 신청 dispatcher 활성화 + UI)
+
+📝 구현한 기능: PR6 dispatcher dormant/withdraw 분기 활성화 + lazy 복구 hook + 휴면/탈퇴 모달 + 본인 row dropdown 통합 (번호변경+휴면+탈퇴 3액션).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/teams/[id]/requests/[requestId]/route.ts` | dispatcher dormant/withdraw 분기 활성화 (active row prevStatus/prevJersey/prevPosition 박제 + history payload 분기 3종 + status UPDATE 트랜잭션 합류) | 수정 |
+| `src/lib/team-members/check-dormant-expiry.ts` | lazy 복구 helper 신설 — 본인 dormant row + 최근 'dormant' history.payload.until 조회 → 만료 시 트랜잭션 status='active' UPDATE + history 'reactivated' INSERT (운영 부하 회피: SELECT 2회 + 만료 시만 UPDATE) | 신규 |
+| `src/app/(web)/teams/[id]/page.tsx` | session.sub 분기 안에 `checkAndExpireDormant(team.id, userId)` 호출 (silent fail) + import | 수정 |
+| `src/app/(web)/profile/page.tsx` | Promise.all 직후 본인 dormant row SELECT 1회 + 각 teamId 별 lazy hook 병렬 호출 + import | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/dormant-request-modal.tsx` | 휴면 신청 모달 — until date input (기본 +3개월 / 최소 +7일 / 최대 +12개월) + 사유 100자 + 안내 박스 ("자동 복귀") + POST request_type='dormant' | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/withdraw-request-modal.tsx` | 탈퇴 신청 모달 — 사유 5~200자 필수 + danger 톤 경고 박스 ("탈퇴 후 활동 기록 보존 / 명단 제외 / 재가입 별도 신청") + POST request_type='withdraw' | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/member-actions-menu.tsx` | 본인 row dropdown — "내 액션 ▾" 트리거 + 3 메뉴 (번호 변경 / 휴면 신청 / 탈퇴 신청) + pending 분기 라벨 (#N번 승인 대기 / 휴면 승인 대기 / 탈퇴 승인 대기) + clickOutside·Esc 닫기 + 모달 3종 toggle | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/roster-tab-v2.tsx` | (a) status 필터 `['active','dormant']` 확장 + status select 추가 (b) orderBy 에 status 추가 + 정렬 로직 dormant 후순위 (c) 휴면 뱃지 표시 (badge--soft) + 카드 opacity 0.6 톤 다운 (d) JerseyChangeButton → MemberActionsMenu 교체 (휴면 본인은 dropdown 미노출 — 자동 복귀 hook 으로 다음 SSR 진입 시 active 복귀) | 수정 |
+| `src/app/(web)/teams/[id]/manage/page.tsx` | "변경 요청" 탭 안내 문구 갱신 — "PR8/PR9 후속" → "PR7+PR8+PR9 모두 즉시 반영" 메시지 | 수정 |
+
+### dispatcher 활성화 흐름 (PATCH approve)
+
+```ts
+// PR8 dormant approve
+if (action === "approve" && requestType === "dormant") {
+  // 1. payload.until 추출 (POST 시 +3개월 기본값으로 채워짐)
+  // 2. 본인 active row prevStatus/prevJersey/prevPosition 박제 → history.payload
+  // 3. 트랜잭션: request.update + history.create (eventType='dormant') + teamMember.updateMany (status='dormant')
+}
+// PR9 withdraw approve
+if (action === "approve" && requestType === "withdraw") {
+  // 1. 본인 active row prev* 박제
+  // 2. 트랜잭션: request.update + history.create (eventType='withdrawn') + teamMember.updateMany (status='withdrawn')
+}
+```
+
+### history payload 형식 분기 (eventType)
+
+| 시점 | eventType | payload |
+|------|-----------|---------|
+| jersey_change approve | `jersey_changed` | `{old, new, reason}` |
+| dormant approve | `dormant` | `{until, reason, prevStatus}` |
+| withdraw approve | `withdrawn` | `{reason, prevStatus, prevJersey, prevPosition}` |
+| reactivated (lazy hook) | `reactivated` | `{prevStatus, prevUntil, autoExpired:true, sourceHistoryId}` |
+| reject 모두 | `{type}_rejected` | `{requestPayload, oldStatus, newStatus, rejectionReason?}` |
+
+### lazy 복구 hook 설계 (미묘 룰 #2)
+
+- 호출 위치 = 본인 시야 진입점만 (운영 부하 회피)
+  - `(web)/teams/[id]/page.tsx` — session.sub 검증 직후 (silent fail)
+  - `(web)/profile/page.tsx` — teamMembers fetch 직후 (별도 dormant SELECT 1쿼리 + 병렬 hook)
+- 운영 부하: 평균 SELECT 1~2회 + 만료 시만 트랜잭션 1회. 대다수 사용자 active = SELECT 1회 종료.
+- 본 SSR 응답에는 즉시 반영 X (다음 새로고침 시점에 active 표시) — 사용자 결정 트레이드오프
+
+### roster 표시 룰 (PR8+PR9)
+
+| status | roster 표시 | 뱃지 | 카드 톤 | 본인 액션 메뉴 |
+|--------|------------|------|---------|---------------|
+| active | ✅ 표시 | 역할/선출 뱃지 | 정상 | ✅ MemberActionsMenu (3 액션) |
+| dormant | ✅ 표시 (active 뒤) | "휴면" 뱃지 (soft) | opacity 0.6 | ❌ 미노출 (자동 복귀 후 가능) |
+| withdrawn | ❌ 자동 제외 | — | — | — |
+
+### 본인 row dropdown 분기 (MemberActionsMenu)
+
+| pending 상태 | 트리거 라벨 | disabled |
+|--------------|-----------|----------|
+| loading | 확인 중... | true |
+| none | 내 액션 ▾ | false (dropdown 열림) |
+| jersey_change | #N번 승인 대기 | true |
+| dormant | 휴면 승인 대기 | true |
+| withdraw | 탈퇴 승인 대기 | true |
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = 0 (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PR6 schema (team_member_requests + team_member_history) 가 운영 DB 에 push 되어 있어야 prisma 에러 0. PR8/PR9 는 schema 변경 0 (status 컬럼 값만 추가).
+- **테스트 시나리오 (PR8 dormant)**:
+  1. 팀 페이지 본인 row → "내 액션 ▾" → "휴면 신청" 클릭 → 모달 진입 (until 기본값 +3개월 자동 채움)
+  2. 신청 → 팀장 manage "변경 요청" 탭에 "휴면 신청" row 표시 (회색 톤)
+  3. 승인 → roster 본인 row 가 "휴면" 뱃지 + opacity 0.6 표시 + 본인 dropdown 미노출
+  4. profile 페이지 teamsList 카드 — 휴면 row 도 표시됨 (status filter active 만 가져옴 → 이번 세션 미노출, 다음 새로고침 시 active 복귀 시 자동 표시)
+  5. until < now 도래 후 본인 팀 페이지 진입 → lazy hook 자동 실행 → 다음 새로고침 시 active 복귀 + 휴면 뱃지 제거
+  6. 회귀: until 7일 미만 입력 → 클라이언트 검증 차단 / 12개월 초과 → 차단
+- **테스트 시나리오 (PR9 withdraw)**:
+  1. "내 액션 ▾" → "탈퇴 신청" → 사유 5자 미만 입력 → 버튼 disabled (클라 검증)
+  2. 사유 5자 이상 입력 → 신청 → manage "변경 요청" 탭 "탈퇴 신청" row 표시 (danger 톤)
+  3. 승인 → roster 본인 row 자동 제외 (status='withdrawn' → IN ['active','dormant'] 필터 통과 X)
+  4. profile teamsList — 해당 팀 카드 자동 제외
+  5. team_member_history SELECT — eventType='withdrawn' + payload.prevJersey/prevPosition 보존 확인
+- **테스트 시나리오 (회귀)**:
+  1. 같은 사용자 휴면 pending 중 다시 탈퇴 신청 시도 → 409 ALREADY_PENDING (PR6 미묘 룰 #1)
+  2. 휴면 본인이 jersey_change 신청 시도 → 403 NOT_TEAM_MEMBER (POST 가 status='active' 만 통과)
+  3. dormant approve 시 active 가 아닌 경우 (이미 휴면/탈퇴 등) → 409 APPLICANT_NOT_ACTIVE
+  4. withdraw approve 시 active 가 아닌 경우 → 409 APPLICANT_NOT_ACTIVE
+
+⚠️ reviewer 참고:
+- **트랜잭션 일관성**: dispatcher 의 status UPDATE + history INSERT + request.update 모두 prisma.$transaction. 부분 실패 시 모두 롤백. lazy hook 도 트랜잭션 (UPDATE+INSERT 묶음).
+- **lazy hook silent fail**: 동시 다발 호출 / 다른 흐름 (강제 변경) 충돌 시 silent — 다음 진입에서 재시도. 데이터 일관성 우선이 아닌 가용성 우선 정책.
+- **history.payload.until 손상 안전망**: dormant_until ISO 변환 실패 시 dormantUntil=null 로 INSERT (lazy hook 이 until 없는 row 는 자동 복귀 X — 수동 처리 안내). request 자체는 정상 진행.
+- **휴면 본인 액션 메뉴 미노출 의도**: status='dormant' 본인이 새 신청을 보내려면 active 로 복귀해야 함 (POST 의 status='active' 가드). 이는 의도된 흐름 — UI 에서도 명확히 차단.
+- **profile teamMembers fetch 의 status='active' 미변경**: 본 PR 에서 active 만 표시 유지 (사용자 결정 — 복귀는 다음 새로고침에 표시). 휴면 중인 팀은 마이페이지에서 자동 숨김 — UX 단순화.
+- **dropdown clickOutside / Esc**: 표준 패턴 (containerRef + document mousedown/keydown 이벤트) — 다른 모달과 충돌 0.
+- **schema 변경 X / commit X / db push X** — PM 검토 후 진행.
+
+---
+
 ## 구현 기록 (PR7 — 번호 변경 신청 흐름 활성화)
 
 📝 구현한 기능: PR6 dispatcher jersey_change 분기 활성화 + 본인 row 번호 변경 모달 + 팀장/매니저 변경요청 탭 (UI). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 는 표시만 (PR8/PR9 후속).
@@ -408,6 +512,7 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR8+PR9 — 휴면+탈퇴 신청 dispatcher 활성화 + UI** — 9 파일 (신규 4 / 수정 5): dispatcher dormant/withdraw 활성화 (active row prev* 박제 + history payload 분기 3종 + status UPDATE 트랜잭션) / lazy 복구 helper 신설 (until < now → active 자동 + 'reactivated' history) / teams/[id] page + profile page 에 hook 호출 추가 / dormant-request-modal 신규 (until date 기본 +3개월 / 7일~12개월 / 사유 100자) / withdraw-request-modal 신규 (사유 5~200자 필수 + danger 경고 박스) / member-actions-menu 신규 (dropdown "내 액션 ▾" → 3 액션 통합 + clickOutside·Esc + pending 분기 라벨) / roster-tab-v2 status `['active','dormant']` 확장 + 휴면 뱃지(soft) + 카드 opacity 0.6 + JerseyChangeButton→MemberActionsMenu 교체 / manage 안내 문구 갱신. schema 변경 0 (status 컬럼 값만 추가) / tsc 0 / commit X / db push X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR7 — 번호 변경 신청 흐름 활성화 (모달 + 팀장 승인 UI + dispatcher)** — 6 파일 (신규 2 / 수정 4): dispatcher jersey_change approve 활성화 (재충돌 검증 + team_members.jersey_number UPDATE + history INSERT eventType='jersey_changed' payload {old,new,reason} — 단일 트랜잭션) / jersey-change-request-modal 신규 (PR2 jerseys-in-use 재사용 + 새 번호 0~99 + 사유 100자) / jersey-change-button client wrapper 신규 (mount 시 ?status=pending GET 1회 → loading/none/jersey_change/other 분기 라벨) / roster-tab-v2 currentUserId prop + 본인 row Link 외부 div 마운트 / page.tsx session.sub 전달 / manage page.tsx ManageTab 'member-requests' 추가 + 변경 요청 탭 (type 별 분기 라벨/색상 + 사유 accent border + 데스크탑/모바일 액션 분기). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 표시만 (PR8/PR9 후속). tsc 0 / 운영 DB 영향 0 / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 2 PR6 — team_member_requests 통합 + team_member_history 신설 + 신청/조회/승인거부 API + 알림 3종** — schema +2 모델 (Rails team_member_histories 와 명명 충돌 회피 단수 신설) + Team 2 + User 4 reverse relation. 신규 API 2개: POST/GET /api/web/teams/[id]/requests (zod discriminatedUnion type 별 payload + 미묘 룰 #1 ALREADY_PENDING 1건만 + jersey 충돌 사전 검증) + PATCH /api/web/teams/[id]/requests/[requestId] (approve/reject dispatcher placeholder TODO PR7~9 + 트랜잭션 status UPDATE + history INSERT + 신청자 알림). 권한 = captain + manager (Phase 4 PR12 위임 통합 예정). 알림 3종 추가 (TEAM_MEMBER_REQUEST_NEW/APPROVED/REJECTED). dispatcher 패턴 = approve 시 type 별 실제 변경은 placeholder TODO (PR7 jersey UPDATE / PR8 dormant / PR9 withdraw). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 1 PR4 — match_player_jersey 신설 + 라이브 W1 운영자 모달 + admin_logs** — schema +1 모델 (BigInt fk 통일, 지시서 String @db.Uuid 오기 수정) + 3 reverse relation. 신규 API 2개 (jersey-override POST UPSERT/DELETE 해제 + admin-check GET boolean). 신규 컴포넌트 1개 (모달 = 선수 dropdown + 0~99 input + 사용 중 표시 + 사유 + onSuccess refetch). 라이브 API 응답에 tournamentId 추가 + ttp.id → override jersey 매핑 후처리 (진행중·종료 분기 별도 statId→ttpId Map). 라이브 페이지 헤더 우측 PC/모바일 운영자 버튼 + 모달 마운트. 권한 = 운영자만 (organizer + admin_members.is_active). admin_logs warning 2 액션 (match_jersey_override / _release). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |

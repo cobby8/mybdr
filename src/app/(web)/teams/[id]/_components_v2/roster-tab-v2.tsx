@@ -2,8 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db/prisma";
 import { getDisplayName } from "@/lib/utils/player-display-name";
-// 2026-05-05 Phase 2 PR7 — 본인 row 등번호 변경 신청 버튼 (client wrapper)
-import { JerseyChangeButton } from "./jersey-change-button";
+// 2026-05-05 Phase 2 PR8+PR9 — 본인 row dropdown (번호 변경 + 휴면 + 탈퇴 통합)
+//   기존 JerseyChangeButton 대체 (PR7 단독 버튼 → 3 액션 통합 메뉴).
+//   기존 컴포넌트 파일은 보존 (역사 추적용 — 외부 import 0건 검증 완료 2026-05-05).
+import { MemberActionsMenu } from "./member-actions-menu";
 
 // 2026-05-02: birth_date → 만 나이 계산
 // null/Invalid Date 안전 — null 반환 시 카드에서 미표시
@@ -74,9 +76,11 @@ const ROLE_ORDER: Record<string, number> = {
 };
 
 export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
+  // 2026-05-05 Phase 2 PR8 — dormant 멤버도 로스터에 포함 (휴면 뱃지 표시)
+  // withdrawn 은 자동 제외 (status IN ['active','dormant'])
   const members = await prisma.teamMember
     .findMany({
-      where: { teamId, status: "active" },
+      where: { teamId, status: { in: ["active", "dormant"] } },
       include: {
         user: {
           select: {
@@ -95,7 +99,8 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
           },
         },
       },
-      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      // PR8: dormant 멤버는 active 뒤로 정렬 (status='active' 우선 — 사전순 a-d)
+      orderBy: [{ status: "asc" }, { jerseyNumber: "asc" }, { createdAt: "asc" }],
     })
     .catch(() => []);
 
@@ -120,8 +125,12 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
     );
   }
 
-  // 역할 우선 정렬 (DB orderBy는 jerseyNumber 기준이므로 역할 기준 재정렬)
+  // 역할 우선 정렬 + dormant 멤버 후순위 (DB orderBy는 status/jerseyNumber 기준)
+  // PR8: dormant 는 active 뒤로 — 운영자 시야 가독성 확보
   const sorted = [...members].sort((a, b) => {
+    const sa = a.status === "dormant" ? 1 : 0;
+    const sb = b.status === "dormant" ? 1 : 0;
+    if (sa !== sb) return sa - sb; // active 먼저
     const ra = ROLE_ORDER[a.role ?? "member"] ?? 99;
     const rb = ROLE_ORDER[b.role ?? "member"] ?? 99;
     if (ra !== rb) return ra - rb;
@@ -152,6 +161,8 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
         const role = m.role ?? "member";
         const roleLabel = ROLE_LABEL[role] ?? role;
         const jersey = m.jerseyNumber ?? "—";
+        // PR8: 휴면 멤버 표시 분기 — 카드 톤 다운 + "휴면" 뱃지
+        const isDormant = m.status === "dormant";
 
         // 2026-05-02 (v3): 컴팩트 + 나이 → 지역 우측
         //  ┌─────────────────────────┐
@@ -160,7 +171,7 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
         //  │ [아바타] 이름  [선출][주장]│
         //  └─────────────────────────┘
         // 여백 줄임: gap 4, padding 0, 뱃지 minHeight 제거
-        const hasBadge = isElite || role === "captain" || role === "director" || role === "coach" || role === "manager" || role === "treasurer";
+        const hasBadge = isDormant || isElite || role === "captain" || role === "director" || role === "coach" || role === "manager" || role === "treasurer";
         const cardInner = (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {/* 상단 row — 등번호 좌 / 포지션·신장 + 지역·나이 우 */}
@@ -273,6 +284,8 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
               {/* 뱃지 영역 — 우측 정렬, 있을 때만 (minHeight 제거 → 여백 0) */}
               {hasBadge && (
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                  {/* PR8: 휴면 뱃지 — soft 톤, 가장 우선 표시 (상태 정보가 가장 중요) */}
+                  {isDormant && <span className="badge badge--soft">휴면</span>}
                   {isElite && <span className="badge badge--red">선출</span>}
                   {role === "captain" ? (
                     <span className="badge badge--red">주장</span>
@@ -285,10 +298,13 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
                 </div>
               )}
             </div>
-            {/* 2026-05-05 Phase 2 PR7 — 본인 row: 등번호 변경 신청 버튼
+            {/* 2026-05-05 Phase 2 PR8+PR9 — 본인 row 액션 메뉴 (3 액션 통합)
                 이유: 본인 카드는 Link 외부 div 로 감싸므로 클릭 충돌 0. server component
-                JSX 에서 onClick 사용 불가 → JerseyChangeButton (client) 으로 위임. */}
-            {isMe && (
+                JSX 에서 onClick 사용 불가 → MemberActionsMenu (client) 으로 위임.
+                휴면 멤버도 본인 시야에서 액션 메뉴 노출 — 단, 서버에서 NOT_TEAM_MEMBER
+                403 차단 (POST 시 status='active' 만 통과). 휴면 본인은 자동 복귀 hook 으로
+                다음 SSR 진입 시 active 로 복귀 → 그 후 액션 가능. */}
+            {isMe && !isDormant && (
               <div
                 style={{
                   marginTop: 4,
@@ -296,7 +312,7 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
                   justifyContent: "flex-end",
                 }}
               >
-                <JerseyChangeButton
+                <MemberActionsMenu
                   teamId={teamId.toString()}
                   currentJersey={myJersey}
                 />
@@ -307,9 +323,13 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
 
         // 본인 카드는 Link 로 감싸지 않음 — 버튼 클릭이 /users/[id] 이동과 충돌하기 때문.
         // 이유: Link 안에서 button onClick 은 stopPropagation 해도 일부 브라우저에서 navigate 트리거.
+        // PR8: 휴면 멤버는 카드 자체를 톤 다운 (opacity 0.6) — 시각 정보 우선
+        const dormantStyle: React.CSSProperties | undefined = isDormant
+          ? { opacity: 0.6 }
+          : undefined;
         if (isMe) {
           return (
-            <div key={m.id.toString()} className="roster-card">
+            <div key={m.id.toString()} className="roster-card" style={dormantStyle}>
               {cardInner}
             </div>
           );
@@ -320,11 +340,12 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
             key={m.id.toString()}
             href={`/users/${userId}`}
             className="roster-card"
+            style={dormantStyle}
           >
             {cardInner}
           </Link>
         ) : (
-          <div key={m.id.toString()} className="roster-card">
+          <div key={m.id.toString()} className="roster-card" style={dormantStyle}>
             {cardInner}
           </div>
         );

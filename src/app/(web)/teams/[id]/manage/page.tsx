@@ -1186,7 +1186,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             </div>
           )}
 
-          {/* 안내 — PR7 = jersey_change 만 실제 작동 */}
+          {/* 안내 — PR7+PR8+PR9 모두 즉시 반영 (2026-05-05) */}
           {!memberReqLoading && !memberReqError && memberRequests.length > 0 && (
             <div
               className="rounded-lg border px-4 py-2.5 text-xs"
@@ -1198,7 +1198,7 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             >
               <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
               <span className="align-middle">
-                현재는 등번호 변경만 즉시 반영됩니다. 휴면/탈퇴 신청은 표시 후 PR8/PR9 에서 실제 처리가 활성화됩니다.
+                승인 시 즉시 반영: 등번호 변경 → 새 번호 적용 / 휴면 → 로스터 휴면 뱃지 (만료 시 자동 복귀) / 탈퇴 → 명단 자동 제외 (활동 기록은 보존).
               </span>
             </div>
           )}
