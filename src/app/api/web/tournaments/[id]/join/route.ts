@@ -9,6 +9,10 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 type Ctx = { params: Promise<{ id: string }> };
 
 // 참가신청 입력 스키마
+// 2026-05-05 PR3: 옵션 C+UI — 사용자/운영자가 jersey/position 직접 입력 X.
+//   ttp.jerseyNumber / ttp.position 은 팀 영구 번호 (`team_members.*`) 에서 서버가 자동 복사.
+//   클라이언트가 보내도 무해 (서버에서 무시) — 호환을 위해 schema 에서는 .optional() 유지하되
+//   POST handler 에서 사용하지 않음. 추후 클라가 필드를 떼면 자연 제거됨.
 const joinSchema = z.object({
   teamId: z.number().int().positive(),
   category: z.string().min(1).optional(),
@@ -20,6 +24,7 @@ const joinSchema = z.object({
   players: z.array(
     z.object({
       userId: z.number().int().positive(),
+      // 호환 필드 — 서버에서 사용 X (team_members 자동 복사로 대체). 클라가 보내도 무시.
       jerseyNumber: z.number().int().min(0).max(99).optional(),
       position: z.string().optional(),
       playerName: z.string().optional(),
@@ -248,40 +253,84 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return apiError(`최대 ${rosterMax}명까지 등록 가능합니다.`, 422);
   }
 
-  // 2026-05-05: 선수 배번 필수 (사용자 정책 결정)
-  //   - 대회 출전 = 선수(player) 활동 → 배번 필수 식별
-  //   - 감독/팀장/매니저는 별도 흐름 (admin 추가 API). join 폼은 모두 player.
-  //   - 누락 시 차단 + 친절 메시지 (어느 선수가 누락인지 표시)
-  const noJersey = data.players.filter(
-    (p) => p.jerseyNumber === undefined || p.jerseyNumber === null,
-  );
-  if (noJersey.length > 0) {
-    // userId 로 닉네임 조회 (운영자가 누구 누락인지 즉시 파악)
-    const userIds = noJersey.map((p) => BigInt(p.userId));
+  // 2026-05-05 PR3: 옵션 C+UI — ttp 자동 sync.
+  //   왜: 등번호는 "팀별 영구 번호" 가 자연 도메인. team_members.jersey_number 가 single source.
+  //        사용자/운영자가 ttp 에 별도 입력 = 도메인 분리 위반 + 데이터 mismatch 위험 (errors.md 5/2).
+  //   어떻게:
+  //     1) 선택된 player(userId) 의 team_members row 일괄 SELECT (해당 팀, status=active)
+  //     2) role + jersey 분기:
+  //        - role=player + jersey=NULL → 차단 (422, 누락 선수 닉네임 나열)
+  //        - role=coach/captain + jersey=NULL → 허용 (선택)
+  //     3) ttp INSERT 시 team_members.jersey_number / position 을 ttp.jerseyNumber / position 으로 복사
+  //   회귀 가드: 5/5 ef7e78e role 분기 룰 보존 (player 필수 / coach 선택).
+
+  // (a) 일괄 SELECT — 해당 팀 active 멤버 (선택 player userId 만)
+  const playerUserIds = data.players.map((p) => BigInt(p.userId));
+  const teamMembers = await prisma.teamMember.findMany({
+    where: { teamId, userId: { in: playerUserIds }, status: "active" },
+    select: { userId: true, jerseyNumber: true, position: true, role: true },
+  });
+  // userId → team_members row 빠른 lookup 용 Map (BigInt 비교 회피)
+  const memberMap = new Map<string, { jerseyNumber: number | null; position: string | null; role: string | null }>();
+  for (const m of teamMembers) {
+    if (m.userId !== null) {
+      memberMap.set(m.userId.toString(), {
+        jerseyNumber: m.jerseyNumber,
+        position: m.position,
+        role: m.role,
+      });
+    }
+  }
+
+  // (b) role 분기 검증 — player 만 jersey 필수
+  const missingJerseyPlayers: number[] = [];
+  for (const p of data.players) {
+    const member = memberMap.get(BigInt(p.userId).toString());
+    // team_members row 자체가 없으면 "팀에 가입되지 않은 사용자" → 별도 차단 (방어)
+    if (!member) {
+      return apiError(
+        `userId=${p.userId} 는 해당 팀의 활성 멤버가 아닙니다. 팀 멤버 등록을 먼저 진행해 주세요.`,
+        422,
+      );
+    }
+    // role=player 인데 jersey 없음 → 차단 누적
+    // (role 이 null/undefined 이면 기본 player 로 간주 — schema default 'player')
+    const memberRole = member.role ?? "player";
+    if (memberRole === "player" && (member.jerseyNumber === null || member.jerseyNumber === undefined)) {
+      missingJerseyPlayers.push(p.userId);
+    }
+  }
+  if (missingJerseyPlayers.length > 0) {
+    // userId → 닉네임 (운영자가 누구 누락인지 즉시 파악)
+    const userIds = missingJerseyPlayers.map((id) => BigInt(id));
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
       select: { id: true, nickname: true, name: true },
     });
-    const names = noJersey
-      .map((p) => {
-        const u = users.find((x) => x.id === BigInt(p.userId));
-        return u?.nickname ?? u?.name ?? p.playerName ?? `userId=${p.userId}`;
+    const names = missingJerseyPlayers
+      .map((id) => {
+        const u = users.find((x) => x.id === BigInt(id));
+        return u?.nickname ?? u?.name ?? `userId=${id}`;
       })
       .join(", ");
     return apiError(
-      `다음 선수의 등번호가 입력되지 않았습니다: ${names}\n` +
-        `대회 출전을 위해서는 모든 선수의 등번호가 필요합니다. ` +
-        `각 선수의 본인 프로필에서 기본 등번호를 설정한 후 다시 시도해 주세요.`,
+      `다음 선수의 팀 등번호가 등록되지 않았습니다: ${names}\n` +
+        `등번호는 팀별 영구 번호로, 팀 페이지에서 먼저 등록해야 대회 출전이 가능합니다.`,
       422,
     );
   }
 
-  // 등번호 중복 체크
-  const jerseyNumbers = data.players
-    .map((p) => p.jerseyNumber)
-    .filter((n): n is number => n !== undefined && n !== null);
-  if (new Set(jerseyNumbers).size !== jerseyNumbers.length) {
-    return apiError("등번호가 중복됩니다.", 422);
+  // (c) ttp 등번호 중복 체크 — team_members 에서 가져온 번호 기준
+  //     UNIQUE(tournament_team_id, jersey_number) 제약 사전 차단 (DB 에러 방지).
+  //     NULL 은 중복 허용 (coach 다수가 NULL 가능).
+  const jerseyNumbersFromMembers = data.players
+    .map((p) => memberMap.get(BigInt(p.userId).toString())?.jerseyNumber)
+    .filter((n): n is number => n !== null && n !== undefined);
+  if (new Set(jerseyNumbersFromMembers).size !== jerseyNumbersFromMembers.length) {
+    return apiError(
+      "팀 내 등번호가 중복됩니다. 팀 페이지에서 등번호를 먼저 정리해 주세요.",
+      422,
+    );
   }
 
   // 디비전 정원 체크 + 대기접수 판단
@@ -347,17 +396,24 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     });
 
     // 선수 등록
+    // 2026-05-05 PR3: ttp.jerseyNumber / position 은 team_members 자동 복사 (옵션 C+UI).
+    //   클라이언트가 보낸 p.jerseyNumber / p.position 은 무시 — single source = team_members.
     await tx.tournamentTeamPlayer.createMany({
-      data: data.players.map((p) => ({
-        tournamentTeamId: tournamentTeam.id,
-        userId: BigInt(p.userId),
-        jerseyNumber: p.jerseyNumber ?? null,
-        position: p.position ?? null,
-        player_name: p.playerName ?? null,
-        birth_date: p.birthDate ?? null,
-        is_elite: p.isElite,
-        auto_registered: true,
-      })),
+      data: data.players.map((p) => {
+        const member = memberMap.get(BigInt(p.userId).toString());
+        return {
+          tournamentTeamId: tournamentTeam.id,
+          userId: BigInt(p.userId),
+          // team_members.jersey_number 자동 복사 (NULL 가능 — coach/captain)
+          jerseyNumber: member?.jerseyNumber ?? null,
+          // position 도 동일 도메인 룰 — team_members 우선
+          position: member?.position ?? null,
+          player_name: p.playerName ?? null,
+          birth_date: p.birthDate ?? null,
+          is_elite: p.isElite,
+          auto_registered: true,
+        };
+      }),
     });
 
     // teams_count 업데이트 (대기접수가 아닌 경우)

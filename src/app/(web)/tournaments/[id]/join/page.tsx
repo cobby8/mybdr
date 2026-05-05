@@ -240,10 +240,10 @@ export default function TournamentJoinPage() {
           uniformAway,
           managerName,
           managerPhone,
+          // 2026-05-05 PR3: 옵션 C+UI — jerseyNumber/position 미전송.
+          //   서버가 team_members.jersey_number / position 을 ttp 에 자동 복사 (single source).
           players: selectedPlayers.map((p) => ({
             userId: p.userId,
-            jerseyNumber: p.jerseyNumber,
-            position: p.position,
             playerName: p.name,
             birthDate: p.birthDate,
             isElite: p.isElite,
@@ -1109,161 +1109,131 @@ export default function TournamentJoinPage() {
                   팀 멤버가 없습니다. 먼저 팀을 선택하세요.
                 </p>
               ) : (
-                // 시안 2-column grid + 카드형 토글 + 등번호/포지션/선출 인풋 보존
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2, 1fr)",
-                    gap: 8,
-                  }}
-                >
-                  {players.map((p, idx) => {
-                    const sel = p.selected;
-                    return (
-                      <div
-                        key={p.userId}
-                        style={{
-                          padding: "12px 14px",
-                          background: sel
-                            ? "color-mix(in oklab, var(--accent) 8%, var(--bg))"
-                            : "transparent",
-                          border: sel
-                            ? "2px solid var(--accent)"
-                            : "1px solid var(--border)",
-                          borderRadius: 6,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 8,
-                        }}
-                      >
-                        <label
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "20px 1fr",
-                            gap: 10,
-                            alignItems: "center",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={sel}
-                            onChange={() => {
-                              setPlayers((prev) =>
-                                prev.map((pp, i) =>
-                                  i === idx ? { ...pp, selected: !pp.selected } : pp,
-                                ),
-                              );
-                            }}
-                            style={{ accentColor: "var(--accent)" }}
-                          />
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 13 }}>
-                              {p.name}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 10,
-                                color: "var(--ink-dim)",
-                                fontFamily: "var(--ff-mono)",
-                              }}
-                            >
-                              #{p.jerseyNumber ?? "—"} · {p.position ?? "—"}
-                            </div>
-                          </div>
-                        </label>
-                        {/* 인풋 — 기존 보존 */}
+                <>
+                  {/* 2026-05-05 PR3 옵션 C+UI 안내 — 운영자/캡틴 jersey 직접 입력 진입점 X.
+                      등번호는 "팀별 영구 번호" 가 single source. 팀 페이지에서 본인이 변경.
+                      대회 출전 시 = 시스템이 team_members.jersey_number 를 ttp 에 자동 복사. */}
+                  <div
+                    style={{
+                      padding: "10px 14px",
+                      marginBottom: 12,
+                      background: "var(--bg-alt)",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: "var(--ink-soft)",
+                      lineHeight: 1.65,
+                      borderLeft: "3px solid var(--accent)",
+                    }}
+                  >
+                    <b style={{ color: "var(--ink)" }}>등번호 안내</b>
+                    <br />
+                    · 등번호는 <b>팀별 영구 번호</b>로 자동 적용됩니다. (팀 페이지에서 변경)
+                    <br />
+                    · 매치 임시 변경은 <b>라이브 페이지에서 운영자만</b> 가능합니다.
+                  </div>
+
+                  {/* 시안 2-column grid + 카드형 토글 — jersey/position 입력 UI 제거 (자동 sync) */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: 8,
+                    }}
+                  >
+                    {players.map((p, idx) => {
+                      const sel = p.selected;
+                      return (
                         <div
+                          key={p.userId}
                           style={{
+                            padding: "12px 14px",
+                            background: sel
+                              ? "color-mix(in oklab, var(--accent) 8%, var(--bg))"
+                              : "transparent",
+                            border: sel
+                              ? "2px solid var(--accent)"
+                              : "1px solid var(--border)",
+                            borderRadius: 6,
                             display: "flex",
-                            gap: 6,
-                            alignItems: "center",
-                            paddingLeft: 30,
+                            flexDirection: "column",
+                            gap: 8,
                           }}
                         >
-                          <input
-                            type="number"
-                            min={0}
-                            max={99}
-                            value={p.jerseyNumber ?? ""}
-                            placeholder="등#"
-                            onChange={(e) => {
-                              const v = e.target.value
-                                ? parseInt(e.target.value)
-                                : null;
-                              setPlayers((prev) =>
-                                prev.map((pp, i) =>
-                                  i === idx ? { ...pp, jerseyNumber: v } : pp,
-                                ),
-                              );
-                            }}
-                            style={{
-                              width: 50,
-                              padding: "4px 6px",
-                              fontSize: 11,
-                              border: "1px solid var(--border)",
-                              borderRadius: 4,
-                              background: "var(--bg)",
-                              color: "var(--ink)",
-                              textAlign: "center",
-                            }}
-                          />
-                          <select
-                            value={p.position ?? ""}
-                            onChange={(e) => {
-                              setPlayers((prev) =>
-                                prev.map((pp, i) =>
-                                  i === idx
-                                    ? { ...pp, position: e.target.value || null }
-                                    : pp,
-                                ),
-                              );
-                            }}
-                            style={{
-                              padding: "4px 6px",
-                              fontSize: 11,
-                              border: "1px solid var(--border)",
-                              borderRadius: 4,
-                              background: "var(--bg)",
-                              color: "var(--ink)",
-                            }}
-                          >
-                            <option value="">포지션</option>
-                            <option value="PG">PG</option>
-                            <option value="SG">SG</option>
-                            <option value="SF">SF</option>
-                            <option value="PF">PF</option>
-                            <option value="C">C</option>
-                          </select>
                           <label
                             style={{
-                              display: "flex",
+                              display: "grid",
+                              gridTemplateColumns: "20px 1fr",
+                              gap: 10,
                               alignItems: "center",
-                              gap: 4,
-                              fontSize: 10,
-                              color: "var(--ink-mute)",
-                              fontFamily: "var(--ff-mono)",
+                              cursor: "pointer",
                             }}
                           >
                             <input
                               type="checkbox"
-                              checked={p.isElite}
+                              checked={sel}
                               onChange={() => {
                                 setPlayers((prev) =>
                                   prev.map((pp, i) =>
-                                    i === idx ? { ...pp, isElite: !pp.isElite } : pp,
+                                    i === idx ? { ...pp, selected: !pp.selected } : pp,
                                   ),
                                 );
                               }}
                               style={{ accentColor: "var(--accent)" }}
                             />
-                            선출
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: 13 }}>
+                                {p.name}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "var(--ink-dim)",
+                                  fontFamily: "var(--ff-mono)",
+                                }}
+                              >
+                                #{p.jerseyNumber ?? "—"} · {p.position ?? "—"}
+                              </div>
+                            </div>
                           </label>
+                          {/* 선출 여부만 잔존 — jersey/position 은 자동 sync 로 제거 */}
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              alignItems: "center",
+                              paddingLeft: 30,
+                            }}
+                          >
+                            <label
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 10,
+                                color: "var(--ink-mute)",
+                                fontFamily: "var(--ff-mono)",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={p.isElite}
+                                onChange={() => {
+                                  setPlayers((prev) =>
+                                    prev.map((pp, i) =>
+                                      i === idx ? { ...pp, isElite: !pp.isElite } : pp,
+                                    ),
+                                  );
+                                }}
+                                style={{ accentColor: "var(--accent)" }}
+                              />
+                              선출
+                            </label>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
 
               {/* 최소 인원 경고 — 시안 L180 */}

@@ -57,101 +57,25 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
-## 구현 기록 (developer / 5/5 PR2)
+## 구현 기록 (developer / 5/5 Phase 1 PR1+PR2+PR3 — 압축)
 
-📝 구현한 기능: **Phase 1 PR2 — 가입 폼 jersey input + 자동 복사 hook + 마이페이지 다중 팀 목록**
+PR1 (`ae4ffd7`): default_jersey_number 사용처 정리 (7 파일 / captain 검증 → team_members.jersey_number 치환).
+PR2 (`d72aa0a`): 가입 폼 jersey input + 자동 복사 hook + 마이페이지 다중 팀 카드 (7 파일, neuron 2 / `preferred_jersey_number` 재사용).
+PR3 (커밋 대기): tournament join 시 team_members → ttp 자동 복사 (운영자 시야 X) + 신청 폼 jersey input 제거 (2 파일, ef7e78e role 분기 보존).
 
-| 파일 | 변경 | 신규/수정 |
-|------|------|-----------|
-| `src/app/api/web/teams/[id]/jerseys-in-use/route.ts` | GET — 해당 팀 active 멤버 jersey 목록 응답 (충돌 회피용) | **신규** |
-| `src/app/api/web/teams/[id]/join/route.ts` | POST body zod 검증 (preferred_jersey_number 0~99 + position 20자) + auto_accept 팀 충돌 사전 검증 + team_join_requests 저장 | 수정 |
-| `src/app/api/web/teams/[id]/members/route.ts` | approve 분기 — preferred_jersey_number → jerseyNumber 자동 복사 + 충돌 시 409 JERSEY_CONFLICT | 수정 |
-| `src/app/(web)/teams/[id]/_components_v2/team-join-button-v2.tsx` | 모달 추가 (jersey/position input + 사용 중 번호 표시 + 클라 충돌 안내) | 수정 |
-| `src/app/(web)/profile/_v2/teams-list-card.tsx` | 다중 팀 목록 카드 (로고/지역/팀명/jersey row) + 0팀 빈 상태 | **신규** |
-| `src/app/(web)/profile/page.tsx` | teamMembers SELECT 확장 (city/district/name_en/name_primary/logoUrl/jerseyNumber) + TeamsListCard 교체 + teamsList 매핑 (name_primary 따라 한/영 우선순위) | 수정 |
+상세 보고: developer agent 응답 (PR1=ae4ffd7 commit msg / PR2=d72aa0a / PR3=PM commit 후 hash).
 
-💡 tester 참고:
-- **테스트 1 (가입 폼 모달)**: `/teams/[id]` → "팀 가입 신청" 버튼 클릭 → 모달 열림 → 사용 중 번호 표시 ("팀 내 사용 중 번호: #1, #5, #10"). jersey input 빈값/0~99 정수 / 충돌번호 입력 → 즉시 안내. position 20자 이내.
-- **테스트 2 (가입 신청 흐름)**: 모달에서 jersey #99 + PG 입력 → 신청 → DB `team_join_requests` 에 `preferred_jersey_number=99 / preferred_position='PG'` 저장 확인 → "신청 완료 (승인 대기)" 표시.
-- **테스트 3 (승인 자동 복사)**: 팀장이 manage 페이지에서 승인 → `team_members.jersey_number=99 / position='PG'` 자동 복사 확인.
-- **테스트 4 (충돌 시 차단)**: 신청자가 사용 중 #5 로 신청 → 모달 클라 차단 (서버 도달 X). 가정해서 직접 API 호출로 #5 신청한 상태에서 다른 멤버가 #5 갖고 있다면 승인 단계 409 JERSEY_CONFLICT 반환.
-- **테스트 5 (auto_accept 팀)**: `team.auto_accept_members=true` 팀에 #99 신청 → 즉시 멤버 + jersey/position 적용. 충돌 시 409.
-- **테스트 6 (마이페이지 다중 팀)**: 가입 팀 0개 → "가입한 팀이 없습니다" + "팀 둘러보기 →" CTA. 가입 팀 1+ → 카드 row 표시 ([로고/tag] [지역] [팀명+보조] [#jersey]). 클릭 → /teams/[id] 이동.
-- **테스트 7 (회귀)**: 빈 body 로 POST `/api/web/teams/[id]/join` (기존 fetch 호출자) → 200 OK 정상 (body 호환 유지).
-
-⚠️ reviewer 참고:
-- **schema 변경 0** — `preferred_jersey_number` / `preferred_position` 컬럼 이미 존재. 운영 DB 영향 0.
-- **PR1 보존** — `default_jersey_number` 사용 0 (PR1 정리 룰 유지).
-- **충돌 검증 2단계**: (a) 클라 모달 사전 차단 (UX) (b) 서버 승인 단계 차단 (정합성). 자동 수락 팀은 신청 단계에서 즉시 차단.
-- **마이페이지 take 5 → 10**: 다중 팀 표시 위해 확장. 여전히 인덱스 사용 (userId+status).
-- **teamInk 변수**: hero avatar 그라디언트에서 여전히 사용 중 (unused 0).
-- **name_primary 매핑**: `'en'` + name_en 있으면 영문 메인, 한글 보조. 기본 'ko' → 한글 메인 + 영문 보조 (있으면).
-- **모달 a11y**: role="dialog" + aria-modal + aria-labelledby. 외곽 클릭 시 닫힘 (loading 중 차단).
-
-✅ tsc --noEmit: **0 errors**
-✅ 운영 DB 영향: 0 (코드만)
-✅ 약속된 시간: 45분 이내 ✅
+남은 Phase 1: PR4 (`match_player_jersey` 신설 + W1 모달, ~1d) / PR5 (v1 우선순위 helper, 0.5d).
 
 ---
 
-## 구현 기록 (developer / 5/5 PR1)
+<!-- ARCHIVED: 구현 기록 PR1+PR2+PR3 상세 박제 압축됨 (PM 토큰 효율 룰 적용 — 매 PR commit 후 작업 로그 1줄 통합). 복원: git log -- .claude/scratchpad.md -->
 
-📝 구현한 기능: **Phase 1 PR1 — `user.default_jersey_number` 사용처 정리** (코드만, schema DROP 은 PR1e 별도)
+## (ARCHIVED) 구현 기록 PR1~PR3 상세 — git log 으로 복원 가능
 
-| 파일 | 변경 | 신규/수정 |
-|------|------|-----------|
-| `src/app/(web)/profile/edit/page.tsx` | type/form/populate/submit 4 위치 + 등번호 input Field 1블록 제거 (선출 여부 단독 grid 로) | 수정 |
-| `src/app/api/web/profile/route.ts` | PATCH destructuring + 검증 블록 + UPDATE data 3 위치 제거. GET 응답은 service.ts SELECT 정리로 자동 빠짐 | 수정 |
-| `src/app/api/web/tournaments/[id]/join/route.ts` | captain 검증 source 변경 → `team_members.jersey_number` (해당 팀 captain row, status=active) NULL 차단. is_elite 는 user 그대로 | 수정 |
-| `src/lib/services/user.ts` | `default_jersey_number: true` SELECT 2 위치 제거 (line 44 + 219) | 수정 |
-| `src/app/(admin)/admin/users/page.tsx` | SSR SELECT 1 라인 제거 | 수정 |
-| `src/app/(admin)/admin/users/admin-users-table.tsx` | type field 제거 + InfoSection "기본 등번호" 행 통째 삭제 | 수정 |
-| `src/app/actions/admin-users.ts` | loadMore SELECT 1 라인 제거 | 수정 |
+압축 시점 = PR3 완료 후. PR1=ae4ffd7 / PR2=d72aa0a / PR3=PM commit hash. 상세 BEFORE/AFTER + tester/reviewer 메모는 git history 참조.
 
-**건드리지 않음**: `prisma/schema.prisma` (PR1e), `src/app/actions/auth.ts` (주석만 남음)
-
-💡 tester 참고:
-- **테스트 1**: `/profile/edit` 진입 → 등번호 input 안 보여야 함, 선출 여부만 grid 단독. 저장 시 200 OK.
-- **테스트 2**: `/api/web/profile` PATCH 에 `default_jersey_number` 보내도 무해 (silently 무시 — destructure 0). 음수/문자 보내도 검증 없음.
-- **테스트 3 (회귀 위험 高)**: 대회 참가신청 (`/api/web/tournaments/[id]/join`):
-  - **차단 케이스**: captain 본인의 `team_members` row (해당 팀, status=active) 의 `jersey_number=NULL` → 400 "본인의 팀 등번호와 선출 여부를 입력해 주세요"
-  - **차단 케이스**: captain `is_elite=null` → 400 동일 메시지
-  - **통과 케이스**: 둘 다 입력 → 정상 진행 (이후 zod players 배번 검증으로 흐름)
-- **테스트 4**: admin/users 모달 → 농구 정보 섹션에 "기본 등번호" 행 안 보여야 함, "선출 여부"만 잔존.
-
-⚠️ reviewer 참고:
-- **#3 captain 검증 BEFORE/AFTER**:
-  ```ts
-  // BEFORE
-  const captainProfile = await prisma.user.findUnique({
-    where: { id: user.userId },
-    select: { default_jersey_number: true, is_elite: true },
-  });
-  if (captainProfile?.default_jersey_number === null || ... || captainProfile?.is_elite === null || ...) {
-    return apiError("프로필에서 등번호와 선출 여부를 입력해 주세요. /profile/edit", 400);
-  }
-
-  // AFTER
-  const captainTeamMember = await prisma.teamMember.findFirst({
-    where: { teamId, userId: user.userId, status: "active" },
-    select: { jerseyNumber: true },
-  });
-  const captainUser = await prisma.user.findUnique({
-    where: { id: user.userId },
-    select: { is_elite: true },
-  });
-  if (captainTeamMember?.jerseyNumber === null || ... || captainUser?.is_elite === null || ...) {
-    return apiError("본인의 팀 등번호와 선출 여부를 입력해 주세요. /profile/edit", 400);
-  }
-  ```
-- **DB 쿼리 1회 → 2회 증가**: 도메인 정합성 위해 분리 (jerseyNumber=팀별, is_elite=사람). 토너먼트 신청은 빈도 낮아 영향 0.
-- **schema 미변경**: `user.default_jersey_number` 컬럼은 살아있음. 타입 안전성 0 회귀 (tsc 0).
-- **PR1e 사전 점검 필요**: DROP COLUMN 전에 운영 DB SELECT count NULL/NOT NULL 분포 + 활성 참조 0 재확인.
-
-✅ tsc --noEmit: **0 errors**
-✅ 운영 DB 영향: 0 (코드만)
-✅ 잔존 활성 참조: 0 (`Grep` 검증 — 주석만 남음)
-
+---
 ---
 
 ## 🟡 HOLD / 우선순위 2~3 (압축)
@@ -182,6 +106,7 @@ decisions.md `[2026-05-05]` 항목 참조
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR3 — tournament join 자동 sync (옵션 C+UI 본질)** — 2 파일 수정: api/web/tournaments/[id]/join/route.ts (team_members 일괄 SELECT → memberMap → role 분기 검증 → ttp INSERT 자동 복사 / 사용 안 하는 data.players jersey 검증 제거 / UNIQUE 중복 체크 source 변경) + (web)/tournaments/[id]/join/page.tsx (로스터 stage 안내 박스 추가 + jersey/position input UI 제거 + POST body 미전송). 5/5 ef7e78e role 분기 룰 보존 (player 필수 / coach 선택). schema 변경 0 / Flutter `/api/v1/*` 변경 0 / tsc 0. 운영자/캡틴 jersey 직접 입력 진입점 X = single source = team_members. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR2 — 가입 폼 jersey input + 자동 복사 + 마이페이지 다중 팀** — 6 파일 (신규 2 / 수정 4): jerseys-in-use API 신설 / join API zod + 충돌 검증 + preferred_jersey_number 저장 / members PATCH approve 자동 복사 + 409 JERSEY_CONFLICT / team-join-button-v2 모달 (jersey input + 사용 중 표시) / TeamsListCard 신규 / profile/page.tsx SELECT 확장 + 카드 교체 + name_primary 매핑. tsc 0 / schema 변경 0 / 운영 DB 영향 0. | ✅ |
 | 2026-05-05 | DB UPDATE 3건 + INSERT 1건 + UPDATE 1건 (코드 변경 0) | **열혈농구단 SEASON2 출전 명단 정비 4건** — (1) jersey UPDATE 3건: 쓰리포인트/백승훈 ttpId=2540 (18→39) / 몽키즈/이지환 ttpId=2583 (0→4) / 몽키즈/최원영 ttpId=2581 (10→20). (2) 이도균 #70 등록 옵션 2 트랜잭션: tournament_team_players INSERT ttpId=2830 (제주 리딤 ttId=231 / userId=3352 / role=player) + team_members.jersey_number NULL→70 UPDATE (memberId=2701). 매 건 사전 검증 (동명이인 0 / 충돌 0) → 사용자 명시 승인 → 사후 SELECT 재확인 PASS. 임시 스크립트 즉시 삭제. 운영 DB 정책 준수. | ✅ |
 | 2026-05-05 | `7f26b6f` + `60e8468` + `61e9ab1` + `5fd1716` + `d8bba4a` + `eb015aa` → main `3f016c9` | **인증 흐름 전체 재설계 main 배포 — 로그인 hard reload + getAuthUser() 단일 헬퍼 + 쿠키 자동 cleanup** — `7f26b6f` 로그인 server action redirect → return success + window.location.href hard reload (SSR 새 쿠키 인지 보장). C1~C4 옵션 A+B-PR1: signup layout 가드 / me API 탈퇴 401→200 통일 / ProfileCtaCard 글로벌 fetcher 위임 / `src/lib/auth/get-auth-user.ts` 신규 (JWT verify + DB SELECT + status 분기 + 쿠키 자동 cleanup + React.cache dedup) + 4 layout (web/login/signup/profile) 위임. **사용자 검증 통과 — 탈퇴 회원 쿠키 본질 해결** (1회 진입 후 잘못된 쿠키 자동 제거). 회귀: 빈 본문 chunk 404 = 배포 직후 chunk 캐시 mismatch (강력 새로고침 안내, 일시적). tsc 0 / 운영 DB 영향 0 / scratchpad+architecture+conventions+errors+index 박제. | ✅ |
@@ -191,6 +116,4 @@ decisions.md `[2026-05-05]` 항목 참조
 | 2026-05-05 | (PM 정리 / 코드 변경 0) | **onboarding 10단계 시스템 설계 합의 — 옵션 B (선호값 6종, DB 영향 0)** — 사용자 정책 합의: 첫 로그인 필수 3단계 + 자율 7단계 + 100점 게이미피케이션. 1 본인인증 (IdentityVerifyButton 재사용) / 2 활동환경 (17시도 + 게임유형 6종) / 3 출전정보 / 4 팀 / 5 사진 / 6 자기소개+SNS / 7 스타일 / 8 테마/표시 (신규) / 9 맞춤보기 (settings/feed PreferenceForm 흡수) / 10 알림. 6종 = `street-ball`(길농) + 기존 5종. 분기 룰 = 길농 단독 → 3,4 선택 / 그 외 → 필수. 옵션 A (game.game_type 마이그레이션 56파일+DB 영향) 보류. PR1~5 분해 (~5.5d). decisions/conventions/lessons +6 항목 박제. 다음 세션 PR1 진입 (또는 PR5 가시 효과 우선). | ✅ |
 | 2026-05-05 | `ef7e78e` → main | **선수 배번 필수 정책 + role 분기 (3 API + admin/users 모달)** — 정책: player 배번 필수 / coach·captain 선택. join API zod 통과 후 누락 선수 닉네임 나열 + 422 / admin players API role==="player" + jersey null 차단 / Flutter v1 변경 0 (이미 required). admin/users 모달 TournamentRow role 분기 (player+누락 빨간 ⚠ / coach+누락 회색 — / 대회명 우측 role 라벨). 점검: 출전 339명 중 11명 누락 = player 7 (진짜) + coach 4 (정상). decisions+1 / conventions+1. | ✅ |
 | 2026-05-05 | `06d1376` + `8c95565` 묶임 → main | **admin/users 강화 — 모달 4섹션 + 인라인 편집 12→3필드 PIPA + 배번 인라인 수정** — Phase A (4섹션): 소속팀 / 토너먼트 참가 / 활동 통계 / 구독 + 농구정보 2행 (선출/기본 등번호). Phase 1 (인라인 편집) → 12필드 → 3필드 축소 (PIPA 본인정정권). 변경 가능 = nickname/bio/is_elite + 사유 5자 이상 필수 + admin_logs warning. updateTournamentPlayerJerseyAction 신설 (배번 인라인 수정 + 동일 팀 unique 사전 검증). 사용자 commit (auth fix 류) 와 묶임 — lessons "다중 동시 commit 묶임 함정" 박제. | ✅ |
-| 2026-05-05 | `2d10fa2` → main | **admin/users 무한스크롤 + 가입일시 1열 + 정렬 변경 + 검색 명확화** — page.tsx PAGE_SIZE 50 첫 페이지만 SSR + 페이지네이션 UI 제거 + 정렬 [isAdmin desc, createdAt desc]. loadMoreUsersAction server action 신설 (super_admin only). DataTableV2 컬럼 6개 (가입일시 1열 추가, fmtCreatedAt). 검색 placeholder "(전체 DB)" + subtitle "검색 결과 N명". 무한 스크롤 누적 + 활성 탭 (전체/일반/호스트/관리자) 클라이언트 필터. tsc 0. | ✅ |
-| 2026-05-05 | DB UPDATE 12건 (코드 변경 0) | **5/2 동호회최강전 매치 매핑 fix** — 8강 next_match_id swap (#21 아울스 156→157 / #22 피벗 157→156 / #23 업템포 156→157 / #24 블랙라벨 157→156) + bracket_position 재배정 (UI 노출 순서 위→아래 = 8강 2/4/1/3) + 4강 슬롯 라벨 갱신 (#25 = 8강 2 vs 4 / #26 = 8강 1 vs 3). 사후 검증 SELECT 4/4 PASS. 임시 스크립트 즉시 삭제 (운영 DB 정책 준수). 매치 27건 그대로 보존. | ✅ |
 <!-- 압축 박제 (5/4 481001c UI 통합 세션 + 5/5 auth 4건 묶임 홈/SWR/hydration fix + 5/5 auth 6건 묶임 탈퇴/가입/세션 가드 + 듀얼 P3~P7 + Step 2 활성화 + 듀얼 표준화 + 도메인 sub-agent P3 + 매치 코드 v4 Phase 1~7 + 5/5 58af36a 트리 카드 시간 표시) — 5/5 인증 재설계 옵션 A+B-PR1 prepend / 복원: git log -- .claude/scratchpad.md -->
