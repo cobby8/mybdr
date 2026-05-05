@@ -179,6 +179,32 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     // 사전 등록 계정 병합: 같은 닉네임 + 미로그인 멤버가 있으면 등번호/포지션/역할 이관
     const merged = await mergeTempMember(teamId, applicantId);
 
+    // PR2: 신청자가 입력한 선호 등번호/포지션을 멤버 row 로 자동 복사
+    // 이유(왜): 가입 폼에서 받은 preferred_jersey_number 가 승인 후 사용되지 않으면
+    //   ttp 자동 sync 도 끊기고 운영자가 수동 입력해야 함 (이도균 사례 회귀).
+    //
+    // 우선순위: merged (사전 등록 jersey) > preferred_jersey_number > null
+    // 충돌 검증: merged 가 없을 때만 (merged 는 이미 mergeTempMember 단에서 정합)
+    let finalJersey: number | null = merged?.jerseyNumber ?? null;
+    let finalPosition: string | null = merged?.position ?? null;
+
+    if (!merged && joinRequest.preferred_jersey_number != null) {
+      const requestedJersey = joinRequest.preferred_jersey_number;
+      // 같은 팀 active 멤버 중 같은 jersey 있는지 확인
+      const conflict = await prisma.teamMember.findFirst({
+        where: { teamId, jerseyNumber: requestedJersey, status: "active" },
+      });
+      if (conflict) {
+        return apiError(
+          "JERSEY_CONFLICT",
+          409,
+          `등번호 #${requestedJersey} 는 이미 사용 중입니다. 신청자 본인이 다른 번호로 다시 신청해야 합니다.`,
+        );
+      }
+      finalJersey = requestedJersey;
+      finalPosition = joinRequest.preferred_position ?? null;
+    }
+
     await prisma.$transaction([
       prisma.team_join_requests.update({
         where: { id: BigInt(requestId) },
@@ -191,7 +217,8 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           role: merged?.role ?? "member",
           status: "active",
           joined_at: new Date(),
-          ...(merged && { jerseyNumber: merged.jerseyNumber, position: merged.position }),
+          ...(finalJersey != null && { jerseyNumber: finalJersey }),
+          ...(finalPosition && { position: finalPosition }),
         },
       }),
       prisma.team.update({
