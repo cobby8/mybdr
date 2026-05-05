@@ -40,8 +40,8 @@ export const PROFILE_DETAIL_SELECT = {
   account_holder: true,
   // 소셜 로그인 제공자 표시용 (프로필 수정 페이지)
   provider: true,
-  // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 차단 검증 대상)
-  default_jersey_number: true,
+  // 2026-05-01: 선출 여부 (대회 출전 차단 검증 대상)
+  // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source 일원화
   is_elite: true,
   // Phase 12-5 회귀 방지 (2026-04-30): name_verified/verified_at 는
   // 운영 DB Phase 12 SQL 적용 후에 다시 추가. 현재는 운영 DB 컬럼 X →
@@ -215,8 +215,8 @@ export async function updateProfile(
       bio: true,
       name: true,
       birth_date: true,    // 추가 — 생년월일
-      // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 차단 검증)
-      default_jersey_number: true,
+      // 2026-05-01: 선출 여부 (대회 출전 차단 검증)
+      // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source 일원화
       is_elite: true,
       // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 응답 select
       dominant_hand: true,

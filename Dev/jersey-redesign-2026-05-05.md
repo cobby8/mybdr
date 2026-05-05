@@ -1,22 +1,30 @@
-# Jersey 도메인 재설계 보고서 (2026-05-05, v2 — 옵션 C 채택)
+# Jersey 도메인 재설계 보고서 (2026-05-05, v3 — 옵션 C+UI 채택)
 
-## 0. 요약 — 권장 옵션
+## 0. 요약 — 채택 옵션
 
-**권장 = 옵션 C (매치별 override, `match_player_jersey` 테이블 신설)**
+**채택 = 옵션 C+UI (사용자 시점 통합 / 운영자 입력 진입점 2곳)**
 
-> v1 보고서는 옵션 B (대회 단위 임시 번호) 권장이었으나, 사용자 명시 요구 "현장에서 갑작스러운 임시 번호 변경" → 매치 단위 override 필수 → 옵션 C 로 수정.
+### 사용자 요구 충족 매핑
 
-- `user.default_jersey_number` 삭제 (PR7 / 보류 가능)
-- `team_members.jersey_number` = source-of-truth (팀별 영구 번호)
-- `tournament_team_players.jerseyNumber` = **대회 시점 스냅샷** (영구 변경 시 historical 보존)
-- **`match_player_jersey` 신설** = 매치 단위 임시 번호 override (현장 변경 대응)
-- 우선순위: `match_player_jersey` (있으면) → `ttp.jerseyNumber` → `team_members.jersey_number`
-- 다중 팀 = team_members 가 (team_id, user_id) 별 row → 팀별 다른 번호 자동
+| 사용자 요구 | C+UI 충족 방법 |
+|-------------|----------------|
+| `user.default_jersey_number` 삭제 | **PR1 컬럼 DROP** (운영 DB 명시 승인 필수) |
+| 팀번호 ↔ 대회번호 통합 (사용자 시점) | UI 입력 진입점 2곳: team_members (영구) + match_override (임시). ttp = 자동 sync (운영자 시야 X) |
+| 다중 팀 + 팀별 다른 번호 | team_members `(team_id, user_id)` 별 row → 자동 지원 |
+| 임시 번호 (현장 갑작 변경) | `match_player_jersey` 매치 단위 override |
+| 영구 번호 변경 (시즌 중) | team_members UPDATE → 과거 ttp 스냅샷 자동 보존 → 통계 무결성 |
+
+### 도메인 구조 (DB 2 컬럼 + 자동 sync)
+
+- `team_members.jersey_number` = **사용자 입력 1곳** (영구 번호 source-of-truth)
+- `ttp.jerseyNumber` = **자동 sync** (대회 시점 스냅샷, 운영자 시야 X, historical 통계용)
+- `match_player_jersey` = **사용자 입력 2곳** (매치 단위 임시 override)
+- 우선순위: `match_player_jersey` (있으면) → `ttp` → `team_members`
 
 핵심 사유:
-1. **현장 임시 번호** = 매치 단위 (옵션 B 의 대회 단위로는 부족)
-2. **통계 historical 보존** = ttp 는 대회 시점 스냅샷 그대로 (옵션 B 와 동일)
-3. **v1 영향** = 백엔드 우선순위 로직만 추가 (Flutter 코드 변경 0, 응답 스키마 유지)
+1. **사용자 시점 통합**: 운영자가 보는/입력하는 곳 = 2곳만 (영구 + 임시)
+2. **통계 historical 보존**: ttp 자동 sync 로 영구 변경 시 과거 매치 그대로
+3. **Flutter v1 영향 최소**: 응답 스키마 유지, 우선순위 helper 1개 + 6 파일 1줄 추가
 
 ---
 

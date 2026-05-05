@@ -206,19 +206,26 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   // 2026-05-01: 본인(주장) 의 등번호·선출 필수 차단 (decisions.md 사용자 결정)
-  // 회원가입 시 입력 X (선택), 대회 출전 시 둘 다 입력되어 있어야 신청 가능.
-  const captainProfile = await prisma.user.findUnique({
+  // 2026-05-05 PR1 정리: 등번호 검증 source 변경 — user.default_jersey_number → team_members.jersey_number
+  //   - 이유: 등번호는 "팀별 본인 등번호" 가 자연스러운 도메인. 같은 사람도 팀마다 다른 번호 가능.
+  //   - 선출 여부 (is_elite) 는 사람 단위 속성이므로 user 컬럼 유지.
+  //   - 검증: 해당 팀의 captain (= 본인) team_members row 의 jersey_number NULL 차단.
+  const captainTeamMember = await prisma.teamMember.findFirst({
+    where: { teamId, userId: user.userId, status: "active" },
+    select: { jerseyNumber: true },
+  });
+  const captainUser = await prisma.user.findUnique({
     where: { id: user.userId },
-    select: { default_jersey_number: true, is_elite: true },
+    select: { is_elite: true },
   });
   if (
-    captainProfile?.default_jersey_number === null ||
-    captainProfile?.default_jersey_number === undefined ||
-    captainProfile?.is_elite === null ||
-    captainProfile?.is_elite === undefined
+    captainTeamMember?.jerseyNumber === null ||
+    captainTeamMember?.jerseyNumber === undefined ||
+    captainUser?.is_elite === null ||
+    captainUser?.is_elite === undefined
   ) {
     return apiError(
-      "대회 출전 신청 전에 프로필에서 등번호와 선출 여부를 입력해 주세요. /profile/edit",
+      "대회 출전 신청 전에 본인의 팀 등번호와 선출 여부를 입력해 주세요. /profile/edit",
       400,
     );
   }

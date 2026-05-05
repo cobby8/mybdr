@@ -249,8 +249,8 @@ export async function loadMoreUsersAction(
         createdAt: true,
         updatedAt: true,
         // 2026-05-05: page.tsx select 와 일치 (drift 방지)
+        // 2026-05-05 PR1: default_jersey_number 제거 — team_members 단일 source
         is_elite: true,
-        default_jersey_number: true,
       },
     }),
     prisma.user.count({ where }),

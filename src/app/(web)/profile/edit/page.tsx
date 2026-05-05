@@ -98,8 +98,8 @@ interface ProfileEditData {
   height: number | null;
   weight: number | null;
   bio: string | null;
-  // 2026-05-01: 본인 선호 등번호 + 선출 여부 (대회 출전 시 필수 차단 검증 대상)
-  default_jersey_number: number | null;
+  // 2026-05-01: 선출 여부 (대회 출전 시 필수 차단 검증 대상)
+  // 2026-05-05 PR1 정리: 등번호는 team_members.jersey_number 단일 source 로 일원화 → user.default_jersey_number 제거
   is_elite: boolean | null;
   bank_name: string | null;
   bank_code: string | null;
@@ -176,8 +176,8 @@ export default function ProfileEditPage() {
     height: "",
     weight: "",
     bio: "",
-    // 2026-05-01: 본인 선호 등번호 + 선출 여부
-    default_jersey_number: "",
+    // 2026-05-01: 선출 여부 (대회 출전 자격)
+    // 2026-05-05 PR1: default_jersey_number 제거 (team_members 단일 source)
     is_elite: false,
     // 2026-05-02: §3 소셜 (인스타·유튜브) — 운영 DB 컬럼 활성화
     instagram_url: "",
@@ -262,8 +262,8 @@ export default function ProfileEditPage() {
           height: u.height?.toString() ?? "",
           weight: u.weight?.toString() ?? "",
           bio: u.bio ?? "",
-          // 2026-05-01: 본인 선호 등번호 + 선출 여부
-          default_jersey_number: u.default_jersey_number?.toString() ?? "",
+          // 2026-05-01: 선출 여부 (대회 출전 자격)
+          // 2026-05-05 PR1: default_jersey_number 제거 (team_members 단일 source)
           is_elite: u.is_elite ?? false,
           // 2026-05-02: §3 소셜
           instagram_url: u.instagram_url ?? "",
@@ -506,10 +506,8 @@ export default function ProfileEditPage() {
         height: form.height ? Number(form.height) : null,
         weight: form.weight ? Number(form.weight) : null,
         bio: form.bio || null,
-        // 2026-05-01: 본인 선호 등번호 + 선출 여부
-        default_jersey_number: form.default_jersey_number
-          ? Number(form.default_jersey_number)
-          : null,
+        // 2026-05-01: 선출 여부 (대회 출전 자격)
+        // 2026-05-05 PR1: default_jersey_number 제거 (team_members 단일 source — 팀별 등록 시 입력)
         is_elite: form.is_elite,
         // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
         // §2 플레이 정보
@@ -1073,22 +1071,10 @@ export default function ProfileEditPage() {
           <p>매칭·게스트 모집에 노출됩니다. 자체 평가 — 레이팅에 영향 없음.</p>
         </header>
 
-        {/* 2026-05-02: 등번호 / 선출 여부 — 대회 출전 시 필수 (차단 검증). §2 가장 위 + 모바일도 2열 유지 + sub 1번만 */}
-        <div className="edit-profile__grid edit-profile__grid--2-row" style={{ marginBottom: 16 }}>
-          <Field label="등번호" sub="대회 출전 시 필수">
-            <input
-              className="input t-mono"
-              type="number"
-              value={form.default_jersey_number}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, default_jersey_number: e.target.value }))
-              }
-              placeholder="23"
-              min={0}
-              max={999}
-            />
-          </Field>
-          <Field label="선출 여부">
+        {/* 2026-05-05 PR1: 등번호 input 제거 — team_members.jersey_number (팀별 등록 시 입력) 단일 source 로 일원화 */}
+        {/* 선출 여부만 잔존 — 대회 출전 시 필수 (차단 검증) */}
+        <div className="edit-profile__field" style={{ marginBottom: 16 }}>
+          <Field label="선출 여부" sub="대회 출전 시 필수">
             <div className="edit-profile__chips">
               <button
                 type="button"

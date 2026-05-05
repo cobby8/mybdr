@@ -57,6 +57,66 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (developer / 5/5 PR1)
+
+📝 구현한 기능: **Phase 1 PR1 — `user.default_jersey_number` 사용처 정리** (코드만, schema DROP 은 PR1e 별도)
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|-----------|
+| `src/app/(web)/profile/edit/page.tsx` | type/form/populate/submit 4 위치 + 등번호 input Field 1블록 제거 (선출 여부 단독 grid 로) | 수정 |
+| `src/app/api/web/profile/route.ts` | PATCH destructuring + 검증 블록 + UPDATE data 3 위치 제거. GET 응답은 service.ts SELECT 정리로 자동 빠짐 | 수정 |
+| `src/app/api/web/tournaments/[id]/join/route.ts` | captain 검증 source 변경 → `team_members.jersey_number` (해당 팀 captain row, status=active) NULL 차단. is_elite 는 user 그대로 | 수정 |
+| `src/lib/services/user.ts` | `default_jersey_number: true` SELECT 2 위치 제거 (line 44 + 219) | 수정 |
+| `src/app/(admin)/admin/users/page.tsx` | SSR SELECT 1 라인 제거 | 수정 |
+| `src/app/(admin)/admin/users/admin-users-table.tsx` | type field 제거 + InfoSection "기본 등번호" 행 통째 삭제 | 수정 |
+| `src/app/actions/admin-users.ts` | loadMore SELECT 1 라인 제거 | 수정 |
+
+**건드리지 않음**: `prisma/schema.prisma` (PR1e), `src/app/actions/auth.ts` (주석만 남음)
+
+💡 tester 참고:
+- **테스트 1**: `/profile/edit` 진입 → 등번호 input 안 보여야 함, 선출 여부만 grid 단독. 저장 시 200 OK.
+- **테스트 2**: `/api/web/profile` PATCH 에 `default_jersey_number` 보내도 무해 (silently 무시 — destructure 0). 음수/문자 보내도 검증 없음.
+- **테스트 3 (회귀 위험 高)**: 대회 참가신청 (`/api/web/tournaments/[id]/join`):
+  - **차단 케이스**: captain 본인의 `team_members` row (해당 팀, status=active) 의 `jersey_number=NULL` → 400 "본인의 팀 등번호와 선출 여부를 입력해 주세요"
+  - **차단 케이스**: captain `is_elite=null` → 400 동일 메시지
+  - **통과 케이스**: 둘 다 입력 → 정상 진행 (이후 zod players 배번 검증으로 흐름)
+- **테스트 4**: admin/users 모달 → 농구 정보 섹션에 "기본 등번호" 행 안 보여야 함, "선출 여부"만 잔존.
+
+⚠️ reviewer 참고:
+- **#3 captain 검증 BEFORE/AFTER**:
+  ```ts
+  // BEFORE
+  const captainProfile = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { default_jersey_number: true, is_elite: true },
+  });
+  if (captainProfile?.default_jersey_number === null || ... || captainProfile?.is_elite === null || ...) {
+    return apiError("프로필에서 등번호와 선출 여부를 입력해 주세요. /profile/edit", 400);
+  }
+
+  // AFTER
+  const captainTeamMember = await prisma.teamMember.findFirst({
+    where: { teamId, userId: user.userId, status: "active" },
+    select: { jerseyNumber: true },
+  });
+  const captainUser = await prisma.user.findUnique({
+    where: { id: user.userId },
+    select: { is_elite: true },
+  });
+  if (captainTeamMember?.jerseyNumber === null || ... || captainUser?.is_elite === null || ...) {
+    return apiError("본인의 팀 등번호와 선출 여부를 입력해 주세요. /profile/edit", 400);
+  }
+  ```
+- **DB 쿼리 1회 → 2회 증가**: 도메인 정합성 위해 분리 (jerseyNumber=팀별, is_elite=사람). 토너먼트 신청은 빈도 낮아 영향 0.
+- **schema 미변경**: `user.default_jersey_number` 컬럼은 살아있음. 타입 안전성 0 회귀 (tsc 0).
+- **PR1e 사전 점검 필요**: DROP COLUMN 전에 운영 DB SELECT count NULL/NOT NULL 분포 + 활성 참조 0 재확인.
+
+✅ tsc --noEmit: **0 errors**
+✅ 운영 DB 영향: 0 (코드만)
+✅ 잔존 활성 참조: 0 (`Grep` 검증 — 주석만 남음)
+
+---
+
 ## 🟡 HOLD / 우선순위 2~3 (압축)
 - **HOLD**: 자율 QA 봇 (1~5 / 9d) / BDR 기자봇 v2 (Phase 2~7)
 - **5/2 잔여**: placeholder User 86건 LOW (auto merge) / ttp 부족팀 5팀 사용자 액션
