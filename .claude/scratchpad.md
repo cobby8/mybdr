@@ -65,7 +65,93 @@ PR3 (커밋 대기): tournament join 시 team_members → ttp 자동 복사 (운
 
 상세 보고: developer agent 응답 (PR1=ae4ffd7 commit msg / PR2=d72aa0a / PR3=PM commit 후 hash).
 
-남은 Phase 1: PR4 (`match_player_jersey` 신설 + W1 모달, ~1d) / PR5 (v1 우선순위 helper, 0.5d).
+남은 Phase 1: ~~PR4 (`match_player_jersey` 신설 + W1 모달, ~1d)~~ ✅ 완료 (PM commit + db push 대기) / PR5 (v1 우선순위 helper, 0.5d).
+
+---
+
+## 구현 기록 (PR4 — `match_player_jersey` 신설 + 라이브 W1 운영자 모달 + admin_logs)
+
+📝 구현한 기능: 매치 한정 임시 jersey 번호 운영자 모달 (라이브 페이지 W1) + match_player_jersey 테이블 신설 + admin_logs warning 추적
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | MatchPlayerJersey 모델 추가 + User/TournamentMatch/TournamentTeamPlayer reverse relation 1줄씩 | 수정 |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/jersey-override/route.ts` | POST UPSERT + DELETE 해제 (운영자 검증 + 매치/ttp 소속 검증 + 충돌 검증 + admin_logs warning) | 신규 |
+| `src/app/api/web/tournaments/[id]/admin-check/route.ts` | GET — 현재 로그인 유저 운영자 boolean (라이브 페이지 버튼 노출용 / 미로그인=false silent) | 신규 |
+| `src/app/api/live/[id]/route.ts` | 응답에 tournamentId 추가 + match_player_jersey 후처리 (ttp.id → override jersey 매핑 / 진행중·종료 분기 별도) | 수정 |
+| `src/app/live/[id]/_v2/match-jersey-override-modal.tsx` | 모달 컴포넌트 (선수 dropdown + jersey input + 사용 중 표시 + 사유 textarea + POST + onSuccess refetch) | 신규 |
+| `src/app/live/[id]/page.tsx` | MatchData에 tournament_id + isAdmin/jerseyModalOpen state + admin-check fetch useEffect + 헤더 우측 PC/모바일 버튼 + 모달 마운트 | 수정 |
+
+### Schema 변경 diff (PM 사전 검토 필요)
+
+```prisma
+model MatchPlayerJersey {
+  id                     BigInt   @id @default(autoincrement())
+  tournamentMatchId      BigInt   @map("tournament_match_id")  // BigInt (TournamentMatch.id 와 동일 — 지시서 String @db.Uuid 는 오기, schema 일관성)
+  tournamentTeamPlayerId BigInt   @map("tournament_team_player_id")
+  jerseyNumber           Int      @map("jersey_number")
+  reason                 String?
+  createdById            BigInt?  @map("created_by_id")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  tournamentMatch        TournamentMatch      @relation(fields: [tournamentMatchId], references: [id], onDelete: Cascade)
+  tournamentTeamPlayer   TournamentTeamPlayer @relation(fields: [tournamentTeamPlayerId], references: [id], onDelete: Cascade)
+  createdBy              User?                @relation("MatchPlayerJerseyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentMatchId, tournamentTeamPlayerId], map: "idx_match_player_jersey_unique_player")
+  @@unique([tournamentMatchId, jerseyNumber], map: "idx_match_player_jersey_unique_number")
+  @@index([tournamentMatchId])
+  @@map("match_player_jersey")
+}
+```
+
+⚠ 무중단 변경 (신규 테이블만 / 기존 컬럼 변경 0). PM 이 사용자 승인 후 `npx prisma db push` 진행 가능.
+
+### admin_logs INSERT 사양
+
+| 액션 | severity | description 형식 |
+|------|----------|------------------|
+| match_jersey_override (POST) | warning | `매치 [matchId] 선수 [name] jersey [#old]→#[new] 사유: [reason]` |
+| match_jersey_override_release (DELETE) | warning | `매치 [matchId] 선수 [name] 임시 jersey #[N] 해제 사유: [reason]` |
+
+resource_type = "match_player_jersey" / target_type = "match_player_jersey" / target_id = row.id / changes_made + previous_values JSON.
+
+### 권한 검증 흐름
+
+- **POST/DELETE jersey-override**: `requireTournamentAdmin(tournamentId)` (organizer or tournament_admin_members.is_active) — 캡틴/일반회원 차단.
+- **GET admin-check**: 미로그인 = isAdmin:false silent (401 X). 로그인 = organizer + admin members 검증.
+- **라이브 페이지 버튼**: admin-check 통과 시에만 노출 — 모바일/PC 분기 (PC = 아이콘+텍스트 / 모바일 = 아이콘만).
+
+💡 tester 참고:
+- **사전 조건**: PM이 prisma db push 진행 후 테스트 가능 (테이블 미생성 시 jersey-override POST = 500 prisma error / live API 후처리 = 500).
+- **테스트 매트릭스**:
+  1. 비로그인 라이브 페이지 → 헤더에 "임시 번호" 버튼 X (admin-check isAdmin:false silent)
+  2. 일반회원 / 캡틴 / 일반 운영자 아닌 자 → 버튼 X (403 X / 단순 미노출)
+  3. organizer 또는 tournament_admin_members.is_active=true → 버튼 노출 → 모달 진입
+  4. 모달에서 home/away 선수 dropdown → 선수 선택 → 새 번호 0~99 → 사유 → 저장 → 라이브 페이지 jersey 즉시 갱신
+  5. 같은 매치 다른 선수가 이미 사용 중 번호 입력 → 409 JERSEY_CONFLICT 메시지
+  6. 같은 선수 다시 다른 번호 입력 → UPSERT (UPDATE) 정상 동작
+  7. (선택) DELETE 호출 → 임시 번호 해제 → ttp.jerseyNumber 로 폴백
+  8. admin_logs SELECT — match_jersey_override 또는 match_jersey_override_release row 있고 description 형식 맞음
+- **회귀 체크**:
+  - 라이브 API 응답 그대로 / 기존 jersey_number 표시 정상 (override 없는 매치는 변경 0)
+  - 헤더 sticky / ThemeToggle / 다른 모달들 정상
+  - 모바일 헤더 공간 (768px 이하) 유지
+- **API 직접 호출 (curl)**:
+  ```
+  POST /api/web/tournaments/{tid}/matches/{matchId}/jersey-override
+  body: { tournamentTeamPlayerId: 2540, jerseyNumber: 99, reason: "테스트" }
+  ```
+
+⚠️ reviewer 참고:
+- **schema 일관성**: 지시서 `tournament_match_id String @db.Uuid` 는 오기 → `BigInt` 로 수정 (TournamentMatch.id BigInt + 다른 매치 FK 모두 BigInt 일관성). PM 검토 필수.
+- **jersey 우선순위 후처리 위치**: 라이브 API 끝부분 한곳에서 home/awayPlayers 후처리. 진행중 vs 종료 분기 별도 매핑 (진행중 row.id=ttp.id / 종료 row.id=stat.id → statId→ttpId 보조 Map).
+- **silent fail 정책**: admin-check API 실패 시 isAdmin:false 보수적 default. 라이브 페이지 자체는 계속 동작.
+- **운영자 변경 이력**: createdById = 최초 등록자 보존 (UPDATE 시 갱신 안 함). 변경 이력 단일 source = admin_logs.
+- **모달 라우팅**: home/away players 는 라이브 응답 (현재 jersey 표시) 그대로 전달. dropdown은 매치 시점 jersey (override 적용 후) 표시 → 운영자가 현재 상태 인지 가능.
+- **tsc 0 errors 확인 완료** (`npx tsc --noEmit` exit 0).
+- **prisma generate 진행 / db push 미진행** (PM 사용자 승인 필요).
 
 ---
 
@@ -106,6 +192,7 @@ PR3 (커밋 대기): tournament join 시 team_members → ttp 자동 복사 (운
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 1 PR4 — match_player_jersey 신설 + 라이브 W1 운영자 모달 + admin_logs** — schema +1 모델 (BigInt fk 통일, 지시서 String @db.Uuid 오기 수정) + 3 reverse relation. 신규 API 2개 (jersey-override POST UPSERT/DELETE 해제 + admin-check GET boolean). 신규 컴포넌트 1개 (모달 = 선수 dropdown + 0~99 input + 사용 중 표시 + 사유 + onSuccess refetch). 라이브 API 응답에 tournamentId 추가 + ttp.id → override jersey 매핑 후처리 (진행중·종료 분기 별도 statId→ttpId Map). 라이브 페이지 헤더 우측 PC/모바일 운영자 버튼 + 모달 마운트. 권한 = 운영자만 (organizer + admin_members.is_active). admin_logs warning 2 액션 (match_jersey_override / _release). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR3 — tournament join 자동 sync (옵션 C+UI 본질)** — 2 파일 수정: api/web/tournaments/[id]/join/route.ts (team_members 일괄 SELECT → memberMap → role 분기 검증 → ttp INSERT 자동 복사 / 사용 안 하는 data.players jersey 검증 제거 / UNIQUE 중복 체크 source 변경) + (web)/tournaments/[id]/join/page.tsx (로스터 stage 안내 박스 추가 + jersey/position input UI 제거 + POST body 미전송). 5/5 ef7e78e role 분기 룰 보존 (player 필수 / coach 선택). schema 변경 0 / Flutter `/api/v1/*` 변경 0 / tsc 0. 운영자/캡틴 jersey 직접 입력 진입점 X = single source = team_members. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR2 — 가입 폼 jersey input + 자동 복사 + 마이페이지 다중 팀** — 6 파일 (신규 2 / 수정 4): jerseys-in-use API 신설 / join API zod + 충돌 검증 + preferred_jersey_number 저장 / members PATCH approve 자동 복사 + 409 JERSEY_CONFLICT / team-join-button-v2 모달 (jersey input + 사용 중 표시) / TeamsListCard 신규 / profile/page.tsx SELECT 확장 + 카드 교체 + name_primary 매핑. tsc 0 / schema 변경 0 / 운영 DB 영향 0. | ✅ |
 | 2026-05-05 | DB UPDATE 3건 + INSERT 1건 + UPDATE 1건 (코드 변경 0) | **열혈농구단 SEASON2 출전 명단 정비 4건** — (1) jersey UPDATE 3건: 쓰리포인트/백승훈 ttpId=2540 (18→39) / 몽키즈/이지환 ttpId=2583 (0→4) / 몽키즈/최원영 ttpId=2581 (10→20). (2) 이도균 #70 등록 옵션 2 트랜잭션: tournament_team_players INSERT ttpId=2830 (제주 리딤 ttId=231 / userId=3352 / role=player) + team_members.jersey_number NULL→70 UPDATE (memberId=2701). 매 건 사전 검증 (동명이인 0 / 충돌 0) → 사용자 명시 승인 → 사후 SELECT 재확인 PASS. 임시 스크립트 즉시 삭제. 운영 DB 정책 준수. | ✅ |

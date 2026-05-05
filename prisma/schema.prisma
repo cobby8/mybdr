@@ -226,6 +226,10 @@ model User {
   // 2026-05-04: 알기자 기사 사진 업로드자 역참조
   news_photos_uploaded news_photo[]     @relation("NewsPhotoUploader")
 
+  // 2026-05-05 PR4: 운영자가 라이브 매치에서 임시 jersey 번호를 등록한 row 들의 역참조
+  // (createdById = 운영자 user_id). admin_logs 와 별개 — match_player_jersey row 자체에서 created_by 추적용.
+  match_player_jerseys_created MatchPlayerJersey[] @relation("MatchPlayerJerseyCreator")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -542,34 +546,36 @@ model TournamentTeam {
 }
 
 model TournamentTeamPlayer {
-  id               BigInt            @id @default(autoincrement())
-  tournamentTeamId BigInt            @map("tournament_team_id")
-  userId           BigInt?           @map("user_id")
-  jerseyNumber     Int?              @map("jersey_number")
-  role             String?           @default("player") @db.VarChar
-  position         String?           @db.VarChar
-  auto_registered  Boolean?          @default(false)
-  is_active        Boolean?          @default(true)
-  birth_date       String?           @db.VarChar
-  is_elite         Boolean?          @default(false)
-  player_name      String?           @db.VarChar
-  phone            String?           @db.VarChar
-  isStarter        Boolean?          @default(false) @map("is_starter")
-  games_played     Int?              @default(0)
-  total_points     Int?              @default(0)
-  total_rebounds   Int?              @default(0)
-  total_assists    Int?              @default(0)
-  total_steals     Int?              @default(0)
-  total_blocks     Int?              @default(0)
-  avg_points       Decimal?          @default(0.0) @db.Decimal(5, 1)
-  avg_rebounds     Decimal?          @default(0.0) @db.Decimal(5, 1)
-  avg_assists      Decimal?          @default(0.0) @db.Decimal(5, 1)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
-  playerStats      MatchPlayerStat[]
-  play_by_plays    play_by_plays[]
-  users            User?             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
-  tournamentTeam   TournamentTeam    @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
+  id                   BigInt              @id @default(autoincrement())
+  tournamentTeamId     BigInt              @map("tournament_team_id")
+  userId               BigInt?             @map("user_id")
+  jerseyNumber         Int?                @map("jersey_number")
+  role                 String?             @default("player") @db.VarChar
+  position             String?             @db.VarChar
+  auto_registered      Boolean?            @default(false)
+  is_active            Boolean?            @default(true)
+  birth_date           String?             @db.VarChar
+  is_elite             Boolean?            @default(false)
+  player_name          String?             @db.VarChar
+  phone                String?             @db.VarChar
+  isStarter            Boolean?            @default(false) @map("is_starter")
+  games_played         Int?                @default(0)
+  total_points         Int?                @default(0)
+  total_rebounds       Int?                @default(0)
+  total_assists        Int?                @default(0)
+  total_steals         Int?                @default(0)
+  total_blocks         Int?                @default(0)
+  avg_points           Decimal?            @default(0.0) @db.Decimal(5, 1)
+  avg_rebounds         Decimal?            @default(0.0) @db.Decimal(5, 1)
+  avg_assists          Decimal?            @default(0.0) @db.Decimal(5, 1)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamp(6)
+  playerStats          MatchPlayerStat[]
+  play_by_plays        play_by_plays[]
+  users                User?               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
+  tournamentTeam       TournamentTeam      @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
+  // 2026-05-05 PR4: 매치별 임시 jersey 번호 (운영자 W1 모달 source). ttp 1건당 매치 N건 row 가능.
+  match_player_jerseys MatchPlayerJersey[]
 
   @@unique([tournamentTeamId, jerseyNumber], map: "idx_tournament_team_players_jersey")
   @@unique([tournamentTeamId, userId], map: "idx_tournament_team_players_unique")
@@ -624,6 +630,9 @@ model TournamentMatch {
   play_by_plays                                                        play_by_plays[]
   matchEvents                                                          match_events[]
   audits                                                               tournament_match_audits[]
+  // 2026-05-05 PR4: 매치 한정 임시 jersey 번호 (W1 라이브 페이지 운영자 모달 source).
+  // 같은 매치 안 같은 ttp 1건 / 같은 매치 안 같은 jersey 1건 (UNIQUE 2개).
+  match_player_jerseys                                                 MatchPlayerJersey[]
   // 2026-05-04: 알기자 기사 사진 (Phase 1 = 운영자 수동 업로드, Phase 2 = EXIF 반자동 매핑 큐)
   news_photos                                                          news_photo[]
   // 2026-05-04: 알기자 자동 발행 시도 기록 — silent fail 모니터링
@@ -812,6 +821,43 @@ model active_storage_variant_records {
   active_storage_blobs active_storage_blobs @relation(fields: [blob_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_993965df05")
 
   @@unique([blob_id, variation_digest], map: "index_active_storage_variant_records_uniqueness")
+}
+
+// 2026-05-05 Phase 1 PR4 — 매치 임시 jersey 번호 (W1 라이브 페이지 운영자 모달 source)
+//
+// 도메인 컨텍스트 (Dev/team-member-lifecycle-2026-05-05.md §0, §3):
+//   jersey 우선순위 = override(이 테이블) → ttp.jerseyNumber → team_members.jersey_number
+//   매치 시점 운영자가 "이 선수는 이 경기 한정 #99 번호로 출전" 같은 케이스를 처리하기 위함.
+//   (예: 유니폼 미지참 / 빌림 / 잘못 입력된 ttp 번호 일시 정정)
+//
+// 권한: 해당 토너먼트 운영자 (organizer + tournament_admin_members.is_active=true) 만 INSERT/UPDATE/DELETE.
+// 캡틴/플레이어 본인은 사용 불가 (장기 흐름은 신청/승인 워크플로 Phase 2 PR6+).
+//
+// 무결성:
+//   - UNIQUE (tournament_match_id, tournament_team_player_id) — 같은 매치 안 한 선수는 1번만 (UPSERT 패턴)
+//   - UNIQUE (tournament_match_id, jersey_number) — 같은 매치 안 같은 번호 충돌 차단
+//   - tournamentMatch onDelete: Cascade — 매치 삭제 시 함께 삭제
+//   - tournamentTeamPlayer onDelete: Cascade — ttp 삭제 시 함께 삭제 (이적/탈퇴)
+//   - createdBy onDelete: SetNull — 운영자 계정 삭제 보존
+model MatchPlayerJersey {
+  id                     BigInt   @id @default(autoincrement())
+  // tournament_matches.id 는 BigInt — schema 일관성 유지 (Tournament.id = uuid 와 별개)
+  tournamentMatchId      BigInt   @map("tournament_match_id")
+  tournamentTeamPlayerId BigInt   @map("tournament_team_player_id")
+  jerseyNumber           Int      @map("jersey_number")
+  reason                 String?
+  createdById            BigInt?  @map("created_by_id")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  tournamentMatch      TournamentMatch      @relation(fields: [tournamentMatchId], references: [id], onDelete: Cascade)
+  tournamentTeamPlayer TournamentTeamPlayer @relation(fields: [tournamentTeamPlayerId], references: [id], onDelete: Cascade)
+  createdBy            User?                @relation("MatchPlayerJerseyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentMatchId, tournamentTeamPlayerId], map: "idx_match_player_jersey_unique_player")
+  @@unique([tournamentMatchId, jerseyNumber], map: "idx_match_player_jersey_unique_number")
+  @@index([tournamentMatchId])
+  @@map("match_player_jersey")
 }
 
 model admin_logs {
