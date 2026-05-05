@@ -17,6 +17,13 @@ export const NOTIFICATION_TYPES = {
   TEAM_MEMBER_REQUEST_NEW: "team.member_request.new",         // 팀장/매니저: 멤버 신청 접수 (번호변경/휴면/탈퇴)
   TEAM_MEMBER_REQUEST_APPROVED: "team.member_request.approved", // 신청자: 신청 승인됨
   TEAM_MEMBER_REQUEST_REJECTED: "team.member_request.rejected", // 신청자: 신청 거부됨
+  // 2026-05-05 Phase 3 PR10 — 팀 이적 (양쪽 팀장 승인 state machine)
+  // FROM = 현 팀장에게 (신청자가 떠나려 한다는 통보) / TO = 새 팀장에게 (현 팀장 승인 후 통보)
+  // APPROVED/REJECTED = 신청자에게 최종 결과 통보 (다른 사이드 captain 도 정보용 발송)
+  TRANSFER_REQUEST_NEW_FROM: "transfer.request.new_from",     // 현 팀장: 본인 멤버가 이적 신청 시작
+  TRANSFER_REQUEST_NEW_TO: "transfer.request.new_to",         // 새 팀장: 현 팀장 승인 후 결정 요청
+  TRANSFER_REQUEST_APPROVED: "transfer.request.approved",     // 신청자: 양쪽 모두 승인 → 자동 이동 완료
+  TRANSFER_REQUEST_REJECTED: "transfer.request.rejected",     // 신청자: 한쪽이라도 거부 → 종결
   // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
   TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
   // Phase 10-4 후속 — PATCH (수락/거절/취소) 시 발송되는 결과 알림.

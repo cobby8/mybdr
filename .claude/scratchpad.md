@@ -57,6 +57,104 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (Phase 3 PR10+PR11 — 팀 이적 양쪽 팀장 승인 state machine)
+
+📝 구현한 기능: TransferRequest 모델 + 양쪽 팀장 승인 state machine API + 자동 이동 트랜잭션 + 이적 모달 + manage 변경요청 탭 통합 + 마이페이지 진행 카드 + 알림 4종.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | TransferRequest 모델 신설 (BigInt id + 양쪽 사이드 status + finalStatus + processedBy 양쪽 + rejectionReason 양쪽 + 3 인덱스 + 5 FK) + User 3 reverse relation (transfer_requests / from_processed / to_processed) + Team 2 reverse relation (from / to) | 수정 |
+| `src/lib/notifications/types.ts` | 알림 4종 추가 (TRANSFER_REQUEST_NEW_FROM / NEW_TO / APPROVED / REJECTED) | 수정 |
+| `src/app/api/web/transfer-requests/route.ts` | POST 신청 (fromTeam ≠ toTeam + active 멤버 + toTeam 미가입 + pending 1건 룰 + member_request 동시 차단 + 현 팀장 알림) / GET 본인 목록 (status 필터) | 신규 |
+| `src/app/api/web/transfer-requests/[requestId]/route.ts` | PATCH state machine (side+action zod / 사이드별 captain 검증 / ALREADY_PROCESSED / ALREADY_REJECTED / approve+approve → 자동 이동 트리거 / reject 즉시 종결) + 자동 이동 트랜잭션 (fromTeam status='withdrawn' + toTeam INSERT status='active' + history 2건 transferred_out/in) + 알림 분기 (rejected → 신청자+다른 captain / approved → 신청자+양쪽 captain / from approve pending → 새 captain 통보) | 신규 |
+| `src/app/api/web/teams/[id]/transfer-requests/route.ts` | GET captain 시야 (본 팀이 fromTeam 또는 toTeam 인 본 사이드 status='pending' 만 OR 조건) — manage 인박스용 | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/transfer-request-modal.tsx` | 새 팀 검색 input (debounce 250ms / 글자 ≥ 2) + 자동완성 dropdown (`/api/web/teams/search` fallback) + 사유 textarea 200자 + 안내 박스 + POST → 800ms 토스트 후 router.refresh | 신규 |
+| `src/app/(web)/teams/[id]/_components_v2/member-actions-menu.tsx` | (a) fetchPending 병렬 호출 (member + transfer) — 이적 우선 검사 (b) PendingState 'transfer' 분기 추가 + 트리거 라벨 "→ N팀 진행 중" disabled (c) dropdown 4번째 메뉴 "이적 신청" + swap_horiz 아이콘 (d) TransferRequestModal 마운트 + teamName prop 추가 | 수정 |
+| `src/app/(web)/teams/[id]/_components_v2/roster-tab-v2.tsx` | teamName prop 추가 + MemberActionsMenu 호출에 전달 | 수정 |
+| `src/app/(web)/teams/[id]/page.tsx` | RosterTabV2 호출에 teamName={team.name} 전달 | 수정 |
+| `src/app/(web)/teams/[id]/manage/page.tsx` | TransferRequestRow 인터페이스 신설 + transferRequests state 4종 + fetchTransferRequests + handleTransferAction (side 자동 결정 — fromTeamId === id 면 'from') + useEffect 첫 마운트 1회 로드 + 변경 요청 탭 카운트에 transferRequests.length 합산 + member-requests 탭 하단 "이적 신청" 별도 섹션 (sideLabel 분기 / 상대 팀 진척도 표시 / 거부+승인 데스크탑/모바일 액션) | 수정 |
+| `src/app/(web)/profile/_v2/transfer-progress-card.tsx` | 본인 pending 이적 카드 (마운트 시 GET 1회 / pending 0건 시 미렌더 / 양쪽 사이드 status 뱃지 색상 분기 / 새 팀 보기 링크) | 신규 |
+| `src/app/(web)/profile/page.tsx` | TransferProgressCard import + TeamsListCard 위 마운트 | 수정 |
+
+### state machine 핵심 흐름 (PATCH)
+
+```ts
+// 1. 신청 조회 + finalStatus !== 'pending' 차단
+// 2. 권한: fromTeam captain (side='from') 또는 toTeam captain (side='to')
+// 3. 본 사이드 status='pending' 만 처리 (재처리 차단)
+// 4. 다른 사이드 'rejected' 차단
+// 5. action='reject' → finalStatus='rejected' (즉시)
+// 6. action='approve' + 다른 사이드 'approved' → finalStatus='approved' + 자동 이동 트리거
+// 7. action='approve' + 다른 사이드 'pending' → finalStatus='pending' (대기)
+// 자동 이동 트랜잭션 (모두 단일 prisma.$transaction):
+//   - transferRequest.update (status 들 + finalStatus + processedBy connect + processedAt)
+//   - fromMember snapshot (jersey/position/role 박제) → status='withdrawn'
+//   - toMember INSERT (status='active', role='member', jersey=null)
+//   - history 2건 INSERT (transferred_out / transferred_in)
+```
+
+### 미묘 룰 검증 (POST)
+
+- fromTeam ≠ toTeam (SAME_TEAM 400)
+- 본인 fromTeam active 멤버 (NOT_FROM_TEAM_MEMBER 403)
+- toTeam 미가입 (ALREADY_TO_TEAM_MEMBER 409)
+- transfer pending 1건 룰 (ALREADY_PENDING_TRANSFER 409)
+- member_request pending 동시 차단 (ALREADY_PENDING_MEMBER_REQUEST 409)
+- toTeam dissolved 차단 (TO_TEAM_DISSOLVED 409)
+- PATCH 시점 fromMember active 재검증 (APPLICANT_NOT_ACTIVE 409 — 그 사이 휴면/탈퇴 시)
+
+### 알림 분기
+
+| 시점 | 대상 | 타입 |
+|------|------|------|
+| POST | 현 팀장 | TRANSFER_REQUEST_NEW_FROM |
+| from approve (다른 사이드 pending) | 새 팀장 + 신청자 | TRANSFER_REQUEST_NEW_TO + APPROVED (진행) |
+| 양쪽 approve (자동 이동) | 신청자 + 양쪽 팀장 | TRANSFER_REQUEST_APPROVED |
+| 어느 쪽이든 reject | 신청자 + 다른 팀장 | TRANSFER_REQUEST_REJECTED |
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = 0 (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PM 사용자 승인 후 `npx prisma db push` 로 transfer_requests 테이블 생성 필요. 미실행 시 POST/PATCH/GET 모두 prisma 에러 500.
+- **테스트 시나리오 (정상 흐름)**:
+  1. 본인 A팀 active 멤버 → 팀 페이지 → "내 액션 ▾" → "이적 신청" → 모달 진입
+  2. B팀 검색 (2글자 이상) → 자동완성 선택 → 사유 입력 → "이적 신청" → 201
+  3. A팀 captain 알림 수신 → manage `?tab=member-requests` → "이적 신청" 섹션 표시 → "이 팀에서 떠나려는 신청"
+  4. A captain 승인 → B captain 알림 수신 + 신청자 진행 알림 (현 팀장 승인 완료)
+  5. B captain 승인 → 자동 이동 트랜잭션 (A team_members.status='withdrawn' + B INSERT active jersey=NULL + history 2건)
+  6. 신청자 알림 수신 (이적 완료) + 양쪽 captain 알림 수신
+  7. A 팀 페이지 진입 → 본인 row 자동 제외 (status='withdrawn')
+  8. B 팀 페이지 진입 → 본인 row 표시 (jersey 미배정 — 새 팀에서 jersey_change 신청으로 등록)
+- **테스트 시나리오 (거부)**:
+  1. 본인 신청 후 A captain "거부" → 사유 입력 → finalStatus='rejected' / 신청자 + B captain 알림
+  2. 같은 사용자 즉시 다른 팀 이적 시도 → 정상 (rejected 는 pending 0건이므로 ALREADY_PENDING X)
+- **테스트 시나리오 (회귀)**:
+  1. 같은 사용자 pending 이적 중 재신청 → 409 ALREADY_PENDING_TRANSFER
+  2. 같은 사용자 jersey_change pending 중 이적 시도 → 409 ALREADY_PENDING_MEMBER_REQUEST
+  3. 같은 사용자 이적 pending 중 jersey_change 시도 → 가능 (TeamMemberRequest 미묘 룰 #1 은 1건 — transfer_request 와 별개) — 단, MemberActionsMenu 가 transfer 우선 차단으로 트리거 disabled (UI 단)
+  4. fromTeam == toTeam → 400 SAME_TEAM
+  5. 이미 toTeam active 멤버 → 409 ALREADY_TO_TEAM_MEMBER
+  6. 양쪽 사이드 captain 아닌 사용자 PATCH → 403 FORBIDDEN
+  7. 같은 사이드 두 번 처리 → 409 ALREADY_PROCESSED
+  8. 한쪽 reject 후 다른 사이드 처리 → 409 ALREADY_REJECTED 또는 ALREADY_FINALIZED
+  9. PATCH approve 시점 신청자가 휴면 처리되어 있음 → 409 APPLICANT_NOT_ACTIVE
+  10. 마이페이지 진입 → pending 이적 1건 → TransferProgressCard 렌더 → 양쪽 사이드 status 뱃지 정확
+
+⚠️ reviewer 참고:
+- **트랜잭션 일관성**: PATCH approve+approve 분기에서 transferRequest.update / fromMember.update (withdrawn) / toMember.create / history 2건 INSERT 모두 단일 prisma.$transaction. 부분 실패 시 모두 롤백 — 사일런트 분기 0.
+- **잘못된 ID 차단 — APPLICANT_NOT_ACTIVE**: PATCH approve 트리거 시점에 fromMember active 재검증. 그 사이 휴면/탈퇴되면 자동 이동 차단 (트랜잭션 진입 X).
+- **이중 가입 방지 (re-check)**: PATCH approve 트리거 시점에 toMember active 재검증. 어떤 경로로든 이미 가입한 경우 ALREADY_TO_TEAM_MEMBER 차단.
+- **jersey 정책**: 새 팀 INSERT 시 jersey_number=NULL — 기존 팀 jersey 가 새 팀에서 충돌할 수 있으므로 명시적으로 비움. 새 팀에서 jersey_change 신청으로 등록 (PR7 흐름).
+- **manage GET endpoint 분리**: `/api/web/transfer-requests` (본인 시야 — userId 필터) vs `/api/web/teams/[id]/transfer-requests` (captain 시야 — fromTeam OR toTeam + 본 사이드 pending). 권한과 시야가 명확히 분리.
+- **MemberActionsMenu 단순화**: pending 이적이 있으면 모든 액션 차단 (트리거 disabled). 이유 = 흐름 동시 진행 차단 + 사용자 혼동 회피. 다른 팀 멤버라도 본인이 어느 팀에서든 pending 이적 있으면 모든 팀의 액션 메뉴가 disabled.
+- **알림 silent fail**: createNotification 모두 .catch(() => {}) — 알림 실패가 트랜잭션 자체를 막지 않음 (가용성 우선).
+- **schema 변경 1 모델 + 5 reverse relation**: PR6 패턴과 동일 (단일 테이블 + 명확한 명명). prisma generate ✅ / db push X (PM 진행).
+- **commit X / db push X** — PM 검토 후 진행.
+
+---
+
 ## 구현 기록 (PR8+PR9 — 휴면 + 탈퇴 신청 dispatcher 활성화 + UI)
 
 📝 구현한 기능: PR6 dispatcher dormant/withdraw 분기 활성화 + lazy 복구 hook + 휴면/탈퇴 모달 + 본인 row dropdown 통합 (번호변경+휴면+탈퇴 3액션).
@@ -512,6 +610,7 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 3 PR10+PR11 — 팀 이적 양쪽 팀장 승인 state machine + UI 통합** — 12 파일 (신규 6 / 수정 6): TransferRequest 모델 신설 (양쪽 사이드 status + finalStatus + processedBy 양쪽 + 5 FK + 3 인덱스) / User 3 + Team 2 reverse relation / 알림 4종 추가 / POST/GET API (pending 1건 + member_request 동시 차단 + 현 팀장 알림) / PATCH state machine (사이드별 captain 검증 + ALREADY_PROCESSED/REJECTED + approve+approve 자동 이동 트리거 + 단일 트랜잭션 fromMember status='withdrawn' + toMember INSERT active jersey=NULL + history 2건 transferred_out/in) / captain 시야 GET endpoint (OR 양쪽 사이드 pending) / 이적 모달 (검색 debounce 250ms + 사유 200자) / MemberActionsMenu 4번째 메뉴 + transfer 우선 검사 / roster+page teamName 전달 / manage 변경요청 탭 하단 이적 섹션 (sideLabel 분기 + 상대 팀 진척도) / 마이페이지 TransferProgressCard 양쪽 사이드 뱃지. tsc 0 / schema 변경 = 1 모델 + 5 reverse relation / commit X / db push X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR8+PR9 — 휴면+탈퇴 신청 dispatcher 활성화 + UI** — 9 파일 (신규 4 / 수정 5): dispatcher dormant/withdraw 활성화 (active row prev* 박제 + history payload 분기 3종 + status UPDATE 트랜잭션) / lazy 복구 helper 신설 (until < now → active 자동 + 'reactivated' history) / teams/[id] page + profile page 에 hook 호출 추가 / dormant-request-modal 신규 (until date 기본 +3개월 / 7일~12개월 / 사유 100자) / withdraw-request-modal 신규 (사유 5~200자 필수 + danger 경고 박스) / member-actions-menu 신규 (dropdown "내 액션 ▾" → 3 액션 통합 + clickOutside·Esc + pending 분기 라벨) / roster-tab-v2 status `['active','dormant']` 확장 + 휴면 뱃지(soft) + 카드 opacity 0.6 + JerseyChangeButton→MemberActionsMenu 교체 / manage 안내 문구 갱신. schema 변경 0 (status 컬럼 값만 추가) / tsc 0 / commit X / db push X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 2 PR7 — 번호 변경 신청 흐름 활성화 (모달 + 팀장 승인 UI + dispatcher)** — 6 파일 (신규 2 / 수정 4): dispatcher jersey_change approve 활성화 (재충돌 검증 + team_members.jersey_number UPDATE + history INSERT eventType='jersey_changed' payload {old,new,reason} — 단일 트랜잭션) / jersey-change-request-modal 신규 (PR2 jerseys-in-use 재사용 + 새 번호 0~99 + 사유 100자) / jersey-change-button client wrapper 신규 (mount 시 ?status=pending GET 1회 → loading/none/jersey_change/other 분기 라벨) / roster-tab-v2 currentUserId prop + 본인 row Link 외부 div 마운트 / page.tsx session.sub 전달 / manage page.tsx ManageTab 'member-requests' 추가 + 변경 요청 탭 (type 별 분기 라벨/색상 + 사유 accent border + 데스크탑/모바일 액션 분기). PR7 = jersey_change 만 실제 작동 / dormant·withdraw 표시만 (PR8/PR9 후속). tsc 0 / 운영 DB 영향 0 / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 2 PR6 — team_member_requests 통합 + team_member_history 신설 + 신청/조회/승인거부 API + 알림 3종** — schema +2 모델 (Rails team_member_histories 와 명명 충돌 회피 단수 신설) + Team 2 + User 4 reverse relation. 신규 API 2개: POST/GET /api/web/teams/[id]/requests (zod discriminatedUnion type 별 payload + 미묘 룰 #1 ALREADY_PENDING 1건만 + jersey 충돌 사전 검증) + PATCH /api/web/teams/[id]/requests/[requestId] (approve/reject dispatcher placeholder TODO PR7~9 + 트랜잭션 status UPDATE + history INSERT + 신청자 알림). 권한 = captain + manager (Phase 4 PR12 위임 통합 예정). 알림 3종 추가 (TEAM_MEMBER_REQUEST_NEW/APPROVED/REJECTED). dispatcher 패턴 = approve 시 type 별 실제 변경은 placeholder TODO (PR7 jersey UPDATE / PR8 dormant / PR9 withdraw). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |

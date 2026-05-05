@@ -306,6 +306,8 @@ export default async function TeamDetailPage({
                   accent={accent}
                   // 2026-05-05 Phase 2 PR7 — 본인 row 등번호 변경 버튼 노출용
                   currentUserId={session?.sub ? BigInt(session.sub) : null}
+                  // 2026-05-05 Phase 3 PR10 — 이적 모달 헤더 표시용 (현 팀 이름)
+                  teamName={team.name ?? null}
                 />
               )}
               {currentTab === "recent" && (

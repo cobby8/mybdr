@@ -49,6 +49,10 @@ import "./mypage.css";
 
 // PR2: 다중 팀 목록 카드 (마이페이지 aside)
 import { TeamsListCard, type TeamsListItem } from "./_v2/teams-list-card";
+// 2026-05-05 Phase 3 PR10+PR11 — 본인 pending 이적 진행 카드 (client)
+// 이유: 양쪽 팀장 승인 진척도 시각화. 본인 시야에서만 의미. server SELECT 추가 0
+//   (마운트 시 fetch — 다른 SSR 부하 회피).
+import { TransferProgressCard } from "./_v2/transfer-progress-card";
 
 // SSR 세션 기반 페이지 — 캐시 금지 (본인 데이터는 매 요청 최신)
 export const dynamic = "force-dynamic";
@@ -711,6 +715,9 @@ export default async function ProfilePage() {
               </Link>
             </div>
           )}
+
+          {/* 2026-05-05 Phase 3 PR10+PR11 — 본인 pending 이적 진행 카드 (있으면 표시) */}
+          <TransferProgressCard />
 
           {/* 소속 팀 — PR2: 다중 팀 목록 카드 (0팀 빈 상태 포함) */}
           <TeamsListCard teams={teamsList} />

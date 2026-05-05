@@ -55,6 +55,8 @@ type Props = {
   // 이유: server component 단에서 본인 row 만 client 버튼을 마운트해 불필요한
   //   fetch 호출 차단. null 이면 모든 row 에서 버튼 미노출 (비로그인/타인 시야).
   currentUserId?: bigint | null;
+  // 2026-05-05 Phase 3 PR10 — 이적 모달 헤더에 현 팀 이름 표시용
+  teamName?: string | null;
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -75,7 +77,7 @@ const ROLE_ORDER: Record<string, number> = {
   member: 5,
 };
 
-export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
+export async function RosterTabV2({ teamId, accent, currentUserId, teamName }: Props) {
   // 2026-05-05 Phase 2 PR8 — dormant 멤버도 로스터에 포함 (휴면 뱃지 표시)
   // withdrawn 은 자동 제외 (status IN ['active','dormant'])
   const members = await prisma.teamMember
@@ -314,6 +316,7 @@ export async function RosterTabV2({ teamId, accent, currentUserId }: Props) {
               >
                 <MemberActionsMenu
                   teamId={teamId.toString()}
+                  teamName={teamName ?? null}
                   currentJersey={myJersey}
                 />
               </div>

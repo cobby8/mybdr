@@ -237,6 +237,12 @@ model User {
   team_member_history_user       TeamMemberHistory[] @relation("TeamMemberHistoryUser")
   team_member_history_created    TeamMemberHistory[] @relation("TeamMemberHistoryCreator")
 
+  // 2026-05-05 Phase 3 PR10 — 팀 이적 (양쪽 팀장 승인)
+  // user_relation: 신청자 본인 / from_processed: 현 팀장 처리 / to_processed: 새 팀장 처리
+  transfer_requests                TransferRequest[] @relation("TransferRequestUser")
+  transfer_requests_from_processed TransferRequest[] @relation("TransferRequestFromProcessor")
+  transfer_requests_to_processed   TransferRequest[] @relation("TransferRequestToProcessor")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -426,6 +432,10 @@ model Team {
   //   본 PR6 은 신청/승인 워크플로 + state machine 보존 위해 신규 model 단수 명명 (TeamMemberHistory) 으로 분리.
   team_member_requests TeamMemberRequest[]
   team_member_history  TeamMemberHistory[]
+
+  // 2026-05-05 Phase 3 PR10 — 팀 이적 양쪽 사이드 역참조
+  transfer_requests_from TransferRequest[] @relation("TransferRequestFromTeam")
+  transfer_requests_to   TransferRequest[] @relation("TransferRequestToTeam")
 
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
@@ -3100,4 +3110,50 @@ model TeamMemberHistory {
   @@index([userId])
   @@index([teamId, createdAt(sort: Desc)])
   @@map("team_member_history")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 3 PR10 — 팀 이적 (양쪽 팀장 승인 state machine)
+// ─────────────────────────────────────────────────────────────────────────────
+// 이유(왜): 회원이 팀 A 에서 팀 B 로 이동하는 흐름은 단일 팀 신청 (TeamMemberRequest)
+//   과 본질이 다르다 — 양쪽 팀장 모두 승인해야만 자동 이동 트리거. 한쪽이라도 거부 시
+//   final_status='rejected' 종결. 따라서 별도 모델로 분리해 state machine 을 명시적으로
+//   표현 (보고서 §2-2).
+// 자동 이동 (둘 다 approved): from_team team_members.status='withdrawn' (history 보존) +
+//   to_team team_members INSERT (status='active') + team_member_history 2건 (transferred_out
+//   / transferred_in). 단일 prisma.$transaction.
+// 미묘 룰 (보고서 §8 #1 확장): 같은 user_id 에 대해 final_status='pending' 1건만 허용.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TransferRequest {
+  id                  BigInt    @id @default(autoincrement())
+  userId              BigInt    @map("user_id")
+  fromTeamId          BigInt    @map("from_team_id")
+  toTeamId            BigInt    @map("to_team_id")
+  reason              String?
+  // 양쪽 사이드 status: 'pending' | 'approved' | 'rejected'
+  fromTeamStatus      String    @default("pending") @map("from_team_status") @db.VarChar(20)
+  toTeamStatus        String    @default("pending") @map("to_team_status") @db.VarChar(20)
+  // 최종 status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  // 한쪽이라도 'rejected' → 즉시 'rejected', 둘 다 'approved' → 'approved' (자동 이동 트리거)
+  finalStatus         String    @default("pending") @map("final_status") @db.VarChar(20)
+  fromProcessedById   BigInt?   @map("from_processed_by_id")
+  fromProcessedAt     DateTime? @map("from_processed_at") @db.Timestamp(6)
+  toProcessedById     BigInt?   @map("to_processed_by_id")
+  toProcessedAt       DateTime? @map("to_processed_at") @db.Timestamp(6)
+  fromRejectionReason String?   @map("from_rejection_reason")
+  toRejectionReason   String?   @map("to_rejection_reason")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user            User  @relation("TransferRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  fromTeam        Team  @relation("TransferRequestFromTeam", fields: [fromTeamId], references: [id], onDelete: Cascade)
+  toTeam          Team  @relation("TransferRequestToTeam", fields: [toTeamId], references: [id], onDelete: Cascade)
+  fromProcessedBy User? @relation("TransferRequestFromProcessor", fields: [fromProcessedById], references: [id], onDelete: SetNull)
+  toProcessedBy   User? @relation("TransferRequestToProcessor", fields: [toProcessedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, finalStatus])
+  @@index([fromTeamId, fromTeamStatus])
+  @@index([toTeamId, toTeamStatus])
+  @@map("transfer_requests")
 }
