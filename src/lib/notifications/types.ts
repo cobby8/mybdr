@@ -27,6 +27,11 @@ export const NOTIFICATION_TYPES = {
   // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임/회수
   TEAM_OFFICER_PERMISSION_GRANTED: "team.officer_permission.granted",   // 위임받은 자: captain 이 권한 위임
   TEAM_OFFICER_PERMISSION_REVOKED: "team.officer_permission.revoked",   // 위임받은 자: captain 이 권한 회수 (또는 자동 회수)
+  // 2026-05-05 Phase 5 PR15 — 유령회원 강제 액션 알림
+  // 이유(왜): captain/ghostClassify 위임자가 강제 변경 시 대상에게 명시적 통지 (사용자 권리 보호).
+  GHOST_CLASSIFIED: "team.ghost.classified",          // 대상: 유령으로 분류됨 (정보 — 로그인 유도)
+  FORCE_WITHDRAWN: "team.ghost.force_withdrawn",      // 대상: 강제 탈퇴 처리됨
+  FORCE_JERSEY_CHANGED: "team.ghost.force_jersey_changed", // 대상: 강제 jersey 변경됨
   // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
   TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
   // Phase 10-4 후속 — PATCH (수락/거절/취소) 시 발송되는 결과 알림.

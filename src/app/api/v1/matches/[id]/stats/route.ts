@@ -8,6 +8,8 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 // PR5: 매치 시점 jersey 우선순위 적용 (override → ttp → team_members)
 import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (매치 통계 기록 = 활동 5종 중 #3)
+import { trackTeamMemberActivityForUser } from "@/lib/team-members/track-activity";
 
 // FR-026: 매치 스탯 조회
 async function getHandler(
@@ -115,6 +117,10 @@ async function postHandler(
         updatedAt: now,
       })),
     });
+    // Phase 5 PR14 — 통계 기록 운영자(본인) 의 모든 active 팀 활동 갱신.
+    // 이유: 매치 통계 기록 자체는 운영자 행동이므로 운영자 = active 멤버인 모든 팀에 활동 마킹.
+    //   기록 대상 player 들의 활동은 별도 로직 필요 (현 단계에서는 운영자만).
+    trackTeamMemberActivityForUser(BigInt(ctx.userId)).catch(() => {});
     return apiSuccess({ created: created.count }, 201);
   }
 
@@ -129,6 +135,9 @@ async function postHandler(
       ...mapStatToPrisma(s),
     },
   });
+
+  // Phase 5 PR14 — single create 경로도 동일 처리
+  trackTeamMemberActivityForUser(BigInt(ctx.userId)).catch(() => {});
 
   return apiSuccess(stat, 201);
 }

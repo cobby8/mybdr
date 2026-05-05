@@ -13,6 +13,8 @@ import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 2026-05-05 Phase 2 PR8 — 휴면 만료 lazy 복구 hook (본인 시야 진입 시 자동 active 복귀)
 import { checkAndExpireDormant } from "@/lib/team-members/check-dormant-expiry";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (유령회원 분류용 — last_activity_at 갱신)
+import { trackTeamMemberActivity } from "@/lib/team-members/track-activity";
 
 // Phase 3 Teams 상세 v2 — 8개 컴포넌트 조립
 import { TeamHeroV2 } from "./_components_v2/team-hero-v2";
@@ -166,6 +168,12 @@ export default async function TeamDetailPage({
       //   (즉시 반영은 본 본조회를 hook 이후로 이동해야 하지만, 운영 부하/UX 트레이드오프상
       //   "1회 새로고침 후 active 표시" 로 단순화)
       checkAndExpireDormant(team.id, userId).catch(() => {});
+
+      // 2026-05-05 Phase 5 PR14 — 본 팀 활동 시각 갱신 (5분 throttle 내부 처리)
+      // 이유: 본인이 active 멤버이면 팀 페이지 진입 자체를 활동으로 카운트.
+      //   유령 후보 분류 (3개월 미활동) 의 5종 정의 중 1.
+      //   fire-and-forget — 실패해도 페이지 로딩 영향 0.
+      trackTeamMemberActivity(team.id, userId).catch(() => {});
 
       // 이미 active 멤버 목록에 포함되었는지 (팀 본조회의 teamMembers 재활용)
       const myMembership = team.teamMembers.find((m) => m.userId === userId);

@@ -42,6 +42,8 @@ import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
 // 2026-05-05 Phase 2 PR8 — 휴면 만료 lazy 복구 hook (본인 시야 진입 시 자동 active)
 import { checkAndExpireDormant } from "@/lib/team-members/check-dormant-expiry";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (마이페이지 진입 = 로그인/활동 5종 중 #5)
+import { trackTeamMemberActivityForUser } from "@/lib/team-members/track-activity";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 
 // Phase 13 hub 전용 스타일 (BDR-current/mypage.css 1:1 카피)
@@ -255,6 +257,11 @@ export default async function ProfilePage() {
   } catch {
     // silent — 페이지 로딩 영향 X
   }
+
+  // 2026-05-05 Phase 5 PR14 — 본인 모든 active 팀 활동 갱신 (마이페이지 = 로그인 활동)
+  // 이유: 보고서 §3-2 활동 5종 중 #5 (로그인). 마이페이지 진입 = 로그인 직후 또는 활성 사용자.
+  //   updateMany 1회 (5분 throttle 통과 시) — 운영 부하 최소.
+  trackTeamMemberActivityForUser(userId).catch(() => {});
 
   // ---- Hero 데이터 변환 ----
   const level = getProfileLevelInfo(user.xp);

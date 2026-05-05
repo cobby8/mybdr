@@ -5,6 +5,8 @@ import { getWebUser } from "@/lib/auth/tournament-auth";
 import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (대회 출전 = 활동 5종 중 #2)
+import { trackTeamMemberActivity } from "@/lib/team-members/track-activity";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -426,6 +428,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     return tournamentTeam;
   });
+
+  // --- 2026-05-05 Phase 5 PR14: 활동 추적 (대회 출전 = 본 팀의 모든 player 활동 갱신) ---
+  // 이유(왜): 보고서 §3-2 — 대회 출전 시점에 ttp 가 신설되는 player 들 = 본 팀의 활동 멤버.
+  //   각 player 별 본 팀 last_activity_at 갱신 (5분 throttle 내부 처리).
+  //   fire-and-forget — 실패해도 참가신청 자체 영향 0.
+  for (const p of data.players) {
+    trackTeamMemberActivity(BigInt(teamId), BigInt(p.userId)).catch(() => {});
+  }
 
   // --- 알림 발송 (fire-and-forget: 알림 실패가 참가신청을 실패시키지 않음) ---
 

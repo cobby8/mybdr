@@ -57,6 +57,154 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (Phase 5 PR14+PR15+PR16 — 활동 추적 + 유령회원 시스템 + 회원 상태 정비) 🎉 Phase 5 완료
+
+📝 구현한 기능: TeamMember.last_activity_at 컬럼 + INDEX / trackTeamMemberActivity 5분 throttle helper + 5종 호출 위치 wiring / 유령 후보 조회 API + manage 탭 UI / 강제 액션 API (jersey/withdraw/role) + 모달 / 회원 상태 정비 (탈퇴 멤버 별도 탭 + 완전 삭제 API) / 알림 3종 (GHOST_CLASSIFIED / FORCE_WITHDRAWN / FORCE_JERSEY_CHANGED).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | TeamMember.last_activity_at 컬럼 (NULL 허용 ADD COLUMN — 무중단) + (teamId, last_activity_at) 인덱스 | 수정 |
+| `src/lib/team-members/track-activity.ts` | trackTeamMemberActivity (5분 throttle 단일 SELECT+조건부 UPDATE) + trackTeamMemberActivityForUser (본인 모든 active 팀 일괄 — updateMany 1회) | 신규 |
+| `src/app/(web)/teams/[id]/page.tsx` | trackTeamMemberActivity 호출 (#1 팀 페이지 접속) — silent fail | 수정 |
+| `src/app/api/web/tournaments/[id]/join/route.ts` | trackTeamMemberActivity for-loop (#2 대회 출전 player 별) | 수정 |
+| `src/app/api/v1/matches/[id]/stats/route.ts` | trackTeamMemberActivityForUser (#3 통계 기록 운영자) — bulk + single 둘 다 | 수정 |
+| `src/app/actions/community.ts` | trackTeamMemberActivityForUser (#4 게시판 작성 — 본인 모든 active 팀) | 수정 |
+| `src/app/(web)/profile/page.tsx` | trackTeamMemberActivityForUser (#5 마이페이지/로그인) | 수정 |
+| `src/lib/notifications/types.ts` | 알림 3종 추가 (GHOST_CLASSIFIED / FORCE_WITHDRAWN / FORCE_JERSEY_CHANGED) | 수정 |
+| `src/app/api/web/teams/[id]/ghost-candidates/route.ts` | GET 3개월 미활동 active 멤버 조회 (last_activity_at < now-3m OR (NULL AND createdAt < now-3m)) — ghostClassify 권한 | 신규 |
+| `src/app/api/web/teams/[id]/members/[memberId]/force-action/route.ts` | POST action='force_jersey_change' (forceChange 권한 + 충돌 검증) / 'force_withdraw' (withdrawApprove 권한 + 사유 필수) / 'force_change_role' (forceChange 권한) — 트랜잭션 history INSERT eventType='force_changed/force_withdrawn' + 알림 발송 | 신규 |
+| `src/app/api/web/teams/[id]/members/[memberId]/permanent-delete/route.ts` | DELETE captain only (위임 X) — status='withdrawn' row 만 통과 + history 보존 (eventType='permanent_deleted') | 신규 |
+| `src/app/api/web/teams/[id]/members/route.ts` | GET ?status=withdrawn 쿼리 파라미터 지원 (기본 'active' 회귀 0) — withdrawn 분기 응답 (jersey/role/position/left_at/createdAt) | 수정 |
+| `src/app/(web)/teams/[id]/manage/_components/ghost-candidates-tab.tsx` | 유령 후보 탭 UI — 후보 목록 + 액션 (jersey 변경 / 강제 탈퇴 / 분류 해제) + prompt/confirm 모달 + busy 상태 + 카운트 분기 라벨 | 신규 |
+| `src/app/(web)/teams/[id]/manage/_components/withdrawn-members-section.tsx` | 탈퇴 멤버 이력 탭 UI — captain only 표시 + 완전 삭제 버튼 + 2단계 confirmation | 신규 |
+| `src/app/(web)/teams/[id]/manage/page.tsx` | ManageTab 'ghosts' + 'withdrawn' 추가 + resolveInitialTab 매핑 + tabs 배열 (ghosts 모두 / withdrawn captain 한정) + ghosts/withdrawn 탭 컨텐츠 마운트 + import 2종 | 수정 |
+
+### Schema diff (PM 검토 필요)
+
+```prisma
+model TeamMember {
+  // ... 기존 동일 ...
+  last_activity_at DateTime? @map("last_activity_at") @db.Timestamp(6)  // 신규 — NULL 허용
+  // ... 기존 동일 ...
+  @@index([teamId, last_activity_at], map: "index_team_members_on_team_id_and_last_activity_at")  // 신규
+}
+```
+
+NULL 허용 ADD COLUMN + INDEX = 무중단 변경 (운영 영향 0). prisma generate ✅.
+
+### 활동 추적 흐름 (5분 throttle)
+
+```ts
+// 1) 본인 active 멤버 조회 + last_activity_at 1회 SELECT
+// 2) THROTTLE_MS (5분) 이내면 즉시 false 반환 (UPDATE skip)
+// 3) 5분 경과 시 last_activity_at = now() UPDATE
+// 평균 호출당 SELECT 1회 + 5분에 한 번만 UPDATE — 운영 부하 최소
+```
+
+### 유령 후보 조회 룰 (보고서 §3-3)
+
+```ts
+const threeMonthsAgo = new Date();
+threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+where: {
+  teamId, status: "active",
+  OR: [
+    { last_activity_at: { lt: threeMonthsAgo } },
+    { AND: [{ last_activity_at: null }, { createdAt: { lt: threeMonthsAgo } }] },  // PR14 신설 전 가입자 fallback
+  ]
+}
+```
+
+### 강제 액션 권한 매트릭스
+
+| Action | 권한 키 | 추가 검증 |
+|--------|--------|----------|
+| force_jersey_change | forceChange | 다른 active 멤버와 jersey 충돌 X |
+| force_withdraw | withdrawApprove | 사유 1자 이상 필수 |
+| force_change_role | forceChange | newRole ∈ [member, manager, coach, treasurer, director] (captain X) |
+| permanent-delete | **captain only** (위임 X) | status='withdrawn' 만 통과 + 자기자신 차단 |
+
+### 호출 위치 5종 wiring (보고서 §3-2)
+
+| # | 위치 | 호출 함수 | 트리거 시점 |
+|---|------|----------|-----------|
+| 1 | `(web)/teams/[id]/page.tsx` | trackTeamMemberActivity(teamId, userId) | 본인 active 멤버 SSR 진입 |
+| 2 | `api/web/tournaments/[id]/join` | trackTeamMemberActivity(teamId, p.userId) for-loop | ttp INSERT 직후 player 별 |
+| 3 | `api/v1/matches/[id]/stats` | trackTeamMemberActivityForUser(ctx.userId) | bulk + single create 직후 |
+| 4 | `actions/community.ts` createPostAction | trackTeamMemberActivityForUser(session.sub) | community_posts.create 직후 |
+| 5 | `(web)/profile/page.tsx` | trackTeamMemberActivityForUser(userId) | 마이페이지 SSR 진입 |
+
+모두 `.catch(() => {})` fire-and-forget — 실패 시 본 흐름 영향 0.
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = **0** (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PM 사용자 승인 후 `npx prisma db push` 로 last_activity_at 컬럼 + 인덱스 추가 필요. 미실행 시 모든 trackTeamMemberActivity 호출이 prisma 에러 (silent fail 처리되어 본 흐름은 진행 — 단 활동 추적 0)
+- **테스트 시나리오 (PR14 활동 추적)**:
+  1. 본인 팀 페이지 진입 → DB SELECT + last_activity_at UPDATE (5분 만에 1회)
+  2. 5분 내 재진입 → SELECT 만, UPDATE skip (DB 부하 회피)
+  3. 5분+ 경과 후 재진입 → UPDATE 발생
+  4. 대회 join → 모든 player 별 trackTeamMemberActivity 호출 (본 팀 → ttp 의 user 들 last_activity_at 갱신)
+  5. 마이페이지 진입 → 본인 모든 active 팀 last_activity_at 일괄 갱신 (updateMany 1회)
+  6. 게시판 글 작성 → 본인 모든 active 팀 last_activity_at 일괄 갱신
+  7. v1 stats POST (Flutter 운영자) → 운영자 본인의 모든 active 팀 갱신
+- **테스트 시나리오 (PR15 유령 후보 + 강제 액션)**:
+  1. captain 으로 manage `?tab=ghosts` 진입 → "유령 후보" 탭 → GET 통과
+  2. 위임받은 ghostClassify manager 로 같은 진입 → GET 통과
+  3. 위임 X manager 로 진입 → 403 (UI 의 빈 표시 — 권한 안내)
+  4. 후보 목록 표시 — 3개월 미활동 + last_activity_at NULL (가입 3개월+) 둘 다 표시
+  5. "jersey 변경" 클릭 → prompt → POST force-action force_jersey_change → DB UPDATE + history 'force_changed' INSERT + 대상 알림
+  6. "강제 탈퇴" 클릭 → 사유 prompt + confirm → POST force_withdraw → status='withdrawn' UPDATE + history 'force_withdrawn' INSERT + 대상 알림
+  7. "분류 해제" 클릭 → UI state 만 제거 (서버 호출 X — 운영자 false positive 메모)
+- **테스트 시나리오 (PR16 회원 상태 정비 + 완전 삭제)**:
+  1. captain 으로 manage `?tab=withdrawn` 진입 → "탈퇴 멤버 이력" 탭 표시
+  2. 비-captain 진입 → 권한 안내 메시지 ("팀장만 조회 / 관리")
+  3. 탈퇴 멤버 row 표시 (이름 / 가입일 / 탈퇴일 + opacity 0.7 톤 다운)
+  4. "완전 삭제" 클릭 → 2단계 confirm → DELETE permanent-delete → row 사라짐
+  5. team_member_history 에 eventType='permanent_deleted' INSERT 보존 확인 (source of truth)
+  6. status='active' 멤버에 대해 permanent-delete 시도 (직접 fetch) → 404 MEMBER_NOT_FOUND_OR_NOT_WITHDRAWN
+  7. 비-captain 이 직접 fetch permanent-delete → 403 FORBIDDEN
+- **테스트 시나리오 (회귀)**:
+  1. force_jersey_change newJersey=null → jerseyNumber UPDATE NULL 처리 정상
+  2. 같은 jersey 충돌 → 409 JERSEY_CONFLICT
+  3. force_withdraw 사유 1자 미만 → 400 VALIDATION_FAILED
+  4. force_change_role newRole='captain' → zod enum 미통과 400
+  5. captain 본인을 force-action 대상 → 403 CANNOT_FORCE_CAPTAIN
+  6. 운영자 본인을 대상 → 403 CANNOT_FORCE_SELF
+  7. members?status=withdrawn 미운영자 → 403 FORBIDDEN
+
+⚠️ reviewer 참고:
+- **운영 부하 최적화 (5분 throttle)**: 미묘 룰 #3 (보고서 §8) 엄수. 평균 호출당 SELECT 1회. 5종 wiring 위치가 모두 인기 있는 진입점 (팀 페이지/마이페이지) 인데도 throttle 로 운영 부하 안전.
+- **fire-and-forget 일관성**: 모든 trackTeamMemberActivity 호출 = `.catch(() => {})` 패턴. 함수 내부도 try/catch 로 추가 안전망 — 활동 추적 실패가 본 흐름을 막지 않음.
+- **NULL fallback 룰**: PR14 컬럼 신설 전 가입자 = last_activity_at NULL → createdAt 기준 평가. 따라서 6개월+ 전 가입한 모든 미활동 멤버가 즉시 후보로 노출 — 운영자가 수동 분류 (false positive 처리).
+- **자기 자신 / captain 보호**: force-action 이 captain 본인 / 호출자 자신을 대상으로 할 수 없음. permanent-delete 도 자기 자신 row 차단.
+- **history source of truth**: permanent-delete 가 row DELETE 해도 team_member_history 에 'permanent_deleted' INSERT — 향후 재가입 시 과거 이력 추적 가능.
+- **알림 3종 silent fail**: createNotification.catch(() => {}) — 알림 실패가 force-action 트랜잭션 자체를 막지 않음.
+- **commit X / db push X** — PM 검토 후 진행.
+
+### 다음 작업 (PM)
+
+1. PM 검토 + `npx prisma db push` (last_activity_at 컬럼 + 인덱스)
+2. 활동 추적 5종 동작 검증 (DB last_activity_at 값 갱신 여부)
+3. 유령 후보 / 강제 액션 / 완전 삭제 UI 동작 검증
+
+### Phase 5 완료 — 전체 회고
+
+| Phase | PR 범위 | 상태 |
+|-------|---------|------|
+| Phase 1 (Jersey 도메인) | PR1~5 | ✅ 완료 |
+| Phase 2 (신청/승인 인프라) | PR6~9 | ✅ 완료 |
+| Phase 3 (팀 이적) | PR10~11 | ✅ 완료 |
+| Phase 4 (운영진 권한 위임) | PR12~13 | ✅ 완료 |
+| Phase 5 (유령회원 + 회원 상태) | **PR14~16** | **✅ 완료** |
+
+총 ~13~14d 분량 → Phase 1~5 모두 commit 보류 + db push 보류 상태로 코드 박제 완료.
+
+---
+
 ## 구현 기록 (Phase 4 PR12+PR13 — 운영진 권한 위임 인프라 + 모든 승인 API 통합)
 
 📝 구현한 기능: TeamOfficerPermissions 모델 + 위임 API (POST/DELETE/GET) + manage 운영진 권한 탭 + permissions helper (hasTeamOfficerPermission/isTeamCaptain) + 자동 회수 helper + PR6/7/8/9/10 권한 검증 통합 (5 endpoint).

@@ -511,6 +511,11 @@ model TeamMember {
   status       String?   @default("active") @db.VarChar
   joined_at    DateTime? @db.Timestamp(6)
   left_at      DateTime? @db.Timestamp(6)
+  // 2026-05-05 Phase 5 PR14 — 활동 추적 컬럼 (유령회원 후보 분류용)
+  // 이유(왜): 보고서 §3-1 — 3개월 미활동 멤버 후보 조회 + 미묘 룰 #3 5분 throttle UPDATE.
+  //   NULL 허용 ADD COLUMN — 무중단 변경. 기존 row 의 last_activity_at = NULL → createdAt 기준
+  //   3개월 후보 평가 로직에서 fallback 처리.
+  last_activity_at DateTime? @map("last_activity_at") @db.Timestamp(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   team         Team      @relation(fields: [teamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_194b5b076d")
@@ -521,6 +526,8 @@ model TeamMember {
   @@index([status], map: "index_team_members_on_status")
   @@index([teamId], map: "index_team_members_on_team_id")
   @@index([userId], map: "index_team_members_on_user_id")
+  // 유령 후보 조회용 — (teamId, last_activity_at) 인덱스로 본 팀의 미활동 멤버 빠른 조회
+  @@index([teamId, last_activity_at], map: "index_team_members_on_team_id_and_last_activity_at")
   @@map("team_members")
 }
 

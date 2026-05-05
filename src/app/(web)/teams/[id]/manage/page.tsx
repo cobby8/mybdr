@@ -8,6 +8,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 // Phase 4 PR12 — 운영진 권한 위임 탭 (captain only)
 import { OfficerPermissionsTab } from "./_components/officer-permissions-tab";
+// Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify)
+import { GhostCandidatesTab } from "./_components/ghost-candidates-tab";
+// Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only — 명단 완전 삭제 가능)
+import { WithdrawnMembersSection } from "./_components/withdrawn-members-section";
 
 // ─────────────────────────────────────────────────
 // 타입 정의
@@ -90,6 +94,10 @@ type ManageTab =
   | "matches"
   | "member-requests"
   | "officers"
+  // Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify 위임자)
+  | "ghosts"
+  // Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only — 명단 완전 삭제 가능)
+  | "withdrawn"
   | "invite"
   | "settings";
 
@@ -107,6 +115,10 @@ function resolveInitialTab(raw: string | null): ManageTab {
   if (raw === "member-requests" || raw === "memberRequests" || raw === "jersey-change") return "member-requests";
   // 2026-05-05 Phase 4 PR12 — 운영진 권한 탭 (captain only)
   if (raw === "officers" || raw === "officer-permissions") return "officers";
+  // 2026-05-05 Phase 5 PR15 — 유령 후보 탭
+  if (raw === "ghosts" || raw === "ghost-candidates") return "ghosts";
+  // 2026-05-05 Phase 5 PR16 — 탈퇴 멤버 탭 (captain only)
+  if (raw === "withdrawn" || raw === "withdrawn-members") return "withdrawn";
   if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
   return "roster";
 }
@@ -753,6 +765,13 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
     { id: "matches", label: "매치 신청", count: pendingMatchCount },
     ...((teamData?.is_captain === true)
       ? ([{ id: "officers" as ManageTab, label: "운영진 권한", count: 0 }] as const)
+      : []),
+    // Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify 위임자)
+    // count=0 (정확한 후보수는 탭 진입 시점에 fetch — 비-captain 도 일단 노출 후 권한 검증)
+    { id: "ghosts" as ManageTab, label: "유령 후보", count: 0 },
+    // Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only)
+    ...((teamData?.is_captain === true)
+      ? ([{ id: "withdrawn" as ManageTab, label: "탈퇴 멤버", count: 0 }] as const)
       : []),
     { id: "invite", label: "초대 링크", count: 0 },
     { id: "settings", label: "팀 설정", count: 0 },
@@ -1632,6 +1651,26 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
       {tab === "officers" && teamData?.is_captain !== true && (
         <div className="py-12 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
           운영진 권한 위임은 팀장만 관리할 수 있습니다.
+        </div>
+      )}
+
+      {/* ═══════════ 유령 후보 탭 (Phase 5 PR15) ═══════════ */}
+      {tab === "ghosts" && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            유령 후보 관리
+          </h2>
+          <GhostCandidatesTab teamId={id} />
+        </div>
+      )}
+
+      {/* ═══════════ 탈퇴 멤버 이력 탭 (Phase 5 PR16 — captain only) ═══════════ */}
+      {tab === "withdrawn" && teamData?.is_captain === true && (
+        <WithdrawnMembersSection teamId={id} />
+      )}
+      {tab === "withdrawn" && teamData?.is_captain !== true && (
+        <div className="py-12 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
+          탈퇴 멤버 이력은 팀장만 조회 / 관리할 수 있습니다.
         </div>
       )}
 
