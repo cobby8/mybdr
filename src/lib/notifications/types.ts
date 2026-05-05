@@ -12,6 +12,11 @@ export const NOTIFICATION_TYPES = {
   TEAM_JOIN_REQUEST_RECEIVED: "team.join_request.received",   // 팀장: 가입신청 접수
   TEAM_JOIN_REQUEST_APPROVED: "team.join_request.approved",   // 신청자: 가입 승인
   TEAM_JOIN_REQUEST_REJECTED: "team.join_request.rejected",   // 신청자: 가입 거부
+  // 2026-05-05 Phase 2 PR6 — 팀 멤버 라이프사이클 통합 신청 (jersey_change/dormant/withdraw)
+  // 인프라만 = type 별 실제 동작 dispatcher 는 PR7+ 에서.
+  TEAM_MEMBER_REQUEST_NEW: "team.member_request.new",         // 팀장/매니저: 멤버 신청 접수 (번호변경/휴면/탈퇴)
+  TEAM_MEMBER_REQUEST_APPROVED: "team.member_request.approved", // 신청자: 신청 승인됨
+  TEAM_MEMBER_REQUEST_REJECTED: "team.member_request.rejected", // 신청자: 신청 거부됨
   // Phase 10-4 — 팀 매치 신청 (from_team → to_team). to_team captain 에게 발송.
   TEAM_MATCH_REQUEST_RECEIVED: "team.match_request.received", // 호스트팀 captain: 매치 신청 접수
   // Phase 10-4 후속 — PATCH (수락/거절/취소) 시 발송되는 결과 알림.

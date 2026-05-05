@@ -57,6 +57,78 @@ decisions.md `[2026-05-05]` 항목 참조
 
 ---
 
+## 구현 기록 (PR6 — Phase 2 신청/승인 인프라)
+
+📝 구현한 기능: `team_member_requests` 통합 테이블 + `team_member_history` 신설 + 신청/조회/승인/거부 API + 알림 3종 — type 별 실제 동작은 PR7+ placeholder TODO
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | TeamMemberRequest + TeamMemberHistory 모델 신설 (단수, Rails team_member_histories 와 별도) + Team 2 + User 4 reverse relation | 수정 |
+| `src/app/api/web/teams/[id]/requests/route.ts` | POST (zod discriminatedUnion type 별 payload + 미묘 룰 #1 ALREADY_PENDING + jersey 충돌 사전 검증 + 팀장 알림) / GET (captain·manager 전체 / 일반 본인만 + status 필터) | 신규 |
+| `src/app/api/web/teams/[id]/requests/[requestId]/route.ts` | PATCH (approve/reject + dispatcher placeholder TODO PR7~9 + 트랜잭션 status UPDATE + history INSERT + 신청자 알림) | 신규 |
+| `src/lib/notifications/types.ts` | TEAM_MEMBER_REQUEST_NEW/APPROVED/REJECTED 3종 추가 | 수정 |
+
+### Schema diff (PM 검토 필요)
+
+- TeamMemberRequest: id/teamId/userId/requestType(20)/payload(Json)/reason/status(default pending)/processedById/processedAt/rejectionReason/createdAt/updatedAt + 3 FK (Team Cascade / User Cascade / Processor SetNull) + 3 인덱스 ([teamId,status] / [userId,status] / [teamId,requestType,status])
+- TeamMemberHistory: id/teamId/userId/eventType(30)/payload/reason/createdById/createdAt + 3 FK + 3 인덱스
+- 명명 충돌 회피: 신규 = 단수 (`team_member_history`) / 기존 Rails 잔재 = 복수 (`team_member_histories`) — DB 상에서도 별도 테이블
+
+### 미묘 룰 #1 검증 흐름 (POST)
+
+1. 본인 active 멤버 검증 (NOT_TEAM_MEMBER 403)
+2. **`teamMemberRequest.findFirst({ teamId, userId, status: 'pending' })` → 1건이라도 있으면 ALREADY_PENDING 409**
+3. type 별 사전 검증 (jersey_change: 같은 번호 SAME_JERSEY / 다른 멤버 사용 중 JERSEY_CONFLICT)
+4. INSERT + 팀장 알림 (notifiableType="team_member_request" / notifiableId=created.id)
+
+### dispatcher 패턴 (PATCH approve)
+
+```ts
+switch (memberRequest.requestType) {
+  case 'jersey_change': /* TODO PR7 — team_members.jersey_number UPDATE + 재충돌 검증 + ttp sync */
+  case 'dormant':       /* TODO PR8 — team_members.status='dormant' + dormant_until + lazy 복구 */
+  case 'withdraw':      /* TODO PR9 — team_members DELETE + history 영구 보존 */
+}
+```
+
+PR6 에서는 status='approved'/'rejected' UPDATE + history INSERT (eventType=`{requestType}_{approved|rejected}`) 만.
+
+### 알림 3종 위치
+
+- `src/lib/notifications/types.ts`:
+  - `TEAM_MEMBER_REQUEST_NEW` = `team.member_request.new` (팀장에게)
+  - `TEAM_MEMBER_REQUEST_APPROVED` = `team.member_request.approved` (신청자)
+  - `TEAM_MEMBER_REQUEST_REJECTED` = `team.member_request.rejected` (신청자)
+- `createNotification` 기존 패턴 재사용 (sendPushToUser 자동 동반)
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = 0 (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PM 사용자 승인 후 `npx prisma db push` 로 두 테이블 생성 필요. 미실행 시 POST/PATCH 모두 prisma 에러 500.
+- **테스트 시나리오 (PR6 인프라만)**:
+  1. POST jersey_change `{ requestType, payload: { newJersey: 99 } }` — pending 0건 + 충돌 0 = 201 + 팀장에 알림
+  2. 같은 사용자 즉시 POST 다른 type → 409 ALREADY_PENDING (미묘 룰 #1)
+  3. POST jersey_change `{ newJersey: <본인현재번호> }` → 400 SAME_JERSEY
+  4. POST jersey_change `{ newJersey: <다른멤버사용중> }` → 409 JERSEY_CONFLICT
+  5. POST dormant `{ until 미입력 }` → payload.until = +3개월 ISO 자동 저장
+  6. POST withdraw `{ payload: {} }` → 201
+  7. GET (팀장) → 모든 신청 조회 / GET (일반멤버) → 본인만 / GET ?status=pending 필터
+  8. PATCH approve → status='approved' + team_member_history row INSERT + 신청자 알림
+  9. PATCH 같은 신청 다시 → 409 ALREADY_PROCESSED
+  10. PATCH 비-captain/매니저 → 403 FORBIDDEN
+
+⚠️ reviewer 참고:
+- **명명 충돌**: 기존 `team_member_histories` (Rails) 와 별도 테이블 (`team_member_history` 단수). 두 테이블 공존 — Phase 5 마이그레이션 시점에 통합 검토.
+- **manager 권한 범위**: 본 PR6 = `team_members.role='manager'` AND status='active' 만 통과 (vice/coach/treasurer/director 차단). Phase 4 PR12 에서 `team_officer_permissions` 통합 후 권한 매트릭스 재정의.
+- **dispatcher placeholder**: PR6 의 PATCH approve 는 status UPDATE + history INSERT 만. type 별 실제 변경은 PR7+. 현재는 jersey_change 승인 시 team_members.jersey_number 가 변경 안 됨 — 이는 의도된 PR6 범위.
+- **트랜잭션 일관성**: status UPDATE + history INSERT 가 prisma.$transaction. PR7+ 에서 type별 실제 변경 추가 시 같은 트랜잭션에 합류.
+- **알림 actionUrl**: `/teams/${teamId}/manage/requests` 는 미존재 페이지 — Phase 2 PR7~9 UI 작업에서 신설 예정. 현재는 클릭 404 일시적.
+- **prisma db push X / commit X** — PM 검토 후 진행.
+
+---
+
 ## 구현 기록 (developer / 5/5 Phase 1 PR1+PR2+PR3 — 압축)
 
 PR1 (`ae4ffd7`): default_jersey_number 사용처 정리 (7 파일 / captain 검증 → team_members.jersey_number 치환).
@@ -257,6 +329,7 @@ resource_type = "match_player_jersey" / target_type = "match_player_jersey" / ta
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 2 PR6 — team_member_requests 통합 + team_member_history 신설 + 신청/조회/승인거부 API + 알림 3종** — schema +2 모델 (Rails team_member_histories 와 명명 충돌 회피 단수 신설) + Team 2 + User 4 reverse relation. 신규 API 2개: POST/GET /api/web/teams/[id]/requests (zod discriminatedUnion type 별 payload + 미묘 룰 #1 ALREADY_PENDING 1건만 + jersey 충돌 사전 검증) + PATCH /api/web/teams/[id]/requests/[requestId] (approve/reject dispatcher placeholder TODO PR7~9 + 트랜잭션 status UPDATE + history INSERT + 신청자 알림). 권한 = captain + manager (Phase 4 PR12 위임 통합 예정). 알림 3종 추가 (TEAM_MEMBER_REQUEST_NEW/APPROVED/REJECTED). dispatcher 패턴 = approve 시 type 별 실제 변경은 placeholder TODO (PR7 jersey UPDATE / PR8 dormant / PR9 withdraw). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 + db push 대기) | **Phase 1 PR4 — match_player_jersey 신설 + 라이브 W1 운영자 모달 + admin_logs** — schema +1 모델 (BigInt fk 통일, 지시서 String @db.Uuid 오기 수정) + 3 reverse relation. 신규 API 2개 (jersey-override POST UPSERT/DELETE 해제 + admin-check GET boolean). 신규 컴포넌트 1개 (모달 = 선수 dropdown + 0~99 input + 사용 중 표시 + 사유 + onSuccess refetch). 라이브 API 응답에 tournamentId 추가 + ttp.id → override jersey 매핑 후처리 (진행중·종료 분기 별도 statId→ttpId Map). 라이브 페이지 헤더 우측 PC/모바일 운영자 버튼 + 모달 마운트. 권한 = 운영자만 (organizer + admin_members.is_active). admin_logs warning 2 액션 (match_jersey_override / _release). tsc 0 / prisma generate ✅ / db push X / commit X. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR3 — tournament join 자동 sync (옵션 C+UI 본질)** — 2 파일 수정: api/web/tournaments/[id]/join/route.ts (team_members 일괄 SELECT → memberMap → role 분기 검증 → ttp INSERT 자동 복사 / 사용 안 하는 data.players jersey 검증 제거 / UNIQUE 중복 체크 source 변경) + (web)/tournaments/[id]/join/page.tsx (로스터 stage 안내 박스 추가 + jersey/position input UI 제거 + POST body 미전송). 5/5 ef7e78e role 분기 룰 보존 (player 필수 / coach 선택). schema 변경 0 / Flutter `/api/v1/*` 변경 0 / tsc 0. 운영자/캡틴 jersey 직접 입력 진입점 X = single source = team_members. | ✅ |
 | 2026-05-05 | (PM 커밋 대기) | **Phase 1 PR2 — 가입 폼 jersey input + 자동 복사 + 마이페이지 다중 팀** — 6 파일 (신규 2 / 수정 4): jerseys-in-use API 신설 / join API zod + 충돌 검증 + preferred_jersey_number 저장 / members PATCH approve 자동 복사 + 409 JERSEY_CONFLICT / team-join-button-v2 모달 (jersey input + 사용 중 표시) / TeamsListCard 신규 / profile/page.tsx SELECT 확장 + 카드 교체 + name_primary 매핑. tsc 0 / schema 변경 0 / 운영 DB 영향 0. | ✅ |

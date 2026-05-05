@@ -230,6 +230,13 @@ model User {
   // (createdById = 운영자 user_id). admin_logs 와 별개 — match_player_jersey row 자체에서 created_by 추적용.
   match_player_jerseys_created MatchPlayerJersey[] @relation("MatchPlayerJerseyCreator")
 
+  // 2026-05-05 Phase 2 PR6 — 통합 신청 테이블 (jersey_change/dormant/withdraw) + 멤버 변경 이력
+  // applicant: 본인 신청, processor: 팀장/매니저 처리, history user/creator: 이력 대상자/생성자
+  team_member_requests_applicant TeamMemberRequest[] @relation("TeamMemberRequestApplicant")
+  team_member_requests_processed TeamMemberRequest[] @relation("TeamMemberRequestProcessor")
+  team_member_history_user       TeamMemberHistory[] @relation("TeamMemberHistoryUser")
+  team_member_history_created    TeamMemberHistory[] @relation("TeamMemberHistoryCreator")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -413,6 +420,12 @@ model Team {
   team_follows                 team_follows[]        @relation("team_follows_team")
   team_match_requests_received team_match_requests[] @relation("team_match_requests_to")
   team_match_requests_sent     team_match_requests[] @relation("team_match_requests_from")
+
+  // 2026-05-05 Phase 2 PR6 — 통합 신청 테이블 + 멤버 변경 이력 (단수 신설, Rails team_member_histories 와 별도)
+  // 이유(왜): 기존 team_member_histories 는 Rails 마이그레이션 잔재 (action/role/jersey_number 컬럼 위주).
+  //   본 PR6 은 신청/승인 워크플로 + state machine 보존 위해 신규 model 단수 명명 (TeamMemberHistory) 으로 분리.
+  team_member_requests TeamMemberRequest[]
+  team_member_history  TeamMemberHistory[]
 
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
@@ -3024,4 +3037,67 @@ model news_publish_attempt {
   @@index([status, created_at])
   @@index([phase, status])
   @@map("news_publish_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 2 PR6 — 팀 멤버 라이프사이클 (통합 신청 + 변경 이력)
+// 이유(왜): 번호 변경 / 휴면 / 탈퇴 신청을 단일 테이블로 통합하면 (a) 같은 (team,user) 다중
+//   pending 1건 룰을 인덱스만으로 강제 가능 (b) 권한 검증 / 알림 로직 dispatcher 1곳에 집중
+//   (c) PR7+ 에서 type 별 dispatcher 분기로 실제 동작 (jersey UPDATE / dormant 처리 등) 단계 도입.
+// PR6 = 인프라만. type 별 실제 변경은 PR7+ 에서 placeholder TODO.
+// 명명 충돌 회피: 기존 Rails 잔재 team_member_histories (복수) 는 그대로 두고, 신규는 단수
+//   team_member_history (TeamMemberHistory) 로 분리.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TeamMemberRequest {
+  id              BigInt    @id @default(autoincrement())
+  teamId          BigInt    @map("team_id")
+  userId          BigInt    @map("user_id")
+  // request_type: 'jersey_change' | 'dormant' | 'withdraw'
+  requestType     String    @map("request_type") @db.VarChar(20)
+  // payload: type 별 디테일 (예: jersey_change={newJersey:99}, dormant={until:'2026-08-05'}, withdraw={})
+  payload         Json
+  reason          String?
+  // status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  status          String    @default("pending") @db.VarChar(20)
+  processedById   BigInt?   @map("processed_by_id")
+  processedAt     DateTime? @map("processed_at") @db.Timestamp(6)
+  rejectionReason String?   @map("rejection_reason")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  team        Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        User  @relation("TeamMemberRequestApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  processedBy User? @relation("TeamMemberRequestProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, status])
+  @@index([userId, status])
+  @@index([teamId, requestType, status])
+  @@map("team_member_requests")
+}
+
+// 2026-05-05 Phase 2 PR6 — 멤버 변경 이력 (탈퇴 후에도 영구 보존)
+// event_type 후보: joined | left | jersey_changed | dormant | reactivated | withdrawn
+//                | transferred_in | transferred_out | force_changed | force_withdrawn
+//                | jersey_change_approved | dormant_approved | withdraw_approved
+//                | jersey_change_rejected | dormant_rejected | withdraw_rejected
+// payload 예: { requestId, oldStatus, newStatus, reason } 또는 { old:{...}, new:{...} }
+model TeamMemberHistory {
+  id          BigInt   @id @default(autoincrement())
+  teamId      BigInt   @map("team_id")
+  userId      BigInt   @map("user_id")
+  eventType   String   @map("event_type") @db.VarChar(30)
+  payload     Json
+  reason      String?
+  createdById BigInt?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  team      Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User  @relation("TeamMemberHistoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("TeamMemberHistoryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, eventType])
+  @@index([userId])
+  @@index([teamId, createdAt(sort: Desc)])
+  @@map("team_member_history")
 }
