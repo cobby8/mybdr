@@ -20,6 +20,10 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 // 진입: /live/[id] (경기 종료 자동) / 알림 "경기 결과 보기" 클릭
 // 복귀: /games/[id] / /games/my-games / /live (다른 경기 보기)
 import { GameResultV2, type MatchDataV2 } from "./_v2/game-result";
+// 2026-05-05 Phase 1 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
+// 운영자 (organizer + tournament_admin_members.is_active=true) 만 진입.
+// admin-check API 통과한 사용자에게만 헤더 우측 "임시 번호" 버튼 노출.
+import { MatchJerseyOverrideModal } from "./_v2/match-jersey-override-modal";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -89,6 +93,9 @@ interface PlayByPlayRow {
 
 interface MatchData {
   id: number;
+  // 2026-05-05 PR4 — 운영자 모달 (W1 임시 jersey 번호) 가 admin-check + jersey-override API 호출 시 사용.
+  // tournament.id (String @db.Uuid) — null 일 수 없는 NOT NULL FK.
+  tournament_id: string;
   status: string;
   home_score: number;
   away_score: number;
@@ -485,6 +492,12 @@ export default function LiveBoxScorePage() {
   // 이제 data-printing="true" 속성 기반 CSS가 @media 의존 없이 가시성 전환을 담당.
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 상태.
+  // isAdmin: admin-check API 결과 (mount 후 1회 fetch, tournament_id 도달 후 자동).
+  // jerseyModalOpen: 모달 토글.
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMatch = useCallback(async () => {
@@ -549,6 +562,30 @@ export default function LiveBoxScorePage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [fetchMatch]);
+
+  // 2026-05-05 PR4 — 운영자 여부 1회 확인 (match.tournament_id 도달 후).
+  // 라이브 페이지는 공개 — 미로그인/일반회원 = isAdmin:false (silent fail).
+  // 운영자 = 헤더 우측 "임시 번호" 버튼 노출. tournament_id 가 변하면 (단일 페이지 내 전환 X 시나리오)
+  // 다시 확인. 일반적으로 1회만 호출됨.
+  useEffect(() => {
+    const tid = match?.tournament_id;
+    if (!tid) return;
+    let cancelled = false;
+    fetch(`/api/web/tournaments/${tid}/admin-check`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        // apiSuccess camelCase → snake_case 변환 (response.ts) → is_admin 으로 수신
+        const v = data?.is_admin ?? data?.isAdmin ?? false;
+        setIsAdmin(Boolean(v));
+      })
+      .catch(() => {
+        // 실패 = 운영자 아닌 것으로 간주 (보수적 default)
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [match?.tournament_id]);
 
   // 2026-04-16: 프린트 옵션 확정 → 다음 틱에 실제 프린트 실행
   // 이유: printOptions 세팅으로 #box-score-print-area가 리렌더되는 타이밍과
@@ -824,10 +861,69 @@ export default function LiveBoxScorePage() {
               {STATUS_LABEL[match.status] ?? match.status}
             </span>
           )}
+          {/* 2026-05-05 PR4 — 운영자 전용 "임시 번호" 버튼 (W1 매치 한정 jersey override).
+              isAdmin = admin-check 통과 시에만 노출. 모달 열면 home/away players 전달. */}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setJerseyModalOpen(true)}
+              aria-label="매치 임시 번호 등록"
+              title="매치 임시 번호 등록 (운영자)"
+              className="hidden sm:flex items-center gap-1 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--color-elevated)]"
+              style={{
+                color: "var(--color-text-secondary)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <span className="material-symbols-outlined text-base">tune</span>
+              <span>임시 번호</span>
+            </button>
+          )}
+          {/* 모바일: 아이콘만 (텍스트 생략) — 헤더 공간 보호 */}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setJerseyModalOpen(true)}
+              aria-label="매치 임시 번호 등록"
+              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              <span className="material-symbols-outlined text-base">tune</span>
+            </button>
+          )}
           {/* 헤더 우측: 테마 토글만 유지. 새로고침 버튼은 스코어카드 가운데로 이동 (Phase 1) */}
           <ThemeToggle />
         </div>
       </div>
+
+      {/* 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
+          isAdmin = false 면 마운트 안 함. fetchMatch refetch 로 새 jersey 반영. */}
+      {isAdmin && match && (
+        <MatchJerseyOverrideModal
+          isOpen={jerseyModalOpen}
+          onClose={() => setJerseyModalOpen(false)}
+          tournamentId={match.tournament_id}
+          matchId={match.id}
+          homeTeam={{ id: match.home_team.id, name: match.home_team.name }}
+          awayTeam={{ id: match.away_team.id, name: match.away_team.name }}
+          homePlayers={match.home_players.map((p) => ({
+            id: p.id,
+            jersey_number: p.jersey_number,
+            name: p.name,
+            team_id: p.team_id,
+          }))}
+          awayPlayers={match.away_players.map((p) => ({
+            id: p.id,
+            jersey_number: p.jersey_number,
+            name: p.name,
+            team_id: p.team_id,
+          }))}
+          onSuccess={() => {
+            // 저장 성공 시 라이브 페이지 즉시 refetch — 새 jersey 반영
+            fetchMatch();
+          }}
+        />
+      )}
 
       {/* 스코어 카드 — 티빙 중계 스타일 (5단 가로 레이아웃)
           [홈 로고+팀명] [홈 점수] [중앙] [원정 점수] [원정 로고+팀명]

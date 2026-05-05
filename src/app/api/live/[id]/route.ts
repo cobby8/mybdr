@@ -644,6 +644,59 @@ export async function GET(
       );
     }
 
+    // 2026-05-05 PR4 — 매치 한정 임시 jersey 번호 (W1) 후처리.
+    //
+    // 우선순위 (Dev/team-member-lifecycle-2026-05-05.md §0):
+    //   match_player_jersey (이 SELECT) → ttp.jerseyNumber → "-"
+    // ttp.id (= 진행중 분기 row.id, 종료 분기 toPlayerRow 의 player.id) 기준 매핑.
+    // 종료 분기는 row.id = stat.id 이므로 ttp.id 별도 SELECT 로 보조 매핑 필요.
+    //
+    // 진행중 분기: row.id = ttp.id → overrideMap.get(row.id) 직접 매핑 OK.
+    // 종료 분기: stat.tournamentTeamPlayer.id (= ttp.id) 와 stat.id 매핑이 toPlayerRow 안에서만 보존됨.
+    //   → 종료 분기는 별도 statId → ttpId 매핑이 필요.
+    //   매치 playerStats 가 match include 에 이미 있으므로 추가 쿼리 0.
+    {
+      const overrides = await prisma.matchPlayerJersey.findMany({
+        where: { tournamentMatchId: BigInt(matchId) },
+        select: { tournamentTeamPlayerId: true, jerseyNumber: true },
+      });
+      if (overrides.length > 0) {
+        // ttp.id → jersey override 매핑 (BigInt → Number 변환, row.id 와 동일 형태)
+        const overrideByTtpId = new Map<number, number>();
+        for (const o of overrides) {
+          overrideByTtpId.set(Number(o.tournamentTeamPlayerId), o.jerseyNumber);
+        }
+
+        if (hasPlayerStats) {
+          // 종료 분기: stat.id → ttp.id 매핑 후 row.jerseyNumber 갱신.
+          const statIdToTtpId = new Map<number, number>();
+          for (const s of match.playerStats) {
+            statIdToTtpId.set(Number(s.id), Number(s.tournamentTeamPlayer.id));
+          }
+          const applyOverride = (rows: PlayerRow[]) => {
+            for (const r of rows) {
+              const ttpId = statIdToTtpId.get(r.id);
+              if (ttpId == null) continue;
+              const ov = overrideByTtpId.get(ttpId);
+              if (ov != null) r.jerseyNumber = ov;
+            }
+          };
+          applyOverride(homePlayers);
+          applyOverride(awayPlayers);
+        } else {
+          // 진행중 분기: row.id = ttp.id 이므로 직접 매핑.
+          const applyOverride = (rows: PlayerRow[]) => {
+            for (const r of rows) {
+              const ov = overrideByTtpId.get(r.id);
+              if (ov != null) r.jerseyNumber = ov;
+            }
+          };
+          applyOverride(homePlayers);
+          applyOverride(awayPlayers);
+        }
+      }
+    }
+
     // 2026-04-17: quarter_scores 는 play_by_plays 기반으로 "항상" 재계산 (DB match.quarterScores 무시)
     // 이유: match 99~104 에서 DB quarterScores 와 실제 score 불일치 발생. PBP 가 진실 원천.
     // 이미 상단에서 조회한 allPbps 를 재사용하므로 추가 쿼리 없음.
@@ -982,6 +1035,9 @@ export async function GET(
     return apiSuccess({
       match: {
         id: Number(match.id),
+        // 2026-05-05 PR4: 라이브 페이지 운영자 모달 (W1 임시 번호) 가 사용 — admin-check + jersey-override API 호출용.
+        // tournament.id 는 String @db.Uuid (TournamentMatch.tournamentId 와 동일).
+        tournamentId: match.tournamentId,
         status: match.status ?? "scheduled",
         homeScore: finalHomeScore,
         awayScore: finalAwayScore,

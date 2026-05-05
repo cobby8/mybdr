@@ -226,6 +226,28 @@ model User {
   // 2026-05-04: 알기자 기사 사진 업로드자 역참조
   news_photos_uploaded news_photo[]     @relation("NewsPhotoUploader")
 
+  // 2026-05-05 PR4: 운영자가 라이브 매치에서 임시 jersey 번호를 등록한 row 들의 역참조
+  // (createdById = 운영자 user_id). admin_logs 와 별개 — match_player_jersey row 자체에서 created_by 추적용.
+  match_player_jerseys_created MatchPlayerJersey[] @relation("MatchPlayerJerseyCreator")
+
+  // 2026-05-05 Phase 2 PR6 — 통합 신청 테이블 (jersey_change/dormant/withdraw) + 멤버 변경 이력
+  // applicant: 본인 신청, processor: 팀장/매니저 처리, history user/creator: 이력 대상자/생성자
+  team_member_requests_applicant TeamMemberRequest[] @relation("TeamMemberRequestApplicant")
+  team_member_requests_processed TeamMemberRequest[] @relation("TeamMemberRequestProcessor")
+  team_member_history_user       TeamMemberHistory[] @relation("TeamMemberHistoryUser")
+  team_member_history_created    TeamMemberHistory[] @relation("TeamMemberHistoryCreator")
+
+  // 2026-05-05 Phase 3 PR10 — 팀 이적 (양쪽 팀장 승인)
+  // user_relation: 신청자 본인 / from_processed: 현 팀장 처리 / to_processed: 새 팀장 처리
+  transfer_requests                TransferRequest[] @relation("TransferRequestUser")
+  transfer_requests_from_processed TransferRequest[] @relation("TransferRequestFromProcessor")
+  transfer_requests_to_processed   TransferRequest[] @relation("TransferRequestToProcessor")
+
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 (captain 만 위임 가능)
+  // owner: 위임받은 자 본인 / granted: captain 이 위임한 row (grantedBy = 본인 captain)
+  team_officer_permissions_owner   TeamOfficerPermissions[] @relation("TeamOfficerPermissionsUser")
+  team_officer_permissions_granted TeamOfficerPermissions[] @relation("TeamOfficerPermissionsGrantor")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -410,6 +432,19 @@ model Team {
   team_match_requests_received team_match_requests[] @relation("team_match_requests_to")
   team_match_requests_sent     team_match_requests[] @relation("team_match_requests_from")
 
+  // 2026-05-05 Phase 2 PR6 — 통합 신청 테이블 + 멤버 변경 이력 (단수 신설, Rails team_member_histories 와 별도)
+  // 이유(왜): 기존 team_member_histories 는 Rails 마이그레이션 잔재 (action/role/jersey_number 컬럼 위주).
+  //   본 PR6 은 신청/승인 워크플로 + state machine 보존 위해 신규 model 단수 명명 (TeamMemberHistory) 으로 분리.
+  team_member_requests TeamMemberRequest[]
+  team_member_history  TeamMemberHistory[]
+
+  // 2026-05-05 Phase 3 PR10 — 팀 이적 양쪽 사이드 역참조
+  transfer_requests_from TransferRequest[] @relation("TransferRequestFromTeam")
+  transfer_requests_to   TransferRequest[] @relation("TransferRequestToTeam")
+
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 역참조
+  team_officer_permissions TeamOfficerPermissions[]
+
   @@index([captainId], map: "index_teams_on_captain_id")
   @@index([city], map: "index_teams_on_city")
   @@index([manager_id], map: "index_teams_on_manager_id")
@@ -476,6 +511,11 @@ model TeamMember {
   status       String?   @default("active") @db.VarChar
   joined_at    DateTime? @db.Timestamp(6)
   left_at      DateTime? @db.Timestamp(6)
+  // 2026-05-05 Phase 5 PR14 — 활동 추적 컬럼 (유령회원 후보 분류용)
+  // 이유(왜): 보고서 §3-1 — 3개월 미활동 멤버 후보 조회 + 미묘 룰 #3 5분 throttle UPDATE.
+  //   NULL 허용 ADD COLUMN — 무중단 변경. 기존 row 의 last_activity_at = NULL → createdAt 기준
+  //   3개월 후보 평가 로직에서 fallback 처리.
+  last_activity_at DateTime? @map("last_activity_at") @db.Timestamp(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   team         Team      @relation(fields: [teamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_194b5b076d")
@@ -486,6 +526,8 @@ model TeamMember {
   @@index([status], map: "index_team_members_on_status")
   @@index([teamId], map: "index_team_members_on_team_id")
   @@index([userId], map: "index_team_members_on_user_id")
+  // 유령 후보 조회용 — (teamId, last_activity_at) 인덱스로 본 팀의 미활동 멤버 빠른 조회
+  @@index([teamId, last_activity_at], map: "index_team_members_on_team_id_and_last_activity_at")
   @@map("team_members")
 }
 
@@ -542,34 +584,36 @@ model TournamentTeam {
 }
 
 model TournamentTeamPlayer {
-  id               BigInt            @id @default(autoincrement())
-  tournamentTeamId BigInt            @map("tournament_team_id")
-  userId           BigInt?           @map("user_id")
-  jerseyNumber     Int?              @map("jersey_number")
-  role             String?           @default("player") @db.VarChar
-  position         String?           @db.VarChar
-  auto_registered  Boolean?          @default(false)
-  is_active        Boolean?          @default(true)
-  birth_date       String?           @db.VarChar
-  is_elite         Boolean?          @default(false)
-  player_name      String?           @db.VarChar
-  phone            String?           @db.VarChar
-  isStarter        Boolean?          @default(false) @map("is_starter")
-  games_played     Int?              @default(0)
-  total_points     Int?              @default(0)
-  total_rebounds   Int?              @default(0)
-  total_assists    Int?              @default(0)
-  total_steals     Int?              @default(0)
-  total_blocks     Int?              @default(0)
-  avg_points       Decimal?          @default(0.0) @db.Decimal(5, 1)
-  avg_rebounds     Decimal?          @default(0.0) @db.Decimal(5, 1)
-  avg_assists      Decimal?          @default(0.0) @db.Decimal(5, 1)
-  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamp(6)
-  playerStats      MatchPlayerStat[]
-  play_by_plays    play_by_plays[]
-  users            User?             @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
-  tournamentTeam   TournamentTeam    @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
+  id                   BigInt              @id @default(autoincrement())
+  tournamentTeamId     BigInt              @map("tournament_team_id")
+  userId               BigInt?             @map("user_id")
+  jerseyNumber         Int?                @map("jersey_number")
+  role                 String?             @default("player") @db.VarChar
+  position             String?             @db.VarChar
+  auto_registered      Boolean?            @default(false)
+  is_active            Boolean?            @default(true)
+  birth_date           String?             @db.VarChar
+  is_elite             Boolean?            @default(false)
+  player_name          String?             @db.VarChar
+  phone                String?             @db.VarChar
+  isStarter            Boolean?            @default(false) @map("is_starter")
+  games_played         Int?                @default(0)
+  total_points         Int?                @default(0)
+  total_rebounds       Int?                @default(0)
+  total_assists        Int?                @default(0)
+  total_steals         Int?                @default(0)
+  total_blocks         Int?                @default(0)
+  avg_points           Decimal?            @default(0.0) @db.Decimal(5, 1)
+  avg_rebounds         Decimal?            @default(0.0) @db.Decimal(5, 1)
+  avg_assists          Decimal?            @default(0.0) @db.Decimal(5, 1)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamp(6)
+  playerStats          MatchPlayerStat[]
+  play_by_plays        play_by_plays[]
+  users                User?               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
+  tournamentTeam       TournamentTeam      @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
+  // 2026-05-05 PR4: 매치별 임시 jersey 번호 (운영자 W1 모달 source). ttp 1건당 매치 N건 row 가능.
+  match_player_jerseys MatchPlayerJersey[]
 
   @@unique([tournamentTeamId, jerseyNumber], map: "idx_tournament_team_players_jersey")
   @@unique([tournamentTeamId, userId], map: "idx_tournament_team_players_unique")
@@ -624,6 +668,9 @@ model TournamentMatch {
   play_by_plays                                                        play_by_plays[]
   matchEvents                                                          match_events[]
   audits                                                               tournament_match_audits[]
+  // 2026-05-05 PR4: 매치 한정 임시 jersey 번호 (W1 라이브 페이지 운영자 모달 source).
+  // 같은 매치 안 같은 ttp 1건 / 같은 매치 안 같은 jersey 1건 (UNIQUE 2개).
+  match_player_jerseys                                                 MatchPlayerJersey[]
   // 2026-05-04: 알기자 기사 사진 (Phase 1 = 운영자 수동 업로드, Phase 2 = EXIF 반자동 매핑 큐)
   news_photos                                                          news_photo[]
   // 2026-05-04: 알기자 자동 발행 시도 기록 — silent fail 모니터링
@@ -812,6 +859,43 @@ model active_storage_variant_records {
   active_storage_blobs active_storage_blobs @relation(fields: [blob_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_993965df05")
 
   @@unique([blob_id, variation_digest], map: "index_active_storage_variant_records_uniqueness")
+}
+
+// 2026-05-05 Phase 1 PR4 — 매치 임시 jersey 번호 (W1 라이브 페이지 운영자 모달 source)
+//
+// 도메인 컨텍스트 (Dev/team-member-lifecycle-2026-05-05.md §0, §3):
+//   jersey 우선순위 = override(이 테이블) → ttp.jerseyNumber → team_members.jersey_number
+//   매치 시점 운영자가 "이 선수는 이 경기 한정 #99 번호로 출전" 같은 케이스를 처리하기 위함.
+//   (예: 유니폼 미지참 / 빌림 / 잘못 입력된 ttp 번호 일시 정정)
+//
+// 권한: 해당 토너먼트 운영자 (organizer + tournament_admin_members.is_active=true) 만 INSERT/UPDATE/DELETE.
+// 캡틴/플레이어 본인은 사용 불가 (장기 흐름은 신청/승인 워크플로 Phase 2 PR6+).
+//
+// 무결성:
+//   - UNIQUE (tournament_match_id, tournament_team_player_id) — 같은 매치 안 한 선수는 1번만 (UPSERT 패턴)
+//   - UNIQUE (tournament_match_id, jersey_number) — 같은 매치 안 같은 번호 충돌 차단
+//   - tournamentMatch onDelete: Cascade — 매치 삭제 시 함께 삭제
+//   - tournamentTeamPlayer onDelete: Cascade — ttp 삭제 시 함께 삭제 (이적/탈퇴)
+//   - createdBy onDelete: SetNull — 운영자 계정 삭제 보존
+model MatchPlayerJersey {
+  id                     BigInt   @id @default(autoincrement())
+  // tournament_matches.id 는 BigInt — schema 일관성 유지 (Tournament.id = uuid 와 별개)
+  tournamentMatchId      BigInt   @map("tournament_match_id")
+  tournamentTeamPlayerId BigInt   @map("tournament_team_player_id")
+  jerseyNumber           Int      @map("jersey_number")
+  reason                 String?
+  createdById            BigInt?  @map("created_by_id")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  tournamentMatch      TournamentMatch      @relation(fields: [tournamentMatchId], references: [id], onDelete: Cascade)
+  tournamentTeamPlayer TournamentTeamPlayer @relation(fields: [tournamentTeamPlayerId], references: [id], onDelete: Cascade)
+  createdBy            User?                @relation("MatchPlayerJerseyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([tournamentMatchId, tournamentTeamPlayerId], map: "idx_match_player_jersey_unique_player")
+  @@unique([tournamentMatchId, jerseyNumber], map: "idx_match_player_jersey_unique_number")
+  @@index([tournamentMatchId])
+  @@map("match_player_jersey")
 }
 
 model admin_logs {
@@ -2978,4 +3062,154 @@ model news_publish_attempt {
   @@index([status, created_at])
   @@index([phase, status])
   @@map("news_publish_attempts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 2 PR6 — 팀 멤버 라이프사이클 (통합 신청 + 변경 이력)
+// 이유(왜): 번호 변경 / 휴면 / 탈퇴 신청을 단일 테이블로 통합하면 (a) 같은 (team,user) 다중
+//   pending 1건 룰을 인덱스만으로 강제 가능 (b) 권한 검증 / 알림 로직 dispatcher 1곳에 집중
+//   (c) PR7+ 에서 type 별 dispatcher 분기로 실제 동작 (jersey UPDATE / dormant 처리 등) 단계 도입.
+// PR6 = 인프라만. type 별 실제 변경은 PR7+ 에서 placeholder TODO.
+// 명명 충돌 회피: 기존 Rails 잔재 team_member_histories (복수) 는 그대로 두고, 신규는 단수
+//   team_member_history (TeamMemberHistory) 로 분리.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TeamMemberRequest {
+  id              BigInt    @id @default(autoincrement())
+  teamId          BigInt    @map("team_id")
+  userId          BigInt    @map("user_id")
+  // request_type: 'jersey_change' | 'dormant' | 'withdraw'
+  requestType     String    @map("request_type") @db.VarChar(20)
+  // payload: type 별 디테일 (예: jersey_change={newJersey:99}, dormant={until:'2026-08-05'}, withdraw={})
+  payload         Json
+  reason          String?
+  // status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  status          String    @default("pending") @db.VarChar(20)
+  processedById   BigInt?   @map("processed_by_id")
+  processedAt     DateTime? @map("processed_at") @db.Timestamp(6)
+  rejectionReason String?   @map("rejection_reason")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  team        Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user        User  @relation("TeamMemberRequestApplicant", fields: [userId], references: [id], onDelete: Cascade)
+  processedBy User? @relation("TeamMemberRequestProcessor", fields: [processedById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, status])
+  @@index([userId, status])
+  @@index([teamId, requestType, status])
+  @@map("team_member_requests")
+}
+
+// 2026-05-05 Phase 2 PR6 — 멤버 변경 이력 (탈퇴 후에도 영구 보존)
+// event_type 후보: joined | left | jersey_changed | dormant | reactivated | withdrawn
+//                | transferred_in | transferred_out | force_changed | force_withdrawn
+//                | jersey_change_approved | dormant_approved | withdraw_approved
+//                | jersey_change_rejected | dormant_rejected | withdraw_rejected
+// payload 예: { requestId, oldStatus, newStatus, reason } 또는 { old:{...}, new:{...} }
+model TeamMemberHistory {
+  id          BigInt   @id @default(autoincrement())
+  teamId      BigInt   @map("team_id")
+  userId      BigInt   @map("user_id")
+  eventType   String   @map("event_type") @db.VarChar(30)
+  payload     Json
+  reason      String?
+  createdById BigInt?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  team      Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User  @relation("TeamMemberHistoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("TeamMemberHistoryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([teamId, eventType])
+  @@index([userId])
+  @@index([teamId, createdAt(sort: Desc)])
+  @@map("team_member_history")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 3 PR10 — 팀 이적 (양쪽 팀장 승인 state machine)
+// ─────────────────────────────────────────────────────────────────────────────
+// 이유(왜): 회원이 팀 A 에서 팀 B 로 이동하는 흐름은 단일 팀 신청 (TeamMemberRequest)
+//   과 본질이 다르다 — 양쪽 팀장 모두 승인해야만 자동 이동 트리거. 한쪽이라도 거부 시
+//   final_status='rejected' 종결. 따라서 별도 모델로 분리해 state machine 을 명시적으로
+//   표현 (보고서 §2-2).
+// 자동 이동 (둘 다 approved): from_team team_members.status='withdrawn' (history 보존) +
+//   to_team team_members INSERT (status='active') + team_member_history 2건 (transferred_out
+//   / transferred_in). 단일 prisma.$transaction.
+// 미묘 룰 (보고서 §8 #1 확장): 같은 user_id 에 대해 final_status='pending' 1건만 허용.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TransferRequest {
+  id                  BigInt    @id @default(autoincrement())
+  userId              BigInt    @map("user_id")
+  fromTeamId          BigInt    @map("from_team_id")
+  toTeamId            BigInt    @map("to_team_id")
+  reason              String?
+  // 양쪽 사이드 status: 'pending' | 'approved' | 'rejected'
+  fromTeamStatus      String    @default("pending") @map("from_team_status") @db.VarChar(20)
+  toTeamStatus        String    @default("pending") @map("to_team_status") @db.VarChar(20)
+  // 최종 status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  // 한쪽이라도 'rejected' → 즉시 'rejected', 둘 다 'approved' → 'approved' (자동 이동 트리거)
+  finalStatus         String    @default("pending") @map("final_status") @db.VarChar(20)
+  fromProcessedById   BigInt?   @map("from_processed_by_id")
+  fromProcessedAt     DateTime? @map("from_processed_at") @db.Timestamp(6)
+  toProcessedById     BigInt?   @map("to_processed_by_id")
+  toProcessedAt       DateTime? @map("to_processed_at") @db.Timestamp(6)
+  fromRejectionReason String?   @map("from_rejection_reason")
+  toRejectionReason   String?   @map("to_rejection_reason")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user            User  @relation("TransferRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  fromTeam        Team  @relation("TransferRequestFromTeam", fields: [fromTeamId], references: [id], onDelete: Cascade)
+  toTeam          Team  @relation("TransferRequestToTeam", fields: [toTeamId], references: [id], onDelete: Cascade)
+  fromProcessedBy User? @relation("TransferRequestFromProcessor", fields: [fromProcessedById], references: [id], onDelete: SetNull)
+  toProcessedBy   User? @relation("TransferRequestToProcessor", fields: [toProcessedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, finalStatus])
+  @@index([fromTeamId, fromTeamStatus])
+  @@index([toTeamId, toTeamStatus])
+  @@map("transfer_requests")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-05 Phase 4 PR12 — 운영진 권한 위임 (보고서 §4)
+// ─────────────────────────────────────────────────────────────────────────────
+// 이유(왜): captain (Team.captainId) 이 manager/coach/treasurer/director (team_members.role)
+//   에게 6 종 액션 권한을 분배. 위임받은 자는 재위임 불가 (보고서 결정 #4 — captain only).
+// permissions JSON 구조 (TS 타입 src/lib/team-members/permissions.ts):
+//   {
+//     jerseyChangeApprove?: boolean
+//     dormantApprove?: boolean
+//     withdrawApprove?: boolean
+//     transferApprove?: boolean
+//     ghostClassify?: boolean      (Phase 5 PR15 사전 준비)
+//     forceChange?: boolean        (Phase 5 PR15 사전 준비)
+//   }
+// 회수: revoked_at = now() (DELETE X — 위임 이력 보존). 활성 권한 = revoked_at IS NULL.
+// 미묘 룰 #4 (보고서 §8): captain 변경 시 본 팀의 모든 활성 권한 row 자동 회수
+//   (helper src/lib/team-members/auto-revoke-officer-permissions.ts).
+// UNIQUE 룰: 같은 (team, user) 활성 권한 1건만 — (teamId, userId, revokedAt) 복합. revokedAt
+//   이 NULL 이면 활성, NULL 끼리는 PostgreSQL distinct 처리되어 중복 차단됨.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model TeamOfficerPermissions {
+  id          BigInt    @id @default(autoincrement())
+  teamId      BigInt    @map("team_id")
+  userId      BigInt    @map("user_id")
+  permissions Json      @default("{}")
+  grantedById BigInt    @map("granted_by_id")
+  grantedAt   DateTime  @default(now()) @map("granted_at") @db.Timestamp(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamp(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User @relation("TeamOfficerPermissionsUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy User @relation("TeamOfficerPermissionsGrantor", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId, revokedAt])
+  @@index([teamId, revokedAt])
+  @@map("team_officer_permissions")
 }

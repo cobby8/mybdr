@@ -6,6 +6,12 @@ import Link from "next/link";
 // 곧바로 "가입 신청" 탭으로 진입시키기 위해 초기 탭을 쿼리에서 결정
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+// Phase 4 PR12 — 운영진 권한 위임 탭 (captain only)
+import { OfficerPermissionsTab } from "./_components/officer-permissions-tab";
+// Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify)
+import { GhostCandidatesTab } from "./_components/ghost-candidates-tab";
+// Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only — 명단 완전 삭제 가능)
+import { WithdrawnMembersSection } from "./_components/withdrawn-members-section";
 
 // ─────────────────────────────────────────────────
 // 타입 정의
@@ -77,10 +83,23 @@ interface TeamEditData {
 // Phase 2B: 영문명 허용 패턴 — 서버 Zod 스키마와 동일 규칙
 const NAME_EN_PATTERN = /^[A-Za-z0-9 \-]+$/;
 
-// 시안 v2(1) 4탭 + Phase 10-4 후속 매치신청 탭 = 5탭 구조
+// 시안 v2(1) 4탭 + Phase 10-4 매치신청 + Phase 2 PR7 멤버 변경요청 + Phase 4 PR12 운영진 권한 = 7탭 구조
 // 이유(왜): 호스트가 받은 매치 신청(team_match_requests)을 처리할 UI가 필요. 별도 페이지 없이
 // 기존 manage 페이지에 탭으로 추가해 컨텍스트 유지.
-type ManageTab = "roster" | "applicants" | "matches" | "invite" | "settings";
+// member-requests: 본인 멤버가 보낸 번호변경/휴면/탈퇴 신청을 팀장/매니저가 처리.
+// officers: captain 만 진입 — manager/coach/treasurer/director 에게 권한 분배.
+type ManageTab =
+  | "roster"
+  | "applicants"
+  | "matches"
+  | "member-requests"
+  | "officers"
+  // Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify 위임자)
+  | "ghosts"
+  // Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only — 명단 완전 삭제 가능)
+  | "withdrawn"
+  | "invite"
+  | "settings";
 
 // 쿼리 문자열 → 내부 탭 키로 정규화.
 // 이유: 팀 가입 신청 알림의 actionUrl은 `?tab=requests`로 보내지만 (의미 명확)
@@ -92,6 +111,14 @@ function resolveInitialTab(raw: string | null): ManageTab {
   if (raw === "requests" || raw === "request" || raw === "applicants") return "applicants";
   // matches / match-requests → matches 매핑 (매치 신청 알림 호환)
   if (raw === "matches" || raw === "match-requests" || raw === "match") return "matches";
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경요청 탭 (번호변경/휴면/탈퇴 알림 호환)
+  if (raw === "member-requests" || raw === "memberRequests" || raw === "jersey-change") return "member-requests";
+  // 2026-05-05 Phase 4 PR12 — 운영진 권한 탭 (captain only)
+  if (raw === "officers" || raw === "officer-permissions") return "officers";
+  // 2026-05-05 Phase 5 PR15 — 유령 후보 탭
+  if (raw === "ghosts" || raw === "ghost-candidates") return "ghosts";
+  // 2026-05-05 Phase 5 PR16 — 탈퇴 멤버 탭 (captain only)
+  if (raw === "withdrawn" || raw === "withdrawn-members") return "withdrawn";
   if (raw === "roster" || raw === "invite" || raw === "settings") return raw;
   return "roster";
 }
@@ -118,6 +145,59 @@ interface MatchRequestRow {
     id: string;
     nickname: string;
     profile_image: string | null;
+  } | null;
+}
+
+// 2026-05-05 Phase 3 PR10+PR11 — 팀 이적 신청 (양쪽 팀장 승인 state machine)
+// 이유: GET /api/web/transfer-requests 응답 형식과 1:1 매핑. 본 manage 페이지에서는
+//   본 팀이 from 또는 to 인 pending 신청을 모두 조회 → side 별 분리 표시.
+// PATCH /api/web/transfer-requests/:id 호출 시 side 와 action 명시.
+interface TransferRequestRow {
+  id: string;
+  userId: string;
+  fromTeamId: string;
+  toTeamId: string;
+  reason: string | null;
+  fromTeamStatus: string;
+  toTeamStatus: string;
+  finalStatus: string;
+  fromProcessedAt: string | null;
+  toProcessedAt: string | null;
+  fromRejectionReason: string | null;
+  toRejectionReason: string | null;
+  createdAt: string;
+  fromTeam: { id: string; name: string; logoUrl: string | null } | null;
+  toTeam: { id: string; name: string; logoUrl: string | null } | null;
+  user?: { id: string; nickname: string | null; name: string | null; profile_image: string | null } | null;
+}
+
+// 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (번호변경/휴면/탈퇴 통합)
+// 이유: PR6 GET /api/web/teams/[id]/requests 응답 형식과 1:1 매핑.
+// requestType = jersey_change | dormant | withdraw / status = pending | approved | rejected | cancelled
+// payload 는 type 별 다름 (snake_case 변환 0 — JSON 컬럼)
+interface MemberRequestRow {
+  id: string;
+  teamId: string;
+  userId: string;
+  requestType: "jersey_change" | "dormant" | "withdraw";
+  payload: unknown;
+  reason: string | null;
+  status: string;
+  processedById: string | null;
+  processedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    nickname: string | null;
+    name: string | null;
+    profile_image: string | null;
+  } | null;
+  processedBy: {
+    id: string;
+    nickname: string | null;
+    name: string | null;
   } | null;
 }
 
@@ -148,6 +228,23 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   const [matchError, setMatchError] = useState<string | null>(null);
   // 수락/거절 처리 중인 신청 id (버튼 disabled + 처리 중 라벨용)
   const [matchProcessing, setMatchProcessing] = useState<string | null>(null);
+
+  // ─── 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (번호변경/휴면/탈퇴) 인박스 상태 ───
+  // 이유: 팀장/매니저가 받은 멤버 신청 (jersey_change/dormant/withdraw) 을 한 곳에서 처리.
+  // PR7 = jersey_change 만 실제 작동 / dormant + withdraw 는 표시만 (PR8/PR9 에서 활성화).
+  const [memberRequests, setMemberRequests] = useState<MemberRequestRow[]>([]);
+  const [memberReqLoading, setMemberReqLoading] = useState(false);
+  const [memberReqError, setMemberReqError] = useState<string | null>(null);
+  const [memberReqProcessing, setMemberReqProcessing] = useState<string | null>(null);
+
+  // ─── 2026-05-05 Phase 3 PR10+PR11 — 팀 이적 신청 인박스 상태 ───
+  // 이유: 본 팀이 fromTeam (떠나는 신청) 또는 toTeam (들어오는 신청) 인 pending 만 조회.
+  //   captain only — 권한 검증은 GET/PATCH 시 서버에서 수행 (이중 가드).
+  // 사용처: "변경 요청" 탭 하단 별도 섹션 ("이적 신청") — type 별 시각 분리
+  const [transferRequests, setTransferRequests] = useState<TransferRequestRow[]>([]);
+  const [transferReqLoading, setTransferReqLoading] = useState(false);
+  const [transferReqError, setTransferReqError] = useState<string | null>(null);
+  const [transferReqProcessing, setTransferReqProcessing] = useState<string | null>(null);
 
   // ─── 팀 설정 상태 ───
   const [teamData, setTeamData] = useState<TeamEditData | null>(null);
@@ -304,11 +401,149 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
     }
   }
 
+  // ─── 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 목록 조회 ───
+  // 이유: GET /api/web/teams/[id]/requests?status=pending 으로 pending 만 조회.
+  // captain/manager 권한 검증은 서버에서 수행 (canSeeAll=true 일 때만 팀 전체 응답).
+  const fetchMemberRequests = useCallback(async () => {
+    setMemberReqLoading(true);
+    setMemberReqError(null);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/requests?status=pending`);
+      if (res.status === 403) {
+        setMemberReqError("팀장 또는 매니저만 접근할 수 있습니다.");
+        return;
+      }
+      if (!res.ok) throw new Error("조회 실패");
+      const data = await res.json();
+      // apiSuccess envelope: { data: { requests, canSeeAll } }
+      const list = (data?.data?.requests ?? data?.requests ?? []) as MemberRequestRow[];
+      const canSeeAll = data?.data?.canSeeAll ?? data?.canSeeAll ?? false;
+      // canSeeAll=false 면 본인 신청만 응답 — 일반 멤버 시야이므로 빈 처리
+      setMemberRequests(canSeeAll ? list : []);
+    } catch {
+      setMemberReqError("멤버 신청 목록을 불러오지 못했습니다.");
+    } finally {
+      setMemberReqLoading(false);
+    }
+  }, [id]);
+
+  // ─── 멤버 변경 요청: 승인/거부 액션 ───
+  // 이유: PATCH /api/web/teams/[id]/requests/[requestId] 호출.
+  // PR7 에서 jersey_change 는 실제 동작 (team_members.jersey_number UPDATE) /
+  // dormant·withdraw 는 status 변경만 (PR8/PR9 에서 활성화).
+  async function handleMemberRequestAction(reqId: string, action: "approve" | "reject") {
+    let rejectionReason: string | null = null;
+    if (action === "reject") {
+      const input = window.prompt(
+        "거부 사유를 입력하세요 (선택, 신청자에게 노출됩니다. 비워두면 사유 없이 거부):",
+        "",
+      );
+      if (input === null) return;
+      const trimmed = input.trim();
+      rejectionReason = trimmed ? trimmed.slice(0, 500) : null;
+    }
+    setMemberReqProcessing(reqId);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/requests/${reqId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          ...(action === "reject" && rejectionReason ? { rejectionReason } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? data.message ?? "처리 중 오류가 발생했습니다.");
+        return;
+      }
+      // 성공 시 row 제거 (pending 만 표시 중이므로)
+      setMemberRequests((prev) => prev.filter((r) => r.id !== reqId));
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setMemberReqProcessing(null);
+    }
+  }
+
+  // ─── 2026-05-05 Phase 3 PR10+PR11 — 팀 이적 신청 조회 ───
+  // 이유: 본 팀이 fromTeam 또는 toTeam 인 pending 신청을 captain 시야로 조회.
+  // 권한: 서버 GET /api/web/teams/[id]/transfer-requests 가 captain 검증.
+  const fetchTransferRequests = useCallback(async () => {
+    setTransferReqLoading(true);
+    setTransferReqError(null);
+    try {
+      const res = await fetch(`/api/web/teams/${id}/transfer-requests?status=pending`);
+      if (res.status === 403) {
+        setTransferReqError("팀장만 접근할 수 있습니다.");
+        setTransferRequests([]);
+        return;
+      }
+      if (!res.ok) throw new Error("조회 실패");
+      const data = await res.json();
+      const list = (data?.data?.transferRequests ?? []) as TransferRequestRow[];
+      setTransferRequests(list);
+    } catch {
+      setTransferReqError("이적 신청 목록을 불러오지 못했습니다.");
+    } finally {
+      setTransferReqLoading(false);
+    }
+  }, [id]);
+
+  // ─── 이적 승인/거부 액션 ───
+  // 이유: PATCH /api/web/transfer-requests/[requestId] 호출 시 side ('from' | 'to') 명시.
+  //   side 는 본 팀 == fromTeam 이면 'from', 본 팀 == toTeam 이면 'to'.
+  async function handleTransferAction(
+    row: TransferRequestRow,
+    action: "approve" | "reject",
+  ) {
+    // side 결정 — 본 팀이 어느 사이드인지
+    const side: "from" | "to" =
+      row.fromTeamId === id ? "from" : row.toTeamId === id ? "to" : "from";
+    let rejectionReason: string | null = null;
+    if (action === "reject") {
+      const input = window.prompt(
+        "거부 사유를 입력하세요 (선택, 신청자에게 노출됩니다. 비워두면 사유 없이 거부):",
+        "",
+      );
+      if (input === null) return;
+      const trimmed = input.trim();
+      rejectionReason = trimmed ? trimmed.slice(0, 500) : null;
+    }
+    setTransferReqProcessing(row.id);
+    try {
+      const res = await fetch(`/api/web/transfer-requests/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          side,
+          action,
+          ...(action === "reject" && rejectionReason ? { rejectionReason } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? data.message ?? "처리 중 오류가 발생했습니다.");
+        return;
+      }
+      // 성공 시 row 제거 — finalStatus 가 pending 으로 남아도 본 사이드 처리 끝났으므로 인박스에서 제외
+      setTransferRequests((prev) => prev.filter((r) => r.id !== row.id));
+    } catch {
+      alert("네트워크 오류가 발생했습니다.");
+    } finally {
+      setTransferReqProcessing(null);
+    }
+  }
+
   // 초기 로드: 멤버/신청 (탭과 무관하게 항상 로드 — 탭 카운트 표시용)
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
   // 매치 신청도 첫 마운트 시 1회 로드 — 탭 카운트 뱃지 표시용
   // 이유(왜): 탭에 들어가기 전에도 "몇 건 대기 중" 정보를 노출해야 캡틴이 알아챈다.
   useEffect(() => { fetchMatchRequests(); }, [fetchMatchRequests]);
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경 요청도 첫 마운트 시 1회 로드 (탭 카운트용)
+  useEffect(() => { fetchMemberRequests(); }, [fetchMemberRequests]);
+  // 2026-05-05 Phase 3 PR10+PR11 — 이적 신청도 첫 마운트 시 1회 로드 (변경 요청 탭 카운트 합산)
+  useEffect(() => { fetchTransferRequests(); }, [fetchTransferRequests]);
   useEffect(() => {
     // settings 또는 matches 탭 진입 시 teamData 로드.
     // 이유(왜): matches 탭의 수락/거절 버튼 노출 분기는 is_captain 에 의존 — 미로드 시 항상 비활성화로 보여
@@ -517,12 +752,27 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   // 매치신청 pending 카운트 — 탭 뱃지에 표시
   // 이유(왜): 전체 신청 수가 아닌 처리 대기(pending) 만 노출해야 호스트의 행동 유도가 명확.
   const pendingMatchCount = matchRequests.filter((r) => r.status === "pending").length;
+  // 2026-05-05 Phase 2 PR7 — 멤버 변경 요청 (이미 status=pending 만 조회하므로 length 그대로)
+  // 2026-05-05 Phase 3 PR10+PR11 — 이적 신청도 합산 (양쪽 사이드 미처리)
+  const pendingMemberReqCount = memberRequests.length + transferRequests.length;
 
-  // 시안 4탭 + 매치신청 = 5탭. 매치신청은 가입신청 다음(맥락이 가장 가까움) 위치.
+  // 시안 4탭 + 매치신청 + 멤버 변경요청 + (captain) 운영진 권한 = 7탭.
+  // 운영진 권한 탭은 captain 만 노출 (위임 가능 권한자 = captain only — 보고서 §4 결정 #4)
   const tabs: { id: ManageTab; label: string; count: number }[] = [
     { id: "roster", label: "로스터", count: members.length },
     { id: "applicants", label: "가입 신청", count: requests.length },
+    { id: "member-requests", label: "변경 요청", count: pendingMemberReqCount },
     { id: "matches", label: "매치 신청", count: pendingMatchCount },
+    ...((teamData?.is_captain === true)
+      ? ([{ id: "officers" as ManageTab, label: "운영진 권한", count: 0 }] as const)
+      : []),
+    // Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify 위임자)
+    // count=0 (정확한 후보수는 탭 진입 시점에 fetch — 비-captain 도 일단 노출 후 권한 검증)
+    { id: "ghosts" as ManageTab, label: "유령 후보", count: 0 },
+    // Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only)
+    ...((teamData?.is_captain === true)
+      ? ([{ id: "withdrawn" as ManageTab, label: "탈퇴 멤버", count: 0 }] as const)
+      : []),
     { id: "invite", label: "초대 링크", count: 0 },
     { id: "settings", label: "팀 설정", count: 0 },
   ];
@@ -1041,6 +1291,326 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         </div>
       )}
 
+      {/* ═══════════ 변경 요청 탭 (Phase 2 PR7) ═══════════ */}
+      {/* 이유(왜): 멤버가 보낸 번호변경/휴면/탈퇴 신청을 팀장/매니저가 처리.
+          PR7 = jersey_change 만 실제 동작 (team_members.jersey_number UPDATE).
+          dormant/withdraw 는 status='approved' UPDATE 만 — PR8/PR9 에서 실제 동작 추가. */}
+      {tab === "member-requests" && (
+        <div className="flex flex-col gap-2.5">
+          {memberReqLoading && (
+            <div className="py-12 text-center text-sm text-[var(--color-text-secondary)]">불러오는 중...</div>
+          )}
+          {!memberReqLoading && memberReqError && (
+            <div
+              className="rounded-lg px-5 py-4 text-sm"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+                color: "var(--color-error)",
+              }}
+            >
+              {memberReqError}
+            </div>
+          )}
+          {!memberReqLoading && !memberReqError && memberRequests.length === 0 && (
+            <div className="rounded-lg bg-[var(--color-card)] py-16 text-center">
+              <span className="material-symbols-outlined mb-2 text-4xl text-[var(--color-text-muted)]">
+                inbox
+              </span>
+              <p className="text-sm text-[var(--color-text-secondary)]">
+                대기 중인 변경 요청이 없습니다.
+              </p>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                멤버가 등번호 변경 / 휴면 / 탈퇴를 신청하면 여기에 표시됩니다.
+              </p>
+            </div>
+          )}
+
+          {/* 안내 — PR7+PR8+PR9 모두 즉시 반영 (2026-05-05) */}
+          {!memberReqLoading && !memberReqError && memberRequests.length > 0 && (
+            <div
+              className="rounded-lg border px-4 py-2.5 text-xs"
+              style={{
+                borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
+                backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
+                color: "var(--color-info)",
+              }}
+            >
+              <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
+              <span className="align-middle">
+                승인 시 즉시 반영: 등번호 변경 → 새 번호 적용 / 휴면 → 로스터 휴면 뱃지 (만료 시 자동 복귀) / 탈퇴 → 명단 자동 제외 (활동 기록은 보존).
+              </span>
+            </div>
+          )}
+
+          {!memberReqLoading && !memberReqError && memberRequests.map((req) => {
+            const isProcessing = memberReqProcessing === req.id;
+            const applicantName = req.user?.nickname ?? req.user?.name ?? "회원";
+            const when = new Date(req.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+
+            // 종류 라벨 + 내용 — type 별 분기
+            let typeLabel: string;
+            let typeColor: string;
+            let contentText: string;
+            if (req.requestType === "jersey_change") {
+              const p = req.payload as { newJersey?: number } | null;
+              const newJ = typeof p?.newJersey === "number" ? p.newJersey : "?";
+              typeLabel = "등번호 변경";
+              typeColor = "var(--color-info)";
+              contentText = `→ #${newJ}`;
+            } else if (req.requestType === "dormant") {
+              const p = req.payload as { until?: string } | null;
+              const until = p?.until
+                ? new Date(p.until).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })
+                : "기한 미정";
+              typeLabel = "휴면 신청";
+              typeColor = "var(--color-text-muted)";
+              contentText = `복귀 예정: ${until}`;
+            } else {
+              typeLabel = "탈퇴 신청";
+              typeColor = "var(--color-error)";
+              contentText = "팀 명단 제외";
+            }
+
+            return (
+              <div key={req.id} className="rounded-lg bg-[var(--color-card)] p-5">
+                {/* 시안 톤: 48px 아이콘박스 / 1fr 정보 / 우측 액션 */}
+                <div className="mb-3 grid items-center gap-3.5" style={{ gridTemplateColumns: "48px 1fr auto" }}>
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded text-base font-bold text-white"
+                    style={{ backgroundColor: typeColor }}
+                  >
+                    {applicantName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
+                        {applicantName}
+                      </span>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, " + typeColor + " 16%, transparent)",
+                          color: typeColor,
+                        }}
+                      >
+                        {typeLabel}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                      {contentText} · 신청 {when}
+                    </div>
+                  </div>
+                  {/* 데스크탑 액션 — captain or manager 가 보는 페이지 (서버 GET 가드)
+                      — 모든 표시된 row 는 처리 가능 */}
+                  <div className="hidden items-center gap-1.5 sm:flex">
+                    <button
+                      disabled={isProcessing}
+                      onClick={() => handleMemberRequestAction(req.id, "reject")}
+                      className="rounded border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-surface-bright)] disabled:opacity-50"
+                      style={{ color: "var(--color-error)" }}
+                    >
+                      거부
+                    </button>
+                    <Button
+                      disabled={isProcessing}
+                      onClick={() => handleMemberRequestAction(req.id, "approve")}
+                      className="!px-3 !py-1.5 text-xs"
+                    >
+                      {isProcessing ? "처리 중..." : "승인"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 사유 — 좌측 accent border (가입 신청 카드와 동일 톤) */}
+                {req.reason && (
+                  <div
+                    className="rounded border-l-[3px] px-3 py-2.5 text-sm leading-relaxed text-[var(--color-text-secondary)]"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      borderLeftColor: typeColor,
+                    }}
+                  >
+                    &ldquo;{req.reason}&rdquo;
+                  </div>
+                )}
+
+                {/* 모바일 액션 — 카드 하단 가로 배치 */}
+                <div className="mt-3 flex gap-2 sm:hidden">
+                  <button
+                    disabled={isProcessing}
+                    onClick={() => handleMemberRequestAction(req.id, "reject")}
+                    className="flex-1 rounded border border-[var(--color-border)] px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                    style={{ color: "var(--color-error)" }}
+                  >
+                    거부
+                  </button>
+                  <Button
+                    disabled={isProcessing}
+                    onClick={() => handleMemberRequestAction(req.id, "approve")}
+                    className="flex-1"
+                  >
+                    {isProcessing ? "처리 중..." : "승인"}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* ═══ 2026-05-05 Phase 3 PR10+PR11 — 이적 신청 섹션 ═══ */}
+          {/* 이유: 본 팀이 fromTeam 또는 toTeam 인 pending 이적 신청을 표시.
+              "이 팀에서 떠나려는 신청" (현 팀장 결정) / "이 팀에 들어오려는 신청" (새 팀장 결정) 분리.
+              각 row 액션 = approve/reject → PATCH /api/web/transfer-requests/:id (side 자동 결정). */}
+          {transferReqError && (
+            <div
+              className="rounded-lg px-5 py-4 text-sm"
+              style={{
+                backgroundColor: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+                color: "var(--color-error)",
+              }}
+            >
+              {transferReqError}
+            </div>
+          )}
+          {!transferReqLoading && !transferReqError && transferRequests.length > 0 && (
+            <>
+              <div className="mt-4 mb-2 flex items-center gap-2">
+                <span className="material-symbols-outlined text-base text-[var(--color-text-secondary)]">
+                  swap_horiz
+                </span>
+                <h3 className="text-sm font-bold text-[var(--color-text-primary)]">이적 신청</h3>
+                <span
+                  className="rounded px-2 py-0.5 text-[11px] font-bold"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--color-info) 16%, transparent)",
+                    color: "var(--color-info)",
+                  }}
+                >
+                  {transferRequests.length}
+                </span>
+              </div>
+              <div
+                className="rounded-lg border px-4 py-2.5 text-xs"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--color-info) 30%, transparent)",
+                  backgroundColor: "color-mix(in srgb, var(--color-info) 8%, transparent)",
+                  color: "var(--color-info)",
+                }}
+              >
+                <span className="material-symbols-outlined mr-1 align-middle text-sm">info</span>
+                <span className="align-middle">
+                  현 팀장 + 새 팀장 모두 승인해야 이적이 완료됩니다. 한쪽이라도 거부하면 신청이 종결됩니다.
+                </span>
+              </div>
+
+              {transferRequests.map((row) => {
+                const isProcessing = transferReqProcessing === row.id;
+                // 본 팀이 어느 사이드인지 분기 (UI 라벨)
+                const isFromMine = row.fromTeamId === id;
+                const sideLabel = isFromMine ? "이 팀에서 떠나려는 신청" : "이 팀에 들어오려는 신청";
+                const sideColor = isFromMine ? "var(--color-error)" : "var(--color-info)";
+                const counterTeam = isFromMine ? row.toTeam : row.fromTeam;
+                const counterStatus = isFromMine ? row.toTeamStatus : row.fromTeamStatus;
+                const counterStatusLabel =
+                  counterStatus === "pending"
+                    ? "대기"
+                    : counterStatus === "approved"
+                    ? "승인됨"
+                    : "거부됨";
+                // 신청자 이름 — user 정보 없을 수 있음 (응답 안 함). userId 만 표시 fallback
+                const applicantName = row.user?.nickname ?? row.user?.name ?? `회원 #${row.userId}`;
+                const when = new Date(row.createdAt).toLocaleDateString("ko-KR", {
+                  timeZone: "Asia/Seoul",
+                });
+
+                return (
+                  <div key={row.id} className="rounded-lg bg-[var(--color-card)] p-5">
+                    <div
+                      className="mb-3 grid items-center gap-3.5"
+                      style={{ gridTemplateColumns: "48px 1fr auto" }}
+                    >
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded text-base font-bold text-white"
+                        style={{ backgroundColor: sideColor }}
+                      >
+                        {applicantName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
+                            {applicantName}
+                          </span>
+                          <span
+                            className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                            style={{
+                              backgroundColor: "color-mix(in srgb, " + sideColor + " 16%, transparent)",
+                              color: sideColor,
+                            }}
+                          >
+                            {sideLabel}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                          {isFromMine ? "→ " : "← "}
+                          {counterTeam?.name ?? "상대 팀"} · 상대 팀 결정: {counterStatusLabel} · 신청 {when}
+                        </div>
+                      </div>
+                      <div className="hidden items-center gap-1.5 sm:flex">
+                        <button
+                          disabled={isProcessing}
+                          onClick={() => handleTransferAction(row, "reject")}
+                          className="rounded border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-surface-bright)] disabled:opacity-50"
+                          style={{ color: "var(--color-error)" }}
+                        >
+                          거부
+                        </button>
+                        <Button
+                          disabled={isProcessing}
+                          onClick={() => handleTransferAction(row, "approve")}
+                          className="!px-3 !py-1.5 text-xs"
+                        >
+                          {isProcessing ? "처리 중..." : "승인"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {row.reason && (
+                      <div
+                        className="rounded border-l-[3px] px-3 py-2.5 text-sm leading-relaxed text-[var(--color-text-secondary)]"
+                        style={{
+                          backgroundColor: "var(--color-surface)",
+                          borderLeftColor: sideColor,
+                        }}
+                      >
+                        &ldquo;{row.reason}&rdquo;
+                      </div>
+                    )}
+
+                    {/* 모바일 액션 */}
+                    <div className="mt-3 flex gap-2 sm:hidden">
+                      <button
+                        disabled={isProcessing}
+                        onClick={() => handleTransferAction(row, "reject")}
+                        className="flex-1 rounded border border-[var(--color-border)] px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ color: "var(--color-error)" }}
+                      >
+                        거부
+                      </button>
+                      <Button
+                        disabled={isProcessing}
+                        onClick={() => handleTransferAction(row, "approve")}
+                        className="flex-1"
+                      >
+                        {isProcessing ? "처리 중..." : "승인"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
+
       {/* ═══════════ 초대 링크 탭 (DB 미지원: 준비 중) ═══════════ */}
       {tab === "invite" && (
         <div className="rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-card)] p-8 text-center">
@@ -1057,6 +1627,50 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
           >
             가입 신청 보기
           </button>
+        </div>
+      )}
+
+      {/* ═══════════ 운영진 권한 탭 (Phase 4 PR12 — captain only) ═══════════ */}
+      {tab === "officers" && teamData?.is_captain === true && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            운영진 권한 위임
+          </h2>
+          <OfficerPermissionsTab
+            teamId={id}
+            members={members.map((m) => ({
+              id: m.id,
+              user_id: m.user_id,
+              nickname: m.nickname,
+              role: m.role,
+              profile_image: m.profile_image,
+            }))}
+          />
+        </div>
+      )}
+      {tab === "officers" && teamData?.is_captain !== true && (
+        <div className="py-12 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
+          운영진 권한 위임은 팀장만 관리할 수 있습니다.
+        </div>
+      )}
+
+      {/* ═══════════ 유령 후보 탭 (Phase 5 PR15) ═══════════ */}
+      {tab === "ghosts" && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            유령 후보 관리
+          </h2>
+          <GhostCandidatesTab teamId={id} />
+        </div>
+      )}
+
+      {/* ═══════════ 탈퇴 멤버 이력 탭 (Phase 5 PR16 — captain only) ═══════════ */}
+      {tab === "withdrawn" && teamData?.is_captain === true && (
+        <WithdrawnMembersSection teamId={id} />
+      )}
+      {tab === "withdrawn" && teamData?.is_captain !== true && (
+        <div className="py-12 text-center text-sm" style={{ color: "var(--color-text-secondary)" }}>
+          탈퇴 멤버 이력은 팀장만 조회 / 관리할 수 있습니다.
         </div>
       )}
 

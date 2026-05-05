@@ -15,7 +15,9 @@ type RouteCtx = { params: Promise<{ id: string }> };
 const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"] as const;
 
 // GET /api/web/teams/[id]/members -- 팀 운영진(captain/vice/manager): 멤버·가입신청 목록 조회
-export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
+// 2026-05-05 Phase 5 PR16 — ?status=withdrawn 쿼리 파라미터 지원 추가 (탈퇴 멤버 이력 탭).
+//   기본 동작 (status 미지정) = 'active' 만 (회귀 0). status='withdrawn' 시 탈퇴 멤버 + 추가 필드.
+export const GET = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
   const { id } = await routeCtx.params;
   const teamId = BigInt(id);
 
@@ -42,12 +44,36 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
     return apiError("FORBIDDEN", 403);
   }
 
-  // 활성 멤버 목록
+  // Phase 5 PR16 — status 쿼리 파라미터 (기본 'active' 유지, 'withdrawn' 추가)
+  const url = new URL(req.url);
+  const statusParam = url.searchParams.get("status");
+  const memberStatus = statusParam === "withdrawn" ? "withdrawn" : "active";
+
+  // 멤버 목록 — status 별 필요 필드 분기
   const members = await prisma.teamMember.findMany({
-    where: { teamId, status: "active" },
+    where: { teamId, status: memberStatus },
     include: { user: { select: { id: true, nickname: true, name: true, position: true, profile_image: true } } },
-    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    orderBy: memberStatus === "withdrawn"
+      ? [{ left_at: "desc" }, { updatedAt: "desc" }] // 탈퇴 — 최근 탈퇴 우선
+      : [{ role: "asc" }, { createdAt: "asc" }],     // 활성 — 역할 우선
   });
+
+  // Phase 5 PR16 — withdrawn 분기 응답 (jersey/role/position/left_at/createdAt 추가)
+  if (memberStatus === "withdrawn") {
+    return apiSuccess({
+      members: members.map((m) => ({
+        id: m.id.toString(),
+        user_id: m.userId.toString(),
+        nickname: m.user?.nickname ?? m.user?.name ?? "-",
+        jerseyNumber: m.jerseyNumber,
+        role: m.role ?? null,
+        position: m.position ?? null,
+        left_at: m.left_at?.toISOString() ?? null,
+        createdAt: m.createdAt.toISOString(),
+      })),
+      requests: [], // withdrawn 모드에서는 가입 신청 별도 의미 없음
+    });
+  }
 
   // 가입 신청 목록
   const requests = await prisma.team_join_requests.findMany({
@@ -179,6 +205,32 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
     // 사전 등록 계정 병합: 같은 닉네임 + 미로그인 멤버가 있으면 등번호/포지션/역할 이관
     const merged = await mergeTempMember(teamId, applicantId);
 
+    // PR2: 신청자가 입력한 선호 등번호/포지션을 멤버 row 로 자동 복사
+    // 이유(왜): 가입 폼에서 받은 preferred_jersey_number 가 승인 후 사용되지 않으면
+    //   ttp 자동 sync 도 끊기고 운영자가 수동 입력해야 함 (이도균 사례 회귀).
+    //
+    // 우선순위: merged (사전 등록 jersey) > preferred_jersey_number > null
+    // 충돌 검증: merged 가 없을 때만 (merged 는 이미 mergeTempMember 단에서 정합)
+    let finalJersey: number | null = merged?.jerseyNumber ?? null;
+    let finalPosition: string | null = merged?.position ?? null;
+
+    if (!merged && joinRequest.preferred_jersey_number != null) {
+      const requestedJersey = joinRequest.preferred_jersey_number;
+      // 같은 팀 active 멤버 중 같은 jersey 있는지 확인
+      const conflict = await prisma.teamMember.findFirst({
+        where: { teamId, jerseyNumber: requestedJersey, status: "active" },
+      });
+      if (conflict) {
+        return apiError(
+          "JERSEY_CONFLICT",
+          409,
+          `등번호 #${requestedJersey} 는 이미 사용 중입니다. 신청자 본인이 다른 번호로 다시 신청해야 합니다.`,
+        );
+      }
+      finalJersey = requestedJersey;
+      finalPosition = joinRequest.preferred_position ?? null;
+    }
+
     await prisma.$transaction([
       prisma.team_join_requests.update({
         where: { id: BigInt(requestId) },
@@ -191,7 +243,8 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           role: merged?.role ?? "member",
           status: "active",
           joined_at: new Date(),
-          ...(merged && { jerseyNumber: merged.jerseyNumber, position: merged.position }),
+          ...(finalJersey != null && { jerseyNumber: finalJersey }),
+          ...(finalPosition && { position: finalPosition }),
         },
       }),
       prisma.team.update({

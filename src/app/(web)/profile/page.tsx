@@ -40,10 +40,21 @@ import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
+// 2026-05-05 Phase 2 PR8 — 휴면 만료 lazy 복구 hook (본인 시야 진입 시 자동 active)
+import { checkAndExpireDormant } from "@/lib/team-members/check-dormant-expiry";
+// 2026-05-05 Phase 5 PR14 — 활동 추적 (마이페이지 진입 = 로그인/활동 5종 중 #5)
+import { trackTeamMemberActivityForUser } from "@/lib/team-members/track-activity";
 // Phase 12 §G: 모바일 백버튼 (사용자 보고 — 깊은 페이지 복귀 동선)
 
 // Phase 13 hub 전용 스타일 (BDR-current/mypage.css 1:1 카피)
 import "./mypage.css";
+
+// PR2: 다중 팀 목록 카드 (마이페이지 aside)
+import { TeamsListCard, type TeamsListItem } from "./_v2/teams-list-card";
+// 2026-05-05 Phase 3 PR10+PR11 — 본인 pending 이적 진행 카드 (client)
+// 이유: 양쪽 팀장 승인 진척도 시각화. 본인 시야에서만 의미. server SELECT 추가 0
+//   (마운트 시 fetch — 다른 SSR 부하 회피).
+import { TransferProgressCard } from "./_v2/transfer-progress-card";
 
 // SSR 세션 기반 페이지 — 캐시 금지 (본인 데이터는 매 요청 최신)
 export const dynamic = "force-dynamic";
@@ -118,21 +129,28 @@ export default async function ProfilePage() {
       })
       .catch(() => null),
 
+    // PR2: 다중 팀 목록 표시용으로 SELECT 확장
+    // (city/district/name_en/name_primary/logoUrl/jerseyNumber 추가)
     prisma.teamMember
       .findMany({
         where: { userId, status: "active" },
-        include: {
+        select: {
+          jerseyNumber: true,
           team: {
             select: {
               id: true,
               name: true,
+              name_en: true,
+              name_primary: true,
+              city: true,
+              district: true,
               primaryColor: true,
               logoUrl: true,
             },
           },
         },
         orderBy: { joined_at: "desc" },
-        take: 5,
+        take: 10,
       })
       .catch(() => []),
 
@@ -220,6 +238,31 @@ export default async function ProfilePage() {
     );
   }
 
+  // 2026-05-05 PR8 — 본인 휴면 만료 lazy 복구
+  // 이유: 본인이 가입 중인 팀들 중 dormant row 가 있고 until 이 지났으면 자동 active 복귀.
+  //   별도 SELECT 1쿼리 (대다수 사용자는 dormant row 0건 → 즉시 종료).
+  //   복귀가 발생해도 위 teamMembers 응답에는 반영되지 않으므로 다음 새로고침에 active 표시.
+  try {
+    const dormantRows = await prisma.teamMember.findMany({
+      where: { userId, status: "dormant" },
+      select: { teamId: true },
+      take: 20, // 비정상 데이터 안전망
+    });
+    if (dormantRows.length > 0) {
+      // 병렬 실행 — 각 row 독립적
+      await Promise.all(
+        dormantRows.map((r) => checkAndExpireDormant(r.teamId, userId).catch(() => false)),
+      );
+    }
+  } catch {
+    // silent — 페이지 로딩 영향 X
+  }
+
+  // 2026-05-05 Phase 5 PR14 — 본인 모든 active 팀 활동 갱신 (마이페이지 = 로그인 활동)
+  // 이유: 보고서 §3-2 활동 5종 중 #5 (로그인). 마이페이지 진입 = 로그인 직후 또는 활성 사용자.
+  //   updateMany 1회 (5분 throttle 통과 시) — 운영 부하 최소.
+  trackTeamMemberActivityForUser(userId).catch(() => {});
+
   // ---- Hero 데이터 변환 ----
   const level = getProfileLevelInfo(user.xp);
   const isPro = user.subscription_status === "active";
@@ -232,6 +275,7 @@ export default async function ProfilePage() {
   const positionLabel = user.position ?? "—";
 
   // ---- Team 데이터 ----
+  // hero / avatar 그라디언트는 첫 팀 (joined_at desc 최신) 기준 — 기존 동작 유지
   const primaryTeam = teamMembers[0]?.team
     ? {
         id: teamMembers[0].team.id.toString(),
@@ -241,6 +285,34 @@ export default async function ProfilePage() {
         tag: (teamMembers[0].team.name ?? "TM").slice(0, 2).toUpperCase(),
       }
     : null;
+
+  // PR2: 다중 팀 목록 (TeamsListCard 용 매핑)
+  // 이유: name_primary 가 'en' 이면 영문을 메인 표시, 한글을 보조. 기본값 'ko'.
+  const teamsList: TeamsListItem[] = teamMembers
+    .filter((m) => m.team != null)
+    .map((m) => {
+      const t = m.team!;
+      const isEnPrimary = t.name_primary === "en" && t.name_en && t.name_en.trim();
+      const teamName = isEnPrimary ? t.name_en! : t.name;
+      const teamNameSecondary = isEnPrimary
+        ? t.name // primary=en → 한글 보조
+        : t.name_en && t.name_en.trim()
+          ? t.name_en // primary=ko + 영문 있으면 보조
+          : null;
+      // tag = 영문 이니셜 우선 (팀 카드 컨벤션과 일관) — 없으면 한글 첫 2글자
+      const tagBase = (t.name_en && t.name_en.trim()) || t.name;
+      return {
+        teamId: t.id.toString(),
+        teamName,
+        teamNameSecondary,
+        city: t.city,
+        district: t.district,
+        logoUrl: t.logoUrl,
+        primaryColor: t.primaryColor,
+        jerseyNumber: m.jerseyNumber ?? null,
+        tag: tagBase.slice(0, 2).toUpperCase(),
+      };
+    });
 
   // 팀 색상 기반 ink (대비) — 토큰 fallback 패턴 (mypage.css 의 --ink-on-accent 와 동일)
   const teamInk = "var(--ink-on-accent, #fff)";
@@ -651,37 +723,11 @@ export default async function ProfilePage() {
             </div>
           )}
 
-          {/* 소속 팀 */}
-          {primaryTeam && (
-            <div className="card mypage-aside-card">
-              <div className="mypage-aside-card__head">
-                <span className="eyebrow" style={{ fontSize: 10 }}>
-                  소속 팀
-                </span>
-                <Link href="/teams" className="mypage-aside-card__more">
-                  전체
-                </Link>
-              </div>
-              <Link
-                href={`/teams/${primaryTeam.id}`}
-                className="mypage-team"
-                style={{ textDecoration: "none", color: "inherit" }}
-              >
-                <span
-                  className="mypage-team__tag"
-                  style={{ background: primaryTeam.primaryColor, color: teamInk }}
-                >
-                  {primaryTeam.tag}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="mypage-team__name">{primaryTeam.name}</div>
-                  {teamMembers.length > 1 && (
-                    <div className="mypage-team__rec t-mono">+{teamMembers.length - 1} 팀</div>
-                  )}
-                </div>
-              </Link>
-            </div>
-          )}
+          {/* 2026-05-05 Phase 3 PR10+PR11 — 본인 pending 이적 진행 카드 (있으면 표시) */}
+          <TransferProgressCard />
+
+          {/* 소속 팀 — PR2: 다중 팀 목록 카드 (0팀 빈 상태 포함) */}
+          <TeamsListCard teams={teamsList} />
 
           {/* 최근 활동 5건 */}
           {recent.length > 0 && (
