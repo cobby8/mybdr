@@ -65,7 +65,72 @@ PR3 (커밋 대기): tournament join 시 team_members → ttp 자동 복사 (운
 
 상세 보고: developer agent 응답 (PR1=ae4ffd7 commit msg / PR2=d72aa0a / PR3=PM commit 후 hash).
 
-남은 Phase 1: ~~PR4 (`match_player_jersey` 신설 + W1 모달, ~1d)~~ ✅ 완료 (PM commit + db push 대기) / PR5 (v1 우선순위 helper, 0.5d).
+Phase 1 진행 현황: PR1~PR4 ✅ 완료 / **PR5 ✅ 완료 (PM commit 대기)**.
+
+---
+
+## 구현 기록 (PR5 — Flutter v1 jersey 우선순위 helper 적용)
+
+📝 구현한 기능: 매치 시점 jersey 우선순위 helper 신설 + Flutter v1 3 endpoints 적용 (스키마 변경 0)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/jersey/resolve.ts` | helper 3종: `resolveMatchJersey` (단일) / `resolveMatchJerseysBatch` (매치1+ttpN) / `resolveMatchJerseysMulti` (매치N+ttpN) | 신규 |
+| `src/app/api/v1/matches/[id]/stats/route.ts` | ttp.id select 추가 + batch helper 호출 + 응답 jerseyNumber 결정값 사용 (표시명 폴백도 결정값) | 수정 |
+| `src/app/api/v1/matches/[id]/roster/route.ts` | home+away players ttp 합쳐 batch 호출 + jersey_number 결정값 사용 (orderBy 는 ttp 그대로 — DB 정렬 영구 번호 유지) | 수정 |
+| `src/app/api/v1/tournaments/[id]/player-stats/route.ts` | (matchId, ttpId) 페어 multi helper 호출 + 시즌통계 row 별 매치 시점 jersey 적용 | 수정 |
+
+### v1 6 endpoints helper 적용 / 미적용 결정
+
+| # | 파일 | 결정 | 사유 |
+|---|------|------|------|
+| 1 | `matches/[id]/stats` | ✅ 적용 | 박스 스코어 — 매치 컨텍스트 명확 (matchId 1건 + ttp N) |
+| 2 | `matches/[id]/roster` | ✅ 적용 | 라이브 명단 — 매치 컨텍스트 명확 |
+| 3 | `players/[id]/stats` | ⚠ 미적용 | 선수 커리어 통계 = 영구 번호 의미 (player.jerseyNumber 단일 값 응답) |
+| 4 | `tournaments/[id]/teams/[teamId]/players` | ⚠ 미적용 | 팀 선수 목록 = 영구 번호 응답 (지시서 §4 명시) |
+| 5 | `tournaments/[id]/full-data` | ⚠ 미적용 | 오프라인 동기화 = 영구 번호. player_stats row 자체엔 jersey 없음 (Flutter 앱이 player.jersey 참조) |
+| 6 | `tournaments/[id]/player-stats` | ✅ 적용 | 시즌 통계 = (matchId, ttpId) 페어별 매치 시점 정확값 |
+
+### 응답 스키마 호환
+
+- 모든 endpoint 의 `jerseyNumber` 필드 키 그대로 유지 — Flutter 앱 코드 변경 0
+- 값 의미만 "ttp 영구" → "매치 시점 (override → ttp → null)" 으로 자동 정확화
+- override 없는 매치 (대다수) = 응답 변경 0 (ttp 폴백)
+
+### N+1 회피 설계
+
+- batch helper: `IN` 쿼리 1회로 매치 1건의 모든 override 조회
+- multi helper: `IN × IN` 쿼리 1회로 시즌 전체 override 조회
+- 미적용 endpoint 3종은 ttp 단일 SELECT 그대로 (영구 번호 의미 유지)
+
+### tsc 결과
+
+`npx tsc --noEmit` exit code = 0 (errors 0).
+
+💡 tester 참고:
+- **사전 조건**: PR4 의 `match_player_jersey` 테이블이 운영 DB 에 push 되어 있어야 prisma 에러 0 (PM 사용자 승인 후 db push 완료 필요)
+- **테스트 시나리오** (override 없는 상태 = 회귀 0):
+  1. `GET /api/v1/matches/[id]/stats` — 박스 스코어 jerseyNumber = ttp.jerseyNumber 그대로
+  2. `GET /api/v1/matches/[id]/roster` — home/away jersey_number = ttp 그대로
+  3. `GET /api/v1/tournaments/[id]/player-stats` — 시즌 통계 jerseyNumber = ttp 그대로
+- **테스트 시나리오** (override 1건 등록 후 = 핵심 검증):
+  1. `POST /api/web/tournaments/{tid}/matches/{matchId}/jersey-override` 으로 임시 번호 등록
+  2. 위 3 endpoint 재호출 → **해당 매치 응답만** 임시 번호로 변경됨
+  3. 같은 선수의 다른 매치 응답은 ttp 영구 번호 그대로
+  4. `GET /api/v1/tournaments/[id]/teams/[teamId]/players` (미적용) → ttp 영구 번호 그대로 (회귀 0)
+  5. `GET /api/v1/tournaments/[id]/full-data` (미적용) → ttp 영구 번호 그대로
+
+⚠️ reviewer 참고:
+- **team_members.jersey_number 폴백 미연결**: 본 PR 에서는 ttp.jerseyNumber 까지만 폴백 (team_members 추가 SELECT N+1 우려). PR3 자동 복사 hook 으로 ttp 가 비어있는 경우 0 가정 (실제 데이터 = 모든 ttp 에 jerseyNumber 채워져 있음). 향후 team_members 폴백 필요 시 helper 호출자가 별도 SELECT 후 `teamJersey` 인자에 넘기면 됨.
+- **표시명 폴백 (`getDisplayName` 의 jerseyNumber 폴백)** = 매치 시점 결정값으로 통일 (운영자 임시 번호 부여 시 대체 표시 = `#임시번호`)
+- **orderBy 는 ttp 그대로** (roster) — DB 정렬은 영구 번호 기준이고, 응답 표시값만 매치 시점. 운영자가 임시 번호로 정렬 변경 의도시 별도 작업 필요 (현재는 영구 정렬 = 안정성).
+- **commit X / 운영 DB 영향 0** — schema 변경 0, SELECT 만 추가.
+
+---
+
+### 원영 공지 메시지 초안 (PM 이 보낼 통보 1단락)
+
+> 원영아, mybdr Phase 1 PR5 적용했어. **이제부터 Flutter 앱 응답의 `jerseyNumber` 값은 매치 시점 정확값으로 자동 결정돼** (우선순위: 매치 운영자가 부여한 임시 번호 → 대회 등록 시점 ttp 번호). 적용된 endpoint = ① `/api/v1/matches/[id]/stats` (박스스코어) ② `/api/v1/matches/[id]/roster` (라이브 명단) ③ `/api/v1/tournaments/[id]/player-stats` (시즌 통계). **앱 코드 변경은 필요 없음** — 응답 스키마 (jerseyNumber 필드) 그대로고, 값 의미만 정확해진 거야. 영향 = 박스 스코어/시즌 통계/PBP 등 jersey 표시가 매치 단위로 정확해짐 (운영자가 W1 모달로 임시 번호 부여한 매치만 변경, 나머지 매치는 변화 0). 미적용 endpoint = 선수 커리어 통계 / 팀 선수 목록 / full-data 동기화 (이건 "영구 번호" 의미 유지가 맞아서 그대로 둠).
 
 ---
 

@@ -6,6 +6,8 @@ import { apiSuccess, notFound, validationError, forbidden } from "@/lib/api/resp
 import { mapStatToPrisma } from "@/lib/utils/stat-mapper";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
+// PR5: 매치 시점 jersey 우선순위 적용 (override → ttp → team_members)
+import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
 
 // FR-026: 매치 스탯 조회
 async function getHandler(
@@ -14,11 +16,13 @@ async function getHandler(
 ) {
   const { id: matchId } = await ctx.params;
 
+  const matchIdBig = BigInt(matchId);
   const statsRaw = await prisma.matchPlayerStat.findMany({
-    where: { tournamentMatchId: BigInt(matchId) },
+    where: { tournamentMatchId: matchIdBig },
     include: {
       tournamentTeamPlayer: {
         select: {
+          id: true, // PR5: jersey resolve 위해 ttp.id 필요
           jerseyNumber: true,
           position: true,
           player_name: true,
@@ -29,27 +33,45 @@ async function getHandler(
     },
   });
 
+  // PR5: 매치 시점 jersey 일괄 결정 (override → ttp.jerseyNumber → null)
+  // team_members.jersey_number 까지 폴백하려면 별도 JOIN 필요 — Phase 1 범위에서는 ttp 까지만 (team_members 미연결 케이스 0건 가정)
+  const ttpEntries = statsRaw
+    .filter((s) => s.tournamentTeamPlayer !== null)
+    .map((s) => ({
+      ttpId: s.tournamentTeamPlayer!.id,
+      ttpJersey: s.tournamentTeamPlayer!.jerseyNumber,
+      teamJersey: null as number | null, // 본 endpoint 는 team_members 미조회 — null fallback
+    }));
+  const jerseyMap = await resolveMatchJerseysBatch(matchIdBig, ttpEntries);
+
   // Flutter 앱 호환: nickname 키 자리에 실명 우선 표시값 채움 (response schema 동일)
-  const stats = statsRaw.map((s) => ({
-    ...s,
-    tournamentTeamPlayer: s.tournamentTeamPlayer
-      ? {
-          jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
-          position: s.tournamentTeamPlayer.position,
-          users: s.tournamentTeamPlayer.users
-            ? {
-                nickname: getDisplayName(
-                  s.tournamentTeamPlayer.users,
-                  {
-                    player_name: s.tournamentTeamPlayer.player_name,
-                    jerseyNumber: s.tournamentTeamPlayer.jerseyNumber,
-                  },
-                ),
-              }
-            : null,
-        }
-      : null,
-  }));
+  const stats = statsRaw.map((s) => {
+    // PR5: 매치 시점 정확값으로 치환 (없으면 ttp 영구값)
+    const resolvedJersey = s.tournamentTeamPlayer
+      ? jerseyMap.get(s.tournamentTeamPlayer.id) ?? s.tournamentTeamPlayer.jerseyNumber
+      : null;
+    return {
+      ...s,
+      tournamentTeamPlayer: s.tournamentTeamPlayer
+        ? {
+            jerseyNumber: resolvedJersey,
+            position: s.tournamentTeamPlayer.position,
+            users: s.tournamentTeamPlayer.users
+              ? {
+                  nickname: getDisplayName(
+                    s.tournamentTeamPlayer.users,
+                    {
+                      player_name: s.tournamentTeamPlayer.player_name,
+                      // 표시명 폴백에도 매치 시점 번호 사용 (운영자가 임시 번호 부여한 매치는 그 번호로 노출)
+                      jerseyNumber: resolvedJersey,
+                    },
+                  ),
+                }
+              : null,
+          }
+        : null,
+    };
+  });
 
   return apiSuccess(stats);
 }
