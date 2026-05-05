@@ -12,6 +12,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+// 모달화 — window.prompt() / window.alert() 제거 (모바일 디자인 일관성)
+import { ForceActionModal } from "./force-action-modal";
 
 interface GhostCandidate {
   memberId: string;
@@ -38,6 +40,21 @@ export function GhostCandidatesTab({ teamId }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null); // memberId
+  // 모달 상태 — window.prompt 대체. mode + target memberId/nickname 보관
+  const [modalState, setModalState] = useState<
+    | { open: false }
+    | {
+        open: true;
+        mode: "jersey" | "withdraw";
+        memberId: string;
+        memberLabel: string;
+      }
+  >({ open: false });
+  // 결과 안내용 toast (window.alert 대체) — 3초 후 자동 닫힘
+  const [toast, setToast] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // 후보 로드
   const loadCandidates = useCallback(async () => {
@@ -63,41 +80,70 @@ export function GhostCandidatesTab({ teamId }: Props) {
     loadCandidates();
   }, [loadCandidates]);
 
-  // 강제 jersey 변경 — 새 번호 prompt
-  // 이유: 별도 모달 만들지 않고 prompt 로 단순 입력 — 운영자만 사용하는 관리 도구
-  const handleForceJersey = async (memberId: string) => {
-    const newJerseyStr = window.prompt("새 등번호 (0~99, 빈 값=미배정):");
-    if (newJerseyStr === null) return; // 취소
-    let newJersey: number | null = null;
-    if (newJerseyStr.trim() !== "") {
-      const n = Number(newJerseyStr.trim());
-      if (!Number.isInteger(n) || n < 0 || n > 99) {
-        alert("0~99 사이 정수를 입력하세요.");
-        return;
-      }
-      newJersey = n;
-    }
-    const reason = window.prompt("사유 (선택):") ?? undefined;
+  // toast 자동 닫힘 (3초)
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
+  // 강제 jersey 변경 — 모달 열기 (window.prompt 대체)
+  const openJerseyModal = (memberId: string, nickname: string | null) => {
+    setModalState({
+      open: true,
+      mode: "jersey",
+      memberId,
+      memberLabel: nickname ?? "멤버",
+    });
+  };
+
+  // 강제 탈퇴 — 모달 열기 (window.prompt + window.confirm 대체)
+  const openWithdrawModal = (memberId: string, nickname: string | null) => {
+    setModalState({
+      open: true,
+      mode: "withdraw",
+      memberId,
+      memberLabel: nickname ?? "멤버",
+    });
+  };
+
+  // 모달에서 확정 — 실제 API 호출 (action 분기)
+  const handleModalConfirm = async (payload: {
+    newJersey?: number | null;
+    reason: string;
+  }) => {
+    if (!modalState.open) return;
+    const { memberId, mode } = modalState;
     setBusy(memberId);
     try {
+      const body =
+        mode === "jersey"
+          ? {
+              action: "force_jersey_change",
+              newJersey: payload.newJersey ?? null,
+              reason: payload.reason || undefined,
+            }
+          : {
+              action: "force_withdraw",
+              reason: payload.reason,
+            };
       const res = await fetch(
         `/api/web/teams/${teamId}/members/${memberId}/force-action`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "force_jersey_change",
-            newJersey,
-            reason,
-          }),
+          body: JSON.stringify(body),
         },
       );
       const json = await res.json();
       if (!json.success) {
-        alert(`실패: ${json.error ?? "알 수 없음"}`);
+        setToast({ text: `실패: ${json.error ?? "알 수 없음"}`, type: "error" });
       } else {
-        alert("강제 변경 완료");
+        setToast({
+          text: mode === "jersey" ? "강제 변경 완료" : "강제 탈퇴 완료",
+          type: "success",
+        });
+        setModalState({ open: false });
         loadCandidates();
       }
     } finally {
@@ -105,50 +151,14 @@ export function GhostCandidatesTab({ teamId }: Props) {
     }
   };
 
-  // 강제 탈퇴 — 사유 필수
-  const handleForceWithdraw = async (memberId: string, nickname: string | null) => {
-    const reason = window.prompt(
-      `[${nickname ?? "멤버"}] 강제 탈퇴 사유 (필수):`,
-    );
-    if (!reason || reason.trim().length < 1) return;
-    if (!window.confirm(`정말 "${nickname}" 강제 탈퇴 처리합니까? (이력은 보존)`))
-      return;
-
-    setBusy(memberId);
-    try {
-      const res = await fetch(
-        `/api/web/teams/${teamId}/members/${memberId}/force-action`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "force_withdraw",
-            reason: reason.trim(),
-          }),
-        },
-      );
-      const json = await res.json();
-      if (!json.success) {
-        alert(`실패: ${json.error ?? "알 수 없음"}`);
-      } else {
-        alert("강제 탈퇴 완료");
-        loadCandidates();
-      }
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  // 분류 해제 — UI 단에서만 처리 (서버에는 별도 dismiss 엔드포인트 없음 — 활동 추적이 자동 갱신)
-  // 단, 운영자가 "false positive" 수동 표시할 수 있도록 안내만 노출
+  // 분류 해제 — 단순 UI 단 처리. confirm 대신 즉시 적용 + toast 안내
+  // (운영자는 새로고침 / API 자동 sync 로 복원 가능. 비파괴 액션이므로 별도 모달 불요)
   const handleDismiss = (memberId: string) => {
-    if (
-      !window.confirm(
-        "분류 해제 — 본 멤버를 유령 후보에서 제외할까요? (UI 표시만 변경되며, 활동 시 자동 active 유지)",
-      )
-    )
-      return;
     setCandidates((prev) => prev.filter((c) => c.memberId !== memberId));
+    setToast({
+      text: "분류 해제됨 (활동 시 자동 active 유지)",
+      type: "success",
+    });
   };
 
   // 마지막 활동 표시 — null = "기록 없음"
@@ -215,7 +225,7 @@ export function GhostCandidatesTab({ teamId }: Props) {
             >
               {/* 멤버 표시 */}
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-bright)] text-xs font-bold text-[var(--color-accent)]">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-elevated)] text-xs font-bold text-[var(--color-accent)]">
                   {(c.user?.nickname ?? "?").charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
@@ -262,18 +272,18 @@ export function GhostCandidatesTab({ teamId }: Props) {
                 </span>
               </div>
 
-              {/* 액션 버튼들 */}
+              {/* 액션 버튼들 — 모달 트리거 (window.prompt 대체) */}
               <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
                 <button
-                  onClick={() => handleForceJersey(c.memberId)}
+                  onClick={() => openJerseyModal(c.memberId, c.user?.nickname ?? null)}
                   disabled={busy === c.memberId}
-                  className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-bright)] disabled:opacity-50"
+                  className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-[11px] font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-elevated)] disabled:opacity-50"
                 >
                   jersey 변경
                 </button>
                 <button
                   onClick={() =>
-                    handleForceWithdraw(c.memberId, c.user?.nickname ?? null)
+                    openWithdrawModal(c.memberId, c.user?.nickname ?? null)
                   }
                   disabled={busy === c.memberId}
                   className="rounded border border-[var(--color-error)] bg-[var(--color-error)] px-2 py-1 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-50"
@@ -290,6 +300,43 @@ export function GhostCandidatesTab({ teamId }: Props) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 강제 액션 모달 — window.prompt 대체 */}
+      <ForceActionModal
+        open={modalState.open}
+        mode={modalState.open ? modalState.mode : "jersey"}
+        memberLabel={modalState.open ? modalState.memberLabel : ""}
+        busy={busy !== null}
+        onClose={() => setModalState({ open: false })}
+        onConfirm={handleModalConfirm}
+      />
+
+      {/* 결과 안내 toast — window.alert 대체 (3초 자동 닫힘) */}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            bottom: 24,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1100,
+            padding: "10px 16px",
+            borderRadius: 6,
+            fontSize: 13,
+            maxWidth: "calc(100vw - 32px)",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            background:
+              toast.type === "success"
+                ? "color-mix(in srgb, var(--color-success) 90%, black)"
+                : "var(--color-error)",
+            color: "#fff",
+          }}
+        >
+          {toast.text}
         </div>
       )}
     </div>

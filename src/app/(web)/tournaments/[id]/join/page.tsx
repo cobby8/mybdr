@@ -1133,10 +1133,11 @@ export default function TournamentJoinPage() {
                   </div>
 
                   {/* 시안 2-column grid + 카드형 토글 — jersey/position 입력 UI 제거 (자동 sync) */}
+                  {/* 모바일 분기 — auto-fit minmax 으로 작은 화면 (iPhone SE 320px) 에서 자동 1column */}
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
                       gap: 8,
                     }}
                   >

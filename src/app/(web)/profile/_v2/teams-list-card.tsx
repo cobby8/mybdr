@@ -73,7 +73,8 @@ export function TeamsListCard({ teams }: Props) {
           const region = [t.city, t.district].filter(Boolean).join(" ") || "지역 미설정";
           // 로고 fallback 색상 — primaryColor 또는 accent
           const tagBg = t.primaryColor ?? "var(--accent)";
-          const tagInk = "var(--ink-on-accent, #fff)";
+          // 정의된 토큰 사용 — 미정의 --ink-on-accent 대신 --color-on-accent (#ffffff)
+          const tagInk = "var(--color-on-accent, #fff)";
 
           return (
             <li key={t.teamId}>

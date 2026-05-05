@@ -185,14 +185,16 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
       {menuOpen && !triggerDisabled && (
         <div
           role="menu"
-          // 메뉴는 버튼 우측 정렬 (본인 카드가 우상단에 위치하므로 right:0 으로 카드 안에서 표시)
+          // 메뉴는 버튼 우측 정렬 (본인 카드가 우상단에 위치하므로 right:0).
+          // 모바일 우측 카드에서 overflow 가능성 보완 — max-width: calc(100vw - 32px) 추가
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
             right: 0,
             minWidth: 140,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
+            maxWidth: "calc(100vw - 32px)",
+            background: "var(--color-card)",
+            border: "1px solid var(--color-border)",
             borderRadius: 6,
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             zIndex: 50,
@@ -237,7 +239,7 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
             type="button"
             role="menuitem"
             onClick={() => openModal("withdraw")}
-            style={{ ...menuItemStyle, color: "var(--danger)" }}
+            style={{ ...menuItemStyle, color: "var(--color-error)" }}
           >
             <span className="material-symbols-outlined" style={menuIconStyle}>
               logout
@@ -279,6 +281,7 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
   );
 }
 
+// 디자인 토큰 통일 — --color-* 호환 레이어 사용
 const menuItemStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -290,7 +293,7 @@ const menuItemStyle: React.CSSProperties = {
   background: "transparent",
   border: "none",
   cursor: "pointer",
-  color: "var(--ink)",
+  color: "var(--color-text-primary)",
 };
 
 const menuIconStyle: React.CSSProperties = {

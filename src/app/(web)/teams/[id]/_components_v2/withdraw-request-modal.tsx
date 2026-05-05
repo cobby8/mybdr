@@ -119,63 +119,66 @@ export function WithdrawRequestModal({ teamId, open, onClose, onSuccess }: Props
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "var(--surface)",
+          // 디자인 토큰 통일 — match-jersey-override-modal 패턴 (--color-* 호환 레이어)
+          background: "var(--color-card)",
           borderRadius: 8,
           padding: 20,
           maxWidth: 460,
           width: "100%",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--color-border)",
           maxHeight: "90vh",
           overflowY: "auto",
+          color: "var(--color-text-primary)",
         }}
       >
         <h2
           id="withdraw-request-modal-title"
-          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}
+          style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--color-text-primary)" }}
         >
           탈퇴 신청
         </h2>
-        <p style={{ fontSize: 12, color: "var(--ink-mute)", marginBottom: 12 }}>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12 }}>
           팀장 승인 후 팀 명단에서 제외됩니다.
         </p>
 
-        {/* 경고 박스 — danger 톤 */}
+        {/* 경고 박스 — danger 톤 (--color-error 사용) */}
         <div
           style={{
             fontSize: 12,
-            color: "var(--ink)",
+            color: "var(--color-text-primary)",
             marginBottom: 12,
             padding: "10px 12px",
-            background: "color-mix(in srgb, var(--danger) 8%, transparent)",
+            background: "color-mix(in srgb, var(--color-error) 8%, transparent)",
             borderRadius: 4,
-            borderLeft: "3px solid var(--danger)",
+            borderLeft: "3px solid var(--color-error)",
             lineHeight: 1.55,
           }}
         >
-          <strong style={{ color: "var(--danger)" }}>주의:</strong> 탈퇴 후 팀 활동 기록은
+          <strong style={{ color: "var(--color-error)" }}>주의:</strong> 탈퇴 후 팀 활동 기록은
           보존되지만 로스터/관리 권한에서 제외됩니다. 재가입은 별도 가입 신청이 필요합니다.
         </div>
 
-        {/* 사유 textarea — 필수 */}
+        {/* 사유 textarea — 필수 / placeholder 5단어 이내 + "예) " 제거 */}
         <label style={{ display: "block", marginBottom: 16 }}>
-          <span style={{ fontSize: 13, color: "var(--ink)", display: "block", marginBottom: 4 }}>
-            탈퇴 사유 <span style={{ color: "var(--danger)" }}>* (5자 이상 필수)</span>
+          <span style={{ fontSize: 13, color: "var(--color-text-primary)", display: "block", marginBottom: 4 }}>
+            탈퇴 사유 <span style={{ color: "var(--color-error)" }}>* (5자 이상 필수)</span>
           </span>
           <textarea
             maxLength={REASON_MAX}
             rows={4}
             value={reasonInput}
             onChange={(e) => setReasonInput(e.target.value)}
-            placeholder="예) 개인 사정으로 팀 활동을 중단합니다."
+            placeholder="개인 사정으로 활동 중단"
             disabled={loading}
             style={{
               width: "100%",
               padding: "8px 10px",
               borderRadius: 4,
-              border: "1px solid var(--border)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 13,
+              border: "1px solid var(--color-border)",
+              background: "var(--color-elevated)",
+              color: "var(--color-text-primary)",
+              // iOS 자동 줌 차단
+              fontSize: 16,
               resize: "vertical",
               fontFamily: "inherit",
             }}
@@ -183,7 +186,7 @@ export function WithdrawRequestModal({ teamId, open, onClose, onSuccess }: Props
           <span
             style={{
               fontSize: 11,
-              color: reasonLen < REASON_MIN ? "var(--danger)" : "var(--ink-mute)",
+              color: reasonLen < REASON_MIN ? "var(--color-error)" : "var(--color-text-muted)",
             }}
           >
             {reasonLen}/{REASON_MAX} (최소 {REASON_MIN}자)
@@ -195,7 +198,7 @@ export function WithdrawRequestModal({ teamId, open, onClose, onSuccess }: Props
             style={{
               fontSize: 12,
               marginBottom: 12,
-              color: message.type === "success" ? "var(--ok)" : "var(--danger)",
+              color: message.type === "success" ? "var(--color-success)" : "var(--color-error)",
             }}
           >
             {message.text}
@@ -219,9 +222,9 @@ export function WithdrawRequestModal({ teamId, open, onClose, onSuccess }: Props
             className="btn"
             style={{
               minWidth: 100,
-              background: "var(--danger)",
+              background: "var(--color-error)",
               color: "#fff",
-              borderColor: "var(--danger)",
+              borderColor: "var(--color-error)",
               opacity: loading || reasonLen < REASON_MIN ? 0.6 : 1,
             }}
           >

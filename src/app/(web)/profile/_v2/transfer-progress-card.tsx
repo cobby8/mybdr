@@ -83,9 +83,10 @@ export function TransferProgressCard() {
         const fromName = t.fromTeam?.name ?? "현 팀";
         const toName = t.toTeam?.name ?? "새 팀";
         // 사이드별 라벨 + 색상 (pending=대기 / approved=승인됨 / rejected=거부)
+        // fallback hex 동기화 — globals.css 토큰값과 일치 (--ok=#1CA05E, --danger=#E24C4B)
         function statusInfo(s: string): { label: string; color: string } {
-          if (s === "approved") return { label: "승인", color: "var(--ok, #16a34a)" };
-          if (s === "rejected") return { label: "거부", color: "var(--danger, #dc2626)" };
+          if (s === "approved") return { label: "승인", color: "var(--ok, #1CA05E)" };
+          if (s === "rejected") return { label: "거부", color: "var(--danger, #E24C4B)" };
           return { label: "대기", color: "var(--ink-mute, #888)" };
         }
         const fromInfo = statusInfo(t.fromTeamStatus);
@@ -97,7 +98,8 @@ export function TransferProgressCard() {
             style={{
               padding: "10px 12px",
               borderRadius: 6,
-              background: "var(--surface-2, var(--bg))",
+              // --surface-2 미정의 fix → --bg-alt (정의됨, 카드 내부 row 톤)
+              background: "var(--bg-alt, var(--bg))",
               border: "1px solid var(--border)",
               marginBottom: 8,
             }}
