@@ -65,6 +65,9 @@ export default function MemberPendingBadge({ teamId }: Props) {
 }
 
 async function fetchPending(teamId: string): Promise<Pending> {
+  // 이유(왜): apiSuccess 는 응답 키를 자동 snake_case 변환 (lib/api/response.ts).
+  //   따라서 envelope = { transfer_requests / requests } 직접, payload 내부도 snake_case.
+  //   재발 6회 박제 — errors.md 참조.
   try {
     // 이적 신청 우선 — 가장 큰 액션
     const transferRes = await fetch(`/api/web/transfer-requests?status=pending`, {
@@ -72,18 +75,18 @@ async function fetchPending(teamId: string): Promise<Pending> {
     });
     if (transferRes.ok) {
       const j = await transferRes.json();
-      const list = (j?.data?.requests ?? []) as Array<{
-        fromTeamId: string;
-        toTeamId: string;
-        toTeam?: { name?: string } | null;
+      const list = (j?.transfer_requests ?? []) as Array<{
+        from_team_id: string;
+        to_team_id: string;
+        to_team?: { name?: string | null } | null;
       }>;
       const t = list.find(
-        (r) => String(r.fromTeamId) === teamId || String(r.toTeamId) === teamId,
+        (r) => String(r.from_team_id) === teamId || String(r.to_team_id) === teamId,
       );
       if (t) {
         return {
           kind: "transfer",
-          toTeamName: t.toTeam?.name ?? null,
+          toTeamName: t.to_team?.name ?? null,
         };
       }
     }
@@ -95,21 +98,22 @@ async function fetchPending(teamId: string): Promise<Pending> {
     );
     if (!memberRes.ok) return { kind: "none" };
     const memberJson = await memberRes.json();
-    const list = (memberJson?.data?.requests ?? []) as Array<{
-      requestType: string;
+    const list = (memberJson?.requests ?? []) as Array<{
+      request_type: string;
       payload: unknown;
     }>;
     if (list.length === 0) return { kind: "none" };
     const first = list[0];
-    if (first.requestType === "jersey_change") {
-      const p = first.payload as { newJersey?: number } | null;
+    if (first.request_type === "jersey_change") {
+      // payload 내부 키도 snake_case 변환됨 (재귀 변환)
+      const p = first.payload as { new_jersey?: number } | null;
       return {
         kind: "jersey_change",
-        newJersey: typeof p?.newJersey === "number" ? p.newJersey : null,
+        newJersey: typeof p?.new_jersey === "number" ? p.new_jersey : null,
       };
     }
-    if (first.requestType === "dormant") return { kind: "dormant" };
-    if (first.requestType === "withdraw") return { kind: "withdraw" };
+    if (first.request_type === "dormant") return { kind: "dormant" };
+    if (first.request_type === "withdraw") return { kind: "withdraw" };
     return { kind: "none" };
   } catch {
     return { kind: "none" };
