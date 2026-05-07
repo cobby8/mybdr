@@ -18,6 +18,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import useSWR from "swr";
 
 import { EnrollStepper, type StepDef } from "./_v2/enroll-stepper";
 import { EnrollAside } from "./_v2/enroll-aside";
@@ -150,6 +151,19 @@ export default function TournamentJoinPage() {
     waiting_number: number | null;
     message: string;
   } | null>(null);
+
+  // 5/7 PR1.5.b — 본인인증 사전 redirect
+  //   페이지 진입 즉시 me fetch + 미인증이면 onboarding/identity 로 redirect.
+  //   이유(왜): 폼을 다 작성한 후 submit 시점에 차단되면 UX 나쁨. 진입 단계에서 차단.
+  const { data: me } = useSWR<{ id?: string; name_verified?: boolean } | null>(
+    "/api/web/me",
+    { dedupingInterval: 30000 },
+  );
+  useEffect(() => {
+    if (me && me.id && me.name_verified === false) {
+      router.push(`/onboarding/identity?returnTo=/tournaments/${id}/join`);
+    }
+  }, [me, router, id]);
 
   // 데이터 로드 — 기존과 동일
   useEffect(() => {

@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
+
+// 5/7 PR1.5.b — 본인인증 사전 안내 (신청 전 onboarding 우선 redirect)
+interface MeForVerify {
+  id?: string;
+  name_verified?: boolean;
+}
 
 /**
  * TeamMatchRequestModalV2
@@ -66,9 +73,21 @@ export function TeamMatchRequestModalV2({
     };
   }, [open]);
 
+  // 5/7 PR1.5.b — me 조회로 본인인증 판정
+  const { data: me } = useSWR<MeForVerify | null>(
+    isLoggedIn ? "/api/web/me" : null,
+    { dedupingInterval: 30000 },
+  );
+  const needsIdentity = isLoggedIn && me?.id && me.name_verified === false;
+
   function openModal() {
     if (!isLoggedIn) {
       router.push(`/login?returnTo=/teams/${toTeamId}`);
+      return;
+    }
+    // 5/7 PR1.5.b — 본인인증 안 됐으면 onboarding 으로
+    if (needsIdentity) {
+      router.push(`/onboarding/identity?returnTo=/teams/${toTeamId}`);
       return;
     }
     setError(null);

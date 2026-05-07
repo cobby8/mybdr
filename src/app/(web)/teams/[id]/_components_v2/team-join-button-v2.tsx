@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
+
+// 5/7 PR1.5.b — 본인인증 사전 안내. me API 응답에서 name_verified 만 판정에 사용.
+//   글로벌 SWR fetcher (swr-provider.tsx) 위임 → ProfileCtaCard 와 캐시 entry 공유.
+interface MeForVerify {
+  id?: string;
+  name_verified?: boolean;
+}
 
 /**
  * TeamJoinButtonV2
@@ -39,6 +47,14 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
   const [pending, setPending] = useState(hasPendingRequest);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
+  // 5/7 PR1.5.b — me 조회 (글로벌 fetcher). 비로그인 시 fetch 안 함.
+  const { data: me } = useSWR<MeForVerify | null>(
+    isLoggedIn ? "/api/web/me" : null,
+    { dedupingInterval: 30000 },
+  );
+  // 미인증 판정 — me 도착 후 false 명시일 때만. 도착 전엔 일반 진행 (서버 게이트가 최종 차단).
+  const needsIdentity = isLoggedIn && me?.id && me.name_verified === false;
+
   // 모달 상태
   const [modalOpen, setModalOpen] = useState(false);
   const [jerseyInput, setJerseyInput] = useState<string>(""); // string 으로 다뤄 빈값/문자 안전
@@ -50,6 +66,11 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
   async function openModal() {
     if (!isLoggedIn) {
       router.push(`/login?returnTo=/teams/${teamId}`);
+      return;
+    }
+    // 5/7 PR1.5.b — 본인인증 미완료 시 onboarding 으로. 신청 후 서버 403 보다 빠른 UX.
+    if (needsIdentity) {
+      router.push(`/onboarding/identity?returnTo=/teams/${teamId}`);
       return;
     }
     setModalOpen(true);
@@ -175,6 +196,7 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
   }
 
   // 활성 상태: primary CTA (시안의 "게스트 지원" 시각 위치)
+  // 5/7 PR1.5.b: 미인증 시 라벨 + 안내 — 클릭하면 onboarding 으로 redirect (openModal 내부 분기)
   return (
     <div>
       <button
@@ -189,8 +211,13 @@ export function TeamJoinButtonV2({ teamId, isLoggedIn, hasPendingRequest }: Prop
           cursor: loading ? "wait" : "pointer",
         }}
       >
-        팀 가입 신청
+        {needsIdentity ? "본인인증 후 신청 가능 →" : "팀 가입 신청"}
       </button>
+      {needsIdentity && (
+        <p style={{ fontSize: 11, color: "var(--ink-mute)", margin: "0 0 8px" }}>
+          본인인증을 완료하면 가입 신청을 할 수 있어요.
+        </p>
+      )}
       {message && !modalOpen && (
         <p
           style={{
