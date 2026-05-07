@@ -2,6 +2,36 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-07] 한글 IME composition 중 Enter → submit 함정 (한글 입력 끊김 / 빈 메시지 전송)
+- **분류**: error/ui (i18n / 한글 IME)
+- **발견자**: pm + 사용자 ("한글 입력이 자꾸 안되는 경우가 생긴다")
+- **증상**: 쪽지/검색/폼 input 에서 한글 마지막 글자 composition 중 Enter 누르면 (1) 마지막 한글 잘림 (2) 빈 메시지/검색어 submit (3) 한글 입력 자체가 사라지는 것처럼 느껴짐. 영문은 정상 — 한글/일본어/중국어 IME 만 발생.
+- **본질**: 한글 IME 의 마지막 글자 confirm 용 Enter 와 submit Enter 가 React `onKeyDown` 의 `e.key === "Enter"` 로 둘 다 잡힘. 첫 Enter (composition confirm) 에서 `preventDefault()` + submit() 호출 → 한글이 confirm 되지 않은 상태로 전송 + composition 강제 종료.
+- **해결 패턴**: 모든 Enter→action 패턴에 IME composition 가드 추가
+  ```tsx
+  onKeyDown={(e) => {
+    // 한글 IME composition 중 Enter = 한글 confirm 용 → submit 차단
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  }}
+  ```
+- **재발 방지 (필수 룰)**:
+  1. **모든 controlled input/textarea 의 `onKeyDown` Enter 처리에 `e.nativeEvent.isComposing` 가드 의무** — 이메일/숫자 input 도 일관성 위해 적용
+  2. **테스트 시 한글 입력 케이스 필수** — 영문만 테스트하면 사일런트 함정
+  3. 신규 폼 input 작성 시 conventions.md "한글 IME 가드 룰" 참조
+- **본 사례 fix (commit 다음)**: 10 개소 일괄 fix
+  - `messages/page.tsx` 쪽지 textarea (Enter 전송) ⭐ 사용자 영향 최대
+  - `community/new` 이미지 URL input
+  - `referee/admin/pools` + `announcements` 대회 검색 input
+  - `tournament-admin/organizations/[orgId]` 시리즈 이름 input
+  - `tournament-admin/recorders/admins/members` 이메일 input 3건 (defensive)
+  - `admin/users/admin-users-table` jersey 숫자 input (defensive)
+  - `profile/edit` 비밀번호 input (defensive)
+- **참조횟수**: 0
+
 ### [2026-05-05] 마이페이지 등번호 입력 = `user.default_jersey_number` 만 저장 (team/대회 미동기화) — 사용자 인지 mismatch 버그
 - **분류**: error/ux + data-sync (사용자 시점 vs 시스템 동작 mismatch)
 - **발견자**: pm + 사용자 (이도균 출전 명단 누락 사례)

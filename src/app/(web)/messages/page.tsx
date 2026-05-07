@@ -526,6 +526,9 @@ function MessagesPageInner() {
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
+                  // 한글 IME composition 중 Enter = 한글 confirm 용 → submit 차단
+                  // (재발 패턴 박제 — errors.md 2026-05-07)
+                  if (e.nativeEvent.isComposing) return;
                   // Enter: 전송 / Shift+Enter: 줄바꿈
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
