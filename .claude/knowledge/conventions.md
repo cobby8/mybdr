@@ -1,6 +1,30 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-07] 한글 IME 가드 룰 — Enter 처리 input/textarea 의무 패턴
+- **분류**: convention/i18n (한글 입력 함정 영구 차단)
+- **발견자**: pm + 사용자 ("한글 입력이 자꾸 안되는 경우")
+- **룰**: 모든 controlled input/textarea 의 `onKeyDown` 에서 Enter 키로 action/submit 호출하는 경우 **반드시** `e.nativeEvent.isComposing` 가드를 첫 줄에 추가.
+- **표준 패턴**:
+  ```tsx
+  onKeyDown={(e) => {
+    if (e.nativeEvent.isComposing) return; // 한글 IME composition 중 Enter = confirm 용
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submit();
+    }
+  }}
+  ```
+- **이유**: 한글/일본어/중국어 IME 마지막 글자 confirm Enter 와 submit Enter 가 React `e.key === "Enter"` 로 모두 잡힘. 가드 없으면 (1) 마지막 한글 잘림 (2) 빈 입력 submit (3) 한글 입력이 사라지는 것처럼 보임. 영문만 테스트하면 사일런트 함정.
+- **적용 범위**:
+  - 한글 입력 가능 input/textarea: **의무**
+  - 이메일/숫자/URL 등 한글 무관 input: **defensive (일관성)** — 적용 권장
+  - 외부 컴포넌트 (Toss-Card 등 onClick 트리거): 영향 없음 — 적용 불필요
+- **테스트 의무**: 신규 폼 input 추가 시 한글 입력 + 마지막 글자 Enter 케이스 1회 검증.
+- **errors.md 박제**: [2026-05-07] 한글 IME composition 중 Enter 함정.
+- **본 룰 적용 commit (10 개소 일괄)**: messages/community/referee admin/tournament-admin/profile/edit/admin-users-table.
+- **참조횟수**: 0
+
 ### [2026-05-05] 토큰 효율 룰 — agent prompt 분량 명시 + 보고서 diff-only 응답 + 결정 3건 분리
 - **분류**: convention/efficiency (토큰 효율 / 응답 품질 영향 0 검증됨)
 - **발견자**: pm + 사용자 (jersey 도메인 재설계 turn 회고)

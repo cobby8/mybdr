@@ -144,7 +144,10 @@ export default function OrganizationMembersPage() {
             onChange={(e) => setInviteEmail(e.target.value)}
             placeholder="이메일 주소"
             className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-            onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") handleInvite();
+            }}
           />
           <select
             value={inviteRole}

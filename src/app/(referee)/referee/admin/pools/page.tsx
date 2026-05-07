@@ -255,6 +255,8 @@ export default function AdminPoolsPage() {
             value={tSearch}
             onChange={(e) => setTSearch(e.target.value)}
             onKeyDown={(e) => {
+              // 한글 IME composition 중 Enter 차단
+              if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") {
                 e.preventDefault();
                 searchTournaments(tSearch);

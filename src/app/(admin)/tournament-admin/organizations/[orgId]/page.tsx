@@ -285,7 +285,11 @@ export default function OrganizationDashboardPage() {
               onChange={(e) => setCreatingSeriesName(e.target.value)}
               placeholder="시리즈 이름"
               className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-              onKeyDown={(e) => e.key === "Enter" && handleCreateSeries()}
+              onKeyDown={(e) => {
+                // 한글 IME composition 중 Enter 차단
+                if (e.nativeEvent.isComposing) return;
+                if (e.key === "Enter") handleCreateSeries();
+              }}
             />
             <button
               onClick={handleCreateSeries}

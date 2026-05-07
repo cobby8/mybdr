@@ -760,6 +760,8 @@ function TournamentRow({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
+              // 한글 IME composition 중 Enter 차단 (defensive — 본 input 은 숫자 전용이지만 패턴 일관성)
+              if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") handleSave();
               else if (e.key === "Escape") {
                 setEditing(false);

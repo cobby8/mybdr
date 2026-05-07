@@ -1675,6 +1675,8 @@ export default function ProfileEditPage() {
               placeholder="현재 비밀번호"
               autoComplete="current-password"
               onKeyDown={(e) => {
+                // 한글 IME composition 중 Enter 차단 (defensive)
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") handleWithdraw();
               }}
             />
