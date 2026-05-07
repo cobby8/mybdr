@@ -31,6 +31,8 @@ const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000;
 interface MeResponse {
   id?: string;
   profile_completed?: boolean;
+  // 5/7 PR1.2 — 본인인증 여부 (onboarding 1/10 우선 분기)
+  name_verified?: boolean;
 }
 
 // 2026-05-05 fix (옵션 A-4): 자체 fetcher 제거 → 글로벌 SWR fetcher 위임.
@@ -74,6 +76,11 @@ export function ProfileCtaCard() {
   if (!me || !me.id || dismissed) return null;
   if (me.profile_completed === true) return null;
 
+  // 5/7 PR1.2 — 본인인증 우선 분기
+  // name_verified=false 면 onboarding 1/10 본인인증부터 시작 (대회 출전 게이트 의무).
+  // 본인인증 완료 후 자동으로 기존 "프로필 완성하기" 안내로 전환.
+  const needsIdentity = me.name_verified === false;
+
   // 닫기 — 현재 시각 저장 → 7일 재노출 억제
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
@@ -97,7 +104,7 @@ export function ProfileCtaCard() {
         flexWrap: "wrap",
       }}
     >
-      {/* 좌측 아이콘 — Material Symbols Outlined edit_note (lucide-react 금지 룰 준수) */}
+      {/* 좌측 아이콘 — needsIdentity = verified_user / 일반 = edit_note */}
       <div
         style={{
           width: 48,
@@ -113,7 +120,7 @@ export function ProfileCtaCard() {
           className="material-symbols-outlined"
           style={{ fontSize: 28, color: "#fff" }}
         >
-          edit_note
+          {needsIdentity ? "verified_user" : "edit_note"}
         </span>
       </div>
 
@@ -128,7 +135,7 @@ export function ProfileCtaCard() {
             letterSpacing: "-0.01em",
           }}
         >
-          프로필 완성하기
+          {needsIdentity ? "본인인증부터 시작하세요" : "프로필 완성하기"}
         </div>
         <div
           style={{
@@ -137,13 +144,15 @@ export function ProfileCtaCard() {
             lineHeight: 1.5,
           }}
         >
-          포지션·지역·실력을 설정하면 맞춤 추천을 드려요
+          {needsIdentity
+            ? "대회 출전 · 팀 활동에는 실명 인증이 필요해요"
+            : "포지션·지역·실력을 설정하면 맞춤 추천을 드려요"}
         </div>
       </div>
 
-      {/* 완성하러 가기 버튼 — /profile/edit Link (BDR-current 라우트) */}
+      {/* CTA 버튼 — needsIdentity = onboarding/identity / 일반 = profile/edit */}
       <Link
-        href="/profile/edit"
+        href={needsIdentity ? "/onboarding/identity" : "/profile/edit"}
         className="btn btn--primary"
         style={{
           flexShrink: 0,
@@ -152,7 +161,7 @@ export function ProfileCtaCard() {
           padding: "8px 16px",
         }}
       >
-        완성하러 가기
+        {needsIdentity ? "본인인증 →" : "완성하러 가기"}
       </Link>
 
       {/* 닫기 X 버튼 — 우상단 absolute (시안 패턴) */}
