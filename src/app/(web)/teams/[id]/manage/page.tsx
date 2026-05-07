@@ -12,6 +12,9 @@ import { OfficerPermissionsTab } from "./_components/officer-permissions-tab";
 import { GhostCandidatesTab } from "./_components/ghost-candidates-tab";
 // Phase 5 PR16 — 탈퇴 멤버 이력 탭 (captain only — 명단 완전 삭제 가능)
 import { WithdrawnMembersSection } from "./_components/withdrawn-members-section";
+// 5/7: apiSuccess 자동 snake_case 변환 → 클라 camelCase 가정 충돌 해결.
+//   재발 9회 (errors.md [2026-04-17] 박제). 본 manage 페이지 fetchMember/Transfer 도 동일 패턴 fix.
+import { convertKeysToCamelCase } from "@/lib/utils/case";
 
 // ─────────────────────────────────────────────────
 // 타입 정의
@@ -414,10 +417,15 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         return;
       }
       if (!res.ok) throw new Error("조회 실패");
-      const data = await res.json();
-      // apiSuccess envelope: { data: { requests, canSeeAll } }
-      const list = (data?.data?.requests ?? data?.requests ?? []) as MemberRequestRow[];
-      const canSeeAll = data?.data?.canSeeAll ?? data?.canSeeAll ?? false;
+      // 5/7 fix (재발 9회): apiSuccess 자동 snake_case 변환 → can_see_all / payload.new_jersey 등.
+      //   convertKeysToCamelCase 로 역변환 → 기존 row 처리 코드 (camelCase) 그대로 작동.
+      const raw = await res.json();
+      const data = convertKeysToCamelCase(raw) as {
+        requests?: MemberRequestRow[];
+        canSeeAll?: boolean;
+      } | null;
+      const list = (data?.requests ?? []) as MemberRequestRow[];
+      const canSeeAll = data?.canSeeAll ?? false;
       // canSeeAll=false 면 본인 신청만 응답 — 일반 멤버 시야이므로 빈 처리
       setMemberRequests(canSeeAll ? list : []);
     } catch {
@@ -480,8 +488,12 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
         return;
       }
       if (!res.ok) throw new Error("조회 실패");
-      const data = await res.json();
-      const list = (data?.data?.transferRequests ?? []) as TransferRequestRow[];
+      // 5/7 fix (재발 9회): apiSuccess 자동 snake_case → camelCase 역변환.
+      const raw = await res.json();
+      const data = convertKeysToCamelCase(raw) as {
+        transferRequests?: TransferRequestRow[];
+      } | null;
+      const list = (data?.transferRequests ?? []) as TransferRequestRow[];
       setTransferRequests(list);
     } catch {
       setTransferReqError("이적 신청 목록을 불러오지 못했습니다.");
