@@ -52,7 +52,7 @@ export default async function OnboardingBasketballPage() {
     redirect("/onboarding/environment");
   }
 
-  // 본 단계 (3단계) 핵심 3종 모두 입력됨 → 완료, 홈으로
+  // 본 단계 (3단계) 핵심 3종 모두 입력됨 → 4~10 선택 단계 통합 페이지로
   // (선출 여부는 선택 항목 — 핵심 검증에 포함 X)
   const hasCore =
     !!(u.position && u.position.trim()) &&
@@ -60,7 +60,7 @@ export default async function OnboardingBasketballPage() {
     u.height > 0 &&
     !!(u.skill_level && u.skill_level.trim());
   if (hasCore) {
-    redirect("/");
+    redirect("/onboarding/preferences");
   }
 
   return (
