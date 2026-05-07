@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
+import { useEffect, useState, useCallback, use, useRef } from "react";
 import Link from "next/link";
 // useSearchParams: 팀 가입 신청 알림(`/teams/:id/manage?tab=requests`) 클릭 시
 // 곧바로 "가입 신청" 탭으로 진입시키기 위해 초기 탭을 쿼리에서 결정
@@ -544,6 +544,43 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
   useEffect(() => { fetchMemberRequests(); }, [fetchMemberRequests]);
   // 2026-05-05 Phase 3 PR10+PR11 — 이적 신청도 첫 마운트 시 1회 로드 (변경 요청 탭 카운트 합산)
   useEffect(() => { fetchTransferRequests(); }, [fetchTransferRequests]);
+
+  // 2026-05-07 — 알림 deep-link: ?req=N (member request) / ?transfer=N (transfer request)
+  // 이유(왜): 팀장이 알림 클릭으로 진입 시 해당 신청 row 를 자동 scroll + 펄스 highlight.
+  //   기존엔 통합 탭에 다건 표시되어 어떤 신청인지 직접 찾아야 했다.
+  const memberRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const transferRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const reqIdParam = searchParams.get("req");
+  const transferIdParam = searchParams.get("transfer");
+
+  // member request highlight — 데이터 로드 + 탭 진입 후 발동
+  useEffect(() => {
+    if (memberReqLoading || !reqIdParam || tab !== "member-requests") return;
+    const target = memberRowRefs.current[reqIdParam];
+    if (!target) return;
+    // 약간의 delay — 탭 전환 시 layout 안정화
+    const timer = setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("row-highlight");
+      // 2초 후 제거 (CSS animation 자동 종료지만 class 도 정리)
+      setTimeout(() => target.classList.remove("row-highlight"), 2200);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [memberReqLoading, reqIdParam, tab]);
+
+  // transfer request highlight — 동일 패턴
+  useEffect(() => {
+    if (transferReqLoading || !transferIdParam || tab !== "member-requests") return;
+    const target = transferRowRefs.current[transferIdParam];
+    if (!target) return;
+    const timer = setTimeout(() => {
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("row-highlight");
+      setTimeout(() => target.classList.remove("row-highlight"), 2200);
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [transferReqLoading, transferIdParam, tab]);
+
   useEffect(() => {
     // settings 또는 matches 탭 진입 시 teamData 로드.
     // 이유(왜): matches 탭의 수락/거절 버튼 노출 분기는 is_captain 에 의존 — 미로드 시 항상 비활성화로 보여
@@ -1372,7 +1409,11 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
             }
 
             return (
-              <div key={req.id} className="rounded-lg bg-[var(--color-card)] p-5">
+              <div
+                key={req.id}
+                ref={(el) => { memberRowRefs.current[req.id] = el; }}
+                className="rounded-lg bg-[var(--color-card)] p-5"
+              >
                 {/* 시안 톤: 48px 아이콘박스 / 1fr 정보 / 우측 액션 */}
                 <div className="mb-3 grid items-center gap-3.5" style={{ gridTemplateColumns: "48px 1fr auto" }}>
                   <div
@@ -1523,7 +1564,11 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                 });
 
                 return (
-                  <div key={row.id} className="rounded-lg bg-[var(--color-card)] p-5">
+                  <div
+                    key={row.id}
+                    ref={(el) => { transferRowRefs.current[row.id] = el; }}
+                    className="rounded-lg bg-[var(--color-card)] p-5"
+                  >
                     <div
                       className="mb-3 grid items-center gap-3.5"
                       style={{ gridTemplateColumns: "48px 1fr auto" }}
