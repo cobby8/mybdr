@@ -89,4 +89,7 @@
     font-size: 10px;
   }
   .nav-badge--live {
-    font-size: 8p
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+}
