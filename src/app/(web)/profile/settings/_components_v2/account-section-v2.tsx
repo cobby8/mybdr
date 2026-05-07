@@ -19,10 +19,10 @@
  *  - 미구현: 2단계 인증 / 로그인 기기 / 활동 로그 → disabled "준비 중"
  * ============================================================ */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SettingsHeader, SettingsRow } from "./settings-ui";
-// 본인인증 버튼 — profile 섹션 삭제로 인해 account 섹션으로 이전
-import { IdentityVerifyButton } from "@/components/identity/identity-verify-button";
+// 5/7: IdentityVerifyButton 직접 사용 제거 — onboarding/identity 페이지 단일 진입점으로 통합
 
 // 부모(page.tsx)에서 내려받는 user 정보. ProfileFormUser 와 동일 구조 일부.
 interface AccountUser {
@@ -34,11 +34,11 @@ interface AccountUser {
 
 interface Props {
   user: AccountUser | null;
-  // 본인인증 완료 시 부모 user state 갱신용 (선택). 헤더 등 공유 데이터 동기화.
-  onIdentityVerified?: (data: { name: string; name_verified: boolean }) => void;
+  // 5/7 PR1.3: onIdentityVerified prop 제거 — settings 는 인증 직접 처리 X.
+  //   /onboarding/identity 페이지 단일 진입점으로 통합. 인증 후 페이지 자체 redirect 로 user state 갱신.
 }
 
-export function AccountSectionV2({ user, onIdentityVerified }: Props) {
+export function AccountSectionV2({ user }: Props) {
   const router = useRouter();
 
   // 비밀번호 변경 — 기존 reset-password 플로우로 이동
@@ -72,9 +72,11 @@ export function AccountSectionV2({ user, onIdentityVerified }: Props) {
         onAction={onChangePassword}
       />
 
-      {/* 본인인증 — profile 섹션 삭제로 인해 account 섹션으로 이전 (B3-fallback).
-          IdentityVerifyButton 자체가 인증완료 시 배지로, 미인증 시 버튼으로 자체 분기.
-          향후 PortOne 본인인증 페이지 신설 시 이 자리 재배치 또는 진입점 변경 예정. */}
+      {/* 본인인증 — 5/7 PR1.3: IdentityVerifyButton 모달 직접 사용 제거.
+          단일 진입점 = /onboarding/identity 페이지 (PR1.1). settings 는 상태 표시 + 진입 링크만.
+          이유: (1) 본인인증 modal 이 두 곳에서 마운트되면 흐름 분기 → 회귀 위험.
+                (2) onboarding 시스템 도입 후 모든 사용자 동일 흐름 보장.
+                (3) 인증 완료 후 재인증/변경 시나리오 X (한 번만 인증 가능). */}
       <div
         style={{
           display: "flex",
@@ -92,19 +94,46 @@ export function AccountSectionV2({ user, onIdentityVerified }: Props) {
           >
             {user?.name_verified
               ? `실명 인증 완료${user?.name ? ` · ${user.name}` : ""}`
-              : "본인인증 후 실명이 자동 입력됩니다"}
+              : "대회 출전 · 팀 활동에는 본인인증이 필요합니다"}
           </div>
         </div>
-        <IdentityVerifyButton
-          initialVerified={!!user?.name_verified}
-          onVerified={(data) => {
-            // 부모 user state 갱신 — 헤더 등 공유 데이터 동기화
-            onIdentityVerified?.({
-              name: data.verified_name,
-              name_verified: true,
-            });
-          }}
-        />
+        {user?.name_verified ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              color: "var(--ok)",
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              verified
+            </span>
+            인증완료
+          </span>
+        ) : (
+          <Link
+            href="/onboarding/identity"
+            className="btn"
+            style={{
+              padding: "6px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+              background: "var(--cafe-blue)",
+              color: "var(--bg)",
+              border: "1px solid var(--cafe-blue)",
+              borderRadius: 4,
+              flexShrink: 0,
+              textDecoration: "none",
+            }}
+          >
+            본인인증 →
+          </Link>
+        )}
       </div>
 
       {/* 2단계 인증 — 추후 구현 */}
