@@ -80,14 +80,15 @@ export function TeamsListCard({ teams }: Props) {
             <li
               key={t.teamId}
               style={{
+                // 5/7: 한 줄 정렬 — flexWrap 제거 (정보 ellipsis 로 좁은 viewport 대응).
+                //      dropdown 잘림 방지 위해 overflow: hidden 추가하지 않음 (5/6 회귀 차단).
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
+                gap: 8,
                 padding: "10px 12px",
                 background: "var(--bg-alt, var(--bg))",
                 borderRadius: 8,
                 border: "1px solid var(--color-border, var(--line))",
-                flexWrap: "wrap",
               }}
             >
               {/* 좌측: 로고 + 정보 (Link — 팀 페이지 이동 — 클릭 영역) */}
@@ -99,8 +100,9 @@ export function TeamsListCard({ teams }: Props) {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
+                  // 5/7: minWidth 200 → 0 (좁은 viewport 에서 정보 ellipsis 로 압축, 우측 액션 한 줄 유지)
                   flex: 1,
-                  minWidth: 200,
+                  minWidth: 0,
                 }}
               >
                 {t.logoUrl ? (
@@ -183,12 +185,13 @@ export function TeamsListCard({ teams }: Props) {
               </Link>
 
               {/* 우측: 액션 영역 (활동 관리 dropdown + 팀페이지 버튼 + pending 뱃지) */}
+              {/* 5/7: flexWrap 제거 + flexShrink: 0 — 한 줄 유지, 좌측 정보가 압축됨 */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
+                  gap: 6,
+                  flexShrink: 0,
                 }}
               >
                 <MemberPendingBadge teamId={t.teamId} />
