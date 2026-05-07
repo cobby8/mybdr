@@ -21,7 +21,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--color-accent, #E31B23);
+  background: var(--accent);
   margin-left: 6px;
   vertical-align: super;
 }
@@ -32,7 +32,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 50%;
-  background: var(--color-accent, #E31B23);
+  background: var(--accent);
   color: #fff;
   font-size: 11px;
   line-height: 1;
@@ -43,7 +43,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-accent, #E31B23);
+  background: var(--accent);
   color: #fff;
   font-size: 10px;
   line-height: 1;
@@ -53,7 +53,7 @@
 .nav-badge--live {
   padding: 1px 6px;
   border-radius: 9999px; /* 정사각형 X — 텍스트라 alignment 우선 */
-  background: #16a34a; /* green-600 */
+  background: var(--ok);
   color: #fff;
   font-size: 9px;
   line-height: 1.4;
@@ -61,14 +61,15 @@
 }
 
 @keyframes nav-badge-live-pulse {
+  /* 2026-05-07: rgba(22,163,74) green-600 → rgba(28,160,94) = var(--ok) #1CA05E 정합 */
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+    box-shadow: 0 0 0 0 rgba(28, 160, 94, 0.6);
   }
   50% {
     opacity: 0.85;
-    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
+    box-shadow: 0 0 0 4px rgba(28, 160, 94, 0);
   }
 }
 
@@ -88,7 +89,4 @@
     font-size: 10px;
   }
   .nav-badge--live {
-    font-size: 8px;
-    padding: 1px 4px;
-  }
-}
+    font-size: 8p

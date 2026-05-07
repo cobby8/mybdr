@@ -1566,6 +1566,71 @@ html.dark .hero-carousel__accent {
 .text-center { text-align: center; }
 
 /* ============================================================
+   AppDrawer 글로벌 룰 (Phase A.5 §11 — PC drawer 깨짐 fix, 2026-05-07)
+
+   왜: 더보기 (9번째 메인 탭) 클릭 시 drawer 가 PC + 모바일 동일하게 토글.
+       이전엔 .drawer / .drawer-backdrop / .drawer__* 룰이 @media (max-width: 720px)
+       안에만 있어서 PC viewport 에서 unstyled stacked list 로 노출 (Phase 19 frozen
+       룰 위반). 본 글로벌 영역 룰로 PC/모바일 모두 정상 노출.
+
+   width: min(320px, 42vw) — PC 1440 = 320px / 모바일 440 = 185px / min-width 220px
+   ============================================================ */
+
+.drawer-backdrop {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(8,10,14,.55); backdrop-filter: blur(2px);
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 91;
+  width: min(320px, 42vw);
+  min-width: 220px;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 40px rgba(0,0,0,.25);
+  display: flex; flex-direction: column;
+  animation: drawerIn .22s ease-out;
+}
+[data-theme="dark"] .drawer, html.dark .drawer { border-left: 2px solid var(--border-hard); }
+@keyframes drawerIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+.drawer__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.drawer__head-title {
+  font-family: var(--ff-display); font-weight: 900;
+  font-size: 18px; letter-spacing: -0.01em;
+}
+.drawer__head-title .dot { color: var(--accent); }
+.drawer__close {
+  background: transparent; border: 0; font-size: 22px; line-height: 1;
+  color: var(--ink-mute); cursor: pointer; padding: 4px 8px;
+}
+.drawer__body { flex: 1; overflow: auto; padding: 8px 0; }
+.drawer__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 16px; font-size: 15px; line-height: 1.4; color: var(--ink);
+  background: transparent; border: 0; width: 100%; text-align: left;
+  cursor: pointer; font-weight: 600;
+}
+.drawer__item:hover, .drawer__item:focus { background: var(--bg-alt); }
+.drawer__item[data-active="true"] {
+  color: var(--cafe-blue-deep); background: var(--cafe-blue-soft);
+}
+[data-theme="dark"] .drawer__item, html.dark .drawer__item {
+  font-family: var(--ff-display); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; font-size: 14px;
+}
+[data-theme="dark"] .drawer__item[data-active="true"],
+html.dark .drawer__item[data-active="true"] {
+  color: var(--ink); background: transparent; box-shadow: inset 3px 0 0 var(--accent);
+}
+.drawer__divider { height: 1px; background: var(--border); margin: 8px 0; }
+.drawer__foot {
+  padding: 14px 16px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* ============================================================
    BDR v2 Responsive (Dev/design/BDR v2/responsive.css 통합)
    Breakpoint: 720px (phone) · 900px handled inline (with-aside)
    ============================================================ */
@@ -2929,108 +2994,4 @@ html.dark {
 }
 .data-table__empty {
   padding: 32px 16px;
-  text-align: center;
-  color: var(--color-text-muted, var(--ink-dim));
-  font-size: 14px;
-  border: 1px solid var(--color-border, var(--border));
-  border-radius: 10px;
-  background: var(--color-bg-elev1, var(--bg-elev));
-}
-
-/* G-1 모바일 카드형 (≤720px) — admin-table 와 동일 패턴 */
-@media (max-width: 720px) {
-  .data-table__head {
-    display: none !important;
-  }
-  .data-table__row {
-    display: block !important;
-    padding: 14px 16px;
-  }
-  .data-table__row > span {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    width: 100% !important;
-    padding: 4px 0 !important;
-    text-align: right !important;
-    font-size: 13px !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-  }
-  .data-table__row > span[data-label]::before {
-    content: attr(data-label);
-    flex: 0 0 auto;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-text-muted, var(--ink-dim));
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-right: 12px;
-    text-align: left;
-  }
-  .data-table__row > span[data-primary="true"] {
-    display: block !important;
-    text-align: left !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    padding: 2px 0 8px !important;
-    margin-bottom: 4px !important;
-    border-bottom: 1px dashed var(--color-border, var(--border)) !important;
-  }
-  .data-table__row > span[data-primary="true"]::before {
-    display: none !important;
-  }
-}
-
-/* ────────────────────────────────────────────────────
-   Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 표시 클래스
-   이유: match_code 형식 `26-GG-MD21-001` 14자 영숫자 → 모바일 360px viewport 한 줄 안전.
-   가독성을 위해 mono 폰트 + tabular-nums + tracking-wide.
-   토큰만 (var(--*)) — 13룰 준수.
-   사용처: live/hero-scoreboard / bracket/match-card / tournaments/schedule-timeline 등
-   ──────────────────────────────────────────────────── */
-.match-code {
-  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  letter-spacing: 0.05em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* 라이브 헤더용 — 어두운 그라디언트 배경에 대비 (모바일 11px 살짝 큼) */
-.match-code--hero {
-  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.75);
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  padding: 3px 8px;
-}
-
-/* ============================================================
- * 2026-05-04: admin/news 본문 2컬럼 grid (list + 미리보기)
- *
- * Tailwind v4 의 lg:grid 클래스 + 임의값 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] 가
- * 빌드에서 인식 안 되는 이슈 보고 (사용자 5/4) → globals.css 명시 미디어쿼리로 해결.
- *
- * 모바일 (<1024px): flex column stack
- * 데스크톱 (≥1024px): grid 2컬럼 (1fr : 1.5fr 비율)
- * ============================================================ */
-.admin-news-body-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-@media (min-width: 1024px) {
-  .admin-news-body-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
-    gap: 1rem;
-  }
-}
+  text-
