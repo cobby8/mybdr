@@ -47,6 +47,8 @@ export async function GET() {
         position: true,
         height: true,
         profile_completed: true,
+        // 5/7 PR1.2 — 본인인증 여부 (onboarding 1/10). ProfileCtaCard 분기에서 사용.
+        name_verified: true,
         preferred_divisions: true,
         preferred_regions: true,
         preferred_days: true,
@@ -125,6 +127,8 @@ export async function GET() {
     position: user?.position ?? null,
     height: user?.height ?? null,
     profile_completed: user?.profile_completed ?? false,
+    // 5/7 PR1.2 — 본인인증 여부
+    name_verified: user?.name_verified ?? false,
     preferred_divisions: (user?.preferred_divisions as unknown) ?? [],
     preferred_regions: (user?.preferred_regions as unknown) ?? [],
     preferred_days: (user?.preferred_days as unknown) ?? [],
