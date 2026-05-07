@@ -5,6 +5,8 @@ import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { mergeTempMember } from "@/lib/teams/merge-temp-member";
+// 5/7 PR1.5 — 본인인증 게이트
+import { requireIdentityVerified } from "@/lib/auth/require-identity-verified";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -19,6 +21,10 @@ const JoinBodySchema = z.object({
 
 export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
   const { id } = await routeCtx.params;
+
+  // 5/7 PR1.5 — 본인인증 필수 게이트 (옵션 C)
+  const identityGuard = await requireIdentityVerified(ctx.userId);
+  if (identityGuard instanceof Response) return identityGuard;
 
   try {
     const teamId = BigInt(id);

@@ -7,6 +7,8 @@ import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // 2026-05-05 Phase 5 PR14 — 활동 추적 (대회 출전 = 활동 5종 중 #2)
 import { trackTeamMemberActivity } from "@/lib/team-members/track-activity";
+// 5/7 PR1.5 — 본인인증 게이트 (옵션 C 핵심 액션 시점 차단)
+import { requireIdentityVerified } from "@/lib/auth/require-identity-verified";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -153,6 +155,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const user = await getWebUser();
   if (!user) return apiError("로그인이 필요합니다.", 401);
+
+  // 5/7 PR1.5 — 본인인증 필수 게이트 (옵션 C: 핵심 액션 시점 차단)
+  const identityGuard = await requireIdentityVerified(user.userId);
+  if (identityGuard instanceof Response) return identityGuard;
 
   // 대회 존재 및 접수 상태 확인
   const tournament = await prisma.tournament.findUnique({
