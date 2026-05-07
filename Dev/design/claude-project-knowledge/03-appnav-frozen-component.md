@@ -5,7 +5,7 @@
 
 ---
 
-## 🔒 보존 룰 (사용자 결정 §1)
+## 🔒 보존 룰 (사용자 결정 §1) — Phase 19 갱신 (2026-05-07)
 
 다음 7 규칙 모두 준수:
 
@@ -13,17 +13,44 @@
 |---|-----|---------|
 | 1 | 9 메인 탭 = 홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/더보기 | tabs 배열 8개 + 마지막 더보기 = 9 |
 | 2 | utility bar 우측 (계정/설정/로그아웃) **모바일에서도 표시** | `.util-left` 모바일 hidden / 우측 그대로 |
-| 3 | main bar 우측 = 검색/알림/다크/햄버거(모바일) **만** | 더보기 dropdown trigger / 아바타 추가 X |
+| 3 | main bar 우측 = 검색/**쪽지**/알림/다크/햄버거(모바일) **5개만** | 더보기 dropdown trigger / 아바타 추가 X |
 | 4 | 다크모드 — PC 듀얼 라벨 / **모바일 단일 아이콘** | ThemeSwitch 가 viewport 분기 |
-| 5 | 검색/알림 = `app-nav__icon-btn` 클래스 (아이콘만) | border / 배경 박스 X |
+| 5 | 검색/쪽지/알림 = `app-nav__icon-btn` 클래스 (아이콘만) | border / 배경 박스 X |
 | 6 | 모바일 닉네임 hidden | `hidden sm:inline` 또는 미디어 쿼리 |
-| 7 | 더보기 = 마지막 9번째 탭 (햄버거 클릭 시 5그룹 패널) | `.app-nav__more` 또는 drawer 안 |
+| 7 | 더보기 = 마지막 9번째 탭 (클릭 시 drawer 토글 — PC/모바일 동일) | dropdown 패널 X. drawer 안 5그룹 IA |
+
+### 🆕 Phase 19 추가 룰 (2026-05-04 ~ 05-07)
+
+| # | 룰 | 검증 방법 |
+|---|-----|---------|
+| 8 | **utility bar 좌측 = BDR 로고 이미지** (`/images/logo.png`, height 18px) | 텍스트 "MyBDR 커뮤니티" 사용 X — 이미지 |
+| 9 | 메인 바 로고 = `MyBDR.` 텍스트만 (`.dot` = `--accent`) | utility 좌측 이미지와 분리 / 중복 X |
+| 10 | 햄버거 R3 강조 = `<NavBadge variant="dot" />` (newGameCount/newCommunityCount/unreadCount 합 > 0 시) | drawer 게이트웨이 강조 |
+| 11 | 메인 탭 NEW 뱃지 = 경기 (`newGameCount`) + 커뮤니티 (`newCommunityCount`) 24h 내 신규 카운트 | `<NavBadge variant="new" />` 사용 |
+| 12 | 알림 빨간 점 = `unreadCount > 0` 시 `.app-nav__notif-dot` (CSS 점) | 로그인 시에만 노출 |
+| 13 | 쪽지 아이콘 = 로그인 시에만 / `mail_outline` Material Symbol / 빨간 점은 후속 (messages unread API 미연동) | 비로그인 hidden |
 
 ---
 
-## 1. JSX 코드 (시안용)
+## 1. JSX 코드 (시안용 — Phase 19 frozen)
 
 > 시안 작업 시 `components.jsx` 의 AppNav 를 다음 코드로 사용. 변경 X.
+> 운영 코드는 `src/components/bdr-v2/app-nav.tsx` (TypeScript + Next.js Link) — 시안과 props 다름.
+
+### 1-A. 운영 props (TypeScript)
+
+```ts
+interface AppNavProps {
+  user: AppNavUser | null;        // 로그인 사용자 (null = 비로그인)
+  unreadCount: number;             // 알림 미확인 수 (빨간 점 트리거)
+  newGameCount?: number;           // 24h 내 신규 매치 수 (경기 탭 NEW)
+  newCommunityCount?: number;      // 24h 내 신규 글 수 (커뮤니티 탭 NEW)
+}
+```
+
+→ 시안 (JSX) 은 props 없는 mock 형태로 둠. 운영 코드에서 위 props 가 자동 주입.
+
+### 1-B. JSX 시안 코드
 
 ```jsx
 function AppNav({ route, setRoute, theme, setTheme }) {
@@ -59,8 +86,12 @@ function AppNav({ route, setRoute, theme, setTheme }) {
       {/* utility bar — 상단 파란 띠 */}
       <div className="app-nav__utility">
         <div className="app-nav__utility-inner">
-          {/* 좌측 그룹 — 모바일 hidden (.util-left) */}
-          <span className="util-left">MyBDR 커뮤니티</span>
+          {/* 좌측 그룹 — 모바일 hidden (.util-left)
+              [2026-05-02 변경] BDR 로고 이미지 (height 18px) — 텍스트 "MyBDR 커뮤니티" 사용 X.
+              메인 바 로고 (텍스트 'MyBDR.') 와 분리되어 utility 띠 좌측 = 이미지 / 메인 바 = 텍스트. */}
+          <a href="#" className="app-nav__utility-logo" onClick={(e)=>{e.preventDefault();setRoute('home');}} aria-label="MyBDR 홈">
+            <img src="/images/logo.png" alt="MyBDR" style={{height: 18, width: 'auto'}}/>
+          </a>
           <span className="sep util-left"/>
           <a href="#" className="util-left" onClick={(e)=>{e.preventDefault();setRoute('about');}}>소개</a>
           <span className="sep util-left"/>
@@ -77,10 +108,10 @@ function AppNav({ route, setRoute, theme, setTheme }) {
         </div>
       </div>
 
-      {/* main bar — 로고 + 9 탭 + 우측 컨트롤 */}
+      {/* main bar — 로고 (텍스트만) + 9 탭 + 우측 컨트롤 */}
       <div className="app-nav__main">
+        {/* [2026-05-02 변경] 메인 바 로고 = 텍스트 'MyBDR.' 만 (이미지는 utility bar 좌측으로 이동) */}
         <a href="#" className="app-nav__logo" onClick={(e)=>{e.preventDefault();setRoute('home');}}>
-          <img src="assets/bdr-logo.png" alt=""/>
           <span>MyBDR<span className="dot">.</span></span>
         </a>
 
@@ -120,11 +151,13 @@ function AppNav({ route, setRoute, theme, setTheme }) {
             <span className="app-nav__notif-dot"/>
           </button>
 
-          {/* 햄버거 — 모바일 only */}
-          <button className="app-nav__burger" aria-label="메뉴" onClick={()=>setDrawerOpen(true)}>
+          {/* 햄버거 — 모바일 only / R3 강조 (Phase 19): drawer 안 신규 컨텐츠 (경기 NEW + 커뮤니티 NEW + 알림) 있을 때 빨간 점 dot 노출 */}
+          <button className="app-nav__burger" aria-label="메뉴" onClick={()=>setDrawerOpen(true)} style={{position:'relative'}}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               <path d="M3 7h18M3 12h18M3 17h18"/>
             </svg>
+            {/* (newGameCount + newCommunityCount + unreadCount) > 0 시 NavBadge variant="dot" — drawer 게이트웨이 강조 */}
+            <NavBadge variant="dot"/>
           </button>
 
           {/* ❌ 절대 추가 금지 (사용자 결정 §1-3):
@@ -341,8 +374,71 @@ const moreGroups = [
 
 ---
 
-## 7. 출처
+## 7. NavBadge 컴포넌트 (Phase 19 표준)
+
+> 햄버거 R3 강조 + 메인 탭 NEW 카운트에 사용. 시안 박제 시 본 컴포넌트 카피.
+
+### 7-1. 변형 (variant)
+
+| variant | 시각 | 용도 |
+|---------|------|------|
+| `dot` | 빨간 점 (8×8, `border-radius: 50%`) | 햄버거 R3 강조 / 단순 신규 표시 |
+| `count` | 숫자 + 빨간 배경 pill | 알림 미확인 수 (예: `3`, `99+`) |
+| `new` | "NEW" 흰 텍스트 + 빨간 배경 | 메인 탭 24h 신규 카운트 (경기/커뮤니티) |
+| `live` | "LIVE" 흰 텍스트 + 펄스 애니메이션 | 실시간 진행 중 (홈 카드 / hero) |
+
+### 7-2. 위치
+
+```css
+.nav-badge--dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);  /* var(--color-accent, #E31B23) fallback 폐기 — 신규 시안은 --accent 직접 사용 */
+}
+```
+
+### 7-3. 신규 시안 사용 예 (햄버거)
+
+```jsx
+<button className="app-nav__burger" style={{position: 'relative'}}>
+  {/* 햄버거 SVG */}
+  {(newGameCount > 0 || newCommunityCount > 0 || unreadCount > 0) && (
+    <NavBadge variant="dot"/>
+  )}
+</button>
+```
+
+---
+
+## 8. LogoutLink (utility bar 로그아웃 전용 helper)
+
+> utility bar 의 "로그아웃" 링크는 일반 `<a>` 가 아니라 `POST /api/web/logout` 호출 후 `/login` 리다이렉트.
+> ProfileDropdown 의 handleLogout 과 동일 API. 시안에서는 단순 a 태그로 두고, 운영 코드는 `LogoutLink` helper 사용.
+
+```tsx
+function LogoutLink() {
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await fetch("/api/web/logout", { method: "POST", credentials: "include" });
+    } catch { /* 네트워크 실패해도 /login 으로 이동 */ }
+    window.location.href = "/login";
+  };
+  return <a href="/login" onClick={handleLogout}>로그아웃</a>;
+}
+```
+
+---
+
+## 9. 출처
 
 - 사용자 결정: `01-user-design-decisions.md` §1
-- 사이트 적용 코드: `src/components/bdr-v2/app-nav.tsx` (TypeScript, Next.js)
-- 시안 베이스: `Dev/design/BDR v2.2/components.jsx` (위반 5건 수정 후 frozen)
+- 사이트 적용 코드: `src/components/bdr-v2/app-nav.tsx` (TypeScript, Next.js — **source of truth**)
+- 시안 베이스: `Dev/design/BDR-current/components.jsx` (활성 시안 — 항상 최신)
+- NavBadge 운영: `src/components/bdr-v2/nav-badge.tsx` + `nav-badge.css`
+- 더보기 5그룹: `src/components/bdr-v2/more-groups.ts` (Phase 19 갱신 — 30 → 15 항목 슬림화)
+- AppDrawer: `src/components/bdr-v2/app-drawer.tsx` (모바일 + 더보기 5그룹 통합)

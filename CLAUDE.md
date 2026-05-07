@@ -109,6 +109,39 @@ Dev/design/
 
 → 위반 자동 reject: `BDR v2.3/` `BDR v2.4/` 직접 참조하는 프롬프트는 `BDR-current/` 로 치환.
 
+### 🔄 운영 → 시안 동기화 룰 (2026-05-07 신규 — 재발 방지)
+
+**룰**: 운영 src/ UI 변경 = BDR-current/ 같이 갱신 (역방향 박제). 갭 발생 시 클로드 디자인이 stale baseline 위에서 작업하게 됨.
+
+**언제 트리거**:
+1. **시각 패턴 변경** — 새 카드 / 모달 / 컴포넌트 / 뱃지 / 레이아웃 / 색상 룰
+2. **AppNav / Drawer 변경** — frozen 룰 영향
+3. **공유 컴포넌트 추가** — NavBadge / PasswordInput / ForceActionModal 같은 표준 컴포넌트
+4. **사용자 직접 UI 수정 commit** — `fix(ui)` / `feat(ui)` 류
+5. **사용자 결정 §1~§8 재확인 또는 갱신** — 01-user-design-decisions.md 영향
+
+**동기화 단계**:
+1. 운영 src/ 변경 commit 후 → BDR-current/ 영향 검토
+2. 영향 있으면 BDR-current/components.jsx (또는 screens/X.jsx, tokens.css) 같이 갱신
+3. 같은 commit 또는 별도 commit `design(sync): 운영 X 시안 박제` 형식
+4. 02-design-system-tokens.md / 03-appnav-frozen-component.md 영향 시 같이 갱신
+
+**갭 검증 명령** (분기별 또는 새 Phase 진입 전):
+```bash
+# BDR-current/ 마지막 commit
+git log -1 --format="%ai" -- Dev/design/BDR-current/
+
+# 운영 src/ UI commit (BDR-current 마지막 이후)
+git log --since="<above-date>" --oneline -- "src/components/" "src/app/(web)/" | grep -iE "ui|design|nav|badge|hero|card|modal|drawer|dropdown"
+
+# 결과가 비어있어야 stale 0
+```
+
+**위반 사례 (2026-05-07 발견)**:
+- BDR-current/ 5/1 stop / 운영 5/3~5/6 변경 10건 미반영 → Phase A 클로드 디자인이 stale 베이스 위에서 작업 → Phase A.5 역박제 의뢰 발생 (`bdr 디자인 시스템 관리/prompts/phase-A5-reverse-sync.md`)
+
+→ **현재 Phase A.5 후속**: 본 룰 적용 — 운영 src/ UI 변경 시 BDR-current/ 같이 갱신.
+
 ## 🎨 디자인 작업 시 (Cowork Project Knowledge — 매 세션 자동 적용)
 
 **모든 디자인 시안 / 박제 작업은 다음 패키지를 첫 번째로 읽고 시작**:
