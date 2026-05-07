@@ -1160,6 +1160,28 @@ export default function ProfileEditPage() {
           </p>
         </header>
 
+        {/* 5/7 PR5 — Onboarding 통합 안내 */}
+        <div
+          style={{
+            background: "var(--cafe-blue-soft)",
+            border: "1px solid var(--cafe-blue-hair)",
+            color: "var(--cafe-blue-deep)",
+            padding: "10px 12px",
+            borderRadius: 6,
+            fontSize: 12,
+            lineHeight: 1.5,
+            marginBottom: 16,
+          }}
+        >
+          💡 가입 직후 <a
+            href="/onboarding/identity"
+            style={{ color: "inherit", textDecoration: "underline", fontWeight: 600 }}
+          >
+            온보딩 흐름
+          </a>
+          에서도 동일한 정보를 빠르게 입력할 수 있습니다. 여기서는 언제든 자유롭게 수정 가능합니다.
+        </div>
+
         {/* 활동 지역 — 17 시도 멀티 토글 (F3 핵심) */}
         <div className="edit-profile__field" style={{ marginBottom: 20 }}>
           <div className="edit-profile__field-head">
