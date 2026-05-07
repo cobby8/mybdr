@@ -65,8 +65,8 @@ export function BasketballStep({
         setSubmitting(false);
         return;
       }
-      // 마지막 필수 단계 — 홈으로 (PR4 후 /onboarding/done 으로 변경 예정)
-      router.push("/");
+      // 5/7 PR4: 필수 단계 완료 → 선택 단계 통합 페이지 (preferences) 진입
+      router.push("/onboarding/preferences");
       router.refresh();
     } catch {
       setError("네트워크 오류가 발생했습니다.");
