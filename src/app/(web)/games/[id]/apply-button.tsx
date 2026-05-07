@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
 import { ProfileIncompleteModal } from "./_modals/profile-incomplete-modal";
 
@@ -10,6 +11,12 @@ interface GameApplyButtonProps {
   profileCompleted: boolean;
   missingFields: string[];
   gameStatus: number;
+}
+
+// 5/7 PR1.5.b — 본인인증 사전 안내
+interface MeForVerify {
+  id?: string;
+  name_verified?: boolean;
 }
 
 export function GameApplyButton({
@@ -27,6 +34,12 @@ export function GameApplyButton({
   } | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  // 5/7 PR1.5.b — me 조회 (본인인증 판정)
+  const { data: me } = useSWR<MeForVerify | null>("/api/web/me", {
+    dedupingInterval: 30000,
+  });
+  const needsIdentity = me?.id && me.name_verified === false;
+
   // 모집중(1)이 아니면 버튼 비활성화
   if (gameStatus !== 1) {
     const labels: Record<number, string> = {
@@ -43,6 +56,11 @@ export function GameApplyButton({
   }
 
   async function handleApply() {
+    // 5/7 PR1.5.b — 본인인증 우선 차단 (서버 403 보다 빠른 UX)
+    if (needsIdentity) {
+      router.push(`/onboarding/identity?returnTo=/games/${gameId}`);
+      return;
+    }
     // missingFields 기반 실시간 판단 (DB profile_completed 컬럼이 갱신 안 될 수 있음)
     if (missingFields.length > 0) {
       setShowModal(true);
@@ -91,7 +109,13 @@ export function GameApplyButton({
           </p>
         )}
         <Button variant={applied ? "secondary" : "cta"} className="w-full text-lg py-3 border-2 border-[var(--color-accent)] rounded-lg" onClick={handleApply} disabled={loading || applied}>
-          {loading ? "신청 중..." : applied ? "✅ 신청 완료" : "🏀 참가 신청"}
+          {loading
+            ? "신청 중..."
+            : applied
+            ? "✅ 신청 완료"
+            : needsIdentity
+            ? "본인인증 후 신청 가능 →"
+            : "🏀 참가 신청"}
         </Button>
       </div>
     </>
