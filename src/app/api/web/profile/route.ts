@@ -90,6 +90,8 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       is_elite,
       // 계좌 필드 (account_consent 필수)
       bank_name, bank_code, account_number, account_holder, account_consent,
+      // 5/7 PR4: onboarding 단계 진행 표시 (preferences 페이지 통과 시 10 마킹)
+      onboarding_step,
     } = body;
 
     // T2-04: 닉네임 길이 검증 (2~20자)
@@ -192,8 +194,22 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
         preferred_regions: true,
         skill_level: true,
         preferred_game_types: true,
+        // 5/7 PR4: onboarding 첫 완료 시 점수 부여 판정용
+        onboarding_step: true,
       },
     });
+
+    // 5/7 PR4 — onboarding 점수 시스템
+    // 본 PATCH 로 onboarding_step 이 처음 10 에 도달하면 xp +100 부여 (1회성).
+    // 이유: 사용자에게 단계 완료 보상 + 게이미피케이션 진입.
+    const newStep =
+      typeof onboarding_step === "number" &&
+      onboarding_step >= 0 &&
+      onboarding_step <= 10
+        ? onboarding_step
+        : null;
+    const isOnboardingFirstComplete =
+      newStep === 10 && (existing?.onboarding_step ?? 0) < 10;
     // 머지 후 핵심 5필드 검증
     const mergedPosition = position !== undefined ? (position as string || null) : existing?.position ?? null;
     const mergedHeight = height !== undefined ? (height ? Number(height) : null) : existing?.height ?? null;
@@ -262,6 +278,10 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }),
       // F5 profile_completed 자동 갱신 — 핵심 5필드 머지 후 boolean 계산값
       profile_completed: profileCompleted,
+      // 5/7 PR4: onboarding_step 단조 증가 (감소 차단 — 음수/잘못된 값은 무시)
+      ...(newStep !== null ? { onboarding_step: newStep } : {}),
+      // 5/7 PR4: onboarding 첫 완료 시 xp +100 (점수 시스템 진입점)
+      ...(isOnboardingFirstComplete ? { xp: { increment: 100 } } : {}),
       ...bankUpdate,
     });
 
