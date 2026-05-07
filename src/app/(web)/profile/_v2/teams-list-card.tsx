@@ -184,8 +184,9 @@ export function TeamsListCard({ teams }: Props) {
                 )}
               </Link>
 
-              {/* 우측: 액션 영역 (활동 관리 dropdown + 팀페이지 버튼 + pending 뱃지) */}
-              {/* 5/7: flexWrap 제거 + flexShrink: 0 — 한 줄 유지, 좌측 정보가 압축됨 */}
+              {/* 우측: 액션 영역 (뱃지/활동관리 세로 stack + 팀페이지) */}
+              {/* 5/7 v2: 뱃지(현재 상태) 와 활동관리 dropdown 을 위아래로 배치 →
+                          우측 가로 폭 절감 → 좌측 팀명 생략(...) 방지. */}
               <div
                 style={{
                   display: "flex",
@@ -194,12 +195,23 @@ export function TeamsListCard({ teams }: Props) {
                   flexShrink: 0,
                 }}
               >
-                <MemberPendingBadge teamId={t.teamId} />
-                <MemberActionsMenu
-                  teamId={t.teamId}
-                  teamName={t.teamName}
-                  currentJersey={t.jerseyNumber}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 4,
+                    // 뱃지 줄바꿈 차단 (badge--soft 가 길어도 1줄)
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <MemberPendingBadge teamId={t.teamId} />
+                  <MemberActionsMenu
+                    teamId={t.teamId}
+                    teamName={t.teamName}
+                    currentJersey={t.jerseyNumber}
+                  />
+                </div>
                 <Link
                   href={`/teams/${t.teamId}`}
                   className="btn btn--sm"
