@@ -165,17 +165,8 @@ export default function ProfileSettingsPage() {
     };
   }, []);
 
-  // 본인인증 완료 후 user state 갱신 (헤더/공유 데이터 동기화)
-  const handleIdentityVerified = useCallback(
-    (data: { name: string; name_verified: boolean }) => {
-      setUser((prev) =>
-        prev
-          ? { ...prev, name: data.name, name_verified: data.name_verified }
-          : prev,
-      );
-    },
-    [],
-  );
+  // 5/7 PR1.3: handleIdentityVerified 제거 — settings 가 더 이상 본인인증 직접 처리 X.
+  // 인증은 /onboarding/identity 단일 진입점에서만 이루어짐 (다른 페이지로 redirect 후 재로드).
 
   return (
     <div className="page" style={{ minHeight: "100vh" }}>
@@ -233,10 +224,7 @@ export default function ProfileSettingsPage() {
             {/* 비활성 섹션은 mount 안 함 → 불필요한 fetch/렌더 회피 */}
             {activeSection === "account" && (
               // user 가 아직 도착 안 했으면 자리 표시
-              <AccountSectionV2
-                user={loaded ? user : null}
-                onIdentityVerified={handleIdentityVerified}
-              />
+              <AccountSectionV2 user={loaded ? user : null} />
             )}
             {activeSection === "feed" && <FeedSectionV2 />}
             {activeSection === "notify" && <NotifySectionV2 />}
