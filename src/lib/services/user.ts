@@ -43,12 +43,9 @@ export const PROFILE_DETAIL_SELECT = {
   // 2026-05-01: 선출 여부 (대회 출전 차단 검증 대상)
   // 2026-05-05 PR1: default_jersey_number 제거 — team_members.jersey_number 단일 source 일원화
   is_elite: true,
-  // Phase 12-5 회귀 방지 (2026-04-30): name_verified/verified_at 는
-  // 운영 DB Phase 12 SQL 적용 후에 다시 추가. 현재는 운영 DB 컬럼 X →
-  // SELECT 시 prisma 에러 → "Internal error" 회귀 발생함.
-  // TODO Phase 12 운영 적용 후 select에 다시 추가.
-  // name_verified: true,
-  // verified_at: true,
+  // 5/7: 운영 DB 에 name_verified 컬럼 적용됨 (me API 에서 정상 SELECT 중) — 활성화.
+  //   profile/edit 의 verified 필드 잠금 분기에서 사용.
+  name_verified: true,
   // 2026-05-02: D-6 EditProfile §2 / §3 / §4 박제 활성화 (사용자 옵션 B)
   dominant_hand: true,
   skill_level: true,

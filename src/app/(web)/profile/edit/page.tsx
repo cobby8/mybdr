@@ -101,6 +101,8 @@ interface ProfileEditData {
   // 2026-05-01: 선출 여부 (대회 출전 시 필수 차단 검증 대상)
   // 2026-05-05 PR1 정리: 등번호는 team_members.jersey_number 단일 source 로 일원화 → user.default_jersey_number 제거
   is_elite: boolean | null;
+  // 5/7: 본인인증 완료 여부 (verified_name/birth/phone 잠금 판정용)
+  name_verified?: boolean | null;
   bank_name: string | null;
   bank_code: string | null;
   account_number_masked: string | null;
@@ -161,9 +163,12 @@ export default function ProfileEditPage() {
   const [error, setError] = useState("");
   // 2026-05-02: 카메라 버튼 dropdown 메뉴 toggle (사진 변경 / 사진 제거)
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
-  // 2026-05-02: 프로필 편집 진입 안전 장치 — confirm 모달 (Phase 1, 추후 PortOne 본인인증 교체)
-  // null = sessionStorage 검사 중 / false = 모달 노출 / true = 폼 노출
-  const [unlocked, setUnlocked] = useState<boolean | null>(null);
+  // 5/7: 본인인증 완료 여부 — 이름/생년월일/휴대폰 input 잠금 판정.
+  //   인증 후 변경하려면 PortOne 재인증 또는 관리자 문의 (PR4 후속에서 정책 결정).
+  const [nameVerified, setNameVerified] = useState(false);
+  // 5/7: profile/edit 진입 임시 본인확인 confirm 모달 제거.
+  //   이유: 본인인증은 /onboarding/identity 단일 진입점으로 통합 (PR1.3).
+  //         핵심 액션은 서버 게이트 (PR1.5.a) 로 차단. profile/edit 자체 confirm 은 중복.
   const [successMsg, setSuccessMsg] = useState("");
   const [saved, setSaved] = useState(false); // 시안 ✓ 저장됨 표시
 
@@ -269,6 +274,8 @@ export default function ProfileEditPage() {
           instagram_url: u.instagram_url ?? "",
           youtube_url: u.youtube_url ?? "",
         });
+        // 5/7: 본인인증 완료 시 이름/생년월일/휴대폰 input 잠금
+        setNameVerified(!!u.name_verified);
         // 2026-05-02: §2 플레이 정보 (사용손/실력/강점) state 초기화
         if (u.dominant_hand === "L" || u.dominant_hand === "R" || u.dominant_hand === "B") {
           setHand(u.dominant_hand);
@@ -586,113 +593,12 @@ export default function ProfileEditPage() {
     }
   };
 
-  // 2026-05-02: 프로필 편집 진입 안전 장치 — sessionStorage TTL 30분
-  // PortOne 본인인증 도입 전 임시 confirm 모달. 같은 세션 내 재진입은 묻지 않음.
-  const UNLOCK_KEY = "profile-edit-unlock-ts";
-  const UNLOCK_TTL_MS = 30 * 60 * 1000; // 30분
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const ts = sessionStorage.getItem(UNLOCK_KEY);
-      if (ts && Date.now() - parseInt(ts, 10) < UNLOCK_TTL_MS) {
-        setUnlocked(true);
-      } else {
-        setUnlocked(false);
-      }
-    } catch {
-      setUnlocked(false);
-    }
-  }, []);
+  // 5/7: 프로필 편집 진입 임시 confirm 모달 제거 (PortOne 도입 전 임시 안전장치였음).
+  //   이유: 본인인증 단일 진입점 = /onboarding/identity. 핵심 액션 서버 게이트 = PR1.5.a.
+  //         profile/edit 자체 confirm 은 (1) 단일 진입점 정책 위반 (2) 사용자 마찰 (3) 보안 효과 미미.
+  //         관련 unlocked state / sessionStorage / handleUnlock 모두 제거.
 
-  const handleUnlock = () => {
-    try {
-      sessionStorage.setItem(UNLOCK_KEY, String(Date.now()));
-    } catch {
-      // sessionStorage 막혀도 unlock 자체는 진행 (현 세션 메모리만 유지)
-    }
-    setUnlocked(true);
-  };
-
-  // unlocked 검사 중 — 짧은 로딩
-  if (unlocked === null) {
-    return (
-      <div className="page">
-        <div
-          className="flex min-h-[60vh] items-center justify-center"
-          style={{ color: "var(--ink-mute)" }}
-        >
-          <p>확인 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // unlocked === false → confirm 모달 (전체 화면)
-  if (unlocked === false) {
-    return (
-      <div className="page">
-        <div
-          className="flex min-h-[60vh] items-center justify-center"
-          style={{ padding: "0 16px" }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="프로필 편집 본인 확인"
-            className="card"
-            style={{ maxWidth: 420, width: "100%", padding: 28, textAlign: "center" }}
-          >
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: "50%",
-                background: "var(--bg-alt)",
-                margin: "0 auto 16px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--cafe-blue)",
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 28 }}>shield_person</span>
-            </div>
-            <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>
-              본인 확인이 필요합니다
-            </h2>
-            <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.6 }}>
-              프로필 편집은 개인정보 수정이 포함되어 있어 본인 확인이 필요합니다.
-              <br />
-              본인이 맞다면 아래 [본인이 맞습니다] 버튼을 눌러주세요.
-              <br />
-              <span style={{ fontSize: 11, color: "var(--ink-mute)" }}>
-                (30분간 같은 세션 내에서는 다시 묻지 않습니다)
-              </span>
-            </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              <Link
-                href="/profile"
-                className="btn"
-                style={{ textDecoration: "none", flex: 1, maxWidth: 140 }}
-              >
-                취소
-              </Link>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={handleUnlock}
-                style={{ flex: 1, maxWidth: 200 }}
-              >
-                본인이 맞습니다
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // unlocked === true 부터 기존 로딩/폼 렌더
+  // 기존 로딩/폼 렌더
   if (loading) {
     return (
       <div className="page">
@@ -994,13 +900,19 @@ export default function ProfileEditPage() {
               )}
           </Field>
 
-          {/* 실명 — 운영은 입력 허용 (시안은 readonly 박제지만, DB 호환 위해 입력 유지) */}
-          <Field label="이름 *" sub="대회 등록 시 확인용">
+          {/* 실명 — 본인인증 완료 시 잠금 (5/7) */}
+          <Field
+            label="이름 *"
+            sub={nameVerified ? "본인인증 완료 — 변경 불가" : "대회 등록 시 확인용"}
+          >
             <input
               className="input"
               value={form.name}
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="홍길동"
+              disabled={nameVerified}
+              readOnly={nameVerified}
+              style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
             />
           </Field>
 
@@ -1009,18 +921,27 @@ export default function ProfileEditPage() {
             <RegionPicker value={regions} onChange={setRegions} max={3} />
           </Field>
 
-          {/* 생년월일 */}
-          <Field label="생년월일" sub="비공개 · 나이별 대회 자격용">
+          {/* 생년월일 — 본인인증 완료 시 잠금 (5/7) */}
+          <Field
+            label="생년월일"
+            sub={nameVerified ? "본인인증 완료 — 변경 불가" : "비공개 · 나이별 대회 자격용"}
+          >
             <input
               type="date"
               className="input"
               value={form.birth_date}
               onChange={(e) => setForm((p) => ({ ...p, birth_date: e.target.value }))}
+              disabled={nameVerified}
+              readOnly={nameVerified}
+              style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
             />
           </Field>
 
-          {/* 휴대폰 (포맷팅 운영 보존) */}
-          <Field label="휴대폰" sub="대회·환불 연락용">
+          {/* 휴대폰 — 본인인증 완료 시 잠금 (5/7) */}
+          <Field
+            label="휴대폰"
+            sub={nameVerified ? "본인인증 완료 — 변경 불가" : "대회·환불 연락용"}
+          >
             <input
               type="tel"
               inputMode="numeric"
@@ -1028,6 +949,9 @@ export default function ProfileEditPage() {
               value={form.phone}
               onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
               placeholder="01012345678"
+              disabled={nameVerified}
+              readOnly={nameVerified}
+              style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
             />
           </Field>
 
@@ -1360,8 +1284,11 @@ export default function ProfileEditPage() {
           </p>
         </header>
         <div className="edit-profile__grid edit-profile__grid--2">
-          {/* 휴대폰 (운영 보존) */}
-          <Field label="휴대폰 *" sub="대회·환불 연락용">
+          {/* 휴대폰 — 본인인증 완료 시 잠금 (5/7) */}
+          <Field
+            label="휴대폰 *"
+            sub={nameVerified ? "본인인증 완료 — 변경 불가" : "대회·환불 연락용"}
+          >
             <input
               type="tel"
               inputMode="numeric"
@@ -1369,6 +1296,9 @@ export default function ProfileEditPage() {
               value={form.phone}
               onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
               placeholder="01012345678"
+              disabled={nameVerified}
+              readOnly={nameVerified}
+              style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
             />
           </Field>
 
