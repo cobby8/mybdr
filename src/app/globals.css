@@ -2994,4 +2994,108 @@ html.dark {
 }
 .data-table__empty {
   padding: 32px 16px;
-  text-
+  text-align: center;
+  color: var(--color-text-muted, var(--ink-dim));
+  font-size: 14px;
+  border: 1px solid var(--color-border, var(--border));
+  border-radius: 10px;
+  background: var(--color-bg-elev1, var(--bg-elev));
+}
+
+/* G-1 모바일 카드형 (≤720px) — admin-table 와 동일 패턴 */
+@media (max-width: 720px) {
+  .data-table__head {
+    display: none !important;
+  }
+  .data-table__row {
+    display: block !important;
+    padding: 14px 16px;
+  }
+  .data-table__row > span {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 4px 0 !important;
+    text-align: right !important;
+    font-size: 13px !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  .data-table__row > span[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted, var(--ink-dim));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 12px;
+    text-align: left;
+  }
+  .data-table__row > span[data-primary="true"] {
+    display: block !important;
+    text-align: left !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 2px 0 8px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px dashed var(--color-border, var(--border)) !important;
+  }
+  .data-table__row > span[data-primary="true"]::before {
+    display: none !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────
+   Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 표시 클래스
+   이유: match_code 형식 `26-GG-MD21-001` 14자 영숫자 → 모바일 360px viewport 한 줄 안전.
+   가독성을 위해 mono 폰트 + tabular-nums + tracking-wide.
+   토큰만 (var(--*)) — 13룰 준수.
+   사용처: live/hero-scoreboard / bracket/match-card / tournaments/schedule-timeline 등
+   ──────────────────────────────────────────────────── */
+.match-code {
+  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 라이브 헤더용 — 어두운 그라디언트 배경에 대비 (모바일 11px 살짝 큼) */
+.match-code--hero {
+  font-family: var(--font-space-grotesk), "Space Grotesk", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 3px 8px;
+}
+
+/* ============================================================
+ * 2026-05-04: admin/news 본문 2컬럼 grid (list + 미리보기)
+ *
+ * Tailwind v4 의 lg:grid 클래스 + 임의값 grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] 가
+ * 빌드에서 인식 안 되는 이슈 보고 (사용자 5/4) → globals.css 명시 미디어쿼리로 해결.
+ *
+ * 모바일 (<1024px): flex column stack
+ * 데스크톱 (≥1024px): grid 2컬럼 (1fr : 1.5fr 비율)
+ * ============================================================ */
+.admin-news-body-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+@media (min-width: 1024px) {
+  .admin-news-body-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+    gap: 1rem;
+  }
+}
