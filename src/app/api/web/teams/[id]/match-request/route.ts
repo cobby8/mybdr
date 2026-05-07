@@ -4,6 +4,8 @@ import { apiSuccess, apiError, validationError } from "@/lib/api/response";
 import { teamMatchRequestCreateSchema } from "@/lib/validation/team-follow";
 import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
+// 5/7 PR1.5 — 본인인증 게이트
+import { requireIdentityVerified } from "@/lib/auth/require-identity-verified";
 
 /**
  * Phase 10-4 — 팀 매치 신청 (POST 만)
@@ -34,6 +36,10 @@ const TEAM_MANAGER_ROLES = ["captain", "vice", "manager"] as const;
 export const POST = withWebAuth(
   async (req: Request, routeCtx: RouteCtx, ctx: WebAuthContext) => {
     const { id } = await routeCtx.params;
+
+    // 5/7 PR1.5 — 본인인증 필수 게이트 (옵션 C)
+    const identityGuard = await requireIdentityVerified(ctx.userId);
+    if (identityGuard instanceof Response) return identityGuard;
 
     let toTeamId: bigint;
     try {
