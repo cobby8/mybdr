@@ -1,28 +1,31 @@
 "use client";
 
 /* ============================================================
- * IdentityVerifyButton  (Phase 12-5 mock 모드)
+ * IdentityVerifyButton (5/7 PortOne V2 실 통합)
  *
  * 왜:
- *  - Portone API 키 발급(12-6) 전이라, JS SDK 위젯 대신 mock 모달로 시뮬레이션.
- *  - UI 동선/API 연동/onVerified 콜백을 12-7 실 통합 전에 검증하기 위함.
- *  - 12-7 시점엔 본 컴포넌트 내부의 mock 모달을 Portone JS SDK `IMP.certification`
- *    호출로 교체. props 시그니처(initialVerified, onVerified)는 그대로 유지 → 부모 변경 0.
+ *  - 기존 mock 모달 (Phase 12-5) 을 PortOne V2 본인인증 SDK 호출로 교체.
+ *  - PASS / 카카오 / SMS 등 PG 채널을 통해 실명·생년월일·휴대폰을 인증.
+ *  - 인증 결과의 identityVerificationId 만 서버에 전송 →
+ *    서버에서 PortOne V2 API 로 재조회하여 위변조 차단 (클라이언트 데이터 신뢰 X).
  *
  * 어떻게:
- *  - initialVerified=true: 회색 배경 + verified 아이콘 + "인증완료" 텍스트만 표시.
- *  - initialVerified=false: "본인인증" 버튼 → 클릭 시 mock 모달 오픈.
- *  - 모달에서 verified_name / verified_phone / verified_birth(선택) 입력 → POST 호출.
- *  - 성공 시 verified=true 로컬 state + onVerified 콜백으로 부모 form 갱신.
+ *  - `@portone/browser-sdk/v2` 의 PortOne.requestIdentityVerification 호출.
+ *  - 필요 환경변수:
+ *    · NEXT_PUBLIC_PORTONE_STORE_ID (기존 결제와 공유)
+ *    · NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY (본인인증 채널 — 콘솔 신규 발급 필요)
+ *  - 결과 callback:
+ *    · code 가 있으면 실패 (사용자 취소 / 채널 오류) — message 표시
+ *    · code 없음 = 성공 → identityVerificationId 서버 전송
+ *  - 서버 200 응답 시 onVerified 콜백 호출 + 인증완료 배지 전환
  *
- * 박제 룰 준수:
- *  - var(--*) 토큰만 (하드코딩 색상 0).
- *  - Material Symbols Outlined 아이콘 (verified).
- *  - radius 4px (.btn 클래스 + 인라인 borderRadius:4).
- *  - alert() 신규 0건 — 실패 시 인라인 errorText state 로 표시.
+ * fallback (channel key 미설정):
+ *  - 환경변수 비어있으면 즉시 에러 표시 ("본인인증 설정이 완료되지 않았습니다")
+ *  - 운영자가 PortOne 콘솔에서 채널 발급 후 환경변수 설정해야 작동
  * ============================================================ */
 
 import { useState } from "react";
+import * as PortOne from "@portone/browser-sdk/v2";
 
 interface VerifiedPayload {
   verified_name: string;
@@ -35,18 +38,10 @@ interface Props {
 }
 
 export function IdentityVerifyButton({ initialVerified, onVerified }: Props) {
-  // 인증 완료 여부 — 부모로부터 초기값 받고, POST 성공 시 true 로 전환
   const [verified, setVerified] = useState(initialVerified);
-  const [showMock, setShowMock] = useState(false);
-  // mock 모달 입력 3 필드
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [birth, setBirth] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  // 실패 메시지 — alert 대신 인라인 표시 (UX + 박제 룰)
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  // 인증 완료 상태 — 배지로 표시. 더 이상 버튼 노출 안 함.
   if (verified) {
     return (
       <span
@@ -67,223 +62,109 @@ export function IdentityVerifyButton({ initialVerified, onVerified }: Props) {
     );
   }
 
-  const handleSubmit = async () => {
+  const handleClick = async () => {
     if (submitting) return;
     setErrorText(null);
 
-    // 클라 가드 — 서버 검증과 별개로 즉시 피드백
-    const trimmedName = name.trim();
-    const trimmedPhone = phone.trim();
-    if (!trimmedName) {
-      setErrorText("실명을 입력해주세요.");
-      return;
-    }
-    if (!trimmedPhone) {
-      setErrorText("휴대폰 번호를 입력해주세요.");
+    const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
+    const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
+
+    if (!storeId || !channelKey) {
+      setErrorText(
+        "본인인증 설정이 완료되지 않았습니다. 운영자에게 문의해 주세요.",
+      );
       return;
     }
 
     setSubmitting(true);
     try {
-      // POST /api/web/identity/verify — withWebAuth 가드, 세션 쿠키 자동 첨부
+      // PortOne V2 — 본인인증 위젯 호출
+      // identityVerificationId 는 우리 시스템 고유값 (재시도 시 동일 사용 X)
+      const identityVerificationId = `iv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const result = await PortOne.requestIdentityVerification({
+        storeId,
+        identityVerificationId,
+        channelKey,
+      });
+
+      // 결과 분기 — code 가 있으면 실패 (사용자 취소 또는 채널 오류)
+      if (result?.code) {
+        setErrorText(result.message ?? "본인인증이 취소되었습니다.");
+        setSubmitting(false);
+        return;
+      }
+
+      // 성공 — identityVerificationId 만 서버에 전송 (서버에서 V2 API 재조회로 검증)
+      const verifyId = result?.identityVerificationId ?? identityVerificationId;
       const res = await fetch("/api/web/identity/verify", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          verified_name: trimmedName,
-          verified_phone: trimmedPhone,
-          // 선택값 — 빈 문자열이면 undefined 로 보내 서버 z.optional() 매칭
-          verified_birth: birth || undefined,
-        }),
+        body: JSON.stringify({ identityVerificationId: verifyId }),
       });
 
       if (!res.ok) {
-        // 서버 apiError 형태: { error: string }
-        let msg = "인증에 실패했습니다. 다시 시도해주세요.";
+        let msg = "인증 정보 저장에 실패했습니다.";
         try {
           const data = await res.json();
           if (data?.error && typeof data.error === "string") msg = data.error;
         } catch {
-          // ignore JSON 파싱 실패 (메시지 기본값 유지)
+          // ignore
         }
         setErrorText(msg);
+        setSubmitting(false);
         return;
       }
 
       const data = await res.json();
-      // 성공 — 부모 form 에 갱신 알림 + 로컬 verified=true 전환 + 모달 닫기
       onVerified({
-        verified_name: data.verified_name ?? trimmedName,
-        verified_phone: data.verified_phone ?? trimmedPhone,
+        verified_name: data.verified_name ?? "",
+        verified_phone: data.verified_phone ?? "",
       });
       setVerified(true);
-      setShowMock(false);
     } catch (e) {
-      // 네트워크 에러 — 디버깅용 console 만 남기고 인라인 메시지 표시
       console.error("[identity-verify]", e);
-      setErrorText("네트워크 오류로 인증에 실패했습니다.");
+      setErrorText("본인인증 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <>
-      {/* 트리거 버튼 — settings 화면의 실명 readonly 옆에 인라인 배치 */}
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
       <button
         type="button"
-        onClick={() => {
-          setShowMock(true);
-          setErrorText(null); // 모달 재오픈 시 직전 에러 초기화
-        }}
+        onClick={handleClick}
+        disabled={submitting}
         className="btn"
         style={{
-          padding: "6px 12px",
-          fontSize: 12,
-          fontWeight: 600,
+          padding: "10px 20px",
+          fontSize: 14,
+          fontWeight: 700,
           whiteSpace: "nowrap",
-          // 강조 — 미인증 상태 환기
           background: "var(--cafe-blue)",
           color: "var(--bg)",
           border: "1px solid var(--cafe-blue)",
           borderRadius: 4,
+          cursor: submitting ? "wait" : "pointer",
+          opacity: submitting ? 0.7 : 1,
         }}
       >
-        본인인증
+        {submitting ? "인증 진행 중..." : "본인인증 시작"}
       </button>
-
-      {/* mock 모달 — overlay 클릭 시 닫힘, 내부 클릭은 stopPropagation */}
-      {showMock && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="본인인증 (Mock)"
+      {errorText && (
+        <p
+          role="alert"
           style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 16,
+            fontSize: 12,
+            color: "var(--accent)",
+            textAlign: "center",
+            margin: 0,
           }}
-          onClick={() => !submitting && setShowMock(false)}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "var(--bg)",
-              border: "1px solid var(--border)",
-              padding: 24,
-              borderRadius: 4,
-              maxWidth: 400,
-              width: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, color: "var(--ink)" }}>
-              본인인증 (Mock)
-            </h3>
-            <p style={{ fontSize: 13, color: "var(--ink-mute)", marginBottom: 16 }}>
-              Portone 통합 전 임시 모달입니다. 실제 출시 시 SMS/PASS 인증으로 자동 교체됩니다.
-            </p>
-
-            <div style={{ display: "grid", gap: 12 }}>
-              <label style={{ display: "block" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}>
-                  실명 *
-                </span>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  maxLength={100}
-                  className="input"
-                  style={{ width: "100%", marginTop: 4 }}
-                />
-              </label>
-
-              <label style={{ display: "block" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}>
-                  휴대폰 번호 *
-                </span>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="01012345678"
-                  required
-                  maxLength={20}
-                  inputMode="numeric"
-                  className="input"
-                  style={{ width: "100%", marginTop: 4 }}
-                />
-              </label>
-
-              <label style={{ display: "block" }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-mute)" }}>
-                  생년월일 (선택)
-                </span>
-                <input
-                  type="date"
-                  value={birth}
-                  onChange={(e) => setBirth(e.target.value)}
-                  className="input"
-                  style={{ width: "100%", marginTop: 4 }}
-                />
-              </label>
-            </div>
-
-            {/* 인라인 에러 — alert() 대체 */}
-            {errorText && (
-              <p
-                role="alert"
-                style={{
-                  marginTop: 12,
-                  fontSize: 12,
-                  color: "var(--accent)",
-                }}
-              >
-                {errorText}
-              </p>
-            )}
-
-            <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-              <button
-                type="button"
-                onClick={() => setShowMock(false)}
-                className="btn"
-                disabled={submitting}
-                style={{
-                  flex: 1,
-                  borderRadius: 4,
-                }}
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                // 필수 입력 비어있거나 제출 중이면 비활성
-                disabled={!name.trim() || !phone.trim() || submitting}
-                className="btn btn--primary"
-                style={{
-                  flex: 1,
-                  borderRadius: 4,
-                  opacity: !name.trim() || !phone.trim() || submitting ? 0.6 : 1,
-                  cursor: submitting ? "wait" : "pointer",
-                }}
-              >
-                {submitting ? "인증 중..." : "인증 완료"}
-              </button>
-            </div>
-          </div>
-        </div>
+          {errorText}
+        </p>
       )}
-    </>
+    </div>
   );
 }
