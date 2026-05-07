@@ -2567,6 +2567,20 @@ html.light .watermark-text,
 }
 
 /* ============================================================
+   Row Highlight (5/7) — 알림 deep-link 진입 시 해당 row 펄스 강조
+   사용처: 팀 관리 member-requests 탭 — ?req= / ?transfer= 쿼리로 진입 시
+   효과: 2초간 background-color 페이드 (info 색 25% → transparent)
+   ============================================================ */
+@keyframes pulse-highlight {
+  0%   { background-color: color-mix(in srgb, var(--color-info) 28%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-info) 40%, transparent); }
+  60%  { background-color: color-mix(in srgb, var(--color-info) 14%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-info) 20%, transparent); }
+  100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; }
+}
+.row-highlight {
+  animation: pulse-highlight 2s ease-out;
+}
+
+/* ============================================================
    --color-* 호환 레이어 (live 페이지 등 Phase 1~9 이전 페이지용)
    BDR v2 토큰으로 alias. 라이브 페이지 코드 수정 없이 CSS 적용.
    ============================================================ */

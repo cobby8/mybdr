@@ -202,7 +202,8 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
       content: `${applicantName} 님이 ${typeLabel} 신청을 보냈습니다.`,
       // 5/7 fix: `/manage/requests` sub-route 미존재 → 404. manage 페이지의 ?tab= 쿼리로
       // resolveInitialTab 가 'member-requests' 키로 매핑 (번호변경/휴면/탈퇴 통합 탭).
-      actionUrl: `/teams/${teamId}/manage?tab=member-requests`,
+      // 5/7 v2: &req=${id} deep-link 추가 — 클라이언트가 해당 row scrollIntoView + highlight.
+      actionUrl: `/teams/${teamId}/manage?tab=member-requests&req=${created.id}`,
       notifiableType: "team_member_request",
       notifiableId: created.id,
     }).catch(() => {});

@@ -322,7 +322,8 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           side === "from"
             ? `현 팀장이 이적을 거부해 신청이 종결되었습니다.`
             : `새 팀장이 이적을 거부해 신청이 종결되었습니다.`,
-        actionUrl: `/teams/${side === "from" ? transfer.toTeamId : transfer.fromTeamId}/manage?tab=member-requests`,
+        // 5/7: &transfer=${id} deep-link
+        actionUrl: `/teams/${side === "from" ? transfer.toTeamId : transfer.fromTeamId}/manage?tab=member-requests&transfer=${transfer.id}`,
         notifiableType: "transfer_request",
         notifiableId: transfer.id,
       }).catch(() => {});
@@ -372,7 +373,8 @@ export const PATCH = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: W
           notificationType: NOTIFICATION_TYPES.TRANSFER_REQUEST_NEW_TO,
           title: `[${toTeamName}] ${applicantName} 님 합류 신청`,
           content: `${fromTeamName} 의 ${applicantName} 님이 이적을 신청했고 현 팀장이 승인했습니다. 합류 여부를 결정해 주세요.`,
-          actionUrl: `/teams/${transfer.toTeamId}/manage?tab=member-requests`,
+          // 5/7: &transfer=${id} deep-link
+          actionUrl: `/teams/${transfer.toTeamId}/manage?tab=member-requests&transfer=${transfer.id}`,
           notifiableType: "transfer_request",
           notifiableId: transfer.id,
         }).catch(() => {});
