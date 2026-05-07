@@ -55,11 +55,11 @@ export function HomeCommunity({ fallbackData }: HomeCommunityProps) {
   return (
     <section>
       {/* 2K 스타일 인라인 헤더: "COMMUNITY" (다른 홈 섹션과 동일 패턴) */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--color-border)]">
+      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
           COMMUNITY
         </h2>
-        <Link href="/community" className="text-[10px] font-black text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors uppercase">
+        <Link href="/community" className="text-[10px] font-black text-[var(--ink-mute)] hover:text-[var(--accent)] transition-colors uppercase">
           VIEW ALL &raquo;
         </Link>
       </div>
@@ -70,7 +70,7 @@ export function HomeCommunity({ fallbackData }: HomeCommunityProps) {
           <TossListItem
             key={post.id}
             icon="forum"
-            iconBg="var(--color-text-tertiary)"
+            iconBg="var(--ink-dim)"
             title={post.title}
             subtitle={`조회 ${formatViews(post.view_count)}`}
             href={`/community/${post.public_id || post.id}`}

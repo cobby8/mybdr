@@ -86,7 +86,7 @@ export function RecommendedVideos() {
   return (
     <section>
       {/* 2K 스타일 인라인 헤더: font-black uppercase (다른 홈 섹션과 통일) */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--color-border)]">
+      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
           HIGHLIGHTS
         </h2>
@@ -94,7 +94,7 @@ export function RecommendedVideos() {
           href="https://www.youtube.com/@BDRBASKET"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] font-black text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors uppercase"
+          className="text-[10px] font-black text-[var(--ink-mute)] hover:text-[var(--accent)] transition-colors uppercase"
         >
           VIEW ALL &raquo;
         </Link>
@@ -114,7 +114,7 @@ export function RecommendedVideos() {
               >
                 {/* 2K 카드: 각진 모서리, 네온 글로우 호버, 프라이머리 보더 호버 */}
                 <div
-                  className="group rounded-md overflow-hidden bg-[var(--color-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--color-primary)] h-full flex flex-col relative"
+                  className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] h-full flex flex-col relative"
                   style={{ boxShadow: "var(--shadow-card)" }}
                 >
                   {/* 워터마크: 호버 시 재생 아이콘 실루엣 */}
@@ -130,14 +130,14 @@ export function RecommendedVideos() {
                       src={v.thumbnail}
                     />
                     {/* 그라디언트 오버레이 (하단 → 카드 배경색) */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-card)] via-transparent to-black/20" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-card)] via-transparent to-black/20" />
                     {/* 재생 아이콘 호버 오버레이 */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
                       <span className="material-symbols-outlined text-white text-4xl">play_circle</span>
                     </div>
                     {/* LIVE 뱃지 */}
                     {v.is_live && (
-                      <span className="absolute top-2 left-2 bg-[var(--color-primary)] text-white text-[10px] px-2.5 py-1 font-black uppercase rounded-sm flex items-center gap-1">
+                      <span className="absolute top-2 left-2 bg-[var(--accent)] text-white text-[10px] px-2.5 py-1 font-black uppercase rounded-sm flex items-center gap-1">
                         <span className="relative flex h-1.5 w-1.5">
                           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
                           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
@@ -147,11 +147,11 @@ export function RecommendedVideos() {
                     )}
                   </div>
                   {/* 정보 영역: gradient 배경 + 2K 폰트 스타일 */}
-                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--color-card)] to-[var(--color-surface)]">
-                    <h4 className="text-sm font-extrabold text-[var(--color-text-primary)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--color-primary)] transition-colors">
+                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-elev)]">
+                    <h4 className="text-sm font-extrabold text-[var(--ink)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
                       {v.title}
                     </h4>
-                    <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    <p className="text-[11px] font-bold text-[var(--ink-mute)] uppercase">
                       {formatDate(v.published_at)}
                     </p>
                   </div>
@@ -162,7 +162,7 @@ export function RecommendedVideos() {
             DUMMY_VIDEOS.map((v) => (
               <div key={v.video_id} className="shrink-0 w-56">
                 <div
-                  className="group rounded-md overflow-hidden bg-[var(--color-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--color-primary)] h-full flex flex-col relative"
+                  className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] h-full flex flex-col relative"
                   style={{ boxShadow: "var(--shadow-card)" }}
                 >
                   {/* 워터마크 */}
@@ -176,7 +176,7 @@ export function RecommendedVideos() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       src={v.thumbnail}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-card)] via-transparent to-black/20" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-card)] via-transparent to-black/20" />
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
                       <span className="material-symbols-outlined text-white text-4xl">play_circle</span>
                     </div>
@@ -185,11 +185,11 @@ export function RecommendedVideos() {
                       {v.duration}
                     </span>
                   </div>
-                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--color-card)] to-[var(--color-surface)]">
-                    <h4 className="text-sm font-extrabold text-[var(--color-text-primary)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--color-primary)] transition-colors">
+                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-elev)]">
+                    <h4 className="text-sm font-extrabold text-[var(--ink)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
                       {v.title}
                     </h4>
-                    <p className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase">
+                    <p className="text-[11px] font-bold text-[var(--ink-mute)] uppercase">
                       {v.views} · {v.date}
                     </p>
                   </div>

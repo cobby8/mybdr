@@ -39,11 +39,11 @@ export function HomeGreeting() {
         <div className="mb-2">
           <h2
             className="text-lg font-bold"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             안녕하세요, {user.name}님
           </h2>
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+          <p className="text-sm" style={{ color: "var(--ink-mute)" }}>
             오늘도 좋은 경기 되세요!
           </p>
         </div>
@@ -58,7 +58,7 @@ export function HomeGreeting() {
     <div
       className="rounded-md p-6 mb-2"
       style={{
-        background: "linear-gradient(135deg, var(--color-info) 0%, var(--color-accent) 100%)",
+        background: "linear-gradient(135deg, var(--info) 0%, var(--accent) 100%)",
       }}
     >
       {/* 농구 아이콘 + 타이틀 */}
@@ -87,7 +87,7 @@ export function HomeGreeting() {
         </Link>
         <Link
           href="/signup"
-          className="flex-1 rounded-lg py-2.5 text-center text-sm font-bold text-[var(--color-info)] transition-all active:scale-[0.97]"
+          className="flex-1 rounded-lg py-2.5 text-center text-sm font-bold text-[var(--info)] transition-all active:scale-[0.97]"
           style={{ backgroundColor: "#fff" }}
         >
           회원가입

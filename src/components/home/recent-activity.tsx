@@ -59,7 +59,7 @@ export function RecentActivity() {
   return (
     <section>
       {/* 2K 스타일 인라인 헤더: "RECENT PLAYS" (다른 홈 섹션과 동일 패턴) */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--color-border)]">
+      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
           RECENT PLAYS
         </h2>
@@ -70,10 +70,10 @@ export function RecentActivity() {
         <div className="space-y-1">
           {[1, 2, 3].map((i) => (
             <div key={i} className="flex items-center gap-3 rounded-md px-4 py-3">
-              <div className="h-10 w-10 animate-pulse rounded-full" style={{ backgroundColor: "var(--color-surface)" }} />
+              <div className="h-10 w-10 animate-pulse rounded-full" style={{ backgroundColor: "var(--bg-elev)" }} />
               <div className="flex-1 space-y-2">
-                <div className="h-3.5 w-3/4 animate-pulse rounded" style={{ backgroundColor: "var(--color-surface)" }} />
-                <div className="h-3 w-1/2 animate-pulse rounded" style={{ backgroundColor: "var(--color-surface)" }} />
+                <div className="h-3.5 w-3/4 animate-pulse rounded" style={{ backgroundColor: "var(--bg-elev)" }} />
+                <div className="h-3 w-1/2 animate-pulse rounded" style={{ backgroundColor: "var(--bg-elev)" }} />
               </div>
             </div>
           ))}
