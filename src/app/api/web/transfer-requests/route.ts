@@ -182,7 +182,8 @@ export const POST = withWebAuth(async (req: Request, _ctx: unknown, ctx: WebAuth
       title: `[${fromTeam.name ?? "팀"}] ${applicantName} 님의 이적 신청`,
       content: `${applicantName} 님이 ${toTeam.name ?? "다른 팀"} 으로의 이적을 신청했습니다.`,
       // 현 팀장 manage 페이지 변경 요청 탭으로 이동
-      actionUrl: `/teams/${fromTeamId}/manage?tab=member-requests`,
+      // 5/7: &transfer=${id} deep-link — 클라이언트가 해당 transfer row scrollIntoView + highlight
+      actionUrl: `/teams/${fromTeamId}/manage?tab=member-requests&transfer=${created.id}`,
       notifiableType: "transfer_request",
       notifiableId: created.id,
     }).catch(() => {});
