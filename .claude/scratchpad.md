@@ -8,31 +8,33 @@
 
 ## 🎯 현재 작업
 
-**[5/7 세션 시작]** 0순위 뱃지 envelope+snake_case fix 완료 (`7945452`, 미푸시 1건). member-pending-badge + member-actions-menu 둘 다 `j.data.requests` + camelCase → `j.transfer_requests/requests` + snake_case (재발 8회). 마이페이지 소속 팀 카드 좌우 여백 모바일 12px/10px 정렬 동시 fix. 다음 = 2순위 onboarding PR1~5.
+**[5/7 세션 마무리 — main 21회 머지 운영 적용 완료]** Onboarding 10단계 시스템 (PR1~5) + PortOne V2 본인인증 실 통합 + 다수 fix + Phase A.5 drawer fix + truncated CSS hot fix → Vercel 운영 정상. errors.md 박제 (truncated commit 함정 + IME composition 9회 + envelope/snake_case 9회). 다음 = PortOne 콘솔 채널 발급 후 운영 검증 + PR3 layout 가드.
 
 ---
 
 ## 🎯 다음 세션 진입점
 
-### ✅ 0순위 — 본인 카드 좌하단 뱃지 미동작 (5/7 완료 `7945452`)
-- 원인 (실제): envelope `data` 가정 잘못 + **snake_case 변환 누락** (재발 8회). payload 내부도 재귀 변환됨 (`new_jersey`).
-- 5종 fix: transfer envelope+keys, member envelope+keys, payload 내부 keys.
-- 추가 fix: 마이페이지 소속 팀 카드 모바일 좌우 여백 (mypage-teams-section / 12px·10px hub 정렬).
+### 🚨 0순위 — PortOne 본인인증 운영 활성화 (사용자 외부 작업)
+- **PortOne 콘솔**: 본인인증 채널 발급 (PASS / SMS / KCP 중 선택)
+- **Vercel 환경변수**: `NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY=channel-key-xxx` 추가 → 재배포
+- **검증**: 미인증 계정 → /onboarding/identity → PortOne 위젯 호출 → 인증 완료 → /onboarding/environment 자동 진입
+- **승인 대기 중**: 콘솔 작업 후 mybdr.com/onboarding/identity 진입 시 위젯 정상 노출 여부 확인
 
-### 🚀 1순위 — 박성후 등록 + 이도균 ✅ 완료
-- ~~**이도균** (user_id=3352) — 5/5 완료: ttpId=2830 #70 / team_members.jersey=70.~~
-- **박성후** (user_id=3382, default_jersey=21) — 5/5 이후 본인 가입 완료 ✅. 펜타곤 팀 가입 신청 + tournament_team_players 등록 = 사용자 액션 또는 PM 수동 처리 결정.
+### 🚀 1순위 — PR3 layout 가드 (PortOne 활성화 후)
+- 미인증 사용자 핵심 페이지 진입 시 강제 redirect → `/onboarding/identity`
+- 현재 옵션 C (안내 only) → 옵션 B (강제 redirect) 로 진입
+- 분량 0.5d. middleware.ts 또는 (web)/layout.tsx 가드.
 
-### 🚀 2순위 — onboarding 10단계 시스템 PR1~5 (옵션 B 합의)
-PR1~5 (~5.5d) — decisions.md `[2026-05-05]` 참조. PR5 먼저 권장.
+### 🚀 2순위 — onboarding 흐름 검증 + 사용자 영향 모니터링
+- 카카오/구글/네이버 소셜 가입자가 흐름 정상 통과하는지
+- xp +100 부여 확인 (xp 컬럼 SELECT 또는 마이페이지 표시)
+- profile/edit 이름/생년월일/휴대폰 잠금 회귀 0
 
-### 🚀 3순위 — game.game_type 0~5 마이그레이션 / 매치 코드 v4 Phase 6 (보류)
-- game.game_type: 56 파일 + DB 영향
-- 매치 코드 v4 Phase 6: 라이브 페이지 deep link (옵션)
-
-### 🚀 4순위 — manage 탭 그룹화 (P2-6 보류) + 데드 코드 정리 (P3-11)
+### 🚀 3순위 — manage 탭 그룹화 (P2-6 보류) + 데드 코드 정리
 - manage 8~9 탭 → "신청 관리" / "운영진" 그룹화 (IA 변경, 사용자 결정 필요)
-- jersey-change-button.tsx 데드 코드 (PR8 이후 미사용) 삭제 결정
+- 시안 동기화 (BDR-current/) — 5/3~5/7 운영 변경 누적 갭
+
+### 🚀 4순위 — game.game_type 0~5 마이그레이션 / 매치 코드 v4 Phase 6 (보류)
 
 ---
 
@@ -71,9 +73,8 @@ PR1~5 (~5.5d) — decisions.md `[2026-05-05]` 참조. PR5 먼저 권장.
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-07 | `7945452` (미푸시 1) | **신청 중 뱃지 envelope+snake_case fix + 마이페이지 좌우 여백** — `apiSuccess` 자동 snake_case + envelope 가정 잘못 (재발 8회). `member-pending-badge.tsx` + `member-actions-menu.tsx` 5종 fix: transfer `j.data.requests` → `j.transfer_requests`, member `j.data.requests` → `j.requests`, key `fromTeamId/toTeamId/toTeam/requestType/newJersey` → `from_team_id/to_team_id/to_team/request_type/new_jersey` (payload 내부도 재귀 변환). 마이페이지 `TeamsListCard` 에 `mypage-teams-section` 클래스 추가 + `mypage.css` 모바일 ≤720px 12px / ≤380px 10px hub 정렬. errors.md 재발 8회 박제 강화. tsc 0. | ✅ |
+| 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main 머지 — Onboarding 10단계 + PortOne V2 + Phase A.5 drawer + 다수 fix** — (A) 초반 fix 7건: envelope+snake_case 8회 재발 (`7945452`) / 한글 IME Enter 9곳 (`d7e921c`) / 마이페이지 한 줄 정렬 + 세로 stack + 우측 정렬 (`9513fe3` `e344375` `f1c5cee`) / 신청 알림 404 fix (`2c9afe2`) / 알림 deep-link scroll+highlight (`0ccf785`). (B) Onboarding 시리즈: PR1.1+1.2 본인인증 진입 (`c9fe34b`) / PR1.3 settings 단일 진입점 (`49698c0`) / PR1.5.a 서버 4 endpoint 게이트 (`00d001b`) / 옛 알림 redirect (`f8bb636`) / PR1.5.b 클라 4 페이지 (`569c9e9`) / 카드 미표시 + 임시 모달 + 인증 필드 잠금 (`c13bae0`) / manage 변경 요청 envelope 9회 (`a16541b`) / PR2 environment+basketball (`f992210`) / PortOne V2 실 통합 (`d7a82b5`) / PR4 preferences 통합 + xp +100 (`00704be`) / PR5 §6 안내 (`6fcac51`). (C) 후반: Phase A.5 drawer fix (`0809432` truncated → 빌드 실패) → hot fix `168be48` (워킹트리 정상 css 재 commit, 13분 내 운영 복구). errors.md 박제 — truncated commit 함정 + IME 9회 + envelope 9회. PR3 layout 가드는 PortOne 운영 활성화 후로 보류. | ✅ |
 | 2026-05-06 | `7211f97` `86f9eb9` `64b1bab` `d5d491e` `465b7ca` `f6b43ab` → main `4253e68` | **5/6 누적 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 이동 + 좌하단 뱃지 + dropdown overflow + apiError 일괄 fix** — (1) PR1e: `user.default_jersey_number` 컬럼 DROP (54명 메모 손실, 가치 0, 명시 승인 + --accept-data-loss). (2) UI fix 13건 / 11건 fix: 5 모달 + dropdown 토큰 통일 (`--surface` → `--color-card`) / placeholder "예) " 4건 / iOS 16px / grid 모바일 분기 / dropdown overflow / window.prompt → ForceActionModal. (3) 본인 카드 dropdown 잘림 fix (overflow visible). (4) 좌하단 신청 중 뱃지 (`member-pending-badge.tsx`) — 4종 라벨 (jersey/dormant/withdraw/transfer). (5) 마이페이지 소속팀 카드 = 히어로 아래 풀 width + 각 row "활동 관리" + "팀페이지 →". (6) "내 액션" → "활동 관리" 라벨. (7) apiError 인자 순서 9 파일 69건 fix (한국어 메시지 정상화 — 휴면/번호변경/탈퇴 신청 시 "ALREADY_PENDING" 영문 노출 → 한국어). transfer 검색 endpoint URL fix. tsc 0 / 미푸시 0. | ✅ |
 | 2026-05-05 | `ae4ffd7` `d72aa0a` `f2d7a96` `a647f88` `2e3e22b` `8600c74` `1e8c9db` `b9b2776` `504e858` `d274000` `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** — 보고서 `Dev/team-member-lifecycle-2026-05-05.md` 옵션 C+UI. Phase 1 Jersey (PR1~5): default_jersey 사용처 정리 / 가입폼 jersey + 자동 복사 / 마이페이지 다중 팀 카드 / tournament join ttp 자동 sync (운영자 시야 X) / match_player_jersey 신설 + W1 라이브 운영자 모달 + admin_logs / v1 6 endpoints 우선순위 helper (Flutter 변경 0). Phase 2 워크플로 (PR6~9): team_member_requests + team_member_history 인프라 / 번호변경 신청 + dispatcher 활성화 / 휴면+탈퇴 + lazy 복구 helper. Phase 3 이적 (PR10~11): transfer_requests state machine 양쪽 팀장 승인 + 자동 이동 트랜잭션. Phase 4 권한 위임 (PR12~13): team_officer_permissions captain only 위임 (재위임 X) + 매트릭스 적용 4 endpoint. Phase 5 유령회원 (PR14~16): last_activity_at + 5분 throttle + 활동 추적 5종 / 유령 후보 + 강제 액션 / 회원 상태 정비 + 명단 완전 삭제 옵션. ADD TABLE 5건 + ADD COLUMN 1건 모두 무중단. 사용자 결정 8건 + 미묘 6건 룰 반영. tsc 0 / Flutter v1 호환 0. | ✅ |
 | 2026-05-05 | DB UPDATE 4건 (코드 변경 0) | **열혈농구단 SEASON2 출전 명단 정비** — 쓰리포인트/백승훈 ttpId=2540 (18→39) + 몽키즈/이지환 ttpId=2583 (0→4) + 몽키즈/최원영 ttpId=2581 (10→20) + 제주 리딤/이도균 ttpId=2830 INSERT #70 (옵션 2 트랜잭션, team_members.jersey NULL→70 동시). 매 건 사전 검증 (동명이인 0 / 충돌 0) → 사용자 명시 승인 → 사후 SELECT 재확인 PASS. 임시 스크립트 즉시 삭제. errors+lessons 박제 (도메인 단방향 함정). | ✅ |
-| 2026-05-05 | `7f26b6f` + `60e8468` + `61e9ab1` + `5fd1716` + `d8bba4a` + `eb015aa` → main `3f016c9` | **인증 흐름 전체 재설계 main 배포 — 로그인 hard reload + getAuthUser() 단일 헬퍼 + 쿠키 자동 cleanup** — `7f26b6f` 로그인 server action redirect → return success + window.location.href hard reload (SSR 새 쿠키 인지 보장). C1~C4 옵션 A+B-PR1: signup layout 가드 / me API 탈퇴 401→200 통일 / ProfileCtaCard 글로벌 fetcher 위임 / `src/lib/auth/get-auth-user.ts` 신규 (JWT verify + DB SELECT + status 분기 + 쿠키 자동 cleanup + React.cache dedup) + 4 layout (web/login/signup/profile) 위임. **사용자 검증 통과 — 탈퇴 회원 쿠키 본질 해결** (1회 진입 후 잘못된 쿠키 자동 제거). 회귀: 빈 본문 chunk 404 = 배포 직후 chunk 캐시 mismatch (강력 새로고침 안내, 일시적). tsc 0 / 운영 DB 영향 0 / scratchpad+architecture+conventions+errors+index 박제. | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 세션 + 5/5 auth 4건 묶임 홈/SWR/hydration fix + 5/5 auth 6건 묶임 탈퇴/가입/세션 가드 + 듀얼 P3~P7 + Step 2 활성화 + 듀얼 표준화 + 도메인 sub-agent P3 + 매치 코드 v4 Phase 1~7 + 5/5 58af36a 트리 카드 시간 표시 + 5/5 auth 흐름 조사 보고서 + 5/5 login layout 가드 fix + 5/5 SEASON2 PDF vs DB 비교 + 5/5 onboarding 10단계 합의 + 5/5 배번 정책 ef7e78e + 5/5 admin/users 4섹션 06d1376) — 5/5 인증 재설계 옵션 A+B-PR1 prepend + 5/6 UI fix prepend / 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 옵션 A+B-PR1 `7f26b6f` `60e8468` `61e9ab1` `5fd1716` `d8bba4a` `eb015aa` → main `3f016c9` (로그인 hard reload + getAuthUser 단일 헬퍼 + 쿠키 자동 cleanup) / 5/5 SEASON2 출전 명단 정비 4건 DB UPDATE / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 `7945452` — 모두 5/7 main 21회 누적의 baseline) — 복원: git log -- .claude/scratchpad.md -->
