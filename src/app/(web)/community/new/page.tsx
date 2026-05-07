@@ -325,6 +325,8 @@ export default function NewPostPage() {
                       value={imageInput}
                       onChange={(e) => setImageInput(e.target.value)}
                       onKeyDown={(e) => {
+                        // 한글 IME composition 중 Enter 차단
+                        if (e.nativeEvent.isComposing) return;
                         if (e.key === "Enter") {
                           e.preventDefault();
                           addImage();

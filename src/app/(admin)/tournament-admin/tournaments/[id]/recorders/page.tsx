@@ -102,7 +102,10 @@ export default function TournamentRecordersPage() {
             placeholder="이메일 주소"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addRecorder()}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") addRecorder();
+            }}
             className="flex-1 px-3 py-2 border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
           />
           <Button onClick={addRecorder} disabled={adding || !email.trim()}>

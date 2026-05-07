@@ -101,7 +101,10 @@ export default function TournamentAdminsPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="이메일 주소"
             className="flex-1 rounded-[16px] border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50"
-            onKeyDown={(e) => e.key === "Enter" && addAdmin()}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") addAdmin();
+            }}
           />
           <select
             value={role}
