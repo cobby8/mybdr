@@ -199,7 +199,8 @@ export function TeamsListCard({ teams }: Props) {
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    alignItems: "flex-start",
+                    // 5/7 v3: 우측 정렬 — 팀페이지 버튼 쪽으로 붙임 (뱃지/dropdown 너비 가변)
+                    alignItems: "flex-end",
                     gap: 4,
                     // 뱃지 줄바꿈 차단 (badge--soft 가 길어도 1줄)
                     whiteSpace: "nowrap",
