@@ -200,7 +200,9 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
       notificationType: NOTIFICATION_TYPES.TEAM_MEMBER_REQUEST_NEW,
       title: `[${team?.name ?? "팀"}] 새 ${typeLabel} 신청`,
       content: `${applicantName} 님이 ${typeLabel} 신청을 보냈습니다.`,
-      actionUrl: `/teams/${teamId}/manage/requests`,
+      // 5/7 fix: `/manage/requests` sub-route 미존재 → 404. manage 페이지의 ?tab= 쿼리로
+      // resolveInitialTab 가 'member-requests' 키로 매핑 (번호변경/휴면/탈퇴 통합 탭).
+      actionUrl: `/teams/${teamId}/manage?tab=member-requests`,
       notifiableType: "team_member_request",
       notifiableId: created.id,
     }).catch(() => {});
