@@ -124,6 +124,27 @@ export const PATCH = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       }
     }
 
+    // 5/7: 본인인증 완료 사용자는 name/birth_date/phone 변경 불가 (보안 보강).
+    //   클라이언트 잠금 우회 시도 차단. 인증 시점에 verified_name/birth/phone 박제됨.
+    //   변경 필요 시 PortOne 재인증 또는 관리자 수동 처리 (PR4 후속).
+    const currentUser = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { name_verified: true },
+    });
+    if (currentUser?.name_verified) {
+      const wantsChange =
+        (name !== undefined && name !== null) ||
+        birth_date !== undefined ||
+        (phone !== undefined && phone !== null);
+      if (wantsChange) {
+        return apiError(
+          "본인인증이 완료된 회원은 이름 / 생년월일 / 휴대폰을 변경할 수 없습니다.",
+          403,
+          "VERIFIED_FIELDS_LOCKED",
+        );
+      }
+    }
+
     // 2026-05-05 PR1: default_jersey_number 검증 블록 제거
     // 이유: 등번호는 team_members.jersey_number (팀별 row) 단일 source 로 일원화.
     // user 컬럼 default_jersey_number 는 PR1e (별도 명시 승인) 에서 schema DROP COLUMN.

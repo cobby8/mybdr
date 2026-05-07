@@ -72,14 +72,18 @@ export function ProfileCtaCard() {
 
   // SSR 시점 무조건 숨김 (hydration mismatch 차단) — client mount 후 useSWR/localStorage 결과 반영
   if (!mounted) return null;
-  // 비로그인(me 없음) / 닫힘 / 이미 완성 상태 → 숨김
+  // 비로그인(me 없음) / 닫힘 → 숨김
   if (!me || !me.id || dismissed) return null;
-  if (me.profile_completed === true) return null;
 
   // 5/7 PR1.2 — 본인인증 우선 분기
   // name_verified=false 면 onboarding 1/10 본인인증부터 시작 (대회 출전 게이트 의무).
   // 본인인증 완료 후 자동으로 기존 "프로필 완성하기" 안내로 전환.
   const needsIdentity = me.name_verified === false;
+
+  // 5/7 fix: profile_completed=true 체크는 needsIdentity 가 아닐 때만 적용.
+  //   이유: 카카오 로그인 등 소셜 가입자는 profile_completed=true 인데도 name_verified=false.
+  //         "본인인증부터 시작하세요" 카드가 숨겨지는 회귀 — needsIdentity 우선 노출.
+  if (!needsIdentity && me.profile_completed === true) return null;
 
   // 닫기 — 현재 시각 저장 → 7일 재노출 억제
   const handleDismiss = () => {
