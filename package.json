@@ -23,6 +23,7 @@
   "description": "",
   "dependencies": {
     "@google/genai": "^1.51.0",
+    "@portone/browser-sdk": "^0.1.6",
     "@prisma/client": "^6.19.2",
     "@serwist/next": "^9.5.6",
     "@supabase/supabase-js": "^2.100.1",
