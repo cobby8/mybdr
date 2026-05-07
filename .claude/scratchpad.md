@@ -8,17 +8,16 @@
 
 ## 🎯 현재 작업
 
-**[5/6 세션 마무리]** 팀 멤버 라이프사이클 시스템 5 Phase + UI fix 13건 + apiError 일괄 fix main 배포 완료 (`4253e68`). jersey 도메인 재설계 (옵션 C+UI) + 신청/승인 워크플로 + 이적 + 권한 위임 + 유령회원 + UI 디자인 시스템 통일 모두 운영 적용. 다음 세션 진입 = 뱃지 미동작 fix (envelope 가정 잘못) + onboarding PR1~5.
+**[5/7 세션 시작]** 0순위 뱃지 envelope+snake_case fix 완료 (`7945452`, 미푸시 1건). member-pending-badge + member-actions-menu 둘 다 `j.data.requests` + camelCase → `j.transfer_requests/requests` + snake_case (재발 8회). 마이페이지 소속 팀 카드 좌우 여백 모바일 12px/10px 정렬 동시 fix. 다음 = 2순위 onboarding PR1~5.
 
 ---
 
 ## 🎯 다음 세션 진입점
 
-### 🐛 0순위 — 본인 카드 좌하단 뱃지 미동작 (envelope 가정 잘못)
-- **원인 추정**: `member-pending-badge.tsx` + `member-actions-menu.tsx` 의 fetch 응답 처리가 `json.data.requests` envelope 가정 — 실제 mybdr `apiSuccess` = `{ requests: [...] }` 직접. → `json.requests` 로 수정 필요.
-- 영향: 좌하단 뱃지 미표시 + dropdown trigger 라벨 갱신 안 됨 (사용자 보고 5/6).
-- 분량: 두 컴포넌트의 fetch 응답 envelope 수정 ~0.2d.
-- 위치: `src/app/(web)/teams/[id]/_components_v2/member-pending-badge.tsx` + `member-actions-menu.tsx`
+### ✅ 0순위 — 본인 카드 좌하단 뱃지 미동작 (5/7 완료 `7945452`)
+- 원인 (실제): envelope `data` 가정 잘못 + **snake_case 변환 누락** (재발 8회). payload 내부도 재귀 변환됨 (`new_jersey`).
+- 5종 fix: transfer envelope+keys, member envelope+keys, payload 내부 keys.
+- 추가 fix: 마이페이지 소속 팀 카드 모바일 좌우 여백 (mypage-teams-section / 12px·10px hub 정렬).
 
 ### 🚀 1순위 — 박성후 등록 + 이도균 ✅ 완료
 - ~~**이도균** (user_id=3352) — 5/5 완료: ttpId=2830 #70 / team_members.jersey=70.~~
@@ -72,6 +71,7 @@ PR1~5 (~5.5d) — decisions.md `[2026-05-05]` 참조. PR5 먼저 권장.
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-07 | `7945452` (미푸시 1) | **신청 중 뱃지 envelope+snake_case fix + 마이페이지 좌우 여백** — `apiSuccess` 자동 snake_case + envelope 가정 잘못 (재발 8회). `member-pending-badge.tsx` + `member-actions-menu.tsx` 5종 fix: transfer `j.data.requests` → `j.transfer_requests`, member `j.data.requests` → `j.requests`, key `fromTeamId/toTeamId/toTeam/requestType/newJersey` → `from_team_id/to_team_id/to_team/request_type/new_jersey` (payload 내부도 재귀 변환). 마이페이지 `TeamsListCard` 에 `mypage-teams-section` 클래스 추가 + `mypage.css` 모바일 ≤720px 12px / ≤380px 10px hub 정렬. errors.md 재발 8회 박제 강화. tsc 0. | ✅ |
 | 2026-05-06 | `7211f97` `86f9eb9` `64b1bab` `d5d491e` `465b7ca` `f6b43ab` → main `4253e68` | **5/6 누적 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 이동 + 좌하단 뱃지 + dropdown overflow + apiError 일괄 fix** — (1) PR1e: `user.default_jersey_number` 컬럼 DROP (54명 메모 손실, 가치 0, 명시 승인 + --accept-data-loss). (2) UI fix 13건 / 11건 fix: 5 모달 + dropdown 토큰 통일 (`--surface` → `--color-card`) / placeholder "예) " 4건 / iOS 16px / grid 모바일 분기 / dropdown overflow / window.prompt → ForceActionModal. (3) 본인 카드 dropdown 잘림 fix (overflow visible). (4) 좌하단 신청 중 뱃지 (`member-pending-badge.tsx`) — 4종 라벨 (jersey/dormant/withdraw/transfer). (5) 마이페이지 소속팀 카드 = 히어로 아래 풀 width + 각 row "활동 관리" + "팀페이지 →". (6) "내 액션" → "활동 관리" 라벨. (7) apiError 인자 순서 9 파일 69건 fix (한국어 메시지 정상화 — 휴면/번호변경/탈퇴 신청 시 "ALREADY_PENDING" 영문 노출 → 한국어). transfer 검색 endpoint URL fix. tsc 0 / 미푸시 0. | ✅ |
 | 2026-05-05 | `ae4ffd7` `d72aa0a` `f2d7a96` `a647f88` `2e3e22b` `8600c74` `1e8c9db` `b9b2776` `504e858` `d274000` `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** — 보고서 `Dev/team-member-lifecycle-2026-05-05.md` 옵션 C+UI. Phase 1 Jersey (PR1~5): default_jersey 사용처 정리 / 가입폼 jersey + 자동 복사 / 마이페이지 다중 팀 카드 / tournament join ttp 자동 sync (운영자 시야 X) / match_player_jersey 신설 + W1 라이브 운영자 모달 + admin_logs / v1 6 endpoints 우선순위 helper (Flutter 변경 0). Phase 2 워크플로 (PR6~9): team_member_requests + team_member_history 인프라 / 번호변경 신청 + dispatcher 활성화 / 휴면+탈퇴 + lazy 복구 helper. Phase 3 이적 (PR10~11): transfer_requests state machine 양쪽 팀장 승인 + 자동 이동 트랜잭션. Phase 4 권한 위임 (PR12~13): team_officer_permissions captain only 위임 (재위임 X) + 매트릭스 적용 4 endpoint. Phase 5 유령회원 (PR14~16): last_activity_at + 5분 throttle + 활동 추적 5종 / 유령 후보 + 강제 액션 / 회원 상태 정비 + 명단 완전 삭제 옵션. ADD TABLE 5건 + ADD COLUMN 1건 모두 무중단. 사용자 결정 8건 + 미묘 6건 룰 반영. tsc 0 / Flutter v1 호환 0. | ✅ |
 | 2026-05-05 | DB UPDATE 4건 (코드 변경 0) | **열혈농구단 SEASON2 출전 명단 정비** — 쓰리포인트/백승훈 ttpId=2540 (18→39) + 몽키즈/이지환 ttpId=2583 (0→4) + 몽키즈/최원영 ttpId=2581 (10→20) + 제주 리딤/이도균 ttpId=2830 INSERT #70 (옵션 2 트랜잭션, team_members.jersey NULL→70 동시). 매 건 사전 검증 (동명이인 0 / 충돌 0) → 사용자 명시 승인 → 사후 SELECT 재확인 PASS. 임시 스크립트 즉시 삭제. errors+lessons 박제 (도메인 단방향 함정). | ✅ |

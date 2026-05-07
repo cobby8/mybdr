@@ -39,7 +39,7 @@ export function TeamsListCard({ teams }: Props) {
   // 0 팀 빈 상태
   if (teams.length === 0) {
     return (
-      <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+      <div className="card mypage-teams-section" style={{ marginTop: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <span className="eyebrow" style={{ fontSize: 11 }}>
             소속 팀
@@ -60,7 +60,7 @@ export function TeamsListCard({ teams }: Props) {
   }
 
   return (
-    <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+    <div className="card mypage-teams-section" style={{ marginTop: 16, marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <span className="eyebrow" style={{ fontSize: 11 }}>
           소속 팀{" "}

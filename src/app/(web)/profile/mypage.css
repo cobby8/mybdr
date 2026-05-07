@@ -740,6 +740,11 @@
   }
   .mypage__hero-actions .btn--primary { grid-column: 1 / -1; }
 
+  /* 5/7 — 소속 팀 카드 모바일 좌우 여백 (.mypage-hub 와 동일 12px)
+     이유: 히어로 full-bleed 직후 .mypage padding:0 으로 좌우 0 → 화면 꽉 참.
+     hub/aside (12px / 10px) 와 시각 정렬 맞춤. */
+  .mypage-teams-section { margin-left: 12px; margin-right: 12px; }
+
   /* HUB intro — tighter on mobile */
   .mypage-hub { gap: 10px; padding: 0 12px; }
   .mypage-hub__intro { padding: 4px 2px 4px; }
@@ -929,6 +934,8 @@
 
   .mypage-hub { padding: 0 10px; }
   .mypage__aside { padding: 0 10px; }
+  /* 5/7 — 소형 모바일 (≤380px) 도 hub/aside 와 동일 10px 정렬 */
+  .mypage-teams-section { margin-left: 10px; margin-right: 10px; }
 
   .mypage-card--lg {
     min-height: 140px;

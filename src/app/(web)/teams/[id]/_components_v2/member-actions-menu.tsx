@@ -81,6 +81,9 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
   }, [menuOpen]);
 
   async function fetchPending(): Promise<PendingState> {
+    // 이유(왜): apiSuccess 는 응답 키를 자동 snake_case 변환 (lib/api/response.ts).
+    //   따라서 envelope = { transfer_requests / requests } 직접, payload 내부도 snake_case.
+    //   재발 6회 박제 — errors.md 참조.
     try {
       // 이유: TeamMemberRequest pending + TransferRequest pending 을 병렬 조회.
       //   PR10: 이적이 진행 중이면 다른 모든 액션 차단 (단순화 — 흐름 분리).
@@ -92,37 +95,38 @@ export function MemberActionsMenu({ teamId, teamName, currentJersey }: Props) {
       const transferJson = await transferRes.json().catch(() => ({}));
 
       // 이적 우선 검사 — pending 이적이 있으면 본 팀 관련성 무관하게 모든 액션 차단
-      const transferList = (transferJson?.data?.transferRequests ?? []) as Array<{
-        fromTeamId: string;
-        toTeamId: string;
-        toTeam?: { name?: string | null } | null;
+      const transferList = (transferJson?.transfer_requests ?? []) as Array<{
+        from_team_id: string;
+        to_team_id: string;
+        to_team?: { name?: string | null } | null;
       }>;
-      // 본 팀에서 떠나는 이적 (fromTeamId === teamId) 우선 표시
+      // 본 팀에서 떠나는 이적 (from_team_id === teamId) 우선 표시
       const ownTransfer =
-        transferList.find((t) => t.fromTeamId === teamId) ?? transferList[0] ?? null;
+        transferList.find((t) => t.from_team_id === teamId) ?? transferList[0] ?? null;
       if (ownTransfer) {
         return {
           kind: "transfer",
-          toTeamName: ownTransfer.toTeam?.name ?? null,
+          toTeamName: ownTransfer.to_team?.name ?? null,
         };
       }
 
       // member request pending
-      const list = (memberJson?.data?.requests ?? []) as Array<{
-        requestType: string;
+      const list = (memberJson?.requests ?? []) as Array<{
+        request_type: string;
         payload: unknown;
       }>;
       if (list.length === 0) return { kind: "none" };
       const first = list[0];
-      if (first.requestType === "jersey_change") {
-        const p = first.payload as { newJersey?: number } | null;
+      if (first.request_type === "jersey_change") {
+        // payload 내부 키도 snake_case 변환됨 (재귀 변환)
+        const p = first.payload as { new_jersey?: number } | null;
         return {
           kind: "jersey_change",
-          newJersey: typeof p?.newJersey === "number" ? p.newJersey : null,
+          newJersey: typeof p?.new_jersey === "number" ? p.new_jersey : null,
         };
       }
-      if (first.requestType === "dormant") return { kind: "dormant" };
-      if (first.requestType === "withdraw") return { kind: "withdraw" };
+      if (first.request_type === "dormant") return { kind: "dormant" };
+      if (first.request_type === "withdraw") return { kind: "withdraw" };
       return { kind: "none" };
     } catch {
       return { kind: "none" };
