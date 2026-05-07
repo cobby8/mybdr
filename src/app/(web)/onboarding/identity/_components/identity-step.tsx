@@ -50,8 +50,8 @@ export function IdentityStep() {
         <IdentityVerifyButton
           initialVerified={false}
           onVerified={() => {
-            // 인증 완료 — 다음 단계 진입 (PR2 후 /onboarding/environment 로 변경)
-            router.push("/");
+            // 5/7 PR2.c — 인증 완료 → 다음 단계 (활동 환경) 자동 진입
+            router.push("/onboarding/environment");
             router.refresh();
           }}
         />

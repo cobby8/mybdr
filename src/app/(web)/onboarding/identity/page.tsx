@@ -36,9 +36,9 @@ export default async function OnboardingIdentityPage() {
     select: { name_verified: true },
   });
 
-  // 이미 인증 완료 → 홈 (PR2 후 다음 단계 경로로 변경 예정)
+  // 5/7 PR2.c — 이미 인증 완료 → 다음 단계 (활동 환경)
   if (u?.name_verified) {
-    redirect("/");
+    redirect("/onboarding/environment");
   }
 
   return (
