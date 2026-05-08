@@ -29,13 +29,17 @@ function PlayerProfile({ setRoute }) {
     ],
   };
 
+  // 5/9 NBA 스타일 8열 (Q4=C-3 사용자 결정 — BPG 제거 + MIN/FG%/3P% 추가)
+  // 사유: NBA 핵심 지표 (FG%/3P%/MIN) + 모바일 4×2 grid 일관성. mybdr 운영 데이터 BPG 우선순위 ↓
   const seasonStats = [
     { label:'경기', value:'34' },
     { label:'승률', value:'79%' },
     { label:'PPG', value:'18.4' },
-    { label:'APG', value:'3.2' },
     { label:'RPG', value:'11.8' },
-    { label:'BPG', value:'2.4' },
+    { label:'APG', value:'3.2' },
+    { label:'MIN', value:'24.6' },
+    { label:'FG%', value:'56.0%' },
+    { label:'3P%', value:'31.0%' },
   ];
 
   const shotChart = [
@@ -46,12 +50,16 @@ function PlayerProfile({ setRoute }) {
     { zone:'자유투',        pct:74, att:5.4, league:68 },
   ];
 
+  // 5/9 NBA 스타일 카드형 (대회상세 ScheduleTimeline 패턴 + 본인 기록 줄)
+  // 카드 메타: 매치코드(v4) | 라운드명 | 시간(M/D(요일) HH:MM) | 코트 | 상태뱃지
+  // 카드 중앙: 홈팀 로고+이름 vs 스코어박스 vs 어웨이팀 이름+로고 (홈/원정 구분)
+  // 카드 하단: 본인 기록 줄 22 PTS · 14 REB · 3 AST · 2 STL [W]
   const recent = [
-    { date:'04.20', opp:'3POINT', oppTag:'3PT', oppColor:'#F59E0B', result:'W', score:'24-18', pts:22, reb:14, ast:3, stl:2 },
-    { date:'04.13', opp:'REDEEM', oppTag:'RDM', oppColor:'#E11D48', result:'W', score:'21-17', pts:16, reb:12, ast:5, stl:1 },
-    { date:'04.06', opp:'KINGS CREW', oppTag:'KGS', oppColor:'#0EA5E9', result:'L', score:'19-21', pts:20, reb:10, ast:2, stl:0 },
-    { date:'03.30', opp:'IRON WOLVES', oppTag:'IRW', oppColor:'#6B7280', result:'W', score:'21-14', pts:14, reb:15, ast:4, stl:3 },
-    { date:'03.23', opp:'PIVOT', oppTag:'PVT', oppColor:'#EC4899', result:'W', score:'21-11', pts:19, reb:9,  ast:4, stl:2 },
+    { matchCode:'26-GG-MD21-006', round:'B조 2경기', time:'5/2(토) 15:30', court:'1', status:'completed', homeTag:'MK', homeName:'MONKEYS', homeColor:team.color, homeScore:24, awayTag:'3PT', awayName:'3POINT', awayColor:'#F59E0B', awayScore:18, playerSide:'home', pts:22, reb:14, ast:3, stl:2 },
+    { matchCode:'26-GG-MD21-005', round:'B조 1경기', time:'5/2(토) 14:00', court:'2', status:'completed', homeTag:'RDM', homeName:'REDEEM', homeColor:'#E11D48', homeScore:17, awayTag:'MK', awayName:'MONKEYS', awayColor:team.color, awayScore:21, playerSide:'away', pts:16, reb:12, ast:5, stl:1 },
+    { matchCode:'26-GG-MD20-008', round:'A조 4경기', time:'4/27(일) 17:00', court:'3', status:'completed', homeTag:'MK', homeName:'MONKEYS', homeColor:team.color, homeScore:19, awayTag:'KGS', awayName:'KINGS CREW', awayColor:'#0EA5E9', awayScore:21, playerSide:'home', pts:20, reb:10, ast:2, stl:0 },
+    { matchCode:'26-GG-MD19-003', round:'B조 1경기', time:'4/20(일) 13:30', court:'1', status:'completed', homeTag:'IRW', homeName:'IRON WOLVES', homeColor:'#6B7280', homeScore:14, awayTag:'MK', awayName:'MONKEYS', awayColor:team.color, awayScore:21, playerSide:'away', pts:14, reb:15, ast:4, stl:3 },
+    { matchCode:null, round:'A조 2경기', time:'4/13(일) 16:00', court:'2', status:'completed', homeTag:'MK', homeName:'MONKEYS', homeColor:team.color, homeScore:21, awayTag:'PVT', awayName:'PIVOT', awayColor:'#EC4899', awayScore:11, playerSide:'home', pts:19, reb:9, ast:4, stl:2, matchNumber:5 },
   ];
 
   const vsMe = { games:4, wins:1, losses:3, myPts:12.0, theirPts:21.5 };
@@ -140,8 +148,9 @@ function PlayerProfile({ setRoute }) {
         <div style={{display:'grid', gridTemplateColumns:'minmax(0, 1fr) 320px', gap:16}}>
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
             <div className="card" style={{padding:'22px 24px'}}>
-              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>2026 스프링 시즌</h2>
-              <div style={{display:'grid', gridTemplateColumns:'repeat(6, 1fr)', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
+              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>통산 스탯</h2>
+              {/* 5/9 NBA 8열 (Q4=C-3): 경기/승률/PPG/RPG/APG/MIN/FG%/3P% */}
+              <div style={{display:'grid', gridTemplateColumns:'repeat(8, 1fr)', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
                 {seasonStats.map((s, i) => (
                   <div key={s.label} style={{padding:'14px 8px', textAlign:'center', borderLeft: i>0 ? '1px solid var(--border)' : 0, background:'var(--bg-alt)'}}>
                     <div style={{fontFamily:'var(--ff-display)', fontWeight:900, fontSize:24, letterSpacing:'-0.01em'}}>{s.value}</div>
@@ -251,25 +260,73 @@ function PlayerProfile({ setRoute }) {
       )}
 
       {tab === 'games' && (
-        <div className="card data-table" style={{padding:0, overflow:'hidden'}}>
-          <div className="board__head data-table__head" style={{gridTemplateColumns:'80px 1fr 60px 90px repeat(4, 60px)'}}>
-            <div>날짜</div><div style={{textAlign:'left'}}>상대</div><div>결과</div><div>스코어</div><div>PTS</div><div>REB</div><div>AST</div><div>STL</div>
-          </div>
-          {recent.map((g, i) => (
-            <div key={i} className="board__row data-table__row" style={{gridTemplateColumns:'80px 1fr 60px 90px repeat(4, 60px)'}}>
-              <div data-label="날짜" style={{fontFamily:'var(--ff-mono)', color:'var(--ink-dim)'}}>{g.date}</div>
-              <div data-primary="true" className="title" style={{gap:8}}>
-                <span style={{width:24, height:24, background:g.oppColor, color:'#fff', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:9, fontWeight:700, borderRadius:3}}>{g.oppTag}</span>
-                vs {g.opp}
-              </div>
-              <div data-label="결과"><span className="badge" style={{background: g.result==='W' ? 'var(--ok)' : 'var(--danger)', color:'#fff', border:0}}>{g.result}</span></div>
-              <div data-label="스코어" style={{fontFamily:'var(--ff-mono)', fontWeight:700}}>{g.score}</div>
-              <div data-label="PTS" style={{fontFamily:'var(--ff-mono)', fontWeight:700}}>{g.pts}</div>
-              <div data-label="REB" style={{fontFamily:'var(--ff-mono)'}}>{g.reb}</div>
-              <div data-label="AST" style={{fontFamily:'var(--ff-mono)'}}>{g.ast}</div>
-              <div data-label="STL" style={{fontFamily:'var(--ff-mono)'}}>{g.stl}</div>
-            </div>
-          ))}
+        // 5/9 NBA 스타일 카드형 (대회상세 ScheduleTimeline 패턴 + 본인 기록 줄)
+        // 각 카드: 메타줄 / VS행 / 본인 기록 줄 (22 PTS · 14 REB · 3 AST · 2 STL [W])
+        // 카드 클릭 → /live/[matchId] (운영 PlayerMatchCard 컴포넌트 카피)
+        <div style={{display:'flex', flexDirection:'column', gap:10}}>
+          {recent.map((g, i) => {
+            // 본인 W/L 판별 — playerSide 가 home/away 일 때 homeScore/awayScore 비교
+            const homeWins = g.homeScore > g.awayScore;
+            const playerWon = (g.playerSide==='home' && homeWins) || (g.playerSide==='away' && !homeWins);
+            const wl = g.homeScore === g.awayScore ? null : (playerWon ? 'W' : 'L');
+            return (
+              <a key={i} className="card" style={{padding:12, display:'block', textDecoration:'none', color:'inherit', cursor:'pointer'}}>
+                {/* 카드 상단 메타: 매치코드(또는 #번호) | 라운드 | 시간 | 코트 | [상태] */}
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10}}>
+                  <div style={{display:'flex', flexWrap:'wrap', alignItems:'center', gap:8, minWidth:0}}>
+                    {g.matchCode ? (
+                      <>
+                        <span style={{fontFamily:'var(--ff-mono)', fontSize:11, fontWeight:700, padding:'2px 6px', background:'var(--bg-alt)', borderRadius:3, letterSpacing:'.02em'}}>{g.matchCode}</span>
+                        <span style={{fontSize:11, color:'var(--ink-dim)'}}>|</span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{fontFamily:'var(--ff-mono)', fontSize:11, color:'var(--ink-mute)'}}>#{g.matchNumber}</span>
+                        <span style={{fontSize:11, color:'var(--ink-dim)'}}>|</span>
+                      </>
+                    )}
+                    <span style={{fontSize:12, fontWeight:500, color:'var(--ink-mute)'}}>{g.round}</span>
+                    <span style={{fontSize:11, color:'var(--ink-dim)'}}>|</span>
+                    <span style={{fontSize:12, fontWeight:700, color:'var(--ink-soft)', fontFamily:'var(--ff-display)'}}>{g.time}</span>
+                    <span style={{fontSize:11, color:'var(--ink-dim)'}}>|</span>
+                    <span style={{fontSize:12, color:'var(--ink-mute)'}}>{g.court}코트</span>
+                  </div>
+                  <span className="badge" style={{background:'var(--info-bg, var(--bg-alt))', color:'var(--info, var(--ink-soft))', fontSize:10, padding:'2px 8px', borderRadius:3, fontWeight:700, letterSpacing:'.05em'}}>종료</span>
+                </div>
+                {/* 카드 중앙 VS 행: 홈팀 로고+이름 / 스코어박스 / 어웨이팀 이름+로고 */}
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+                  <div style={{display:'flex', flex:1, alignItems:'center', gap:8, minWidth:0}}>
+                    <span style={{width:32, height:32, background:g.homeColor, color:'#fff', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:10, fontWeight:700, borderRadius:'50%', flexShrink:0}}>{g.homeTag}</span>
+                    <span style={{fontSize:15, fontWeight:700, color: homeWins ? 'var(--ink)' : 'var(--ink-soft)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{g.homeName}</span>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap:6, padding:'6px 14px', background:'var(--bg-elev)', borderRadius:9999, margin:'0 12px', flexShrink:0}}>
+                    <span style={{fontSize:18, fontWeight:700, fontFamily:'var(--ff-display)', color: homeWins ? 'var(--accent)' : 'var(--ink-soft)'}}>{g.homeScore}</span>
+                    <span style={{fontSize:12, color:'var(--ink-dim)'}}>:</span>
+                    <span style={{fontSize:18, fontWeight:700, fontFamily:'var(--ff-display)', color: !homeWins ? 'var(--accent)' : 'var(--ink-soft)'}}>{g.awayScore}</span>
+                  </div>
+                  <div style={{display:'flex', flex:1, alignItems:'center', justifyContent:'flex-end', gap:8, minWidth:0}}>
+                    <span style={{fontSize:15, fontWeight:700, color: !homeWins ? 'var(--ink)' : 'var(--ink-soft)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{g.awayName}</span>
+                    <span style={{width:32, height:32, background:g.awayColor, color:'#fff', display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:10, fontWeight:700, borderRadius:'50%', flexShrink:0}}>{g.awayTag}</span>
+                  </div>
+                </div>
+                {/* 카드 하단: 본인 기록 줄 (Q5=D-1) — 22 PTS · 14 REB · 3 AST · 2 STL [W] */}
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', borderTop:'1px solid var(--border)', paddingTop:10, marginTop:10}}>
+                  <div style={{display:'flex', alignItems:'center', gap:8, fontSize:13, color:'var(--ink-soft)', fontFamily:'var(--ff-mono)'}}>
+                    <span><b style={{color:'var(--ink)', fontWeight:700}}>{g.pts}</b> PTS</span>
+                    <span style={{color:'var(--ink-dim)'}}>·</span>
+                    <span><b style={{color:'var(--ink)', fontWeight:700}}>{g.reb}</b> REB</span>
+                    <span style={{color:'var(--ink-dim)'}}>·</span>
+                    <span><b style={{color:'var(--ink)', fontWeight:700}}>{g.ast}</b> AST</span>
+                    <span style={{color:'var(--ink-dim)'}}>·</span>
+                    <span><b style={{color:'var(--ink)', fontWeight:700}}>{g.stl}</b> STL</span>
+                  </div>
+                  {wl && (
+                    <span style={{display:'inline-flex', width:20, height:20, alignItems:'center', justifyContent:'center', background: wl==='W' ? 'var(--ok)' : 'var(--danger)', color:'#fff', fontSize:11, fontWeight:700, borderRadius:3}}>{wl}</span>
+                  )}
+                </div>
+              </a>
+            );
+          })}
         </div>
       )}
 

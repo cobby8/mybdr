@@ -19,15 +19,21 @@ import Image from "next/image";
 // 2026-05-02: 모바일 분기 CSS — grid 인라인 모바일 깨짐 해소
 import "./overview-tab.css";
 
-/** 시즌 스탯 셀 데이터 — overview 탭 전용 6열 */
+/** 시즌 스탯 셀 데이터 — overview 탭 전용 8열 (5/9 Q4=C-3)
+ *  변경: 6열(경기/승률/PPG/APG/RPG/BPG) → 8열(경기/승률/PPG/RPG/APG/MIN/FG%/3P%)
+ *  사유: BPG 우선순위 낮음. NBA 핵심 지표 (FG%/3P%/MIN) 추가. 모바일 4×2 grid 일관성 ↑ */
 export interface OverviewSeasonStats {
   games: number;
   winRate: number | null;
   ppg: number | null;
-  apg: number | null;
   rpg: number | null;
-  /** BPG — career avgBlocks */
-  bpg: number | null;
+  apg: number | null;
+  /** MIN — career avg minutesPlayed */
+  mpg: number | null;
+  /** FG% — career avg field_goal_percentage (이미 0~100 범위) */
+  fgPct: number | null;
+  /** 3P% — career avg three_point_percentage (이미 0~100 범위) */
+  threePct: number | null;
 }
 
 export interface OverviewTeam {
@@ -91,6 +97,13 @@ function fmtWinRate(v: number | null): string {
   return `${Math.round(v)}%`;
 }
 
+// 5/9 신규: FG%/3P% 표시용 (DB 값이 이미 0~100 범위 % 값)
+// 0 이면 "-" (경기 1건도 없는 상태) / 표시 시 소수 1자리 + %
+function fmtPct(v: number | null): string {
+  if (v == null || v === 0) return "-";
+  return `${v.toFixed(1)}%`;
+}
+
 function fmtYearMonthDay(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "-";
@@ -104,13 +117,17 @@ function fmtYearMonth(iso: string): string {
 }
 
 export function OverviewTab({ stats, teams, badges, activity, bio }: OverviewTabProps) {
+  // 5/9 Q4=C-3: 8열 (경기/승률/PPG/RPG/APG/MIN/FG%/3P%) — NBA 충실 + BPG 제거
+  // FG%/3P% 는 이미 0~100 범위 % 값 (Decimal field) — fmtPct 로 % 추가
   const seasonCells = [
     { label: "경기", value: stats.games > 0 ? stats.games.toString() : "-" },
     { label: "승률", value: fmtWinRate(stats.winRate) },
     { label: "PPG", value: fmtAvg(stats.ppg) },
-    { label: "APG", value: fmtAvg(stats.apg) },
     { label: "RPG", value: fmtAvg(stats.rpg) },
-    { label: "BPG", value: fmtAvg(stats.bpg) },
+    { label: "APG", value: fmtAvg(stats.apg) },
+    { label: "MIN", value: fmtAvg(stats.mpg) },
+    { label: "FG%", value: fmtPct(stats.fgPct) },
+    { label: "3P%", value: fmtPct(stats.threePct) },
   ];
 
   return (

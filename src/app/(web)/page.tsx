@@ -13,17 +13,19 @@ export const metadata: Metadata = {
  * 1. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
  *    └ prefetchHeroSlides()가 데이터 0건이어도 정적 fallback 1개 보장
  * 2. StatsStrip — 4열 통계 (전체회원/지금접속/오늘의글/진행중대회)
- * 3. 2컬럼 grid
+ * 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  ⭐ 5/9 부활
+ * 4. 2컬럼 grid
  *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → BoardRow
  *    - CardPanel "열린 대회"   : prefetchOpenTournaments → BoardRow
- * 4. CardPanel "방금 올라온 글" : prefetchCommunity 상위 10건 → BoardRow
+ * 5. CardPanel "방금 올라온 글" : prefetchCommunity 상위 10건 → BoardRow
  *
- * v2 전환으로 기존 6종 섹션(HomeHero/RecommendedGames/RecommendedTournaments/
- * NotableTeams/RecommendedVideos/RecentActivity/HomeCommunity)은 제거.
- * components/home/* 파일은 미사용 상태로 보존 (삭제하지 않음).
+ * v2 전환 시 6종 섹션 일괄 제거됐으나 5/9 RecommendedVideos 만 부활.
+ * (코드 자산 + API + Redis cache + cron warming 모두 정상 가동 중)
+ * 나머지 components/home/* 파일은 미사용 상태로 보존 (삭제하지 않음).
  *
  * API/DB/route.ts 변경 없음. 서비스 레이어(home.ts)에 prefetchOpenTournaments
  * 추가만 있음. Promise.allSettled로 부분 실패 허용.
+ * RecommendedVideos 는 "use client" + useSWR 자체 fetch → SSR prefetch 무관.
  * ============================================================ */
 
 // 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
@@ -38,6 +40,9 @@ import { CardPanel } from "@/components/bdr-v2/card-panel";
 // 2026-05-04 가입 흐름 통합 (F5): 가입 직후 미완성 사용자 대상 CTA 카드.
 // useSWR("/api/web/me") 자체 fetch + localStorage 7일 dismiss → server component 영향 0.
 import { ProfileCtaCard } from "@/components/home/profile-cta-card";
+// 2026-05-09 RecommendedVideos 부활: NBA 2K 스타일 헤더 ("HIGHLIGHTS") + useSWR
+// /api/web/youtube/recommend (Redis cache + cron warming) 자체 패칭 → server prefetch 무관.
+import { RecommendedVideos } from "@/components/home/recommended-videos";
 import {
   prefetchStats,
   prefetchCommunity,
@@ -162,7 +167,15 @@ export default async function HomePage() {
         ]}
       />
 
-      {/* 3. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
+      {/* 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) ⭐ 5/9 부활
+       * 컴포넌트 자체 "HIGHLIGHTS" 헤더 보유 → CardPanel 래퍼 없이 직접 렌더.
+       * useSWR 클라이언트 패칭이라 server component prefetch 영향 0.
+       * marginTop:24 으로 StatsStrip 과 BDR v2 다른 섹션과 동일 간격. */}
+      <section style={{ marginTop: 24 }}>
+        <RecommendedVideos />
+      </section>
+
+      {/* 4. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 공지·인기글 패널 — HotPostRow 방식 (시안 3열 grid 간략 리스트)
          * v2 Home.jsx L44~53 HOT_POSTS 구조: 56px 배지 / 1fr 제목 / auto 조회수.
