@@ -8,7 +8,7 @@
 
 ## 🎯 현재 작업
 
-**[5/8 마무리 — 단일 일 main 6회 머지 완료]** PR #214~#225 12건 / 작업 6회차 (디자인 박제 + truncated hot fix + PR3 mock 모드 + BDR-current v2.5/v2.5.1 + mock 자체 입력 폴백). Production = main `93670c5`. 미푸시 0 / 동기화 깨끗. PortOne 콘솔 채널 발급 + 환경변수 추가 외부 작업 대기 (이번 주 내 예상) — 추가 시 자동 SDK 모드 전환 (코드 변경 0).
+**[5/9 — 시안 갭 fix 100% 완료]** PR #228~#235 4회차 main 머지. PhoneInput/BirthDateInput 마이그 (1순위 4 input + 2~3순위 6 input = 10 input) + 시안 역박제 10 페이지 (1순위 3 + 2~3순위 7) 모두 main 배포. Production = `afcbd65`. 미푸시 0 / 동기화 깨끗. 운영 → 시안 박제 갭 **0건** (5/7 lessons.md 룰 회복).
 
 ---
 
@@ -17,823 +17,87 @@
 ### 🚨 0순위 — PortOne 본인인증 운영 활성화 (사용자 외부 작업, 이번 주 내 예상)
 - **PortOne 콘솔**: 본인인증 채널 발급 (PASS / SMS / KCP)
 - **Vercel 환경변수**: `NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY=channel-key-xxx` 추가 → 재배포
-- **활성화 직후 자동 전환**:
-  - PR3 layout 가드 → 미인증 사용자 강제 redirect 활성
-  - mock 자체 입력 폴백 → SDK 모드 자동 전환 + mock-verify endpoint 503 자동 거부
-- **롤백 1초**: 환경변수 제거 = mock 모드 자동 복귀
+- **활성화 직후 자동 전환**: PR3 가드 활성 / mock 폴백 503 자동 / SDK 모드 전환 (코드 변경 0)
+- **롤백 1초**: 환경변수 제거
 
 ### 🚀 1순위 — PortOne 활성화 후 검증
-- 미인증 계정 → /games/[id] /teams/[id] /tournaments/[id]/join 진입 → /onboarding/identity?returnTo= redirect 정상
-- PortOne 위젯 호출 → 인증 완료 → returnTo 자동 복귀
-- mock 통과자 (identity_method='mock') 사후 식별 + 권유 안내 (강제 invalidate 안 함)
+- 미인증 계정 → /games/[id] /teams/[id] /tournaments/[id]/join 진입 → /onboarding/identity?returnTo redirect
+- mock 통과자 (identity_method='mock') 사후 식별 + 권유 안내 (강제 invalidate X)
 
-### 🚀 2순위 — onboarding 흐름 검증 + 사용자 영향 모니터링
-- 카카오/구글/네이버 소셜 가입자가 흐름 정상 통과 / xp +100 / profile/edit 잠금 회귀 0
+### 🚀 2순위 — PhoneInput/BirthDateInput 마이그 4순위 (admin+referee 그룹)
+- (admin) 1건 + (referee) 1건 = 2 input. 별도 그룹이라 사용자 영향 적음, 일관성 차원
 
-### 🚀 3순위 — manage 탭 그룹화 (P2-6 보류) + 데드 코드 정리
-- manage 8~9 탭 → "신청 관리" / "운영진" 그룹화 (IA 변경, 사용자 결정 필요)
+### 🚀 3순위 — onboarding 흐름 검증 + 사용자 영향 모니터링
+- 카카오/구글/네이버 소셜 가입자 흐름 / xp +100 / profile/edit 잠금 회귀 0
 
-### 🚀 4순위 — game.game_type 0~5 마이그레이션 / 매치 코드 v4 Phase 6 (보류)
-
----
-
-## 기획설계 (planner-architect / 5/8)
-
-- **PR3 layout 가드 + mock 모드** ✅ main 배포 (`Dev/pr3-layout-guard-design-2026-05-08.md` / PR #218/#219 `f39afae`). 헬퍼 2 + server layout 1 + 수정 4 페이지 / `user.name_verified` 컬럼 / mock flag = channel key 자동 ON / 회귀 0.
-- **본인인증 mock 자체 입력 폴백** ✅ main 배포 (`Dev/identity-mock-fallback-design-2026-05-08.md` / PR #224/#225 `93670c5`). 사용자 Q1~Q5 일괄 승인. 신규 2 (modal 337L + endpoint 156L) + 수정 2 (button +35L + DB +5L) / 보안 가드 3단 / `user.identity_method` ADD COLUMN 무중단 / admin_logs 기록.
-- **사이트 전역 PhoneInput / BirthDateInput + mock 모달 적용** ✅ main 배포 (5/8). 신규 2 (PhoneInput 87L + BirthDateInput 109L) + 수정 3. conventions.md 박제 = 신규 작업 의무 사용.
-
-## 기획설계 (planner-architect / 5/9 displayName 후속)
-
-🎯 목표: 5/9 D-day 발견 후속 — 직접 `u.nickname` 참조 30+ 파일 → `getDisplayName()` 마이그 우선순위 분류 + 큐 등록 (즉시 진행 X, 사용자 결정 대기)
-
-📍 산출물: `Dev/displayname-migration-2026-05-09.md` (P0/P1/P2/P3 분류 표 31 파일 + 변경 패턴 + 추정 시간)
-
-📊 분류 결과:
-| 그룹 | 파일 수 | 마이그 | 추정 |
-|------|--------|-------|------|
-| **P0** 즉시 (공식 기록) | **6** | 권장 | 2.5~3h + 검증 1h |
-| **P1** 후속 (팀 운영 / 공개) | **9** | 결정 대기 | 3~4h |
-| **P2** 보류 (사적/admin/시스템) | **15** | 정책상 X | 0 |
-| **P3** 완료 (awards) | **1** | — | — |
-
-🚨 P0 6건 (즉시 마이그 권장):
-1. `(web)/games/[id]/page.tsx` (MVP 시상 + 참여자)
-2. `api/web/tournaments/[id]/public-bracket/route.ts` (대진표)
-3. `api/web/tournaments/[id]/matches/[matchId]/jersey-override/route.ts` (등번호)
-4. `api/web/tournaments/[id]/public-teams/route.ts` ⭐ 신규 발견 (대회 팀 선수)
-5. `lib/services/home.ts` — **mvp_player만** (organizer/applicant 은 nickname OK)
-6. `lib/news/build-linkify-entries.ts` (뉴스 기사 선수명 자동 링크)
-
-🔍 P1 9건 (사용자 결정 대기):
-- 팀 운영 5: members / requests / transfer-requests / officer-permissions / ghost-candidates
-- 공개 페이지 3: users/[id] / courts/[id] / courts/[id]/manage
-- 결정 사항: "팀 운영 IA = 사적 vs 공개?" / "공개 프로필 실명 우선?"
-
-⚠ P2 검토 필요 케이스 2건 (보고서 ⚠ 표시):
-- `profile/_v2/hero-card.tsx` — 본인 hero (영문 nickname 사용자도 본인은 nickname 의도 유지 = P2)
-- `admin/game-reports/page.tsx` — 평가대상은 공식 기록 가능성 (P0 검토 후 확정)
-
-🔗 변경 패턴 (1종):
-```
-Before: u.nickname || u.name || "익명"
-After:  getDisplayName(u, ttp, "익명")
-```
-응답 키 마이그 주의: `nickname` 키 유지하고 값만 displayName 으로 채우는 패턴 권장 (브레이킹 0).
-
-📋 권장 실행 계획 (사용자 결정 후):
-| 순서 | 작업 | 담당 | 선행 |
-|------|------|------|------|
-| 1 | P0 6 파일 일괄 마이그 (1 PR) | developer | 사용자 승인 |
-| 2 | tester + reviewer 병렬 검증 | tester + reviewer | 1단계 |
-| 3 | P1 결정 모임 (팀 IA = 사적/공개) | 사용자 결정 | 2단계 후 |
-| 4 | P1 마이그 (결정 후 1~2 PR) | developer | 3단계 |
-
-⚠ developer 주의사항 (P0 진입 시):
-- 응답 키 (`nickname`) 유지하고 값만 변경 권장 — 프론트 동시 수정 회피
-- `home.ts` 는 **mvp_player 부분만** 마이그 (organizer / applicant_name 은 nickname 정책 유지)
-- import 경로: `import { getDisplayName } from "@/lib/utils/player-display-name";`
-- Flutter v1 영향 0 (이미 별도 마이그 완료)
-- 캐시: unstable_cache 키 변경 X → 60초 revalidate 자연 갱신
-- 정확 line 수정 시 grep 재확인 (보고서 line 은 조사 시점 기준)
-
-🚦 회귀 위험 평가:
-| 항목 | 위험도 | 사유 |
-|------|------|------|
-| DB | 0 | 헬퍼 read-only |
-| 응답 키 | 중 | 점진 마이그 권장 |
-| Flutter v1 | 0 | 별도 |
-| 캐시 | 저 | revalidate 자동 |
-
-## 구현 기록 (developer / 5/9 roster route fix)
-
-📝 구현한 기능: `/api/v1/matches/[id]/roster` 라우트에 `getDisplayName()` 헬퍼 마이그 — 5/9 동호회최강전 D-day 대비 실명 우선 폴백 통일 (Flutter 기록앱 호출 라우트)
-
-| 파일 경로 | 변경 내용 | 신규/수정 | 라인 변화 |
-|----------|----------|----------|------|
-| `src/app/api/v1/matches/[id]/roster/route.ts` | import getDisplayName + select 에 player_name + users.nickname 양 팀 + mapPlayer 헬퍼 통일 | 수정 | 100 → 109 (+9) |
-
-### 변경 3건 (모두 적용 확인)
-1. **import 추가** (line 8): `import { getDisplayName } from "@/lib/utils/player-display-name";`
-2. **select 확장** (homeTeam line 39 + awayTeam line 59 두 곳):
-   - `player_name: true` 추가 (TTP 등록명 폴백용)
-   - `users.select` 에 `nickname: true` 추가
-3. **mapPlayer 시그니처/본문 갱신** (line 83~99):
-   - 타입에 `player_name: string | null` + `users.nickname: string | null` 추가
-   - `name: p.users?.name ?? "선수"` → `name: getDisplayName(p.users, { player_name, jerseyNumber }, "선수")` 통일
-   - 폴백 우선순위: User.name → User.nickname → ttp.player_name → `#{jersey}` → "선수"
-
-### 검증
-- `npx tsc --noEmit` — 0 에러 (no output) ✅
-- `wc -l` 109줄 / `tail -3` = `}` 정상 종료 (truncated 0 위반) ✅
-- 응답 키 `name` 유지 — Flutter v1 호환 변경 0 ✅
-
-### 회귀 차단 확인
-- Flutter v1 응답 키 (`home_players`, `away_players`, `name`, `jersey_number`, `is_starter`, `position`) 변경 0
-- `resolveMatchJerseysBatch` 호출 그대로 — jersey 우선순위 로직 유지
-- `/api/v1/tournaments/[id]/teams/[teamId]/players` GET 영향 0 (이미 헬퍼 사용 중)
-- requireRecorder 권한 체크 / orderBy / where (is_active) 변경 0
-
-💡 tester 참고:
-- 테스트 방법: 5/9 동호회최강전 매치에서 user_id=NULL 인 선수 (예: SA #5 박민찬) 가 포함된 팀 → 기록앱 로스터 화면 진입
-- 정상 동작: 박민찬 같이 user_id=NULL 인 케이스도 "선수" 폴백 대신 `ttp.player_name` (= "박민찬") 표시됨
-- 일반 케이스 (user.name 있음): 기존과 동일 — User.name 우선
-- 주의 케이스: user.name=NULL + user.nickname 만 있는 케이스 (드물지만) → nickname 표시
-
-⚠️ reviewer 참고:
-- mapPlayer 에서 응답 키 (`name`)는 그대로 유지 — Flutter 클라이언트 무수정 보장
-- `getDisplayName` 헬퍼는 `/api/v1/tournaments/[id]/teams/[teamId]/players` 등 다른 공식 기록 라우트에서 이미 사용 중인 표준 패턴
-- conventions.md `[2026-05-09] 공식 기록 도메인 = 실명 우선` 룰 적용
-
-## 구현 기록 (developer / 5/9 시안 박제 갭 fix 2~3순위 7 페이지)
-
-📝 구현한 기능: 운영 → 시안 역박제 갭 fix 2~3순위 7 신규 mock-up
-
-| 파일 | 운영 정합 | 라인 | 핵심 |
-|------|----------|------|------|
-| `Dev/design/BDR-current/screens/CourtManage.jsx` | `/courts/[id]/manage` | 120 | 차단 슬롯 폼 + 예약 4건 리스트 + 취소 버튼 |
-| `Dev/design/BDR-current/screens/CourtCheckin.jsx` | `/courts/[id]/checkin` | 78 | QR 자동 체크인 4 상태 (loading/success/already/error) + 데모 토글 |
-| `Dev/design/BDR-current/screens/TeamsManage.jsx` | `/teams/manage` | 93 | 운영팀 3건 카드 그리드 (captain/vice 뱃지) + 새팀 만들기 CTA |
-| `Dev/design/BDR-current/screens/TeamRequests.jsx` | `/teams/[id]/manage/requests` | 64 | 옛 알림 redirect 안내 + 자동/수동 이동 |
-| `Dev/design/BDR-current/screens/ProfileSettings.jsx` | `/profile/settings` | 168 | 7섹션 sticky nav (account/feed/notify/bottomNav/billing/display/danger) + 분기별 mock |
-| `Dev/design/BDR-current/screens/OrgApply.jsx` | `/organizations/apply` | 130 | 단체 신청 폼 6필드 + 성공 화면 분기 |
-| `Dev/design/BDR-current/screens/SeriesEdition.jsx` | `/organizations/[slug]/series/[seriesSlug]` | 131 | 시리즈 회차 5건 타임라인 (좌측 세로선 + 도트 + 우승팀) |
-
-= 총 7 신규 / 784 라인 (가이드 600~800 범위)
-
-### 검증
-- `wc -l` + `tail -1` (truncated 룰): 7 파일 모두 마지막 줄 `window.X = X;` 정상 종료 ✅
-- 시안 패턴 일관 (1순위 News/MatchNews/Scoreboard 동일 스타일):
-  - 헤더 주석 5줄 (시안 룰/운영 핵심/진입/복귀/특이사항)
-  - var(--*) 토큰만 사용 (하드코딩 색상 0)
-  - Breadcrumb 12px 색상 var(--ink-mute)
-  - eyebrow .14em letterspacing
-  - h1 fontFamily var(--ff-display) letterSpacing -0.02em
-  - 카드 padding 18~28px
-  - 50% border-radius (9999px 회피, CLAUDE.md §10)
-  - setRoute props 네비게이션
-  - window.X=X 끝 줄
-
-### 운영 영향
-- 시안 폴더만 작업 (Dev/design/BDR-current/screens/)
-- src/ 변경 0
-- DB / API / Flutter v1 변경 0
-
-### 시안 패턴 룰 준수 (claude-project-knowledge 13 룰)
-- AppNav frozen 코드 0 (시안 페이지 콘텐츠만, A.1~A.7 영향 0)
-- var(--*) 토큰만 (B.10) — 하드코딩 색상 grep 0
-- 9999px → 50% (사용자 결정 D2, 2026-05-01)
-- 카피 시안 우선 (A.11 — 운영 카피 1대1 복사 X, mock 데모 카피)
-
-💡 PM 참고:
-- 박제 갭 fix 100% 완료: 1순위 (5/9 부분) 3건 + 2~3순위 7건 = 총 10 페이지 역박제
-- 운영 → 시안 박제 갭 0건 (5/7 lessons.md 룰 회복)
-- 마이그 4순위 (admin/referee 그룹) 별도 회차 또는 보류
-
-⚠️ reviewer 참고 (소규모 시안 작업이므로 생략 가능):
-- ProfileSettings 168라인 — 7섹션 분기 mock 콘텐츠 통합으로 가이드 약간 초과. 분리 안 함 (시안 데모용 단일 파일 적합)
-- TeamRequests — 운영은 단순 server-side redirect 26라인이지만 시안에서는 사용자 시각 안내 mock 필요 (실 사용 시간 짧지만 옛 알림 잔재 시나리오 시각화)
+### 🚀 4순위 — manage 탭 그룹화 (P2-6 보류) / game.game_type 마이그 / 매치 코드 v4 Phase 6 (보류)
 
 ---
 
-## 구현 기록 (developer / 5/9 마이그 2~3순위)
+## 기획설계 (planner-architect / 5/8~5/9)
 
-📝 구현한 기능: 사용자 영향 (2순위) + 운영자 영향 (3순위 (web) 한정) 6 input PhoneInput 마이그
-
-| 파일 경로 | 컨텍스트 | line | 신규/수정 |
-|----------|--------|------|---------|
-| `src/app/(web)/verify/page.tsx` | 본인인증 1단계 휴대폰 입력 (autoFocus) | 219 → 438L (+5) | 수정 |
-| `src/app/_site/registration/page.tsx` | 토너먼트 등록 대표자 연락처 | 118 → 160L (+2) | 수정 |
-| `src/app/(web)/games/new/_components/step-settings.tsx` | 픽업 게임 담당자 연락처 (errors.contactPhone 분기) | 204 → 338L (+1) | 수정 |
-| `src/app/(web)/games/new/_v2/advanced-section.tsx` | 게임 v2 advanced 연락처 (선택) | 92 → 299L (+1) | 수정 |
-| `src/app/(web)/games/[id]/edit/page.tsx` | 게임 수정 연락처 (within24h disabled) | 960 → 1075L (+1) | 수정 |
-| `src/app/(web)/partner-admin/venue/page.tsx` | 파트너 admin 장소 담당자 연락처 | 222 → 259L (+2) | 수정 |
-
-= 총 6 파일 / 6 input (휴대폰 6 / 생년월일 0)
-
-### 특이 처리: verify/page.tsx — submit body 정규화 추가
-- 기존 onChange = `e.target.value.replace(/[^0-9]/g, "")` (숫자만 state 저장) → API/검증 정규식 = `/^01[016789]\d{7,8}$/` (숫자만 기대)
-- PhoneInput 도입 = state 가 하이픈 포함 형태 ("010-1234-5678") 로 변경 → 기존 검증/submit 깨짐
-- 해결: state 는 하이픈 포함 그대로 (UI 가독성 ↑) + 검증/submit 시점에 `phone.replace(/-/g, "")` 정규화
-  - 47L `sendCode()` — `phoneDigits = phone.replace(/-/g, "")` 추출 후 정규식 검증 + body 전송
-  - 96L `handleSubmit()` — body `phone: needsPhone ? phone.replace(/-/g, "") : undefined`
-  - 276L `disabled={!phone}` — truthy 체크라 영향 0 / 296L `{phone}` 표시는 하이픈 포함이라 가독성 ↑ (수정 0)
-- 회귀 위험 0: `/api/web/verify/send-code` + `/api/web/verify/complete` route 무수정. body 의 phone 필드 = 11자 숫자 그대로 도달
-
-### 검증
-- `wc -l` + `tail -1` (5/7+5/8 truncated 룰): 438/160/338/299/1075/259 / 6 파일 모두 마지막 줄 `}` 정상 종료 ✅
-- `npx tsc --noEmit` — 0 에러 ✅
-- `npm run build` (Turbopack) — ✓ Compiled successfully in 11.1s + Static 139/139 ✅
-  - 기존 dynamic-server-error 경고 (heatmap/ads) — 본 작업과 무관, 사전 존재
-- `type="tel"` grep — 6 파일 모두 0건 ✅
-- 회귀 0:
-  - state 변수 / setX 패턴 보존 (`setPhone` / `set("captainPhone", ...)` / `updateData("contactPhone", ...)` / `setContactPhone` / `updateField(..., "contact_phone", ...)`)
-  - `disabled={within24h}` (games/edit) — `...rest` 통과로 자동 보존 ✅
-  - `errors.contactPhone` 분기 className (step-settings) 그대로 통과 ✅
-  - inline style (verify, partner-admin) 모두 `...rest` 통과 ✅
-  - className (`inputCls` / `input` / `w-full rounded-...`) 4종 모두 통과 ✅
-  - submit body / API 호출 / DB schema / Flutter v1 변경 0
-  - (admin)/(referee) 그룹 변경 0 (4순위 잔여)
-
-💡 tester 참고:
-- 테스트 방법:
-  1. `/verify` 진입 (휴대폰 미설정 사용자) → 휴대폰 칸에 `01012345678` → 자동 `010-1234-5678` 변환 → "인증번호 받기" → 서버에는 숫자만 (`01012345678`) 전송 (네트워크 탭 확인)
-  2. `/{slug}/registration` (서브도메인) → 대표자 연락처 PhoneInput 자동 포맷 확인
-  3. `/games/new` → 1) 픽업 모드 → 담당자 연락처 자동 포맷 / 2) v2 wizard → advanced 연락처 자동 포맷
-  4. `/games/[id]/edit` 진입 → 24h 이내가 아닌 경기 → 연락처 PhoneInput 동작 / 24h 이내 경기 → disabled 잠금 유지 확인
-  5. `/partner-admin/venue` → 코트 카드 펼치기 → 담당자 연락처 PhoneInput 자동 포맷 + 저장
-- 정상 동작:
-  - 모든 케이스에서 자동 포맷 + 11자 제한 + 한글/특수문자 차단
-  - verify: state 는 하이픈 포함, 서버 전송은 하이픈 제거 (네트워크 탭에서 phone="01012345678" 확인)
-  - games/edit within24h: disabled 적용 (회색 배경 + 입력 차단)
-- 주의할 입력:
-  - verify: 사용자가 검증 단계 (verify-phone) 도달 후 `{phone}` 표시는 "010-1234-5678" 형태 (가독성 ↑) — 의도적 변경
-
-⚠️ reviewer 참고:
-- verify 페이지 submit body 변경 1줄 — 기존 `phone` (숫자만) → `phone.replace(/-/g, "")` (하이픈 제거) — 결과는 동일 (숫자만)
-- verify 검증 정규식 `/^01[016789]\d{7,8}$/` — `phoneDigits` 변수에 적용. PhoneInput state 는 하이픈 포함이지만 검증/전송 시점에서 정규화
-- partner-admin/venue 의 placeholder "010-1234-5678" 제거됨 — PhoneInput 기본 placeholder ("숫자만 입력 (010XXXXXXXX)") 적용 (사용자 가이드 더 명확)
-- step-settings 의 errors.contactPhone 분기 className — `...rest` 로 자동 통과 ✅ (조건부 className 패턴 호환)
-- 잔여 4순위 (admin)/(referee) 그룹 = 별도 회차로 분리 (이번 작업 범위 외)
-
-## 구현 기록 (developer / 5/9 마이그 1순위)
-
-📝 구현한 기능: 사용자 영향 최대 2 페이지에 PhoneInput / BirthDateInput 마이그 (1순위)
-
-| 파일 경로 | 변경 내용 | 신규/수정 | 라인 변화 |
-|----------|----------|----------|-----|
-| `src/app/(web)/profile/edit/page.tsx` | import 2종 추가 / formatPhone 함수 정의 7L 제거 / 휴대폰 §1 §3 + 생년월일 = 3 input 마이그 | 수정 | 1699 → 1689 (-10) |
-| `src/app/(web)/tournaments/[id]/join/page.tsx` | import 1종 추가 / 대표자 연락처 PhoneInput 마이그 | 수정 | 1561 → 1563 (+2) |
-
-### 1315줄 휴대폰 정체 (컨텍스트 확인 결과)
-§3 "연락 정보" 섹션의 휴대폰. **form.phone state §1 약력(946줄) 미러** — 별도 state 아님. 두 곳 모두 동일 form.phone 사용 (UI 두 곳에서 동기화). 따라서 PhoneInput 적용 + form.phone state 그대로 유지.
-
-### 인증 필드 잠금 유지 검증 (5/7 c13bae0)
-- 생년월일 (924줄) — `disabled={nameVerified} readOnly={nameVerified} style={...}` 모두 보존, BirthDateInput 의 `...rest` 통과로 자동 적용 ✅
-- 휴대폰 §1 (940줄) — disabled/readOnly/style 모두 보존 ✅
-- 휴대폰 §3 (1310줄) — disabled/readOnly/style 모두 보존 ✅
-- name_verified=true 사용자 잠금 동작 회귀 0
-
-### 검증
-- `wc -l` + `tail -1` (truncated 룰): 1689 / 1563 / 마지막 줄 `}` 정상 종료 ✅
-- `npx tsc --noEmit` — 0 에러 ✅
-- `npm run build` (Turbopack) — ✓ Compiled successfully in 11.0s + Static pages 139/139 ✅
-- `type="tel"|type="date"|formatPhone` grep:
-  - profile/edit: **0건** (모두 마이그 완료, 함수 정의도 제거)
-  - tournaments/join: 0건 (792줄 PhoneInput 적용)
-- managerPhone state 5곳 (선언/onChange/submit body/표시/검증) 모두 보존 ✅
-- 회귀 0: form state / setForm 패턴 / API 응답 / onSubmit / 일반 type="date" 미사용 / Flutter v1 / DB schema
-
-💡 tester 참고:
-- 테스트 방법:
-  1. /profile/edit 진입 (name_verified=false 사용자)
-  2. 생년월일 칸 `20000101` 숫자 입력 → 자동 `2000-01-01` 변환 확인
-  3. 생년월일 yyyy 5자리 시도 (`20245`) → `2024-5` 자동 mm 진입 (yyyy 4자 강제)
-  4. 휴대폰 §1 또는 §3 칸에 `01012345678` → 자동 `010-1234-5678` 변환
-  5. §1 휴대폰 변경 → §3 휴대폰 즉시 동기화 (form.phone 미러)
-  6. /tournaments/[id]/join 진입 → 본인 외 신청 모드 → 대표자 정보 영역 → 연락처 칸 자동 포맷 확인
-- 정상 동작:
-  - 본인인증 완료 사용자 (name_verified=true) → 휴대폰/생년월일 disabled + readOnly + bg-alt 회색 (5/7 잠금 유지)
-  - 저장 → 기존 PUT /api/web/users/me 패턴 그대로 동작 (포맷된 값 저장)
-- 주의할 입력:
-  - 한글/특수문자 시도 → 숫자만 추출 (한글 IME 무력화)
-  - 휴대폰 13자리 초과 입력 시도 → 11자리 자동 차단
-  - 생년월일 9자리 이상 입력 시도 → 8자리 자동 차단
-
-⚠️ reviewer 참고:
-- form.phone state 두 input 미러 (§1 약력 + §3 연락정보) — 사용자 결정 (시안 박제). 한 곳 변경 = 양쪽 즉시 반영 (controlled component 패턴 정확)
-- formatPhone 로컬 함수 제거 — 사용처 0 검증 후 안전 제거. PhoneInput 내장 formatter 가 동일 결과 (010-XXXX-XXXX 패턴). 기존 저장된 데이터 호환 0 영향
-- managerPhone (tournaments/join) 은 별도 state — 본인 휴대폰과 무관 (대표자 본인이 다른 사람일 수 있음)
-- HTML form 검증 차이: 기존 `type="tel" inputMode="numeric"` → PhoneInput `type="tel" inputMode="numeric" pattern="010-\d{4}-\d{4}" maxLength={13}` (검증 강화)
-- BirthDateInput: 기존 `type="date"` (브라우저 캘린더) → `type="text" inputMode="numeric" pattern="\d{4}-\d{2}-\d{2}" maxLength={10}` (수동 입력 + 자동 포맷). UX 변경: 캘린더 미노출 → 사용자 결정 (yyyy 6자 함정 fix 의도, 5/8 박제 룰)
-
-## 구현 기록 (developer / 5/8 전역 input)
-
-📝 구현한 기능: 사이트 전역 PhoneInput / BirthDateInput 컴포넌트 + mock 모달 적용 + 생년월일 필수화
-
-| 파일 경로 | 변경 내용 | 신규/수정 | 라인 |
-|----------|----------|----------|-----|
-| `src/components/inputs/phone-input.tsx` | 자동 `000-0000-0000` 포맷 + 11자리 제한 + inputMode numeric | 신규 | 87 |
-| `src/components/inputs/birth-date-input.tsx` | 자동 `YYYY-MM-DD` 포맷 + yyyy 4자리 제한 (date input 6자 함정 fix) | 신규 | 109 |
-| `src/components/identity/mock-identity-modal.tsx` | PhoneInput/BirthDateInput 적용 + 생년월일 필수 + 제출 disabled 분기 + yyyy/mm/dd 범위 검증 | 수정 | 337→371 |
-| `src/app/(web)/onboarding/identity/_components/identity-step.tsx` | 안내 ul 3개 항목 모두 * 표시, "(선택)" 제거 | 수정 | 84→90 |
-| `src/app/api/web/identity/mock-verify/route.ts` | birth_date `.optional()` 제거 + zod refine (yyyy 1900~현재 / mm 01~12 / dd 01~31) + Date 변환 가드 | 수정 | 156→172 |
-| `.claude/knowledge/conventions.md` | 신규 룰 박제 — PhoneInput/BirthDateInput 의무 사용 + 위반 자동 reject | 수정 | +18 |
-
-자동 포맷 검증:
-- PhoneInput "01012345678" → "010-1234-5678" ✅
-- BirthDateInput "20000101" → "2000-01-01" ✅
-- yyyy 6자리 입력 시도 ("202412") → 4자리만 yyyy + 5번째부터 자동 mm 이동 ("2024-12") ✅
-- 모든 필드 미입력 시 제출 버튼 disabled ✅
-
-검증:
-- `wc -l` + `tail -1` (5/7+5/8 truncated 룰) — 5 파일 정상 종료 ✅
-- `npx tsc --noEmit` — 0 에러 ✅
-- `npm run build` — Turbopack 통과 ✅
-- 회귀 0: PortOne verify endpoint / PR3 가드 / DB schema / Flutter v1 / withWebAuth / apiSuccess
-
-💡 tester 참고:
-- 테스트 방법:
-  1. PortOne 미설정 환경 (현재 운영) → /onboarding/identity 진입 → "임시 인증" 버튼 → mock 모달
-  2. 휴대폰 칸에 `01012345678` 숫자만 타이핑 → 자동 `010-1234-5678` 변환
-  3. 생년월일 칸에 `20000101` 입력 → 자동 `2000-01-01` 변환 (yyyy 4자리 + mm 2자리 + dd 2자리)
-  4. 생년월일 yyyy 5자리 시도 (`2024` 입력 후 `1` 추가) → 자동으로 `2024-1` 로 mm 진입 (yyyy 4자 강제 확인)
-  5. 모든 필드 미입력 → 제출 버튼 disabled
-- 정상 동작: mock-verify endpoint 200 + identity_method='mock' + admin_logs 기록
-- 주의할 입력:
-  - 생년월일 `1899-12-31` → 클라 검증 차단 ("1900~현재") + 서버 zod refine 차단
-  - 생년월일 `2099-01-01` → 클라/서버 모두 차단 (현재 연도 초과)
-  - 생년월일 `2024-13-01` → mm 12 초과 클라/서버 모두 차단
-  - 생년월일 `2024-02-31` (실제로 없는 날짜) → 클라 dd 31 통과 / 서버 zod 통과 / Date 변환 후 `new Date("2024-02-31")` = "2024-03-02" 가 됨 (JS Date 자동 보정). 운영 영향 0이지만 향후 strict 검증 추가 가능.
-
-⚠️ reviewer 참고:
-- PhoneInput / BirthDateInput 모두 클라 컴포넌트 — 서버 zod 재검증 이미 적용 (mock-verify 가드 그대로)
-- maxLength = 13/10 (포맷된 형태 기준) → IME 한글 입력 시도해도 자동 차단됨
-- 사이트 전역 룰 (conventions.md) 박제 — 신규 작업부터 의무. 기존 사용처 마이그레이션은 별도 작업으로
-- **팀 멤버 라이프사이클 + Jersey 재설계** ✅ main 완료 (5/5~5/6 / `4253e68`)
-- **인증 흐름 재설계** ✅ main 완료 (5/5 `3f016c9`)
-
-## 테스트 결과 (tester / 5/9 마이그 2~3순위)
-
-### 빌드
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| `npx tsc --noEmit` | ✅ | 0 에러 (no output) |
-| `npm run build` (Turbopack) | ✅ | ✓ Compiled successfully in 11.5s + Static 정상 (heatmap/ads 경고는 사전 존재 / 본 작업 무관) |
-| `wc -l` 6 파일 | ✅ | 438 / 160 / 338 / 299 / 1075 / 259 — developer 보고 일치 |
-| `tail -1` 6 파일 | ✅ | 모두 `}` 정상 종료 (5/7+5/8 truncated 룰 0 위반) |
-
-### verify 특이 처리 (state 하이픈 포함 + submit 정규화)
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| state 하이픈 포함 ("010-1234-5678") | ✅ | UI 가독성 ↑ + `{phone}` 표시 (296L) 자연 |
-| `sendCode()` 49L `phoneDigits = phone.replace(/-/g, "")` | ✅ | 정규식 `/^01[016789]\d{7,8}$/` 검증 동일 |
-| `sendCode()` 62L body `{ phone: phoneDigits }` | ✅ | 서버 숫자만 도달 |
-| `handleSubmit()` 101L body `phone: needsPhone ? phone.replace(/-/g, "") : undefined` | ✅ | 서버 API 무수정 |
-| `disabled={sending \|\| !phone}` (276L) | ✅ | truthy 체크 영향 0 (하이픈 포함도 truthy) |
-| `/api/web/verify/send-code` + `/complete` route 변경 0 | ✅ | grep 검증 (route.ts 미터치) |
-
-### disabled / errors 분기 보존
-| 파일 | 항목 | 결과 |
-|------|------|------|
-| `games/[id]/edit` | `disabled={within24h}` (966L) | ✅ `...rest` 통과 |
-| `step-settings` | `errors.contactPhone` 분기 className (210~212L) | ✅ template literal 그대로 적용 |
-| `step-settings` | `errors.contactPhone &&` 에러 메시지 (214~216L) | ✅ JSX 보존 |
-| `advanced-section` | className="input" (95L) | ✅ `...rest` 통과 |
-| `partner-admin/venue` | inline style (229~233L) | ✅ `...rest` 통과 |
-| `_site/registration` | className={inputCls} (122L) | ✅ `...rest` 통과 |
-| `verify` | className + style (232~237L) | ✅ `...rest` 통과 |
-
-### state / setX 패턴 (변경 0)
-| 파일 | 패턴 | 결과 |
-|------|------|------|
-| `verify` | `setPhone` (24L 선언 + 230L 콜백) | ✅ 보존 (3건 검증) |
-| `_site/registration` | `set("captainPhone", v)` (124L) | ✅ form.captainPhone state 그대로 |
-| `step-settings` | `updateData("contactPhone", v)` (209L) | ✅ wizard data state 그대로 |
-| `advanced-section` | `updateData("contactPhone", v)` (97L) | ✅ wizard data state 그대로 |
-| `games/[id]/edit` | `setContactPhone` (965L) | ✅ contactPhone state 그대로 |
-| `partner-admin/venue` | `updateField(court.id, "contact_phone", v)` (227L) | ✅ form 헬퍼 그대로 |
-| onSubmit body / API 호출 변경 0 | — | ✅ verify 페이지 외 API 호출 변경 0 |
-
-### 회귀 0
-| 영역 | 결과 | 비고 |
-|------|------|------|
-| DB schema 변경 0 | ✅ | prisma 미터치 |
-| Flutter v1 (`/api/v1/*`) 영향 0 | ✅ | `/api/web/*` 도 verify 외 변경 0 |
-| (admin)/(referee) 그룹 변경 0 | ✅ | 4순위 잔여 — 별도 회차 (admin 1건 / referee 1건 grep) |
-| 다른 일반 type="date" 영향 0 | ✅ | 본 작업 = 휴대폰 6건만 |
-| PortOne verify endpoint | ✅ | 변경 0 |
-| PR3 layout 가드 | ✅ | 변경 0 |
-
-### type="tel" 0 hit
-| 파일 | 결과 |
-|------|------|
-| `(web)/verify/page.tsx` | ✅ 0건 |
-| `_site/registration/page.tsx` | ✅ 0건 |
-| `(web)/games/new/_components/step-settings.tsx` | ✅ 0건 |
-| `(web)/games/new/_v2/advanced-section.tsx` | ✅ 0건 |
-| `(web)/games/[id]/edit/page.tsx` | ✅ 0건 |
-| `(web)/partner-admin/venue/page.tsx` | ✅ 0건 |
-
-### 종합 판정
-
-📊 **6/6 영역 통과** — 빌드 4건 + verify 정규화 6건 + disabled/errors 분기 7건 + state 패턴 7건 + 회귀 0 6건 + type="tel" 0건 6건
-
-→ **PM 머지 승인 권장**. developer 보고 의도 그대로 반영 + verify state 하이픈 정규화 흐름 정확 (서버 API 무수정 + 검증 정규식 결과 동일) + 5/8 컴포넌트 `Omit<InputHTMLAttributes>` 패턴이 disabled/errors className/inline style 모두 자연 통과.
-
-### 수정 요청 (있는 경우만)
-
-**없음**. verify 페이지 state 하이픈 포함 변경은 의도적 (UI 가독성 ↑ + 서버 무수정 + 검증 동일). 다른 5건은 단순 input → PhoneInput 치환으로 회귀 0.
+- **PR3 layout 가드 + mock 모드** ✅ main `f39afae` (헬퍼 2 + server layout 1 + 4 페이지)
+- **본인인증 mock 자체 입력 폴백** ✅ main `93670c5` (DB user.identity_method ADD COLUMN + modal 337L + endpoint 156L + 보안 가드 3단)
+- **사이트 전역 PhoneInput / BirthDateInput** ✅ main `118c9f1` (87L+109L 신규 + conventions.md [2026-05-08] 룰 박제)
+- **PhoneInput 기존 사용처 마이그** ✅ main `702d00e` (1순위 4 input) + main `b96f58c` (2~3순위 6 input)
+- **운영 → 시안 역박제 갭 fix** ✅ main `71d4087` (1순위 News+MatchNews+Scoreboard) + main `afcbd65` (2~3순위 7건) = 시안 갭 0건
 
 ---
 
-## 테스트 결과 (tester / 5/9 마이그 1순위)
-
-### 빌드
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| `npx tsc --noEmit` | ✅ | 0 에러 (no output) |
-| `npm run build` (Turbopack) | ✅ | exit 0 + Static pages 정상 |
-| `wc -l` profile/edit | ✅ | 1689L (developer 기록 일치) |
-| `wc -l` tournaments/join | ✅ | 1563L (developer 기록 일치) |
-| `tail -1` 두 파일 | ✅ | 모두 `}` 정상 종료 (truncated 0) |
-
-### 인증 잠금 회귀 0 (5/7 c13bae0 핵심 보존)
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| 생년월일 (924L) `disabled/readOnly/style` | ✅ | `nameVerified` 분기 그대로 BirthDateInput `...rest` 통과 |
-| 휴대폰 §1 (940L) `disabled/readOnly/style` | ✅ | PhoneInput `...rest` 통과 |
-| 휴대폰 §3 (1305L) `disabled/readOnly/style` | ✅ | PhoneInput `...rest` 통과 |
-| `sub={nameVerified ? "변경 불가" : ...}` | ✅ | 3 필드 모두 안내문 보존 |
-| `Omit<InputHTMLAttributes>` props 통과 검증 | ✅ | type/inputMode/pattern Omit + disabled/readOnly/style 자연 통과 |
-
-### 자동 포맷 (코드 분석)
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| PhoneInput formatPhone — 11자리 + 0~3/4~7/8~11 분기 | ✅ | `01012345678` → `010-1234-5678` |
-| BirthDateInput formatBirthDate — 8자리 + 0~4/5~6/7~8 분기 | ✅ | `20000101` → `2000-01-01`, yyyy 4자 강제 |
-| inputMode="numeric" + type="tel"/"text" + pattern + maxLength | ✅ | 모바일 키패드 + HTML5 검증 정합 |
-| profile/edit 휴대폰 §1+§3 + 생년월일 마운트 확인 | ✅ | grep 4건 (import 2 + 컴포넌트 3) |
-| tournaments/join 대표자 연락처 마운트 확인 | ✅ | import 1 + 컴포넌트 1 (793L) |
-
-### state / form 패턴
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| `form.phone` / `form.birth_date` state 변경 0 | ✅ | grep 23건 그대로 |
-| `setForm((p) => ({ ...p, phone: v }))` 패턴 보존 | ✅ | onChange 콜백 시그니처 호환 |
-| §1 ↔ §3 form.phone 미러 (한 state 두 input) | ✅ | controlled component 패턴 정확 |
-| `managerPhone` state 5곳 (선언/onChange/submit/표시/검증) | ✅ | grep 5건 보존 |
-| onSubmit body / API 호출 변경 0 | ✅ | grep 결과 0 (PUT/fetch 변경 0) |
-
-### formatPhone 제거
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| profile/edit 로컬 `formatPhone` 정의/사용 0 | ✅ | grep 0건 |
-| 사이트 전역 `function formatPhone` 정의처 | ✅ | `phone-input.tsx:41` 내장만 (1건) |
-| 다른 파일 형성 0 | ✅ | 신규 정의 없음 |
-
-### 회귀 0
-| 영역 | 결과 | 비고 |
-|------|------|------|
-| DB schema 변경 0 | ✅ | prisma 미터치 |
-| API 응답 처리 변경 0 | ✅ | apiSuccess/apiError envelope 무수정 |
-| 일반 `type="date"` (게임 일자 등) 영향 0 | ✅ | 본 작업 범위 = profile/edit + tournaments/join 한정 |
-| Flutter v1 (`/api/v1/*`) 영향 0 | ✅ | `/api/web/*` 미터치 |
-| PortOne verify endpoint | ✅ | 변경 0 |
-| PR3 layout 가드 (identity-gate) | ✅ | 변경 0 |
-
-### 종합 판정
-
-📊 **6/6 영역 통과** — 코드 분석 19건 검증 + 빌드 2종 + 회귀 0 + 인증 잠금 9건 보존
-
-→ **PM 머지 승인 권장**. developer 구현 의도 그대로 반영 + 5/7 c13bae0 잠금 동작 회귀 0 + 사용자 핵심 룰 (yyyy 4자 강제, 자동 포맷) 충족.
-
-### 수정 요청 (있는 경우만)
-
-**없음**. 5/8 전역 input 작업 시 검증된 컴포넌트 (PhoneInput 87L / BirthDateInput 109L) 의 `...rest` 통과 패턴이 이번 마이그에서도 정확히 적용됨 — disabled/readOnly/style 토큰 모두 자연 통과.
-
----
-
-## 테스트 결과 (tester / 5/8 전역 input)
-
-### 빌드 + 5 파일 검증
-| 항목 | 결과 | 비고 |
-|------|------|------|
-| 5 파일 line count (87/109/371/90/172) | ✅ | developer 기록 일치 |
-| 5 파일 마지막 줄 정상 종료 | ✅ | truncated 0 (5/7+5/8 룰) |
-| `npx tsc --noEmit` | ✅ | 0 에러 |
-| `npm run build` (Turbopack) | ✅ | exit 0 |
-
-### PhoneInput 자동 포맷 (단위 6/6)
-| 입력 | 출력 | 결과 |
-|------|------|------|
-| `01012345678` | `010-1234-5678` | ✅ |
-| `0101234` | `010-1234` | ✅ |
-| `010` | `010` | ✅ |
-| `010123456789999` (11자 초과) | `010-1234-5678` (제한) | ✅ |
-| `010가-나1234@5678` (한글/특수) | `010-1234-5678` (숫자만) | ✅ |
-| placeholder + inputMode="numeric" + type="tel" | 정확 적용 | ✅ |
-
-### BirthDateInput 자동 포맷 + yyyy 4자리 (단위 7/7)
-| 입력 | 출력 | 결과 |
-|------|------|------|
-| `20000101` | `2000-01-01` | ✅ |
-| `2024` | `2024` | ✅ |
-| `202412` | `2024-12` (yyyy 4 강제 + mm 진입) | ✅ |
-| `20241231` | `2024-12-31` | ✅ |
-| **`20245`** (yyyy 5자) | `2024-5` (mm 자동 진입) | ✅ 핵심 룰 |
-| 1900/2099 차단 (zod refine) | success=false | ✅ |
-| mm 01~12 / dd 01~31 차단 | success=false | ✅ |
-
-### mock 모달 통합
-| 항목 | 결과 |
-|------|------|
-| 라벨 모두 `*` (var(--color-error)) | ✅ |
-| 미입력 시 제출 disabled (allRequiredFilled) | ✅ |
-| PhoneInput / BirthDateInput import + 마운트 | ✅ |
-| ForceActionModal 패턴 + iOS 16px input | ✅ |
-
-### identity-step 안내
-| 항목 | 결과 |
-|------|------|
-| "(선택)" 제거 | ✅ |
-| 3개 항목 모두 `*` (var(--err)) 통일 | ✅ |
-
-### mock-verify route
-| 항목 | 결과 |
-|------|------|
-| birth_date `.optional()` 제거 → 필수화 | ✅ |
-| zod refine (1900~현재 / mm / dd) | ✅ 단위 10/10 |
-| 가드 3단 (503 / 400 / 409) | ✅ 유지 |
-| Date 변환 isNaN 가드 (보강) | ✅ 추가 |
-| identity_method='mock' + admin_logs | ✅ |
-
-### conventions.md 박제
-| 항목 | 결과 |
-|------|------|
-| `[2026-05-08]` 신규 룰 18줄 추가 | ✅ |
-| 의무 사용 + 위반 자동 reject 명시 | ✅ |
-| 점진적 마이그 명시 (기존 사용처 다수 인지) | ✅ |
-
-### 회귀 0
-| 영역 | 결과 |
-|------|------|
-| PortOne `/api/web/identity/verify` | ✅ git diff 0 line |
-| PR3 layout 가드 (server / 헬퍼) | ✅ 무수정 |
-| DB schema (user.identity_method 5/8 ADD COLUMN) | ✅ 그대로 |
-| Flutter v1 (/api/v1/*) | ✅ 미터치 |
-| withWebAuth + apiSuccess envelope | ✅ snake_case 정합 |
-| 기존 `<input type=tel\|date>` 사용처 다수 (10+) | ✅ 점진적 마이그 (conventions 명시) |
-
-### 종합 판정 (통과/실패)
-
-📊 **8/8 영역 통과** — 단위 검증 23건 (formatter 13 + zod 10) + 빌드 통과 + 회귀 0
-
-→ **PM 머지 승인 권장**. PortOne 활성화 후 mock 자동 503 거부 흐름 코드 분석 정상.
-
-### 수정 요청 (있는 경우만)
-
-없음. 구현 의도 그대로 동작 + 사용자 명시 룰 (yyyy 4자리 강제) 정확 적용.
-
-## 리뷰 결과 (reviewer / 5/9 마이그 2~3순위)
-
-### 컨벤션
-- import 경로 ✅ — 6 파일 모두 `@/components/inputs/phone-input` 동일 경로 (verify:6 / registration:7 / step-settings:6 / advanced-section:21 / games-edit:40 / venue:5)
-- 6 파일 모두 import 라인 위에 `// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)` 주석 통일 — conventions.md 참조 명시화 ✅
-- props 전달 패턴 ✅ — `value={X} onChange={(v) => setX(v) | set("...", v) | updateData("...", v) | updateField(..., "...", v)}` 4가지 setter 패턴 모두 정확 controlled component
-- `...rest` 통과 ✅ — className / style / disabled / autoFocus 모두 PhoneInput Omit 타입 (type/inputMode/pattern 제외) 자동 적용
-- conventions.md `[2026-05-08]` 룰 충실 — 신규 작업 의무 사용 룰의 첫 점진 마이그 사례 (사용자 영향 2 + 운영자 영향 4)
-
-### verify 특이 처리
-- state 하이픈 포함 = UI 가독성 ✅ — 296줄 `{phone}` 표시 시 "010-1234-5678" 가독성 ↑ (의도적 결정)
-- replace 정규화 위치 정확:
-  - 49줄 `sendCode()` — `phoneDigits = phone.replace(/-/g, "")` 추출 후 50줄 정규식 검증 + 62줄 body 전송 (검증 + 전송 단일 source 분리 명확)
-  - 101줄 `handleSubmit()` — `phone.replace(/-/g, "")` 직접 인라인 (1회 사용이라 변수 추출 불필요)
-- 정규식 동치성 ✅ — `/^01[016789]\d{7,8}$/` 는 숫자 10~11자 매칭. PhoneInput 11자 제한 + 숫자만 추출 → `replace(/-/g, "")` 후 정확히 11자 숫자 → 매칭 동일 결과
-- 서버 API 응답 처리 변경 0 ✅ — `/api/web/verify/send-code` + `/api/web/verify/complete` 무수정. body `phone` key 그대로, 값만 11자 숫자
-- `disabled={!phone}` (276줄) — truthy 체크. PhoneInput state 가 "010-1234-5678" 또는 "" 이라 truthy 동작 동일 ✅
-- 296줄 `{phone}` 표시 — 하이픈 포함 가독성 ↑ (의도적 변경, 사용자 결정 박제)
-- 잠재 미세함정 인지 — 사용자가 9자리만 입력하고 "재전송" 버튼 클릭 (354~361줄 sendCode 직접 호출) → 49줄 phoneDigits 9자 → 50줄 정규식 fail → 51줄 에러 박스 정상 표시. 회귀 0
-
-### 회귀 위험
-- state 변수 / setX 패턴 변경 0 ✅:
-  - verify: `setPhone` 보존
-  - registration: `set("captainPhone", ...)` 헬퍼 보존 (form.captainPhone state 키 무수정)
-  - step-settings: `updateData("contactPhone", ...)` 보존
-  - advanced-section: `updateData("contactPhone", ...)` 보존
-  - games/edit: `setContactPhone` 보존 (164/207/260/964 4곳)
-  - venue: `updateField(court.id, "contact_phone", v)` 보존 (snake_case key 정확)
-- onSubmit body / API key 변경 0 ✅ — 6 파일 모두 fetch / POST body 무수정 (verify 1줄 변경 = 동일 결과 보장 위 §verify 섹션 분석)
-- disabled / errors 분기 ...rest 통과 ✅:
-  - games/edit `disabled={within24h}` → PhoneInput Omit 에 disabled 미포함 → `...rest` 자동 통과 ✅
-  - step-settings `errors.contactPhone ? ... : ...` className 분기 → className `...rest` 자동 통과 ✅
-  - venue inline style → `...rest` 자동 통과 ✅
-- 기존 저장 데이터 호환 ✅ — DB 저장값 호환: 기존 사용자가 "01012345678" 또는 "010-1234-5678" 둘 다 저장 가능했던 케이스 → 본 마이그 후 항상 "010-1234-5678" 표준화. PhoneInput 의 formatPhone() 이 입력값을 자동 정규화 → fetched value 가 "01012345678" 이어도 자동 포맷됨 (재진입 시 정상 동작)
-
-### 각 파일 컨텍스트
-- **verify** (438L) — 218~238줄 1단계 입력, 296줄 표시 단계 그대로 활용. autoFocus / span 필수 표시 / className·style 토큰 모두 보존 ✅
-- **_site/registration** (160L) — 121~125줄 대표자 연락처. labelCls/inputCls 일관 디자인 토큰 사용. set() 헬퍼 그대로 ✅
-- **step-settings** (338L) — 207~213줄 픽업 담당자. errors.contactPhone 분기 className (border-error 빨간 테두리) 정확히 통과. role="alert" 에러 메시지 (215줄) 그대로 ✅
-- **advanced-section** (299L) — 94~98줄 v2 advanced 연락처(선택). label "연락처 (선택)" 텍스트 보존. 부모 minParticipants input 옆 grid 레이아웃 정상 ✅
-- **games/[id]/edit** (1075L) — 962~967줄 within24h disabled. `...rest` 통과로 회색/입력차단 자연 적용. 962줄 className / 964줄 value / 965줄 onChange / 966줄 disabled 4 prop 정확 ✅
-- **partner-admin/venue** (259L) — 225~234줄 장소 담당자. `form.contact_phone ?? (court.contact_phone ?? "")` fallback 패턴 정확 (form 미초기화 시 fetched 값 사용) ✅. inline style (background/border/color) 모두 토큰
-
-### errors.md 적용
-- 5/7+5/8 truncated 룰 — 6 파일 `wc -l` + `tail -1` 검증: 438/160/338/299/1075/259 모두 마지막 줄 `}` 정상 종료 ✅
-- envelope/snake_case 일관 ✅ — venue 의 `contact_phone` snake_case key 정확 (DB 컬럼명과 일치). state 패턴 (form / setForm / updateField) 그대로 봉인
-- IME 한글 가드 — PhoneInput 자체 `replace(/[^0-9]/g, "")` 로 한글/특수문자 차단. 6 파일 모두 동일하게 적용 ✅
-
-### conventions.md 룰
-- `[2026-05-08]` 룰 §휴대폰 입력 = `<PhoneInput>` 의무 사용 ✅ — 6 파일 모두 100% 준수
-- `<input type="tel">` 직접 사용 금지 ✅ — `(web)` + `_site` 그룹 type="tel" grep 0건 (위반 0)
-- 자동 `000-0000-0000` 포맷 / 11자리 제한 / inputMode="numeric" — PhoneInput 내장 자동 적용 ✅
-- 점진 마이그 룰 ("기존 사용처 별도 작업으로 점진적") 정확 적용 — 본 작업 = 2~3순위 (사용자/운영자 영향 우선) 6건. 4순위 (admin)/(referee) 잔여 명시
-- 룰 §10 토큰 — 모든 className/style 이 `var(--color-*)` 토큰 사용 (하드코딩 색상 0)
-- 룰 §13 모바일 input — PhoneInput 내장 inputMode="numeric" + iOS 16px input (font-size class 통과)
-
-### 종합 평가 (⭐⭐⭐⭐⭐ / 사유)
-
-⭐⭐⭐⭐⭐ — **통과** (수정 요청 0)
-
-사유:
-1. **6 파일 마이그 정확** — 4가지 setter 패턴 (setPhone / set() / updateData() / updateField()) 모두 controlled component 패턴 정확. import / props / state / submit body 흐름 무결
-2. **verify 특이 처리 안전성 검증** — state 하이픈 포함 (UI 가독성) + 검증/전송 시점 정규화 (서버 호환) 분리 설계 정확. 정규식 동치성 (`/^01[016789]\d{7,8}$/` ↔ 11자 숫자) 확인. 서버 API 무수정으로 회귀 0 보장
-3. **회귀 위험 0** — state 변수 / onSubmit body / API key / DB schema / Flutter v1 / disabled / errors 분기 모두 무영향. `...rest` 통과 패턴이 6 파일 모든 inline style + 분기 className + disabled 자동 보존
-4. **conventions.md 룰 충실 적용** — `[2026-05-08]` 룰의 첫 점진 마이그 사례. (web)+_site 그룹 type="tel" 0건 달성
-5. **errors.md truncated 룰 보존** — 6 파일 모두 마지막 줄 `}` 정상 종료. line count 일치
-
-### 개선 제안 (선택, 필수 X)
-
-🟡 권장 (현재 운영 영향 0):
-
-1. **verify 페이지 변수 추출 일관성 미세** — 49줄 `sendCode()` 는 `phoneDigits` 변수로 추출하지만 101줄 `handleSubmit()` 는 인라인 `phone.replace(/-/g, "")` 사용. 두 곳 다 동일 패턴이라 향후 정규화 로직 변경 시 (예: 공백 제거 추가) 한 곳만 누락 가능. 함수 외부 헬퍼 (`const normalizePhone = (p: string) => p.replace(/-/g, "")`) 추출 고려 — 현재 운영 영향 0이라 보류 가능
-
-2. **잔여 4순위 큐 명시화** — (admin) / (referee) 그룹 마이그 잔여 — 진행 현황표 또는 후속 작업 큐에 "PhoneInput 마이그 4순위 (admin/referee)" 항목 추가하면 추적 용이. 현재는 작업 로그에만 명시 ("(admin)/(referee) 그룹 변경 0 (4순위 잔여)")
-
-3. **venue fallback 패턴 일관성** — 226줄 `value={form.contact_phone ?? (court.contact_phone ?? "")}` 는 `??` chain 으로 사용 중 — 정확 동작. 향후 다른 admin 페이지 마이그 시 같은 패턴 재사용 권장 (form 우선 → fetched fallback → 빈 string)
-
-### 수정 요청 (필수, 있는 경우만)
-
-**없음** — 6 파일 그대로 운영 진행 가능. PM 머지 승인 권장.
-
----
-
-## 리뷰 결과 (reviewer / 5/8 마이그 1순위)
-
-### 컨벤션
-- import 경로 ✅ — `@/components/inputs/phone-input` / `birth-date-input` 정확 (43~44줄 profile-edit / 29줄 join)
-- props 전달 ✅ — `value={form.phone}` / `onChange={(v) => setForm((p) => ({ ...p, phone: v }))}` controlled component 패턴 정확
-- `...rest` 통과 ✅ — `className="input"` / `disabled` / `readOnly` / `style` 모두 PhoneInput Omit 타입 통과 (type/inputMode/pattern 제외 자동 적용)
-- 기존 form state 패턴 유지 ✅ — `setForm((p) => ({ ...p, ... }))` 패턴 그대로. state 키 변경 0
-- conventions.md `[2026-05-08]` 룰 준수 ✅ — 신규 작업 의무 사용 룰의 첫 마이그 적용 사례
-
-### 인증 필드 잠금 보존 (5/7 c13bae0 핵심)
-- 생년월일 (924줄) — `disabled={nameVerified}` + `readOnly={nameVerified}` + `style={nameVerified ? {bg-alt, cursor:not-allowed, opacity:0.7} : undefined}` 3종 세트 모두 보존 ✅
-- 휴대폰 §1 (940줄) — 동일 3종 세트 모두 보존 ✅
-- 휴대폰 §3 (1310줄) — 동일 3종 세트 모두 보존 ✅
-- BirthDateInput / PhoneInput 의 `Omit<..., "type"|"inputMode"|"pattern">` 정의로 disabled/readOnly/style 은 차단 X → `...rest` 자동 통과 ✅
-- name_verified=true 사용자 잠금 회귀 0 (HTML disabled + readOnly + 시각적 회색 토큰 모두 적용)
-
-### 회귀 위험
-- state 변수 이름 변경 0 ✅ — form.phone / form.birth_date / managerPhone 모두 그대로
-- onSubmit body 변경 0 ✅ — payload.phone (512줄) / payload.birth_date (508~511줄) 키 그대로 (route.ts isNaN 가드 보존)
-- 다른 일반 type="date" 영향 0 ✅ — birth_date 만 BirthDateInput 마이그 (다른 type="date" 사용처 0건 검증)
-- managerPhone state 5곳 (133/258/796/1321/1506) 모두 보존 ✅ — 선언/onChange/submit body/표시/검증 흐름 무수정
-- 기존 저장 데이터 호환 ✅ — PhoneInput 포맷 결과 ("010-1234-5678") = 기존 formatPhone 출력과 동일 패턴
-
-### 1310라인 / 792라인 적용
-- §3 연락정보 (1310줄) — `value={form.phone}` 사용 = §1 약력 (943줄) 과 동일 form.phone 미러 ✅
-- 한 곳 변경 시 즉시 양쪽 동기화 — controlled component 패턴 정확 (setForm 단일 source)
-- 라벨 차이 ("휴대폰 *" vs "휴대폰") 보존 — §3 가 필수 표시 (`*`), §1 은 표시 없음
-- 대표자 연락처 (792줄, tournaments/join) — managerPhone 별도 state (본인 휴대폰과 무관). 컨텍스트 정확 (대표자 본인이 다른 사람일 수 있음)
-- inline style 모두 보존 (width/padding/fontSize/borderRadius/border/background/color) ✅
-
-### formatPhone 제거
-- profile/edit grep 결과: **0건** ✅ (정의 7L + 호출처 모두 제거 완료)
-- src/ 전역 grep 결과: `phone-input.tsx` 내부만 (41줄 정의 + 81줄 호출) — 외부 사용처 0 ✅
-- PhoneInput 내장 formatter 가 동일 결과 (010-XXXX-XXXX 패턴 = 기존 formatPhone 동일 출력)
-- 기존 저장된 데이터 호환 0 영향 ✅
-
-### errors.md 적용
-- 5/7+5/8 truncated 룰 — `tail -1` 검증: 두 파일 모두 마지막 줄 `}` 정상 종료 ✅
-- `wc -l`: profile/edit 1689 / tournaments/join 1563 — developer 보고 일치 ✅
-- envelope/snake_case — form key (`phone` / `birth_date`) 그대로 서버 전송 → snake_case 변환 자동 (apiSuccess) ✅
-- IME 한글 가드 — PhoneInput 은 숫자 only (한글 IME 무력화) / BirthDateInput 동일. Enter submit 처리 0 (저장 버튼 onClick 패턴) → 가드 불필요 ✅
-
-### conventions.md 룰 준수
-- 본 마이그 = `[2026-05-08]` 룰의 첫 마이그 적용 ✅
-- `<input type="tel">` 직접 사용 금지 — 본 마이그로 두 파일에서 0건 달성 (grep 검증)
-- `<input type="date">` 직접 사용 금지 — birth_date 1건 BirthDateInput 마이그 ✅
-- placeholder 5단어 이내 룰 — PhoneInput 기본 "숫자만 입력 (010XXXXXXXX)" / BirthDateInput "YYYY-MM-DD (숫자만 입력)" 둘 다 4단어 이내 ✅ (시안 박제 룰 충족)
-- 룰 §10 토큰 — `var(--bg-alt)` 잠금 배경 정확 (하드코딩 색상 0)
-- 룰 §13 모바일 input — PhoneInput / BirthDateInput 자체 inputMode="numeric" 으로 모바일 키패드 자동 (44px 높이는 .input 클래스 토큰 통과)
-
-### 종합 평가 (⭐⭐⭐⭐⭐ / 사유)
-
-⭐⭐⭐⭐⭐ — **통과** (수정 요청 0)
-
-사유:
-1. **완벽한 마이그**: 4 input (생년월일 1 + 휴대폰 §1+§3 + 대표자 1) 모두 정확. import / props / state / onSubmit 흐름 무결.
-2. **인증 잠금 회귀 0**: 5/7 c13bae0 핵심 동작 (disabled/readOnly/style) 모두 `...rest` 통과로 자동 보존 — 컴포넌트 API 설계 (Omit) 가 잠금 회귀 차단에 결정적
-3. **formatPhone 정확 제거**: 사용처 0 검증 + 동일 결과 보장 + 함수 정의 7L 자체 제거 (코드 단순화 +)
-4. **state 미러 패턴 정확**: form.phone 단일 source → §1 / §3 두 input 자동 동기화 (controlled component 모범 사례)
-5. **conventions.md 룰 충실**: `[2026-05-08]` 룰의 첫 사용처로서 의도 정확 반영. 신규 작업 의무 사용 룰 강제력 ↑
-6. **회귀 0**: state 변수 / onSubmit body / 다른 type="date" / Flutter v1 / DB schema 모두 무영향. tsc 0 + build ✓ 검증 완료
-
-### 개선 제안 (선택, 필수 X)
-
-🟡 권장 (현재 운영 영향 0):
-
-1. **점진 마이그 큐 명시화** — 5/8 reviewer 박제에서도 제안한 항목 — 기존 사용처 27건 (signup / settings / games/new 등) 진행 현황표 또는 후속 작업 큐에 "PhoneInput/BirthDateInput 점진 마이그 (잔여 N건)" 항목 추가하면 추적 용이. 현재는 "사용자 영향 최대 2 페이지" 1순위 = profile/edit + tournaments/join 만 완료된 상태
-
-2. **BirthDateInput UX 변경 사용자 인지 유도** — 기존 `type="date"` (브라우저 캘린더) → BirthDateInput (수동 입력) 으로 UX 변화. profile/edit 진입 사용자 중 캘린더 익숙한 케이스 (특히 모바일) 대비 — sub 텍스트 "비공개 · 나이별 대회 자격용" 옆에 "(YYYY-MM-DD 직접 입력)" 안내 추가 고려. 현재 placeholder "YYYY-MM-DD (숫자만 입력)" 가 가이드 역할 충족 → 운영 영향 0이라 보류 가능
-
-3. **§1 휴대폰 라벨 *  표시 추가 검토** — §3 (1304줄) "휴대폰 *" / §1 (938줄) "휴대폰" — 시안 의도일 가능성 높지만 (§3 = 연락정보 핵심) 사용자에게 일관성 미세 차이 인지 확인 권장. 현재 회귀 0 (변경 없음).
-
-### 수정 요청 (필수, 있는 경우만)
-
-**없음** — 현재 코드 그대로 운영 진행 가능. PM 머지 승인 권장.
-
----
-
-## 리뷰 결과 (reviewer / 5/8 전역 input)
-
-### 컴포넌트 API
-- props 인터페이스 정확 — `Omit<InputHTMLAttributes, "value"|"onChange"|"type"|"inputMode"|"pattern">` 로 `...rest` 통과 + value/onChange 시그니처 고정 → controlled component 패턴 정확
-- 위험 차단 우수 — type/inputMode/pattern 까지 Omit 했기 때문에 부모가 의도와 다른 type을 주입할 수 없음 (사이트 전역 룰 강제)
-- 재사용성 ✅ — 가입폼/마이페이지/settings 어디서든 `value/onChange` 만 주면 동작. style/disabled/required/aria-* 모두 `...rest` 로 자연 통과
-- BirthDateInput `minYear/maxYear` props는 현재 `void _minYear` 처리 — JSDoc에 "추후 inline 에러 메시지 추가 시 활용" 명시되어 있어 의도 명확. mock-modal에서 props로 1900/현재년도 전달 = 향후 활용 시 자동 동기화
-
-### 자동 포맷 로직
-- PhoneInput: `digits.replace(/[^0-9]/g, "").slice(0, 11)` — 11자리 초과 자동 차단 ✅. 0~3/4~7/8~11 분기 정확
-- BirthDateInput: `slice(0, 8)` 8자리 강제 → yyyy 5자리 시도 시 자동 mm 진입 (사용자 핵심 요구 충족) ✅
-- IME 방어 — `replace(/[^0-9]/g, "")` 가 한글/특수문자 전부 제거 → 한글 IME 시도해도 빈 문자열로 정규화. maxLength 13/10 도 추가 가드
-- 붙여넣기 케이스: "abc010-12345" 같은 혼합 입력도 숫자만 추출 → "01012345" → "010-1234-5" 정상
-- 미세 함정 — 사용자가 하이픈 위치에서 backspace 시 한 자리 숫자가 두 번에 걸쳐 지워지는 듯 보일 수 있음 (UX 미세 / 운영 영향 0). 8/13자리 미만에서는 자연스러움
-
-### 접근성 (a11y)
-- `inputMode="numeric"` — 모바일 숫자 키패드 정확 ✅
-- `pattern` 속성 — HTML5 form 검증 정확 (`010-\d{4}-\d{4}` / `\d{4}-\d{2}-\d{2}`)
-- `type="tel"` (PhoneInput) / `type="text"` (BirthDateInput) — date input 함정 회피 적절
-- `...rest` 통과로 `aria-label` / `aria-required` / `aria-invalid` 부모가 자유롭게 부여 가능 (현재 모달은 label 안에 input 배치 → 묵시적 라벨 연결, 별도 aria-label 불필요)
-- 🟡 권장 (필수 아님): mock-modal 의 `<label>` 요소에 `htmlFor` 가 없음 — input id 매칭 시 명시적 연결이 더 정확. 현재는 `<label>` 안에 input nest 라 묵시적으로 동작 ✅. 운영 영향 0
-
-### 컨벤션 (conventions.md)
-- 파일명: `phone-input.tsx` / `birth-date-input.tsx` kebab-case ✅
-- 함수명: `formatPhone` / `formatBirthDate` camelCase ✅
-- 컴포넌트명: `PhoneInput` / `BirthDateInput` PascalCase ✅
-- TypeScript strict — `any` 0, `Omit<InputHTMLAttributes>` 정확 ✅
-- JSDoc 헤더 — "이유(왜) / 어떻게 / 룰" 구조 정확 (글로벌 CLAUDE.md "이유 → 방법" 순서 룰 충족)
-- mock-modal/route.ts/identity-step 모두 5/8 변경 사유를 inline 주석으로 박제 ✅
-
-### mock-identity-modal 통합
-- import 정확 — `@/components/inputs/phone-input` + `@/components/inputs/birth-date-input` ✅
-- 라벨 `*` 표시 일관 — 3 필드 모두 `<span style={{ color: "var(--color-error)" }}>*</span>` 동일 패턴 ✅
-- `allRequiredFilled` 분기 — name/phone/birthDate 모두 `.trim().length > 0` 검사 정확 ✅
-- 제출 버튼 disabled — `submitting || !allRequiredFilled` 둘 다 반영 ✅
-- `validateLocal()` 5/8 변경 정확 — birth 빈값 차단 / BIRTH_PATTERN / yyyy/mm/dd 범위 검증 모두 박제
-- `onChange={setPhone}` / `onChange={setBirthDate}` — 컴포넌트가 포맷된 값을 콜백으로 전달하는 컨벤션 정확 적용 (부모 state = DB 저장 최종 형태)
-- 🟡 미세 (필수 아님): mock-modal 의 "실명" input 은 토큰 변수가 `var(--color-card)` / `var(--color-text-primary)` 로 다른 곳 (identity-step) 의 `var(--bg-elev)` / `var(--ink-mute)` 와 다름 — mock-modal 은 ForceActionModal 토큰 카피 (의도). 일관성 영향 0
-
-### identity-step 안내
-- "(선택)" 제거 정확 — 모든 항목이 `*` 표시로 통일 ✅
-- `*` 표시 색상 — `var(--err)` (identity-step 컨텍스트 토큰) ✅. mock-modal 은 `var(--color-error)` 사용 — 다른 디자인 토큰 시스템이지만 두 곳 다 빨간 계열 정상
-- 위치/자연스러움 — `<li>· 실명 (한글) <span>*</span></li>` 패턴 정확
-
-### mock-verify route refine
-- `mockVerifySchema` `.refine((v) => { ... })` — yyyy 1900~현재 / mm 01~12 / dd 01~31 모두 차단 ✅
-- `phone: /^010-?\d{4}-?\d{4}$/` — 클라 PhoneInput 은 항상 하이픈 포함이지만 서버 관용 (하이픈 선택) — 호환성 정확
-- `name: /^[가-힣]{2,20}$/` — 클라 동일
-- `birth_date.optional()` 제거 ✅ — 사용자 결정 (필수 변경) 박제
-- `parsedDate = new Date(birth_date)` + `isNaN(getTime())` — Date 변환 실패 가드 정확 (실측 가드)
-- 🔴 함정 인지 박제 (developer 이미 인지 + 명시): JS Date 자동 보정 — `new Date("2024-02-31")` → "2024-03-02" 가 됨. 현재는 zod refine + Date 변환 모두 통과하지만, **발생 시 user.birth_date 컬럼에 보정된 날짜 저장됨**. 운영 영향 0 (실제 사용자가 2/31 입력할 가능성 ↓ + DB 저장값이 "잘못된 날짜" 가 아니라 "근사 날짜") 이지만 향후 strict 검증 (월별 dd 정확도 — 1/31, 4/30, 윤년 2/29) 추가 가능. 현재 단계에서는 운영 출시 임시 mock 폴백이라 보류 권장
-- `withWebAuth` + `apiSuccess` / `apiError` envelope 일관 ✅
-- `name_verified: true` 가드 (재인증 차단) ✅
-- `identity_method: "mock"` 표식 ✅ (PortOne 활성화 후 사후 식별 가능)
-
-### conventions.md 박제
-- `[2026-05-08] 사이트 전역 input 룰` — 위치/형식 정확 ✅
-- 명확성 ✅ — "신규 작업부터 즉시 적용" / "위반 자동 reject" 명시
-- 적용 시점 ✅ — "기존 사용처 (가입폼 / 마이페이지 / settings 등) 는 별도 마이그레이션 작업으로 점진적" 명시
-- 참조 파일 ✅ — `mock-identity-modal.tsx` (5/8 첫 적용 사례) 박제
-- 🟡 향후 권장 (필수 아님): 기존 사용처 27건 (`type="tel"|"date"` grep 결과) 점진 마이그레이션 큐를 진행 현황표나 후속 작업 큐에 명시화하면 추적 용이. 현재는 "신규 작업 의무" 로만 룰 정해진 상태
-
-### 회귀 위험
-- 기존 PortOne verify endpoint (`/api/web/identity/verify`) — 변경 0 ✅
-- PR3 layout 가드 (`identity-gate.ts` / `(web)/(authed)/layout.tsx`) — 변경 0 ✅
-- DB schema 변경 0 — `user.identity_method` 는 PR #224/#225 mock 폴백 작업에서 ADD COLUMN 완료된 상태, 이번 작업은 기존 컬럼 사용 ✅
-- `withWebAuth` / `apiSuccess` / `apiError` envelope 일관 ✅
-- Flutter v1 (`/api/v1/...`) 영향 0 — 본 작업은 `/api/web/...` 한정 ✅
-
-### errors.md 적용
-- 5/7+5/8 truncated 룰 — `wc -l` + `tail -1` 검증 완료 (developer 보고). 5 파일 모두 정상 종료 ✅
-- envelope/snake_case 일관 — 응답 키 자동 snake_case 변환 (mock-verify 응답 `verified_name` / `verified_phone` 등) ✅
-- IME 한글 가드 — 본 컴포넌트들은 숫자 입력 only (한글 IME 사용 불가) → 적용 불필요. mock-modal 의 "실명" input 은 한글 입력이지만 Enter submit 처리 0 (버튼 onClick 만) → IME 가드 불필요 ✅
-
-### 종합 평가 (⭐⭐⭐⭐⭐ / 사유)
-
-⭐⭐⭐⭐⭐ — **통과** (수정 요청 0)
-
-사유:
-1. 컴포넌트 API 설계 — `Omit<InputHTMLAttributes>` 로 type/inputMode/pattern 까지 차단 = 의도와 다른 사용 원천 봉쇄. 사이트 전역 룰 강제력 ↑
-2. 자동 포맷 — PhoneInput 11자리 / BirthDateInput 8자리 (yyyy 4자리 강제) — 사용자 핵심 요구 충족
-3. JSDoc — "이유(왜) → 어떻게 → 룰 → 사용 예" 구조 모범적
-4. 보안 — 클라 검증 + 서버 zod 재검증 이중 가드 정확. PortOne 활성화 시 mock endpoint 자동 503
-5. conventions.md 박제 — 신규 작업 의무 + 기존 점진 마이그레이션 룰 명확
-
-### 개선 제안 (선택, 필수 X)
-
-🟡 권장 (현재 운영 영향 0):
-
-1. **JS Date 자동 보정 함정 향후 strict 검증** — `mock-verify route.ts` `parsedDate = new Date(birth_date)` 후 `parsedDate.getMonth() + 1 === Number(mStr) && parsedDate.getDate() === Number(dStr)` 추가 검증으로 "2024-02-31" → "2024-03-02" 보정 케이스 차단 가능. 현재는 mock 폴백 단계라 운영 영향 0이지만, 정식 PortOne 활성화 후 인증 데이터 정확도 ↑
-
-2. **기존 사용처 27건 마이그레이션 큐** — `type="tel"|"date"` grep 결과 27 파일 (profile/edit, signup, tournaments/[id]/join, games/new 등) → 진행 현황표 또는 후속 작업 큐에 "PhoneInput/BirthDateInput 점진 마이그" 항목 추가하면 추적 용이
-
-3. **BirthDateInput minYear/maxYear inline 에러** — 현재 `void _minYear` 로 받기만 하고 검증 X. 추후 inline 에러 메시지 (input 아래 "1900~2026 사이여야 합니다" 같은 즉시 피드백) 추가 시 UX ↑. 현재는 모달 상단 error 박스로 표시 — UX 영향 0
-
-### 수정 요청 (필수, 있는 경우만)
-
-**없음** — 현재 코드 그대로 운영 진행 가능. 위 개선 제안은 모두 권장이며 운영 영향 0.
+## 테스트 결과 (tester / 5/9 onboarding 흐름)
+
+### 1. 소셜 가입자 흐름 — ✅ 통과
+- 카카오 콜백 (`api/auth/kakao/callback/route.ts`) → `${baseUrl}/` redirect 정상. JWT 발급 + WEB_SESSION_COOKIE 30일.
+- 신규 user 생성 시 `name_verified=false` (default) — 홈 진입 시 ProfileCtaCard 분기 정상.
+- ProfileCtaCard (`src/components/home/profile-cta-card.tsx:81~167`): `needsIdentity = me.name_verified === false` 우선 체크 (PR1.2 fix `059d4a6` — 카카오 사용자 `profile_completed=true` 라도 인증 카드 노출 보장).
+- 클릭 → `/onboarding/identity` 진입 정상.
+
+### 2. xp +100 부여 — ✅ 통과 (DB 실측)
+- DB SELECT 결과 (5/9 운영 기준):
+  - `onboarding_step=10` 도달 사용자 1명 (id=2999 김수빈, identity_method=mock)
+  - 해당 사용자 `xp=100` (정확히 +100 부여됨)
+  - 전체 xp avg=0.18 / max=100 / min=0 — onboarding 미통과자 xp=0 (기본값)
+- 코드 검증 (`src/app/api/web/profile/route.ts:206~218`): `isOnboardingFirstComplete` = `newStep === 10 && (existing?.onboarding_step ?? 0) < 10` 조건 1회성 increment. 재호출 시 중복 부여 차단.
+
+### 3. profile/edit 잠금 회귀 — ✅ 통과
+- 클라이언트 (`src/app/(web)/profile/edit/page.tsx`):
+  - 이름 (line 905~913): `disabled={nameVerified} readOnly={nameVerified}` + 회색 배경 + cursor not-allowed
+  - 생년월일 (line 926~933): BirthDateInput + 잠금 prop 전달 (5/9 마이그 후)
+  - 휴대폰 (line 941~948): PhoneInput + 잠금 prop 전달 (5/9 마이그 후)
+  - 휴대폰 §6 (line 1305~1313): PhoneInput + 잠금 적용 (account 섹션)
+- 컴포넌트 검증:
+  - PhoneInput (`src/components/inputs/phone-input.tsx:62~87`): `...rest` 통과 → disabled/readOnly/style 정상 작동
+  - BirthDateInput (`src/components/inputs/birth-date-input.tsx:77~108`): `...rest` 통과 → 동일
+- 서버 보안 (`src/app/api/web/profile/route.ts:129~148`): `name_verified=true` 사용자가 name/birth_date/phone PATCH 시도 시 403 `VERIFIED_FIELDS_LOCKED` 차단 (클라 우회 차단)
+
+### 4. mock 통과자 흐름 — ✅ 통과
+- DB SELECT 결과: identity_method 분포 = `null: 548 / mock: 1` — mock 통과자 1명 (5/8 ADD COLUMN 후 본인 테스트)
+- mock-verify endpoint (`src/app/api/web/identity/mock-verify/route.ts:62~158`): 보안 가드 3단 정상
+  - 가드 1 (line 66~72): `isIdentityGateEnabled()=true` 시 503 MOCK_DISABLED — PortOne 활성 시 자동 차단
+  - 가드 2 (line 74~84): zod 검증 (한글 실명 / 010-XXXX-XXXX / YYYY-MM-DD)
+  - 가드 3 (line 87~102): 이미 `name_verified=true` 시 409 ALREADY_VERIFIED (재인증 차단)
+- update 시 `identity_method='mock'` + `verified_*` + `name/phone/birth_date` 사용자 결정 §1 동기화 정상
+- admin_logs INSERT (line 146~157): event='mock_identity_verified' severity='info' — 사후 식별 가능
+
+### 5. 빌드 + Flutter 호환 — ✅ 통과
+- `npx tsc --noEmit` 0 (출력 없음 = 에러 0)
+- Vercel 배포 — main `737dd42` 활성 (5/9 머지 4회 후 build success — scratchpad 박제)
+- Flutter API 영향: 5/7 이후 `/api/v1/*` 변경 1건만 (`9c6fd89` roster getDisplayName 헬퍼) — 응답 키 변경 0, 호환 유지
+- `/api/v1/*` (Flutter) 영향 0 검증 — 본 onboarding 작업 일체가 `/api/web/*` 한정
+
+### 종합 판정 — ✅ 5/5 통과
+- **소셜 가입자 흐름 정상** — 카카오 콜백 + ProfileCtaCard + onboarding/identity redirect 정상
+- **xp +100 부여 정확** — DB 실측 1건 (id=2999 김수빈) 100 부여 확인. 1회성 가드 정상
+- **profile/edit 잠금 회귀 0** — 클라 disabled/readOnly + 서버 403 가드 이중 보호. PhoneInput/BirthDateInput 마이그 후에도 잠금 동일 작동
+- **mock 통과자 흐름 정상** — 가드 3단 + admin_logs + identity_method='mock' 박제. PortOne 활성 시 자동 503 거부
+- **빌드 + Flutter 호환** — tsc 0 / Vercel main 활성 / v1 응답 키 변경 0
+
+### 발견 이슈 — 0건
+
+### 후속 권장 (PortOne 활성화 후)
+1. **mock 통과자 권유 안내 UI** — 사용자 결정 옵션 C (그대로 인정 + 권유 안내). 현재 `identity_method='mock'` 1건 → admin/users 또는 마이페이지에 "정식 인증 권유" 카드 1회성 표시 필요. (구현 X / 보류)
+2. **onboarding 진행률 모니터링** — DB 기준 5/7 이후 신규 가입자 6명 모두 step=0 (인증 미시도). PortOne 활성 후 진입률 추적 필요.
+3. **6명 신규 미인증** — 카카오 3 / email 3 / 모두 step=0. PortOne 활성 시 핵심 액션 시도 시 PR1.5.a 게이트 (403) 트리거 — 사용자 ProfileCtaCard 클릭 흐름 안내됨.
 
 ---
 
@@ -854,11 +118,13 @@ After:  getDisplayName(u, ttp, "익명")
 | Live `/live/[id]` v2 | ✅ STL + minutes-engine v3 + 5/4 sticky+팀비교 |
 | 마이페이지 D-1~D-8 | ✅ 8/8 |
 | Reviews 통합 (Q1) / 듀얼토너먼트 풀 시스템 | ✅ |
-| 디자인 시안 박제 | ⏳ 38% (40+/117) — BDR-current v2.5.1 sync |
-| 도메인 sub-agent (옵션 A) | ✅ P1+P2+P3 (C 채택 — live-expert 영구) |
+| **디자인 시안 박제** | ✅ ~95% (시안 갭 0건, admin/referee 그룹 외) |
+| 도메인 sub-agent (옵션 A) | ✅ P1+P2+P3 (C 채택) |
 | 매치 코드 v4 | ✅ Phase 1+2+3+4+5+7 |
 | **PR3 layout 가드 mock 모드** | ✅ main 배포 (PortOne env 추가 시 자동 활성) |
 | **mock 자체 입력 폴백** | ✅ main 배포 (PortOne 활성화 시 자동 SDK 모드 전환) |
+| **사이트 전역 input 룰** | ✅ PhoneInput/BirthDateInput + 10 input 마이그 / admin+referee 2건 잔여 |
+| **운영 → 시안 역박제 갭 fix** | ✅ 10 페이지 (1+2+3순위) — 시안 갭 0건 달성 |
 
 ---
 
@@ -866,13 +132,11 @@ After:  getDisplayName(u, ttp, "익명")
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-09 | (DB 정비 + 코드 미커밋) | **5/9 D-day 동호회최강전 명단 대조 (SA + 블랙라벨 2팀 / 14팀 잔여) + RPC + roster 통합 fix** — SA 4건 (박민찬 #5 ttp INSERT user_id=NULL → 후속 placeholder user(3397) INSERT + ttp.user_id 매핑 / 오승준·임현태·허진석 user.is_elite UPDATE) + 블랙라벨 7건 (박민수·김남건·석종태·오재모 ttp.is_elite UPDATE + 석종태·오재모 user.is_elite UPDATE + #67 임체훈 fake DELETE) + **Supabase RPC `get_tournament_players` 1줄 fix** (`COALESCE(u.name, u.nickname, ttp.player_name, '#'\|\|jersey)` — 16팀 한글 없는 display_name 11→0 자동 정상화 / 오승준 "Seung Jun Oh" → "오승준" / 김양우 "Yang" → "김양우" / 임채훈 "채채" → "임채훈" 등) + **`/api/v1/matches/[id]/roster` getDisplayName 헬퍼 마이그** (route.ts +9L / import 1 + select 양 팀 player_name+nickname 추가 + mapPlayer 헬퍼 통일 / tsc 0 / Flutter v1 응답 키 변경 0 / 회귀 0) + conventions.md `[2026-05-09]` 정책 박제 (공식 기록 = 실명 우선 헬퍼 의무 / nickname 직접 참조 금지). planner-architect background 위임 — 30+ 파일 공식 기록 vs 사적 분류 + 마이그 우선순위 (P0/P1/P2). | 🟢 D-day |
-| 2026-05-09 | (구현 완료, 미커밋) | **시안 박제 갭 fix 1순위 3 페이지 (운영 → 시안 역박제)** — 5/7 lessons.md 운영 → 시안 역박제 룰 적용 / `Dev/design/BDR-current/screens/` 신규 3 파일: News.jsx (110L /news 매거진 메인 — 카드 그리드 + 알기자 박제) + MatchNews.jsx (126L /news/match/[matchId] — 기사 상세 + 매치 헤드라인 + Hero/갤러리 placeholder + linkify 본문 mock) + Scoreboard.jsx (142L /scoreboard/[matchId] — 매치 코드 v4 라이브 점수판 mock + 쿼터/타이머/샷클락/팀파울/T/O/PBP 6건). 시안 패턴 일관 (window.X = X / breadcrumb / TEAMS 글로벌 활용 / 토큰 11/19/14건 / 카피 시안 우선). 운영 영향 0 (시안 폴더만, src/ 0). 잔여 2~3순위 별도 회차. | 🟢 구현 |
-| 2026-05-09 | (구현 완료, 미커밋) | **PhoneInput 마이그 2~3순위 — (web) 한정 6 input** — 2순위 사용자 영향 2건 (`verify/page.tsx` 본인인증 휴대폰 / `_site/registration/page.tsx` 대표자 연락처) + 3순위 운영자 영향 4건 (`games/new/_components/step-settings.tsx` 픽업 / `games/new/_v2/advanced-section.tsx` v2 / `games/[id]/edit/page.tsx` 수정 within24h disabled / `partner-admin/venue/page.tsx` 장소 담당자) = 6 파일 / 6 input. verify 페이지는 state 하이픈 포함 + submit/검증 시점 `replace(/-/g, "")` 정규화 (서버 API 무수정). tsc 0 / build ✓ Compiled 11.1s + Static 139/139 / type="tel" 0건 회귀 / state 변수 변경 0 / API/DB/Flutter v1 변경 0. 잔여 (admin)/(referee) 4순위 별도 회차. | 🟢 구현 |
-| 2026-05-09 | (구현 완료, 미커밋) | **PhoneInput / BirthDateInput 1순위 마이그 (사용자 영향 최대 2 페이지)** — `profile/edit/page.tsx` 3 input (휴대폰 §1+§3 + 생년월일) + `tournaments/[id]/join/page.tsx` 대표자 연락처 1 input = 총 4 input. `formatPhone` 로컬 함수 정의 7L 제거 (PhoneInput 내장 대체). 5/7 인증 필드 잠금 동작 (disabled/readOnly/style 토큰) `...rest` 통과로 자동 보존. tsc 0 / build ✓ Compiled 11.0s + Static 139/139 / type="tel" type="date" formatPhone 0건 회귀 / managerPhone state 5곳 보존. **reviewer ⭐⭐⭐⭐⭐ 통과 (수정 요청 0)**. | 🟢 구현+리뷰 |
-| 2026-05-08 | (구현 완료, 미커밋) | **사이트 전역 PhoneInput / BirthDateInput + mock 모달 적용** — 신규 2 (87L+109L) + 수정 3 (mock-modal/identity-step/mock-verify route — birth_date 필수화 + refine). 자동 포맷 (000-0000-0000 / YYYY-MM-DD) + yyyy 4자리 제한 (HTML date input 6자 함정 fix). conventions.md 박제 = 신규 작업 의무 사용. tsc 0 + build 통과 + 회귀 0. | 🟢 구현 |
-| 2026-05-08 | PR #214~#225 12건 → main 6회 머지 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5`) | **5/8 단일 일 main 6회 머지 신기록 (운영 영향 0)** — (1) PR #214/#215 5/8 누적 11 commit (home 토큰 마이그 145→0 / BDR-current sync v2.4 / 역박제 4영역 / 5/7 박제 후속) → 빌드 9건 실패 (`48643f5` profile-cta-card 161줄 truncated 38줄 손실, Vercel auto promotion 차단으로 운영 `168be48` 유지). (2) PR #216/#217 hot fix `333516b` 38줄 복원 → main `c6a6848` 운영 복구. errors.md 5/7 재발 2회차 박제 + 보완 4룰. (3) PR #218/#219 PR3 layout 가드 mock 모드 `f39afae` (planner 8섹션 / Q1~Q5 승인 / 헬퍼 2건 + server layout 1건 + 4 페이지 / tester 9/9 + reviewer ⭐⭐⭐⭐⭐). (4) PR #220/#221 BDR-current v2.5 부분 머지 `8846f6d` (zip onboarding 5종 + 사용자 미작업 4파일 보존 / 운영→시안 양쪽 살리는 머지). (5) PR #222/#223 v2.5.1 `13a962e` (Profile 시리즈 5종 + SettingsRow 컴포넌트 / zip이 우리 5/8 mock 받은 base — 충돌 0 자동 머지). (6) PR #224/#225 mock 자체 입력 폴백 `93670c5` (DB user.identity_method ADD COLUMN 무중단 / MockIdentityModal 337L + mock-verify endpoint 156L + IdentityVerifyButton +35L / 보안 가드 3단 + admin_logs 기록 / Q1~Q5 일괄 승인 / tester 9/9 + reviewer ⭐⭐⭐⭐⭐). | ✅ |
-| 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** — fix 7건 (envelope 8회 / IME 9곳 / 마이페이지 정렬 / 알림 deep-link), Onboarding PR1.1~PR5 (PR3 보류), Phase A.5 drawer fix → truncated → hot fix `168be48` (13분 내 운영 복구). errors.md 박제 (truncated + IME + envelope). PR3 layout 가드 PortOne 활성화 후로 보류 → 5/8 mock 모드로 진행. | ✅ |
-| 2026-05-06 | `7211f97` ~ `f6b43ab` → main `4253e68` | **5/6 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄 fix** — PR1e default_jersey_number DROP. UI 13건 (5 모달 토큰 / placeholder / iOS 16px / dropdown / ForceActionModal). 마이페이지 소속팀 카드 풀 width. apiError 9 파일 69건 한국어 정상화. | ✅ |
-| 2026-05-05 | `ae4ffd7` ~ `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** — Phase 1 Jersey / Phase 2 워크플로 / Phase 3 이적 / Phase 4 권한 위임 / Phase 5 유령회원. ADD TABLE 5건 + ADD COLUMN 1건 무중단. 사용자 결정 8건 + 미묘 6건. tsc 0 / Flutter v1 호환 0. | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB + 출전 명단 정비 4건 / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 — 5/7 main 21회 baseline) — 복원: git log -- .claude/scratchpad.md -->
+| 2026-05-09 | (대기 — PM 커밋 예정) | **PhoneInput/BirthDateInput 마이그 4순위 (admin+referee) 완료** — 3 input 2 페이지: (1) `(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx:740` 문의 연락처 → PhoneInput. (2) `(referee)/referee/admin/members/new/page.tsx:220` 심판 전화번호 → PhoneInput. (3) 동 파일 :300 생년월일 (state명 birthDate / API field registered_birth_date 명확) → BirthDateInput. tsc / build / truncated / type="tel" 0 hit / 회귀 0. **마이그 100% 완료 — 1~4순위 누적 13 input** (1순위 4 / 2~3순위 6 / 4순위 3). | ✅ |
+| 2026-05-09 | PR #228~#235 8건 → main 4회 머지 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65`) | **5/9 main 4회 — input 마이그 + 시안 갭 fix 일괄 완료** — (1) PR #228/#229 PhoneInput/BirthDateInput 1순위 4 input (profile/edit 휴2+생1 + tournaments/join 휴1, formatPhone 7L 제거). (2) PR #230/#231 잔여 6 input (verify state 하이픈+replace 정규화 / registration / games/new step+v2 / games/edit within24h / partner-admin/venue). (3) PR #232/#233 시안 역박제 1순위 3건 (News+MatchNews+Scoreboard 매치 코드 v4). (4) PR #234/#235 시안 역박제 2~3순위 7건 (CourtManage/Checkin/TeamsManage/Requests/ProfileSettings/OrgApply/SeriesEdition). 시안 갭 0건 달성. tester 통과 단위 76건+ / reviewer ⭐⭐⭐⭐⭐ 2회. | ✅ |
+| 2026-05-08 | PR #214~#227 14건 → main 7회 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) | **5/8 main 7회 신기록** — (1) 디자인 박제 11 commit + truncated 빌드 9건 실패 → hot fix `333516b`. (2) PR3 layout 가드 mock 모드 (헬퍼 2 + server layout 1 + 4 페이지). (3) BDR-current sync v2.5 부분 + v2.5.1 (zip 2회). (4) mock 자체 입력 폴백 (DB ADD COLUMN + modal 337L + endpoint 156L + 가드 3단). (5) PhoneInput/BirthDateInput 전역 컴포넌트 + conventions.md [2026-05-08] 룰 박제. errors.md 5/7 truncated 재발 2회차 + 보완 4룰. | ✅ |
+| 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** — fix 7건 (envelope 8회 / IME 9곳 / 마이페이지 정렬 / 알림 deep-link), Onboarding PR1.1~PR5 (PR3 보류), Phase A.5 drawer truncated → hot fix `168be48`. | ✅ |
+| 2026-05-06 | `7211f97` ~ `f6b43ab` → main `4253e68` | **5/6 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄** | ✅ |
+| 2026-05-05 | `ae4ffd7` ~ `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** | ✅ |
+| 2026-05-05 | DB UPDATE 4건 | **열혈농구단 SEASON2 출전 명단 정비** | ✅ |
+<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 신기록) — 복원: git log -- .claude/scratchpad.md -->
