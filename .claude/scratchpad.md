@@ -43,6 +43,159 @@
 - **본인인증 mock 자체 입력 폴백** ✅ main 배포 (`Dev/identity-mock-fallback-design-2026-05-08.md` / PR #224/#225 `93670c5`). 사용자 Q1~Q5 일괄 승인. 신규 2 (modal 337L + endpoint 156L) + 수정 2 (button +35L + DB +5L) / 보안 가드 3단 / `user.identity_method` ADD COLUMN 무중단 / admin_logs 기록.
 - **사이트 전역 PhoneInput / BirthDateInput + mock 모달 적용** ✅ main 배포 (5/8). 신규 2 (PhoneInput 87L + BirthDateInput 109L) + 수정 3. conventions.md 박제 = 신규 작업 의무 사용.
 
+## 기획설계 (planner-architect / 5/9 displayName 후속)
+
+🎯 목표: 5/9 D-day 발견 후속 — 직접 `u.nickname` 참조 30+ 파일 → `getDisplayName()` 마이그 우선순위 분류 + 큐 등록 (즉시 진행 X, 사용자 결정 대기)
+
+📍 산출물: `Dev/displayname-migration-2026-05-09.md` (P0/P1/P2/P3 분류 표 31 파일 + 변경 패턴 + 추정 시간)
+
+📊 분류 결과:
+| 그룹 | 파일 수 | 마이그 | 추정 |
+|------|--------|-------|------|
+| **P0** 즉시 (공식 기록) | **6** | 권장 | 2.5~3h + 검증 1h |
+| **P1** 후속 (팀 운영 / 공개) | **9** | 결정 대기 | 3~4h |
+| **P2** 보류 (사적/admin/시스템) | **15** | 정책상 X | 0 |
+| **P3** 완료 (awards) | **1** | — | — |
+
+🚨 P0 6건 (즉시 마이그 권장):
+1. `(web)/games/[id]/page.tsx` (MVP 시상 + 참여자)
+2. `api/web/tournaments/[id]/public-bracket/route.ts` (대진표)
+3. `api/web/tournaments/[id]/matches/[matchId]/jersey-override/route.ts` (등번호)
+4. `api/web/tournaments/[id]/public-teams/route.ts` ⭐ 신규 발견 (대회 팀 선수)
+5. `lib/services/home.ts` — **mvp_player만** (organizer/applicant 은 nickname OK)
+6. `lib/news/build-linkify-entries.ts` (뉴스 기사 선수명 자동 링크)
+
+🔍 P1 9건 (사용자 결정 대기):
+- 팀 운영 5: members / requests / transfer-requests / officer-permissions / ghost-candidates
+- 공개 페이지 3: users/[id] / courts/[id] / courts/[id]/manage
+- 결정 사항: "팀 운영 IA = 사적 vs 공개?" / "공개 프로필 실명 우선?"
+
+⚠ P2 검토 필요 케이스 2건 (보고서 ⚠ 표시):
+- `profile/_v2/hero-card.tsx` — 본인 hero (영문 nickname 사용자도 본인은 nickname 의도 유지 = P2)
+- `admin/game-reports/page.tsx` — 평가대상은 공식 기록 가능성 (P0 검토 후 확정)
+
+🔗 변경 패턴 (1종):
+```
+Before: u.nickname || u.name || "익명"
+After:  getDisplayName(u, ttp, "익명")
+```
+응답 키 마이그 주의: `nickname` 키 유지하고 값만 displayName 으로 채우는 패턴 권장 (브레이킹 0).
+
+📋 권장 실행 계획 (사용자 결정 후):
+| 순서 | 작업 | 담당 | 선행 |
+|------|------|------|------|
+| 1 | P0 6 파일 일괄 마이그 (1 PR) | developer | 사용자 승인 |
+| 2 | tester + reviewer 병렬 검증 | tester + reviewer | 1단계 |
+| 3 | P1 결정 모임 (팀 IA = 사적/공개) | 사용자 결정 | 2단계 후 |
+| 4 | P1 마이그 (결정 후 1~2 PR) | developer | 3단계 |
+
+⚠ developer 주의사항 (P0 진입 시):
+- 응답 키 (`nickname`) 유지하고 값만 변경 권장 — 프론트 동시 수정 회피
+- `home.ts` 는 **mvp_player 부분만** 마이그 (organizer / applicant_name 은 nickname 정책 유지)
+- import 경로: `import { getDisplayName } from "@/lib/utils/player-display-name";`
+- Flutter v1 영향 0 (이미 별도 마이그 완료)
+- 캐시: unstable_cache 키 변경 X → 60초 revalidate 자연 갱신
+- 정확 line 수정 시 grep 재확인 (보고서 line 은 조사 시점 기준)
+
+🚦 회귀 위험 평가:
+| 항목 | 위험도 | 사유 |
+|------|------|------|
+| DB | 0 | 헬퍼 read-only |
+| 응답 키 | 중 | 점진 마이그 권장 |
+| Flutter v1 | 0 | 별도 |
+| 캐시 | 저 | revalidate 자동 |
+
+## 구현 기록 (developer / 5/9 roster route fix)
+
+📝 구현한 기능: `/api/v1/matches/[id]/roster` 라우트에 `getDisplayName()` 헬퍼 마이그 — 5/9 동호회최강전 D-day 대비 실명 우선 폴백 통일 (Flutter 기록앱 호출 라우트)
+
+| 파일 경로 | 변경 내용 | 신규/수정 | 라인 변화 |
+|----------|----------|----------|------|
+| `src/app/api/v1/matches/[id]/roster/route.ts` | import getDisplayName + select 에 player_name + users.nickname 양 팀 + mapPlayer 헬퍼 통일 | 수정 | 100 → 109 (+9) |
+
+### 변경 3건 (모두 적용 확인)
+1. **import 추가** (line 8): `import { getDisplayName } from "@/lib/utils/player-display-name";`
+2. **select 확장** (homeTeam line 39 + awayTeam line 59 두 곳):
+   - `player_name: true` 추가 (TTP 등록명 폴백용)
+   - `users.select` 에 `nickname: true` 추가
+3. **mapPlayer 시그니처/본문 갱신** (line 83~99):
+   - 타입에 `player_name: string | null` + `users.nickname: string | null` 추가
+   - `name: p.users?.name ?? "선수"` → `name: getDisplayName(p.users, { player_name, jerseyNumber }, "선수")` 통일
+   - 폴백 우선순위: User.name → User.nickname → ttp.player_name → `#{jersey}` → "선수"
+
+### 검증
+- `npx tsc --noEmit` — 0 에러 (no output) ✅
+- `wc -l` 109줄 / `tail -3` = `}` 정상 종료 (truncated 0 위반) ✅
+- 응답 키 `name` 유지 — Flutter v1 호환 변경 0 ✅
+
+### 회귀 차단 확인
+- Flutter v1 응답 키 (`home_players`, `away_players`, `name`, `jersey_number`, `is_starter`, `position`) 변경 0
+- `resolveMatchJerseysBatch` 호출 그대로 — jersey 우선순위 로직 유지
+- `/api/v1/tournaments/[id]/teams/[teamId]/players` GET 영향 0 (이미 헬퍼 사용 중)
+- requireRecorder 권한 체크 / orderBy / where (is_active) 변경 0
+
+💡 tester 참고:
+- 테스트 방법: 5/9 동호회최강전 매치에서 user_id=NULL 인 선수 (예: SA #5 박민찬) 가 포함된 팀 → 기록앱 로스터 화면 진입
+- 정상 동작: 박민찬 같이 user_id=NULL 인 케이스도 "선수" 폴백 대신 `ttp.player_name` (= "박민찬") 표시됨
+- 일반 케이스 (user.name 있음): 기존과 동일 — User.name 우선
+- 주의 케이스: user.name=NULL + user.nickname 만 있는 케이스 (드물지만) → nickname 표시
+
+⚠️ reviewer 참고:
+- mapPlayer 에서 응답 키 (`name`)는 그대로 유지 — Flutter 클라이언트 무수정 보장
+- `getDisplayName` 헬퍼는 `/api/v1/tournaments/[id]/teams/[teamId]/players` 등 다른 공식 기록 라우트에서 이미 사용 중인 표준 패턴
+- conventions.md `[2026-05-09] 공식 기록 도메인 = 실명 우선` 룰 적용
+
+## 구현 기록 (developer / 5/9 시안 박제 갭 fix 2~3순위 7 페이지)
+
+📝 구현한 기능: 운영 → 시안 역박제 갭 fix 2~3순위 7 신규 mock-up
+
+| 파일 | 운영 정합 | 라인 | 핵심 |
+|------|----------|------|------|
+| `Dev/design/BDR-current/screens/CourtManage.jsx` | `/courts/[id]/manage` | 120 | 차단 슬롯 폼 + 예약 4건 리스트 + 취소 버튼 |
+| `Dev/design/BDR-current/screens/CourtCheckin.jsx` | `/courts/[id]/checkin` | 78 | QR 자동 체크인 4 상태 (loading/success/already/error) + 데모 토글 |
+| `Dev/design/BDR-current/screens/TeamsManage.jsx` | `/teams/manage` | 93 | 운영팀 3건 카드 그리드 (captain/vice 뱃지) + 새팀 만들기 CTA |
+| `Dev/design/BDR-current/screens/TeamRequests.jsx` | `/teams/[id]/manage/requests` | 64 | 옛 알림 redirect 안내 + 자동/수동 이동 |
+| `Dev/design/BDR-current/screens/ProfileSettings.jsx` | `/profile/settings` | 168 | 7섹션 sticky nav (account/feed/notify/bottomNav/billing/display/danger) + 분기별 mock |
+| `Dev/design/BDR-current/screens/OrgApply.jsx` | `/organizations/apply` | 130 | 단체 신청 폼 6필드 + 성공 화면 분기 |
+| `Dev/design/BDR-current/screens/SeriesEdition.jsx` | `/organizations/[slug]/series/[seriesSlug]` | 131 | 시리즈 회차 5건 타임라인 (좌측 세로선 + 도트 + 우승팀) |
+
+= 총 7 신규 / 784 라인 (가이드 600~800 범위)
+
+### 검증
+- `wc -l` + `tail -1` (truncated 룰): 7 파일 모두 마지막 줄 `window.X = X;` 정상 종료 ✅
+- 시안 패턴 일관 (1순위 News/MatchNews/Scoreboard 동일 스타일):
+  - 헤더 주석 5줄 (시안 룰/운영 핵심/진입/복귀/특이사항)
+  - var(--*) 토큰만 사용 (하드코딩 색상 0)
+  - Breadcrumb 12px 색상 var(--ink-mute)
+  - eyebrow .14em letterspacing
+  - h1 fontFamily var(--ff-display) letterSpacing -0.02em
+  - 카드 padding 18~28px
+  - 50% border-radius (9999px 회피, CLAUDE.md §10)
+  - setRoute props 네비게이션
+  - window.X=X 끝 줄
+
+### 운영 영향
+- 시안 폴더만 작업 (Dev/design/BDR-current/screens/)
+- src/ 변경 0
+- DB / API / Flutter v1 변경 0
+
+### 시안 패턴 룰 준수 (claude-project-knowledge 13 룰)
+- AppNav frozen 코드 0 (시안 페이지 콘텐츠만, A.1~A.7 영향 0)
+- var(--*) 토큰만 (B.10) — 하드코딩 색상 grep 0
+- 9999px → 50% (사용자 결정 D2, 2026-05-01)
+- 카피 시안 우선 (A.11 — 운영 카피 1대1 복사 X, mock 데모 카피)
+
+💡 PM 참고:
+- 박제 갭 fix 100% 완료: 1순위 (5/9 부분) 3건 + 2~3순위 7건 = 총 10 페이지 역박제
+- 운영 → 시안 박제 갭 0건 (5/7 lessons.md 룰 회복)
+- 마이그 4순위 (admin/referee 그룹) 별도 회차 또는 보류
+
+⚠️ reviewer 참고 (소규모 시안 작업이므로 생략 가능):
+- ProfileSettings 168라인 — 7섹션 분기 mock 콘텐츠 통합으로 가이드 약간 초과. 분리 안 함 (시안 데모용 단일 파일 적합)
+- TeamRequests — 운영은 단순 server-side redirect 26라인이지만 시안에서는 사용자 시각 안내 mock 필요 (실 사용 시간 짧지만 옛 알림 잔재 시나리오 시각화)
+
+---
+
 ## 구현 기록 (developer / 5/9 마이그 2~3순위)
 
 📝 구현한 기능: 사용자 영향 (2순위) + 운영자 영향 (3순위 (web) 한정) 6 input PhoneInput 마이그
@@ -713,6 +866,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | (DB 정비 + 코드 미커밋) | **5/9 D-day 동호회최강전 명단 대조 (SA + 블랙라벨 2팀 / 14팀 잔여) + RPC + roster 통합 fix** — SA 4건 (박민찬 #5 ttp INSERT user_id=NULL → 후속 placeholder user(3397) INSERT + ttp.user_id 매핑 / 오승준·임현태·허진석 user.is_elite UPDATE) + 블랙라벨 7건 (박민수·김남건·석종태·오재모 ttp.is_elite UPDATE + 석종태·오재모 user.is_elite UPDATE + #67 임체훈 fake DELETE) + **Supabase RPC `get_tournament_players` 1줄 fix** (`COALESCE(u.name, u.nickname, ttp.player_name, '#'\|\|jersey)` — 16팀 한글 없는 display_name 11→0 자동 정상화 / 오승준 "Seung Jun Oh" → "오승준" / 김양우 "Yang" → "김양우" / 임채훈 "채채" → "임채훈" 등) + **`/api/v1/matches/[id]/roster` getDisplayName 헬퍼 마이그** (route.ts +9L / import 1 + select 양 팀 player_name+nickname 추가 + mapPlayer 헬퍼 통일 / tsc 0 / Flutter v1 응답 키 변경 0 / 회귀 0) + conventions.md `[2026-05-09]` 정책 박제 (공식 기록 = 실명 우선 헬퍼 의무 / nickname 직접 참조 금지). planner-architect background 위임 — 30+ 파일 공식 기록 vs 사적 분류 + 마이그 우선순위 (P0/P1/P2). | 🟢 D-day |
 | 2026-05-09 | (구현 완료, 미커밋) | **시안 박제 갭 fix 1순위 3 페이지 (운영 → 시안 역박제)** — 5/7 lessons.md 운영 → 시안 역박제 룰 적용 / `Dev/design/BDR-current/screens/` 신규 3 파일: News.jsx (110L /news 매거진 메인 — 카드 그리드 + 알기자 박제) + MatchNews.jsx (126L /news/match/[matchId] — 기사 상세 + 매치 헤드라인 + Hero/갤러리 placeholder + linkify 본문 mock) + Scoreboard.jsx (142L /scoreboard/[matchId] — 매치 코드 v4 라이브 점수판 mock + 쿼터/타이머/샷클락/팀파울/T/O/PBP 6건). 시안 패턴 일관 (window.X = X / breadcrumb / TEAMS 글로벌 활용 / 토큰 11/19/14건 / 카피 시안 우선). 운영 영향 0 (시안 폴더만, src/ 0). 잔여 2~3순위 별도 회차. | 🟢 구현 |
 | 2026-05-09 | (구현 완료, 미커밋) | **PhoneInput 마이그 2~3순위 — (web) 한정 6 input** — 2순위 사용자 영향 2건 (`verify/page.tsx` 본인인증 휴대폰 / `_site/registration/page.tsx` 대표자 연락처) + 3순위 운영자 영향 4건 (`games/new/_components/step-settings.tsx` 픽업 / `games/new/_v2/advanced-section.tsx` v2 / `games/[id]/edit/page.tsx` 수정 within24h disabled / `partner-admin/venue/page.tsx` 장소 담당자) = 6 파일 / 6 input. verify 페이지는 state 하이픈 포함 + submit/검증 시점 `replace(/-/g, "")` 정규화 (서버 API 무수정). tsc 0 / build ✓ Compiled 11.1s + Static 139/139 / type="tel" 0건 회귀 / state 변수 변경 0 / API/DB/Flutter v1 변경 0. 잔여 (admin)/(referee) 4순위 별도 회차. | 🟢 구현 |
 | 2026-05-09 | (구현 완료, 미커밋) | **PhoneInput / BirthDateInput 1순위 마이그 (사용자 영향 최대 2 페이지)** — `profile/edit/page.tsx` 3 input (휴대폰 §1+§3 + 생년월일) + `tournaments/[id]/join/page.tsx` 대표자 연락처 1 input = 총 4 input. `formatPhone` 로컬 함수 정의 7L 제거 (PhoneInput 내장 대체). 5/7 인증 필드 잠금 동작 (disabled/readOnly/style 토큰) `...rest` 통과로 자동 보존. tsc 0 / build ✓ Compiled 11.0s + Static 139/139 / type="tel" type="date" formatPhone 0건 회귀 / managerPhone state 5곳 보존. **reviewer ⭐⭐⭐⭐⭐ 통과 (수정 요청 0)**. | 🟢 구현+리뷰 |
