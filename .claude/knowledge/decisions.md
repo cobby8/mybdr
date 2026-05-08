@@ -2,6 +2,27 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-08] PR3 layout 가드 mock flag — 옵션 a (channel key 환경변수 존재 = 가드 ON)
+- **분류**: decision (onboarding 가드 / mock 모드 / 외부 작업 분리)
+- **결정자**: planner-architect (PM 결재 대기)
+- **참조횟수**: 0
+- **배경**: PortOne 콘솔 채널 발급 + Vercel `NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY` 추가가 외부 작업으로 대기 중. 환경변수 없는 동안에도 가드 코드를 미리 작성 + push 해두고, 환경변수 추가 시점에 즉시 활성화 필요. 보고서: `Dev/pr3-layout-guard-design-2026-05-08.md`
+- **검토 4 옵션**:
+  - (a) channel key 환경변수 존재 시 = 가드 ON
+  - (b) explicit flag (`PORTONE_IDENTITY_GATE_ENABLED=true`) 추가 — 가드 / channel key 분리
+  - (c) dev only 활성화 (`NODE_ENV==="development"`)
+  - (d) a+b 결합
+- **채택 (a)**: `isIdentityGateEnabled() = !!process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY`
+- **사유**:
+  1. 외부 작업 1회 (channel key 추가) → 가드 자동 ON. 사용자 약속 "환경변수 추가 시점에 즉시 활성화" 만족
+  2. PortOne SDK 자체가 channel key 없으면 에러 → 가드를 channel key 있을 때만 켜야 일관 (UX 함정 차단)
+  3. 옵션 b = 운영자 실수 위험 (key 추가 / flag 누락 → 가드 OFF) / 옵션 c = mock 의도와 반대 (운영 영향 0 = 활성화 시점에 코드 수정 또 필요)
+- **롤백 = 환경변수 제거** — 활성화 후 문제 발생 시 코드 revert 불필요, 환경변수만 제거 → 즉시 mock 모드 복구
+- **위험**: PortOne SDK 자체 에러 (콘솔 설정 문제) 시 가드 통과 불가 → 활성화 전 `/onboarding/identity` 수동 검증 필수
+- **가드 위치 결정 별도**: 페이지 server component 직접 분기 (옵션 D) — middleware / 라우트 그룹 / layout 통합 거부 (사유: 보고서 §2.1)
+- **가드 대상**: 3 페이지 (`(web)/games/[id]/page.tsx` / `(web)/teams/[id]/page.tsx` / `(web)/tournaments/[id]/join/page.tsx`) — PR1.5.b 클라 안내 4 페이지와 동일 범위 (match-request 모달은 teams/[id] 부모로 자동 차단)
+- **상태**: 본 turn 설계만, 코드 변경 0. PM 사용자 결재 (Q1~Q5) 후 developer 진입
+
 ### [2026-05-05] 첫 로그인 onboarding 10단계 — 옵션 B 합의 (선호값 6종, DB 영향 0)
 - **분류**: decision (onboarding 시스템 / 게이미피케이션 / 분기 정책)
 - **결정자**: 사용자 ("회원가입 직후 첫 로그인에서 필수 설정 3단계 ... 10단계 모두 완료시 활동 점수 부여")

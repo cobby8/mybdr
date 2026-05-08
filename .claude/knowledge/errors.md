@@ -30,6 +30,37 @@
      ```
   5. **GitHub commit status 체크** — main push 후 `gh api repos/X/Y/commits/SHA/status --jq '.state'` 로 Vercel state 확인 (성공/실패 자동화 가능)
 - **참조 fix**: commit `168be48` (truncated css 복구 hot fix), `0809432` 후속 13분 내 운영 복구
+- **참조횟수**: 1 (5/8 재발 — 아래 항목 참조)
+
+### [2026-05-08] truncated commit 함정 — 대량 토큰 마이그 commit 중 1 파일 단독 잘림 (5/7 재발 2회차)
+- **분류**: error/git (commit 무결성 / Vercel 빌드 실패)
+- **발견자**: pm + 사용자 (Vercel deployments 페이지 빌드 실패 9건 한 번에 발견)
+- **증상**: 대량 토큰 마이그 commit `48643f5` (BDR v2 토큰 마이그 — 16 파일 142+/-173) 중 `src/components/home/profile-cta-card.tsx` 만 단독 161줄에서 잘림. 나머지 15 파일 정상. 그 후 5/8 push된 11 commit 모두 (3af6cd6 → 1dbc3ee) + dev/main PR 머지 (45dd52d / e0d880b) 까지 **9건 빌드 연쇄 실패**. 다행히 Vercel은 빌드 실패 시 자동 promotion 안 함 → Production Current = `168be48` (5/7 hot fix) 그대로 유지, 운영 영향 0.
+- **본질** (5/7 항목과 차이):
+  1. ✅ 5/7: `.git/index.lock` 강제 제거 후 부분 stage 원인 / 5/8: lock 이슈 없음 — Edit/Write 도구가 1 파일 마지막 부분 출력 시 잘렸을 가능성 (정확한 원인 미규명)
+  2. 잘린 부분: 38줄 (Link 태그 style + content + 닫는 태그 + 닫기 X 버튼 + 함수 end)
+  3. Vercel 에러: `Expected '</', got '<eof>'` (5/7 PostCSS / 5/8 Turbopack JSX parser)
+  4. 빌드 실패 누적: 9건 (5/8 11 commit 중 같은 파일 안 건드린 8건 + dev/main 머지 2건)
+- **검출 함정**:
+  1. ❌ 사용자가 Vercel deployments 페이지에서 9건 동시 발견할 때까지 알아채지 못함 — 5/7 룰 적용했어야 하는데 누락
+  2. ❌ 로컬 tsc --noEmit 0 통과 — JSX/TS strict 미감지 (Turbopack/Next 빌드만 감지)
+  3. ✅ 첫 빌드 실패 commit (`48643f5`) 직접 확인 → `wc -l` 비교 → 161줄 truncated 즉시 확정
+- **fix**: `333516b` hot fix → 이전 정상 commit (`059d4a6`) 161줄 이후 38줄 복원. 잘린 영역 var(--ink-dim) 이미 토큰 사용 중이라 마이그 영향 0. PR #216 (subin→dev) + #217 (dev→main) 머지 → main `c6a6848` Production 자동 promotion 대기.
+- **재발 방지 룰 (5/7 룰 + 보완)**:
+  1. **대량 마이그 commit 후 line count 검증 의무화** — 5+ 파일 동시 수정 commit 후:
+     ```bash
+     git show --name-only --format="" HEAD | xargs -I{} sh -c 'echo "{}: $(wc -l < "{}")"'
+     ```
+  2. **첫 push 후 1분 내 Vercel 빌드 결과 확인** — `gh api repos/X/Y/commits/SHA/check-runs --jq '.check_runs[].conclusion'` 또는 deployments 페이지 1회 새로고침
+  3. **JSX 파일 마지막 줄 자동 검증** — push pre-commit hook 후보:
+     ```bash
+     for f in $(git diff --cached --name-only -- '*.tsx' '*.jsx'); do
+       last=$(tail -1 "$f" | tr -d '[:space:]')
+       [ "$last" != "}" ] && echo "WARN: $f 마지막 줄 비정상: $last"
+     done
+     ```
+  4. **로컬 `npm run build` (단순 tsc 아님) 권장** — 대량 마이그 commit 전. Turbopack JSX parsing 까지 검증.
+- **참조 fix**: `333516b` (profile-cta-card 38줄 복원), `c6a6848` (PR #217 main 머지)
 - **참조횟수**: 0
 
 ### [2026-05-07] 한글 IME composition 중 Enter → submit 함정 (한글 입력 끊김 / 빈 메시지 전송)

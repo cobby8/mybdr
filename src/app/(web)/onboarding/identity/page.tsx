@@ -22,12 +22,32 @@ import { IdentityStep } from "./_components/identity-step";
 
 export const dynamic = "force-dynamic";
 
-export default async function OnboardingIdentityPage() {
+export default async function OnboardingIdentityPage({
+  searchParams,
+}: {
+  // 5/8 PR3 — returnTo query 처리 (가드에서 보낸 원래 페이지 보존).
+  //   page server component 가 Next.js 15 에서 searchParams 를 Promise 로 받음.
+  searchParams?: Promise<{ returnTo?: string }>;
+}) {
   const auth = await getAuthUser();
 
-  // 비로그인 → /login 로 redirect (after login 복귀)
+  // 5/8 PR3 — returnTo 추출 + 보안 검증 (open redirect 방지).
+  //   "/" 로 시작하는 경로만 허용 — 외부 URL 또는 protocol-relative URL ("//evil.com") 차단.
+  const sp = searchParams ? await searchParams : undefined;
+  const rawReturnTo = sp?.returnTo;
+  const safeReturnTo =
+    typeof rawReturnTo === "string" &&
+    rawReturnTo.startsWith("/") &&
+    !rawReturnTo.startsWith("//")
+      ? rawReturnTo
+      : null;
+
+  // 비로그인 → /login 로 redirect (after login 복귀 — returnTo 보존하여 인증 완료 후 원래 흐름 복원).
   if (auth.state !== "active") {
-    redirect("/login?redirect=/onboarding/identity");
+    const loginRedirect = safeReturnTo
+      ? `/onboarding/identity?returnTo=${encodeURIComponent(safeReturnTo)}`
+      : "/onboarding/identity";
+    redirect(`/login?redirect=${encodeURIComponent(loginRedirect)}`);
   }
 
   // name_verified 단일 SELECT — getAuthUser 의 user select 에는 미포함
@@ -36,9 +56,11 @@ export default async function OnboardingIdentityPage() {
     select: { name_verified: true },
   });
 
-  // 5/7 PR2.c — 이미 인증 완료 → 다음 단계 (활동 환경)
+  // 5/7 PR2.c — 이미 인증 완료 → 다음 단계.
+  // 5/8 PR3 — returnTo 가 있으면 원래 페이지로 우선 복귀 (가드에서 보낸 케이스).
+  //   없으면 기존 onboarding 흐름 유지 (/onboarding/environment).
   if (u?.name_verified) {
-    redirect("/onboarding/environment");
+    redirect(safeReturnTo ?? "/onboarding/environment");
   }
 
   return (
@@ -72,7 +94,8 @@ export default async function OnboardingIdentityPage() {
         </p>
       </header>
 
-      <IdentityStep />
+      {/* 5/8 PR3 — returnTo 가 있으면 인증 완료 후 그쪽으로 복귀, 없으면 기존 흐름 (/onboarding/environment) */}
+      <IdentityStep returnTo={safeReturnTo} />
     </div>
   );
 }
