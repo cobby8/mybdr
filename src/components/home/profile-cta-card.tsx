@@ -158,4 +158,41 @@ export function ProfileCtaCard() {
       <Link
         href={needsIdentity ? "/onboarding/identity" : "/profile/edit"}
         className="btn btn--primary"
-    
+        style={{
+          flexShrink: 0,
+          fontSize: 13,
+          fontWeight: 700,
+          padding: "8px 16px",
+        }}
+      >
+        {needsIdentity ? "본인인증 →" : "완성하러 가기"}
+      </Link>
+
+      {/* 닫기 X 버튼 — 우상단 absolute (시안 패턴) */}
+      <button
+        type="button"
+        onClick={handleDismiss}
+        aria-label="배너 닫기"
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          width: 28,
+          height: 28,
+          borderRadius: "50%", // 정사각형 W=H 원형
+          background: "transparent",
+          border: "none",
+          color: "var(--ink-dim)",
+          cursor: "pointer",
+          display: "grid",
+          placeItems: "center",
+          padding: 0,
+        }}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+          close
+        </span>
+      </button>
+    </div>
+  );
+}
