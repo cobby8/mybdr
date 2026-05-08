@@ -8,9 +8,44 @@
 
 ## 🎯 현재 작업
 
-**[5/10 사전 라인업 PR3 reviewer ✅ + tester ✅]** 팀장 UI `/lineup-confirm/[matchId]` 신규 페이지 구현 완료. PR1+PR2 commit `6ebeb94` 위 UI 레이어. 사용자 결정 2건 반영: (1) 전체 출전 단일 토글 버튼 (라벨 자동 변경) (2) 상대팀 영역 제거. 신규 3 파일 +954L (page 328 / form 472 / row 154) / tsc 0 / API/DB/Flutter v1 영향 0.
+**[5/10 사전 라인업 PR5 tester ✅]** Flutter roster API 응답 확장 검증 완료. tsc 0 / 응답 형식 4종 (미입력 / home만 / away만 / 양팀) 정확 / snake_case 변환 후 키 정확 (active_ttp_ids / starter_ttp_ids / confirmed_at) / Flutter v1 호환 회귀 0 / 다른 v1 API 영향 0.
 
-📋 검증대기 미푸시 commit 4건 (6ebeb94 lineup PR1+2 / 02f7d0e live PR4+5 / ad88292 displayname / 0633e44 live PR1~3) + PR3 미커밋 — push 보류.
+📋 검증대기 미푸시 commit 4건 (6ebeb94 lineup PR1+2 / 02f7d0e live PR4+5 / ad88292 displayname / 0633e44 live PR1~3) + PR3 + PR5 미커밋 — push 보류.
+
+### 테스트 결과 (tester / 5/10 PR5)
+
+| 테스트 항목 | 결과 | 비고 |
+|-----------|------|------|
+| `npx tsc --noEmit` | ✅ 통과 | exit=0, 미사용 import 0 |
+| BigInt → string 변환 (`b.toString()`) | ✅ 통과 | starters / substitutes 모두 string[] |
+| `confirmedAt.toISOString()` ISO 형식 | ✅ 통과 | "2026-05-10T12:30:00.000Z" |
+| Case 1 — row=undefined → null | ✅ 통과 | 미입력 매치 시뮬레이션 결과 null |
+| Case 2 — home 입력 (5+3 substitutes) | ✅ 통과 | active=8건 / starter=5건 분리 정확 |
+| Case 3 — substitutes 0건 (주전 5명만) | ✅ 통과 | active=starter 동일 5건 |
+| Case 4 — 정렬 검증 (입력 순서 무관) | ✅ 통과 | starters 5,3,1,4,2 → 1,2,3,4,5 정렬 |
+| Set 합집합 — 중복 제거 | ✅ 통과 | new Set + Array.from + sort 룰 |
+| 매핑 — `active_ttp_ids` = starters ∪ substitutes | ✅ 통과 | string[] / 정렬 |
+| 매핑 — `starter_ttp_ids` = starters | ✅ 통과 | string[] / 정렬 |
+| 매핑 — `confirmed_at` = ISO string | ✅ 통과 | ISO 8601 |
+| apiSuccess snake_case 변환 후 키 보존 | ✅ 통과 | active_ttp_ids/starter_ttp_ids/confirmed_at 그대로 (이미 snake_case → 무변환) |
+| camelCase 잔재 0 | ✅ 통과 | 응답 키 모두 [a-z_] (errors.md 2026-04-17 룰 준수) |
+| 양 팀 입력 (home + away 동시) | ✅ 통과 | 각각 객체 생성 + 독립 |
+| 기존 키 (`home_players`/`away_players`) 보존 | ✅ 통과 | id/name/jersey_number/is_starter/position 변경 0 |
+| Flutter v1 호환 — 신규 키 무시 시 회귀 0 | ✅ 통과 | 기존 응답 형식 100% 유지 + 추가 2 키만 |
+| 권한 가드 — `requireRecorder` 그대로 | ✅ 통과 | 라인업 데이터도 기록원 권한 안에서 노출 |
+| DB 쿼리 추가 — `findMany({where:{matchId}})` | ✅ 통과 | UNIQUE(matchId,teamSide) index hit / N≤2 |
+| 다른 v1 API 영향 0 | ✅ 통과 | grep `matchLineupConfirmed` v1 결과 = roster/route.ts 단독 |
+| DB schema 변경 0 | ✅ 통과 | 본 PR 은 PR1 모델 read only |
+| 신규 키 사용처 — 본 라우트만 | ✅ 통과 | grep `home_lineup_confirmed`/`active_ttp_ids` src 결과 = roster/route.ts 만 |
+| 임시 스크립트 정리 | ✅ 통과 | scripts/_temp/verify-roster-pr5.ts 삭제 완료 |
+
+📊 종합: 22개 중 22개 통과 / 0개 실패
+
+🟢 추가 발견 (errors.md 박제 가치): **0건** — 기존 2026-04-17 snake_case 룰 그대로 적용.
+
+🟢 회귀 영향 확인: **0건** — Flutter v1 / DB schema / 다른 v1 API / 외부 import 모두 변경 0.
+
+📌 머지 가능 (필수 수정 0). 사용자 결정: PR5 = `roster API 응답 확장` Flutter 자동 채움 시그널 정확 노출.
 
 ### 리뷰 결과 (reviewer / 5/10 PR3)
 
@@ -228,9 +263,11 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | (doc-writer) `Dev/lineup-pr6-flutter-handoff-2026-05-10.md` 신규 394L | **PR6 Flutter 클라 핸드오프 문서 (원영 담당자용)** — self-contained 9 섹션 + 부록 2: §1 배경/목적 / §2 web 박제 현황 (PR1~PR5 / DB 모델 표 + API 표 + UI + roster 확장) / §3 dart 코드 (AS-IS / TO-BE 분기 / 변환 포인트 표) / §4 응답 키 명세 (active_ttp_ids/starter_ttp_ids/confirmed_at + dart 모델 매핑 예시) / §5 Q5=C 자동 매핑 정책 + UI 권장 / §6 검증 시나리오 13건 (핵심 5 + edge 4 + 회귀 4) / §7 v1/v2 점진 마이그 / §8 후속 PR4/PR7 분리 / §9 질문 슬롯 / 부록 A 참조 6 파일 / 부록 B 결재 5건 (Q1/Q4/Q5/Q6/Q7) / 한국어 / API/DB/코드 변경 0 (문서 only) | ✅ |
 | 2026-05-09 | (developer) 라이브 YouTube 영상 sticky / 미커밋 | **라이브 YouTube 영상 sticky (≥721px) + 모바일 분기 (≤720px) + hero 위 이동** — youtube-embed.tsx 인라인 style sticky CSS (top: var(--app-nav-h, 92px) / z-30 / 모바일 720px 미만 relative 해제) + page.tsx 영상 위치 hero(스코어카드) 위 + 페이지 헤더 sticky 아래로 이동 (방안 A: 영상 z-30 / 페이지 헤더 z-20 / AppNav z-50 stack) / 영상 등록 매치만 sticky / CTA(미등록+운영자) 일반 위치 / FINAL 다시보기 game-result 영향 0 / Tailwind arbitrary 0 (errors.md 5/9 룰 — `[var(--TOKEN)]` 표기 placeholder) / tsc 0 / Flutter v1 영향 0 / 시안 박제 후속 큐 (BDR-current/screens/Live.jsx 운영→시안 역박제) | 검증대기 |
 | 2026-05-09 | (developer) YouTube batch v2 5요소 + 정확도 측정 / 미커밋 | **YouTube batch v2 5요소 알고리즘 + 정확도 100%** — scripts/_temp/youtube-batch-match.ts: (1) **점수 배분 100점**: home(25) + away(25) + tour(20) + date(20) + time(10). 임계값 60→**80점**. (2) **5요소 검증** — 대회명: 풀네임 substring=20 / 토큰 2개=20 / 1개=10. 날짜: 같은날=20 / 1~7일=15 / 8~30일=10. 시간: ±6h=10 / ±24h=5. (3) **`--include-existing`** 옵션 — 이전 채택 매치도 재채점 (UPDATE 자동 제외 가드). (4) breakdown 키 5요소로 변경. **dry-run (신규)**: 자동 채택 0건 / 후보 4건 (50점 양 팀만 매칭 — 다른 영상에 도용된 video_id 가 best 후보로 선택돼 강등됨, 정상 동작) / 실패 29건. **정확도 100% (12/12)** — 이전 12 매치 모두 동일 영상으로 95~100점 자동 채택 ✅ (146/143/142/141/140/139/138/137/134/132 = 95점, 145/136 = 100점). tsc 0 / DB 변경 0 / Flutter v1 영향 0 | 검증대기 |
-| 2026-05-10 | (developer) 사전 라인업 PR3 / 미커밋 | **사전 라인업 PR3 — 팀장 UI `/lineup-confirm/[matchId]` 신규 페이지** — page.tsx 328L (server / 권한 가드 getMatchWithTeams+getLineupCanEdit / matchId 단일 라우트로 tournamentId DB 1회 / 매칭미정 안내 / admin=home 통일) + lineup-confirm-form.tsx 472L (client / Set state / 단일 토글 라벨 자동 / 출전→주전 5명 룰 / POST+DELETE+router.refresh) + ttp-row.tsx 154L (presentational / 출전 ☑ + 주전 ★ + #등번호 + 이름) / 사용자 결정 2건 반영 (단일 토글 + 상대팀 미노출) / snake_case 응답 키 직접 사용 / 13 디자인 룰 준수 (color-* 토큰 / Material Symbols / 44px 터치) / tsc 0 / Flutter v1 영향 0 / API/DB 변경 0 (PR2 그대로 사용) | 검증대기 |
+| 2026-05-10 | (developer) 사전 라인업 PR5 / 미커밋 | **사전 라인업 PR5 — Flutter roster API 응답 확장** — `/api/v1/matches/[id]/roster/route.ts` 수정 (+~55L). 기존 키 (`home_players` / `away_players`) 변경 0 + 신규 키 2개 추가 (`home_lineup_confirmed` / `away_lineup_confirmed`). DB 쿼리 1건 추가 (`prisma.matchLineupConfirmed.findMany({ where: { matchId } })` 양팀 동시) + 헬퍼 `buildLineupConfirmed()` (Set 합집합 + 정렬 + BigInt→string + ISO). 미입력 시 `null` (빈 객체 X). `requireRecorder` 가드 그대로 (라인업 = 매치 종속). tsc 0 / Flutter v1 호환 (신규 키 무시 → 회귀 0) / DB schema 변경 0 / 다른 v1 API 영향 0 | 검증대기 |
+| 2026-05-10 | (developer) 사전 라인업 PR3 / 미커밋 | **사전 라인업 PR3 — 팀장 UI `/lineup-confirm/[matchId]` 신규 페이지** — page.tsx 328L (server / 권한 가드 getMatchWithTeams+getLineupCanEdit / matchId 단일 라우트로 tournamentId DB 1회 / 매칭미정 안내 / admin=home 통일) + lineup-confirm-form.tsx 472L (client / Set state / 단일 토글 라벨 자동 / 출전→주전 5명 룰 / POST+DELETE+router.refresh) + ttp-row.tsx 154L (presentational / 출전 ☑ + 주전 ★ + #등번호 + 이름) / 사용자 결정 2건 반영 (단일 토글 + 상대팀 미노출) / snake_case 응답 키 직접 사용 / 13 디자인 룰 준수 (color-* 토큰 / Material Symbols / 44px 터치) / tsc 0 / Flutter v1 영향 0 / API/DB 변경 0 (PR2 그대로 사용) **+ UI 후속 (5/10): 컬럼 헤더 row 추가 (출전/주전/번호/이름/포지션) + 포지션을 이름 컬럼에서 분리 (별도 w-16 center 컬럼) — ttp-row.tsx +9L / form.tsx +18L / tsc 0 / 동작 변경 0** | 검증대기 |
 | 2026-05-09 | (developer) YouTube batch 알고리즘 fix + 재 dry-run / 미커밋 | **YouTube batch 매칭 알고리즘 fix** — scripts/_temp/youtube-batch-match.ts: (1) **양 팀 정확 매칭** — extractTeamsFromTitle ("vs"/"VS"/"대" 분리) + normalizeTeamName (특수문자/공백 제거) → 매치 양 팀 정확 일치 (swap 검증 포함) 시만 home=30+away=30. 한 팀만 일치 = 0점 (오매칭 차단). (2) **영상-매치 1:1 매핑** — claimsByVideo Map / 점수 동률 시 시간차 작은 매치 우선. 박탈 매치 → 후보 검토 강등 + [1:1 충돌 박탈] 태그. (3) **임계값 60점 조정** (VOD 업로드 time 0~10 정상 / 양 팀 정확 매칭 60점 = 자동 채택 시그널). 재 dry-run: 자동 채택 12건 (전부 양 팀 정확 일치 / 이전 오매칭 #146 #137 본인 영상에 정확 매핑) / 후보 검토 1건 (#121 1:1 충돌 박탈 정상) / 실패 32건. tsc 0 / DB 변경 0 / Flutter v1 영향 0 | 검증대기 |
 | 2026-05-09 | (developer) YouTube 일괄 자동 매칭 batch / 미커밋 | **YouTube 일괄 자동 매칭 batch 스크립트** — scripts/_temp/youtube-batch-match.ts (~370L) / dry-run 기본 / 80점 임계값 / Redis cache 재사용 quota 1~2 / fetchEnrichedVideos dynamic import (--playlist-id 오버라이드 hook) / scoreMatch search/route.ts 동일 알고리즘 inline / --apply 시 80점+ UPDATE + admin_logs INSERT (super_admin admin_id 자동 결정 / --admin-id=N 오버라이드) / dry-run 결과: 종료 매치 45건 확보 (BDR_YOUTUBE_UPLOADS_PLAYLIST_ID 로컬 미설정 → 영상 0건 → 운영 배포 또는 환경변수 추가 후 재실행 필요) / tsc 0 / Flutter v1 영향 0 | 검증대기 |
 | 2026-05-09 | (developer) 사전 라인업 PR1+PR2 / 미커밋 | **사전 라인업 PR1+PR2 — DB CREATE TABLE match_lineup_confirmed + API 3 + 권한 헬퍼** — schema.prisma 신규 모델 1 (UNIQUE(matchId,teamSide) + index 2) + User/TournamentMatch 역참조 / prisma db push 무중단 (CREATE TABLE 1 / 운영 영향 0) / match-lineup.ts 권한 헬퍼 200L (resolveLineupAuth + getLineupCanEdit / admin 양쪽 / captain·manager 본인측만) / lineup/route.ts 462L (GET 매치+양팀ttp+lineup+canEdit / POST upsert + Q6=A 5명강제 + 중복0 + ttp 무결성 / DELETE 해제) / tsc 0 / Flutter v1 영향 0 / PR3~PR8 후속 큐 | 검증대기 |
@@ -238,5 +275,4 @@
 | 2026-05-09 | (developer) PR1+PR2+PR3 통합 / 미커밋 | **라이브 YouTube PR1~3 통합** — DB ADD COLUMN 3 + match-stream.ts (164L) + enriched-videos.ts (355L) + POST/PATCH/DELETE 라우트 (288L) + GET search 신뢰도 80 (270L) + YouTubeEmbed (189L) + page.tsx 마운트 + game-result.tsx + /api/live/[id] 3 필드 / tsc 0 / quota 0~2 / Flutter v1 영향 0 | 검증대기 |
 | 2026-05-09 | (구현) P0 6 파일 헬퍼 마이그 | **displayName P0 6 파일 헬퍼 마이그** — getDisplayName 통일 (games/[id] MVP / public-bracket recentMvp / jersey-override admin_log POST+DELETE / officer-permissions 응답 displayName 추가 / home.ts prefetchRecentMvp / build-linkify-entries) / 응답 키 변경 0 (officer-permissions 만 displayName 추가, 나머지 표시 문자열만 변경) / tsc 0 / Flutter v1 영향 0 / 라이브 YouTube PR2 youtube-stream API 계열은 현재 미존재 (PR1 결재 대기 중) — 충돌 0 | 검증대기 |
 | 2026-05-09 | (기획) `Dev/live-youtube-embed-2026-05-09.md` | **라이브 페이지 YouTube 임베딩 기획** — 옵션 A 단일컬럼 (ADD COLUMN 3건 무중단) / 5 PR 분할 (~9h) / 신규 컴포넌트 2 + API 3 / 자동 검색 신뢰도 80 임계값 / search API 미사용 (uploads 재사용 quota 0~2) / CSP 변경 0 (이미 등록) / Flutter v1 영향 0 / Q1~Q11 결재 대기 / 5/10 D-day 후 진입 권장 | ✅ 결재 |
-| 2026-05-09 | PR #228~#243 16건 → main 8회 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65` → `d833569` → `7d68cce` → `fff4c54` → `76bf5f3`) | **5/9 단일 일 main 8회 신기록** — (1) PhoneInput 1순위 4 input. (2) 잔여 6 input + verify 하이픈 정규화. (3) 시안 역박제 1순위 News+MatchNews+Scoreboard. (4) 시안 역박제 2~3순위 7건 → 시안 갭 0 달성. (5) PhoneInput 4순위 admin+referee 3 input → 마이그 100% + onboarding 검증 tester 5/5 통과. (6) 공개프로필 NBA Phase 1 (PlayerMatchCard 380L + 8열 + Hero jersey + officialMatchNestedFilter). (7) Phase 2 활동 로그 5종 + 더보기 모달 3탭 + 경기참가 0 버그 fix. (8) 내농구 super-set 10 영역 (server 전환 + 14 쿼리 + CareerStatsGrid 글로벌 + MyPendingRequestsCard + NextTournamentMatchCard). tester 38건+ / reviewer ⭐⭐⭐⭐⭐ 4회. | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 재설계 5 Phase 16 PR main `8bbce95` / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError → main `4253e68` / 5/7 envelope 8회 — 5/7 main 21회 baseline (`2cc9df3` ~ `168be48`) / 5/8 main 7회 (`c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) / 5/9 main 8회 신기록) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 재설계 5 Phase 16 PR main `8bbce95` / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError → main `4253e68` / 5/7 envelope 8회 — 5/7 main 21회 baseline (`2cc9df3` ~ `168be48`) / 5/8 main 7회 (`c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) / 5/9 main 8회 신기록 PR #228~#243 → `702d00e` `b96f58c` `71d4087` `afcbd65` `d833569` `7d68cce` `fff4c54` `76bf5f3`) — 복원: git log -- .claude/scratchpad.md -->
