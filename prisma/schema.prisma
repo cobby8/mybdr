@@ -252,6 +252,10 @@ model User {
   team_officer_permissions_owner   TeamOfficerPermissions[] @relation("TeamOfficerPermissionsUser")
   team_officer_permissions_granted TeamOfficerPermissions[] @relation("TeamOfficerPermissionsGrantor")
 
+  // 2026-05-09 PR1 — 사전 라인업 확정 (팀장/운영자가 매치 시작 전 입력)
+  // 본 user 가 confirmedBy 로 등록한 row 들의 역참조. 감사 추적용.
+  match_lineup_confirmed MatchLineupConfirmed[] @relation("MatchLineupConfirmer")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -682,6 +686,9 @@ model TournamentMatch {
   // 2026-05-05 PR4: 매치 한정 임시 jersey 번호 (W1 라이브 페이지 운영자 모달 source).
   // 같은 매치 안 같은 ttp 1건 / 같은 매치 안 같은 jersey 1건 (UNIQUE 2개).
   match_player_jerseys                                                 MatchPlayerJersey[]
+  // 2026-05-09 PR1 — 사전 라인업 확정 (home/away 각 1건 / UNIQUE 가드)
+  // 매치당 최대 2건 (home + away). 부분 입력 (한 팀만) 허용.
+  lineups_confirmed                                                    MatchLineupConfirmed[]
   // 2026-05-04: 알기자 기사 사진 (Phase 1 = 운영자 수동 업로드, Phase 2 = EXIF 반자동 매핑 큐)
   news_photos                                                          news_photo[]
   // 2026-05-04: 알기자 자동 발행 시도 기록 — silent fail 모니터링
@@ -3223,4 +3230,36 @@ model TeamOfficerPermissions {
   @@unique([teamId, userId, revokedAt])
   @@index([teamId, revokedAt])
   @@map("team_officer_permissions")
+}
+
+// 2026-05-09 PR1 — 매치 사전 라인업 확정 (planner 보고서 §2.1 / Q1=A 채택)
+// 도메인 컨텍스트:
+//   - 팀장(또는 운영자 대리)이 매치 시작 전 양 팀 출전 명단 + 주전 5명 확정
+//   - Q6=A 강제: starters 정확히 5건. substitutes 는 5명 외 출전 가능 후보 (가변)
+//   - Q5=C: 자동 채움 + 변경 자유 (기록원 starter_select 진입 시점 잠금 정책은 PR3+ 후속)
+//   - Q1=A: 신규 테이블 (ttp.isStarter 대회 통산 의미 영구 보존)
+// 매치당 home/away 각 1건 (UNIQUE 가드). 부분 입력 (한 팀만) 허용 = Q7=A fallback 호환
+model MatchLineupConfirmed {
+  id            BigInt   @id @default(autoincrement())
+  matchId       BigInt   @map("match_id")
+  // "home" | "away" — 단일 컬럼으로 검색 단순화 (UNIQUE(matchId, teamSide))
+  teamSide      String   @map("team_side") @db.VarChar(10)
+  // 주전 5명 ttp.id[] — Q6=A 강제 5건. PostgreSQL BigInt[] (Prisma 타입 = BigInt[]).
+  starters      BigInt[]
+  // 출전 가능 후보 ttp.id[] (5명 외) — 0건도 허용. starters 와 중복 0 (API 단 검증).
+  substitutes   BigInt[]
+  // 누가 입력했는지 (팀장 user_id / 운영자 대리 = isTournamentAdmin)
+  confirmedById BigInt   @map("confirmed_by_id")
+  confirmedAt   DateTime @default(now()) @map("confirmed_at") @db.Timestamp(6)
+  // updatedAt — 재입력 케이스 추적용 (감사)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  match       TournamentMatch @relation(fields: [matchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  confirmedBy User            @relation("MatchLineupConfirmer", fields: [confirmedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  // 매치당 home/away 각 1건만 (UNIQUE 가드 — upsert 분기점)
+  @@unique([matchId, teamSide], map: "idx_match_lineup_unique")
+  @@index([matchId])
+  @@index([confirmedById])
+  @@map("match_lineup_confirmed")
 }
