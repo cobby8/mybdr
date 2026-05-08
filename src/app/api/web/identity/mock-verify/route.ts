@@ -34,16 +34,29 @@ import { adminLog } from "@/lib/admin/log";
 /**
  * 요청 페이로드 검증 — 클라이언트 검증과 동일 패턴 (서버 신뢰 재검증)
  *  - name: 한글 2~20자 (서버 결정 — 한글 실명만 허용)
- *  - phone: 010-XXXX-XXXX 또는 01XXXXXXXXX (하이픈 선택)
- *  - birth_date: YYYY-MM-DD 선택 입력 (사용자 결정 Q1)
+ *  - phone: 010-XXXX-XXXX (PhoneInput 자동 포맷 결과 — 하이픈 필수)
+ *  - birth_date: YYYY-MM-DD 필수 (5/8 사용자 결정 — 선택 → 필수 변경)
+ *      yyyy 1900~현재 연도 / mm 01~12 / dd 01~31 refine 검증 (월별 정확도는 클라/서버 모두 통과 후 DB 가 final)
  */
+const CURRENT_YEAR = new Date().getFullYear();
 const mockVerifySchema = z.object({
   name: z.string().regex(/^[가-힣]{2,20}$/, "실명은 한글 2~20자"),
+  // PhoneInput 자동 포맷 = 항상 하이픈 포함. 호환을 위해 하이픈 선택 패턴 유지 (서버 관용)
   phone: z.string().regex(/^010-?\d{4}-?\d{4}$/, "휴대폰 번호 형식 오류"),
+  // 5/8 — birth_date 필수 + yyyy/mm/dd 범위 refine
   birth_date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일 형식 오류")
-    .optional(),
+    .refine((v) => {
+      const [yStr, mStr, dStr] = v.split("-");
+      const y = Number(yStr);
+      const m = Number(mStr);
+      const d = Number(dStr);
+      if (y < 1900 || y > CURRENT_YEAR) return false;
+      if (m < 1 || m > 12) return false;
+      if (d < 1 || d > 31) return false;
+      return true;
+    }, "생년월일 범위 오류 (yyyy 1900~현재, mm 01~12, dd 01~31)"),
 });
 
 export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
@@ -88,14 +101,16 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       );
     }
 
-    // 생년월일 — 선택 입력 (입력 없으면 null)
-    let birthDateObj: Date | null = null;
-    if (birth_date) {
-      const d = new Date(birth_date);
-      if (!isNaN(d.getTime())) {
-        birthDateObj = d;
-      }
+    // 5/8 — 생년월일 필수 (zod 통과 후 = 항상 유효 형식). Date 변환 실패 시 400 (실측 가드)
+    const parsedDate = new Date(birth_date);
+    if (isNaN(parsedDate.getTime())) {
+      return apiError(
+        "생년월일 변환 실패 (유효하지 않은 날짜)",
+        400,
+        "INVALID_BIRTH_DATE",
+      );
     }
+    const birthDateObj: Date = parsedDate;
 
     // user 업데이트 — verified_* + identity_method='mock' + 사용자 결정 §1 동기화
     // 패턴: 기존 PortOne endpoint (verify/route.ts) 와 동일 (identity_method 만 추가)
@@ -110,9 +125,10 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
         // 5/8 신규 — mock 출처 표식 (PortOne 활성화 후 사후 식별)
         identity_method: "mock",
         // 사용자 결정 §1: 인증 완료 시 User.name/phone/birth_date 도 동기화 (PortOne 패턴 동일)
+        // 5/8 — birth_date 필수 (위에서 변환 검증 완료)
         name,
         phone,
-        ...(birthDateObj ? { birth_date: birthDateObj } : {}),
+        birth_date: birthDateObj,
       },
       select: {
         id: true,

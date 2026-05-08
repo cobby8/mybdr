@@ -1,6 +1,25 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-08] 사이트 전역 input 룰 — PhoneInput / BirthDateInput 의무 사용
+- **분류**: convention/ui (input 전역 컴포넌트)
+- **결정자**: 사용자
+- **내용**:
+  - 휴대폰 입력 = `<PhoneInput>` (`src/components/inputs/phone-input.tsx`) 의무 사용
+    - 자동 `000-0000-0000` 포맷 (숫자만 입력 → 하이픈 자동 삽입)
+    - placeholder "숫자만 입력 (010XXXXXXXX)"
+    - 11자리 제한 (slice 0..11)
+    - `inputMode="numeric"` 모바일 숫자 키패드
+  - 생년월일 입력 = `<BirthDateInput>` (`src/components/inputs/birth-date-input.tsx`) 의무 사용
+    - 자동 `YYYY-MM-DD` 포맷 (숫자만 입력 → 하이픈 자동 삽입)
+    - **yyyy 4자리 제한** (HTML date input 의 6자리 입력 함정 fix — 사용자 명시)
+    - 1900~현재 연도 검증 (UI 가드 / 서버 zod 가 final)
+    - `<input type="date">` 함정 회피 → `type="text" + inputMode="numeric"` 패턴
+- **적용 시점**: 신규 작업부터 즉시 적용. 기존 사용처 (가입폼 / 마이페이지 / settings 등) 는 별도 마이그레이션 작업으로 점진적
+- **위반 자동 reject**: 신규 작업에 직접 `<input type="tel">` 또는 `<input type="date">` 사용 금지
+- **참조 파일**: `src/components/identity/mock-identity-modal.tsx` (5/8 첫 적용 사례)
+- **참조횟수**: 0
+
 ### [2026-05-07] 한글 IME 가드 룰 — Enter 처리 input/textarea 의무 패턴
 - **분류**: convention/i18n (한글 입력 함정 영구 차단)
 - **발견자**: pm + 사용자 ("한글 입력이 자꾸 안되는 경우")
