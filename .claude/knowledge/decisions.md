@@ -2,6 +2,46 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-09] 마이페이지 "내 농구" (`/profile/basketball`) 공개프로필 흡수 + 본인 전용 강화 — Q1~Q6 결재 대기
+- **분류**: decision (마이페이지 / 공개프로필 super-set / 본인 전용 영역)
+- **결정자**: planner-architect (사용자 결재 대기 — Q1~Q6 모두 추천 안 일괄 채택 권장)
+- **참조횟수**: 0
+- **배경**: 사용자 의뢰 5/9 — *"마이페이지의 내농구가 공개프로필 페이지를 더 자세하게 확인할 수 있는 페이지가 되는게 좋을거 같아"*. 운영 `/profile/basketball` (239L client SWR) = 공개프로필 (Phase 1+2) 대비 빈약 (3열 통계 / 단순 TossListItem 최근경기 / 활동로그 0 / 모달 0 / Hero 0 / jerseyNumber 0). 동시에 픽업게임 (game_applications) 정보는 운영 보존 필요.
+- **9 본인 전용 가치 분석**:
+  - ★★★ A. pending 신청 — team_join_requests + team_member_requests (jersey/dormant/withdraw) + team_transfers (5/5 PR10) — 즉시 가능, 3 테이블 통합
+  - ★★ D. 트렌드 차트 — 통산 모달 데이터 재활용 가능 (후속 큐)
+  - ★★ H. 다음 매치 (대회) — tournamentMatch.scheduled + ttp 매핑
+  - ★ B. 게임 로그 페이지네이션 — 통산 모달 "전체" 탭이 이미 역할. 별도 페이지 비용 vs 효용 낮음
+  - ★ E. Splits (홈/원정/승/패/월별) — 가능하나 모달 탭 폭주 (별도 PR 큐)
+  - ❌ C. 개인 목표 — schema 신규 필요 (user.season_goal_*)
+  - ❌ F. Reviews (받은 평가) — Q1 player kind 도입 후속
+  - ❌ G. 알림/메시지 — 마이페이지 hub 가 이미 노출, 본 페이지 = 농구 도메인 한정
+  - ❌ I. 슛 차트 — shot_zone_stat cron 미동작
+- **10 영역 신규 구조**:
+  1. ① pending 신청 카드 (신규 / 0건이면 hidden) — Q3
+  2. ② Hero (PlayerHero 재사용 — isOwner 분기 추가)
+  3. ③ 통산 8열 + [더보기] (CareerStatsGrid 추출 / StatsDetailModal cross-route)
+  4. ④ ActivityLog 5건 재사용
+  5. ⑤ 최근 경기 PlayerMatchCard 5건 (Phase 1 재사용)
+  6. ⑥ 소속 팀 풀 리스트 (운영 보존)
+  7. ⑦ 참가 대회 (운영 보존 — `#my-tournaments` anchor 보존)
+  8. ⑧ 다음 매치 (대회) 카드 (신규 / 0건이면 hidden) — Q4
+  9. ⑨ 픽업 게임 신청 현황 (운영 game_applications 보존)
+  10. ⑩ 주간 리포트 링크 (운영 보존)
+- **6 결재 추천**:
+  1. **Q1=K-1 server component 전환** — 공개프로필과 일관 / Promise.all 14 쿼리 / SSR. K-2 (client SWR) / K-3 (hybrid) 거부
+  2. **Q2=L-1 10 영역 모두** — 의뢰 의도 100%. L-2 (7) / L-3 (5) 거부 (정보 손실)
+  3. **Q3=M-1 pending 3종 통합** — team_join + team_member_requests + team_transfers. M-2 (1종) 거부 (이적 신청 누락)
+  4. **Q4=N-1 다음 매치 채택** — 작은 영역, 비용 낮음. hub 의 nextGame 은 픽업 + 매치 혼재 → 분리 의미
+  5. **Q5=Y-2 CareerStatsGrid 글로벌 추출** — `src/components/profile/CareerStatsGrid.tsx`. 공개+본인 둘 다 사용 → 글로벌 격상 자연스러움. Y-1 (페이지 한정 + cross-route) 거부
+  6. **Q6=W-1 시안 박제 (운영 동등 갱신)** — CLAUDE.md §🔄 운영 → 시안 동기화 룰 준수. 5/7 갭 재발 방지. W-2 (무수정) / W-3 (핵심 3 영역) 거부
+- **회귀 0**: DB schema 0 / API 0 / Flutter v1 0 / 공개프로필 Phase 1+2 영향 0 (CareerStatsGrid JSX 동등 추출만) / 마이페이지 hub 0 / 픽업 게임 데이터 손실 0 (영역 ⑨ 보존)
+- **5 step / ~120분**: (1) CareerStatsGrid 추출 15분 → (2,3 병렬) MyPendingRequestsCard 25분 + NextTournamentMatchCard 15분 → (4) page.tsx 재구성 35분 → (5) 시안 박제 + tester + reviewer 30분
+- **신규 컴포넌트 3 (~310L)**: CareerStatsGrid (~80L) + MyPendingRequestsCard (~150L) + NextTournamentMatchCard (~80L)
+- **수정 3**: page.tsx 239→500L / overview-tab.tsx ~50L 변동 (CareerStatsGrid 분리) / ProfileBasketball.jsx 198→600L (W-1 시안 박제)
+- **참조**: `Dev/profile-basketball-private-2026-05-09.md` 13 섹션
+- **선행**: Phase 1 `Dev/public-profile-nba-style-2026-05-09.md` + Phase 2 `Dev/public-profile-activity-stats-2026-05-09.md`
+
 ### [2026-05-09] 공개 프로필 활동 로그 + 통산 더보기 설계 (Phase 2) — Q1~Q8 일괄 추천 A
 - **분류**: decision (공개 프로필 / NBA 스타일 Phase 2 / 활동 로그 / 통산 분해)
 - **결정자**: planner-architect (사용자 결재 대기 — Q1~Q8 모두 A 추천)
