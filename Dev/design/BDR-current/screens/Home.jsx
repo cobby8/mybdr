@@ -1,6 +1,20 @@
 /* global React, BOARDS, POSTS, HOT_POSTS, LATEST_POSTS, HOME_STATS, TOURNAMENTS, GAMES, TEAMS, ORGS, OPEN_RUNS, Icon, LevelBadge, Avatar, Poster, NavBadge */
 
 // ============================================================
+// 5/9 부활: BDR 추천 영상 mock 데이터 (NBA 2K 스타일 캐러셀용)
+// 운영 RecommendedVideos 의 DUMMY_VIDEOS 정합 + 시안 mock 추가 2건 (총 6개).
+// 박제는 mock 만 — 실제 API (/api/web/youtube/recommend) 연동은 운영 src/ 한정.
+// ============================================================
+const RECOMMENDED_VIDEOS = [
+  { id: 'v1', title: '2026 SEOUL CHALLENGE 베스트 골 TOP 10', duration: '12:45', views: '24.5만', date: '2일 전', accent: 'var(--accent)', isLive: false },
+  { id: 'v2', title: '실전 드리블 기술 가이드 — 코트에서 바로', duration: '08:20', views: '12.8만', date: '1주 전', accent: 'var(--cafe-blue)', isLive: false },
+  { id: 'v3', title: 'STORM FC 우승 비결 인터뷰', duration: '15:10', views: '5.2만', date: '3일 전', accent: 'var(--ok)', isLive: false },
+  { id: 'v4', title: '매치데이 브이로그 — 대회 현장의 열기', duration: '05:45', views: '1.9만', date: '22시간 전', accent: 'var(--accent)', isLive: false },
+  { id: 'v5', title: 'LIVE — 동호회 최강전 결승전 중계', duration: 'LIVE', views: '실시간', date: '지금', accent: 'var(--accent)', isLive: true },
+  { id: 'v6', title: '시즌 베스트 어시스트 모음', duration: '07:30', views: '8.4만', date: '5일 전', accent: 'var(--cafe-blue-deep)', isLive: false },
+];
+
+// ============================================================
 // Phase B — Home (mybdr.kr/ 정합)
 //
 // 진입: AppNav '홈' 탭 / 로고 클릭 / 직접 접근 (route='home' 또는 default)
@@ -99,6 +113,21 @@ function Home({ setRoute, setActiveBoard }) {
       >
         {TOURNAMENTS.filter(t => ['open','closing','live'].includes(t.status)).map(t => (
           <TourneyMiniCard key={t.id} t={t} onClick={() => setRoute('matchDetail')} />
+        ))}
+      </RecommendedRail>
+
+      {/* =================================================
+          RecommendedRail #2.5 — BDR 추천 영상 (NBA 2K 스타일) ⭐ 5/9 부활
+          운영 RecommendedVideos 컴포넌트가 자체 "HIGHLIGHTS" 헤더 보유 →
+          시안에서는 RecommendedRail eyebrow="HIGHLIGHTS · YOUTUBE" 으로 매핑.
+          ================================================= */}
+      <RecommendedRail
+        title="BDR 추천 영상"
+        eyebrow="HIGHLIGHTS · YOUTUBE"
+        more={() => window.open('https://www.youtube.com/@BDRBASKET', '_blank')}
+      >
+        {RECOMMENDED_VIDEOS.map(v => (
+          <VideoMiniCard key={v.id} video={v} />
         ))}
       </RecommendedRail>
 
@@ -487,6 +516,95 @@ function TourneyMiniCard({ t, onClick }) {
         <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', marginTop:'auto'}}>
           {t.format}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// VideoMiniCard — BDR 추천 영상 미니 카드 (NBA 2K 스타일) ⭐ 5/9 부활
+// 운영 src/components/home/recommended-videos.tsx 정합:
+//   - 각진 모서리 (radius 4px) + 호버 시 -2px translate + accent border
+//   - LIVE 뱃지 (accent 배경 + 흰 ping dot)
+//   - 듀레이션 뱃지 (검정 배경 우하단)
+//   - 제목 font-extrabold uppercase + 메타 (views · date)
+// 시안은 mock 데이터 (썸네일 = accent 그라디언트 / 실제 API X).
+// ============================================================
+function VideoMiniCard({ video }) {
+  return (
+    <div className="card" style={{
+      padding:0, overflow:'hidden', cursor:'pointer',
+      display:'flex', flexDirection:'column', height:'100%',
+      transition:'transform .2s, border-color .2s',
+    }}
+    onMouseEnter={e=>{
+      e.currentTarget.style.transform = 'translateY(-2px)';
+      e.currentTarget.style.borderColor = 'var(--accent)';
+    }}
+    onMouseLeave={e=>{
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.borderColor = 'var(--border)';
+    }}>
+      {/* 썸네일 — mock: accent 그라디언트 + play_arrow 아이콘 (실제 운영은 YouTube 썸네일) */}
+      <div style={{
+        aspectRatio:'16 / 9', position:'relative', overflow:'hidden',
+        background:`linear-gradient(135deg, ${video.accent}, var(--bg-elev))`,
+        display:'flex', alignItems:'center', justifyContent:'center',
+      }}>
+        {/* 중앙 재생 아이콘 (워터마크) */}
+        <div style={{
+          fontSize:42, color:'rgba(255,255,255,.45)', fontWeight:900,
+        }}>▶</div>
+        {/* LIVE 뱃지 — 좌상단 */}
+        {video.isLive && (
+          <span style={{
+            position:'absolute', top:8, left:8,
+            background:'var(--accent)', color:'#fff',
+            fontSize:10, fontWeight:900, letterSpacing:'.06em',
+            padding:'3px 8px', borderRadius:3,
+            display:'flex', alignItems:'center', gap:5,
+          }}>
+            <span style={{
+              width:6, height:6, borderRadius:'50%',
+              background:'#fff',
+            }}/>
+            LIVE
+          </span>
+        )}
+        {/* 듀레이션 뱃지 — 우하단 (LIVE 일 때 미표시) */}
+        {!video.isLive && (
+          <span style={{
+            position:'absolute', bottom:8, right:8,
+            background:'rgba(0,0,0,.78)', color:'#fff',
+            fontSize:10, fontFamily:'var(--ff-mono)', fontWeight:800,
+            padding:'2px 6px', borderRadius:3,
+          }}>
+            {video.duration}
+          </span>
+        )}
+      </div>
+      {/* 정보 영역 — 제목 (uppercase) + 메타 */}
+      <div style={{
+        padding:'10px 12px 12px', flex:1,
+        display:'flex', flexDirection:'column', gap:4,
+        background:'linear-gradient(135deg, var(--bg-card), var(--bg-elev))',
+      }}>
+        <h4 style={{
+          margin:0, fontSize:13, fontWeight:800,
+          color:'var(--ink)', letterSpacing:'-0.01em',
+          textTransform:'uppercase',
+          display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical',
+          overflow:'hidden', lineHeight:1.3,
+        }}>
+          {video.title}
+        </h4>
+        <p style={{
+          margin:0, fontSize:11, fontWeight:700,
+          color:'var(--ink-mute)', textTransform:'uppercase',
+          fontFamily:'var(--ff-mono)',
+        }}>
+          {video.views} · {video.date}
+        </p>
       </div>
     </div>
   );

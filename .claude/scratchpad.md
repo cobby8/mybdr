@@ -8,7 +8,59 @@
 
 ## 🎯 현재 작업
 
-**[5/9 — 시안 갭 fix 100% 완료]** PR #228~#235 4회차 main 머지. PhoneInput/BirthDateInput 마이그 (1순위 4 input + 2~3순위 6 input = 10 input) + 시안 역박제 10 페이지 (1순위 3 + 2~3순위 7) 모두 main 배포. Production = `afcbd65`. 미푸시 0 / 동기화 깨끗. 운영 → 시안 박제 갭 **0건** (5/7 lessons.md 룰 회복).
+**[5/9 신규]** **사전 라인업 확정 + 기록앱 자동 매핑 — 설계 단계**
+- 사용자 요구: 시작 1시간 전 양 팀 팀장 푸시 → 출전+주전 5 입력 → 영구 저장 → 기록앱 자동 매핑
+- 산출: 설계 보고서 `Dev/match-lineup-confirmation-2026-05-09.md` (13 섹션 / Q1~Q9 결재)
+- 결재 대기: Q1~Q9 (DB 모델 / 트리거 / 푸시 채널 / Flutter 분기 / 5명 룰 / fallback / 운영자 대리)
+- 다음: 결재 후 8 PR 구현 (DB 1 + API 2 + Web 1 + Cron 1 + roster 확장 1 + Flutter 1 + deep-link 1 + 검증 1 = ~8.5h)
+
+**[5/9 — developer 구현 완료]** **공개 프로필 (`/users/[id]`) NBA 스타일 개선 — 코드 구현 100%**
+- 사용자 결재 6건 일괄 승인 (Q1=A 2탭 / Q3=jersey 노출 / Q4=C-3 8열 / Q5=D-1 / Q6=E-1 글로벌)
+- 산출: 1 신규 (PlayerMatchCard 글로벌) + 6 수정 (page.tsx / RecentGamesTab / OverviewTab / overview-tab.css / PlayerHero / PlayerProfile.jsx 시안)
+- 검증: tsc 0 / npm run build 통과 / truncated 룰 7파일 모두 마지막 줄 정상
+- 다음: tester + reviewer 병렬 → PM 커밋
+
+### 구현 기록 (developer / 5/9 NBA 스타일)
+
+📝 구현한 기능: `/users/[id]` 공개 프로필 NBA.com Game Log 스타일 변환
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/users/[id]/page.tsx` | 쿼리 #2 _avg 8키 (BPG 제거 + MIN/FG%/3P% 추가) + officialMatchNestedFilter 가드 / 쿼리 #3 select 대폭 확장 (homeTeam/awayTeam/match_code 등) + orderBy scheduledAt desc / 쿼리 #9 신규 (대표 jerseyNumber) / 변환 로직 PlayerMatchCardProps[] 매핑 + playerSide 판별 | 수정 |
+| `src/components/match/PlayerMatchCard.tsx` | **신규 글로벌 컴포넌트** — 대회상세 ScheduleTimeline 카드 패턴 카피 + 본인 기록 줄 (22 PTS · 14 REB · 3 AST · 2 STL [W]) + Link `/live/[id]` 라우팅 | 신규 |
+| `src/app/(web)/users/[id]/_v2/recent-games-tab.tsx` | board__row 6열 → PlayerMatchCard 카드형 (props 인터페이스 `games` → `matches: PlayerMatchCardProps[]`) | 수정 |
+| `src/app/(web)/users/[id]/_v2/overview-tab.tsx` | 통산 6열 (BPG 포함) → 8열 (BPG 제거 + MIN/FG%/3P% 추가) / fmtPct 헬퍼 신규 | 수정 |
+| `src/app/(web)/users/[id]/_v2/overview-tab.css` | grid 6열 → 8열 / 모바일 3×2 → 4×2 분기 | 수정 |
+| `src/app/(web)/users/[id]/_v2/player-hero.tsx` | jerseyNumber prop 추가 + eyebrow 영역 #N · 포지션 · 팀명 표시 | 수정 |
+| `Dev/design/BDR-current/screens/PlayerProfile.jsx` | seasonStats 8열 mock + recent 카드형 mock (matchCode v4 / playerSide / W/L) | 수정 (역방향 박제) |
+
+💡 tester 참고:
+- 테스트 URL: 비로그인 또는 본인 외 user → `/users/[id]` (예: `/users/2999?preview=1` 본인 미리보기)
+- 정상 동작 (overview 탭):
+  - 통산 8열 (경기 / 승률 / PPG / RPG / APG / MIN / FG% / 3P%)
+  - 모바일 ≤720px 4×2 grid
+  - jersey 등록자 → Hero eyebrow `#N · 포지션 · 팀명` 노출
+- 정상 동작 (games 탭):
+  - 매치 카드 N건 (최대 10), 각 카드 클릭 → `/live/[matchId]` 이동
+  - 카드 메타: 매치코드(없으면 #번호) | 라운드 | 시간(M/D(요일) HH:MM) | N코트 | 상태뱃지
+  - 카드 중앙 VS 행: 홈팀 로고+이름 / 스코어박스 / 어웨이팀 이름+로고 (승팀 색상 primary)
+  - 카드 하단 본인 기록: `22 PTS · 14 REB · 3 AST · 2 STL` + 우측 W/L 뱃지 (homeScore≠awayScore + completed)
+- 빈 상태: 매치 0건 → "최근 경기 기록이 없습니다."
+- 주의할 입력:
+  - `match_code` NULL 매치 → `#매치번호` fallback
+  - `homeTeam` 또는 `awayTeam` NULL → "미정" italic+opacity 0.7
+  - 동점 또는 playerSide 판별 불가 → W/L 뱃지 미노출
+  - 미래/예약 매치 noise → officialMatchNestedFilter 가드로 자동 제외 (5/2 회귀 fix)
+
+⚠️ reviewer 참고:
+- 통산 8열 BPG 제거 결정 — 사용자 결정 Q4=C-3 (모바일 4×2 일관성)
+- TournamentTeam 자체에 `name` 컬럼 없음 (스키마) → `team.name` 사용 (Team relation)
+- `recentGames.findMany` select 결과 타입은 catch fallback `[]` 도 합치 추론 정상 (tsc 0 통과)
+- BDR-current 시안 갱신 = 운영 → 시안 역방향 박제 (CLAUDE.md §🔄 동기화 룰 준수)
+- TeamLogo는 `<img>` 직접 사용 (대회상세 패턴 카피 — Next/Image 도메인 화이트리스트 회피)
+- W/L 뱃지 위치 = 카드 하단 우측 (PTS 라인과 같은 줄, border-t 분리)
+
+**[5/9 직전 — 시안 갭 fix 100% 완료]** PR #228~#235 4회차 main 머지. PhoneInput/BirthDateInput 마이그 (1순위 4 input + 2~3순위 6 input = 10 input) + 시안 역박제 10 페이지 (1순위 3 + 2~3순위 7) 모두 main 배포. Production = `afcbd65`.
 
 ---
 
@@ -34,13 +86,56 @@
 
 ---
 
-## 기획설계 (planner-architect / 5/8~5/9)
+## 기획설계 (planner-architect / 5/9 — 사전 라인업 확정 + 기록앱 자동 매핑)
 
-- **PR3 layout 가드 + mock 모드** ✅ main `f39afae` (헬퍼 2 + server layout 1 + 4 페이지)
-- **본인인증 mock 자체 입력 폴백** ✅ main `93670c5` (DB user.identity_method ADD COLUMN + modal 337L + endpoint 156L + 보안 가드 3단)
-- **사이트 전역 PhoneInput / BirthDateInput** ✅ main `118c9f1` (87L+109L 신규 + conventions.md [2026-05-08] 룰 박제)
-- **PhoneInput 기존 사용처 마이그** ✅ main `702d00e` (1순위 4 input) + main `b96f58c` (2~3순위 6 input)
-- **운영 → 시안 역박제 갭 fix** ✅ main `71d4087` (1순위 News+MatchNews+Scoreboard) + main `afcbd65` (2~3순위 7건) = 시안 갭 0건
+🎯 시작 1h 전 푸시 → 팀장 출전+주전 5 입력 → 영구 저장 → Flutter 자동 매핑. **상세 = `Dev/match-lineup-confirmation-2026-05-09.md` (13 섹션 / Q1~Q9 결재 / ~8.5h).**
+
+📍 변경 파일 (8 PR):
+| PR | 파일 | 신규/수정 |
+|----|------|----------|
+| PR1 | `prisma/schema.prisma` (model `MatchLineupConfirmed` + ADD COLUMN `lineup_reminder_sent_at`) | 수정 |
+| PR2 | `src/app/api/web/match-lineup/confirm/route.ts` + `[matchId]/route.ts` GET | 신규 (~200L) |
+| PR3 | `src/app/(web)/lineup-confirm/[matchId]/page.tsx` + `_components/` 3 파일 | 신규 (~400L) |
+| PR4 | `src/app/api/cron/match-lineup-reminder/route.ts` + `vercel.json` cron 1건 | 신규 (~120L) |
+| PR5 | `src/app/api/v1/matches/[id]/roster/route.ts` 응답 +2 필드 | 수정 (~40L) |
+| PR6 | Flutter `starter_select_screen.dart` `_loadData()` 분기 + `api_client.dart` 모델 | 수정 (~50L) |
+| PR7 | `src/lib/notifications/types.ts` `MATCH_LINEUP_REMINDER` 추가 + 알림 deep-link | 수정 (~10L) |
+
+🔗 기존 코드 연결:
+- ttp.isStarter (대회 통산) 도메인 영구 보존 — 매치 단위는 신규 테이블로 분리
+- `createNotificationBulk` 헬퍼 재사용 (인앱+web push 동시) / `tournament-reminders` cron 패턴 카피
+- `team_members.role="leader"` + `team.captainId` + `team.manager_id` 3중 권한
+- roster 응답 +2 필드 = Flutter v1 (구버전) 무시 → 회귀 0
+
+📋 실행 (4 Stage 부분 배포):
+| Stage | PR | 효과 |
+|-------|-----|------|
+| 1 (~4.25h) | PR1+PR2+PR3 | 팀장 입력 UI 활성 (자동 매핑 X) |
+| 2 (~1h) | PR4+PR7 | 푸시 알림 + 입력률 측정 |
+| 3 (~1.5h) | PR5+PR6 | Flutter 자동 매핑 (앱 빌드 cycle 별도) |
+| 4 (~45m) | PR8 | tester + reviewer + 박제 |
+
+📐 결재 Q1~Q9 추천: A(신규 테이블) / A(5분 cron) / A(web push 재사용) / A(roster 확장) / C(자동+변경 자유) / A(5명 강제) / A(수동 fallback) / A(1h 전) / A(운영자 대리 허용)
+
+⚠️ 핵심 주의:
+- ttp.isStarter ≠ 매치 starter — 두 도메인 영구 분리
+- Flutter v1+v2 동시 운영 (서버는 +2 필드 항상 노출) → 강제 앱 업데이트 0
+- 운영 DB 단일 정책 = ADD COLUMN (NULL 허용 무중단) + 신규 테이블만 / DROP 0
+- `appliedAt IS NULL` 까지만 재입력 허용 (기록원 starter 화면 진입 시 잠금)
+
+🔒 회귀 0: Flutter v1 호환 (응답 키 변경 0) / 미입력 매치 = 기록원 수동 fallback / 5/9 완료 매치 영향 0
+
+---
+
+## 기획설계 직전 (5/9 — 공개 프로필 NBA 스타일)
+
+설계 보고서 `Dev/public-profile-nba-style-2026-05-09.md` Q1~Q6 결재 대기 (60~80분 예상). 5 파일 변경 (page.tsx 쿼리 / PlayerMatchCard 신규 / 2 탭 / 시안 역박제).
+
+---
+
+## 기획설계 직전 (5/8~5/9 압축)
+
+- PR3 layout 가드 mock + mock 자체 입력 폴백 + PhoneInput/BirthDateInput 전역+10건 마이그 + 시안 갭 fix 10건 — 모두 main ✅
 
 ---
 
@@ -132,11 +227,13 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | (대기 — PM 커밋 예정) | **홈페이지 RecommendedVideos 부활** — 2026-04-24 BDR v2 Phase 1 (`d6bc22c`) 일괄 제거 후 5/9 부활. (1) `src/app/(web)/page.tsx` +13L (import 3L + 주석 4L + StatsStrip 다음 `<section marginTop:24>` 래퍼 5L + 상단 주석 1L). 컴포넌트 자체 "HIGHLIGHTS" NBA 2K 헤더 보유 → CardPanel 래퍼 미적용 (헤더 중복 회피). (2) `Dev/design/BDR-current/screens/Home.jsx` +118L 시안 역박제 (운영 → 시안 동기화 룰 / 5/7 lessons.md): mock 데이터 6건 + RecommendedRail #2.5 (열린 대회 다음) + VideoMiniCard 컴포넌트 (가로 스크롤 캐러셀 / accent 그라디언트 썸네일 / LIVE 뱃지 / 듀레이션 뱃지 / uppercase 제목). 검증: tsc 0 / truncated 0 (page.tsx 337L `}` 종결 / Home.jsx 977L `window.Home = Home;` 종결) / HeroCarousel·StatsStrip·2컬럼·방금올라온글 4 섹션 무수정 / prefetch 4건 무수정 / API/DB/Flutter v1 영향 0. 컴포넌트는 useSWR 클라사이드 자체 fetch → SSR 영향 0. | ✅ |
+| 2026-05-09 | (대기 — tester/reviewer 후 PM 커밋) | **공개 프로필 (`/users/[id]`) NBA 스타일 구현 완료** — 1 신규 (PlayerMatchCard 글로벌 컴포넌트 380L `src/components/match/`) + 6 수정 (page.tsx 쿼리 #2 8키 _avg + #3 select 대폭 확장 + #9 신규 jersey + 변환 로직 / RecentGamesTab 카드형 / OverviewTab 6→8열 BPG 제거 + MIN/FG%/3P% / overview-tab.css 4×2 / PlayerHero #N eyebrow / PlayerProfile.jsx 시안 역박제). officialMatchNestedFilter 가드 추가 (5/2 회귀 fix). 카드 클릭 → /live/[id]. tsc 0 / npm run build 통과 / truncated 룰 7파일 마지막 줄 정상. 사용자 결재 6건 일괄 승인. | ✅ |
+| 2026-05-09 | (설계 단계 — 코드 변경 0) | **사전 라인업 확정 + 기록앱 자동 매핑 — 설계 보고서 작성** — 13 섹션 / Q1~Q9 결재 / 8 PR 부분 배포 (Stage 1~4) / ~8.5h 예상. 핵심: 신규 테이블 `match_lineup_confirmed` (매치당 home/away 각 1건 / activeTtpIds + starterTtpIds Json) + ADD COLUMN `tournament_matches.lineup_reminder_sent_at` (cron 1회성 가드). 트리거 = Vercel Cron 5분 폴링 (55~60분 매치). 푸시 = `createNotificationBulk` 재사용 (인앱+web push). Flutter 자동 매핑 = roster 응답 +2 필드 (`home_lineup_confirmed`/`away_lineup_confirmed`) → v1 호환 (무시) / v2 (분기). 회귀 0 (ttp.isStarter 대회 통산 의미 영구 보존 / 미입력 매치 기록원 수동 fallback). 산출물: `Dev/match-lineup-confirmation-2026-05-09.md`. | 📋 결재 대기 |
+| 2026-05-09 | (설계 단계 — 코드 변경 0) | **공개 프로필 (`/users/[id]`) NBA 스타일 개선 — 설계 보고서 작성** — 12 섹션 / Q1~Q6 결재 항목 / 5단계 구현 계획. 핵심 변경: 최근 경기 카드형 (대회상세 ScheduleTimeline 패턴 카피 + 본인 기록 줄) + 카드 클릭 → /live/[id] + 통산 스탯 6→8열 옵션 + PlayerMatchCard 글로벌 컴포넌트 신규. 산출물: `Dev/public-profile-nba-style-2026-05-09.md`. DB/API 변경 0 / 회귀 0. | 📋 결재 대기 |
 | 2026-05-09 | (대기 — PM 커밋 예정) | **PhoneInput/BirthDateInput 마이그 4순위 (admin+referee) 완료** — 3 input 2 페이지: (1) `(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx:740` 문의 연락처 → PhoneInput. (2) `(referee)/referee/admin/members/new/page.tsx:220` 심판 전화번호 → PhoneInput. (3) 동 파일 :300 생년월일 (state명 birthDate / API field registered_birth_date 명확) → BirthDateInput. tsc / build / truncated / type="tel" 0 hit / 회귀 0. **마이그 100% 완료 — 1~4순위 누적 13 input** (1순위 4 / 2~3순위 6 / 4순위 3). | ✅ |
 | 2026-05-09 | PR #228~#235 8건 → main 4회 머지 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65`) | **5/9 main 4회 — input 마이그 + 시안 갭 fix 일괄 완료** — (1) PR #228/#229 PhoneInput/BirthDateInput 1순위 4 input (profile/edit 휴2+생1 + tournaments/join 휴1, formatPhone 7L 제거). (2) PR #230/#231 잔여 6 input (verify state 하이픈+replace 정규화 / registration / games/new step+v2 / games/edit within24h / partner-admin/venue). (3) PR #232/#233 시안 역박제 1순위 3건 (News+MatchNews+Scoreboard 매치 코드 v4). (4) PR #234/#235 시안 역박제 2~3순위 7건 (CourtManage/Checkin/TeamsManage/Requests/ProfileSettings/OrgApply/SeriesEdition). 시안 갭 0건 달성. tester 통과 단위 76건+ / reviewer ⭐⭐⭐⭐⭐ 2회. | ✅ |
 | 2026-05-08 | PR #214~#227 14건 → main 7회 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) | **5/8 main 7회 신기록** — (1) 디자인 박제 11 commit + truncated 빌드 9건 실패 → hot fix `333516b`. (2) PR3 layout 가드 mock 모드 (헬퍼 2 + server layout 1 + 4 페이지). (3) BDR-current sync v2.5 부분 + v2.5.1 (zip 2회). (4) mock 자체 입력 폴백 (DB ADD COLUMN + modal 337L + endpoint 156L + 가드 3단). (5) PhoneInput/BirthDateInput 전역 컴포넌트 + conventions.md [2026-05-08] 룰 박제. errors.md 5/7 truncated 재발 2회차 + 보완 4룰. | ✅ |
 | 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** — fix 7건 (envelope 8회 / IME 9곳 / 마이페이지 정렬 / 알림 deep-link), Onboarding PR1.1~PR5 (PR3 보류), Phase A.5 drawer truncated → hot fix `168be48`. | ✅ |
 | 2026-05-06 | `7211f97` ~ `f6b43ab` → main `4253e68` | **5/6 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄** | ✅ |
-| 2026-05-05 | `ae4ffd7` ~ `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** | ✅ |
-| 2026-05-05 | DB UPDATE 4건 | **열혈농구단 SEASON2 출전 명단 정비** | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 신기록) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/5 SEASON2 출전 명단 정비 DB UPDATE 4건 / 5/5 팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR `8bbce95` / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 신기록) — 복원: git log -- .claude/scratchpad.md -->
