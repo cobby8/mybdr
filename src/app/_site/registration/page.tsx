@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 export default function SiteRegistrationPage() {
   const [step, setStep] = useState<"form" | "done">("form");
@@ -114,12 +116,12 @@ export default function SiteRegistrationPage() {
             </div>
             <div>
               <label className={labelCls}>연락처</label>
-              <input
-                type="tel"
+              {/* 토너먼트 등록 대표자 연락처 — PhoneInput 자동 포맷 (010-XXXX-XXXX 13자)
+                  set 헬퍼 그대로 (form.captainPhone state 변경 0) */}
+              <PhoneInput
                 className={inputCls}
                 value={form.captainPhone}
-                onChange={(e) => set("captainPhone", e.target.value)}
-                placeholder="010-0000-0000"
+                onChange={(v) => set("captainPhone", v)}
               />
             </div>
           </div>

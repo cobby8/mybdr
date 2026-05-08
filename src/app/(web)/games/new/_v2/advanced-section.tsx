@@ -17,6 +17,8 @@
 
 import { useState } from "react";
 import type { GameFormData } from "./game-form";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 const RECURRENCE_RULES = [
   { value: "weekly", label: "매주" },
@@ -87,12 +89,12 @@ export function AdvancedSection({ data, updateData }: Props) {
             </div>
             <div>
               <label className="label">연락처 (선택)</label>
-              <input
+              {/* 게임 v2 advanced 연락처(선택) — PhoneInput 자동 포맷
+                  updateData 헬퍼 그대로 (data.contactPhone state 변경 0) */}
+              <PhoneInput
                 className="input"
-                type="tel"
                 value={data.contactPhone}
-                onChange={(e) => updateData("contactPhone", e.target.value)}
-                placeholder="010-0000-0000"
+                onChange={(v) => updateData("contactPhone", v)}
               />
             </div>
           </div>
