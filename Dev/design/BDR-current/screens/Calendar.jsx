@@ -12,7 +12,7 @@ function Calendar({ setRoute }) {
     { date:'2026-04-26', type:'pickup', title:'회룡역 토요 픽업', time:'12:00', court:'회룡역사거리', color:'var(--cafe-blue)' },
     { date:'2026-04-26', type:'pickup', title:'반포 주말 3x3', time:'09:00', court:'반포종합사회복지관', color:'var(--cafe-blue)' },
     { date:'2026-04-27', type:'guest', title:'SWEEP 게스트 3명', time:'13:00', court:'성동구민체육관', color:'var(--accent)' },
-    { date:'2026-04-28', type:'scrim', title:'3POINT vs 몽키즈 연습경기', time:'20:00', court:'장충체육관', color:'#8B5CF6' },
+    { date:'2026-04-28', type:'scrim', title:'3POINT vs 몽키즈 스크림', time:'20:00', court:'장충체육관', color:'#8B5CF6' },
     { date:'2026-04-28', type:'pickup', title:'수원 새벽 농구', time:'06:00', court:'수원청소년문화센터', color:'var(--cafe-blue)' },
     { date:'2026-04-29', type:'guest', title:'테크노마트 게스트', time:'19:30', court:'강변테크노마트', color:'var(--accent)' },
     { date:'2026-05-01', type:'tournament', title:'BDR Challenge Spring · 접수마감', time:'23:59', court:'온라인', color:'#F59E0B' },
@@ -66,7 +66,7 @@ function Calendar({ setRoute }) {
   const upcoming = filtered.filter(e => e.date >= today && e.type !== 'done').sort((a,b) => a.date.localeCompare(b.date));
   const past = filtered.filter(e => e.type === 'done').sort((a,b) => b.date.localeCompare(a.date));
 
-  const typeLabel = { pickup:'픽업', guest:'게스트', scrim:'연습경기', tournament:'대회', done:'완료' };
+  const typeLabel = { pickup:'픽업', guest:'게스트', scrim:'스크림', tournament:'대회', done:'완료' };
 
   return (
     <div className="page">
@@ -100,7 +100,7 @@ function Calendar({ setRoute }) {
           {id:'all', label:`전체 · ${events.length}`, color:null},
           {id:'pickup', label:`픽업 · ${events.filter(e=>e.type==='pickup').length}`, color:'var(--cafe-blue)'},
           {id:'guest', label:`게스트 · ${events.filter(e=>e.type==='guest').length}`, color:'var(--accent)'},
-          {id:'scrim', label:`연습경기 · ${events.filter(e=>e.type==='scrim').length}`, color:'#8B5CF6'},
+          {id:'scrim', label:`스크림 · ${events.filter(e=>e.type==='scrim').length}`, color:'#8B5CF6'},
           {id:'tournament', label:`대회 · ${events.filter(e=>e.type==='tournament').length}`, color:'#F59E0B'},
           {id:'done', label:`완료 · ${events.filter(e=>e.type==='done').length}`, color:'var(--ink-dim)'},
         ].map(f => (

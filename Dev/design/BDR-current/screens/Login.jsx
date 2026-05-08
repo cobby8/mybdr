@@ -1,4 +1,4 @@
-/* global React, Icon, PasswordInput */
+/* global React, PasswordInput, Icon */
 
 function Login({ setRoute }) {
   const [tab, setTab] = React.useState('login');
@@ -8,7 +8,7 @@ function Login({ setRoute }) {
         <div style={{fontFamily:'var(--ff-display)', fontSize:36, fontWeight:900, letterSpacing:'-0.02em'}}>
           MyBDR<span style={{color:'var(--accent)'}}>.</span>
         </div>
-        <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:6}}>전국 농구 매칭 플랫폼</div>
+        <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:6}}>서울 3x3 농구 커뮤니티</div>
       </div>
 
       <div className="card" style={{padding:0, overflow:'hidden'}}>

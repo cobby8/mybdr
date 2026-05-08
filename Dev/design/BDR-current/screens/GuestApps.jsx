@@ -25,12 +25,12 @@ function GuestApps({ setRoute }) {
     },
     {
       id:'ga3', teamName:'3POINT', teamTag:'3PT', teamColor:'#F59E0B', teamInk:'#000',
-      game: GAMES[4], // 연습경기
+      game: GAMES[4], // 스크림
       status:'shortlist',
       appliedAt:'2026.04.21 19:47',
       role:'옵저버',
       teamMessage:'고려 중입니다. 내일 최종 결정해서 알려드릴게요.',
-      myMessage:'연습경기 관전도 좋고, 필요하면 합류도 가능합니다.',
+      myMessage:'스크림 관전도 좋고, 필요하면 합류도 가능합니다.',
       fee:'관람 무료', paid:null,
     },
   ];
@@ -46,7 +46,7 @@ function GuestApps({ setRoute }) {
     },
     {
       id:'gp2', teamName:'THE ZONE', teamTag:'TZN', teamColor:'#8B5CF6', teamInk:'#fff',
-      game:{ title:'연습경기 게스트 — 용산', court:'용산국민체육센터', date:'2026.04.02 (수)', time:'20:00 – 22:00' },
+      game:{ title:'스크림 게스트 — 용산', court:'용산국민체육센터', date:'2026.04.02 (수)', time:'20:00 – 22:00' },
       status:'declined',
       declinedReason:'이미 다른 게스트 확정',
       fee:'₩8,000', paid:false,

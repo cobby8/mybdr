@@ -13,14 +13,14 @@ function Messages({ setRoute }) {
   }, [active]);
 
   const threads = [
-    { id:'t1', name:'block (블럭)', tag:'BK', color:'#10B981', online:true, last:'목요일 저녁 하남미사 픽업 자리 확정됐습니다', time:'14:32', unread:2, team:'BLOCK', pinned:true },
-    { id:'t2', name:'3POINT_슈', tag:'3P', color:'#0F5FCC', online:true, last:'내일 연습경기 몇시쯤 시작하나요?', time:'13:08', unread:1, team:'3POINT' },
-    { id:'t3', name:'몽키즈_센터', tag:'MK', color:'#F59E0B', online:false, last:'영상 편집본 받아보시면 말씀해주세요', time:'어제', unread:0, team:'MONKEYS' },
-    { id:'t4', name:'SWEEP 팀 단톡', tag:'SW', color:'#F59E0B', online:false, last:'SWEEP: 이번주 경기 준비물 공지합니다', time:'어제', unread:0, team:'SWEEP', group:true, members:12 },
+    { id:'t1', name:'block (블럭)', tag:'BK', color:'var(--ok)', online:true, last:'목요일 저녁 하남미사 픽업 자리 확정됐습니다', time:'14:32', unread:2, team:'BLOCK', pinned:true },
+    { id:'t2', name:'3POINT_슈', tag:'3P', color:'var(--cafe-blue)', online:true, last:'내일 스크림 몇시쯤 시작하나요?', time:'13:08', unread:1, team:'3POINT' },
+    { id:'t3', name:'목키즈_센터', tag:'MK', color:'var(--warn)', online:false, last:'영상 편집본 받아보시면 말씀해주세요', time:'어제', unread:0, team:'MONKEYS' },
+    { id:'t4', name:'SWEEP 팀 단톡', tag:'SW', color:'var(--warn)', online:false, last:'SWEEP: 이번주 경기 준비물 공지합니다', time:'어제', unread:0, team:'SWEEP', group:true, members:12 },
     { id:'t5', name:'kings_cap', tag:'KG', color:'#7C2D12', online:false, last:'5월 첫째주 가능하신가요?', time:'04.21', unread:0 },
     { id:'t6', name:'운영팀 (BDR)', tag:'AD', color:'var(--accent)', online:true, last:'대회 접수가 완료되었습니다.', time:'04.20', unread:0, official:true },
     { id:'t7', name:'pivot_mia', tag:'PV', color:'#8B5CF6', online:false, last:'반포 토요일 자리 한 명 빠져서요', time:'04.19', unread:0 },
-    { id:'t8', name:'REDEEM 팀 단톡', tag:'RDM', color:'#DC2626', online:false, last:'rdm_captain: 내일 훈련 장소 변경', time:'04.18', unread:0, team:'REDEEM', group:true, members:8 },
+    { id:'t8', name:'REDEEM 팀 단톡', tag:'RDM', color:'var(--accent)', online:false, last:'rdm_captain: 내일 훈련 장소 변경', time:'04.18', unread:0, team:'REDEEM', group:true, members:8 },
   ];
 
   const messages = {
@@ -63,7 +63,7 @@ function Messages({ setRoute }) {
               <h2 style={{margin:0, fontSize:16, fontWeight:800}}>쪽지 <span style={{fontSize:11, color:'var(--accent)', fontFamily:'var(--ff-mono)', marginLeft:4}}>{threads.filter(t=>t.unread).reduce((s,t)=>s+t.unread,0)}</span></h2>
               <button style={{background:'transparent', border:0, fontSize:16, cursor:'pointer', color:'var(--ink-soft)'}}>✎</button>
             </div>
-            <input className="input" placeholder="🔍 사람, 팀, 메시지 검색" style={{fontSize:12, padding:'6px 10px'}}/>
+            <input className="input" placeholder="이름, 팀, 메시지 검색" aria-label="쪽지 검색" style={{fontSize:13, padding:'7px 10px'}}/>
           </div>
           <div style={{flex:1, overflowY:'auto', minHeight:0}}>
             {threads.map(t => (
@@ -157,8 +157,9 @@ function Messages({ setRoute }) {
                 onChange={e=>setText(e.target.value)}
                 onKeyDown={e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
                 rows={1}
-                placeholder="메시지 입력 · Shift+Enter 줄바꿈"
-                style={{resize:'none', flex:1}}
+                placeholder="메시지 입력"
+                aria-label="메시지"
+                style={{resize:'none', flex:1, fontSize:14}}
               />
               <button className="btn btn--primary" onClick={send} style={{padding:'8px 16px'}}>보내기</button>
             </div>

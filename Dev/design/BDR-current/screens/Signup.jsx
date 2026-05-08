@@ -31,12 +31,12 @@ function Signup({ setRoute }) {
               </div>
               <div>
                 <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em'}}>비밀번호</label>
-                <PasswordInput defaultValue="••••••••••" autoComplete="new-password" style={{marginTop:6}}/>
+                <PasswordInput style={{marginTop:6}} defaultValue="••••••••••" autoComplete="new-password"/>
                 <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:4}}>8자 이상, 숫자·기호 1개 이상 포함</div>
               </div>
               <div>
                 <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em'}}>비밀번호 확인</label>
-                <PasswordInput defaultValue="••••••••••" autoComplete="new-password" style={{marginTop:6}}/>
+                <PasswordInput style={{marginTop:6}} defaultValue="••••••••••" autoComplete="new-password"/>
               </div>
               <label style={{display:'flex', alignItems:'center', gap:8, fontSize:13, marginTop:6}}>
                 <input type="checkbox" defaultChecked/>
@@ -91,7 +91,7 @@ function Signup({ setRoute }) {
               <div>
                 <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em'}}>관심 경기 유형</label>
                 <div style={{display:'flex', gap:6, flexWrap:'wrap', marginTop:8}}>
-                  {['픽업','게스트','연습경기','대회','정기팀'].map((t, i) => (
+                  {['픽업','게스트','스크림','대회','정기팀'].map((t, i) => (
                     <button key={t} className="btn btn--sm" style={[0,3].includes(i) ? {background:'var(--cafe-blue)', color:'#fff', borderColor:'var(--cafe-blue-deep)'} : {}}>{t}</button>
                   ))}
                 </div>

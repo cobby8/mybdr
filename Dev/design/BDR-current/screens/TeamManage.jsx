@@ -1,7 +1,18 @@
-/* global React, TEAMS, Avatar, MemberPendingBadge */
+/* global React, TEAMS, Avatar, MemberPendingBadge, ForceActionModal */
 
 function TeamManage({ setRoute }) {
   const [tab, setTab] = React.useState('roster');
+  // Phase A.5 §9 — ForceActionModal mount state (jersey + withdraw 2 모드)
+  const [forceModal, setForceModal] = React.useState(null);
+  // dropdown 메뉴 열림 상태 (한 번에 하나만 열림 / 외부 클릭 시 닫힘)
+  const [openMenuId, setOpenMenuId] = React.useState(null);
+  React.useEffect(() => {
+    const close = () => setOpenMenuId(null);
+    if (openMenuId !== null) {
+      document.addEventListener('click', close);
+      return () => document.removeEventListener('click', close);
+    }
+  }, [openMenuId]);
   const team = TEAMS[0] || { name:'REDEEM', tag:'RDM', color:'#DC2626', ink:'#fff' };
 
   // 5/6 박제 — 본인(captain) jersey_change 신청 중 mock (운영 roster-tab-v2 좌하단 뱃지 정합)
@@ -107,10 +118,40 @@ function TeamManage({ setRoute }) {
                 <div data-label="JOINED" style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{r.joined}</div>
                 <div data-label="GAMES" style={{fontFamily:'var(--ff-mono)', color:'var(--ink-soft)'}}>{r.games}</div>
                 <div data-label="MVP" style={{fontFamily:'var(--ff-mono)', color: r.mvp>0?'var(--accent)':'var(--ink-dim)', fontWeight:700}}>{r.mvp > 0 ? '★'.repeat(r.mvp) : '−'}</div>
-                <div data-actions="true" style={{display:'flex', gap:4, justifyContent:'flex-end'}}>
-                  <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11}}>권한</button>
+                <div data-actions="true" style={{display:'flex', gap:4, justifyContent:'flex-end', alignItems:'center', position:'relative', overflow:'visible'}}>
                   <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11}}>쪽지</button>
-                  {r.role !== 'captain' && <button className="btn btn--sm" style={{padding:'4px 8px', fontSize:11, color:'var(--err)'}}>탈퇴</button>}
+                  {/* Phase A.5 §9 — captain 본인 row 제외 ⋮ dropdown 운영진 액션 메뉴 (zip v2.5 박제) */}
+                  {r.role !== 'captain' && (
+                    <div style={{position:'relative'}} onClick={(e)=>e.stopPropagation()}>
+                      <button
+                        className="btn btn--sm"
+                        aria-label="운영진 액션"
+                        style={{padding:'4px 8px', fontSize:13, fontWeight:700, lineHeight:1}}
+                        onClick={()=>setOpenMenuId(openMenuId===r.id ? null : r.id)}>⋮</button>
+                      {openMenuId === r.id && (
+                        <div role="menu" style={{
+                          position:'absolute', right:0, top:'100%', marginTop:4,
+                          minWidth:180, background:'var(--bg-card)', border:'1px solid var(--border)',
+                          borderRadius:6, boxShadow:'0 8px 20px rgba(0,0,0,.35)', zIndex:50, overflow:'hidden',
+                        }}>
+                          {/* 등번호 강제 변경 — ForceActionModal jersey 모드 호출 */}
+                          <button
+                            role="menuitem"
+                            onClick={()=>{ setOpenMenuId(null); setForceModal({mode:'jersey', member:r}); }}
+                            style={{display:'block', width:'100%', textAlign:'left', padding:'10px 14px', background:'transparent', border:0, color:'var(--ink)', fontSize:13, cursor:'pointer'}}>
+                            등번호 강제 변경
+                          </button>
+                          {/* 강제 탈퇴 — ForceActionModal withdraw 모드 호출 (err 컬러 + 굵게) */}
+                          <button
+                            role="menuitem"
+                            onClick={()=>{ setOpenMenuId(null); setForceModal({mode:'withdraw', member:r}); }}
+                            style={{display:'block', width:'100%', textAlign:'left', padding:'10px 14px', background:'transparent', border:'none', borderTop:'1px solid var(--border)', color:'var(--err)', fontSize:13, cursor:'pointer', fontWeight:600}}>
+                            강제 탈퇴
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -222,6 +263,19 @@ function TeamManage({ setRoute }) {
           </div>
         </div>
       )}
+
+      {/* Phase A.5 §9 — ForceActionModal (jersey + withdraw 두 모드 공통 mount). zip v2.5 박제 */}
+      <ForceActionModal
+        open={!!forceModal}
+        mode={forceModal?.mode}
+        memberName={forceModal?.member?.name}
+        onClose={()=>setForceModal(null)}
+        onSubmit={async (payload)=>{
+          // 데모: 운영 src/ 동기화 시 API 호출로 교체
+          await new Promise(r => setTimeout(r, 400));
+          console.log('[ForceAction]', forceModal?.mode, forceModal?.member?.name, payload);
+        }}
+      />
     </div>
   );
 }
