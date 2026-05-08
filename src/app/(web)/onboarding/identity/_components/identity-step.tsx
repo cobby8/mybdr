@@ -48,9 +48,16 @@ export function IdentityStep({ returnTo = null }: IdentityStepProps = {}) {
           display: "inline-block",
         }}
       >
-        <li>· 실명 (한글)</li>
-        <li>· 휴대폰 번호</li>
-        <li>· 생년월일 (선택)</li>
+        {/* 5/8 — 모든 항목 필수 (사용자 결정), * 표시 통일 */}
+        <li>
+          · 실명 (한글) <span style={{ color: "var(--err)" }}>*</span>
+        </li>
+        <li>
+          · 휴대폰 번호 <span style={{ color: "var(--err)" }}>*</span>
+        </li>
+        <li>
+          · 생년월일 <span style={{ color: "var(--err)" }}>*</span>
+        </li>
       </ul>
 
       <div>

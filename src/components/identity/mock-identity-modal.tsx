@@ -21,6 +21,9 @@
  * ============================================================ */
 
 import { useEffect, useState } from "react";
+// 5/8 사이트 전역 input 컴포넌트 — conventions.md 박제 룰 (의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
+import { BirthDateInput } from "@/components/inputs/birth-date-input";
 
 interface VerifiedPayload {
   verified_name: string;
@@ -36,11 +39,14 @@ interface Props {
 // 한글 실명 — 2~20자 (성씨 1자 + 이름 1자 이상). 서버 zod 와 동일 패턴
 const NAME_PATTERN = /^[가-힣]{2,20}$/;
 
-// 휴대폰 번호 — 010-XXXX-XXXX 또는 01XXXXXXXXX (하이픈 선택)
-const PHONE_PATTERN = /^010-?\d{4}-?\d{4}$/;
+// 휴대폰 번호 — 010-XXXX-XXXX (PhoneInput 자동 포맷 결과). 하이픈 없는 입력은 PhoneInput 이 차단
+const PHONE_PATTERN = /^010-\d{4}-\d{4}$/;
 
-// 생년월일 — YYYY-MM-DD (선택 입력)
+// 생년월일 — YYYY-MM-DD (5/8 사용자 결정: 선택 → 필수 변경)
 const BIRTH_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+// yyyy 검증 범위 — 1900 ~ 현재 연도 (서버 zod 가 final source of truth, 클라는 UX 가드)
+const MIN_BIRTH_YEAR = 1900;
+const MAX_BIRTH_YEAR = new Date().getFullYear();
 
 export function MockIdentityModal({ open, onClose, onVerified }: Props) {
   // 입력 상태 — 열 때마다 초기화
@@ -70,6 +76,7 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
   /**
    * 클라 검증 — 빈 입력 / 패턴 미스 즉시 차단 (서버 도달 X)
    * 서버에서도 zod 동일 검증 재수행 (클라 신뢰 X)
+   * 5/8 변경: 생년월일 선택 → 필수 + yyyy 1900~현재 연도 / mm 01~12 / dd 01~31 검증
    */
   function validateLocal(): string | null {
     if (!NAME_PATTERN.test(name.trim())) {
@@ -78,12 +85,34 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
     if (!PHONE_PATTERN.test(phone.trim())) {
       return "휴대폰 번호를 010-XXXX-XXXX 형식으로 입력해 주세요.";
     }
-    // 생년월일은 선택 — 입력했을 때만 패턴 검증
-    if (birthDate.trim() && !BIRTH_PATTERN.test(birthDate.trim())) {
+    // 5/8 — 생년월일 필수 (사용자 결정)
+    const birth = birthDate.trim();
+    if (!birth) {
+      return "생년월일을 입력해 주세요.";
+    }
+    if (!BIRTH_PATTERN.test(birth)) {
       return "생년월일을 YYYY-MM-DD 형식으로 입력해 주세요.";
+    }
+    // yyyy/mm/dd 범위 검증 — UX 가드 (서버 zod 가 final)
+    const [yStr, mStr, dStr] = birth.split("-");
+    const y = Number(yStr);
+    const m = Number(mStr);
+    const d = Number(dStr);
+    if (y < MIN_BIRTH_YEAR || y > MAX_BIRTH_YEAR) {
+      return `생년월일 연도는 ${MIN_BIRTH_YEAR}~${MAX_BIRTH_YEAR} 사이여야 합니다.`;
+    }
+    if (m < 1 || m > 12) {
+      return "생년월일의 월은 01~12 사이여야 합니다.";
+    }
+    if (d < 1 || d > 31) {
+      return "생년월일의 일은 01~31 사이여야 합니다.";
     }
     return null;
   }
+
+  // 제출 버튼 disabled 조건 — 모든 필수 필드 미입력 시 차단 (사용자 결정)
+  const allRequiredFilled =
+    name.trim().length > 0 && phone.trim().length > 0 && birthDate.trim().length > 0;
 
   async function handleSubmit() {
     if (submitting) return;
@@ -104,8 +133,8 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
         body: JSON.stringify({
           name: name.trim(),
           phone: phone.trim(),
-          // 생년월일 선택 — 빈 값이면 보내지 않음
-          ...(birthDate.trim() ? { birth_date: birthDate.trim() } : {}),
+          // 5/8 — 생년월일 필수 (사용자 결정), 항상 전송
+          birth_date: birthDate.trim(),
         }),
       });
 
@@ -229,7 +258,7 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
           />
         </label>
 
-        {/* 휴대폰 번호 — 010-XXXX-XXXX 필수 */}
+        {/* 휴대폰 번호 — 5/8 PhoneInput 적용 (사이트 전역 룰) */}
         <label style={{ display: "block", marginBottom: 12 }}>
           <span
             style={{
@@ -241,14 +270,12 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
           >
             휴대폰 번호 <span style={{ color: "var(--color-error)" }}>*</span>
           </span>
-          <input
-            type="tel"
+          <PhoneInput
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="010-1234-5678"
+            onChange={setPhone}
             disabled={submitting}
-            maxLength={13}
-            inputMode="tel"
+            required
+            // 자동 포맷 컴포넌트가 maxLength/inputMode/pattern 자동 부여 (placeholder 도 기본값 사용)
             style={{
               width: "100%",
               padding: "8px 10px",
@@ -256,12 +283,13 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
               border: "1px solid var(--color-border)",
               background: "var(--color-elevated)",
               color: "var(--color-text-primary)",
+              // iOS 자동 줌 차단 (16px)
               fontSize: 16,
             }}
           />
         </label>
 
-        {/* 생년월일 — 선택 (사용자 결정 Q1: 선택 입력 가능) */}
+        {/* 생년월일 — 5/8 BirthDateInput 적용 (사이트 전역 룰) + 필수 변경 (사용자 결정) */}
         <label style={{ display: "block", marginBottom: 16 }}>
           <span
             style={{
@@ -271,14 +299,15 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
               marginBottom: 4,
             }}
           >
-            생년월일{" "}
-            <span style={{ color: "var(--color-text-muted)" }}>(선택)</span>
+            생년월일 <span style={{ color: "var(--color-error)" }}>*</span>
           </span>
-          <input
-            type="date"
+          <BirthDateInput
             value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
+            onChange={setBirthDate}
             disabled={submitting}
+            required
+            minYear={MIN_BIRTH_YEAR}
+            maxYear={MAX_BIRTH_YEAR}
             style={{
               width: "100%",
               padding: "8px 10px",
@@ -317,15 +346,20 @@ export function MockIdentityModal({ open, onClose, onVerified }: Props) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting}
+            // 5/8 — 모든 필수 필드 미입력 시에도 disabled (사용자 결정)
+            disabled={submitting || !allRequiredFilled}
             className="btn"
             style={{
               minWidth: 100,
               background: "var(--cafe-blue)",
               color: "var(--bg)",
               borderColor: "var(--cafe-blue)",
-              opacity: submitting ? 0.7 : 1,
-              cursor: submitting ? "wait" : "pointer",
+              opacity: submitting || !allRequiredFilled ? 0.6 : 1,
+              cursor: submitting
+                ? "wait"
+                : !allRequiredFilled
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {submitting ? "처리 중..." : "확인"}
