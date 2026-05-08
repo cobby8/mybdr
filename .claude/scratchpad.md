@@ -60,6 +60,157 @@
 - TeamLogo는 `<img>` 직접 사용 (대회상세 패턴 카피 — Next/Image 도메인 화이트리스트 회피)
 - W/L 뱃지 위치 = 카드 하단 우측 (PTS 라인과 같은 줄, border-t 분리)
 
+### 리뷰 결과 (reviewer / 5/9 NBA 프로필)
+
+📊 종합 판정: **통과** (수정 요청 0건 / 권장 1건)
+
+#### PlayerMatchCard API
+- props 인터페이스 깔끔 — 매치 메타(ID/code/번호/조/라운드/시간/코트/상태) + 팀 6필드(home/away × name/logo/score) + playerStat 4필드 + playerSide. `groupName` 은 `?` optional 마킹으로 확장 의도 표시 — 좋음.
+- W/L 뱃지 분기 정확: `isCompleted && playerSide!==null && homeScore!=null && awayScore!=null && homeScore!==awayScore` 4중 가드 → 동점/null/예정 모두 안전.
+- PlayerMatchStat 별도 export — 다른 호출자 (팀 페이지 등) 재사용 시 import 가능. 글로벌 위치(E-1) 결정에 부합.
+- "use client" — Link/Image 없이도 SSR 가능하지만 hover 등 인터랙션 일관성을 위해 유지. OK.
+
+#### page.tsx 쿼리
+- 9 쿼리 Promise.all 병렬 → N+1 위험 0. select 트리도 깊지만 필수 필드만.
+- officialMatchNestedFilter 가드 #2(_avg) + #3(findMany) 양쪽 일관 적용 → 5/2 회귀 패턴 fix 효과.
+- _avg 8키 (BPG 제거) — schema 컬럼명 정확 (`points/total_rebounds/assists/steals/blocks/minutesPlayed/field_goal_percentage/three_point_percentage`). Prisma 가 Decimal | null 반환 → `Number(... ?? 0)` + `gamesPlayed > 0` 분기로 0건 시 "-" 정확.
+- orderBy `tournamentMatch.scheduledAt desc` — 백필 회귀 회피 정확.
+- TournamentTeam relation 통해 `team.name` / `team.logoUrl` 추출 — schema 정합 (TournamentTeam 자체 name 컬럼 없음 — 5/9 fix 주석 정확).
+- 변환 로직 `recentGameRows` 의 `.filter((g) => g.tournamentMatch != null)` 안전장치 + `.map` 후 `playerSide` 판별 정확.
+
+#### 통산 8열
+- 사용자 결정 C-3 (BPG 제거 + MIN/FG%/3P% 추가) 정확 반영.
+- `fmtPct` 헬퍼 신규 — `v == null || v === 0 ? "-"` 분기 OK. (DB가 0~100 범위 % 값으로 저장됨 — 주석 명시).
+- grid 8열 / 모바일 4×2 — `:nth-child(4n+1)` 좌측 border 리셋 + `:nth-child(-n+4)` 상단 border 리셋 → 모바일 새 줄 시작 셀 처리 정확.
+- 데이터 소스 = matchPlayerStat aggregate (UserSeasonStat cron 미동작 회피 — 설계서 §1.3 일치).
+- BDR-current/screens/PlayerProfile.jsx 도 동일 8열 (mock 일치).
+
+#### Hero jersey
+- 쿼리 #9 `prisma.tournamentTeamPlayer.findFirst({ jerseyNumber: { not: null }, orderBy: createdAt desc })` — "가장 최근 등록된 ttp 가 대표" 단순 룰. 적절.
+- eyebrow 영역: `#{N} · 포지션 · 팀명` 분기 — null 안전 (구분점 출력 조건문 정확). 시안 패턴 일치.
+- jerseyNumber Int? schema 정합 (line 594) — null fallback.
+
+#### routing
+- `/live/{matchId}` — 대회상세 ScheduleTimeline 동일 패턴 카피. 일관성 ✅.
+- `m.id.toString()` BigInt 변환 정확.
+- matchPlayerStat → tournamentMatch.id 직접 추출 (matchPlayerStat.tournament_match_id 가 아니라 nested select 의 m.id 사용 — Prisma 자동 join 결과).
+
+#### 시안 박제
+- BDR-current/screens/PlayerProfile.jsx — 운영 PlayerMatchCard.tsx 시각 패턴을 정확히 카피 (메타줄 5요소 + VS행 + 본인 기록 + W/L). 5/2 시안과 운영 시각 동기 ✅.
+- mock 데이터 5건 중 4건 matchCode v4, 1건 NULL+matchNumber=5 → fallback 패턴 시연. recent[1] (RDM vs MK) playerSide='away' + away 승리 → W 뱃지 노출. 회귀 검증용 mock 으로도 적절.
+- `var(--ok)` / `var(--danger)` / `var(--bg-alt)` / `var(--ff-mono)` / `var(--ff-display)` 시안 토큰 일관 (운영은 `--color-success` / `--color-error` 시리즈 — 둘 다 globals.css alias 정의 → 시각적 동일).
+- `window.PlayerProfile = PlayerProfile;` 380L 종결 정상 (BDR-current 패턴).
+
+#### errors.md 적용
+- truncated: 7 파일 마지막 줄 검증 — page.tsx 440L `}` / PlayerMatchCard 380L `}` / overview-tab 391L `}` / overview-tab.css 49L `}` / recent-games-tab 46L `}` / player-hero 269L `}` / PlayerProfile.jsx 380L `window.PlayerProfile = PlayerProfile;` — **7건 모두 정상**.
+- envelope/snake_case: page.tsx 는 직접 props 전달 (apiSuccess 미경유 — 서버 컴포넌트). DB 컬럼 snake_case 그대로 select (`field_goal_percentage` 등) → camelCase 변환 OK. 응답 envelope 회귀 0.
+- apiSuccess 일관: 본 작업은 API endpoint 추가/수정 0 → 해당 없음 (page.tsx 는 server component, 직접 prop 전달).
+
+#### 컨벤션
+- 파일명 kebab-case: ✅ recent-games-tab.tsx / overview-tab.tsx / player-hero.tsx / overview-tab.css. **PlayerMatchCard.tsx 만 PascalCase** — 그러나 mybdr 글로벌 컨벤션 검색 결과 `src/components/match/` 외 다른 컴포넌트도 PascalCase 혼재 (예: schedule-timeline 은 kebab) → ⚠️ 권장: 일관성 위해 `player-match-card.tsx` 로 rename 검토.
+- 함수 camelCase / DB snake_case: ✅
+- TypeScript strict / any 0: ✅ 7파일 전체 grep 결과 `any` 미사용 (단, TournamentTeamPlayer.findFirst.catch(()=>null) 의 fallback 타입 명시 정확).
+- 주석 ("이유 / 어떻게 / 룰"): ✅ PlayerMatchCard 상단 주석 + page.tsx 쿼리 #2 #3 #9 변경 사유 + overview-tab.tsx 8열 변경 사유 모두 명시.
+
+#### 회귀 위험
+- Flutter `/api/v1/*`: ✅ 0 (작업 = `(web)/users/[id]/page.tsx` + 글로벌 components 한정)
+- DB schema: ✅ 0 (select 키 추가만)
+- API endpoint: ✅ 0 신규
+- PR3 가드: ✅ 무관 (본 페이지 = 공개 프로필 / identity gate 무관)
+- 기존 컴포넌트: ✅ schedule-timeline.tsx 미변경 (코드 카피만, 원본 보존). PlayerHero `jerseyNumber` 추가는 optional prop 이라 호출자 영향 0.
+- ISR 60초: ✅ 유지
+
+✅ 잘된 점:
+- 설계서 Q1~Q6 결재 내역을 코드 주석에 명시 (사용자 결정 추적 가능).
+- 변경 로직이 NULL safety 4중 가드로 정확 (W/L / homeTeam / matchCode / playerSide).
+- TeamLogo 컴포넌트 카피 시 첫 글자 fallback / object-contain / aria-hidden 모두 보존.
+- BDR-current 시안 mock 데이터 5건 중 1건 matchCode NULL 케이스 포함 → 회귀 검증 시각적 시연.
+- truncated 룰 7파일 모두 마지막 줄 정상 (errors.md 5/7+5/8 재발 방지).
+
+🟡 권장 수정 (필수 X):
+- `src/components/match/PlayerMatchCard.tsx` → kebab-case 일관성을 위해 `player-match-card.tsx` 로 rename 검토. 단, `src/components/` 산하 다른 컴포넌트 (예: `Toast.tsx`, `RecommendedVideos.tsx`)도 PascalCase 혼재 → **현 상태 유지도 OK**. PM 판단.
+
+종합 평가: ⭐⭐⭐⭐⭐
+- 설계서 결재 6건 정확 반영 + 7파일 truncated 0 + 회귀 위험 0 + 시안 역박제 동기 + null safety 4중 가드. 운영 배포 준비 완료.
+
+🔴 수정 요청: **없음** — PM 커밋 진행 권장.
+
+### 테스트 결과 (tester / 5/9 NBA 프로필)
+
+📊 종합 판정: **✅ 7/7 영역 통과** (수정 요청 0건)
+
+#### 빌드
+- **tsc --noEmit**: 0 (출력 없음 = 에러 0)
+- **npm run build**: ✅ 통과 — `ƒ /users/[id]` 라우트 빌드 성공. warn 3건은 본 작업 무관 (Prisma 7 deprecated / Serwist Turbopack / heatmap+ads dynamic-server — 기존 routes)
+- **truncated 룰**: 7 파일 마지막 2줄 모두 정상 종료 — page.tsx `}` / PlayerMatchCard `}` / recent-games-tab `}` / overview-tab `}` / overview-tab.css `}` / player-hero `}` / PlayerProfile.jsx `window.PlayerProfile = PlayerProfile;`
+
+#### PlayerMatchCard 동작 (코드 분석)
+| 검증 항목 | 결과 | 비고 |
+|----------|------|------|
+| 상단 메타 [코드/번호 \| 라운드 \| 시간 \| 코트 \| 상태] | ✅ | L171~233 / `.match-code` 클래스 globals.css L3063 존재 / matchNumber NULL fallback 분기 정상 |
+| VS 행 (홈팀 로고+이름 / 점수 / 어웨이팀) | ✅ | L235~321 / TeamLogo (img 직접 + initial fallback) / homeWins/awayWins 색상 분기 |
+| 본인 기록 줄 `N PTS · N REB · N AST · N STL [W]` | ✅ | L323~377 / 4 stat (D-1 형식) + W/L 뱃지 우측 |
+| Link wrapper → /live/[matchId] | ✅ | L163 `Link href={`/live/${matchId}`}` |
+| W/L 결정 (종료 + 점수 다름 + playerSide 알 때만) | ✅ | L147~155 4중 가드 (`isCompleted && playerSide!==null && homeScore!=null && awayScore!=null && homeScore!==awayScore`) |
+| Badge variant 호환성 | ✅ | info/error/default 3종 모두 BadgeVariant 타입 포함 (badge.tsx L1) |
+| 헬퍼 import | ✅ | formatShortDate (format-date.ts L42) / formatShortTime (L52) export 확인 |
+
+#### 통산 8열 확장 (Q4=C-3)
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| 8열 구성 (경기/승률/PPG/RPG/APG/MIN/FG%/3P%) | ✅ | overview-tab.tsx L122~131 seasonCells |
+| BPG 제거 | ✅ | seasonCells / OverviewSeasonStats interface 모두 BPG 키 0 |
+| _avg 8키 정확 (page.tsx) | ✅ | L150~159 / blocks 는 fetch 유지 (cell 미노출) — 호환성 OK |
+| grid 8열 PC | ✅ | overview-tab.css L25 `repeat(8, 1fr)` |
+| 모바일 4×2 분기 (≤720px) | ✅ | L36 `repeat(4, 1fr)` + nth-child(-n+4) top + nth-child(4n+1) left border 리셋 |
+| fmtPct 헬퍼 (0/NULL → "-") | ✅ | overview-tab.tsx L102~105 |
+
+#### Hero jersey 노출 (Q3)
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| representativeJersey fetch (쿼리 #9) | ✅ | page.tsx L270~276 / first + jerseyNumber NOT NULL + createdAt desc |
+| jerseyNumber prop 전달 | ✅ | L411 `jerseyNumber: representativeJersey?.jerseyNumber ?? null` |
+| #N eyebrow 표시 | ✅ | player-hero.tsx L156~168 / 포지션·팀명과 함께 `·` 구분 |
+| jerseyNumber NULL 시 미노출 | ✅ | L156 셋 다 NULL 이면 eyebrow 자체 hidden |
+| 키/몸무게/등번호 일관 | ✅ | Physical strip (키/몸무게/최근접속) 변경 0 / 등번호는 eyebrow 신규 위치 |
+
+#### page.tsx 쿼리
+| 검증 항목 | 결과 | 비고 |
+|----------|------|------|
+| 쿼리 #2 _avg 8키 | ✅ | L150~159 — points/total_rebounds/assists/steals/blocks/minutesPlayed/field_goal_percentage/three_point_percentage |
+| 쿼리 #3 select 확장 | ✅ | L175~219 — 12 stat 키 + ttp.tournamentTeamId + match (id/match_code/match_number/group_name/roundName/scheduledAt/court_number/status/score/양팀(team.name+logoUrl)) |
+| officialMatchNestedFilter 가드 | ✅ | #2 L148 + #3 L173 양쪽 일관 적용 (5/2 회귀 fix) |
+| orderBy scheduledAt desc | ✅ | L221 — 백필 createdAt 역전 회피 |
+| playerSide 판별 | ✅ | L335~342 ttp.tournamentTeamId === homeTeamId/awayTeamId / 양쪽 미일치 시 null |
+| TournamentTeam.team.name relation chain | ✅ | L207~217 — TournamentTeam 자체 name 컬럼 없음 → team.name 정확 |
+
+#### 회귀 0
+| 영역 | 결과 | 검증 |
+|------|------|------|
+| Flutter `/api/v1/*` | ✅ 영향 0 | 변경 7파일 모두 `(web)/users/[id]/*` + `components/match/*` + `BDR-current/*` — `/api/v1/*` 미터치 |
+| DB schema | ✅ 0 | prisma/schema.prisma 미수정 |
+| API 신규 endpoint | ✅ 0 | `src/app/api/*` 미수정 — page.tsx 내 prisma 직접 호출만 |
+| 기존 응답 키 변경 | ✅ 0 | API route 미수정 |
+| PR3 가드 / mock 폴백 / PhoneInput | ✅ 영향 0 | onboarding/identity/auth/profile-edit 디렉토리 미터치 |
+| 본인 진입 → /profile redirect | ✅ 유지 | page.tsx L78~80 isOwner 가드 그대로 |
+| ?preview=1 미리보기 | ✅ 유지 | L78 `preview !== "1"` 그대로 |
+| ISR 60초 | ✅ 유지 | L39 `export const revalidate = 60` |
+
+#### 종합 판정
+- 빌드 + truncated 통과 / PlayerMatchCard 7/7 항목 / 통산 8열 6/6 / Hero jersey 5/5 / page.tsx 쿼리 6/6 / 회귀 0 8/8 영역 통과
+- 사용자 결재 6건 (Q1=A 2탭 / Q3=jersey / Q4=C-3 8열 / Q5=D-1 / Q6=E-1) 모두 코드에 정확 반영
+- fallback 3종 (matchCode NULL → #번호 / 팀명 NULL → "미정" italic / 동점·playerSide null → W/L 미노출) 정상 작동
+- 시안 박제 (BDR-current/screens/PlayerProfile.jsx) 8열 + 카드형 + 본인 기록 줄 운영과 시각 일관성 유지
+
+#### 발견 이슈 — 0건
+
+#### 수정 요청 — 없음
+
+#### 후속 권장 (런타임 검증 — PM 머지 후)
+1. 실제 DB 사용자 진입 검증 (matchPlayerStat 다수 보유 사용자 → 카드 노출/클릭 확인)
+2. 모바일 720px 분기 확인 (카드 본인 기록 줄 줄바꿈 0 / 통산 4×2 grid)
+3. /teams/[id] "최근 경기" 글로벌 PlayerMatchCard 재사용 후속 (E-1 채택 효과)
+
 **[5/9 직전 — 시안 갭 fix 100% 완료]** PR #228~#235 4회차 main 머지. PhoneInput/BirthDateInput 마이그 (1순위 4 input + 2~3순위 6 input = 10 input) + 시안 역박제 10 페이지 (1순위 3 + 2~3순위 7) 모두 main 배포. Production = `afcbd65`.
 
 ---
