@@ -1,15 +1,15 @@
 "use client";
 
 /* ============================================================
- * RecommendedGames -- 추천/인기 경기 섹션 (토스 스타일)
+ * RecommendedGames -- 추천/인기 경기 섹션 (RecommendedRail 통일 헤더)
  *
  * /api/web/recommended-games API 응답을 기반으로 동적 렌더링한다.
  * API 실패 시 하드코딩 fallback 카드를 보여준다.
  *
- * 토스 스타일 변경:
- * - TossSectionHeader로 "추천 경기" + "전체보기 >" 헤더
- * - TossCard로 둥근 모서리, 가벼운 그림자 카드
- * - 가로 스크롤 캐러셀 유지하되 카드 스타일만 변경
+ * 헤더 변경 (5/9 옵션 B):
+ * - 기존 TossSectionHeader 제거 → 시안 RecommendedRail wrapper 사용
+ *   (시안 line 96~104 #1 매핑: eyebrow="GAMES · 픽업 · 게스트")
+ * - 카드 스타일은 기존 컴팩트 가로형 보존 (네온 호버 / 64x64 썸네일)
  *
  * API/데이터 패칭 로직은 기존과 100% 동일하게 유지.
  * ============================================================ */
@@ -18,7 +18,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TossSectionHeader } from "@/components/toss/toss-section-header";
+import { RecommendedRail } from "@/components/bdr-v2/recommended-rail";
 import { formatRelativeDateTime } from "@/lib/utils/format-date";
 import { TYPE_BADGE } from "@/app/(web)/games/_constants/game-badges";
 
@@ -131,22 +131,21 @@ export function RecommendedGames({ fallbackData }: RecommendedGamesProps) {
     );
   }
 
+  // 시안 line 96~104 #1 매핑: eyebrow="GAMES · 픽업 · 게스트" / title 동적 / more=/games
   return (
-    <section>
-      {/* 토스 스타일 섹션 헤더: 제목 + "전체보기 >" */}
-      <TossSectionHeader title={title} actionHref="/games" />
-
-      {/* 가로 스크롤 캐러셀: 토스 카드 스타일 */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5 pb-2">
-        {games.map((game) => (
-          <GameCard
-            key={game.id}
-            game={game}
-            photoUrl={photoMap === undefined ? undefined : (photoMap[game.venue_name ?? game.city ?? ""] ?? null)}
-          />
-        ))}
-      </div>
-    </section>
+    <RecommendedRail
+      title={title}
+      eyebrow="GAMES · 픽업 · 게스트"
+      more={{ href: "/games", label: "전체 보기" }}
+    >
+      {games.map((game) => (
+        <GameCard
+          key={game.id}
+          game={game}
+          photoUrl={photoMap === undefined ? undefined : (photoMap[game.venue_name ?? game.city ?? ""] ?? null)}
+        />
+      ))}
+    </RecommendedRail>
   );
 }
 

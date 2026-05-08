@@ -1,6 +1,32 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-09] 모바일 가드 4 분기점 표준 (반응형 룰)
+- **분류**: convention/ui (반응형 가드 / 디자인 13 룰 #13 보강)
+- **결정자**: 사용자 (5/9 시안 본격 적용 모바일 호환 검증 중)
+- **분기점 4**:
+  - **`max-width: 360px`** — 작은 모바일 (iPhone SE 320, Galaxy S 360) — 폰트/카드 1단계 더 압축
+  - **`max-width: 720px`** — 일반 모바일 (iPhone Pro Max 430까지) — 1열 stack / h1 22px / iOS input 16px / 44px 버튼 (주력 분기 / 시안 30건 / 운영 7건)
+  - **`max-width: 900px`** — 태블릿 / 작은 데스크탑 — 사이드바 stack (`home__split { 1fr }`)
+  - **`min-width: 1024px`** — 데스크탑 — 사이드바 표시 (`home__split { 1fr 300px }`)
+- **다른 분기 사용 금지** (380/420/460/980 등) — 사유 박제 명시 시만 예외
+- **iOS 룰**:
+  - input font-size 16px (자동 줌 차단)
+  - 터치 영역 최소 44px (버튼 높이)
+  - 320px 최소 폭 가로 overflow 0 (iPhone SE 1세대 가드)
+- **자동 그리드 우선** (권장):
+  - `gridTemplateColumns: repeat(auto-fit, minmax(N, 1fr))` 패턴 (StatsStrip 140 / NoticeCard 분리 280 등)
+  - @media 명시보다 자동 분기 우선 — 컨테이너 폭에 따라 자동 줄바꿈
+- **명시 @media 보조**:
+  - `@media (max-width: 900px) { .home__split { grid-template-columns: 1fr !important } }` (사이드바 stack)
+  - `@media (max-width: 720px) { h1 { font-size: 22px !important } }` (헤더 타이틀)
+- **위반 자동 reject**: 신규 컴포넌트 도입 시 4 분기점 가드 누락 / 비표준 분기 사용 (사유 미박제)
+- **참조 파일**:
+  - 시안 `Dev/design/BDR-current/screens/Home.jsx` line 184~190 (`home__split @ 900px` + `h1 @ 720px`)
+  - 운영 `src/components/bdr-v2/stats-strip.tsx` (auto-fit minmax 140)
+  - `src/app/globals.css` 분기 9건 (.with-aside / .drawer / .home__* 등)
+- **참조횟수**: 0
+
 ### [2026-05-09] 공식 기록 도메인 = 실명 우선 (`getDisplayName()` 헬퍼 의무 사용)
 - **분류**: convention/domain (선수명 표시 정책 단일화)
 - **결정자**: 사용자 (D-day 5/9 동호회최강전 기록앱 출전 검증 중 발견)

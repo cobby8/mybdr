@@ -30,6 +30,8 @@ import "./overview-tab.css";
 // 5/9 Phase 2: 활동 로그 + 통산 모달
 import { ActivityLog, type ActivityEvent } from "./activity-log";
 import { StatsDetailModal, type AllStatsRow } from "./stats-detail-modal";
+// 5/9 추출: 글로벌 CareerStatsGrid (공개+본인 페이지 공용 — Q5=Y-2)
+import { CareerStatsGrid } from "@/components/profile/career-stats-grid";
 
 // 외부 import 로 export 통과
 export type { ActivityEvent, AllStatsRow };
@@ -106,22 +108,8 @@ const BADGE_EMOJI: Record<string, string> = {
   all_star: "⭐",
 };
 
-function fmtAvg(v: number | null | undefined, digits = 1): string {
-  if (v == null) return "-";
-  return v.toFixed(digits);
-}
-
-function fmtWinRate(v: number | null): string {
-  if (v == null) return "-";
-  return `${Math.round(v)}%`;
-}
-
-// 5/9 신규: FG%/3P% 표시용 (DB 값이 이미 0~100 범위 % 값)
-// 0 이면 "-" (경기 1건도 없는 상태) / 표시 시 소수 1자리 + %
-function fmtPct(v: number | null): string {
-  if (v == null || v === 0) return "-";
-  return `${v.toFixed(1)}%`;
-}
+// 5/9 추출: fmtAvg/fmtWinRate/fmtPct 헬퍼는 CareerStatsGrid 로 이전 (글로벌 컴포넌트 내부 캡슐화)
+// 잔존 헬퍼 — 활동 카드 가입일/뱃지 획득일 표시용
 
 function fmtYearMonthDay(iso: string): string {
   const d = new Date(iso);
@@ -147,19 +135,6 @@ export function OverviewTab({
   // 5/9 Phase 2: 통산 [더보기] 모달 open state (Q3=A 모달 채택)
   const [statsModalOpen, setStatsModalOpen] = useState(false);
 
-  // 5/9 Q4=C-3: 8열 (경기/승률/PPG/RPG/APG/MIN/FG%/3P%) — NBA 충실 + BPG 제거
-  // FG%/3P% 는 이미 0~100 범위 % 값 (Decimal field) — fmtPct 로 % 추가
-  const seasonCells = [
-    { label: "경기", value: stats.games > 0 ? stats.games.toString() : "-" },
-    { label: "승률", value: fmtWinRate(stats.winRate) },
-    { label: "PPG", value: fmtAvg(stats.ppg) },
-    { label: "RPG", value: fmtAvg(stats.rpg) },
-    { label: "APG", value: fmtAvg(stats.apg) },
-    { label: "MIN", value: fmtAvg(stats.mpg) },
-    { label: "FG%", value: fmtPct(stats.fgPct) },
-    { label: "3P%", value: fmtPct(stats.threePct) },
-  ];
-
   return (
     <div className="overview-tab__layout">
       {/* ========== 좌측 main ========== */}
@@ -184,85 +159,14 @@ export function OverviewTab({
             </p>
           </div>
         )}
-        <div className="card" style={{ padding: "22px 24px" }}>
-          {/* 5/9 Phase 2: 통산 헤더 + [더보기] 버튼 (Q3=A 모달 채택)
-              버튼 = border 0 텍스트 버튼 (CLAUDE.md §디자인 핵심 — 절제된 톤) */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 14,
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
-              통산 스탯
-            </h2>
-            {/* allStatsRows 있을 때만 노출 — 데이터 0 인 사용자는 모달도 무의미 */}
-            {allStatsRows.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setStatsModalOpen(true)}
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "var(--ink-dim)",
-                  padding: "4px 6px",
-                  borderRadius: 4,
-                  transition: "color 120ms ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "var(--ink)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "var(--ink-dim)";
-                }}
-                aria-label="통산 스탯 상세 보기"
-              >
-                더보기 →
-              </button>
-            )}
-          </div>
-          <div className="overview-tab__season-grid">
-            {seasonCells.map((s, i) => (
-              <div
-                key={s.label}
-                style={{
-                  padding: "14px 8px",
-                  textAlign: "center",
-                  borderLeft: i > 0 ? "1px solid var(--border)" : 0,
-                  background: "var(--bg-alt)",
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: "var(--ff-display)",
-                    fontWeight: 900,
-                    fontSize: 24,
-                    letterSpacing: "-0.01em",
-                    color: "var(--ink)",
-                  }}
-                >
-                  {s.value}
-                </div>
-                <div
-                  style={{
-                    fontSize: 10.5,
-                    color: "var(--ink-dim)",
-                    fontWeight: 600,
-                    letterSpacing: ".04em",
-                    marginTop: 2,
-                  }}
-                >
-                  {s.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* 5/9 추출: 통산 카드 → 글로벌 CareerStatsGrid (Q5=Y-2)
+            allStatsRows 있을 때만 onShowMore 전달 → [더보기 →] 버튼 자동 노출 */}
+        <CareerStatsGrid
+          stats={stats}
+          onShowMore={
+            allStatsRows.length > 0 ? () => setStatsModalOpen(true) : undefined
+          }
+        />
       </div>
 
       {/* ========== 우측 aside ========== */}
