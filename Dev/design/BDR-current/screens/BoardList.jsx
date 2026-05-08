@@ -1,5 +1,51 @@
 /* global React, BOARDS, POSTS, Icon, Sidebar, Pager, LevelBadge */
 
+// ============================================================
+// Phase A.6 §5 — BoardList 운영 정합 (mybdr.kr/community 패턴)
+// - Hero 헤더 grid 1fr auto (eyebrow 카테고리 + h1 게시판명 + 부제 글 수)
+// - 검색 토글 (.app-nav__icon-btn 패턴 — 검색 input 노출/숨김)
+// - with-aside 2열 (좌 Sidebar + 우 board 테이블) — 모바일 1열 stack
+// - 핀 글 + 24h NEW 뱃지 + 조회수 + 댓글 수 (BoardRow 패턴)
+// ============================================================
+
+function BoardHeader({ board, setRoute }) {
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const categoryLabel = board.category === 'main' ? '메인' : board.category === 'play' ? '플레이' : '이야기';
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'1fr auto', alignItems:'flex-end', gap:16, marginBottom:16, flexWrap:'wrap'}}>
+      <div style={{minWidth:0}}>
+        <div className="eyebrow">{categoryLabel}</div>
+        <h1 style={{margin:'6px 0 4px', fontSize:24, fontWeight:700, letterSpacing:'-0.01em', whiteSpace:'nowrap'}}>{board.name}</h1>
+        <div style={{fontSize:13, color:'var(--ink-mute)', whiteSpace:'nowrap'}}>전체 {board.count.toLocaleString()}개의 글</div>
+      </div>
+      <div style={{display:'flex', gap:8, flexShrink:0, alignItems:'center'}}>
+        {searchOpen && (
+          <input
+            autoFocus
+            value={q}
+            onChange={e=>setQ(e.target.value)}
+            placeholder="게시판 내 검색"
+            className="input"
+            style={{width:200, fontSize:13, padding:'8px 12px', borderRadius:'var(--radius-chip)'}}
+          />
+        )}
+        <button
+          className="app-nav__icon-btn"
+          onClick={()=>{ setSearchOpen(!searchOpen); if (searchOpen) setQ(''); }}
+          title="검색"
+          aria-label="검색"
+        >
+          <Icon.search/>
+        </button>
+        <button className="btn btn--primary" onClick={()=>setRoute('write')}>
+          <Icon.plus/> 글쓰기
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function BoardList({ activeBoard, setActiveBoard, setRoute }) {
   const board = BOARDS.find(b => b.id === activeBoard) || BOARDS[1];
   const allPosts = POSTS; // in real impl, filter by board
@@ -11,20 +57,8 @@ function BoardList({ activeBoard, setActiveBoard, setRoute }) {
       <div className="with-aside">
         <Sidebar active={activeBoard} setActive={setActiveBoard} setRoute={setRoute}/>
         <main>
-          <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16, gap:16, flexWrap:'wrap'}}>
-            <div style={{minWidth:0}}>
-              <div className="eyebrow">{board.category === 'main' ? '메인' : board.category === 'play' ? '플레이' : '이야기'}</div>
-              <h1 style={{margin:'6px 0 4px', fontSize:24, fontWeight:700, letterSpacing:'-0.01em', whiteSpace:'nowrap'}}>{board.name}</h1>
-              <div style={{fontSize:13, color:'var(--ink-mute)', whiteSpace:'nowrap'}}>전체 {board.count.toLocaleString()}개의 글</div>
-            </div>
-            <div style={{display:'flex', gap:8, flexShrink:0}}>
-              <div style={{display:'flex', alignItems:'center', gap:6, padding:'8px 10px', background:'var(--bg-elev)', border:'1px solid var(--border)', borderRadius:'var(--radius-chip)'}}>
-                <Icon.search/>
-                <input className="input" style={{border:0, padding:0, background:'transparent', width:180, fontSize:13}} placeholder="게시판 내 검색"/>
-              </div>
-              <button className="btn btn--primary" onClick={()=>setRoute('write')}><Icon.plus/> 글쓰기</button>
-            </div>
-          </div>
+          {/* Phase A.6 §5 — Hero 헤더 grid 1fr auto + 검색 토글 (.app-nav__icon-btn 패턴) */}
+          <BoardHeader board={board} setRoute={setRoute}/>
 
           {/* Filter row */}
           <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:10, padding:'10px 12px', background:'var(--bg-elev)', border:'1px solid var(--border)', borderRadius:'var(--radius-chip)', fontSize:13, whiteSpace:'nowrap', flexWrap:'wrap'}}>

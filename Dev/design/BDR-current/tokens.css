@@ -4,6 +4,23 @@
    DARK  = Refined brutalism (poster, red accent, big type)
    ============================================================ */
 
+/* ============================================================
+   DEPRECATED — 폐기 토큰 (운영 src/ 마이그레이션 대상)
+   새 시안에서 사용 X. 운영 코드 (src/) 는 Cowork 가 별도 마이그레이션.
+   매핑 표 (02-design-system-tokens §9):
+     --color-primary / --color-accent  →  --accent
+     --color-card                       →  --bg-card
+     --color-surface                    →  --bg-elev
+     --color-surface-bright             →  --bg-alt
+     --color-border                     →  --border
+     --color-text-muted                 →  --ink-mute
+     --color-text-secondary             →  --ink-soft
+     --color-on-accent                  →  --ink-on-brand
+     --color-success                    →  --ok
+     --color-warning                    →  --warn
+     --color-error                      →  --danger
+   ============================================================ */
+
 :root {
   /* Brand — shared */
   --bdr-red: #E31B23;
@@ -274,7 +291,7 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 }
 
 [data-theme="dark"] .badge {
-  font-family: var(--ff-display);
+  font-family: 'Pretendard', var(--ff-display);
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -381,25 +398,77 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 
 .app-nav__right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
 .app-nav__logo { flex: 0 0 auto; white-space: nowrap; }
-
-/* Icon-only nav button — frozen 룰 §5: border/배경 박스 없이 아이콘만 */
-.app-nav__icon-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px;
-  background: transparent; border: 0;
-  color: var(--ink-soft);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: color .12s ease, background .12s ease;
-}
-.app-nav__icon-btn:hover { color: var(--ink); background: var(--bg-alt); }
-.app-nav__icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-[data-theme="dark"] .app-nav__icon-btn { color: var(--ink-mute); }
-[data-theme="dark"] .app-nav__icon-btn:hover { color: var(--ink); background: color-mix(in oklab, var(--ink) 8%, transparent); }
 .app-nav__tabs { white-space: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .app-nav__tabs::-webkit-scrollbar { display: none; }
 .app-nav__tab { white-space: nowrap; flex: 0 0 auto; }
 .app-nav__bottom-line { height: 1px; background: var(--border); }
+
+/* utility logo (Phase 19 — BDR 로고 이미지 / SVG) */
+.app-nav__utility-logo {
+  display: inline-flex; align-items: center;
+  height: 18px; line-height: 1;
+  padding: 0; opacity: 1;
+}
+.app-nav__utility-logo:hover { opacity: .9; text-decoration: none; }
+.app-nav__utility-logo img { height: 18px; width: auto; display: block; }
+
+/* Phase 19 — main bar 우측 아이콘 버튼 (검색/쪽지/알림/모바일 다크) */
+.app-nav__icon-btn {
+  background: transparent;
+  border: 0;
+  padding: 8px;
+  border-radius: var(--radius-chip);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background .15s, color .15s;
+}
+.app-nav__icon-btn:hover { background: var(--bg-alt); color: var(--ink); }
+.app-nav__icon-btn svg { width: 18px; height: 18px; }
+[data-theme="dark"] .app-nav__icon-btn { border-radius: 0; color: var(--ink-soft); }
+[data-theme="dark"] .app-nav__icon-btn:hover { background: var(--bg-alt); color: var(--ink); }
+
+/* Phase 19 — 빨간 점 뱃지 (쪽지/알림 unread) */
+.app-nav__notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg-elev);
+}
+
+/* 햄버거 — desktop hidden, mobile only */
+.app-nav__burger {
+  background: transparent; border: 0; padding: 8px;
+  color: var(--ink); cursor: pointer;
+  border-radius: var(--radius-chip);
+  display: none;
+  align-items: center; justify-content: center;
+}
+.app-nav__burger:hover { background: var(--bg-alt); }
+[data-theme="dark"] .app-nav__burger { border-radius: 0; }
+
+/* ThemeSwitch viewport 분기 (Phase 19 — PC 듀얼 / 모바일 단일 아이콘) */
+.theme-switch--desktop { display: inline-flex; }
+.theme-switch--mobile { display: none; }
+
+@media (max-width: 768px) {
+  .theme-switch--desktop { display: none; }
+  .theme-switch--mobile { display: inline-flex; }
+  .app-nav__burger { display: inline-flex; }
+  /* utility 좌측 (BDR 로고 + 소개/요금제/도움말) hidden */
+  .app-nav__utility-inner .util-left { display: none; }
+  /* 메인 탭 hidden — drawer 로 이관 */
+  .app-nav__tabs { display: none; }
+  /* 닉네임 hidden (햄버거와 충돌 방지) */
+  .app-nav__utility-inner > a:first-of-type { display: none; }
+}
 
 /* Dark theme nav */
 [data-theme="dark"] .app-nav { background: var(--bg); border-bottom: 2px solid var(--border-hard); }
@@ -762,27 +831,340 @@ a:hover { text-decoration: underline; text-underline-offset: 2px; }
 .mt-2 { margin-top: 8px; } .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }
 .text-center { text-align: center; }
 
+
 /* ============================================================
-   [Phase 17] Material Symbols Outlined — 안전 렌더 보강
-   - ligature 활성 + 글리프 미로딩 시에도 텍스트 노출 차단(투명)
-   - 13 룰 §11 — 아이콘 표준
+   NavBadge — 4 variants (Phase A.5, 운영 nav-badge.css 정합)
+   03 §7 Phase 19 frozen — drawer 게이트웨이 R3 강조 등
    ============================================================ */
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined', 'Material Icons Outlined';
-  font-weight: normal;
-  font-style: normal;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: 'liga';
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'liga';
-  font-variation-settings: 'opsz' 24;
+.nav-badge {
+  position: absolute;
+  top: 4px;
+  right: -2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   user-select: none;
+  pointer-events: none;
+  z-index: 1;
+  font-family: var(--ff-mono);
 }
-/* 폰트 로드 실패 시에도 의미 없는 텍스트("trending_up" 등) 노출 방지 — block fallback */
-.material-symbols-outlined:not(:lang(en)):empty::before { content: '\\200B'; }
+.nav-badge--inline {
+  position: static;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.nav-badge--dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.nav-badge--count {
+  min-width: 18px; height: 18px;
+  padding: 0 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+}
+.nav-badge--new {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+}
+.nav-badge--live {
+  padding: 1px 6px;
+  border-radius: 9999px; /* live pill — 텍스트 alignment 우선 (예외) */
+  background: var(--ok);
+  color: #fff;
+  font-size: 9px;
+  line-height: 1.4;
+  animation: nav-badge-live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes nav-badge-live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(28,160,94,.6); }
+  50%      { opacity: .85; box-shadow: 0 0 0 4px rgba(28,160,94,0); }
+}
+@media (max-width: 720px) {
+  .nav-badge--count, .nav-badge--new {
+    min-width: 16px; height: 16px; font-size: 10px;
+  }
+  .nav-badge--live { font-size: 8px; padding: 1px 4px; }
+}
+
+/* ============================================================
+   Mobile burger R3 강조 (Phase A.5, 운영 globals.css L1632~1655 박제)
+   사유: drawer 게이트웨이 R3 강조 — 햄버거 = 새 컨텐츠 진입점 인지
+   ============================================================ */
+@media (max-width: 900px) {
+  .app-nav__burger {
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 6px;
+  }
+  .app-nav__burger .nav-badge--dot {
+    top: 4px;
+    right: 4px;
+  }
+}
+[data-theme="dark"] .app-nav__burger {
+  border: 2px solid var(--border-strong);
+  border-radius: 0;
+}
+@media (max-width: 900px) {
+  [data-theme="dark"] .app-nav__burger {
+    border: 2px solid var(--border-strong);
+    border-radius: 0;
+  }
+}
+
+/* ============================================================
+   Drawer (more menu) — Phase A.5 슬림화 60vw → 42vw
+   ============================================================ */
+.drawer-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 90;
+  animation: drawer-fade .15s ease;
+}
+@keyframes drawer-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 42vw; max-width: 420px; min-width: 320px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  z-index: 91;
+  display: flex; flex-direction: column;
+  animation: drawer-slide .2s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes drawer-slide {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@media (max-width: 720px) {
+  .drawer { width: 88vw; max-width: 360px; }
+}
+[data-theme="dark"] .drawer {
+  border-left: 2px solid var(--border-strong);
+  border-radius: 0;
+}
+.drawer__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer__head-title {
+  font-family: var(--ff-display);
+  font-size: 18px; font-weight: 800;
+  color: var(--ink);
+}
+.drawer__head-title .dot { color: var(--accent); }
+.drawer__close {
+  background: transparent; border: 0;
+  font-size: 22px; line-height: 1;
+  color: var(--ink-mute);
+  cursor: pointer;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+}
+.drawer__close:hover { background: var(--bg-alt); color: var(--ink); }
+.drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px 16px;
+}
+/* Phase A.5 §11 — 5그룹 박스 명확 구분 (PC 깨짐 fix) */
+.drawer__group {
+  background: var(--bg-card);
+  border: 1px solid var(--cafe-blue-hair);
+  border-radius: 6px;
+  padding: 6px;
+  margin-bottom: 12px;
+}
+[data-theme="dark"] .drawer__group {
+  border-width: 2px;
+  border-color: var(--border-strong);
+  border-radius: 0;
+  background: var(--bg-alt);
+}
+.drawer__group-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--cafe-blue-deep);
+  padding: 8px 8px 6px;
+  display: flex; align-items: center; gap: 6px;
+}
+.drawer__group-title::before {
+  content: ""; width: 14px; height: 2px;
+  background: var(--accent); display: inline-block;
+}
+[data-theme="dark"] .drawer__group-title { color: var(--ink-soft); }
+.drawer__item {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px; /* Phase A.5 — min-height 44px 제거 + padding 10 → 8 */
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 4px;
+  position: relative;
+}
+.drawer__item:hover { background: var(--bg-alt); }
+.drawer__item[data-active="true"] {
+  background: var(--cafe-blue-soft);
+  color: var(--cafe-blue-deep);
+  font-weight: 700;
+}
+.drawer__item .drawer__item-label {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.drawer__item .drawer__item-icon {
+  font-size: 14px; opacity: .8;
+}
+[data-theme="dark"] .drawer__item { border-radius: 0; }
+[data-theme="dark"] .drawer__item[data-active="true"] {
+  background: var(--bg-alt); color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.drawer__divider { height: 1px; background: var(--border); margin: 8px 4px; }
+.drawer__foot {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* ============================================================
+   Modal (5 modals — dormant / jersey / withdraw / transfer / team-join)
+   Phase A.5 — background 토큰 일원화 (--surface ❌ → var(--bg-card))
+   ============================================================ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 100;
+  display: grid; place-items: center;
+  padding: 16px;
+  animation: drawer-fade .15s ease;
+}
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-lg);
+  width: 100%;
+  max-width: 460px;
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+[data-theme="dark"] .modal {
+  border-width: 2px;
+  border-color: var(--border-strong);
+  border-radius: 0;
+}
+.modal__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.modal__title {
+  font-size: 16px; font-weight: 800;
+  color: var(--ink);
+  font-family: var(--ff-display);
+  letter-spacing: -0.01em;
+}
+.modal__close {
+  background: transparent; border: 0;
+  font-size: 22px; line-height: 1;
+  color: var(--ink-mute);
+  cursor: pointer;
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+}
+.modal__close:hover { background: var(--bg-alt); color: var(--ink); }
+.modal__body {
+  padding: 16px;
+  overflow-y: auto;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.55;
+}
+.modal__foot {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+@media (max-width: 720px) {
+  .modal { max-width: 100%; }
+  .modal__body { padding: 14px; font-size: 14px; }
+  .modal__foot .btn { min-height: 44px; }
+}
+
+/* ============================================================
+   Dropdown (활동 관리 등) — Phase A.5
+   max-width: calc(100vw - 32px) (모바일 overflow 보완)
+   ============================================================ */
+.dropdown {
+  position: absolute;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--sh-md);
+  min-width: 160px;
+  max-width: calc(100vw - 32px);
+  z-index: 50;
+  padding: 4px;
+}
+[data-theme="dark"] .dropdown {
+  border-width: 2px;
+  border-color: var(--border-strong);
+  border-radius: 0;
+}
+.dropdown__item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent; border: 0;
+  text-align: left;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.dropdown__item:hover { background: var(--bg-alt); }
+.dropdown__item--danger { color: var(--danger); }
+[data-theme="dark"] .dropdown__item { border-radius: 0; }
+
+/* ============================================================
+   MemberPendingBadge usage helper — 본인 카드 좌하단 absolute 위치
+   Phase A.5 — 4 신청 상태 (jersey / dormant / withdraw / transfer)
+   .badge .badge--soft 클래스 그대로 사용 + 본인 카드 부모 overflow:visible
+   ============================================================ */
+.member-pending-anchor {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+}
+.member-card {
+  position: relative;
+  overflow: visible !important; /* 02 §10-7 — dropdown 자르지 않음 (Phase A.5 5-2) */
+}
+@media (max-width: 720px) {
+  .member-pending-anchor { left: 10px; bottom: 10px; }
+}

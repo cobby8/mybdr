@@ -1,7 +1,7 @@
 # BDR 디자인 작업 허브
 
 > **단일 진입점**. 어떤 디자인 / 박제 작업을 시작하기 전에 이 문서 + `claude-project-knowledge/00-master-guide.md` 부터 본다.
-> **마지막 갱신**: 2026-05-01 (단일 폴더 룰 적용)
+> **마지막 갱신**: 2026-05-08 (BDR-current sync v2.4 — 5/1 v2.3 → 5/8 v2.4)
 
 ---
 
@@ -36,7 +36,8 @@ Dev/design/
     ├── BDR v2/                        옛 v2.0 (2026-04-28 단일 폴더 통합 시점)
     ├── BDR v2.2/                      옛 v2.2
     ├── BDR v2.3/                      옛 v2.3 (Downloads 최신과 다른 옛 스냅샷)
-    ├── BDR v2.4/                      옛 v2.4
+    ├── BDR v2.4/                      옛 v2.4 (5/1 시점)
+    ├── BDR-current-2026-05-01-v2.3/   ⭐ 옛 BDR-current/ 백업 (5/1 v2.3 Phase 13/19)
     ├── v2-original/                   zip 최상위 옛 v2 시안 (zip 그대로 보존)
     └── prompts/                       옛 phase-N-*.md, v2.X-cli-batch-prompt-*.md 등
 ```
@@ -148,9 +149,10 @@ git commit -m "design: BDR-current sync vX.Y (Phase XX)"
 ## 🎯 현재 활성 작업
 
 - **활성 브랜치**: `subin`
-- **활성 시안**: BDR-current/ (Phase 13 마이페이지 hub + Phase 19 BottomNavEditor)
+- **활성 시안**: BDR-current/ (v2.4 — 5/8 sync, Phase 13 마이페이지 hub + Phase 19 BottomNavEditor)
 - **활성 박제 프롬프트**: `v3-rebake-prompt-2026-05-01.md` (P0/P1/P2)
 - **활성 페이즈**: 마이페이지 hub 박제 — `/profile` 본문 재구성 + 16 깊은 페이지 단일 진입
+- **갭 검증 필요**: 5/2~5/8 운영 src/ UI 변경 30+ commit 이 v2.4 시안에 반영됐는지 spot check (별도 작업)
 
 ### 박제 우선순위 (v3-rebake-prompt-2026-05-01.md 요약)
 

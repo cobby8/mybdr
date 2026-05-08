@@ -207,24 +207,30 @@ function MatchList({ setRoute }) {
     open: 'badge--ok', closing: 'badge--red', closed: 'badge--ghost', live: 'badge--red', ended: 'badge--ghost', preparing: 'badge--soft',
   };
   const [view, setView] = React.useState('tournaments'); // tournaments | openrun
+  const [viewMode, setViewMode] = React.useState('list'); // list | calendar | week (Phase A.6 §2)
   const [filter, setFilter] = React.useState('전체');
-  const filters = ['전체','접수중','마감임박','진행중','접수예정','종료'];
+  // Phase A.6 §2 — 4 탭 단순화: 전체 / 접수중 / 진행중 / 종료
+  const filters = ['전체','접수중','진행중','종료'];
+  const counts = {
+    '전체': TOURNAMENTS.length,
+    '접수중': TOURNAMENTS.filter(t => t.status==='open' || t.status==='closing' || t.status==='preparing').length,
+    '진행중': TOURNAMENTS.filter(t => t.status==='live').length,
+    '종료': TOURNAMENTS.filter(t => t.status==='ended' || t.status==='closed').length,
+  };
   const shown = TOURNAMENTS.filter(t => {
     if (filter === '전체') return true;
-    if (filter === '접수중') return t.status === 'open';
-    if (filter === '마감임박') return t.status === 'closing';
+    if (filter === '접수중') return t.status === 'open' || t.status === 'closing' || t.status === 'preparing';
     if (filter === '진행중') return t.status === 'live';
-    if (filter === '접수예정') return t.status === 'preparing';
-    if (filter === '종료') return t.status === 'ended';
+    if (filter === '종료') return t.status === 'ended' || t.status === 'closed';
     return true;
   });
 
   return (
     <div className="page">
       <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16, flexWrap:'wrap', gap:10}}>
-        <div>
+        <div style={{flex:'1 1 280px', minWidth:0}}>
           <div className="eyebrow">{view==='tournaments' ? '대회 · TOURNAMENTS' : '오픈런 · OPEN RUN'}</div>
-          <h1 style={{margin:'6px 0 4px', fontSize:28, fontWeight:800, letterSpacing:'-0.015em'}}>
+          <h1 style={{margin:'6px 0 4px', fontSize:28, fontWeight:800, letterSpacing:'-0.015em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
             {view==='tournaments' ? '열린 대회 · 예정 대회' : '지금 시작하는 코트'}
           </h1>
           <div style={{fontSize:13, color:'var(--ink-mute)'}}>
@@ -234,7 +240,34 @@ function MatchList({ setRoute }) {
             }
           </div>
         </div>
-        {view==='tournaments' && <button className="btn btn--primary"><Icon.plus/> 대회 개설</button>}
+        {view==='tournaments' && (
+          <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+            {/* Phase A.6 §2 — ViewToggle (리스트 / 월간 / 주간). list = default 시안 동작 / calendar+week = placeholder */}
+            <div className="view-toggle" role="group" aria-label="보기 모드" style={{display:'inline-flex', background:'var(--bg-alt)', border:'1px solid var(--border)', borderRadius:6, overflow:'hidden'}}>
+              {[['list','리스트','list'],['calendar','월간','calendar'],['week','주간','week']].map(([k,l,ic]) => {
+                const Ico = Icon[ic];
+                const active = viewMode === k;
+                return (
+                  <button key={k} className="view-toggle__btn" data-active={active} onClick={()=>setViewMode(k)}
+                    aria-pressed={active}
+                    style={{
+                      display:'inline-flex', alignItems:'center', gap:6, padding:'7px 12px',
+                      background: active ? 'var(--bg-card)' : 'transparent',
+                      boxShadow: active ? '0 1px 4px rgba(0,0,0,.18)' : 'none',
+                      color: active ? 'var(--ink)' : 'var(--ink-mute)',
+                      border:0, fontSize:13, fontWeight: active ? 700 : 500, cursor:'pointer',
+                    }}>
+                    <Ico/>
+                    <span className="view-toggle__label">{l}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button className="btn btn--sm" aria-label="검색" title="검색" style={{padding:'8px 10px'}}><Icon.search/></button>
+            <button className="btn btn--sm" aria-label="필터" title="필터" style={{padding:'8px 10px'}}><Icon.filter/></button>
+            <button className="btn btn--primary"><Icon.plus/> 대회 개설</button>
+          </div>
+        )}
       </div>
 
       {/* View toggle: 정식 대회 ↔ 오픈런 */}
@@ -262,60 +295,70 @@ function MatchList({ setRoute }) {
 
       {view === 'openrun' ? <OpenRunPanel setRoute={setRoute}/> : (<>
 
-      <div style={{display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center'}}>
-        <span style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.08em'}}>빠른 작업 ·</span>
-        <button className="btn btn--sm" onClick={()=>setRoute('createGame')}>＋ 픽업 경기 만들기</button>
-        <button className="btn btn--sm" onClick={()=>setRoute('tournamentEnroll')}>대회 접수</button>
-        <button className="btn btn--sm" onClick={()=>setRoute('bracket')}>대진표 보기</button>
-      </div>
-
-      <div style={{display:'flex', gap:8, marginBottom:16, flexWrap:'wrap'}}>
+      {/* Phase A.6 §2 — 상태 탭 4 단순화 (전체 / 접수중 / 진행중 / 종료), 운영 카운트 표시 */}
+      <div style={{display:'flex', gap:0, marginBottom:18, borderBottom:'1px solid var(--border)', flexWrap:'wrap'}}>
         {filters.map(s => (
-          <button key={s} className="btn btn--sm" onClick={()=>setFilter(s)}
-            style={filter === s ? {background:'var(--cafe-blue)', color:'#fff', borderColor:'var(--cafe-blue-deep)'} : {}}>{s}</button>
+          <button key={s} onClick={()=>setFilter(s)} style={{
+            padding:'10px 16px', background:'transparent', border:0, cursor:'pointer',
+            borderBottom: filter===s ? '3px solid var(--cafe-blue)' : '3px solid transparent',
+            color: filter===s ? 'var(--ink)' : 'var(--ink-mute)',
+            fontWeight: filter===s ? 700 : 500, fontSize:14, marginBottom:-1,
+          }}>
+            {s} <span style={{fontFamily:'var(--ff-mono)', fontSize:11, color:'var(--ink-dim)', marginLeft:4}}>{counts[s]}</span>
+          </button>
         ))}
       </div>
 
-      <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:14}}>
-        {shown.map(t => (
-          <div key={t.id} className="card" style={{padding:0, display:'grid', gridTemplateColumns:'140px 1fr', overflow:'hidden', cursor:'pointer'}} onClick={()=>setRoute('matchDetail')}>
-            {t.poster ? (
-              <Poster src={t.poster} title={t.title} edition={t.edition} accent={t.accent} width="100%" height={148} radius={0}/>
-            ) : (
-              <div style={{background:`linear-gradient(155deg, ${t.accent}, ${t.accent}CC 50%, #000 130%)`, color:'#fff', padding:14, display:'flex', flexDirection:'column', justifyContent:'space-between', minHeight:148, position:'relative', overflow:'hidden'}}>
-                <div style={{position:'absolute', inset:0, opacity:.1, background:'repeating-linear-gradient(135deg, #fff 0 2px, transparent 2px 14px)'}}/>
-                <div style={{fontSize:10, fontWeight:800, letterSpacing:'.12em', opacity:.85, position:'relative'}}>{t.level}</div>
-                <div style={{position:'relative'}}>
-                  <div style={{fontFamily:'var(--ff-display)', fontSize:18, fontWeight:900, lineHeight:1, letterSpacing:'-0.01em'}}>{t.title.split(' ')[0]}</div>
-                  <div style={{fontFamily:'var(--ff-display)', fontSize:18, fontWeight:900, lineHeight:1, letterSpacing:'-0.01em'}}>{t.title.split(' ').slice(1).join(' ') || t.edition}</div>
-                  <div style={{fontSize:10, opacity:.7, marginTop:4}}>{t.edition}</div>
+      {viewMode === 'list' && (
+        <div style={{display:'grid', gridTemplateColumns:'1fr', gap:10}}>
+          {shown.map(t => {
+            const dday = t.status === 'closing' ? 'D-2' : t.status === 'open' ? 'D-9' : t.status === 'live' ? 'LIVE' : '종료';
+            const ddayBg = t.status === 'closing' ? 'var(--accent)' : t.status === 'live' ? 'var(--ok)' : t.status === 'closed' ? 'var(--ink-dim)' : 'var(--cafe-blue)';
+            return (
+              <div key={t.id} className="card" style={{padding:'14px 16px', display:'grid', gridTemplateColumns:'56px 1fr auto', gap:14, alignItems:'center', cursor:'pointer'}} onClick={()=>setRoute('matchDetail')}>
+                <div style={{width:56, height:56, borderRadius:6, background:ddayBg, color:'#fff', display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontWeight:900, fontSize:16, letterSpacing:'-0.02em'}}>{dday}</div>
+                <div style={{display:'flex', flexDirection:'column', gap:4, minWidth:0}}>
+                  <div style={{display:'flex', gap:6, alignItems:'center', flexWrap:'wrap'}}>
+                    <span className={`badge ${statusBadge[t.status]}`} style={{fontSize:10}}>{statusLabel[t.status]}</span>
+                    <span style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>{t.level}</span>
+                  </div>
+                  <div style={{fontWeight:700, fontSize:15, letterSpacing:'-0.01em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{t.title} · {t.edition}</div>
+                  <div style={{fontSize:12, color:'var(--ink-mute)', display:'flex', gap:12, flexWrap:'wrap'}}>
+                    <span>{t.dates}</span>
+                    <span>{t.court}</span>
+                    <span>참가비 {t.fee}</span>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap:8, marginTop:2}}>
+                    <div style={{flex:1, maxWidth:200, height:4, background:'var(--bg-alt)', borderRadius:2, overflow:'hidden'}}>
+                      <div style={{width:`${(t.applied/t.capacity)*100}%`, height:'100%', background: t.status === 'closing' ? 'var(--accent)' : 'var(--cafe-blue)'}}/>
+                    </div>
+                    <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>참가팀 {t.applied}/{t.capacity}</div>
+                  </div>
                 </div>
-              </div>
-            )}
-            <div style={{padding:16, display:'flex', flexDirection:'column', gap:8}}>
-              <div style={{display:'flex', gap:6, alignItems:'center'}}>
-                <span className={`badge ${statusBadge[t.status]}`}>{statusLabel[t.status]}</span>
-                {t.tags.slice(1,3).map(tag => <span key={tag} className="badge badge--ghost" style={{fontSize:10}}>{tag}</span>)}
-              </div>
-              <div style={{fontWeight:700, fontSize:16, letterSpacing:'-0.01em'}}>{t.subtitle}</div>
-              <div style={{fontSize:13, color:'var(--ink-mute)', display:'grid', gridTemplateColumns:'auto 1fr', columnGap:10, rowGap:4}}>
-                <span>📅</span><span>{t.dates}</span>
-                <span>📍</span><span>{t.court}</span>
-                <span>💰</span><span>{t.prize} · 참가비 {t.fee}</span>
-              </div>
-              <div style={{display:'flex', alignItems:'center', gap:10, marginTop:'auto'}}>
-                <div style={{flex:1, height:6, background:'var(--bg-alt)', borderRadius:3, overflow:'hidden'}}>
-                  <div style={{width:`${(t.applied/t.capacity)*100}%`, height:'100%', background: t.status === 'closing' ? 'var(--accent)' : 'var(--cafe-blue)'}}/>
-                </div>
-                <div style={{fontSize:12, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>{t.applied}/{t.capacity}</div>
                 <button className="btn btn--sm btn--primary" onClick={(e)=>{e.stopPropagation(); setRoute('matchDetail');}}>
                   {t.status === 'open' || t.status === 'closing' ? '신청' : t.status === 'live' ? '라이브' : '상세'}
                 </button>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
+
+      {viewMode === 'calendar' && (
+        <div className="card" style={{padding:'48px 24px', textAlign:'center'}}>
+          <div style={{fontSize:32, marginBottom:8, color:'var(--ink-mute)'}}>📅</div>
+          <div style={{fontWeight:700, fontSize:15, marginBottom:4}}>월간 보기</div>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>이 화면은 후속 Phase 에 추가됩니다.</div>
+        </div>
+      )}
+
+      {viewMode === 'week' && (
+        <div className="card" style={{padding:'48px 24px', textAlign:'center'}}>
+          <div style={{fontSize:32, marginBottom:8, color:'var(--ink-mute)'}}>🗓️</div>
+          <div style={{fontWeight:700, fontSize:15, marginBottom:4}}>주간 보기</div>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>이 화면은 후속 Phase 에 추가됩니다.</div>
+        </div>
+      )}
 
       </>)}
     </div>
@@ -369,7 +412,7 @@ function MatchDetail({ setRoute }) {
             <div className="card" style={{padding:'24px 26px'}}>
               <h2 style={{margin:'0 0 12px', fontSize:20, fontWeight:700}}>대회 개요</h2>
               <p style={{color:'var(--ink-soft)', margin:'0 0 16px', lineHeight:1.7}}>
-                3x3 농구의 정수를 겨루는 오픈 챔피언십. 더블 엘리미네이션 방식으로 16강부터 결승까지 이틀간 진행됩니다.
+                서울 3x3 농구의 정수를 겨루는 오픈 챔피언십. 더블 엘리미네이션 방식으로 16강부터 결승까지 이틀간 진행됩니다.
                 OPEN 레벨이므로 참가 자격 제한 없이, 팀 단위로 등록한 누구나 참가 가능합니다.
               </p>
               <div style={{display:'grid', gridTemplateColumns:'140px 1fr', rowGap:10, columnGap:16, fontSize:14, padding:'14px 16px', background:'var(--bg-alt)', borderRadius:'var(--radius-chip)'}}>
