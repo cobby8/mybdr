@@ -20,7 +20,7 @@
 ### 적용 정책 (CLAUDE.md / 디자인 13 룰 / 운영→시안 동기화 룰 5/7)
 1. **AppNav frozen 7 룰** (03) — 본 작업은 헤더 영역 X (영향 0)
 2. **디자인 토큰 룰** (10) — `var(--*)` 토큰만 / 핑크/살몬/코랄 ❌ / lucide-react ❌ / pill 9999px ❌ / Material Symbols Outlined ✅
-3. **빌드 에러 회피** (5/9 박제) — `Dev/.../*.md` 파일에 `bg-[var(--*)]` 텍스트 금지 → 본 문서는 placeholder `--TOKEN` 사용
+3. **빌드 에러 회피** (5/9 박제) — `Dev/.../*.md` 파일에 `bg-[var(--ASTERISK)]` 텍스트 금지 → 본 문서는 placeholder `--TOKEN` 사용
 4. **카피 룰** (11) — 시안 우선 (placeholder 5단어 이내 / "예: " 시작 ❌)
 5. **회귀 0 우선** — Flutter `/api/v1/*` 변경 0 / DB schema 변경 0 / 운영 영향 최소화
 6. **운영 → 시안 동기화 룰 5/7** — 시각 패턴 변경 시 `BDR-current/` 같이 갱신
@@ -275,7 +275,7 @@
 - Phase 3G — 카드 디자인 일부 시각 변경 (TourneyMiniCard / TeamMiniCard 한정 — RecommendedGames / RecommendedVideos 카드 보존)
 
 ### 빌드 에러 회피 룰 (5/9 박제)
-- ✅ 본 문서에서 `bg-[var(--*)]` 텍스트 사용 0 — placeholder `--TOKEN` 사용
+- ✅ 본 문서에서 `bg-[var(--ASTERISK)]` 텍스트 사용 0 — placeholder `--TOKEN` 사용
 - 코드 작성 시 `style={{ background: "var(--accent)" }}` 패턴 사용 (Tailwind arbitrary value 회피)
 
 ---
