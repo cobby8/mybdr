@@ -118,12 +118,12 @@ function Home({ setRoute, setActiveBoard }) {
 
       {/* =================================================
           RecommendedRail #2.5 — BDR 추천 영상 (NBA 2K 스타일) ⭐ 5/9 부활
-          운영 RecommendedVideos 컴포넌트가 자체 "HIGHLIGHTS" 헤더 보유 →
-          시안에서는 RecommendedRail eyebrow="HIGHLIGHTS · YOUTUBE" 으로 매핑.
+          운영 RecommendedVideos 컴포넌트가 자체 "WATCH NOW" 헤더 보유 (5/9 변경) →
+          시안에서는 RecommendedRail eyebrow="WATCH NOW · YOUTUBE" 으로 매핑.
           ================================================= */}
       <RecommendedRail
         title="BDR 추천 영상"
-        eyebrow="HIGHLIGHTS · YOUTUBE"
+        eyebrow="WATCH NOW · YOUTUBE"
         more={() => window.open('https://www.youtube.com/@BDRBASKET', '_blank')}
       >
         {RECOMMENDED_VIDEOS.map(v => (

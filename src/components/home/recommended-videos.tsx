@@ -4,7 +4,7 @@
  * RecommendedVideos — BDR 추천 영상 섹션 (NBA 2K 스타일)
  *
  * 2K 스타일 적용:
- * - 인라인 2K 헤더 "HIGHLIGHTS" (font-black uppercase)
+ * - 인라인 2K 헤더 "WATCH NOW" (font-black uppercase) — 5/9 사용자 변경 (HIGHLIGHTS → WATCH NOW)
  * - 카드에 hover:shadow-glow-primary + hover:border-primary 효과
  * - LIVE 뱃지에 rounded-sm 적용
  * - 제목 font-extrabold uppercase
@@ -88,7 +88,7 @@ export function RecommendedVideos() {
       {/* 2K 스타일 인라인 헤더: font-black uppercase (다른 홈 섹션과 통일) */}
       <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
-          HIGHLIGHTS
+          WATCH NOW
         </h2>
         <Link
           href="https://www.youtube.com/@BDRBASKET"
