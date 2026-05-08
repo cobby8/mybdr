@@ -9,19 +9,20 @@ export const metadata: Metadata = {
 /* ============================================================
  * 홈페이지 — BDR v2 디자인 적용 (Phase 1)
  *
- * 레이아웃 (v2 Home.jsx 시안 기준 — 시안 #1 #3 정합 / 5/9 P0 부활 후 7섹션):
+ * 레이아웃 (v2 Home.jsx 시안 기준 — 시안 #1 #3 정합 / 5/9 StatsStrip 최하단 이동 후 7섹션):
  * 1. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
  *    └ prefetchHeroSlides()가 데이터 0건이어도 정적 fallback 1개 보장
  * 2. MySummaryHero — 개인화 hero (4 카드 슬라이드)        ⭐ 5/9 P0 부활
  *    └ /api/web/profile + /api/web/profile/stats (비로그인=EmptyCard CTA)
- * 3. StatsStrip — 4열 통계 (전체회원/지금접속/누적경기/활동팀)
- * 4. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀)  ⭐ 5/9 P0 부활
+ * 3. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀)  ⭐ 5/9 P0 부활
  *    └ /api/web/recommended-games (비로그인=일반 "추천 경기" 제목)
- * 5. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  (5/9 1차 부활)
- * 6. 2컬럼 grid
+ * 4. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  (5/9 1차 부활)
+ * 5. 2컬럼 grid
  *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → HotPostRow
  *    - CardPanel "열린 대회"   : prefetchOpenTournaments → TournamentRow
- * 7. "방금 올라온 글" 섹션 : prefetchCommunity 상위 10건 → BoardRow
+ * 6. "방금 올라온 글" 섹션 : prefetchCommunity 상위 10건 → BoardRow
+ * 7. StatsStrip — 4열 통계 (전체회원/지금접속/누적경기/활동팀) ⭐ 5/9 최하단 이동
+ *    └ 시안 CommunityPulse(사이드바) → 모바일 stack 시 본문 아래 패턴 매핑
  *
  * 5/9 P0 부활 사유: BDR v2 Phase 1 (2026-04-24 d6bc22c) 일괄 제거 후
  * 시안에 있는 핵심 매치 매칭 가치 (개인화 + 추천 경기) 가 운영에서 빠진 상태.
@@ -176,18 +177,7 @@ export default async function HomePage() {
         <MySummaryHero />
       </section>
 
-      {/* 3. Stats Strip — 통계 4열
-       * 지금 접속자 수는 DB에 실시간 카운트가 없어 placeholder "-" 표시 */}
-      <StatsStrip
-        items={[
-          { label: "전체 회원", value: statsData?.user_count ?? 0 },
-          { label: "지금 접속", value: "-" },
-          { label: "누적 경기", value: statsData?.match_count ?? 0 },
-          { label: "활동 팀", value: statsData?.team_count ?? 0 },
-        ]}
-      />
-
-      {/* 4. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀) ⭐ 5/9 P0 부활
+      {/* 3. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀) ⭐ 5/9 P0 부활
        * 컴포넌트 자체 TossSectionHeader ("추천 경기" / 비로그인=일반) 보유 →
        * CardPanel 래퍼 없이 직접 렌더 (RecommendedVideos 패턴 동일).
        * /api/web/recommended-games 자체 패칭 → SSR prefetch 무관.
@@ -196,7 +186,7 @@ export default async function HomePage() {
         <RecommendedGames />
       </section>
 
-      {/* 5. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) (5/9 1차 부활)
+      {/* 4. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) (5/9 1차 부활)
        * 컴포넌트 자체 "HIGHLIGHTS" 헤더 보유 → CardPanel 래퍼 없이 직접 렌더.
        * useSWR 클라이언트 패칭이라 server component prefetch 영향 0.
        * marginTop:24 으로 StatsStrip 과 BDR v2 다른 섹션과 동일 간격. */}
@@ -204,7 +194,7 @@ export default async function HomePage() {
         <RecommendedVideos />
       </section>
 
-      {/* 6. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
+      {/* 5. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 공지·인기글 패널 — HotPostRow 방식 (시안 3열 grid 간략 리스트)
          * v2 Home.jsx L44~53 HOT_POSTS 구조: 56px 배지 / 1fr 제목 / auto 조회수.
@@ -298,7 +288,7 @@ export default async function HomePage() {
         </CardPanel>
       </div>
 
-      {/* 7. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
+      {/* 6. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
       <section style={{ marginTop: 24 }}>
         {/* 섹션 헤더 — CardPanel과 다른 자유 형태 (시안 재현) */}
         <div
@@ -360,6 +350,22 @@ export default async function HomePage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* 7. StatsStrip — 통계 4열 (시안 CommunityPulse 사이드바 → 모바일 최하단 매핑)
+       * 5/9 위치 변경: HeroCarousel 직후 → page 최하단.
+       * 이유: 시안 Home.jsx 의 CommunityPulse(line 176)가 우측 사이드바 안에 있고
+       *       모바일에서 home__split { 1열 stack } 으로 본문 아래로 떨어지는 패턴 매핑.
+       * 지금 접속자 수는 DB에 실시간 카운트가 없어 placeholder "-" 표시 */}
+      <section style={{ marginTop: 24 }}>
+        <StatsStrip
+          items={[
+            { label: "전체 회원", value: statsData?.user_count ?? 0 },
+            { label: "지금 접속", value: "-" },
+            { label: "누적 경기", value: statsData?.match_count ?? 0 },
+            { label: "활동 팀", value: statsData?.team_count ?? 0 },
+          ]}
+        />
       </section>
     </div>
   );
