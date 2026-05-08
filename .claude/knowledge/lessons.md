@@ -2,6 +2,23 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-08] BDR-current sync 시 운영 → 시안 역박제 갭 4건 발견 — 시안 zip 도착 시점에 따른 도메인 변경 누락
+- **분류**: lesson/design-sync (CLAUDE.md §🔄 운영 → 시안 동기화 룰 위반)
+- **발견자**: pm (BDR-current sync v2.4 spot check)
+- **상황**: 5/8 사용자 BDR v2 zip 도착 → BDR-current sync 진행. 시안 v2.4 README = "Phase A.6 운영 정합 작업" 으로 5/3~5/7 운영 변경 일부 (drawer fix, FilterChipBar, BoardHeader) 반영. 그러나 도메인 변경 (jersey 가입 폼 / member-pending-badge / MyPage 다중 팀 / PasswordInput) 4건 미반영.
+- **갭 4건**:
+  1. **5/4 PasswordInput 통합** — Login.jsx `<input type="password">` 단순. 보기 토글 / autocomplete 미반영
+  2. **5/5 jersey 가입 폼** — TeamCreate.jsx 에 jersey 입력 0건. 가입 폼 + 자동 sync 미반영
+  3. **5/6 마이페이지 소속 팀 다중 row** — MyPage.jsx 단일 팀 카드 (W/L). 다중 row + 활동 관리 + 팀페이지 → 미반영
+  4. **5/6 좌하단 신청 중 뱃지 4종** — TeamManage / Team.jsx 에 jersey/dormant/withdraw/transfer 키워드 0건
+- **원인**: 시안 zip 작업이 운영 src/ commit 과 병렬로 진행 (Phase A.6 시안 작업 자체는 5/8 → 5/8 운영 commit 동시). 시안 빌드 시 5/4~5/8 도메인 변경 commit 의 시각 패턴이 BDR-current 옛 baseline (5/1 v2.3) 위에서 작업되어 누락.
+- **재발 방지**:
+  1. 새 zip 도착 시 README "베이스 vX.Y" + "변경 범위" 우선 확인 — 어떤 5/X commit 까지 반영됐는지 명시 요청
+  2. spot check 매트릭스 작성: 운영 src/ UI commit list (BDR-current 옛 baseline 이후) vs 시안 v?.? 영역 맵핑
+  3. 갭 발견 시 (b) 운영 → 시안 역박제 후속 큐 즉시 등록 (lessons.md 박제 + scratchpad 후속 큐)
+- **현재 큐**: 시안 4 파일 (MyPage / TeamManage / TeamCreate / Login) 역박제 — scratchpad 3순위
+- **사용자 결정**: (c) 옵션 후속 큐로 등록 — 본 작업 = zip 카피 본질 보존 / 역박제는 별도 세션
+
 ### [2026-05-05] 토큰 비효율 5건 회고 — jersey 도메인 turn 분석
 - **분류**: lesson/efficiency (사용자 메타 질문 — "토큰 효율 사용 방법")
 - **발견자**: pm + 사용자

@@ -28,19 +28,19 @@ const DEFAULT_ACTIONS: ActionItem[] = [
     label: "체크인",
     icon: "location_on",
     href: "/courts",
-    bgColor: "var(--color-primary)",
+    bgColor: "var(--accent)",
   },
   {
     label: "경기 찾기",
     icon: "sports_basketball",
     href: "/games",
-    bgColor: "var(--color-info)",
+    bgColor: "var(--info)",
   },
   {
     label: "픽업게임",
     icon: "bolt",
     href: "/courts?tab=pickup",
-    bgColor: "var(--color-navy, #1B3C87)",
+    bgColor: "var(--cafe-blue)",
   },
 ];
 
@@ -103,7 +103,7 @@ function buildPersonalizedActions(data: DashboardData): ActionItem[] {
       label: `다음 경기 ${dday}`,
       icon: "sports_basketball",
       href: `/games/${data.nextGame.uuid}`,
-      bgColor: "var(--color-info)",
+      bgColor: "var(--info)",
     });
   }
 
@@ -116,21 +116,21 @@ function buildPersonalizedActions(data: DashboardData): ActionItem[] {
       label: `${court.name} 체크인`,
       icon: "location_on",
       href: `/courts/${court.id}`,
-      bgColor: "var(--color-primary)",
+      bgColor: "var(--accent)",
     });
   } else if (dominantType === "pickup") {
     actions.push({
       label: `픽업 ${data.activityProfile.pickupCount}회`,
       icon: "bolt",
       href: "/courts?tab=pickup",
-      bgColor: "var(--color-navy, #1B3C87)",
+      bgColor: "var(--cafe-blue)",
     });
   } else if (dominantType === "game") {
     actions.push({
       label: "경기 찾기",
       icon: "sports_basketball",
       href: "/games",
-      bgColor: "var(--color-info)",
+      bgColor: "var(--info)",
     });
   }
 
@@ -140,7 +140,7 @@ function buildPersonalizedActions(data: DashboardData): ActionItem[] {
       label: data.activeTournament.name,
       icon: "emoji_events",
       href: `/tournaments/${data.activeTournament.id}`,
-      bgColor: "var(--color-warning, #F59E0B)",
+      bgColor: "var(--warn)",
     });
   }
 

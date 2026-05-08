@@ -2,9 +2,7 @@
 
 function GamesList({ setRoute }) {
   const [tab, setTab] = React.useState('all'); // all | pickup | guest | scrimmage
-  const [filterOpen, setFilterOpen] = React.useState(false);
-  const [activeFilters, setActiveFilters] = React.useState([]);
-  const kindLabel = { pickup: '픽업', guest: '게스트', scrimmage: '연습경기' };
+  const kindLabel = { pickup: '픽업', guest: '게스트', scrimmage: '연습' };
   const kindColor = { pickup: 'var(--cafe-blue)', guest: 'var(--bdr-red)', scrimmage: 'var(--ok)' };
 
   const shown = GAMES.filter(g => tab === 'all' ? true : g.kind === tab);
@@ -15,80 +13,51 @@ function GamesList({ setRoute }) {
     scrimmage: GAMES.filter(g => g.kind === 'scrimmage').length,
   };
 
-  const TABS = [['all','전체'],['pickup','픽업'],['guest','게스트 모집'],['scrimmage','연습경기']];
-  const FILTER_CHIPS = ['오늘','이번주','주말','서울','경기','무료','초보환영'];
-
-  function toggleFilter(s) {
-    setActiveFilters(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
-  }
-
   return (
-    <div className="page games-page">
-      {/* Header — title row + compact "만들기" on the right (mobile + PC same) */}
-      <div className="games-header">
-        <div className="games-header__title">
+    <div className="page">
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16, gap:16, flexWrap:'wrap'}}>
+        <div>
           <div className="eyebrow">경기 · GAMES</div>
-          <h1 className="games-header__h1">픽업 · 게스트 모집</h1>
-          <div className="games-header__sub">같이 뛸 사람을 찾는 {GAMES.length}건의 모집이 열려 있습니다</div>
+          <h1 style={{margin:'6px 0 4px', fontSize:28, fontWeight:800, letterSpacing:'-0.015em'}}>픽업 · 게스트 모집</h1>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>같이 뛸 사람을 찾는 {GAMES.length}건의 모집이 열려 있습니다</div>
         </div>
-        <button className="btn btn--primary games-create-btn">
-          <Icon.plus/> <span>만들기</span>
-        </button>
+        <div style={{display:'flex', alignItems:'center', gap:8}}>
+          <button className="btn btn--sm" aria-label="필터" title="필터" style={{padding:'8px 10px'}}><Icon.filter/></button>
+          <button className="btn btn--primary"><Icon.plus/> 만들기</button>
+        </div>
       </div>
 
-      {/* Toolbar — segmented tabs + filter icon (no horizontal scroll) */}
-      <div className="games-toolbar">
-        <div className="games-segmented" role="tablist">
-          {TABS.map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={tab===k}
-              onClick={()=>setTab(k)}
-              className={`games-segmented__btn ${tab===k ? 'is-active' : ''}`}>
-              <span className="games-segmented__label">{l}</span>
-              <span className="games-segmented__count">{counts[k]}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          className={`games-filter-btn ${filterOpen ? 'is-open' : ''} ${activeFilters.length ? 'has-active' : ''}`}
-          onClick={()=>setFilterOpen(o=>!o)}
-          aria-label="필터" title="필터">
-          <Icon.filter/>
-          {activeFilters.length > 0 && <span className="games-filter-btn__dot">{activeFilters.length}</span>}
-        </button>
+      {/* Kind tabs */}
+      <div style={{display:'flex', gap:4, marginBottom:16, borderBottom:'1px solid var(--border)'}}>
+        {[['all','전체'],['pickup','픽업'],['guest','게스트'],['scrimmage','연습']].map(([k, l]) => (
+          <button key={k} onClick={()=>setTab(k)}
+            style={{
+              padding:'10px 16px', background:'transparent', border:0, cursor:'pointer',
+              borderBottom: tab===k ? '3px solid var(--cafe-blue)' : '3px solid transparent',
+              color: tab===k ? 'var(--ink)' : 'var(--ink-mute)',
+              fontWeight: tab===k ? 700 : 500, fontSize:14, marginBottom:-1,
+            }}>
+            {l} <span style={{fontFamily:'var(--ff-mono)', fontSize:11, color:'var(--ink-dim)', marginLeft:4}}>{counts[k]}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Filter chips — collapsible */}
-      {filterOpen && (
-        <div className="games-filter-chips">
-          {FILTER_CHIPS.map(s => {
-            const on = activeFilters.includes(s);
-            return (
-              <button key={s}
-                className={`btn btn--sm ${on ? 'btn--primary' : ''}`}
-                onClick={()=>toggleFilter(s)}>
-                {s}
-              </button>
-            );
-          })}
-          {activeFilters.length > 0 && (
-            <button className="btn btn--sm games-filter-clear" onClick={()=>setActiveFilters([])}>전체 해제</button>
-          )}
-        </div>
-      )}
+      {/* Phase A.6 §1 — 운영 쬝 7개 제거, 필터 우측 아이콘으로 이동 */}
 
       {/* Cards */}
-      <div className="games-grid">
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(320px, 1fr))', gap:14}}>
         {shown.map(g => {
           const pct = (g.applied / g.spots) * 100;
           const isClosing = g.status === 'closing';
           return (
             <div key={g.id} className="card" style={{padding:0, overflow:'hidden', cursor:'pointer', display:'flex', flexDirection:'column'}} onClick={()=>setRoute('gameDetail')}>
+              {/* kind stripe */}
               <div style={{height:4, background: kindColor[g.kind]}}/>
               <div style={{padding:'16px 18px 12px'}}>
                 <div style={{display:'flex', alignItems:'center', gap:6, marginBottom:8, flexWrap:'wrap'}}>
                   <span className="badge" style={{background: kindColor[g.kind], color:'#fff', borderColor: kindColor[g.kind]}}>{kindLabel[g.kind]}</span>
                   {isClosing && <span className="badge badge--red">마감임박</span>}
-                  <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)', marginLeft:'auto'}}>{g.area}</span>
+                  <span style={{fontSize:11, fontFamily:'var(--ff-mono)', color:'var(--ink-dim)', marginLeft:'auto', whiteSpace:'nowrap'}}>{g.area}</span>
                 </div>
                 <div style={{fontWeight:700, fontSize:15, lineHeight:1.4, letterSpacing:'-0.005em', marginBottom:10, color:'var(--ink)'}}>
                   {g.title}
@@ -101,7 +70,7 @@ function GamesList({ setRoute }) {
                 </div>
                 <div style={{display:'flex', gap:4, flexWrap:'wrap', marginBottom:10}}>
                   {g.tags.map(t => (
-                    <span key={t} style={{fontSize:11, padding:'2px 7px', color:'var(--ink-mute)', border:'1px solid var(--border)', borderRadius:'var(--radius-chip)'}}>{t}</span>
+                    <span key={t} style={{fontSize:11, padding:'2px 7px', color:'var(--ink-mute)', border:'1px solid var(--border)', borderRadius:'var(--radius-chip)', whiteSpace:'nowrap'}}>{t}</span>
                   ))}
                 </div>
               </div>

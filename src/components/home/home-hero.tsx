@@ -99,11 +99,11 @@ export function HomeHero() {
         className="p-8 relative overflow-hidden rounded-md shadow-glow-accent group"
         style={{
           background:
-            "linear-gradient(135deg, var(--color-info) 0%, var(--color-accent) 80%, black 100%)",
+            "linear-gradient(135deg, var(--info) 0%, var(--accent) 80%, black 100%)",
         }}
       >
         {/* 2K 스타일 투명 워터마크 배경 텍스트 */}
-        <div className="watermark-text z-0 group-hover:scale-105 transition-transform duration-700 opacity-20 text-[var(--color-text-on-primary)]">
+        <div className="watermark-text z-0 group-hover:scale-105 transition-transform duration-700 opacity-20 text-[var(--ink-on-brand)]">
           2K26
         </div>
 
@@ -122,7 +122,7 @@ export function HomeHero() {
           {/* 시작하기 버튼 (2K 버튼 스타일) */}
           <Link
             href="/signup"
-            className="inline-block rounded-sm bg-[var(--color-card)] text-[var(--color-text-primary)] px-8 py-3 text-sm font-black uppercase transition-all duration-300 hover:scale-[1.03] hover:bg-[var(--color-primary)] hover:text-white hover:shadow-glow-primary hover:tracking-wide active:scale-95"
+            className="inline-block rounded-sm bg-[var(--bg-card)] text-[var(--ink)] px-8 py-3 text-sm font-black uppercase transition-all duration-300 hover:scale-[1.03] hover:bg-[var(--accent)] hover:text-white hover:shadow-glow-primary hover:tracking-wide active:scale-95"
           >
             PLAY NOW
           </Link>

@@ -1,56 +1,89 @@
 # BDR 디자인 시스템 토큰
 
 > 모든 시안은 이 토큰을 사용합니다. 하드코딩 hex / 외부 색상 라이브러리 금지.
+>
+> **실측 동기화 2026-05-07** — 본 문서는 `src/app/globals.css` 의 실제 정의값과 일치시켜 박제. 차이 발생 시 globals.css 가 source of truth.
+
+---
+
+## 0. 듀얼 테마 구조 (2026-05-07 갱신)
+
+> **중요**: BDR 은 **라이트 = Modernized Daum Café feel** + **다크 = Refined Brutalism** 두 톤을 동시 운영.
+> 첫 페인트는 라이트 (`color-scheme: light`) 가 기본 — 다크는 `[data-theme="dark"]` 또는 `html.dark` 적용 시 활성화.
+> 토큰은 `:root` 에 brand/radii/spacing 공유 + `[data-theme="light"]` 와 `[data-theme="dark"]` 가 surface/ink/border 를 각자 정의.
+
+```css
+/* 첫 페인트 = 라이트 (다음 카페 톤) */
+:root:not([data-theme]) { color-scheme: light; }
+[data-theme="light"], html.light { color-scheme: light; }
+[data-theme="dark"],  html.dark  { color-scheme: dark;  }
+```
+
+라이트/다크가 다른 값을 갖는 토큰은 §1 표에서 두 컬럼으로 표기.
 
 ---
 
 ## 1. 색상 (CSS 변수)
 
-### 1-1. 브랜드
+### 1-1. 브랜드 (라이트/다크 공유 — `:root`)
 
 | 토큰 | 값 | 용도 |
 |------|-----|------|
-| `var(--accent)` | `#E31B23` (BDR Red) | 강조 / 1차 CTA / 활성 상태 |
-| `var(--accent-hover)` | `#FF3B3B` | accent 호버 |
-| `var(--accent-light)` | `rgba(227,27,35,0.15)` | accent 반투명 배경 |
-| `var(--cafe-blue)` | `#1B3C87` (BDR Navy) | 보조 / 2차 CTA / 브랜딩 |
+| `var(--bdr-red)` | `#E31B23` | BDR Red — 브랜드 원색 (raw) |
+| `var(--bdr-red-ink)` | `#B3141A` | Red 어두운 변형 (호버 / pressed) |
+| `var(--bdr-red-hot)` | `#FF2A33` | Red 밝은 변형 (LIVE / pulse) |
+| `var(--accent)` | `var(--bdr-red)` | 강조 / 1차 CTA / 활성 상태 (alias) |
+| `var(--accent-soft)` | 라이트 `#FDE8E9` / 다크 `#2A1214` | accent 반투명 배경 |
+| `var(--cafe-blue)` | 라이트 `#0F5FCC` / 다크 `#3B82F6` | utility bar / 링크 / 다음카페 톤 |
+| `var(--cafe-blue-deep)` | 라이트 `#0A4CA6` / 다크 `#1E3A8A` | hover / pressed |
+| `var(--cafe-blue-soft)` | 라이트 `#E8F1FC` / 다크 `#1A2338` | 정보 카드 배경 |
+| `var(--cafe-blue-hair)` | 라이트 `#C7DCF5` / 다크 `#23324F` | 1px 헤어라인 보더 |
 | `var(--info)` | `#0079B9` | 링크 / 정보성 뱃지 |
+| `var(--link)` | 라이트 `#0066CC` / 다크 `#6EA8FE` | 본문 링크 |
+| `var(--link-visited)` | 라이트 `#6544A6` / 다크 `#B79BFF` | 방문한 링크 |
+
+> ⚠️ **회귀 가드**: 기존 문서는 `var(--cafe-blue) = #1B3C87` (Navy) 로 정의했으나 실제 globals.css 는 다음카페 톤의 더 밝은 블루. 시안 박제 시 globals.css 값 사용.
 
 ### 1-2. 배경 / 표면
 
-| 토큰 | 다크 (기본) | 라이트 |
-|------|------------|--------|
-| `var(--bg)` | `#131313` | `#F8F8F8` |
-| `var(--bg-alt)` | `#1A1A1A` | `#F2F2F2` |
-| `var(--bg-card)` | `#2A2A2A` | `#FFFFFF` |
-| `var(--bg-elev)` | `#3A3A3A` | `#E8E8E8` |
-| `var(--bg-hover)` | `#333333` | `#EEEEEE` |
+| 토큰 | 라이트 | 다크 |
+|------|--------|------|
+| `var(--bg)` | `#F4F6FA` (블루 틴트 페이지) | `#0B0D10` |
+| `var(--bg-elev)` | `#FFFFFF` | `#13171C` |
+| `var(--bg-card)` | `#FFFFFF` | `#171C22` |
+| `var(--bg-alt)` | `#F8FAFD` | `#1B2128` |
+| `var(--bg-head)` | `#EEF2F7` | `#1D232B` | 테이블 헤더 / 섹션 헤딩 배경 |
+
+> **참고**: `--bg-hover` 는 globals.css 에 별도 정의 없음 — hover 시 `--bg-alt` 를 그대로 사용하거나 컴포넌트별 `--bg-elev` 로 한 단계 lift.
 
 ### 1-3. 텍스트 (잉크)
 
-| 토큰 | 다크 | 라이트 |
-|------|------|--------|
-| `var(--ink)` | `#E0E0E0` | `#131313` |
-| `var(--ink-soft)` | `#B0B0B0` | `#555555` |
-| `var(--ink-mute)` | `#888888` | `#888888` |
-| `var(--ink-dim)` | `#555555` | `#AAAAAA` |
-| `var(--on-accent)` | `#FFFFFF` | `#FFFFFF` |
+| 토큰 | 라이트 | 다크 |
+|------|--------|------|
+| `var(--ink)` | `#1A1E27` | `#F6F7F9` |
+| `var(--ink-soft)` | `#404755` | `#D7DDE6` |
+| `var(--ink-mute)` | `#6B7280` | `#9BA5B3` |
+| `var(--ink-dim)` | `#8C94A0` | `#6B7482` |
+| `var(--ink-on-brand)` | `#FFFFFF` | `#FFFFFF` |
 
 ### 1-4. 테두리
 
-| 토큰 | 다크 | 라이트 |
-|------|------|--------|
-| `var(--border)` | `rgba(255,255,255,0.08)` | `#D0D0D0` |
-| `var(--border-subtle)` | `rgba(255,255,255,0.04)` | `#E0E0E0` |
+| 토큰 | 라이트 | 다크 |
+|------|--------|------|
+| `var(--border)` | `#E3E7ED` | `#262D36` |
+| `var(--border-strong)` | `#D0D5DD` | `#3A4450` |
+| `var(--border-hard)` | `#B5BCC6` | `#FFFFFF` (브루탈 강조) |
 
 ### 1-5. 상태
 
 | 토큰 | 값 | 용도 |
 |------|-----|------|
-| `var(--ok)` | `#10B981` | 성공 / 인증완료 |
-| `var(--err)` | `#EF4444` | 에러 / 위험 |
-| `var(--warn)` | `#F59E0B` | 경고 |
-| `var(--err-light)` | `rgba(227,27,35,0.15)` | 에러 배경 |
+| `var(--ok)` | `#1CA05E` | 성공 / 인증완료 / 정상 (브랜드 톤 그린) |
+| `var(--warn)` | `#E8A33B` | 경고 |
+| `var(--danger)` | `#E24C4B` | 에러 / 위험 (Red 변형 — accent 와 분리) |
+| `var(--info)` | `#0079B9` | 정보 / 링크 |
+
+> ⚠️ **회귀 가드 (2026-05-07)**: 기존 문서의 `--err` / `--err-light` / `--warn = #F59E0B` 토큰은 globals.css 에 미정의. 실제 토큰은 `--ok / --warn / --danger / --info` 4종. 시안에서 hex fallback 사용 시 위 값 (예: `#1CA05E` `#E24C4B`) 만 허용.
 
 ---
 
@@ -84,34 +117,60 @@
 | 토큰 | 값 | 용도 |
 |------|-----|------|
 | `var(--ff-display)` | `'Archivo', 'Bebas Neue', 'Impact', 'Noto Sans KR', system-ui` | 영문 헤딩 / 큰 숫자 |
-| `var(--ff-body)` | `'Pretendard', 'Noto Sans KR', system-ui` | 한글 본문 전체 |
+| `var(--ff-body)` | `'Pretendard', 'Noto Sans KR', -apple-system, system-ui` | 한글 본문 전체 |
 | `var(--ff-mono)` | `'JetBrains Mono', 'IBM Plex Mono', ui-monospace` | 코드 / 통계 숫자 |
 
-### 3-2. 크기 체계
+> next/font/google 변수 (`--font-archivo`, `--font-jetbrains`) 는 `layout.tsx` 에서 `html` 변수로 주입 — `--ff-display` / `--ff-mono` 가 자동으로 호스팅된 폰트로 덮어씀.
 
-| 레벨 | 크기 | 굵기 | 폰트 |
-|------|------|------|------|
-| Display | 3.5rem (56px) | 800 | display |
-| Headline | 1.75rem (28px) | 700 | display 또는 body |
-| Title | 1.375rem (22px) | 700 | body |
-| Body | 1rem (16px) | 400 | body |
-| Caption | 0.875rem (14px) | 400 | body |
-| Label | 0.75rem (12px) | 500 | body |
+### 3-2. 크기 체계 (CSS 토큰 — 라이트/다크 별도)
 
-### 3-3. 큰글씨 모드
+> globals.css 는 듀얼 테마라 폰트 크기도 라이트/다크가 다르게 정의 (다크 = 큰 헤딩 = brutalism poster 톤). 토큰 사용 권장.
 
-`html.large-text` 클래스 추가 시 전체 폰트 120% 확대.
+| 토큰 | 라이트 | 다크 | 용도 |
+|------|--------|------|------|
+| `var(--fs-hero)` | `clamp(28px, 3.4vw, 44px)` | `clamp(40px, 5vw, 72px)` | 페이지 히어로 / display |
+| `var(--fs-h1)` | `28px` | `36px` | 페이지 타이틀 |
+| `var(--fs-h2)` | `22px` | `26px` | 섹션 헤딩 |
+| `var(--fs-h3)` | `17px` | `19px` | 카드 헤딩 |
+| `var(--fs-body)` | `14px` | `15px` | 본문 |
+| `var(--fs-small)` | `13px` | `13px` | 보조 텍스트 |
+| `var(--fs-micro)` | `11px` | `11px` | 라벨 / eyebrow |
+| `var(--lh-body)` | `1.6` | `1.55` | 본문 라인하이트 |
+
+### 3-3. 굵기 / 폰트 매핑 (관례)
+
+| 레벨 | 굵기 | 폰트 |
+|------|------|------|
+| Hero / Display | 700~800 | `--ff-display` |
+| H1 / H2 | 700 | `--ff-display` 또는 `--ff-body` |
+| H3 / Title | 600 | `--ff-body` |
+| Body | 400 | `--ff-body` |
+| Caption / Small | 400~500 | `--ff-body` |
+| Label / Micro | 500~600 | `--ff-body` |
+| 통계 / 숫자 | 600 | `--ff-mono` (`tnum` feature 활성화됨) |
+
+### 3-4. 큰글씨 모드
+
+`html.large-text` 클래스 추가 시 전체 폰트 120% 확대 (접근성).
 
 ---
 
 ## 4. 라운딩 (border-radius)
 
+### 4-0. 토큰 (실제 globals.css)
+
 | 토큰 | 값 | 용도 |
 |------|-----|------|
-| `var(--radius-pill)` | `0.25rem` (4px) | **버튼 표준** (pill 9999px 절대 금지) |
-| `var(--radius-card)` | `0.5rem` (8px) | 카드 표준 |
-| `var(--radius-card-lg)` | `0.75rem` (12px) | 큰 카드 / 모달 |
+| `var(--r-0)` | `0px` | 직각 (다크 brutalism 카드) |
+| `var(--r-1)` | `2px` | 미세 라운딩 (chip / 다크 mode chip) |
+| `var(--r-2)` | `4px` | **버튼 표준** (`var(--radius-pill)` alias 와 동일 의미) |
+| `var(--r-3)` | `6px` | 라이트 mode chip / 작은 카드 |
+| `var(--r-4)` | `8px` | 중간 카드 |
+| `var(--radius-card)` | 라이트 `10px` / 다크 `0px` | **카드 표준 — 라이트는 부드러움 / 다크는 brutalism 직각** |
+| `var(--radius-chip)` | 라이트 `6px` / 다크 `2px` | chip / pill / 필터 칩 |
 | `50%` | 별도 | **아바타 / dot / 정사각형 원형 뱃지** (9999px 대신 50% 사용) |
+
+> ⚠️ **중요 — 다크 brutalism 룰**: 다크 모드에서 카드는 라운딩 0px (직각). 시안에서 `border-radius: var(--radius-card)` 사용 시 자동으로 라이트 10px / 다크 0px 적용. 카드 박스에 하드코딩 8px 금지.
 
 ### 4-1. pill 9999px 룰 명확화 (2026-05-01)
 
@@ -130,12 +189,20 @@
 
 ---
 
-## 5. 그림자
+## 5. 그림자 (4단계 — 듀얼 톤)
 
-| 토큰 | 다크 | 라이트 |
-|------|------|--------|
-| `var(--sh-card)` | `0 2px 8px rgba(0,0,0,0.2)` | `0 2px 8px rgba(0,0,0,0.06)` |
-| `var(--sh-lift)` | `0 4px 16px rgba(0,0,0,0.3)` | `0 4px 16px rgba(0,0,0,0.1)` |
+> 라이트 = 부드러운 blur 그림자 / 다크 = brutalism hard offset (`Npx Npx 0 0`).
+
+| 토큰 | 라이트 | 다크 |
+|------|--------|------|
+| `var(--sh-xs)` | `0 1px 2px rgba(15,23,42,.04)` | `2px 2px 0 0 rgba(0,0,0,.6)` |
+| `var(--sh-sm)` | `0 2px 6px rgba(15,23,42,.06)` | `4px 4px 0 0 rgba(0,0,0,.6)` |
+| `var(--sh-md)` | `0 6px 18px rgba(15,23,42,.08)` | `6px 6px 0 0 rgba(0,0,0,.7)` |
+| `var(--sh-lg)` | `0 12px 40px rgba(15,23,42,.10)` | `10px 10px 0 0 rgba(0,0,0,.75)` |
+
+> **brutalism 호버**: 다크 mode 버튼/카드 호버 시 `transform: translate(-2px, -2px)` + 더 큰 sh 토큰 적용 → 종이가 들리는 느낌.
+
+> ⚠️ **회귀 가드 (2026-05-07)**: 기존 문서의 `--sh-card` / `--sh-lift` 토큰은 globals.css 에 미정의 — 시안에서 사용 X. `--sh-xs/sm/md/lg` 4단계만 사용.
 
 ---
 
@@ -299,8 +366,88 @@
 
 ---
 
-## 9. 출처
+## 9. 폐기 토큰 (시안 박제 시 사용 금지)
+
+> globals.css 주석 (`L9 "기존 --color-* 변수는 전면 폐기"`) 따라 다음 토큰은 시안 박제 시 사용 X.
+> 잔존 페이지 (admin / referee / tournament-admin 약 320 파일) 는 마이그레이션 대상.
+
+```
+❌ var(--color-primary)
+❌ var(--color-accent)
+❌ var(--color-card)
+❌ var(--color-surface)
+❌ var(--color-surface-bright)
+❌ var(--color-border)
+❌ var(--color-text-muted)
+❌ var(--color-text-secondary)
+❌ var(--color-on-accent)
+❌ var(--color-success / --color-warning / --color-error)
+```
+
+→ 마이그레이션 매핑:
+
+| 폐기 토큰 | 신규 토큰 |
+|----------|----------|
+| `--color-primary` | `--accent` |
+| `--color-accent` | `--accent` |
+| `--color-card` | `--bg-card` |
+| `--color-surface` | `--bg-elev` |
+| `--color-surface-bright` | `--bg-alt` |
+| `--color-border` | `--border` |
+| `--color-text-muted` | `--ink-mute` |
+| `--color-text-secondary` | `--ink-soft` |
+| `--color-on-accent` | `--ink-on-brand` |
+| `--color-success` | `--ok` |
+| `--color-warning` | `--warn` |
+| `--color-error` | `--danger` |
+
+---
+
+## 10. 신규 컴포넌트 표준 (2026-04~05 추가, 박제 대상)
+
+> 사용자 직접 수정으로 박제된 신규 패턴들. 향후 시안 작업 시 다음 패턴을 base 로 삼음.
+
+### 10-1. NavBadge (다목적 뱃지)
+- 경로: `src/components/bdr-v2/nav-badge.tsx` + `nav-badge.css`
+- 변형: `variant="dot"` (빨간 점) / `"count"` (숫자) / `"new"` (NEW 텍스트) / `"live"` (LIVE 펄스)
+- 사용처: AppNav 햄버거 (R3 강조 — 신규 컨텐츠 있을 때 dot), 메인 탭 (경기 / 커뮤니티 NEW)
+
+### 10-2. PasswordInput (통합 컴포넌트)
+- 경로: `src/components/bdr-v2/password-input.tsx`
+- 5 파일 일괄 적용 (login / signup / 비밀번호 재설정 / 회원 인증 / 매치 코드 입력)
+- 보기 토글 + autocomplete 정밀 제어 + iOS 16px 자동 줌 차단
+
+### 10-3. ForceActionModal (jersey / withdraw 강제 액션 모달)
+- 경로: `src/app/(web)/teams/[id]/manage/_components/force-action-modal.tsx`
+- 기존 `window.prompt / alert / confirm` 통합 → 표준 모달 + toast 패턴
+- 두 모드: jersey 변경 / 회원 탈퇴
+- 다른 강제 액션 모달 만들 때 본 컴포넌트 카피 후 mode prop 추가
+
+### 10-4. PageBackButton 제거 (메인 페이지 정책)
+- 메인 메뉴 9개 페이지 (홈/경기/대회/단체/팀/코트/랭킹/커뮤니티/더보기) 는 PageBackButton 사용 X
+- AppNav 가 이미 글로벌 네비 — 뒤로가기 중복
+- 상세 페이지 (`/games/[id]`, `/teams/[id]` 등) 는 PageBackButton 유지
+
+### 10-5. Hero 헤더 grid 1fr auto 패턴
+- 표준: `display: grid; grid-template-columns: 1fr auto;` + grid item `min-width: 0`
+- 적용: `/courts`, `/teams/[id]`, `/profile/_v2` 히어로 헤더
+- 좌측 = 제목/메타 (1fr 가변), 우측 = 액션 버튼 그룹 (auto)
+
+### 10-6. fade chevron 원형 배지 (가로 스크롤 칩 바)
+- 적용: `/courts`, `/teams` 칩 바 (지역/카테고리 필터)
+- 좌우 끝 fade gradient + 원형 chevron 배지로 추가 칩 표시
+- 표준 클래스: `.filter-chip-bar` (`src/components/bdr-v2/filter-chip-bar.tsx`)
+
+### 10-7. 본인 카드 dropdown (overflow visible 룰)
+- 본인 회원 카드 (`/profile`, `/teams/[id]/manage`) 의 ⋮ 메뉴
+- **dropdown 자르지 않으려면 부모 카드 `overflow: visible`** 필수 (hidden 금지)
+- 본인 표시 = 좌하단 신청 중 뱃지 (4종 신청 시각화 — 번호변경 / 휴면 / 탈퇴 / 이적)
+
+---
+
+## 11. 출처
 
 - `Dev/design/DESIGN.md` (영구 참조)
-- `Dev/design/BDR v2.2/tokens.css` (현재 시안 토큰)
-- `src/app/globals.css` (사이트 적용 룰)
+- `Dev/design/BDR-current/tokens.css` (활성 시안 토큰 — `_archive/BDR v2.X/` 직접 참조 ❌)
+- `src/app/globals.css` (사이트 적용 룰 — **source of truth**, 충돌 시 우선)
+- `src/components/bdr-v2/*.css` (컴포넌트별 CSS — nav-badge.css 등)

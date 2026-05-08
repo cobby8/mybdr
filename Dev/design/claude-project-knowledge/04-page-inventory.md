@@ -190,6 +190,79 @@ _site / [[...path]] / registration / results / schedule / teams
 
 ---
 
+## 5-A. 더보기 메뉴 5그룹 IA — Phase 19 슬림화 (2026-05-04 ~ 05-07)
+
+> 사용자 직접 정리 — 30 항목 → **15 항목** (50% 감축). 이유: 메인 페이지 하위로 통합 / 헤더 중복 / 가짜링크 제거.
+> Source of truth: `src/components/bdr-v2/more-groups.ts`
+
+| 그룹 | 이전 (v2.2 시안) | 현재 (운영) | 제거 사유 |
+|------|----------------|------------|----------|
+| **내 활동** | 7 | **3** | mygames(/games/my-games 직접) / messages(헤더 아이콘 중복) / achievements(/profile/achievements 직접) / communityNew(/community/new 직접) 제거. 잔존: 내 일정, 보관함, 스탯 분석 |
+| **경기·대회** | 3 | **2** | gameNew(/games/new = games 하위 + "만들기 버튼") 제거. 잔존: 라이브 중계, 연습경기 매칭 |
+| **등록·예약** | 4 | **0 (그룹 자체 제거)** | courtBooking, courtAdd, teamCreate, teamManage 모두 메인 페이지 하위 또는 중복. 그룹 통째 제거 |
+| **둘러보기** | 7 | **6** | searchResults(헤더 검색 + drawer 검색 + 본 메뉴 = 3중 중복) 제거. 잔존: 심판 센터 안내, 코치·트레이너, 리뷰, 수상 아카이브, 갤러리, 샵 |
+| **계정·도움** | 9 | **4** | mypage / editProfile / notificationSettings / passwordReset / onboardingV2 제거. 잔존: 안전·차단, 소개, 요금제, 도움말 |
+| **합계** | **30** | **15** | -50% |
+
+→ **회귀 가드**: 시안에서 위 제거 항목을 다시 추가하지 말 것. 메인 페이지 하위 진입 또는 헤더 직접 진입으로 대체.
+
+---
+
+## 5-B. BDR v2 디자인 시스템 마이그레이션 상태 (2026-05-07 실측)
+
+> `_v2` 폴더 적용 여부 + `--color-*` (폐기 토큰) 잔존 여부 = 마이그레이션 상태 indicator.
+
+### 5-B-1. _v2 폴더 적용 완료 (16 영역, A등급 핵심)
+
+```
+src/app/(web)/awards/_v2
+src/app/(web)/games/new/_v2
+src/app/(web)/games/[id]/_v2
+src/app/(web)/organizations/[slug]/_components_v2
+src/app/(web)/pricing/_v2
+src/app/(web)/profile/_v2
+src/app/(web)/profile/achievements/_v2
+src/app/(web)/profile/settings/_components_v2
+src/app/(web)/reviews/_v2
+src/app/(web)/saved/_v2
+src/app/(web)/team-invite/_v2
+src/app/(web)/teams/new/_v2
+src/app/(web)/teams/[id]/_components_v2
+src/app/(web)/tournaments/[id]/join/_v2
+src/app/(web)/users/[id]/_v2
+src/app/live/[id]/_v2
+```
+
+→ 위 영역은 BDR v2 토큰 (`--accent`, `--bg-card`, `--ink`, `--ink-mute` 등) 사용. 시안 박제 완료.
+
+### 5-B-2. 폐기 토큰 (`--color-*`) 잔존 — 329 파일 / 4 영역
+
+| 영역 | 파일 수 | 마이그레이션 우선순위 |
+|------|--------|---------------------|
+| `(web)/*` | 157 | **P1** — 사용자 직접 노출. _v2 미적용 페이지 + 메인 라우트 page.tsx |
+| `src/components/*` | 75 | **P1** — 글로벌 컴포넌트 (game-card, board-row 등) |
+| `(admin)/*` | 49 | P2 — E등급 자체 영역. 토큰 일치만 하면 OK |
+| `(referee)/*` | 31 | P2 — E등급 자체 영역 |
+| `live/*`, `_site/*` 외 | 17 | P3 |
+
+→ **P1 영역 마이그레이션** 시 `02-design-system-tokens.md §9` 의 폐기→신규 매핑 표 사용. 일괄 sed/grep replace 가능.
+
+### 5-B-3. _v2 미적용 (web) 페이지 — 시안 박제 후속 의뢰 후보
+
+다음 페이지는 사용자 영역이지만 `_v2` 폴더 미생성. legacy 마크업 + `--color-*` 잔존 가능성 큼:
+
+```
+/about /awards /coaches /community/* /courts/* /forgot-password /gallery
+/games (목록) /help /messages /notifications /onboarding/setup /organizations
+/privacy /profile/billing /profile/edit /profile/activity /reset-password
+/scrim /search /series/* /shop /stats /teams /tournaments (목록 페이지)
+/terms /verify
+```
+
+→ 이들 중 자주 사용되는 `/games`, `/teams`, `/tournaments`, `/community`, `/courts`, `/messages`, `/notifications`, `/profile/edit`, `/profile/settings` 가 P1 박제 의뢰 우선순위.
+
+---
+
 ## 6. 박제 작업 시 의사결정 트리
 
 ```

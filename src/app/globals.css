@@ -52,6 +52,12 @@
   --danger: #E24C4B;
   --info: #0079B9;
 
+  /* Tier — 등급 시각 (홈 my-summary-hero / 랭킹 등 사용) */
+  --tier-platinum: #E5E4E2;
+  --tier-gold:     #FFD700;
+  --tier-silver:   #C0C0C0;
+  --tier-bronze:   #CD7F32;
+
   /* Grid */
   --maxw: 1200px;
   --gutter: 24px;

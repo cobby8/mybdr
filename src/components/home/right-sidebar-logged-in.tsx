@@ -41,11 +41,11 @@ export interface PostData {
 // 프로필 페이지(profile-header.tsx)와 동일한 로직
 // DB에 별도 랭크 시스템이 없으므로 총 경기수로 임시 티어 부여
 function getTier(gamesPlayed: number): { label: string; color: string } {
-  if (gamesPlayed >= 200) return { label: "Diamond", color: "var(--color-primary)" };
-  if (gamesPlayed >= 100) return { label: "Platinum", color: "var(--color-tier-platinum)" };
-  if (gamesPlayed >= 50) return { label: "Gold", color: "var(--color-tier-gold)" };
-  if (gamesPlayed >= 20) return { label: "Silver", color: "var(--color-tier-silver)" };
-  return { label: "Bronze", color: "var(--color-tier-bronze)" };
+  if (gamesPlayed >= 200) return { label: "Diamond", color: "var(--accent)" };
+  if (gamesPlayed >= 100) return { label: "Platinum", color: "var(--tier-platinum)" };
+  if (gamesPlayed >= 50) return { label: "Gold", color: "var(--tier-gold)" };
+  if (gamesPlayed >= 20) return { label: "Silver", color: "var(--tier-silver)" };
+  return { label: "Bronze", color: "var(--tier-bronze)" };
 }
 
 /* ---------- Fallback 데이터 (API 실패 시 표시) ---------- */

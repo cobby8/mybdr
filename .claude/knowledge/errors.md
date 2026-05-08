@@ -2,6 +2,36 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-07] truncated commit 함정 — `.git/index.lock` 강제 제거 후 부분 staged 빌드 실패
+- **분류**: error/git (commit 무결성 / Vercel 빌드 실패)
+- **발견자**: pm + 사용자 ("배포 실패한 거 같은데 확인해봐")
+- **증상**: 로컬 `npm run build` EXIT=0 / Vercel 빌드 PostCSS Error (`Unknown word text-` / `Unclosed block`) → 1차 머지 후 운영 페이지 빌드 실패. 직전 commit 까지 모두 success, 본 commit 만 failure.
+- **본질**:
+  1. `.git/index.lock` 잔재 → `rm -f .git/index.lock` 강제 제거
+  2. 직후 `git commit` 실행 → 일부 staged 파일이 **부분만 stage된 상태**로 commit 됨 (Cowork 도구 또는 다른 git 프로세스가 add 진행 중이던 케이스)
+  3. 결과: HEAD 의 globals.css = ~2997 lines (잘림) / 워킹 트리 = 3101 lines (정상). 마지막 줄 `text-` / `font-size: 8p` 같이 토큰 미완성으로 끝남.
+  4. 로컬 build 는 워킹 트리 기준 → 통과. Vercel 은 commit (HEAD) 기준 → PostCSS 파싱 실패.
+- **진단 함정**:
+  1. ❌ 처음엔 PortOne SDK 설치 또는 환경변수 차이 의심 — drawer fix commit (`0809432`) 만 실패라 격리됨
+  2. ❌ "로컬 build 성공이니 Vercel 환경 문제" 가설 — 사실 commit 자체가 잘려있음
+  3. ✅ `vercel inspect dpl_X --logs` 직접 확인 → `CssSyntaxError` 정확한 라인 + 메시지 발견
+  4. ✅ `git show HEAD:file | wc -l` vs `wc -l file` 비교 → 길이 차이로 truncated 확정
+- **fix**: 워킹 트리 정상 파일을 `git add` + commit + push → Vercel 재빌드 성공 (108 → 95 lines / 2997 → 3101 lines 보강)
+- **재발 방지 룰**:
+  1. **`.git/index.lock` 강제 제거 직후 commit 금지** — 진행 중이던 git 프로세스가 부분 staged 만 남길 수 있음. 제거 후 `git status` + `git diff --cached` 로 staged 내용 확인 필수
+  2. **commit 전 staged 검증** — 큰 파일 (>1000 lines) 또는 중요 css/ts 파일은 `git diff --cached --stat` 로 변경량 확인. 100% 재작성은 의심
+  3. **로컬 build 통과 ≠ Vercel build 통과** — 로컬은 워킹 트리, Vercel 은 HEAD commit. 차이 가능. 의심 시 `git stash && npm run build` 로 commit 기준 빌드 재현
+  4. **commit 무결성 검증 명령**:
+     ```bash
+     # commit 된 파일 길이 vs 워킹 트리 길이
+     for f in $(git diff --cached --name-only); do
+       echo "$f: HEAD=$(git show HEAD:$f | wc -l) / WT=$(wc -l < $f)"
+     done
+     ```
+  5. **GitHub commit status 체크** — main push 후 `gh api repos/X/Y/commits/SHA/status --jq '.state'` 로 Vercel state 확인 (성공/실패 자동화 가능)
+- **참조 fix**: commit `168be48` (truncated css 복구 hot fix), `0809432` 후속 13분 내 운영 복구
+- **참조횟수**: 0
+
 ### [2026-05-07] 한글 IME composition 중 Enter → submit 함정 (한글 입력 끊김 / 빈 메시지 전송)
 - **분류**: error/ui (i18n / 한글 IME)
 - **발견자**: pm + 사용자 ("한글 입력이 자꾸 안되는 경우가 생긴다")

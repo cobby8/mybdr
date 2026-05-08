@@ -1,4 +1,4 @@
-/* global React */
+/* global React, PasswordInput */
 
 function Signup({ setRoute }) {
   const [step, setStep] = React.useState(1);
@@ -31,12 +31,12 @@ function Signup({ setRoute }) {
               </div>
               <div>
                 <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em'}}>비밀번호</label>
-                <input className="input" style={{marginTop:6}} type="password" defaultValue="••••••••••"/>
+                <PasswordInput defaultValue="••••••••••" autoComplete="new-password" style={{marginTop:6}}/>
                 <div style={{fontSize:11, color:'var(--ink-dim)', marginTop:4}}>8자 이상, 숫자·기호 1개 이상 포함</div>
               </div>
               <div>
                 <label style={{fontSize:12, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em'}}>비밀번호 확인</label>
-                <input className="input" style={{marginTop:6}} type="password" defaultValue="••••••••••"/>
+                <PasswordInput defaultValue="••••••••••" autoComplete="new-password" style={{marginTop:6}}/>
               </div>
               <label style={{display:'flex', alignItems:'center', gap:8, fontSize:13, marginTop:6}}>
                 <input type="checkbox" defaultChecked/>
