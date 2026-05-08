@@ -9,23 +9,29 @@ export const metadata: Metadata = {
 /* ============================================================
  * 홈페이지 — BDR v2 디자인 적용 (Phase 1)
  *
- * 레이아웃 (v2 Home.jsx 시안 기준):
+ * 레이아웃 (v2 Home.jsx 시안 기준 — 시안 #1 #3 정합 / 5/9 P0 부활 후 7섹션):
  * 1. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
  *    └ prefetchHeroSlides()가 데이터 0건이어도 정적 fallback 1개 보장
- * 2. StatsStrip — 4열 통계 (전체회원/지금접속/오늘의글/진행중대회)
- * 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  ⭐ 5/9 부활
- * 4. 2컬럼 grid
- *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → BoardRow
- *    - CardPanel "열린 대회"   : prefetchOpenTournaments → BoardRow
- * 5. CardPanel "방금 올라온 글" : prefetchCommunity 상위 10건 → BoardRow
+ * 2. MySummaryHero — 개인화 hero (4 카드 슬라이드)        ⭐ 5/9 P0 부활
+ *    └ /api/web/profile + /api/web/profile/stats (비로그인=EmptyCard CTA)
+ * 3. StatsStrip — 4열 통계 (전체회원/지금접속/누적경기/활동팀)
+ * 4. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀)  ⭐ 5/9 P0 부활
+ *    └ /api/web/recommended-games (비로그인=일반 "추천 경기" 제목)
+ * 5. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  (5/9 1차 부활)
+ * 6. 2컬럼 grid
+ *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → HotPostRow
+ *    - CardPanel "열린 대회"   : prefetchOpenTournaments → TournamentRow
+ * 7. "방금 올라온 글" 섹션 : prefetchCommunity 상위 10건 → BoardRow
  *
- * v2 전환 시 6종 섹션 일괄 제거됐으나 5/9 RecommendedVideos 만 부활.
- * (코드 자산 + API + Redis cache + cron warming 모두 정상 가동 중)
+ * 5/9 P0 부활 사유: BDR v2 Phase 1 (2026-04-24 d6bc22c) 일괄 제거 후
+ * 시안에 있는 핵심 매치 매칭 가치 (개인화 + 추천 경기) 가 운영에서 빠진 상태.
+ * 컴포넌트 + API 라우트 모두 살아있음 → page.tsx import 만 추가.
  * 나머지 components/home/* 파일은 미사용 상태로 보존 (삭제하지 않음).
  *
  * API/DB/route.ts 변경 없음. 서비스 레이어(home.ts)에 prefetchOpenTournaments
  * 추가만 있음. Promise.allSettled로 부분 실패 허용.
- * RecommendedVideos 는 "use client" + useSWR 자체 fetch → SSR prefetch 무관.
+ * 5/9 부활 3 컴포넌트 (MySummaryHero / RecommendedGames / RecommendedVideos)
+ * 모두 "use client" + useSWR 자체 fetch → SSR prefetch 영향 0.
  * ============================================================ */
 
 // 왜 PromoCard 제거: 단일 promo 영역을 4종 슬라이드 카로셀로 교체 (4단계).
@@ -43,6 +49,12 @@ import { ProfileCtaCard } from "@/components/home/profile-cta-card";
 // 2026-05-09 RecommendedVideos 부활: NBA 2K 스타일 헤더 ("HIGHLIGHTS") + useSWR
 // /api/web/youtube/recommend (Redis cache + cron warming) 자체 패칭 → server prefetch 무관.
 import { RecommendedVideos } from "@/components/home/recommended-videos";
+// 2026-05-09 P0 부활: BDR v2 Phase 1 (2026-04-24 d6bc22c) 에서 빠졌던 시안 핵심 컴포넌트 2종.
+// 둘 다 "use client" + useSWR 자체 패칭 → server prefetch 무관.
+// MySummaryHero: /api/web/profile + /api/web/profile/stats (비로그인 = EmptyCard CTA)
+// RecommendedGames: /api/web/recommended-games (비로그인 = userName null → "추천 경기" 일반 제목)
+import { MySummaryHero } from "@/components/home/my-summary-hero";
+import { RecommendedGames } from "@/components/home/recommended-games";
 import {
   prefetchStats,
   prefetchCommunity,
@@ -156,7 +168,15 @@ export default async function HomePage() {
        * 케이스(heroSlides=[])에 대비해 length>0 가드 추가. */}
       {heroSlides.length > 0 && <HeroCarousel slides={heroSlides} />}
 
-      {/* 2. Stats Strip — 통계 4열
+      {/* 2. MySummaryHero — 개인화 hero (4 카드 슬라이드) ⭐ 5/9 P0 부활
+       * HeroCarousel 직후 배치 — 사용자 개인화 흐름 (글로벌 hero → 내 hero).
+       * 컴포넌트 자체가 헤더 없이 카드 슬라이드만 렌더 → CardPanel 래퍼 없이 직접 렌더.
+       * 비로그인 사용자: 컴포넌트 내부 분기로 EmptyCard(CTA) 자동 노출. */}
+      <section style={{ marginTop: 24 }}>
+        <MySummaryHero />
+      </section>
+
+      {/* 3. Stats Strip — 통계 4열
        * 지금 접속자 수는 DB에 실시간 카운트가 없어 placeholder "-" 표시 */}
       <StatsStrip
         items={[
@@ -167,7 +187,16 @@ export default async function HomePage() {
         ]}
       />
 
-      {/* 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) ⭐ 5/9 부활
+      {/* 4. RecommendedGames — 추천/인기 경기 (가로 스크롤 캐러셀) ⭐ 5/9 P0 부활
+       * 컴포넌트 자체 TossSectionHeader ("추천 경기" / 비로그인=일반) 보유 →
+       * CardPanel 래퍼 없이 직접 렌더 (RecommendedVideos 패턴 동일).
+       * /api/web/recommended-games 자체 패칭 → SSR prefetch 무관.
+       * 비로그인: user_name null → 헤더 "추천 경기" 일반 제목 + fallback 카드 4개. */}
+      <section style={{ marginTop: 24 }}>
+        <RecommendedGames />
+      </section>
+
+      {/* 5. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) (5/9 1차 부활)
        * 컴포넌트 자체 "HIGHLIGHTS" 헤더 보유 → CardPanel 래퍼 없이 직접 렌더.
        * useSWR 클라이언트 패칭이라 server component prefetch 영향 0.
        * marginTop:24 으로 StatsStrip 과 BDR v2 다른 섹션과 동일 간격. */}
@@ -175,7 +204,7 @@ export default async function HomePage() {
         <RecommendedVideos />
       </section>
 
-      {/* 4. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
+      {/* 6. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 공지·인기글 패널 — HotPostRow 방식 (시안 3열 grid 간략 리스트)
          * v2 Home.jsx L44~53 HOT_POSTS 구조: 56px 배지 / 1fr 제목 / auto 조회수.
@@ -269,7 +298,7 @@ export default async function HomePage() {
         </CardPanel>
       </div>
 
-      {/* 4. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
+      {/* 7. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
       <section style={{ marginTop: 24 }}>
         {/* 섹션 헤더 — CardPanel과 다른 자유 형태 (시안 재현) */}
         <div
