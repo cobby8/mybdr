@@ -163,12 +163,12 @@ function GameCard({ game, photoUrl }: { game: RecommendedGame; photoUrl?: string
     <Link href={href} className="block shrink-0 w-[280px]">
       {/* 컴팩트 카드: 가로 배치, 네온 호버 효과 유지 */}
       <div
-        className="group rounded-md overflow-hidden bg-[var(--color-card)] transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-primary border border-transparent hover:border-[var(--color-primary)] flex flex-row relative h-[112px]"
+        className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] flex flex-row relative h-[112px]"
         style={{ boxShadow: "var(--shadow-card)" }}
       >
         {/* 좌측 썸네일 영역 (64x64 고정) */}
         <div
-          className={`relative w-16 h-[112px] shrink-0 flex items-center justify-center bg-cover bg-center ${photoUrl === undefined ? "animate-pulse bg-[var(--color-surface)]" : ""}`}
+          className={`relative w-16 h-[112px] shrink-0 flex items-center justify-center bg-cover bg-center ${photoUrl === undefined ? "animate-pulse bg-[var(--bg-elev)]" : ""}`}
           style={photoUrl
             ? { backgroundImage: `url(${photoUrl})` }
             : photoUrl === null ? { background: badge.gradient } : undefined
@@ -191,19 +191,19 @@ function GameCard({ game, photoUrl }: { game: RecommendedGame; photoUrl?: string
               {badge.label}
             </span>
             {game.match_reason.length > 0 && (
-              <span className="rounded-sm bg-white px-1.5 py-0.5 text-[9px] font-black text-[var(--color-primary)] leading-none">
+              <span className="rounded-sm bg-white px-1.5 py-0.5 text-[9px] font-black text-[var(--accent)] leading-none">
                 {game.match_reason[0]}
               </span>
             )}
           </div>
 
           {/* 2행: 제목 (1줄 말줄임) */}
-          <h4 className="text-sm font-extrabold text-[var(--color-text-primary)] truncate leading-tight tracking-tight uppercase group-hover:text-[var(--color-primary)] transition-colors">
+          <h4 className="text-sm font-extrabold text-[var(--ink)] truncate leading-tight tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
             {game.title ?? "GAME"}
           </h4>
 
           {/* 3행: 장소 + 시간 (한 줄로 · 구분) */}
-          <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate flex items-center gap-1">
+          <p className="text-[11px] text-[var(--ink-mute)] font-medium truncate flex items-center gap-1">
             {location && (
               <>
                 <span className="material-symbols-outlined text-[12px]">location_on</span>
@@ -222,8 +222,8 @@ function GameCard({ game, photoUrl }: { game: RecommendedGame; photoUrl?: string
           {/* 4행: 잔여석 (있을 때만) */}
           {spotsText && (
             <p className="flex items-center gap-1.5">
-              <span className="text-[9px] uppercase font-black tracking-wider text-[var(--color-text-muted)]">SPOT</span>
-              <span className="text-[11px] font-black text-[var(--color-primary)]">
+              <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ink-mute)]">SPOT</span>
+              <span className="text-[11px] font-black text-[var(--accent)]">
                 {spotsText}
               </span>
             </p>

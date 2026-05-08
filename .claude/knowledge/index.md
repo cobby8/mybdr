@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-05 (5/5 jersey 도메인 단방향 함정 박제 — `user.default_jersey_number` ↔ `team_members` ↔ `tournament_team_players` 자동 sync 0건 / 이도균 사례 errors+lessons 박제 / 이전: 5/5 인증 흐름 재설계 옵션 A+B-PR1)
+> 최종 갱신: 2026-05-08 (BDR-current sync v2.4 후 운영 → 시안 역박제 갭 4건 발견 — Phase A.6 시안에 5/4~5/6 도메인 변경 (PasswordInput / jersey 가입폼 / MyPage 다중팀 / member-pending-badge 4종) 미반영 / lessons 박제 / 이전: 5/5 jersey 도메인 단방향 함정)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -8,12 +8,13 @@
 | conventions.md | 41 | 2026-05-05 | 이전 40건 + **토큰 효율 룰 — agent prompt 분량 명시 + 보고서 diff-only 응답 + 결정 3건 분리 + 스크립트 schema 사전 grep + scratchpad 즉시 압축 (응답 품질 영향 0) (05-05 첫 항목)** |
 | decisions.md | 103 | 2026-05-05 | 기술 결정 (이전 100건) + **첫 로그인 onboarding 10단계 옵션 B 합의 — User.preferred_game_types Json 키 6종 (street-ball/pickup/guest/practice/regular/tournament) / 분기 룰 길농만 → 3,4 선택 / DB schema 변경 0 / PR1~5 분해 (05-05) / admin/users 관리자 권한 12→3필드 축소 — PIPA 본인정정권 / nickname·bio·is_elite 만 / 사유 5자 이상 필수 (05-05) / 선수 배번 필수 정책 — role 분기 / player 필수 / coach·captain 선택 / join API + admin players API + admin/users 모달 분기 (05-05 첫 항목)** |
 | errors.md | 35 | 2026-05-05 | 에러 패턴 (이전 34건) + **마이페이지 등번호 입력 = `user.default_jersey_number` 만 저장 (team/대회 미동기화) — 사용자 인지 mismatch 버그 / 단방향 단절 도메인 모델 (05-05 첫 항목)** |
-| lessons.md | 40 | 2026-05-05 | 이전 39건 + **토큰 비효율 5건 회고 — jersey 도메인 turn 분석 (planner timeout / 보고서 prefix 반복 / 결정 묶음 / schema 미확인 / scratchpad 방치) — 개선 룰 conventions 박제 (05-05 첫 항목)** |
+| lessons.md | 41 | 2026-05-08 | 이전 40건 + **BDR-current sync 시 운영 → 시안 역박제 갭 4건 — Phase A.6 시안 v2.4 = 5/3~5/7 헤더/drawer/FilterChipBar 일부 반영 / 5/4~5/6 도메인 변경 (PasswordInput / jersey 가입폼 / MyPage 다중팀 / member-pending-badge) 미반영 / 시안 zip 빌드 baseline 갭 — spot check 매트릭스 + 갭 발견 시 (b) 역박제 후속 큐 등록 룰 (05-08 첫 항목)** |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
 | ux-audit-report.md | 28 | 2026-03-28 | UI/UX 사용성 심층 조사 |
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-08] lessons: **BDR-current sync 운영 → 시안 역박제 갭 4건** — 5/8 BDR v2 zip 도착 → BDR-current sync v2.4 (Phase A.6 운영 정합) → spot check 결과 5/4~5/6 도메인 변경 4건 시안 미반영 (1) Login.jsx PasswordInput 보기 토글 0 / (2) TeamCreate.jsx jersey 입력 0 / (3) MyPage.jsx 단일 팀 카드 (다중 row 미반영) / (4) Team/TeamManage.jsx member-pending-badge 4종 0. 원인 = 시안 zip 작업이 5/1 v2.3 baseline 위에서 진행 / 5/4~5/8 도메인 commit 동시 누락. 재발 방지 = 새 zip README 베이스 vX.Y + 변경 범위 사전 확인 / spot check 매트릭스 + 갭 발견 시 (b) 역박제 후속 큐 즉시 등록. 사용자 결정 (c) 후속 큐 → scratchpad 3순위
 - [05-05] conventions: **토큰 효율 5 룰 (응답 품질 영향 0)** — agent prompt = 산출물 형식 + 분량 + 시간 명시 / 보고서 long-form 1회 → 후속 diff-only / 결정 핵심 3건 + 옵션 분리 / 스크립트 작성 전 schema 1회 grep / scratchpad 즉시 압축. PM 직접 vs agent 위임 기준 강화 (SELECT 1~2회 = PM 직접). system-reminder TaskCreate 무시 룰
 - [05-05] lessons: **토큰 비효율 5건 회고** — planner timeout (광범위 prompt) / 보고서 prefix 반복 / 결정 7~10건 묶음 / schema 미확인 재시도 / scratchpad 122줄 방치. 새 큰 작업 시작 시 5 룰 사전 점검 1회
 - [05-05] errors: **마이페이지 등번호 입력 = `user.default_jersey_number` 만 저장 — team/대회 미동기화 단방향 함정** — `PATCH /api/web/profile` 가 갱신하는 것 = `user.default_jersey_number` (개인 선호값) 단 1곳. `team_members.jersey_number` / `tournament_team_players.jerseyNumber` 와 자동 sync 0건. 사용자 시점 = "등번호 등록 완료" 인지 / 시스템 시점 = 메모만 저장. errors.md `[2026-05-02]` 와 동일 패턴 (장기 큐 미해결). 이도균 사례 (userId=3352) — 마이페이지에서 70 입력 → 출전 명단 누락 → 운영자 수동 INSERT 로 fix. 단기 fix = 라벨 안내 추가 / 장기 fix = sync hook

@@ -104,11 +104,11 @@ export function RecommendedTournaments() {
   return (
     <section>
       {/* 2K 스타일 헤더: 두껍고 기울어짐 */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--color-border)]">
+      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
           추천 대회
         </h2>
-        <Link href="/tournaments" className="text-[10px] font-black text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors uppercase">
+        <Link href="/tournaments" className="text-[10px] font-black text-[var(--ink-mute)] hover:text-[var(--accent)] transition-colors uppercase">
           VIEW ALL &raquo;
         </Link>
       </div>
@@ -149,7 +149,7 @@ function TournamentCard({ tournament }: { tournament: TournamentItem }) {
     <Link href={href} className="block shrink-0 w-[280px]">
       {/* 컴팩트 카드: 가로 배치, 네온 호버 효과 유지 */}
       <div
-        className="group rounded-md overflow-hidden bg-[var(--color-card)] transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-primary border border-transparent hover:border-[var(--color-primary)] flex flex-row relative h-[112px]"
+        className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-1 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] flex flex-row relative h-[112px]"
         style={{ boxShadow: "var(--shadow-card)" }}
       >
         {/* 좌측 아이콘/그라디언트 영역 (64px 고정) */}
@@ -169,7 +169,7 @@ function TournamentCard({ tournament }: { tournament: TournamentItem }) {
             {statusLabel && (
               <span
                 className="px-1.5 py-0.5 text-[9px] font-black uppercase rounded-sm bg-white/90 leading-none"
-                style={{ color: "var(--color-primary)" }}
+                style={{ color: "var(--accent)" }}
               >
                 {statusLabel}
               </span>
@@ -182,12 +182,12 @@ function TournamentCard({ tournament }: { tournament: TournamentItem }) {
           </div>
 
           {/* 2행: 대회명 (1줄 말줄임) */}
-          <h4 className="text-sm font-extrabold text-[var(--color-text-primary)] truncate leading-tight tracking-tight uppercase group-hover:text-[var(--color-primary)] transition-colors">
+          <h4 className="text-sm font-extrabold text-[var(--ink)] truncate leading-tight tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
             {tournament.name}
           </h4>
 
           {/* 3행: 장소 + 일정 (한 줄로 · 구분) */}
-          <p className="text-[11px] text-[var(--color-text-muted)] font-medium truncate flex items-center gap-1">
+          <p className="text-[11px] text-[var(--ink-mute)] font-medium truncate flex items-center gap-1">
             {locationStr && (
               <>
                 <span className="material-symbols-outlined text-[12px]">location_on</span>
@@ -205,8 +205,8 @@ function TournamentCard({ tournament }: { tournament: TournamentItem }) {
 
           {/* 4행: 참가 현황 */}
           <p className="flex items-center gap-1.5">
-            <span className="text-[9px] uppercase font-black tracking-wider text-[var(--color-text-muted)]">ENTRY</span>
-            <span className="text-[11px] font-black text-[var(--color-primary)]">
+            <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ink-mute)]">ENTRY</span>
+            <span className="text-[11px] font-black text-[var(--accent)]">
               {capacityText}
             </span>
           </p>

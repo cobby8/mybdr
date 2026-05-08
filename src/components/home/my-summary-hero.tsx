@@ -51,16 +51,16 @@ function StatLine({ icon, label, value }: { icon: string; label: string; value: 
     <div className="flex items-center gap-2">
       <span
         className="material-symbols-outlined text-base"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
       >
         {icon}
       </span>
-      <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+      <span className="text-xs" style={{ color: "var(--ink-mute)" }}>
         {label}
       </span>
       <span
         className="ml-auto text-sm font-bold"
-        style={{ color: "var(--color-text-primary)" }}
+        style={{ color: "var(--ink)" }}
       >
         {value}
       </span>
@@ -86,27 +86,27 @@ function EmptyCard({
     <div
       className="flex min-w-[240px] snap-start flex-col justify-between rounded-md border p-5"
       style={{
-        backgroundColor: "var(--color-card)",
-        borderColor: "var(--color-border)",
+        backgroundColor: "var(--bg-card)",
+        borderColor: "var(--border)",
       }}
     >
       {/* 상단: 아이콘 + 제목 */}
       <div>
         <span
           className="material-symbols-outlined mb-3 block text-3xl"
-          style={{ color: "var(--color-text-muted)" }}
+          style={{ color: "var(--ink-mute)" }}
         >
           {icon}
         </span>
         <p
           className="text-sm font-semibold mb-1"
-          style={{ color: "var(--color-text-primary)" }}
+          style={{ color: "var(--ink)" }}
         >
           {title}
         </p>
         <p
           className="text-xs leading-relaxed"
-          style={{ color: "var(--color-text-muted)" }}
+          style={{ color: "var(--ink-mute)" }}
         >
           {description}
         </p>
@@ -116,7 +116,7 @@ function EmptyCard({
       <Link
         href={ctaHref}
         className="mt-4 block rounded-lg py-2.5 text-center text-sm font-bold text-white transition-all active:scale-[0.97]"
-        style={{ backgroundColor: "var(--color-primary)" }}
+        style={{ backgroundColor: "var(--accent)" }}
       >
         {ctaLabel}
       </Link>
@@ -148,21 +148,21 @@ export function MySummaryHero() {
             key={i}
             className="min-w-[240px] snap-start rounded-md border p-5 animate-pulse"
             style={{
-              backgroundColor: "var(--color-card)",
-              borderColor: "var(--color-border)",
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border)",
             }}
           >
             <div
               className="mb-3 h-8 w-8 rounded-lg"
-              style={{ backgroundColor: "var(--color-surface)" }}
+              style={{ backgroundColor: "var(--bg-elev)" }}
             />
             <div
               className="mb-2 h-4 w-24 rounded"
-              style={{ backgroundColor: "var(--color-surface)" }}
+              style={{ backgroundColor: "var(--bg-elev)" }}
             />
             <div
               className="h-3 w-32 rounded"
-              style={{ backgroundColor: "var(--color-surface)" }}
+              style={{ backgroundColor: "var(--bg-elev)" }}
             />
           </div>
         ))}
@@ -198,19 +198,19 @@ export function MySummaryHero() {
           href={`/teams/${teams[0].id}`}
           className="flex min-w-[240px] snap-start flex-col rounded-md border p-5 transition-all hover:shadow-md active:scale-[0.98]"
           style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border)",
           }}
         >
           <span
             className="material-symbols-outlined mb-3 text-3xl"
-            style={{ color: "var(--color-primary)", fontVariationSettings: "'FILL' 1" }}
+            style={{ color: "var(--accent)", fontVariationSettings: "'FILL' 1" }}
           >
             groups
           </span>
           <p
             className="text-sm font-semibold mb-3"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             {teams[0].name}
           </p>
@@ -235,19 +235,19 @@ export function MySummaryHero() {
           href={`/games/${upcomingGame.id}`}
           className="flex min-w-[240px] snap-start flex-col rounded-md border p-5 transition-all hover:shadow-md active:scale-[0.98]"
           style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border)",
           }}
         >
           <span
             className="material-symbols-outlined mb-3 text-3xl"
-            style={{ color: "var(--color-info)", fontVariationSettings: "'FILL' 1" }}
+            style={{ color: "var(--info)", fontVariationSettings: "'FILL' 1" }}
           >
             sports_basketball
           </span>
           <p
             className="text-sm font-semibold mb-3"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             다가오는 경기
           </p>
@@ -263,7 +263,7 @@ export function MySummaryHero() {
             />
             <p
               className="text-xs truncate"
-              style={{ color: "var(--color-text-muted)" }}
+              style={{ color: "var(--ink-mute)" }}
             >
               {upcomingGame.title ?? "경기"}
             </p>
@@ -285,19 +285,19 @@ export function MySummaryHero() {
           href="/profile"
           className="flex min-w-[240px] snap-start flex-col rounded-md border p-5 transition-all hover:shadow-md active:scale-[0.98]"
           style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border)",
           }}
         >
           <span
             className="material-symbols-outlined mb-3 text-3xl"
-            style={{ color: "var(--color-success)", fontVariationSettings: "'FILL' 1" }}
+            style={{ color: "var(--ok)", fontVariationSettings: "'FILL' 1" }}
           >
             monitoring
           </span>
           <p
             className="text-sm font-semibold mb-3"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             내 기록
           </p>
@@ -323,26 +323,26 @@ export function MySummaryHero() {
           href={`/tournaments/${nextTournament.id}`}
           className="flex min-w-[240px] snap-start flex-col rounded-md border p-5 transition-all hover:shadow-md active:scale-[0.98]"
           style={{
-            backgroundColor: "var(--color-card)",
-            borderColor: "var(--color-border)",
+            backgroundColor: "var(--bg-card)",
+            borderColor: "var(--border)",
           }}
         >
           <span
             className="material-symbols-outlined mb-3 text-3xl"
-            style={{ color: "var(--color-warning)", fontVariationSettings: "'FILL' 1" }}
+            style={{ color: "var(--warn)", fontVariationSettings: "'FILL' 1" }}
           >
             emoji_events
           </span>
           <p
             className="text-sm font-semibold mb-3"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: "var(--ink)" }}
           >
             참가 대회
           </p>
           <div className="space-y-2">
             <p
               className="text-xs font-medium truncate"
-              style={{ color: "var(--color-text-primary)" }}
+              style={{ color: "var(--ink)" }}
             >
               {nextTournament.name}
             </p>

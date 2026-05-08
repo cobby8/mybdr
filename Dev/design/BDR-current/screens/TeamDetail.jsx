@@ -1,4 +1,4 @@
-/* global React, TEAMS, PLAYERS, Icon, Avatar */
+/* global React, TEAMS, PLAYERS, Icon, Avatar, Modal */
 
 // ============================================================
 // ChalkTalk — 작전판. 코트 다이어그램 + 플레이 카드 + 작전 노트.
@@ -226,6 +226,9 @@ function ChalkTalk({ team, roster }) {
 function TeamDetail({ setRoute, teamId }) {
   const t = TEAMS.find(x => x.id === teamId) || TEAMS[0];
   const [tab, setTab] = React.useState('overview');
+  // 5/5 박제 — 가입 모달 (운영 team-join-button-v2.tsx 정합)
+  const [joinModal, setJoinModal] = React.useState(false);
+  const [jerseyInput, setJerseyInput] = React.useState('');
   const winRate = Math.round(t.wins / (t.wins + t.losses) * 100);
 
   const roster = [
@@ -236,6 +239,10 @@ function TeamDetail({ setRoute, teamId }) {
     { num: 23, name: '임재현', pos: 'C',  role: '선수', ppg: 12.5 },
     { num: 32, name: '오민호', pos: 'SG', role: '선수', ppg: 7.1 },
   ];
+
+  // 5/5 박제 — 가입 폼: 사용 중 jersey 목록 (운영 jerseys-in-use API 정합)
+  const jerseysInUse = roster.map(r => r.num);
+  const conflict = jerseyInput !== '' && jerseysInUse.includes(Number(jerseyInput));
 
   const recent = [
     { date: '04.12', opp: '몽키즈',       score: '21 : 18', result: 'W', tournament: 'BDR CHALLENGE' },
@@ -383,7 +390,8 @@ function TeamDetail({ setRoute, teamId }) {
                 <span key={i} style={{width:28, height:28, display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontWeight:900, fontSize:13, color:'#fff', background: r === 'W' ? 'var(--ok)' : 'var(--ink-dim)', borderRadius:4}}>{r}</span>
               ))}
             </div>
-            <button className="btn btn--primary btn--xl" style={{marginBottom:8}}>게스트 지원</button>
+            <button className="btn btn--primary btn--xl" style={{marginBottom:8, width:'100%'}} onClick={()=>setJoinModal(true)}>팀 가입 신청</button>
+            <button className="btn btn--xl" style={{marginBottom:8, width:'100%'}}>게스트 지원</button>
             <button className="btn" style={{width:'100%'}}>팀 매치 신청</button>
           </div>
           <div className="card" style={{padding:'16px 20px'}}>
@@ -396,6 +404,38 @@ function TeamDetail({ setRoute, teamId }) {
           </div>
         </aside>
       </div>
+
+      {/* 5/5 박제 — 팀 가입 모달 (운영 team-join-button-v2.tsx 정합: jersey input + 사용 중 번호 + 충돌 안내) */}
+      <Modal
+        open={joinModal}
+        onClose={()=>setJoinModal(false)}
+        title={`${t.name} 팀 가입 신청`}
+        foot={
+          <>
+            <button className="btn" onClick={()=>setJoinModal(false)}>취소</button>
+            <button className="btn btn--primary" disabled={!jerseyInput || conflict} onClick={()=>setJoinModal(false)}>신청하기</button>
+          </>
+        }
+      >
+        <div style={{display:'flex', flexDirection:'column', gap:14}}>
+          <div>
+            <div className="label">선호 등번호 <span style={{color:'var(--ink-mute)', fontWeight:400}}>(0~99)</span></div>
+            <input className="input" type="number" min="0" max="99" value={jerseyInput} onChange={(e)=>setJerseyInput(e.target.value)} placeholder="예: 7" style={{fontSize:16}}/>
+            {conflict && <div style={{fontSize:12, color:'var(--err)', marginTop:6}}>⚠ 이미 사용 중인 번호입니다 — 다른 번호를 선택해주세요.</div>}
+          </div>
+          <div>
+            <div className="label" style={{marginBottom:4}}>사용 중 번호</div>
+            <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+              {jerseysInUse.map(n => (
+                <span key={n} className="badge badge--soft" style={{fontSize:11, fontFamily:'var(--ff-mono)'}}>#{n}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{fontSize:12, color:'var(--ink-mute)', lineHeight:1.5, padding:'10px 12px', background:'var(--bg-alt)', borderRadius:6}}>
+            가입 승인 시 입력한 번호가 자동으로 등록됩니다. 충돌 시 재신청 안내가 표시돼요.
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

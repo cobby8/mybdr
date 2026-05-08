@@ -59,13 +59,13 @@ export function NotableTeams({ fallbackData }: NotableTeamsProps = {}) {
   return (
     <section>
       {/* 2K 스타일 헤더 (굵은 이탤릭, 두꺼운 하단 보더) */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--color-border)]">
+      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
         <h2 className="text-xl font-black uppercase tracking-tighter drop-shadow-sm">
           NOTABLE TEAMS
         </h2>
         <Link
           href="/teams"
-          className="text-[10px] font-black text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors uppercase"
+          className="text-[10px] font-black text-[var(--ink-mute)] hover:text-[var(--accent)] transition-colors uppercase"
         >
           VIEW ALL &raquo;
         </Link>
@@ -76,7 +76,7 @@ export function NotableTeams({ fallbackData }: NotableTeamsProps = {}) {
         {teams.map((team, index) => {
           const isFallback = team.id === "0";
           /* 팀 색상을 아이콘 배경으로 사용 (없으면 기본 회색) */
-          const iconBg = team.primary_color ?? "var(--color-text-muted)";
+          const iconBg = team.primary_color ?? "var(--ink-mute)";
           /* 지역 정보: city + district 조합 */
           const location = [team.city, team.district].filter(Boolean).join(" ");
           /* 부제: 지역 + 멤버수 */
@@ -89,10 +89,10 @@ export function NotableTeams({ fallbackData }: NotableTeamsProps = {}) {
             <Link
               key={team.id + team.name}
               href={!isFallback ? `/teams/${team.id}` : "#"}
-              className={`flex items-center gap-3 p-2 bg-gradient-to-r from-[var(--color-surface)] to-[var(--color-card)] hover:to-[var(--color-surface-bright)] border-l-4 border-transparent hover:border-[var(--color-primary)] transition-all duration-200 group ${isFallback ? "pointer-events-none opacity-80" : ""}`}
+              className={`flex items-center gap-3 p-2 bg-gradient-to-r from-[var(--bg-elev)] to-[var(--bg-card)] hover:to-[var(--bg-alt)] border-l-4 border-transparent hover:border-[var(--accent)] transition-all duration-200 group ${isFallback ? "pointer-events-none opacity-80" : ""}`}
             >
               {/* 순위 표기 느낌의 짧은 인덱스 */}
-              <div className="flex-none font-black text-lg text-[var(--color-text-disabled)] group-hover:text-[var(--color-primary)] w-5 text-center leading-none">
+              <div className="flex-none font-black text-lg text-[var(--ink-dim)] group-hover:text-[var(--accent)] w-5 text-center leading-none">
                 {index + 1}
               </div>
 
@@ -111,20 +111,20 @@ export function NotableTeams({ fallbackData }: NotableTeamsProps = {}) {
               {/* 중앙 텍스트 정보 */}
               <div className="grow min-w-0 flex flex-col justify-center">
                 <div className="flex justify-between items-baseline w-full">
-                  <h4 className="text-sm font-extrabold uppercase truncate text-[var(--color-text-primary)] tracking-tight">
+                  <h4 className="text-sm font-extrabold uppercase truncate text-[var(--ink)] tracking-tight">
                     {team.name}
                   </h4>
-                  <span className="text-sm font-black text-[var(--color-primary)] shrink-0 ml-2">
+                  <span className="text-sm font-black text-[var(--accent)] shrink-0 ml-2">
                     {!isFallback ? `${team.wins}W ${team.losses}L` : "0W 0L"}
                   </span>
                 </div>
                 
                 <div className="flex justify-between items-center mt-0.5">
-                  <span className="text-[10px] font-bold text-[var(--color-text-muted)] truncate uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-[var(--ink-mute)] truncate uppercase tracking-wider">
                     {subtitle || "LOCATION TBD"}
                   </span>
                   {team.accepting_members && !isFallback && (
-                    <span className="text-[9px] font-black text-[var(--color-on-primary)] bg-[var(--color-info)] px-2 py-0.5 rounded-sm ml-2 shrink-0">
+                    <span className="text-[9px] font-black text-[var(--ink-on-brand)] bg-[var(--info)] px-2 py-0.5 rounded-sm ml-2 shrink-0">
                       RECRUIT
                     </span>
                   )}

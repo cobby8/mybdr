@@ -79,7 +79,7 @@ export function NewsFeed({ preferredRegions }: NewsFeedProps) {
     return (
       <div>
         <h3
-          className="text-sm font-black uppercase text-[var(--color-text-secondary)] mb-2 tracking-wide"
+          className="text-sm font-black uppercase text-[var(--ink-soft)] mb-2 tracking-wide"
         >
           LATEST NEWS
         </h3>
@@ -87,7 +87,7 @@ export function NewsFeed({ preferredRegions }: NewsFeedProps) {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-10 rounded border animate-pulse bg-[var(--color-card)] border-[var(--color-border)]"
+              className="h-10 rounded border animate-pulse bg-[var(--bg-card)] border-[var(--border)]"
             />
           ))}
         </div>
@@ -102,7 +102,7 @@ export function NewsFeed({ preferredRegions }: NewsFeedProps) {
     return (
       <div
         className="text-center py-8 text-sm"
-        style={{ color: "var(--color-text-muted)" }}
+        style={{ color: "var(--ink-mute)" }}
       >
         아직 소식이 없어요
       </div>
@@ -113,7 +113,7 @@ export function NewsFeed({ preferredRegions }: NewsFeedProps) {
   return (
     <div>
       <h3
-        className="text-sm font-black uppercase text-[var(--color-text-secondary)] mb-2 tracking-wide"
+        className="text-sm font-black uppercase text-[var(--ink-soft)] mb-2 tracking-wide"
       >
         LATEST NEWS
       </h3>
@@ -140,7 +140,7 @@ function NewsCard({ item }: { item: NewsItem }) {
         className="flex items-center gap-2.5 rounded px-3 py-2 transition-all hover:brightness-110 shadow-glow-primary group"
         style={{
           background:
-            "linear-gradient(135deg, var(--color-primary) 0%, var(--color-navy, #1B3C87) 100%)",
+            "linear-gradient(135deg, var(--accent) 0%, var(--cafe-blue) 100%)",
         }}
       >
         {/* 아이콘 */}
@@ -163,7 +163,7 @@ function NewsCard({ item }: { item: NewsItem }) {
   return (
     <Link
       href={item.link}
-      className="flex items-center gap-2.5 rounded border px-3 py-2 transition-all bg-[var(--color-card)] border-[var(--color-border)] hover:border-[var(--color-primary)] hover:shadow-glow-primary active:scale-[0.99] group"
+      className="flex items-center gap-2.5 rounded border px-3 py-2 transition-all bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--accent)] hover:shadow-glow-primary active:scale-[0.99] group"
     >
       {/* 타입 아이콘 */}
       <span
@@ -187,8 +187,8 @@ function NewsCard({ item }: { item: NewsItem }) {
             <CourtTypeBadge courtType={item.court_type} />
           )}
           <span
-            className="text-[11px] font-bold uppercase tracking-wide truncate group-hover:text-[var(--color-primary)] transition-colors"
-            style={{ color: "var(--color-text-primary)" }}
+            className="text-[11px] font-bold uppercase tracking-wide truncate group-hover:text-[var(--accent)] transition-colors"
+            style={{ color: "var(--ink)" }}
           >
             {item.title}
           </span>
@@ -200,7 +200,7 @@ function NewsCard({ item }: { item: NewsItem }) {
         <span
           className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-sm shrink-0"
           style={{
-            backgroundColor: "var(--color-primary)",
+            backgroundColor: "var(--accent)",
             color: "#fff",
           }}
         >
@@ -225,7 +225,7 @@ function getCardConfig(item: NewsItem) {
       return {
         icon: "emoji_events",
         label: "대회",
-        color: "var(--color-warning)",
+        color: "var(--warn)",
         subtitle: item.venue_name
           ? `${item.venue_name} · ${item.start_date ? formatShortDate(item.start_date) : ""}`
           : item.start_date
@@ -237,7 +237,7 @@ function getCardConfig(item: NewsItem) {
       return {
         icon: "sports_basketball",
         label: "픽업게임",
-        color: "var(--color-info)",
+        color: "var(--info)",
         subtitle: `${item.court_name ?? ""} · ${item.scheduled_date ? formatShortDate(item.scheduled_date) : ""} ${item.start_time ?? ""} · ${item.current_players ?? 0}/${item.max_players ?? 0}명`,
         cta: "참가",
       };
@@ -245,7 +245,7 @@ function getCardConfig(item: NewsItem) {
       return {
         icon: "celebration",
         label: "이벤트",
-        color: "var(--color-success)",
+        color: "var(--ok)",
         subtitle: `${item.court_name ?? ""} · ${item.scheduled_date ? formatShortDate(item.scheduled_date) : ""}`,
         cta: "자세히",
       };
@@ -253,7 +253,7 @@ function getCardConfig(item: NewsItem) {
       return {
         icon: "campaign",
         label: "소식",
-        color: "var(--color-text-secondary)",
+        color: "var(--ink-soft)",
         subtitle: "",
         cta: "보기",
       };
@@ -268,9 +268,9 @@ function CourtTypeBadge({ courtType }: { courtType: string }) {
       className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
       style={{
         backgroundColor: isIndoor
-          ? "color-mix(in srgb, var(--color-info) 15%, transparent)"
-          : "color-mix(in srgb, var(--color-success) 15%, transparent)",
-        color: isIndoor ? "var(--color-info)" : "var(--color-success)",
+          ? "color-mix(in srgb, var(--info) 15%, transparent)"
+          : "color-mix(in srgb, var(--ok) 15%, transparent)",
+        color: isIndoor ? "var(--info)" : "var(--ok)",
       }}
     >
       <span className="material-symbols-outlined" style={{ fontSize: "11px" }}>
