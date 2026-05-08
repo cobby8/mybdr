@@ -7,7 +7,7 @@
 const GAMES = [
   {
     id: 'g1',
-    kind: 'pickup',        // pickup | guest | scrimmage(연습경기)
+    kind: 'pickup',        // pickup | guest | scrimmage
     title: '목요일 저녁 하남미사 픽업 · 6:4',
     court: '미사강변체육관',
     area: '하남시',
@@ -35,7 +35,7 @@ const GAMES = [
     applied: 2,
     host: 'SWEEP',
     status: 'open',
-    tags: ['5v5', '연습경기', '상급'],
+    tags: ['5v5', '스크림', '상급'],
   },
   {
     id: 'g3',
@@ -72,7 +72,7 @@ const GAMES = [
   {
     id: 'g5',
     kind: 'scrimmage',
-    title: '3POINT vs 몽키즈 연습경기 — 옵저버 오픈',
+    title: '3POINT vs 몽키즈 스크림 — 옵저버 오픈',
     court: '장충체육관',
     area: '중구',
     date: '2026.04.28 (월)',
@@ -83,7 +83,7 @@ const GAMES = [
     applied: 12,
     host: '3POINT',
     status: 'open',
-    tags: ['연습경기', '관전'],
+    tags: ['스크림', '관전'],
   },
   {
     id: 'g6',
@@ -140,7 +140,7 @@ const ORGS = [
   { id: 'o1', name: '서울바스켓', tag: 'SEOUL', area: '서울', teams: 12, members: 184, color: '#0F5FCC', logo: null, kind: '리그', desc: '서울 전역 12팀이 참여하는 주간 리그. 월·수·금 경기.' },
   { id: 'o2', name: '주말농구협회', tag: 'WKND', area: '수도권', teams: 28, members: 412, color: '#E31B23', logo: null, kind: '협회', desc: '주말 전용 아마추어 농구 연합. 월 1회 토너먼트.' },
   { id: 'o3', name: 'BLOCK', tag: 'BLK', area: '하남·강동·송파', teams: 4, members: 62, color: '#10B981', logo: null, kind: '동호회', desc: '동부 수도권 기반 정기 픽업 커뮤니티.' },
-  { id: 'o4', name: 'SWEEP', tag: 'SWP', area: '성동·광진', teams: 3, members: 38, color: '#F59E0B', logo: null, kind: '동호회', desc: '성수·건대 중심 실내 연습경기 소모임.' },
+  { id: 'o4', name: 'SWEEP', tag: 'SWP', area: '성동·광진', teams: 3, members: 38, color: '#F59E0B', logo: null, kind: '동호회', desc: '성수·건대 중심 실내 스크림 소모임.' },
   { id: 'o5', name: '새벽의 민족', tag: 'DAWN', area: '전국', teams: 9, members: 120, color: '#8B5CF6', logo: null, kind: '동호회', desc: '평일 새벽 6시 픽업. 직장인 중심.' },
   { id: 'o6', name: '경기북부 농구연맹', tag: 'GBFL', area: '경기북부', teams: 16, members: 240, color: '#0EA5E9', logo: null, kind: '리그', desc: '의정부·남양주·고양 등 북부 지역 리그.' },
 ];
@@ -149,7 +149,7 @@ const ORGS = [
 const GLOSSARY = [
   { term: '픽업 (Pick-up)', desc: '사전 팀 구성 없이 현장에서 인원을 모아 즉석으로 진행하는 경기.' },
   { term: '게스트 (Guest)', desc: '기존 팀에 일회성으로 합류하는 외부 선수. 팀원 공백을 메우기 위함.' },
-  { term: '연습경기 (Scrimmage)', desc: '팀 간 합의된 비공식 연습경기. 기록은 개인 기록에만 반영.' },
+  { term: '스크림 (Scrimmage)', desc: '팀 간 합의된 비공식 연습경기. 기록은 개인 기록에만 반영.' },
   { term: '픽앤롤 (Pick & Roll)', desc: '스크리너가 스크린 후 골대 방향으로 돌아 공을 받는 공격 전술.' },
   { term: '풀코트 (Full-court)', desc: '농구장 전체를 사용하는 5v5 경기. 국내 아마추어 표준.' },
   { term: '하프코트 (Half-court)', desc: '골대 한 쪽만 사용. 3v3·픽업의 기본 형식.' },

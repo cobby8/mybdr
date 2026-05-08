@@ -2,7 +2,7 @@
 
 function Series({ setRoute }) {
   const series = [
-    { slug:'bdr-challenge', name:'BDR CHALLENGE', tagline:'3x3 오픈 챔피언십', editions:8, latest:'SPRING 2026', accent:'#E31B23', status:'live', next:'D-14', host:'BDR 사무국' },
+    { slug:'bdr-challenge', name:'BDR CHALLENGE', tagline:'서울 3x3 오픈 챔피언십', editions:8, latest:'SPRING 2026', accent:'#E31B23', status:'live', next:'D-14', host:'BDR 사무국' },
     { slug:'kings-cup', name:'KINGS CUP', tagline:'왕좌는 하나다', editions:7, latest:'VOL. 07', accent:'#0F5FCC', status:'closing', next:'D-3', host:'KINGS BASKETBALL' },
     { slug:'midnight-3on3', name:'MIDNIGHT 3on3', tagline:'밤의 코트', editions:12, latest:'EP. 12', accent:'#7C3AED', status:'preparing', next:'D-32', host:'한강사이드' },
     { slug:'rookie-league', name:'ROOKIE LEAGUE', tagline:'신인 등용문', editions:4, latest:'2026 SEASON 1', accent:'#10B981', status:'open', next:'D-7', host:'BDR x 학원연합' },

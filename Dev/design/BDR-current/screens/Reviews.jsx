@@ -1,13 +1,5 @@
 /* global React, TEAMS, TOURNAMENTS, Icon */
 
-/**
- * Reviews — 통합 리뷰 모음 (디렉토리)
- *
- * [Phase 17] 더보기 "리뷰 모음" 진입점 부활
- *   - 기능: 4타입(대회/코트/팀/심판) 멀티 필터 + 별점 분포 + 디렉토리 가치
- *   - ContextReviews 카드 비주얼 통일 (bg-alt + 4px 라운딩 + accent 단색 막대)
- *   - 단일 target 인라인 리뷰는 ContextReviews 사용 (코트/대회/플레이어 상세)
- */
 function Reviews({ setRoute }) {
   const [filter, setFilter] = React.useState('all');
   const [sort, setSort] = React.useState('recent');
@@ -19,7 +11,7 @@ function Reviews({ setRoute }) {
     { id:'r4', type:'tournament', target:'Winter Finals 2026', targetSub:'2/14-15', author:'분석가', authorLevel:'L.9', rating:3, date:'2026.02.17', title:'대진 2라운드 딜레이 아쉬움', body:'우승팀 발표까지 3시간 딜레이. 경기 수준은 최상급인데 운영 면에서 개선 여지. 식사 쿠폰은 좋았음.', likes:64, helpful:38, photos:1, verified:true, tags:['운영','딜레이'] },
     { id:'r5', type:'court', target:'용산국민체육센터', targetSub:'서울 용산구', author:'코트지킴이', authorLevel:'L.7', rating:5, date:'2026.04.18', title:'4월 리노베이션 후 최고', body:'바닥 교체 · 조명 LED · 탈의실 리뉴얼 완료. 샤워실에 온수 빵빵. 주차 2시간 무료.', likes:124, helpful:81, photos:8, verified:true, tags:['리뉴얼','샤워실'] },
     { id:'r6', type:'referee', target:'ref_kimj (L.2)', targetSub:'BDR Challenge 예선', author:'IRON_coach', authorLevel:'L.6', rating:5, date:'2026.04.12', title:'판정 일관성 최상', body:'몸싸움 콜 기준 명확, 양 팀 모두 납득할 만한 운영. 경기 중 소통도 좋음.', likes:22, helpful:17, photos:0, verified:true, tags:['심판','판정'] },
-    { id:'r7', type:'team', target:'SWEEP', targetSub:'연습경기 진행', author:'dawn_r', authorLevel:'L.3', rating:2, date:'2026.04.09', title:'약속 시간 안 지킴', body:'14시 연습경기인데 멤버 절반이 14:30에 도착. 양해 멘트도 없었음. 실력은 있는데 매너가...', likes:15, helpful:31, photos:0, verified:false, tags:['시간엄수'] },
+    { id:'r7', type:'team', target:'SWEEP', targetSub:'스크림 진행', author:'dawn_r', authorLevel:'L.3', rating:2, date:'2026.04.09', title:'약속 시간 안 지킴', body:'14시 스크림인데 멤버 절반이 14:30에 도착. 양해 멘트도 없었음. 실력은 있는데 매너가...', likes:15, helpful:31, photos:0, verified:false, tags:['시간엄수'] },
     { id:'r8', type:'tournament', target:'Friday Night Hoops April', targetSub:'4/5 · 용산', author:'wed_hooper', authorLevel:'L.2', rating:5, date:'2026.04.06', title:'초보자 배려 최고', body:'AMATEUR 대회답게 입문자도 즐길 수 있게 룰 조정해줬음. 심판도 친절. 다음 시즌도 참가 예정.', likes:47, helpful:29, photos:2, verified:true, tags:['초보환영','친절'] },
   ];
 
@@ -37,24 +29,17 @@ function Reviews({ setRoute }) {
   });
 
   const typeLabel = { tournament:'대회', court:'코트', team:'팀', referee:'심판' };
-  // 룰 §10: 토큰만 사용 — referee 는 ink-mute 로 중성 (보라 #8B5CF6 제거)
-  const typeColor = {
-    tournament: 'var(--accent)',
-    court:      'var(--cafe-blue)',
-    team:       'var(--ok)',
-    referee:    'var(--ink-soft)',
-  };
+  const typeColor = { tournament:'var(--accent)', court:'var(--cafe-blue)', team:'var(--ok)', referee:'#8B5CF6' };
 
   return (
     <div className="page">
-      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12, flexWrap:'wrap', alignItems:'center'}}>
-        <a onClick={()=>setRoute('home')} style={{cursor:'pointer', whiteSpace:'nowrap'}}>홈</a><span>›</span>
-        <a onClick={()=>setRoute('more')} style={{cursor:'pointer', whiteSpace:'nowrap'}}>더보기</a><span>›</span>
-        <span style={{color:'var(--ink)', whiteSpace:'nowrap'}}>리뷰 모음</span>
+      <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
+        <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
+        <span style={{color:'var(--ink)'}}>리뷰</span>
       </div>
 
       {/* Header */}
-      <div className="reviews-header">
+      <div style={{display:'grid', gridTemplateColumns:'minmax(0,1fr) 360px', gap:16, marginBottom:18}}>
         <div>
           <div className="eyebrow">커뮤니티 리뷰 · REVIEWS</div>
           <h1 style={{margin:'4px 0 8px', fontSize:32, fontWeight:800, letterSpacing:'-0.02em'}}>다녀온 사람들의 진짜 후기</h1>
@@ -73,9 +58,8 @@ function Reviews({ setRoute }) {
           {[5,4,3,2,1].map((n,i) => (
             <div key={n} style={{display:'grid', gridTemplateColumns:'20px 1fr 32px', gap:8, alignItems:'center', fontSize:11, marginBottom:3}}>
               <span style={{fontFamily:'var(--ff-mono)', color:'var(--ink-dim)'}}>{n}★</span>
-              {/* 룰 통일: ContextReviews 와 같은 accent 단색 막대 */}
               <div style={{height:6, background:'var(--bg-alt)', borderRadius:3, overflow:'hidden'}}>
-                <div style={{width:`${(summary.dist[i]/summary.total)*100}%`, height:'100%', background:'var(--accent)'}}/>
+                <div style={{width:`${(summary.dist[i]/summary.total)*100}%`, height:'100%', background: n>=4?'var(--ok)':n>=3?'var(--accent)':'var(--err)'}}/>
               </div>
               <span style={{fontFamily:'var(--ff-mono)', color:'var(--ink-dim)', textAlign:'right'}}>{summary.dist[i]}</span>
             </div>
@@ -84,7 +68,7 @@ function Reviews({ setRoute }) {
       </div>
 
       {/* Controls */}
-      <div className="card reviews-controls">
+      <div className="card" style={{padding:'12px 14px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap'}}>
         <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
           {[
             { id:'all', label:'전체' },
@@ -99,8 +83,8 @@ function Reviews({ setRoute }) {
             </button>
           ))}
         </div>
-        <div style={{display:'flex', gap:6, alignItems:'center', fontSize:12, flexWrap:'wrap'}}>
-          <span style={{color:'var(--ink-mute)', whiteSpace:'nowrap'}}>정렬</span>
+        <div style={{display:'flex', gap:6, alignItems:'center', fontSize:12}}>
+          <span style={{color:'var(--ink-mute)'}}>정렬</span>
           <select className="input" style={{padding:'4px 8px', fontSize:12}} value={sort} onChange={e=>setSort(e.target.value)}>
             <option value="recent">최신순</option>
             <option value="rating">별점순</option>
@@ -110,18 +94,17 @@ function Reviews({ setRoute }) {
         </div>
       </div>
 
-      {/* List — ContextReviews 카드 비주얼 통일 (bg-alt + 4px 라운딩) */}
+      {/* List */}
       <div style={{display:'flex', flexDirection:'column', gap:10}}>
         {sorted.map(r => (
-          <article key={r.id} className="review-card">
-            <div className="review-card__target">
-              {/* 룰 §10: #fff → ink-on-accent fallback / 룰 §12: borderRadius 3 → 4 */}
-              <span className="review-card__type-pill" style={{background:typeColor[r.type], color:'var(--ink-on-accent, #fff)'}}>{typeLabel[r.type]}</span>
+          <div key={r.id} className="card" style={{padding:'18px 22px', display:'grid', gridTemplateColumns:'180px 1fr auto', gap:18}}>
+            <div>
+              <span style={{display:'inline-block', background:typeColor[r.type], color:'#fff', fontSize:10, fontWeight:800, letterSpacing:'.06em', padding:'3px 8px', borderRadius:3, textTransform:'uppercase'}}>{typeLabel[r.type]}</span>
               <div style={{fontWeight:700, fontSize:14, marginTop:6}}>{r.target}</div>
               <div style={{fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)'}}>{r.targetSub}</div>
             </div>
             <div style={{minWidth:0}}>
-              <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:5, flexWrap:'wrap'}}>
+              <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:5}}>
                 <span style={{color:'var(--accent)', fontSize:14}}>{'★'.repeat(r.rating)}<span style={{color:'var(--border)'}}>{'★'.repeat(5-r.rating)}</span></span>
                 <b style={{fontSize:15}}>{r.title}</b>
                 {r.verified && <span className="badge badge--ok" style={{fontSize:9}}>✓ 인증</span>}
@@ -135,12 +118,12 @@ function Reviews({ setRoute }) {
                 <b style={{color:'var(--ink-soft)', fontFamily:'inherit'}}>{r.author}</b> <span className="badge badge--soft" style={{fontSize:9, marginLeft:2}}>{r.authorLevel}</span> · {r.date}
               </div>
             </div>
-            <div className="review-card__actions">
+            <div style={{textAlign:'right', display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
               <button className="btn btn--sm" style={{fontSize:11, padding:'4px 10px'}}>👍 도움됨 {r.helpful}</button>
               <button className="btn btn--sm" style={{fontSize:11, padding:'4px 10px', background:'transparent', border:0, color:'var(--ink-dim)'}}>🚩 신고</button>
               <div style={{fontSize:11, color:'var(--ink-dim)'}}>♥ {r.likes}</div>
             </div>
-          </article>
+          </div>
         ))}
       </div>
     </div>

@@ -38,7 +38,7 @@ function SeriesCreate({ setRoute }) {
 
           <div style={{height:14}}/>
           <label className="label">한 줄 태그라인</label>
-          <input className="input" placeholder="예) 3x3 오픈 챔피언십" value={data.tagline} onChange={e=>set('tagline', e.target.value)}/>
+          <input className="input" placeholder="예) 서울 3x3 오픈 챔피언십" value={data.tagline} onChange={e=>set('tagline', e.target.value)}/>
 
           <div style={{height:14}}/>
           <label className="label">시리즈 색상</label>
