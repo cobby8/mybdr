@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 // 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 — 주민번호 admin 입력 확인용)
 import { PasswordInput } from "@/components/ui/password-input";
+// 2026-05-09: 사이트 전역 휴대폰/생년월일 입력 컴포넌트 (자동 하이픈 / 4자리 yyyy 강제)
+//   conventions.md [2026-05-08] 사이트 전역 input 룰 — type="tel" / type="date" 직접 사용 금지
+import { PhoneInput } from "@/components/inputs/phone-input";
+import { BirthDateInput } from "@/components/inputs/birth-date-input";
 
 /**
  * /referee/admin/members/new — 심판 사전 등록 폼.
@@ -216,11 +220,11 @@ export default function AdminMemberNewPage() {
             >
               전화번호 *
             </label>
-            <input
-              type="tel"
+            {/* 2026-05-09: PhoneInput 마이그 4순위 — 자동 하이픈 포맷 / 11자리 제한
+                 onChange 시그니처: (val: string) => void */}
+            <PhoneInput
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="010-1234-5678"
+              onChange={setPhone}
               className="w-full px-3 py-2 text-sm"
               style={{
                 backgroundColor: "var(--color-surface)",
@@ -296,10 +300,11 @@ export default function AdminMemberNewPage() {
             >
               생년월일
             </label>
-            <input
-              type="date"
+            {/* 2026-05-09: BirthDateInput 마이그 4순위 — yyyy 4자리 강제 (HTML date 6자리 함정 fix)
+                 자동 하이픈 YYYY-MM-DD 포맷 / 8자리 제한 / inputMode=numeric */}
+            <BirthDateInput
               value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
+              onChange={setBirthDate}
               className="w-full px-3 py-2 text-sm"
               style={{
                 backgroundColor: "var(--color-surface)",
