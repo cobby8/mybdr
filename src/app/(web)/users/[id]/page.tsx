@@ -11,6 +11,9 @@ import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
 import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
 // 5/9 신규 — 글로벌 PlayerMatchCard props 타입 (변환 로직에서 사용)
 import type { PlayerMatchCardProps } from "@/components/match/PlayerMatchCard";
+// 5/9 Phase 2 — ActivityEvent + AllStatsRow 타입 (활동 로그 + 통산 모달용)
+import type { ActivityEvent } from "./_v2/activity-log";
+import type { AllStatsRow } from "./_v2/stats-detail-modal";
 
 import { PlayerHero } from "./_v2/player-hero";
 import { ProfileTabs } from "./_v2/profile-tabs";
@@ -79,8 +82,10 @@ export default async function UserProfilePage({
     redirect("/profile");
   }
 
-  // ---- 병렬 prefetch (9 쿼리) ----
-  // 5/9: jerseyNumber fetch 추가 (Hero #N 노출 — 사용자 결정 Q3 노출)
+  // ---- 병렬 prefetch (12 쿼리) ----
+  // 5/9 Phase 1: jerseyNumber fetch (Hero #N 노출 — 사용자 결정 Q3 노출)
+  // 5/9 Phase 2 추가: mvpMatches (#10) + teamMemberHistory (#11) + allStatsForModal (#12)
+  //   사유: 활동 로그 5종 통합 (match+mvp+team_history+jersey_changed+signup) + 통산 더보기 모달 prefetch
   const [
     user,
     statAgg,
@@ -91,6 +96,9 @@ export default async function UserProfilePage({
     followingCount,
     userBadges,
     representativeJersey,
+    mvpMatches,
+    teamHistoryRows,
+    allStatsForModal,
   ] = await Promise.all([
     // 1) user + 소속 팀 (is_public / active 공개 팀만 이후 필터)
     prisma.user
@@ -274,6 +282,106 @@ export default async function UserProfilePage({
         orderBy: { createdAt: "desc" },
       })
       .catch(() => null),
+
+    // 10) MVP 수상 이력 — 활동 로그용 최근 5건 (Q1=A 5종 통합 — mvp 타입)
+    // 왜: 사용자 결정 Q1=A — 활동 로그에 MVP 표시. 종료된 매치만 (status='ended' 또는 ended_at != null)
+    prisma.tournamentMatch
+      .findMany({
+        where: {
+          mvp_player_id: userIdBigInt,
+          // 종료된 매치만 — ended_at NOT NULL 가드 (status 'ended' 외에도 백필 안전)
+          ended_at: { not: null },
+        },
+        select: {
+          id: true,
+          match_code: true,
+          match_number: true,
+          ended_at: true,
+          scheduledAt: true,
+          tournament: {
+            select: { name: true, short_code: true },
+          },
+        },
+        orderBy: [
+          { ended_at: { sort: "desc", nulls: "last" } },
+          { scheduledAt: "desc" },
+        ],
+        take: 5,
+      })
+      .catch(() => []),
+
+    // 11) TeamMemberHistory — 활동 로그용 최근 10건 (joined/left/jersey_changed/transferred 등)
+    // 왜: 사용자 결정 Q1=A — 팀 가입/탈퇴/이적/등번호 변경 표시
+    // take: 10 — 후처리 (signup/match/mvp 와 합쳐 최신 5건만 노출) 위해 여유 fetch
+    prisma.teamMemberHistory
+      .findMany({
+        where: {
+          userId: userIdBigInt,
+          eventType: {
+            in: [
+              "joined",
+              "left",
+              "withdrawn",
+              "jersey_changed",
+              "jersey_change_approved",
+              "transferred_in",
+              "transferred_out",
+            ],
+          },
+        },
+        select: {
+          id: true,
+          eventType: true,
+          payload: true,
+          createdAt: true,
+          team: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      })
+      .catch(() => []),
+
+    // 12) 전체 matchPlayerStat — 통산 모달 prefetch (Q7=A: findMany 1건 + 클라 groupBy)
+    // 왜: 사용자 결정 Q7=A — 평균 사용자 100경기 미만 가정 / Prisma groupBy 한계 회피
+    // 평균 사용자 데이터 ~5KB 미만 (1경기당 ~50bytes). 모달 즉시 노출 (prefetch 효과)
+    prisma.matchPlayerStat
+      .findMany({
+        where: {
+          tournamentTeamPlayer: { userId: userIdBigInt },
+          tournamentMatch: officialMatchNestedFilter(),
+        },
+        select: {
+          points: true,
+          total_rebounds: true,
+          assists: true,
+          steals: true,
+          minutesPlayed: true,
+          field_goal_percentage: true,
+          three_point_percentage: true,
+          tournamentMatch: {
+            select: {
+              id: true,
+              scheduledAt: true,
+              homeScore: true,
+              awayScore: true,
+              homeTeamId: true,
+              awayTeamId: true,
+              tournament: {
+                select: {
+                  id: true,
+                  name: true,
+                  short_code: true,
+                },
+              },
+            },
+          },
+          tournamentTeamPlayer: {
+            select: { tournamentTeamId: true },
+          },
+        },
+        orderBy: { tournamentMatch: { scheduledAt: "desc" } },
+      })
+      .catch(() => []),
   ]);
 
   if (!user) return notFound();
@@ -375,13 +483,170 @@ export default async function UserProfilePage({
   }));
 
   // ---- 활동 요약 (overview aside) ----
+  // 5/9 Phase 2 — Q2=A fix: gamesPlayed = statAgg._count.id (matchPlayerStat 통일)
+  //   사유: user.total_games_participated 카운터가 백필 누락 케이스 발견 ("경기 참가 0" 버그)
+  //   통산 카드와 동일 source 로 일관 (errors.md "데이터 소스 분기" 패턴 회피)
   const activity = {
     joinedAt: user.createdAt?.toISOString() ?? null,
-    gamesPlayed: user.total_games_participated ?? 0,
+    gamesPlayed, // Q2 fix — statAgg._count.id 재활용 (matchPlayerStat 실측)
     gamesHosted: user.total_games_hosted ?? 0,
     lastSeen: null as string | null,
     // lastLoginAt 은 Hero 의 "최근 접속" 에 사용하므로 여기는 null 로 두고 relative 문자열만 Hero 가 계산
   };
+
+  // 5/9 Phase 2 — ActivityEvent[] 변환 (5종 통합 + 시간순 정렬, 최신 5건)
+  // 왜: Q1=A — match + mvp + team_joined/left/transferred + jersey_changed + signup
+  // 어떻게: 각 source → ActivityEvent 매핑 후 단일 배열 합산 → date desc sort → top 5
+  const activityEvents: ActivityEvent[] = [];
+
+  // (a) match 이벤트 — recentGames 의 종료 매치만 (scheduledAt 있고 status=ended)
+  for (const g of recentGames) {
+    const m = g.tournamentMatch;
+    if (!m) continue;
+    if (!m.scheduledAt) continue; // NULL 매치 제외 (시간 비교 불가)
+    if (m.status !== "ended" && m.status !== "completed") continue; // 종료된 매치만
+    const playerTtId = g.tournamentTeamPlayer.tournamentTeamId;
+    const playerSide: "home" | "away" | null =
+      playerTtId === m.homeTeamId ? "home" : playerTtId === m.awayTeamId ? "away" : null;
+    // 결과 (W/L) — 동점이거나 playerSide 모르면 null
+    let resultText: string | null = null;
+    if (
+      playerSide &&
+      m.homeScore != null &&
+      m.awayScore != null &&
+      m.homeScore !== m.awayScore
+    ) {
+      const homeWins = m.homeScore > m.awayScore;
+      const won = (playerSide === "home" && homeWins) || (playerSide === "away" && !homeWins);
+      resultText = won ? "W" : "L";
+    }
+    const homeName = m.homeTeam?.team?.name ?? "?";
+    const awayName = m.awayTeam?.team?.name ?? "?";
+    activityEvents.push({
+      type: "match",
+      date: m.scheduledAt.toISOString(),
+      matchId: m.id.toString(),
+      matchCode: m.match_code ?? null,
+      title: `${homeName} vs ${awayName}`,
+      subtitle:
+        m.homeScore != null && m.awayScore != null ? `${m.homeScore}:${m.awayScore}` : "",
+      result: resultText as "W" | "L" | null,
+    });
+  }
+
+  // (b) mvp 이벤트 — mvpMatches → mvp 타입 매핑
+  for (const m of mvpMatches) {
+    const date = m.ended_at ?? m.scheduledAt;
+    if (!date) continue;
+    activityEvents.push({
+      type: "mvp",
+      date: date.toISOString(),
+      matchId: m.id.toString(),
+      tournamentName: m.tournament?.name ?? "대회",
+    });
+  }
+
+  // (c) teamMemberHistory 이벤트 — eventType 분기 매핑
+  // payload Json 가드 — { old?:{jersey?:number}, new?:{jersey?:number} } 추정 형식
+  for (const h of teamHistoryRows) {
+    if (!h.team) continue; // 팀 삭제된 케이스 안전
+    const teamId = h.team.id.toString();
+    const teamName = h.team.name;
+    const dateIso = h.createdAt.toISOString();
+    if (h.eventType === "joined") {
+      activityEvents.push({ type: "team_joined", date: dateIso, teamId, teamName });
+    } else if (h.eventType === "left" || h.eventType === "withdrawn") {
+      activityEvents.push({ type: "team_left", date: dateIso, teamId, teamName });
+    } else if (h.eventType === "transferred_in") {
+      activityEvents.push({
+        type: "team_transferred",
+        direction: "in",
+        date: dateIso,
+        teamId,
+        teamName,
+      });
+    } else if (h.eventType === "transferred_out") {
+      activityEvents.push({
+        type: "team_transferred",
+        direction: "out",
+        date: dateIso,
+        teamId,
+        teamName,
+      });
+    } else if (
+      h.eventType === "jersey_changed" ||
+      h.eventType === "jersey_change_approved"
+    ) {
+      // payload 형식 가드 (5/9 reviewer fix) — 실제 형식 = { old: number | null, new: number | null, requestId, requestType, reason }
+      // 운영 source: src/app/api/web/teams/[id]/requests/[requestId]/route.ts L233~239
+      let oldJersey: number | null = null;
+      let newJersey: number | null = null;
+      try {
+        const p = h.payload as
+          | { old?: number | null; new?: number | null }
+          | null
+          | undefined;
+        if (typeof p?.old === "number") oldJersey = p.old;
+        if (typeof p?.new === "number") newJersey = p.new;
+      } catch {
+        /* payload 형식 알 수 없음 — fallback 표시 */
+      }
+      activityEvents.push({
+        type: "jersey_changed",
+        date: dateIso,
+        teamId,
+        teamName,
+        oldJersey,
+        newJersey,
+      });
+    }
+  }
+
+  // (d) signup 이벤트 (1건) — user.createdAt
+  if (user.createdAt) {
+    activityEvents.push({ type: "signup", date: user.createdAt.toISOString() });
+  }
+
+  // (e) 정렬 (Q8=A: 최신 우선) + 상위 5건
+  activityEvents.sort((a, b) => b.date.localeCompare(a.date));
+  const top5Events = activityEvents.slice(0, 5);
+
+  // ---- 통산 모달용 raw rows 변환 (Q7=A: 클라에서 groupBy) ----
+  // 5/9 Phase 2: matchPlayerStat → AllStatsRow[] (클라 모달이 연도별/대회별 groupBy)
+  // BigInt → string 변환 (직렬화) / Decimal → number 변환 / NULL safe
+  const allStatsRows: AllStatsRow[] = allStatsForModal
+    .filter((r) => r.tournamentMatch != null)
+    .map((r) => {
+      const m = r.tournamentMatch!;
+      const playerTtId = r.tournamentTeamPlayer.tournamentTeamId;
+      // playerSide 판별 → won 계산 (승률 표시용)
+      const playerSide: "home" | "away" | null =
+        playerTtId === m.homeTeamId ? "home" : playerTtId === m.awayTeamId ? "away" : null;
+      let won = false;
+      if (
+        playerSide &&
+        m.homeScore != null &&
+        m.awayScore != null &&
+        m.homeScore !== m.awayScore
+      ) {
+        const homeWins = m.homeScore > m.awayScore;
+        won = (playerSide === "home" && homeWins) || (playerSide === "away" && !homeWins);
+      }
+      return {
+        points: Number(r.points ?? 0),
+        rebounds: Number(r.total_rebounds ?? 0),
+        assists: Number(r.assists ?? 0),
+        steals: Number(r.steals ?? 0),
+        minutes: Number(r.minutesPlayed ?? 0),
+        fgPct: Number(r.field_goal_percentage ?? 0),
+        threePct: Number(r.three_point_percentage ?? 0),
+        scheduledAt: m.scheduledAt?.toISOString() ?? null,
+        won,
+        tournamentId: m.tournament?.id ?? null,
+        tournamentName: m.tournament?.name ?? null,
+        tournamentShortCode: m.tournament?.short_code ?? null,
+      };
+    });
 
   // ---- Hero / 평점 ----
   const evaluationRating = user.evaluation_rating != null ? Number(user.evaluation_rating) : null;
@@ -431,6 +696,9 @@ export default async function UserProfilePage({
             badges={badges}
             activity={activity}
             bio={user.bio}
+            // 5/9 Phase 2 추가: 활동 로그 5종 통합 (Q1=A) + 통산 모달 raw rows (Q7=A)
+            events={top5Events}
+            allStatsRows={allStatsRows}
           />
         }
         games={<RecentGamesTab matches={recentGameRows} />}
