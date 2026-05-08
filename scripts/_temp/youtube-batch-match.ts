@@ -1,21 +1,36 @@
 /**
- * 2026-05-09 — 종료 매치 YouTube 일괄 자동 매칭 batch (developer 1회성).
+ * 2026-05-09 — 매치 YouTube 일괄 자동 매칭 batch (developer 1회성).
  *
  * 컨텍스트:
- *   PR1~5 완료 후 누적된 종료 매치 (youtube_video_id IS NULL) 들에 대해
+ *   PR1~5 완료 후 누적된 매치 (youtube_video_id IS NULL) 들에 대해
  *   BDR uploads playlist (150건) 와 1회 매칭 → 80점+ 자동 등록 권장 / 50~79 후보 보고.
  *
- * 알고리즘 v2 (5/9 5요소 검증 업그레이드):
+ *   **2026-05-09 확장 (예정 매치 포함)**:
+ *   - 기존: 종료 매치만 매칭 (status completed/ended/final OR ended_at OR scheduledAt<now-1d)
+ *   - 신규: **모든 매치** (예정 + 진행중 + 종료) 매칭 → 앞으로 진행될 경기에 미리 영상 삽입.
+ *   - 사유: BDR 채널 사전 등록 영상 / 라이브 스트림 미리 박제 가능.
+ *   - 옵션 분기: --completed-only (기존 동작) / --scheduled-only (예정만) / 기본=모두 포함
+ *
+ * 알고리즘 v3 (5/9 — 정확 날짜 매칭 + 이미 등록 영상 제외):
  *   - 점수 배분 (총 100점): 홈팀(25) + 어웨이팀(25) + 대회명(20) + 날짜(20) + 시간(10)
- *   - 임계값 80점 (양 팀 정확 25+25 + 대회명 20 + 날짜 10 = 80점 자동 채택 시그널)
- *   - 5요소 모두 검증 (이전 v1: 양 팀만 검증 → 다른 대회 동명 팀 오매칭 가능)
+ *   - 임계값 80점 (양 팀 정확 25+25 + 대회명 20 + 날짜 20 = 90점 → 정상 자동 채택)
+ *   - **날짜 점수 룰 강화 (v3)**: 같은날 only — 정확 매칭 시그널만 인정
+ *     · 같은날 = 20
+ *     · ±1일 (자정 경계 시간대 오차) = 5
+ *     · 그 외 = 0 (사실상 매칭 차단 — 다른 날 영상은 임계값 80 도달 불가)
+ *   - **이미 등록된 video_id 제외 (v3 신규)**: DB 사전 조회 → 후보 pool 에서 제외
+ *     · 사유: v2 에서 같은 팀 조합의 새 매치가 이전 영상에 중복 매핑되는 사일런트 버그 차단
+ *     · 결과: 이전 12 매치 영상 = 새 매치 후보로 안 나옴 → 1:1 매핑 룰 강화
  *
  * 흐름:
- *   1) 종료 매치 list 조회 (youtube_video_id IS NULL + 종료 조건)
+ *   1) 매치 list 조회 (youtube_video_id IS NULL + status 필터 옵션)
  *      ※ --include-existing 시 NULL 조건 제거 (이전 채택 매치도 재채점, 정확도 비교)
- *   2) BDR uploads 영상 일괄 fetch (fetchEnrichedVideos / Redis cache)
- *   3) 매치별 scoreMatch v2 (5 요소 검증)
- *   4) dry-run 기본 — 결과 리포트만 / --apply 시 80점+ DB UPDATE + admin_logs
+ *   2) **DB 에서 이미 등록된 video_id list 조회 → usedSet** (v3 신규)
+ *   3) BDR uploads 영상 일괄 fetch (fetchEnrichedVideos / Redis cache)
+ *   4) **availableVideos = videos 에서 usedSet 영상 제외** (v3 신규)
+ *   5) 매치별 scoreMatch v3 (정확 날짜 룰 + availableVideos pool)
+ *   6) dry-run 기본 — 결과 리포트만 / --apply 시 80점+ DB UPDATE + admin_logs
+ *   7) 결과 — 예정 매치 vs 종료 매치 분리 표시
  *
  * 안전 가드 (CLAUDE.md §DB 정책):
  *   - dry-run 기본 (실수 방지)
@@ -24,10 +39,13 @@
  *   - Flutter v1 영향 0 (`/api/v1/...` schema 비변경)
  *   - BigInt 직렬화: id.toString() 명시
  *   - --include-existing 은 정확도 측정용 read-only (UPDATE 미수행 — 안전 가드)
+ *   - 회귀 차단: youtube_video_id IS NULL 필터로 이전 12 매치 자동 제외
  *
  * 사용법:
- *   npx tsx scripts/_temp/youtube-batch-match.ts                       # dry-run
+ *   npx tsx scripts/_temp/youtube-batch-match.ts                       # dry-run (예정+종료 모두)
  *   npx tsx scripts/_temp/youtube-batch-match.ts --apply               # 실제 UPDATE
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --completed-only      # 종료 매치만 (기존 동작)
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --scheduled-only      # 예정 매치만
  *   npx tsx scripts/_temp/youtube-batch-match.ts --include-existing    # 이전 채택 매치도 재채점 (정확도 측정)
  *   npx tsx scripts/_temp/youtube-batch-match.ts --tournament=<uuid>
  *   npx tsx scripts/_temp/youtube-batch-match.ts --threshold=70        # 임계값 조정
@@ -53,6 +71,20 @@ const APPLY = args.includes("--apply");
 // 신규 알고리즘 (5요소) 으로 이전 12 매치를 다시 점수화하여 정확도 검증.
 // 안전: APPLY 와 결합되어도 이전 채택 매치는 UPDATE 대상에서 자동 제외됨 (이중 가드).
 const INCLUDE_EXISTING = args.includes("--include-existing");
+
+// 2026-05-09 신규: 매치 status 분기 옵션 (3 모드)
+//  - --completed-only: 기존 동작 (종료 매치만 — status completed/ended/final OR ended_at OR scheduledAt<now-1d)
+//  - --scheduled-only: 예정 매치만 (위 종료 조건의 반대 — 종료 시그널 0)
+//  - (기본): 모든 매치 (예정 + 진행중 + 종료) — 사용자 요청 충실
+// 두 옵션 동시 지정 시 사용자 의도 모호 → 에러 후 종료
+const COMPLETED_ONLY = args.includes("--completed-only");
+const SCHEDULED_ONLY = args.includes("--scheduled-only");
+if (COMPLETED_ONLY && SCHEDULED_ONLY) {
+  console.error(
+    "❌ --completed-only 와 --scheduled-only 동시 지정 불가. 둘 중 하나만 선택하거나 (기본) 모든 매치 매칭.",
+  );
+  process.exit(1);
+}
 const TOURNAMENT_FILTER = (() => {
   const a = args.find((x) => x.startsWith("--tournament="));
   return a ? a.replace("--tournament=", "").trim() : null;
@@ -90,7 +122,7 @@ if (PLAYLIST_ID_OVERRIDE) {
 
 // ============ 매칭 알고리즘 (search/route.ts 와 동일) ============
 
-// v2 5요소 점수 배분 (총 100점)
+// v3 5요소 점수 배분 (총 100점)
 // home(25) + away(25) + tournament(20) + date(20) + time(10) = 100
 const SCORE_HOME_EXACT = 25; // 홈팀 정확 일치
 const SCORE_HOME_NORMALIZED = 20; // 홈팀 정규화 후 일치 (괄호/특수문자 제거)
@@ -98,9 +130,10 @@ const SCORE_AWAY_EXACT = 25;
 const SCORE_AWAY_NORMALIZED = 20;
 const SCORE_TOURNAMENT_FULL = 20; // 대회명 전체 substring 매칭
 const SCORE_TOURNAMENT_PARTIAL = 10; // 대회명 일부 키워드 매칭
-const SCORE_DATE_SAME_DAY = 20; // 같은 날
-const SCORE_DATE_1_7_DAYS = 15; // VOD 1~7일 후 업로드 (가장 일반적)
-const SCORE_DATE_8_30_DAYS = 10; // 8~30일 후 (지연 업로드)
+// v3 (5/9): 날짜 정확 매칭 only — 다른 날 영상 자동 채택 차단
+const SCORE_DATE_SAME_DAY = 20; // 같은 날 (KST 기준 — 자동 채택 시그널)
+const SCORE_DATE_PLUS_MINUS_1 = 5; // ±1일 (자정 경계 시간대 오차 대응 — 임계값 도달 불가하게 약한 점수)
+// v2 의 ±1~7일=15, ±8~30일=10 제거 — 다른 날 영상은 점수 0 → 자동 채택 임계값(80) 도달 불가 → 차단
 const SCORE_TIME_6H = 10; // 영상 publishedAt vs 매치 시각 ±6시간
 const SCORE_TIME_24H = 5; // ±24시간
 
@@ -108,8 +141,6 @@ const SCORE_TIME_24H = 5; // ±24시간
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
-const THIRTY_DAYS_MS = 30 * ONE_DAY_MS;
 
 interface ScoreBreakdown {
   home_team: number; // 0~25
@@ -201,16 +232,18 @@ function extractTournamentKeywords(name: string): string[] {
     .map((t) => t.toLowerCase());
 }
 
-// 매치 + 영상 1건 → 신뢰도 점수 (v2 — 5요소 검증)
+// 매치 + 영상 1건 → 신뢰도 점수 (v3 — 정확 날짜 매칭)
 //
 // 점수 배분 (총 100점):
 //   1. 홈팀 (25) — 영상 vs 토큰 좌측 정확/정규화 매칭 (swap 포함)
 //   2. 어웨이팀 (25) — 영상 vs 토큰 우측 정확/정규화 매칭 (swap 포함)
 //   3. 대회명 (20) — 영상 제목/설명에 대회명 substring 또는 일부 키워드 매칭
-//   4. 날짜 (20) — publishedAt date vs scheduledAt date (같은날 20 / 1~7일 15 / 8~30일 10)
+//   4. 날짜 (20) — publishedAt date vs scheduledAt date (같은날 20 / ±1일 자정경계 5 / 그 외 0)
 //   5. 시간 (10) — publishedAt 시각 vs scheduledAt 시각 (±6h=10 / ±24h=5)
 //
-// 자동 채택 시그널 = 80점 (양 팀 정확 50 + 대회명 20 + 날짜 10 이상)
+// 자동 채택 시그널 = 80점
+//   · 정확 매칭: 양 팀 50 + 대회명 20 + 같은날 20 = 90점 (시간 점수 무관)
+//   · 차단: 다른 날 영상은 양 팀 50 + 대회명 20 + 날짜 0 = 70점 (임계값 미달)
 function scoreMatch(video: EnrichedVideo, match: MatchMeta): ScoredCandidate {
   const breakdown: ScoreBreakdown = {
     home_team: 0,
@@ -271,26 +304,30 @@ function scoreMatch(video: EnrichedVideo, match: MatchMeta): ScoredCandidate {
     }
   }
 
-  // ============ 4) 날짜 매칭 (영상 publishedAt date vs 매치 scheduledAt date) ============
+  // ============ 4) 날짜 매칭 (v3 — 정확 매칭 only) ============
+  // **v3 (5/9 갱신)**: 사용자 명시 "실시간 중계만 등록 — 정확히 해당 경기일자에 매칭".
+  // 사유: v2 (1~7일=15 / 8~30일=10) → 같은 팀 조합의 다른 날 영상이 임계값 80 도달하여 오매핑 발생.
+  //       v3 룰: 같은날만 자동 채택 / ±1일 자정 경계 시간대 오차만 약한 점수 / 그 외 = 0 (차단).
+  // 임계값 80 도달 조합:
+  //   · 양 팀 정확 50 + 대회명 20 + 같은날 20 = 90점 ✅ (정상 자동 채택)
+  //   · 양 팀 정확 50 + 대회명 20 + 다른날 0 + 시간 0 = 70점 ❌ (임계값 미달 — 차단)
   const matchAt = match.startedAt ?? match.scheduledAt;
   const videoAt = new Date(video.publishedAt);
 
   if (matchAt) {
     const matchDate = toDateOnly(matchAt);
     const videoDate = toDateOnly(videoAt);
-    const diffDaysMs = videoAt.getTime() - matchAt.getTime();
+    const diffAbsMs = Math.abs(videoAt.getTime() - matchAt.getTime());
 
     if (matchDate === videoDate) {
-      // 같은 날 (라이브 방송 또는 당일 업로드)
+      // 같은 날 (라이브 방송 또는 당일 업로드) — 자동 채택 시그널
       breakdown.date = SCORE_DATE_SAME_DAY;
-    } else if (diffDaysMs > 0 && diffDaysMs <= SEVEN_DAYS_MS) {
-      // 영상이 매치 후 1~7일 내 업로드 (VOD 일반 패턴)
-      breakdown.date = SCORE_DATE_1_7_DAYS;
-    } else if (diffDaysMs > SEVEN_DAYS_MS && diffDaysMs <= THIRTY_DAYS_MS) {
-      // 영상이 매치 후 8~30일 내 업로드 (지연 업로드)
-      breakdown.date = SCORE_DATE_8_30_DAYS;
+    } else if (diffAbsMs <= ONE_DAY_MS) {
+      // ±1일 (자정 경계 — KST/UTC 시간대 변환 오차 대응)
+      // 약한 점수만 부여 — 양 팀+대회명 풀 매치여도 50+20+5+10=85 → 매우 드문 케이스만 자동 채택 가능
+      breakdown.date = SCORE_DATE_PLUS_MINUS_1;
     }
-    // 영상이 매치 전 / 30일 이상 지난 후 = 0점
+    // 그 외 (±2일 이상) = 0점 (사실상 자동 매칭 차단)
   }
 
   // ============ 5) 시간 매칭 (publishedAt 시각 vs scheduledAt 시각) ============
@@ -349,34 +386,57 @@ async function resolveAdminId(): Promise<bigint | null> {
 
 async function main() {
   const mode = APPLY ? "[APPLY — 실제 UPDATE 실행]" : "[DRY-RUN — DB 변경 없음]";
+  // 매치 status 모드 라벨 (사용자 가시성)
+  const statusModeLabel = COMPLETED_ONLY
+    ? "completed-only (종료 매치만)"
+    : SCHEDULED_ONLY
+      ? "scheduled-only (예정 매치만)"
+      : "all (예정 + 진행중 + 종료)";
   console.log(`\n${mode}`);
-  console.log(`  algorithm: v2 (5요소 — 홈25+어웨이25+대회20+날짜20+시간10 = 100점)`);
+  console.log(
+    `  algorithm: v3 (5요소 정확매칭 — 홈25+어웨이25+대회20+날짜20+시간10 / 같은날 only)`,
+  );
   console.log(`  threshold: ${THRESHOLD}점 (자동 채택 기준)`);
+  console.log(`  status mode: ${statusModeLabel}`);
   console.log(`  tournament: ${TOURNAMENT_FILTER ?? "(전체)"}`);
   console.log(`  limit: ${LIMIT ?? "(unlimited)"}`);
   console.log(`  include-existing: ${INCLUDE_EXISTING ? "Y (이전 채택 매치도 재채점)" : "N"}\n`);
 
-  // 종료 매치 조건 — youtube_video_id IS NULL + 종료 시그널
-  // status = completed/ended/final 이면 OR ended_at != NULL 이면 OR (started_at != NULL AND scheduledAt < now()-1d)
+  // 매치 조건 — youtube_video_id IS NULL + status 모드 분기
+  //   - completed-only: 종료 시그널 (status completed/ended/final OR ended_at OR scheduledAt<now-1d)
+  //   - scheduled-only: 종료 시그널 NOT (= 예정 매치)
+  //   - (기본): 필터 0 — 모든 매치 (예정 + 진행중 + 종료)
   // --include-existing 시 NULL 조건 제거 (정확도 측정용 — 이전 채택 매치도 재채점)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // 종료 시그널 OR 절 (재사용용 — completed-only / scheduled-only 양쪽 모두 활용)
+  const completedSignalOR: Prisma.TournamentMatchWhereInput = {
+    OR: [
+      { status: { in: ["completed", "ended", "final"] } },
+      { ended_at: { not: null } },
+      {
+        AND: [
+          { started_at: { not: null } },
+          { scheduledAt: { lt: oneDayAgo } },
+        ],
+      },
+    ],
+  };
+
+  // status 모드별 필터 분기
+  // 사유: 사용자가 "예정 매치도 매칭" 요청 → 기본값 = 모든 매치 (필터 0).
+  // completed-only / scheduled-only 는 명시적 옵션 시만 적용.
+  const statusFilter: Prisma.TournamentMatchWhereInput[] = COMPLETED_ONLY
+    ? [completedSignalOR]
+    : SCHEDULED_ONLY
+      ? [{ NOT: completedSignalOR }]
+      : []; // 기본: 모든 매치
 
   const where: Prisma.TournamentMatchWhereInput = {
     ...(INCLUDE_EXISTING ? {} : { youtube_video_id: null }),
     AND: [
       ...(TOURNAMENT_FILTER ? [{ tournamentId: TOURNAMENT_FILTER }] : []),
-      {
-        OR: [
-          { status: { in: ["completed", "ended", "final"] } },
-          { ended_at: { not: null } },
-          {
-            AND: [
-              { started_at: { not: null } },
-              { scheduledAt: { lt: oneDayAgo } },
-            ],
-          },
-        ],
-      },
+      ...statusFilter,
     ],
   };
 
@@ -402,7 +462,20 @@ async function main() {
     take: LIMIT ?? undefined,
   });
 
-  console.log(`종료 매치 (영상 미등록): ${matches.length}건\n`);
+  // 매치 분류 통계 (예정 vs 종료) — 헤더 표시용
+  // 사유: 사용자 요청 "예정 매치 vs 종료 매치 분리 표시" — 결과 리포트 분리 + 헤더에서도 미리 분포 확인.
+  // 종료 시그널 isCompleted = (status in completed/ended/final) OR ended_at != NULL OR (started_at != NULL AND scheduledAt < now-1d)
+  const isMatchCompleted = (m: (typeof matches)[number]): boolean => {
+    if (m.status && ["completed", "ended", "final"].includes(m.status)) return true;
+    if (m.ended_at) return true;
+    if (m.started_at && m.scheduledAt && m.scheduledAt.getTime() < oneDayAgo.getTime()) return true;
+    return false;
+  };
+
+  const completedCount = matches.filter(isMatchCompleted).length;
+  const upcomingCount = matches.length - completedCount;
+
+  console.log(`매치 (영상 미등록): ${matches.length}건 — 종료 ${completedCount}건 / 예정 ${upcomingCount}건\n`);
 
   if (matches.length === 0) {
     console.log("매칭 대상 매치가 없습니다. 종료.");
@@ -433,6 +506,43 @@ async function main() {
     return;
   }
 
+  // ============ v3 신규: 이미 등록된 video_id 제외 ============
+  //
+  // 사유: v2 에서 같은 팀 조합 + 같은 대회의 새 매치가 이전에 다른 매치에 등록된 영상에
+  //       중복 매핑되는 사일런트 버그 발생 (1:1 매핑 룰이 batch 단일 실행 안에서만 보장).
+  // 룰 강화: DB 에서 이미 youtube_video_id 등록된 영상 list 사전 조회 → 후보 pool 에서 제외.
+  // 결과: 이전 12 매치 영상은 새 매치 후보로 안 나옴 → 같은 팀 조합 새 매치는 다른 영상 또는
+  //       매칭 실패 (영상 없음 = 정상).
+  //
+  // 단, --include-existing 시는 정확도 비교용 read-only 모드 → 제외 룰 미적용 (이전 매치 재채점 위해 같은 영상 후보 유지).
+  let availableVideos = videos;
+  if (!INCLUDE_EXISTING) {
+    const usedRows = await prisma.tournamentMatch.findMany({
+      where: { youtube_video_id: { not: null } },
+      select: { youtube_video_id: true },
+    });
+    const usedSet = new Set<string>(
+      usedRows
+        .map((m) => m.youtube_video_id)
+        .filter((v): v is string => typeof v === "string" && v.length > 0),
+    );
+    const before = availableVideos.length;
+    availableVideos = videos.filter((v) => !usedSet.has(v.videoId));
+    const excluded = before - availableVideos.length;
+    console.log(
+      `  v3 가드 — DB 이미 등록된 영상 ${usedSet.size}건 / pool 제외 ${excluded}건 → 매칭 후보 ${availableVideos.length}건\n`,
+    );
+  } else {
+    console.log(
+      `  --include-existing — DB 등록 영상 제외 가드 미적용 (정확도 비교 모드)\n`,
+    );
+  }
+
+  if (availableVideos.length === 0) {
+    console.log("매칭 가능한 영상 0건 (전부 DB 등록됨) → 종료.");
+    return;
+  }
+
   // ============ 매치별 매칭 ============
 
   type MatchScoreResult = {
@@ -449,6 +559,8 @@ async function main() {
     // 정확도 비교용 — DB 에 이미 등록된 영상 정보 (--include-existing 시 활용)
     existingVideoId: string | null;
     existingStatus: string | null;
+    // 2026-05-09 신규: 매치 분류 (종료/예정) — 결과 리포트 분리 표시용
+    isCompleted: boolean;
   };
 
   const results: MatchScoreResult[] = [];
@@ -463,6 +575,8 @@ async function main() {
       scheduledAt: m.scheduledAt,
       startedAt: m.started_at,
     };
+
+    const matchIsCompleted = isMatchCompleted(m);
 
     // 양 팀 모두 빈 경우 매칭 신뢰도 0 → skip 후보 (혹시 모를 데이터 깨짐)
     if (!meta.homeTeamName && !meta.awayTeamName) {
@@ -479,11 +593,13 @@ async function main() {
         candidatesAbove50: [],
         existingVideoId: m.youtube_video_id,
         existingStatus: m.youtube_status,
+        isCompleted: matchIsCompleted,
       });
       continue;
     }
 
-    const scored = videos
+    // v3: availableVideos (DB 미등록 영상만) 풀에서 채점
+    const scored = availableVideos
       .map((v) => scoreMatch(v, meta))
       .sort((a, b) => b.score - a.score);
 
@@ -502,6 +618,7 @@ async function main() {
       candidatesAbove50,
       existingVideoId: m.youtube_video_id,
       existingStatus: m.youtube_status,
+      isCompleted: matchIsCompleted,
     });
   }
 
@@ -576,20 +693,34 @@ async function main() {
     (r) => !r.bestCandidate || r.bestCandidate.score < 50,
   );
 
+  // 2026-05-09 신규: 자동 채택을 종료/예정 분리 통계
+  // 사유: 사용자 요청 "예정 매치 vs 종료 매치 분리 표시" — 사용자가 결정 가능 (예정 vs 종료 별도 결재)
+  const autoAcceptCompleted = autoAccept.filter((r) => r.isCompleted);
+  const autoAcceptUpcoming = autoAccept.filter((r) => !r.isCompleted);
+  const reviewableCompleted = reviewable.filter((r) => r.isCompleted);
+  const reviewableUpcoming = reviewable.filter((r) => !r.isCompleted);
+  const noMatchCompleted = noMatch.filter((r) => r.isCompleted);
+  const noMatchUpcoming = noMatch.filter((r) => !r.isCompleted);
+
   console.log("=".repeat(80));
   console.log(`📊 매칭 결과 요약 (threshold=${THRESHOLD})`);
   console.log("=".repeat(80));
-  console.log(`  ✅ 자동 채택 (≥${THRESHOLD}점): ${autoAccept.length}건`);
-  console.log(`  🟡 후보 검토 (50~${THRESHOLD - 1}점): ${reviewable.length}건`);
-  console.log(`  ❌ 매칭 실패 (<50점 / 후보 0): ${noMatch.length}건`);
-  console.log(`  📌 총 종료 매치: ${results.length}건\n`);
+  console.log(`  ✅ 자동 채택 (≥${THRESHOLD}점): ${autoAccept.length}건  [종료 ${autoAcceptCompleted.length} / 예정 ${autoAcceptUpcoming.length}]`);
+  console.log(`  🟡 후보 검토 (50~${THRESHOLD - 1}점): ${reviewable.length}건  [종료 ${reviewableCompleted.length} / 예정 ${reviewableUpcoming.length}]`);
+  console.log(`  ❌ 매칭 실패 (<50점 / 후보 0): ${noMatch.length}건  [종료 ${noMatchCompleted.length} / 예정 ${noMatchUpcoming.length}]`);
+  console.log(`  📌 총 매치: ${results.length}건  [종료 ${completedCount} / 예정 ${upcomingCount}]\n`);
 
-  // 자동 채택 매치 상세 (사용자가 --apply 결정 시 직접 확인용)
-  if (autoAccept.length > 0) {
+  // 자동 채택 매치 상세 — 종료/예정 분리 표시
+  // 사용자가 --apply 결정 시 직접 확인용. 예정 매치는 "사전 영상 매핑" 시그널로 별도 표시.
+  const printAutoAcceptSection = (
+    label: string,
+    list: typeof autoAccept,
+  ) => {
+    if (list.length === 0) return;
     console.log("─".repeat(80));
-    console.log(`✅ 자동 채택 권장 매치 (${autoAccept.length}건):`);
+    console.log(`✅ ${label} (${list.length}건):`);
     console.log("─".repeat(80));
-    for (const r of autoAccept) {
+    for (const r of list) {
       const c = r.bestCandidate!;
       const dateStr = r.scheduledAt?.toISOString().slice(0, 16).replace("T", " ") ?? "?";
       console.log(
@@ -603,7 +734,12 @@ async function main() {
       );
       console.log("");
     }
-  }
+  };
+
+  // 종료 매치 자동 채택
+  printAutoAcceptSection("자동 채택 권장 — 종료 매치 (VOD)", autoAcceptCompleted);
+  // 예정 매치 자동 채택 — 사전 영상 매핑 (라이브 예고 / 예고편 등)
+  printAutoAcceptSection("자동 채택 권장 — 예정 매치 (사전 영상)", autoAcceptUpcoming);
 
   // 후보 검토 매치 (50~99점 + 1:1 충돌 박탈) — 운영자 수동 검토 권장
   if (reviewable.length > 0) {
