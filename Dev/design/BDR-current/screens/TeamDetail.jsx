@@ -249,7 +249,7 @@ function TeamDetail({ setRoute, teamId }) {
     { date: '03.28', opp: 'KINGS CREW',   score: '17 : 19', result: 'L', tournament: 'KINGS CUP' },
     { date: '03.15', opp: '3POINT',       score: '22 : 14', result: 'W', tournament: '정규 리그' },
     { date: '03.02', opp: 'THE ZONE',     score: '20 : 16', result: 'W', tournament: '정규 리그' },
-    { date: '02.18', opp: 'SEOUL HEAT',   score: '15 : 21', result: 'L', tournament: '연습경기' },
+    { date: '02.18', opp: 'SEOUL HEAT',   score: '15 : 21', result: 'L', tournament: '스크림' },
   ];
 
   return (
@@ -270,7 +270,20 @@ function TeamDetail({ setRoute, teamId }) {
       }}>
         <div style={{position:'absolute', right:-20, top:-20, fontFamily:'var(--ff-display)', fontWeight:900, fontSize:220, letterSpacing:'-0.04em', opacity:.12, lineHeight:.8}}>{t.tag}</div>
         <div style={{position:'relative', display:'grid', gridTemplateColumns:'auto 1fr auto', gap:24, alignItems:'flex-end'}}>
-          <Avatar src={t.logo} tag={t.tag} name={t.name} color="rgba(255,255,255,.2)" ink={t.ink} size={96} radius={12}/>
+          {/* Phase A.5 §8 — Avatar 로고 박스 1.5배 (모바일 64→96 / PC 96→144). zip v2.5 시안 박제 */}
+          <div className="team-hero-logo" style={{
+            background: 'rgba(255,255,255,0.2)', color: t.ink,
+            display: 'grid', placeItems: 'center',
+            fontFamily: 'var(--ff-display)', fontWeight: 900,
+            fontSize: 'clamp(22px, 6vw, 33px)',
+            borderRadius: 12, flex: '0 0 auto', letterSpacing: '.04em',
+            border: '1px solid rgba(255,255,255,.25)',
+            overflow: 'hidden',
+          }}>
+            {t.logo
+              ? <img src={t.logo} alt={t.name} style={{width:'100%', height:'100%', objectFit:'cover'}} onError={(e)=>{e.currentTarget.style.display='none';}}/>
+              : (t.tag || (t.name ? t.name.slice(0,2).toUpperCase() : '?'))}
+          </div>
           <div>
             <div style={{fontFamily:'var(--ff-display)', fontSize:12, fontWeight:800, letterSpacing:'.14em', opacity:.9, marginBottom:10}}>TEAM · {t.tag} · 창단 {t.founded}</div>
             <h1 className="t-display" style={{margin:0, fontSize:52, lineHeight:1, letterSpacing:'-0.02em'}}>{t.name}</h1>

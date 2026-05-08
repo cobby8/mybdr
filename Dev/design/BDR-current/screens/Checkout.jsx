@@ -14,7 +14,7 @@ function Checkout({ setRoute }) {
     } catch(e) {}
     return {
       title: 'BDR CHALLENGE SPRING 2026',
-      subtitle: '3x3 오픈 챔피언십 · 팀 참가비',
+      subtitle: '서울 3x3 오픈 챔피언십 · 팀 참가비',
       fee: '₩80,000',
       feeNum: 80000,
       code: 'BDR-T-00412',

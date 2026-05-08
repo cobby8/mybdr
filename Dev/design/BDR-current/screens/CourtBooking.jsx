@@ -123,7 +123,7 @@ function CourtBooking({ setRoute }) {
               {[
                 {id:'pickup', l:'픽업경기', d:'개인 모집'},
                 {id:'team',   l:'팀 훈련', d:'팀원 전용'},
-                {id:'scrim',  l:'연습경기', d:'팀간 연습'},
+                {id:'scrim',  l:'스크림', d:'팀간 연습'},
                 {id:'private',l:'개인 연습', d:'혼자/소규모'},
               ].map(p => (
                 <button key={p.id} onClick={()=>setPurpose(p.id)} style={{
@@ -157,7 +157,7 @@ function CourtBooking({ setRoute }) {
                 {[
                   {l:'날짜', v:date},
                   {l:'시간', v: slot ? `${slot} (${dur}시간)` : '선택 필요', missing: !slot},
-                  {l:'목적', v: {pickup:'픽업경기', team:'팀 훈련', scrim:'연습경기', private:'개인 연습'}[purpose]},
+                  {l:'목적', v: {pickup:'픽업경기', team:'팀 훈련', scrim:'스크림', private:'개인 연습'}[purpose]},
                   {l:'시설', v: current.fac.join(' · ')},
                 ].map(r => (
                   <div key={r.l} style={{display:'flex', justifyContent:'space-between', fontSize:12, gap:10}}>

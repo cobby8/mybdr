@@ -53,6 +53,13 @@
 <script type="text/babel" src="community-data.jsx"></script>
 <script type="text/babel" src="extras-data.jsx"></script>
 <script type="text/babel" src="components.jsx"></script>
+<script type="text/babel" src="components-global.jsx"></script>
+<script type="text/babel" src="screens/_GlobalComponents.jsx"></script>
+<script type="text/babel" src="screens/OnboardingIdentity.jsx"></script>
+<script type="text/babel" src="screens/OnboardingBasketball.jsx"></script>
+<script type="text/babel" src="screens/OnboardingEnvironment.jsx"></script>
+<script type="text/babel" src="screens/OnboardingPreferences.jsx"></script>
+<script type="text/babel" src="screens/OnboardingSetup.jsx"></script>
 <script type="text/babel" src="screens/Home.jsx"></script>
 <script type="text/babel" src="screens/BoardList.jsx"></script>
 <script type="text/babel" src="screens/PostDetail.jsx"></script>
@@ -240,7 +247,7 @@ function App() {
   else if (route === 'gameDetail') screen = <GameDetail setRoute={setRoute}/>;
   else if (route === 'orgDetail') screen = <OrgDetail setRoute={setRoute}/>;
   else if (route === 'notifications') screen = <Notifications setRoute={setRoute}/>;
-  else if (route === 'settings') screen = <Settings setRoute={setRoute}/>;
+  else if (route === 'settings') screen = <Settings setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
   else if (route === 'createTeam') screen = <CreateTeam setRoute={setRoute}/>;
   else if (route === 'createGame') screen = <CreateGame setRoute={setRoute}/>;
   else if (route === 'gameResult') screen = <GameResult setRoute={setRoute}/>;
@@ -290,6 +297,12 @@ function App() {
   else if (route === 'invite')     screen = <Invite setRoute={setRoute}/>;
   else if (route === 'pricingFail')    screen = <PricingFail setRoute={setRoute}/>;
   else if (route === 'pricingSuccess') screen = <PricingSuccess setRoute={setRoute}/>;
+  else if (route === 'globalComponents')      screen = <GlobalComponents setRoute={setRoute}/>;
+  else if (route === 'onboardingIdentity')    screen = <OnboardingIdentity setRoute={setRoute}/>;
+  else if (route === 'onboardingBasketball')  screen = <OnboardingBasketball setRoute={setRoute}/>;
+  else if (route === 'onboardingEnvironment') screen = <OnboardingEnvironment setRoute={setRoute}/>;
+  else if (route === 'onboardingPreferences') screen = <OnboardingPreferences setRoute={setRoute}/>;
+  else if (route === 'onboardingSetup')       screen = <OnboardingSetup setRoute={setRoute}/>;
   else                          screen = <Home setRoute={setRoute} setActiveBoard={setActiveBoard}/>;
 
   return (
