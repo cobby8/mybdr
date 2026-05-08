@@ -359,6 +359,24 @@ export function LineupConfirmForm({
           </div>
         ) : (
           <div className="flex flex-col gap-2">
+            {/* 헤더 row — ttp-row 컬럼 너비와 정확히 매칭 (44/44/48/flex-1/64) */}
+            {/* 가벼운 텍스트 헤더 (border/bg 0). pt-2 pb-1 만 살짝 spacing */}
+            <div
+              className="flex items-center gap-3 px-3 pb-1 pt-2 text-xs"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {/* 출전 — ttp-row label `min-w-11` (44px) 과 매칭 */}
+              <div className="flex min-w-11 items-center justify-center">출전</div>
+              {/* 주전 — ttp-row button `min-w-11` (44px) 과 매칭 */}
+              <div className="flex min-w-11 items-center justify-center">주전</div>
+              {/* 번호 — ttp-row 등번호 칩 `w-12` (48px) 과 매칭 */}
+              <div className="flex w-12 items-center justify-center">번호</div>
+              {/* 이름 — ttp-row 이름 영역 `flex-1` 과 매칭 */}
+              <div className="flex min-w-0 flex-1 items-center">이름</div>
+              {/* 포지션 — ttp-row 포지션 영역 `w-16` (64px) 과 매칭 */}
+              <div className="flex w-16 items-center justify-center">포지션</div>
+            </div>
+
             {players.map((p) => {
               const isActive = activeIds.has(p.id);
               const isStarter = starterIds.has(p.id);

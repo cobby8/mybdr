@@ -134,7 +134,7 @@ export function TtpRow({
         {ttp.jersey_number !== null ? `#${ttp.jersey_number}` : "—"}
       </div>
 
-      {/* 이름 + role/position 메타 */}
+      {/* 이름 + role 메타 (position 은 별도 컬럼으로 분리) */}
       <div className="flex min-w-0 flex-1 flex-col">
         <span
           className="truncate text-sm font-medium"
@@ -146,8 +146,16 @@ export function TtpRow({
           className="truncate text-xs"
           style={{ color: "var(--color-text-muted)" }}
         >
-          {[ttp.role, ttp.position].filter(Boolean).join(" · ") || "선수"}
+          {ttp.role || "선수"}
         </span>
+      </div>
+
+      {/* 포지션 컬럼 — 별도 분리 (헤더 "포지션" 과 정렬 매칭, w-16 center). null 시 — */}
+      <div
+        className="flex h-9 w-16 items-center justify-center text-sm tabular-nums"
+        style={{ color: "var(--color-text-secondary)" }}
+      >
+        {ttp.position || "—"}
       </div>
     </div>
   );
