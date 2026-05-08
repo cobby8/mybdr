@@ -9,23 +9,20 @@ export const metadata: Metadata = {
 /* ============================================================
  * 홈페이지 — BDR v2 디자인 적용 (Phase 1)
  *
- * 레이아웃 (v2 Home.jsx 시안 기준 — 5/9 MySummaryHero/RecommendedGames 제거 후 6섹션):
- * 1. HomeHeader — eyebrow + h1 + 통계 1줄 + 검색/모집글 작성 CTA  ⭐ 5/9 Phase 1 A
- *    └ 시안 Home.jsx line 43~75 박제 (server component / props: members, onlineNow)
- * 2. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
+ * 레이아웃 (v2 Home.jsx 시안 기준 — 5/9 HomeHeader/MySummaryHero/RecommendedGames 제거 후 5섹션):
+ * 1. HeroCarousel — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 카로셀
  *    └ prefetchHeroSlides()가 데이터 0건이어도 정적 fallback 1개 보장
- * 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  (5/9 1차 부활)
+ * 2. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일)  (5/9 1차 부활)
  *    └ RecommendedRail 통일 헤더 ("WATCH NOW · YOUTUBE")
- * 4. 2컬럼 grid
+ * 3. 2컬럼 grid
  *    - CardPanel "공지·인기글" : prefetchCommunity 상위 5건 → HotPostRow
  *    - CardPanel "열린 대회"   : prefetchOpenTournaments → TournamentRow
- * 5. "방금 올라온 글" 섹션 : prefetchCommunity 상위 10건 → BoardRow
- * 6. StatsStrip — 4열 통계 (전체회원/지금접속/누적경기/활동팀) ⭐ 5/9 최하단 이동
+ * 4. "방금 올라온 글" 섹션 : prefetchCommunity 상위 10건 → BoardRow
+ * 5. StatsStrip — 4열 통계 (전체회원/지금접속/누적경기/활동팀) ⭐ 5/9 최하단 이동
  *    └ 시안 CommunityPulse(사이드바) → 모바일 stack 시 본문 아래 패턴 매핑
  *
- * 5/9 MySummaryHero/RecommendedGames 제거 사유: 시안에 맞춰 재계획 필요 — 시안의
- * ProfileWidget(사이드바) + HeroBento(좌 promo+우 라이브/접수) 와 어긋나는
- * 컨셉. 컴포넌트 자체는 src/components/home/ 에 보존 (재부활 가능).
+ * 5/9 HomeHeader/MySummaryHero/RecommendedGames 제거 사유: 시안에 맞춰 재계획 필요.
+ * 컴포넌트 자체는 src/components/bdr-v2/ + src/components/home/ 에 보존 (재부활 가능).
  *
  * 5/9 P0 부활 사유: BDR v2 Phase 1 (2026-04-24 d6bc22c) 일괄 제거 후
  * 시안에 있는 핵심 매치 매칭 가치 (개인화 + 추천 경기) 가 운영에서 빠진 상태.
@@ -42,9 +39,8 @@ export const metadata: Metadata = {
 // PromoCard 컴포넌트 파일 자체는 무수정 보존 — 다른 페이지에서 재사용 가능성.
 import { getWebSession } from "@/lib/auth/web-session";
 import { HeroCarousel } from "@/components/bdr-v2/hero-carousel";
-// 2026-05-09 Phase 1 A — 시안 Home.jsx line 43~75 박제 (eyebrow + h1 + CTA 2개 + 통계 1줄)
-// server component / props 만 받음 → DB 추가 패칭 0 (statsData 재활용).
-import { HomeHeader } from "@/components/bdr-v2/home-header";
+// 2026-05-09 HomeHeader 제거 — 시안에 맞춰 재계획 예정.
+// 컴포넌트 자체는 src/components/bdr-v2/home-header.tsx 에 보존 (재부활 가능).
 import { StatsStrip } from "@/components/bdr-v2/stats-strip";
 import { BoardRow } from "@/components/bdr-v2/board-row";
 import { HotPostRow } from "@/components/bdr-v2/hot-post-row";
@@ -166,18 +162,12 @@ export default async function HomePage() {
        *      비로그인 / 이미 완성 / dismiss 시 자체적으로 null 반환 (조건부 렌더). */}
       <ProfileCtaCard />
 
-      {/* 1. HomeHeader — eyebrow + h1 + 통계 1줄 + CTA 2개 (5/9 Phase 1 A)
-       * 시안 Home.jsx line 43~75 박제. server component / props 만 사용.
-       * onlineNow 는 DB 실시간 카운트 미보유 → null 전달 시 컴포넌트 내부에서
-       * "지금 접속 중" 부분 자동 생략 (placeholder 가짜 숫자 띄우지 않음). */}
-      <HomeHeader members={statsData?.user_count ?? 0} onlineNow={null} />
-
-      {/* 2. Hero 카로셀 — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 5초 간격
+      {/* 1. Hero 카로셀 — 4종 슬라이드(대회/게임/MVP/정적) 자동회전 5초 간격
        * prefetchHeroSlides가 정적 fallback 1개를 항상 보장하지만, 만일의 rejected
        * 케이스(heroSlides=[])에 대비해 length>0 가드 추가. */}
       {heroSlides.length > 0 && <HeroCarousel slides={heroSlides} />}
 
-      {/* 3. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) (5/9 1차 부활)
+      {/* 2. RecommendedVideos — BDR 추천 유튜브 영상 (NBA 2K 스타일) (5/9 1차 부활)
        * 컴포넌트 자체 "HIGHLIGHTS" 헤더 보유 → CardPanel 래퍼 없이 직접 렌더.
        * useSWR 클라이언트 패칭이라 server component prefetch 영향 0.
        * marginTop:24 으로 StatsStrip 과 BDR v2 다른 섹션과 동일 간격. */}
@@ -185,7 +175,7 @@ export default async function HomePage() {
         <RecommendedVideos />
       </section>
 
-      {/* 4. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
+      {/* 3. 2컬럼 그리드 — 공지·인기글 + 열린 대회 (모바일 1열) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* 공지·인기글 패널 — HotPostRow 방식 (시안 3열 grid 간략 리스트)
          * v2 Home.jsx L44~53 HOT_POSTS 구조: 56px 배지 / 1fr 제목 / auto 조회수.
@@ -279,7 +269,7 @@ export default async function HomePage() {
         </CardPanel>
       </div>
 
-      {/* 5. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
+      {/* 4. 방금 올라온 글 — 별도 섹션, 위 그리드와 24px 간격 */}
       <section style={{ marginTop: 24 }}>
         {/* 섹션 헤더 — CardPanel과 다른 자유 형태 (시안 재현) */}
         <div
@@ -343,7 +333,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* 6. StatsStrip — 통계 4열 (시안 CommunityPulse 사이드바 → 모바일 최하단 매핑)
+      {/* 5. StatsStrip — 통계 4열 (시안 CommunityPulse 사이드바 → 모바일 최하단 매핑)
        * 5/9 위치 변경: HeroCarousel 직후 → page 최하단.
        * 이유: 시안 Home.jsx 의 CommunityPulse(line 176)가 우측 사이드바 안에 있고
        *       모바일에서 home__split { 1열 stack } 으로 본문 아래로 떨어지는 패턴 매핑.
