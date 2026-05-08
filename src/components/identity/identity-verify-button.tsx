@@ -1,7 +1,7 @@
 "use client";
 
 /* ============================================================
- * IdentityVerifyButton (5/7 PortOne V2 실 통합)
+ * IdentityVerifyButton (5/7 PortOne V2 실 통합 + 5/8 mock 폴백)
  *
  * 왜:
  *  - 기존 mock 모달 (Phase 12-5) 을 PortOne V2 본인인증 SDK 호출로 교체.
@@ -19,13 +19,16 @@
  *    · code 없음 = 성공 → identityVerificationId 서버 전송
  *  - 서버 200 응답 시 onVerified 콜백 호출 + 인증완료 배지 전환
  *
- * fallback (channel key 미설정):
- *  - 환경변수 비어있으면 즉시 에러 표시 ("본인인증 설정이 완료되지 않았습니다")
- *  - 운영자가 PortOne 콘솔에서 채널 발급 후 환경변수 설정해야 작동
+ * 5/8 mock 폴백 분기 (사용자 결정 B 톤 다운):
+ *  - isIdentityGateEnabled() = false (channel key 미설정) 일 때 빨간 에러 대신 MockIdentityModal 오픈
+ *  - 환경변수 추가 시 자동으로 PortOne SDK 호출 모드 복귀 (코드 변경 0)
+ *  - 버튼 라벨 분기: mock 모드 = "임시 정보 입력" / 활성 = "본인인증 시작"
  * ============================================================ */
 
 import { useState } from "react";
 import * as PortOne from "@portone/browser-sdk/v2";
+import { isIdentityGateEnabled } from "@/lib/auth/identity-gate-flag";
+import { MockIdentityModal } from "./mock-identity-modal";
 
 interface VerifiedPayload {
   verified_name: string;
@@ -41,6 +44,12 @@ export function IdentityVerifyButton({ initialVerified, onVerified }: Props) {
   const [verified, setVerified] = useState(initialVerified);
   const [submitting, setSubmitting] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+  // 5/8 mock 폴백 — channel key 미설정 시 모달 오픈
+  const [mockModalOpen, setMockModalOpen] = useState(false);
+
+  // 5/8 — channel key 환경변수 단일 신호로 PortOne 활성/mock 분기
+  // build 시 inline 평가 — 런타임 hot swap 불가 (Next.js 15 NEXT_PUBLIC_*)
+  const gateEnabled = isIdentityGateEnabled();
 
   if (verified) {
     return (
@@ -66,9 +75,18 @@ export function IdentityVerifyButton({ initialVerified, onVerified }: Props) {
     if (submitting) return;
     setErrorText(null);
 
+    // 5/8 mock 폴백 — channel key 미설정 시 모달 오픈 (빨간 에러 톤 다운)
+    if (!gateEnabled) {
+      setMockModalOpen(true);
+      return;
+    }
+
+    // 이하 PortOne 활성화 시 — 기존 코드 그대로 (변경 0)
     const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID;
     const channelKey = process.env.NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY;
 
+    // 방어적 검증 — gateEnabled=true 이면 channelKey 도 존재 (헬퍼 정의상)
+    // 단 storeId 누락 가능 (별도 환경변수) → 이 경우만 에러 표시
     if (!storeId || !channelKey) {
       setErrorText(
         "본인인증 설정이 완료되지 않았습니다. 운영자에게 문의해 주세요.",
@@ -130,41 +148,58 @@ export function IdentityVerifyButton({ initialVerified, onVerified }: Props) {
     }
   };
 
+  // 5/8 mock 모달에서 인증 통과 시 콜백 — 부모 onVerified 호출 + 인증 완료 배지 전환
+  const handleMockVerified = (data: VerifiedPayload) => {
+    setMockModalOpen(false);
+    onVerified(data);
+    setVerified(true);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={submitting}
-        className="btn"
-        style={{
-          padding: "10px 20px",
-          fontSize: 14,
-          fontWeight: 700,
-          whiteSpace: "nowrap",
-          background: "var(--cafe-blue)",
-          color: "var(--bg)",
-          border: "1px solid var(--cafe-blue)",
-          borderRadius: 4,
-          cursor: submitting ? "wait" : "pointer",
-          opacity: submitting ? 0.7 : 1,
-        }}
-      >
-        {submitting ? "인증 진행 중..." : "본인인증 시작"}
-      </button>
-      {errorText && (
-        <p
-          role="alert"
+    <>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={submitting}
+          className="btn"
           style={{
-            fontSize: 12,
-            color: "var(--accent)",
-            textAlign: "center",
-            margin: 0,
+            padding: "10px 20px",
+            fontSize: 14,
+            fontWeight: 700,
+            whiteSpace: "nowrap",
+            background: "var(--cafe-blue)",
+            color: "var(--bg)",
+            border: "1px solid var(--cafe-blue)",
+            borderRadius: 4,
+            cursor: submitting ? "wait" : "pointer",
+            opacity: submitting ? 0.7 : 1,
           }}
         >
-          {errorText}
-        </p>
-      )}
-    </div>
+          {/* 5/8 — 라벨 분기. mock 모드 = 임시 입력 (출시 전 임시 톤) / PortOne 활성 = 본인인증 시작 */}
+          {submitting ? "인증 진행 중..." : gateEnabled ? "본인인증 시작" : "임시 정보 입력"}
+        </button>
+        {errorText && (
+          <p
+            role="alert"
+            style={{
+              fontSize: 12,
+              color: "var(--accent)",
+              textAlign: "center",
+              margin: 0,
+            }}
+          >
+            {errorText}
+          </p>
+        )}
+      </div>
+
+      {/* 5/8 — mock 모달은 gateEnabled=false 일 때만 마운트 가능 */}
+      <MockIdentityModal
+        open={mockModalOpen}
+        onClose={() => setMockModalOpen(false)}
+        onVerified={handleMockVerified}
+      />
+    </>
   );
 }

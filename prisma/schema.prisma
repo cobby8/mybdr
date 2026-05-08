@@ -216,6 +216,11 @@ model User {
   verified_birth DateTime? @db.Date
   name_verified  Boolean   @default(false)
   verified_at    DateTime? @db.Timestamp(6)
+  // 5/8 — 본인인증 출처 표식 (mock / portone / null=미인증)
+  // 사유: PortOne 활성화 후 mock 통과자 사후 식별 + 권유 안내 + 통계
+  // 백필 X — 신규 인증 시점부터 기록. 기존 통과자 (5/7 이전) = null 유지
+  // NULL 허용 ADD COLUMN = 무중단 (CLAUDE.md §DB 정책 §3-2)
+  identity_method String?   @db.VarChar(20)
 
   // Phase 12-A — 시즌 통계 / 슛존 / 스카우팅 리포트 (12-1 테이블만, UI/집계는 Phase 13+)
   season_stats         UserSeasonStat[]
