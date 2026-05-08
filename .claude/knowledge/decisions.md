@@ -2,6 +2,31 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-08] 본인인증 mock 자체 입력 폴백 모드 설계 — 사용자 결정 B 톤 다운 + 자체 입력
+- **분류**: decision (onboarding / mock 폴백 / 환경변수 단일 신호 / DB ADD COLUMN)
+- **결정자**: 사용자 (B 톤 다운 + 자체 입력 폴백) + planner-architect (구조 설계)
+- **참조횟수**: 0
+- **배경**: 5/8 PR3 main 배포 후 `mybdr.kr/onboarding/identity` 진입 시 빨간 에러 ("본인인증 설정이 완료되지 않았습니다. 운영자에게 문의해 주세요.") → 사용자 onboarding 1단계 완전 막힘. PortOne 콘솔 채널 발급 = 이번 주 내 예상 → 그 전까지 운영 사용자가 다음 단계 진입 불가능
+- **사용자 결정**: 옵션 B (톤 다운) + 자체 입력 폴백 — 환경변수 추가 시점에 자동 PortOne 모드 복귀
+- **설계 핵심 6가지**:
+  1. **신규 컴포넌트** `MockIdentityModal.tsx` (≈180L) — 실명/휴대폰/생년월일(선택) 폼, ForceActionModal 패턴 카피, `var(--ink-mute)` 회색 톤
+  2. **신규 endpoint** `POST /api/web/identity/mock-verify` (≈100L) — 진입 시 `isIdentityGateEnabled()` 가드 → channel key 존재 시 503 자동 거부 (mock 우회 차단). withWebAuth + 본인 user 한정
+  3. **IdentityVerifyButton 분기** (+25L) — `if (!isIdentityGateEnabled())` 모달 오픈 / else PortOne SDK (기존)
+  4. **DB ADD COLUMN** `user.identity_method String? @db.VarChar(20)` — 값 = `mock` / `portone` / `null`(미인증·백필미). NULL 허용 무중단. 사후 식별 핵심
+  5. **톤 다운** = 빨간 에러 (`var(--accent)`) 제거 → mock 모달 오픈으로 대체. 헤더 "임시 정보 입력 (출시 준비 중)". 버튼 라벨 분기 (mock="임시 정보 입력" / portone="본인인증 시작")
+  6. **자동 전환 메커니즘** = 환경변수 단일 신호 `NEXT_PUBLIC_PORTONE_IDENTITY_CHANNEL_KEY` 가 클라/서버/가드 3 위치 일괄 판정. 코드 변경 0 / 롤백 1초
+- **보안 가드 3 단**:
+  - (1) 환경변수 단일 신호 (3 위치 동일 판정)
+  - (2) mock endpoint 자체에 `isIdentityGateEnabled()` 체크 (PortOne 활성 후 503 자동)
+  - (3) withWebAuth + 본인 user 한정 (타 사용자 update 불가)
+- **mock 통과자 정책 (Q3 권장)**: 옵션 C — 권유 안내 + 그대로 인정. 옵션 B (강제 invalidate) / 옵션 D (핵심 액션 차단) 거부 — mock 사용 기간 짧음 (며칠) + 영향 사용자 적음 → 강제 차단 비용 > 효과
+- **회귀 0 보장**: Flutter v1 / 기존 `/api/web/identity/verify` (PortOne) / 5/8 PR3 layout 가드 / 5/7 PR1.5.a/b / 기존 DB 컬럼 모두 변경 X
+- **거부 옵션 A** (기존 `/identity/verify` endpoint 분기): 클라가 `mock=true` 강제 가능 → PortOne 활성 후에도 mock 우회 가능 (보안 ❌)
+- **거부 옵션 C** (서버 미사용, 클라 직접 user update): 서버 게이트 0 → 위변조 가능 (보안 ❌)
+- **PM 결재 필요 Q1~Q5**: Q1 생년월일 필수/선택 (권장 선택) / Q2 안내 톤 회색/노란 (권장 회색) / Q3 mock 통과자 처리 (권장 C) / Q4 ADD COLUMN 승인 / Q5 admin_logs 기록 (권장 기록)
+- **상태**: 본 turn 설계만, 코드/DB 변경 0. 사용자 Q1~Q5 결재 후 developer 진입 (3 파일 신규 + 1 파일 수정 + DB 1 컬럼 / ≈ 310 라인)
+- **보고서**: `Dev/identity-mock-fallback-design-2026-05-08.md` (14 섹션)
+
 ### [2026-05-08] PR3 layout 가드 mock flag — 옵션 a (channel key 환경변수 존재 = 가드 ON)
 - **분류**: decision (onboarding 가드 / mock 모드 / 외부 작업 분리)
 - **결정자**: planner-architect (PM 결재 대기)
