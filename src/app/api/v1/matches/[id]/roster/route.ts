@@ -4,6 +4,8 @@ import { requireRecorder } from "@/lib/auth/require-recorder";
 import { apiSuccess, apiError } from "@/lib/api/response";
 // PR5: 매치 시점 jersey 우선순위 적용
 import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
+// 2026-05-09: 공식 기록 도메인 = 실명 우선 헬퍼 통일 (conventions.md)
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // GET /api/v1/matches/:id/roster
 // 경기 홈/어웨이 선수 명단 반환 (기록원 권한 필요)
@@ -33,8 +35,10 @@ export async function GET(
                 jerseyNumber: true,
                 isStarter: true,
                 position: true,
+                // 2026-05-09: 실명 우선 폴백 (user_id=NULL 케이스 = TTP 등록명 사용)
+                player_name: true,
                 users: {
-                  select: { id: true, name: true },
+                  select: { id: true, name: true, nickname: true },
                 },
               },
               orderBy: [{ isStarter: "desc" }, { jerseyNumber: "asc" }],
@@ -51,8 +55,10 @@ export async function GET(
                 jerseyNumber: true,
                 isStarter: true,
                 position: true,
+                // 2026-05-09: 실명 우선 폴백 (user_id=NULL 케이스 = TTP 등록명 사용)
+                player_name: true,
                 users: {
-                  select: { id: true, name: true },
+                  select: { id: true, name: true, nickname: true },
                 },
               },
               orderBy: [{ isStarter: "desc" }, { jerseyNumber: "asc" }],
@@ -79,10 +85,13 @@ export async function GET(
       jerseyNumber: number | null;
       isStarter: boolean | null;
       position: string | null;
-      users: { id: bigint; name: string | null } | null;
+      player_name: string | null;
+      users: { id: bigint; name: string | null; nickname: string | null } | null;
     }) => ({
       id: Number(p.id),
-      name: p.users?.name ?? "선수",
+      // 2026-05-09: 공식 기록 = 실명 우선 헬퍼 통일 (conventions.md)
+      // 우선순위: User.name → User.nickname → ttp.player_name → '#{jersey}' → '선수'
+      name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, "선수"),
       // PR5: override → ttp 우선순위 적용 (orderBy 는 ttp 그대로 — DB 정렬은 영구 번호 기준)
       jersey_number: jerseyMap.get(p.id) ?? p.jerseyNumber,
       is_starter: p.isStarter ?? false,

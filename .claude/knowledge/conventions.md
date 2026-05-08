@@ -1,6 +1,26 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-09] 공식 기록 도메인 = 실명 우선 (`getDisplayName()` 헬퍼 의무 사용)
+- **분류**: convention/domain (선수명 표시 정책 단일화)
+- **결정자**: 사용자 (D-day 5/9 동호회최강전 기록앱 출전 검증 중 발견)
+- **정책**: 공식 기록 노출 컨텍스트는 **실명 우선** 폴백 체인 강제
+  - 우선순위: `user.name` → `user.nickname` → `ttp.player_name` → `'#' || jerseyNumber` → fallback ('선수')
+  - 헬퍼: `src/lib/utils/player-display-name.ts` `getDisplayName(user, ttp?, fallback?)`
+  - Supabase RPC `get_tournament_players` 도 동일 폴백 (5/9 함수 갱신 = `COALESCE(u.name, u.nickname, ttp.player_name, '#'||jersey)`)
+- **적용 컨텍스트**:
+  - **공식 기록 (실명 의무)**: 라이브 박스스코어 / PBP / MVP 시상 / 대회 통계 / 매치 라인업 / 선수 카드 / Flutter v1 API roster
+  - **사적 (nickname OK)**: 커뮤니티 글·댓글 / 본인 프로필 hero / 채팅 / 알림 메시지
+- **위반 자동 reject**:
+  - 공식 기록 페이지에서 `u.nickname` 직접 참조 금지 → `getDisplayName()` 헬퍼 통과 의무
+  - Supabase RPC display_name 폴백에 nickname 우선 ❌
+  - Next.js API roster/players 응답에 `users.name ?? "선수"` 단순 폴백 ❌ (헬퍼 통과 필수)
+- **5/9 fix 적용 위치**:
+  - Supabase RPC `get_tournament_players` (실측 갱신 완료 / 16팀 한글 없는 display_name 11→0 자동 해결)
+  - `/api/v1/matches/[id]/roster` route — 헬퍼 마이그 (5/9 작업)
+- **후속 큐**: 공식 기록 노출 30+ 파일 (live/awards/reviews/mvp/박스스코어/매치통계) 헬퍼 마이그 일괄 점검 (planner-architect 위임)
+- **참조횟수**: 0
+
 ### [2026-05-08] 사이트 전역 input 룰 — PhoneInput / BirthDateInput 의무 사용
 - **분류**: convention/ui (input 전역 컴포넌트)
 - **결정자**: 사용자
