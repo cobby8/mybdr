@@ -8,14 +8,21 @@
  *   onboarding 흐름 전용 안내 박스 + 인증 후 다음 단계 라우팅을 분리하여 관심사 분리.
  *
  * 어떻게:
- *   - 인증 완료 콜백 → router.push("/") + refresh
- *   - PR2 완성 후 router.push("/onboarding/environment") 로 변경 예정
+ *   - 인증 완료 콜백 → returnTo 있으면 그쪽으로 / 없으면 /onboarding/environment
+ *   - 5/8 PR3: returnTo prop 추가 — 가드에서 보낸 원래 페이지 보존 흐름.
  */
 
 import { useRouter } from "next/navigation";
 import { IdentityVerifyButton } from "@/components/identity/identity-verify-button";
 
-export function IdentityStep() {
+interface IdentityStepProps {
+  // 5/8 PR3 — 가드에서 redirect 시 보낸 원래 페이지. 인증 완료 후 그쪽으로 복귀.
+  //   server page 에서 startsWith("/") 검증 완료 → 안전한 내부 경로만 들어옴.
+  //   null 이면 기존 onboarding 흐름 (/onboarding/environment).
+  returnTo?: string | null;
+}
+
+export function IdentityStep({ returnTo = null }: IdentityStepProps = {}) {
   const router = useRouter();
 
   return (
@@ -50,8 +57,10 @@ export function IdentityStep() {
         <IdentityVerifyButton
           initialVerified={false}
           onVerified={() => {
-            // 5/7 PR2.c — 인증 완료 → 다음 단계 (활동 환경) 자동 진입
-            router.push("/onboarding/environment");
+            // 5/8 PR3 — returnTo 가 있으면 가드에서 보낸 원래 페이지로 복귀,
+            //   없으면 기존 onboarding 흐름 (/onboarding/environment).
+            // server page 에서 이미 startsWith("/") 검증 완료 → 안전한 내부 경로만 들어옴.
+            router.push(returnTo ?? "/onboarding/environment");
             router.refresh();
           }}
         />

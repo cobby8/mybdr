@@ -15,6 +15,8 @@ import { getDisplayName } from "@/lib/utils/player-display-name";
 import { checkAndExpireDormant } from "@/lib/team-members/check-dormant-expiry";
 // 2026-05-05 Phase 5 PR14 — 활동 추적 (유령회원 분류용 — last_activity_at 갱신)
 import { trackTeamMemberActivity } from "@/lib/team-members/track-activity";
+// 5/8 PR3 — 본인인증 미완료 사용자 페이지 진입 가드 (mock 모드 default)
+import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
 
 // Phase 3 Teams 상세 v2 — 8개 컴포넌트 조립
 import { TeamHeroV2 } from "./_components_v2/team-hero-v2";
@@ -69,6 +71,12 @@ export default async function TeamDetailPage({
 }) {
   const { id } = await params;
   const { tab } = await searchParams;
+
+  // 5/8 PR3 — 본인인증 미완료 사용자 강제 redirect (mock 모드 default).
+  //   PortOne 채널 키 환경변수 미설정 시 noop → 운영 영향 0.
+  //   활성 시 미인증 로그인 사용자만 /onboarding/identity 로 즉시 redirect (returnTo 보존).
+  await requireIdentityForPage(`/teams/${id}`);
+
   // v2 탭 키 4종(overview/roster/recent/stats). 알 수 없는 값이면 overview 폴백.
   const currentTab: TeamTabKey =
     (TEAM_TAB_KEYS as string[]).includes(tab ?? "")

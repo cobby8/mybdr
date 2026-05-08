@@ -34,6 +34,8 @@ import { getMissingFields } from "@/lib/profile/completion";
 import { Breadcrumb } from "@/components/shared/breadcrumb";
 // 카페 크롤링 텍스트의 HTML 엔티티를 렌더링 시점에만 디코드.
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
+// 5/8 PR3 — 본인인증 미완료 사용자 페이지 진입 가드 (mock 모드 default)
+import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
 
 // _v2: 이번 재구성에서 새로 추가한 상세 UI 컴포넌트들
 import { SummaryCard } from "./_v2/summary-card";
@@ -85,6 +87,11 @@ export default async function GameDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // 5/8 PR3 — 본인인증 미완료 사용자 강제 redirect (mock 모드 default).
+  //   PortOne 채널 키 환경변수 미설정 시 noop → 운영 영향 0.
+  //   활성 시 미인증 로그인 사용자만 /onboarding/identity 로 즉시 redirect (returnTo 보존).
+  await requireIdentityForPage(`/games/${id}`);
 
   // Phase 1: 경기 조회 + 세션 확인 병렬 (기존 로직 100% 유지)
   const [game, session] = await Promise.all([getGame(id), getWebSession()]);
