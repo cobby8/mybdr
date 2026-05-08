@@ -36,6 +36,8 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 // 경기 데이터 타입 (API 응답 기반)
 // 신규 필드 current_participants 추가 — 잠금 배너용
@@ -955,12 +957,12 @@ export default function GameEditPage({
                   </div>
                   <div>
                     <label className="label">연락처</label>
-                    <input
+                    {/* 게임 수정 연락처 — PhoneInput 자동 포맷
+                        within24h disabled 그대로 (`...rest` 통과) */}
+                    <PhoneInput
                       className="input"
-                      type="tel"
                       value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="010-0000-0000"
+                      onChange={(v) => setContactPhone(v)}
                       disabled={within24h}
                     />
                   </div>

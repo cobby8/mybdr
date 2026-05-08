@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { WizardFormData } from "./game-wizard";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 // 경기 생성 시 실력 선택 (7단계 + 전체)
 const SKILL_LEVELS = [
@@ -200,11 +202,11 @@ export function StepSettings({ data, updateData, errors, generateTitle }: StepSe
           <label className="mb-1 block text-sm font-medium text-[var(--color-text-muted)]">
             담당자 연락처 <span className="text-[var(--color-primary)]">*</span>
           </label>
-          <input
-            type="tel"
+          {/* 픽업 게임 담당자 연락처 — PhoneInput 자동 포맷 (010-XXXX-XXXX 13자)
+              updateData 헬퍼 그대로 (data.contactPhone state 변경 0) */}
+          <PhoneInput
             value={data.contactPhone}
-            onChange={(e) => updateData("contactPhone", e.target.value)}
-            placeholder="010-1234-5678"
+            onChange={(v) => updateData("contactPhone", v)}
             className={`w-full rounded-[16px] border bg-[var(--color-card)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 ${
               errors.contactPhone ? "border-[var(--color-error)]" : "border-[var(--color-border)]"
             }`}

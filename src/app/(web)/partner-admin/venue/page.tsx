@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 /**
  * 대관 관리 페이지
@@ -218,17 +220,17 @@ export default function VenueManagePage() {
                     <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-text-secondary)" }}>
                       담당자 연락처
                     </label>
-                    <input
-                      type="tel"
+                    {/* 파트너 admin 장소 담당자 연락처 — PhoneInput 자동 포맷
+                        updateField 헬퍼 그대로 (form.contact_phone state 변경 0) */}
+                    <PhoneInput
                       value={form.contact_phone ?? (court.contact_phone ?? "")}
-                      onChange={(e) => updateField(court.id, "contact_phone", e.target.value)}
+                      onChange={(v) => updateField(court.id, "contact_phone", v)}
                       className="w-full rounded border px-3 py-2 text-sm outline-none"
                       style={{
                         backgroundColor: "var(--color-surface)",
                         borderColor: "var(--color-border)",
                         color: "var(--color-text-primary)",
                       }}
-                      placeholder="010-1234-5678"
                     />
                   </div>
                 </div>

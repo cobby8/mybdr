@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+// 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md [2026-05-08] 룰 — 의무 사용)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 /**
  * /verify — 추가 인증 (전화번호/이메일)
@@ -42,7 +44,10 @@ export default function VerifyPage() {
 
   // 전화번호 인증 코드 발송 (실제 SMS 연동 전 앱 내 시뮬레이션)
   const sendCode = async () => {
-    if (!phone.match(/^01[016789]\d{7,8}$/)) {
+    // PhoneInput 도입 (5/9 마이그) — state 는 하이픈 포함 형태 ("010-1234-5678")
+    // 기존 verify-phone API + 검증 정규식 = 숫자만 기대 → 전송 직전 하이픈 제거
+    const phoneDigits = phone.replace(/-/g, "");
+    if (!phoneDigits.match(/^01[016789]\d{7,8}$/)) {
       setError("올바른 전화번호를 입력해주세요. (예: 01012345678)");
       return;
     }
@@ -53,7 +58,8 @@ export default function VerifyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ phone }),
+        // 서버는 숫자만 기대 — 하이픈 제거된 값 전송
+        body: JSON.stringify({ phone: phoneDigits }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -91,7 +97,8 @@ export default function VerifyPage() {
         credentials: "include",
         body: JSON.stringify({
           email: needsEmail ? email : undefined,
-          phone: needsPhone ? phone : undefined,
+          // PhoneInput 도입 — submit 시 하이픈 제거 (서버는 숫자만 기대)
+          phone: needsPhone ? phone.replace(/-/g, "") : undefined,
           code: needsPhone ? verifyCode : undefined,
         }),
       });
@@ -215,13 +222,12 @@ export default function VerifyPage() {
                 >
                   휴대전화번호 <span style={{ color: "var(--color-primary)" }}>*</span>
                 </label>
-                <input
-                  type="tel"
-                  inputMode="tel"
+                {/* 본인인증 1단계 휴대폰 입력 — PhoneInput 자동 포맷 (010-XXXX-XXXX 13자) */}
+                <PhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="01012345678"
-                  maxLength={11}
+                  // PhoneInput 은 포맷된 값 ("010-1234-5678") 을 콜백으로 전달
+                  // → setPhone(v) 패턴 그대로. submit body 변경 0
+                  onChange={(v) => setPhone(v)}
                   autoFocus
                   className="w-full rounded-[12px] border px-4 py-3 text-sm focus:outline-none focus:ring-2"
                   style={{
