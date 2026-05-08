@@ -44,6 +44,63 @@
 
 ---
 
+## 테스트 결과 (tester / 5/9 onboarding 흐름)
+
+### 1. 소셜 가입자 흐름 — ✅ 통과
+- 카카오 콜백 (`api/auth/kakao/callback/route.ts`) → `${baseUrl}/` redirect 정상. JWT 발급 + WEB_SESSION_COOKIE 30일.
+- 신규 user 생성 시 `name_verified=false` (default) — 홈 진입 시 ProfileCtaCard 분기 정상.
+- ProfileCtaCard (`src/components/home/profile-cta-card.tsx:81~167`): `needsIdentity = me.name_verified === false` 우선 체크 (PR1.2 fix `059d4a6` — 카카오 사용자 `profile_completed=true` 라도 인증 카드 노출 보장).
+- 클릭 → `/onboarding/identity` 진입 정상.
+
+### 2. xp +100 부여 — ✅ 통과 (DB 실측)
+- DB SELECT 결과 (5/9 운영 기준):
+  - `onboarding_step=10` 도달 사용자 1명 (id=2999 김수빈, identity_method=mock)
+  - 해당 사용자 `xp=100` (정확히 +100 부여됨)
+  - 전체 xp avg=0.18 / max=100 / min=0 — onboarding 미통과자 xp=0 (기본값)
+- 코드 검증 (`src/app/api/web/profile/route.ts:206~218`): `isOnboardingFirstComplete` = `newStep === 10 && (existing?.onboarding_step ?? 0) < 10` 조건 1회성 increment. 재호출 시 중복 부여 차단.
+
+### 3. profile/edit 잠금 회귀 — ✅ 통과
+- 클라이언트 (`src/app/(web)/profile/edit/page.tsx`):
+  - 이름 (line 905~913): `disabled={nameVerified} readOnly={nameVerified}` + 회색 배경 + cursor not-allowed
+  - 생년월일 (line 926~933): BirthDateInput + 잠금 prop 전달 (5/9 마이그 후)
+  - 휴대폰 (line 941~948): PhoneInput + 잠금 prop 전달 (5/9 마이그 후)
+  - 휴대폰 §6 (line 1305~1313): PhoneInput + 잠금 적용 (account 섹션)
+- 컴포넌트 검증:
+  - PhoneInput (`src/components/inputs/phone-input.tsx:62~87`): `...rest` 통과 → disabled/readOnly/style 정상 작동
+  - BirthDateInput (`src/components/inputs/birth-date-input.tsx:77~108`): `...rest` 통과 → 동일
+- 서버 보안 (`src/app/api/web/profile/route.ts:129~148`): `name_verified=true` 사용자가 name/birth_date/phone PATCH 시도 시 403 `VERIFIED_FIELDS_LOCKED` 차단 (클라 우회 차단)
+
+### 4. mock 통과자 흐름 — ✅ 통과
+- DB SELECT 결과: identity_method 분포 = `null: 548 / mock: 1` — mock 통과자 1명 (5/8 ADD COLUMN 후 본인 테스트)
+- mock-verify endpoint (`src/app/api/web/identity/mock-verify/route.ts:62~158`): 보안 가드 3단 정상
+  - 가드 1 (line 66~72): `isIdentityGateEnabled()=true` 시 503 MOCK_DISABLED — PortOne 활성 시 자동 차단
+  - 가드 2 (line 74~84): zod 검증 (한글 실명 / 010-XXXX-XXXX / YYYY-MM-DD)
+  - 가드 3 (line 87~102): 이미 `name_verified=true` 시 409 ALREADY_VERIFIED (재인증 차단)
+- update 시 `identity_method='mock'` + `verified_*` + `name/phone/birth_date` 사용자 결정 §1 동기화 정상
+- admin_logs INSERT (line 146~157): event='mock_identity_verified' severity='info' — 사후 식별 가능
+
+### 5. 빌드 + Flutter 호환 — ✅ 통과
+- `npx tsc --noEmit` 0 (출력 없음 = 에러 0)
+- Vercel 배포 — main `737dd42` 활성 (5/9 머지 4회 후 build success — scratchpad 박제)
+- Flutter API 영향: 5/7 이후 `/api/v1/*` 변경 1건만 (`9c6fd89` roster getDisplayName 헬퍼) — 응답 키 변경 0, 호환 유지
+- `/api/v1/*` (Flutter) 영향 0 검증 — 본 onboarding 작업 일체가 `/api/web/*` 한정
+
+### 종합 판정 — ✅ 5/5 통과
+- **소셜 가입자 흐름 정상** — 카카오 콜백 + ProfileCtaCard + onboarding/identity redirect 정상
+- **xp +100 부여 정확** — DB 실측 1건 (id=2999 김수빈) 100 부여 확인. 1회성 가드 정상
+- **profile/edit 잠금 회귀 0** — 클라 disabled/readOnly + 서버 403 가드 이중 보호. PhoneInput/BirthDateInput 마이그 후에도 잠금 동일 작동
+- **mock 통과자 흐름 정상** — 가드 3단 + admin_logs + identity_method='mock' 박제. PortOne 활성 시 자동 503 거부
+- **빌드 + Flutter 호환** — tsc 0 / Vercel main 활성 / v1 응답 키 변경 0
+
+### 발견 이슈 — 0건
+
+### 후속 권장 (PortOne 활성화 후)
+1. **mock 통과자 권유 안내 UI** — 사용자 결정 옵션 C (그대로 인정 + 권유 안내). 현재 `identity_method='mock'` 1건 → admin/users 또는 마이페이지에 "정식 인증 권유" 카드 1회성 표시 필요. (구현 X / 보류)
+2. **onboarding 진행률 모니터링** — DB 기준 5/7 이후 신규 가입자 6명 모두 step=0 (인증 미시도). PortOne 활성 후 진입률 추적 필요.
+3. **6명 신규 미인증** — 카카오 3 / email 3 / 모두 step=0. PortOne 활성 시 핵심 액션 시도 시 PR1.5.a 게이트 (403) 트리거 — 사용자 ProfileCtaCard 클릭 흐름 안내됨.
+
+---
+
 ## 🟡 HOLD / 우선순위 2~3 (압축)
 - **HOLD**: 자율 QA 봇 (1~5 / 9d) / BDR 기자봇 v2 (Phase 2~7)
 - **5/2 잔여**: placeholder User 86건 LOW (auto merge) / ttp 부족팀 5팀 사용자 액션
@@ -75,6 +132,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | (대기 — PM 커밋 예정) | **PhoneInput/BirthDateInput 마이그 4순위 (admin+referee) 완료** — 3 input 2 페이지: (1) `(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx:740` 문의 연락처 → PhoneInput. (2) `(referee)/referee/admin/members/new/page.tsx:220` 심판 전화번호 → PhoneInput. (3) 동 파일 :300 생년월일 (state명 birthDate / API field registered_birth_date 명확) → BirthDateInput. tsc / build / truncated / type="tel" 0 hit / 회귀 0. **마이그 100% 완료 — 1~4순위 누적 13 input** (1순위 4 / 2~3순위 6 / 4순위 3). | ✅ |
 | 2026-05-09 | PR #228~#235 8건 → main 4회 머지 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65`) | **5/9 main 4회 — input 마이그 + 시안 갭 fix 일괄 완료** — (1) PR #228/#229 PhoneInput/BirthDateInput 1순위 4 input (profile/edit 휴2+생1 + tournaments/join 휴1, formatPhone 7L 제거). (2) PR #230/#231 잔여 6 input (verify state 하이픈+replace 정규화 / registration / games/new step+v2 / games/edit within24h / partner-admin/venue). (3) PR #232/#233 시안 역박제 1순위 3건 (News+MatchNews+Scoreboard 매치 코드 v4). (4) PR #234/#235 시안 역박제 2~3순위 7건 (CourtManage/Checkin/TeamsManage/Requests/ProfileSettings/OrgApply/SeriesEdition). 시안 갭 0건 달성. tester 통과 단위 76건+ / reviewer ⭐⭐⭐⭐⭐ 2회. | ✅ |
 | 2026-05-08 | PR #214~#227 14건 → main 7회 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) | **5/8 main 7회 신기록** — (1) 디자인 박제 11 commit + truncated 빌드 9건 실패 → hot fix `333516b`. (2) PR3 layout 가드 mock 모드 (헬퍼 2 + server layout 1 + 4 페이지). (3) BDR-current sync v2.5 부분 + v2.5.1 (zip 2회). (4) mock 자체 입력 폴백 (DB ADD COLUMN + modal 337L + endpoint 156L + 가드 3단). (5) PhoneInput/BirthDateInput 전역 컴포넌트 + conventions.md [2026-05-08] 룰 박제. errors.md 5/7 truncated 재발 2회차 + 보완 4룰. | ✅ |
 | 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** — fix 7건 (envelope 8회 / IME 9곳 / 마이페이지 정렬 / 알림 deep-link), Onboarding PR1.1~PR5 (PR3 보류), Phase A.5 drawer truncated → hot fix `168be48`. | ✅ |
