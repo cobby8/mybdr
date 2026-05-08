@@ -22,6 +22,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HeroScoreboard } from "./hero-scoreboard";
 import { MvpBanner } from "./mvp-banner";
+// 2026-05-09 PR3: 종료 매치 다시보기 임베드 (live 페이지와 동일 컴포넌트 — youtube-nocookie / 16:9)
+import { YouTubeEmbed } from "./youtube-embed";
 import { TabSummary } from "./tab-summary";
 import { TabTeamStats } from "./tab-team-stats";
 import { TabPlayers } from "./tab-players";
@@ -155,6 +157,11 @@ export interface MatchDataV2 {
   // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
   // null 이면 Phase 0 템플릿 fallback (silent fail / 미생성 / 진행 중 매치)
   summary_brief?: { brief: string; generated_at: string; mode: string } | null;
+  // 2026-05-09 PR3: 라이브 YouTube 영상 — 종료 매치 (FINAL) 에서도 다시보기 임베드 노출.
+  // null = 영상 미등록 → 임베드 영역 hidden (Q11 결재).
+  youtube_video_id?: string | null;
+  youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
+  youtube_verified_at?: string | null;
 }
 
 type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";
@@ -320,6 +327,20 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
 
       {/* Hero 스코어보드 — 시안 L118~L179 */}
       <HeroScoreboard match={match} />
+
+      {/* 2026-05-09 PR3: 라이브 YouTube 영상 임베딩 — hero 영역 (FINAL 스코어보드) 아래 (Q4 결재).
+          종료 매치는 isLive=false → "다시보기" 뱃지 노출. youtube_video_id NULL 이면 영역 hidden (Q11). */}
+      {match.youtube_video_id && (
+        <div data-print-hide style={{ marginBottom: 18 }}>
+          <YouTubeEmbed
+            videoId={match.youtube_video_id}
+            isLive={false}
+            status={match.youtube_status ?? null}
+            // GameResultV2 는 admin-check 별도 호출 안 함 — PR4 운영자 모달에서 통합 시 isAdmin 전달.
+            isAdmin={false}
+          />
+        </div>
+      )}
 
       {/* 2026-05-03: 시간 데이터 소실 안내 배너 — 운영자 매치 종료 sync 누락 매치 박제용 */}
       {match.time_data_missing && (

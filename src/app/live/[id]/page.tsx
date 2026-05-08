@@ -24,6 +24,9 @@ import { GameResultV2, type MatchDataV2 } from "./_v2/game-result";
 // 운영자 (organizer + tournament_admin_members.is_active=true) 만 진입.
 // admin-check API 통과한 사용자에게만 헤더 우측 "임시 번호" 버튼 노출.
 import { MatchJerseyOverrideModal } from "./_v2/match-jersey-override-modal";
+// 2026-05-09 PR3 — 라이브 YouTube 영상 임베딩 (16:9 + 라이브/VOD 분기 + 모바일 4 분기점).
+// youtube_video_id 가 NULL 이 아닐 때만 hero 아래 영역 마운트 (Q11 결재 — 영역 hidden).
+import { YouTubeEmbed } from "./_v2/youtube-embed";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -136,6 +139,11 @@ interface MatchData {
     fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
     game_score: number;
   } | null;
+  // 2026-05-09 PR3: 라이브 YouTube 영상 — 매치 1건 = 영상 1건 (1:1 옵션 A).
+  // null 이면 임베드 영역 hidden (Q11). apiSuccess snake_case 변환 후 클라이언트 수신.
+  youtube_video_id?: string | null;
+  youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
+  youtube_verified_at?: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -1071,6 +1079,24 @@ export default function LiveBoxScorePage() {
         </div>
         {/* /75% 래퍼 닫기 */}
       </div>
+
+      {/* 2026-05-09 PR3: 라이브 YouTube 영상 임베딩 — hero 영역 (스코어카드 + 쿼터 테이블) 아래 (Q4 결재).
+          youtube_video_id 가 NULL 이면 영역 hidden (Q11 결재 — 깔끔). 운영자 등록은 PR4 모달에서 처리.
+          75% 폭 wrapper 와 동일 가로 (sm:w-3/4) — 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김. */}
+      {match.youtube_video_id && (
+        <div data-print-hide className="px-4 pb-4">
+          <div className="mx-auto w-full sm:w-3/4">
+            <YouTubeEmbed
+              videoId={match.youtube_video_id}
+              isLive={isLive || match.youtube_status === "manual"}
+              status={match.youtube_status ?? null}
+              isAdmin={isAdmin}
+              // PR4 (운영자 모달) 구현 전이라 onManageClick 미전달 — 변경 버튼 미노출.
+              // PR4 구현 시 onManageClick={() => setStreamModalOpen(true)} 로 연결.
+            />
+          </div>
+        </div>
+      )}
 
       {/* 2026-04-16: 박스스코어 화면용 영역 (data-print-hide로 프린트 시 숨김)
           기존 BoxScoreTable은 쿼터 필터 버튼과 함께 화면 표시만 담당 */}

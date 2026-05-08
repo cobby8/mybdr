@@ -664,6 +664,13 @@ model TournamentMatch {
   division_tier                                                        String?                   @db.VarChar(2)
   // 2026-05-04: 매치 코드 v4 — 풀리그 조 1자 (A/B/C/D). 토너먼트 매치는 NULL. 몰텐배 (4조 풀리그) 같은 케이스만 사용.
   group_letter                                                         String?                   @db.VarChar(1)
+  // 2026-05-09: 라이브 YouTube 영상 임베딩 (PR1) — 매치 1건당 영상 1건 (1:1 옵션 A).
+  // 11자 video_id 보존 (예: "dQw4w9WgXcQ") + 여유 9자 (향후 platform prefix). NULL = 영상 미등록.
+  youtube_video_id                                                     String?                   @map("youtube_video_id") @db.VarChar(20)
+  // 2026-05-09: 영상 등록 모드. "manual" = 운영자 URL 직접 / "auto_verified" = 자동검색 ≥80점 채택 / "auto_pending" = 자동검색 후보 검토중. NULL = 미등록.
+  youtube_status                                                       String?                   @map("youtube_status") @db.VarChar(20)
+  // 2026-05-09: 영상 검증/등록 시각. cron 자동 검증 (Q3 후속) 시 갱신. NULL = 미등록.
+  youtube_verified_at                                                  DateTime?                 @map("youtube_verified_at") @db.Timestamp(6)
   createdAt                                                            DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                            DateTime                  @updatedAt @map("updated_at") @db.Timestamp(6)
   tournamentId                                                         String                    @map("tournament_id") @db.Uuid

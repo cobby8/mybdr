@@ -1066,6 +1066,11 @@ export async function GET(
         // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
         // null 이면 클라이언트가 Phase 0 템플릿 fallback (silent fail / 미생성 / 진행 중 매치)
         summaryBrief: match.summary_brief,
+        // 2026-05-09 PR3: 라이브 YouTube 영상 임베딩 — 매치 1건 = 영상 1건 (1:1 옵션 A).
+        // null 이면 라이브 페이지에서 임베드 영역 hidden (Q11 결재). apiSuccess camelCase → snake_case 변환.
+        youtubeVideoId: match.youtube_video_id,
+        youtubeStatus: match.youtube_status,
+        youtubeVerifiedAt: match.youtube_verified_at?.toISOString() ?? null,
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",
