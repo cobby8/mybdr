@@ -75,10 +75,8 @@ function YouTubeEmbedInner({
       // 본 컴포넌트는 "꽉 채우기 + 16:9 유지 + sticky" 책임.
       // 5/9 사용자 결정: 영상 맨 위 + sticky (≥721px) / 모바일(≤720px) 일반 스크롤.
       // sticky 클래스는 .youtube-embed-sticky (인라인 style 로 모바일 분기 처리 — Tailwind arbitrary 회피, 5/9 errors.md 룰).
+      // 5/9 사용자 결정 — 영상 폭 PC 에서 hero 폭과 동일 (max-width 제거 / 부모 wrapper 75% 따름).
       className="youtube-embed-sticky relative w-full mx-auto"
-      style={{
-        maxWidth: "960px", // 1024+ 분기점 = max-width 720~960. hero 영역 자체가 75% 폭이라 자연스럽게 따름.
-      }}
       aria-label={isLive ? "라이브 영상 시청" : "경기 영상 시청"}
     >
       {/* 인라인 style — sticky + 모바일 분기 (Tailwind arbitrary 룰 회피, 5/9 errors.md 박제 룰 — invalid CSS var 이름 placeholder 사용).
