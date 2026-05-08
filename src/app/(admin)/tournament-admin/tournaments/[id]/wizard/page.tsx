@@ -21,6 +21,9 @@ import {
 } from "@/lib/tournaments/dual-defaults";
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
+// 2026-05-09: 사이트 전역 휴대폰 입력 컴포넌트 (자동 하이픈 / 11자리 / inputMode=numeric)
+//   conventions.md [2026-05-08] 사이트 전역 input 룰 — type="tel" 직접 사용 금지
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 // --- 3단계 구성 (생성 위자드와 동일) ---
 const STEPS = [
@@ -736,11 +739,11 @@ export default function TournamentEditWizardPage() {
             <SectionTitle icon="call">문의 연락처</SectionTitle>
             <div className="mt-4">
               <label className={labelCls}>전화번호 (선택)</label>
-              <input
-                type="tel"
+              {/* 2026-05-09: PhoneInput 마이그 4순위 — 자동 하이픈 포맷 / 11자리 제한
+                   onChange 시그니처: (val: string) => void (이벤트 e.target.value 추출 X) */}
+              <PhoneInput
                 value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="010-1234-5678"
+                onChange={setContactPhone}
                 className={inputCls}
               />
               <p className="mt-1 text-xs text-[var(--color-text-muted)]">
