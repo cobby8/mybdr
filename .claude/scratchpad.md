@@ -30,11 +30,19 @@
 - xp +100 부여 확인 (xp 컬럼 SELECT 또는 마이페이지 표시)
 - profile/edit 이름/생년월일/휴대폰 잠금 회귀 0
 
-### 🚀 3순위 — manage 탭 그룹화 (P2-6 보류) + 데드 코드 정리
-- manage 8~9 탭 → "신청 관리" / "운영진" 그룹화 (IA 변경, 사용자 결정 필요)
-- 시안 동기화 (BDR-current/) — 5/3~5/7 운영 변경 누적 갭
+### 🚀 3순위 — 시안 sync 갭 4건 역박제 (운영 → 시안)
+- 5/8 BDR-current sync v2.4 (`30547d1`) 후 갭 검증 spot check 결과 — 운영 변경 4건 시안 미반영 확인.
+- 옵션 (b) 운영 → 시안 역박제 — BDR-current/ 4 파일 갱신:
+  1. **MyPage.jsx** — 단일 팀 카드 → 다중 팀 row + 활동 관리 + 팀페이지 → (5/6 `b4f0ed0` `1b826ba` `6977ba0`)
+  2. **TeamManage.jsx (or Team.jsx)** — 좌하단 신청 중 뱃지 4종 (jersey/dormant/withdraw/transfer) 추가 (5/6 `d5d491e`)
+  3. **TeamCreate.jsx** (또는 가입 폼) — jersey 입력 + 자동 sync (5/5 `d72aa0a` `f2d7a96`)
+  4. **Login.jsx + Signup.jsx** — `<input type="password">` 단순 → PasswordInput (보기 토글 + autocomplete) (5/4 `9d73256`)
+- 분량 0.5~1d. 시안 mock-up 수정 (코드 1대1 복사 X)
 
-### 🚀 4순위 — game.game_type 0~5 마이그레이션 / 매치 코드 v4 Phase 6 (보류)
+### 🚀 4순위 — manage 탭 그룹화 (P2-6 보류) + 데드 코드 정리
+- manage 8~9 탭 → "신청 관리" / "운영진" 그룹화 (IA 변경, 사용자 결정 필요)
+
+### 🚀 5순위 — game.game_type 0~5 마이그레이션 / 매치 코드 v4 Phase 6 (보류)
 
 ---
 
@@ -73,7 +81,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-08 | `48643f5` (subin push 완료) | **home BDR v2 토큰 마이그레이션** — `globals.css` + `src/components/home/` 14개 파일 (hero-bento, home-community, home-greeting, home-hero, my-summary-hero, news-feed, notable-teams, profile-cta-card, profile-widget, quick-actions, recent-activity, recommended-games, recommended-tournaments, recommended-videos, right-sidebar-logged-in). 145 토큰 위반 → 0 + tier 토큰 정의. 16 files / +142 -173. 사용자가 사전 작업 후 commit+push 명령. | ✅ |
+| 2026-05-08 | `48643f5` `36c533f` `2788604` `3af6cd6` `30547d1` (5건 push) | **5/8 누적 — home BDR v2 토큰 + gitignore 정리 + 5/7 박제 후속 + BDR-current sync v2.4** — (1) home BDR v2 토큰 마이그레이션 145 → 0 (globals.css + 14 home 컴포넌트). (2) `.claude/settings.local.json` + `.claude/scheduled_tasks.lock` gitignore 처리. (3) 5/7 디자인 박제 후속 commit (CLAUDE.md +33 / claude-project-knowledge 02·03·04 +413 / 디자인 시스템 관리 폴더 신설 11 파일). (4) scratchpad 작업 로그. (5) BDR-current sync v2.4 (5/1 v2.3 → 5/8 v2.4 Phase A.6 운영 정합) — 옛 BDR-current → `_archive/BDR-current-2026-05-01-v2.3/` 백업 / zip v2.4 87 screens + 18 파일 → BDR-current/. 갭 검증 spot check 결과 운영 변경 4건 시안 미반영 (MyPage 다중 팀 / 좌하단 뱃지 / jersey 가입 폼 / PasswordInput) — 후속 큐 3순위 등록. | ✅ |
 | 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main 머지 — Onboarding 10단계 + PortOne V2 + Phase A.5 drawer + 다수 fix** — (A) 초반 fix 7건: envelope+snake_case 8회 재발 (`7945452`) / 한글 IME Enter 9곳 (`d7e921c`) / 마이페이지 한 줄 정렬 + 세로 stack + 우측 정렬 (`9513fe3` `e344375` `f1c5cee`) / 신청 알림 404 fix (`2c9afe2`) / 알림 deep-link scroll+highlight (`0ccf785`). (B) Onboarding 시리즈: PR1.1+1.2 본인인증 진입 (`c9fe34b`) / PR1.3 settings 단일 진입점 (`49698c0`) / PR1.5.a 서버 4 endpoint 게이트 (`00d001b`) / 옛 알림 redirect (`f8bb636`) / PR1.5.b 클라 4 페이지 (`569c9e9`) / 카드 미표시 + 임시 모달 + 인증 필드 잠금 (`c13bae0`) / manage 변경 요청 envelope 9회 (`a16541b`) / PR2 environment+basketball (`f992210`) / PortOne V2 실 통합 (`d7a82b5`) / PR4 preferences 통합 + xp +100 (`00704be`) / PR5 §6 안내 (`6fcac51`). (C) 후반: Phase A.5 drawer fix (`0809432` truncated → 빌드 실패) → hot fix `168be48` (워킹트리 정상 css 재 commit, 13분 내 운영 복구). errors.md 박제 — truncated commit 함정 + IME 9회 + envelope 9회. PR3 layout 가드는 PortOne 운영 활성화 후로 보류. | ✅ |
 | 2026-05-06 | `7211f97` `86f9eb9` `64b1bab` `d5d491e` `465b7ca` `f6b43ab` → main `4253e68` | **5/6 누적 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 이동 + 좌하단 뱃지 + dropdown overflow + apiError 일괄 fix** — (1) PR1e: `user.default_jersey_number` 컬럼 DROP (54명 메모 손실, 가치 0, 명시 승인 + --accept-data-loss). (2) UI fix 13건 / 11건 fix: 5 모달 + dropdown 토큰 통일 (`--surface` → `--color-card`) / placeholder "예) " 4건 / iOS 16px / grid 모바일 분기 / dropdown overflow / window.prompt → ForceActionModal. (3) 본인 카드 dropdown 잘림 fix (overflow visible). (4) 좌하단 신청 중 뱃지 (`member-pending-badge.tsx`) — 4종 라벨 (jersey/dormant/withdraw/transfer). (5) 마이페이지 소속팀 카드 = 히어로 아래 풀 width + 각 row "활동 관리" + "팀페이지 →". (6) "내 액션" → "활동 관리" 라벨. (7) apiError 인자 순서 9 파일 69건 fix (한국어 메시지 정상화 — 휴면/번호변경/탈퇴 신청 시 "ALREADY_PENDING" 영문 노출 → 한국어). transfer 검색 endpoint URL fix. tsc 0 / 미푸시 0. | ✅ |
 | 2026-05-05 | `ae4ffd7` `d72aa0a` `f2d7a96` `a647f88` `2e3e22b` `8600c74` `1e8c9db` `b9b2776` `504e858` `d274000` `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** — 보고서 `Dev/team-member-lifecycle-2026-05-05.md` 옵션 C+UI. Phase 1 Jersey (PR1~5): default_jersey 사용처 정리 / 가입폼 jersey + 자동 복사 / 마이페이지 다중 팀 카드 / tournament join ttp 자동 sync (운영자 시야 X) / match_player_jersey 신설 + W1 라이브 운영자 모달 + admin_logs / v1 6 endpoints 우선순위 helper (Flutter 변경 0). Phase 2 워크플로 (PR6~9): team_member_requests + team_member_history 인프라 / 번호변경 신청 + dispatcher 활성화 / 휴면+탈퇴 + lazy 복구 helper. Phase 3 이적 (PR10~11): transfer_requests state machine 양쪽 팀장 승인 + 자동 이동 트랜잭션. Phase 4 권한 위임 (PR12~13): team_officer_permissions captain only 위임 (재위임 X) + 매트릭스 적용 4 endpoint. Phase 5 유령회원 (PR14~16): last_activity_at + 5분 throttle + 활동 추적 5종 / 유령 후보 + 강제 액션 / 회원 상태 정비 + 명단 완전 삭제 옵션. ADD TABLE 5건 + ADD COLUMN 1건 모두 무중단. 사용자 결정 8건 + 미묘 6건 룰 반영. tsc 0 / Flutter v1 호환 0. | ✅ |
