@@ -8,11 +8,355 @@
 
 ## 🎯 현재 작업
 
-**[5/9 신규]** **사전 라인업 확정 + 기록앱 자동 매핑 — 설계 단계**
-- 사용자 요구: 시작 1시간 전 양 팀 팀장 푸시 → 출전+주전 5 입력 → 영구 저장 → 기록앱 자동 매핑
-- 산출: 설계 보고서 `Dev/match-lineup-confirmation-2026-05-09.md` (13 섹션 / Q1~Q9 결재)
-- 결재 대기: Q1~Q9 (DB 모델 / 트리거 / 푸시 채널 / Flutter 분기 / 5명 룰 / fallback / 운영자 대리)
-- 다음: 결재 후 8 PR 구현 (DB 1 + API 2 + Web 1 + Cron 1 + roster 확장 1 + Flutter 1 + deep-link 1 + 검증 1 = ~8.5h)
+**[5/9 신규 — planner-architect / 디자인 정합 설계]** **홈 5/9 부활분 3 컴포넌트 디자인 시스템 정합 — 설계 단계 (옵션 B 권장)**
+- 산출: `Dev/home-design-alignment-2026-05-09.md` (11 섹션 / Q1~Q7 결재 / 옵션 A/B/C 비교)
+- 핵심: 시안 RecommendedRail 통일 패턴 vs 운영 3종 헤더 분산 (자체 NBA 2K / 헤더없음 / TossSectionHeader) — 차이 매트릭스 6 영역
+- 옵션 B 권장: RecommendedRail 신규 1개 (`src/components/bdr-v2/recommended-rail.tsx` ~80L 시안 line 405~440 카피) + 헤더만 교체 (RecommendedVideos + RecommendedGames) / MySummaryHero 무수정 / ~55분 / 회귀 0 (API/DB/Flutter v1)
+- 결재 Q1~Q7 추천: B(헤더만) / A(bdr-v2 위치) / A(eyebrow="WATCH NOW · YOUTUBE" NBA 톤 일부 보존) / A(MySummary 보존) / A(점진 마이그) / A(카드 후속 추출) / B(5/10 후)
+- 다음: 결재 후 P0 단계 (RecommendedRail 신규 + 2 컴포넌트 헤더 교체 + tester/reviewer 병렬)
+
+---
+
+## 기획설계 (planner-architect / 5/9 — 홈 5/9 부활분 디자인 정합)
+
+🎯 운영 RecommendedVideos + MySummaryHero + RecommendedGames 헤더/카드/토큰 패턴을 시안 BDR-current/screens/Home.jsx 의 RecommendedRail 통일 패턴과 정합. **상세 = `Dev/home-design-alignment-2026-05-09.md` (11 섹션 / Q1~Q7 / ~55분 옵션 B).**
+
+📍 변경 파일 (옵션 B / P0):
+| 파일 | 역할 | 신규/수정 |
+|------|------|----------|
+| `src/components/bdr-v2/recommended-rail.tsx` | RecommendedRail 통일 컴포넌트 (시안 line 405~440 카피 / props: title/eyebrow/moreHref/moreLabel/children/inset / `style={{}}` 직접 + var(--*) 토큰 100%) | 신규 (~80L) |
+| `src/components/home/recommended-videos.tsx` | 자체 inline 헤더 (line 86~101 12줄) 제거 → `<RecommendedRail title="BDR 추천 영상" eyebrow="WATCH NOW · YOUTUBE" moreHref="https://www.youtube.com/@BDRBASKET" moreTarget="_blank">` wrapper / 카드 영역 (line 105~198) 보존 | 수정 |
+| `src/components/home/recommended-games.tsx` | TossSectionHeader (line 137) 제거 → `<RecommendedRail title={title} eyebrow="GAMES · 픽업 · 게스트" moreHref="/games">` wrapper / GameCard (운영 280×112) 보존 | 수정 |
+
+🔗 기존 코드 연결:
+- SWR 키 / fetcher / fallback 데이터 — 변경 0 (`/api/web/youtube/recommend` / `/api/web/recommended-games` / `/api/web/profile` / `/api/web/profile/stats`)
+- bdr-v2 도메인 = 시안 카피 컴포넌트 동거 (CardPanel / BoardRow / HotPostRow / GameCard / HeroCarousel)
+- globals.css 토큰 alias 정합 ✅ (`var(--ink)` / `var(--ink-mute)` / `var(--accent)` / `var(--border)` 시안 + 운영 동일 정의 / 5/9 PlayerProfile reviewer 검증)
+- `.eyebrow` / `.card` 클래스 = globals.css 정의됨 (시안 baseline 일치)
+
+📋 실행 (P0 / 옵션 B / ~55분):
+| 순서 | 작업 | 담당 | 시간 |
+|------|------|------|------|
+| 1 | RecommendedRail 신규 작성 (시안 line 405~440 카피 / Link `target` props 추가) | developer | 15분 |
+| 2 | RecommendedVideos 헤더 교체 + import | developer | 10분 |
+| 3 | RecommendedGames 헤더 교체 + import | developer | 10분 |
+| 4 | tester (tsc + 모바일 720px 분기 + RecommendedRail 4 case eyebrow/title/moreHref/inset) + reviewer (시안 카피 정합 + 토큰 100%) 병렬 | tester + reviewer | 15분 |
+| 5 | PM 커밋 + 진행 현황 갱신 | pm | 5분 |
+
+⚠️ developer 주의사항:
+- RecommendedRail = **server component** (use client X — `React.Children.toArray` + Link 둘 다 SSR OK)
+- RecommendedRail props 에 `moreTarget?: '_blank' | '_self'` 추가 — RecommendedVideos 외부 URL 처리용
+- `.eyebrow` 클래스 globals.css 정의 사용 (시안 카피 — 직접 색상/폰트 X)
+- 시안 line 405~440 의 `more={() => setRoute('games')}` (시안 함수) → `moreHref="/games"` (운영 Next Link) 변환
+- MySummaryHero **무수정** — 시안에서도 RecommendedRail 미사용 별도 형식 (시안 line 310)
+- NBA 2K "WATCH NOW" h2 폐기 → eyebrow `"WATCH NOW · YOUTUBE"` 로 톤 일부 보존 (사용자 결정 §11 시안 우선)
+- 모바일 720px 분기 — RecommendedRail h3 영향 0 (시안 `h1` 한정 미디어쿼리)
+- `@media (max-width: 720px) .home h1` 만 → h3 영향 X / 카드 width 변경 X
+
+🔒 회귀 0:
+- API 응답 키 / endpoint 변경 0
+- DB schema 변경 0
+- Flutter v1 (`/api/v1/*`) 변경 0
+- SWR 키 / fetcher / fallback 데이터 (DUMMY_VIDEOS / FALLBACK_GAMES) 보존
+- 모바일 720px 분기 영향 0 (카드 width 보존)
+- 사용자 영향 = 헤더 시각만 (NBA 2K 톤 약화 / TossSectionHeader 차분화)
+
+📐 결재 Q1~Q7 추천:
+- Q1 옵션: **B (헤더만 통일 / ~55분 / 회귀 0)** vs A (시안 100% ~3h) vs C (시안 직접 도입 ~3h)
+- Q2 위치: **A (bdr-v2 — 시안 카피 도메인)** vs B (home/)
+- Q3 NBA 2K: **A (eyebrow "WATCH NOW · YOUTUBE" 로 NBA 톤 일부 보존)** vs B (NBA 보존 — RecommendedVideos 만 헤더 교체 제외)
+- Q4 EmptyCard: **A (MySummary 보존 — 시안도 별도 형식)** vs B (시안 MySummaryHero 직접 카피)
+- Q5 Tailwind 마이그: **A (점진 — 신규만 `style={{}}`)** vs B (강제 통일 = 옵션 A)
+- Q6 카드 추출: **A (후속 PR — 본 PR 은 헤더만)** vs B (즉시 GameMiniCard / VideoMiniCard 추출)
+- Q7 시점: A (즉시 5/9) vs **B (5/10 후 / 다음 주 — 5/9 부활 검증 후)** vs C (PortOne 후)
+
+---
+
+## 기획설계 직전 (5/9 — 활동 로그 + 통산 더보기 Phase 2)
+
+**[5/9 — developer 구현 완료]** **공개 프로필 활동 로그 + 통산 더보기 — Phase 2 코드 구현 100%**
+- 사용자 결재 8건 일괄 승인 (Q1~Q8 모두 A) — 활동 로그 5종 / Q2 fix / 모달 / _v2 산하 / Q5 라우팅 / Q7 클라 groupBy / Q8 최신 우선
+- 산출: 2 신규 (activity-log.tsx 222L + stats-detail-modal.tsx 396L) + 4 수정 (page.tsx 쿼리 #10~#12 + ActivityEvent 변환 + AllStatsRow 변환 + Q2 fix / overview-tab.tsx "use client" 전환 + 활동 카드 ActivityLog wire + 통산 [더보기] 모달 wire / overview-tab.css 무수정 / PlayerProfile.jsx 시안 박제)
+- 검증: tsc 0 / npx next build 통과 / truncated 룰 6파일 모두 마지막 줄 정상 (page.tsx 709L `}` / activity-log 222L `}` / stats-detail-modal 396L `}` / overview-tab 470L `}` / overview-tab.css 49L `}` / PlayerProfile.jsx 518L `window.PlayerProfile = PlayerProfile;`)
+- 다음: tester + reviewer 병렬 → PM 커밋
+
+### 테스트 결과 (tester / 5/9 활동 로그+모달)
+
+📊 종합 판정: **✅ 8/8 영역 통과** (수정 요청 0건 / 정보 1건)
+
+#### 빌드
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| `npx tsc --noEmit` | ✅ 0 | 출력 없음 — 에러 0 |
+| `npx next build` | ✅ 통과 | `ƒ /users/[id]` 동적 라우트 빌드 성공. warn 3건 본 작업 무관 (Serwist Turbopack / Heatmap dynamic-server / ads dynamic-server — 기존 routes) |
+| truncated 룰 6 파일 | ✅ 모두 정상 | activity-log.tsx 222L `}` / stats-detail-modal.tsx 396L `}` / page.tsx 709L `}` / overview-tab.tsx 470L `}` / overview-tab.css 49L `}` / PlayerProfile.jsx 518L `window.PlayerProfile = PlayerProfile;` |
+
+#### 활동 로그 5종 (Q1)
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| ActivityEvent union 7종 (match/mvp/team_joined/team_left/team_transferred/jersey_changed/signup) | ✅ | activity-log.tsx L19~47 |
+| 시간순 정렬 (Q8 최신 우선) | ✅ | page.tsx L612 `sort((a,b)=>b.date.localeCompare(a.date))` |
+| 5건 제한 | ✅ | L613 `slice(0,5)` |
+| Material Symbols 7개 (sports_basketball/emoji_events/group_add/logout/swap_horiz/tag/person_add) | ✅ | activity-log.tsx L50~67 (lucide-react ❌ CLAUDE.md §디자인 핵심 준수) |
+| 상대 날짜 (오늘/어제/N일 전/M/D(요일)) | ✅ | activity-log.tsx L98~114 |
+| 빈 상태 fallback | ✅ | L127~140 italic "아직 활동 기록이 없어요" |
+
+#### Q2 버그 fix — "경기 참가 0"
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| activity.gamesPlayed = statAgg._count.id | ✅ | page.tsx L417 + L491 (matchPlayerStat 단일 source) |
+| 통산 카드와 일관 source | ✅ | seasonStats.games (L425) + activity.gamesPlayed (L491) 모두 statAgg._count.id 재활용 |
+| user.total_games_participated 미사용 | ✅ | grep 결과 활동 카드 변환 로직에서 미사용 (Q2 fix 정확) |
+
+#### Q5 라우팅
+| event type | href | 결과 |
+|-----------|------|------|
+| match → /live/[matchId] | ✅ | activity-log.tsx L118 |
+| mvp → /live/[matchId] | ✅ | L118 |
+| team_joined / team_left / team_transferred → /teams/[teamId] | ✅ | L119~121 |
+| jersey_changed → /teams/[teamId] | ✅ | L122 |
+| signup → null (클릭 X) | ✅ | L123 |
+
+#### 더보기 모달 (Q3+Q7)
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| 3 탭 (전체/연도별/대회별) | ✅ | stats-detail-modal.tsx L264~268 + L172~178 분기 |
+| 8열 (구분/경기/승률/PPG/RPG/APG/MIN/FG%/3P%) | ✅ | L328~336 |
+| groupBy 연도 desc | ✅ | L99~101 `sort((a,b)=>b[0]-a[0])` |
+| groupBy 대회 = 최신 매치 desc | ✅ | L113~125 `latestDate.localeCompare` desc |
+| ESC 키 close | ✅ | L153~155 keydown handler |
+| Overlay click close | ✅ | L185 + L198 stopPropagation |
+| × 버튼 close | ✅ | L237 |
+| body scroll lock + cleanup | ✅ | L150~160 |
+| 모바일 풀스크린 (720px) | ✅ | maxWidth:720 + width:100% + padding:16 (≤720px 자동 풀스크린) |
+| 커리어 평균 행 강조 (마지막+bg-alt+700) | ✅ | L341~352 isCareer 분기 |
+| "-" 표시 (games=0/pct=0) | ✅ | fmtNum/fmtPct/fmtWinRate L132~143 |
+
+#### TeamMemberHistory 타입 가드
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| payload `{old:{jersey},new:{jersey}}` schema 일치 | ✅ | schema.prisma L3113 주석 형식 일치 |
+| typeof 가드 + try/catch fallback | ✅ | page.tsx L583~594 `typeof oldVal === "number"` |
+| 형식 다를 때 fallback "등번호 변경" | ✅ | activity-log.tsx L91 (둘 다 null 시 fallback 분기 정확) |
+| eventType in 절 7종 (joined/left/withdrawn/jersey_changed/jersey_change_approved/transferred_in/out) | ✅ | page.tsx L321~329 |
+| eventType "withdrawn" left와 동일 처리 (안전장치) | ✅ | page.tsx L558 |
+
+#### page.tsx 쿼리 효율
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| 12 쿼리 Promise.all 병렬 | ✅ | L89~102 신규 #10/#11/#12 모두 병렬 |
+| officialMatchNestedFilter 일관 적용 | ✅ | #2 L156 / #3 L181 / #12 L351 — status `["completed","live"]` + `scheduledAt <= NOW()` 일관 |
+| N+1 위험 0 | ✅ | matchPlayerStat findMany select 안에 nested tournamentMatch + ttp.tournamentTeamId 자동 join — 단일 쿼리 |
+| 비로그인 동작 | ✅ | L78~83 session/isOwner 가드 / followRecord (#5) 만 session 분기 |
+| ?preview=1 본인 미리보기 | ✅ | L81 `isOwner && preview !== "1"` |
+
+#### 회귀 0
+| 영역 | 결과 | 검증 |
+|------|------|------|
+| Flutter `/api/v1/*` | ✅ 0 | 변경 6 파일 모두 `(web)/users/[id]/*` + 시안 한정 |
+| DB schema | ✅ 0 | prisma/schema.prisma 미수정 |
+| API 신규 endpoint | ✅ 0 | route.ts 신규 0 |
+| Phase 1 NBA (PlayerMatchCard / 8열 통산 / Hero jersey) | ✅ 0 | events/allStatsRows props 추가만 / 기존 grid/Hero 무수정 |
+| ISR 60초 | ✅ 유지 | page.tsx L42 |
+| preview=1 / isOwner /profile redirect | ✅ 유지 | L78~83 |
+| RecentGamesTab / PlayerHero / overview-tab.css | ✅ 무수정 | props 시그니처 그대로 |
+
+#### 종합 판정
+- 빌드 + truncated 통과 (6 파일 마지막 줄 정상 / tsc 0 / next build 통과)
+- 활동 로그 5종 (Q1=A) + Q2 fix + Q5 라우팅 + 모달 (Q3+Q7) + TeamMemberHistory 타입 가드 + 쿼리 효율 + 회귀 0 — 8 영역 모두 정확
+- 사용자 결재 8건 (Q1~Q8) 모두 코드에 정확 반영
+
+#### 발견 이슈 — 0건 (정보성 1건)
+- **정보 1건**: page.tsx L507 `if (m.status !== "ended" && m.status !== "completed") continue;` — `"ended"` 분기는 죽은 코드 (운영 tournament_matches.status 값 = `live/completed/scheduled`만 사용, "ended" 미사용 grep 검증). 영향 0 (completed만 통과). 향후 정리 가능 — 수정 요청 X.
+
+#### 수정 요청 — 없음
+
+#### 후속 권장 (런타임 검증 — PM 머지 후)
+1. 실측 사용자 (id=2999 김수빈, 418경기) 진입 → 활동 로그 5건 + 모달 3탭 가시 검증
+2. 모바일 720px 분기 — 모달 풀스크린 + 8열 가로 스크롤
+3. 비로그인 진입 검증 (followRecord null + ActionButtons 비로그인 분기)
+
+### 리뷰 결과 (reviewer / 5/9 활동 로그+모달)
+
+📊 종합 판정: **통과 (수정 요청 1건 / 권장 2건)**
+
+#### ActivityLog
+- ActivityEvent 5종 union 정확 (match/mvp/team_joined/team_left/team_transferred/jersey_changed/signup) — discriminated union 으로 TS exhaustive 보장 (getIcon/getTitle/getHref switch 7케이스 모두 cover, tsc 통과 = 누락 0).
+- props 단순 (`events: ActivityEvent[]` 1개) — Q4=A 페이지 한정 결정 부합.
+- 빈 상태: `events.length === 0 → "아직 활동 기록이 없어요"` italic + ink-dim 톤. OK.
+- 클릭 라우팅 Q5=A 정확: match/mvp → `/live/[matchId]` / team_*/jersey_changed → `/teams/[teamId]` / signup 미링크. `getHref` 단일 source.
+- 상대 날짜 (fmtRelative): isNaN 가드 + 미래 / 오늘 / 어제 / N일 전(<7) / M/D(요일) — fallback "-" 안전.
+- Material Symbols Outlined ligature (lucide-react 금지 룰 ✅) + aria-hidden + flexShrink:0 + width:18 + lineHeight:1.
+- 🟡 L25 주석 `// "21:17"` — 시간 표기법 오해 소지. 실제는 점수 (예: "52:47"). 주석 명확화 권장.
+
+#### StatsDetailModal
+- `"use client"` 정확 — useState/useEffect 사용.
+- props 명확: `open / onClose / allStatsRows` 3개 한정 / 직렬화 OK (BigInt/Date 0).
+- 3 탭 state (TabKey union "all"|"year"|"tournament") — 단일 useState, 메모이제이션 생략 (Q7=A 100건 미만 가정 부합).
+- 클라 groupBy 정확:
+  - groupByYear: scheduledAt.getFullYear() Map → 연도 desc sort. NULL/NaN 제외.
+  - groupByTournament: tournamentId Map + latestDate 갱신 → 최신 매치 desc (Q8=A).
+- buildRow 누적 평균: sum/games 산술 평균. FG%/3P% 도 게임 단위 단순 평균 (Phase 1 일관). games=0 분기 0/0 안전.
+- ESC 키 close: useEffect keydown 등록 + cleanup 정확. open=false early return → 미등록.
+- overlay click + inner stopPropagation — 표준 패턴.
+- × 버튼 + aria-label="닫기" 접근성 OK.
+- body scroll lock: prevOverflow 보존 + cleanup 시 복원 (다중 모달 안전).
+- 모바일 풀스크린: maxWidth:720 + width:100% + maxHeight:90vh + padding:16. overflow-x:auto + min-width:640 8열 가로 스크롤.
+- header sticky (top:0 + zIndex:1) — 긴 표 스크롤 시 닫기 버튼 노출 보장.
+- 빈 상태: allStatsRows.length=0 → "집계할 경기 기록이 없어요" — table 미마운트.
+
+#### page.tsx 쿼리
+- 12 쿼리 Promise.all 병렬 → N+1 위험 0. #10/#11/#12 모두 단일 findMany.
+- #10 mvpMatches: `mvp_player_id + ended_at NOT NULL` 가드 — 진행 중 / scheduled 매치 제외. orderBy 2단 (`ended_at desc nulls last + scheduledAt desc`).
+- #11 teamMemberHistory: 7 eventType IN — schema event_type 후보 (line 3109~3112) 정합. take:10 (signup/match/mvp 합쳐 5건 추출 위해 여유). force_changed/dormant_* 등 활동 로그 부적합 항목 제외 정확.
+- #12 allStatsForModal: officialMatchNestedFilter() 가드 (5/2 회귀 패턴 일관). select 키 7 stat + tournament/scheduledAt/score/teamId — 모달 groupBy 최소 필드.
+- ActivityEvent[] 변환 로직:
+  - (a) match: recentGames 재활용 + status="ended"|"completed" 필터 + playerSide/result 판정 정확.
+  - (b) mvp: ended_at ?? scheduledAt fallback 안전.
+  - (c) teamHistory: 7 eventType 분기 모두 cover.
+  - (d) signup: createdAt 1건 항상 추가. 활동 많은 사용자는 정렬 후 top5 컷오프 시 자동 제외.
+  - (e) sort `b.date.localeCompare(a.date)` ISO desc 정확 (ISO 8601 lexicographic = chronological).
+- AllStatsRow[] 변환: BigInt → string 직렬화 / Decimal → Number / playerSide+won 계산 정확.
+
+#### 🔴 TeamMemberHistory.payload 형식 미스매치 (수정 요청 1건 — tester 영역과 차이)
+- tester 결과 (L138) "schema.prisma L3113 주석 형식 일치" 라고 ✅ 표기되었으나, schema 주석 (`payload 예: { old:{...}, new:{...} }`) 은 **다른 eventType** (force_changed, dormant 등) 형식. **jersey_changed 의 실제 payload 는 다름**.
+- 실제 운영 payload (`api/web/teams/[id]/requests/[requestId]/route.ts` L233~239):
+  ```ts
+  historyPayload = {
+    requestId, requestType,
+    old: oldJersey,  // number | null 직접
+    new: newJersey,  // number | null 직접
+    reason
+  };
+  ```
+- page.tsx L584~591 가정 (잘못):
+  ```ts
+  const p = h.payload as { old?: { jersey?: unknown }; new?: { jersey?: unknown } };
+  const oldVal = p?.old?.jersey;  // ⚠️ 영구 undefined
+  const newVal = p?.new?.jersey;  // ⚠️ 영구 undefined
+  ```
+- 결과: oldJersey/newJersey 영구 null → activity-log.tsx L91 fallback `"${teamName} 등번호 변경"` 노출 (#7 → #8 형식 영구 미노출).
+- **빌드 통과** (TS unknown cast → 런타임 undefined). **앱 동작 OK / 시각 정보 손실만**. — 그래서 tester 가 발견 못함 (typeof 가드는 형식 자체 동작).
+- **수정 안**:
+  ```ts
+  const p = h.payload as
+    | { old?: number | null; new?: number | null }
+    | null
+    | undefined;
+  if (typeof p?.old === "number") oldJersey = p.old;
+  if (typeof p?.new === "number") newJersey = p.new;
+  ```
+
+#### Q2 버그 fix
+- activity.gamesPlayed = statAgg._count.id (matchPlayerStat 통일) — page.tsx L417 단일 변수 선언 후 양쪽 재사용 → 단일 source 보장.
+- user.total_games_participated 의존 제거. 카운터 백필 누락 케이스 회피.
+- total_games_participated orphan 위험은 본 작업 외 (admin/leaderboard 사용 시 별도 검증 — 후속).
+
+#### 컨벤션
+- 파일명 kebab-case: ✅ activity-log.tsx / stats-detail-modal.tsx.
+- 함수 camelCase: ✅ getIcon/getTitle/getHref/fmtRelative/buildRow/groupByYear/groupByTournament/fmtNum/fmtPct/fmtWinRate.
+- TS strict / any 0: ✅ 6파일 grep 0 hit. unknown cast 사용 (any 회피).
+- JSDoc 헤더: ✅ activity-log/stats-detail-modal/overview-tab 모두 5/9 변경 사유 명시.
+- "use client" 정확: stats-detail-modal (useState/useEffect 필수) ✅ / overview-tab (useState — 모달 open) ✅ / activity-log 미사용 (인터랙션 0) — 적절.
+- props 직렬화: events (string union + number/null) / allStatsRows (string/number/boolean) — Date/BigInt 0, RSC payload 안전.
+
+#### 시안 박제
+- PlayerProfile.jsx L34~42 활동 5건 mock — 운영 ActivityEvent 5종 시각 매핑 정확 (match/mvp/jersey/team_joined/signup).
+- L44~57 통산 모달 mock — careerRow + yearRows 4건 + tournamentRows 3건 8열.
+- L181~183 [더보기] 버튼 + L414~421 모달 mount — 운영 overview-tab.tsx 패턴 카피.
+- L428~501 StatsDetailModal mock — 운영과 시각적 1:1 (3 탭 + ESC + overlay click + body scroll lock + 8열 표 + 커리어 행 강조).
+- 토큰 일관: var(--accent)/var(--bg-alt)/var(--ff-mono)/var(--ff-display)/var(--ok)/var(--danger) — 핑크/살몬/코랄 0 / lucide-react 0 / Material Symbols ✅.
+- BDR-current 마지막 줄 정상 (`window.PlayerProfile = PlayerProfile;`).
+- 🟡 stats 탭 mock (L291~311) 구버전 6열 + BPG — Phase 1 후 obsolete. 모달이 동일 정보 8열로 노출 → 중복. 후속 정리 검토 (시안 보존 우선이면 유지 OK).
+
+#### errors.md 적용
+- truncated: 6 파일 마지막 2줄 정상 종료 — activity-log.tsx `}` / stats-detail-modal.tsx `}` / page.tsx `}` / overview-tab.tsx `}` / overview-tab.css `}` / PlayerProfile.jsx `window.PlayerProfile = PlayerProfile;` (실측 ✅).
+- envelope/snake_case: 본 작업 API endpoint 추가 0 → page.tsx server component → props 직접 전달. Date.toISOString() 명시 변환. DB snake_case → JS camelCase 매핑 일관 (total_rebounds → rebounds / field_goal_percentage → fgPct / three_point_percentage → threePct). 회귀 0.
+
+#### 회귀 위험
+- Flutter `/api/v1/*`: ✅ 0 (변경 = `(web)/users/[id]/*` + BDR-current/* 한정).
+- DB schema: ✅ 0 (prisma/schema.prisma 무수정).
+- API endpoint: ✅ 0 신규.
+- Phase 1 NBA 카드: ✅ 0 (PlayerMatchCard / RecentGamesTab / Hero 무변경).
+- 8열 통산 카드: ✅ 0 (overview-tab.tsx 통산 grid 무변경 — 헤더 [더보기] 버튼만 추가).
+- 비로그인 / preview=1 / ISR 60초 / isOwner /profile redirect: ✅ 모두 그대로.
+
+✅ 잘된 점:
+- 12 쿼리 Promise.all 병렬 — 추가 3건 (#10~#12) 도 동일 패턴 일관.
+- 5종 source 단일 ActivityEvent[] 통합 — discriminated union TS exhaustive 보장.
+- 모달 접근성 풀세트 — role="dialog" + aria-modal + aria-labelledby + ESC + overlay click + × + body scroll lock + cleanup useEffect.
+- Q2 데이터 source 통일 — 통산/활동 카드 단일 source (statAgg._count.id) — 분기 패턴 회피.
+- 모바일 풀스크린 우아 fallback (maxWidth:720 + maxHeight:90vh + width:100%).
+- truncated 6 파일 모두 마지막 줄 정상.
+- BDR-current 시안 박제 운영 컴포넌트와 시각 1:1.
+
+🟡 권장 수정 (필수 X):
+1. activity-log.tsx L25 주석 `// "21:17"` → "예: '52:47' 점수" 로 명확화.
+2. PlayerProfile.jsx stats 탭 (L291~311) 구버전 6열 BPG mock — 모달 정보 중복. 후속 정리 검토.
+
+🔴 수정 요청 (필수 1건):
+- **page.tsx L583~594 jersey_changed payload 가드 형식 수정** — 위 §"TeamMemberHistory.payload 형식 미스매치" 참조. 5분 fix. 미수정 시 jersey 변경 활동에서 #N → #N 시각 정보 영구 손실 (앱 동작 무관).
+
+#### 종합 평가
+- ⭐⭐⭐⭐ (4/5)
+- 사유: 설계서 Q1~Q8 8건 모두 반영 + 12 쿼리 병렬 + truncated 0 + 회귀 0 + 시안 동기 등 기능 완성도 우수. 단 jersey_changed payload 형식 미스매치로 시각 정보 손실 1건 (앱 동작 무관). 수정 후 ⭐⭐⭐⭐⭐.
+
+#### 개선 제안 (후속)
+1. **payload 형식 가드 수정** — 5분 fix (필수).
+2. **useMemo 적용** — groupByYear/Tournament/careerRow 매 render 재계산 (100건 미만 가정으로 무시 가능, 후속).
+3. **stats 탭 obsolete 시안 정리** — 모달과 정보 중복 (필수 X).
+4. **total_games_participated 카운터 검증** — admin/leaderboard 사용 여부 + cron 백필 (본 작업 외).
+
+### 구현 기록 (developer / 5/9 Phase 2 활동 로그 + 통산 더보기)
+
+📝 구현한 기능: `/users/[id]` 공개 프로필 활동 로그 5종 통합 + 통산 [더보기] 모달 3탭
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(web)/users/[id]/_v2/activity-log.tsx` | **신규** — ActivityEvent 타입 export + 5종 렌더 (match/mvp/team_joined/team_left/team_transferred/jersey_changed/signup) + Material Symbols Outlined 아이콘 + Q5 라우팅 (match/mvp=/live/[id], team_*=/teams/[id]) + 빈 상태 fallback + 상대 날짜 (오늘/어제/N일 전/M/D(요일)) | 신규 (222L) |
+| `src/app/(web)/users/[id]/_v2/stats-detail-modal.tsx` | **신규 client component** — AllStatsRow 타입 export + 3 탭 (전체/연도별/대회별) + 클라 groupBy (year=getFullYear, tournament=tournamentId) + 누적 평균 buildRow 헬퍼 + 8열 테이블 (구분/경기/승률/PPG/RPG/APG/MIN/FG%/3P%) + 커리어 평균 강조 마지막 행 + ESC 키 close + overlay click + body scroll lock + 모바일 풀스크린 가드 | 신규 (396L) |
+| `src/app/(web)/users/[id]/page.tsx` | 쿼리 9→12 (#10 mvpMatches + #11 teamHistoryRows + #12 allStatsForModal) / ActivityEvent[] 변환 (5종 source 합산 → date desc sort → top 5) / AllStatsRow[] 변환 (BigInt→string + Decimal→number + playerSide+won 계산) / **Q2 fix**: activity.gamesPlayed = statAgg._count.id (matchPlayerStat 통일) / OverviewTab 호출에 events + allStatsRows props 추가 | 수정 (440→709L) |
+| `src/app/(web)/users/[id]/_v2/overview-tab.tsx` | **`"use client"` 전환** (모달 useState 필요) / OverviewTabProps 에 events + allStatsRows 추가 / 통산 헤더에 [더보기] 버튼 (allStatsRows.length>0 가드) / 활동 카드 단순 메타 → 압축 메타 (가입+경기+주최) + ActivityLog 5건 / 모달 mount (open state) | 수정 (391→470L) |
+| `Dev/design/BDR-current/screens/PlayerProfile.jsx` | 시안 역박제 — 활동 카드 5건 mock (match/mvp/jersey/team_joined/signup) + Material Symbol 아이콘 + 통산 헤더 [더보기] 버튼 + StatsDetailModal mock (3탭 + 8열 테이블 + ESC + overlay click) | 수정 (380→518L) |
+
+💡 tester 참고:
+- 테스트 URL: 비로그인 또는 본인 외 user → `/users/[id]` (예: `/users/2999?preview=1` 본인 미리보기)
+- 활동 카드 정상 동작:
+  - 압축 메타: "가입 2018.03.14 · 경기 418 · 주최 N" (Q2 fix — total_games_participated 대신 matchPlayerStat 카운트)
+  - 활동 로그 5건 (최신 우선): 매치/MVP는 클릭 → /live/[id] / 팀가입·탈퇴·이적·등번호변경 클릭 → /teams/[id] / 가입 클릭 0
+  - Material Symbol 아이콘 7종 (sports_basketball/emoji_events/group_add/logout/swap_horiz/tag/person_add)
+  - 빈 상태: events.length=0 → "아직 활동 기록이 없어요" italic
+  - 상대 날짜 포맷: 오늘/어제/N일 전 (7일 미만) / M/D (요일) (7일 이상)
+- 통산 [더보기] 정상 동작:
+  - allStatsRows.length>0 일 때만 버튼 노출 / hover 시 색상 변화
+  - 모달 open: ESC 또는 overlay click 또는 × 버튼 → close
+  - body scroll lock (모달 열린 동안 배경 스크롤 0)
+  - 3 탭: 전체 (커리어 평균 1행) / 연도별 (yr desc + 커리어) / 대회별 (latest match 기준 desc + 커리어)
+  - 커리어 평균 행: 마지막 + bg-alt + 700 weight 강조
+  - 8열 테이블 가로 스크롤 (overflow-x:auto + min-width:640)
+  - "-" 표시: games=0 / pct=0 / fmtNum 의 0
+- 빈 데이터 fallback:
+  - allStatsRows=[] → 모달 안 "집계할 경기 기록이 없어요"
+  - events=[] → 활동 로그 카드 안 "아직 활동 기록이 없어요"
+
+⚠️ reviewer 참고:
+- "use client" 전환 결정 — overview-tab.tsx 가 client wrapper 분리보다 단순. props 모두 직렬화 OK (string/number/boolean / Date/BigInt 0). RSC payload 영향 = OverviewTab 자체가 page.tsx 의 children prop 으로 전달되므로 RSC boundary 명확
+- TeamMemberHistory.payload 가드 — 추정 형식 `{old:{jersey:7}, new:{jersey:8}}`. typeof 가드 + try/catch 로 형식 다를 시 fallback "등번호 변경"
+- ended_at !== null 가드 (mvp 쿼리 #10) — status='ended' 백필 안전 위해 ended_at 사용
+- 클라 groupBy 정렬: 연도 desc / 대회 = 해당 대회 내 최신 매치 scheduledAt desc 기준
+- ActivityEvent.match 의 result 판정: playerSide null 또는 동점 시 `null` (W/L 표시 0)
+- next/image 0 — 모달 안 이미지 없음 (도메인 화이트리스트 회피)
+- AllStatsRow.fgPct/threePct = single-row avg (가중 X) — career row 도 모든 경기 단순 평균 (NBA 가중 attempts-based 무시 — 모바일 표 단순화)
+
+🔧 회귀 위험 0 검증:
+- Flutter `/api/v1/*` ❌ 0 (변경 = `(web)/users/[id]/*` + 시안 한정)
+- DB schema ❌ 0 (prisma/schema.prisma 무수정)
+- API 신규 endpoint ❌ 0 (page.tsx 내 prisma 직접 호출만)
+- Phase 1 (NBA 카드 8열 Hero jersey) 영향 0 (overview-tab.tsx 시즌 grid + Hero 컴포넌트 무수정)
+- ISR 60초 ✅ 유지 / preview=1 미리보기 ✅ 유지 / isOwner /profile redirect ✅ 유지
+
+**[5/9 직전]** **사전 라인업 확정 + 기록앱 자동 매핑 — 설계 단계**
+- 산출: 설계 보고서 `Dev/match-lineup-confirmation-2026-05-09.md` (Q1~Q9 결재 대기)
 
 **[5/9 — developer 구현 완료]** **공개 프로필 (`/users/[id]`) NBA 스타일 개선 — 코드 구현 100%**
 - 사용자 결재 6건 일괄 승인 (Q1=A 2탭 / Q3=jersey 노출 / Q4=C-3 8열 / Q5=D-1 / Q6=E-1 글로벌)
@@ -378,6 +722,10 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | (설계 단계 — 코드 변경 0) | **홈 5/9 부활분 3 컴포넌트 디자인 시스템 정합 — 설계 보고서 작성** — 11 섹션 / Q1~Q7 결재 / 옵션 A/B/C 비교 / 옵션 B 권장 (~55분). 핵심: 시안 BDR-current/screens/Home.jsx 의 RecommendedRail 통일 패턴 (시안 line 405~440) vs 운영 3종 분산 헤더 (RecommendedVideos NBA 2K 자체 / MySummaryHero 헤더없음 / RecommendedGames TossSectionHeader) 차이 매트릭스 6 영역. 옵션 B = RecommendedRail 신규 1개 (`src/components/bdr-v2/recommended-rail.tsx` ~80L server component / props: title/eyebrow/moreHref/moreLabel/moreTarget/inset/children) + 헤더만 교체 (RecommendedVideos + RecommendedGames) / MySummaryHero 무수정 (시안도 별도 형식 line 310). 회귀 0 (API/DB/Flutter v1 / SWR 키 / fallback / 모바일 720px / 카드 width). 결재 추천: B(헤더만)/A(bdr-v2 위치)/A(eyebrow="WATCH NOW · YOUTUBE")/A(MySummary 보존)/A(점진 마이그)/A(카드 후속 추출)/B(5/10 후). 산출: `Dev/home-design-alignment-2026-05-09.md`. | 📋 결재 대기 |
+| 2026-05-09 | (대기 — tester/reviewer 후 PM 커밋) | **옵션 B — RecommendedRail 통일 + 헤더 교체 (RecommendedVideos / RecommendedGames)** — 1 신규 (`src/components/bdr-v2/recommended-rail.tsx` 178L: 시안 line 405~440 카피 / props title/eyebrow/more `{label?,href?,onClick?}`/children/inset / RailMore 보조 컴포넌트 = 외부 URL→target=_blank, 내부→Next Link, href 없으면 button / globals.css `.eyebrow` 클래스 활용). 2 헤더 교체: (a) RecommendedVideos — 자체 "WATCH NOW" 2K 헤더 div 제거 → RecommendedRail wrapper (eyebrow="WATCH NOW · YOUTUBE" / title="BDR 추천 영상" / more YouTube 외부 / NBA 2K 카드 디자인 보존 / Link import 제거). (b) RecommendedGames — TossSectionHeader 제거 → RecommendedRail wrapper (eyebrow="GAMES · 픽업 · 게스트" / title 동적 userName / more "/games" / 컴팩트 카드 보존). MySummaryHero 무수정 (시안도 단독 line 91). 시안 박제 후속 (BDR-current/screens/Home.jsx 변경 0 — 이미 정합). tsc 0 / truncated 0 (3파일 `}` 종결) / API/DB/Flutter v1/SWR/fallback/HeroCarousel/StatsStrip/2컬럼 모두 무수정. TossSectionHeader 컴포넌트 자체는 다른 5 파일에서 사용 중 → 보존. | 📋 PM 검토 대기 |
+| 2026-05-09 | (대기 — tester/reviewer 후 PM 커밋) | **공개 프로필 (`/users/[id]`) Phase 2 — 활동 로그 + 통산 더보기 모달 구현 완료** — 사용자 결재 8건 일괄 승인 (Q1~Q8=A). 2 신규 (activity-log.tsx 222L + stats-detail-modal.tsx 396L) + 4 수정 (page.tsx 쿼리 #10~#12 + ActivityEvent/AllStatsRow 변환 + Q2 fix gamesPlayed=statAgg._count.id / overview-tab.tsx "use client" + 활동 카드 ActivityLog 통합 + 통산 [더보기] 모달 wire / PlayerProfile.jsx 시안 박제). ActivityLog 5종 (match/mvp/team_joined·left·transferred/jersey_changed/signup) + Material Symbols 아이콘 7종 + 상대 날짜 + Q5 라우팅. StatsDetailModal 3탭 (전체/연도별/대회별) + 클라 groupBy + 커리어 평균 강조 + ESC/overlay/scroll lock. tsc 0 / next build 통과 / truncated 6파일 마지막 줄 정상. DB/API/Flutter v1 영향 0. | ✅ |
+| 2026-05-09 | (대기 — PM 커밋 예정) | **홈페이지 P0 — MySummaryHero + RecommendedGames 부활** — `src/app/(web)/page.tsx` +29L (337L → 366L). import 7L 추가 (RecommendedVideos 옆 그룹) + JSX 섹션 2개 (MySummaryHero HeroCarousel 직후 / RecommendedGames StatsStrip 다음 RecommendedVideos 위) + 상단 주석 5섹션 → 7섹션 갱신. 두 컴포넌트 모두 자체 헤더/Empty 분기 보유 → CardPanel 래퍼 없이 직접 렌더 (RecommendedVideos 동일 패턴). 검증: tsc 0 에러 (page.tsx 한정) / truncated 0 (366L `}` 종결) / HeroCarousel·StatsStrip·RecommendedVideos·2컬럼·방금올라온글 5 섹션 무수정 / prefetch 4건 무수정 / API/DB/Flutter v1 영향 0. 시안 박제 변경 0 (BDR-current/screens/Home.jsx 이미 박제 완료). 비로그인 자체 분기: MySummaryHero=EmptyCard / RecommendedGames=user_name null. | ✅ |
 | 2026-05-09 | (대기 — PM 커밋 예정) | **홈페이지 RecommendedVideos 부활** — 2026-04-24 BDR v2 Phase 1 (`d6bc22c`) 일괄 제거 후 5/9 부활. (1) `src/app/(web)/page.tsx` +13L (import 3L + 주석 4L + StatsStrip 다음 `<section marginTop:24>` 래퍼 5L + 상단 주석 1L). 컴포넌트 자체 "HIGHLIGHTS" NBA 2K 헤더 보유 → CardPanel 래퍼 미적용 (헤더 중복 회피). (2) `Dev/design/BDR-current/screens/Home.jsx` +118L 시안 역박제 (운영 → 시안 동기화 룰 / 5/7 lessons.md): mock 데이터 6건 + RecommendedRail #2.5 (열린 대회 다음) + VideoMiniCard 컴포넌트 (가로 스크롤 캐러셀 / accent 그라디언트 썸네일 / LIVE 뱃지 / 듀레이션 뱃지 / uppercase 제목). 검증: tsc 0 / truncated 0 (page.tsx 337L `}` 종결 / Home.jsx 977L `window.Home = Home;` 종결) / HeroCarousel·StatsStrip·2컬럼·방금올라온글 4 섹션 무수정 / prefetch 4건 무수정 / API/DB/Flutter v1 영향 0. 컴포넌트는 useSWR 클라사이드 자체 fetch → SSR 영향 0. | ✅ |
 | 2026-05-09 | (대기 — tester/reviewer 후 PM 커밋) | **공개 프로필 (`/users/[id]`) NBA 스타일 구현 완료** — 1 신규 (PlayerMatchCard 글로벌 컴포넌트 380L `src/components/match/`) + 6 수정 (page.tsx 쿼리 #2 8키 _avg + #3 select 대폭 확장 + #9 신규 jersey + 변환 로직 / RecentGamesTab 카드형 / OverviewTab 6→8열 BPG 제거 + MIN/FG%/3P% / overview-tab.css 4×2 / PlayerHero #N eyebrow / PlayerProfile.jsx 시안 역박제). officialMatchNestedFilter 가드 추가 (5/2 회귀 fix). 카드 클릭 → /live/[id]. tsc 0 / npm run build 통과 / truncated 룰 7파일 마지막 줄 정상. 사용자 결재 6건 일괄 승인. | ✅ |
 | 2026-05-09 | (설계 단계 — 코드 변경 0) | **사전 라인업 확정 + 기록앱 자동 매핑 — 설계 보고서 작성** — 13 섹션 / Q1~Q9 결재 / 8 PR 부분 배포 (Stage 1~4) / ~8.5h 예상. 핵심: 신규 테이블 `match_lineup_confirmed` (매치당 home/away 각 1건 / activeTtpIds + starterTtpIds Json) + ADD COLUMN `tournament_matches.lineup_reminder_sent_at` (cron 1회성 가드). 트리거 = Vercel Cron 5분 폴링 (55~60분 매치). 푸시 = `createNotificationBulk` 재사용 (인앱+web push). Flutter 자동 매핑 = roster 응답 +2 필드 (`home_lineup_confirmed`/`away_lineup_confirmed`) → v1 호환 (무시) / v2 (분기). 회귀 0 (ttp.isStarter 대회 통산 의미 영구 보존 / 미입력 매치 기록원 수동 fallback). 산출물: `Dev/match-lineup-confirmation-2026-05-09.md`. | 📋 결재 대기 |
@@ -386,5 +734,4 @@
 | 2026-05-09 | PR #228~#235 8건 → main 4회 머지 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65`) | **5/9 main 4회 — input 마이그 + 시안 갭 fix 일괄 완료** — (1) PR #228/#229 PhoneInput/BirthDateInput 1순위 4 input (profile/edit 휴2+생1 + tournaments/join 휴1, formatPhone 7L 제거). (2) PR #230/#231 잔여 6 input (verify state 하이픈+replace 정규화 / registration / games/new step+v2 / games/edit within24h / partner-admin/venue). (3) PR #232/#233 시안 역박제 1순위 3건 (News+MatchNews+Scoreboard 매치 코드 v4). (4) PR #234/#235 시안 역박제 2~3순위 7건 (CourtManage/Checkin/TeamsManage/Requests/ProfileSettings/OrgApply/SeriesEdition). 시안 갭 0건 달성. tester 통과 단위 76건+ / reviewer ⭐⭐⭐⭐⭐ 2회. | ✅ |
 | 2026-05-08 | PR #214~#227 14건 → main 7회 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) | **5/8 main 7회 신기록** — (1) 디자인 박제 11 commit + truncated 빌드 9건 실패 → hot fix `333516b`. (2) PR3 layout 가드 mock 모드 (헬퍼 2 + server layout 1 + 4 페이지). (3) BDR-current sync v2.5 부분 + v2.5.1 (zip 2회). (4) mock 자체 입력 폴백 (DB ADD COLUMN + modal 337L + endpoint 156L + 가드 3단). (5) PhoneInput/BirthDateInput 전역 컴포넌트 + conventions.md [2026-05-08] 룰 박제. errors.md 5/7 truncated 재발 2회차 + 보완 4룰. | ✅ |
 | 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** — fix 7건 (envelope 8회 / IME 9곳 / 마이페이지 정렬 / 알림 deep-link), Onboarding PR1.1~PR5 (PR3 보류), Phase A.5 drawer truncated → hot fix `168be48`. | ✅ |
-| 2026-05-06 | `7211f97` ~ `f6b43ab` → main `4253e68` | **5/6 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄** | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/5 SEASON2 출전 명단 정비 DB UPDATE 4건 / 5/5 팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR `8bbce95` / 5/6 UI fix 13건 + apiError 일괄 fix / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 신기록) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 + 5/5 auth 10+ 건 / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 5/5 SEASON2 PDF vs DB / 5/5 onboarding 10단계 합의 / 5/5 인증 흐름 재설계 → main `3f016c9` / 5/5 SEASON2 출전 명단 정비 DB UPDATE 4건 / 5/5 팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR `8bbce95` / 5/6 PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄 main `4253e68` / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 신기록) — 복원: git log -- .claude/scratchpad.md -->

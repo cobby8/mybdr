@@ -2,6 +2,8 @@
 
 function PlayerProfile({ setRoute }) {
   const [tab, setTab] = React.useState('overview');
+  // 5/9 Phase 2 — 통산 더보기 모달 open state (Q3=A 모달 채택)
+  const [statsModalOpen, setStatsModalOpen] = React.useState(false);
   // Other player: 몽키즈 센터 (not me)
   const team = TEAMS[2]; // 몽키즈
   const p = {
@@ -28,6 +30,31 @@ function PlayerProfile({ setRoute }) {
       { icon:'🔥', name:'더블더블 10회', date:'2025.11' },
     ],
   };
+
+  // 5/9 Phase 2 — 활동 로그 5건 mock (Q1=A 5종 통합 — match/mvp/team/jersey/signup)
+  // 운영 ActivityLog 컴포넌트 시각 패턴 카피 (icon Material Symbol + title + date)
+  const activityEvents = [
+    { type:'match', icon:'sports_basketball', title:'MONKEYS vs 3POINT 24:18 W', date:'5/2 (토)', href:'#live' },
+    { type:'mvp', icon:'emoji_events', title:'몰텐배 21회 MVP 수상', date:'5/1 (금)', href:'#live' },
+    { type:'jersey_changed', icon:'tag', title:'MONKEYS 등번호 #7 → #4', date:'4/28 (월)', href:'#team' },
+    { type:'team_joined', icon:'group_add', title:'MONKEYS 가입', date:'4/15 (화)', href:'#team' },
+    { type:'signup', icon:'person_add', title:'MyBDR 가입', date:'2018.03.14', href:null },
+  ];
+
+  // 5/9 Phase 2 — 통산 모달 mock (Q7=A 클라 groupBy 결과 시뮬)
+  // 3 탭: 전체 / 연도별 / 대회별 — 각 탭당 N행 + 마지막 커리어 평균 (강조)
+  const careerRow = ['커리어 평균', '418', '66%', '16.1', '10.3', '2.9', '23.4', '52.0%', '34.2%'];
+  const yearRows = [
+    ['2026 시즌', '34', '79%', '18.4', '11.8', '3.2', '24.6', '56.0%', '31.0%'],
+    ['2025 시즌', '76', '68%', '17.0', '10.7', '2.9', '23.8', '53.4%', '35.1%'],
+    ['2024 시즌', '88', '62%', '15.6', '9.8', '2.7', '22.4', '50.8%', '33.6%'],
+    ['2023 시즌', '92', '60%', '14.8', '9.4', '2.6', '21.6', '49.2%', '34.8%'],
+  ];
+  const tournamentRows = [
+    ['몰텐배 21회 (MD21)', '6', '83%', '19.2', '12.4', '3.6', '25.8', '58.2%', '32.4%'],
+    ['열혈 SEASON 2 (HOT2)', '5', '60%', '17.8', '11.2', '2.8', '23.4', '54.6%', '30.8%'],
+    ['여의도 챌린지 (YDC)', '4', '50%', '15.4', '10.0', '2.4', '22.0', '51.0%', '28.6%'],
+  ];
 
   // 5/9 NBA 스타일 8열 (Q4=C-3 사용자 결정 — BPG 제거 + MIN/FG%/3P% 추가)
   // 사유: NBA 핵심 지표 (FG%/3P%/MIN) + 모바일 4×2 grid 일관성. mybdr 운영 데이터 BPG 우선순위 ↓
@@ -148,7 +175,13 @@ function PlayerProfile({ setRoute }) {
         <div style={{display:'grid', gridTemplateColumns:'minmax(0, 1fr) 320px', gap:16}}>
           <div style={{display:'flex', flexDirection:'column', gap:14}}>
             <div className="card" style={{padding:'22px 24px'}}>
-              <h2 style={{margin:'0 0 14px', fontSize:16, fontWeight:700}}>통산 스탯</h2>
+              {/* 5/9 Phase 2: 통산 헤더 + [더보기] 버튼 (Q3=A 모달 채택) */}
+              <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
+                <h2 style={{margin:0, fontSize:16, fontWeight:700}}>통산 스탯</h2>
+                <button onClick={()=>setStatsModalOpen(true)} style={{background:'transparent', border:0, cursor:'pointer', fontSize:12, fontWeight:500, color:'var(--ink-dim)', padding:'4px 6px', borderRadius:4}}>
+                  더보기 →
+                </button>
+              </div>
               {/* 5/9 NBA 8열 (Q4=C-3): 경기/승률/PPG/RPG/APG/MIN/FG%/3P% */}
               <div style={{display:'grid', gridTemplateColumns:'repeat(8, 1fr)', border:'1px solid var(--border)', borderRadius:8, overflow:'hidden'}}>
                 {seasonStats.map((s, i) => (
@@ -222,14 +255,32 @@ function PlayerProfile({ setRoute }) {
               </div>
             </div>
 
+            {/* 5/9 Phase 2 — 활동 카드: 단순 메타 → 5건 활동 로그 (Q1=A 5종 통합) */}
             <div className="card" style={{padding:'18px 20px'}}>
               <div style={{fontSize:11, color:'var(--ink-dim)', fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase', marginBottom:8}}>활동</div>
-              <div style={{fontSize:13, lineHeight:1.8, color:'var(--ink-soft)'}}>
-                커뮤니티 글 · <b>{p.posts.toLocaleString()}</b><br/>
-                가입일 · <span style={{fontFamily:'var(--ff-mono)'}}>{p.joined}</span><br/>
-                최근 접속 · {p.lastSeen}
+              {/* 압축 메타 — 가입일 / 경기참가 (Q2 fix: matchPlayerStat 통일) */}
+              <div style={{fontSize:12, lineHeight:1.7, color:'var(--ink-dim)', marginBottom:10, paddingBottom:10, borderBottom:'1px solid var(--border)'}}>
+                가입 <span style={{fontFamily:'var(--ff-mono)', color:'var(--ink-soft)'}}>{p.joined}</span> · 경기 <b style={{color:'var(--ink)'}}>418</b>
               </div>
-              <a style={{fontSize:12, color:'var(--link)', cursor:'pointer', marginTop:8, display:'inline-block'}}>최근 작성글 보기 →</a>
+              {/* 활동 로그 5건 — Material Symbol + title + date */}
+              <ul style={{listStyle:'none', margin:0, padding:0, display:'flex', flexDirection:'column', gap:2}}>
+                {activityEvents.map((e, i) => (
+                  <li key={i} style={{margin:0}}>
+                    <div style={{display:'flex', alignItems:'center', gap:10, padding:'8px 4px', fontSize:13, color:'var(--ink-soft)', borderRadius:4, cursor: e.href ? 'pointer' : 'default'}}>
+                      {/* Material Symbols Outlined — span ligature 방식 */}
+                      <span className="material-symbols-outlined" aria-hidden="true" style={{fontSize:18, color:'var(--ink-dim)', flexShrink:0, width:18, lineHeight:1}}>
+                        {e.icon}
+                      </span>
+                      <span style={{flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--ink)', fontWeight:500}}>
+                        {e.title}
+                      </span>
+                      <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)', flexShrink:0}}>
+                        {e.date}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             <button className="btn btn--sm" style={{color:'var(--danger)'}}>사용자 신고</button>
@@ -358,6 +409,93 @@ function PlayerProfile({ setRoute }) {
           </div>
         </div>
       )}
+
+      {/* 5/9 Phase 2: 통산 더보기 모달 (Q3=A, Q7=A 클라 groupBy 시뮬) */}
+      {statsModalOpen && (
+        <StatsDetailModal
+          onClose={()=>setStatsModalOpen(false)}
+          careerRow={careerRow}
+          yearRows={yearRows}
+          tournamentRows={tournamentRows}
+        />
+      )}
+    </div>
+  );
+}
+
+// 5/9 Phase 2: 통산 모달 — 3 탭 (전체/연도별/대회별) + 8열 테이블
+// 운영 stats-detail-modal.tsx 시각 패턴 카피 (overlay click + ESC + 모바일 풀스크린 가드)
+function StatsDetailModal({ onClose, careerRow, yearRows, tournamentRows }) {
+  const [tab, setTab] = React.useState('all');
+
+  React.useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
+  const displayRows = tab === 'all'
+    ? [careerRow]
+    : tab === 'year'
+      ? [...yearRows, careerRow]
+      : [...tournamentRows, careerRow];
+
+  return (
+    <div onClick={onClose} role="dialog" aria-modal="true" style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:16}}>
+      <div onClick={(e)=>e.stopPropagation()} style={{background:'var(--bg)', borderRadius:8, maxWidth:720, width:'100%', maxHeight:'90vh', overflowY:'auto', border:'1px solid var(--border)'}}>
+        {/* Header */}
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', borderBottom:'1px solid var(--border)', position:'sticky', top:0, background:'var(--bg)', zIndex:1}}>
+          <h2 style={{margin:0, fontSize:16, fontWeight:700}}>통산 스탯 상세</h2>
+          <button onClick={onClose} aria-label="닫기" style={{background:'transparent', border:0, cursor:'pointer', padding:4, color:'var(--ink-soft)', fontSize:20, lineHeight:1}}>×</button>
+        </div>
+        {/* Tabs */}
+        <div role="tablist" style={{display:'flex', gap:4, padding:'12px 20px 0', borderBottom:'1px solid var(--border)'}}>
+          {[
+            { key:'all', label:'전체' },
+            { key:'year', label:'연도별' },
+            { key:'tournament', label:'대회별' },
+          ].map((t) => {
+            const active = tab === t.key;
+            return (
+              <button key={t.key} role="tab" aria-selected={active} onClick={()=>setTab(t.key)} style={{padding:'8px 14px', fontSize:13, fontWeight: active ? 700 : 500, color: active ? 'var(--ink)' : 'var(--ink-dim)', background:'transparent', border:0, borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent', cursor:'pointer', marginBottom:-1}}>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {/* Content */}
+        <div style={{padding:'16px 20px 20px'}}>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%', minWidth:640, borderCollapse:'collapse', fontSize:12}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid var(--border)', color:'var(--ink-dim)'}}>
+                  <th style={{padding:'8px 6px', textAlign:'left', fontSize:11, fontWeight:700, letterSpacing:'.04em', textTransform:'uppercase', whiteSpace:'nowrap'}}>구분</th>
+                  {['경기','승률','PPG','RPG','APG','MIN','FG%','3P%'].map(h => (
+                    <th key={h} style={{padding:'8px 6px', textAlign:'right', fontSize:11, fontWeight:700, letterSpacing:'.04em', textTransform:'uppercase', whiteSpace:'nowrap'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {displayRows.map((row, i) => {
+                  const isCareer = row[0] === '커리어 평균';
+                  return (
+                    <tr key={i} style={{borderBottom: i === displayRows.length - 1 ? 0 : '1px solid var(--border)', fontWeight: isCareer ? 700 : 500, background: isCareer ? 'var(--bg-alt)' : undefined, color: isCareer ? 'var(--ink)' : 'var(--ink-soft)'}}>
+                      <td style={{padding:'10px 6px', textAlign:'left', whiteSpace:'nowrap'}}>{row[0]}</td>
+                      {row.slice(1).map((cell, j) => (
+                        <td key={j} style={{padding:'10px 6px', textAlign:'right', fontFamily:'var(--ff-mono)', whiteSpace:'nowrap'}}>{cell}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
