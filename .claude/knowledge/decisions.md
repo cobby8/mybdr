@@ -2,6 +2,30 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-09] 공개 프로필 활동 로그 + 통산 더보기 설계 (Phase 2) — Q1~Q8 일괄 추천 A
+- **분류**: decision (공개 프로필 / NBA 스타일 Phase 2 / 활동 로그 / 통산 분해)
+- **결정자**: planner-architect (사용자 결재 대기 — Q1~Q8 모두 A 추천)
+- **참조횟수**: 0
+- **배경**: Phase 1 (NBA 카드형 + 8열 통산) 완료 후 사용자 Image #13 요구 — (1) 활동 카드 단순 텍스트 → 5건 활동 로그 (2) 통산 우상단 [더보기] → 연도/대회별 모달 (3) 동시 발견 버그: 활동 "경기 참가 0" vs 통산 카드 2경기 (데이터 소스 불일치)
+- **결정 핵심**:
+  1. **Q1=A 활동 로그 5종 통합** — match (matchPlayerStat) + mvp (tournamentMatch.mvp_player_id) + team_history (joined/left/transferred) + jersey_changed (TeamMemberHistory.payload.old/new) + signup (user.createdAt). UNION 쿼리 4건 + 클라 sort
+  2. **Q2=A 버그 fix 통일** — `activity.gamesPlayed = statAgg._count.id` (matchPlayerStat 통일). `total_games_participated` 카운터는 admin/leaderboard 가 사용 가능 → 컴포넌트에서만 분리 (백필은 별 작업)
+  3. **Q3=A 모달 채택** — Phase 1 의 2탭 (Q1=A) 결정 보존. 별도 페이지 / 탭 추가 거부. 모바일 풀스크린 / Escape 닫기 / body scroll lock
+  4. **Q4=A activity-log.tsx 페이지 한정** + **Q6=A stats-detail-modal.tsx 페이지 한정** — `_v2/` 폴더. 재사용 시점에 글로벌화
+  5. **Q5=A 활동 로그 클릭** — match/mvp = `/live/[id]` / team = `/teams/[id]` / jersey/signup 클릭 0
+  6. **Q7=A findMany 1건 + 클라 groupBy** — Prisma groupBy 한계 (sum + avg 동시 불가) + raw SQL (타입 보장 ↓) + UserSeasonStat (cron 미동작) 거부. 평균 사용자 100경기 미만 → JS 가공 비용 무시
+  7. **Q8=A 정렬 최신 우선** — 연도 desc / 대회 startDate desc + 커리어 평균 마지막 행 강조
+- **거부 옵션**:
+  - Q1=B (3종) — 활동 흐름 빈약
+  - Q2=B (cron 백필) — 본 작업 외 / 시간 ↑
+  - Q3=B (별도 페이지) — 라우트 추가 / 화면 전환 비용
+  - Q3=C (탭 추가) — Q1=A 결정 번복
+  - Q7=D (UserSeasonStat) — cron 미동작 (Phase 13+ 예정)
+- **회귀 0**: Flutter `/api/v1/*` 0 / `/api/web/*` 신규 0 / Prisma schema 0 / Phase 1 (NBA 카드 + 8열) 0 / ISR 60초 유지 / 비로그인 접근 유지
+- **신규 2 파일** (`activity-log.tsx` ~120L + `stats-detail-modal.tsx` ~250L) + **수정 5 파일** (page.tsx 쿼리 #10~#12 / overview-tab.tsx prop / overview-tab.css / PlayerProfile.jsx 시안 / decisions.md)
+- **위험**: TeamMemberHistory.payload Json 형식 가정 (`{old:{jersey},new:{jersey}}`) — 실측 검증 필요. 형식 다르면 타입 가드 fallback "등번호 변경" 으로 표시
+- **보고서**: `Dev/public-profile-activity-stats-2026-05-09.md` (14 섹션 / Q1~Q8 / 5 step ~75분)
+
 ### [2026-05-08] 본인인증 mock 자체 입력 폴백 모드 설계 — 사용자 결정 B 톤 다운 + 자체 입력
 - **분류**: decision (onboarding / mock 폴백 / 환경변수 단일 신호 / DB ADD COLUMN)
 - **결정자**: 사용자 (B 톤 다운 + 자체 입력 폴백) + planner-architect (구조 설계)
