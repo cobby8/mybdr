@@ -35,7 +35,7 @@
 | 3 | **title 폰트** | `font-size:18 font-weight:800 letter-spacing:-0.01em` (h3) | `text-xl md:text-2xl font-black uppercase tracking-tighter` (h2 NBA 2K) | — | `text-xl md:text-2xl font-black uppercase tracking-tighter` (h3 토스) |
 | 4 | **more 액션** | 단순 텍스트 button "전체 보기 →" (border:0 background:transparent) | "VIEW ALL »" Link 외부 (uppercase font-black) | — | "VIEW ALL >" Link (chevron 아이콘) |
 | 5 | **카드 width × height** | `gridAutoColumns: minmax(260px, 1fr)` (inset=220px) / 카드 height 100% 고정 0 | `w-56` (224px) / aspect-video / h-full | `min-w-[240px]` / 자유 height | `w-[280px]` / `h-[112px]` 고정 (가로형) |
-| 6 | **토큰 사용법** | `style={{}}` 직접 + `var(--*)` (Tailwind 0%) | Tailwind + `bg-[var(--*)]` 임의 클래스 혼용 | Tailwind + `style={{ color: "var(--*)" }}` 혼용 | Tailwind + `bg-[var(--*)]` 임의 클래스 혼용 |
+| 6 | **토큰 사용법** | `style={{}}` 직접 + `var(--*)` (Tailwind 0%) | Tailwind + `bg-[var(--TOKEN)]` 임의 클래스 혼용 | Tailwind + `style={{ color: "var(--*)" }}` 혼용 | Tailwind + `bg-[var(--TOKEN)]` 임의 클래스 혼용 |
 
 ### 핵심 차이 요약
 - **#1 헤더 통일성**: 운영 3개가 각자 다른 헤더 형식 → 시안 1개 RecommendedRail 통일 ↔ 운영 (자체 헤더 / 헤더 없음 / TossSectionHeader 3종)
@@ -173,7 +173,7 @@ interface RecommendedRailProps {
 ### P1 (후속 / 다음 주 / 옵션)
 - 카드 width 통일 (260px) — RecommendedVideos 224 → 260, RecommendedGames 280 → 260
 - VideoMiniCard / GameMiniCard 글로벌 컴포넌트 추출 (`src/components/bdr-v2/`)
-- Tailwind 임의 클래스 (`bg-[var(--*)]`) → CSS 변수 직접 (`style={{}}`) 마이그
+- Tailwind 임의 클래스 (`bg-[var(--TOKEN)]`) → CSS 변수 직접 (`style={{}}`) 마이그
 
 ### P2 (인프라 / 보류)
 - 시안 GameMiniCard 의 progress bar (applied/spots %) → 운영 GameCard 통합 (현재 운영 spots_left 만 표시)
@@ -254,7 +254,7 @@ interface RecommendedRailProps {
 - **A (권장)**: 보존 — MySummaryHero 는 시안에서도 별도 형식 (RecommendedRail 미사용)
 - B: 시안 MySummaryHero 함수 직접 카피 (line 310)
 
-**Q5. Tailwind 임의 클래스 (`bg-[var(--*)]`) → CSS 변수 직접 (`style={{}}`) 마이그?**
+**Q5. Tailwind 임의 클래스 (`bg-[var(--TOKEN)]`) → CSS 변수 직접 (`style={{}}`) 마이그?**
 - **A (권장)**: 점진 — 신규 RecommendedRail 만 `style={{}}`, 운영 카드 그대로 Tailwind JIT 유지
 - B: 강제 — 3 컴포넌트 모두 시안 형식 통일 (옵션 A 와 사실상 동일)
 
