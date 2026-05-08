@@ -7,6 +7,10 @@ import { getPlayerStats } from "@/lib/services/user";
 import { getProfileLevelInfo } from "@/lib/profile/gamification";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 import { USER_DISPLAY_SELECT } from "@/lib/db/select-presets";
+// 5/9 NBA 스타일 개선 — 공식 기록 가드 (미래/예약 매치 noise 제거 / 5/2 회귀 패턴 fix)
+import { officialMatchNestedFilter } from "@/lib/tournaments/official-match";
+// 5/9 신규 — 글로벌 PlayerMatchCard props 타입 (변환 로직에서 사용)
+import type { PlayerMatchCardProps } from "@/components/match/PlayerMatchCard";
 
 import { PlayerHero } from "./_v2/player-hero";
 import { ProfileTabs } from "./_v2/profile-tabs";
@@ -75,7 +79,8 @@ export default async function UserProfilePage({
     redirect("/profile");
   }
 
-  // ---- 병렬 prefetch (8 쿼리) ----
+  // ---- 병렬 prefetch (9 쿼리) ----
+  // 5/9: jerseyNumber fetch 추가 (Hero #N 노출 — 사용자 결정 Q3 노출)
   const [
     user,
     statAgg,
@@ -85,6 +90,7 @@ export default async function UserProfilePage({
     followersCount,
     followingCount,
     userBadges,
+    representativeJersey,
   ] = await Promise.all([
     // 1) user + 소속 팀 (is_public / active 공개 팀만 이후 필터)
     prisma.user
@@ -130,11 +136,16 @@ export default async function UserProfilePage({
       })
       .catch(() => null),
 
-    // 2) 경기 집계 (PPG/APG/RPG/STL/BPG 평균) - Phase 3 공식 기록만
+    // 2) 경기 집계 (PPG/APG/RPG/STL/MIN/FG%/3P% 평균) — Phase 3 공식 기록만
+    // 5/9 변경: BPG 제거 + minutesPlayed/field_goal_percentage/three_point_percentage 추가
+    //   사유: 사용자 결정 Q4=C-3 (8열 — 경기/승률/PPG/RPG/APG/MIN/FG%/3P%).
+    //   BPG = mybdr 데이터 우선순위 낮음. 모바일 4×2 grid 일관성 ↑
+    // 5/9 추가: officialMatchNestedFilter 가드로 미래/예약 매치 noise 제거 (5/2 회귀 패턴 fix)
     prisma.matchPlayerStat
       .aggregate({
         where: {
           tournamentTeamPlayer: { userId: userIdBigInt },
+          tournamentMatch: officialMatchNestedFilter(),
         },
         _avg: {
           points: true,
@@ -142,16 +153,24 @@ export default async function UserProfilePage({
           assists: true,
           steals: true,
           blocks: true,
+          minutesPlayed: true,
+          field_goal_percentage: true,
+          three_point_percentage: true,
         },
         _count: { id: true },
       })
       .catch(() => null),
 
-    // 3) 최근 경기 10건 (recent games 탭용)
+    // 3) 최근 경기 10건 (recent games 탭용) — 5/9 카드형 재구성용 select 대폭 확장
+    // 추가 필드: blocks/minutesPlayed/field-goal/3pt 슈팅, tournamentTeamPlayer.tournamentTeamId (playerSide 판별),
+    //           tournamentMatch.match_code/match_number/group_name/court_number/status/score/homeTeam/awayTeam
+    // orderBy 변경: createdAt desc → tournamentMatch.scheduledAt desc (백필 시 역전 가능 회피)
+    // officialMatchNestedFilter 가드 추가: 미래/예약 매치 noise 제거
     prisma.matchPlayerStat
       .findMany({
         where: {
           tournamentTeamPlayer: { userId: userIdBigInt },
+          tournamentMatch: officialMatchNestedFilter(),
         },
         select: {
           id: true,
@@ -159,14 +178,47 @@ export default async function UserProfilePage({
           total_rebounds: true,
           assists: true,
           steals: true,
+          blocks: true,
+          minutesPlayed: true,
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+          // 본인 팀이 홈/원정 어느 쪽인지 판별 — playerSide 핵심
+          tournamentTeamPlayer: {
+            select: { tournamentTeamId: true },
+          },
           tournamentMatch: {
             select: {
+              id: true,
+              match_code: true,
+              match_number: true,
+              group_name: true,
               roundName: true,
               scheduledAt: true,
+              court_number: true,
+              status: true,
+              homeScore: true,
+              awayScore: true,
+              homeTeamId: true,
+              awayTeamId: true,
+              // 5/9 fix: TournamentTeam 자체에는 name 컬럼 없음 → team.name 사용 (Team relation)
+              homeTeam: {
+                select: {
+                  id: true,
+                  team: { select: { name: true, logoUrl: true } },
+                },
+              },
+              awayTeam: {
+                select: {
+                  id: true,
+                  team: { select: { name: true, logoUrl: true } },
+                },
+              },
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { tournamentMatch: { scheduledAt: "desc" } },
         take: 10,
       })
       .catch(() => []),
@@ -212,6 +264,16 @@ export default async function UserProfilePage({
         take: 4,
       })
       .catch(() => []),
+
+    // 9) 대표 jerseyNumber — 가장 최근 등록된 ttp 의 jersey (Hero #N 노출용)
+    // 왜 first? ttp 1명당 N개 (대회별) 등록 가능 → 최근 1건이 "대표" 의미
+    prisma.tournamentTeamPlayer
+      .findFirst({
+        where: { userId: userIdBigInt, jerseyNumber: { not: null } },
+        select: { jerseyNumber: true },
+        orderBy: { createdAt: "desc" },
+      })
+      .catch(() => null),
   ]);
 
   if (!user) return notFound();
@@ -240,27 +302,69 @@ export default async function UserProfilePage({
   // 대표 팀 (Hero 그라디언트 / 이름)
   const primaryTeam = publicTeams[0] ?? null;
 
-  // ---- 시즌 스탯 (OverviewTab 6열) ----
+  // ---- 시즌 스탯 (OverviewTab 8열 — Q4=C-3) ----
+  // 5/9 변경: 6열(경기/승률/PPG/APG/RPG/BPG) → 8열(경기/승률/PPG/RPG/APG/MIN/FG%/3P%)
+  // 사유: BPG 우선순위 낮음 (mybdr 데이터). MIN/FG%/3P% = NBA 핵심 지표 + 모바일 4×2 grid 일관성
+  // _avg 키는 prisma Decimal | null 가능 → Number() 변환 + null safe
   const gamesPlayed = statAgg?._count?.id ?? 0;
+  const avgPoints = Number(statAgg?._avg?.points ?? 0);
+  const avgRebounds = Number(statAgg?._avg?.total_rebounds ?? 0);
+  const avgAssists = Number(statAgg?._avg?.assists ?? 0);
+  const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0);
+  const avgFgPct = Number(statAgg?._avg?.field_goal_percentage ?? 0);
+  const avg3pPct = Number(statAgg?._avg?.three_point_percentage ?? 0);
   const seasonStats = {
     games: gamesPlayed,
     winRate: playerStats?.winRate ?? null,
-    ppg: gamesPlayed > 0 ? Number((statAgg?._avg?.points ?? 0).toFixed(1)) : null,
-    apg: gamesPlayed > 0 ? Number((statAgg?._avg?.assists ?? 0).toFixed(1)) : null,
-    rpg: gamesPlayed > 0 ? Number((statAgg?._avg?.total_rebounds ?? 0).toFixed(1)) : null,
-    bpg: gamesPlayed > 0 ? Number((statAgg?._avg?.blocks ?? 0).toFixed(1)) : null,
+    ppg: gamesPlayed > 0 ? Number(avgPoints.toFixed(1)) : null,
+    rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
+    apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
+    mpg: gamesPlayed > 0 ? Number(avgMinutes.toFixed(1)) : null,
+    fgPct: gamesPlayed > 0 ? Number(avgFgPct.toFixed(1)) : null,
+    threePct: gamesPlayed > 0 ? Number(avg3pPct.toFixed(1)) : null,
   };
 
-  // ---- 최근 경기 변환 ----
-  const recentGameRows = recentGames.map((g) => ({
-    id: g.id.toString(),
-    scheduledAt: g.tournamentMatch?.scheduledAt?.toISOString() ?? null,
-    gameTitle: g.tournamentMatch?.roundName ?? null,
-    points: g.points ?? 0,
-    rebounds: g.total_rebounds ?? 0,
-    assists: g.assists ?? 0,
-    steals: g.steals ?? 0,
-  }));
+  // ---- 최근 경기 변환 (PlayerMatchCard props 매핑) ----
+  // 5/9 변경: board__row 단순 행 → 카드형 (대회상세 ScheduleTimeline 패턴)
+  // playerSide 판별: ttp.tournamentTeamId === match.homeTeamId/awayTeamId 비교
+  // 승/패 (W/L): 본인 팀 기준, status==="completed" 일 때만 의미 있음
+  const recentGameRows: PlayerMatchCardProps[] = recentGames
+    .filter((g) => g.tournamentMatch != null) // tournamentMatch 가 NULL 인 경우 제외 (안전)
+    .map((g) => {
+      const m = g.tournamentMatch!;
+      const playerTtId = g.tournamentTeamPlayer.tournamentTeamId;
+      // 홈/원정 판별 — 매치는 항상 homeTeamId/awayTeamId 모두 NOT NULL 가정 (TBD 매치는 status=scheduled 인데 위에서 제외됨)
+      const playerSide: "home" | "away" | null =
+        playerTtId === m.homeTeamId
+          ? "home"
+          : playerTtId === m.awayTeamId
+            ? "away"
+            : null;
+
+      return {
+        matchId: m.id.toString(),
+        matchCode: m.match_code ?? null,
+        matchNumber: m.match_number ?? null,
+        groupName: m.group_name ?? null,
+        roundName: m.roundName ?? null,
+        scheduledAt: m.scheduledAt?.toISOString() ?? null,
+        courtNumber: m.court_number ?? null,
+        status: m.status ?? null,
+        homeTeamName: m.homeTeam?.team?.name ?? null,
+        homeTeamLogoUrl: m.homeTeam?.team?.logoUrl ?? null,
+        homeScore: m.homeScore ?? null,
+        awayTeamName: m.awayTeam?.team?.name ?? null,
+        awayTeamLogoUrl: m.awayTeam?.team?.logoUrl ?? null,
+        awayScore: m.awayScore ?? null,
+        playerStat: {
+          points: g.points ?? 0,
+          rebounds: g.total_rebounds ?? 0,
+          assists: g.assists ?? 0,
+          steals: g.steals ?? 0,
+        },
+        playerSide,
+      };
+    });
 
   // ---- 뱃지 변환 ----
   const badges = userBadges.map((b) => ({
@@ -303,6 +407,8 @@ export default async function UserProfilePage({
           evaluation_rating: evaluationRating,
           createdAt: user.createdAt?.toISOString() ?? null,
           lastLoginAt: user.last_login_at?.toISOString() ?? null,
+          // 5/9 신규: 대표 jersey (Q3 = 노출). null 이면 미노출
+          jerseyNumber: representativeJersey?.jerseyNumber ?? null,
         }}
         level={level}
         teamColor={primaryTeam?.primaryColor ?? null}
@@ -327,7 +433,7 @@ export default async function UserProfilePage({
             bio={user.bio}
           />
         }
-        games={<RecentGamesTab games={recentGameRows} />}
+        games={<RecentGamesTab matches={recentGameRows} />}
       />
     </div>
   );

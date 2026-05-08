@@ -59,6 +59,8 @@ export interface PlayerHeroUser {
   createdAt: string | null;
   /** 마지막 로그인 (있으면) */
   lastLoginAt: string | null;
+  /** 5/9 신규 (Q3): 대표 jersey 번호 — TournamentTeamPlayer.jerseyNumber 최신 1건 */
+  jerseyNumber: number | null;
 }
 
 export interface PlayerHeroLevel {
@@ -150,9 +152,13 @@ export function PlayerHero({
 
         {/* 이름 + 메타 */}
         <div className="player-hero__info">
-          {/* 포지션·팀명 eyebrow */}
-          {(user.position || teamName) && (
+          {/* 포지션·팀명 eyebrow — 5/9: jerseyNumber 추가 (시안 패턴 #N · 포지션 · 팀명) */}
+          {(user.jerseyNumber != null || user.position || teamName) && (
             <div className="player-hero__eyebrow">
+              {user.jerseyNumber != null && (
+                <span style={{ fontFamily: "var(--ff-mono)" }}>#{user.jerseyNumber}</span>
+              )}
+              {user.jerseyNumber != null && (user.position || teamName) && <span>·</span>}
               {user.position && (
                 <span>{POSITION_KO[user.position] ?? user.position}</span>
               )}
