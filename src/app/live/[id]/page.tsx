@@ -27,6 +27,9 @@ import { MatchJerseyOverrideModal } from "./_v2/match-jersey-override-modal";
 // 2026-05-09 PR3 — 라이브 YouTube 영상 임베딩 (16:9 + 라이브/VOD 분기 + 모바일 4 분기점).
 // youtube_video_id 가 NULL 이 아닐 때만 hero 아래 영역 마운트 (Q11 결재 — 영역 hidden).
 import { YouTubeEmbed } from "./_v2/youtube-embed";
+// 2026-05-09 PR4+PR5 — 운영자 모달 (수동 URL 입력 + BDR 채널 자동 검색).
+// isAdmin = true 일 때만 마운트. POST/DELETE /youtube-stream API 호출 후 fetchMatch refetch.
+import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -506,6 +509,10 @@ export default function LiveBoxScorePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
 
+  // 2026-05-09 PR4+PR5 — 매치 YouTube 영상 운영자 모달 상태.
+  // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
+  const [streamModalOpen, setStreamModalOpen] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMatch = useCallback(async () => {
@@ -933,6 +940,23 @@ export default function LiveBoxScorePage() {
         />
       )}
 
+      {/* 2026-05-09 PR4+PR5 — 매치 YouTube 영상 운영자 모달 (수동 입력 / 자동 검색 2탭).
+          isAdmin = false 면 마운트 안 함. POST/DELETE 후 fetchMatch refetch 로 라이브 페이지 영상 즉시 반영. */}
+      {isAdmin && match && (
+        <MatchYouTubeModal
+          isOpen={streamModalOpen}
+          onClose={() => setStreamModalOpen(false)}
+          tournamentId={match.tournament_id}
+          matchId={match.id}
+          currentVideoId={match.youtube_video_id ?? null}
+          currentStatus={match.youtube_status ?? null}
+          onSave={() => {
+            // 저장/삭제 성공 시 라이브 페이지 즉시 refetch — youtube_video_id 새로 반영
+            fetchMatch();
+          }}
+        />
+      )}
+
       {/* 스코어 카드 — 티빙 중계 스타일 (5단 가로 레이아웃)
           [홈 로고+팀명] [홈 점수] [중앙] [원정 점수] [원정 로고+팀명]
           이미지 목표대로 각 요소가 독립 영역으로 가로 나열되어야 점수가 가운데에 큼직하게 보임 */}
@@ -1080,10 +1104,12 @@ export default function LiveBoxScorePage() {
         {/* /75% 래퍼 닫기 */}
       </div>
 
-      {/* 2026-05-09 PR3: 라이브 YouTube 영상 임베딩 — hero 영역 (스코어카드 + 쿼터 테이블) 아래 (Q4 결재).
-          youtube_video_id 가 NULL 이면 영역 hidden (Q11 결재 — 깔끔). 운영자 등록은 PR4 모달에서 처리.
+      {/* 2026-05-09 PR3+PR4+PR5: 라이브 YouTube 영상 임베딩 — hero 영역 (스코어카드 + 쿼터 테이블) 아래 (Q4 결재).
+          - 영상 등록 시: YouTubeEmbed 마운트 + 우상단 edit 버튼 (운영자) → 모달 trigger
+          - 영상 미등록 + 운영자: 등록 버튼만 노출 (영상 영역 hidden — Q11)
+          - 영상 미등록 + 일반회원: 영역 0 (사용자 노출 0)
           75% 폭 wrapper 와 동일 가로 (sm:w-3/4) — 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김. */}
-      {match.youtube_video_id && (
+      {match.youtube_video_id ? (
         <div data-print-hide className="px-4 pb-4">
           <div className="mx-auto w-full sm:w-3/4">
             <YouTubeEmbed
@@ -1091,11 +1117,34 @@ export default function LiveBoxScorePage() {
               isLive={isLive || match.youtube_status === "manual"}
               status={match.youtube_status ?? null}
               isAdmin={isAdmin}
-              // PR4 (운영자 모달) 구현 전이라 onManageClick 미전달 — 변경 버튼 미노출.
-              // PR4 구현 시 onManageClick={() => setStreamModalOpen(true)} 로 연결.
+              // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
+              onManageClick={() => setStreamModalOpen(true)}
             />
           </div>
         </div>
+      ) : (
+        // 영상 미등록 + 운영자만 노출되는 등록 CTA — 일반 회원에게는 영역 0 (사용자 결정 Q11)
+        isAdmin && (
+          <div data-print-hide className="px-4 pb-4">
+            <div className="mx-auto w-full sm:w-3/4">
+              <button
+                type="button"
+                onClick={() => setStreamModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
+                  border: "1px dashed var(--color-border)",
+                  borderRadius: "4px",
+                }}
+                aria-label="YouTube 영상 등록 (운영자 전용)"
+              >
+                <span className="material-symbols-outlined text-base">smart_display</span>
+                YouTube 영상 등록
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       {/* 2026-04-16: 박스스코어 화면용 영역 (data-print-hide로 프린트 시 숨김)
