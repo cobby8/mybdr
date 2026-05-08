@@ -5,10 +5,16 @@
  *   PR1~5 완료 후 누적된 종료 매치 (youtube_video_id IS NULL) 들에 대해
  *   BDR uploads playlist (150건) 와 1회 매칭 → 80점+ 자동 등록 권장 / 50~79 후보 보고.
  *
+ * 알고리즘 v2 (5/9 5요소 검증 업그레이드):
+ *   - 점수 배분 (총 100점): 홈팀(25) + 어웨이팀(25) + 대회명(20) + 날짜(20) + 시간(10)
+ *   - 임계값 80점 (양 팀 정확 25+25 + 대회명 20 + 날짜 10 = 80점 자동 채택 시그널)
+ *   - 5요소 모두 검증 (이전 v1: 양 팀만 검증 → 다른 대회 동명 팀 오매칭 가능)
+ *
  * 흐름:
  *   1) 종료 매치 list 조회 (youtube_video_id IS NULL + 종료 조건)
+ *      ※ --include-existing 시 NULL 조건 제거 (이전 채택 매치도 재채점, 정확도 비교)
  *   2) BDR uploads 영상 일괄 fetch (fetchEnrichedVideos / Redis cache)
- *   3) 매치별 scoreMatch (search/route.ts 와 동일 알고리즘 inline)
+ *   3) 매치별 scoreMatch v2 (5 요소 검증)
  *   4) dry-run 기본 — 결과 리포트만 / --apply 시 80점+ DB UPDATE + admin_logs
  *
  * 안전 가드 (CLAUDE.md §DB 정책):
@@ -17,14 +23,16 @@
  *   - 80점 미만 자동 등록 X (사용자 검토 후 수동 등록)
  *   - Flutter v1 영향 0 (`/api/v1/...` schema 비변경)
  *   - BigInt 직렬화: id.toString() 명시
+ *   - --include-existing 은 정확도 측정용 read-only (UPDATE 미수행 — 안전 가드)
  *
  * 사용법:
- *   npx tsx scripts/_temp/youtube-batch-match.ts                   # dry-run
- *   npx tsx scripts/_temp/youtube-batch-match.ts --apply           # 실제 UPDATE
+ *   npx tsx scripts/_temp/youtube-batch-match.ts                       # dry-run
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --apply               # 실제 UPDATE
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --include-existing    # 이전 채택 매치도 재채점 (정확도 측정)
  *   npx tsx scripts/_temp/youtube-batch-match.ts --tournament=<uuid>
- *   npx tsx scripts/_temp/youtube-batch-match.ts --threshold=70    # 임계값 조정
- *   npx tsx scripts/_temp/youtube-batch-match.ts --limit=20        # 테스트용
- *   npx tsx scripts/_temp/youtube-batch-match.ts --apply --admin-id=1   # admin_logs 작성자
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --threshold=70        # 임계값 조정
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --limit=20            # 테스트용
+ *   npx tsx scripts/_temp/youtube-batch-match.ts --apply --admin-id=1  # admin_logs 작성자
  *
  * 작업 후 본 파일은 scripts/_temp/ 에서 제거 권장 (CLAUDE.md §운영 DB credentials 노출 방지).
  */
@@ -41,19 +49,23 @@ const prisma = new PrismaClient();
 
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
+// 정확도 측정용 — 이전 채택 매치 (youtube_video_id IS NOT NULL) 도 재채점
+// 신규 알고리즘 (5요소) 으로 이전 12 매치를 다시 점수화하여 정확도 검증.
+// 안전: APPLY 와 결합되어도 이전 채택 매치는 UPDATE 대상에서 자동 제외됨 (이중 가드).
+const INCLUDE_EXISTING = args.includes("--include-existing");
 const TOURNAMENT_FILTER = (() => {
   const a = args.find((x) => x.startsWith("--tournament="));
   return a ? a.replace("--tournament=", "").trim() : null;
 })();
-// Fix (5/9): 양 팀 정확 매칭 + 1:1 매핑 도입 후 자동 채택 임계값 60점으로 조정
-// 사유: VOD 업로드는 매치 종료 후 며칠 뒤 올라오므로 time 점수 0~10 이 정상.
-// 양 팀 정확 매칭 (home=30 + away=30 = 60) 만으로도 강한 시그널이며
-// 1:1 매핑 + 양 팀 정확 매칭 조합으로 오매칭은 차단됨.
+// v2 (5/9 5요소 업그레이드): 자동 채택 임계값 80점
+// 사유: 5요소 점수 배분 — 홈(25) + 어웨이(25) + 대회명(20) + 날짜(20) + 시간(10) = 100
+//   - 양 팀 정확 25+25 + 대회명 20 + 날짜 10 = 80점 (자동 채택 최소 시그널)
+//   - 양 팀만 정확 50점 = 후보 검토 강등 (오매칭 차단 — 다른 대회 동명 팀)
 const THRESHOLD = (() => {
   const a = args.find((x) => x.startsWith("--threshold="));
-  if (!a) return 60;
+  if (!a) return 80;
   const v = parseInt(a.replace("--threshold=", ""), 10);
-  return Number.isFinite(v) && v >= 0 && v <= 200 ? v : 60;
+  return Number.isFinite(v) && v >= 0 && v <= 200 ? v : 80;
 })();
 const LIMIT = (() => {
   const a = args.find((x) => x.startsWith("--limit="));
@@ -78,16 +90,33 @@ if (PLAYLIST_ID_OVERRIDE) {
 
 // ============ 매칭 알고리즘 (search/route.ts 와 동일) ============
 
-// Q2: 시간 매칭 ± 30분
-const TIME_MATCH_WINDOW_MS = 30 * 60 * 1000;
+// v2 5요소 점수 배분 (총 100점)
+// home(25) + away(25) + tournament(20) + date(20) + time(10) = 100
+const SCORE_HOME_EXACT = 25; // 홈팀 정확 일치
+const SCORE_HOME_NORMALIZED = 20; // 홈팀 정규화 후 일치 (괄호/특수문자 제거)
+const SCORE_AWAY_EXACT = 25;
+const SCORE_AWAY_NORMALIZED = 20;
+const SCORE_TOURNAMENT_FULL = 20; // 대회명 전체 substring 매칭
+const SCORE_TOURNAMENT_PARTIAL = 10; // 대회명 일부 키워드 매칭
+const SCORE_DATE_SAME_DAY = 20; // 같은 날
+const SCORE_DATE_1_7_DAYS = 15; // VOD 1~7일 후 업로드 (가장 일반적)
+const SCORE_DATE_8_30_DAYS = 10; // 8~30일 후 (지연 업로드)
+const SCORE_TIME_6H = 10; // 영상 publishedAt vs 매치 시각 ±6시간
+const SCORE_TIME_24H = 5; // ±24시간
+
+// 시간 차등 임계값 (ms)
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
+const THIRTY_DAYS_MS = 30 * ONE_DAY_MS;
 
 interface ScoreBreakdown {
-  time: number;
-  home_team: number;
-  away_team: number;
-  tournament: number;
-  match_code: number;
-  round: number;
+  home_team: number; // 0~25
+  away_team: number; // 0~25
+  tournament: number; // 0~20
+  date: number; // 0~20
+  time: number; // 0~10
 }
 
 interface ScoredCandidate {
@@ -156,37 +185,42 @@ function extractTeamsFromTitle(title: string): { home: string; away: string } | 
   return null;
 }
 
-// 매치 + 영상 1건 → 신뢰도 점수
+// YYYY-MM-DD 추출 (UTC 기준 — DB scheduledAt 도 UTC 저장이므로 일치)
+// 사유: KST 변환은 양쪽 동일하게 적용되므로 UTC 비교 = KST 비교 결과 동일.
+function toDateOnly(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// 대회명 정규화 — 토큰 단위 부분 매칭용
+// 예: "제 21회 MOLTEN배 동호회최강전" → ["21회", "molten배", "동호회최강전"]
+function extractTournamentKeywords(name: string): string[] {
+  return name
+    .replace(/[()\[\]·.\-_]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2)
+    .map((t) => t.toLowerCase());
+}
+
+// 매치 + 영상 1건 → 신뢰도 점수 (v2 — 5요소 검증)
 //
-// Fix (5/9):
-//  - 이전: 양 팀 부분 매칭 (한 팀만 일치해도 30점) → 오매칭 발생 (예: "업템포 vs MI" ↔ "슬로우 vs 업템포")
-//  - 신규: 영상 제목에서 양 팀 추출 → 매치 양 팀 정확 일치 (swap 포함) 시만 home=30+away=30
-//  - 한 팀만 일치 = 0점 (오매칭 차단)
+// 점수 배분 (총 100점):
+//   1. 홈팀 (25) — 영상 vs 토큰 좌측 정확/정규화 매칭 (swap 포함)
+//   2. 어웨이팀 (25) — 영상 vs 토큰 우측 정확/정규화 매칭 (swap 포함)
+//   3. 대회명 (20) — 영상 제목/설명에 대회명 substring 또는 일부 키워드 매칭
+//   4. 날짜 (20) — publishedAt date vs scheduledAt date (같은날 20 / 1~7일 15 / 8~30일 10)
+//   5. 시간 (10) — publishedAt 시각 vs scheduledAt 시각 (±6h=10 / ±24h=5)
+//
+// 자동 채택 시그널 = 80점 (양 팀 정확 50 + 대회명 20 + 날짜 10 이상)
 function scoreMatch(video: EnrichedVideo, match: MatchMeta): ScoredCandidate {
   const breakdown: ScoreBreakdown = {
-    time: 0,
     home_team: 0,
     away_team: 0,
     tournament: 0,
-    match_code: 0,
-    round: 0,
+    date: 0,
+    time: 0,
   };
 
-  // 1) 시간 매칭 — 영상 publishedAt vs 매치 시작/예정 시각
-  const matchTime = (match.startedAt ?? match.scheduledAt)?.getTime();
-  if (matchTime) {
-    const videoTime = new Date(video.publishedAt).getTime();
-    const diff = Math.abs(videoTime - matchTime);
-    if (diff <= TIME_MATCH_WINDOW_MS) {
-      breakdown.time = 60;
-    } else if (diff <= TIME_MATCH_WINDOW_MS * 2) {
-      breakdown.time = 30;
-    } else if (diff <= TIME_MATCH_WINDOW_MS * 8) {
-      breakdown.time = 10;
-    }
-  }
-
-  // 2) 양 팀 정확 매칭 (가장 중요 — 오매칭 차단)
+  // ============ 1+2) 양 팀 매칭 (가장 중요 — 오매칭 차단) ============
   // 영상 제목에서 "vs"/"대" 토큰 분리 → home/away 추출 → 매치와 정확 비교
   const titleTeams = extractTeamsFromTitle(video.title);
   if (titleTeams) {
@@ -196,50 +230,86 @@ function scoreMatch(video: EnrichedVideo, match: MatchMeta): ScoredCandidate {
     const matchAway = normalizeTeamName(match.awayTeamName);
 
     if (matchHome && matchAway && videoHome && videoAway) {
-      const exactSame =
-        videoHome === matchHome && videoAway === matchAway;
+      const exactSame = videoHome === matchHome && videoAway === matchAway;
       // swap: 영상이 매치의 어웨이 vs 홈 순서로 표기된 경우도 OK
-      const exactSwap =
-        videoHome === matchAway && videoAway === matchHome;
+      const exactSwap = videoHome === matchAway && videoAway === matchHome;
 
       if (exactSame || exactSwap) {
-        breakdown.home_team = 30;
-        breakdown.away_team = 30;
+        // 정규화 후 정확 일치 = 25+25 (정규화 / 정확 모두 동일 점수 — 한글/영문 혼재 흡수)
+        breakdown.home_team = SCORE_HOME_EXACT;
+        breakdown.away_team = SCORE_AWAY_EXACT;
       }
       // 한 팀만 일치 / 부분 일치 = 0점 (오매칭 차단)
     }
   }
 
-  // 3) 보조 시그널 (대회명/매치코드/라운드) — 키워드 매칭 (양 팀 정확 매칭 못해도 참고용)
+  // ============ 3) 대회명 매칭 ============
   const haystack = `${video.title} ${video.description}`.toLowerCase();
   const haystackNorm = haystack.replace(/\s+/g, "");
 
-  // 대회명 — 앞 8자만 부분 매칭
-  const tournamentTrim = match.tournamentName.replace(/\s+/g, "").toLowerCase().slice(0, 8);
-  if (tournamentTrim.length >= 3 && haystackNorm.includes(tournamentTrim)) {
-    breakdown.tournament = 10;
-  }
-
-  // 매치 코드 — 가장 강한 시그널 (예: "26-GG-MD21-001")
-  if (match.matchCode && haystack.includes(match.matchCode.toLowerCase())) {
-    breakdown.match_code = 20;
-  }
-
-  // 라운드 — 약한 시그널 ("결승" / "8강" / "준결승")
-  if (match.roundName) {
-    const roundNorm = match.roundName.replace(/\s+/g, "").toLowerCase();
-    if (roundNorm.length >= 2 && haystackNorm.includes(roundNorm)) {
-      breakdown.round = 5;
+  if (match.tournamentName) {
+    // 풀네임 substring 매칭 (정규화 후) — 가장 강한 시그널
+    const fullNorm = match.tournamentName.replace(/\s+/g, "").toLowerCase();
+    if (fullNorm.length >= 4 && haystackNorm.includes(fullNorm)) {
+      breakdown.tournament = SCORE_TOURNAMENT_FULL;
+    } else {
+      // 토큰별 매칭 — 2개 이상 매칭 = 풀(20) / 1개 매칭 = 부분(10)
+      // 사유: "MOLTEN배 동호회최강전" 일부만 영상 제목에 들어가는 케이스 흡수.
+      const tokens = extractTournamentKeywords(match.tournamentName);
+      let hits = 0;
+      for (const t of tokens) {
+        const tNorm = t.replace(/\s+/g, "");
+        if (tNorm.length >= 2 && haystackNorm.includes(tNorm)) {
+          hits++;
+        }
+      }
+      if (hits >= 2) {
+        breakdown.tournament = SCORE_TOURNAMENT_FULL;
+      } else if (hits === 1) {
+        breakdown.tournament = SCORE_TOURNAMENT_PARTIAL;
+      }
     }
   }
 
+  // ============ 4) 날짜 매칭 (영상 publishedAt date vs 매치 scheduledAt date) ============
+  const matchAt = match.startedAt ?? match.scheduledAt;
+  const videoAt = new Date(video.publishedAt);
+
+  if (matchAt) {
+    const matchDate = toDateOnly(matchAt);
+    const videoDate = toDateOnly(videoAt);
+    const diffDaysMs = videoAt.getTime() - matchAt.getTime();
+
+    if (matchDate === videoDate) {
+      // 같은 날 (라이브 방송 또는 당일 업로드)
+      breakdown.date = SCORE_DATE_SAME_DAY;
+    } else if (diffDaysMs > 0 && diffDaysMs <= SEVEN_DAYS_MS) {
+      // 영상이 매치 후 1~7일 내 업로드 (VOD 일반 패턴)
+      breakdown.date = SCORE_DATE_1_7_DAYS;
+    } else if (diffDaysMs > SEVEN_DAYS_MS && diffDaysMs <= THIRTY_DAYS_MS) {
+      // 영상이 매치 후 8~30일 내 업로드 (지연 업로드)
+      breakdown.date = SCORE_DATE_8_30_DAYS;
+    }
+    // 영상이 매치 전 / 30일 이상 지난 후 = 0점
+  }
+
+  // ============ 5) 시간 매칭 (publishedAt 시각 vs scheduledAt 시각) ============
+  if (matchAt) {
+    const diffAbs = Math.abs(videoAt.getTime() - matchAt.getTime());
+    if (diffAbs <= SIX_HOURS_MS) {
+      breakdown.time = SCORE_TIME_6H;
+    } else if (diffAbs <= TWENTY_FOUR_HOURS_MS) {
+      breakdown.time = SCORE_TIME_24H;
+    }
+    // 그 외 = 0점
+  }
+
   const score =
-    breakdown.time +
     breakdown.home_team +
     breakdown.away_team +
     breakdown.tournament +
-    breakdown.match_code +
-    breakdown.round;
+    breakdown.date +
+    breakdown.time;
 
   return {
     video_id: video.videoId,
@@ -280,16 +350,19 @@ async function resolveAdminId(): Promise<bigint | null> {
 async function main() {
   const mode = APPLY ? "[APPLY — 실제 UPDATE 실행]" : "[DRY-RUN — DB 변경 없음]";
   console.log(`\n${mode}`);
+  console.log(`  algorithm: v2 (5요소 — 홈25+어웨이25+대회20+날짜20+시간10 = 100점)`);
   console.log(`  threshold: ${THRESHOLD}점 (자동 채택 기준)`);
   console.log(`  tournament: ${TOURNAMENT_FILTER ?? "(전체)"}`);
-  console.log(`  limit: ${LIMIT ?? "(unlimited)"}\n`);
+  console.log(`  limit: ${LIMIT ?? "(unlimited)"}`);
+  console.log(`  include-existing: ${INCLUDE_EXISTING ? "Y (이전 채택 매치도 재채점)" : "N"}\n`);
 
   // 종료 매치 조건 — youtube_video_id IS NULL + 종료 시그널
   // status = completed/ended/final 이면 OR ended_at != NULL 이면 OR (started_at != NULL AND scheduledAt < now()-1d)
+  // --include-existing 시 NULL 조건 제거 (정확도 측정용 — 이전 채택 매치도 재채점)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const where: Prisma.TournamentMatchWhereInput = {
-    youtube_video_id: null, // 이미 등록된 매치 skip
+    ...(INCLUDE_EXISTING ? {} : { youtube_video_id: null }),
     AND: [
       ...(TOURNAMENT_FILTER ? [{ tournamentId: TOURNAMENT_FILTER }] : []),
       {
@@ -318,6 +391,9 @@ async function main() {
       status: true,
       roundName: true,
       match_code: true,
+      // 정확도 비교용 — 이전 알고리즘 채택 결과 (--include-existing 시 활용)
+      youtube_video_id: true,
+      youtube_status: true,
       tournament: { select: { id: true, name: true } },
       homeTeam: { include: { team: { select: { name: true } } } },
       awayTeam: { include: { team: { select: { name: true } } } },
@@ -370,6 +446,9 @@ async function main() {
     startedAt: Date | null;
     bestCandidate: ScoredCandidate | null;
     candidatesAbove50: ScoredCandidate[];
+    // 정확도 비교용 — DB 에 이미 등록된 영상 정보 (--include-existing 시 활용)
+    existingVideoId: string | null;
+    existingStatus: string | null;
   };
 
   const results: MatchScoreResult[] = [];
@@ -398,6 +477,8 @@ async function main() {
         startedAt: meta.startedAt,
         bestCandidate: null,
         candidatesAbove50: [],
+        existingVideoId: m.youtube_video_id,
+        existingStatus: m.youtube_status,
       });
       continue;
     }
@@ -419,6 +500,8 @@ async function main() {
       startedAt: meta.startedAt,
       bestCandidate: scored[0] ?? null,
       candidatesAbove50,
+      existingVideoId: m.youtube_video_id,
+      existingStatus: m.youtube_status,
     });
   }
 
@@ -514,8 +597,9 @@ async function main() {
       );
       console.log(`    대회: ${r.tournamentName} / 코드: ${r.matchCode ?? "-"} / 시각: ${dateStr}`);
       console.log(`    영상: ${c.video_id} — ${c.title.slice(0, 70)}${c.title.length > 70 ? "..." : ""}`);
+      // v2 5요소 breakdown — 점수 분포 직관 확인용
       console.log(
-        `    breakdown: time=${c.score_breakdown.time} home=${c.score_breakdown.home_team} away=${c.score_breakdown.away_team} tour=${c.score_breakdown.tournament} code=${c.score_breakdown.match_code} round=${c.score_breakdown.round}`,
+        `    breakdown: home=${c.score_breakdown.home_team} away=${c.score_breakdown.away_team} tour=${c.score_breakdown.tournament} date=${c.score_breakdown.date} time=${c.score_breakdown.time}`,
       );
       console.log("");
     }
@@ -559,20 +643,115 @@ async function main() {
     console.log("");
   }
 
+  // ============ 정확도 비교 표 (--include-existing 활성 시) ============
+  //
+  // 이전 알고리즘 (60점 임계값 + 양 팀 매칭만) 으로 등록된 매치를
+  // 신규 알고리즘 (80점 임계값 + 5요소) 으로 재채점하여 정확도 검증.
+  //
+  // 분류:
+  //  1. 일치 (자동→자동): 이전 자동 채택 + 신규 알고리즘도 같은 video_id 자동 채택 ✅
+  //  2. 강등 (자동→후보): 이전 자동 채택 / 신규 80점 미만 (대회명/날짜 미매칭 — 오매칭 가능성)
+  //  3. 영상 변경 (자동→자동 다른영상): 이전 영상 ≠ 신규 best — 운영자 검토 필요
+  //  4. 후보없음 (자동→실패): 신규 알고리즘에서 후보 0건 — 영상 fetch 누락 가능
+  if (INCLUDE_EXISTING) {
+    const previouslyMatched = results.filter((r) => r.existingVideoId !== null);
+    if (previouslyMatched.length > 0) {
+      console.log("=".repeat(80));
+      console.log(`📐 정확도 비교 — 이전 알고리즘 채택 매치 ${previouslyMatched.length}건 재채점`);
+      console.log("=".repeat(80));
+
+      let consistent = 0; // 일치 (자동→자동 같은 영상)
+      let demoted = 0; // 강등 (자동→후보)
+      let videoChanged = 0; // 영상 변경 (자동→자동 다른 영상)
+      let noCandidate = 0; // 후보 0건
+
+      console.log(
+        "\n| match# | 매치 | 이전 영상 | 이전 status | 신규 점수 | 신규 best 영상 | 분류 |",
+      );
+      console.log(
+        "|--------|------|-----------|-------------|-----------|----------------|------|",
+      );
+
+      for (const r of previouslyMatched) {
+        const matchLabel = `${r.homeTeamName} vs ${r.awayTeamName}`;
+        const prevVideo = r.existingVideoId ?? "?";
+        const prevStatus = r.existingStatus ?? "?";
+        const newScore = r.bestCandidate?.score ?? 0;
+        const newVideo = r.bestCandidate?.video_id ?? "(후보 0)";
+
+        let classification = "";
+        if (!r.bestCandidate) {
+          classification = "후보없음 ⚠️";
+          noCandidate++;
+        } else if (newScore < THRESHOLD) {
+          classification = `강등→후보 (${newScore}점)`;
+          demoted++;
+        } else if (r.bestCandidate.video_id === r.existingVideoId) {
+          classification = `일치 ✅ (${newScore}점)`;
+          consistent++;
+        } else {
+          classification = `영상변경 ⚠️ (${newScore}점)`;
+          videoChanged++;
+        }
+
+        console.log(
+          `| ${r.matchId.toString()} | ${matchLabel} | ${prevVideo} | ${prevStatus} | ${newScore} | ${newVideo} | ${classification} |`,
+        );
+      }
+
+      const total = previouslyMatched.length;
+      const accuracyPct = total > 0 ? ((consistent / total) * 100).toFixed(1) : "0.0";
+
+      console.log("");
+      console.log("─".repeat(80));
+      console.log(`📊 정확도 결과 (이전 ${total}건 재채점):`);
+      console.log("─".repeat(80));
+      console.log(`  ✅ 일치 (자동→자동 같은 영상): ${consistent}건 (${accuracyPct}%)`);
+      console.log(`  ⚠️  강등 (자동→후보, 오매칭 가능성): ${demoted}건`);
+      console.log(`  ⚠️  영상변경 (자동→자동 다른 영상): ${videoChanged}건`);
+      console.log(`  ⚠️  후보없음 (영상 fetch 누락): ${noCandidate}건`);
+      console.log("");
+
+      if (consistent === total && total > 0) {
+        console.log(
+          `  🎯 정확도 100% — 이전 ${total}건 모두 신규 알고리즘에서도 동일 영상 자동 채택`,
+        );
+        console.log(`     → 신규 알고리즘 안전, --apply 권장.\n`);
+      } else if (demoted > 0 || videoChanged > 0) {
+        console.log(
+          `  📌 강등/영상변경 ${demoted + videoChanged}건 — 운영자 수동 검토 권장 후 --apply.\n`,
+        );
+      }
+    }
+  }
+
   // ============ --apply: 실제 등록 ============
 
   if (!APPLY) {
+    // dry-run 종료 메시지 — UPDATE 가능 건수 (이전 채택 매치 제외) 안내
+    const newAutoCount = autoAccept.filter((r) => r.existingVideoId === null).length;
     console.log("=".repeat(80));
     console.log("🟢 dry-run 종료. DB 변경 0.");
     console.log(
-      `   실제 등록 (${autoAccept.length}건): npx tsx scripts/_temp/youtube-batch-match.ts --apply\n`,
+      `   실제 등록 (${newAutoCount}건 신규 채택): npx tsx scripts/_temp/youtube-batch-match.ts --apply\n`,
     );
     return;
   }
 
-  if (autoAccept.length === 0) {
+  // 안전 가드: --include-existing 시 이전 채택 매치는 UPDATE 대상에서 제외
+  // (NULL → 값 단방향 정책 + 이미 운영 적용된 매치 덮어쓰기 차단)
+  const applyTargets = autoAccept.filter((r) => r.existingVideoId === null);
+  const skippedExisting = autoAccept.length - applyTargets.length;
+
+  if (skippedExisting > 0) {
+    console.log(
+      `⚠️  --include-existing 가드 — 이전 채택 매치 ${skippedExisting}건 UPDATE 제외 (NULL→값 단방향 정책)`,
+    );
+  }
+
+  if (applyTargets.length === 0) {
     console.log("=".repeat(80));
-    console.log("⚠️  자동 채택 대상 0건 — UPDATE 실행 안 함. 종료.\n");
+    console.log("⚠️  자동 채택 대상 0건 (UPDATE 가능 매치) — UPDATE 실행 안 함. 종료.\n");
     return;
   }
 
@@ -584,14 +763,14 @@ async function main() {
   }
 
   console.log("=".repeat(80));
-  console.log(`🚀 [APPLY] ${autoAccept.length}건 UPDATE 실행 (admin_id=${adminId.toString()})`);
+  console.log(`🚀 [APPLY] ${applyTargets.length}건 UPDATE 실행 (admin_id=${adminId.toString()})`);
   console.log("=".repeat(80));
 
   const now = new Date();
   let updated = 0;
   let failed = 0;
 
-  for (const r of autoAccept) {
+  for (const r of applyTargets) {
     const c = r.bestCandidate!;
     try {
       // 단일 SQL UPDATE (NULL → 값 / 운영 영향 0)
