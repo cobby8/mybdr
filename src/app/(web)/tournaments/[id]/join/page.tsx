@@ -25,6 +25,8 @@ import { EnrollAside } from "./_v2/enroll-aside";
 import { EnrollPoster } from "./_v2/enroll-poster";
 import { EnrollStepDocs } from "./_v2/enroll-step-docs";
 import { getDisplayName } from "@/lib/utils/player-display-name";
+// 5/9 마이그: 사이트 전역 휴대폰 입력 컴포넌트 (conventions.md 2026-05-08 룰)
+import { PhoneInput } from "@/components/inputs/phone-input";
 
 /* ------------------------------------------------------------------ */
 /*  Types — 기존과 동일                                                  */
@@ -788,11 +790,11 @@ export default function TournamentJoinPage() {
                             color: "var(--ink)",
                           }}
                         />
-                        <input
-                          type="tel"
+                        {/* 5/9 PhoneInput 마이그 — 대표자 연락처 (자동 000-0000-0000 포맷) */}
+                        <PhoneInput
                           placeholder="연락처"
                           value={managerPhone}
-                          onChange={(e) => setManagerPhone(e.target.value)}
+                          onChange={(v) => setManagerPhone(v)}
                           style={{
                             width: "100%",
                             padding: "9px 12px",

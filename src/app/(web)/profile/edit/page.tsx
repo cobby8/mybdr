@@ -39,6 +39,9 @@ import { RegionPicker, type Region } from "@/components/shared/region-picker";
 import { PageBackButton } from "@/components/shared/page-back-button";
 // 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 — 회원 탈퇴 모달에서 사용)
 import { PasswordInput } from "@/components/ui/password-input";
+// 5/9 마이그: 사이트 전역 입력 컴포넌트 (conventions.md 2026-05-08 룰 적용)
+import { PhoneInput } from "@/components/inputs/phone-input";
+import { BirthDateInput } from "@/components/inputs/birth-date-input";
 import "./edit-profile.css";
 
 // 시안 포지션 5종 (PG/SG/SF/PF/C) — 운영은 multi 선택 보존 (DB 호환)
@@ -612,13 +615,7 @@ export default function ProfileEditPage() {
     );
   }
 
-  // 휴대폰 자동 포맷 헬퍼 (운영 보존 — 011-, 010-)
-  const formatPhone = (raw: string) => {
-    const digits = raw.replace(/\D/g, "").slice(0, 11);
-    if (digits.length > 7) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-    if (digits.length > 3) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-    return digits;
-  };
+  // 5/9 마이그: 휴대폰 자동 포맷은 PhoneInput 컴포넌트가 내장 (conventions.md 2026-05-08 룰)
 
   // Hero 표시용 닉네임 첫 글자 (이미지 없을 때 fallback)
   const heroInitial = (form.nickname?.[0] || form.name?.[0] || "?").toUpperCase();
@@ -921,34 +918,30 @@ export default function ProfileEditPage() {
             <RegionPicker value={regions} onChange={setRegions} max={3} />
           </Field>
 
-          {/* 생년월일 — 본인인증 완료 시 잠금 (5/7) */}
+          {/* 생년월일 — 본인인증 완료 시 잠금 (5/7) + 5/9 BirthDateInput 마이그 (yyyy 4자리 강제) */}
           <Field
             label="생년월일"
             sub={nameVerified ? "본인인증 완료 — 변경 불가" : "비공개 · 나이별 대회 자격용"}
           >
-            <input
-              type="date"
+            <BirthDateInput
               className="input"
               value={form.birth_date}
-              onChange={(e) => setForm((p) => ({ ...p, birth_date: e.target.value }))}
+              onChange={(v) => setForm((p) => ({ ...p, birth_date: v }))}
               disabled={nameVerified}
               readOnly={nameVerified}
               style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
             />
           </Field>
 
-          {/* 휴대폰 — 본인인증 완료 시 잠금 (5/7) */}
+          {/* 휴대폰 — 본인인증 완료 시 잠금 (5/7) + 5/9 PhoneInput 마이그 (자동 000-0000-0000 포맷) */}
           <Field
             label="휴대폰"
             sub={nameVerified ? "본인인증 완료 — 변경 불가" : "대회·환불 연락용"}
           >
-            <input
-              type="tel"
-              inputMode="numeric"
+            <PhoneInput
               className="input"
               value={form.phone}
-              onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
-              placeholder="01012345678"
+              onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
               disabled={nameVerified}
               readOnly={nameVerified}
               style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
@@ -1306,18 +1299,15 @@ export default function ProfileEditPage() {
           </p>
         </header>
         <div className="edit-profile__grid edit-profile__grid--2">
-          {/* 휴대폰 — 본인인증 완료 시 잠금 (5/7) */}
+          {/* 휴대폰 §3 연락정보 — 본인인증 완료 시 잠금 (5/7) + 5/9 PhoneInput 마이그 (form.phone state §1 미러) */}
           <Field
             label="휴대폰 *"
             sub={nameVerified ? "본인인증 완료 — 변경 불가" : "대회·환불 연락용"}
           >
-            <input
-              type="tel"
-              inputMode="numeric"
+            <PhoneInput
               className="input"
               value={form.phone}
-              onChange={(e) => setForm((p) => ({ ...p, phone: formatPhone(e.target.value) }))}
-              placeholder="01012345678"
+              onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
               disabled={nameVerified}
               readOnly={nameVerified}
               style={nameVerified ? { background: "var(--bg-alt)", cursor: "not-allowed", opacity: 0.7 } : undefined}
