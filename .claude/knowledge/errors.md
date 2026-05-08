@@ -2,6 +2,31 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-09] Tailwind v4 .md scan 함정 — invalid CSS variable 자동 클래스 빌드 실패
+- **분류**: error/build (Next.js 16.1.6 Turbopack + Tailwind v4)
+- **재발 횟수**: 2회 (5/9 동일 일자 / `3d5f53e` + `9d126c7` 두 번 fix)
+- **증상**:
+  ```
+  ./src/app/globals.css:2037:29
+  Parsing CSS source code failed
+  .bg-\[var\(--\*\)\] {
+    background-color: var(--*);  ← Unexpected token Delim('*')
+  }
+  ```
+- **원인**: Tailwind v4 의 content scanner 가 `Dev/**/*.md` (planner 보고서 등) 도 scan → 보고서 본문에 예시 표기로 사용한 `bg-[var(--*)]` 텍스트 추출 → globals.css 에 `.bg-\[var\(--\*\)\] { background-color: var(--*) }` 자동 생성 → `--*` 는 invalid CSS variable 이름이라 Turbopack 빌드 실패
+- **2회차 재발 사유**: 1차 fix (`bg-[var(--*)]` → `bg-[var(--TOKEN)]`) 후 새 planner 보고서에서 **금지 사례 표기 자체** ("`bg-[var(--*)]` 텍스트 금지") 가 다시 트리거. **금지 표기조차 placeholder 사용 필수**
+- **fix**:
+  1. `.md` / `.tsx` / `.css` 본문 모두 `bg-[var(--*)]` 텍스트 제거 → placeholder (`--TOKEN`, `--ASTERISK`, `--PLACEHOLDER`, `--NAME`) 사용
+  2. `.next` 캐시 클리어 (`rm -rf .next`) — Turbopack 자동 생성 stale 클래스 제거
+  3. dev server 재시작 (포트 PID 만 종료 후 `npm run dev`)
+- **재발 방지**:
+  - planner / developer / pm 모두 보고서/주석/문서 작성 시 invalid CSS variable 이름 (`--*`, `--?`, `--<placeholder>` 등) 금지 — placeholder 표준 (`--TOKEN`)
+  - 5/9 룰 박제 후 동일 함정 재발 = 박제 자체에 실패. **금지 사례 표기조차 placeholder 사용** 영구 룰
+- **참조 파일**:
+  - `Dev/home-design-alignment-2026-05-09.md` (1차 발생)
+  - `Dev/home-design-full-alignment-2026-05-09.md` (2차 발생 — 금지 사례 표기)
+  - commit `3d5f53e` / `9d126c7` (fix)
+
 ### [2026-05-07] truncated commit 함정 — `.git/index.lock` 강제 제거 후 부분 staged 빌드 실패
 - **분류**: error/git (commit 무결성 / Vercel 빌드 실패)
 - **발견자**: pm + 사용자 ("배포 실패한 거 같은데 확인해봐")

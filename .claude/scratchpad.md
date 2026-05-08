@@ -277,10 +277,12 @@
 - 활성화 직후 자동 전환: PR3 가드 활성 / mock 폴백 503 자동 / 코드 변경 0
 - 롤백 1초: 환경변수 제거
 
-### 🚀 1순위 — 홈 시안 100% Phase 1 결재 (본 작업)
-- `Dev/home-design-full-alignment-2026-05-09.md` Q1~Q10 결재
-- Phase 1 P0 (3~4h): HomeHeader + NoticeCard 분리 + 열린 대회 RecommendedRail
-- 결재 후 → planner-architect 상세 설계서 작성 → developer 진행
+### 🚀 1순위 — 홈 시안 100% **재계획** (5/9 부활 3 컴포넌트 모두 제거 후 백지 상태)
+- 5/9 부활 + 제거 흐름: HomeHeader (`f27d338` → `230e46c`) / MySummaryHero + RecommendedGames (`c8d5f22` → `1a602e4`)
+- 컴포넌트 자산 보존 (`src/components/bdr-v2/home-header.tsx` / `src/components/home/my-summary-hero.tsx` / `recommended-games.tsx`)
+- 현재 page.tsx = 5섹션 (HeroCarousel + RecommendedVideos + 2컬럼 grid + 방금올라온글 + StatsStrip)
+- 사용자 결정 대기: 시안 재계획 방향 (HeroBento + 4 Quick Actions + ProfileWidget + NotableTeams + NoticeCard 분리 + 사이드바 등 어떤 조합)
+- 내일 진행 — `Dev/home-design-full-alignment-2026-05-09.md` 13 섹션 / Q1~Q10 + 5/9 제거 흐름 반영하여 갱신 또는 신규 계획서 작성
 
 ### 🚀 2순위 — 사전 라인업 확정 + 기록앱 자동 매핑
 - `Dev/match-lineup-confirmation-2026-05-09.md` Q1~Q9 결재 대기 (~8.5h / 8 PR)
@@ -296,4 +298,12 @@
 
 ## 🔒 미푸시 커밋
 
-- 현재 미푸시 커밋: 0건 (subin 브랜치 / 작업 시작 전 clean 상태)
+- 현재 미푸시 커밋: **7건** (subin 브랜치) — 5/9 홈 작업 누적
+  - `ce0102e` refactor(home): 옵션 B — RecommendedRail 통일 + 헤더 교체
+  - `3d5f53e` fix(build): planner .md 1차 fix (`bg-[var(--*)]` → `--TOKEN`)
+  - `946b8b8` refactor(home): StatsStrip 최하단 이동
+  - `f27d338` feat(home): Phase 1 A — HomeHeader + 모바일 4 분기점 룰 박제
+  - `9d126c7` fix(build): planner .md 2차 fix (`--*` → `--ASTERISK`)
+  - `1a602e4` refactor(home): MySummaryHero + RecommendedGames 제거
+  - `230e46c` refactor(home): HomeHeader 제거
+- push 결정 대기 (사용자)
