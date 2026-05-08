@@ -132,11 +132,6 @@
 <script type="text/babel" src="screens/Invite.jsx"></script>
 <script type="text/babel" src="screens/PricingFail.jsx"></script>
 <script type="text/babel" src="screens/PricingSuccess.jsx"></script>
-<script type="text/babel" src="screens/ProfileBasketball.jsx"></script>
-<script type="text/babel" src="screens/ProfileNotificationSettings.jsx"></script>
-<script type="text/babel" src="screens/ProfilePayments.jsx"></script>
-<script type="text/babel" src="screens/ProfilePreferences.jsx"></script>
-<script type="text/babel" src="screens/ProfileSubscription.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect } = React;
@@ -299,11 +294,6 @@ function App() {
   else if (route === 'seriesDetail') screen = <SeriesDetail setRoute={setRoute}/>;
   else if (route === 'seriesCreate') screen = <SeriesCreate setRoute={setRoute}/>;
   else if (route === 'billing')    screen = <Billing setRoute={setRoute}/>;
-  else if (route === 'profileBasketball')          screen = <ProfileBasketball setRoute={setRoute}/>;
-  else if (route === 'profileNotificationSettings') screen = <ProfileNotificationSettings setRoute={setRoute}/>;
-  else if (route === 'profilePayments')            screen = <ProfilePayments setRoute={setRoute}/>;
-  else if (route === 'profilePreferences')         screen = <ProfilePreferences setRoute={setRoute}/>;
-  else if (route === 'profileSubscription')        screen = <ProfileSubscription setRoute={setRoute}/>;
   else if (route === 'invite')     screen = <Invite setRoute={setRoute}/>;
   else if (route === 'pricingFail')    screen = <PricingFail setRoute={setRoute}/>;
   else if (route === 'pricingSuccess') screen = <PricingSuccess setRoute={setRoute}/>;

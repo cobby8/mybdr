@@ -1,7 +1,7 @@
 # BDR 디자인 작업 허브
 
 > **단일 진입점**. 어떤 디자인 / 박제 작업을 시작하기 전에 이 문서 + `claude-project-knowledge/00-master-guide.md` 부터 본다.
-> **마지막 갱신**: 2026-05-08 (BDR-current sync v2.5 부분 머지 — onboarding 5종 + Phase A.5 §8/§9 + 카피 룰 / 5/6+5/8 역박제 보존)
+> **마지막 갱신**: 2026-05-08 (BDR-current sync v2.5.1 — Profile 시리즈 5종 + _GlobalComponents 신규 + components.jsx SettingsRow 추가 / Profile.jsx 갱신 / TeamDetail·TeamManage 사용자 미작업 보존 — 운영 영향 0)
 
 ---
 

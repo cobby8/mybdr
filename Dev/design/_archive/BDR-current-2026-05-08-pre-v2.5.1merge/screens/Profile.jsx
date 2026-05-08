@@ -103,38 +103,6 @@ function Profile({ setRoute }) {
             </div>
           </div>
 
-          <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
-              <h2 style={{margin:0, fontSize:18, fontWeight:700}}>마이페이지 메뉴</h2>
-              <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>5 영역</span>
-            </div>
-            <div className="profile-hub-grid" style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8}}>
-              {[
-                { r:'profileBasketball',          k:'내 농구',      d:'스탯·포지션·경력',    accent:'var(--accent)' },
-                { r:'profilePreferences',         k:'매칭 선호',    d:'성별·연령·BDR 점수',  accent:'var(--cafe-blue)' },
-                { r:'profileSubscription',        k:'구독',         d:'플랜·혜택·자동갱신',  accent:'var(--cafe-blue)' },
-                { r:'profilePayments',            k:'결제 내역',    d:'거래 이력·영수증',    accent:'var(--ink-mute)' },
-                { r:'profileNotificationSettings', k:'알림 설정',    d:'채널·카테고리·시간',  accent:'var(--ink-mute)' },
-              ].map(m => (
-                <button key={m.r} onClick={()=>setRoute(m.r)} style={{
-                  textAlign:'left', padding:'14px 16px', minHeight:72,
-                  background:'var(--bg-alt)', border:'1px solid var(--border)',
-                  borderLeft:`3px solid ${m.accent}`,
-                  borderRadius:6, cursor:'pointer',
-                  display:'flex', flexDirection:'column', justifyContent:'center', gap:2,
-                }}>
-                  <div style={{fontWeight:700, fontSize:14}}>{m.k}</div>
-                  <div style={{fontSize:11, color:'var(--ink-mute)'}}>{m.d}</div>
-                </button>
-              ))}
-            </div>
-            <style>{`
-              @media (max-width: 720px) {
-                .profile-hub-grid { grid-template-columns: 1fr 1fr !important; }
-              }
-            `}</style>
-          </div>
-
           <div className="card" style={{padding:'22px 24px'}}>
             <h2 style={{margin:'0 0 14px', fontSize:18, fontWeight:700}}>최근 활동</h2>
             <div>
