@@ -1,4 +1,4 @@
-/* global React, TEAMS, GAMES, TOURNAMENTS, POSTS, Icon, MemberPendingBadge */
+/* global React, TEAMS, GAMES, TOURNAMENTS, POSTS, Icon */
 
 function Profile({ setRoute }) {
   const team = TEAMS[0]; // RDM
@@ -46,6 +46,17 @@ function Profile({ setRoute }) {
           </div>
 
           <div className="card" style={{padding:'18px 20px'}}>
+            <div style={{fontWeight:700, fontSize:14, marginBottom:10}}>소속 팀</div>
+            <div onClick={()=>setRoute('teamDetail')} style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer', padding:8, background:'var(--bg-alt)', borderRadius:6}}>
+              <span style={{width:32, height:32, background:team.color, color:team.ink, display:'grid', placeItems:'center', fontFamily:'var(--ff-mono)', fontSize:11, fontWeight:700, borderRadius:4}}>{team.tag}</span>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700, fontSize:13}}>{team.name}</div>
+                <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{team.wins}W {team.losses}L · {team.rating}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{padding:'18px 20px'}}>
             <div style={{fontWeight:700, fontSize:14, marginBottom:10}}>활동 뱃지</div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
               {badges.map((b, i) => (
@@ -60,18 +71,6 @@ function Profile({ setRoute }) {
         </aside>
 
         <div>
-          {/* Phase A.5 §4-§6 — 소속 팀 카드 히어로 직하 풀 width 이동 + MemberPendingBadge (본인 한정) */}
-          <div className="member-card card" style={{padding:'18px 22px', marginBottom:16, display:'grid', gridTemplateColumns:'56px 1fr auto', gap:16, alignItems:'center', cursor:'pointer'}} onClick={()=>setRoute('teamDetail')}>
-            <span style={{width:56, height:56, background:team.color, color:team.ink, display:'grid', placeItems:'center', fontFamily:'var(--ff-display)', fontSize:14, fontWeight:900, borderRadius:6, letterSpacing:'.04em'}}>{team.tag}</span>
-            <div>
-              <div style={{fontSize:10, fontWeight:700, color:'var(--ink-dim)', letterSpacing:'.12em', textTransform:'uppercase', marginBottom:2}}>소속 팀</div>
-              <div style={{fontWeight:800, fontSize:18, letterSpacing:'-0.01em'}}>{team.name}</div>
-              <div style={{fontSize:12, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)', marginTop:2}}>#7 · 가드 · {team.wins}W {team.losses}L · RTG {team.rating}</div>
-            </div>
-            <span style={{fontSize:18, color:'var(--ink-mute)'}}>›</span>
-            <MemberPendingBadge kind="jersey_change" newJersey={23} anchor />
-          </div>
-
           <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
               <h2 style={{margin:0, fontSize:18, fontWeight:700}}>시즌 스탯 <span style={{fontSize:12, color:'var(--ink-mute)', fontWeight:500}}>2026 Spring</span></h2>
@@ -101,38 +100,6 @@ function Profile({ setRoute }) {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="card" style={{padding:'22px 24px', marginBottom:16}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14}}>
-              <h2 style={{margin:0, fontSize:18, fontWeight:700}}>마이페이지 메뉴</h2>
-              <span style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>5 영역</span>
-            </div>
-            <div className="profile-hub-grid" style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8}}>
-              {[
-                { r:'profileBasketball',          k:'내 농구',      d:'스탯·포지션·경력',    accent:'var(--accent)' },
-                { r:'profilePreferences',         k:'매칭 선호',    d:'성별·연령·BDR 점수',  accent:'var(--cafe-blue)' },
-                { r:'profileSubscription',        k:'구독',         d:'플랜·혜택·자동갱신',  accent:'var(--cafe-blue)' },
-                { r:'profilePayments',            k:'결제 내역',    d:'거래 이력·영수증',    accent:'var(--ink-mute)' },
-                { r:'profileNotificationSettings', k:'알림 설정',    d:'채널·카테고리·시간',  accent:'var(--ink-mute)' },
-              ].map(m => (
-                <button key={m.r} onClick={()=>setRoute(m.r)} style={{
-                  textAlign:'left', padding:'14px 16px', minHeight:72,
-                  background:'var(--bg-alt)', border:'1px solid var(--border)',
-                  borderLeft:`3px solid ${m.accent}`,
-                  borderRadius:6, cursor:'pointer',
-                  display:'flex', flexDirection:'column', justifyContent:'center', gap:2,
-                }}>
-                  <div style={{fontWeight:700, fontSize:14}}>{m.k}</div>
-                  <div style={{fontSize:11, color:'var(--ink-mute)'}}>{m.d}</div>
-                </button>
-              ))}
-            </div>
-            <style>{`
-              @media (max-width: 720px) {
-                .profile-hub-grid { grid-template-columns: 1fr 1fr !important; }
-              }
-            `}</style>
           </div>
 
           <div className="card" style={{padding:'22px 24px'}}>
