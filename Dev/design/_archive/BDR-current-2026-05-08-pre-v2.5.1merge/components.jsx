@@ -631,29 +631,6 @@ function SettingsToggle({ checked, defaultChecked, onChange, label, desc, disabl
 }
 
 // ============================================================
-// SettingsRow — 좌 라벨/desc + 우 토글·값·액션 (Phase F2)
-// 마이페이지 알림설정 / 결제 / 구독 화면 공용
-// children 으로 SettingsToggle, span(value), button(action) 등 자유 배치
-// ============================================================
-function SettingsRow({ label, desc, children, divider = true }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 0', gap: 12, flexWrap: 'wrap',
-      borderBottom: divider ? '1px solid var(--border)' : 0,
-    }}>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--ink)' }}>{label}</div>
-        {desc && <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>{desc}</div>}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
 // OnboardingStepHeader — 5 단계 분기 공통 (PR1.1 ~ PR4)
 //   진행률 N/5 + 단계 라벨 + 건너뛰기 + 뒤로가기
 // ============================================================
@@ -784,4 +761,4 @@ function OnboardingNav({ onPrev, onNext, prevLabel = '이전', nextLabel = '다�
   );
 }
 
-Object.assign(window, { Icon, ThemeSwitch, AppNav, NavBadge, MemberPendingBadge, PasswordInput, Modal, ForceActionModal, Onboarding, LevelBadge, Pager, Sidebar, Avatar, Poster, SettingsToggle, SettingsRow, OnboardingStepHeader, SegmentedControl, OnboardingNav });
+Object.assign(window, { Icon, ThemeSwitch, AppNav, NavBadge, MemberPendingBadge, PasswordInput, Modal, ForceActionModal, Onboarding, LevelBadge, Pager, Sidebar, Avatar, Poster, SettingsToggle, OnboardingStepHeader, SegmentedControl, OnboardingNav });
