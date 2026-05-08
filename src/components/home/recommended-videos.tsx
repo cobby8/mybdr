@@ -1,20 +1,24 @@
 "use client";
 
 /* ============================================================
- * RecommendedVideos — BDR 추천 영상 섹션 (NBA 2K 스타일)
+ * RecommendedVideos — BDR 추천 영상 섹션 (NBA 2K 카드 + RecommendedRail 통일 헤더)
  *
- * 2K 스타일 적용:
- * - 인라인 2K 헤더 "WATCH NOW" (font-black uppercase) — 5/9 사용자 변경 (HIGHLIGHTS → WATCH NOW)
- * - 카드에 hover:shadow-glow-primary + hover:border-primary 효과
- * - LIVE 뱃지에 rounded-sm 적용
+ * 헤더 변경 (5/9 옵션 B):
+ * - 기존 자체 "WATCH NOW" 2K 헤더 div 제거
+ * - 시안 RecommendedRail wrapper 사용 → 시안 #2.5 영상 박제와 동일 헤더
+ *   (eyebrow="WATCH NOW · YOUTUBE" / title="BDR 추천 영상" / more=YouTube 외부 링크)
+ *
+ * 카드 디자인은 NBA 2K 스타일 보존:
+ * - hover:shadow-glow-primary + hover:border-primary
+ * - LIVE 뱃지 rounded-sm
  * - 제목 font-extrabold uppercase
  *
  * API/데이터 패칭 로직은 기존과 100% 동일.
  * ============================================================ */
 
 import useSWR from "swr";
-import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecommendedRail } from "@/components/bdr-v2/recommended-rail";
 
 interface VideoItem {
   video_id: string;
@@ -69,6 +73,7 @@ export function RecommendedVideos() {
   const videos = apiData?.videos ?? [];
 
   if (loading) {
+    // 로딩 스켈레톤도 RecommendedRail 헤더와 같은 폭으로 통일
     return (
       <section>
         <Skeleton className="h-6 w-32 mb-4" />
@@ -83,25 +88,16 @@ export function RecommendedVideos() {
 
   const hasApiData = videos.length > 0;
 
+  // 시안 line 124~132 매핑: BDR 추천 영상 / WATCH NOW · YOUTUBE / YouTube 채널 외부 링크
   return (
-    <section>
-      {/* 2K 스타일 인라인 헤더: font-black uppercase (다른 홈 섹션과 통일) */}
-      <div className="flex items-end justify-between mb-4 pb-2 border-b-2 border-[var(--border)]">
-        <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter drop-shadow-sm">
-          WATCH NOW
-        </h2>
-        <Link
-          href="https://www.youtube.com/@BDRBASKET"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[10px] font-black text-[var(--ink-mute)] hover:text-[var(--accent)] transition-colors uppercase"
-        >
-          VIEW ALL &raquo;
-        </Link>
-      </div>
-
-      {/* 가로 스크롤 캐러셀: 2K 카드 스타일 (네온 호버, uppercase) */}
-      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-5 px-5 pb-2">
+    <RecommendedRail
+      title="BDR 추천 영상"
+      eyebrow="WATCH NOW · YOUTUBE"
+      more={{ href: "https://www.youtube.com/@BDRBASKET", label: "전체 보기" }}
+    >
+      {/* 카드 영역: 기존 2K 스타일 보존 — flex 가로 스크롤은 RecommendedRail
+          내부의 grid 가 담당하므로 wrapper flex 제거. children 직접 배치. */}
+      <>
         {hasApiData
           ? /* API 영상 카드 — 2K 스타일 적용 */
             videos.slice(0, 6).map((v) => (
@@ -196,8 +192,8 @@ export function RecommendedVideos() {
                 </div>
               </div>
             ))}
-      </div>
-    </section>
+      </>
+    </RecommendedRail>
   );
 }
 
