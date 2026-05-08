@@ -36,6 +36,8 @@ import { Breadcrumb } from "@/components/shared/breadcrumb";
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 // 5/8 PR3 — 본인인증 미완료 사용자 페이지 진입 가드 (mock 모드 default)
 import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
+// 5/9 displayName P0 — 공식 기록(MVP 시상) 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // _v2: 이번 재구성에서 새로 추가한 상세 UI 컴포넌트들
 import { SummaryCard } from "./_v2/summary-card";
@@ -307,7 +309,9 @@ export default async function GameDetailPage({
                     >
                       military_tech
                     </span>
-                    MVP · {finalMvp.nickname || finalMvp.name || "익명"}
+                    {/* 5/9 displayName P0 — 공식 기록(시상)은 실명 우선.
+                     * getDisplayName: name → nickname → fallback 순. 영문 nickname 회귀 방지. */}
+                    MVP · {getDisplayName(finalMvp, undefined, "익명")}
                   </span>
                 ) : (
                   <span

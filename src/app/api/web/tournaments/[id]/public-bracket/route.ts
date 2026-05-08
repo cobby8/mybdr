@@ -2,6 +2,8 @@ import { type NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { buildRoundGroups } from "@/lib/tournaments/bracket-builder";
+// 5/9 displayName P0 — 공식 기록(MVP) 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -252,7 +254,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       const top = candidates[0];
       if (top && (top.stat.points ?? 0) > 0) {
         const p = top.stat.tournamentTeamPlayer;
-        const playerName = p.users?.name ?? p.users?.nickname ?? p.player_name ?? `#${p.jerseyNumber ?? "-"}`;
+        // 5/9 displayName P0 — 공식 기록(MVP)은 실명 우선.
+        // 헬퍼: name → nickname → ttp.player_name → '#'+jersey → fallback
+        // fallback = `#-` (jerseyNumber 도 null 인 극단 케이스).
+        const playerName = getDisplayName(
+          p.users,
+          { player_name: p.player_name, jerseyNumber: p.jerseyNumber },
+          `#${p.jerseyNumber ?? "-"}`,
+        );
         recentMvp = {
           matchId: recentDetail.id.toString(),
           homeTeamName: recentDetail.homeTeam?.team.name ?? "",

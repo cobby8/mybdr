@@ -20,6 +20,8 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { adminLog } from "@/lib/admin/log";
 import { parseBigIntParam } from "@/lib/utils/parse-bigint";
+// 5/9 displayName P0 — 공식 기록(매치 운영 로그) 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
 
@@ -169,11 +171,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   // 5) admin_logs INSERT — 운영자 활동 추적 (warning severity)
   //    description 형식: "매치 [matchId] 선수 [name] jersey [old]→[new] 사유: [reason]"
-  const playerName =
-    ttp.player_name ??
-    ttp.users?.nickname ??
-    ttp.users?.name ??
-    `선수#${ttpBigInt.toString()}`;
+  // 5/9 displayName P0 — 공식 기록(운영 로그)은 실명 우선.
+  //   헬퍼: user.name → user.nickname → ttp.player_name → '#'+jersey → fallback
+  //   ttp 컨텍스트라 player_name + jerseyNumber 모두 fallback 후보.
+  const playerName = getDisplayName(
+    ttp.users,
+    { player_name: ttp.player_name, jerseyNumber: ttp.jerseyNumber },
+    `선수#${ttpBigInt.toString()}`,
+  );
   const oldJersey = existing
     ? `#${existing.jerseyNumber}`
     : ttp.jerseyNumber != null
@@ -267,6 +272,8 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     include: {
       tournamentTeamPlayer: {
         select: {
+          // 5/9 displayName P0 — jerseyNumber fallback 위해 select 추가 (응답엔 미노출).
+          jerseyNumber: true,
           player_name: true,
           users: { select: { name: true, nickname: true } },
         },
@@ -281,11 +288,16 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     where: { id: existing.id },
   });
 
-  const playerName =
-    existing.tournamentTeamPlayer.player_name ??
-    existing.tournamentTeamPlayer.users?.nickname ??
-    existing.tournamentTeamPlayer.users?.name ??
-    `선수#${ttpBigInt.toString()}`;
+  // 5/9 displayName P0 — 공식 기록(운영 로그) 실명 우선.
+  //   헬퍼 통일: user.name → user.nickname → ttp.player_name → '#'+jersey → fallback
+  const playerName = getDisplayName(
+    existing.tournamentTeamPlayer.users,
+    {
+      player_name: existing.tournamentTeamPlayer.player_name,
+      jerseyNumber: existing.tournamentTeamPlayer.jerseyNumber,
+    },
+    `선수#${ttpBigInt.toString()}`,
+  );
   const description =
     `매치 ${matchBigInt.toString()} 선수 ${playerName} 임시 jersey #${existing.jerseyNumber} 해제` +
     (reason ? ` 사유: ${reason}` : "");

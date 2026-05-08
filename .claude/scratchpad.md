@@ -39,6 +39,51 @@
 
 ---
 
+## 기획설계 (planner-architect / 5/9 라이브 YouTube)
+
+🎯 목표: `/live/[id]` 라이브 페이지에 YouTube 영상 임베딩 (수동 URL + 자동 검색)
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `prisma/schema.prisma` `TournamentMatch` | ADD COLUMN `youtube_video_id` + `youtube_status` + `youtube_verified_at` (NULL 허용 무중단) | 수정 |
+| `src/lib/auth/match-stream.ts` | `canManageMatchStream(userId, matchId)` 권한 헬퍼 | 신규 |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/youtube-stream/route.ts` | POST 등록/PATCH 갱신/DELETE 제거 (zod + IDOR 가드) | 신규 |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/youtube-stream/search/route.ts` | GET BDR 채널 자동 검색 (Redis cache + 신뢰도 점수) | 신규 |
+| `src/app/live/[id]/_v2/youtube-embed.tsx` | iframe 컴포넌트 (16:9 + 라이브/VOD 분기 + 모바일 4 분기점) | 신규 |
+| `src/app/live/[id]/_v2/match-youtube-modal.tsx` | 운영자 모달 (수동 URL + 자동 검색 결과 N건) — `MatchJerseyOverrideModal` 패턴 재사용 | 신규 |
+| `src/app/live/[id]/page.tsx` | hero 아래 임베드 영역 + 운영자 버튼 분기 | 수정 |
+
+🔗 기존 코드 연결:
+- `/api/web/youtube/recommend/route.ts` — `fetchEnrichedVideos()` / `fetchVideoDetails()` 재사용 (uploads playlist 150건 / Redis cache)
+- `next.config.ts` CSP — 이미 `frame-src https://www.youtube.com https://www.youtube-nocookie.com` 등록 → 변경 0
+- `tournament-auth.ts` — 권한 검증 (organizer / tournamentAdminMember / super_admin)
+- `MatchJerseyOverrideModal` (5/5 PR4) — 운영자 모달 패턴 재사용
+
+📋 실행 계획 (5 PR):
+| 순서 | 작업 | 담당 | 선행 | 추정 |
+|------|------|------|------|------|
+| PR1 | DB schema ADD COLUMN + 권한 헬퍼 + Prisma generate | developer | 결재 (Q1~Q9) | 30분 |
+| PR2 | 등록/제거 API + zod + IDOR 가드 | developer | PR1 | 1.5h |
+| PR3 | 라이브 페이지 임베딩 (iframe + 모바일 가드) | developer | PR1 | 2h |
+| PR4 | 운영자 모달 (수동 URL 입력) | developer | PR2+PR3 | 2h |
+| PR5 | 자동 검색 API + 신뢰도 점수 + 모달 통합 | developer | PR4 | 3h |
+| 검증 | tester (Flutter v1 회귀 + quota + iframe) + reviewer 병렬 | tester+reviewer | PR 별 | 30분 |
+
+⚠️ developer 주의사항:
+- **DB 단일 정책**: ADD COLUMN NULL 허용 → `prisma db push` 무중단. destructive 작업 0
+- **Flutter v1 영향 0**: `/api/v1/...` schema query 비포함 컬럼만 추가
+- **YouTube quota**: search API 미사용 (uploads playlist 재사용 + cache hit 99%)
+- **video_id 검증**: 정규식 11자 + `/videos` API 실존 검증 (악의적 입력 차단)
+- **iframe**: `youtube-nocookie.com` 우선 / `referrerPolicy="strict-origin-when-cross-origin"` / `autoplay=1&mute=1` (Chrome 정책)
+- **시안 동기화**: PR3 후 BDR-current/screens/Live.jsx 영상 영역 후속 큐 등록 (운영 → 시안 역박제 룰)
+- **권한**: super_admin / organizer / tournamentAdminMember.is_active=true 3종 (recorder 제외 — Q7 결재 따름)
+- **5/10 D-day 후 진입** (Q9 권장): 본 D-day 기간 운영 영향 0
+
+📄 보고서: `Dev/live-youtube-embed-2026-05-09.md` (15 섹션 / Q1~Q11 결재)
+
+---
+
 ## 기획설계 (5/8~5/9 main 배포 완료 작업)
 
 - **PR3 layout 가드 + mock 모드** ✅ main `f39afae` (5/8)
@@ -84,10 +129,12 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | (developer) PR1+PR2+PR3 통합 / 미커밋 | **라이브 YouTube PR1~3 통합** — DB ADD COLUMN 3 (운영 77 매치 NULL 무중단) + match-stream.ts 권한 헬퍼 (164L) + youtube/enriched-videos.ts lib 추출 (355L) + youtube-stream POST/PATCH/DELETE 라우트 (288L) + GET search 신뢰도 80 (270L) + YouTubeEmbed 컴포넌트 (189L, 16:9 + LIVE ping + youtube-nocookie) + page.tsx hero 아래 마운트 + game-result.tsx 다시보기 통합 + /api/live/[id] 응답 3 필드 추가 / tsc 0 / quota 0~2/매치 / Flutter v1 영향 0 / PR4(운영자 모달)+PR5(자동검색 모달 통합) 후속 큐 | 검증대기 |
+| 2026-05-09 | (구현) P0 6 파일 헬퍼 마이그 | **displayName P0 6 파일 헬퍼 마이그** — getDisplayName 통일 (games/[id] MVP / public-bracket recentMvp / jersey-override admin_log POST+DELETE / officer-permissions 응답 displayName 추가 / home.ts prefetchRecentMvp / build-linkify-entries) / 응답 키 변경 0 (officer-permissions 만 displayName 추가, 나머지 표시 문자열만 변경) / tsc 0 / Flutter v1 영향 0 / 라이브 YouTube PR2 youtube-stream API 계열은 현재 미존재 (PR1 결재 대기 중) — 충돌 0 | 검증대기 |
+| 2026-05-09 | (기획) `Dev/live-youtube-embed-2026-05-09.md` | **라이브 페이지 YouTube 임베딩 기획** — 옵션 A 단일컬럼 (ADD COLUMN 3건 무중단) / 5 PR 분할 (~9h) / 신규 컴포넌트 2 + API 3 / 자동 검색 신뢰도 80 임계값 / search API 미사용 (uploads 재사용 quota 0~2) / CSP 변경 0 (이미 등록) / Flutter v1 영향 0 / Q1~Q11 결재 대기 / 5/10 D-day 후 진입 권장 | ✅ 결재 |
 | 2026-05-09 | PR #228~#243 16건 → main 8회 (`702d00e` → `b96f58c` → `71d4087` → `afcbd65` → `d833569` → `7d68cce` → `fff4c54` → `76bf5f3`) | **5/9 단일 일 main 8회 신기록** — (1) PhoneInput 1순위 4 input. (2) 잔여 6 input + verify 하이픈 정규화. (3) 시안 역박제 1순위 News+MatchNews+Scoreboard. (4) 시안 역박제 2~3순위 7건 → 시안 갭 0 달성. (5) PhoneInput 4순위 admin+referee 3 input → 마이그 100% + onboarding 검증 tester 5/5 통과. (6) 공개프로필 NBA Phase 1 (PlayerMatchCard 380L + 8열 + Hero jersey + officialMatchNestedFilter). (7) Phase 2 활동 로그 5종 + 더보기 모달 3탭 + 경기참가 0 버그 fix. (8) 내농구 super-set 10 영역 (server 전환 + 14 쿼리 + CareerStatsGrid 글로벌 + MyPendingRequestsCard + NextTournamentMatchCard). tester 38건+ / reviewer ⭐⭐⭐⭐⭐ 4회. | ✅ |
 | 2026-05-08 | PR #214~#227 14건 → main 7회 (`e0d880b` 빌드실패 → `c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) | **5/8 main 7회 신기록** — 디자인 박제 11 commit + truncated 빌드 9건 실패 → hot fix `333516b`. PR3 layout 가드 mock. BDR-current v2.5 + v2.5.1 (zip 2회). mock 자체 입력 폴백 (DB ADD COLUMN). PhoneInput/BirthDateInput 전역 컴포넌트. errors.md 5/7 truncated 재발 2회차 + 보완 4룰. | ✅ |
 | 2026-05-07 | main 21회 (`2cc9df3` ~ `168be48`) | **5/7 단일 일 신기록 21회 main — Onboarding 10단계 + PortOne V2 + Phase A.5** | ✅ |
 | 2026-05-06 | `7211f97` ~ `f6b43ab` → main `4253e68` | **5/6 — PR1e DROP COLUMN + UI fix 13건 + 마이페이지 소속팀 + 좌하단 뱃지 + apiError 일괄** | ✅ |
 | 2026-05-05 | `ae4ffd7` ~ `5d62f7f` → main `8bbce95` | **팀 멤버 라이프사이클 + Jersey 재설계 5 Phase 16 PR main 배포** | ✅ |
-| 2026-05-05 | DB UPDATE 4건 | **열혈농구단 SEASON2 출전 명단 정비** | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 auth 10+ / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 / 5/9 main 8회 신기록) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 DB 4건 + auth 10+ / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError / 5/7 envelope 8회 — 5/7 main 21회 baseline / 5/8 main 7회 / 5/9 main 8회 신기록) — 복원: git log -- .claude/scratchpad.md -->
