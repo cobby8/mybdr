@@ -17,17 +17,23 @@
  *   - playsinline 자동 (iframe 기본)
  *
  * 사용처:
- *   src/app/live/[id]/page.tsx — hero 영역 아래 (Q4 결재 — hero 아래) 조건부 마운트.
+ *   src/app/live/[id]/page.tsx — hero 영역 위 sticky 영역 조건부 마운트 (5/9 사용자 결정 — 영상 맨 위 + sticky).
  *
  * 회귀 차단:
  *   - youtube_video_id null 이면 mount 자체 안 함 (영역 0)
  *   - video_id 11자 검증은 서버 측 zod + 정규식 가드 의존 (UI 측 추가 검증 0 — 신뢰)
  *
  * 모바일 분기점 (§9 / 5/9 conventions.md 4 분기점):
- *   - 360px: 전체 폭 / 16:9 유지
- *   - 720px: hero 영역 통합 / margin 축소
- *   - 900px+: hero 옆 사이드 또는 hero 아래 정렬
- *   - 1024px+: 최대 너비 720px / 좌우 여백
+ *   - 360px: 전체 폭 / 16:9 유지 / margin 축소
+ *   - 720px 이하: sticky 해제 → relative 일반 flow (영상 본 후 자유 스크롤)
+ *   - 900px+ : sticky 활성 (좌우 여백)
+ *   - 1024px+: 최대 너비 720~960px / 좌우 여백
+ *
+ * Sticky 정책 (5/9 사용자 결정 옵션 B = 데스크탑+태블릿 sticky / 모바일 일반):
+ *   - ≥721px: position: sticky / top: var(--app-nav-h, 92px) / z-30
+ *   - ≤720px: position: relative / 일반 스크롤
+ *   - z-stack: AppNav 50 > 영상 30 > 페이지 헤더 20
+ *   - 부모 컨테이너 overflow: visible 가드 (sticky 동작 조건)
  */
 
 "use client";
@@ -66,13 +72,33 @@ function YouTubeEmbedInner({
   return (
     <section
       // 모바일 4 분기점 — 컨테이너 가로 폭은 부모 (라이브 페이지) 가 결정.
-      // 본 컴포넌트는 "꽉 채우기 + 16:9 유지" 만 책임 (모바일 ≤720 = 풀 폭 / ≥900 = 부모 max-width 따름).
-      className="relative w-full mx-auto"
+      // 본 컴포넌트는 "꽉 채우기 + 16:9 유지 + sticky" 책임.
+      // 5/9 사용자 결정: 영상 맨 위 + sticky (≥721px) / 모바일(≤720px) 일반 스크롤.
+      // sticky 클래스는 .youtube-embed-sticky (인라인 style 로 모바일 분기 처리 — Tailwind arbitrary 회피, 5/9 errors.md 룰).
+      className="youtube-embed-sticky relative w-full mx-auto"
       style={{
         maxWidth: "960px", // 1024+ 분기점 = max-width 720~960. hero 영역 자체가 75% 폭이라 자연스럽게 따름.
       }}
       aria-label={isLive ? "라이브 영상 시청" : "경기 영상 시청"}
     >
+      {/* 인라인 style — sticky + 모바일 분기 (Tailwind arbitrary 룰 회피, 5/9 errors.md 박제 룰 — invalid CSS var 이름 placeholder 사용).
+          ≥721px: position: sticky / top = AppNav 높이 (--app-nav-h fallback 92px) / z-index 30 (AppNav 50 > 영상 30 > 페이지 헤더 20 stack)
+          ≤720px: relative 로 sticky 해제 (영상 본 후 본문 자유 스크롤) + margin 축소 + 16:9 풀폭
+          ≤360px: small 모바일 추가 margin 축소 (iPhone SE / Galaxy S 대응) */}
+      <style>{`
+        .youtube-embed-sticky {
+          position: sticky;
+          top: var(--app-nav-h, 92px);
+          z-index: 30;
+        }
+        @media (max-width: 720px) {
+          .youtube-embed-sticky {
+            position: relative;
+            top: auto;
+            z-index: auto;
+          }
+        }
+      `}</style>
       {/* 우상단 LIVE 뱃지 + 운영자 관리 버튼 — z-index 로 iframe 위에 띄움 */}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
         {isLive && (

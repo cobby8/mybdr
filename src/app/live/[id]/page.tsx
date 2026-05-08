@@ -911,6 +911,52 @@ export default function LiveBoxScorePage() {
         </div>
       </div>
 
+      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 + sticky (사용자 결정 5/9: 영상 맨 위 / 옵션 B = 데스크탑+태블릿 sticky / 모바일 일반).
+          위치 결정 사유:
+            - 페이지 헤더(위 sticky top:0 z-20) 아래 + hero(스코어카드) 위에 배치 → 스크롤 시 영상도 sticky 로 고정되어 항상 시야 유지
+            - z-30 (AppNav 50 > 영상 30 > 페이지 헤더 20) — 영상이 페이지 헤더 위로 올라가 시각 가림 0
+            - 영상 등록 매치만 마운트 (미등록 → hero 그대로 노출 / placeholder 0 — 사용자 결정 Q11)
+          75% wrapper (sm:w-3/4) 로 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김.
+          부모 컨테이너 overflow: visible (sticky 작동 조건) — 라이브 페이지 최상위 컨테이너는 overflow 미설정으로 visible 기본값 ✅ */}
+      {match.youtube_video_id ? (
+        <div data-print-hide className="px-4 pt-3 pb-3">
+          <div className="mx-auto w-full sm:w-3/4">
+            <YouTubeEmbed
+              videoId={match.youtube_video_id}
+              isLive={isLive || match.youtube_status === "manual"}
+              status={match.youtube_status ?? null}
+              isAdmin={isAdmin}
+              // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
+              onManageClick={() => setStreamModalOpen(true)}
+            />
+          </div>
+        </div>
+      ) : (
+        // 영상 미등록 + 운영자만 노출되는 등록 CTA — 일반 회원에게는 영역 0 (사용자 결정 Q11)
+        // CTA 는 sticky X (영상 등록 후에만 sticky 의미 있음) — 일반 위치
+        isAdmin && (
+          <div data-print-hide className="px-4 pt-3 pb-3">
+            <div className="mx-auto w-full sm:w-3/4">
+              <button
+                type="button"
+                onClick={() => setStreamModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
+                  border: "1px dashed var(--color-border)",
+                  borderRadius: "4px",
+                }}
+                aria-label="YouTube 영상 등록 (운영자 전용)"
+              >
+                <span className="material-symbols-outlined text-base">smart_display</span>
+                YouTube 영상 등록
+              </button>
+            </div>
+          </div>
+        )
+      )}
+
       {/* 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
           isAdmin = false 면 마운트 안 함. fetchMatch refetch 로 새 jersey 반영. */}
       {isAdmin && match && (
@@ -1104,48 +1150,7 @@ export default function LiveBoxScorePage() {
         {/* /75% 래퍼 닫기 */}
       </div>
 
-      {/* 2026-05-09 PR3+PR4+PR5: 라이브 YouTube 영상 임베딩 — hero 영역 (스코어카드 + 쿼터 테이블) 아래 (Q4 결재).
-          - 영상 등록 시: YouTubeEmbed 마운트 + 우상단 edit 버튼 (운영자) → 모달 trigger
-          - 영상 미등록 + 운영자: 등록 버튼만 노출 (영상 영역 hidden — Q11)
-          - 영상 미등록 + 일반회원: 영역 0 (사용자 노출 0)
-          75% 폭 wrapper 와 동일 가로 (sm:w-3/4) — 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김. */}
-      {match.youtube_video_id ? (
-        <div data-print-hide className="px-4 pb-4">
-          <div className="mx-auto w-full sm:w-3/4">
-            <YouTubeEmbed
-              videoId={match.youtube_video_id}
-              isLive={isLive || match.youtube_status === "manual"}
-              status={match.youtube_status ?? null}
-              isAdmin={isAdmin}
-              // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
-              onManageClick={() => setStreamModalOpen(true)}
-            />
-          </div>
-        </div>
-      ) : (
-        // 영상 미등록 + 운영자만 노출되는 등록 CTA — 일반 회원에게는 영역 0 (사용자 결정 Q11)
-        isAdmin && (
-          <div data-print-hide className="px-4 pb-4">
-            <div className="mx-auto w-full sm:w-3/4">
-              <button
-                type="button"
-                onClick={() => setStreamModalOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-80"
-                style={{
-                  backgroundColor: "var(--color-elevated)",
-                  color: "var(--color-text-primary)",
-                  border: "1px dashed var(--color-border)",
-                  borderRadius: "4px",
-                }}
-                aria-label="YouTube 영상 등록 (운영자 전용)"
-              >
-                <span className="material-symbols-outlined text-base">smart_display</span>
-                YouTube 영상 등록
-              </button>
-            </div>
-          </div>
-        )
-      )}
+      {/* 2026-05-09: 라이브 YouTube 영상은 hero 위로 이동 (사용자 결정 5/9). 위쪽 헤더 sticky 다음 마운트 위치 참조 */}
 
       {/* 2026-04-16: 박스스코어 화면용 영역 (data-print-hide로 프린트 시 숨김)
           기존 BoxScoreTable은 쿼터 필터 버튼과 함께 화면 표시만 담당 */}
