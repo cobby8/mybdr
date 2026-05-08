@@ -1,11 +1,12 @@
-/* global React, TEAMS, Avatar */
+/* global React, TEAMS, Avatar, MemberPendingBadge */
 
 function TeamManage({ setRoute }) {
   const [tab, setTab] = React.useState('roster');
   const team = TEAMS[0] || { name:'REDEEM', tag:'RDM', color:'#DC2626', ink:'#fff' };
 
+  // 5/6 박제 — 본인(captain) jersey_change 신청 중 mock (운영 roster-tab-v2 좌하단 뱃지 정합)
   const roster = [
-    { id:1, name:'rdm_captain', pos:'G', num:7,  role:'captain', joined:'2024.03', games:42, mvp:3, status:'active' },
+    { id:1, name:'rdm_captain', pos:'G', num:7,  role:'captain', joined:'2024.03', games:42, mvp:3, status:'active', isMe:true, pending:{ kind:'jersey_change', newJersey:8 } },
     { id:2, name:'rdm_sniper',  pos:'G', num:13, role:'vice',    joined:'2024.03', games:38, mvp:0, status:'active' },
     { id:3, name:'rdm_forward', pos:'F', num:23, role:'member',  joined:'2024.05', games:35, mvp:1, status:'active' },
     { id:4, name:'rdm_pivot',   pos:'C', num:44, role:'member',  joined:'2024.08', games:31, mvp:2, status:'active' },
@@ -94,8 +95,11 @@ function TeamManage({ setRoute }) {
                 <div data-label="MEMBER" data-primary="true">
                   <div style={{display:'flex', gap:6, alignItems:'center', fontWeight:700}}>
                     {r.name}
+                    {r.isMe && <span className="badge badge--soft" style={{fontSize:9}}>나</span>}
                     {r.status==='injured' && <span className="badge badge--red" style={{fontSize:9}}>부상</span>}
                   </div>
+                  {/* 5/6 박제 — 본인 row 좌하단 신청 중 뱃지 (운영 member-pending-badge.tsx 정합) */}
+                  {r.isMe && r.pending && <MemberPendingBadge kind={r.pending.kind} newJersey={r.pending.newJersey} toTeamName={r.pending.toTeamName} style={{marginTop:4, display:'inline-block'}}/>}
                 </div>
                 <div data-label="ROLE">
                   <span style={{fontSize:11, fontWeight:700, color:roleColor[r.role]}}>{roleLabel[r.role]}</span>
