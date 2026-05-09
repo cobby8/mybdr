@@ -513,6 +513,19 @@ export default function LiveBoxScorePage() {
   // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
   const [streamModalOpen, setStreamModalOpen] = useState(false);
 
+  // 2026-05-10 — 페이지 wrapper zoom 1.1 (박스스코어 가독성, 2026-04-15 결정) 이 모바일에서
+  // sticky positioning 을 깨트림 (Chrome Mobile / Safari known issue). 모바일은 zoom 1 로 분기.
+  // PC = zoom 1.1 유지. SSR 첫 렌더는 1.1 (PC 기준) → mount 후 모바일이면 1 로 보정 (깜빡임 1회 허용).
+  const [zoomScale, setZoomScale] = useState(1.1);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setZoomScale(mq.matches ? 1 : 1.1);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMatch = useCallback(async () => {
@@ -749,7 +762,7 @@ export default function LiveBoxScorePage() {
       data-live-root
       data-printing={isPrinting ? "true" : undefined}
       className="min-h-screen"
-      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: isPrinting ? 1 : 1.1 }}
+      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: isPrinting ? 1 : zoomScale }}
     >
       {/* 2026-05-02: 일시 에러 (rate limit 429 / 5xx / 네트워크) 알림 — 우상단 작은 토스트
           match 데이터 유지하면서 사용자에게 재시도 중임을 표시. 다음 폴링 (3s) 에 자동 사라짐. */}
