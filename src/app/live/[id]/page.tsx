@@ -858,37 +858,16 @@ export default function LiveBoxScorePage() {
               useCORS: true,
               logging: false,
               onclone: (clonedDoc) => {
-                // 2026-05-10 — 프린트 양식 (사용자 결정) 100% 동등 박제.
-                // html2canvas 는 @media print 룰을 자체 무시 → clone 에 일반 CSS 로 박제.
-                // globals.css 의 @media print 블록 그대로 옮겨 캡처 시 적용 보장.
-                const printStyle = clonedDoc.createElement("style");
-                printStyle.textContent = `
-                  /* 색상 강제 — 모든 요소 black ink + white bg + 그림자 0 */
-                  [data-live-root] * { color: #000 !important; background: transparent !important; border-color: #ccc !important; box-shadow: none !important; }
-                  [data-live-root] { zoom: 1 !important; background: #fff !important; }
-                  /* 박스스코어 영역 강제 표시 */
-                  #box-score-print-area { display: block !important; position: static !important; padding: 0 !important; margin: 0 !important; width: 100% !important; background: #fff !important; }
-                  /* 표 스타일 — 프린트 양식 동등 */
-                  #box-score-print-area table { font-size: 11px !important; border-collapse: collapse !important; width: 100% !important; table-layout: fixed !important; }
-                  #box-score-print-area th { color: #555 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 3px !important; white-space: nowrap; text-align: center; }
-                  #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; text-align: center; }
-                  #box-score-print-area th:nth-child(2),
-                  #box-score-print-area td:nth-child(2) { max-width: 80px !important; min-width: 60px !important; }
-                  #box-score-print-area th:nth-child(1),
-                  #box-score-print-area td:nth-child(1) { width: 28px !important; }
-                  /* 섹션 wrapper — 1100px 강제 + 가로 fit */
-                  .print-team-page { display: flex !important; flex-direction: column !important; padding: 20px !important; box-sizing: border-box !important; width: 1100px !important; max-width: 1100px !important; background: #fff !important; }
-                `;
-                clonedDoc.head.appendChild(printStyle);
-
-                // data-printing="true" 강제 (CSS 분기 트리거)
+                // 2026-05-10 — 프린트 양식 자동 적용 (사용자 결정 / globals.css single source).
+                // globals.css 가 [data-live-root][data-printing="true"] 셀렉터로 양식 룰 박제 →
+                // 클론에 속성만 강제하면 모든 룰 자동 적용 (코드 중복 제거).
                 const root = clonedDoc.querySelector<HTMLElement>("[data-live-root]");
                 if (root) {
                   root.setAttribute("data-printing", "true");
                   root.style.zoom = "1";
                 }
 
-                // section 자체 width 보강
+                // 섹션 wrapper 1100px 강제 — 캡처 viewport 확장 (page-break 룰은 @media print 전용)
                 const clonedSection = clonedDoc.querySelectorAll<HTMLElement>(".print-team-page")[i];
                 if (clonedSection) {
                   clonedSection.style.width = "1100px";
