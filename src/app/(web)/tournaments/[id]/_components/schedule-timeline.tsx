@@ -216,13 +216,13 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
         </div>
       )}
 
-      {/* 팀 필터 버튼 그룹: 가로 스크롤 */}
+      {/* 팀 필터 버튼 그룹: 가로 스크롤 (5/9 사용자 결정 — 날짜 탭과 동일 크기로 축소) */}
       {teams.length > 0 && (
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+        <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
           {/* "전체" 버튼 */}
           <button
             onClick={() => setSelectedTeam(null)}
-            className="flex-shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
               backgroundColor: selectedTeam === null ? "var(--color-primary)" : "var(--color-elevated)",
               color: selectedTeam === null ? "white" : "var(--color-text-secondary)",
@@ -236,7 +236,7 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
             <button
               key={team.id}
               onClick={() => setSelectedTeam(team.id === selectedTeam ? null : team.id)}
-              className="flex-shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+              className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
               style={{
                 backgroundColor: selectedTeam === team.id ? "var(--color-primary)" : "var(--color-elevated)",
                 color: selectedTeam === team.id ? "white" : "var(--color-text-secondary)",
