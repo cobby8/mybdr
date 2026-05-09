@@ -30,6 +30,10 @@ import { YouTubeEmbed } from "./_v2/youtube-embed";
 // 2026-05-09 PR4+PR5 — 운영자 모달 (수동 URL 입력 + BDR 채널 자동 검색).
 // isAdmin = true 일 때만 마운트. POST/DELETE /youtube-stream API 호출 후 fetchMatch refetch.
 import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
+// 2026-05-09 라이브 매치 카드 패널 PR3 — 같은 날 / 같은 대회 매치 N건 가로 스크롤 (네이버 패턴).
+// API 응답 same_day_matches[] 가 비어있거나 1건 이하면 Rail 자체 null 반환 (영역 hidden).
+import { LiveMatchCardRail } from "./_v2/live-match-card-rail";
+import type { LiveMatchCardData } from "./_v2/live-match-card";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -147,6 +151,10 @@ interface MatchData {
   youtube_video_id?: string | null;
   youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
   youtube_verified_at?: string | null;
+  // 2026-05-09 PR1: 라이브 매치 카드 패널 — 같은 대회 + 같은 날 (KST) 매치 N건 (현재 매치 포함).
+  // 빈 배열 또는 1건만 있으면 Rail 자체 hidden (사용자 결정 Q4=A 가변).
+  // 응답 키 이미 snake_case → apiSuccess 자동 변환에서 그대로 통과 (errors.md 2026-04-17 룰).
+  same_day_matches?: LiveMatchCardData[];
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -513,6 +521,11 @@ export default function LiveBoxScorePage() {
   // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
   const [streamModalOpen, setStreamModalOpen] = useState(false);
 
+  // 2026-05-10 PR-C — 라이브 YouTube 영상 자동 등록 폴링 활성화 플래그.
+  // true 일 때 운영자 화면에 "BDR 채널 자동 검색 중..." 토스트 노출.
+  // 일반 viewer 도 백그라운드 폴링은 동일하게 작동 (토스트만 운영자 한정).
+  const [autoRegisterActive, setAutoRegisterActive] = useState(false);
+
   // 2026-05-10 — 모바일/PC 분기 + YouTube 영상 PIP 모드 (PC 만).
   //   모바일 (≤767px) = 영상 sticky top-14 (헤더 아래 큰 사이즈 고정)
   //   PC (≥768px) = 영상이 viewport 안 = 일반 위치 / viewport 밖 = 우측 하단 PIP (YouTube 스타일)
@@ -640,6 +653,116 @@ export default function LiveBoxScorePage() {
       cancelled = true;
     };
   }, [match?.tournament_id]);
+
+  // 2026-05-10 PR-C — 라이브 YouTube 영상 자동 등록 폴링.
+  // 동작:
+  //   - match 데이터 도달 + youtube_video_id 미등록 + 윈도우 안 (시작 ±10분) 일 때만 활성화
+  //   - 30초마다 POST /api/web/match-stream/auto-register/[matchId] 호출
+  //   - 응답 registered=true 시 setInterval clear + fetchMatch refetch (즉시 임베드 노출)
+  //   - 윈도우 벗어남 / already_registered / match_not_live 시 자동 stop
+  //   - 운영자 (isAdmin) 에게만 토스트 노출 (백그라운드 폴링은 일반 viewer 도 작동)
+  //
+  // 응답 키는 모두 snake_case (apiSuccess 자동 변환 — errors.md 2026-04-17 룰).
+  // data.registered / data.reason / data.video_id / data.score / data.status / data.match_status
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!match) return;
+
+    // 영상 이미 등록 → 폴링 0 (이미 등록 매치는 youtube_video_id 분기에서 임베드 표시 중)
+    if (match.youtube_video_id) return;
+
+    // status 가드 — 자동 등록 가능한 상태만 (auto-register endpoint §13 status guard 와 일치)
+    // scheduled / ready / in_progress 외 (completed / cancelled 등) 은 endpoint 가 match_not_live 반환 → 폴링 무의미
+    if (
+      match.status !== "scheduled" &&
+      match.status !== "ready" &&
+      match.status !== "in_progress"
+    ) {
+      return;
+    }
+
+    // 윈도우 (시작 ±10분) 검증 — 도달 시각 추정 (started_at 우선, 없으면 scheduled_at)
+    const ref = match.started_at ?? match.scheduled_at;
+    if (!ref) return;
+    const refTime = new Date(ref).getTime();
+    if (Number.isNaN(refTime)) return; // 날짜 파싱 실패 = 폴링 시작 안 함
+    const WINDOW_MS = 10 * 60 * 1000; // ±10분
+
+    const checkWindow = () => Math.abs(Date.now() - refTime) <= WINDOW_MS;
+    if (!checkWindow()) return; // 윈도우 밖 = 폴링 시작 안 함
+
+    // 폴링 시작 — 운영자 토스트 노출 + interval 변수 cleanup 용 외부 박제
+    setAutoRegisterActive(true);
+    let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    // tick 1회 = auto-register endpoint 1회 호출 + 응답 분기 처리
+    const tick = async () => {
+      if (cancelled) return;
+
+      // 윈도우 벗어났는지 매번 체크 (사용자가 페이지 오래 열어둠 / interval drift 방어)
+      if (!checkWindow()) {
+        cancelled = true;
+        setAutoRegisterActive(false);
+        if (intervalId) clearInterval(intervalId);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/web/match-stream/auto-register/${match.id}`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        if (!res.ok) return; // 429 (rate limit) / 5xx — silent fail, 다음 tick 재시도
+        const json = await res.json();
+        // apiSuccess envelope = { success, data, ... } / data 없으면 raw 응답 (fallback)
+        const data = json?.data ?? json;
+
+        if (data?.registered === true) {
+          // 자동 등록 성공 — interval clear + match refetch (즉시 임베드 노출)
+          cancelled = true;
+          setAutoRegisterActive(false);
+          if (intervalId) clearInterval(intervalId);
+          fetchMatch();
+          return;
+        }
+
+        // already_registered = 다른 사용자 폴링이 먼저 등록 / match_not_live = status 변경 → 폴링 stop
+        if (data?.reason === "already_registered" || data?.reason === "match_not_live") {
+          cancelled = true;
+          setAutoRegisterActive(false);
+          if (intervalId) clearInterval(intervalId);
+          // already_registered 시 match.youtube_video_id 갱신 위해 refetch
+          if (data?.reason === "already_registered") fetchMatch();
+          return;
+        }
+        // out_of_window — 다음 tick 의 checkWindow 가 자동 정리 (서버/클라 시계 미세 갭)
+        // no_match_found — 다음 tick 에서 재시도 (BDR 채널 영상 미업로드 / 점수 80점 미달)
+      } catch (err) {
+        console.error("[auto-register polling]", err);
+        // 네트워크 에러 = 다음 tick 까지 대기 (silent fail)
+      }
+    };
+
+    // 즉시 1회 호출 + 30초 간격 폴링 (rate limit 6회/분/IP+matchId — 여유 분당 2회)
+    tick();
+    intervalId = setInterval(tick, 30 * 1000);
+
+    return () => {
+      cancelled = true;
+      setAutoRegisterActive(false);
+      if (intervalId) clearInterval(intervalId);
+    };
+    // match 객체 전체를 deps 에 두면 fetchMatch 폴링 (3초) 마다 새 객체로 교체되어 effect 재설정 빈번 →
+    // 미세 의존성으로 분리: id / youtube_video_id / status / scheduled_at / started_at 변경 시만 재실행.
+  }, [
+    match?.id,
+    match?.youtube_video_id,
+    match?.status,
+    match?.scheduled_at,
+    match?.started_at,
+    fetchMatch,
+  ]);
 
   // 2026-04-16: 프린트 옵션 확정 → 다음 틱에 실제 프린트 실행
   // 이유: printOptions 세팅으로 #box-score-print-area가 리렌더되는 타이밍과
@@ -1007,7 +1130,29 @@ export default function LiveBoxScorePage() {
         // CTA 는 sticky X (영상 등록 후에만 sticky 의미 있음) — 일반 위치
         isAdmin && (
           <div data-print-hide className="px-4 pt-3 pb-3">
-            <div className="mx-auto w-full sm:w-3/4">
+            <div className="mx-auto w-full sm:w-3/4 flex flex-col gap-2">
+              {/* 2026-05-10 PR-C — 자동 등록 폴링 활성 시 운영자에게만 노출되는 안내 토스트.
+                  매치 시작 ±10분 윈도우 안 + 영상 미등록 시 30초 간격으로 BDR 채널 자동 검색 실행.
+                  80점+ 후보 발견 시 자동 INSERT 후 fetchMatch refetch → 임베드 즉시 노출. */}
+              {autoRegisterActive && (
+                <div
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-xs"
+                  style={{
+                    backgroundColor: "var(--color-card)",
+                    color: "var(--color-text-secondary)",
+                    border: "1px dashed var(--color-border)",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <span
+                    className="material-symbols-outlined animate-spin"
+                    style={{ fontSize: 16, animationDuration: "1.5s" }}
+                  >
+                    sync
+                  </span>
+                  <span>BDR 채널 자동 검색 중... (시작 시각 ±10분 윈도우 / 30초 간격)</span>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setStreamModalOpen(true)}
@@ -1027,6 +1172,12 @@ export default function LiveBoxScorePage() {
           </div>
         )
       )}
+
+      {/* 2026-05-09 라이브 매치 카드 패널 — 영상 sticky 아래 + hero 위 (사용자 결정 Q5=A).
+          API 응답 same_day_matches 가 0~1건이면 Rail 자체 null (영역 hidden) — Rail 내부 가드.
+          영상 등록 매치 = 영상 sticky 아래에 자연 in-flow / 영상 미등록 + 운영자 = CTA 아래.
+          폴링 3초마다 자동 갱신 — 라이브 매치 진행에 따라 카드 상태 라벨/점수 즉시 동기화. */}
+      <LiveMatchCardRail matches={match.same_day_matches ?? []} />
 
       {/* 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
           isAdmin = false 면 마운트 안 함. fetchMatch refetch 로 새 jersey 반영. */}
