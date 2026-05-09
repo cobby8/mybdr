@@ -911,15 +911,21 @@ export default function LiveBoxScorePage() {
         </div>
       </div>
 
-      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 + sticky (사용자 결정 5/9: 영상 맨 위 / 옵션 B = 데스크탑+태블릿 sticky / 모바일 일반).
-          위치 결정 사유:
-            - 페이지 헤더(위 sticky top:0 z-20) 아래 + hero(스코어카드) 위에 배치 → 스크롤 시 영상도 sticky 로 고정되어 항상 시야 유지
-            - z-30 (AppNav 50 > 영상 30 > 페이지 헤더 20) — 영상이 페이지 헤더 위로 올라가 시각 가림 0
+      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 + sticky.
+          5/10 사용자 결정 갱신: 핸드폰 세로 모드 포함 모든 화면 sticky 통일.
+            - 영상 영역이 페이지 헤더(sticky top-0 z-20) 바로 아래에 stick (top-14 = 56px)
+            - z-30 < AppNav z-50 / > 페이지 헤더 z-20 — 영상이 헤더 아래 정확히 위치 (헤더 가림 0)
+            - bg = var(--color-background) — sticky 시 뒤 콘텐츠 비침 0
+            - 모바일 세로 = hero/박스스코어 스크롤 시에도 영상 상단 고정 / PC = 동일
             - 영상 등록 매치만 마운트 (미등록 → hero 그대로 노출 / placeholder 0 — 사용자 결정 Q11)
           75% wrapper (sm:w-3/4) 로 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김.
           부모 컨테이너 overflow: visible (sticky 작동 조건) — 라이브 페이지 최상위 컨테이너는 overflow 미설정으로 visible 기본값 ✅ */}
       {match.youtube_video_id ? (
-        <div data-print-hide className="px-4 pt-3 pb-3">
+        <div
+          data-print-hide
+          className="sticky top-14 z-30 px-4 pt-3 pb-3"
+          style={{ backgroundColor: "var(--color-background)" }}
+        >
           <div className="mx-auto w-full sm:w-3/4">
             <YouTubeEmbed
               videoId={match.youtube_video_id}
