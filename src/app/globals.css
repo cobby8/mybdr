@@ -2565,14 +2565,78 @@ html.light .watermark-text,
    Preserved: 프린트 — data-printing 상태 + @media print (기존 유지, 수정 금지)
    ============================================================ */
 
-/* state 기반 프린트 모드 (모바일/태블릿 호환) */
+/*
+ * [2026-05-10] 프린트 양식 룰 — single source-of-truth 리팩.
+ *   이전: @media print 안에 색상/표/wrapper 룰 박제 → PDF 저장 (html2canvas) 시 자동 적용 X
+ *         → onclone 콜백에서 동일 룰 inline 박제 (코드 중복)
+ *   이후: data-printing="true" 셀렉터로 색상/표/wrapper 룰 박제 → 화면 isPrinting=true
+ *         + 실제 print 양쪽 자동 적용. PDF 저장 onclone 은 단순히 data-printing 속성만
+ *         강제 (룰 중복 제거 / globals.css 단일 source).
+ *   효과: 프린트 / PDF 저장 양식 100% 동등 + 변경 시 globals.css 만 수정.
+ */
+
+/* === data-printing="true" — 화면 + print 양쪽 작동 (양식 본체) === */
+[data-live-root][data-printing="true"] {
+  zoom: 1 !important;
+}
+[data-live-root][data-printing="true"] * {
+  color: #000 !important;
+  background: #fff !important;
+  border-color: #ccc !important;
+  box-shadow: none !important;
+}
 [data-live-root][data-printing="true"] > *:not(#box-score-print-area) {
   display: none !important;
 }
 [data-live-root][data-printing="true"] #box-score-print-area {
   display: block !important;
+  position: static !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area table {
+  font-size: 11px !important;
+  border-collapse: collapse !important;
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area th {
+  color: #555 !important;
+  border-bottom: 1.5px solid #000 !important;
+  padding: 5px 3px !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area td {
+  color: #222 !important;
+  border-bottom: 0.5px solid #ddd !important;
+  padding: 5px 3px !important;
+  text-align: center !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area th:nth-child(2),
+[data-live-root][data-printing="true"] #box-score-print-area td:nth-child(2) {
+  max-width: 80px !important;
+  min-width: 60px !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area th:nth-child(1),
+[data-live-root][data-printing="true"] #box-score-print-area td:nth-child(1) {
+  width: 28px !important;
+}
+[data-live-root][data-printing="true"] .print-total-row td {
+  font-weight: 700 !important;
+  border-top: 1.5px solid #000 !important;
+  border-bottom: none !important;
+}
+[data-live-root][data-printing="true"] [data-print-hide] {
+  display: none !important;
+}
+[data-live-root][data-printing="true"] [data-print-show] {
+  display: block !important;
+  visibility: visible !important;
 }
 
+/* === @media print — print-only 룰 (page-break / @page / color-adjust / 모바일 가드 무력화) === */
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
 
@@ -2584,36 +2648,14 @@ html.light .watermark-text,
     overflow: visible !important;
   }
 
-  /* 색상 강제 변환 */
-  * { color: #000 !important; background: #fff !important; border-color: #ccc !important; box-shadow: none !important; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
-
-  /* 라이브 페이지 zoom 해제 */
-  [data-live-root] { zoom: 1 !important; }
-
-  /* 최상위 컨테이너의 자식 중 프린트 영역만 남김 */
-  [data-live-root] > *:not(#box-score-print-area) {
-    display: none !important;
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
   }
 
-  #box-score-print-area {
-    display: block !important;
-    position: static !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-  }
-
-  /* 박스스코어 테이블 */
-  #box-score-print-area table { font-size: 11px; border-collapse: collapse; width: 100%; table-layout: fixed; }
-  #box-score-print-area th { color: #555 !important; border-bottom: 1.5px solid #000 !important; padding: 5px 3px !important; white-space: nowrap; text-align: center; }
-  #box-score-print-area td { color: #222 !important; border-bottom: 0.5px solid #ddd !important; padding: 5px 3px !important; text-align: center; }
-  #box-score-print-area th:nth-child(2),
-  #box-score-print-area td:nth-child(2) { max-width: 80px !important; min-width: 60px !important; }
-  #box-score-print-area th:nth-child(1),
-  #box-score-print-area td:nth-child(1) { width: 28px !important; }
-
-  /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 */
+  /* 한 섹션(팀×기간)이 한 페이지에 딱 맞도록 (page-break — print 전용) */
   .print-team-page {
     page-break-after: always;
     page-break-inside: avoid;
@@ -2627,13 +2669,6 @@ html.light .watermark-text,
   .print-team-table-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   .print-team-table-wrap table { flex: 1; height: 100%; }
   .print-team-table-wrap table tbody tr:last-child { vertical-align: bottom; }
-
-  /* TOTAL 행 강조 */
-  .print-total-row td { font-weight: 700 !important; border-top: 1.5px solid #000 !important; border-bottom: none !important; }
-
-  /* 프린트 전용 표시/숨김 토글 */
-  [data-print-hide] { display: none !important; }
-  [data-print-show] { display: block !important; visibility: visible !important; }
 }
 
 /* ============================================================
