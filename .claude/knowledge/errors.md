@@ -2,6 +2,18 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] 모바일 박스스코어 프린트 빈 페이지 — max-width: 100vw 글로벌 가드 print 충돌
+- **분류**: ui/css (모바일 print 호환)
+- **증상**: 모바일 (Android Chrome) 라이브 페이지 박스스코어 프린트 → A4 1/1 빈 흰 페이지
+- **원인**: `globals.css` line 213 `@media (max-width: 768px) { html, body { max-width: 100vw } }` 가 print 시에도 active. vw = 모바일 viewport (~360px) 로 평가되어 A4 (~1123px) 페이지 좌상단 360px 영역에 콘텐츠 압축 → 시각적 빈 페이지.
+- **회귀 commit**: `4052684` (5/10 sticky fix `overflow-x: hidden → clip` 의 부수 효과). sticky 자체와 무관한 `max-width: 100vw` 가 같이 박제되어 print 충돌.
+- **fix (A + B 병행)**:
+  1. (A) `@media (max-width: 768px)` → `@media screen and (max-width: 768px)` (print 시 무력화)
+  2. (B) `@media print { html, body { max-width: none !important; overflow: visible !important; } }` 보강 (안전망)
+- **재발 방지 룰**: 글로벌 가드 (overflow / max-width / position) 박제 시 `@media screen and` prefix 명시 — print 호환 사전 검증 필수.
+
+---
+
 ### [2026-05-10] 라이브 페이지 운영자 CTA 미노출 = 버그 X (자동 등록 트리거 후 영상 등록 완료 상태)
 - **분류**: false-alarm (운영 동작 정상)
 - **발견자**: debugger (사용자 보고 미스터리 진단)
