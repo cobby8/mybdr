@@ -866,12 +866,24 @@ export default function LiveBoxScorePage() {
               useCORS: true,
               logging: false,
               onclone: (clonedDoc) => {
-                // 2026-05-10 — 양식 100% globals.css 자동 적용 (사용자 결정: 강제 X / 로직 중심).
-                // globals.css [data-live-root][data-printing="true"] 셀렉터 룰이 root 1100px /
-                // .print-team-page wrapper / 표 spacing 모두 박제 → 속성 강제만으로 양식 적용.
-                // onclone 의 inline style 박제 제거 — single source-of-truth.
+                // 2026-05-10 — globals.css [data-printing="true"] 룰 적용 + html2canvas iframe
+                // 한계 우회. iframe 내부 stylesheet 로딩이 일부 누락 + layout 재계산 정밀도 한계가
+                // 알려져 있어, root + section 에 한해 핵심 사이즈 fallback 만 inline 박제.
+                // (양식 본체 = globals.css 단일 source / inline = layout 사이즈 보장만)
                 const root = clonedDoc.querySelector<HTMLElement>("[data-live-root]");
-                if (root) root.setAttribute("data-printing", "true");
+                if (root) {
+                  root.setAttribute("data-printing", "true");
+                  root.style.width = "1100px";
+                  root.style.maxWidth = "1100px";
+                  root.style.margin = "0 auto";
+                }
+                // 캡처 element 자체 사이즈 보장 — html2canvas 가 element width 측정 시 사용
+                const sections = clonedDoc.querySelectorAll<HTMLElement>(".print-team-page");
+                sections.forEach((s) => {
+                  s.style.width = "1100px";
+                  s.style.maxWidth = "1100px";
+                  s.style.boxSizing = "border-box";
+                });
               },
             });
             if (cancelled) return;
