@@ -61,6 +61,14 @@ const HOT_THRESHOLDS = [
 // 쇼츠 판별 기준: 60초 미만은 쇼츠로 간주
 const MIN_DURATION_SECONDS = 60;
 
+// 5/10 추가: BDR 채널명 고정 (uploads playlist 기반이라 단일 채널)
+// 유튜브 스타일 카드 메타에 표시 ("[BDR]동아리농구방")
+const BDR_CHANNEL_TITLE = "[BDR]동아리농구방";
+
+// 5/10 변경: 인기 영상 노출 개수 (유튜브 스타일 5개 카드)
+// 기존 2개 → 5개. 라이브가 있으면 라이브 + 인기 합산해서 상위 5~7개 슬라이스.
+const POPULAR_VIDEO_COUNT = 5;
+
 // 캐시 최대 수명: 1시간 (라이브 여부와 관계없이 강제 갱신)
 const CACHE_MAX_AGE = 60 * 60 * 1000;
 
@@ -427,12 +435,17 @@ export async function GET(request: NextRequest) {
     const liveVideos = scored.filter((s) => s.isLive);
 
     // 라이브 최대 2개
+    // 5/10 추가: duration / channel_title — 유튜브 스타일 카드 (영상시간 chip + 채널명) 용
+    // duration = ISO 8601 ("PT22M47S") — 클라에서 "M:SS" 변환
+    // channel_title = BDR 채널 고정 (uploads playlist 기반이라 단일 채널)
     const topLive = liveVideos.slice(0, 2).map((s) => ({
       video_id: s.video.videoId,
       title: s.video.title,
       thumbnail: s.video.thumbnail,
       published_at: s.video.publishedAt,
       view_count: s.video.viewCount,
+      duration: s.video.duration, // 신규 (ISO 8601)
+      channel_title: BDR_CHANNEL_TITLE, // 신규
       badges: s.badges,
       is_live: true,
     }));
@@ -444,7 +457,7 @@ export async function GET(request: NextRequest) {
       .filter((v) => v.liveBroadcastContent !== "live") // 라이브 제외
       .filter((v) => parseDuration(v.duration) >= MIN_DURATION_SECONDS) // 쇼츠(1분 미만) 제외
       .sort((a, b) => b.viewCount - a.viewCount) // 조회수 내림차순 정렬
-      .slice(0, 2); // 상위 2개 선정
+      .slice(0, POPULAR_VIDEO_COUNT); // 5/10 변경: 5개 (유튜브 스타일 5카드)
 
     const topNonLive = popularVideos.map((v) => ({
       video_id: v.videoId,
@@ -452,6 +465,8 @@ export async function GET(request: NextRequest) {
       thumbnail: v.thumbnail,
       published_at: v.publishedAt,
       view_count: v.viewCount,
+      duration: v.duration, // 신규 (ISO 8601 — 클라 "M:SS" 변환)
+      channel_title: BDR_CHANNEL_TITLE, // 신규
       // 인기 영상에 배지 부여 (HOT, 디비전 매칭)
       badges: [
         ...(isHotVideo(v.publishedAt, v.viewCount) ? ["HOT"] : []),
