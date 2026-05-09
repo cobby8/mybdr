@@ -513,18 +513,42 @@ export default function LiveBoxScorePage() {
   // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
   const [streamModalOpen, setStreamModalOpen] = useState(false);
 
-  // 2026-05-10 — 페이지 wrapper zoom 1.1 (박스스코어 가독성, 2026-04-15 결정) 이 모바일에서
-  // sticky positioning 을 깨트림 (Chrome Mobile / Safari known issue). 모바일은 zoom 1 로 분기.
-  // PC = zoom 1.1 유지. SSR 첫 렌더는 1.1 (PC 기준) → mount 후 모바일이면 1 로 보정 (깜빡임 1회 허용).
-  const [zoomScale, setZoomScale] = useState(1.1);
+  // 2026-05-10 — 모바일/PC 분기 + YouTube 영상 PIP 모드 (PC 만).
+  //   모바일 (≤767px) = 영상 sticky top-14 (헤더 아래 큰 사이즈 고정)
+  //   PC (≥768px) = 영상이 viewport 안 = 일반 위치 / viewport 밖 = 우측 하단 PIP (YouTube 스타일)
+  //   zoom 1.1 (박스스코어 가독성, 2026-04-15 결정) 도 모바일에서 sticky 깨트림 → 모바일 zoom 1 분기
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPip, setIsPip] = useState(false);
+  const youtubeWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // matchMedia ≤767px 감지 — SSR 첫 렌더 false (PC 기본) → mount 후 모바일이면 true 로 보정 (깜빡임 1회)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mq = window.matchMedia("(max-width: 767px)");
-    const update = () => setZoomScale(mq.matches ? 1 : 1.1);
+    const update = () => setIsMobile(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
+
+  // PC 만: 영상 wrapper 가 viewport 밖일 때 PIP 활성화. 모바일은 sticky 만 사용 → PIP 비활성.
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobile) {
+      setIsPip(false);
+      return;
+    }
+    const target = youtubeWrapperRef.current;
+    if (!target) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsPip(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    obs.observe(target);
+    return () => obs.disconnect();
+  }, [isMobile]);
+
+  // zoom 분기 derived (state 분리 안 함 — isMobile 단일 source-of-truth)
+  const zoomScale = isMobile ? 1 : 1.1;
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -924,32 +948,58 @@ export default function LiveBoxScorePage() {
         </div>
       </div>
 
-      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 + sticky.
-          5/10 사용자 결정 갱신: 핸드폰 세로 모드 포함 모든 화면 sticky 통일.
-            - 영상 영역이 페이지 헤더(sticky top-0 z-20) 바로 아래에 stick (top-14 = 56px)
-            - z-30 < AppNav z-50 / > 페이지 헤더 z-20 — 영상이 헤더 아래 정확히 위치 (헤더 가림 0)
-            - bg = var(--color-background) — sticky 시 뒤 콘텐츠 비침 0
-            - 모바일 세로 = hero/박스스코어 스크롤 시에도 영상 상단 고정 / PC = 동일
-            - 영상 등록 매치만 마운트 (미등록 → hero 그대로 노출 / placeholder 0 — 사용자 결정 Q11)
+      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 / 모바일 sticky / PC PIP 분기.
+          5/10 사용자 결정:
+            모바일 (≤767px) = sticky top-14 (헤더 아래 고정 / 큰 사이즈)
+            PC (≥768px) = 영상 viewport 안 = 일반 위치 / viewport 밖 = 우측 하단 PIP (YouTube 스타일)
+          z-index 레이어:
+            AppNav z-50 > PIP z-40 > 영상 sticky z-30 > 페이지 헤더 z-20
+          bg = var(--color-background) — sticky 시 뒤 콘텐츠 비침 0
+          영상 등록 매치만 마운트 (미등록 → hero 그대로 노출 / placeholder 0 — 사용자 결정 Q11)
           75% wrapper (sm:w-3/4) 로 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김.
-          부모 컨테이너 overflow: visible (sticky 작동 조건) — 라이브 페이지 최상위 컨테이너는 overflow 미설정으로 visible 기본값 ✅ */}
+          PIP 시 wrapper 자체는 in-flow (aspect-video 로 자리 유지) + 별도 fixed wrapper 에 영상 마운트.
+          iframe mount/unmount 시 라이브 영상은 현재 시점부터 재시작 (라이브 = 무관 / VOD = 처음부터). */}
       {match.youtube_video_id ? (
-        <div
-          data-print-hide
-          className="sticky top-14 z-30 px-4 pt-3 pb-3"
-          style={{ backgroundColor: "var(--color-background)" }}
-        >
-          <div className="mx-auto w-full sm:w-3/4">
-            <YouTubeEmbed
-              videoId={match.youtube_video_id}
-              isLive={isLive || match.youtube_status === "manual"}
-              status={match.youtube_status ?? null}
-              isAdmin={isAdmin}
-              // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
-              onManageClick={() => setStreamModalOpen(true)}
-            />
+        <>
+          <div
+            ref={youtubeWrapperRef}
+            data-print-hide
+            className="sticky top-14 z-30 px-4 pt-3 pb-3 md:static md:z-auto"
+            style={{ backgroundColor: "var(--color-background)" }}
+          >
+            <div className="mx-auto w-full sm:w-3/4">
+              {/* PC 에서 PIP 활성 시 sentinel 자리 유지 — aspect-video 로 layout shift 0 */}
+              {isPip ? (
+                <div className="aspect-video w-full" />
+              ) : (
+                <YouTubeEmbed
+                  videoId={match.youtube_video_id}
+                  isLive={isLive || match.youtube_status === "manual"}
+                  status={match.youtube_status ?? null}
+                  isAdmin={isAdmin}
+                  // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
+                  onManageClick={() => setStreamModalOpen(true)}
+                />
+              )}
+            </div>
           </div>
-        </div>
+          {/* PIP 모드 — PC 만 (md: 노출) / fixed 우측 하단 / w-80 (320px) / shadow + rounded */}
+          {isPip && !isMobile && (
+            <div
+              data-print-hide
+              className="hidden md:block fixed bottom-4 right-4 z-40 w-80 rounded-md overflow-hidden"
+              style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}
+            >
+              <YouTubeEmbed
+                videoId={match.youtube_video_id}
+                isLive={isLive || match.youtube_status === "manual"}
+                status={match.youtube_status ?? null}
+                isAdmin={isAdmin}
+                onManageClick={() => setStreamModalOpen(true)}
+              />
+            </div>
+          )}
+        </>
       ) : (
         // 영상 미등록 + 운영자만 노출되는 등록 CTA — 일반 회원에게는 영역 0 (사용자 결정 Q11)
         // CTA 는 sticky X (영상 등록 후에만 sticky 의미 있음) — 일반 위치
