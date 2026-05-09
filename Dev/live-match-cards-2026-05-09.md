@@ -393,7 +393,7 @@ interface LiveMatchCardProps {
 ## §13. 빌드 에러 회피 룰 (5/9 errors.md `[2026-05-09]`)
 
 본 보고서 작성 시 주의:
-- 본문에 invalid Tailwind 클래스 (`bg-[var(--*)]`) 절대 금지
+- 본문에 invalid Tailwind 클래스 (`bg-[var(--ASTERISK)]`) 절대 금지
 - placeholder 사용: `--TOKEN` / `--ASTERISK` / `--PLACEHOLDER`
 - 실제 코드 작성 시 = 인라인 `style={{ backgroundColor: "var(--color-elevated)" }}` 또는 `globals.css` class 통과
 

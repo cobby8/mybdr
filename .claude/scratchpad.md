@@ -8,7 +8,61 @@
 
 ## 🎯 현재 작업
 
-**[5/10 사전 라인업 PR4 cron 푸시 ✅ developer 박제]** Vercel Cron 5분 폴링 + 시작 1h 전 푸시 알림 박제 완료. tsc 0 / prisma client dts 매핑 109건 / Flutter v1 영향 0. ⚠️ 운영 적용 전 사용자 액션 2건: (1) `prisma db push` (NULL 허용 ADD COLUMN — 안전) / (2) Vercel 대시보드 `CRON_SECRET` 환경변수 추가.
+**[5/10 라이브 YouTube 자동 트리거 PR-C ✅ developer 박제]** 라이브 페이지 클라 useEffect 30초 폴링 박제 완료. tsc 0 / 5 시나리오 logic 통과 / 회귀 0. PR-A (헬퍼) + PR-B (endpoint) + PR-C (클라) 3 PR 모두 박제 완료 → 검증 단계 진입 가능.
+
+### 구현 기록 (developer / 5/10 PR-C)
+
+📝 구현한 기능: 라이브 페이지에서 매치 시작 ±10분 윈도우 안에 영상 미등록 매치만 30초 간격으로 PR-B `/api/web/match-stream/auto-register/[matchId]` 폴링 → 80점+ 후보 자동 INSERT 후 fetchMatch refetch 로 임베드 즉시 노출.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/live/[id]/page.tsx` | (1) `autoRegisterActive` state 추가 (line 525~528, streamModalOpen 근처) (2) PR-C useEffect 추가 (line 654~752, admin-check useEffect 직후, ~95L: 윈도우/status 가드 + setInterval 30s + tick 응답 분기 5종 + cleanup) (3) 운영자 토스트 JSX 추가 (line 1024~1043, 영상 미등록 + isAdmin CTA 영역 안에 sync 아이콘 + 안내 메시지 dashed border 박스) | 수정 |
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **시나리오 1 — 운영자 진입 + 영상 미등록 + 윈도우 안**: youtube_video_id=null + status=scheduled + scheduled_at = now ±10분 → "BDR 채널 자동 검색 중..." 토스트 노출 + 30초 간격 endpoint 호출 (Network 탭 확인)
+  2. **시나리오 2 — 일반 viewer**: isAdmin=false 상태 동일 매치 → 토스트 미노출 + CTA 미노출 + 백그라운드 폴링은 동일 작동 (Network 탭 확인)
+  3. **시나리오 3 — registered=true**: PR-B 가 80점+ 후보 INSERT 후 응답 → cancelled=true + clearInterval + fetchMatch refetch → match.youtube_video_id 갱신 → 임베드 즉시 노출
+  4. **시나리오 4 — 윈도우 밖**: 매치 시작 +11분 후 진입 → effect early return → 폴링 시작 0 (Network 탭에서 endpoint 호출 0건)
+  5. **시나리오 5 — status=completed**: in_progress 외 상태 → effect early return → 폴링 시작 0
+  6. **윈도우 drift 방어**: 페이지 오래 열어둔 채 윈도우 벗어남 → tick 의 checkWindow() 매번 검증 → 자동 stop + setActive(false)
+  7. **already_registered (다른 viewer 가 먼저 트리거)** → cancelled=true + clearInterval + fetchMatch (영상 정보 갱신)
+- 정상 동작:
+  - 운영자에게 sync 회전 아이콘 + "BDR 채널 자동 검색 중... (시작 시각 ±10분 윈도우 / 30초 간격)" 토스트 노출
+  - 등록 CTA 버튼 위에 dashed border 박스 (var(--color-card) bg + 운영자만 노출)
+  - 자동 등록 성공 시 토스트 즉시 사라짐 + 임베드 영역 마운트
+- 주의할 입력:
+  - **scheduled_at = null + started_at = null** → effect early return (폴링 시작 안 함)
+  - **rate limit 6회/분/IP+matchId** → 30초 간격 = 분당 2회 = 여유 4회 (PR-B 가드)
+  - **fetch 에러 (네트워크/429/5xx)** → silent fail, 다음 tick 재시도 (catch 안에 console.error 만)
+  - **match 객체 폴링 (3초) 마다 새로 교체**: 미세 의존성 (id/youtube_video_id/status/scheduled_at/started_at/fetchMatch) 으로 분리 → 실제 변경 시만 effect 재실행
+
+⚠️ reviewer 참고:
+- **회귀 영향 0**:
+  - 기존 fetchMatch 3초 폴링 0
+  - 기존 admin-check API 0
+  - 영상 등록 모달 (MatchYouTubeModal) 0
+  - isAdmin / streamModalOpen state 0
+  - iframe sticky/PIP 동작 0 (`youtubeWrapperRef` 마운트 시점은 영상 등록 후 → 폴링은 영상 등록 전 이라 별개)
+  - API 호출 빈도 = 30초 1회 (PR-B rate limit 6/분 한도 안 / 1/3 사용)
+- **무한 루프 방어**:
+  - cancelled flag + clearInterval cleanup 정확
+  - 미세 의존성 (match?.id 등) 으로 effect 재실행 빈도 최소화
+  - registered=true 후 fetchMatch → match.youtube_video_id 갱신 → 미세 의존성 변경 → effect 재실행 시 early return (`if (match.youtube_video_id) return`)
+- **운영자 토스트 디자인**:
+  - var(--color-card) bg + dashed border + Material Symbols sync 회전 (1.5s spin)
+  - lucide-react 0 / Tailwind arbitrary `[var(--*)]` 0 (errors.md 5/9 룰 준수)
+  - text-xs 작은 크기 (CTA 버튼 보조 안내)
+- **PR-A + PR-B + PR-C 통합 검증**:
+  - PR-A scoreMatch 헬퍼 → search/route.ts + auto-register/route.ts 동시 사용 (회귀 0)
+  - PR-B endpoint 응답 5종 모두 클라 분기 처리 (registered=true / already_registered / out_of_window / match_not_live / no_match_found)
+  - PR-C 응답 키 모두 snake_case (data.registered / data.reason / data.video_id / data.match_status — apiSuccess 자동 변환 일관)
+
+📌 미커밋 PR 5건 누적: PR-A scoreMatch / PR-B auto-register endpoint / PR-C 라이브 페이지 useEffect / 사전 라인업 PR3+PR4+PR5 / 라이브 API 임시 jersey 우선 적용
+
+---
+
+**[이전 — 5/10 사전 라인업 PR4 cron 푸시 ✅ developer 박제]** Vercel Cron 5분 폴링 + 시작 1h 전 푸시 알림 박제 완료. tsc 0 / prisma client dts 매핑 109건 / Flutter v1 영향 0. ⚠️ 운영 적용 전 사용자 액션 2건: (1) `prisma db push` (NULL 허용 ADD COLUMN — 안전) / (2) Vercel 대시보드 `CRON_SECRET` 환경변수 추가.
 
 ### 구현 기록 (developer / 5/10 PR4)
 
@@ -273,7 +327,7 @@
 | 검증 | tester (4 시나리오 + tsc + 모바일 가드) + reviewer 병렬 | tester+reviewer | PR 별 | 30분 × 4 |
 
 ⚠️ developer 주의사항:
-- **errors.md `[2026-05-09]` 룰**: Tailwind arbitrary `bg-[var(--*)]` 금지 → 인라인 `style={{ backgroundColor: "var(--color-elevated)" }}` 또는 globals.css class
+- **errors.md `[2026-05-09]` 룰**: Tailwind arbitrary `bg-[var(--ASTERISK_LITERAL)]` 금지 → 인라인 `style={{ backgroundColor: "var(--color-elevated)" }}` 또는 globals.css class
 - **응답 키 snake_case**: `apiSuccess()` 자동 변환 룰 그대로 (errors.md 2026-04-17 5회 재발 함정) — PR1 응답 정의 시 camelCase 작성하더라도 snake_case 변환 후 클라 수신 (PR4 `MatchData` 인터페이스 = `same_day_matches?` snake_case)
 - **BigInt → string**: 매치 ID 모두 `.toString()` 변환 (PR1 응답 시리얼라이즈)
 - **공식 기록 컨텍스트 X** (라이브 매치 카드 = 시각화 / 박스스코어 X) → `getDisplayName()` 헬퍼 미적용 (팀명만 노출)
@@ -447,6 +501,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | (developer) 라이브 YouTube 자동 트리거 PR-C / 미커밋 | **PR-C — `src/app/live/[id]/page.tsx` 클라 useEffect 30초 폴링 박제** — (1) `autoRegisterActive` state 신규 (line 525~528, streamModalOpen 근처). (2) PR-C useEffect ~95L 추가 (line 654~752, admin-check useEffect 직후): match 도달 + youtube_video_id null + status ∈ [scheduled,ready,in_progress] + 윈도우 ±10분 검증 → setInterval 30s + tick 응답 분기 5종 (registered=true 시 clearInterval + fetchMatch / already_registered 시 stop + fetchMatch / match_not_live 시 stop / out_of_window/no_match_found 시 다음 tick 재시도). cleanup = cancelled flag + clearInterval + setActive(false). 미세 의존성 (id/youtube_video_id/status/scheduled_at/started_at/fetchMatch) 으로 fetchMatch 3초 폴링 마다 effect 재설정 빈도 최소화. (3) 운영자 토스트 JSX 추가 (line 1024~1043, 영상 미등록 + isAdmin CTA 영역 안): sync 회전 아이콘 + "BDR 채널 자동 검색 중..." dashed border 박스 / var(--color-card) bg / Material Symbols / lucide-react 0 / Tailwind arbitrary 0. tsc 0 에러. 회귀: 기존 fetchMatch 폴링 / admin-check / 영상 등록 모달 / iframe sticky+PIP 모두 영향 0. API 호출 빈도 = 분당 2회 (PR-B rate limit 6/분 한도의 1/3). | 검증대기 |
 | 2026-05-10 | (developer) 사전 라인업 PR4 cron 푸시 / 미커밋 | **사전 라인업 PR4 — Vercel Cron 5분 폴링 + 시작 1h 전 푸시 알림** — schema.prisma `TournamentMatch.lineup_reminder_sent_at DateTime?` ADD COLUMN (NULL 허용 무중단) + types.ts `NOTIFICATION_TYPES.LINEUP_REMINDER = "lineup.reminder"` 신규 + `src/app/api/cron/lineup-reminder/route.ts` 신규 ~150L (Bearer 가드 / -65~-55분 윈도우 / status ∈ [scheduled,ready] / sent_at IS NULL / 양팀 매칭됨 / batch lineup 조회 N+1 회피 / 양팀 입력완료 매치 skip+sent_at 박제 / 양팀 captain+manager 중복제거 / createNotificationBulk + updateMany 1회) + vercel.json `*/5 * * * *` cron 항목 추가. tsc 0 / prisma client dts 매핑 109건 검증 / Flutter v1 영향 0 / 다른 cron 영향 0. ⚠️ 운영 적용 전 사용자 액션 2건: (1) `prisma db push` 실행 (NULL 허용 ADD COLUMN — 안전) / (2) Vercel 대시보드 `CRON_SECRET` 환경변수 추가 | 검증대기 |
 | 2026-05-10 | (debugger) 라이브 운영자 CTA 미노출 미스터리 진단 / 미커밋 (코드 변경 0) | **debugger 진단 — 버그 X (정상 동작)** — 사용자 보고 = 매치 148 운영자 CTA 0건. DB 1차 SELECT 결과 = `youtube_video_id="iuUMfQJC77I"` (auto_verified) + `status="completed"` + organizerId=2836 일치. 5/9 batch 또는 5/10 라이브 자동 트리거가 영상 자동 등록 완료 → page.tsx 964L 분기 (`youtube_video_id ?`) true 분기 도달 → 영상+우상단 edit 버튼 노출 / 1008L CTA else 분기 자체 도달 0. **fix 필요 0** / 운영자가 영상 우상단 ✏️ edit 버튼 (`_v2/youtube-embed.tsx` 154L)으로 모달 진입 가능. errors.md `[2026-05-10]` 박제 + index.md 갱신 (errors 35→37) + 임시 스크립트 정리 (scripts/_temp/check-admin-148.ts 삭제) | ✅ |
 | 2026-05-09 | (developer) 라이브 매치 카드 패널 PR1~4 통합 / 미커밋 | **PR1~4 통합 — same_day_matches 응답 확장 + LiveMatchCard/Rail 신규 + page.tsx 영상 sticky 아래 통합** — PR1 `/api/live/[id]/route.ts` +125L (KST 같은 날 윈도우 산출 / 같은 대회 findMany select min / 라이브 매치 PBP groupBy 1회 current_quarter 일괄 도출 / BigInt→Number / snake_case 응답 키 그대로 통과 — errors.md 2026-04-17 룰). PR2 `_v2/live-match-card.tsx` 신규 292L (LiveMatchCard + LiveMatchCardData interface / 상태 라벨 분기 "1쿼터" 한국어 Q6=A / 라이브 ping borderRadius 50% / 현재 매치 accent border / Next Link / 종료 매치 승팀 font-bold / memo 폴링 리렌더 회피). PR3 `_v2/live-match-card-rail.tsx` 신규 113L (LiveMatchCardRail / 가로 scrollSnap x mandatory / scrollbarWidth none / 헤더 "오늘의 경기 N건" + 라이브 N건 ping / matches.length<=1 시 null hidden — Q4=A 가변 + 의미 0 회피). PR4 page.tsx +14L (MatchData same_day_matches? 추가 + import + 영상 wrapper 끝 + modal 직전 mount Q5=A). tsc 0 / Tailwind arbitrary `[var(--*)]` 0 / lucide-react 0 / 핑크/살몬/코랄 0 / 하드코딩 hex 0 / 정사각형 원형 = 50% (BDR-current §C-10) / errors.md 2026-04-17 + 2026-05-09 룰 모두 준수. **회귀 0** — Flutter v1 영향 0 / DB schema 0 / 라이브 페이지 기존 영역 (영상/hero/박스/PBP/minutes/사전 라인업) 영향 0 / 5/9 sticky+PIP 영향 0 / API 기존 응답 키 변경 0 (추가만). PR5 시안 박제 (BDR-current/screens/Live.jsx) = 본 PR 범위 밖 (Q8=B 별도). | 검증대기 |
