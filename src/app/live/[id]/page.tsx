@@ -786,45 +786,69 @@ export default function LiveBoxScorePage() {
       const awayName = safe(match.away_team.name);
       const printTitle = `${yy}${mm}${dd}${hh}_${homeName}_${awayName}`;
 
-      const originalTitle = document.title;
-      document.title = printTitle;
-
-      // 2026-05-10 — 모바일 Chrome print viewport hack
-      // 사유: Android Chrome 은 window.print() 시 viewport 를 모바일 크기 (~360px) 그대로 유지 →
-      //   A4 landscape (~1123px) 페이지에 360px 영역만 캡처되어 빈 페이지처럼 보임 (사용자 보고).
-      //   print 직전 viewport meta 를 width=1100 으로 강제 확장 → 모바일 Chrome 이 print preview
-      //   를 1100px 으로 렌더 → A4 정상 캡처. afterprint / cleanup 시 원본 복원.
-      //   PC 에는 영향 0 (PC viewport 이미 큼).
-      const viewportMeta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
-      const originalViewport = viewportMeta?.content ?? "";
-      if (viewportMeta) viewportMeta.content = "width=1100";
-
-      // 2026-04-17: state 기반 프린트 모드 진입 — @media print 의존 없이 모바일 호환
+      // 2026-05-10 Fix D — window.print() 폐기 + html2canvas + jspdf 클라이언트 PDF 생성.
+      // 사유: 모바일 Chrome 은 window.print() 시 viewport 동결 + Fix A/B/C 모두 미작동 보고.
+      //   근본 해결 = window.print() 우회. DOM 영역을 캔버스로 캡처 후 PDF 직접 다운로드.
+      // 동작:
+      //   1. setIsPrinting(true) → #box-score-print-area block 마운트 (CSS 룰)
+      //   2. 200ms 후 (DOM paint) html2canvas 로 1100×auto 캡처
+      //   3. jsPDF 에 PNG 추가 → A4 landscape pdf.save() → 자동 다운로드
+      //   4. isPrinting=false / printOptions=null 복원
+      // PC/모바일 모두 동일 동작 — window.print() / OS PDF 다이얼로그 의존 0.
       setIsPrinting(true);
 
-      // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화
-      const handleAfterPrint = () => {
-        document.title = originalTitle;
-        if (viewportMeta && originalViewport) viewportMeta.content = originalViewport;
-        setIsPrinting(false);
-        setPrintOptions(null);
-        setPrintDialogOpen(false);
-        window.removeEventListener("afterprint", handleAfterPrint);
-      };
-      window.addEventListener("afterprint", handleAfterPrint);
+      let cancelled = false;
+      const t = setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const printArea = document.getElementById("box-score-print-area");
+          if (!printArea) {
+            console.error("[print] #box-score-print-area not found");
+            return;
+          }
+          // dynamic import — bundle size 분리 (라이브러리 ~150KB / 첫 print 시점에만 로드)
+          const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+            import("html2canvas"),
+            import("jspdf"),
+          ]);
+          if (cancelled) return;
 
-      const t = setTimeout(() => {
-        window.print();
-      }, 100);
+          // 캡처 — 1100px 강제 (모바일 viewport 무관 / A4 landscape 가로 ~1123px 매칭)
+          const canvas = await html2canvas(printArea, {
+            scale: 2, // 고해상도
+            width: 1100,
+            windowWidth: 1100,
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            logging: false,
+          });
+          if (cancelled) return;
+
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+          const pdfW = pdf.internal.pageSize.getWidth();
+          const pdfH = pdf.internal.pageSize.getHeight();
+          // 비율 유지 + 최대 페이지 fit
+          const ratio = Math.min(pdfW / (canvas.width / 2), pdfH / (canvas.height / 2));
+          const imgW = (canvas.width / 2) * ratio;
+          const imgH = (canvas.height / 2) * ratio;
+          const offsetX = (pdfW - imgW) / 2;
+          pdf.addImage(imgData, "PNG", offsetX, 0, imgW, imgH);
+          pdf.save(`${printTitle}.pdf`);
+        } catch (err) {
+          console.error("[print] PDF 생성 실패:", err);
+        } finally {
+          if (!cancelled) {
+            setIsPrinting(false);
+            setPrintOptions(null);
+            setPrintDialogOpen(false);
+          }
+        }
+      }, 200);
 
       return () => {
+        cancelled = true;
         clearTimeout(t);
-        // 안전장치: cleanup 시 title 복원 + viewport 복원 + 리스너 제거 + 프린트 모드 해제
-        window.removeEventListener("afterprint", handleAfterPrint);
-        if (document.title === printTitle) document.title = originalTitle;
-        if (viewportMeta && originalViewport && viewportMeta.content === "width=1100") {
-          viewportMeta.content = originalViewport;
-        }
         setIsPrinting(false);
       };
     }
