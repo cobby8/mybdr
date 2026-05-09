@@ -8,7 +8,9 @@
 
 "use client";
 
-import Link from "next/link";
+// 5/10 PlayerLink/TeamLink 3-A 단계 — 팀명 클릭 시 팀 페이지(`/teams/[id]`) 이동.
+// 이유: 글로벌 패턴(2단계 라이브 페이지) 과 일관 — TeamLink 는 hover:underline + null fallback 처리.
+import { TeamLink } from "@/components/links/team-link";
 
 export type LeagueTeam = {
   id: string;
@@ -146,9 +148,8 @@ export function LeagueStandings({ teams, tournamentStatus }: Props) {
                     {ranks[i]}
                   </td>
                   <td className="px-2 py-2.5 font-medium sm:px-3">
-                    <Link href={`/teams/${t.teamId}`} className="hover:underline">
-                      {t.teamName}
-                    </Link>
+                    {/* 5/10: 팀명 클릭 → 팀 페이지. TeamLink 가 hover:underline + null fallback 자동 처리. */}
+                    <TeamLink teamId={t.teamId} name={t.teamName} />
                   </td>
                   <td className="px-2 py-2.5 text-center sm:px-3">{t.gamesPlayed}</td>
                   <td className="px-2 py-2.5 text-center sm:px-3">{t.wins}</td>

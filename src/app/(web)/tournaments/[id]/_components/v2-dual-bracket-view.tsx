@@ -32,7 +32,9 @@
  */
 
 import { Card } from "@/components/ui/card";
-import Link from "next/link";
+// 5/10 PlayerLink/TeamLink 3-A 단계 — 조편성 카드 안 팀명 클릭 시 팀 페이지 이동.
+// 이유: 글로벌 패턴(2단계) 통일 + null fallback(미정 슬롯) 자동 처리.
+import { TeamLink } from "@/components/links/team-link";
 import type { RoundGroup, BracketMatch, TeamSlot } from "@/lib/tournaments/bracket-builder";
 import { BracketView } from "../bracket/_components/bracket-view";
 // Phase F2 활성화 (2026-05-02) — 조별 듀얼토너먼트 round 1~3 시각화 (20매치 카드 그리드)
@@ -316,14 +318,13 @@ function GroupCompositionCard({ groups }: { groups: GroupComposition[] }) {
                           style={{ backgroundColor: t.team.homeColor || t.team.primaryColor || undefined }}
                         />
                       )}
-                      {/* 팀명 (링크) */}
+                      {/* 팀명 (링크) — 5/10: TeamLink 글로벌 패턴 통일 (className 보존). */}
                       {t ? (
-                        <Link
-                          href={`/teams/${t.teamId}`}
-                          className="flex-1 truncate text-sm font-medium text-[var(--color-text-primary)] hover:underline"
-                        >
-                          {getTeamDisplayName(t.team)}
-                        </Link>
+                        <TeamLink
+                          teamId={t.teamId}
+                          name={getTeamDisplayName(t.team)}
+                          className="flex-1 truncate text-sm font-medium text-[var(--color-text-primary)]"
+                        />
                       ) : (
                         <span className="flex-1 italic text-sm text-[var(--color-text-muted)]">
                           미정
