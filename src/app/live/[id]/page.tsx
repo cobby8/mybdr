@@ -24,6 +24,12 @@ import { GameResultV2, type MatchDataV2 } from "./_v2/game-result";
 // 운영자 (organizer + tournament_admin_members.is_active=true) 만 진입.
 // admin-check API 통과한 사용자에게만 헤더 우측 "임시 번호" 버튼 노출.
 import { MatchJerseyOverrideModal } from "./_v2/match-jersey-override-modal";
+// 2026-05-09 PR3 — 라이브 YouTube 영상 임베딩 (16:9 + 라이브/VOD 분기 + 모바일 4 분기점).
+// youtube_video_id 가 NULL 이 아닐 때만 hero 아래 영역 마운트 (Q11 결재 — 영역 hidden).
+import { YouTubeEmbed } from "./_v2/youtube-embed";
+// 2026-05-09 PR4+PR5 — 운영자 모달 (수동 URL 입력 + BDR 채널 자동 검색).
+// isAdmin = true 일 때만 마운트. POST/DELETE /youtube-stream API 호출 후 fetchMatch refetch.
+import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -136,6 +142,11 @@ interface MatchData {
     fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
     game_score: number;
   } | null;
+  // 2026-05-09 PR3: 라이브 YouTube 영상 — 매치 1건 = 영상 1건 (1:1 옵션 A).
+  // null 이면 임베드 영역 hidden (Q11). apiSuccess snake_case 변환 후 클라이언트 수신.
+  youtube_video_id?: string | null;
+  youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
+  youtube_verified_at?: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -498,6 +509,49 @@ export default function LiveBoxScorePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
 
+  // 2026-05-09 PR4+PR5 — 매치 YouTube 영상 운영자 모달 상태.
+  // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
+  const [streamModalOpen, setStreamModalOpen] = useState(false);
+
+  // 2026-05-10 — 모바일/PC 분기 + YouTube 영상 PIP 모드 (PC 만).
+  //   모바일 (≤767px) = 영상 sticky top-14 (헤더 아래 큰 사이즈 고정)
+  //   PC (≥768px) = 영상이 viewport 안 = 일반 위치 / viewport 밖 = 우측 하단 PIP (YouTube 스타일)
+  //   zoom 1.1 (박스스코어 가독성, 2026-04-15 결정) 도 모바일에서 sticky 깨트림 → 모바일 zoom 1 분기
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPip, setIsPip] = useState(false);
+  const youtubeWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // matchMedia ≤767px 감지 — SSR 첫 렌더 false (PC 기본) → mount 후 모바일이면 true 로 보정 (깜빡임 1회)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  // PC 만: 영상 wrapper 가 viewport 밖일 때 PIP 활성화. 모바일은 sticky 만 사용 → PIP 비활성.
+  // dependency 에 match?.youtube_video_id 포함 — 영상이 fetch 후 마운트되는 타이밍 wrapper ref
+  // 가 채워진 후 effect 가 다시 실행되어야 observer 가 정상 attach 됨 (5/10 사용자 발견 fix).
+  useEffect(() => {
+    if (typeof window === "undefined" || isMobile || !match?.youtube_video_id) {
+      setIsPip(false);
+      return;
+    }
+    const target = youtubeWrapperRef.current;
+    if (!target) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => setIsPip(!entry.isIntersecting),
+      { threshold: 0 },
+    );
+    obs.observe(target);
+    return () => obs.disconnect();
+  }, [isMobile, match?.youtube_video_id]);
+
+  // zoom 분기 derived (state 분리 안 함 — isMobile 단일 source-of-truth)
+  const zoomScale = isMobile ? 1 : 1.1;
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMatch = useCallback(async () => {
@@ -734,7 +788,7 @@ export default function LiveBoxScorePage() {
       data-live-root
       data-printing={isPrinting ? "true" : undefined}
       className="min-h-screen"
-      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: isPrinting ? 1 : 1.1 }}
+      style={{ backgroundColor: "var(--color-background)", color: "var(--color-text-primary)", zoom: isPrinting ? 1 : zoomScale }}
     >
       {/* 2026-05-02: 일시 에러 (rate limit 429 / 5xx / 네트워크) 알림 — 우상단 작은 토스트
           match 데이터 유지하면서 사용자에게 재시도 중임을 표시. 다음 폴링 (3s) 에 자동 사라짐. */}
@@ -896,6 +950,84 @@ export default function LiveBoxScorePage() {
         </div>
       </div>
 
+      {/* 2026-05-09 라이브 YouTube 영상 — hero 위 / 모바일 sticky / PC PIP 분기.
+          5/10 사용자 결정:
+            모바일 (≤767px) = sticky top-14 (헤더 아래 고정 / 큰 사이즈)
+            PC (≥768px) = 영상 viewport 안 = 일반 위치 / viewport 밖 = 우측 하단 PIP (YouTube 스타일)
+          z-index 레이어:
+            AppNav z-50 > PIP z-40 > 영상 sticky z-30 > 페이지 헤더 z-20
+          bg = var(--color-background) — sticky 시 뒤 콘텐츠 비침 0
+          영상 등록 매치만 마운트 (미등록 → hero 그대로 노출 / placeholder 0 — 사용자 결정 Q11)
+          75% wrapper (sm:w-3/4) 로 스코어카드와 시각 정렬. data-print-hide 로 프린트 시 숨김.
+          PIP 시 wrapper 자체는 in-flow (aspect-video 로 자리 유지) + 별도 fixed wrapper 에 영상 마운트.
+          iframe mount/unmount 시 라이브 영상은 현재 시점부터 재시작 (라이브 = 무관 / VOD = 처음부터). */}
+      {match.youtube_video_id ? (
+        <>
+          <div
+            ref={youtubeWrapperRef}
+            data-print-hide
+            className="sticky top-14 z-30 px-4 pt-3 pb-3 md:static md:z-auto"
+            style={{ backgroundColor: "var(--color-background)" }}
+          >
+            <div className="mx-auto w-full sm:w-3/4">
+              {/* PC 에서 PIP 활성 시 sentinel 자리 유지 — aspect-video 로 layout shift 0 */}
+              {isPip ? (
+                <div className="aspect-video w-full" />
+              ) : (
+                <YouTubeEmbed
+                  videoId={match.youtube_video_id}
+                  isLive={isLive || match.youtube_status === "manual"}
+                  status={match.youtube_status ?? null}
+                  isAdmin={isAdmin}
+                  // PR4+PR5 — 운영자 클릭 시 모달 오픈 (수동 입력 / 자동 검색 탭)
+                  onManageClick={() => setStreamModalOpen(true)}
+                />
+              )}
+            </div>
+          </div>
+          {/* PIP 모드 — PC 만 (md: 노출) / fixed 우측 하단 / w-80 (320px) / shadow + rounded */}
+          {isPip && !isMobile && (
+            <div
+              data-print-hide
+              className="hidden md:block fixed bottom-4 right-4 z-40 w-80 rounded-md overflow-hidden"
+              style={{ boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}
+            >
+              <YouTubeEmbed
+                videoId={match.youtube_video_id}
+                isLive={isLive || match.youtube_status === "manual"}
+                status={match.youtube_status ?? null}
+                isAdmin={isAdmin}
+                onManageClick={() => setStreamModalOpen(true)}
+              />
+            </div>
+          )}
+        </>
+      ) : (
+        // 영상 미등록 + 운영자만 노출되는 등록 CTA — 일반 회원에게는 영역 0 (사용자 결정 Q11)
+        // CTA 는 sticky X (영상 등록 후에만 sticky 의미 있음) — 일반 위치
+        isAdmin && (
+          <div data-print-hide className="px-4 pt-3 pb-3">
+            <div className="mx-auto w-full sm:w-3/4">
+              <button
+                type="button"
+                onClick={() => setStreamModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-elevated)",
+                  color: "var(--color-text-primary)",
+                  border: "1px dashed var(--color-border)",
+                  borderRadius: "4px",
+                }}
+                aria-label="YouTube 영상 등록 (운영자 전용)"
+              >
+                <span className="material-symbols-outlined text-base">smart_display</span>
+                YouTube 영상 등록
+              </button>
+            </div>
+          </div>
+        )
+      )}
+
       {/* 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
           isAdmin = false 면 마운트 안 함. fetchMatch refetch 로 새 jersey 반영. */}
       {isAdmin && match && (
@@ -920,6 +1052,23 @@ export default function LiveBoxScorePage() {
           }))}
           onSuccess={() => {
             // 저장 성공 시 라이브 페이지 즉시 refetch — 새 jersey 반영
+            fetchMatch();
+          }}
+        />
+      )}
+
+      {/* 2026-05-09 PR4+PR5 — 매치 YouTube 영상 운영자 모달 (수동 입력 / 자동 검색 2탭).
+          isAdmin = false 면 마운트 안 함. POST/DELETE 후 fetchMatch refetch 로 라이브 페이지 영상 즉시 반영. */}
+      {isAdmin && match && (
+        <MatchYouTubeModal
+          isOpen={streamModalOpen}
+          onClose={() => setStreamModalOpen(false)}
+          tournamentId={match.tournament_id}
+          matchId={match.id}
+          currentVideoId={match.youtube_video_id ?? null}
+          currentStatus={match.youtube_status ?? null}
+          onSave={() => {
+            // 저장/삭제 성공 시 라이브 페이지 즉시 refetch — youtube_video_id 새로 반영
             fetchMatch();
           }}
         />
@@ -1071,6 +1220,8 @@ export default function LiveBoxScorePage() {
         </div>
         {/* /75% 래퍼 닫기 */}
       </div>
+
+      {/* 2026-05-09: 라이브 YouTube 영상은 hero 위로 이동 (사용자 결정 5/9). 위쪽 헤더 sticky 다음 마운트 위치 참조 */}
 
       {/* 2026-04-16: 박스스코어 화면용 영역 (data-print-hide로 프린트 시 숨김)
           기존 BoxScoreTable은 쿼터 필터 버튼과 함께 화면 표시만 담당 */}

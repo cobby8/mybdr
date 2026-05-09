@@ -203,14 +203,20 @@ body {
  *     향후 신규 컴포넌트가 같은 안티패턴을 재발할 가능성이 높아 시스템 레벨
  *     안전망으로 가로 스크롤을 차단한다. (768px 이하만 적용 — 데스크톱은 무영향)
  *     근본 픽스는 컴포넌트 grid 자체. 본 가드는 마지막 방어선.
+ *
+ * [2026-05-10] overflow-x: hidden → clip 변경.
+ *   사유: hidden 은 scroll container 를 생성하여 자식 sticky positioning 을 깨트림
+ *   (라이브 페이지 YouTube 영상 sticky 모바일 미작동 — 사용자 5/10 발견). clip 은
+ *   scroll container 를 만들지 않아 sticky 호환. 시각 효과 (가로 잘림) 동일.
+ *   브라우저 지원: Chrome 90+ / Safari 15.4+ / Firefox 81+ (2022 GA 이후 안정).
  * ============================================================ */
 @media (max-width: 768px) {
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100vw;
   }
   /* .page = 본문 셸. 자식 grid 가 셸을 밀더라도 가로 스크롤은 차단 */
-  .page { overflow-x: hidden; max-width: 100%; }
+  .page { overflow-x: clip; max-width: 100%; }
 }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 2px; }

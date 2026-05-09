@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db/prisma";
 import { createNotification } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 import { apiSuccess, apiError } from "@/lib/api/response";
+// 5/9 displayName P0 — 운영진 표시명 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2026-05-05 Phase 4 PR12 — 운영진 권한 위임/회수/조회 (captain only)
@@ -107,6 +109,9 @@ export const GET = withWebAuth(async (_req: Request, routeCtx: RouteCtx, ctx: We
               nickname: g.user.nickname,
               name: g.user.name,
               profile_image: g.user.profile_image,
+              // 5/9 displayName P0 — 운영진 표시명 (실명 우선) 추가.
+              //   기존 nickname/name 키는 보존 (브레이킹 0). 프론트는 displayName 우선 사용 권장.
+              displayName: getDisplayName(g.user, undefined, "운영진"),
             }
           : null,
       })),
