@@ -2576,8 +2576,14 @@ html.light .watermark-text,
  */
 
 /* === data-printing="true" — 화면 + print 양쪽 작동 (양식 본체) === */
+/* 2026-05-10 — root 자체 1100px 강제 (PDF 캡처 viewport 확장 + 표 layout 재계산).
+   화면 적용 부작용 = overlay 로 가림. globals.css single source-of-truth. */
 [data-live-root][data-printing="true"] {
   zoom: 1 !important;
+  width: 1100px !important;
+  max-width: 1100px !important;
+  margin: 0 auto !important;
+  background: #fff !important;
 }
 [data-live-root][data-printing="true"] * {
   color: #000 !important;
@@ -2594,6 +2600,31 @@ html.light .watermark-text,
   padding: 0 !important;
   margin: 0 !important;
   width: 100% !important;
+}
+/* 섹션 wrapper — 1팀×1기간 = 1 PDF 페이지 / A4 landscape 가로 fit */
+[data-live-root][data-printing="true"] .print-team-page {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 1100px !important;
+  max-width: 1100px !important;
+  padding: 20px 30px !important;
+  box-sizing: border-box !important;
+  height: auto !important;
+  overflow: visible !important;
+  background: #fff !important;
+}
+/* 표 wrapper / 행 spacing — 사용자 PDF 양식 동등 (행간 적당한 padding) */
+[data-live-root][data-printing="true"] .print-team-table-wrap {
+  flex: none !important;
+}
+[data-live-root][data-printing="true"] .print-team-table-wrap table {
+  height: auto !important;
+}
+[data-live-root][data-printing="true"] #box-score-print-area td {
+  padding: 14px 6px !important;  /* 행간 spacing 풍부 (사용자 PDF 동등) */
+}
+[data-live-root][data-printing="true"] #box-score-print-area th {
+  padding: 10px 6px !important;
 }
 [data-live-root][data-printing="true"] #box-score-print-area table {
   font-size: 11px !important;
