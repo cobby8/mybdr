@@ -8,7 +8,91 @@
 
 ## 🎯 현재 작업
 
-**[5/10 마무리 — 라이브 자동 트리거 + 사전 라인업 PR4 main 배포 완료]**
+**[5/10 후속 #1 + #2 — pending → scheduled 자동 전환 헬퍼 + stale pending 모니터링 cron 둘 다 박제]**
+
+### 구현 기록 — 후속 #1 (developer)
+
+📝 구현한 기능: stale pending 재발 방지 — 매치 update 시 (pending + homeTeam + awayTeam + scheduledAt 모두 충족) 자동으로 status="scheduled" 전환
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|---------|
+| `src/lib/tournaments/auto-status.ts` | `shouldAutoSchedule()` 헬퍼 + `autoScheduleAuditContext()` + `AutoScheduleTrigger` 타입 (60L) | 신규 |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` | PATCH route 가드 — 사용자 명시 status 없을 때만 trigger / context 분기 | 수정 |
+| `src/lib/services/match.ts` | `updateMatch` + `updateMatchStatus` winner 진출 — 무조건 "scheduled" 박던 코드 → 헬퍼 가드 (scheduledAt 미정 시 pending 유지) | 수정 |
+| `src/lib/tournaments/dual-progression.ts` | `progressDualMatch` winner/loser 진출 시 다음 매치 자동 전환 가드 | 수정 |
+
+핵심 박제:
+- 4 조건 (pending + homeTeam + awayTeam + scheduledAt 모두 NULL 아님) → 자동 scheduled
+- 사용자 명시 status (예: cancelled) 우선 — 자동 전환 X (사용자 의도 보존)
+- audit context "auto-schedule pending→scheduled" 명시 (admin trigger 와 구분)
+- 후속 #2 cron 과 상호 보완 — 본 PR 은 update 시점 즉시 전환 / cron 은 1시간 폴링 백업
+
+검증:
+- `npx tsc --noEmit` 0 에러 ✅
+- 기존 PATCH route 사용처 영향 0 (사용자 명시 status 우선 룰)
+- single elim 회귀 위험 = `updateMatch`/`updateMatchStatus` 의 기존 무조건 "scheduled" → 가드 추가 (scheduledAt 미정 시 pending 유지) 의도가 맞는 변경 (의도 X 였을 가능성 높음)
+- DB schema 0 / Flutter v1 0
+
+💡 tester 참고:
+- 검증 시나리오:
+  1. dual_tournament 매치 (pending) — 운영자가 home + away + 일정 한꺼번에 입력 → status 자동 "scheduled"
+  2. status 만 단독 변경 (예: scheduled → cancelled) — 사용자 명시 우선, 자동 전환 X
+  3. 4 조건 중 하나 NULL — pending 유지 (예: 팀 둘 채웠지만 일정 미정)
+  4. winner 진출 시 다음 매치가 (반대 슬롯 + 일정) 채워져 있으면 자동 scheduled
+- audit 검증: tournament_match_audits 에 `auto-schedule pending→scheduled` context 박힘
+- 주의 입력: cancelled → scheduled reschedule 시 → currentStatus 가 cancelled 이므로 본 룰 영향 X
+
+⚠️ reviewer 참고:
+- **`updateMatch`/`updateMatchStatus` 행위 변경**: 기존 "winner 진출 시 무조건 scheduled" → "scheduledAt 있을 때만"
+  - 영향: single elim 트리에서 winner 진출 + 다음 매치 일정 미정 → 다음 매치 pending 유지 (이전엔 scheduled 박혔음)
+  - 의도 맞는 변경 (scheduledAt 없는데 scheduled 는 의미 X — UI 노출 정책에도 부합)
+- audit log from/to 자동 박제 (status 변경 추적 가능)
+
+---
+
+### 구현 기록 — 후속 #2 (developer)
+
+📝 구현한 기능: stale pending 매치 자동 정정 cron (1시간 폴링) + admin_log audit
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/cron/stale-pending-fix/route.ts` | 신규 cron — Bearer 가드 + stale pending SELECT + updateMany + admin_logs createMany (155L) | 신규 |
+| `vercel.json` | crons 배열에 `stale-pending-fix` (`0 * * * *` 매시 정각) 추가 | 수정 |
+
+핵심 박제:
+- PR-B (`auto-register/[matchId]/route.ts`) `resolveSystemAdminId` 패턴 그대로 — admin_id NOT NULL FK 채우기 위해 super_admin 첫 번째 system actor
+- 미래 매치만 (`scheduledAt: { gte: now }`) — 지난 pending 은 manual 검토 (cron 범위 외)
+- updateMany where 절에 `status: "pending"` 가드 재확인 (race condition 방지)
+- admin_logs.changes_made = { from, to, trigger, match_code, tournament_id, scheduled_at } 박제
+- admin_logs createMany 실패 = silent fail (정정 자체는 성공 / audit 누락만)
+- BigInt JSON 직렬화 회피 — 응답에서 m.id.toString() 변환
+
+검증:
+- `npx tsc --noEmit` 0 에러 ✅
+- 운영 영향 0 (cron 추가만 / DB schema 변경 0)
+- Bearer 가드 401 정상 동작 (lineup-reminder 와 동일 패턴)
+- admin_logs INSERT 정합성 — action / resource_type / created_at / updated_at 필수 필드 모두 채움
+
+회귀 영향:
+| 영역 | 영향 |
+|------|------|
+| 기존 lineup-reminder cron | 0 (별도 path / 별도 schedule) |
+| matches PATCH route (후속 #1) | 0 (cron 은 별도 폴링) |
+| DB schema | 0 (admin_logs 기존 룰 사용) |
+| Flutter v1 | 0 |
+
+💡 tester 참고:
+- 테스트 방법: Bearer 가드 검증 (Authorization 헤더 없이 호출 → 401)
+- 정상 동작: 미래 stale pending 0건 → `{ count: 0, matches: [] }` (idle 정상)
+- 주의할 입력: 미래 + pending + 양 팀 매칭됨 매치만 정정 (지난 pending 은 정정 0)
+- Vercel CRON_SECRET 미설정 시 cron 401 (정상 동작 안 함)
+
+⚠️ reviewer 참고:
+- super_admin 0건 운영 DB 케이스 → admin_logs 박제 skip (silent fail / 정정 자체는 성공). 실 운영 DB 에 super_admin ≥1 보장됨 (PR-B 와 동일 가정)
+- stale pending 0건 시 admin_logs.createMany 호출 0 — early return 가드
+- `0 * * * *` schedule 적정성 (5분 폴링은 과함 / 1시간이면 충분)
+
+---
 
 main `84569c3` (PR #248 + #249). subin = dev = main 동기화 깨끗. 미푸시 0.
 
@@ -76,6 +160,7 @@ main `84569c3` (PR #248 + #249). subin = dev = main 동기화 깨끗. 미푸시 
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | subin (미커밋) | **후속 #1 — pending → scheduled 자동 전환 헬퍼 박제** — `auto-status.ts` 신규 + matches PATCH route + services/match.ts (updateMatch/updateMatchStatus) + dual-progression.ts 4 위치 박제. 4 조건 가드 (pending + homeTeam + awayTeam + scheduledAt). tsc 0 에러. 후속 #2 cron 과 상호 보완 (update 시점 즉시 + 1시간 폴링 백업). | ⏳ 커밋 대기 |
 | 2026-05-10 | main `84569c3` (PR #249) | **PR-B/C 라이브 자동 트리거 + 사전 라인업 PR4 + 매치 카드 + Tailwind 3차 fix** — 5 commit (a490556 PR-B / 21d3783 매치 카드 / 8d5d660 Tailwind / a32ecf9 PR4 / 12e9159 docs). matchId=149 자동 등록 시연 (125점). prisma db push 동기화. CRON_SECRET 사용자 액션 대기. | ✅ |
 | 2026-05-10 | main `c62994b` (PR #247) | **PR-A scoreMatch 헬퍼 추출 + 자동 트리거 설계 보고서 + Live.jsx 시안 박제** — 2 commit (ab12cd9 PR-A / d9d0ebf 시안). search route -113L 리팩 / 회귀 0. | ✅ |
 | 2026-05-09 | main `a80845c` (PR #245) | **5/9~10 누적 일괄 — 라이브 YouTube 임베딩 (모바일 sticky / PC PIP) + 사전 라인업 PR3~5 + Flutter PR6 핸드오프 2종** — 9 commit. matchId=148 자동 등록 시연. errors.md `[2026-05-10] sticky 모바일 미작동` 박제. | ✅ |
