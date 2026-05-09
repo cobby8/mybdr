@@ -505,6 +505,8 @@ export default function LiveBoxScorePage() {
   //                값이 세팅되면 useEffect에서 DOM 업데이트 후 window.print() 호출.
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
+  // 2026-05-10 — 프린트 모드 분기 (system = window.print OS 다이얼로그 / pdf = html2canvas+jspdf 자동 다운로드)
+  const [printMode, setPrintMode] = useState<"system" | "pdf">("pdf");
   // 2026-04-17: state 기반 프린트 모드 토글 — 모바일/태블릿 브라우저 호환성 개선.
   // 기존 @media print + Tailwind print:block 방식은 일부 모바일 브라우저가 뷰포트 스냅샷
   // 모드로 처리해 hidden 그대로 유지되어 blank 출력되는 문제가 있었음.
@@ -786,18 +788,39 @@ export default function LiveBoxScorePage() {
       const awayName = safe(match.away_team.name);
       const printTitle = `${yy}${mm}${dd}${hh}_${homeName}_${awayName}`;
 
-      // 2026-05-10 Fix D — window.print() 폐기 + html2canvas + jspdf 클라이언트 PDF 생성.
-      // 사유: 모바일 Chrome 은 window.print() 시 viewport 동결 + Fix A/B/C 모두 미작동 보고.
-      //   근본 해결 = window.print() 우회. DOM 영역을 캔버스로 캡처 후 PDF 직접 다운로드.
-      // 동작:
-      //   1. setIsPrinting(true) → #box-score-print-area block 마운트 (CSS 룰)
-      //   2. 200ms 후 (DOM paint) html2canvas 로 1100×auto 캡처
-      //   3. jsPDF 에 PNG 추가 → A4 landscape pdf.save() → 자동 다운로드
-      //   4. isPrinting=false / printOptions=null 복원
-      // PC/모바일 모두 동일 동작 — window.print() / OS PDF 다이얼로그 의존 0.
+      // 2026-05-10 — 프린트 모드 분기.
+      //   system = window.print() OS 다이얼로그 (PC 권장 / 모바일 Chrome 미작동)
+      //   pdf    = html2canvas + jspdf 자동 PDF 다운로드 (모바일 호환)
+      // 박스스코어 영역은 .print-team-page 단위로 페이지 분리 → PDF 모드는 각 섹션 별도 페이지.
       setIsPrinting(true);
 
       let cancelled = false;
+
+      if (printMode === "system") {
+        // === SYSTEM MODE (window.print) — OS 다이얼로그 + 종이/PDF 출력 ===
+        const originalTitle = document.title;
+        document.title = printTitle;
+        const handleAfterPrint = () => {
+          document.title = originalTitle;
+          setIsPrinting(false);
+          setPrintOptions(null);
+          setPrintDialogOpen(false);
+          window.removeEventListener("afterprint", handleAfterPrint);
+        };
+        window.addEventListener("afterprint", handleAfterPrint);
+        const t = setTimeout(() => {
+          if (!cancelled) window.print();
+        }, 100);
+        return () => {
+          cancelled = true;
+          clearTimeout(t);
+          window.removeEventListener("afterprint", handleAfterPrint);
+          if (document.title === printTitle) document.title = originalTitle;
+          setIsPrinting(false);
+        };
+      }
+
+      // === PDF MODE (html2canvas + jspdf) — 섹션별 페이지 분할 + A4 landscape 가로 fit ===
       const t = setTimeout(async () => {
         if (cancelled) return;
         try {
@@ -806,34 +829,64 @@ export default function LiveBoxScorePage() {
             console.error("[print] #box-score-print-area not found");
             return;
           }
-          // dynamic import — bundle size 분리 (라이브러리 ~150KB / 첫 print 시점에만 로드)
+          // 각 .print-team-page = 1 PDF 페이지 (홈 누적 / 홈 Q1 / ... / 원정 누적 / ...)
+          const sections = printArea.querySelectorAll<HTMLElement>(".print-team-page");
+          if (sections.length === 0) {
+            console.error("[print] .print-team-page 섹션 0건");
+            return;
+          }
+          // dynamic import — bundle size 분리 (~150KB / 첫 PDF 저장 시점만 로드)
           const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
             import("html2canvas"),
             import("jspdf"),
           ]);
           if (cancelled) return;
 
-          // 캡처 — 1100px 강제 (모바일 viewport 무관 / A4 landscape 가로 ~1123px 매칭)
-          const canvas = await html2canvas(printArea, {
-            scale: 2, // 고해상도
-            width: 1100,
-            windowWidth: 1100,
-            backgroundColor: "#ffffff",
-            useCORS: true,
-            logging: false,
-          });
-          if (cancelled) return;
-
-          const imgData = canvas.toDataURL("image/png");
           const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-          const pdfW = pdf.internal.pageSize.getWidth();
-          const pdfH = pdf.internal.pageSize.getHeight();
-          // 비율 유지 + 최대 페이지 fit
-          const ratio = Math.min(pdfW / (canvas.width / 2), pdfH / (canvas.height / 2));
-          const imgW = (canvas.width / 2) * ratio;
-          const imgH = (canvas.height / 2) * ratio;
-          const offsetX = (pdfW - imgW) / 2;
-          pdf.addImage(imgData, "PNG", offsetX, 0, imgW, imgH);
+          const pdfW = pdf.internal.pageSize.getWidth();   // 297mm
+          const pdfH = pdf.internal.pageSize.getHeight();  // 210mm
+
+          for (let i = 0; i < sections.length; i++) {
+            if (cancelled) return;
+            const section = sections[i];
+            // 섹션을 1100px 너비 강제로 캡처 — 모바일 viewport 무관 + 양식 유지
+            const canvas = await html2canvas(section, {
+              scale: 2, // 고해상도 (재현 정밀)
+              width: 1100,
+              windowWidth: 1100,
+              backgroundColor: "#ffffff",
+              useCORS: true,
+              logging: false,
+              onclone: (clonedDoc) => {
+                // clone 된 DOM 의 wrapper 에 명시 width / 일반 layout 강제
+                const clonedSection = clonedDoc.querySelectorAll<HTMLElement>(".print-team-page")[i];
+                if (clonedSection) {
+                  clonedSection.style.width = "1100px";
+                  clonedSection.style.maxWidth = "1100px";
+                  clonedSection.style.padding = "20px";
+                  clonedSection.style.boxSizing = "border-box";
+                }
+                // 모바일 가드 / sticky / zoom 모두 무력화 (clone 안에서만 적용)
+                const root = clonedDoc.querySelector<HTMLElement>("[data-live-root]");
+                if (root) root.style.zoom = "1";
+              },
+            });
+            if (cancelled) return;
+
+            const imgData = canvas.toDataURL("image/png");
+            const imgWmm = canvas.width / 2;   // scale 2 보정 (px @ 2x → 1x px)
+            const imgHmm = canvas.height / 2;
+            // A4 landscape 가로 fit — 가로 297mm 채우고 세로 비율 유지
+            const ratio = Math.min(pdfW / imgWmm, pdfH / imgHmm);
+            const drawW = imgWmm * ratio;
+            const drawH = imgHmm * ratio;
+            const offsetX = (pdfW - drawW) / 2;
+            const offsetY = (pdfH - drawH) / 2;
+
+            if (i > 0) pdf.addPage("a4", "landscape");
+            pdf.addImage(imgData, "PNG", offsetX, offsetY, drawW, drawH);
+          }
+
           pdf.save(`${printTitle}.pdf`);
         } catch (err) {
           console.error("[print] PDF 생성 실패:", err);
@@ -852,7 +905,7 @@ export default function LiveBoxScorePage() {
         setIsPrinting(false);
       };
     }
-  }, [printOptions, match]);
+  }, [printOptions, match, printMode]);
 
   // 2026-04-16: printOptions 기반 동적 섹션 목록
   // 순서: 홈(누적 → 1Q → ... → OT) → 원정(누적 → 1Q → ... → OT)
@@ -1478,12 +1531,16 @@ export default function LiveBoxScorePage() {
         </div>
       )}
 
-      {/* 프린트 버튼 — 기본 text-sm → text-base 확대, 배경/텍스트는 CSS 변수로
-          2026-04-16: 클릭 시 바로 window.print() 대신 옵션 다이얼로그 오픈 */}
-      <div data-print-hide className="px-4 pb-8">
+      {/* 프린트 / PDF 저장 버튼 — 2026-05-10 분리 (사용자 결정).
+          프린트 = window.print() OS 다이얼로그 (PC 권장 / 모바일 미작동)
+          PDF 저장 = html2canvas + jspdf 자동 다운로드 (모바일/PC 모두) — 섹션별 페이지 분할 + 양식 유지 */}
+      <div data-print-hide className="px-4 pb-8 grid grid-cols-2 gap-2">
         <button
-          onClick={() => setPrintDialogOpen(true)}
-          className="w-full py-3 rounded-xl text-base font-semibold border transition-colors flex items-center justify-center gap-2"
+          onClick={() => {
+            setPrintMode("system");
+            setPrintDialogOpen(true);
+          }}
+          className="py-3 rounded-xl text-base font-semibold border transition-colors flex items-center justify-center gap-2"
           style={{
             color: "var(--color-text-primary)",
             backgroundColor: "var(--color-card)",
@@ -1491,7 +1548,22 @@ export default function LiveBoxScorePage() {
           }}
         >
           <span className="material-symbols-outlined text-lg">print</span>
-          박스스코어 프린트
+          프린트
+        </button>
+        <button
+          onClick={() => {
+            setPrintMode("pdf");
+            setPrintDialogOpen(true);
+          }}
+          className="py-3 rounded-xl text-base font-semibold border transition-colors flex items-center justify-center gap-2"
+          style={{
+            color: "var(--color-text-primary)",
+            backgroundColor: "var(--color-card)",
+            borderColor: "var(--color-border)",
+          }}
+        >
+          <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+          PDF 저장
         </button>
       </div>
 
