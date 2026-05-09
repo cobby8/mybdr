@@ -27,28 +27,35 @@
  * ============================================================ */
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEventHandler, ReactNode } from "react";
 
 type PlayerLinkProps = {
   /** User.id (BigInt → string 또는 number 허용). null/undefined = placeholder ttp → 링크 비활성 */
   userId?: string | number | bigint | null;
   /** 표시 이름 (실명 / 닉네임 / 등번호 / fallback — 호출 측에서 `getDisplayName()` 헬퍼 결과 전달 권장) */
-  name: string;
+  name?: string;
+  /** 자식 노드 (있으면 name 무시 — 아바타+이름 등 복합 노드) */
+  children?: ReactNode;
   /** 추가 className (사용처에서 폰트/사이즈 제어) */
   className?: string;
   /** 추가 inline style (color override 등 — hover 색상은 컴포넌트 내장 처리) */
   style?: CSSProperties;
   /** 새 탭 열기 (기본 false — 같은 탭 이동) */
   newTab?: boolean;
+  /** 클릭 핸들러 (예: 부모 카드 Link 와 nested 회피용 e.stopPropagation) */
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 };
 
-export function PlayerLink({ userId, name, className, style, newTab }: PlayerLinkProps) {
+export function PlayerLink({ userId, name, children, className, style, newTab, onClick }: PlayerLinkProps) {
+  // 표시할 콘텐츠 — children 우선, 없으면 name
+  const content = children ?? name ?? "";
+
   // userId 없거나 null → placeholder user → 링크 비활성 (단순 span)
   // BigInt 0 (`0n`) 도 falsy 처리 (실제 운영 User.id 는 1+ 시작이므로 안전)
   if (!userId) {
     return (
       <span className={className} style={style}>
-        {name}
+        {content}
       </span>
     );
   }
@@ -65,8 +72,9 @@ export function PlayerLink({ userId, name, className, style, newTab }: PlayerLin
       style={style}
       target={newTab ? "_blank" : undefined}
       rel={newTab ? "noopener noreferrer" : undefined}
+      onClick={onClick}
     >
-      {name}
+      {content}
     </Link>
   );
 }

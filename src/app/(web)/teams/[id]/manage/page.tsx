@@ -6,6 +6,9 @@ import Link from "next/link";
 // 곧바로 "가입 신청" 탭으로 진입시키기 위해 초기 탭을 쿼리에서 결정
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+// 4단계 B — 멤버 / 신청자 / 매치제안 운영진 / 멤버변경/이적 신청자 닉네임·팀명 → 공개프로필·팀페이지 라우팅
+import { PlayerLink } from "@/components/links/player-link";
+import { TeamLink } from "@/components/links/team-link";
 // Phase 4 PR12 — 운영진 권한 위임 탭 (captain only)
 import { OfficerPermissionsTab } from "./_components/officer-permissions-tab";
 // Phase 5 PR15 — 유령 후보 탭 (captain or ghostClassify)
@@ -1000,13 +1003,16 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                     </div>
 
                     {/* MEMBER (이름) */}
+                    {/* 4단계 B: 멤버 닉네임 → 공개프로필 PlayerLink. user_id 정상 보장 (운영자 시야 멤버 행) */}
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-bright)] text-xs font-bold text-[var(--color-accent)]">
                         {m.nickname.charAt(0).toUpperCase()}
                       </div>
-                      <span className="truncate font-bold text-[var(--color-text-primary)]">
-                        {m.nickname}
-                      </span>
+                      <PlayerLink
+                        userId={m.user_id}
+                        name={m.nickname}
+                        className="truncate font-bold text-[var(--color-text-primary)]"
+                      />
                     </div>
 
                     {/* ROLE 라벨 (모바일에서는 인라인) */}
@@ -1081,8 +1087,13 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   <div className="flex h-12 w-12 items-center justify-center rounded bg-[var(--color-info)] text-base font-bold text-white">
                     {displayName.slice(0, 2).toUpperCase()}
                   </div>
+                  {/* 4단계 B: 가입 신청자 닉네임 → 공개프로필 PlayerLink. user.id 없으면 자동 span fallback. */}
                   <div className="min-w-0">
-                    <div className="truncate text-base font-extrabold text-[var(--color-text-primary)]">{displayName}</div>
+                    <PlayerLink
+                      userId={req.user?.id}
+                      name={displayName}
+                      className="block truncate text-base font-extrabold text-[var(--color-text-primary)]"
+                    />
                     <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
                       {req.user?.position ?? "—"} {location && `· ${location}`} · 신청 {when}
                     </div>
@@ -1239,12 +1250,16 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   >
                     {fromName.slice(0, 2).toUpperCase()}
                   </div>
+                  {/* 4단계 B: 매치 신청 from_team → 팀페이지 TeamLink + proposer → 공개프로필 PlayerLink */}
                   <div className="min-w-0">
-                    <div className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
-                      {fromName}
-                    </div>
+                    <TeamLink
+                      teamId={req.from_team?.id}
+                      name={fromName}
+                      className="block truncate text-base font-extrabold text-[var(--color-text-primary)]"
+                    />
                     <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
-                      {proposerName} {fromLocation && `· ${fromLocation}`} · 신청 {createdAt}
+                      <PlayerLink userId={req.proposer?.id} name={proposerName} />
+                      {fromLocation && ` · ${fromLocation}`} · 신청 {createdAt}
                       {preferred && ` · 희망일 ${preferred}`}
                     </div>
                   </div>
@@ -1434,11 +1449,14 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                   >
                     {applicantName.slice(0, 2).toUpperCase()}
                   </div>
+                  {/* 4단계 B: 멤버 변경요청 신청자 닉네임 → 공개프로필 PlayerLink */}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
-                        {applicantName}
-                      </span>
+                      <PlayerLink
+                        userId={req.user?.id}
+                        name={applicantName}
+                        className="truncate text-base font-extrabold text-[var(--color-text-primary)]"
+                      />
                       <span
                         className="rounded px-1.5 py-0.5 text-[10px] font-bold"
                         style={{
@@ -1591,11 +1609,14 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                       >
                         {applicantName.slice(0, 2).toUpperCase()}
                       </div>
+                      {/* 4단계 B: 이적 신청자 닉네임 → PlayerLink + 상대 팀 → TeamLink */}
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
-                            {applicantName}
-                          </span>
+                          <PlayerLink
+                            userId={row.user?.id}
+                            name={applicantName}
+                            className="truncate text-base font-extrabold text-[var(--color-text-primary)]"
+                          />
                           <span
                             className="rounded px-1.5 py-0.5 text-[10px] font-bold"
                             style={{
@@ -1608,7 +1629,8 @@ export default function TeamManagePage({ params }: { params: Promise<{ id: strin
                         </div>
                         <div className="mt-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
                           {isFromMine ? "→ " : "← "}
-                          {counterTeam?.name ?? "상대 팀"} · 상대 팀 결정: {counterStatusLabel} · 신청 {when}
+                          <TeamLink teamId={counterTeam?.id} name={counterTeam?.name ?? "상대 팀"} />
+                          {" · 상대 팀 결정: "}{counterStatusLabel} · 신청 {when}
                         </div>
                       </div>
                       <div className="hidden items-center gap-1.5 sm:flex">

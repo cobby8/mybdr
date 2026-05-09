@@ -22,10 +22,14 @@
  * ============================================================ */
 
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
+// 4단계 A — 참가자명 → 공개프로필 (`/users/[id]`) 글로벌 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 import "./participant-list.css";
 
 export interface ParticipantListItem {
   id: string;
+  /** 4단계 A: User.id (참가자 닉네임 클릭 → 공개프로필 이동용). null = placeholder/게스트 → span fallback */
+  user_id?: string | null;
   nickname: string | null;
   name: string | null;
   position: string | null;
@@ -123,8 +127,11 @@ function ParticipantRow({ participant }: { participant: ParticipantListItem }) {
       </div>
 
       {/* 닉네임/이름 + meta (level · position) */}
+      {/* 4단계 A: 참가자명 → 공개프로필 PlayerLink. user_id 없으면 자동 span fallback (게스트 등) */}
       <div className="participant-list__main">
-        <div className="participant-list__name">{display}</div>
+        <div className="participant-list__name">
+          <PlayerLink userId={participant.user_id} name={display} />
+        </div>
         {metaParts.length > 0 && (
           <div className="participant-list__meta">{metaParts.join(" · ")}</div>
         )}

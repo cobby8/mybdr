@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+// 4단계 A — 최근 체크인 사용자 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 import { CourtCheckin } from "./_components/court-checkin";
 // v3 박제: ContextReviews 시안 + 5항목 평균 + ReviewForm 토글 통합 래퍼
 import { CourtReviewsSection } from "./_components/court-reviews-section";
@@ -50,7 +52,8 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
       court_checkins: {
         orderBy: { created_at: "desc" },
         take: 5,
-        include: { users: { select: { nickname: true } } },
+        // 4단계 A: PlayerLink 라우팅을 위해 users.id 추가 select. 페이로드 미미 증가 (PK 1개/row).
+        include: { users: { select: { id: true, nickname: true } } },
       },
     },
   }).catch(() => null);
@@ -289,9 +292,12 @@ export default async function CourtDetailPage({ params }: { params: Promise<Para
                 key={c.id.toString()}
                 className="flex items-center justify-between text-sm"
               >
-                <span style={{ color: "var(--color-text-primary)" }}>
-                  {c.users?.nickname ?? "사용자"}
-                </span>
+                {/* 4단계 A: 체크인 사용자 닉네임 → 공개프로필 PlayerLink. user 없으면 자동 span fallback. */}
+                <PlayerLink
+                  userId={c.users?.id}
+                  name={c.users?.nickname ?? "사용자"}
+                  style={{ color: "var(--color-text-primary)" }}
+                />
                 <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                   {new Date(c.created_at).toLocaleDateString("ko-KR")}
                 </span>

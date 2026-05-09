@@ -20,6 +20,8 @@ import { HostApplications } from "../_components/host-applications";
 interface HostApplicant {
   id: string;
   status: number;
+  /** 4단계 A: 신청자 User.id — 닉네임 클릭 시 공개프로필 이동용 */
+  user_id?: string | null;
   nickname: string | null;
   name: string | null;
   phone: string | null;
