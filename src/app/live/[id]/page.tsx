@@ -532,8 +532,10 @@ export default function LiveBoxScorePage() {
   }, []);
 
   // PC 만: 영상 wrapper 가 viewport 밖일 때 PIP 활성화. 모바일은 sticky 만 사용 → PIP 비활성.
+  // dependency 에 match?.youtube_video_id 포함 — 영상이 fetch 후 마운트되는 타이밍 wrapper ref
+  // 가 채워진 후 effect 가 다시 실행되어야 observer 가 정상 attach 됨 (5/10 사용자 발견 fix).
   useEffect(() => {
-    if (typeof window === "undefined" || isMobile) {
+    if (typeof window === "undefined" || isMobile || !match?.youtube_video_id) {
       setIsPip(false);
       return;
     }
@@ -545,7 +547,7 @@ export default function LiveBoxScorePage() {
     );
     obs.observe(target);
     return () => obs.disconnect();
-  }, [isMobile]);
+  }, [isMobile, match?.youtube_video_id]);
 
   // zoom 분기 derived (state 분리 안 함 — isMobile 단일 source-of-truth)
   const zoomScale = isMobile ? 1 : 1.1;
