@@ -2,6 +2,21 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] sticky 모바일 미작동 — overflow-x: hidden + zoom 1.1 복합 원인
+- **분류**: ui/css (모바일 sticky positioning)
+- **증상**: 라이브 페이지 (`/live/[id]`) YouTube 영상에 `sticky top-14 z-30` 적용 → PC 정상 / **모바일 sticky 안 됨** (영상이 스크롤과 같이 움직임)
+- **원인**: 부모 요소의 두 가지 속성이 sticky 깨트림 (브라우저는 부모 chain 에서 가장 가까운 scroll containing block 을 sticky 기준점으로 잡음)
+  1. **`html, body { overflow-x: hidden }`** — globals.css line 207~213 모바일 미디어 쿼리. `hidden` 은 scroll container 를 생성하여 자식 sticky 의 scroll 기준이 viewport 가 아닌 body 가 됨 → 깨짐
+  2. **`zoom: 1.1`** — page.tsx 페이지 wrapper inline style. zoom 부모 안의 sticky 자식이 모바일 Chrome/Safari 에서 일반 static 처럼 동작 (브라우저 known issue)
+- **fix (둘 다 필요)**:
+  1. `globals.css`: `overflow-x: hidden` → `overflow-x: clip` (Chrome 90+ / Safari 15.4+ / Firefox 81+ 지원). 시각 동일 (가로 잘림) + scroll container 생성 X → sticky 호환
+  2. `live/[id]/page.tsx`: zoomScale state + matchMedia("(max-width: 767px)") → 모바일 zoom=1 / PC zoom=1.1 분기
+- **재발 방지**: 신규 sticky 자식 박제 시 부모 chain 의 overflow / zoom / transform / will-change 사전 점검. 사용자 가로 overflow 가드는 항상 `clip` 사용.
+- **참고**: zoom 단독 또는 overflow 단독 fix 시 안 됨. 둘 다 fix 해야 모바일 sticky 정상.
+- **fix commit**: `06ec024` (zoom 분기) + 후속 (overflow-x clip)
+
+---
+
 ### [2026-05-09] Tailwind v4 .md scan 함정 — invalid CSS variable 자동 클래스 빌드 실패
 - **분류**: error/build (Next.js 16.1.6 Turbopack + Tailwind v4)
 - **재발 횟수**: 2회 (5/9 동일 일자 / `3d5f53e` + `9d126c7` 두 번 fix)
