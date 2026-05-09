@@ -35,9 +35,11 @@ import { LiveMatchCard, type LiveMatchCardData } from "./live-match-card";
 
 interface LiveMatchCardRailProps {
   matches: LiveMatchCardData[];
+  // 2026-05-09 사용자 결정: 카드 우측 상단에 대회 명칭 표시 (같은 대회 N건이라 1번 받아 모든 카드 전달)
+  tournamentName?: string | null;
 }
 
-export function LiveMatchCardRail({ matches }: LiveMatchCardRailProps) {
+export function LiveMatchCardRail({ matches, tournamentName }: LiveMatchCardRailProps) {
   // 빈 list 또는 현재 매치 1건만 = Rail 패널 자체 hidden (영역 0)
   // 사용자 결정 Q4=A 가변 N건 — 1건 만 있으면 "다른 매치 0" 의미로 미노출.
   if (!matches || matches.length <= 1) {
@@ -104,7 +106,7 @@ export function LiveMatchCardRail({ matches }: LiveMatchCardRailProps) {
           }}
         >
           {matches.map((m) => (
-            <LiveMatchCard key={m.id} match={m} />
+            <LiveMatchCard key={m.id} match={{ ...m, tournament_name: tournamentName ?? null }} />
           ))}
         </div>
       </div>
