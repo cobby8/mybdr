@@ -71,6 +71,127 @@ export async function GET(
       return apiError("Match not found", 404);
     }
 
+    // 2026-05-09: 라이브 매치 카드 패널 PR1 — 같은 날 (KST) + 같은 대회 매치 list.
+    // 사용자 결정 Q1=A (API 응답 확장) / Q2=A (KST 같은 날) / Q3=A (시간순 ASC) / Q4=A (가변 N건).
+    //
+    // KST 윈도우 산출 이유:
+    //   현재 매치의 scheduledAt (UTC) 을 KST (+9h) 기준 자정~다음날 자정으로 변환 → UTC 윈도우로 환산.
+    //   예: scheduledAt = 2026-05-09T01:00:00Z (KST 10:00) → KST 자정 = 2026-05-09T00:00 KST
+    //       → UTC = 2026-05-08T15:00:00Z ~ 2026-05-09T15:00:00Z
+    //
+    // 폴링 부하 최소화: select 절에 카드 렌더링 필수 필드만 (homeTeam/awayTeam name/logoUrl + score + status).
+    //   index_tournament_matches_on_scheduled_at 인덱스 hit (성능 영향 미미).
+    //
+    // 빈 윈도우 가드: scheduledAt 이 NULL 매치는 same_day_matches=[] 로 처리 (사용자 결정 Q4=A 가변).
+    let sameDayMatchesPayload: Array<{
+      id: number;
+      scheduled_at: string | null;
+      status: string | null;
+      current_quarter: number | null;
+      match_code: string | null;
+      round_name: string | null;
+      home_score: number | null;
+      away_score: number | null;
+      home_team: { id: number; name: string; logo_url: string | null };
+      away_team: { id: number; name: string; logo_url: string | null };
+      is_current: boolean;
+      is_live: boolean;
+      is_completed: boolean;
+    }> = [];
+
+    if (match.scheduledAt && match.tournamentId) {
+      // KST (+9h) 기준 자정 윈도우 산출 — UTC 비교용
+      const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+      const matchAtUtc = match.scheduledAt.getTime();
+      const matchAtKst = matchAtUtc + KST_OFFSET_MS;
+      // KST 자정 (00:00) 으로 floor → UTC 환산
+      const kstDayMs = 24 * 60 * 60 * 1000;
+      const kstMidnightMs = Math.floor(matchAtKst / kstDayMs) * kstDayMs;
+      const dayStart = new Date(kstMidnightMs - KST_OFFSET_MS);
+      const dayEnd = new Date(kstMidnightMs - KST_OFFSET_MS + kstDayMs);
+
+      // 같은 대회 + 같은 날 (KST) 매치 SELECT — select min (카드 렌더 필수 필드만)
+      const sameDayMatches = await prisma.tournamentMatch.findMany({
+        where: {
+          tournamentId: match.tournamentId,
+          scheduledAt: { gte: dayStart, lt: dayEnd },
+        },
+        select: {
+          id: true,
+          scheduledAt: true,
+          status: true,
+          match_code: true,
+          roundName: true,
+          homeScore: true,
+          awayScore: true,
+          started_at: true,
+          ended_at: true,
+          homeTeam: {
+            select: {
+              id: true,
+              team: { select: { id: true, name: true, logoUrl: true } },
+            },
+          },
+          awayTeam: {
+            select: {
+              id: true,
+              team: { select: { id: true, name: true, logoUrl: true } },
+            },
+          },
+        },
+        orderBy: { scheduledAt: "asc" },
+      });
+
+      // 라이브(진행중) 매치들의 current_quarter 일괄 도출 — PBP 최신 quarter group by
+      // 부하 가드: 같은 날 라이브 매치는 보통 1~3건. PBP groupBy 1회로 일괄 처리.
+      const liveMatchIds = sameDayMatches
+        .filter((m) => m.started_at !== null && m.ended_at === null)
+        .map((m) => m.id);
+
+      const quarterMap = new Map<bigint, number>();
+      if (liveMatchIds.length > 0) {
+        const quarterRows = await prisma.play_by_plays.groupBy({
+          by: ["tournament_match_id"],
+          where: { tournament_match_id: { in: liveMatchIds } },
+          _max: { quarter: true },
+        });
+        for (const row of quarterRows) {
+          if (row.tournament_match_id !== null && row._max.quarter !== null) {
+            quarterMap.set(row.tournament_match_id, row._max.quarter);
+          }
+        }
+      }
+
+      sameDayMatchesPayload = sameDayMatches.map((m) => {
+        const isLive = m.started_at !== null && m.ended_at === null;
+        const isCompleted = m.ended_at !== null;
+        return {
+          id: Number(m.id),
+          scheduled_at: m.scheduledAt?.toISOString() ?? null,
+          status: m.status ?? null,
+          // 라이브 매치만 current_quarter 노출. 종료/예정 매치는 null.
+          current_quarter: isLive ? quarterMap.get(m.id) ?? null : null,
+          match_code: m.match_code ?? null,
+          round_name: m.roundName ?? null,
+          home_score: m.homeScore ?? null,
+          away_score: m.awayScore ?? null,
+          home_team: {
+            id: Number(m.homeTeam?.team?.id ?? 0),
+            name: m.homeTeam?.team?.name ?? "홈",
+            logo_url: m.homeTeam?.team?.logoUrl ?? null,
+          },
+          away_team: {
+            id: Number(m.awayTeam?.team?.id ?? 0),
+            name: m.awayTeam?.team?.name ?? "원정",
+            logo_url: m.awayTeam?.team?.logoUrl ?? null,
+          },
+          is_current: m.id === match.id,
+          is_live: isLive,
+          is_completed: isCompleted,
+        };
+      });
+    }
+
     const homeTeamId = match.homeTeamId;
     const awayTeamId = match.awayTeamId;
     // BUG-01 fix: playerStats가 존재하면(bdr_stat sync 완료) 경기 상태 무관하게 사용.
@@ -1059,6 +1180,10 @@ export async function GET(
         youtubeVideoId: match.youtube_video_id,
         youtubeStatus: match.youtube_status,
         youtubeVerifiedAt: match.youtube_verified_at?.toISOString() ?? null,
+        // 2026-05-09 PR1: 같은 대회 + 같은 날 (KST) 매치 list — 라이브 페이지 매치 카드 패널 (네이버 패턴).
+        // 이미 snake_case 로 작성 → apiSuccess 자동 변환에서 그대로 통과 (errors.md 2026-04-17 룰).
+        // 빈 list 가능 (현재 매치 scheduledAt NULL / 데이터 부족 등) — 클라가 빈 list 시 Rail 자체 hidden.
+        same_day_matches: sameDayMatchesPayload,
         homeTeam: {
           id: Number(match.homeTeam?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",

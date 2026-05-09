@@ -48,6 +48,10 @@ export const NOTIFICATION_TYPES = {
   TOURNAMENT_BRACKET_APPROVAL: "tournament.bracket.approval", // 슈퍼관리자: 브라켓 승인 요청
   TOURNAMENT_BRACKET_APPROVED: "tournament.bracket.approved", // 관리자: 브라켓 승인됨
 
+  // 2026-05-10 PR4 — 사전 라인업 시작 1h 전 발송 (cron 5분 폴링 / 양 팀 captain+manager 수신).
+  // sent_at 박제 후 중복 발송 0. lineup 이미 입력된 매치는 발송 0 (이미 입력 = 안내 불필요).
+  LINEUP_REMINDER: "lineup.reminder",                         // 팀장/매니저: 사전 라인업 입력 안내 (시작 1h 전)
+
   // 리포트 관련
   WEEKLY_REPORT: "weekly.report",                             // 유저: 주간 운동 리포트 도착
 

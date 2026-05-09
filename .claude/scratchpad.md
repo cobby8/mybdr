@@ -8,6 +8,129 @@
 
 ## 🎯 현재 작업
 
+**[5/10 라이브 YouTube 자동 트리거 PR-C ✅ developer 박제]** 라이브 페이지 클라 useEffect 30초 폴링 박제 완료. tsc 0 / 5 시나리오 logic 통과 / 회귀 0. PR-A (헬퍼) + PR-B (endpoint) + PR-C (클라) 3 PR 모두 박제 완료 → 검증 단계 진입 가능.
+
+### 구현 기록 (developer / 5/10 PR-C)
+
+📝 구현한 기능: 라이브 페이지에서 매치 시작 ±10분 윈도우 안에 영상 미등록 매치만 30초 간격으로 PR-B `/api/web/match-stream/auto-register/[matchId]` 폴링 → 80점+ 후보 자동 INSERT 후 fetchMatch refetch 로 임베드 즉시 노출.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/live/[id]/page.tsx` | (1) `autoRegisterActive` state 추가 (line 525~528, streamModalOpen 근처) (2) PR-C useEffect 추가 (line 654~752, admin-check useEffect 직후, ~95L: 윈도우/status 가드 + setInterval 30s + tick 응답 분기 5종 + cleanup) (3) 운영자 토스트 JSX 추가 (line 1024~1043, 영상 미등록 + isAdmin CTA 영역 안에 sync 아이콘 + 안내 메시지 dashed border 박스) | 수정 |
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **시나리오 1 — 운영자 진입 + 영상 미등록 + 윈도우 안**: youtube_video_id=null + status=scheduled + scheduled_at = now ±10분 → "BDR 채널 자동 검색 중..." 토스트 노출 + 30초 간격 endpoint 호출 (Network 탭 확인)
+  2. **시나리오 2 — 일반 viewer**: isAdmin=false 상태 동일 매치 → 토스트 미노출 + CTA 미노출 + 백그라운드 폴링은 동일 작동 (Network 탭 확인)
+  3. **시나리오 3 — registered=true**: PR-B 가 80점+ 후보 INSERT 후 응답 → cancelled=true + clearInterval + fetchMatch refetch → match.youtube_video_id 갱신 → 임베드 즉시 노출
+  4. **시나리오 4 — 윈도우 밖**: 매치 시작 +11분 후 진입 → effect early return → 폴링 시작 0 (Network 탭에서 endpoint 호출 0건)
+  5. **시나리오 5 — status=completed**: in_progress 외 상태 → effect early return → 폴링 시작 0
+  6. **윈도우 drift 방어**: 페이지 오래 열어둔 채 윈도우 벗어남 → tick 의 checkWindow() 매번 검증 → 자동 stop + setActive(false)
+  7. **already_registered (다른 viewer 가 먼저 트리거)** → cancelled=true + clearInterval + fetchMatch (영상 정보 갱신)
+- 정상 동작:
+  - 운영자에게 sync 회전 아이콘 + "BDR 채널 자동 검색 중... (시작 시각 ±10분 윈도우 / 30초 간격)" 토스트 노출
+  - 등록 CTA 버튼 위에 dashed border 박스 (var(--color-card) bg + 운영자만 노출)
+  - 자동 등록 성공 시 토스트 즉시 사라짐 + 임베드 영역 마운트
+- 주의할 입력:
+  - **scheduled_at = null + started_at = null** → effect early return (폴링 시작 안 함)
+  - **rate limit 6회/분/IP+matchId** → 30초 간격 = 분당 2회 = 여유 4회 (PR-B 가드)
+  - **fetch 에러 (네트워크/429/5xx)** → silent fail, 다음 tick 재시도 (catch 안에 console.error 만)
+  - **match 객체 폴링 (3초) 마다 새로 교체**: 미세 의존성 (id/youtube_video_id/status/scheduled_at/started_at/fetchMatch) 으로 분리 → 실제 변경 시만 effect 재실행
+
+⚠️ reviewer 참고:
+- **회귀 영향 0**:
+  - 기존 fetchMatch 3초 폴링 0
+  - 기존 admin-check API 0
+  - 영상 등록 모달 (MatchYouTubeModal) 0
+  - isAdmin / streamModalOpen state 0
+  - iframe sticky/PIP 동작 0 (`youtubeWrapperRef` 마운트 시점은 영상 등록 후 → 폴링은 영상 등록 전 이라 별개)
+  - API 호출 빈도 = 30초 1회 (PR-B rate limit 6/분 한도 안 / 1/3 사용)
+- **무한 루프 방어**:
+  - cancelled flag + clearInterval cleanup 정확
+  - 미세 의존성 (match?.id 등) 으로 effect 재실행 빈도 최소화
+  - registered=true 후 fetchMatch → match.youtube_video_id 갱신 → 미세 의존성 변경 → effect 재실행 시 early return (`if (match.youtube_video_id) return`)
+- **운영자 토스트 디자인**:
+  - var(--color-card) bg + dashed border + Material Symbols sync 회전 (1.5s spin)
+  - lucide-react 0 / Tailwind arbitrary `[var(--*)]` 0 (errors.md 5/9 룰 준수)
+  - text-xs 작은 크기 (CTA 버튼 보조 안내)
+- **PR-A + PR-B + PR-C 통합 검증**:
+  - PR-A scoreMatch 헬퍼 → search/route.ts + auto-register/route.ts 동시 사용 (회귀 0)
+  - PR-B endpoint 응답 5종 모두 클라 분기 처리 (registered=true / already_registered / out_of_window / match_not_live / no_match_found)
+  - PR-C 응답 키 모두 snake_case (data.registered / data.reason / data.video_id / data.match_status — apiSuccess 자동 변환 일관)
+
+📌 미커밋 PR 5건 누적: PR-A scoreMatch / PR-B auto-register endpoint / PR-C 라이브 페이지 useEffect / 사전 라인업 PR3+PR4+PR5 / 라이브 API 임시 jersey 우선 적용
+
+---
+
+**[이전 — 5/10 사전 라인업 PR4 cron 푸시 ✅ developer 박제]** Vercel Cron 5분 폴링 + 시작 1h 전 푸시 알림 박제 완료. tsc 0 / prisma client dts 매핑 109건 / Flutter v1 영향 0. ⚠️ 운영 적용 전 사용자 액션 2건: (1) `prisma db push` (NULL 허용 ADD COLUMN — 안전) / (2) Vercel 대시보드 `CRON_SECRET` 환경변수 추가.
+
+### 구현 기록 (developer / 5/10 PR4)
+
+📝 구현한 기능: 매치 시작 1h 전 양 팀 captain+manager 에게 사전 라인업 입력 푸시 알림 자동 발송 (Vercel Cron 5분 폴링).
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `prisma/schema.prisma` | `TournamentMatch.lineup_reminder_sent_at DateTime?` ADD COLUMN (NULL 허용 무중단) | 수정 |
+| `src/lib/notifications/types.ts` | `NOTIFICATION_TYPES.LINEUP_REMINDER = "lineup.reminder"` 추가 | 수정 |
+| `src/app/api/cron/lineup-reminder/route.ts` | GET 핸들러 ~150L (Bearer 가드 / -65~-55분 윈도우 / status ∈ [scheduled,ready] / sent_at IS NULL / 양팀 매칭됨 / batch lineup 조회 N+1 회피 / 양팀 입력완료 매치 skip+sent_at 박제 / 양팀 captain+manager 중복제거 / createNotificationBulk + updateMany 1회) | 신규 |
+| `vercel.json` | crons 배열 `*/5 * * * *` `/api/cron/lineup-reminder` 추가 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법:
+  1. **윈도우 매치 SELECT 검증** — `scheduled_at` 이 now+55~now+65분 사이 매치 1건 + status=scheduled + lineup_reminder_sent_at=null 인 케이스 set up → cron GET (Bearer 헤더 포함) 호출 → 200 + count ≥ 1 + sent_at 박제
+  2. **중복 발송 차단** — 같은 매치 같은 윈도우 안 cron 재실행 → count=0 (sent_at NOT NULL 필터 제외)
+  3. **lineup 양팀 입력 완료 매치** — MatchLineupConfirmed 양 teamSide 박제된 매치 → 알림 0건 + sent_at 박제 (skip)
+  4. **윈도우 밖 매치** — scheduled_at = now+30분 또는 now+90분 → 0건 (filter 제외)
+  5. **status filter** — in_progress / completed → 0건
+  6. **양팀 매칭 안된 매치** — homeTeamId IS NULL → 0건
+- 정상 동작:
+  - 양 팀 captain+manager 모두 알림 받음 (DB notifications + push)
+  - actionUrl = `/lineup-confirm/${matchId}` (PR3 페이지)
+  - 응답: `{ count, matches_processed, matches_marked, sent_at }` snake_case
+- 주의할 입력:
+  - **Bearer 미설정 호출** → 401 Unauthorized
+  - **CRON_SECRET 환경변수 미설정 운영** → 모든 호출 401 (cron 동작 0)
+  - **manager_id NULL** 팀 → captain 만 수신자 (방어 OK)
+  - **양 팀 captain 동일 user** → Set 중복 제거 → 1건만 발송
+
+⚠️ reviewer 참고:
+- **운영 적용 전 사용자 액션 2건 필수**:
+  1. `prisma db push` 실행 — schema 변경 1건 (NULL 허용 ADD COLUMN, 무중단). PR4 코드는 박제됐지만 DB 컬럼 미생성 시 cron 첫 실행에서 prisma error.
+  2. Vercel 대시보드에서 `CRON_SECRET` 환경변수 추가 — 미추가 시 cron 매 5분 401 반복 (cron 동작 0).
+- **회귀 영향 0**: createNotificationBulk 변경 0 / Flutter v1 0 / 다른 cron 0 / DB schema = NULL 허용 ADD 1건만.
+- **N+1 회피**: 매치별 lineup 개별 조회 X → `findMany({ where: { matchId: { in: matchIds } } })` 1회 + `Map<bigint, Set<string>>` 매핑.
+- **sent_at 박제 정책**: 알림 발송 매치 + 양팀 입력 완료 skip 매치 + 수신자 0명 매치 모두 sent_at 박제 → 같은 윈도우 재실행 시 자동 skip (효율).
+- **algorithm 검증**: 5분 cron 1회 실행 시점에 매치 시작 -65~-55분 사이 윈도우 = 5분 폭. 5분 cron 주기와 일치 → 모든 매치 정확 1회 포착 (윈도우 누락 0 / 중복 발송 sent_at 가드).
+- **prisma generate EPERM**: dev 서버 동작 중이라 query_engine.dll rename 실패. 그러나 dts (`node_modules/.prisma/client/index.d.ts`) 는 이미 `lineup_reminder_sent_at` 109건 매핑 완료 → tsc 0 통과. dev 서버 재시작 시 dll 까지 업데이트.
+
+### 진단 결과 (debugger / 5/10)
+
+| 가설 | 검증 결과 |
+|------|---------|
+| 1. admin-check API 응답 false | ❌ — 사용자 2836 = organizer ✅ true |
+| 2. isAdmin state set 실패 | ❌ — page.tsx 633L `is_admin ?? isAdmin` 양쪽 fallback 정상 |
+| 3. tournament_id 응답 누락 | ❌ — `/api/live/[id]` 1028L `tournamentId: match.tournamentId` 응답 정상 |
+| 4. 세션 쿠키 만료 | ❌ — admin-check 결과 isAdmin true |
+| 5. snake_case 키 미스매치 | ❌ — `is_admin` / `youtube_video_id` 모두 정확 |
+
+**실제 원인** (DB 1차 SELECT 으로 확정):
+- 매치 148 = `youtube_video_id = "iuUMfQJC77I"` (NULL 아님!) / `youtube_status = "auto_verified"` / `status = "completed"`
+- 5/9 batch 또는 5/10 라이브 자동 트리거가 영상 등록 완료
+- page.tsx 964L 분기 (`match.youtube_video_id ?`) = **true 분기 도달** → 영상 + 운영자 edit 버튼 노출
+- 1008L 등록 CTA 분기 (else) 자체 도달 0 → CTA 안 보이는 게 정상
+
+**사용자 추정 ("status=live + null + isAdmin=true") 은 과거 시점**. 사용자가 라이브 페이지를 열어둔 사이 자동 등록 트리거가 영상을 자동 채움 → CTA 가 영상으로 교체됨.
+
+**fix 필요 여부**: 0건 (코드 수정 0). 운영 동작 정상.
+
+**운영자가 영상 등록 모달 진입하는 또 다른 trigger** = `_v2/youtube-embed.tsx` 154-169L 영상 우상단 ✏️ edit 버튼 (운영자 + onManageClick 전달 시 노출). 사용자가 영상 우상단 ✏️ 버튼 클릭하면 `MatchYouTubeModal` 진입 가능.
+
+📌 **errors.md 박제 완료** — `[2026-05-10] 라이브 페이지 운영자 CTA 미노출 = 버그 X (자동 등록 트리거 후 영상 등록 완료 상태)` (진단 절차 4단계 + 재발 방지 룰 3건)
+📌 **index.md 갱신 완료** — errors 항목수 35→37 / 최근 지식 10건 prepend
+📌 **임시 스크립트 정리 완료** — `scripts/_temp/check-admin-148.ts` 삭제
+
+---
+
 **[5/10 사전 라인업 PR5 tester ✅]** Flutter roster API 응답 확장 검증 완료. tsc 0 / 응답 형식 4종 (미입력 / home만 / away만 / 양팀) 정확 / snake_case 변환 후 키 정확 (active_ttp_ids / starter_ttp_ids / confirmed_at) / Flutter v1 호환 회귀 0 / 다른 v1 API 영향 0.
 
 📋 검증대기 미푸시 commit 4건 (6ebeb94 lineup PR1+2 / 02f7d0e live PR4+5 / ad88292 displayname / 0633e44 live PR1~3) + PR3 + PR5 미커밋 — push 보류.
@@ -173,6 +296,71 @@
 
 ---
 
+## 기획설계 (planner-architect / 5/9 라이브 매치 카드 — 네이버 패턴)
+
+🎯 목표: 라이브 페이지에 같은 날 같은 대회 다른 매치 카드 가로 스크롤 패널 노출 (네이버 농구 라이브 패턴) + 클릭 매치 이동
+
+📍 만들 위치와 구조 (4 PR + 선택 1):
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `src/app/api/live/[id]/route.ts` | 응답에 `same_day_matches[]` 추가 (KST 같은 날 / `tournamentId` 동일 / `findMany select min`) | 수정 (PR1) |
+| `src/app/live/[id]/_v2/match-card.tsx` | `LiveMatchCard` — 매치 1건 카드 (상태 라벨 / 점수 / 라이브 ping / Next Link) | 신규 (PR2) |
+| `src/app/live/[id]/_v2/match-card-rail.tsx` | `LiveMatchCardRail` — 가로 스크롤 컨테이너 (snap-x + 모바일 4 분기점 + 헤더 "오늘의 경기 N건") | 신규 (PR3) |
+| `src/app/live/[id]/page.tsx` | hero 위 + 영상 sticky 아래 마운트 (`MatchData` 인터페이스 `same_day_matches?` 추가 + 빈배열 fallback) | 수정 (PR4) |
+| `Dev/design/BDR-current/screens/Live.jsx` | 시안 박제 매치 카드 영역 추가 (운영 → 시안 역박제 룰 5/7) | 수정 (PR5 / 선택 / Q8) |
+
+🔗 기존 코드 연결:
+- `_v2/hero-scoreboard.tsx` `TeamLogo` / `getTeamInitials` 룰 카피 (점수카드 표시 패턴)
+- `_v2/youtube-embed.tsx` 라이브 ping 패턴 카피 (red dot + animate-ping)
+- `getCenterStatusLabel` (page.tsx line 204) "1쿼터" 한국어 라벨 룰 일관 (Q6=A)
+- `RATE_LIMITS.liveDetail` (120/60s) 그대로 — 본 PR 부담 0
+- 시안 `Dev/design/BDR-current/screens/Live.jsx` — PR5 시 매치 카드 영역 박제 (선택)
+
+📋 실행 계획:
+| 순서 | 작업 | 담당 | 선행 | 추정 |
+|------|------|------|------|------|
+| PR1 | `/api/live/[id]` 응답 확장 (`same_day_matches[]` 추가) — DB findMany 1건 + select min + 정렬 scheduledAt ASC | developer | 결재 (Q1~Q9) | 1h |
+| PR2 | `LiveMatchCard` 신규 (상태 라벨 분기 / 점수 / 라이브 ping / Next Link) | developer | PR1 | 1.5h |
+| PR3 | `LiveMatchCardRail` 가로 스크롤 + 모바일 4 분기점 가드 (≤360/≤720/≤900/≥1024) | developer | PR2 | 1h |
+| PR4 | `page.tsx` 통합 — 영상 sticky 아래 + hero 위 마운트 + `MatchData` 인터페이스 확장 | developer | PR3 | 30분 |
+| PR5 | 시안 박제 (`Dev/design/BDR-current/screens/Live.jsx` 매치 카드 영역) — 선택 | developer | PR4 | 1h |
+| 검증 | tester (4 시나리오 + tsc + 모바일 가드) + reviewer 병렬 | tester+reviewer | PR 별 | 30분 × 4 |
+
+⚠️ developer 주의사항:
+- **errors.md `[2026-05-09]` 룰**: Tailwind arbitrary `bg-[var(--ASTERISK_LITERAL)]` 금지 → 인라인 `style={{ backgroundColor: "var(--color-elevated)" }}` 또는 globals.css class
+- **응답 키 snake_case**: `apiSuccess()` 자동 변환 룰 그대로 (errors.md 2026-04-17 5회 재발 함정) — PR1 응답 정의 시 camelCase 작성하더라도 snake_case 변환 후 클라 수신 (PR4 `MatchData` 인터페이스 = `same_day_matches?` snake_case)
+- **BigInt → string**: 매치 ID 모두 `.toString()` 변환 (PR1 응답 시리얼라이즈)
+- **공식 기록 컨텍스트 X** (라이브 매치 카드 = 시각화 / 박스스코어 X) → `getDisplayName()` 헬퍼 미적용 (팀명만 노출)
+- **모바일 가드 4 분기점** (5/9 conventions.md): 360/720/900/1024 — 카드 폭 140/160/180/200px 단계별
+- **iOS 16px 룰 미적용** (카드 안 input 0)
+- **44px 터치 영역**: 카드 자체 = 충분 (∼160px × ∼120px)
+- **클릭 동작**: `<Link href={"/live/" + matchId}>` Next routing — soft navigation (영상 sticky 유지 X / 페이지 자체 전환)
+- **현재 매치 highlight**: `isCurrent` prop = accent border (`var(--color-accent)` — globals.css 정의 검증 필요)
+- **빈 응답 처리**: `same_day_matches = []` 또는 1건 (자기 자신만) → Rail 마운트 0 (조건부 `matches.length > 1`)
+- **폴링 영향 미미**: 기존 3초 폴링 그대로 / 응답 페이로드 ~1.6KB ↑ / DB 쿼리 1건 ↑ (인덱스 사용)
+- **회귀 0**: Flutter v1 영향 0 / DB schema 변경 0 / 라이브 페이지 기존 영역 (영상/hero/박스/PBP/minutes/사전 라인업) 영향 0
+
+📄 보고서: `Dev/live-match-cards-2026-05-09.md` (14 섹션 / Q1~Q9 결재 / 권장안 명시)
+
+📌 결재 대기 (권장안):
+- Q1 데이터 출처: A (API 응답 확장)
+- Q2 같은 날 정의: A (KST 같은 날 00:00~23:59)
+- Q3 정렬: A (시간순 scheduledAt ASC)
+- Q4 빈 슬롯: A (가변 — 매치 N건만 노출)
+- Q5 위치: A (영상 sticky 아래 + hero 위)
+- Q6 상태 라벨: A ("1쿼터" 한국어)
+- Q7 사이드바: A (1컬럼 유지 / 사이드바 후속 PR)
+- Q8 시안 박제: B (PR5 별도 / 미푸시 4건 검증 후)
+- Q9 진행 시점: B (5/10 D-day 후 / 본 PR 운영 영향 0 이지만 안정성 우선)
+
+📊 산출물 합계:
+- 신규 컴포넌트 2개 (LiveMatchCard / LiveMatchCardRail)
+- 신규 API 0건 (`/api/live/[id]` 응답 확장만)
+- DB schema 변경 0
+- 추정 시간 6.5h ~ 7.5h (PR5 포함 시)
+
+---
+
 ## 기획설계 (planner-architect / 5/10 라이브 YouTube 자동 등록 트리거)
 
 🎯 목표: 매치 시작 ±10분 윈도우 내 30초 폴링으로 BDR 채널 영상 자동 등록 / 등록 후 자동 stop
@@ -313,6 +501,12 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | (developer) 라이브 YouTube 자동 트리거 PR-C / 미커밋 | **PR-C — `src/app/live/[id]/page.tsx` 클라 useEffect 30초 폴링 박제** — (1) `autoRegisterActive` state 신규 (line 525~528, streamModalOpen 근처). (2) PR-C useEffect ~95L 추가 (line 654~752, admin-check useEffect 직후): match 도달 + youtube_video_id null + status ∈ [scheduled,ready,in_progress] + 윈도우 ±10분 검증 → setInterval 30s + tick 응답 분기 5종 (registered=true 시 clearInterval + fetchMatch / already_registered 시 stop + fetchMatch / match_not_live 시 stop / out_of_window/no_match_found 시 다음 tick 재시도). cleanup = cancelled flag + clearInterval + setActive(false). 미세 의존성 (id/youtube_video_id/status/scheduled_at/started_at/fetchMatch) 으로 fetchMatch 3초 폴링 마다 effect 재설정 빈도 최소화. (3) 운영자 토스트 JSX 추가 (line 1024~1043, 영상 미등록 + isAdmin CTA 영역 안): sync 회전 아이콘 + "BDR 채널 자동 검색 중..." dashed border 박스 / var(--color-card) bg / Material Symbols / lucide-react 0 / Tailwind arbitrary 0. tsc 0 에러. 회귀: 기존 fetchMatch 폴링 / admin-check / 영상 등록 모달 / iframe sticky+PIP 모두 영향 0. API 호출 빈도 = 분당 2회 (PR-B rate limit 6/분 한도의 1/3). | 검증대기 |
+| 2026-05-10 | (developer) 사전 라인업 PR4 cron 푸시 / 미커밋 | **사전 라인업 PR4 — Vercel Cron 5분 폴링 + 시작 1h 전 푸시 알림** — schema.prisma `TournamentMatch.lineup_reminder_sent_at DateTime?` ADD COLUMN (NULL 허용 무중단) + types.ts `NOTIFICATION_TYPES.LINEUP_REMINDER = "lineup.reminder"` 신규 + `src/app/api/cron/lineup-reminder/route.ts` 신규 ~150L (Bearer 가드 / -65~-55분 윈도우 / status ∈ [scheduled,ready] / sent_at IS NULL / 양팀 매칭됨 / batch lineup 조회 N+1 회피 / 양팀 입력완료 매치 skip+sent_at 박제 / 양팀 captain+manager 중복제거 / createNotificationBulk + updateMany 1회) + vercel.json `*/5 * * * *` cron 항목 추가. tsc 0 / prisma client dts 매핑 109건 검증 / Flutter v1 영향 0 / 다른 cron 영향 0. ⚠️ 운영 적용 전 사용자 액션 2건: (1) `prisma db push` 실행 (NULL 허용 ADD COLUMN — 안전) / (2) Vercel 대시보드 `CRON_SECRET` 환경변수 추가 | 검증대기 |
+| 2026-05-10 | (debugger) 라이브 운영자 CTA 미노출 미스터리 진단 / 미커밋 (코드 변경 0) | **debugger 진단 — 버그 X (정상 동작)** — 사용자 보고 = 매치 148 운영자 CTA 0건. DB 1차 SELECT 결과 = `youtube_video_id="iuUMfQJC77I"` (auto_verified) + `status="completed"` + organizerId=2836 일치. 5/9 batch 또는 5/10 라이브 자동 트리거가 영상 자동 등록 완료 → page.tsx 964L 분기 (`youtube_video_id ?`) true 분기 도달 → 영상+우상단 edit 버튼 노출 / 1008L CTA else 분기 자체 도달 0. **fix 필요 0** / 운영자가 영상 우상단 ✏️ edit 버튼 (`_v2/youtube-embed.tsx` 154L)으로 모달 진입 가능. errors.md `[2026-05-10]` 박제 + index.md 갱신 (errors 35→37) + 임시 스크립트 정리 (scripts/_temp/check-admin-148.ts 삭제) | ✅ |
+| 2026-05-09 | (developer) 라이브 매치 카드 패널 PR1~4 통합 / 미커밋 | **PR1~4 통합 — same_day_matches 응답 확장 + LiveMatchCard/Rail 신규 + page.tsx 영상 sticky 아래 통합** — PR1 `/api/live/[id]/route.ts` +125L (KST 같은 날 윈도우 산출 / 같은 대회 findMany select min / 라이브 매치 PBP groupBy 1회 current_quarter 일괄 도출 / BigInt→Number / snake_case 응답 키 그대로 통과 — errors.md 2026-04-17 룰). PR2 `_v2/live-match-card.tsx` 신규 292L (LiveMatchCard + LiveMatchCardData interface / 상태 라벨 분기 "1쿼터" 한국어 Q6=A / 라이브 ping borderRadius 50% / 현재 매치 accent border / Next Link / 종료 매치 승팀 font-bold / memo 폴링 리렌더 회피). PR3 `_v2/live-match-card-rail.tsx` 신규 113L (LiveMatchCardRail / 가로 scrollSnap x mandatory / scrollbarWidth none / 헤더 "오늘의 경기 N건" + 라이브 N건 ping / matches.length<=1 시 null hidden — Q4=A 가변 + 의미 0 회피). PR4 page.tsx +14L (MatchData same_day_matches? 추가 + import + 영상 wrapper 끝 + modal 직전 mount Q5=A). tsc 0 / Tailwind arbitrary `[var(--*)]` 0 / lucide-react 0 / 핑크/살몬/코랄 0 / 하드코딩 hex 0 / 정사각형 원형 = 50% (BDR-current §C-10) / errors.md 2026-04-17 + 2026-05-09 룰 모두 준수. **회귀 0** — Flutter v1 영향 0 / DB schema 0 / 라이브 페이지 기존 영역 (영상/hero/박스/PBP/minutes/사전 라인업) 영향 0 / 5/9 sticky+PIP 영향 0 / API 기존 응답 키 변경 0 (추가만). PR5 시안 박제 (BDR-current/screens/Live.jsx) = 본 PR 범위 밖 (Q8=B 별도). | 검증대기 |
+| 2026-05-09 | (planner-architect) 라이브 매치 카드 패널 기획서 / 미커밋 | **`Dev/live-match-cards-2026-05-09.md` 신규** — 네이버 농구 라이브 패턴 도입 (오늘의 매치 가로 스크롤 카드) / 14 섹션 / Q1~Q9 결재 / 권장안 9건 명시 / 신규 컴포넌트 2개 (LiveMatchCard + LiveMatchCardRail) / 신규 API 0 (`/api/live/[id]` 응답 확장만 — `same_day_matches[]` snake_case) / DB schema 변경 0 / 회귀 0 (Flutter v1 / 라이브 기존 영역 / 5/9 sticky+PIP 모두 영향 0) / 추정 6.5h~7.5h / PR1~PR4+선택 PR5 분할. errors.md 5/9 룰 준수 (Tailwind arbitrary 0 / placeholder 표기) | 결재 대기 |
+| 2026-05-10 | (developer) 라이브 YouTube 자동 트리거 PR-B auto-register / 미커밋 | **PR-B — `src/app/api/web/match-stream/auto-register/[matchId]/route.ts` 신규 312L** — POST 무인증 endpoint / `checkRateLimit({maxRequests:6,windowMs:60_000})` IP+matchId 키 분리 / 14단계 가드 (matchId 파싱 → rate limit → 매치 조회 → already → status → 윈도우 ±10분 → Redis cache → YouTube key → fetchEnrichedVideos → scoreMatch → 80점 미만 fallback + cache → DB UPDATE → admin_logs INSERT → cache invalidate). 응답 5종 (registered:true / already_registered / out_of_window / match_not_live / no_match_found). admin_id NOT NULL FK 처리 — `resolveSystemAdminId()` super_admin+isAdmin 첫 번째 자동 결정 (모듈 cache). admin_logs `changes_made` = 점수+breakdown+ip 박제 / severity="info". PR-A `scoreMatch`/`MatchContext`/`SCORE_THRESHOLD_AUTO=80` 그대로 import. `fetchEnrichedVideos` 재사용 (uploads playlist cache hit ≥99%). tsc 0 에러. 회귀: 기존 search API 0 / DB schema 0 / Flutter v1 0. | 검증대기 |
 | 2026-05-10 | (developer) 라이브 YouTube 자동 트리거 PR-A scoreMatch 헬퍼 추출 / 미커밋 | **PR-A — `src/lib/youtube/score-match.ts` 신규 142L (scoreMatch 함수 + ScoredCandidate/MatchContext/ScoreBreakdown 타입 + TIME_MATCH_WINDOW_MS/SCORE_THRESHOLD_AUTO=80/SCORE_THRESHOLD_CANDIDATE=50 상수 export) + search/route.ts 리팩터 -109L (scoreMatch 함수/ScoredCandidate interface/TIME_MATCH_WINDOW_MS/SCORE_THRESHOLD_CANDIDATE 상수 제거 + 헬퍼 import 6L 추가)**. EnrichedVideo import 는 line 124 `let videos: EnrichedVideo[]` 사용 위해 유지. 알고리즘 변경 0 (search/route.ts line 91~167 본체 그대로 추출). search API 응답 변경 0 / Redis cache key+TTL 변경 0 / Rate limit 변경 0 / DB schema 변경 0 / Flutter v1 영향 0. tsc 0 에러. PR-B (auto-register) / PR-C (라이브 페이지 useEffect) 에서 import 가능 형태 검증 완료. | 검증대기 |
 | 2026-05-09 | (developer) 라이브 API 임시 jersey 우선 적용 / 미커밋 | **라이브 API 임시 jersey 우선 적용 — `/api/live/[id]/route.ts` 명단 영역 PR5 헬퍼 일관** — `resolveMatchJerseysBatch` import 추가 + `allTtpEntries` 양 팀 ttp 구성 (homeTeam.players + awayTeam.players) → 1회 SELECT (`jerseyMap: Map<bigint, number\|null>`) + `getJersey(ttpId, fallback)` helper. 적용 위치 4종: (1) 진행중 분기 allPlayers map (line 290/300) `getJersey(p.id, p.jerseyNumber)` (2) 종료 분기 toPlayerRow (line 539) `getJersey(player.id, player.jerseyNumber)` (3) playerNameById PBP 타임라인 (line 970/975) jersey_number 도 동일 매핑 (4) mvpPlayer = PlayerRow.jerseyNumber 자동 정합 (별도 매핑 0). 기존 line 647~698 사후 후처리 제거 — 같은 SELECT 중복 + jerseyMap 으로 통합 일관성 ↑. 정영민 ttp.id 기준 매치 #148 `match_player_jersey` 9 → jerseyMap.get(ttp.id)=9 우선 적용 / 다른 선수 영구 # 그대로 (override 없으면 ttpJersey fallback). API 응답 키 변경 0 (jerseyNumber 유지) / Flutter v1 영향 0 (`/api/v1/...` 별도 라우트) / DB schema 변경 0 / 매치당 SELECT 1회 (성능 영향 미미) / tsc 0 | 검증대기 |
 | 2026-05-09 | (developer) YouTube batch v3 (이미 등록 영상 제외 + 정확 날짜) / 미커밋 | **YouTube batch v3 — 이미 등록 영상 제외 + 정확 날짜 매칭** — scripts/_temp/youtube-batch-match.ts: (1) **DB 이미 등록 영상 사전 조회 + pool 제외** — `usedSet` (12건) → `availableVideos` filter (150→138). 같은 팀 조합 새 매치가 이전 영상에 중복 매핑되는 사일런트 버그 차단. `--include-existing` 시 가드 미적용 (정확도 비교 모드). (2) **날짜 점수 룰 강화** — 같은날=20 / ±1일 자정경계=5 / 그 외=0. v2 의 ±1~7일=15, ±8~30일=10 제거 → 다른 날 영상은 양 팀 50+대회명 20+날짜 0+시간 0=70점 (임계값 80 미달 → 자동 채택 차단). (3) **dry-run (운영 DB)**: 매치 65건 (종료 33/예정 32) — 자동 채택 0건 / 후보 0건 / 매칭 실패 65건. 0건 채택 사유: BDR 채널에 같은 날 정확 매칭 신규 영상 0건 (정상 — 5/9 신규 BDR 영상 미업로드 추정). (4) **정확도 100%** (--include-existing 12건 재채점 — 95~100점 모두 동일 영상 자동 채택, 강등/영상변경 0건). tsc 0 / DB 변경 0 / Flutter v1 영향 0 |  검증대기 |
