@@ -42,7 +42,8 @@ export async function GET(
             // tournament_teams에는 logo_url 컬럼이 없으므로 teams.logoUrl만 사용
             team: { select: { name: true, primaryColor: true, logoUrl: true } },
             players: {
-              include: { users: { select: { name: true, nickname: true } } },
+              // 2026-05-10 PlayerLink 마이그 — 응답에 user_id 포함을 위해 users.id select 추가.
+              include: { users: { select: { id: true, name: true, nickname: true } } },
             },
           },
         },
@@ -50,7 +51,7 @@ export async function GET(
           include: {
             team: { select: { name: true, primaryColor: true, logoUrl: true } },
             players: {
-              include: { users: { select: { name: true, nickname: true } } },
+              include: { users: { select: { id: true, name: true, nickname: true } } },
             },
           },
         },
@@ -59,7 +60,7 @@ export async function GET(
         playerStats: {
           include: {
             tournamentTeamPlayer: {
-              include: { users: { select: { name: true, nickname: true } } },
+              include: { users: { select: { id: true, name: true, nickname: true } } },
             },
           },
           orderBy: { points: "desc" },
@@ -448,6 +449,8 @@ export async function GET(
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
+          // 2026-05-10 PlayerLink 마이그 — User.id 노출 (placeholder user 시 null).
+          userId: p.users?.id ? Number(p.users.id) : null,
           isStarter: p.isStarter ?? false,
         })),
         ...(match.awayTeam?.players ?? []).filter(filterRoster).map((p) => ({
@@ -456,6 +459,7 @@ export async function GET(
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
+          userId: p.users?.id ? Number(p.users.id) : null,
           isStarter: p.isStarter ?? false,
         })),
       ];
@@ -467,6 +471,7 @@ export async function GET(
           jerseyNumber: p.jerseyNumber,
           name: p.name,
           teamId: p.teamId,
+          user_id: p.userId,
           min: 0, min_seconds: 0, pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
           oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fouls: 0, plus_minus: 0,
           isStarter: p.isStarter,
@@ -696,6 +701,8 @@ export async function GET(
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(user, { player_name: player.player_name, jerseyNumber: player.jerseyNumber }, `#${player.jerseyNumber ?? "-"}`),
           teamId: Number(player.tournamentTeamId),
+          // 2026-05-10 PlayerLink 마이그 — User.id 노출 (placeholder user 시 null → span fallback)
+          user_id: user?.id ? Number(user.id) : null,
           min: Math.round(minSeconds / 60),
           min_seconds: minSeconds,
           pts: stat.points ?? 0,
@@ -988,6 +995,9 @@ export async function GET(
       jersey_number: number | null;
       name: string;
       team_id: number;
+      // 2026-05-10 PlayerLink 마이그 — MVP 카드의 선수명 → 공개프로필(`/users/[id]`).
+      // null = placeholder ttp (드물지만 fallback 유지).
+      user_id: number | null;
       pts: number;
       reb: number;
       ast: number;
@@ -1042,6 +1052,8 @@ export async function GET(
         jersey_number: p.jerseyNumber,
         name: p.name,
         team_id: p.teamId,
+        // 2026-05-10 PlayerLink 마이그 — PlayerRow 의 user_id 그대로 전파.
+        user_id: p.user_id ?? null,
         pts: p.pts,
         reb: p.reb,
         ast: p.ast,
@@ -1222,6 +1234,9 @@ interface PlayerRow {
   jerseyNumber: number | null;
   name: string;
   teamId: number;
+  // 2026-05-10 PlayerLink 마이그 — 공개프로필(`/users/[id]`) 링크 대상 User.id.
+  // null = ttp.userId 미부여 (placeholder user / player_name 만 존재) → PlayerLink 가 span fallback.
+  user_id: number | null;
   min: number;
   min_seconds?: number;
   pts: number;

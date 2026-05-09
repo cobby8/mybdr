@@ -10,6 +10,8 @@
 //  - 하이라이트/공유/기록지 버튼 생략 — 기능 없음
 
 import type { MatchDataV2 } from "./game-result";
+// 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 팀명 클릭 시 팀 페이지(`/teams/[id]`) 이동.
+import { TeamLink } from "@/components/links/team-link";
 
 // 2026-05-02: PC/모바일 비율 분기 CSS (사용자 요청 — WINNER 제거 + 쿼터 테이블 한번에 + PC 확대)
 import "./hero-scoreboard.css";
@@ -175,7 +177,11 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           <div className="hero-sb__quarter-total-header">TOTAL</div>
 
           {/* 홈팀 행 */}
-          <div className="hero-sb__quarter-team">{match.home_team.name}</div>
+          {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 쿼터 테이블 좌측 팀명 셀 → 팀 페이지 link.
+              hero-sb__quarter-team CSS 폰트/컬러 그대로 상속. */}
+          <div className="hero-sb__quarter-team">
+            <TeamLink teamId={match.home_team.id} name={match.home_team.name} />
+          </div>
           {quarters.map((q) => (
             <div
               key={`home-${q.label}`}
@@ -191,7 +197,9 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           </div>
 
           {/* 원정팀 행 */}
-          <div className="hero-sb__quarter-team">{match.away_team.name}</div>
+          <div className="hero-sb__quarter-team">
+            <TeamLink teamId={match.away_team.id} name={match.away_team.name} />
+          </div>
           {quarters.map((q) => (
             <div
               key={`away-${q.label}`}
@@ -236,7 +244,11 @@ function TeamScoreBlock({
 }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div className="hero-sb__team-name">{team.name}</div>
+      {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 큰 팀명 (히어로 좌/우) 클릭 시 팀 페이지 이동.
+          TeamLink 가 부모 글자색을 상속받으므로 .hero-sb__team-name 의 색·크기 그대로 유지. */}
+      <div className="hero-sb__team-name">
+        <TeamLink teamId={team.id} name={team.name} />
+      </div>
       <div className="hero-sb__score">{score}</div>
     </div>
   );

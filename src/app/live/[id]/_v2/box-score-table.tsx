@@ -10,6 +10,8 @@
 
 import { useState } from "react";
 import type { PlayerRowV2 } from "./game-result";
+// 2026-05-10 PlayerLink 2단계 마이그 — 박스스코어 표 안 선수명 → 공개프로필(`/users/[id]`).
+import { PlayerLink } from "@/components/links/player-link";
 
 // 얼룩무늬 / TOTAL / 짝수행 배경 — 옛 page.tsx L425-432 그대로 카피
 const ZEBRA_BG = "color-mix(in srgb, var(--color-card), #7f7f7f 6%)";
@@ -257,7 +259,9 @@ export function BoxScoreTable({
                     className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-primary)" }}
                   >
-                    {p.name}
+                    {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 박스스코어 활성 선수 이름 셀 → 공개프로필.
+                        user_id null (placeholder ttp) → 자동 span fallback. truncate CSS 부모 td 가 처리. */}
+                    <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
                   <td
                     className="py-2 px-0.5 text-center"
@@ -395,7 +399,8 @@ export function BoxScoreTable({
                     className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-muted)" }}
                   >
-                    {p.name}
+                    {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 공개프로필 link. */}
+                    <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
                   <td
                     className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
