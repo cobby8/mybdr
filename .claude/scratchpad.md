@@ -160,6 +160,7 @@ main `84569c3` (PR #248 + #249). subin = dev = main 동기화 깨끗. 미푸시 
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-09 | subin (미커밋) | **YouTube 자동 매칭 cron 라우트 신규 + vercel.json 5분 주기 등록** — `src/app/api/cron/youtube-auto-match/route.ts` 신규 (507L) + vercel.json crons +1 entry. v3 알고리즘 inline 복제 (batch script 와 정합 — 같은날 only / 80점 임계값) / 1:1 매핑 가드 (DB 기존 video_id pool 제외) / admin_logs createMany / Bearer CRON_SECRET 가드. tsc 0 에러. Flutter v1 영향 0. CRON_SECRET 이미 lineup-reminder 가 사용 중 — 추가 사용자 액션 0. | ⏳ 커밋 대기 |
 | 2026-05-10 | subin (미커밋) | **후속 #1 — pending → scheduled 자동 전환 헬퍼 박제** — `auto-status.ts` 신규 + matches PATCH route + services/match.ts (updateMatch/updateMatchStatus) + dual-progression.ts 4 위치 박제. 4 조건 가드 (pending + homeTeam + awayTeam + scheduledAt). tsc 0 에러. 후속 #2 cron 과 상호 보완 (update 시점 즉시 + 1시간 폴링 백업). | ⏳ 커밋 대기 |
 | 2026-05-10 | main `84569c3` (PR #249) | **PR-B/C 라이브 자동 트리거 + 사전 라인업 PR4 + 매치 카드 + Tailwind 3차 fix** — 5 commit (a490556 PR-B / 21d3783 매치 카드 / 8d5d660 Tailwind / a32ecf9 PR4 / 12e9159 docs). matchId=149 자동 등록 시연 (125점). prisma db push 동기화. CRON_SECRET 사용자 액션 대기. | ✅ |
 | 2026-05-10 | main `c62994b` (PR #247) | **PR-A scoreMatch 헬퍼 추출 + 자동 트리거 설계 보고서 + Live.jsx 시안 박제** — 2 commit (ab12cd9 PR-A / d9d0ebf 시안). search route -113L 리팩 / 회귀 0. | ✅ |
