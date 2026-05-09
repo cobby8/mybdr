@@ -1177,7 +1177,7 @@ export default function LiveBoxScorePage() {
           API 응답 same_day_matches 가 0~1건이면 Rail 자체 null (영역 hidden) — Rail 내부 가드.
           영상 등록 매치 = 영상 sticky 아래에 자연 in-flow / 영상 미등록 + 운영자 = CTA 아래.
           폴링 3초마다 자동 갱신 — 라이브 매치 진행에 따라 카드 상태 라벨/점수 즉시 동기화. */}
-      <LiveMatchCardRail matches={match.same_day_matches ?? []} />
+      <LiveMatchCardRail matches={match.same_day_matches ?? []} tournamentName={match.tournament_name} />
 
       {/* 2026-05-05 PR4 — 매치 임시 jersey 번호 운영자 모달 (W1).
           isAdmin = false 면 마운트 안 함. fetchMatch refetch 로 새 jersey 반영. */}
