@@ -246,6 +246,12 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
   // - 진행 중 매치 / 미생성 / silent fail 시 null → Phase 0 템플릿 fallback
   const llmBrief = match.summary_brief?.brief ?? null;
 
+  // 2026-05-09: forfeit (기권) 매치 감지 — Headline 부제 + Stats 4 카드 분기.
+  //   auto-publish-match-brief.ts 가 summary_brief.forfeit=true 박음 (notes 의 "기권" / "forfeit" 감지 시).
+  //   Lead 영역은 LLM brief 자체가 forfeit 카피이므로 별도 분기 불필요.
+  const isForfeit = match.summary_brief?.forfeit === true;
+  const forfeitReason = match.summary_brief?.forfeit_reason ?? null;
+
   // TOP 퍼포머 계산 — 득점/리바/어시/스틸 각 1위 (우측 카드)
   const allPlayers = [...match.home_players, ...match.away_players].filter((p) => !p.dnp);
   const topScorer = maxByStat(allPlayers, (p) => p.pts);
@@ -398,18 +404,26 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
     bestRunQuarter = curRunQuarter;
   }
 
-  const summaryBlocks = [
-    { l: "최대점수차", v: maxLead > 0 ? `${maxLead}점` : `${scoreDiff}점` },
-    {
-      l: "최다 스코어링 런",
-      v:
-        bestRunPts > 0 && bestRunTeam
-          ? `${bestRunTeam} Q${bestRunQuarter} ${bestRunPts}-0`
-          : "—",
-    },
-    { l: "총 득점", v: `${homeTotal + awayTotal}점` },
-    { l: "리드 체인지", v: leadChanges > 0 ? `${leadChanges}회` : "—" },
-  ];
+  // 2026-05-09: forfeit 매치 = PBP/stats 0 이라 점수차/리드체인지 등 모두 무의미 → 통합 안내로 교체.
+  const summaryBlocks = isForfeit
+    ? [
+        { l: "처리", v: "FIBA Art.21" },
+        { l: "결과", v: "기권승 (Forfeit)" },
+        { l: "공식 점수", v: `${winnerScore}-${loserScore}` },
+        { l: "사유", v: forfeitReason ?? "기권" },
+      ]
+    : [
+        { l: "최대점수차", v: maxLead > 0 ? `${maxLead}점` : `${scoreDiff}점` },
+        {
+          l: "최다 스코어링 런",
+          v:
+            bestRunPts > 0 && bestRunTeam
+              ? `${bestRunTeam} Q${bestRunQuarter} ${bestRunPts}-0`
+              : "—",
+        },
+        { l: "총 득점", v: `${homeTotal + awayTotal}점` },
+        { l: "리드 체인지", v: leadChanges > 0 ? `${leadChanges}회` : "—" },
+      ];
 
   return (
     <div
@@ -455,7 +469,10 @@ export function TabSummary({ match }: { match: MatchDataV2 }) {
         >
           {winnerName} {winnerScore}-{loserScore} {loserName}
           <span style={{ color: "var(--ink-dim)", fontWeight: 600 }}>
-            {" "}— {scoreDiff}점차 {flowLabel[flow]}
+            {/* 2026-05-09: forfeit 매치 = 점수차/flow 라벨 부적절 → 기권승 라벨로 교체 */}
+            {isForfeit
+              ? ` — 기권승 (FIBA Art.21${forfeitReason ? ` · ${forfeitReason} 사유` : ""})`
+              : ` — ${scoreDiff}점차 ${flowLabel[flow]}`}
           </span>
         </h4>
 

@@ -161,7 +161,14 @@ export interface MatchDataV2 {
   // 2026-05-04: 알기자 Phase 1 요약 (라이브 페이지 [Lead] 섹션) — DB 영구 저장 (매치 종료 시 자동 생성)
   // 형식: { brief: string, generated_at: string, mode: "phase1-section" } | null
   // null 이면 Phase 0 템플릿 fallback (silent fail / 미생성 / 진행 중 매치)
-  summary_brief?: { brief: string; generated_at: string; mode: string } | null;
+  // 2026-05-09: forfeit 매치 메타 추가 (forfeit / forfeit_reason). tab-summary 가 분기.
+  summary_brief?: {
+    brief: string;
+    generated_at: string;
+    mode: string;
+    forfeit?: boolean;
+    forfeit_reason?: string | null;
+  } | null;
   // 2026-05-09 PR3: 라이브 YouTube 영상 — 종료 매치 (FINAL) 에서도 다시보기 임베드 노출.
   // null = 영상 미등록 → 임베드 영역 hidden (Q11 결재).
   youtube_video_id?: string | null;
