@@ -1,5 +1,9 @@
 "use client";
 
+// 5/10 PlayerLink/TeamLink 3-A 단계 — 팀명 클릭 시 팀 페이지 이동.
+// 이유: 시드 카드는 이미 row 안 텍스트만 표시 — Link 0건 → TeamLink 추가로 클릭 가능 영역 확보.
+import { TeamLink } from "@/components/links/team-link";
+
 /**
  * 대진표 v2 — 우측 "시드 순위" 카드
  *
@@ -99,13 +103,13 @@ export function V2BracketSeedRanking({ teams }: V2BracketSeedRankingProps) {
                 {initials}
               </div>
 
-              {/* 팀명 */}
-              <span
+              {/* 팀명 — 5/10: TeamLink 로 클릭 가능 (className/style 보존, 부모 grid 제약상 truncate 유지) */}
+              <TeamLink
+                teamId={t.teamId}
+                name={t.teamName}
                 className="truncate text-xs font-semibold"
                 style={{ color: "var(--color-text-primary)" }}
-              >
-                {t.teamName}
-              </span>
+              />
 
               {/* 레이팅 자리: DB rating 미존재 → wins 값으로 대체 (시안 충실도 유지) */}
               <span

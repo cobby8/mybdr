@@ -5,7 +5,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
+// 5/10 PlayerLink/TeamLink 3-A 단계 — 팀명 클릭 시 팀 페이지 이동 (글로벌 패턴 통일).
+import { TeamLink } from "@/components/links/team-link";
 
 // DB에서 가져온 팀 데이터 타입
 export type GroupTeam = {
@@ -189,13 +190,13 @@ export function GroupStandings({
                             shield
                           </span>
                         </div>
-                        <Link
-                          href={`/teams/${team.teamId}`}
-                          className="font-bold hover:underline"
+                        {/* 5/10: 팀명 클릭 → 팀 페이지. style 그대로 보존 (text-primary 색상 유지). */}
+                        <TeamLink
+                          teamId={team.teamId}
+                          name={team.teamName}
+                          className="font-bold"
                           style={{ color: "var(--color-text-primary)" }}
-                        >
-                          {team.teamName}
-                        </Link>
+                        />
                         {/* 조 통과 배지 */}
                         {isAdvanced && (
                           <span

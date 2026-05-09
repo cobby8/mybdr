@@ -13,6 +13,9 @@
  */
 
 import type { RoundGroup, BracketMatch } from "@/lib/tournaments/bracket-builder";
+// 5/10 PlayerLink/TeamLink 3-A 단계 — 팀명 클릭 시 팀 페이지 이동.
+// 이유: 카드 자체가 Link 가 아니라 텍스트만 — 안전하게 TeamLink 추가 가능 (nested anchor 0).
+import { TeamLink } from "@/components/links/team-link";
 
 interface V2BracketScheduleListProps {
   rounds: RoundGroup[];
@@ -88,6 +91,9 @@ export function V2BracketScheduleList({ rounds }: V2BracketScheduleListProps) {
             const badge = getStatusBadge(m);
             const homeName = formatTeamName(m.homeTeam, m.homeSlotLabel);
             const awayName = formatTeamName(m.awayTeam, m.awaySlotLabel);
+            // 5/10: 팀이 확정된 경우만 teamId 추출 — 슬롯 라벨/TBD 는 null → 일반 span fallback.
+            const homeTeamId = m.homeTeam?.teamId ?? null;
+            const awayTeamId = m.awayTeam?.teamId ?? null;
             // 점수 표시: 완료/진행 중 점수, 그 외 "—"
             const scoreText =
               m.status === "completed" || m.status === "in_progress"
@@ -130,16 +136,19 @@ export function V2BracketScheduleList({ rounds }: V2BracketScheduleListProps) {
                   {badge.text}
                 </span>
 
-                {/* 팀 매치업 + 코트 */}
+                {/* 팀 매치업 + 코트
+                    5/10: 팀 확정 시 TeamLink (클릭 → 팀 페이지) / 미확정 슬롯 라벨은 일반 텍스트.
+                    TeamLink 는 teamId null 시 자동 span fallback 이라 안전하지만, 슬롯 라벨은 의미 자체가
+                    "다른 매치 결과 대기" 라 클릭 X 가 자연스럽다 (TBD 도 동일). */}
                 <div
                   className="text-sm font-semibold truncate"
                   style={{ color: "var(--color-text-primary)" }}
                 >
-                  {homeName}
+                  <TeamLink teamId={homeTeamId} name={homeName} />
                   <span className="mx-1.5 text-xs" style={{ color: "var(--color-text-muted)" }}>
                     vs
                   </span>
-                  {awayName}
+                  <TeamLink teamId={awayTeamId} name={awayName} />
                   {/* 코트 정보 — RoundGroup → BracketMatch에는 court 필드 없음. 추후 매치 데이터 확장 시 추가 */}
                 </div>
 
