@@ -6,6 +6,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { MatchDataV2, MvpPlayerV2 } from "./game-result";
+// 2026-05-10 PlayerLink 2단계 마이그 — MVP 선수명 클릭 시 공개프로필(`/users/[id]`).
+import { PlayerLink } from "@/components/links/player-link";
 
 export function MvpBanner({ mvp, match }: { mvp: MvpPlayerV2; match: MatchDataV2 }) {
   const mvpTeam = mvp.team_id === match.home_team.id ? match.home_team : match.away_team;
@@ -95,16 +97,19 @@ export function MvpBanner({ mvp, match }: { mvp: MvpPlayerV2; match: MatchDataV2
             margin: "2px 0",
           }}
         >
-          <span
+          {/* 2026-05-10 PlayerLink/TeamLink 2단계 — MVP 이름 클릭 시 공개프로필 이동.
+              user_id null (placeholder ttp) → PlayerLink 가 자동 span fallback. */}
+          <PlayerLink
+            userId={mvp.user_id}
+            name={mvp.name}
             style={{
               fontSize: 17,
               fontWeight: 800,
               letterSpacing: "-0.01em",
               color: "var(--ink)",
             }}
-          >
-            {mvp.name}
-          </span>
+          />
+
           <span
             ref={tipWrapRef}
             style={{

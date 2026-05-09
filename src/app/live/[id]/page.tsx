@@ -34,6 +34,9 @@ import { MatchYouTubeModal } from "./_v2/match-youtube-modal";
 // API 응답 same_day_matches[] 가 비어있거나 1건 이하면 Rail 자체 null 반환 (영역 hidden).
 import { LiveMatchCardRail } from "./_v2/live-match-card-rail";
 import type { LiveMatchCardData } from "./_v2/live-match-card";
+// 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 라이브/scheduled/ready 매치 hero scoreboard 팀명·박스스코어 선수명 link.
+import { TeamLink } from "@/components/links/team-link";
+import { PlayerLink } from "@/components/links/player-link";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -60,6 +63,9 @@ interface PlayerRow {
   jersey_number: number | null;
   name: string;
   team_id: number;
+  // 2026-05-10 PlayerLink 마이그 — 박스스코어 선수명 → 공개프로필 라우팅 대상 User.id.
+  // null = placeholder user (ttp.userId NULL) → PlayerLink 가 단순 span fallback.
+  user_id: number | null;
   min: number;
   min_seconds?: number;
   pts: number;
@@ -141,6 +147,8 @@ interface MatchData {
     jersey_number: number | null;
     name: string;
     team_id: number;
+    // 2026-05-10 PlayerLink 마이그 — MVP 카드 선수명 클릭 시 공개프로필로.
+    user_id: number | null;
     pts: number; reb: number; ast: number; stl: number; blk: number;
     plus_minus: number;
     fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number;
@@ -410,6 +418,9 @@ function TeamBlock({
     <div className="flex flex-col items-center gap-2 min-w-0">
       <TeamLogo team={team} size={logoSize} />
       {/* 팀명: 모바일은 max-w 100px(좁게), 데스크톱은 160px. 홈팀만 home 아이콘 prepend */}
+      {/* 2026-05-10 PlayerLink/TeamLink 2단계 — hero scoreboard 팀명 클릭 시 팀 페이지 이동.
+          home 아이콘은 link 영역 외부에 두어 시맨틱 분리 (아이콘 클릭 시에도 link 이동 OK 하지만
+          텍스트만 underline 강조 유지). TeamLink 가 부모 색·폰트 상속. */}
       <p
         className="text-sm sm:text-base font-medium flex items-center gap-1 truncate max-w-[100px] sm:max-w-[160px]"
         style={{ color: "var(--color-text-primary)" }}
@@ -422,7 +433,7 @@ function TeamBlock({
             home
           </span>
         )}
-        {team.name}
+        <TeamLink teamId={team.id} name={team.name} className="truncate" />
       </p>
     </div>
   );
@@ -1410,8 +1421,9 @@ export default function LiveBoxScorePage() {
               <tbody>
                 <tr className="border-b" style={{ borderColor: "var(--color-border)" }}>
                   {/* 팀명 셀: 명시 text-base 제거 → 부모 text-lg 상속 */}
+                  {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 쿼터 점수 테이블 좌측 팀명 셀도 TeamLink. */}
                   <td className="py-2 px-2 truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
-                    {match.home_team.name}
+                    <TeamLink teamId={match.home_team.id} name={match.home_team.name} />
                   </td>
                   {quarters.map((q, idx) => {
                     const currentIdx = isLive && match.current_quarter ? match.current_quarter - 1 : -1;
@@ -1444,7 +1456,7 @@ export default function LiveBoxScorePage() {
                 </tr>
                 <tr>
                   <td className="py-2 px-2 truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
-                    {match.away_team.name}
+                    <TeamLink teamId={match.away_team.id} name={match.away_team.name} />
                   </td>
                   {quarters.map((q, idx) => {
                     const currentIdx = isLive && match.current_quarter ? match.current_quarter - 1 : -1;
@@ -1866,7 +1878,9 @@ function BoxScoreTable({
                     className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-primary)" }}
                   >
-                    {p.name}
+                    {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 라이브/scheduled 박스스코어 활성 선수 이름 → 공개프로필.
+                        user_id null (placeholder ttp) → span fallback. truncate CSS 부모 td 처리. */}
+                    <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
                   {/* MIN — muted 색으로 살짝 약하게 (스탯만큼 강조 X) */}
                   <td className="py-2 px-0.5 text-center" style={{ color: "var(--color-text-muted)" }}>
@@ -1934,7 +1948,8 @@ function BoxScoreTable({
                     className="py-2 px-1 sticky left-8 z-10 bg-inherit min-w-[70px] truncate max-w-[70px] print:static print:bg-transparent print:max-w-none"
                     style={{ color: "var(--color-text-muted)" }}
                   >
-                    {p.name}
+                    {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 link. */}
+                    <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
                   {/* MIN 셀에 "DNP" — text-xs + semibold + muted 색으로 시각적 구분 */}
                   <td
