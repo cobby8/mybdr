@@ -47,6 +47,9 @@ export interface ScheduleTeam {
 interface Props {
   matches: ScheduleMatch[];
   teams: ScheduleTeam[];
+  // 2026-05-09 사용자 결정: 부모 헤더에서 날짜 탭 선택 시 필터.
+  // null = 전체 보기 / "MM/DD" 형식 (formatGroupDate 결과와 일치)
+  selectedDate?: string | null;
 }
 
 // -- 날짜별로 경기를 그룹핑하는 유틸 --
@@ -122,20 +125,30 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant="default">예정</Badge>;
 }
 
-export function ScheduleTimeline({ matches, teams }: Props) {
+export function ScheduleTimeline({ matches, teams, selectedDate }: Props) {
   // 선택된 팀 ID (null = 전체 보기)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
-  // 선택된 팀으로 필터링된 경기 목록
+  // 선택된 팀 + 날짜 필터 적용 (5/9 사용자 결정 — 날짜 탭)
   const filteredMatches = useMemo(() => {
-    if (!selectedTeam) return matches;
-    // 팀 이름으로 필터 (선택한 팀이 홈 또는 어웨이인 경기)
-    const teamName = teams.find((t) => t.id === selectedTeam)?.name;
-    if (!teamName) return matches;
-    return matches.filter(
-      (m) => m.homeTeamName === teamName || m.awayTeamName === teamName
-    );
-  }, [matches, selectedTeam, teams]);
+    let filtered = matches;
+    // 팀 필터
+    if (selectedTeam) {
+      const teamName = teams.find((t) => t.id === selectedTeam)?.name;
+      if (teamName) {
+        filtered = filtered.filter(
+          (m) => m.homeTeamName === teamName || m.awayTeamName === teamName
+        );
+      }
+    }
+    // 날짜 필터 (selectedDate = MM/DD 형식 / null = 전체)
+    if (selectedDate) {
+      filtered = filtered.filter(
+        (m) => formatGroupDate(m.scheduledAt) === selectedDate
+      );
+    }
+    return filtered;
+  }, [matches, selectedTeam, selectedDate, teams]);
 
   // 날짜별 그룹핑
   const dateGroups = useMemo(() => groupByDate(filteredMatches), [filteredMatches]);
