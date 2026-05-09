@@ -1,19 +1,33 @@
 "use client";
 
 /* ============================================================
- * RecommendedVideos — BDR 추천 영상 섹션 (NBA 2K 카드 + RecommendedRail 통일 헤더)
+ * RecommendedVideos — BDR 추천 영상 섹션 (유튜브 스타일 카드 + RecommendedRail 통일 헤더)
  *
- * 헤더 변경 (5/9 옵션 B):
- * - 기존 자체 "WATCH NOW" 2K 헤더 div 제거
- * - 시안 RecommendedRail wrapper 사용 → 시안 #2.5 영상 박제와 동일 헤더
- *   (eyebrow="WATCH NOW · YOUTUBE" / title="BDR 추천 영상" / more=YouTube 외부 링크)
+ * 5/10 재설계 (사용자 결정):
+ * 기존 = 3개 큰 카드 / NBA 2K 톤 (uppercase + 네온 글로우 + 시점만 메타)
+ * 변경 = 5개 압축 카드 / 유튜브 톤 (mixed case + duration chip + 채널명 + 조회수+시점)
  *
- * 카드 디자인은 NBA 2K 스타일 보존:
- * - hover:shadow-glow-primary + hover:border-primary
- * - LIVE 뱃지 rounded-sm
- * - 제목 font-extrabold uppercase
+ * 왜 유튜브 톤인가:
+ * - 사용자가 평소 영상 콘텐츠 = 유튜브에서 본다 → 유튜브 카드 = 친숙한 스캔 패턴
+ * - 영상시간 chip / 채널명 / 조회수 = 사용자가 클릭 전 판단하는 핵심 메타
+ * - uppercase 굵은 폰트 (2K 톤) → 영상 4~5줄 제목 가독성 떨어짐
  *
- * API/데이터 패칭 로직은 기존과 100% 동일.
+ * 카드 구조:
+ *   ┌──────────────────────┐
+ *   │  [LIVE]      [22:47] │  ← 16:9 썸네일 + 좌상 LIVE / 우하 duration chip
+ *   │  (썸네일 16:9)        │
+ *   └──────────────────────┘
+ *   🏀 BDR 썰전 EP11 ...        ← 제목 2줄 line-clamp 굵게 (시안 권장 13px)
+ *   [BDR]동아리농구방            ← 채널명 작은 회색
+ *   조회수 5.1천 · 5일 전        ← 메타 더 작은 회색
+ *
+ * 레이아웃:
+ * - 헤더 = RecommendedRail wrapper (eyebrow / title / "전체 보기 →") 그대로 재사용
+ * - 카드 grid = RecommendedRail 의 gridAutoFlow:column (가로 스크롤 + scroll-snap)
+ * - PC = 카드 폭 minmax(260, 1fr) → 본문 폭에 따라 4~5개 노출 + 나머지 스크롤
+ * - 모바일 = 동일 가로 스크롤 (snap-x) — 한 번에 1.5~2개 노출
+ *
+ * API/데이터 패칭 변경 0 — 기존 useSWR 그대로 사용. duration / channel_title 신규 응답 필드.
  * ============================================================ */
 
 import useSWR from "swr";
@@ -25,45 +39,65 @@ interface VideoItem {
   title: string;
   thumbnail: string;
   published_at: string;
+  view_count?: number;
+  duration?: string; // ISO 8601 (예: "PT22M47S")
+  channel_title?: string;
   badges: string[];
   is_live: boolean;
 }
 
-/* 더미 데이터: API 로딩 실패 시 표시용 */
+/* 더미 데이터: API 로딩 실패 / 비어있을 시 폴백 (유튜브 톤 메타) */
 const DUMMY_VIDEOS = [
   {
     video_id: "dummy1",
-    title: "2023 서울 챌린지 베스트 골 TOP 10",
-    thumbnail: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&q=60",
-    duration: "12:45",
-    views: "24.5만회",
-    date: "2일 전",
+    title: "2026 서울 챌린지 베스트 골 TOP 10",
+    thumbnail: "https://images.unsplash.com/photo-1546519638-68e109498ffc?w=480&q=60",
+    duration_text: "12:45",
+    channel_title: "[BDR]동아리농구방",
+    views_text: "조회수 24.5만",
+    date_text: "2일 전",
   },
   {
     video_id: "dummy2",
-    title: "실전에서 바로 써먹는 드리블 기술 가이드",
-    thumbnail: "https://images.unsplash.com/photo-1574623452334-1e0ac2b3ccb4?w=400&q=60",
-    duration: "08:20",
-    views: "12.8만회",
-    date: "1주일 전",
+    title: "실전 드리블 기술 가이드 — 코트에서 바로 써먹는",
+    thumbnail: "https://images.unsplash.com/photo-1574623452334-1e0ac2b3ccb4?w=480&q=60",
+    duration_text: "8:20",
+    channel_title: "[BDR]동아리농구방",
+    views_text: "조회수 12.8만",
+    date_text: "1주 전",
   },
   {
     video_id: "dummy3",
-    title: "Storm FC의 우승 비결 인터뷰",
-    thumbnail: "https://images.unsplash.com/photo-1515523110800-9415d13b84a8?w=400&q=60",
-    duration: "15:10",
-    views: "5.2만회",
-    date: "3일 전",
+    title: "STORM FC 우승 비결 인터뷰",
+    thumbnail: "https://images.unsplash.com/photo-1515523110800-9415d13b84a8?w=480&q=60",
+    duration_text: "15:10",
+    channel_title: "[BDR]동아리농구방",
+    views_text: "조회수 5.2만",
+    date_text: "3일 전",
   },
   {
     video_id: "dummy4",
-    title: "매치데이 브이로그: 대회 현장의 열기",
-    thumbnail: "https://images.unsplash.com/photo-1504450758481-7338bbe75005?w=400&q=60",
-    duration: "05:45",
-    views: "1.9만회",
-    date: "22시간 전",
+    title: "매치데이 브이로그 — 대회 현장의 열기",
+    thumbnail: "https://images.unsplash.com/photo-1504450758481-7338bbe75005?w=480&q=60",
+    duration_text: "5:45",
+    channel_title: "[BDR]동아리농구방",
+    views_text: "조회수 1.9만",
+    date_text: "22시간 전",
+  },
+  {
+    video_id: "dummy5",
+    title: "시즌 베스트 어시스트 모음",
+    thumbnail: "https://images.unsplash.com/photo-1518131672697-613becd4fab5?w=480&q=60",
+    duration_text: "7:30",
+    channel_title: "[BDR]동아리농구방",
+    views_text: "조회수 8.4만",
+    date_text: "5일 전",
   },
 ];
+
+// 카드 폭 — RecommendedRail gridAutoColumns minmax 260px 와 정합
+// shrink-0 + 고정 폭 = 가로 스크롤 시 카드 폭 일정 보장
+const CARD_WIDTH_CLASS = "shrink-0 w-[260px]";
 
 export function RecommendedVideos() {
   // useSWR로 YouTube 추천 API 호출 (기존과 동일)
@@ -73,13 +107,18 @@ export function RecommendedVideos() {
   const videos = apiData?.videos ?? [];
 
   if (loading) {
-    // 로딩 스켈레톤도 RecommendedRail 헤더와 같은 폭으로 통일
+    // 로딩 스켈레톤 — RecommendedRail 헤더와 같은 폭으로 통일
     return (
       <section>
         <Skeleton className="h-6 w-32 mb-4" />
-        <div className="flex gap-4 overflow-hidden">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-video w-56 rounded-md shrink-0" />
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={CARD_WIDTH_CLASS}>
+              <Skeleton className="aspect-video w-full rounded-md mb-2" />
+              <Skeleton className="h-4 w-full mb-1" />
+              <Skeleton className="h-3 w-3/4 mb-1" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
           ))}
         </div>
       </section>
@@ -95,117 +134,313 @@ export function RecommendedVideos() {
       eyebrow="WATCH NOW · YOUTUBE"
       more={{ href: "https://www.youtube.com/@BDRBASKET", label: "전체 보기" }}
     >
-      {/* 카드 영역: 기존 2K 스타일 보존 — flex 가로 스크롤은 RecommendedRail
-          내부의 grid 가 담당하므로 wrapper flex 제거. children 직접 배치. */}
+      {/* 카드 영역 — RecommendedRail 의 가로 스크롤 grid 가 담당.
+          children 직접 배치. 5개로 제한 (slice 0,5). */}
       <>
         {hasApiData
-          ? /* API 영상 카드 — 2K 스타일 적용 */
-            videos.slice(0, 6).map((v) => (
-              <a
+          ? videos.slice(0, 5).map((v) => (
+              <YoutubeCard
                 key={v.video_id}
-                href={`https://www.youtube.com/watch?v=${v.video_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block shrink-0 w-56"
-              >
-                {/* 2K 카드: 각진 모서리, 네온 글로우 호버, 프라이머리 보더 호버 */}
-                <div
-                  className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] h-full flex flex-col relative"
-                  style={{ boxShadow: "var(--shadow-card)" }}
-                >
-                  {/* 워터마크: 호버 시 재생 아이콘 실루엣 */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-5 font-black text-7xl transition-all duration-500 pointer-events-none z-0">
-                    <span className="material-symbols-outlined text-8xl">play_arrow</span>
-                  </div>
-
-                  {/* 썸네일 영역 */}
-                  <div className="aspect-video relative overflow-hidden shrink-0 z-10">
-                    <img
-                      alt={v.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src={v.thumbnail}
-                    />
-                    {/* 그라디언트 오버레이 (하단 → 카드 배경색) */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-card)] via-transparent to-black/20" />
-                    {/* 재생 아이콘 호버 오버레이 */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                      <span className="material-symbols-outlined text-white text-4xl">play_circle</span>
-                    </div>
-                    {/* LIVE 뱃지 */}
-                    {v.is_live && (
-                      <span className="absolute top-2 left-2 bg-[var(--accent)] text-white text-[10px] px-2.5 py-1 font-black uppercase rounded-sm flex items-center gap-1">
-                        <span className="relative flex h-1.5 w-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-white" />
-                        </span>
-                        LIVE
-                      </span>
-                    )}
-                  </div>
-                  {/* 정보 영역: gradient 배경 + 2K 폰트 스타일 */}
-                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-elev)]">
-                    <h4 className="text-sm font-extrabold text-[var(--ink)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
-                      {v.title}
-                    </h4>
-                    <p className="text-[11px] font-bold text-[var(--ink-mute)] uppercase">
-                      {formatDate(v.published_at)}
-                    </p>
-                  </div>
-                </div>
-              </a>
+                videoId={v.video_id}
+                title={v.title}
+                thumbnail={v.thumbnail}
+                durationText={formatDuration(v.duration)}
+                channelTitle={v.channel_title}
+                viewsText={
+                  // 조회수 = 유튜브 라이브일 때 "실시간 시청자 X" / VOD 일 때 "조회수 X"
+                  v.is_live
+                    ? v.view_count
+                      ? `실시간 ${formatViewCount(v.view_count)}`
+                      : "실시간"
+                    : v.view_count
+                      ? `조회수 ${formatViewCount(v.view_count)}`
+                      : ""
+                }
+                dateText={formatRelativeTime(v.published_at)}
+                isLive={v.is_live}
+              />
             ))
-          : /* 더미 영상 카드 — 동일 2K 스타일 적용 */
-            DUMMY_VIDEOS.map((v) => (
-              <div key={v.video_id} className="shrink-0 w-56">
-                <div
-                  className="group rounded-md overflow-hidden bg-[var(--bg-card)] transition-all duration-300 hover:-translate-y-2 hover:shadow-glow-primary border border-transparent hover:border-[var(--accent)] h-full flex flex-col relative"
-                  style={{ boxShadow: "var(--shadow-card)" }}
-                >
-                  {/* 워터마크 */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-5 font-black text-7xl transition-all duration-500 pointer-events-none z-0">
-                    <span className="material-symbols-outlined text-8xl">play_arrow</span>
-                  </div>
-
-                  <div className="aspect-video relative overflow-hidden shrink-0 z-10">
-                    <img
-                      alt={v.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      src={v.thumbnail}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-card)] via-transparent to-black/20" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                      <span className="material-symbols-outlined text-white text-4xl">play_circle</span>
-                    </div>
-                    {/* 재생시간 뱃지 */}
-                    <span className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-2 py-0.5 font-black rounded-sm">
-                      {v.duration}
-                    </span>
-                  </div>
-                  <div className="p-3 flex flex-col grow z-10 bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-elev)]">
-                    <h4 className="text-sm font-extrabold text-[var(--ink)] line-clamp-1 mb-1 tracking-tight uppercase group-hover:text-[var(--accent)] transition-colors">
-                      {v.title}
-                    </h4>
-                    <p className="text-[11px] font-bold text-[var(--ink-mute)] uppercase">
-                      {v.views} · {v.date}
-                    </p>
-                  </div>
-                </div>
-              </div>
+          : DUMMY_VIDEOS.map((v) => (
+              <YoutubeCard
+                key={v.video_id}
+                videoId={v.video_id}
+                title={v.title}
+                thumbnail={v.thumbnail}
+                durationText={v.duration_text}
+                channelTitle={v.channel_title}
+                viewsText={v.views_text}
+                dateText={v.date_text}
+                isLive={false}
+                isDummy
+              />
             ))}
       </>
     </RecommendedRail>
   );
 }
 
-/* 날짜 포맷 헬퍼: ISO 문자열 -> "2일 전" 형태 */
-function formatDate(iso: string): string {
+/* ============================================================
+ * YoutubeCard — 유튜브 스타일 영상 미니 카드
+ *
+ * 시각 룰:
+ * - 썸네일 16:9 / rounded 6px / overflow hidden
+ * - LIVE 배지 좌상단 (있을 때만) — accent 빨강 + ping dot
+ * - duration chip 우하단 — 검정 반투명 + 흰 글자 (LIVE 일 때 미표시)
+ * - 제목 line-clamp 2줄 / font-semibold / 부모 색상 상속
+ * - 채널명 = 작은 mute 색
+ * - 메타 (조회수+시점) = 더 작은 mute 색
+ *
+ * BDR 디자인 13 룰 준수:
+ * - var(--*) 토큰만 (핑크/살몬 0)
+ * - Material Symbols (lucide 0)
+ * - 정사각 모양 빼고 pill (9999) 0
+ * ============================================================ */
+interface YoutubeCardProps {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  durationText?: string; // 이미 포맷된 "M:SS" / "H:MM:SS"
+  channelTitle?: string;
+  viewsText?: string; // 이미 포맷된 "조회수 5.1천"
+  dateText?: string; // 이미 포맷된 "5일 전"
+  isLive: boolean;
+  isDummy?: boolean; // dummy 일 때 클릭 비활성
+}
+
+function YoutubeCard({
+  videoId,
+  title,
+  thumbnail,
+  durationText,
+  channelTitle,
+  viewsText,
+  dateText,
+  isLive,
+  isDummy = false,
+}: YoutubeCardProps) {
+  // dummy 는 클릭해도 실제 유튜브로 가지 않음 (placeholder URL 회피)
+  const Wrapper: "a" | "div" = isDummy ? "div" : "a";
+  const wrapperProps = isDummy
+    ? {}
+    : {
+        href: `https://www.youtube.com/watch?v=${videoId}`,
+        target: "_blank",
+        rel: "noopener noreferrer",
+      };
+
+  return (
+    <Wrapper
+      {...wrapperProps}
+      className={`${CARD_WIDTH_CLASS} group block scroll-snap-align-start no-underline`}
+      style={{ scrollSnapAlign: "start" }}
+    >
+      {/* 썸네일 영역 — 16:9 + duration chip + LIVE 배지 */}
+      <div
+        className="relative aspect-video overflow-hidden"
+        style={{
+          borderRadius: 6,
+          background: "var(--bg-elev)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- 외부 YouTube 썸네일 (도메인 무한정) */}
+        <img
+          alt={title}
+          src={thumbnail}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+        />
+
+        {/* LIVE 배지 좌상단 — accent 빨강 + 흰 ping dot */}
+        {isLive && (
+          <span
+            style={{
+              position: "absolute",
+              top: 6,
+              left: 6,
+              background: "var(--accent)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.04em",
+              padding: "3px 7px",
+              borderRadius: 3,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%", // 정사각 50% (pill 9999 회피 — 13 룰 §10)
+                background: "#fff",
+              }}
+            />
+            LIVE
+          </span>
+        )}
+
+        {/* duration chip 우하단 — 검정 반투명 + 흰 글자 (LIVE 일 때 미표시) */}
+        {!isLive && durationText && (
+          <span
+            style={{
+              position: "absolute",
+              bottom: 6,
+              right: 6,
+              background: "rgba(0, 0, 0, 0.85)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 700,
+              fontVariantNumeric: "tabular-nums",
+              padding: "2px 5px",
+              borderRadius: 3,
+              lineHeight: 1.3,
+            }}
+          >
+            {durationText}
+          </span>
+        )}
+      </div>
+
+      {/* 정보 영역 — 제목 + 채널명 + 메타 */}
+      <div style={{ padding: "8px 2px 0" }}>
+        {/* 제목 — line-clamp 2 줄 / 굵게 / 부모 색상 (var(--ink)) */}
+        <h4
+          style={{
+            margin: 0,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--ink)",
+            lineHeight: 1.35,
+            // 2줄 ellipsis (Tailwind line-clamp-2 와 동등 — 인라인 style 로 폰트 정합 보장)
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            wordBreak: "break-word",
+          }}
+        >
+          {title}
+        </h4>
+
+        {/* 채널명 — 작은 mute 색 */}
+        {channelTitle && (
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 11,
+              color: "var(--ink-mute)",
+              fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {channelTitle}
+          </div>
+        )}
+
+        {/* 메타 (조회수 · 시점) — 더 작은 dim 색 */}
+        {(viewsText || dateText) && (
+          <div
+            style={{
+              marginTop: 2,
+              fontSize: 11,
+              color: "var(--ink-dim, var(--ink-mute))",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              flexWrap: "wrap",
+            }}
+          >
+            {viewsText && <span>{viewsText}</span>}
+            {viewsText && dateText && <span aria-hidden="true">·</span>}
+            {dateText && <span>{dateText}</span>}
+          </div>
+        )}
+      </div>
+    </Wrapper>
+  );
+}
+
+/* ============================================================
+ * 포맷터 헬퍼
+ * ============================================================ */
+
+/**
+ * ISO 8601 duration → "M:SS" / "H:MM:SS" 변환.
+ * 예: "PT22M47S" → "22:47", "PT1H22M47S" → "1:22:47", "PT10S" → "0:10"
+ * 잘못된 입력 / 0초 → 빈 문자열 (chip 미표시)
+ */
+function formatDuration(iso?: string): string {
+  if (!iso) return "";
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return "";
+
+  const hours = parseInt(match[1] ?? "0", 10);
+  const minutes = parseInt(match[2] ?? "0", 10);
+  const seconds = parseInt(match[3] ?? "0", 10);
+  const totalSec = hours * 3600 + minutes * 60 + seconds;
+
+  if (totalSec === 0) return "";
+
+  // 시간 단위 있을 때 = "H:MM:SS" / 없을 때 = "M:SS"
+  const ss = String(seconds).padStart(2, "0");
+  if (hours > 0) {
+    const mm = String(minutes).padStart(2, "0");
+    return `${hours}:${mm}:${ss}`;
+  }
+  return `${minutes}:${ss}`;
+}
+
+/**
+ * 조회수 한국어 단축 표기.
+ * 예: 523 → "523", 5_123 → "5.1천", 123_456 → "12.3만", 5_234_567 → "523만"
+ * 1억 이상은 "X.X억" (드물지만 안전장치).
+ */
+function formatViewCount(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return "0";
+  if (n < 1000) return String(n);
+  if (n < 10_000) {
+    // 5_123 → 5.1천
+    const k = n / 1000;
+    return `${k.toFixed(1).replace(/\.0$/, "")}천`;
+  }
+  if (n < 1_000_000) {
+    // 12_345 → 1.2만, 123_456 → 12.3만
+    const m = n / 10_000;
+    if (m >= 100) return `${Math.floor(m)}만`;
+    return `${m.toFixed(1).replace(/\.0$/, "")}만`;
+  }
+  if (n < 100_000_000) {
+    // 1_234_567 → 123만
+    const m = Math.floor(n / 10_000);
+    return `${m}만`;
+  }
+  // 1억 이상 — 매우 드물게
+  const e = n / 100_000_000;
+  return `${e.toFixed(1).replace(/\.0$/, "")}억`;
+}
+
+/**
+ * 게시일 → "방금 전 / N분 전 / N시간 전 / N일 전 / N주 전 / N개월 전 / N년 전".
+ * 한국어 24시간 기준.
+ */
+function formatRelativeTime(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays === 0) return "오늘";
-  if (diffDays === 1) return "어제";
-  if (diffDays < 7) return `${diffDays}일 전`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-  return d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
+  if (Number.isNaN(d.getTime())) return "";
+
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffHour = Math.floor(diffMs / 3_600_000);
+  const diffDay = Math.floor(diffMs / 86_400_000);
+
+  if (diffMin < 1) return "방금 전";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffDay < 7) return `${diffDay}일 전`;
+  if (diffDay < 30) return `${Math.floor(diffDay / 7)}주 전`;
+  if (diffDay < 365) return `${Math.floor(diffDay / 30)}개월 전`;
+  return `${Math.floor(diffDay / 365)}년 전`;
 }
