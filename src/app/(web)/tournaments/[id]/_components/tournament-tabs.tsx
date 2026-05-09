@@ -24,7 +24,9 @@ import { convertKeysToCamelCase } from "@/lib/utils/case";
 import { ScheduleTimeline } from "./schedule-timeline";
 import type { ScheduleMatch, ScheduleTeam } from "./schedule-timeline";
 // 날짜 탭 — 5/9 사용자 결정 (ScheduleTimeline 의 그룹화 로직과 동일 키 사용)
-import { formatGroupDate } from "@/lib/utils/format-date";
+// formatGroupDate = "5월 2일 토요일" (full key, ScheduleTimeline 내부 매핑)
+// formatGroupDateShort = "5/2(토)" (탭 chip 표시 minimization)
+import { formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
 
 // 대시보드 헤더 (overview 탭에서 사용)
 import { TournamentDashboardHeader } from "../bracket/_components/tournament-dashboard-header";
@@ -161,12 +163,11 @@ function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams
   // 선택 날짜 (null = 전체 보기 / "MM/DD" 형식 / "일정 미정")
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // 매치들에서 unique 날짜 추출 (이미 ScheduleTimeline 의 groupByDate 와 동일 로직)
-  // sort 는 매치 순서 그대로 (ScheduleTimeline 이 이미 정렬됨 — 단, scheduledAt asc 로 unique 추출)
-  const uniqueDates = (() => {
+  // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
+  // ScheduleTimeline 의 groupByDate 키 (formatGroupDate) 와 selectedDate 매핑 동기화 위해 풀 텍스트 키 유지.
+  const uniqueDates: { key: string; short: string }[] = (() => {
     const seen = new Set<string>();
-    const order: string[] = [];
-    // matches 가 scheduledAt asc 정렬돼 있다고 가정 (서버 또는 Timeline 가 보장)
+    const order: { key: string; short: string }[] = [];
     const sorted = [...matches].sort((a, b) => {
       const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
       const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
@@ -176,7 +177,7 @@ function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams
       const key = formatGroupDate(m.scheduledAt);
       if (!seen.has(key)) {
         seen.add(key);
-        order.push(key);
+        order.push({ key, short: formatGroupDateShort(m.scheduledAt) });
       }
     }
     return order;
@@ -188,13 +189,13 @@ function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold sm:text-2xl">일정</h2>
-          {/* 날짜 탭 — 가로 스크롤 (5/9 사용자 결정) */}
+          {/* 날짜 탭 — 가로 스크롤 (5/9 사용자 결정 — 줄바꿈 X / "5/2(토)" 컴팩트) */}
           {uniqueDates.length > 1 && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               <button
                 type="button"
                 onClick={() => setSelectedDate(null)}
-                className="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium transition-colors"
                 style={{
                   backgroundColor: selectedDate === null ? "var(--color-primary)" : "var(--color-elevated)",
                   color: selectedDate === null ? "white" : "var(--color-text-secondary)",
@@ -203,19 +204,20 @@ function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams
               >
                 전체
               </button>
-              {uniqueDates.map((date) => (
+              {uniqueDates.map(({ key, short }) => (
                 <button
-                  key={date}
+                  key={key}
                   type="button"
-                  onClick={() => setSelectedDate(date === selectedDate ? null : date)}
-                  className="rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                  onClick={() => setSelectedDate(key === selectedDate ? null : key)}
+                  className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium transition-colors"
                   style={{
-                    backgroundColor: selectedDate === date ? "var(--color-primary)" : "var(--color-elevated)",
-                    color: selectedDate === date ? "white" : "var(--color-text-secondary)",
-                    border: `1px solid ${selectedDate === date ? "var(--color-primary)" : "var(--color-border)"}`,
+                    backgroundColor: selectedDate === key ? "var(--color-primary)" : "var(--color-elevated)",
+                    color: selectedDate === key ? "white" : "var(--color-text-secondary)",
+                    border: `1px solid ${selectedDate === key ? "var(--color-primary)" : "var(--color-border)"}`,
                   }}
+                  title={key}
                 >
-                  {date}
+                  {short}
                 </button>
               ))}
             </div>

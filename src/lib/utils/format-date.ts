@@ -125,3 +125,14 @@ export function formatGroupDate(date: Date | string | null | undefined): string 
   const k = toKST(d);
   return `${k.month + 1}월 ${k.date}일 ${DAY_NAMES[k.day]}요일`;
 }
+
+/**
+ * "5/2(토)" 형식 — 컴팩트 날짜 라벨 (탭 chip / 인라인 메타용)
+ * 5/9 사용자 결정: 일정 헤더 옆 날짜 탭에서 줄바꿈 방지 위해 최소화.
+ */
+export function formatGroupDateShort(date: Date | string | null | undefined): string {
+  const d = toDate(date);
+  if (!d) return "미정";
+  const k = toKST(d);
+  return `${k.month + 1}/${k.date}(${DAY_NAMES[k.day]})`;
+}
