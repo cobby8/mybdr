@@ -89,7 +89,8 @@ export async function GET(
         awayTeam: {
           include: { team: { select: { name: true } } },
         },
-        tournament: { select: { venue_name: true, name: true } },
+        // 2026-05-09: dual_tournament 구조 인지 위해 format SELECT 추가.
+        tournament: { select: { venue_name: true, name: true, format: true } },
         playerStats: {
           include: {
             tournamentTeamPlayer: {
@@ -332,6 +333,69 @@ export async function GET(
     // 장소 — match.venue_name 우선, fallback tournament.venue_name
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
 
+    // 2026-05-09: dual_tournament 구조 인지 — LLM 이 "최종전 = 1위 결정전" 으로 오해 방지.
+    //   roundContext = 라운드 의미 자연어 / advancement = 진출 결과 narrative.
+    //   본 정보가 LLM 에 명시 전달되면 alkija prompt 의 "1위/우승 임의 추측 금지" 가이드와 짝.
+    const tournamentFormat = match.tournament?.format ?? null;
+    let roundContext: string | null = null;
+    let advancement: string | null = null;
+    if (tournamentFormat === "dual_tournament" && roundName) {
+      // 라운드 라벨 매핑 — 조 매치는 "1위 결정전 아님" 명시.
+      // 패턴: "{조}조 1경기" / "{조}조 2경기" / "{조}조 승자전" / "{조}조 패자전" / "{조}조 최종전" / "8강" / "4강" / "결승" / "3·4위전"
+      if (/최종전/.test(roundName)) {
+        roundContext = "조 최종전 = 조 2위/3위 결정전 (조 1위는 이미 승자전에서 결정됨). 1위/우승 표현 절대 금지.";
+      } else if (/승자전/.test(roundName)) {
+        roundContext = "조 승자전 = 이긴 팀이 조 1위 확정 / 진 팀은 패자전 승자와 최종전. 진 팀 = 탈락 아님.";
+      } else if (/패자전/.test(roundName)) {
+        roundContext = "조 패자전 = 1·2경기 패자끼리. 이긴 팀이 최종전 진출 / 진 팀은 탈락 (조 4위).";
+      } else if (/1경기|2경기/.test(roundName)) {
+        roundContext = "조 1·2경기 = 조 첫 매치 (1·2위 결정 매치 아님). 이긴 팀 → 승자전 / 진 팀 → 패자전.";
+      } else if (/결승/.test(roundName)) {
+        roundContext = "결승전 = 이긴 팀이 우승 / 진 팀이 준우승.";
+      } else if (/3.4위|3·4위|3, 4위|3-4위/.test(roundName)) {
+        roundContext = "3·4위 결정전 = 이긴 팀이 3위 / 진 팀이 4위.";
+      } else if (/4강/.test(roundName)) {
+        roundContext = "토너먼트 4강 = 이긴 팀이 결승 진출 / 진 팀이 3·4위 결정전 진출.";
+      } else if (/8강/.test(roundName)) {
+        roundContext = "토너먼트 8강 = 이긴 팀이 4강 진출 / 진 팀이 탈락.";
+      }
+
+      // 진출 결과 — next_match_id 기반 narrative.
+      const winnerName = homeScore > awayScore ? homeTeamName : awayTeamName;
+      const loserName = homeScore > awayScore ? awayTeamName : homeTeamName;
+      if (match.next_match_id) {
+        const next = await prisma.tournamentMatch.findUnique({
+          where: { id: match.next_match_id },
+          select: { roundName: true },
+        });
+        const nextRound = next?.roundName ?? "다음 라운드";
+        if (/최종전/.test(roundName)) {
+          advancement = `${winnerName} → ${nextRound} 진출 (조 2위 자격) / ${loserName} → 탈락 (조 3위)`;
+        } else if (/승자전/.test(roundName)) {
+          advancement = `${winnerName} → ${nextRound} 진출 (조 1위) / ${loserName} → 패자전·최종전 거쳐 진출 결정`;
+        } else if (/8강|4강/.test(roundName)) {
+          advancement = `${winnerName} → ${nextRound} 진출 / ${loserName} → 탈락`;
+        } else if (/결승/.test(roundName)) {
+          advancement = `${winnerName} → 우승 / ${loserName} → 준우승`;
+        } else {
+          advancement = `${winnerName} → ${nextRound} 진출 / ${loserName} → 별도 라운드`;
+        }
+      } else {
+        // next_match_id 없음 = 마지막 매치 (탈락 / 우승 등)
+        if (/8강/.test(roundName)) {
+          advancement = `${winnerName} → 4강 진출 / ${loserName} → 탈락`;
+        } else if (/4강/.test(roundName)) {
+          advancement = `${winnerName} → 결승 진출 / ${loserName} → 3·4위전 진출`;
+        } else if (/결승/.test(roundName)) {
+          advancement = `${winnerName} → 우승 / ${loserName} → 준우승`;
+        } else if (/3.4위|3·4위/.test(roundName)) {
+          advancement = `${winnerName} → 3위 / ${loserName} → 4위`;
+        } else if (/최종전/.test(roundName)) {
+          advancement = `${winnerName} → 조 2위 / ${loserName} → 조 3위 (탈락)`;
+        }
+      }
+    }
+
     // 2026-05-03: 풍부한 데이터 풀 — 양 팀 통계 합산 + 모든 선수 + 특별 기록
     type PStat = NonNullable<MatchBriefInput["allPlayers"]>[number];
     const allPlayers: PStat[] = [];
@@ -478,6 +542,10 @@ export async function GET(
       topBlocker: topBlocker && topBlocker.blk >= 1 ? topBlocker : null,
       topPlusMinus: topPlusMinus && topPlusMinus.plusMinus >= 5 ? topPlusMinus : null,
       bestThreeShooter: bestThreeShooter ?? null,
+      // 2026-05-09: dual_tournament 구조 인지 (LLM 1위/우승 추측 차단)
+      tournamentFormat,
+      roundContext,
+      advancement,
     };
 
     // 2026-05-03: mode query param 추가 — Phase 1 (default) / Phase 2 분기
