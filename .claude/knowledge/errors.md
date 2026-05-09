@@ -2,6 +2,29 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] 라이브 페이지 운영자 CTA 미노출 = 버그 X (자동 등록 트리거 후 영상 등록 완료 상태)
+- **분류**: false-alarm (운영 동작 정상)
+- **발견자**: debugger (사용자 보고 미스터리 진단)
+- **증상**: 사용자 = 매치 148 (제21회 몰텐배) tournament organizer / `/live/148` 진입 시 "🎬 YouTube 영상 등록" 점선 CTA 가 보이지 않음. 사용자는 "status=live + youtube_video_id=null + isAdmin=true" 라고 추정.
+- **실제**: DB 검증 시 `match.youtube_video_id = "iuUMfQJC77I"`, `youtube_status = "auto_verified"`, `status = "completed"`. 즉 5/9 batch 또는 5/10 라이브 자동 트리거가 영상을 이미 등록 완료 → CTA 노출 조건 (`match.youtube_video_id == null`) 자체가 false → 등록 CTA 대신 **YouTube embed 가 노출** + 운영자에게는 영상 우상단 ✏️ "영상 변경" edit 버튼이 보임 (page.tsx 1008L 분기 `match.youtube_video_id ?` 의 false 분기 = 미등록 시 CTA, true 분기 = 영상 + edit 버튼)
+- **재발 방지**:
+  1. "CTA 안 보임" 류 미스터리 진단 시 DB 1차 SELECT 로 `youtube_video_id` 실측 — 사용자 추정 (null/live) 신뢰 X
+  2. `youtube-embed.tsx` 우상단 edit 버튼 = 운영자 모달 진입의 또 다른 trigger (CTA 미노출 ≠ 모달 진입 차단)
+  3. 자동 등록 트리거 (auto_verified) 가 활성화되면 운영자 인지 없이도 영상이 자동 채워짐 → 사용자 경험상 "어, CTA 가 안 보이네" 인식 가능. 안내 문구 (영상 우상단 "자동 검색 등록" 뱃지) 가 isAdmin 일 때만 노출 — 일반 회원에게는 자연스럽게 보임.
+- **진단 절차** (다음 케이스 시 동일 적용):
+  ```
+  1. DB SELECT — match.youtube_video_id / youtube_status / status
+  2. organizerId / tournament_admin_members.is_active 검증
+  3. apiSuccess snake_case 변환 후 클라 키 (`is_admin` / `youtube_video_id`) 정확 도착 확인
+  4. CTA 분기 (page.tsx 1008L `isAdmin && match.youtube_video_id ?? null`) 모두 충족 시에만 CTA
+  ```
+- **참조 파일**:
+  - `src/app/live/[id]/page.tsx` line 1008 (CTA 분기) / line 964 (영상 분기)
+  - `src/app/live/[id]/_v2/youtube-embed.tsx` line 154-169 (운영자 edit 버튼)
+  - `src/app/api/web/tournaments/[id]/admin-check/route.ts` (admin-check API)
+
+---
+
 ### [2026-05-10] sticky 모바일 미작동 — overflow-x: hidden + zoom 1.1 복합 원인
 - **분류**: ui/css (모바일 sticky positioning)
 - **증상**: 라이브 페이지 (`/live/[id]`) YouTube 영상에 `sticky top-14 z-30` 적용 → PC 정상 / **모바일 sticky 안 됨** (영상이 스크롤과 같이 움직임)
@@ -28,10 +51,10 @@
     background-color: var(--*);  ← Unexpected token Delim('*')
   }
   ```
-- **원인**: Tailwind v4 의 content scanner 가 `Dev/**/*.md` (planner 보고서 등) 도 scan → 보고서 본문에 예시 표기로 사용한 `bg-[var(--*)]` 텍스트 추출 → globals.css 에 `.bg-\[var\(--\*\)\] { background-color: var(--*) }` 자동 생성 → `--*` 는 invalid CSS variable 이름이라 Turbopack 빌드 실패
-- **2회차 재발 사유**: 1차 fix (`bg-[var(--*)]` → `bg-[var(--TOKEN)]`) 후 새 planner 보고서에서 **금지 사례 표기 자체** ("`bg-[var(--*)]` 텍스트 금지") 가 다시 트리거. **금지 표기조차 placeholder 사용 필수**
+- **원인**: Tailwind v4 의 content scanner 가 `Dev/**/*.md` (planner 보고서 등) 도 scan → 보고서 본문에 예시 표기로 사용한 `bg-[var(--ASTERISK_LITERAL)]` 텍스트 추출 → globals.css 에 `.bg-\[var\(--\*\)\] { background-color: var(--*) }` 자동 생성 → `--*` 는 invalid CSS variable 이름이라 Turbopack 빌드 실패
+- **2회차 재발 사유**: 1차 fix (`bg-[var(--ASTERISK_LITERAL)]` → `bg-[var(--TOKEN)]`) 후 새 planner 보고서에서 **금지 사례 표기 자체** ("`bg-[var(--ASTERISK_LITERAL)]` 텍스트 금지") 가 다시 트리거. **금지 표기조차 placeholder 사용 필수**
 - **fix**:
-  1. `.md` / `.tsx` / `.css` 본문 모두 `bg-[var(--*)]` 텍스트 제거 → placeholder (`--TOKEN`, `--ASTERISK`, `--PLACEHOLDER`, `--NAME`) 사용
+  1. `.md` / `.tsx` / `.css` 본문 모두 `bg-[var(--ASTERISK_LITERAL)]` 텍스트 제거 → placeholder (`--TOKEN`, `--ASTERISK`, `--PLACEHOLDER`, `--NAME`) 사용
   2. `.next` 캐시 클리어 (`rm -rf .next`) — Turbopack 자동 생성 stale 클래스 제거
   3. dev server 재시작 (포트 PID 만 종료 후 `npm run dev`)
 - **재발 방지**:
