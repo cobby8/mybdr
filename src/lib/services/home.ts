@@ -120,8 +120,10 @@ export const prefetchStats = unstable_cache(async () => {
  * ============================================================ */
 export const prefetchCommunity = unstable_cache(async () => {
   // content 전체를 가져오지 않고 필요한 컬럼만 select (수천자 본문 → DB 레벨에서 제외)
+  // 2026-05-09: status 필터 추가 — /community SSR 프리페치에 draft (알기자 검수 대기) 노출 방지.
+  // /api/web/community list 는 이미 published 가드. 본 함수는 SSR fallbackData 용 — 누락 시 첫 진입 카드에 draft 노출.
   const posts = await prisma.community_posts.findMany({
-    where: {},
+    where: { status: "published" },
     orderBy: { created_at: "desc" },
     take: 30,
     select: {
