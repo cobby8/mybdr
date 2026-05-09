@@ -204,6 +204,44 @@ function Live({ setRoute }) {
         </aside>
       </div>
 
+      {/* 2026-05-10 운영 박제 — PIP mini player.
+          운영 (src/app/live/[id]/page.tsx) 동작:
+            PC ≥768px = 영상 viewport 밖일 때 IntersectionObserver 로 PIP 활성화 / 우측 하단 fixed
+            모바일 ≤767px = sticky top-14 (헤더 아래) 큰 영상 / PIP 미활성
+          시안에서는 항상 노출 (mock demo) — 시각 컴포넌트 디자인 검증용. */}
+      <div style={{
+        position:'fixed', bottom:16, right:16, width:320, zIndex:40,
+        background:'var(--bg-alt)', border:'1px solid var(--border)',
+        borderRadius:4, overflow:'hidden', boxShadow:'0 8px 24px rgba(0,0,0,.35)',
+      }}>
+        <div style={{aspectRatio:'16/9', position:'relative', background:'linear-gradient(135deg, #1a1a1a, #000)'}}>
+          <div style={{position:'absolute', inset:0, background:'radial-gradient(ellipse at center, rgba(220,38,38,.15), transparent 60%)'}}/>
+          {/* LIVE 배지 — 운영의 page.tsx 헤더 LIVE 인디케이터와 동일 톤 */}
+          <span style={{
+            position:'absolute', top:8, left:8,
+            background:'var(--err)', color:'#fff',
+            fontSize:9, fontWeight:800, padding:'2px 6px',
+            borderRadius:2, letterSpacing:'.1em',
+            display:'flex', alignItems:'center', gap:4,
+          }}>
+            <span style={{width:4, height:4, borderRadius:'50%', background:'#fff'}}/>
+            LIVE
+          </span>
+          {/* 미니 스코어보드 — 우영 hero scoreboard 의 압축 버전 */}
+          <div style={{
+            position:'absolute', bottom:8, left:8, right:8,
+            background:'rgba(0,0,0,.85)', color:'#fff',
+            padding:'6px 10px', borderRadius:4,
+            display:'flex', justifyContent:'space-between',
+            fontSize:11, fontFamily:'var(--ff-mono)', fontWeight:700,
+          }}>
+            <span>{teamA.tag} 47</span>
+            <span style={{opacity:.5}}>Q3 5:24</span>
+            <span style={{color:'var(--err)'}}>{teamB.tag} 52</span>
+          </div>
+        </div>
+      </div>
+
       <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }`}</style>
     </div>
   );

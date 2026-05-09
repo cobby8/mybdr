@@ -173,6 +173,56 @@
 
 ---
 
+## 기획설계 (planner-architect / 5/10 라이브 YouTube 자동 등록 트리거)
+
+🎯 목표: 매치 시작 ±10분 윈도우 내 30초 폴링으로 BDR 채널 영상 자동 등록 / 등록 후 자동 stop
+
+📍 만들 위치와 구조 (3 PR):
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `src/lib/youtube/score-match.ts` | scoreMatch 헬퍼 + 임계 상수 추출 (search route + auto-register 공용) | 신규 (PR-A) |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/youtube-stream/search/route.ts` | scoreMatch import 로 리팩터 (회귀 0) | 수정 (PR-A) |
+| `src/app/api/web/match-stream/auto-register/[matchId]/route.ts` | 무인증 endpoint (POST / rate limit 6회/분/IP+matchId / 5분 cache / 80점+ INSERT + admin_log) | 신규 (PR-B) |
+| `src/app/live/[id]/page.tsx` | useEffect 추가 (윈도우 가드 + 30초 setInterval + autoRegisterActive state + isAdmin 토스트) | 수정 (PR-C) |
+
+🔗 기존 코드 연결:
+- `src/lib/youtube/enriched-videos.ts` `fetchEnrichedVideos()` 재사용 (uploads playlist 150건 / Redis cache 30분)
+- `src/lib/security/rate-limit.ts` `checkRateLimit()` 재사용 (IP+matchId 키 분리)
+- `src/lib/admin/log.ts` `adminLog()` 재사용 (action="match_youtube_stream_auto_register" / severity="info")
+- 기존 search route — 운영자 권한 + 30회/분 그대로 / scoreMatch 만 헬퍼로 이동
+
+📋 실행 계획:
+| 순서 | 작업 | 담당 | 선행 | 추정 |
+|------|------|------|------|------|
+| PR-A | scoreMatch 헬퍼 추출 + search route 리팩터 | developer | 결재 (Q1~Q7) | 30분 |
+| PR-B | auto-register endpoint 신규 (무인증 + rate limit + cache + 80점 INSERT + admin_log) | developer | PR-A | 1.5h |
+| PR-C | 라이브 페이지 useEffect (윈도우 가드 + setInterval + UI 안내) | developer | PR-A | 1h |
+| 검증 | tester (curl 14 시나리오 + tsc + Flutter v1) + reviewer 병렬 | tester+reviewer | PR 별 | 30분 |
+
+⚠️ developer 주의사항:
+- **무인증 endpoint** — `withWebAuth` 미적용 / IDOR 가드 0 (라이브 페이지 공개)
+- **rate limit 키 = `auto-register:${matchId}:${ip}`** — IP+matchId 분리 (다 매치 동시 폴링 OK / 같은 매치 abuse 차단)
+- **80점+만 INSERT** — search/route.ts scoreMatch 신뢰 (5/9 batch v3 정확도 100% 검증)
+- **이미 등록됨 (youtube_video_id != null) → 200 즉시 반환** (재등록 X / 운영자 수동 등록과 충돌 0)
+- **status guard**: `[scheduled, ready, in_progress]` (Q10 결재)
+- **윈도우 ±10분**: 사용자 명시 (Q1=A)
+- **admin_log severity="info"** — 정상 동작 (Q9)
+- **클라 useEffect cleanup** — match 변경 시 clearInterval 필수
+- **YouTube quota 영향 0** — uploads playlist cache hit 99% + 매치 단위 5분 cache
+
+📄 보고서: `Dev/live-youtube-auto-trigger-2026-05-10.md` (14 섹션 / Q1~Q7 결재 + 코드 예시 250L)
+
+📌 결재 대기:
+- Q1 윈도우 ±10분: A (사용자 명시)
+- Q2 rate limit 6회/분/IP+matchId: A
+- Q3 80점 임계: A
+- Q4 무인증 OK: A
+- Q5 클라 단독 (cron 미사용): A
+- Q6 PR 분할 3건: A
+- Q7 scoreMatch 헬퍼 별도 PR-A: 별도 권장
+
+---
+
 ## 기획설계 (planner-architect / 5/9 라이브 YouTube)
 
 🎯 목표: `/live/[id]` 라이브 페이지에 YouTube 영상 임베딩 (수동 URL + 자동 검색)
@@ -263,6 +313,7 @@
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | (developer) 라이브 YouTube 자동 트리거 PR-A scoreMatch 헬퍼 추출 / 미커밋 | **PR-A — `src/lib/youtube/score-match.ts` 신규 142L (scoreMatch 함수 + ScoredCandidate/MatchContext/ScoreBreakdown 타입 + TIME_MATCH_WINDOW_MS/SCORE_THRESHOLD_AUTO=80/SCORE_THRESHOLD_CANDIDATE=50 상수 export) + search/route.ts 리팩터 -109L (scoreMatch 함수/ScoredCandidate interface/TIME_MATCH_WINDOW_MS/SCORE_THRESHOLD_CANDIDATE 상수 제거 + 헬퍼 import 6L 추가)**. EnrichedVideo import 는 line 124 `let videos: EnrichedVideo[]` 사용 위해 유지. 알고리즘 변경 0 (search/route.ts line 91~167 본체 그대로 추출). search API 응답 변경 0 / Redis cache key+TTL 변경 0 / Rate limit 변경 0 / DB schema 변경 0 / Flutter v1 영향 0. tsc 0 에러. PR-B (auto-register) / PR-C (라이브 페이지 useEffect) 에서 import 가능 형태 검증 완료. | 검증대기 |
 | 2026-05-09 | (developer) 라이브 API 임시 jersey 우선 적용 / 미커밋 | **라이브 API 임시 jersey 우선 적용 — `/api/live/[id]/route.ts` 명단 영역 PR5 헬퍼 일관** — `resolveMatchJerseysBatch` import 추가 + `allTtpEntries` 양 팀 ttp 구성 (homeTeam.players + awayTeam.players) → 1회 SELECT (`jerseyMap: Map<bigint, number\|null>`) + `getJersey(ttpId, fallback)` helper. 적용 위치 4종: (1) 진행중 분기 allPlayers map (line 290/300) `getJersey(p.id, p.jerseyNumber)` (2) 종료 분기 toPlayerRow (line 539) `getJersey(player.id, player.jerseyNumber)` (3) playerNameById PBP 타임라인 (line 970/975) jersey_number 도 동일 매핑 (4) mvpPlayer = PlayerRow.jerseyNumber 자동 정합 (별도 매핑 0). 기존 line 647~698 사후 후처리 제거 — 같은 SELECT 중복 + jerseyMap 으로 통합 일관성 ↑. 정영민 ttp.id 기준 매치 #148 `match_player_jersey` 9 → jerseyMap.get(ttp.id)=9 우선 적용 / 다른 선수 영구 # 그대로 (override 없으면 ttpJersey fallback). API 응답 키 변경 0 (jerseyNumber 유지) / Flutter v1 영향 0 (`/api/v1/...` 별도 라우트) / DB schema 변경 0 / 매치당 SELECT 1회 (성능 영향 미미) / tsc 0 | 검증대기 |
 | 2026-05-09 | (developer) YouTube batch v3 (이미 등록 영상 제외 + 정확 날짜) / 미커밋 | **YouTube batch v3 — 이미 등록 영상 제외 + 정확 날짜 매칭** — scripts/_temp/youtube-batch-match.ts: (1) **DB 이미 등록 영상 사전 조회 + pool 제외** — `usedSet` (12건) → `availableVideos` filter (150→138). 같은 팀 조합 새 매치가 이전 영상에 중복 매핑되는 사일런트 버그 차단. `--include-existing` 시 가드 미적용 (정확도 비교 모드). (2) **날짜 점수 룰 강화** — 같은날=20 / ±1일 자정경계=5 / 그 외=0. v2 의 ±1~7일=15, ±8~30일=10 제거 → 다른 날 영상은 양 팀 50+대회명 20+날짜 0+시간 0=70점 (임계값 80 미달 → 자동 채택 차단). (3) **dry-run (운영 DB)**: 매치 65건 (종료 33/예정 32) — 자동 채택 0건 / 후보 0건 / 매칭 실패 65건. 0건 채택 사유: BDR 채널에 같은 날 정확 매칭 신규 영상 0건 (정상 — 5/9 신규 BDR 영상 미업로드 추정). (4) **정확도 100%** (--include-existing 12건 재채점 — 95~100점 모두 동일 영상 자동 채택, 강등/영상변경 0건). tsc 0 / DB 변경 0 / Flutter v1 영향 0 |  검증대기 |
 | 2026-05-09 | (developer) YouTube batch 예정 매치 확장 / 미커밋 | **YouTube batch 매칭 — 예정 매치 포함 확장** — scripts/_temp/youtube-batch-match.ts: (1) **status 필터 분기 3모드** — 기본 = 모든 매치 (예정+진행중+종료) / `--completed-only` = 기존 동작 (종료만) / `--scheduled-only` = 예정만. 두 옵션 동시 지정 시 에러 후 종료. (2) **날짜 점수 절대값화** — `Math.abs(videoAt - matchAt)` (사전 영상 / VOD 모두 동일 점수). 같은날=20 / ±1~7일=15 / ±8~30일=10. 이전: 양수만 (사전 영상 0점 강등). (3) **결과 리포트 종료/예정 분리** — 자동 채택 / 후보 검토 / 매칭 실패 각 분류에 [종료 N / 예정 M] 표시 + 자동 채택 상세 출력 종료(VOD)/예정(사전영상) 별도 섹션. (4) **회귀 차단** — `youtube_video_id IS NULL` 필터로 이전 12 매치 자동 제외 그대로 유지. **dry-run (로컬)**: 매치 65건 식별 (종료 33 / 예정 32) — `BDR_YOUTUBE_UPLOADS_PLAYLIST_ID` 로컬 미설정 → 영상 0건 (운영 배포 또는 환경변수 추가 후 재실행 필요). 모드 분기 검증: completed-only=33 / scheduled-only=32 / 기본=65 / --include-existing=77 (=65+이전12). tsc 0 / DB 변경 0 / Flutter v1 영향 0 | 검증대기 |
@@ -276,5 +327,4 @@
 | 2026-05-09 | (developer) YouTube 일괄 자동 매칭 batch / 미커밋 | **YouTube 일괄 자동 매칭 batch 스크립트** — scripts/_temp/youtube-batch-match.ts (~370L) / dry-run 기본 / 80점 임계값 / Redis cache 재사용 quota 1~2 / fetchEnrichedVideos dynamic import (--playlist-id 오버라이드 hook) / scoreMatch search/route.ts 동일 알고리즘 inline / --apply 시 80점+ UPDATE + admin_logs INSERT (super_admin admin_id 자동 결정 / --admin-id=N 오버라이드) / dry-run 결과: 종료 매치 45건 확보 (BDR_YOUTUBE_UPLOADS_PLAYLIST_ID 로컬 미설정 → 영상 0건 → 운영 배포 또는 환경변수 추가 후 재실행 필요) / tsc 0 / Flutter v1 영향 0 | 검증대기 |
 | 2026-05-09 | (developer) 사전 라인업 PR1+PR2 / 미커밋 | **사전 라인업 PR1+PR2 — DB CREATE TABLE match_lineup_confirmed + API 3 + 권한 헬퍼** — schema.prisma 신규 모델 1 (UNIQUE(matchId,teamSide) + index 2) + User/TournamentMatch 역참조 / prisma db push 무중단 (CREATE TABLE 1 / 운영 영향 0) / match-lineup.ts 권한 헬퍼 200L (resolveLineupAuth + getLineupCanEdit / admin 양쪽 / captain·manager 본인측만) / lineup/route.ts 462L (GET 매치+양팀ttp+lineup+canEdit / POST upsert + Q6=A 5명강제 + 중복0 + ttp 무결성 / DELETE 해제) / tsc 0 / Flutter v1 영향 0 / PR3~PR8 후속 큐 | 검증대기 |
 | 2026-05-09 | (developer) PR4+PR5 통합 / 미커밋 | **라이브 YouTube PR4+PR5 통합** — match-youtube-modal.tsx 신규 (727L, 탭 2개: 수동 URL 입력 + BDR 자동 검색 / 백드롭+ESC+iOS 16px input / 80점 임계 강조 + dim / 후보 0건 fallback / 삭제 confirm) + page.tsx 통합 (import + streamModalOpen state + 영상 미등록 운영자 등록 CTA + onManageClick 연결 + 모달 마운트 onSave→fetchMatch refetch) / tsc 0 / Tailwind arbitrary 0 (errors.md 룰 통과) / 시안 박제 후속 큐 / Flutter v1 영향 0 | 검증대기 |
-| 2026-05-09 | (developer) PR1+PR2+PR3 통합 / 미커밋 | **라이브 YouTube PR1~3 통합** — DB ADD COLUMN 3 + match-stream.ts (164L) + enriched-videos.ts (355L) + POST/PATCH/DELETE 라우트 (288L) + GET search 신뢰도 80 (270L) + YouTubeEmbed (189L) + page.tsx 마운트 + game-result.tsx + /api/live/[id] 3 필드 / tsc 0 / quota 0~2 / Flutter v1 영향 0 | 검증대기 |
-<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 재설계 5 Phase 16 PR main `8bbce95` / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError → main `4253e68` / 5/7 envelope 8회 — 5/7 main 21회 baseline (`2cc9df3` ~ `168be48`) / 5/8 main 7회 (`c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) / 5/9 main 8회 신기록 PR #228~#243 → `702d00e` `b96f58c` `71d4087` `afcbd65` `d833569` `7d68cce` `fff4c54` `76bf5f3`) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 재설계 5 Phase 16 PR main `8bbce95` / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 → main `3f016c9` / 5/6 UI fix 13 + apiError → main `4253e68` / 5/7 envelope 8회 — 5/7 main 21회 baseline (`2cc9df3` ~ `168be48`) / 5/8 main 7회 (`c6a6848` `f39afae` `8846f6d` `13a962e` `93670c5` `118c9f1`) / 5/9 main 8회 신기록 PR #228~#243 → `702d00e` `b96f58c` `71d4087` `afcbd65` `d833569` `7d68cce` `fff4c54` `76bf5f3`) / 5/9 라이브 YouTube PR1+PR2+PR3 통합 (DB ADD COLUMN 3 + match-stream.ts + enriched-videos.ts + POST/PATCH/DELETE + search 270L + YouTubeEmbed + page.tsx 마운트 / 미커밋) — 복원: git log -- .claude/scratchpad.md -->

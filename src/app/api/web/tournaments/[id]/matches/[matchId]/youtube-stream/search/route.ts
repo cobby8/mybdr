@@ -25,6 +25,12 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { resolveMatchStreamAuth } from "@/lib/auth/match-stream";
 import { parseBigIntParam } from "@/lib/utils/parse-bigint";
 import { fetchEnrichedVideos, type EnrichedVideo } from "@/lib/youtube/enriched-videos";
+// 2026-05-10 PR-A — scoreMatch 헬퍼 추출 (search + auto-register 공용 source)
+import {
+  scoreMatch,
+  type ScoredCandidate,
+  SCORE_THRESHOLD_CANDIDATE,
+} from "@/lib/youtube/score-match";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
@@ -32,12 +38,6 @@ type Ctx = { params: Promise<{ id: string; matchId: string }> };
 // 검색 후보 cache (매치별 5분 — 운영자가 모달 여러 번 열어도 한 번만 점수 계산)
 const SEARCH_CACHE_TTL = 5 * 60; // 초
 const SEARCH_CACHE_KEY = (matchId: string) => `mybdr:youtube:match-search:${matchId}`;
-
-// Q8: 자동 등록 임계값 = 80점 / 후보 노출 = 50점 이상
-const SCORE_THRESHOLD_CANDIDATE = 50;
-
-// Q2: 시간 매칭 ± 30분 (매치 시작/예정 시각 기준)
-const TIME_MATCH_WINDOW_MS = 30 * 60 * 1000; // 30분
 
 const hasRedisConfig =
   !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -52,119 +52,6 @@ function getRedis(): Redis | null {
     });
   }
   return redisClient;
-}
-
-interface ScoredCandidate {
-  video_id: string;
-  title: string;
-  thumbnail: string;
-  score: number;
-  is_live: boolean;
-  published_at: string;
-  view_count: number;
-  // 점수 breakdown — 운영자 UI 에서 "왜 이 영상이 후보로 추천됐는지" 설명용
-  score_breakdown: {
-    time: number;
-    home_team: number;
-    away_team: number;
-    tournament: number;
-    match_code: number;
-    round: number;
-  };
-}
-
-/**
- * 매치 정보 + BDR 영상 1건 → 신뢰도 점수 계산.
- * 점수 ≥80 = 자동 채택 / 50~79 = 후보 노출 / <50 = 무시.
- */
-function scoreMatch(
-  video: EnrichedVideo,
-  match: {
-    homeTeamName: string;
-    awayTeamName: string;
-    tournamentName: string;
-    roundName: string | null;
-    matchCode: string | null;
-    scheduledAt: Date | null;
-    startedAt: Date | null;
-  },
-): ScoredCandidate {
-  const breakdown = {
-    time: 0,
-    home_team: 0,
-    away_team: 0,
-    tournament: 0,
-    match_code: 0,
-    round: 0,
-  };
-
-  // 1) 시간 매칭 — 영상 publishedAt vs 매치 시작/예정 시각
-  // 라이브 영상은 publishedAt = 라이브 시작 시각이라 정확. VOD 도 매치 종료 직후 업로드가 일반적.
-  const matchTime = (match.startedAt ?? match.scheduledAt)?.getTime();
-  if (matchTime) {
-    const videoTime = new Date(video.publishedAt).getTime();
-    const diff = Math.abs(videoTime - matchTime);
-    if (diff <= TIME_MATCH_WINDOW_MS) {
-      breakdown.time = 60; // ±30분 = 강한 시그널
-    } else if (diff <= TIME_MATCH_WINDOW_MS * 2) {
-      breakdown.time = 30; // ±60분 = 중간 시그널
-    } else if (diff <= TIME_MATCH_WINDOW_MS * 8) {
-      breakdown.time = 10; // ±4시간 = 약한 시그널 (같은 날)
-    }
-  }
-
-  // 2) 제목/설명 키워드 매칭 (case-insensitive)
-  const haystack = `${video.title} ${video.description}`.toLowerCase();
-
-  // 팀명 — 공백 제거 후 부분 매칭 (한글 공백 변형 대응)
-  const homeNameNorm = match.homeTeamName.replace(/\s+/g, "").toLowerCase();
-  const awayNameNorm = match.awayTeamName.replace(/\s+/g, "").toLowerCase();
-  const haystackNorm = haystack.replace(/\s+/g, "");
-
-  if (homeNameNorm.length >= 2 && haystackNorm.includes(homeNameNorm)) {
-    breakdown.home_team = 30;
-  }
-  if (awayNameNorm.length >= 2 && haystackNorm.includes(awayNameNorm)) {
-    breakdown.away_team = 30;
-  }
-
-  // 대회명 — 길어서 부분 매칭 (앞 4자만 사용)
-  const tournamentTrim = match.tournamentName.replace(/\s+/g, "").toLowerCase().slice(0, 8);
-  if (tournamentTrim.length >= 3 && haystackNorm.includes(tournamentTrim)) {
-    breakdown.tournament = 10;
-  }
-
-  // 매치 코드 — 가장 강한 시그널 (예: "26-GG-MD21-001")
-  if (match.matchCode && haystack.includes(match.matchCode.toLowerCase())) {
-    breakdown.match_code = 20;
-  }
-
-  // 라운드 — 약한 시그널 ("결승" / "8강" / "준결승")
-  if (match.roundName) {
-    const roundNorm = match.roundName.replace(/\s+/g, "").toLowerCase();
-    if (roundNorm.length >= 2 && haystackNorm.includes(roundNorm)) {
-      breakdown.round = 5;
-    }
-  }
-
-  const score =
-    breakdown.time +
-    breakdown.home_team +
-    breakdown.away_team +
-    breakdown.tournament +
-    breakdown.match_code +
-    breakdown.round;
-
-  return {
-    video_id: video.videoId,
-    title: video.title,
-    thumbnail: video.thumbnail,
-    score,
-    is_live: video.liveBroadcastContent === "live",
-    published_at: video.publishedAt,
-    view_count: video.viewCount,
-    score_breakdown: breakdown,
-  };
 }
 
 /**
