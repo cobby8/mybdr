@@ -10,7 +10,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { formatShortTime, formatGroupDate } from "@/lib/utils/format-date";
+import { formatShortTime, formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
 
 // -- 타입 정의: 서버에서 넘겨받을 경기 데이터 구조 --
 export interface ScheduleMatch {
@@ -47,8 +47,8 @@ export interface ScheduleTeam {
 interface Props {
   matches: ScheduleMatch[];
   teams: ScheduleTeam[];
-  // 2026-05-09 사용자 결정: 부모 헤더에서 날짜 탭 선택 시 필터.
-  // null = 전체 보기 / "MM/DD" 형식 (formatGroupDate 결과와 일치)
+  // 2026-05-09 사용자 결정: 날짜 탭 자체 관리 (팀 필터 chip 위 row).
+  // 외부에서도 selectedDate prop 전달 가능 (controlled — 미전달 시 자체 state).
   selectedDate?: string | null;
 }
 
@@ -125,9 +125,31 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant="default">예정</Badge>;
 }
 
-export function ScheduleTimeline({ matches, teams, selectedDate }: Props) {
+export function ScheduleTimeline({ matches, teams, selectedDate: selectedDateProp }: Props) {
   // 선택된 팀 ID (null = 전체 보기)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  // 5/9 사용자 결정: 날짜 탭 자체 state (controlled prop 우선 / fallback 자체 관리)
+  const [selectedDateState, setSelectedDateState] = useState<string | null>(null);
+  const selectedDate = selectedDateProp !== undefined ? selectedDateProp : selectedDateState;
+
+  // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
+  const uniqueDates: { key: string; short: string }[] = useMemo(() => {
+    const seen = new Set<string>();
+    const order: { key: string; short: string }[] = [];
+    const sorted = [...matches].sort((a, b) => {
+      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
+      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
+      return ta - tb;
+    });
+    for (const m of sorted) {
+      const key = formatGroupDate(m.scheduledAt);
+      if (!seen.has(key)) {
+        seen.add(key);
+        order.push({ key, short: formatGroupDateShort(m.scheduledAt) });
+      }
+    }
+    return order;
+  }, [matches]);
 
   // 선택된 팀 + 날짜 필터 적용 (5/9 사용자 결정 — 날짜 탭)
   const filteredMatches = useMemo(() => {
@@ -141,7 +163,7 @@ export function ScheduleTimeline({ matches, teams, selectedDate }: Props) {
         );
       }
     }
-    // 날짜 필터 (selectedDate = MM/DD 형식 / null = 전체)
+    // 날짜 필터 (selectedDate = formatGroupDate 풀 텍스트 / null = 전체)
     if (selectedDate) {
       filtered = filtered.filter(
         (m) => formatGroupDate(m.scheduledAt) === selectedDate
@@ -160,6 +182,40 @@ export function ScheduleTimeline({ matches, teams, selectedDate }: Props) {
 
   return (
     <div>
+      {/* 5/9 사용자 결정: 날짜 탭 — 팀 필터 위 row + 가로 스크롤 + 줄바꿈 X */}
+      {uniqueDates.length > 1 && (
+        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+          <button
+            type="button"
+            onClick={() => setSelectedDateState(null)}
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: selectedDate === null ? "var(--color-primary)" : "var(--color-elevated)",
+              color: selectedDate === null ? "white" : "var(--color-text-secondary)",
+              border: `1px solid ${selectedDate === null ? "var(--color-primary)" : "var(--color-border)"}`,
+            }}
+          >
+            전체
+          </button>
+          {uniqueDates.map(({ key, short }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedDateState(key === selectedDate ? null : key)}
+              className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: selectedDate === key ? "var(--color-primary)" : "var(--color-elevated)",
+                color: selectedDate === key ? "white" : "var(--color-text-secondary)",
+                border: `1px solid ${selectedDate === key ? "var(--color-primary)" : "var(--color-border)"}`,
+              }}
+              title={key}
+            >
+              {short}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 팀 필터 버튼 그룹: 가로 스크롤 */}
       {teams.length > 0 && (
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>

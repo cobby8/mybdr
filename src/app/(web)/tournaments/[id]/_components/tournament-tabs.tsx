@@ -154,75 +154,12 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     name: (t.name ?? '') as string,
   }));
 
-  return <ScheduleTabRender matches={matches} teams={teams} />;
-}
-
-// -- 일정 탭 렌더러 (헤더 + 날짜 탭 + Timeline) --
-// 5/9 사용자 결정: 헤더의 "일정" 글씨 옆에 날짜별 탭 추가.
-function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams: ScheduleTeam[] }) {
-  // 선택 날짜 (null = 전체 보기 / "MM/DD" 형식 / "일정 미정")
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-
-  // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
-  // ScheduleTimeline 의 groupByDate 키 (formatGroupDate) 와 selectedDate 매핑 동기화 위해 풀 텍스트 키 유지.
-  const uniqueDates: { key: string; short: string }[] = (() => {
-    const seen = new Set<string>();
-    const order: { key: string; short: string }[] = [];
-    const sorted = [...matches].sort((a, b) => {
-      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
-      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
-      return ta - tb;
-    });
-    for (const m of sorted) {
-      const key = formatGroupDate(m.scheduledAt);
-      if (!seen.has(key)) {
-        seen.add(key);
-        order.push({ key, short: formatGroupDateShort(m.scheduledAt) });
-      }
-    }
-    return order;
-  })();
-
   return (
     <div>
-      {/* 헤더 row — 좌측 (일정 + 날짜 탭) / 우측 (캘린더 등록) */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-xl font-bold sm:text-2xl">일정</h2>
-          {/* 날짜 탭 — 가로 스크롤 (5/9 사용자 결정 — 줄바꿈 X / "5/2(토)" 컴팩트) */}
-          {uniqueDates.length > 1 && (
-            <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-              <button
-                type="button"
-                onClick={() => setSelectedDate(null)}
-                className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium transition-colors"
-                style={{
-                  backgroundColor: selectedDate === null ? "var(--color-primary)" : "var(--color-elevated)",
-                  color: selectedDate === null ? "white" : "var(--color-text-secondary)",
-                  border: `1px solid ${selectedDate === null ? "var(--color-primary)" : "var(--color-border)"}`,
-                }}
-              >
-                전체
-              </button>
-              {uniqueDates.map(({ key, short }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSelectedDate(key === selectedDate ? null : key)}
-                  className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1 text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: selectedDate === key ? "var(--color-primary)" : "var(--color-elevated)",
-                    color: selectedDate === key ? "white" : "var(--color-text-secondary)",
-                    border: `1px solid ${selectedDate === key ? "var(--color-primary)" : "var(--color-border)"}`,
-                  }}
-                  title={key}
-                >
-                  {short}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* 헤더 row — 5/9 사용자 결정: 날짜 탭은 ScheduleTimeline 내부 (팀 필터 위) 로 이동.
+          헤더는 단순 "일정" 타이틀 + 캘린더 등록 버튼. */}
+      <div className="mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-bold sm:text-2xl">일정</h2>
         <button
           type="button"
           className="inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-xs font-medium transition-colors opacity-50 cursor-not-allowed"
@@ -234,7 +171,7 @@ function ScheduleTabRender({ matches, teams }: { matches: ScheduleMatch[]; teams
           캘린더 등록
         </button>
       </div>
-      <ScheduleTimeline matches={matches} teams={teams} selectedDate={selectedDate} />
+      <ScheduleTimeline matches={matches} teams={teams} />
     </div>
   );
 }
