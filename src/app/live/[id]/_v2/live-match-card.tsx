@@ -180,26 +180,24 @@ function LiveMatchCardInner({ match }: LiveMatchCardProps) {
       }}
       aria-label={`${match.home_team.name} vs ${match.away_team.name} 라이브 페이지로 이동`}
     >
-      {/* 2026-05-09 사용자 결정: 카드 높이 88% 축소 — py-2.5(10) → py-1.5(6) / gap-2(8) → gap-1.5(6) */}
+      {/* 2026-05-09 사용자 결정 (재구성): 좌상단 대회명 / 좌하단 라운드 / 우하단 시간·상태 */}
       <div className="px-3 py-1.5 flex flex-col gap-1.5">
-        {/* 상단 row — 좌측 (상태 + 라이브 ping) / 우측 대회 명칭 */}
-        <div className="flex items-center justify-between text-xs font-medium gap-2">
-          <div className="flex items-center gap-1 min-w-0 flex-shrink-0">
-            <span
-              style={{
-                color: isLiveBadge
-                  ? "var(--color-accent)"
-                  : match.is_completed
-                  ? "var(--color-text-muted)"
-                  : "var(--color-text-secondary)",
-              }}
-            >
-              {statusText}
-            </span>
+        {/* 상단 row — 좌측 정렬 대회 명칭 + 우측 라이브 ping (라이브 시만) */}
+        {(match.tournament_name || match.is_live) && (
+          <div className="flex items-center justify-between gap-2">
+            {match.tournament_name ? (
+              <span
+                className="truncate text-[10px] font-medium"
+                style={{ color: "var(--color-text-muted)" }}
+                title={match.tournament_name}
+              >
+                {match.tournament_name}
+              </span>
+            ) : (
+              <span />
+            )}
             {match.is_live && (
-              // 라이브 ping — youtube-embed 의 LIVE 뱃지 패턴과 동일 (red dot + animate-ping).
-              // 정사각형 (W=H) 원형 = borderRadius 50% (BDR-current 13룰 §C-10 / pill 9999px 회피).
-              <span className="relative flex w-2 h-2 ml-0.5" aria-label="라이브 진행 중">
+              <span className="relative flex w-2 h-2 flex-shrink-0" aria-label="라이브 진행 중">
                 <span
                   className="absolute inset-0 animate-ping opacity-75"
                   style={{
@@ -217,17 +215,7 @@ function LiveMatchCardInner({ match }: LiveMatchCardProps) {
               </span>
             )}
           </div>
-          {/* 우측: 대회 명칭 (truncate / 작은 폰트) — 5/9 사용자 결정 */}
-          {match.tournament_name && (
-            <span
-              className="truncate text-[10px]"
-              style={{ color: "var(--color-text-muted)" }}
-              title={match.tournament_name}
-            >
-              {match.tournament_name}
-            </span>
-          )}
-        </div>
+        )}
 
         {/* 홈 row — 로고 + 약칭 + 점수 (라이브/종료 시만). 승팀 = font-bold */}
         <div className="flex items-center justify-between gap-2">
@@ -285,15 +273,33 @@ function LiveMatchCardInner({ match }: LiveMatchCardProps) {
           )}
         </div>
 
-        {/* round_name 보조 라벨 (옵션) — "8강 1경기" / "조A 1R" 류. 비공개 시 hidden */}
-        {match.round_name && (
-          <span
-            className="text-xs truncate"
-            style={{ color: "var(--color-text-muted)" }}
-            title={match.round_name}
-          >
-            {match.round_name}
-          </span>
+        {/* 하단 row — 좌측 라운드명 / 우측 시간·상태 (5/9 사용자 결정 — 시간/상태 우측 하단 이동) */}
+        {(match.round_name || statusText) && (
+          <div className="flex items-center justify-between gap-2 text-xs">
+            {match.round_name ? (
+              <span
+                className="truncate"
+                style={{ color: "var(--color-text-muted)" }}
+                title={match.round_name}
+              >
+                {match.round_name}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span
+              className="flex-shrink-0 font-medium"
+              style={{
+                color: isLiveBadge
+                  ? "var(--color-accent)"
+                  : match.is_completed
+                  ? "var(--color-text-muted)"
+                  : "var(--color-text-secondary)",
+              }}
+            >
+              {statusText}
+            </span>
+          </div>
         )}
       </div>
     </Link>
