@@ -42,32 +42,45 @@ interface LiveMatchCardRailProps {
 
 export function LiveMatchCardRail({ matches, tournamentName }: LiveMatchCardRailProps) {
   // 2026-05-09 사용자 결정: PC 가로 스크롤 강화 (드래그 + 휠 가로 + 스크롤바 노출)
+  // 5/9 fix: a 태그 위에서도 드래그 시작 가능 — drag threshold (5px) + click 차단
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const dragState = useRef({ startX: 0, scrollLeftStart: 0 });
+  const dragState = useRef({ startX: 0, scrollLeftStart: 0, hasMoved: false });
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return;
-    // a, button 클릭은 native (드래그 시작 X)
-    const target = e.target as HTMLElement;
-    if (target.closest("a, button")) return;
+    if (e.button !== 0) return; // 좌클릭만
     setIsDragging(true);
     dragState.current.startX = e.pageX - scrollRef.current.offsetLeft;
     dragState.current.scrollLeftStart = scrollRef.current.scrollLeft;
+    dragState.current.hasMoved = false;
   }, []);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       if (!isDragging || !scrollRef.current) return;
-      e.preventDefault();
       const x = e.pageX - scrollRef.current.offsetLeft;
-      const walk = (x - dragState.current.startX) * 1.5;
-      scrollRef.current.scrollLeft = dragState.current.scrollLeftStart - walk;
+      const dx = x - dragState.current.startX;
+      // 5px threshold — 미만은 클릭 / 이상은 드래그 모드
+      if (Math.abs(dx) > 5) {
+        dragState.current.hasMoved = true;
+        e.preventDefault();
+        scrollRef.current.scrollLeft = dragState.current.scrollLeftStart - dx * 1.5;
+      }
     },
     [isDragging],
   );
 
   const handleMouseUp = useCallback(() => setIsDragging(false), []);
+
+  // 드래그 후 click 차단 (capture phase) — a 태그 라우팅 막기
+  const handleClickCapture = useCallback((e: React.MouseEvent) => {
+    if (dragState.current.hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragState.current.hasMoved = false;
+    }
+  }, []);
 
   // 휠 가로 스크롤 — deltaY 우세 시 scrollLeft 로 변환 (PC 휠 마우스 가로 스크롤)
   useEffect(() => {
@@ -168,6 +181,7 @@ export function LiveMatchCardRail({ matches, tournamentName }: LiveMatchCardRail
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onClickCapture={handleClickCapture}
         >
           {matches.map((m) => (
             <LiveMatchCard key={m.id} match={{ ...m, tournament_name: tournamentName ?? null }} />
