@@ -507,6 +507,11 @@ export default function LiveBoxScorePage() {
   const [printOptions, setPrintOptions] = useState<PrintOptions | null>(null);
   // 2026-05-10 — 프린트 모드 분기 (system = window.print OS 다이얼로그 / pdf = html2canvas+jspdf 자동 다운로드)
   const [printMode, setPrintMode] = useState<"system" | "pdf">("pdf");
+  // 2026-05-10 — PDF 저장 시 화면 깜빡임 가리는 loading overlay state.
+  //   사유: setIsPrinting(true) 는 원본 DOM 의 data-printing 속성 변경 → globals.css 룰로
+  //   원본 화면도 양식 적용 (clone 만 캡처되지만 원본 사이즈 측정 위해 필요).
+  //   overlay 로 캡처 200ms 가림 → 사용자 깜빡임 미인지.
+  const [pdfGenerating, setPdfGenerating] = useState(false);
   // 2026-04-17: state 기반 프린트 모드 토글 — 모바일/태블릿 브라우저 호환성 개선.
   // 기존 @media print + Tailwind print:block 방식은 일부 모바일 브라우저가 뷰포트 스냅샷
   // 모드로 처리해 hidden 그대로 유지되어 blank 출력되는 문제가 있었음.
@@ -821,6 +826,9 @@ export default function LiveBoxScorePage() {
       }
 
       // === PDF MODE (html2canvas + jspdf) — 섹션별 페이지 분할 + A4 landscape 가로 fit ===
+      // overlay ON — 화면 깜빡임 가림 (setIsPrinting 보다 먼저 또는 batch 적용)
+      setPdfGenerating(true);
+
       const t = setTimeout(async () => {
         if (cancelled) return;
         try {
@@ -901,6 +909,7 @@ export default function LiveBoxScorePage() {
             setIsPrinting(false);
             setPrintOptions(null);
             setPrintDialogOpen(false);
+            setPdfGenerating(false); // overlay OFF
           }
         }
       }, 200);
@@ -909,6 +918,7 @@ export default function LiveBoxScorePage() {
         cancelled = true;
         clearTimeout(t);
         setIsPrinting(false);
+        setPdfGenerating(false); // overlay OFF (cleanup 시)
       };
     }
   }, [printOptions, match, printMode]);
@@ -1586,6 +1596,46 @@ export default function LiveBoxScorePage() {
           hasQuarterEventDetail={match.has_quarter_event_detail}
         />
       </div>
+
+      {/* 2026-05-10 — PDF 생성 중 loading overlay.
+          사유: setIsPrinting(true) 가 원본 화면에 양식 적용 → 사용자에게 깜빡임 보임.
+          overlay 가 화면 전체 가림 → 사용자는 "PDF 생성 중..." 안내만 봄 (깜빡임 미인지).
+          z-index: AppNav (z-50) 위 → inline style 60 (Tailwind 표준 z 클래스 외 / arbitrary 아님). */}
+      {pdfGenerating && (
+        <div
+          data-print-hide
+          className="fixed inset-0 flex items-center justify-center"
+          style={{
+            zIndex: 60,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            backdropFilter: "blur(2px)",
+          }}
+          aria-busy="true"
+          aria-label="PDF 생성 중"
+        >
+          <div
+            className="rounded-lg px-6 py-5 flex flex-col items-center gap-3"
+            style={{
+              backgroundColor: "var(--color-card)",
+              border: "1px solid var(--color-border)",
+              minWidth: 200,
+            }}
+          >
+            <span
+              className="material-symbols-outlined animate-spin"
+              style={{ fontSize: 32, color: "var(--color-accent)", animationDuration: "1.2s" }}
+            >
+              sync
+            </span>
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              PDF 생성 중...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* PBP 로그 */}
       {match.play_by_plays && match.play_by_plays.length > 0 && (
