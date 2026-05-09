@@ -23,6 +23,10 @@ import { convertKeysToCamelCase } from "@/lib/utils/case";
 // 일정 탭 컴포넌트
 import { ScheduleTimeline } from "./schedule-timeline";
 import type { ScheduleMatch, ScheduleTeam } from "./schedule-timeline";
+// 날짜 탭 — 5/9 사용자 결정 (ScheduleTimeline 의 그룹화 로직과 동일 키 사용)
+// formatGroupDate = "5월 2일 토요일" (full key, ScheduleTimeline 내부 매핑)
+// formatGroupDateShort = "5/2(토)" (탭 chip 표시 minimization)
+import { formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
 
 // 대시보드 헤더 (overview 탭에서 사용)
 import { TournamentDashboardHeader } from "../bracket/_components/tournament-dashboard-header";
@@ -152,7 +156,8 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
 
   return (
     <div>
-      {/* 일정 헤더 + 캘린더 등록 버튼 (placeholder, 추후 구현) */}
+      {/* 헤더 row — 5/9 사용자 결정: 날짜 탭은 ScheduleTimeline 내부 (팀 필터 위) 로 이동.
+          헤더는 단순 "일정" 타이틀 + 캘린더 등록 버튼. */}
       <div className="mb-6 flex items-center justify-between">
         <h2 className="text-xl font-bold sm:text-2xl">일정</h2>
         <button
