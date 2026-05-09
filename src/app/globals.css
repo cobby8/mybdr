@@ -2620,11 +2620,12 @@ html.light .watermark-text,
 [data-live-root][data-printing="true"] .print-team-table-wrap table {
   height: auto !important;
 }
+/* PC 프린트 양식 동등 — @media print 의 padding 5px 3px 와 동일 spacing */
 [data-live-root][data-printing="true"] #box-score-print-area td {
-  padding: 14px 6px !important;  /* 행간 spacing 풍부 (사용자 PDF 동등) */
+  padding: 5px 3px !important;
 }
 [data-live-root][data-printing="true"] #box-score-print-area th {
-  padding: 10px 6px !important;
+  padding: 5px 3px !important;
 }
 [data-live-root][data-printing="true"] #box-score-print-area table {
   font-size: 11px !important;
