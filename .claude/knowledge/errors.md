@@ -9,13 +9,14 @@
   1. `globals.css` `@media (max-width: 768px) { html, body { max-width: 100vw } }` 가 print 시에도 active → vw = 모바일 viewport (~360px) 로 평가
   2. **모바일 Chrome 의 `window.print()` 동작 차이** — PC 는 print preview 시 viewport 를 종이 크기로 확장하지만 모바일 Chrome 은 viewport 를 모바일 크기 그대로 유지 → A4 (~1123px) 페이지 좌상단 360px 영역만 캡처 → 시각적 빈 페이지
 - **회귀 commit**: `4052684` (5/10 sticky fix `overflow-x: hidden → clip` 의 부수 효과)
-- **fix (A + B + C 3단계)**:
-  1. (A) `@media (max-width: 768px)` → `@media screen and (max-width: 768px)` (print 시 CSS 무력화)
-  2. (B) `@media print { html, body { max-width: none !important; overflow: visible !important; } }` 보강 (안전망)
-  3. **(C) 모바일 viewport hack** — `window.print()` 직전 `<meta name="viewport">` content 를 `width=1100` 으로 강제 확장 + afterprint / cleanup 시 원본 복원. PC 영향 0 (이미 viewport ≥ 1100). 모바일 Chrome print 시점에 viewport 가 1100 으로 인식되어 A4 정상 캡처.
-- **재발 방지 룰**:
+- **fix 시도 이력 (A → B → C 모두 미작동) → 최종 D 적용**:
+  1. (A) `@media (max-width: 768px)` → `@media screen and (max-width: 768px)` — CSS 만으로는 모바일 Chrome viewport 동결 우회 불가
+  2. (B) `@media print { html, body { max-width: none !important; overflow: visible !important; } }` 보강 — 효과 0
+  3. (C) `window.print()` 직전 `<meta name="viewport">` content `width=1100` 강제 확장 — 사용자 시크릿 탭 검증에서도 효과 0
+  4. **(D) ⭐ window.print() 폐기 + html2canvas + jspdf 클라이언트 PDF 직접 생성** — DOM 영역을 캔버스로 캡처 (1100×auto) → jsPDF 에 PNG 추가 → A4 landscape pdf.save() 자동 다운로드. 모바일 Chrome `window.print()` 의존 0. PC/모바일 동일 동작.
+- **재발 방지 룰** (절대 룰):
   1. 글로벌 가드 (overflow / max-width / position) 박제 시 `@media screen and` prefix 명시 — print 호환 사전 검증 필수
-  2. 모바일 print = window.print() 직전 viewport meta 임의 확장 hack 필수 (CSS만으로는 모바일 Chrome viewport 동결 우회 불가)
+  2. **모바일 print = window.print() 사용 금지**. 클라이언트 PDF 라이브러리 (html2canvas + jspdf) 강제. 모바일 Chrome 의 viewport 동결 우회 불가능 (CSS / viewport meta hack 모두 무효).
 
 ---
 
