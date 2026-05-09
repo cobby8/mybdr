@@ -866,23 +866,12 @@ export default function LiveBoxScorePage() {
               useCORS: true,
               logging: false,
               onclone: (clonedDoc) => {
-                // 2026-05-10 — 프린트 양식 자동 적용 (사용자 결정 / globals.css single source).
-                // globals.css 가 [data-live-root][data-printing="true"] 셀렉터로 양식 룰 박제 →
-                // 클론에 속성만 강제하면 모든 룰 자동 적용 (코드 중복 제거).
+                // 2026-05-10 — 양식 100% globals.css 자동 적용 (사용자 결정: 강제 X / 로직 중심).
+                // globals.css [data-live-root][data-printing="true"] 셀렉터 룰이 root 1100px /
+                // .print-team-page wrapper / 표 spacing 모두 박제 → 속성 강제만으로 양식 적용.
+                // onclone 의 inline style 박제 제거 — single source-of-truth.
                 const root = clonedDoc.querySelector<HTMLElement>("[data-live-root]");
-                if (root) {
-                  root.setAttribute("data-printing", "true");
-                  root.style.zoom = "1";
-                }
-
-                // 섹션 wrapper 1100px 강제 — 캡처 viewport 확장 (page-break 룰은 @media print 전용)
-                const clonedSection = clonedDoc.querySelectorAll<HTMLElement>(".print-team-page")[i];
-                if (clonedSection) {
-                  clonedSection.style.width = "1100px";
-                  clonedSection.style.maxWidth = "1100px";
-                  clonedSection.style.padding = "20px";
-                  clonedSection.style.boxSizing = "border-box";
-                }
+                if (root) root.setAttribute("data-printing", "true");
               },
             });
             if (cancelled) return;
