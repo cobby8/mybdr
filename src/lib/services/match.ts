@@ -8,6 +8,8 @@ import { prisma } from "@/lib/db/prisma";
 // updateMatch + updateMatchStatus 가 호출. single elim 영향 0 (settings.loserNextMatchId 없으면 skip).
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 import { recordMatchAudit, type AuditSource } from "@/lib/tournaments/match-audit";
+// 2026-05-10: pending → scheduled 자동 전환 헬퍼 (winner 진출 시 다음 매치 status 결정에 사용)
+import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
 // 2026-05-03: Phase 2 — 매치 종료 시 알기자 단신 자동 생성 (fire-and-forget)
 import { triggerMatchBriefPublishAsync } from "@/lib/news/auto-publish-match-brief";
 
@@ -200,20 +202,48 @@ export async function updateMatch(
         );
       }
 
+      // 2026-05-10: status 자동 전환은 4 조건 충족 시만 (homeTeam + awayTeam + scheduledAt + 현재 pending)
+      // - winner 진출로 채워지는 슬롯이 home 이면 awayTeamId 가 이미 있어야 함 (반대도 동일)
+      // - scheduledAt 이 NULL 이면 "팀만 채워졌고 일정 미정" → pending 유지가 맞음 (자동 전환 X)
+      // - 기존: 무조건 status="scheduled" 박았음 → 일정 미정인데도 scheduled 되어 stale 가능. 헬퍼로 가드.
+      const projectedHome =
+        targetField === "homeTeamId" ? input.winnerTeamId : (nextBefore?.homeTeamId ?? null);
+      const projectedAway =
+        targetField === "awayTeamId" ? input.winnerTeamId : (nextBefore?.awayTeamId ?? null);
+      const nextScheduledAt = await tx.tournamentMatch.findUnique({
+        where: { id: u.next_match_id },
+        select: { scheduledAt: true },
+      });
+      const willAutoSchedule = shouldAutoSchedule({
+        currentStatus: nextBefore?.status ?? null,
+        homeTeamId: projectedHome,
+        awayTeamId: projectedAway,
+        scheduledAt: nextScheduledAt?.scheduledAt ?? null,
+      });
+
       await tx.tournamentMatch.update({
         where: { id: u.next_match_id },
         data: {
           [targetField]: input.winnerTeamId,
-          status: "scheduled",
+          // 자동 전환 가능할 때만 status="scheduled" 박음 (조건 미충족 시 기존 status 유지)
+          ...(willAutoSchedule && { status: "scheduled" }),
         },
       });
       await recordMatchAudit(
         tx,
         u.next_match_id,
-        { [targetField]: nextBefore?.[targetField] ?? null },
-        { [targetField]: input.winnerTeamId },
+        {
+          [targetField]: nextBefore?.[targetField] ?? null,
+          ...(willAutoSchedule && { status: nextBefore?.status ?? null }),
+        },
+        {
+          [targetField]: input.winnerTeamId,
+          ...(willAutoSchedule && { status: "scheduled" }),
+        },
         audit?.source ?? "system",
-        `updateMatch winner 진출 (source match ${matchId}, slot=${slot})`,
+        willAutoSchedule
+          ? `updateMatch winner 진출 + auto-schedule pending→scheduled (source match ${matchId}, slot=${slot})`
+          : `updateMatch winner 진출 (source match ${matchId}, slot=${slot})`,
         audit?.changedBy ?? null,
       );
     }
@@ -384,20 +414,45 @@ export async function updateMatchStatus(
         );
       }
 
+      // 2026-05-10: status 자동 전환 가드 (updateMatch 와 동일 룰)
+      // 4 조건 모두 충족 시만 "scheduled" 전환 — scheduledAt 미정이면 pending 유지
+      const projectedHome =
+        targetField === "homeTeamId" ? winnerTeamId : (nextBefore?.homeTeamId ?? null);
+      const projectedAway =
+        targetField === "awayTeamId" ? winnerTeamId : (nextBefore?.awayTeamId ?? null);
+      const nextStatusRow = await tx.tournamentMatch.findUnique({
+        where: { id: current.next_match_id },
+        select: { status: true, scheduledAt: true },
+      });
+      const willAutoSchedule = shouldAutoSchedule({
+        currentStatus: nextStatusRow?.status ?? null,
+        homeTeamId: projectedHome,
+        awayTeamId: projectedAway,
+        scheduledAt: nextStatusRow?.scheduledAt ?? null,
+      });
+
       await tx.tournamentMatch.update({
         where: { id: current.next_match_id },
         data: {
           [targetField]: winnerTeamId,
-          status: "scheduled",
+          ...(willAutoSchedule && { status: "scheduled" }),
         },
       });
       await recordMatchAudit(
         tx,
         current.next_match_id,
-        { [targetField]: nextBefore?.[targetField] ?? null },
-        { [targetField]: winnerTeamId },
+        {
+          [targetField]: nextBefore?.[targetField] ?? null,
+          ...(willAutoSchedule && { status: nextStatusRow?.status ?? null }),
+        },
+        {
+          [targetField]: winnerTeamId,
+          ...(willAutoSchedule && { status: "scheduled" }),
+        },
         audit?.source ?? "system",
-        `updateMatchStatus winner 진출 (source match ${matchId}, slot=${slot})`,
+        willAutoSchedule
+          ? `updateMatchStatus winner 진출 + auto-schedule pending→scheduled (source match ${matchId}, slot=${slot})`
+          : `updateMatchStatus winner 진출 (source match ${matchId}, slot=${slot})`,
         audit?.changedBy ?? null,
       );
     }

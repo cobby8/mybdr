@@ -8,6 +8,9 @@ import { getMatch, updateMatch, deleteMatch } from "@/lib/services/match";
 import { prisma } from "@/lib/db/prisma";
 import { createNotificationBulk } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
+// 2026-05-10: pending → scheduled 자동 전환 헬퍼
+// (homeTeam + awayTeam + scheduledAt 모두 채워지면 자동 scheduled — stale pending 재발 방지)
+import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
 // Phase C: 듀얼토너먼트 매치 종료 시 winner/loser 자동 진출 처리
 // (single elim 의 winner 진출은 services/match.ts 의 updateMatch 가 이미 처리하므로
 //  본 함수는 dual_tournament 분기에서만 호출하여 loser 진출만 신규 효과를 만든다.
@@ -129,6 +132,38 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
   }
 
+  // 2026-05-10: pending → scheduled 자동 전환 가드
+  // 이유: dual-tournament-generator 가 8강/4강/결승 매치를 status="pending" 으로 박제.
+  //       운영자가 homeTeamId/awayTeamId/scheduledAt 채워도 status 가 pending 으로 남아
+  //       2026-05-10 운영 DB 에서 stale pending 3건 발견 (matchId 150/151/152, 정정 완료).
+  // 룰: update 후 (homeTeam + awayTeam + scheduledAt 모두 NULL 아님 + 현재 pending) → 자동 scheduled
+  // 사용자 명시 status 가 있으면 그대로 존중 (override X — 사용자 의도 우선).
+  const willHomeTeam: bigint | null =
+    homeTeamId !== undefined
+      ? (homeTeamId ? BigInt(String(homeTeamId)) : null)
+      : match.homeTeamId;
+  const willAwayTeam: bigint | null =
+    awayTeamId !== undefined
+      ? (awayTeamId ? BigInt(String(awayTeamId)) : null)
+      : match.awayTeamId;
+  const willScheduledAt: Date | null =
+    scheduledAt !== undefined
+      ? (scheduledAt ? new Date(String(scheduledAt)) : null)
+      : match.scheduledAt;
+
+  // 사용자 명시 status 없을 때만 자동 전환 시도 (사용자 의도 보존)
+  const autoSchedule =
+    status === undefined &&
+    shouldAutoSchedule({
+      currentStatus: match.status,
+      homeTeamId: willHomeTeam,
+      awayTeamId: willAwayTeam,
+      scheduledAt: willScheduledAt,
+    });
+
+  // 자동 전환 시 effectiveStatus = "scheduled" (updateMatch input.status 로 전달 → audit 자동 기록)
+  const effectiveStatus = autoSchedule ? "scheduled" : status;
+
   // Service 호출: 매치 업데이트 + 다음 경기 팀 배치 (트랜잭션) + audit
   const { updated, alreadyCompleted } = await updateMatch(
     matchBigInt,
@@ -136,7 +171,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     {
       ...(homeScore !== undefined && { homeScore: Number(homeScore) }),
       ...(awayScore !== undefined && { awayScore: Number(awayScore) }),
-      ...(status !== undefined && { status: String(status) }),
+      // status: 사용자 명시값 우선, 없으면 autoSchedule 결과 (있을 때만)
+      ...(effectiveStatus !== undefined && { status: String(effectiveStatus) }),
       ...(winner_team_id !== undefined && {
         winnerTeamId: winner_team_id ? BigInt(String(winner_team_id)) : null,
       }),
@@ -155,7 +191,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     },
     {
       source: "admin",
-      context: `PATCH /api/web/tournaments/${id}/matches/${matchId}`,
+      // autoSchedule 일 때 context 에 명시 (audit 추적성 — admin trigger 와 구분)
+      context: autoSchedule
+        ? `PATCH /api/web/tournaments/${id}/matches/${matchId} (auto-schedule pending→scheduled)`
+        : `PATCH /api/web/tournaments/${id}/matches/${matchId}`,
       changedBy: "userId" in auth ? auth.userId : null,
     },
   );

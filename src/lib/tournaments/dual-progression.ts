@@ -14,6 +14,8 @@
 
 import { Prisma } from "@prisma/client";
 import { recordMatchAudit } from "./match-audit";
+// 2026-05-10: pending → scheduled 자동 전환 헬퍼 (winner/loser 진출로 슬롯 채움 시 status 결정)
+import { shouldAutoSchedule } from "./auto-status";
 
 /**
  * 매치 settings JSON 구조 (loser 진출 추적용).
@@ -110,9 +112,10 @@ export async function progressDualMatch(
     // 자가 치유 가드 (2026-05-02 errors.md "양쪽 같은 팀" 회귀 방지):
     // next_match 의 반대 슬롯에 이미 같은 winnerTeamId 가 있으면, 잘못된 set 흔적 → NULL 정정
     // (정상 흐름: 같은 팀이 자기 자신과 진출은 dual_tournament 에서 발생 불가)
+    // 2026-05-10: status / scheduledAt 추가 select — auto-schedule 판정에 사용
     const nextMatch = await tx.tournamentMatch.findUnique({
       where: { id: match.next_match_id },
-      select: { homeTeamId: true, awayTeamId: true },
+      select: { homeTeamId: true, awayTeamId: true, status: true, scheduledAt: true },
     });
     if (nextMatch && nextMatch[oppositeField] === winnerTeamId) {
       console.warn(
@@ -135,18 +138,44 @@ export async function progressDualMatch(
       );
     }
 
+    // 2026-05-10: pending → scheduled 자동 전환 가드
+    // winner 진출로 슬롯 채워진 후 (homeTeam + awayTeam + scheduledAt 모두 NULL 아님 + 현재 pending) 시 자동 scheduled
+    // 예: 8강 G3 의 home 슬롯이 winner 로 채워지고 away 가 이미 채워져 있고 일정도 있으면 → scheduled 전환
+    const projectedHome =
+      targetField === "homeTeamId" ? winnerTeamId : (nextMatch?.homeTeamId ?? null);
+    const projectedAway =
+      targetField === "awayTeamId" ? winnerTeamId : (nextMatch?.awayTeamId ?? null);
+    const willAutoSchedule = shouldAutoSchedule({
+      currentStatus: nextMatch?.status ?? null,
+      homeTeamId: projectedHome,
+      awayTeamId: projectedAway,
+      scheduledAt: nextMatch?.scheduledAt ?? null,
+    });
+
     await tx.tournamentMatch.update({
       where: { id: match.next_match_id },
-      data: { [targetField]: winnerTeamId },
+      data: {
+        [targetField]: winnerTeamId,
+        // 자동 전환 조건 충족 시만 status 박음 (scheduledAt 미정이면 pending 유지)
+        ...(willAutoSchedule && { status: "scheduled" }),
+      },
     });
-    // audit: winner 진출
+    // audit: winner 진출 (+ auto-schedule 시 status 변경 같이 기록)
     await recordMatchAudit(
       tx,
       match.next_match_id,
-      { [targetField]: nextMatch?.[targetField] ?? null },
-      { [targetField]: winnerTeamId },
+      {
+        [targetField]: nextMatch?.[targetField] ?? null,
+        ...(willAutoSchedule && { status: nextMatch?.status ?? null }),
+      },
+      {
+        [targetField]: winnerTeamId,
+        ...(willAutoSchedule && { status: "scheduled" }),
+      },
       "system",
-      `progressDualMatch winner 진출 (source match ${matchId})`,
+      willAutoSchedule
+        ? `progressDualMatch winner 진출 + auto-schedule pending→scheduled (source match ${matchId})`
+        : `progressDualMatch winner 진출 (source match ${matchId})`,
       null,
     );
 
@@ -184,9 +213,10 @@ export async function progressDualMatch(
     const oppositeField = loserNextMatchSlot === "home" ? "awayTeamId" : "homeTeamId";
 
     // loser 도 동일 자가 치유 가드
+    // 2026-05-10: status / scheduledAt 추가 select — auto-schedule 판정에 사용
     const loserNextMatch = await tx.tournamentMatch.findUnique({
       where: { id: loserNextMatchId },
-      select: { homeTeamId: true, awayTeamId: true },
+      select: { homeTeamId: true, awayTeamId: true, status: true, scheduledAt: true },
     });
     if (loserNextMatch && loserNextMatch[oppositeField] === loserTeamId) {
       console.warn(
@@ -209,18 +239,42 @@ export async function progressDualMatch(
       );
     }
 
+    // 2026-05-10: pending → scheduled 자동 전환 가드 (loser 진출도 동일 룰)
+    // 예: 조별 패자전 (G4) 가 G1·G2 의 loser 로 채워지면 G4 가 자동 scheduled 전환 (일정 있으면)
+    const projectedHomeLoser =
+      targetField === "homeTeamId" ? loserTeamId : (loserNextMatch?.homeTeamId ?? null);
+    const projectedAwayLoser =
+      targetField === "awayTeamId" ? loserTeamId : (loserNextMatch?.awayTeamId ?? null);
+    const willAutoScheduleLoser = shouldAutoSchedule({
+      currentStatus: loserNextMatch?.status ?? null,
+      homeTeamId: projectedHomeLoser,
+      awayTeamId: projectedAwayLoser,
+      scheduledAt: loserNextMatch?.scheduledAt ?? null,
+    });
+
     await tx.tournamentMatch.update({
       where: { id: loserNextMatchId },
-      data: { [targetField]: loserTeamId },
+      data: {
+        [targetField]: loserTeamId,
+        ...(willAutoScheduleLoser && { status: "scheduled" }),
+      },
     });
-    // audit: loser 진출
+    // audit: loser 진출 (+ auto-schedule 시 status 변경 같이 기록)
     await recordMatchAudit(
       tx,
       loserNextMatchId,
-      { [targetField]: loserNextMatch?.[targetField] ?? null },
-      { [targetField]: loserTeamId },
+      {
+        [targetField]: loserNextMatch?.[targetField] ?? null,
+        ...(willAutoScheduleLoser && { status: loserNextMatch?.status ?? null }),
+      },
+      {
+        [targetField]: loserTeamId,
+        ...(willAutoScheduleLoser && { status: "scheduled" }),
+      },
       "system",
-      `progressDualMatch loser 진출 (source match ${matchId})`,
+      willAutoScheduleLoser
+        ? `progressDualMatch loser 진출 + auto-schedule pending→scheduled (source match ${matchId})`
+        : `progressDualMatch loser 진출 (source match ${matchId})`,
       null,
     );
 
