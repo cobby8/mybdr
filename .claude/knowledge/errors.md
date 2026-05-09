@@ -2,6 +2,46 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] sticky 모바일 미작동 — overflow-x: hidden + zoom 1.1 복합 원인
+- **분류**: ui/css (모바일 sticky positioning)
+- **증상**: 라이브 페이지 (`/live/[id]`) YouTube 영상에 `sticky top-14 z-30` 적용 → PC 정상 / **모바일 sticky 안 됨** (영상이 스크롤과 같이 움직임)
+- **원인**: 부모 요소의 두 가지 속성이 sticky 깨트림 (브라우저는 부모 chain 에서 가장 가까운 scroll containing block 을 sticky 기준점으로 잡음)
+  1. **`html, body { overflow-x: hidden }`** — globals.css line 207~213 모바일 미디어 쿼리. `hidden` 은 scroll container 를 생성하여 자식 sticky 의 scroll 기준이 viewport 가 아닌 body 가 됨 → 깨짐
+  2. **`zoom: 1.1`** — page.tsx 페이지 wrapper inline style. zoom 부모 안의 sticky 자식이 모바일 Chrome/Safari 에서 일반 static 처럼 동작 (브라우저 known issue)
+- **fix (둘 다 필요)**:
+  1. `globals.css`: `overflow-x: hidden` → `overflow-x: clip` (Chrome 90+ / Safari 15.4+ / Firefox 81+ 지원). 시각 동일 (가로 잘림) + scroll container 생성 X → sticky 호환
+  2. `live/[id]/page.tsx`: zoomScale state + matchMedia("(max-width: 767px)") → 모바일 zoom=1 / PC zoom=1.1 분기
+- **재발 방지**: 신규 sticky 자식 박제 시 부모 chain 의 overflow / zoom / transform / will-change 사전 점검. 사용자 가로 overflow 가드는 항상 `clip` 사용.
+- **참고**: zoom 단독 또는 overflow 단독 fix 시 안 됨. 둘 다 fix 해야 모바일 sticky 정상.
+- **fix commit**: `06ec024` (zoom 분기) + 후속 (overflow-x clip)
+
+---
+
+### [2026-05-09] Tailwind v4 .md scan 함정 — invalid CSS variable 자동 클래스 빌드 실패
+- **분류**: error/build (Next.js 16.1.6 Turbopack + Tailwind v4)
+- **재발 횟수**: 2회 (5/9 동일 일자 / `3d5f53e` + `9d126c7` 두 번 fix)
+- **증상**:
+  ```
+  ./src/app/globals.css:2037:29
+  Parsing CSS source code failed
+  .bg-\[var\(--\*\)\] {
+    background-color: var(--*);  ← Unexpected token Delim('*')
+  }
+  ```
+- **원인**: Tailwind v4 의 content scanner 가 `Dev/**/*.md` (planner 보고서 등) 도 scan → 보고서 본문에 예시 표기로 사용한 `bg-[var(--*)]` 텍스트 추출 → globals.css 에 `.bg-\[var\(--\*\)\] { background-color: var(--*) }` 자동 생성 → `--*` 는 invalid CSS variable 이름이라 Turbopack 빌드 실패
+- **2회차 재발 사유**: 1차 fix (`bg-[var(--*)]` → `bg-[var(--TOKEN)]`) 후 새 planner 보고서에서 **금지 사례 표기 자체** ("`bg-[var(--*)]` 텍스트 금지") 가 다시 트리거. **금지 표기조차 placeholder 사용 필수**
+- **fix**:
+  1. `.md` / `.tsx` / `.css` 본문 모두 `bg-[var(--*)]` 텍스트 제거 → placeholder (`--TOKEN`, `--ASTERISK`, `--PLACEHOLDER`, `--NAME`) 사용
+  2. `.next` 캐시 클리어 (`rm -rf .next`) — Turbopack 자동 생성 stale 클래스 제거
+  3. dev server 재시작 (포트 PID 만 종료 후 `npm run dev`)
+- **재발 방지**:
+  - planner / developer / pm 모두 보고서/주석/문서 작성 시 invalid CSS variable 이름 (`--*`, `--?`, `--<placeholder>` 등) 금지 — placeholder 표준 (`--TOKEN`)
+  - 5/9 룰 박제 후 동일 함정 재발 = 박제 자체에 실패. **금지 사례 표기조차 placeholder 사용** 영구 룰
+- **참조 파일**:
+  - `Dev/home-design-alignment-2026-05-09.md` (1차 발생)
+  - `Dev/home-design-full-alignment-2026-05-09.md` (2차 발생 — 금지 사례 표기)
+  - commit `3d5f53e` / `9d126c7` (fix)
+
 ### [2026-05-07] truncated commit 함정 — `.git/index.lock` 강제 제거 후 부분 staged 빌드 실패
 - **분류**: error/git (commit 무결성 / Vercel 빌드 실패)
 - **발견자**: pm + 사용자 ("배포 실패한 거 같은데 확인해봐")

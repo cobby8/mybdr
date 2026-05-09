@@ -12,6 +12,8 @@
 
 import { prisma } from "@/lib/db/prisma";
 import type { LinkifyEntry } from "./linkify-news-body";
+// 5/9 displayName P0 — 공식 기록(뉴스 자동 링크) 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 
 // match select 공통 (단일/배치 동일)
 const MATCH_SELECT = {
@@ -78,7 +80,12 @@ function matchToEntries(match: MatchWithTeams): LinkifyEntry[] {
     }
     for (const p of tt.players) {
       if (!p.userId) continue;
-      const name = (p.users?.name || p.player_name || p.users?.nickname || "").trim();
+      // 5/9 displayName P0 — 공식 기록(뉴스 자동 링크) 실명 우선 통일.
+      //   헬퍼 정책: user.name → user.nickname → ttp.player_name → '#'+jersey → fallback
+      //   fallback = "" → length 가드(>=2) 통과 못하면 자동 skip (기존 동작 동일).
+      //   기존 패턴(name → player_name → nickname) 과 차이: 닉네임 우선순위가 player_name 보다 위.
+      //   이는 D-day RPC fix(9c6fd89) 효과와 일관 — 영문 nickname 회귀 방지.
+      const name = getDisplayName(p.users, { player_name: p.player_name }, "").trim();
       if (name.length >= 2 && !seenNames.has(name)) {
         seenNames.add(name);
         entries.push({

@@ -14,6 +14,8 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { convertKeysToSnakeCase } from "@/lib/utils/case";
+// 5/9 displayName P0 — 공식 기록(MVP) 실명 우선 헬퍼
+import { getDisplayName } from "@/lib/utils/player-display-name";
 import type {
   HeroSlide,
   HeroSlideTournament,
@@ -620,7 +622,8 @@ export const prefetchRecentMvp = unstable_cache(async (): Promise<HeroSlideMvp["
           select: { uuid: true, title: true },
         },
         mvp_player: {
-          select: { nickname: true, profile_image_url: true },
+          // 5/9 displayName P0 — 실명 우선 헬퍼 적용 위해 name 컬럼 추가 select.
+          select: { name: true, nickname: true, profile_image_url: true },
         },
       },
     });
@@ -631,7 +634,11 @@ export const prefetchRecentMvp = unstable_cache(async (): Promise<HeroSlideMvp["
       game_uuid: r.game.uuid,
       game_title: r.game.title ?? "경기",
       mvp_user_id: r.mvp_user_id.toString(),
-      mvp_nickname: r.mvp_player?.nickname ?? null,
+      // 5/9 displayName P0 — 응답 키(mvp_nickname)는 외부 호환 유지, 값만 실명 우선.
+      //   헬퍼: name → nickname → fallback. fallback 없을 때 null 반환 위해 빈 문자열 → null 변환.
+      mvp_nickname: r.mvp_player
+        ? getDisplayName(r.mvp_player, undefined, "") || null
+        : null,
       mvp_profile_image: r.mvp_player?.profile_image_url ?? null,
       overall_rating: r.overall_rating,
       reported_at: r.created_at.toISOString(),
