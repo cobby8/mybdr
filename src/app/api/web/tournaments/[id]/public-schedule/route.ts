@@ -27,8 +27,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       include: {
         // Phase 2C: 일정 카드 팀명 한/영 표시를 위해 name_en/name_primary 포함
         // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시를 위해 logoUrl 추가
-        homeTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } } } },
-        awayTeam: { include: { team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } } } },
+        // 4단계 C: 일정 카드 팀명 클릭 → 팀페이지 이동을 위해 team.id 추가 select (페이로드 미미 증가)
+        homeTeam: { include: { team: { select: { id: true, name: true, name_en: true, name_primary: true, logoUrl: true } } } },
+        awayTeam: { include: { team: { select: { id: true, name: true, name_en: true, name_primary: true, logoUrl: true } } } },
       },
     }),
     // 일정 탭: 참가팀 목록
@@ -60,10 +61,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       homeTeamNamePrimary: m.homeTeam?.team.name_primary ?? null,
       // 2026-05-02: 일정 탭 매치 카드 팀 로고 표시 (TBD/예정 매치는 null → fallback 렌더)
       homeTeamLogoUrl: m.homeTeam?.team.logoUrl ?? null,
+      // 4단계 C: 팀명 클릭 → /teams/{id} 이동용. BigInt → string 직렬화 (TBD 매치는 null).
+      homeTeamId: m.homeTeam?.team.id?.toString() ?? null,
       awayTeamName: m.awayTeam?.team.name ?? null,
       awayTeamNameEn: m.awayTeam?.team.name_en ?? null,
       awayTeamNamePrimary: m.awayTeam?.team.name_primary ?? null,
       awayTeamLogoUrl: m.awayTeam?.team.logoUrl ?? null,
+      // 4단계 C: 어웨이 팀 ID — 동일 패턴
+      awayTeamId: m.awayTeam?.team.id?.toString() ?? null,
       // 2026-05-02: 미정 매치 라벨 (팀 확정 시 무시됨, fallback 우선순위: 팀명 > slotLabel > "미정")
       homeSlotLabel: settings?.homeSlotLabel ?? null,
       awaySlotLabel: settings?.awaySlotLabel ?? null,

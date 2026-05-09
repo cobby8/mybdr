@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import type { BracketMatch, TeamSlot } from "@/lib/tournaments/bracket-builder";
 // Phase 2C: 대진표 카드는 공간이 좁아 대표 언어 기준 한 줄만 표기
 import { getTeamSingleName } from "@/lib/utils/team-display";
+// 4단계 — 시드뱃지+팀명 한 Link 패턴을 TeamLink children 으로 마이그
+import { TeamLink } from "@/components/links/team-link";
 
 type MatchCardProps = {
   match: BracketMatch;
@@ -127,16 +128,18 @@ function TeamRow({
 
       {/* 팀명: teamId가 있으면 팀 페이지 링크 */}
       {/* 시드 뱃지(#1, #4)는 팀명 바로 앞에 작게 inline 표시 — 승자면 primary 배경으로 강조 */}
+      {/* 4단계: TeamLink children 패턴 적용 — Link → TeamLink. teamId 없는 경우 자동 span fallback. */}
       {team !== null && !isBye ? (
-        <Link
-          href={`/teams/${team.teamId}`}
-          className={`flex-1 min-w-0 flex items-center gap-1 leading-tight hover:underline ${
+        <TeamLink
+          teamId={team.teamId}
+          // 부모 트리 카드는 클릭 영역이 따로 없어 stopPropagation 불요. 그래도 nested anchor 회피 안전.
+          onClick={(e) => e.stopPropagation()}
+          className={`flex-1 min-w-0 flex items-center gap-1 leading-tight ${
             // 이유: NBA 스타일은 승자를 font-bold로, 패자는 font-normal로 확실히 구분
             winner ? "font-bold" : "font-medium"
           } ${
             loser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
           }`}
-          onClick={(e) => e.stopPropagation()}
         >
           {/* 시드 뱃지: 승자는 primary 배경(흰 글씨), 일반은 surface(muted) */}
           {team.seedNumber != null && (
@@ -152,7 +155,7 @@ function TeamRow({
           )}
           {/* Phase 2C: 대표 언어 기준 한 줄 (namePrimary="en"이면 영문, 그 외 한글) */}
           <span className="truncate">{getTeamSingleName(team.team.name, team.team.nameEn, team.team.namePrimary)}</span>
-        </Link>
+        </TeamLink>
       ) : (
         <span
           className={`flex-1 truncate font-medium leading-tight ${
@@ -330,10 +333,11 @@ export function MobileMatchCard({
         />
         {/* 홈팀명: teamId가 있으면 팀 페이지 링크 */}
         {/* 모바일은 데스크톱보다 공간 여유 있으므로 뱃지 11px로 살짝 크게 */}
+        {/* 4단계: TeamLink children 패턴 적용 — Link → TeamLink */}
         {match.homeTeam ? (
-          <Link
-            href={`/teams/${match.homeTeam.teamId}`}
-            className={`flex-1 min-w-0 flex items-center gap-1.5 font-medium hover:underline ${
+          <TeamLink
+            teamId={match.homeTeam.teamId}
+            className={`flex-1 min-w-0 flex items-center gap-1.5 font-medium ${
               homeLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
             }`}
           >
@@ -350,7 +354,7 @@ export function MobileMatchCard({
             )}
             {/* Phase 2C: 모바일 카드도 한 줄 대표 언어 표기 */}
             <span className="truncate">{getTeamSingleName(match.homeTeam.team.name, match.homeTeam.team.nameEn, match.homeTeam.team.namePrimary)}</span>
-          </Link>
+          </TeamLink>
         ) : (
           // Phase 2C: 홈팀 슬롯 라벨 우선 표시 (예: "1위")
           <span
@@ -388,10 +392,11 @@ export function MobileMatchCard({
           style={{ backgroundColor: awayStripeColor }}
         />
         {/* 어웨이팀명: teamId가 있으면 팀 페이지 링크 */}
+        {/* 4단계: TeamLink children 패턴 적용 — Link → TeamLink */}
         {match.awayTeam ? (
-          <Link
-            href={`/teams/${match.awayTeam.teamId}`}
-            className={`flex-1 min-w-0 flex items-center gap-1.5 font-medium hover:underline ${
+          <TeamLink
+            teamId={match.awayTeam.teamId}
+            className={`flex-1 min-w-0 flex items-center gap-1.5 font-medium ${
               awayLoser ? "text-[var(--color-text-secondary)]" : "text-[var(--color-text-primary)]"
             }`}
           >
@@ -407,7 +412,7 @@ export function MobileMatchCard({
               </span>
             )}
             <span className="truncate">{match.awayTeam.team.name}</span>
-          </Link>
+          </TeamLink>
         ) : (
           // Phase 2C: 어웨이팀 슬롯 라벨 표시 (bye가 우선)
           <span

@@ -12,6 +12,8 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+// 4단계 A — 픽업게임 호스트 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -461,8 +463,9 @@ export function CourtPickups({ courtId, currentUserId }: CourtPickupsProps) {
                     >
                       {p.title}
                     </h3>
+                    {/* 4단계 A: 호스트 닉네임 → 공개프로필 PlayerLink. host_id 정상 보장. */}
                     <p className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                      {p.host_nickname}
+                      <PlayerLink userId={p.host_id} name={p.host_nickname} />
                       {isHost && (
                         <span
                           className="ml-1 text-[10px] px-1 rounded"

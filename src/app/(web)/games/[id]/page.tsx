@@ -38,6 +38,8 @@ import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 import { requireIdentityForPage } from "@/lib/auth/require-identity-for-page";
 // 5/9 displayName P0 — 공식 기록(MVP 시상) 실명 우선 헬퍼
 import { getDisplayName } from "@/lib/utils/player-display-name";
+// 4단계 A — MVP 시상 / 호스트 / 참가자 / 신청자 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 
 // _v2: 이번 재구성에서 새로 추가한 상세 UI 컴포넌트들
 import { SummaryCard } from "./_v2/summary-card";
@@ -140,10 +142,13 @@ export default async function GameDetailPage({
 
   // 승인된 참가자 목록 — position + skill_level 필드 전달 (ParticipantList 시안 정합).
   // Phase C (2026-05-02): skill_level 추가 → 시안의 "L.5 · 가드" 메타 노출용.
+  // 4단계 A: PlayerLink 라우팅용 user_id 전달 (placeholder/게스트는 user_id null → span fallback).
   const approvedParticipants = applications
     .filter((a) => a.status === 1)
     .map((a) => ({
       id: a.id.toString(),
+      // 4단계 A: BigInt → string 직렬화 (클라 컴포넌트 props 직렬화 제약)
+      user_id: a.user_id != null ? a.user_id.toString() : null,
       nickname: a.users?.nickname ?? null,
       name: a.users?.name ?? null,
       position: a.users?.position ?? null,
@@ -158,6 +163,8 @@ export default async function GameDetailPage({
   const hostApplicants = applications.map((a) => ({
     id: a.id.toString(),
     status: a.status,
+    // 4단계 A: 신청자 닉네임 클릭 → 공개프로필 PlayerLink 라우팅용 (BigInt → string 직렬화)
+    user_id: a.user_id != null ? a.user_id.toString() : null,
     nickname: a.users?.nickname ?? null,
     name: a.users?.name ?? null,
     phone: a.users?.phone ?? null,
@@ -288,7 +295,9 @@ export default async function GameDetailPage({
                 {/* MVP 배지 — final_mvp_user_id 가 확정된 경우에만 강조 색으로 노출.
                  * 미확정인 경우엔 "아직 확정 전" 보조 라벨을 보여 운영 흐름을 암시. */}
                 {finalMvp ? (
-                  <span
+                  // 4단계 A: MVP 시상 PlayerLink — 흰 글자 위에 underline hover. style 으로 색상 inherit 보장.
+                  <PlayerLink
+                    userId={finalMvp.id}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
@@ -300,6 +309,7 @@ export default async function GameDetailPage({
                       fontWeight: 700,
                       fontSize: 13,
                       lineHeight: 1.2,
+                      textDecoration: "none",
                     }}
                   >
                     <span
@@ -312,7 +322,7 @@ export default async function GameDetailPage({
                     {/* 5/9 displayName P0 — 공식 기록(시상)은 실명 우선.
                      * getDisplayName: name → nickname → fallback 순. 영문 nickname 회귀 방지. */}
                     MVP · {getDisplayName(finalMvp, undefined, "익명")}
-                  </span>
+                  </PlayerLink>
                 ) : (
                   <span
                     style={{
