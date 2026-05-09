@@ -98,6 +98,11 @@ export type MatchBriefInput = {
   topBlocker: PlayerStat | null; // 블락 1위 (1+)
   topPlusMinus: PlayerStat | null; // +/- 1위 (5+)
   bestThreeShooter: PlayerStat | null; // 3점 다수 (3+ 성공)
+  // 2026-05-09: dual_tournament 구조 인지 — LLM 이 "최종전 = 1위 결정전" 으로 오해 방지.
+  // brief route 가 매치별 산출 (format + 라운드 의미 + 진출 결과). 없으면 null.
+  tournamentFormat?: string | null; // "dual_tournament" | "single_elimination" | null
+  roundContext?: string | null; // 라운드 의미 (예: "조 2위/3위 결정전 — 조 1위는 이미 결정됨")
+  advancement?: string | null; // 진출 결과 (예: "MZ → 8강 진출 / 우아한스포츠 → 탈락")
 };
 
 // LLM 결과 캐시 — matchId → brief 텍스트
@@ -164,6 +169,16 @@ function buildUserPrompt(input: MatchBriefInput, mode: BriefMode): string {
     const round = input.roundName ?? "";
     const group = input.groupName ? ` (${input.groupName})` : "";
     lines.push(`- 라운드: ${round}${group}`);
+  }
+  // 2026-05-09: dual_tournament 구조 인지 — LLM 추측 오류 방지 (최종전 ≠ 1위 결정전).
+  if (input.tournamentFormat) {
+    lines.push(`- 대회 포맷: ${input.tournamentFormat}`);
+  }
+  if (input.roundContext) {
+    lines.push(`- 라운드 의미: ${input.roundContext}`);
+  }
+  if (input.advancement) {
+    lines.push(`- 매치 결과 진출: ${input.advancement}`);
   }
   if (input.venueName) lines.push(`- 장소: ${input.venueName}`);
   if (input.scheduledAt) lines.push(`- 일시: ${input.scheduledAt}`);
