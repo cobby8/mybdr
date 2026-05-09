@@ -141,6 +141,11 @@ const SCORE_TIME_24H = 5; // ±24시간
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// 2026-05-09 — 시간 윈도우 ±1h 강제 가드 (사용자 결정).
+// 사유: 게임 지연 가능성 흡수하면서 다른 시간대 매치 영상 잘못 매칭 차단.
+//       ±1h 외 영상은 후보 자체에서 제외 (점수 계산 X / 다른 점수 만족해도 매칭 X).
+//       cron route.ts 와 동일 룰 (코드 일관성).
+const TIME_WINDOW_MS = 60 * 60 * 1000;
 
 interface ScoreBreakdown {
   home_team: number; // 0~25
@@ -252,6 +257,31 @@ function scoreMatch(video: EnrichedVideo, match: MatchMeta): ScoredCandidate {
     date: 0,
     time: 0,
   };
+
+  // ============ 0) ±1h 시간 윈도우 강제 가드 (2026-05-09 사용자 결정) ============
+  // 매치 scheduledAt (또는 startedAt) 의 ±1시간 안 영상만 후보로 인정.
+  // ±1h 외 = 모든 점수 0 부여 후 즉시 반환 → 임계값 80 도달 불가 → 후보 자체에서 제외.
+  // 사유: 다른 시간대 매치 영상이 양 팀 + 대회명 + 같은날 만족만으로 잘못 매칭되는 케이스 차단.
+  //       (예: 5/2 매치 영상이 5/9 같은 팀 매치 후보로 잡히는 사일런트 버그).
+  // cron route.ts 와 동일 룰 (코드 일관성).
+  const matchAtForGuard = match.startedAt ?? match.scheduledAt;
+  const videoAtForGuard = new Date(video.publishedAt);
+  if (
+    !matchAtForGuard ||
+    Math.abs(videoAtForGuard.getTime() - matchAtForGuard.getTime()) > TIME_WINDOW_MS
+  ) {
+    // 점수 0 ScoredCandidate 반환 — 임계값 80 미달이라 1:1 매핑 단계에서 자동 제외됨.
+    return {
+      video_id: video.videoId,
+      title: video.title,
+      thumbnail: video.thumbnail,
+      score: 0,
+      is_live: video.liveBroadcastContent === "live",
+      published_at: video.publishedAt,
+      view_count: video.viewCount,
+      score_breakdown: breakdown,
+    };
+  }
 
   // ============ 1+2) 양 팀 매칭 (가장 중요 — 오매칭 차단) ============
   // 영상 제목에서 "vs"/"대" 토큰 분리 → home/away 추출 → 매치와 정확 비교
