@@ -8,6 +8,8 @@
  */
 
 import useSWR from "swr";
+// 4단계 A — 랭킹 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -94,12 +96,13 @@ export function CourtRankings({ courtId }: CourtRankingsProps) {
             </span>
 
             {/* 유저 정보 */}
+            {/* 4단계 A: 랭킹 닉네임 → 공개프로필 PlayerLink. user_id 정상 보장 (랭킹 항목은 user 가 반드시 존재) */}
             <div className="flex-1 min-w-0">
               <p
                 className="text-sm font-medium truncate"
                 style={{ color: "var(--color-text-primary)" }}
               >
-                {r.nickname}
+                <PlayerLink userId={r.user_id} name={r.nickname} />
               </p>
               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                 {r.emoji} Lv.{r.level} {r.title}

@@ -17,6 +17,8 @@
 
 import { decodeHtmlEntities } from "@/lib/utils/decode-html";
 import { SKILL_LABEL } from "@/lib/constants/game-status";
+// 4단계 A — 호스트 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 
 // game_type → 색상/라벨 (GameCard와 동일한 v2 토큰 사용)
 const KIND_COLOR: Record<number, string> = {
@@ -86,6 +88,8 @@ export interface SummaryCardGame {
   uniform_home_color: string | null;
   uniform_away_color: string | null;
   author_nickname: string | null;
+  /** 4단계 A: 호스트 User.id (BigInt 또는 string) — 호스트 닉네임 클릭 시 공개프로필 라우팅용 */
+  organizer_id?: bigint | string | number | null;
 }
 
 export function SummaryCard({ game }: { game: SummaryCardGame }) {
@@ -328,13 +332,18 @@ export function SummaryCard({ game }: { game: SummaryCardGame }) {
               marginBottom: 6,
             }}
           >
+            {/* 4단계 A: 호스트 닉네임 → 공개프로필 PlayerLink. organizer_id 없으면 자동 span fallback. */}
             <span style={{ color: "var(--ink-dim)" }}>
               호스트{" "}
-              <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                {game.author_nickname
-                  ? decodeHtmlEntities(game.author_nickname)
-                  : "익명"}
-              </span>
+              <PlayerLink
+                userId={game.organizer_id}
+                name={
+                  game.author_nickname
+                    ? decodeHtmlEntities(game.author_nickname) ?? "익명"
+                    : "익명"
+                }
+                style={{ color: "var(--ink)", fontWeight: 600 }}
+              />
             </span>
             <span
               style={{

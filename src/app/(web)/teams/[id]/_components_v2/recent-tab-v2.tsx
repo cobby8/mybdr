@@ -1,7 +1,9 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 // Phase 3: 공식 기록 가드 (status IN completed/live + scheduledAt <= NOW + NOT NULL)
 import { officialMatchWhere } from "@/lib/tournaments/official-match";
+// 4단계 C — 행 전체 router.push (서버 컴포넌트라 클라 래퍼 분리) + 상대팀 TeamLink (nested anchor 회피)
+import { TeamLink } from "@/components/links/team-link";
+import { RecentTabRow } from "./recent-tab-row";
 
 /**
  * RecentTabV2
@@ -113,6 +115,10 @@ export async function RecentTabV2({ teamId }: Props) {
         const oppName = isHome
           ? m.awayTeam?.team?.name ?? "미정"
           : m.homeTeam?.team?.name ?? "미정";
+        // 4단계 C: 상대 팀 ID — 팀명 클릭 시 팀페이지 이동용 (BigInt → string 직렬화)
+        const oppTeamId = isHome
+          ? m.awayTeam?.team?.id?.toString() ?? null
+          : m.homeTeam?.team?.id?.toString() ?? null;
         const tournamentName = m.tournament?.name ?? "대회";
         const href = m.tournament?.id ? `/tournaments/${m.tournament.id}` : "#";
 
@@ -154,45 +160,48 @@ export async function RecentTabV2({ teamId }: Props) {
         }
 
         return (
-          <Link
+          // 4단계 C: 행 전체 Link → RecentTabRow (클라 래퍼) 변경. 부모 행 router.push + 자식 TeamLink 가능.
+          <RecentTabRow
             key={m.id.toString()}
             href={href}
-            style={{ textDecoration: "none", color: "inherit" }}
+            className="board__row data-table__row"
+            style={{ gridTemplateColumns: gridColumns, color: "inherit" }}
           >
+            {/* 날짜 — data-label "날짜" / ff-mono 12px */}
             <div
-              className="board__row data-table__row"
-              style={{ gridTemplateColumns: gridColumns }}
+              data-label="날짜"
+              style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}
             >
-              {/* 날짜 — data-label "날짜" / ff-mono 12px */}
-              <div
-                data-label="날짜"
-                style={{ fontFamily: "var(--ff-mono)", fontSize: 12 }}
-              >
-                {dateLabel}
-              </div>
-              {/* 상대 — data-primary 모바일 카드 제목 */}
-              <div data-primary="true" className="title">
-                <span style={{ fontWeight: 600 }}>{oppName}</span>
-              </div>
-              {/* 스코어 — data-label "스코어" / ff-mono 700 */}
-              <div
-                data-label="스코어"
-                style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}
-              >
-                {myScore} : {oppScore}
-              </div>
-              {/* 결과 — data-label "결과" / W badge--ok / L 다크 filled / LIVE soft / 동점 — */}
-              <div data-label="결과">{resultNode}</div>
-              {/* 대회 — data-label "대회" / 12px muted */}
-              <div
-                data-label="대회"
-                style={{ fontSize: 12, color: "var(--ink-mute)" }}
-                className="truncate"
-              >
-                {tournamentName}
-              </div>
+              {dateLabel}
             </div>
-          </Link>
+            {/* 상대 — data-primary 모바일 카드 제목 */}
+            {/* 4단계 C: 상대팀명 → TeamLink. teamId 없으면 자동 span fallback ("미정" 케이스) */}
+            <div data-primary="true" className="title">
+              <TeamLink
+                teamId={oppTeamId}
+                name={oppName}
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontWeight: 600 }}
+              />
+            </div>
+            {/* 스코어 — data-label "스코어" / ff-mono 700 */}
+            <div
+              data-label="스코어"
+              style={{ fontFamily: "var(--ff-mono)", fontWeight: 700 }}
+            >
+              {myScore} : {oppScore}
+            </div>
+            {/* 결과 — data-label "결과" / W badge--ok / L 다크 filled / LIVE soft / 동점 — */}
+            <div data-label="결과">{resultNode}</div>
+            {/* 대회 — data-label "대회" / 12px muted */}
+            <div
+              data-label="대회"
+              style={{ fontSize: 12, color: "var(--ink-mute)" }}
+              className="truncate"
+            >
+              {tournamentName}
+            </div>
+          </RecentTabRow>
         );
       })}
     </div>

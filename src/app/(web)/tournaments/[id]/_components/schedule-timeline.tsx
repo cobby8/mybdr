@@ -8,15 +8,20 @@
  */
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { formatShortTime, formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
+// 4단계 C — 일정 카드 양 팀명 → 팀페이지 TeamLink (nested anchor 회피 위해 카드 전체 router.push 변경)
+import { TeamLink } from "@/components/links/team-link";
 
 // -- 타입 정의: 서버에서 넘겨받을 경기 데이터 구조 --
 export interface ScheduleMatch {
   id: string;
   homeTeamName: string | null;
   awayTeamName: string | null;
+  // 4단계 C: 팀 ID — 일정 카드 팀명 클릭 시 팀페이지 이동용. TBD 매치는 null → 자동 span fallback.
+  homeTeamId: string | null;
+  awayTeamId: string | null;
   // 2026-05-02: 일정 탭 매치 카드 팀 로고 (TBD/예정 매치 또는 logoUrl 미등록 팀은 null)
   homeTeamLogoUrl: string | null;
   awayTeamLogoUrl: string | null;
@@ -126,6 +131,8 @@ function StatusBadge({ status }: { status: string | null }) {
 }
 
 export function ScheduleTimeline({ matches, teams, selectedDate: selectedDateProp }: Props) {
+  // 4단계 C: 카드 전체 Link → router.push 로 변경 (TeamLink 와 nested anchor 회피)
+  const router = useRouter();
   // 선택된 팀 ID (null = 전체 보기)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   // 5/9 사용자 결정: 날짜 탭 자체 state (controlled prop 우선 / fallback 자체 관리)
@@ -299,10 +306,22 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                 const awayWins = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
                 return (
-                  <Link
+                  // 4단계 C: 카드 전체 Link → div + onClick 으로 변경 (TeamLink 와 nested anchor 회피).
+                  //   클릭 영역/UX 동일 — 카드 안 빈 영역 클릭 시 router.push, 팀명 클릭 시 stopPropagation 으로
+                  //   TeamLink 만 동작 (팀페이지 이동).
+                  //   접근성: role="button" + tabIndex=0 + Enter/Space 키 핸들러 (Link 대비 키보드 접근 보존).
+                  <div
                     key={match.id}
-                    href={`/live/${match.id}`}
-                    className="block rounded-lg border p-3 transition-all hover:opacity-80"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => router.push(`/live/${match.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        router.push(`/live/${match.id}`);
+                      }
+                    }}
+                    className="block cursor-pointer rounded-lg border p-3 transition-all hover:opacity-80"
                     style={{
                       borderColor: isHighlighted ? "var(--color-primary)" : "var(--color-border)",
                       backgroundColor: "var(--color-card)",
@@ -387,9 +406,12 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                           logoUrl={match.homeTeamLogoUrl}
                           name={match.homeTeamName}
                         />
-                        <span
-                          // 팀 확정: 기존 폰트(base/lg) + 정상 색
-                          // 미확정 (slotLabel): -2pt (sm/base) + italic + 톤 다운 (opacity 0.7)
+                        {/* 4단계 C: 홈팀명 → 팀페이지 TeamLink. teamId 없거나 슬롯 라벨이면 자동 span fallback.
+                            onClick stopPropagation = 부모 카드 router.push 트리거 회피 (팀명 클릭 = 팀페이지 이동만). */}
+                        <TeamLink
+                          teamId={match.homeTeamId}
+                          name={match.homeTeamName ?? match.homeSlotLabel ?? "미정"}
+                          onClick={(e) => e.stopPropagation()}
                           className={`truncate font-bold ${
                             match.homeTeamName
                               ? "text-base sm:text-lg"
@@ -405,9 +427,7 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                               : "var(--color-text-muted)",
                             opacity: match.homeTeamName ? 1 : 0.7,
                           }}
-                        >
-                          {match.homeTeamName ?? match.homeSlotLabel ?? "미정"}
-                        </span>
+                        />
                       </div>
 
                       {/* 스코어 or VS
@@ -452,8 +472,11 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                           2026-05-02 사용자 요청: 팀명 폰트 ~30% 확대 (홈팀과 동일)
                           2026-05-02: 미확정 시 slotLabel → "미정" fallback (홈팀과 동일 패턴) */}
                       <div className="flex flex-1 items-center justify-end gap-2 text-right min-w-0">
-                        <span
-                          // 미확정: -2pt (sm/base) + italic + opacity 0.7 (홈과 동일 패턴)
+                        {/* 4단계 C: 어웨이팀명 → 팀페이지 TeamLink. 동일 패턴 (stopPropagation 으로 부모 카드 클릭 회피) */}
+                        <TeamLink
+                          teamId={match.awayTeamId}
+                          name={match.awayTeamName ?? match.awaySlotLabel ?? "미정"}
+                          onClick={(e) => e.stopPropagation()}
                           className={`truncate font-bold ${
                             match.awayTeamName
                               ? "text-base sm:text-lg"
@@ -469,16 +492,14 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                               : "var(--color-text-muted)",
                             opacity: match.awayTeamName ? 1 : 0.7,
                           }}
-                        >
-                          {match.awayTeamName ?? match.awaySlotLabel ?? "미정"}
-                        </span>
+                        />
                         <TeamLogo
                           logoUrl={match.awayTeamLogoUrl}
                           name={match.awayTeamName}
                         />
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

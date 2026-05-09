@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+// 4단계 A — 신청자 닉네임 → 공개프로필 PlayerLink
+import { PlayerLink } from "@/components/links/player-link";
 
 interface Applicant {
   id: string;
   status: number;
+  /** 4단계 A: 신청자 User.id — 닉네임 클릭 시 공개프로필 이동용. null = 게스트/placeholder → span fallback */
+  user_id?: string | null;
   nickname: string | null;
   name: string | null;
   phone: string | null;
@@ -105,8 +109,9 @@ export function HostApplications({ gameId, applicants }: HostApplicationsProps) 
                   )}
                   <div className="flex items-center justify-between">
                     <div>
+                      {/* 4단계 A: 신청자 닉네임 → 공개프로필 PlayerLink. user_id 없으면 자동 span fallback. */}
                       <p className="text-sm font-medium">
-                        {a.nickname ?? a.name ?? "익명"}
+                        <PlayerLink userId={a.user_id} name={a.nickname ?? a.name ?? "익명"} />
                       </p>
                       <p className="text-xs text-[var(--color-text-muted)]">
                         {[a.position, a.city, a.district].filter(Boolean).join(" · ") || "정보 없음"}
@@ -161,7 +166,10 @@ export function HostApplications({ gameId, applicants }: HostApplicationsProps) 
                 key={a.id}
                 className="flex items-center justify-between rounded-[12px] bg-[var(--color-surface-bright)] px-4 py-2.5"
               >
-                <p className="text-sm">{a.nickname ?? a.name ?? "익명"}</p>
+                {/* 4단계 A: 처리 완료 신청자도 PlayerLink 적용 (일관성) */}
+                <p className="text-sm">
+                  <PlayerLink userId={a.user_id} name={a.nickname ?? a.name ?? "익명"} />
+                </p>
                 <Badge variant={a.status === 1 ? "success" : "error"}>
                   {STATUS_LABEL[a.status]}
                 </Badge>
