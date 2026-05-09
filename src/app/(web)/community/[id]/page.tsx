@@ -26,9 +26,11 @@ export const revalidate = 30;
 
 // React cache()로 감싸서 같은 렌더 사이클 내 중복 DB 쿼리 방지
 // generateMetadata()와 본문 컴포넌트가 같은 게시글을 조회해도 실제 쿼리는 1회만 실행됨
+// 2026-05-09: status 필터 추가 — draft (알기자 검수 대기) URL 직접 입력 시 본문 노출 차단.
+// 알기자 검수 대기 게시물은 /admin/news 에서만 접근 가능. /community/[public_id] 진입 = published 만.
 const getPost = cache(async (publicId: string) => {
-  return prisma.community_posts.findUnique({
-    where: { public_id: publicId },
+  return prisma.community_posts.findFirst({
+    where: { public_id: publicId, status: "published" },
     include: {
       users: {
         select: {
