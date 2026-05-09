@@ -31,6 +31,7 @@
 
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveMatchCard, type LiveMatchCardData } from "./live-match-card";
 
 interface LiveMatchCardRailProps {
@@ -40,6 +41,60 @@ interface LiveMatchCardRailProps {
 }
 
 export function LiveMatchCardRail({ matches, tournamentName }: LiveMatchCardRailProps) {
+  // 2026-05-09 사용자 결정: PC 가로 스크롤 강화 (드래그 + 휠 가로 + 스크롤바 노출)
+  // 5/9 fix: a 태그 위에서도 드래그 시작 가능 — drag threshold (5px) + click 차단
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragState = useRef({ startX: 0, scrollLeftStart: 0, hasMoved: false });
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    if (e.button !== 0) return; // 좌클릭만
+    setIsDragging(true);
+    dragState.current.startX = e.pageX - scrollRef.current.offsetLeft;
+    dragState.current.scrollLeftStart = scrollRef.current.scrollLeft;
+    dragState.current.hasMoved = false;
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging || !scrollRef.current) return;
+      const x = e.pageX - scrollRef.current.offsetLeft;
+      const dx = x - dragState.current.startX;
+      // 5px threshold — 미만은 클릭 / 이상은 드래그 모드
+      if (Math.abs(dx) > 5) {
+        dragState.current.hasMoved = true;
+        e.preventDefault();
+        scrollRef.current.scrollLeft = dragState.current.scrollLeftStart - dx * 1.5;
+      }
+    },
+    [isDragging],
+  );
+
+  const handleMouseUp = useCallback(() => setIsDragging(false), []);
+
+  // 드래그 후 click 차단 (capture phase) — a 태그 라우팅 막기
+  const handleClickCapture = useCallback((e: React.MouseEvent) => {
+    if (dragState.current.hasMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragState.current.hasMoved = false;
+    }
+  }, []);
+
+  // 휠 가로 스크롤 — deltaY 우세 시 scrollLeft 로 변환 (PC 휠 마우스 가로 스크롤)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // 이미 가로 휠
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, []);
+
   // 빈 list 또는 현재 매치 1건만 = Rail 패널 자체 hidden (영역 0)
   // 사용자 결정 Q4=A 가변 N건 — 1건 만 있으면 "다른 매치 0" 의미로 미노출.
   if (!matches || matches.length <= 1) {
@@ -94,16 +149,39 @@ export function LiveMatchCardRail({ matches, tournamentName }: LiveMatchCardRail
           )}
         </div>
 
-        {/* 가로 스크롤 컨테이너 — overflow-x-auto + snap-x mandatory.
-            iOS 자연 스크롤 + 스크롤바 미노출 (모바일 가독성) — inline style 로 처리.
-            -mx + px 패턴 = 좌우 여백 유지하면서 첫/마지막 카드 가장자리 닿게 (시안 inset 패턴). */}
+        {/* 가로 스크롤 컨테이너 — 5/9 사용자 결정:
+            (1) 드래그 스크롤 (마우스 클릭 + 이동) (2) 휠 가로 스크롤 (deltaY → scrollLeft)
+            (3) 은은한 스크롤바 노출 (Firefox + Webkit) — Tailwind arbitrary 회피로 inline <style> */}
+        <style>{`
+          .live-match-rail-scroll::-webkit-scrollbar {
+            height: 6px;
+          }
+          .live-match-rail-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .live-match-rail-scroll::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 3px;
+          }
+          .live-match-rail-scroll::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-muted);
+          }
+        `}</style>
         <div
-          className="flex gap-3 overflow-x-auto pb-1"
+          ref={scrollRef}
+          className="live-match-rail-scroll flex gap-3 overflow-x-auto pb-2"
           style={{
             scrollSnapType: "x mandatory",
-            // 모바일 스크롤바 숨김 (iOS Safari) — Firefox/Webkit 기본 미사용
-            scrollbarWidth: "none",
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--color-border) transparent",
+            cursor: isDragging ? "grabbing" : "grab",
+            userSelect: isDragging ? "none" : "auto",
           }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onClickCapture={handleClickCapture}
         >
           {matches.map((m) => (
             <LiveMatchCard key={m.id} match={{ ...m, tournament_name: tournamentName ?? null }} />
