@@ -7,6 +7,10 @@ import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-sta
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 import { z } from "zod";
 import { SYNC_ALLOWED_STATUSES } from "@/lib/constants/match-status";
+// 2026-05-09: 알기자 자동 발행 — Flutter sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
+//   waitUntil 로 wrap (Vercel serverless 응답 종료 후 process abort 방지).
+import { waitUntil } from "@vercel/functions";
+import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 
 // 단일 경기 동기화 스키마 (Flutter bdr_stat 앱용)
 const playByPlaySchema = z.object({
@@ -202,6 +206,14 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         ended_at: match.ended_at ? new Date(match.ended_at) : undefined,
       },
     });
+
+    // 2026-05-09: 알기자 자동 발행 — completed 신규 전환 시점만 trigger.
+    //   Flutter sync 는 updateMatchStatus 헬퍼를 우회하므로 본 라우트에 별도 가드.
+    //   조건: existing.status !== "completed" + 신규 status === "completed" → 첫 전환만.
+    //   waitUntil 로 wrap = Vercel 응답 종료 후 background Promise 보장. dev/local 영향 0.
+    if (existing.status !== "completed" && match.status === "completed") {
+      waitUntil(triggerMatchBriefPublish(matchId));
+    }
 
     // 1-B. 경기 리셋 감지: status=scheduled + player_stats 없음 + play_by_plays 없음
     // → 서버에 남은 이전 게임 PBP/stats 전체 삭제 (laive log 잔류 방지)

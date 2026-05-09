@@ -4,6 +4,9 @@ import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middlewa
 import { batchSyncSchema } from "@/lib/validation/match";
 import { apiSuccess, forbidden, validationError } from "@/lib/api/response";
 import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
+// 2026-05-09: 알기자 자동 발행 — Flutter batch-sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
+import { waitUntil } from "@vercel/functions";
+import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 
 // FR-025: 매치 일괄 동기화
 async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string) {
@@ -53,6 +56,10 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       if (match.status === "completed") {
         advanceWinner(BigInt(match.matchId)).catch(() => {});
         updateTeamStandings(BigInt(match.matchId)).catch(() => {});
+        // 2026-05-09: 알기자 자동 발행 — completed 신규 전환만 trigger (existing 의 status 비교는 트랜잭션 내 already 처리되었으므로 idempotent 신뢰).
+        //   triggerMatchBriefPublish 자체가 멱등 (이미 brief 박혔으면 skip / community_post 중복 방지 가드 내장).
+        //   waitUntil = Vercel 응답 종료 후 background Promise 보장.
+        waitUntil(triggerMatchBriefPublish(BigInt(match.matchId)));
       }
       synced++;
     } catch (err) {
