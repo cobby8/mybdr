@@ -177,12 +177,14 @@ export async function GET(
           away_score: m.awayScore ?? null,
           home_team: {
             id: Number(m.homeTeam?.team?.id ?? 0),
-            name: m.homeTeam?.team?.name ?? "홈",
+            // 5/9 사용자 fix: TBD 매치 (8강 등 대진 미정) 시 "홈" → "미정" placeholder.
+            // 정확한 "X조 N위" 매핑은 대회 bracket 룰이 schema 에 명시 안 됨 (별도 PR — settings JSON 박제 또는 룰 추론).
+            name: m.homeTeam?.team?.name ?? "미정",
             logo_url: m.homeTeam?.team?.logoUrl ?? null,
           },
           away_team: {
             id: Number(m.awayTeam?.team?.id ?? 0),
-            name: m.awayTeam?.team?.name ?? "원정",
+            name: m.awayTeam?.team?.name ?? "미정",
             logo_url: m.awayTeam?.team?.logoUrl ?? null,
           },
           is_current: m.id === match.id,

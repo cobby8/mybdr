@@ -98,11 +98,12 @@ function getStatusLabel(match: LiveMatchCardData): {
 /**
  * 팀명 약칭 — 좁은 카드 폭 (~140~200px) 내 가독성 우선.
  *
- * 룰:
+ * 룰 (5/9 사용자 결정 — 한글 8자까지 그대로):
  *   - 영문 대문자/숫자 약어 (2~4자) 그대로 사용 ("BDR", "NYK", "KCC")
- *   - 한글 토큰 N개 → 각 토큰 첫 글자 N개 (최대 5자)
- *   - 영문 단어 N개 → 각 단어 머릿글자 (최대 3자)
- *   - 빈/단일 단어 → 그대로 사용 (5자 이내 truncate)
+ *   - 한글 토큰 N개 → 각 토큰 첫 글자 N개 (최대 8자)
+ *   - 영문 단어 N개 → 각 단어 머릿글자 (최대 4자)
+ *   - 빈/단일 단어 → 그대로 사용 (8자 이내 / 초과 시 truncate)
+ *   - 카드 폭 안에서 truncate CSS 가 자동 처리
  */
 function getTeamShort(name: string): string {
   if (!name) return "?";
@@ -111,11 +112,11 @@ function getTeamShort(name: string): string {
   if (/^[A-Z0-9]{2,4}$/.test(trimmed)) return trimmed;
   const tokens = trimmed.split(/\s+/);
   if (tokens.length === 1) {
-    // 단일 단어 → 5자 이내 그대로 (한글 5자 / 영문 5자)
-    return trimmed.length <= 5 ? trimmed : trimmed.slice(0, 5);
+    // 단일 단어 → 8자 이내 그대로 ("우아한스포츠" 6자 / "닥터바스켓" 5자 / "크로스오버" 5자 모두 보존)
+    return trimmed.length <= 8 ? trimmed : trimmed.slice(0, 8);
   }
-  // 다중 토큰 → 각 토큰 머릿글자 (최대 5자)
-  return tokens.map((t) => t.charAt(0)).join("").slice(0, 5);
+  // 다중 토큰 → 각 토큰 머릿글자 (최대 4자)
+  return tokens.map((t) => t.charAt(0)).join("").slice(0, 4);
 }
 
 /**
