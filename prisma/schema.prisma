@@ -675,6 +675,9 @@ model TournamentMatch {
   youtube_status                                                       String?                   @map("youtube_status") @db.VarChar(20)
   // 2026-05-09: 영상 검증/등록 시각. cron 자동 검증 (Q3 후속) 시 갱신. NULL = 미등록.
   youtube_verified_at                                                  DateTime?                 @map("youtube_verified_at") @db.Timestamp(6)
+  // 2026-05-10 PR4 — 사전 라인업 시작 1h 전 푸시 알림 발송 시각.
+  // NULL = 미발송 / Date = 발송 완료. cron 5분 폴링 시 중복 발송 방지 가드.
+  lineup_reminder_sent_at                                              DateTime?                 @map("lineup_reminder_sent_at") @db.Timestamp(6)
   createdAt                                                            DateTime                  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                            DateTime                  @updatedAt @map("updated_at") @db.Timestamp(6)
   tournamentId                                                         String                    @map("tournament_id") @db.Uuid
