@@ -6,6 +6,11 @@ import { getClientIp } from "@/lib/security/get-client-ip";
 import { getDisplayName } from "@/lib/utils/player-display-name";
 // 2026-05-03: PBP-only 출전시간 산출 엔진 (단일 source) — quarterStatsJson/minutesPlayed/MAX 전략 폐기
 import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live/minutes-engine";
+// 2026-05-09: 라이브 명단 영역 임시 jersey 우선 적용 (W1 모달 등록 #) — 기존 후처리(line 647~) 통합 + 모든 사용처 일관.
+//   우선순위: match_player_jersey (이 매치 임시 #) → ttp.jerseyNumber (대회 등록 #) → null
+//   사용 이유: line 291/299/311/538 직접 ttp.jerseyNumber 매핑 시점에는 임시 # 미반영 → 정영민 #9 누락 사례.
+//   helper 1회 SELECT 로 모든 분기(진행중/종료/MVP/PBP 타임라인)에 일괄 적용.
+import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -99,6 +104,33 @@ export async function GET(
 
     // 쿼터별 상세 스탯 존재 여부 — PBP 가 1건이라도 있으면 true.
     const hasQuarterEventDetail = allPbps.length > 0;
+
+    // 2026-05-09: 매치 1건의 모든 ttp 에 대한 임시 jersey 일괄 SELECT (PR5 헬퍼).
+    //   왜 이 시점인가:
+    //     - 진행중 분기 (line 287~) 의 allPlayers map 생성 + 종료 분기 (line 530~) 의 toPlayerRow 모두에서 사용.
+    //     - playerNameById (PBP 타임라인) / mvpPlayer 도 같은 매핑 사용 → 분기 직전 미리 만들어두면 1회 SELECT.
+    //   ttp.id 는 양 팀 합쳐 일반적으로 20건 미만 → IN 조건 단일 쿼리 + 매치당 1회 = 성능 영향 미미.
+    const allTtpEntries = [
+      ...(match.homeTeam?.players ?? []).map((p) => ({
+        ttpId: p.id,                  // BigInt
+        ttpJersey: p.jerseyNumber,    // 대회 등록 #
+        teamJersey: null as number | null, // team_members.jersey_number 는 본 라우트 미조회 (생략 — fallback ttpJersey 만)
+      })),
+      ...(match.awayTeam?.players ?? []).map((p) => ({
+        ttpId: p.id,
+        ttpJersey: p.jerseyNumber,
+        teamJersey: null as number | null,
+      })),
+    ];
+    // jerseyMap: ttp.id (BigInt) → 최종 결정 # (override → ttpJersey → null).
+    // 사용처: row.jerseyNumber 매핑 / playerNameById / mvpPlayer.
+    const jerseyMap = await resolveMatchJerseysBatch(BigInt(matchId), allTtpEntries);
+    // helper: ttp.id (number) → 최종 # (number | null). 호출처에서 BigInt 변환 부담 제거.
+    const getJersey = (ttpId: number | bigint, fallback: number | null = null): number | null => {
+      const key = typeof ttpId === "bigint" ? ttpId : BigInt(ttpId);
+      const v = jerseyMap.get(key);
+      return v ?? fallback;
+    };
 
     // 2026-04-18: PBP 에 등장한 선수 ID 집합 — DNP 완화 판정용.
     // 본인 액션(tournament_team_player_id) 또는 교체 투입(sub_in_player_id) 으로 코트에 나타났던 선수 포함.
@@ -285,10 +317,11 @@ export async function GET(
         (p.role ?? "player") === "player" && p.is_active !== false;
 
       // 2026-04-15: roster에 isStarter 포함 (TournamentTeamPlayer.isStarter fallback 용)
+      // 2026-05-09: jerseyNumber = jerseyMap (임시 # 우선) ?? ttp.jerseyNumber (대회 등록 #).
       const allPlayers = [
         ...(match.homeTeam?.players ?? []).filter(filterRoster).map((p) => ({
           id: Number(p.id),
-          jerseyNumber: p.jerseyNumber,
+          jerseyNumber: getJersey(p.id, p.jerseyNumber),
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
@@ -296,7 +329,7 @@ export async function GET(
         })),
         ...(match.awayTeam?.players ?? []).filter(filterRoster).map((p) => ({
           id: Number(p.id),
-          jerseyNumber: p.jerseyNumber,
+          jerseyNumber: getJersey(p.id, p.jerseyNumber),
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`),
           teamId: Number(p.tournamentTeamId),
@@ -535,7 +568,8 @@ export async function GET(
         const minSeconds = getPbpSec(playerIdNum);
         const row: PlayerRow = {
           id: Number(stat.id),
-          jerseyNumber: player.jerseyNumber,
+          // 2026-05-09: jerseyMap (임시 # 우선) ?? ttp.jerseyNumber. player.id 는 ttp.id 와 동일.
+          jerseyNumber: getJersey(player.id, player.jerseyNumber),
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
           name: getDisplayName(user, { player_name: player.player_name, jerseyNumber: player.jerseyNumber }, `#${player.jerseyNumber ?? "-"}`),
           teamId: Number(player.tournamentTeamId),
@@ -644,58 +678,10 @@ export async function GET(
       );
     }
 
-    // 2026-05-05 PR4 — 매치 한정 임시 jersey 번호 (W1) 후처리.
-    //
-    // 우선순위 (Dev/team-member-lifecycle-2026-05-05.md §0):
-    //   match_player_jersey (이 SELECT) → ttp.jerseyNumber → "-"
-    // ttp.id (= 진행중 분기 row.id, 종료 분기 toPlayerRow 의 player.id) 기준 매핑.
-    // 종료 분기는 row.id = stat.id 이므로 ttp.id 별도 SELECT 로 보조 매핑 필요.
-    //
-    // 진행중 분기: row.id = ttp.id → overrideMap.get(row.id) 직접 매핑 OK.
-    // 종료 분기: stat.tournamentTeamPlayer.id (= ttp.id) 와 stat.id 매핑이 toPlayerRow 안에서만 보존됨.
-    //   → 종료 분기는 별도 statId → ttpId 매핑이 필요.
-    //   매치 playerStats 가 match include 에 이미 있으므로 추가 쿼리 0.
-    {
-      const overrides = await prisma.matchPlayerJersey.findMany({
-        where: { tournamentMatchId: BigInt(matchId) },
-        select: { tournamentTeamPlayerId: true, jerseyNumber: true },
-      });
-      if (overrides.length > 0) {
-        // ttp.id → jersey override 매핑 (BigInt → Number 변환, row.id 와 동일 형태)
-        const overrideByTtpId = new Map<number, number>();
-        for (const o of overrides) {
-          overrideByTtpId.set(Number(o.tournamentTeamPlayerId), o.jerseyNumber);
-        }
-
-        if (hasPlayerStats) {
-          // 종료 분기: stat.id → ttp.id 매핑 후 row.jerseyNumber 갱신.
-          const statIdToTtpId = new Map<number, number>();
-          for (const s of match.playerStats) {
-            statIdToTtpId.set(Number(s.id), Number(s.tournamentTeamPlayer.id));
-          }
-          const applyOverride = (rows: PlayerRow[]) => {
-            for (const r of rows) {
-              const ttpId = statIdToTtpId.get(r.id);
-              if (ttpId == null) continue;
-              const ov = overrideByTtpId.get(ttpId);
-              if (ov != null) r.jerseyNumber = ov;
-            }
-          };
-          applyOverride(homePlayers);
-          applyOverride(awayPlayers);
-        } else {
-          // 진행중 분기: row.id = ttp.id 이므로 직접 매핑.
-          const applyOverride = (rows: PlayerRow[]) => {
-            for (const r of rows) {
-              const ov = overrideByTtpId.get(r.id);
-              if (ov != null) r.jerseyNumber = ov;
-            }
-          };
-          applyOverride(homePlayers);
-          applyOverride(awayPlayers);
-        }
-      }
-    }
+    // 2026-05-09: 기존 line 647~698 의 사후 jerseyNumber 후처리는 jerseyMap (line ~100) 으로 통합 완료.
+    //   - 진행중 분기 allPlayers map / 종료 분기 toPlayerRow / playerNameById (PBP 타임라인) 모두 jerseyMap 사용.
+    //   - mvpPlayer 는 PlayerRow 의 jerseyNumber 를 그대로 읽어 자동 정합 (별도 매핑 불필요).
+    //   - SELECT 1회 (resolveMatchJerseysBatch) 로 통일 — 기존 후처리의 중복 SELECT 제거 + 일관성 ↑.
 
     // 2026-04-17: quarter_scores 는 play_by_plays 기반으로 "항상" 재계산 (DB match.quarterScores 무시)
     // 이유: match 99~104 에서 DB quarterScores 와 실제 score 불일치 발생. PBP 가 진실 원천.
@@ -968,12 +954,14 @@ export async function GET(
     for (const p of match.homeTeam?.players ?? []) {
       // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
       const name = getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`);
-      playerNameById.set(Number(p.id), { name, jersey_number: p.jerseyNumber });
+      // 2026-05-09: PBP 타임라인 jersey_number 도 임시 # 우선 적용 (라이브 명단과 일관).
+      playerNameById.set(Number(p.id), { name, jersey_number: getJersey(p.id, p.jerseyNumber) });
     }
     for (const p of match.awayTeam?.players ?? []) {
       // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
       const name = getDisplayName(p.users, { player_name: p.player_name, jerseyNumber: p.jerseyNumber }, `#${p.jerseyNumber ?? "-"}`);
-      playerNameById.set(Number(p.id), { name, jersey_number: p.jerseyNumber });
+      // 2026-05-09: PBP 타임라인 jersey_number 도 임시 # 우선 적용 (라이브 명단과 일관).
+      playerNameById.set(Number(p.id), { name, jersey_number: getJersey(p.id, p.jerseyNumber) });
     }
     // allPbps 는 created_at 순서대로 insert 되어 있으므로 quarter + game_clock_seconds 로 정렬.
     // 농구 게임 클럭은 내려가는 방식(10:00 → 0:00) 이므로 쿼터별로 clock 내림차순 = 발생순.
