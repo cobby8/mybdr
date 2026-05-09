@@ -10,7 +10,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { formatShortTime, formatGroupDate } from "@/lib/utils/format-date";
+import { formatShortTime, formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
 
 // -- 타입 정의: 서버에서 넘겨받을 경기 데이터 구조 --
 export interface ScheduleMatch {
@@ -47,6 +47,9 @@ export interface ScheduleTeam {
 interface Props {
   matches: ScheduleMatch[];
   teams: ScheduleTeam[];
+  // 2026-05-09 사용자 결정: 날짜 탭 자체 관리 (팀 필터 chip 위 row).
+  // 외부에서도 selectedDate prop 전달 가능 (controlled — 미전달 시 자체 state).
+  selectedDate?: string | null;
 }
 
 // -- 날짜별로 경기를 그룹핑하는 유틸 --
@@ -122,20 +125,52 @@ function StatusBadge({ status }: { status: string | null }) {
   return <Badge variant="default">예정</Badge>;
 }
 
-export function ScheduleTimeline({ matches, teams }: Props) {
+export function ScheduleTimeline({ matches, teams, selectedDate: selectedDateProp }: Props) {
   // 선택된 팀 ID (null = 전체 보기)
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  // 5/9 사용자 결정: 날짜 탭 자체 state (controlled prop 우선 / fallback 자체 관리)
+  const [selectedDateState, setSelectedDateState] = useState<string | null>(null);
+  const selectedDate = selectedDateProp !== undefined ? selectedDateProp : selectedDateState;
 
-  // 선택된 팀으로 필터링된 경기 목록
+  // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
+  const uniqueDates: { key: string; short: string }[] = useMemo(() => {
+    const seen = new Set<string>();
+    const order: { key: string; short: string }[] = [];
+    const sorted = [...matches].sort((a, b) => {
+      const ta = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
+      const tb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
+      return ta - tb;
+    });
+    for (const m of sorted) {
+      const key = formatGroupDate(m.scheduledAt);
+      if (!seen.has(key)) {
+        seen.add(key);
+        order.push({ key, short: formatGroupDateShort(m.scheduledAt) });
+      }
+    }
+    return order;
+  }, [matches]);
+
+  // 선택된 팀 + 날짜 필터 적용 (5/9 사용자 결정 — 날짜 탭)
   const filteredMatches = useMemo(() => {
-    if (!selectedTeam) return matches;
-    // 팀 이름으로 필터 (선택한 팀이 홈 또는 어웨이인 경기)
-    const teamName = teams.find((t) => t.id === selectedTeam)?.name;
-    if (!teamName) return matches;
-    return matches.filter(
-      (m) => m.homeTeamName === teamName || m.awayTeamName === teamName
-    );
-  }, [matches, selectedTeam, teams]);
+    let filtered = matches;
+    // 팀 필터
+    if (selectedTeam) {
+      const teamName = teams.find((t) => t.id === selectedTeam)?.name;
+      if (teamName) {
+        filtered = filtered.filter(
+          (m) => m.homeTeamName === teamName || m.awayTeamName === teamName
+        );
+      }
+    }
+    // 날짜 필터 (selectedDate = formatGroupDate 풀 텍스트 / null = 전체)
+    if (selectedDate) {
+      filtered = filtered.filter(
+        (m) => formatGroupDate(m.scheduledAt) === selectedDate
+      );
+    }
+    return filtered;
+  }, [matches, selectedTeam, selectedDate, teams]);
 
   // 날짜별 그룹핑
   const dateGroups = useMemo(() => groupByDate(filteredMatches), [filteredMatches]);
@@ -147,13 +182,47 @@ export function ScheduleTimeline({ matches, teams }: Props) {
 
   return (
     <div>
-      {/* 팀 필터 버튼 그룹: 가로 스크롤 */}
+      {/* 5/9 사용자 결정: 날짜 탭 — 팀 필터 위 row + 가로 스크롤 + 줄바꿈 X */}
+      {uniqueDates.length > 1 && (
+        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+          <button
+            type="button"
+            onClick={() => setSelectedDateState(null)}
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: selectedDate === null ? "var(--color-primary)" : "var(--color-elevated)",
+              color: selectedDate === null ? "white" : "var(--color-text-secondary)",
+              border: `1px solid ${selectedDate === null ? "var(--color-primary)" : "var(--color-border)"}`,
+            }}
+          >
+            전체
+          </button>
+          {uniqueDates.map(({ key, short }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setSelectedDateState(key === selectedDate ? null : key)}
+              className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: selectedDate === key ? "var(--color-primary)" : "var(--color-elevated)",
+                color: selectedDate === key ? "white" : "var(--color-text-secondary)",
+                border: `1px solid ${selectedDate === key ? "var(--color-primary)" : "var(--color-border)"}`,
+              }}
+              title={key}
+            >
+              {short}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 팀 필터 버튼 그룹: 가로 스크롤 (5/9 사용자 결정 — 날짜 탭과 동일 크기로 축소) */}
       {teams.length > 0 && (
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
+        <div className="mb-6 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
           {/* "전체" 버튼 */}
           <button
             onClick={() => setSelectedTeam(null)}
-            className="flex-shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
               backgroundColor: selectedTeam === null ? "var(--color-primary)" : "var(--color-elevated)",
               color: selectedTeam === null ? "white" : "var(--color-text-secondary)",
@@ -167,7 +236,7 @@ export function ScheduleTimeline({ matches, teams }: Props) {
             <button
               key={team.id}
               onClick={() => setSelectedTeam(team.id === selectedTeam ? null : team.id)}
-              className="flex-shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+              className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
               style={{
                 backgroundColor: selectedTeam === team.id ? "var(--color-primary)" : "var(--color-elevated)",
                 color: selectedTeam === team.id ? "white" : "var(--color-text-secondary)",
