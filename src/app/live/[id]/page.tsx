@@ -789,12 +789,23 @@ export default function LiveBoxScorePage() {
       const originalTitle = document.title;
       document.title = printTitle;
 
+      // 2026-05-10 — 모바일 Chrome print viewport hack
+      // 사유: Android Chrome 은 window.print() 시 viewport 를 모바일 크기 (~360px) 그대로 유지 →
+      //   A4 landscape (~1123px) 페이지에 360px 영역만 캡처되어 빈 페이지처럼 보임 (사용자 보고).
+      //   print 직전 viewport meta 를 width=1100 으로 강제 확장 → 모바일 Chrome 이 print preview
+      //   를 1100px 으로 렌더 → A4 정상 캡처. afterprint / cleanup 시 원본 복원.
+      //   PC 에는 영향 0 (PC viewport 이미 큼).
+      const viewportMeta = document.querySelector<HTMLMetaElement>('meta[name="viewport"]');
+      const originalViewport = viewportMeta?.content ?? "";
+      if (viewportMeta) viewportMeta.content = "width=1100";
+
       // 2026-04-17: state 기반 프린트 모드 진입 — @media print 의존 없이 모바일 호환
       setIsPrinting(true);
 
       // afterprint 이벤트 (사용자가 프린트/저장/취소 후) → title 복원 + state 초기화
       const handleAfterPrint = () => {
         document.title = originalTitle;
+        if (viewportMeta && originalViewport) viewportMeta.content = originalViewport;
         setIsPrinting(false);
         setPrintOptions(null);
         setPrintDialogOpen(false);
@@ -808,9 +819,12 @@ export default function LiveBoxScorePage() {
 
       return () => {
         clearTimeout(t);
-        // 안전장치: cleanup 시 title 복원 + 리스너 제거 + 프린트 모드 해제
+        // 안전장치: cleanup 시 title 복원 + viewport 복원 + 리스너 제거 + 프린트 모드 해제
         window.removeEventListener("afterprint", handleAfterPrint);
         if (document.title === printTitle) document.title = originalTitle;
+        if (viewportMeta && originalViewport && viewportMeta.content === "width=1100") {
+          viewportMeta.content = originalViewport;
+        }
         setIsPrinting(false);
       };
     }

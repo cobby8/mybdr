@@ -2,15 +2,20 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
-### [2026-05-10] 모바일 박스스코어 프린트 빈 페이지 — max-width: 100vw 글로벌 가드 print 충돌
-- **분류**: ui/css (모바일 print 호환)
+### [2026-05-10] 모바일 박스스코어 프린트 빈 페이지 — max-width: 100vw 글로벌 가드 print 충돌 + 모바일 viewport 동결
+- **분류**: ui/css/js (모바일 print 호환)
 - **증상**: 모바일 (Android Chrome) 라이브 페이지 박스스코어 프린트 → A4 1/1 빈 흰 페이지
-- **원인**: `globals.css` line 213 `@media (max-width: 768px) { html, body { max-width: 100vw } }` 가 print 시에도 active. vw = 모바일 viewport (~360px) 로 평가되어 A4 (~1123px) 페이지 좌상단 360px 영역에 콘텐츠 압축 → 시각적 빈 페이지.
-- **회귀 commit**: `4052684` (5/10 sticky fix `overflow-x: hidden → clip` 의 부수 효과). sticky 자체와 무관한 `max-width: 100vw` 가 같이 박제되어 print 충돌.
-- **fix (A + B 병행)**:
-  1. (A) `@media (max-width: 768px)` → `@media screen and (max-width: 768px)` (print 시 무력화)
+- **원인 (2 단계)**:
+  1. `globals.css` `@media (max-width: 768px) { html, body { max-width: 100vw } }` 가 print 시에도 active → vw = 모바일 viewport (~360px) 로 평가
+  2. **모바일 Chrome 의 `window.print()` 동작 차이** — PC 는 print preview 시 viewport 를 종이 크기로 확장하지만 모바일 Chrome 은 viewport 를 모바일 크기 그대로 유지 → A4 (~1123px) 페이지 좌상단 360px 영역만 캡처 → 시각적 빈 페이지
+- **회귀 commit**: `4052684` (5/10 sticky fix `overflow-x: hidden → clip` 의 부수 효과)
+- **fix (A + B + C 3단계)**:
+  1. (A) `@media (max-width: 768px)` → `@media screen and (max-width: 768px)` (print 시 CSS 무력화)
   2. (B) `@media print { html, body { max-width: none !important; overflow: visible !important; } }` 보강 (안전망)
-- **재발 방지 룰**: 글로벌 가드 (overflow / max-width / position) 박제 시 `@media screen and` prefix 명시 — print 호환 사전 검증 필수.
+  3. **(C) 모바일 viewport hack** — `window.print()` 직전 `<meta name="viewport">` content 를 `width=1100` 으로 강제 확장 + afterprint / cleanup 시 원본 복원. PC 영향 0 (이미 viewport ≥ 1100). 모바일 Chrome print 시점에 viewport 가 1100 으로 인식되어 A4 정상 캡처.
+- **재발 방지 룰**:
+  1. 글로벌 가드 (overflow / max-width / position) 박제 시 `@media screen and` prefix 명시 — print 호환 사전 검증 필수
+  2. 모바일 print = window.print() 직전 viewport meta 임의 확장 hack 필수 (CSS만으로는 모바일 Chrome viewport 동결 우회 불가)
 
 ---
 
