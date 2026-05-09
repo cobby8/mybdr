@@ -895,8 +895,9 @@ export default function LiveBoxScorePage() {
             const ratio = Math.min(pdfW / imgWmm, pdfH / imgHmm);
             const drawW = imgWmm * ratio;
             const drawH = imgHmm * ratio;
+            // 2026-05-10 — PC 프린트 양식 동등: 페이지 상단 정렬 (offsetY=0) + 가운데 가로 정렬 유지
             const offsetX = (pdfW - drawW) / 2;
-            const offsetY = (pdfH - drawH) / 2;
+            const offsetY = 0;
 
             if (i > 0) pdf.addPage("a4", "landscape");
             pdf.addImage(imgData, "PNG", offsetX, offsetY, drawW, drawH);
