@@ -66,6 +66,9 @@ export interface PlayerRowV2 {
   jersey_number: number | null;
   name: string;
   team_id: number;
+  // 2026-05-10 PlayerLink 마이그 — 박스스코어 선수명 → 공개프로필(`/users/[id]`).
+  // null = placeholder user (ttp.userId NULL) → 링크 비활성 (span fallback).
+  user_id: number | null;
   min: number;
   min_seconds?: number;
   pts: number;
@@ -108,6 +111,8 @@ export interface MvpPlayerV2 {
   jersey_number: number | null;
   name: string;
   team_id: number;
+  // 2026-05-10 PlayerLink 마이그 — MVP 카드 선수명 → 공개프로필.
+  user_id: number | null;
   pts: number;
   reb: number;
   ast: number;
