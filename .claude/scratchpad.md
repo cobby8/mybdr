@@ -62,10 +62,39 @@ main 최종 = `86c6d93` (PR #304). subin = dev = main 동기화. 미푸시 0.
 
 ---
 
+### 구현 기록 (5/10 통산 스탯 3 결함 fix)
+
+📝 구현한 기능: 통산 스탯 정합성 3 결함 일괄 fix (mpg 모달 회귀 + 승률 source 일치 + FG%/3P% NBA 표준 sum/sum)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| src/app/(web)/users/[id]/page.tsx | statAgg `_avg` → `_sum` 전환 (FG/3P/FT made/attempted) + allStatsForModal select 확장 (made/attempted + winner_team_id) + 시즌 stats sum/sum 계산 + allStatsRows 변환 (minutes /60 + won winner_team_id 기반 + raw made/attempted 전달) | 수정 |
+| src/app/(web)/profile/basketball/page.tsx | 동일 패턴 카피 (statAgg + allStatsForModal + careerStats + allStatsRows) | 수정 |
+| src/app/(web)/users/[id]/_v2/stats-detail-modal.tsx | AllStatsRow 타입 — `fgPct/threePct` 단순 % → `fgMade/fgAttempted/threeMade/threeAttempted/ftMade/ftAttempted` 확장 + buildRow sum/sum NBA 표준 계산 | 수정 |
+
+💡 tester 참고:
+- 테스트 방법: 정환조 (userId=3107) `/users/3107` + (본인 로그인 시) `/profile/basketball` 진입 → 통산 카드 + "더보기 →" 모달 비교
+- 정상 동작: 경기 5 / 승률 100% / PPG 5.2 / MIN 13.2분 (모달 동일) / FG% 31.0% / 3P% 8.3%
+- 주의할 입력: 라이브 매치 (winner_team_id=null) 보유 사용자 → 모달 won 카운트 0 처리 일관 / 시도 0 매치 보유 사용자 → 매치별 % 평균 X (sum/sum 으로 0 가중치 0)
+
+⚠️ reviewer 참고:
+- `users/[id]/page.tsx` allStatsRows 변환 `won = m.winner_team_id !== null && matchTtId !== null && winner === matchTtId` — 라이브 매치 분자 0 + 분모는 모달 buildRow 내부 `rows.length` 기반 (미세 왜곡 케이스 발생 가능 — 사용자 결재 = 페이지 상단 winRate 와 일관 우선)
+- AllStatsRow 타입 변경 (breaking) — 같은 타입 import 한 페이지 2개만 변경 영향 (검증 완료 — tsc --noEmit 0 에러)
+- Flutter v1 (`api/v1/players/[id]/stats/route.ts` line 89) 잔존 — 원영 사전 공지 룰 (별도 결재)
+
+#### 검증
+- `npx tsc --noEmit` 0 에러 ✅
+- DB schema 변경 0 ✅
+- Flutter v1 영향 0 ✅
+- 박스스코어 (formatGameClock) 영향 0 (초 그대로 사용 유지) ✅
+
+---
+
 ## 작업 로그 (최근 10건)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-10 | (PM 커밋 대기) | **통산 스탯 3 결함 일괄 fix** (진단→fix 통합) — 정환조(3107) 5경기 raw 검증. (1) 모달 mpg `/60` 변환 (page.tsx 2 + AllStatsRow buildRow 단위 일관) (2) 승률 source 일치 (모달 won = winner_team_id 기반 — 상단 통산 100% 와 일관 / 라이브 매치 분모 제외) (3) FG%/3P% NBA 표준 sum/sum (statAgg _sum + AllStatsRow made/attempted + buildRow 누적 — 매치별 % 산술평균 39.8% → 31.0%). 3 파일 변경. tsc 통과. errors.md fix 결과 박제. Flutter v1 잔존 (원영 결재). | ✅ |
 | 2026-05-09 | main `86c6d93` (PR #304) | **알기자 forfeit + dual_tournament 통합 fix** — auto-publish forfeit 카피 / 라이브 [Headline]·Stats 분기 / brief route roundContext+advancement / prompts Phase 1+2 가이드. notes 표준 "{팀} 기권 (사유: ...) — FIBA 5x5 Art.21 forfeit {점수}" 형식 박제. | ✅ |
 | 2026-05-09 | main `adb0308` (PR #299) | **Flutter sync path 알기자 trigger 추가 (근본 fix)** — sync/route.ts + batch-sync/route.ts 의 prisma.tournamentMatch.update 직후 `waitUntil(triggerMatchBriefPublish)` 추가. updateMatchStatus 헬퍼 우회 path 보강. 멱등 가드 내장. errors.md 박제. | ✅ |
 | 2026-05-09 | main `1e2272d` (PR #286) | **알기자 draft 사이트 노출 차단** — prefetchCommunity (`where: {}` → status="published") + getPost (findUnique → findFirst+status). /community SSR 진입 + 직접 URL 양쪽 차단. | ✅ |
@@ -74,6 +103,4 @@ main 최종 = `86c6d93` (PR #304). subin = dev = main 동기화. 미푸시 0.
 | 2026-05-10 | main 시리즈 (#266~#290) | **모바일 박스스코어 PDF 시리즈 11 PR** — Fix A→D html2canvas+jspdf 근본 해결 / 양식 PC 프린트 동등 / globals.css single source / errors.md 박제 ("모바일 print = window.print 금지") | ✅ |
 | 2026-05-10 | main 시리즈 (#260~#265) | **stale pending 자동 전환** — auto-status.ts 헬퍼 + matches PATCH + services/match + dual-progression / cron stale-pending-fix 1시간 폴링 / YouTube 자동 매칭 cron 5분 (사용자 직접) | ✅ |
 | 2026-05-10 | DB 작업 (commit 무관) | **아울스 #64 김용우 등록** (userId=3400 / G / ttpId=2846) + 이하성 (#4 / userId=3162) 실명 sync. **stale pending 3건 정정** (matchId 150/151/152 → scheduled). | ✅ |
-| 2026-05-10 | main `84569c3` (PR #248+#249) | **PR-B/C 자동 트리거 + 사전 라인업 PR4 + 매치 카드 + Tailwind 3차 fix** | ✅ |
-| 2026-05-10 | main `c62994b` (PR #246+#247) | **PR-A scoreMatch 헬퍼 + 자동 트리거 보고서 + Live.jsx 시안 박제** | ✅ |
-<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 5 Phase 16 PR / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 / 5/6 PR1e DROP COLUMN + UI fix 13건 / 5/7 main 21회 신기록 Onboarding 10단계 + PortOne V2 + Phase A.5 / 5/8 main 7회 PR3 mock + PhoneInput + 시안 11 commit / 5/9 main 9회 알기자 시스템 4 fix + 운영 5건) — 복원: git log -- .claude/scratchpad.md -->
+<!-- 압축 박제 (5/4 481001c UI 통합 / 5/5 ae4ffd7~5d62f7f 팀 멤버 라이프사이클+Jersey 5 Phase 16 PR / 듀얼 P3~P7 / 매치 코드 v4 Phase 1~7 / 인증 흐름 재설계 / 5/6 PR1e DROP COLUMN + UI fix 13건 / 5/7 main 21회 신기록 Onboarding 10단계 + PortOne V2 + Phase A.5 / 5/8 main 7회 PR3 mock + PhoneInput + 시안 11 commit / 5/9 main 9회 알기자 시스템 4 fix + 운영 5건 / 5/10 PR #246+#247 scoreMatch+Live.jsx 시안 박제 / PR #248+#249 자동 트리거+PR4+Tailwind 3차) — 복원: git log -- .claude/scratchpad.md -->

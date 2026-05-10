@@ -149,6 +149,9 @@ export default async function UserProfilePage({
     //   사유: 사용자 결정 Q4=C-3 (8열 — 경기/승률/PPG/RPG/APG/MIN/FG%/3P%).
     //   BPG = mybdr 데이터 우선순위 낮음. 모바일 4×2 grid 일관성 ↑
     // 5/9 추가: officialMatchNestedFilter 가드로 미래/예약 매치 noise 제거 (5/2 회귀 패턴 fix)
+    // 2026-05-10 NBA 표준 fix: FG%/3P%/FT% 는 _avg (매치별 % 산술평균) 가 아닌 _sum (made/attempted 누적) 기반으로 계산.
+    //   사유: 매치별 % 평균 = 시도 0 매치도 동등 weight → 왜곡 (정환조 39.8% vs 실제 9/29=31.0%)
+    //   변경: _avg 에서 field_goal_percentage / three_point_percentage 제거. _sum 으로 made/attempted 누적 fetch.
     prisma.matchPlayerStat
       .aggregate({
         where: {
@@ -162,8 +165,15 @@ export default async function UserProfilePage({
           steals: true,
           blocks: true,
           minutesPlayed: true,
-          field_goal_percentage: true,
-          three_point_percentage: true,
+        },
+        _sum: {
+          // NBA 표준 % = 누적 메이드 / 누적 시도 (sum 기반 — 매치별 % 평균 X)
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+          freeThrowsMade: true,
+          freeThrowsAttempted: true,
         },
         _count: { id: true },
       })
@@ -344,6 +354,8 @@ export default async function UserProfilePage({
     // 12) 전체 matchPlayerStat — 통산 모달 prefetch (Q7=A: findMany 1건 + 클라 groupBy)
     // 왜: 사용자 결정 Q7=A — 평균 사용자 100경기 미만 가정 / Prisma groupBy 한계 회피
     // 평균 사용자 데이터 ~5KB 미만 (1경기당 ~50bytes). 모달 즉시 노출 (prefetch 효과)
+    // 2026-05-10: select 확장 — fieldGoalsMade/Attempted/threePointersMade/Attempted/freeThrowsMade/Attempted (sum 기반 NBA % 계산용)
+    //             winner_team_id 추가 (승률 NBA 표준 일치 — 라이브 매치 winner=null 케이스 분모 제외)
     prisma.matchPlayerStat
       .findMany({
         where: {
@@ -356,8 +368,13 @@ export default async function UserProfilePage({
           assists: true,
           steals: true,
           minutesPlayed: true,
-          field_goal_percentage: true,
-          three_point_percentage: true,
+          // NBA 표준 sum 기반 FG%/3P%/FT% 계산을 위한 made/attempted raw
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+          freeThrowsMade: true,
+          freeThrowsAttempted: true,
           tournamentMatch: {
             select: {
               id: true,
@@ -366,6 +383,8 @@ export default async function UserProfilePage({
               awayScore: true,
               homeTeamId: true,
               awayTeamId: true,
+              // 승률 NBA 표준 (winner_team_id 기반 — 확정 매치만 분모) — 5/10 일관성 fix
+              winner_team_id: true,
               tournament: {
                 select: {
                   id: true,
@@ -421,8 +440,14 @@ export default async function UserProfilePage({
   // 2026-05-10 — DB minutes_played 단위 = 초 (Int). 통산 mpg 표시 단위 = 분 → /60 변환.
   // 박스스코어 (formatGameClock) 는 초 그대로 사용해서 정상이지만 통산 _avg 는 단위 변환 누락이었음.
   const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0) / 60;
-  const avgFgPct = Number(statAgg?._avg?.field_goal_percentage ?? 0);
-  const avg3pPct = Number(statAgg?._avg?.three_point_percentage ?? 0);
+  // 2026-05-10 NBA 표준 fix — FG%/3P% 는 _sum 누적 메이드/시도 기반 (매치별 % 산술평균 X)
+  // 정환조 케이스: 매치별 [100%, 40%, 0%, 50%, 9.1%] 평균 = 39.8% 잘못 / 9÷29 = 31.0% 정답
+  const fgMade = Number(statAgg?._sum?.fieldGoalsMade ?? 0);
+  const fgAttempted = Number(statAgg?._sum?.fieldGoalsAttempted ?? 0);
+  const fgPctSum = fgAttempted > 0 ? (fgMade / fgAttempted) * 100 : 0;
+  const threeMade = Number(statAgg?._sum?.threePointersMade ?? 0);
+  const threeAttempted = Number(statAgg?._sum?.threePointersAttempted ?? 0);
+  const threePctSum = threeAttempted > 0 ? (threeMade / threeAttempted) * 100 : 0;
   const seasonStats = {
     games: gamesPlayed,
     winRate: playerStats?.winRate ?? null,
@@ -430,8 +455,8 @@ export default async function UserProfilePage({
     rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
     apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
     mpg: gamesPlayed > 0 ? Number(avgMinutes.toFixed(1)) : null,
-    fgPct: gamesPlayed > 0 ? Number(avgFgPct.toFixed(1)) : null,
-    threePct: gamesPlayed > 0 ? Number(avg3pPct.toFixed(1)) : null,
+    fgPct: fgAttempted > 0 ? Number(fgPctSum.toFixed(1)) : null,
+    threePct: threeAttempted > 0 ? Number(threePctSum.toFixed(1)) : null,
   };
 
   // ---- 최근 경기 변환 (PlayerMatchCard props 매핑) ----
@@ -616,6 +641,10 @@ export default async function UserProfilePage({
   // ---- 통산 모달용 raw rows 변환 (Q7=A: 클라에서 groupBy) ----
   // 5/9 Phase 2: matchPlayerStat → AllStatsRow[] (클라 모달이 연도별/대회별 groupBy)
   // BigInt → string 변환 (직렬화) / Decimal → number 변환 / NULL safe
+  // 2026-05-10 NBA 표준 fix:
+  //   (1) minutes — DB 단위 = 초 → 모달 표시 단위 = 분 (/60 변환). 박스스코어 (formatGameClock) 만 초 사용
+  //   (2) won — winner_team_id 기준 (NBA 표준 / 라이브 매치 winner=null 분모 제외) — 상단 통산 winRate 와 일관
+  //   (3) FG/3P/FT made/attempted raw 전달 — 모달 buildRow 에서 sum/sum 계산 (매치별 % 평균 X)
   const allStatsRows: AllStatsRow[] = allStatsForModal
     .filter((r) => r.tournamentMatch != null)
     .map((r) => {
@@ -624,24 +653,26 @@ export default async function UserProfilePage({
       // playerSide 판별 → won 계산 (승률 표시용)
       const playerSide: "home" | "away" | null =
         playerTtId === m.homeTeamId ? "home" : playerTtId === m.awayTeamId ? "away" : null;
-      let won = false;
-      if (
-        playerSide &&
-        m.homeScore != null &&
-        m.awayScore != null &&
-        m.homeScore !== m.awayScore
-      ) {
-        const homeWins = m.homeScore > m.awayScore;
-        won = (playerSide === "home" && homeWins) || (playerSide === "away" && !homeWins);
-      }
+      // 2026-05-10 — won 정의 변경: 상단 통산 winRate (winner_team_id 기반) 와 일관
+      // 라이브 매치 (winner_team_id NULL) 는 won=false 처리되지만, 모달 buildRow 의 분모는
+      // "확정 매치만" 이 아닌 "전체 row" 라 미세 왜곡. 하지만 페이지 상단 winRate 는 별도 source
+      // (getPlayerStats / SQL 조건) 라 일치. 모달 표 자체는 다른 row 기반 → 사용자 결재로 일치 우선.
+      const matchTtId = playerSide === "home" ? m.homeTeamId : playerSide === "away" ? m.awayTeamId : null;
+      const won = m.winner_team_id != null && matchTtId != null && m.winner_team_id === matchTtId;
       return {
         points: Number(r.points ?? 0),
         rebounds: Number(r.total_rebounds ?? 0),
         assists: Number(r.assists ?? 0),
         steals: Number(r.steals ?? 0),
-        minutes: Number(r.minutesPlayed ?? 0),
-        fgPct: Number(r.field_goal_percentage ?? 0),
-        threePct: Number(r.three_point_percentage ?? 0),
+        // /60 변환 — DB 초 → 표시 분 (모달 mpg 회귀 fix)
+        minutes: Number(r.minutesPlayed ?? 0) / 60,
+        // raw made/attempted 전달 (모달 buildRow 가 sum/sum NBA 표준 % 계산)
+        fgMade: Number(r.fieldGoalsMade ?? 0),
+        fgAttempted: Number(r.fieldGoalsAttempted ?? 0),
+        threeMade: Number(r.threePointersMade ?? 0),
+        threeAttempted: Number(r.threePointersAttempted ?? 0),
+        ftMade: Number(r.freeThrowsMade ?? 0),
+        ftAttempted: Number(r.freeThrowsAttempted ?? 0),
         scheduledAt: m.scheduledAt?.toISOString() ?? null,
         won,
         tournamentId: m.tournament?.id ?? null,

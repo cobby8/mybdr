@@ -147,6 +147,8 @@ export default async function BasketballPage() {
       .catch(() => null),
 
     // 2) 통산 8열 aggregate (PPG/RPG/APG/MIN/FG%/3P% — Phase 1 8열)
+    // 2026-05-10 NBA 표준 fix: FG%/3P% 매치별 % 평균 → _sum (made/attempted 누적) 기반 sum/sum
+    //   사유: 시도 0 매치 동등 weight 왜곡 회피 (정환조 39.8% vs 31.0% 케이스)
     prisma.matchPlayerStat
       .aggregate({
         where: {
@@ -160,8 +162,15 @@ export default async function BasketballPage() {
           steals: true,
           blocks: true,
           minutesPlayed: true,
-          field_goal_percentage: true,
-          three_point_percentage: true,
+        },
+        _sum: {
+          // NBA 표준 % = 누적 made / 누적 attempted (sum 기반)
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+          freeThrowsMade: true,
+          freeThrowsAttempted: true,
         },
         _count: { id: true },
       })
@@ -286,6 +295,8 @@ export default async function BasketballPage() {
       .catch(() => []),
 
     // 8) 통산 모달 prefetch (전체 matchPlayerStat — 클라 groupBy)
+    // 2026-05-10: select 확장 — fieldGoalsMade/Attempted/threePointersMade/Attempted/freeThrowsMade/Attempted (sum 기반 NBA % 계산용)
+    //             winner_team_id 추가 (승률 NBA 표준 / 라이브 매치 분모 제외)
     prisma.matchPlayerStat
       .findMany({
         where: {
@@ -298,8 +309,13 @@ export default async function BasketballPage() {
           assists: true,
           steals: true,
           minutesPlayed: true,
-          field_goal_percentage: true,
-          three_point_percentage: true,
+          // NBA 표준 sum/sum % 계산용 raw made/attempted
+          fieldGoalsMade: true,
+          fieldGoalsAttempted: true,
+          threePointersMade: true,
+          threePointersAttempted: true,
+          freeThrowsMade: true,
+          freeThrowsAttempted: true,
           tournamentMatch: {
             select: {
               id: true,
@@ -308,6 +324,8 @@ export default async function BasketballPage() {
               awayScore: true,
               homeTeamId: true,
               awayTeamId: true,
+              // 승률 NBA 표준 (winner_team_id 기반) — 라이브 매치 분모 제외
+              winner_team_id: true,
               tournament: {
                 select: { id: true, name: true, short_code: true },
               },
@@ -483,8 +501,13 @@ export default async function BasketballPage() {
   // 2026-05-10 — DB minutes_played 단위 = 초 (Int). 통산 mpg 표시 단위 = 분 → /60 변환.
   // 박스스코어 (formatGameClock) 는 초 그대로 사용해서 정상이지만 통산 _avg 는 단위 변환 누락이었음.
   const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0) / 60;
-  const avgFgPct = Number(statAgg?._avg?.field_goal_percentage ?? 0);
-  const avg3pPct = Number(statAgg?._avg?.three_point_percentage ?? 0);
+  // 2026-05-10 NBA 표준 fix — FG%/3P% 는 _sum 누적 메이드/시도 기반 (매치별 % 산술평균 X)
+  const fgMadeSum = Number(statAgg?._sum?.fieldGoalsMade ?? 0);
+  const fgAttSum = Number(statAgg?._sum?.fieldGoalsAttempted ?? 0);
+  const fgPctSum = fgAttSum > 0 ? (fgMadeSum / fgAttSum) * 100 : 0;
+  const threeMadeSum = Number(statAgg?._sum?.threePointersMade ?? 0);
+  const threeAttSum = Number(statAgg?._sum?.threePointersAttempted ?? 0);
+  const threePctSum = threeAttSum > 0 ? (threeMadeSum / threeAttSum) * 100 : 0;
   const careerStats = {
     games: gamesPlayed,
     winRate: playerStats?.winRate ?? null,
@@ -492,8 +515,8 @@ export default async function BasketballPage() {
     rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
     apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
     mpg: gamesPlayed > 0 ? Number(avgMinutes.toFixed(1)) : null,
-    fgPct: gamesPlayed > 0 ? Number(avgFgPct.toFixed(1)) : null,
-    threePct: gamesPlayed > 0 ? Number(avg3pPct.toFixed(1)) : null,
+    fgPct: fgAttSum > 0 ? Number(fgPctSum.toFixed(1)) : null,
+    threePct: threeAttSum > 0 ? Number(threePctSum.toFixed(1)) : null,
   };
 
   // ---- 최근 경기 변환 (PlayerMatchCard props) ----
@@ -634,6 +657,10 @@ export default async function BasketballPage() {
   const top5Events = activityEvents.slice(0, 5);
 
   // ---- 통산 모달용 raw rows 변환 (공개 프로필 패턴 카피) ----
+  // 2026-05-10 NBA 표준 fix:
+  //   (1) minutes /60 변환 (DB 초 → 표시 분)
+  //   (2) won — winner_team_id 기반 (NBA 표준 / 라이브 매치 winner=null 분모 제외)
+  //   (3) raw made/attempted 전달 → 모달 buildRow 에서 sum/sum % 계산
   const allStatsRows: AllStatsRow[] = allStatsForModal
     .filter((r) => r.tournamentMatch != null)
     .map((r) => {
@@ -641,24 +668,23 @@ export default async function BasketballPage() {
       const playerTtId = r.tournamentTeamPlayer.tournamentTeamId;
       const playerSide: "home" | "away" | null =
         playerTtId === m.homeTeamId ? "home" : playerTtId === m.awayTeamId ? "away" : null;
-      let won = false;
-      if (
-        playerSide &&
-        m.homeScore != null &&
-        m.awayScore != null &&
-        m.homeScore !== m.awayScore
-      ) {
-        const homeWins = m.homeScore > m.awayScore;
-        won = (playerSide === "home" && homeWins) || (playerSide === "away" && !homeWins);
-      }
+      // 2026-05-10 — won: winner_team_id 기반 (상단 통산 winRate 와 일관)
+      const matchTtId = playerSide === "home" ? m.homeTeamId : playerSide === "away" ? m.awayTeamId : null;
+      const won = m.winner_team_id != null && matchTtId != null && m.winner_team_id === matchTtId;
       return {
         points: Number(r.points ?? 0),
         rebounds: Number(r.total_rebounds ?? 0),
         assists: Number(r.assists ?? 0),
         steals: Number(r.steals ?? 0),
-        minutes: Number(r.minutesPlayed ?? 0),
-        fgPct: Number(r.field_goal_percentage ?? 0),
-        threePct: Number(r.three_point_percentage ?? 0),
+        // /60 변환 — DB 초 → 표시 분 (모달 mpg 회귀 fix)
+        minutes: Number(r.minutesPlayed ?? 0) / 60,
+        // raw made/attempted 전달 (모달 buildRow 가 sum/sum NBA 표준 % 계산)
+        fgMade: Number(r.fieldGoalsMade ?? 0),
+        fgAttempted: Number(r.fieldGoalsAttempted ?? 0),
+        threeMade: Number(r.threePointersMade ?? 0),
+        threeAttempted: Number(r.threePointersAttempted ?? 0),
+        ftMade: Number(r.freeThrowsMade ?? 0),
+        ftAttempted: Number(r.freeThrowsAttempted ?? 0),
         scheduledAt: m.scheduledAt?.toISOString() ?? null,
         won,
         tournamentId: m.tournament?.id ?? null,
