@@ -40,7 +40,8 @@ export async function GET(
           include: {
             // 팀 로고 URL 추가 (티빙 스타일 스코어카드 — 큰 원형 로고 표시용)
             // tournament_teams에는 logo_url 컬럼이 없으므로 teams.logoUrl만 사용
-            team: { select: { name: true, primaryColor: true, logoUrl: true } },
+            // 2026-05-10 fix: team.id 추가 — TeamLink href 의 Team.id (/teams/[id] 404 회피).
+            team: { select: { id: true, name: true, primaryColor: true, logoUrl: true } },
             players: {
               // 2026-05-10 PlayerLink 마이그 — 응답에 user_id 포함을 위해 users.id select 추가.
               include: { users: { select: { id: true, name: true, nickname: true } } },
@@ -49,7 +50,8 @@ export async function GET(
         },
         awayTeam: {
           include: {
-            team: { select: { name: true, primaryColor: true, logoUrl: true } },
+            // 2026-05-10 fix: team.id 추가 — TeamLink href 의 Team.id (/teams/[id] 404 회피).
+            team: { select: { id: true, name: true, primaryColor: true, logoUrl: true } },
             players: {
               include: { users: { select: { id: true, name: true, nickname: true } } },
             },
@@ -1199,7 +1201,11 @@ export async function GET(
         // 빈 list 가능 (현재 매치 scheduledAt NULL / 데이터 부족 등) — 클라가 빈 list 시 Rail 자체 hidden.
         same_day_matches: sameDayMatchesPayload,
         homeTeam: {
+          // home_team.id = TournamentTeam.id (슬롯 ID, PBP/MVP/timeline 의 tournament_team_id 매칭용 — 기존 의미 보존).
           id: Number(match.homeTeam?.id ?? 0),
+          // 2026-05-10 fix: team_id = Team.id (실제 팀 ID, /teams/[id] 라우트용). TeamLink 가 이것 사용해야 404 회피.
+          //   `home_team.id` 와 의미가 다르므로 별도 필드. 기존 PBP 매칭 코드 회귀 0.
+          team_id: Number(match.homeTeam?.team?.id ?? 0),
           name: match.homeTeam?.team?.name ?? "홈",
           color: match.homeTeam?.team?.primaryColor ?? "#F97316",
           // 팀 로고 URL — 없으면 null (프런트에서 팀색 원 + 이니셜로 fallback)
@@ -1207,6 +1213,7 @@ export async function GET(
         },
         awayTeam: {
           id: Number(match.awayTeam?.id ?? 0),
+          team_id: Number(match.awayTeam?.team?.id ?? 0),
           name: match.awayTeam?.team?.name ?? "원정",
           color: match.awayTeam?.team?.primaryColor ?? "#10B981",
           logoUrl: match.awayTeam?.team?.logoUrl ?? null,
