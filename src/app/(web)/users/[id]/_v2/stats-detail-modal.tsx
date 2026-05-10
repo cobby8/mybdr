@@ -20,16 +20,25 @@
 import { useEffect, useState } from "react";
 
 // page.tsx 가 raw rows 변환 후 전달하는 타입 (BigInt → string 변환 후)
+// 2026-05-10 NBA 표준 fix — fgPct/threePct 단순 % 필드 제거 → made/attempted raw 로 대체
+//   사유: 그룹별 sum/sum 계산을 위해 (매치별 % 평균 X). 정환조 매치별 [100,40,0,50,9.1] 평균 39.8% vs 9÷29 = 31.0% 정답
+//   minutes 단위 = 분 (page.tsx 가 /60 변환 후 전달)
+//   won = winner_team_id 기반 (라이브 매치 winner null 은 false / 확정 매치만 분자·분모)
 export type AllStatsRow = {
   points: number;
   rebounds: number;
   assists: number;
   steals: number;
-  minutes: number;
-  fgPct: number; // 0~100
-  threePct: number; // 0~100
+  minutes: number; // 분 (page.tsx 에서 /60 변환 후 전달)
+  // NBA 표준 % 계산용 raw made/attempted (sum/sum)
+  fgMade: number;
+  fgAttempted: number;
+  threeMade: number;
+  threeAttempted: number;
+  ftMade: number;
+  ftAttempted: number;
   scheduledAt: string | null; // ISO
-  won: boolean;
+  won: boolean; // winner_team_id 기반
   tournamentId: string | null;
   tournamentName: string | null;
   tournamentShortCode: string | null;
@@ -45,8 +54,8 @@ type SeasonRow = {
   rpg: number;
   apg: number;
   mpg: number;
-  fgPct: number;
-  threePct: number;
+  fgPct: number; // sum/sum NBA 표준
+  threePct: number; // sum/sum NBA 표준
 };
 
 type TabKey = "all" | "year" | "tournament";
@@ -58,20 +67,25 @@ type Props = {
 };
 
 // 누적 평균 헬퍼 — sum / count 후 toFixed(1) 까지 포함된 SeasonRow 생성
+// 2026-05-10 NBA 표준 fix:
+//   FG%/3P% — 매치별 % 평균 → 누적 메이드/시도 (sum/sum) 변경
+//   시도 0 매치도 weight 동등 = 왜곡 회피 (정환조 39.8% vs 31.0% 케이스)
 function buildRow(key: string, label: string, rows: AllStatsRow[]): SeasonRow {
   const games = rows.length;
   const wins = rows.filter((r) => r.won).length;
   if (games === 0) {
     return { key, label, games: 0, wins: 0, ppg: 0, rpg: 0, apg: 0, mpg: 0, fgPct: 0, threePct: 0 };
   }
-  // 산술 평균 (각 경기 == 1 weight)
+  // 산술 평균 (각 경기 == 1 weight) — counting stats 만
   const sumPts = rows.reduce((s, r) => s + r.points, 0);
   const sumReb = rows.reduce((s, r) => s + r.rebounds, 0);
   const sumAst = rows.reduce((s, r) => s + r.assists, 0);
   const sumMin = rows.reduce((s, r) => s + r.minutes, 0);
-  // FG%/3P% 는 game-level avg (단순 평균, 가중 무시 — 모바일 표 단순 표기)
-  const sumFg = rows.reduce((s, r) => s + r.fgPct, 0);
-  const sum3p = rows.reduce((s, r) => s + r.threePct, 0);
+  // NBA 표준 % = 누적 made / 누적 attempted (sum/sum) — 매치별 % 평균 X
+  const sumFgM = rows.reduce((s, r) => s + r.fgMade, 0);
+  const sumFgA = rows.reduce((s, r) => s + r.fgAttempted, 0);
+  const sum3pM = rows.reduce((s, r) => s + r.threeMade, 0);
+  const sum3pA = rows.reduce((s, r) => s + r.threeAttempted, 0);
   return {
     key,
     label,
@@ -81,8 +95,8 @@ function buildRow(key: string, label: string, rows: AllStatsRow[]): SeasonRow {
     rpg: sumReb / games,
     apg: sumAst / games,
     mpg: sumMin / games,
-    fgPct: sumFg / games,
-    threePct: sum3p / games,
+    fgPct: sumFgA > 0 ? (sumFgM / sumFgA) * 100 : 0,
+    threePct: sum3pA > 0 ? (sum3pM / sum3pA) * 100 : 0,
   };
 }
 
