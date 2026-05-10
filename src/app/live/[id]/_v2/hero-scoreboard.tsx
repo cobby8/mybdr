@@ -180,7 +180,8 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
           {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 쿼터 테이블 좌측 팀명 셀 → 팀 페이지 link.
               hero-sb__quarter-team CSS 폰트/컬러 그대로 상속. */}
           <div className="hero-sb__quarter-team">
-            <TeamLink teamId={match.home_team.id} name={match.home_team.name} />
+            {/* 2026-05-10 fix: home_team.id = TournamentTeam.id / home_team.team_id = Team.id (/teams/[id] 라우트). */}
+            <TeamLink teamId={match.home_team.team_id} name={match.home_team.name} />
           </div>
           {quarters.map((q) => (
             <div
@@ -198,7 +199,7 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
 
           {/* 원정팀 행 */}
           <div className="hero-sb__quarter-team">
-            <TeamLink teamId={match.away_team.id} name={match.away_team.name} />
+            <TeamLink teamId={match.away_team.team_id} name={match.away_team.name} />
           </div>
           {quarters.map((q) => (
             <div
@@ -247,7 +248,8 @@ function TeamScoreBlock({
       {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 큰 팀명 (히어로 좌/우) 클릭 시 팀 페이지 이동.
           TeamLink 가 부모 글자색을 상속받으므로 .hero-sb__team-name 의 색·크기 그대로 유지. */}
       <div className="hero-sb__team-name">
-        <TeamLink teamId={team.id} name={team.name} />
+        {/* 2026-05-10 fix: team.id = TournamentTeam.id (PBP 매칭) / team.team_id = Team.id (/teams/[id] 라우트). 404 회피. */}
+        <TeamLink teamId={team.team_id} name={team.name} />
       </div>
       <div className="hero-sb__score">{score}</div>
     </div>

@@ -143,8 +143,9 @@ export interface MatchDataV2 {
     home: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
     away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
   } | null;
-  home_team: { id: number; name: string; color: string; logo_url: string | null };
-  away_team: { id: number; name: string; color: string; logo_url: string | null };
+  // 2026-05-10 fix: id = TournamentTeam.id (PBP/MVP/timeline 매칭) / team_id = Team.id (/teams/[id] 라우트 — TeamLink href).
+  home_team: { id: number; team_id: number; name: string; color: string; logo_url: string | null };
+  away_team: { id: number; team_id: number; name: string; color: string; logo_url: string | null };
   home_players: PlayerRowV2[];
   away_players: PlayerRowV2[];
   play_by_plays: PlayByPlayRowV2[];
