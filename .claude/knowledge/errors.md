@@ -14,18 +14,20 @@
   2. **`score-match.ts` swap-aware 인식 부재 + haystack 단순 substring** — 영상 "아울스 vs 업템포" + 매치 158 (홈=슬로우, 어웨이=아울스) → "아울스" 1팀 매칭만으로 (description 토큰 hit + 시간 ±30분 시그널) score 120 통과. cron 의 v3 `extractTeamsFromTitle` (vs 토큰 분리 후 양 팀 정확/swap 비교 only) 미적용
 - **즉시 fix (5/10)**:
   1. **DB**: 매치 158 `youtube_video_id` NULL / `youtube_status` NULL / admin_logs `manual_clear_youtube_video` (severity=warning) 박제
-  2. **code**: `auto-register/[matchId]/route.ts` Step 9-1 추가 — cron `usedSet` 가드 백포트 (`tournamentMatch findMany WHERE youtube_video_id IS NOT NULL` → Set → `availableVideos` 필터링)
-- **남은 위험 (후속 PR)**:
-  - `score-match.ts` swap-aware 미적용 — cron v3 `extractTeamsFromTitle` 패턴 백포트 권장
-  - 1팀 부분 매칭 + time 60 만으로 80 통과 케이스 — 다른 시간대 영상이 동시 publish 시 위험
+  2. **code (1차 — commit ff190a7)**: `auto-register/[matchId]/route.ts` Step 9-1 추가 — cron `usedSet` 가드 백포트 (`tournamentMatch findMany WHERE youtube_video_id IS NOT NULL` → Set → `availableVideos` 필터링)
+  3. **code (2차 — score-match swap-aware 백포트, commit 대기)**: `score-match.ts` 에 cron v3 `extractTeamsFromTitle` + `normalizeTeamName` 헬퍼 추가 (export). `scoreMatch()` 의 home/away 점수 부여 로직 = 단순 substring `includes` → swap-aware 정확/swap 일치만 30+30 부여 (반쪽 매칭 0점). cron route 가 score-match.ts 헬퍼 import — 단일 source 통합 (cron 점수 체계는 별도 유지). 회귀 방지 vitest 14건 추가 (`src/__tests__/youtube/score-match.test.ts`) — 5/10 사고 시나리오 직접 재현 차단 + swap 케이스 + 부분 substring 폴백 차단. 검증: tsc 0 에러 / vitest 217/217 PASS (minutes-engine 21/21 회귀 0)
+- **잔여 위험 (계속 모니터링)**:
+  - 1팀 부분 매칭 + time 60 → 본 백포트로 차단 (반쪽 매칭 0점) ✅
+  - cron 점수 체계 v3 (25+25+20+20+10) 와 score-match (30+30+10+20+5) 의 점수 분리 운영 = 가드 정합은 양쪽 path 동시 점검 룰로 보강 (재발 방지 룰 #1)
 - **재발 방지 룰**:
   1. **YouTube 영상 매핑 alg 변경 시 두 path (cron + auto-register) 동시 점검** — 5/10 cron v3 `usedSet` 가드 추가 시 auto-register 누락 = defense in depth 위반 (5/9 sync trigger lessons 동일 패턴)
   2. **점수 algorithm 단일 source-of-truth 의무** — score-match.ts (auto-register/search) vs cron 의 v3 분리 운영 = 가드 정합 불일치 위험. `usedSet` 같은 외부 가드는 양쪽 path 강제
   3. **운영 영상 매핑 신고 진단 시퀀스**: (a) `tournament_matches.youtube_video_id` SELECT (b) 같은 video_id 다른 매치 SELECT (1:1 깨짐 검증) (c) `admin_logs` action `auto_register_youtube_video` / `auto_match_youtube_cron` 의 score_breakdown 검증 (어떤 시그널이 통과시켰는지)
 - **참조 파일**:
-  - `src/app/api/web/match-stream/auto-register/[matchId]/route.ts` (Step 9-1 가드 추가)
-  - `src/app/api/cron/youtube-auto-match/route.ts` (line 339~349 `usedSet` 원본 패턴)
-  - `src/lib/youtube/score-match.ts` (swap-aware 미적용 — 후속 PR)
+  - `src/app/api/web/match-stream/auto-register/[matchId]/route.ts` (Step 9-1 가드 추가 — 1차 fix ff190a7)
+  - `src/app/api/cron/youtube-auto-match/route.ts` (line 339~349 `usedSet` 원본 / 2차 fix 에서 score-match.ts 헬퍼 import 통합)
+  - `src/lib/youtube/score-match.ts` (2차 fix — swap-aware 백포트 + extractTeamsFromTitle/normalizeTeamName export)
+  - `src/__tests__/youtube/score-match.test.ts` (회귀 방지 14 케이스)
 
 ### [2026-05-10] 통산 스탯 정합성 3중 결함 — mpg 모달 잔존 / 승률 라이브 매치 포함 / FG% 매치별 평균 (NBA 표준 위반)
 - **분류**: ui/data (통산 정합성 + 잔존 mpg)
