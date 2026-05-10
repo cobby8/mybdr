@@ -43,6 +43,9 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { fetchEnrichedVideos, type EnrichedVideo } from "@/lib/youtube/enriched-videos";
+// 2026-05-10 백포트 — swap-aware 헬퍼 단일 source (score-match.ts 와 통합)
+// 본 cron 의 v3 점수 체계 (25+25+20+20+10 = 100점) 는 유지 / 팀명 토큰 추출만 공용 사용
+import { extractTeamsFromTitle, normalizeTeamName } from "@/lib/youtube/score-match";
 
 // ============ v3 알고리즘 점수 (batch script 와 동일 — 100점 만점) ============
 // 본 알고리즘은 batch script v3 와 정합 유지 (search/auto-register 의 v2 165점 algorithm 과 다름).
@@ -93,35 +96,8 @@ interface MatchMeta {
   startedAt: Date | null;
 }
 
-// 팀명 정규화 — 공백/특수문자 제거 + 소문자 (한/영 혼재 흡수)
-function normalizeTeamName(s: string): string {
-  return s
-    .replace(/[()\[\]·.\-_]/g, "")
-    .replace(/\s+/g, "")
-    .toLowerCase();
-}
-
-// 영상 제목에서 "vs" / "대" 토큰 분리 → home/away 추출
-// 예: "제 21회 MOLTEN배 ... 아울스 vs 크로스오버" → home="아울스" / away="크로스오버"
-function extractTeamsFromTitle(title: string): { home: string; away: string } | null {
-  const patterns = [/\s+vs\.?\s+/i, /\s+대\s+/];
-  for (const re of patterns) {
-    const idx = title.search(re);
-    if (idx < 0) continue;
-    const m = title.match(re);
-    if (!m) continue;
-    const left = title.slice(0, idx).trim();
-    const right = title.slice(idx + m[0].length).trim();
-    if (!left || !right) continue;
-    const leftTokens = left.split(/\s+/);
-    const rightTokens = right.split(/\s+/);
-    const homeRaw = leftTokens[leftTokens.length - 1] ?? "";
-    const awayRaw = rightTokens[0] ?? "";
-    if (!homeRaw || !awayRaw) continue;
-    return { home: homeRaw, away: awayRaw };
-  }
-  return null;
-}
+// 2026-05-10 백포트 — `normalizeTeamName` / `extractTeamsFromTitle` 는
+// score-match.ts 단일 source 에서 import (cron + search/auto-register 동일 알고리즘).
 
 // YYYY-MM-DD (UTC) — DB scheduledAt 도 UTC 라 비교 일치
 function toDateOnly(d: Date): string {

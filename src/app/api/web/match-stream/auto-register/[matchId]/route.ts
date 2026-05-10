@@ -199,6 +199,22 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
     return apiError("YouTube 영상 조회에 실패했습니다.", 502);
   }
 
+  // 9-1) 2026-05-10 — 1:1 매핑 가드 (cron `usedSet` 패턴 백포트).
+  // 이유(왜): 다른 매치에 이미 박힌 video_id 가 후보 pool 에 남아있으면
+  //          home/away 부분 매칭(예: 영상="아울스 vs 업템포" / 매치="슬로우 vs 아울스" → 아울스만 매칭)
+  //          + ±30분 시간 시그널만으로 80점 통과 → 결승 158 에 4강 157 영상 잘못 매핑 (5/10 사고).
+  // 방법(어떻게): `youtube_video_id IS NOT NULL` 매치 SELECT → Set 으로 후보 pool 제외.
+  const usedRows = await prisma.tournamentMatch.findMany({
+    where: { youtube_video_id: { not: null } },
+    select: { youtube_video_id: true },
+  });
+  const usedSet = new Set<string>(
+    usedRows
+      .map((m) => m.youtube_video_id)
+      .filter((v): v is string => typeof v === "string" && v.length > 0),
+  );
+  const availableVideos = videos.filter((v) => !usedSet.has(v.videoId));
+
   // 10) 점수 계산 — PR-A 헬퍼 그대로 (search route 와 동일 알고리즘)
   const homeTeamName = match.homeTeam?.team?.name ?? "";
   const awayTeamName = match.awayTeam?.team?.name ?? "";
@@ -215,7 +231,10 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
   };
 
   // 점수 desc 정렬 — top 1건만 채택 후보
-  const scored = videos.map((v) => scoreMatch(v, ctx)).sort((a, b) => b.score - a.score);
+  // (1:1 가드 적용 후 availableVideos pool 만 사용 — 5/10 결승 158 사고 재발 방지)
+  const scored = availableVideos
+    .map((v) => scoreMatch(v, ctx))
+    .sort((a, b) => b.score - a.score);
   const top = scored[0];
 
   // 11) 80점 미만 = no_match_found + Redis cache 저장 (다음 30초 폴링 시 quota 0)
