@@ -2,15 +2,45 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
-### [2026-05-10] 통산 mpg (평균 출전시간) 단위 변환 누락 — DB 초 단위 / 표시 분 단위
-- **분류**: ui/data (단위 일관성)
-- **증상**: 사용자 공개프로필 (`/users/[id]`) "통산 스탯" MIN = 987.0 (4 경기 평균). 정상 = 16.4 분.
-- **원인**: DB `match_player_stats.minutes_played` = `Int @default(0)` **초 단위** (이름은 minutesPlayed 지만 실제 초). 박스스코어 (`formatGameClock(seconds)`) 는 초 그대로 처리해서 "16:39" 정상 표시. 그러나 **통산 _avg 계산 시 단위 변환 누락** → 평균 초 (987) 그대로 분 라벨에 노출.
-- **fix**: `users/[id]/page.tsx` + `profile/basketball/page.tsx` 의 `avgMinutes` 에 `/ 60` 분 변환 추가
+### [2026-05-10] 통산 스탯 정합성 3중 결함 — mpg 모달 잔존 / 승률 라이브 매치 포함 / FG% 매치별 평균 (NBA 표준 위반)
+- **분류**: ui/data (통산 정합성 + 잔존 mpg)
+- **증상 (정환조 userId=3107 / 5경기 사례)**:
+  - 상단 통산 카드: 5경기 / **100%** / PPG 5.2 / RPG 3.0 / APG 2.0 / **MIN 13.2분** / FG% 39.8% / 3P% 2.9%
+  - 모달 "통산 스탯 상세" (전체 탭): 5경기 / **80%** / PPG 5.2 / RPG 3.0 / APG 2.0 / **MIN 789.6** / FG% 39.8% / 3P% 2.9%
+  - 운영 DB raw 진단 = **MIN 13.2분 정답 / 승률 100%·80% 모두 부분 정답 / FG% 39.8%·NBA 표준 31.0% 차이**
+- **원인 (3중)**:
+  1. **모달 mpg 단위 변환 누락 (회귀)**: `users/[id]/page.tsx` line 642 + `profile/basketball/page.tsx` line 659 → `minutes: Number(r.minutesPlayed ?? 0)` (초 그대로 모달에 전달). 모달 (`stats-detail-modal.tsx` line 71+83 `sumMin/games`) 는 단위 인지 0 → 초 그대로 평균. **5/10 1차 fix (line 423/485 의 _avg.minutesPlayed/60) 는 상단만 처리** = 모달 누락 회귀
+  2. **승률 데이터 source 불일치**:
+     - 상단 (`getPlayerStats.winRate`) = SQL `WHERE tm.winner_team_id IS NOT NULL` 분모 = **확정 매치만** (라이브/미정 제외) → 4/4 = 100%
+     - 모달 (page.tsx 라인 644~653) = `homeScore !== awayScore && playerSide` 검사 = **라이브 매치 (status='live') 포함** + winner_team_id NULL 매치는 동점 아니어도 won=false → 4/5 = 80%
+     - 정환조 #027 = `status=live / 18:15 / winner_team_id=null` 케이스가 모달에서 패배로 카운트 = 부정확
+  3. **FG% / 3P% 통산 = 매치별 % 산술평균 (NBA 표준 위반)**:
+     - 현재: `_avg.field_goal_percentage` = 5경기 % 산술평균 → 39.82% (= (100+40+0+50+9.1)/5)
+     - NBA 표준: `sum(made) / sum(attempted)` → **31.0% (9/29)**. 0/0 매치를 0% 로 카운트 = 시도 적은 경기 가중 동등 = 왜곡
+     - 모달도 동일 (sumFg/games, line 73 84) — _avg 와 동일 결함
+- **해결 (PM 결재 후)**:
+  1. **mpg fix**: page.tsx 2 파일 line 642/659 → `minutes: Number(r.minutesPlayed ?? 0) / 60` 변환 추가 OR 모달 buildRow 안에서 mpg 만 `/60` 적용. 권장 = page.tsx 변환 (단일 source 일관성)
+  2. **승률 fix (옵션)**: (a) 모달도 winner_team_id 우선 사용 (race condition 회피 위해 raw 행에 winner_team_id 추가 필요) — 권장 / (b) 상단도 라이브 매치 포함 (모달 룰로 통일) → 비추천 (라이브 매치 = 승패 미확정)
+  3. **FG% / 3P% NBA 표준 (sum 기반) 적용**: matchPlayerStat aggregate `_sum: { fieldGoalsMade, fieldGoalsAttempted, threePointersMade, threePointersAttempted }` 으로 변경 + 클라 `sum(made) / sum(att) * 100`. 모달 buildRow 도 sum 기반 재구성 필요.
+- **잔존 위치 점검 결과** (5/10):
+  - mpg 변환 누락 = `stats-detail-modal.tsx` 자체는 단위 인지 0 (단위 변환 책임 = page.tsx). overview-tab.tsx / career-stats-grid.tsx / my-summary-hero.tsx / officer-permissions-tab.tsx / reviews-content.tsx / weekly-report = **mpg 노출 없음 또는 일관 정상** (각 파일 grep 검증)
+  - **api/v1/players/[id]/stats/route.ts line 89** = `mpg: avg(totals.minutesPlayed)` 초 단위 → Flutter v1 영향 (원영 사전 공지 후 fix 별도)
 - **재발 방지 룰**:
-  1. DB 컬럼 이름이 단위와 다를 수 있음 — `minutes_played` 가 실제 초. 신규 _avg / sum 계산 시 단위 검증 필수
-  2. 박스스코어 (초 그대로) vs 통산 (`/60` 분 변환) 단위 일관성 명시
-- **잔존 영향 (별도 결재)**: `api/v1/players/[id]/stats/route.ts` line 89 의 `mpg: avg(totals.minutesPlayed)` 도 동일 단위 오류. Flutter v1 변경 = 원영 사전 공지 룰. 별도 결재 후 fix.
+  1. **상단 / 모달 / 다른 진입점은 같은 source + 같은 계산 룰 사용** — page.tsx 의 변환 (예: `/60`) 이 한 곳만 적용되면 잔존 source 회귀 패턴. 통산 계산 헬퍼 1곳 (예: `lib/services/user.ts` 의 `buildCareerSnapshot()`) 으로 중앙화 권장
+  2. **FG% / 3P% / FT% 통산은 NBA 표준 (sum/sum) 강제** — `_avg.field_goal_percentage` 사용 0 룰. groupBy 통산도 동일
+  3. **승률 = 확정 매치 전용** (라이브/미정 제외) — `winner_team_id IS NOT NULL` 또는 `status='completed'` 가드. 모달 raw row 에 winner_team_id 노출 필수
+- **fix 적용 (2026-05-10 PM 결재 후 완료)**:
+  - `users/[id]/page.tsx`:
+    - statAgg `_avg` 에서 `field_goal_percentage` / `three_point_percentage` 제거 → `_sum` 으로 `fieldGoalsMade/Attempted` + `threePointersMade/Attempted` + `freeThrowsMade/Attempted` 추가
+    - 시즌 stats `fgPct` / `threePct` = sum/sum NBA 표준 계산
+    - allStatsForModal select 확장: `fieldGoalsMade/Attempted/threePointersMade/Attempted/freeThrowsMade/Attempted` + `winner_team_id`
+    - allStatsRows 변환: `minutes /60` 변환 추가 + `won = winner_team_id 기반` + raw made/attempted 전달
+  - `profile/basketball/page.tsx`: 동일 패턴
+  - `_v2/stats-detail-modal.tsx`:
+    - `AllStatsRow` 타입 — `fgPct`/`threePct` 단순 % 필드 제거 → `fgMade/fgAttempted/threeMade/threeAttempted/ftMade/ftAttempted` 추가
+    - `buildRow` — sum/sum 누적 계산 (시도 0 매치도 weight 동등 왜곡 회피)
+- **잔존 (별도 결재 대기)**: `api/v1/players/[id]/stats/route.ts` line 89 = Flutter v1 (원영 사전 공지 룰 — CLAUDE.md). 본 fix 범위 제외.
+- **검증 정답 (정환조 userId=3107)**: 경기 5 / 승률 100% (winner_team_id 기반 4확정/4승) / PPG 5.2 / MIN 13.2분 (모달·상단 일치) / FG% 31.0% (9÷29) / 3P% 8.3% (1÷12)
 
 ---
 
