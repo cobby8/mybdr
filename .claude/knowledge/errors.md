@@ -2,6 +2,18 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] 통산 mpg (평균 출전시간) 단위 변환 누락 — DB 초 단위 / 표시 분 단위
+- **분류**: ui/data (단위 일관성)
+- **증상**: 사용자 공개프로필 (`/users/[id]`) "통산 스탯" MIN = 987.0 (4 경기 평균). 정상 = 16.4 분.
+- **원인**: DB `match_player_stats.minutes_played` = `Int @default(0)` **초 단위** (이름은 minutesPlayed 지만 실제 초). 박스스코어 (`formatGameClock(seconds)`) 는 초 그대로 처리해서 "16:39" 정상 표시. 그러나 **통산 _avg 계산 시 단위 변환 누락** → 평균 초 (987) 그대로 분 라벨에 노출.
+- **fix**: `users/[id]/page.tsx` + `profile/basketball/page.tsx` 의 `avgMinutes` 에 `/ 60` 분 변환 추가
+- **재발 방지 룰**:
+  1. DB 컬럼 이름이 단위와 다를 수 있음 — `minutes_played` 가 실제 초. 신규 _avg / sum 계산 시 단위 검증 필수
+  2. 박스스코어 (초 그대로) vs 통산 (`/60` 분 변환) 단위 일관성 명시
+- **잔존 영향 (별도 결재)**: `api/v1/players/[id]/stats/route.ts` line 89 의 `mpg: avg(totals.minutesPlayed)` 도 동일 단위 오류. Flutter v1 변경 = 원영 사전 공지 룰. 별도 결재 후 fix.
+
+---
+
 ### [2026-05-09] 알기자 자동 발행 0건 — Flutter sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출
 - **분류**: 도메인/통합 (helper bypass)
 - **증상**: 5/9 본 대회 종료 매치 4건 (#17/#18/#21/#22) 자동 알기자 brief NULL + community_post 0건. 사용자 보고: "오늘 알기자 작동 안 함". news_publish_attempts 테이블 자동 호출 0건.
