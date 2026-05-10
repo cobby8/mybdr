@@ -2,6 +2,66 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-10] 통산 mpg (평균 출전시간) 단위 변환 누락 — DB 초 단위 / 표시 분 단위
+- **분류**: ui/data (단위 일관성)
+- **증상**: 사용자 공개프로필 (`/users/[id]`) "통산 스탯" MIN = 987.0 (4 경기 평균). 정상 = 16.4 분.
+- **원인**: DB `match_player_stats.minutes_played` = `Int @default(0)` **초 단위** (이름은 minutesPlayed 지만 실제 초). 박스스코어 (`formatGameClock(seconds)`) 는 초 그대로 처리해서 "16:39" 정상 표시. 그러나 **통산 _avg 계산 시 단위 변환 누락** → 평균 초 (987) 그대로 분 라벨에 노출.
+- **fix**: `users/[id]/page.tsx` + `profile/basketball/page.tsx` 의 `avgMinutes` 에 `/ 60` 분 변환 추가
+- **재발 방지 룰**:
+  1. DB 컬럼 이름이 단위와 다를 수 있음 — `minutes_played` 가 실제 초. 신규 _avg / sum 계산 시 단위 검증 필수
+  2. 박스스코어 (초 그대로) vs 통산 (`/60` 분 변환) 단위 일관성 명시
+- **잔존 영향 (별도 결재)**: `api/v1/players/[id]/stats/route.ts` line 89 의 `mpg: avg(totals.minutesPlayed)` 도 동일 단위 오류. Flutter v1 변경 = 원영 사전 공지 룰. 별도 결재 후 fix.
+
+---
+
+### [2026-05-09] 알기자 자동 발행 0건 — Flutter sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출
+- **분류**: 도메인/통합 (helper bypass)
+- **증상**: 5/9 본 대회 종료 매치 4건 (#17/#18/#21/#22) 자동 알기자 brief NULL + community_post 0건. 사용자 보고: "오늘 알기자 작동 안 함". news_publish_attempts 테이블 자동 호출 0건.
+- **원인 (다층 진단)**:
+  1. **1차 의심 (waitUntil)**: `services/match.ts` 의 `updateMatch` / `updateMatchStatus` 가 `void Promise(triggerMatchBriefPublish)` fire-and-forget → Vercel serverless 응답 종료 시 process abort 가설. PR #281 에서 `@vercel/functions` `waitUntil` 적용. 그러나 fix 후에도 자동 발행 0건 유지.
+  2. **2차 진단 (audit 추적)**: `tournament_match_audits` 테이블의 5/9 종료 매치 audit 14건 모두 `progressDualMatch` (진출/self-heal) — **status 변경 audit 0건**. updateMatchStatus 헬퍼는 audit 옵션 받으면 자동 기록. 즉 헬퍼 호출 자체 0.
+  3. **근본 원인 (path 추적)**: Flutter 기록앱은 `PATCH /api/v1/matches/[id]/status` 가 아닌 `POST /api/v1/tournaments/[id]/matches/sync` (점수+stat+PBP+status 일괄 동기화) 와 `batch-sync` 라우트 사용. 두 라우트는 `prisma.tournamentMatch.update({ data: { status: match.status } })` **직접 호출** → updateMatchStatus 헬퍼 우회 → triggerMatchBriefPublish 호출 0.
+- **해결**:
+  - `sync/route.ts`: `existing.status !== "completed" && match.status === "completed"` 신규 전환 시 `waitUntil(triggerMatchBriefPublish(matchId))` 추가 (line 206 근처)
+  - `batch-sync/route.ts`: 기존 `if (match.status === "completed") { advanceWinner / updateTeamStandings }` 가드 안에 `waitUntil(triggerMatchBriefPublish(BigInt(match.matchId)))` 추가
+  - 멱등 가드 = trigger 자체가 brief 중복 + post 중복 방지 (sync 반복 호출 안전)
+- **commit**: `adb0308` (PR #297→#299)
+- **재발 방지**:
+  - 신규 자동 발행/알림/사후 처리 추가 시 **모든 status update path 점검 의무** — service helper / 직접 prisma update / raw SQL / batch sync 라우트 등
+  - 진단 절차 = (1) news_publish_attempts SELECT (자동 호출 흔적) (2) tournament_match_audits SELECT (status 변경 audit) (3) 0 건이면 헬퍼 우회 path 의심
+  - 보강 패턴: helper 함수에 trigger 박는 것 + path 별 방어 trigger 양면 적용 (Defense in depth)
+
+### [2026-05-09] forfeit 매치 자동 알기자 카피 = "20점차 압승" 사실 왜곡 — LLM 점수만 보고 일반 매치 카피 생성
+- **분류**: 도메인/LLM (forfeit guard)
+- **증상**: 5/9 #20 슬로우 vs MI (MI 기권 FIBA forfeit 20-0) 매치의 라이브 페이지 [Headline] = "슬로우 20-0 MI — 20점차 압승" 자동 노출. 자동 알기자 발행 시도되면 LLM brief 가 점수만 보고 "20점차 대승" 류 생성 가능 = 사실 왜곡 (실제 경기 미진행).
+- **원인**:
+  - `tab-summary.tsx` 의 `flowLabel.blowout = "압승"` 자동 매핑 (scoreDiff ≥ 20)
+  - `auto-publish-match-brief.ts` 가 LLM brief route 호출 시 forfeit 매치 식별 신호 0 → LLM 이 정상 매치로 처리
+- **해결**:
+  - 운영자 박제 표준: `tournament_matches.notes` 컬럼에 `"{팀} 기권 (사유: {사유}) — FIBA 5x5 Art.21 forfeit {점수}"` 형식 박기
+  - `auto-publish-match-brief.ts`: `detectForfeit(notes)` 헬퍼 — "기권"/"forfeit" 정규식 감지 시 LLM 우회 + 사전 정의 카피 (`buildForfeitPhase1Brief` / `buildForfeitPhase2`). summary_brief JSON 에 `forfeit: true` + `forfeit_reason` 메타 박음
+  - `tab-summary.tsx`: `match.summary_brief.forfeit === true` 분기 → Headline 부제 "기권승 (FIBA Art.21 · {사유} 사유)" / Stats 4 카드 "처리 / 결과 / 공식 점수 / 사유"
+- **commit**: `73b04d0` + `09ea870` (PR #302)
+- **재발 방지**: forfeit / 기권 매치 운영 처리 시 **반드시 notes 컬럼 표준 형식** 박기. 점수만 박으면 시각/카피 자동 분기 X.
+
+### [2026-05-09] 알기자 본기사 dual_tournament 구조 미인지 — "최종전 승팀 = 1위" 추측 오류
+- **분류**: 도메인/LLM (구조 컨텍스트 누락)
+- **증상**: 5/9 #19 MZ vs 우아한스포츠 (C조 최종전 45:31) 자동 발행 알기자 본기사 title = "윤세빈 12점' MZ, 우아한스포츠 꺾고 C조 1위 수성" → **"1위 수성" 사실 오류** (실제 C조 1위는 5/3 #11 승자전에서 블랙라벨 결정. 5/9 #19 = 조 2위/3위 결정전).
+- **원인**:
+  - `brief route` (`/api/live/[id]/brief`) 가 LLM 에 전달하는 데이터 = `roundName: "C조 최종전"` / `groupName: "C"` 만 → LLM 이 "최종전" 어휘 = "1위 결정전" 으로 오해
+  - `tournament.format` ("dual_tournament") 미전달 → 구조 인지 0
+  - `next_match_id` 진출 정보 미전달 → 결과 narrative 추측
+  - prompts (`alkija-system.ts` / `alkija-system-phase2-match.ts`) 에 dual 구조 가이드 0건
+- **해결 (B + A)**:
+  - **B (근본)**: `brief route` 가 매치별 산출 → LLM 입력에 명시
+    - `tournament.format` SELECT 추가
+    - `roundContext` 자동 산출 (라운드별 자연어 — "조 최종전 = 조 2위/3위 결정전 (조 1위 이미 결정됨)" / "조 승자전 = 조 1위 확정" / "8강 = 4강 진출" / "결승 = 우승" 등)
+    - `advancement` 자동 산출 (next_match_id 기반 narrative — "MZ → 8강 진출 (조 2위 자격) / 우아한스포츠 → 탈락 (조 3위)")
+  - **A (safety net)**: `prompts` 양쪽 (Phase 1 + Phase 2) 끝에 가이드 추가 — "조 최종전 단어만 보고 1위/우승/결승 표현 금지" / "명시되지 않은 순위 절대 추측 금지" / "입력 advancement narrative 그대로 인용"
+  - `MatchBriefInput` type 확장: `tournamentFormat` / `roundContext` / `advancement` 필드 추가
+- **commit**: `8963dae` (PR #303→#304)
+- **재발 방지**: LLM 에 **사실 데이터** + **safety prompt** 양면 보강이 표준. 데이터만 → 가이드 없이 추측 / 가이드만 → 데이터 없이 일반 표현.
+
 ### [2026-05-10] 모바일 박스스코어 프린트 빈 페이지 — max-width: 100vw 글로벌 가드 print 충돌 + 모바일 viewport 동결
 - **분류**: ui/css/js (모바일 print 호환)
 - **증상**: 모바일 (Android Chrome) 라이브 페이지 박스스코어 프린트 → A4 1/1 빈 흰 페이지

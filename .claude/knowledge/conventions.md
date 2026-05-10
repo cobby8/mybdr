@@ -1,6 +1,46 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-09] forfeit 매치 운영 표준 — `notes` 컬럼 표기 형식 + 자동 카피 트리거
+- **분류**: convention/operation (forfeit / FIBA Art.21)
+- **표준 형식** (운영자 박제 의무):
+  ```
+  {기권팀} 기권 (사유: {사유 자연어}) — FIBA 5x5 Art.21 forfeit {점수}
+  ```
+  예: `MI 기권 (사유: 부상 등 인원부족) — FIBA 5x5 Art.21 forfeit 20-0`
+- **자동 트리거**:
+  - `auto-publish-match-brief.ts` `detectForfeit(notes)` 헬퍼 — `/기권|forfeit/i` 정규식 감지 → LLM 우회 + 사전 정의 카피
+  - `tab-summary.tsx` `match.summary_brief.forfeit === true` 분기 → Headline 부제 "기권승 (FIBA Art.21 · {사유} 사유)" + Stats 4 카드 forfeit 모드
+  - `summary_brief` JSON 메타: `{ forfeit: true, forfeit_reason: "{사유}" }`
+- **사유 추출 정규식**: `/사유\s*[:：]\s*([^\)\)\—\-]+)/` (한글 콜론 + ASCII 콜론 + 닫는 괄호/em dash/hyphen 까지)
+- **운영 처리 절차** (5단계): UPDATE 매치 (점수 + status + winner + ended_at) → audit 박제 → notes 박제 → progressDualMatch / advanceWinner → updateTeamStandings
+- **회귀 방지**: notes 누락 시 LLM 일반 매치 카피 자동 생성 → "20점차 압승" 류 사실 왜곡. 반드시 notes 표준 형식 박제.
+
+### [2026-05-09] 알기자 LLM 입력 — dual_tournament 구조 컨텍스트 명시 (brief route 의무)
+- **분류**: convention/llm (구조 컨텍스트 + safety prompt 양면)
+- **brief route 산출 의무 3 필드**:
+  - `tournamentFormat`: `tournament.format` SELECT (dual_tournament 등)
+  - `roundContext`: 라운드 의미 자연어 (라운드별 자동 매핑)
+  - `advancement`: next_match_id 기반 진출 narrative
+- **`MatchBriefInput` 확장 type** (`src/lib/news/match-brief-generator.ts`):
+  ```ts
+  tournamentFormat?: string | null;
+  roundContext?: string | null;
+  advancement?: string | null;
+  ```
+- **buildUserPrompt 출력 라인** (LLM 입력):
+  ```
+  - 대회 포맷: dual_tournament
+  - 라운드 의미: 조 최종전 = 조 2위/3위 결정전 (조 1위는 이미 승자전에서 결정됨). 1위/우승 표현 절대 금지.
+  - 매치 결과 진출: MZ → 8강 진출 (조 2위 자격) / 우아한스포츠 → 탈락 (조 3위)
+  ```
+- **prompts 가이드** (alkija-system.ts + alkija-system-phase2-match.ts 양쪽 [Dual Tournament 구조 가이드] 단락 강제):
+  - "조 최종전 단어만 보고 1위/우승/결승 표현 금지"
+  - "입력 [매치 결과 진출] narrative 그대로 인용"
+  - "명시되지 않은 순위 절대 추측 금지"
+- **확장 룰**: 다른 포맷 (single_elimination / round_robin) 추가 시 `brief route` 의 roundContext 분기에 케이스 추가 + prompts 에 케이스별 가이드 확장
+- **재발 방지**: LLM 에 사실 데이터만 전달 / 가이드만 강화 → 둘 중 하나만으로는 약함. 양면 보강이 표준.
+
 ### [2026-05-09] 모바일 가드 4 분기점 표준 (반응형 룰)
 - **분류**: convention/ui (반응형 가드 / 디자인 13 룰 #13 보강)
 - **결정자**: 사용자 (5/9 시안 본격 적용 모바일 호환 검증 중)

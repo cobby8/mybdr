@@ -2,6 +2,63 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-09] FIBA 5x5 forfeit (Art.21) 운영 표준 — 20-0 점수 + 통계 0 + audit 명시 박제
+- **분류**: decision (대회 운영 / FIBA 룰 적용)
+- **결정자**: PM (사용자 결재 — 5/9 #20 슬로우 vs MI 케이스)
+- **참조횟수**: 0
+- **선택**: FIBA 5x5 Article 21 (Forfeit) 표준 적용 — 사전 기권 시 **20-0** (이긴 팀 20 / 진 팀 0). 3x3 forfeit (21-0) 미적용.
+- **사유**: 본 대회 (제21회 몰텐배 동호회최강전) = 5x5 정규 농구 (`tournament.format = "dual_tournament"` 5x5). 3x3 룰 적용 부적합.
+- **운영 처리 절차**:
+  1. `tournamentMatch.update`: status="completed" / homeScore=20 / awayScore=0 / winner_team_id (홈팀 또는 어웨이팀) / ended_at
+  2. `tournament_match_audits` 별도 audit 박제 — context "MI 기권 forfeit 처리 — FIBA 5x5 Art.21 (20-0)"
+  3. `notes` 컬럼 표준 형식 박제 — "{기권팀} 기권 (사유: {사유}) — FIBA 5x5 Art.21 forfeit 20-0"
+  4. `progressDualMatch` 또는 `advanceWinner` 호출 → 진출 자동 처리
+  5. `updateTeamStandings` 호출 → 전적 산정 (forfeit win/loss)
+  6. 통계 = PBP/stat 0 (FIBA Art.21.4 — forfeit 매치 개인 stat 미적용)
+- **반려 옵션**:
+  - 21-0 (3x3 룰) — 종목 불일치
+  - 별도 status="forfeit" enum 추가 — 현 단계 미필요 (notes + 사후 가드로 충분)
+- **재사용**: 차후 forfeit 발생 시 본 절차 그대로 적용. 코드 자동 가드 = `auto-publish-match-brief.ts` `detectForfeit(notes)` 헬퍼 + `tab-summary.tsx` `summary_brief.forfeit === true` 분기
+
+### [2026-05-09] 알기자 forfeit 매치 자동 발행 = LLM 우회 + 사전 정의 카피 (사실 왜곡 회피)
+- **분류**: decision (LLM 가드 / 사전 카피 우선)
+- **결정자**: PM (사용자 결재 — 5/9 #20 forfeit 매치)
+- **참조횟수**: 0
+- **선택**: forfeit 매치는 LLM brief route 호출 우회 + 사전 정의 카피 사용. summary_brief JSON 에 `forfeit: true` + `forfeit_reason` 메타 박음.
+- **사유**: LLM (Gemini 2.5) 이 점수 (예: 20-0) 만 보고 "20점차 압승" / "대승" 류 카피 자동 생성 → forfeit 매치 (실 경기 미진행) 에 부적절. 사용자 직접 보고 = "기권승에 맞는 표현만 사용해야지".
+- **카피 빌더 2 종**:
+  - `buildForfeitPhase1Brief` (라이브 [Lead] 130~200자) — "{승팀}가 {라운드}에서 {사유로 경기 진행 불가}, FIBA Art.21 적용 {점수}-0(forfeit win) 처리"
+  - `buildForfeitPhase2` (게시판 본기사 title + content) — "{승팀}, {패팀} 기권으로 {라운드} 부전승 — {사유} 사유" / 본문 4 단락
+- **반려 옵션**:
+  - LLM 에 forfeit 신호 전달 후 LLM 이 분기 작성 — LLM 결과 가변 / 안전성 떨어짐
+  - 라이브 [Lead] / 게시판 양쪽 발행 자체 skip — 사용자 가시성 손실
+  - 운영자 수동 작성 — 자동화 가치 손실 / forfeit 빈도 낮지만 수동 부담
+- **재사용 (forfeit 매치 표시 영역)**:
+  - 라이브 [Headline] 부제: `tab-summary.tsx` summaryBlocks 분기 ("기권승 (FIBA Art.21 · {사유} 사유)")
+  - 라이브 Stats 4 카드: 처리 / 결과 / 공식 점수 / 사유 (점수차 분석 무의미 회피)
+  - 알기자 게시판 카드: 사전 정의 본문 + draft 검수 후 publish
+
+### [2026-05-09] 알기자 dual_tournament 구조 LLM 인지 — brief route 데이터 + prompts safety 양면 보강
+- **분류**: decision (LLM 입력 데이터 + 가이드 양면)
+- **결정자**: PM (사용자 결재 — 5/9 #19 "C조 1위 수성" 사실 오류)
+- **참조횟수**: 0
+- **선택**: B + A 조합 — brief route 가 사실 데이터 자동 산출 + prompts 가 추측 차단 가이드.
+- **B (근본)**: `brief route` 가 매치별 산출 → `MatchBriefInput` type 확장 + LLM 입력에 명시:
+  - `tournamentFormat`: "dual_tournament" 등
+  - `roundContext`: 라운드 의미 자연어 (조 최종전 = 2/3위 결정전 / 조 승자전 = 1위 확정 / 8강 = 4강 진출 / 결승 = 우승 등)
+  - `advancement`: next_match_id 기반 진출 narrative ("MZ → 8강 진출 (조 2위 자격) / 우아한스포츠 → 탈락 (조 3위)")
+- **A (safety net)**: `alkija-system.ts` (Phase 1) + `alkija-system-phase2-match.ts` (Phase 2) 양쪽 system prompt 끝에 [Dual Tournament 구조 가이드] 단락 추가:
+  - "조 최종전 단어만 보고 1위/우승/결승 표현 금지"
+  - "조 최종전 = 조 2위/3위 결정전 (조 1위는 이미 승자전에서 결정)"
+  - "입력 [매치 결과 진출] narrative 그대로 인용"
+  - "명시되지 않은 순위 (1위/2위/3위) 절대 추측 금지"
+- **반려 옵션**:
+  - 사후 검증 (publish 후 키워드 reject) — LLM 결과 가변, 자동화 한계
+  - 사전 정의 카피 (forfeit 처럼) — 단조로움 / LLM 가치 손실
+  - prompts 만 강화 (B 미적용) — 데이터 없이 가이드만 → 효과 약함
+- **재사용**: 다른 토너먼트 포맷 (single_elimination / round_robin) 도 동일 패턴 — `roundContext` 분기에 케이스 추가 + prompts 가이드 확장
+- **commit**: `8963dae` (PR #303→#304)
+
 ### [2026-05-09] 마이페이지 "내 농구" (`/profile/basketball`) 공개프로필 흡수 + 본인 전용 강화 — Q1~Q6 결재 대기
 - **분류**: decision (마이페이지 / 공개프로필 super-set / 본인 전용 영역)
 - **결정자**: planner-architect (사용자 결재 대기 — Q1~Q6 모두 추천 안 일괄 채택 권장)

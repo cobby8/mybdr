@@ -480,7 +480,9 @@ export default async function BasketballPage() {
   const avgPoints = Number(statAgg?._avg?.points ?? 0);
   const avgRebounds = Number(statAgg?._avg?.total_rebounds ?? 0);
   const avgAssists = Number(statAgg?._avg?.assists ?? 0);
-  const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0);
+  // 2026-05-10 — DB minutes_played 단위 = 초 (Int). 통산 mpg 표시 단위 = 분 → /60 변환.
+  // 박스스코어 (formatGameClock) 는 초 그대로 사용해서 정상이지만 통산 _avg 는 단위 변환 누락이었음.
+  const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0) / 60;
   const avgFgPct = Number(statAgg?._avg?.field_goal_percentage ?? 0);
   const avg3pPct = Number(statAgg?._avg?.three_point_percentage ?? 0);
   const careerStats = {

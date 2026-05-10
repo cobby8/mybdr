@@ -2,6 +2,37 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-09] 자동 발행 미작동 진단 = 다층 path 추적 (helper bypass) — waitUntil 만으로는 부족
+- **분류**: lesson/diagnosis (helper bypass / Defense in depth)
+- **발견자**: pm (5/9 D-day 알기자 자동 발행 0건 사용자 보고)
+- **상황**: 5/4 알기자 시스템 도입 후 5/9 D-day까지 본 대회 종료 매치 4건 모두 자동 발행 0건. 이전 PR #281 에서 `waitUntil` (`@vercel/functions`) 적용 — Vercel serverless 의 fire-and-forget Promise abort 가설 fix. 그러나 fix 후에도 자동 발행 0건 유지.
+- **다층 진단 절차** (이번에 학습한 패턴):
+  1. **1차** = waitUntil (Vercel 환경 가설) → fix 적용 후에도 0건 유지 → 가설 잘못
+  2. **2차** = `tournament_match_audits` SELECT — 5/9 종료 매치 audit 14건 모두 `progressDualMatch` (진출/self-heal) → status 변경 audit **0건** = updateMatchStatus 헬퍼 호출 0
+  3. **3차** = path grep (`grep updateMatchStatus + status='completed'`) → Flutter 기록앱이 `PATCH /api/v1/matches/[id]/status` 가 아닌 `sync` / `batch-sync` 라우트 사용 발견. 두 라우트가 `prisma.tournamentMatch.update` **직접 호출** → 헬퍼 우회
+  4. **fix** = 양 라우트에 `waitUntil(triggerMatchBriefPublish)` 명시 추가 (멱등 가드 신뢰)
+- **교훈**:
+  - 신규 자동 발행/알림/사후 처리 추가 시 **헬퍼 함수에만 박는 것 부족** — 모든 status update path 점검 의무
+  - 진단 시퀀스 = (1) 시도 흔적 SELECT (news_publish_attempts / 알림 큐 등) (2) audit SELECT (헬퍼 호출 흔적) (3) 0 건이면 헬퍼 우회 path 의심 (직접 prisma update / raw SQL / sync route 등) (4) grep 으로 path 매핑
+  - **Defense in depth 원칙**: helper 함수 + path 별 방어 trigger 양면 적용
+- **재발 방지**: `errors.md [2026-05-09]` 박제. 차후 자동 발행 / 알림 / 사후 처리 추가 시 본 진단 시퀀스 1회 적용.
+
+### [2026-05-09] LLM dual_tournament 구조 미인지 = 데이터만 / 가이드만 단면 보강 부족 — 양면 보강이 표준
+- **분류**: lesson/llm (사실 컨텍스트 + safety prompt 양면)
+- **발견자**: pm (5/9 사용자 보고 — 알기자 본기사 "C조 1위 수성" 사실 오류)
+- **상황**: 5/4 알기자 도입 시 prompts 에는 "정확한 사실만" 가이드 있었음. 그러나 brief route 가 LLM 에 전달하는 컨텍스트는 `roundName: "C조 최종전"` 만 → LLM 이 "최종전" 어휘 = "1위 결정전" 으로 추측. dual_tournament 의 조 최종전 = 조 2위/3위 결정전 (조 1위는 이미 승자전에서 결정) 구조 정보 0.
+- **양면 보강 패턴 (이번에 정립)**:
+  - **B (사실 데이터)**: brief route 가 매치별 `tournamentFormat` + `roundContext` (라운드 의미 자연어) + `advancement` (next_match_id 기반 진출 narrative) 자동 산출 → LLM 입력 명시
+  - **A (safety prompt)**: `alkija-system.ts` + `alkija-system-phase2-match.ts` 양쪽에 [Dual Tournament 구조 가이드] 단락 — "조 최종전 단어만 보고 1위/우승 표현 금지" / "명시되지 않은 순위 절대 추측 금지"
+- **교훈**:
+  - 데이터만 강화 → LLM 이 데이터 무시하고 일반 표현 사용 가능
+  - 가이드만 강화 → 데이터 없이 LLM 이 단어 어휘로 추측
+  - **두 면 모두 보강해야 안정** — Defense in depth 의 LLM 버전
+- **재사용 패턴 (다른 LLM 도메인)**:
+  - 매치 통계 외 신규 LLM 영역 (예: 선수 프로필 자동 작성 / 팀 시즌 리뷰) 추가 시 동일 양면 패턴 적용
+  - 도메인 사실 (DB 컬럼 / 관계) → LLM 입력 명시 + 가이드 추가
+- **재발 방지**: `decisions.md [2026-05-09]` + `conventions.md [2026-05-09]` 박제. 차후 LLM 신규 도메인 진입 시 본 패턴 1회 점검.
+
 ### [2026-05-08] BDR-current sync 시 운영 → 시안 역박제 갭 4건 발견 — 시안 zip 도착 시점에 따른 도메인 변경 누락
 - **분류**: lesson/design-sync (CLAUDE.md §🔄 운영 → 시안 동기화 룰 위반)
 - **발견자**: pm (BDR-current sync v2.4 spot check)
