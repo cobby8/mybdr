@@ -125,8 +125,9 @@ interface MatchData {
     away: { q1: number; q2: number; q3: number; q4: number; ot: number[] };
   } | null;
   // 티빙 스타일 스코어카드 — 팀 로고 URL 추가 (없으면 null → 팀색 원 + 이니셜 fallback)
-  home_team: { id: number; name: string; color: string; logo_url: string | null };
-  away_team: { id: number; name: string; color: string; logo_url: string | null };
+  // 2026-05-10 fix: id = TournamentTeam.id (PBP/MVP 매칭) / team_id = Team.id (/teams/[id] 라우트 — TeamLink href).
+  home_team: { id: number; team_id: number; name: string; color: string; logo_url: string | null };
+  away_team: { id: number; team_id: number; name: string; color: string; logo_url: string | null };
   home_players: PlayerRow[];
   away_players: PlayerRow[];
   play_by_plays: PlayByPlayRow[];
@@ -1423,7 +1424,7 @@ export default function LiveBoxScorePage() {
                   {/* 팀명 셀: 명시 text-base 제거 → 부모 text-lg 상속 */}
                   {/* 2026-05-10 PlayerLink/TeamLink 2단계 — 쿼터 점수 테이블 좌측 팀명 셀도 TeamLink. */}
                   <td className="py-2 px-2 truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
-                    <TeamLink teamId={match.home_team.id} name={match.home_team.name} />
+                    <TeamLink teamId={match.home_team.team_id} name={match.home_team.name} />
                   </td>
                   {quarters.map((q, idx) => {
                     const currentIdx = isLive && match.current_quarter ? match.current_quarter - 1 : -1;
@@ -1456,7 +1457,7 @@ export default function LiveBoxScorePage() {
                 </tr>
                 <tr>
                   <td className="py-2 px-2 truncate max-w-[60px]" style={{ color: "var(--color-text-primary)" }}>
-                    <TeamLink teamId={match.away_team.id} name={match.away_team.name} />
+                    <TeamLink teamId={match.away_team.team_id} name={match.away_team.name} />
                   </td>
                   {quarters.map((q, idx) => {
                     const currentIdx = isLive && match.current_quarter ? match.current_quarter - 1 : -1;
