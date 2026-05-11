@@ -570,8 +570,9 @@ export default function TournamentTeamsPage() {
                 </div>
               </div>
 
-              {/* 선수 목록 (펼쳐진 상태) */}
-              {expandedTeamId === tt.id && (
+              {/* 2026-05-11 Phase 3-E — 인라인 펼침 → 모달로 전환 (페이지 끝 TeamDetailModal 참조)
+                  카드 클릭 시 setExpandedTeamId 만 호출, 펼침 영역은 모달로 외부에서 렌더링 */}
+              {false && expandedTeamId === tt.id && (
                 <div className="mt-4 border-t border-[var(--color-border)] pt-4">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold">선수 명단</h3>
@@ -705,12 +706,212 @@ export default function TournamentTeamsPage() {
       {toast && (
         <div
           role="status"
-          className="fixed top-20 right-4 z-50 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-sm text-[var(--color-text-primary)] shadow-md"
+          className="fixed top-20 right-4 z-50 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-sm text-[var(--color-text-primary)] shadow-md no-print"
           style={{ minWidth: 220 }}
         >
           {toast}
         </div>
       )}
+
+      {/* 2026-05-11 Phase 3-E — 팀 상세 모달 (인라인 펼침 → 모달 전환 + 선수 명단 프린트) */}
+      {expandedTeamId && (() => {
+        const expandedTeam = teams.find((t) => t.id === expandedTeamId);
+        if (!expandedTeam) return null;
+        const token = tokenMap[expandedTeam.id];
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-4 no-print"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+            onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
+          >
+            <div
+              id="team-detail-printable"
+              className="my-4 w-full max-w-3xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
+              style={{ borderColor: "var(--color-border)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) */}
+              <div className="mb-4 flex items-start justify-between gap-3 print-header">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-bold">{expandedTeam.team.name}</h2>
+                    <ViaBadge appliedVia={token?.appliedVia ?? null} />
+                    <StatusBadge status={expandedTeam.status} />
+                    {token?.waitingNumber && (
+                      <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                        대기 {token.waitingNumber}번
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                    {token?.appliedAt
+                      ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
+                      : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
+                    {token?.managerName && <> · 코치 {token.managerName}</>}
+                    {token?.managerPhone && <> ({token.managerPhone})</>}
+                    {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
+                  </p>
+                  {expandedTeam.groupName && (
+                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+                      조 {expandedTeam.groupName} · 시드 {expandedTeam.seedNumber ?? "-"}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2 no-print">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="btn btn--sm"
+                    title="선수 명단 프린트"
+                  >
+                    <span className="material-symbols-outlined text-base align-middle mr-1">print</span>
+                    프린트
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
+                    className="rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+                    title="닫기"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 선수 명단 헤더 */}
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">선수 명단 ({players.length}명)</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="btn btn--primary btn--sm no-print"
+                >
+                  <span className="material-symbols-outlined text-base align-middle mr-1">person_add</span>
+                  선수 추가
+                </button>
+              </div>
+
+              {/* 선수 추가 폼 */}
+              {showAddForm && (
+                <div className="mb-4 rounded-[4px] bg-[var(--color-surface)] p-4 no-print">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <input
+                      type="text"
+                      placeholder="이름 *"
+                      value={addForm.player_name}
+                      onChange={(e) => setAddForm({ ...addForm, player_name: e.target.value })}
+                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="전화번호"
+                      value={addForm.phone}
+                      onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })}
+                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    <input
+                      type="number"
+                      placeholder="등번호"
+                      value={addForm.jersey_number}
+                      onChange={(e) => setAddForm({ ...addForm, jersey_number: e.target.value })}
+                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="포지션 (G, F 등)"
+                      value={addForm.position}
+                      onChange={(e) => setAddForm({ ...addForm, position: e.target.value })}
+                      className="rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+                    />
+                  </div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <button
+                      onClick={() => { setShowAddForm(false); setAddForm(EMPTY_FORM); }}
+                      className="btn btn--sm"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleAddPlayer}
+                      disabled={addLoading || !addForm.player_name.trim()}
+                      className="btn btn--primary btn--sm"
+                    >
+                      {addLoading ? "추가 중..." : "추가"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 선수 명단 테이블 */}
+              {playersLoading ? (
+                <p className="py-4 text-center text-sm text-[var(--color-text-muted)]">불러오는 중...</p>
+              ) : players.length === 0 ? (
+                <p className="py-8 text-center text-sm text-[var(--color-text-muted)]">등록된 선수가 없습니다.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-text-muted)]">
+                        <th className="pb-2 pr-3">#</th>
+                        <th className="pb-2 pr-3">이름</th>
+                        <th className="pb-2 pr-3">생년월일</th>
+                        <th className="pb-2 pr-3">학교</th>
+                        <th className="pb-2 pr-3">포지션</th>
+                        <th className="pb-2 pr-3">학부모</th>
+                        <th className="pb-2 pr-3 no-print">연락처</th>
+                        <th className="pb-2 no-print" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {players.map((p) => (
+                        <tr key={p.id} className="border-b border-[var(--color-border)]/50">
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.jersey_number ?? "-"}</td>
+                          <td className="py-2 pr-3 font-medium">{p.player_name ?? "-"}</td>
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { birth_date?: string }).birth_date ?? "-"}</td>
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { school_name?: string }).school_name ?? "-"}</td>
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{p.position ?? "-"}</td>
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)]">{(p as { parent_name?: string }).parent_name ?? "-"}</td>
+                          <td className="py-2 pr-3 text-[var(--color-text-muted)] no-print">
+                            {(p as { parent_phone?: string }).parent_phone ?? p.phone ?? "-"}
+                          </td>
+                          <td className="py-2 text-right no-print">
+                            <button
+                              onClick={() => handleDeletePlayer(p.id)}
+                              className="rounded-[4px] p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-error)]/10 hover:text-[var(--color-error)]"
+                              title="선수 삭제"
+                            >
+                              <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* 프린트 푸터 — 프린트 시에만 표시 */}
+              <p className="mt-4 hidden text-xs text-[var(--color-text-muted)] print-only">
+                ※ 본 명단은 운영자 어드민 (mybdr.kr) 에서 출력되었습니다. 출력일: {new Date().toLocaleDateString("ko-KR")}
+              </p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 프린트 전용 CSS — 모달만 표시 + 페이지 나머지 hide */}
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden; }
+          #team-detail-printable, #team-detail-printable * { visibility: visible; }
+          #team-detail-printable { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none; border: none; padding: 0; margin: 0; background: white; color: black; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+        }
+        .print-only { display: none; }
+      `}</style>
     </div>
   );
 }
