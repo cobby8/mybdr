@@ -3,12 +3,25 @@
 /**
  * 2026-05-11 Phase 3-A — 코치 명단 입력 폼 (client component).
  *
- * 동적 행 추가/삭제 + 서버 검증 (종별 룰) + POST /api/web/team-apply/[token].
+ * 기능:
+ *   - 동적 행 추가/삭제 + 종별 룰 가이드 + 서버 검증 (zod + 종별)
+ *   - 학년 자동 계산 (생년월일 → 한국 학년 — 초/중/고)
+ *   - 카카오톡 복사 붙여넣기 (한 줄 = 한 명, 슬래시 구분)
+ *
+ * 필수 입력: 이름 / 생년월일 / 등번호 / 부모 연락처
+ * 선택 입력: 포지션 / 학교명 / 부모 이름 (학년은 자동 계산 readonly)
+ *
  * 디자인 토큰 일관 (var(--color-*)) / lucide-react 0 / Material Symbols Outlined.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import {
+  birthDateToGrade,
+  gradeToKorean,
+  normalizeBirthDate,
+  normalizePhone,
+} from "@/lib/utils/korean-grade";
 
 type DivisionRule = {
   code: string;
@@ -25,7 +38,6 @@ type PlayerRow = {
   jersey_number: string;     // input은 string, 제출 시 number 변환
   position: string;
   school_name: string;
-  grade: string;
   parent_name: string;
   parent_phone: string;
 };
@@ -36,7 +48,6 @@ const EMPTY_ROW: PlayerRow = {
   jersey_number: "",
   position: "",
   school_name: "",
-  grade: "",
   parent_name: "",
   parent_phone: "",
 };
@@ -55,6 +66,11 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ count: number } | null>(null);
 
+  // 카카오톡 복사 붙여넣기
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
+
   const addRow = () => setRows((r) => [...r, { ...EMPTY_ROW }]);
   const removeRow = (i: number) => setRows((r) => r.filter((_, idx) => idx !== i));
 
@@ -62,32 +78,96 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
     setRows((r) => r.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)));
   };
 
+  // 카카오톡 텍스트 parsing — 한 줄 = 한 명 / 슬래시 구분
+  // 형식: 이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처
+  const handlePasteApply = () => {
+    setPasteError(null);
+    const lines = pasteText.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length === 0) {
+      setPasteError("붙여넣을 명단이 없습니다.");
+      return;
+    }
+    const parsed: PlayerRow[] = [];
+    const errors: string[] = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split("/").map((s) => s.trim());
+      if (parts.length < 2) {
+        errors.push(`${idx + 1}줄: 형식 오류 (최소 이름/생년월일 필요)`);
+        return;
+      }
+      const [name, birth, jersey, position, school, parentName, parentPhone] = parts;
+      const normalizedBirth = normalizeBirthDate(birth ?? "");
+      if (!normalizedBirth) {
+        errors.push(`${idx + 1}줄 (${name}): 생년월일 형식 오류 "${birth}"`);
+        return;
+      }
+      const normalizedPhone = parentPhone ? normalizePhone(parentPhone) : null;
+      parsed.push({
+        player_name: name,
+        birth_date: normalizedBirth,
+        jersey_number: jersey ?? "",
+        position: position ?? "",
+        school_name: school ?? "",
+        parent_name: parentName ?? "",
+        parent_phone: normalizedPhone ?? parentPhone ?? "",
+      });
+    });
+    if (errors.length > 0) {
+      setPasteError(errors.join("\n"));
+    }
+    if (parsed.length > 0) {
+      // 기존 빈 행 1개만 있으면 교체 / 그 외에는 추가
+      setRows((cur) => {
+        const isInitialSingle = cur.length === 1 && !cur[0].player_name && !cur[0].birth_date;
+        return isInitialSingle ? parsed : [...cur, ...parsed];
+      });
+      setPasteText("");
+      setPasteOpen(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // 클라이언트 사전 검증 (필수)
-    const valid = rows.every(
-      (r) => r.player_name.trim() && /^\d{4}-\d{2}-\d{2}$/.test(r.birth_date),
-    );
-    if (!valid) {
-      setError("이름과 생년월일은 필수 입력입니다.");
-      return;
+    // 클라이언트 사전 검증 — 필수 4개 (이름/생년월일/등번호/부모연락처)
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r.player_name.trim()) {
+        setError(`${i + 1}번 선수: 이름은 필수입니다.`);
+        return;
+      }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(r.birth_date)) {
+        setError(`${i + 1}번 선수: 생년월일은 필수입니다 (YYYY-MM-DD).`);
+        return;
+      }
+      if (!r.jersey_number.trim() || isNaN(Number(r.jersey_number))) {
+        setError(`${i + 1}번 선수: 등번호는 필수입니다.`);
+        return;
+      }
+      const phoneNorm = normalizePhone(r.parent_phone);
+      if (!phoneNorm) {
+        setError(`${i + 1}번 선수: 부모 연락처는 필수입니다 (010-XXXX-XXXX).`);
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
       const payload = {
-        players: rows.map((r) => ({
-          player_name: r.player_name.trim(),
-          birth_date: r.birth_date,
-          jersey_number: r.jersey_number ? Number(r.jersey_number) : null,
-          position: r.position || null,
-          school_name: r.school_name.trim() || null,
-          grade: r.grade ? Number(r.grade) : null,
-          parent_name: r.parent_name.trim() || null,
-          parent_phone: r.parent_phone.trim() || null,
-        })),
+        players: rows.map((r) => {
+          const grade = birthDateToGrade(r.birth_date);
+          return {
+            player_name: r.player_name.trim(),
+            birth_date: r.birth_date,
+            jersey_number: Number(r.jersey_number),
+            position: r.position || null,
+            school_name: r.school_name.trim() || null,
+            grade: grade != null && grade > 0 && grade <= 12 ? grade : null,
+            parent_name: r.parent_name.trim() || null,
+            parent_phone: normalizePhone(r.parent_phone),
+          };
+        }),
       };
 
       const res = await fetch(`/api/web/team-apply/${token}`, {
@@ -98,7 +178,6 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
       const json = await res.json();
 
       if (!res.ok) {
-        // 종별 검증 실패 — 구체 메시지 표시
         if (json.code === "DIVISION_VALIDATION_FAILED" && Array.isArray(json.errors)) {
           const msgs = json.errors.map((e: { index: number; field: string; message: string }) =>
             `${e.index + 1}번 선수 ${e.field === "birth_date" ? "생년월일" : "학년"}: ${e.message}`,
@@ -112,7 +191,6 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
       }
 
       setSuccess({ count: json.inserted_count ?? rows.length });
-      // 5초 후 새로고침 (제출 완료 화면으로 자연 전환)
       setTimeout(() => router.refresh(), 5000);
     } catch {
       setError("네트워크 오류가 발생했습니다.");
@@ -145,6 +223,61 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
 
   return (
     <form onSubmit={submit}>
+      {/* 카카오톡 복사 붙여넣기 영역 */}
+      <div
+        className="mb-4 rounded-[4px] border p-3"
+        style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+      >
+        <button
+          type="button"
+          onClick={() => setPasteOpen((v) => !v)}
+          className="flex w-full items-center justify-between text-left"
+        >
+          <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            <span className="material-symbols-outlined text-base align-middle mr-1">content_paste</span>
+            카카오톡 명단 한 번에 붙여넣기
+          </span>
+          <span className="material-symbols-outlined text-base" style={{ color: "var(--color-text-muted)" }}>
+            {pasteOpen ? "expand_less" : "expand_more"}
+          </span>
+        </button>
+
+        {pasteOpen && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+              한 줄에 한 명. 형식: <code className="rounded bg-black/10 px-1">이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처</code>
+              <br />
+              예: <code className="rounded bg-black/10 px-1">홍길동/2017-05-16/7/G/강남초등학교/홍판서/010-1234-5678</code>
+            </p>
+            <textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={6}
+              placeholder={"홍길동/2017-05-16/7/G/강남초등학교/홍판서/010-1234-5678\n김철수/2017-08-22/12/F/잠실초등학교/김아빠/010-9876-5432"}
+              className="w-full rounded-[4px] border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1"
+              style={{
+                borderColor: "var(--color-border)",
+                background: "var(--color-card)",
+                color: "var(--color-text-primary)",
+              }}
+            />
+            {pasteError && (
+              <p className="text-xs whitespace-pre-line" style={{ color: "var(--color-error)" }}>
+                {pasteError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setPasteText(""); setPasteError(null); }} className="btn btn--sm">
+                지우기
+              </button>
+              <button type="button" onClick={handlePasteApply} className="btn btn--primary btn--sm">
+                명단 자동 입력
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-bold">선수 명단 ({rows.length}명)</h2>
         <button
@@ -159,83 +292,14 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
 
       <div className="space-y-3">
         {rows.map((row, i) => (
-          <div
+          <PlayerRowEditor
             key={i}
-            className="rounded-[4px] border p-3 sm:p-4"
-            style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
-                {i + 1}번 선수
-              </span>
-              {rows.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeRow(i)}
-                  className="text-xs"
-                  style={{ color: "var(--color-error)" }}
-                >
-                  삭제
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <FieldText
-                label="이름 *"
-                value={row.player_name}
-                onChange={(v) => updateRow(i, "player_name", v)}
-                placeholder="홍길동"
-                required
-              />
-              <FieldText
-                label="생년월일 *"
-                type="date"
-                value={row.birth_date}
-                onChange={(v) => updateRow(i, "birth_date", v)}
-                required
-              />
-              <FieldNumber
-                label="등번호"
-                value={row.jersey_number}
-                onChange={(v) => updateRow(i, "jersey_number", v)}
-                min={0}
-                max={99}
-              />
-              <FieldSelect
-                label="포지션"
-                value={row.position}
-                onChange={(v) => updateRow(i, "position", v)}
-                options={POSITIONS}
-              />
-              <FieldText
-                label="학교명"
-                value={row.school_name}
-                onChange={(v) => updateRow(i, "school_name", v)}
-                placeholder="강남초등학교"
-              />
-              <FieldNumber
-                label={`학년${divisionRule?.gradeMin ? ` (${divisionRule.gradeMin}학년)` : ""}`}
-                value={row.grade}
-                onChange={(v) => updateRow(i, "grade", v)}
-                min={1}
-                max={12}
-              />
-              <FieldText
-                label="부모 이름"
-                value={row.parent_name}
-                onChange={(v) => updateRow(i, "parent_name", v)}
-                placeholder="홍판서"
-              />
-              <FieldText
-                label="부모 연락처"
-                value={row.parent_phone}
-                onChange={(v) => updateRow(i, "parent_phone", v)}
-                placeholder="010-1234-5678"
-                type="tel"
-              />
-            </div>
-          </div>
+            index={i}
+            row={row}
+            divisionRule={divisionRule}
+            onChange={(field, value) => updateRow(i, field, value)}
+            onRemove={rows.length > 1 ? () => removeRow(i) : undefined}
+          />
         ))}
       </div>
 
@@ -270,6 +334,122 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
   );
 }
 
+// ── 선수 1명 입력 카드 ──
+function PlayerRowEditor({
+  index,
+  row,
+  divisionRule,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  row: PlayerRow;
+  divisionRule: DivisionRule;
+  onChange: (field: keyof PlayerRow, value: string) => void;
+  onRemove?: () => void;
+}) {
+  // 생년월일 → 학년 자동 계산 (한국 표기)
+  const computedGrade = useMemo(() => {
+    if (!row.birth_date) return null;
+    const g = birthDateToGrade(row.birth_date);
+    return g != null ? { abs: g, label: gradeToKorean(g) } : null;
+  }, [row.birth_date]);
+
+  return (
+    <div
+      className="rounded-[4px] border p-3 sm:p-4"
+      style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+          {index + 1}번 선수
+        </span>
+        {onRemove && (
+          <button type="button" onClick={onRemove} className="text-xs" style={{ color: "var(--color-error)" }}>
+            삭제
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <FieldText
+          label="이름 *"
+          value={row.player_name}
+          onChange={(v) => onChange("player_name", v)}
+          placeholder="홍길동"
+          required
+        />
+        <FieldText
+          label="생년월일 *"
+          type="date"
+          value={row.birth_date}
+          onChange={(v) => onChange("birth_date", v)}
+          required
+        />
+        <FieldNumber
+          label="등번호 *"
+          value={row.jersey_number}
+          onChange={(v) => onChange("jersey_number", v)}
+          min={0}
+          max={99}
+          required
+        />
+        <FieldSelect
+          label="포지션"
+          value={row.position}
+          onChange={(v) => onChange("position", v)}
+          options={POSITIONS}
+        />
+        <FieldText
+          label="학교명"
+          value={row.school_name}
+          onChange={(v) => onChange("school_name", v)}
+          placeholder="강남초등학교"
+        />
+
+        {/* 학년 자동 표시 (readonly) — 생년월일 입력 시 자동 계산 */}
+        <div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+              학년 (자동)
+              {divisionRule?.gradeMin && (
+                <span className="ml-1" style={{ color: "var(--color-text-muted)" }}>
+                  · 종별 {gradeToKorean(divisionRule.gradeMin)}
+                </span>
+              )}
+            </span>
+            <div
+              className="rounded-[4px] border px-3 py-2 text-sm"
+              style={{
+                borderColor: "var(--color-border)",
+                background: "var(--color-card)",
+                color: computedGrade ? "var(--color-text-primary)" : "var(--color-text-muted)",
+              }}
+            >
+              {computedGrade ? `${computedGrade.label} (${computedGrade.abs}학년)` : "생년월일 입력 시 자동"}
+            </div>
+          </label>
+        </div>
+
+        <FieldText
+          label="부모 이름"
+          value={row.parent_name}
+          onChange={(v) => onChange("parent_name", v)}
+          placeholder="홍판서"
+        />
+        <FieldText
+          label="부모 연락처 *"
+          value={row.parent_phone}
+          onChange={(v) => onChange("parent_phone", v)}
+          placeholder="010-1234-5678"
+          type="tel"
+          required
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── 입력 컴포넌트 ──
 
 function FieldText({
@@ -301,10 +481,10 @@ function FieldText({
 }
 
 function FieldNumber({
-  label, value, onChange, min, max,
+  label, value, onChange, min, max, required,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  min?: number; max?: number;
+  min?: number; max?: number; required?: boolean;
 }) {
   return (
     <label className="block">
@@ -317,6 +497,7 @@ function FieldNumber({
         onChange={(e) => onChange(e.target.value)}
         min={min}
         max={max}
+        required={required}
         className="w-full rounded-[4px] border px-3 py-2 text-sm focus:outline-none focus:ring-1"
         style={{
           borderColor: "var(--color-border)",
@@ -358,3 +539,4 @@ function FieldSelect({
     </label>
   );
 }
+
