@@ -29,23 +29,36 @@ export interface RoleMatrixCardProps {
 }
 
 // 단일 boolean 권한 행 (super/site/tournament_admin)
+// 2026-05-11 Phase 1-A — `superAdminAuto` 옵션 추가.
+//   super_admin 보유자의 다른 권한 6개는 실제 권한 없어도 "super_admin 자동 포함" 표시.
+//   직관성 fix (사용자 보고: super_admin 본인이 다른 권한 "없음" 표시되어 어긋남).
+//   시각: 회색 차분한 강조 (BDR Red 보다 약함) + "Super 자동" 라벨.
 function BooleanRow({
   label,
   description,
   granted,
+  superAdminAuto = false,
 }: {
   label: string;
   description: string;
   granted: boolean;
+  // super_admin 보유자 표시 모드 — true 면 granted 무관 "보유 (Super 자동)" 표시
+  superAdminAuto?: boolean;
 }) {
+  // 실제 보유 / super 자동 보유 / 미보유 3 상태 분기
+  const effectiveGranted = granted || superAdminAuto;
+  const isSuperAuto = !granted && superAdminAuto;
+
   return (
     <div
       className="flex items-center justify-between gap-3 rounded-md border p-3"
       style={{
-        borderColor: granted
-          ? "var(--color-primary)"
+        borderColor: effectiveGranted
+          ? isSuperAuto
+            ? "var(--color-border)"
+            : "var(--color-primary)"
           : "var(--color-border)",
-        backgroundColor: granted
+        backgroundColor: effectiveGranted
           ? "var(--color-elevated)"
           : "var(--color-surface)",
       }}
@@ -55,12 +68,14 @@ function BooleanRow({
           className="material-symbols-outlined"
           style={{
             fontSize: 22,
-            color: granted
-              ? "var(--color-primary)"
+            color: effectiveGranted
+              ? isSuperAuto
+                ? "var(--color-text-secondary)"
+                : "var(--color-primary)"
               : "var(--color-text-secondary)",
           }}
         >
-          {granted ? "check_circle" : "remove_circle_outline"}
+          {effectiveGranted ? "check_circle" : "remove_circle_outline"}
         </span>
         <div className="min-w-0">
           <div
@@ -80,12 +95,14 @@ function BooleanRow({
       <span
         className="text-xs font-semibold whitespace-nowrap"
         style={{
-          color: granted
-            ? "var(--color-primary)"
+          color: effectiveGranted
+            ? isSuperAuto
+              ? "var(--color-text-secondary)"
+              : "var(--color-primary)"
             : "var(--color-text-secondary)",
         }}
       >
-        {granted ? "보유" : "없음"}
+        {isSuperAuto ? "보유 (Super 자동)" : effectiveGranted ? "보유" : "없음"}
       </span>
     </div>
   );
@@ -341,7 +358,43 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
         </p>
       </header>
 
+      {/* 2026-05-11 Phase 1-A — Super Admin 안내 박스.
+          이유: super_admin 본인은 다른 6 권한 row 가 "Super 자동" 표시 — 그 의미를 헤더에 명시.
+          정책: super_admin = 모든 영역 자동 접근 가능 (canManageTournament / partner-admin / 등 통일). */}
+      {roles.superAdmin && (
+        <div
+          className="mb-4 flex items-start gap-2 rounded-md border p-3"
+          style={{
+            borderColor: "var(--color-primary)",
+            backgroundColor: "var(--color-elevated)",
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 22, color: "var(--color-primary)" }}
+          >
+            shield_person
+          </span>
+          <div className="min-w-0">
+            <div
+              className="text-sm font-semibold"
+              style={{ color: "var(--color-primary)" }}
+            >
+              Super Admin 권한 보유
+            </div>
+            <div
+              className="mt-0.5 text-xs"
+              style={{ color: "var(--color-text-secondary)" }}
+            >
+              모든 영역에 자동 접근 가능합니다 — site/tournament 운영, 파트너,
+              단체, 기록원, 토너먼트 위임 권한 등 별도 부여 없이도 통과.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 1) 전역 권한 3종 (boolean) */}
+      {/* super_admin 본인의 site/tournament_admin 은 "Super 자동" 표시 (superAdminAuto prop) */}
       <div className="space-y-2">
         <BooleanRow
           label="Super Admin"
@@ -352,11 +405,13 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
           label="Site Admin"
           description="유저/팀/코트/대회/커뮤니티 운영 권한"
           granted={roles.siteAdmin}
+          superAdminAuto={roles.superAdmin}
         />
         <BooleanRow
           label="Tournament Admin"
           description="membership type 3 — 대회 운영자 권한"
           granted={roles.tournamentAdmin}
+          superAdminAuto={roles.superAdmin}
         />
       </div>
 

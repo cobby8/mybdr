@@ -20,14 +20,8 @@
  */
 
 import { prisma } from "@/lib/db/prisma";
-
-/** super_admin role 여부 — JWT payload 기반 단순 검사 (DB 조회 0). */
-function isSuperAdmin(
-  session: { role?: string; admin_role?: string } | null | undefined,
-): boolean {
-  if (!session) return false;
-  return session.role === "super_admin" || session.admin_role === "super_admin";
-}
+// 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (인라인 제거).
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 /**
  * userId 가 tournamentId 의 어드민 권한을 가지는지 검증.

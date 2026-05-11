@@ -24,6 +24,8 @@ import type { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { apiError } from "@/lib/api/response";
 import { getWebSession } from "@/lib/auth/web-session";
+// 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (인라인 제거).
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 // 권한 통과 시 반환 — match/tournament 양쪽 정보 (settings 포함, BFF 모드 가드 재사용)
 export interface ScoreSheetAccessOk {
@@ -134,13 +136,12 @@ export async function requireScoreSheetAccess(
 
   // 3) 권한 매트릭스 — super_admin / organizer / admin member / recorder 중 하나면 통과
   // 이유: 점수 입력 = recorder 기본 권한 + 운영자 메타 변경 권한 양쪽 포괄 (lineup-confirm 헬퍼 패턴 동일).
-  const isSuperAdmin =
-    session.role === "super_admin" ||
-    (session as { admin_role?: string }).admin_role === "super_admin";
+  // isSuperAdmin 은 단일 source `@/lib/auth/is-super-admin` 사용 (Phase 2 통합).
+  const superAdmin = isSuperAdmin(session);
 
   const isOrganizer = match.tournament.organizerId === userId;
 
-  let hasAccess = isSuperAdmin || isOrganizer;
+  let hasAccess = superAdmin || isOrganizer;
 
   // 4) 운영자 멤버 / 기록원 SELECT — super_admin/organizer 면 추가 쿼리 skip (효율)
   if (!hasAccess) {

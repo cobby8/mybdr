@@ -21,12 +21,8 @@
 import { type NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { apiError } from "@/lib/api/response";
-
-/** super_admin role 여부 — JWT payload 기반 단순 검사 */
-function isSuperAdmin(session: { role?: string; admin_role?: string } | null | undefined): boolean {
-  if (!session) return false;
-  return session.role === "super_admin" || session.admin_role === "super_admin";
-}
+// 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (인라인 제거).
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 /**
  * userId 가 matchId 의 영상 스트림을 관리할 수 있는지 검증.
