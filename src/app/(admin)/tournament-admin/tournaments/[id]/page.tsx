@@ -9,12 +9,9 @@ import {
   TOURNAMENT_STATUS_COLOR,
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
-// 2026-05-11 Phase 1 — 기록 모드 카드 + 통계 헬퍼 (client/server 분리)
-import { RecordingModeCard } from "./_components/recording-mode-card";
-import {
-  getTournamentMatchStats,
-  getTournamentDefaultMode,
-} from "@/lib/tournaments/recording-mode";
+// 2026-05-12: 기록 모드 카드는 메인 대시보드에서 제거 → 경기/기록시스템 관리 페이지로 이동.
+//   사용자 지적: 대회 정보 메인에 기록 모드 설정이 큰 카드로 떠 있는 건 어색.
+//   변경: /tournament-admin/tournaments/[id]/matches 페이지 상단에 통합.
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +46,8 @@ export default async function TournamentAdminDetailPage({
 
   if (!tournament) notFound();
 
-  // 2026-05-11 Phase 1 — 기록 모드 카드용 server-side 산출
-  //   - default mode (tournament.settings.default_recording_mode)
-  //   - 매치 통계 (total / paper / flutter / inProgress)
-  // 카드는 RecordingModeCard 가 client component 라 props 로 전달.
-  const recordingDefaultMode = getTournamentDefaultMode({ settings: tournament.settings });
-  const matchStats = await getTournamentMatchStats(id);
+  // 2026-05-12: 기록 모드 카드는 메인 대시보드에서 제거됨 (사용자 지적).
+  //   /matches 페이지 (경기/기록시스템 관리) 로 이동.
 
   // 권한 — super_admin 은 모든 대회 통과 / 그 외에는 organizer 또는 active TAM
   // 2026-05-11 Phase 2-C — super_admin 우대 추가 (운영자 페이지 진입 차단 회귀 fix).
@@ -91,7 +84,7 @@ export default async function TournamentAdminDetailPage({
     },
     {
       href: `/tournament-admin/tournaments/${id}/matches`,
-      label: "경기 관리",
+      label: "경기/기록시스템 관리",
       icon: "MT",
       desc: `${tournament._count.tournamentMatches}경기 · 스코어 입력`,
     },
@@ -170,12 +163,7 @@ export default async function TournamentAdminDetailPage({
         ))}
       </div>
 
-      {/* 2026-05-11 Phase 1 — 기록 모드 설정 카드 (대회 default + 매치별 bulk 토글) */}
-      <RecordingModeCard
-        tournamentId={id}
-        defaultMode={recordingDefaultMode}
-        matchStats={matchStats}
-      />
+      {/* 2026-05-12 — 기록 모드 카드는 /matches 페이지로 이동 (사용자 지적: 메인에 큰 카드 어색) */}
 
       {/* 액션 카드 */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
