@@ -43,13 +43,16 @@ export default async function TournamentAdminDetailPage({
 
   if (!tournament) notFound();
 
-  // 주최자 또는 관리자 멤버인지 확인
-  const isOrganizer = tournament.organizerId === userId;
-  if (!isOrganizer) {
-    const member = await prisma.tournamentAdminMember.findFirst({
-      where: { tournamentId: id, userId, isActive: true },
-    });
-    if (!member) notFound();
+  // 권한 — super_admin 은 모든 대회 통과 / 그 외에는 organizer 또는 active TAM
+  // 2026-05-11 Phase 2-C — super_admin 우대 추가 (운영자 페이지 진입 차단 회귀 fix).
+  if (session.role !== "super_admin") {
+    const isOrganizer = tournament.organizerId === userId;
+    if (!isOrganizer) {
+      const member = await prisma.tournamentAdminMember.findFirst({
+        where: { tournamentId: id, userId, isActive: true },
+      });
+      if (!member) notFound();
+    }
   }
 
   const status = tournament.status ?? "draft";
