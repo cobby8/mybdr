@@ -14,6 +14,8 @@ import {
 } from "@/lib/security/login-attempts";
 import { DUMMY_HASH } from "@/lib/security/constants";
 import { findUnmatchedReferee, executeMatch } from "@/lib/services/referee-matching";
+// 2026-05-12 로그인 redirect 통합 — open redirect 방어 단일 source
+import { safeRedirect } from "@/lib/auth/redirect";
 
 /**
  * 로그인 성공 후 사전 등록 심판 자동 매칭 시도.
@@ -138,8 +140,9 @@ export async function loginAction(_prevState: LoginActionState, formData: FormDa
 
   // 2026-05-05 fix: redirect → success 반환 (클라이언트 hard reload 위임).
   //   revalidatePath 도 제거 — 클라이언트 hard reload = fresh request 라 layout 캐시 무관.
-  const validRedirect = redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//");
-  return { success: true, redirectTo: validRedirect ? redirectTo : "/" };
+  // 2026-05-12: open redirect 방어 통합 — safeRedirect(input, fallback) 사용 ("/" 기본).
+  //   추가 가드: /login / /api/ / 2000자 초과 / protocol-relative URL 모두 차단 (redirect.ts §isValidRedirect).
+  return { success: true, redirectTo: safeRedirect(redirectTo, "/") };
 }
 
 export async function signupAction(_prevState: { error: string } | null, formData: FormData) {

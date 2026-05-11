@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOAuthStartUrl } from "@/lib/auth/oauth";
+// 2026-05-12 로그인 redirect 통합 — open redirect 방어 단일 source
+import { isValidRedirect } from "@/lib/auth/redirect";
 
 /**
  * OAuth 로그인 시작점.
- * redirect 쿼리 파라미터가 있으면 쿠키에 저장하여
- * 콜백(handleOAuthLogin)에서 로그인 완료 후 해당 경로로 복귀할 수 있게 한다.
+ *
+ * redirect 쿼리 파라미터가 있으면 `bdr_redirect` 쿠키에 저장하여
+ * 콜백 (handleOAuthLogin) 에서 로그인 완료 후 해당 경로로 복귀할 수 있게 한다.
+ *
+ * 2026-05-12: 로컬 isValidRedirect 제거 → `@/lib/auth/redirect` 단일 source 로 통일.
+ *   추가 가드: /login / /api/ / 2000자 초과 / protocol-relative URL 모두 차단.
  */
-
-// redirect 경로 검증: 내부 경로만 허용 (외부 URL, 프로토콜 상대 URL 차단)
-function isValidRedirect(path: string): boolean {
-  return path.startsWith("/") && !path.startsWith("//");
-}
-
 export async function GET(req: NextRequest) {
   const provider = req.nextUrl.searchParams.get("provider") as "kakao" | "naver" | "google";
   if (!provider || !["kakao", "naver", "google"].includes(provider)) {
@@ -21,9 +21,9 @@ export async function GET(req: NextRequest) {
   const oauthUrl = getOAuthStartUrl(provider);
   const response = NextResponse.redirect(oauthUrl);
 
-  // redirect 파라미터가 유효하면 쿠키에 저장 (5분 TTL)
+  // redirect 파라미터가 유효하면 쿠키에 저장 (5분 TTL) — OAuth 콜백 이 읽어 복귀 처리.
   const redirectPath = req.nextUrl.searchParams.get("redirect");
-  if (redirectPath && isValidRedirect(redirectPath)) {
+  if (isValidRedirect(redirectPath)) {
     response.cookies.set("bdr_redirect", redirectPath, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

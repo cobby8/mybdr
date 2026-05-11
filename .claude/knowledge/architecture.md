@@ -2,6 +2,20 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-12] 로그인 redirect 흐름 통합 — middleware + 헬퍼 단일 source
+- **분류**: architecture (인증 흐름 인프라)
+- **발견자**: developer
+- **내용**:
+  - **핵심 파일 2 신규**:
+    - `src/lib/auth/redirect.ts` — `isValidRedirect` / `buildLoginRedirect` / `safeRedirect` + `REDIRECT_QUERY_KEY` 상수. open redirect 방어 단일 source.
+    - `src/middleware.ts` — Next.js middleware. matcher = `/admin/*` + `/tournament-admin/*` 만. `x-pathname` + `x-search` 헤더 주입 → server layout 이 `headers()` 로 읽음.
+  - **사유**: Next.js App Router 의 server layout 은 현재 pathname 을 props 로 받지 못함. middleware 가 헤더 주입해야 layout 에서 `buildLoginRedirect(pathname, search)` 호출 가능.
+  - **흐름**: 비로그인 → 보호 페이지 → middleware (헤더 주입) → layout (`buildLoginRedirect`) → `/login?redirect=%2F...` → 로그인 페이지 (hidden input) → loginAction (`safeRedirect`) → window.location.href = 원래 페이지.
+  - **OAuth 흐름**: `/api/auth/login?redirect=...` → `bdr_redirect` 쿠키 (5분 TTL) 박제 → 카카오 인증 → `handleOAuthLogin` 이 쿠키 read + delete → safeRedirect 통과 → 원래 페이지 복귀.
+  - **쿼리 파라미터 통일**: `redirect` 하나만 사용 (기존 `next` / `returnTo` deprecation — 잔존 7+ 파일 후속 큐).
+  - **matcher 최소화**: Flutter v1 (`/api/v1/*`) / 일반 웹 영향 0. 다른 라우트에 헤더 주입 안 함 (성능 영향 0).
+- **참조횟수**: 0
+
 ### [2026-05-11] 유소년 코치 신청서 + 자녀 claim 모델 — 신규 3 + TTP 확장 (Phase 1)
 - **분류**: architecture/data-model (유소년 일괄 등록 / 매직링크 claim)
 - **발견자**: developer / pm

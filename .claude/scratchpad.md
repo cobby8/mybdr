@@ -590,9 +590,99 @@ if (data.series_id !== undefined):
 
 ---
 
+## 구현 기록 (developer) — 로그인 redirect 흐름 통합
+
+📝 구현 범위: 비로그인 → 보호 페이지 → 로그인 페이지 → 원래 페이지 자동 복귀 흐름 통일 (admin / tournament-admin / guest-apply / report + OAuth 콜백). 분산된 isValidRedirect 단일 source 화.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 | 줄수 |
+|------|------|---------|-----|
+| `src/lib/auth/redirect.ts` | `isValidRedirect` / `buildLoginRedirect` / `safeRedirect` 3 헬퍼 + `REDIRECT_QUERY_KEY` 상수. open redirect 방어 7 케이스 (외부 URL / protocol-relative / /login / /api/ / 2000자 / 절대 경로 / null) | 신규 | 110 |
+| `src/middleware.ts` | matcher = `/admin/*` + `/tournament-admin/*` 만. `x-pathname` + `x-search` 헤더 주입 → layout 이 headers() 로 읽음. Flutter v1 / 일반 웹 영향 0 | 신규 | 55 |
+| `src/app/(admin)/admin/layout.tsx` | redirect("/login") → `redirect(buildLoginRedirect(pathname, search))`. headers() 에서 x-pathname / x-search 읽음 (fallback "/admin") | 수정 | +6 |
+| `src/app/(admin)/tournament-admin/layout.tsx` | 동일 패턴 (fallback "/tournament-admin"). 권한 부족 케이스 (no_permission) 는 redirect 쿼리 동봉 안 함 — 다른 계정 로그인 권유 | 수정 | +6 |
+| `src/app/(web)/games/[id]/guest-apply/page.tsx` | `/login?next=...` → `buildLoginRedirect("/games/{id}/guest-apply")` | 수정 | +2 |
+| `src/app/(web)/games/[id]/report/page.tsx` | `/login?returnTo=...` → `buildLoginRedirect("/games/{id}/report")` | 수정 | +2 |
+| `src/app/(web)/login/page.tsx` | 로컬 isValidRedirect 제거 → `safeRedirect(rawRedirect, "")` 사용. 기존 인터페이스 (string \| null) 보존 | 수정 | +3 -4 |
+| `src/app/actions/auth.ts` (loginAction) | redirectTo 검증 → `safeRedirect(redirectTo, "/")` 단일 호출. /login / /api/ / 2000자 추가 가드 | 수정 | +2 -1 |
+| `src/lib/auth/oauth.ts` (handleOAuthLogin) | OAuth 콜백에서 `bdr_redirect` 쿠키 읽고 → safeRedirect 통과 → 원래 페이지 복귀. 쿠키 즉시 삭제 (재사용 방지) | 수정 | +10 -2 |
+| `src/app/api/auth/login/route.ts` | 로컬 isValidRedirect 제거 → `@/lib/auth/redirect` 통일 | 수정 | +3 -5 |
+| `src/__tests__/lib/auth/redirect.test.ts` | 19 케이스 (isValidRedirect 7 / buildLoginRedirect 6 / safeRedirect 4 + javascript: 차단 1 + 쿼리스트링 보존 1) | 신규 | 155 |
+
+### 핵심 결정 — middleware로 x-pathname 헤더 주입
+| 옵션 | 채택 사유 |
+|------|---------|
+| (A) middleware 신규 ✅ | matcher 로 `/admin/*` + `/tournament-admin/*` 만 — 다른 라우트 영향 0. layout 이 headers() 로 단순 read. |
+| (B) headers().get("referer") | 외부 사이트에서 진입 시 빈 값 가능. SPA 라우팅 시 잘못된 값 가능. |
+| (C) 각 page.tsx server component 가드 | 페이지마다 동일 가드 반복. layout 룰 부분 회귀 + 변경 범위 큼. |
+
+### 보안 가드 (open redirect 방어)
+- 외부 URL (`https://evil.com`) 차단
+- protocol-relative URL (`//evil.com` — 브라우저가 외부로 해석) 차단
+- 로그인 페이지 자체 (`/login` `/login?...` `/login/...`) 차단 → 무한 루프 방지
+- API 경로 (`/api/...`) 차단
+- 2000자 초과 차단 (DoS / 로그 오염 방지)
+- javascript: / data: 의사 프로토콜 차단 (절대 경로 검증으로 자동 차단)
+
+### 흐름 검증 (수동 시나리오)
+1. 비로그인 → `/tournament-admin/tournaments/123/wizard` 접근 → middleware 가 `x-pathname` 주입 → layout 이 `/login?redirect=%2Ftournament-admin%2Ftournaments%2F123%2Fwizard` 로 redirect → 로그인 페이지가 hidden input 으로 redirect 보존 → 로그인 성공 → window.location.href = `/tournament-admin/tournaments/123/wizard` (auth.ts loginAction 의 safeRedirect 통과)
+2. 비로그인 → `/admin/users` 접근 → 동일 흐름 (`/login?redirect=%2Fadmin%2Fusers`)
+3. 카카오 로그인 → `/login?redirect=/tournament-admin/...` → 카카오 버튼 클릭 (URL 에 `?redirect=` 동봉) → `/api/auth/login` 이 `bdr_redirect` 쿠키 박제 (5분 TTL) → 카카오 인증 → OAuth 콜백 (`handleOAuthLogin`) 이 쿠키 읽고 safeRedirect 통과 → 원래 페이지 복귀
+4. 권한 부족 (admin 역할 없음) → `/login?error=no_permission` (redirect 쿼리 미동봉 — 다른 계정 로그인 권유)
+5. open redirect 시도 (`?redirect=https://evil.com`) → safeRedirect fallback → `/` 로 안전 redirect
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (EXIT=0) |
+| vitest 신규 redirect.test.ts | 19/19 PASS (isValidRedirect 7 + buildLoginRedirect 6 + safeRedirect 4 + javascript 차단 1 + 쿼리 보존 1) |
+| vitest 전체 회귀 | 506/506 PASS (이전 487 + 신규 19) |
+| BigInt(N)n 패턴 | 0 (auth 도메인 무관) |
+| 핑크/살몬/코랄 hex | 0 (백엔드 / 테스트 전용) |
+| Flutter v1 영향 | 0 (`src/app/api/v1/` 에 redirect / oauth 호출 0) |
+| schema 변경 | 0 (코드만) |
+| 운영 DB 영향 | 0 (코드만) |
+| middleware matcher | `/admin/*` + `/tournament-admin/*` 만 → 다른 라우트 영향 0 |
+| AppNav frozen | 영향 0 (auth 도메인) |
+
+### tester 참고
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/lib/auth/redirect.test.ts` — 19 케이스 자동 검증
+  2. 수동 E2E (로그인 redirect):
+     - 비로그인 + 시크릿 모드 → https://mybdr-git-dev-mybdr.vercel.app/tournament-admin/tournaments/{id}/wizard 접근 → URL 이 `/login?redirect=%2Ftournament-admin%2F...` 로 이동 확인
+     - 이메일/비밀번호 로그인 → 자동으로 원래 wizard 페이지 복귀 확인
+     - `/admin/users` 같은 admin 페이지로도 동일 패턴 확인
+  3. 수동 E2E (카카오 OAuth):
+     - 비로그인 → `/tournament-admin/...` 접근 → 로그인 페이지의 "카카오" 버튼 클릭 (URL 에 redirect 쿼리 동봉됨) → 카카오 인증 → 원래 페이지 복귀 확인
+  4. 보안 검증:
+     - URL 에 직접 `?redirect=https://evil.com` 입력 후 로그인 → 외부 사이트 이동 안 됨 / `/` 로 안전 redirect 확인
+     - `?redirect=//evil.com` → 동일 차단 확인
+     - `?redirect=/login` → 무한 루프 안 발생 / `/` 로 fallback 확인
+- 정상 동작:
+  - 비로그인 admin 접근 → 로그인 후 정확히 원래 페이지로
+  - guest-apply / report 페이지도 동일 (쿼리명 `next` `returnTo` → `redirect` 통일됨)
+  - OAuth 콜백도 `bdr_redirect` 쿠키 읽어 복귀
+- 주의할 입력:
+  - admin layout의 권한 부족 (no_permission) 케이스는 redirect 쿼리 미동봉 — 정상 (다른 계정 로그인 권유)
+  - verify 흐름 (`/verify?missing=...`) 진입 시 redirect 쿠키 이미 삭제 — verify 후 home 으로 (verify 가 자체 next 처리 안 함). 후속 개선 필요 시 verify 페이지가 next 쿼리 처리 추가.
+
+### reviewer 참고
+- **middleware 도입 결정**: 명세 §주의사항에서 "옵션 A(headers) / B(middleware) / C(page guard)" 검토 요청. A 는 referer 헤더 신뢰성 낮음 (외부 진입 시 빈 값). C 는 페이지마다 가드 중복 + 변경 범위 큼. B 가 단일 진입점 + matcher 로 영향 최소화 — 채택.
+- **matcher 정밀화**: `/admin/:path*` 와 `/tournament-admin/:path*` 만 — `/api/*` `/_next/*` `/login` `/games` `/teams` 등 모두 matcher 외 (성능 영향 0). Flutter v1 (`/api/v1/*`) 도 영향 0 (matcher 제외).
+- **분산 isValidRedirect 단일화**: 기존 3 파일 (login/page.tsx / api/auth/login/route.ts / 본 신규 redirect.ts) 에 각자 다른 검증 로직 존재 → 본 PR 로 단일 source. 추가 룰 (`/login` / `/api/` / 2000자 차단) 도 일괄 적용.
+- **OAuth 콜백 verify 진입 시 redirect 손실 의도적**: handleOAuthLogin 에서 verify 흐름 진입 시 `bdr_redirect` 쿠키 삭제 후 redirect — 사용자가 verify 후 home 으로 (원래 페이지 복귀 X). 사유: verify = 사용자 정보 보강 필수 흐름 (email / phone), 다른 페이지 진행 전 완료해야 함. 후속 개선 필요 시 verify 페이지가 next 쿼리 처리 추가 — 본 PR 범위 외.
+- **명세에 명시 안 된 동일 패턴 잔존**: grep 결과 다른 페이지들 (`teams/manage`, `teams/[id]/_components_v2/team-*-button`, `tournaments/[id]/_components/v2-registration-sidebar`, `lineup-confirm/[matchId]`, 등) 에 `?next=` `?returnTo=` 패턴 잔존 7 건. 명세 §대상 파일 4건만 변경 (변경 범위 최소화 룰 준수). 후속 큐: 동일 통합 패턴으로 일괄 정리 필요.
+- **identity 흐름은 분리**: `/onboarding/identity?returnTo=...` 는 본인인증 흐름 (로그인 흐름과 별개). 통일하지 않고 그대로 보존 — 도메인 분리 유지.
+- **report-form 클라이언트 컴포넌트**: `report-form.tsx:166` 에 `router.replace(/login?returnTo=...)` 잔존. 본 PR 은 server page.tsx 만 변경 — 클라이언트 측은 인증 만료 후 redirect 흐름 (다른 케이스). 후속 통합 검토 필요.
+
+⚠️ **주의 (후속 큐)**: 동일 통합 패턴 적용 대상 7+ 파일 (`?next=` `?returnTo=` 잔존) — 별도 PR 로 일괄 정리 권장. 본 PR 의 헬퍼 (`buildLoginRedirect` / `safeRedirect`) 그대로 재사용 가능.
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[로그인 redirect 흐름 통합]** `src/lib/auth/redirect.ts` 신규 (isValidRedirect / buildLoginRedirect / safeRedirect 3 헬퍼 + open redirect 7 가드) + `src/middleware.ts` 신규 (matcher `/admin/*` + `/tournament-admin/*` 만 → x-pathname 헤더 주입) + admin/tournament-admin layout (현재 경로 redirect 쿼리 동봉) + guest-apply (`?next=` → `?redirect=`) + report (`?returnTo=` → `?redirect=`) + login page / auth.ts / oauth.ts / api/auth/login/route.ts 분산 isValidRedirect 단일 source 통일 + OAuth 콜백 bdr_redirect 쿠키 read+delete 복귀. tsc 0 / vitest 506/506 (+19). 회귀 0. schema 변경 0. Flutter v1 영향 0. 후속 큐 = 동일 패턴 잔존 7+ 파일 일괄 정리. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 5]** 서명 8 (Scorer/AsstScorer/Timer/ShotClock/Referee/Umpire1/Umpire2/Captain) + 노트 + signature-types/FooterSignatures 신규 + 헤더 → 풋터 자동 prefill (didPrefillRef dirty flag) + BFF settings.signatures JSON merge 통합 UPDATE (Phase 4 timeouts 와 단일 prisma.update). tsc 0 / vitest 487/487 (+10). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 4]** Time-outs Article 18-19 (전반2/후반3/OT각1) + timeout-types/helpers 신규 + team-section TIME-OUTS 활성화 + score-sheet-form state/handler + BFF settings.timeouts JSON merge UPDATE (recording_mode 키 보존). tsc 0 / vitest 477/477 (+30). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[대회-시리즈 연결 흡수 모달 PR3]** GET /api/web/tournaments/my-unlinked (본인 미연결 draft/reg 대회) + POST /api/web/series/[id]/absorb-tournaments (다건 흡수 skip 패턴 / $transaction 카운터 group by) + AbsorbTournamentsModal (체크박스 다건 + 2단계 confirm + var(--*) 토큰 + Material Symbols + 44px+) + 단체 페이지 시리즈 카드 "기존 대회 가져오기" 버튼. vitest 477/477 (+8). tsc 0. 디자인 13 룰 위반 0. Flutter v1 영향 0. schema 변경 0. 운영 DB 영향 0. | ✅ |
