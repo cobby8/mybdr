@@ -824,6 +824,8 @@ export function ScoreSheetForm({
         // 라인업이 한 번도 확정 안 된 상태 = 취소 불가 (양식 진입 차단)
         // 이미 확정된 상태에서 "라인업 다시 선택" = 취소 허용 (모달 닫기)
         onCancel={lineup !== null ? () => setLineupModalOpen(false) : undefined}
+        // Phase 7.1 — 12명 cap 경고 / 13번째 차단 toast 책임 주입
+        onToast={showToast}
       />
 
       {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기) */}
