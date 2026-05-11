@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+// 2026-05-12 PR3 — "기존 대회 가져오기" 모달 (다건 흡수)
+import AbsorbTournamentsModal from "./_components/AbsorbTournamentsModal";
 
 /* ============================================================
  * 단체 대시보드 — /tournament-admin/organizations/[orgId]
@@ -42,8 +44,9 @@ export default function OrganizationDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // 단체 정보 로드
-  useEffect(() => {
+  // 단체 정보 로드 — useCallback 으로 박제 (PR3 모달 onSuccess 시 재호출 위해).
+  const loadOrg = useCallback(() => {
+    setLoading(true);
     fetch(`/api/web/organizations/${orgId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -67,22 +70,33 @@ export default function OrganizationDashboardPage() {
           seriesCount: data.series_count,
           myRole: data.my_role,
           members: (data.members || []).map((m: Record<string, unknown>) => ({
-            id: m.id,
-            nickname: m.nickname,
-            role: m.role,
+            id: m.id as string,
+            nickname: m.nickname as string,
+            role: m.role as string,
           })),
           series: (data.series || []).map((s: Record<string, unknown>) => ({
-            id: s.id,
-            name: s.name,
-            slug: s.slug,
-            tournamentsCount: s.tournaments_count ?? 0,
-            createdAt: s.created_at,
+            id: s.id as string,
+            name: s.name as string,
+            slug: s.slug as string,
+            tournamentsCount: (s.tournaments_count as number) ?? 0,
+            createdAt: s.created_at as string,
           })),
         });
       })
       .catch(() => setError("단체 정보를 불러올 수 없습니다."))
       .finally(() => setLoading(false));
   }, [orgId]);
+
+  useEffect(() => {
+    loadOrg();
+  }, [loadOrg]);
+
+  // 2026-05-12 PR3 — "기존 대회 가져오기" 모달 trigger state.
+  // open 시 어떤 시리즈 카드의 버튼을 눌렀는지 기억해야 모달에 seriesId/seriesName/orgName 전달.
+  const [absorbModalSeries, setAbsorbModalSeries] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // 새 시리즈 생성 (단체 소속으로)
   const [creatingSeriesName, setCreatingSeriesName] = useState("");
@@ -300,27 +314,58 @@ export default function OrganizationDashboardPage() {
           </div>
         )}
 
-        {/* 시리즈 목록 */}
+        {/* 시리즈 목록
+            2026-05-12 PR3 — 각 시리즈 카드 우측에 "기존 대회 가져오기" 버튼 추가 (운영자만).
+            시리즈 진입 Link 와 분리하기 위해 카드 컨테이너는 div 로, "상세 진입"은 별도 Link 로 박제.
+        */}
         {org.series.length > 0 ? (
           <div className="space-y-2">
             {org.series.map((s) => (
-              <Link
+              <div
                 key={s.id}
-                href={`/tournament-admin/series/${s.id}`}
                 className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]"
               >
-                <div>
-                  <p className="font-medium text-[var(--color-text-primary)]">
+                {/* 좌측: 시리즈 정보 — Link 로 진입 */}
+                <Link
+                  href={`/tournament-admin/series/${s.id}`}
+                  className="min-w-0 flex-1"
+                >
+                  <p className="truncate font-medium text-[var(--color-text-primary)]">
                     {s.name}
                   </p>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     대회 {s.tournamentsCount}개 · {s.slug}
                   </p>
+                </Link>
+                {/* 우측: 액션 버튼 + 진입 화살표 */}
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        // Link 클릭 전파 차단 — 버튼 클릭 시 시리즈 상세 진입 X.
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAbsorbModalSeries({ id: s.id, name: s.name });
+                      }}
+                      className="flex min-h-[44px] items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        folder_managed
+                      </span>
+                      기존 대회 가져오기
+                    </button>
+                  )}
+                  <Link
+                    href={`/tournament-admin/series/${s.id}`}
+                    aria-label={`${s.name} 상세 진입`}
+                  >
+                    <span className="material-symbols-outlined text-[var(--color-text-muted)]">
+                      chevron_right
+                    </span>
+                  </Link>
                 </div>
-                <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-                  chevron_right
-                </span>
-              </Link>
+              </div>
             ))}
           </div>
         ) : (
@@ -329,6 +374,20 @@ export default function OrganizationDashboardPage() {
           </p>
         )}
       </div>
+
+      {/* 2026-05-12 PR3 — 기존 대회 가져오기 모달.
+          단체 정보 (name) 는 org 에서, 시리즈 정보는 absorbModalSeries state 에서 전달.
+          onSuccess: loadOrg 재호출하여 시리즈 카운터 갱신 (tournaments_count). */}
+      {absorbModalSeries && org && (
+        <AbsorbTournamentsModal
+          open={!!absorbModalSeries}
+          onClose={() => setAbsorbModalSeries(null)}
+          seriesId={absorbModalSeries.id}
+          seriesName={absorbModalSeries.name}
+          organizationName={org.name}
+          onSuccess={loadOrg}
+        />
+      )}
     </div>
   );
 }

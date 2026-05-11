@@ -185,6 +185,19 @@ export default function TournamentEditWizardPage() {
   // 기존 settings 원본 — 저장 시 머지용 (다른 키 유실 방지)
   const [rawSettings, setRawSettings] = useState<Record<string, unknown>>({});
 
+  // --- 시리즈 연결 (2026-05-12 PR2) ---
+  // 이유: 운영자가 본인 보유 시리즈에 대회를 사후 연결/분리 가능 (PATCH series_id).
+  //   초기값 = DB tournament.series_id (없으면 null). 드롭다운 변경 시 confirm 후 state 반영.
+  // 드롭다운 라벨: "시리즈명 (단체명)" — 단체 미연결 시리즈는 "(단체 미연결)" 박제.
+  type SeriesOption = {
+    id: string;
+    name: string;
+    organization: { id: string; name: string; slug: string } | null;
+  };
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
+  const [seriesLoaded, setSeriesLoaded] = useState(false);
+
   // --- Step 3: 디자인 ---
   const [designTemplate, setDesignTemplate] = useState("basic");
   const [logoUrl, setLogoUrl] = useState("");
@@ -280,6 +293,15 @@ export default function TournamentEditWizardPage() {
       setRawSettings(settings);
       setContactPhone((settings.contact_phone as string) ?? "");
 
+      // 시리즈 연결 초기값 — apiSuccess 응답이 snake_case 변환되므로 series_id 키 우선,
+      // 폴백으로 seriesId (혹시 변환 누락) 도 검사. null 이면 미연결.
+      const initialSeriesId = (t.series_id ?? t.seriesId ?? null) as string | number | bigint | null;
+      setSeriesId(
+        initialSeriesId === null || initialSeriesId === undefined
+          ? null
+          : String(initialSeriesId),
+      );
+
       // 대진 포맷 세부 설정 복원
       // settings.bracket이 없으면 format 기반 기본값으로 초기화
       const bracket = (settings.bracket ?? {}) as Record<string, unknown>;
@@ -322,6 +344,35 @@ export default function TournamentEditWizardPage() {
     loadTournament();
   }, [loadTournament]);
 
+  // 본인 보유 시리즈 목록 로드 — 드롭다운 옵션 (2026-05-12 PR2).
+  // 이유: wizard 진입 시 1회만 호출, 변경 없음. 실패해도 wizard 자체는 계속 사용 가능 (드롭다운만 빈 상태).
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSeries() {
+      try {
+        const res = await fetch("/api/web/series/my");
+        if (!res.ok) {
+          // 401/500 등 — 드롭다운 비활성 상태로 두고 wizard 진행은 허용.
+          if (!cancelled) setSeriesLoaded(true);
+          return;
+        }
+        const json = await res.json();
+        // apiSuccess 가 한 번 감싸므로 json.data.data 형식. 폴백 추가.
+        const list: SeriesOption[] = (json.data?.data ?? json.data ?? []) as SeriesOption[];
+        if (!cancelled) {
+          setSeriesOptions(list);
+          setSeriesLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setSeriesLoaded(true);
+      }
+    }
+    loadSeries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약/분기용)
   // 2026-05-04 (P3) — dual_tournament 로 변경 시 표준 default 자동 적용
   //   기존 dual 대회는 loadTournament 가 settings.bracket 복원 (semifinalPairing 보존)
@@ -345,6 +396,71 @@ export default function TournamentEditWizardPage() {
       return { ...prev, format };
     });
   }, [format]);
+
+  // 시리즈 드롭다운 status 가드 (2026-05-12 PR2)
+  // 이유: 진행 중/종료된 대회는 시리즈 "변경" 금지 (PR1 API status 가드와 동일).
+  //   다만 "분리(null)" 는 항상 허용 — UI 에서는 변경 자체를 disabled 하고,
+  //   사용자가 분리를 원하면 안내 텍스트로 "현재 대회 상태 변경 후 시도" 안내.
+  //   (분리만 활성화는 후순위 — 본 PR 은 단순 disabled 처리.)
+  const seriesEditAllowed = status === "draft" || status === "registration_open" || status === "registration";
+
+  // 드롭다운 변경 시 confirm 모달용 state.
+  const [pendingSeriesChange, setPendingSeriesChange] = useState<{
+    newSeriesId: string | null;
+    message: string;
+  } | null>(null);
+
+  // 드롭다운 onChange 핸들러 — 즉시 반영 X, 모달 띄워 확인 후 반영.
+  function handleSeriesChange(rawValue: string) {
+    // value="" → null(분리), value="<id>" → 연결
+    const newId: string | null = rawValue === "" ? null : rawValue;
+
+    // 변경 없음 → 모달 skip
+    if (newId === seriesId) return;
+
+    // 메시지 동적 분기 (사용자 결재 §confirm 모달 룰):
+    //   - 시리즈 → 시리즈: "선택한 시리즈가 'X 단체'에 속해 있어요. 'X 단체' events 탭에 노출됩니다."
+    //   - 시리즈 → null: "현재 'X 단체' events 탭에서 사라집니다."
+    //   - null → 시리즈: "'X 단체' events 탭에 노출됩니다."
+    const currentOption = seriesId ? seriesOptions.find((s) => s.id === seriesId) : null;
+    const newOption = newId ? seriesOptions.find((s) => s.id === newId) : null;
+    const currentOrgName = currentOption?.organization?.name;
+    const newOrgName = newOption?.organization?.name;
+
+    let message = "";
+    if (newId === null) {
+      // 분리
+      if (currentOrgName) {
+        message = `현재 '${currentOrgName}' events 탭에서 사라집니다. 진행하시겠어요?`;
+      } else {
+        message = "이 대회를 시리즈에서 분리합니다. 진행하시겠어요?";
+      }
+    } else if (seriesId === null) {
+      // 신규 연결
+      if (newOrgName) {
+        message = `'${newOrgName}' events 탭에 노출됩니다. 진행하시겠어요?`;
+      } else {
+        message = `선택한 시리즈 '${newOption?.name}' 에 연결합니다 (단체 미연결). 진행하시겠어요?`;
+      }
+    } else {
+      // 시리즈 → 시리즈
+      if (newOrgName) {
+        message = `선택한 시리즈가 '${newOrgName}' 에 속해 있어요. '${newOrgName}' events 탭에 노출됩니다. 진행하시겠어요?`;
+      } else {
+        message = `선택한 시리즈 '${newOption?.name}' 으로 이동합니다 (단체 미연결). 진행하시겠어요?`;
+      }
+    }
+
+    setPendingSeriesChange({ newSeriesId: newId, message });
+  }
+
+  // confirm 모달 확정 → state 반영 (실제 PATCH 는 wizard 최종 저장 시).
+  function confirmSeriesChange() {
+    if (pendingSeriesChange) {
+      setSeriesId(pendingSeriesChange.newSeriesId);
+    }
+    setPendingSeriesChange(null);
+  }
 
   // 다음 단계 이동 — Step 0에서 대회명 필수 검증
   function goNext() {
@@ -375,6 +491,9 @@ export default function TournamentEditWizardPage() {
           name,
           format,
           status,
+          // 시리즈 연결 (2026-05-12 PR2) — null=분리, "8"=연결.
+          // PR1 API 는 series_id 키 (snake_case) 그대로 받음 + 카운터 동기화/$transaction 처리.
+          series_id: seriesId,
           description: description || null,
           organizer: organizer || null,
           host: host || null,
@@ -544,6 +663,40 @@ export default function TournamentEditWizardPage() {
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
+            </div>
+
+            {/*
+              소속 시리즈 (2026-05-12 PR2)
+              - 운영자 본인 시리즈 목록에서 선택 / 미연결 옵션 포함
+              - 라벨 형식: "시리즈명 (단체명)" — 단체 미연결 시리즈는 "(단체 미연결)"
+              - status 가 in_progress/completed 면 disabled + 안내 텍스트 ("진행 중인 대회는 분리만 가능")
+              - 변경 시 confirm 모달 → 확정 후 state 반영, PATCH 는 wizard 저장 시점에 일괄 호출
+            */}
+            <div>
+              <label className={labelCls}>소속 시리즈</label>
+              <select
+                value={seriesId ?? ""}
+                onChange={(e) => handleSeriesChange(e.target.value)}
+                className={inputCls}
+                disabled={!seriesEditAllowed || !seriesLoaded}
+              >
+                <option value="">— 미연결 —</option>
+                {seriesOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.organization?.name ?? "단체 미연결"})
+                  </option>
+                ))}
+              </select>
+              {!seriesEditAllowed && (
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  진행 중인 대회는 분리만 가능합니다 (현재 상태 변경 후 재시도).
+                </p>
+              )}
+              {seriesEditAllowed && seriesOptions.length === 0 && seriesLoaded && (
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  보유한 시리즈가 없습니다. 단체 페이지에서 시리즈를 먼저 생성하세요.
+                </p>
+              )}
             </div>
 
             {/* 주최 / 주관 / 후원사 */}
@@ -1064,6 +1217,49 @@ export default function TournamentEditWizardPage() {
           >
             이전 단계로
           </button>
+        </div>
+      )}
+
+      {/*
+        시리즈 변경 confirm 모달 (2026-05-12 PR2)
+        - 단체 events 탭 노출/제거 영향을 명시적으로 알림
+        - 취소 시 드롭다운 값 변경 X (handleSeriesChange 는 setSeriesId 전에 모달만 띄움)
+        - 확정 시 setSeriesId — 실제 PATCH 는 wizard 최종 저장 버튼에서
+        - 디자인: var(--color-*) 토큰만, rounded-md, 44px+ 터치 영역
+      */}
+      {pendingSeriesChange && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setPendingSeriesChange(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-md bg-[var(--color-surface)] p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-[var(--color-text-primary)]">
+              <span className="material-symbols-outlined text-lg text-[var(--color-accent)]">info</span>
+              시리즈 변경 확인
+            </h3>
+            <p className="mb-5 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+              {pendingSeriesChange.message}
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingSeriesChange(null)}
+                className="flex-1 rounded-[4px] border border-[var(--color-border)] px-4 py-3 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={confirmSeriesChange}
+                className="flex-1 rounded-[4px] bg-[var(--color-accent)] px-4 py-3 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
