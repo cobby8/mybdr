@@ -1,0 +1,170 @@
+/**
+ * FIBA SCORESHEET 인쇄 CSS — Phase 6 (2026-05-12).
+ *
+ * 왜 (이유):
+ *   FIBA 양식 = A4 세로 1 페이지 종이 기록지. 운영자가 경기 종료 후 "인쇄" 버튼 1번
+ *   클릭으로 시안 그대로 종이 PDF 저장 / 출력 가능해야 함. 의존성 0 (`window.print()` 만).
+ *
+ *   기존 `globals.css` `@media print` = 박스스코어 A4 가로 (landscape) 룰 박제됨.
+ *   본 파일 = score-sheet 페이지 전용 A4 세로 (portrait) 룰 — 스코프 prefix
+ *   `.score-sheet-print-root` 로 박스스코어 인쇄 룰과 충돌 회피.
+ *
+ * 방법 (어떻게):
+ *   - `@page :score-sheet { size: A4 portrait; margin: 8mm }` — FIBA 양식 여백 정합
+ *   - `.no-print` 클래스 = 인쇄 시 제거 (toolbar / 모달 / Toast / 안내 카드 등)
+ *   - `.score-sheet-print-root` 안의 5 영역 (FibaHeader / TeamSection 2개 /
+ *     RunningScoreGrid / PeriodScoresSection / FooterSignatures) 인쇄 시 비율 정합
+ *   - 다크모드 (html.dark / [data-theme="dark"]) 진입 시도 시 인쇄 = 항상 라이트
+ *     배경 흰 + 텍스트 검정 강제 (--color-* 토큰 인쇄 override)
+ *
+ * 절대 룰:
+ *   - var(--*) 토큰만 (인쇄 시 override 도 토큰 단)
+ *   - lucide-react ❌ (Material Symbols 만 — 인쇄 시 글꼴 fallback)
+ *   - 빨강 본문 텍스트 ❌ (인쇄 시 모든 텍스트 검정 강제)
+ *   - 박스 border 1px solid 회색 (#cccccc — FIBA 양식 정합)
+ *   - 한 페이지 강제 (page-break-after: always)
+ */
+
+/* ============================================================
+   @media print — score-sheet 페이지 진입 시 적용
+   ============================================================ */
+@media print {
+  /* @page = score-sheet 전용 페이지 룰 (A4 세로).
+     이유: 기존 globals.css 의 @page size: A4 landscape 와 충돌 회피 위해
+     score-sheet 루트 wrapper 안에서 별도 size override. */
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  /* 사이트 wide 모바일 가드 무력화 (errors.md 박스스코어 fix 와 동일 패턴) */
+  html,
+  body {
+    max-width: none !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* `no-print` = 인쇄 시 완전히 제거.
+     적용 대상: toolbar (← 매치 관리로 / PrintButton / ThemeToggle) /
+     FoulTypeModal / PlayerSelectModal / MatchEndButton / 안내 카드 */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Toast 컨테이너 (toast-context.tsx) — class 직접 추가 불가 (공용 컴포넌트).
+     `aria-live="polite"` + `z-[9999]` 시그너처로 식별 후 인쇄 시 숨김 */
+  [aria-live="polite"].fixed,
+  [aria-live="polite"][class*="z-["] {
+    display: none !important;
+  }
+
+  /* ============================================================
+     score-sheet 인쇄 root 스코프 — A4 세로 정합 영역
+     ============================================================ */
+  .score-sheet-print-root {
+    /* 한 페이지 강제 — 5 영역 합본 후 자동 다음 페이지 진입 차단.
+       Phase 6 = 1 페이지 양식. 2 페이지 분할은 Phase 7 후속 (현재 미지원). */
+    page-break-inside: avoid;
+    /* 인쇄 시 좌우 여백 0 — @page margin 8mm 가 흡수 */
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    /* 폰트 = 한글 정합 + FIBA 양식 시안과 비슷한 톤 */
+    font-family: 'Pretendard', system-ui, -apple-system, sans-serif !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* 인쇄 시 모든 자식 = 검정 텍스트 강제 (다크모드 / 토큰 빨강 본문 차단) */
+  .score-sheet-print-root *,
+  .score-sheet-print-root *::before,
+  .score-sheet-print-root *::after {
+    color: #000000 !important;
+    background: transparent !important;
+    /* shadow / blur / 효과 제거 */
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* 다만 의도된 박스/하이라이트는 회색 톤으로 살림.
+     이유: Time-outs / Team fouls 마킹 칸 = filled 식별 필요 (검정 ●). */
+  .score-sheet-print-root [aria-label*="마킹됨"] {
+    background: #e0e0e0 !important;
+  }
+
+  /* border = 회색 1px 통일 (FIBA 양식 정합) */
+  .score-sheet-print-root section,
+  .score-sheet-print-root table,
+  .score-sheet-print-root th,
+  .score-sheet-print-root td,
+  .score-sheet-print-root input,
+  .score-sheet-print-root textarea {
+    border-color: #cccccc !important;
+  }
+
+  /* input / textarea = 배경 흰 + 검정 텍스트 (라이트 강제).
+     border-bottom only 유지 (FIBA underscore 정합). */
+  .score-sheet-print-root input,
+  .score-sheet-print-root textarea {
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    opacity: 1 !important;
+  }
+
+  /* 5 영역 비율 정합 — 인쇄 시 작은 글꼴 + 좁은 패딩 */
+  .score-sheet-print-root section {
+    padding: 4px 8px !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* 좌·우 컬럼 = grid 2 컬럼 강제 (모바일 1 컬럼 viewport 인쇄해도 2 컬럼) */
+  .score-sheet-print-root .md\:grid-cols-2 {
+    display: grid !important;
+    grid-template-columns: 50% 50% !important;
+    gap: 6px !important;
+  }
+
+  /* 글꼴 크기 = 가독성 + 양식 정합 */
+  .score-sheet-print-root h1,
+  .score-sheet-print-root h2,
+  .score-sheet-print-root h3 {
+    font-size: 11pt !important;
+  }
+  .score-sheet-print-root table {
+    font-size: 8pt !important;
+  }
+  .score-sheet-print-root th,
+  .score-sheet-print-root td {
+    padding: 2px 3px !important;
+  }
+  .score-sheet-print-root input {
+    font-size: 9pt !important;
+    padding: 2px 4px !important;
+    min-height: auto !important;
+  }
+  .score-sheet-print-root textarea {
+    font-size: 9pt !important;
+    padding: 4px !important;
+    min-height: auto !important;
+    rows: 2;
+  }
+
+  /* Material Symbols 아이콘 = 인쇄 시 글꼴 fallback (browser 가 자동 처리) */
+  .score-sheet-print-root .material-symbols-outlined {
+    font-size: 10pt !important;
+  }
+
+  /* 마지막 안내 카드 / "Phase 진행 상태" 메시지 등 인쇄 불필요 영역
+     `no-print` 클래스로 직접 제거 (score-sheet-form.tsx 적용) */
+}

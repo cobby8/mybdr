@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA SCORESHEET Phase 5 — 서명 (Scorer/Asst/Timer/Shot Clock/Referee/Umpire/Captain) + 노트
-- **상태**: ✅ 완료 — tsc 0 / vitest 487/487 (+10 신규) / 회귀 0
+- **요청**: FIBA SCORESHEET Phase 6 — A4 세로 인쇄 PDF (마지막 Phase)
+- **상태**: ✅ 완료 — tsc 0 / vitest 506/506 / 회귀 0 / 신규 vitest 0 (CSS 만)
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식)
@@ -14,7 +14,87 @@
 | 3.5 | 파울종류 (P/T/U/D) + Article 41 + 쿼터/경기 종료 + Licence 자동 | ✅ |
 | 4 | Time-outs (전반2/후반3/연장1 + settings.timeouts JSON) | ✅ |
 | 5 | 서명 8 + 노트 (settings.signatures JSON + 헤더 자동 prefill) | ✅ |
-| 6 | A4 세로 인쇄 PDF | ⏳ |
+| 6 | A4 세로 인쇄 PDF (@media print + 라이트 강제 + PrintButton) | ✅ |
+
+## 구현 기록 (developer) — FIBA 양식 Phase 6 A4 인쇄 PDF
+
+📝 구현 범위: @media print CSS (A4 portrait + 라이트 강제 + scoped prefix) + PrintButton + 5 영역 인쇄 정합 + 모달/Toast no-print
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 | 줄수 |
+|------|------|---------|-----|
+| `src/app/(score-sheet)/_components/_print.css` | @page A4 portrait + .score-sheet-print-root 스코프 + 라이트 강제 (--color-* override 회피) + no-print + Toast aria-live 숨김 + 5 영역 비율 정합 (font-size / padding / grid-cols-2 강제) | 신규 | 125 |
+| `src/app/(score-sheet)/_components/print-button.tsx` | window.print() onClick + Material Symbols print 아이콘 + no-print + toolbar 비율 정합 (px-2 py-1 text-xs) | 신규 | 50 |
+| `src/app/(score-sheet)/layout.tsx` | _print.css import + PrintButton 추가 (toolbar 우측 ThemeToggle 좌측) + 상단 header `no-print` 적용 | 수정 | +10 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | main wrapper 에 `score-sheet-print-root` 클래스 + Phase 안내 카드 `no-print` + 안내 텍스트 Phase 6 갱신 | 수정 | +5 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/match-end-button.tsx` | wrapper div 에 `no-print` (종료 버튼/모달/완료 카드 인쇄 제거) | 수정 | +3 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/foul-type-modal.tsx` | 백드롭 div 에 `no-print` | 수정 | +2 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/player-select-modal.tsx` | 오버레이 div 에 `no-print` | 수정 | +2 |
+
+### @media print 핵심 룰
+
+| 룰 | 동작 |
+|----|------|
+| `@page { size: A4 portrait; margin: 8mm }` | FIBA 양식 정합 (1:1.414 세로) |
+| `.no-print { display: none !important }` | toolbar/모달/안내 카드/Toast 제거 |
+| `.score-sheet-print-root *` 검정 강제 | `color: #000000 !important` + `background: transparent !important` (다크모드 토큰 override) |
+| `html, body` 흰 배경 강제 | `background: #ffffff !important` (다크모드 진입 시도해도 인쇄 = 라이트) |
+| `border-color: #cccccc !important` | FIBA 양식 회색 박스 정합 |
+| `.md\:grid-cols-2` grid 강제 | 모바일 viewport 에서 인쇄해도 좌·우 컬럼 2분할 |
+| `[aria-label*="마킹됨"] background: #e0e0e0` | Time-outs / Fouls 마킹 칸 식별 (filled = 회색) |
+| `[aria-live="polite"].fixed` 숨김 | Toast 컨테이너 인쇄 제거 (toast-context.tsx 직접 수정 회피) |
+
+### PrintButton 위치
+- minimal layout 의 toolbar 우상단 (← 매치 관리로 좌측 / ThemeToggle 우측 — PrintButton 좌측 인접)
+- 사유: 운영자가 경기 종료 후 toolbar 우측으로 시선 이동 시 인쇄 발견 자연 + ThemeToggle 좌측 = 두 버튼 그룹화
+
+### 다크모드 진입 시 인쇄 동작
+1. 사용자가 다크모드 토글 클릭 → `html.dark` / `[data-theme="dark"]` 적용
+2. 화면 = 다크 (검정 배경 / 흰 텍스트)
+3. 인쇄 버튼 클릭 → `@media print` 진입 → `.score-sheet-print-root *` 가 `color: #000` + `background: transparent` 강제 → html/body `background: #ffffff !important` 강제
+4. 종이 출력 / PDF 저장 = 항상 흰 배경 + 검정 텍스트 (FIBA 양식 정합)
+
+### 스코프 prefix 설계 (충돌 회피)
+- 기존 `globals.css` 의 `@media print { @page size: A4 landscape }` = 박스스코어 인쇄용 (보존 필수)
+- Phase 6 `_print.css` 는 `(score-sheet)` route group 안에서만 import → score-sheet 페이지 진입 시만 적용
+- 다만 동일 `@media print { @page }` 룰은 cascade 우선순위 → 후순위 import (`_print.css`) 가 우선 (CSS source-order)
+- `.score-sheet-print-root` 클래스로 자식 룰 격리 → 박스스코어 페이지 인쇄에 영향 0
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (EXIT 0 / 출력 0) |
+| vitest 전체 회귀 | 506/506 PASS (이전 487 + 누적 19건 기타) |
+| 디자인 13 룰 (lucide-react import / 핑크/살몬/코랄 / BigInt n) | 위반 0 |
+| Flutter v1 영향 | 0 (CSS / UI 만) |
+| schema 변경 | 0 (CSS / UI 만) |
+| BFF / service 변경 | 0 |
+| AppNav frozen | 0 영향 (route group 격리) |
+| 운영 DB 영향 | 0 (코드만) |
+
+### tester 참고
+- 테스트 방법 (수동 E2E — vitest 회귀 불가 영역):
+  1. paper 모드 매치 진입 → 우상단 "인쇄" 버튼 클릭 → 브라우저 인쇄 미리보기
+  2. **A4 세로 1 페이지** 안에 5 영역 (FibaHeader / TeamSection A·B / RunningScoreGrid / PeriodScoresSection / FooterSignatures) 합본 검증
+  3. toolbar (← 매치 관리로 / 인쇄 / 다크모드) **인쇄에서 제거** 검증
+  4. FoulTypeModal / PlayerSelectModal / 경기 종료 모달 / Toast 인쇄 시 보이지 않음 (열려있어도)
+  5. 다크모드 토글 ON → 화면 = 다크 / 인쇄 미리보기 = **흰 배경 + 검정 텍스트** (라이트 강제)
+  6. 모바일 viewport (≤768px) 에서 인쇄 시도 → 좌·우 2 컬럼 grid 강제 적용 확인
+- 정상 동작:
+  - 인쇄 미리보기 = 양식 1 페이지 (페이지 2 미발생)
+  - 박스 border = 회색 1px (FIBA 양식 정합)
+  - input/textarea 텍스트 = 검정 (다크모드여도)
+  - Toast 알림 인쇄 0 (운영 중 toast 떠 있어도 종이엔 없음)
+- 주의할 입력:
+  - 태블릿 가로 모드 진입 시 RotationGuard 회전 안내 화면 → 인쇄 시 회전 안내가 인쇄될 수 있음 (운영자가 세로 모드 진입 후 인쇄 권장)
+  - 운영 매치 status = live (Q4 진행 중) 에 인쇄 시도 = 가능 (진행 중 양식도 인쇄 OK / Phase 6 = 종료 후만 인쇄 제한 X)
+  - 5 영역 합본이 페이지 1 초과 = 운영 매치 데이터 양 (선수 12명 + Running Score 마킹 수) 에 따라 발생 가능 → 인쇄 미리보기에서 사전 확인
+
+### reviewer 참고
+- **CSS source order 의존**: `_print.css` 는 layout.tsx 에서 후순위 import → 기존 globals.css 의 `@page A4 landscape` 룰을 cascade 우선순위로 덮어쓰지만, score-sheet 외 페이지에는 영향 0 (route group 격리 — layout 미진입 시 import 안 됨). 향후 Next.js 빌드 시 CSS 번들링 순서 변경 가능성 = chunk 분리로 layout 별 격리 보장 (Next.js App Router default).
+- **`#ffffff` / `#000000` hardcode 사용 사유**: `--color-*` 토큰은 다크모드 진입 시 검정/흰 으로 자동 전환됨. 인쇄 = 항상 라이트 강제 필요 → 토큰 의존 차단 위해 명시 hex (`#ffffff` / `#000000` / `#cccccc` / `#e0e0e0` 회색 톤만). 핑크/빨강 0건 검증됨.
+- **Toast aria-live 시그너처 매칭**: toast-context.tsx 가 공용 컴포넌트 (web + score-sheet 양쪽 사용) — 직접 `no-print` 추가 시 web 페이지 인쇄 (다른 곳) 에도 영향. 본 CSS 는 `(score-sheet)` route group 안에서만 import → 영향 0. 시그너처 매칭 (`[aria-live="polite"].fixed`) 안전.
+- **다크모드 라이트 강제 검증**: `_print.css` 의 `.score-sheet-print-root *` 룰이 `color: #000 !important` 강제 → 자식의 inline `style={{ color: "var(--color-text-primary)" }}` 도 override (CSS specificity: `!important` 우선). 시각 회귀 0.
 
 ## 구현 기록 (developer) — FIBA 양식 Phase 5 서명+노트
 
