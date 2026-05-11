@@ -1,6 +1,17 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-11] 대회 관리 권한 헬퍼 — `canManageTournament(tournamentId, userId)` 단일 진입점
+- **분류**: convention/auth (대회 관리 권한 검증)
+- **위치**: `src/lib/auth/tournament-permission.ts`
+- **3 통과 조건** (match-stream 패턴 재사용):
+  1. `users.admin_role === 'super_admin'` → DB SELECT 우회 (즉시 통과)
+  2. `tournament.organizerId === userId` → 대회 주최자
+  3. `TournamentAdminMember(user_id, tournament_id, is_active=true)` → 위임 관리자
+- **사용 위치**: 어드민 API route (server) + admin 페이지 server component. IDOR 차단 — tournamentId 파라미터로 다른 대회 접근 시 403.
+- **재사용 룰**: 대회 단위 관리 권한 검증 시 직접 SELECT 패턴 ❌ → 본 헬퍼 위임 ✅. 신규 admin route 추가 시 GET/POST 양쪽 가드.
+- **참조횟수**: 0
+
 ### [2026-05-09] forfeit 매치 운영 표준 — `notes` 컬럼 표기 형식 + 자동 카피 트리거
 - **분류**: convention/operation (forfeit / FIBA Art.21)
 - **표준 형식** (운영자 박제 의무):

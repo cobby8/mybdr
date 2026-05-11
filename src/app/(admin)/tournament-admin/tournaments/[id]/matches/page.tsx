@@ -27,7 +27,20 @@ type Match = {
   winner_team_id: string | null;
   homeTeam: TeamInfo | null;
   awayTeam: TeamInfo | null;
+  // 2026-05-11: Phase 1-A 매치별 recording_mode — settings JSON 의 recording_mode 키.
+  // apiSuccess 가 snake_case 자동 변환 → settings 객체 안 recording_mode 그대로 노출.
+  // null / undefined / "flutter" / 알 수 없는 값 = fallback "flutter" 로 표시.
+  settings: { recording_mode?: string | null; [k: string]: unknown } | null;
 };
+
+// 2026-05-11: settings JSON 에서 recording_mode 추출 — 서버 헬퍼와 동일 fallback 룰.
+// "paper" 만 명시적 paper / 그 외 모두 "flutter" 로 간주.
+function readRecordingMode(
+  settings: Match["settings"]
+): "flutter" | "paper" {
+  if (!settings || typeof settings !== "object") return "flutter";
+  return settings.recording_mode === "paper" ? "paper" : "flutter";
+}
 
 type TournamentTeam = {
   id: string;
@@ -75,6 +88,12 @@ function ScoreModal({
   const [venueName, setVenueName] = useState(match.venue_name ?? "");
   const [homeTeamId, setHomeTeamId] = useState(match.homeTeamId ?? "");
   const [awayTeamId, setAwayTeamId] = useState(match.awayTeamId ?? "");
+  // 2026-05-11: Phase 1-A 매치별 기록 모드 토글 (Flutter 기록앱 vs 웹 종이 기록지).
+  // 초기값 = 서버 settings.recording_mode (fallback "flutter").
+  // 변경 시 save() 안에서 별도 endpoint /api/web/admin/matches/[id]/recording-mode 호출.
+  const [recordingMode, setRecordingMode] = useState<"flutter" | "paper">(
+    readRecordingMode(match.settings)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const { id } = useParams<{ id: string }>();
@@ -106,21 +125,67 @@ function ScoreModal({
       if (homeTeamId !== initialHomeTeamId) body.homeTeamId = homeTeamId || null;
       if (awayTeamId !== initialAwayTeamId) body.awayTeamId = awayTeamId || null;
 
-      // 변경 사항 0 → 저장 skip
-      if (Object.keys(body).length === 0) {
+      // 2026-05-11: Phase 1-A — recording_mode 변경 감지 (settings JSON 키, 별도 endpoint).
+      // 기존 PATCH 라우트는 settings 처리를 안 함 → mode 토글은 별도 호출 필요.
+      const initialMode = readRecordingMode(match.settings);
+      const modeChanged = recordingMode !== initialMode;
+
+      // 변경 사항 0 (점수/상태/팀/모드 모두) → 저장 skip
+      if (Object.keys(body).length === 0 && !modeChanged) {
         onClose();
         return;
       }
 
-      const res = await fetch(`/api/web/tournaments/${id}/matches/${match.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "저장 실패");
+      // 모드 변경 시 사용자 confirm — 진행 중 매치 사고 방지
+      if (modeChanged) {
+        const next = recordingMode === "paper" ? "종이 기록지(웹)" : "Flutter 기록앱";
+        if (
+          !confirm(
+            `이 매치 기록 모드를 [${next}] 로 전환합니다.\n진행 중 매치는 신중히 결정하세요.`
+          )
+        ) {
+          // 사용자 취소 — 토글 원복
+          setRecordingMode(initialMode);
+          return;
+        }
       }
+
+      // 1) 기존 PATCH (점수/상태/팀/일정) — 변경 있을 때만
+      if (Object.keys(body).length > 0) {
+        const res = await fetch(`/api/web/tournaments/${id}/matches/${match.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error ?? "저장 실패");
+        }
+      }
+
+      // 2) 모드 변경 — 별도 endpoint (POST recording-mode)
+      if (modeChanged) {
+        const reason = window.prompt(
+          "모드 전환 사유 (선택 — 운영 history 박제)",
+          ""
+        );
+        const modeRes = await fetch(
+          `/api/web/admin/matches/${match.id}/recording-mode`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: recordingMode,
+              ...(reason ? { reason } : {}),
+            }),
+          }
+        );
+        if (!modeRes.ok) {
+          const err = await modeRes.json();
+          throw new Error(err.error ?? "모드 전환 실패");
+        }
+      }
+
       onSaved();
       onClose();
     } catch (e) {
@@ -262,6 +327,43 @@ function ScoreModal({
               className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]"
             />
           </div>
+        </div>
+
+        {/* 2026-05-11: Phase 1-A — 매치별 기록 모드 토글.
+            Flutter 기록앱 (기본) ↔ 종이 기록지(웹). 한 매치 = 한 모드 (충돌 자체 차단). */}
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-[var(--color-text-muted)]">
+            기록 모드
+          </label>
+          <select
+            className="w-full rounded-[12px] border-none bg-[var(--color-elevated)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+            value={recordingMode}
+            onChange={(e) =>
+              setRecordingMode(e.target.value as "flutter" | "paper")
+            }
+          >
+            <option value="flutter">Flutter 기록앱 (기본)</option>
+            <option value="paper">종이 기록지 (웹)</option>
+          </select>
+          {recordingMode === "paper" && (
+            <>
+              <p className="mt-1 text-xs" style={{ color: "var(--color-warning)" }}>
+                ⚠ 종이 모드 — Flutter 앱에서 점수 입력이 차단됩니다.
+              </p>
+              {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 종이 기록지 입력 페이지로 이동 */}
+              {match.id && (
+                <a
+                  href={`/score-sheet/${match.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block rounded-[4px] px-3 py-1.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: "var(--color-primary)" }}
+                >
+                  📝 종이 기록지 입력 페이지로 이동 →
+                </a>
+              )}
+            </>
+          )}
         </div>
 
         <div className="flex gap-2">

@@ -232,12 +232,24 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* 하단: 테마 토글 + 사이트로 돌아가기 */}
+      {/* 하단: 테마 토글 + 마이페이지 + 사이트로 돌아가기 */}
+      {/* 2026-05-11 admin 마이페이지 Phase 1 — "마이페이지" 1줄 추가 (사이트로 돌아가기 위) */}
       <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
         {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
         <div className="px-3 pb-2">
           <ThemeSwitch />
         </div>
+        {/* 마이페이지 — 사용자 결재 §7 (사이트로 돌아가기 위 / 가장 자연) */}
+        <Link
+          href="/admin/me"
+          className="aside__link"
+          data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
+        >
+          <span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_circle</span>
+            마이페이지
+          </span>
+        </Link>
         <Link href="/" className="aside__link">
           <span>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>

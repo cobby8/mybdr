@@ -2,6 +2,63 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-11] 유소년 매직링크 토큰 정책 — CSPRNG 32바이트 hex + DB UNIQUE + 만료 분리
+- **분류**: decision/security (apply_token / claim_token)
+- **결정 사항**:
+  - **엔트로피**: `randomBytes(32).toString('hex')` = 256bit / 64자. 추측 불가.
+  - **DB UNIQUE INDEX**: tournament_teams.apply_token + claim_tokens.token (서로 다른 모델). 중복 방지 + 빠른 검색.
+  - **만료 분리**: 토큰 컬럼 + 만료 컬럼 분리 (apply_token_expires_at) — 만료 검증 단순화. URL은 만료 시 null로 화면 노출.
+  - **D-Day 계산**: tournament.startDate +7일 (있을 때) / fallback createdAt +30일 (UTC `setUTCDate`).
+- **사유**:
+  - 추측형 토큰(짧은 코드)은 brute-force 위험 → 256bit CSPRNG.
+  - URL 외부 노출 가정(코치/학부모 메신저 공유) → 만료 분리로 정책 유연.
+- **참조횟수**: 0
+
+### [2026-05-11] DB 단일 정책 UNIQUE 추가 우회 패턴 — @unique 일시 제거 후 별도 SQL CREATE INDEX
+- **분류**: decision/db-ops (운영 DB 무중단 UNIQUE 추가)
+- **상황**:
+  - `prisma db push` 시 신규 UNIQUE constraint 추가는 `--accept-data-loss` flag 요구 (실제 데이터 손실 0건임에도).
+  - CLAUDE.md 절대 금지 룰: `prisma db push --accept-data-loss` 운영 DB ❌.
+- **결정 사항** (옵션 B 사용자 승인):
+  1. schema.prisma 의 `@unique` 일시 제거 → `prisma db push --skip-generate` (컬럼만 ADD)
+  2. `prisma db execute --file ...sql` 로 `CREATE UNIQUE INDEX` 직접 실행 (additive — DROP 0건)
+  3. schema.prisma 의 `@unique` 복원 (DB와 sync 유지)
+- **재사용 위치**: 운영 DB에 신규 UNIQUE 추가 시 동일 패턴 (옵션 A `--accept-data-loss`는 절대 금지).
+- **참조횟수**: 0
+
+### [2026-05-11] 웹 종이 기록지 Flutter ↔ 웹 데이터 호환 전략 — sync API 재사용 + BFF wrap + strict lock
+- **분류**: decision (Flutter API 호환 / 신규 페이지 통합 전략)
+- **결정자**: planner-architect (본 turn 기획 / 사용자 결재 5건 대기)
+- **참조횟수**: 0
+- **선택**: `POST /api/v1/tournaments/[id]/matches/sync` 단일 매치 sync API **그대로 재사용** + 웹 BFF `/api/web/score-sheet/[matchId]/submit` 로 wrap (web 세션 → API token 변환 server-to-server fetch). Flutter 기록앱과 **단일 source 박제 path** 통합.
+- **사유**:
+  1. sync API 가 이미 `MatchPlayerStat` 22 필드 + `quarterScores` + `play_by_plays` + status 전체 박제. 재구현 = 0.
+  2. completed 신규 전환 시 `waitUntil(triggerMatchBriefPublish)` 내장 (5/9 fix) → 알기자 자동 발행 + dual_tournament 진출 자동.
+  3. `updateScoreForBatchEvents` / `progressDualMatch` / `advanceWinner` / `updateTeamStandings` 모두 자동 호출 → 라이브/박스스코어/통산 자동 갱신.
+  4. Flutter v1 코드 변경 0 → 원영 사전 공지 불필요 (CLAUDE.md 룰 준수).
+- **대안 (기각)**:
+  - **신규 테이블 + 별도 API**: sync 와 별도 박제 → 라이브/박스스코어/통산/알기자 모두 재구현 (수십 PR). 단일 source 깨짐.
+  - **Flutter sync API 직접 호출 (browser)**: JWT 노출 위험 + CORS. BFF wrap 으로 회피.
+  - **prisma 직접 update from web**: sync API 의 보정 로직 (BUG-04 quarterScores 정합 / dual 자동 진출 / waitUntil) 누락 → 재발 위험.
+- **충돌 가드 (Flutter ↔ 웹 동시 진행)** — **2026-05-11 사용자 결재 = 매치별 mode 게이팅 (결재 3)**:
+  - `TournamentMatch.settings.recording_mode` JSON 필드 신설 (`"flutter" | "paper"`). 기본값 = `"flutter"` (운영 그대로).
+  - 매치 생성/배정 시 운영진(admin/organizer)이 매치별 mode 선택. 한 매치 = 한 mode만. 충돌 자체 차단.
+  - **Flutter API server-side 차단**: `/api/v1/matches/[id]/sync` + `batch-sync` + `[id]/status` 라우트가 `settings.recording_mode === "paper"` 면 403 반환. Flutter v1 코드 0 변경 (서버만 가드 추가).
+  - **웹 폼 server-side 차단**: `/api/web/score-sheet/[matchId]/submit` 가 `recording_mode === "flutter"` 면 403.
+  - **mode 전환**: completed 매치 score 보정 케이스 = admin 만 mode 강제 변경 가능. audit `mode_switch` + 사유 박제.
+  - last-write-wins 위험 = mode 토글로 원천 차단. strict lock 보다 강한 룰.
+- **저장 단위**: 배치 (최종 제출 1회 sync). 임시 저장 = localStorage / draft. 실시간 입력은 Flutter 기록앱 영역.
+- **검증**: client (즉시 alert) + server (sync 직전 zod schema + 비즈니스 룰). 룰 = 합산 정합 / 5반칙 자동 표시 / 팀파울 5+ FT 안내. 데이터 오류 = 422.
+- **권한**: web 세션 (`getAuthUser`) + `tournament_recorders` OR `organizer` OR `tournamentAdminMember` OR `super_admin`. 신규 헬퍼 `requireScoreSheetAccess(matchId, userId)` (requireRecorder 의 web 세션 대응판).
+- **PBP 정책**: Phase 1~4 = PBP 0 (단순 boxscore + quarter score). Phase 5 시계열 입력 = local_id 접두 "paper-fix-{uuid}" + description "[종이 기록]" — Flutter sync 시 자동 삭제 보호 (이미 매치 132 운영자 수동 보정 보호 룰 활용).
+- **audit / 로그**: `tournament_match_audits.source = "web-score-sheet"` 신규 분류. score / status 변경 시 `admin_logs` warning + 사유 박제 (forfeit fix 5단계 절차 패턴 차용).
+- **사용자 결재 5건 완료 (2026-05-11)**:
+  1. Phase 우선순위 = **Phase 1+2 MVP** (3 PR / 1.5~2주)
+  2. UX 디바이스 = **PC 우선 + 모바일 가드**
+  3. 충돌 룰 = **매치별 mode 게이팅** (위 §충돌 가드 항목 — strict lock 보다 강한 룰)
+  4. 작전 타임아웃·팀파울 = **settings JSON 박제** (schema 변경 0)
+  5. 인쇄 PDF = **Phase 6 후순위 보류**
+
 ### [2026-05-09] FIBA 5x5 forfeit (Art.21) 운영 표준 — 20-0 점수 + 통계 0 + audit 명시 박제
 - **분류**: decision (대회 운영 / FIBA 룰 적용)
 - **결정자**: PM (사용자 결재 — 5/9 #20 슬로우 vs MI 케이스)

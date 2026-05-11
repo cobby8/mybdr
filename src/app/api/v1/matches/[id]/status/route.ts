@@ -7,6 +7,8 @@ import { getMatchScore, updateMatchStatus } from "@/lib/services/match";
 import { prisma } from "@/lib/db/prisma";
 import { createNotificationBulk } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
+// 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — Flutter status 변경 차단 (paper 매치만).
+import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 
 const statusSchema = z.object({
   status: z.enum(["in_progress", "completed", "cancelled"]),
@@ -38,6 +40,21 @@ export async function PATCH(
 
     const match = await getMatchScore(matchId);
     if (!match) return apiError("경기를 찾을 수 없습니다.", 404);
+
+    // 2026-05-11: Phase 1-A — paper 매치 status 변경 차단 (settings 별도 1회 SELECT).
+    // getMatchScore 는 settings 미포함 select — 변경 최소화 위해 별도 가벼운 SELECT 추가 (id+settings 2 컬럼만).
+    const modeRow = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: { id: true, settings: true },
+    });
+    if (modeRow) {
+      const modeGuard = assertRecordingMode(
+        modeRow,
+        "flutter",
+        `PATCH /api/v1/matches/${id}/status`
+      );
+      if (modeGuard) return modeGuard;
+    }
 
     const current = match.status ?? "scheduled";
     const allowed = RECORDER_TRANSITIONS[current] ?? [];

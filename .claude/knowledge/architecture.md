@@ -2,6 +2,44 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-11] 유소년 코치 신청서 + 자녀 claim 모델 — 신규 3 + TTP 확장 (Phase 1)
+- **분류**: architecture/data-model (유소년 일괄 등록 / 매직링크 claim)
+- **발견자**: developer / pm
+- **내용**:
+  - **TournamentTeamPlayer +11 컬럼** (모두 NULL 허용 무중단): parent_name / parent_phone / school_name / grade / division_code / jersey_size / claim_status (default 'pending') / claimed_user_id / child_profile_id / invited_at / claimed_at. 인덱스 2 (claim_status, claimed_user_id). FK 2 (child_profile_id, claimed_user_id ON DELETE SET NULL).
+  - **TournamentTeam +3 컬럼**: apply_token (unique) / apply_token_expires_at / applied_via ('coach_token' | 'self' | 'admin'). 어드민이 팀 단위 매직링크 발급.
+  - **ChildProfile (신규)**: 부모 1 : 자녀 N. 학부모가 자녀 신청서 claim 시 ChildProfile 생성 + TTP.child_profile_id 연결. parent_user_id FK ON DELETE RESTRICT.
+  - **ClaimToken (신규)**: 학부모 매직링크 일회용 토큰 — player_id 1:1 unique / parent_phone / expires_at / consumed_at.
+  - **TournamentDivisionRule (신규)**: 대회별 종별 룰 (U10/U12/M1 ...) + birthYearMin/Max + gradeMin/Max + feeKrw. tournamentId FK.
+  - 어드민 경로: `(admin)/admin/tournaments/[id]/teams/page.tsx` (server) + `teams-client.tsx` (client modal/copy).
+  - API: `/api/web/admin/tournaments/[id]/team-applications` (GET 표 / POST 팀+토큰 발급).
+  - 권한 헬퍼: `src/lib/auth/tournament-permission.ts` canManageTournament (super_admin / organizer / TournamentAdminMember is_active=true) — match-stream 패턴 재사용.
+- **참조횟수**: 0
+
+### [2026-05-11] 웹 종이 기록지 — `(web)/score-sheet/[matchId]/` + BFF sync 재사용 (Flutter API 0 변경)
+- **분류**: architecture (페이지 신설 + 기존 API 재사용 패턴)
+- **발견자**: planner-architect (본 turn 기획)
+- **참조횟수**: 0
+- **위치**:
+  - `src/app/(web)/score-sheet/[matchId]/page.tsx` (server, 가드)
+  - `src/app/(web)/score-sheet/[matchId]/_components/{score-sheet-form,team-roster,team-stats-grid,foul-tracker,timeout-tracker,running-score-grid,submit-bar,validation-panel}.tsx`
+  - (Phase 6 선택) `src/app/(web)/score-sheet/[matchId]/print/page.tsx` — A4 인쇄용
+  - BFF = `src/app/api/web/score-sheet/[matchId]/submit/route.ts` — server-to-server 로 `POST /api/v1/tournaments/[id]/matches/sync` 호출
+- **본질**: 미교육 기록원이 종이 FIBA 기록지로 적은 결과를 웹 폼으로 박제. Flutter 기록앱과 동일 결과 (라이브/박스스코어/통산/알기자) 자동 산출 — sync API 재사용으로 보장.
+- **재사용 자산** (재구현 0):
+  - `POST /api/v1/tournaments/[id]/matches/sync` — single match sync (player_stats + play_by_plays + status). completed 신규 전환 시 `waitUntil(triggerMatchBriefPublish)` 내장 (5/9 fix).
+  - `MatchLineupConfirmed` (사전 라인업 PR1~5) — roster 자동 채움. 미입력 시 fallback UI.
+  - `TournamentTeamPlayer` (선수 12명 표준 source) — 등번호/실명/캡틴/주전 박제.
+  - `MatchPlayerStat` (22 필드 boxscore) — 신규 컬럼 0.
+  - `requireRecorder` 패턴 (web 세션 대응판 `requireScoreSheetAccess`).
+  - 모바일 박스스코어 PDF 패턴 (jsPDF + html2canvas) — Phase 6 인쇄 양식 재사용.
+- **AppNav 영향**: 0. 더보기 5그룹 → "관리·도움" 그룹의 admin 영역 노출 + admin 매치 상세 페이지 "📝 종이 기록지 입력" 버튼 추가. 메인 9 탭 변경 X.
+- **Flutter v1 영향**: 0 (sync API consume only / 코드 변경 X). 원영 사전 공지 불필요.
+- **Phase 분해**: 6 Phase. Phase 1+2 (PR 3건) = MVP — 헤더+명단+쿼터점수 / 선수별 22 stat 표. Phase 3~6 = 파울/타임아웃/런닝스코어/PDF.
+- **충돌 가드**: status="in_progress" 매치 web 제출 차단 (strict) — Flutter 실시간 기록 보호. status="completed" 후 score 수정만 web 허용 (사고 보정).
+- **audit**: `tournament_match_audits.source = "web-score-sheet"` 신규 분류 + `admin_logs` warning 박제 (forfeit fix 5단계 절차 참조).
+- **위험**: (R1) Flutter sync 와 last-write-wins / (R2) 사전 라인업 미입력 매치 fallback / (R3) 팀파울·타임아웃 DB 컬럼 없음 (settings JSON 또는 PBP) / (R4) 통산 stat sum/sum (5/10 fix) — made/attempted 정확 입력 필수 / (R5) 종이 원본 보관 정책
+
 ### [2026-05-05] 인증 흐름 단일 진입점 — getAuthUser() 헬퍼 + 4 layout 위임 + 쿠키 자동 cleanup
 - **분류**: architecture (인증 / 세션 / 가드)
 - **발견자**: planner-architect + developer (옵션 B-PR1 구현)
