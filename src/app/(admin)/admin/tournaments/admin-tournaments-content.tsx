@@ -3,8 +3,15 @@
 // 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
 // - <Card> wrapper 제거 / <Badge> → .badge--soft + 상태별 inline color
 // - 페이지 크기 / 페이지네이션 → .btn .btn--sm
+//
+// 2026-05-11 Phase 2-C IA 재설계:
+// - admin/tournaments 모달 = "행정" 전용으로 단순화 (운영자 페이지에 모든 운영 위임)
+// - 제거: 공개 토글 / 상태 변경 dropdown / 신청서 관리 Link (운영자 페이지로 이관)
+// - 추가: "대회 운영 페이지로 이동" Link (primary) + 행정 placeholder 4건 (Phase 3 예정)
+// - server action 2개 (updateStatus / toggleVisibility) 는 import 제거 (행정 모달 미사용)
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
@@ -65,17 +72,14 @@ const FORMAT_LABEL: Record<string, string> = {
   full_league_knockout: "풀리그+토너먼트", swiss: "스위스 라운드",
 };
 
-const TRANSITIONS: Record<string, string[]> = {
-  draft: ["registration"], registration: ["in_progress"], in_progress: ["completed"],
-  completed: [], upcoming: ["registration"], registration_open: ["in_progress"],
-  active: ["in_progress"], published: ["registration"], open: ["in_progress"],
-  ongoing: ["completed"], live: ["completed"], cancelled: ["draft"],
-};
+// Phase 2-C 행정 모달은 상태 변경 / 공개 토글 모두 운영자 페이지로 이관 — TRANSITIONS 사용 안 함.
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 interface Props {
   tournaments: SerializedTournament[];
+  // Phase 2-C — server action 2개는 prop 시그니처 유지 (호출처 page.tsx 영향 0)
+  // 실제 사용은 안 함. Phase 3 행정 메뉴 구현 시 다시 활용 가능.
   updateStatusAction: (formData: FormData) => Promise<void>;
   toggleVisibilityAction: (formData: FormData) => Promise<void>;
   pagination: Pagination;
@@ -83,8 +87,8 @@ interface Props {
 
 export function AdminTournamentsContent({
   tournaments,
-  updateStatusAction,
-  toggleVisibilityAction,
+  updateStatusAction: _updateStatusAction,
+  toggleVisibilityAction: _toggleVisibilityAction,
   pagination,
 }: Props) {
   const router = useRouter();
@@ -272,46 +276,50 @@ export function AdminTournamentsContent({
           onClose={() => setSelected(null)}
           title={selected.name}
           actions={
-            <div className="flex flex-col gap-2">
-              {/* 공개/비공개 토글 */}
-              <form action={toggleVisibilityAction} className="flex items-center gap-2">
-                <input type="hidden" name="tournament_id" value={selected.id} />
-                <input type="hidden" name="is_public" value={selected.isPublic ? "false" : "true"} />
-                {/* (web) .btn 패턴 — 공개로 변경은 success 톤 inline */}
-                <button
-                  type="submit"
-                  onClick={() => setSelected((prev) => prev ? { ...prev, isPublic: !prev.isPublic } : null)}
-                  className="btn btn--sm flex-1"
-                  style={
-                    !selected.isPublic
-                      ? { background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }
-                      : undefined
-                  }
+            <div className="flex flex-col gap-3">
+              {/* Phase 2-C — "대회 운영 페이지로 이동" primary CTA. 모든 운영(공개/상태/팀/매치)은 운영자 페이지에서 처리. */}
+              <Link
+                href={`/tournament-admin/tournaments/${selected.id}`}
+                className="btn btn--primary"
+                style={{ textAlign: "center" }}
+              >
+                대회 운영 페이지로 이동
+              </Link>
+
+              {/* Phase 2-C — 행정 관리 섹션 (Phase 3 실 페이지로 확장 예정) */}
+              <div
+                className="rounded-[8px] border p-3"
+                style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+              >
+                <p
+                  className="mb-2 text-xs font-semibold uppercase"
+                  style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
                 >
-                  {selected.isPublic ? "비공개로 변경" : "공개로 변경"}
-                </button>
-              </form>
-              {/* 상태 변경 */}
-              {(TRANSITIONS[selected.status ?? "draft"] ?? []).length > 0 && (
-                <form action={updateStatusAction} className="flex items-center gap-2">
-                  <input type="hidden" name="tournament_id" value={selected.id} />
-                  <select
-                    name="status"
-                    defaultValue=""
-                    className="flex-1 rounded-[10px] border px-3 py-2 text-sm outline-none"
-                    style={{ borderColor: "var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)" }}
-                  >
-                    <option value="" disabled>상태 변경</option>
-                    {(TRANSITIONS[selected.status ?? "draft"] ?? []).map((s) => (
-                      <option key={s} value={s}>{STATUS_LABEL[s] ?? s}</option>
-                    ))}
-                  </select>
-                  {/* (web) .btn .btn--primary 패턴 */}
-                  <button type="submit" className="btn btn--primary btn--sm">
-                    적용
+                  행정 관리
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                    대회 승인
                   </button>
-                </form>
-              )}
+                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                    운영자 변경
+                  </button>
+                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                    감사 로그
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="btn btn--sm opacity-50 cursor-not-allowed"
+                    style={{ color: "var(--color-error)" }}
+                  >
+                    대회 삭제
+                  </button>
+                </div>
+                <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  ※ 행정 메뉴는 Phase 3 에서 실 페이지로 확장 예정.
+                </p>
+              </div>
             </div>
           }
         >
