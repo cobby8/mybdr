@@ -98,8 +98,37 @@ export default function TournamentTeamsPage() {
   const load = useCallback(async () => {
     try {
       // 1) 기존 팀/선수 정보 (시드/상태 관리용)
+      //    API 응답이 snake_case 자동 변환되므로 camelCase interface 로 명시 매핑 (Invalid Date / 시드 누락 fix)
       const res = await fetch(`/api/web/tournaments/${id}/teams`);
-      if (res.ok) setTeams(await res.json());
+      if (res.ok) {
+        const raw = (await res.json()) as Array<{
+          id: string;
+          status: string;
+          seed_number: number | null;
+          group_name: string | null;
+          created_at: string;
+          team: {
+            id: string; name: string;
+            logo_url: string | null; primary_color: string | null;
+          };
+          players: Array<{ id: string; role: string }>;
+        }>;
+        const mapped: TournamentTeam[] = raw.map((t) => ({
+          id: t.id,
+          status: t.status,
+          seedNumber: t.seed_number,
+          groupName: t.group_name,
+          createdAt: t.created_at,
+          team: {
+            id: t.team.id,
+            name: t.team.name,
+            logoUrl: t.team.logo_url,
+            primaryColor: t.team.primary_color,
+          },
+          players: t.players,
+        }));
+        setTeams(mapped);
+      }
 
       // 2) 토큰 정보 (apply_token URL + 만료) — 별도 endpoint
       //    응답은 snake_case (apiSuccess 자동 변환) — apply_token_url / apply_token_expires_at
@@ -107,9 +136,9 @@ export default function TournamentTeamsPage() {
       if (tokenRes.ok) {
         const json = await tokenRes.json();
         const next: Record<string, TokenInfo> = {};
-        // apiSuccess wrapper: { success: true, data: { teams: [...] } } — 모두 snake_case 변환됨
+        // apiSuccess 응답 = raw data (no { data: ... } wrapper). { teams: [...] } 형태.
         // 응답 key 가 snake_case 로 변환되므로 접근자도 snake_case 사용 (CLAUDE.md §보안 5번)
-        const teamsArr = (json?.data?.teams ?? []) as Array<{
+        const teamsArr = (json?.teams ?? []) as Array<{
           id: string;
           apply_token_url: string | null;
           apply_token_expires_at: string | null;
@@ -651,8 +680,8 @@ function AddTeamTokenModal({ tournamentId, onClose, onSuccess }: AddTeamTokenMod
           return;
         }
         // 응답은 apiSuccess wrapper { success, data: { team: {...} } } — 모두 snake_case
-        const url: string | undefined = json?.data?.team?.apply_token_url;
-        const tName: string = json?.data?.team?.team_name ?? teamName;
+        const url: string | undefined = json?.team?.apply_token_url;
+        const tName: string = json?.team?.team_name ?? teamName;
         if (url) {
           // 발급 즉시 자동 복사 (UX 단축)
           try {
