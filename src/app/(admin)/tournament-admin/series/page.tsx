@@ -28,9 +28,10 @@ export default async function SeriesListPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>시리즈</h1>
+        {/* 2026-05-12 — pill 빨강 ❌ (admin 빨강 본문 금지) → btn btn--primary 표준 (Navy/Red 자동 분기) */}
         <Link
           href="/tournament-admin/series/new"
-          className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] transition-colors"
+          className="btn btn--primary"
         >
           새 시리즈 만들기
         </Link>
@@ -41,10 +42,16 @@ export default async function SeriesListPage() {
           {seriesList.map((s) => {
             const latest = s.tournaments[0];
             return (
-              <Link key={s.id.toString()} href={`/tournament-admin/series/${s.id}`}>
+              // 2026-05-12 — <Link><Card> cascade 차단: <a> color: var(--link) 가 자식 text 로 inherit
+              //   되는 패턴. Link 자체에 명시 색 박제 + 자식 p/span 도 명시 박제 (회귀 가드).
+              <Link
+                key={s.id.toString()}
+                href={`/tournament-admin/series/${s.id}`}
+                className="block text-[var(--color-text-primary)]"
+              >
                 <Card className="flex items-center justify-between hover:bg-[var(--color-elevated)] transition-colors cursor-pointer">
                   <div>
-                    <p className="font-semibold">{s.name}</p>
+                    <p className="font-semibold text-[var(--color-text-primary)]">{s.name}</p>
                     <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                       총 {s.tournaments_count ?? 0}회차
                       {s.description && ` · ${s.description}`}
@@ -69,9 +76,10 @@ export default async function SeriesListPage() {
         <Card className="py-16 text-center text-[var(--color-text-muted)]">
           <div className="mb-3 text-lg font-semibold text-[var(--color-text-muted)]">No Series</div>
           <p className="mb-4">아직 시리즈가 없습니다.</p>
+          {/* 2026-05-12 — pill 빨강 ❌ → btn btn--primary 표준 */}
           <Link
             href="/tournament-admin/series/new"
-            className="inline-block rounded-[10px] bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] transition-colors"
+            className="btn btn--primary"
           >
             첫 시리즈 만들기
           </Link>

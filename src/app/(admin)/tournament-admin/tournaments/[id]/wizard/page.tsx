@@ -1172,11 +1172,11 @@ export default function TournamentEditWizardPage() {
             </div>
           </TossCard>
 
-          {/* === 저장 버튼 (풀와이드 CTA) === */}
+          {/* === 저장 버튼 (풀와이드 CTA) === 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full rounded-[4px] bg-[var(--color-accent)] py-4 text-base font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+            className="btn btn--primary w-full disabled:opacity-50"
           >
             {saving ? "저장 중..." : "변경사항 저장"}
           </button>
@@ -1196,10 +1196,8 @@ export default function TournamentEditWizardPage() {
           >
             이전
           </button>
-          <button
-            onClick={goNext}
-            className="rounded-[4px] bg-[var(--color-accent)] px-6 py-2.5 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
-          >
+          {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
+          <button onClick={goNext} className="btn btn--primary">
             다음
           </button>
         </div>
@@ -1251,10 +1249,11 @@ export default function TournamentEditWizardPage() {
               >
                 취소
               </button>
+              {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
               <button
                 type="button"
                 onClick={confirmSeriesChange}
-                className="flex-1 rounded-[4px] bg-[var(--color-accent)] px-4 py-3 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
+                className="btn btn--primary flex-1"
               >
                 확인
               </button>

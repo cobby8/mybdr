@@ -38,16 +38,22 @@ export default async function TournamentAdminTournamentsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>{headerLabel}</h1>
-        <Link href="/tournament-admin/tournaments/new/wizard" className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)]">새 대회</Link>
+        {/* 2026-05-12 — admin 빨강 본문 금지 → btn btn--primary 표준 */}
+        <Link href="/tournament-admin/tournaments/new/wizard" className="btn btn--primary">새 대회</Link>
       </div>
 
       {tournaments.length > 0 ? (
         <div className="space-y-3">
           {tournaments.map((t) => (
-            <Link key={t.id} href={`/tournament-admin/tournaments/${t.id}`}>
+            {/* 2026-05-12 — <Link><Card> link color cascade 차단: 명시 색 박제 */}
+            <Link
+              key={t.id}
+              href={`/tournament-admin/tournaments/${t.id}`}
+              className="block text-[var(--color-text-primary)]"
+            >
               <Card className="flex items-center justify-between hover:bg-[var(--color-elevated)] transition-colors cursor-pointer">
                 <div>
-                  <p className="font-semibold">{t.name}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{t.name}</p>
                   <p className="text-xs text-[var(--color-text-muted)]">
                     {t.startDate ? t.startDate.toLocaleDateString("ko-KR") : "날짜 미정"}
                     {t.format && ` · ${TOURNAMENT_FORMAT_LABEL[t.format] ?? t.format}`}
