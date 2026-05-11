@@ -324,10 +324,29 @@ export default function TournamentTeamsPage() {
             코치에게 토큰 URL을 공유하면 비로그인으로 명단 입력 가능합니다.
           </p>
         </div>
-        {/* 2026-05-11 Phase 2-C 후속: "팀 + 토큰 신규 발급" 버튼 제거.
-            강남구 케이스 = 일괄 INSERT 스크립트로 36팀 박제 완료 — 운영자 페이지 단건 발급 빈도 0.
-            향후 비상 단건 케이스 발생 시 POST API (/api/web/admin/tournaments/[id]/team-applications)
-            는 그대로 보존 — 진입점 재추가 가능.  */}
+        {/* 2026-05-11 Phase 3-C — 토큰 발송 도구 (CSV 다운로드 + 메시지 일괄 복사) */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => downloadTokenCsv(teams, tokenMap)}
+            disabled={!aliveTokenCount(tokenMap)}
+            className="btn btn--sm"
+            title="모든 팀의 토큰 URL을 CSV 파일로 다운로드"
+          >
+            <span className="material-symbols-outlined text-base align-middle mr-1">download</span>
+            CSV 다운로드 ({aliveTokenCount(tokenMap)})
+          </button>
+          <button
+            type="button"
+            onClick={() => copyAllTokenMessages(teams, tokenMap, showToast)}
+            disabled={!aliveTokenCount(tokenMap)}
+            className="btn btn--primary btn--sm"
+            title="카톡 발송용 메시지 일괄 복사 (팀별 안내문 포함)"
+          >
+            <span className="material-symbols-outlined text-base align-middle mr-1">chat</span>
+            카톡 메시지 복사
+          </button>
+        </div>
       </div>
 
       {/* 통계 탭 */}
@@ -626,3 +645,87 @@ export default function TournamentTeamsPage() {
 //   - 강남구 36팀 일괄 INSERT 스크립트로 박제 완료 → 운영자 페이지 단건 발급 빈도 0.
 //   - POST /api/web/admin/tournaments/[id]/team-applications endpoint 는 그대로 보존
 //     (향후 비상 단건 케이스 또는 다른 운영 흐름에서 진입점 재추가 가능).
+
+/* ============================================================
+ * 2026-05-11 Phase 3-C — 토큰 발송 도구 (CSV 다운로드 + 카톡 메시지 일괄 복사)
+ *
+ * 자동 SMS 발송은 별 PR (채널 결정 필요 — 솔라피/알리고/카카오 비즈).
+ * 본 fix = 즉시 가능한 빠른 옵션:
+ *   - CSV 다운로드 → 엑셀로 열어 데이터 확인 + 일괄 카톡 발송 보조
+ *   - 카톡 메시지 일괄 복사 → 클립보드에 팀별 안내문 일괄 → 단톡방 붙여넣기
+ * ============================================================ */
+
+// alive 토큰 수 (UI 버튼 disabled 가드용)
+function aliveTokenCount(tokenMap: Record<string, TokenInfo>): number {
+  return Object.values(tokenMap).filter((t) => !!t.applyTokenUrl).length;
+}
+
+// CSV 다운로드 — 운영자가 엑셀로 열어 검토 가능
+function downloadTokenCsv(
+  teams: TournamentTeam[],
+  tokenMap: Record<string, TokenInfo>,
+): void {
+  // UTF-8 BOM 추가 (엑셀 한글 깨짐 회피 — Windows 표준)
+  const BOM = "﻿";
+  const header = "팀명,코치명,코치번호,토큰 URL,만료";
+  const lines = [header];
+  for (const tt of teams) {
+    const token = tokenMap[tt.id];
+    if (!token?.applyTokenUrl) continue;
+    const expiry = token.applyTokenExpiresAt
+      ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")
+      : "";
+    // CSV escape — 컴마/따옴표 포함 시 큰따옴표로 감싸고 내부 따옴표는 ""
+    const cells = [
+      tt.team.name,
+      token.managerName ?? "",
+      token.managerPhone ?? "",
+      token.applyTokenUrl,
+      expiry,
+    ].map((c) => {
+      const s = String(c);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    });
+    lines.push(cells.join(","));
+  }
+  const csv = BOM + lines.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `team-tokens-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// 카톡 메시지 일괄 복사 — 클립보드에 팀별 안내문 합쳐서 복사
+function copyAllTokenMessages(
+  teams: TournamentTeam[],
+  tokenMap: Record<string, TokenInfo>,
+  toast: (msg: string) => void,
+): void {
+  const blocks: string[] = [];
+  for (const tt of teams) {
+    const token = tokenMap[tt.id];
+    if (!token?.applyTokenUrl) continue;
+    const managerName = token.managerName ? `${token.managerName} 코치님` : `${tt.team.name} 코치님`;
+    blocks.push(
+      `[${tt.team.name}]\n` +
+      `안녕하세요, ${managerName}.\n` +
+      `참가팀 명단 입력 링크입니다.\n` +
+      `${token.applyTokenUrl}\n` +
+      `※ 링크는 일회용입니다. 한 번에 모든 선수 명단을 입력해주세요.`,
+    );
+  }
+  if (blocks.length === 0) {
+    toast("발송 가능한 토큰이 없습니다.");
+    return;
+  }
+  const text = blocks.join("\n\n────────\n\n");
+  navigator.clipboard
+    .writeText(text)
+    .then(() => toast(`${blocks.length}팀 메시지 복사 완료 — 단톡방에 붙여넣기`))
+    .catch(() => toast("복사에 실패했습니다. CSV 다운로드를 사용하세요."));
+}
