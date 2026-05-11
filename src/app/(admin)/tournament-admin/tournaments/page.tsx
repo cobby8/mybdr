@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,15 +13,31 @@ export default async function TournamentAdminTournamentsPage() {
   const session = await getWebSession();
   if (!session) redirect("/login");
 
+  // 2026-05-11 — 권한 시스템 정리 6번째 super_admin 우회 fix (사용자 결재 4건).
+  // - super_admin: 모든 대회 표시 (제한 X)
+  // - 일반 운영자: 본인이 organizer 인 대회 OR 위임받은 TAM (is_active) 대회 합산
+  const isSuper = isSuperAdmin(session);
+  const userId = BigInt(session.sub);
+
   const tournaments = await prisma.tournament.findMany({
-    where: { organizerId: BigInt(session.sub) },
+    where: isSuper
+      ? {}
+      : {
+          OR: [
+            { organizerId: userId },
+            { adminMembers: { some: { userId, isActive: true } } },
+          ],
+        },
     orderBy: { createdAt: "desc" },
   }).catch(() => []);
+
+  // 헤더 라벨 분기 — super_admin 진입 시 "전체 대회" / 일반 "내 대회"
+  const headerLabel = isSuper ? "전체 대회" : "내 대회";
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>내 대회</h1>
+        <h1 className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl" style={{ fontFamily: "var(--font-heading)" }}>{headerLabel}</h1>
         <Link href="/tournament-admin/tournaments/new/wizard" className="rounded-[10px] bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[var(--color-on-accent)]">새 대회</Link>
       </div>
 
