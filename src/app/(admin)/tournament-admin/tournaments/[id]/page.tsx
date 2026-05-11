@@ -9,6 +9,12 @@ import {
   TOURNAMENT_STATUS_COLOR,
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
+// 2026-05-11 Phase 1 — 기록 모드 카드 + 통계 헬퍼 (client/server 분리)
+import { RecordingModeCard } from "./_components/recording-mode-card";
+import {
+  getTournamentMatchStats,
+  getTournamentDefaultMode,
+} from "@/lib/tournaments/recording-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +48,13 @@ export default async function TournamentAdminDetailPage({
   });
 
   if (!tournament) notFound();
+
+  // 2026-05-11 Phase 1 — 기록 모드 카드용 server-side 산출
+  //   - default mode (tournament.settings.default_recording_mode)
+  //   - 매치 통계 (total / paper / flutter / inProgress)
+  // 카드는 RecordingModeCard 가 client component 라 props 로 전달.
+  const recordingDefaultMode = getTournamentDefaultMode({ settings: tournament.settings });
+  const matchStats = await getTournamentMatchStats(id);
 
   // 권한 — super_admin 은 모든 대회 통과 / 그 외에는 organizer 또는 active TAM
   // 2026-05-11 Phase 2-C — super_admin 우대 추가 (운영자 페이지 진입 차단 회귀 fix).
@@ -154,6 +167,13 @@ export default async function TournamentAdminDetailPage({
           </Card>
         ))}
       </div>
+
+      {/* 2026-05-11 Phase 1 — 기록 모드 설정 카드 (대회 default + 매치별 bulk 토글) */}
+      <RecordingModeCard
+        tournamentId={id}
+        defaultMode={recordingDefaultMode}
+        matchStats={matchStats}
+      />
 
       {/* 액션 카드 */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

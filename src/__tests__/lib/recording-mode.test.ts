@@ -20,6 +20,8 @@ import {
   getRecordingMode,
   assertRecordingMode,
   withRecordingMode,
+  getTournamentDefaultMode,
+  withTournamentDefaultMode,
 } from "@/lib/tournaments/recording-mode";
 
 describe("recording-mode — getRecordingMode (5 케이스)", () => {
@@ -142,6 +144,64 @@ describe("recording-mode — withRecordingMode (settings 보존)", () => {
     // settings 가 우연히 primitive 인 경우 — 침범 0 / 빈 객체에서 시작
     expect(withRecordingMode("invalid" as unknown as object, "paper")).toEqual({
       recording_mode: "paper",
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 1 (2026-05-11) — tournament 단위 default mode 헬퍼 회귀 (3 케이스)
+// ─────────────────────────────────────────────────────────────────────────
+describe("recording-mode — getTournamentDefaultMode (3 케이스)", () => {
+  it("tournament.settings = null → 'flutter' (운영 신규 대회 fallback)", () => {
+    // 운영 신규 대회 = settings null → 기본 flutter (운영 그대로)
+    expect(getTournamentDefaultMode({ settings: null })).toBe("flutter");
+  });
+
+  it("tournament.settings = { default_recording_mode: 'paper' } → 'paper'", () => {
+    // 카드에서 운영자가 paper 로 변경한 케이스
+    expect(
+      getTournamentDefaultMode({
+        settings: { default_recording_mode: "paper" },
+      })
+    ).toBe("paper");
+  });
+
+  it("tournament.settings = { default_recording_mode: 'INVALID' } → 'flutter' fallback", () => {
+    // 알 수 없는 값 = 안전을 위해 flutter (의도하지 않은 차단 방지)
+    expect(
+      getTournamentDefaultMode({
+        settings: { default_recording_mode: "OTHER" },
+      })
+    ).toBe("flutter");
+  });
+
+  it("tournament.settings = 다른 keys 만 → 'flutter'", () => {
+    // 다른 settings 컬럼 (theme 등) 만 있는 대회 — Flutter 기본 보장
+    expect(
+      getTournamentDefaultMode({
+        settings: { themeColor: "red" } as object,
+      })
+    ).toBe("flutter");
+  });
+});
+
+describe("recording-mode — withTournamentDefaultMode (2 케이스)", () => {
+  it("기존 tournament settings 의 다른 keys 보존 + default_recording_mode 만 set", () => {
+    // 운영 대회 settings 가 theme 등 다른 정보 보유 → 모드 변경 시 보존 필수
+    const result = withTournamentDefaultMode(
+      { themeColor: "red", customKey: 1 },
+      "paper"
+    );
+    expect(result).toEqual({
+      themeColor: "red",
+      customKey: 1,
+      default_recording_mode: "paper",
+    });
+  });
+
+  it("null settings → { default_recording_mode } 만 신규 객체", () => {
+    expect(withTournamentDefaultMode(null, "flutter")).toEqual({
+      default_recording_mode: "flutter",
     });
   });
 });
