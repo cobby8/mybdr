@@ -1,5 +1,5 @@
 /**
- * LineupSelectionModal — Phase 7-B (2026-05-12).
+ * LineupSelectionModal — Phase 7-B (2026-05-12) + Phase 7.1 확장 (2026-05-12).
  *
  * 왜 (이유):
  *   FIBA 양식 = 12 행 자동 fill 운영 사고 (오늘 출전 X 선수 포함) 방지.
@@ -11,10 +11,16 @@
  *   - §3 데이터 source = MatchLineupConfirmed
  *   - §4 선발 5인 = 행 굵게 + "S" 라벨
  *
+ *   Phase 7.1 확장 (2026-05-12):
+ *   - FIBA Article 4.2.2 — 팀 명단 최대 12명 강제
+ *   - [전체 선택] / [전체 해제] 버튼 신규 (13명 이상 팀 운영 편의)
+ *   - 12명 초과 케이스 = 앞 12명 자동 체크 + 경고 toast
+ *   - 13번째 수동 체크 = 차단 + toast
+ *
  * 동작:
- *   1. 양 팀 (Team A / Team B) 출전 명단 다중 체크 (체크박스)
+ *   1. 양 팀 (Team A / Team B) 출전 명단 다중 체크 (체크박스, 최대 12명)
  *   2. 체크된 명단 중 선발 5인 선택 (선발 라디오/체크)
- *   3. 양 팀 각각 (a) 출전 ≥ 5명 + (b) 선발 = 5명 만족 시 "라인업 확정" 활성
+ *   3. 양 팀 각각 (a) 출전 5~12명 + (b) 선발 = 5명 만족 시 "라인업 확정" 활성
  *   4. 확정 → onConfirm(home, away) callback → caller 가 BFF 호출 + 양식 표시
  *
  * 절대 룰:
@@ -22,6 +28,7 @@
  *   - 빨강 본문 텍스트 ❌
  *   - 터치 영역 44px+ (체크박스 영역)
  *   - FIBA 양식 정합 = border 1px + rounded-0 (Phase 7-A 정합)
+ *   - FIBA Article 4.2.2 = 팀 명단 최대 12명
  */
 
 "use client";
@@ -29,12 +36,49 @@
 import { useEffect, useState } from "react";
 import type { RosterItem } from "./team-section-types";
 
+// FIBA Article 4.2.2 — 팀 명단 최대 12명 (Phase 7.1).
+// 이유: FIBA 공식 룰 = 한 팀 등록 가능 인원 12명. 양식 행 수 (12행) 와 정합.
+//   13명 이상 시도 = 룰 위반 → 운영 차단.
+export const MAX_ROSTER_PER_TEAM = 12;
+
 // 한 팀의 선택 결과 — Phase 7-B 산출물
 // 이유: MatchLineupConfirmed.starters (BigInt[]) + substitutes (BigInt[]) 박제 source.
 //   client 단에서는 string id 로 운영 (직렬화 단순화).
 export interface TeamLineupSelection {
   starters: string[]; // 선발 5인 (ttp.id string)
   substitutes: string[]; // 후보 (출전 명단 - 선발 5인)
+}
+
+/**
+ * 전체 선택 시 FIBA 12명 cap 적용 헬퍼 — Phase 7.1.
+ *
+ * 동작:
+ *   - players.length ≤ MAX (12) → 전체 id 반환 + overflowed=false
+ *   - players.length > MAX (12) → 앞 MAX 개만 반환 + overflowed=true (caller 가 toast 경고)
+ *
+ * 룰:
+ *   - 입력 순서 보존 (caller 가 jerseyNumber 정렬 등 정렬 후 호출)
+ *   - playerId = RosterItem.tournamentTeamPlayerId (string)
+ *
+ * 회귀 가드: lineup-selection-modal.test.ts 단위 테스트 필수.
+ */
+export function applyRosterCap(
+  allPlayers: ReadonlyArray<RosterItem>,
+  maxCount: number = MAX_ROSTER_PER_TEAM,
+): {
+  capped: string[]; // 자동 체크된 playerId 배열 (앞 maxCount 개)
+  overflowed: boolean; // maxCount 초과 여부 (true = toast 경고 trigger)
+} {
+  // 빈 배열 / 음수 maxCount 안전망 (운영 사고 방지)
+  if (allPlayers.length === 0) return { capped: [], overflowed: false };
+  if (maxCount <= 0) return { capped: [], overflowed: allPlayers.length > 0 };
+
+  const overflowed = allPlayers.length > maxCount;
+  // slice = 입력 순서 보존 (jerseyNumber 정렬 등 caller 책임)
+  const capped = allPlayers
+    .slice(0, maxCount)
+    .map((p) => p.tournamentTeamPlayerId);
+  return { capped, overflowed };
 }
 
 export interface LineupSelectionResult {
@@ -54,6 +98,9 @@ interface LineupSelectionModalProps {
   onConfirm: (result: LineupSelectionResult) => void;
   // 모달 취소 = score-sheet 자체 진입 차단 (양식 표시 안 함). 운영자가 다시 trigger 가능.
   onCancel?: () => void;
+  // Phase 7.1 — 12명 cap 경고 / 13번째 차단 toast 책임 분리 (caller 가 useToast 주입).
+  //   이유: 본 컴포넌트는 useToast 직접 import 안 함 (테스트 격리 / 책임 분리).
+  onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
 
 /**
@@ -75,22 +122,33 @@ function TeamLineupPanel({
   players,
   selection,
   onChange,
+  onToast,
 }: {
   teamLabel: "Team A" | "Team B";
   teamName: string;
   players: RosterItem[];
   selection: TeamLineupSelection;
   onChange: (next: TeamLineupSelection) => void;
+  onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }) {
   // 출전 체크된 선수 id set (빠른 조회용)
   const lineupSet = new Set([...selection.starters, ...selection.substitutes]);
   const starterSet = new Set(selection.starters);
 
-  // 출전 체크 토글 — 체크 해제 시 선발에서도 제거
+  // 출전 체크 토글 — 체크 해제 시 선발에서도 제거.
+  // Phase 7.1 — 12명 이미 체크된 상태에서 13번째 시도 시 차단 + toast.
   function toggleInLineup(playerId: string, next: boolean) {
     if (next) {
       // 출전 체크 → substitutes 에 추가 (선발 5인이 채워지면 starters 로 이동)
       if (!lineupSet.has(playerId)) {
+        // FIBA Article 4.2.2 — 12명 cap 검증 (13번째 추가 시도 차단)
+        if (lineupSet.size >= MAX_ROSTER_PER_TEAM) {
+          onToast?.(
+            `${teamLabel} — 출전 명단 최대 ${MAX_ROSTER_PER_TEAM}명 (FIBA 룰). 추가 불가`,
+            "error",
+          );
+          return; // 차단 — state 미변경
+        }
         onChange({
           starters: selection.starters,
           substitutes: [...selection.substitutes, playerId],
@@ -103,6 +161,39 @@ function TeamLineupPanel({
         substitutes: selection.substitutes.filter((id) => id !== playerId),
       });
     }
+  }
+
+  // Phase 7.1 — 전체 선택 (applyRosterCap 호출).
+  //   12명 이하 = 모든 선수 체크 / 12명 초과 = 앞 12명만 + toast 경고.
+  //   선발 5인 상태는 보존 (이미 선택된 선발은 유지).
+  function handleSelectAll() {
+    if (players.length === 0) return;
+    const { capped, overflowed } = applyRosterCap(players);
+    const cappedSet = new Set(capped);
+    // 선발 5인 중 cap 에 포함된 것만 유지 (cap 에서 빠진 선발은 자동 해제)
+    const nextStarters = selection.starters.filter((id) => cappedSet.has(id));
+    // substitutes = cap - starters
+    const nextSubstitutes = capped.filter((id) => !nextStarters.includes(id));
+    onChange({
+      starters: nextStarters,
+      substitutes: nextSubstitutes,
+    });
+    if (overflowed) {
+      // 12명 초과 = 사용자 안내 toast (FIBA 룰 가시화)
+      onToast?.(
+        `${teamLabel} — FIBA 룰 최대 ${MAX_ROSTER_PER_TEAM}명 — 앞 ${MAX_ROSTER_PER_TEAM}명 자동 체크`,
+        "info",
+      );
+    }
+  }
+
+  // Phase 7.1 — 전체 해제 (출전 / 선발 모두 빈 배열로).
+  //   사유: 선발만 해제 시 starters[]/substitutes[] 불일치 우려 → 전체 reset 일관성.
+  function handleDeselectAll() {
+    onChange({
+      starters: [],
+      substitutes: [],
+    });
   }
 
   // 선발 5인 토글 (출전 체크된 선수만 활성)
@@ -140,7 +231,7 @@ function TeamLineupPanel({
         border: "1px solid var(--color-border)",
       }}
     >
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
         <h3
           className="text-sm font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-primary)" }}
@@ -148,20 +239,57 @@ function TeamLineupPanel({
           {teamLabel}
         </h3>
         <p
-          className="text-base font-semibold"
+          className="flex-1 truncate text-right text-base font-semibold"
           style={{ color: "var(--color-text-primary)" }}
         >
           {teamName}
         </p>
       </div>
 
-      {/* 상태 안내 — 출전 / 선발 카운트 */}
+      {/* Phase 7.1 — 전체 선택 / 전체 해제 버튼.
+            이유: 13명 이상 로스터 운영 편의 + FIBA 12명 cap 가시화. */}
+      <div className="mb-2 flex gap-2">
+        <button
+          type="button"
+          onClick={handleSelectAll}
+          disabled={players.length === 0}
+          className="flex flex-1 items-center justify-center gap-1 py-1 text-[11px] font-medium disabled:opacity-40"
+          style={{
+            border: "1px solid var(--color-border)",
+            color: "var(--color-accent)",
+            minHeight: 32,
+            touchAction: "manipulation",
+          }}
+          aria-label={`${teamLabel} 출전 명단 전체 선택 (최대 ${MAX_ROSTER_PER_TEAM}명)`}
+        >
+          <span className="material-symbols-outlined text-sm">select_all</span>
+          전체 선택
+        </button>
+        <button
+          type="button"
+          onClick={handleDeselectAll}
+          disabled={players.length === 0 || lineupSet.size === 0}
+          className="flex flex-1 items-center justify-center gap-1 py-1 text-[11px] font-medium disabled:opacity-40"
+          style={{
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-muted)",
+            minHeight: 32,
+            touchAction: "manipulation",
+          }}
+          aria-label={`${teamLabel} 출전 명단 전체 해제`}
+        >
+          <span className="material-symbols-outlined text-sm">deselect</span>
+          전체 해제
+        </button>
+      </div>
+
+      {/* 상태 안내 — 출전 / 선발 카운트 (Phase 7.1 = MAX_ROSTER_PER_TEAM 표시) */}
       <div
         className="mb-2 flex justify-between text-[11px]"
         style={{ color: "var(--color-text-muted)" }}
       >
         <span style={{ color: lineupOk ? "var(--color-success)" : "var(--color-warning)" }}>
-          출전 {lineupCount}명 {lineupOk ? "✓" : "(최소 5명)"}
+          출전 {lineupCount}/{MAX_ROSTER_PER_TEAM}명 {lineupOk ? "✓" : "(최소 5명)"}
         </span>
         <span style={{ color: starterOk ? "var(--color-success)" : "var(--color-warning)" }}>
           선발 {starterCount}/5명 {starterOk ? "✓" : ""}
@@ -289,6 +417,7 @@ export function LineupSelectionModal({
   initialAway,
   onConfirm,
   onCancel,
+  onToast,
 }: LineupSelectionModalProps) {
   // 초기값 — 사전 라인업 있으면 prefill / 없으면 빈 selection
   // 이유: page.tsx 가 hasConfirmedLineup 시 starters[]/substitutes[] 전달 → caller 가 그대로 prefill.
@@ -312,10 +441,15 @@ export function LineupSelectionModal({
 
   if (!open) return null;
 
-  // 라인업 확정 조건 — 양 팀 각각 (출전 ≥ 5 + 선발 = 5)
+  // 라인업 확정 조건 — 양 팀 각각 (출전 5~12 + 선발 = 5).
+  // Phase 7.1 — MAX_ROSTER_PER_TEAM (12명) 상한 추가 (FIBA Article 4.2.2 안전망).
   function isValid(sel: TeamLineupSelection): boolean {
     const lineupCount = sel.starters.length + sel.substitutes.length;
-    return lineupCount >= 5 && sel.starters.length === 5;
+    return (
+      lineupCount >= 5 &&
+      lineupCount <= MAX_ROSTER_PER_TEAM &&
+      sel.starters.length === 5
+    );
   }
 
   const canConfirm = isValid(homeSel) && isValid(awaySel);
@@ -365,6 +499,7 @@ export function LineupSelectionModal({
             players={homePlayers}
             selection={homeSel}
             onChange={setHomeSel}
+            onToast={onToast}
           />
           <TeamLineupPanel
             teamLabel="Team B"
@@ -372,6 +507,7 @@ export function LineupSelectionModal({
             players={awayPlayers}
             selection={awaySel}
             onChange={setAwaySel}
+            onToast={onToast}
           />
         </div>
 
@@ -421,6 +557,7 @@ export function LineupSelectionModal({
  *
  * 룰:
  *   - 출전 ≥ 5명 (선발 5명을 채우려면 최소 5명 필요)
+ *   - 출전 ≤ 12명 (Phase 7.1 — FIBA Article 4.2.2 안전망)
  *   - 선발 = 5명 정확히 (FIBA 표준)
  *   - starters + substitutes 중복 0 (UI 가 보장하지만 안전망)
  */
@@ -428,6 +565,8 @@ export function isLineupSelectionValid(sel: TeamLineupSelection): boolean {
   const lineupCount = sel.starters.length + sel.substitutes.length;
   if (sel.starters.length !== 5) return false;
   if (lineupCount < 5) return false;
+  // Phase 7.1 — 12명 상한 (FIBA Article 4.2.2)
+  if (lineupCount > MAX_ROSTER_PER_TEAM) return false;
   // 중복 검증 — starters + substitutes 합집합 크기 = 합 크기
   const merged = new Set([...sel.starters, ...sel.substitutes]);
   if (merged.size !== lineupCount) return false;
