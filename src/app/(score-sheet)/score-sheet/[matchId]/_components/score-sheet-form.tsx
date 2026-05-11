@@ -49,6 +49,9 @@ import {
   addTimeout,
   removeLastTimeout,
 } from "@/lib/score-sheet/timeout-helpers";
+import type { SignaturesState } from "@/lib/score-sheet/signature-types";
+import { EMPTY_SIGNATURES } from "@/lib/score-sheet/signature-types";
+import { FooterSignatures } from "./footer-signatures";
 import { useToast } from "@/contexts/toast-context";
 
 interface MatchProp {
@@ -95,6 +98,8 @@ interface DraftPayload {
   fouls: FoulsState;
   // Phase 4 — timeouts 박제 (mid-game reload 후 타임아웃 마킹 복원)
   timeouts: TimeoutsState;
+  // Phase 5 — signatures + notes 박제 (mid-game reload 후 서명 복원)
+  signatures: SignaturesState;
   savedAt: string;
 }
 
@@ -115,6 +120,8 @@ export function ScoreSheetForm({
   const [fouls, setFouls] = useState<FoulsState>(EMPTY_FOULS);
   // Phase 4 — Timeouts state (FIBA Article 18-19 전반2/후반3/OT1)
   const [timeouts, setTimeouts] = useState<TimeoutsState>(EMPTY_TIMEOUTS);
+  // Phase 5 — Signatures state (FIBA 양식 풋터 8 입력 + notes)
+  const [signatures, setSignatures] = useState<SignaturesState>(EMPTY_SIGNATURES);
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
   const [foulModalCtx, setFoulModalCtx] = useState<{
     team: "home" | "away";
@@ -161,6 +168,18 @@ export function ScoreSheetForm({
             setTimeouts(ts);
           }
         }
+        // Phase 5 — signatures 복원 (기존 draft 호환: 없으면 EMPTY).
+        //   방어: 객체 검증 + 모든 키가 문자열인지 단순 typeof 체크
+        if (draft.signatures && typeof draft.signatures === "object") {
+          const sig = draft.signatures;
+          if (
+            typeof sig.scorer === "string" &&
+            typeof sig.refereeSign === "string"
+          ) {
+            // EMPTY 스프레드로 누락 키 방어 (구버전 draft 호환)
+            setSignatures({ ...EMPTY_SIGNATURES, ...sig });
+          }
+        }
       }
     } catch {
       // 손상된 draft = 무시
@@ -180,6 +199,7 @@ export function ScoreSheetForm({
           runningScore,
           fouls,
           timeouts,
+          signatures,
           savedAt: new Date().toISOString(),
         };
         window.localStorage.setItem(
@@ -191,7 +211,7 @@ export function ScoreSheetForm({
       }
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, timeouts, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
   function handleAdvancePeriod() {
@@ -352,6 +372,19 @@ export function ScoreSheetForm({
   function buildSubmitPayload(): unknown {
     const final = computeFinalScore(runningScore);
     const quarterScores = toQuarterScoresJson(runningScore);
+    // Phase 5 — signatures payload 박제.
+    //   이유: BFF 가 match.settings.signatures JSON 으로 merge UPDATE (Phase 4 timeouts 패턴 재사용).
+    //   notes 는 별도 컬럼 (TournamentMatch.notes) 박제 — BFF route 의 별도 update 흐름 활용.
+    //   빈 값 키는 schema optional 로 자동 제거 (전송 부하 최소화 — 빈 객체면 통째 생략).
+    const hasAnySig =
+      signatures.scorer ||
+      signatures.asstScorer ||
+      signatures.timer ||
+      signatures.shotClockOperator ||
+      signatures.refereeSign ||
+      signatures.umpire1Sign ||
+      signatures.umpire2Sign ||
+      signatures.captainSignature;
     return {
       home_score: final.homeTotal,
       away_score: final.awayTotal,
@@ -360,10 +393,28 @@ export function ScoreSheetForm({
       fouls,
       // Phase 4 — timeouts (match.settings.timeouts JSON 박제)
       timeouts,
+      // Phase 5 — signatures (match.settings.signatures JSON 박제). 빈 객체면 생략
+      ...(hasAnySig
+        ? {
+            signatures: {
+              scorer: signatures.scorer || undefined,
+              asstScorer: signatures.asstScorer || undefined,
+              timer: signatures.timer || undefined,
+              shotClockOperator: signatures.shotClockOperator || undefined,
+              refereeSign: signatures.refereeSign || undefined,
+              umpire1Sign: signatures.umpire1Sign || undefined,
+              umpire2Sign: signatures.umpire2Sign || undefined,
+              captainSignature: signatures.captainSignature || undefined,
+            },
+          }
+        : {}),
       status: "completed" as const,
       referee_main: header.referee || undefined,
       referee_sub1: header.umpire1 || undefined,
       referee_sub2: header.umpire2 || undefined,
+      // Phase 5 — notes (TournamentMatch.notes 컬럼 — BFF route 의 기존 별도 update 흐름).
+      //   빈 문자열은 BFF 가 무시 (overwrite 안 함).
+      notes: signatures.notes || undefined,
     };
   }
 
@@ -445,6 +496,17 @@ export function ScoreSheetForm({
         </div>
       </div>
 
+      {/* Phase 5 — FooterSignatures (FIBA 양식 풋터 8 입력 + notes).
+          이유: 헤더 referee/umpire1/umpire2 → 풋터 refereeSign/umpire1Sign/umpire2Sign 자동 prefill.
+          MatchEndButton 위에 배치 = 경기 종료 전 서명 입력 흐름. */}
+      <FooterSignatures
+        values={signatures}
+        onChange={setSignatures}
+        headerReferee={header.referee}
+        headerUmpire1={header.umpire1}
+        headerUmpire2={header.umpire2}
+      />
+
       {/* Phase 3.5 — 경기 종료 버튼 (BFF POST + 라이브 발행).
           이유: 운영자가 Q4(또는 OT) 종료 후 명시적 매치 종료 트리거.
           MatchEndButton 내부에서 confirm modal + 응답 처리 */}
@@ -465,8 +527,8 @@ export function ScoreSheetForm({
           border: "1px solid var(--color-border)",
         }}
       >
-        Phase 4 = Time-outs (FIBA Article 18-19 전반2/후반3/OT1) 완성. 서명/노트 (Phase 5),
-        인쇄 PDF (Phase 6) 는 후속 PR.
+        Phase 5 = Signatures + Notes (헤더 referee/umpire 자동 prefill / settings.signatures JSON 박제)
+        완성. 인쇄 PDF (Phase 6) 는 후속 PR.
       </div>
 
       {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더) */}

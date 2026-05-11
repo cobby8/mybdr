@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA SCORESHEET Phase 4 — Time-outs (전반2/후반3/연장1 + Article 18-19)
-- **상태**: ✅ 완료 — tsc 0 / vitest 477/477 (+30 신규) / 회귀 0
+- **요청**: FIBA SCORESHEET Phase 5 — 서명 (Scorer/Asst/Timer/Shot Clock/Referee/Umpire/Captain) + 노트
+- **상태**: ✅ 완료 — tsc 0 / vitest 487/487 (+10 신규) / 회귀 0
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식)
@@ -13,8 +13,94 @@
 | 3 | Player/Team Fouls + 5반칙 + 5+ FT toast | ✅ |
 | 3.5 | 파울종류 (P/T/U/D) + Article 41 + 쿼터/경기 종료 + Licence 자동 | ✅ |
 | 4 | Time-outs (전반2/후반3/연장1 + settings.timeouts JSON) | ✅ |
-| 5 | 서명 + 노트 (확장) — 경기 종료만 3.5 선진입 | ⏳ |
+| 5 | 서명 8 + 노트 (settings.signatures JSON + 헤더 자동 prefill) | ✅ |
 | 6 | A4 세로 인쇄 PDF | ⏳ |
+
+## 구현 기록 (developer) — FIBA 양식 Phase 5 서명+노트
+
+📝 구현 범위: FooterSignatures (8 입력 + 노트) + settings.signatures JSON merge (Phase 4 timeouts 패턴 재사용) + 헤더 → 풋터 자동 prefill (dirty flag 안전망)
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 | 줄수 |
+|------|------|---------|-----|
+| `src/lib/score-sheet/signature-types.ts` | SignaturesState (9 키) / EMPTY_SIGNATURES / SIGNATURE_MAX_LENGTH (50) / CAPTAIN_SIGNATURE_MAX_LENGTH (100) / NOTES_MAX_LENGTH (500) | 신규 | 65 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | 8 SigInput (border-bottom only / 44px+) + notes textarea (글자 카운터) + 헤더 자동 prefill (didPrefillRef dirty flag) + 좌·우·하단 영역 구분선 | 신규 | 200 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | signatures state + DraftPayload 확장 + draft 복원 (EMPTY 스프레드 호환) + buildSubmitPayload hasAnySig 분기 + FooterSignatures 마운트 | 수정 | +55 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | signaturesSchema (zod) + submitSchema.signatures.optional() + settings JSON merge 통합 UPDATE (timeouts + signatures 단일 UPDATE) + audit context Sig 카운트 | 수정 | +35 |
+| `src/__tests__/score-sheet/signature-types.test.ts` | 10 케이스 (EMPTY 키 셋 3 / 길이 상수 3 / hasAnySig 분기 4) | 신규 | 110 |
+
+### 자동 fill UX 결정 — 헤더 → 풋터 자동 prefill (dirty flag)
+| 옵션 | 채택 사유 |
+|------|---------|
+| (a) 헤더 → 풋터 자동 prefill ✅ | 헤더의 Referee/Umpire 1/Umpire 2 = 풋터와 99% 동일 인물. 입력 부담 0 |
+| (b) 자동 복사 버튼 | 1 클릭 추가 — UX 손해 |
+| (c) 별도 입력 | 사용자 중복 입력 부담 |
+
+**dirty flag 안전망**:
+- `didPrefillRef` 사용 — mount 1회만 prefill 시도
+- 풋터 값이 빈 문자열일 때만 헤더 값 복사 (이미 있는 사용자 수정 보존)
+- draft 복원 후 mount = 이미 값 보유 → prefill skip (사용자 의도 보존)
+- 사용자 입력 후에는 헤더 변경이 풋터에 미반영 (헤더 = 경기 시작 / 풋터 = 종료 후 — FIBA 양식 정합)
+
+### settings JSON merge 검증 (Phase 4 timeouts + Phase 5 signatures 통합)
+- 기존 settings 객체 spread → `timeouts` / `signatures` 키만 set → 기존 `recording_mode` 등 키 보존
+- **단일 UPDATE 통합**: input.timeouts 또는 input.signatures 둘 중 하나라도 전송 시 1회 prisma.tournamentMatch.update → DB 왕복 최소화
+- 둘 다 미전송 = UPDATE skip (기존 settings 유지)
+- match.settings 가 null/array/primitive 시 빈 객체에서 시작 (방어)
+- schema 변경 **0** / Prisma JSON 컬럼 활용
+
+### notes 박제 위치
+- TournamentMatch.notes 컬럼 (기존 BFF 6번 단계의 별도 update 흐름 그대로 활용)
+- settings.signatures JSON 과 분리 (DB 컬럼 일관성 — notes 는 본래 별도 컬럼 존재)
+- 빈 문자열 = 기존 값 유지 (overwrite 안 함)
+
+### UX 동작
+- 풋터 영역 = 페이지 하단 (MatchEndButton 위 — 경기 종료 전 서명 입력 흐름)
+- 좌측 4 입력 (Scorer / Asst Scorer / Timer / Shot Clock Operator) sm:grid-cols-2
+- 구분선 (FIBA 양식 정합) → 우측 3 입력 (Referee / Umpire 1 / Umpire 2) sm:grid-cols-3
+- 구분선 → 하단 1 입력 (Captain's signature in case of protest)
+- 마지막 = Notes textarea (rows 3 / min-height 88px / 글자수 카운터 / resize vertical)
+- 모든 입력 border-bottom only (FIBA 양식 underscore 정합) / radius/background ❌
+- `--color-*` 토큰만 / Material Symbols / lucide-react 0 / 핑크코랄 0
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (출력 0) |
+| vitest 신규 케이스 | 10/10 PASS |
+| vitest 전체 회귀 | 487/487 PASS (이전 477 + 신규 10) |
+| 디자인 13 룰 (lucide-react / 핑크코랄 / BigInt n) | 위반 0 |
+| Flutter v1 영향 | 0 (api/web/score-sheet 단일) |
+| schema 변경 | 0 (settings JSON 활용) |
+| AppNav frozen | 0 영향 |
+| 운영 DB 영향 | 0 (코드만) |
+
+### tester 참고
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/score-sheet/signature-types.test.ts` — 10 케이스
+  2. 수동 E2E (paper 모드 매치):
+     - 헤더에서 Referee/Umpire 1/Umpire 2 입력 → 페이지 스크롤 후 FooterSignatures 영역에 동일 값 자동 prefill 검증
+     - 풋터 refereeSign 수정 → 헤더 referee 다시 변경 → 풋터 값 변경 안 됨 (dirty flag 검증)
+     - 8 입력 + notes 모두 입력 → 경기 종료 → BFF POST → DB `match.settings.signatures` JSON 박제 + `match.notes` 컬럼 박제 검증
+     - 빈 상태로 경기 종료 → BFF payload 에 signatures 키 자체 미전송 → settings.signatures 갱신 0 (timeouts 와 동일 패턴)
+- 정상 동작:
+  - 풋터 = 페이지 하단 (MatchEndButton 위)
+  - 좌·우·하단 3 영역 구분선
+  - 입력 = border-bottom only (FIBA underscore)
+  - notes 글자 카운터 실시간 (0 / 500)
+  - 모든 입력 disabled 가능 (Phase 6 PDF 인쇄 시 readonly 활용 예정)
+- 주의할 입력:
+  - 51자 초과 입력 시도 → maxLength 50 차단 (브라우저 native)
+  - 빈 풋터로 제출 → signatures 키 자체 미전송 (BFF 가 UPDATE skip)
+  - draft 복원 시 구버전 draft (signatures 키 없음) → EMPTY_SIGNATURES 그대로 (방어 검증)
+
+### reviewer 참고
+- **dirty flag (`didPrefillRef`) 단일 source**: useEffect mount 1회 시도. 풋터 값이 빈 문자열이 아닐 때 (draft 복원 또는 수동 수정) prefill skip. 패턴 단순화 — useState 별도 dirty 플래그 미사용 (useRef 1개로 해결).
+- **settings JSON 통합 UPDATE**: Phase 4 와 Phase 5 를 분리 UPDATE 하면 DB 왕복 2회 + race condition 위험 → 단일 UPDATE 로 통합. 둘 다 미전송 시 UPDATE 자체 skip (운영 DB 부하 0).
+- **notes 박제 위치 결정**: TournamentMatch.notes 컬럼 vs settings.notes JSON 둘 다 검토 → 컬럼 채택 (기존 BFF 의 별도 update 흐름 그대로). settings.signatures 와 분리 — 노트는 본래 매치 메타.
+- **hasAnySig 분기 (buildSubmitPayload)**: 빈 객체 전송 회피 — BFF 가 input.signatures 미수신 시 settings.signatures 갱신 0 (timeouts 와 동일 idempotent 패턴). 8 키 OR 검사 + notes 별도 처리 (vitest §payload 박제 룰 검증).
+- **maxLength 클라이언트 가드 vs zod 서버 가드**: 입력 컴포넌트 maxLength (HTML native) + zod schema max (서버 검증) 이중 가드. 사용자 조작으로 51자 전송 시도 시 zod 가 차단 (validationError).
+- **헤더 / 풋터 별개 박제**: FIBA 양식 정합 — 헤더 = 경기 전 정보 (FibaHeader.referee) / 풋터 = 종료 후 서명 (signatures.refereeSign). Phase 6 PDF 인쇄 시 두 영역 별도 박제.
 
 ## 구현 기록 (developer) — FIBA 양식 Phase 4 Time-outs
 
@@ -507,6 +593,7 @@ if (data.series_id !== undefined):
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 5]** 서명 8 (Scorer/AsstScorer/Timer/ShotClock/Referee/Umpire1/Umpire2/Captain) + 노트 + signature-types/FooterSignatures 신규 + 헤더 → 풋터 자동 prefill (didPrefillRef dirty flag) + BFF settings.signatures JSON merge 통합 UPDATE (Phase 4 timeouts 와 단일 prisma.update). tsc 0 / vitest 487/487 (+10). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 4]** Time-outs Article 18-19 (전반2/후반3/OT각1) + timeout-types/helpers 신규 + team-section TIME-OUTS 활성화 + score-sheet-form state/handler + BFF settings.timeouts JSON merge UPDATE (recording_mode 키 보존). tsc 0 / vitest 477/477 (+30). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[대회-시리즈 연결 흡수 모달 PR3]** GET /api/web/tournaments/my-unlinked (본인 미연결 draft/reg 대회) + POST /api/web/series/[id]/absorb-tournaments (다건 흡수 skip 패턴 / $transaction 카운터 group by) + AbsorbTournamentsModal (체크박스 다건 + 2단계 confirm + var(--*) 토큰 + Material Symbols + 44px+) + 단체 페이지 시리즈 카드 "기존 대회 가져오기" 버튼. vitest 477/477 (+8). tsc 0. 디자인 13 룰 위반 0. Flutter v1 영향 0. schema 변경 0. 운영 DB 영향 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 3.5]** 파울종류 P/T/U/D + Article 41 4사유 분기 + 쿼터/경기 종료 + Licence 자동 fill (User.id). FoulTypeModal + MatchEndButton 신규. tsc 0 / vitest 439/439 (+23). 회귀 0. | ✅ |
@@ -516,5 +603,3 @@ if (data.series_id !== undefined):
 | 2026-05-12 | (DB만 / 코드 0) | **[강남구협회 연결 초기화]** BDR 시리즈(id=8) organization_id=NULL UPDATE 1건. 12 대회 events-tab 미노출 검증. 강남구협회장배(draft, series_id=NULL) 연결 흐름 분석 — Tournament PATCH series_id 부재로 사후 연결 UI 없음. _temp 정리. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 3]** Player Fouls 1-5 + Team Fouls 자동 + 5반칙 회색·"퇴장" + 5+ FT toast. BFF fouls + PBP foul event. vitest 405/405 (+24). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 2]** Running Score 1-160 + PlayerSelectModal + PeriodScoresSection + BFF running_score → PaperPBP. vitest 381/381 (+31). | ✅ |
-| 2026-05-11 | (커밋 대기) | **[FIBA 종이 기록지 Phase 1]** `(score-sheet)` route group + minimal layout + RotationGuard + FibaHeader + TeamSection. 기존 `(web)/score-sheet/` 6 파일 폐기. vitest 350/350 (+9). | ✅ |
-| 2026-05-11 | (기획만) | **[FIBA 재기획]** 6 Phase + 사용자 결재 7건 + 컴포넌트 트리 + DB 매핑 12 영역. | ✅ |
