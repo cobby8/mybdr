@@ -157,11 +157,8 @@ export default function OrganizationMembersPage() {
             <option value="member">멤버</option>
             <option value="admin">관리자</option>
           </select>
-          <button
-            onClick={handleInvite}
-            disabled={inviting}
-            className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
+          {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
+          <button onClick={handleInvite} disabled={inviting} className="btn btn--primary disabled:opacity-50">
             {inviting ? "..." : "초대"}
           </button>
         </div>
