@@ -26,6 +26,8 @@ import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-sta
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 // 2026-05-12 Phase 3-B 자동 trigger 통합 — 조별 풀리그/링크제 standings 기반 placeholder UPDATE
 import { advanceDivisionPlaceholders } from "@/lib/tournaments/division-advancement";
+// 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' 자동 UPDATE
+import { checkAndAutoCompleteTournament } from "@/lib/tournaments/auto-complete";
 // 2026-05-09: 알기자 자동 발행 — sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
 //   waitUntil 로 wrap (Vercel serverless 응답 종료 후 process abort 방지).
 import { waitUntil } from "@vercel/functions";
@@ -664,13 +666,19 @@ export async function syncSingleMatch(
     if (divisionCode) {
       tasks.push(advanceDivisionPlaceholders(prisma, tournamentId, divisionCode));
     }
+    // 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' UPDATE.
+    //   - 멱등 (이미 종료/매치 0건/미완료 매치 1건+ = no-op)
+    //   - 진출 / standings 박제 후 호출 보장 위해 sequential 이 아닌 병렬 — race condition 영향 0
+    //     (status='completed' UPDATE 는 매치 count 기준 / advanceWinner 와 독립).
+    tasks.push(checkAndAutoCompleteTournament(prisma, tournamentId));
 
     const results = await Promise.allSettled(tasks);
-    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders?]
+    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders?, autoComplete]
     let cursor = 0;
     const advanceResult =
       !isDual || (isDual && winnerTeamId) ? results[cursor++] : null;
     const divisionResult = divisionCode ? results[cursor++] : null;
+    const autoCompleteResult = results[cursor++];
 
     if (advanceResult && advanceResult.status === "rejected") {
       console.error(
@@ -689,6 +697,25 @@ export async function syncSingleMatch(
         divisionResult.reason
       );
       warnings.push("순위전 placeholder 자동 매핑 실패 — 관리자에게 문의하세요");
+    }
+    if (autoCompleteResult && autoCompleteResult.status === "rejected") {
+      // 자동 종료 실패는 warning 만 (operating critical 아님 — 운영자 수동 종료 가능)
+      console.error(
+        `[match-sync:post-process] checkAndAutoCompleteTournament failed matchId=${match.server_id} tournamentId=${tournamentId}:`,
+        autoCompleteResult.reason
+      );
+      // warnings 에 추가하지 않음 (운영자에게 노이즈 — 자동 종료 실패는 매치 처리 자체와 무관)
+    } else if (
+      autoCompleteResult &&
+      autoCompleteResult.status === "fulfilled" &&
+      autoCompleteResult.value &&
+      typeof autoCompleteResult.value === "object" &&
+      "updated" in autoCompleteResult.value &&
+      autoCompleteResult.value.updated === true
+    ) {
+      console.log(
+        `[match-sync:post-process] auto-completed tournamentId=${tournamentId} reason=${(autoCompleteResult.value as unknown as { reason: string }).reason}`
+      );
     }
 
     postProcessStatus = warnings.length === 0 ? "ok" : "partial_failure";
