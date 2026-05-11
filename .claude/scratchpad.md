@@ -1,9 +1,84 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 운영 검증 6 issue (이미지 29~34) 옵션 A — 작은 fix 4건 본 세션
-- **상태**: ✅ 3건 완료 / 33+34 별 PR 보류
+- **요청**: 대회/시리즈/단체 연결 구조 전체 진단 (planner-architect, 읽기 전용)
+- **상태**: ✅ 진단 완료 (운영 DB 실측 + 코드 흐름 추적)
 - **모드**: no-stop (자동 머지 위임)
+
+## 진단 (planner-architect) — 대회/시리즈/단체 연결 구조 전체 점검 (2026-05-12)
+
+🎯 목표: 3 엔티티 (organizations / tournament_series / tournament) 연결 흐름의 빈 칸 + 정합성 깨짐 root cause 일괄 파악 → fix 로드맵 5 Phase 제시
+
+### 1. 데이터 모델 관계도 (ASCII)
+
+```
+       organizations (BigInt id)               
+       ├─ owner_id → User (1:1)               
+       ├─ series_count (캐시 — 정합성 가드 부재)
+       └─ status: pending / approved / rejected
+               │ 1:N
+               ▼
+       organization_members (org_id, user_id, role: owner/admin/member)
+               │
+       ┌───────┴────────┐
+       │                │
+       │     tournament_series (BigInt id)
+       │     ├─ organization_id  ❶ Nullable!
+       │     ├─ organizer_id (User, 단일)
+       │     ├─ tournaments_count (캐시 — 정합성 가드 부재)
+       │     └─ status: active / inactive
+       │             │ 1:N
+       │             ▼
+       │      Tournament (UUID id)
+       │      ├─ series_id    ❷ Nullable (대회는 시리즈 없어도 됨)
+       │      ├─ organizerId  ❸ 시리즈 organizer 와 독립
+       │      └─ tournament_admin_members (TAM, 다인 권한)
+       │
+       └─ FK = onDelete NoAction (단체 삭제 = 시리즈 고아화)
+```
+
+### 2. 발견된 문제점 (운영 DB 실측 포함)
+
+| # | 카테고리 | 심각도 | 영향 | 위치 / 사실 |
+|---|---------|--------|------|------------|
+| **P1** | DB/API | 🔴 Critical | 운영 카운터 깨짐 12건 | series id=8 (BDR) `tournaments_count` stored=**0** / actual=**12**. org id=3 (강남구농구협회) `series_count` stored=**0** / actual=**1**. **카운터 backfill/recompute 0건 / cron 0건**. createTournament service (`src/lib/services/tournament.ts:418`) 가 `series_id` 입력 자체 없고 +1 박제도 없음. editions API 만 +1 / PATCH/absorb 가 +1·-1 → wizard 진입 X 인 직접 create path 는 stale |
+| **P2** | API | 🔴 Critical | 시리즈 organization_id NULL 박제 | `/tournament-admin/series/new/page.tsx:31` 호출이 `organization_id` 파라미터 **미전송** → 운영자가 본 페이지에서 만들면 org_id NULL 박제 (id=10 사례 = 운영 사실). `/(web)/series/new/` 페이지는 **alert("준비 중") 만** — DB mutation 0 |
+| **P3** | API | 🟠 Major | 시리즈 PATCH/DELETE 부재 | `/api/web/series/[id]/route.ts` GET 1개. `organization_id` 사후 변경 / 시리즈 메타 (name/desc/is_public) 수정 / 시리즈 삭제 0건. 단체-시리즈 분리 = DB UPDATE 만 (실측 사례) |
+| **P4** | API | 🟠 Major | 대회 DELETE 부재 | `/api/web/tournaments/[id]/route.ts` GET/PATCH 만. 대회 삭제 흐름 자체 없음 (status=cancelled 도 불완전). 시리즈 삭제 시 소속 대회 운명 미정의 |
+| **P5** | 권한 | 🟠 Major | requireSeriesOwner 가 organizer_id 만 검증 | 단체 소속 시리즈인데 다른 단체 admin/owner 가 못 만짐. `series-permission.ts:78` — organization_members role 분기 0건. PR1 PATCH 도 organizer 본인만 series 이동 가능 |
+| **P6** | UI | 🟠 Major | 단체-시리즈 분리 / 단체간 이동 UI 0 | 실측 사례 = DB UPDATE 만 (강남구 BDR 시리즈). organization 페이지에서도 시리즈 PATCH organization_id=null UI 없음 |
+| **P7** | UI | 🟡 Minor | 시리즈 신규 진입점 4개 분기 | `/(web)/series/new` (alert만), `/tournament-admin/series/new` (org_id 미전송), `/tournament-admin/organizations/[orgId]` (정상, org_id 박제), 메인 nav 메뉴 — 진입점 일관성 X |
+| **P8** | 일관성 | 🟡 Minor | 단체 삭제 / cascade 미정의 | organizations FK onDelete NoAction. 단체 삭제 시 시리즈 organization_id 자동 NULL X / cascade 결정 미정의. lifecycle 사용자 결재 항목 |
+| **P9** | UI | 🟢 Info | 공개 페이지 events 탭 평탄화 vs 관리 페이지 unflatten | `/organizations/[slug]?tab=events` = series → tournaments 평탄. `/tournament-admin/organizations/[orgId]` = series 카드 list. 운영자가 흡수 UI 보려면 series 클릭 → 새 페이지. 통합 hub 부재 |
+
+### 3. 우선순위별 fix 로드맵 (5 Phase)
+
+| Phase | 범위 | LOC 추정 | 위험 | 산출물 |
+|-------|------|---------|------|--------|
+| **A. 즉시 fix (1~2 PR)** | (a) 카운터 일회성 recompute 스크립트 + 운영 DB backfill / (b) `/tournament-admin/series/new` 페이지에 organization 드롭다운 추가 (P2) / (c) `/(web)/series/new` 페이지 alert 제거 (또는 redirect to 단체 페이지) | 200~300 | 낮음 (UI 추가 + 스크립트) | scripts/recompute-series-counters.ts + form 1 dropdown + redirect 1줄 |
+| **B. 정합성 가드 (1 PR)** | createTournament service 에 series_id 입력 + +1 박제 통합 / Tournament DELETE 추가 (소프트 delete or 카운터 -1) / cron recompute 주 1회 | 300~500 | 중 (모든 create path 점검 필요) | services 수정 + 신규 DELETE route + cron |
+| **C. 시리즈 PATCH/DELETE (1 PR)** | `/api/web/series/[id]` PATCH (name/desc/is_public/organization_id 변경) + DELETE (소프트 status=inactive) / requireSeriesOwner 확장 = organization owner/admin 도 허용 / 카운터 동기화 transaction | 400~600 | 중 (권한 매트릭스 변경) | route + permission helper 확장 |
+| **D. UI 단체↔시리즈 운영자 셀프서비스 (2 PR)** | 단체 페이지 시리즈 카드에 "단체에서 분리" / "다른 단체로 이동" 메뉴 (3-dot) / 시리즈 페이지 "단체 변경" 드롭다운 / 운영자 단체 admin/owner 가 시리즈 만질 수 있게 권한 확장 | 600~1000 | 중 (UI + 권한 + transaction) | OrgSeriesActionsMenu + SeriesSettingsForm |
+| **E. lifecycle 정책 + cascade (1 PR + 결재)** | 단체 삭제 정책 결재 (option A: status archived 보존 / B: 소속 series.organization_id NULL 자동 / C: cascade) / 시리즈 삭제 시 대회 운명 정책 / cron monthly audit | 300~500 + 결재 1회 | 높음 (DB 정책) | 결재 문서 + cron + admin UI |
+
+### 4. 운영자 결재 사항 (3 항목)
+
+1. **단체 삭제 정책** — A 보존 (status=archived, series.organization_id 유지) / B 자동 분리 (NULL) / C cascade 전체 삭제. 강력 추천 = **A** (감사 + 복구 가능)
+2. **시리즈 organization_id 변경 권한** — 시리즈 organizer 본인만 / 단체 owner+admin 도 가능 / super_admin 만. 추천 = **단체 owner+admin + super_admin** (운영 셀프서비스)
+3. **대회 organizer ≠ 시리즈 organizer 케이스** — 단체 소속 시리즈 안에서 대회 organizer 가 단체 멤버 아닐 때 권한 흐름. 추천 = **단체 admin/owner 가 단체 소속 시리즈 모든 대회 관리 가능** (현재 = 안 됨)
+
+### 5. 장기 비전
+
+단체 페이지가 **시리즈/대회의 hub** — 운영자가 단체 페이지에서 모든 시리즈/대회 lifecycle (create / status / 분리 / 이동 / 삭제) 1-click. 시리즈 페이지는 단체 sub-page. 대회는 시리즈 sub-page. 공개 페이지 events 탭 = 평탄화 유지 (운영 페이지는 hierarchy 유지). 카운터 = 단방향 trigger (create/update/delete 시 같은 transaction +N/-N) + cron monthly recompute audit.
+
+### 6. knowledge 갱신 후보
+
+- `architecture.md` 후보: 3 엔티티 관계도 + FK NoAction 정책 + 카운터 정합성 메커니즘 부재
+- `decisions.md` 후보: 단체 삭제 정책 (위 결재 1) / 권한 확장 정책 (결재 2) / 카운터 정합성 보장 메커니즘 결정
+
+### 본 진단 작업의 부산물 (정리됨)
+- `scripts/_temp/diag-series-org-counters.ts` — 운영 DB 실측 후 삭제 ✓ (운영 SELECT 만, schema 변경 0, UPDATE 0)
+
 
 ## 진행 현황표 (옵션 A — 본 세션)
 | # | 이슈 | 작업 | 상태 |
@@ -18,6 +93,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[Phase A 즉시 fix]** 운영 사고 3종 차단 — (A-1) `/tournament-admin/series/new` organization 드롭다운 추가 (owner/admin + approved 필터) (A-2) `/(web)/series/new` alert 폼 → admin redirect 통합 (A-3) `scripts/_temp/series-counter-recompute.ts` DRY-RUN/APPLY 모드 분리. tsc 0 / vitest 541 PASS / DRY-RUN 실측 = 진단 fact 일치 (series id=8 0→12 / org id=3 0→1). schema 변경 0 / Flutter v1 영향 0. APPLY 는 사용자 승인 후 별 turn 실행 | ✅ |
+| 2026-05-12 | (진단) | **[진단]** 대회/시리즈/단체 연결 구조 전체 점검 — 운영 DB 실측: series id=8 카운터 0/12 깨짐 + org id=3 카운터 0/1 깨짐 + series id=10 org_id NULL. root cause = `/tournament-admin/series/new` org_id 미전송 + createTournament service +1 박제 부재 + cron 0건. 9 문제점 매트릭스 + 5 Phase 로드맵 + 3 결재 항목. 코드 변경 0 / SELECT only / 스크립트 정리 ✓ | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 8]** PDF 1:1 완전 정합 — 단일 외곽 박스 통합 + 헤더 컴팩트 4 줄 + Players 행 28px + Footer 가로 펼침 (Scorer/Asst/Timer/Shot Clock 4열 + Referee/Umpire1·2 3열). 7 파일 +450/-258. tsc 0 / vitest 541/541. 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 7.1]** LineupSelectionModal 확장 — 전체 선택/해제 + FIBA 12명 cap (Article 4.2.2) + 13번째 차단 + applyRosterCap 헬퍼 + isLineupSelectionValid 12명 상한. tsc 0 / vitest 533/533 (+7). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | d89f600 | **[live]** score-match swap-aware 백포트 — 5/10 결승 영상 사고 2차 fix | ✅ |
@@ -26,8 +103,6 @@
 | 2026-05-12 | eead692 | **[stats]** 통산 스탯 3 결함 일괄 — mpg 모달 회귀 + 승률 source + FG%/3P% NBA 표준 | ✅ |
 | 2026-05-12 | 714eda3 | **[stats]** 통산 mpg 단위 변환 — DB 초 → 표시 분 (사용자 보고) | ✅ |
 | 2026-05-12 | eba91f9 | **[fix]** middleware.ts 삭제 — Next.js 16 proxy 단일 source 통합 | ✅ |
-| 2026-05-12 | (다건) | **[FIBA Phase 7]** 디자인 PDF 1:1 + LineupSelectionModal + QuarterEndModal (Q4/OT 분기) | ✅ |
-| 2026-05-12 | (다건) | **[강남구협회장배]** 36팀 + 59경기 + 종별 룰 + 토큰 + 모달 (Phase 1~4-B) | ✅ |
 
 ## 구현 기록 (developer) — FIBA Phase 8 PDF 1:1 완전 정합 (2026-05-12)
 
@@ -93,6 +168,80 @@
 - 단일 박스 통합으로 5 카드 분리 폐기 → CSS 룰 충돌 가능성 검토 (`.fiba-frameless` 가 `.score-sheet-fiba-frame` 안에서만 동작하도록 prefix)
 - `md-fiba-divider-right` = Tailwind 인식 X → `_print.css` 의 `@media (min-width: 768px)` 미디어쿼리에서 적용 (커스텀 클래스)
 - frameless prop 디폴트 false = 기존 호출자 회귀 0 보장. score-sheet-form.tsx 만 true 주입
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
+---
+
+## 구현 기록 (developer) — Phase A 즉시 fix (2026-05-12)
+
+📝 구현 범위: 운영 사고 차단 3종 fix (admin organization 드롭다운 + (web) redirect + 카운터 backfill 스크립트)
+
+### 변경 파일
+| # | 파일 | 변경 | 신규/수정 |
+|---|------|------|----------|
+| A-1 | `src/app/(admin)/tournament-admin/series/new/page.tsx` | useEffect mount → `GET /api/web/organizations` → owner/admin + approved 필터 → 드롭다운 ("단체 미연결" 옵션 + 단체목록) → POST body 에 organization_id 포함 | 수정 |
+| A-2 | `src/app/(web)/series/new/page.tsx` | 기존 권한 가드 + alert 폼 페이지 → server-side `redirect('/tournament-admin/series/new')` 통합. 비로그인 시 `buildLoginRedirect` 로 admin 페이지 복귀 쿼리 동봉 | 수정 |
+| A-3 | `scripts/_temp/series-counter-recompute.ts` | DRY-RUN(default) / `--apply` 모드 분리. tournament_series.tournaments_count + organizations.series_count 2종 점검 + APPLY 시 UPDATE | 신규 |
+
+### A-1 핵심 흐름
+- 마운트 시 1회 `fetch("/api/web/organizations")` → `OrganizationItem[]` 응답 (snake_case 변환: `myRole` → `my_role`)
+- 필터: `my_role === "owner" || "admin"` + `status === "approved"` (member 는 시리즈 생성 불가)
+- 드롭다운 옵션: "단체 미연결 (개인 시리즈)" + 단체 N건
+- POST body — organizationId 빈 문자열이면 키 자체 제외 (서버 null 박제)
+- 이중 가드: 클라이언트 필터 + 서버 `/api/web/series` 의 organization_members 검증
+
+### A-2 redirect 전략
+- 옵션 b 채택 (운영자 페이지 단일 진입점)
+- 비로그인: `buildLoginRedirect("/tournament-admin/series/new")` 동봉 → 로그인 후 admin 페이지 자동 복귀
+- admin layout 가드(super_admin / tournament_admin)가 권한 없는 사용자 거름 (이중 가드)
+- `_form/series-create-form.tsx` (dead code) 는 그대로 두고 별도 PR에서 회수 (회수 X)
+
+### A-3 backfill 스크립트
+- 기본 모드 = DRY-RUN (SELECT 만, UPDATE 0건)
+- `--apply` 인자 추가 시 실제 UPDATE
+- Prisma `_count.tournaments` / `_count.series` relation count 로 actual 산출
+- 각 mismatch 박제 출력 + 요약 (전체 N / 불일치 N)
+
+### 검증 결과
+- **tsc**: 0 에러
+- **vitest**: 541/541 PASS (회귀 0)
+- **DRY-RUN 실측** (운영 DB, SELECT only):
+  ```
+  === tournament_series.tournaments_count 점검 ===
+    전체: 3건 / 불일치: 1건
+      series id=8 (BDR 시리즈): stored=0 / actual=12
+  === organizations.series_count 점검 ===
+    전체: 2건 / 불일치: 1건
+      org id=3 (강남구농구협회): stored=0 / actual=1
+  ```
+  → 진단 fact 와 100% 일치 (재현 OK)
+- **grep 회귀 0**: BigInt(N)n / 핑크/살몬/코랄 / lucide-react 모두 0건
+- **Flutter v1 영향 0**: `src/app/api/v1/` 내 organization_id / series_count / tournaments_count 사용 0건 grep 확인
+- **schema 변경 0**: schema.prisma 미수정
+
+### 💡 tester 참고
+- 테스트 방법:
+  1. `/tournament-admin/series/new` 진입 → 드롭다운 표시 확인 (본인 owner/admin 단체만)
+  2. "단체 미연결" 선택 → 시리즈 생성 → 시리즈의 organization_id = null
+  3. 단체 선택 → 시리즈 생성 → DB 에 organization_id 박제 + organizations.series_count +1 (POST `/api/web/series` 의 increment 로 자동 처리)
+  4. `/(web)/series/new` 진입 → admin 페이지로 즉시 redirect
+  5. 비로그인 사용자 `/(web)/series/new` 진입 → /login?redirect=%2Ftournament-admin%2Fseries%2Fnew
+- 정상 동작:
+  - 운영자가 단체 선택 시 → organization_id NULL 박제 사고 영구 차단
+  - DRY-RUN 결과가 진단 fact 와 일치 (운영 카운터 불일치 2건 실측)
+- 주의할 입력:
+  - 단체가 0개인 사용자 → "관리 가능한 단체가 없어 개인 시리즈로 생성됩니다." 안내 표시
+  - member 권한 단체 → 드롭다운에 노출 X (서버 검증과 이중)
+  - APPLY 모드 = 사용자 명시 승인 후 PM 이 실행 (developer 가 직접 X)
+
+### ⚠️ reviewer 참고
+- 응답 키 snake_case 자동 변환 룰 — `apiSuccess(myRole)` → 응답에 `my_role`. 본 페이지 OrganizationItem 타입에서 `my_role` 로 매핑 (errors.md 2026-04-17 5회 재발 패턴 회피)
+- A-2 의 (web) → (admin) redirect 는 같은 도메인 절대 경로 → next/navigation redirect 안전. middleware /tournament-admin/* matcher 가 layout 가드에서 처리
+- A-3 스크립트 = 운영 DB SELECT only (DRY-RUN). APPLY 는 별 turn 사용자 승인 후 실행 — 임시 스크립트 정리 X (APPLY 후속 실행 필요)
+- 후속 작업 후보 (Phase B+): createTournament service +1 박제 + Tournament DELETE -1 박제 + cron monthly recompute → 본 PR 범위 외
 
 #### 수정 이력
 | 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |

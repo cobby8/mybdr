@@ -286,10 +286,8 @@ export default function NewTournamentWizardPage() {
           <br />
           운영자에게 문의해주세요.
         </p>
-        <Link
-          href="/tournaments"
-          className="mt-2 rounded-[4px] bg-[var(--color-accent)] px-6 py-2 text-sm font-semibold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
-        >
+        {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
+        <Link href="/tournaments" className="btn btn--primary mt-2">
           대회 목록으로 돌아가기
         </Link>
       </div>
@@ -931,11 +929,11 @@ export default function NewTournamentWizardPage() {
             </div>
           </TossCard>
 
-          {/* === 생성 버튼 (풀와이드 CTA) === */}
+          {/* === 생성 버튼 (풀와이드 CTA) === 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
           <button
             onClick={handleCreate}
             disabled={loading}
-            className="w-full rounded-[4px] bg-[var(--color-accent)] py-4 text-base font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+            className="btn btn--primary w-full disabled:opacity-50"
           >
             {loading ? "생성 중..." : "대회 생성하기"}
           </button>
@@ -955,10 +953,8 @@ export default function NewTournamentWizardPage() {
           >
             이전
           </button>
-          <button
-            onClick={goNext}
-            className="rounded-[4px] bg-[var(--color-accent)] px-6 py-2.5 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)]"
-          >
+          {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
+          <button onClick={goNext} className="btn btn--primary">
             다음
           </button>
         </div>
