@@ -62,12 +62,16 @@ const runningScoreSchema = z.object({
 });
 
 // Phase 3 — fouls zod schema
+// Phase 3.5 — type 필드 추가 (P/T/U/D — 사용자 결재 §1)
 //   - playerId: bigint string
 //   - period: 1~7 (Q1~Q4 + OT1~OT3)
+//   - type: "P" | "T" | "U" | "D" (FIBA Article 36-39)
 //   - 1팀 1매치 = 12선수 × 5파울 = 60건. 안전 룰 200건 (운영 안전)
 const foulMarkSchema = z.object({
   playerId: z.string().regex(/^\d+$/, "playerId는 BigInt 문자열"),
   period: z.number().int().min(1).max(7),
+  // Phase 3.5 — 호환성 위해 default "P" 폴백 (구 client 가 type 미전송 시 Personal 처리)
+  type: z.enum(["P", "T", "U", "D"]).default("P"),
 });
 
 const foulsSchema = z.object({
