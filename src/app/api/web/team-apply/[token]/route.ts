@@ -30,22 +30,21 @@ type Ctx = { params: Promise<{ token: string }> };
 // 토큰 길이 검증 — newApplyToken 은 64자 hex
 const TOKEN_REGEX = /^[a-f0-9]{64}$/;
 
-// POST body 입력 zod 스키마
+// POST body 입력 zod 스키마.
+// 필수: 이름 / 생년월일 / 등번호 / 부모연락처 (사용자 요청 2026-05-11 Phase 3-A)
+// 선택: 포지션 / 학교명 / 부모이름 (학년은 클라이언트에서 생년월일 기반 자동 계산)
 const PlayerSchema = z.object({
   player_name: z.string().trim().min(1, "이름 입력").max(30),
-  // birth_date: YYYY-MM-DD 형식 (HTML date input 표준)
   birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "생년월일 형식 (YYYY-MM-DD)"),
-  jersey_number: z.number().int().min(0).max(99).nullable().optional(),
+  jersey_number: z.number().int().min(0).max(99),
+  parent_phone: z
+    .string()
+    .trim()
+    .regex(/^(010-\d{4}-\d{4}|01\d{9})$/, "휴대폰 형식 (010-XXXX-XXXX)"),
   position: z.string().trim().max(10).nullable().optional(),
   school_name: z.string().trim().max(50).nullable().optional(),
   grade: z.number().int().min(1).max(12).nullable().optional(),
   parent_name: z.string().trim().max(30).nullable().optional(),
-  parent_phone: z
-    .string()
-    .trim()
-    .regex(/^(010-\d{4}-\d{4}|01\d{9})$/, "휴대폰 형식 (010-XXXX-XXXX)")
-    .nullable()
-    .optional(),
 });
 
 const PostBodySchema = z.object({
@@ -209,12 +208,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         tournamentTeamId: tt.id,
         player_name: p.player_name,
         birth_date: p.birth_date, // VarChar 컬럼이라 string 그대로
-        jerseyNumber: p.jersey_number ?? null,
+        jerseyNumber: p.jersey_number,
         position: p.position ?? null,
         school_name: p.school_name ?? null,
         grade: p.grade ?? null,
         parent_name: p.parent_name ?? null,
-        parent_phone: p.parent_phone ?? null,
+        parent_phone: p.parent_phone,
         division_code: tt.category,
         is_active: true,
         claim_status: "pending",
