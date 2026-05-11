@@ -91,6 +91,21 @@ const timeoutsSchema = z.object({
   away: z.array(timeoutMarkSchema).max(10),
 });
 
+// Phase 5 — signatures zod schema (FIBA 양식 풋터 8 입력).
+//   - 모든 필드 optional (운영자가 일부만 박제 가능)
+//   - max 길이는 SignaturesState 의 상수와 일관 (50 / captain 100)
+//   - 박제 위치 = match.settings.signatures JSON (timeouts merge 패턴 재사용)
+const signaturesSchema = z.object({
+  scorer: z.string().max(50).optional(),
+  asstScorer: z.string().max(50).optional(),
+  timer: z.string().max(50).optional(),
+  shotClockOperator: z.string().max(50).optional(),
+  refereeSign: z.string().max(50).optional(),
+  umpire1Sign: z.string().max(50).optional(),
+  umpire2Sign: z.string().max(50).optional(),
+  captainSignature: z.string().max(100).optional(),
+});
+
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
   away_score: z.number().int().min(0).max(199),
@@ -105,6 +120,11 @@ const submitSchema = z.object({
   // Phase 4 신규 — timeouts (optional — 미전송 시 settings.timeouts 갱신 0)
   //   박제 위치 = match.settings.timeouts JSON (Phase 1-A recording_mode 토글 패턴 재사용)
   timeouts: timeoutsSchema.optional(),
+  // Phase 5 신규 — signatures (optional — 미전송 시 settings.signatures 갱신 0)
+  //   박제 위치 = match.settings.signatures JSON (Phase 4 timeouts merge 패턴 재사용)
+  //   FIBA 양식 풋터 8 입력 (Scorer / Asst Scorer / Timer / Shot Clock Operator /
+  //     Referee / Umpire 1 / Umpire 2 / Captain's signature)
+  signatures: signaturesSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -322,16 +342,17 @@ export async function POST(
       });
     }
 
-    // 6-1) Phase 4 — timeouts UPDATE (settings JSON merge).
+    // 6-1) Phase 4 + Phase 5 — settings JSON merge UPDATE (timeouts + signatures 통합).
     //
-    // 이유: schema 변경 0 + 기존 settings.recording_mode 키 보존.
-    //   Phase 1-A withRecordingMode 패턴 재사용 — 객체 spread 로 기존 키 유지.
+    // 이유: schema 변경 0 + 기존 settings.recording_mode 키 보존. Phase 1-A withRecordingMode
+    //   패턴 재사용 — 객체 spread 로 기존 키 유지. Phase 5 (signatures) 도 같은 패턴 추가.
     //
     // 룰:
-    //   - input.timeouts 전송 시만 갱신 (미전송 = 기존 settings 유지)
+    //   - input.timeouts / input.signatures 둘 다 미전송 = 기존 settings 유지 (UPDATE skip)
+    //   - 둘 중 하나라도 전송 = 단일 UPDATE 로 통합 처리 (DB 왕복 최소화)
     //   - match.settings 가 객체가 아닌 경우 (null / array / primitive) → 빈 객체에서 시작
-    //   - timeouts 키만 set — 기존 recording_mode 등 모든 키 보존
-    if (input.timeouts) {
+    //   - timeouts / signatures 키만 set — 기존 recording_mode 등 모든 키 보존
+    if (input.timeouts || input.signatures) {
       const currentSettings = match.settings;
       const baseSettings: Record<string, unknown> =
         currentSettings &&
@@ -339,10 +360,17 @@ export async function POST(
         !Array.isArray(currentSettings)
           ? { ...(currentSettings as Record<string, unknown>) }
           : {};
-      baseSettings.timeouts = {
-        home: input.timeouts.home,
-        away: input.timeouts.away,
-      };
+      if (input.timeouts) {
+        baseSettings.timeouts = {
+          home: input.timeouts.home,
+          away: input.timeouts.away,
+        };
+      }
+      if (input.signatures) {
+        // 빈 문자열 / undefined 키는 통째 제거하지 않음 — 운영자가 명시적으로 빈 값 박제 가능
+        // (예: 사용자가 "Scorer" 만 입력하고 나머지 비움 = 그대로 빈 문자열 박제)
+        baseSettings.signatures = { ...input.signatures };
+      }
       await prisma.tournamentMatch.update({
         where: { id: match.id },
         data: { settings: baseSettings as object },
@@ -361,6 +389,12 @@ export async function POST(
     const timeoutHomeCount = input.timeouts?.home.length ?? 0;
     const timeoutAwayCount = input.timeouts?.away.length ?? 0;
     const timeoutTotalCount = timeoutHomeCount + timeoutAwayCount;
+    // Phase 5 — signatures 박제 키 개수 (몇 개 입력 채웠는지 — 빈 문자열 / undefined 제외)
+    const signatureFilledCount = input.signatures
+      ? Object.values(input.signatures).filter(
+          (v) => typeof v === "string" && v.trim().length > 0
+        ).length
+      : 0;
     const auditContext =
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
@@ -369,6 +403,9 @@ export async function POST(
         : "") +
       (timeoutTotalCount > 0
         ? ` / TO ${timeoutTotalCount}건 (home ${timeoutHomeCount} / away ${timeoutAwayCount})`
+        : "") +
+      (signatureFilledCount > 0
+        ? ` / Sig ${signatureFilledCount}건`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
@@ -392,6 +429,8 @@ export async function POST(
               // Phase 4 — timeouts 카운트 박제 (settings.timeouts JSON merge 결과)
               timeouts_home_count: timeoutHomeCount,
               timeouts_away_count: timeoutAwayCount,
+              // Phase 5 — signatures 박제 키 개수 (settings.signatures JSON merge 결과)
+              signatures_filled_count: signatureFilledCount,
             },
           } as object,
           changedBy: user.id,

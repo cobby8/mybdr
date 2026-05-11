@@ -30,6 +30,7 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const search = async () => {
     if (!query.trim()) return;
@@ -72,9 +73,13 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
         setSubmitting(false);
         return;
       }
-      // 성공 — 대회 관리 페이지로 복귀
-      alert(`운영자가 ${selected.nickname ?? selected.email} 으로 변경되었습니다.`);
-      router.push("/admin/tournaments");
+      // 성공 — 같은 페이지 refresh (현 운영자 표시 갱신) + 성공 토스트
+      // 2026-05-12 사용자 요청: 변경 완료까지 명확 확인 (alert → toast + refresh)
+      setSuccess(`운영자가 ${selected.nickname ?? selected.email} 으로 변경되었습니다.`);
+      router.refresh();
+      // 3초 후 토스트 자동 dismiss
+      setTimeout(() => setSuccess(null), 3000);
+      setSubmitting(false);
     } catch {
       setError("네트워크 오류");
       setSubmitting(false);
@@ -186,6 +191,19 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
         </div>
       )}
 
+      {success && (
+        <div
+          className="rounded-[4px] border p-3 text-sm"
+          style={{
+            borderColor: "var(--color-success)",
+            background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
+            color: "var(--color-success)",
+          }}
+        >
+          <span className="material-symbols-outlined align-middle mr-1 text-base">check_circle</span>
+          {success}
+        </div>
+      )}
       {error && (
         <p className="text-sm" style={{ color: "var(--color-error)" }}>
           {error}

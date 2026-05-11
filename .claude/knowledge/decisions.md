@@ -2,6 +2,29 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-12] settings JSON 단일 UPDATE 통합 패턴 — Phase 4 timeouts + Phase 5 signatures
+- **분류**: decision/pattern (Prisma JSON 컬럼 박제)
+- **결정 사항**:
+  - 동일 row 의 settings JSON 에 여러 키를 박제할 때 (timeouts / signatures / recording_mode 등) **단일 prisma.update** 로 통합 처리
+  - 패턴:
+    ```ts
+    if (input.timeouts || input.signatures) {
+      const base = { ...(match.settings as Record<string, unknown>) };
+      if (input.timeouts) base.timeouts = { ... };
+      if (input.signatures) base.signatures = { ... };
+      await prisma.tournamentMatch.update({ where, data: { settings: base } });
+    }
+    ```
+  - 둘 다 미전송 = UPDATE skip (운영 DB 부하 0)
+  - match.settings 가 null / array / primitive 시 빈 객체에서 시작 (방어)
+  - 기존 키 (recording_mode 등) 자동 보존 (object spread)
+- **대안 비교**:
+  - (A) 키별 분리 UPDATE 2회 → DB 왕복 2회 + race condition 위험 ❌
+  - (B) 단일 UPDATE 통합 ✅ (채택)
+  - (C) Prisma JSON merge 연산자 (Postgres `||`) → Prisma 미지원 / raw SQL 필요 ❌
+- **재사용 위치**: 동일 row 의 settings JSON 에 여러 키 박제하는 모든 BFF (FIBA Phase 6 PDF 인쇄 시 settings.print_history 등 추가 시 동일 패턴 적용)
+- **참조횟수**: 0
+
 ### [2026-05-11] 유소년 매직링크 토큰 정책 — CSPRNG 32바이트 hex + DB UNIQUE + 만료 분리
 - **분류**: decision/security (apply_token / claim_token)
 - **결정 사항**:
