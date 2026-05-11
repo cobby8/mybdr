@@ -369,9 +369,10 @@ function ScoreModal({
         <div className="flex gap-2">
           <Button variant="secondary" onClick={onClose} className="flex-1">취소</Button>
           {/* [2026-04-22] 하드코딩 색상 → --color-* 토큰화 (Tailwind arbitrary + color-mix, hover 10→20%) */}
+          {/* 2026-05-12 — pill 9999px ❌ → rounded-[4px]. 위험 액션 = error 톤 보존 */}
           <button
             onClick={del}
-            className="rounded-full px-4 py-2 text-sm bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-error)_20%,transparent)] text-[var(--color-error)]"
+            className="rounded-[4px] px-4 py-2 text-sm bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-error)_20%,transparent)] text-[var(--color-error)]"
           >
             삭제
           </button>

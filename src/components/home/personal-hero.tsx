@@ -78,7 +78,8 @@ function SlideNextGame({ data }: { data: DashboardData["next_game"] }) {
         <span className="material-symbols-outlined mb-2 text-[#1B3C87]" style={{ fontSize: 32 }}>event</span>
         <p className="text-sm font-bold text-[#111827]">예정된 경기가 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">새로운 경기를 찾아보세요!</p>
-        <Link href="/games" className="mt-3 rounded-full bg-[#1B3C87] px-4 py-2 text-xs font-semibold text-white">
+        {/* 2026-05-12 — pill 9999px ❌ + 하드코딩 hex ❌ → btn--primary (4px 라운딩 + Navy/Red 자동 분기) */}
+        <Link href="/games" className="btn btn--sm btn--primary mt-3">
           경기 찾기
         </Link>
       </div>
@@ -162,7 +163,7 @@ function SlideMyTeams({ teams }: { teams: DashboardData["my_teams"] }) {
         <span className="material-symbols-outlined mb-2 text-[#1B3C87]" style={{ fontSize: 32 }}>group</span>
         <p className="text-sm font-bold text-[#111827]">소속 팀이 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">팀에 가입하거나 새로 만들어보세요</p>
-        <Link href="/teams" className="mt-3 rounded-full bg-[#1B3C87] px-4 py-2 text-xs font-semibold text-white">
+        <Link href="/teams" className="btn btn--sm btn--primary mt-3">
           팀 찾기
         </Link>
       </div>
@@ -206,7 +207,7 @@ function SlideActiveTournament({ data }: { data: DashboardData["active_tournamen
         <span className="material-symbols-outlined mb-2 text-[#E31B23]" style={{ fontSize: 32 }}>emoji_events</span>
         <p className="text-sm font-bold text-[#111827]">참가 중인 대회가 없어요</p>
         <p className="mt-1 text-xs text-[#6B7280]">대회에 참가해서 실력을 겨뤄보세요</p>
-        <Link href="/tournaments" className="mt-3 rounded-full bg-[#E31B23] px-4 py-2 text-xs font-semibold text-white">
+        <Link href="/tournaments" className="btn btn--sm btn--accent mt-3">
           대회 둘러보기
         </Link>
       </div>

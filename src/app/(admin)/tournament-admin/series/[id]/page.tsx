@@ -163,9 +163,12 @@ export default async function SeriesDashboardPage({
         <Card className="py-12 text-center text-[var(--color-text-muted)]">
           <div className="mb-3 text-3xl">🏆</div>
           <p className="mb-4 text-sm">아직 회차가 없습니다.</p>
+          {/* 2026-05-12 — pill 9999px ❌ + admin 빨강 본문 금지 룰 (CLAUDE.md §디자인 13 룰 §10/§11):
+              `rounded-full bg-[var(--color-accent)]` (빨강 pill) → `btn btn--primary` 표준 클래스.
+              .btn--primary = 라이트 navy / 다크 BDR Red 자동 분기. text 흰색 명시 (:visited 보라 회피). */}
           <Link
             href={`/tournament-admin/series/${id}/add-edition`}
-            className="inline-block rounded-full bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)] transition-colors"
+            className="btn btn--primary"
           >
             첫 번째 회차 추가하기
           </Link>
@@ -175,9 +178,10 @@ export default async function SeriesDashboardPage({
       {/* 모바일 하단 고정 버튼 */}
       {series.tournaments.length > 0 && (
         <div className="fixed bottom-20 right-4 lg:bottom-8">
+          {/* 모바일 하단 고정 FAB — pill 9999px ❌. shadow 보존, btn--primary 클래스 + 4px 라운딩 */}
           <Link
             href={`/tournament-admin/series/${id}/add-edition`}
-            className="flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-[var(--color-on-accent)] shadow-lg hover:bg-[var(--color-accent-hover)] transition-colors"
+            className="btn btn--primary shadow-lg"
           >
             <span className="text-lg">+</span>
             {nextEdition}회 추가
