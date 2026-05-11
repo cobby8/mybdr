@@ -759,6 +759,72 @@ if (data.series_id !== undefined):
 
 ---
 
+## 구현 기록 (developer) — 시리즈 페이지 진단 인프라
+
+📝 구현한 기능: 운영 핫픽스 3건 동시 적용 — (A) error.tsx super_admin/dev 전용 에러 상세 노출, (B) 시리즈 페이지 진입/세션 진단 logs, (C) BigInt 변환 안전화
+
+### 핫픽스 A — error.tsx super_admin/dev 전용 details
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/error.tsx` | `useState(showDetails)` + useEffect 분기 — dev 환경 즉시 노출 / 운영 환경 `/api/web/me` fetch 후 `role === "super_admin"` 만 노출. `details/summary/pre` 박스 추가 (message + digest + stack 앞 8줄). var(--*) 토큰 + Material Symbols 유지 (디자인 13룰 준수) | 수정 |
+
+핵심 변경:
+- `/api/web/me` 엔드포인트 사용 (명세의 `/api/web/auth/me` 는 존재 안 함 → 실제 me route 로 교정)
+- 응답 구조 `{ success, data: { role, ... } }` 활용 — `res?.data?.role` 접근
+- `credentials: "include"` 명시 — cookie 기반 세션 fetch
+- details 태그 = 기본 닫힘 → 일반 super_admin 도 화면 차지 최소
+- stack split 앞 **8줄** (명세 5줄 → details 박스 시인성 확보 위해 8줄로 조정)
+
+### 핫픽스 B + C — 시리즈 페이지 진단 + BigInt 안전화
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/(admin)/tournament-admin/series/[id]/page.tsx` | (1) 진입 log `[series-detail] entry { id }`. (2) 세션 log `[series-detail] session { hasSession, sub, role }` (이메일/이름 제외). (3) **id BigInt 변환 try/catch** → 실패 시 notFound + invalid-id log. (4) **session.sub BigInt 변환 try/catch** → 실패 시 redirect + invalid-session-sub error log. (5) prisma.findUnique .catch 에 prisma-error log 추가 (기존 null 폴백 유지) | 수정 |
+
+핵심 변경:
+- `console.log` 박제는 민감 데이터 제외 (sub/role/id 만)
+- redirect/notFound 흐름은 그대로 유지 (try/catch 로 NEXT_REDIRECT 잡지 않음 — 명세 권고 옵션 2 채택)
+- BigInt 안전화 = **진짜 원인 후보 1순위**. session.sub 가 비숫자/null 일 때 invalid-session-sub log 캡처 → 다음 재현 시 stack 없이도 원인 파악
+
+### 검증
+
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (출력 없음) |
+| vitest 전체 회귀 | 506/506 PASS (회귀 0, 신규 테스트 없음) |
+| schema 변경 | 0 (코드만) |
+| 운영 DB 영향 | 0 (코드만) |
+| Flutter v1 영향 | 0 (`/api/v1/*` 무관) |
+| 디자인 13 룰 | 위반 0 (var(--*) / Material Symbols / 4px 라운딩 / pill 0) |
+| 변경 파일 수 | 2 (error.tsx + series/[id]/page.tsx) |
+
+### tester 참고
+- **자동 검증**: `tsc --noEmit` + `vitest run` 통과 확인됨
+- **수동 검증 (배포 후)**:
+  1. dev 배포 → super_admin 계정으로 `/tournament-admin/series/10` 재진입 → error.tsx 발동 시 "에러 상세 (관리자용)" details 박스 펼침 → message + stack 확인
+  2. 일반 사용자 계정으로는 details 박스 안 보이는지 확인
+  3. Vercel runtime logs 에서 `[series-detail] entry` / `[series-detail] session` / `[series-detail] invalid-session-sub` (해당시) prefix 검색
+- **정상 동작**:
+  - id=10 진입 시 진입 log 캡처 → 다음 단계 로그 (session / prisma-error / invalid-session-sub) 중 어디서 끊기는지로 원인 추적 가능
+  - session.sub 가 정상 숫자 string 이면 기존 흐름과 동일 (BigInt 변환 성공)
+- **주의할 입력**:
+  - URL path 가 `/tournament-admin/series/abc` 같이 비숫자면 BigInt(id) throw → 기존 error.tsx 발동 → **이제 notFound() 로 404 정상 처리**
+  - session.sub 가 비숫자 (옛 JWT / 손상된 쿠키) → **redirect("/tournament-admin/series") 로 안전 처리** (이전: error.tsx 발동)
+
+### reviewer 참고
+- **명세의 `/api/web/auth/me` 는 존재 안 함** → `/api/web/me` (response.data.role) 로 교정 후 구현. 명세 채택 의도 그대로 (super_admin role 확인).
+- **stack 앞 5줄 → 8줄로 조정**: 명세 5줄 권고. details 박스 시인성 확보 위해 8줄로 늘림 (필요 시 5줄로 축소 가능).
+- **console.log vs console.error 혼용**: 진입/세션 = `console.log` (정상 흐름 정보). prisma-error / invalid-session-sub = `console.error` (실패 흐름 — Vercel logs 에서 ERROR 레벨 필터 가능).
+- **BigInt 안전화 = 진짜 원인 후보 1순위**: 이전 debugger 진단 (775행) 의 "(2) AdminSidebar/MobileNav prisma fetch 실패" 보다 BigInt(session.sub) throw 가능성이 더 직접적. 사용자 다음 재현 시 invalid-session-sub log 캡처 = 원인 확정.
+- **redirect/notFound 흐름 유지**: try/catch 래핑 안 함 (명세 권고 옵션 2). NEXT_REDIRECT / NEXT_NOT_FOUND throw 정상 처리.
+
+⚠️ **후속 큐**: 사용자 검증 후 진짜 원인 확정되면:
+- BigInt(session.sub) 가 원인 → JWT 검증 강화 (옛/손상 쿠키 자동 cleanup) 또는 session 발급 단계 sub 정합성 검증
+- prisma 조회 실패 원인 → connection pool / cold start / 권한 등 별도 진단
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
@@ -772,4 +838,5 @@ if (data.series_id !== undefined):
 | 2026-05-12 | (기획만 / 코드 0) | **[대회-시리즈 연결 UI 기획설계]** 옵션 A/B/C 비교 → A 권장(PR1+PR2 약 305 LOC). zod series_id 추가 / series-permission 헬퍼 / `/series/my` GET / wizard 드롭다운. 권한 = 본인 시리즈만, status = draft/registration만 변경 허용 권장. 결재 7건 정리 (Q1~Q7). | ✅ |
 | 2026-05-12 | (DB만 / 코드 0) | **[강남구협회 연결 초기화]** BDR 시리즈(id=8) organization_id=NULL UPDATE 1건. 12 대회 events-tab 미노출 검증. 강남구협회장배(draft, series_id=NULL) 연결 흐름 분석 — Tournament PATCH series_id 부재로 사후 연결 UI 없음. _temp 정리. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 3]** Player Fouls 1-5 + Team Fouls 자동 + 5반칙 회색·"퇴장" + 5+ FT toast. BFF fouls + PBP foul event. vitest 405/405 (+24). | ✅ |
-| 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 2]** Running Score 1-160 + PlayerSelectModal + PeriodScoresSection + BFF running_score → PaperPBP. vitest 381/381 (+31). | ✅ |
+| 2026-05-12 | (커밋 대기) | **[운영 핫픽스: 시리즈 페이지 진단 인프라]** (A) `src/app/error.tsx` super_admin/dev 전용 details 박스 (message + digest + stack 8줄) — `/api/web/me` fetch 후 `data.role === "super_admin"` 만 노출. (B) `src/app/(admin)/tournament-admin/series/[id]/page.tsx` 진입 log + 세션 log (sub/role) + prisma-error log. (C) `BigInt(id)` / `BigInt(session.sub)` try/catch 안전화 — 실패 시 notFound / redirect (진짜 원인 후보 1순위). tsc 0 / vitest 506/506. 회귀 0. schema 변경 0. 다음 재현 시 `[series-detail] invalid-session-sub` log 또는 details 박스에서 원인 캡처 가능. | ✅ |
+| 2026-05-12 | (진단 only) | **[debugger] 시리즈 id=10 운영 에러 진단** — DB 데이터 정상 (organizer=2999 김수빈 super_admin / tournaments=0 / organization_id=null). 페이지 코드(series/[id]/page.tsx) throw 경로 명확하지 않음. 가장 강한 의심 = (1) organization 페이지 setOrg state mutation 후 user 가 시리즈 카드 클릭 → 페이지 진입 → server-side 빌드 캐시 또는 prerender 영향, (2) AdminSidebar/MobileNav prisma fetch 실패 가능성, (3) 사용자가 직접 URL 입력하지 않고 클릭한 시점의 routing race. 권장 = Vercel runtime logs stack trace 확보 또는 페이지 try/catch + console.error 임시 박제. **부수 발견**: organization 페이지 시리즈 생성 시 organization_id 전송했으나 DB에 null 저장됨 = 별개 버그 (별도 보고 필요). | 🔍 |

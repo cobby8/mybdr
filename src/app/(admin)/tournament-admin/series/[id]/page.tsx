@@ -23,11 +23,33 @@ export default async function SeriesDashboardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // 핫픽스 B: 진입 로그 — Vercel runtime logs 에 `[series-detail]` prefix 로 캡처
+  // 이유: error.tsx 발동 시 진짜 원인 파악용. id 값만 박제 (민감 데이터 X)
+  console.log("[series-detail] entry", { id });
+
   const session = await getWebSession();
   if (!session) redirect("/login");
 
+  // 세션 진단 로그 — sub / role 만 박제 (이메일/이름 등 민감 데이터 제외)
+  // 이유: BigInt(session.sub) 변환 가능 여부 확인 — 비숫자 sub 가 진짜 원인 후보
+  console.log("[series-detail] session", {
+    hasSession: !!session,
+    sub: session.sub,
+    role: session.role,
+  });
+
+  // 핫픽스 C: id BigInt 변환 안전화 — 잘못된 path 파라미터 (예: "abc") 면 notFound
+  // 이유: BigInt("abc") 는 SyntaxError throw → error.tsx 발동. notFound() 로 정상 404 처리.
+  let seriesIdBig: bigint;
+  try {
+    seriesIdBig = BigInt(id);
+  } catch (err) {
+    console.log("[series-detail] invalid-id", { id, err: err instanceof Error ? err.message : String(err) });
+    notFound();
+  }
+
   const series = await prisma.tournament_series.findUnique({
-    where: { id: BigInt(id) },
+    where: { id: seriesIdBig },
     include: {
       tournaments: {
         orderBy: { edition_number: "asc" },
@@ -44,10 +66,30 @@ export default async function SeriesDashboardPage({
         },
       },
     },
-  }).catch(() => null);
+  }).catch((err) => {
+    // prisma 조회 실패 — 진단용 로그 (재발 시 원인 파악)
+    console.error("[series-detail] prisma-error", { id, err: err instanceof Error ? err.message : String(err) });
+    return null;
+  });
 
   if (!series) notFound();
-  if (series.organizer_id !== BigInt(session.sub)) redirect("/tournament-admin/series");
+
+  // 핫픽스 C: session.sub BigInt 변환 안전화
+  // 이유: session.sub 가 비숫자 string (잘못된 JWT / 옛 쿠키 잔존) 이면 BigInt() throw → error.tsx 발동.
+  //       안전 변환 후 null 이면 권한 없음으로 간주하여 redirect (진짜 원인 후보 1순위)
+  const sessionUserId = (() => {
+    try {
+      return BigInt(session.sub);
+    } catch (err) {
+      console.error("[series-detail] invalid-session-sub", {
+        sub: session.sub,
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  })();
+
+  if (sessionUserId === null || series.organizer_id !== sessionUserId) redirect("/tournament-admin/series");
 
   const totalTeams = series.tournaments.reduce((sum, t) => sum + (t.teams_count ?? 0), 0);
   const nextEdition = (series.tournaments_count ?? 0) + 1;
