@@ -160,7 +160,8 @@ export default async function AdminAnalyticsPage() {
               const heightPct = Math.round((m.count / maxCount) * 100);
               return (
                 <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
-                  <span className="text-xs font-semibold text-[var(--color-primary)]">{m.count}</span>
+                  {/* 강조 통계 숫자 = accent 토큰 (빨강 본문 금지 — conventions.md 2026-05-11) */}
+                  <span className="text-xs font-semibold text-[var(--color-accent)]">{m.count}</span>
                   <div className="flex w-full flex-col justify-end" style={{ height: "140px" }}>
                     <div
                       className="w-full rounded-t-[6px] bg-[var(--color-accent)] transition-all"

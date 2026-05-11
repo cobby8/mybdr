@@ -482,7 +482,8 @@ export default function TournamentMatchesPage() {
           <p className="mb-1 font-medium">경기가 없습니다</p>
           <p className="text-sm">
             승인된 팀이{" "}
-            <span className="text-[var(--color-primary)]">
+            {/* 본문 정보 강조 = text-primary + font-semibold (빨강 본문 금지) */}
+            <span className="text-[var(--color-text-primary)] font-semibold">
               {teams.filter((t) => t.status === "approved").length}팀
             </span>
             {" "}있습니다. 대진표를 생성하세요.
@@ -515,7 +516,8 @@ export default function TournamentMatchesPage() {
 
                         {/* 홈팀 */}
                         <div className="flex-1 text-right">
-                          <p className={`font-semibold ${match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-primary)]" : ""}`}>
+                          {/* 승자 팀명 = success 토큰 (승리=긍정 시맨틱). 빨강 본문 금지 */}
+                          <p className={`font-semibold ${match.winner_team_id === match.homeTeamId && match.homeTeamId ? "text-[var(--color-success)] font-bold" : ""}`}>
                             {match.homeTeam?.team.name ?? "미정"}
                           </p>
                         </div>
@@ -529,7 +531,8 @@ export default function TournamentMatchesPage() {
 
                         {/* 원정팀 */}
                         <div className="flex-1">
-                          <p className={`font-semibold ${match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-primary)]" : ""}`}>
+                          {/* 승자 팀명 = success 토큰 (승리=긍정 시맨틱). 빨강 본문 금지 */}
+                          <p className={`font-semibold ${match.winner_team_id === match.awayTeamId && match.awayTeamId ? "text-[var(--color-success)] font-bold" : ""}`}>
                             {match.awayTeam?.team.name ?? "미정"}
                           </p>
                         </div>
