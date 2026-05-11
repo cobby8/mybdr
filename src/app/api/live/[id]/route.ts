@@ -11,6 +11,8 @@ import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live
 //   사용 이유: line 291/299/311/538 직접 ttp.jerseyNumber 매핑 시점에는 임시 # 미반영 → 정영민 #9 누락 사례.
 //   helper 1회 SELECT 로 모든 분기(진행중/종료/MVP/PBP 타임라인)에 일괄 적용.
 import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
+// 2026-05-11 Phase B: PBP 합산 fallback 헬퍼 — match.homeScore=0 + playerStats.pts=0 케이스 (매치 #132) 안전망
+import { computeScoreFromPbp } from "@/lib/tournaments/score-from-pbp";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -1128,13 +1130,27 @@ export async function GET(
     // 경기장명: tournament_matches.venue_name 우선 → 없으면 tournament.venue_name fallback
     const venueName = match.venue_name ?? match.tournament?.venue_name ?? null;
 
-    // 합계 점수: DB homeScore가 0이면 playerStats 합산으로 fallback
-    // 이유: 종료된 경기에서 homeScore/awayScore가 sync 안 된 경우 있음 (e.g. match 102)
-    // 우선순위: DB homeScore(>0) > playerStats pts 합산
+    // 합계 점수: 3단 fallback (2026-05-11 Phase B)
+    // 우선순위: DB homeScore(>0) > playerStats.pts 합산(>0) > PBP made shot 합산
+    // 이유: 종료된 경기에서 homeScore/awayScore sync 누락 (e.g. match #132, #102)
+    //       + playerStats 도 0인 케이스 (PBP 만 박제 — Flutter app 이 /sync 한번도 호출 안 함)
+    //       → PBP 가 source-of-truth → 마지막 fallback 으로 PBP 합산 보강
+    // PBP 합산 로직은 위 L820~835 quarterScores 계산과 동일 (computeScoreFromPbp 헬퍼로 단일 source 박제)
     const homePlayerPts = homePlayers.reduce((sum, p) => sum + p.pts, 0);
     const awayPlayerPts = awayPlayers.reduce((sum, p) => sum + p.pts, 0);
-    const finalHomeScore = (match.homeScore && match.homeScore > 0) ? match.homeScore : homePlayerPts;
-    const finalAwayScore = (match.awayScore && match.awayScore > 0) ? match.awayScore : awayPlayerPts;
+    // PBP 합산 — match.homeTeamId / awayTeamId null 안전 (0 fallback 시 어떤 team_id 와도 매칭 안 됨 → 0 반환)
+    // BigInt 리터럴 (Nn) 대신 0 number 사용 — CLAUDE.md 글로벌 룰 (헬퍼가 BigInt|number 혼용 지원)
+    const pbpScore = computeScoreFromPbp(
+      allPbps,
+      match.homeTeamId ?? 0,
+      match.awayTeamId ?? 0,
+    );
+    const finalHomeScore = (match.homeScore && match.homeScore > 0)
+      ? match.homeScore
+      : (homePlayerPts > 0 ? homePlayerPts : pbpScore.home);
+    const finalAwayScore = (match.awayScore && match.awayScore > 0)
+      ? match.awayScore
+      : (awayPlayerPts > 0 ? awayPlayerPts : pbpScore.away);
 
     // 임시 디버그 (쿼터별 집계 불일치 진단용) — ?debug=1 시 PBP 샘플/매핑 노출
     const debugEnabled = req.nextUrl.searchParams.get("debug") === "1";

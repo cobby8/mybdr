@@ -10,6 +10,7 @@
 
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
+import { gradeToKorean } from "@/lib/utils/korean-grade";
 import { TeamApplyForm } from "./team-apply-form";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +109,7 @@ export default async function TeamApplyPage({ params }: PageProps) {
                 <span style={{ color: "var(--color-text-muted)" }}>
                   {" "}({[
                     divisionRule.birthYearMin && `${divisionRule.birthYearMin}년생`,
-                    divisionRule.gradeMin && `${divisionRule.gradeMin}학년`,
+                    divisionRule.gradeMin && gradeToKorean(divisionRule.gradeMin),
                   ].filter(Boolean).join(" / ")})
                 </span>
               )}

@@ -22,6 +22,7 @@
 import { NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/response";
+import { prisma } from "@/lib/db/prisma";
 
 // 매치 기록 모드 — Flutter 기록앱(JWT) vs 웹 종이 기록지(BFF)
 export type RecordingMode = "flutter" | "paper";
@@ -138,5 +139,103 @@ export function withRecordingMode(
       ? { ...(current as Record<string, unknown>) }
       : {};
   base.recording_mode = mode;
+  return base;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 1 (2026-05-11) — tournament-admin 대시보드 "기록 모드" 카드용 헬퍼 3종
+//
+// 배경: (c) 하이브리드 정책 — 대회 단위 기본값(`tournament.settings.default_recording_mode`)
+//   + 매치별 override (`tournamentMatch.settings.recording_mode`). 카드는 두 레이어 모두 표시 +
+//   bulk 라우트는 매치별 settings JSON 을 일괄 갱신.
+//
+// schema 변경 0 — Tournament.settings / TournamentMatch.settings 모두 기존 Json 컬럼 활용.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 대회 단위 매치 모드 통계 — tournament-admin 카드 표시용.
+ *
+ * 본 함수는 다음 4 값을 1회 호출로 반환:
+ *   - total: 대회 전체 매치 수
+ *   - paper: settings.recording_mode = "paper" 매치 수
+ *   - flutter: 그 외 매치 수 (= total - paper, fallback "flutter" 포함)
+ *   - inProgress: status = "in_progress" 매치 수 ("scope=exclude_in_progress" 라디오 안내용)
+ *
+ * Prisma JSON path 쿼리는 DB 종속 — 본 함수는 단순 findMany + JS 분류 (매치 수 < 1000 기준 충분).
+ *
+ * @param tournamentId Tournament.id (uuid string)
+ * @returns 매치 통계 (total / paper / flutter / inProgress)
+ */
+export async function getTournamentMatchStats(tournamentId: string): Promise<{
+  total: number;
+  paper: number;
+  flutter: number;
+  inProgress: number;
+}> {
+  // 한번에 매치 list — settings + status 만 SELECT (BigInt id 도 select 안 함 = 가장 가벼움)
+  const matches = await prisma.tournamentMatch.findMany({
+    where: { tournamentId },
+    select: { settings: true, status: true },
+  });
+
+  let paper = 0;
+  let inProgress = 0;
+  for (const m of matches) {
+    // 매치별 mode 추출 (getRecordingMode 재사용 — 단일 source)
+    if (getRecordingMode({ settings: m.settings }) === PAPER_MODE) paper++;
+    // status="in_progress" 카운트 (라이브 진행 중 매치 — bulk 시 신중 분기 안내용)
+    if (m.status === "in_progress") inProgress++;
+  }
+
+  return {
+    total: matches.length,
+    paper,
+    flutter: matches.length - paper,
+    inProgress,
+  };
+}
+
+/**
+ * 대회 단위 default 기록 모드 추출.
+ *
+ * 저장 위치: `tournament.settings.default_recording_mode`
+ *   - 값: `"flutter"` | `"paper"` (그 외/누락 = `"flutter"` fallback)
+ *   - 기본값 = `"flutter"` (운영 그대로 — 기존 대회 무영향)
+ *
+ * 매치별 settings.recording_mode 와 동일한 fallback 룰 — paper 만 명시적 match.
+ *
+ * @param tournament `{ settings: Prisma.JsonValue | null }` (Tournament row 또는 부분)
+ * @returns `"flutter"` | `"paper"` — 명시적 "paper" 만 paper, 그 외 모두 flutter
+ */
+export function getTournamentDefaultMode(tournament: {
+  settings: Prisma.JsonValue | null;
+}): RecordingMode {
+  const settings = tournament.settings;
+  // JSON 객체가 아닌 경우 (null / array / primitive) 모두 fallback
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return FLUTTER_MODE;
+  }
+  const value = (settings as Record<string, unknown>).default_recording_mode;
+  return value === PAPER_MODE ? PAPER_MODE : FLUTTER_MODE;
+}
+
+/**
+ * tournament.settings JSON 갱신용 헬퍼 — 기존 settings 보존 + default_recording_mode 만 set.
+ *
+ * withRecordingMode 와 동일 패턴 (다만 key 가 `default_recording_mode` — 대회 레벨 키).
+ *
+ * @param current 기존 tournament.settings (null / 객체 / 비객체)
+ * @param mode 신규 default mode 값
+ * @returns 신규 settings 객체 — Prisma.InputJsonObject 호환
+ */
+export function withTournamentDefaultMode(
+  current: Prisma.JsonValue | null,
+  mode: RecordingMode
+): Record<string, unknown> {
+  const base: Record<string, unknown> =
+    current && typeof current === "object" && !Array.isArray(current)
+      ? { ...(current as Record<string, unknown>) }
+      : {};
+  base.default_recording_mode = mode;
   return base;
 }
