@@ -200,11 +200,8 @@ export default function NewOrganizationPage() {
 
         {/* 버튼 */}
         <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded bg-[var(--color-primary)] px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
+          {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
+          <button type="submit" disabled={submitting} className="btn btn--primary disabled:opacity-50">
             {submitting ? "생성 중..." : "단체 만들기"}
           </button>
           <button

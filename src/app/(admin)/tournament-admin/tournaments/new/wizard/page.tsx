@@ -49,11 +49,11 @@ const inputCls =
   "w-full rounded-md border-none bg-[var(--color-border)] px-4 py-3 text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50";
 const labelCls = "mb-1 block text-sm text-[var(--color-text-muted)]";
 
-// pill 버튼 — 선택 상태에 따라 accent/border 배경
+// pill 버튼 — 선택 상태에 따라 info/border 배경 (2026-05-12 admin 빨강 본문 금지 룰)
 const pillCls = (active: boolean) =>
   `rounded-[4px] px-3 py-1.5 text-sm font-medium transition-colors cursor-pointer ${
     active
-      ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+      ? "bg-[var(--color-info)] text-white"
       : "bg-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border-active)]"
   }`;
 
@@ -421,9 +421,10 @@ export default function NewTournamentWizardPage() {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
+            // 2026-05-12 — admin 빨강 본문 금지 (wizard 활성 탭) → info(Navy)
             className={`flex flex-1 items-center justify-center gap-2 rounded-[4px] py-3 text-sm font-semibold transition-colors ${
               i === currentStep
-                ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+                ? "bg-[var(--color-info)] text-white"
                 : i < currentStep
                   ? "cursor-pointer bg-[rgba(74,222,128,0.15)] text-[var(--color-success)]"
                   : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)]"

@@ -133,8 +133,8 @@ export default function TournamentAdminsPage() {
             <Card key={admin.id}>
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  {/* 아바타 이니셜 = accent 강조 (빨강 본문 금지) */}
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-elevated)] text-sm font-bold text-[var(--color-accent)]">
+                  {/* 2026-05-12 — admin 빨강 본문 금지 → info(Navy) 토큰 */}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-elevated)] text-sm font-bold text-[var(--color-info)]">
                     {(admin.user.nickname ?? admin.user.email)[0].toUpperCase()}
                   </div>
                   <div>
