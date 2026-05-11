@@ -100,8 +100,9 @@ export function FooterSignatures({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
+  // Phase 9 — 풋터 영역 ~15% (목표 ~170px) 컴팩트. px-2 py-1.
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-3 py-2"
+    ? "fiba-frameless w-full px-2 py-1"
     : "mt-4 w-full px-4 py-3";
 
   return (
@@ -111,8 +112,9 @@ export function FooterSignatures({
           frameless 모드에서 라벨 만으로 충분. */}
 
       {/* Phase 8 — 운영자 측 4 컬럼 가로 1줄 (FIBA PDF 정합).
-          Scorer / Assistant scorer / Timer / Shot clock operator */}
-      <div className="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-4">
+          Scorer / Assistant scorer / Timer / Shot clock operator
+          Phase 9 — gap-x-2 gap-y-0 컴팩트 */}
+      <div className="grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-4">
         <SigInput
           label="Scorer"
           value={values.scorer}
@@ -148,8 +150,9 @@ export function FooterSignatures({
       </div>
 
       {/* Phase 8 — 심판진 3 컬럼 가로 1줄 (FIBA PDF 정합).
-          Referee / Umpire 1 / Umpire 2 — frameless 시 구분선 X (단일 외곽 박스 안) */}
-      <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-3">
+          Referee / Umpire 1 / Umpire 2 — frameless 시 구분선 X (단일 외곽 박스 안).
+          Phase 9 — mt-0.5 / gap-x-2 gap-y-0 컴팩트 */}
+      <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
         <SigInput
           label="Referee"
           value={values.refereeSign}
@@ -176,8 +179,8 @@ export function FooterSignatures({
         />
       </div>
 
-      {/* Phase 8 — 주장 서명 (항의 시) — Phase 8: 한 줄 full-width */}
-      <div className="mt-1">
+      {/* Phase 8 — 주장 서명 (항의 시) — Phase 9: 한 줄 full-width / mt-0.5 */}
+      <div className="mt-0.5">
         <SigInput
           label="Captain's signature in case of protest"
           value={values.captainSignature}
@@ -188,39 +191,43 @@ export function FooterSignatures({
         />
       </div>
 
-      {/* 매치 노트 (선택 — 부상 / 사고 / 특이사항) */}
-      <div className="mt-4">
-        <label className="block">
-          <span
-            className="block text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Notes (선택)
-          </span>
-          <textarea
-            value={values.notes}
-            onChange={update("notes")}
-            disabled={disabled}
-            maxLength={NOTES_MAX_LENGTH}
-            rows={3}
-            className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
-            style={{
-              color: "var(--color-text-primary)",
-              border: "1px solid var(--color-border)",
-              minHeight: 88,
-              resize: "vertical",
-              // Phase 7-A — FIBA PDF 정합 (rounded-0)
-            }}
-          />
-          {/* 글자수 카운터 — NOTES_MAX_LENGTH 가 보이도록 */}
-          <div
-            className="mt-1 text-right text-[10px]"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            {values.notes.length} / {NOTES_MAX_LENGTH}
-          </div>
-        </label>
-      </div>
+      {/* Phase 9 — Notes textarea (선택).
+          frameless=true (단일 박스 / A4 1 페이지 fit) = Notes 숨김 (A4 fit 보장).
+          frameless=false (legacy 박스 모드) = Notes 유지 (회귀 안전망).
+          이유: FIBA PDF 양식에는 Notes 영역 없음 + A4 fit 필요. 운영자가 필요 시 외부 메모 사용. */}
+      {!frameless && (
+        <div className="mt-4">
+          <label className="block">
+            <span
+              className="block text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              Notes (선택)
+            </span>
+            <textarea
+              value={values.notes}
+              onChange={update("notes")}
+              disabled={disabled}
+              maxLength={NOTES_MAX_LENGTH}
+              rows={3}
+              className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
+              style={{
+                color: "var(--color-text-primary)",
+                border: "1px solid var(--color-border)",
+                minHeight: 88,
+                resize: "vertical",
+              }}
+            />
+            {/* 글자수 카운터 — NOTES_MAX_LENGTH 가 보이도록 */}
+            <div
+              className="mt-1 text-right text-[10px]"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {values.notes.length} / {NOTES_MAX_LENGTH}
+            </div>
+          </label>
+        </div>
+      )}
     </section>
   );
 }
@@ -251,9 +258,10 @@ function SigInput({
   inline?: boolean;
 }) {
   if (inline) {
-    // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄
+    // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄.
+    // Phase 9 — 행 22px 컴팩트 (A4 1 페이지 fit). 터치 영역 보완은 inline 행 전체 click 가능.
     return (
-      <label className="flex items-baseline gap-1.5 overflow-hidden">
+      <label className="flex items-baseline gap-1 overflow-hidden">
         <span
           className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
@@ -270,8 +278,8 @@ function SigInput({
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",
-            // Phase 8 — inline 모드 = 행 높이 ~28px (FIBA 정합). 터치는 행 전체 클릭 시 input focus
-            minHeight: 24,
+            // Phase 9 — 행 높이 ~22px (A4 1 페이지 fit). 터치는 inline 행 전체 click → input focus
+            minHeight: 22,
             touchAction: "manipulation",
           }}
         />

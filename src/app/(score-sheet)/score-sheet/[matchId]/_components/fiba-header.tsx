@@ -81,8 +81,9 @@ export function FibaHeader({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
+  // Phase 9 — 헤더 영역 ~10% (목표 ~110px) 압축. px-2 py-1 컴팩트.
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-3 py-2"
+    ? "fiba-frameless w-full px-2 py-1"
     : "w-full px-4 py-3";
 
   return (
@@ -93,25 +94,26 @@ export function FibaHeader({
     //   4줄: Game No  /  Place  /  Umpire 1  /  Umpire 2  (4 라벨 한 줄)
     //   → FIBA PDF 동일 레이아웃 (4 줄 컴팩트)
     <section className={sectionClass} style={sectionStyle}>
-      {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀) */}
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+      {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀).
+          Phase 9 — 더 컴팩트: 로고 24×12 / Scoresheet 12px tracking-widest */}
+      <div className="mb-0.5 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
           <Image
             src="/images/logo.png"
             alt="BDR"
-            width={28}
-            height={14}
-            className="h-3.5 w-auto"
+            width={24}
+            height={12}
+            className="h-3 w-auto"
           />
           <span
-            className="text-[9px] font-semibold uppercase tracking-wider"
+            className="text-[8px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Basketball Daily Routine
           </span>
         </div>
         <h1
-          className="text-sm font-bold uppercase tracking-widest"
+          className="text-[13px] font-bold uppercase tracking-widest"
           style={{ color: "var(--color-text-primary)" }}
         >
           SCORESHEET
@@ -120,14 +122,14 @@ export function FibaHeader({
 
       {/* 2줄 — Team A 라벨 + 팀명 (한 줄)  /  Team B 라벨 + 팀명 (한 줄).
           FIBA PDF 정합 = 좌우 횡 배치 (각 50% 폭). */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <InlineFieldDisplay label="Team A" value={teamAName} bold />
         <InlineFieldDisplay label="Team B" value={teamBName} bold />
       </div>
 
       {/* 3줄 — Competition / Date / Time / Referee 한 줄 (FIBA PDF 정합).
-          모바일 = 2x2 / sm 이상 = 4 컬럼 인라인 */}
-      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-4">
+          Phase 9 — 모바일 = 2x2 / sm 이상 = 4 컬럼 인라인. gap-y 0 (압축) */}
+      <div className="mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0 sm:grid-cols-4">
         <InlineFieldDisplay label="Competition" value={competitionName} />
         <InlineFieldDisplay label="Date" value={dateLabel ?? "—"} />
         <InlineFieldDisplay label="Time" value={timeLabel ?? "—"} />
@@ -140,7 +142,7 @@ export function FibaHeader({
       </div>
 
       {/* 4줄 — Game No / Place / Umpire 1 / Umpire 2 한 줄 (FIBA PDF 정합) */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0 sm:grid-cols-4">
         <InlineFieldDisplay label="Game No" value={gameNo ?? "—"} />
         <InlineFieldDisplay label="Place" value={placeLabel ?? "—"} />
         <InlineFieldInput

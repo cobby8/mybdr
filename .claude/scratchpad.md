@@ -93,6 +93,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 9]** A4 1 페이지 fit + 레이아웃 재배치 — 좌측 Team A+B 세로 분할 (FIBA PDF 정합) / 우측 Running+Period+Final 누적 / Footer 최하단 가로 1~2줄 (Notes frameless 시 폐기) / Players 행 28→24px / 폰트 압축 (헤더 13px / 라벨 10 / 데이터 11~12 / 인쇄 8pt) / @page margin 8→6mm / fiba-frame 198mm×285mm 강제. 7 파일. tsc 0 / vitest 541 PASS. 좌측 ~975px / 우측 ~1025px (A4 1123 안에 fit ✓). 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase A 즉시 fix]** 운영 사고 3종 차단 — (A-1) `/tournament-admin/series/new` organization 드롭다운 추가 (owner/admin + approved 필터) (A-2) `/(web)/series/new` alert 폼 → admin redirect 통합 (A-3) `scripts/_temp/series-counter-recompute.ts` DRY-RUN/APPLY 모드 분리. tsc 0 / vitest 541 PASS / DRY-RUN 실측 = 진단 fact 일치 (series id=8 0→12 / org id=3 0→1). schema 변경 0 / Flutter v1 영향 0. APPLY 는 사용자 승인 후 별 turn 실행 | ✅ |
 | 2026-05-12 | (진단) | **[진단]** 대회/시리즈/단체 연결 구조 전체 점검 — 운영 DB 실측: series id=8 카운터 0/12 깨짐 + org id=3 카운터 0/1 깨짐 + series id=10 org_id NULL. root cause = `/tournament-admin/series/new` org_id 미전송 + createTournament service +1 박제 부재 + cron 0건. 9 문제점 매트릭스 + 5 Phase 로드맵 + 3 결재 항목. 코드 변경 0 / SELECT only / 스크립트 정리 ✓ | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 8]** PDF 1:1 완전 정합 — 단일 외곽 박스 통합 + 헤더 컴팩트 4 줄 + Players 행 28px + Footer 가로 펼침 (Scorer/Asst/Timer/Shot Clock 4열 + Referee/Umpire1·2 3열). 7 파일 +450/-258. tsc 0 / vitest 541/541. 회귀 0. schema 변경 0. | ✅ |
@@ -102,7 +103,71 @@
 | 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |
 | 2026-05-12 | eead692 | **[stats]** 통산 스탯 3 결함 일괄 — mpg 모달 회귀 + 승률 source + FG%/3P% NBA 표준 | ✅ |
 | 2026-05-12 | 714eda3 | **[stats]** 통산 mpg 단위 변환 — DB 초 → 표시 분 (사용자 보고) | ✅ |
-| 2026-05-12 | eba91f9 | **[fix]** middleware.ts 삭제 — Next.js 16 proxy 단일 source 통합 | ✅ |
+
+## 구현 기록 (developer) — FIBA Phase 9 A4 1페이지 fit + 레이아웃 재배치 (2026-05-12)
+
+📝 구현 범위: 좌측 Team A+B 세로 분할 / 우측 Running+Period+Final 누적 / Footer 최하단 가로 펼침 / A4 1 페이지 fit
+
+### 영역별 높이 박제 (A4 1123px 안에 fit 검증)
+- Header: ~80~95px (8%)
+- Team A: ~400px (Time-outs/Fouls 50 + thead 22 + 12행 × 24 + Coach)
+- Team B: ~400px (Team A 동일 구조)
+- Footer: ~80px (1줄 4col + 1줄 3col + 1줄 Captain)
+- 합계 (좌측 기준): ~975px (A4 1123 안 fit ✓)
+- 합계 (우측 기준): ~1025px (Header 95 + Running 680 + Period+Final 170 + Footer 80) (A4 1123 안 fit ✓)
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `score-sheet-form.tsx` | max-w-screen-md → max-w-[820px] + px-1 py-1 / 우측 컬럼 = RunningScore 아래 `fiba-divider-top` + PeriodScoresSection 누적 (FIBA PDF 정합) / Phase 8 → Phase 9 주석 갱신 | 수정 |
+| `fiba-header.tsx` | sectionClass px-3 py-2 → px-2 py-1 / 로고 28×14 → 24×12 / SCORESHEET text-sm (14) → text-[13px] / Basketball Daily Routine 9 → 8px / gap-3 → gap-2 / gap-y-0.5 → gap-y-0 (3·4줄) | 수정 |
+| `team-section.tsx` | sectionClass px-2 py-2 → px-1 py-1 / 헤더 라벨 11px → 10px / 팀명 text-sm → text-[13px] / Time-outs+Fouls gap-2 → gap-1.5 / mb-1.5 → mb-0.5 / Players thead py-1 → py-0.5 + height 22 / Players td py-1 → py-0 / 행 28 → 24px / Licence text-xs → text-[11px] / Player text-xs → text-[11px] + lineHeight 1.1 / 등번호 text-[11px] / Player in h-9 w-9 → h-5 w-5 + input h-5 → h-4 / Fouls td py-0 / 퇴장 라벨 10 → 9px + icon 12 → 11px | 수정 |
+| `running-score-grid.tsx` | 헤더 px-2 py-1 → px-2 py-0.5 / 안내 텍스트 10 → 9px + 축약 ("P1 · 1탭=입력 / 마지막=해제") | 수정 |
+| `period-scores-section.tsx` | gap-2 → gap-1 / 헤더 px-2 py-1 → px-2 py-0.5 / 버튼 h-9 min-w-9 → h-7 min-w-7 + px-1 / "현재:" 제거 / 표 thead/tbody py-1 → py-0 / 종료 버튼 py-2 text-sm → py-1 text-xs / icon text-base → text-sm / Final px-3 py-2 → px-2 py-1 / mt-1 → mt-0.5 / Final 숫자 text-2xl → text-xl + leading-tight / ":" text-base → text-sm / Winner mt-2 py-1 → mt-1 py-0.5 | 수정 |
+| `footer-signatures.tsx` | sectionClass px-3 py-2 → px-2 py-1 / 4col gap-x-3 gap-y-1 → gap-x-2 gap-y-0 / 3col mt-1 → mt-0.5 + gap-y-0 / Captain mt-1 → mt-0.5 / Notes textarea: frameless=true (운영 기본) 시 숨김 (FIBA PDF 정합 + A4 fit) / frameless=false 시 유지 (회귀 안전망) / SigInput inline minHeight 24 → 22 / gap-1.5 → gap-1 | 수정 |
+| `_print.css` | @page margin 8mm → 6mm / `.score-sheet-fiba-frame` 인쇄 시 width 198mm + max-height 285mm + page-break-inside avoid + page-break-after always + overflow hidden / section padding 4px 8px → 2px 4px / margin-bottom 4 → 0 / md\:grid-cols-2 gap 6px → 0 / h1 11pt → 10pt / h2/h3 9pt / 본문 root 8pt 추가 / table 8pt → 7pt / td padding 2px 3px → 1px 2px + line-height 1.2 / input 9pt → 8pt + height 14pt / textarea 8pt / 아이콘 10 → 9pt | 수정 |
+
+### 단일 박스 + 신규 레이아웃 (FIBA PDF 정합)
+- 외곽 = `score-sheet-fiba-frame` (검정 1px solid / rounded-0 / shadow X)
+- 헤더 (~8%): FibaHeader 4 줄 컴팩트
+- 본문 (~75%): 좌:우 50:50
+  - 좌측 (50%) = Team A (위 50%) `fiba-divider-bottom` Team B (아래 50%) — FIBA PDF 세로 분할 정합
+  - 우측 (50%) = RunningScoreGrid (~60%) `fiba-divider-top` PeriodScoresSection (Period+Final+Winner 통합)
+- 풋터 (~7%): FooterSignatures 1~2 줄 가로 펼침 (Notes 폐기)
+
+### 검증
+- tsc --noEmit: **0 에러**
+- vitest: **541/541 PASS** (기존 541건 회귀 0)
+- BigInt n literal: 0건
+- lucide-react: 0건 (주석만 — Material Symbols Outlined 유지)
+- 핑크/코랄/살몬: 0건
+- schema 변경: 0 / Flutter v1 영향: 0 / AppNav 영향: 0 / BFF·service 변경: 0
+- A4 1 페이지 fit: 좌측 ~975px / 우측 ~1025px (모두 1123px 안에 fit ✓)
+
+### 회귀 안전망
+- 모든 컴포넌트의 `frameless` prop = 기본 false (기존 호출자 영향 0)
+- Notes textarea = `frameless=false` 시 유지 (회귀 0). DraftPayload signatures.notes 필드 유지 (localStorage 복원 동일)
+- SigInput 비 inline 모드도 함수 내 분기 보존 (회귀 가드)
+- 점수/파울/타임아웃 핵심 데이터 흐름 변경 0 (디자인만 / BFF·service 변경 0)
+- buildSubmitPayload `notes: signatures.notes || undefined` 그대로 (UI 입력 X 라면 빈 문자열 → 생략 정상 동작)
+
+### 💡 tester 참고
+- 테스트 방법: score-sheet/[matchId] 진입 → 라인업 모달 확정 → A4 1 페이지 안에 모든 영역 fit / 좌측 Team A 위 + Team B 아래 / 우측 Running + Period + Final 누적 / Footer 최하단
+- 정상: tsc 0 / vitest 541 PASS / A4 1 페이지 안에 fit (브라우저 인쇄 미리보기 확인 권장)
+- 주의: Notes textarea 가 frameless 모드 (운영 기본) 에서 숨겨짐 — 운영자 안내 필요 시 별도 보고
+- 시각 검증 우선: A4 1 페이지 fit (화면 + 인쇄 미리보기) + FIBA PDF 와 1:1 비교
+
+### ⚠️ reviewer 참고
+- 우측 컬럼 = Period+Final 이 RunningScore 박스 안 (`fiba-divider-top`) 으로 들어가서 FIBA PDF 정합
+- `_print.css` `.score-sheet-fiba-frame { width: 198mm; max-height: 285mm; overflow: hidden }` 인쇄 시 강제 → 브라우저별 fit 동작 검증 필요 (Chrome/Edge 우선)
+- Notes 폐기 (frameless=true 시) — 운영자 메모 기능 = signatures.notes 만 draft 박제, UI 비표시. BFF payload 는 그대로 전송 가능 (input UI 만 없음 / localStorage draft 안 notes 빈 문자열 유지)
+- 행 24px / 폰트 11px = FIBA PDF 정합 vs 가독성 트레이드오프. 사용자 시각 검증 후 추가 조정 여지
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
+---
 
 ## 구현 기록 (developer) — FIBA Phase 8 PDF 1:1 완전 정합 (2026-05-12)
 

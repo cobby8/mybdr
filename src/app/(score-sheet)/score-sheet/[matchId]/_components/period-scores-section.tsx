@@ -72,11 +72,12 @@ export function PeriodScoresSection({
   const innerBorderClass = frameless ? "fiba-frameless" : "";
 
   return (
-    <div className="flex w-full flex-col gap-2">
-      {/* Period 표 — FIBA 양식 정합 (Phase 7-A: rounded-0 / Phase 8: frameless 옵션) */}
+    // Phase 9 — gap-1 압축 (A4 1 페이지 fit)
+    <div className="flex w-full flex-col gap-1">
+      {/* Period 표 — FIBA 양식 정합. Phase 9 — 헤더 px-2 py-0.5 컴팩트. */}
       <div className={innerBorderClass} style={innerBorderStyle}>
         <div
-          className="flex items-center justify-between px-2 py-1"
+          className="flex items-center justify-between px-2 py-0.5"
           style={{
             backgroundColor: "var(--color-surface)",
             borderBottom: "1px solid var(--color-border)",
@@ -86,12 +87,12 @@ export function PeriodScoresSection({
             Period Scores
           </div>
           <div className="flex items-center gap-1">
+            {/* Phase 9 — 버튼 h-7 (44px → 28px 컴팩트). 터치는 wide press-area + touchAction 유지 */}
             <button
               type="button"
               onClick={onRetreatPeriod}
               disabled={disabled || state.currentPeriod <= 1}
-              // 터치 영역 44px+
-              className="inline-flex h-9 min-w-9 items-center justify-center px-2 text-xs disabled:opacity-30"
+              className="inline-flex h-7 min-w-7 items-center justify-center px-1 text-xs disabled:opacity-30"
               style={{
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text-primary)",
@@ -104,13 +105,13 @@ export function PeriodScoresSection({
               </span>
             </button>
             <div className="px-1 text-[11px] font-semibold text-[var(--color-text-primary)]">
-              현재: {periodLabel(state.currentPeriod)}
+              {periodLabel(state.currentPeriod)}
             </div>
             <button
               type="button"
               onClick={onAdvancePeriod}
               disabled={disabled || state.currentPeriod >= 7}
-              className="inline-flex h-9 min-w-9 items-center justify-center px-2 text-xs disabled:opacity-30"
+              className="inline-flex h-7 min-w-7 items-center justify-center px-1 text-xs disabled:opacity-30"
               style={{
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text-primary)",
@@ -135,19 +136,19 @@ export function PeriodScoresSection({
           >
             <tr>
               <th
-                className="px-1 py-1 text-left font-medium"
+                className="px-1 py-0 text-left font-medium"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 Period
               </th>
               <th
-                className="px-1 py-1 text-center font-medium"
+                className="px-1 py-0 text-center font-medium"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 A
               </th>
               <th
-                className="px-1 py-1 text-center font-medium"
+                className="px-1 py-0 text-center font-medium"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 B
@@ -172,7 +173,7 @@ export function PeriodScoresSection({
                   }}
                 >
                   <td
-                    className="px-1 py-1 font-medium text-[var(--color-text-primary)]"
+                    className="px-1 py-0 font-medium text-[var(--color-text-primary)]"
                     style={{
                       borderBottom: "1px solid var(--color-border)",
                       color: isEnded
@@ -196,7 +197,7 @@ export function PeriodScoresSection({
                     )}
                   </td>
                   <td
-                    className="px-1 py-1 text-center font-mono"
+                    className="px-1 py-0 text-center font-mono"
                     style={{
                       borderBottom: "1px solid var(--color-border)",
                       color: isEnded
@@ -207,7 +208,7 @@ export function PeriodScoresSection({
                     {line.homePoints}
                   </td>
                   <td
-                    className="px-1 py-1 text-center font-mono"
+                    className="px-1 py-0 text-center font-mono"
                     style={{
                       borderBottom: "1px solid var(--color-border)",
                       color: isEnded
@@ -227,15 +228,16 @@ export function PeriodScoresSection({
             클릭 시 currentPeriod++ + toast (caller 가 분기). Q4 종료 후 OT 진입 가능.
             7 (OT3) 도달 시 비활성화 — 더 이상 진행 불가 */}
         {onEndPeriod && (
+          // Phase 9 — px-1 py-1 컴팩트 (A4 fit)
           <div
-            className="px-2 py-2"
+            className="px-1 py-1"
             style={{ borderTop: "1px solid var(--color-border)" }}
           >
             <button
               type="button"
               onClick={onEndPeriod}
               disabled={disabled || state.currentPeriod >= 7}
-              className="flex w-full items-center justify-center gap-1 py-2 text-sm font-semibold disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-1 py-1 text-xs font-semibold disabled:opacity-40"
               style={{
                 border: "1px solid var(--color-accent)",
                 backgroundColor:
@@ -245,7 +247,7 @@ export function PeriodScoresSection({
               }}
               aria-label={`현재 ${periodLabel(state.currentPeriod)} 종료`}
             >
-              <span className="material-symbols-outlined text-base">
+              <span className="material-symbols-outlined text-sm">
                 stop_circle
               </span>
               {periodLabel(state.currentPeriod)} 종료
@@ -254,9 +256,9 @@ export function PeriodScoresSection({
         )}
       </div>
 
-      {/* Final Score + Winner (Phase 7-A: rounded-0 / Phase 8: frameless 옵션) */}
+      {/* Final Score + Winner. Phase 9 — 컴팩트 padding (px-2 py-1) + 숫자 text-xl */}
       <div
-        className={frameless ? "fiba-frameless px-3 py-2" : "px-3 py-2"}
+        className={frameless ? "fiba-frameless px-2 py-1" : "px-3 py-2"}
         style={
           frameless
             ? {
@@ -272,19 +274,19 @@ export function PeriodScoresSection({
         <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
           Final Score
         </div>
-        <div className="mt-1 flex items-center justify-between gap-2">
+        <div className="mt-0.5 flex items-center justify-between gap-2">
           <div className="flex-1 text-center">
             <div className="line-clamp-1 text-[10px] text-[var(--color-text-muted)]">
               {homeTeamName}
             </div>
             <div
-              className="font-mono text-2xl font-bold"
+              className="font-mono text-xl font-bold leading-tight"
               style={{ color: "var(--color-text-primary)" }}
             >
               {final.homeTotal}
             </div>
           </div>
-          <div className="text-base font-semibold text-[var(--color-text-muted)]">
+          <div className="text-sm font-semibold text-[var(--color-text-muted)]">
             :
           </div>
           <div className="flex-1 text-center">
@@ -292,7 +294,7 @@ export function PeriodScoresSection({
               {awayTeamName}
             </div>
             <div
-              className="font-mono text-2xl font-bold"
+              className="font-mono text-xl font-bold leading-tight"
               style={{ color: "var(--color-text-primary)" }}
             >
               {final.awayTotal}
@@ -300,10 +302,10 @@ export function PeriodScoresSection({
           </div>
         </div>
 
-        {/* Winner — 결정 시만 표시 (그린 — 긍정 결과 컨벤션) */}
+        {/* Winner — 결정 시만 표시 (그린 — 긍정 결과 컨벤션). Phase 9 mt-1 / py-0.5 */}
         {final.winner !== "none" && (
           <div
-            className="mt-2 px-2 py-1 text-center text-[11px] font-semibold"
+            className="mt-1 px-2 py-0.5 text-center text-[11px] font-semibold"
             style={{
               backgroundColor:
                 final.winner === "tie"
