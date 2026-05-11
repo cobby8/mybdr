@@ -110,7 +110,10 @@ export function MatchEndButton({
   }
 
   return (
-    <div className="mt-4">
+    // Phase 6 — `no-print` = 인쇄 시 경기 종료 영역 전체 제거.
+    //   이유: FIBA 양식 = 종이 기록지. 인쇄 시 종료 버튼 / confirm 모달 / 종료 후 카드는
+    //   양식과 무관 → 숨김 (실서명 영역만 출력)
+    <div className="no-print mt-4">
       {/* 종료 후 안내 카드 (submitted = true 시) */}
       {submitted && (
         <div
