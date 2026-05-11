@@ -1,24 +1,23 @@
 /**
- * FIBA SCORESHEET 폼 본체 (client) — Phase 1 골조.
+ * FIBA SCORESHEET 폼 본체 (client) — Phase 1 + Phase 2 통합.
  *
- * 2026-05-11 — Phase 1 신규 (planner-architect §B §컴포넌트 트리).
+ * 2026-05-11 — Phase 1 신규 (planner-architect §B §컴포넌트 트리)
+ * 2026-05-12 — Phase 2 확장 (RunningScoreGrid + PeriodScoresSection + PlayerSelectModal)
  *
  * 왜 (이유):
- *   기존 `(web)/score-sheet/` 의 ScoreSheetForm 은 Quarter Score Grid 기반 + 22 stat
- *   영역으로 FIBA 양식과 괴리. Phase 1 재설계 = FIBA 양식 1 페이지 A4 세로 정합.
- *   본 turn 은 FibaHeader + LeftColumn (Team A/B TeamSection) 까지만 골조 — Phase 2~6
- *   에서 RunningScoreGrid / Team fouls / Time-outs / 서명 / PDF 순 확장.
+ *   FIBA 양식 1 페이지 A4 세로를 좌·우 절반으로 분할. Phase 1 = 좌측 (헤더 + 팀 명단),
+ *   Phase 2 = 우측 (Running Score grid + Period 자동 합산 + Final + Winner).
  *
  * 방법 (어떻게):
  *   - localStorage draft (5초 throttle / key = "fiba-score-sheet-draft-{matchId}")
- *     기존 패턴 재사용 — Phase 5 제출 시 localStorage 제거
- *   - 상태 분리: header / teamA / teamB / (Phase 2+: runningScore / teamFouls / playerFouls...)
- *   - Phase 1 = 제출 없음 (UI 만) — Phase 5 BFF 확장 시 활성화
- *   - 모바일 가로 차단 = layout 의 RotationGuard 가 담당 (form 내부 별도 분기 X)
+ *     Phase 2: runningScore state 도 draft 에 포함 → reload 후 입력 복원
+ *   - 상태 분리: header / teamA / teamB / runningScore (Phase 2 신규)
+ *   - Phase 1 = 제출 없음, Phase 2 = 제출 미연결 (Phase 5 BFF 확장 시 활성화)
+ *   - 모바일 가로 차단 = layout 의 RotationGuard 가 담당
  *
  * 절대 룰:
- *   - API / BFF 시그니처 변경 0 (Phase 1 = UI 만)
- *   - service syncSingleMatch 호출 0 (Phase 1 = 제출 미연결)
+ *   - API / BFF 시그니처 변경 0 (Phase 2 도 UI 만 — Phase 5 진입 시 제출 BFF 확장)
+ *   - service syncSingleMatch 호출 0 (Phase 5 까지 미연결)
  */
 
 "use client";
@@ -26,7 +25,11 @@
 import { useEffect, useState } from "react";
 import { FibaHeader, type FibaHeaderInputs } from "./fiba-header";
 import { TeamSection, type TeamSectionInputs } from "./team-section";
+import { RunningScoreGrid } from "./running-score-grid";
+import { PeriodScoresSection } from "./period-scores-section";
 import type { TeamRosterData } from "./team-section-types";
+import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
+import { EMPTY_RUNNING_SCORE } from "@/lib/score-sheet/running-score-helpers";
 
 interface MatchProp {
   id: string;
@@ -67,6 +70,7 @@ interface DraftPayload {
   header: FibaHeaderInputs;
   teamA: TeamSectionInputs;
   teamB: TeamSectionInputs;
+  runningScore: RunningScoreState;
   savedAt: string;
 }
 
@@ -79,6 +83,10 @@ export function ScoreSheetForm({
   const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
   const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
   const [teamB, setTeamB] = useState<TeamSectionInputs>(EMPTY_TEAM);
+  // Phase 2 — Running Score state
+  const [runningScore, setRunningScore] = useState<RunningScoreState>(
+    EMPTY_RUNNING_SCORE
+  );
 
   // localStorage draft 복원 (mount 1회)
   useEffect(() => {
@@ -86,10 +94,22 @@ export function ScoreSheetForm({
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
       if (raw) {
-        const draft = JSON.parse(raw) as DraftPayload;
+        const draft = JSON.parse(raw) as Partial<DraftPayload>;
         if (draft.header) setHeader(draft.header);
         if (draft.teamA) setTeamA(draft.teamA);
         if (draft.teamB) setTeamB(draft.teamB);
+        // Phase 2 — runningScore 복원 (기존 draft 호환: 없으면 EMPTY)
+        if (draft.runningScore) {
+          // 방어: home/away 배열 + currentPeriod 검증
+          const rs = draft.runningScore;
+          if (
+            Array.isArray(rs.home) &&
+            Array.isArray(rs.away) &&
+            typeof rs.currentPeriod === "number"
+          ) {
+            setRunningScore(rs);
+          }
+        }
       }
     } catch {
       // 손상된 draft = 무시
@@ -106,6 +126,7 @@ export function ScoreSheetForm({
           header,
           teamA,
           teamB,
+          runningScore,
           savedAt: new Date().toISOString(),
         };
         window.localStorage.setItem(
@@ -117,7 +138,21 @@ export function ScoreSheetForm({
       }
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, match.id]);
+  }, [header, teamA, teamB, runningScore, match.id]);
+
+  // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
+  function handleAdvancePeriod() {
+    setRunningScore((prev) => ({
+      ...prev,
+      currentPeriod: Math.min(prev.currentPeriod + 1, 7),
+    }));
+  }
+  function handleRetreatPeriod() {
+    setRunningScore((prev) => ({
+      ...prev,
+      currentPeriod: Math.max(prev.currentPeriod - 1, 1),
+    }));
+  }
 
   return (
     <main className="mx-auto w-full max-w-screen-md px-2 py-2">
@@ -133,26 +168,48 @@ export function ScoreSheetForm({
         onChange={setHeader}
       />
 
-      {/* 좌 절반 (Phase 1 = 1 컬럼 — Team A 상 / Team B 하 stack) */}
-      {/* 우 절반 (RunningScore) 은 Phase 2 에서 추가 — 본 turn 은 leftColumn 만 */}
-      <div className="mt-3 grid grid-cols-1 gap-3">
-        <TeamSection
-          sideLabel="Team A"
-          teamName={homeRoster.teamName}
-          players={homeRoster.players}
-          values={teamA}
-          onChange={setTeamA}
-        />
-        <TeamSection
-          sideLabel="Team B"
-          teamName={awayRoster.teamName}
-          players={awayRoster.players}
-          values={teamB}
-          onChange={setTeamB}
-        />
+      {/* Phase 2 = 좌 (TeamSection 2개 stack) + 우 (RunningScore + PeriodScores) */}
+      {/* 태블릿 세로 768px 기준 — md 미만 = 1 컬럼, md 이상 = 2 컬럼 */}
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+        {/* 좌측 컬럼 — Team A 상 / Team B 하 */}
+        <div className="flex flex-col gap-3">
+          <TeamSection
+            sideLabel="Team A"
+            teamName={homeRoster.teamName}
+            players={homeRoster.players}
+            values={teamA}
+            onChange={setTeamA}
+          />
+          <TeamSection
+            sideLabel="Team B"
+            teamName={awayRoster.teamName}
+            players={awayRoster.players}
+            values={teamB}
+            onChange={setTeamB}
+          />
+        </div>
+
+        {/* 우측 컬럼 — Running Score grid + Period scores */}
+        <div className="flex flex-col gap-3">
+          <RunningScoreGrid
+            state={runningScore}
+            onChange={setRunningScore}
+            homePlayers={homeRoster.players}
+            awayPlayers={awayRoster.players}
+            homeTeamName={homeRoster.teamName}
+            awayTeamName={awayRoster.teamName}
+          />
+          <PeriodScoresSection
+            state={runningScore}
+            homeTeamName={homeRoster.teamName}
+            awayTeamName={awayRoster.teamName}
+            onAdvancePeriod={handleAdvancePeriod}
+            onRetreatPeriod={handleRetreatPeriod}
+          />
+        </div>
       </div>
 
-      {/* Phase 1 진행 상태 안내 — Phase 2~6 영역은 추후 확장 */}
+      {/* Phase 2 진행 상태 안내 — Phase 3~6 영역은 추후 확장 */}
       <div
         className="mt-4 rounded-[4px] px-3 py-2 text-xs"
         style={{
@@ -161,9 +218,9 @@ export function ScoreSheetForm({
           border: "1px solid var(--color-border)",
         }}
       >
-        Phase 1 골조 — Running Score (Phase 2), Team/Player Fouls (Phase 3),
-        Time-outs (Phase 4), 서명·제출 (Phase 5), 인쇄 PDF (Phase 6) 는
-        후속 PR 에서 추가 됩니다.
+        Phase 2 = Running Score + Period 자동 + Final + Winner 완성.
+        Team/Player Fouls (Phase 3), Time-outs (Phase 4), 서명·제출 (Phase 5),
+        인쇄 PDF (Phase 6) 는 후속 PR 에서 추가 됩니다.
       </div>
     </main>
   );

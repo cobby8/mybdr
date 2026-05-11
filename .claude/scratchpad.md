@@ -1,15 +1,15 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 종이 기록지 전면 재기획 — FIBA SCORESHEET 양식 그대로 + 태블릿 세로 모드 + 풀스크린
-- **상태**: 기획설계 완료 — **사용자 결재 7건 대기** (developer 진입 전)
+- **요청**: FIBA SCORESHEET Phase 2 — Running Score 1-160 + Period 자동 + Final + Winner
+- **상태**: Phase 2 구현 완료 — tsc 0 / vitest 381/381 (+31)
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식 6 Phase)
 | Phase | 범위 | 우선 | 상태 |
 |------|------|------|------|
-| 1 | `(score-sheet)` route group + minimal layout + 헤더 + 양 팀 명단 | ⭐⭐⭐ | ⏳ |
-| 2 | **Running Score 1-160 시계열 grid** + Period 자동 합산 + Final + Winner | ⭐⭐⭐ | ⏳ |
+| 1 | `(score-sheet)` route group + minimal layout + 헤더 + 양 팀 명단 | ⭐⭐⭐ | ✅ |
+| 2 | **Running Score 1-160 시계열 grid** + Period 자동 합산 + Final + Winner | ⭐⭐⭐ | ✅ |
 | 3 | Team Fouls + Player Fouls (1-5) + 5반칙 alert + 5+ FT 안내 | ⭐⭐ | ⏳ |
 | 4 | Time-outs (Team A/B + 전반2/후반3/연장1 검증) | ⭐⭐ | ⏳ |
 | 5 | 서명 영역 (Scorer/Timer/Referee/Captain) + 매치 종료 토글 + 제출 | ⭐ | ⏳ |
@@ -306,9 +306,101 @@ ScoreSheetPage (server / 기존 page.tsx 이전)
 - **빨강 본문 텍스트 ❌**: 강조는 `var(--color-accent)` (starter ◉) / 캡틴 ★ = `var(--color-warning)` (기존 패턴 유지)
 - **Phase 2 진입 시 RunningScoreGrid 768px 안 4 세트 × A|B × 40 row 박제 가능성 검증** (위험 §G §6 — 실제 prototype 후 확정)
 
+## 구현 기록 (developer) — FIBA 양식 Phase 2 Running Score (2026-05-12)
+
+📝 구현 범위: RunningScoreGrid (4 세트 × A|B × 40 row = 1-160) + PlayerSelectModal (풀스크린 12명 큰 버튼) + PeriodScoresSection (Q1~Q4 + OT 자동 합산 + Final + Winner) + ScoreSheetForm 2 컬럼 통합 + BFF body schema 확장 (running_score → PaperPBPInput[] 변환 → service play_by_plays 박제). 사용자 결재 4건 모두 구현.
+
+### prototype 검증 결과 (768×1024 viewport)
+- **칸 크기**: 컨테이너 384px ÷ 8 컬럼 = 48px 폭 × 16px 높이 (FIBA A4 정합)
+- **터치 룰 44px+ 위반 회피**: 칸 자체는 작지만 1탭 → PlayerSelectModal 풀스크린 (60px+ 선수 큰 버튼) — 사용자 결재 §1 (b)
+- **글꼴**: 빈 칸 9px (위치 번호) / 마킹 칸 8px (등번호 ●N) — 가독성 한계
+- **채택 옵션**: 모달 + 칸 작게 (FIBA 양식 시각 정합 우선 + 터치는 모달로 보완)
+- **마킹 시각**: 1점=● / 2점=◉ / 3점=◎ + 등번호 (점수 종류 자동 구분)
+- **마지막 마킹 강조**: accent 25% mix 음영 — 1탭 = 해제 confirm
+
+### 변경 파일
+| 파일 | 변경 | LOC | 신규/수정 |
+|------|------|-----|----------|
+| `src/lib/score-sheet/running-score-types.ts` | ScoreMark / RunningScoreState / FinalScore / PeriodScoreLine 공유 타입 | +62 | 신규 |
+| `src/lib/score-sheet/running-score-helpers.ts` | inferPoints / isValidMarkPosition / sumByPeriod / computeFinalScore / toQuarterScoresJson / marksToPaperPBPInputs / addMark / undoLastMark | +260 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/running-score-grid.tsx` | RunningScoreGrid (4 세트 × A\|B 컬럼 × 40 row + 빈/마킹/마지막 분기 셀) | +290 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/player-select-modal.tsx` | 풀스크린 모달 (12명 큰 버튼 grid + 점수 종류 안내 + ESC/외부 클릭 닫기) | +168 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/period-scores-section.tsx` | Period 표 (Q1~Q4 + OT 자동) + Final Score + Winner (그린/tie warning) + Period 진행 버튼 | +205 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | Phase 2 통합 (md+ 2 컬럼 / draft 에 runningScore 추가 / Period 진행 핸들러) | +60 | 수정 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | body schema `running_score` 추가 + PaperPBP → PlayByPlayInput 변환 + service play_by_plays 박제 | +85 | 수정 |
+| `src/__tests__/score-sheet/running-score-helpers.test.ts` | 31 케이스 (점수 추론 / 유효성 / 합산 / final / quarter JSON / PBP 변환 / addMark / undoLastMark) | +280 | 신규 |
+
+### 점수 자동 추론 알고리즘 정합 검증
+- **1점/2점/3점 추론**: `position - lastPosition` = points (vitest 7 케이스)
+- **음수 차단**: lastPosition 보다 작으면 `{ok: false, "이전 마킹 이후 칸을 선택해주세요"}` (vitest 1)
+- **4+ 차단**: diff > 3 면 `{ok: false, "한 번에 N점 득점 불가"}` (vitest 1)
+- **range 초과**: position > 160 차단 (vitest 1)
+- **마지막 1탭 해제**: `undoLastMark` pop + window.confirm UX (vitest 2 + UI 통합)
+
+### PBP 박제 룰 (BFF → service)
+- **local_id**: `paper-fix-{uuid}` — service 의 manual-fix prefix 와 분리 (종이 기록 식별자)
+- **description**: `[종이 기록] N점 득점` — Flutter sync 시 자동 삭제 보호 가능 (현 service 룰: manual-fix prefix 만 보호 / paper-fix-* 는 incoming local_id 에 포함되어 살아남으므로 OK)
+- **mode 게이팅 의존**: 같은 매치에 Flutter sync + 종이 기록지 BFF 동시 호출 불가 — `recording_mode=paper` 매치는 Flutter API 가 403
+- **action_type**: `shot_made` / **action_subtype**: `1pt` / `2pt` / `3pt`
+- **home_score_at_time / away_score_at_time**: 시간순 정렬 후 누적 (vitest 검증)
+- **idempotent**: 매번 전체 running_score 전송 → service deleteMany NOT IN (incoming local_id) → 마지막 마킹 해제도 자동 반영
+
+### Period 자동 합산
+- `sumByPeriod`: Period 1~4 항상 표시 (마킹 0이라도) + OT 마킹 시 5+ 추가
+- `toQuarterScoresJson`: DB `match.quarterScores` 형식 변환 (Flutter sync 호환 — 현 turn 미사용 / Phase 5 BFF 활성화 시 활용)
+- `computeFinalScore`: 마지막 마킹 position = 팀 총점 / 동점 = "tie" + warning / 차이 = "home"/"away" winner
+
+### 검증 결과
+- **tsc**: 0 에러 ✅
+- **vitest**: 29 files / **381 tests PASS** (이전 350 + 신규 31 = +31 / 회귀 0)
+  - 신규 31: inferPoints 7 + isValidMarkPosition 7 + sumByPeriod 3 + computeFinalScore 4 + toQuarterScoresJson 1 + addMark/undoLastMark 4 + marksToPaperPBPInputs 5
+  - 기존 score-sheet-submit BFF 5 케이스 회귀 0 ✅ (running_score optional 호환)
+- **grep 회귀 0**:
+  - `BigInt(N)n` 패턴 0건 ✅
+  - `lucide-react` import 0건 ✅
+  - 핑크/살몬/코랄 hardcode 0건 ✅
+  - `text-[var(--color-primary)]` 본문 0건 ✅
+- **schema 변경**: 0 ✅
+- **Flutter v1 영향**: 0 ✅
+- **API / BFF 시그니처**: BFF body 확장만 (`running_score` optional) — 기존 호출처 회귀 0 ✅
+- **AppNav frozen**: 0 영향 ✅
+
+### 다음 단계 (Phase 3 진입 전 검토)
+- Phase 3 = Team Fouls (Period 별 1-4 + Extra) + Player Fouls (1-5 토글) + 5반칙 alert + 5+ FT 안내 + BFF body 확장 (PBP foul event)
+- Phase 2 만 별도 PR 권장 (LOC +1400 — 검증 안전)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. admin matches → mode=paper 매치 → `/score-sheet/{matchId}` 진입 (Phase 1 동일 진입 흐름)
+  2. 우측 (md+ viewport) 또는 하단 (md 미만) Running Score 4 세트 × A\|B 그리드 노출 (각 세트 40 row)
+  3. 빈 칸 1탭 → 풀스크린 모달 → 12명 큰 버튼 (등번호 강조) → 선수 선택 → 칸에 ● + 등번호 마킹
+  4. 점수 자동 추론: 이전 마킹 칸 5번 → 8번 클릭 = "3점 (3점슛)" 라벨 모달 헤더
+  5. 마지막 마킹 칸 다시 탭 → confirm → 해제 (PBP 도 자동 제거)
+  6. Period 진행: PeriodScoresSection 좌우 chevron 버튼 → currentPeriod 변경 → 새 마킹은 변경된 period 로 박제
+  7. Final Score = 마지막 마킹 position 자동 / Winner 자동 결정 (동점 시 "⚠ 동점 — 연장 필요")
+  8. localStorage draft = runningScore 포함 5초 throttle → reload 후 복원
+- **정상 동작**:
+  - 4+점 차단: 마지막 마킹 5 → 10 클릭 시 "한 번에 5점 득점 불가" alert
+  - 역행 차단: 마지막 마킹 10 → 5 클릭 시 "이전 마킹 이후 칸을 선택해주세요" alert
+  - 마킹된 칸 (마지막 X) 탭 시 "이미 마킹된 칸 — 마지막부터 차례로 해제" 안내
+- **주의할 입력**:
+  - 1점 (자유투) — Phase 3 자유투 기록 통합 전 우선 made shot 으로 박제
+  - Period 7 (OT3) 초과 차단 — 현 룰 5x5 OT 최대 4까지 허용 (period 5~7 = OT1~OT3)
+  - 양 팀 같은 period 마킹 시 home_score_at_time / away_score_at_time = 안정 정렬 (home 먼저) — 정확한 시간 순서는 Phase 3 game_clock 통합 시 보완
+
+⚠️ reviewer 참고:
+- **server-safe lib 위치**: 헬퍼/타입 = `src/lib/score-sheet/` (route group dir 의 client 옆에 두지 않음 — BFF + vitest 양쪽 안전 import)
+- **paper-fix prefix 보호 룰**: service 의 manual-fix prefix 와 분리. 같은 매치 mode 게이팅이 보호의 핵심 (Flutter sync 가 종이 매치 호출 자체 403)
+- **터치 영역 룰**: 칸 자체 16px 높이 (FIBA 정합) but PlayerSelectModal 큰 버튼 60px 로 룰 충족
+- **마킹 시각 (1=● / 2=◉ / 3=◎)**: 검정 점 + 동그라미 조합 — 색상은 var(--color-accent) accent
+- **2 컬럼 분기**: md (768px) 이상 = 좌 (TeamSection 2개 stack) + 우 (Grid + Period). md 미만 = 1 컬럼 stack — 모바일 가로는 RotationGuard 가 차단
+- **BFF body schema 확장**: `running_score` optional → 기존 호출처 회귀 0 / Phase 3+ 도 동일 패턴 (optional 추가만)
+- **Phase 3 진입 시 검토**: Team Fouls / Player Fouls 도 PBP foul event 자동 집계 채택 (결재 §2 (a)) — settings JSON 우회 불필요
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 2]** Running Score 1-160 grid + PlayerSelectModal 풀스크린 + PeriodScoresSection (Q1~OT 자동 + Final + Winner) + BFF running_score → PaperPBP 변환 → service play_by_plays 박제. server-safe lib 분리. vitest 381/381 (+31) / tsc 0. schema·Flutter v1·AppNav 영향 0. | ✅ |
 | 2026-05-11 | (커밋 대기) | **[FIBA 종이 기록지 Phase 1]** `(score-sheet)` route group + minimal layout + RotationGuard + FibaHeader + TeamSection (Players 12 + Coach) + ScoreSheetForm 골조. 기존 `(web)/score-sheet/` 6 파일 폐기. vitest 350/350 (+9) / tsc 0. URL 동일 / admin link 변경 0 / BFF·service·schema·Flutter v1 변경 0. | ✅ |
 | 2026-05-11 | (기획만) | **[종이 기록지 FIBA 재기획]** 6 Phase + 사용자 결재 7건 + 컴포넌트 트리 (FIBA 1 페이지 A4 세로) + DB 매핑 12 영역. Phase 1 = `(score-sheet)` route group + minimal layout + 헤더 + 명단 (12h 추정). 코드 변경 0 — developer 진입 결재 §1~§7 대기. | ✅ |
 | 2026-05-11 | (PM 커밋 대기) | **[admin 디자인 13 룰 fix]** Critical 11건 + Major 4건 + conventions.md 박제 (44 → 45). 13 파일. tsc 0 / vitest 341/341. | ✅ |
@@ -318,4 +410,3 @@ ScoreSheetPage (server / 기존 page.tsx 이전)
 | 2026-05-11 | 9793b7f | **[옵션 C Phase B]** score-from-pbp 헬퍼 + live API 3단 fallback. vitest 320/320. | ✅ |
 | 2026-05-11 | (기획만) | **[옵션 C 기획설계]** 6 Phase + 5 결재 + 원영 협의 4. 코드 변경 0. | ✅ |
 | 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-B + 3 + rbac]** admin-guard sentinel + referee layout + RoleMatrixCard. vitest 312/312. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-A + 1-C + 2]** isSuperAdmin 단일 source + partner-admin 우회. vitest 296/296. | ✅ |
