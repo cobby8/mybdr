@@ -82,6 +82,15 @@ function getRateLimitConfig(pathname: string) {
 export async function proxy(req: NextRequest) {
   const { pathname, hostname } = req.nextUrl;
 
+  // 2026-05-12 — middleware.ts 통합 (Next.js 16 middleware → proxy 마이그레이션):
+  //   admin / tournament-admin layout 의 redirect 흐름용 x-pathname / x-search 헤더 주입.
+  //   기존 middleware.ts 삭제 — proxy.ts 단일 source.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", pathname);
+  if (req.nextUrl.search) {
+    requestHeaders.set("x-search", req.nextUrl.search);
+  }
+
   // 1. Rate Limiting (모든 API 요청)
   if (pathname.startsWith("/api/")) {
     const ip = getClientIp(req);
@@ -124,7 +133,7 @@ export async function proxy(req: NextRequest) {
     headers.set("X-RateLimit-Limit", String(result.limit));
     headers.set("X-RateLimit-Remaining", String(result.remaining));
     headers.set("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
-    return NextResponse.next({ headers });
+    return NextResponse.next({ headers, request: { headers: requestHeaders } });
   }
 
   // 2. 페이지 인증 보호 (로그인 필요 경로)
@@ -155,12 +164,12 @@ export async function proxy(req: NextRequest) {
   if (subdomain) {
     const url = req.nextUrl.clone();
     url.pathname = `/_site${pathname}`;
-    const response = NextResponse.rewrite(url);
+    const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } });
     response.headers.set("x-tournament-subdomain", subdomain);
     return response;
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
