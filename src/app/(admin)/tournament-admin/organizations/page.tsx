@@ -59,9 +59,12 @@ export default function OrganizationsListPage() {
         <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
           내 단체
         </h1>
+        {/* 2026-05-12 — admin 빨간색 본문 금지 룰 (conventions.md 5/11):
+            `bg-[var(--color-primary)]` 직접 var 금지 → `btn btn--primary` 클래스 위임
+            (라이트 = navy / 다크 = BDR Red 자동 분기, globals.css L276+) */}
         <Link
           href="/tournament-admin/organizations/new"
-          className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="btn btn--primary"
         >
           <span className="material-symbols-outlined mr-1 text-base align-middle">
             add
@@ -89,10 +92,10 @@ export default function OrganizationsListPage() {
             <Link
               key={org.id}
               href={`/tournament-admin/organizations/${org.id}`}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-primary)]"
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-accent)]"
             >
               <div className="flex items-center gap-3">
-                {/* 로고: 없으면 이니셜 원 */}
+                {/* 로고: 없으면 이니셜 원 — admin 빨간 본문 금지 룰 → info(Navy) 토큰 */}
                 {org.logoUrl ? (
                   <img
                     src={org.logoUrl}
@@ -100,7 +103,7 @@ export default function OrganizationsListPage() {
                     className="h-10 w-10 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-bold text-white">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-info)] text-sm font-bold text-white">
                     {org.name.charAt(0)}
                   </div>
                 )}
@@ -138,7 +141,7 @@ export default function OrganizationsListPage() {
           </p>
           <Link
             href="/tournament-admin/organizations/new"
-            className="rounded bg-[var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            className="btn btn--primary"
           >
             단체 만들기
           </Link>
