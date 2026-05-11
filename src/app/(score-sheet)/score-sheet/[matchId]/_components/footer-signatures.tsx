@@ -41,6 +41,8 @@ interface FooterSignaturesProps {
   headerUmpire1?: string;
   headerUmpire2?: string;
   disabled?: boolean;
+  // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
+  frameless?: boolean;
 }
 
 export function FooterSignatures({
@@ -50,6 +52,7 @@ export function FooterSignatures({
   headerUmpire1,
   headerUmpire2,
   disabled,
+  frameless,
 }: FooterSignaturesProps) {
   // 헤더 → 풋터 자동 prefill (mount 1회).
   //
@@ -88,30 +91,35 @@ export function FooterSignatures({
       onChange({ ...values, [key]: e.target.value });
     };
 
-  return (
-    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1): rounded-0 / 단일 외곽 border / shadow X
-    <section
-      className="mt-4 w-full px-4 py-3"
-      style={{
+  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
+  //   가로 펼침 = Scorer/Asst/Timer/Shot Clock 한 줄 (4 컬럼) + Referee/Umpire 1·2 한 줄 (3 컬럼)
+  //   + Captain 한 줄 → FIBA PDF 정합.
+  const sectionStyle: React.CSSProperties = frameless
+    ? {}
+    : {
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
-      }}
-    >
-      <h2
-        className="mb-3 text-[10px] font-semibold uppercase tracking-wider"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        Signatures
-      </h2>
+      };
+  const sectionClass = frameless
+    ? "fiba-frameless w-full px-3 py-2"
+    : "mt-4 w-full px-4 py-3";
 
-      {/* 좌측 (운영자 측) — Scorer / Asst Scorer / Timer / Shot Clock Operator */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+  return (
+    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): rounded-0 / shadow X / frameless 옵션
+    <section className={sectionClass} style={sectionStyle}>
+      {/* Phase 8 — Signatures 헤더 제거 (FIBA PDF 정합 — 헤더 없이 라벨만).
+          frameless 모드에서 라벨 만으로 충분. */}
+
+      {/* Phase 8 — 운영자 측 4 컬럼 가로 1줄 (FIBA PDF 정합).
+          Scorer / Assistant scorer / Timer / Shot clock operator */}
+      <div className="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-4">
         <SigInput
           label="Scorer"
           value={values.scorer}
           onChange={update("scorer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
         <SigInput
           label="Assistant scorer"
@@ -119,6 +127,7 @@ export function FooterSignatures({
           onChange={update("asstScorer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
         <SigInput
           label="Timer"
@@ -126,6 +135,7 @@ export function FooterSignatures({
           onChange={update("timer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
         <SigInput
           label="Shot clock operator"
@@ -133,23 +143,20 @@ export function FooterSignatures({
           onChange={update("shotClockOperator")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
       </div>
 
-      {/* 구분선 — FIBA 양식 풋터의 좌·우 영역 분할 */}
-      <div
-        className="my-3 h-px w-full"
-        style={{ backgroundColor: "var(--color-border)" }}
-      />
-
-      {/* 우측 (심판진) — Referee / Umpire 1 / Umpire 2 */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      {/* Phase 8 — 심판진 3 컬럼 가로 1줄 (FIBA PDF 정합).
+          Referee / Umpire 1 / Umpire 2 — frameless 시 구분선 X (단일 외곽 박스 안) */}
+      <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-3">
         <SigInput
           label="Referee"
           value={values.refereeSign}
           onChange={update("refereeSign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
         <SigInput
           label="Umpire 1"
@@ -157,6 +164,7 @@ export function FooterSignatures({
           onChange={update("umpire1Sign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
         <SigInput
           label="Umpire 2"
@@ -164,23 +172,21 @@ export function FooterSignatures({
           onChange={update("umpire2Sign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          inline={frameless}
         />
       </div>
 
-      {/* 구분선 */}
-      <div
-        className="my-3 h-px w-full"
-        style={{ backgroundColor: "var(--color-border)" }}
-      />
-
-      {/* 하단 (주장 서명 — 항의 시에만 박제) */}
-      <SigInput
-        label="Captain's signature in case of protest"
-        value={values.captainSignature}
-        onChange={update("captainSignature")}
-        maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
-        disabled={disabled}
-      />
+      {/* Phase 8 — 주장 서명 (항의 시) — Phase 8: 한 줄 full-width */}
+      <div className="mt-1">
+        <SigInput
+          label="Captain's signature in case of protest"
+          value={values.captainSignature}
+          onChange={update("captainSignature")}
+          maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={frameless}
+        />
+      </div>
 
       {/* 매치 노트 (선택 — 부상 / 사고 / 특이사항) */}
       <div className="mt-4">
@@ -224,6 +230,10 @@ export function FooterSignatures({
  *
  * 이유: PDF 양식과 동일한 시각적 정합 — 박스/배경 없이 underscore 한 줄.
  *   터치 영역 보장 위해 input min-height 44px.
+ *
+ * Phase 8 — inline 모드 추가:
+ *   true = "Scorer: ___________" 같이 라벨 + underscore input 가 한 줄 (FIBA PDF 정합).
+ *   false = 라벨 위 + input 아래 (기존 박스 모드).
  */
 function SigInput({
   label,
@@ -231,13 +241,44 @@ function SigInput({
   onChange,
   maxLength,
   disabled,
+  inline,
 }: {
   label: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   maxLength: number;
   disabled?: boolean;
+  inline?: boolean;
 }) {
+  if (inline) {
+    // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄
+    return (
+      <label className="flex items-baseline gap-1.5 overflow-hidden">
+        <span
+          className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {label}
+        </span>
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          maxLength={maxLength}
+          className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
+          style={{
+            color: "var(--color-text-primary)",
+            borderBottom: "1px solid var(--color-text-primary)",
+            // Phase 8 — inline 모드 = 행 높이 ~28px (FIBA 정합). 터치는 행 전체 클릭 시 input focus
+            minHeight: 24,
+            touchAction: "manipulation",
+          }}
+        />
+      </label>
+    );
+  }
+  // 기존 박스 모드 (frameless=false / 회귀 안전망)
   return (
     <label className="block">
       <span

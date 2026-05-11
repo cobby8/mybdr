@@ -48,6 +48,8 @@ interface FibaHeaderProps {
   values: FibaHeaderInputs;
   onChange: (next: FibaHeaderInputs) => void;
   disabled?: boolean;
+  // Phase 8 — frameless 모드. 단일 외곽 박스 안에 들어갈 때 자체 border 제거 (parent frame 가 시각적 외곽).
+  frameless?: boolean;
 }
 
 export function FibaHeader({
@@ -60,6 +62,7 @@ export function FibaHeader({
   values,
   onChange,
   disabled,
+  frameless,
 }: FibaHeaderProps) {
   // 단일 update 패턴 — values 전체 spread + key 갱신
   const update =
@@ -70,79 +73,83 @@ export function FibaHeader({
   // 날짜/시각 분리 표시 — "2026-05-11 14:00" → date "2026-05-11" / time "14:00"
   const { dateLabel, timeLabel } = splitDateTime(scheduledAtLabel);
 
-  return (
-    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1):
-    //   - rounded-0 (radius X) / shadow X / border 1px (단일 외곽 박스 일부)
-    //   - 배경 = surface 단일 톤 (FIBA 양식 회색 박스 정합)
-    //   - 라벨 = ALL CAPS bold (변경 없음 — 이미 정합)
-    <section
-      className="w-full px-4 py-3"
-      style={{
+  // Phase 8 — frameless 모드: 단일 외곽 박스(score-sheet-fiba-frame) 안에서 자체 border 제거.
+  //   바깥 박스가 전체 frame 을 그리고, 본 헤더는 박스 내부 상단 영역으로만 동작.
+  const sectionStyle: React.CSSProperties = frameless
+    ? { backgroundColor: "transparent" }
+    : {
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
-      }}
-    >
-      {/* 로고 + 타이틀 박스 — FIBA 양식 정합 (상단 중앙) */}
-      <div className="mb-3 flex items-center justify-center gap-3">
-        <Image
-          src="/images/logo.png"
-          alt="BDR"
-          width={40}
-          height={20}
-          className="h-5 w-auto"
-        />
-        <div className="text-center">
-          <p
-            className="text-[10px] font-semibold uppercase tracking-wider"
+      };
+  const sectionClass = frameless
+    ? "fiba-frameless w-full px-3 py-2"
+    : "w-full px-4 py-3";
+
+  return (
+    // Phase 8 — FIBA PDF 1:1 정합 컴팩트 헤더:
+    //   1줄: 로고 + Scoresheet 타이틀 (작게)
+    //   2줄: Team A 라벨 + 팀명 line  /  Team B 라벨 + 팀명 line
+    //   3줄: Competition  /  Date  /  Time  /  Referee  (4 라벨 한 줄)
+    //   4줄: Game No  /  Place  /  Umpire 1  /  Umpire 2  (4 라벨 한 줄)
+    //   → FIBA PDF 동일 레이아웃 (4 줄 컴팩트)
+    <section className={sectionClass} style={sectionStyle}>
+      {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀) */}
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/images/logo.png"
+            alt="BDR"
+            width={28}
+            height={14}
+            className="h-3.5 w-auto"
+          />
+          <span
+            className="text-[9px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Basketball Daily Routine
-          </p>
-          <h1
-            className="text-base font-bold uppercase tracking-widest"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            Scoresheet
-          </h1>
+          </span>
         </div>
-        <span
-          className="material-symbols-outlined"
-          style={{ fontSize: 28, color: "var(--color-text-muted)" }}
+        <h1
+          className="text-sm font-bold uppercase tracking-widest"
+          style={{ color: "var(--color-text-primary)" }}
         >
-          sports_basketball
-        </span>
+          SCORESHEET
+        </h1>
       </div>
 
-      {/* Team A·B 명 — 양식 좌우 분할 (자동 fill / read-only) */}
-      <div className="mb-3 grid grid-cols-2 gap-3">
-        <FieldDisplay label="Team A" value={teamAName} />
-        <FieldDisplay label="Team B" value={teamBName} />
+      {/* 2줄 — Team A 라벨 + 팀명 (한 줄)  /  Team B 라벨 + 팀명 (한 줄).
+          FIBA PDF 정합 = 좌우 횡 배치 (각 50% 폭). */}
+      <div className="grid grid-cols-2 gap-3">
+        <InlineFieldDisplay label="Team A" value={teamAName} bold />
+        <InlineFieldDisplay label="Team B" value={teamBName} bold />
       </div>
 
-      {/* 대회 / 일자 / 시간 / Game No / Place — 자동 fill */}
-      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <FieldDisplay label="Competition" value={competitionName} />
-        <FieldDisplay label="Date" value={dateLabel ?? "—"} />
-        <FieldDisplay label="Time" value={timeLabel ?? "—"} />
-        <FieldDisplay label="Game No" value={gameNo ?? "—"} />
-        <FieldDisplay label="Place" value={placeLabel ?? "—"} />
-      </div>
-
-      {/* 심판 3명 입력 — settings.officials JSON 박제 예정 (Phase 5) */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <FieldInput
+      {/* 3줄 — Competition / Date / Time / Referee 한 줄 (FIBA PDF 정합).
+          모바일 = 2x2 / sm 이상 = 4 컬럼 인라인 */}
+      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-4">
+        <InlineFieldDisplay label="Competition" value={competitionName} />
+        <InlineFieldDisplay label="Date" value={dateLabel ?? "—"} />
+        <InlineFieldDisplay label="Time" value={timeLabel ?? "—"} />
+        <InlineFieldInput
           label="Referee"
           value={values.referee}
           onChange={update("referee")}
           disabled={disabled}
         />
-        <FieldInput
+      </div>
+
+      {/* 4줄 — Game No / Place / Umpire 1 / Umpire 2 한 줄 (FIBA PDF 정합) */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 sm:grid-cols-4">
+        <InlineFieldDisplay label="Game No" value={gameNo ?? "—"} />
+        <InlineFieldDisplay label="Place" value={placeLabel ?? "—"} />
+        <InlineFieldInput
           label="Umpire 1"
           value={values.umpire1}
           onChange={update("umpire1")}
           disabled={disabled}
         />
-        <FieldInput
+        <InlineFieldInput
           label="Umpire 2"
           value={values.umpire2}
           onChange={update("umpire2")}
@@ -154,35 +161,48 @@ export function FibaHeader({
 }
 
 /**
- * 자동 fill 표시 필드 — read-only.
- * FIBA 양식 underscore 정합 = label 작게 + value 밑 border-bottom.
+ * Phase 8 — 한 줄 컴팩트 필드 (라벨 + underscore + 값).
+ *
+ * 이유: FIBA PDF 정합 = "Competition: ___slow___" 같이 라벨과 값이 한 줄에 인라인 표시.
+ *   라벨 = 작은 글자 / 값 밑 border-bottom underscore.
  */
-function FieldDisplay({ label, value }: { label: string; value: string }) {
+function InlineFieldDisplay({
+  label,
+  value,
+  bold,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+}) {
   return (
-    <div>
-      <div
-        className="text-[10px] font-semibold uppercase tracking-wider"
+    <div className="flex items-baseline gap-1.5 overflow-hidden">
+      <span
+        className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {label}
-      </div>
-      <div
-        className="pb-0.5 pt-1 text-sm font-medium"
+      </span>
+      <span
+        className={`min-w-0 flex-1 truncate pb-0 ${bold ? "text-sm font-semibold" : "text-xs"}`}
         style={{
           color: "var(--color-text-primary)",
-          borderBottom: "1px solid var(--color-border)",
+          borderBottom: "1px solid var(--color-text-primary)",
         }}
+        title={value || "—"}
       >
         {value || "—"}
-      </div>
+      </span>
     </div>
   );
 }
 
 /**
- * 입력 필드 — FIBA 양식 underscore (border-bottom only).
+ * Phase 8 — 한 줄 컴팩트 입력 (라벨 + underscore input).
+ *
+ * FIBA PDF 정합 = "Referee: _____input_____" 같이 라벨과 입력 인라인.
  */
-function FieldInput({
+function InlineFieldInput({
   label,
   value,
   onChange,
@@ -194,9 +214,9 @@ function FieldInput({
   disabled?: boolean;
 }) {
   return (
-    <label className="block">
+    <label className="flex items-baseline gap-1.5 overflow-hidden">
       <span
-        className="block text-[10px] font-semibold uppercase tracking-wider"
+        className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {label}
@@ -207,10 +227,10 @@ function FieldInput({
         onChange={onChange}
         disabled={disabled}
         maxLength={40}
-        className="w-full bg-transparent pb-0.5 pt-1 text-sm focus:outline-none disabled:opacity-50"
+        className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
         style={{
           color: "var(--color-text-primary)",
-          borderBottom: "1px solid var(--color-border)",
+          borderBottom: "1px solid var(--color-text-primary)",
         }}
         placeholder=""
       />

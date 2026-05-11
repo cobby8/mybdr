@@ -92,6 +92,8 @@ interface TeamSectionProps {
   onRequestAddTimeout: () => void;
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 마킹 칸 클릭)
   onRequestRemoveTimeout: () => void;
+  // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
+  frameless?: boolean;
 }
 
 /**
@@ -121,6 +123,7 @@ export function TeamSection({
   timeouts,
   onRequestAddTimeout,
   onRequestRemoveTimeout,
+  frameless,
 }: TeamSectionProps) {
   // 선수 행 (12 보장)
   const rows = fillRowsTo12(players);
@@ -149,32 +152,42 @@ export function TeamSection({
       onChange({ ...values, [key]: e.target.value });
     };
 
+  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
+  const sectionStyle: React.CSSProperties = frameless
+    ? {}
+    : { border: "1px solid var(--color-border)" };
+  const sectionClass = frameless
+    ? "fiba-frameless w-full px-2 py-2"
+    : "w-full p-3";
+
   return (
-    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1):
-    //   - rounded-0 (radius X — 기존 borderRadius 4 제거) / shadow X
-    //   - 박스 안 내부 영역 (Time-outs / Team fouls / Players / Coach) = 박스 내 박스 (실선 구분)
-    <section
-      className="w-full p-3"
-      style={{
-        border: "1px solid var(--color-border)",
-      }}
-    >
-      {/* 헤더 — Team A/B 라벨 + 팀명 */}
-      <div className="mb-2 flex items-baseline justify-between">
-        <h2
-          className="text-sm font-bold uppercase tracking-wider"
+    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1):
+    //   - rounded-0 / shadow X / 박스 내 박스 X (단일 외곽 박스로 통합)
+    //   - Phase 8 = Time-outs + Team fouls 가로 1줄 / Players 15행 ~28px / 컴팩트 패딩
+    <section className={sectionClass} style={sectionStyle}>
+      {/* 헤더 — Team A/B 라벨 + 팀명 (FIBA PDF 정합 = inline 한 줄) */}
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <span
+          className="text-[11px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-primary)" }}
         >
           {sideLabel}
-        </h2>
-        <p
-          className="text-base font-semibold"
-          style={{ color: "var(--color-text-primary)" }}
+        </span>
+        <span
+          className="min-w-0 flex-1 truncate text-sm font-semibold"
+          style={{
+            color: "var(--color-text-primary)",
+            borderBottom: "1px solid var(--color-text-primary)",
+          }}
+          title={teamName}
         >
           {teamName}
-        </p>
+        </span>
       </div>
 
+      {/* Phase 8 — Time-outs + Team fouls 가로 1줄 배치 (FIBA PDF 정합).
+          좌: Time-outs 5칸 (+OT)  /  우: Team fouls Period 1-4 1행 (compact) */}
+      <div className="mb-1.5 flex flex-wrap items-start gap-2">
       {/* Phase 4 — Time-outs (FIBA Article 18-19 — 전반 2 + 후반 3 + OT 1 각각).
           박스 = 전반칸 2개 + 후반칸 3개 = 기본 5칸. OT 진입 시 (currentPeriod >= 5)
           OT 1칸 동적 추가 (각 OT 별도 1칸).
@@ -182,10 +195,11 @@ export function TeamSection({
             - 빈 칸 클릭 → caller 가 canAddTimeout 검증 + 마킹
             - 마지막 마킹 칸 클릭 → 1건 해제
             - 채운 칸 = ● (text-primary) / 빈 칸 = 숫자 (text-muted)
-          시각: foul 5칸과 같은 톤 (border 1px / 36px 정사각 큰 터치영역) */}
-      <div className="mb-3">
+          시각: foul 5칸과 같은 톤 (border 1px / 36px 정사각 큰 터치영역).
+          Phase 8 — mb-3 → 가로 flex 자식 (flex-shrink-0 + 우측 Team fouls 와 인라인). */}
+      <div className="shrink-0">
         <div
-          className="mb-1 flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           <span>Time-outs</span>
@@ -248,7 +262,7 @@ export function TeamSection({
                     }
                   }}
                   disabled={disabled || (!isLastFilled && !isNextEmpty)}
-                  className="flex h-9 w-9 items-center justify-center text-sm font-bold disabled:cursor-default"
+                  className="flex h-6 w-6 items-center justify-center text-xs font-bold disabled:cursor-default"
                   style={{
                     border: "1px solid var(--color-border)",
                     // 채운 칸 = text-primary 배경 (foul P 색과 일관) / 빈 칸 = transparent
@@ -279,15 +293,16 @@ export function TeamSection({
       </div>
 
       {/* Team fouls — Player Fouls 자동 합산 (read-only, 사용자 결재 §3 (a)) */}
-      {/* 이유: 1-4 마킹은 Player Fouls 마킹에서 자동 산출 — 1=●○○○ / 4=●●●● / 5+=●●●●● + 자유투 안내 */}
-      <div className="mb-3">
+      {/* 이유: 1-4 마킹은 Player Fouls 마킹에서 자동 산출 — 1=●○○○ / 4=●●●● / 5+=●●●●● + 자유투 안내.
+          Phase 8 — Time-outs 옆 가로 인라인 (flex-1 = 남은 폭 차지). */}
+      <div className="min-w-0 flex-1">
         <div
-          className="mb-1 text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           Team fouls
         </div>
-        <div className="grid grid-cols-1 gap-1">
+        <div className="grid grid-cols-1 gap-0.5">
           {[1, 2, 3, 4].map((period) => {
             // 이 Period 의 팀 파울 누적 (Player Fouls 합산)
             const teamCount = getTeamFoulCountByPeriod(fouls, period);
@@ -379,9 +394,10 @@ export function TeamSection({
           </div>
         </div>
       </div>
+      </div>{/* /Phase 8 — Time-outs + Team fouls 가로 1줄 flex container 끝 */}
 
-      {/* Players 12 행 — FIBA 양식 핵심 */}
-      <div className="mb-3 overflow-x-auto">
+      {/* Players 12 행 — FIBA 양식 핵심 (Phase 8 = ~28px 컴팩트 행 + frameless) */}
+      <div className="mb-1.5 overflow-x-auto">
         <table
           className="w-full border-collapse text-xs"
           style={{ color: "var(--color-text-primary)" }}
@@ -424,19 +440,21 @@ export function TeamSection({
           <tbody>
             {rows.map((p, idx) => {
               if (!p) {
-                // 빈 row — FIBA 양식 12 행 정합용 placeholder
+                // 빈 row — FIBA 양식 12 행 정합용 placeholder.
+                // Phase 8 — 행 높이 ~28px (FIBA PDF 정합) — py-1 (~24px) + 텍스트 라인 = ~28px
                 return (
                   <tr
                     key={`empty-${idx}`}
                     style={{
                       borderBottom: "1px solid var(--color-border)",
+                      height: 28,
                     }}
                   >
-                    <td className="px-1 py-2">&nbsp;</td>
-                    <td className="px-1 py-2">&nbsp;</td>
-                    <td className="px-1 py-2 text-center">&nbsp;</td>
-                    <td className="px-1 py-2 text-center">&nbsp;</td>
-                    <td className="px-1 py-2 text-center">&nbsp;</td>
+                    <td className="px-1 py-1">&nbsp;</td>
+                    <td className="px-1 py-1">&nbsp;</td>
+                    <td className="px-1 py-1 text-center">&nbsp;</td>
+                    <td className="px-1 py-1 text-center">&nbsp;</td>
+                    <td className="px-1 py-1 text-center">&nbsp;</td>
                   </tr>
                 );
               }
@@ -467,6 +485,8 @@ export function TeamSection({
                   key={p.tournamentTeamPlayerId}
                   style={{
                     borderBottom: "1px solid var(--color-border)",
+                    // Phase 8 — 행 높이 28px FIBA PDF 정합
+                    height: 28,
                     // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리
                     backgroundColor: ejected
                       ? "var(--color-elevated)"
@@ -639,11 +659,12 @@ export function TeamSection({
         </table>
       </div>
 
-      {/* Coach / Asst Coach 입력 — settings.coaches JSON 박제 예정 */}
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
+      {/* Coach / Asst Coach 입력 — Phase 8 inline 한 줄 (FIBA PDF 정합).
+          "Coach: ____input____   Asst. Coach: ____input____" 같이 라벨 + underscore input */}
+      <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 sm:gap-2">
+        <label className="flex items-baseline gap-1.5 overflow-hidden">
           <span
-            className="block text-[10px] font-semibold uppercase tracking-wider"
+            className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Coach
@@ -654,16 +675,16 @@ export function TeamSection({
             onChange={updateCoach("coach")}
             disabled={disabled}
             maxLength={40}
-            className="w-full bg-transparent pb-0.5 pt-1 text-sm focus:outline-none disabled:opacity-50"
+            className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
             style={{
               color: "var(--color-text-primary)",
-              borderBottom: "1px solid var(--color-border)",
+              borderBottom: "1px solid var(--color-text-primary)",
             }}
           />
         </label>
-        <label className="block">
+        <label className="flex items-baseline gap-1.5 overflow-hidden">
           <span
-            className="block text-[10px] font-semibold uppercase tracking-wider"
+            className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Asst. Coach
@@ -674,10 +695,10 @@ export function TeamSection({
             onChange={updateCoach("asstCoach")}
             disabled={disabled}
             maxLength={40}
-            className="w-full bg-transparent pb-0.5 pt-1 text-sm focus:outline-none disabled:opacity-50"
+            className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
             style={{
               color: "var(--color-text-primary)",
-              borderBottom: "1px solid var(--color-border)",
+              borderBottom: "1px solid var(--color-text-primary)",
             }}
           />
         </label>
