@@ -621,9 +621,10 @@ export function ScoreSheetForm({
     //   PeriodScoresSection / FooterSignatures) 가 A4 세로 1 페이지에 합본.
     //   `no-print` 자식들 (모달 / 안내 카드 / Toast) 는 인쇄 시 자동 제거.
     //
-    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1).
-    //   카드 분리 → 단일 외곽 박스 (border 1px solid + rounded-0). shadow X.
-    <main className="score-sheet-print-root mx-auto w-full max-w-screen-md px-2 py-2">
+    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1).
+    //   Phase 8 = 5 카드 분리 폐기 → 단일 외곽 박스 (검정 1px solid + rounded-0).
+    //   바깥 main 의 padding 은 px-1 (FIBA 양식 정합 컴팩트).
+    <main className="score-sheet-print-root mx-auto w-full max-w-screen-md px-1 py-2">
       {/* Phase 7-B — 라인업 미선택 시 진입 시점 안내 카드 + 모달 자동 표시.
           양식은 lineup 확정 후 렌더. */}
       {lineup === null && (
@@ -667,93 +668,112 @@ export function ScoreSheetForm({
       {/* Phase 7-B — 라인업 확정 후 양식 표시. 미확정 시 양식 영역 렌더 skip */}
       {lineup !== null && (
         <>
-      {/* 상단 1/5 — FibaHeader */}
-      <FibaHeader
-        teamAName={homeRoster.teamName}
-        teamBName={awayRoster.teamName}
-        competitionName={tournament.name}
-        scheduledAtLabel={match.scheduledAtLabel}
-        gameNo={match.match_code ?? match.id}
-        placeLabel={match.courtLabel}
-        values={header}
-        onChange={setHeader}
-      />
-
-      {/* Phase 2 = 좌 (TeamSection 2개 stack) + 우 (RunningScore + PeriodScores) */}
-      {/* 태블릿 세로 768px 기준 — md 미만 = 1 컬럼, md 이상 = 2 컬럼 */}
-      {/* Phase 7-B — 출전 명단만 양식에 표시 (homeFilteredRoster / awayFilteredRoster) */}
-      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-        {/* 좌측 컬럼 — Team A 상 / Team B 하 */}
-        <div className="flex flex-col gap-3">
-          <TeamSection
-            sideLabel="Team A"
-            teamName={homeFilteredRoster.teamName}
-            players={homeFilteredRoster.players}
-            values={teamA}
-            onChange={setTeamA}
-            fouls={fouls.home}
-            onRequestAddFoul={(playerId) =>
-              handleRequestAddFoul("home", playerId)
-            }
-            onRequestRemoveFoul={(playerId) =>
-              handleRequestRemoveFoul("home", playerId)
-            }
-            currentPeriod={runningScore.currentPeriod}
-            timeouts={timeouts.home}
-            onRequestAddTimeout={() => handleRequestAddTimeout("home")}
-            onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
-          />
-          <TeamSection
-            sideLabel="Team B"
-            teamName={awayFilteredRoster.teamName}
-            players={awayFilteredRoster.players}
-            values={teamB}
-            onChange={setTeamB}
-            fouls={fouls.away}
-            onRequestAddFoul={(playerId) =>
-              handleRequestAddFoul("away", playerId)
-            }
-            onRequestRemoveFoul={(playerId) =>
-              handleRequestRemoveFoul("away", playerId)
-            }
-            currentPeriod={runningScore.currentPeriod}
-            timeouts={timeouts.away}
-            onRequestAddTimeout={() => handleRequestAddTimeout("away")}
-            onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+      {/* Phase 8 — FIBA PDF 1:1 단일 외곽 박스 (검정 1px solid + rounded-0 + shadow X).
+          모든 자식 5 영역 (Header / 좌 TeamSection × 2 / 우 RunningScore + Period / Footer) 가
+          자체 border 제거하고 내부 1px 분할선만 갖도록 frameless 모드 진입.
+          → FIBA 양식 종이 1 페이지 픽셀 정합. */}
+      <div className="score-sheet-fiba-frame w-full">
+        {/* 상단 영역 — FibaHeader (frameless / 컴팩트 4 줄). 하단 분할선 = fiba-divider-bottom */}
+        <div className="fiba-divider-bottom">
+          <FibaHeader
+            teamAName={homeRoster.teamName}
+            teamBName={awayRoster.teamName}
+            competitionName={tournament.name}
+            scheduledAtLabel={match.scheduledAtLabel}
+            gameNo={match.match_code ?? match.id}
+            placeLabel={match.courtLabel}
+            values={header}
+            onChange={setHeader}
+            frameless
           />
         </div>
 
-        {/* 우측 컬럼 — Running Score grid + Period scores */}
-        <div className="flex flex-col gap-3">
-          <RunningScoreGrid
-            state={runningScore}
-            onChange={setRunningScore}
-            homePlayers={homeFilteredRoster.players}
-            awayPlayers={awayFilteredRoster.players}
-            homeTeamName={homeFilteredRoster.teamName}
-            awayTeamName={awayFilteredRoster.teamName}
-          />
-          <PeriodScoresSection
-            state={runningScore}
-            homeTeamName={homeFilteredRoster.teamName}
-            awayTeamName={awayFilteredRoster.teamName}
-            onAdvancePeriod={handleAdvancePeriod}
-            onRetreatPeriod={handleRetreatPeriod}
-            onEndPeriod={handleEndPeriod}
+        {/* Phase 8 — 좌·우 본문 영역 (FIBA PDF 50:50 정합).
+            좌 = Team A 상 / Team B 하 (세로 분할 = fiba-divider-bottom)
+            우 = Running Score + Period Scores + Final
+            모바일 (md 미만) = 1 컬럼 / 태블릿 이상 = 2 컬럼 + 중앙 fiba-divider-right */}
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* 좌측 컬럼 — Team A 상 / Team B 하 (md 이상 = 우측 분할선) */}
+          <div className="md-fiba-divider-right flex flex-col">
+            <div className="fiba-divider-bottom">
+              <TeamSection
+                sideLabel="Team A"
+                teamName={homeFilteredRoster.teamName}
+                players={homeFilteredRoster.players}
+                values={teamA}
+                onChange={setTeamA}
+                fouls={fouls.home}
+                onRequestAddFoul={(playerId) =>
+                  handleRequestAddFoul("home", playerId)
+                }
+                onRequestRemoveFoul={(playerId) =>
+                  handleRequestRemoveFoul("home", playerId)
+                }
+                currentPeriod={runningScore.currentPeriod}
+                timeouts={timeouts.home}
+                onRequestAddTimeout={() => handleRequestAddTimeout("home")}
+                onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
+                frameless
+              />
+            </div>
+            <TeamSection
+              sideLabel="Team B"
+              teamName={awayFilteredRoster.teamName}
+              players={awayFilteredRoster.players}
+              values={teamB}
+              onChange={setTeamB}
+              fouls={fouls.away}
+              onRequestAddFoul={(playerId) =>
+                handleRequestAddFoul("away", playerId)
+              }
+              onRequestRemoveFoul={(playerId) =>
+                handleRequestRemoveFoul("away", playerId)
+              }
+              currentPeriod={runningScore.currentPeriod}
+              timeouts={timeouts.away}
+              onRequestAddTimeout={() => handleRequestAddTimeout("away")}
+              onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+              frameless
+            />
+          </div>
+
+          {/* 우측 컬럼 — Running Score grid 상 / Period scores 하 */}
+          <div className="flex flex-col">
+            <RunningScoreGrid
+              state={runningScore}
+              onChange={setRunningScore}
+              homePlayers={homeFilteredRoster.players}
+              awayPlayers={awayFilteredRoster.players}
+              homeTeamName={homeFilteredRoster.teamName}
+              awayTeamName={awayFilteredRoster.teamName}
+              frameless
+            />
+            <PeriodScoresSection
+              state={runningScore}
+              homeTeamName={homeFilteredRoster.teamName}
+              awayTeamName={awayFilteredRoster.teamName}
+              onAdvancePeriod={handleAdvancePeriod}
+              onRetreatPeriod={handleRetreatPeriod}
+              onEndPeriod={handleEndPeriod}
+              frameless
+            />
+          </div>
+        </div>
+
+        {/* Phase 5 + Phase 8 — FooterSignatures (FIBA 양식 풋터).
+            이유: 헤더 referee/umpire1/umpire2 → 풋터 refereeSign/umpire1Sign/umpire2Sign 자동 prefill.
+            Phase 8 = 가로 펼침 (Scorer/Asst/Timer/Shot Clock 4열 + Referee/Umpire1·2 3열 + Captain) */}
+        <div className="fiba-divider-top">
+          <FooterSignatures
+            values={signatures}
+            onChange={setSignatures}
+            headerReferee={header.referee}
+            headerUmpire1={header.umpire1}
+            headerUmpire2={header.umpire2}
+            frameless
           />
         </div>
       </div>
-
-      {/* Phase 5 — FooterSignatures (FIBA 양식 풋터 8 입력 + notes).
-          이유: 헤더 referee/umpire1/umpire2 → 풋터 refereeSign/umpire1Sign/umpire2Sign 자동 prefill.
-          MatchEndButton 위에 배치 = 경기 종료 전 서명 입력 흐름. */}
-      <FooterSignatures
-        values={signatures}
-        onChange={setSignatures}
-        headerReferee={header.referee}
-        headerUmpire1={header.umpire1}
-        headerUmpire2={header.umpire2}
-      />
 
       {/* Phase 3.5 — 경기 종료 버튼 (BFF POST + 라이브 발행).
           이유: 운영자가 Q4(또는 OT) 종료 후 명시적 매치 종료 트리거.
@@ -776,7 +796,7 @@ export function ScoreSheetForm({
           border: "1px solid var(--color-border)",
         }}
       >
-        Phase 7 = FIBA PDF 디자인 정합 + 라인업 선택 + Q4/OT 분기 통합. 라인업
+        Phase 8 = FIBA PDF 1:1 디자인 정합 (단일 외곽 박스 + 컴팩트 헤더 + Players 28px + Footer 가로 펼침). 라인업
         다시 선택하려면 우상단 &quot;라인업 다시 선택&quot; 버튼 사용.
       </div>
 
