@@ -449,8 +449,43 @@ export default function TournamentTeamsPage() {
           {filter === "all" ? "참가 신청한 팀이 없습니다." : `${STATUS_LABEL[filter]} 상태의 팀이 없습니다.`}
         </Card>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((tt) => {
+        // 2026-05-12 — 사용자 요청: 종별 그룹화 (i2-U11 / i3-U9 / i3w-U12 등 같은 종별 묶음)
+        // 그룹 정렬 = 종 코드 알파벳 / 그룹 내 = 기존 filtered 순서 유지 (createdAt desc)
+        // "종별 미지정" 팀 = "기타" 그룹으로 마지막
+        (() => {
+          const groups: Record<string, typeof filtered> = {};
+          for (const tt of filtered) {
+            const cat = tokenMap[tt.id]?.category ?? "기타";
+            (groups[cat] ??= []).push(tt);
+          }
+          // 정렬 — 종 코드 알파벳 / "기타" 는 항상 마지막
+          const sortedKeys = Object.keys(groups).sort((a, b) => {
+            if (a === "기타") return 1;
+            if (b === "기타") return -1;
+            return a.localeCompare(b);
+          });
+          return (
+            <div className="space-y-6">
+              {sortedKeys.map((cat) => (
+                <section key={cat}>
+                  {/* 종별 헤더 — accent 톤 작은 헤더 */}
+                  <div className="mb-2 flex items-center gap-2 px-1">
+                    <h3
+                      className="text-sm font-bold uppercase tracking-wide"
+                      style={{ color: "var(--color-accent)", letterSpacing: "0.04em" }}
+                    >
+                      {cat}
+                    </h3>
+                    <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      ({groups[cat].length}팀)
+                    </span>
+                    <div
+                      className="flex-1 border-t"
+                      style={{ borderColor: "var(--color-border)" }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    {groups[cat].map((tt) => {
             // Phase 2-C — 토큰 정보 매핑 (tournamentTeam.id 기준)
             const token = tokenMap[tt.id];
             const tokenAlive = !!token?.applyTokenUrl;
@@ -719,7 +754,12 @@ export default function TournamentTeamsPage() {
             </Card>
             );
           })}
-        </div>
+                  </div>
+                </section>
+              ))}
+            </div>
+          );
+        })()
       )}
 
       {/* Phase 2-C — 토스트 (화면 우상단 고정) */}
@@ -748,10 +788,20 @@ export default function TournamentTeamsPage() {
           >
             <div
               id="team-detail-printable"
-              className="my-4 w-full max-w-3xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
+              className="relative my-4 w-full max-w-3xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
               style={{ borderColor: "var(--color-border)" }}
               onClick={(e) => e.stopPropagation()}
             >
+              {/* 2026-05-12 — 닫기 X 버튼 우상단 절대 위치 (모달 표준 패턴) */}
+              <button
+                type="button"
+                onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
+                className="absolute right-3 top-3 z-10 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] no-print"
+                title="닫기"
+                aria-label="닫기"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
               {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합
                   2026-05-11 모바일 최적화: 좁은 화면(<sm)에서 정보·액션 세로 분리 + 액션 wrap */}
               <div className="mb-4 flex flex-col gap-3 print-header sm:flex-row sm:items-start sm:justify-between">
@@ -911,14 +961,7 @@ export default function TournamentTeamsPage() {
                     <span className="material-symbols-outlined text-base align-middle mr-1">print</span>
                     프린트
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setExpandedTeamId(null); setPlayers([]); setShowAddForm(false); }}
-                    className="rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
-                    title="닫기"
-                  >
-                    <span className="material-symbols-outlined">close</span>
-                  </button>
+                  {/* 닫기 X 버튼은 모달 우상단 absolute 로 이동 (위 button.absolute.right-3.top-3) */}
                 </div>
               </div>
 
