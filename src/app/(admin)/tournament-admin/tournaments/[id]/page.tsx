@@ -139,7 +139,8 @@ export default async function TournamentAdminDetailPage({
                     {tournament.startDate.toLocaleDateString("ko-KR")}
                     {tournament.endDate && ` ~ ${tournament.endDate.toLocaleDateString("ko-KR")}`}
                   </span>
-                  <span className="rounded-[10px] bg-[rgba(244,162,97,0.12)] px-2 py-0.5 text-xs font-semibold text-[var(--color-primary)]">
+                  {/* D-Day 뱃지 = 강조 정보 (accent) — 빨강 본문 금지 */}
+                  <span className="rounded-[10px] bg-[rgba(244,162,97,0.12)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]">
                     {getDDay(tournament.startDate)}
                   </span>
                 </>
@@ -162,7 +163,8 @@ export default async function TournamentAdminDetailPage({
           { label: "참가비", value: tournament.entry_fee ? `${Number(tournament.entry_fee).toLocaleString()}원` : "무료" },
         ].map((s) => (
           <Card key={s.label} className="text-center py-4">
-            <p className="text-xl font-bold sm:text-2xl text-[var(--color-primary)]">{s.value}</p>
+            {/* 빠른 통계 숫자 = accent 통일 (빨강 본문 금지) */}
+            <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{s.value}</p>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">{s.label}</p>
           </Card>
         ))}

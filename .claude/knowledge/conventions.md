@@ -1,6 +1,21 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-11] admin 영역 빨간색 본문 텍스트 금지 — 강조 뱃지/필수표시(*)만 허용
+- **분류**: convention (디자인 시스템)
+- **발견자**: reviewer / pm (사용자 보고 후 점검)
+- **내용**:
+  - `--color-primary` = BDR Red (#E31B23). 강한 시각 노이즈 → 본문 텍스트/통계 숫자/링크에 적용 금지.
+  - 허용: 강조 뱃지 (예: "보유" / "신규" / "필수") / 필수 입력 표시 `*` / 위험 액션 버튼 / D-Day 뱃지.
+  - 통계 / 강조 정보 텍스트 = `--color-accent` (BDR Red alias / globals.css L2763) 통일.
+  - 본문 정보 텍스트 = `--color-text-primary`.
+  - 승자 / 긍정 결과 텍스트 = `--color-success` (`#1CA05E` 그린).
+- **검출 패턴**: `text-[var(--color-primary)]` admin 영역 grep — 본문 컨텍스트면 위반.
+- **재발 방지**: PR 시 reviewer 가 admin 영역 빨강 텍스트 grep 검토.
+- **hex hardcode 단일화**: 브랜드 hex (`#E31B23` / `#E76F51`) 는 `src/lib/constants/colors.ts` 의 `BDR_PRIMARY_HEX` / `BDR_SECONDARY_HEX` import 사용. DB 박제 / 사용자 선택 미리보기 등 hex 그대로 저장이 필요한 곳 전용 (컴포넌트 CSS 는 `var(--accent)` 토큰).
+- **2026-05-11 fix 인벤토리**: Critical 11건 (analytics 차트 / tournament-admin-nav / series tournaments / matches 페이지 4건 / admins 이니셜 / org members hover / new 링크) + Major 4건 (wizard primary 초기값 2건 / wizard `[id]` 폴백 2건 / site/page COLOR_PRESETS "오렌지" → "BDR Red" 라벨 fix).
+- **참조횟수**: 0
+
 ### [2026-05-11] 대회 관리 권한 헬퍼 — `canManageTournament(tournamentId, userId)` 단일 진입점
 - **분류**: convention/auth (대회 관리 권한 검증)
 - **위치**: `src/lib/auth/tournament-permission.ts`

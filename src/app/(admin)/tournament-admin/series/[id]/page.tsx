@@ -79,7 +79,8 @@ export default async function SeriesDashboardPage({
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">누적 참가팀</p>
         </div>
         <div className="hidden rounded-[16px] bg-[var(--color-elevated)] p-4 text-center sm:block">
-          <p className="text-xl font-bold sm:text-2xl text-[var(--color-primary)]">{nextEdition}회</p>
+          {/* 옆 두 통계 (총 회차 / 누적 참가팀) 와 동일하게 accent 통일 */}
+          <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{nextEdition}회</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">다음 회차</p>
         </div>
       </div>

@@ -20,6 +20,8 @@ import { DUAL_DEFAULT_BRACKET, DUAL_DEFAULT_PAIRING } from "@/lib/tournaments/du
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { TournamentCopyModal, type CopyData } from "@/components/tournament/tournament-copy-modal";
+// 2026-05-11: BDR 브랜드 hex hardcode 단일화 (conventions.md `admin 빨강 본문 금지` 박제)
+import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
 const STEPS = [
@@ -172,8 +174,9 @@ export default function NewTournamentWizardPage() {
   const [designTemplate, setDesignTemplate] = useState("basic");
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#E31B23");
-  const [secondaryColor, setSecondaryColor] = useState("#E76F51");
+  // BDR 브랜드 hex 초기값 (lib/constants/colors.ts 단일 source)
+  const [primaryColor, setPrimaryColor] = useState(BDR_PRIMARY_HEX);
+  const [secondaryColor, setSecondaryColor] = useState(BDR_SECONDARY_HEX);
   const [subdomain, setSubdomain] = useState("");
 
   // 디비전 정원 합산 — 자동 계산에 사용

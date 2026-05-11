@@ -24,6 +24,8 @@ import { ImageUploader } from "@/components/shared/image-uploader";
 // 2026-05-09: 사이트 전역 휴대폰 입력 컴포넌트 (자동 하이픈 / 11자리 / inputMode=numeric)
 //   conventions.md [2026-05-08] 사이트 전역 input 룰 — type="tel" 직접 사용 금지
 import { PhoneInput } from "@/components/inputs/phone-input";
+// 2026-05-11: BDR 브랜드 hex hardcode 단일화 (conventions.md `admin 빨강 본문 금지` 박제)
+import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
 
 // --- 3단계 구성 (생성 위자드와 동일) ---
 const STEPS = [
@@ -187,8 +189,9 @@ export default function TournamentEditWizardPage() {
   const [designTemplate, setDesignTemplate] = useState("basic");
   const [logoUrl, setLogoUrl] = useState("");
   const [bannerUrl, setBannerUrl] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#E31B23");
-  const [secondaryColor, setSecondaryColor] = useState("#E76F51");
+  // BDR 브랜드 hex 초기값 (lib/constants/colors.ts 단일 source)
+  const [primaryColor, setPrimaryColor] = useState(BDR_PRIMARY_HEX);
+  const [secondaryColor, setSecondaryColor] = useState(BDR_SECONDARY_HEX);
 
   // 디비전 정원 합산 — 자동 계산에 사용
   const totalDivCaps = Object.values(registration.divCaps).reduce((s, v) => s + v, 0);
@@ -268,8 +271,9 @@ export default function TournamentEditWizardPage() {
       setDesignTemplate(t.design_template ?? t.designTemplate ?? "basic");
       setLogoUrl(t.logo_url ?? t.logoUrl ?? "");
       setBannerUrl(t.banner_url ?? t.bannerUrl ?? "");
-      setPrimaryColor(t.primary_color ?? t.primaryColor ?? "#E31B23");
-      setSecondaryColor(t.secondary_color ?? t.secondaryColor ?? "#E76F51");
+      // DB primary/secondary_color 폴백도 lib/constants/colors.ts 단일 source 적용
+      setPrimaryColor(t.primary_color ?? t.primaryColor ?? BDR_PRIMARY_HEX);
+      setSecondaryColor(t.secondary_color ?? t.secondaryColor ?? BDR_SECONDARY_HEX);
 
       // 문의 연락처 (settings JSON에서 읽기)
       const settings = (t.settings ?? {}) as Record<string, unknown>;

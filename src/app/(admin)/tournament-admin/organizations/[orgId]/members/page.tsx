@@ -221,10 +221,11 @@ export default function OrganizationMembersPage() {
                   {roleLabel(m.role)}
                 </span>
                 {/* owner는 제거 불가 */}
+                {/* hover 액션 = accent 강조 (빨강 본문 금지 — conventions.md 2026-05-11) */}
                 {m.role !== "owner" && (
                   <button
                     onClick={() => handleRemove(m.id, m.nickname)}
-                    className="text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
+                    className="text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
                     title="멤버 제거"
                   >
                     <span className="material-symbols-outlined text-lg">

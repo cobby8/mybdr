@@ -62,7 +62,8 @@ export default async function TournamentAdminTournamentsPage() {
         <Card className="py-12 text-center text-[var(--color-text-muted)]">
           <div className="mb-2 text-lg font-semibold text-[var(--color-text-muted)]">No Tournaments</div>
           관리하는 대회가 없습니다.{" "}
-          <Link href="/tournament-admin/tournaments/new/wizard" className="text-[var(--color-primary)] hover:underline">새 대회 만들기</Link>
+          {/* 액션 링크 = accent 강조 (빨강 본문 금지) */}
+          <Link href="/tournament-admin/tournaments/new/wizard" className="text-[var(--color-accent)] hover:underline">새 대회 만들기</Link>
         </Card>
       )}
     </div>
