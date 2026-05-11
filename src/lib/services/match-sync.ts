@@ -24,6 +24,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
+// 2026-05-12 Phase 3-B 자동 trigger 통합 — 조별 풀리그/링크제 standings 기반 placeholder UPDATE
+import { advanceDivisionPlaceholders } from "@/lib/tournaments/division-advancement";
 // 2026-05-09: 알기자 자동 발행 — sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
 //   waitUntil 로 wrap (Vercel serverless 응답 종료 후 process abort 방지).
 import { waitUntil } from "@vercel/functions";
@@ -611,56 +613,82 @@ export async function syncSingleMatch(
     await Promise.all(pbpPromises);
   }
 
-  // 11) 경기 완료 시 승자 진출 + 전적 업데이트 — 병렬 실행 + 부분 실패 허용
-  // 기존 sync route line 382~432 동등.
+  // 11) 경기 완료 시 승자 진출 + 전적 업데이트
+  // 2026-05-12 Phase 3-B 후속: standings 박제 → advanceDivisionPlaceholders sequential 순서 보장.
+  //   기존 = 모두 Promise.allSettled 병렬 (standings vs advance race condition 위험)
+  //   변경 = (1) updateTeamStandings 먼저 await — wins/losses/point_difference 박제 완료 보장
+  //          (2) advanceWinner / progressDualMatch / advanceDivisionPlaceholders 병렬 (standings 기반 매핑)
   const warnings: string[] = [];
   let postProcessStatus: SyncPostProcessStatus = "skipped";
 
   if (match.status === "completed") {
-    // dual_tournament 분기 — progressDualMatch 가 진출 처리 전담 (loser bracket 포함).
-    // 2026-05-03 가드: advanceWinner 가 dual 매치에도 호출되어 무한 루프 corrupt 발생 → dual 시 skip.
     const isDual = tournament?.format === "dual_tournament";
 
-    const tasks: Promise<unknown>[] = [
-      ...(isDual ? [] : [advanceWinner(matchId)]),
-      updateTeamStandings(matchId),
-    ];
-    if (isDual && winnerTeamId) {
+    // (1) standings 박제 sequential — 후속 advanceDivisionPlaceholders 가 의존 (DB 박제값 기반 ranking)
+    try {
+      await updateTeamStandings(matchId);
+    } catch (err) {
+      console.error(
+        `[match-sync:post-process] updateTeamStandings failed matchId=${match.server_id}:`,
+        err
+      );
+      warnings.push("전적 갱신 실패 — 관리자에게 문의하세요");
+    }
+
+    // (2) 진출 처리 — Promise.allSettled 병렬 (standings 박제 후 ranking 기반 매핑)
+    // - advanceWinner: single-elim 토너먼트 next_match_id 진출
+    // - progressDualMatch: dual_tournament winner/loser bracket
+    // - advanceDivisionPlaceholders: 조별 풀리그/링크제 → 순위전 placeholder 자동 매핑 (Phase 3-B)
+    //
+    // divisionCode = match.settings.division_code (Phase 2 INSERT 시 박제됨).
+    // 없으면 (다른 대회 / Flutter 매치 등) advanceDivisionPlaceholders skip.
+    // 별도 SELECT — ExistingMatchForSync type 미확장 (caller 영향 0 보장).
+    const matchSettings = await prisma.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: { settings: true },
+    });
+    const settingsRaw = (matchSettings?.settings ?? {}) as Record<string, unknown>;
+    const divisionCode =
+      typeof settingsRaw.division_code === "string" ? settingsRaw.division_code : null;
+
+    const tasks: Promise<unknown>[] = [];
+    if (!isDual) {
+      tasks.push(advanceWinner(matchId));
+    } else if (winnerTeamId) {
       tasks.push(
         prisma.$transaction(async (tx) => {
           await progressDualMatch(tx, matchId, winnerTeamId!);
         })
       );
     }
+    if (divisionCode) {
+      tasks.push(advanceDivisionPlaceholders(prisma, tournamentId, divisionCode));
+    }
 
     const results = await Promise.allSettled(tasks);
-    // tasks 구성이 isDual 에 따라 가변 → 인덱스 동적 산출.
-    // 순서 = [advanceWinner?, updateTeamStandings, progressDualMatch?]
+    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders?]
     let cursor = 0;
-    const advanceResult = isDual ? null : results[cursor++];
-    const standingsResult = results[cursor++];
-    const dualResult = isDual && winnerTeamId ? results[cursor++] : null;
+    const advanceResult =
+      !isDual || (isDual && winnerTeamId) ? results[cursor++] : null;
+    const divisionResult = divisionCode ? results[cursor++] : null;
 
     if (advanceResult && advanceResult.status === "rejected") {
       console.error(
-        `[match-sync:post-process] advanceWinner failed matchId=${match.server_id}:`,
+        `[match-sync:post-process] ${isDual ? "progressDualMatch" : "advanceWinner"} failed matchId=${match.server_id}:`,
         advanceResult.reason
       );
-      warnings.push("승자 진출 처리 실패 — 관리자에게 문의하세요");
-    }
-    if (standingsResult.status === "rejected") {
-      console.error(
-        `[match-sync:post-process] updateTeamStandings failed matchId=${match.server_id}:`,
-        standingsResult.reason
+      warnings.push(
+        isDual
+          ? "듀얼토너먼트 자동 진출 실패 — 관리자에게 문의하세요"
+          : "승자 진출 처리 실패 — 관리자에게 문의하세요",
       );
-      warnings.push("전적 갱신 실패 — 관리자에게 문의하세요");
     }
-    if (dualResult && dualResult.status === "rejected") {
+    if (divisionResult && divisionResult.status === "rejected") {
       console.error(
-        `[match-sync:post-process] progressDualMatch failed matchId=${match.server_id}:`,
-        dualResult.reason
+        `[match-sync:post-process] advanceDivisionPlaceholders failed matchId=${match.server_id} div=${divisionCode}:`,
+        divisionResult.reason
       );
-      warnings.push("듀얼토너먼트 자동 진출 실패 — 관리자에게 문의하세요");
+      warnings.push("순위전 placeholder 자동 매핑 실패 — 관리자에게 문의하세요");
     }
 
     postProcessStatus = warnings.length === 0 ? "ok" : "partial_failure";
