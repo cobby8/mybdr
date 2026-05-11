@@ -23,6 +23,11 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ToastProvider } from "@/contexts/toast-context";
 import { RotationGuard } from "./_components/rotation-guard";
+import { PrintButton } from "./_components/print-button";
+// Phase 6 — A4 세로 인쇄 CSS (@media print + 라이트 강제 + 5 영역 정합).
+//   본 import 는 score-sheet route group 안에서만 적용 — 기존 globals.css 의 박스스코어
+//   A4 가로 @media print 와 스코프 prefix `.score-sheet-print-root` 로 충돌 회피.
+import "./_components/_print.css";
 
 export default function ScoreSheetLayout({
   children,
@@ -39,9 +44,10 @@ export default function ScoreSheetLayout({
         className="min-h-screen"
         style={{ backgroundColor: "var(--color-background)" }}
       >
-        {/* 상단 thin bar — "← 매치 관리로" 좌상단 + 다크모드 토글 우상단 */}
+        {/* 상단 thin bar — "← 매치 관리로" 좌상단 + PrintButton + 다크모드 토글 우상단.
+            Phase 6: `no-print` 클래스 = 인쇄 시 전체 toolbar 숨김 (FIBA 양식 정합) */}
         <header
-          className="flex items-center justify-between px-3 py-1.5"
+          className="no-print flex items-center justify-between px-3 py-1.5"
           style={{ borderBottom: "1px solid var(--color-border)" }}
         >
           {/* 좌측: 운영자가 다시 매치 관리 화면 으로 돌아갈 진입점.
@@ -55,8 +61,13 @@ export default function ScoreSheetLayout({
             ← 매치 관리로
           </Link>
 
-          {/* 우측: 다크모드 토글 (사이트 헤더 ThemeToggle 재사용 — 단일 패턴) */}
-          <ThemeToggle />
+          {/* 우측: PrintButton (Phase 6 신규) + 다크모드 토글.
+              PrintButton 위치 = ThemeToggle 좌측 (사용자 결재 §2 — 우상단 toolbar).
+              이유: 운영자가 경기 종료 후 toolbar 우측 으로 시선 이동 = 인쇄 발견 자연 */}
+          <div className="flex items-center gap-2">
+            <PrintButton />
+            <ThemeToggle />
+          </div>
         </header>
 
         {/* 본문 = 풀스크린 (44px header 제외 viewport) */}

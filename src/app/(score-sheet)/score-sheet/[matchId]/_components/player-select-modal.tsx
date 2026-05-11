@@ -71,8 +71,9 @@ export function PlayerSelectModal({
 
   return (
     <div
-      // 풀스크린 오버레이 — 외부 클릭 시 닫기
-      className="fixed inset-0 z-50 flex items-stretch justify-stretch"
+      // 풀스크린 오버레이 — 외부 클릭 시 닫기.
+      // Phase 6 — `no-print` = 인쇄 시 모달 완전히 제거 (FIBA 양식 정합).
+      className="no-print fixed inset-0 z-50 flex items-stretch justify-stretch"
       style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
       onClick={onClose}
       role="dialog"

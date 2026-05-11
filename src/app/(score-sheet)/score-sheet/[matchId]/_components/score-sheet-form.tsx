@@ -419,7 +419,11 @@ export function ScoreSheetForm({
   }
 
   return (
-    <main className="mx-auto w-full max-w-screen-md px-2 py-2">
+    // Phase 6 — score-sheet-print-root = _print.css 의 인쇄 스코프 prefix.
+    //   인쇄 시 본 root 안의 5 영역 (FibaHeader / TeamSection 2개 / RunningScoreGrid /
+    //   PeriodScoresSection / FooterSignatures) 가 A4 세로 1 페이지에 합본.
+    //   `no-print` 자식들 (모달 / 안내 카드 / Toast) 는 인쇄 시 자동 제거.
+    <main className="score-sheet-print-root mx-auto w-full max-w-screen-md px-2 py-2">
       {/* 상단 1/5 — FibaHeader */}
       <FibaHeader
         teamAName={homeRoster.teamName}
@@ -518,17 +522,18 @@ export function ScoreSheetForm({
         buildPayload={buildSubmitPayload}
       />
 
-      {/* Phase 진행 상태 안내 */}
+      {/* Phase 진행 상태 안내 — Phase 6 완성 시점 갱신.
+          `no-print` = 인쇄 시 안내 카드 제거 (FIBA 양식 정합) */}
       <div
-        className="mt-4 rounded-[4px] px-3 py-2 text-xs"
+        className="no-print mt-4 rounded-[4px] px-3 py-2 text-xs"
         style={{
           backgroundColor: "var(--color-surface)",
           color: "var(--color-text-muted)",
           border: "1px solid var(--color-border)",
         }}
       >
-        Phase 5 = Signatures + Notes (헤더 referee/umpire 자동 prefill / settings.signatures JSON 박제)
-        완성. 인쇄 PDF (Phase 6) 는 후속 PR.
+        Phase 6 = A4 세로 인쇄 PDF 완성. 우상단 &quot;인쇄&quot; 버튼으로 시안 그대로
+        종이 출력 또는 PDF 저장 가능 (다크모드 진입 시도 시 인쇄 = 라이트 강제).
       </div>
 
       {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더) */}

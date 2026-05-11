@@ -100,9 +100,11 @@ export function FoulTypeModal({
   if (!open) return null;
 
   return (
-    // 백드롭 — 외부 클릭 = 취소
+    // 백드롭 — 외부 클릭 = 취소.
+    // Phase 6 — `no-print` 클래스 = 인쇄 시 모달 완전히 제거 (FIBA 양식 정합).
+    //   모달은 운영 중 일시 노출 — 인쇄 시점에 열려있어도 종이엔 인쇄 안 됨.
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="no-print fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: "color-mix(in srgb, #000 60%, transparent)" }}
       onClick={onCancel}
       role="dialog"
