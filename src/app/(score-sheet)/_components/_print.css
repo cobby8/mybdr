@@ -1,34 +1,34 @@
 /**
- * FIBA SCORESHEET 인쇄 CSS — Phase 6 + Phase 8 PDF 1:1 정합 (2026-05-12).
+ * FIBA SCORESHEET 인쇄 CSS — Phase 6 / Phase 8 / Phase 9 (2026-05-12).
  *
  * 왜 (이유):
  *   FIBA 양식 = A4 세로 1 페이지 종이 기록지. 운영자가 경기 종료 후 "인쇄" 버튼 1번
  *   클릭으로 시안 그대로 종이 PDF 저장 / 출력 가능해야 함. 의존성 0 (`window.print()` 만).
  *
- *   Phase 8 (2026-05-12) — FIBA PDF 1:1 픽셀 정합 (사용자 결재):
- *     - 단일 외곽 박스 (검정 1px solid) + 내부 1px 분할선 (5 카드 분리 폐기)
- *     - 헤더 컴팩트 (한 줄 4 라벨)
- *     - Players 행 ~28px (15행 박제)
- *     - Footer 가로 펼침 (Scorer/Asst/Timer/Shot Clock 한 줄 + Referee/Umpire 1·2 한 줄)
- *     - border 검정 (#000) 인쇄 정합 + rounded 0 + shadow X
+ *   Phase 9 (2026-05-12) — A4 1 페이지 fit + FIBA PDF 정합 레이아웃 재배치 (사용자 결재):
+ *     - 좌측 = Team A (상 50%) + Team B (하 50%) 세로 분할 (FIBA PDF 정합)
+ *     - 우측 = Running Score + Period Scores + Final + Winner 누적
+ *     - 최하단 = Footer 가로 펼침 1~2 줄 (Notes 폐기 — A4 fit 보장)
+ *     - Players 행 24px (12행 × 24 = 288px)
+ *     - 폰트 압축: 라벨 10px / 데이터 11~12px / 인쇄 시 8pt
+ *     - @page margin 6mm (기존 8mm → 6mm) + score-sheet-fiba-frame 198mm × 285mm
  *
  *   기존 `globals.css` `@media print` = 박스스코어 A4 가로 (landscape) 룰 박제됨.
  *   본 파일 = score-sheet 페이지 전용 A4 세로 (portrait) 룰 — 스코프 prefix
  *   `.score-sheet-print-root` 로 박스스코어 인쇄 룰과 충돌 회피.
  *
  * 방법 (어떻게):
- *   - `@page :score-sheet { size: A4 portrait; margin: 8mm }` — FIBA 양식 여백 정합
+ *   - `@page { size: A4 portrait; margin: 6mm }` — FIBA 양식 + A4 fit
  *   - `.no-print` 클래스 = 인쇄 시 제거 (toolbar / 모달 / Toast / 안내 카드 등)
- *   - `.score-sheet-fiba-frame` = Phase 8 단일 외곽 박스 (스크린 + 인쇄 공통)
+ *   - `.score-sheet-fiba-frame` 인쇄 시 198mm × 285mm 강제 (A4 1 페이지 보장)
  *   - 다크모드 (html.dark / [data-theme="dark"]) 진입 시도 시 인쇄 = 항상 라이트
- *     배경 흰 + 텍스트 검정 강제 (--color-* 토큰 인쇄 override)
  *
  * 절대 룰:
  *   - var(--*) 토큰만 (인쇄 시 override 도 토큰 단)
- *   - lucide-react ❌ (Material Symbols 만 — 인쇄 시 글꼴 fallback)
+ *   - lucide-react ❌ (Material Symbols 만)
  *   - 빨강 본문 텍스트 ❌ (인쇄 시 모든 텍스트 검정 강제)
  *   - 박스 border 1px solid 검정 (#000 — FIBA PDF 정합 / Phase 8)
- *   - 한 페이지 강제 (page-break-after: always)
+ *   - 한 페이지 강제 (page-break-after: always / page-break-inside: avoid)
  */
 
 /* ============================================================
@@ -80,10 +80,11 @@
 @media print {
   /* @page = score-sheet 전용 페이지 룰 (A4 세로).
      이유: 기존 globals.css 의 @page size: A4 landscape 와 충돌 회피 위해
-     score-sheet 루트 wrapper 안에서 별도 size override. */
+     score-sheet 루트 wrapper 안에서 별도 size override.
+     Phase 9 — margin 8mm → 6mm 축소 (A4 1 페이지 fit 보장). */
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm;
   }
 
   /* 사이트 wide 모바일 가드 무력화 (errors.md 박스스코어 fix 와 동일 패턴) */
@@ -162,11 +163,17 @@
     border-color: #000000 !important;
   }
 
-  /* Phase 8 — 단일 외곽 박스 + 내부 분할선 인쇄 정합 */
+  /* Phase 8 + Phase 9 — 단일 외곽 박스 + 내부 분할선 인쇄 정합.
+     Phase 9 — A4 1 페이지 fit 강제 (198mm = 210 - 12 / 285mm = 297 - 12). */
   .score-sheet-print-root .score-sheet-fiba-frame {
     border-color: #000000 !important;
     background: #ffffff !important;
     border-radius: 0 !important;
+    width: 198mm !important;
+    max-height: 285mm !important;
+    page-break-inside: avoid;
+    page-break-after: always;
+    overflow: hidden;
   }
   .score-sheet-print-root .fiba-divider-bottom {
     border-bottom-color: #000000 !important;
@@ -192,47 +199,54 @@
     opacity: 1 !important;
   }
 
-  /* 5 영역 비율 정합 — 인쇄 시 작은 글꼴 + 좁은 패딩 */
+  /* 5 영역 비율 정합 — Phase 9 인쇄 시 더 좁은 패딩 (A4 fit) */
   .score-sheet-print-root section {
-    padding: 4px 8px !important;
-    margin-bottom: 4px !important;
+    padding: 2px 4px !important;
+    margin-bottom: 0 !important;
   }
 
   /* 좌·우 컬럼 = grid 2 컬럼 강제 (모바일 1 컬럼 viewport 인쇄해도 2 컬럼) */
   .score-sheet-print-root .md\:grid-cols-2 {
     display: grid !important;
     grid-template-columns: 50% 50% !important;
-    gap: 6px !important;
+    gap: 0 !important;
   }
 
-  /* 글꼴 크기 = 가독성 + 양식 정합 */
-  .score-sheet-print-root h1,
+  /* 글꼴 크기 — Phase 9 압축 (A4 1 페이지 fit) */
+  .score-sheet-print-root h1 {
+    font-size: 10pt !important;
+  }
   .score-sheet-print-root h2,
   .score-sheet-print-root h3 {
-    font-size: 11pt !important;
+    font-size: 9pt !important;
+  }
+  /* 본문 텍스트 기본 (라벨 / 데이터) = 8pt — FIBA PDF 정합 */
+  .score-sheet-print-root {
+    font-size: 8pt !important;
   }
   .score-sheet-print-root table {
-    font-size: 8pt !important;
+    font-size: 7pt !important;
   }
   .score-sheet-print-root th,
   .score-sheet-print-root td {
-    padding: 2px 3px !important;
+    padding: 1px 2px !important;
+    line-height: 1.2 !important;
   }
   .score-sheet-print-root input {
-    font-size: 9pt !important;
-    padding: 2px 4px !important;
+    font-size: 8pt !important;
+    padding: 0 2px !important;
     min-height: auto !important;
+    height: 14pt !important;
   }
   .score-sheet-print-root textarea {
-    font-size: 9pt !important;
-    padding: 4px !important;
+    font-size: 8pt !important;
+    padding: 2px !important;
     min-height: auto !important;
-    rows: 2;
   }
 
-  /* Material Symbols 아이콘 = 인쇄 시 글꼴 fallback (browser 가 자동 처리) */
+  /* Material Symbols 아이콘 = 인쇄 시 글꼴 fallback (browser 자동 처리). 크기 축소 */
   .score-sheet-print-root .material-symbols-outlined {
-    font-size: 10pt !important;
+    font-size: 9pt !important;
   }
 
   /* 마지막 안내 카드 / "Phase 진행 상태" 메시지 등 인쇄 불필요 영역

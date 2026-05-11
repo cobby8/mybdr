@@ -163,9 +163,9 @@ export function RunningScoreGrid({
   return (
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     <div className={wrapperClass} style={wrapperStyle}>
-      {/* 제목 — FIBA 양식 라벨 */}
+      {/* 제목 — FIBA 양식 라벨. Phase 9 — px-2 py-0.5 압축. */}
       <div
-        className="flex items-center justify-between px-2 py-1"
+        className="flex items-center justify-between px-2 py-0.5"
         style={{
           backgroundColor: "var(--color-surface)",
           borderBottom: "1px solid var(--color-border)",
@@ -174,8 +174,8 @@ export function RunningScoreGrid({
         <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
           Running Score
         </div>
-        <div className="text-[10px] text-[var(--color-text-muted)]">
-          Period {state.currentPeriod} · 1탭 = 득점 입력 / 마지막 칸 1탭 = 해제
+        <div className="text-[9px] text-[var(--color-text-muted)]">
+          P{state.currentPeriod} · 1탭=입력 / 마지막=해제
         </div>
       </div>
 
