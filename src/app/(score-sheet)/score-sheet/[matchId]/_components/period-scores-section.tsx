@@ -64,9 +64,8 @@ export function PeriodScoresSection({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      {/* Period 표 — FIBA 양식 정합 */}
+      {/* Period 표 — FIBA 양식 정합 (Phase 7-A: rounded-0) */}
       <div
-        className="rounded-[4px]"
         style={{
           border: "1px solid var(--color-border)",
         }}
@@ -87,7 +86,7 @@ export function PeriodScoresSection({
               onClick={onRetreatPeriod}
               disabled={disabled || state.currentPeriod <= 1}
               // 터치 영역 44px+
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[4px] px-2 text-xs disabled:opacity-30"
+              className="inline-flex h-9 min-w-9 items-center justify-center px-2 text-xs disabled:opacity-30"
               style={{
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text-primary)",
@@ -106,7 +105,7 @@ export function PeriodScoresSection({
               type="button"
               onClick={onAdvancePeriod}
               disabled={disabled || state.currentPeriod >= 7}
-              className="inline-flex h-9 min-w-9 items-center justify-center rounded-[4px] px-2 text-xs disabled:opacity-30"
+              className="inline-flex h-9 min-w-9 items-center justify-center px-2 text-xs disabled:opacity-30"
               style={{
                 border: "1px solid var(--color-border)",
                 color: "var(--color-text-primary)",
@@ -231,7 +230,7 @@ export function PeriodScoresSection({
               type="button"
               onClick={onEndPeriod}
               disabled={disabled || state.currentPeriod >= 7}
-              className="flex w-full items-center justify-center gap-1 rounded-[4px] py-2 text-sm font-semibold disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-1 py-2 text-sm font-semibold disabled:opacity-40"
               style={{
                 border: "1px solid var(--color-accent)",
                 backgroundColor:
@@ -250,9 +249,9 @@ export function PeriodScoresSection({
         )}
       </div>
 
-      {/* Final Score + Winner */}
+      {/* Final Score + Winner (Phase 7-A: rounded-0) */}
       <div
-        className="rounded-[4px] px-3 py-2"
+        className="px-3 py-2"
         style={{
           border: "1px solid var(--color-border)",
           backgroundColor: "var(--color-surface)",
@@ -292,7 +291,7 @@ export function PeriodScoresSection({
         {/* Winner — 결정 시만 표시 (그린 — 긍정 결과 컨벤션) */}
         {final.winner !== "none" && (
           <div
-            className="mt-2 rounded-[4px] px-2 py-1 text-center text-[11px] font-semibold"
+            className="mt-2 px-2 py-1 text-center text-[11px] font-semibold"
             style={{
               backgroundColor:
                 final.winner === "tie"

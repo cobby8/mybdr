@@ -106,6 +106,30 @@ const signaturesSchema = z.object({
   captainSignature: z.string().max(100).optional(),
 });
 
+// Phase 7-B — lineup zod schema (FIBA 양식 오늘 출전 명단 + 선발 5인).
+//   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source — Phase PR1~5 와 통합).
+//   - starters: 선발 5인 (BigInt 문자열 5개 정확히)
+//   - substitutes: 출전 후보 (BigInt 문자열 0~7개)
+//   - confirmedById = 기록자 user.id (BFF 가 세션에서 추출)
+//
+// 룰:
+//   - starters.length === 5 강제 (FIBA 표준)
+//   - substitutes 와 starters 중복 0 (UI 가 보장하지만 안전망)
+//   - 사용자 결재 §2 §3 — 향후 팀장 사전 제출 기능과 같은 모델 사용 (단일 source)
+const teamLineupSchema = z.object({
+  starters: z
+    .array(z.string().regex(/^\d+$/, "ttp id는 BigInt 문자열"))
+    .length(5, "선발은 5명 정확히 필요합니다"),
+  substitutes: z
+    .array(z.string().regex(/^\d+$/, "ttp id는 BigInt 문자열"))
+    .max(7, "후보는 최대 7명입니다"),
+});
+
+const lineupSchema = z.object({
+  home: teamLineupSchema,
+  away: teamLineupSchema,
+});
+
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
   away_score: z.number().int().min(0).max(199),
@@ -125,6 +149,10 @@ const submitSchema = z.object({
   //   FIBA 양식 풋터 8 입력 (Scorer / Asst Scorer / Timer / Shot Clock Operator /
   //     Referee / Umpire 1 / Umpire 2 / Captain's signature)
   signatures: signaturesSchema.optional(),
+  // Phase 7-B 신규 — lineup (optional — 미전송 시 MatchLineupConfirmed upsert skip).
+  //   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source).
+  //   사용자 결재 §2 §3 — 향후 팀장 사전 제출 기능과 같은 모델.
+  lineup: lineupSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -377,6 +405,61 @@ export async function POST(
       });
     }
 
+    // 6-2) Phase 7-B — lineup 박제 (MatchLineupConfirmed upsert).
+    //
+    // 이유: 사용자 결재 §2 §3 — Flutter 앱 단일 source. 기록자가 score-sheet 진입 시점에
+    //   입력한 라인업을 박제. 향후 팀장 사전 제출 기능 = 같은 모델 upsert → 단일 source.
+    //
+    // 룰:
+    //   - input.lineup 미전송 = upsert skip (기존 데이터 유지)
+    //   - 양 팀 (home/away) 각각 upsert (UNIQUE(matchId, teamSide) 가드)
+    //   - confirmedById = 기록자 user.id (Flutter 앱과 동일 컬럼 — Flutter 는 팀장 / 웹은 기록자)
+    //   - starters / substitutes = string[] → BigInt[] 변환
+    //   - 이미 박제된 라인업 있어도 overwrite (재선택 케이스 = 운영자가 명시적으로 수정)
+    if (input.lineup) {
+      const lineupTeams: Array<{
+        teamSide: "home" | "away";
+        starters: string[];
+        substitutes: string[];
+      }> = [
+        {
+          teamSide: "home",
+          starters: input.lineup.home.starters,
+          substitutes: input.lineup.home.substitutes,
+        },
+        {
+          teamSide: "away",
+          starters: input.lineup.away.starters,
+          substitutes: input.lineup.away.substitutes,
+        },
+      ];
+      // 양 팀 병렬 upsert (UNIQUE 가드 → idempotent)
+      await Promise.all(
+        lineupTeams.map((team) =>
+          prisma.matchLineupConfirmed.upsert({
+            where: {
+              matchId_teamSide: {
+                matchId: match.id,
+                teamSide: team.teamSide,
+              },
+            },
+            create: {
+              matchId: match.id,
+              teamSide: team.teamSide,
+              starters: team.starters.map((s) => BigInt(s)),
+              substitutes: team.substitutes.map((s) => BigInt(s)),
+              confirmedById: user.id,
+            },
+            update: {
+              starters: team.starters.map((s) => BigInt(s)),
+              substitutes: team.substitutes.map((s) => BigInt(s)),
+              confirmedById: user.id,
+            },
+          })
+        )
+      );
+    }
+
     // 7) audit 박제 — source = "web-score-sheet"
     // before/after diff 박제 (TRACKED_FIELDS 자동 감지) — recordMatchAudit 헬퍼 직접 사용 X (service 의 update 가 이미 끝났음).
     // 본 turn 은 직접 INSERT — context 에 score-sheet 정보 명시 (input.recorder 등 audit context 활용).
@@ -395,6 +478,13 @@ export async function POST(
           (v) => typeof v === "string" && v.trim().length > 0
         ).length
       : 0;
+    // Phase 7-B — lineup 박제 (양 팀 upsert) 카운트
+    const lineupHomeCount = input.lineup
+      ? input.lineup.home.starters.length + input.lineup.home.substitutes.length
+      : 0;
+    const lineupAwayCount = input.lineup
+      ? input.lineup.away.starters.length + input.lineup.away.substitutes.length
+      : 0;
     const auditContext =
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
@@ -406,6 +496,9 @@ export async function POST(
         : "") +
       (signatureFilledCount > 0
         ? ` / Sig ${signatureFilledCount}건`
+        : "") +
+      (input.lineup
+        ? ` / Lineup home ${lineupHomeCount}명 / away ${lineupAwayCount}명`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
@@ -431,6 +524,9 @@ export async function POST(
               timeouts_away_count: timeoutAwayCount,
               // Phase 5 — signatures 박제 키 개수 (settings.signatures JSON merge 결과)
               signatures_filled_count: signatureFilledCount,
+              // Phase 7-B — lineup 박제 결과 (MatchLineupConfirmed upsert)
+              lineup_home_count: lineupHomeCount,
+              lineup_away_count: lineupAwayCount,
             },
           } as object,
           changedBy: user.id,
