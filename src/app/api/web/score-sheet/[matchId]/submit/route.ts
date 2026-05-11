@@ -79,6 +79,18 @@ const foulsSchema = z.object({
   away: z.array(foulMarkSchema).max(200),
 });
 
+// Phase 4 — timeouts zod schema (FIBA Article 18-19).
+//   - period: 1~7 (Q1~Q4 + OT1~OT3)
+//   - 1팀 1매치 = 전반 2 + 후반 3 + OT 3개 × 1 = 8건. 안전 룰 10건.
+const timeoutMarkSchema = z.object({
+  period: z.number().int().min(1).max(7),
+});
+
+const timeoutsSchema = z.object({
+  home: z.array(timeoutMarkSchema).max(10),
+  away: z.array(timeoutMarkSchema).max(10),
+});
+
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
   away_score: z.number().int().min(0).max(199),
@@ -90,6 +102,9 @@ const submitSchema = z.object({
   running_score: runningScoreSchema.optional(),
   // Phase 3 신규 — fouls (optional — 미전송 시 PBP foul event 박제 0)
   fouls: foulsSchema.optional(),
+  // Phase 4 신규 — timeouts (optional — 미전송 시 settings.timeouts 갱신 0)
+  //   박제 위치 = match.settings.timeouts JSON (Phase 1-A recording_mode 토글 패턴 재사용)
+  timeouts: timeoutsSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -307,6 +322,33 @@ export async function POST(
       });
     }
 
+    // 6-1) Phase 4 — timeouts UPDATE (settings JSON merge).
+    //
+    // 이유: schema 변경 0 + 기존 settings.recording_mode 키 보존.
+    //   Phase 1-A withRecordingMode 패턴 재사용 — 객체 spread 로 기존 키 유지.
+    //
+    // 룰:
+    //   - input.timeouts 전송 시만 갱신 (미전송 = 기존 settings 유지)
+    //   - match.settings 가 객체가 아닌 경우 (null / array / primitive) → 빈 객체에서 시작
+    //   - timeouts 키만 set — 기존 recording_mode 등 모든 키 보존
+    if (input.timeouts) {
+      const currentSettings = match.settings;
+      const baseSettings: Record<string, unknown> =
+        currentSettings &&
+        typeof currentSettings === "object" &&
+        !Array.isArray(currentSettings)
+          ? { ...(currentSettings as Record<string, unknown>) }
+          : {};
+      baseSettings.timeouts = {
+        home: input.timeouts.home,
+        away: input.timeouts.away,
+      };
+      await prisma.tournamentMatch.update({
+        where: { id: match.id },
+        data: { settings: baseSettings as object },
+      });
+    }
+
     // 7) audit 박제 — source = "web-score-sheet"
     // before/after diff 박제 (TRACKED_FIELDS 자동 감지) — recordMatchAudit 헬퍼 직접 사용 X (service 의 update 가 이미 끝났음).
     // 본 turn 은 직접 INSERT — context 에 score-sheet 정보 명시 (input.recorder 등 audit context 활용).
@@ -315,11 +357,18 @@ export async function POST(
     const pbpCount = playByPlays?.length ?? 0;
     const scoreCount = scoreEvents.length;
     const foulCount = foulEvents.length;
+    // Phase 4 — timeouts 박제 카운트 (audit context 박제용)
+    const timeoutHomeCount = input.timeouts?.home.length ?? 0;
+    const timeoutAwayCount = input.timeouts?.away.length ?? 0;
+    const timeoutTotalCount = timeoutHomeCount + timeoutAwayCount;
     const auditContext =
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
       (pbpCount > 0
         ? ` / PBP ${pbpCount}건 (score ${scoreCount} / foul ${foulCount})`
+        : "") +
+      (timeoutTotalCount > 0
+        ? ` / TO ${timeoutTotalCount}건 (home ${timeoutHomeCount} / away ${timeoutAwayCount})`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
@@ -340,6 +389,9 @@ export async function POST(
               quarter_scores: input.quarter_scores,
               running_score_count: scoreCount,
               fouls_count: foulCount,
+              // Phase 4 — timeouts 카운트 박제 (settings.timeouts JSON merge 결과)
+              timeouts_home_count: timeoutHomeCount,
+              timeouts_away_count: timeoutAwayCount,
             },
           } as object,
           changedBy: user.id,

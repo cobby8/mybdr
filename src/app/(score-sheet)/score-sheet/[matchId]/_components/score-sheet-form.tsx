@@ -43,6 +43,12 @@ import {
   getTeamFoulCountByPeriod,
   removeLastFoul,
 } from "@/lib/score-sheet/foul-helpers";
+import type { TimeoutsState } from "@/lib/score-sheet/timeout-types";
+import { EMPTY_TIMEOUTS } from "@/lib/score-sheet/timeout-types";
+import {
+  addTimeout,
+  removeLastTimeout,
+} from "@/lib/score-sheet/timeout-helpers";
 import { useToast } from "@/contexts/toast-context";
 
 interface MatchProp {
@@ -87,6 +93,8 @@ interface DraftPayload {
   runningScore: RunningScoreState;
   // Phase 3 — fouls 박제 (mid-game reload 후 파울 마킹 복원)
   fouls: FoulsState;
+  // Phase 4 — timeouts 박제 (mid-game reload 후 타임아웃 마킹 복원)
+  timeouts: TimeoutsState;
   savedAt: string;
 }
 
@@ -105,6 +113,8 @@ export function ScoreSheetForm({
   );
   // Phase 3 — Fouls state (FIBA 1-5 Player Fouls + Team Fouls 자동 합산 source)
   const [fouls, setFouls] = useState<FoulsState>(EMPTY_FOULS);
+  // Phase 4 — Timeouts state (FIBA Article 18-19 전반2/후반3/OT1)
+  const [timeouts, setTimeouts] = useState<TimeoutsState>(EMPTY_TIMEOUTS);
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
   const [foulModalCtx, setFoulModalCtx] = useState<{
     team: "home" | "away";
@@ -144,6 +154,13 @@ export function ScoreSheetForm({
             setFouls(fs);
           }
         }
+        // Phase 4 — timeouts 복원 (기존 draft 호환: 없으면 EMPTY)
+        if (draft.timeouts) {
+          const ts = draft.timeouts;
+          if (Array.isArray(ts.home) && Array.isArray(ts.away)) {
+            setTimeouts(ts);
+          }
+        }
       }
     } catch {
       // 손상된 draft = 무시
@@ -162,6 +179,7 @@ export function ScoreSheetForm({
           teamB,
           runningScore,
           fouls,
+          timeouts,
           savedAt: new Date().toISOString(),
         };
         window.localStorage.setItem(
@@ -173,7 +191,7 @@ export function ScoreSheetForm({
       }
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
   function handleAdvancePeriod() {
@@ -226,6 +244,42 @@ export function ScoreSheetForm({
       const next = removeLastFoul(prev, team, playerId);
       if (next !== prev) {
         showToast("파울 1건 해제", "info");
+      }
+      return next;
+    });
+  }
+
+  // Phase 4 — 타임아웃 추가 요청 (빈 칸 클릭).
+  //
+  // 흐름:
+  //   1. TeamSection 빈 칸 클릭 → handleRequestAddTimeout
+  //   2. addTimeout 호출 → Article 18-19 검증 (전반2/후반3/OT1)
+  //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
+  //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
+  function handleRequestAddTimeout(team: "home" | "away") {
+    setTimeouts((prev) => {
+      const result = addTimeout(prev, team, {
+        period: runningScore.currentPeriod,
+      });
+      const teamLabel = team === "home" ? "Team A" : "Team B";
+      if (!result.ok) {
+        // Article 18-19 차단 — toast 에러
+        showToast(`${teamLabel} ${result.reason}`, "error");
+        return prev;
+      }
+      // 정상 추가 — toast 안내 (잔여 표시)
+      showToast(`${teamLabel} ${result.reason}`, "info");
+      return result.state;
+    });
+  }
+
+  // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
+  function handleRequestRemoveTimeout(team: "home" | "away") {
+    setTimeouts((prev) => {
+      const next = removeLastTimeout(prev, team);
+      if (next !== prev) {
+        const teamLabel = team === "home" ? "Team A" : "Team B";
+        showToast(`${teamLabel} 타임아웃 1건 해제`, "info");
       }
       return next;
     });
@@ -304,6 +358,8 @@ export function ScoreSheetForm({
       quarter_scores: quarterScores,
       running_score: runningScore,
       fouls,
+      // Phase 4 — timeouts (match.settings.timeouts JSON 박제)
+      timeouts,
       status: "completed" as const,
       referee_main: header.referee || undefined,
       referee_sub1: header.umpire1 || undefined,
@@ -344,6 +400,9 @@ export function ScoreSheetForm({
               handleRequestRemoveFoul("home", playerId)
             }
             currentPeriod={runningScore.currentPeriod}
+            timeouts={timeouts.home}
+            onRequestAddTimeout={() => handleRequestAddTimeout("home")}
+            onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
           />
           <TeamSection
             sideLabel="Team B"
@@ -359,6 +418,9 @@ export function ScoreSheetForm({
               handleRequestRemoveFoul("away", playerId)
             }
             currentPeriod={runningScore.currentPeriod}
+            timeouts={timeouts.away}
+            onRequestAddTimeout={() => handleRequestAddTimeout("away")}
+            onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
           />
         </div>
 
@@ -403,8 +465,8 @@ export function ScoreSheetForm({
           border: "1px solid var(--color-border)",
         }}
       >
-        Phase 3.5 = 파울 종류 (P/T/U/D) + Article 41 5반칙 + 쿼터/경기 종료 + Licence 자동
-        fill 완성. Time-outs (Phase 4), 서명/노트 (Phase 5), 인쇄 PDF (Phase 6) 는 후속 PR.
+        Phase 4 = Time-outs (FIBA Article 18-19 전반2/후반3/OT1) 완성. 서명/노트 (Phase 5),
+        인쇄 PDF (Phase 6) 는 후속 PR.
       </div>
 
       {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더) */}
