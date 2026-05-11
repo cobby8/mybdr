@@ -31,12 +31,19 @@
 
 import type { ChangeEvent } from "react";
 import type { RosterItem } from "./team-section-types";
+import type { FoulMark } from "@/lib/score-sheet/foul-types";
+import {
+  getPlayerFoulCount,
+  getTeamFoulCountByPeriod,
+  isPlayerEjected,
+} from "@/lib/score-sheet/foul-helpers";
+import { MAX_PLAYER_FOULS } from "@/lib/score-sheet/foul-types";
 
 export interface TeamSectionPlayerState {
   // 키 = tournamentTeamPlayerId (string)
   licence: string; // Licence no. (settings JSON 박제)
   playerIn: boolean; // 출전 여부 마킹
-  // Phase 3 확장: fouls 1-5 (현재 골조만)
+  // Phase 3 — fouls 는 FoulsState (props.fouls) 로 분리. 본 state 에는 미포함.
 }
 
 export interface TeamSectionInputs {
@@ -54,6 +61,14 @@ interface TeamSectionProps {
   values: TeamSectionInputs;
   onChange: (next: TeamSectionInputs) => void;
   disabled?: boolean;
+  // Phase 3 — 파울 상태 (이 팀 전용 FoulMark[] — home/away 한쪽만 전달)
+  fouls: FoulMark[];
+  // Phase 3 — 파울 토글 콜백
+  //   - action="add" → 다음 빈 칸 채움 (caller 가 5반칙 차단 + 5+ FT alert)
+  //   - action="remove" → 마지막 마킹 1건 해제
+  onToggleFoul: (playerId: string, action: "add" | "remove") => void;
+  // 현재 진행 Period (Player Fouls 마킹 시점 기록용 — Running Score 와 같은 값)
+  currentPeriod: number;
 }
 
 /**
@@ -76,6 +91,9 @@ export function TeamSection({
   values,
   onChange,
   disabled,
+  fouls,
+  onToggleFoul,
+  currentPeriod,
 }: TeamSectionProps) {
   // 선수 행 (12 보장)
   const rows = fillRowsTo12(players);
@@ -153,7 +171,8 @@ export function TeamSection({
         </div>
       </div>
 
-      {/* Team fouls (Phase 3 placeholder — Period ①~④ × 1-4 + Extra) */}
+      {/* Team fouls — Player Fouls 자동 합산 (read-only, 사용자 결재 §3 (a)) */}
+      {/* 이유: 1-4 마킹은 Player Fouls 마킹에서 자동 산출 — 1=●○○○ / 4=●●●● / 5+=●●●●● + 자유투 안내 */}
       <div className="mb-3">
         <div
           className="mb-1 text-[10px] font-semibold uppercase tracking-wider"
@@ -162,29 +181,62 @@ export function TeamSection({
           Team fouls
         </div>
         <div className="grid grid-cols-1 gap-1">
-          {[1, 2, 3, 4].map((period) => (
-            <div key={period} className="flex items-center gap-1">
-              <span
-                className="w-12 text-[10px] uppercase"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Period {period}
-              </span>
-              {[1, 2, 3, 4].map((n) => (
-                <div
-                  key={n}
-                  className="flex h-5 w-5 items-center justify-center text-[10px]"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    color: "var(--color-text-muted)",
-                  }}
+          {[1, 2, 3, 4].map((period) => {
+            // 이 Period 의 팀 파울 누적 (Player Fouls 합산)
+            const teamCount = getTeamFoulCountByPeriod(fouls, period);
+            // 5+ 도달 = 자유투 부여 (UI 강조)
+            const ftAwarded = teamCount >= 5;
+            return (
+              <div key={period} className="flex items-center gap-1">
+                <span
+                  className="w-12 text-[10px] uppercase"
+                  style={{ color: "var(--color-text-muted)" }}
                 >
-                  {n}
-                </div>
-              ))}
-            </div>
-          ))}
-          {/* Extra periods */}
+                  Period {period}
+                </span>
+                {/* 1-4 칸 — teamCount 만큼 채움 */}
+                {[1, 2, 3, 4].map((n) => {
+                  const filled = teamCount >= n;
+                  return (
+                    <div
+                      key={n}
+                      className="flex h-5 w-5 items-center justify-center text-[10px]"
+                      style={{
+                        border: "1px solid var(--color-border)",
+                        // 채운 칸 = accent / 빈 칸 = muted
+                        backgroundColor: filled
+                          ? "var(--color-accent)"
+                          : "transparent",
+                        color: filled
+                          ? "var(--color-on-accent, #fff)"
+                          : "var(--color-text-muted)",
+                      }}
+                      aria-label={`Period ${period} 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
+                    >
+                      {filled ? "●" : n}
+                    </div>
+                  );
+                })}
+                {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원) */}
+                {ftAwarded && (
+                  <span
+                    className="ml-1 inline-flex items-center gap-0.5 text-[9px] font-semibold"
+                    style={{ color: "var(--color-warning)" }}
+                    aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
+                  >
+                    <span
+                      className="material-symbols-outlined text-[12px]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      warning
+                    </span>
+                    FT (+{teamCount - 4})
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {/* Extra periods (OT) — period 5+ 합산 */}
           <div className="flex items-center gap-1">
             <span
               className="w-12 text-[10px] uppercase"
@@ -192,14 +244,31 @@ export function TeamSection({
             >
               Extra
             </span>
-            {[1, 2, 3, 4].map((n) => (
-              <div
-                key={n}
-                className="h-5 w-5"
-                style={{ borderBottom: "1px solid var(--color-border)" }}
-                aria-label={`Extra ${n}`}
-              />
-            ))}
+            {/* OT 파울 (period 5~7 모두 합산) */}
+            {(() => {
+              const otCount = fouls.filter((f) => f.period >= 5).length;
+              return [1, 2, 3, 4].map((n) => {
+                const filled = otCount >= n;
+                return (
+                  <div
+                    key={n}
+                    className="flex h-5 w-5 items-center justify-center text-[10px]"
+                    style={{
+                      borderBottom: "1px solid var(--color-border)",
+                      backgroundColor: filled
+                        ? "var(--color-accent)"
+                        : "transparent",
+                      color: filled
+                        ? "var(--color-on-accent, #fff)"
+                        : "var(--color-text-muted)",
+                    }}
+                    aria-label={`Extra (OT) 팀 파울 ${n}`}
+                  >
+                    {filled ? "●" : ""}
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
@@ -269,10 +338,31 @@ export function TeamSection({
                 playerIn: false,
               };
 
+              // Phase 3 — 파울 카운트 + 5반칙(퇴장) 판정
+              const foulCount = getPlayerFoulCount(
+                fouls,
+                p.tournamentTeamPlayerId
+              );
+              const ejected = isPlayerEjected(fouls, p.tournamentTeamPlayerId);
+
               return (
                 <tr
                   key={p.tournamentTeamPlayerId}
-                  style={{ borderBottom: "1px solid var(--color-border)" }}
+                  style={{
+                    borderBottom: "1px solid var(--color-border)",
+                    // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리
+                    backgroundColor: ejected
+                      ? "var(--color-elevated)"
+                      : "transparent",
+                    color: ejected
+                      ? "var(--color-text-muted)"
+                      : "var(--color-text-primary)",
+                  }}
+                  aria-label={
+                    ejected
+                      ? `${p.displayName} 5반칙 퇴장`
+                      : `${p.displayName}`
+                  }
                 >
                   {/* Licence no. (text) — settings JSON 박제 */}
                   <td className="px-1 py-1">
@@ -288,14 +378,16 @@ export function TeamSection({
                       maxLength={20}
                       className="w-full bg-transparent text-xs focus:outline-none disabled:opacity-50"
                       style={{
-                        color: "var(--color-text-primary)",
+                        color: ejected
+                          ? "var(--color-text-muted)"
+                          : "var(--color-text-primary)",
                       }}
                       aria-label={`${p.displayName} licence`}
                     />
                   </td>
-                  {/* 선수명 — read-only / 사전 라인업 starter ◉ + 캡틴 ★ */}
+                  {/* 선수명 — read-only / 사전 라인업 starter ◉ + 캡틴 ★ + 5반칙 시 "퇴장" 안내 */}
                   <td className="px-1 py-1">
-                    {p.isStarter && (
+                    {p.isStarter && !ejected && (
                       <span
                         className="mr-1"
                         style={{ color: "var(--color-accent)" }}
@@ -304,12 +396,28 @@ export function TeamSection({
                       </span>
                     )}
                     {p.displayName}
-                    {p.role === "captain" && (
+                    {p.role === "captain" && !ejected && (
                       <span
                         className="ml-1"
                         style={{ color: "var(--color-warning)" }}
                       >
                         ★
+                      </span>
+                    )}
+                    {/* 5반칙 퇴장 안내 — Material Symbols `block` + 텍스트 */}
+                    {ejected && (
+                      <span
+                        className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-semibold"
+                        style={{ color: "var(--color-warning)" }}
+                        aria-label="5반칙 퇴장"
+                      >
+                        <span
+                          className="material-symbols-outlined text-[12px]"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          block
+                        </span>
+                        퇴장
                       </span>
                     )}
                   </td>
@@ -337,22 +445,70 @@ export function TeamSection({
                       />
                     </label>
                   </td>
-                  {/* Fouls 1-5 placeholder — Phase 3 활성화 */}
+                  {/* Fouls 1-5 — 토글 마킹 (사용자 결재 §1 (a)) */}
+                  {/* UX:
+                        - 빈 칸 클릭 = 다음 빈 칸 채움 (add)
+                        - 가장 우측 마킹 (마지막) 클릭 = 해제 (remove)
+                        - 5반칙 후 셀 클릭 = 차단 (caller toast)
+                  */}
                   <td className="px-1 py-1">
                     <div className="flex justify-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <div
-                          key={n}
-                          className="flex h-5 w-5 items-center justify-center text-[9px]"
-                          style={{
-                            border: "1px solid var(--color-border)",
-                            color: "var(--color-text-muted)",
-                          }}
-                          aria-label={`${p.displayName} foul ${n} (Phase 3 활성화 예정)`}
-                        >
-                          {n}
-                        </div>
-                      ))}
+                      {[1, 2, 3, 4, 5].map((n) => {
+                        const filled = foulCount >= n;
+                        const isLastFilled = filled && n === foulCount;
+                        // 다음 빈 칸 = 다음 클릭 시 채워질 위치
+                        const isNextEmpty = !filled && n === foulCount + 1;
+                        return (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => {
+                              if (disabled) return;
+                              // 5반칙(퇴장) 도달 후 6번째 시도 = caller toast 차단 처리
+                              if (ejected && !isLastFilled) {
+                                // 마지막 마킹(5번째) 해제는 허용 / 그 외 셀 = 무반응
+                                // (이론상 다 채움 5건이면 isNextEmpty=false 라 add 호출 0)
+                                return;
+                              }
+                              if (isLastFilled) {
+                                // 마지막 1건 해제
+                                onToggleFoul(p.tournamentTeamPlayerId, "remove");
+                              } else if (isNextEmpty) {
+                                // 다음 빈 칸 채움
+                                onToggleFoul(p.tournamentTeamPlayerId, "add");
+                              }
+                              // 그 외 (중간 빈 칸, 중간 마킹) = 무반응
+                            }}
+                            disabled={
+                              disabled || (!isLastFilled && !isNextEmpty)
+                            }
+                            // 터치 영역 — 칸은 작지만 button 자체 클릭 영역 + touchAction
+                            className="flex h-5 w-5 items-center justify-center text-[9px] disabled:cursor-default"
+                            style={{
+                              border: "1px solid var(--color-border)",
+                              backgroundColor: filled
+                                ? "var(--color-accent)"
+                                : "transparent",
+                              color: filled
+                                ? "var(--color-on-accent, #fff)"
+                                : "var(--color-text-muted)",
+                              cursor:
+                                isLastFilled || isNextEmpty
+                                  ? "pointer"
+                                  : "default",
+                              touchAction: "manipulation",
+                            }}
+                            aria-label={
+                              filled
+                                ? `${p.displayName} ${n}번째 파울 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                                : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (다음 클릭 시 마킹)" : ""}`
+                            }
+                            title={`Period ${currentPeriod} 마킹`}
+                          >
+                            {filled ? "●" : n}
+                          </button>
+                        );
+                      })}
                     </div>
                   </td>
                 </tr>
