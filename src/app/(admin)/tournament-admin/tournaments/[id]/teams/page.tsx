@@ -752,8 +752,9 @@ export default function TournamentTeamsPage() {
               style={{ borderColor: "var(--color-border)" }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합 */}
-              <div className="mb-4 flex items-start justify-between gap-3 print-header">
+              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합
+                  2026-05-11 모바일 최적화: 좁은 화면(<sm)에서 정보·액션 세로 분리 + 액션 wrap */}
+              <div className="mb-4 flex flex-col gap-3 print-header sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-bold">{expandedTeam.team.name}</h2>
@@ -843,7 +844,7 @@ export default function TournamentTeamsPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex flex-shrink-0 items-center gap-2 no-print">
+                <div className="flex flex-wrap items-center gap-2 no-print sm:flex-shrink-0">
                   {/* 1. URL 복사 버튼 */}
                   {token?.applyTokenUrl && (
                     <button

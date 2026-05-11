@@ -1,0 +1,265 @@
+/**
+ * FIBA SCORESHEET 페이지 (server entry) — (score-sheet) route group.
+ *
+ * 2026-05-11 — Phase 1 신규 (기존 (web)/score-sheet/[matchId]/page.tsx 이전 + 재설계).
+ *
+ * 왜 (이유):
+ *   사이트 헤더 / AppNav 와 격리된 minimal layout 으로 종이 기록지 입력 집중도 향상.
+ *   URL = 동일 `/score-sheet/{matchId}` (route group 은 URL 미반영) → admin link 변경 0.
+ *   기존 `(web)/score-sheet/` 디렉토리는 폐기 — Phase 1 진입 결재 §6 (a) 채택.
+ *
+ * 진입 흐름 (기존 패턴 재사용):
+ *   1. requireScoreSheetAccess(matchId) — web 세션 + 권한 + 매치/대회 SELECT
+ *   2. getRecordingMode(match) — paper 아니면 안내 페이지
+ *   3. 사전 라인업 양쪽 fetch (MatchLineupConfirmed + TTP fallback)
+ *   4. <ScoreSheetForm /> 렌더 (client 폼 본체)
+ */
+
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db/prisma";
+import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+import { ScoreSheetForm } from "./_components/score-sheet-form";
+import type {
+  RosterItem,
+  TeamRosterData,
+} from "./_components/team-section-types";
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: Promise<{ matchId: string }>;
+}
+
+/**
+ * 라인업 / TTP 조회 + 직렬화 — server-only.
+ * 기존 (web)/score-sheet/[matchId]/page.tsx 의 loadTeamRoster 패턴 그대로 이전.
+ */
+async function loadTeamRoster(
+  matchId: bigint,
+  teamSide: "home" | "away",
+  ttpId: bigint | null,
+  teamName: string
+): Promise<TeamRosterData> {
+  if (!ttpId) {
+    return {
+      teamSide,
+      teamName,
+      tournamentTeamId: null,
+      hasConfirmedLineup: false,
+      players: [],
+    };
+  }
+
+  // 사전 라인업 1건 — 본 측면만
+  const lineup = await prisma.matchLineupConfirmed.findUnique({
+    where: {
+      matchId_teamSide: {
+        matchId,
+        teamSide,
+      },
+    },
+    select: {
+      starters: true,
+      substitutes: true,
+    },
+  });
+
+  // 팀 선수 전체 (jersey 순)
+  const players = await prisma.tournamentTeamPlayer.findMany({
+    where: {
+      tournamentTeamId: ttpId,
+      is_active: true,
+    },
+    select: {
+      id: true,
+      jerseyNumber: true,
+      role: true,
+      player_name: true,
+      isStarter: true,
+      users: {
+        select: {
+          id: true,
+          nickname: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: [{ jerseyNumber: "asc" }, { id: "asc" }],
+  });
+
+  const starterSet = new Set<string>(
+    (lineup?.starters ?? []).map((b) => b.toString())
+  );
+  const subSet = new Set<string>(
+    (lineup?.substitutes ?? []).map((b) => b.toString())
+  );
+
+  // bigint → string 직렬화 (Next.js 15 server → client prop = plain JSON)
+  const serialized: RosterItem[] = players.map((p) => {
+    const idStr = p.id.toString();
+    const isInLineup = starterSet.has(idStr) || subSet.has(idStr);
+    const isStarter = starterSet.has(idStr);
+    return {
+      tournamentTeamPlayerId: idStr,
+      jerseyNumber: p.jerseyNumber,
+      role: p.role,
+      displayName:
+        p.player_name?.trim() ||
+        p.users?.nickname?.trim() ||
+        p.users?.name?.trim() ||
+        "(이름 없음)",
+      userId: p.users?.id?.toString() ?? null,
+      isStarter,
+      isInLineup,
+    };
+  });
+
+  return {
+    teamSide,
+    teamName,
+    tournamentTeamId: ttpId.toString(),
+    hasConfirmedLineup: Boolean(lineup),
+    players: serialized,
+  };
+}
+
+export default async function ScoreSheetPage({ params }: PageProps) {
+  const { matchId: matchIdParam } = await params;
+  const matchIdNum = Number(matchIdParam);
+  if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
+    redirect("/");
+  }
+
+  // 1) 권한 + 매치/대회 SELECT
+  const access = await requireScoreSheetAccess(BigInt(matchIdNum));
+  if ("error" in access) {
+    return (
+      <main className="mx-auto w-full max-w-4xl px-4 py-12 text-center">
+        <div
+          className="rounded-[4px] px-4 py-8"
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--color-error) 10%, transparent)",
+            color: "var(--color-error)",
+          }}
+        >
+          <p className="text-base font-semibold">접근할 수 없습니다</p>
+          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+            로그인 후 운영자 또는 기록원 권한으로 접근해주세요.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/"
+              className="inline-block rounded-[4px] px-4 py-2 text-sm font-medium text-white"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            >
+              홈으로
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const { match, tournament } = access;
+
+  // 2) 모드 가드 — paper 가 아니면 안내 화면
+  const mode = getRecordingMode({ settings: match.settings });
+  if (mode !== "paper") {
+    return (
+      <main className="mx-auto w-full max-w-4xl px-4 py-12">
+        <div
+          className="rounded-[4px] px-4 py-8 text-center"
+          style={{
+            backgroundColor:
+              "color-mix(in srgb, var(--color-info) 8%, transparent)",
+            color: "var(--color-text-primary)",
+          }}
+        >
+          <p className="text-base font-semibold">현재 Flutter 기록앱으로 진행 중</p>
+          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+            이 매치는 Flutter 기록앱 모드입니다. 종이 기록지로 입력하려면
+            운영자가 대회 관리 페이지에서 기록 모드를 &quot;종이 기록지(웹)&quot;로
+            전환해야 합니다.
+          </p>
+          <div className="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+            <Link
+              href={`/tournament-admin/tournaments/${tournament.id}/matches`}
+              className="inline-block rounded-[4px] px-4 py-2 text-sm font-medium text-white"
+              style={{ backgroundColor: "var(--color-primary)" }}
+            >
+              운영자 페이지로
+            </Link>
+            <Link
+              href={`/live/${match.id.toString()}`}
+              className="inline-block rounded-[4px] border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)]"
+            >
+              라이브 페이지로
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // 3) 사전 라인업 양쪽 fetch
+  const [homeTeamData, awayTeamData] = await Promise.all([
+    loadTeamRoster(
+      match.id,
+      "home",
+      match.homeTeamId,
+      await prisma.tournamentTeam
+        .findUnique({
+          where: { id: match.homeTeamId ?? BigInt(-1) },
+          select: { team: { select: { name: true } } },
+        })
+        .then((t) => t?.team?.name ?? "Team A 미정")
+    ),
+    loadTeamRoster(
+      match.id,
+      "away",
+      match.awayTeamId,
+      await prisma.tournamentTeam
+        .findUnique({
+          where: { id: match.awayTeamId ?? BigInt(-1) },
+          select: { team: { select: { name: true } } },
+        })
+        .then((t) => t?.team?.name ?? "Team B 미정")
+    ),
+  ]);
+
+  // 4) client prop 직렬화 (FIBA Phase 1 필요 필드만)
+  const scheduledAtLabel = match.scheduledAt
+    ? new Date(match.scheduledAt).toLocaleString("ko-KR", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const matchProps = {
+    id: match.id.toString(),
+    tournamentId: match.tournamentId,
+    match_code: match.match_code,
+    scheduledAtLabel,
+    courtLabel: match.court_number,
+  };
+
+  const tournamentProps = {
+    id: tournament.id,
+    name: tournament.name ?? "(대회명 미정)",
+  };
+
+  return (
+    <ScoreSheetForm
+      match={matchProps}
+      tournament={tournamentProps}
+      homeRoster={homeTeamData}
+      awayRoster={awayTeamData}
+    />
+  );
+}
