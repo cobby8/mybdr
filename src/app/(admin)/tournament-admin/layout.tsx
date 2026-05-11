@@ -6,6 +6,9 @@ import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminMobileNav } from "@/components/admin/mobile-admin-nav";
 // 2026-05-12 로그인 redirect 통합 — 비로그인 → 로그인 페이지 후 원래 tournament-admin 페이지 복귀
 import { buildLoginRedirect } from "@/lib/auth/redirect";
+// 2026-05-12 hotfix — CopyLinkButton 등 client component 가 useToast 호출 → (admin) 영역에 ToastProvider 부재로 throw.
+// (web)/(score-sheet) layout 과 동일 패턴으로 ToastProvider mount.
+import { ToastProvider } from "@/contexts/toast-context";
 import { TournamentAdminNav } from "./_components/tournament-admin-nav";
 
 // AdminSidebar/AdminMobileNav role 타입 (admin/layout.tsx 와 동일)
@@ -67,22 +70,24 @@ export default async function TournamentAdminLayout({ children }: { children: Re
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)]">
-      {/* 데스크톱 사이드바 (lg+) — admin/layout.tsx 와 동일 패턴 */}
-      <div className="hidden lg:block">
-        <AdminSidebar roles={roles} />
-      </div>
-      {/* 모바일 햄버거 + 드로어 (lg 미만) */}
-      <div className="lg:hidden">
-        <AdminMobileNav roles={roles} />
-      </div>
-      <main className="lg:ml-64">
-        <div className="mx-auto max-w-7xl p-6 pt-16 lg:pt-6">
-          {/* 대회 관리 sub-nav (대시보드/단체/내 대회/시리즈/템플릿) */}
-          <TournamentAdminNav />
-          {children}
+    <ToastProvider>
+      <div className="min-h-screen bg-[var(--color-background)]">
+        {/* 데스크톱 사이드바 (lg+) — admin/layout.tsx 와 동일 패턴 */}
+        <div className="hidden lg:block">
+          <AdminSidebar roles={roles} />
         </div>
-      </main>
-    </div>
+        {/* 모바일 햄버거 + 드로어 (lg 미만) */}
+        <div className="lg:hidden">
+          <AdminMobileNav roles={roles} />
+        </div>
+        <main className="lg:ml-64">
+          <div className="mx-auto max-w-7xl p-6 pt-16 lg:pt-6">
+            {/* 대회 관리 sub-nav (대시보드/단체/내 대회/시리즈/템플릿) */}
+            <TournamentAdminNav />
+            {children}
+          </div>
+        </main>
+      </div>
+    </ToastProvider>
   );
 }
