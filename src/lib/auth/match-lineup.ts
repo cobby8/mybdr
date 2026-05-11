@@ -29,15 +29,11 @@
 import { type NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { apiError } from "@/lib/api/response";
+// 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (인라인 제거).
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 // teamSide 리터럴 — DB 컬럼 enum 처럼 운용 (TypeScript 단)
 export type TeamSide = "home" | "away";
-
-/** super_admin role 여부 — JWT payload 기반 단순 검사 (DB 조회 0) */
-function isSuperAdmin(session: { role?: string; admin_role?: string } | null | undefined): boolean {
-  if (!session) return false;
-  return session.role === "super_admin" || session.admin_role === "super_admin";
-}
 
 /**
  * 매치 + 양 팀 + tournament 정보 한 쿼리에 조회.

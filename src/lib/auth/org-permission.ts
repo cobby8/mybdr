@@ -10,16 +10,23 @@
  */
 
 import type { JwtPayload } from "./jwt";
+// 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (5 파일 중복 제거).
+// 본 파일은 외부 호출자 호환을 위해 re-export 만 유지.
+import { isSuperAdmin as isSuperAdminCore } from "./is-super-admin";
 
 // 관리자 역할 타입
 export type AdminRole = "super_admin" | "org_admin" | "content_admin";
 
 /**
- * 슈퍼 관리자인지 확인
- * 기존 isAdmin=true (role=super_admin) 또는 admin_role=super_admin
+ * 슈퍼 관리자인지 확인 — 단일 source `is-super-admin.ts` 로 위임.
+ * 기존 isAdmin=true (role=super_admin) 또는 admin_role=super_admin.
+ *
+ * @deprecated 본 re-export 는 기존 외부 호출자 (game-reports route 등) 호환용.
+ *   신규 코드는 `@/lib/auth/is-super-admin` 직접 import 권장.
  */
 export function isSuperAdmin(session: JwtPayload): boolean {
-  return session.role === "super_admin" || session.admin_role === "super_admin";
+  // JwtPayload 는 role 필수 — 단일 source 시그니처와 호환 (옵셔널 input 받음).
+  return isSuperAdminCore(session);
 }
 
 /**
