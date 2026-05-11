@@ -2,6 +2,7 @@
  * UserInfoCard — admin 마이페이지 로그인 정보 카드.
  *
  * 2026-05-11 — Phase 1 MVP (사용자 결재 §4 — 권한 매트릭스 + 로그인 정보만).
+ * 2026-05-11 — Phase 3 (비번 변경 진입점 추가).
  *
  * 표시 정보:
  *   - 아바타 (이니셜 또는 profile_image_url)
@@ -9,10 +10,18 @@
  *   - 이메일
  *   - 가입일 (한글 포맷)
  *   - UID (작게, 디버그용)
+ *   - 우측 상단: 비밀번호 변경 진입점 (Phase 3) — `/profile/settings?section=account`
+ *
+ * 비번 변경 destination 결정 사유:
+ *   - `/reset-password` 는 token 쿼리 필수 (이메일 링크 경로) — 직접 진입 불가.
+ *   - `/profile/settings?section=account` 의 "비밀번호" 행 → `/reset-password` 로 라우팅 (account-section-v2.tsx L45).
+ *   - settings 페이지가 이메일·비번·본인인증 통합 진입점 → 자연스러운 흐름.
  *
  * 디자인 토큰만 사용 — var(--*) / Material Symbols Outlined.
- * server component (interactivity 0).
+ * server component (interactivity 0 — Link 만 사용).
  */
+
+import Link from "next/link";
 
 export interface UserInfoCardProps {
   user: {
@@ -75,12 +84,37 @@ export function UserInfoCard({ user }: UserInfoCardProps) {
 
         {/* 정보 영역 */}
         <div className="flex-1 min-w-0">
-          {/* 닉네임 큰 글자 */}
-          <div
-            className="text-xl font-bold truncate"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            {displayName}
+          {/* 상단 행 — 닉네임 + 비번 변경 진입점 (Phase 3) */}
+          {/* 이유: 카드 우측 상단 = 가장 자연스러운 보안 액션 위치. 닉네임 옆 정렬로 시각 균형. */}
+          <div className="flex items-start justify-between gap-2">
+            {/* 닉네임 큰 글자 */}
+            <div
+              className="text-xl font-bold truncate"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              {displayName}
+            </div>
+
+            {/* 비번 변경 진입점 — Material Symbols Outlined `key` 아이콘 + 라벨 */}
+            {/* destination = /profile/settings?section=account (web 통합 진입점, account-section-v2 박제) */}
+            <Link
+              href="/profile/settings?section=account"
+              className="flex items-center gap-1 px-2 py-1 text-xs whitespace-nowrap hover:underline shrink-0"
+              style={{
+                color: "var(--color-text-secondary)",
+                borderRadius: "4px",
+              }}
+              title="비밀번호 변경"
+              aria-label="비밀번호 변경"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+              >
+                key
+              </span>
+              <span>비밀번호 변경</span>
+            </Link>
           </div>
 
           {/* 이메일 */}
