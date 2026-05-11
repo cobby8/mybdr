@@ -97,10 +97,16 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   // 2026-05-11 Phase 3-F — 옵션 A (5건) 응답 확장:
   //   - category (신청 종별) / payment_status (납부 상태) / updatedAt (마지막 갱신)
   //   - tournament.roster_min / roster_max (진행률 표시용)
-  const [tournament, teams] = await Promise.all([
+  const [tournament, divisionRules, teams] = await Promise.all([
     prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: { roster_min: true, roster_max: true },
+    }),
+    // 2026-05-12 Phase 4-B — 종별 변경 드롭다운용 룰 목록
+    prisma.tournamentDivisionRule.findMany({
+      where: { tournamentId },
+      select: { code: true, label: true },
+      orderBy: { sortOrder: "asc" },
     }),
     prisma.tournamentTeam.findMany({
       where: { tournamentId },
@@ -161,6 +167,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     teams: rows,
     rosterMin: tournament?.roster_min ?? null,
     rosterMax: tournament?.roster_max ?? null,
+    divisionRules,
   });
 }
 

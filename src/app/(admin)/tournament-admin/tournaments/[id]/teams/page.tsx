@@ -104,6 +104,12 @@ export default function TournamentTeamsPage() {
     min: null,
     max: null,
   });
+  // 2026-05-12 Phase 4-B — 종별 룰 목록 (드롭다운용)
+  const [divisionRules, setDivisionRules] = useState<Array<{ code: string; label: string }>>([]);
+  // 모달 inline 편집 상태 (코치 / 종별 / import)
+  const [editingManager, setEditingManager] = useState(false);
+  const [managerForm, setManagerForm] = useState({ name: "", phone: "" });
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // 토스트 자동 사라짐 (3초)
   const showToast = useCallback((msg: string) => {
@@ -190,6 +196,8 @@ export default function TournamentTeamsPage() {
           min: typeof json?.roster_min === "number" ? json.roster_min : null,
           max: typeof json?.roster_max === "number" ? json.roster_max : null,
         });
+        // Phase 4-B 종별 룰 (드롭다운용)
+        setDivisionRules((json?.division_rules ?? []) as Array<{ code: string; label: string }>);
       }
     } catch { /* ignore */ } finally {
       setLoading(false);
@@ -235,6 +243,64 @@ export default function TournamentTeamsPage() {
     } catch { /* ignore */ } finally {
       setActionLoading(null);
     }
+  };
+
+  /* --- Phase 4-B 옵션 B (모달 inline 액션 4건) --- */
+
+  // 토큰 재발급
+  const reissueToken = async (ttId: string) => {
+    if (!confirm("토큰을 재발급하시겠습니까?\n기존 토큰 URL은 무효화됩니다.")) return;
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/reissue-token`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok) return showToast(json.error ?? "재발급 실패");
+      if (json.apply_token_url) {
+        try { await navigator.clipboard.writeText(json.apply_token_url); } catch { /* ignore */ }
+        showToast(`재발급 완료 — URL 복사됨 (만료 ${new Date(json.expires_at).toLocaleDateString("ko-KR")})`);
+      } else {
+        showToast("재발급 완료");
+      }
+      await load();
+    } catch { showToast("네트워크 오류"); }
+  };
+
+  // 코치 정보 변경
+  const saveManager = async (ttId: string) => {
+    try {
+      const body: Record<string, string> = {};
+      if (managerForm.name.trim()) body.managerName = managerForm.name.trim();
+      // phone 빈 문자열 = null 처리 (zod 가 빈 값 허용)
+      body.managerPhone = managerForm.phone.trim();
+      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/manager`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) return showToast(json.error ?? "저장 실패");
+      showToast(json.changed ? "코치 정보 변경됨" : "변경 사항 없음");
+      setEditingManager(false);
+      await load();
+    } catch { showToast("네트워크 오류"); }
+  };
+
+  // 종별 변경
+  const changeCategory = async (ttId: string, category: string) => {
+    if (!category) return;
+    if (!confirm(`종별을 "${category}" 로 변경하시겠습니까?\n선수 명단의 division_code 도 일괄 변경됩니다.`)) return;
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${id}/teams/${ttId}/category`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category }),
+      });
+      const json = await res.json();
+      if (!res.ok) return showToast(json.error ?? "변경 실패");
+      showToast(json.changed ? `종별: ${json.previous ?? "(없음)"} → ${json.current}` : "변경 사항 없음");
+      await load();
+    } catch { showToast("네트워크 오류"); }
   };
 
   /* --- 시드 배정 --- */
@@ -638,6 +704,21 @@ export default function TournamentTeamsPage() {
         })()
       )}
 
+      {/* Phase 4-B — 선수 일괄 import 모달 */}
+      {showImportModal && expandedTeamId && (
+        <ImportPlayersModal
+          tournamentId={id}
+          ttId={expandedTeamId}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={(msg) => {
+            setShowImportModal(false);
+            showToast(msg);
+            if (expandedTeamId) loadPlayers(expandedTeamId);
+            load();
+          }}
+        />
+      )}
+
       {/* Phase 2-C — 토스트 (화면 우상단 고정) */}
       {toast && (
         <div
@@ -684,18 +765,38 @@ export default function TournamentTeamsPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-bold">{expandedTeam.team.name}</h2>
-                    {/* 1. 신청 종별 — 가장 먼저 식별 가능하도록 팀명 옆 */}
-                    {token?.category && (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                    {/* 1. 신청 종별 — Phase 4-B: 드롭다운으로 변경 가능 */}
+                    {divisionRules.length > 0 ? (
+                      <select
+                        value={token?.category ?? ""}
+                        onChange={(e) => changeCategory(expandedTeam.id, e.target.value)}
+                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase no-print"
                         style={{
                           background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
                           color: "var(--color-accent)",
                           letterSpacing: "0.04em",
+                          border: "1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)",
                         }}
+                        title="종별 변경"
                       >
-                        {token.category}
-                      </span>
+                        <option value="" disabled>종별 선택</option>
+                        {divisionRules.map((d) => (
+                          <option key={d.code} value={d.code}>{d.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      token?.category && (
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                          style={{
+                            background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
+                            color: "var(--color-accent)",
+                            letterSpacing: "0.04em",
+                          }}
+                        >
+                          {token.category}
+                        </span>
+                      )
                     )}
                     <ViaBadge appliedVia={token?.appliedVia ?? null} />
                     <StatusBadge status={expandedTeam.status} />
@@ -711,10 +812,45 @@ export default function TournamentTeamsPage() {
                     {token?.appliedAt
                       ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
                       : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
-                    {token?.managerName && (
+                    {" "}· 코치{" "}
+                    {editingManager ? (
+                      <span className="no-print inline-flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={managerForm.name}
+                          onChange={(e) => setManagerForm({ ...managerForm, name: e.target.value })}
+                          placeholder="코치 이름"
+                          className="w-24 rounded-[4px] border px-2 py-0.5 text-xs"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                        />
+                        <input
+                          type="tel"
+                          value={managerForm.phone}
+                          onChange={(e) => setManagerForm({ ...managerForm, phone: e.target.value })}
+                          placeholder="010-XXXX-XXXX"
+                          className="w-32 rounded-[4px] border px-2 py-0.5 text-xs"
+                          style={{ borderColor: "var(--color-border)", background: "var(--color-card)" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveManager(expandedTeam.id)}
+                          className="rounded-[4px] px-2 py-0.5 text-[10px] font-medium text-white"
+                          style={{ background: "var(--color-success)" }}
+                        >
+                          저장
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingManager(false)}
+                          className="rounded-[4px] px-2 py-0.5 text-[10px]"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          취소
+                        </button>
+                      </span>
+                    ) : (
                       <>
-                        {" "}· 코치 {token.managerName}
-                        {/* 2. 코치 연락처 — tel: 링크 (모바일 클릭 시 전화) */}
+                        {token?.managerName ?? <span style={{ color: "var(--color-text-muted)" }}>(미입력)</span>}
                         {token?.managerPhone && (
                           <>
                             {" ("}
@@ -729,6 +865,18 @@ export default function TournamentTeamsPage() {
                             {")"}
                           </>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingManager(true);
+                            setManagerForm({ name: token?.managerName ?? "", phone: token?.managerPhone ?? "" });
+                          }}
+                          className="ml-1 inline-flex no-print"
+                          title="코치 정보 편집"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          <span className="material-symbols-outlined text-xs">edit</span>
+                        </button>
                       </>
                     )}
                     {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
@@ -756,13 +904,23 @@ export default function TournamentTeamsPage() {
                       />
                     </label>
                   </div>
-                  {/* 5. 토큰 만료일 + 마지막 갱신 시각 (코치 입력 완료 = applied_via='coach_token') */}
-                  <div className="mt-0.5 flex flex-wrap gap-3 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                  {/* 5. 토큰 만료일 + 마지막 갱신 시각 + Phase 4-B 재발급 버튼 */}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-3 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
                     {token?.applyTokenExpiresAt && (
                       <span>
                         토큰 만료: {new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => reissueToken(expandedTeam.id)}
+                      className="no-print inline-flex items-center gap-0.5 underline decoration-dotted underline-offset-2"
+                      style={{ color: "var(--color-info)" }}
+                      title="토큰 재발급"
+                    >
+                      <span className="material-symbols-outlined text-xs">refresh</span>
+                      재발급
+                    </button>
                     {token?.updatedAt && (
                       <span>
                         {token.appliedVia === "coach_token" ? "코치 입력" : "마지막 갱신"}: {formatUpdatedAt(token.updatedAt)}
@@ -851,14 +1009,25 @@ export default function TournamentTeamsPage() {
                     max={rosterRule.max}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(!showAddForm)}
-                  className="btn btn--primary btn--sm no-print"
-                >
-                  <span className="material-symbols-outlined text-base align-middle mr-1">person_add</span>
-                  선수 추가
-                </button>
+                <div className="flex gap-2 no-print">
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(true)}
+                    className="btn btn--sm"
+                    title="카톡 명단 텍스트 일괄 입력"
+                  >
+                    <span className="material-symbols-outlined text-base align-middle mr-1">content_paste</span>
+                    일괄 입력
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="btn btn--primary btn--sm"
+                  >
+                    <span className="material-symbols-outlined text-base align-middle mr-1">person_add</span>
+                    선수 추가
+                  </button>
+                </div>
               </div>
 
               {/* 선수 추가 폼 */}
@@ -980,6 +1149,177 @@ export default function TournamentTeamsPage() {
         }
         .print-only { display: none; }
       `}</style>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 2026-05-12 Phase 4-B (옵션 B 4번) — 선수 일괄 import 모달
+ * - 카톡 명단 텍스트 붙여넣기 → 파싱 → 미리보기 → POST API
+ * - 형식: 이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처 (Phase 3-A 동일)
+ * - overwrite 옵션 (기존 명단 삭제 후 INSERT)
+ * ============================================================ */
+function ImportPlayersModal({
+  tournamentId,
+  ttId,
+  onClose,
+  onSuccess,
+}: {
+  tournamentId: string;
+  ttId: string;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}) {
+  const [text, setText] = useState("");
+  const [overwrite, setOverwrite] = useState(false);
+  const [strict, setStrict] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  // 카톡 텍스트 파싱 (Phase 3-A team-apply-form 와 동일 형식)
+  const parsePlayers = (raw: string) => {
+    const lines = raw.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length === 0) return { players: [], errors: ["붙여넣을 명단이 없습니다."] };
+    const players: Array<Record<string, string | number | null>> = [];
+    const errors: string[] = [];
+    lines.forEach((line, idx) => {
+      const parts = line.split("/").map((s) => s.trim());
+      if (parts.length < 2) {
+        errors.push(`${idx + 1}줄: 형식 오류 (최소 이름/생년월일)`);
+        return;
+      }
+      const [name, birth, jersey, position, school, parentName, parentPhone] = parts;
+      // 생년월일 normalize
+      const m = birth.match(/^(\d{4})[-./]?(\d{1,2})[-./]?(\d{1,2})$/);
+      if (!m) {
+        errors.push(`${idx + 1}줄 (${name}): 생년월일 형식 오류 "${birth}"`);
+        return;
+      }
+      const normBirth = `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+      // 연락처 normalize
+      const phoneDigits = (parentPhone ?? "").replace(/\D/g, "");
+      const normPhone =
+        phoneDigits.length === 11
+          ? `${phoneDigits.slice(0, 3)}-${phoneDigits.slice(3, 7)}-${phoneDigits.slice(7)}`
+          : null;
+      players.push({
+        player_name: name,
+        birth_date: normBirth,
+        jersey_number: jersey ? Number(jersey) : null,
+        position: position || null,
+        school_name: school || null,
+        parent_name: parentName || null,
+        parent_phone: normPhone,
+      });
+    });
+    return { players, errors };
+  };
+
+  const submit = async () => {
+    setError(null);
+    setParseError(null);
+    const { players, errors } = parsePlayers(text);
+    if (errors.length > 0) {
+      setParseError(errors.join("\n"));
+      return;
+    }
+    if (players.length === 0) {
+      setParseError("파싱된 선수가 없습니다.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/teams/${ttId}/import-players`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ players, overwrite, strictDivisionRule: strict }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.code === "DIVISION_VALIDATION_FAILED" && Array.isArray(json.errors)) {
+          setError(`종별 검증 실패:\n${json.errors.map((e: { index: number; message: string }) => `${e.index + 1}번: ${e.message}`).join("\n")}`);
+        } else {
+          setError(json.error ?? "import 실패");
+        }
+        setSubmitting(false);
+        return;
+      }
+      const warningNote = Array.isArray(json.warnings) && json.warnings.length > 0
+        ? ` (경고 ${json.warnings.length}건)` : "";
+      onSuccess(`${json.inserted_count}명 INSERT${overwrite ? ` / ${json.deleted_count}명 삭제` : ""}${warningNote}`);
+    } catch {
+      setError("네트워크 오류");
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-2xl rounded-[4px] border bg-[var(--color-elevated)] p-6"
+        style={{ borderColor: "var(--color-border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+          aria-label="닫기"
+        >
+          <span className="material-symbols-outlined">close</span>
+        </button>
+        <h2 className="mb-4 text-lg font-bold">선수 일괄 입력</h2>
+        <p className="mb-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
+          한 줄 한 명. 형식: <code className="rounded bg-black/10 px-1">이름/생년월일/등번호/포지션/학교명/부모님성함/부모님연락처</code>
+        </p>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={10}
+          placeholder={"홍길동/2017-05-16/7/G/강남초등학교/홍판서/010-1234-5678\n김철수/2017.8.22/12/F/잠실초등학교/김아빠/010-9876-5432"}
+          className="w-full rounded-[4px] border px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+          }}
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
+          <label className="flex items-center gap-1">
+            <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
+            <span>기존 명단 전체 삭제 후 입력 (overwrite)</span>
+          </label>
+          <label className="flex items-center gap-1">
+            <input type="checkbox" checked={strict} onChange={(e) => setStrict(e.target.checked)} />
+            <span>종별 룰 strict 검증 (위반 시 거부)</span>
+          </label>
+        </div>
+        {parseError && (
+          <p className="mt-3 whitespace-pre-line text-xs" style={{ color: "var(--color-warning)" }}>
+            {parseError}
+          </p>
+        )}
+        {error && (
+          <p className="mt-3 whitespace-pre-line text-sm" style={{ color: "var(--color-error)" }}>
+            {error}
+          </p>
+        )}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={submitting} className="btn btn--sm">
+            취소
+          </button>
+          <button type="button" onClick={submit} disabled={submitting || !text.trim()} className="btn btn--primary btn--sm">
+            {submitting ? "처리 중..." : "일괄 입력 실행"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
