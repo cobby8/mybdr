@@ -87,7 +87,7 @@ interface Props {
 
 export function AdminTournamentsContent({
   tournaments,
-  updateStatusAction: _updateStatusAction,
+  updateStatusAction,
   toggleVisibilityAction: _toggleVisibilityAction,
   pagination,
 }: Props) {
@@ -286,7 +286,7 @@ export function AdminTournamentsContent({
                 대회 운영 페이지로 이동
               </Link>
 
-              {/* Phase 2-C — 행정 관리 섹션 (Phase 3 실 페이지로 확장 예정) */}
+              {/* 2026-05-12 Phase 4 — 행정 관리 실 액션 활성화 (대회 승인 / 운영자 변경 / 감사 로그) */}
               <div
                 className="rounded-[8px] border p-3"
                 style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
@@ -298,26 +298,53 @@ export function AdminTournamentsContent({
                   행정 관리
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
-                    대회 승인
-                  </button>
-                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                  {/* 대회 승인 — draft → registration_open 으로 status 변경 (server action) */}
+                  {selected.status === "draft" ? (
+                    <form action={updateStatusAction}>
+                      <input type="hidden" name="tournament_id" value={selected.id} />
+                      <input type="hidden" name="status" value="registration_open" />
+                      <button
+                        type="submit"
+                        className="btn btn--sm w-full"
+                        style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
+                      >
+                        대회 승인
+                      </button>
+                    </form>
+                  ) : (
+                    <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                      이미 승인됨
+                    </button>
+                  )}
+                  {/* 운영자 변경 — 별 페이지 */}
+                  <Link
+                    href={`/admin/tournaments/${selected.id}/transfer-organizer`}
+                    className="btn btn--sm w-full"
+                    style={{ textAlign: "center" }}
+                  >
                     운영자 변경
-                  </button>
-                  <button type="button" disabled className="btn btn--sm opacity-50 cursor-not-allowed">
+                  </Link>
+                  {/* 감사 로그 — 별 페이지 */}
+                  <Link
+                    href={`/admin/tournaments/${selected.id}/audit-log`}
+                    className="btn btn--sm w-full"
+                    style={{ textAlign: "center" }}
+                  >
                     감사 로그
-                  </button>
+                  </Link>
+                  {/* 대회 삭제 = 별 PR (cascade 정책 + 위험 가드 필요) */}
                   <button
                     type="button"
                     disabled
                     className="btn btn--sm opacity-50 cursor-not-allowed"
                     style={{ color: "var(--color-error)" }}
+                    title="대회 삭제는 별 PR 에서 cascade 가드 + 이름 확인 dialog 와 함께 추가 예정"
                   >
                     대회 삭제
                   </button>
                 </div>
                 <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  ※ 행정 메뉴는 Phase 3 에서 실 페이지로 확장 예정.
+                  ※ 대회 삭제는 cascade 정책 검토 후 별 PR 에서 활성화 예정.
                 </p>
               </div>
             </div>
