@@ -491,14 +491,16 @@ export default function TournamentTeamsPage() {
         <ViaStatCard label="경로 미상" count={viaStats.null} icon="help" />
       </div>
 
-      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건) */}
+      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건)
+          2026-05-12 — 탭 필터 pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 활성 톤.
+          count 뱃지 (rounded-full px-1.5 py-0.5) = 작은 정사각형 chip → 보존 (룰 10 예외) */}
       <div className="mb-4 flex flex-wrap gap-2">
         {(["all", "pending", "approved", "rejected", "coach_pending"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors ${
-              filter === s ? "bg-[var(--color-accent)] font-semibold text-[var(--color-on-accent)]" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            className={`flex items-center gap-1.5 whitespace-nowrap rounded-[4px] px-4 py-2 text-sm transition-colors ${
+              filter === s ? "bg-[var(--color-info)] font-semibold text-white" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             }`}
           >
             {s === "all" ? "전체" : s === "coach_pending" ? "코치 미입력" : STATUS_LABEL[s]}
@@ -657,14 +659,14 @@ export default function TournamentTeamsPage() {
                       <button
                         onClick={() => updateStatus(tt.id, "approved")}
                         disabled={actionLoading === tt.id}
-                        className="rounded-full bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
+                        className="rounded-[4px] bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
                       >
                         승인
                       </button>
                       <button
                         onClick={() => updateStatus(tt.id, "rejected")}
                         disabled={actionLoading === tt.id}
-                        className="rounded-full bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
+                        className="rounded-[4px] bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
                       >
                         거절
                       </button>
@@ -674,7 +676,7 @@ export default function TournamentTeamsPage() {
                     <button
                       onClick={() => updateStatus(tt.id, "rejected")}
                       disabled={actionLoading === tt.id}
-                      className="rounded-full bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
+                      className="rounded-[4px] bg-[var(--color-error)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-error)] hover:bg-[var(--color-error)]/20 disabled:opacity-50"
                     >
                       거절
                     </button>
@@ -683,7 +685,7 @@ export default function TournamentTeamsPage() {
                     <button
                       onClick={() => updateStatus(tt.id, "approved")}
                       disabled={actionLoading === tt.id}
-                      className="rounded-full bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
+                      className="rounded-[4px] bg-[var(--color-game-team)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-game-team)] hover:bg-[var(--color-game-team)]/20 disabled:opacity-50"
                     >
                       승인으로 변경
                     </button>

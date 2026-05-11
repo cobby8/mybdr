@@ -239,18 +239,19 @@ export default function TournamentSitePage() {
               </p>
             </div>
             <div className="flex gap-2">
+              {/* 2026-05-12 — pill 9999px ❌ → btn 클래스 (4px 라운딩 표준) */}
               <a
                 href={`https://${site.subdomain}.mybdr.kr`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                className="btn btn--sm"
               >
                 방문하기 ↗
               </a>
               <button
                 onClick={() => togglePublish(false)}
                 disabled={publishing}
-                className="rounded-full border border-[var(--color-error)]/30 px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/5 disabled:opacity-50"
+                className="rounded-[4px] border border-[var(--color-error)]/30 px-4 py-2 text-sm text-[var(--color-error)] hover:bg-[var(--color-error)]/5 disabled:opacity-50"
               >
                 {publishing ? "처리 중..." : "비공개 전환"}
               </button>
@@ -676,10 +677,11 @@ function Step3({
           ← 이전
         </button>
         <div className="flex gap-3">
+          {/* 2026-05-12 — pill 9999px ❌ → btn 클래스 (4px 라운딩 표준) */}
           <button
             onClick={onSaveDraft}
             disabled={saving || !subdomain.trim()}
-            className="rounded-full border border-[var(--color-border)] px-5 py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-40"
+            className="btn disabled:opacity-40"
           >
             {saving ? "저장 중..." : "임시 저장"}
           </button>
