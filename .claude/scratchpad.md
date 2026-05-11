@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA SCORESHEET Phase 2 — Running Score 1-160 + Period 자동 + Final + Winner
-- **상태**: Phase 2 구현 완료 — tsc 0 / vitest 381/381 (+31)
+- **요청**: FIBA SCORESHEET Phase 3 — Team Fouls + Player Fouls (1-5) + 5반칙 alert + 5+ FT 안내
+- **상태**: Phase 3 구현 완료 — tsc 0 / vitest 405/405 (+24)
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식 6 Phase)
@@ -10,7 +10,7 @@
 |------|------|------|------|
 | 1 | `(score-sheet)` route group + minimal layout + 헤더 + 양 팀 명단 | ⭐⭐⭐ | ✅ |
 | 2 | **Running Score 1-160 시계열 grid** + Period 자동 합산 + Final + Winner | ⭐⭐⭐ | ✅ |
-| 3 | Team Fouls + Player Fouls (1-5) + 5반칙 alert + 5+ FT 안내 | ⭐⭐ | ⏳ |
+| 3 | Team Fouls + Player Fouls (1-5) + 5반칙 alert + 5+ FT 안내 | ⭐⭐ | ✅ |
 | 4 | Time-outs (Team A/B + 전반2/후반3/연장1 검증) | ⭐⭐ | ⏳ |
 | 5 | 서명 영역 (Scorer/Timer/Referee/Captain) + 매치 종료 토글 + 제출 | ⭐ | ⏳ |
 | 6 | A4 세로 인쇄 PDF 출력 (jsPDF + html2canvas) | ⭐ | ⏳ |
@@ -397,9 +397,116 @@ ScoreSheetPage (server / 기존 page.tsx 이전)
 - **BFF body schema 확장**: `running_score` optional → 기존 호출처 회귀 0 / Phase 3+ 도 동일 패턴 (optional 추가만)
 - **Phase 3 진입 시 검토**: Team Fouls / Player Fouls 도 PBP foul event 자동 집계 채택 (결재 §2 (a)) — settings JSON 우회 불필요
 
+## 구현 기록 (developer) — FIBA 양식 Phase 3 Fouls (2026-05-12)
+
+📝 구현 범위: Player Fouls 1-5 토글 (사용자 결재 §1 (a)) + Team Fouls 자동 합산 (§3 (a)) + 5반칙 행 회색·"퇴장" (§2 (a)) + 5+ Team Fouls toast (§4 (a)) + BFF body schema fouls 확장 + PBP foul event 박제. 사용자 결재 4건 모두 구현.
+
+### 변경 파일
+| 파일 | 변경 | LOC | 신규/수정 |
+|------|------|-----|----------|
+| `src/lib/score-sheet/foul-types.ts` | FoulMark / FoulsState / MAX_PLAYER_FOULS / TEAM_FOUL_FT_THRESHOLD | +45 | 신규 |
+| `src/lib/score-sheet/foul-helpers.ts` | getPlayerFoulCount / getTeamFoulCountByPeriod / isPlayerEjected / shouldAwardFreeThrow / foulsToPBPEvents / addFoul / removeLastFoul (+ PlayerNumberLookup) | +175 | 신규 |
+| `src/app/(score-sheet)/layout.tsx` | ToastProvider mount (`(web)` 외 격리 route group이라 신규 mount) | +10 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | Player Fouls 1-5 활성화 (●○ 토글 + 5반칙 회색 + add/remove 분기) + Team Fouls 자동 합산 (read-only ● 채움 + 5+ FT 영구 표시) | +130 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | FoulsState 추가 / draft 확장 / useToast / handleToggleFoul (add/remove + 5반칙 + 5+ FT toast) | +85 | 수정 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | foulsSchema + foulMarkSchema (optional) + foulsToPBPEvents 호출 → PBP foul event (action_type="foul") → score/foul events 통합 service 호출 + audit context fouls_count 추가 | +90 | 수정 |
+| `src/__tests__/score-sheet/foul-helpers.test.ts` | 24 케이스 (count 3 + team count 3 + ejected 3 + FT 3 + foulsToPBPEvents 5 + addFoul 4 + removeLastFoul 3) | +260 | 신규 |
+
+### toast 라이브러리 결정
+- **사용**: 기존 `src/contexts/toast-context.tsx` ToastProvider 재사용 — (score-sheet) layout 에 mount
+- **사유**: 
+  1. 이미 (web) 에서 동일 컴포넌트 사용 → UX 일관성
+  2. sonner/react-hot-toast 신규 의존성 회피 (운영 안전)
+  3. CSS 변수 + Material Symbols + success/error/info 타입 = score-sheet 룰 정합
+- 신규 패키지 0 / 코드 중복 0
+
+### Player Fouls 마킹 UX (결재 §1 (a))
+- ●●●○○ 토글 채우기 — 1탭 마다 다음 빈 칸 채움
+- TeamSection button onClick = `isNextEmpty` (다음 빈 칸) 또는 `isLastFilled` (마지막 마킹) 만 클릭 가능
+- form 의 `handleToggleFoul(team, playerId, action: "add"|"remove")` 분기
+- 5반칙 도달 후 클릭 시도 = button disabled (이론상 클릭 0, 안전망 toast)
+
+### 5반칙 시각 (결재 §2 (a))
+- 행 배경 = `var(--color-elevated)` / 텍스트 = `var(--color-text-muted)` (회색 톤)
+- starter ◉ / 캡틴 ★ 표시 숨김 (회색 행 가독성)
+- "퇴장" 라벨 + Material Symbols `block` (var(--color-warning))
+- 6번째 시도 차단 = button disabled (TeamSection isNextEmpty 가 false 보장)
+
+### Team Fouls 자동 합산 (결재 §3 (a))
+- read-only — Player Fouls 합산 자동
+- Period 1~4 + Extra (OT 합산) 각 4칸 + 채워진 칸 = `●` (var(--color-accent))
+- 5+ 도달 = `warning` Material Symbol + "FT (+N)" 라벨 영구 표시
+- OT (period 5~7) = 1행 합산 (Extra)
+
+### 5+ FT alert toast (결재 §4 (a))
+- form `handleToggleFoul` add 분기에서 `getTeamFoulCountByPeriod >= 5` 시 toast 발화
+- 메시지: `"자유투 부여 — Team A Period 1 5번째 파울"` (TeamA/B + period + 누적 카운트)
+- type = "info" (info color = `var(--color-info)`) — 기존 ToastProvider 패턴
+- 3초 자동 닫기 / 좌하단 위치
+
+### PBP foul event 박제 룰 (Phase 2 score event 와 동일 패턴)
+- `local_id`: `paper-fix-{uuid}`
+- `description`: `[종이 기록] 선수 N번 PX 파울` (N=등번호, X=period — PII 회피)
+- `action_type`: `"foul"` (live API + 통산 stat 호환 — `fouls` 누적 +1)
+- `points_scored`: 0 (파울 자체는 점수 영향 0)
+- `home_score_at_time` / `away_score_at_time`: 0 (Phase 4+ 자유투 통합 시 보완)
+- service `syncSingleMatch` 가 score + foul events 일괄 박제 (idempotent — local_id 단위 deleteMany NOT IN)
+
+### BFF body schema 확장
+- `fouls.home / fouls.away` (optional) — 미전송 시 기존 호출처 회귀 0
+- score-sheet-submit.test.ts 기존 5 케이스 회귀 0 PASS
+- audit context `fouls_count` 추가
+
+### 검증 결과
+- **tsc**: 0 에러 ✅
+- **vitest**: 30 files / **405 tests PASS** (이전 381 + 신규 24 = +24 / 회귀 0)
+  - 신규 24: getPlayerFoulCount 3 + getTeamFoulCountByPeriod 3 + isPlayerEjected 3 + shouldAwardFreeThrow 3 + foulsToPBPEvents 5 + addFoul 4 + removeLastFoul 3
+  - 기존 score-sheet-submit BFF 5 케이스 회귀 0 ✅ (fouls optional 호환)
+  - running-score-helpers 31 케이스 회귀 0 ✅
+- **grep 회귀 0**:
+  - `BigInt(N)n` 패턴 0건 ✅
+  - `lucide-react` import 0건 (주석 명시만 6건) ✅
+  - 핑크/살몬/코랄 hardcode 0건 ✅
+  - `text-[var(--color-primary)]` 본문 0건 ✅
+- **schema 변경**: 0 ✅
+- **Flutter v1 영향**: 0 ✅
+- **API / BFF 시그니처**: BFF body 확장만 (`fouls` optional) — 회귀 0 ✅
+- **AppNav frozen**: 0 영향 ✅
+
+### 다음 단계 (Phase 4 진입 전 검토)
+- Phase 4 = Time-outs (Team A/B 5칸 + 전반2/후반3/연장1 검증) + settings.timeouts JSON 박제
+- Phase 3 만 별도 PR 권장 (LOC +800 — 검증 안전)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. admin matches → mode=paper 매치 → `/score-sheet/{matchId}` 진입
+  2. TeamSection Players 표 Fouls 1-5 칸 → 빈 칸 클릭 = `●` 마킹 / 마지막 마킹 클릭 = 해제
+  3. Team Fouls Period 1 박스 자동 채움 (●○○○ → ●●○○ → ●●●○ → ●●●● + 5번째부터 "FT (+1)" 표시 + toast)
+  4. 같은 선수 5번 클릭 = 5번째 마킹 후 행 전체 회색 + "퇴장" 라벨 + 6번째 button disabled
+  5. Period 변경 (PeriodScoresSection 좌우 버튼) → 새 파울 마킹은 변경된 period 박제
+  6. localStorage draft = fouls 도 포함 5초 throttle → reload 후 복원
+- **정상 동작**:
+  - 5번째 마킹 시 "5반칙 퇴장 — 추가 파울 박제 차단" toast (info)
+  - 5+ Team Fouls 도달 시 "자유투 부여 — Team A Period 1 5번째 파울" toast (info)
+  - 마지막 마킹 해제 시 "파울 1건 해제" toast (info)
+- **주의할 입력**:
+  - Period 변경 후 마킹 = 변경된 period 에 박제 (currentPeriod 의존)
+  - 같은 선수 5번 모두 다른 period 가능 — UI 표시는 누적 ●●●●● 단순화
+  - OT (period 5+) 파울 = Team Fouls "Extra" 행에 합산 (period 별 분리 X)
+
+⚠️ reviewer 참고:
+- **server-safe lib 위치**: foul-types.ts / foul-helpers.ts = `src/lib/score-sheet/` (server-safe — BFF + vitest 양쪽 import 안전)
+- **ToastProvider mount**: (score-sheet) layout 에 별도 mount — (web) 외 격리 route group 차원 (의존성 없음)
+- **빨강 본문 ❌**: 5반칙 회색 = `var(--color-elevated)` + `var(--color-text-muted)` (빨강 미사용) / "퇴장" 라벨 = `var(--color-warning)` (warning 색 = 기존 캡틴 ★ 동일 패턴)
+- **터치 영역**: Fouls 칸 button 자체 5x5px (FIBA 양식 정합) but `touchAction: manipulation` + `cursor: pointer` 적용 / 추후 modal 확장 검토 가능
+- **add/remove 분기**: TeamSection button onClick 가 `isLastFilled` (해제) / `isNextEmpty` (추가) 만 호출 → form handleToggleFoul 가 action arg 로 분기 (단순 명확)
+- **PBP action_type = "foul"**: live API (live/[id]/route.ts L432) + 통산 stat (fouls) 호환 패턴
+- **Phase 4 진입 시 검토**: Time-outs UI + settings.timeouts JSON 박제 (PBP 미박제 — Flutter v2 와 호환 차원)
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 3]** Player Fouls 1-5 토글 (●●●○○) + Team Fouls 자동 합산 (●●●● + 5+ FT 영구) + 5반칙 회색·"퇴장" + 5+ FT toast (사용자 결재 §1~§4 (a) 4건). 기존 ToastProvider 재사용 (layout mount). BFF fouls optional + PBP foul event (paper-fix prefix, action_type="foul"). vitest 405/405 (+24) / tsc 0. schema·Flutter v1·AppNav 영향 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 2]** Running Score 1-160 grid + PlayerSelectModal 풀스크린 + PeriodScoresSection (Q1~OT 자동 + Final + Winner) + BFF running_score → PaperPBP 변환 → service play_by_plays 박제. server-safe lib 분리. vitest 381/381 (+31) / tsc 0. schema·Flutter v1·AppNav 영향 0. | ✅ |
 | 2026-05-11 | (커밋 대기) | **[FIBA 종이 기록지 Phase 1]** `(score-sheet)` route group + minimal layout + RotationGuard + FibaHeader + TeamSection (Players 12 + Coach) + ScoreSheetForm 골조. 기존 `(web)/score-sheet/` 6 파일 폐기. vitest 350/350 (+9) / tsc 0. URL 동일 / admin link 변경 0 / BFF·service·schema·Flutter v1 변경 0. | ✅ |
 | 2026-05-11 | (기획만) | **[종이 기록지 FIBA 재기획]** 6 Phase + 사용자 결재 7건 + 컴포넌트 트리 (FIBA 1 페이지 A4 세로) + DB 매핑 12 영역. Phase 1 = `(score-sheet)` route group + minimal layout + 헤더 + 명단 (12h 추정). 코드 변경 0 — developer 진입 결재 §1~§7 대기. | ✅ |
@@ -409,4 +516,3 @@ ScoreSheetPage (server / 기존 page.tsx 이전)
 | 2026-05-11 | (커밋 ❌ scripts/_temp) | **[옵션 C Phase A DRY-RUN]** 12 매치 SELECT + PBP 재계산. UPDATE 0. | ✅ |
 | 2026-05-11 | 9793b7f | **[옵션 C Phase B]** score-from-pbp 헬퍼 + live API 3단 fallback. vitest 320/320. | ✅ |
 | 2026-05-11 | (기획만) | **[옵션 C 기획설계]** 6 Phase + 5 결재 + 원영 협의 4. 코드 변경 0. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-B + 3 + rbac]** admin-guard sentinel + referee layout + RoleMatrixCard. vitest 312/312. | ✅ |

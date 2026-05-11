@@ -31,6 +31,7 @@ import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 import { syncSingleMatch, type PlayByPlayInput } from "@/lib/services/match-sync";
 import { marksToPaperPBPInputs } from "@/lib/score-sheet/running-score-helpers";
+import { foulsToPBPEvents } from "@/lib/score-sheet/foul-helpers";
 
 // zod schema — 종이 기록지 제출 input
 // 이유: Phase 2 = running_score 신규. Phase 1 의 quarter_scores 는 호환성 유지 (없으면 running_score 로부터 자동 산출)
@@ -60,6 +61,20 @@ const runningScoreSchema = z.object({
   currentPeriod: z.number().int().min(1).max(7),
 });
 
+// Phase 3 — fouls zod schema
+//   - playerId: bigint string
+//   - period: 1~7 (Q1~Q4 + OT1~OT3)
+//   - 1팀 1매치 = 12선수 × 5파울 = 60건. 안전 룰 200건 (운영 안전)
+const foulMarkSchema = z.object({
+  playerId: z.string().regex(/^\d+$/, "playerId는 BigInt 문자열"),
+  period: z.number().int().min(1).max(7),
+});
+
+const foulsSchema = z.object({
+  home: z.array(foulMarkSchema).max(200),
+  away: z.array(foulMarkSchema).max(200),
+});
+
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
   away_score: z.number().int().min(0).max(199),
@@ -69,6 +84,8 @@ const submitSchema = z.object({
   }),
   // Phase 2 신규 — running_score (optional — 미전송 시 Phase 1 호환 동작 = PBP 박제 0)
   running_score: runningScoreSchema.optional(),
+  // Phase 3 신규 — fouls (optional — 미전송 시 PBP foul event 박제 0)
+  fouls: foulsSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -122,10 +139,15 @@ export async function POST(
 
   const input = parsed.data;
 
-  // 4) Phase 2 — running_score → PBP 변환 (있을 때만)
+  // 4) Phase 2/3 — running_score / fouls → PBP 변환 (있을 때만)
   // 변환 시 tournament_team_id 필요 → match.homeTeamId / awayTeamId 사용 (match SELECT 에 이미 포함)
+  //
+  // PBP 통합 source:
+  //   - score events (Phase 2) + foul events (Phase 3) 모두 한 배열에 합쳐 service 호출
+  //   - service 가 local_id 단위 idempotent (deleteMany NOT IN incoming) — 매번 전체 재박제
   let playByPlays: PlayByPlayInput[] | undefined = undefined;
-  if (input.running_score) {
+  const needsTeamCheck = input.running_score || input.fouls;
+  if (needsTeamCheck) {
     if (!match.homeTeamId || !match.awayTeamId) {
       return apiError(
         "매치에 양 팀이 배정되지 않았습니다. 운영자에게 문의해주세요.",
@@ -133,7 +155,11 @@ export async function POST(
         "TEAMS_NOT_ASSIGNED"
       );
     }
+  }
 
+  // 4-1) Phase 2 — running_score → score events
+  const scoreEvents: PlayByPlayInput[] = [];
+  if (input.running_score) {
     const paperPbps = marksToPaperPBPInputs({
       home: input.running_score.home,
       away: input.running_score.away,
@@ -141,11 +167,11 @@ export async function POST(
     });
 
     // 음수/0 player id 차단 + bigint 변환
-    playByPlays = paperPbps.map((p) => {
+    paperPbps.forEach((p) => {
       const playerIdNum = Number(p.tournament_team_player_id_str);
       const teamIdBig =
         p.team_side === "home" ? match.homeTeamId! : match.awayTeamId!;
-      return {
+      scoreEvents.push({
         local_id: p.local_id,
         tournament_team_player_id: playerIdNum,
         tournament_team_id: Number(teamIdBig),
@@ -175,8 +201,64 @@ export async function POST(
         is_second_chance: false,
         is_from_turnover: false,
         description: p.description,
-      };
+      });
     });
+  }
+
+  // 4-2) Phase 3 — fouls → foul events
+  //
+  // 박제 룰:
+  //   - action_type = "foul" (live API + 통산 stat 호환 — fouls 누적 +1)
+  //   - points_scored = 0 (파울 자체는 점수 영향 없음)
+  //   - description = "[종이 기록] 선수 N번 PX 파울"
+  //   - home_score_at_time / away_score_at_time = 0 (Phase 4+ 자유투 통합 시 보완)
+  const foulEvents: PlayByPlayInput[] = [];
+  if (input.fouls) {
+    const foulPbps = foulsToPBPEvents({
+      home: input.fouls.home,
+      away: input.fouls.away,
+    });
+    foulPbps.forEach((p) => {
+      const playerIdNum = Number(p.tournament_team_player_id_str);
+      const teamIdBig =
+        p.team_side === "home" ? match.homeTeamId! : match.awayTeamId!;
+      foulEvents.push({
+        local_id: p.local_id,
+        tournament_team_player_id: playerIdNum,
+        tournament_team_id: Number(teamIdBig),
+        quarter: p.quarter,
+        game_clock_seconds: 0,
+        shot_clock_seconds: null,
+        action_type: p.action_type,
+        action_subtype: null,
+        is_made: null,
+        points_scored: 0,
+        court_x: null,
+        court_y: null,
+        court_zone: null,
+        shot_distance: null,
+        home_score_at_time: 0,
+        away_score_at_time: 0,
+        assist_player_id: null,
+        rebound_player_id: null,
+        block_player_id: null,
+        steal_player_id: null,
+        fouled_player_id: null,
+        sub_in_player_id: null,
+        sub_out_player_id: null,
+        is_flagrant: false,
+        is_technical: false,
+        is_fastbreak: false,
+        is_second_chance: false,
+        is_from_turnover: false,
+        description: p.description,
+      });
+    });
+  }
+
+  // 통합 — score + foul events 한 배열 (service idempotent — local_id 단위)
+  if (scoreEvents.length > 0 || foulEvents.length > 0) {
+    playByPlays = [...scoreEvents, ...foulEvents];
   }
 
   // 5) service 호출 — 단일 source (Flutter sync 와 동일 path)
@@ -227,10 +309,14 @@ export async function POST(
     // 이유: service 내부 update 시점에는 recordMatchAudit 미호출 (sync route 와 동일 동작 보존 — refactor 회귀 0).
     //   BFF 가 별도 박제 = caller 책임 분리 (Phase 1-B-1 reviewer 의 design 선택).
     const pbpCount = playByPlays?.length ?? 0;
+    const scoreCount = scoreEvents.length;
+    const foulCount = foulEvents.length;
     const auditContext =
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
-      (pbpCount > 0 ? ` / PBP ${pbpCount}건 박제` : "") +
+      (pbpCount > 0
+        ? ` / PBP ${pbpCount}건 (score ${scoreCount} / foul ${foulCount})`
+        : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
 
@@ -248,7 +334,8 @@ export async function POST(
               away_score: input.away_score,
               status: input.status,
               quarter_scores: input.quarter_scores,
-              running_score_count: pbpCount,
+              running_score_count: scoreCount,
+              fouls_count: foulCount,
             },
           } as object,
           changedBy: user.id,
