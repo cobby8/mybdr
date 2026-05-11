@@ -30,6 +30,15 @@ import { PeriodScoresSection } from "./period-scores-section";
 import type { TeamRosterData } from "./team-section-types";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import { EMPTY_RUNNING_SCORE } from "@/lib/score-sheet/running-score-helpers";
+import type { FoulsState } from "@/lib/score-sheet/foul-types";
+import { EMPTY_FOULS } from "@/lib/score-sheet/foul-types";
+import {
+  addFoul,
+  getPlayerFoulCount,
+  getTeamFoulCountByPeriod,
+  removeLastFoul,
+} from "@/lib/score-sheet/foul-helpers";
+import { useToast } from "@/contexts/toast-context";
 
 interface MatchProp {
   id: string;
@@ -71,6 +80,8 @@ interface DraftPayload {
   teamA: TeamSectionInputs;
   teamB: TeamSectionInputs;
   runningScore: RunningScoreState;
+  // Phase 3 — fouls 박제 (mid-game reload 후 파울 마킹 복원)
+  fouls: FoulsState;
   savedAt: string;
 }
 
@@ -87,6 +98,10 @@ export function ScoreSheetForm({
   const [runningScore, setRunningScore] = useState<RunningScoreState>(
     EMPTY_RUNNING_SCORE
   );
+  // Phase 3 — Fouls state (FIBA 1-5 Player Fouls + Team Fouls 자동 합산 source)
+  const [fouls, setFouls] = useState<FoulsState>(EMPTY_FOULS);
+  // toast 알림 — 5반칙 차단 + 5+ FT 자유투 부여 안내
+  const { showToast } = useToast();
 
   // localStorage draft 복원 (mount 1회)
   useEffect(() => {
@@ -110,6 +125,13 @@ export function ScoreSheetForm({
             setRunningScore(rs);
           }
         }
+        // Phase 3 — fouls 복원 (기존 draft 호환: 없으면 EMPTY)
+        if (draft.fouls) {
+          const fs = draft.fouls;
+          if (Array.isArray(fs.home) && Array.isArray(fs.away)) {
+            setFouls(fs);
+          }
+        }
       }
     } catch {
       // 손상된 draft = 무시
@@ -127,6 +149,7 @@ export function ScoreSheetForm({
           teamA,
           teamB,
           runningScore,
+          fouls,
           savedAt: new Date().toISOString(),
         };
         window.localStorage.setItem(
@@ -138,7 +161,7 @@ export function ScoreSheetForm({
       }
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
   function handleAdvancePeriod() {
@@ -152,6 +175,67 @@ export function ScoreSheetForm({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
     }));
+  }
+
+  // Phase 3 — Player Fouls 토글 (사용자 결재 §1 (a) / §2 (a) / §4 (a))
+  //
+  // 이유: TeamSection 의 Fouls 1-5 셀 클릭 시 분기 처리.
+  //   - action="add": 다음 빈 칸 채움 (다음 파울 박제). 5반칙 도달 시 차단 + toast
+  //   - action="remove": 마지막 마킹 1건 해제
+  //   - 5+ Team Fouls 도달 시 자유투 부여 toast (사용자 결재 §4 (a))
+  //   - 5반칙 도달 시 퇴장 안내 toast (사용자 결재 §2 (a))
+  //
+  // 방법: TeamSection button onClick 가 isLastFilled / isNextEmpty 로 add/remove 분기 후 호출.
+  function handleToggleFoul(
+    team: "home" | "away",
+    playerId: string,
+    action: "add" | "remove"
+  ) {
+    if (action === "remove") {
+      setFouls((prev) => {
+        const next = removeLastFoul(prev, team, playerId);
+        if (next !== prev) {
+          showToast("파울 1건 해제", "info");
+        }
+        return next;
+      });
+      return;
+    }
+
+    // action === "add"
+    setFouls((prev) => {
+      const result = addFoul(prev, team, {
+        playerId,
+        period: runningScore.currentPeriod,
+      });
+      if (!result.ok) {
+        // 5반칙 차단 (TeamSection 의 isNextEmpty 가 막아야 하지만 안전망)
+        showToast(result.reason, "error");
+        return prev;
+      }
+      // 마킹 후 합산 — 5반칙 / 5+ FT toast
+      const newTeamFouls =
+        team === "home" ? result.state.home : result.state.away;
+      const newPlayerCount = getPlayerFoulCount(newTeamFouls, playerId);
+      const periodTeamCount = getTeamFoulCountByPeriod(
+        newTeamFouls,
+        runningScore.currentPeriod
+      );
+
+      // 5+ Team Fouls = 자유투 부여 toast (사용자 결재 §4 (a))
+      if (periodTeamCount >= 5) {
+        const teamLabel = team === "home" ? "Team A" : "Team B";
+        showToast(
+          `자유투 부여 — ${teamLabel} Period ${runningScore.currentPeriod} ${periodTeamCount}번째 파울`,
+          "info"
+        );
+      }
+      // 5번째 파울 도달 = 퇴장 안내 (사용자 결재 §2 (a))
+      if (newPlayerCount === 5) {
+        showToast(`5반칙 퇴장 — 추가 파울 박제 차단`, "info");
+      }
+      return result.state;
+    });
   }
 
   return (
@@ -179,6 +263,11 @@ export function ScoreSheetForm({
             players={homeRoster.players}
             values={teamA}
             onChange={setTeamA}
+            fouls={fouls.home}
+            onToggleFoul={(playerId, action) =>
+              handleToggleFoul("home", playerId, action)
+            }
+            currentPeriod={runningScore.currentPeriod}
           />
           <TeamSection
             sideLabel="Team B"
@@ -186,6 +275,11 @@ export function ScoreSheetForm({
             players={awayRoster.players}
             values={teamB}
             onChange={setTeamB}
+            fouls={fouls.away}
+            onToggleFoul={(playerId, action) =>
+              handleToggleFoul("away", playerId, action)
+            }
+            currentPeriod={runningScore.currentPeriod}
           />
         </div>
 
