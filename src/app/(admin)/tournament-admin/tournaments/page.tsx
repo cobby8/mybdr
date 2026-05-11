@@ -44,8 +44,8 @@ export default async function TournamentAdminTournamentsPage() {
 
       {tournaments.length > 0 ? (
         <div className="space-y-3">
+          {/* 2026-05-12 — <Link><Card> link color cascade 차단: 명시 색 박제 */}
           {tournaments.map((t) => (
-            {/* 2026-05-12 — <Link><Card> link color cascade 차단: 명시 색 박제 */}
             <Link
               key={t.id}
               href={`/tournament-admin/tournaments/${t.id}`}
