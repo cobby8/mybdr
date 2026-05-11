@@ -31,17 +31,28 @@
 
 import type { ChangeEvent } from "react";
 import type { RosterItem } from "./team-section-types";
-import type { FoulMark } from "@/lib/score-sheet/foul-types";
+import type { FoulMark, FoulType } from "@/lib/score-sheet/foul-types";
 import {
   getPlayerFoulCount,
   getTeamFoulCountByPeriod,
-  isPlayerEjected,
+  getEjectionReason,
 } from "@/lib/score-sheet/foul-helpers";
-import { MAX_PLAYER_FOULS } from "@/lib/score-sheet/foul-types";
+
+// Phase 3.5 — 파울 종류별 글자 색상 (P=text-primary / T=warning / U=accent / D=primary)
+// 이유: P/T/U/D 약자를 칸 안에 직접 표시 — 종류별 색 차이로 한눈에 인지.
+//   D = primary 빨강 (위험 액션 = 빨강 예외 허용 / 본문 텍스트 X)
+const FOUL_TYPE_COLOR: Record<FoulType, string> = {
+  P: "var(--color-text-primary)",
+  T: "var(--color-warning)",
+  U: "var(--color-accent)",
+  D: "var(--color-primary)",
+};
 
 export interface TeamSectionPlayerState {
   // 키 = tournamentTeamPlayerId (string)
-  licence: string; // Licence no. (settings JSON 박제)
+  // Phase 3.5 — licence 필드는 더 이상 사용자 입력 X (User.id 자동 fill).
+  //   draft 호환 위해 필드 유지하되 UI 에서 미노출.
+  licence: string;
   playerIn: boolean; // 출전 여부 마킹
   // Phase 3 — fouls 는 FoulsState (props.fouls) 로 분리. 본 state 에는 미포함.
 }
@@ -63,10 +74,11 @@ interface TeamSectionProps {
   disabled?: boolean;
   // Phase 3 — 파울 상태 (이 팀 전용 FoulMark[] — home/away 한쪽만 전달)
   fouls: FoulMark[];
-  // Phase 3 — 파울 토글 콜백
-  //   - action="add" → 다음 빈 칸 채움 (caller 가 5반칙 차단 + 5+ FT alert)
-  //   - action="remove" → 마지막 마킹 1건 해제
-  onToggleFoul: (playerId: string, action: "add" | "remove") => void;
+  // Phase 3.5 — 파울 추가 요청 (다음 빈 칸 클릭) — caller 가 FoulTypeModal open 처리
+  //   - 모달에서 종류 선택 후 caller 가 addFoul 호출
+  onRequestAddFoul: (playerId: string) => void;
+  // Phase 3.5 — 파울 마지막 1건 해제 (마지막 마킹 칸 클릭)
+  onRequestRemoveFoul: (playerId: string) => void;
   // 현재 진행 Period (Player Fouls 마킹 시점 기록용 — Running Score 와 같은 값)
   currentPeriod: number;
 }
@@ -92,7 +104,8 @@ export function TeamSection({
   onChange,
   disabled,
   fouls,
-  onToggleFoul,
+  onRequestAddFoul,
+  onRequestRemoveFoul,
   currentPeriod,
 }: TeamSectionProps) {
   // 선수 행 (12 보장)
@@ -284,8 +297,9 @@ export function TeamSection({
               <th
                 className="w-20 px-1 py-1 text-left text-[10px] font-semibold uppercase"
                 style={{ color: "var(--color-text-muted)" }}
+                title="Licence = User ID (자동 fill)"
               >
-                Licence
+                Licence (UID)
               </th>
               <th
                 className="px-1 py-1 text-left text-[10px] font-semibold uppercase"
@@ -338,12 +352,21 @@ export function TeamSection({
                 playerIn: false,
               };
 
-              // Phase 3 — 파울 카운트 + 5반칙(퇴장) 판정
+              // Phase 3 — 파울 카운트 + Phase 3.5 Article 41 퇴장 판정
               const foulCount = getPlayerFoulCount(
                 fouls,
                 p.tournamentTeamPlayerId
               );
-              const ejected = isPlayerEjected(fouls, p.tournamentTeamPlayerId);
+              const ejection = getEjectionReason(
+                fouls,
+                p.tournamentTeamPlayerId
+              );
+              const ejected = ejection.ejected;
+              // Phase 3.5 — 해당 선수의 파울 마킹 순서대로 type 배열 (UI 칸 표시용)
+              //   예: [P, P, T, U] → 칸 1=P / 칸 2=P / 칸 3=T / 칸 4=U
+              const playerFoulMarks = fouls.filter(
+                (f) => f.playerId === p.tournamentTeamPlayerId
+              );
 
               return (
                 <tr
@@ -364,26 +387,21 @@ export function TeamSection({
                       : `${p.displayName}`
                   }
                 >
-                  {/* Licence no. (text) — settings JSON 박제 */}
+                  {/* Phase 3.5 — Licence = User.id 자동 fill (Read-only).
+                      이유: 사용자 결재 §3 — 운영자 입력 부담 0, User.id 가 영구 식별자.
+                      미연결 (게스트) 선수 = "—" 표시. */}
                   <td className="px-1 py-1">
-                    <input
-                      type="text"
-                      value={state.licence}
-                      onChange={(e) =>
-                        updatePlayer(p.tournamentTeamPlayerId, {
-                          licence: e.target.value,
-                        })
-                      }
-                      disabled={disabled}
-                      maxLength={20}
-                      className="w-full bg-transparent text-xs focus:outline-none disabled:opacity-50"
+                    <span
+                      className="block w-full text-xs font-mono"
                       style={{
                         color: ejected
                           ? "var(--color-text-muted)"
                           : "var(--color-text-primary)",
                       }}
-                      aria-label={`${p.displayName} licence`}
-                    />
+                      aria-label={`${p.displayName} licence ${p.userId ?? "미연결"}`}
+                    >
+                      {p.userId ?? "—"}
+                    </span>
                   </td>
                   {/* 선수명 — read-only / 사전 라인업 starter ◉ + 캡틴 ★ + 5반칙 시 "퇴장" 안내 */}
                   <td className="px-1 py-1">
@@ -404,12 +422,13 @@ export function TeamSection({
                         ★
                       </span>
                     )}
-                    {/* 5반칙 퇴장 안내 — Material Symbols `block` + 텍스트 */}
-                    {ejected && (
+                    {/* Phase 3.5 — Article 41 퇴장 안내 (사유 분기).
+                        Material Symbols `block` + 사유 라벨 (5반칙/T2/U2/D 즉시) */}
+                    {ejected && ejection.reason && (
                       <span
                         className="ml-1 inline-flex items-center gap-0.5 text-[10px] font-semibold"
                         style={{ color: "var(--color-warning)" }}
-                        aria-label="5반칙 퇴장"
+                        aria-label={`퇴장 사유 ${ejection.reason}`}
                       >
                         <span
                           className="material-symbols-outlined text-[12px]"
@@ -417,7 +436,13 @@ export function TeamSection({
                         >
                           block
                         </span>
-                        퇴장
+                        {ejection.reason === "5_fouls"
+                          ? "5반칙"
+                          : ejection.reason === "2_technical"
+                            ? "T×2"
+                            : ejection.reason === "2_unsportsmanlike"
+                              ? "U×2"
+                              : "D 퇴장"}
                       </span>
                     )}
                   </td>
@@ -445,53 +470,55 @@ export function TeamSection({
                       />
                     </label>
                   </td>
-                  {/* Fouls 1-5 — 토글 마킹 (사용자 결재 §1 (a)) */}
-                  {/* UX:
-                        - 빈 칸 클릭 = 다음 빈 칸 채움 (add)
-                        - 가장 우측 마킹 (마지막) 클릭 = 해제 (remove)
-                        - 5반칙 후 셀 클릭 = 차단 (caller toast)
-                  */}
+                  {/* Phase 3.5 — Fouls 1-5 칸 = P/T/U/D 글자 직접 표시.
+                      UX:
+                        - 빈 칸 클릭 → caller 가 FoulTypeModal open (종류 선택 후 추가)
+                        - 마지막 마킹 칸 클릭 → 1건 해제
+                        - Article 41 퇴장 도달 시 추가 차단 (단 마지막 칸 해제 허용)
+                      MAX_PLAYER_FOULS 상한 폐기 — Article 41 합산 ≥ 5 차단으로 대체 */}
                   <td className="px-1 py-1">
                     <div className="flex justify-center gap-0.5">
                       {[1, 2, 3, 4, 5].map((n) => {
-                        const filled = foulCount >= n;
+                        // 해당 칸 위치의 파울 마킹 (있으면 type 추출)
+                        const mark =
+                          n <= foulCount ? playerFoulMarks[n - 1] : null;
+                        const filled = mark !== null;
                         const isLastFilled = filled && n === foulCount;
-                        // 다음 빈 칸 = 다음 클릭 시 채워질 위치
                         const isNextEmpty = !filled && n === foulCount + 1;
+                        // 종류별 색상 (filled 만)
+                        const typeColor = mark
+                          ? FOUL_TYPE_COLOR[mark.type]
+                          : "var(--color-text-muted)";
                         return (
                           <button
                             key={n}
                             type="button"
                             onClick={() => {
                               if (disabled) return;
-                              // 5반칙(퇴장) 도달 후 6번째 시도 = caller toast 차단 처리
+                              // 퇴장 도달 후 6번째 칸 클릭 = 차단 (마지막 칸 해제는 허용)
                               if (ejected && !isLastFilled) {
-                                // 마지막 마킹(5번째) 해제는 허용 / 그 외 셀 = 무반응
-                                // (이론상 다 채움 5건이면 isNextEmpty=false 라 add 호출 0)
                                 return;
                               }
                               if (isLastFilled) {
-                                // 마지막 1건 해제
-                                onToggleFoul(p.tournamentTeamPlayerId, "remove");
+                                onRequestRemoveFoul(p.tournamentTeamPlayerId);
                               } else if (isNextEmpty) {
-                                // 다음 빈 칸 채움
-                                onToggleFoul(p.tournamentTeamPlayerId, "add");
+                                // 모달 open 요청 (종류 선택 후 caller 가 addFoul)
+                                onRequestAddFoul(p.tournamentTeamPlayerId);
                               }
-                              // 그 외 (중간 빈 칸, 중간 마킹) = 무반응
                             }}
                             disabled={
                               disabled || (!isLastFilled && !isNextEmpty)
                             }
-                            // 터치 영역 — 칸은 작지만 button 자체 클릭 영역 + touchAction
-                            className="flex h-5 w-5 items-center justify-center text-[9px] disabled:cursor-default"
+                            // 칸 = 5x5 작지만 버튼 자체 클릭 영역 + touchAction
+                            className="flex h-5 w-5 items-center justify-center text-[10px] font-bold disabled:cursor-default"
                             style={{
                               border: "1px solid var(--color-border)",
                               backgroundColor: filled
-                                ? "var(--color-accent)"
+                                ? "color-mix(in srgb, " +
+                                  typeColor +
+                                  " 18%, transparent)"
                                 : "transparent",
-                              color: filled
-                                ? "var(--color-on-accent, #fff)"
-                                : "var(--color-text-muted)",
+                              color: filled ? typeColor : "var(--color-text-muted)",
                               cursor:
                                 isLastFilled || isNextEmpty
                                   ? "pointer"
@@ -499,13 +526,13 @@ export function TeamSection({
                               touchAction: "manipulation",
                             }}
                             aria-label={
-                              filled
-                                ? `${p.displayName} ${n}번째 파울 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
-                                : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (다음 클릭 시 마킹)" : ""}`
+                              mark
+                                ? `${p.displayName} ${n}번째 파울 ${mark.type} 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                                : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (클릭 시 종류 선택)" : ""}`
                             }
                             title={`Period ${currentPeriod} 마킹`}
                           >
-                            {filled ? "●" : n}
+                            {mark ? mark.type : n}
                           </button>
                         );
                       })}

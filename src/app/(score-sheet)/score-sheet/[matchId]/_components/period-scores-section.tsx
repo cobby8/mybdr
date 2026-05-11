@@ -33,6 +33,9 @@ interface PeriodScoresSectionProps {
   // Period 변경 핸들러 (Phase 4 통합 전 임시 — 다음 Period 토글)
   onAdvancePeriod?: () => void;
   onRetreatPeriod?: () => void;
+  // Phase 3.5 — "쿼터 종료" 명시적 액션 (currentPeriod 이상 + toast 호출)
+  //   onAdvancePeriod 와 동일 동작이지만 caller 가 toast 분기
+  onEndPeriod?: () => void;
   disabled?: boolean;
 }
 
@@ -42,6 +45,7 @@ export function PeriodScoresSection({
   awayTeamName,
   onAdvancePeriod,
   onRetreatPeriod,
+  onEndPeriod,
   disabled,
 }: PeriodScoresSectionProps) {
   // Period 별 합산
@@ -149,30 +153,63 @@ export function PeriodScoresSection({
           <tbody>
             {lines.map((line) => {
               const isCurrent = line.period === state.currentPeriod;
+              // Phase 3.5 — 종료된 Period (currentPeriod 미만) = 회색 강조
+              const isEnded = line.period < state.currentPeriod;
               return (
                 <tr
                   key={line.period}
                   style={{
                     backgroundColor: isCurrent
                       ? "color-mix(in srgb, var(--color-accent) 12%, transparent)"
-                      : "transparent",
+                      : isEnded
+                        ? "var(--color-surface)"
+                        : "transparent",
+                    color: isEnded ? "var(--color-text-muted)" : undefined,
                   }}
                 >
                   <td
                     className="px-1 py-1 font-medium text-[var(--color-text-primary)]"
-                    style={{ borderBottom: "1px solid var(--color-border)" }}
+                    style={{
+                      borderBottom: "1px solid var(--color-border)",
+                      color: isEnded
+                        ? "var(--color-text-muted)"
+                        : "var(--color-text-primary)",
+                    }}
                   >
                     {periodLabel(line.period)}
+                    {/* Phase 3.5 — 종료 마크 (체크) */}
+                    {isEnded && (
+                      <span
+                        className="ml-1 material-symbols-outlined text-[12px]"
+                        style={{
+                          color: "var(--color-success)",
+                          verticalAlign: "middle",
+                        }}
+                        aria-label="Period 종료"
+                      >
+                        check
+                      </span>
+                    )}
                   </td>
                   <td
-                    className="px-1 py-1 text-center font-mono text-[var(--color-text-primary)]"
-                    style={{ borderBottom: "1px solid var(--color-border)" }}
+                    className="px-1 py-1 text-center font-mono"
+                    style={{
+                      borderBottom: "1px solid var(--color-border)",
+                      color: isEnded
+                        ? "var(--color-text-muted)"
+                        : "var(--color-text-primary)",
+                    }}
                   >
                     {line.homePoints}
                   </td>
                   <td
-                    className="px-1 py-1 text-center font-mono text-[var(--color-text-primary)]"
-                    style={{ borderBottom: "1px solid var(--color-border)" }}
+                    className="px-1 py-1 text-center font-mono"
+                    style={{
+                      borderBottom: "1px solid var(--color-border)",
+                      color: isEnded
+                        ? "var(--color-text-muted)"
+                        : "var(--color-text-primary)",
+                    }}
                   >
                     {line.awayPoints}
                   </td>
@@ -181,6 +218,36 @@ export function PeriodScoresSection({
             })}
           </tbody>
         </table>
+
+        {/* Phase 3.5 — 쿼터 종료 큰 버튼 (44px+ 터치).
+            클릭 시 currentPeriod++ + toast (caller 가 분기). Q4 종료 후 OT 진입 가능.
+            7 (OT3) 도달 시 비활성화 — 더 이상 진행 불가 */}
+        {onEndPeriod && (
+          <div
+            className="px-2 py-2"
+            style={{ borderTop: "1px solid var(--color-border)" }}
+          >
+            <button
+              type="button"
+              onClick={onEndPeriod}
+              disabled={disabled || state.currentPeriod >= 7}
+              className="flex w-full items-center justify-center gap-1 rounded-[4px] py-2 text-sm font-semibold disabled:opacity-40"
+              style={{
+                border: "1px solid var(--color-accent)",
+                backgroundColor:
+                  "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+                color: "var(--color-accent)",
+                touchAction: "manipulation",
+              }}
+              aria-label={`현재 ${periodLabel(state.currentPeriod)} 종료`}
+            >
+              <span className="material-symbols-outlined text-base">
+                stop_circle
+              </span>
+              {periodLabel(state.currentPeriod)} 종료
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Final Score + Winner */}
