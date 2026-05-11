@@ -806,19 +806,101 @@ export default function TournamentTeamsPage() {
                     )}
                     {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
                   </p>
-                  {expandedTeam.groupName && (
-                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                      조 {expandedTeam.groupName} · 시드 {expandedTeam.seedNumber ?? "-"}
-                    </p>
-                  )}
-                  {/* 5. 마지막 갱신 시각 */}
-                  {token?.updatedAt && (
-                    <p className="mt-0.5 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                      마지막 갱신: {formatUpdatedAt(token.updatedAt)}
-                    </p>
-                  )}
+                  {/* 조 · 시드 변경 — Phase 3-F 옵션 A 후속: 시드 input 추가 */}
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
+                    {expandedTeam.groupName && <span>조 {expandedTeam.groupName}</span>}
+                    <label className="flex items-center gap-1 no-print">
+                      <span>시드</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        defaultValue={expandedTeam.seedNumber ?? ""}
+                        onBlur={(e) => {
+                          const v = e.target.value ? Number(e.target.value) : null;
+                          if (v !== (expandedTeam.seedNumber ?? null)) updateSeed(expandedTeam.id, v);
+                        }}
+                        className="w-14 rounded-[4px] border px-2 py-0.5 text-xs focus:outline-none focus:ring-1"
+                        style={{
+                          borderColor: "var(--color-border)",
+                          background: "var(--color-card)",
+                          color: "var(--color-text-primary)",
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {/* 5. 토큰 만료일 + 마지막 갱신 시각 (코치 입력 완료 = applied_via='coach_token') */}
+                  <div className="mt-0.5 flex flex-wrap gap-3 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                    {token?.applyTokenExpiresAt && (
+                      <span>
+                        토큰 만료: {new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR")}
+                      </span>
+                    )}
+                    {token?.updatedAt && (
+                      <span>
+                        {token.appliedVia === "coach_token" ? "코치 입력" : "마지막 갱신"}: {formatUpdatedAt(token.updatedAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2 no-print">
+                  {/* 1. URL 복사 버튼 */}
+                  {token?.applyTokenUrl && (
+                    <button
+                      type="button"
+                      onClick={() => copyTokenUrl(token.applyTokenUrl)}
+                      className="btn btn--sm"
+                      title={`토큰 만료: ${token.applyTokenExpiresAt ? new Date(token.applyTokenExpiresAt).toLocaleDateString("ko-KR") : "-"}`}
+                    >
+                      <span className="material-symbols-outlined text-base align-middle mr-1">content_copy</span>
+                      URL 복사
+                    </button>
+                  )}
+                  {/* 2. 승인 / 거절 액션 (status 분기) */}
+                  {expandedTeam.status === "pending" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(expandedTeam.id, "approved")}
+                        disabled={actionLoading === expandedTeam.id}
+                        className="btn btn--sm"
+                        style={{ background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }}
+                      >
+                        승인
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateStatus(expandedTeam.id, "rejected")}
+                        disabled={actionLoading === expandedTeam.id}
+                        className="btn btn--sm"
+                        style={{ background: "var(--color-error)", color: "#fff", borderColor: "var(--color-error)" }}
+                      >
+                        거절
+                      </button>
+                    </>
+                  )}
+                  {expandedTeam.status === "approved" && (
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(expandedTeam.id, "rejected")}
+                      disabled={actionLoading === expandedTeam.id}
+                      className="btn btn--sm"
+                      style={{ color: "var(--color-error)", borderColor: "var(--color-error)" }}
+                    >
+                      거절로 변경
+                    </button>
+                  )}
+                  {expandedTeam.status === "rejected" && (
+                    <button
+                      type="button"
+                      onClick={() => updateStatus(expandedTeam.id, "approved")}
+                      disabled={actionLoading === expandedTeam.id}
+                      className="btn btn--sm"
+                      style={{ color: "var(--color-success)", borderColor: "var(--color-success)" }}
+                    >
+                      승인으로 변경
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => window.print()}
