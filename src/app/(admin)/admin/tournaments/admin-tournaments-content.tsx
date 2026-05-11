@@ -5,6 +5,7 @@
 // - 페이지 크기 / 페이지네이션 → .btn .btn--sm
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import {
@@ -273,6 +274,14 @@ export function AdminTournamentsContent({
           title={selected.name}
           actions={
             <div className="flex flex-col gap-2">
+              {/* 신청서 관리 — 2026-05-11 Phase 1 페이지로 진입 (auto IA 통합) */}
+              <Link
+                href={`/admin/tournaments/${selected.id}/teams`}
+                className="btn btn--primary btn--sm"
+                style={{ textAlign: "center" }}
+              >
+                신청서 관리
+              </Link>
               {/* 공개/비공개 토글 */}
               <form action={toggleVisibilityAction} className="flex items-center gap-2">
                 <input type="hidden" name="tournament_id" value={selected.id} />
