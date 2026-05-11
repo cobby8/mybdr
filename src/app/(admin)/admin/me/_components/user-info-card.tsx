@@ -112,9 +112,11 @@ export function UserInfoCard({ user }: UserInfoCardProps) {
           </div>
 
           {/* UID — 작게 (디버그용) */}
+          {/* 2026-05-11 Phase 2 Minor 1 fix (reviewer 권고) — --color-text-tertiary 미정의 토큰 →
+              --color-text-secondary 직접 사용 통일. 토큰 폭증 방지. */}
           <div
             className="mt-2 text-xs font-mono"
-            style={{ color: "var(--color-text-tertiary, var(--color-text-secondary))" }}
+            style={{ color: "var(--color-text-secondary)" }}
           >
             UID: {user.id.toString()}
           </div>

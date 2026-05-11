@@ -37,15 +37,27 @@ export type AdminRole =
   | "org_member";
 
 // 토너먼트별 권한 (마이페이지 카드 표시용)
+// 2026-05-11 Phase 2 — status / startDate / endDate / format 추가 (관리 토너먼트 카드 분류용)
+// 기존 Phase 1 필드 (tournamentId / tournamentName / role) 는 그대로 — 회귀 0 보장.
 export interface TournamentAdminEntry {
   tournamentId: string;
   tournamentName: string | null;
   role: string; // "admin" / "manager" 등 (tournament_admin_members.role)
+  // Phase 2 확장 — 옵셔널 (회귀 가드). 기존 호출자는 status undefined 로 받음 → 영향 0
+  tournamentStatus?: string | null;
+  tournamentStartDate?: Date | null;
+  tournamentEndDate?: Date | null;
+  tournamentFormat?: string | null;
 }
 
 export interface TournamentRecorderEntry {
   tournamentId: string;
   tournamentName: string | null;
+  // Phase 2 확장 — 옵셔널
+  tournamentStatus?: string | null;
+  tournamentStartDate?: Date | null;
+  tournamentEndDate?: Date | null;
+  tournamentFormat?: string | null;
 }
 
 // 파트너 / 단체 소속 (마이페이지 카드 표시용 — null 이면 미소속)
@@ -133,24 +145,44 @@ export const getAdminRoles = cache(
 
     try {
       const [tamRows, recorderRows, partnerRow, orgRow] = await Promise.all([
-        // 토너먼트별 운영 권한 — JOIN Tournament(name)
+        // 토너먼트별 운영 권한 — JOIN Tournament(name + status + startDate + endDate + format)
+        // 2026-05-11 Phase 2: take 51 (50 상한 + 1 도달 안내) / status/startDate/endDate/format 추가
+        // 사유: 관리 토너먼트 카드에서 진행 중/예정/완료 분류 + 50 상한 도달 시 UI 안내.
         prisma.tournamentAdminMember.findMany({
           where: { userId, isActive: true },
           select: {
             tournamentId: true,
             role: true,
-            tournament: { select: { name: true } },
+            tournament: {
+              select: {
+                name: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                format: true,
+              },
+            },
           },
-          take: 50, // 안전 상한 — 50+ 토너먼트 케이스는 Phase 2 펼치기 UX
+          take: 51, // 51 = 50 + 1 → length === 51 이면 "상한 도달" 안내
+          orderBy: { createdAt: "desc" }, // 최근 위임 우선 표시
         }),
-        // 토너먼트별 기록원 권한 — JOIN Tournament(name)
+        // 토너먼트별 기록원 권한 — JOIN Tournament(name + status + startDate + endDate + format)
         prisma.tournament_recorders.findMany({
           where: { recorderId: userId, isActive: true },
           select: {
             tournamentId: true,
-            tournament: { select: { name: true } },
+            tournament: {
+              select: {
+                name: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                format: true,
+              },
+            },
           },
-          take: 50,
+          take: 51,
+          orderBy: { createdAt: "desc" },
         }),
         // 파트너 소속 — JOIN partners(name) (다중 케이스 우선 첫 건)
         prisma.partner_members.findFirst({
@@ -173,15 +205,24 @@ export const getAdminRoles = cache(
       ]);
 
       // 토너먼트별 운영 권한 매핑 — bigint → 직렬화 가능 / null name 안전
+      // 2026-05-11 Phase 2: tournament status/startDate/endDate/format 도 매핑
       tournamentAdminMembers = tamRows.map((r) => ({
         tournamentId: r.tournamentId,
         tournamentName: r.tournament?.name ?? null,
         role: r.role,
+        tournamentStatus: r.tournament?.status ?? null,
+        tournamentStartDate: r.tournament?.startDate ?? null,
+        tournamentEndDate: r.tournament?.endDate ?? null,
+        tournamentFormat: r.tournament?.format ?? null,
       }));
 
       tournamentRecorders = recorderRows.map((r) => ({
         tournamentId: r.tournamentId,
         tournamentName: r.tournament?.name ?? null,
+        tournamentStatus: r.tournament?.status ?? null,
+        tournamentStartDate: r.tournament?.startDate ?? null,
+        tournamentEndDate: r.tournament?.endDate ?? null,
+        tournamentFormat: r.tournament?.format ?? null,
       }));
 
       // partner — bigint id → string 직렬화 (마이페이지 표시용)

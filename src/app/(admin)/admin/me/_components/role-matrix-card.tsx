@@ -92,6 +92,8 @@ function BooleanRow({
 }
 
 // 토너먼트별 권한 리스트 섹션
+// 2026-05-11 Phase 2 Minor 3 fix — take 51 상한 도달 시 안내 메시지 표시
+// items.length === 51 이면 표시는 50개로 잘라내고 "+1건 이상 더 있음" 안내.
 function TournamentList({
   title,
   description,
@@ -109,7 +111,11 @@ function TournamentList({
   emptyText: string;
   roleAccessor?: (item: { role?: string }) => string;
 }) {
-  const hasItems = items.length > 0;
+  // 상한 도달 검출 — admin-roles take: 51 (50 + 1) 패턴
+  const TAKE_LIMIT = 50;
+  const isTruncated = items.length > TAKE_LIMIT;
+  const visibleItems = isTruncated ? items.slice(0, TAKE_LIMIT) : items;
+  const hasItems = visibleItems.length > 0;
   return (
     <div
       className="rounded-md border p-3"
@@ -145,7 +151,8 @@ function TournamentList({
                 className="ml-2 text-xs"
                 style={{ color: "var(--color-primary)" }}
               >
-                ({items.length}개)
+                ({visibleItems.length}
+                {isTruncated ? "+" : ""}개)
               </span>
             )}
           </div>
@@ -160,36 +167,57 @@ function TournamentList({
 
       {/* 리스트 (있을 때만) */}
       {hasItems ? (
-        <ul className="mt-3 space-y-1.5">
-          {items.map((item) => (
-            <li
-              key={item.tournamentId}
-              className="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs"
-              style={{
-                borderColor: "var(--color-border)",
-                backgroundColor: "var(--color-surface)",
-              }}
+        <>
+          <ul className="mt-3 space-y-1.5">
+            {visibleItems.map((item) => (
+              <li
+                key={item.tournamentId}
+                className="flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs"
+                style={{
+                  borderColor: "var(--color-border)",
+                  backgroundColor: "var(--color-surface)",
+                }}
+              >
+                <span
+                  className="truncate"
+                  style={{ color: "var(--color-text-primary)" }}
+                >
+                  {item.tournamentName ?? "(이름 없음)"}
+                </span>
+                {roleAccessor && (
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap"
+                    style={{
+                      backgroundColor: "var(--color-primary)",
+                      color: "white",
+                    }}
+                  >
+                    {roleAccessor(item)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* 상한 도달 안내 — Phase 2 Minor 3 fix */}
+          {isTruncated && (
+            <div
+              className="mt-2 flex items-center gap-1 text-xs"
+              style={{ color: "var(--color-text-secondary)" }}
             >
               <span
-                className="truncate"
-                style={{ color: "var(--color-text-primary)" }}
+                className="material-symbols-outlined"
+                style={{ fontSize: 14 }}
               >
-                {item.tournamentName ?? "(이름 없음)"}
+                info
               </span>
-              {roleAccessor && (
-                <span
-                  className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap"
-                  style={{
-                    backgroundColor: "var(--color-primary)",
-                    color: "white",
-                  }}
-                >
-                  {roleAccessor(item)}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+              <span>
+                표시 상한 {TAKE_LIMIT}건 — 더 많은 권한이 있을 수 있습니다.
+                운영자에게 문의하세요.
+              </span>
+            </div>
+          )}
+        </>
       ) : (
         <div
           className="mt-2 text-xs"
