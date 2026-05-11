@@ -1,213 +1,321 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 토너먼트 경기 종료 시 score sync 누락 버그 — 옵션 C 근본 해결
-- **상태**: Phase B + Phase A + **Phase C 완료** — Phase D 결재 대기
+- **요청**: 종이 기록지 전면 재기획 — FIBA SCORESHEET 양식 그대로 + 태블릿 세로 모드 + 풀스크린
+- **상태**: 기획설계 완료 — **사용자 결재 7건 대기** (developer 진입 전)
 - **모드**: no-stop
 
-## 진행 현황표 (옵션 C 6 Phase)
-| Phase | 범위 | 상태 |
+## 진행 현황표 (FIBA 양식 6 Phase)
+| Phase | 범위 | 우선 | 상태 |
+|------|------|------|------|
+| 1 | `(score-sheet)` route group + minimal layout + 헤더 + 양 팀 명단 | ⭐⭐⭐ | ⏳ |
+| 2 | **Running Score 1-160 시계열 grid** + Period 자동 합산 + Final + Winner | ⭐⭐⭐ | ⏳ |
+| 3 | Team Fouls + Player Fouls (1-5) + 5반칙 alert + 5+ FT 안내 | ⭐⭐ | ⏳ |
+| 4 | Time-outs (Team A/B + 전반2/후반3/연장1 검증) | ⭐⭐ | ⏳ |
+| 5 | 서명 영역 (Scorer/Timer/Referee/Captain) + 매치 종료 토글 + 제출 | ⭐ | ⏳ |
+| 6 | A4 세로 인쇄 PDF 출력 (jsPDF + html2canvas) | ⭐ | ⏳ |
+
+## 기획설계 (planner-architect) — 종이 기록지 FIBA 양식 재기획 (2026-05-11)
+
+🎯 목표: FIBA SCORESHEET 표준 양식 (1 페이지 A4 세로) 그대로 화면에 재현 + 태블릿 세로 모드 터치 입력 최적화 + 풀스크린 (사이트 헤더 제거).
+
+### A. 현재 Phase 1 구현 재활용 매트릭스
+
+| 자산 | 재사용 / 폐기 | 비고 |
+|------|-----------|------|
+| BFF `/api/web/score-sheet/[matchId]/submit` | ⭐ 재사용 | body schema 확장 (player_stats / play_by_plays / settings.* 추가) |
+| service `syncSingleMatch` + `existingMatch` 패턴 | ⭐ 재사용 | player_stats / play_by_plays 인자 활용 (Running Score) |
+| 권한 헬퍼 `requireScoreSheetAccess` | ⭐ 재사용 | 변경 0 |
+| 사전 라인업 자동 import (`MatchLineupConfirmed` + TTP fallback) | ⭐ 재사용 | 변경 0 |
+| 모드 게이팅 `getRecordingMode` / `assertRecordingMode` | ⭐ 재사용 | 변경 0 |
+| audit `source="web-score-sheet"` | ⭐ 재사용 | context 확장 (running_score 박제 사유 포함) |
+| `score-sheet-header.tsx` | 부분 재사용 | FIBA 양식 라벨 정합 (Competition/Date/Time/Game No/Place/Referee/Umpires) |
+| `team-roster.tsx` | 부분 재사용 | FIBA Players 표 (Licence/이름/No/Player in/Fouls 1-5) 로 재설계 |
+| `quarter-score-grid.tsx` | ❌ 폐기 | Running Score 자동 합산으로 대체. Period Score 는 자동 계산 표시만 |
+| `submit-bar.tsx` | 부분 재사용 | FIBA 룰 검증 확장 (5반칙 / Team fouls 5+ FT / 동점 OT 룰) |
+| `score-sheet-form.tsx` | 전면 재설계 | FIBA 1 페이지 레이아웃 그대로 (좌 명단/팀파울/타임아웃 + 우 Running Score + 하 서명) |
+| 22 stat 표 (기존 기획 Phase 2) | ❌ 폐기 | FIBA 표준 X / 자동 집계 영역 (PBP 로부터) |
+| localStorage draft (5초 throttle) | ⭐ 재사용 | key prefix 그대로 |
+| 모바일 가드 (720px 미만) | 변경 | "세로 모드로 회전해주세요" 가이드 화면으로 재설계 |
+
+### B. 신규 페이지 구조
+
+#### URL / Layout
+- **route group 변경**: `(web)/score-sheet/` → `(score-sheet)/score-sheet/`
+- `src/app/(score-sheet)/layout.tsx` — **minimal layout** 신규 (사이트 헤더 제거 / 풀스크린 viewport / 다크모드 토글만)
+- `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` — 기존 page.tsx 이전 + 재사용
+- 진입 방법:
+  - admin matches → ScoreModal → "📝 종이 기록지 입력 페이지로 이동" Link (기존 유지)
+  - tournament-admin → 매치 detail → 동일 Link (기존 유지)
+  - 직접 URL `/score-sheet/{matchId}`
+
+#### 컴포넌트 트리 (FIBA 양식 1 페이지 A4 세로 재현)
+
+```
+ScoreSheetPage (server / 기존 page.tsx 이전)
+└─ ScoreSheetForm (client / 전면 재설계 — FIBA 1 페이지 레이아웃)
+   ├─ FibaHeader               상단 1/5 — FIBA 로고 / SCORESHEET 타이틀
+   │  ├─ Team A·B 이름
+   │  ├─ Competition / Date / Time / Game No / Place
+   │  └─ Referee / Umpire 1·2 (입력)
+   ├─ LeftColumn (좌 50% / 세로 2등분 — Team A 상 / Team B 하)
+   │  ├─ TeamSection (Team A)
+   │  │  ├─ TimeoutsBox (5칸 ✕ 표시 / 1탭 마킹)
+   │  │  ├─ TeamFoulsBox (Period ①~④ × 1-2-3-4 + Extra)
+   │  │  ├─ PlayersTable (12명 × Licence/이름/No/Player in/Fouls 1-5)
+   │  │  └─ CoachInput (Coach / Asst Coach 텍스트)
+   │  └─ TeamSection (Team B)  ← 동일 구조
+   ├─ RightColumn (우 50% / 세로 전체)
+   │  ├─ RunningScoreGrid (1-160 시계열 / 4 세트 × A|B 컬럼) ⭐ 핵심
+   │  ├─ PeriodScoresSection (Period ①~④ + Extra periods — A/B 자동 합산)
+   │  └─ FinalScoreSection (Team A / Team B / Name of winning team — 자동)
+   └─ FooterSignatures (하단 5/5)
+      └─ Scorer / Assistant scorer / Timer / Shot clock operator / Referee / Umpire 1·2 / Captain — 텍스트 입력
+```
+
+#### 태블릿 세로 모드 디자인 (768×1024 ~ 810×1080)
+
+- viewport meta: `width=device-width, initial-scale=1, maximum-scale=1` (zoom 차단)
+- A4 세로 비율 정합 (1:1.414) — viewport 가로 768 → 세로 1086 까지 자연
+- 가로 모드 진입 시 → 회전 가이드 ("세로 모드로 회전해주세요" 아이콘 + 안내)
+- 터치 영역 모두 44px+ (FIBA 양식 칸 크기 압축이라 별도 큰 버튼은 modal 형태로 보완 검토)
+- 1탭 입력 패턴:
+  - Running Score 칸 = 1탭 → 점수 자동 증가 (long press → 수정 모달)
+  - Player Fouls 1-5 = 1탭 → 마킹 / 5번째 = 빨강 강조 (5반칙 퇴장)
+  - Team Fouls 1-2-3-4 = 1탭 → 마킹 / 5번째부터 자유투 안내
+  - Time-outs = 1탭 → ✕ 마킹
+- 다크모드 토글 = layout 우상단 (사이트 헤더 없는 대체)
+- "← 매치 관리로 돌아가기" 링크 = layout 좌상단
+
+### C. 신규 Phase 분해 (6 단계)
+
+| Phase | 범위 (산출물) | PR | 우선 | 추정 LOC |
+|-------|-------------|----|-----|---------|
+| 1 | `(score-sheet)` route group + minimal layout + FibaHeader + LeftColumn TeamSection 좌측 (PlayersTable + CoachInput / Timeouts·TeamFouls 는 빈 박스) | 1 | ⭐⭐⭐ | +400 |
+| **2** | **RunningScoreGrid 1-160 시계열 입력 grid + Period 자동 합산 + Final + Winner** + BFF body schema 확장 (play_by_plays score event) + service 호출 | 1 | ⭐⭐⭐ | +600 |
+| 3 | Team Fouls (Period 별 1-2-3-4 + Extra) + Player Fouls (1-5 토글 마킹) + 5반칙 자동 표시 + 5+ FT alert + BFF body schema 확장 (play_by_plays foul event 또는 settings.*) | 1 | ⭐⭐ | +400 |
+| 4 | Time-outs (Team A/B 5칸 + 전반2/후반3/연장1 검증) + settings.timeouts JSON 박제 | 1 | ⭐⭐ | +200 |
+| 5 | 서명 영역 (Scorer/Timer/Referee/Captain) + 매치 종료 토글 + 최종 제출 + settings.signatures JSON | 1 | ⭐ | +200 |
+| 6 | A4 세로 인쇄 PDF (jsPDF + html2canvas / 양식 1 페이지 그대로 재현) | 1 | ⭐ | +300 |
+
+총 6 PR / 약 2.5~3주.
+
+### D. 데이터 모델 매핑 (FIBA 양식 → DB)
+
+| FIBA 영역 | DB 위치 | 신규/기존 | 비고 |
+|----------|---------|----------|-----|
+| 헤더 (Comp/Date/Time/Game/Place) | Tournament + TournamentMatch (SELECT) | 기존 | 자동 fill (display only) |
+| **Referee / Umpire 1·2** | `match.settings.officials` JSON (referee_main / umpire_1 / umpire_2) | 신규 키 | 입력 박제 |
+| Team A·B 명단 | `TournamentTeamPlayer` + `MatchLineupConfirmed` | 기존 | 사전 라인업 자동 |
+| Players Licence | `tournamentTeamPlayer.licence_no` (확인 — 미존재 시 신규 컬럼) | **결재 §3** | 미존재 시 settings.licences JSON 매핑 |
+| **Coach / Asst Coach** | `tournament_team.coach_name` / `asst_coach_name` (확인) | **결재 §3** | 미존재 시 match.settings.coaches JSON |
+| **Running Score (시계열)** | `play_by_plays` (event_type="score" + sequence + score_value + scoring_team) | **결재 §1** | 옵션 a: PBP / 옵션 b: 별도 테이블 / 옵션 c: settings.running_score JSON |
+| Team Fouls (Period 별 1-4 + Extra) | (옵션) PBP foul event 자동 집계 / settings.team_fouls JSON | **결재 §2** | a: 자동 집계 / b: 수동 입력 박스 |
+| Player Fouls 1-5 마킹 | (옵션) PBP foul event (player_id 별 카운트) / settings.player_fouls JSON | **결재 §2** | a: 자동 / b: 수동 |
+| Time-outs (Team A/B) | `match.settings.timeouts` JSON `{home: [...], away: [...]}` | 신규 키 | period 정보 박제 (전반/후반/연장) |
+| **Period Scores ①~④** | `match.quarterScores` JSON (기존 활용) | 기존 | Running Score 로부터 자동 계산 → 표시만 |
+| **Final Score + Winner** | `match.homeScore` / `awayScore` / `winner_team_id` | 기존 | service 자동 처리 |
+| **서명 영역** | `match.settings.signatures` JSON (scorer/asst_scorer/timer/shot_clock_op/referee/umpire1/umpire2/captain_a/captain_b) | 신규 키 | 텍스트 박제 (Phase 6 캡션 PDF 서명 capture 확장 가능) |
+
+### E. 핵심 기술 결정 (decisions.md 후보)
+
+#### E-1. Running Score 데이터 모델 — `play_by_plays` 채택 권장
+
+| 옵션 | 장점 | 단점 |
 |------|------|------|
-| §B | live API fallback 3단 (playerStats + PBP) | ✅ 9793b7f |
-| §A | PBP/playerStats source backfill 10건 UPDATE | ✅ DB 영구 박제 (audit) |
-| §C | status route safety net (Flutter 영향 0) | ✅ PM 커밋 대기 |
-| §D | recompute admin endpoint + UI | ⏳ |
-| §E | 모니터링 cron | ⏳ |
-| §F | Flutter 협의 (`/batch-sync` deprecate) | ⏳ |
+| **a. play_by_plays (event_type="score" + sequence)** ⭐ | (1) 시계열 박제 정합 / (2) Flutter 기록앱 PBP 와 단일 source / (3) Phase 1-B-1 service paper-fix-{uuid} prefix + `[종이 기록]` description 보호 룰 그대로 활용 / (4) 통산 stat 자동 집계 (made/attempted 자동 산출) | (1) 1-160 개 row × 매치 = DB 부하 (수십만 row / 1만 매치) — 대회 단위 group 으로 충분 / (2) Phase 1-B-1 service 의 PBP UPDATE 정책 재확인 필요 |
+| b. 별도 `running_scores` 테이블 (seq / team / value) | (1) 도메인 분리 / (2) PBP 와 격리 | (1) 신규 schema 변경 → migration 위험 / (2) PBP 와 이중 박제 (made shot 양쪽 분리) |
+| c. settings.running_score JSON | (1) schema 0 / (2) 빠른 박제 | (1) 시계열 쿼리 부적합 / (2) 통산 stat 자동 집계 불가 / (3) JSON 사이즈 (1-160 entries × 메타) — settings 의 80% 점유 |
 
-## 진단 결과 박제 (매치 #132 실측)
-| 저장소 | Phase A 전 | Phase A 후 |
-|--------|----------|---------|
-| PBP (play_by_plays) | ✅ 263행 / made 36 / 합 39:26 | (변경 0) |
-| tournamentMatch.homeScore/awayScore | ⚠️ 0/0 | ✅ 39/26 |
-| tournamentMatch.quarterScores JSON | ⚠️ `{current_quarter:1}` | ✅ Q1:15-10 Q2:6-6 Q3:5-2 Q4:13-8 |
-| match_player_stats | ⚠️ 26행 모두 pts=0 (잔존) | (Phase A 미박제 — 별도) |
-| winner_team_id | ✅ 245 (피벗) | (변경 0) |
-| route.ts L1131 fallback | ❌ 2단까지 | ✅ 3단 (PBP까지) |
+→ 권장: **a (play_by_plays)** — Phase 1-B-1 보호 룰 + Flutter sync 단일 source 정합.
 
-## Phase A apply 결과 (10/10 매치 UPDATE 성공)
+#### E-2. Team Fouls + Player Fouls 입력 방식 — 자동 집계 권장
 
-| source | 매치 수 | 대표 |
-|--------|--------|------|
-| **playerStats** (Phase B 2단) | 9 | 열혈농구단 #98~#104, #120, #121 |
-| **PBP** (Phase B 3단 신규) | 1 | 몰텐배 #132 (피벗 vs SYBC 39:26) |
+| 옵션 | 장점 | 단점 |
+|------|------|------|
+| **a. PBP foul event 자동 집계 (입력 ⇄ 표시 같은 source)** ⭐ | (1) 단일 source (made shot 과 동일 패턴) / (2) 5반칙 자동 마킹 / (3) Team fouls 5+ FT 자동 안내 | (1) 입력 시점 = 1탭 마킹 → 즉시 PBP row 박제 (서버 트립 vs 클라이언트 batch 결정) |
+| b. settings.fouls JSON 직접 박제 (PBP 미생성) | (1) JSON 단순 / (2) 클라이언트 로직 단순 | (1) PBP 와 이중 박제 / (2) 자동 집계 불가 / (3) 통산 stat 누락 |
 
-- TEST 2건 (#95 #96) 제외 (의도)
-- winner 신규 부여: 5건 / 동일 유지: 5건
-- audit: 10건 `source=system / context=backfill-pbp-2026-05-11` 박제
-- 사후 검증: 10/10 SELECT 일치
+→ 권장: **a (자동 집계)** — 클라이언트 batch 박제 + 제출 1회 sync (BFF 가 PBP foul event 일괄 INSERT). 5반칙/Team fouls 5+ 검증은 클라이언트가 commit 시점에 합산 → alert.
 
-## Phase B 구현 요약 (커밋 9793b7f)
+#### E-3. Coach / Asst Coach + Licence DB — 결재 사항
 
-| 파일 | LOC | 핵심 |
-|------|-----|------|
-| `src/lib/tournaments/score-from-pbp.ts` | +92 | `computeScoreFromPbp()` 순수 함수 (Phase A/C/D 단일 source) |
-| `src/__tests__/lib/tournaments/score-from-pbp.test.ts` | +173 | 8 케이스 (매치 #132 실측 포함) |
-| `src/app/api/live/[id]/route.ts` | +20/-4 | 3단 fallback (homeScore>0 → playerStats>0 → PBP) |
+기존 `tournament_team` 모델 확인 필요:
+- 옵션 a: `tournament_team.coach_name` / `asst_coach_name` 컬럼 신설 (migration)
+- 옵션 b: `match.settings.coaches` JSON `{home_coach, home_asst, away_coach, away_asst}` (schema 0)
 
-- tsc 0 / vitest 320/320 PASS / 회귀 0
+→ Phase 1 진입 전 사용자 결재 (§E §3 참조).
 
-## 구현 기록 (developer) — admin 디자인 13 룰 fix
+#### E-4. route group `(score-sheet)` minimal layout 디자인
 
-📝 구현 범위: Critical 11건 (빨강 본문 → accent/text-primary/success) + Major 4건 (hardcode → 상수화 + 팔레트 이름 fix) + conventions.md 박제
+```
+<html>
+  <body className={pretendard.variable + spaceGrotesk.variable + "fullscreen-paper"}>
+    <header className="paper-header-minimal">
+      <Link href="/tournament-admin/...">← 매치 관리로</Link>
+      <span>📝 종이 기록지</span>
+      <DarkModeToggle />  {/* 다크모드 토글만 */}
+    </header>
+    <main>{children}</main>
+  </body>
+</html>
+```
 
-### 변경 파일 (13건)
+- 사이트 AppNav 제거 (route group `(web)` 와 격리)
+- 풀스크린 (헤더만 44px 높이 / 본문 = viewport - 44)
+- A4 세로 비율 정합 (max-width: 100% / aspect-ratio: 1/1.414)
+- 다크모드 = 양식 자체는 light (FIBA 종이 양식 흰색 베이스) / 다크모드는 운영자 환경 선호도 (양식 색 invert 옵션 별도 검토)
 
-| # | 파일 | 변경 | 신규/수정 |
-|---|------|------|----------|
-| 1 | `src/lib/constants/colors.ts` | BDR_PRIMARY_HEX / BDR_SECONDARY_HEX 신규 | 신규 |
-| 2 | `src/app/(admin)/admin/analytics/page.tsx` (L163) | 월별 차트 숫자 primary → accent | 수정 |
-| 3 | `src/app/(admin)/tournament-admin/_components/tournament-admin-nav.tsx` (L22, L29) | 헤더 타이틀 → text-primary / 활성 탭 → accent | 수정 |
-| 4 | `src/app/(admin)/tournament-admin/series/[id]/page.tsx` (L82) | 다음 회차 통계 → accent | 수정 |
-| 5 | `src/app/(admin)/tournament-admin/tournaments/[id]/page.tsx` (L142, L165) | D-Day 뱃지 → accent / 빠른 통계 4건 → accent | 수정 |
-| 6 | `src/app/(admin)/tournament-admin/tournaments/[id]/matches/page.tsx` (L485, L518, L532) | 승인팀 → text-primary font-semibold / 승자 팀명 홈+원정 → success font-bold | 수정 |
-| 7 | `src/app/(admin)/tournament-admin/tournaments/page.tsx` (L65) | 새 대회 만들기 링크 → accent | 수정 |
-| 8 | `src/app/(admin)/tournament-admin/organizations/[orgId]/members/page.tsx` (L227) | hover 액션 → accent | 수정 |
-| 9 | `src/app/(admin)/tournament-admin/tournaments/[id]/admins/page.tsx` (L136) | 아바타 이니셜 → accent | 수정 |
-| 10 | `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` (import + L175~176) | BDR_PRIMARY_HEX / BDR_SECONDARY_HEX import + 초기값 | 수정 |
-| 11 | `src/app/(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx` (import + L190~191 + L271~272) | 상수 import + 초기값 + DB 폴백 4건 | 수정 |
-| 12 | `src/app/(admin)/tournament-admin/tournaments/[id]/site/page.tsx` (L4 import + L10 + L37) | BDR_PRIMARY_HEX import + TEMPLATES 미리보기 컨텍스트 주석 + COLOR_PRESETS "오렌지" → "BDR Red" 라벨 정정 | 수정 |
-| 13 | `.claude/knowledge/conventions.md` + `index.md` | 신규 항목 박제 (44 → 45) | 수정 |
+#### E-5. 모바일 가드 (가로 vs 세로)
 
-### color-success 사용 결정 (C8 매치 승자)
-- 토큰 정의: globals.css L2768 `--color-success = var(--ok) = #1CA05E` (그린)
-- 시맨틱 일치: 승리 = 긍정 결과 → success 토큰 의미 일치
-- font-bold 추가 (기존 font-semibold 옆에) → 승자 시각 강조
+- 결재 §7 — 옵션 a (가로 진입 시 회전 가이드) / 옵션 b (가로/세로 둘 다 — 가로는 단순 align 조정) / 옵션 c (세로 strict)
+- 권장: **a (회전 가이드)** — 가로는 책상 위 양식 자연이지만 컴포넌트 트리 2배 작업. Phase 6 후 검토.
 
-### BDR_PRIMARY_HEX 위치 결정
-- 파일: `src/lib/constants/colors.ts` **신규**
-- 사유: 기존 9 상수 파일 패턴 일치 (banks.ts / divisions.ts / regions.ts 등 도메인 분리)
-- 정의 2건: `BDR_PRIMARY_HEX = "#E31B23"` / `BDR_SECONDARY_HEX = "#E76F51"`
-- 사용 범위: DB 박제 / 사용자 선택 미리보기 등 hex 그대로 저장이 필요한 곳 전용. 컴포넌트 CSS 는 `var(--accent)` 토큰
+### F. 사용자 결재 사항 (developer 진입 전) — 7건
 
-### 검증
-- `npx tsc --noEmit` ✅ 0 에러
-- `npx vitest run` ✅ 26 파일 / 341/341 PASS (회귀 0)
-- 잔여 `text-[var(--color-primary)]` admin grep: **1건** (`tournament-admin/organizations/new/page.tsx:94` `<span>*</span>` = 필수 입력 표시 — 허용 케이스)
-- 잔여 `#E31B23` admin grep: **0건** (site/page.tsx 의 주석 텍스트만 잔존 — 코드 0건)
+| # | 사항 | 옵션 | 권장 |
+|---|------|------|------|
+| **§1** | Running Score 데이터 모델 | (a) play_by_plays / (b) 별도 테이블 / (c) settings JSON | **(a)** play_by_plays |
+| **§2** | Team Fouls / Player Fouls 입력 | (a) 자동 집계 (PBP foul event) / (b) 수동 입력 박스 (settings JSON) | **(a)** 자동 집계 |
+| **§3** | Coach/Asst + Licence DB | (a) tournament_team 컬럼 신설 / (b) match.settings.coaches JSON | **(b)** settings JSON (schema 0 위험 ↓) |
+| **§4** | 서명 영역 | (a) 입력 텍스트만 / (b) Phase 6 PDF + 캡션 서명 capture 확장 | **(a)** 텍스트 (Phase 6 후 확장) |
+| **§5** | Phase 1 진입 범위 | (a) 신규 Phase 1 (route group + layout + 헤더 + 명단) / (b) Phase 1+2 통합 (Running Score 포함 1 PR) | **(a)** 분리 (PR 단위 작게) |
+| **§6** | 현재 `(web)/score-sheet` 처리 | (a) 폐기 (route group 이동) / (b) 별도 alias 유지 (구 URL 호환) | **(a)** 폐기 (운영 0 사용 / admin link 만 갱신) |
+| **§7** | 가로 모드 대응 | (a) 회전 가이드 화면 / (b) 가로/세로 둘 다 / (c) 세로 strict | **(a)** 회전 가이드 |
+
+### G. 위험 / 미해결
+
+1. **Running Score PBP 박제** — Phase 1-B-1 service 의 PBP manual-fix 보호 룰 (`paper-fix-{uuid}` prefix + `[종이 기록]` description) 적용 → Flutter sync 시 자동 삭제 보호. 본 turn 결정 결재 §1 (a) 채택 시 service 가 score event 1-160 INSERT 시 동일 룰 자동 적용 확인 필요.
+2. **5x5 vs 3x3 정합** — FIBA 5x5 양식 기준 (현 turn). 3x3 양식 (간소화) 은 별도 Phase 후속.
+3. **Coach / Asst DB 모델 부재** — 결재 §3 (b) 채택 시 settings JSON 으로 우회 (schema 변경 0).
+4. **가로 모드 대응** — 결재 §7 (a) 회전 가이드 채택 시 가로 진입 사용자 안내만. Phase 6 후 가로 양식 별도 검토.
+5. **인쇄 PDF (Phase 6)** — 세로 A4 양식 정확 재현 (jsPDF + html2canvas) — 한글 폰트 박제 + 양식 픽셀 정합 위험.
+6. **태블릿 768px Running Score 1-160 그리드** — A4 우측 절반 ~ 380px 안에 4 세트 × A|B 컬럼 × 40 row 박제. 폰트 ~10px / 칸 폭 ~24px / 칸 높이 ~16px 추정. 실제 사용 검증 필요 (Phase 2 prototype 후).
+7. **localStorage draft → DB 박제 충돌** — 단말 2 개에서 동일 매치 진행 시 마지막 박제가 덮어쓰기. mode 게이팅 + status="in_progress" 차단으로 자체 차단되나 **운영자가 2 단말 동시 사용 시** 경고 안내 필요.
+
+### H. 실행 계획 (developer 위임 — 결재 §5 (a) 가정)
+
+| 순서 | 작업 | 담당 | 선행 조건 | 추정 시간 |
+|------|------|------|----------|----------|
+| 1 | `(score-sheet)` route group 신설 + minimal layout (다크모드 토글 / "← 매치 관리로" 링크) | developer | 결재 §6 (a) 확정 | 2h |
+| 2 | 기존 `(web)/score-sheet/[matchId]/page.tsx` → `(score-sheet)/score-sheet/[matchId]/page.tsx` 이전 + admin link 갱신 | developer | 1 완료 | 1h |
+| 3 | FibaHeader 컴포넌트 — Competition/Date/Time/Game No/Place (display) + Referee/Umpires (입력) | developer | 2 완료 | 3h |
+| 4 | LeftColumn TeamSection — PlayersTable (FIBA 12명 양식: Licence/이름/No/Player in/Fouls 1-5 빈 박스) + CoachInput | developer | 2 완료 (병렬 3) | 3h |
+| 5 | 회전 가이드 화면 (모바일 가로 진입 차단) | developer | 1 완료 | 1h |
+| 6 | tsc + vitest (회귀 0 확인) | tester | 1~5 완료 | 1h |
+| 7 | 디자인 검수 (BDR 13 룰 / 다크모드 / 토큰) | reviewer (병렬 6) | 1~5 완료 | 1h |
+
+총 Phase 1 = 약 12시간 / 1.5일.
+
+### I. 위반 자동 검수 (Phase 1 진입 전)
+
+- ❌ AppNav 영향 (메인 9 탭 변경) — Phase 1 은 영향 0 (route group 격리)
+- ❌ 신규 DB 컬럼 (schema 변경) — 결재 §3 (b) 채택 시 0
+- ❌ `--color-primary` hardcode — globals.css 토큰만 사용
+- ❌ lucide-react / 핑크/살몬/코랄 — Material Symbols Outlined 만
+- ❌ pill 9999px — 정사각형 50% 회피 (FIBA 양식 사각형 / 박스 4px radius)
+
+### J. 보고 형식 (PM 카피용)
+
+- 현재 Phase 1 재활용 매트릭스 (12 자산 중 9 재사용 / 2 폐기 / 1 부분 재사용)
+- 신규 Phase 분해 6 단계 (Running Score 우선 ⭐⭐⭐)
+- 컴포넌트 트리 (FIBA 1 페이지 A4 세로 그대로)
+- 데이터 모델 매핑 12 영역
+- 핵심 기술 결정 5건 (§E-1 ~ §E-5)
+- 사용자 결재 사항 7건 (§F)
+- 위험 / 미해결 7건 (§G)
+- 실행 계획 7 단계 / 약 1.5일 (Phase 1 만)
+
+## 구현 기록 (developer) — FIBA 양식 종이 기록지 Phase 1
+
+📝 구현 범위: `(score-sheet)` route group 신설 + minimal layout (다크모드 토글 + "← 매치 관리로" 링크 + RotationGuard) + FibaHeader (FIBA 양식 상단 자동 fill + 심판 3 입력) + LeftColumn TeamSection (Players 12 행 표 + Coach·Asst Coach 입력 + Time-outs/Team fouls placeholder) + 회전 가이드 + ScoreSheetForm 골조 + 기존 `(web)/score-sheet/` 디렉토리 폐기.
+
+### 변경 파일
+| 파일 | 변경 | LOC | 신규/수정 |
+|------|------|-----|----------|
+| `src/app/(score-sheet)/layout.tsx` | minimal layout (thin header + RotationGuard) | +52 | 신규 |
+| `src/app/(score-sheet)/_components/rotation-guard.tsx` | matchMedia orientation + touch 감지 | +85 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | server entry — 기존 loadTeamRoster + recording-mode 가드 재사용 | +213 | 신규 (이전) |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/fiba-header.tsx` | FIBA 양식 상단 (로고/Team A·B/Competition/Date/Time/Game No/Place/Referee/Umpire1·2) + splitDateTime 유틸 | +218 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | TeamSection (Time-outs 5 placeholder + Team fouls Period 1~4 placeholder + Players 12 행 표 + Coach·Asst Coach 입력) + fillRowsTo12 유틸 | +355 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section-types.ts` | RosterItem / TeamRosterData 공유 타입 (server/client 양쪽 import) | +25 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | client form 본체 (Phase 1 골조 — header + LeftColumn 만 / Phase 2~6 placeholder) + localStorage draft 5초 throttle | +143 | 신규 |
+| `src/app/(web)/score-sheet/` (6 파일 전체) | 디렉토리 폐기 (page.tsx + _components × 5) | -1100 | 삭제 |
+| `src/__tests__/score-sheet/fiba-header-split-datetime.test.ts` | splitDateTime 5 케이스 | +50 | 신규 |
+| `src/__tests__/score-sheet/team-section-fill-rows.test.ts` | fillRowsTo12 4 케이스 | +60 | 신규 |
+
+### route group 이전 영향
+- URL = `/score-sheet/{matchId}` **동일** (route group 은 URL 미반영)
+- admin link (`src/app/(admin)/tournament-admin/tournaments/[id]/matches/page.tsx` L356) **변경 0** (`target="_blank"` 이미 적용)
+- 폐기 컴포넌트: `quarter-score-grid.tsx` (Phase 2 RunningScoreGrid 가 대체) / `team-roster.tsx` (FIBA PlayersTable 로 재설계) / `score-sheet-header.tsx` (FibaHeader 로 재설계) / `submit-bar.tsx` (Phase 5 부활 예정) / 기존 `score-sheet-form.tsx` (전면 재설계)
+- BFF route `/api/web/score-sheet/{matchId}/submit` **그대로 살아있음** (Phase 1 = UI 만 — Phase 5 BFF body schema 확장 시 활용)
+- 권한 헬퍼 `requireScoreSheetAccess` / mode 가드 `getRecordingMode` / 사전 라인업 loadTeamRoster 패턴 **변경 0** (page.tsx 이전 + 재사용)
+
+### FibaHeader / TeamSection 핵심 UX
+- **터치 영역 44px+**: Player in 체크박스 = `h-9 w-9` label wrapping + `touchAction: manipulation`
+- **FIBA 양식 정합**: 입력 = border-bottom only (underscore) / 라벨 = ALL CAPS + tracking-wider / 자동 fill 값 = border-bottom 표시
+- **로고**: BDR 자체 로고 (`/images/logo.png`) + Material Symbols `sports_basketball` 보조 — FIBA 로고 라이선스 회피
+- **12 행 강제**: `fillRowsTo12()` — 명단 5명 = 5 player + 7 null / 12명 = 그대로 / 15명 = 그대로 (운영 안정성 — 잘라내지 X)
+- **starter ◉ + captain ★ 표시 유지**: 기존 team-roster.tsx 패턴 재사용
+
+### 회전 가이드 동작
+- `matchMedia("(orientation: landscape)") && matchMedia("(hover: none) and (pointer: coarse)")` 동시 충족 시 풀스크린 안내
+- PC (touch X) 가로 모드 = 통과 (pointer coarse X)
+- Material Symbols `screen_rotation` + "종이 기록지는 세로 모드에서 사용해주세요"
+
+### 검증 결과
+- **tsc**: 0 에러 ✅
+- **vitest**: 28 files / **350 tests PASS** (이전 341 + 신규 9 = +9 / 회귀 0)
+  - 신규 9 케이스: splitDateTime 5 + fillRowsTo12 4
+  - 기존 score-sheet-submit BFF 5 케이스 회귀 0 ✅
+- **grep 회귀 0**:
+  - `BigInt(N)n` 패턴 0건 ✅
+  - `lucide-react` import 0건 (주석 3건은 룰 명시) ✅
+  - 핑크/살몬/코랄 hardcode 0건 ✅
+  - `text-[var(--color-primary)]` 본문 0건 ✅
+- **schema 변경**: 0 ✅
+- **Flutter v1 영향**: 0 ✅
+- **API / BFF 시그니처**: 0 변경 ✅
+- **AppNav frozen**: 0 영향 (route group 격리) ✅
+
+### 다음 단계 (Phase 2 진입 전 검토)
+- Phase 2 = **RunningScoreGrid (1-160 시계열)** + Period 자동 합산 + Final + Winner + BFF body schema 확장 (play_by_plays score event) — 약 +600 LOC / 별도 PR 권장
+- Phase 1 만 PR 분리 = 검증 안전 (사용자 결재 §5 (a))
 
 💡 tester 참고:
 - **테스트 방법**:
-  1. admin 영역 13 페이지 방문 → 빨간 본문 텍스트 0건 확인
-  2. tournament-admin 헤더 클릭 → 활성 탭 accent (BDR Red) 강조 / 비활성 muted 유지
-  3. /tournament-admin/tournaments/[id] 진입 → D-Day 뱃지 + 빠른 통계 4건 모두 accent
-  4. /tournament-admin/tournaments/[id]/matches 진입 → 승자 팀명 그린 (success) 강조
-  5. /tournament-admin/tournaments/new/wizard → primary_color picker 초기값 #E31B23 / secondary_color #E76F51
-  6. /tournament-admin/tournaments/[id]/site → 색상 팔레트 "BDR Red" 라벨 표시 (기존 "오렌지" 정정)
-- **정상 동작**: 빨강 본문 0건 + accent 통계 통일 + 승자 성공 그린
-- **주의할 입력**: dark mode 진입 시에도 텍스트 가독성 유지 (CSS 변수가 라이트/다크 자동 대응)
-
-⚠️ reviewer 참고:
-- `--color-success` / `--color-accent` 가 02-design-system-tokens.md §9 폐기 토큰 목록에 있으나, globals.css 에서 backward compat alias 로 잔존 (L2763~2768). admin 영역 잔존 마이그 대상 320 파일과 일관성 위해 본 토큰 사용. 향후 admin 영역 전체 마이그 (`--accent` / `--ink` / `--ok` 등 신규 토큰으로) 시 일괄 교체.
-- C8 매치 승자 = success 토큰 단독 사용 (font-bold 추가). PM 옵션 1 채택 (옵션 2 = text-primary font-bold 는 강조 부족).
-- COLOR_PRESETS "오렌지" 라벨 fix 는 사용자 인지 영향 0 (hex 값 동일) — 라벨만 정정.
-- 잔여 `text-[var(--color-primary)]` 1건 (organizations/new/page.tsx 필수 입력 `*`) 은 conventions.md 허용 케이스 — 변경 0.
-
-## 구현 기록 (developer) — Phase C: status route safety net
-
-📝 구현한 기능: status="completed" 전환 시 score 자동 보정 (Flutter sync 누락 자동 복구)
-
-| 파일 경로 | 변경 내용 | 신규/수정 |
-|----------|----------|----------|
-| `src/lib/services/match-score-recompute.ts` | `computeRecomputedScore()` + `applyScoreSafetyNet()` 헬퍼 (3단 fallback 단일 source) | 신규 |
-| `src/__tests__/lib/services/match-score-recompute.test.ts` | 8 케이스 (#132 실측 + 멱등성 + audit 박제 검증) | 신규 |
-| `src/app/api/v1/matches/[id]/status/route.ts` | `updateMatchStatus()` 직후 status=="completed" 때 safety net 트리거 | 수정 |
-
-### 핵심 시그니처
-
-```ts
-// read-only — 어느 source 사용할지 + 변경 필요 필드 판단
-computeRecomputedScore(tx, matchId) → RecomputeResult | null
-// UPDATE + audit 박제 (status=completed hook 용, 멱등)
-applyScoreSafetyNet(tx, matchId, context) → RecomputeResult | null
-```
-
-3단 우선순위 (Phase B fallback 일관):
-1. `homeScore > 0` → `source="skip"` (이미 박제 / 멱등성 보장)
-2. `playerStats` 팀별 합 > 0 → `source="playerStats"` (열혈농구단 #98 패턴)
-3. PBP made shot 합 → `source="pbp"` (몰텐배 #132 패턴) — `computeScoreFromPbp` 재사용
-
-### status route 통합 카피
-
-`updateMatchStatus()` 메인 트랜잭션 (status/winner/진출/audit 박제) 커밋 **후** 별도 트랜잭션으로 safety net 트리거. status="completed" 분기에서만 진입.
-
-```ts
-if (status === "completed") {
-  try {
-    await prisma.$transaction(async (tx) => {
-      await applyScoreSafetyNet(tx, matchId, "status-completed-safety-net");
-    });
-  } catch (safetyErr) {
-    console.error(...);  // status 변경 유지 + 로그
-  }
-}
-```
-
-### 트랜잭션 정책 (옵션 A vs B 의사결정)
-
-기획서의 "옵션 A (rollback 우선) vs B (운영 우선)" 중 **B 선택** — 이유:
-- `updateMatchStatus()` 가 자체 트랜잭션 안에서 status + winner 진출 + audit + dual_tournament 진출까지 처리 중 → 이를 외부 트랜잭션으로 wrap 하려면 함수 시그니처 변경 필요 (영향 큼).
-- safety net 은 "score 누락 보정"이라 status 변경 자체와는 독립적. safety net 실패 → status 만 변경되고 score 는 0 그대로 유지 → 운영자가 Phase D admin recompute UI 로 수동 복구 가능 (Phase A apply 와 동일 경로).
-- safety net 자체는 `prisma.$transaction` 안에서 SELECT+UPDATE+audit 박제를 atomic 하게 처리 → safety net 내부 무결성은 보장됨.
-- 결과: **status 변경은 무조건 성공 + safety net 은 best-effort + 실패 시 로그만**. Flutter app 영향 0.
-
-### 검증 결과
-
-| 항목 | 결과 |
-|------|------|
-| `npx tsc --noEmit` | ✅ 0 에러 |
-| `npx vitest run` (전체) | ✅ 26 파일 / **341 / 341 PASS** (320 기존 + 8 신규 + 13 추가 회귀 0) |
-| `npx vitest run match-score-recompute.test.ts` | ✅ 8/8 (9ms) |
-| BigInt `Nn` 리터럴 | ✅ 0건 (BigInt() 생성자 사용) |
-| lucide-react / 핑크 hardcode | ✅ 0건 (서버 코드 무관) |
-| 응답 schema 변경 | ✅ 0 (Flutter app 영향 0) |
-
-### 멱등성 / 안전성 검증 (테스트 케이스)
-
-- Case 2: `homeScore=39` 이미 박제 → `source="skip"` / `changed` 모두 false → UPDATE 진입 ❌
-- Case 5: PBP=0 + playerStats=0 → 모든 값 0 + 기존 winner=null 과 같음 → `changed` 모두 false → UPDATE 진입 ❌
-- 즉 "이미 박제된 매치 재호출" 또는 "복구 불가 매치 (PBP/stats 둘 다 없음)" 시 변경 0.
-
-💡 tester 참고:
-- **테스트 방법** (수동 시나리오):
-  1. dev 환경에서 매치 종료 시뮬레이션 — `PATCH /api/v1/matches/{id}/status` body `{status:"completed"}`
-  2. status="completed" 만 트리거 — `in_progress` / `cancelled` 는 safety net 진입 ❌
-  3. 기존 매치 (homeScore>0) 재요청 → DB 변경 0 (멱등성)
-  4. sync 누락 시뮬레이션 — 운영자가 매치 PBP 만 박제하고 `/status` PATCH completed → 자동 보정
+  1. admin matches 페이지에서 매치 mode = paper 전환 → "📝 종이 기록지 입력 페이지로 이동" 클릭 → 새 탭
+  2. URL = `/score-sheet/{matchId}` 진입 시 minimal layout (사이트 헤더 0 / 다크모드 토글 우상단 / "← 매치 관리로" 좌상단)
+  3. FibaHeader = Team A/B 명 + 대회/날짜/시간/Game No/Place 자동 fill / Referee·Umpire 1·2 입력
+  4. TeamSection 양쪽 = Players 12 행 (Licence 입력 + Player in 체크 + Coach·Asst Coach 입력)
+  5. 태블릿 가로 회전 → "종이 기록지는 세로 모드에서 사용해주세요" 안내
+  6. localStorage draft = 5초 후 자동 저장 / 페이지 reload → 입력 복원
 - **정상 동작**:
-  - 응답 schema 동일 (updateMatchStatus 결과 그대로 — `apiSuccess(updated)`)
-  - `tournament_match_audits` 에 `source="system" / context="status-completed-safety-net"` row 추가됨
-  - score=0 케이스만 보정 (이미 정상 박제된 매치는 skip)
+  - mode=flutter 매치 진입 = "현재 Flutter 기록앱으로 진행 중" 안내 (라이브/운영자 페이지 링크)
+  - 비로그인 / 권한 없음 = "접근할 수 없습니다" 에러 카드
+  - 매치 없음 (잘못된 matchId) = `/` redirect
 - **주의할 입력**:
-  - status="cancelled" → safety net 진입 ❌ (분기 가드)
-  - PBP=0 + playerStats=0 → 변경 0 (audit row 생성 ❌)
-  - homeTeamId 또는 awayTeamId NULL → source 결정 불가 → skip
+  - Licence 입력 = 20자 제한 / Coach = 40자 제한 / Referee = 40자 제한
+  - Player in 체크 = 큰 터치 영역 (44px+) — 행 클릭 시에도 동작
+  - 다크모드 토글 = ThemeToggle 재사용 (사이트 헤더와 동일 동작)
 
 ⚠️ reviewer 참고:
-- **별도 트랜잭션 분리** 결정 (옵션 B) — 이유는 위 "트랜잭션 정책" 섹션. `updateMatchStatus` 시그니처 변경 시 영향 큼. 추후 리팩토링 가능하나 본 Phase 범위 외.
-- `Prisma.TournamentMatchUpdateInput` 에 `winner_team_id` 가 직접 타입 멤버 X (relation 경유 input) → `Record<string, unknown>` 캐스팅으로 raw field 박제 (`as Record<string, unknown>).winner_team_id = ...`). updateMatch / updateMatchStatus 기존 코드 패턴과 다름 — Prisma 가 schema mapping 없이 raw column 인 `winner_team_id` 를 그대로 받음 (검증: tsc 0 + 기존 코드 L152 동일 패턴).
-- `audit` `TRACKED_FIELDS` 에 `quarterScores` 없음 — 의도적. quarterScores 변경은 result 반환값으로 호출자가 인지 (UI 박제 등에 사용 가능).
-- safety net 실패 시 console.error 만 — Phase D 모니터링 cron 또는 Phase E 알림 추가 시 강화 후보.
-
-## 기획설계 핵심 (planner-architect 2026-05-11) — 압축
-
-- **A. sync 흐름**: Flutter `/api/v1/matches/[id]/*` 8 endpoint 분산 / `/tournaments/[id]/matches/sync` 가 완전 path / `/batch-sync` 가 부분 sync (deprecate 후보)
-- **B. 추정 원인 #132**: Flutter app 이 `/sync` 미호출 + `/stats` 미호출 + `/events` PBP 만 박제 시나리오
-- **C. 결재 5건 결정**: source-of-truth=PBP / 멱등 sync / recompute admin endpoint 추가 / backfill 전체 일괄 / DB trigger ❌
-- **D. 원영 협의**: Phase C 머지 후 fyi 공지 / `/batch-sync` deprecate 는 Phase F 협의
-- **knowledge 박제 후보**: `errors.md` (sync 누락 패턴) / `decisions.md` (PBP source-of-truth) / `architecture.md` (4 저장소 + 4 sync 채널)
+- **route group 격리 검증**: `(score-sheet)` 안 import 가 `@/components/bdr-v2/app-nav` 또는 AppNav 관련 호출 0 확인 필요
+- **FIBA 양식 정합**: 디자인 13 룰 §C / 02-design-system-tokens.md (var(--*) 토큰 / Material Symbols / 핑크 ❌) 모두 준수
+- **터치 영역 44px+**: Player in 체크박스 (룰 13)
+- **빨강 본문 텍스트 ❌**: 강조는 `var(--color-accent)` (starter ◉) / 캡틴 ★ = `var(--color-warning)` (기존 패턴 유지)
+- **Phase 2 진입 시 RunningScoreGrid 768px 안 4 세트 × A|B × 40 row 박제 가능성 검증** (위험 §G §6 — 실제 prototype 후 확정)
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
-| 2026-05-11 | (PM 커밋 대기) | **[admin 디자인 13 룰 fix]** Critical 11건 (빨강 본문 → accent/text-primary/success) + Major 4건 (hardcode → `src/lib/constants/colors.ts` 신규 + site 팔레트 "오렌지" → "BDR Red" 라벨) + conventions.md 박제 (44 → 45). 13 파일 수정. tsc 0 / vitest 341/341. 잔여 빨강 grep = 1건 (필수표시 `*` 허용 케이스). | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[옵션 C Phase C]** status route safety net — `match-score-recompute.ts` 헬퍼 + 8 신규 케이스 + `/api/v1/matches/[id]/status` 통합. status="completed" 시 자동 score 보정 (3단 fallback 멱등). vitest 341/341 PASS. Flutter app 영향 0. | ✅ |
-| 2026-05-11 | (커밋 ❌ scripts/_temp) | **[옵션 C Phase A apply]** PBP/playerStats source 10건 운영 DB UPDATE + audit (system/backfill-pbp-2026-05-11). #132 + 열혈농구단 9건 영구 복구. TEST 2건 제외. | ✅ |
-| 2026-05-11 | (커밋 ❌ scripts/_temp) | **[옵션 C Phase A DRY-RUN]** 12 매치 SELECT + PBP 재계산 JSON 출력. UPDATE 0건. | ✅ |
-| 2026-05-11 | 9793b7f | **[옵션 C Phase B]** score-from-pbp 헬퍼 + live API L1131 fallback 3단 강화. vitest 320/320 PASS. | ✅ |
-| 2026-05-11 | (기획만) | **[옵션 C 기획설계]** 6 Phase + 5 결재 + 원영 협의 4 + knowledge 박제 후보. 코드 변경 0. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-B + 3 + rbac]** admin-guard sentinel + referee layout + RoleMatrixCard 8행. vitest 312/312. | ✅ |
+| 2026-05-11 | (커밋 대기) | **[FIBA 종이 기록지 Phase 1]** `(score-sheet)` route group + minimal layout + RotationGuard + FibaHeader + TeamSection (Players 12 + Coach) + ScoreSheetForm 골조. 기존 `(web)/score-sheet/` 6 파일 폐기. vitest 350/350 (+9) / tsc 0. URL 동일 / admin link 변경 0 / BFF·service·schema·Flutter v1 변경 0. | ✅ |
+| 2026-05-11 | (기획만) | **[종이 기록지 FIBA 재기획]** 6 Phase + 사용자 결재 7건 + 컴포넌트 트리 (FIBA 1 페이지 A4 세로) + DB 매핑 12 영역. Phase 1 = `(score-sheet)` route group + minimal layout + 헤더 + 명단 (12h 추정). 코드 변경 0 — developer 진입 결재 §1~§7 대기. | ✅ |
+| 2026-05-11 | (PM 커밋 대기) | **[admin 디자인 13 룰 fix]** Critical 11건 + Major 4건 + conventions.md 박제 (44 → 45). 13 파일. tsc 0 / vitest 341/341. | ✅ |
+| 2026-05-11 | (PM 커밋 대기) | **[옵션 C Phase C]** status route safety net — match-score-recompute.ts + 8 케이스. vitest 341/341. Flutter 영향 0. | ✅ |
+| 2026-05-11 | (커밋 ❌ scripts/_temp) | **[옵션 C Phase A apply]** PBP/playerStats 10건 UPDATE + audit. #132 + 열혈농구단 9건 영구 복구. | ✅ |
+| 2026-05-11 | (커밋 ❌ scripts/_temp) | **[옵션 C Phase A DRY-RUN]** 12 매치 SELECT + PBP 재계산. UPDATE 0. | ✅ |
+| 2026-05-11 | 9793b7f | **[옵션 C Phase B]** score-from-pbp 헬퍼 + live API 3단 fallback. vitest 320/320. | ✅ |
+| 2026-05-11 | (기획만) | **[옵션 C 기획설계]** 6 Phase + 5 결재 + 원영 협의 4. 코드 변경 0. | ✅ |
+| 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-B + 3 + rbac]** admin-guard sentinel + referee layout + RoleMatrixCard. vitest 312/312. | ✅ |
 | 2026-05-11 | (PM 커밋 대기) | **[권한 시스템 Phase 1-A + 1-C + 2]** isSuperAdmin 단일 source + partner-admin 우회. vitest 296/296. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[admin 마이페이지 Phase 3]** 알림 + 건의사항 + 비번 변경. ~+523 LOC. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[admin 마이페이지 Phase 2]** 관리 토너먼트 + 본인인증. ~+1,025 LOC. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[Phase 1 강남구협회장배 유소년]** schema TT +3 / TTP +11. vitest 275/277. | ✅ |
