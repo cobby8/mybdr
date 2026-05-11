@@ -2,39 +2,57 @@
  * Player / Team Fouls 순수 헬퍼 — DB / DOM 의존 없는 함수만 (vitest 단위 테스트 가능).
  *
  * 2026-05-12 — Phase 3 신규.
+ * 2026-05-12 — Phase 3.5 확장 (FIBA Article 41 5반칙 룰 + 파울 종류 P/T/U/D + 퇴장 사유 분기).
  *
  * 왜 (이유):
  *   파울 카운트 / 퇴장 판정 / Team Fouls 자동 합산 / 자유투 부여 / PBP 변환 로직을
  *   PlayerFoulsCells (client) + TeamFoulsBox (client) + BFF (server) 양쪽에서
- *   재사용 + vitest 회귀 방지. UI 와 분리해 테스트 케이스 15+ 검증 가능.
+ *   재사용 + vitest 회귀 방지. UI 와 분리해 테스트 케이스 20+ 검증 가능.
  *   `src/lib/score-sheet/` 위치 = server-safe.
  *
  * 방법 (어떻게):
- *   - getPlayerFoulCount: 특정 선수의 파울 누적
+ *   - getPlayerFoulCount: 특정 선수의 파울 누적 (P/T/U/D 합산)
+ *   - getPlayerFoulCountByType: 종류별 누적 (Article 41 T/U/D 임계 판정용)
  *   - getTeamFoulCountByPeriod: Period 별 팀 파울 합산
- *   - isPlayerEjected: 5반칙 도달 여부
+ *   - isPlayerEjected: Article 41 — 4가지 조건 중 하나라도 도달 시 true
+ *   - getEjectionReason: 퇴장 사유 분기 (5_fouls / 2_technical / 2_unsportsmanlike / disqualifying)
  *   - shouldAwardFreeThrow: Period 내 팀 파울 5+ 도달 여부
  *   - foulsToPBPEvents: FoulsState → PBP foul event[] 변환 (BFF 박제용)
- *   - addFoul / removeLastFoul: 상태 변경 (5반칙 차단 포함)
+ *   - addFoul / removeLastFoul: 상태 변경 (Article 41 차단 포함)
  */
 
 import {
   type FoulMark,
   type FoulsState,
+  type FoulType,
+  type EjectionReason,
   MAX_PLAYER_FOULS,
   TEAM_FOUL_FT_THRESHOLD,
 } from "./foul-types";
 
-// 선수 1인당 파울 누적 카운트
+// 선수 1인당 파울 누적 카운트 (P/T/U/D 합산)
 //
 // 룰:
-//   - fouls 배열 안 playerId 일치 항목 개수
-//   - 0~5 범위 (caller 가 차단)
+//   - fouls 배열 안 playerId 일치 항목 개수 (종류 무관 합산)
+//   - 0~∞ 범위 (caller 가 Article 41 종합 차단)
 export function getPlayerFoulCount(
   fouls: FoulMark[],
   playerId: string
 ): number {
   return fouls.filter((f) => f.playerId === playerId).length;
+}
+
+// Phase 3.5 — 선수별 + 종류별 누적 (Article 41 T/U/D 임계 판정용)
+//
+// 룰:
+//   - 같은 playerId + 같은 type 항목 개수
+//   - T ≥ 2 / U ≥ 2 / D ≥ 1 분기 판정에 사용
+export function getPlayerFoulCountByType(
+  fouls: FoulMark[],
+  playerId: string,
+  type: FoulType
+): number {
+  return fouls.filter((f) => f.playerId === playerId && f.type === type).length;
 }
 
 // Period 별 팀 파울 합산
@@ -49,16 +67,52 @@ export function getTeamFoulCountByPeriod(
   return fouls.filter((f) => f.period === period).length;
 }
 
-// 선수 5반칙 도달 (퇴장) 여부
+// Phase 3.5 — Article 41 퇴장 사유 분기
+//
+// 룰 (우선순위 — 가장 빠른 조건 적용):
+//   1. D ≥ 1 → "disqualifying" (1건만으로도 즉시 퇴장)
+//   2. T ≥ 2 → "2_technical"
+//   3. U ≥ 2 → "2_unsportsmanlike"
+//   4. P+T+U+D 합 ≥ 5 → "5_fouls"
+//   - 어떤 조건도 미달 시 null
+//
+// 이유:
+//   - 알림 메시지 차별화 (5반칙 vs T 2회 vs U 2회 vs D 즉시) — 사용자 결재 Phase 3.5
+//   - 우선순위는 "조건이 가장 빨리 도달한 것" 이 아닌 "심각도 순" (D > T 2회 > U 2회 > 5반칙)
+//     → 같은 시점에 여러 조건 동시 도달 시 더 심각한 사유로 표기
+export function getEjectionReason(
+  fouls: FoulMark[],
+  playerId: string
+): { ejected: boolean; reason: EjectionReason | null } {
+  const dCount = getPlayerFoulCountByType(fouls, playerId, "D");
+  if (dCount >= 1) {
+    return { ejected: true, reason: "disqualifying" };
+  }
+  const tCount = getPlayerFoulCountByType(fouls, playerId, "T");
+  if (tCount >= 2) {
+    return { ejected: true, reason: "2_technical" };
+  }
+  const uCount = getPlayerFoulCountByType(fouls, playerId, "U");
+  if (uCount >= 2) {
+    return { ejected: true, reason: "2_unsportsmanlike" };
+  }
+  const total = getPlayerFoulCount(fouls, playerId);
+  if (total >= MAX_PLAYER_FOULS) {
+    return { ejected: true, reason: "5_fouls" };
+  }
+  return { ejected: false, reason: null };
+}
+
+// 선수 퇴장 여부 (Article 41 4가지 조건 중 하나라도 도달)
 //
 // 룰:
-//   - 5 파울 이상 = 퇴장 (UI 행 회색 + "퇴장" 안내)
-//   - 6번째 추가 시도 = caller 가 alert + 차단
+//   - getEjectionReason 결과의 ejected 값 그대로
+//   - UI 행 회색 + 차단용
 export function isPlayerEjected(
   fouls: FoulMark[],
   playerId: string
 ): boolean {
-  return getPlayerFoulCount(fouls, playerId) >= MAX_PLAYER_FOULS;
+  return getEjectionReason(fouls, playerId).ejected;
 }
 
 // Period 안 자유투 부여 여부 (Team Fouls 5+ 도달)
@@ -77,7 +131,7 @@ export function shouldAwardFreeThrow(
 //
 // 박제 룰 (Phase 2 score event 와 동일 패턴):
 //   - local_id = `paper-fix-{uuid}` — 종이 기록 식별자
-//   - description = `[종이 기록] 선수 N번 PX 파울` (N=등번호, X=period)
+//   - description = `[종이 기록] 선수 N번 {P/T/U/D}` (N=등번호, 종류 약자 직접 박제)
 //   - action_type = "foul" (live API + 통산 stat 호환 — fouls 누적 시 +1)
 //   - tournament_team_id, tournament_team_player_id 는 caller (BFF) 가 채움
 //   - quarter = period (1~7)
@@ -91,6 +145,8 @@ export interface PaperFoulPBPInput {
   quarter: number;
   action_type: "foul";
   description: string;
+  // Phase 3.5 — 파울 종류 (BFF 가 추가 박제 필요 시 사용 — 현재 description 에 박제)
+  foul_type: FoulType;
 }
 
 // uuid v4 (브라우저 + node 양쪽 호환) — Phase 2 패턴 재사용
@@ -134,22 +190,29 @@ export function foulsToPBPEvents(
   return merged.map(({ mark, side }) => {
     // 등번호 lookup (없으면 playerId 그대로 노출 회피 — "?")
     const jersey = jerseyLookup?.(mark.playerId) ?? "?";
+    // Phase 3.5 — 파울 종류 약자 직접 박제 (예: "T", "U", "D")
     return {
       local_id: `paper-fix-${generateUuid()}`,
       tournament_team_player_id_str: mark.playerId,
       team_side: side,
       quarter: mark.period,
       action_type: "foul" as const,
-      description: `[종이 기록] 선수 ${jersey}번 P${mark.period} 파울`,
+      description: `[종이 기록] 선수 ${jersey}번 ${mark.type}`,
+      foul_type: mark.type,
     };
   });
 }
 
-// 파울 추가 — 5반칙 도달 시 차단 (caller 가 alert)
+// 파울 추가 — Article 41 도달 시 차단 (caller 가 alert)
+//
+// 룰:
+//   - 추가 전 getEjectionReason 으로 이미 퇴장 상태인지 확인
+//   - 이미 퇴장 → 차단 + reason 반환
+//   - 정상 추가
 //
 // 반환:
 //   - { ok: true, state: 갱신 } — 정상 추가
-//   - { ok: false, reason } — 5반칙 (퇴장 후 추가 시도) 차단
+//   - { ok: false, reason } — Article 41 차단 메시지
 export function addFoul(
   state: FoulsState,
   team: "home" | "away",
@@ -158,11 +221,22 @@ export function addFoul(
   | { ok: true; state: FoulsState }
   | { ok: false; reason: string } {
   const teamFouls = team === "home" ? state.home : state.away;
-  // 5반칙 차단 (퇴장 후 추가 시도)
-  if (getPlayerFoulCount(teamFouls, mark.playerId) >= MAX_PLAYER_FOULS) {
+  // Article 41 차단 (이미 퇴장 상태인 선수에 추가 시도)
+  const ejection = getEjectionReason(teamFouls, mark.playerId);
+  if (ejection.ejected) {
+    // reason 별 차단 메시지 분기
+    const reasonMsg: Record<EjectionReason, string> = {
+      "5_fouls": "5반칙 — 이미 퇴장한 선수에게 추가 파울을 박제할 수 없습니다.",
+      "2_technical":
+        "Technical 2회 — 이미 퇴장한 선수에게 추가 파울을 박제할 수 없습니다.",
+      "2_unsportsmanlike":
+        "Unsportsmanlike 2회 — 이미 퇴장한 선수에게 추가 파울을 박제할 수 없습니다.",
+      "disqualifying":
+        "Disqualifying — 이미 퇴장한 선수에게 추가 파울을 박제할 수 없습니다.",
+    };
     return {
       ok: false,
-      reason: `5반칙 도달 — 퇴장 선수에게 추가 파울을 박제할 수 없습니다.`,
+      reason: reasonMsg[ejection.reason!],
     };
   }
   if (team === "home") {
