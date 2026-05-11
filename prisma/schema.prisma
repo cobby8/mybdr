@@ -256,6 +256,12 @@ model User {
   // 본 user 가 confirmedBy 로 등록한 row 들의 역참조. 감사 추적용.
   match_lineup_confirmed MatchLineupConfirmed[] @relation("MatchLineupConfirmer")
 
+  // 2026-05-11 Phase 1 (유소년 일괄 등록) — 부모-자녀 관계 + ttp 클레임 역참조
+  // childProfiles: 본 user 가 부모로 등록한 자녀 프로필 (재사용 가능)
+  // ttpClaimed: 본 user 가 부모 클레임으로 자녀 선수와 연결한 ttp row 역참조
+  childProfiles ChildProfile[]          @relation("ChildProfileParent")
+  ttpClaimed    TournamentTeamPlayer[]  @relation("TtpClaimedUser")
+
   @@unique([provider, uid], map: "index_users_on_provider_and_uid")
   @@index([createdAt], map: "index_users_on_created_at")
   @@index([membershipType], map: "index_users_on_membership_type")
@@ -342,6 +348,8 @@ model Tournament {
   siteRegistrations                      site_registrations[]
   tournamentTeams                        TournamentTeam[]
   tournament_bracket_versions            tournament_bracket_versions[]
+  // 2026-05-11 Phase 1 (유소년 일괄 등록) — 대회별 종별 룰 (U10/U12/M1 등 매핑)
+  divisionRules                          TournamentDivisionRule[]
   teams                                  Team?                         @relation(fields: [champion_team_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_18732ad2a6")
   tournament_series                      tournament_series?            @relation(fields: [series_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_228d987a3d")
   courts                                 courts?                       @relation(fields: [venue_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ed1e7dadb")
@@ -570,6 +578,13 @@ model TournamentTeam {
   tournamentId                                                           String                 @map("tournament_id") @db.Uuid
   division                                                               String?                @db.VarChar
   division_tier                                                          String?                @db.VarChar
+  // 2026-05-11 Phase 1 (유소년 일괄 등록) — 코치 신청 토큰 시스템
+  // apply_token: 코치가 비로그인으로 명단을 입력할 수 있게 하는 랜덤 32바이트 hex 토큰
+  // apply_token_expires_at: 만료 시각 (대회 시작일 + 7일 또는 30일 fallback)
+  // applied_via: 신청 출처 식별 ('coach_token' | 'self' | 'admin')
+  apply_token                                                            String?                @unique @db.VarChar
+  apply_token_expires_at                                                 DateTime?              @db.Timestamp(6)
+  applied_via                                                            String?                @db.VarChar
   play_by_plays                                                          play_by_plays[]
   tournament_matches_tournament_matches_winner_team_idTotournament_teams TournamentMatch[]      @relation("tournament_matches_winner_team_idTotournament_teams")
   homeMatches                                                            TournamentMatch[]      @relation("HomeTeam")
@@ -616,18 +631,43 @@ model TournamentTeamPlayer {
   avg_assists          Decimal?            @default(0.0) @db.Decimal(5, 1)
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamp(6)
+  // 2026-05-11 Phase 1 (유소년 일괄 등록) — 부모 / 학교 / 학년 / 종별 / 클레임 상태
+  // 모두 NULL 허용 ADD COLUMN — 기존 성인 대회 ttp row 영향 0 (CLAUDE.md §🗄️ DB 정책 무중단 룰)
+  // parent_*: 코치 신청 시점에 부모 연락처 (자녀 클레임 매직링크 발송 대상)
+  // school_name / grade: 종별 자동 매핑 입력
+  // division_code: TournamentDivisionRule.code 와 1:1 매핑 (예: 'U10' / 'U12' / 'M1')
+  // jersey_size: 운영자 유니폼 발주용 (S/M/L/XL/XXL)
+  // claim_*: 부모 매직링크 클레임 라이프사이클 (pending → invited → claimed)
+  // claimed_user_id / child_profile_id: 클레임 성공 시 ttp ↔ 부모 user ↔ 자녀 ChildProfile 연결
+  parent_name          String?             @db.VarChar
+  parent_phone         String?             @db.VarChar
+  school_name          String?             @db.VarChar
+  grade                Int?
+  division_code        String?             @db.VarChar
+  jersey_size          String?             @db.VarChar
+  claim_status         String?             @default("pending") @db.VarChar
+  claimed_user_id      BigInt?
+  child_profile_id     BigInt?
+  invited_at           DateTime?           @db.Timestamp(6)
+  claimed_at           DateTime?           @db.Timestamp(6)
   playerStats          MatchPlayerStat[]
   play_by_plays        play_by_plays[]
   users                User?               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4174bc8af3")
   tournamentTeam       TournamentTeam      @relation(fields: [tournamentTeamId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_rails_4ec2691050")
   // 2026-05-05 PR4: 매치별 임시 jersey 번호 (운영자 W1 모달 source). ttp 1건당 매치 N건 row 가능.
   match_player_jerseys MatchPlayerJersey[]
+  // 2026-05-11 Phase 1 — 자녀 프로필 + 부모 클레임 user 연결 (둘 다 NULL 허용 / SetNull on delete — 부모/프로필 삭제해도 신청 기록은 유지)
+  childProfile         ChildProfile?       @relation(fields: [child_profile_id], references: [id], onDelete: SetNull)
+  claimedUser          User?               @relation("TtpClaimedUser", fields: [claimed_user_id], references: [id], onDelete: SetNull)
 
   @@unique([tournamentTeamId, jerseyNumber], map: "idx_tournament_team_players_jersey")
   @@unique([tournamentTeamId, userId], map: "idx_tournament_team_players_unique")
   @@index([is_active], map: "index_tournament_team_players_on_is_active")
   @@index([tournamentTeamId], map: "index_tournament_team_players_on_tournament_team_id")
   @@index([userId], map: "index_tournament_team_players_on_user_id")
+  // 2026-05-11 Phase 1 — 클레임 라이프사이클 조회 + 부모 user 역방향 조회 인덱스
+  @@index([claim_status], map: "index_ttp_on_claim_status")
+  @@index([claimed_user_id], map: "index_ttp_on_claimed_user_id")
   @@map("tournament_team_players")
 }
 
@@ -3265,4 +3305,65 @@ model MatchLineupConfirmed {
   @@index([matchId])
   @@index([confirmedById])
   @@map("match_lineup_confirmed")
+}
+
+// =============================================================================
+// 2026-05-11 Phase 1 — 강남구협회장배 유소년 일괄 등록 신규 모델 3개
+// 이유(왜): 코치 1인이 팀 단위로 선수 명단을 일괄 입력 + 부모 매직링크 클레임.
+// 모두 ADD-only / NULL 허용 컬럼만 — 운영 DB 무중단 (CLAUDE.md §🗄️ DB 정책)
+// =============================================================================
+
+/// 부모 계정에 종속된 자녀 프로필 — 1 부모 : N 자녀. 재사용 가능 (다른 대회에서도 동일 자녀 참가).
+/// 클레임 성공 시 ChildProfile 생성 → TournamentTeamPlayer.child_profile_id 가 본 row 를 가리킴.
+model ChildProfile {
+  id              BigInt    @id @default(autoincrement())
+  parentUserId    BigInt    @map("parent_user_id")
+  childName       String    @map("child_name") @db.VarChar
+  childBirthdate  DateTime  @map("child_birthdate") @db.Date
+  childGrade      Int?      @map("child_grade")
+  schoolName      String?   @map("school_name") @db.VarChar
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  parent          User                   @relation("ChildProfileParent", fields: [parentUserId], references: [id])
+  rosters         TournamentTeamPlayer[]
+
+  @@index([parentUserId])
+  @@map("child_profiles")
+}
+
+/// 매직링크 클레임 토큰 — 부모가 SMS/카톡으로 받는 1회용 URL.
+/// playerId 가 unique 이므로 ttp 1건 = 토큰 1건만 발급 (재발송은 동일 row UPDATE 또는 별도 정책).
+/// 일회용 = consumedAt 세팅 후 무효.
+model ClaimToken {
+  id              BigInt    @id @default(autoincrement())
+  playerId        BigInt    @unique @map("player_id")
+  token           String    @unique @db.VarChar
+  parentPhone     String    @map("parent_phone") @db.VarChar
+  expiresAt       DateTime  @map("expires_at") @db.Timestamp(6)
+  consumedAt      DateTime? @map("consumed_at") @db.Timestamp(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([token])
+  @@map("claim_tokens")
+}
+
+/// 대회별 종별 매핑 룰 — 생년/학년 → division_code 추론.
+/// 대회 setup 시 seed (scripts/_temp/seed-gangnam-divisions.ts).
+/// feeKrw = 종별 참가비 (팀 단위 신청 시점에 자동 계산용).
+model TournamentDivisionRule {
+  id              BigInt    @id @default(autoincrement())
+  tournamentId    String    @map("tournament_id") @db.Uuid
+  code            String    @db.VarChar
+  label           String    @db.VarChar
+  birthYearMin    Int?      @map("birth_year_min")
+  birthYearMax    Int?      @map("birth_year_max")
+  gradeMin        Int?      @map("grade_min")
+  gradeMax        Int?      @map("grade_max")
+  feeKrw          Int       @default(0) @map("fee_krw")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  tournament      Tournament @relation(fields: [tournamentId], references: [id])
+
+  @@index([tournamentId])
+  @@map("tournament_division_rules")
 }
