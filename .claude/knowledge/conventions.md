@@ -1,6 +1,38 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-12] 로그인 redirect 헬퍼 단일 source — `@/lib/auth/redirect`
+- **분류**: convention/auth (open redirect 방어 + 로그인 후 자동 복귀)
+- **발견자**: developer
+- **내용**:
+  - **쿼리 파라미터 통일**: 로그인 후 복귀 = `redirect` 하나만 사용. `next` / `returnTo` 변형 ❌ (login page 가 `redirect` 만 읽음 — 미통일 시 사일런트 무시).
+  - **헬퍼 3종 (`@/lib/auth/redirect`)**:
+    1. `isValidRedirect(path)` — open redirect 7 가드 (외부 URL / `//evil.com` / `/login` 자체 / `/api/` / 2000자 / null / 절대 경로).
+    2. `buildLoginRedirect(pathname, search?)` — 안전 인코딩 → `/login?redirect=%2F...`. 무효 경로 → `/login` fallback.
+    3. `safeRedirect(input, fallback?)` — 입력 검증 후 fallback (기본 `/`).
+  - **금지 패턴**: 페이지별 로컬 `isValidRedirect` 함수 ❌ (분산 → 검증 룰 불일치). 직접 `path.startsWith("/")` 만 검사 ❌ (protocol-relative `//evil.com` 차단 못 함).
+  - **server layout 가드 패턴**:
+    ```ts
+    const session = await getWebSession();
+    if (!session) {
+      const h = await headers();
+      const pathname = h.get("x-pathname") ?? "/fallback-path";
+      const search = h.get("x-search") ?? "";
+      redirect(buildLoginRedirect(pathname, search));
+    }
+    ```
+    - `x-pathname` / `x-search` 는 `src/middleware.ts` 가 주입. 본 헤더가 필요한 server layout 은 matcher 추가 필요 (현재 `/admin/*` + `/tournament-admin/*`).
+  - **server page 가드 패턴** (pathname 정적 알 수 있는 경우):
+    ```ts
+    if (!session) {
+      redirect(buildLoginRedirect(`/games/${id}/guest-apply`));
+    }
+    ```
+  - **OAuth 콜백 (`bdr_redirect` 쿠키)**: `/api/auth/login?redirect=...` 가 쿠키 박제 (5분 TTL) → `handleOAuthLogin` 이 read + delete + safeRedirect 통과 후 redirect. 쿠키는 1회 사용 후 즉시 삭제 (재사용 방지).
+- **테스트**: `src/__tests__/lib/auth/redirect.test.ts` (19 케이스) — 신규 헬퍼 호출 시 회귀 가드.
+- **후속 큐**: 동일 패턴 잔존 7+ 파일 (`teams/manage`, `teams/[id]/_components_v2/team-*`, `tournaments/[id]/v2-registration-sidebar`, `lineup-confirm/[matchId]`, `report-form.tsx`, 등) 일괄 정리 권장.
+- **참조횟수**: 0
+
 ### [2026-05-11] admin 영역 빨간색 본문 텍스트 금지 — 강조 뱃지/필수표시(*)만 허용
 - **분류**: convention (디자인 시스템)
 - **발견자**: reviewer / pm (사용자 보고 후 점검)

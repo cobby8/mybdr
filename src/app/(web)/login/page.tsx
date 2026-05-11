@@ -6,6 +6,8 @@ import { loginAction, devLoginAction } from "@/app/actions/auth";
 import { InfoDialog } from "@/components/ui/info-dialog";
 // 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 + autoComplete 정밀 제어 — conventions.md 룰)
 import { PasswordInput } from "@/components/ui/password-input";
+// 2026-05-12 로그인 redirect 통합 — open redirect 방어 단일 source (분산된 isValidRedirect 제거)
+import { safeRedirect } from "@/lib/auth/redirect";
 
 // OAuth 콜백 에러 코드 → 사용자용 한국어 메시지 매핑
 // (기존 로직 유지 — UI만 교체하므로 동일)
@@ -28,11 +30,9 @@ const REDIRECT_BANNERS: Record<string, { title: string; desc: string }> = {
   },
 };
 
-// open redirect 방어: 내부 경로만 허용 (외부 URL, 프로토콜 상대 URL 차단)
-// 참고: src/app/api/auth/login/route.ts의 isValidRedirect와 동일 로직
-function isValidRedirect(path: string): boolean {
-  return path.startsWith("/") && !path.startsWith("//");
-}
+// 2026-05-12: 로컬 isValidRedirect 제거 — `@/lib/auth/redirect` 의 safeRedirect 단일 source 사용.
+//   사유: 동일 검증 로직이 3 파일에 중복 (login/page.tsx, api/auth/login/route.ts, lib/auth/redirect.ts).
+//   장점: /login / /api/ 같은 추가 차단 룰 적용 + 단일 source 유지.
 
 export default function LoginPage() {
   // 탭 상태 — 시안 기준 'login' | 'signup'
@@ -80,10 +80,12 @@ export default function LoginPage() {
   const [showOauthErrorDialog, setShowOauthErrorDialog] = useState<boolean>(
     !!(oauthError && OAUTH_ERRORS[oauthError]),
   );
-  // 로그인 후 돌아갈 경로 (예: /referee → layout에서 redirect=/referee로 보냄)
-  // open redirect 방어를 통과한 값만 실제 redirect 값으로 사용
+  // 로그인 후 돌아갈 경로 (예: /tournament-admin/... → layout 에서 redirect=... 로 보냄)
+  // 2026-05-12: safeRedirect(input, fallback) 사용 — 무효 값은 fallback("") 처리 후 null 변환.
+  //   기존 인터페이스 (string | null) 보존 — 하단 redirectTo 조건부 사용 코드 변경 0.
   const rawRedirect = searchParams.get("redirect");
-  const redirectTo = rawRedirect && isValidRedirect(rawRedirect) ? rawRedirect : null;
+  const safe = safeRedirect(rawRedirect, "");
+  const redirectTo = safe || null;
   // 등록된 경로에 한해 안내 플로팅 다이얼로그 노출 (매핑에 없으면 생략)
   // 전역 컨벤션: "모든 플로팅 UI는 확인 버튼 / backdrop / ESC로 닫힘" 적용
   const redirectBanner = redirectTo ? REDIRECT_BANNERS[redirectTo] : null;

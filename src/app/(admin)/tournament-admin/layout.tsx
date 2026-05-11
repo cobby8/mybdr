@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminMobileNav } from "@/components/admin/mobile-admin-nav";
+// 2026-05-12 로그인 redirect 통합 — 비로그인 → 로그인 페이지 후 원래 tournament-admin 페이지 복귀
+import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { TournamentAdminNav } from "./_components/tournament-admin-nav";
 
 // AdminSidebar/AdminMobileNav role 타입 (admin/layout.tsx 와 동일)
@@ -26,9 +29,15 @@ type AdminRole =
 export default async function TournamentAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getWebSession();
   if (!session) {
-    redirect("/login");
+    // 2026-05-12: 현재 tournament-admin 경로를 redirect 쿼리에 담아 로그인 후 자동 복귀.
+    // middleware 가 `x-pathname` / `x-search` 헤더 주입 (`/tournament-admin/*` matcher) — fallback "/tournament-admin".
+    const h = await headers();
+    const pathname = h.get("x-pathname") ?? "/tournament-admin";
+    const search = h.get("x-search") ?? "";
+    redirect(buildLoginRedirect(pathname, search));
   }
   // 권한 부족: 에러 메시지 포함 로그인 페이지로 리다이렉트
+  // 권한 부족 = 로그인 자체는 통과한 케이스 → redirect 쿼리 동봉 안 함 (다른 계정 로그인 권유).
   if (session.role !== "tournament_admin" && session.role !== "super_admin") {
     redirect("/login?error=no_permission");
   }

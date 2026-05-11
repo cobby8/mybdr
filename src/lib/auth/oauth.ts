@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 import { generateToken } from "./jwt";
 import { WEB_SESSION_COOKIE } from "./web-session";
 import { matchPlayersByPhone } from "@/lib/services/player-matching";
+// 2026-05-12 로그인 redirect 통합 — bdr_redirect 쿠키 읽어 OAuth 후 원래 페이지 복귀
+import { safeRedirect } from "./redirect";
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -114,17 +116,26 @@ export async function handleOAuthLogin(profile: OAuthProfile): Promise<Response>
   const cookieStore = await cookies();
   cookieStore.set(WEB_SESSION_COOKIE, token, COOKIE_OPTIONS);
 
+  // 2026-05-12: `/api/auth/login` 라우트가 redirect 쿼리 받을 때 `bdr_redirect` 쿠키 (5분 TTL) 박제.
+  //   OAuth 콜백 (본 함수) 이 그 쿠키 읽고 → safeRedirect 통과 → 원래 페이지로 복귀.
+  //   읽은 후 즉시 삭제 (재사용 방지 + 다른 흐름 오염 차단).
+  const redirectCookie = cookieStore.get("bdr_redirect")?.value;
+  cookieStore.delete("bdr_redirect");
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
 
-  // 이메일 또는 전화번호가 없으면 인증 페이지로
+  // 이메일 또는 전화번호가 없으면 인증 페이지로 (verify 흐름 우선 — 사용자 정보 보강 후 복귀 시도)
   const needsEmail = !user.email || user.email.endsWith("@oauth.local");
   const needsPhone = !user.phone;
   if (needsEmail || needsPhone) {
     const missing = [needsEmail && "email", needsPhone && "phone"].filter(Boolean).join(",");
+    // verify 페이지가 자체적으로 next 흐름 처리 필요 시 query 보존 — 현재는 단순 redirect.
     return Response.redirect(new URL(`/verify?missing=${missing}`, baseUrl));
   }
 
-  return Response.redirect(new URL("/", baseUrl));
+  // 정상 로그인 — 쿠키에 redirect 박제돼 있으면 원래 페이지로 복귀 (open redirect 방어 통과 시).
+  const target = safeRedirect(redirectCookie, "/");
+  return Response.redirect(new URL(target, baseUrl));
 }
 
 /**
