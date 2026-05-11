@@ -16,6 +16,8 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { BirthDateInput } from "@/components/inputs/birth-date-input";
+import { PhoneInput } from "@/components/inputs/phone-input";
 import {
   birthDateToGrade,
   gradeToKorean,
@@ -348,11 +350,11 @@ function PlayerRowEditor({
   onChange: (field: keyof PlayerRow, value: string) => void;
   onRemove?: () => void;
 }) {
-  // 생년월일 → 학년 자동 계산 (한국 표기)
+  // 생년월일 → 학년 자동 계산 (한국 표기 — 초/중/고만, "8학년" 등 절대학년 노출 0)
   const computedGrade = useMemo(() => {
     if (!row.birth_date) return null;
     const g = birthDateToGrade(row.birth_date);
-    return g != null ? { abs: g, label: gradeToKorean(g) } : null;
+    return g != null ? { label: gradeToKorean(g) } : null;
   }, [row.birth_date]);
 
   return (
@@ -379,13 +381,23 @@ function PlayerRowEditor({
           placeholder="홍길동"
           required
         />
-        <FieldText
-          label="생년월일 *"
-          type="date"
-          value={row.birth_date}
-          onChange={(v) => onChange("birth_date", v)}
-          required
-        />
+        {/* 사이트 전역 표준 BirthDateInput — 숫자만 입력 → 자동 YYYY-MM-DD 포맷 */}
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            생년월일 *
+          </span>
+          <BirthDateInput
+            value={row.birth_date}
+            onChange={(v) => onChange("birth_date", v)}
+            required
+            className="w-full rounded-[4px] border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-card)",
+              color: "var(--color-text-primary)",
+            }}
+          />
+        </label>
         <FieldNumber
           label="등번호 *"
           value={row.jersey_number}
@@ -407,7 +419,7 @@ function PlayerRowEditor({
           placeholder="강남초등학교"
         />
 
-        {/* 학년 자동 표시 (readonly) — 생년월일 입력 시 자동 계산 */}
+        {/* 학년 자동 표시 (readonly) — 생년월일 입력 시 자동 계산. 한국 학년 표기만 (초/중/고). */}
         <div>
           <label className="block">
             <span className="mb-1 block text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
@@ -426,7 +438,7 @@ function PlayerRowEditor({
                 color: computedGrade ? "var(--color-text-primary)" : "var(--color-text-muted)",
               }}
             >
-              {computedGrade ? `${computedGrade.label} (${computedGrade.abs}학년)` : "생년월일 입력 시 자동"}
+              {computedGrade ? computedGrade.label : "생년월일 입력 시 자동"}
             </div>
           </label>
         </div>
@@ -437,14 +449,23 @@ function PlayerRowEditor({
           onChange={(v) => onChange("parent_name", v)}
           placeholder="홍판서"
         />
-        <FieldText
-          label="부모 연락처 *"
-          value={row.parent_phone}
-          onChange={(v) => onChange("parent_phone", v)}
-          placeholder="010-1234-5678"
-          type="tel"
-          required
-        />
+        {/* 사이트 전역 표준 PhoneInput — 숫자만 입력 → 자동 010-XXXX-XXXX 포맷 */}
+        <label className="block">
+          <span className="mb-1 block text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            부모 연락처 *
+          </span>
+          <PhoneInput
+            value={row.parent_phone}
+            onChange={(v) => onChange("parent_phone", v)}
+            required
+            className="w-full rounded-[4px] border px-3 py-2 text-sm focus:outline-none focus:ring-1"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-card)",
+              color: "var(--color-text-primary)",
+            }}
+          />
+        </label>
       </div>
     </div>
   );
