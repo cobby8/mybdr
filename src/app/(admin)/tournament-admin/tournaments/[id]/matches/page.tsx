@@ -18,7 +18,7 @@ import {
   getTournamentMatchStats,
   getTournamentDefaultMode,
 } from "@/lib/tournaments/recording-mode";
-import { RecordingModeCard } from "../_components/recording-mode-card";
+import { RecordingModeTriggerClient } from "../_components/recording-mode-trigger";
 import MatchesClient from "./matches-client";
 
 export const dynamic = "force-dynamic";
@@ -57,17 +57,18 @@ export default async function MatchesPage({
 
   return (
     <div>
-      {/* 2026-05-12 — 기록 모드 설정 카드 (대시보드 → 본 페이지로 이동) */}
-      <div className="mb-6">
-        <RecordingModeCard
-          tournamentId={id}
-          defaultMode={recordingDefaultMode}
-          matchStats={matchStats}
-        />
-      </div>
+      {/* 2026-05-12 — 기록 모드 설정 (사용자 요청: 큰 카드 → 메뉴 1개 + 플로팅 모달).
+          MatchesClient 상단 액션 영역에 "기록 모드 설정" 버튼 + 모달 트리거.
+          서버에서 산출한 stats / defaultMode 를 client wrapper 에 전달. */}
+      <RecordingModeTriggerClient
+        tournamentId={id}
+        defaultMode={recordingDefaultMode}
+        matchStats={matchStats}
+      />
 
       {/* 매치 관리 + 스코어 입력 진입 (기존 client) */}
       <MatchesClient />
     </div>
   );
 }
+

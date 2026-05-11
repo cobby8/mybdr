@@ -1,9 +1,16 @@
 "use client";
 
 /**
- * 2026-05-12 Phase 4 — 운영자 변경 폼 (client component).
+ * 2026-05-12 — 운영자 관리 폼 (사이트 관리자 / super_admin).
  *
- * 흐름: user search (email/nickname/id) → 선택 → 사유 입력 → POST API
+ * 변경:
+ *   - 검색: /api/web/admin/users/search → /api/web/admin/tournaments/[id]/eligible-users
+ *     · 소속 단체 멤버 한정 (organization_members.organization_id = tournament.series.organization_id)
+ *   - 액션 분기: "주최자 변경" / "운영자 추가" (TAM INSERT)
+ *   - placeholder 안내 텍스트화 (snukobe@gmail.com 제거)
+ *
+ * 소속 단체 미연결 (tournament.series.organization_id = null) 시:
+ *   - 안내 메시지 + 폼 비활성 ("이 대회를 단체 시리즈에 연결한 후 다시 시도하세요")
  */
 
 import { useState } from "react";
@@ -14,15 +21,26 @@ type FoundUser = {
   nickname: string | null;
   email: string;
   name: string | null;
+  role?: string;
 };
+
+type Action = "transfer" | "add";
 
 interface Props {
   tournamentId: string;
   currentOrganizerId: string;
+  organizationName: string | null;
+  hasOrganization: boolean;
 }
 
-export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Props) {
+export function TransferOrganizerForm({
+  tournamentId,
+  currentOrganizerId,
+  organizationName,
+  hasOrganization,
+}: Props) {
   const router = useRouter();
+  const [action, setAction] = useState<Action>("add");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<FoundUser[]>([]);
@@ -33,15 +51,25 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
   const [success, setSuccess] = useState<string | null>(null);
 
   const search = async () => {
-    if (!query.trim()) return;
-    setSearching(true);
     setError(null);
+    if (!hasOrganization) {
+      setError("대회가 단체 시리즈에 연결되어 있지 않습니다. 단체 연결 후 다시 시도하세요.");
+      return;
+    }
+    setSearching(true);
     try {
-      const res = await fetch(`/api/web/admin/users/search?q=${encodeURIComponent(query.trim())}`);
+      const url = new URL(
+        `/api/web/admin/tournaments/${tournamentId}/eligible-users`,
+        window.location.origin,
+      );
+      if (query.trim()) url.searchParams.set("q", query.trim());
+      const res = await fetch(url.toString());
       if (res.ok) {
         const json = await res.json();
-        // apiSuccess raw 응답 — { users: [...] } 형태 가정
         setResults((json.users ?? []) as FoundUser[]);
+        if ((json.users ?? []).length === 0) {
+          setError("검색 결과 없음 — 소속 단체 가입자만 후보로 표시됩니다.");
+        }
       } else {
         setError("검색 실패");
       }
@@ -52,34 +80,72 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
     }
   };
 
+  // 빈 query 검색 = 전체 단체 멤버 목록 (사용자가 검색어 입력 안 해도 후보 표시)
+  // useEffect 로 마운트 시 자동 호출
+  // (action 변경 시 결과 리셋)
+  const reset = () => {
+    setResults([]);
+    setSelected(null);
+    setReason("");
+    setError(null);
+    setSuccess(null);
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selected) return setError("신규 운영자를 선택하세요.");
-    if (selected.id === currentOrganizerId) return setError("현 운영자와 동일합니다.");
-    if (!reason.trim()) return setError("변경 사유를 입력하세요 (최소 5자).");
-    if (reason.trim().length < 5) return setError("변경 사유는 최소 5자 이상 입력하세요.");
-
-    setSubmitting(true);
     setError(null);
+    setSuccess(null);
+    if (!selected) return setError("후보를 선택하세요.");
+
+    if (action === "transfer") {
+      if (selected.id === currentOrganizerId) return setError("현 주최자와 동일합니다.");
+      if (!reason.trim()) return setError("변경 사유를 입력하세요 (최소 5자).");
+      if (reason.trim().length < 5) return setError("변경 사유는 최소 5자 이상.");
+
+      setSubmitting(true);
+      try {
+        const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/transfer-organizer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ newOrganizerId: selected.id, reason: reason.trim() }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json.error ?? "이관 실패");
+          setSubmitting(false);
+          return;
+        }
+        setSuccess(`주최자가 ${selected.nickname ?? selected.email} 으로 변경되었습니다.`);
+        router.refresh();
+        setTimeout(() => setSuccess(null), 3000);
+        setSubmitting(false);
+        reset();
+      } catch {
+        setError("네트워크 오류");
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    // action === 'add' (운영자 추가)
+    setSubmitting(true);
     try {
-      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/transfer-organizer`, {
+      const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/admins`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ newOrganizerId: selected.id, reason: reason.trim() }),
+        body: JSON.stringify({ userId: selected.id, role: "admin" }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setError(json.error ?? "이관 실패");
+        setError(json.error ?? "운영자 추가 실패");
         setSubmitting(false);
         return;
       }
-      // 성공 — 같은 페이지 refresh (현 운영자 표시 갱신) + 성공 토스트
-      // 2026-05-12 사용자 요청: 변경 완료까지 명확 확인 (alert → toast + refresh)
-      setSuccess(`운영자가 ${selected.nickname ?? selected.email} 으로 변경되었습니다.`);
+      setSuccess(`${selected.nickname ?? selected.email} 을(를) 위임 운영자로 추가했습니다.`);
       router.refresh();
-      // 3초 후 토스트 자동 dismiss
       setTimeout(() => setSuccess(null), 3000);
       setSubmitting(false);
+      reset();
     } catch {
       setError("네트워크 오류");
       setSubmitting(false);
@@ -88,13 +154,62 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {/* 액션 토글 */}
+      <div
+        className="rounded-[4px] border p-3"
+        style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+      >
+        <p
+          className="mb-2 text-xs font-semibold uppercase"
+          style={{ color: "var(--color-text-muted)", letterSpacing: "0.04em" }}
+        >
+          작업 선택
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => { setAction("add"); reset(); }}
+            className="btn btn--sm"
+            style={
+              action === "add"
+                ? { background: "var(--color-success)", color: "#fff", borderColor: "var(--color-success)" }
+                : undefined
+            }
+          >
+            + 운영자 추가
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAction("transfer"); reset(); }}
+            className="btn btn--sm"
+            style={
+              action === "transfer"
+                ? { background: "var(--color-warning)", color: "#fff", borderColor: "var(--color-warning)" }
+                : undefined
+            }
+          >
+            ⇄ 주최자 변경
+          </button>
+        </div>
+        <p className="mt-2 text-xs" style={{ color: "var(--color-text-muted)" }}>
+          {action === "add"
+            ? "위임 운영자를 추가합니다. TournamentAdminMember 에 INSERT 됩니다."
+            : "현 주최자 권한을 다른 사용자로 이관합니다. (warning 박제)"}
+        </p>
+      </div>
+
       {/* 검색 영역 */}
       <div>
         <label
           className="mb-1 block text-xs font-semibold"
           style={{ color: "var(--color-text-muted)" }}
         >
-          신규 운영자 검색 (닉네임 / 이메일 / userId)
+          {action === "add" ? "운영자 후보 검색" : "신규 주최자 검색"}{" "}
+          {organizationName && (
+            <span style={{ color: "var(--color-accent)" }}>
+              · {organizationName} 멤버 한정
+            </span>
+          )}
         </label>
         <div className="flex gap-2">
           <input
@@ -107,18 +222,19 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
                 search();
               }
             }}
-            placeholder="snukobe@gmail.com"
+            placeholder="닉네임 / 이메일 / userId 일부 입력 (빈 값 검색 = 전체 멤버)"
             className="flex-1 rounded-[4px] border px-3 py-2 text-sm focus:outline-none focus:ring-1"
             style={{
               borderColor: "var(--color-border)",
               background: "var(--color-card)",
               color: "var(--color-text-primary)",
             }}
+            disabled={!hasOrganization}
           />
           <button
             type="button"
             onClick={search}
-            disabled={searching || !query.trim()}
+            disabled={searching || !hasOrganization}
             className="btn btn--sm"
           >
             {searching ? "검색 중..." : "검색"}
@@ -146,9 +262,17 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
               }}
             >
               <div>
-                <p className="font-medium">{u.nickname ?? u.name ?? "(이름 없음)"}</p>
+                <p className="font-medium">
+                  {u.nickname ?? u.name ?? "(이름 없음)"}
+                  {u.name && u.name !== u.nickname && (
+                    <span className="ml-1 text-xs" style={{ color: "var(--color-text-muted)" }}>
+                      ({u.name})
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                   {u.email} · userId {u.id}
+                  {u.role && ` · 단체 ${u.role}`}
                 </p>
               </div>
               {u.id === currentOrganizerId && (
@@ -159,7 +283,7 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
                     color: "var(--color-text-muted)",
                   }}
                 >
-                  현 운영자
+                  현 주최자
                 </span>
               )}
             </button>
@@ -167,8 +291,8 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
         </div>
       )}
 
-      {/* 변경 사유 */}
-      {selected && (
+      {/* 변경 사유 (transfer 액션만) */}
+      {selected && action === "transfer" && (
         <div>
           <label
             className="mb-1 block text-xs font-semibold"
@@ -180,7 +304,7 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            placeholder="예: 기존 운영자 부재로 신규 협회 담당자 이관"
+            placeholder="기존 주최자 부재로 신규 협회 담당자 이관"
             className="w-full rounded-[4px] border px-3 py-2 text-sm focus:outline-none focus:ring-1"
             style={{
               borderColor: "var(--color-border)",
@@ -211,8 +335,16 @@ export function TransferOrganizerForm({ tournamentId, currentOrganizerId }: Prop
       )}
 
       <div className="flex justify-end gap-2">
-        <button type="submit" disabled={submitting || !selected} className="btn btn--primary">
-          {submitting ? "이관 중..." : "운영자 변경 실행"}
+        <button
+          type="submit"
+          disabled={submitting || !selected || !hasOrganization}
+          className="btn btn--primary"
+        >
+          {submitting
+            ? "처리 중..."
+            : action === "add"
+              ? "운영자 추가 실행"
+              : "주최자 변경 실행"}
         </button>
       </div>
     </form>
