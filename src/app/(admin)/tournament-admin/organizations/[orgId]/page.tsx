@@ -172,7 +172,8 @@ export default function OrganizationDashboardPage() {
             className="h-14 w-14 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-primary)] text-lg font-bold text-white">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-info)] text-lg font-bold text-white">
+            {/* admin 빨강 본문 금지 룰 → info(Navy) 토큰 */}
             {org.name.charAt(0)}
           </div>
         )}
@@ -255,7 +256,7 @@ export default function OrganizationDashboardPage() {
       {isAdmin && (
         <Link
           href={`/tournament-admin/organizations/${orgId}/members`}
-          className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]"
+          className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
         >
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[var(--color-text-muted)]">
@@ -280,7 +281,7 @@ export default function OrganizationDashboardPage() {
           {isAdmin && (
             <button
               onClick={() => setShowSeriesForm((v) => !v)}
-              className="rounded bg-[var(--color-primary)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+              className="btn btn--sm btn--primary"
             >
               <span className="material-symbols-outlined mr-0.5 text-sm align-middle">
                 add
@@ -298,7 +299,7 @@ export default function OrganizationDashboardPage() {
               value={creatingSeriesName}
               onChange={(e) => setCreatingSeriesName(e.target.value)}
               placeholder="시리즈 이름"
-              className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+              className="flex-1 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-accent)]"
               onKeyDown={(e) => {
                 // 한글 IME composition 중 Enter 차단
                 if (e.nativeEvent.isComposing) return;
@@ -323,7 +324,7 @@ export default function OrganizationDashboardPage() {
             {org.series.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]"
+                className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
               >
                 {/* 좌측: 시리즈 정보 — Link 로 진입 */}
                 <Link
