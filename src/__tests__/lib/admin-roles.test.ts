@@ -57,12 +57,20 @@ interface OrgRow {
   role: string;
   organization: { name: string } | null;
 }
+// 2026-05-11 Phase 3 — 협회 관리자 매핑 row
+interface AssociationAdminRow {
+  association_id: bigint;
+  role: string;
+  association: { name: string } | null;
+}
 
 function setupMocks(opts: {
   tamRows?: TamRow[];
   recorderRows?: RecorderRow[];
   partnerRow?: PartnerRow | null;
   orgRow?: OrgRow | null;
+  // 2026-05-11 Phase 3 — associationAdmin 매핑 row
+  associationAdminRow?: AssociationAdminRow | null;
   // DB SELECT 실패 시나리오용 — true 면 findMany/findFirst 모두 throw
   dbFails?: boolean;
 }) {
@@ -84,6 +92,10 @@ function setupMocks(opts: {
       },
       organization_members: {
         findFirst: makeMock(opts.orgRow ?? null),
+      },
+      // 2026-05-11 Phase 3 — 협회 관리자 매핑 (user_id @unique → findUnique)
+      associationAdmin: {
+        findUnique: makeMock(opts.associationAdminRow ?? null),
       },
     },
   }));
@@ -352,8 +364,38 @@ describe("getAdminRoles — admin 권한 매트릭스 헬퍼 (admin 마이페이
     expect(summary.tournamentRecorders).toEqual([]);
     expect(summary.partnerMember).toBeNull();
     expect(summary.orgMember).toBeNull();
+    // 2026-05-11 Phase 3 — associationAdmin 도 폴백 null 보장
+    expect(summary.associationAdmin).toBeNull();
     // roles 배열은 boolean 기반 권한 (super/site) 만 포함
     expect(summary.roles).toContain("super_admin");
     expect(summary.roles).toContain("site_admin");
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // 2026-05-11 Phase 3 — associationAdmin 시그니처 발전 회귀
+  // ─────────────────────────────────────────────────────────────────────
+
+  it("(14) Phase 3 — associationAdmin 매핑 존재 → AssociationAdminMembership 직렬화", async () => {
+    setupMocks({
+      associationAdminRow: {
+        association_id: BigInt(42),
+        role: "secretary_general",
+        association: { name: "서울특별시농구협회" },
+      },
+    });
+    const { getAdminRoles } = await import("@/lib/auth/admin-roles");
+    const summary = await getAdminRoles(USER_ID, { role: "free" });
+    expect(summary.associationAdmin).toEqual({
+      associationId: "42",
+      associationName: "서울특별시농구협회",
+      role: "secretary_general",
+    });
+  });
+
+  it("(15) Phase 3 — associationAdmin 매핑 없음 → null", async () => {
+    setupMocks({ associationAdminRow: null });
+    const { getAdminRoles } = await import("@/lib/auth/admin-roles");
+    const summary = await getAdminRoles(USER_ID, { role: "free" });
+    expect(summary.associationAdmin).toBeNull();
   });
 });

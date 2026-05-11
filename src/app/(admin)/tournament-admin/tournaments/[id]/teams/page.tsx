@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -31,6 +31,18 @@ type TournamentTeam = {
     primaryColor: string | null;
   };
   players: { id: string; role: string }[];
+};
+
+/**
+ * apply_token 진행 표 row (Phase 2-C IA 통합).
+ * - team-applications API 응답의 토큰 정보를 tournamentTeam.id 로 매핑해서 표 컬럼 추가.
+ * - applyTokenUrl: 만료 토큰은 null 처리 (API 가 만료 검사 후 노출).
+ */
+type TokenInfo = {
+  applyTokenUrl: string | null;
+  applyTokenExpiresAt: string | null;
+  managerName: string | null;
+  managerPhone: string | null;
 };
 
 /* ---------- 상수 ---------- */
@@ -69,17 +81,81 @@ export default function TournamentTeamsPage() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [addLoading, setAddLoading] = useState(false);
 
-  /* --- 팀 목록 로드 --- */
+  // Phase 2-C IA — apply_token 진행 표 통합
+  // tokenMap: tournamentTeam.id → 토큰 URL/만료/코치정보
+  // 이유(왜): 기존 API 응답에는 토큰 정보가 없어 별도 endpoint 호출 후 id 매핑.
+  const [tokenMap, setTokenMap] = useState<Record<string, TokenInfo>>({});
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // 토스트 자동 사라짐 (3초)
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  /* --- 팀 목록 로드 + 토큰 정보 병합 (Phase 2-C 통합) --- */
   const load = useCallback(async () => {
     try {
+      // 1) 기존 팀/선수 정보 (시드/상태 관리용)
       const res = await fetch(`/api/web/tournaments/${id}/teams`);
       if (res.ok) setTeams(await res.json());
+
+      // 2) 토큰 정보 (apply_token URL + 만료) — 별도 endpoint
+      //    응답은 snake_case (apiSuccess 자동 변환) — apply_token_url / apply_token_expires_at
+      const tokenRes = await fetch(`/api/web/admin/tournaments/${id}/team-applications`);
+      if (tokenRes.ok) {
+        const json = await tokenRes.json();
+        const next: Record<string, TokenInfo> = {};
+        // apiSuccess wrapper: { success: true, data: { teams: [...] } } — 모두 snake_case 변환됨
+        // 응답 key 가 snake_case 로 변환되므로 접근자도 snake_case 사용 (CLAUDE.md §보안 5번)
+        const teamsArr = (json?.data?.teams ?? []) as Array<{
+          id: string;
+          apply_token_url: string | null;
+          apply_token_expires_at: string | null;
+          manager_name: string | null;
+          manager_phone: string | null;
+        }>;
+        for (const row of teamsArr) {
+          next[row.id] = {
+            applyTokenUrl: row.apply_token_url,
+            applyTokenExpiresAt: row.apply_token_expires_at,
+            managerName: row.manager_name,
+            managerPhone: row.manager_phone,
+          };
+        }
+        setTokenMap(next);
+      }
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => { load(); }, [load]);
+
+  /* --- 토큰 URL 복사 (clipboard + 토스트) --- */
+  const copyTokenUrl = useCallback(
+    async (url: string | null) => {
+      if (!url) {
+        showToast("토큰이 만료되었습니다. 재발급이 필요합니다.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast("토큰 URL이 복사되었습니다");
+      } catch {
+        showToast("복사에 실패했습니다");
+      }
+    },
+    [showToast],
+  );
+
+  /* --- 만료일 포맷 (YYYY.MM.DD) --- */
+  const formatExpiry = (iso: string | null): string => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  };
 
   /* --- 팀 상태 변경 --- */
   const updateStatus = async (teamId: string, status: string) => {
@@ -211,11 +287,24 @@ export default function TournamentTeamsPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href={`/tournament-admin/tournaments/${id}`} className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">&larr; 대회 관리</Link>
           <h1 className="mt-1 text-xl font-bold sm:text-2xl">참가팀 관리</h1>
+          {/* Phase 2-C 안내 — 코치 토큰 URL 공유 시 비로그인으로 명단 입력 가능 */}
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+            코치에게 토큰 URL을 공유하면 비로그인으로 명단 입력 가능합니다.
+          </p>
         </div>
+        {/* 팀 + 토큰 신규 발급 버튼 (Phase 2-C 통합) */}
+        <button
+          type="button"
+          onClick={() => setShowTokenModal(true)}
+          className="flex items-center gap-1.5 rounded-[4px] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] hover:opacity-90"
+        >
+          <span className="material-symbols-outlined text-base">add</span>
+          팀 + 토큰 신규 발급
+        </button>
       </div>
 
       {/* 통계 탭 */}
@@ -243,7 +332,11 @@ export default function TournamentTeamsPage() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filtered.map((tt) => (
+          {filtered.map((tt) => {
+            // Phase 2-C — 토큰 정보 매핑 (tournamentTeam.id 기준)
+            const token = tokenMap[tt.id];
+            const tokenAlive = !!token?.applyTokenUrl;
+            return (
             <Card key={tt.id}>
               {/* 팀 정보 행 */}
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -261,6 +354,10 @@ export default function TournamentTeamsPage() {
                     <p className="text-xs text-[var(--color-text-muted)]">
                       선수 {tt.players.length}명 &middot;{" "}
                       {new Date(tt.createdAt).toLocaleDateString("ko-KR")} 신청
+                      {/* Phase 2-C — 코치 정보 표시 (있을 때만) */}
+                      {token?.managerName && (
+                        <> &middot; 코치 {token.managerName}</>
+                      )}
                     </p>
                   </div>
                   {/* 펼침 화살표 */}
@@ -270,6 +367,31 @@ export default function TournamentTeamsPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {/* Phase 2-C — 토큰 URL 복사 버튼 */}
+                  {/* 토큰 자체가 발급된 적이 없는 팀(직접 등록 등) = "-" / 만료 = "만료" 표시 */}
+                  {token ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyTokenUrl(token.applyTokenUrl);
+                      }}
+                      disabled={!tokenAlive}
+                      title={tokenAlive ? `만료: ${formatExpiry(token.applyTokenExpiresAt)}` : "토큰 만료됨"}
+                      className={`flex items-center gap-1 rounded-[4px] px-3 py-1.5 text-xs font-medium ${
+                        tokenAlive
+                          ? "bg-[var(--color-info)]/10 text-[var(--color-info)] hover:bg-[var(--color-info)]/20"
+                          : "cursor-not-allowed bg-[var(--color-elevated)] text-[var(--color-text-muted)] opacity-60"
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-sm">
+                        {tokenAlive ? "content_copy" : "link_off"}
+                      </span>
+                      {tokenAlive ? "URL 복사" : "만료"}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-[var(--color-text-muted)]" title="토큰 미발급">—</span>
+                  )}
                   {/* 시드 배정 */}
                   {tt.status === "approved" && (
                     <div className="flex items-center gap-1">
@@ -458,9 +580,172 @@ export default function TournamentTeamsPage() {
                 </div>
               )}
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      {/* Phase 2-C — 팀 + 토큰 신규 발급 모달 */}
+      {showTokenModal && (
+        <AddTeamTokenModal
+          tournamentId={id}
+          onClose={() => setShowTokenModal(false)}
+          onSuccess={(msg) => {
+            setShowTokenModal(false);
+            showToast(msg);
+            // 서버 갱신 (새 토큰 row + 만료 반영)
+            load();
+          }}
+        />
+      )}
+
+      {/* Phase 2-C — 토스트 (화면 우상단 고정) */}
+      {toast && (
+        <div
+          role="status"
+          className="fixed top-20 right-4 z-50 rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] px-4 py-3 text-sm text-[var(--color-text-primary)] shadow-md"
+          style={{ minWidth: 220 }}
+        >
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+ * Phase 2-C — 팀 + 토큰 신규 발급 모달
+ * - POST /api/web/admin/tournaments/[id]/team-applications
+ * - 성공 시 응답의 apply_token_url 자동 클립보드 복사 + 토스트
+ * ============================================================ */
+interface AddTeamTokenModalProps {
+  tournamentId: string;
+  onClose: () => void;
+  onSuccess: (msg: string) => void;
+}
+
+function AddTeamTokenModal({ tournamentId, onClose, onSuccess }: AddTeamTokenModalProps) {
+  const [teamName, setTeamName] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [managerPhone, setManagerPhone] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await fetch(
+          `/api/web/admin/tournaments/${tournamentId}/team-applications`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ teamName, managerName, managerPhone }),
+          },
+        );
+        const json = await res.json();
+        if (!res.ok) {
+          // apiError는 snake_case 변환 우회 — { error: "..." } 그대로
+          setError(json.error ?? "신청 토큰 발급에 실패했습니다");
+          return;
+        }
+        // 응답은 apiSuccess wrapper { success, data: { team: {...} } } — 모두 snake_case
+        const url: string | undefined = json?.data?.team?.apply_token_url;
+        const tName: string = json?.data?.team?.team_name ?? teamName;
+        if (url) {
+          // 발급 즉시 자동 복사 (UX 단축)
+          try {
+            await navigator.clipboard.writeText(url);
+            onSuccess(`${tName} 토큰 발급 완료 — URL 복사됨`);
+          } catch {
+            onSuccess(`${tName} 토큰 발급 완료 (복사 실패)`);
+          }
+        } else {
+          onSuccess(`${tName} 토큰 발급 완료`);
+        }
+      } catch {
+        setError("네트워크 오류가 발생했습니다");
+      }
+    });
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-40 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
+    >
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-[4px] border border-[var(--color-border)] bg-[var(--color-elevated)] p-6"
+      >
+        <h2 className="mb-4 text-lg font-bold">팀 + 토큰 신규 발급</h2>
+
+        <div className="space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">팀명</span>
+            <input
+              type="text"
+              required
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder="강남동 슈터스"
+              maxLength={50}
+              autoFocus
+              className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">코치 이름</span>
+            <input
+              type="text"
+              required
+              value={managerName}
+              onChange={(e) => setManagerName(e.target.value)}
+              placeholder="홍길동"
+              maxLength={30}
+              className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">코치 연락처</span>
+            <input
+              type="tel"
+              required
+              value={managerPhone}
+              onChange={(e) => setManagerPhone(e.target.value)}
+              placeholder="010-1234-5678"
+              className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+            />
+          </label>
+        </div>
+
+        {error && (
+          <p className="mt-3 text-sm text-[var(--color-error)]">{error}</p>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPending}
+            className="rounded-[4px] px-4 py-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="rounded-[4px] bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-[var(--color-on-accent)] hover:opacity-90 disabled:opacity-50"
+          >
+            {isPending ? "발급 중..." : "토큰 발급"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

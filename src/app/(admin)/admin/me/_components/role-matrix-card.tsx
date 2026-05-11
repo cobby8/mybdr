@@ -461,6 +461,138 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
           emptyText="단체 소속 없음"
         />
       </div>
+
+      {/* 4) 2026-05-11 Phase 3 — 협회 관리자 (referee/admin) 행.
+          이유: super_admin 이 referee/admin 영역 자동 통과 (Phase 1-B) → 마이페이지에도 표시 일관성.
+          super_admin: "Super 자동" 안내 + 실제 본인 협회 매핑 있으면 추가 표시.
+          일반: associationAdmin 매핑 있으면 협회명 + role 표시 / 없으면 "협회 권한 없음". */}
+      <div className="mt-4">
+        <AssociationAdminRow
+          membership={roles.associationAdmin}
+          superAdminAuto={roles.superAdmin}
+        />
+      </div>
     </section>
+  );
+}
+
+/**
+ * 2026-05-11 Phase 3 — 협회 관리자 (Association Admin) 전용 행.
+ *
+ * 일반 MembershipRow 와 거의 동일하지만 super_admin 자동 통과 표시 + 안내 메시지가 다름.
+ * - super_admin: "보유 (Super 자동)" 회색 차분 표시 + 실 매핑 있으면 협회명/role 보조 표시.
+ * - association_admin (실 매핑): 협회명 + role 뱃지 (9 role 중 1).
+ * - 기타: "협회 권한 없음" (회색).
+ */
+function AssociationAdminRow({
+  membership,
+  superAdminAuto,
+}: {
+  membership: import("@/lib/auth/admin-roles").AssociationAdminMembership | null;
+  superAdminAuto: boolean;
+}) {
+  // 표시 분기 — 3 상태 (super_auto / 실 매핑 / 미보유)
+  const hasReal = membership !== null;
+  const effectiveGranted = hasReal || superAdminAuto;
+  const isSuperAuto = !hasReal && superAdminAuto;
+
+  return (
+    <div
+      className="rounded-md border p-3"
+      style={{
+        borderColor: effectiveGranted
+          ? isSuperAuto
+            ? "var(--color-border)"
+            : "var(--color-primary)"
+          : "var(--color-border)",
+        backgroundColor: effectiveGranted
+          ? "var(--color-elevated)"
+          : "var(--color-surface)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          className="material-symbols-outlined"
+          style={{
+            fontSize: 22,
+            color: effectiveGranted
+              ? isSuperAuto
+                ? "var(--color-text-secondary)"
+                : "var(--color-primary)"
+              : "var(--color-text-secondary)",
+          }}
+        >
+          {effectiveGranted ? "verified" : "remove_circle_outline"}
+        </span>
+        <div className="min-w-0">
+          <div
+            className="text-sm font-medium"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            협회 관리자 (Association Admin)
+          </div>
+          <div
+            className="text-xs"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            심판·경기 운영 권한 — 12 permission 매트릭스 (referee/admin 영역)
+          </div>
+        </div>
+        {/* 우측 상태 라벨 */}
+        <span
+          className="ml-auto text-xs font-semibold whitespace-nowrap"
+          style={{
+            color: effectiveGranted
+              ? isSuperAuto
+                ? "var(--color-text-secondary)"
+                : "var(--color-primary)"
+              : "var(--color-text-secondary)",
+          }}
+        >
+          {isSuperAuto
+            ? "보유 (Super 자동)"
+            : effectiveGranted
+              ? "보유"
+              : "없음"}
+        </span>
+      </div>
+
+      {/* 실 매핑 있으면 협회명 + role 표시 (super_admin 도 본인 매핑 있을 수 있음) */}
+      {hasReal && membership && (
+        <div
+          className="mt-2 flex items-center justify-between gap-2 rounded border px-2.5 py-1.5 text-xs"
+          style={{
+            borderColor: "var(--color-border)",
+            backgroundColor: "var(--color-surface)",
+          }}
+        >
+          <span
+            className="truncate"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            {membership.associationName}
+          </span>
+          <span
+            className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap"
+            style={{
+              backgroundColor: "var(--color-primary)",
+              color: "white",
+            }}
+          >
+            {membership.role}
+          </span>
+        </div>
+      )}
+
+      {/* 매핑 없음 안내 */}
+      {!hasReal && !isSuperAuto && (
+        <div
+          className="mt-2 text-xs"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          협회 권한 없음
+        </div>
+      )}
+    </div>
   );
 }
