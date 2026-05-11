@@ -113,16 +113,16 @@ export default async function SeriesDashboardPage({
       {/* 통계 */}
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-[16px] bg-[var(--color-elevated)] p-4 text-center">
-          <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{series.tournaments_count ?? 0}</p>
+          <p className="text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]">{series.tournaments_count ?? 0}</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">총 회차</p>
         </div>
         <div className="rounded-[16px] bg-[var(--color-elevated)] p-4 text-center">
-          <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{totalTeams}</p>
+          <p className="text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]">{totalTeams}</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">누적 참가팀</p>
         </div>
         <div className="hidden rounded-[16px] bg-[var(--color-elevated)] p-4 text-center sm:block">
           {/* 옆 두 통계 (총 회차 / 누적 참가팀) 와 동일하게 accent 통일 */}
-          <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{nextEdition}회</p>
+          <p className="text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]">{nextEdition}회</p>
           <p className="mt-1 text-xs text-[var(--color-text-muted)]">다음 회차</p>
         </div>
       </div>
@@ -135,15 +135,16 @@ export default async function SeriesDashboardPage({
           {series.tournaments.map((t) => {
             const info = STATUS_INFO[t.status ?? "draft"] ?? { label: t.status, variant: "default" as const };
             const location = [t.city, t.venue_name].filter(Boolean).join(" ");
+            // 2026-05-12 — Link>Card cascade + 회차 번호 원형 빨강 → info(Navy) 톤다운
             return (
-              <Link key={t.id} href={`/tournament-admin/tournaments/${t.id}`}>
+              <Link key={t.id} href={`/tournament-admin/tournaments/${t.id}`} className="block text-[var(--color-text-primary)]">
                 <Card className="flex items-center justify-between hover:bg-[var(--color-elevated)] transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] text-sm font-bold text-[var(--color-on-accent)]">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-info)] text-sm font-bold text-white">
                       {t.edition_number}
                     </span>
                     <div>
-                      <p className="font-medium">{t.name}</p>
+                      <p className="font-medium text-[var(--color-text-primary)]">{t.name}</p>
                       <p className="text-xs text-[var(--color-text-muted)]">
                         {t.startDate
                           ? new Date(t.startDate).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })

@@ -33,13 +33,19 @@
 - **후속 큐**: 동일 패턴 잔존 7+ 파일 (`teams/manage`, `teams/[id]/_components_v2/team-*`, `tournaments/[id]/v2-registration-sidebar`, `lineup-confirm/[matchId]`, `report-form.tsx`, 등) 일괄 정리 권장.
 - **참조횟수**: 0
 
-### [2026-05-11] admin 영역 빨간색 본문 텍스트 금지 — 강조 뱃지/필수표시(*)만 허용
+### [2026-05-11] admin 영역 빨간색 본문 텍스트 금지 — 강조 뱃지/필수표시(*)만 허용 (2026-05-12 강화)
 - **분류**: convention (디자인 시스템)
-- **발견자**: reviewer / pm (사용자 보고 후 점검)
-- **내용**:
-  - `--color-primary` = BDR Red (#E31B23). 강한 시각 노이즈 → 본문 텍스트/통계 숫자/링크에 적용 금지.
-  - 허용: 강조 뱃지 (예: "보유" / "신규" / "필수") / 필수 입력 표시 `*` / 위험 액션 버튼 / D-Day 뱃지.
-  - 통계 / 강조 정보 텍스트 = `--color-accent` (BDR Red alias / globals.css L2763) 통일.
+- **발견자**: reviewer / pm (사용자 보고 후 점검) — 2026-05-12 사용자 추가 보고 "빨강색 사용 너무 많음" 후 룰 강화.
+- **내용 (2026-05-12 갱신)**:
+  - `--color-primary` / `--color-accent` = BDR Red 계열. 강한 시각 노이즈 → 본문 텍스트/통계 숫자/메뉴 라벨/링크에 적용 금지.
+  - 허용 (좁힘): 필수 입력 표시 `*` / 위험 액션 버튼 (삭제 등) / D-Day 뱃지 / 모달 info icon (사용자 시선 박제).
+  - **금지 (강화)**:
+    - **통계 카드 큰 숫자** → `text-[var(--color-text-primary)]` (이전 룰 = `--color-accent` 통일 → 변경)
+    - **메뉴 라벨 (SET/TM/BR/MT/WEB/ADM/REC 등 아이콘 텍스트)** → `text-[var(--color-text-muted)]`
+    - **wizard / 탭 활성 상태** → `bg-[var(--color-info)]` Navy (BDR Red 위반)
+    - **이니셜 원 (admins/recorders 아바타)** → `bg-[var(--color-info)]` 또는 `bg-[var(--color-elevated)]` + `text-[var(--color-info)]`
+    - **`<Link><Card>` cascade**: Link 가 `<a>` 로 렌더 → 자식 텍스트가 `color: var(--link)` inherit → 빨강 발생. fix: Link 에 명시 `text-[var(--color-text-primary)]` + 자식 p 도 명시 박제.
+  - **CTA 버튼 (admin 큰)**: `btn btn--primary` 표준 클래스 (globals.css L276 — 라이트 Navy / 다크 BDR Red 자동 분기). 직접 `bg-[var(--color-accent)]` ❌.
   - 본문 정보 텍스트 = `--color-text-primary`.
   - 승자 / 긍정 결과 텍스트 = `--color-success` (`#1CA05E` 그린).
 - **검출 패턴**: `text-[var(--color-primary)]` admin 영역 grep — 본문 컨텍스트면 위반.

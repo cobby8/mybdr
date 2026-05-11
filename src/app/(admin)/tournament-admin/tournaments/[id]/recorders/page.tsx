@@ -144,8 +144,8 @@ export default function TournamentRecordersPage() {
                       unoptimized /* 외부 프로필 이미지 URL — 도메인이 다양 */
                     />
                   ) : (
-                    /* 프로필 이미지 없을 때 이니셜 아바타 */
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-accent)]/10 flex items-center justify-center text-[var(--color-accent)] text-xs font-bold">
+                    /* 2026-05-12 — admin 빨강 본문 금지 → info(Navy) 토큰 */
+                    <div className="w-8 h-8 rounded-full bg-[var(--color-info)]/10 flex items-center justify-center text-[var(--color-info)] text-xs font-bold">
                       {(r.recorder.nickname ?? r.recorder.email)[0].toUpperCase()}
                     </div>
                   )}

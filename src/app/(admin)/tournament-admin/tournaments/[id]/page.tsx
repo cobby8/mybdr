@@ -156,8 +156,8 @@ export default async function TournamentAdminDetailPage({
           { label: "참가비", value: tournament.entry_fee ? `${Number(tournament.entry_fee).toLocaleString()}원` : "무료" },
         ].map((s) => (
           <Card key={s.label} className="text-center py-4">
-            {/* 빠른 통계 숫자 = accent 통일 (빨강 본문 금지) */}
-            <p className="text-xl font-bold sm:text-2xl text-[var(--color-accent)]">{s.value}</p>
+            {/* 2026-05-12 — 통계 빨강 4 카드 = 시각 노이즈 과다 (사용자 보고) → text-primary 톤다운 */}
+            <p className="text-xl font-bold sm:text-2xl text-[var(--color-text-primary)]">{s.value}</p>
             <p className="mt-1 text-xs text-[var(--color-text-muted)]">{s.label}</p>
           </Card>
         ))}
@@ -166,12 +166,14 @@ export default async function TournamentAdminDetailPage({
       {/* 2026-05-12 — 기록 모드 카드는 /matches 페이지로 이동 (사용자 지적: 메인에 큰 카드 어색) */}
 
       {/* 액션 카드 */}
+      {/* 2026-05-12 — 메뉴 라벨 빨강 7개 (SET/TM/BR/MT/WEB/ADM/REC) = 시각 노이즈 과다 (사용자 보고)
+          → text-muted 톤다운 + Link>Card cascade 차단 (link color 빨강 inherit 방지) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map((a) => (
-          <Link key={a.href} href={a.href}>
+          <Link key={a.href} href={a.href} className="block text-[var(--color-text-primary)]">
             <Card className="cursor-pointer transition-colors hover:bg-[var(--color-elevated)]">
-              <div className="mb-2 text-sm font-bold text-[var(--color-accent)]">{a.icon}</div>
-              <h3 className="font-semibold">{a.label}</h3>
+              <div className="mb-2 text-sm font-bold text-[var(--color-text-muted)]">{a.icon}</div>
+              <h3 className="font-semibold text-[var(--color-text-primary)]">{a.label}</h3>
               <p className="mt-1 text-sm text-[var(--color-text-muted)]">{a.desc}</p>
             </Card>
           </Link>
