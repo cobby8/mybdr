@@ -344,11 +344,12 @@ export default function AbsorbTournamentsModal({
             >
               취소
             </button>
+            {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
             <button
               type="button"
               disabled={selectedCount === 0 || submitting || !!resultMessage}
               onClick={handleAbsorbClick}
-              className="flex-1 rounded-[4px] bg-[var(--color-accent)] px-4 py-3 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn btn--primary flex-1 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {selectedCount > 0
                 ? `${selectedCount}개 흡수`
@@ -388,11 +389,12 @@ export default function AbsorbTournamentsModal({
               >
                 취소
               </button>
+              {/* 2026-05-12: admin 빨강 본문 금지 → btn--primary */}
               <button
                 type="button"
                 disabled={submitting}
                 onClick={handleConfirmAbsorb}
-                className="flex-1 rounded-[4px] bg-[var(--color-accent)] px-4 py-3 text-sm font-bold text-[var(--color-on-accent)] transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+                className="btn btn--primary flex-1 disabled:opacity-50"
               >
                 {submitting ? "처리 중..." : "흡수"}
               </button>
