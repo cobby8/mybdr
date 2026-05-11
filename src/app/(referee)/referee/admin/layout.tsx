@@ -1,5 +1,6 @@
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 /**
  * /referee/admin 레이아웃 — 서버 컴포넌트.
@@ -10,8 +11,13 @@ import { prisma } from "@/lib/db/prisma";
  *
  * 체크 순서:
  *   1) 세션 확인 (상위 referee layout에서 이미 리다이렉트하므로 방어용)
- *   2) User.admin_role === "association_admin" 확인
- *   3) AssociationAdmin 매핑 존재 확인
+ *   2) 🆕 super_admin 분기 — 즉시 통과 (Phase 1-B / 2026-05-11)
+ *   3) User.admin_role === "association_admin" 확인
+ *   4) AssociationAdmin 매핑 존재 확인
+ *
+ * 2026-05-11 Phase 1-B — super_admin 우회 추가.
+ *   이유: super_admin = 전능 권한 정책 (partner-admin / canManageTournament 등 일관).
+ *         AssociationAdmin row 없어도 진입 허용 (대시보드에서 sentinel 안내).
  */
 
 export default async function AdminLayout({
@@ -24,6 +30,12 @@ export default async function AdminLayout({
   // 세션이 없으면 상위 layout에서 이미 redirect됨. 방어 코드.
   if (!session) {
     return <AccessDenied />;
+  }
+
+  // 🆕 super_admin 분기 — User.admin_role / AssociationAdmin 검증 skip + 통과
+  // 협회 0개 운영 상태 안전 (페이지 측 sentinel 안내 처리)
+  if (isSuperAdmin(session)) {
+    return <>{children}</>;
   }
 
   const userId = BigInt(session.sub);

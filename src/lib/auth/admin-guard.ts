@@ -1,5 +1,6 @@
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 /**
  * 협회 관리자(Association Admin) 인증 + 권한 유틸리티.
@@ -15,10 +16,23 @@ import { prisma } from "@/lib/db/prisma";
  *
  * 내부 동작:
  *   1) getWebSession()으로 현재 로그인 세션 가져오기
- *   2) User 테이블에서 admin_role이 "association_admin"인지 확인
- *   3) AssociationAdmin 매핑 테이블에서 user_id로 소속 협회 + role 조회
- *   4) 둘 다 통과하면 { userId, associationId, role } 반환, 아니면 null
+ *   2) super_admin 이면 sentinel role 반환 (첫 활성 협회 자동 선택)
+ *   3) User 테이블에서 admin_role이 "association_admin"인지 확인
+ *   4) AssociationAdmin 매핑 테이블에서 user_id로 소속 협회 + role 조회
+ *   5) 둘 다 통과하면 { userId, associationId, role } 반환, 아니면 null
+ *
+ * 2026-05-11 Phase 1-B — super_admin sentinel 정책 신규 (decisions.md).
+ *   이유: super_admin 도 referee/admin 영역 진입 + 12 permission 모두 자동 통과해야 함.
+ *         AssociationAdmin.user_id @unique 라서 super_admin 별도 row 생성 불가 → sentinel 처리.
+ *   동작: super_admin 진입 시 첫 활성 협회 자동 선택 + sentinel role (`__super_admin__`).
+ *         `hasPermission()` 이 sentinel role 무조건 true 반환 → 12 permission 자동 통과.
+ *         협회 0개 운영 상태 = associationId=0n sentinel (페이지 별 안내 처리).
  */
+
+// ── super_admin sentinel 상수 ──
+//   AssociationAdmin.role 의 9 정식 role 과 구분되는 sentinel — hasPermission 자동 통과 마커.
+//   외부에서도 sentinel role 식별이 필요할 수 있어 export (UI 안내 헤더 등).
+export const SUPER_ADMIN_SENTINEL_ROLE = "__super_admin__";
 
 // ── 타입 정의 ──
 
@@ -114,14 +128,43 @@ export async function getAssociationAdmin(): Promise<AdminGuardResult | null> {
 
   const userId = BigInt(session.sub);
 
-  // 2) User.admin_role 확인 — "association_admin"이어야 함
+  // 2) 🆕 super_admin sentinel 분기 (Phase 1-B / 2026-05-11)
+  //   이유: super_admin = 모든 협회 + 12 permission 자동 통과 (partner-admin 패턴 일관).
+  //   동작: 첫 활성 협회 자동 선택 + sentinel role 반환 → hasPermission() 자동 통과.
+  //   협회 0개 운영 상태 = associationId=0n sentinel (페이지 별 안내).
+  if (isSuperAdmin(session)) {
+    // 첫 활성 협회 자동 선택 — 협회별 active 컬럼 없음 (Association 모델 = 정적 마스터).
+    // 협회 admin 매핑이 존재하는 첫 협회를 우선 선택 (운영 안전 — 실제 사용 중인 협회).
+    // 매핑이 0건이면 협회 자체 첫 row 사용. 둘 다 0이면 0n sentinel.
+    const firstActiveAdmin = await prisma.associationAdmin.findFirst({
+      select: { association_id: true },
+      orderBy: { id: "asc" },
+    });
+
+    let associationId = firstActiveAdmin?.association_id;
+    if (associationId === undefined) {
+      const firstAssociation = await prisma.association.findFirst({
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
+      associationId = firstAssociation?.id ?? BigInt(0);
+    }
+
+    return {
+      userId,
+      associationId,
+      role: SUPER_ADMIN_SENTINEL_ROLE,
+    };
+  }
+
+  // 3) User.admin_role 확인 — "association_admin"이어야 함
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { admin_role: true },
   });
   if (!user || user.admin_role !== "association_admin") return null;
 
-  // 3) AssociationAdmin 매핑 조회 — user_id가 unique이므로 findUnique 사용
+  // 4) AssociationAdmin 매핑 조회 — user_id가 unique이므로 findUnique 사용
   //    v3: role 필드도 함께 가져옴
   const adminMapping = await prisma.associationAdmin.findUnique({
     where: { user_id: userId },
@@ -142,8 +185,13 @@ export async function getAssociationAdmin(): Promise<AdminGuardResult | null> {
  * @param role - 관리자의 역할 코드 (예: "secretary_general")
  * @param permission - 확인할 권한 그룹 (예: "referee_manage")
  * @returns 해당 역할이 권한을 가지고 있으면 true
+ *
+ * 2026-05-11 Phase 1-B — super_admin sentinel role 자동 통과.
+ *   이유: getAssociationAdmin() 이 super_admin 시 sentinel role 반환 → 12 permission 모두 통과 보장.
  */
 export function hasPermission(role: string, permission: Permission): boolean {
+  // 🆕 super_admin sentinel — 12 permission 모두 자동 통과
+  if (role === SUPER_ADMIN_SENTINEL_ROLE) return true;
   const allowedRoles = PERMISSIONS[permission];
   return allowedRoles.includes(role);
 }

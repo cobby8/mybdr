@@ -31,6 +31,6 @@ export function hasRole(userRole: string, requiredRole: Role): boolean {
   return userLevel >= requiredLevel;
 }
 
-export function isSuperAdmin(role: string): boolean {
-  return role === ROLES.SUPER_ADMIN;
-}
+// 2026-05-11 Phase 1-B cleanup — `isSuperAdmin(role: string)` 삭제 (사용처 0건 dead code).
+// 단일 source 는 `@/lib/auth/is-super-admin.ts` 의 `isSuperAdmin(session)`.
+// (role-only 시그니처는 admin_role 미체크라 sentinel 정책 회귀 위험 있어 제거)

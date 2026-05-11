@@ -73,6 +73,15 @@ export interface OrgMembership {
   role: string;
 }
 
+// 2026-05-11 Phase 3 — 협회 관리자 (Association Admin) 소속 (마이페이지 RoleMatrixCard 행 추가).
+// 이유: super_admin 이 referee/admin 영역 자동 통과 (Phase 1-B) — RoleMatrixCard 에 8번째 행으로 표시.
+// AssociationAdmin.user_id @unique → 1 유저 = 1 협회만 (단일 매핑).
+export interface AssociationAdminMembership {
+  associationId: string;
+  associationName: string;
+  role: string; // 9 role 중 1 (secretary_general / referee_chief / ...)
+}
+
 /**
  * AdminRoleSummary — `/admin/me` + AdminLayout 양쪽 재사용 결과.
  *
@@ -99,6 +108,9 @@ export interface AdminRoleSummary {
   // 파트너 / 단체 소속 (단일 — 다중 케이스는 우선 첫 번째만 표시, Phase 2 확장)
   partnerMember: PartnerMembership | null;
   orgMember: OrgMembership | null;
+  // 2026-05-11 Phase 3 — 협회 관리자 (referee/admin 영역) 단일 (user_id @unique 보장).
+  // null = 미소속. super_admin 본인은 직접 매핑 없음 → null (UI 에서 "Super 자동" 표시).
+  associationAdmin: AssociationAdminMembership | null;
   // AdminLayout sidebar 메뉴 필터링 호환 — boolean 매트릭스에서 파생
   roles: AdminRole[];
 }
@@ -142,9 +154,11 @@ export const getAdminRoles = cache(
     let tournamentRecorders: TournamentRecorderEntry[] = [];
     let partnerMember: PartnerMembership | null = null;
     let orgMember: OrgMembership | null = null;
+    // 2026-05-11 Phase 3 — 협회 관리자 (referee/admin) 매핑
+    let associationAdmin: AssociationAdminMembership | null = null;
 
     try {
-      const [tamRows, recorderRows, partnerRow, orgRow] = await Promise.all([
+      const [tamRows, recorderRows, partnerRow, orgRow, associationAdminRow] = await Promise.all([
         // 토너먼트별 운영 권한 — JOIN Tournament(name + status + startDate + endDate + format)
         // 2026-05-11 Phase 2: take 51 (50 상한 + 1 도달 안내) / status/startDate/endDate/format 추가
         // 사유: 관리 토너먼트 카드에서 진행 중/예정/완료 분류 + 50 상한 도달 시 UI 안내.
@@ -202,6 +216,16 @@ export const getAdminRoles = cache(
             organization: { select: { name: true } },
           },
         }),
+        // 2026-05-11 Phase 3 — 협회 관리자 매핑 (user_id @unique 라 findUnique 가능)
+        // RoleMatrixCard 의 referee 행 표시용. JOIN Association(name).
+        prisma.associationAdmin.findUnique({
+          where: { user_id: userId },
+          select: {
+            association_id: true,
+            role: true,
+            association: { select: { name: true } },
+          },
+        }),
       ]);
 
       // 토너먼트별 운영 권한 매핑 — bigint → 직렬화 가능 / null name 안전
@@ -241,6 +265,16 @@ export const getAdminRoles = cache(
           role: orgRow.role,
         };
       }
+
+      // 2026-05-11 Phase 3 — 협회 관리자 매핑 (bigint → string 직렬화)
+      if (associationAdminRow) {
+        associationAdmin = {
+          associationId: associationAdminRow.association_id.toString(),
+          associationName:
+            associationAdminRow.association?.name ?? "(이름 없음)",
+          role: associationAdminRow.role,
+        };
+      }
     } catch {
       // DB SELECT 실패 시 안전하게 비어 있는 상태로 폴백 — 가드는 권한 없음 처리.
       // (운영 중 DB 일시 장애 시 layout 진입 실패보다 권한 없음이 안전)
@@ -248,6 +282,7 @@ export const getAdminRoles = cache(
       tournamentRecorders = [];
       partnerMember = null;
       orgMember = null;
+      associationAdmin = null;
     }
 
     // 3) AdminLayout sidebar 호환 `roles` 배열 — boolean 매트릭스에서 파생
@@ -272,6 +307,7 @@ export const getAdminRoles = cache(
       tournamentRecorders,
       partnerMember,
       orgMember,
+      associationAdmin,
       roles,
     };
   }
@@ -303,6 +339,7 @@ export async function getAdminRolesFromAuth(
       tournamentRecorders: [],
       partnerMember: null,
       orgMember: null,
+      associationAdmin: null,
       roles: [],
     };
   }
