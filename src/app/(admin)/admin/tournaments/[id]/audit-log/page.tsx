@@ -68,13 +68,50 @@ export default async function TournamentAuditLogPage({
     },
   });
 
-  // admin_id → user nickname 매핑
-  const adminIds = [...new Set(logs.map((l) => l.admin_id))];
-  const admins = await prisma.user.findMany({
-    where: { id: { in: adminIds } },
-    select: { id: true, nickname: true, email: true },
+  // admin_id → user nickname 매핑 + previous/changes JSON 에 등장한 userId 일괄 매핑
+  // 2026-05-12 사용자 요청: 운영자 변경 감사 로그 등에서 ID 옆에 이름(실명) 표시
+  const adminIds = new Set<bigint>();
+  for (const l of logs) {
+    adminIds.add(l.admin_id);
+    // previous/changes JSON 에서 userId 후보 추출 (organizerId / newOrganizerId / userId / claimed_user_id 등)
+    const collect = (val: unknown) => {
+      if (!val || typeof val !== "object") return;
+      const rec = val as Record<string, unknown>;
+      for (const k of Object.keys(rec)) {
+        if (/^(organizer|user|admin|claimed_user|registered_by|captain)_?Id$/i.test(k)) {
+          const v = rec[k];
+          if (typeof v === "string" && /^\d+$/.test(v)) adminIds.add(BigInt(v));
+          else if (typeof v === "number") adminIds.add(BigInt(v));
+        }
+      }
+    };
+    collect(l.previous_values);
+    collect(l.changes_made);
+  }
+  const allIds = [...adminIds];
+  const users = await prisma.user.findMany({
+    where: { id: { in: allIds } },
+    select: { id: true, nickname: true, name: true, email: true },
   });
-  const adminMap = new Map(admins.map((a) => [a.id.toString(), a]));
+  const adminMap = new Map(users.map((u) => [u.id.toString(), u]));
+
+  // userId(string) → "이름 (#id)" 포맷 헬퍼 (감사 로그 description 가독성)
+  const formatUser = (id: string | bigint): string => {
+    const key = typeof id === "bigint" ? id.toString() : id;
+    const u = adminMap.get(key);
+    if (!u) return `(userId ${key})`;
+    const display = u.nickname ?? u.name ?? u.email;
+    const real = u.name && u.name !== u.nickname ? ` (${u.name})` : "";
+    return `${display}${real} #${key}`;
+  };
+
+  // description 내의 "userId 숫자 → 숫자" 또는 "이관: 숫자 → 숫자" 패턴 자동 치환 (단방향 — 표시 가공)
+  const enrichDescription = (raw: string | null): string => {
+    if (!raw) return "-";
+    return raw.replace(/(\d{2,})\s*(→|->)\s*(\d{2,})/g, (m, from, arrow, to) => {
+      return `${formatUser(from)} ${arrow} ${formatUser(to)}`;
+    });
+  };
 
   return (
     <div>
@@ -140,14 +177,24 @@ export default async function TournamentAuditLogPage({
                       {l.action}
                     </td>
                     <td data-label="관리자" className="px-4 py-3 text-sm">
-                      {admin?.nickname ?? admin?.email ?? `(id ${l.admin_id})`}
+                      {/* 이름 (실명) + userId 표시 — 사용자 요청 */}
+                      <div>{admin?.nickname ?? admin?.email ?? "-"}</div>
+                      {admin?.name && admin.name !== admin.nickname && (
+                        <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                          {admin.name}
+                        </div>
+                      )}
+                      <div className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                        userId {l.admin_id.toString()}
+                      </div>
                     </td>
                     <td
                       data-label="설명"
                       className="px-4 py-3 text-xs"
                       style={{ color: "var(--color-text-secondary)" }}
                     >
-                      {l.description ?? "-"}
+                      {/* description 내 userId 숫자 → "이름 (실명) #id" 자동 치환 */}
+                      {enrichDescription(l.description)}
                     </td>
                     <td data-label="레벨" className="px-4 py-3">
                       <span
