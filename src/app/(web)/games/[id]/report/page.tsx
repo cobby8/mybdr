@@ -12,6 +12,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { redirect, notFound } from "next/navigation";
+// 2026-05-12 로그인 redirect 통합 — `returnTo=` 쿼리 → `redirect=` 표준 통일
+import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { GameReportForm, type ReportPlayer } from "./_components/report-form";
 
 // 동적 — 매 요청마다 세션/참가자 변경될 수 있음. 캐시 X.
@@ -24,10 +26,11 @@ export default async function GameReportPage({
 }): Promise<React.ReactElement> {
   const { id } = await params;
 
-  // 1. 세션 가드 — 비로그인은 로그인 페이지로 (returnTo 보존)
+  // 1. 세션 가드 — 비로그인은 로그인 페이지로 (redirect 쿼리에 현재 경로 보존)
+  //    2026-05-12: `returnTo=` → `redirect=` 통일 (login page 가 redirect 쿼리만 읽음).
   const session = await getWebSession();
   if (!session) {
-    redirect(`/login?returnTo=/games/${id}/report`);
+    redirect(buildLoginRedirect(`/games/${id}/report`));
   }
 
   // 2. uuid → game 조회 (route.ts 와 동일 컨벤션)

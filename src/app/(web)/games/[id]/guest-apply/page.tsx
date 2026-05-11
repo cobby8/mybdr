@@ -25,6 +25,8 @@ import { notFound, redirect } from "next/navigation";
 import { getGame } from "@/lib/services/game";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
+// 2026-05-12 로그인 redirect 통합 — `next=` 쿼리 → `redirect=` 표준 통일 (login page 가 redirect 만 읽음)
+import { buildLoginRedirect } from "@/lib/auth/redirect";
 import { GuestApplyForm } from "./_components/guest-apply-form";
 
 // 게임 상세와 동일한 캐시 정책 — 신청 직후 폼 진입 시 데이터가 너무 오래되지 않게
@@ -88,10 +90,11 @@ export default async function GuestApplyPage({
 }) {
   const { id } = await params;
 
-  // 1) 인증 가드 — 미로그인 시 로그인 페이지로 보내고, 로그인 후 다시 돌아오게 next 파라미터 동봉
+  // 1) 인증 가드 — 미로그인 시 로그인 페이지로 보내고, 로그인 후 다시 돌아오게 redirect 파라미터 동봉.
+  //    2026-05-12: `next=` → `redirect=` 통일 (login page 가 redirect 쿼리만 읽음).
   const session = await getWebSession();
   if (!session) {
-    redirect(`/login?next=/games/${encodeURIComponent(id)}/guest-apply`);
+    redirect(buildLoginRedirect(`/games/${id}/guest-apply`));
   }
 
   // 2) 게임 조회 — short uuid / full uuid / 숫자 id 모두 처리
