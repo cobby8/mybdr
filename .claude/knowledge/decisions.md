@@ -2,6 +2,30 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-11] 유소년 매직링크 토큰 정책 — CSPRNG 32바이트 hex + DB UNIQUE + 만료 분리
+- **분류**: decision/security (apply_token / claim_token)
+- **결정 사항**:
+  - **엔트로피**: `randomBytes(32).toString('hex')` = 256bit / 64자. 추측 불가.
+  - **DB UNIQUE INDEX**: tournament_teams.apply_token + claim_tokens.token (서로 다른 모델). 중복 방지 + 빠른 검색.
+  - **만료 분리**: 토큰 컬럼 + 만료 컬럼 분리 (apply_token_expires_at) — 만료 검증 단순화. URL은 만료 시 null로 화면 노출.
+  - **D-Day 계산**: tournament.startDate +7일 (있을 때) / fallback createdAt +30일 (UTC `setUTCDate`).
+- **사유**:
+  - 추측형 토큰(짧은 코드)은 brute-force 위험 → 256bit CSPRNG.
+  - URL 외부 노출 가정(코치/학부모 메신저 공유) → 만료 분리로 정책 유연.
+- **참조횟수**: 0
+
+### [2026-05-11] DB 단일 정책 UNIQUE 추가 우회 패턴 — @unique 일시 제거 후 별도 SQL CREATE INDEX
+- **분류**: decision/db-ops (운영 DB 무중단 UNIQUE 추가)
+- **상황**:
+  - `prisma db push` 시 신규 UNIQUE constraint 추가는 `--accept-data-loss` flag 요구 (실제 데이터 손실 0건임에도).
+  - CLAUDE.md 절대 금지 룰: `prisma db push --accept-data-loss` 운영 DB ❌.
+- **결정 사항** (옵션 B 사용자 승인):
+  1. schema.prisma 의 `@unique` 일시 제거 → `prisma db push --skip-generate` (컬럼만 ADD)
+  2. `prisma db execute --file ...sql` 로 `CREATE UNIQUE INDEX` 직접 실행 (additive — DROP 0건)
+  3. schema.prisma 의 `@unique` 복원 (DB와 sync 유지)
+- **재사용 위치**: 운영 DB에 신규 UNIQUE 추가 시 동일 패턴 (옵션 A `--accept-data-loss`는 절대 금지).
+- **참조횟수**: 0
+
 ### [2026-05-11] 웹 종이 기록지 Flutter ↔ 웹 데이터 호환 전략 — sync API 재사용 + BFF wrap + strict lock
 - **분류**: decision (Flutter API 호환 / 신규 페이지 통합 전략)
 - **결정자**: planner-architect (본 turn 기획 / 사용자 결재 5건 대기)
