@@ -118,13 +118,36 @@ export interface PlayByPlayInput {
 }
 
 /**
+ * 기존 매치 row — caller 가 mode 가드 등으로 이미 SELECT 한 경우 재사용 (1B-2 신규).
+ *
+ * 본 service 는 다음 필드만 사용 — 더 많은 필드 (settings 등) 가 있어도 무시.
+ *   - id, tournamentId, homeTeamId, awayTeamId, winner_team_id, status
+ *
+ * Prisma 타입 `TournamentMatch` 와 그대로 호환 (full row 전달 가능).
+ */
+export interface ExistingMatchForSync {
+  id: bigint;
+  tournamentId: string;
+  homeTeamId: bigint | null;
+  awayTeamId: bigint | null;
+  winner_team_id: bigint | null;
+  status: string | null;
+}
+
+/**
  * syncSingleMatch 호출 인자.
+ *
+ * `existingMatch` (1B-2 신규, optional):
+ *   - 주어지면 service 가 내부 `findFirst` 를 건너뜀 (SELECT 1회 감소).
+ *   - caller (BFF) 가 권한/모드 가드용으로 이미 SELECT 한 row 그대로 전달.
+ *   - 미제공 시 기존 동작 (service 가 findFirst 1회) — 하위 호환.
  */
 export interface SyncSingleMatchParams {
   tournamentId: string;
   match: MatchSyncInput;
   player_stats?: PlayerStatInput[];
   play_by_plays?: PlayByPlayInput[];
+  existingMatch?: ExistingMatchForSync;
 }
 
 // ============================================================================
@@ -342,13 +365,29 @@ export function isMatchReset(params: {
 export async function syncSingleMatch(
   params: SyncSingleMatchParams
 ): Promise<SyncSingleMatchResult> {
-  const { tournamentId, match, player_stats, play_by_plays } = params;
+  const { tournamentId, match, player_stats, play_by_plays, existingMatch } = params;
 
-  // 1) 매치 존재 확인 (전체 row 가져옴 — settings 포함, 별도 SELECT 불필요)
-  // 기존 sync route line 122~127 동등.
-  const existing = await prisma.tournamentMatch.findFirst({
-    where: { id: BigInt(match.server_id), tournamentId },
-  });
+  // 1) 매치 존재 확인 — caller 가 existingMatch 전달 시 SELECT skip (1B-2 신규 / 하위 호환).
+  // 이유: BFF (또는 sync route) 가 권한/모드 가드용으로 이미 SELECT 한 row 그대로 활용 → DB round trip 1회 감소.
+  //   기존 sync route 동작 (existingMatch 미제공) = findFirst 1회 그대로 (회귀 0).
+  // 검증: existingMatch 가 주어져도 tournamentId 일치 확인 (IDOR 보호 — caller 가 잘못된 row 전달 케이스 차단).
+  let existing: ExistingMatchForSync | null = null;
+  if (existingMatch) {
+    // caller 가 mode 가드용 SELECT 한 row 재사용 — id/tournamentId 일치 검증 (IDOR 가드).
+    if (
+      existingMatch.id === BigInt(match.server_id) &&
+      existingMatch.tournamentId === tournamentId
+    ) {
+      existing = existingMatch;
+    }
+    // 불일치 시 안전하게 fallback (findFirst 재실행 — 아래 if 블록 진입).
+  }
+  if (!existing) {
+    // 기존 sync route line 122~127 동등 — existingMatch 미제공 또는 불일치 시 SELECT.
+    existing = await prisma.tournamentMatch.findFirst({
+      where: { id: BigInt(match.server_id), tournamentId },
+    });
+  }
   if (!existing) {
     return {
       ok: false,

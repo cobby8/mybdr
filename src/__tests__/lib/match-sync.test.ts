@@ -15,7 +15,7 @@
  * DB 의존성 0 — 순수 함수 단위 테스트만. sync route 통합은 별도 e2e 영역.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   correctScoresFromQuarters,
   decideWinnerTeamId,
@@ -347,5 +347,136 @@ describe("match-sync — isMatchReset (Flutter app 매치 reset 감지)", () => 
         })
       ).toBe(false);
     }
+  });
+});
+
+// ============================================================================
+// 5. syncSingleMatch — existingMatch 인자 분기 (1B-2 신규 / SELECT 2→1 통합)
+// ============================================================================
+
+/**
+ * 1B-2: BFF 가 권한 가드용 SELECT 한 row 를 service 에 그대로 전달 → service 가 findFirst skip.
+ * 본 테스트는 prisma.tournamentMatch.findFirst 호출 횟수만 검증 — DB 부작용 (update / upsert) 은
+ * 별도 e2e 영역. status="scheduled" + stats/plays 0 으로 minimal path 만 통과.
+ */
+describe("match-sync — syncSingleMatch existingMatch 분기 (SELECT 통합)", () => {
+  // 이유: service 내부 prisma 호출을 spy 로 검증 → vi.mock 으로 prisma module 격리.
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("existingMatch 제공 + id/tournamentId 일치 → findFirst 호출 0 (SELECT skip)", async () => {
+    // prisma 동적 mock — match-sync.ts 가 import 한 prisma 가 본 mock 으로 치환
+    const findFirstMock = vi.fn();
+    const updateMock = vi.fn().mockResolvedValue({});
+    const findUniqueMock = vi.fn().mockResolvedValue({ format: "single_elimination" });
+    vi.doMock("@/lib/db/prisma", () => ({
+      prisma: {
+        tournamentMatch: {
+          findFirst: findFirstMock,
+          update: updateMock,
+        },
+        tournament: {
+          findUnique: findUniqueMock,
+        },
+        play_by_plays: { deleteMany: vi.fn() },
+        matchPlayerStat: { deleteMany: vi.fn() },
+      },
+    }));
+    vi.doMock("@/lib/tournaments/update-standings", () => ({
+      advanceWinner: vi.fn(),
+      updateTeamStandings: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/dual-progression", () => ({
+      progressDualMatch: vi.fn(),
+    }));
+    vi.doMock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+    vi.doMock("@/lib/news/auto-publish-match-brief", () => ({
+      triggerMatchBriefPublish: vi.fn(),
+    }));
+
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const existingMatch = {
+      id: BigInt(123),
+      tournamentId: "t-abc",
+      homeTeamId: BigInt(10),
+      awayTeamId: BigInt(20),
+      winner_team_id: null,
+      status: "scheduled",
+    };
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-abc",
+      match: {
+        server_id: 123,
+        home_score: 0,
+        away_score: 0,
+        status: "scheduled",
+      },
+      existingMatch,
+    });
+
+    expect(result.ok).toBe(true);
+    // 핵심 검증 — findFirst 호출 0회 (existingMatch 재사용 = SELECT skip)
+    expect(findFirstMock).not.toHaveBeenCalled();
+    // update 는 호출 (sync 본체 진행)
+    expect(updateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("existingMatch 미제공 → findFirst 1회 호출 (기존 동작 보존)", async () => {
+    // 하위 호환 — sync route 가 기존처럼 호출 시 service 가 SELECT 1회 수행
+    const findFirstMock = vi.fn().mockResolvedValue({
+      id: BigInt(124),
+      tournamentId: "t-xyz",
+      homeTeamId: BigInt(11),
+      awayTeamId: BigInt(21),
+      winner_team_id: null,
+      status: "scheduled",
+    });
+    const updateMock = vi.fn().mockResolvedValue({});
+    const findUniqueMock = vi.fn().mockResolvedValue({ format: "single_elimination" });
+    vi.doMock("@/lib/db/prisma", () => ({
+      prisma: {
+        tournamentMatch: {
+          findFirst: findFirstMock,
+          update: updateMock,
+        },
+        tournament: {
+          findUnique: findUniqueMock,
+        },
+        play_by_plays: { deleteMany: vi.fn() },
+        matchPlayerStat: { deleteMany: vi.fn() },
+      },
+    }));
+    vi.doMock("@/lib/tournaments/update-standings", () => ({
+      advanceWinner: vi.fn(),
+      updateTeamStandings: vi.fn(),
+    }));
+    vi.doMock("@/lib/tournaments/dual-progression", () => ({
+      progressDualMatch: vi.fn(),
+    }));
+    vi.doMock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+    vi.doMock("@/lib/news/auto-publish-match-brief", () => ({
+      triggerMatchBriefPublish: vi.fn(),
+    }));
+
+    const { syncSingleMatch } = await import("@/lib/services/match-sync");
+
+    const result = await syncSingleMatch({
+      tournamentId: "t-xyz",
+      match: {
+        server_id: 124,
+        home_score: 0,
+        away_score: 0,
+        status: "scheduled",
+      },
+      // existingMatch 미제공 — 기존 sync route 호출 패턴
+    });
+
+    expect(result.ok).toBe(true);
+    // 핵심 검증 — findFirst 1회 호출 (회귀 0)
+    expect(findFirstMock).toHaveBeenCalledTimes(1);
   });
 });

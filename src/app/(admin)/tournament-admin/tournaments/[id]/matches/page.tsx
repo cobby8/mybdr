@@ -346,9 +346,23 @@ function ScoreModal({
             <option value="paper">종이 기록지 (웹)</option>
           </select>
           {recordingMode === "paper" && (
-            <p className="mt-1 text-xs" style={{ color: "var(--color-warning)" }}>
-              ⚠ 종이 모드 — Flutter 앱에서 점수 입력이 차단됩니다.
-            </p>
+            <>
+              <p className="mt-1 text-xs" style={{ color: "var(--color-warning)" }}>
+                ⚠ 종이 모드 — Flutter 앱에서 점수 입력이 차단됩니다.
+              </p>
+              {/* 2026-05-11: Phase 1-B-2 — paper 모드 매치는 종이 기록지 입력 페이지로 이동 */}
+              {match.id && (
+                <a
+                  href={`/score-sheet/${match.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block rounded-[4px] px-3 py-1.5 text-xs font-medium text-white"
+                  style={{ backgroundColor: "var(--color-primary)" }}
+                >
+                  📝 종이 기록지 입력 페이지로 이동 →
+                </a>
+              )}
+            </>
           )}
         </div>
 

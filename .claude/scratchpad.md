@@ -93,6 +93,7 @@ main 최종 = `86c6d93` (PR #304). subin = dev = main 동기화. 미푸시 0.
 | PlayerLink/TeamLink 1~3-A + 후속 4 단계 | ✅ main 배포 |
 | 모바일 박스스코어 PDF | ✅ main 배포 |
 | 본 대회 (제21회 몰텐배) D-day 운영 | ✅ 5/9 8강·4강 일부 종료 / 5/10 4강·결승 예정 |
+| 웹 종이 기록지 Phase 1+2 MVP 3 PR | ✅ Phase 1-A 게이팅 (5/11) + Phase 1-B-1 service 추출 (5/11) + Phase 1-B-2 폼+BFF (5/11) — 사용자 결재 후 main 머지 대기 |
 
 ---
 
@@ -404,6 +405,99 @@ ScoreSheetPage (server / 가드)
 
 ---
 
+### 테스트 결과 (tester) — Phase 1-B-2 웹 종이 기록지 폼 + BFF + 권한 헬퍼
+
+#### 정적 검증
+- `npx tsc --noEmit`: ✅ **0 에러** (exit 0)
+- BigInt 리터럴 `Nn` grep (Phase 1-B-1 함정 회피 확인): ✅ **0 건** (test 파일 모두 `BigInt(N)` 호출 형식)
+- `npx vitest run`: ✅ **19 files / 267 tests passed** (이전 252 + 신규 15 = `require-score-sheet-access` 8 + `score-sheet-submit` 5 + `match-sync existingMatch` 2). 회귀 0 (minutes-engine 21/21 / score-match 14/14 / recording-mode 14/14 / match-sync 21 → 23)
+
+#### 권한 매트릭스 (require-score-sheet-access.test.ts 8 케이스 — vitest verbose 확인)
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| 익명 (세션 없음) | 401 UNAUTHORIZED | ✅ PASS |
+| 매치 미존재 | 404 MATCH_NOT_FOUND | ✅ PASS |
+| super_admin (session.role) | 통과 + user/match/tournament 반환 | ✅ PASS |
+| organizer (tournament.organizerId === userId) | 통과 | ✅ PASS |
+| tournamentAdminMember(isActive=true) | 통과 | ✅ PASS |
+| tournament_recorders ∋ userId | 통과 | ✅ PASS |
+| 일반 user (어느 권한도 없음) | 403 FORBIDDEN | ✅ PASS |
+| JWT 살아있지만 DB user 없음 | 401 USER_NOT_FOUND | ✅ PASS |
+
+→ IDOR 가드 코드 검증: `findFirst({ where: { tournamentId: match.tournamentId, ... } })` (line 149/153) — match SELECT 결과 tournamentId 사용 → URL 위조 자동 차단. 위임 §2 "다른 토너먼트 IDOR 403" 사실상 권한 매트릭스로 100% 흡수됨.
+
+#### BFF 시나리오 (score-sheet-submit.test.ts 5 케이스)
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| mode=flutter 매치 | 403 RECORDING_MODE_FLUTTER | ✅ PASS |
+| 음수 home_score | 422 VALIDATION_ERROR | ✅ PASS |
+| status="cancelled" (비정상) | 422 VALIDATION_ERROR | ✅ PASS |
+| 정상 paper 매치 정상 통과 | 200 + service 호출 (`existingMatch` 인자 전달 검증) + audit `web-score-sheet` 박제 + snake_case 응답 envelope | ✅ PASS |
+| service `MATCH_NOT_FOUND` 응답 | 404 전파 | ✅ PASS |
+
+→ 위임 §3 5번째 "권한 없는 user 401/403" 는 권한 매트릭스 테스트에 흡수 (BFF 가 `requireScoreSheetAccess` 위임). BFF 시나리오 5 케이스로 분기 코어 완비.
+
+#### Flutter v1 결과 동등성 (existingMatch 분기 검증 — match-sync.test.ts +2 케이스)
+| 케이스 | 기대 | 결과 |
+|--------|------|------|
+| existingMatch 제공 + id/tournamentId 일치 | `findFirst` 호출 **0회** (SELECT skip) + update 1회 + 정상 path | ✅ PASS |
+| existingMatch 미제공 (기존 sync route 동작) | `findFirst` 호출 **1회** (하위 호환 보존) | ✅ PASS |
+
+→ service signature 발전 = 회귀 0 보장 (sync route 가 existingMatch 미전달 → 기존 동작 그대로). IDOR fallback (id/tournamentId 불일치 시 SELECT 재실행) 코드 라인 `match-sync.ts:377~390` 검증 ✅.
+
+#### UX / 디자인 토큰
+| 항목 | 결과 |
+|------|------|
+| 모바일 가드 (`window.innerWidth < 720`) → 입력 차단 안내 | ✅ `score-sheet-form.tsx:99~106 + 262~278` |
+| localStorage draft key 형식 `score-sheet-draft-{matchId}` | ✅ `DRAFT_KEY_PREFIX = "score-sheet-draft-"` + `match.id` concat |
+| draft 5초 throttle 자동 저장 + mount 시 복원 | ✅ `useEffect setTimeout 5000ms` / 제출 성공 시 `removeItem` 정리 |
+| submit 성공 시 `/live/{matchId}` 링크 안내 | ✅ `score-sheet-form.tsx:350~355` Link href |
+| `lucide-react` import (score-sheet 전체) | ✅ **0 건** (Grep) |
+| 핑크/살몬/코랄/rose/#ff... 하드코딩 색상 | ✅ **0 건** (Grep) |
+| `var(--*)` 토큰 사용 일관 | ✅ primary / info / surface / border / text-* / error / warning / success / elevated 모두 토큰 사용 |
+| AppNav 메인 탭 변경 | ✅ **0 건** (운영자 진입 = admin matches ScoreModal 안 버튼) |
+
+⚠️ 텍스트 이모지 (`📝` `◉` `★` `✅` `❌` `⚠` `💾`) 사용 — 사용자 결재 / Material Symbols 미사용. 디자인 시안 박제 13 룰에 "텍스트 이모지 금지" 항목 부재 → 본 PR 허용. (참고: 02-design-system-tokens.md 의 lucide-react/하드코딩 색상 금지 룰은 통과)
+
+#### 운영 DB 영향 (SELECT only — CLAUDE.md DB 정책 가드 5번 운영 영향 0 작업)
+| 항목 | 카운트 | 결과 |
+|------|------|------|
+| 전체 매치 | 77 | - |
+| `settings::jsonb->>'recording_mode' = 'paper'` | **0** | ✅ (배포 전 — 운영 매치 0건 mode 전환 0) |
+| `settings::jsonb->>'recording_mode' = 'flutter'` 명시 | **0** | ✅ (Phase 1-A 결과 — fallback 의존) |
+| schema 변경 | 0 | ✅ (`git status prisma/schema.prisma` 변경 없음) |
+
+→ 사후 임시 스크립트 즉시 삭제 완료 (DB 정책 가드 3번 준수).
+
+#### 발견된 이슈 / 수정 요청
+**Critical/Major**: **0건** (차단 없음)
+
+**Minor**:
+| 대상 파일 | 문제 | 우선순위 |
+|----------|------|---------|
+| `src/app/(web)/score-sheet/[matchId]/page.tsx:213~238` | `loadTeamRoster` 가 `Promise.all` 안에서 `await prisma.tournamentTeam.findUnique(...).then(...)` 호출 — 2개의 SELECT 가 직렬 (await 한 후 loadTeamRoster 진입). `Promise.all` 효과 사실상 0. 진입 시간 영향 미미 (개별 ~10ms) — 운영 영향 무시. **권고**: 별도 SELECT 후 loadTeamRoster 에 teamName 인자 전달 (실제 병렬화) 또는 명시적 sequential 패턴으로 단순화 | Minor (성능) |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts:183` | 응답 envelope `home_score: syncResult.data.server_match_id ? input.home_score : input.home_score` — 삼항이 양쪽 동일값 (조건 무의미). **권고**: `home_score: input.home_score` 단순화 | Minor (코드 클린) |
+| `src/app/(web)/score-sheet/[matchId]/_components/score-sheet-form.tsx:390~393` | "user prop 사용 표시 — TS unused 회피" 주석 명시 — debug용 user_id 노출 (운영자 화면 우측 하단). 운영자 화면이라 큰 위험 없으나 **권고**: user_id 노출 제거 (nickname 만), 또는 컴포넌트에서 `void user` 패턴으로 unused 회피 | Minor (UX 정보 노출) |
+
+위 3건 모두 차단 사유 X — 운영 활성화에 영향 없음.
+
+#### 결론
+**✅ 통과** — Phase 1-B-2 웹 종이 기록지 폼 + BFF + 권한 헬퍼 검증 완료. **차단 이슈 0건**.
+
+📌 핵심:
+- 정적 검증 통과 (tsc 0 / BigInt 리터럴 0 / vitest 267/267)
+- 권한 매트릭스 8 케이스 + BFF 5 케이스 + existingMatch 분기 2 케이스 모두 PASS
+- Flutter v1 결과 동등성 100% 보존 (existingMatch optional / 미제공 시 기존 sync route 동작)
+- UX 모바일 가드 + localStorage draft + 라이브 링크 안내 모두 의도대로 동작
+- 디자인 토큰 위반 0 (lucide-react / 핑크 hardcode 모두 grep 0건)
+- 운영 DB 영향 0 (77 매치 / paper 0 / schema 변경 0)
+- Phase 1-A reviewer Minor 2 권고 (AuditSource union 확장 + existingMatch signature) 모두 처리 완료
+- 사용자 결재 5건 (Phase / UX / 충돌룰 / settings JSON / 인쇄 PDF) 모두 정합
+
+→ **dev 머지 가능 + 운영 활성화 가능** 상태 (Minor 3건 클린업 권장 — 별도 PR 가능).
+
+---
+
 ### 테스트 결과 (tester) — Phase 1-B-1 sync refactor
 
 #### 정적 검증
@@ -462,6 +556,216 @@ ScoreSheetPage (server / 가드)
 - **수정 요청**: 테스트 파일 BigInt 리터럴 2줄 → developer 수정 후 commit 권장
 
 → **dev 머지 가능** 상태 (BigInt 리터럴 수정 후).
+
+---
+
+### 구현 기록 (developer) — Phase 1-B-2 웹 종이 기록지 폼 + BFF + 권한 헬퍼
+
+📝 구현 범위 (Phase 1+2 MVP 의 3 번째 PR / 최종 MVP):
+종이 기록지 입력 페이지 + BFF + 권한 헬퍼 + service signature 발전 + AuditSource union 확장 + 회귀 vitest 15건.
+schema 변경 0 / Flutter v1 결과 변경 0 / 운영 매치 100% 무영향.
+
+#### 변경 파일
+
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/match-audit.ts` | `AuditSource` union 에 `"mode_switch"` + `"web-score-sheet"` 추가 (Phase 1-A reviewer Minor 1 권고 처리) | 수정 +2 |
+| `src/lib/services/match-sync.ts` | `SyncSingleMatchParams` 에 `existingMatch?: ExistingMatchForSync` 인자 추가 (SELECT 2→1 통합 — Phase 1-B-1 reviewer Minor 권고 처리). caller 가 권한/모드 가드용 row 재사용 → service `findFirst` skip. IDOR 가드 (id+tournamentId 일치 검증) + fallback (불일치 시 SELECT 재실행) | 수정 +39 |
+| `src/lib/auth/require-score-sheet-access.ts` | 신규 권한 헬퍼 — web 세션 + 권한 매트릭스 4종 (super_admin / organizer / tournamentAdminMember / tournament_recorders). 매치 + 대회 SELECT (settings 포함 → BFF mode 가드 + service existingMatch 재사용). 단일 책임 = 권한만 (모드 가드는 caller) | 신규 (~208) |
+| `src/app/(web)/score-sheet/[matchId]/page.tsx` | server entry — `requireScoreSheetAccess` 가드 + mode 가드 (paper 아니면 안내 페이지) + 사전 라인업 양쪽 fetch (`MatchLineupConfirmed` + `TournamentTeamPlayer` fallback) + bigint → string 직렬화 후 `<ScoreSheetForm />` 렌더 | 신규 (~301) |
+| `src/app/(web)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | client 폼 본체 — 상태 (header/quarter/notes/isCompleted) + localStorage draft (5초 throttle / mount 시 복원) + 모바일 가드 (720px 미만 차단) + 합산 자동 계산 + 검증 alert (동점/0점 등) + POST submit + 성공/실패 안내 | 신규 (~396) |
+| `src/app/(web)/score-sheet/[matchId]/_components/score-sheet-header.tsx` | 헤더 — 대회/매치/일시/코트 자동 fill + 심판/기록원/타임키퍼 5종 입력 (audit context 박제용) | 신규 (~158) |
+| `src/app/(web)/score-sheet/[matchId]/_components/team-roster.tsx` | 홈/원정 팀 명단 카드 — 등번호·표시명·캡틴 표시. 사전 라인업 starters → ◉ 강조 / 라인업 미입력 매치 = 전체 명단 정상 표시 | 신규 (~124) |
+| `src/app/(web)/score-sheet/[matchId]/_components/quarter-score-grid.tsx` | Q1~Q4 × 홈/어웨이 점수 grid + 연장 OT[] 동적 추가/제거 (최대 4번 FIBA 표준) + 합산 자동 계산. `toQuarterScoresJson` / `fromQuarterScoresJson` 헬퍼 export (form 에서 server prop ↔ state 변환) | 신규 (~316) |
+| `src/app/(web)/score-sheet/[matchId]/_components/submit-bar.tsx` | 매치 종료 토글 + 검증 errors[] alert + 제출 버튼 (loading) + draft 안내 | 신규 (~99) |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | BFF — `requireScoreSheetAccess` → mode 가드 → zod 검증 → `syncSingleMatch({ existingMatch })` → audit `web-score-sheet` 박제. notes 별도 UPDATE (service 미지원 컬럼). apiSuccess 자동 snake_case 변환 | 신규 (~194) |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/matches/page.tsx` | ScoreModal paper 모드 분기에 "📝 종이 기록지 입력 페이지로 이동 →" 버튼 추가 (`/score-sheet/{matchId}` 새 탭) | 수정 +14 |
+| `src/__tests__/lib/match-sync.test.ts` | existingMatch 분기 2 케이스 추가 — 제공 시 findFirst SELECT 0 / 미제공 시 1회 (하위 호환 보존) | 수정 +130 |
+| `src/__tests__/lib/require-score-sheet-access.test.ts` | 권한 매트릭스 8 케이스 — 익명 401 / 매치 미존재 404 / super_admin / organizer / adminMember / recorder / 일반 user 403 / DB user 미존재 401 | 신규 (~230) |
+| `src/__tests__/lib/score-sheet-submit.test.ts` | BFF 5 케이스 — mode=flutter 403 / zod 음수 422 / status 비정상 422 / 정상 통과 200 (existingMatch 전달 + audit 박제 검증) / service MATCH_NOT_FOUND 404 | 신규 (~227) |
+
+총 라인: 신규 ~2,053 / 수정 ~185 / 14 파일.
+
+#### 검증
+- `npx tsc --noEmit`: **0 에러 ✅** (운영 + 테스트 코드 모두 통과 — Phase 1-B-1 BigInt 리터럴 함정 회피 ✅ grep 0건)
+- `npx vitest run`: **19 files / 267 PASS ✅** (252 → 267 / +15 신규: match-sync existingMatch 2 + 권한 매트릭스 8 + BFF 5). 회귀 0 (minutes-engine 21/21 / score-match 14/14 / recording-mode 14/14 / 기존 match-sync 21/21).
+- DB schema 변경: **0 ✅** (settings JSON 활용 — Phase 1-A 가드 그대로)
+- Flutter v1 결과 변경: **0 ✅** (service 발전은 하위 호환 — existingMatch optional / 미제공 시 기존 동작)
+- AppNav 변경: **0 ✅** (메인 탭 추가 X / 운영자 영역 진입 = admin matches ScoreModal 안 버튼)
+- 디자인 토큰 위반: **0 ✅** (`var(--*)` 토큰 / 핑크 ❌ / lucide-react ❌ / Material Symbols ❌ 텍스트 이모지 ◉★💾 사용)
+
+💡 tester 참고:
+- **수동 테스트 시나리오**:
+  1. admin/tournament-admin/tournaments/{id}/matches 진입 → 매치 클릭 → ScoreModal 의 "기록 모드" select 를 **종이 기록지(웹)** 으로 전환 → "📝 종이 기록지 입력 페이지로 이동 →" 버튼 클릭
+  2. `/score-sheet/{matchId}` 페이지에서 양 팀 명단 자동 표시 확인 (사전 라인업 있으면 ◉ 강조)
+  3. Q1~Q4 점수 입력 → 합계 자동 계산 + 동점 시 검증 alert 표시
+  4. 연장 (+ 연장) 버튼 → OT1, OT2 추가 (최대 4)
+  5. 매치 종료 체크 → 제출 → 성공 시 라이브 페이지 링크 표시
+  6. 라이브 페이지 (`/live/{matchId}`) 진입 → 점수/박스스코어/[Headline] 자동 반영 확인 (sync API 단일 source 보장)
+  7. 알기자 자동 발행 trigger (`waitUntil`) 확인 — completed 신규 전환 시
+- **정상 동작**:
+  - paper 모드 미설정 매치 → 안내 페이지 ("Flutter 기록앱으로 진행 중") + admin 페이지 링크
+  - 720px 미만 모바일 → "PC 또는 태블릿에서 사용하세요" 가드 표시 + 입력 차단
+  - localStorage draft → 5초 후 자동 저장 / 페이지 재진입 시 복원
+  - 일반 user → 403 권한 거부 안내 페이지
+- **주의할 입력**:
+  - 동점 + completed → alert 표시 (5x5 농구 연장 필요) — 제출 차단 X (운영자 판단)
+  - 양 팀 0:0 + completed → forfeit 매치 의심 alert
+  - 라인업 미입력 매치 → 전체 명단 정상 표시 (manual roster 입력은 별도 PR)
+
+⚠️ reviewer 참고:
+- **service `existingMatch` 인자 발전** (Phase 1-B-1 reviewer Minor 1 권고 처리):
+  - BFF 가 권한 가드용 SELECT 한 row 그대로 전달 → service 가 `findFirst` skip = SELECT 2→1 통합
+  - sync route 는 미제공 (기존 동작 보존 = 회귀 0)
+  - IDOR 가드 — service 가 받은 row 의 id/tournamentId 일치 확인. 불일치 시 fallback SELECT (안전)
+- **AuditSource union 확장** (Phase 1-A reviewer Minor 1 권고 처리):
+  - `"mode_switch"` (Phase 1-A admin 토글) + `"web-score-sheet"` (Phase 1-B-2 BFF) 추가
+  - DB 컬럼 `String @db.VarChar` 라 런타임 영향 0 / type narrow 만 영향
+- **UX 모바일 가드 패턴** (사용자 결재 §2): client mount 후 window.innerWidth 분기. 720px 미만 = 입력 차단 안내. 사용자 결재 = PC 우선
+- **localStorage draft 패턴**: `score-sheet-draft-{matchId}` key. 5초 throttle 자동 저장 / mount 시 복원 / 제출 성공 시 제거. 운영자가 페이지 이탈 후 재진입해도 입력 보존
+- **BFF 단일 source path**: `syncSingleMatch` 호출 → Flutter sync 와 동일 부작용 (라이브 / 박스스코어 / 통산 / 알기자 자동 trigger). decisions.md [2026-05-11] §1 정합
+- **권한 헬퍼 단일 책임**: `requireScoreSheetAccess` = 권한만 / 모드 가드는 caller (page = 안내 페이지 / BFF = 403) — UX 분기 다름 → 책임 분리
+- **audit 박제 fire-and-forget**: BFF 가 audit 박제 실패해도 응답 200 유지 (Phase 1-A admin_logs 패턴 동일). 운영 감사 추적 손실 위험 ↓ vs 사용자 응답 실패 ↑ 트레이드오프
+- **vitest BFF mock 패턴**: vi.doMock 으로 권한 헬퍼 + service + prisma 격리. 통합 e2e 는 별도 영역 (DB seed 필요)
+
+#### 다음 단계 (Phase 2 진입 전 검토 / 운영 활성화 체크리스트)
+1. **사용자 결재**: 본 PR (Phase 1-B-2) main 머지 → 운영 활성화 = Phase 1 MVP 완료. Phase 2 (선수별 stat 입력) 진입 결재.
+2. **운영 활성화 체크리스트**:
+   - admin matches ScoreModal 에서 매치 1건 "종이 기록지(웹)" 모드로 토글 → score-sheet 페이지 접속 검증
+   - 정상 작동 시 본 대회 1매치에 운영 적용 (mode 전환 후 운영자가 종이로 받은 결과 입력 — sync 부작용 100% 동등 확인)
+   - admin_logs `mode_switch` + `tournament_match_audits` `web-score-sheet` 박제 검증
+3. **Phase 2 핵심**: 선수별 boxscore stat 입력 표 (FIBA 양식 — 22 필드 × 12명 × 2팀). `MatchPlayerStat` 모델 활용. service 가 이미 `player_stats[]` 인자 지원 — caller (BFF) 가 input 만 추가.
+4. **잠재 위험**:
+   - 운영자가 종이 모드로 토글 후 Flutter 도 동시에 매치 진입 시도 = Phase 1-A 가드가 403 차단 (sync/batch-sync/status 3 라우트) → 운영 알림 필요 (원영 사전 공지)
+   - localStorage draft = 동일 브라우저만 보존 (PC 변경 시 X) — 추후 서버 draft 저장 검토 (Phase 후순위)
+
+---
+
+### 리뷰 결과 (reviewer) — Phase 1-B-2 폼 + BFF + 권한 헬퍼
+
+#### 종합 판정: **통과 (Major 1 수정 권장 / Minor 3 개선 제안)**
+
+차단 이슈 0. 14 파일 핵심 로직 (권한 / BFF / service `existingMatch` / audit) 동등성 + 안전성 검증 완료. 1건 Major (tournament_recorders isActive 미체크) + 코드 스멜 3건 — M-1 fix 후 main 머지 권장.
+
+#### 강점
+
+- **단일 source path 박제 우수**: BFF 가 `syncSingleMatch({ existingMatch })` 인-프로세스 호출 → Flutter sync 와 100% 동일 부작용 (waitUntil(triggerMatchBriefPublish) / advanceWinner / updateTeamStandings / progressDualMatch). lessons.md 5/9 path 우회 함정 회피 ✅ (fetch X / 서비스 직접 import).
+- **IDOR 가드 2중**: (1) BFF `requireScoreSheetAccess(matchId)` 가 match → tournamentId 자동 결정 (URL params 위조 차단). (2) service 가 `existingMatch.id/tournamentId` 일치 검증 후 불일치 시 fallback `findFirst` — caller 가 잘못된 row 전달해도 안전.
+- **SELECT 2→1 통합 깔끔**: BFF 권한 SELECT (settings 포함) → service `existingMatch` 재사용. 하위 호환 (sync route 미제공 시 기존 동작).
+- **권한 헬퍼 단일 책임**: `requireScoreSheetAccess` = 권한만. 모드 가드는 caller (page=안내 페이지 / BFF=403 분기) — 책임 분리 적절.
+- **테스트 매트릭스 적절**: require-score-sheet-access 8 케이스 (익명/매치미존재/super_admin/organizer/adminMember/recorder/일반 user/DB user 미존재). score-sheet-submit 5 케이스 (mode 가드/zod 음수/status 비정상/정상+existingMatch+audit 박제 검증/MATCH_NOT_FOUND 전파). match-sync existingMatch 2 케이스 — 분기 모두 커버.
+- **디자인 룰 위반 0**: `var(--*)` 토큰 100% / `lucide-react` 0건 / 핑크 hardcode 0건 / 9999px pill 0건 / 모바일 가드 (720px 미만 입력 차단 + 안내) 명확.
+- **BigInt 리터럴 함정 회피** (Phase 1-B-1 lessons): `100n` 등 grep 0건. `BigInt(123)` 표준 형태 일관.
+- **AuditSource union 확장 깔끔**: "mode_switch" + "web-score-sheet" 추가. DB 컬럼 String → 런타임 영향 0 / type narrow 만.
+- **localStorage draft 안전**: key `score-sheet-draft-{matchId}` 충돌 회피 / 손상 draft try-catch 무시 / 제출 성공 시 제거 / 5초 throttle.
+- **tsc 0 에러 + vitest 267 PASS** 자체 확인.
+
+#### 발견 이슈
+
+##### 🚨 Critical (차단): 0건
+
+##### ⚠️ Major (수정 권장): 1건
+
+**M-1 [require-score-sheet-access.ts:152-155] tournament_recorders `isActive` 미체크 — 비활성 기록원도 통과**
+
+```ts
+prisma.tournament_recorders.findFirst({
+  where: { tournamentId: match.tournamentId, recorderId: userId },
+  // ❌ isActive: true 누락
+  select: { id: true },
+}),
+```
+
+- **문제**: `tournamentAdminMember` 는 `isActive: true` 체크 있는데 `tournament_recorders` 는 누락. prisma schema 에 `isActive Boolean @default(true)` 컬럼 존재 (schema.prisma:2118). 운영자가 기록원을 해제 (isActive=false) 해도 페이지/BFF 둘 다 통과 → **권한 회수 효과 없음 = 운영 사고 가능**.
+- **수정**: where 절에 `isActive: true` 추가:
+  ```ts
+  where: { tournamentId: match.tournamentId, recorderId: userId, isActive: true }
+  ```
+- **테스트 보강 권장**: 매트릭스에 `recorder isActive=false → 403` 1 케이스 추가.
+
+##### 💡 Minor (개선 제안): 3건
+
+**m-1 [submit/route.ts:183] 의미 없는 ternary — 양쪽 동일 값**
+
+```ts
+home_score: syncResult.data.server_match_id ? input.home_score : input.home_score,
+```
+
+→ `home_score: input.home_score` 로 단순화. (TS error 아님 / 동작 정상 / 코드 스멜만.)
+
+**m-2 [page.tsx:214-238] `Promise.all` 안의 `await` 즉시 평가 — 병렬화 효과 없음**
+
+```ts
+const [homeTeamData, awayTeamData] = await Promise.all([
+  loadTeamRoster(match.id, "home", match.homeTeamId,
+    await prisma.tournamentTeam.findUnique(...).then(...)  // ← 즉시 await → 순차
+  ),
+  loadTeamRoster(match.id, "away", match.awayTeamId,
+    await prisma.tournamentTeam.findUnique(...).then(...)  // ← homeTeam 끝난 후
+  ),
+]);
+```
+
+- **문제**: 배열 안 `await` 즉시 평가 → 4건 SELECT 순차 (홈팀명 → home roster lineup+TTP → 어웨이팀명 → away roster lineup+TTP). `Promise.all` 효과 X.
+- **부가**: `match.homeTeamId ?? BigInt(-1)` — homeTeamId NULL 시 존재 불가 id 로 무용한 SELECT.
+- **수정 (옵션 A)**: 팀명 SELECT 를 `loadTeamRoster` 안으로 이동 + null guard. (옵션 B) match SELECT 에 team relation 포함 (`homeTeam: { select: { team: { select: { name: true } } } }`) → SELECT 0건.
+- **영향**: TTFB ~30~50ms 지연. 운영 임팩트 미미.
+
+**m-3 [submit/route.ts:131-138] notes 별도 UPDATE — 동일 row 2회 update**
+
+```ts
+// service 가 tournamentMatch.update 1회 → BFF 가 또 update (notes 만)
+if (input.notes !== undefined && input.notes.trim().length > 0) {
+  await prisma.tournamentMatch.update({ where: { id: match.id }, data: { notes: input.notes } });
+}
+```
+
+- **권장 (선택)**: service `SyncSingleMatchParams` 에 `extraUpdate?: { notes?: string }` 옵션 추가 → 1회 통합. 또는 Phase 2 진입 시 `MatchSyncInput` 에 `notes` 정식 필드. 본 PR 머지 영향 X.
+
+#### 보안 / 컨벤션 체크
+
+| 항목 | 결과 | 비고 |
+|------|------|------|
+| apiSuccess/apiError + 자동 snake_case | ✅ | response.ts → convertKeysToSnakeCase |
+| snake_case 응답 (errors.md 2026-04-17 회피) | ✅ | 응답 키 명시 + 자동 변환 이중 안전. 프론트 (form) 는 client state 만 사용 / API 응답 직접 파싱 X → 함정 회피 |
+| 권한 (super/organizer/admin/recorder 4종) | ✅ | 매트릭스 정확 |
+| IDOR 가드 (매치 → tournamentId 자동) | ✅ | requireScoreSheetAccess SELECT 한 tournamentId 사용 |
+| existingMatch IDOR 가드 (id+tournamentId 일치) | ✅ | service line 377-384 검증 + fallback SELECT |
+| audit 박제 (source = "web-score-sheet") | ✅ | context 형식 정합 + fire-and-forget |
+| schema 변경 0 | ✅ | settings JSON 활용 |
+| Flutter v1 결과 변경 0 | ✅ | existingMatch optional / sync route 미제공 시 기존 동작 |
+| lucide-react ❌ | ✅ | 0건 |
+| 핑크/살몬 hardcode ❌ | ✅ | 0건 / var(--*) 100% |
+| 모바일 가드 (720px 미만) | ✅ | client mount 후 분기 + 안내 카드 |
+| BigInt 리터럴 (100n 등) ❌ | ✅ | 0건 (BigInt(123) 표준) |
+| AppNav frozen | ✅ | 메인 탭 추가 X / 진입 = admin matches 안 버튼 |
+| tournament_recorders isActive 가드 | ❌ | **M-1 위 참조** |
+
+#### 운영 활성화 권고
+
+1. **M-1 fix 후 머지** — `isActive: true` 1줄 추가 + 테스트 1 케이스 추가 (~10분).
+2. **원영 (Flutter 담당) 사전 공지** — paper 모드 매치에 Flutter sync 진입 시 403 `RECORDING_MODE_PAPER` 응답. 카피 협의:
+   - 현재 메시지: "이 매치는 종이 기록지 모드로 진행 중입니다. 웹 기록지 페이지에서 입력해주세요."
+   - Flutter 측 dialog UX (운영자 매뉴얼 link / "운영자에게 문의" 버튼 등) 검토.
+3. **운영 1매치 검증 시나리오**:
+   - admin matches ScoreModal → paper 토글 → "📝 종이 기록지 입력 페이지로 이동" 클릭
+   - 양 팀 명단 자동 표시 / 사전 라인업 ◉ 강조 / Q1~Q4 + OT 입력 / 매치 종료 토글 / 제출
+   - `/live/{matchId}` 점수·박스스코어·[Headline] 자동 반영
+   - `admin_logs` (mode_switch) + `tournament_match_audits` (web-score-sheet) 박제 검증
+4. **m-2 page.tsx Promise.all 병렬화** — 본 PR 머지 후 별도 PR (영향 미미).
+
+#### 수정 요청 테이블
+
+| 우선순위 | 파일:줄 | 문제 | 수정 방법 |
+|---------|---------|------|----------|
+| Major | require-score-sheet-access.ts:152-155 | tournament_recorders 권한 검증에 `isActive: true` 누락 — 비활성 기록원 통과 | where 절 `isActive: true` 추가 + test 매트릭스 1 케이스 보강 |
+| Minor | submit/route.ts:183 | 의미 없는 ternary (양쪽 동일) | `home_score: input.home_score` 로 단순화 |
+| Minor | page.tsx:214-238 | `Promise.all` 안의 `await` 즉시 평가 → 순차 실행 | 팀명 SELECT 를 loadTeamRoster 안으로 이동 또는 match SELECT 에 team relation 포함 |
+| Minor | submit/route.ts:131-138 | notes 별도 UPDATE = 동일 row 2회 update | (선택) service `extraUpdate` 옵션 추가 or Phase 2 진입 시 정식 필드 |
+
+#### 결론
+
+✅ **통과 (Major 1 / Minor 3)** — 14 파일 PR 의 비즈니스 로직 (단일 source path / IDOR 가드 / audit / 권한 매트릭스) 모두 적절. **M-1 (tournament_recorders isActive) fix 후 main 머지 권장**. 운영 매치 0건 영향 (settings JSON 활용 / Flutter v1 결과 보존). Phase 1 MVP 종료 가능.
 
 ---
 
@@ -649,6 +953,8 @@ ScoreSheetPage (server / 가드)
 
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-11 | (PM 커밋 대기) | **[Phase 1-B-2 tester ✅ 통과]** tsc 0 (BigInt 리터럴 grep 0건 / Phase 1-B-1 함정 회피 확인) / vitest 267/267 PASS (252→267 +15). 권한 매트릭스 8/8 + BFF 5/5 + existingMatch 분기 2/2 모두 PASS. 운영 DB SELECT only 검증 (77 매치 / paper 0 / flutter 명시 0 — 모두 fallback / schema 변경 0). 디자인 토큰 위반 0 (lucide-react 0 / 핑크 hardcode 0 / `var(--*)` 일관). UX 가드 검증 (모바일 720px / localStorage draft 5s / 라이브 링크). **차단 이슈 0건 / Minor 3건** (loadTeamRoster Promise.all 사실상 직렬 / BFF route line 183 무의미 삼항 / user_id 화면 노출). | ✅ |
+| 2026-05-11 | (PM 커밋 대기) | **[Phase 1-B-2 웹 종이 기록지 폼 + BFF + 권한 헬퍼 — Phase 1+2 MVP 마지막 PR]** 14 파일 / 신규 ~2,053 + 수정 ~185 라인. 신규 = 권한 헬퍼 `requireScoreSheetAccess` (matrix 4종) + score-sheet server entry + client form 본체 + 컴포넌트 5종 (header/roster×2/quarter-grid/submit-bar) + BFF `/api/web/score-sheet/[matchId]/submit` (zod + 모드 가드 + service 호출 + audit `web-score-sheet` 박제). 수정 = AuditSource union 확장 (`mode_switch` + `web-score-sheet`) + service `existingMatch?` 인자 (SELECT 2→1 통합 — Phase 1-B-1 reviewer Minor 권고 처리) + admin ScoreModal "📝 종이 기록지 입력 페이지로 이동" 진입 링크. 회귀 vitest 15 케이스 (match-sync existingMatch 2 + 권한 매트릭스 8 + BFF 5). **tsc 0 ✅ / vitest 267/267 PASS ✅** (252 → 267). schema 변경 0 / Flutter v1 결과 변경 0 / 운영 매치 100% 무영향. PC 우선 + 모바일 가드 (720px) + localStorage draft 5초 throttle. 단일 source = `syncSingleMatch` 호출 → 라이브/박스스코어/통산/알기자 자동 trigger. | ✅ |
 | 2026-05-11 | (PM 커밋 대기) | **[Phase 1-B-1 sync route refactor — match-sync service 추출]** 옵션 A 채택 (단일 source / BFF 재사용 path). sync route 494→204줄 (-290) / `src/lib/services/match-sync.ts` 신규 642줄 (`syncSingleMatch` core 함수 + 순수 헬퍼 4종). 신규 vitest 21 케이스. Flutter sync 응답 envelope + 부작용 100% 보존 (코드 라인 매핑 검증). vitest 252/252 PASS (231→252). schema 변경 0 / 운영 in_progress 매치 0건. **tester ✅ 통과** (Minor 1건 BigInt 리터럴 → PM 픽스 완료) / **reviewer ✅ 통과** (차단 0 / Minor 1건 SELECT 2회 — 1B-2 진입 시 결재 / Flutter v1 동등 100% 확인). | ✅ |
 | 2026-05-11 | subin `05fa45b` | **[Phase 1-A 매치별 recording_mode 게이팅 인프라]** schema 변경 0 / settings JSON 활용. 헬퍼 3종 (`getRecordingMode`/`assertRecordingMode`/`withRecordingMode`) + Flutter v1 3 라우트 가드 (sync/batch-sync/status) + admin ScoreModal 토글 (Flutter ↔ 종이 select + confirm + 사유 prompt) + 신규 admin endpoint `/api/web/admin/matches/[id]/recording-mode` (audit `mode_switch` + admin_logs warning) + vitest 14 케이스. tsc 0 / vitest 231/231 PASS (217 → 231). Flutter v1 로직 변경 0 (가드만 추가) → 원영 사전 공지 권장 (토스트 UX). 변경 7 파일. | ✅ |
 | 2026-05-11 | DB 작업 (commit 무관) | **[열혈최강전 D-day 명단 검증]** 라이징이글스(13명) + 펜타곤(11명) 이미지 ↔ DB 대조. 라이징이글스 출전 10명 + 불참 3명 모두 DB 등록 ✅ / 펜타곤 #21 박성후 (User 3382, 5/5 가입) DB 미등록 발견 → 사용자 결재 후 TTP id=2848 INSERT (admin_logs id=87 박제 / snukobe 결재 / phone 카피 / 13명 cap). 라이징이글스 더미 4명(서장훈·전태풍·김태술·산다라박, jersey NULL = 출전 차단) + 펜타곤 잉여 2명(이병희·김대진) 그대로 두기 결정. | ✅ |
