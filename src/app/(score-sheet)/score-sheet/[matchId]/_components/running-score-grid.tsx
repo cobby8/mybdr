@@ -150,10 +150,14 @@ export function RunningScoreGrid({
   const rowIndexes = Array.from({ length: ROWS_PER_SET }, (_, i) => i + 1);
 
   return (
-    <div className="flex w-full flex-col">
+    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X / 단일 외곽 박스
+    <div
+      className="flex w-full flex-col"
+      style={{ border: "1px solid var(--color-border)" }}
+    >
       {/* 제목 — FIBA 양식 라벨 */}
       <div
-        className="flex items-center justify-between rounded-t-[4px] px-2 py-1"
+        className="flex items-center justify-between px-2 py-1"
         style={{
           backgroundColor: "var(--color-surface)",
           borderBottom: "1px solid var(--color-border)",

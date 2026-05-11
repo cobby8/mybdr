@@ -71,11 +71,15 @@ export function FibaHeader({
   const { dateLabel, timeLabel } = splitDateTime(scheduledAtLabel);
 
   return (
+    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1):
+    //   - rounded-0 (radius X) / shadow X / border 1px (단일 외곽 박스 일부)
+    //   - 배경 = surface 단일 톤 (FIBA 양식 회색 박스 정합)
+    //   - 라벨 = ALL CAPS bold (변경 없음 — 이미 정합)
     <section
       className="w-full px-4 py-3"
       style={{
         backgroundColor: "var(--color-surface)",
-        borderBottom: "1px solid var(--color-border)",
+        border: "1px solid var(--color-border)",
       }}
     >
       {/* 로고 + 타이틀 박스 — FIBA 양식 정합 (상단 중앙) */}

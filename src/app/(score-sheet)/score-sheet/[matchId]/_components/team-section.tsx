@@ -150,11 +150,13 @@ export function TeamSection({
     };
 
   return (
+    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1):
+    //   - rounded-0 (radius X — 기존 borderRadius 4 제거) / shadow X
+    //   - 박스 안 내부 영역 (Time-outs / Team fouls / Players / Coach) = 박스 내 박스 (실선 구분)
     <section
       className="w-full p-3"
       style={{
         border: "1px solid var(--color-border)",
-        borderRadius: 4,
       }}
     >
       {/* 헤더 — Team A/B 라벨 + 팀명 */}
@@ -259,7 +261,7 @@ export function TeamSection({
                     cursor:
                       isLastFilled || isNextEmpty ? "pointer" : "default",
                     touchAction: "manipulation",
-                    borderRadius: 4,
+                    // Phase 7-A — FIBA PDF 정합 (rounded-0)
                   }}
                   aria-label={
                     filled
