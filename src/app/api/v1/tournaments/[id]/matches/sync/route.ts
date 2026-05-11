@@ -11,6 +11,10 @@ import { SYNC_ALLOWED_STATUSES } from "@/lib/constants/match-status";
 //   waitUntil 로 wrap (Vercel serverless 응답 종료 후 process abort 방지).
 import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
+// 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 (decisions.md [2026-05-11] §3).
+//   settings.recording_mode === "paper" 매치는 Flutter sync 차단 — 웹 종이 기록지와 충돌 방지.
+//   기존 매치 100% (settings null / {}) 는 fallback "flutter" 로 그대로 허용 — 운영 영향 0.
+import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 
 // 단일 경기 동기화 스키마 (Flutter bdr_stat 앱용)
 const playByPlaySchema = z.object({
@@ -122,6 +126,12 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       where: { id: BigInt(match.server_id), tournamentId },
     });
     if (!existing) return apiError("Match not found in tournament", 404);
+
+    // 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — Flutter sync 는 "flutter" 모드만 허용.
+    // existing 은 tournamentMatch 전체 row (settings 포함) — 별도 SELECT 불필요.
+    // paper 매치 → 403 RECORDING_MODE_PAPER 반환 (Flutter 측 토스트 처리 협의 — 원영 사전 공지 권장).
+    const modeGuard = assertRecordingMode(existing, "flutter", "Flutter sync from app");
+    if (modeGuard) return modeGuard;
 
     const matchId = BigInt(match.server_id);
     const now = new Date();

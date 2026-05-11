@@ -7,6 +7,8 @@ import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-sta
 // 2026-05-09: 알기자 자동 발행 — Flutter batch-sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
 import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
+// 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — paper 매치 batch 차단 (per-match try 안에서 검사).
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 
 // FR-025: 매치 일괄 동기화
 async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string) {
@@ -32,6 +34,13 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
           where: { id: BigInt(match.matchId), tournamentId },
         });
         if (!existing) throw new Error("Match not found in tournament");
+
+        // 2026-05-11: Phase 1-A — paper 매치는 batch-sync 차단 (per-match).
+        // 사유: batch 응답이 errors[] 로 매치별 reason 반환 가능 → catch 에서 분기 처리.
+        // throw 후 외부 catch 가 safeReason 매핑 (line ~67) — 신규 reason 추가.
+        if (getRecordingMode(existing) === "paper") {
+          throw new Error("RECORDING_MODE_PAPER");
+        }
 
         await tx.tournamentMatch.update({
           where: { id: BigInt(match.matchId) },
@@ -64,10 +73,17 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
       synced++;
     } catch (err) {
       failed++;
-      // ★ 보안: 내부 에러 메시지 노출 방지
-      const safeReason = err instanceof Error && err.message === "Match not found in tournament"
-        ? "Match not found in tournament"
-        : "Sync failed";
+      // ★ 보안: 내부 에러 메시지 노출 방지 — 화이트리스트로만 카피 전달
+      // 2026-05-11: RECORDING_MODE_PAPER reason 신규 추가 — Flutter 측 토스트 분기 가능
+      const errMsg = err instanceof Error ? err.message : "";
+      let safeReason: string;
+      if (errMsg === "Match not found in tournament") {
+        safeReason = "Match not found in tournament";
+      } else if (errMsg === "RECORDING_MODE_PAPER") {
+        safeReason = "이 매치는 종이 기록지 모드로 진행 중입니다.";
+      } else {
+        safeReason = "Sync failed";
+      }
       console.error(`[batch-sync] Match ${match.matchId} failed:`, err);
       errors.push({ matchId: match.matchId, reason: safeReason });
     }
