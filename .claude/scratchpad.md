@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA SCORESHEET Phase 6 — A4 세로 인쇄 PDF (마지막 Phase)
-- **상태**: ✅ 완료 — tsc 0 / vitest 506/506 / 회귀 0 / 신규 vitest 0 (CSS 만)
+- **요청**: FIBA SCORESHEET Phase 7 — 디자인 정합 + 로스터 선택 + OT 흐름 (3 issue 통합 fix)
+- **상태**: ✅ 완료 — tsc 0 / vitest 526/526 / 회귀 0 / 신규 vitest 20건
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식)
@@ -15,6 +15,132 @@
 | 4 | Time-outs (전반2/후반3/연장1 + settings.timeouts JSON) | ✅ |
 | 5 | 서명 8 + 노트 (settings.signatures JSON + 헤더 자동 prefill) | ✅ |
 | 6 | A4 세로 인쇄 PDF (@media print + 라이트 강제 + PrintButton) | ✅ |
+| 7 | 디자인 정합 (PDF 1:1) + 라인업 선택 모달 + Q4/OT 분기 | ✅ |
+
+## 구현 기록 (developer) — FIBA 양식 Phase 7 디자인+로스터+OT
+
+📝 구현 범위: 운영 검증 3 issue 통합 fix
+  - §7-A 디자인 정합 = FIBA PDF 1:1 (Card → border 1px / rounded-0 / shadow X)
+  - §7-B 라인업 선택 = LineupSelectionModal 신규 + MatchLineupConfirmed 통합 (출전 명단 + 선발 5인)
+  - §7-C OT 분기 = QuarterEndModal 신규 (Q4 / OT 종료 2 버튼 / 동점 비활성)
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 | 줄수 |
+|------|------|---------|-----|
+| `_components/lineup-selection-modal.tsx` | LineupSelectionModal + TeamLineupPanel + isLineupSelectionValid 헬퍼 | 신규 | ~340 |
+| `_components/quarter-end-modal.tsx` | QuarterEndModal + getQuarterEndMode / canEndMatchAtEnd 헬퍼 | 신규 | ~245 |
+| `_components/score-sheet-form.tsx` | lineup state + LineupSelectionModal 마운트 + Q4/OT 분기 (handleEndPeriod / handleEndMatchFromQuarterEnd / handleContinueToOvertime) + 출전 명단 필터링 (homeFilteredRoster / awayFilteredRoster) + draft localStorage lineup 박제 / 복원 + payload lineup 박제 | 수정 | +180 |
+| `_components/team-section-types.ts` | TeamRosterData 에 confirmedStarters/confirmedSubstitutes 필드 추가 (string[]) | 수정 | +6 |
+| `page.tsx` | loadTeamRoster 반환에 confirmedStarters/Substitutes 직렬화 + ScoreSheetForm 에 initialLineup prop 전달 | 수정 | +22 |
+| `_components/fiba-header.tsx` | Phase 7-A — border (외곽 박스 정합) | 수정 | +5 |
+| `_components/team-section.tsx` | Phase 7-A — borderRadius 4 제거 (rounded-0) | 수정 | +3 |
+| `_components/running-score-grid.tsx` | Phase 7-A — 외곽 border 1px + rounded-t-[4px] 제거 | 수정 | +4 |
+| `_components/period-scores-section.tsx` | Phase 7-A — 4 군데 rounded-[4px] 제거 (sed) | 수정 | 4 patches |
+| `_components/footer-signatures.tsx` | Phase 7-A — border (외곽 박스) + textarea rounded-0 | 수정 | +5 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | lineup zod schema (teamLineupSchema + lineupSchema) + MatchLineupConfirmed upsert (Promise.all 양 팀) + audit context / changes 박제 | 수정 | +75 |
+| `src/__tests__/score-sheet/lineup-selection-modal.test.ts` | isLineupSelectionValid 6 케이스 회귀 가드 | 신규 | 72 |
+| `src/__tests__/score-sheet/quarter-end-modal.test.ts` | getQuarterEndMode 9 케이스 + canEndMatchAtEnd 5 케이스 = 14 회귀 가드 | 신규 | 95 |
+
+### 디자인 변경 매트릭스 (Phase 7-A)
+| 영역 | 변경 |
+|------|------|
+| fiba-header | `borderBottom` → `border` (외곽 박스 일부로 정합) |
+| team-section | `borderRadius: 4` 제거 / Time-outs 칸 borderRadius 제거 |
+| running-score-grid | `rounded-t-[4px]` 제거 + 외곽 div 에 `border` |
+| period-scores-section | 4 군데 `rounded-[4px]` 제거 (Period 박스 / 버튼 / Final Score / Winner) |
+| footer-signatures | `borderTop/Bottom` → `border` (외곽) + textarea `rounded-[4px]` 제거 |
+| 모달 (FoulType / MatchEnd / PlayerSelect) | radius 4 보존 (no-print = 인쇄 영향 0 / 운영 UX 유지) |
+
+### 로스터 통합 결정 (사용자 결재 §2 §3 §4)
+- **데이터 source**: MatchLineupConfirmed (Flutter 앱과 단일 모델)
+- **흐름**:
+  1. score-sheet 진입 → page.tsx 가 MatchLineupConfirmed 양 팀 SELECT
+  2. 양 팀 모두 starters=5 박제 = `initialLineup` prop 전달 → 모달 skip + 자동 fill
+  3. 한 팀이라도 미박제 = `initialLineup === undefined` → LineupSelectionModal 강제 표시
+  4. 운영자 입력 → `handleLineupConfirm` → state 갱신 + 양식 렌더
+  5. 경기 종료 시 BFF payload 에 lineup 박제 → `prisma.matchLineupConfirmed.upsert` (양 팀 Promise.all)
+- **출전 명단 필터링**: `lineup` state 가 있으면 `homeFilteredRoster.players` = 명단에 포함된 선수만 표시 (12행 강제 X)
+- **선발 표시**: `isStarter` 재계산 (모달 결과 starters 기준) → TeamSection 의 ◉ 표시 + RunningScoreGrid 우선 선수 표시
+- **재선택**: 양식 하단 "라인업 다시 선택" 버튼 (운영자가 명단 변경 시 모달 재오픈 / 데이터 보존)
+
+### OT 분기 결정 (사용자 결재 §5 §6)
+- **분기 룰** (`handleEndPeriod`):
+  - period 1~3 종료 = 자동 다음 진입 (기존 동작 유지)
+  - period 4 (Q4) 종료 = QuarterEndModal mode="quarter4" 표시
+  - period 5~7 (OTn) 종료 = QuarterEndModal mode="overtime" 표시
+- **모달 UX**:
+  - "경기 종료" = BFF submit (status=completed) → 라이브 페이지 자동 발행
+  - "다음 OT 진행" = currentPeriod++ (OT1 → OT2 → OT3)
+  - 동점 (homeTotal === awayTotal) = "경기 종료" 비활성 (FIBA 룰 OT 강제)
+  - OT3 (period=7) 종료 시 = "다음 진행" 비활성 (더 이상 OT 불가)
+- **자동 fetch path**: handleEndMatchFromQuarterEnd 는 MatchEndButton 의 confirm 모달 없이 즉시 BFF POST (현장에서 Q4 종료 시점 = 종료 결정 즉시 반영)
+
+### BFF 확장 (lineup 박제 path)
+- zod schema: teamLineupSchema (starters.length(5) + substitutes.max(7)) → lineupSchema (home/away)
+- upsert: matchId_teamSide UNIQUE 가드 → 양 팀 Promise.all (병렬)
+- BigInt 변환: string[] → BigInt[] (DB 컬럼 = BigInt[])
+- confirmedById = 기록자 user.id (Flutter 는 팀장 / 웹은 기록자 — 같은 컬럼 활용)
+- audit context: ` / Lineup home N명 / away N명` 박제 (운영 추적)
+
+### draft localStorage 확장
+- DraftPayload 에 lineup 키 추가 (mid-game reload 후 출전 명단 / 선발 5인 유지)
+- 복원 시 룰 검증 (starters.length === 5) 위반 시 skip → 모달 재표시
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (cache-life.d.ts / validator.ts 누락 = .next 캐시 부산물 / 무시) |
+| vitest 전체 회귀 | 526/526 PASS (이전 506 + 신규 20건 = lineup 6 + quarter-end 14) |
+| 디자인 13 룰 (lucide-react / 핑크/살몬/코랄 / BigInt n) | 위반 0 |
+| Flutter v1 영향 | 0 (MatchLineupConfirmed 모델은 Flutter 와 단일 source 의도 — 양쪽 upsert 호환) |
+| schema 변경 | 0 (MatchLineupConfirmed + settings JSON 활용) |
+| BFF 시그너처 | additive (lineup optional 추가 — 구 client 호환) |
+| AppNav frozen | 0 영향 (route group 격리) |
+| 운영 DB 영향 | 0 (코드만) |
+
+### tester 참고
+- 테스트 방법 (수동 E2E):
+  1. **로스터 선택 흐름**:
+     - paper 모드 매치 진입 → 사전 라인업 미박제 케이스 = LineupSelectionModal 자동 표시
+     - 양 팀 각각 출전 체크 + 선발 5인 선택 → "라인업 확정" 버튼 활성 확인
+     - 출전 < 5명 또는 선발 ≠ 5명 = 버튼 비활성 (안내 텍스트 표시)
+     - 확정 → 양식 표시 + 출전 체크된 선수만 양식에 나타남 (12행 강제 X)
+  2. **사전 라인업 자동 fill**:
+     - 사전 라인업 양 팀 모두 박제된 매치 진입 → 모달 skip + 자동 양식 표시
+     - 양식의 ◉ 마크 = 모달에서 선택한 starters (5인)
+  3. **Q4 종료 분기**:
+     - Q4 진행 → "Q4 종료" 버튼 클릭 → QuarterEndModal 표시
+     - 점수 차이 = "경기 종료" 활성 / 동점 = "경기 종료" 비활성 (FIBA 룰)
+     - "OT1 진행" 클릭 → currentPeriod=5 (OT1 진입)
+  4. **OT 종료 분기**:
+     - OT1 진행 → "OT1 종료" → 동일 모달 (경기 종료 / OT2 진행)
+     - OT3 종료 = "다음 진행" 비활성 (더 이상 OT 불가)
+  5. **디자인 정합**:
+     - 시안 = FIBA PDF 1:1 (rounded-0 / shadow X / border 1px)
+     - 5 영역 모두 단일 톤 박스
+  6. **인쇄**:
+     - 라인업 모달 / Q4 모달 = `no-print` (인쇄 미포함 — 양식 정합)
+     - 양식 5 영역만 A4 1 페이지에 합본
+- 정상 동작:
+  - 사전 라인업 미박제 = 양식 미표시 (운영 사고 방지)
+  - 출전 명단만 양식에 표시 (12행 강제 X)
+  - 동점 종료 차단 (FIBA 룰)
+  - 라이브 발행 정상 (라이브 페이지에 status=completed 박제)
+- 주의할 입력:
+  - 양 팀 중 한 팀만 사전 라인업 박제된 경우 = 모달 강제 표시 (다른 팀 입력 필요)
+  - 사전 라인업 starters ≠ 5 인 깨진 데이터 = 모달 강제 표시 (자동 fill skip)
+  - draft localStorage 의 lineup 복원 시 starters.length === 5 위반 = skip (모달 재표시)
+  - OT3 (period=7) 도달 + 동점 = 양쪽 모두 비활성 (UI 데드락 — 운영자가 다른 page 이동 또는 새로고침으로 해결)
+
+### reviewer 참고
+- **MatchLineupConfirmed 단일 source 정합**: Flutter v1 의 lineup 박제와 같은 모델 upsert. Flutter 는 `confirmedById` = 팀장 user.id / 웹 score-sheet 은 `confirmedById` = 기록자 user.id. 컬럼 의미 일관 (라인업 확정자) — 양쪽 호환 보장됨.
+- **upsert overwrite 룰**: 이미 사전 라인업 박제된 매치에서 기록자가 모달로 재선택 시 = `confirmedById` 가 기록자 id 로 덮임. 의도된 동작 — 기록자가 실제 출전 명단 입력 = 사전 라인업과 다른 경우 운영 시점 입력 우선.
+- **Promise.all upsert 안전성**: 양 팀 (home/away) UNIQUE 가드가 `matchId_teamSide` 복합 키 → 동시 upsert 충돌 0 (서로 다른 row).
+- **lineup 미박제 시 양식 미표시 = 데이터 무결성 가드**: lineup === null = TeamSection / RunningScoreGrid 미렌더 → 마킹 input path 차단. 운영자가 라인업 결정 안 한 채로 점수 마킹 = 불가능. 사전 라인업 부재 + 모달 취소 = 양식 영구 미표시 (taht's the point — 사용자 결재 §1~§7 의도).
+- **handleEndMatchFromQuarterEnd vs MatchEndButton**: 두 path 모두 같은 BFF endpoint (`/api/web/score-sheet/{matchId}/submit`) 호출. payload 동일. 차이 = QuarterEndModal 은 confirm 모달 없이 즉시 호출 (Q4 종료 시점에서 별도 confirm 불필요 — 운영자가 이미 "경기 종료" 명시 의도). MatchEndButton 은 별도 confirm (양식 어느 시점이든 종료 가능 — confirm 으로 사고 방지).
+- **Phase 7-A 디자인 제한 범위**: 양식 자체 5 영역 (FibaHeader / TeamSection / RunningScoreGrid / PeriodScoresSection / FooterSignatures) 만 rounded-0 적용. 모달들 (FoulType / MatchEnd / PlayerSelect / Lineup / QuarterEnd) 은 운영 UX 유지 (radius 4 / shadow 보존 — 인쇄 영향 0).
+- **draft localStorage 깨진 데이터 방어**: starters.length === 5 + Array.isArray 등 다중 검증 → 모달 강제 표시로 안전 회복. 운영 사고 0.
+- **향후 팀장 사전 제출 통합 영향**: 같은 MatchLineupConfirmed 모델 upsert. 양식 진입 시 자동 fill = 팀장이 사전 입력 + 운영자가 기록 시점 진입 = 모달 skip (단일 source 효과). 양쪽 변경 영향 0.
 
 ## 구현 기록 (developer) — FIBA 양식 Phase 6 A4 인쇄 PDF
 
@@ -828,6 +954,7 @@ if (data.series_id !== undefined):
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 7 디자인+로스터+OT]** 운영 검증 3 issue 통합 fix. (A) 디자인 PDF 1:1 = 5 영역 rounded-0 / shadow X / border 1px. (B) LineupSelectionModal 신규 + MatchLineupConfirmed upsert (Flutter 단일 source) — 출전 명단 + 선발 5인. score-sheet 진입 시 사전 라인업 박제 = 자동 fill / 미박제 = 모달 강제 표시. 양식엔 출전 명단만 표시 (12행 강제 X). (C) QuarterEndModal 신규 — Q4 종료 = 경기종료/OT1 진행 2 버튼. OT 종료 = 경기종료/다음 OT 진행. 동점 = 경기종료 비활성 (FIBA 룰 OT 강제). OT3 종료 = 다음 진행 비활성. tsc 0 / vitest 526/526 (+20). 회귀 0. schema 변경 0. Flutter v1 영향 0. 향후 팀장 사전 제출 기능 = 같은 모델 upsert (단일 source). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[로그인 redirect 흐름 통합]** `src/lib/auth/redirect.ts` 신규 (isValidRedirect / buildLoginRedirect / safeRedirect 3 헬퍼 + open redirect 7 가드) + `src/middleware.ts` 신규 (matcher `/admin/*` + `/tournament-admin/*` 만 → x-pathname 헤더 주입) + admin/tournament-admin layout (현재 경로 redirect 쿼리 동봉) + guest-apply (`?next=` → `?redirect=`) + report (`?returnTo=` → `?redirect=`) + login page / auth.ts / oauth.ts / api/auth/login/route.ts 분산 isValidRedirect 단일 source 통일 + OAuth 콜백 bdr_redirect 쿠키 read+delete 복귀. tsc 0 / vitest 506/506 (+19). 회귀 0. schema 변경 0. Flutter v1 영향 0. 후속 큐 = 동일 패턴 잔존 7+ 파일 일괄 정리. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 5]** 서명 8 (Scorer/AsstScorer/Timer/ShotClock/Referee/Umpire1/Umpire2/Captain) + 노트 + signature-types/FooterSignatures 신규 + 헤더 → 풋터 자동 prefill (didPrefillRef dirty flag) + BFF settings.signatures JSON merge 통합 UPDATE (Phase 4 timeouts 와 단일 prisma.update). tsc 0 / vitest 487/487 (+10). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 4]** Time-outs Article 18-19 (전반2/후반3/OT각1) + timeout-types/helpers 신규 + team-section TIME-OUTS 활성화 + score-sheet-form state/handler + BFF settings.timeouts JSON merge UPDATE (recording_mode 키 보존). tsc 0 / vitest 477/477 (+30). 회귀 0. schema 변경 0. | ✅ |

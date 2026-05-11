@@ -49,10 +49,13 @@ async function loadTeamRoster(
       tournamentTeamId: null,
       hasConfirmedLineup: false,
       players: [],
+      // Phase 7-B — ttp 미배정 = 사전 라인업 없음 (빈 배열)
+      confirmedStarters: [],
+      confirmedSubstitutes: [],
     };
   }
 
-  // 사전 라인업 1건 — 본 측면만
+  // 사전 라인업 1건 — 본 측면만 (Phase 7-B: starters/substitutes string[] 직렬화 후 score-sheet-form 에 전달)
   const lineup = await prisma.matchLineupConfirmed.findUnique({
     where: {
       matchId_teamSide: {
@@ -116,12 +119,20 @@ async function loadTeamRoster(
     };
   });
 
+  // Phase 7-B — 사전 라인업 string[] 직렬화 (BigInt → string)
+  const confirmedStarters = (lineup?.starters ?? []).map((b) => b.toString());
+  const confirmedSubstitutes = (lineup?.substitutes ?? []).map((b) =>
+    b.toString()
+  );
+
   return {
     teamSide,
     teamName,
     tournamentTeamId: ttpId.toString(),
     hasConfirmedLineup: Boolean(lineup),
     players: serialized,
+    confirmedStarters,
+    confirmedSubstitutes,
   };
 }
 
@@ -254,12 +265,33 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     name: tournament.name ?? "(대회명 미정)",
   };
 
+  // Phase 7-B — 사전 라인업 prop 산출.
+  //   양 팀 모두 hasConfirmedLineup=true + starters=5 = 확정 → 모달 skip + 자동 fill.
+  //   한 팀이라도 미확정 = 전체 모달 강제 (양쪽 동시 입력 흐름 단순화).
+  const initialLineup =
+    homeTeamData.hasConfirmedLineup &&
+    awayTeamData.hasConfirmedLineup &&
+    homeTeamData.confirmedStarters.length === 5 &&
+    awayTeamData.confirmedStarters.length === 5
+      ? {
+          home: {
+            starters: homeTeamData.confirmedStarters,
+            substitutes: homeTeamData.confirmedSubstitutes,
+          },
+          away: {
+            starters: awayTeamData.confirmedStarters,
+            substitutes: awayTeamData.confirmedSubstitutes,
+          },
+        }
+      : undefined;
+
   return (
     <ScoreSheetForm
       match={matchProps}
       tournament={tournamentProps}
       homeRoster={homeTeamData}
       awayRoster={awayTeamData}
+      initialLineup={initialLineup}
     />
   );
 }

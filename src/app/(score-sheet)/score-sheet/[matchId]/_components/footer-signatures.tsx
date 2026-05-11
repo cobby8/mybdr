@@ -89,12 +89,12 @@ export function FooterSignatures({
     };
 
   return (
+    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1): rounded-0 / 단일 외곽 border / shadow X
     <section
       className="mt-4 w-full px-4 py-3"
       style={{
         backgroundColor: "var(--color-surface)",
-        borderTop: "1px solid var(--color-border)",
-        borderBottom: "1px solid var(--color-border)",
+        border: "1px solid var(--color-border)",
       }}
     >
       <h2
@@ -197,12 +197,13 @@ export function FooterSignatures({
             disabled={disabled}
             maxLength={NOTES_MAX_LENGTH}
             rows={3}
-            className="mt-1 w-full rounded-[4px] bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
+            className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
             style={{
               color: "var(--color-text-primary)",
               border: "1px solid var(--color-border)",
               minHeight: 88,
               resize: "vertical",
+              // Phase 7-A — FIBA PDF 정합 (rounded-0)
             }}
           />
           {/* 글자수 카운터 — NOTES_MAX_LENGTH 가 보이도록 */}

@@ -25,4 +25,9 @@ export interface TeamRosterData {
   tournamentTeamId: string | null;
   hasConfirmedLineup: boolean;
   players: RosterItem[];
+  // Phase 7-B — 사전 라인업 선수 id 배열 (string[] / 직렬화).
+  //   hasConfirmedLineup=true 시 둘 다 채워짐. starters.length === 5 + substitutes ≤ 7.
+  //   hasConfirmedLineup=false 시 둘 다 [] (빈 배열).
+  confirmedStarters: string[];
+  confirmedSubstitutes: string[];
 }
