@@ -52,6 +52,10 @@ type TokenInfo = {
   appliedAt: string | null;
   waitingNumber: number | null;
   registeredBy: { nickname: string | null; email: string | null } | null;
+  // Phase 3-F 옵션 A 신규
+  category: string | null;
+  paymentStatus: string | null;
+  updatedAt: string;
 };
 
 /* ---------- 상수 ---------- */
@@ -95,6 +99,11 @@ export default function TournamentTeamsPage() {
   // 이유(왜): 기존 API 응답에는 토큰 정보가 없어 별도 endpoint 호출 후 id 매핑.
   const [tokenMap, setTokenMap] = useState<Record<string, TokenInfo>>({});
   const [toast, setToast] = useState<string | null>(null);
+  // Phase 3-F 옵션 A — Tournament 진행률 표시용 roster 룰
+  const [rosterRule, setRosterRule] = useState<{ min: number | null; max: number | null }>({
+    min: null,
+    max: null,
+  });
 
   // 토스트 자동 사라짐 (3초)
   const showToast = useCallback((msg: string) => {
@@ -156,6 +165,9 @@ export default function TournamentTeamsPage() {
           applied_at: string | null;
           waiting_number: number | null;
           registered_by: { nickname: string | null; email: string | null } | null;
+          category: string | null;
+          payment_status: string | null;
+          updated_at: string;
         }>;
         for (const row of teamsArr) {
           next[row.id] = {
@@ -167,9 +179,17 @@ export default function TournamentTeamsPage() {
             appliedAt: row.applied_at,
             waitingNumber: row.waiting_number,
             registeredBy: row.registered_by,
+            category: row.category,
+            paymentStatus: row.payment_status,
+            updatedAt: row.updated_at,
           };
         }
         setTokenMap(next);
+        // Tournament roster 룰 (페이지 단위 1회)
+        setRosterRule({
+          min: typeof json?.roster_min === "number" ? json.roster_min : null,
+          max: typeof json?.roster_max === "number" ? json.roster_max : null,
+        });
       }
     } catch { /* ignore */ } finally {
       setLoading(false);
@@ -732,13 +752,28 @@ export default function TournamentTeamsPage() {
               style={{ borderColor: "var(--color-border)" }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) */}
+              {/* 모달 헤더 — 팀 정보 + 액션 (프린트 / 닫기) — Phase 3-F 옵션 A 5건 통합 */}
               <div className="mb-4 flex items-start justify-between gap-3 print-header">
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-bold">{expandedTeam.team.name}</h2>
+                    {/* 1. 신청 종별 — 가장 먼저 식별 가능하도록 팀명 옆 */}
+                    {token?.category && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase"
+                        style={{
+                          background: "color-mix(in srgb, var(--color-accent) 15%, transparent)",
+                          color: "var(--color-accent)",
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        {token.category}
+                      </span>
+                    )}
                     <ViaBadge appliedVia={token?.appliedVia ?? null} />
                     <StatusBadge status={expandedTeam.status} />
+                    {/* 3. 납부 상태 배지 */}
+                    <PaymentBadge status={token?.paymentStatus ?? null} />
                     {token?.waitingNumber && (
                       <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
                         대기 {token.waitingNumber}번
@@ -749,13 +784,37 @@ export default function TournamentTeamsPage() {
                     {token?.appliedAt
                       ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
                       : `${new Date(expandedTeam.createdAt).toLocaleDateString("ko-KR")} 등록`}
-                    {token?.managerName && <> · 코치 {token.managerName}</>}
-                    {token?.managerPhone && <> ({token.managerPhone})</>}
+                    {token?.managerName && (
+                      <>
+                        {" "}· 코치 {token.managerName}
+                        {/* 2. 코치 연락처 — tel: 링크 (모바일 클릭 시 전화) */}
+                        {token?.managerPhone && (
+                          <>
+                            {" ("}
+                            <a
+                              href={`tel:${token.managerPhone.replace(/[^0-9+]/g, "")}`}
+                              className="underline decoration-dotted underline-offset-2 hover:text-[var(--color-info)]"
+                              style={{ color: "var(--color-info)" }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {token.managerPhone}
+                            </a>
+                            {")"}
+                          </>
+                        )}
+                      </>
+                    )}
                     {token?.registeredBy?.nickname && <> · 신청자 {token.registeredBy.nickname}</>}
                   </p>
                   {expandedTeam.groupName && (
                     <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                       조 {expandedTeam.groupName} · 시드 {expandedTeam.seedNumber ?? "-"}
+                    </p>
+                  )}
+                  {/* 5. 마지막 갱신 시각 */}
+                  {token?.updatedAt && (
+                    <p className="mt-0.5 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                      마지막 갱신: {formatUpdatedAt(token.updatedAt)}
                     </p>
                   )}
                 </div>
@@ -780,9 +839,16 @@ export default function TournamentTeamsPage() {
                 </div>
               </div>
 
-              {/* 선수 명단 헤더 */}
+              {/* 선수 명단 헤더 + 4. 진행률 (rosterMin/Max 대비) */}
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold">선수 명단 ({players.length}명)</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">선수 명단 ({players.length}명)</h3>
+                  <RosterProgressBadge
+                    count={players.length}
+                    min={rosterRule.min}
+                    max={rosterRule.max}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowAddForm(!showAddForm)}
@@ -990,6 +1056,93 @@ function StatusBadge({ status }: { status: string }) {
       {cfg.label}
     </span>
   );
+}
+
+// 2026-05-11 Phase 3-F 옵션 A — 납부 상태 배지
+function PaymentBadge({ status }: { status: string | null }) {
+  const map: Record<string, { label: string; bg: string; fg: string }> = {
+    paid: {
+      label: "납부",
+      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
+      fg: "var(--color-success)",
+    },
+    unpaid: {
+      label: "미납",
+      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+      fg: "var(--color-warning)",
+    },
+    waived: {
+      label: "면제",
+      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
+      fg: "var(--color-info)",
+    },
+    refunded: {
+      label: "환불",
+      bg: "var(--color-elevated)",
+      fg: "var(--color-text-muted)",
+    },
+  };
+  if (!status || !map[status]) return null;
+  const cfg = map[status];
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: cfg.bg, color: cfg.fg }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// 진행률 배지 — players.length vs roster_min/max
+function RosterProgressBadge({
+  count,
+  min,
+  max,
+}: {
+  count: number;
+  min: number | null;
+  max: number | null;
+}) {
+  if (min == null && max == null) return null;
+  // 상태 분기: 부족 / 충족 / 초과
+  let label: string;
+  let color: string;
+  if (min != null && count < min) {
+    label = `${count} / ${min} 이상`;
+    color = "var(--color-warning)";
+  } else if (max != null && count > max) {
+    label = `${count} / ${max} 초과`;
+    color = "var(--color-error)";
+  } else {
+    label = `${count}${max ? ` / ${max}` : ""}`;
+    color = "var(--color-success)";
+  }
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        color,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+// 마지막 갱신 시각 — 상대 시간 또는 절대 (1일 이상 = 절대)
+function formatUpdatedAt(iso: string): string {
+  const d = new Date(iso);
+  const diffMs = Date.now() - d.getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}일 전`;
+  return d.toLocaleDateString("ko-KR");
 }
 
 // 등록 경로 통계 카드 — accent 톤 단일 (conventions.md "admin 빨간색 본문 금지" 준수)

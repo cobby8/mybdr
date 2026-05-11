@@ -93,36 +93,44 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     return apiError("권한이 없습니다.", 403);
   }
 
-  // 2) 팀 목록 조회 (Team + 신청자 user 조인)
-  // 2026-05-11 Phase 3-D — 검토 보고서 §D 권장 4건 응답 확장:
-  //   - applied_at (신청 시각) / waiting_number (대기접수 N번)
-  //   - registered_by user nickname (일반 신청 시 신청자 표시)
-  const teams = await prisma.tournamentTeam.findMany({
-    where: { tournamentId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      manager_name: true,
-      manager_phone: true,
-      status: true,
-      applied_via: true,
-      apply_token: true,
-      apply_token_expires_at: true,
-      applied_at: true,
-      waiting_number: true,
-      registered_by_id: true,
-      createdAt: true,
-      team: { select: { name: true } },
-      _count: { select: { players: true } },
-      users: { select: { id: true, nickname: true, email: true } }, // registered_by_id → User
-    },
-  });
+  // 2) 팀 목록 조회 (Team + 신청자 user + Tournament roster 룰 조인)
+  // 2026-05-11 Phase 3-F — 옵션 A (5건) 응답 확장:
+  //   - category (신청 종별) / payment_status (납부 상태) / updatedAt (마지막 갱신)
+  //   - tournament.roster_min / roster_max (진행률 표시용)
+  const [tournament, teams] = await Promise.all([
+    prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { roster_min: true, roster_max: true },
+    }),
+    prisma.tournamentTeam.findMany({
+      where: { tournamentId },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        manager_name: true,
+        manager_phone: true,
+        status: true,
+        applied_via: true,
+        apply_token: true,
+        apply_token_expires_at: true,
+        applied_at: true,
+        waiting_number: true,
+        registered_by_id: true,
+        category: true,
+        payment_status: true,
+        createdAt: true,
+        updatedAt: true,
+        team: { select: { name: true } },
+        _count: { select: { players: true } },
+        users: { select: { id: true, nickname: true, email: true } },
+      },
+    }),
+  ]);
 
   const origin = resolveOrigin(req);
   const now = new Date();
 
   const rows = teams.map((tt) => {
-    // 만료 안된 토큰만 URL 노출 — 만료된 토큰은 null 처리 (UI 가 "재발급" 표시 가능)
     const tokenAlive =
       tt.apply_token &&
       tt.apply_token_expires_at &&
@@ -142,10 +150,18 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       applyTokenExpiresAt: tt.apply_token_expires_at?.toISOString() ?? null,
       applyTokenUrl: tokenAlive ? `${origin}/team-apply/${tt.apply_token}` : null,
       playerCount: tt._count.players,
+      // Phase 3-F 옵션 A 신규
+      category: tt.category,
+      paymentStatus: tt.payment_status,
+      updatedAt: tt.updatedAt.toISOString(),
     };
   });
 
-  return apiSuccess({ teams: rows });
+  return apiSuccess({
+    teams: rows,
+    rosterMin: tournament?.roster_min ?? null,
+    rosterMax: tournament?.roster_max ?? null,
+  });
 }
 
 // =============================================================================
