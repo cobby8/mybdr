@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -49,11 +50,36 @@ export default async function TournamentAdminDashboard({
   const { status: statusParam, q: qParam } = await searchParams;
   const currentTab = statusParam && TAB_STATUS_MAP[statusParam] ? statusParam : "all";
 
-  const organizerId = BigInt(session.sub);
+  const userId = BigInt(session.sub);
+  const isSuper = isSuperAdmin(session);
 
-  // 내 대회 목록 (전체 — in-memory filter + count 위해 모든 status 받음)
+  // 2026-05-12 — 권한 확장: organizer + TAM (active) 합산 (super_admin 우대)
+  // 이전: where: { organizerId } 만 → TAM 위임자 (예: 단체 admin) 가 대시보드 빈 화면 보던 회귀 fix.
+  const tournamentWhere = isSuper
+    ? {}
+    : {
+        OR: [
+          { organizerId: userId },
+          { adminMembers: { some: { userId, isActive: true } } },
+        ],
+      };
+
+  // 내 단체 (organization_members) — Phase 4-B 후속: 운영자 대시보드 단체 카드 추가
+  const myOrganizations = await prisma.organization_members.findMany({
+    where: { user_id: userId, is_active: true },
+    include: {
+      organization: {
+        select: {
+          id: true, name: true, slug: true, logo_url: true,
+          status: true, _count: { select: { series: true } },
+        },
+      },
+    },
+    orderBy: { created_at: "desc" },
+  });
+
   const allTournaments = await prisma.tournament.findMany({
-    where: { organizerId },
+    where: tournamentWhere,
     orderBy: { createdAt: "desc" },
     take: 200,
     select: {
@@ -66,6 +92,9 @@ export default async function TournamentAdminDashboard({
       tournamentTeams: {
         select: { status: true, payment_status: true },
       },
+      // 본인이 organizer 인지 / TAM 위임인지 구분 표시용 (대시보드 배지)
+      organizerId: true,
+      tournament_series: { select: { id: true, name: true } },
     },
   });
 
@@ -123,7 +152,7 @@ export default async function TournamentAdminDashboard({
               marginBottom: 4,
             }}
           >
-            ADMIN · TOURNAMENT
+            ADMIN · TOURNAMENT{isSuper && " · SUPER"}
           </div>
           <h1
             style={{
@@ -136,7 +165,7 @@ export default async function TournamentAdminDashboard({
               lineHeight: 1.2,
             }}
           >
-            대회 운영자 도구
+            {isSuper ? "전체 대회 운영자 도구" : "대회 운영자 도구"}
           </h1>
           <p
             style={{
@@ -146,7 +175,8 @@ export default async function TournamentAdminDashboard({
               marginBottom: 0,
             }}
           >
-            내 대회 {totalTournaments}개 · 진행 중 {activeTournaments} · 완료 {completedTournaments}
+            {isSuper ? "전체 대회" : "내 대회"} {totalTournaments}개 · 진행 중 {activeTournaments} · 완료 {completedTournaments}
+            {myOrganizations.length > 0 && ` · 관리 단체 ${myOrganizations.length}개`}
           </p>
         </div>
 
@@ -159,6 +189,68 @@ export default async function TournamentAdminDashboard({
           + 새 대회 만들기
         </Link>
       </div>
+
+      {/* 2026-05-12 — 관리 단체 카드 (내 organization_members) — Phase 4-B 후속 단체-대회 연결 시각화 */}
+      {myOrganizations.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--color-text-muted)",
+              marginBottom: 8,
+            }}
+          >
+            관리 단체 ({myOrganizations.length})
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+            {myOrganizations.map((m) => (
+              <Link
+                key={m.id.toString()}
+                href={`/tournament-admin/organizations/${m.organization.id}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 6,
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-card)",
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
+              >
+                {m.organization.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={m.organization.logo_url} alt="" style={{ width: 32, height: 32, borderRadius: 4 }} />
+                ) : (
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      width: 32, height: 32, borderRadius: 4,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: "var(--color-elevated)", color: "var(--color-text-muted)",
+                    }}
+                  >
+                    groups
+                  </span>
+                )}
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.organization.name}
+                  </p>
+                  <p style={{ fontSize: 11, color: "var(--color-text-muted)", margin: 0 }}>
+                    {m.role === "owner" ? "소유자" : m.role === "admin" ? "관리자" : "멤버"}
+                    {" · "}시리즈 {m.organization._count.series}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 검색 form — 별도 row (admin/users 패턴 일치) */}
       <form method="GET" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
@@ -308,6 +400,7 @@ export default async function TournamentAdminDashboard({
                   STATUS_DISPLAY[tournament.status || "draft"] || STATUS_DISPLAY.draft;
                 const maxTeams = tournament.maxTeams || 0;
 
+                const isMyOrganizer = tournament.organizerId === userId;
                 return (
                   <tr key={tournament.id}>
                     <td>
@@ -321,6 +414,26 @@ export default async function TournamentAdminDashboard({
                       >
                         {tournament.name}
                       </Link>
+                      {tournament.tournament_series?.name && (
+                        <span style={{ marginLeft: 6, fontSize: 11, color: "var(--color-text-muted)" }}>
+                          · {tournament.tournament_series.name}
+                        </span>
+                      )}
+                      {!isMyOrganizer && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            padding: "1px 6px",
+                            fontSize: 10,
+                            fontWeight: 600,
+                            borderRadius: 999,
+                            background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+                            color: "var(--color-info)",
+                          }}
+                        >
+                          위임
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span

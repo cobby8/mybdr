@@ -37,6 +37,11 @@ import {
   getTeamFoulCountByPeriod,
   getEjectionReason,
 } from "@/lib/score-sheet/foul-helpers";
+import type { TimeoutMark } from "@/lib/score-sheet/timeout-types";
+import {
+  getGamePhase,
+  getUsedTimeouts,
+} from "@/lib/score-sheet/timeout-helpers";
 
 // Phase 3.5 — 파울 종류별 글자 색상 (P=text-primary / T=warning / U=accent / D=primary)
 // 이유: P/T/U/D 약자를 칸 안에 직접 표시 — 종류별 색 차이로 한눈에 인지.
@@ -81,6 +86,12 @@ interface TeamSectionProps {
   onRequestRemoveFoul: (playerId: string) => void;
   // 현재 진행 Period (Player Fouls 마킹 시점 기록용 — Running Score 와 같은 값)
   currentPeriod: number;
+  // Phase 4 — Time-outs 상태 (이 팀 전용 TimeoutMark[])
+  timeouts: TimeoutMark[];
+  // Phase 4 — 타임아웃 추가 요청 (빈 칸 클릭) — caller 가 Article 18-19 검증 + 마킹
+  onRequestAddTimeout: () => void;
+  // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 마킹 칸 클릭)
+  onRequestRemoveTimeout: () => void;
 }
 
 /**
@@ -107,6 +118,9 @@ export function TeamSection({
   onRequestAddFoul,
   onRequestRemoveFoul,
   currentPeriod,
+  timeouts,
+  onRequestAddTimeout,
+  onRequestRemoveTimeout,
 }: TeamSectionProps) {
   // 선수 행 (12 보장)
   const rows = fillRowsTo12(players);
@@ -159,28 +173,106 @@ export function TeamSection({
         </p>
       </div>
 
-      {/* Time-outs (Phase 4 placeholder — 5칸 격자) */}
+      {/* Phase 4 — Time-outs (FIBA Article 18-19 — 전반 2 + 후반 3 + OT 1 각각).
+          박스 = 전반칸 2개 + 후반칸 3개 = 기본 5칸. OT 진입 시 (currentPeriod >= 5)
+          OT 1칸 동적 추가 (각 OT 별도 1칸).
+          UX:
+            - 빈 칸 클릭 → caller 가 canAddTimeout 검증 + 마킹
+            - 마지막 마킹 칸 클릭 → 1건 해제
+            - 채운 칸 = ● (text-primary) / 빈 칸 = 숫자 (text-muted)
+          시각: foul 5칸과 같은 톤 (border 1px / 36px 정사각 큰 터치영역) */}
       <div className="mb-3">
         <div
-          className="mb-1 text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-1 flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
-          Time-outs
+          <span>Time-outs</span>
+          {(() => {
+            // 현재 phase 표시 (운영자 인지 도움 — 전반/후반/OTn 잔여)
+            const phase = getGamePhase(currentPeriod);
+            const used = getUsedTimeouts(
+              timeouts,
+              phase,
+              phase === "overtime" ? currentPeriod : undefined
+            );
+            const max =
+              phase === "first_half" ? 2 : phase === "second_half" ? 3 : 1;
+            const phaseLabel =
+              phase === "first_half"
+                ? "전반"
+                : phase === "second_half"
+                  ? "후반"
+                  : `OT${currentPeriod - 4}`;
+            return (
+              <span style={{ color: "var(--color-text-muted)" }}>
+                {phaseLabel} {used}/{max}
+              </span>
+            );
+          })()}
         </div>
-        <div className="flex gap-1">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex h-7 w-7 items-center justify-center text-xs"
-              style={{
-                border: "1px solid var(--color-border)",
-                color: "var(--color-text-muted)",
-              }}
-              aria-label={`Time-out ${i + 1} (Phase 4 활성화 예정)`}
-            >
-              {/* Phase 4 = 1탭 마킹 → ✕ 표시 / 현재는 빈 칸 */}
-            </div>
-          ))}
+        <div className="flex flex-wrap gap-1">
+          {(() => {
+            // 표시할 칸 수 산정:
+            //   기본 5칸 (전반 2 + 후반 3)
+            //   + OT 진입 시 (currentPeriod >= 5) 각 OT 별 1칸 누적
+            //     → currentPeriod=5 시 6칸 / 6 시 7칸 / 7 시 8칸
+            const totalCells = currentPeriod <= 4 ? 5 : 5 + (currentPeriod - 4);
+            // 현재까지 사용된 총 타임아웃 수 = 채워진 칸 수
+            const totalUsed = timeouts.length;
+
+            return Array.from({ length: totalCells }).map((_, i) => {
+              const filled = i < totalUsed;
+              const isLastFilled = filled && i === totalUsed - 1;
+              const isNextEmpty = !filled && i === totalUsed;
+              // 칸 라벨 — 위치별 phase 안내 (1~2=전반 / 3~5=후반 / 6+=OT)
+              //   marked 칸이 어느 period 인지는 timeouts[i].period 로 알 수 있음
+              const cellLabel = filled
+                ? `Period ${timeouts[i].period} 타임아웃`
+                : i < 2
+                  ? `전반 타임아웃 ${i + 1}`
+                  : i < 5
+                    ? `후반 타임아웃 ${i - 1}`
+                    : `OT${i - 4} 타임아웃`;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    if (disabled) return;
+                    if (isLastFilled) {
+                      onRequestRemoveTimeout();
+                    } else if (isNextEmpty) {
+                      onRequestAddTimeout();
+                    }
+                  }}
+                  disabled={disabled || (!isLastFilled && !isNextEmpty)}
+                  className="flex h-9 w-9 items-center justify-center text-sm font-bold disabled:cursor-default"
+                  style={{
+                    border: "1px solid var(--color-border)",
+                    // 채운 칸 = text-primary 배경 (foul P 색과 일관) / 빈 칸 = transparent
+                    backgroundColor: filled
+                      ? "var(--color-text-primary)"
+                      : "var(--color-elevated)",
+                    color: filled
+                      ? "var(--color-bg, #000)"
+                      : "var(--color-text-muted)",
+                    cursor:
+                      isLastFilled || isNextEmpty ? "pointer" : "default",
+                    touchAction: "manipulation",
+                    borderRadius: 4,
+                  }}
+                  aria-label={
+                    filled
+                      ? `${cellLabel} 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                      : `${cellLabel} 빈 칸${isNextEmpty ? " (클릭 시 마킹)" : ""}`
+                  }
+                  title={cellLabel}
+                >
+                  {filled ? "●" : i + 1}
+                </button>
+              );
+            });
+          })()}
         </div>
       </div>
 

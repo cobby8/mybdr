@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA SCORESHEET Phase 3.5 — 파울 종류 (P/T/U/D) + Article 41 + 쿼터/경기 종료 + 라이센스 자동 fill
-- **상태**: ✅ 완료 — tsc 0 / vitest 439/439 (+23 신규) / 회귀 0
+- **요청**: FIBA SCORESHEET Phase 4 — Time-outs (전반2/후반3/연장1 + Article 18-19)
+- **상태**: ✅ 완료 — tsc 0 / vitest 477/477 (+30 신규) / 회귀 0
 - **모드**: no-stop
 
 ## 진행 현황표 (FIBA 양식)
@@ -12,9 +12,78 @@
 | 2 | Running Score 1-160 + Period 자동 + Final + Winner | ✅ |
 | 3 | Player/Team Fouls + 5반칙 + 5+ FT toast | ✅ |
 | 3.5 | 파울종류 (P/T/U/D) + Article 41 + 쿼터/경기 종료 + Licence 자동 | ✅ |
-| 4 | Time-outs (전반2/후반3/연장1) | ⏳ |
+| 4 | Time-outs (전반2/후반3/연장1 + settings.timeouts JSON) | ✅ |
 | 5 | 서명 + 노트 (확장) — 경기 종료만 3.5 선진입 | ⏳ |
 | 6 | A4 세로 인쇄 PDF | ⏳ |
+
+## 구현 기록 (developer) — FIBA 양식 Phase 4 Time-outs
+
+📝 구현 범위: FIBA Article 18-19 (전반 2 / 후반 3 / OT 각각 1) + settings.timeouts JSON 박제 (Phase 1-A recording_mode 패턴 재사용)
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 | 줄수 |
+|------|------|---------|-----|
+| `src/lib/score-sheet/timeout-types.ts` | TimeoutMark / TimeoutsState / EMPTY_TIMEOUTS / GamePhase / TIMEOUTS_PER_PHASE | 신규 | 50 |
+| `src/lib/score-sheet/timeout-helpers.ts` | getGamePhase / getUsedTimeouts / getRemainingTimeouts / canAddTimeout / addTimeout / removeLastTimeout | 신규 | 180 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | timeouts/onRequestAddTimeout/onRequestRemoveTimeout prop + TIME-OUTS placeholder 활성화 (5칸 기본 + OT 진입 시 동적 추가 + phase 잔여 표시) | 수정 | +95 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | timeouts state + handleRequestAddTimeout/RemoveTimeout (Article 18-19 toast 분기) + draft 복원/저장 + buildSubmitPayload | 수정 | +50 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | timeoutMarkSchema/timeoutsSchema + submitSchema.timeouts.optional() + settings JSON merge UPDATE + audit context 카운트 박제 | 수정 | +40 |
+| `src/__tests__/score-sheet/timeout-helpers.test.ts` | 30 케이스 (getGamePhase 3 / Used 4 / Remaining 4 / canAdd 8 / addTimeout 7 / removeLast 3 / 전체경기시나리오 1) | 신규 | 250 |
+
+### Article 18-19 룰 분기 (timeout-helpers.ts)
+| 분기 | 조건 | 동작 |
+|------|------|------|
+| 전반 (Q1+Q2) | currentPeriod 1~2 | 팀당 2개 (합산) — 차단: "전반 타임아웃 모두 사용" |
+| 후반 (Q3+Q4) | currentPeriod 3~4 | 팀당 3개 (합산) — 차단: "후반 타임아웃 모두 사용" |
+| 연장 (각 OT) | currentPeriod 5+ | OT n 별로 1개씩 (별도 카운트) — 차단: "OT{n} 타임아웃 모두 사용" |
+
+### settings JSON merge 패턴 (Phase 1-A 재사용)
+- 기존 settings 객체 spread → `timeouts` 키만 set → 기존 `recording_mode` 등 키 보존
+- `input.timeouts` 전송 시만 UPDATE (미전송 = 기존 settings 유지)
+- match.settings 가 null/array/primitive 인 경우 → 빈 객체에서 시작 (방어)
+- schema 변경 **0** / Prisma JSON 컬럼 활용
+
+### UX 동작
+- 빈 칸 클릭 → `canAddTimeout` 검증 → 통과 시 마킹 + toast "Team A 전반 타임아웃 1/2" / 차단 시 toast "Team A 전반 타임아웃 모두 사용 — 추가 불가"
+- 마지막 마킹 칸 클릭 → 1건 해제 + toast "Team A 타임아웃 1건 해제"
+- OT 진입 시 (currentPeriod≥5) 칸 동적 추가 (5+OT수 = 6/7/8칸)
+- phase 잔여 표시 (헤더 우측 "전반 1/2" / "후반 2/3" / "OT1 0/1")
+- 채운 칸 = text-primary 배경 (●) / 빈 칸 = text-muted 숫자
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | 0 에러 (EXIT 0 / 출력 0) |
+| vitest 신규 케이스 | 30/30 PASS |
+| vitest 전체 회귀 | 477/477 PASS (이전 439 + 신규 30 + 누적 기타 8건) |
+| 디자인 13 룰 (lucide-react / 핑크코랄 / BigInt n) | 위반 0 |
+| Flutter v1 영향 | 0 (api/web/score-sheet 단일) |
+| schema 변경 | 0 (settings JSON 활용) |
+| AppNav frozen | 0 영향 |
+| 운영 DB 영향 | 0 (코드만) |
+
+### tester 참고
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/score-sheet/timeout-helpers.test.ts` — 30 케이스
+  2. 수동 E2E (paper 모드 매치):
+     - 전반 (Q1/Q2) — 빈 칸 2회 클릭 → 채워짐 + toast / 3번째 = 차단
+     - 후반 (Q3/Q4) — 3개 가능 / 4번째 차단
+     - OT1 진입 (쿼터 종료×4) — 새 6번째 칸 등장 / OT1 1개 / 2번째 차단
+     - OT2 진입 — 7번째 칸 추가 / OT1 사용량 영향 0
+     - 마지막 칸 클릭 = 해제 (toast)
+     - 경기 종료 → submit BFF → DB `match.settings.timeouts` JSON 박제 검증 (`recording_mode` 키 보존)
+- 정상 동작:
+  - phase 잔여 헤더 우측 "전반 1/2" 류 실시간 표시
+  - team A / team B 양면 독립 (한쪽 다 써도 다른 쪽 영향 0)
+- 주의할 입력:
+  - 같은 period 에서 2회 연속 (Q1 에서 2회) = 정상 허용 (FIBA = 합산 룰)
+  - 전반 다 사용 후 Q3 진입 = 후반 3개 별도 리셋 (전반 사용량 영향 0)
+
+### reviewer 참고
+- **settings JSON merge 패턴**: Phase 1-A `withRecordingMode` 와 동일 — 객체 spread + 키 set. 단 helper 함수 분리는 안 함 (BFF route 1회 사용 / 별도 export 필요 시 timeout-helpers.ts 로 이동 가능).
+- **OT 분리 카운트**: `getUsedTimeouts(timeouts, "overtime", overtimePeriod)` 의 overtimePeriod 인자가 핵심. 미지정 시 모든 OT 합산 (호환성 fallback) — canAddTimeout 은 항상 currentPeriod 의 specific OT 만 전달.
+- **칸 수 동적 산정**: `totalCells = currentPeriod <= 4 ? 5 : 5 + (currentPeriod - 4)` — currentPeriod 가 7 (OT3) 이면 8칸. 마킹 안 했어도 OT 진입 자체로 빈 칸 표시 (운영자 인지).
+- **Q4 마지막 2분 룰 / Q2 마지막 2분 룰 미적용**: 시간 정보 없는 종이 기록 특성 — 합산 카운트만 검증 (FIBA 룰 단순화). 향후 시간 통합 시 보완 가능.
 
 ## 구현 기록 (developer) — FIBA 양식 Phase 3.5
 
@@ -362,11 +431,84 @@ if (data.series_id !== undefined):
 - **status 가드 UI vs API**: UI 가 disabled 처리해도 클라이언트 조작으로 우회 가능 — PR1 API 의 status 가드가 최종 방어선. UI 는 UX 안내 위주.
 - **카운터 정합성**: BDR 시리즈(id=8) stored=0/actual=12 불일치는 PR2 와 무관 (PR1 기록 §위험 발견 참조). 본 PR 이 카운터를 +1/-1 박제하면 그 baseline 위에서 정상 동작 — 모든 PR 후 일괄 backfill 권장.
 
+## 구현 기록 (developer) — 대회-시리즈 연결 흡수 모달 PR3
+
+📝 구현한 기능: 단체 관리 페이지(`/tournament-admin/organizations/[orgId]`) 시리즈 카드에 "기존 대회 가져오기" 버튼 + 모달 — 운영자가 본인 미연결 draft/registration 대회를 다건 한 번에 시리즈에 흡수. PR1 의 권한/status/카운터 정책을 다건 + skip 패턴으로 확장.
+
+### 변경 파일
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/api/web/tournaments/my-unlinked/route.ts` | 신규 — GET `organizerId=ctx.userId AND series_id IS NULL AND status IN (draft/registration_open/registration)` 본인 미연결 대회 목록. withWebAuth / select 최소 필드 / Date ISO 직렬화. | 신규 |
+| `src/app/api/web/series/[id]/absorb-tournaments/route.ts` | 신규 — POST 다건 흡수. zod tournament_ids min1 max50 + uuid 검증 / requireSeriesOwner (allowSuperAdmin) / IN 절 1회 후보 SELECT / 각 row 검증 (본인 소유 / 중복 시리즈 / status 가드) → absorbed/skipped 분리 / $transaction 안에서 이전 시리즈별 -count group by + 새 시리즈 +absorbed.length + updateMany. | 신규 |
+| `src/app/(admin)/tournament-admin/organizations/[orgId]/_components/AbsorbTournamentsModal.tsx` | 신규 — 모달 컴포넌트. 마운트 시 GET my-unlinked / 전체 선택 + 개별 체크박스 / ESC 키 닫기 / confirm 다이얼로그 2단계 / 응답 absorbed/skipped 분리 메시지 / 결과 1.5초 표시 후 onSuccess. 디자인: var(--color-*) 토큰만 / Material Symbols / 44px+ 터치. | 신규 |
+| `src/app/(admin)/tournament-admin/organizations/[orgId]/page.tsx` | 수정 — useEffect → useCallback loadOrg 추출 (모달 onSuccess 시 재호출). 시리즈 카드 우측에 "기존 대회 가져오기" 버튼 + 모달 마운트 (`absorbModalSeries` state). 시리즈 카드 컨테이너 Link → div + 좌측 Link / 우측 액션 영역으로 재구성. | 수정 |
+| `src/__tests__/api/tournaments-absorb.test.ts` | 신규 — vitest 8 케이스 (401 / 자기-자기 200 / 혼합 skip / 타인 시리즈 403 / status 가드 skip / 카운터 양면 / zod 빈배열 + 비-uuid 400). | 신규 |
+
+### 핵심 로직
+
+**(1) skip 패턴 (전체 400 X)**
+- 후보 N건 중 일부가 조건 위반해도 정상 row 만 absorbed, 위반 row 는 `skipped: [{id, reason}]` 응답
+- 사유 4분기: "대회를 찾을 수 없습니다." / "본인 소유 대회가 아닙니다." / "이미 이 시리즈에 연결된 대회입니다." / "진행 중이거나 종료된 대회는 흡수 불가합니다."
+- UI 는 absorbed=0 면 첫 사유 표시, 1건+ 성공이면 "N개 흡수 (M건 제외 — 사유 외)" 메시지
+
+**(2) status 정책 정합 (PR1 + my-unlinked + absorb 3개 API 일관)**
+- 허용: `draft / registration_open / registration` (registration 은 wizard 잘못된 enum 폴백)
+- 본인 소유 검증은 super_admin 도 우회 X — 시리즈 권한만 우회 (PR1 PATCH 와 정책 다름: 시리즈 단에서 임의 대회 흡수 차단 위해)
+
+**(3) 카운터 동기화 ($transaction)**
+- 이전 series_id 별 group by → `prevSeriesDecrement` Map 으로 누적 → 시리즈별 -count
+- 새 시리즈 +absorbed.length (1회 호출)
+- `tournament.updateMany({ where: { id: { in: absorbed } }, data: { series_id } })` 일괄 UPDATE
+- absorbed=0 이면 $transaction 진입 X (early return)
+
+**(4) UI 동선 (4 단계)**
+- 단체 대시보드 진입 → 시리즈 카드 "기존 대회 가져오기" 클릭 → 모달 (체크박스 다건) → 흡수 confirm → 결과 inline 표시 → 1.5초 후 onSuccess → 페이지 refresh
+
+### 검증 결과
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit (본 PR 파일) | 0 에러 (잔존 score-sheet/team-section timeouts 2건 = FIBA Phase 4 작업 / 본 PR 무관) |
+| vitest 신규 케이스 | 8/8 PASS |
+| vitest 전체 회귀 | 477/477 PASS (이전 469 + 신규 8) |
+| Flutter v1 series_id/my-unlinked/absorb grep | 0 사용처 |
+| schema 변경 | 0 |
+| 운영 DB 영향 | 0 (코드만, _temp 미사용) |
+| 디자인 13 룰 (lucide-react / 핑크코랄 / BigInt n) | 위반 0 |
+
+### 💡 tester 참고
+- 테스트 방법:
+  1. `npx vitest run src/__tests__/api/tournaments-absorb.test.ts` — 8 케이스
+  2. 수동 E2E:
+     - 강남구농구협회 단체 페이지(`/tournament-admin/organizations/{orgId}`) 진입
+     - BDR 시리즈 또는 새 시리즈 카드 우측 "기존 대회 가져오기" 클릭
+     - 모달: 본인 미연결 대회 목록 (현재 강남구협회장배 1건 + BDR 12건이 series_id 연결 상태라면 0건)
+     - 체크 + "N개 흡수" → confirm → "흡수" → 결과 메시지 → 페이지 refresh 시 시리즈 카드 카운터 +N
+- 정상 동작:
+  - 모달 진입 시 GET /api/web/tournaments/my-unlinked 자동 호출
+  - 전체 선택 토글 + 개별 체크 동작
+  - 흡수 성공 시 카드의 "대회 N개" 텍스트 갱신 (loadOrg refresh)
+  - skip 케이스: in_progress 대회는 목록에 안 나오므로 skip 경로는 동시 흡수 중 status 변경 race 외엔 발생 0
+- 주의할 입력:
+  - 빈 배열 / 비-uuid → 400 (zod 가드)
+  - 미연결 대회 0건 → "현재 미연결 대회가 없습니다" 안내
+  - 51건 이상 → 400 (zod max 50)
+  - 타인 시리즈 ID 수동 URL 조작 → 403
+
+### ⚠️ reviewer 참고
+- **super_admin 우회 정책 다름 (PR1 vs PR3)**: PR1 PATCH 는 wizard 진입자 = 대회 organizer = 본인 (requireTournamentAdmin 통과). PR3 는 단체 페이지에서 시리즈 단위 진입 — 시리즈 권한만 우회 허용하고 대회 소유는 본인 일관성 유지 (super_admin 도 본인 소유 대회만 흡수). 보안상 보수적 선택.
+- **카운터 동기화 group by**: 이전 시리즈가 N개 다른 시리즈에 분산돼 있을 수 있어 Map<seriesIdStr, count> 로 누적 → 시리즈별 1회 update. updateMany 와 분리한 이유 = decrement 는 increment 와 별도 row 대상.
+- **응답 unwrap 패턴**: 모달은 `json?.data?.data ?? json?.data ?? []` 더블 unwrap (apiSuccess({ data }) 더블 래핑 회피 — PR2 와 동일). absorb POST 응답은 `json?.data ?? json` 단일 unwrap (apiSuccess({ absorbed, skipped }) 형태).
+- **resultMessage 1.5초 setTimeout**: 사용자가 결과 메시지 (N개 흡수) 읽을 시간 확보 — toast 시스템 미도입 (단체 페이지는 ToastProvider 미사용) 단순 inline 메시지.
+- **카운터 정합성**: BDR 시리즈(id=8) stored=0/actual=12 불일치 (PR1 §위험 발견 동일) — PR3 코드 자체는 정상 (-N/+N 박제 OK), backfill 별도 후속.
+- **시리즈 카드 Link → div 재구성**: 기존 카드 전체가 Link 였으나, 버튼 클릭 시 시리즈 진입을 막아야 해서 좌측 정보 Link + 우측 액션 영역 (button + chevron Link) 으로 재구성. `e.preventDefault() + stopPropagation()` 으로 nested click 안전.
+
 ---
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 4]** Time-outs Article 18-19 (전반2/후반3/OT각1) + timeout-types/helpers 신규 + team-section TIME-OUTS 활성화 + score-sheet-form state/handler + BFF settings.timeouts JSON merge UPDATE (recording_mode 키 보존). tsc 0 / vitest 477/477 (+30). 회귀 0. schema 변경 0. | ✅ |
+| 2026-05-12 | (커밋 대기) | **[대회-시리즈 연결 흡수 모달 PR3]** GET /api/web/tournaments/my-unlinked (본인 미연결 draft/reg 대회) + POST /api/web/series/[id]/absorb-tournaments (다건 흡수 skip 패턴 / $transaction 카운터 group by) + AbsorbTournamentsModal (체크박스 다건 + 2단계 confirm + var(--*) 토큰 + Material Symbols + 44px+) + 단체 페이지 시리즈 카드 "기존 대회 가져오기" 버튼. vitest 477/477 (+8). tsc 0. 디자인 13 룰 위반 0. Flutter v1 영향 0. schema 변경 0. 운영 DB 영향 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 3.5]** 파울종류 P/T/U/D + Article 41 4사유 분기 + 쿼터/경기 종료 + Licence 자동 fill (User.id). FoulTypeModal + MatchEndButton 신규. tsc 0 / vitest 439/439 (+23). 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[대회-시리즈 연결 UI PR2]** GET /api/web/series/my (organization include / BigInt 직렬화 / withWebAuth) + wizard "대회 정보" 스텝 소속 시리즈 드롭다운 ("시리즈명 (단체명)" 라벨 / status 가드 / confirm 모달 4분기) + PATCH body series_id 포함. vitest 439/439 (+5). tsc 0. 디자인 13 룰 위반 0. Flutter v1 영향 0. schema 변경 0. 운영 DB 영향 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[대회-시리즈 연결 API PR1]** zod series_id 추가 / series-permission 헬퍼 (404/403 throw) / PATCH route series_id 분기 + status 가드 (draft/reg_open만 이동 / null 분리는 항상 허용) + $transaction 카운터 동기화. vitest 416/416 (+11). tsc 0. Flutter v1 영향 0. **위험**: BDR 시리즈(id=8) tournaments_count stored=0/actual=12 불일치 = 기존 데이터 이슈 (PR 무관, backfill 후속 큐). | ✅ |
@@ -376,4 +518,3 @@ if (data.series_id !== undefined):
 | 2026-05-12 | (커밋 대기) | **[FIBA 종이 기록지 Phase 2]** Running Score 1-160 + PlayerSelectModal + PeriodScoresSection + BFF running_score → PaperPBP. vitest 381/381 (+31). | ✅ |
 | 2026-05-11 | (커밋 대기) | **[FIBA 종이 기록지 Phase 1]** `(score-sheet)` route group + minimal layout + RotationGuard + FibaHeader + TeamSection. 기존 `(web)/score-sheet/` 6 파일 폐기. vitest 350/350 (+9). | ✅ |
 | 2026-05-11 | (기획만) | **[FIBA 재기획]** 6 Phase + 사용자 결재 7건 + 컴포넌트 트리 + DB 매핑 12 영역. | ✅ |
-| 2026-05-11 | (PM 커밋 대기) | **[admin 디자인 13 룰 fix]** Critical 11 + Major 4 + conventions.md 박제. tsc 0 / vitest 341/341. | ✅ |
