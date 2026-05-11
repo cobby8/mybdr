@@ -2,6 +2,20 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-11] 유소년 코치 신청서 + 자녀 claim 모델 — 신규 3 + TTP 확장 (Phase 1)
+- **분류**: architecture/data-model (유소년 일괄 등록 / 매직링크 claim)
+- **발견자**: developer / pm
+- **내용**:
+  - **TournamentTeamPlayer +11 컬럼** (모두 NULL 허용 무중단): parent_name / parent_phone / school_name / grade / division_code / jersey_size / claim_status (default 'pending') / claimed_user_id / child_profile_id / invited_at / claimed_at. 인덱스 2 (claim_status, claimed_user_id). FK 2 (child_profile_id, claimed_user_id ON DELETE SET NULL).
+  - **TournamentTeam +3 컬럼**: apply_token (unique) / apply_token_expires_at / applied_via ('coach_token' | 'self' | 'admin'). 어드민이 팀 단위 매직링크 발급.
+  - **ChildProfile (신규)**: 부모 1 : 자녀 N. 학부모가 자녀 신청서 claim 시 ChildProfile 생성 + TTP.child_profile_id 연결. parent_user_id FK ON DELETE RESTRICT.
+  - **ClaimToken (신규)**: 학부모 매직링크 일회용 토큰 — player_id 1:1 unique / parent_phone / expires_at / consumed_at.
+  - **TournamentDivisionRule (신규)**: 대회별 종별 룰 (U10/U12/M1 ...) + birthYearMin/Max + gradeMin/Max + feeKrw. tournamentId FK.
+  - 어드민 경로: `(admin)/admin/tournaments/[id]/teams/page.tsx` (server) + `teams-client.tsx` (client modal/copy).
+  - API: `/api/web/admin/tournaments/[id]/team-applications` (GET 표 / POST 팀+토큰 발급).
+  - 권한 헬퍼: `src/lib/auth/tournament-permission.ts` canManageTournament (super_admin / organizer / TournamentAdminMember is_active=true) — match-stream 패턴 재사용.
+- **참조횟수**: 0
+
 ### [2026-05-11] 웹 종이 기록지 — `(web)/score-sheet/[matchId]/` + BFF sync 재사용 (Flutter API 0 변경)
 - **분류**: architecture (페이지 신설 + 기존 API 재사용 패턴)
 - **발견자**: planner-architect (본 turn 기획)
