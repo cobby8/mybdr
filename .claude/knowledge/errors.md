@@ -2,6 +2,26 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-12] 시리즈 상세 페이지 진입 시 error.tsx (운영 mybdr.kr) — 진단 미완료
+- **분류**: error / 운영
+- **발견자**: debugger
+- **증상**: `/tournament-admin/series/10` 진입 → app/error.tsx ("문제가 발생했습니다 / 일시적인 오류가 발생했습니다") 표시. 시리즈 id=10 은 DB에 정상 생성됨.
+- **DB 데이터 (SELECT only 검증 완료)**: id=10 / organizer_id=2999 (김수빈 super_admin) / organization_id=null / tournaments_count=0 / tournaments=[] (빈 회차). 데이터 자체 무결.
+- **page.tsx 코드 분석**: `series/[id]/page.tsx` 는 `.catch(() => null)` 로 prisma 에러를 잡고 notFound() / redirect 만 throw — 정상 흐름이면 error.tsx 도달 경로 없음. tsc 0. select 절 컬럼 (teams_count / startDate / venue_name / city / maxTeams) schema 일치.
+- **권한 흐름**: tournament-admin layout 은 session.role=super_admin / tournament_admin 만 허용 → 통과. page 의 `series.organizer_id !== BigInt(session.sub)` 는 동일 BigInt 비교 → 통과.
+- **확정 도달 못한 가설**:
+  1. Vercel 빌드 캐시 stale (PR3 머지 직후 빌드 시점 이슈)
+  2. RSC 직렬화 — BigInt 가 client component prop 으로 흘러간 적 없는지 (CopyLinkButton 은 slug:string 만 받음 → 안전 확인 완료)
+  3. AdminSidebar / MobileNav prisma fetch 실패 가능성 (org_member / partner_member findFirst)
+- **권장 다음 단계**:
+  1. Vercel Runtime Logs 의 실제 stack trace 확보 (digest 값 + error.message)
+  2. 페이지에 임시 try/catch + console.error("series page err", err) 박제 후 재현
+  3. 사용자에게 재현 단계 (단체 페이지 카드 클릭 vs 직접 URL 입력) 정밀 재확인
+- **부수 발견 (별개 버그)**: organization 페이지 시리즈 생성 시 organization_id 전송했지만 DB 에 null 저장. 가능한 원인 — 사용자가 단체 페이지가 아닌 `/tournament-admin/series/new` (organization_id 미전송) 경로로 들어갔거나, 또는 다른 흐름. 별도 검증 필요.
+- **참조**: `src/app/(admin)/tournament-admin/series/[id]/page.tsx` / `src/app/api/web/series/route.ts` / `src/middleware.ts` / `src/app/(admin)/tournament-admin/layout.tsx`
+- **참조횟수**: 0
+
+
 ### [2026-05-10] 라이브 결승 영상 매핑 오류 = 다른 매치 영상이 박힘 (auto-register 1:1 가드 부재)
 - **분류**: 알고리즘 / 운영 사고 (5/10 결승 진행 중 사용자 신고)
 - **증상**: `/live/158` (제21회 몰텐배 결승 슬로우 vs 아울스, 4쿼터 진행 중) 에 video_id `zIU3_RDRKuk` (= 4강 #157 영상 "아울스 vs 업템포") 가 잘못 재생. matchId=157 + matchId=158 양쪽이 같은 video_id 보유 (1:1 매핑 깨짐).
