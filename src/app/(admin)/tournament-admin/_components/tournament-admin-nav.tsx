@@ -27,8 +27,8 @@ export function TournamentAdminNav() {
                 ? pathname === "/tournament-admin"
                 : pathname.startsWith(item.href);
               return (
-                // 활성 탭 = accent 강조 / 비활성 = muted → text-primary hover
-                <Link key={item.href} href={item.href} className={`rounded-full px-4 py-2 text-sm transition-colors ${active ? "bg-[rgba(27,60,135,0.12)] font-medium text-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+                // 2026-05-12 — pill 9999px ❌ → rounded-[4px]. 활성 탭 = info(Navy) 톤 (admin 빨강 본문 금지)
+                <Link key={item.href} href={item.href} className={`rounded-[4px] px-4 py-2 text-sm transition-colors ${active ? "bg-[rgba(27,60,135,0.12)] font-medium text-[var(--color-info)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
                   {item.label}
                 </Link>
               );

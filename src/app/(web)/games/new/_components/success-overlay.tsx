@@ -42,22 +42,21 @@ export function SuccessOverlay({ gameId }: SuccessOverlayProps) {
         <p className="mb-6 text-sm text-[var(--color-text-secondary)]">참가 신청을 기다리는 중입니다</p>
 
         <div className="flex flex-col gap-2">
+          {/* 2026-05-12 — pill 9999px ❌ → btn--accent 표준 클래스 (4px 라운딩) */}
           <button
             type="button"
             onClick={() => {
               if (gameId) router.push(`/games/${gameId}`);
               else router.push("/games");
             }}
-            className="rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold hover:bg-[var(--color-accent-hover)]"
-            // accent 배경이 테마에 따라 달라지므로 텍스트 색상도 on-accent 변수로 자동 대비 유지
-            style={{ color: "var(--color-on-accent)" }}
+            className="btn btn--accent"
           >
             경기 보러 가기
           </button>
           <button
             type="button"
             onClick={() => router.push("/games/new")}
-            className="rounded-full border border-[var(--color-border)] px-6 py-3 text-sm text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
+            className="btn"
           >
             또 만들기
           </button>

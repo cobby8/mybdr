@@ -8,9 +8,10 @@ export default function OfflinePage() {
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">
         인터넷 연결을 확인하고 다시 시도해주세요.
       </p>
+      {/* 2026-05-12 — pill 9999px ❌ → btn--accent (4px 라운딩 표준) */}
       <button
         onClick={() => window.location.reload()}
-        className="rounded-full bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold text-[var(--color-on-accent)] hover:bg-[var(--color-accent-hover)]"
+        className="btn btn--accent"
       >
         다시 시도
       </button>

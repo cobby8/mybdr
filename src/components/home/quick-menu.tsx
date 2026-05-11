@@ -81,22 +81,24 @@ export function QuickMenu() {
           <span className="text-sm font-semibold text-[#111827]">
             메뉴 편집 ({pending.length}/{MAX_ITEMS}개 선택)
           </span>
+          {/* 2026-05-12 — pill 9999px ❌ + 하드코딩 hex ❌ → btn--sm btn--primary */}
           <button
             onClick={saveEdit}
             disabled={saving || pending.length === 0}
-            className="rounded-full bg-[#1B3C87] px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+            className="btn btn--sm btn--primary disabled:opacity-60"
           >
             완료
           </button>
         </div>
 
         {/* 현재 선택 */}
+        {/* 2026-05-12 — pill ❌ + 하드코딩 hex ❌ → rounded-[4px] + info(Navy) 토큰 */}
         <div className="mb-3 flex flex-wrap gap-2">
           {MENU_POOL.filter((m) => pending.includes(m.id)).map((m) => (
             <button
               key={m.id}
               onClick={() => toggleItem(m.id)}
-              className="flex items-center gap-1 rounded-full bg-[rgba(27,60,135,0.12)] px-3 py-1.5 text-xs font-medium text-[#1B3C87]"
+              className="flex items-center gap-1 rounded-[4px] bg-[rgba(27,60,135,0.12)] px-3 py-1.5 text-xs font-medium text-[var(--color-info)]"
             >
               {m.icon} {m.label} ✕
             </button>

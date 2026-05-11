@@ -10,10 +10,10 @@ export function BracketEmpty({ tournamentId }: { tournamentId: string }) {
       <p className="mb-6 text-sm text-[var(--color-text-muted)]">
         대회 주최자가 대진표를 생성하면 여기에 표시됩니다.
       </p>
-      {/* CTA 버튼: accent 색상 + hover 시 약간 어두워지는 효과 */}
+      {/* 2026-05-12 — pill 9999px ❌ (CLAUDE.md §디자인 §10) → btn--accent 표준 클래스 (4px 라운딩) */}
       <Link
         href={`/tournaments/${tournamentId}/teams`}
-        className="rounded-full bg-[var(--color-accent)] px-6 py-2.5 text-sm font-semibold text-[var(--color-on-accent)] transition-colors hover:opacity-90"
+        className="btn btn--accent"
       >
         참가팀 보러가기
       </Link>

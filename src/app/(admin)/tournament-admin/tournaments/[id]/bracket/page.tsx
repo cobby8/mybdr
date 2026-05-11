@@ -280,11 +280,12 @@ export default function BracketAdminPage() {
                 ✓ 확정됨 (v{data?.activeVersion})
               </span>
             )}
+            {/* 2026-05-12 — pill 9999px ❌ + admin 빨강 본문 금지 룰 → rounded-[4px] + info(Navy) 토큰 */}
             {hasMatches && (
               <button
                 onClick={activate}
                 disabled={activating || isActivated}
-                className="rounded-full bg-[rgba(27,60,135,0.08)] px-4 py-2 text-sm font-medium text-[var(--color-accent)] hover:bg-[rgba(0,102,255,0.15)] disabled:opacity-50"
+                className="rounded-[4px] bg-[rgba(27,60,135,0.08)] px-4 py-2 text-sm font-medium text-[var(--color-info)] hover:bg-[rgba(0,102,255,0.15)] disabled:opacity-50"
               >
                 {activating ? "처리 중..." : "최신 버전 확정"}
               </button>
