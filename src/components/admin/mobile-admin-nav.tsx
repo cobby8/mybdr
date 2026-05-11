@@ -34,9 +34,22 @@ import {
 } from "./sidebar";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
 import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
+// 2026-05-11 admin 마이페이지 Phase 1 — 드로어 상단 사용자 카드 + 로그아웃 통합
+import { LogoutButton } from "@/app/(admin)/admin/_components/logout-button";
 
 interface Props {
   roles: AdminRole[];
+  // 2026-05-11: 드로어 상단 사용자 카드용 — layout 에서 prop 전달
+  user?: {
+    nickname: string | null;
+    email: string;
+  };
+}
+
+// 이니셜 추출 (드로어 상단 아바타용)
+function getInitial(nickname: string | null, email: string): string {
+  const source = nickname?.trim() || email;
+  return (source[0] ?? "?").toUpperCase();
 }
 
 // 2026-05-04: 메뉴 항목 1개 렌더링 (children 들여쓰기 + 클릭 시 드로어 닫기)
@@ -75,9 +88,14 @@ function renderMobileItem(
   );
 }
 
-export function AdminMobileNav({ roles }: Props) {
+export function AdminMobileNav({ roles, user }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  // 드로어 상단 사용자 카드 표시용 (user prop 있을 때만)
+  const displayName = user
+    ? user.nickname?.trim() || user.email.split("@")[0]
+    : null;
+  const initial = user ? getInitial(user.nickname, user.email) : null;
 
   // 유저 역할에 맞는 메뉴만 필터링 (sidebar 와 동일 — 그룹화 구조)
   const visibleStructure = filterStructureByRoles(roles);
@@ -176,6 +194,66 @@ export function AdminMobileNav({ roles }: Props) {
             </span>
           </button>
         </div>
+
+        {/* 2026-05-11 admin 마이페이지 Phase 1 — 드로어 상단 사용자 카드 (user prop 있을 때만) */}
+        {user && (
+          <div
+            className="mb-3 rounded-lg border p-3"
+            style={{
+              borderColor: "var(--color-border)",
+              backgroundColor: "var(--color-elevated)",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              {/* 아바타 (이니셜) — W=H 원형 (디자인 토큰 §4-1) */}
+              <div
+                className="flex h-10 w-10 items-center justify-center text-sm font-bold"
+                style={{
+                  borderRadius: "50%",
+                  backgroundColor: "var(--color-primary)",
+                  color: "white",
+                }}
+              >
+                {initial}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className="text-sm font-medium truncate"
+                  style={{ color: "var(--color-text-primary)" }}
+                >
+                  {displayName}
+                </div>
+                <div
+                  className="text-xs truncate"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
+                  {user.email}
+                </div>
+              </div>
+            </div>
+            {/* 마이페이지 + 로그아웃 — 드로어 안에서 1 클릭 진입 */}
+            <div className="mt-3 flex flex-col gap-1">
+              <Link
+                href="/admin/me"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors hover:bg-[var(--color-surface)]"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 18 }}
+                >
+                  account_circle
+                </span>
+                <span>마이페이지</span>
+              </Link>
+              <LogoutButton
+                variant="drawer-card"
+                onBeforeLogout={() => setOpen(false)}
+              />
+            </div>
+          </div>
+        )}
 
         {/* 메뉴 — 활성 표시 데스크톱과 동일 (.aside__link[data-active=true])
             2026-05-04: 그룹화 + community-aside 패턴 적용 (.aside__title + .aside__link) */}

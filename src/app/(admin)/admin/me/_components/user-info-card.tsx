@@ -1,0 +1,125 @@
+/**
+ * UserInfoCard — admin 마이페이지 로그인 정보 카드.
+ *
+ * 2026-05-11 — Phase 1 MVP (사용자 결재 §4 — 권한 매트릭스 + 로그인 정보만).
+ *
+ * 표시 정보:
+ *   - 아바타 (이니셜 또는 profile_image_url)
+ *   - 닉네임 (큰 글자)
+ *   - 이메일
+ *   - 가입일 (한글 포맷)
+ *   - UID (작게, 디버그용)
+ *
+ * 디자인 토큰만 사용 — var(--*) / Material Symbols Outlined.
+ * server component (interactivity 0).
+ */
+
+export interface UserInfoCardProps {
+  user: {
+    id: bigint;
+    nickname: string | null;
+    email: string;
+    createdAt: Date;
+    profileImageUrl: string | null;
+  };
+}
+
+// 날짜 한글 포맷 — "2024년 3월 15일"
+function formatDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${year}년 ${month}월 ${day}일`;
+}
+
+// 이니셜 추출 (닉네임 / 이메일)
+function getInitial(nickname: string | null, email: string): string {
+  const source = nickname?.trim() || email;
+  return (source[0] ?? "?").toUpperCase();
+}
+
+export function UserInfoCard({ user }: UserInfoCardProps) {
+  const displayName = user.nickname?.trim() || user.email.split("@")[0];
+  const initial = getInitial(user.nickname, user.email);
+
+  return (
+    <section
+      className="rounded-lg border p-6"
+      style={{
+        borderColor: "var(--color-border)",
+        backgroundColor: "var(--color-surface)",
+      }}
+    >
+      <div className="flex items-start gap-4">
+        {/* 아바타 — profile_image_url 있으면 이미지, 없으면 이니셜 원형 */}
+        {user.profileImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.profileImageUrl}
+            alt={`${displayName} 프로필`}
+            className="h-16 w-16 object-cover"
+            style={{ borderRadius: "50%" }}
+          />
+        ) : (
+          <div
+            className="flex h-16 w-16 items-center justify-center text-2xl font-bold"
+            style={{
+              borderRadius: "50%", // W=H 원형 — 9999px 회피
+              backgroundColor: "var(--color-primary)",
+              color: "white",
+            }}
+          >
+            {initial}
+          </div>
+        )}
+
+        {/* 정보 영역 */}
+        <div className="flex-1 min-w-0">
+          {/* 닉네임 큰 글자 */}
+          <div
+            className="text-xl font-bold truncate"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            {displayName}
+          </div>
+
+          {/* 이메일 */}
+          <div
+            className="mt-1 flex items-center gap-1 text-sm"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16 }}
+            >
+              mail
+            </span>
+            <span className="truncate">{user.email}</span>
+          </div>
+
+          {/* 가입일 */}
+          <div
+            className="mt-1 flex items-center gap-1 text-sm"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 16 }}
+            >
+              event
+            </span>
+            <span>가입일: {formatDate(user.createdAt)}</span>
+          </div>
+
+          {/* UID — 작게 (디버그용) */}
+          <div
+            className="mt-2 text-xs font-mono"
+            style={{ color: "var(--color-text-tertiary, var(--color-text-secondary))" }}
+          >
+            UID: {user.id.toString()}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
