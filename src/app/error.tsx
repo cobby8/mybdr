@@ -36,8 +36,9 @@ export default function GlobalError({
     fetch("/api/web/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((res) => {
-        // apiSuccess 응답 구조: { success: true, data: {...} } — data.role 확인
-        const role = res?.data?.role;
+        // apiSuccess(data) = NextResponse.json(data) 직접 반환 (래핑 X).
+        // /api/web/me 응답: { id, email, name, role, ... } — top level role 확인.
+        const role = res?.role;
         if (role === "super_admin") {
           setShowDetails(true);
         }
