@@ -4,6 +4,17 @@ import { requireTournamentAdmin } from "@/lib/auth/tournament-auth";
 import { updateTournamentSchema } from "@/lib/validation/tournament";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { getTournament, updateTournament } from "@/lib/services/tournament";
+// 2026-05-12 PR1 — series_id 변경 시 시리즈 소유자 검증 헬퍼.
+import {
+  requireSeriesOwner,
+  SeriesPermissionError,
+} from "@/lib/auth/series-permission";
+
+// 다른 시리즈로 "이동" 가능한 대회 status — Q2 결재: draft/registration_open 만 허용.
+// 분리(null) 는 모든 status 에서 허용.
+// 이유: in_progress/completed 진행 중 대회를 다른 시리즈로 이동하면 단체 events 탭 데이터
+//   일관성 깨짐 (이미 노출된 대회가 다른 단체로 점프). 분리만 허용해 운영 fix 여지 보존.
+const SERIES_CHANGE_ALLOWED_STATUSES = new Set(["draft", "registration_open"]);
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -111,6 +122,103 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const existing = (current?.settings as Record<string, unknown>) ?? {};
     const incoming = data.settings as Record<string, unknown>;
     updateData.settings = { ...existing, ...incoming };
+  }
+
+  // 2026-05-12 PR1 — series_id 분리 처리.
+  // 이유: series_id 변경은 (1) 권한 검증 (2) status 가드 (3) 카운터 동기화 (이전 시리즈 -1 / 새
+  //   시리즈 +1) 가 묶여있어 일반 필드 처리와 별도 $transaction 으로 원자적 처리해야 한다.
+  //   updateTournament(id, data) 서비스 함수는 단순 prisma.update wrapper 라 카운터 로직을 거기에
+  //   넣으면 다른 호출자(생성/wizard)에도 side-effect 영향 — route 단에서 명시 처리.
+  // data.series_id: undefined = 무변경 / null = 분리 / "8" = 변경.
+  if (data.series_id !== undefined) {
+    // 현재 대회 row 조회 — status 가드 + 이전 series_id (카운터 감소 대상) 확보.
+    const currentTournament = await prisma.tournament.findUnique({
+      where: { id },
+      select: { status: true, series_id: true },
+    });
+
+    if (!currentTournament) {
+      return apiError("대회를 찾을 수 없습니다.", 404);
+    }
+
+    // 새 series_id 파싱 — null = 분리, 문자열 = BigInt 변환.
+    // 빈 문자열은 분리로 취급 (UI 드롭다운 "선택 안 함" 옵션이 "" 보낼 수 있음).
+    let newSeriesId: bigint | null;
+    if (data.series_id === null || data.series_id === "") {
+      newSeriesId = null;
+    } else {
+      try {
+        newSeriesId = BigInt(data.series_id);
+      } catch {
+        return apiError("유효하지 않은 시리즈 ID입니다.", 400);
+      }
+    }
+
+    const previousSeriesId = currentTournament.series_id;
+
+    // 변경 없음(같은 값) — 카운터 동기화 skip, 일반 update 흐름에 합류 X (이미 무영향).
+    const isSame =
+      (previousSeriesId === null && newSeriesId === null) ||
+      (previousSeriesId !== null &&
+        newSeriesId !== null &&
+        previousSeriesId === newSeriesId);
+
+    if (!isSame) {
+      // 다른 시리즈로 "이동" (newSeriesId !== null) 시 status 가드.
+      // null 분리는 모든 status 허용 (Q2 결재).
+      if (
+        newSeriesId !== null &&
+        !SERIES_CHANGE_ALLOWED_STATUSES.has(currentTournament.status ?? "")
+      ) {
+        return apiError(
+          "진행 중이거나 종료된 대회는 시리즈 변경이 불가합니다. 분리만 가능합니다.",
+          400,
+        );
+      }
+
+      // 새 시리즈로 이동 시 권한 검증 — 본인 소유 시리즈만 (super_admin 우회 허용).
+      if (newSeriesId !== null) {
+        try {
+          await requireSeriesOwner(newSeriesId, auth.userId, {
+            allowSuperAdmin: true,
+            session: auth.session,
+          });
+        } catch (e) {
+          if (e instanceof SeriesPermissionError) {
+            return apiError(e.message, e.status);
+          }
+          throw e;
+        }
+      }
+
+      // 카운터 동기화 + 대회 update 를 $transaction 으로 원자적 처리.
+      // 이전 시리즈 -1 / 새 시리즈 +1 / tournament UPDATE — 셋 중 하나라도 실패 시 전체 롤백.
+      // 일반 필드 update 도 같은 transaction 안에 합류 (한 번의 DB 왕복).
+      const updated = await prisma.$transaction(async (tx) => {
+        // 이전 시리즈 카운터 -1 (NULL → 분리/이동 시 skip)
+        if (previousSeriesId !== null) {
+          await tx.tournament_series.update({
+            where: { id: previousSeriesId },
+            data: { tournaments_count: { decrement: 1 } },
+          });
+        }
+        // 새 시리즈 카운터 +1 (NULL = 분리만 시 skip)
+        if (newSeriesId !== null) {
+          await tx.tournament_series.update({
+            where: { id: newSeriesId },
+            data: { tournaments_count: { increment: 1 } },
+          });
+        }
+        // 대회 UPDATE — series_id + 나머지 일반 필드 함께
+        return tx.tournament.update({
+          where: { id },
+          data: { ...updateData, series_id: newSeriesId },
+        });
+      });
+
+      return apiSuccess(updated);
+    }
+    // isSame 이면 일반 update 흐름으로 fallthrough (series_id 는 updateData 에 안 넣음 — 무영향).
   }
 
   const updated = await updateTournament(id, updateData);

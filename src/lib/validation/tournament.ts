@@ -64,6 +64,11 @@ export const updateTournamentSchema = z
     court_bg_url: z.string().url().nullable().or(z.literal("")).or(z.null()),
     // settings JSON — contact_phone 등 부가 설정을 담는 범용 필드
     settings: z.record(z.string(), z.unknown()).optional(),
+    // 소속 시리즈 — 운영자가 사후에 대회를 시리즈에 연결/분리할 수 있도록 PATCH 지원.
+    // 이유: 기존엔 대회 생성 시 series_id 가 고정되어 운영자 셀프서비스로 단체 events 노출이 불가.
+    // 값 의미: 문자열 ID = 해당 시리즈로 변경 / null = 분리 (모든 status 허용) / undefined = 무변경.
+    // BigInt 변환은 route 핸들러에서 처리 (z.string 은 numeric 검증만 하지 않음 — DB 조회로 존재 검증).
+    series_id: z.union([z.string(), z.null()]).optional(),
   })
   .partial()
   .refine(
