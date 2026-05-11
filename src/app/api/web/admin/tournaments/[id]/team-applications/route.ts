@@ -93,7 +93,10 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     return apiError("권한이 없습니다.", 403);
   }
 
-  // 2) 팀 목록 조회 (Team 조인으로 이름 가져옴)
+  // 2) 팀 목록 조회 (Team + 신청자 user 조인)
+  // 2026-05-11 Phase 3-D — 검토 보고서 §D 권장 4건 응답 확장:
+  //   - applied_at (신청 시각) / waiting_number (대기접수 N번)
+  //   - registered_by user nickname (일반 신청 시 신청자 표시)
   const teams = await prisma.tournamentTeam.findMany({
     where: { tournamentId },
     orderBy: { createdAt: "desc" },
@@ -105,9 +108,13 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       applied_via: true,
       apply_token: true,
       apply_token_expires_at: true,
+      applied_at: true,
+      waiting_number: true,
+      registered_by_id: true,
       createdAt: true,
       team: { select: { name: true } },
       _count: { select: { players: true } },
+      users: { select: { id: true, nickname: true, email: true } }, // registered_by_id → User
     },
   });
 
@@ -127,6 +134,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       managerPhone: tt.manager_phone,
       status: tt.status,
       appliedVia: tt.applied_via,
+      appliedAt: tt.applied_at?.toISOString() ?? null,
+      waitingNumber: tt.waiting_number,
+      registeredBy: tt.users
+        ? { nickname: tt.users.nickname, email: tt.users.email }
+        : null,
       applyTokenExpiresAt: tt.apply_token_expires_at?.toISOString() ?? null,
       applyTokenUrl: tokenAlive ? `${origin}/team-apply/${tt.apply_token}` : null,
       playerCount: tt._count.players,

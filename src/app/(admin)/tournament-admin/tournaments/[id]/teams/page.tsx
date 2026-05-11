@@ -38,11 +38,20 @@ type TournamentTeam = {
  * - team-applications API 응답의 토큰 정보를 tournamentTeam.id 로 매핑해서 표 컬럼 추가.
  * - applyTokenUrl: 만료 토큰은 null 처리 (API 가 만료 검사 후 노출).
  */
+// 2026-05-11 Phase 3-D — 검토 보고서 §D 권장 4건 통합:
+//   - appliedVia (admin / coach_token / self / null) — 등록 경로 배지
+//   - appliedAt (신청 시각) — createdAt 보다 우선 표시
+//   - waitingNumber — 대기접수 N번
+//   - registeredBy — 일반 신청자 정보 (nickname / email)
 type TokenInfo = {
   applyTokenUrl: string | null;
   applyTokenExpiresAt: string | null;
   managerName: string | null;
   managerPhone: string | null;
+  appliedVia: string | null;
+  appliedAt: string | null;
+  waitingNumber: number | null;
+  registeredBy: { nickname: string | null; email: string | null } | null;
 };
 
 /* ---------- 상수 ---------- */
@@ -143,6 +152,10 @@ export default function TournamentTeamsPage() {
           apply_token_expires_at: string | null;
           manager_name: string | null;
           manager_phone: string | null;
+          applied_via: string | null;
+          applied_at: string | null;
+          waiting_number: number | null;
+          registered_by: { nickname: string | null; email: string | null } | null;
         }>;
         for (const row of teamsArr) {
           next[row.id] = {
@@ -150,6 +163,10 @@ export default function TournamentTeamsPage() {
             applyTokenExpiresAt: row.apply_token_expires_at,
             managerName: row.manager_name,
             managerPhone: row.manager_phone,
+            appliedVia: row.applied_via,
+            appliedAt: row.applied_at,
+            waitingNumber: row.waiting_number,
+            registeredBy: row.registered_by,
           };
         }
         setTokenMap(next);
@@ -300,14 +317,34 @@ export default function TournamentTeamsPage() {
     } catch { /* ignore */ }
   };
 
-  /* --- 필터 --- */
-  const filtered = filter === "all" ? teams : teams.filter((t) => t.status === filter);
+  /* --- 필터 + 통계 (Phase 3-D 검토 보고서 §D 통합) --- */
+  // 코치 미입력 = appliedVia='admin' + players 0건 (운영자 박제 후 코치가 토큰으로 입력 안 함)
+  const isCoachPending = (tt: TournamentTeam): boolean => {
+    const t = tokenMap[tt.id];
+    return t?.appliedVia === "admin" && tt.players.length === 0;
+  };
+
+  const filtered =
+    filter === "all"
+      ? teams
+      : filter === "coach_pending"
+        ? teams.filter(isCoachPending)
+        : teams.filter((t) => t.status === filter);
 
   const counts = {
     all: teams.length,
     pending: teams.filter((t) => t.status === "pending").length,
     approved: teams.filter((t) => t.status === "approved").length,
     rejected: teams.filter((t) => t.status === "rejected").length,
+    coach_pending: teams.filter(isCoachPending).length,
+  };
+
+  // 통계 카드 — 등록 경로별 분류 (Phase 3-D 권장 4)
+  const viaStats = {
+    admin: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "admin").length,
+    coach_token: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "coach_token").length,
+    self: teams.filter((tt) => tokenMap[tt.id]?.appliedVia === "self").length,
+    null: teams.filter((tt) => !tokenMap[tt.id]?.appliedVia).length,
   };
 
   if (loading)
@@ -360,9 +397,17 @@ export default function TournamentTeamsPage() {
         </div>
       </div>
 
-      {/* 통계 탭 */}
-      <div className="mb-4 flex gap-2 overflow-x-auto">
-        {(["all", "pending", "approved", "rejected"] as const).map((s) => (
+      {/* 등록 경로 통계 카드 (Phase 3-D 권장 4 — 강남구 일괄 박제 vs 코치 신청 구분 시각화) */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ViaStatCard label="운영자 등록" count={viaStats.admin} icon="business_center" />
+        <ViaStatCard label="코치 신청" count={viaStats.coach_token} icon="badge" />
+        <ViaStatCard label="본인 신청" count={viaStats.self} icon="person" />
+        <ViaStatCard label="경로 미상" count={viaStats.null} icon="help" />
+      </div>
+
+      {/* 통계 탭 — status 분류 + 코치 미입력 (운영자 박제 + 코치 명단 0건) */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(["all", "pending", "approved", "rejected", "coach_pending"] as const).map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
@@ -370,7 +415,7 @@ export default function TournamentTeamsPage() {
               filter === s ? "bg-[var(--color-accent)] font-semibold text-[var(--color-on-accent)]" : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
             }`}
           >
-            {s === "all" ? "전체" : STATUS_LABEL[s]}
+            {s === "all" ? "전체" : s === "coach_pending" ? "코치 미입력" : STATUS_LABEL[s]}
             <span className="rounded-full bg-black/20 px-1.5 py-0.5 text-xs">{counts[s]}</span>
           </button>
         ))}
@@ -403,13 +448,31 @@ export default function TournamentTeamsPage() {
                     style={{ backgroundColor: tt.team.primaryColor ?? "var(--color-primary)" }}
                   />
                   <div>
-                    <p className="font-semibold">{tt.team.name}</p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
+                    {/* 팀명 + 배지 (Phase 3-D 권장 1 — applied_via 배지) */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold">{tt.team.name}</p>
+                      <ViaBadge appliedVia={token?.appliedVia ?? null} />
+                      <StatusBadge status={tt.status} />
+                      {token?.waitingNumber && (
+                        <span className="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-warning)]">
+                          대기 {token.waitingNumber}번
+                        </span>
+                      )}
+                      {isCoachPending(tt) && (
+                        <span className="rounded-full bg-[var(--color-info)]/15 px-2 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                          코치 입력 대기
+                        </span>
+                      )}
+                    </div>
+                    {/* 메타 정보 — 선수수 / 신청 시각 (applied_at 우선, fallback createdAt) / 코치 / 신청자 */}
+                    <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
                       선수 {tt.players.length}명 &middot;{" "}
-                      {new Date(tt.createdAt).toLocaleDateString("ko-KR")} 신청
-                      {/* Phase 2-C — 코치 정보 표시 (있을 때만) */}
-                      {token?.managerName && (
-                        <> &middot; 코치 {token.managerName}</>
+                      {token?.appliedAt
+                        ? `${new Date(token.appliedAt).toLocaleDateString("ko-KR")} 신청`
+                        : `${new Date(tt.createdAt).toLocaleDateString("ko-KR")} 등록`}
+                      {token?.managerName && <> &middot; 코치 {token.managerName}</>}
+                      {token?.registeredBy?.nickname && (
+                        <> &middot; 신청자 {token.registeredBy.nickname}</>
                       )}
                     </p>
                   </div>
@@ -656,6 +719,102 @@ export default function TournamentTeamsPage() {
 //   - 강남구 36팀 일괄 INSERT 스크립트로 박제 완료 → 운영자 페이지 단건 발급 빈도 0.
 //   - POST /api/web/admin/tournaments/[id]/team-applications endpoint 는 그대로 보존
 //     (향후 비상 단건 케이스 또는 다른 운영 흐름에서 진입점 재추가 가능).
+
+/* ============================================================
+ * 2026-05-11 Phase 3-D — 등록 경로/상태/통계 배지 헬퍼
+ * ============================================================ */
+
+// 등록 경로 배지 — applied_via 값별 색상/라벨
+function ViaBadge({ appliedVia }: { appliedVia: string | null }) {
+  const map: Record<string, { label: string; bg: string; fg: string }> = {
+    admin: { label: "운영자", bg: "var(--color-elevated)", fg: "var(--color-text-secondary)" },
+    coach_token: { label: "코치", bg: "color-mix(in srgb, var(--color-info) 15%, transparent)", fg: "var(--color-info)" },
+    self: { label: "본인", bg: "color-mix(in srgb, var(--color-success) 15%, transparent)", fg: "var(--color-success)" },
+  };
+  if (!appliedVia || !map[appliedVia]) {
+    return (
+      <span
+        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+        style={{ background: "var(--color-elevated)", color: "var(--color-text-muted)" }}
+      >
+        경로 미상
+      </span>
+    );
+  }
+  const cfg = map[appliedVia];
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: cfg.bg, color: cfg.fg }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// 상태 배지 — status 값별 색상/라벨
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; bg: string; fg: string }> = {
+    pending: {
+      label: "대기 중",
+      bg: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+      fg: "var(--color-warning)",
+    },
+    approved: {
+      label: "승인",
+      bg: "color-mix(in srgb, var(--color-success) 15%, transparent)",
+      fg: "var(--color-success)",
+    },
+    rejected: {
+      label: "거절",
+      bg: "color-mix(in srgb, var(--color-error) 15%, transparent)",
+      fg: "var(--color-error)",
+    },
+    waiting: {
+      label: "대기접수",
+      bg: "color-mix(in srgb, var(--color-info) 15%, transparent)",
+      fg: "var(--color-info)",
+    },
+  };
+  const cfg = map[status] ?? {
+    label: status,
+    bg: "var(--color-elevated)",
+    fg: "var(--color-text-muted)",
+  };
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: cfg.bg, color: cfg.fg }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// 등록 경로 통계 카드 — accent 톤 단일 (conventions.md "admin 빨간색 본문 금지" 준수)
+function ViaStatCard({ label, count, icon }: { label: string; count: number; icon: string }) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-[4px] border p-3"
+      style={{ borderColor: "var(--color-border)", background: "var(--color-elevated)" }}
+    >
+      <span
+        className="material-symbols-outlined text-2xl"
+        style={{ color: "var(--color-accent)" }}
+      >
+        {icon}
+      </span>
+      <div>
+        <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
+          {label}
+        </p>
+        <p className="text-lg font-bold" style={{ color: "var(--color-text-primary)" }}>
+          {count}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /* ============================================================
  * 2026-05-11 Phase 3-C — 토큰 발송 도구 (CSV 다운로드 + 카톡 메시지 일괄 복사)
