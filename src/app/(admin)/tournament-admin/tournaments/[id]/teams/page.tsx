@@ -346,6 +346,17 @@ export default function TournamentTeamsPage() {
             <span className="material-symbols-outlined text-base align-middle mr-1">chat</span>
             카톡 메시지 복사
           </button>
+          {/* 2026-05-11 Phase 3-B — 종별 standings 기반 순위전 placeholder 자동 채우기 */}
+          <button
+            type="button"
+            onClick={() => advancePlaceholders(id, showToast)}
+            className="btn btn--sm"
+            style={{ background: "var(--color-info)", color: "#fff", borderColor: "var(--color-info)" }}
+            title="모든 종별 예선 종료 후 순위전(A조 N위 vs B조 N위) 자동 매핑"
+          >
+            <span className="material-symbols-outlined text-base align-middle mr-1">trending_up</span>
+            순위전 자동 채우기
+          </button>
         </div>
       </div>
 
@@ -698,6 +709,36 @@ function downloadTokenCsv(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+/* Phase 3-B — 종별 standings 기반 순위전 placeholder 자동 채우기 */
+async function advancePlaceholders(
+  tournamentId: string,
+  toast: (msg: string) => void,
+): Promise<void> {
+  if (!confirm("모든 종별 순위전 placeholder 매치를 standings 기반으로 자동 채우시겠습니까?\n\n조별 예선 종료 후 사용하세요. 이미 채워진 슬롯은 보호됩니다.")) {
+    return;
+  }
+  try {
+    const res = await fetch(`/api/web/admin/tournaments/${tournamentId}/advance-placeholders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      toast(json.error ?? "자동 채우기 실패");
+      return;
+    }
+    const upd = json.total_updated ?? 0;
+    const skip = json.total_skipped ?? 0;
+    const err = json.total_errors ?? 0;
+    toast(`자동 채우기 완료 — 업데이트 ${upd}건 / 스킵 ${skip}건${err > 0 ? ` / 에러 ${err}건` : ""}`);
+    // 페이지 새로고침 (매치 페이지 진입 시 채워진 슬롯 확인용)
+    setTimeout(() => window.location.reload(), 1500);
+  } catch {
+    toast("네트워크 오류");
+  }
 }
 
 // 카톡 메시지 일괄 복사 — 클립보드에 팀별 안내문 합쳐서 복사

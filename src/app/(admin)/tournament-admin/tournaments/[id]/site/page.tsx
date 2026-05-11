@@ -4,9 +4,14 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+// 2026-05-11: BDR 브랜드 hex hardcode 단일화
+import { BDR_PRIMARY_HEX } from "@/lib/constants/colors";
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
+// 미리보기 시뮬레이션 — 사용자가 선택할 수 있는 사이트 템플릿의 미리보기용 hex.
+// CSS 변수 (`var(--*)`) 미사용 의도: 미리보기 카드는 실제 사이트의 적용 결과를
+// 시각적으로 시뮬레이션해야 함 → 사용자의 다크/라이트 모드 영향을 받지 않도록 고정 hex.
 const TEMPLATES = [
   {
     slug: "classic-tournament",
@@ -34,10 +39,14 @@ const TEMPLATES = [
   },
 ];
 
+// 색상 팔레트 — 사용자가 대회 사이트 primary 색상으로 고를 수 있는 선택지.
+// `BDR_PRIMARY_HEX` 만 lib/constants/colors.ts 단일 source 적용 (브랜드 원색은 단일 관리).
+// 그 외 팔레트는 사용자 선택지 자체가 의도 → 별도 상수화 X.
 const COLOR_PRESETS = [
   { hex: "#1B3C87", name: "토스 블루" },
   { hex: "#EF4444", name: "레드" },
-  { hex: "#E31B23", name: "오렌지" },
+  // 2026-05-11 fix — 기존 "오렌지" 라벨은 hex (#E31B23 = BDR Red) 와 불일치 → "BDR Red" 로 정정
+  { hex: BDR_PRIMARY_HEX, name: "BDR Red" },
   { hex: "#22C55E", name: "그린" },
   { hex: "#8B5CF6", name: "퍼플" },
   { hex: "#FBBF24", name: "골드" },

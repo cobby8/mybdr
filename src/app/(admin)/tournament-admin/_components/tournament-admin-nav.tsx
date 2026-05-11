@@ -19,14 +19,16 @@ export function TournamentAdminNav() {
     <header className="border-b border-[var(--color-border)] bg-[var(--color-card)]">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <Link href="/tournament-admin" className="font-bold text-[var(--color-primary)]">대회 관리</Link>
+          {/* 헤더 타이틀 = 본문 텍스트 (빨강 금지) */}
+          <Link href="/tournament-admin" className="font-bold text-[var(--color-text-primary)]">대회 관리</Link>
           <nav className="hidden gap-1 md:flex">
             {navItems.map((item) => {
               const active = item.href === "/tournament-admin"
                 ? pathname === "/tournament-admin"
                 : pathname.startsWith(item.href);
               return (
-                <Link key={item.href} href={item.href} className={`rounded-full px-4 py-2 text-sm transition-colors ${active ? "bg-[rgba(27,60,135,0.12)] font-medium text-[var(--color-primary)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
+                // 활성 탭 = accent 강조 / 비활성 = muted → text-primary hover
+                <Link key={item.href} href={item.href} className={`rounded-full px-4 py-2 text-sm transition-colors ${active ? "bg-[rgba(27,60,135,0.12)] font-medium text-[var(--color-accent)]" : "text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"}`}>
                   {item.label}
                 </Link>
               );
