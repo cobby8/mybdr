@@ -47,6 +47,8 @@ interface RunningScoreGridProps {
   homeTeamName: string;
   awayTeamName: string;
   disabled?: boolean;
+  // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
+  frameless?: boolean;
 }
 
 // FIBA 양식 = 4 세트, 각 세트 = 40 row, A|B 두 컬럼
@@ -69,6 +71,7 @@ export function RunningScoreGrid({
   homeTeamName,
   awayTeamName,
   disabled,
+  frameless,
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
@@ -149,12 +152,17 @@ export function RunningScoreGrid({
   // 1~ROWS_PER_SET (40) 의 row 인덱스 배열
   const rowIndexes = Array.from({ length: ROWS_PER_SET }, (_, i) => i + 1);
 
+  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
+  const wrapperStyle: React.CSSProperties = frameless
+    ? {}
+    : { border: "1px solid var(--color-border)" };
+  const wrapperClass = frameless
+    ? "fiba-frameless flex w-full flex-col"
+    : "flex w-full flex-col";
+
   return (
-    // Phase 7-A — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X / 단일 외곽 박스
-    <div
-      className="flex w-full flex-col"
-      style={{ border: "1px solid var(--color-border)" }}
-    >
+    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
+    <div className={wrapperClass} style={wrapperStyle}>
       {/* 제목 — FIBA 양식 라벨 */}
       <div
         className="flex items-center justify-between px-2 py-1"

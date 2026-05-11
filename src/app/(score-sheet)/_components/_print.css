@@ -1,9 +1,16 @@
 /**
- * FIBA SCORESHEET 인쇄 CSS — Phase 6 (2026-05-12).
+ * FIBA SCORESHEET 인쇄 CSS — Phase 6 + Phase 8 PDF 1:1 정합 (2026-05-12).
  *
  * 왜 (이유):
  *   FIBA 양식 = A4 세로 1 페이지 종이 기록지. 운영자가 경기 종료 후 "인쇄" 버튼 1번
  *   클릭으로 시안 그대로 종이 PDF 저장 / 출력 가능해야 함. 의존성 0 (`window.print()` 만).
+ *
+ *   Phase 8 (2026-05-12) — FIBA PDF 1:1 픽셀 정합 (사용자 결재):
+ *     - 단일 외곽 박스 (검정 1px solid) + 내부 1px 분할선 (5 카드 분리 폐기)
+ *     - 헤더 컴팩트 (한 줄 4 라벨)
+ *     - Players 행 ~28px (15행 박제)
+ *     - Footer 가로 펼침 (Scorer/Asst/Timer/Shot Clock 한 줄 + Referee/Umpire 1·2 한 줄)
+ *     - border 검정 (#000) 인쇄 정합 + rounded 0 + shadow X
  *
  *   기존 `globals.css` `@media print` = 박스스코어 A4 가로 (landscape) 룰 박제됨.
  *   본 파일 = score-sheet 페이지 전용 A4 세로 (portrait) 룰 — 스코프 prefix
@@ -12,8 +19,7 @@
  * 방법 (어떻게):
  *   - `@page :score-sheet { size: A4 portrait; margin: 8mm }` — FIBA 양식 여백 정합
  *   - `.no-print` 클래스 = 인쇄 시 제거 (toolbar / 모달 / Toast / 안내 카드 등)
- *   - `.score-sheet-print-root` 안의 5 영역 (FibaHeader / TeamSection 2개 /
- *     RunningScoreGrid / PeriodScoresSection / FooterSignatures) 인쇄 시 비율 정합
+ *   - `.score-sheet-fiba-frame` = Phase 8 단일 외곽 박스 (스크린 + 인쇄 공통)
  *   - 다크모드 (html.dark / [data-theme="dark"]) 진입 시도 시 인쇄 = 항상 라이트
  *     배경 흰 + 텍스트 검정 강제 (--color-* 토큰 인쇄 override)
  *
@@ -21,9 +27,52 @@
  *   - var(--*) 토큰만 (인쇄 시 override 도 토큰 단)
  *   - lucide-react ❌ (Material Symbols 만 — 인쇄 시 글꼴 fallback)
  *   - 빨강 본문 텍스트 ❌ (인쇄 시 모든 텍스트 검정 강제)
- *   - 박스 border 1px solid 회색 (#cccccc — FIBA 양식 정합)
+ *   - 박스 border 1px solid 검정 (#000 — FIBA PDF 정합 / Phase 8)
  *   - 한 페이지 강제 (page-break-after: always)
  */
+
+/* ============================================================
+   Phase 8 — 스크린 (인쇄 X) 표시용 단일 외곽 박스 + 내부 분할선
+   ============================================================ */
+/* 외곽 박스 = 검정 1px solid + rounded 0 + shadow X (FIBA PDF 정합).
+   라이트 모드 = 검정 / 다크 모드 = 흰색 (대비 보장).
+   인쇄 시 = @media print 가 검정 강제 (아래) */
+.score-sheet-fiba-frame {
+  border: 1px solid var(--color-text-primary, #000);
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--color-bg, #ffffff);
+}
+
+/* md (768px) 이상에서 좌·우 분할선 표시. Tailwind 의 md: variant 안에서 직접 클래스 적용 불가 →
+   별도 미디어쿼리로 처리. */
+@media (min-width: 768px) {
+  .score-sheet-fiba-frame .md-fiba-divider-right {
+    border-right: 1px solid var(--color-text-primary, #000);
+  }
+}
+
+/* 내부 분할선 — 5 영역 사이 1px solid (검정/흰).
+   적용: 박스 안 자식 .fiba-divider-bottom / .fiba-divider-right */
+.score-sheet-fiba-frame .fiba-divider-bottom {
+  border-bottom: 1px solid var(--color-text-primary, #000);
+}
+.score-sheet-fiba-frame .fiba-divider-right {
+  border-right: 1px solid var(--color-text-primary, #000);
+}
+.score-sheet-fiba-frame .fiba-divider-top {
+  border-top: 1px solid var(--color-text-primary, #000);
+}
+
+/* frameless 모드 — Phase 8 단일 박스 안에 들어간 자식 컴포넌트들.
+   자체 border / shadow / radius 제거. 부모 박스의 단일 외곽이 시각적 frame.
+   각 컴포넌트가 frameless prop 시 본 클래스 적용. */
+.score-sheet-fiba-frame .fiba-frameless {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
 
 /* ============================================================
    @media print — score-sheet 페이지 진입 시 적용
@@ -102,14 +151,35 @@
     background: #e0e0e0 !important;
   }
 
-  /* border = 회색 1px 통일 (FIBA 양식 정합) */
+  /* border = 검정 1px 통일 (FIBA PDF 정합 / Phase 8 — 회색 → 검정).
+     이유: 사용자 결재 §5 — FIBA PDF 정합 + 인쇄 시 더 진한 표시 */
   .score-sheet-print-root section,
   .score-sheet-print-root table,
   .score-sheet-print-root th,
   .score-sheet-print-root td,
   .score-sheet-print-root input,
   .score-sheet-print-root textarea {
-    border-color: #cccccc !important;
+    border-color: #000000 !important;
+  }
+
+  /* Phase 8 — 단일 외곽 박스 + 내부 분할선 인쇄 정합 */
+  .score-sheet-print-root .score-sheet-fiba-frame {
+    border-color: #000000 !important;
+    background: #ffffff !important;
+    border-radius: 0 !important;
+  }
+  .score-sheet-print-root .fiba-divider-bottom {
+    border-bottom-color: #000000 !important;
+  }
+  .score-sheet-print-root .fiba-divider-right {
+    border-right-color: #000000 !important;
+  }
+  .score-sheet-print-root .fiba-divider-top {
+    border-top-color: #000000 !important;
+  }
+  .score-sheet-print-root .fiba-frameless {
+    border: none !important;
+    box-shadow: none !important;
   }
 
   /* input / textarea = 배경 흰 + 검정 텍스트 (라이트 강제).

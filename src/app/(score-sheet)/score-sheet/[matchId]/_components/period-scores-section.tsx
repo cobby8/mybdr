@@ -37,6 +37,8 @@ interface PeriodScoresSectionProps {
   //   onAdvancePeriod 와 동일 동작이지만 caller 가 toast 분기
   onEndPeriod?: () => void;
   disabled?: boolean;
+  // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
+  frameless?: boolean;
 }
 
 export function PeriodScoresSection({
@@ -47,6 +49,7 @@ export function PeriodScoresSection({
   onRetreatPeriod,
   onEndPeriod,
   disabled,
+  frameless,
 }: PeriodScoresSectionProps) {
   // Period 별 합산
   const lines = sumByPeriod(state);
@@ -62,14 +65,16 @@ export function PeriodScoresSection({
     return `OT${period - 4}`;
   }
 
+  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
+  const innerBorderStyle: React.CSSProperties = frameless
+    ? {}
+    : { border: "1px solid var(--color-border)" };
+  const innerBorderClass = frameless ? "fiba-frameless" : "";
+
   return (
     <div className="flex w-full flex-col gap-2">
-      {/* Period 표 — FIBA 양식 정합 (Phase 7-A: rounded-0) */}
-      <div
-        style={{
-          border: "1px solid var(--color-border)",
-        }}
-      >
+      {/* Period 표 — FIBA 양식 정합 (Phase 7-A: rounded-0 / Phase 8: frameless 옵션) */}
+      <div className={innerBorderClass} style={innerBorderStyle}>
         <div
           className="flex items-center justify-between px-2 py-1"
           style={{
@@ -249,13 +254,20 @@ export function PeriodScoresSection({
         )}
       </div>
 
-      {/* Final Score + Winner (Phase 7-A: rounded-0) */}
+      {/* Final Score + Winner (Phase 7-A: rounded-0 / Phase 8: frameless 옵션) */}
       <div
-        className="px-3 py-2"
-        style={{
-          border: "1px solid var(--color-border)",
-          backgroundColor: "var(--color-surface)",
-        }}
+        className={frameless ? "fiba-frameless px-3 py-2" : "px-3 py-2"}
+        style={
+          frameless
+            ? {
+                // frameless: 단일 외곽 박스 안 — 상단 분할선만 (border-top)
+                borderTop: "1px solid var(--color-text-primary)",
+              }
+            : {
+                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-surface)",
+              }
+        }
       >
         <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
           Final Score
