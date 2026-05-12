@@ -93,6 +93,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[Phase B 정합성 가드 + callbackUrl fix]** A) extractRedirectFromQuery + extractRedirectFromValues 헬퍼 신규 (redirect 우선 / callbackUrl 폴백) → login page + auth.ts loginAction + /api/auth/login OAuth 시작점 통합 (proxy.ts 가 callbackUrl 박제 → 사일런트 무시 사고 영구 차단). B-1) createTournament service `seriesId?: bigint` + `$transaction` 카운터 +1 + wizard route requireSeriesOwner 권한 검증. B-2) `/api/web/tournaments/[id]` DELETE 핸들러 신규 (soft=status='cancelled' / hard=`?hard=1` super_admin only + series 카운터 -1 + adminLog warning/critical). vitest +22 (redirect +10 / create-tournament +4 / delete +6 / 회귀 +2). tsc 0 / vitest 563/563 PASS. Flutter v1 영향 0 / schema 변경 0 / 운영 DB 변경 0. B-3 cron audit = 별 PR 큐잉. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 10]** 정밀 디자인 fix (Critical 4 + Major 3) — §B 헤더 underscore (큰 박스 폐기) / §C Players 15행 (fillRowsTo12 → fillRowsTo15 alias 유지) + 행 24→22px / §E Time-outs 빈 박스 + 마킹 시 X 글자 / §F Team fouls 1·2·3·4 빈 박스 + 마킹 시 검정 채움 (1·2·3·4 라벨 폐기) / §G Player Fouls 1-5 빈 박스 + 마킹 시 P/T/U/D 글자만. §A·§D 결재 = BDR 브랜드 + 자동 fill 유지 (변경 0). 2 파일. tsc 0 / vitest 543/543 PASS (기존 541 + 신규 2 alias 회귀 가드). A4 fit 좌측 ~1058px / 1123 안 fit ✓. 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 9]** A4 1 페이지 fit + 레이아웃 재배치 — 좌측 Team A+B 세로 분할 (FIBA PDF 정합) / 우측 Running+Period+Final 누적 / Footer 최하단 가로 1~2줄 (Notes frameless 시 폐기) / Players 행 28→24px / 폰트 압축 (헤더 13px / 라벨 10 / 데이터 11~12 / 인쇄 8pt) / @page margin 8→6mm / fiba-frame 198mm×285mm 강제. 7 파일. tsc 0 / vitest 541 PASS. 좌측 ~975px / 우측 ~1025px (A4 1123 안에 fit ✓). 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase A 즉시 fix]** 운영 사고 3종 차단 — (A-1) `/tournament-admin/series/new` organization 드롭다운 추가 (owner/admin + approved 필터) (A-2) `/(web)/series/new` alert 폼 → admin redirect 통합 (A-3) `scripts/_temp/series-counter-recompute.ts` DRY-RUN/APPLY 모드 분리. tsc 0 / vitest 541 PASS / DRY-RUN 실측 = 진단 fact 일치 (series id=8 0→12 / org id=3 0→1). schema 변경 0 / Flutter v1 영향 0. APPLY 는 사용자 승인 후 별 turn 실행 | ✅ |
@@ -102,8 +103,6 @@
 | 2026-05-12 | d89f600 | **[live]** score-match swap-aware 백포트 — 5/10 결승 영상 사고 2차 fix | ✅ |
 | 2026-05-12 | ff190a7 | **[live]** 결승 영상 매핑 오류 fix — auto-register 1:1 매핑 가드 백포트 | ✅ |
 | 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |
-| 2026-05-12 | eead692 | **[stats]** 통산 스탯 3 결함 일괄 — mpg 모달 회귀 + 승률 source + FG%/3P% NBA 표준 | ✅ |
-| 2026-05-12 | 714eda3 | **[stats]** 통산 mpg 단위 변환 — DB 초 → 표시 분 (사용자 보고) | ✅ |
 
 ## 구현 기록 (developer) — FIBA Phase 10 정밀 디자인 fix (2026-05-12)
 
@@ -303,6 +302,109 @@
 #### 수정 이력
 | 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
 |------|------|----------|----------|------|
+
+---
+
+## 구현 기록 (developer) — Phase B 정합성 가드 + callbackUrl fix (2026-05-12)
+
+📝 구현 범위: callbackUrl 폴백 헬퍼 + createTournament series_id 통합 + Tournament DELETE API + vitest +22
+
+### A. callbackUrl 1줄 fix (운영 사고 차단)
+
+**근본 원인**: proxy.ts middleware (`src/proxy.ts:145, 152`) 가 비로그인 보호 페이지 접근 시
+`/login?callbackUrl=...` 으로 redirect → 로그인 페이지/액션은 `redirect` 만 읽음 → 로그인 후 홈
+복귀 (사용자 사례: `/tournament-admin/series/new` 접근 → 로그인 후 홈으로).
+
+**fix**: `extractRedirectFromQuery(searchParams)` + `extractRedirectFromValues((key) => value)`
+헬퍼 신규. redirect 우선 / callbackUrl 폴백 / 둘 다 무효 → null. 모든 호출처 통일.
+
+### B-1. createTournament service 통합
+
+**근본 원인**: 직접 createTournament 호출 path (wizard 외) 가 series_id 박제 자체 안 하고 +1
+박제도 없음 → 운영 series id=8 stored=0 / actual=12 사고.
+
+**fix**: `CreateTournamentInput.seriesId?: bigint | null` 추가. seriesId 있으면 `$transaction`
+안에서 (1) tournament INSERT (2) tournament_series.tournaments_count +1 원자 처리. 둘 중 하나
+실패 시 전체 롤백. seriesId 미전송/null = 기존 단발 INSERT (회귀 0).
+
+### B-2. Tournament DELETE API 신규
+
+**근본 원인**: `/api/web/tournaments/[id]/route.ts` GET/PATCH 만 — 대회 삭제 흐름 자체 없음.
+
+**fix**:
+- **Soft DELETE (default)**: status='cancelled' UPDATE + 카운터 변경 X (현재 룰 = status 무관 전체
+  count). 권한 = organizer 본인 + super_admin (TAM 도 통과). 이미 cancelled 면 멱등 처리.
+- **Hard DELETE (`?hard=1`)**: tournament 실제 삭제 + series 카운터 -1 ($transaction). 권한 =
+  super_admin only. FK 위반 시 409 (관련 매치/팀 사전 정리 책임은 운영자).
+- adminLog 박제: soft = warning / hard = critical.
+
+### 변경 파일
+
+| # | 파일 | 변경 | 신규/수정 |
+|---|------|------|----------|
+| A-1 | `src/lib/auth/redirect.ts` | `extractRedirectFromQuery()` + `extractRedirectFromValues()` 헬퍼 추가 (60 LOC) | 수정 |
+| A-2 | `src/app/(web)/login/page.tsx` | `safeRedirect` → `extractRedirectFromQuery` 교체 (callbackUrl 폴백) | 수정 |
+| A-3 | `src/app/actions/auth.ts` | loginAction redirect/callbackUrl FormData 둘 다 폴백 처리 | 수정 |
+| A-4 | `src/app/api/auth/login/route.ts` | OAuth 시작점 callbackUrl 폴백 (bdr_redirect 쿠키 박제) | 수정 |
+| B-1 | `src/lib/services/tournament.ts` | `CreateTournamentInput.seriesId` 추가 + `$transaction` 카운터 +1 통합 (~25 LOC) | 수정 |
+| B-1 | `src/app/api/web/tournaments/route.ts` | seriesId 파싱 + requireSeriesOwner 권한 검증 + createTournament 전달 (~20 LOC) | 수정 |
+| B-2 | `src/app/api/web/tournaments/[id]/route.ts` | DELETE 핸들러 신규 — soft/hard 모드 + 카운터 동기화 + adminLog (~110 LOC) | 수정 |
+| 테스트 | `src/__tests__/lib/auth/redirect.test.ts` | extractRedirectFromQuery + extractRedirectFromValues 케이스 +10 | 수정 |
+| 테스트 | `src/__tests__/lib/services/create-tournament-series-counter.test.ts` | createTournament seriesId +4 케이스 | 신규 |
+| 테스트 | `src/__tests__/api/tournament-delete.test.ts` | DELETE soft/hard/권한/FK +6 케이스 | 신규 |
+
+### B-3 (cron audit) 처리
+
+**별 PR 큐잉** — 본 turn = 핵심 2건 (createTournament + DELETE) 안전 완료. cron audit 은 운영
+추가 안전망이라 별 PR로 분리 (vercel.json/vercel.ts 분기 + 시나리오 정리 필요).
+
+### 검증 결과
+
+- **tsc --noEmit**: 0 에러
+- **vitest**: 563/563 PASS (이전 541 + 신규 22)
+  - 신규: `src/__tests__/lib/services/create-tournament-series-counter.test.ts` 4/4
+  - 신규: `src/__tests__/api/tournament-delete.test.ts` 6/6 (apiSuccess snake_case 변환 룰 1회 fix 후)
+- **Flutter v1 영향 0**: `/api/v1/` 내 createTournament / series_id / tournaments_count 사용 0건 grep
+- **schema 변경 0** / **운영 DB 변경 0** (코드만)
+- **grep 회귀 0**: BigInt(N)n / lucide-react / 핑크-살몬-코랄 모두 0건
+
+### 💡 tester 참고
+
+- **callbackUrl 흐름 검증**:
+  1. 비로그인 상태 `/tournament-admin` 진입 → `/login?callbackUrl=%2Ftournament-admin` redirect 확인
+  2. 로그인 → `/tournament-admin` 정상 복귀 (이전엔 홈으로)
+  3. OAuth 카카오/구글 로그인도 동일 (callbackUrl 케이스 → bdr_redirect 쿠키 → 콜백 복귀)
+- **createTournament + seriesId 검증**:
+  1. `/tournament-admin/series/new` → 시리즈 생성 후 → wizard create 에서 seriesId 동봉 POST →
+     tournament_series.tournaments_count +1 확인
+  2. seriesId 미전송 (개인 대회) → 카운터 변경 0 (회귀 가드)
+- **DELETE 검증**:
+  1. organizer 본인 → DELETE → status='cancelled' (soft)
+  2. organizer 본인 + `?hard=1` → 403 (super_admin 만)
+  3. super_admin + `?hard=1` → 실제 삭제 + series 카운터 -1
+  4. 이미 cancelled 대회 DELETE → 멱등 (응답 키 = `already_cancelled`, snake_case 변환됨)
+- **주의할 입력**:
+  - Hard DELETE 대회에 매치/팀 잔존 시 → 409 (FK 위반). 사전 정리 후 재시도.
+  - seriesId 권한 없는 시리즈로 createTournament POST → 403 (requireSeriesOwner)
+
+### ⚠️ reviewer 참고
+
+- **callbackUrl 폴백 우선순위**: redirect 우선 / callbackUrl 폴백 (proxy.ts 호환). 향후 proxy.ts
+  를 redirect 로 통일하면 callbackUrl 폴백 제거 가능 (현 PR 에선 기존 호출처 영향 회피 위해 보존).
+- **createTournament $transaction 분기**: seriesId 있을 때만 `$transaction` 사용 — 기존 단발
+  INSERT 호출자는 회귀 0 (transaction 부담 없음). Prisma `Prisma.TournamentUncheckedCreateInput`
+  타입으로 변경 (raw FK series_id 박제 위해 — 기존 connect 패턴 0건이라 회귀 0).
+- **DELETE Soft 가 카운터 변경 X**: 현재 카운터 룰 = status 무관 전체 count. 만약 cancelled 를
+  카운터에서 빼야 하는 정책 변경 시 본 코드 + DRY-RUN 스크립트 동시 갱신 필요.
+- **DELETE Hard 의 admin_logs.resource_id**: tournament.id 는 UUID 문자열인데 admin_logs.resource_id
+  는 BigInt 라 박제 불가 → resourceId: undefined 박제 + description 에 UUID 명시 (tournament_soft_delete
+  도 동일).
+- **B-3 cron audit 큐잉 사유**: 본 turn 핵심 (createTournament + DELETE) 완료 후 별 PR 로 분리.
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-05-12 | tournament-delete.test.ts `alreadyCancelled` → `already_cancelled` | `src/__tests__/api/tournament-delete.test.ts` | apiSuccess 자동 snake_case 변환 룰 (errors.md 2026-04-17 패턴 5회 재발 회피) |
 
 ---
 
