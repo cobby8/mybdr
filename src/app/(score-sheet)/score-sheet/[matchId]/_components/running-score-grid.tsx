@@ -37,6 +37,7 @@ import {
   undoLastMark,
   addMark,
 } from "@/lib/score-sheet/running-score-helpers";
+import { getPeriodColor } from "@/lib/score-sheet/period-color";
 import { PlayerSelectModal } from "./player-select-modal";
 
 interface RunningScoreGridProps {
@@ -367,6 +368,12 @@ function RunningScoreCell({
   const markGlyph =
     mark.points === 1 ? "●" : mark.points === 2 ? "◉" : "◎";
 
+  // Phase 17 (2026-05-13) — 쿼터별 색 매핑 (사용자 결재 §2 / 이미지 14:00 KST).
+  //   왜: FIBA 단색 → 운영자 인지 향상. Q1~Q4 + OT 별 색 차이로 마킹 시점 한눈에.
+  //   어떻게: getPeriodColor(mark.period) 헬퍼 단일 source.
+  //   글리프 색 + 등번호 색 모두 동일 (마킹 단위 통일).
+  const periodColor = getPeriodColor(mark.period);
+
   return (
     <button
       type="button"
@@ -374,18 +381,20 @@ function RunningScoreCell({
       className="flex w-full items-center justify-center gap-0.5 text-[8px] font-semibold"
       style={{
         ...baseStyle,
-        // 마지막 = accent 음영 강조 / 그 외 = 진한 surface
+        // 마지막 = accent 음영 강조 / 그 외 = 진한 surface (배경은 Q별 색 영향 X — 글자만)
         backgroundColor: isLast
           ? "color-mix(in srgb, var(--color-accent) 25%, var(--color-bg))"
           : "color-mix(in srgb, var(--color-text-primary) 8%, var(--color-bg))",
-        color: "var(--color-text-primary)",
+        // Phase 17 — 글자 색 = Q별 색 (이전 var(--color-text-primary) 하드코딩 → 동적)
+        color: periodColor,
       }}
       aria-label={`칸 ${position} 마킹${isLast ? " (마지막 — 해제 가능)" : ""}`}
       title={`#${position} · ${mark.points}점 · P${mark.period}${
         jerseyNumber !== null ? ` · #${jerseyNumber}` : ""
       }`}
     >
-      <span style={{ color: "var(--color-accent)" }}>{markGlyph}</span>
+      {/* Phase 17 — 글리프 색 = Q별 색 (이전 accent 하드코딩 → 동적). */}
+      <span style={{ color: periodColor }}>{markGlyph}</span>
       {jerseyNumber !== null && <span>{jerseyNumber}</span>}
     </button>
   );
