@@ -55,7 +55,9 @@
   aspect-ratio: 210 / 297; /* A4 비율 강제 (210:297) — min-content > aspect height 면 박스 자동 늘어남 */
   min-height: 297mm; /* A4 세로 최소 보장 — 풋터 잘림 방지 */
   margin: 0 auto;
-  border: 1px solid var(--color-text-primary, #000);
+  /* Phase 19 (2026-05-13) — 외곽 border 1px → 2px (사용자 결재 §1 / FIBA 정합).
+     이유: FIBA 종이기록지 외곽선이 굵음. 내부 분할선 1px 유지로 시각 hierarchy 분리. */
+  border: 2px solid var(--color-text-primary, #000);
   border-radius: 0;
   box-shadow: none;
   background: var(--color-bg, #ffffff);
@@ -205,6 +207,8 @@
        aspect-ratio 화면 강제 + 인쇄 시 mm 단위 정확 fit. */
   .score-sheet-print-root .score-sheet-fiba-frame {
     border-color: #000000 !important;
+    /* Phase 19 — 인쇄 외곽 border 2px (FIBA 정합 / 사용자 결재 §1) */
+    border-width: 2px !important;
     background: #ffffff !important;
     border-radius: 0 !important;
     width: 210mm !important;

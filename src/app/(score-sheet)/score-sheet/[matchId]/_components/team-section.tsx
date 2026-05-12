@@ -224,9 +224,11 @@ export function TeamSection({
   const sectionStyle: React.CSSProperties = frameless
     ? {}
     : { border: "1px solid var(--color-border)" };
-  // Phase 9 — Team 영역 ~37% (목표 ~415px) 안에 fit. px-1 py-1 더 컴팩트.
+  // Phase 19 (2026-05-13) — padding 강화 (사용자 결재 §5 / 여백 4~6px 일관).
+  //   px-1 py-1 → px-2 py-1 (좌우 padding 8px / 시인성 ↑).
+  //   A4 fit 영향: 좌우 padding 변화만 → 세로 합 영향 0 (좌측 col 폭은 50% 안에 유지).
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-1 py-1"
+    ? "fiba-frameless w-full px-2 py-1"
     : "w-full p-3";
 
   return (
@@ -239,15 +241,18 @@ export function TeamSection({
           - 라벨 = "Team A" Title case (FIBA PDF 정합) / ~10px 작은 글자
           - 데이터 = 팀명 + border-bottom underscore line
           왜: FIBA 종이기록지는 "Team A ____슬로우____" 같이 라벨 + underscore line. */}
-      <div className="mb-0.5 flex items-baseline gap-1.5">
+      {/* Phase 19 (2026-05-13) — 헤더 폰트 강화 (사용자 결재 §2).
+          - 라벨 sideLabel "Team A" = 10px bold uppercase (FIBA 정합)
+          - 데이터 teamName = 13px semibold (Team 강조 / 헤더 hierarchy 일관 with FibaHeader). */}
+      <div className="mb-1 flex items-baseline gap-1.5">
         <span
-          className="shrink-0 text-[10px] font-semibold"
+          className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           {sideLabel}
         </span>
         <span
-          className="min-w-0 flex-1 truncate pb-0 text-[12px]"
+          className="min-w-0 flex-1 truncate pb-0 text-[13px] font-semibold"
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",
@@ -280,8 +285,9 @@ export function TeamSection({
             FIBA 종이기록지 표준 = 3×2 = 6칸 (전반 2 + 후반 3 + 여유 1).
             grid-cols-3 × 2 row = 6 고정. OT 진입 시 7~8번째 칸은 자동 행 확장 (3+3+2). */}
       <div className="shrink-0">
+        {/* Phase 19 — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2 / bold 10px 통일) */}
         <div
-          className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           <span>Time-outs</span>
@@ -401,8 +407,9 @@ export function TeamSection({
           Phase 16 (2026-05-13) — flex-1 → shrink-0 + ml-auto (우측 정렬 / 사용자 결재 §4).
             FIBA PDF 정합 = Time-outs 좌측 / Team fouls 우측. flex-1 은 부모 justify-between 활용. */}
       <div className="ml-auto min-w-0 shrink-0">
+        {/* Phase 19 — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2) */}
         <div
-          className="mb-0.5 text-right text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-0.5 text-right text-[10px] font-bold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           Team fouls
@@ -437,25 +444,23 @@ export function TeamSection({
                     className="flex min-w-0 flex-1 items-center gap-px"
                   >
                     <span
-                      // Phase 13 — w-8 → w-7 / text-[10px] → text-[9px] (라벨 압축)
-                      className="w-7 shrink-0 text-[9px] uppercase"
+                      // Phase 19 — 라벨 9px → 10px bold uppercase (사용자 결재 §2 / FIBA 정합).
+                      //   width w-7 → w-8 (10px bold 글자 fit).
+                      className="w-8 shrink-0 text-[10px] font-bold uppercase"
                       style={{ color: "var(--color-text-muted)" }}
                       aria-label={`Period ${period}`}
                     >
-                      {/* Phase 12 — w-12 → w-8 압축 / Phase 13 — w-7 추가 압축. */}
                       P{period}
                     </span>
-                    {/* Phase 11 §1 (2026-05-12) — FIBA 정합 박스 안 1·2·3·4 라벨 복원 (reviewer Critical).
-                        Phase 12 — 페어 배치 유지 / 박스 크기 동일 (h-5 w-5).
-                        Phase 13 — 박스 h-5 w-5 → h-[12px] w-[12px] (UI 겹침 fix / 사용자 결재 §2).
-                          글자 9px → 8px / shrink-0 유지.
-                        Phase 17 (2026-05-13) — 채움 색 = periodFillColor (Q별 색). */}
+                    {/* Phase 19 (2026-05-13) — 박스 안 글자 시인성 강화 (사용자 결재 §4).
+                        - 박스 12×12px → 14×14px (시각 hierarchy + 가독성)
+                        - 글자 8px → 9px font-bold (FIBA 정합) */}
                     {[1, 2, 3, 4].map((n) => {
                       const filled = teamCount >= n;
                       return (
                         <div
                           key={n}
-                          className="mark flex h-[12px] w-[12px] shrink-0 items-center justify-center text-[8px] font-semibold"
+                          className="mark flex h-[14px] w-[14px] shrink-0 items-center justify-center text-[9px] font-bold"
                           style={{
                             border: "1px solid var(--color-border)",
                             backgroundColor: filled
@@ -475,13 +480,14 @@ export function TeamSection({
                     {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원).
                         Phase 13 — 글자 9px → 8px / ml-1 → ml-0.5 (압축) */}
                     {ftAwarded && (
+                      // Phase 19 — FT (+N) 안내 글자 8px → 9px font-bold (가독성)
                       <span
-                        className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 text-[8px] font-semibold"
+                        className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 text-[9px] font-bold"
                         style={{ color: "var(--color-warning)" }}
                         aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
                       >
                         <span
-                          className="material-symbols-outlined text-[10px]"
+                          className="material-symbols-outlined text-[11px]"
                           style={{ fontVariationSettings: "'FILL' 1" }}
                         >
                           warning
@@ -497,8 +503,9 @@ export function TeamSection({
           {/* Extra periods (OT) — period 5+ 합산. Phase 12 = 단독 줄 (페어 X)
               Phase 13 — w-8 → w-7 / 박스 h-5 w-5 → h-[12px] w-[12px] 압축 */}
           <div className="flex items-center gap-px">
+            {/* Phase 19 — Extra 라벨 9px → 10px bold uppercase / w-7 → w-8 (페어 라벨과 일관) */}
             <span
-              className="w-7 shrink-0 text-[9px] uppercase"
+              className="w-8 shrink-0 text-[10px] font-bold uppercase"
               style={{ color: "var(--color-text-muted)" }}
             >
               Extra
@@ -514,9 +521,10 @@ export function TeamSection({
               return [1, 2, 3, 4].map((n) => {
                 const filled = otCount >= n;
                 return (
+                  // Phase 19 — Extra 박스 12×12 → 14×14 / 8px → 9px font-bold (페어와 일관)
                   <div
                     key={n}
-                    className="mark flex h-[12px] w-[12px] shrink-0 items-center justify-center text-[8px] font-semibold"
+                    className="mark flex h-[14px] w-[14px] shrink-0 items-center justify-center text-[9px] font-bold"
                     style={{
                       border: "1px solid var(--color-border)",
                       backgroundColor: filled
@@ -555,33 +563,34 @@ export function TeamSection({
                 height: 18,
               }}
             >
+              {/* Phase 19 — 테이블 헤더 라벨 font-semibold → font-bold + tracking-wider (FIBA 정합 / 사용자 결재 §2) */}
               <th
-                className="w-20 px-1 py-0.5 text-left text-[10px] font-semibold uppercase"
+                className="w-20 px-1 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
                 title="Licence = User ID (자동 fill)"
               >
                 Licence (UID)
               </th>
               <th
-                className="px-1 py-0.5 text-left text-[10px] font-semibold uppercase"
+                className="px-1 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
               >
                 Player
               </th>
               <th
-                className="w-10 px-1 py-0.5 text-center text-[10px] font-semibold uppercase"
+                className="w-10 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
               >
                 No.
               </th>
               <th
-                className="w-12 px-1 py-0.5 text-center text-[10px] font-semibold uppercase"
+                className="w-12 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
               >
                 P in
               </th>
               <th
-                className="w-32 px-1 py-0.5 text-center text-[10px] font-semibold uppercase"
+                className="w-32 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--color-text-muted)" }}
               >
                 Fouls 1-5
@@ -661,8 +670,9 @@ export function TeamSection({
                       미연결 (게스트) 선수 = "—" 표시.
                       Phase 9 — py-1 → py-0 (24px 행 fit) / 텍스트 11px */}
                   <td className="px-1 py-0">
+                    {/* Phase 19 — Licence UID 11px → 12px (사용자 결재 §3 데이터 폰트) */}
                     <span
-                      className="block w-full text-[11px] font-mono"
+                      className="block w-full text-[12px] font-mono"
                       style={{
                         color: ejected
                           ? "var(--color-text-muted)"
@@ -680,8 +690,9 @@ export function TeamSection({
                       Phase 16 (2026-05-13) — D 퇴장 아이콘/텍스트 제거 (사용자 결재 §5 / 이미지 39).
                         이유: 좁은 공간 overflow + UI 깨짐. 행 전체 회색 + 비활성화 시각 = 충분 (§5).
                         D 마킹은 Fouls 1번 칸 "D" 글자로 유지. */}
+                  {/* Phase 19 — 선수명 11px → 12px (사용자 결재 §3) */}
                   <td
-                    className="px-1 py-0 text-[11px]"
+                    className="px-1 py-0 text-[12px]"
                     style={{ lineHeight: "1.1" }}
                   >
                     {p.displayName}
@@ -694,8 +705,8 @@ export function TeamSection({
                       </span>
                     )}
                   </td>
-                  {/* 등번호 — read-only. Phase 9 — 11px / py-0 */}
-                  <td className="px-1 py-0 text-center text-[11px]">
+                  {/* Phase 19 — 등번호 11px → 12px font-semibold (사용자 결재 §3 / 등번호 = 시각 중요 데이터) */}
+                  <td className="px-1 py-0 text-center text-[12px] font-semibold">
                     {p.jerseyNumber ?? "—"}
                   </td>
                   {/* Player in 체크 — Phase 9 행 24px fit (h-9 → h-5).
@@ -831,10 +842,12 @@ export function TeamSection({
 
       {/* Coach / Asst Coach 입력 — Phase 8 inline 한 줄 (FIBA PDF 정합).
           "Coach: ____input____   Asst. Coach: ____input____" 같이 라벨 + underscore input */}
-      <div className="grid grid-cols-1 gap-0.5 sm:grid-cols-2 sm:gap-2">
+      {/* Phase 19 — Coach 영역 라벨 bold + 입력 12px (FibaHeader 와 일관 / 사용자 결재 §2·§3).
+          gap-y 0.5 → 1 (라벨 간 4px 여백 일관 / 시인성 ↑). */}
+      <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-2">
         <label className="flex items-baseline gap-1.5 overflow-hidden">
           <span
-            className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+            className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Coach
@@ -845,7 +858,7 @@ export function TeamSection({
             onChange={updateCoach("coach")}
             disabled={disabled}
             maxLength={40}
-            className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
+            className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
             style={{
               color: "var(--color-text-primary)",
               borderBottom: "1px solid var(--color-text-primary)",
@@ -854,7 +867,7 @@ export function TeamSection({
         </label>
         <label className="flex items-baseline gap-1.5 overflow-hidden">
           <span
-            className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+            className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Asst. Coach
@@ -865,7 +878,7 @@ export function TeamSection({
             onChange={updateCoach("asstCoach")}
             disabled={disabled}
             maxLength={40}
-            className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
+            className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
             style={{
               color: "var(--color-text-primary)",
               borderBottom: "1px solid var(--color-text-primary)",
