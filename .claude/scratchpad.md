@@ -23,6 +23,115 @@
 | D | 대진표 고도화 | 진행 중 |
 | **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
 
+## 구현 기록 (developer) — 종별 운영 방식 신규 모드 + 조 설정 UI (Phase 3.5-D / 2026-05-12)
+
+📝 구현 범위: 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전) + 조 크기/조 개수/동순위전 방식 input UI + settings JSON 검증 + vitest 21건.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/division-formats.ts` | **신규** — ALLOWED_FORMATS (9개 enum), FORMAT_LABEL, showGroupSettings / showRankingFormat, validateDivisionSettings (1~32 정수 / round_robin·single_elimination), calculateTotalTeams. server+client 단일 source of truth. | 신규 |
+| `src/__tests__/lib/tournaments/division-formats.test.ts` | **신규** — 21 케이스 (ALLOWED_FORMATS 회귀 / FORMAT_LABEL 모든 enum / showGroupSettings 풀리그 6+조 X 3+null/undefined / showRankingFormat 신규만 / validateDivisionSettings 정상·범위외·legacy 키 호환 / calculateTotalTeams) | 신규 |
+| `src/app/api/web/admin/tournaments/[id]/division-rules/route.ts` | (a) ALLOWED_FORMATS 인라인 → `@/lib/tournaments/division-formats` import. (b) 미사용 z / apiError 제거. | 수정 |
+| `src/app/api/web/admin/tournaments/[id]/division-rules/[ruleId]/route.ts` | (a) ALLOWED_FORMATS / settings 검증 lib 위임. (b) settings zod = record + refine(validateDivisionSettings === null). | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/divisions/page.tsx` | (a) FORMAT_LABEL / showGroupSettings / showRankingFormat 인라인 → lib import. (b) `<GroupSettingsInputs>` 컴포넌트 신규 — 조 크기·조 개수·동순위전 방식 input 3개 + 총 팀 수 계산 안내 + onBlur 저장 (PATCH 재사용). (c) 가이드 항목 추가 ("조별리그 + 동순위 순위결정전 — 4×4=16팀 / 21경기"). (d) FORMAT_LABEL indexing cast (런타임 ?? f 폴백). | 수정 |
+| `src/lib/tournaments/division-advancement.ts` | `generateGroupStageRankingPlaceholders` stub 함수 추가 (후속 PR TODO 명시 — 본 PR 범위 = enum+UI 만). | 수정 |
+| `prisma/schema.prisma` | 코멘트 갱신만 (settings JSON 의 group_size / group_count / ranking_format 키 + group_stage_with_ranking enum). **schema 값 변경 0**. | 수정 |
+
+### 신규 enum 도메인
+- **이름**: `group_stage_with_ranking` (사용자 권장)
+- **라벨**: "조별리그 + 동순위 순위결정전"
+- **의미**: 각 조 풀리그 (group_size 팀 × group_count 조) → 모든 조 동순위끼리 자동 매칭 (1위×N팀 / 2위×N팀 / ...)
+- **`league_advancement` 와 차이**:
+  - league_advancement = settings.linkage_pairs (예: `[[1,2],[3,4]]`) 명시 → 특정 조끼리만
+  - group_stage_with_ranking = group_size/group_count 만 박제 → 모든 동순위 자동 매칭
+
+### settings JSON 형식 (신규 enum)
+```json
+{
+  "group_size": 4,
+  "group_count": 4,
+  "ranking_format": "round_robin"
+}
+```
+- group_size × group_count = 16팀 (예시)
+- ranking_format: "round_robin" / "single_elimination" (default round_robin)
+
+### 조 설정 UI 노출 가드 매트릭스
+| format | showGroupSettings | showRankingFormat |
+|--------|:----------------:|:----------------:|
+| round_robin | ✅ | ❌ |
+| dual_tournament | ✅ | ❌ |
+| group_stage_knockout | ✅ | ❌ |
+| full_league_knockout | ✅ | ❌ |
+| league_advancement | ✅ | ❌ |
+| **group_stage_with_ranking** | ✅ | ✅ ⭐ |
+| single_elimination | ❌ | ❌ |
+| double_elimination | ❌ | ❌ |
+| swiss | ❌ | ❌ |
+| null / undefined | ❌ | ❌ |
+
+### 진출 매핑 stub (후속 PR 큐잉)
+`generateGroupStageRankingPlaceholders` = stub 함수만 박제. 후속 PR TODO:
+1. 종별 settings.group_size / group_count 조회
+2. standings 계산 (기존 getDivisionStandings 재사용)
+3. 1위×group_count / 2위×group_count / ... settings.group_size 위까지 placeholder 매치 자동 생성
+4. notes "{N}위 동순위전" 형식 박제
+5. advanceDivisionPlaceholders 와 동일 standings 기반 자동 채움
+
+→ 본 PR 범위 = enum + UI input 만 (운영자가 group_size / group_count 입력 가능). 실제 매칭 자동 생성은 후속 PR.
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run division-formats` | ✅ 21/21 PASS |
+| `npx vitest run` 전체 | ✅ **626/626 PASS** (이전 605 + 21 신규) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 에 division-rules 호출처 0건) |
+| schema 변경 | ✅ 0 (코멘트만 갱신 / String 필드 그대로) |
+| lucide-react import | ✅ 0건 |
+| 핑크 hex / hotpink / salmon / coral | ✅ 0건 |
+| AppNav frozen 영향 | ✅ 0 |
+| BFF / service 변경 | ✅ 진출 매핑 stub 만 (기존 함수 변경 0) |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / 44px+ 터치 / 4px radius / 빨강 본문 0 |
+
+### 💡 tester 참고
+
+**테스트 방법**:
+1. `/tournament-admin/tournaments/[id]/divisions` 진입 (canManageTournament 권한자)
+2. 각 종별 카드의 "진행 방식" select 에서 **"조별리그 + 동순위 순위결정전"** 옵션 노출 확인
+3. 신규 enum 선택 → 카드 하단에 input 3개 노출:
+   - 조 크기 (팀)
+   - 조 개수
+   - 동순위전 방식 (select: 풀리그 / 싱글 엘리미네이션)
+4. 다른 풀리그 기반 enum (round_robin / dual_tournament / group_stage_knockout / full_league_knockout / league_advancement) 선택 시 → 조 크기 + 조 개수 input 2개만 노출 (ranking_format 숨김)
+5. single_elimination / double_elimination / swiss / "(대회 format 폴백)" 선택 시 → input 전부 숨김
+6. 값 입력 → onBlur (focus 해제) 시 자동 PATCH → settings JSON 박스에 박제 결과 표시
+
+**정상 동작**:
+- 조 크기 4 / 조 개수 4 입력 → "총 16팀 (4 × 4)" 안내 즉시 표시
+- 빈 값 → "조 크기 × 조 개수 = 총 팀 수" 안내
+- settings JSON 박스에 `{"group_size":4,"group_count":4,"ranking_format":"round_robin"}` 표시
+- 가이드 카드 하단에 "조별리그 + 동순위 순위결정전 — 4×4=16팀 / 21경기" 추가 노출
+
+**주의할 입력 (서버 검증 차단)**:
+- 음수 / 0 / 33+ / 소수 / 문자 → input 자체가 거부 (min/max/step) + 서버 422
+- ranking_format = "double_elimination" → 422 (round_robin / single_elimination 만 허용)
+- legacy 키 (linkage_pairs / advanceCount / groupSize camelCase) 동시 박제 → 통과 (호환 유지)
+
+### ⚠️ reviewer 참고
+- **lib/tournaments/division-formats.ts 분리 사유**: server (route.ts × 2) + client (page.tsx) 동일 enum / 검증 룰 사용 → 단일 source of truth + vitest 단위 검증 가능 (route.ts 는 NextRequest 의존성으로 단위 테스트 어려움).
+- **schema 변경 0**: format = String 필드 / settings = Json. enum 추가 = 코멘트만 갱신. prisma migrate 불필요.
+- **진출 매핑 자동 생성은 후속 PR**: 본 PR 은 enum + UI input 박제 만. 운영자가 group_size / group_count 입력은 가능하나, 실제 동순위전 placeholder 자동 생성은 stub. PM 큐잉 보고 필요.
+- **legacy 키 호환**: settings JSON 에 기존 `linkage_pairs` / `groupCount` (camelCase) / `advanceCount` 박제된 종별이 있을 수 있음. validateDivisionSettings 는 이들 키를 검증 안 함 (호환 유지).
+- **onBlur 저장 전략**: 입력 중간 PATCH 폭주 방지. focus 해제 시 1회 PATCH. (debounce 추가 시 별 PR)
+- **FORMAT_LABEL cast**: `(FORMAT_LABEL as Record<string, string>)[f]` — allowedFormats 가 string[] 으로 들어와서 narrow type 매칭 안 됨. 런타임 `?? f` 폴백으로 안전.
+
+### 신규 보안 이슈
+- **0 건** — server 검증 = canManageTournament + IDOR 차단 + zod refine(validateDivisionSettings) 이중 가드. UI 는 보조. settings.group_size / group_count 범위 외 입력 시 422.
+
+---
+
 ## 구현 기록 (developer) — FIBA Phase 15 풋터 Team B 아래 이동 (2026-05-12)
 
 📝 구현 범위: 풋터 위치 = frame 가로 전체 → 좌측 col 안 Team B 아래 (FIBA PDF 정합). 풋터 내부 = 좌측 50% 폭 안 fit 압축 (labelWidth 140→100 / 심판진 가로 3컬럼→세로 3줄).
@@ -542,6 +651,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[Phase 3.5-D — 종별 운영 방식 신규 모드 + 조 설정 UI]** (a) 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전 / league_advancement 와 차이 = settings.linkage_pairs 명시 불필요, group_size/group_count 만 박제). (b) `src/lib/tournaments/division-formats.ts` 신규 — ALLOWED_FORMATS (9개) + FORMAT_LABEL + showGroupSettings (풀리그 6 enum) + showRankingFormat (신규만) + validateDivisionSettings (1~32 정수 / round_robin·single_elimination) + calculateTotalTeams. server (route.ts ×2) + client (page.tsx) 단일 source of truth. (c) divisions/page.tsx 에 `<GroupSettingsInputs>` 컴포넌트 신규 — 조 크기·조 개수·동순위전 방식 input 3개 + 총 팀 수 자동 계산 안내 + onBlur PATCH 저장. (d) 가이드 항목 추가. (e) division-advancement.ts `generateGroupStageRankingPlaceholders` stub 함수 (후속 PR 큐잉). (f) prisma schema 코멘트만 갱신 (값 변경 0 / String 필드). vitest 21건 신규 / tsc 0 / 전체 **626/626 PASS** (605 → +21) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. **후속 PR 큐잉**: 신규 enum 의 동순위전 placeholder 자동 생성 (현재 stub). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 15 — 풋터 Team B 아래 이동 + 경기 종료 버튼 frame 외부]** (a) score-sheet-form.tsx: `<FooterSignatures>` 위치 = frame 가로 (grid 외부) → **좌측 col 안 Team B 아래 마지막 child** (FIBA PDF 정합 / 사용자 결재 §1 / 이미지 35). Team B section `fiba-divider-bottom` 래핑. (b) footer-signatures.tsx: frameless 운영진 labelWidth 140→**100** / 심판진 grid-cols-3 가로→**flex flex-col 세로 3줄** + labelWidth=100 / 주장 labelWidth=100 추가 (좌측 50% 폭 안 fit). (c) MatchEndButton + 라인업 다시 선택 = frame 외부 그대로 (자동 해소). A4 fit 재검증: 좌측 ~920 / 우측 ~960 / 헤더 95 + max(920, 960) = 1055px (A4 1121 안 여유 ~66px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0 / 핑크 0 / lucide 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 14 — A4 정확 비율 + 재배치]** (a) `_print.css`: `.score-sheet-fiba-frame` width 100% + max-width 210mm + **aspect-ratio: 210/297 강제** (화면 A4 정확) + overflow hidden. 인쇄 = 210×297mm + @page margin 0 (박스 = 종이 1:1). (b) Time-outs grid-cols-2 → **grid-cols-3 × 2 = 6 고정 칸** (FIBA 표준 / 사용자 결재 §1). 6번째 = "여유 (OT 활성)". (c) 풋터 운영진 가로 1줄 → **세로 4줄** (Phase 13 회귀 복원 / 사용자 결재 §2). labelWidth=140 / compact prop 제거 (사용처 0). (d) 요소비율 통일 — 박스 18px (Time-outs/P IN/Fouls 1-5) + Team Fouls 박스 12px / 라벨 10px (풋터) / 9px (Team Fouls). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 13 — UI 겹침 fix + 압축]** (a) TIME-OUTS 가로 6칸 → 2×N grid (사용자 결재 §1). 박스 18px. (b) Team Fouls 박스 12px + 라벨 9px + FT 안내 8px (P2/2FT 겹침 fix §2). (c) 체크박스 P IN + FOULS 1-5 = 24→18px (§3). (d) Players 행 20→18px (§4 / 12×18=216). (e) 풋터 운영진 4명 세로→가로 1줄 4컬럼 (§5 / -82px). 좌측 ~857px (A4 여유 ~266px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |

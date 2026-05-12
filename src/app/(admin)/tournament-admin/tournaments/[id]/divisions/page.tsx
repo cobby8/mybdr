@@ -23,6 +23,13 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+// 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
+import {
+  FORMAT_LABEL,
+  showGroupSettings,
+  showRankingFormat,
+  calculateTotalTeams,
+} from "@/lib/tournaments/division-formats";
 
 interface DivisionRule {
   id: string;
@@ -36,16 +43,8 @@ interface DivisionRule {
   settings: Record<string, unknown> | null;
 }
 
-const FORMAT_LABEL: Record<string, string> = {
-  single_elimination: "싱글 엘리미네이션",
-  double_elimination: "더블 엘리미네이션",
-  round_robin: "풀리그 (Round Robin)",
-  dual_tournament: "듀얼 토너먼트",
-  group_stage_knockout: "조별리그 + 토너먼트",
-  full_league_knockout: "풀리그 + 토너먼트",
-  league_advancement: "링크제 (각조 동순위전)",
-  swiss: "스위스 라운드",
-};
+// FORMAT_LABEL / showGroupSettings / showRankingFormat = lib/tournaments/division-formats.ts 로 이동 (Phase 3.5-D)
+// 사유: server (route.ts) + client (page.tsx) 양쪽에서 동일 enum 사용 + vitest 단위 검증 가능.
 
 export default function DivisionsSetupPage() {
   const params = useParams();
@@ -230,7 +229,8 @@ export default function DivisionsSetupPage() {
                     <option value="">(대회 format 폴백)</option>
                     {allowedFormats.map((f) => (
                       <option key={f} value={f}>
-                        {FORMAT_LABEL[f] ?? f}
+                        {/* FORMAT_LABEL 타입 = DivisionFormat narrow → string indexing 위해 cast (런타임은 ?? f 폴백) */}
+                        {(FORMAT_LABEL as Record<string, string>)[f] ?? f}
                       </option>
                     ))}
                   </select>
@@ -240,7 +240,18 @@ export default function DivisionsSetupPage() {
                 </div>
               </div>
 
-              {/* settings JSON 표시 (편집 X, 별 PR 보강 가능) */}
+              {/* 2026-05-12 Phase 3.5-D — 조 크기 / 조 개수 입력 (풀리그 기반 진행 방식만) */}
+              {showGroupSettings(r.format) && (
+                <GroupSettingsInputs
+                  ruleId={r.id}
+                  format={r.format}
+                  settings={r.settings}
+                  saving={savingId === r.id}
+                  onSave={(patch) => updateRule(r.id, { settings: patch })}
+                />
+              )}
+
+              {/* settings JSON 표시 (디버깅용 — 운영자가 박제 결과 검증) */}
               {r.settings && Object.keys(r.settings).length > 0 && (
                 <div className="mt-2 rounded-[4px] bg-[var(--color-elevated)] p-2 text-xs text-[var(--color-text-muted)]">
                   <strong>settings:</strong> {JSON.stringify(r.settings)}
@@ -288,9 +299,160 @@ export default function DivisionsSetupPage() {
           <li>• <strong>듀얼 토너먼트</strong> — 4조×4팀 미니 더블엘리미 → 8강 → 결승 (16팀, 27경기)</li>
           <li>• <strong>풀리그</strong> — 모든 팀끼리 한 번씩. 승점 합산</li>
           <li>• <strong>조별리그 + 토너먼트</strong> — 조별 1·2위 본선 진출</li>
-          <li>• <strong>링크제 (각조 동순위전)</strong> — i3-U9 표준. 예선 → 1·2위 결정전 / 3·4위 결정전</li>
+          <li>• <strong>링크제 (각조 동순위전)</strong> — i3-U9 표준. 예선 → 1·2위 결정전 / 3·4위 결정전 (linkage_pairs 명시)</li>
+          {/* 2026-05-12 Phase 3.5-D — 신규 enum 가이드 */}
+          <li>• <strong>조별리그 + 동순위 순위결정전</strong> — 각 조 풀리그 → 1위×N팀 / 2위×N팀 ... 동순위전 자동 매칭. 4×4=16팀 / 9경기+12경기 ≈ 21경기</li>
         </ul>
       </Card>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-12 Phase 3.5-D — 조 설정 입력 컴포넌트 (group_size / group_count / ranking_format)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 동작:
+//   - 진행 방식이 풀리그 기반일 때만 노출 (showGroupSettings 가드)
+//   - 입력값 변경 → onSave 호출 (debounce 없음 — onBlur 기준)
+//   - 신규 enum (group_stage_with_ranking) 시 ranking_format select 추가 노출
+//   - 빈 값 = undefined 박제 (settings JSON 에서 제외)
+//
+// 검증:
+//   - 1~32 정수 (서버 zod 와 동일)
+//   - 음수/소수/0 입력 시 input 자체가 거부 (min/max/step)
+//
+function GroupSettingsInputs(props: {
+  ruleId: string;
+  format: string | null;
+  settings: Record<string, unknown> | null;
+  saving: boolean;
+  onSave: (settings: Record<string, unknown>) => void;
+}) {
+  const { format, settings, saving, onSave } = props;
+
+  // 기존 settings 의 group_size / group_count / ranking_format 추출 (legacy 키 호환)
+  const initialGroupSize =
+    typeof settings?.group_size === "number" ? settings.group_size : null;
+  const initialGroupCount =
+    typeof settings?.group_count === "number" ? settings.group_count : null;
+  const initialRankingFormat =
+    typeof settings?.ranking_format === "string"
+      ? (settings.ranking_format as string)
+      : "round_robin";
+
+  // 로컬 상태 (input 입력값) — 빈 문자열 허용 (사용자가 일시적으로 비울 수 있음)
+  const [groupSize, setGroupSize] = useState<string>(
+    initialGroupSize != null ? String(initialGroupSize) : "",
+  );
+  const [groupCount, setGroupCount] = useState<string>(
+    initialGroupCount != null ? String(initialGroupCount) : "",
+  );
+  const [rankingFormat, setRankingFormat] = useState<string>(initialRankingFormat);
+
+  // 총 팀 수 계산 (group_size × group_count) — division-formats.ts 헬퍼 사용
+  const totalTeams = calculateTotalTeams(
+    groupSize !== "" ? Number(groupSize) : null,
+    groupCount !== "" ? Number(groupCount) : null,
+  );
+
+  // 저장 트리거 — 기존 settings + 신규 키 머지 (legacy linkage_pairs / advanceCount 보존)
+  const handleSave = () => {
+    const next: Record<string, unknown> = { ...(settings ?? {}) };
+
+    // group_size / group_count: 빈 값이면 키 삭제
+    if (groupSize === "") delete next.group_size;
+    else next.group_size = Number(groupSize);
+
+    if (groupCount === "") delete next.group_count;
+    else next.group_count = Number(groupCount);
+
+    // ranking_format: 신규 enum 일 때만 박제 (다른 format 은 의미 없음)
+    if (showRankingFormat(format)) {
+      next.ranking_format = rankingFormat;
+    }
+
+    onSave(next);
+  };
+
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+      <label className="text-xs text-[var(--color-text-muted)]">
+        조 크기 (팀)
+        <input
+          type="number"
+          min={1}
+          max={32}
+          step={1}
+          value={groupSize}
+          disabled={saving}
+          onChange={(e) => setGroupSize(e.target.value)}
+          onBlur={handleSave}
+          className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+            minHeight: 44,
+          }}
+          placeholder="예: 4"
+        />
+      </label>
+      <label className="text-xs text-[var(--color-text-muted)]">
+        조 개수
+        <input
+          type="number"
+          min={1}
+          max={32}
+          step={1}
+          value={groupCount}
+          disabled={saving}
+          onChange={(e) => setGroupCount(e.target.value)}
+          onBlur={handleSave}
+          className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+          style={{
+            borderColor: "var(--color-border)",
+            background: "var(--color-card)",
+            color: "var(--color-text-primary)",
+            minHeight: 44,
+          }}
+          placeholder="예: 4"
+        />
+      </label>
+      {/* 신규 enum 만 ranking_format select 노출 */}
+      {showRankingFormat(format) && (
+        <label className="text-xs text-[var(--color-text-muted)]">
+          동순위전 방식
+          <select
+            value={rankingFormat}
+            disabled={saving}
+            onChange={(e) => setRankingFormat(e.target.value)}
+            onBlur={handleSave}
+            className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-card)",
+              color: "var(--color-text-primary)",
+              minHeight: 44,
+            }}
+          >
+            <option value="round_robin">풀리그</option>
+            <option value="single_elimination">싱글 엘리미네이션</option>
+          </select>
+        </label>
+      )}
+      {/* 총 팀 수 안내 — 모든 컬럼 가로 펼침 */}
+      <p
+        className={
+          showRankingFormat(format)
+            ? "col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3"
+            : "col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3"
+        }
+      >
+        {totalTeams != null
+          ? `총 ${totalTeams}팀 (${groupSize} × ${groupCount})`
+          : "조 크기 × 조 개수 = 총 팀 수"}
+      </p>
     </div>
   );
 }
