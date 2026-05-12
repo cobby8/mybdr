@@ -1,5 +1,6 @@
 /**
  * 2026-05-12 — 코치 명단 수정용 — 인증 통과 후 기존 명단 fetch.
+ * 2026-05-13 — 최초 1회 코치 정보 setup 흐름 추가 (manager_name/phone NULL 케이스 입력값으로 SET).
  *
  * POST /api/web/team-apply/[token]/players
  *   body: { manager_name, manager_phone }
@@ -70,16 +71,47 @@ export async function POST(
     return apiError("아직 명단이 제출되지 않은 토큰입니다.", 400, "NOT_SUBMITTED");
   }
 
-  // 인증 매칭
+  // 인증 매칭 — 4-분기 (2026-05-13)
+  //   사유: 운영자가 수동 등록한 팀 중 manager_* 가 비어있는 케이스(GNBA 8팀 등)에서
+  //         코치가 자가수정 페이지에 진입조차 못하던 문제 해결.
+  //         토큰 자체가 256bit 비밀이라 "토큰 보유자 = 정당한 코치" 보안 모델로 충분.
   const inputName = manager_name.trim();
   const inputPhone = normalizePhoneStr(manager_phone);
   const dbName = (tt.manager_name ?? "").trim();
   const dbPhone = normalizePhoneStr(tt.manager_phone ?? "");
-  if (!dbName || !dbPhone) {
-    return apiError("코치 정보가 등록되지 않은 팀입니다.", 409, "COACH_INFO_MISSING");
+
+  // 분기 1: 둘 다 있음 → 기존 매칭 검증 (현행 유지)
+  if (dbName && dbPhone) {
+    if (inputName !== dbName || inputPhone !== dbPhone) {
+      return apiError("코치 이름 또는 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
   }
-  if (inputName !== dbName || inputPhone !== dbPhone) {
-    return apiError("코치 이름 또는 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+  // 분기 2: 이름만 있음 → 이름 매칭 후 phone 만 UPDATE
+  else if (dbName && !dbPhone) {
+    if (inputName !== dbName) {
+      return apiError("코치 이름이 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_phone: inputPhone },
+    });
+  }
+  // 분기 3: 전화만 있음 → 전화 매칭 후 name 만 UPDATE
+  else if (!dbName && dbPhone) {
+    if (inputPhone !== dbPhone) {
+      return apiError("코치 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_name: inputName },
+    });
+  }
+  // 분기 4: 둘 다 없음 → 입력값으로 둘 다 UPDATE (최초 setup, 무조건 통과)
+  else {
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_name: inputName, manager_phone: inputPhone },
+    });
   }
 
   // 기존 명단 fetch

@@ -1,10 +1,11 @@
 /**
  * 2026-05-12 — 코치 명단 수정 페이지 (사용자 요청).
+ * 2026-05-13 — manager_* 미등록 팀 가드 제거 + hasCoachInfo prop 전달 (최초 1회 setup 흐름).
  *
  * 흐름:
  *   1. URL: /team-apply/[token]/edit
  *   2. server fetch: 토큰 + applied_via='coach_token' 검증 (이미 제출된 토큰만)
- *   3. client: 코치 이름 + 전화번호 인증 모달
+ *   3. client: 코치 이름 + 전화번호 인증 (hasCoachInfo=false 면 setup 흐름)
  *   4. 인증 통과 시 → 기존 명단 fetch (POST /players) → 수정 폼 (TeamApplyForm)
  *   5. 저장 → PUT /api/web/team-apply/[token] (DELETE + INSERT 트랜잭션)
  */
@@ -59,14 +60,10 @@ export default async function TeamApplyEditPage({ params }: PageProps) {
     );
   }
 
-  if (!tt.manager_name || !tt.manager_phone) {
-    return (
-      <ErrorView
-        title="코치 정보 없음"
-        message="이 팀은 코치 이름·연락처가 등록되지 않아 자가 수정이 불가합니다. 운영자에게 문의하세요."
-      />
-    );
-  }
+  // 2026-05-13 — manager_* 미등록 팀 가드 제거.
+  //   기존: ErrorView 로 페이지 진입 차단 (의도와 정반대)
+  //   변경: hasCoachInfo prop 으로 EditFlow 에 위임 — 미등록 팀은 setup 흐름 진입
+  const hasCoachInfo = !!(tt.manager_name && tt.manager_phone);
 
   // 종별 룰 fetch (수정 시에도 동일 검증)
   const divisionRule = tt.category
@@ -106,13 +103,16 @@ export default async function TeamApplyEditPage({ params }: PageProps) {
           {tt.tournament.name} · 종별 {tt.category ?? "—"} · 현재 등록 {tt._count.players}명
         </p>
         <p className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
-          최초 등록한 코치 이름과 연락처로 인증 후 수정 가능합니다.
+          {hasCoachInfo
+            ? "최초 등록한 코치 이름과 연락처로 인증 후 수정 가능합니다."
+            : "이 팀은 아직 코치 정보가 등록되지 않았습니다. 입력하신 이름·연락처가 본인 인증 정보로 저장됩니다."}
         </p>
       </div>
 
       <EditFlow
         token={token}
         teamName={tt.team?.name ?? "(이름 없음)"}
+        hasCoachInfo={hasCoachInfo}
         divisionRule={
           divisionRule
             ? {
