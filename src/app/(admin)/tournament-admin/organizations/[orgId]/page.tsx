@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 // 2026-05-12 PR3 — "기존 대회 가져오기" 모달 (다건 흡수)
 import AbsorbTournamentsModal from "./_components/AbsorbTournamentsModal";
+// 2026-05-12 Phase D-1 — 시리즈 카드 ⋮ 메뉴 (분리 / 이동)
+import SeriesActionsMenu from "./_components/SeriesActionsMenu";
 
 /* ============================================================
  * 단체 대시보드 — /tournament-admin/organizations/[orgId]
@@ -429,7 +431,7 @@ export default function OrganizationDashboardPage() {
                     대회 {s.tournamentsCount}개 · {s.slug}
                   </p>
                 </Link>
-                {/* 우측: 액션 버튼 + 진입 화살표 */}
+                {/* 우측: 액션 버튼 + ⋮ 메뉴 + 진입 화살표 */}
                 <div className="flex items-center gap-2">
                   {isAdmin && (
                     <button
@@ -447,6 +449,17 @@ export default function OrganizationDashboardPage() {
                       </span>
                       기존 대회 가져오기
                     </button>
+                  )}
+                  {/* 2026-05-12 Phase D-1 — 단체 owner/admin 만 노출 (isAdmin 가드).
+                      ⋮ → 분리 / 이동. 성공 시 loadOrg 재호출하여 시리즈 카드 갱신. */}
+                  {isAdmin && (
+                    <SeriesActionsMenu
+                      seriesId={s.id}
+                      seriesName={s.name}
+                      currentOrgId={org.id}
+                      currentOrgName={org.name}
+                      onSuccess={loadOrg}
+                    />
                   )}
                   <Link
                     href={`/tournament-admin/series/${s.id}`}
