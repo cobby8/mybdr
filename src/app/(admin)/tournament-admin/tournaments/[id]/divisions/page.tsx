@@ -56,6 +56,13 @@ export default function DivisionsSetupPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 2026-05-12 Phase 3.5-C — 진출 매핑 수동 trigger
+  const [advancingId, setAdvancingId] = useState<string | null>(null);
+  const [advanceResult, setAdvanceResult] = useState<{
+    code: string;
+    updated: number;
+    skipped: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -81,6 +88,34 @@ export default function DivisionsSetupPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // 2026-05-12 Phase 3.5-C — 종별 진출 매핑 수동 실행
+  const advanceDivision = async (ruleId: string, code: string) => {
+    if (!confirm(`"${code}" 종별 진출 매핑을 실행하시겠어요?\n\n예선 종료 후 standings 기반으로 순위전 placeholder 매치를 자동 채웁니다.`)) return;
+    setAdvancingId(ruleId);
+    setAdvanceResult(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/web/admin/tournaments/${tournamentId}/division-rules/${ruleId}/advance`,
+        { method: "POST" },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "매핑 실패");
+        return;
+      }
+      setAdvanceResult({
+        code: json.division_code,
+        updated: json.updated,
+        skipped: json.skipped,
+      });
+    } catch {
+      setError("네트워크 오류");
+    } finally {
+      setAdvancingId(null);
+    }
+  };
 
   const updateRule = async (
     ruleId: string,
@@ -208,6 +243,35 @@ export default function DivisionsSetupPage() {
               {r.settings && Object.keys(r.settings).length > 0 && (
                 <div className="mt-2 rounded-[4px] bg-[var(--color-elevated)] p-2 text-xs text-[var(--color-text-muted)]">
                   <strong>settings:</strong> {JSON.stringify(r.settings)}
+                </div>
+              )}
+
+              {/* 2026-05-12 Phase 3.5-C — 진출 매핑 수동 실행 */}
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-[var(--color-text-muted)]">
+                  예선 종료 후 standings 기반 순위전 자동 매핑
+                </p>
+                <button
+                  type="button"
+                  onClick={() => advanceDivision(r.id, r.code)}
+                  disabled={advancingId === r.id}
+                  className="btn btn--sm"
+                >
+                  {advancingId === r.id ? "실행 중..." : "진출 매핑 실행"}
+                </button>
+              </div>
+
+              {/* 매핑 결과 — 해당 종별만 표시 */}
+              {advanceResult && advanceResult.code === r.code && (
+                <div
+                  className="mt-2 rounded-[4px] border p-2 text-xs"
+                  style={{
+                    borderColor: "var(--color-success)",
+                    background: "color-mix(in srgb, var(--color-success) 8%, transparent)",
+                    color: "var(--color-success)",
+                  }}
+                >
+                  ✅ 매핑 완료 — UPDATE {advanceResult.updated}건 / skip {advanceResult.skipped}건
                 </div>
               )}
             </Card>
