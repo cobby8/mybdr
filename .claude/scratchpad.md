@@ -180,9 +180,79 @@
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 12 12행 + Team Fouls 3줄 (2026-05-12)
+
+### 📝 구현 범위
+Players 16→12행 + Team Fouls 5줄→3줄 (Period ①·② / ③·④ / Extra) + 세로 압축. 사용자 직접 결재 (이미지 29 분석) — FIBA Article 4.2.2 실 운영 max 12명 / FIBA PDF 정합.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (a) fillRowsTo16 → fillRowsTo12 (TARGET=12 / FIBA Article 4.2.2). (b) fillRowsTo16/15 deprecated alias → fillRowsTo12 위임 (회귀 안전망). (c) Team Fouls 레이아웃 5줄 → 3줄 — [1,2 페어] / [3,4 페어] / Extra. 페어 가로 배치 (flex-1 / w-8 "P{n}" 라벨 축약). (d) Players/thead/빈row 코멘트 갱신. | 수정 |
+| `src/__tests__/score-sheet/team-section-fill-rows.test.ts` | 16 → 12 회귀 가드 갱신. fillRowsTo12 메인 4 케이스 + fillRowsTo16/15 deprecated alias 4 케이스 = 8 PASS. | 수정 |
+
+### A4 fit 재검증
+| 영역 | Phase 11 | Phase 12 | 차이 |
+|------|---------|---------|------|
+| Players | 16 × 20 = 320px | **12 × 20 = 240px** | -80 |
+| Team Fouls | 5 줄 × ~12px = 60px | **3 줄 × ~12px = 36px** | -24 |
+| Team A 합 | ~474 | **~370px** | -104 |
+| Team A+B | ~948 | **~740px** | -208 |
+| 헤더 | ~95 | ~95 | 0 |
+| 풋터 | ~156 | ~156 | 0 |
+| **좌측 총합** | ~1011 | **~991px** | A4 1123 여유 ~132px ✅ |
+
+### Team Fouls 3줄 구조 (FIBA PDF 정합)
+```
+P1 [1][2][3][4]   P2 [1][2][3][4]   ← 줄 1 (Period 1+2)
+P3 [1][2][3][4]   P4 [1][2][3][4]   ← 줄 2 (Period 3+4)
+Extra [1][2][3][4]                   ← 줄 3
+```
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | ✅ EXIT_CODE=0 |
+| vitest 전체 | ✅ 605/605 PASS |
+| vitest team-section-fill-rows | ✅ 8/8 PASS (16→12 회귀 가드 + alias 호환) |
+| lucide-react import | 0건 (코멘트 룰 명시만 1건) |
+| 핑크 hex | 0건 |
+| fillRowsTo16/15 호출 | 0건 (alias 정의만 유지 = 회귀 안전망) |
+| schema 변경 | 0 |
+| Flutter v1 영향 | 0 |
+| BFF/service 변경 | 0 |
+| AppNav frozen 영향 | 0 |
+| Phase 3 Player Fouls 기능 유지 | ✅ (P/T/U/D + Article 41) |
+| Phase 3 Team Fouls 자동 합산 유지 | ✅ (getTeamFoulCountByPeriod) |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/[matchId]` 진입 → Team A / Team B 영역 시각 검증
+- **정상 동작**:
+  1. Players 표가 **12행** (이전 16행에서 -4행). 빈 명단이어도 12행 placeholder
+  2. Team Fouls 영역이 **3줄** — P1·P2 한 줄 / P3·P4 한 줄 / Extra 한 줄
+  3. A4 1 페이지 fit (좌측 ~991px / 여유 ~132px)
+  4. Period ①~④ 마킹 자동 합산 / 5+ 시 자유투 안내 (FT (+N)) 유지
+  5. Player Fouls P/T/U/D + Article 41 퇴장 분기 정상
+- **주의할 입력**:
+  - 13명 이상 명단 (12 초과) → 12행 자르지 않고 그대로 표시 (운영 안정성)
+  - OT 진입 시 (currentPeriod >= 5) Time-outs OT 1칸 동적 추가 — Phase 11 동작 유지
+  - 페어 박스 폭이 좁아져 5+ 자유투 안내(FT +N)가 줄바꿈될 수 있음 — 페어 컨테이너 flex-1로 적응
+
+### ⚠️ reviewer 참고
+- **회귀 안전망**: fillRowsTo16/15 deprecated alias가 fillRowsTo12로 위임 — 외부 호출자 0건 확인했지만 vitest로 가드.
+- **Team Fouls 페어 폭**: 좁아진 페어 안에서 5+ FT 안내가 다음 줄로 떨어질 수 있음. flex / min-w-0 / shrink-0 결합으로 적응형 처리.
+- **라벨 축약**: "Period 1" → "P1" (w-12 → w-8) — 페어 가로 fit 위한 결정. FIBA PDF는 ①·②·③·④ 원숫자나 텍스트 인쇄 호환성 위해 P1~P4 표기.
+- **다음 단계**: 시각 검증 (브라우저 /score-sheet/[matchId] 진입 → A4 인쇄 미리보기로 1 페이지 fit 확인).
+
+### 신규 보안 이슈
+- **0 건** — 디자인 + 행 수만 변경. API/권한/DB 0.
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 12 — Players 12행 + Team Fouls 3줄]** (a) fillRowsTo16 → fillRowsTo12 (FIBA Article 4.2.2 실 운영 max 12명 / 사용자 직접 결재). (b) deprecated alias 16/15 → 12 위임 (회귀 안전망). (c) Team Fouls 5줄 → 3줄 — P1·P2 / P3·P4 페어 + Extra. (d) vitest 16 → 12 갱신. 좌측 ~991px (A4 여유 ~132px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase E 단체 lifecycle (Q1 보존)]** E-1) requireOrganizationOwner 헬퍼 + OrganizationPermissionError (owner only — admin 차단 + super_admin 우회 옵션). E-2) POST/DELETE /api/web/organizations/[id]/archive (status='archived'/'approved' 토글, adminLog warning 박제). E-3) ArchiveOrganizationButton confirm 모달 + 운영자 페이지 isOwner 가드 + 헤더 "보관됨" 뱃지 + 단체 목록 active vs archived 분리 (회색 톤) + 공개 페이지 archived 안내 페이지 분기. vitest 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived owner). schema 변경 0 (status=String) / Flutter v1 영향 0 / decisions.md Q1 박제. tsc 0 / vitest 본 PR 10/10 PASS / 전체 601/605 (실패 4건 = 별 PR score-sheet 무관). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase D 단체↔시리즈 셀프서비스]** D-1) 시리즈 카드 ⋮ 메뉴 (SeriesActionsMenu + MoveSeriesModal — 분리 organization_id=null / 이동 본인 owner-admin 단체 목록 radio + confirm). D-2 Q3) canManageTournament 단체 owner/admin 자동 부여 회귀 가드 vitest 9 케이스 (organizer/TAM/단체 owner/admin/member/series_id NULL/super_admin 2종). tsc 0 / vitest 595/595 PASS / Flutter v1 영향 0 / schema 변경 0 / API 신규 0 (Phase C PATCH + 기존 GET 재사용). | ✅ |
 | 2026-05-12 | a3076bc | **[D-3 운영 fix]** B max_teams + A 코치 import 템플릿 + E 권한 자동 부여 + C 단체 편집 모달 | ✅ |
@@ -194,4 +264,3 @@
 | 2026-05-12 | d89f600 | **[live]** score-match swap-aware 백포트 — 5/10 결승 영상 사고 2차 fix | ✅ |
 | 2026-05-12 | ff190a7 | **[live]** 결승 영상 매핑 오류 fix — auto-register 1:1 매핑 가드 백포트 | ✅ |
 | 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |
-| 2026-05-12 | eead692 | **[stats]** 통산 스탯 3 결함 일괄 — mpg + 승률 + FG%/3P% | ✅ |
