@@ -22,6 +22,7 @@ import {
   addMark,
   undoLastMark,
   EMPTY_RUNNING_SCORE,
+  getScoreMarkVariant,
 } from "@/lib/score-sheet/running-score-helpers";
 import type {
   ScoreMark,
@@ -321,5 +322,34 @@ describe("marksToPaperPBPInputs", () => {
     const pbps = marksToPaperPBPInputs(state);
     const ids = pbps.map((p) => p.local_id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+// Phase 18 (2026-05-13) — FIBA 표준 1/2/3점 시각 표기 변형 키 회귀 가드.
+//   왜: UI 컴포넌트 (running-score-grid ScoreMarkIcon + period-color-legend) 양쪽이
+//   본 헬퍼를 단일 source 로 사용 → 변형 키 변경 시 회귀 즉시 감지.
+//   사용자 결재 §2 (이미지 43-44 / FIBA PDF 정합).
+describe("getScoreMarkVariant (Phase 18 FIBA 1/2/3점 시각)", () => {
+  it("1점 (자유투) = 'dot' — 작은 점 ·", () => {
+    expect(getScoreMarkVariant(1)).toBe("dot");
+  });
+
+  it("2점 (필드골) = 'filled' — 큰 점 ●", () => {
+    expect(getScoreMarkVariant(2)).toBe("filled");
+  });
+
+  it("3점 (3점슛) = 'filled-ring' — ● + 외곽 ○", () => {
+    expect(getScoreMarkVariant(3)).toBe("filled-ring");
+  });
+
+  it("변형 키 3종 = dot / filled / filled-ring (UI 분기 단일 source)", () => {
+    // UI ScoreMarkIcon 컴포넌트가 본 키만 분기. 새 키 추가 = 본 vitest + UI 양쪽 동기 필요.
+    const variants = [
+      getScoreMarkVariant(1),
+      getScoreMarkVariant(2),
+      getScoreMarkVariant(3),
+    ];
+    expect(new Set(variants).size).toBe(3); // 3종 = 중복 없음
+    expect(variants).toEqual(["dot", "filled", "filled-ring"]);
   });
 });
