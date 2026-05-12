@@ -183,6 +183,48 @@ export function ScoreSheetForm({
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   const { showToast } = useToast();
 
+  // Phase 16 (2026-05-13) — 사전 확정 라인업 (initialLineup) 진입 시 P.IN 자동 체크 (mount 1회).
+  //   이유: handleLineupConfirm 와 동일한 자동 P.IN 룰 — 사전 라인업 (DB 박제) 으로 진입한
+  //     케이스도 동일하게 출전 명단 자동 체크 (사용자 결재 §1).
+  //   draft 복원 이전 mount 1회 — draft 복원이 playerIn 값을 덮어쓰면 그게 우선 (운영 중 reload).
+  useEffect(() => {
+    if (!initialLineupComputed) return;
+    setTeamA((prev) => {
+      // 이미 playerIn=true 가 일부 존재 (draft 복원 후) = skip (덮어쓰기 X)
+      const hasAny = Object.values(prev.players).some((p) => p.playerIn);
+      if (hasAny) return prev;
+      const next: Record<string, { licence: string; playerIn: boolean }> = {
+        ...prev.players,
+      };
+      const allIds = [
+        ...initialLineupComputed.home.starters,
+        ...initialLineupComputed.home.substitutes,
+      ];
+      for (const id of allIds) {
+        const existing = next[id] ?? { licence: "", playerIn: false };
+        next[id] = { ...existing, playerIn: true };
+      }
+      return { ...prev, players: next };
+    });
+    setTeamB((prev) => {
+      const hasAny = Object.values(prev.players).some((p) => p.playerIn);
+      if (hasAny) return prev;
+      const next: Record<string, { licence: string; playerIn: boolean }> = {
+        ...prev.players,
+      };
+      const allIds = [
+        ...initialLineupComputed.away.starters,
+        ...initialLineupComputed.away.substitutes,
+      ];
+      for (const id of allIds) {
+        const existing = next[id] ?? { licence: "", playerIn: false };
+        next[id] = { ...existing, playerIn: true };
+      }
+      return { ...prev, players: next };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // localStorage draft 복원 (mount 1회)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -608,11 +650,43 @@ export function ScoreSheetForm({
           };
         })();
 
-  // 모달 → 라인업 확정 콜백
+  // 모달 → 라인업 확정 콜백.
+  //
+  // Phase 16 (2026-05-13) — 라인업 확정 시 starters + substitutes 전체 P.IN=true 자동 체크.
+  //   이유: 사용자 결재 §1 — 출전 명단으로 박제된 선수 = 경기 출전 = P.IN 자동 마킹 부담 0.
+  //   기존 동작: 운영자가 12명 P.IN 일일이 체크 → 중복 부담 + 라인업 의미와 모순.
+  //   변경: 모달 confirm 시 양 팀 모든 라인업 선수의 playerIn=true 자동 fill (한 번에).
   function handleLineupConfirm(result: LineupSelectionResult) {
     setLineup(result);
     setLineupModalOpen(false);
-    showToast("라인업 확정 — 출전 명단만 양식에 표시됩니다.", "info");
+    // 양 팀 라인업 (starters + substitutes) 의 모든 선수 playerIn=true 자동 set.
+    // 한 사이드씩 patch — TeamSectionInputs.players 의 기존 값 보존 (licence 등).
+    setTeamA((prev) => {
+      const next: Record<string, { licence: string; playerIn: boolean }> = {
+        ...prev.players,
+      };
+      const allIds = [...result.home.starters, ...result.home.substitutes];
+      for (const id of allIds) {
+        const existing = next[id] ?? { licence: "", playerIn: false };
+        next[id] = { ...existing, playerIn: true };
+      }
+      return { ...prev, players: next };
+    });
+    setTeamB((prev) => {
+      const next: Record<string, { licence: string; playerIn: boolean }> = {
+        ...prev.players,
+      };
+      const allIds = [...result.away.starters, ...result.away.substitutes];
+      for (const id of allIds) {
+        const existing = next[id] ?? { licence: "", playerIn: false };
+        next[id] = { ...existing, playerIn: true };
+      }
+      return { ...prev, players: next };
+    });
+    showToast(
+      "라인업 확정 — 출전 명단 자동 P IN 체크 (스타팅 강조 표시)",
+      "info"
+    );
   }
 
   return (
