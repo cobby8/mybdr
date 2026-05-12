@@ -1,6 +1,18 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-13] dev → main release PR 표준 흐름 (gh CLI)
+- **분류**: convention/workflow
+- **발견자**: pm
+- **내용**:
+  - 표준 명령: `gh pr create --base main --head dev --title "release: ..."` → `gh pr merge <num> --merge --delete-branch=false`
+  - PR body 형식: Summary (포함된 PR 번호 목록) + Test plan (체크박스). HEREDOC 사용.
+  - `--merge` 플래그 = merge commit 생성 (`--no-ff` 효과). squash/rebase 보다 개별 commit 추적 가능 → Vercel 배포 history 와 정합.
+  - `--delete-branch=false` = dev 브랜치 보존 (다음 release 사이클 재사용).
+  - main 머지는 **사용자 명시 요청 + 권한 보유자 (CLAUDE.md §팀 구성 = 수빈/원영) 본인 발화** 시에만 진행. CLI 도구 차단 시 사용자에게 GitHub PR 링크 안내가 안전한 fallback.
+- **참조횟수**: 0
+
+
 ### [2026-05-12] 로그인 redirect 헬퍼 단일 source — `@/lib/auth/redirect`
 - **분류**: convention/auth (open redirect 방어 + 로그인 후 자동 복귀)
 - **발견자**: developer

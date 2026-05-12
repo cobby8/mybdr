@@ -1,9 +1,58 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: FIBA Phase 20 — PTS 집계 + OT 점수 박제 + 여백 검증 (3 issue 통합 fix)
-- **상태**: ✅ Issue 1 fix 완료 / Issue 2 진단 결과 = DB 정상 (UI 측 추가 확인 필요) / Issue 3 코드 검증 완료
+- **요청**: P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 패키지 PR (debugger 진단 후속)
+- **상태**: ✅ 구현 완료 (725 vitest 전수 통과 / tsc 0 / 회귀 0)
 - **모드**: no-stop
+
+## 구현 기록 (developer) — P0 GameTime 역파싱 + P1 divFees 입력 UI (2026-05-13)
+
+📝 구현한 기능:
+- **P0 (Critical)**: GameTimeInput 마운트 시 value 역파싱 (parseGameTime export) — 운영자 저장값 덮어쓰기 차단
+- **P1 (Major)**: RegistrationSettingsForm 디비전 행에 참가비(divFees) input 추가 — 안내문만 있고 입력란 부재 fix
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/components/tournament/game-time-input.tsx` | parseGameTime 헬퍼 export + state 초기값 value 기반 + useEffect skip 가드 (`next === value`) + isCustom 자동 분기 | 수정 |
+| `src/components/tournament/registration-settings-form.tsx` | 디비전 행에 divFees input UI 추가 (팀수 input 옆 "원" 라벨, w-24) | 수정 |
+| `src/__tests__/components/tournament/game-time-input.test.ts` | parseGameTime 6 케이스 (표준값/4쿼터·전후반/논스탑·올데드/빈문자열 null/비표준 null) | **신규** |
+| `.claude/knowledge/errors.md` | P0/P1 원인+fix+재발방지룰 박제 (2건 추가) | 수정 |
+
+🔍 시니어 판단 — P0 fix 4 핵심:
+1. **parseGameTime 단일 정규식** — `^(\d+)분\s+(4쿼터|전후반)\s+(논스탑|올데드)$` 정확 매칭만 인정 / null 반환 시 isCustom 분기 (옛 데이터 보호)
+2. **state 초기값 = parsed?.x ?? 기본값** — 하드코딩 `useState(7)` → `useState(parsed?.minutes ?? 7)`. 마운트 시점부터 value 동기화
+3. **useEffect skip 가드** — `if (next === value) return;` — 마운트 직후 동일값 송신 차단 → 부모 state 덮어쓰기 사이클 끊음
+4. **isCustom 자동 진입** — `useState(value !== "" && !parsed)` — 정규식 미매칭 옛 데이터는 자동 직접입력 모드
+
+🔍 시니어 판단 — P1 fix 단순 배치:
+- divFees 는 부모 wizard 양쪽 (new L130/222/430, edit L149/271/572) 에 이미 통합 — UI 만 단절된 미완 PR
+- 디비전 행에 input 1개 추가 (props 변경 0). onChange: 빈 문자열 → key 삭제 / 0 포함 숫자 → 보존 (0=무료 명시)
+- 스타일: `w-24` (6자리 숫자 여유) / 팀수 input(`w-16`) 과 동일 룩
+
+💡 tester 참고:
+- **P0 회귀 테스트 (vitest 자동 박제)**: `parseGameTime("10분 4쿼터 올데드")` → 정확 / `parseGameTime("7min Q4 nonstop")` → null / `parseGameTime("")` → null
+- **P0 수동 (브라우저)**:
+  1. 편집 wizard → 경기시간 "10분 4쿼터 올데드" 저장
+  2. 새로고침 → 정상: 10분/4쿼터/올데드 pill 유지 (이전: "7분 4쿼터 논스탑" 덮어써졌음)
+- **P1 수동**:
+  1. wizard Step 2 → D3 디비전 추가 → 팀수 input 옆 "원" input 노출
+  2. 50000 입력 → 저장 → DB `tournaments.div_fees = {"D3": 50000}` JSON 박제
+- **주의**: 참가비 0 입력 = 무료 명시 (key 보존) / 빈 문자열 = 기본 entryFee 적용 (key 삭제)
+
+⚠️ reviewer 참고:
+- `parseGameTime` export — vitest 단위 검증용 (컴포넌트 마운트 없이 헬퍼만 검증)
+- useEffect 의존성 `value` 추가 — skip 가드(`next === value`)에서 참조 필수. exhaustive-deps 위반 0
+- divFees input 의 0 입력 분기 = `raw === ""` 체크 (Number 변환 전) — `if (!val)` 패턴은 0을 falsy 로 처리해 삭제하는 버그 회피
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. P0 parseGameTime + state 초기값 + useEffect skip | ✅ 완료 |
+| 2. P1 divFees input UI (디비전 행) | ✅ 완료 |
+| 3. vitest 6 케이스 신규 | ✅ 725/725 전수 통과 (719 → 725 회귀 0) |
+| 4. tsc --noEmit | ✅ EXIT=0 |
+| 5. 회귀 grep (lucide / 핑크 / 살몬) | ✅ 0 |
+| 6. errors.md P0/P1 박제 | ✅ 2건 추가 |
 
 ## 구현 기록 (developer) — FIBA Phase 20 PTS/OT/여백 fix (2026-05-13)
 
@@ -164,6 +213,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-13 | P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 (4 files) | ✅ tsc 0 / vitest 725 / 미커밋 |
 | 2026-05-13 | FIBA Phase 20 PTS 자동 집계 (2 files) — score-sheet BFF running_score → MatchPlayerStat 박제 | ✅ tsc 0 / vitest 719 / 미커밋 |
 | 2026-05-13 | UI-1.1/1.2/1.3 wizard UX 보강 패키지 (4 files) | ✅ tsc 0 / vitest 709 / 미커밋 |
 | 2026-05-13 | 코치 자가수정 — 최초 1회 setup 흐름 추가 (4-분기) | ✅ commit `7689e3f` (4 files, +95 -24) — 미푸시 |
@@ -177,6 +227,8 @@
 ## 미푸시 commit (subin 브랜치)
 - `7689e3f` fix(team-apply): 코치 자가수정 — 최초 1회 setup 흐름 추가
 - (예정) feat(wizard): UI-1.1/1.2/1.3 wizard UX 보강 — PM 커밋 대기
+- (예정) feat(score-sheet): FIBA Phase 20 PTS 자동 집계 — PM 커밋 대기
+- (예정) fix(wizard): P0 GameTime 역파싱 + P1 divFees 입력 UI — PM 커밋 대기
 
 ## 후속 큐 (미진입)
 - UI-1.5 체크리스트 5 신청 정책 카드 → wizard step 2 anchor 점프 (~10분)

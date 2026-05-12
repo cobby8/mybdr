@@ -28,26 +28,49 @@ const DEAD_OPTIONS = [
   { value: "alldead", label: "올데드" },
 ];
 
+// 외부에서 받은 value 문자열을 pill state 로 역파싱
+// 형식: "<숫자>분 (4쿼터|전후반) (논스탑|올데드)"
+// 매칭 실패 시 null 반환 → 호출부에서 직접입력(isCustom) 모드로 전환
+// (이유: 사용자가 옛 데이터 / 수동 입력값을 가졌을 때 강제 프리셋 덮어쓰기 차단)
+export function parseGameTime(
+  value: string,
+): { period: string; minutes: number; dead: string } | null {
+  const m = value.match(/^(\d+)분\s+(4쿼터|전후반)\s+(논스탑|올데드)$/);
+  if (!m) return null;
+  return {
+    minutes: Number(m[1]),
+    period: m[2] === "4쿼터" ? "4Q" : "2H",
+    dead: m[3] === "논스탑" ? "nonstop" : "alldead",
+  };
+}
+
 interface Props {
   value: string;
   onChange: (v: string) => void;
 }
 
 export function GameTimeInput({ value, onChange }: Props) {
-  // 커스텀 입력 모드 토글
-  const [isCustom, setIsCustom] = useState(false);
-  // pill 선택 상태
-  const [period, setPeriod] = useState("4Q");
-  const [minutes, setMinutes] = useState(7);
-  const [dead, setDead] = useState("nonstop");
+  // 마운트 시 value 를 역파싱 — 저장된 값이 있으면 그 값으로 state 초기화
+  // (이유: 기존 코드는 무조건 "7분 4쿼터 논스탑" 으로 덮어써서 사용자 DB 값을 파괴 — P0 fix)
+  const parsed = parseGameTime(value);
+
+  // 커스텀 입력 모드 — value 가 정규식 매칭 안 되면 자동 진입 (옛 데이터 보호)
+  const [isCustom, setIsCustom] = useState(value !== "" && !parsed);
+  // pill 선택 상태 — parsed 가 있으면 그 값, 없으면 기본값(4Q/7분/논스탑)
+  const [period, setPeriod] = useState(parsed?.period ?? "4Q");
+  const [minutes, setMinutes] = useState(parsed?.minutes ?? 7);
+  const [dead, setDead] = useState(parsed?.dead ?? "nonstop");
 
   // pill 조합으로 결과 문자열 생성
   useEffect(() => {
     if (isCustom) return; // 커스텀 모드면 pill 변경 무시
     const periodLabel = period === "4Q" ? "4쿼터" : "전후반";
     const deadLabel = dead === "nonstop" ? "논스탑" : "올데드";
-    onChange(`${minutes}분 ${periodLabel} ${deadLabel}`);
-  }, [period, minutes, dead, isCustom, onChange]);
+    const next = `${minutes}분 ${periodLabel} ${deadLabel}`;
+    // 동일한 값이면 onChange 호출 회피 — 마운트 직후 부모 state 덮어쓰기 차단 (P0 핵심)
+    if (next === value) return;
+    onChange(next);
+  }, [period, minutes, dead, isCustom, onChange, value]);
 
   return (
     <div className="space-y-3">
