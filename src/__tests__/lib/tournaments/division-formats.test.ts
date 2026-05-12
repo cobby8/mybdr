@@ -62,6 +62,23 @@ describe("division-formats — FORMAT_LABEL", () => {
   it("신규 enum 한국어 라벨 = '조별리그 + 동순위 순위결정전'", () => {
     expect(FORMAT_LABEL.group_stage_with_ranking).toBe("조별리그 + 동순위 순위결정전");
   });
+
+  // 2026-05-13 한국 생활체육 농구 표준 용어 통일 (§A) 회귀 가드
+  it("single_elimination 라벨 = '토너먼트' (한국식 통일)", () => {
+    expect(FORMAT_LABEL.single_elimination).toBe("토너먼트");
+  });
+
+  it("round_robin 라벨 = '풀리그' (Round Robin 영문 제거)", () => {
+    expect(FORMAT_LABEL.round_robin).toBe("풀리그");
+  });
+
+  it("double_elimination 라벨 = '더블 토너먼트' (한국식 통일)", () => {
+    expect(FORMAT_LABEL.double_elimination).toBe("더블 토너먼트");
+  });
+
+  it("swiss 라벨 = '스위스 라운드' (일반 명칭 유지)", () => {
+    expect(FORMAT_LABEL.swiss).toBe("스위스 라운드");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────

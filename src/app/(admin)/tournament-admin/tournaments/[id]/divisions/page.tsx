@@ -295,7 +295,9 @@ export default function DivisionsSetupPage() {
       <Card className="bg-[var(--color-elevated)]">
         <h3 className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">진행 방식 가이드</h3>
         <ul className="space-y-1 text-xs text-[var(--color-text-muted)]">
-          <li>• <strong>싱글 엘리미네이션</strong> — 한번 지면 끝. 16팀 → 8 → 4 → 결승</li>
+          {/* 2026-05-13 한국식 용어 통일 (§A) — "싱글 엘리미네이션" → "토너먼트" / "더블 엘리미네이션" → "더블 토너먼트" / "풀리그 (Round Robin)" → "풀리그" */}
+          <li>• <strong>토너먼트</strong> — 한번 지면 끝. 16팀 → 8 → 4 → 결승</li>
+          <li>• <strong>더블 토너먼트</strong> — 한 번 진 팀에게 패자 부활 기회 제공 (16팀 31경기)</li>
           <li>• <strong>듀얼 토너먼트</strong> — 4조×4팀 미니 더블엘리미 → 8강 → 결승 (16팀, 27경기)</li>
           <li>• <strong>풀리그</strong> — 모든 팀끼리 한 번씩. 승점 합산</li>
           <li>• <strong>조별리그 + 토너먼트</strong> — 조별 1·2위 본선 진출</li>
@@ -419,27 +421,48 @@ function GroupSettingsInputs(props: {
           placeholder="예: 4"
         />
       </label>
-      {/* 신규 enum 만 ranking_format select 노출 */}
+      {/* 2026-05-13 — 신규 enum 만 ranking_format 영역 노출. 단, group_count <= 2 이면 드롭다운 대신 안내문 노출
+          (사용자 결재 §B: 2조 이하 = 어떤 방식이든 단판 1경기로 자동 매핑됨)
+          드롭다운 라벨도 한국식: "풀리그" / "토너먼트" */}
       {showRankingFormat(format) && (
-        <label className="text-xs text-[var(--color-text-muted)]">
-          동순위전 방식
-          <select
-            value={rankingFormat}
-            disabled={saving}
-            onChange={(e) => setRankingFormat(e.target.value)}
-            onBlur={handleSave}
-            className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
-            style={{
-              borderColor: "var(--color-border)",
-              background: "var(--color-card)",
-              color: "var(--color-text-primary)",
-              minHeight: 44,
-            }}
-          >
-            <option value="round_robin">풀리그</option>
-            <option value="single_elimination">싱글 엘리미네이션</option>
-          </select>
-        </label>
+        groupCount !== "" && Number(groupCount) <= 2 ? (
+          // 조 2개 이하 — 단판 안내문 (드롭다운 숨김 / settings.ranking_format 기본값 round_robin 박제 유지)
+          <div className="text-xs text-[var(--color-text-muted)]">
+            <span className="block font-medium text-[var(--color-text-primary)]">동순위전 방식</span>
+            <p
+              className="mt-1 rounded-[4px] border px-2 py-2 text-xs leading-relaxed"
+              style={{
+                borderColor: "var(--color-border)",
+                background: "var(--color-elevated)",
+                minHeight: 44,
+              }}
+            >
+              각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)
+            </p>
+          </div>
+        ) : (
+          // 조 3개 이상 — 풀리그 / 토너먼트 선택 드롭다운
+          <label className="text-xs text-[var(--color-text-muted)]">
+            동순위전 방식
+            <select
+              value={rankingFormat}
+              disabled={saving}
+              onChange={(e) => setRankingFormat(e.target.value)}
+              onBlur={handleSave}
+              className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+              style={{
+                borderColor: "var(--color-border)",
+                background: "var(--color-card)",
+                color: "var(--color-text-primary)",
+                minHeight: 44,
+              }}
+            >
+              {/* 2026-05-13 라벨 한국식 통일 — "싱글 엘리미네이션" → "토너먼트" */}
+              <option value="round_robin">풀리그</option>
+              <option value="single_elimination">토너먼트</option>
+            </select>
+          </label>
+        )
       )}
       {/* 총 팀 수 안내 — 모든 컬럼 가로 펼침 */}
       <p

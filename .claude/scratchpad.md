@@ -23,6 +23,77 @@
 | D | 대진표 고도화 | 진행 중 |
 | **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
 
+## 구현 기록 (developer) — 한국식 용어 통일 + group_count 조건부 UI (Phase 3.5-E / 2026-05-13)
+
+📝 구현 범위: FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 + group_count <= 2 일 때 ranking_format 드롭다운 숨김 + 단판 안내문 노출.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/division-formats.ts` | FORMAT_LABEL 3개 라벨 변경 — `single_elimination` "싱글 엘리미네이션" → **"토너먼트"**, `round_robin` "풀리그 (Round Robin)" → **"풀리그"**, `double_elimination` "더블 엘리미네이션" → **"더블 토너먼트"**. swiss / dual_tournament / group_stage_knockout / full_league_knockout / league_advancement / group_stage_with_ranking = 변경 0. enum 값 자체는 변경 X (DB 호환성). 코멘트로 영문 매핑 보존. | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/divisions/page.tsx` | (a) `<GroupSettingsInputs>` 의 ranking_format 영역에 `group_count <= 2` 분기 신규 — 드롭다운 대신 "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내문 노출. (b) 드롭다운 라벨 한국식 — "싱글 엘리미네이션" → "토너먼트" / "풀리그" 그대로. (c) onChange 즉시 setGroupCount → React 자동 재렌더로 토글 즉시 반영 (저장 트리거는 onBlur 그대로). (d) 페이지 하단 가이드 li 일관성 — "싱글 엘리미네이션" → "토너먼트" + "더블 토너먼트" 항목 신규 추가. | 수정 |
+| `src/__tests__/lib/tournaments/division-formats.test.ts` | FORMAT_LABEL 회귀 가드 4건 신규 — `single_elimination`="토너먼트" / `round_robin`="풀리그" / `double_elimination`="더블 토너먼트" / `swiss`="스위스 라운드" 유지. 총 21 → 25건 PASS. | 수정 |
+
+### 라벨 변경 매트릭스
+| enum (DB 박제 — 변경 X) | 변경 전 | 변경 후 |
+|------|--------|--------|
+| `single_elimination` | 싱글 엘리미네이션 | **토너먼트** |
+| `round_robin` | 풀리그 (Round Robin) | **풀리그** |
+| `double_elimination` | 더블 엘리미네이션 | **더블 토너먼트** |
+| `swiss` | 스위스 라운드 | (그대로) |
+| 나머지 5개 | 이미 한국식 | (그대로) |
+
+### group_count 조건부 분기
+| group_count | 노출 | 의미 |
+|------------|------|------|
+| 빈 값 | 드롭다운 노출 (default round_robin) | 사용자가 아직 입력 안 함 |
+| 1, 2 | **안내문 노출 (드롭다운 숨김)** | 2팀 매칭 = 어떤 방식이든 단판 1경기 자동 매핑 |
+| 3+ | 드롭다운 노출 (풀리그 / 토너먼트) | 동순위 팀 3+ → 방식 선택 의미 있음 |
+
+→ default `round_robin` 박제는 그대로 (group_count <= 2 일 때도 settings JSON 에 박제 → 호환성).
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run division-formats` | ✅ 25/25 PASS (이전 21 + 신규 4) |
+| `npx vitest run` 전체 | ✅ **630/630 PASS** (이전 626 + 신규 4) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 에 FORMAT_LABEL / division-formats import 0건) |
+| schema 변경 | ✅ 0 (enum 값 자체 변경 X — 라벨만 한국화) |
+| lucide-react import | ✅ 0건 |
+| 핑크 hex / hotpink / salmon / coral | ✅ 0건 |
+| AppNav frozen 영향 | ✅ 0 |
+| BFF / service 변경 | ✅ 0 |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / 44px+ 터치 / 4px radius |
+
+### 💡 tester 참고
+- **테스트 방법**: `/tournament-admin/tournaments/[id]/divisions` 진입 (canManageTournament 권한자)
+- **정상 동작**:
+  1. **라벨 한국화** — 진행 방식 드롭다운에서 "토너먼트" / "풀리그" / "더블 토너먼트" 노출 (영문 괄호 제거)
+  2. **신규 enum 선택 시** — "조별리그 + 동순위 순위결정전" 선택 → group_size / group_count input 노출
+  3. **group_count 조건부 분기**:
+     - 빈 값 → 동순위전 방식 드롭다운 노출 (default 풀리그)
+     - **1 입력** → 드롭다운 즉시 사라짐 + "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내 박스 표시
+     - **2 입력** → 동일 (안내 박스)
+     - **3 입력** → 드롭다운 다시 노출 (풀리그 / 토너먼트 선택)
+  4. **토글 즉시 반영** — group_count input 변경 즉시 (onBlur 없이) ranking_format 영역 재렌더 (React state)
+  5. **settings JSON 박제** — group_count <= 2 여도 `{"group_size":4,"group_count":2,"ranking_format":"round_robin"}` 박제 유지 (호환성)
+- **주의할 입력**:
+  - group_count = 0 / 음수 → input min=1 으로 거부 (서버 422 이중 가드)
+  - group_count = 3 으로 입력 후 드롭다운에서 "토너먼트" 선택 → "single_elimination" 박제
+  - 가이드 카드 하단에 "더블 토너먼트" 항목 추가 노출 확인
+
+### ⚠️ reviewer 참고
+- **enum 값 그대로** — `single_elimination` / `round_robin` / `double_elimination` 모두 DB / settings.ranking_format 박제 값 변경 X. 라벨만 한국화 → 기존 박제 데이터 호환성 100%.
+- **default `round_robin` 박제 유지** — group_count <= 2 일 때 안내문 노출이지만 settings.ranking_format 은 그대로 박제 (사용자 결재 §B). 추후 group_count 3+ 로 변경 시 기존 값 자연 노출.
+- **onChange 즉시 토글** — setGroupCount 가 React state 변경이라 자동 재렌더 → 조건부 분기 즉시 적용. onBlur 는 저장 트리거만 담당 (분리).
+- **lib import 한국식 라벨 확산 영향 0** — FORMAT_LABEL 을 lib 에서 직접 import 하는 곳은 `divisions/page.tsx` + 테스트 뿐 (grep 검증). 다른 admin 페이지 (wizard / tournaments 목록 / about / hero 등) 는 자체 라벨 매핑 사용 → 별 영향 0.
+
+### 신규 보안 이슈
+- **0 건** — 라벨 / UI 분기만 변경. API / 권한 / DB / schema 영향 0.
+
+---
+
 ## 구현 기록 (developer) — 종별 운영 방식 신규 모드 + 조 설정 UI (Phase 3.5-D / 2026-05-12)
 
 📝 구현 범위: 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전) + 조 크기/조 개수/동순위전 방식 input UI + settings JSON 검증 + vitest 21건.
@@ -651,6 +722,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[Phase 3.5-E — 한국식 용어 통일 + group_count 조건부 UI]** (a) FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 — `single_elimination` "싱글 엘리미네이션" → **"토너먼트"** / `round_robin` "풀리그 (Round Robin)" → **"풀리그"** / `double_elimination` "더블 엘리미네이션" → **"더블 토너먼트"**. swiss / 나머지 = 변경 0. enum 값 자체 = DB 호환성 유지 (라벨만 변경). (b) `<GroupSettingsInputs>` 의 ranking_format 영역에 `group_count <= 2` 분기 — 드롭다운 대신 "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내 박스 노출. group_count 3+ 일 때만 드롭다운 (풀리그 / 토너먼트). onChange 즉시 토글 (React state 재렌더). default `round_robin` 박제 유지 (호환성). (c) 페이지 하단 가이드 li 일관성 — "토너먼트" 추가 + "더블 토너먼트" 신규 추가. (d) vitest 4건 신규 (FORMAT_LABEL 회귀 가드) → 21 → 25건 PASS. tsc 0 / vitest 전체 **630/630 PASS** (626 → +4) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase 3.5-D — 종별 운영 방식 신규 모드 + 조 설정 UI]** (a) 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전 / league_advancement 와 차이 = settings.linkage_pairs 명시 불필요, group_size/group_count 만 박제). (b) `src/lib/tournaments/division-formats.ts` 신규 — ALLOWED_FORMATS (9개) + FORMAT_LABEL + showGroupSettings (풀리그 6 enum) + showRankingFormat (신규만) + validateDivisionSettings (1~32 정수 / round_robin·single_elimination) + calculateTotalTeams. server (route.ts ×2) + client (page.tsx) 단일 source of truth. (c) divisions/page.tsx 에 `<GroupSettingsInputs>` 컴포넌트 신규 — 조 크기·조 개수·동순위전 방식 input 3개 + 총 팀 수 자동 계산 안내 + onBlur PATCH 저장. (d) 가이드 항목 추가. (e) division-advancement.ts `generateGroupStageRankingPlaceholders` stub 함수 (후속 PR 큐잉). (f) prisma schema 코멘트만 갱신 (값 변경 0 / String 필드). vitest 21건 신규 / tsc 0 / 전체 **626/626 PASS** (605 → +21) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. **후속 PR 큐잉**: 신규 enum 의 동순위전 placeholder 자동 생성 (현재 stub). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 15 — 풋터 Team B 아래 이동 + 경기 종료 버튼 frame 외부]** (a) score-sheet-form.tsx: `<FooterSignatures>` 위치 = frame 가로 (grid 외부) → **좌측 col 안 Team B 아래 마지막 child** (FIBA PDF 정합 / 사용자 결재 §1 / 이미지 35). Team B section `fiba-divider-bottom` 래핑. (b) footer-signatures.tsx: frameless 운영진 labelWidth 140→**100** / 심판진 grid-cols-3 가로→**flex flex-col 세로 3줄** + labelWidth=100 / 주장 labelWidth=100 추가 (좌측 50% 폭 안 fit). (c) MatchEndButton + 라인업 다시 선택 = frame 외부 그대로 (자동 해소). A4 fit 재검증: 좌측 ~920 / 우측 ~960 / 헤더 95 + max(920, 960) = 1055px (A4 1121 안 여유 ~66px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0 / 핑크 0 / lucide 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 14 — A4 정확 비율 + 재배치]** (a) `_print.css`: `.score-sheet-fiba-frame` width 100% + max-width 210mm + **aspect-ratio: 210/297 강제** (화면 A4 정확) + overflow hidden. 인쇄 = 210×297mm + @page margin 0 (박스 = 종이 1:1). (b) Time-outs grid-cols-2 → **grid-cols-3 × 2 = 6 고정 칸** (FIBA 표준 / 사용자 결재 §1). 6번째 = "여유 (OT 활성)". (c) 풋터 운영진 가로 1줄 → **세로 4줄** (Phase 13 회귀 복원 / 사용자 결재 §2). labelWidth=140 / compact prop 제거 (사용처 0). (d) 요소비율 통일 — 박스 18px (Time-outs/P IN/Fouls 1-5) + Team Fouls 박스 12px / 라벨 10px (풋터) / 9px (Team Fouls). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0. | ✅ |
