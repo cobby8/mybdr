@@ -373,4 +373,13 @@ describe("setup-status — calculateSetupProgress 종합", () => {
       expect(item.link).toContain(tid);
     }
   });
+
+  // 2026-05-13 UI-1.5 회귀 가드 — 신청 정책(5번) 카드는 wizard 의 RegistrationSettingsForm 영역(Step 2)
+  //   으로 바로 진입하도록 ?step=2 query 가 박제되어야 한다.
+  it("신청 정책(5) 카드 link 는 ?step=2 query 포함 (UI-1.5 회귀 가드)", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const regItem = p.items.find((i) => i.key === "registration");
+    expect(regItem).toBeDefined();
+    expect(regItem?.link).toMatch(/\/wizard\?step=2$/);
+  });
 });
