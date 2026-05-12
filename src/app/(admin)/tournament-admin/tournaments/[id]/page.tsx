@@ -191,7 +191,13 @@ export default async function TournamentAdminDetailPage({
       </div>
 
       {/* ⭐ 셋업 체크리스트 (8 항목 + progress) — 기존 8 메뉴 카드 대체 */}
-      <SetupChecklist progress={progress} />
+      {/* 2026-05-13 UI-5: 공개 게이트 props 추가 (tournamentId / isSitePublished / hasSite) */}
+      <SetupChecklist
+        progress={progress}
+        tournamentId={id}
+        isSitePublished={!!site?.isPublished}
+        hasSite={!!site}
+      />
 
       {/* 보조 액션 (참가팀 / 관리자 / 기록원 / 공개 사이트) */}
       <section className="mt-2">
