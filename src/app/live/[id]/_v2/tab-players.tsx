@@ -17,6 +17,11 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
   // quarter_scores 가 있으면 home.ot 배열 길이 확인. 없으면 false.
   const hasOT = (match.quarter_scores?.home?.ot?.length ?? 0) > 0;
 
+  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 박스스코어 슈팅 6 컬럼 hide.
+  // 종이 기록지 = miss/FG attempted 미박제 → 시도수=성공수=항상 100% → 가짜 정확도 시각 노이즈 차단.
+  // null/undefined (레거시 API 또는 미반영) = false 안전 fallback (Flutter 매치 19 컬럼 그대로).
+  const isPaperMatch = match.recording_mode === "paper";
+
   return (
     <div className="flex flex-col gap-4">
       {/* 홈팀 박스스코어 — 쿼터 필터 / DNP 분리 / TOTAL 행 모두 포함 */}
@@ -26,6 +31,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         players={match.home_players}
         hasOT={hasOT}
         hasQuarterEventDetail={match.has_quarter_event_detail}
+        isPaperMatch={isPaperMatch}
       />
       {/* 원정팀 박스스코어 */}
       <BoxScoreTable
@@ -34,6 +40,7 @@ export function TabPlayers({ match }: { match: MatchDataV2 }) {
         players={match.away_players}
         hasOT={hasOT}
         hasQuarterEventDetail={match.has_quarter_event_detail}
+        isPaperMatch={isPaperMatch}
       />
     </div>
   );

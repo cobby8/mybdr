@@ -32,9 +32,13 @@ const pct = (made: number, attempted: number) =>
 export function PrintBoxScoreArea({
   match,
   printOptions,
+  isPaperMatch = false,
 }: {
   match: MatchDataV2;
   printOptions: PrintOptions | null;
+  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 슈팅 6 컬럼 hide.
+  // game-result.tsx 에서 match.recording_mode === "paper" 산출 후 prop 전달.
+  isPaperMatch?: boolean;
 }) {
   // printOptions 기반 (팀 × 기간) 매핑 — 옛 page.tsx L559-574 의 printSections 로직 카피.
   // 순서: 홈(누적 → 1Q → ... → OT) → 원정(누적 → 1Q → ... → OT)
@@ -97,6 +101,7 @@ export function PrintBoxScoreArea({
             filter={sec.filter}
             filterLabel={sec.label}
             hasQuarterEventDetail={match.has_quarter_event_detail}
+            isPaperMatch={isPaperMatch}
           />
         );
       })}
@@ -124,6 +129,7 @@ function PrintBoxScoreTable({
   filter,
   filterLabel,
   hasQuarterEventDetail,
+  isPaperMatch = false,
 }: {
   teamName: string;
   color: string;
@@ -138,6 +144,8 @@ function PrintBoxScoreTable({
   filter: string; // "all" | "1"~"5"
   filterLabel: string; // "누적 기록" / "1쿼터" / "OT"
   hasQuarterEventDetail: boolean;
+  // 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide
+  isPaperMatch?: boolean;
 }) {
   if (!players || players.length === 0) return null;
 
@@ -353,12 +361,17 @@ function PrintBoxScoreTable({
               <th style={{ textAlign: "left" }}>이름</th>
               <th>MIN</th>
               <th>PTS</th>
-              <th>FG</th>
-              <th>FG%</th>
-              <th>3P</th>
-              <th>3P%</th>
-              <th>FT</th>
-              <th>FT%</th>
+              {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
+              {!isPaperMatch && (
+                <>
+                  <th>FG</th>
+                  <th>FG%</th>
+                  <th>3P</th>
+                  <th>3P%</th>
+                  <th>FT</th>
+                  <th>FT%</th>
+                </>
+              )}
               <th>OR</th>
               <th>DR</th>
               <th>REB</th>
@@ -377,12 +390,17 @@ function PrintBoxScoreTable({
                 <td style={{ textAlign: "left" }}>{p.name}</td>
                 <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
                 <td style={{ fontWeight: 700 }}>{showPlaceholder ? "-" : p.pts}</td>
-                <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}</td>
-                <td>{showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}</td>
-                <td>{showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}</td>
-                <td>{showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}</td>
+                {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
+                {!isPaperMatch && (
+                  <>
+                    <td>{showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}</td>
+                    <td>{showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}</td>
+                    <td>{showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}</td>
+                    <td>{showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}</td>
+                  </>
+                )}
                 <td>{showPlaceholder ? "-" : p.oreb}</td>
                 <td>{showPlaceholder ? "-" : p.dreb}</td>
                 <td>{showPlaceholder ? "-" : p.reb}</td>
@@ -400,28 +418,16 @@ function PrintBoxScoreTable({
                 </td>
               </tr>
             ))}
-            {/* DNP 행 — MIN 셀에 "DNP", 나머지 16개 "-" */}
+            {/* DNP 행 — MIN 셀에 "DNP", 나머지 셀 "-".
+                2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임. */}
             {dnpPlayers.map((p) => (
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
                 <td style={{ fontWeight: 600 }}>DNP</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
+                {Array.from({ length: isPaperMatch ? 10 : 16 }).map((_, idx) => (
+                  <td key={idx}>-</td>
+                ))}
               </tr>
             ))}
             {/* TOTAL 행 — print-total-row 클래스로 상단 굵은 선 + bold */}
@@ -430,12 +436,17 @@ function PrintBoxScoreTable({
               <td style={{ textAlign: "left" }}>TOTAL</td>
               <td>{formatGameClock(total.min_seconds)}</td>
               <td>{showPlaceholder ? "-" : total.pts}</td>
-              <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
-              <td>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
-              <td>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
-              <td>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+              {/* 2026-05-13 FIBA Phase 21: 종이 매치 TOTAL 행도 슈팅 6 컬럼 hide */}
+              {!isPaperMatch && (
+                <>
+                  <td>{showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}</td>
+                  <td>{showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}</td>
+                  <td>{showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}</td>
+                  <td>{showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}</td>
+                </>
+              )}
               <td>{showPlaceholder ? "-" : total.oreb}</td>
               <td>{showPlaceholder ? "-" : total.dreb}</td>
               <td>{showPlaceholder ? "-" : total.reb}</td>
