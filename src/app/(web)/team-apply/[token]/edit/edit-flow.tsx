@@ -2,11 +2,13 @@
 
 /**
  * 2026-05-12 — 코치 명단 수정 흐름.
+ * 2026-05-13 — hasCoachInfo prop 추가 (최초 1회 setup 흐름 분기 — 헤더/버튼 텍스트 변경).
  *
  * Phase 1 (auth): 코치 이름 + 전화번호 인증 입력
  *   - POST /api/web/team-apply/[token]/players body: { manager_name, manager_phone }
  *   - 200 OK = 기존 명단 반환 → Phase 2
  *   - 401 = 인증 실패 (이름/전화 mismatch)
+ *   - hasCoachInfo=false 면 입력값으로 manager_* SET (최초 setup, 무조건 통과)
  *
  * Phase 2 (editing): TeamApplyForm prefill (mode='edit')
  *   - 저장 시 PUT /api/web/team-apply/[token] body: { manager_name, manager_phone, players }
@@ -52,9 +54,12 @@ interface Props {
   token: string;
   teamName: string;
   divisionRule: DivisionRule;
+  // 2026-05-13 — 코치 정보(manager_name/phone) 등록 여부.
+  //   false 면 최초 setup 모드 — 헤더 안내문/버튼 텍스트 분기.
+  hasCoachInfo: boolean;
 }
 
-export function EditFlow({ token, teamName, divisionRule }: Props) {
+export function EditFlow({ token, teamName, divisionRule, hasCoachInfo }: Props) {
   const [phase, setPhase] = useState<"auth" | "editing">("auth");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -134,10 +139,12 @@ export function EditFlow({ token, teamName, divisionRule }: Props) {
         }}
       >
         <h2 className="mb-3 text-base font-bold" style={{ color: "var(--color-text-primary)" }}>
-          코치 인증
+          {hasCoachInfo ? "코치 인증" : "코치 정보 등록"}
         </h2>
         <p className="mb-4 text-sm" style={{ color: "var(--color-text-muted)" }}>
-          최초 명단을 등록한 코치 이름과 연락처로 본인 확인 후 수정 가능합니다.
+          {hasCoachInfo
+            ? "최초 명단을 등록한 코치 이름과 연락처로 본인 확인 후 수정 가능합니다."
+            : "이 팀은 아직 코치 정보가 등록되지 않았습니다. 입력하신 이름·연락처가 본인 인증 정보로 저장되며, 다음부터 같은 정보로 수정할 수 있습니다."}
         </p>
 
         <div className="space-y-3">
@@ -186,7 +193,7 @@ export function EditFlow({ token, teamName, divisionRule }: Props) {
             disabled={verifying}
             className="btn btn--primary"
           >
-            {verifying ? "확인 중..." : "확인 및 수정"}
+            {verifying ? "확인 중..." : hasCoachInfo ? "확인 및 수정" : "등록 및 수정"}
           </button>
         </div>
       </div>

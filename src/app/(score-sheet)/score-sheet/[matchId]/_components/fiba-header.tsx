@@ -81,10 +81,12 @@ export function FibaHeader({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
-  // Phase 11 — 헤더 영역 ~8.5% (목표 ~95px) 압축. px-2 py-0.5 컴팩트 (Phase 9 py-1 → py-0.5).
-  //   이유: Players 16행 (Phase 11) + 풋터 세로 4줄 (Phase 11) 흡수 위해 헤더도 추가 압축.
+  // Phase 19 (2026-05-13) — 시인성 강화 (사용자 결재 §5).
+  //   px-2 py-0.5 → px-3 py-1.5 — 좌우 padding 3 (가독성) / 상하 1.5 (시인성 ↑).
+  //   이전 Phase 11: Players 16행 + 풋터 세로 4줄 흡수 위한 압축이었으나, Phase 12 (12행) + Phase 14
+  //   (A4 정확 비율) 이후 충분 여유 → 헤더 padding 확장 가능.
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-2 py-0.5"
+    ? "fiba-frameless w-full px-3 py-1.5"
     : "w-full px-4 py-3";
 
   return (
@@ -96,26 +98,28 @@ export function FibaHeader({
     //   → FIBA PDF 동일 레이아웃 (4 줄 컴팩트)
     <section className={sectionClass} style={sectionStyle}>
       {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀).
-          Phase 11 §5-2 (2026-05-12) — 로고 24×12 → 30×15 / SCORESHEET 13px → 16px (FIBA 정합 / reviewer Minor).
-          이유: FIBA 종이기록지 로고/타이틀이 더 큼 — 시인성 ↑. */}
-      <div className="mb-0.5 flex items-center justify-between gap-2">
+          Phase 19 (2026-05-13) — 폰트 강화 (사용자 결재 §2 / FIBA 정합 90%+).
+            - 로고 h-4 → h-5 (16px → 20px) / width 30→36 (비율 유지).
+            - "Basketball Daily Routine" 8px → 11px (시인성 ↑).
+            - "SCORESHEET" 16px → 18px bold (FIBA 종이기록지 타이틀 굵음). */}
+      <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Image
             src="/images/logo.png"
             alt="BDR"
-            width={30}
-            height={15}
-            className="h-4 w-auto"
+            width={36}
+            height={18}
+            className="h-5 w-auto"
           />
           <span
-            className="text-[8px] font-semibold uppercase tracking-wider"
+            className="text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Basketball Daily Routine
           </span>
         </div>
         <h1
-          className="text-[16px] font-bold uppercase tracking-widest"
+          className="text-[18px] font-bold uppercase tracking-widest"
           style={{ color: "var(--color-text-primary)" }}
         >
           SCORESHEET
@@ -123,15 +127,16 @@ export function FibaHeader({
       </div>
 
       {/* 2줄 — Team A 라벨 + 팀명 (한 줄)  /  Team B 라벨 + 팀명 (한 줄).
-          FIBA PDF 정합 = 좌우 횡 배치 (각 50% 폭). */}
-      <div className="grid grid-cols-2 gap-2">
+          FIBA PDF 정합 = 좌우 횡 배치 (각 50% 폭).
+          Phase 19 — gap-y 통일 (mt-1 / 영역 간격 4px 일관). */}
+      <div className="mt-1 grid grid-cols-2 gap-2">
         <InlineFieldDisplay label="Team A" value={teamAName} bold />
         <InlineFieldDisplay label="Team B" value={teamBName} bold />
       </div>
 
       {/* 3줄 — Competition / Date / Time / Referee 한 줄 (FIBA PDF 정합).
-          Phase 9 — 모바일 = 2x2 / sm 이상 = 4 컬럼 인라인. gap-y 0 (압축) */}
-      <div className="mt-0.5 grid grid-cols-2 gap-x-2 gap-y-0 sm:grid-cols-4">
+          Phase 19 — gap-y 0 → 0.5 (라벨 간 미세 여백 일관 / 시인성 ↑) */}
+      <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-4">
         <InlineFieldDisplay label="Competition" value={competitionName} />
         <InlineFieldDisplay label="Date" value={dateLabel ?? "—"} />
         <InlineFieldDisplay label="Time" value={timeLabel ?? "—"} />
@@ -143,8 +148,9 @@ export function FibaHeader({
         />
       </div>
 
-      {/* 4줄 — Game No / Place / Umpire 1 / Umpire 2 한 줄 (FIBA PDF 정합) */}
-      <div className="grid grid-cols-2 gap-x-2 gap-y-0 sm:grid-cols-4">
+      {/* 4줄 — Game No / Place / Umpire 1 / Umpire 2 한 줄 (FIBA PDF 정합).
+          Phase 19 — gap-y 0 → 0.5 (라벨 간 미세 여백 일관) */}
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-4">
         <InlineFieldDisplay label="Game No" value={gameNo ?? "—"} />
         <InlineFieldDisplay label="Place" value={placeLabel ?? "—"} />
         <InlineFieldInput
@@ -180,15 +186,17 @@ function InlineFieldDisplay({
   bold?: boolean;
 }) {
   return (
+    // Phase 19 (2026-05-13) — 라벨 10px bold uppercase / 데이터 12px regular (사용자 결재 §2·§3).
+    //   bold=true 데이터 = 13px semibold (Team 이름 = 더 강조 / 헤더 hierarchy).
     <div className="flex items-baseline gap-1.5 overflow-hidden">
       <span
-        className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+        className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {label}
       </span>
       <span
-        className={`min-w-0 flex-1 truncate pb-0 ${bold ? "text-sm font-semibold" : "text-xs"}`}
+        className={`min-w-0 flex-1 truncate pb-0 ${bold ? "text-[13px] font-semibold" : "text-[12px]"}`}
         style={{
           color: "var(--color-text-primary)",
           borderBottom: "1px solid var(--color-text-primary)",
@@ -218,9 +226,10 @@ function InlineFieldInput({
   disabled?: boolean;
 }) {
   return (
+    // Phase 19 — 라벨 10px bold uppercase / input 12px (사용자 결재 §2·§3).
     <label className="flex items-baseline gap-1.5 overflow-hidden">
       <span
-        className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+        className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {label}
@@ -231,7 +240,7 @@ function InlineFieldInput({
         onChange={onChange}
         disabled={disabled}
         maxLength={40}
-        className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
+        className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
         style={{
           color: "var(--color-text-primary)",
           borderBottom: "1px solid var(--color-text-primary)",

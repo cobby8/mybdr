@@ -126,10 +126,11 @@ export function FooterSignatures({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
-  // Phase 11 — 풋터 영역 ~9% (목표 ~104px) 운영진 세로 4줄 fit. px-2 py-0.5 컴팩트.
-  //   계산: 운영진 4줄 × 26px = 104px + 심판 1줄 26 + 주장 1줄 26 = ~156px (A4 fit OK).
+  // Phase 19 (2026-05-13) — padding 강화 (사용자 결재 §5 / 여백 일관 4~6px).
+  //   px-2 py-0.5 → px-3 py-1 (좌우 12px / 상하 4px / 시인성 ↑).
+  //   계산: 운영진 4줄 × 28px = 112px + 심판 1줄 28 + Umpire 1·2 가로 묶음 28 + 주장 1줄 28 = ~196px.
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-2 py-0.5"
+    ? "fiba-frameless w-full px-3 py-1"
     : "mt-4 w-full px-4 py-3";
 
   return (
@@ -396,14 +397,12 @@ function SigInput({
 }) {
   if (inline) {
     // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄.
-    // Phase 9 — 행 22px 컴팩트 (A4 1 페이지 fit). 터치 영역 보완은 inline 행 전체 click 가능.
-    // Phase 11 §3 — 라벨 width 고정 (labelWidth) 시 운영진 4줄 라벨 우측 정렬 통일.
-    // Phase 14 — compact 제거 / 라벨 10px / minHeight 22px 통일 (요소비율 일관).
     // Phase 16 (2026-05-13) — uppercase 제거 → Title case 보존 (FIBA PDF 정합 / 사용자 결재 §6).
-    //   이유: FIBA PDF 풋터 라벨 = "Scorer / Assistant scorer / Timer / ..." Title case.
-    //   기존 ALL CAPS 는 시각적 무거움 + PDF 정합 위반.
-    const labelClass = "shrink-0 text-[10px] font-semibold tracking-wider";
-    const inputMinHeight = 22;
+    // Phase 19 (2026-05-13) — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2 / bold 10px 통일).
+    //   - 라벨 10px bold tracking-wider (Title case 유지 = FIBA PDF 정합 Phase 16).
+    //   - input minHeight 22 → 24px (시인성 ↑ / 사용자 결재 §3 데이터 영역 확장).
+    const labelClass = "shrink-0 text-[10px] font-bold tracking-wider";
+    const inputMinHeight = 24;
     return (
       <label className="flex items-baseline gap-1 overflow-hidden">
         <span
@@ -437,11 +436,12 @@ function SigInput({
       </label>
     );
   }
-  // 기존 박스 모드 (frameless=false / 회귀 안전망)
+  // 기존 박스 모드 (frameless=false / 회귀 안전망).
+  // Phase 19 — 라벨 font-semibold → font-bold (Inline 모드와 룰 일관 / 사용자 결재 §2).
   return (
     <label className="block">
       <span
-        className="block text-[10px] font-semibold uppercase tracking-wider"
+        className="block text-[10px] font-bold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {label}

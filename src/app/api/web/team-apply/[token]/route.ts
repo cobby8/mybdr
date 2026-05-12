@@ -1,5 +1,6 @@
 /**
  * 2026-05-11 Phase 3-A — 코치 비로그인 명단 입력 API.
+ * 2026-05-13 — PUT 인증 매칭에 최초 1회 코치 정보 setup 흐름 추가 (POST /players 와 동일 4-분기).
  *
  * 도메인 컨텍스트:
  *   - 운영자가 발급한 apply_token URL 을 코치가 받아 비로그인으로 진입.
@@ -312,16 +313,47 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     return apiError("아직 명단이 제출되지 않은 토큰입니다.", 400, "NOT_SUBMITTED");
   }
 
-  // 3) 코치 인증 매칭 — 이름 trim + 전화번호 정규화 후 비교
+  // 3) 코치 인증 매칭 — 4-분기 (2026-05-13)
+  //   사유: POST /players 와 동일 — manager_* NULL 케이스에서 최초 1회 setup 허용.
+  //         PUT 은 보통 POST /players 인증 직후 호출이라 이미 setup 끝난 상태가 많지만,
+  //         페이지 새로고침 등으로 PUT 단독 호출될 수 있어 멱등성 보장 위해 동일 분기 적용.
   const inputName = manager_name.trim();
   const inputPhone = normalizePhoneStr(manager_phone);
   const dbName = (tt.manager_name ?? "").trim();
   const dbPhone = normalizePhoneStr(tt.manager_phone ?? "");
-  if (!dbName || !dbPhone) {
-    return apiError("코치 정보가 등록되지 않은 팀입니다. 운영자에게 문의하세요.", 409, "COACH_INFO_MISSING");
+
+  // 분기 1: 둘 다 있음 → 기존 매칭 검증
+  if (dbName && dbPhone) {
+    if (inputName !== dbName || inputPhone !== dbPhone) {
+      return apiError("코치 이름 또는 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
   }
-  if (inputName !== dbName || inputPhone !== dbPhone) {
-    return apiError("코치 이름 또는 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+  // 분기 2: 이름만 있음 → 이름 매칭 후 phone 만 UPDATE
+  else if (dbName && !dbPhone) {
+    if (inputName !== dbName) {
+      return apiError("코치 이름이 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_phone: inputPhone },
+    });
+  }
+  // 분기 3: 전화만 있음 → 전화 매칭 후 name 만 UPDATE
+  else if (!dbName && dbPhone) {
+    if (inputPhone !== dbPhone) {
+      return apiError("코치 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+    }
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_name: inputName },
+    });
+  }
+  // 분기 4: 둘 다 없음 → 입력값으로 둘 다 UPDATE (최초 setup, 무조건 통과)
+  else {
+    await prisma.tournamentTeam.update({
+      where: { id: tt.id },
+      data: { manager_name: inputName, manager_phone: inputPhone },
+    });
   }
 
   // 4) 종별 룰 검증 (POST 와 동일 — 어린 학년/연령 자유)
