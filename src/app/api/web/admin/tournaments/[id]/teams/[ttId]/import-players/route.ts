@@ -84,19 +84,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     : null;
 
   // 검증
+  // 2026-05-12 룰 변경 (사용자 요청): 어린 학년/연령 자유 참가 / 나이 많은 경우만 차단.
+  //   - gradeMax 만 검증 (gradeMin 검증 제거)
+  //   - birthYearMin 만 검증 (birthYearMax 검증 제거)
   const warnings: Array<{ index: number; field: string; message: string }> = [];
   players.forEach((p, idx) => {
     const birthYear = Number(p.birth_date.slice(0, 4));
     if (rule?.birthYearMin && birthYear < rule.birthYearMin) {
       warnings.push({ index: idx, field: "birth_date", message: `${rule.birthYearMin}년 이후 출생` });
     }
-    if (rule?.birthYearMax && birthYear > rule.birthYearMax) {
-      warnings.push({ index: idx, field: "birth_date", message: `${rule.birthYearMax}년 이전 출생` });
-    }
     if (p.grade != null) {
-      if (rule?.gradeMin && p.grade < rule.gradeMin) {
-        warnings.push({ index: idx, field: "grade", message: `${rule.gradeMin}학년 이상` });
-      }
       if (rule?.gradeMax && p.grade > rule.gradeMax) {
         warnings.push({ index: idx, field: "grade", message: `${rule.gradeMax}학년 이하` });
       }
