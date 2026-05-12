@@ -18,22 +18,12 @@
  */
 
 import { type NextRequest } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
-import { apiSuccess, apiError, unauthorized, forbidden } from "@/lib/api/response";
-
-const ALLOWED_FORMATS = [
-  "single_elimination",
-  "double_elimination",
-  "round_robin",
-  "dual_tournament",
-  "group_stage_knockout",
-  "full_league_knockout",
-  "league_advancement", // i3-U9 링크제 (각조 동순위전)
-  "swiss",
-] as const;
+import { apiSuccess, unauthorized, forbidden } from "@/lib/api/response";
+// 2026-05-12 Phase 3.5-D — ALLOWED_FORMATS 단일 source of truth (lib/tournaments/division-formats.ts).
+import { ALLOWED_FORMATS } from "@/lib/tournaments/division-formats";
 
 export async function GET(
   _req: NextRequest,
