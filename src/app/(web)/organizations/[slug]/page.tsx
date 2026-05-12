@@ -37,9 +37,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const org = await prisma.organizations.findUnique({
     where: { slug },
-    select: { name: true, description: true },
+    select: { name: true, description: true, status: true },
   });
   if (!org) return { title: "단체 | MyBDR" };
+  // 2026-05-12 Phase E — archived 단체는 검색 노출 최소화 (description 도 덮어쓰기)
+  if (org.status === "archived") {
+    return {
+      title: `${org.name} (보관됨) | MyBDR`,
+      description: "보관된 단체입니다.",
+    };
+  }
   return {
     title: `${org.name} | MyBDR`,
     description: org.description || `${org.name} 단체 페이지`,
@@ -100,6 +107,30 @@ export default async function OrganizationDetailPage({
 
   if (!org || !org.is_public) {
     notFound();
+  }
+
+  // 2026-05-12 Phase E — archived 단체 시 안내 페이지만 노출 (events/teams/members 탭 차단).
+  // 운영자 결재 Q1 옵션 A: 단체 row 보존 + status='archived' 마킹.
+  // 직접 URL 접근 시 무한 redirect 방지 → 같은 라우트에 안내 분기 (1회 렌더).
+  if (org.status === "archived") {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-12">
+        <PageBackButton fallbackHref="/organizations" />
+        <div className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-12 text-center">
+          <span className="material-symbols-outlined text-4xl text-[var(--color-text-muted)]">
+            inventory_2
+          </span>
+          <h1 className="mt-3 text-lg font-bold text-[var(--color-text-primary)]">
+            보관된 단체입니다
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+            '{org.name}' 단체는 운영자에 의해 보관 처리되어 현재 공개되지 않습니다.
+            <br />
+            소속 시리즈와 대회는 그대로 보존되어 별도로 접근 가능합니다.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

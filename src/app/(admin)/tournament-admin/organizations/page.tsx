@@ -18,6 +18,8 @@ interface OrgItem {
   region: string | null;
   seriesCount: number;
   myRole: string;
+  // 2026-05-12 Phase E — archived 단체 분리 표시용
+  status: string;
 }
 
 export default function OrganizationsListPage() {
@@ -31,13 +33,15 @@ export default function OrganizationsListPage() {
         // API 응답이 snake_case → camelCase 매핑
         setOrgs(
           (data.organizations || []).map((o: Record<string, unknown>) => ({
-            id: o.id,
-            name: o.name,
-            slug: o.slug,
-            logoUrl: o.logo_url,
-            region: o.region,
-            seriesCount: o.series_count ?? 0,
-            myRole: o.my_role,
+            id: o.id as string,
+            name: o.name as string,
+            slug: o.slug as string,
+            logoUrl: (o.logo_url as string) ?? null,
+            region: (o.region as string) ?? null,
+            seriesCount: (o.series_count as number) ?? 0,
+            myRole: o.my_role as string,
+            // 2026-05-12 Phase E — status 보존 (archived 분리 표시)
+            status: (o.status as string) ?? "approved",
           }))
         );
       })
@@ -85,50 +89,117 @@ export default function OrganizationsListPage() {
         </div>
       )}
 
-      {/* 단체 카드 그리드 */}
-      {!loading && orgs.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {orgs.map((org) => (
-            <Link
-              key={org.id}
-              href={`/tournament-admin/organizations/${org.id}`}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-accent)]"
-            >
-              <div className="flex items-center gap-3">
-                {/* 로고: 없으면 이니셜 원 — admin 빨간 본문 금지 룰 → info(Navy) 토큰 */}
-                {org.logoUrl ? (
-                  <img
-                    src={org.logoUrl}
-                    alt={org.name}
-                    className="h-10 w-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-info)] text-sm font-bold text-white">
-                    {org.name.charAt(0)}
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-[var(--color-text-primary)]">
-                    {org.name}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-muted)]">
-                    {org.region || "지역 미설정"} · 시리즈 {org.seriesCount}개
-                  </p>
+      {/* 2026-05-12 Phase E — active / archived 분리 (carded 그리드)
+          archived 는 회색 톤 + 별 섹션. owner 가 복구 흐름 자연스럽게 인지. */}
+      {!loading && orgs.length > 0 && (() => {
+        const activeOrgs = orgs.filter((o) => o.status !== "archived");
+        const archivedOrgs = orgs.filter((o) => o.status === "archived");
+        return (
+          <>
+            {/* 활성 단체 — 기존 카드 그대로 */}
+            {activeOrgs.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {activeOrgs.map((org) => (
+                  <Link
+                    key={org.id}
+                    href={`/tournament-admin/organizations/${org.id}`}
+                    className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-accent)]"
+                  >
+                    <div className="flex items-center gap-3">
+                      {org.logoUrl ? (
+                        <img
+                          src={org.logoUrl}
+                          alt={org.name}
+                          className="h-10 w-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-info)] text-sm font-bold text-white">
+                          {org.name.charAt(0)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-[var(--color-text-primary)]">
+                          {org.name}
+                        </p>
+                        <p className="text-xs text-[var(--color-text-muted)]">
+                          {org.region || "지역 미설정"} · 시리즈 {org.seriesCount}개
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="rounded-full bg-[rgba(27,60,135,0.12)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                        {roleLabel(org.myRole)}
+                      </span>
+                      <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
+                        chevron_right
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* 보관된 단체 — 회색 톤 + 별 섹션 (archive 가 있을 때만 노출) */}
+            {archivedOrgs.length > 0 && (
+              <div className="mt-10">
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
+                    inventory_2
+                  </span>
+                  <h2 className="text-sm font-semibold text-[var(--color-text-muted)]">
+                    보관된 단체 ({archivedOrgs.length})
+                  </h2>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {archivedOrgs.map((org) => (
+                    <Link
+                      key={org.id}
+                      href={`/tournament-admin/organizations/${org.id}`}
+                      // 회색 톤 — opacity-70 + hover 시 정상 색
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 opacity-70 transition-all hover:opacity-100 hover:border-[var(--color-text-muted)]"
+                    >
+                      <div className="flex items-center gap-3">
+                        {org.logoUrl ? (
+                          <img
+                            src={org.logoUrl}
+                            alt={org.name}
+                            className="h-10 w-10 rounded-full object-cover grayscale"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-text-muted)] text-sm font-bold text-white">
+                            {org.name.charAt(0)}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-[var(--color-text-primary)]">
+                            {org.name}
+                          </p>
+                          <p className="text-xs text-[var(--color-text-muted)]">
+                            {org.region || "지역 미설정"} · 시리즈 {org.seriesCount}개
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+                            보관됨
+                          </span>
+                          <span className="rounded-full bg-[rgba(27,60,135,0.12)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
+                            {roleLabel(org.myRole)}
+                          </span>
+                        </div>
+                        <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
+                          chevron_right
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </div>
-              {/* 내 역할 뱃지 */}
-              <div className="mt-3 flex items-center justify-between">
-                <span className="rounded-full bg-[rgba(27,60,135,0.12)] px-2.5 py-0.5 text-xs font-medium text-[var(--color-info)]">
-                  {roleLabel(org.myRole)}
-                </span>
-                <span className="material-symbols-outlined text-base text-[var(--color-text-muted)]">
-                  chevron_right
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+            )}
+          </>
+        );
+      })()}
 
       {/* 빈 상태 */}
       {!loading && orgs.length === 0 && (
