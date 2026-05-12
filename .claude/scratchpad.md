@@ -1,9 +1,125 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (편집 wizard 단일 PR)
-- **상태**: ✅ 구현 완료 (726 vitest 전수 통과 / tsc 0 / 회귀 0 / 249 LOC 감소)
+- **요청**: FIBA Phase 21 — 종이 매치 (recording_mode="paper") 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide
+- **상태**: ✅ 구현 완료 (tsc 본 변경분 0 error / vitest 725/726 — 별건 1건 실패 본 작업 무관 / 회귀 0)
 - **모드**: no-stop
+
+## 구현 기록 (developer) — FIBA Phase 21 종이 매치 슈팅 6 컬럼 hide (2026-05-13)
+
+📝 구현한 기능:
+- **API 응답 확장**: `/api/live/[id]` 응답에 `recording_mode` 필드 추가 (getRecordingMode 헬퍼 재사용 — "paper" 만 명시적 match, 그 외 "flutter" fallback). apiSuccess camelCase → snake_case 변환으로 클라이언트는 `recording_mode` 키로 수신.
+- **타입 확장**: `MatchDataV2.recording_mode?: "paper" | "flutter" | null` 필드 추가.
+- **prop drilling**: tab-players.tsx 가 `isPaperMatch = match.recording_mode === "paper"` 산출 → BoxScoreTable 양면 (홈/원정) 에 전달. game-result.tsx 도 동일하게 PrintBoxScoreArea 에 전달 → PrintBoxScoreTable 까지 drilling.
+- **6 컬럼 조건부 hide**: BoxScoreTable + PrintBoxScoreTable thead/활성 행/DNP 행/TOTAL 행 의 슈팅 6 셀 (FG/FG%/3P/3P%/FT/FT%) 모두 `{!isPaperMatch && (...)}` 분기. DNP 행의 `Array.from({ length: 16 })` 도 isPaperMatch 시 length 10 (PF/+/- 등 나머지 컬럼 정합).
+
+| 파일 | 변경 라인수 | 핵심 변경 |
+|------|-----------|----------|
+| `src/app/api/live/[id]/route.ts` | +6 / -0 | getRecordingMode import + 응답에 `recordingMode: getRecordingMode(match)` 박제 (snake_case 변환 → `recording_mode`) |
+| `src/app/live/[id]/_v2/game-result.tsx` | +9 / -1 | MatchDataV2 타입에 `recording_mode?: "paper" \| "flutter" \| null` 추가 + PrintBoxScoreArea 호출 시 `isPaperMatch={match.recording_mode === "paper"}` 전달 |
+| `src/app/live/[id]/_v2/tab-players.tsx` | +9 / -0 | `isPaperMatch` 산출 + 양 BoxScoreTable 에 prop 전달 |
+| `src/app/live/[id]/_v2/box-score-table.tsx` | +44 / -36 | `isPaperMatch?: boolean` prop 추가 + thead 6 컬럼 + 활성 행 6 셀 + DNP `length: isPaperMatch ? 10 : 16` + TOTAL 6 셀 모두 조건부 분기 |
+| `src/app/live/[id]/_v2/print-box-score.tsx` | +28 / -28 | Area 컴포넌트에 `isPaperMatch` prop 추가 → PrintBoxScoreTable 전달 → thead 6 컬럼 / 활성 행 6 셀 / DNP 행 Array.from / TOTAL 6 셀 모두 조건부 분기 |
+
+🔍 시니어 판단:
+- **API 응답 fallback 안전성** — getRecordingMode 는 "paper" 만 명시적 match, 그 외 (settings null / 비객체 / 누락 / 기타 값) 모두 "flutter" 자동 fallback. 운영 매치 100% (Flutter 기록앱 기본) 안전성 보장.
+- **prop default false** — 모든 isPaperMatch 는 `= false` default. 레거시 호출처 (만약 있다면) 자동 19 컬럼 유지. 회귀 0.
+- **DNP 행 16 → 10** — 사용자 명세대로 정합. PF/+/- 등 나머지 컬럼은 그대로 유지.
+- **pct 헬퍼 호출 자체 안 됨** — `{!isPaperMatch && (<td>{pct(...)}</td>)}` 분기로 fragment 자체 미렌더 → pct 호출 0회. 사용자 명시 사항 충족.
+- **camelCase → snake_case 변환 룰 준수** — route.ts 는 `recordingMode` (camelCase) 박제, 클라이언트는 `recording_mode` (snake_case) 로 받음 (apiSuccess 자동 변환). errors.md 2026-04-17 룰 위반 0.
+- **Flutter v1 영향 0** — `/api/live/[id]` 는 공개 endpoint (Flutter 미사용 — Flutter 는 `/api/v1/...` 별도 라우트). 원영 사전 공지 불필요.
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. 종이 매치 1건 (admin → ScoreModal → recording_mode "paper" 전환) → `/live/{id}` 진입 → "박스스코어" 탭 → 컬럼 13개 (#·이름·MIN·PTS·OR·DR·REB·AST·STL·BLK·TO·PF·+/-) 확인
+  2. Flutter 매치 (recording_mode 기본/"flutter") → `/live/{id}` 박스스코어 → 컬럼 19개 (기존 동일) 확인
+  3. 종이 매치 박스스코어 프린트 → PrintBoxScoreTable 도 13 컬럼 / Flutter 매치 19 컬럼
+  4. DNP 선수 행 정합 — 종이 매치 시 11 셀 (# / 이름 / DNP / "-" × 9) / Flutter 17 셀 (기존)
+  5. TOTAL 행도 종이 매치 시 슈팅 6 컬럼 hide
+- **정상 동작**:
+  - tsc --noEmit 본 변경분 0 error (별건 site/publish 1 error 무관)
+  - vitest 725/726 PASS (회귀 0 / 실패 1건은 setup-status 별건 site/publish 관련)
+  - 디자인 토큰 / @media print / 다크모드 영향 0 (컬럼만 줄임)
+- **주의할 입력**:
+  - settings JSON 변형 (null / array / primitive) → getRecordingMode 자동 "flutter" fallback → 19 컬럼 정상
+  - 레거시 매치 (recording_mode 응답 미반영) → tab-players 의 `=== "paper"` 비교 false → 19 컬럼 유지 안전
+
+⚠️ reviewer 참고:
+- recording-mode 헬퍼 (`src/lib/tournaments/recording-mode.ts`) 재사용 — 단일 source 룰 준수
+- DNP 행 16 → 10 변환은 PrintBoxScoreTable 의 인라인 18개 `<td>-</td>` 도 `Array.from` 으로 리팩토링 (정합 + DRY)
+- snake_case 응답 키 (`recording_mode`) 클라이언트 직접 접근 (`match.recording_mode === "paper"`) — errors.md 2026-04-17 룰 (재발 5회) 준수
+- Flutter v1 라우트 (`/api/v1/...`) 영향 0 — `/api/live/[id]` 는 웹 공개 endpoint
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. API 응답 확장 (getRecordingMode import + recordingMode 박제) | ✅ |
+| 2. MatchDataV2 타입 `recording_mode?` 추가 | ✅ |
+| 3. TabPlayers `isPaperMatch` 산출 + prop drilling | ✅ |
+| 4. BoxScoreTable thead/활성/DNP/TOTAL 6 컬럼 조건부 hide | ✅ DNP 16→10 정합 포함 |
+| 5. PrintBoxScoreArea isPaperMatch prop + PrintBoxScoreTable drilling | ✅ |
+| 6. PrintBoxScoreTable thead/활성/DNP/TOTAL 6 컬럼 조건부 hide | ✅ DNP 인라인 18개 → Array.from 리팩토링 |
+| 7. tsc --noEmit 본 변경분 | ✅ 0 error (별건 site/publish 1건 무관) |
+| 8. vitest 회귀 | ✅ 725/726 PASS (실패 1건 본 작업 무관 별건) |
+
+---
+
+## 구현 기록 (developer) — UI-5 공개 게이트 (마지막 Phase) (2026-05-13)
+
+📝 구현한 기능:
+- **canPublish 헬퍼** (setup-status.ts) — `progress.allRequiredComplete + missingRequiredTitles` → `{ ok, missing }` 단일 source. 클라이언트 + 서버 양쪽 공유.
+- **6번 카드 의미 분리** — `isSiteConfigured(r)` 가 `hasTournamentSite && isSitePublished` → `hasTournamentSite` 만 검증. 이유: 공개 게이트가 "6번 ✅ 일 때 공개 가능" 흐름인데 6번이 "이미 공개" 요구하면 닭과 달걀. 6번 = "사이트 박제(subdomain/template)" 의미로 좁히고 isPublished 토글은 hub PublishGate 별도 책임.
+- **서버 게이트** (`/api/web/tournaments/[id]/site/publish`) — publish=true 진입 시 calculateSetupProgress + canPublish 검증, 미충족 시 400 `PUBLISH_GATE_FAILED` + `missing` 배열. publish=false (비공개) 는 게이트 무관 즉시 허용. **DevTools 우회 차단**.
+- **클라이언트 PublishGate** (SetupChecklist.tsx) — 4분기: (1) hasSite=false → "사이트 먼저 박제" info / (2) isSitePublished=true → "공개 중" success tone + 비공개 전환 / (3) gate.ok=true → primary "🚀 대회 공개하기" 활성 / (4) gate.ok=false → 잠긴 버튼 + warning tone missing list.
+- **vitest 신규 7 케이스** (canPublish 6 + isSiteConfigured 의미 변경 1) — 36 → 43 PASS.
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/lib/tournaments/setup-status.ts` | canPublish 헬퍼 + isSiteConfigured 의미 좁힘 + site 카드 status 산정 단순화 | 수정 |
+| `src/app/api/web/tournaments/[id]/site/publish/route.ts` | 서버 게이트 (publish=true 시 검증, 400 PUBLISH_GATE_FAILED + missing 배열) | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/SetupChecklist.tsx` | "use client" 전환 + PublishGate 4분기 (rocket_launch / warning list) | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/page.tsx` | SetupChecklist props 3개 추가 (tournamentId/isSitePublished/hasSite) | 수정 |
+| `src/__tests__/lib/tournaments/setup-status.test.ts` | canPublish 6 + 의미 변경 1 (36 → 43) | 수정 |
+
+🔍 시니어 판단:
+- **6번 의미 분리 = 가장 큰 결정** — 운영자가 사이트 박제(subdomain/template)만 하면 6번 ✅. 공개 토글 책임은 hub PublishGate 로 이전. site 카드 summary 텍스트는 변경 0 (그대로 "공개 중"/"박제됨 (비공개)"/"미생성"), status 색만 영향.
+- **서버 가드는 publish=true 일 때만** — 비공개 전환 검증하면 "이미 공개된 미완성 대회를 비공개로 못 돌리는" 버그 발생. 게이트 = "공개 진입 시점" 만.
+- **클라이언트 disabled 만으론 충분 X** — DevTools fetch 우회 가능 → 서버 가드 필수 (PM §D Critical 명세).
+- **rocket_launch + primary 색상** — 공개 = positive action. BDR Red(var(--color-primary)) + on-primary text. 디자인 룰 10 (토큰만) 준수.
+- **`/site` 페이지는 미수정** — 기존 Step 3 의 "공개하기" 도 동일 publish route 호출 → 서버 가드 자동 적용 (두 통로 모두 안전).
+- **에러 응답에 missing 배열 박제** — 가드 위반 시 사용자에게 "어떤 항목이 부족한지" 즉시 안내.
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. 신규 대회 → hub 진입 → 공개 버튼 = "🔒 공개 잠금" + warning 박스 6개 미충족 항목
+  2. 항목 차례로 완료 → progress % + missing list 줄어듦
+  3. 7항목 ✅ + 사이트 박제 + 비공개 → "🚀 대회 공개하기" primary 활성
+  4. 클릭 → POST /site/publish {publish:true} 200 → router.refresh() → "● 사이트 공개 중" success tone
+  5. "비공개 전환" → {publish:false} 200 → 다시 공개 버튼
+  6. **우회 시도**: 잠금 상태에서 DevTools fetch {publish:true} → 서버 400 `PUBLISH_GATE_FAILED` + missing 배열
+- **정상 동작**: 잠긴 버튼 cursor-not-allowed + opacity 0.7 / 활성 var(--color-primary) + 44px+ / missing list warning tone (color-mix 8% bg / 30% border)
+- **주의**: hasSite=false 시 "사이트 먼저 박제" 분기 (공개 버튼 미노출). 7항목 ✅ 이라도 사이트 미박제면 6번 자체가 미완 → 일관된 안내.
+
+⚠️ reviewer 참고:
+- **6번 의미 변경 breaking?** — siteSummary 텍스트 변경 0. status 색만 영향 (사이트 박제 → ✅). 운영자 멘탈 모델 변화 미미.
+- **PublishGate = SetupChecklist 클라이언트 전환** — progress 계산은 page.tsx (server) 그대로. router.refresh() 만 client 책임.
+- **회귀 grep (lucide / 핑크 / pill 9999px / BigInt(N)n) = 0건** (4개 수정 파일 모두)
+- **Flutter v1 영향 0** — /api/web/ 웹 전용. JWT route 변경 0.
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. canPublish 헬퍼 export | ✅ setup-status.ts |
+| 2. 6번 카드 의미 분리 (hasTournamentSite only) | ✅ isSiteConfigured + site status |
+| 3. 서버 가드 (POST /site/publish) | ✅ 400 PUBLISH_GATE_FAILED + missing |
+| 4. SetupChecklist 클라이언트 + PublishGate 4분기 | ✅ rocket_launch / warning list |
+| 5. page.tsx props 3개 | ✅ tournamentId/isSitePublished/hasSite |
+| 6. vitest 신규 7 케이스 | ✅ 36 → 43 PASS |
+| 7. tsc --noEmit | ✅ 0 error |
+| 8. 전체 vitest 회귀 (726 → 733) | ✅ 전수 PASS / 회귀 0 |
+| 9. 회귀 grep (lucide / 핑크 / 9999px / BigInt(N)n) | ✅ 0건 |
+
+---
 
 ## 구현 기록 (developer) — UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (2026-05-13)
 
@@ -393,6 +509,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-13 | UI-5 공개 게이트 — 필수 7항목 ✅ 시 공개 (클라+서버 이중 가드, 5 files, +7 케이스) | ✅ tsc 0 / vitest 733 / 미커밋 |
+| 2026-05-13 | FIBA Phase 21 — 종이 매치 박스스코어 슈팅 6 컬럼 hide (5 files) | ✅ tsc 본분 0 / vitest 725/726 (별건 1) / 미커밋 |
 | 2026-05-13 | UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (1 file, -249 LOC) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | UI-2 wizard 압축 (3-step → 1-step) + ?legacy=1 안전망 (1 file) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P2 dual 정합성 경고 + UI-1.5 ?step=2 anchor (4 files) | ✅ tsc 0 / vitest 726 / 미커밋 |
@@ -415,6 +533,7 @@
 - (예정) feat(wizard): P2 dual 경고 + UI-1.5 ?step=2 anchor — PM 커밋 대기
 - (예정) feat(wizard): UI-2 신규 대회 wizard 압축 (3-step → 1-step) — PM 커밋 대기
 - (예정) refactor(wizard): UI-3 bracketSettings 제거 + UI-4 사이트 영역 제거 — PM 커밋 대기
+- (예정) feat(admin): UI-5 공개 게이트 — 필수 7항목 ✅ 시 대회 공개 (서버+클라 가드) — PM 커밋 대기
 
 ## 후속 큐 (미진입)
 - UI-1.4 entry_fee 사용者 보고 재현 (커뮤니케이션 — 코드 0)

@@ -124,9 +124,19 @@ export function isRegistrationPolicyComplete(t: ChecklistTournamentInput): boole
   return t.maxTeams != null && t.entry_fee != null && t.auto_approve_teams != null;
 }
 
-/** 6. 사이트 설정 — tournamentSite 존재 + isPublished. */
+/**
+ * 6. 사이트 설정 — tournamentSite 존재 (박제됨) 여부만 검증.
+ *
+ * 이유 (2026-05-13 UI-5 공개 게이트 도입):
+ *   - 기존: `hasTournamentSite && isPublished` (= 이미 공개돼야 ✅).
+ *   - UI-5 의 공개 게이트는 "6번 ✅ 일 때 비로소 공개 가능" 흐름.
+ *     → 6번이 "이미 공개" 를 요구하면 게이트 자체가 닭과 달걀 (체크리스트 = 0건도 통과 불가).
+ *   - 따라서 6번 의미를 "사이트 박제 (subdomain/template 설정)" 로 좁히고, isPublished 는
+ *     별도 status (체크리스트 hub 의 site 카드 summary + 공개 버튼 상태) 로 분리.
+ *   - hub 의 공개 버튼은 isPublished=false → true 토글 책임 (canPublish 통과 시).
+ */
 export function isSiteConfigured(r: ChecklistRelationInput): boolean {
-  return r.hasTournamentSite && r.isSitePublished;
+  return r.hasTournamentSite;
 }
 
 /** 7. 기록 설정 — tournament.settings.default_recording_mode 박제 ("flutter" or "paper"). */
@@ -286,13 +296,9 @@ export function calculateSetupProgress(
       step: 6,
       title: "사이트 설정",
       summary: siteSummary,
-      status: !basic
-        ? "locked"
-        : siteComplete
-          ? "complete"
-          : r.hasTournamentSite
-            ? "in_progress"
-            : "empty",
+      // 2026-05-13 UI-5: siteComplete (= hasTournamentSite) 면 ✅. isPublished 는 status 분리됨
+      //   → 사이트 박제만 완료되면 6번 카드 ✅ (공개는 hub 의 공개 버튼이 별도 책임)
+      status: !basic ? "locked" : siteComplete ? "complete" : "empty",
       icon: "language",
       link: `${base}/site`,
       required: true,
@@ -338,6 +344,32 @@ export function calculateSetupProgress(
     items,
     allRequiredComplete,
     missingRequiredTitles,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-13 UI-5 공개 게이트 — 공개 가능 여부 판정 헬퍼
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * 공개 가능 여부 (필수 7 항목 ALL ✅) 판정.
+ *
+ * 이유:
+ *   - 클라이언트 (체크리스트 hub 의 공개 버튼) + 서버 (POST /site/publish 가드) 양쪽에서
+ *     동일한 판정 로직을 단일 source 로 공유.
+ *   - calculateSetupProgress() 이미 allRequiredComplete + missingRequiredTitles 산출 →
+ *     이를 한 줄로 노출만 (재계산 0).
+ *
+ * @param progress — calculateSetupProgress() 반환값
+ * @returns { ok, missing } — ok=true 면 공개 허용, missing 은 미충족 항목 title 배열
+ */
+export function canPublish(progress: SetupProgress): {
+  ok: boolean;
+  missing: string[];
+} {
+  return {
+    ok: progress.allRequiredComplete,
+    missing: [...progress.missingRequiredTitles],
   };
 }
 

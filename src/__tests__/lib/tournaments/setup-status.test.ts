@@ -19,6 +19,7 @@ import {
   isRecordingModeConfigured,
   isBracketGenerated,
   calculateSetupProgress,
+  canPublish,
   type ChecklistTournamentInput,
   type ChecklistDivisionRuleInput,
   type ChecklistRelationInput,
@@ -196,13 +197,15 @@ describe("setup-status — isRegistrationPolicyComplete", () => {
 // 6. 사이트 설정
 // ─────────────────────────────────────────────────────────────────────────
 
-describe("setup-status — isSiteConfigured", () => {
-  it("hasTournamentSite + isSitePublished 면 true", () => {
+// 2026-05-13 UI-5 — 6번 카드 의미 변경: "사이트 박제됨" 만 검증 (isPublished 는 무관).
+//   이유: 공개 게이트가 "6번 ✅ 일 때 비로소 공개 가능" 흐름. 6번이 "이미 공개" 를 요구하면 닭과 달걀.
+describe("setup-status — isSiteConfigured (UI-5 의미 변경)", () => {
+  it("hasTournamentSite=true 면 true (isPublished 와 무관)", () => {
     expect(isSiteConfigured(buildFullRelation())).toBe(true);
   });
 
-  it("hasTournamentSite=true but isSitePublished=false 면 false", () => {
-    expect(isSiteConfigured(buildFullRelation({ isSitePublished: false }))).toBe(false);
+  it("hasTournamentSite=true + isSitePublished=false 도 true (사이트 박제 = ✅)", () => {
+    expect(isSiteConfigured(buildFullRelation({ isSitePublished: false }))).toBe(true);
   });
 
   it("hasTournamentSite=false 면 false", () => {
@@ -381,5 +384,89 @@ describe("setup-status — calculateSetupProgress 종합", () => {
     const regItem = p.items.find((i) => i.key === "registration");
     expect(regItem).toBeDefined();
     expect(regItem?.link).toMatch(/\/wizard\?step=2$/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// UI-5 공개 게이트 — canPublish 헬퍼
+// ─────────────────────────────────────────────────────────────────────────
+
+describe("setup-status — canPublish (UI-5 공개 게이트)", () => {
+  const tid = "11111111-1111-1111-1111-111111111111";
+
+  it("필수 7항목 모두 ✅ 면 ok=true, missing=[]", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const gate = canPublish(p);
+    expect(gate.ok).toBe(true);
+    expect(gate.missing).toEqual([]);
+  });
+
+  it("기본 정보만 박제 = 다수 필수 항목 미충족 → ok=false + missing 다수", () => {
+    const t: ChecklistTournamentInput = {
+      name: "테스트 대회",
+      startDate: new Date("2026-06-01"),
+      venue_name: "체육관",
+      series_id: null,
+      maxTeams: null,
+      entry_fee: null,
+      auto_approve_teams: null,
+      settings: null,
+    };
+    const r: ChecklistRelationInput = {
+      divisionRules: [],
+      hasTournamentSite: false,
+      isSitePublished: false,
+      matchesCount: 0,
+    };
+    const gate = canPublish(calculateSetupProgress(tid, t, r));
+    expect(gate.ok).toBe(false);
+    expect(gate.missing.length).toBeGreaterThan(0);
+    // 종별/운영방식/신청정책/사이트/기록/대진표 = 6개 모두 미충족
+    expect(gate.missing).toContain("종별 정의");
+    expect(gate.missing).toContain("운영 방식");
+    expect(gate.missing).toContain("신청 정책");
+    expect(gate.missing).toContain("사이트 설정");
+    expect(gate.missing).toContain("기록 설정");
+    expect(gate.missing).toContain("대진표 생성");
+  });
+
+  it("시리즈(선택) 만 빠지면 ok=true (선택 항목은 게이트 무관)", () => {
+    const t = buildFullTournament({ series_id: null });
+    const r = buildFullRelation();
+    const gate = canPublish(calculateSetupProgress(tid, t, r));
+    expect(gate.ok).toBe(true);
+    expect(gate.missing).toEqual([]);
+  });
+
+  it("대진표만 미생성 → ok=false + missing=['대진표 생성']", () => {
+    const t = buildFullTournament();
+    const r = buildFullRelation({ matchesCount: 0 });
+    const gate = canPublish(calculateSetupProgress(tid, t, r));
+    expect(gate.ok).toBe(false);
+    expect(gate.missing).toContain("대진표 생성");
+  });
+
+  it("사이트만 미박제 → ok=false + missing 에 '사이트 설정' 포함", () => {
+    const t = buildFullTournament();
+    const r = buildFullRelation({ hasTournamentSite: false, isSitePublished: false });
+    const gate = canPublish(calculateSetupProgress(tid, t, r));
+    expect(gate.ok).toBe(false);
+    expect(gate.missing).toContain("사이트 설정");
+  });
+
+  it("사이트 박제됨 + isPublished=false 여도 6번은 ✅ (UI-5 의미 변경 — 닭과 달걀 회피)", () => {
+    const t = buildFullTournament();
+    const r = buildFullRelation({ hasTournamentSite: true, isSitePublished: false });
+    const gate = canPublish(calculateSetupProgress(tid, t, r));
+    // 6번 = "사이트 박제됨" 이라 ok=true → 공개 버튼이 비공개 → 공개 토글 책임
+    expect(gate.ok).toBe(true);
+  });
+
+  it("missing 배열은 SetupProgress.missingRequiredTitles 사본 (mutation 안전)", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation({ matchesCount: 0 }));
+    const gate = canPublish(p);
+    gate.missing.push("외부 수정");
+    // 원본 progress.missingRequiredTitles 는 영향 0
+    expect(p.missingRequiredTitles).not.toContain("외부 수정");
   });
 });
