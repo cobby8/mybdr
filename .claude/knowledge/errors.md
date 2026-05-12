@@ -2,6 +2,30 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-13] GameTimeInput value 역파싱 부재 = 운영자 저장값을 마운트 즉시 덮어쓰기 (P0)
+- **분류**: 함정 / state 초기화 / 사일런트 데이터 손실
+- **발견자**: debugger
+- **증상**: 운영자가 wizard 에서 경기시간을 "10분 4쿼터 올데드" 로 저장 → 편집 wizard 재진입 시 마운트 직후 `7분 4쿼터 논스탑` 으로 자동 덮어쓰기. PATCH body 에 변경분 포함되어 DB 까지 손실 가능. 사용자는 "내가 저장한 값이 사라진다" 로 인지.
+- **근본 원인**: `src/components/tournament/game-time-input.tsx:36-50` — `useState` 초기값을 하드코딩 (`useState("4Q")` / `useState(7)` / `useState("nonstop")`) + `useEffect` 가 마운트 시점에 즉시 `onChange(조합된문자열)` 호출. value prop (=부모 state) 를 역파싱하는 로직 자체가 없음. 즉 컴포넌트가 "부모로부터 값을 받는다" 의도였지만 실제로는 "부모 값을 일방적으로 덮어쓴다".
+- **fix**: (1) `parseGameTime(value)` 헬퍼 추가 — 정규식 `^(\d+)분\s+(4쿼터|전후반)\s+(논스탑|올데드)$` 로 역파싱 / null 반환 시 직접입력 모드. (2) `useState` 초기값을 `parsed?.x ?? 기본값` 으로 변경. (3) `useEffect` 에 `if (next === value) return;` skip 가드 — 동일 값이면 onChange 호출 회피 (마운트 직후 무한 동기화 사이클 차단). (4) `isCustom` 초기값 = `value !== "" && !parsed` — 옛 데이터/오타 형식이면 자동으로 직접입력 모드 진입.
+- **재발 방지 룰**: (a) 외부 value prop 을 받는 controlled 입력 컴포넌트는 **마운트 시 value → state 역파싱이 의무**. useState 하드코딩 + useEffect 일방 송신 패턴 = 안티패턴. (b) useEffect 내부 onChange 호출 전 **동일성 체크** 필수 (이전 값 === 새 값이면 skip). (c) 신규 컨트롤드 컴포넌트 PR 시 reviewer 가 "재진입 시 값 보존되는가" 케이스 자동 확인.
+- **검증**: vitest `src/__tests__/components/tournament/game-time-input.test.ts` 6 케이스 — 표준 5/7/8/10/12분 / 4쿼터·전후반 / 논스탑·올데드 / 빈 문자열 null / 비표준 형식 null
+- **참조**: `src/components/tournament/game-time-input.tsx:36-79`
+- **참조횟수**: 0
+
+
+### [2026-05-13] RegistrationSettingsForm divFees 안내문만 있고 입력란 부재 (P1)
+- **분류**: UI 누락 / data 흐름 데드엔드
+- **발견자**: debugger
+- **증상**: wizard 접수 설정 섹션에 "디비전별 참가비를 설정하면 기본 참가비 대신 적용됩니다" 안내 문구 노출. 그러나 실제 divFees 입력 UI 자체가 없어 운영자가 디비전별 참가비 설정 불가. 부모 wizard state / API / DB column (`tournaments.div_fees` JSON) / zod schema / PATCH body 박제는 모두 정상 — UI 만 단절.
+- **근본 원인**: `src/components/tournament/registration-settings-form.tsx:100-147` 디비전 행 마크업에 `divCaps` (팀수) input 만 마운트. props 에 `divFees` 가 destructure 되어 있고 (line 29) 삭제 핸들러는 nextFees 박제 (line 78-83/137-140) — 즉 모든 data path 가 갖춰져 있고 입력 UI 만 누락. 코드 작성 시점에 안내문은 넣었지만 input 추가를 누락한 미완 PR.
+- **fix**: 디비전 행에 `<input type="number">` 1개 추가. value=`divFees[div] ?? ""` / onChange 시 빈 문자열 → key 삭제 / 숫자(0 포함) → 그대로 저장. 스타일은 `divCaps` input 과 동일 (`w-24` 로 자리수 차이만 반영, "원" 단위 라벨).
+- **재발 방지 룰**: (a) **안내문 + 미구현 UI 패턴 금지** — 안내문에서 "X를 설정하면" 류 카피를 쓰면 X 입력 UI 가 같은 화면에 반드시 존재해야 함. PR 작성 시 안내문 grep 으로 매칭 UI 확인. (b) props destructure 됐지만 JSX 미사용 = lint 경고 추가 검토 (eslint no-unused-vars 가 destructure 는 무시하는 경우 있음).
+- **검증**: tsc 0 / div_fees JSON column 박제 흐름 grep 확인 (8 파일 hit — schema/route/UI/api 일관)
+- **참조**: `src/components/tournament/registration-settings-form.tsx:111-147`
+- **참조횟수**: 0
+
+
 ### [2026-05-13] 코치 자가수정 페이지 = "최초 1회 setup 분기" 누락 + 가드 의도 정반대
 - **분류**: 함정 / UX 차단
 - **발견자**: pm
