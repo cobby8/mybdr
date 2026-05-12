@@ -59,11 +59,23 @@ const POSITIONS = ["", "G", "F", "C", "PG", "SG", "SF", "PF"];
 interface Props {
   token: string;
   divisionRule: DivisionRule;
+  // 2026-05-12 — 수정 모드 (사용자 요청). 'edit' 시 PUT + manager_name/phone 인증 body 추가.
+  mode?: "create" | "edit";
+  initialPlayers?: PlayerRow[];
+  editAuth?: { manager_name: string; manager_phone: string };
 }
 
-export function TeamApplyForm({ token, divisionRule }: Props) {
+export function TeamApplyForm({
+  token,
+  divisionRule,
+  mode = "create",
+  initialPlayers,
+  editAuth,
+}: Props) {
   const router = useRouter();
-  const [rows, setRows] = useState<PlayerRow[]>([{ ...EMPTY_ROW }]);
+  const [rows, setRows] = useState<PlayerRow[]>(
+    initialPlayers && initialPlayers.length > 0 ? initialPlayers : [{ ...EMPTY_ROW }],
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ count: number } | null>(null);
@@ -156,24 +168,27 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
 
     setSubmitting(true);
     try {
-      const payload = {
-        players: rows.map((r) => {
-          const grade = birthDateToGrade(r.birth_date);
-          return {
-            player_name: r.player_name.trim(),
-            birth_date: r.birth_date,
-            jersey_number: Number(r.jersey_number),
-            position: r.position || null,
-            school_name: r.school_name.trim() || null,
-            grade: grade != null && grade > 0 && grade <= 12 ? grade : null,
-            parent_name: r.parent_name.trim() || null,
-            parent_phone: normalizePhone(r.parent_phone),
-          };
-        }),
-      };
+      const players = rows.map((r) => {
+        const grade = birthDateToGrade(r.birth_date);
+        return {
+          player_name: r.player_name.trim(),
+          birth_date: r.birth_date,
+          jersey_number: Number(r.jersey_number),
+          position: r.position || null,
+          school_name: r.school_name.trim() || null,
+          grade: grade != null && grade > 0 && grade <= 12 ? grade : null,
+          parent_name: r.parent_name.trim() || null,
+          parent_phone: normalizePhone(r.parent_phone),
+        };
+      });
+      // 2026-05-12 — 수정 모드 = PUT + manager_name/phone 인증 body 포함
+      const payload =
+        mode === "edit" && editAuth
+          ? { ...editAuth, players }
+          : { players };
 
       const res = await fetch(`/api/web/team-apply/${token}`, {
-        method: "POST",
+        method: mode === "edit" ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -192,7 +207,7 @@ export function TeamApplyForm({ token, divisionRule }: Props) {
         return;
       }
 
-      setSuccess({ count: json.inserted_count ?? rows.length });
+      setSuccess({ count: json.inserted_count ?? json.updated_count ?? rows.length });
       setTimeout(() => router.refresh(), 5000);
     } catch {
       setError("네트워크 오류가 발생했습니다.");
