@@ -73,6 +73,8 @@ export const GET = withWebAuth(
           profileImageUrl: org.owner.profile_image_url,
         },
         myRole: myMembership?.role || null,
+        // 2026-05-12 hotfix — super_admin 은 멤버십 없어도 owner 권한 인정 (UI 가드 분기용)
+        isSuperAdmin: ctx.session.role === "super_admin",
         members: org.members.map((m) => ({
           id: m.id.toString(),
           userId: m.user_id.toString(),
