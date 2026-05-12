@@ -36,12 +36,29 @@
    ============================================================ */
 /* 외곽 박스 = 검정 1px solid + rounded 0 + shadow X (FIBA PDF 정합).
    라이트 모드 = 검정 / 다크 모드 = 흰색 (대비 보장).
-   인쇄 시 = @media print 가 검정 강제 (아래) */
+   인쇄 시 = @media print 가 검정 강제 (아래)
+
+   Phase 14 (2026-05-12) — A4 정확 비율 강제 (사용자 결재 §5 / 핵심 룰).
+   이유: 이전 Phase 9-13 = 폭/높이 px 합산으로 추정 fit 만 제공.
+     사용자 요구 = "전체 완성본이 A4 사이즈와 정확 일치" → CSS aspect-ratio 로
+     박제 강제. 화면 = 210mm × (210mm × 297/210) 비율 자동 / 인쇄 = 정확 297mm fit.
+   방법:
+     - max-width: 210mm (A4 가로 정확)
+     - aspect-ratio: 210 / 297 (= 0.707 / A4 portrait 비율 강제)
+     - overflow: hidden (A4 안에 모든 영역 fit / 잘림 발생 시 내부 압축으로 해결)
+   효과:
+     - 어떤 viewport 에서도 박스 = 정확한 A4 비율 (210×297mm 1:1.414)
+     - 인쇄 미리보기 = WYSIWYG (화면 박스 그대로 종이) */
 .score-sheet-fiba-frame {
+  width: 100%;
+  max-width: 210mm; /* A4 가로 정확 */
+  aspect-ratio: 210 / 297; /* A4 비율 강제 (210:297) */
+  margin: 0 auto;
   border: 1px solid var(--color-text-primary, #000);
   border-radius: 0;
   box-shadow: none;
   background: var(--color-bg, #ffffff);
+  overflow: hidden; /* A4 안에 모든 영역 fit 강제 */
 }
 
 /* md (768px) 이상에서 좌·우 분할선 표시. Tailwind 의 md: variant 안에서 직접 클래스 적용 불가 →
@@ -81,10 +98,12 @@
   /* @page = score-sheet 전용 페이지 룰 (A4 세로).
      이유: 기존 globals.css 의 @page size: A4 landscape 와 충돌 회피 위해
      score-sheet 루트 wrapper 안에서 별도 size override.
-     Phase 9 — margin 8mm → 6mm 축소 (A4 1 페이지 fit 보장). */
+     Phase 9 — margin 8mm → 6mm 축소 (A4 1 페이지 fit 보장).
+     Phase 14 (2026-05-12) — margin 0 (사용자 결재 §5 / A4 정확 비율 강제).
+       박스 자체가 210×297mm A4 정확 fit → 페이지 margin 0 으로 박스 = 종이 1:1. */
   @page {
     size: A4 portrait;
-    margin: 6mm;
+    margin: 0;
   }
 
   /* 사이트 wide 모바일 가드 무력화 (errors.md 박스스코어 fix 와 동일 패턴) */
@@ -175,14 +194,22 @@
     border-color: #000000 !important;
   }
 
-  /* Phase 8 + Phase 9 — 단일 외곽 박스 + 내부 분할선 인쇄 정합.
-     Phase 9 — A4 1 페이지 fit 강제 (198mm = 210 - 12 / 285mm = 297 - 12). */
+  /* Phase 8 + Phase 9 + Phase 14 — 단일 외곽 박스 + 내부 분할선 인쇄 정합.
+     Phase 14 (2026-05-12) — A4 정확 비율 (사용자 결재 §5).
+       이전 Phase 9: 198×285mm (페이지 margin 6mm 안 fit).
+       Phase 14: 정확 210×297mm (페이지 margin 0 / 박스 = 종이 1:1).
+       aspect-ratio 화면 강제 + 인쇄 시 mm 단위 정확 fit. */
   .score-sheet-print-root .score-sheet-fiba-frame {
     border-color: #000000 !important;
     background: #ffffff !important;
     border-radius: 0 !important;
-    width: 198mm !important;
-    max-height: 285mm !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    max-width: 210mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    /* 인쇄 시 aspect-ratio 보다 width/height 명시 우선 (브라우저 호환) */
+    aspect-ratio: auto !important;
     page-break-inside: avoid;
     page-break-after: always;
     overflow: hidden;
