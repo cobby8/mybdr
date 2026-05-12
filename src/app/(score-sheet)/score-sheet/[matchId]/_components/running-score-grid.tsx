@@ -171,7 +171,9 @@ export function RunningScoreGrid({
           borderBottom: "1px solid var(--color-border)",
         }}
       >
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+        {/* Phase 11 §5-2 (2026-05-12) — "RUNNING SCORE" 헤더 11px → 14px (FIBA 정합 / reviewer Minor).
+            이유: FIBA 종이기록지 RUNNING SCORE 헤더가 더 큼 — 시인성 ↑. */}
+        <div className="text-[14px] font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
           Running Score
         </div>
         <div className="text-[9px] text-[var(--color-text-muted)]">

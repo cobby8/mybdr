@@ -100,9 +100,10 @@ export function FooterSignatures({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
-  // Phase 9 — 풋터 영역 ~15% (목표 ~170px) 컴팩트. px-2 py-1.
+  // Phase 11 — 풋터 영역 ~9% (목표 ~104px) 운영진 세로 4줄 fit. px-2 py-0.5 컴팩트.
+  //   계산: 운영진 4줄 × 26px = 104px + 심판 1줄 26 + 주장 1줄 26 = ~156px (A4 fit OK).
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-2 py-1"
+    ? "fiba-frameless w-full px-2 py-0.5"
     : "mt-4 w-full px-4 py-3";
 
   return (
@@ -111,43 +112,85 @@ export function FooterSignatures({
       {/* Phase 8 — Signatures 헤더 제거 (FIBA PDF 정합 — 헤더 없이 라벨만).
           frameless 모드에서 라벨 만으로 충분. */}
 
-      {/* Phase 8 — 운영자 측 4 컬럼 가로 1줄 (FIBA PDF 정합).
-          Scorer / Assistant scorer / Timer / Shot clock operator
-          Phase 9 — gap-x-2 gap-y-0 컴팩트 */}
-      <div className="grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-4">
-        <SigInput
-          label="Scorer"
-          value={values.scorer}
-          onChange={update("scorer")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-        <SigInput
-          label="Assistant scorer"
-          value={values.asstScorer}
-          onChange={update("asstScorer")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-        <SigInput
-          label="Timer"
-          value={values.timer}
-          onChange={update("timer")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-        <SigInput
-          label="Shot clock operator"
-          value={values.shotClockOperator}
-          onChange={update("shotClockOperator")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-      </div>
+      {/* Phase 11 §3 (2026-05-12) — 운영진 4 컬럼 가로 → 세로 4줄 (FIBA 정합 / reviewer Major).
+          이유: FIBA 종이기록지 풋터 = 운영진 4 라벨이 세로 4줄 배치
+          (Scorer: ____ / Assistant scorer: ____ / Timer: ____ / Shot Clock Operator: ____).
+          frameless=true (단일 박스 / FIBA PDF 정합) = 세로 4줄 / frameless=false (회귀) = 기존 grid 유지. */}
+      {frameless ? (
+        <div className="flex flex-col gap-0">
+          <SigInput
+            label="Scorer"
+            value={values.scorer}
+            onChange={update("scorer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={140}
+          />
+          <SigInput
+            label="Assistant scorer"
+            value={values.asstScorer}
+            onChange={update("asstScorer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={140}
+          />
+          <SigInput
+            label="Timer"
+            value={values.timer}
+            onChange={update("timer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={140}
+          />
+          <SigInput
+            label="Shot clock operator"
+            value={values.shotClockOperator}
+            onChange={update("shotClockOperator")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={140}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-4">
+          <SigInput
+            label="Scorer"
+            value={values.scorer}
+            onChange={update("scorer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+          <SigInput
+            label="Assistant scorer"
+            value={values.asstScorer}
+            onChange={update("asstScorer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+          <SigInput
+            label="Timer"
+            value={values.timer}
+            onChange={update("timer")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+          <SigInput
+            label="Shot clock operator"
+            value={values.shotClockOperator}
+            onChange={update("shotClockOperator")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+        </div>
+      )}
 
       {/* Phase 8 — 심판진 3 컬럼 가로 1줄 (FIBA PDF 정합).
           Referee / Umpire 1 / Umpire 2 — frameless 시 구분선 X (단일 외곽 박스 안).
@@ -249,6 +292,7 @@ function SigInput({
   maxLength,
   disabled,
   inline,
+  labelWidth,
 }: {
   label: string;
   value: string;
@@ -256,15 +300,23 @@ function SigInput({
   maxLength: number;
   disabled?: boolean;
   inline?: boolean;
+  // Phase 11 §3 — 운영진 세로 4줄에서 라벨 정렬을 맞추기 위한 고정 width (px).
+  //   "Shot clock operator" 가 가장 긴 라벨 → 140px 정합.
+  //   미지정 시 자동 (기존 동작).
+  labelWidth?: number;
 }) {
   if (inline) {
     // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄.
     // Phase 9 — 행 22px 컴팩트 (A4 1 페이지 fit). 터치 영역 보완은 inline 행 전체 click 가능.
+    // Phase 11 §3 — 라벨 width 고정 (labelWidth) 시 운영진 4줄 라벨 우측 정렬 통일.
     return (
       <label className="flex items-baseline gap-1 overflow-hidden">
         <span
           className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
-          style={{ color: "var(--color-text-muted)" }}
+          style={{
+            color: "var(--color-text-muted)",
+            width: labelWidth ? `${labelWidth}px` : undefined,
+          }}
         >
           {label}
         </span>
@@ -278,8 +330,9 @@ function SigInput({
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",
-            // Phase 9 — 행 높이 ~22px (A4 1 페이지 fit). 터치는 inline 행 전체 click → input focus
-            minHeight: 22,
+            // Phase 11 — 행 높이 26px (운영진 세로 4줄 = 4 × 26 = 104px / A4 1 페이지 fit).
+            //   Phase 9 = 22px → Phase 11 = 26px (FIBA 정합 정렬 가독성 ↑).
+            minHeight: 26,
             touchAction: "manipulation",
           }}
         />
