@@ -16,6 +16,8 @@ import {
   FORMAT_LABEL,
   showGroupSettings,
   showRankingFormat,
+  shouldShowAdvancePerGroup,
+  ADVANCE_PER_GROUP_DEFAULT,
   validateDivisionSettings,
   calculateTotalTeams,
 } from "@/lib/tournaments/division-formats";
@@ -198,6 +200,78 @@ describe("division-formats — validateDivisionSettings", () => {
         group_size: 4,
         group_count: 4,
         ranking_format: "round_robin",
+      }),
+    ).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-13 — shouldShowAdvancePerGroup / advance_per_group 검증
+// ─────────────────────────────────────────────────────────────────────────
+
+describe("division-formats — shouldShowAdvancePerGroup", () => {
+  it("조별리그/풀리그 → 본선 토너먼트 enum 3개 시 true", () => {
+    // 조 N위까지 본선 진출 의미가 있는 enum
+    expect(shouldShowAdvancePerGroup("group_stage_knockout")).toBe(true);
+    expect(shouldShowAdvancePerGroup("full_league_knockout")).toBe(true);
+    expect(shouldShowAdvancePerGroup("dual_tournament")).toBe(true);
+  });
+
+  it("나머지 enum 6개 + null/undefined 시 false", () => {
+    // linkage_pairs / 동순위전 / 본선 분리 없는 enum 은 advance_per_group 무의미
+    expect(shouldShowAdvancePerGroup("league_advancement")).toBe(false);
+    expect(shouldShowAdvancePerGroup("group_stage_with_ranking")).toBe(false);
+    expect(shouldShowAdvancePerGroup("round_robin")).toBe(false);
+    expect(shouldShowAdvancePerGroup("single_elimination")).toBe(false);
+    expect(shouldShowAdvancePerGroup("double_elimination")).toBe(false);
+    expect(shouldShowAdvancePerGroup("swiss")).toBe(false);
+    expect(shouldShowAdvancePerGroup(null)).toBe(false);
+    expect(shouldShowAdvancePerGroup(undefined)).toBe(false);
+    expect(shouldShowAdvancePerGroup("")).toBe(false);
+  });
+});
+
+describe("division-formats — validateDivisionSettings (advance_per_group)", () => {
+  it("ADVANCE_PER_GROUP_DEFAULT = 2 (생활체육 표준 1·2위 진출)", () => {
+    expect(ADVANCE_PER_GROUP_DEFAULT).toBe(2);
+  });
+
+  it("advance_per_group 정상 범위 (1~32 정수) = OK", () => {
+    expect(validateDivisionSettings({ advance_per_group: 1 })).toBeNull();
+    expect(validateDivisionSettings({ advance_per_group: 2 })).toBeNull();
+    expect(validateDivisionSettings({ advance_per_group: 4 })).toBeNull();
+  });
+
+  it("advance_per_group 범위 외 (음수 / 0 / 33+ / 소수 / 문자) = 에러", () => {
+    expect(validateDivisionSettings({ advance_per_group: 0 })?.field).toBe("advance_per_group");
+    expect(validateDivisionSettings({ advance_per_group: -1 })?.field).toBe("advance_per_group");
+    expect(validateDivisionSettings({ advance_per_group: 33 })?.field).toBe("advance_per_group");
+    expect(validateDivisionSettings({ advance_per_group: 2.5 })?.field).toBe("advance_per_group");
+    expect(validateDivisionSettings({ advance_per_group: "2" })?.field).toBe("advance_per_group");
+  });
+
+  it("advance_per_group > group_size = 에러 (조 크기 초과 진출 불가)", () => {
+    // 조 4팀인데 5팀 본선 진출 = 불가능
+    const result = validateDivisionSettings({ group_size: 4, advance_per_group: 5 });
+    expect(result?.field).toBe("advance_per_group");
+    expect(result?.message).toContain("group_size 이하");
+  });
+
+  it("advance_per_group = group_size = OK (전팀 진출 — 풀리그 후 토너먼트 가능)", () => {
+    expect(validateDivisionSettings({ group_size: 4, advance_per_group: 4 })).toBeNull();
+  });
+
+  it("group_size 없이 advance_per_group 단독 박제 = OK (조 크기 미확정 케이스)", () => {
+    // group_size 미박제 = 상한 검증 skip (다른 단계에서 박제 보장)
+    expect(validateDivisionSettings({ advance_per_group: 8 })).toBeNull();
+  });
+
+  it("강남구협회장배 시나리오 (group_stage_knockout 4×4 → 조 1·2위 본선) = OK", () => {
+    expect(
+      validateDivisionSettings({
+        group_size: 4,
+        group_count: 4,
+        advance_per_group: 2,
       }),
     ).toBeNull();
   });

@@ -23,6 +23,64 @@
 | D | 대진표 고도화 | 진행 중 |
 | **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
 
+## 구현 기록 (developer) — advance_per_group 본선 진출 팀 수 설정 (Phase 3.5-F / 2026-05-13)
+
+📝 구현 범위: settings JSON 에 `advance_per_group` (조별 본선 진출 팀 수) 박제 + UI input + zod 검증 + vitest 9건.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/tournaments/division-formats.ts` | (a) `shouldShowAdvancePerGroup()` 신규 — `group_stage_knockout` / `full_league_knockout` / `dual_tournament` 3개 enum 시만 true. (b) `ADVANCE_PER_GROUP_DEFAULT = 2` (생활체육 표준 1·2위 진출). (c) `validateDivisionSettings` 확장 — `advance_per_group`: 1~32 정수 + group_size 박제 시 `advance_per_group <= group_size` 강제 (조 크기 초과 진출 불가). (d) `DivisionSettingsValidationError.field` 에 `advance_per_group` 추가. | 수정 |
+| `src/app/api/web/admin/tournaments/[id]/division-rules/[ruleId]/route.ts` | settingsSchema zod refine 메시지 갱신 (advance_per_group 명시). 검증 로직 자체는 `validateDivisionSettings` 위임 → 자동 반영. | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/divisions/page.tsx` | (a) `shouldShowAdvancePerGroup` / `ADVANCE_PER_GROUP_DEFAULT` import. (b) GroupSettingsInputs 에 `advancePerGroup` state + initialAdvancePerGroup 추출. (c) handleSave 에 박제 로직 — 노출 enum 만 settings 박제, 비노출 enum 으로 전환 시 키 삭제. (d) input row 신규 — 조별 본선 진출 팀 수, max=group_size (조 크기 초과 차단), default placeholder 2. (e) 안내문 확장 — 총 본선 진출 = advance_per_group × group_count 자동 계산. (f) 가이드 li 텍스트 — "조별 본선 진출 팀 수 설정 가능" 추가. | 수정 |
+| `src/__tests__/lib/tournaments/division-formats.test.ts` | +9 신규 케이스 — shouldShowAdvancePerGroup True 3건 + False 9건 / advance_per_group 정상 / 범위외 / >group_size / =group_size / group_size 없이 단독 / 강남구협회장배 시나리오 / DEFAULT=2 회귀. 총 25 → 34 PASS. | 수정 |
+
+### 노출 매트릭스 (사용자 요구사항 그대로)
+| enum | shouldShowAdvancePerGroup | 의미 |
+|------|--------------------------|------|
+| `group_stage_knockout` | ✅ true | 조 N위까지 본선 토너먼트 진출 |
+| `full_league_knockout` | ✅ true | 풀리그 N위까지 다음 토너먼트 진출 |
+| `dual_tournament` | ✅ true | 조 N위까지 본선 진출 (보통 4×4) |
+| `league_advancement` | ❌ false | linkage_pairs 로 매칭 |
+| `group_stage_with_ranking` | ❌ false | 모든 순위 동순위전 |
+| `round_robin` / `single_elimination` / `double_elimination` / `swiss` | ❌ false | 본선 분리 없음 |
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run division-formats` | ✅ 34/34 PASS (이전 25 + 신규 9) |
+| `npx vitest run` 전체 | ✅ **639/639 PASS** (이전 630 + 신규 9) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 에 division-formats / FORMAT_LABEL import 0건) |
+| schema 변경 | ✅ 0 (settings JSON 활용만) |
+| advance_per_group 영향 파일 | ✅ 4개 (의도된 범위) |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / 44px+ 터치 / 4px radius |
+
+### 💡 tester 참고
+- **테스트 방법**: `/tournament-admin/tournaments/[id]/divisions` 진입 → 종별 카드 진행 방식 변경
+- **정상 동작**:
+  1. **3 enum 시 input 노출** — `조별리그 + 토너먼트` / `풀리그 + 토너먼트` / `듀얼 토너먼트` 선택 → "조별 본선 진출 팀 수" input 표시
+  2. **default placeholder** — 빈 값일 때 "예: 2" 노출 (생활체육 표준)
+  3. **상한 자동 가드** — group_size=4 입력 후 advance_per_group input max=4 자동 설정 (HTML5 + 서버 zod 이중 가드)
+  4. **총 본선 진출 자동 계산** — group_count=4 + advance_per_group=2 입력 → "총 16팀 (4 × 4) / 총 본선 진출 = 8팀" 표시
+  5. **enum 전환 시 자동 정리** — `group_stage_knockout` → `league_advancement` 변경 시 settings.advance_per_group 키 자동 삭제 (의미 없는 잔존 방지)
+  6. **기존 데이터 호환** — advance_per_group 미박제 settings = input 빈 값으로 노출 (placeholder 가 default 2 안내)
+- **주의할 입력**:
+  - advance_per_group=5, group_size=4 박제 시도 → 서버 422 ("group_size 이하여야 합니다")
+  - advance_per_group=0 / 음수 / 소수 → HTML5 거부 + 서버 422
+  - enum 이 `league_advancement` / `group_stage_with_ranking` / `round_robin` 일 때 input 숨김 확인
+
+### ⚠️ reviewer 참고
+- **default 값 명시 위치**: `ADVANCE_PER_GROUP_DEFAULT = 2` lib 상수 + UI placeholder 만 노출. settings 박제 강제 아님 (사용자 미입력 시 키 자체 없음 → 호환성 100%).
+- **상한 검증 이중 가드**: HTML5 input max + 서버 zod refine 둘 다 적용. group_size 변경 후 advance_per_group 미수정 케이스도 서버에서 422 차단.
+- **lib import 영향**: shouldShowAdvancePerGroup / ADVANCE_PER_GROUP_DEFAULT 신규 export — page.tsx + 테스트만 사용. 다른 admin 페이지 영향 0.
+- **enum 전환 안전성**: 비노출 enum 으로 변경 시 handleSave 가 `delete next.advance_per_group` 자동 실행 → settings 잔존 키 방지.
+
+### 신규 보안 이슈
+- **0 건** — settings JSON 필드 추가만. API / 권한 / DB / schema 영향 0.
+
+---
+
 ## 구현 기록 (developer) — 한국식 용어 통일 + group_count 조건부 UI (Phase 3.5-E / 2026-05-13)
 
 📝 구현 범위: FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 + group_count <= 2 일 때 ranking_format 드롭다운 숨김 + 단판 안내문 노출.
@@ -787,6 +845,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[Phase 3.5-F — advance_per_group 본선 진출 팀 수 설정]** (a) `shouldShowAdvancePerGroup()` 신규 — `group_stage_knockout` / `full_league_knockout` / `dual_tournament` 3 enum 시만 true. (b) `ADVANCE_PER_GROUP_DEFAULT = 2` 상수 (생활체육 표준 1·2위). (c) `validateDivisionSettings` 확장 — advance_per_group: 1~32 정수 + `<= group_size` 강제 (조 크기 초과 진출 차단). (d) divisions/page.tsx GroupSettingsInputs 에 input row 신규 — max=group_size HTML5 가드 + 박제 enum 전환 시 자동 정리 + 총 본선 진출 = advance_per_group × group_count 자동 계산 안내. (e) 가이드 li "조별 본선 진출 팀 수 설정 가능" 추가. (f) zod refine 메시지만 갱신 (검증 로직은 lib 위임으로 자동 반영). vitest 9건 신규 (shouldShowAdvancePerGroup True 3 / False 9 / advance_per_group 정상·범위외·상한·=group_size·단독·DEFAULT·강남시나리오) → 25 → 34 PASS. tsc 0 / vitest 전체 **639/639 PASS** (630 → +9) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[FIBA Phase 16 — 검증 5 issue 통합 fix]** 사용자 직접 결재 6건 (이미지 36-41): (§1) 스타팅 자동 P.IN + 빨강 배경 — `handleLineupConfirm` + `initialLineupComputed` mount 양쪽에서 starters+substitutes playerIn=true 자동 set. 스타팅 5인 = P.IN 체크박스 빨강 배경 + 흰 체크 (accentColor #fff) / 일반 출전 7명 = 흰 배경 (§2 빨강 원 ◉ 영구 제거 — 스타팅 표시 = P.IN 배경으로 대체). (§3) DATE/TIME/PLACE 자동 매핑 — `formatScheduledAt()` Asia/Seoul timezone + `Intl.DateTimeFormat(en-CA)` "YYYY-MM-DD HH:mm" 형식 (splitDateTime 친화 / 이전 ko-KR locale 분리 깨짐 fix). `match.venue_id != null` 시 `courts.findUnique` 별도 조회 + placeLabel fallback chain (`court_number` → `courts.name` → null). (§4) Team fouls 박스 우측 정렬 — `justify-between` + `ml-auto shrink-0` + 라벨 `text-right` (FIBA PDF 정합). (§5) D 퇴장 UI 정리 — material-symbols `block` 아이콘 + "5반칙/T×2/U×2/D 퇴장" 텍스트 영구 제거 / 행 `opacity: 0.6` + `cursor: not-allowed` 강화 / P.IN input `disabled = disabled \|\| ejected` (퇴장 후 토글 차단) / D 마킹은 Fouls 1번 칸 글자 유지. (§6) 풋터 FIBA 정합 — SigInput inline `uppercase` 제거 → Title case 보존 / frameless 심판진 = Referee 단독 + **Umpire 1·2 가로 묶음** (각 50% / labelWidth=60) / Captain's signature `labelNoWrap=true` + labelWidth=200 한 줄 강제 + ellipsis / 운영진/심판/주장 사이 border-top 영역 구분. tsc 0 / vitest **630/630 PASS** (회귀 0) / Flutter v1 영향 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 빨강 본문 텍스트 0 (P.IN 배경 = 사용자 결재 §1 예외) / A4 fit 유지. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[Phase 3.5-E — 한국식 용어 통일 + group_count 조건부 UI]** (a) FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 — `single_elimination` "싱글 엘리미네이션" → **"토너먼트"** / `round_robin` "풀리그 (Round Robin)" → **"풀리그"** / `double_elimination` "더블 엘리미네이션" → **"더블 토너먼트"**. swiss / 나머지 = 변경 0. enum 값 자체 = DB 호환성 유지 (라벨만 변경). (b) `<GroupSettingsInputs>` 의 ranking_format 영역에 `group_count <= 2` 분기 — 드롭다운 대신 "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내 박스 노출. group_count 3+ 일 때만 드롭다운 (풀리그 / 토너먼트). onChange 즉시 토글 (React state 재렌더). default `round_robin` 박제 유지 (호환성). (c) 페이지 하단 가이드 li 일관성 — "토너먼트" 추가 + "더블 토너먼트" 신규 추가. (d) vitest 4건 신규 (FORMAT_LABEL 회귀 가드) → 21 → 25건 PASS. tsc 0 / vitest 전체 **630/630 PASS** (626 → +4) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase 3.5-D — 종별 운영 방식 신규 모드 + 조 설정 UI]** (a) 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전 / league_advancement 와 차이 = settings.linkage_pairs 명시 불필요, group_size/group_count 만 박제). (b) `src/lib/tournaments/division-formats.ts` 신규 — ALLOWED_FORMATS (9개) + FORMAT_LABEL + showGroupSettings (풀리그 6 enum) + showRankingFormat (신규만) + validateDivisionSettings (1~32 정수 / round_robin·single_elimination) + calculateTotalTeams. server (route.ts ×2) + client (page.tsx) 단일 source of truth. (c) divisions/page.tsx 에 `<GroupSettingsInputs>` 컴포넌트 신규 — 조 크기·조 개수·동순위전 방식 input 3개 + 총 팀 수 자동 계산 안내 + onBlur PATCH 저장. (d) 가이드 항목 추가. (e) division-advancement.ts `generateGroupStageRankingPlaceholders` stub 함수 (후속 PR 큐잉). (f) prisma schema 코멘트만 갱신 (값 변경 0 / String 필드). vitest 21건 신규 / tsc 0 / 전체 **626/626 PASS** (605 → +21) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. **후속 PR 큐잉**: 신규 enum 의 동순위전 placeholder 자동 생성 (현재 stub). | ✅ |
@@ -799,4 +858,3 @@ Extra [1][2][3][4]                   ← 줄 3
 | 2026-05-12 | 6057ba6 | **[design B등급]** admin 빨강 잔존 — analytics/logs/news/users/site/bracket 7 위치 톤다운 | ✅ |
 | 2026-05-12 | 4a861ae | **[design]** admin 빨강 톤다운 전면 — wizard/통계/메뉴/이니셜 (이미지 37/38) | ✅ |
 | 2026-05-12 | 98f857c | **[design]** admin 빨강 누락 페이지 — series 목록/wizard/모달 (이미지 36) | ✅ |
-| 2026-05-12 | b8f293f | **[design]** pill 9999px + 빨강 본문 일괄 정리 (이미지 35) — 12 파일 | ✅ |

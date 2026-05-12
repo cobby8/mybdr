@@ -12,12 +12,16 @@ import { apiSuccess, apiError, unauthorized, forbidden, validationError } from "
 // 2026-05-12 Phase 3.5-D — ALLOWED_FORMATS / settings 검증 단일 source of truth.
 import { ALLOWED_FORMATS, validateDivisionSettings } from "@/lib/tournaments/division-formats";
 
-// settings JSON 스키마 (group_size / group_count / ranking_format 검증).
+// settings JSON 스키마 (group_size / group_count / ranking_format / advance_per_group 검증).
 // 본 zod 는 record 형이므로 추가 키 허용 (legacy linkage_pairs / advanceCount 호환).
 // 룰 검증은 lib/tournaments/division-formats.ts validateDivisionSettings 위임 (단위 테스트 커버).
+// 2026-05-13 — advance_per_group 추가 (조별 본선 진출 팀 수, group_size 이하 강제)
 const settingsSchema = z.record(z.string(), z.unknown()).refine(
   (s) => validateDivisionSettings(s) === null,
-  { message: "settings: group_size/group_count = 1~32 정수, ranking_format = round_robin/single_elimination" },
+  {
+    message:
+      "settings: group_size/group_count = 1~32 정수, ranking_format = round_robin/single_elimination, advance_per_group = 1~group_size 정수",
+  },
 );
 
 const patchSchema = z.object({

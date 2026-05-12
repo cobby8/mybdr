@@ -80,21 +80,48 @@ export function showRankingFormat(format: string | null | undefined): boolean {
   return format === "group_stage_with_ranking";
 }
 
+/**
+ * 2026-05-13 — 조별 본선 진출 팀 수 (advance_per_group) input 노출 대상.
+ *
+ * 사유: 조별리그/풀리그 → 토너먼트 본선으로 이어지는 enum 에서만 의미 있음.
+ *   - group_stage_knockout / full_league_knockout / dual_tournament = 조 N위까지 본선 진출
+ *   - league_advancement = linkage_pairs 명시로 매칭 (advance_per_group 무의미)
+ *   - group_stage_with_ranking = 모든 순위 동순위전 (advance_per_group 무의미)
+ *   - round_robin / single_elimination / double_elimination / swiss = 본선 분리 없음
+ */
+const ADVANCE_PER_GROUP_FORMATS = new Set<DivisionFormat>([
+  "group_stage_knockout",
+  "full_league_knockout",
+  "dual_tournament",
+]);
+
+export function shouldShowAdvancePerGroup(format: string | null | undefined): boolean {
+  if (!format) return false;
+  return ADVANCE_PER_GROUP_FORMATS.has(format as DivisionFormat);
+}
+
+/**
+ * advance_per_group 기본값 — 한국 생활체육 표준 (조 1·2위 진출).
+ */
+export const ADVANCE_PER_GROUP_DEFAULT = 2;
+
 // ─────────────────────────────────────────────────────────────────────────
 // settings JSON 검증 (group_size / group_count / ranking_format)
 // ─────────────────────────────────────────────────────────────────────────
 
 export type DivisionSettingsValidationError = {
-  field: "group_size" | "group_count" | "ranking_format";
+  field: "group_size" | "group_count" | "ranking_format" | "advance_per_group";
   message: string;
 };
 
 /**
- * settings JSON 의 신규 키 (group_size / group_count / ranking_format) 검증.
+ * settings JSON 의 신규 키 (group_size / group_count / ranking_format / advance_per_group) 검증.
  *
  * 룰:
  *   - group_size / group_count = 1~32 정수 (음수/소수/0/문자 거부)
  *   - ranking_format = "round_robin" / "single_elimination" 둘 중 하나
+ *   - advance_per_group = 1~32 정수 + group_size 가 박제돼 있으면 advance_per_group <= group_size
+ *     (조 크기보다 많은 팀이 본선 진출할 수 없음)
  *   - 키 자체가 없으면 OK (선택 입력)
  *   - legacy 키 (linkage_pairs / advanceCount 등) 는 검증 안 함 (호환 유지)
  *
@@ -125,6 +152,25 @@ export function validateDivisionSettings(
       return {
         field: "ranking_format",
         message: "ranking_format 는 round_robin / single_elimination 둘 중 하나여야 합니다",
+      };
+    }
+  }
+
+  // 2026-05-13 — advance_per_group 검증 (조별 본선 진출 팀 수)
+  const apg = settings.advance_per_group;
+  if (apg !== undefined && apg !== null) {
+    if (typeof apg !== "number" || !Number.isInteger(apg) || apg < 1 || apg > 32) {
+      return {
+        field: "advance_per_group",
+        message: "advance_per_group 는 1~32 정수여야 합니다",
+      };
+    }
+    // group_size 가 함께 박제돼 있으면 advance_per_group <= group_size 강제
+    // (조 크기보다 많은 팀이 본선에 진출할 수 없음)
+    if (typeof gs === "number" && Number.isInteger(gs) && apg > gs) {
+      return {
+        field: "advance_per_group",
+        message: "advance_per_group 는 group_size 이하여야 합니다 (조 크기 초과 진출 불가)",
       };
     }
   }
