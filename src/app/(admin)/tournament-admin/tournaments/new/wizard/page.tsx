@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TossCard } from "@/components/toss/toss-card";
 import { ScheduleForm, type ScheduleFormData, type PlaceInfo } from "@/components/tournament/schedule-form";
@@ -70,7 +70,376 @@ function SectionTitle({ icon, children }: { icon: string; children: React.ReactN
 
 type AuthStatus = "loading" | "unauthenticated" | "unauthorized" | "authorized";
 
+/**
+ * 2026-05-13 UI-2 — 기본 = 압축 1-step 폼 / `?legacy=1` 시 기존 3-step 폼.
+ *
+ * 이유 (왜):
+ *   - 3-step (기본정보 → 신청설정 → 확인생성) 은 운영자가 한 번에 너무 많은 결정을 요구받음 → 이탈
+ *   - 필수 1 필드 (대회 이름) 만 받고 즉시 draft 생성 → 체크리스트 hub 에서 점진 보강 흐름
+ *   - 기존 폼은 `?legacy=1` 안전망 (1주 운영 후 별도 PR 로 폐기 예정)
+ *
+ * 어떻게 (방법):
+ *   - 본 함수 = 라우터. useSearchParams 로 `?legacy=1` 분기.
+ *   - 신규 압축 폼 = QuickCreateForm (대회 이름 + 시작일 + 시리즈 dropdown + InlineSeriesForm)
+ *   - 기존 3-step 폼 = LegacyWizardForm (코드 보존 — 동작 변경 0)
+ */
 export default function NewTournamentWizardPage() {
+  const searchParams = useSearchParams();
+  // null-safe — Next.js 15 App Router 환경에서 안전
+  const isLegacy = searchParams?.get("legacy") === "1";
+
+  if (isLegacy) {
+    return <LegacyWizardForm />;
+  }
+  return <QuickCreateForm />;
+}
+
+/**
+ * QuickCreateForm — 2026-05-13 UI-2 신규 압축 1-step 폼.
+ *
+ * 박제 기준 (서버 POST /api/web/tournaments — route.ts 검증):
+ *   - 필수: name (trim 후 비어있지 않음)
+ *   - default 박제 (클라이언트 측 — POST schema 변경 0):
+ *       format = "single_elimination" / maxTeams = 16 / teamSize = 5
+ *       rosterMin = 5 / rosterMax = 12 / gender = "male"
+ *       primaryColor / secondaryColor = BDR 토큰
+ *       status / categories / divCaps 등 = 미전송 (서버 기본값 적용)
+ *   - 운영자가 선택 입력 가능: 시작일 (startDate) / 시리즈 (seriesId)
+ *
+ * 흐름:
+ *   1) 인증 체크 (관리자 이상)
+ *   2) 시리즈 / 단체 로드 (dropdown + 인라인 생성용)
+ *   3) 제출 → POST → 응답 redirect_url 사용 (체크리스트 hub)
+ */
+function QuickCreateForm() {
+  const router = useRouter();
+  const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 필수 1: 대회 이름
+  const [name, setName] = useState("");
+  // 권장 (선택): 시작일 (날짜 입력 type=date — YYYY-MM-DD)
+  const [startDate, setStartDate] = useState("");
+
+  // 시리즈 dropdown / 인라인 생성 — UI-1.3 의 동일 패턴 재사용
+  type SeriesOption = {
+    id: string;
+    name: string;
+    organization: { id: string; name: string; slug: string } | null;
+  };
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
+  const [seriesLoaded, setSeriesLoaded] = useState(false);
+  const [showSeriesForm, setShowSeriesForm] = useState(false);
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
+
+  // 인증 체크 (LegacyWizardForm 과 동일 로직 — 재사용 아니라 복제. 단순 분리 우선)
+  useEffect(() => {
+    fetch("/api/web/me")
+      .then((res) => {
+        if (!res.ok) {
+          setAuthStatus("unauthenticated");
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        const role = (data.role ?? data.data?.role ?? "") as string;
+        if (["super_admin", "organizer", "admin", "tournament_admin"].includes(role)) {
+          setAuthStatus("authorized");
+        } else {
+          setAuthStatus("unauthorized");
+        }
+      })
+      .catch(() => setAuthStatus("unauthenticated"));
+  }, []);
+
+  useEffect(() => {
+    if (authStatus === "unauthenticated") {
+      router.push("/login?redirect=/tournament-admin/tournaments/new/wizard");
+    }
+  }, [authStatus, router]);
+
+  // 시리즈 / 단체 로드 (UI-1.3 패턴 동일)
+  useEffect(() => {
+    if (authStatus !== "authorized") return;
+    let cancelled = false;
+
+    async function loadSeries() {
+      try {
+        const res = await fetch("/api/web/series/my");
+        if (!res.ok) {
+          if (!cancelled) setSeriesLoaded(true);
+          return;
+        }
+        const json = await res.json();
+        const list: SeriesOption[] = (json.data?.data ?? json.data ?? []) as SeriesOption[];
+        if (!cancelled) {
+          setSeriesOptions(list);
+          setSeriesLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setSeriesLoaded(true);
+      }
+    }
+
+    async function loadOrgs() {
+      try {
+        const res = await fetch("/api/web/organizations");
+        if (!res.ok) return;
+        const json = await res.json();
+        const list = (json.data?.organizations ?? json.organizations ?? []) as Array<{
+          id: string;
+          name: string;
+          myRole?: string;
+          my_role?: string;
+        }>;
+        const filtered = list
+          .filter((o) => {
+            const role = o.myRole ?? o.my_role;
+            return role === "owner" || role === "admin";
+          })
+          .map((o) => ({ id: o.id, name: o.name }));
+        if (!cancelled) setMyOrgs(filtered);
+      } catch {
+        // 실패 무시 — 단체 dropdown 만 안 보임 (개인 시리즈 생성은 가능).
+      }
+    }
+
+    loadSeries();
+    loadOrgs();
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus]);
+
+  // 인라인 시리즈 생성 성공 시
+  function handleSeriesCreated(created: CreatedSeries) {
+    setSeriesOptions((prev) => [created, ...prev]);
+    setSeriesId(created.id);
+    setShowSeriesForm(false);
+  }
+
+  // 로딩 / 미인증 상태
+  if (authStatus === "loading" || authStatus === "unauthenticated") {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="text-[var(--color-text-muted)]">로딩 중...</div>
+      </div>
+    );
+  }
+
+  // 권한 없음
+  if (authStatus === "unauthorized") {
+    return (
+      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 text-center">
+        <span className="material-symbols-outlined text-5xl text-[var(--color-text-muted)]">lock</span>
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">권한이 필요합니다</h1>
+        <p className="max-w-md text-sm text-[var(--color-text-muted)]">
+          대회를 만들려면 <strong>대회 관리자</strong> 이상의 권한이 필요합니다.
+          <br />
+          운영자에게 문의해주세요.
+        </p>
+        <Link href="/tournaments" className="btn btn--primary mt-2">
+          대회 목록으로 돌아가기
+        </Link>
+      </div>
+    );
+  }
+
+  // 대회 생성 — 필수 1 + 권장 2 + 클라이언트 default 박제.
+  // 이유: POST /api/web/tournaments 가 name 만 필수. 그 외는 미전송 시 서버 default 적용.
+  //   클라이언트가 일부 default 를 박아 보내면 dashboard 진입 시 안내 표시가 자연스러움.
+  async function handleCreate(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!name.trim()) {
+      setError("대회 이름을 입력하세요.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/web/tournaments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          // 클라이언트 측 default 박제 — POST schema 변경 0 (route.ts FORMAT_MAP fallback 과 일치)
+          format: "single_elimination",
+          gender: "male",
+          maxTeams: 16,
+          teamSize: 5,
+          rosterMin: 5,
+          rosterMax: 12,
+          primaryColor: BDR_PRIMARY_HEX,
+          secondaryColor: BDR_SECONDARY_HEX,
+          // 운영자 입력값 (선택)
+          startDate: startDate || undefined,
+          seriesId: seriesId ?? undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        // 응답 키 — apiSuccess 가 snake_case 변환 → redirect_url. 폴백 camelCase.
+        router.push(data.redirect_url ?? data.redirectUrl ?? "/tournament-admin/tournaments");
+      } else {
+        setError(data.error ?? "오류가 발생했습니다.");
+        setLoading(false);
+      }
+    } catch {
+      setError("네트워크 오류가 발생했습니다.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      {/* === 헤더 === */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold sm:text-2xl">새 대회 만들기</h1>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+          이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요.
+        </p>
+      </div>
+
+      {/* 에러 메시지 — color-mix 토큰 (admin 빨강 본문 금지 룰) */}
+      {error && (
+        <div className="mb-4 rounded-md bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] px-4 py-3 text-sm text-[var(--color-error)]">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleCreate} className="space-y-4">
+        <TossCard className="space-y-4 hover:scale-100">
+          <SectionTitle icon="edit_note">필수 정보</SectionTitle>
+
+          {/* 대회 이름 (필수) — 모바일 44px+ 입력 친화 */}
+          <div>
+            <label className={labelCls}>대회 이름 *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputCls}
+              placeholder="예: 2026 봄 시즌 BDR 대회"
+              autoFocus
+              required
+            />
+          </div>
+
+          {/* 시작일 (선택 — 나중에 설정 가능) */}
+          <div>
+            <label className={labelCls}>시작일 (선택)</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={inputCls}
+            />
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              아직 미정이면 비워두세요. 대시보드에서 나중에 설정할 수 있어요.
+            </p>
+          </div>
+
+          {/* 소속 시리즈 (선택) — UI-1.3 패턴 재사용 */}
+          <div>
+            <label className={labelCls}>소속 시리즈 (선택)</label>
+            <select
+              value={seriesId ?? ""}
+              onChange={(e) => setSeriesId(e.target.value === "" ? null : e.target.value)}
+              className={inputCls}
+              disabled={!seriesLoaded}
+            >
+              <option value="">개인 대회 (시리즈 없음)</option>
+              {seriesOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.organization?.name ?? "단체 미연결"})
+                </option>
+              ))}
+            </select>
+
+            {/* 빈 상태 + 새 시리즈 트리거 */}
+            {seriesLoaded && !showSeriesForm && seriesOptions.length === 0 && (
+              <div className="mt-2">
+                <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+                  아직 보유한 시리즈가 없습니다.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSeriesForm(true)}
+                  className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
+                >
+                  <span className="material-symbols-outlined text-base">add</span>
+                  새 시리즈 만들기
+                </button>
+              </div>
+            )}
+            {seriesLoaded && !showSeriesForm && seriesOptions.length > 0 && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSeriesForm(true)}
+                  className="inline-flex items-center gap-1 text-xs text-[var(--color-info)] hover:underline"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  새 시리즈 만들기
+                </button>
+              </div>
+            )}
+
+            {showSeriesForm && (
+              <InlineSeriesForm
+                myOrgs={myOrgs}
+                onCreated={handleSeriesCreated}
+                onCancel={() => setShowSeriesForm(false)}
+              />
+            )}
+          </div>
+
+          {/* 안내 박스 — 운영자에게 흐름 미리 알려주기 */}
+          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-elevated)] p-3 text-xs text-[var(--color-text-muted)]">
+            <p className="flex items-start gap-1.5">
+              <span className="material-symbols-outlined text-base text-[var(--color-info)]">info</span>
+              <span>
+                대회를 만든 후 대시보드의 <strong>설정 체크리스트</strong>를 따라 종별/참가비/대진표 등을 단계별로 진행합니다.
+              </span>
+            </p>
+          </div>
+        </TossCard>
+
+        {/* === 생성 CTA — 풀와이드 / 모바일 친화 44px+ === */}
+        <button
+          type="submit"
+          disabled={loading || !name.trim()}
+          className="btn btn--primary w-full disabled:opacity-50"
+        >
+          {loading ? "생성 중..." : "대회 만들기"}
+        </button>
+
+        {/* 레거시 폼 안내 — 1주 운영 후 폐기 예정. 마음에 안 들면 ?legacy=1 로 돌아가기 가능 */}
+        <p className="text-center text-xs text-[var(--color-text-muted)]">
+          <Link href="/tournament-admin/tournaments/new/wizard?legacy=1" className="hover:underline">
+            예전 상세 폼으로 만들기
+          </Link>
+        </p>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * LegacyWizardForm — 기존 3-step 폼 (대회정보 → 참가설정 → 확인생성).
+ *
+ * 2026-05-13 UI-2 — 본 함수는 코드 변경 0. 단지 default export 를 라우터로 변경하면서
+ *   기존 컴포넌트를 함수 이름만 LegacyWizardForm 으로 변경. ?legacy=1 진입 시에만 노출.
+ *
+ * 1주 운영 후 별도 PR 로 본 함수 통째로 제거 예정 (UI-2 안정화 확인 후).
+ */
+function LegacyWizardForm() {
   const router = useRouter();
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
   const [currentStep, setCurrentStep] = useState(0);
