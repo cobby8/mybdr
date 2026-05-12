@@ -23,6 +23,124 @@
 | D | 대진표 고도화 | 진행 중 |
 | **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
 
+## 구현 기록 (developer) — FIBA Phase 15 풋터 Team B 아래 이동 (2026-05-12)
+
+📝 구현 범위: 풋터 위치 = frame 가로 전체 → 좌측 col 안 Team B 아래 (FIBA PDF 정합). 풋터 내부 = 좌측 50% 폭 안 fit 압축 (labelWidth 140→100 / 심판진 가로 3컬럼→세로 3줄).
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (a) `<FooterSignatures>` 위치 = frame 가로 (grid 외부) → **좌측 col 안 Team B 아래 마지막 child** (FIBA PDF 정합 / 사용자 결재 §1). (b) Team B section 을 `<div className="fiba-divider-bottom">` 으로 래핑 (Team B / 풋터 사이 구분선). (c) frame 외부 영역 (MatchEndButton + 라인업 다시 선택) = 변경 0. Phase 15 코멘트 갱신. | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | (a) frameless=true 운영진 4명 (Scorer/Asst/Timer/Shot Clock) labelWidth **140 → 100** (좁은 50% 컬럼 안 fit). (b) frameless=true 심판진 (Referee/Umpire 1·2) grid-cols-3 가로 → **flex flex-col gap-0 세로 3줄** + labelWidth=100 (좁은 50% 안 underscore line 가독성). (c) frameless=true 주장 (Captain's signature in case of protest) labelWidth=100 추가 (시각 통일). (d) frameless=false (회귀) 변경 0. Phase 15 docstring 추가. | 수정 |
+
+### 구조 변경 (핵심)
+
+**Phase 14 (잘못된 위치)**:
+```
+<frame>
+  <FibaHeader />
+  <Grid 50:50>
+    <Left col>
+      <TeamSection A />
+      <TeamSection B />
+    </Left>
+    <Right col>
+      <RunningScoreGrid />
+      <PeriodScoresSection />
+    </Right>
+  </Grid>
+  <FooterSignatures />  ← frame 가로 펼침 (잘못 / 경기 종료 버튼과 겹침)
+</frame>
+<MatchEndButton />
+```
+
+**Phase 15 (FIBA PDF 정합)**:
+```
+<frame>
+  <FibaHeader />
+  <Grid 50:50>
+    <Left col>
+      <TeamSection A />
+      <TeamSection B />
+      <FooterSignatures />  ← 좌측 col 안 마지막 child (50% 폭)
+    </Left>
+    <Right col>
+      <RunningScoreGrid />
+      <PeriodScoresSection />
+    </Right>
+  </Grid>
+</frame>
+<MatchEndButton />  ← frame 외부 (변경 0)
+```
+
+### A4 fit 재검증
+| 영역 | Phase 14 | Phase 15 |
+|------|---------|----------|
+| 좌측 Team A | ~370 | ~370 |
+| 좌측 Team B | ~370 | ~370 |
+| 좌측 풋터 (운영진 4 + 심판진 3 + 주장 1 = 8행 × 22px) | (frame 가로 = 좌:우 외부) | **~180** |
+| **좌측 합** | ~740 | **~920** |
+| 우측 Running Score | ~820 | ~820 |
+| 우측 Period + Final | ~140 | ~140 |
+| **우측 합** | ~960 | **~960** |
+| max(좌, 우) + 헤더(~95) | 960+95+풋터(~80) = ~1135 | **max(920, 960) + 95 = 1055** |
+| A4 (aspect 210:297 = 1121px) | 초과 위험 | **여유 ~66px ✓** |
+
+→ 풋터가 좌측 안으로 이동하면서 우측이 자연스럽게 max → A4 1121px 안 fit 자동 보장. Phase 14 `aspect-ratio: 210/297` + `overflow:hidden` 이중 안전망 유지.
+
+### 풋터 좌측 50% (~396px) 안 fit 매트릭스
+| 영역 | 라벨 | underscore line |
+|------|------|----------------|
+| Scorer | 100px | ~280px |
+| Assistant scorer | 100px (줄바꿈 2줄 가능) | ~280px |
+| Timer | 100px | ~280px |
+| Shot clock operator | 100px (줄바꿈 2줄 가능) | ~280px |
+| Referee | 100px | ~280px |
+| Umpire 1 | 100px | ~280px |
+| Umpire 2 | 100px | ~280px |
+| Captain's signature in case of protest | 100px (줄바꿈 5-6줄) | ~280px |
+
+→ 라벨 100px = "Scorer/Timer" 등 짧은 라벨 단일 줄, "Assistant scorer/Shot clock operator" 2줄, "Captain's signature in case of protest" 5-6줄. underscore line 폭 ~280px = 가독성 OK.
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run` 전체 | ✅ **605/605 PASS** (45 파일) |
+| lucide-react import | ✅ 0건 (score-sheet/_components/ 전체) |
+| 핑크 hex (ff*/fb*/hotpink/salmon/coral) | ✅ 0건 (footer-signatures.tsx + score-sheet-form.tsx) |
+| schema 변경 | ✅ 0 |
+| Flutter v1 영향 | ✅ 0 |
+| BFF / service 변경 | ✅ 0 |
+| AppNav frozen 영향 | ✅ 0 |
+| 기능 변경 | ✅ 0 (레이아웃 only) |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/[matchId]` 진입 → 시각 검증 + A4 인쇄 미리보기
+- **정상 동작**:
+  1. **풋터 위치 (핵심)** — 풋터가 frame 가로 전체 펼침 X → **좌측 column 안 Team B 아래** 표시 (FIBA PDF 정합). 우측 column 은 Running Score + Period + Final 만 표시 (풋터 없음).
+  2. **풋터 내용 8행 세로 누적** — Scorer / Assistant scorer / Timer / Shot clock operator (4행) + Referee / Umpire 1 / Umpire 2 (3행) + Captain's signature (1행). 모든 라벨 width 100px / underscore line 폭 ~280px.
+  3. **라벨 줄바꿈** — "Assistant scorer" / "Shot clock operator" = 100px 안 2줄 줄바꿈. "Captain's signature in case of protest" = 5-6줄 줄바꿈. 운영 시 미입력 케이스 99%.
+  4. **A4 1 페이지 fit** — 좌측 ~920 / 우측 ~960 / 헤더 95 + max(920, 960) = 1055px (A4 1121 안 ~66px 여유).
+  5. **경기 종료 버튼** — frame 외부 하단 그대로. 풋터와 겹침 없음 (자동 해소).
+  6. **"라인업 다시 선택" 버튼** — frame 외부 하단 그대로.
+- **주의할 입력**:
+  - 모바일 (md 미만) = grid 1 컬럼 → 풋터가 Team B 아래 (당연) → 우측이 다시 그 아래 → MatchEndButton. 세로 누적 흐름.
+  - frameless=false (legacy 박스 모드) = 변경 0 (회귀 안전망).
+  - 인쇄 미리보기 (Ctrl+P / PrintButton) = A4 1 페이지 fit 시각 검증 권장.
+
+### ⚠️ reviewer 참고
+- **풋터 위치 변경 = Phase 15 핵심** — score-sheet-form.tsx 의 grid 외부 → 좌측 col 안 마지막 child 로 이동. score-sheet-form.tsx 의 JSX 구조 단일 변경.
+- **footer-signatures.tsx 압축**: labelWidth 140 → 100 + 심판진 가로→세로 = 좌측 50% 폭 안 fit. frameless=true 일 때만 적용 (회귀 안전).
+- **심판진 가로→세로 결정**: FIBA PDF 정합은 가로 3컬럼이나, 좌측 50% (~396px) 안에서 컬럼당 ~130px = underscore line 가시성 ↓ → 세로 3줄로 변경 (실용 우선). 시각 검증 후 사용자 결재 시 가로로 회귀 가능.
+- **Notes 영역** = frameless=true 시 숨김 (Phase 9 정책 유지). FIBA PDF 정합 + A4 fit 우선.
+- **다음 단계**: 브라우저 시각 검증 (Team B 아래 풋터 + 경기 종료 버튼 frame 외부 + A4 1 페이지 fit).
+
+### 신규 보안 이슈
+- **0 건** — JSX 구조 / 디자인만 변경. API / 권한 / DB 변경 0.
+
+---
+
 ## 구현 기록 (developer) — FIBA Phase 14 A4 정확 비율 + 재배치 (2026-05-12)
 
 📝 구현 범위: A4 210×297mm aspect-ratio 강제 / Time-outs 3×2 / 풋터 세로 4줄 / 요소비율 통일
@@ -424,6 +542,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 15 — 풋터 Team B 아래 이동 + 경기 종료 버튼 frame 외부]** (a) score-sheet-form.tsx: `<FooterSignatures>` 위치 = frame 가로 (grid 외부) → **좌측 col 안 Team B 아래 마지막 child** (FIBA PDF 정합 / 사용자 결재 §1 / 이미지 35). Team B section `fiba-divider-bottom` 래핑. (b) footer-signatures.tsx: frameless 운영진 labelWidth 140→**100** / 심판진 grid-cols-3 가로→**flex flex-col 세로 3줄** + labelWidth=100 / 주장 labelWidth=100 추가 (좌측 50% 폭 안 fit). (c) MatchEndButton + 라인업 다시 선택 = frame 외부 그대로 (자동 해소). A4 fit 재검증: 좌측 ~920 / 우측 ~960 / 헤더 95 + max(920, 960) = 1055px (A4 1121 안 여유 ~66px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0 / 핑크 0 / lucide 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 14 — A4 정확 비율 + 재배치]** (a) `_print.css`: `.score-sheet-fiba-frame` width 100% + max-width 210mm + **aspect-ratio: 210/297 강제** (화면 A4 정확) + overflow hidden. 인쇄 = 210×297mm + @page margin 0 (박스 = 종이 1:1). (b) Time-outs grid-cols-2 → **grid-cols-3 × 2 = 6 고정 칸** (FIBA 표준 / 사용자 결재 §1). 6번째 = "여유 (OT 활성)". (c) 풋터 운영진 가로 1줄 → **세로 4줄** (Phase 13 회귀 복원 / 사용자 결재 §2). labelWidth=140 / compact prop 제거 (사용처 0). (d) 요소비율 통일 — 박스 18px (Time-outs/P IN/Fouls 1-5) + Team Fouls 박스 12px / 라벨 10px (풋터) / 9px (Team Fouls). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 13 — UI 겹침 fix + 압축]** (a) TIME-OUTS 가로 6칸 → 2×N grid (사용자 결재 §1). 박스 18px. (b) Team Fouls 박스 12px + 라벨 9px + FT 안내 8px (P2/2FT 겹침 fix §2). (c) 체크박스 P IN + FOULS 1-5 = 24→18px (§3). (d) Players 행 20→18px (§4 / 12×18=216). (e) 풋터 운영진 4명 세로→가로 1줄 4컬럼 (§5 / -82px). 좌측 ~857px (A4 여유 ~266px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase E 단체 lifecycle (Q1 보존)]** E-1) requireOrganizationOwner 헬퍼 + OrganizationPermissionError (owner only — admin 차단 + super_admin 우회 옵션). E-2) POST/DELETE /api/web/organizations/[id]/archive (status='archived'/'approved' 토글, adminLog warning 박제). E-3) ArchiveOrganizationButton confirm 모달 + 운영자 페이지 isOwner 가드 + 헤더 "보관됨" 뱃지 + 단체 목록 active vs archived 분리 (회색 톤) + 공개 페이지 archived 안내 페이지 분기. vitest 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived owner). schema 변경 0 (status=String) / Flutter v1 영향 0 / decisions.md Q1 박제. tsc 0 / vitest 본 PR 10/10 PASS / 전체 601/605 (실패 4건 = 별 PR score-sheet 무관). | ✅ |
@@ -433,4 +552,3 @@ Extra [1][2][3][4]                   ← 줄 3
 | 2026-05-12 | 4a861ae | **[design]** admin 빨강 톤다운 전면 — wizard/통계/메뉴/이니셜 (이미지 37/38) | ✅ |
 | 2026-05-12 | 98f857c | **[design]** admin 빨강 누락 페이지 — series 목록/wizard/모달 (이미지 36) | ✅ |
 | 2026-05-12 | b8f293f | **[design]** pill 9999px + 빨강 본문 일괄 정리 (이미지 35) — 12 파일 | ✅ |
-| 2026-05-12 | 4d989b3 | **[admin]** 자동 종료 + 빨강 토큰 + org admin 등록 (이미지 29~32) | ✅ |
