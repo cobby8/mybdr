@@ -7,7 +7,8 @@ import { InfoDialog } from "@/components/ui/info-dialog";
 // 2026-05-04: 비밀번호 입력 컴포넌트 (보기 버튼 통합 + autoComplete 정밀 제어 — conventions.md 룰)
 import { PasswordInput } from "@/components/ui/password-input";
 // 2026-05-12 로그인 redirect 통합 — open redirect 방어 단일 source (분산된 isValidRedirect 제거)
-import { safeRedirect } from "@/lib/auth/redirect";
+// 2026-05-12 callbackUrl 폴백 — proxy.ts 가 callbackUrl 쿼리로 redirect 하므로 둘 다 처리
+import { extractRedirectFromQuery } from "@/lib/auth/redirect";
 
 // OAuth 콜백 에러 코드 → 사용자용 한국어 메시지 매핑
 // (기존 로직 유지 — UI만 교체하므로 동일)
@@ -81,11 +82,12 @@ export default function LoginPage() {
     !!(oauthError && OAUTH_ERRORS[oauthError]),
   );
   // 로그인 후 돌아갈 경로 (예: /tournament-admin/... → layout 에서 redirect=... 로 보냄)
-  // 2026-05-12: safeRedirect(input, fallback) 사용 — 무효 값은 fallback("") 처리 후 null 변환.
-  //   기존 인터페이스 (string | null) 보존 — 하단 redirectTo 조건부 사용 코드 변경 0.
-  const rawRedirect = searchParams.get("redirect");
-  const safe = safeRedirect(rawRedirect, "");
-  const redirectTo = safe || null;
+  // 2026-05-12: extractRedirectFromQuery 사용 — `redirect` 우선 / `callbackUrl` 폴백.
+  //   왜: proxy.ts (Next.js 16 middleware → proxy 마이그) 가 보호 페이지 비로그인 접근 시
+  //       `/login?callbackUrl=...` 으로 redirect 하지만 본 페이지는 `redirect` 만 읽었음 → 사일런트
+  //       무시 사고 (사용자가 보호 페이지 진입 후 로그인 했는데 홈으로 복귀).
+  //   결과: 둘 중 유효한 첫 값을 반환 / 둘 다 무효면 null. 기존 redirectTo 사용 코드 변경 0.
+  const redirectTo = extractRedirectFromQuery(searchParams);
   // 등록된 경로에 한해 안내 플로팅 다이얼로그 노출 (매핑에 없으면 생략)
   // 전역 컨벤션: "모든 플로팅 UI는 확인 버튼 / backdrop / ESC로 닫힘" 적용
   const redirectBanner = redirectTo ? REDIRECT_BANNERS[redirectTo] : null;

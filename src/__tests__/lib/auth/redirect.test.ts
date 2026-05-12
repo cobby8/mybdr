@@ -14,6 +14,8 @@ import {
   isValidRedirect,
   buildLoginRedirect,
   safeRedirect,
+  extractRedirectFromQuery,
+  extractRedirectFromValues,
 } from "@/lib/auth/redirect";
 
 describe("isValidRedirect — open redirect 방어", () => {
@@ -151,5 +153,88 @@ describe("safeRedirect — 유효 통과 / 무효 fallback", () => {
 
   it("유효 경로면 fallback 무관", () => {
     expect(safeRedirect("/teams", "/dashboard")).toBe("/teams");
+  });
+});
+
+// 2026-05-12 callbackUrl 폴백 — proxy.ts 가 callbackUrl 쿼리로 redirect 시 사일런트 무시 차단.
+describe("extractRedirectFromQuery — redirect 우선 / callbackUrl 폴백", () => {
+  it("redirect 만 있는 경우 → redirect 반환", () => {
+    const params = new URLSearchParams("redirect=%2Ftournament-admin");
+    expect(extractRedirectFromQuery(params)).toBe("/tournament-admin");
+  });
+
+  it("callbackUrl 만 있는 경우 → callbackUrl 폴백 (proxy.ts 흐름)", () => {
+    const params = new URLSearchParams("callbackUrl=%2Ftournament-admin%2Fseries%2Fnew");
+    expect(extractRedirectFromQuery(params)).toBe("/tournament-admin/series/new");
+  });
+
+  it("둘 다 있으면 redirect 우선 (callbackUrl 무시)", () => {
+    const params = new URLSearchParams(
+      "redirect=%2Fadmin%2Fusers&callbackUrl=%2Ftournament-admin",
+    );
+    expect(extractRedirectFromQuery(params)).toBe("/admin/users");
+  });
+
+  it("둘 다 없거나 둘 다 무효 → null", () => {
+    const empty = new URLSearchParams("");
+    expect(extractRedirectFromQuery(empty)).toBeNull();
+    // redirect = 외부 URL (무효) + callbackUrl 없음
+    const invalid = new URLSearchParams("redirect=https%3A%2F%2Fevil.com");
+    expect(extractRedirectFromQuery(invalid)).toBeNull();
+    // 둘 다 무효
+    const bothInvalid = new URLSearchParams(
+      "redirect=https%3A%2F%2Fevil.com&callbackUrl=%2F%2Fevil.com",
+    );
+    expect(extractRedirectFromQuery(bothInvalid)).toBeNull();
+  });
+
+  it("redirect 무효 + callbackUrl 유효 → callbackUrl 반환 (폴백 동작)", () => {
+    const params = new URLSearchParams(
+      "redirect=https%3A%2F%2Fevil.com&callbackUrl=%2Fadmin",
+    );
+    expect(extractRedirectFromQuery(params)).toBe("/admin");
+  });
+
+  it("객체 인터페이스 (URLSearchParams 외) 도 동작", () => {
+    // FormData 같은 평면 객체도 .get(key) 시그니처만 만족하면 OK.
+    const fakeQuery = {
+      get: (k: string) => (k === "callbackUrl" ? "/teams" : null),
+    };
+    expect(extractRedirectFromQuery(fakeQuery)).toBe("/teams");
+  });
+});
+
+describe("extractRedirectFromValues — FormData 같은 (key) => value 인터페이스", () => {
+  it("redirect 우선", () => {
+    const fd = new FormData();
+    fd.set("redirect", "/admin");
+    fd.set("callbackUrl", "/tournament-admin");
+    expect(
+      extractRedirectFromValues((k) => (fd.get(k) as string | null) ?? null),
+    ).toBe("/admin");
+  });
+
+  it("callbackUrl 폴백 (proxy.ts → 페이지 → server action 흐름)", () => {
+    const fd = new FormData();
+    fd.set("callbackUrl", "/tournament-admin/series/new");
+    expect(
+      extractRedirectFromValues((k) => (fd.get(k) as string | null) ?? null),
+    ).toBe("/tournament-admin/series/new");
+  });
+
+  it("둘 다 없으면 null", () => {
+    const fd = new FormData();
+    expect(
+      extractRedirectFromValues((k) => (fd.get(k) as string | null) ?? null),
+    ).toBeNull();
+  });
+
+  it("무효 값 모두 차단", () => {
+    const fd = new FormData();
+    fd.set("redirect", "https://evil.com");
+    fd.set("callbackUrl", "//evil.com");
+    expect(
+      extractRedirectFromValues((k) => (fd.get(k) as string | null) ?? null),
+    ).toBeNull();
   });
 });

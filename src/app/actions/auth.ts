@@ -15,7 +15,8 @@ import {
 import { DUMMY_HASH } from "@/lib/security/constants";
 import { findUnmatchedReferee, executeMatch } from "@/lib/services/referee-matching";
 // 2026-05-12 로그인 redirect 통합 — open redirect 방어 단일 source
-import { safeRedirect } from "@/lib/auth/redirect";
+// 2026-05-12 callbackUrl 폴백 — proxy.ts 가 callbackUrl 쿼리로 redirect 하므로 둘 다 처리
+import { safeRedirect, extractRedirectFromValues } from "@/lib/auth/redirect";
 
 /**
  * 로그인 성공 후 사전 등록 심판 자동 매칭 시도.
@@ -73,8 +74,12 @@ export type LoginActionState =
 export async function loginAction(_prevState: LoginActionState, formData: FormData): Promise<LoginActionState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  // 로그인 성공 후 돌아갈 경로 (로그인 페이지에서 hidden input으로 전달)
-  const redirectTo = formData.get("redirect") as string | null;
+  // 로그인 성공 후 돌아갈 경로 — `redirect` 우선 / `callbackUrl` 폴백 (proxy.ts 가 callbackUrl 사용).
+  // 2026-05-12: 운영 사고 차단 — proxy.ts middleware 가 보호 페이지 접근 시 callbackUrl 쿼리로
+  //   redirect 하지만 server action 은 redirect 만 읽었음 → 로그인 후 홈 복귀 (원래 페이지 못 감).
+  const redirectTo = extractRedirectFromValues((key) =>
+    (formData.get(key) as string | null) ?? null,
+  );
   // 2026-05-04: 자동 로그인 체크박스 — "on" / "off" / null (구버전 호환)
   // 누락 시 default on (기존 사용자 회귀 0 — 30일 세션 유지)
   const rememberMe = formData.get("remember_me") !== "off";
