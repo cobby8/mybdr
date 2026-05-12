@@ -30,8 +30,15 @@ type Match = {
   // 2026-05-11: Phase 1-A 매치별 recording_mode — settings JSON 의 recording_mode 키.
   // apiSuccess 가 snake_case 자동 변환 → settings 객체 안 recording_mode 그대로 노출.
   // null / undefined / "flutter" / 알 수 없는 값 = fallback "flutter" 로 표시.
-  settings: { recording_mode?: string | null; [k: string]: unknown } | null;
+  settings: { recording_mode?: string | null; division_code?: string | null; [k: string]: unknown } | null;
 };
+
+// 2026-05-12 — 매치 settings.division_code 추출 (강남구협회장배 다중 종별 케이스).
+function getMatchDivision(m: Match): string | null {
+  const s = m.settings as Record<string, unknown> | null;
+  if (!s) return null;
+  return (s.division_code as string) ?? null;
+}
 
 // 2026-05-11: settings JSON 에서 recording_mode 추출 — 서버 헬퍼와 동일 fallback 룰.
 // "paper" 만 명시적 paper / 그 외 모두 "flutter" 로 간주.
@@ -393,6 +400,8 @@ export default function MatchesClient() {
   const [generating, setGenerating] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [error, setError] = useState("");
+  // 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영)
+  const [divisionFilter, setDivisionFilter] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -429,10 +438,27 @@ export default function MatchesClient() {
     }
   };
 
-  // 라운드별 그룹핑
-  const rounds = Array.from(new Set(matches.map((m) => m.round_number))).sort(
-    (a, b) => (a ?? 0) - (b ?? 0)
-  );
+  // 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별)
+  // matches 안 division_code 추출 → 종별 selector 표시 (2개 이상일 때만 표시)
+  const divisionCodes = Array.from(
+    new Set(matches.map(getMatchDivision).filter((c): c is string => !!c)),
+  ).sort();
+  const hasDivisions = divisionCodes.length > 1;
+
+  // 종별 필터 (URL 박제 X — local state 만, 새로고침 시 초기화)
+  const filteredMatches = !divisionFilter
+    ? matches
+    : matches.filter((m) => getMatchDivision(m) === divisionFilter);
+
+  // 라운드별 그룹핑 — round_number 우선, null 이면 roundName 으로 폴백 (강남구협회장배 케이스)
+  const useRoundNameFallback = filteredMatches.every((m) => m.round_number == null);
+  const rounds = useRoundNameFallback
+    ? Array.from(new Set(filteredMatches.map((m) => m.roundName ?? "라운드 미정"))).sort((a, b) =>
+        a.localeCompare(b, "ko-KR", { numeric: true }),
+      )
+    : Array.from(new Set(filteredMatches.map((m) => m.round_number))).sort(
+        (a, b) => (a ?? 0) - (b ?? 0),
+      );
 
   if (loading)
     return <div className="flex h-40 items-center justify-center text-[var(--color-text-muted)]">불러오는 중...</div>;
@@ -477,6 +503,41 @@ export default function MatchesClient() {
         </div>
       )}
 
+      {/* 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영). 종별 2개 이상일 때만 표시. */}
+      {hasDivisions && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--color-text-muted)]">종별:</span>
+          <button
+            type="button"
+            onClick={() => setDivisionFilter(null)}
+            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+              divisionFilter === null
+                ? "bg-[var(--color-info)] text-white"
+                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            전체 ({matches.length})
+          </button>
+          {divisionCodes.map((code) => {
+            const count = matches.filter((m) => getMatchDivision(m) === code).length;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setDivisionFilter(code)}
+                className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                  divisionFilter === code
+                    ? "bg-[var(--color-info)] text-white"
+                    : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                {code} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {matches.length === 0 ? (
         <Card className="py-16 text-center text-[var(--color-text-muted)]">
           <div className="mb-3 text-4xl">📋</div>
@@ -490,14 +551,23 @@ export default function MatchesClient() {
             {" "}있습니다. 대진표를 생성하세요.
           </p>
         </Card>
+      ) : filteredMatches.length === 0 ? (
+        <Card className="py-12 text-center text-[var(--color-text-muted)]">
+          <p className="text-sm">선택한 종별({divisionFilter})에 매치가 없습니다.</p>
+        </Card>
       ) : (
         <div className="space-y-6">
-          {rounds.map((roundNum) => {
-            const roundMatches = matches.filter((m) => m.round_number === roundNum);
-            const roundLabel = roundMatches[0]?.roundName ?? `라운드 ${roundNum}`;
+          {rounds.map((roundKey) => {
+            // round_number 또는 roundName 폴백 그룹화
+            const roundMatches = useRoundNameFallback
+              ? filteredMatches.filter((m) => (m.roundName ?? "라운드 미정") === roundKey)
+              : filteredMatches.filter((m) => m.round_number === roundKey);
+            const roundLabel = useRoundNameFallback
+              ? (roundKey as string)
+              : (roundMatches[0]?.roundName ?? `라운드 ${roundKey}`);
 
             return (
-              <div key={roundNum ?? "none"}>
+              <div key={String(roundKey ?? "none")}>
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
                   {roundLabel}
                 </h2>

@@ -797,6 +797,8 @@ function DivisionBracketSections({
   // 종별 collapsed/expanded 토글 (기본 펼침)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setCollapsed((prev) => ({ ...prev, [k]: !prev[k] }));
+  // 2026-05-12 — 종별 단일 선택 필터 (운영자 격리 보기). null = 전체.
+  const [divisionFilter, setDivisionFilter] = useState<string | null>(null);
 
   // 종별 그룹화 — division_code 기준
   const groupedByDivision = matches.reduce<Map<string, Match[]>>((map, m) => {
@@ -810,6 +812,11 @@ function DivisionBracketSections({
   const divisionEntries = Array.from(groupedByDivision.entries()).sort(
     ([a], [b]) => a.localeCompare(b)
   );
+
+  // 필터 적용 — 선택 종별 1개 또는 전체
+  const visibleEntries = divisionFilter === null
+    ? divisionEntries
+    : divisionEntries.filter(([code]) => code === divisionFilter);
 
   return (
     <div className="space-y-4">
@@ -825,7 +832,36 @@ function DivisionBracketSections({
         </Link>
       </div>
 
-      {divisionEntries.map(([divCode, divMatches]) => {
+      {/* 2026-05-12 — 종별 필터 (전체 / 종별 1개 선택) */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDivisionFilter(null)}
+          className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+            divisionFilter === null
+              ? "bg-[var(--color-info)] text-white"
+              : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+          }`}
+        >
+          전체 ({matches.length})
+        </button>
+        {divisionEntries.map(([code, divMatches]) => (
+          <button
+            key={code}
+            type="button"
+            onClick={() => setDivisionFilter(code)}
+            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+              divisionFilter === code
+                ? "bg-[var(--color-info)] text-white"
+                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            {code === "_no_division" ? "종별 미지정" : code} ({divMatches.length})
+          </button>
+        ))}
+      </div>
+
+      {visibleEntries.map(([divCode, divMatches]) => {
         const isCollapsed = collapsed[divCode] === true;
 
         // 종별 안에서 roundName 으로 sub-그룹화
