@@ -3,6 +3,10 @@
  *
  * 2026-05-11 — Phase 1-B-2 신규 (decisions.md [2026-05-11] §1 — sync API 재사용 + BFF wrap).
  * 2026-05-12 — Phase 2 확장 (running_score → PBP 변환 + service play_by_plays 전달).
+ * 2026-05-13 — Phase 20 fix (사용자 보고 이미지 46 — 라이브 박스스코어 PTS = 0).
+ *   running_score + fouls → player_stats 자동 집계 → service 인자 전달 →
+ *   MatchPlayerStat upsert → 라이브 박스스코어 PTS 정상 표시.
+ *   (buildPlayerStatsFromRunningScore 헬퍼 신규 — vitest 단위 검증 가능하게 export)
  *
  * 단계:
  *   1. `requireScoreSheetAccess(matchId)` — 권한 가드 (recorder/organizer/admin/super) + match SELECT
@@ -29,7 +33,11 @@ import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError, validationError } from "@/lib/api/response";
 import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
-import { syncSingleMatch, type PlayByPlayInput } from "@/lib/services/match-sync";
+import {
+  syncSingleMatch,
+  type PlayByPlayInput,
+  type PlayerStatInput,
+} from "@/lib/services/match-sync";
 import { marksToPaperPBPInputs } from "@/lib/score-sheet/running-score-helpers";
 import { foulsToPBPEvents } from "@/lib/score-sheet/foul-helpers";
 
@@ -129,6 +137,150 @@ const lineupSchema = z.object({
   home: teamLineupSchema,
   away: teamLineupSchema,
 });
+
+// Phase 20 (2026-05-13) — running_score + fouls → player_stats 자동 집계 헬퍼.
+//
+// 이유:
+//   사용자 보고 (이미지 46) — 라이브 박스스코어 PTS = 모두 0. 원인 = score-sheet 제출 시
+//   BFF 가 `player_stats: undefined` 로 service 호출 → MatchPlayerStat 0건 → 종료 매치
+//   분기에서 stat.points 를 source 로 쓰는 라이브 API (line 712) 가 0 표시.
+//
+//   Flutter sync 는 자체적으로 player_stats 박제 (Flutter 앱 boxscore 집계 결과 전송) →
+//   영향 없음. 본 fix 는 score-sheet path 만 — running_score (1/2/3pt) + fouls (P/T/U)
+//   를 player_id 단위 합산하여 service 인자로 전달.
+//
+// 박제 범위 (Phase 2 기록 가능 항목 기준):
+//   - points: 합산 (1/2/3pt 모두 포함)
+//   - field_goals_made: 2pt + 3pt 합계 (1pt 자유투 제외)
+//   - field_goals_attempted: made 와 동일 (종이 기록 = miss 미박제 → attempted = made)
+//   - two_pointers_made / three_pointers_made / free_throws_made: subtype 별 분리 카운트
+//   - personal_fouls / technical_fouls / unsportsmanlike_fouls: foul type 별 분리 카운트
+//   - 기타 22 stat (리바운드/어시스트/스틸 등) = 0 (종이 기록 미박제 — Phase 2 결재 §scope)
+//
+// idempotent: 매번 전체 재계산 → service upsert (멱등 — Flutter sync 동작과 동일).
+type RunningScoreInput = {
+  home: Array<{ position: number; playerId: string; period: number; points: 1 | 2 | 3 }>;
+  away: Array<{ position: number; playerId: string; period: number; points: 1 | 2 | 3 }>;
+  currentPeriod: number;
+};
+type FoulsInput = {
+  home: Array<{ playerId: string; period: number; type: "P" | "T" | "U" | "D" }>;
+  away: Array<{ playerId: string; period: number; type: "P" | "T" | "U" | "D" }>;
+};
+
+export function buildPlayerStatsFromRunningScore(params: {
+  runningScore?: RunningScoreInput;
+  fouls?: FoulsInput;
+  homeTeamIdNum: number;
+  awayTeamIdNum: number;
+}): PlayerStatInput[] {
+  const { runningScore, fouls, homeTeamIdNum, awayTeamIdNum } = params;
+  // player_id (BigInt string) → 누적 stat
+  const acc = new Map<
+    string,
+    {
+      tournamentTeamPlayerIdNum: number;
+      tournamentTeamIdNum: number;
+      points: number;
+      twoMade: number;
+      threeMade: number;
+      ftMade: number;
+      personalFouls: number;
+      technicalFouls: number;
+      unsportsmanlikeFouls: number;
+    }
+  >();
+
+  const ensure = (playerIdStr: string, teamIdNum: number) => {
+    let row = acc.get(playerIdStr);
+    if (!row) {
+      row = {
+        tournamentTeamPlayerIdNum: Number(playerIdStr),
+        tournamentTeamIdNum: teamIdNum,
+        points: 0,
+        twoMade: 0,
+        threeMade: 0,
+        ftMade: 0,
+        personalFouls: 0,
+        technicalFouls: 0,
+        unsportsmanlikeFouls: 0,
+      };
+      acc.set(playerIdStr, row);
+    }
+    return row;
+  };
+
+  // 1) running_score 합산 (home / away 각각)
+  if (runningScore) {
+    for (const m of runningScore.home) {
+      const row = ensure(m.playerId, homeTeamIdNum);
+      row.points += m.points;
+      if (m.points === 1) row.ftMade += 1;
+      else if (m.points === 2) row.twoMade += 1;
+      else if (m.points === 3) row.threeMade += 1;
+    }
+    for (const m of runningScore.away) {
+      const row = ensure(m.playerId, awayTeamIdNum);
+      row.points += m.points;
+      if (m.points === 1) row.ftMade += 1;
+      else if (m.points === 2) row.twoMade += 1;
+      else if (m.points === 3) row.threeMade += 1;
+    }
+  }
+
+  // 2) fouls 합산 — type 별 카운트 ("D" = Disqualifying 은 personal 로 분류 + ejected 별도)
+  if (fouls) {
+    for (const f of fouls.home) {
+      const row = ensure(f.playerId, homeTeamIdNum);
+      if (f.type === "T") row.technicalFouls += 1;
+      else if (f.type === "U") row.unsportsmanlikeFouls += 1;
+      else row.personalFouls += 1; // P 또는 D
+    }
+    for (const f of fouls.away) {
+      const row = ensure(f.playerId, awayTeamIdNum);
+      if (f.type === "T") row.technicalFouls += 1;
+      else if (f.type === "U") row.unsportsmanlikeFouls += 1;
+      else row.personalFouls += 1; // P 또는 D
+    }
+  }
+
+  // 3) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
+  //    field_goals_made = 2pt + 3pt / attempted = made (종이 기록 = miss 무박제)
+  //    free_throws_attempted = made (동일)
+  return Array.from(acc.values()).map((row) => {
+    const fgMade = row.twoMade + row.threeMade;
+    const totalFouls = row.personalFouls + row.technicalFouls + row.unsportsmanlikeFouls;
+    return {
+      tournament_team_player_id: row.tournamentTeamPlayerIdNum,
+      tournament_team_id: row.tournamentTeamIdNum,
+      is_starter: false, // lineup 박제는 MatchLineupConfirmed 가 별도 SSOT
+      minutes_played: 0, // 종이 기록 = 시간 미박제
+      points: row.points,
+      field_goals_made: fgMade,
+      field_goals_attempted: fgMade, // attempted = made (miss 미박제)
+      two_pointers_made: row.twoMade,
+      two_pointers_attempted: row.twoMade,
+      three_pointers_made: row.threeMade,
+      three_pointers_attempted: row.threeMade,
+      free_throws_made: row.ftMade,
+      free_throws_attempted: row.ftMade,
+      offensive_rebounds: 0,
+      defensive_rebounds: 0,
+      total_rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      turnovers: 0,
+      personal_fouls: row.personalFouls,
+      technical_fouls: row.technicalFouls,
+      unsportsmanlike_fouls: row.unsportsmanlikeFouls,
+      plus_minus: 0,
+      quarter_stats_json: null,
+      fouled_out: totalFouls >= 5,
+      ejected: false,
+    };
+  });
+}
 
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
@@ -328,6 +480,26 @@ export async function POST(
     playByPlays = [...scoreEvents, ...foulEvents];
   }
 
+  // 4-3) Phase 20 — running_score + fouls → player_stats 자동 집계.
+  //
+  // 이유: BFF 가 service 호출 시 player_stats 미전달 → MatchPlayerStat 0건 →
+  //   라이브 박스스코어 PTS 모두 0 (사용자 보고 이미지 46). 종이 기록 input 으로부터
+  //   player_id 단위 합산하여 service 인자 전달 → MatchPlayerStat upsert → 라이브 정상.
+  //
+  // 박제 범위: points + FG/3P/FT made + foul type 카운트 (자세한 룰은 헬퍼 docstring 참조).
+  let playerStats: PlayerStatInput[] | undefined = undefined;
+  if ((input.running_score || input.fouls) && match.homeTeamId && match.awayTeamId) {
+    const built = buildPlayerStatsFromRunningScore({
+      runningScore: input.running_score,
+      fouls: input.fouls,
+      homeTeamIdNum: Number(match.homeTeamId),
+      awayTeamIdNum: Number(match.awayTeamId),
+    });
+    if (built.length > 0) {
+      playerStats = built;
+    }
+  }
+
   // 5) service 호출 — 단일 source (Flutter sync 와 동일 path)
   // existingMatch 전달 → service 가 findFirst SELECT skip (SELECT 2→1 통합 — Phase 1-B-1 reviewer Minor 권고 처리)
   try {
@@ -340,8 +512,11 @@ export async function POST(
         status: input.status,
         quarter_scores: input.quarter_scores,
       },
+      // Phase 20 (2026-05-13) — running_score / fouls 가 있으면 player_stats 자동 집계 전달.
+      //   사유: MatchPlayerStat 박제 → 라이브 박스스코어 PTS 정상화 (사용자 보고 이미지 46 fix).
+      //   미전송 시 = undefined (service 가 stats upsert skip — 기존 동작 호환).
+      player_stats: playerStats,
       // Phase 2 — running_score 가 있으면 PBP 박제 / 없으면 기존 동작 (PBP 0)
-      player_stats: undefined,
       play_by_plays: playByPlays,
       // BFF 가 권한 가드용으로 이미 SELECT 한 row 재사용 → service 가 SELECT skip
       existingMatch: {
@@ -468,6 +643,8 @@ export async function POST(
     const pbpCount = playByPlays?.length ?? 0;
     const scoreCount = scoreEvents.length;
     const foulCount = foulEvents.length;
+    // Phase 20 — player_stats 박제 카운트 (audit context 박제용)
+    const playerStatCount = playerStats?.length ?? 0;
     // Phase 4 — timeouts 박제 카운트 (audit context 박제용)
     const timeoutHomeCount = input.timeouts?.home.length ?? 0;
     const timeoutAwayCount = input.timeouts?.away.length ?? 0;
@@ -491,6 +668,8 @@ export async function POST(
       (pbpCount > 0
         ? ` / PBP ${pbpCount}건 (score ${scoreCount} / foul ${foulCount})`
         : "") +
+      // Phase 20 — player_stats 자동 집계 박제 카운트 (사용자 보고 이미지 46 fix)
+      (playerStatCount > 0 ? ` / Stat ${playerStatCount}명` : "") +
       (timeoutTotalCount > 0
         ? ` / TO ${timeoutTotalCount}건 (home ${timeoutHomeCount} / away ${timeoutAwayCount})`
         : "") +
@@ -519,6 +698,8 @@ export async function POST(
               quarter_scores: input.quarter_scores,
               running_score_count: scoreCount,
               fouls_count: foulCount,
+              // Phase 20 — player_stats 자동 집계 결과 (MatchPlayerStat upsert)
+              player_stat_count: playerStatCount,
               // Phase 4 — timeouts 카운트 박제 (settings.timeouts JSON merge 결과)
               timeouts_home_count: timeoutHomeCount,
               timeouts_away_count: timeoutAwayCount,
@@ -550,6 +731,8 @@ export async function POST(
       synced_at: syncResult.data.synced_at,
       post_process_status: syncResult.data.post_process_status,
       play_by_play_count: pbpCount,
+      // Phase 20 — player_stats 자동 집계 결과 (MatchPlayerStat upsert)
+      player_stat_count: playerStatCount,
       ...(syncResult.data.warnings && { warnings: syncResult.data.warnings }),
     });
   } catch (err) {
