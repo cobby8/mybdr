@@ -7,6 +7,8 @@ import Link from "next/link";
 import AbsorbTournamentsModal from "./_components/AbsorbTournamentsModal";
 // 2026-05-12 Phase D-1 — 시리즈 카드 ⋮ 메뉴 (분리 / 이동)
 import SeriesActionsMenu from "./_components/SeriesActionsMenu";
+// 2026-05-12 Phase E — 단체 보관 / 복구 버튼 (owner only)
+import ArchiveOrganizationButton from "./_components/ArchiveOrganizationButton";
 
 /* ============================================================
  * 단체 대시보드 — /tournament-admin/organizations/[orgId]
@@ -213,6 +215,10 @@ export default function OrganizationDashboardPage() {
   }
 
   const isAdmin = org.myRole === "owner" || org.myRole === "admin";
+  // 2026-05-12 Phase E — owner only 액션 (archive/복구) — admin 도 차단
+  const isOwner = org.myRole === "owner";
+  // 2026-05-12 Phase E — archived 단체 표시 분기
+  const isArchived = org.status === "archived";
 
   return (
     <div className="space-y-6">
@@ -231,9 +237,17 @@ export default function OrganizationDashboardPage() {
           </div>
         )}
         <div>
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
-            {org.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-[var(--color-text-primary)]">
+              {org.name}
+            </h1>
+            {/* 2026-05-12 Phase E — archived 시 회색 뱃지 (owner 가 즉시 인지) */}
+            {isArchived && (
+              <span className="rounded-full bg-[var(--color-border)] px-2 py-0.5 text-xs font-medium text-[var(--color-text-muted)]">
+                보관됨
+              </span>
+            )}
+          </div>
           <p className="text-sm text-[var(--color-text-muted)]">
             {org.region || "지역 미설정"} · 멤버 {org.members.length}명 · 시리즈{" "}
             {org.seriesCount}개
@@ -362,6 +376,17 @@ export default function OrganizationDashboardPage() {
               open_in_new
             </span>
           </a>
+
+          {/* 2026-05-12 Phase E — 단체 보관 / 복구 (owner only).
+              isOwner 가드 → admin 은 노출 X. 서버에도 requireOrganizationOwner 이중 가드. */}
+          {isOwner && (
+            <ArchiveOrganizationButton
+              organizationId={org.id}
+              organizationName={org.name}
+              mode={isArchived ? "restore" : "archive"}
+              onSuccess={loadOrg}
+            />
+          )}
         </div>
       )}
 

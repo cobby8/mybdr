@@ -2,6 +2,26 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-12] 단체 삭제 정책 = 보존 (archived) — Phase E Q1 결재
+- **분류**: decision (단체 lifecycle 정책)
+- **결정 사항**:
+  - 단체 삭제 = **옵션 A 보존** = `organizations.status='archived'` 마킹만 (row 삭제 X / cascade X / 시리즈·대회 NULL 분리 X)
+  - 시리즈/대회 row 변경 0 (보존). 단체와의 연결만 "보관됨" 표시
+  - 운영자 owner 만 archive/복구 가능 (admin/member 차단 — `requireOrganizationOwner` 헬퍼 별도 가드)
+  - super_admin 우회 옵션 (운영 사고 긴급 fix 여지)
+  - audit log 박제 (admin_logs warning)
+- **대안 검토**:
+  - (B) 완전 삭제 = cascade (시리즈/대회 모두 삭제) ❌ — 데이터 파괴 / 운영 사고 위험 / 복구 불가
+  - (C) 시리즈/대회 organization_id NULL 분리 = 단체만 hard delete ❌ — 시리즈가 부모 잃고 분리 + 단체 운영자 권한 자동 해제 → 자동 권한 누수
+- **파급**:
+  - schema 변경 0 (status 가 String 필드)
+  - 시리즈/대회 카운터 영향 0
+  - 공개 페이지: archived 단체 직접 URL 접근 시 "보관된 단체" 안내 (events 탭 차단)
+  - 운영자 페이지: 별 섹션 분리 표시 (회색 톤) + 복구 버튼
+  - Flutter v1 영향 0 (api/v1 에 organization 미존재)
+- **재발 방지**: 향후 "단체 삭제 다시 검토" 의뢰 시 본 결정 재참조 (옵션 A 우선 / B·C 옵션은 사용자 직접 결재 필요)
+- **참조횟수**: 0
+
 ### [2026-05-12] settings JSON 단일 UPDATE 통합 패턴 — Phase 4 timeouts + Phase 5 signatures
 - **분류**: decision/pattern (Prisma JSON 컬럼 박제)
 - **결정 사항**:
