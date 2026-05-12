@@ -1,9 +1,151 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: D 대진표 고도화 (이미지 33) — dual_tournament rounds/brackets 매핑
-- **상태**: 진입 (강남구협회장배 검증부터)
+- **요청**: AI 자연어 대회 운영 가능성 검토 (코드 변경 0 / 분석만)
+- **상태**: 검토 완료 — 결론: 가능 + Phase AI-1 부터 권장
 - **모드**: no-stop (자동 머지 위임)
+
+## 검토 (planner-architect) — AI 자연어 대회 운영 가능성 (2026-05-13)
+
+🎯 **결론**: 가능 + **Phase AI-1 (추천 시스템)** 부터 권장. AI-2 까지는 1주일 단위로 점진 진행. AI-3 (custom phase) 는 사용성 검증 후 별 결재.
+
+💡 **핵심 발견**: 이미 `@google/genai` (Gemini 2.5 Flash) 가 `src/lib/news/gemini-client.ts` 에서 운영 중 (BDR NEWS / 알기자 / 프로필 bio). LLM 인프라 신규 박제 불필요 — **재사용 100%**. 무료 tier 1500 RPD 잔여로 대회 운영 추천 (월 100~300 호출) 충분.
+
+### 1. 3개 접근 패턴 비교
+
+| 패턴 | 본질 | LOC | 위험 | 권장 |
+|------|------|-----|------|------|
+| **A. 추천 시스템 (단순)** | 자연어 → AI → enum 1~3개 추천 + 이유 텍스트 → 운영자 1-click 적용 | 200~400 | 낮음 (기존 흐름 보존) | ⭐ Phase AI-1 |
+| **B. Structured Output 강제** | 자연어 → AI → zod schema 일치 settings JSON 자동 반환 → 미리보기 → 적용 | 400~600 | 중간 (AI 응답 검증 필요) | Phase AI-2 |
+| **C. Custom Phase 모드** | 신규 enum `custom_phase` + settings 에 phase 배열 (예선/본선/패자전 phase-by-phase) → AI 가 phase 배열 생성 | 1500+ | 높음 (진출 매핑 service 재설계) | Phase AI-3 (보류) |
+
+→ **A→B 점진 진행이 안전**. A 가 60~70% UX 가치 (운영자 결정 보조) 를 이미 제공. B 로 1-click 자동 세팅까지 확장 시 90% 도달. C 는 표현력 극대화이지만 9 enum 으로 표현 불가능한 시나리오가 실제로 자주 발생하는지 검증 후 결재.
+
+### 2. 데이터 모델 표현력 vs 자연어
+
+**현재 9 enum 으로 표현 가능**:
+- 시나리오 A "16팀 4조 풀리그 후 각조 2팀 토너먼트" → `group_stage_knockout` + group_size=4 / group_count=4 / advance_per_group=2 ✅
+- 시나리오 B "6팀 초등부 운영" → `group_stage_with_ranking` + group_size=3 / group_count=2 추천 ✅
+- "스위스 5라운드" → `swiss` ✅
+
+**현재 enum 으로 표현 불가능** (자연어로는 요청 가능):
+- "8강은 듀얼, 4강부터 싱글" — phase 별 운영 방식 변경 ❌
+- "예선 풀리그 → 본선 토너먼트 → 패자부활전 → 3·4위전" — 4 phase 체인 ❌
+- "조별리그 후 상위 4팀 풀리그" — 본선이 풀리그 ❌
+
+→ Phase AI-1/2 는 표현 가능 범위로 한정 (AI 가 "이 방식은 현재 시스템에서 표현 불가능합니다 — 대안 제안" 응답 가능). Phase AI-3 만이 표현력 확장.
+
+### 3. AI 활용 흐름 (Phase AI-1 mock)
+
+```
+[운영자가 wizard 진입]
+  /tournament-admin/tournaments/new/wizard
+
+[Step 1 대회 정보 상단에 신규 input]
+  💬 "어떤 방식으로 운영하고 싶으세요?" (placeholder: 예: 16팀 4조 풀리그 후 토너먼트)
+  [추천 받기] 버튼
+
+[운영자 입력]
+  "초등부 6팀인데 어떻게 운영하는 게 좋을까?"
+
+[AI 응답 (3~5초)]
+  📊 추천 1순위 — 조별리그 + 동순위 순위결정전
+     • group_size=3 / group_count=2 / advance_per_group=N/A
+     • 사유: 6팀 = 3×2 균형 / 모든 팀이 최소 4경기 보장
+     • [이대로 적용]
+
+  📊 추천 2순위 — 풀리그
+     • 6팀 단일 풀리그 (각 5경기 / 총 15경기)
+     • 사유: 운영 단순 + 모든 매치업 1회 보장
+     • [이대로 적용]
+
+[1-click 적용]
+  → format / settings 자동 박제
+  → wizard Step 2 (참가 설정) 자동 진행
+```
+
+### 4. 로드맵 — Phase AI-1 / 2 / 3
+
+| Phase | 산출물 | LOC | 가치 | 비용 (월) |
+|-------|--------|-----|------|----------|
+| **AI-1 추천** | `/api/web/admin/ai/recommend-format` BFF + wizard 입력 박스 + 추천 카드 UI + zod 응답 검증 + Gemini 시스템 프롬프트 (한국 생활체육 표준 + 9 enum 룰 박제) | 200~400 | 운영자 결정 보조 (60~70%) | $0 (Gemini 무료 tier) |
+| **AI-2 자동 적용** | AI-1 위에 `divisions/page.tsx` "💬 AI 추천" 모달 + structured output (settings JSON 자동 채움) + 미리보기 + 1-click 적용 | 400~600 (AI-1 누계 ~600~1000) | 1-click 세팅 (90%) | $0~$5 (호출 증가) |
+| **AI-3 custom phase** | 신규 enum + settings phase 배열 + 진출 매핑 service 재설계 + AI 가 phase 배열 생성 | 1500+ | 표현력 극대화 (95%+) | $5~$20 |
+
+→ **권장 진입 순서**: AI-1 → 1주 운영 → 추천 적중률 / 운영자 만족도 측정 → AI-2 결재 → 1주 운영 → AI-3 필요성 검증.
+
+### 5. 운영자 UX 진입점 2개소
+
+| 진입점 | 위치 | AI-1 흐름 | AI-2 흐름 |
+|--------|------|----------|----------|
+| **신규 대회 wizard** | `/tournament-admin/tournaments/new/wizard` | Step 1 상단 입력 박스 → enum 추천 → 자동 선택 | 추천 → settings 자동 채움 |
+| **종별 운영 페이지** | `/tournament-admin/.../[id]/divisions` | "💬 AI 추천" 버튼 → 모달 → 종별 단위 추천 | 모달 → settings 미리보기 → 적용 |
+| **기존 대회 영향** | 0 | 옵션 기능 | 옵션 기능 |
+
+### 6. 비용 / 성능 추정
+
+| 항목 | 추정치 | 비고 |
+|------|--------|------|
+| 호출 빈도 | 대회 1건당 ~1~3회 (추천 + 종별 단위 추천) | 월 신규 대회 30~50건 가정 → 월 50~150 호출 |
+| Gemini 2.5 Flash 무료 tier | 1500 RPD = 일 1500 호출 | 운영 평소 360 호출 + 본 기능 ~5/일 = 충분 |
+| 응답 시간 | 3~5초 (한글 200~300토큰 출력) | wizard 단계 자연스러운 대기 |
+| Vercel AI Gateway 필요? | ❌ 불필요 | Gemini 직접 호출로 충분 (단일 모델). Multi-provider failover 필요 시 후속 |
+| Vercel AI SDK 필요? | △ 선택 | `streamText` + structured output 강제 시 도입 검토. Phase AI-2 진입 시 결재 |
+
+### 7. 위험 / 미해결
+
+| 위험 | 완화 방안 |
+|------|----------|
+| AI 가 잘못된 enum 반환 (hallucination) | zod schema 강제 + ALLOWED_FORMATS 화이트리스트 검증 + 실패 시 fallback "수동 선택" 안내 |
+| 운영자 의도 vs 추천 불일치 (예: 시상 정책 모호) | 추천 카드에 "사유" 명시 + 항상 2~3순위 같이 제시 + 수동 override 항상 가능 |
+| 한국 도메인 용어 (생활체육 농구 표준) 이해도 | 시스템 프롬프트에 한국 표준 룰 박제 (advance_per_group=2 default / 6팀 = 3×2 / 16팀 = 4×4) + 알기자 시스템 프롬프트 패턴 재사용 |
+| Prompt injection (운영자 자유 입력) | 입력 max 500자 + 시스템 프롬프트 우선 + LLM 응답이 zod schema 통과 여부로 1차 가드 |
+| API key 관리 | `GEMINI_API_KEY` 이미 .env 박제 (BDR NEWS 운영 중). 신규 키 발급 불필요 |
+
+### 8. 운영자 결재 사항 (3택)
+
+| 옵션 | 범위 | 기간 | 권장 |
+|------|------|------|------|
+| **(가) Phase AI-1 만** | 추천 시스템 (자연어 → enum + 사유) | 1~2일 작업 | ⭐ 1순위 추천 — 빠른 검증 |
+| (나) AI-1 + AI-2 일괄 | 추천 + 자동 적용 | 3~5일 작업 | 2순위 — AI-1 적중률 검증 없이 일괄 도입은 회귀 위험 |
+| (다) 보류 | 현 9 enum + 수동 UI 유지 | 0 | 3순위 — 운영자 결정 보조 가치 포기 |
+
+### 9. 만들 위치와 구조 (Phase AI-1 기준 — 코드 변경 0 / 본 검토에서는 설계만)
+
+| 파일 경로 | 역할 | 신규/수정 |
+|----------|------|----------|
+| `src/lib/ai/format-recommend-prompt.ts` | 시스템 프롬프트 (한국 생활체육 룰 + 9 enum 표 + 응답 schema 명시) | 신규 |
+| `src/lib/ai/format-recommend-schema.ts` | zod schema (recommendations 배열 + format/settings/reason) | 신규 |
+| `src/app/api/web/admin/ai/recommend-format/route.ts` | BFF — `withAuth` (canManageTournament 권한자) + `withValidation` + `generateText` 호출 + zod 응답 검증 | 신규 |
+| `src/components/tournament/ai-format-recommender.tsx` | UI — 자연어 입력 박스 + 추천 카드 3개 + 1-click 적용 콜백 | 신규 |
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | Step 1 상단에 `<AiFormatRecommender onApply={(format, settings) => ...}>` 삽입 | 수정 |
+| `src/__tests__/lib/ai/format-recommend-schema.test.ts` | zod schema 회귀 가드 (정상 / 잘못된 enum / settings 범위외) | 신규 |
+
+🔗 **기존 코드 연결**:
+- `src/lib/news/gemini-client.ts` `generateText()` 재사용 (신규 SDK init 0)
+- `src/lib/tournaments/division-formats.ts` `ALLOWED_FORMATS` / `FORMAT_LABEL` / `validateDivisionSettings` 재사용 (단일 source of truth)
+- `withAuth` + `withValidation` 패턴 재사용
+
+📋 **AI-1 실행 계획 (참고 — 본 검토에서는 작업 X)**:
+
+| 순서 | 작업 | 담당 | 선행 |
+|------|------|------|------|
+| 1 | 시스템 프롬프트 + zod schema 박제 | developer | 없음 |
+| 2 | BFF route.ts + generateText 호출 | developer | 1 |
+| 3 | `<AiFormatRecommender>` UI | developer | 1, 2 |
+| 4 | wizard Step 1 통합 | developer | 3 |
+| 5 | zod schema vitest + 시스템 프롬프트 mock 테스트 | tester | 1, 2 |
+| 6 | 보안 리뷰 (prompt injection / 권한 / 응답 검증) | reviewer | 4 (병렬 5) |
+
+⚠️ **developer 주의사항 (AI-1 진입 시)**:
+- 시스템 프롬프트에 9 enum + settings 룰 표 박제 필수 (hallucination 방지)
+- AI 응답이 zod 통과 못할 시 → 운영자에게 "다시 입력해 주세요" 안내 + 수동 선택 fallback
+- BFF 응답 시간 모니터링 (5초+ 타임아웃) — Vercel Functions 기본 limit 검토
+- `GEMINI_API_KEY` 무료 tier rate limit 모니터링 (1500 RPD)
+- BDR NEWS 와 호출 풀 공유 → 동시 사용 시 rate limit 도달 가능성 (현재 360 RPD + 본 기능 5 RPD = 365 / 1500 → 여유 충분)
+
+---
+
 
 ## 다음 작업 큐 (사용자 보고 — 별 PR 대기)
 | # | 이슈 | 영향 | 비고 |
@@ -777,6 +919,88 @@ Extra [1][2][3][4]                   ← 줄 3
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 17 쿼터별 색상 + Legend (2026-05-13)
+
+📝 구현 범위: 5색 매핑 헬퍼 신규 / Running Score 마킹 Q별 글자색 / Player Fouls 하이브리드 (글자=Q / 배경=종류) / Team Fouls 박스 채움 Q별 / Time-outs phase 별 색 / Legend (frame 외부 / no-print).
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/score-sheet/period-color.ts` | (a) `getPeriodColor(period)` — Q1=text-primary / Q2=accent / Q3=success / Q4=warning / OT(5+)=primary 단일 source. (b) `getPeriodLabel(period)` — "Q1"~"Q4" / "OT1"+. (c) `getTimeoutPhaseColor(period)` — 전반 text-primary / 후반 success / OT primary (사용자 결재 §5). (d) `PERIOD_LEGEND` 상수 — 5건 한글 라벨 (Q1·Q2·Q3·Q4·OT). 4 함수 + 1 상수 단일 source. | **신규** |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/running-score-grid.tsx` | RunningScoreCell 마킹 칸 글리프 (●/◉/◎) + 등번호 글자 색 = 하드코딩 `var(--color-accent)` → 동적 `getPeriodColor(mark.period)` 적용. 배경 (last/normal) = 그대로 (시각 무결). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (a) import `getPeriodColor` + `getTimeoutPhaseColor` 추가. (b) `FOUL_TYPE_BG_COLOR` 신규 (P=투명/T=warning15%/U=info15%/D=primary15% — 빨강 회피 + 옅은 톤). (c) Player Fouls 칸 = 글자 `getPeriodColor(mark.period)` (Q별) + 배경 `FOUL_TYPE_BG_COLOR[type]` (종류별) — 사용자 결재 §3 하이브리드. (d) Team Fouls 페어 [1,2]/[3,4] 박스 채움 = `getPeriodColor(period)` (각 Period 별 색). Extra (OT) = `getPeriodColor(5)` (primary). (e) Time-outs X 마킹 색 = `getTimeoutPhaseColor(timeouts[i].period)` (filled 시 phase 별 색 동적). aria-label 강화 (Q{period} 정보 추가). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/period-color-legend.tsx` | Legend 컴포넌트 — `PERIOD_LEGEND.map` 으로 5건 (Q1·Q2·Q3·Q4·OT) 색 원(W=H 50%) + 한글 라벨 가로 배치. `no-print` 클래스 (인쇄 시 _print.css `.no-print { display:none }` 자동 제외). max-w-[820px] mx-auto + surface 배경 + border. | **신규** |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (a) `PeriodColorLegend` import. (b) `<PeriodColorLegend />` 위치 = frame 외부 (`</div>` frame 닫힘 직후) + MatchEndButton 위 — 사용자 결재 §6·§7. | 수정 |
+| `src/__tests__/score-sheet/period-color.test.ts` | 23 케이스 신규 — getPeriodColor (Q1~Q4 + OT1~3 + 경계 0) / getPeriodLabel (Q1~Q4 + OT1~3) / getTimeoutPhaseColor (전반 2 + 후반 2 + OT 2) / PERIOD_LEGEND (5건 정합 + getPeriodColor 정합 cross-check). | **신규** |
+
+### 5 영역별 색 적용 매트릭스
+| 영역 | 이전 | Phase 17 | 적용 위치 |
+|------|------|---------|----------|
+| Running Score 글리프 + 등번호 | `var(--color-accent)` 단색 | `getPeriodColor(mark.period)` 동적 | running-score-grid.tsx RunningScoreCell |
+| Player Fouls 글자 (P/T/U/D) | `FOUL_TYPE_COLOR[type]` (종류 색) | `getPeriodColor(mark.period)` (Q별) | team-section.tsx Fouls 1-5 |
+| Player Fouls 배경 | `color-mix(typeColor 18%)` | `FOUL_TYPE_BG_COLOR[type]` (옅은 톤 P/T/U/D) | team-section.tsx Fouls 1-5 |
+| Team Fouls 페어 박스 채움 | `var(--color-text-primary)` 단색 | `getPeriodColor(period)` 동적 | team-section.tsx Team fouls |
+| Team Fouls Extra 박스 채움 | `var(--color-text-primary)` | `getPeriodColor(5)` = primary | team-section.tsx Team fouls |
+| Time-outs X 마킹 | `var(--color-text-primary)` 단색 | `getTimeoutPhaseColor(timeouts[i].period)` 동적 | team-section.tsx Time-outs |
+
+### 색 매핑 검증 (사용자 결재 §1)
+| Period | Color Token | 시각 |
+|--------|-------------|------|
+| Q1 (1) | `var(--color-text-primary)` | 흑/백 (기본) |
+| Q2 (2) | `var(--color-accent)` | BDR Red 강조 |
+| Q3 (3) | `var(--color-success)` | 초록 #1CA05E |
+| Q4 (4) | `var(--color-warning)` | 오렌지 #E8A33B |
+| OT (5+) | `var(--color-primary)` | BDR Red (OT 통합) |
+
+### Legend 동작
+- 위치: frame 외부 / score-sheet-form.tsx return main 안 / MatchEndButton 위.
+- `no-print` 클래스 = 인쇄 시 `.no-print { display:none }` 자동 적용 (인쇄 양식 = FIBA 단색 정합 유지).
+- 5건 가로 배치 (Q1·Q2·Q3·Q4·OT) — 색 원 W=H 10px (border-radius 50% — 정사각 룰 §10) + 한글 라벨 11px.
+- 반응형 `flex-wrap` — 좁은 화면에서 자동 다음 줄.
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run` 전체 | ✅ **662/662 PASS** (639 → +23 신규 / 회귀 0건) |
+| `npx vitest run period-color.test.ts` | ✅ 23/23 PASS (getPeriodColor 8 + getPeriodLabel 7 + getTimeoutPhaseColor 6 + PERIOD_LEGEND 5 + cross-check 1) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 변경 0건 / UI 만) |
+| schema 변경 | ✅ 0 (lib + UI 만) |
+| AppNav frozen | ✅ 영향 0 |
+| BFF / service | ✅ 변경 0 |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / Material Symbols / lucide ❌ 0건 |
+| 핑크/살몬/코랄 | ✅ 0건 |
+| 빨강 본문 텍스트 | ✅ 0 (Q2=accent / OT=primary 빨강은 강조 마킹 / 본문 텍스트 X — Phase 3.5 결재 동일) |
+| placeholder 5단어 | ✅ 신규 추가 0건 |
+| A4 1 페이지 fit | ✅ 유지 (Legend = frame 외부 + no-print / A4 영향 0) |
+| FIBA PDF 정합 | ✅ Phase 14~15 정합 유지 (인쇄 시 Legend 자동 제외) |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/{matchId}` 진입 (운영자 / 기록원 권한자 / paper mode)
+- **정상 동작**:
+  1. **Running Score 마킹** — Q1 시 검정/흰 / Q2 시 빨강 / Q3 시 초록 / Q4 시 오렌지 / OT 시 빨강. 등번호 색도 동일.
+  2. **Player Fouls 마킹** — Fouls 1-5 칸 = 글자 (P/T/U/D) 색은 마킹 시점의 Q색 / 배경은 종류 옅은 톤 (P=투명, T=노랑 옅게, U=하늘 옅게, D=빨강 옅게). 2D 정보 동시 표현.
+  3. **Team Fouls 박스** — Period ① 박스 4칸 = 검정 채움 / ② = 빨강 / ③ = 초록 / ④ = 오렌지 / Extra = 빨강.
+  4. **Time-outs X 마킹** — 전반 Q1/Q2 시 검정 X / 후반 Q3/Q4 시 초록 X / OT 시 빨강 X.
+  5. **Legend** — frame 박스 아래 "색상 안내: ● Q1 ● Q2 ● Q3 ● Q4 ● OT" 가로 배치. 색 원 + 한글 라벨.
+  6. **인쇄 시** — Ctrl+P / 인쇄 미리보기 → Legend 자동 제거 (FIBA 양식 정합 유지). A4 1 페이지 fit 변동 0.
+- **주의할 입력**:
+  - Q2 (accent) ≈ OT (primary) — 둘 다 BDR Red 토큰. 실측 시 시각 차이 미세 (사용자 결재 §1 매핑 그대로 적용 / 사용자가 별도 조정 시 추후 fix).
+  - Player Fouls 배경 — U (Unsportsmanlike) 배경 = info (#0079B9 옅게 하늘) — accent 빨강 회피 (빨강 본문 룰 준수). 기존 글자 색 = accent (U) 였으나 Phase 17 = Q별 색으로 위임.
+  - Time-outs filled 칸이 phase 별 색 다름 — 같은 페어 (전반 2칸) 라도 P1 마킹 vs P2 마킹 = 둘 다 전반색 (text-primary). 같은 색이지만 timeouts[i].period 기준 정확 매핑.
+
+### ⚠️ reviewer 참고
+- **`--color-accent` 와 `--color-primary` 충돌** — 두 토큰 모두 BDR Red. Q2 (accent) ≈ OT (primary) 시각 차이 ~0. 디자인 시스템 자체의 의도된 동의어. 사용자 결재 §1 그대로 적용. 후속 fix 시 OT 색을 다른 토큰 (예: `--color-info` 진한 톤) 으로 교체 검토 가능.
+- **Player Fouls U 배경 = info (하늘)** — 기획설계에 명시된 "U=accent 옅게"는 빨강 본문 룰 위반 가능성 있어 `--color-info` (#0079B9 파랑 — globals.css 토큰) 옅게로 대체. U(Unsportsmanlike) = 하늘 = 시각적 경고 + 빨강 회피 두 마리 토끼.
+- **단일 source 보장** — getPeriodColor / getPeriodLabel / getTimeoutPhaseColor / PERIOD_LEGEND 모두 `src/lib/score-sheet/period-color.ts` 한 곳. 향후 색 변경 시 본 파일만 수정.
+- **vitest cross-check** — `PERIOD_LEGEND[0..3].color === getPeriodColor(1..4)` 동치성 검증 (정합 회귀 방지).
+- **다음 단계**: 시각 검증 (브라우저 /score-sheet/{matchId} 진입 → Q1~Q4 색 마킹 / OT 진입 시 색 / Legend 표시 확인 → Ctrl+P 인쇄 미리보기 Legend 제외 + A4 fit 유지 확인).
+
+### 신규 보안 이슈
+- **0 건** — UI / lib (헬퍼 함수) 변경. API / 권한 / DB schema 영향 0.
+
+---
+
 ## 구현 기록 (developer) — FIBA Phase 16 검증 5 issue fix (2026-05-13)
 
 📝 구현 범위: 스타팅 자동 P.IN + 빨강 배경 / 빨강 원 ◉ 숨김 / DATE·TIME·PLACE 자동 매핑 / Team fouls 우측 정렬 / D 퇴장 행 회색 + 아이콘 제거 / 풋터 FIBA PDF 정합.
@@ -845,6 +1069,8 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[FIBA Phase 17 — 쿼터별 색상 + Legend]** 사용자 직접 결재 §1~§8 (14:00 KST). (a) `src/lib/score-sheet/period-color.ts` 신규 — `getPeriodColor` (Q1=text-primary / Q2=accent / Q3=success / Q4=warning / OT(5+)=primary) + `getPeriodLabel` + `getTimeoutPhaseColor` (전반/후반/OT) + `PERIOD_LEGEND` 5건 단일 source. (b) running-score-grid.tsx — 마킹 글리프 ●/◉/◎ + 등번호 색 = 하드코딩 accent → 동적 `getPeriodColor(mark.period)`. (c) team-section.tsx — Player Fouls **하이브리드** (글자=`getPeriodColor(period)` Q별 / 배경=신규 `FOUL_TYPE_BG_COLOR` 종류 옅은 톤 — P=투명/T=노랑/U=하늘 info/D=빨강) / Team Fouls 페어 박스 채움 = `getPeriodColor(period)` Period별 색 + Extra(OT) = primary / Time-outs X 마킹 = `getTimeoutPhaseColor` phase별 색. (d) period-color-legend.tsx 신규 — 5건 (Q1~Q4 + OT) 색 원(W=H 50%) + 한글 라벨 + `no-print` (frame 외부 / 인쇄 시 제외). (e) score-sheet-form.tsx — `<PeriodColorLegend />` frame 외부 (MatchEndButton 위). vitest 23건 신규 (Q1~OT + 경계 0 + cross-check) → 639 → **662/662 PASS** (회귀 0). tsc 0 / Flutter v1 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 핑크 0 / 빨강 본문 텍스트 0 (Q2/OT = 강조 마킹) / A4 fit 유지 (Legend = frame 외부). 주의: `--color-accent` ≈ `--color-primary` (둘 다 BDR Red) → Q2 ≈ OT 시각차 미세 (사용자 결재 §1 그대로). | ✅ |
+| 2026-05-13 | (코드 변경 0) | **[검토 — AI 자연어 대회 운영 가능성]** 결론: 가능 + Phase AI-1 (추천 시스템) 부터 점진 권장. 핵심 발견 = `@google/genai` Gemini 2.5 Flash 가 `src/lib/news/gemini-client.ts` 에서 이미 운영 중 (BDR NEWS / 알기자 / 프로필 bio) → LLM 인프라 재사용 100% / API key 신규 발급 0. 3 패턴 비교 (A 추천 200~400 LOC / B Structured 400~600 / C custom phase 1500+) + 비용 추정 (Gemini 무료 tier 1500 RPD 잔여 충분 / 월 50~150 호출) + 위험 5건 완화 방안 + 9 enum 표현 가능 시나리오 매트릭스. 운영자 결재 3택 — (가) AI-1 만 ⭐ / (나) AI-1+2 일괄 / (다) 보류. 산출물: scratchpad "검토 (planner-architect)" 신규 섹션 + Phase AI-1 파일 6개 설계 (신규 5 / 수정 1). 코드 변경 0 / DB SELECT 만. | ✅ 보고 |
 | 2026-05-13 | (커밋 대기) | **[Phase 3.5-F — advance_per_group 본선 진출 팀 수 설정]** (a) `shouldShowAdvancePerGroup()` 신규 — `group_stage_knockout` / `full_league_knockout` / `dual_tournament` 3 enum 시만 true. (b) `ADVANCE_PER_GROUP_DEFAULT = 2` 상수 (생활체육 표준 1·2위). (c) `validateDivisionSettings` 확장 — advance_per_group: 1~32 정수 + `<= group_size` 강제 (조 크기 초과 진출 차단). (d) divisions/page.tsx GroupSettingsInputs 에 input row 신규 — max=group_size HTML5 가드 + 박제 enum 전환 시 자동 정리 + 총 본선 진출 = advance_per_group × group_count 자동 계산 안내. (e) 가이드 li "조별 본선 진출 팀 수 설정 가능" 추가. (f) zod refine 메시지만 갱신 (검증 로직은 lib 위임으로 자동 반영). vitest 9건 신규 (shouldShowAdvancePerGroup True 3 / False 9 / advance_per_group 정상·범위외·상한·=group_size·단독·DEFAULT·강남시나리오) → 25 → 34 PASS. tsc 0 / vitest 전체 **639/639 PASS** (630 → +9) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[FIBA Phase 16 — 검증 5 issue 통합 fix]** 사용자 직접 결재 6건 (이미지 36-41): (§1) 스타팅 자동 P.IN + 빨강 배경 — `handleLineupConfirm` + `initialLineupComputed` mount 양쪽에서 starters+substitutes playerIn=true 자동 set. 스타팅 5인 = P.IN 체크박스 빨강 배경 + 흰 체크 (accentColor #fff) / 일반 출전 7명 = 흰 배경 (§2 빨강 원 ◉ 영구 제거 — 스타팅 표시 = P.IN 배경으로 대체). (§3) DATE/TIME/PLACE 자동 매핑 — `formatScheduledAt()` Asia/Seoul timezone + `Intl.DateTimeFormat(en-CA)` "YYYY-MM-DD HH:mm" 형식 (splitDateTime 친화 / 이전 ko-KR locale 분리 깨짐 fix). `match.venue_id != null` 시 `courts.findUnique` 별도 조회 + placeLabel fallback chain (`court_number` → `courts.name` → null). (§4) Team fouls 박스 우측 정렬 — `justify-between` + `ml-auto shrink-0` + 라벨 `text-right` (FIBA PDF 정합). (§5) D 퇴장 UI 정리 — material-symbols `block` 아이콘 + "5반칙/T×2/U×2/D 퇴장" 텍스트 영구 제거 / 행 `opacity: 0.6` + `cursor: not-allowed` 강화 / P.IN input `disabled = disabled \|\| ejected` (퇴장 후 토글 차단) / D 마킹은 Fouls 1번 칸 글자 유지. (§6) 풋터 FIBA 정합 — SigInput inline `uppercase` 제거 → Title case 보존 / frameless 심판진 = Referee 단독 + **Umpire 1·2 가로 묶음** (각 50% / labelWidth=60) / Captain's signature `labelNoWrap=true` + labelWidth=200 한 줄 강제 + ellipsis / 운영진/심판/주장 사이 border-top 영역 구분. tsc 0 / vitest **630/630 PASS** (회귀 0) / Flutter v1 영향 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 빨강 본문 텍스트 0 (P.IN 배경 = 사용자 결재 §1 예외) / A4 fit 유지. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[Phase 3.5-E — 한국식 용어 통일 + group_count 조건부 UI]** (a) FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 — `single_elimination` "싱글 엘리미네이션" → **"토너먼트"** / `round_robin` "풀리그 (Round Robin)" → **"풀리그"** / `double_elimination` "더블 엘리미네이션" → **"더블 토너먼트"**. swiss / 나머지 = 변경 0. enum 값 자체 = DB 호환성 유지 (라벨만 변경). (b) `<GroupSettingsInputs>` 의 ranking_format 영역에 `group_count <= 2` 분기 — 드롭다운 대신 "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내 박스 노출. group_count 3+ 일 때만 드롭다운 (풀리그 / 토너먼트). onChange 즉시 토글 (React state 재렌더). default `round_robin` 박제 유지 (호환성). (c) 페이지 하단 가이드 li 일관성 — "토너먼트" 추가 + "더블 토너먼트" 신규 추가. (d) vitest 4건 신규 (FORMAT_LABEL 회귀 가드) → 21 → 25건 PASS. tsc 0 / vitest 전체 **630/630 PASS** (626 → +4) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |

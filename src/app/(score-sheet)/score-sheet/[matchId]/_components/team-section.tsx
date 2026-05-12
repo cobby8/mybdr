@@ -75,15 +75,37 @@ import {
   getGamePhase,
   getUsedTimeouts,
 } from "@/lib/score-sheet/timeout-helpers";
+import {
+  getPeriodColor,
+  getTimeoutPhaseColor,
+} from "@/lib/score-sheet/period-color";
 
 // Phase 3.5 — 파울 종류별 글자 색상 (P=text-primary / T=warning / U=accent / D=primary)
 // 이유: P/T/U/D 약자를 칸 안에 직접 표시 — 종류별 색 차이로 한눈에 인지.
 //   D = primary 빨강 (위험 액션 = 빨강 예외 허용 / 본문 텍스트 X)
+//
+// Phase 17 (2026-05-13) — Player Fouls 하이브리드 변경:
+//   - 글자 색 = Q별 색 (getPeriodColor(period)) — 본 FOUL_TYPE_COLOR 는 미사용으로 전환.
+//   - 배경 색 = 종류별 옅은 색 (FOUL_TYPE_BG_COLOR 신규) — 본 표는 보존 (회귀 안전망 + 비교용).
 const FOUL_TYPE_COLOR: Record<FoulType, string> = {
   P: "var(--color-text-primary)",
   T: "var(--color-warning)",
   U: "var(--color-accent)",
   D: "var(--color-primary)",
+};
+
+// Phase 17 (2026-05-13) — Player Fouls 박스 배경 색 (종류 P/T/U/D).
+// 이유: 하이브리드 (글자=Q별 / 배경=종류) — 사용자 결재 §3 / 이미지 14:00 KST.
+//   배경 = 옅은 톤 (color-mix 15% transparent) — 본문 텍스트는 글자 (Q색) 가독성 우선.
+//   - P (Personal)        = 흰/투명 (가장 흔함 = 기본)
+//   - T (Technical)       = 노랑 옅게 (warning 15%)
+//   - U (Unsportsmanlike) = 하늘 옅게 (info 15% — 빨강 회피 / 빨강 본문 룰 준수)
+//   - D (Disqualifying)   = 빨강 옅게 (primary 15% — 위험 강조 예외 허용)
+const FOUL_TYPE_BG_COLOR: Record<FoulType, string> = {
+  P: "transparent",
+  T: "color-mix(in srgb, var(--color-warning) 15%, transparent)",
+  U: "color-mix(in srgb, var(--color-info) 15%, transparent)",
+  D: "color-mix(in srgb, var(--color-primary) 15%, transparent)",
 };
 
 export interface TeamSectionPlayerState {
@@ -316,6 +338,12 @@ export function TeamSection({
                     : i === 5
                       ? "여유 (OT 진입 시 활성)"
                       : `OT${i - 5} 타임아웃`;
+              // Phase 17 (2026-05-13) — X 마킹 색 = phase 별 색 (사용자 결재 §5 / 이미지 14:00 KST).
+              //   filled = 해당 마킹의 period 로 phase 분기 → 전반/후반/OT 색 적용.
+              //   빈 칸 = text-muted 유지 (변경 없음).
+              const markColor = filled
+                ? getTimeoutPhaseColor(timeouts[i].period)
+                : "var(--color-text-muted)";
               return (
                 <button
                   key={i}
@@ -336,9 +364,8 @@ export function TeamSection({
                     // 검정 ● 폐기 (사용자 결재) — 마킹은 X 글자 (운영자 종이에 X 표시 관행).
                     border: "1px solid var(--color-border)",
                     backgroundColor: "transparent",
-                    color: filled
-                      ? "var(--color-text-primary)"
-                      : "var(--color-text-muted)",
+                    // Phase 17 — color hardcoded text-primary → markColor (phase 별 색 동적)
+                    color: markColor,
                     cursor:
                       isLastFilled || isNextEmpty ? "pointer" : "default",
                     touchAction: "manipulation",
@@ -399,6 +426,10 @@ export function TeamSection({
                 const teamCount = getTeamFoulCountByPeriod(fouls, period);
                 // 5+ 도달 = 자유투 부여 (UI 강조)
                 const ftAwarded = teamCount >= 5;
+                // Phase 17 (2026-05-13) — Team Fouls 박스 채움 색 = Period 별 색 (사용자 결재 §4).
+                //   각 Period 박스 4칸 (1·2·3·4) 채움 = getPeriodColor(period) 통일.
+                //   이전: text-primary 하드코딩 (검정) → 동적 (Q1=검정/Q2=빨강/Q3=초록/Q4=오렌지).
+                const periodFillColor = getPeriodColor(period);
                 return (
                   <div
                     key={period}
@@ -417,7 +448,8 @@ export function TeamSection({
                     {/* Phase 11 §1 (2026-05-12) — FIBA 정합 박스 안 1·2·3·4 라벨 복원 (reviewer Critical).
                         Phase 12 — 페어 배치 유지 / 박스 크기 동일 (h-5 w-5).
                         Phase 13 — 박스 h-5 w-5 → h-[12px] w-[12px] (UI 겹침 fix / 사용자 결재 §2).
-                          글자 9px → 8px / shrink-0 유지. */}
+                          글자 9px → 8px / shrink-0 유지.
+                        Phase 17 (2026-05-13) — 채움 색 = periodFillColor (Q별 색). */}
                     {[1, 2, 3, 4].map((n) => {
                       const filled = teamCount >= n;
                       return (
@@ -427,7 +459,7 @@ export function TeamSection({
                           style={{
                             border: "1px solid var(--color-border)",
                             backgroundColor: filled
-                              ? "var(--color-text-primary)"
+                              ? periodFillColor
                               : "transparent",
                             color: filled
                               ? "var(--color-bg)"
@@ -472,9 +504,12 @@ export function TeamSection({
             </span>
             {/* Phase 11 §1 (2026-05-12) — OT 박스 안 1·2·3·4 라벨 복원 (FIBA 정합 / Period 행 동일).
                 period 5~7 합산 (FIBA Article — Extra periods 통합 표시).
-                Phase 13 — h-5 w-5 → h-[12px] w-[12px] (UI 압축 / 사용자 결재 §2). */}
+                Phase 13 — h-5 w-5 → h-[12px] w-[12px] (UI 압축 / 사용자 결재 §2).
+                Phase 17 (2026-05-13) — 채움 색 = OT 색 (primary) — 사용자 결재 §4 / 이미지 14:00 KST. */}
             {(() => {
               const otCount = fouls.filter((f) => f.period >= 5).length;
+              // OT 색 = primary (getPeriodColor(5+) 와 동일 토큰) — 사용자 결재 §1.
+              const extraFillColor = getPeriodColor(5);
               return [1, 2, 3, 4].map((n) => {
                 const filled = otCount >= n;
                 return (
@@ -484,7 +519,7 @@ export function TeamSection({
                     style={{
                       border: "1px solid var(--color-border)",
                       backgroundColor: filled
-                        ? "var(--color-text-primary)"
+                        ? extraFillColor
                         : "transparent",
                       color: filled
                         ? "var(--color-bg)"
@@ -724,10 +759,17 @@ export function TeamSection({
                         const filled = mark !== null;
                         const isLastFilled = filled && n === foulCount;
                         const isNextEmpty = !filled && n === foulCount + 1;
-                        // 종류별 색상 (filled 만)
-                        const typeColor = mark
-                          ? FOUL_TYPE_COLOR[mark.type]
+                        // Phase 17 (2026-05-13) — 하이브리드 색 (사용자 결재 §3 / 이미지 14:00 KST):
+                        //   - 글자 색 = Q별 색 (mark.period 기준) — 마킹 시점 한눈에.
+                        //   - 배경 색 = 종류 P/T/U/D (FOUL_TYPE_BG_COLOR 옅은 톤).
+                        //   이전 Phase 3.5: 글자 = 종류 색 / 배경 = 종류 색 18% (단일 차원).
+                        //   변경 이유: Q별 색 차원 + 종류 차원 동시 인지 (2D 정보 동시 표현).
+                        const foulTextColor = mark
+                          ? getPeriodColor(mark.period)
                           : "var(--color-text-muted)";
+                        const foulBgColor = mark
+                          ? FOUL_TYPE_BG_COLOR[mark.type]
+                          : "transparent";
                         return (
                           <button
                             key={n}
@@ -754,12 +796,10 @@ export function TeamSection({
                             className="mark flex h-[18px] w-[18px] items-center justify-center text-[10px] font-bold disabled:cursor-default"
                             style={{
                               border: "1px solid var(--color-border)",
-                              backgroundColor: filled
-                                ? "color-mix(in srgb, " +
-                                  typeColor +
-                                  " 18%, transparent)"
-                                : "transparent",
-                              color: filled ? typeColor : "var(--color-text-muted)",
+                              // Phase 17 — 배경 = 종류별 옅은 색 (P=투명/T=노랑/U=하늘/D=빨강) 옅게 (15%).
+                              backgroundColor: foulBgColor,
+                              // Phase 17 — 글자 = Q별 색 (mark.period 기준 / Q1=검정/Q2=빨강/Q3=초록/Q4=오렌지/OT=빨강).
+                              color: foulTextColor,
                               cursor:
                                 isLastFilled || isNextEmpty
                                   ? "pointer"
@@ -768,13 +808,14 @@ export function TeamSection({
                             }}
                             aria-label={
                               mark
-                                ? `${p.displayName} ${n}번째 파울 ${mark.type} 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                                ? `${p.displayName} ${n}번째 파울 ${mark.type} (Q${mark.period}) 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
                                 : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (클릭 시 종류 선택)" : ""}`
                             }
                             title={`Period ${currentPeriod} 마킹`}
                           >
                             {/* Phase 10 §G (2026-05-12) — 빈 박스 / 마킹 시 P/T/U/D 글자만.
-                                숫자 라벨 1·2·3·4·5 폐기 (사용자 결재 — FIBA 종이기록지 정합). */}
+                                숫자 라벨 1·2·3·4·5 폐기 (사용자 결재 — FIBA 종이기록지 정합).
+                                Phase 17 — 글자 색 = Q별 (위 color 동적). */}
                             {mark ? mark.type : ""}
                           </button>
                         );
