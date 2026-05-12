@@ -25,10 +25,17 @@ import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 /**
  * userId 가 tournamentId 의 어드민 권한을 가지는지 검증.
- * - super_admin → true (DB 조회 우회)
- * - tournament.organizerId === userId → true
- * - tournamentAdminMember.is_active=true → true
- * - 그 외 → false
+ *
+ * 2026-05-12 — 단체 admin/owner 자동 부여 (이미지 34 사용자 요청):
+ *   - tournament.series.organization 의 organization_members 에 admin/owner 등록된 사용자는
+ *     해당 대회의 운영자 권한 자동 통과 (수동 TAM INSERT 불필요)
+ *
+ * 권한 통과 조건 (어느 하나라도 만족):
+ *   1) super_admin → true (DB 조회 우회)
+ *   2) tournament.organizerId === userId → true
+ *   3) tournamentAdminMember.is_active=true row → true (수동 위임)
+ *   4) tournament.series.organization 의 organization_members.role in ('admin', 'owner')
+ *      + is_active=true → true (자동 부여 — 신규 2026-05-12)
  */
 export async function canManageTournament(
   tournamentId: string,
@@ -38,10 +45,15 @@ export async function canManageTournament(
   // 1) super_admin 우회 — DB 조회 없이 즉시 통과
   if (isSuperAdmin(session)) return true;
 
-  // 2) tournament 존재 + organizer 검증 1 쿼리에
+  // 2) tournament + series + organization 한 번에 SELECT (N+1 회피)
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    select: { organizerId: true },
+    select: {
+      organizerId: true,
+      tournament_series: {
+        select: { organization_id: true },
+      },
+    },
   });
   if (!tournament) return false;
 
@@ -53,5 +65,23 @@ export async function canManageTournament(
     where: { tournamentId, userId, isActive: true },
     select: { id: true },
   });
-  return Boolean(member);
+  if (member) return true;
+
+  // 5) 2026-05-12 신규 — 단체 admin/owner 자동 부여 (이미지 34)
+  //    tournament.series.organization_id → organization_members.role in (admin/owner) 확인
+  const organizationId = tournament.tournament_series?.organization_id;
+  if (organizationId) {
+    const orgMember = await prisma.organization_members.findFirst({
+      where: {
+        organization_id: organizationId,
+        user_id: userId,
+        is_active: true,
+        role: { in: ["admin", "owner"] },
+      },
+      select: { id: true },
+    });
+    if (orgMember) return true;
+  }
+
+  return false;
 }

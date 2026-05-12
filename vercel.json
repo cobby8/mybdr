@@ -35,6 +35,10 @@
     {
       "path": "/api/cron/youtube-auto-match",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/series-counter-audit",
+      "schedule": "0 0 1 * *"
     }
   ]
 }

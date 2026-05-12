@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { CopyLinkButton } from "./_components/copy-link-button";
+import { DeleteSeriesButton } from "./_components/delete-series-button";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +91,37 @@ export default async function SeriesDashboardPage({
     }
   })();
 
-  if (sessionUserId === null || series.organizer_id !== sessionUserId) redirect("/tournament-admin/series");
+  if (sessionUserId === null) redirect("/tournament-admin/series");
+
+  // Phase C — 편집/삭제 권한 분기:
+  //   기존 = organizer 본인만 진입 (단순)
+  //   신규 = organizer + 단체 owner/admin + super_admin (Q2 결재 — 운영 셀프서비스)
+  //   super_admin 우선 검증 → 일반 유저는 organizer 또는 단체 owner/admin 검증
+  const isSuper = isSuperAdmin(session);
+  const isOrganizer = series.organizer_id === sessionUserId;
+
+  // 단체 owner/admin 검증 — 단체 소속 시리즈인 경우만 SELECT
+  let isOrgEditor = false;
+  if (!isSuper && !isOrganizer && series.organization_id !== null) {
+    const m = await prisma.organization_members.findFirst({
+      where: {
+        organization_id: series.organization_id,
+        user_id: sessionUserId,
+        is_active: true,
+        role: { in: ["owner", "admin"] },
+      },
+      select: { id: true },
+    });
+    isOrgEditor = !!m;
+  }
+
+  const canView = isSuper || isOrganizer || isOrgEditor;
+  if (!canView) redirect("/tournament-admin/series");
+
+  // 편집 가능 여부 — 페이지 진입 가능 = 편집 가능 (canView 와 동일)
+  const canEdit = canView;
+  // 삭제 가능 여부 — super_admin only (본 PR Hard DELETE 만 구현)
+  const canDelete = isSuper;
 
   const totalTeams = series.tournaments.reduce((sum, t) => sum + (t.teams_count ?? 0), 0);
   const nextEdition = (series.tournaments_count ?? 0) + 1;
@@ -107,7 +139,28 @@ export default async function SeriesDashboardPage({
             <p className="mt-1 text-sm text-[var(--color-text-muted)]">{series.description}</p>
           )}
         </div>
-        <CopyLinkButton slug={series.slug} />
+        {/* 액션 버튼 그룹 — 권한별 편집/삭제 노출.
+            모바일 44px+ 터치 가드 (디자인 룰 §13). var(--color-*) 토큰만 사용. */}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          {canEdit && (
+            <Link
+              href={`/tournament-admin/series/${id}/edit`}
+              className="btn btn--sm inline-flex items-center gap-1"
+              aria-label="시리즈 편집"
+            >
+              <span className="material-symbols-outlined text-base">edit</span>
+              <span className="hidden sm:inline">편집</span>
+            </Link>
+          )}
+          <CopyLinkButton slug={series.slug} />
+          {canDelete && (
+            <DeleteSeriesButton
+              seriesId={id}
+              seriesName={series.name}
+              tournamentsCount={series.tournaments_count ?? 0}
+            />
+          )}
+        </div>
       </div>
 
       {/* 통계 */}

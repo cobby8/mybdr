@@ -1,9 +1,226 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 대회/시리즈/단체 연결 구조 전체 진단 (planner-architect, 읽기 전용)
-- **상태**: ✅ 진단 완료 (운영 DB 실측 + 코드 흐름 추적)
-- **모드**: no-stop (자동 머지 위임)
+- **요청**: FIBA SCORESHEET 정밀 정합 검증 + 미세 차이 인벤토리 (reviewer, 분석만)
+- **상태**: ✅ 리뷰 완료 (FIBA PDF 1:1 이미지 측정 + 6 컴포넌트 + _print.css 정밀 대조)
+- **모드**: no-stop / 코드 변경 0
+
+## 리뷰 결과 (reviewer) — FIBA Phase 10 정밀 정합 검증 (2026-05-12)
+
+### 종합 판정: **🟡 미세 fix 필요** (Critical 1 + Major 3 + Minor 8 / A4 fit ✓ / 핵심 룰 준수 ✓)
+
+거의 다 됐다 — 사용자 평가 정확. 미세 차이 12건 인벤토리 + Phase 11 권장.
+
+### FIBA PDF 측정값 (이미지 직접 분석)
+
+| 영역 | FIBA PDF | 측정값 |
+|------|---------|--------|
+| 헤더 로고 | FIBA 로고 (좌상) | ~50×50px 정사각 / 검정 농구공 + "FIBA" |
+| 헤더 타이틀 | "FEDERATION INTERNATIONALE DE BASKETBALL" 1줄 + "INTERNATIONAL BASKETBALL FEDERATION" 1줄 + "SCORESHEET" 큰 굵은 글씨 1줄 | 우측 정렬 / 11pt regular + 14pt bold |
+| Team A/B 라벨 | "Team A" / "Team B" 큰 굵은 글씨 (헤더 메타 위 한 줄) | ~12pt bold + underscore (긴 줄) |
+| 헤더 메타 | 1줄: Competition / Date / Time / Referee // 2줄: Game No / Place / Umpire 1 / Umpire 2 | 4 컬럼 라벨 + underscore |
+| Team A/B 블록 헤더 | "Team A" 큰 글씨 (Team B 도 동일) | ~12pt bold 좌측 정렬 |
+| Time-outs | 5칸 빈 박스 (위 1줄 5개) | ~22×22 정사각 |
+| Team fouls | "Period ① 1 2 3 4 / Period ② 1 2 3 4 / Period ③ 1 2 3 4 / Period ④ 1 2 3 4 / Extra periods" | **숫자 1·2·3·4 박스 안에 라벨 있음** ⚠️ |
+| Players 표 | Licence no. / Players / No. / Player in / Fouls 1 2 3 4 5 | **16행 / 헤더 줄에 "1 2 3 4 5" 라벨** ⚠️ |
+| Coach / Asst Coach | "Coach: ___" / "Assistant Coach: ___" 한 줄 | 좌측 정렬 underscore |
+| Running Score | "RUNNING SCORE" 큰 헤더 + A|B 4세트 × 40행 + 좌우 숫자 (1~40 / 41~80 / 81~120 / 121~160) | **각 행 좌측 + 우측에 행번호 양쪽 표시** ⚠️ |
+| Period scores | "Scores Period ① A___ B___" 4줄 + "Extra periods A___ B___" | 우측 정렬 / underscore |
+| Final Score | "Final Score Team A___ Team B___" 1줄 | underscore |
+| Name of winning team | "Name of winning team ___" 1줄 | underscore |
+| 풋터 운영진 | **Scorer / Assistant scorer / Timer / Shot clock operator = 4줄 세로 누적** ⚠️ | 각각 한 줄 + 긴 underscore |
+| 풋터 심판 | Referee / Umpire 1 / Umpire 2 = 1줄 가로 (혹은 Referee 1줄 + Umpire 1·2 1줄) | underscore |
+| 풋터 Captain | "Captain's signature in case of protest" 1줄 (맨 하단) | underscore |
+
+### 정합 매트릭스 (10 영역)
+
+| # | 영역 | FIBA PDF | 현재 mybdr | 정합 | Phase 11 fix |
+|---|------|---------|-----------|------|-----------|
+| 1 | **헤더 타이틀** | FIBA 로고 + "FED INTL DE BASKETBALL / INTL BASKETBALL FED / SCORESHEET" 3줄 우정렬 | BDR 로고 + "Basketball Daily Routine" + "SCORESHEET" 2줄 | 🟢 **BDR 브랜드 결재 보존** (§A) | — |
+| 2 | **헤더 메타** | Team A/B 라벨 큰 박스 + Competition/Date/Time/Referee 1줄 + Game No/Place/Umpire 1/2 1줄 | 동일 구조 ✓ | 🟢 정합 | — |
+| 3 | **Team A 블록 (Players 행수)** | **16행** | **15행** (Phase 10) | 🟡 1행 차이 | fillRowsTo15 → **fillRowsTo16** (Minor) |
+| 4 | **Team A 블록 (Team fouls)** | 박스 안에 숫자 "1 2 3 4" **표시** (FIBA 원본 라벨) | Phase 10 §F = 빈 박스 + 마킹 시 검정 채움 (라벨 폐기) | 🔴 **FIBA 원본 위반** ⚠️ | **Critical** §F 결재 재검토 (FIBA 원본은 숫자 라벨 있음) |
+| 5 | **Team A 블록 (Player Fouls 헤더)** | 헤더에 "Fouls 1 2 3 4 5" 박스 숫자 라벨 | Phase 10 §G = 빈 박스 + P/T/U/D 마킹 (1·2·3·4·5 라벨 폐기) | 🟡 **trade-off** | §G 결재 보존 (P/T/U/D 더 정보량 ↑) — 다만 헤더 위 "1 2 3 4 5" 가이드 추가 권장 |
+| 6 | **Team A 블록 (Time-outs)** | 5칸 빈 박스 (라벨 없음 / 운영자가 X 또는 채움) | Phase 10 §E = 5칸 빈 박스 + 마킹 시 X 글자 | 🟢 정합 ✓ | — |
+| 7 | **Team A 블록 (Licence)** | "Licence no." 라벨 (사용자가 적는 공간) | "Licence (UID)" + User.id 자동 fill (read-only) | 🟢 자동 fill 결재 보존 (§D) | — |
+| 8 | **Team B 블록** | Team A 와 완전 동일 구조 (Time-outs / Team fouls / Players 16행 / Coach) | Team A 와 동일 구조 ✓ | 🟢 정합 | — |
+| 9 | **Running Score** | **각 set 좌·우 양쪽에 행번호** (예 "1 1" / "2 2" / ... / "40 40") + 4 set 가로 | 좌측 1개 행번호만 (a4 양식 시안 우선 / 22×16px) | 🟡 우측 행번호 누락 | Phase 11 후보 — set 시각 시인성 향상 |
+| 10 | **Period Scores + Final + Winner** | 우측 하단 누적 ("Scores Period ① A___ B___" × 4 + Extra + Final + Name of winning team) | Period 표 + Final Score + Winner 누적 ✓ | 🟢 정합 | **Minor: "Name of winning team" 라벨 누락** (Winner 표시는 다른 톤) |
+| 11 | **풋터 운영진** | **4줄 세로 누적** (Scorer / Assistant scorer / Timer / Shot clock operator) | **가로 4 컬럼 1줄** (Phase 9 컴팩트) | 🟠 **FIBA PDF 세로 배치 X** | **Major** — A4 fit 후 세로 복원 검토 |
+| 12 | **풋터 심판** | Referee 1줄 + Umpire 1·Umpire 2 가로 1줄 (혹은 3 컬럼 1줄) | 3 컬럼 1줄 ✓ | 🟢 정합 | — |
+| 13 | **풋터 Captain** | "Captain's signature in case of protest" 1줄 (맨 하단) | Captain 1줄 (full-width) ✓ | 🟢 정합 | — |
+
+### 발견 차이 (Critical / Major / Minor 분류)
+
+#### 🔴 Critical (1건)
+
+1. **Team fouls 박스 안 숫자 라벨 폐기** — Phase 10 §F 결재 위반 가능성
+   - 파일: `team-section.tsx:339-403`
+   - FIBA 원본: "Period ① **1 2 3 4** / Period ② **1 2 3 4** / ..." (박스 안에 숫자 라벨 표시)
+   - 현재: 빈 박스만 (마킹 시 검정 채움) — 운영자가 "지금 몇 번째 파울인지" 박스 위치로만 추론
+   - 영향: FIBA 종이기록지 정합 ⚠️ 사용자 결재 §F = "라벨 폐기"였지만 **FIBA 원본은 라벨 있음**. 사용자가 PDF 다시 보면 인지 가능 — 재결재 권장.
+   - 권장 fix: 박스 안 작은 글자 "1·2·3·4" 회색 라벨 + 마킹 시 글자 색 반전 (현 검정 채움 유지)
+
+#### 🟠 Major (3건)
+
+2. **Players 15행 → 16행**
+   - 파일: `team-section.tsx:110-117` (fillRowsTo15)
+   - FIBA 원본: 16행 (이미지 직접 카운트 — 헤더 제외 16행 ✓)
+   - 현재: 15행 (Phase 10 §C 결재 = "15행")
+   - 영향: 한 줄 차이. A4 fit 영향 ~22px 증가 — 기존 ~1058px 여유 (1123 안) 안에 흡수 가능
+   - 권장 fix: `fillRowsTo15` → `fillRowsTo16` 변경 (행 22px 그대로 시 +22px / 행 21px 시 +6px)
+
+3. **풋터 운영진 4줄 세로 → 가로 1줄**
+   - 파일: `footer-signatures.tsx:117-150`
+   - FIBA 원본: Scorer / Assistant scorer / Timer / Shot clock operator = **4줄 세로 누적** (각 줄 라벨 + 긴 underscore)
+   - 현재: Phase 9 = `sm:grid-cols-4` 가로 1줄 (A4 fit 우선)
+   - 영향: FIBA 종이기록지 정합 ⚠️ — 다만 A4 fit 보장 후 세로 복원 가능
+   - 권장 fix: `sm:grid-cols-4` → 1 컬럼 + 4줄 세로 (각 줄 22px × 4 = +66px 추가) — A4 1058 + 66 = 1124 (1123 거의 fit 한계)
+
+4. **"Name of winning team" 라벨 누락**
+   - 파일: `period-scores-section.tsx:306-324`
+   - FIBA 원본: Final Score 아래 "Name of winning team ____" 1줄 (별도 입력 영역)
+   - 현재: Winner 표시 = "★ Winner: 팀명" 톤 (color-success 그린 강조 박스)
+   - 영향: FIBA 종이기록지 정합 ⚠️ + 운영자가 "수기로 적는 영역" 누락
+   - 권장 fix: Winner 박스 위 또는 아래 "Name of winning team: ____" underscore input 추가
+
+#### 💡 Minor (8건)
+
+5. **Running Score 우측 행번호 누락** (running-score-grid.tsx)
+   - FIBA 원본: 각 set 좌·우 양쪽에 행번호 (예 set1 = "1 1" / set2 = "41 41")
+   - 현재: 좌측 1개 행번호만 (작은 회색 9px)
+   - 영향: 시각 시인성 ↓ (set 1 / set 2 경계 식별 어려움)
+   - 권장 fix: A|B 컬럼 사이 행번호 1개 추가 또는 우측 1개
+
+6. **Running Score "RUNNING SCORE" 헤더 글자 크기**
+   - FIBA 원본: 굵은 큰 글씨 (~12pt bold)
+   - 현재: text-[11px] uppercase tracking-wider (running-score-grid.tsx:174)
+   - 영향: 시각 강조 ↓
+   - 권장 fix: text-[12px] 또는 text-sm + font-bold
+
+7. **헤더 BDR 로고 너무 작음** (fiba-header.tsx:101-107)
+   - FIBA 원본: 로고 ~50×50 정사각 (큰 크기)
+   - 현재: 24×12 (Phase 9 컴팩트)
+   - 영향: 브랜드 인지 ↓
+   - 권장 fix: BDR 결재 보존 시 32×16 또는 40×20 으로 약간 확대 (A4 fit 영향 0 — 헤더는 여유)
+
+8. **헤더 "SCORESHEET" 글자 크기** (fiba-header.tsx:116-120)
+   - FIBA 원본: ~14pt bold (제일 큰 글자)
+   - 현재: text-[13px] font-bold uppercase tracking-widest
+   - 영향: FIBA 정합 ↓ (큰 차이는 아니지만 미세)
+   - 권장 fix: text-[14px] 또는 text-base
+
+9. **Players 표 "P in" 컬럼명** (team-section.tsx:447-450)
+   - FIBA 원본: "Player in" (줄임 X)
+   - 현재: "P in" (Phase 9 컴팩트)
+   - 영향: 라벨 명확성 ↓
+   - 권장 fix: "Player in" 으로 복원 (헤더 22px 안 fit 검증 후)
+
+10. **Players 표 "Licence (UID)" 라벨**
+    - FIBA 원본: "Licence no." (간결)
+    - 현재: "Licence (UID)" (BDR 운영 명확화 / Phase 3.5)
+    - 영향: BDR 결재 보존 § (자동 fill UID = User.id) — FIBA 원본은 사람이 적는 라이센스 번호
+    - 권장 fix: 보존 (사용자 결재 §D)
+
+11. **Time-outs phase 표시** (team-section.tsx:241-245)
+    - FIBA 원본: 박스만 (라벨 X)
+    - 현재: "전반 2/2" 류 보조 텍스트 표시
+    - 영향: BDR UX 보강 (운영자 부담 ↓) — FIBA 원본 미정합이지만 운영 편의
+    - 권장 fix: 보존 (운영 가치 ↑)
+
+12. **인쇄 시 마킹된 박스 = 회색 #e0e0e0** (_print.css:151-153)
+    - FIBA 원본: 마킹 = 손글씨 X 또는 검정 채움 (인쇄지에 운영자가 직접 마킹)
+    - 현재: 인쇄 시 `[aria-label*="마킹됨"]` 가 회색 배경
+    - 영향: 종이로 출력 시 시각 차이 (검정 vs 회색)
+    - 권장 fix: 인쇄 시 마킹 = #000 검정 강제 (Time-outs X / Team fouls 검정 채움 / Player fouls P/T/U/D 글자 검정)
+
+### A4 fit 검증
+
+- **화면 viewport** (브라우저 1920×1080):
+  - 좌측 ~1058px / 우측 ~1025px (둘 다 1123px = A4 portrait 안 fit ✓)
+  - 스크롤 0 ✓
+- **인쇄 미리보기** (A4 portrait):
+  - `_print.css` `.score-sheet-fiba-frame { width: 198mm; max-height: 285mm; overflow: hidden; page-break-after: always }` 강제
+  - **위험**: max-height 285mm + overflow: hidden = 초과 시 잘림 ⚠️ (16행 적용 + 풋터 세로 복원 시 ~1124px 초과 가능)
+  - 권장: 인쇄 시 행 22 → 20px 또는 풋터 가로 유지로 안전 마진 확보
+
+### 폰트 정밀
+
+- FIBA PDF 라벨: Helvetica/Arial regular ~8pt + bold 큰 라벨 ~12pt
+- FIBA PDF 데이터: 빈 underscore (운영자 손글씨)
+- 현재 mybdr: Pretendard (한글) + 시스템 영문 fallback
+- 정합도: 🟢 충분 (Pretendard 가 Helvetica 와 유사한 sans-serif 톤)
+
+### 색상 정합
+
+- FIBA PDF: 검정 1px 박스 + 흰 배경 + 검정 텍스트
+- 현재 mybdr: `var(--color-text-primary)` (라이트=검정 / 다크=흰색) ✓ 인쇄 시 검정 강제 ✓
+- 정합도: 🟢 완벽
+
+### 디자인 13 룰 (CLAUDE.md)
+
+| 룰 | 위반 검사 |
+|---|---------|
+| lucide-react ❌ | 0건 (주석 1건 명시만) ✅ |
+| Material Symbols ✅ | warning / block / check / chevron_left/right / stop_circle / edit ✅ |
+| 핑크/살몬/코랄 ❌ | hardcode 0건 ✅ |
+| 빨강 본문 ❌ | accent (warning) / primary (D 파울 — 위험 액션 예외) — 본문 텍스트 X ✅ |
+| `var(--*)` 토큰 ✅ | 모든 색상 토큰 사용 ✅ |
+| BDR 브랜드 보존 | BDR 로고 + Basketball Daily Routine 유지 ✅ |
+
+### Phase 11 권장 fix 작업량
+
+| 우선순위 | 영역 | 작업 | 예상 LOC |
+|---------|------|------|--------|
+| 🔴 Critical | Team fouls 박스 안 숫자 라벨 | 빈 박스에 작은 회색 "1·2·3·4" 라벨 + 마킹 시 글자 색 반전 | +25 LOC |
+| 🟠 Major | Players 15행 → 16행 | fillRowsTo15 → fillRowsTo16 + 테스트 갱신 | +5 LOC |
+| 🟠 Major | 풋터 운영진 가로 → 세로 4줄 | grid-cols-4 → grid-cols-1 + A4 fit 재검증 | +10 LOC |
+| 🟠 Major | "Name of winning team" 추가 | Final Score 아래 underscore input | +20 LOC |
+| 💡 Minor | Running Score 우측 행번호 | A|B 사이 또는 우측 행번호 추가 | +15 LOC |
+| 💡 Minor | RUNNING SCORE 헤더 크기 | text-[11px] → text-sm | +1 LOC |
+| 💡 Minor | BDR 로고 확대 | 24×12 → 32×16 | +1 LOC |
+| 💡 Minor | SCORESHEET 글자 크기 | text-[13px] → text-base | +1 LOC |
+| 💡 Minor | "P in" → "Player in" | 컬럼 width w-12 → w-16 | +1 LOC |
+| 💡 Minor | 인쇄 마킹 = 회색 → 검정 | _print.css `[aria-label*="마킹됨"]` 검정 강제 | +3 LOC |
+
+**총 예상**: ~82 LOC / 1 PR (Phase 11). A4 fit 재검증 + tsc 0 + vitest 543 + 시각 검증 (PDF 1:1 대조).
+
+### ✅ 잘된 점
+
+- **단일 외곽 박스 통합** (`score-sheet-fiba-frame`) = FIBA PDF 1:1 정합 ✓
+- **다크/라이트 모드 분기** + 인쇄 시 라이트 강제 = 운영 안정성 ↑
+- **frameless prop 패턴** = 회귀 안전망 보존 (기존 호출자 영향 0)
+- **localStorage draft** (5초 throttle) = mid-game reload 안전
+- **fillRowsTo12 deprecated alias** = 회귀 가드 명시
+- **A4 1 페이지 fit** (좌 1058 / 우 1025 / 한계 1123) = Phase 9 컴팩트 성공
+- **헤더 4줄 컴팩트** + **풋터 가로 펼침** = 공간 효율 ↑ (단 FIBA 정합 trade-off)
+- **자동 fill** (Licence User.id / 사전 라인업 + TTP) = 운영자 부담 ↓
+- **vitest 543/543 PASS** = 회귀 안전망 견고 (fillRowsTo12 alias 회귀 가드 포함)
+- **디자인 13 룰 100% 준수** (lucide-react 0 / 빨강 본문 0 / 토큰 100%)
+
+### 🔴 필수 수정 (Phase 11 권장)
+
+- **team-section.tsx:339-403** — FIBA 원본 정합 위해 박스 안 숫자 라벨 1·2·3·4 복원 (사용자 §F 재결재 필요)
+
+### 🟡 권장 수정 (Phase 11)
+
+- **team-section.tsx:110-117** — fillRowsTo15 → fillRowsTo16 (FIBA 원본 카운트)
+- **footer-signatures.tsx:117-150** — sm:grid-cols-4 → 1 컬럼 세로 4줄 (FIBA 정합, A4 fit 재검증 필수)
+- **period-scores-section.tsx** — "Name of winning team: ____" underscore 라인 추가
+- **running-score-grid.tsx** — 우측 행번호 + 헤더 크기
+
+### 결론
+
+사용자 평가 "거의 다 됐다" = 정확. **A4 fit ✓ + 디자인 룰 100% + 핵심 흐름 정합 ✓**. 미세 차이 12건 중 Critical 1건 (Team fouls 라벨) + Major 3건만 fix 권장. Minor 8건은 trade-off (BDR UX 우선 / 자동 fill 가치 ↑) — 결재 보존 정당.
+
+Phase 11 = 1 PR ~82 LOC. 우선순위: Critical Team fouls 재결재 → Major 3건 동시 fix → Minor 8건 선택적.
+
+## 진행 현황표 (옵션 A — 본 세션)
+| # | 이슈 | 작업 | 상태 |
+|---|------|------|------|
+| 31 | 빨강 버튼 디자인 위반 | organizations 2 페이지 6 토큰 → btn--primary / accent / info | ✅ |
+| 30/32 | 단체 페이지 흐름 | snukobe org_members admin INSERT (강남구농구협회 orgId=3) | ✅ |
+| 29 | 대회 자동 종료 로직 | auto-complete.ts + match-sync 통합 + vitest +8 + 운영 1건 backfill | ✅ |
 
 ## 진단 (planner-architect) — 대회/시리즈/단체 연결 구조 전체 점검 (2026-05-12)
 
@@ -90,9 +307,87 @@
 | 33 | 대진표 고도화 | dual_tournament rounds/brackets 매핑 강화 | 보류 (별 PR) |
 | 34 | 권한 자동 부여 | 단체 admin → 대회 운영자 자동 부여 (헬퍼 또는 트리거) | 보류 (별 PR) |
 
+## 구현 기록 (developer) — B-3 cron + Phase C 시리즈 CRUD (2026-05-12)
+
+📝 구현 범위: Vercel Cron 카운터 audit (DRY-RUN) + 시리즈 PATCH/DELETE API (Q2 권한 확장) + 운영 UI (편집/삭제)
+
+### 변경 파일
+
+| # | 파일 | 변경 | 신규/수정 |
+|---|------|------|----------|
+| B-3 | `vercel.json` | crons 추가 — `/api/cron/series-counter-audit` schedule `0 0 1 * *` | 수정 |
+| B-3 | `src/app/api/cron/series-counter-audit/route.ts` | DRY-RUN GET 핸들러 — Bearer 가드 + 시리즈/단체 카운터 비교 + console.warn + UPDATE 0 | 신규 |
+| C-1 | `src/lib/auth/series-permission.ts` | `requireSeriesEditor()` (organizer + 단체 owner/admin + super_admin) + `isOrganizationEditor()` 헬퍼 추가 | 수정 |
+| C-2 | `src/app/api/web/series/[id]/route.ts` | PATCH 핸들러 (zod schema name 50/desc 200/is_public/organization_id) + DELETE Hard (?hard=1 super_admin only). 카운터 동기화 $transaction | 수정 |
+| C-3a | `src/app/(admin)/tournament-admin/series/[id]/page.tsx` | 권한 가드 확장 (organizer + 단체 owner/admin + super_admin) + 헤더 편집 Link + DeleteSeriesButton 통합 | 수정 |
+| C-3b | `src/app/(admin)/tournament-admin/series/[id]/edit/page.tsx` | 시리즈 편집 server component (권한 가드) | 신규 |
+| C-3c | `.../edit/_components/series-edit-form.tsx` | client form (단체 드롭다운 + isDirty 감지 + 변경값만 PATCH) | 신규 |
+| C-3d | `.../[id]/_components/delete-series-button.tsx` | super_admin 전용 Hard DELETE 버튼 (시리즈명 입력 매칭 confirm 모달) | 신규 |
+| 테스트 | `src/__tests__/api/series-patch-delete.test.ts` | PATCH 권한 6 + organization_id 5 + DELETE 4 = 15 케이스 | 신규 |
+| 테스트 | `src/__tests__/api/cron-series-counter-audit.test.ts` | DRY-RUN audit 5 케이스 (Bearer/정합/series 불일치/org 불일치/양쪽) | 신규 |
+
+### Q2/Q3 권한 적용
+
+- **Q2 적용**: `requireSeriesEditor` = series organizer + 단체 owner/admin + super_admin
+- **organization_id 변경 시 양쪽 단체 권한 검증**: 일반 사용자는 이전 + 새 단체 모두 owner/admin 확인 (`isOrganizationEditor`). super_admin 우회.
+- **Q3 본 PR 범위 외**: 대회 organizer ≠ 시리즈 organizer 케이스는 Phase D 본격 적용 — 본 PR 은 시리즈 PATCH/DELETE 권한 확장만.
+
+### Soft DELETE 결정
+
+- schema 의 `tournament_series.status` 는 "active" 디폴트 / 운영 코드에 "inactive" 분기 0건
+- 본 PR = **Hard DELETE 만** 구현 (super_admin only, ?hard=1)
+- Soft DELETE 는 별 PR 큐잉 (status 컬럼 정책 결재 필요)
+- DELETE Hard 동작: tournaments series_id NULL 분리 → organizations.series_count -1 → series row 삭제 ($transaction 원자)
+
+### 검증 결과
+
+- **tsc --noEmit**: 0 에러
+- **vitest**: **584/584 PASS** (이전 563 + 신규 21)
+  - 신규 series-patch-delete: 15/15 (권한 6 + org_id 5 + DELETE 4)
+  - 신규 cron-audit: 5/5
+  - 회귀: tournament-series-link 11/11 등 기존 모든 케이스
+- **Flutter v1 영향 0**: `src/app/api/v1/` 안 organization_id / series_count / tournaments_count 사용 0건 grep
+- **schema 변경 0** / **운영 DB 변경 0** (코드만)
+- **grep 회귀 0**: BigInt(N)n / lucide-react / 핑크-살몬-코랄 모두 0건
+
+### 💡 tester 참고
+
+- **PATCH 권한 흐름 검증**:
+  1. organizer 본인 → 시리즈 메타 변경 가능
+  2. 단체 소속 시리즈에서 단체 owner/admin → 변경 가능 (Q2 신규)
+  3. 단체 member → 403
+  4. organization_id 변경 시 카운터 동기화 (운영 series_count 실측 확인)
+- **DELETE 흐름 검증**:
+  1. 일반 organizer가 ?hard=1 시도 → 403
+  2. super_admin + ?hard=1 + 시리즈명 정확 입력 → 삭제 + 묶인 대회 series_id NULL 분리
+  3. 삭제 후 organization 페이지 events 탭 = 분리된 대회들 사라짐 (의도)
+- **cron audit 검증**:
+  1. cron 수동 호출 (Bearer CRON_SECRET) → 응답에 series/organizations mismatches 박제
+  2. 매월 1일 0시 자동 실행 (Vercel)
+  3. UPDATE 0건 (DRY-RUN) — 사람이 수동 backfill 책임
+- **주의할 입력**:
+  - Hard DELETE 시 묶인 대회가 많으면 updateMany count 큼 (운영 안전: 사전 시리즈 분리 흐름 안내 권장)
+  - organization_id 변경 시 새 단체가 approved 아니면 400
+  - 새 단체 권한 없으면 403 (이중 가드: 클라 select 옵션 + 서버 isOrganizationEditor)
+
+### ⚠️ reviewer 참고
+
+- **`requireSeriesEditor` 단일 source**: 시리즈 PATCH/DELETE 진입점 모두 본 헬퍼 사용. 향후 단체 권한 룰 변경 시 한 곳만 수정. 페이지 server component 의 권한 가드는 inline 로직 (헬퍼는 throw 기반이라 server component 에서 try/catch 어색 — 단순 prisma.findFirst 로 박제)
+- **카운터 동기화 race**: organization_id 변경 + DELETE 모두 `$transaction` 안에서 처리. PATCH 의 isSameOrg 분기는 transaction 진입 X (불필요한 부하 회피)
+- **mock 시퀀스**: vitest 의 organization_members.findFirst 호출 시퀀스 = `requiresMembershipCheck (외부인+org_id)` + `orgEditorResults (PATCH organization_id 변경)`. organizer 본인/super_admin 케이스는 requireSeriesEditor 단계에서 호출 0
+- **시리즈명 입력 매칭 confirm**: DeleteSeriesButton — 정확 일치만 활성화 (실수/매크로 차단). 향후 단체 분리 PR3 흡수 모달 패턴과 통일 가능
+- **Soft DELETE 미구현 사유 박제**: route 안 주석에 "별 PR 큐잉" 명시 + 호출 시 400 응답으로 안내. UI 에는 Hard DELETE (super_admin only) 만 노출
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[Phase B-3 cron audit + Phase C 시리즈 PATCH/DELETE]** B-3) `/api/cron/series-counter-audit` GET (DRY-RUN, 매월 1일 0시 cron) — series.tournaments_count + organizations.series_count 정합성 자동 점검 + 불일치 시 console.warn (UPDATE 0). C-1) `requireSeriesEditor` 헬퍼 신규 (Q2: organizer + 단체 owner/admin + super_admin) + `isOrganizationEditor` 헬퍼. C-2) `/api/web/series/[id]` PATCH (name/desc/is_public/organization_id 변경 + 양쪽 단체 권한 검증 + 카운터 동기화 $transaction) + DELETE Hard (?hard=1 super_admin only + tournaments series_id NULL 분리 + organizations.series_count -1). C-3) 시리즈 [id] 페이지 헤더 편집/삭제 버튼 + edit/page.tsx (server 가드 + client form) + delete-series-button.tsx (시리즈명 입력 매칭 confirm). vitest +21 (PATCH 권한 6 + organization_id 5 + DELETE 4 + cron 5 + 회귀 1). tsc 0 / vitest 584/584 PASS. Flutter v1 영향 0 / schema 변경 0 / 운영 DB 변경 0. soft DELETE = 별 PR (status 컬럼 정책 결재 필요). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase B 정합성 가드 + callbackUrl fix]** A) extractRedirectFromQuery + extractRedirectFromValues 헬퍼 신규 (redirect 우선 / callbackUrl 폴백) → login page + auth.ts loginAction + /api/auth/login OAuth 시작점 통합 (proxy.ts 가 callbackUrl 박제 → 사일런트 무시 사고 영구 차단). B-1) createTournament service `seriesId?: bigint` + `$transaction` 카운터 +1 + wizard route requireSeriesOwner 권한 검증. B-2) `/api/web/tournaments/[id]` DELETE 핸들러 신규 (soft=status='cancelled' / hard=`?hard=1` super_admin only + series 카운터 -1 + adminLog warning/critical). vitest +22 (redirect +10 / create-tournament +4 / delete +6 / 회귀 +2). tsc 0 / vitest 563/563 PASS. Flutter v1 영향 0 / schema 변경 0 / 운영 DB 변경 0. B-3 cron audit = 별 PR 큐잉. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 10]** 정밀 디자인 fix (Critical 4 + Major 3) — §B 헤더 underscore (큰 박스 폐기) / §C Players 15행 (fillRowsTo12 → fillRowsTo15 alias 유지) + 행 24→22px / §E Time-outs 빈 박스 + 마킹 시 X 글자 / §F Team fouls 1·2·3·4 빈 박스 + 마킹 시 검정 채움 (1·2·3·4 라벨 폐기) / §G Player Fouls 1-5 빈 박스 + 마킹 시 P/T/U/D 글자만. §A·§D 결재 = BDR 브랜드 + 자동 fill 유지 (변경 0). 2 파일. tsc 0 / vitest 543/543 PASS (기존 541 + 신규 2 alias 회귀 가드). A4 fit 좌측 ~1058px / 1123 안 fit ✓. 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 9]** A4 1 페이지 fit + 레이아웃 재배치 — 좌측 Team A+B 세로 분할 (FIBA PDF 정합) / 우측 Running+Period+Final 누적 / Footer 최하단 가로 1~2줄 (Notes frameless 시 폐기) / Players 행 28→24px / 폰트 압축 (헤더 13px / 라벨 10 / 데이터 11~12 / 인쇄 8pt) / @page margin 8→6mm / fiba-frame 198mm×285mm 강제. 7 파일. tsc 0 / vitest 541 PASS. 좌측 ~975px / 우측 ~1025px (A4 1123 안에 fit ✓). 회귀 0. | ✅ |
