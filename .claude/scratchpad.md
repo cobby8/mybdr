@@ -1096,6 +1096,91 @@ Extra [1][2][3][4]                   ← 줄 3
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 18 Running Score 분리 + 1/2/3점 (2026-05-13)
+
+📝 구현 범위: 한 세트 4 sub-column (마킹A | 점수A | 점수B | 마킹B) 구조 + FIBA 표준 1/2/3점 표기 (·/●/●+○) + Legend 점수 표기 영역 추가.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/lib/score-sheet/running-score-helpers.ts` | (a) `ScoreMarkVariant` 타입 신규 (`"dot"` / `"filled"` / `"filled-ring"`). (b) `getScoreMarkVariant(points: 1\|2\|3)` 헬퍼 신규 — UI 컴포넌트 단일 source. lib + UI + vitest 3 곳 일치 분기. (c) 기존 함수 변경 0 (회귀 0). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/running-score-grid.tsx` | (a) **구조 변경** — 한 세트 = A\|B 2 column → **마킹A \| 점수A \| 점수B \| 마킹B 4 sub-column**. 4 세트 × 4 = **16 컬럼 가로** (이전 8 컬럼). `SUB_COLS_PER_SET=4` 상수 신규. `gridTemplateColumns: repeat(16, minmax(0, 1fr))`. (b) `SetColumns` 컴포넌트 = 4 sub-column 렌더 (마킹A → 점수A → 점수B → 마킹B 순서 / 양팀 점수 가운데 모임 — FIBA PDF 정합 이미지 43-44). (c) `ColumnHeader` 신규 — 4 sub-column 헤더 (A / "" / "" / B). (d) `PrintScoreCell` 신규 — 점수 인쇄 칸 (클릭 불가 / `<div aria-hidden>` 7px 회색 position 노출). (e) `MarkCell` (구 RunningScoreCell 분리) — 마킹 칸 (클릭 가능 / 빈 칸 = · 흐릿하게 / 마킹 칸 = ScoreMarkIcon + 등번호). aria-label 보강 (A팀/B팀 명시). (f) `ScoreMarkIcon` 신규 — FIBA 표준 1/2/3점 시각: 1점=· (10px) / 2점=● (8px) / 3점=●+외곽○ (10×10px border 1px solid 정사각 50% 라운드). 색 = Q별 색 (Phase 17 유지). 변형 키 = `getScoreMarkVariant()` 위임. (g) 등번호 7px → 6px 축소 (좁은 컬럼 fit). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/period-color-legend.tsx` | (a) 가로 단일 줄 → **2 영역 세로** (flex-col gap-y-1.5). (b) 영역 1 = Q 색상 안내 (Phase 17 유지 / 5건 색 원 + 한글). (c) 영역 2 = **점수 표기 안내 신규** — 1점(·)+"1점 (자유투)" / 2점(●)+"2점" / 3점(●+○ 정사각 50%)+"3점". border-top 으로 영역 분리. (d) aria-label "쿼터 색상 + 점수 표기 안내" 확장. | 수정 |
+| `src/__tests__/score-sheet/running-score-helpers.test.ts` | `getScoreMarkVariant` 회귀 가드 4건 신규 — (1) 1점=dot / (2) 2점=filled / (3) 3점=filled-ring / (4) 3종 변형 키 중복 없음 + 순서. | 수정 |
+
+### 16 컬럼 grid 구조 검증
+| 위치 | 컬럼 | 클릭 | 표시 |
+|------|------|------|------|
+| Set 1 col 1 | 마킹A (홈) | ✓ | 빈=· / 마킹=●/등 |
+| Set 1 col 2 | 점수A | ❌ | 1~40 회색 7px |
+| Set 1 col 3 | 점수B | ❌ | 1~40 회색 7px |
+| Set 1 col 4 | 마킹B (어웨이) | ✓ | 빈=· / 마킹=●/등 |
+| Set 2 col 5~8 | 41~80 (동일 4 패턴) | — | — |
+| Set 3 col 9~12 | 81~120 | — | — |
+| Set 4 col 13~16 | 121~160 | — | — |
+
+### 1/2/3점 시각 표기 검증 (사용자 결재 §2)
+| 점수 | variant 키 | 시각 | 크기 |
+|------|-----------|------|------|
+| 1점 (자유투) | `dot` | · | 10px 글자 |
+| 2점 (필드골) | `filled` | ● | 8px 글자 |
+| 3점 (3점슛) | `filled-ring` | ● + 외곽 ○ | 10×10px 정사각 50% 라운드 + 1px border |
+
+### A4 fit 재검증
+- Running Score 폭 = 16 컬럼 × ~24px = **384px** (우측 50% 안 fit).
+- 점수 칸 7px / 마킹 칸 8px / 등번호 6px — A4 1 페이지 fit 영향 0.
+- 행 높이 16px 유지 (Phase 14 압축 보존) — 41 row × 16 = 656px (헤더 1 + 40 row). 우측 영역 fit 유지.
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run` 전체 | ✅ **701/701 PASS** (회귀 0건) |
+| `npx vitest run running-score-helpers.test.ts` | ✅ 35/35 PASS (31 → +4 신규 getScoreMarkVariant) |
+| `npx vitest run period-color.test.ts` | ✅ 23/23 PASS (Phase 17 회귀 0) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 변경 0건 / UI + lib 헬퍼만) |
+| schema 변경 | ✅ 0 (lib + UI 만) |
+| AppNav frozen | ✅ 영향 0 |
+| BFF / service | ✅ 변경 0 |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / Material Symbols / lucide ❌ 0건 |
+| 핑크/살몬/코랄 | ✅ 0건 |
+| 빨강 본문 텍스트 | ✅ 0 (Q2=accent / OT=primary 마킹 = 강조 / 본문 텍스트 X) |
+| placeholder 5단어 | ✅ 신규 추가 0건 |
+| A4 1 페이지 fit | ✅ 유지 (Phase 14 aspect-ratio + 16 컬럼 width fit 384px) |
+| FIBA PDF 정합 | ✅ 4 sub-column 구조 = 이미지 43-44 정합 / 1/2/3점 표기 = FIBA 표준 |
+| 정사각 50% 라운드 룰 | ✅ ScoreMarkIcon 외곽 ○ + Legend 색 원 모두 W=H 정사각 (CLAUDE.md §10 준수) |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/{matchId}` 진입 (운영자 / 기록원 권한자 / paper mode)
+- **정상 동작**:
+  1. **Running Score 구조** — 한 세트 = 4 sub-column 가로 (마킹A 좌 / 점수A·점수B 가운데 / 마킹B 우). 4 세트 × 4 = 16 컬럼. 양팀 점수 가운데 모임 (FIBA PDF 이미지 43-44 정합).
+  2. **점수 칸 (가운데 A·B 점수)** — 1~160 회색 7px 박제. **클릭 불가** (`<div aria-hidden>` / button 아님). 인쇄 시 검정 강제 (_print.css).
+  3. **마킹 칸 (좌 A / 우 B)** — 빈 = 흐릿한 ·. 클릭 시 PlayerSelectModal open (Phase 2 동작 유지). 마킹 후 = `ScoreMarkIcon` + 등번호 6px.
+  4. **1점 (자유투)** — · (작은 점). Q1 = 검정/흰 / Q2 = 빨강 / Q3 = 초록 / Q4 = 오렌지 / OT = 빨강.
+  5. **2점 (필드골)** — ● (큰 점). 동일 Q별 색.
+  6. **3점 (3점슛)** — ● + 외곽 ○ (정사각 10×10px). 동일 Q별 색.
+  7. **마지막 마킹 1탭 해제** — accent 25% 음영 칸 클릭 = confirm + 해제 (Phase 2 동작 유지).
+  8. **Legend** — frame 박스 아래 2 영역 세로 — (1) 색상 안내: ● Q1·Q2·Q3·Q4·OT / (2) 점수 표기: · = 1점 (자유투) / ● = 2점 / ●○ = 3점.
+  9. **인쇄 시** — Ctrl+P → Legend 자동 제거 / 16 컬럼 grid + 점수 칸 인쇄 / 마킹 칸 인쇄 모두 FIBA 양식 정합.
+- **주의할 입력**:
+  - 빈 마킹 칸 `·` 표시 — 너무 흐릿 (text-muted 30% transparent) → 클릭 가능 인지 어려울 수 있음. 운영자 보고 시 색 조정 검토.
+  - 1점 변형 (`·`) = 마킹 후 칸 안에 작게 표시 — 등번호와 같이 보이면 시각 구분 가능. 단 마지막 칸 음영(accent 25%) 위에 1점이면 시인성 미세.
+  - 좁은 viewport (예: 모바일 < 600px) — 16 컬럼 width 너무 좁아질 수 있음 (24px → 더 좁게). A4 인쇄/태블릿 768px 이상 정합 우선.
+
+### ⚠️ reviewer 참고
+- **단일 source 강화** — `getScoreMarkVariant()` lib 헬퍼 = UI ScoreMarkIcon 분기와 vitest 회귀 가드 동일. 향후 점수 변형 추가 시 lib + UI + vitest 3 곳 동기.
+- **PrintScoreCell = button → div** — FIBA PDF 정합 (점수 칸 = 클릭 X). aria-hidden 추가로 스크린리더 노이즈 0. 단 키보드 포커스도 받지 못함 (의도).
+- **빈 마킹 칸 ·** — 신규 추가. 이전 Phase 17 = position 숫자 표시. 점수 칸이 분리됐으니 마킹 칸은 숫자 없이 클릭 영역 인지용 작은 점만. 시인성 조정 가능.
+- **`SUB_COLS_PER_SET = 4` 상수 신규** — 향후 FIBA 규격 변경 시 본 상수 + SetColumns 컴포넌트만 수정.
+- **3점 외곽 ○ = 10×10px border 1px** — Q별 색 동적. CLAUDE.md §10 정사각 W=H 룰 준수 (borderRadius: 50% 허용).
+- **vitest 회귀 가드 4건** — lib 헬퍼 단위 (`getScoreMarkVariant` dot/filled/filled-ring). UI 컴포넌트 자체는 별도 시각 검증 (스토리북 X / 사용자 시각 검수).
+- **다음 단계**: 시각 검증 (브라우저 `/score-sheet/{matchId}` 진입 → 16 컬럼 grid + 1/2/3점 표기 확인 / Q1~Q4 색 마킹 / OT 진입 색 / Legend 2 영역 표시 → Ctrl+P 인쇄 미리보기 Legend 제외 + A4 fit 유지 확인).
+
+### 신규 보안 이슈
+- **0 건** — UI / lib (헬퍼 함수) 변경. API / 권한 / DB schema 영향 0.
+
+---
+
 ## 구현 기록 (developer) — FIBA Phase 17 쿼터별 색상 + Legend (2026-05-13)
 
 📝 구현 범위: 5색 매핑 헬퍼 신규 / Running Score 마킹 Q별 글자색 / Player Fouls 하이브리드 (글자=Q / 배경=종류) / Team Fouls 박스 채움 Q별 / Time-outs phase 별 색 / Legend (frame 외부 / no-print).
@@ -1284,6 +1369,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[FIBA Phase 18 — Running Score 4 sub-column 분리 + 1/2/3점 FIBA 표기]** 사용자 직접 결재 §1~§5 (이미지 43-44). (a) `running-score-helpers.ts` — `ScoreMarkVariant` 타입 + `getScoreMarkVariant(points)` 헬퍼 신규 (dot/filled/filled-ring) — UI + vitest 단일 source. (b) `running-score-grid.tsx` 구조 변경 — 한 세트 = A\|B 2 column → **마킹A \| 점수A \| 점수B \| 마킹B 4 sub-column** (16 컬럼 가로 / FIBA PDF 이미지 43-44 정합). `SUB_COLS_PER_SET=4` 상수 + `ColumnHeader` + `PrintScoreCell` (점수 인쇄 div / 클릭 불가 aria-hidden) + `MarkCell` (마킹 클릭 가능) + `ScoreMarkIcon` (FIBA 표준 1점=· 10px / 2점=● 8px / 3점=●+외곽○ 10×10px 정사각 50%) 분리. 색 = Q별 (Phase 17 유지). 등번호 7px → 6px 축소. (c) `period-color-legend.tsx` — 가로 1줄 → 2 영역 (색상 안내 + **점수 표기 안내 신규** ·/●/●+○) 세로 묶음 + border-top 분리. (d) vitest 4건 신규 (dot/filled/filled-ring + 3종 변형 중복 없음). tsc 0 / vitest 전체 **701/701 PASS** (회귀 0) / Flutter v1 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 핑크 0 / 빨강 본문 텍스트 0 / A4 fit 유지 (16 컬럼 × 24px = 384px) / 정사각 50% 라운드 룰 준수. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[UI-1 dashboard 체크리스트 hub]** `/tournament-admin/tournaments/[id]` 8 메뉴카드 → 결정 8 항목 체크리스트 hub 재구성. (a) `setup-status.ts` 신규 — 8 항목 판정 함수 + `calculateSetupProgress` (잠금 1→3·6 / 3→4 / 4→7·8 + 공개 가드 `allRequiredComplete` 필수 7항목 ALL ✅ 시 true / 2 시리즈 = required=false 선택). (b) `SetupChecklist.tsx` 신규 (server) — progress bar + 8 카드 (✅ accent / 🔄 warning / ⚪/🔒 muted + opacity 0.6) + Material Symbols (`check_circle`/`pending`/`radio_button_unchecked`/`lock`/`chevron_right`) + 공개 가드 미충족 안내. (c) page.tsx — prisma include 에 `divisionRules { format, settings }` 추가 (N+1 회피) / 8 메뉴 폐기 / 보조 액션 4개 보존 (참가팀/관리자/기록원/공개 사이트 외부링크). vitest 35 케이스 신규 — 121/121 PASS (회귀 0) / tsc 0 / schema 0 / Flutter v1 0 / AppNav 0 / 빨강 본문 0. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[FIBA Phase 17 — 쿼터별 색상 + Legend]** 사용자 직접 결재 §1~§8 (14:00 KST). (a) `src/lib/score-sheet/period-color.ts` 신규 — `getPeriodColor` (Q1=text-primary / Q2=accent / Q3=success / Q4=warning / OT(5+)=primary) + `getPeriodLabel` + `getTimeoutPhaseColor` (전반/후반/OT) + `PERIOD_LEGEND` 5건 단일 source. (b) running-score-grid.tsx — 마킹 글리프 ●/◉/◎ + 등번호 색 = 하드코딩 accent → 동적 `getPeriodColor(mark.period)`. (c) team-section.tsx — Player Fouls **하이브리드** (글자=`getPeriodColor(period)` Q별 / 배경=신규 `FOUL_TYPE_BG_COLOR` 종류 옅은 톤 — P=투명/T=노랑/U=하늘 info/D=빨강) / Team Fouls 페어 박스 채움 = `getPeriodColor(period)` Period별 색 + Extra(OT) = primary / Time-outs X 마킹 = `getTimeoutPhaseColor` phase별 색. (d) period-color-legend.tsx 신규 — 5건 (Q1~Q4 + OT) 색 원(W=H 50%) + 한글 라벨 + `no-print` (frame 외부 / 인쇄 시 제외). (e) score-sheet-form.tsx — `<PeriodColorLegend />` frame 외부 (MatchEndButton 위). vitest 23건 신규 (Q1~OT + 경계 0 + cross-check) → 639 → **662/662 PASS** (회귀 0). tsc 0 / Flutter v1 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 핑크 0 / 빨강 본문 텍스트 0 (Q2/OT = 강조 마킹) / A4 fit 유지 (Legend = frame 외부). 주의: `--color-accent` ≈ `--color-primary` (둘 다 BDR Red) → Q2 ≈ OT 시각차 미세 (사용자 결재 §1 그대로). | ✅ |
 | 2026-05-13 | (코드 변경 0) | **[검토 — AI 자연어 대회 운영 가능성]** 결론: 가능 + Phase AI-1 (추천 시스템) 부터 점진 권장. 핵심 발견 = `@google/genai` Gemini 2.5 Flash 가 `src/lib/news/gemini-client.ts` 에서 이미 운영 중 (BDR NEWS / 알기자 / 프로필 bio) → LLM 인프라 재사용 100% / API key 신규 발급 0. 3 패턴 비교 (A 추천 200~400 LOC / B Structured 400~600 / C custom phase 1500+) + 비용 추정 (Gemini 무료 tier 1500 RPD 잔여 충분 / 월 50~150 호출) + 위험 5건 완화 방안 + 9 enum 표현 가능 시나리오 매트릭스. 운영자 결재 3택 — (가) AI-1 만 ⭐ / (나) AI-1+2 일괄 / (다) 보류. 산출물: scratchpad "검토 (planner-architect)" 신규 섹션 + Phase AI-1 파일 6개 설계 (신규 5 / 수정 1). 코드 변경 0 / DB SELECT 만. | ✅ 보고 |

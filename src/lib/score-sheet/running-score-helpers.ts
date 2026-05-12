@@ -302,3 +302,31 @@ export const EMPTY_RUNNING_SCORE: RunningScoreState = {
   away: [],
   currentPeriod: 1,
 };
+
+/**
+ * Phase 18 (2026-05-13) — FIBA 표준 1/2/3점 시각 표기 변형 키.
+ *
+ * 왜 (이유):
+ *   FIBA PDF (이미지 43-44) = 점수 종류별 시각 구분.
+ *     1점 (자유투) = · (작은 점)
+ *     2점 (필드골) = ● (큰 점)
+ *     3점 (3점슛) = ● + 외곽 ○ (큰 점 + 동그라미)
+ *   사용자 결재 §2. UI 컴포넌트 (running-score-grid.tsx ScoreMarkIcon /
+ *   period-color-legend.tsx) 양쪽이 본 헬퍼를 단일 source 로 사용 → 회귀 vitest 가능.
+ *
+ * 어떻게:
+ *   - 1 → "dot" / 2 → "filled" / 3 → "filled-ring"
+ *   - 컴포넌트 분기는 키 비교만 / 시각 구현은 컴포넌트 책임 (color/size 등)
+ */
+export type ScoreMarkVariant = "dot" | "filled" | "filled-ring";
+
+/**
+ * points (1/2/3) → variant 키.
+ *
+ * 안전: 범위 밖 입력은 'filled' fallback (2점) — UI 폭주 X.
+ */
+export function getScoreMarkVariant(points: 1 | 2 | 3): ScoreMarkVariant {
+  if (points === 1) return "dot";
+  if (points === 3) return "filled-ring";
+  return "filled";
+}
