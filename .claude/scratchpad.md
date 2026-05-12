@@ -18,9 +18,95 @@
 |---|------|------|
 | B | 강남구협회장배 max_teams 16→36 | ✅ |
 | A | 코치 import 템플릿 | ✅ |
-| E | canManageTournament 단체 admin 자동 부여 | ✅ |
+| E (Phase 4-E 시) | canManageTournament 단체 admin 자동 부여 | ✅ |
 | C | 단체 정보 편집 모달 | ✅ |
 | D | 대진표 고도화 | 진행 중 |
+| **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
+
+## 구현 기록 (developer) — Phase E 단체 lifecycle (Q1 보존 = archived) (2026-05-12)
+
+### 📝 구현한 기능
+
+**E-1. `requireOrganizationOwner` 권한 헬퍼 신규**
+- `OrganizationPermissionError` (404/403) — series-permission `SeriesPermissionError` 와 동일 패턴
+- 통과 조건: super_admin 우회 (옵션) OR `organization_members.role='owner' && is_active=true`
+- admin/member 차단 — Phase E 정책 (단체 lifecycle = owner 만의 결정)
+
+**E-2. 단체 archive/복구 API + UI**
+- `POST /api/web/organizations/[id]/archive` = status='archived' (시리즈/대회 변경 0)
+- `DELETE /api/web/organizations/[id]/archive` = 복구 (status='approved')
+- `ArchiveOrganizationButton` confirm 모달 + redirect/refresh 분기
+
+**E-3. archived 단체 표시 정책**
+- 운영자 페이지: 헤더 "보관됨" 회색 뱃지 + owner 만 복구 버튼
+- 단체 목록: active vs archived 분리 (회색 톤 + opacity-70 + grayscale 로고)
+- 공개 페이지: archived 진입 시 "보관된 단체입니다" 안내 페이지 (events/teams/members 탭 차단)
+- generateMetadata = archived title 변경 + 검색 노출 최소화
+
+### 변경 파일
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/auth/org-permission.ts` | `requireOrganizationOwner()` + `OrganizationPermissionError` class 추가 (re-export `SuperAdminSession`) | 수정 |
+| `src/app/api/web/organizations/[id]/archive/route.ts` | POST archive / DELETE 복구 + adminLog warning | 신규 |
+| `src/app/(admin)/tournament-admin/organizations/[orgId]/_components/ArchiveOrganizationButton.tsx` | confirm 모달 + POST/DELETE + redirect/refresh 분기 | 신규 |
+| `src/app/(admin)/tournament-admin/organizations/[orgId]/page.tsx` | isOwner 가드 + Archive 버튼 통합 + "보관됨" 헤더 뱃지 | 수정 |
+| `src/app/(admin)/tournament-admin/organizations/page.tsx` | active vs archived 분리 표시 (회색 톤 + 별 섹션) | 수정 |
+| `src/app/(web)/organizations/[slug]/page.tsx` | archived 안내 페이지 분기 + generateMetadata 보호 | 수정 |
+| `src/__tests__/lib/auth/requireOrganizationOwner.test.ts` | 권한 매트릭스 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived 단체 owner) | 신규 |
+
+### 검증 결과
+
+| 검증 항목 | 결과 |
+|----------|------|
+| tsc --noEmit | ✅ 0 에러 |
+| vitest requireOrganizationOwner | ✅ 10/10 PASS |
+| vitest 전체 | ✅ 601/605 PASS (실패 4건 = 별 PR score-sheet team-section-fill-rows / 본 PR 무관) |
+| Flutter v1 영향 | ✅ 0 (api/v1/ organization 호출처 0건) |
+| schema 변경 | ✅ 0 (status 가 String 필드 — 'archived' 값 그대로 박제) |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / Material Symbols / 빨강 본문 0 / warning 톤 / 44px+ |
+| 보안 가드 | ✅ owner only (admin/member 차단) — 서버 헬퍼 + UI 가드 이중 |
+
+### 💡 tester 참고
+
+**테스트 방법**:
+1. **owner 케이스**:
+   - 단체 owner 로 로그인 → `/tournament-admin/organizations/[orgId]` 진입
+   - 운영자 메뉴 하단 "단체 보관" 버튼 표시 (회색 톤 + warning hover)
+   - 클릭 → confirm 다이얼로그 (시리즈/대회 보존 안내) → "보관"
+   - → 단체 목록으로 redirect → "보관된 단체" 섹션에 회색 톤으로 표시
+   - 다시 진입 → "보관됨" 뱃지 표시 + "단체 복구" 버튼 (info 톤) → 복구 → active 복귀
+2. **admin/member 차단**:
+   - admin 으로 로그인 → owner 메뉴 (Archive 버튼) 노출 X
+   - 직접 API curl POST → 403 응답
+3. **공개 페이지 안내**:
+   - archived 단체의 `/organizations/[slug]` 직접 접근 → "보관된 단체입니다" 안내 페이지 (탭 차단)
+4. **복구 시나리오**:
+   - owner 가 archived 단체 진입 → "단체 복구" → status='approved' 복귀
+
+**정상 동작**:
+- archive/복구 시 시리즈/대회 row 변경 0 검증 (Q1 보존 정책)
+- archived 단체는 공개 페이지에서 안내만 (events 탭 빈 표시 X — 페이지 자체 분기)
+- super_admin 우회 가능 (운영 사고 긴급 fix)
+- admin_logs 에 warning 등급으로 archive/restore 박제
+
+**주의할 입력**:
+- 이미 archived 단체에 POST → 409 (멱등 X — confirm 화면 다시 표시)
+- 복구 시 archived 가 아니면 → 409
+- owner 가 본인 멤버십 is_active=false 면 → 403
+
+### ⚠️ reviewer 참고
+
+- **owner only 정책 = Phase E 핵심** — admin 통과 시 권한 누수 (admin 이 임의로 단체 lifecycle 결정 가능) → vitest 5,9 케이스로 회귀 가드
+- **super_admin 우회** = `allowSuperAdmin=true` (기본) — 운영 사고 긴급 fix 여지. 필요 시 route 에서 명시적으로 false 설정 가능
+- **status 복구 시 항상 'approved'** — pending 등 단계 복귀는 별 PR (Phase F 후속)
+- **schema 변경 0** = status 가 String 필드 — enum 이었으면 결재 필요 (확인 완료)
+- **Q1 보존 정책 = decisions.md 박제** — 향후 "단체 삭제" 의뢰 시 본 결정 재참조
+
+### 신규 보안 이슈 발견
+- **0 건** — 권한 검증 owner only 서버 가드 + UI 가드 이중. admin/member 모두 403. archived 후 시리즈/대회 자체 영향 0 (보존 정책으로 권한 누수 0).
+
+---
 
 ## 구현 기록 (developer) — Phase D 단체↔시리즈 셀프서비스 + Q3 권한 (2026-05-12)
 
@@ -97,6 +183,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[Phase E 단체 lifecycle (Q1 보존)]** E-1) requireOrganizationOwner 헬퍼 + OrganizationPermissionError (owner only — admin 차단 + super_admin 우회 옵션). E-2) POST/DELETE /api/web/organizations/[id]/archive (status='archived'/'approved' 토글, adminLog warning 박제). E-3) ArchiveOrganizationButton confirm 모달 + 운영자 페이지 isOwner 가드 + 헤더 "보관됨" 뱃지 + 단체 목록 active vs archived 분리 (회색 톤) + 공개 페이지 archived 안내 페이지 분기. vitest 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived owner). schema 변경 0 (status=String) / Flutter v1 영향 0 / decisions.md Q1 박제. tsc 0 / vitest 본 PR 10/10 PASS / 전체 601/605 (실패 4건 = 별 PR score-sheet 무관). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase D 단체↔시리즈 셀프서비스]** D-1) 시리즈 카드 ⋮ 메뉴 (SeriesActionsMenu + MoveSeriesModal — 분리 organization_id=null / 이동 본인 owner-admin 단체 목록 radio + confirm). D-2 Q3) canManageTournament 단체 owner/admin 자동 부여 회귀 가드 vitest 9 케이스 (organizer/TAM/단체 owner/admin/member/series_id NULL/super_admin 2종). tsc 0 / vitest 595/595 PASS / Flutter v1 영향 0 / schema 변경 0 / API 신규 0 (Phase C PATCH + 기존 GET 재사용). | ✅ |
 | 2026-05-12 | a3076bc | **[D-3 운영 fix]** B max_teams + A 코치 import 템플릿 + E 권한 자동 부여 + C 단체 편집 모달 | ✅ |
 | 2026-05-12 | 6057ba6 | **[design B등급]** admin 빨강 잔존 — analytics/logs/news/users/site/bracket 7 위치 톤다운 | ✅ |
