@@ -35,6 +35,8 @@ type Match = {
     awaySlotLabel?: string | null;
     home_slot_label?: string | null;
     away_slot_label?: string | null;
+    // 2026-05-12 — 강남구협회장배 D 진단: 6 종별 매치 안 division_code 박제 / 그룹핑 분기용
+    division_code?: string | null;
   } | null;
   scheduledAt?: string | null;
   scheduled_at?: string | null;
@@ -81,6 +83,18 @@ function isLeagueFormat(fmt: string | null | undefined): boolean {
 // 듀얼토너먼트 포맷 판별 — Phase D 5섹션 그룹핑 분기용
 function isDualFormat(fmt: string | null | undefined): boolean {
   return fmt === "dual_tournament";
+}
+
+// 2026-05-12 — 다중 종별 (division) 분기 헬퍼 (강남구협회장배 케이스).
+// 매치 settings.division_code 가 2개 이상이면 division 우선 그룹핑.
+// 단일 division (전통 dual_tournament 1대회) = DUAL_STAGES 5섹션 그대로 사용.
+function getDivisionCode(m: Match): string | null {
+  const s = (m.settings ?? {}) as Record<string, unknown>;
+  return (s.division_code as string) ?? null;
+}
+function hasMultipleDivisions(matches: Match[]): boolean {
+  const codes = new Set(matches.map(getDivisionCode).filter((c): c is string => !!c));
+  return codes.size > 1;
 }
 
 // 일정 표시 — KST yyyy.MM.dd HH:mm
@@ -419,8 +433,17 @@ export default function BracketAdminPage() {
         />
       )}
 
-      {/* Phase D: dual_tournament 일 때 5섹션 그룹핑 UI 우선 표시 */}
-      {hasMatches && isDual && (
+      {/* Phase D: dual_tournament 일 때 5섹션 그룹핑 UI 우선 표시.
+          2026-05-12 — 다중 종별 (예: 강남구협회장배 6종 × 매치들) 케이스 분기:
+          settings.division_code 가 2개 이상이면 종별 우선 그룹핑 (DivisionBracketSections).
+          그렇지 않으면 기존 단일 대회 5섹션 그룹핑. */}
+      {hasMatches && isDual && hasMultipleDivisions(data?.matches ?? []) && (
+        <DivisionBracketSections
+          matches={data?.matches ?? []}
+          tournamentId={id}
+        />
+      )}
+      {hasMatches && isDual && !hasMultipleDivisions(data?.matches ?? []) && (
         <DualBracketSections
           matches={data?.matches ?? []}
           tournamentId={id}
@@ -746,6 +769,119 @@ function DualMatchCard({ match }: { match: Match }) {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+// ============================================================================
+// 2026-05-12 — 다중 종별 (Division) 대진표 (강남구협회장배 D 진단 fix)
+// ============================================================================
+//
+// 배경:
+//   - format='dual_tournament' 대회에 6 종별 (i3-U9 / i2-U11 / i3-U11 / i2-U12 / i3w-U12 / i3-U14)
+//     각각 매치 INSERT 됐지만 round_number / group_name 모두 null
+//   - 기존 DUAL_STAGES (1~6 라운드) 매핑 실패 → 대진표 0/0/0/0/0 표시
+//   - 매치 settings.division_code 만 박제 + roundName (자유 텍스트) 있음
+//
+// 해결:
+//   - 종별 우선 그룹화 (6 종별 카드)
+//   - 각 종별 안에서 roundName 으로 sub-그룹화 (예선 1경기 / 예선 2경기 / 결승 등)
+//   - roundName 없으면 "기타" 그룹
+function DivisionBracketSections({
+  matches,
+  tournamentId,
+}: {
+  matches: Match[];
+  tournamentId: string;
+}) {
+  // 종별 collapsed/expanded 토글 (기본 펼침)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const toggle = (k: string) => setCollapsed((prev) => ({ ...prev, [k]: !prev[k] }));
+
+  // 종별 그룹화 — division_code 기준
+  const groupedByDivision = matches.reduce<Map<string, Match[]>>((map, m) => {
+    const code = getDivisionCode(m) ?? "_no_division";
+    if (!map.has(code)) map.set(code, []);
+    map.get(code)!.push(m);
+    return map;
+  }, new Map());
+
+  // 정렬 — 종별 코드 알파벳 순
+  const divisionEntries = Array.from(groupedByDivision.entries()).sort(
+    ([a], [b]) => a.localeCompare(b)
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">
+          종별 대진표 ({matches.length}경기 / {divisionEntries.length}종별)
+        </h2>
+        <Link
+          href={`/tournament-admin/tournaments/${tournamentId}/matches`}
+          className="text-xs text-[var(--color-info)] hover:underline"
+        >
+          경기 관리로 이동 →
+        </Link>
+      </div>
+
+      {divisionEntries.map(([divCode, divMatches]) => {
+        const isCollapsed = collapsed[divCode] === true;
+
+        // 종별 안에서 roundName 으로 sub-그룹화
+        const byRoundName = divMatches.reduce<Map<string, Match[]>>((m, match) => {
+          const key = (match.roundName ?? "").trim() || "기타";
+          if (!m.has(key)) m.set(key, []);
+          m.get(key)!.push(match);
+          return m;
+        }, new Map());
+
+        // roundName 정렬 — 자연어 순 (예선 1경기 < 예선 2경기 < ... < 결승)
+        const roundEntries = Array.from(byRoundName.entries()).sort(([a], [b]) =>
+          a.localeCompare(b, "ko-KR", { numeric: true })
+        );
+
+        return (
+          <Card key={divCode} className="!p-0 overflow-hidden">
+            {/* 종별 헤더 — 클릭 시 토글 */}
+            <button
+              type="button"
+              onClick={() => toggle(divCode)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--color-elevated)] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-[var(--color-text-primary)]">
+                  {divCode === "_no_division" ? "종별 미지정" : divCode}
+                </span>
+                <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
+                  {divMatches.length}경기
+                </span>
+              </div>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
+              </span>
+            </button>
+
+            {/* 본문 — roundName 별 sub-그룹 */}
+            {!isCollapsed && (
+              <div className="border-t border-[var(--color-border-subtle)] p-3">
+                {roundEntries.map(([roundName, rMatches]) => (
+                  <div key={roundName} className="mb-3 last:mb-0">
+                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
+                      {roundName} ({rMatches.length})
+                    </p>
+                    <div className="space-y-1">
+                      {rMatches.map((m) => (
+                        <DualMatchCard key={m.id} match={m} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
