@@ -76,14 +76,17 @@ export function PeriodScoresSection({
     <div className="flex w-full flex-col gap-1">
       {/* Period 표 — FIBA 양식 정합. Phase 9 — 헤더 px-2 py-0.5 컴팩트. */}
       <div className={innerBorderClass} style={innerBorderStyle}>
+        {/* Phase 19 (2026-05-13) — 헤더 padding + 폰트 강화 (사용자 결재 §2·§5).
+            - px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
+            - "PERIOD SCORES" 11px font-semibold → 12px font-bold uppercase (FIBA 정합) */}
         <div
-          className="flex items-center justify-between px-2 py-0.5"
+          className="flex items-center justify-between px-2 py-1"
           style={{
             backgroundColor: "var(--color-surface)",
             borderBottom: "1px solid var(--color-border)",
           }}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wider">
+          <div className="text-[12px] font-bold uppercase tracking-wider">
             Period Scores
           </div>
           <div className="flex items-center gap-1">
@@ -126,8 +129,10 @@ export function PeriodScoresSection({
           </div>
         </div>
 
-        {/* Period 합산 표 */}
-        <table className="w-full text-[11px]">
+        {/* Phase 19 (2026-05-13) — 합산 표 폰트 강화 (사용자 결재 §3 / 데이터 12px).
+            - 표 텍스트 11px → 12px (시인성 ↑)
+            - thead 라벨 font-medium → font-bold uppercase (FIBA 정합 / 라벨 10px bold 룰) */}
+        <table className="w-full text-[12px]">
           <thead
             style={{
               backgroundColor: "var(--color-surface)",
@@ -136,19 +141,19 @@ export function PeriodScoresSection({
           >
             <tr>
               <th
-                className="px-1 py-0 text-left font-medium"
+                className="px-1 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 Period
               </th>
               <th
-                className="px-1 py-0 text-center font-medium"
+                className="px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 A
               </th>
               <th
-                className="px-1 py-0 text-center font-medium"
+                className="px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
                 style={{ borderBottom: "1px solid var(--color-border)" }}
               >
                 B
@@ -271,12 +276,16 @@ export function PeriodScoresSection({
               }
         }
       >
-        <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
+        {/* Phase 19 (2026-05-13) — Final Score 영역 폰트 강화 (사용자 결재 §2 / 라벨 bold).
+            - "Final Score" 10px uppercase → 11px font-bold uppercase tracking-wider (라벨 bold 통일)
+            - 팀명 10px → 11px (데이터 12px 룰에 근접)
+            - 점수 합산 text-xl (20px) 유지 — 시각 hierarchy 핵심 데이터 */}
+        <div className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
           Final Score
         </div>
-        <div className="mt-0.5 flex items-center justify-between gap-2">
+        <div className="mt-1 flex items-center justify-between gap-2">
           <div className="flex-1 text-center">
-            <div className="line-clamp-1 text-[10px] text-[var(--color-text-muted)]">
+            <div className="line-clamp-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
               {homeTeamName}
             </div>
             <div
@@ -290,7 +299,7 @@ export function PeriodScoresSection({
             :
           </div>
           <div className="flex-1 text-center">
-            <div className="line-clamp-1 text-[10px] text-[var(--color-text-muted)]">
+            <div className="line-clamp-1 text-[11px] font-semibold text-[var(--color-text-muted)]">
               {awayTeamName}
             </div>
             <div
@@ -327,15 +336,16 @@ export function PeriodScoresSection({
             이유: FIBA 종이기록지 = Final Score 아래 별도 underscore 라인으로 승팀명 적는 영역.
             동작: winner 자동 계산 시 = 팀명 자동 채움 / 동점·미결 = 빈 underscore (운영자가 펜으로 적음).
             라이트 회색 underscore → 인쇄 시 _print.css 가 검정 강제. */}
+        {/* Phase 19 — 승팀명 라벨 9px → 10px bold uppercase (라벨 룰) / 데이터 11px → 12px (데이터 룰) */}
         <div className="mt-1 flex items-baseline gap-1.5">
           <span
-            className="shrink-0 text-[9px] font-semibold uppercase tracking-wider"
+            className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
             style={{ color: "var(--color-text-muted)" }}
           >
             Name of winning team
           </span>
           <span
-            className="min-w-0 flex-1 truncate pb-0 text-[11px] font-semibold"
+            className="min-w-0 flex-1 truncate pb-0 text-[12px] font-semibold"
             style={{
               color: "var(--color-text-primary)",
               borderBottom: "1px solid var(--color-text-primary)",

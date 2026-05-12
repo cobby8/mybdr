@@ -176,20 +176,21 @@ export function RunningScoreGrid({
   return (
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     <div className={wrapperClass} style={wrapperStyle}>
-      {/* 제목 — FIBA 양식 라벨. Phase 9 — px-2 py-0.5 압축. */}
+      {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
+          - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
+          - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
+          - 우측 안내 9px → 10px (가독성 ↑) */}
       <div
-        className="flex items-center justify-between px-2 py-0.5"
+        className="flex items-center justify-between px-2 py-1"
         style={{
           backgroundColor: "var(--color-surface)",
           borderBottom: "1px solid var(--color-border)",
         }}
       >
-        {/* Phase 11 §5-2 (2026-05-12) — "RUNNING SCORE" 헤더 11px → 14px (FIBA 정합 / reviewer Minor).
-            이유: FIBA 종이기록지 RUNNING SCORE 헤더가 더 큼 — 시인성 ↑. */}
-        <div className="text-[14px] font-semibold uppercase tracking-wider text-[var(--color-text-primary)]">
+        <div className="text-[16px] font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
           Running Score
         </div>
-        <div className="text-[9px] text-[var(--color-text-muted)]">
+        <div className="text-[10px] text-[var(--color-text-muted)]">
           P{state.currentPeriod} · 1탭=입력 / 마지막=해제
         </div>
       </div>
@@ -344,11 +345,13 @@ function SetColumns({
   );
 }
 
-// 컬럼 헤더 (A / 빈 / 빈 / B 4종)
+// Phase 19 — 컬럼 헤더 (A / 빈 / 빈 / B 4종) 폰트 강화.
+//   10px font-semibold → 11px font-bold (FIBA 정합 / 사용자 결재 §2).
+//   높이 h-5 (20px) 유지 — A4 fit 영향 0.
 function ColumnHeader({ label }: { label: string }) {
   return (
     <div
-      className="flex h-5 items-center justify-center text-[10px] font-semibold uppercase tracking-wider"
+      className="flex h-5 items-center justify-center text-[11px] font-bold uppercase tracking-wider"
       style={{
         backgroundColor: "var(--color-surface)",
         color: "var(--color-text-muted)",
@@ -364,12 +367,16 @@ function ColumnHeader({ label }: { label: string }) {
 // Phase 18 — 점수 인쇄 칸 (클릭 불가 / FIBA PDF 정합)
 //   왜: FIBA 양식 = 점수 칸은 1~160 숫자가 박제되어 있고 마킹은 좌우 마킹 칸에만 한다.
 //   어떻게: position 숫자 회색 노출 / button 아닌 div (클릭/포커스 불가).
+//
+// Phase 19 (2026-05-13) — 시인성 강화 (사용자 결재 §3·§4).
+//   - position 숫자 7px → 9px font-semibold (가독성 ↑).
+//   - 행 높이 16px → 17px (40 row × 17 = 680px / A4 우측 fit OK).
 function PrintScoreCell({ position }: { position: number }) {
   return (
     <div
-      className="flex w-full items-center justify-center text-[7px]"
+      className="flex w-full items-center justify-center text-[9px] font-semibold"
       style={{
-        height: "16px",
+        height: "17px",
         borderRight: "1px solid var(--color-border)",
         borderBottom: "1px solid var(--color-border)",
         backgroundColor: "var(--color-bg)",
@@ -400,22 +407,22 @@ function MarkCell({
   onClick,
   side,
 }: MarkCellProps) {
-  // 공통 스타일 — 16px 행 높이 (Phase 14 압축)
+  // Phase 19 (2026-05-13) — 행 높이 16 → 17px (PrintScoreCell 와 일치 / 사용자 결재 §4 / 시인성 ↑)
   const baseStyle = {
-    height: "16px",
+    height: "17px",
     borderRight: "1px solid var(--color-border)",
     borderBottom: "1px solid var(--color-border)",
     touchAction: "manipulation",
   } as const;
 
-  // 빈 마킹 칸 — 클릭 가능 (모달 open). FIBA 양식 = 빈 칸 = 공백 (숫자 X — 점수 칸이 따로 있음).
-  // 단 운영 UX 상 빈 칸 표시 = 너무 작은 점 (·) 흐릿하게 — 클릭 가능 영역 인지용.
+  // 빈 마킹 칸 — 클릭 가능 (모달 open).
+  // Phase 19 — 빈 칸 점 글자 8px → 9px (시인성 ↑ / 클릭 영역 인지).
   if (!mark) {
     return (
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-center text-[8px]"
+        className="flex w-full items-center justify-center text-[9px]"
         style={{
           ...baseStyle,
           backgroundColor: "var(--color-bg)",
@@ -435,17 +442,17 @@ function MarkCell({
   const periodColor = getPeriodColor(mark.period);
 
   return (
+    // Phase 19 — 글자 8px → 9px font-bold (마킹 시인성 강화 / 사용자 결재 §4).
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-0.5 text-[8px] font-semibold"
+      className="flex w-full items-center justify-center gap-0.5 text-[9px] font-bold"
       style={{
         ...baseStyle,
-        // 마지막 = accent 음영 강조 / 그 외 = 진한 surface (배경은 Q별 색 영향 X — 글자만)
+        // 마지막 = accent 음영 강조 / 그 외 = 진한 surface
         backgroundColor: isLast
           ? "color-mix(in srgb, var(--color-accent) 25%, var(--color-bg))"
           : "color-mix(in srgb, var(--color-text-primary) 8%, var(--color-bg))",
-        // Phase 17 — 글자 색 = Q별 색 (이전 var(--color-text-primary) 하드코딩 → 동적)
         color: periodColor,
       }}
       aria-label={`${side === "home" ? "A팀" : "B팀"} 마킹 ${position} (${mark.points}점)${isLast ? " — 마지막, 해제 가능" : ""}`}
@@ -453,11 +460,11 @@ function MarkCell({
         jerseyNumber !== null ? ` · #${jerseyNumber}` : ""
       }`}
     >
-      {/* Phase 18 — FIBA 정합 1/2/3점 아이콘 (· / ● / ●+○).
-          색 = Q별 색 (Phase 17 유지). */}
+      {/* Phase 18 — FIBA 정합 1/2/3점 아이콘 (· / ● / ●+○). 색 = Q별 색 (Phase 17 유지). */}
       <ScoreMarkIcon points={mark.points} color={periodColor} />
+      {/* Phase 19 — 등번호 6px → 8px font-bold (가독성 ↑ / FIBA 종이기록지 등번호는 진하게 표기). */}
       {jerseyNumber !== null && (
-        <span className="text-[6px]" style={{ color: periodColor }}>
+        <span className="text-[8px] font-bold" style={{ color: periodColor }}>
           {jerseyNumber}
         </span>
       )}
@@ -491,12 +498,13 @@ function ScoreMarkIcon({
   // 회귀 가드 vitest 와 일치한 분기 — UI 와 lib 가 동일 키 비교.
   const variant = getScoreMarkVariant(points);
 
+  // Phase 19 (2026-05-13) — 글리프 크기 미세 강화 (사용자 결재 §4 / 가독성 ↑).
+  //   1점 · = 10px → 11px / 2점 ● = 8px → 9px / 3점 외곽 ○ = 10×10 → 11×11 + 내부 ● 7px → 8px.
   if (variant === "dot") {
-    // 1점 = 작은 점 (·)
     return (
       <span
         className="leading-none"
-        style={{ color, fontSize: "10px" }}
+        style={{ color, fontSize: "11px" }}
         aria-hidden="true"
       >
         ·
@@ -504,32 +512,31 @@ function ScoreMarkIcon({
     );
   }
   if (variant === "filled") {
-    // 2점 = 큰 점 (●)
     return (
       <span
         className="leading-none"
-        style={{ color, fontSize: "8px" }}
+        style={{ color, fontSize: "9px" }}
         aria-hidden="true"
       >
         ●
       </span>
     );
   }
-  // filled-ring (3점) = ● + 외곽 ○ (border + 안 채움 + 정사각 50% 라운드 룰 준수)
+  // filled-ring (3점) — 정사각 W=H 룰 = 50% 허용 (CLAUDE.md §10)
   return (
     <span
       className="relative inline-flex items-center justify-center"
       style={{
-        width: "10px",
-        height: "10px",
-        borderRadius: "50%", // 정사각 W=H 룰 = 50% 허용 (CLAUDE.md §10)
+        width: "11px",
+        height: "11px",
+        borderRadius: "50%",
         border: `1px solid ${color}`,
       }}
       aria-hidden="true"
     >
       <span
         className="leading-none"
-        style={{ color, fontSize: "7px" }}
+        style={{ color, fontSize: "8px" }}
       >
         ●
       </span>
