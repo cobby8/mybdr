@@ -1,9 +1,74 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: UI-2 신규 대회 wizard 압축 (3-step → 1-step + 즉시 draft 생성)
-- **상태**: ✅ 구현 완료 (726 vitest 전수 통과 / tsc 0 / 회귀 0)
+- **요청**: UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (편집 wizard 단일 PR)
+- **상태**: ✅ 구현 완료 (726 vitest 전수 통과 / tsc 0 / 회귀 0 / 249 LOC 감소)
 - **모드**: no-stop
+
+## 구현 기록 (developer) — UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (2026-05-13)
+
+📝 구현한 기능:
+- **UI-3**: 편집 wizard Step 1 의 BracketSettingsForm + format select + dual 정합성 경고 모두 제거 → `/divisions` 안내 박스로 교체. 운영 방식(format/조 크기/본선 진출 등)은 `/divisions` 페이지(division_rules.format) **단일 source**.
+- **UI-4**: 편집 wizard 의 Step 1 공개 토글 + Step 3 디자인 카드(템플릿/로고/배너/색상/미리보기) 모두 제거 → `/site` 안내 박스로 교체. 사이트 설정은 `/site` 페이지 **단일 source**.
+- **부수**: PATCH body 에서 `format` / `is_public` / 디자인 5종 / `settings.bracket` 키 모두 제거. loadTournament 의 해당 state 복원 로직 제거. `format` 동기화 useEffect 제거. 미사용 import (BracketSettingsForm / DUAL_DEFAULT_* / SemifinalPairingMode / ImageUploader / BDR_PRIMARY_HEX / BDR_SECONDARY_HEX) 제거. `FORMAT_OPTIONS / LEGACY_FORMAT_MAP` 상수 제거.
+- **결과**: 1418 → 1169 LOC (249 LOC 감소)
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx` | UI-3 + UI-4 통합 — BracketSettingsForm/format/디자인 5종/공개여부 state·로드·UI·PATCH body 모두 제거 + 안내 박스 2건 (사이트 설정 / 종별 운영) + Link 추가 + 미사용 import 청소 | 수정 |
+
+🔍 시니어 판단:
+- **rawSettings 보존 전략** — settings.bracket 키는 wizard 가 더 이상 박제하지 않지만 `...rawSettings` 머지로 기존 DB 값 그대로 유지. 데이터 손실 0. /divisions 페이지가 단일 source 가 되어도 기존 dual 운영 대회는 안전.
+- **신규 wizard (new) 영향 0** — UI-2 압축 1-step 은 이미 default 박제로 우회 중. 본 PR 은 편집 wizard 만 정리.
+- **Flutter v1 영향 0** — `/api/web/tournaments/[id]` (웹 전용). PATCH body 에서 키만 줄임 — schema/응답 변경 0.
+- **format 컬럼 운영자 입장** — 종별 단위에서 별도 박제 (division_rules.format). 대회 전체 format 컬럼은 추후 별도 마이그레이션 시점에 처리 (이번 PR 범위 외).
+- **Step 3 옵션 B 선택** — 폐기(옵션 A) 보다 "사이트 설정 안내 + 입력 내용 확인 + 저장 CTA" 가 운영자 멘탈 모델에 안전. 디자인 카드는 비웠지만 카드 자리는 안내로 채움 (빈 step 회피).
+- **요약 미리보기 "형식" Row 제거** — FORMAT_OPTIONS 참조 끊기 (의존성 0). 종별 운영 페이지가 단일 source.
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. 기존 운영 대회 편집 wizard 진입 (`/tournament-admin/tournaments/{id}/wizard`)
+  2. Step 1 (대회 정보) → 공개 checkbox 자리 = "사이트 설정 페이지로 이동 →" 안내 박스. 클릭 시 `/tournament-admin/tournaments/{id}/site` 로 이동
+  3. Step 1 경기 설정 섹션 → 대회 방식 select / BracketSettingsForm / dual 경고 자리 = "종별 운영 페이지로 이동 →" 안내 박스. 클릭 시 `/tournament-admin/tournaments/{id}/divisions` 로 이동
+  4. GameTimeInput / GameBallInput / "경기 룰 (비고)" textarea — 그대로 유지 (UI-1.1 박제 변경 0)
+  5. Step 3 → 디자인 카드 통째로 사라짐. "사이트 설정 페이지로 이동 →" 안내 박스 + 기존 "입력 내용 확인" + 저장 버튼만 노출
+  6. 저장 후 DB tournaments — `format` / `is_public` / `design_template` / `logo_url` / `banner_url` / `primary_color` / `secondary_color` 모두 **이전 값 유지** (wizard 가 갱신하지 않으므로 변경 0). `settings.bracket` 도 기존 값 유지 (rawSettings 머지)
+  7. `/site` 페이지에서 사이트 설정 변경 시 wizard 와 영향 0 (별도 통로)
+  8. `/divisions` 페이지에서 종별 format 변경 시 wizard 와 영향 0
+- **정상 동작**:
+  - tsc --noEmit 0 error / vitest 726 전수 통과 / 회귀 0
+  - 안내 박스 색상 = var(--color-info) tone / Material Symbols Outlined "info" 아이콘 / 4px / 44px+ 터치
+  - Link 컴포넌트로 SPA 이동 (서버 round-trip 없음)
+- **주의할 입력**:
+  - URL `?step=3` 또는 위변조 — initialStep 가드는 그대로 (1~3 범위 외 시 step 1 fallback)
+  - status=in_progress/completed 대회도 wizard 진입 가능. format/bracket UI 가 없으므로 잠금 가드 자체가 불필요해졌음
+  - 시리즈 dropdown / 이름 / 일정 / 장소 / 경기시간 / 경기구 / 비고 / 종별 / 팀설정 / 참가비 / 입금 / 문의 — 모두 기존 동작 유지
+
+⚠️ reviewer 참고:
+- **데이터 손실 0 검증** — settings.bracket / format / is_public / 디자인 5종 컬럼은 wizard 가 PATCH body 에서 제외했을 뿐 DB 그대로 유지. /divisions, /site 페이지가 별도로 갱신
+- **Link import 신규** — `next/link` 1줄 추가 (UI-3/UI-4 안내 박스용)
+- **STEPS 라벨 변경 0** — Step 3 "확인 및 저장" 그대로 유지 (옵션 B). step 자체 폐기는 사용자 멘탈 모델 흔드는 변경이라 회피
+- **BracketSettingsForm / ImageUploader 컴포넌트는 보존** — 다른 곳(예: 시즌 별 페이지 추가 가능)에서 재사용 가능
+- **회귀 grep 0건** — lucide-react / 핑크/살몬 / BigInt(N)n / pill 9999px / 정사각 제외 시 50% 사용 룰 위반 0
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. UI-3 import + 상수 + state 제거 | ✅ FORMAT_OPTIONS / LEGACY_FORMAT_MAP / format / bracketSettings / teamCount / BracketSettingsForm / DUAL_DEFAULT_* / SemifinalPairingMode |
+| 2. UI-4 import + state 제거 | ✅ ImageUploader / BDR_PRIMARY_HEX / BDR_SECONDARY_HEX / designTemplate / logoUrl / bannerUrl / primaryColor / secondaryColor / isPublic |
+| 3. loadTournament 복원 로직 정리 | ✅ format / is_public / 디자인 5종 / settings.bracket 복원 제거 |
+| 4. PATCH body 정리 | ✅ format / is_public / design_template / logo_url / banner_url / primary_color / secondary_color / settings.bracket 키 제거 |
+| 5. Step 1 공개여부 → 사이트 안내 박스 | ✅ Link 추가 / Material Symbols Outlined info |
+| 6. Step 1 경기 설정 — format/bracket/dual경고 → divisions 안내 박스 | ✅ Link 추가 / GameTime / GameBall / game_method 비고 textarea 유지 |
+| 7. Step 3 디자인 카드 → 사이트 안내 박스 | ✅ ImageUploader/색상/미리보기 통째 제거 |
+| 8. 요약 미리보기 "형식" Row 제거 | ✅ FORMAT_OPTIONS 의존성 0 |
+| 9. format 동기화 useEffect 제거 | ✅ |
+| 10. tsc --noEmit | ✅ 0 error |
+| 11. 전체 vitest 회귀 | ✅ **726/726 PASS** (51 files / 회귀 0) |
+| 12. LOC 감소 | ✅ 1418 → 1169 (-249 LOC) |
+| 13. 회귀 grep (lucide / 핑크 / BigInt(N)n / format-state-leak) | ✅ 0건 (주석만 잔존) |
+
+---
 
 ## 구현 기록 (developer) — UI-2 wizard 압축 (3-step → 1-step) (2026-05-13)
 
@@ -328,6 +393,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-13 | UI-3 wizard bracketSettings 제거 + UI-4 사이트 영역 제거 (1 file, -249 LOC) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | UI-2 wizard 압축 (3-step → 1-step) + ?legacy=1 안전망 (1 file) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P2 dual 정합성 경고 + UI-1.5 ?step=2 anchor (4 files) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 (4 files) | ✅ tsc 0 / vitest 725 / 미커밋 |
@@ -348,6 +414,7 @@
 - (예정) fix(wizard): P0 GameTime 역파싱 + P1 divFees 입력 UI — PM 커밋 대기
 - (예정) feat(wizard): P2 dual 경고 + UI-1.5 ?step=2 anchor — PM 커밋 대기
 - (예정) feat(wizard): UI-2 신규 대회 wizard 압축 (3-step → 1-step) — PM 커밋 대기
+- (예정) refactor(wizard): UI-3 bracketSettings 제거 + UI-4 사이트 영역 제거 — PM 커밋 대기
 
 ## 후속 큐 (미진입)
 - UI-1.4 entry_fee 사용者 보고 재현 (커뮤니케이션 — 코드 0)
