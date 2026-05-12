@@ -28,6 +28,8 @@ import {
   FORMAT_LABEL,
   showGroupSettings,
   showRankingFormat,
+  shouldShowAdvancePerGroup,
+  ADVANCE_PER_GROUP_DEFAULT,
   calculateTotalTeams,
 } from "@/lib/tournaments/division-formats";
 
@@ -300,7 +302,7 @@ export default function DivisionsSetupPage() {
           <li>• <strong>더블 토너먼트</strong> — 한 번 진 팀에게 패자 부활 기회 제공 (16팀 31경기)</li>
           <li>• <strong>듀얼 토너먼트</strong> — 4조×4팀 미니 더블엘리미 → 8강 → 결승 (16팀, 27경기)</li>
           <li>• <strong>풀리그</strong> — 모든 팀끼리 한 번씩. 승점 합산</li>
-          <li>• <strong>조별리그 + 토너먼트</strong> — 조별 1·2위 본선 진출</li>
+          <li>• <strong>조별리그 + 토너먼트</strong> — 조별 1·2위 본선 진출 (조별 본선 진출 팀 수 설정 가능)</li>
           <li>• <strong>링크제 (각조 동순위전)</strong> — i3-U9 표준. 예선 → 1·2위 결정전 / 3·4위 결정전 (linkage_pairs 명시)</li>
           {/* 2026-05-12 Phase 3.5-D — 신규 enum 가이드 */}
           <li>• <strong>조별리그 + 동순위 순위결정전</strong> — 각 조 풀리그 → 1위×N팀 / 2위×N팀 ... 동순위전 자동 매칭. 4×4=16팀 / 9경기+12경기 ≈ 21경기</li>
@@ -333,7 +335,7 @@ function GroupSettingsInputs(props: {
 }) {
   const { format, settings, saving, onSave } = props;
 
-  // 기존 settings 의 group_size / group_count / ranking_format 추출 (legacy 키 호환)
+  // 기존 settings 의 group_size / group_count / ranking_format / advance_per_group 추출 (legacy 키 호환)
   const initialGroupSize =
     typeof settings?.group_size === "number" ? settings.group_size : null;
   const initialGroupCount =
@@ -342,6 +344,9 @@ function GroupSettingsInputs(props: {
     typeof settings?.ranking_format === "string"
       ? (settings.ranking_format as string)
       : "round_robin";
+  // 2026-05-13 — 조별 본선 진출 팀 수 (default 2 = 생활체육 표준 1·2위 진출)
+  const initialAdvancePerGroup =
+    typeof settings?.advance_per_group === "number" ? settings.advance_per_group : null;
 
   // 로컬 상태 (input 입력값) — 빈 문자열 허용 (사용자가 일시적으로 비울 수 있음)
   const [groupSize, setGroupSize] = useState<string>(
@@ -351,6 +356,9 @@ function GroupSettingsInputs(props: {
     initialGroupCount != null ? String(initialGroupCount) : "",
   );
   const [rankingFormat, setRankingFormat] = useState<string>(initialRankingFormat);
+  const [advancePerGroup, setAdvancePerGroup] = useState<string>(
+    initialAdvancePerGroup != null ? String(initialAdvancePerGroup) : "",
+  );
 
   // 총 팀 수 계산 (group_size × group_count) — division-formats.ts 헬퍼 사용
   const totalTeams = calculateTotalTeams(
@@ -372,6 +380,16 @@ function GroupSettingsInputs(props: {
     // ranking_format: 신규 enum 일 때만 박제 (다른 format 은 의미 없음)
     if (showRankingFormat(format)) {
       next.ranking_format = rankingFormat;
+    }
+
+    // 2026-05-13 — advance_per_group: 조별리그→본선 enum (3개) 일 때만 박제
+    // (group_stage_knockout / full_league_knockout / dual_tournament)
+    if (shouldShowAdvancePerGroup(format)) {
+      if (advancePerGroup === "") delete next.advance_per_group;
+      else next.advance_per_group = Number(advancePerGroup);
+    } else {
+      // 노출 조건이 아닌 enum 으로 전환 시 기존 키 정리 (의미 없는 박제 잔존 방지)
+      delete next.advance_per_group;
     }
 
     onSave(next);
@@ -464,17 +482,46 @@ function GroupSettingsInputs(props: {
           </label>
         )
       )}
-      {/* 총 팀 수 안내 — 모든 컬럼 가로 펼침 */}
-      <p
-        className={
-          showRankingFormat(format)
-            ? "col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3"
-            : "col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3"
-        }
-      >
+      {/* 2026-05-13 — 조별 본선 진출 팀 수 (group_stage_knockout / full_league_knockout / dual_tournament 만)
+          사유: 조별리그/풀리그 → 본선 토너먼트 enum 만 의미 있음 (조 N위까지 본선 진출).
+          UI: group_size 가 max 상한 (조 크기 초과 진출 불가). default 2 = 생활체육 표준 1·2위 */}
+      {shouldShowAdvancePerGroup(format) && (
+        <label className="text-xs text-[var(--color-text-muted)]">
+          조별 본선 진출 팀 수
+          <input
+            type="number"
+            min={1}
+            max={groupSize !== "" ? Number(groupSize) : 32}
+            step={1}
+            value={advancePerGroup}
+            disabled={saving}
+            onChange={(e) => setAdvancePerGroup(e.target.value)}
+            onBlur={handleSave}
+            className="mt-1 w-full rounded-[4px] border px-2 py-1.5 text-sm focus:outline-none focus:ring-1"
+            style={{
+              borderColor: "var(--color-border)",
+              background: "var(--color-card)",
+              color: "var(--color-text-primary)",
+              minHeight: 44,
+            }}
+            placeholder={`예: ${ADVANCE_PER_GROUP_DEFAULT}`}
+          />
+        </label>
+      )}
+      {/* 총 팀 수 + 총 본선 진출 팀 수 안내 — 모든 컬럼 가로 펼침 */}
+      <p className="col-span-2 text-xs text-[var(--color-text-muted)] sm:col-span-3">
         {totalTeams != null
           ? `총 ${totalTeams}팀 (${groupSize} × ${groupCount})`
           : "조 크기 × 조 개수 = 총 팀 수"}
+        {shouldShowAdvancePerGroup(format) && groupCount !== "" && (
+          <>
+            {" / "}
+            총 본선 진출 ={" "}
+            {(advancePerGroup !== "" ? Number(advancePerGroup) : ADVANCE_PER_GROUP_DEFAULT) *
+              Number(groupCount)}
+            팀
+          </>
+        )}
       </p>
     </div>
   );
