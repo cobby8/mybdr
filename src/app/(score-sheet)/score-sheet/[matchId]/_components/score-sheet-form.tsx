@@ -701,6 +701,11 @@ export function ScoreSheetForm({
     //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
     <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+      {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
+          이전 Phase 17 위치 (frame 아래 mt-3) = frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침.
+          새 위치 = frame 직전 (진입 즉시 운영자 인식 / 인쇄 시 _print.css `.no-print` 자동 제외). */}
+      <PeriodColorLegend />
+
       {/* Phase 7-B — 라인업 미선택 시 진입 시점 안내 카드 + 모달 자동 표시.
           양식은 lineup 확정 후 렌더. */}
       {lineup === null && (
@@ -867,10 +872,9 @@ export function ScoreSheetForm({
         </div>
       </div>
 
-      {/* Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (사용자 결재 §6 / 이미지 14:00 KST).
-          위치: frame 외부 (FIBA 양식 박스 아래) — 인쇄 시 _print.css `.no-print` 로 제외.
-          왜: 운영자/관객이 Running Score / Player Fouls / Team Fouls / Time-outs 색을 한눈에 이해. */}
-      <PeriodColorLegend />
+      {/* Phase 17 — 쿼터별 색상 안내 Legend (사용자 결재 §6).
+          Phase 20.1 (2026-05-13 사용자 보고 이미지 48) — 위치 변경: frame 외부 하단 → 제거 (frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침).
+          본 위치 = frame 외부 상단으로 이동 (return main 안 frame 직전 / 진입 즉시 운영자 인식). */}
 
       {/* Phase 3.5 — 경기 종료 버튼 (BFF POST + 라이브 발행).
           이유: 운영자가 Q4(또는 OT) 종료 후 명시적 매치 종료 트리거.
