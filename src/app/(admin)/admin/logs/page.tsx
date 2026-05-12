@@ -153,7 +153,7 @@ export default async function AdminLogsPage({
                   <a
                     href={`data:text/markdown;charset=utf-8,${encodeURIComponent(mdContent)}`}
                     download={`admin-log-${dateKey}.md`}
-                    className="ml-auto rounded px-2 py-0.5 text-xs text-[var(--color-accent)] hover:bg-[var(--color-elevated)]"
+                    className="ml-auto rounded px-2 py-0.5 text-xs text-[var(--color-info)] hover:bg-[var(--color-elevated)]"
                   >
                     .md 저장
                   </a>
@@ -204,7 +204,7 @@ export default async function AdminLogsPage({
                                       <span className="text-[var(--color-error)] line-through">{String(prev[k])}</span>
                                     )}
                                     {prev?.[k] !== undefined && " → "}
-                                    <span className="text-[var(--color-accent)]">{String(v)}</span>
+                                    <span className="text-[var(--color-success)]">{String(v)}</span>
                                   </span>
                                 ))}
                               </div>

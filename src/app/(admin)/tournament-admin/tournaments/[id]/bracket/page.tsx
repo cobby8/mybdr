@@ -258,8 +258,9 @@ export default function BracketAdminPage() {
               {Array.from({ length: versionLimit }).map((_, i) => (
                 <div
                   key={i}
+                  // 2026-05-12 — admin 빨강 본문 금지 (버전 사용량 dot) → info(Navy)
                   className={`h-3 w-8 rounded-full ${
-                    i < versionUsed ? "bg-[var(--color-accent)]" : "bg-[var(--color-border)]"
+                    i < versionUsed ? "bg-[var(--color-info)]" : "bg-[var(--color-border)]"
                   }`}
                 />
               ))}
@@ -435,7 +436,7 @@ export default function BracketAdminPage() {
             </h2>
             <Link
               href={`/tournament-admin/tournaments/${id}/matches`}
-              className="text-xs text-[var(--color-accent)] hover:underline"
+              className="text-xs text-[var(--color-info)] hover:underline"
             >
               경기 관리로 이동 →
             </Link>
@@ -553,7 +554,7 @@ function DualBracketSections({
         </h2>
         <Link
           href={`/tournament-admin/tournaments/${tournamentId}/matches`}
-          className="text-xs text-[var(--color-accent)] hover:underline"
+          className="text-xs text-[var(--color-info)] hover:underline"
         >
           경기 관리로 이동 →
         </Link>

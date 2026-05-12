@@ -186,7 +186,7 @@ export function AdminNewsContent({
                         target="_blank"
                         onClick={(e) => e.stopPropagation()}
                         title="매치 페이지로 이동"
-                        className="shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded text-[var(--color-text-dim)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-accent)]"
+                        className="shrink-0 mt-0.5 flex h-7 w-7 items-center justify-center rounded text-[var(--color-text-dim)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-info)]"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: 18 }}>open_in_new</span>
                       </Link>
@@ -232,7 +232,7 @@ export function AdminNewsContent({
             {selected && !editing && (
               <button
                 onClick={() => handleEditStart(selected)}
-                className="text-xs text-[var(--color-accent)] hover:underline"
+                className="text-xs text-[var(--color-info)] hover:underline"
               >
                 ✏️ 수정
               </button>
