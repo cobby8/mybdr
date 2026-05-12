@@ -81,9 +81,10 @@ export function FibaHeader({
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
       };
-  // Phase 9 — 헤더 영역 ~10% (목표 ~110px) 압축. px-2 py-1 컴팩트.
+  // Phase 11 — 헤더 영역 ~8.5% (목표 ~95px) 압축. px-2 py-0.5 컴팩트 (Phase 9 py-1 → py-0.5).
+  //   이유: Players 16행 (Phase 11) + 풋터 세로 4줄 (Phase 11) 흡수 위해 헤더도 추가 압축.
   const sectionClass = frameless
-    ? "fiba-frameless w-full px-2 py-1"
+    ? "fiba-frameless w-full px-2 py-0.5"
     : "w-full px-4 py-3";
 
   return (
@@ -95,15 +96,16 @@ export function FibaHeader({
     //   → FIBA PDF 동일 레이아웃 (4 줄 컴팩트)
     <section className={sectionClass} style={sectionStyle}>
       {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀).
-          Phase 9 — 더 컴팩트: 로고 24×12 / Scoresheet 12px tracking-widest */}
+          Phase 11 §5-2 (2026-05-12) — 로고 24×12 → 30×15 / SCORESHEET 13px → 16px (FIBA 정합 / reviewer Minor).
+          이유: FIBA 종이기록지 로고/타이틀이 더 큼 — 시인성 ↑. */}
       <div className="mb-0.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
           <Image
             src="/images/logo.png"
             alt="BDR"
-            width={24}
-            height={12}
-            className="h-3 w-auto"
+            width={30}
+            height={15}
+            className="h-4 w-auto"
           />
           <span
             className="text-[8px] font-semibold uppercase tracking-wider"
@@ -113,7 +115,7 @@ export function FibaHeader({
           </span>
         </div>
         <h1
-          className="text-[13px] font-bold uppercase tracking-widest"
+          className="text-[16px] font-bold uppercase tracking-widest"
           style={{ color: "var(--color-text-primary)" }}
         >
           SCORESHEET

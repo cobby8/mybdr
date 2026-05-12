@@ -322,6 +322,41 @@ export function PeriodScoresSection({
               : `★ Winner: ${final.winner === "home" ? homeTeamName : awayTeamName}`}
           </div>
         )}
+
+        {/* Phase 11 §4 (2026-05-12) — "Name of winning team: ____" underscore 라인 (FIBA 정합 / reviewer Major).
+            이유: FIBA 종이기록지 = Final Score 아래 별도 underscore 라인으로 승팀명 적는 영역.
+            동작: winner 자동 계산 시 = 팀명 자동 채움 / 동점·미결 = 빈 underscore (운영자가 펜으로 적음).
+            라이트 회색 underscore → 인쇄 시 _print.css 가 검정 강제. */}
+        <div className="mt-1 flex items-baseline gap-1.5">
+          <span
+            className="shrink-0 text-[9px] font-semibold uppercase tracking-wider"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Name of winning team
+          </span>
+          <span
+            className="min-w-0 flex-1 truncate pb-0 text-[11px] font-semibold"
+            style={{
+              color: "var(--color-text-primary)",
+              borderBottom: "1px solid var(--color-text-primary)",
+              // 빈 라인이어도 underscore 표시되도록 빈 공간 확보
+              minHeight: 14,
+            }}
+            title={
+              final.winner === "home"
+                ? homeTeamName
+                : final.winner === "away"
+                  ? awayTeamName
+                  : ""
+            }
+          >
+            {final.winner === "home"
+              ? homeTeamName
+              : final.winner === "away"
+                ? awayTeamName
+                : " "}
+          </span>
+        </div>
       </div>
     </div>
   );
