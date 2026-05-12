@@ -276,7 +276,9 @@ export function calculateSetupProgress(
       summary: regSummary,
       status: regComplete ? "complete" : "empty",
       icon: "how_to_reg",
-      link: `${base}/wizard`,
+      // 2026-05-13 UI-1.5 — wizard 의 RegistrationSettingsForm 영역(Step 2 = 참가 설정) 으로 바로 진입.
+      //   ?step=N (1-based) 은 [id]/wizard/page.tsx 의 initialStep 로직이 0-based 로 변환해 적용.
+      link: `${base}/wizard?step=2`,
       required: true,
     },
     {

@@ -742,6 +742,24 @@ export default function NewTournamentWizardPage() {
               }
             />
 
+            {/*
+              2026-05-13 P2 — dual_tournament 정합성 경고 (16팀 고정 vs 디비전 정원 합산).
+              이유: dual_tournament 는 4조×4팀 미니 더블엘리미 = 16팀 고정 포맷이라
+                divCaps 합산 ≠ 16 이면 대진표 생성 단계에서 누락/부전승 자동 발생.
+              사후 가드(생성 시점) 보다 사전 안내가 운영자에게 친절. divCaps 미입력(0)은 경고 X.
+            */}
+            {format === "dual_tournament" && totalDivCaps > 0 && (
+              totalDivCaps === 16 ? (
+                <p className="text-xs text-[var(--color-success)]">
+                  ✅ 디비전 정원 합산 16팀 — 듀얼 대진과 일치합니다.
+                </p>
+              ) : (
+                <div className="rounded-[4px] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_8%,transparent)] p-2 text-xs">
+                  ⚠️ 듀얼 토너먼트는 16팀 고정인데 디비전 정원 합산이 {totalDivCaps}팀입니다. 정원을 16팀으로 맞춰주세요.
+                </div>
+              )
+            )}
+
             {/* 경기시간 프리셋 */}
             <GameTimeInput value={gameTime} onChange={setGameTime} />
 

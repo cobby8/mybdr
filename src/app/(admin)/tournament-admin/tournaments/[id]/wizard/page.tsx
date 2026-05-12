@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+// 2026-05-13 UI-1.5 — 체크리스트 5번 카드(?step=2) 진입 시 RegistrationSettingsForm 영역 자동 이동
+//   useSearchParams 로 ?step=N 읽어 initialStep 설정 (1-based → currentStep N-1)
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { TossCard } from "@/components/toss/toss-card";
 import { ScheduleForm, type ScheduleFormData, type PlaceInfo } from "@/components/tournament/schedule-form";
 import {
@@ -106,7 +108,16 @@ function Row({ label, value }: { label: string; value: string }) {
 export default function TournamentEditWizardPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
+  // 2026-05-13 UI-1.5 — query param ?step=N (1-based) 으로 진입 시 해당 step 으로 자동 이동.
+  //   - SetupChecklist 5번 "신청 정책" 카드 → /wizard?step=2 → currentStep=1 (RegistrationSettingsForm 영역)
+  //   - 범위 검증: 1~STEPS.length 밖이면 1 로 fallback (외부 링크 위변조 가드)
+  const searchParams = useSearchParams();
+  const initialStep = (() => {
+    const raw = Number(searchParams?.get("step"));
+    if (!Number.isFinite(raw) || raw < 1 || raw > STEPS.length) return 0;
+    return raw - 1; // 1-based → 0-based
+  })();
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -927,6 +938,24 @@ export default function TournamentEditWizardPage() {
                 setBracketSettings((prev) => ({ ...prev, [field]: value }))
               }
             />
+
+            {/*
+              2026-05-13 P2 — dual_tournament 정합성 경고 (16팀 고정 vs 디비전 정원 합산).
+              이유: dual_tournament 는 4조×4팀 미니 더블엘리미 = 16팀 고정 포맷이라
+                divCaps 합산 ≠ 16 이면 대진표 생성 단계에서 누락/부전승 자동 발생.
+              사후 가드(생성 시점) 보다 사전 안내가 운영자에게 친절. divCaps 미입력(0)은 경고 X.
+            */}
+            {format === "dual_tournament" && totalDivCaps > 0 && (
+              totalDivCaps === 16 ? (
+                <p className="text-xs text-[var(--color-success)]">
+                  ✅ 디비전 정원 합산 16팀 — 듀얼 대진과 일치합니다.
+                </p>
+              ) : (
+                <div className="rounded-[4px] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_8%,transparent)] p-2 text-xs">
+                  ⚠️ 듀얼 토너먼트는 16팀 고정인데 디비전 정원 합산이 {totalDivCaps}팀입니다. 정원을 16팀으로 맞춰주세요.
+                </div>
+              )
+            )}
 
             {/* 경기시간 프리셋 */}
             <GameTimeInput value={gameTime} onChange={setGameTime} />

@@ -1,9 +1,67 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 패키지 PR (debugger 진단 후속)
-- **상태**: ✅ 구현 완료 (725 vitest 전수 통과 / tsc 0 / 회귀 0)
+- **요청**: P2 dual_tournament 정합성 경고 + UI-1.5 체크리스트 5 anchor 점프 (단일 PR)
+- **상태**: ✅ 구현 완료 (726 vitest 전수 통과 / tsc 0 / 회귀 0)
 - **모드**: no-stop
+
+## 구현 기록 (developer) — P2 dual 경고 + UI-1.5 step 점프 (2026-05-13)
+
+📝 구현한 기능:
+- **P2**: 양쪽 wizard (신규/편집) 의 BracketSettingsForm 아래 dual_tournament 16팀 정합성 경고/성공 카드 박제
+- **UI-1.5**: 편집 wizard 가 `?step=N` (1-based) query 받으면 해당 step 으로 자동 진입 + 체크리스트 5번 카드 link 갱신
+- **회귀 가드**: setup-status.test.ts 에 5번 카드 link `?step=2` 확인 1 케이스 신규
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | P2 — BracketSettingsForm 아래 dual 경고/성공 카드 조건부 박제 (~15 LOC) | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/wizard/page.tsx` | P2 — 동일 + UI-1.5 useSearchParams import + initialStep 산출 (1-based → 0-based, 범위 가드) | 수정 |
+| `src/lib/tournaments/setup-status.ts` | UI-1.5 — registration 카드 link `${base}/wizard` → `${base}/wizard?step=2` | 수정 |
+| `src/__tests__/lib/tournaments/setup-status.test.ts` | 5번 카드 link `?step=2` 회귀 가드 1 케이스 | 수정 |
+
+🔍 시니어 판단:
+- **BracketSettingsForm 은 props 변경 0** — divCaps 를 컴포넌트 안으로 전달하기보다 wizard page.tsx 에서 직접 경고 박제 (totalDivCaps state 이미 존재 — 재계산 0)
+- **divCaps 미입력(합산 0)은 경고 X** — 신규 wizard 초기 진입 시 노이즈 제거. 1팀 이상 입력하면 비로소 검증 시작
+- **success 케이스도 표시 (16팀 정확)** — 운영자에게 "맞췄다" 라는 양의 피드백
+- **initialStep 범위 가드** (`raw < 1 || raw > STEPS.length`) — 외부 링크 위변조(?step=99) 시 안전한 0 fallback
+- **신규 wizard 는 UI-1.5 미적용** — PM 명세상 체크리스트는 편집 대회 대시보드에서만 노출 (신규 wizard 는 step 0 부터 시작이 자연스러움)
+
+💡 tester 참고:
+- **P2 수동 (양쪽 wizard)**:
+  1. wizard Step 1 (대회 정보) → 대회 방식 = "듀얼토너먼트" 선택
+  2. Step 2 (참가 설정) → D1=8팀, D2=8팀 입력 후 Step 1 복귀 → ✅ success "16팀 일치" 메시지
+  3. D1=8, D2=4 만 입력 → Step 1 복귀 → ⚠️ warning "16팀 고정인데 12팀" 메시지
+  4. divCaps 비우기 → 경고 미노출 (정상)
+  5. 다른 format 선택 (single_elim) → 경고 미노출 (dual 한정)
+- **UI-1.5 수동**:
+  1. 운영자 대시보드 → 체크리스트 5번 "신청 정책" 카드 클릭
+  2. `/wizard?step=2` 진입 → wizard 가 Step 2 (참가 설정) 부터 표시 (이전: Step 1 부터)
+  3. URL 위변조 (`?step=99`) → Step 1 fallback (안전)
+  4. query 없음 (`/wizard`) → Step 1 (기존 동작 그대로)
+- **정상 동작**:
+  - dual 경고 / success 모두 var(--color-warning) / var(--color-success) 토큰 박제 (디자인 룰 준수)
+  - 편집 wizard 진입 시 `?step=2` 가 있으면 currentStep=1 로 시작 + 진행도 보존
+- **주의**: tester 환경에서 query param test 시 SSR/CSR hydration 영향 0 (wizard 는 "use client" — useSearchParams 즉시 사용 가능)
+
+⚠️ reviewer 참고:
+- 경고 카드 마크업 = PM 명세 그대로 (`color-mix(in_srgb,var(--color-warning)_8%,transparent)`) — 디자인 토큰 룰 준수
+- initialStep IIFE 패턴 — useEffect 대신 useState 초기값으로 사용 (마운트 시점 1회 산출 / 재계산 0)
+- useSearchParams 가 null 일 수 있음 (`searchParams?.get`) — Next.js 15 App Router 환경에서 안전
+- BracketSettingsForm 컴포넌트 자체는 변경 0 — 재사용 안전성 유지
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. P2 wizard (편집) dual 경고 카드 | ✅ 완료 |
+| 2. P2 wizard (신규) dual 경고 카드 | ✅ 완료 |
+| 3. UI-1.5 setup-status.ts link `?step=2` | ✅ 완료 |
+| 4. UI-1.5 [id]/wizard useSearchParams + initialStep | ✅ 완료 (범위 가드 포함) |
+| 5. vitest 회귀 가드 1 케이스 | ✅ setup-status 36 → 36+1 PASS |
+| 6. tsc --noEmit | ✅ EXIT=0 |
+| 7. 전체 vitest 회귀 (725 → 726) | ✅ 전수 PASS / 회귀 0 |
+| 8. 회귀 grep (BigInt(N)n / lucide / 핑크) | ✅ 신규 변경분 0 |
+
+---
 
 ## 구현 기록 (developer) — P0 GameTime 역파싱 + P1 divFees 입력 UI (2026-05-13)
 
@@ -213,6 +271,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-13 | P2 dual 정합성 경고 + UI-1.5 ?step=2 anchor (4 files) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 (4 files) | ✅ tsc 0 / vitest 725 / 미커밋 |
 | 2026-05-13 | FIBA Phase 20 PTS 자동 집계 (2 files) — score-sheet BFF running_score → MatchPlayerStat 박제 | ✅ tsc 0 / vitest 719 / 미커밋 |
 | 2026-05-13 | UI-1.1/1.2/1.3 wizard UX 보강 패키지 (4 files) | ✅ tsc 0 / vitest 709 / 미커밋 |
@@ -229,8 +288,8 @@
 - (예정) feat(wizard): UI-1.1/1.2/1.3 wizard UX 보강 — PM 커밋 대기
 - (예정) feat(score-sheet): FIBA Phase 20 PTS 자동 집계 — PM 커밋 대기
 - (예정) fix(wizard): P0 GameTime 역파싱 + P1 divFees 입력 UI — PM 커밋 대기
+- (예정) feat(wizard): P2 dual 경고 + UI-1.5 ?step=2 anchor — PM 커밋 대기
 
 ## 후속 큐 (미진입)
-- UI-1.5 체크리스트 5 신청 정책 카드 → wizard step 2 anchor 점프 (~10분)
-- UI-1.4 entry_fee 사용자 보고 재현 (커뮤니케이션 — 코드 0)
+- UI-1.4 entry_fee 사용者 보고 재현 (커뮤니케이션 — 코드 0)
 - **GNBA 8팀 코치 안내**: 자가수정 진입 시 본인 이름/전화 입력 = 자동 setup. 시드 이름 mismatch 시 401 → 운영자 수동 보정 필요
