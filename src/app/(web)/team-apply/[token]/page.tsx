@@ -105,11 +105,13 @@ export default async function TeamApplyPage({ params }: PageProps) {
             <div>
               <span style={{ color: "var(--color-text-muted)" }}>종별</span>{" "}
               <span className="font-semibold">{divisionRule.label}</span>
-              {(divisionRule.birthYearMin || divisionRule.gradeMin) && (
+              {/* 2026-05-12 룰 변경 (사용자 요청): 어린 학년 자유 참가 / gradeMax · birthYearMin 안내만 표시.
+                  - "N학년 이하" + "N년생 이후 출생" (나이 많은 경우 차단 기준) */}
+              {(divisionRule.birthYearMin || divisionRule.gradeMax) && (
                 <span style={{ color: "var(--color-text-muted)" }}>
                   {" "}({[
-                    divisionRule.birthYearMin && `${divisionRule.birthYearMin}년생`,
-                    divisionRule.gradeMin && gradeToKorean(divisionRule.gradeMin),
+                    divisionRule.gradeMax && `${gradeToKorean(divisionRule.gradeMax)} 이하`,
+                    divisionRule.birthYearMin && `${divisionRule.birthYearMin}년생 이후`,
                   ].filter(Boolean).join(" / ")})
                 </span>
               )}

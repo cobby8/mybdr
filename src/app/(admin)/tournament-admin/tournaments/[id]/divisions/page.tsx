@@ -208,7 +208,8 @@ export default function DivisionsSetupPage() {
                     {r.code} <span className="ml-1 text-sm font-normal text-[var(--color-text-muted)]">({r.label})</span>
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
-                    학년 {r.grade_min ?? "?"}~{r.grade_max ?? "?"} · 참가비 {r.fee_krw.toLocaleString()}원
+                    {/* 2026-05-12 룰 변경: 어린 학년 자유 참가 — gradeMax 이하 표시 */}
+                    {r.grade_max != null ? `${r.grade_max}학년 이하` : "학년 제한 없음"} · 참가비 {r.fee_krw.toLocaleString()}원
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
