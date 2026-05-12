@@ -879,24 +879,39 @@ function DivisionBracketSections({
 
         return (
           <Card key={divCode} className="!p-0 overflow-hidden">
-            {/* 종별 헤더 — 클릭 시 토글 */}
-            <button
-              type="button"
-              onClick={() => toggle(divCode)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--color-elevated)] transition-colors"
-            >
-              <div className="flex items-center gap-2">
+            {/* 종별 헤더 — 토글 + deep link */}
+            <div className="flex w-full items-center justify-between px-4 py-3 hover:bg-[var(--color-elevated)] transition-colors">
+              <button
+                type="button"
+                onClick={() => toggle(divCode)}
+                className="flex flex-1 items-center gap-2 text-left"
+              >
                 <span className="text-sm font-bold text-[var(--color-text-primary)]">
                   {divCode === "_no_division" ? "종별 미지정" : divCode}
                 </span>
                 <span className="rounded-full bg-[var(--color-elevated)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
                   {divMatches.length}경기
                 </span>
+              </button>
+              <div className="flex items-center gap-2">
+                {/* 2026-05-12 Phase 3.5-B — 종별 deep link → matches 페이지 자동 필터 */}
+                {divCode !== "_no_division" && (
+                  <Link
+                    href={`/tournament-admin/tournaments/${tournamentId}/matches?division=${encodeURIComponent(divCode)}`}
+                    className="text-xs text-[var(--color-info)] hover:underline"
+                  >
+                    경기 관리 →
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={() => toggle(divCode)}
+                  className="text-xs text-[var(--color-text-muted)]"
+                >
+                  {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
+                </button>
               </div>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {isCollapsed ? "펼치기 ▼" : "접기 ▲"}
-              </span>
-            </button>
+            </div>
 
             {/* 본문 — roundName 별 sub-그룹 */}
             {!isCollapsed && (

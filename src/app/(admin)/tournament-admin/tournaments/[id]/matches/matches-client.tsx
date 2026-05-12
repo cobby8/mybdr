@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -394,6 +394,7 @@ function ScoreModal({
 
 export default function MatchesClient() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [matches, setMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<TournamentTeam[]>([]);
   const [loading, setLoading] = useState(true);
@@ -401,7 +402,10 @@ export default function MatchesClient() {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [error, setError] = useState("");
   // 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영)
-  const [divisionFilter, setDivisionFilter] = useState<string | null>(null);
+  //   URL 쿼리 ?division=i3-U9 로 deep link 가능 (bracket 페이지에서 종별 카드 클릭 진입)
+  const [divisionFilter, setDivisionFilter] = useState<string | null>(
+    searchParams?.get("division") ?? null
+  );
 
   const load = useCallback(async () => {
     try {
