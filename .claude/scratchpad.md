@@ -1,7 +1,184 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: AI 자연어 대회 운영 가능성 검토 (코드 변경 0 / 분석만)
+- **요청**: 대회 개최 흐름 IA(Information Architecture) 재설계 기획 (코드 변경 0 / 분석만)
+- **상태**: 진단 + 신규 IA 옵션 3종 + Phase 분해 완료
+- **모드**: no-stop (자동 머지 위임)
+
+## 검토 (planner-architect) — 대회 개최 흐름 IA 재설계 (2026-05-13)
+
+🎯 **결론**: 현 흐름은 **7~9 페이지 분산 + 결정 6 그룹 중첩** → 운영자 발자국 과다 + 동선 회귀 다발. **옵션 B (Wizard 압축 + Dashboard 체크리스트 hub) 권장** — 5단 점진 진입 (UI-1 ~ UI-5).
+
+### 1. 현재 운영자 발자국 (footprint) — 7~9 페이지
+
+```
+[start]
+  ↓ 단체 생성 (선택) — /tournament-admin/organizations/new
+  ↓ 시리즈 생성 (선택) — /tournament-admin/series/new (단체 select)
+  ↓ 대회 신규 wizard 3-step — /tournament-admin/tournaments/new/wizard
+  │   • Step 1: 대회 정보 + 일정 + 장소 + 게임설정 + 포맷 + 브래킷settings
+  │   • Step 2: 종별/디비전 (RegistrationSettingsForm) + 팀설정 (TeamSettings)
+  │   • Step 3: 디자인 (템플릿/로고/배너/색상/subdomain)
+  ↓ 대회 대시보드 — /tournament-admin/tournaments/[id] (8 메뉴 카드)
+  ↓ 종별 운영 방식 — /tournament-admin/tournaments/[id]/divisions (Phase 3.5 신규)
+  ↓ 참가팀 관리 — /teams (apply_token / 명단 확인)
+  ↓ 대진표 생성 — /bracket (자동 생성 + 듀얼 에디터)
+  ↓ 경기/기록시스템 — /matches (recording_mode + 스코어)
+  ↓ 사이트 관리 — /site (subdomain / 템플릿 / 공개)
+  ↓ 관리자 / 기록원 — /admins, /recorders
+[publish]
+```
+
+### 2. 분산도 매트릭스 — 결정 6 그룹 × 페이지
+
+| 결정 그룹 | wizard new | wizard edit | dashboard [id] | divisions | bracket | matches | site | admins/recorders |
+|----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **A. 대회 기본** (이름·일정·장소·포맷·참가비) | ⭐ | ⭐ |  |  |  |  |  |  |
+| **B. 시리즈/단체 연결** | △ | △ | (read) |  |  |  |  |  |
+| **C. 운영 방식** (포맷+settings, 종별별) | ⭐ (대회단위) | ⭐ |  | ⭐ (종별단위) | △ (자동생성) |  |  |  |
+| **D. 신청/등록** (정원·자동승인·종별참가비) | ⭐ | ⭐ |  |  |  |  |  |  |
+| **E. 운영/기록** (recording_mode·TAM·기록원) |  |  |  |  |  | ⭐ |  | ⭐ |
+| **F. 사이트/홍보** (subdomain·템플릿·색상·공개) | △ (초기) | △ |  |  |  |  | ⭐ |  |
+
+⭐ = 주 결정 / △ = 부분 결정 / (read) = 읽기만. **혼란 포인트**:
+- **그룹 C 가 3 페이지에 분산** (wizard 대회단위 → divisions 종별단위 → bracket 자동생성 트리거) — 운영자가 "여기서 결정한 게 저기서 덮어쓰이나?" 헷갈림
+- **그룹 F (사이트)** 가 wizard Step 3 일부 + /site 페이지에 중복 — wizard 에서 subdomain/색상 입력해도 /site 에서 다시 마주침
+- **그룹 E (운영/기록)** 가 wizard 흐름에서 빠져있음 — 대회 생성 후 /matches + /admins + /recorders 3 페이지 따로 진입
+
+### 3. UX 친숙도 평가 (혼란/반복/부담/순서)
+
+| 단계 | 혼란도 | 반복도 | 부담도 | 순서강제 |
+|------|:------:|:------:|:------:|:--------:|
+| 단체→시리즈→대회 의존성 | ⚠️ 중 (시리즈 없이도 대회 가능 / 어떤 게 먼저인지 모호) | 0 | 0 | 약함 |
+| wizard Step 1 (대회 정보) | ⚠️ 중 (포맷 선택 + bracket settings 동시) | 0 | ⚠️⚠️ 높음 (12+ 필드) | 강함 |
+| wizard Step 2 (참가설정) | ⚠️ 중 (종별 + 팀설정 + 정원 + 참가비 한 페이지) | △ (Step 1 정원과 중첩) | ⚠️⚠️ 높음 | 강함 |
+| wizard Step 3 (디자인) | 낮음 | △ (/site 와 중복) | ⚠️ 중 | 약함 |
+| 종별 운영 방식 (divisions) | ⚠️⚠️ 높음 ("wizard 에서 끝난 줄 알았는데?") | △ (wizard format 과 중첩) | ⚠️ 중 | **강함** (bracket 전 필수) |
+| 대진표 생성 (bracket) | ⚠️ 중 (자동생성 vs 수동편집) | 0 | 중 | 강함 |
+| 기록원/관리자 위임 | 낮음 | 0 | 낮음 | 약함 |
+| 사이트 공개 (site) | ⚠️ 중 (wizard 와 중복 + 공개 시점 모호) | △ | 중 | 약함 |
+
+### 4. 재설계 원칙 5 (Stripe/Vercel 패턴 참조)
+
+1. **체크리스트 hub** — 대회 대시보드를 "메뉴 카드 8개" 가 아닌 "8개 결정 항목 + 진행도" 로 전환. 미완료 항목 = ⚪ / 완료 = ✅ / 차단 = 🔒 (예: 종별 미설정 → 대진표 잠금)
+2. **Progressive Disclosure** — wizard 는 "필수 최소 3 필드" (이름 / 시작일 / 시리즈) 만 받아 즉시 draft 대회 생성. 그 외는 대시보드에서 항목별 inline 편집
+3. **Single Source of Truth** — 그룹 C (운영방식) 는 종별 단위로 단일화 (`TournamentDivisionRule.format/settings`). 대회 단위 `Tournament.format` 은 default 추론용
+4. **종속성 시각화** — "대진표 생성" 카드에 "종별 운영 방식이 먼저 설정되어야 합니다" 가드 + 안내 링크
+5. **공개 게이트** — "사이트 공개" 를 마지막 명시 단계로 분리 (필수 7 항목 ✅ 후 공개 버튼 활성화)
+
+### 5. 신규 IA 옵션 3종
+
+#### 옵션 1: 체크리스트 hub (Stripe/Vercel 스타일)
+
+```
+/tournament-admin/tournaments/[id]    ⭐ 단일 dashboard
+┌──────────────────────────────────────┐
+│ [대회명]                              │
+│ ⚪ 대회 진행도 3/8                     │
+├──────────────────────────────────────┤
+│ ✅ 1. 기본 정보  (이름/날짜/장소)      [편집]
+│ ✅ 2. 시리즈·단체  (강남구협회)        [편집]
+│ ✅ 3. 종별 정의  (i3-U9 / i2-U11)     [편집]
+│ ⚪ 4. 종별 운영 방식  ← 다음 단계        [설정]
+│ ⚪ 5. 참가팀 (0/16)                   [설정]
+│ 🔒 6. 대진표 (4 선결)                 [잠금]
+│ 🔒 7. 기록자·운영자 (5 선결)           [잠금]
+│ ⚪ 8. 사이트 공개  (7 선결)           [미리보기]
+└──────────────────────────────────────┘
+```
+- 각 항목 = 카드 / 클릭 시 inline 폼 or 슬라이드오버 모달
+- 잠금 항목 = 선결 명시 (예: "종별 운영 방식이 먼저 설정되어야 합니다")
+- 장점: 모든 결정이 한 화면 / 운영자 발자국 80% 감소
+- 단점: 카드 클릭 → 모달 → 저장 사이클이 wizard 보다 느릴 수 있음
+
+#### 옵션 2: Wizard 압축 + Dashboard hub ⭐ 권장
+
+```
+[Step 1] 빠른 생성 (3 필드)
+  - 이름 / 시작일 / 시리즈 선택
+  - "draft 대회 생성" 즉시 (~1초)
+
+[Step 2] 대시보드 자동 진입 (위 옵션 1 체크리스트)
+  - 운영자가 자기 페이스로 8 항목 채움
+  - 매 항목 inline 편집 (모달 X) — 자동저장
+
+[Step 3] "공개 준비됐어요" 가이드
+  - 필수 7 항목 ✅ 되면 hub 상단에 highlight CTA "사이트 공개" 등장
+```
+
+- 옵션 1 + Wizard 잔존 (빠른 생성만)
+- 장점: 신규 대회 = 최소 노력 시작 가능 / 편집 = 단일 hub
+- 단점: 옵션 1 + 빠른 생성 UI 추가 박제
+
+#### 옵션 3: AI 자연어 + 추천 (위 AI-1 검토와 연계)
+
+- 옵션 2 위에 wizard Step 1 상단에 "💬 어떤 대회 하시려고요?" 자연어 박스 추가
+- AI 가 옵션 2 의 hub 각 항목 default 자동 채움 → 운영자는 검토/조정만
+- Phase AI-1 후 결재 (별 작업)
+
+→ **권장**: 옵션 2 → 옵션 3 순서. 옵션 1 단독은 신규 대회 진입 부담이 있음.
+
+### 6. Phase 분해 (UI-1 ~ UI-5)
+
+| Phase | 산출물 | 영향 | LOC | 우선 |
+|-------|--------|------|----|----|
+| **UI-1** dashboard hub 체크리스트화 | `/tournaments/[id]` 메뉴카드 8개 → 체크리스트 카드 8개 (진행도 + 잠금 가드) | 0 schema 변경 | 200~400 | ⭐ 1순위 |
+| **UI-2** wizard 압축 | 신규 wizard = 3 필드 1-step (이름/날짜/시리즈). 기존 3-step wizard = `?legacy=1` 보존 | 0 schema | 300~500 | 2순위 |
+| **UI-3** 그룹 C 단일화 | wizard Step1 의 bracketSettings 제거 → 종별 단위 (divisions) 로 통일. 대회 단위 `Tournament.format` = 종별 default 추론 | 0 schema (UI/플로우만) | 100~200 | 3순위 |
+| **UI-4** 사이트 그룹 F 분리 | wizard Step3 디자인 제거 → /site 단일. wizard 완료 후 hub 8번 카드 "사이트 미리보기 / 공개" CTA | 0 schema | 150~300 | 4순위 |
+| **UI-5** 공개 게이트 + AI-1 연동 | 7 항목 ✅ 게이트 + AI 추천 박스 (옵션 3) | 0 schema | 200~400 | 5순위 (AI-1 결재 후) |
+
+→ 각 Phase = 단일 PR 단위 (작은 변경 + 회귀 최소). UI-1 단독 머지로도 60~70% UX 가치 확보.
+
+### 7. 마이그레이션 전략
+
+| 기존 페이지 | 처리 | 사유 |
+|------------|------|------|
+| `/tournaments/new/wizard` | UI-2 에서 압축 (3-step → 1-step). `?legacy=1` 로 기존 3-step 보존 (회귀 대비) | 기존 운영자 습관 보존 |
+| `/tournaments/[id]/wizard` (편집) | UI-1 후 deprecated 안내. hub 인라인 편집 우선 | 동일 결정을 두 페이지에서 가능한 게 혼란 원인 |
+| `/tournaments/[id]/divisions` | 유지 (종별 단위 결정은 화면이 큼 — hub 카드 4번 "종별 운영 방식" 클릭 시 진입) | 종별 다건 표는 inline 모달 부적합 |
+| `/tournaments/[id]/bracket` | 유지 + hub 카드 6번에서 "대진표 미리보기" 인라인 미니 + "편집" 링크 | 듀얼 에디터는 큰 화면 필요 |
+| `/tournaments/[id]/site` | 유지 + hub 카드 8번 통합 진입 | 템플릿 미리보기는 큰 화면 필요 |
+| `/tournaments/[id]/matches` | 유지 (기록 단계) — hub 카드 7번 "기록자" 와 분리 | 매치 표 + 스코어 입력은 별 흐름 |
+
+### 8. 운영자 결재 사항 (3택)
+
+| 옵션 | 범위 | 기간 | 권장 |
+|------|------|------|------|
+| **(가) UI-1 만** (dashboard hub 체크리스트화) | 가장 적은 변경 / 가장 큰 UX 가치 | 1~2일 | ⭐ 1순위 — 빠른 검증 |
+| (나) UI-1 + UI-2 일괄 | hub + wizard 압축 | 3~5일 | 2순위 — 신규 대회 부담 함께 해결 |
+| (다) UI-1 ~ UI-5 전체 | IA 전면 재설계 | 1.5~2주 | 3순위 — AI-1 결재 후 함께 진행 권장 |
+
+### 9. 위험 / 미해결
+
+| 위험 | 완화 방안 |
+|------|----------|
+| 운영자 기존 습관 (3-step wizard 익숙) | UI-2 에서 `?legacy=1` 로 기존 wizard 보존 + 6개월 후 deprecated |
+| inline 편집 시 검증 (필드 간 의존) | hub 카드별 zod schema 분리 + 저장 시 서버 가드 (기존 API 재사용) |
+| Phase 3.5 종별 운영 방식 (recently 추가) 와 충돌 | UI-3 가 단일화 책임 — 대회 단위 format = 종별 default 추론 |
+| 진행도 % 산정 기준 모호 | 8 항목 중 "필수 7 + 선택 1" 정의 (사이트 공개 = 선택). 진행도 = 필수 7 중 완료 수 |
+| 운영 영향 0 보장 | UI-1 ~ UI-5 모두 schema/API 변경 0. 신규 페이지 0 (기존 페이지 hub 통합만) |
+
+### 10. 핵심 요약 (300~600 단어)
+
+**현재 흐름의 본질적 문제**는 **결정 6 그룹이 7~9 페이지에 분산**되어 운영자가 "어디서 무엇을 결정하는지" 정신 모델을 형성하기 어렵다는 점입니다. 특히 **그룹 C (운영 방식)** 가 wizard(대회 단위) → divisions(종별 단위) → bracket(자동생성) 3 페이지에 걸쳐 분산되어 있어, 운영자가 같은 결정을 여러 번 마주칩니다. **wizard Step 1** 은 12+ 필드 한 페이지에 압축되어 부담이 높고, **wizard Step 3 (디자인)** 은 `/site` 페이지와 중복되어 "어디서 수정해야 하지?" 회귀를 발생시킵니다.
+
+**재설계 핵심**은 **dashboard 를 메뉴 카드 8개 (현재) 가 아닌 체크리스트 hub (Stripe/Vercel 패턴)** 로 전환하는 것입니다. 진입점 8개를 "결정 항목 8개 + 진행도 + 잠금 가드" 로 시각화하면, 운영자는 "다음 무엇을 결정해야 하는지" 한눈에 파악합니다. 잠금 가드 (예: 종별 미설정 → 대진표 잠금) 는 종속성을 명시적으로 보여줘 회귀 동선을 차단합니다.
+
+**권장 진입 순서** = **옵션 2 (Wizard 압축 + Dashboard hub)** 의 5단 점진:
+- **UI-1**: dashboard 체크리스트화 (가장 적은 변경 / 가장 큰 UX 가치)
+- **UI-2**: wizard 3-step → 1-step (3 필드만 빠른 생성)
+- **UI-3**: 그룹 C 종별 단위 단일화
+- **UI-4**: 사이트 그룹 F 분리 (wizard 에서 제거)
+- **UI-5**: 공개 게이트 + AI 추천 (AI-1 결재 후)
+
+각 Phase 는 schema/API 변경 0 (UI 플로우만) → 회귀 위험 최소. **UI-1 단독 머지** 만으로도 60~70% UX 가치 확보 가능.
+
+**운영자 결재 3택**: (가) UI-1 만 [⭐ 1순위, 1~2일] / (나) UI-1+UI-2 일괄 [3~5일] / (다) UI-1~UI-5 전체 [1.5~2주, AI-1 함께 권장].
+
+---
+
+## 이전 작업 (AI 자연어 대회 운영 가능성 검토 — 2026-05-13)
 - **상태**: 검토 완료 — 결론: 가능 + Phase AI-1 부터 권장
 - **모드**: no-stop (자동 머지 위임)
 
@@ -1066,9 +1243,48 @@ Extra [1][2][3][4]                   ← 줄 3
 
 ---
 
+## 구현 기록 (developer) — UI-1 dashboard 체크리스트 hub (2026-05-13)
+
+📝 구현한 기능: `/tournament-admin/tournaments/[id]` 메뉴 카드 8개 → **결정 8 항목 체크리스트 hub** 재구성.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/lib/tournaments/setup-status.ts` | 8 항목 판정 함수 + `calculateSetupProgress` 종합 (잠금 조건 + 공개 가드) | 신규 |
+| `src/__tests__/lib/tournaments/setup-status.test.ts` | 35 케이스 (8 항목 × 다중 시나리오 + 종합/잠금/공개 가드) | 신규 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/SetupChecklist.tsx` | 체크리스트 UI (server) — progress bar + 8 카드 + 공개 가드 안내 | 신규 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/page.tsx` | 8 메뉴카드 폐기 → 체크리스트 hub + 보조 액션 3~4개 (참가팀/관리자/기록원/공개 사이트) | 수정 |
+
+핵심 결정:
+- **server component 유지** — prisma include 에 `divisionRules { format, settings }` 추가 (N+1 회피).
+- **체크리스트 8 항목**: 1 기본정보 / 2 시리즈(선택) / 3 종별정의 / 4 운영방식 / 5 신청정책 / 6 사이트 / 7 기록설정 / 8 대진표.
+- **잠금 조건**: 1→3·6, 3→4, 4→7·8 (선행 미완료 시 진입 차단 + 잠금 사유 안내).
+- **공개 가드**: 필수 7 항목 (2 시리즈 제외) ALL ✅ 시 활성 — `allRequiredComplete` + `missingRequiredTitles` props 노출.
+- **보조 액션 4개 보존**: 체크리스트에 흡수되지 않는 운영성 진입점 (참가팀/관리자/기록원/공개 사이트 외부 링크).
+
+검증 결과:
+- tsc → **0** (UI-1 신규 0 에러)
+- vitest setup-status → **35/35 PASS** (신규)
+- vitest 전체 tournaments → **121/121 PASS** (4 파일, 회귀 0)
+- schema 변경 **0** / API 신규 **0** / Flutter v1 영향 **0** / AppNav 영향 **0** (admin 영역)
+- 디자인 룰: `var(--color-*)` only / Material Symbols / 4px 라운드 / 44px+ 터치 / 빨강 본문 0
+
+💡 tester 참고:
+- 테스트 URL: `/tournament-admin/tournaments/{id}` (admin 권한 필요)
+- 진입 케이스 3종 — (a) 빈 신규 대회 (1/8) (b) 종별 정의 직후 (3/8 + 4·7·8 잠금) (c) 완전 박제 (8/8 공개 가능)
+- 정상 동작: progress bar % 일치 / locked 카드 클릭 무효 (Link wrapper X) / 카드 호버 elevated bg
+- 주의할 입력: `tournament.settings = null` / `divisionRules = []` / `auto_approve_teams = null` (boolean null = 미박제)
+
+⚠️ reviewer 참고:
+- `setup-status.ts` 의 잠금 조건 (1→3·6, 3→4, 4→7·8) 이 운영자 의도와 일치하는지
+- `isRecordingModeConfigured` 가 `default_recording_mode` 키 박제만 봄 — 기록자 1명 이상 가드는 의도적으로 생략 (선택 사항)
+- 보조 액션의 "공개 사이트 보기" external link 가 site.isPublished 조건부 — 비공개 시 숨김 (옳은 동작)
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[UI-1 dashboard 체크리스트 hub]** `/tournament-admin/tournaments/[id]` 8 메뉴카드 → 결정 8 항목 체크리스트 hub 재구성. (a) `setup-status.ts` 신규 — 8 항목 판정 함수 + `calculateSetupProgress` (잠금 1→3·6 / 3→4 / 4→7·8 + 공개 가드 `allRequiredComplete` 필수 7항목 ALL ✅ 시 true / 2 시리즈 = required=false 선택). (b) `SetupChecklist.tsx` 신규 (server) — progress bar + 8 카드 (✅ accent / 🔄 warning / ⚪/🔒 muted + opacity 0.6) + Material Symbols (`check_circle`/`pending`/`radio_button_unchecked`/`lock`/`chevron_right`) + 공개 가드 미충족 안내. (c) page.tsx — prisma include 에 `divisionRules { format, settings }` 추가 (N+1 회피) / 8 메뉴 폐기 / 보조 액션 4개 보존 (참가팀/관리자/기록원/공개 사이트 외부링크). vitest 35 케이스 신규 — 121/121 PASS (회귀 0) / tsc 0 / schema 0 / Flutter v1 0 / AppNav 0 / 빨강 본문 0. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[FIBA Phase 17 — 쿼터별 색상 + Legend]** 사용자 직접 결재 §1~§8 (14:00 KST). (a) `src/lib/score-sheet/period-color.ts` 신규 — `getPeriodColor` (Q1=text-primary / Q2=accent / Q3=success / Q4=warning / OT(5+)=primary) + `getPeriodLabel` + `getTimeoutPhaseColor` (전반/후반/OT) + `PERIOD_LEGEND` 5건 단일 source. (b) running-score-grid.tsx — 마킹 글리프 ●/◉/◎ + 등번호 색 = 하드코딩 accent → 동적 `getPeriodColor(mark.period)`. (c) team-section.tsx — Player Fouls **하이브리드** (글자=`getPeriodColor(period)` Q별 / 배경=신규 `FOUL_TYPE_BG_COLOR` 종류 옅은 톤 — P=투명/T=노랑/U=하늘 info/D=빨강) / Team Fouls 페어 박스 채움 = `getPeriodColor(period)` Period별 색 + Extra(OT) = primary / Time-outs X 마킹 = `getTimeoutPhaseColor` phase별 색. (d) period-color-legend.tsx 신규 — 5건 (Q1~Q4 + OT) 색 원(W=H 50%) + 한글 라벨 + `no-print` (frame 외부 / 인쇄 시 제외). (e) score-sheet-form.tsx — `<PeriodColorLegend />` frame 외부 (MatchEndButton 위). vitest 23건 신규 (Q1~OT + 경계 0 + cross-check) → 639 → **662/662 PASS** (회귀 0). tsc 0 / Flutter v1 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 핑크 0 / 빨강 본문 텍스트 0 (Q2/OT = 강조 마킹) / A4 fit 유지 (Legend = frame 외부). 주의: `--color-accent` ≈ `--color-primary` (둘 다 BDR Red) → Q2 ≈ OT 시각차 미세 (사용자 결재 §1 그대로). | ✅ |
 | 2026-05-13 | (코드 변경 0) | **[검토 — AI 자연어 대회 운영 가능성]** 결론: 가능 + Phase AI-1 (추천 시스템) 부터 점진 권장. 핵심 발견 = `@google/genai` Gemini 2.5 Flash 가 `src/lib/news/gemini-client.ts` 에서 이미 운영 중 (BDR NEWS / 알기자 / 프로필 bio) → LLM 인프라 재사용 100% / API key 신규 발급 0. 3 패턴 비교 (A 추천 200~400 LOC / B Structured 400~600 / C custom phase 1500+) + 비용 추정 (Gemini 무료 tier 1500 RPD 잔여 충분 / 월 50~150 호출) + 위험 5건 완화 방안 + 9 enum 표현 가능 시나리오 매트릭스. 운영자 결재 3택 — (가) AI-1 만 ⭐ / (나) AI-1+2 일괄 / (다) 보류. 산출물: scratchpad "검토 (planner-architect)" 신규 섹션 + Phase AI-1 파일 6개 설계 (신규 5 / 수정 1). 코드 변경 0 / DB SELECT 만. | ✅ 보고 |
 | 2026-05-13 | (커밋 대기) | **[Phase 3.5-F — advance_per_group 본선 진출 팀 수 설정]** (a) `shouldShowAdvancePerGroup()` 신규 — `group_stage_knockout` / `full_league_knockout` / `dual_tournament` 3 enum 시만 true. (b) `ADVANCE_PER_GROUP_DEFAULT = 2` 상수 (생활체육 표준 1·2위). (c) `validateDivisionSettings` 확장 — advance_per_group: 1~32 정수 + `<= group_size` 강제 (조 크기 초과 진출 차단). (d) divisions/page.tsx GroupSettingsInputs 에 input row 신규 — max=group_size HTML5 가드 + 박제 enum 전환 시 자동 정리 + 총 본선 진출 = advance_per_group × group_count 자동 계산 안내. (e) 가이드 li "조별 본선 진출 팀 수 설정 가능" 추가. (f) zod refine 메시지만 갱신 (검증 로직은 lib 위임으로 자동 반영). vitest 9건 신규 (shouldShowAdvancePerGroup True 3 / False 9 / advance_per_group 정상·범위외·상한·=group_size·단독·DEFAULT·강남시나리오) → 25 → 34 PASS. tsc 0 / vitest 전체 **639/639 PASS** (630 → +9) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
