@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 // 2026-05-13 UI-1.5 — 체크리스트 5번 카드(?step=2) 진입 시 RegistrationSettingsForm 영역 자동 이동
 //   useSearchParams 로 ?step=N 읽어 initialStep 설정 (1-based → currentStep N-1)
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { TossCard } from "@/components/toss/toss-card";
 import { ScheduleForm, type ScheduleFormData, type PlaceInfo } from "@/components/tournament/schedule-form";
 import {
@@ -15,48 +16,27 @@ import { GameTimeInput } from "@/components/tournament/game-time-input";
 import { GameBallInput } from "@/components/tournament/game-ball-input";
 // 2026-05-13 UI-1.2 — 빈 상태 인라인 시리즈 생성 폼 (공통 컴포넌트)
 import { InlineSeriesForm, type CreatedSeries } from "@/components/tournament/inline-series-form";
-// 대진 포맷 세부 설정 폼 — format 선택 UI 아래에 삽입
-import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
-// 2026-05-04 (P3) — 듀얼 토너먼트 표준 default 자동 적용 + 페어링 모드 type
-import {
-  DUAL_DEFAULT_BRACKET,
-  DUAL_DEFAULT_PAIRING,
-  type SemifinalPairingMode,
-} from "@/lib/tournaments/dual-defaults";
+// 2026-05-13 UI-3 — BracketSettingsForm / DUAL_DEFAULT_* / FORMAT_OPTIONS 제거.
+//   사유: 운영 방식(format/조 크기/본선 진출 등)은 /divisions 페이지(division_rules.format) 단일 source.
+//   wizard 가 중복 박제하던 settings.bracket / format state 모두 제거 → /divisions 페이지로 이관.
+// 2026-05-13 UI-4 — 디자인 / 공개여부 / 사이트 설정 제거.
+//   사유: 사이트 설정(서브도메인/배너/색상/공개)은 /site 페이지 단일 source.
+//   wizard 가 박제하던 design_template / logo_url / banner_url / primary_color / secondary_color / is_public 제거.
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
-import { ImageUploader } from "@/components/shared/image-uploader";
 // 2026-05-09: 사이트 전역 휴대폰 입력 컴포넌트 (자동 하이픈 / 11자리 / inputMode=numeric)
 //   conventions.md [2026-05-08] 사이트 전역 input 룰 — type="tel" 직접 사용 금지
 import { PhoneInput } from "@/components/inputs/phone-input";
-// 2026-05-11: BDR 브랜드 hex hardcode 단일화 (conventions.md `admin 빨강 본문 금지` 박제)
-import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
 
 // --- 3단계 구성 (생성 위자드와 동일) ---
+// 2026-05-13 UI-3/UI-4 — Step 3 라벨 = "확인 및 저장" 유지 (디자인 영역만 제거)
 const STEPS = [
   { key: "info", label: "대회 정보", icon: "emoji_events" },
   { key: "registration", label: "참가 설정", icon: "group_add" },
   { key: "confirm", label: "확인 및 저장", icon: "check_circle" },
 ];
 
-// 대회 방식 옵션 (4종 — 생성 위자드와 동일)
-const FORMAT_OPTIONS = [
-  { value: "group_stage_knockout", label: "조별리그+토너먼트" },
-  { value: "dual_tournament", label: "듀얼토너먼트" },
-  { value: "single_elimination", label: "토너먼트" },
-  { value: "full_league_knockout", label: "풀리그+토너먼트" },
-];
-
-// 레거시 format → 새 format 매핑 (기존 DB 값을 새 4종으로 변환)
-const LEGACY_FORMAT_MAP: Record<string, string> = {
-  single_elimination: "single_elimination",
-  double_elimination: "dual_tournament",
-  round_robin: "full_league_knockout",
-  group_stage: "group_stage_knockout",
-  group_stage_knockout: "group_stage_knockout",
-  swiss: "group_stage_knockout",
-  dual_tournament: "dual_tournament",
-  full_league_knockout: "full_league_knockout",
-};
+// 2026-05-13 UI-3 — FORMAT_OPTIONS / LEGACY_FORMAT_MAP 제거.
+//   사유: 운영 방식은 /divisions 페이지 단일 source. wizard 에서 format select 제거.
 
 // 성별 옵션 — BDR은 남성부/여성부만 운영 (혼성 없음)
 const GENDER_OPTIONS = [
@@ -124,8 +104,9 @@ export default function TournamentEditWizardPage() {
   const [showDivisionGenerator, setShowDivisionGenerator] = useState(false);
 
   // --- Step 1: 기본정보 + 일정/장소 + 경기설정 ---
+  // 2026-05-13 UI-3 — format state 제거 (운영 방식은 /divisions 단일 source)
+  // 2026-05-13 UI-4 — isPublic state 제거 (사이트 공개여부는 /site 단일 source)
   const [name, setName] = useState("");
-  const [format, setFormat] = useState("group_stage_knockout");
   const [status, setStatus] = useState("draft");
   const [description, setDescription] = useState("");
   const [organizer, setOrganizer] = useState("");
@@ -134,7 +115,6 @@ export default function TournamentEditWizardPage() {
   const [gender, setGender] = useState("male");
   const [rules, setRules] = useState("");
   const [prizeInfo, setPrizeInfo] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
 
   // 일정/장소 (places 배열 포함)
   const [schedule, setSchedule] = useState<ScheduleFormData>({
@@ -179,21 +159,8 @@ export default function TournamentEditWizardPage() {
   // --- 문의 연락처 (settings.contact_phone에 저장) ---
   const [contactPhone, setContactPhone] = useState("");
 
-  // --- 대진 포맷 세부 설정 (settings.bracket에 저장) ---
-  const [bracketSettings, setBracketSettings] = useState<BracketSettingsData>({
-    format: "group_stage_knockout",
-    knockoutSize: 8,
-    bronzeMatch: false,
-    groupCount: 2,
-    teamsPerGroup: 4,
-    advancePerGroup: 2,
-    autoGenerateMatches: true,
-    // 2026-05-04 (P3) — 듀얼 표준 default
-    semifinalPairing: DUAL_DEFAULT_PAIRING,
-  });
-
-  // 현재 참가팀 수 (미리보기/조별 팀수 계산용)
-  const [teamCount, setTeamCount] = useState<number | undefined>(undefined);
+  // 2026-05-13 UI-3 — bracketSettings state 제거 (운영 방식 = /divisions 단일 source).
+  //   settings.bracket 박제도 제거 — wizard 가 더 이상 덮어쓰지 않음.
 
   // 기존 settings 원본 — 저장 시 머지용 (다른 키 유실 방지)
   const [rawSettings, setRawSettings] = useState<Record<string, unknown>>({});
@@ -217,13 +184,8 @@ export default function TournamentEditWizardPage() {
   const [showSeriesForm, setShowSeriesForm] = useState(false);
   const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
 
-  // --- Step 3: 디자인 ---
-  const [designTemplate, setDesignTemplate] = useState("basic");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [bannerUrl, setBannerUrl] = useState("");
-  // BDR 브랜드 hex 초기값 (lib/constants/colors.ts 단일 source)
-  const [primaryColor, setPrimaryColor] = useState(BDR_PRIMARY_HEX);
-  const [secondaryColor, setSecondaryColor] = useState(BDR_SECONDARY_HEX);
+  // 2026-05-13 UI-4 — 디자인 state 5종 (designTemplate / logoUrl / bannerUrl / primaryColor / secondaryColor) 제거.
+  //   사유: 사이트 설정은 /site 페이지 단일 source. wizard 가 더 이상 박제하지 않음.
 
   // 디비전 정원 합산 — 자동 계산에 사용
   const totalDivCaps = Object.values(registration.divCaps).reduce((s, v) => s + v, 0);
@@ -244,10 +206,9 @@ export default function TournamentEditWizardPage() {
       const t = json.data ?? json;
 
       // 기본 정보
+      // 2026-05-13 UI-3 — format 복원 제거 (운영 방식은 /divisions 단일 source)
+      // 2026-05-13 UI-4 — isPublic 복원 제거 (사이트 공개여부는 /site 단일 source)
       setName(t.name ?? "");
-      // 레거시 format 매핑: DB 값이 새 4종에 없으면 변환
-      const dbFormat = t.format ?? "group_stage_knockout";
-      setFormat(LEGACY_FORMAT_MAP[dbFormat] ?? dbFormat);
       setStatus(t.status ?? "draft");
       setDescription(t.description ?? "");
       setOrganizer(t.organizer ?? "");
@@ -256,7 +217,6 @@ export default function TournamentEditWizardPage() {
       setGender(t.gender ?? "male");
       setRules(t.rules ?? "");
       setPrizeInfo(t.prize_info ?? t.prizeInfo ?? "");
-      setIsPublic(t.is_public ?? t.isPublic ?? true);
 
       // 일정/장소
       setSchedule({
@@ -299,13 +259,7 @@ export default function TournamentEditWizardPage() {
         autoCalcMaxTeams: false,
       });
 
-      // 디자인
-      setDesignTemplate(t.design_template ?? t.designTemplate ?? "basic");
-      setLogoUrl(t.logo_url ?? t.logoUrl ?? "");
-      setBannerUrl(t.banner_url ?? t.bannerUrl ?? "");
-      // DB primary/secondary_color 폴백도 lib/constants/colors.ts 단일 source 적용
-      setPrimaryColor(t.primary_color ?? t.primaryColor ?? BDR_PRIMARY_HEX);
-      setSecondaryColor(t.secondary_color ?? t.secondaryColor ?? BDR_SECONDARY_HEX);
+      // 2026-05-13 UI-4 — 디자인 5종 복원 제거 (사이트 설정은 /site 단일 source)
 
       // 문의 연락처 (settings JSON에서 읽기)
       const settings = (t.settings ?? {}) as Record<string, unknown>;
@@ -321,37 +275,9 @@ export default function TournamentEditWizardPage() {
           : String(initialSeriesId),
       );
 
-      // 대진 포맷 세부 설정 복원
-      // settings.bracket이 없으면 format 기반 기본값으로 초기화
-      const bracket = (settings.bracket ?? {}) as Record<string, unknown>;
-      const loadedFormat = LEGACY_FORMAT_MAP[dbFormat] ?? dbFormat;
-      // 2026-05-04 (P3) — semifinalPairing 복원 (DB 저장값 우선 / 미존재 시 표준 default)
-      // 5/2 운영 대회 (138b22d8) 는 settings.bracket.semifinalPairing="adjacent" 가 박혀 있어야 영향 0
-      const loadedPairing: SemifinalPairingMode =
-        bracket.semifinalPairing === "adjacent"
-          ? "adjacent"
-          : bracket.semifinalPairing === "sequential"
-            ? "sequential"
-            : DUAL_DEFAULT_PAIRING;
-      setBracketSettings({
-        format: loadedFormat,
-        knockoutSize: typeof bracket.knockoutSize === "number" ? bracket.knockoutSize : 8,
-        bronzeMatch: typeof bracket.bronzeMatch === "boolean" ? bracket.bronzeMatch : false,
-        groupCount: typeof bracket.groupCount === "number" ? bracket.groupCount : 2,
-        teamsPerGroup: typeof bracket.teamsPerGroup === "number" ? bracket.teamsPerGroup : 4,
-        advancePerGroup: typeof bracket.advancePerGroup === "number" ? bracket.advancePerGroup : 2,
-        autoGenerateMatches: typeof bracket.autoGenerateMatches === "boolean" ? bracket.autoGenerateMatches : true,
-        hasGroupFinal: typeof bracket.hasGroupFinal === "boolean" ? bracket.hasGroupFinal : undefined,
-        semifinalPairing: loadedPairing,
-      });
-
-      // 현재 참가팀 수 — _count.tournamentTeams 우선, 없으면 teams_count, 그것도 없으면 maxTeams
-      const count =
-        t._count?.tournamentTeams ??
-        t.teams_count ??
-        t.teamCount ??
-        undefined;
-      setTeamCount(typeof count === "number" ? count : undefined);
+      // 2026-05-13 UI-3 — settings.bracket 복원 로직 제거.
+      //   기존 settings.bracket 키는 rawSettings 안에 그대로 유지(머지)되므로 데이터 손실 없음.
+      //   wizard 가 더 이상 settings.bracket 을 노출/수정하지 않음. /divisions 페이지가 단일 source.
     } catch {
       setError("대회 정보를 불러오지 못했습니다.");
     } finally {
@@ -434,29 +360,7 @@ export default function TournamentEditWizardPage() {
     setShowSeriesForm(false);
   }
 
-  // format 선택이 바뀌면 bracketSettings.format도 동기화 (요약/분기용)
-  // 2026-05-04 (P3) — dual_tournament 로 변경 시 표준 default 자동 적용
-  //   기존 dual 대회는 loadTournament 가 settings.bracket 복원 (semifinalPairing 보존)
-  //   사용자가 다른 포맷에서 dual 로 전환 시 표준값 자동 채움 (전환 직후 저장 시 표준 적용)
-  useEffect(() => {
-    setBracketSettings((prev) => {
-      if (prev.format === format) return prev;
-      if (format === "dual_tournament") {
-        return {
-          ...prev,
-          format,
-          groupCount: DUAL_DEFAULT_BRACKET.groupCount,
-          teamsPerGroup: DUAL_DEFAULT_BRACKET.teamsPerGroup,
-          advancePerGroup: DUAL_DEFAULT_BRACKET.advancePerGroup,
-          knockoutSize: DUAL_DEFAULT_BRACKET.knockoutSize,
-          bronzeMatch: DUAL_DEFAULT_BRACKET.bronzeMatch,
-          hasGroupFinal: DUAL_DEFAULT_BRACKET.hasGroupFinal,
-          semifinalPairing: prev.semifinalPairing ?? DUAL_DEFAULT_PAIRING,
-        };
-      }
-      return { ...prev, format };
-    });
-  }, [format]);
+  // 2026-05-13 UI-3 — format 동기화 useEffect 제거 (format/bracketSettings state 자체 제거됨)
 
   // 시리즈 드롭다운 status 가드 (2026-05-12 PR2)
   // 이유: 진행 중/종료된 대회는 시리즈 "변경" 금지 (PR1 API status 가드와 동일).
@@ -549,8 +453,9 @@ export default function TournamentEditWizardPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // 2026-05-13 UI-3 — format 키 제거 (운영 방식은 /divisions 단일 source)
+          // 2026-05-13 UI-4 — is_public 키 제거 (사이트 공개여부는 /site 단일 source)
           name,
-          format,
           status,
           // 시리즈 연결 (2026-05-12 PR2) — null=분리, "8"=연결.
           // PR1 API 는 series_id 키 (snake_case) 그대로 받음 + 카운터 동기화/$transaction 처리.
@@ -562,7 +467,6 @@ export default function TournamentEditWizardPage() {
           gender: gender || null,
           rules: rules || null,
           prize_info: prizeInfo || null,
-          is_public: isPublic,
           // 일정
           startDate: schedule.startDate || null,
           endDate: schedule.endDate || null,
@@ -594,30 +498,14 @@ export default function TournamentEditWizardPage() {
           roster_min: Number(teamSettings.rosterMin) || 5,
           roster_max: Number(teamSettings.rosterMax) || 12,
           auto_approve_teams: teamSettings.autoApproveTeams,
-          // 디자인
-          design_template: designTemplate || null,
-          logo_url: logoUrl || null,
-          banner_url: bannerUrl || null,
-          primary_color: primaryColor,
-          secondary_color: secondaryColor,
-          // settings JSON — 기존 값 유지 + 문의 연락처 + 대진 포맷 세부 설정
-          // (API PATCH는 DB의 현재 settings와 다시 머지하지만, 여기서도 rawSettings를 섞어 보내
-          //  다른 키가 실수로 누락되는 상황을 방지)
+          // 2026-05-13 UI-4 — 디자인 5종 (design_template / logo_url / banner_url / primary_color / secondary_color) 박제 제거.
+          //   사이트 설정은 /site 페이지 단일 source.
+          // settings JSON — 기존 값(rawSettings) 보존 + 문의 연락처만 갱신.
+          //   2026-05-13 UI-3 — settings.bracket 박제 제거. 기존 키는 rawSettings 안에 보존되므로
+          //   /divisions 페이지 또는 별도 경로가 유일한 갱신 통로.
           settings: {
             ...rawSettings,
             contact_phone: contactPhone || null,
-            // 2026-05-04 (P3) — dual 표준 default: semifinalPairing/hasGroupFinal/teamsPerGroup 추가
-            //   bracket route 의 generateDualTournament 가 settings.bracket.semifinalPairing 참조
-            bracket: {
-              knockoutSize: bracketSettings.knockoutSize,
-              bronzeMatch: bracketSettings.bronzeMatch,
-              groupCount: bracketSettings.groupCount,
-              teamsPerGroup: bracketSettings.teamsPerGroup,
-              advancePerGroup: bracketSettings.advancePerGroup,
-              autoGenerateMatches: bracketSettings.autoGenerateMatches,
-              hasGroupFinal: bracketSettings.hasGroupFinal,
-              semifinalPairing: bracketSettings.semifinalPairing,
-            },
           },
         }),
       });
@@ -884,16 +772,22 @@ export default function TournamentEditWizardPage() {
               />
             </div>
 
-            {/* 공개 여부 */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="is_public"
-                checked={isPublic}
-                onChange={(e) => setIsPublic(e.target.checked)}
-                className="accent-[var(--color-primary)]"
-              />
-              <label htmlFor="is_public" className="text-sm">공개 대회</label>
+            {/*
+              2026-05-13 UI-4 — 공개 여부 토글 제거.
+              사유: 사이트 공개여부(is_public) 는 /site 페이지 단일 source.
+              wizard 가 박제하던 is_public 키 제거 + 안내 박스로 운영자 이동 유도.
+            */}
+            <div className="rounded-[4px] border border-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)] p-3">
+              <p className="mb-2 text-sm text-[var(--color-text-secondary)]">
+                <span className="material-symbols-outlined align-middle text-base text-[var(--color-info)]">info</span>{" "}
+                대회 공개 여부 / 서브도메인 / 배너 / 색상 등 사이트 노출 설정은 별도 페이지에서 진행합니다.
+              </p>
+              <Link
+                href={`/tournament-admin/tournaments/${id}/site`}
+                className="text-sm font-medium text-[var(--color-info)] hover:underline"
+              >
+                사이트 설정 페이지로 이동 →
+              </Link>
             </div>
           </TossCard>
 
@@ -914,48 +808,25 @@ export default function TournamentEditWizardPage() {
           <TossCard className="space-y-6 hover:scale-100">
             <SectionTitle icon="sports_basketball">경기 설정</SectionTitle>
 
-            {/* 대회 방식 (FORMAT 4종) */}
-            <div>
-              <label className={labelCls}>대회 방식</label>
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-                className={inputCls}
-                disabled={status === "in_progress" || status === "completed"}
-              >
-                {FORMAT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* 대진 포맷 세부 설정 — 대회 진행/종료 시 잠금 */}
-            <BracketSettingsForm
-              data={bracketSettings}
-              teamCount={teamCount ?? (Number(teamSettings.maxTeams) || undefined)}
-              disabled={status === "in_progress" || status === "completed"}
-              onChange={(field, value) =>
-                setBracketSettings((prev) => ({ ...prev, [field]: value }))
-              }
-            />
-
             {/*
-              2026-05-13 P2 — dual_tournament 정합성 경고 (16팀 고정 vs 디비전 정원 합산).
-              이유: dual_tournament 는 4조×4팀 미니 더블엘리미 = 16팀 고정 포맷이라
-                divCaps 합산 ≠ 16 이면 대진표 생성 단계에서 누락/부전승 자동 발생.
-              사후 가드(생성 시점) 보다 사전 안내가 운영자에게 친절. divCaps 미입력(0)은 경고 X.
+              2026-05-13 UI-3 — 대회 방식(FORMAT select) + 대진 포맷 세부 설정(BracketSettingsForm) +
+              듀얼 정합성 경고 모두 제거.
+              사유: 운영 방식(format / 조 크기 / 본선 진출 팀 등) 은 종별별로 다르므로
+                /divisions 페이지(division_rules.format) 단일 source 에서 박제.
+                wizard 가 중복 박제하던 settings.bracket / format 컬럼 갱신 제거.
             */}
-            {format === "dual_tournament" && totalDivCaps > 0 && (
-              totalDivCaps === 16 ? (
-                <p className="text-xs text-[var(--color-success)]">
-                  ✅ 디비전 정원 합산 16팀 — 듀얼 대진과 일치합니다.
-                </p>
-              ) : (
-                <div className="rounded-[4px] border border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_8%,transparent)] p-2 text-xs">
-                  ⚠️ 듀얼 토너먼트는 16팀 고정인데 디비전 정원 합산이 {totalDivCaps}팀입니다. 정원을 16팀으로 맞춰주세요.
-                </div>
-              )
-            )}
+            <div className="rounded-[4px] border border-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)] p-3">
+              <p className="mb-2 text-sm text-[var(--color-text-secondary)]">
+                <span className="material-symbols-outlined align-middle text-base text-[var(--color-info)]">info</span>{" "}
+                종별별 운영 방식(대회 포맷 · 조 크기 · 본선 진출 팀 등)은 종별 운영 페이지에서 설정합니다.
+              </p>
+              <Link
+                href={`/tournament-admin/tournaments/${id}/divisions`}
+                className="text-sm font-medium text-[var(--color-info)] hover:underline"
+              >
+                종별 운영 페이지로 이동 →
+              </Link>
+            </div>
 
             {/* 경기시간 프리셋 */}
             <GameTimeInput value={gameTime} onChange={setGameTime} />
@@ -1049,146 +920,26 @@ export default function TournamentEditWizardPage() {
       )}
 
       {/* ================================================================
-       * Step 3: 확인 및 저장 (디자인 + 미리보기)
+       * Step 3: 확인 및 저장
+       * 2026-05-13 UI-4 — 디자인 카드 (템플릿/로고/배너/색상/미리보기) 통째로 제거.
+       *   사이트 설정은 /site 페이지 단일 source. wizard 는 "확인 및 저장" 만 보존.
        * ================================================================ */}
       {currentStep === 2 && (
         <div className="space-y-4">
-          {/* --- 디자인 설정 --- */}
-          <TossCard className="space-y-5 hover:scale-100">
-            <SectionTitle icon="palette">디자인</SectionTitle>
-
-            {/* 템플릿 선택 — 4종 pill 버튼 */}
-            <div>
-              <label className={labelCls}>템플릿</label>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { value: "basic", label: "기본형", icon: "gradient" },
-                    { value: "poster", label: "포스터형", icon: "image" },
-                    { value: "logo", label: "로고형", icon: "badge" },
-                    { value: "photo", label: "사진형", icon: "photo_camera" },
-                  ] as const
-                ).map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setDesignTemplate(t.value)}
-                    className={pillCls(designTemplate === t.value)}
-                  >
-                    <span className="material-symbols-outlined text-sm align-middle mr-1">{t.icon}</span>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 대회 로고 업로드 (1:1 비율) */}
-            <ImageUploader
-              value={logoUrl}
-              onChange={setLogoUrl}
-              bucket="tournament-images"
-              path={`tournaments/${id}/logo`}
-              label="대회 로고"
-              aspectRatio="1/1"
-              maxSizeMB={5}
-            />
-
-            {/* 대회 포스터/배너 업로드 (16:9 비율) */}
-            <ImageUploader
-              value={bannerUrl}
-              onChange={setBannerUrl}
-              bucket="tournament-images"
-              path={`tournaments/${id}/banner`}
-              label="대회 포스터"
-              aspectRatio="16/9"
-              maxSizeMB={5}
-            />
-
-            {/* 색상 설정 */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelCls}>대표 색상</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-12 w-16 cursor-pointer rounded-md border-none bg-transparent p-0"
-                  />
-                  <span className="text-sm text-[var(--color-text-muted)]">{primaryColor}</span>
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>보조 색상</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    className="h-12 w-16 cursor-pointer rounded-md border-none bg-transparent p-0"
-                  />
-                  <span className="text-sm text-[var(--color-text-muted)]">{secondaryColor}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 실시간 미리보기 — 선택한 템플릿에 따라 다르게 표시 */}
-            <div>
-              <label className={labelCls}>미리보기</label>
-              <div className="overflow-hidden rounded-md" style={{ aspectRatio: "16/9" }}>
-                {/* basic: 그라디언트 배경 + 제목 */}
-                {designTemplate === "basic" && (
-                  <div
-                    className="flex h-full items-end p-6"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                  >
-                    <p className="text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
-                  </div>
-                )}
-                {/* poster: 배너 이미지 전체 배경 + 제목 오버레이 */}
-                {designTemplate === "poster" && (
-                  <div className="relative flex h-full items-end">
-                    {bannerUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={bannerUrl} alt="포스터" className="absolute inset-0 h-full w-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }} />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <p className="relative p-6 text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
-                  </div>
-                )}
-                {/* logo: 색상 배경 + 중앙 로고 */}
-                {designTemplate === "logo" && (
-                  <div
-                    className="flex h-full flex-col items-center justify-center gap-3"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                  >
-                    {logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={logoUrl} alt="로고" className="h-16 w-16 rounded-md object-cover shadow-lg" />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-md bg-white/20 text-white">
-                        <span className="material-symbols-outlined text-3xl">emoji_events</span>
-                      </div>
-                    )}
-                    <p className="text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
-                  </div>
-                )}
-                {/* photo: 배너 사진 + 어두운 오버레이 + 제목 */}
-                {designTemplate === "photo" && (
-                  <div className="relative flex h-full items-end">
-                    {bannerUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={bannerUrl} alt="사진" className="absolute inset-0 h-full w-full object-cover" />
-                    ) : (
-                      <div className="absolute inset-0 bg-[var(--color-surface)]" />
-                    )}
-                    <div className="absolute inset-0 bg-black/50" />
-                    <p className="relative p-6 text-lg font-bold text-white drop-shadow">{name || "대회 이름"}</p>
-                  </div>
-                )}
-              </div>
+          {/* --- 사이트 설정 안내 --- */}
+          <TossCard className="hover:scale-100">
+            <SectionTitle icon="palette">사이트 설정</SectionTitle>
+            <div className="mt-4 rounded-[4px] border border-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_8%,transparent)] p-3">
+              <p className="mb-2 text-sm text-[var(--color-text-secondary)]">
+                <span className="material-symbols-outlined align-middle text-base text-[var(--color-info)]">info</span>{" "}
+                서브도메인 · 배너 · 색상 · 로고 · 공개 여부 등 사이트 표시 설정은 별도 페이지에서 진행합니다.
+              </p>
+              <Link
+                href={`/tournament-admin/tournaments/${id}/site`}
+                className="text-sm font-medium text-[var(--color-info)] hover:underline"
+              >
+                사이트 설정 페이지로 이동 →
+              </Link>
             </div>
           </TossCard>
 
@@ -1198,11 +949,11 @@ export default function TournamentEditWizardPage() {
 
             <div className="mt-4 space-y-3 text-sm">
               {/* 기본 정보 */}
+              {/* 2026-05-13 UI-3 — "형식" Row 제거 (format 컬럼은 /divisions 단일 source) */}
               <div className="rounded-md bg-[var(--color-elevated)] p-4 space-y-2">
                 <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide">대회 정보</p>
                 <Row label="대회명" value={name || "미입력"} />
                 <Row label="상태" value={STATUS_OPTIONS.find((s) => s.value === status)?.label ?? status} />
-                <Row label="형식" value={FORMAT_OPTIONS.find((f) => f.value === format)?.label ?? format} />
                 <Row label="성별" value={GENDER_OPTIONS.find((g) => g.value === gender)?.label ?? gender} />
                 {organizer && <Row label="주최" value={organizer} />}
                 {host && <Row label="주관" value={host} />}
