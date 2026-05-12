@@ -146,10 +146,22 @@
     text-shadow: none !important;
   }
 
-  /* 다만 의도된 박스/하이라이트는 회색 톤으로 살림.
-     이유: Time-outs / Team fouls 마킹 칸 = filled 식별 필요 (검정 ●). */
+  /* Phase 11 §5-3 (2026-05-12) — 마킹 색 회색 → 검정 (FIBA 정합 / reviewer Minor).
+     이유: FIBA 종이기록지는 마킹이 검정 펜으로 진하게 — 인쇄 시 e0e0e0 회색 → 검정 #000 강제.
+     적용: Time-outs X / Team fouls 박스 채움 / Player Fouls P/T/U/D / Mark 클래스. */
   .score-sheet-print-root [aria-label*="마킹됨"] {
-    background: #e0e0e0 !important;
+    background: #000000 !important;
+  }
+  /* Phase 11 §5-3 — `.mark` 클래스가 붙은 모든 요소의 텍스트/배경 검정 강제 (라이트 강제 인쇄 시).
+     이유: Player Fouls 칸 (P/T/U/D) / Team fouls 박스 안 1·2·3·4 / Time-outs X 글자 등 색상 토큰을
+     검정으로 통일 — FIBA PDF 정합. */
+  .score-sheet-print-root .mark {
+    color: #000000 !important;
+  }
+  /* Mark 박스가 채워진 (배경 검정 채움) 상태일 때는 위 색 강제 충돌 — aria-label*="마킹됨" 룰이 우선 적용 */
+  .score-sheet-print-root .mark[aria-label*="마킹됨"] {
+    color: #ffffff !important;
+    background: #000000 !important;
   }
 
   /* border = 검정 1px 통일 (FIBA PDF 정합 / Phase 8 — 회색 → 검정).

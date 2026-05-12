@@ -384,9 +384,72 @@ Phase 11 = 1 PR ~82 LOC. 우선순위: Critical Team fouls 재결재 → Major 3
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 11 정밀 미세 fix (2026-05-12)
+
+📝 구현 범위: Critical 1 + Major 3 + Minor 8 통합 fix (사용자 결재 7건 확정) — A4 fit 보장 + FIBA PDF 정합 12 차이 fix
+
+### 변경 파일 (7개 / +253/-109)
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `team-section.tsx` | §1 Team fouls 박스 안 1·2·3·4 라벨 복원 (Phase 10 §F 회귀 fix — FIBA 종이기록지 정합) + 마킹 시 박스 검정 채움 글자 흰색 / §1 Extra(OT) 동일 / §2 `fillRowsTo15` → `fillRowsTo16` 갱신 + `fillRowsTo15` `fillRowsTo12` 두 deprecated alias 유지 / §2 행 22 → 20px (16행 × 20 = 320px / A4 fit) / `.mark` 클래스 = Player Fouls 칸 + Time-outs 버튼 (인쇄 시 검정 강제) / 상단 주석 Phase 11 추가 | 수정 |
+| `team-section-fill-rows.test.ts` | 4건 갱신 (15 → 16 회귀 가드 / 빈 / 5 / 16 / 18명) + 2 deprecated alias 회귀 가드 (`fillRowsTo15` `fillRowsTo12` → `fillRowsTo16` alias) / 총 8건 PASS | 수정 |
+| `footer-signatures.tsx` | §3 운영진 4 컬럼 가로 → 세로 4줄 (frameless 분기 / labelWidth 140 정렬) + 심판 3컬럼 유지 / SigInput `labelWidth` 옵션 신규 / inline minHeight 22 → 26px (4줄 × 26 = 104px) / 풋터 py-1 → py-0.5 컴팩트 (A4 fit) | 수정 |
+| `period-scores-section.tsx` | §4 Final Score 아래 "Name of winning team: ____" underscore 라인 별도 추가 / winner 자동 계산 시 팀명 fill / 미결·동점 시 빈 underscore (운영자 펜 입력) | 수정 |
+| `running-score-grid.tsx` | §5-2 "RUNNING SCORE" 헤더 11px → 14px (FIBA 정합 시인성 ↑) | 수정 |
+| `fiba-header.tsx` | §5-2 BDR 로고 24×12 → 30×15 / SCORESHEET 13px → 16px (FIBA 정합 시인성 ↑) / py-1 → py-0.5 컴팩트 (A4 fit / 헤더 ~95px) | 수정 |
+| `_print.css` | §5-3 마킹 색 회색 `#e0e0e0` → 검정 `#000000` (FIBA 정합) / `.mark` 클래스 추가 룰 (텍스트 검정 강제 / 채워진 mark 는 흰색 글자 + 검정 배경) | 수정 |
+
+### A4 fit 재검증 (Phase 11)
+- Players: **16행 × 20px = 320px** (Phase 10 = 15×22 = 330 / -10px)
+- Team A+B 합: ~800px (헤더 부분 thead 20 + 본문 320 + Coach/Asst 등 ~40 = ~380 / 2 팀 = ~760)
+- 헤더: 4 줄 × ~22 = **~95px** (Phase 9 = 110 / -15)
+- 풋터 세로 4줄 + 심판 3컬럼 + 주장: 4×26 + 26 + 26 = **~156px** (운영진 세로 = 104 / 심판 26 / 주장 26)
+- 좌측 총합: 760 + 95 + 156 ≈ **~1011px** (A4 1123 fit ✓ / 여유 ~112px)
+
+### 12 차이 fix 매트릭스
+| # | 영역 | Phase 10 → Phase 11 |
+|---|------|--------------------|
+| §1 Critical | Team fouls 박스 | 빈 박스 (라벨 폐기) → 박스 안 1·2·3·4 라벨 + 마킹 시 검정 채움 흰색 글자 |
+| §2 Major | Players 행수 | 15행 → **16행** (FIBA 표준) + 행 22 → 20px |
+| §3 Major | 풋터 운영진 | 가로 4 컬럼 (sm:grid-cols-4) → **세로 4줄** (labelWidth 140) |
+| §4 Major | Winning team | "★ Winner: 팀명" 강조만 → 별도 "Name of winning team: ____" underscore 라인 + winner 자동 fill |
+| §5-1 Minor | Running Score 우측 행번호 | 좌측 1개만 → (Phase 11 보류 — 칸 폭 부족 / Phase 12 후속) |
+| §5-2 Minor | Running Score 헤더 크기 | 11px → **14px** |
+| §5-2 Minor | 로고 / SCORESHEET 크기 | 24×12 / 13px → **30×15 / 16px** |
+| §5-3 Minor | 인쇄 마킹 색 | 회색 #e0e0e0 → **검정 #000** + `.mark` 클래스 강제 |
+| §5-4 Minor | A4 fit 압축 | Phase 10 ~1058px → Phase 11 ~1011px (16행 추가하면서 헤더/풋터 압축) |
+| §5-5 Minor | inline minHeight | 22 → **26px** (운영진 4줄 정렬 가독성) |
+| §5-6 Minor | 헤더 패딩 | py-1 → **py-0.5** (헤더 95px target) |
+| §5-7 Minor | 풋터 패딩 | py-1 → **py-0.5** (4줄 fit) |
+
+### 검증
+- **tsc**: `npx tsc --noEmit` **0 에러**
+- **vitest**: **586/586 PASS** (Phase 10 543 → Phase 11 586 / fill-rows 16행 회귀 가드 추가 / 회귀 0)
+- **lucide-react / 핑크 / 살몬 / 코랄 본문 색**: 0건 (주석만 검출 — 가드 라벨)
+- **schema 변경**: 0 / **Flutter v1 API 영향**: 0 / **AppNav frozen 영향**: 0
+- **BFF / service 변경**: 0 (UI 디자인 fix만)
+
+💡 tester 참고
+- **테스트 방법**:
+  1. `/score-sheet/{matchId}` 진입 → 라인업 모달 → 양 팀 선발 5 + 후보 선택
+  2. Team A/B 영역 = 박스 안 1·2·3·4 작은 회색 숫자 보임 → Player Fouls 마킹 → Team fouls 박스 검정 채움 + 흰색 글자 → 시각 확인
+  3. Players 표 = 16행 (15행 → 16행) — 빈 행 1개 늘어남
+  4. 풋터 운영진 = "Scorer: ____ / Assistant scorer: ____ / Timer: ____ / Shot Clock Operator: ____" 세로 4줄 + 라벨 정렬 통일
+  5. Final Score 아래 = "Name of winning team: ____" underscore 라인 + winner 자동 fill
+  6. 인쇄 미리보기 (Cmd+P / Ctrl+P) — A4 1 페이지 fit ✓ / 마킹 색 검정 진하게
+- **정상 동작**: A4 한 장에 모든 영역 fit, FIBA PDF 1:1 정합 시각
+- **주의할 입력**: Players 16명 초과 (운영 안정성 — 잘라내지 X / 18명 → 18행 그대로 표시)
+
+⚠️ reviewer 참고
+- §1 Team fouls 박스 안 라벨 = `.mark` 클래스 추가 (인쇄 시 검정 강제용) — 박스 채워진 상태에서 `aria-label*="마킹됨"` 룰 우선 적용으로 흰색 글자 ✓
+- §5-1 Running Score 우측 행번호 = Phase 11 보류 (칸 폭 부족 / 좌측 1개로 시인성 충분 / Phase 12 후속 검토 큐잉)
+- A4 fit 마진 = ~112px 여유 / 16행 + 세로 4줄 동시 흡수 후에도 fit ✓
+- fillRowsTo12 / fillRowsTo15 두 alias 모두 fillRowsTo16 으로 통합 — 회귀 가드 8 테스트로 검증
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 11]** 정밀 미세 fix (Critical 1 + Major 3 + Minor 8) — §1 Team fouls 박스 안 1·2·3·4 라벨 복원 (Phase 10 §F 회귀 fix / FIBA 정합) + 마킹 시 검정 채움 글자 흰색 / §2 fillRowsTo15 → fillRowsTo16 (15→16행 / FIBA 표준) + 행 22→20px (16×20=320 / A4 fit) / §3 풋터 운영진 가로 4컬럼 → 세로 4줄 + labelWidth 140 정렬 / §4 "Name of winning team: ____" underscore 라인 별도 추가 (자동 winner 채움) / §5-1 RUNNING SCORE 헤더 11→14px / §5-2 로고 24×12→30×15, SCORESHEET 13→16px / §5-3 인쇄 마킹 색 회색 #e0e0e0→검정 #000 + `.mark` 클래스 검정 강제 / §5-4 fiba-header py-1→0.5 + footer py-1→0.5 (헤더 95 / 풋터 156 fit). 7 파일 +253/-109. tsc 0 / vitest 586/586 PASS (Phase 10 543 + 신규 fill-rows 16행 회귀 가드 등). 회귀 0. schema 변경 0 / Flutter v1 영향 0. A4 fit 좌측 ~999px (1123 fit ✓). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase B-3 cron audit + Phase C 시리즈 PATCH/DELETE]** B-3) `/api/cron/series-counter-audit` GET (DRY-RUN, 매월 1일 0시 cron) — series.tournaments_count + organizations.series_count 정합성 자동 점검 + 불일치 시 console.warn (UPDATE 0). C-1) `requireSeriesEditor` 헬퍼 신규 (Q2: organizer + 단체 owner/admin + super_admin) + `isOrganizationEditor` 헬퍼. C-2) `/api/web/series/[id]` PATCH (name/desc/is_public/organization_id 변경 + 양쪽 단체 권한 검증 + 카운터 동기화 $transaction) + DELETE Hard (?hard=1 super_admin only + tournaments series_id NULL 분리 + organizations.series_count -1). C-3) 시리즈 [id] 페이지 헤더 편집/삭제 버튼 + edit/page.tsx (server 가드 + client form) + delete-series-button.tsx (시리즈명 입력 매칭 confirm). vitest +21 (PATCH 권한 6 + organization_id 5 + DELETE 4 + cron 5 + 회귀 1). tsc 0 / vitest 584/584 PASS. Flutter v1 영향 0 / schema 변경 0 / 운영 DB 변경 0. soft DELETE = 별 PR (status 컬럼 정책 결재 필요). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase B 정합성 가드 + callbackUrl fix]** A) extractRedirectFromQuery + extractRedirectFromValues 헬퍼 신규 (redirect 우선 / callbackUrl 폴백) → login page + auth.ts loginAction + /api/auth/login OAuth 시작점 통합 (proxy.ts 가 callbackUrl 박제 → 사일런트 무시 사고 영구 차단). B-1) createTournament service `seriesId?: bigint` + `$transaction` 카운터 +1 + wizard route requireSeriesOwner 권한 검증. B-2) `/api/web/tournaments/[id]` DELETE 핸들러 신규 (soft=status='cancelled' / hard=`?hard=1` super_admin only + series 카운터 -1 + adminLog warning/critical). vitest +22 (redirect +10 / create-tournament +4 / delete +6 / 회귀 +2). tsc 0 / vitest 563/563 PASS. Flutter v1 영향 0 / schema 변경 0 / 운영 DB 변경 0. B-3 cron audit = 별 PR 큐잉. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 10]** 정밀 디자인 fix (Critical 4 + Major 3) — §B 헤더 underscore (큰 박스 폐기) / §C Players 15행 (fillRowsTo12 → fillRowsTo15 alias 유지) + 행 24→22px / §E Time-outs 빈 박스 + 마킹 시 X 글자 / §F Team fouls 1·2·3·4 빈 박스 + 마킹 시 검정 채움 (1·2·3·4 라벨 폐기) / §G Player Fouls 1-5 빈 박스 + 마킹 시 P/T/U/D 글자만. §A·§D 결재 = BDR 브랜드 + 자동 fill 유지 (변경 0). 2 파일. tsc 0 / vitest 543/543 PASS (기존 541 + 신규 2 alias 회귀 가드). A4 fit 좌측 ~1058px / 1123 안 fit ✓. 회귀 0. | ✅ |
@@ -397,7 +460,6 @@ Phase 11 = 1 PR ~82 LOC. 우선순위: Critical Team fouls 재결재 → Major 3
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 7.1]** LineupSelectionModal 확장 — 전체 선택/해제 + FIBA 12명 cap (Article 4.2.2) + 13번째 차단 + applyRosterCap 헬퍼 + isLineupSelectionValid 12명 상한. tsc 0 / vitest 533/533 (+7). 회귀 0. schema 변경 0. | ✅ |
 | 2026-05-12 | d89f600 | **[live]** score-match swap-aware 백포트 — 5/10 결승 영상 사고 2차 fix | ✅ |
 | 2026-05-12 | ff190a7 | **[live]** 결승 영상 매핑 오류 fix — auto-register 1:1 매핑 가드 백포트 | ✅ |
-| 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |
 
 ## 구현 기록 (developer) — FIBA Phase 10 정밀 디자인 fix (2026-05-12)
 
