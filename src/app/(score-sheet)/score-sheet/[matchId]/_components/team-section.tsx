@@ -2,12 +2,18 @@
  * FIBA SCORESHEET TeamSection — Team A 또는 B 의 좌 절반 영역 박제.
  *
  * 2026-05-11 — Phase 1 신규 (planner-architect §작업 4).
+ * 2026-05-12 — Phase 10 정밀 디자인 fix (사용자 결재 §B·§C·§E·§F·§G).
+ *   §B 헤더 = "Team A ____슬로우____" underscore (큰 박스 폐기)
+ *   §C Players 15행 (12 → 15 / FIBA 종이기록지 표준)
+ *   §E Time-outs 빈 박스 + 마킹 시 X 글자 (검정 ● 폐기)
+ *   §F Team fouls 1·2·3·4 빈 박스 (라벨 폐기 / 마킹 시 검정 채움)
+ *   §G Player Fouls 1-5 빈 박스 (라벨 폐기 / 마킹 시 P/T/U/D 글자만)
  *
  * 왜 (이유):
  *   FIBA 양식 좌 절반 = Team A 상 / Team B 하 분할. 각 팀 영역 안에
- *   Time-outs (5칸) + Team fouls (Period 별 1-4 + Extra) + Players 12명
+ *   Time-outs (5칸) + Team fouls (Period 별 1-4 + Extra) + Players 15명
  *   (Licence / 선수명 / No / Player in / Fouls 1-5) + Coach·Asst Coach 입력.
- *   Phase 1 범위 = Players 표 + Coach 입력 실작동 + Time-outs/Team fouls 골조.
+ *   Phase 10 범위 = FIBA 종이기록지와 완벽 정합 (사용자 결재 7건 fix).
  *
  * 방법 (어떻게):
  *   - Players 12 행 (사전 라인업 + TTP fallback 데이터 그대로):
@@ -97,17 +103,24 @@ interface TeamSectionProps {
 }
 
 /**
- * 12 행을 보장하는 헬퍼 — 실제 명단이 12 미만이면 빈 row 채워서 FIBA 양식 정합.
- * 명단이 12 초과면 그대로 표시 (FIBA 5x5 는 12명이 표준이지만 운영 안정성 우선).
+ * 15 행을 보장하는 헬퍼 — 실제 명단이 15 미만이면 빈 row 채워서 FIBA 양식 정합.
+ * Phase 10 (2026-05-12) — 12 → 15 (FIBA 종이기록지 표준 정합 / 사용자 결재 §C).
+ * 명단이 15 초과면 그대로 표시 (운영 안정성 우선 — 잘라내지 X).
  */
-export function fillRowsTo12(players: RosterItem[]): (RosterItem | null)[] {
-  const TARGET = 12;
+export function fillRowsTo15(players: RosterItem[]): (RosterItem | null)[] {
+  const TARGET = 15;
   const rows: (RosterItem | null)[] = [...players];
   while (rows.length < TARGET) {
     rows.push(null);
   }
   return rows;
 }
+
+/**
+ * @deprecated Phase 10 (2026-05-12) — `fillRowsTo15` 사용. 본 alias 는 구버전 호출자 회귀 안전망.
+ * FIBA 종이기록지는 15행 표준 (사용자 결재 §C).
+ */
+export const fillRowsTo12 = fillRowsTo15;
 
 export function TeamSection({
   sideLabel,
@@ -125,8 +138,8 @@ export function TeamSection({
   onRequestRemoveTimeout,
   frameless,
 }: TeamSectionProps) {
-  // 선수 행 (12 보장)
-  const rows = fillRowsTo12(players);
+  // 선수 행 (15 보장 — Phase 10 사용자 결재 §C / FIBA 종이기록지 표준)
+  const rows = fillRowsTo15(players);
 
   // 선수별 state 갱신 helper
   const updatePlayer = (
@@ -166,24 +179,27 @@ export function TeamSection({
     //   - rounded-0 / shadow X / 박스 내 박스 X (단일 외곽 박스로 통합)
     //   - Phase 8 = Time-outs + Team fouls 가로 1줄 / Players 15행 ~28px / 컴팩트 패딩
     <section className={sectionClass} style={sectionStyle}>
-      {/* 헤더 — Team A/B 라벨 + 팀명 (FIBA PDF 정합 = inline 한 줄).
-          Phase 9 — 압축: mb 0.5 / 라벨 10px / 팀명 13px */}
-      <div className="mb-0.5 flex items-baseline gap-2">
+      {/* Phase 10 (2026-05-12) — 헤더 §B FIBA underscore 정합 (사용자 결재).
+          - 큰 글자 박스 폐기 (uppercase + bold + tracking 폐기)
+          - 라벨 = "Team A" Title case (FIBA PDF 정합) / ~10px 작은 글자
+          - 데이터 = 팀명 + border-bottom underscore line
+          왜: FIBA 종이기록지는 "Team A ____슬로우____" 같이 라벨 + underscore line. */}
+      <div className="mb-0.5 flex items-baseline gap-1.5">
         <span
-          className="text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: "var(--color-text-primary)" }}
+          className="shrink-0 text-[10px] font-semibold"
+          style={{ color: "var(--color-text-muted)" }}
         >
           {sideLabel}
         </span>
         <span
-          className="min-w-0 flex-1 truncate text-[13px] font-semibold"
+          className="min-w-0 flex-1 truncate pb-0 text-[12px]"
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",
           }}
           title={teamName}
         >
-          {teamName}
+          {teamName || "—"}
         </span>
       </div>
 
@@ -265,20 +281,18 @@ export function TeamSection({
                     }
                   }}
                   disabled={disabled || (!isLastFilled && !isNextEmpty)}
-                  className="flex h-6 w-6 items-center justify-center text-xs font-bold disabled:cursor-default"
+                  className="flex h-6 w-6 items-center justify-center text-[11px] font-bold disabled:cursor-default"
                   style={{
+                    // Phase 10 (2026-05-12) §E — 빈 사각형 + 마킹 시 X 글자 (FIBA 종이기록지 정합).
+                    // 검정 ● 폐기 (사용자 결재) — 마킹은 X 글자 (운영자 종이에 X 표시 관행).
                     border: "1px solid var(--color-border)",
-                    // 채운 칸 = text-primary 배경 (foul P 색과 일관) / 빈 칸 = transparent
-                    backgroundColor: filled
-                      ? "var(--color-text-primary)"
-                      : "var(--color-elevated)",
+                    backgroundColor: "transparent",
                     color: filled
-                      ? "var(--color-bg, #000)"
+                      ? "var(--color-text-primary)"
                       : "var(--color-text-muted)",
                     cursor:
                       isLastFilled || isNextEmpty ? "pointer" : "default",
                     touchAction: "manipulation",
-                    // Phase 7-A — FIBA PDF 정합 (rounded-0)
                   }}
                   aria-label={
                     filled
@@ -287,7 +301,8 @@ export function TeamSection({
                   }
                   title={cellLabel}
                 >
-                  {filled ? "●" : i + 1}
+                  {/* 마킹 시 X 글자 / 빈 칸 = 비워둠 (FIBA 종이기록지 정합) */}
+                  {filled ? "X" : ""}
                 </button>
               );
             });
@@ -319,27 +334,23 @@ export function TeamSection({
                 >
                   Period {period}
                 </span>
-                {/* 1-4 칸 — teamCount 만큼 채움 */}
+                {/* Phase 10 §F (2026-05-12) — 빈 박스 4개 / 마킹 시 검정 채움 (FIBA 종이기록지 정합).
+                    글자 라벨 1·2·3·4 폐기 (사용자 결재) — 운영자 인지는 박스 채움 시각으로. */}
                 {[1, 2, 3, 4].map((n) => {
                   const filled = teamCount >= n;
                   return (
                     <div
                       key={n}
-                      className="flex h-5 w-5 items-center justify-center text-[10px]"
+                      className="flex h-5 w-5 items-center justify-center"
                       style={{
                         border: "1px solid var(--color-border)",
-                        // 채운 칸 = accent / 빈 칸 = muted
+                        // 채운 칸 = 검정 채움 (FIBA 종이기록지 정합) / 빈 칸 = transparent
                         backgroundColor: filled
-                          ? "var(--color-accent)"
+                          ? "var(--color-text-primary)"
                           : "transparent",
-                        color: filled
-                          ? "var(--color-on-accent, #fff)"
-                          : "var(--color-text-muted)",
                       }}
                       aria-label={`Period ${period} 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
-                    >
-                      {filled ? "●" : n}
-                    </div>
+                    />
                   );
                 })}
                 {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원) */}
@@ -369,7 +380,8 @@ export function TeamSection({
             >
               Extra
             </span>
-            {/* OT 파울 (period 5~7 모두 합산) */}
+            {/* Phase 10 §F (2026-05-12) — OT 빈 박스 4개 / 마킹 시 검정 채움.
+                period 5~7 합산 (FIBA Article — Extra periods 통합 표시) */}
             {(() => {
               const otCount = fouls.filter((f) => f.period >= 5).length;
               return [1, 2, 3, 4].map((n) => {
@@ -377,20 +389,15 @@ export function TeamSection({
                 return (
                   <div
                     key={n}
-                    className="flex h-5 w-5 items-center justify-center text-[10px]"
+                    className="flex h-5 w-5 items-center justify-center"
                     style={{
-                      borderBottom: "1px solid var(--color-border)",
+                      border: "1px solid var(--color-border)",
                       backgroundColor: filled
-                        ? "var(--color-accent)"
+                        ? "var(--color-text-primary)"
                         : "transparent",
-                      color: filled
-                        ? "var(--color-on-accent, #fff)"
-                        : "var(--color-text-muted)",
                     }}
-                    aria-label={`Extra (OT) 팀 파울 ${n}`}
-                  >
-                    {filled ? "●" : ""}
-                  </div>
+                    aria-label={`Extra (OT) 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
+                  />
                 );
               });
             })()}
@@ -399,8 +406,10 @@ export function TeamSection({
       </div>
       </div>{/* /Phase 8 — Time-outs + Team fouls 가로 1줄 flex container 끝 */}
 
-      {/* Players 12 행 — FIBA 양식 핵심.
-          Phase 9 — 행 24px (12행 × 24 = 288px) — A4 1 페이지 fit 목표 정합. */}
+      {/* Players 15 행 — FIBA 양식 핵심 (Phase 10 — 12 → 15 / 사용자 결재 §C).
+          Phase 10 — 행 22px (15행 × 22 = 330px) — A4 1 페이지 fit 미세 조정.
+            기존 12행 × 24 = 288 → 15행 × 22 = 330 (+42px) — Team A+B 합 +84px,
+            헤더/풋터 컴팩트 (Phase 9 결과) 가 흡수 — A4 1123px 안 fit 유지. */}
       <div className="mb-0.5 overflow-x-auto">
         <table
           className="w-full border-collapse text-xs"
@@ -450,14 +459,14 @@ export function TeamSection({
           <tbody>
             {rows.map((p, idx) => {
               if (!p) {
-                // 빈 row — FIBA 양식 12 행 정합용 placeholder.
-                // Phase 9 — 행 높이 24px (A4 1 페이지 fit / 12행 × 24 = 288px)
+                // 빈 row — FIBA 양식 15 행 정합용 placeholder.
+                // Phase 10 — 행 높이 22px (A4 1 페이지 fit / 15행 × 22 = 330px)
                 return (
                   <tr
                     key={`empty-${idx}`}
                     style={{
                       borderBottom: "1px solid var(--color-border)",
-                      height: 24,
+                      height: 22,
                     }}
                   >
                     <td className="px-1 py-0">&nbsp;</td>
@@ -495,8 +504,8 @@ export function TeamSection({
                   key={p.tournamentTeamPlayerId}
                   style={{
                     borderBottom: "1px solid var(--color-border)",
-                    // Phase 9 — 행 높이 24px (A4 1 페이지 fit)
-                    height: 24,
+                    // Phase 10 — 행 높이 22px (A4 1 페이지 fit / 15행 × 22 = 330px)
+                    height: 22,
                     // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리
                     backgroundColor: ejected
                       ? "var(--color-elevated)"
@@ -663,7 +672,9 @@ export function TeamSection({
                             }
                             title={`Period ${currentPeriod} 마킹`}
                           >
-                            {mark ? mark.type : n}
+                            {/* Phase 10 §G (2026-05-12) — 빈 박스 / 마킹 시 P/T/U/D 글자만.
+                                숫자 라벨 1·2·3·4·5 폐기 (사용자 결재 — FIBA 종이기록지 정합). */}
+                            {mark ? mark.type : ""}
                           </button>
                         );
                       })}

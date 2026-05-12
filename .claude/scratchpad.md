@@ -93,6 +93,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 10]** 정밀 디자인 fix (Critical 4 + Major 3) — §B 헤더 underscore (큰 박스 폐기) / §C Players 15행 (fillRowsTo12 → fillRowsTo15 alias 유지) + 행 24→22px / §E Time-outs 빈 박스 + 마킹 시 X 글자 / §F Team fouls 1·2·3·4 빈 박스 + 마킹 시 검정 채움 (1·2·3·4 라벨 폐기) / §G Player Fouls 1-5 빈 박스 + 마킹 시 P/T/U/D 글자만. §A·§D 결재 = BDR 브랜드 + 자동 fill 유지 (변경 0). 2 파일. tsc 0 / vitest 543/543 PASS (기존 541 + 신규 2 alias 회귀 가드). A4 fit 좌측 ~1058px / 1123 안 fit ✓. 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 9]** A4 1 페이지 fit + 레이아웃 재배치 — 좌측 Team A+B 세로 분할 (FIBA PDF 정합) / 우측 Running+Period+Final 누적 / Footer 최하단 가로 1~2줄 (Notes frameless 시 폐기) / Players 행 28→24px / 폰트 압축 (헤더 13px / 라벨 10 / 데이터 11~12 / 인쇄 8pt) / @page margin 8→6mm / fiba-frame 198mm×285mm 강제. 7 파일. tsc 0 / vitest 541 PASS. 좌측 ~975px / 우측 ~1025px (A4 1123 안에 fit ✓). 회귀 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase A 즉시 fix]** 운영 사고 3종 차단 — (A-1) `/tournament-admin/series/new` organization 드롭다운 추가 (owner/admin + approved 필터) (A-2) `/(web)/series/new` alert 폼 → admin redirect 통합 (A-3) `scripts/_temp/series-counter-recompute.ts` DRY-RUN/APPLY 모드 분리. tsc 0 / vitest 541 PASS / DRY-RUN 실측 = 진단 fact 일치 (series id=8 0→12 / org id=3 0→1). schema 변경 0 / Flutter v1 영향 0. APPLY 는 사용자 승인 후 별 turn 실행 | ✅ |
 | 2026-05-12 | (진단) | **[진단]** 대회/시리즈/단체 연결 구조 전체 점검 — 운영 DB 실측: series id=8 카운터 0/12 깨짐 + org id=3 카운터 0/1 깨짐 + series id=10 org_id NULL. root cause = `/tournament-admin/series/new` org_id 미전송 + createTournament service +1 박제 부재 + cron 0건. 9 문제점 매트릭스 + 5 Phase 로드맵 + 3 결재 항목. 코드 변경 0 / SELECT only / 스크립트 정리 ✓ | ✅ |
@@ -103,6 +104,71 @@
 | 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |
 | 2026-05-12 | eead692 | **[stats]** 통산 스탯 3 결함 일괄 — mpg 모달 회귀 + 승률 source + FG%/3P% NBA 표준 | ✅ |
 | 2026-05-12 | 714eda3 | **[stats]** 통산 mpg 단위 변환 — DB 초 → 표시 분 (사용자 보고) | ✅ |
+
+## 구현 기록 (developer) — FIBA Phase 10 정밀 디자인 fix (2026-05-12)
+
+📝 구현 범위: 사용자 결재 7건 fix — §A·§D 결재 보존 (변경 0) / §B·§C·§E·§F·§G 5건 적용
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `team-section.tsx` | §B 헤더 = "Team A ____슬로우____" underscore (큰 박스 폐기 / uppercase + tracking-wider 폐기) / §C `fillRowsTo15` 신규 + `fillRowsTo12` deprecated alias (12 → 15 / FIBA 종이기록지 표준) / §C 행 24 → 22px (15행 fit) + 빈 row 동일 / §E Time-outs 채운 칸 검정 ● 배경 → 빈 박스 + 마킹 시 X 글자 / §F Team fouls 1·2·3·4 빈 박스 + 마킹 시 검정 채움 (1·2·3·4 라벨 폐기 / accent → text-primary) / §F Extra(OT) 동일 / §G Player Fouls 1-5 빈 박스 (1·2·3·4·5 숫자 폐기) + 마킹 시 P/T/U/D 글자만 / 컴포넌트 상단 주석 Phase 10 추가 | 수정 |
+| `team-section-fill-rows.test.ts` | `fillRowsTo12` → `fillRowsTo15` 테스트 4건 갱신 (빈 / 5 / 15 / 18명) + `fillRowsTo12` alias 회귀 가드 2건 신규 추가 (deprecated alias 동작 검증) | 수정 |
+
+### 적용 X 항목 (사용자 결재 = 변경 0)
+- **§A 헤더 타이틀** = BDR 브랜드 유지 (FibaHeader.tsx — BASKETBALL DAILY ROUTINE / SCORESHEET + BDR 로고 모두 그대로)
+- **§D Players 데이터** = 자동 fill 유지 (사전 라인업 + Licence User.id read-only)
+
+### A4 1 페이지 fit 재검증 (15행 증가 후)
+- Team 한쪽 합: 헤더 22 + Time-outs/Fouls 70 + thead 22 + 15행 × 22 = 330 + Coach 22 + 패딩 = **~474px**
+- Team A + Team B 합 = **~948px**
+- 상위 헤더 (~110px) + 풋터 (~80px) = ~190px
+- 총합: **~1058px** ≤ A4 1123px **fit ✓**
+- 인쇄 시 `_print.css` 의 198mm × 285mm 강제 + overflow: hidden 보호
+
+### 검증
+- **tsc --noEmit**: **0 에러**
+- **vitest**: **543/543 PASS** (기존 541 + Phase 10 신규 2건 alias 회귀 가드)
+- **회귀 안전망**: `fillRowsTo12` deprecated alias 유지 → 기존 호출자 깨지지 않음. 본 PR 안 호출자 = team-section.tsx 1곳 + 테스트 1곳만
+- **grep 회귀 0**:
+  - lucide-react = 주석 1건 (룰 명시 — 정상)
+  - BigInt N n literal = 0건
+  - 핑크/살몬/코랄 hardcode = 0건
+- **schema 변경 0** / **Flutter v1 영향 0** / **AppNav 영향 0** / **BFF·service 변경 0**
+
+### 디자인 변경 7건 결과
+| # | 결재 | 적용 |
+|---|------|------|
+| §A | BDR 브랜드 유지 | ✅ 변경 0 (FibaHeader 그대로) |
+| §B | Team A/B 헤더 = underscore | ✅ team-section.tsx 헤더 박스 → underscore |
+| §C | Players 15행 | ✅ fillRowsTo15 + 행 22px |
+| §D | 자동 fill 유지 | ✅ 변경 0 (Licence User.id 그대로) |
+| §E | Time-outs 빈 박스 + X 마킹 | ✅ 검정 ● 배경 폐기 + X 글자 |
+| §F | Team fouls 빈 박스 | ✅ 라벨 폐기 + 검정 채움 |
+| §G | Player Fouls 빈 박스 | ✅ 1·2·3·4·5 숫자 폐기 + P/T/U/D 글자만 |
+
+### 💡 tester 참고
+- 테스트 방법: score-sheet/[matchId] 진입 → 라인업 모달 확정 → 다음 시각 확인:
+  - 좌측 Team A 헤더 = "Team A ____슬로우____" underscore 형태 (큰 박스 X)
+  - Players 표 = 15행 (사전 라인업 + 빈 행 fill)
+  - Time-outs 5칸 = 빈 박스 → 클릭 시 X 글자
+  - Team fouls Period 1·2·3·4 = 빈 박스 4개 (1·2·3·4 라벨 없음) → Player fouls 마킹 시 자동 검정 채움
+  - Player Fouls 1-5 = 빈 박스 (숫자 없음) → 클릭 시 모달 → P/T/U/D 글자만 표시
+- 정상: tsc 0 / vitest 543 PASS / A4 1 페이지 안 fit 유지
+- 주의: 운영자가 X 글자 = "사용된 타임아웃" 인지 학습 필요 (UX 변경)
+- 시각 검증 우선 — FIBA 종이기록지 PDF / JPG 와 1:1 비교 권장
+
+### ⚠️ reviewer 참고
+- `fillRowsTo12` deprecated alias 유지 = 구버전 호출자 회귀 안전망. Phase 11+ 후속 PR 에서 회수 가능
+- §E Time-outs 의 "마킹 시 X" 는 종이기록지 운영자 관행 정합. 인쇄 시 `_print.css` 의 `[aria-label*="마킹됨"]` 회색 배경 룰이 빈 박스에도 적용되지만 — X 글자 자체로 식별 가능 (회색 배경 + X 글자 이중 식별)
+- §F Team fouls 채움색 = `var(--color-text-primary)` (검정/흰 모드 자동 분기). 인쇄 시 `_print.css` 가 검정 강제
+- §G Player Fouls 빈 박스 = 마킹 전 칸 클릭 가능 영역 안내가 `aria-label` 만 남음. 운영자가 빈 박스 호버 = 색 변경 효과 없음 → Phase 11+ 후속 UX 보강 후보 (호버 시 + 표시 등)
+
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+
+---
 
 ## 구현 기록 (developer) — FIBA Phase 9 A4 1페이지 fit + 레이아웃 재배치 (2026-05-12)
 
