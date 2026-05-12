@@ -169,19 +169,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     : null;
 
   // 4) 각 선수 룰 검증 (서버단 가드 — 클라이언트 우회 차단)
+  // 2026-05-12 룰 변경 (사용자 요청): 종별 학년/연령보다 "많은" 경우만 차단 / "어린" 경우 자유 참여.
+  //   예: i3-U11 (5학년부) = 5학년 이하 (3·4학년 통과 / 6학년 이상 차단)
+  //   - gradeMax 만 검증 (gradeMin 검증 제거)
+  //   - birthYearMin 만 검증 (너무 일찍 태어남 = 나이많음 차단 / birthYearMax 검증 제거)
   const validationErrors: Array<{ index: number; field: string; message: string }> = [];
   players.forEach((p, idx) => {
     const birthYear = Number(p.birth_date.slice(0, 4));
     if (rule?.birthYearMin && birthYear < rule.birthYearMin) {
       validationErrors.push({ index: idx, field: "birth_date", message: `${rule.birthYearMin}년 이후 출생자만 가능` });
     }
-    if (rule?.birthYearMax && birthYear > rule.birthYearMax) {
-      validationErrors.push({ index: idx, field: "birth_date", message: `${rule.birthYearMax}년 이전 출생자만 가능` });
-    }
     if (p.grade != null) {
-      if (rule?.gradeMin && p.grade < rule.gradeMin) {
-        validationErrors.push({ index: idx, field: "grade", message: `${rule.gradeMin}학년 이상` });
-      }
       if (rule?.gradeMax && p.grade > rule.gradeMax) {
         validationErrors.push({ index: idx, field: "grade", message: `${rule.gradeMax}학년 이하` });
       }

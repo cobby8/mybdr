@@ -424,9 +424,10 @@ function PlayerRowEditor({
           <label className="block">
             <span className="mb-1 block text-xs font-semibold" style={{ color: "var(--color-text-muted)" }}>
               학년 (자동)
-              {divisionRule?.gradeMin && (
+              {/* 2026-05-12 룰 변경: 어린 학년 자유 참가 / gradeMax 만 안내 ("N학년 이하") */}
+              {divisionRule?.gradeMax && (
                 <span className="ml-1" style={{ color: "var(--color-text-muted)" }}>
-                  · 종별 {gradeToKorean(divisionRule.gradeMin)}
+                  · 종별 {gradeToKorean(divisionRule.gradeMax)} 이하
                 </span>
               )}
             </span>
