@@ -692,14 +692,18 @@ export function ScoreSheetForm({
           />
         </div>
 
-        {/* 본문 영역 ~75% — 좌:우 50:50 (FIBA PDF 정합).
-            좌 = Team A 위 (~37%) + Team B 아래 (~37%) 세로 분할 (fiba-divider-bottom)
+        {/* Phase 15 (2026-05-12) — 본문 영역 좌:우 50:50 (FIBA PDF 정합).
+            좌 = Team A (상) + Team B (중) + FooterSignatures (하) 세로 누적 (FIBA PDF 정합)
             우 = Running Score + Period Scores + Final + Winner 누적
-            모바일 (md 미만) = 1 컬럼 / 태블릿 이상 = 2 컬럼 + 중앙 fiba-divider-right */}
+            모바일 (md 미만) = 1 컬럼 / 태블릿 이상 = 2 컬럼 + 중앙 fiba-divider-right
+
+            Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
+            이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* 좌측 컬럼 — Team A 상 / Team B 하 (md 이상 = 우측 분할선) */}
+          {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하) (md 이상 = 우측 분할선).
+              Phase 15: FooterSignatures 가 본 컬럼 안 마지막 child 로 이동 (FIBA PDF 정합). */}
           <div className="md-fiba-divider-right flex flex-col">
-            {/* Team A — 상단 50% (Time-outs + Team Fouls + Players 12행 + Coach) */}
+            {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
                 sideLabel="Team A"
@@ -721,24 +725,39 @@ export function ScoreSheetForm({
                 frameless
               />
             </div>
-            {/* Team B — 하단 50% (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할) */}
-            <TeamSection
-              sideLabel="Team B"
-              teamName={awayFilteredRoster.teamName}
-              players={awayFilteredRoster.players}
-              values={teamB}
-              onChange={setTeamB}
-              fouls={fouls.away}
-              onRequestAddFoul={(playerId) =>
-                handleRequestAddFoul("away", playerId)
-              }
-              onRequestRemoveFoul={(playerId) =>
-                handleRequestRemoveFoul("away", playerId)
-              }
-              currentPeriod={runningScore.currentPeriod}
-              timeouts={timeouts.away}
-              onRequestAddTimeout={() => handleRequestAddTimeout("away")}
-              onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+            {/* Team B — 중단 (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할).
+                Phase 15: 하단 → 중단 (아래에 풋터 추가). */}
+            <div className="fiba-divider-bottom">
+              <TeamSection
+                sideLabel="Team B"
+                teamName={awayFilteredRoster.teamName}
+                players={awayFilteredRoster.players}
+                values={teamB}
+                onChange={setTeamB}
+                fouls={fouls.away}
+                onRequestAddFoul={(playerId) =>
+                  handleRequestAddFoul("away", playerId)
+                }
+                onRequestRemoveFoul={(playerId) =>
+                  handleRequestRemoveFoul("away", playerId)
+                }
+                currentPeriod={runningScore.currentPeriod}
+                timeouts={timeouts.away}
+                onRequestAddTimeout={() => handleRequestAddTimeout("away")}
+                onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+                frameless
+              />
+            </div>
+            {/* Phase 15 — FooterSignatures = 좌측 col 안 Team B 아래 (FIBA PDF 정합).
+                이유: 풋터가 frame 가로 펼침 (Phase 14 잘못된 위치 / 경기 종료 버튼과 겹침) →
+                  좌측 50% 컬럼 안 마지막 child 로 이동 (사용자 결재 §1 / 이미지 35).
+                풋터 내부 = footer-signatures.tsx Phase 15 압축 (라벨 100px / 심판진 세로 3줄). */}
+            <FooterSignatures
+              values={signatures}
+              onChange={setSignatures}
+              headerReferee={header.referee}
+              headerUmpire1={header.umpire1}
+              headerUmpire2={header.umpire2}
               frameless
             />
           </div>
@@ -769,20 +788,6 @@ export function ScoreSheetForm({
               />
             </div>
           </div>
-        </div>
-
-        {/* 풋터 영역 ~15% — FooterSignatures 가로 펼침 (1~2 줄 컴팩트).
-            이유: 헤더 referee/umpire1/umpire2 → 풋터 refereeSign/umpire1Sign/umpire2Sign 자동 prefill.
-            Phase 9 = 컴팩트 모드 (Notes 폐기 / FIBA PDF 정합 최하단 1~2 줄). */}
-        <div className="fiba-divider-top">
-          <FooterSignatures
-            values={signatures}
-            onChange={setSignatures}
-            headerReferee={header.referee}
-            headerUmpire1={header.umpire1}
-            headerUmpire2={header.umpire2}
-            frameless
-          />
         </div>
       </div>
 
