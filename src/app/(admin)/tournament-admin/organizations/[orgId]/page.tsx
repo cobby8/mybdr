@@ -102,6 +102,57 @@ export default function OrganizationDashboardPage() {
   const [creatingSeriesName, setCreatingSeriesName] = useState("");
   const [showSeriesForm, setShowSeriesForm] = useState(false);
 
+  // 2026-05-12 — 단체 정보 편집 모달 state (이미지 32 사용자 요청)
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    region: "",
+    contact_email: "",
+    contact_phone: "",
+    website_url: "",
+  });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const openEditModal = () => {
+    if (!org) return;
+    setEditForm({
+      name: org.name ?? "",
+      description: org.description ?? "",
+      region: org.region ?? "",
+      contact_email: org.contactEmail ?? "",
+      contact_phone: "",
+      website_url: org.websiteUrl ?? "",
+    });
+    setEditError(null);
+    setEditOpen(true);
+  };
+
+  const submitEdit = async () => {
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const res = await fetch(`/api/web/organizations/${orgId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEditError(json.error ?? "수정 실패");
+        setEditSaving(false);
+        return;
+      }
+      setEditOpen(false);
+      setEditSaving(false);
+      loadOrg(); // 갱신
+    } catch {
+      setEditError("네트워크 오류");
+      setEditSaving(false);
+    }
+  };
+
   const handleCreateSeries = async () => {
     if (!creatingSeriesName.trim()) return;
     try {
@@ -252,24 +303,64 @@ export default function OrganizationDashboardPage() {
         </dl>
       </div>
 
-      {/* 멤버 관리 링크 */}
+      {/* 2026-05-12 — 단체 운영자 관리 메뉴 (이미지 32 사용자 요청) */}
       {isAdmin && (
-        <Link
-          href={`/tournament-admin/organizations/${orgId}/members`}
-          className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
-        >
-          <div className="flex items-center gap-2">
+        <div className="space-y-2">
+          {/* 단체 정보 편집 모달 trigger */}
+          <button
+            type="button"
+            onClick={openEditModal}
+            className="flex w-full items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+          >
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-text-muted)]">edit</span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                단체 정보 편집
+              </span>
+            </div>
             <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-              group
+              chevron_right
             </span>
-            <span className="text-sm font-medium text-[var(--color-text-primary)]">
-              멤버 관리 ({org.members.length}명)
+          </button>
+
+          {/* 멤버 관리 */}
+          <Link
+            href={`/tournament-admin/organizations/${orgId}/members`}
+            className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+          >
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-text-muted)]">
+                group
+              </span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                멤버 관리 ({org.members.length}명)
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-[var(--color-text-muted)]">
+              chevron_right
             </span>
-          </div>
-          <span className="material-symbols-outlined text-[var(--color-text-muted)]">
-            chevron_right
-          </span>
-        </Link>
+          </Link>
+
+          {/* 공개 사이트 — 외부 link */}
+          <a
+            href={`/organizations/${org.slug}`}
+            target="_blank"
+            rel="noopener"
+            className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-accent)]"
+          >
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[var(--color-text-muted)]">
+                public
+              </span>
+              <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                공개 사이트 보기
+              </span>
+            </div>
+            <span className="material-symbols-outlined text-[var(--color-text-muted)]">
+              open_in_new
+            </span>
+          </a>
+        </div>
       )}
 
       {/* 소속 시리즈 */}
@@ -388,6 +479,128 @@ export default function OrganizationDashboardPage() {
           organizationName={org.name}
           onSuccess={loadOrg}
         />
+      )}
+
+      {/* 2026-05-12 — 단체 정보 편집 모달 (이미지 32 사용자 요청)
+          - 6 필드 (name / description / region / contact_email / contact_phone / website_url)
+          - PATCH /api/web/organizations/[id] (owner/admin 만 통과 — 서버 가드)
+          - 성공 시 loadOrg 재호출하여 카드 정보 갱신 */}
+      {editOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4"
+          onClick={() => !editSaving && setEditOpen(false)}
+        >
+          <div
+            className="relative my-4 w-full max-w-lg rounded-lg bg-[var(--color-surface)] p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => !editSaving && setEditOpen(false)}
+              className="absolute right-3 top-3 rounded-[4px] p-2 text-[var(--color-text-muted)] hover:bg-[var(--color-elevated)]"
+              aria-label="닫기"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <h3 className="mb-4 text-base font-bold text-[var(--color-text-primary)]">
+              단체 정보 편집
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                  단체 이름 <span className="text-[var(--color-accent)]">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                  소개
+                </label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={2}
+                  className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                    지역
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.region}
+                    onChange={(e) => setEditForm({ ...editForm, region: e.target.value })}
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                    웹사이트
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://"
+                    value={editForm.website_url}
+                    onChange={(e) => setEditForm({ ...editForm, website_url: e.target.value })}
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                    연락 이메일
+                  </label>
+                  <input
+                    type="email"
+                    value={editForm.contact_email}
+                    onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                    연락 전화
+                  </label>
+                  <input
+                    type="tel"
+                    value={editForm.contact_phone}
+                    onChange={(e) => setEditForm({ ...editForm, contact_phone: e.target.value })}
+                    className="w-full rounded-[4px] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            {editError && (
+              <p className="mt-3 text-sm text-[var(--color-error)]">{editError}</p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => !editSaving && setEditOpen(false)}
+                disabled={editSaving}
+                className="btn btn--sm"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={submitEdit}
+                disabled={editSaving || !editForm.name.trim()}
+                className="btn btn--sm btn--primary"
+              >
+                {editSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
