@@ -29,6 +29,8 @@ import { RunningScoreGrid } from "./running-score-grid";
 import { PeriodScoresSection } from "./period-scores-section";
 import { FoulTypeModal } from "./foul-type-modal";
 import { MatchEndButton } from "./match-end-button";
+// Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (frame 외부 / no-print).
+import { PeriodColorLegend } from "./period-color-legend";
 import type { TeamRosterData } from "./team-section-types";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import {
@@ -864,6 +866,11 @@ export function ScoreSheetForm({
           </div>
         </div>
       </div>
+
+      {/* Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (사용자 결재 §6 / 이미지 14:00 KST).
+          위치: frame 외부 (FIBA 양식 박스 아래) — 인쇄 시 _print.css `.no-print` 로 제외.
+          왜: 운영자/관객이 Running Score / Player Fouls / Team Fouls / Time-outs 색을 한눈에 이해. */}
+      <PeriodColorLegend />
 
       {/* Phase 3.5 — 경기 종료 버튼 (BFF POST + 라이브 발행).
           이유: 운영자가 Q4(또는 OT) 종료 후 명시적 매치 종료 트리거.
