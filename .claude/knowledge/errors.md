@@ -2,6 +2,17 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-13] 코치 자가수정 페이지 = "최초 1회 setup 분기" 누락 + 가드 의도 정반대
+- **분류**: 함정 / UX 차단
+- **발견자**: pm
+- **증상**: `/team-apply/[token]/edit` 진입 시 `tournament_team.manager_phone` 가 NULL 인 팀 코치는 "코치 정보 없음" ErrorView 로 즉시 차단되어 자가수정 불가. GNBA 대회 9팀 중 8팀(89%) 영향 (시드 스크립트 `insert-gnba.ts:166` 가 `manager_phone: null` 하드코딩 — 사용자 결정 §4 "없으면 null" 단방향).
+- **근본 원인**: 사용자 의도 = "최초 1회 수정 시 코치 직접 입력 → manager_* SET → 이후 매칭 인증" 흐름. 그러나 실제 코드는 3중 가드(page.tsx:62 / players/route.ts:78 / route.ts:320)가 모두 "이미 코치 정보 있어야 통과"만 검증 — setup 분기 어디에도 없음. 의도와 정반대로 동작.
+- **fix (commit `7689e3f`)**: 4-분기 인증 로직 (POST /players + PUT /[token] 양쪽 동일) — (1) 둘 다 있음 → 매칭 (2) 이름만 있음 → 이름 매칭 후 phone UPDATE (3) 전화만 있음 → 전화 매칭 후 name UPDATE (4) 둘 다 없음 → 무조건 통과 + 둘 다 UPDATE. page.tsx 차단 가드 제거 + edit-flow.tsx 헤더/버튼 텍스트 hasCoachInfo 분기.
+- **재발 방지 룰**: (a) 시드 스크립트로 manager_* 하드코딩 NULL 시 = 자가수정 차단 부작용 명시 주석 필수. (b) 인증 가드 작성 시 "운영자 사전 등록 케이스" + "코치 자가 흐름" 양면 케이스 사전 점검. (c) GNBA 처럼 시드 + 코치 자가수정 병행 시 = 시드에서 manager_phone 수집을 운영자에게 요청 (data 본질 해결).
+- **참조**: `src/app/api/web/team-apply/[token]/players/route.ts:73-115`, `src/app/api/web/team-apply/[token]/route.ts:316-358`, `src/app/(web)/team-apply/[token]/edit/page.tsx:62-66`, `src/app/(web)/team-apply/[token]/edit/edit-flow.tsx:142-147`
+- **참조횟수**: 0
+
+
 ### [2026-05-12] 시리즈 상세 페이지 진입 시 error.tsx (운영 mybdr.kr) — 진단 미완료
 - **분류**: error / 운영
 - **발견자**: debugger

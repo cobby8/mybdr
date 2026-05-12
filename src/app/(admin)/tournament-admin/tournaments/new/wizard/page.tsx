@@ -16,7 +16,8 @@ import { GameBallInput } from "@/components/tournament/game-ball-input";
 import { BracketSettingsForm, type BracketSettingsData } from "@/components/tournament/bracket-settings-form";
 // 2026-05-04 (P3) — 듀얼 토너먼트 표준 default 자동 적용 (format 변경 시 dual 선택 → DUAL_DEFAULT_BRACKET)
 import { DUAL_DEFAULT_BRACKET, DUAL_DEFAULT_PAIRING } from "@/lib/tournaments/dual-defaults";
-// GameMethodInput 제거 — 대회 방식은 FORMAT_OPTIONS 4종으로 통합
+// 2026-05-13 UI-1.3 — 인라인 시리즈 생성 폼 (공통 컴포넌트)
+import { InlineSeriesForm, type CreatedSeries } from "@/components/tournament/inline-series-form";
 import { DivisionGeneratorModal } from "@/components/tournament/division-generator-modal";
 import { ImageUploader } from "@/components/shared/image-uploader";
 import { TournamentCopyModal, type CopyData } from "@/components/tournament/tournament-copy-modal";
@@ -107,6 +108,20 @@ export default function NewTournamentWizardPage() {
   const [gameTime, setGameTime] = useState("");
   const [gameBall, setGameBall] = useState("");
   const [gameMethod, setGameMethod] = useState("");
+
+  // 2026-05-13 UI-1.3 — 소속 시리즈 (선택).
+  // 이유: wizard 안에서 시리즈 dropdown + 인라인 생성을 통해 대회 생성과 동시에 시리즈 연결.
+  //   기존에는 wizard 후 별도 편집 페이지에서 연결해야 했음 (2단계 동선) → 1단계로 단축.
+  type SeriesOption = {
+    id: string;
+    name: string;
+    organization: { id: string; name: string; slug: string } | null;
+  };
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const [seriesOptions, setSeriesOptions] = useState<SeriesOption[]>([]);
+  const [seriesLoaded, setSeriesLoaded] = useState(false);
+  const [showSeriesForm, setShowSeriesForm] = useState(false);
+  const [myOrgs, setMyOrgs] = useState<{ id: string; name: string }[]>([]);
 
   // --- Step 2에서 사용하는 state (접수설정 + 팀설정) ---
   const [registration, setRegistration] = useState<RegistrationSettingsData>({
@@ -266,6 +281,71 @@ export default function NewTournamentWizardPage() {
     }
   }, [authStatus, router]);
 
+  // 2026-05-13 UI-1.3 — 본인 보유 시리즈 + owner/admin 단체 목록 로드.
+  // 이유: wizard Step 1 에서 시리즈 dropdown 옵션을 채우고, 인라인 생성 시 단체 dropdown 도 채움.
+  //   authorized 상태에서만 호출 (비로그인 회피).
+  useEffect(() => {
+    if (authStatus !== "authorized") return;
+    let cancelled = false;
+
+    // 본인 보유 시리즈
+    async function loadSeries() {
+      try {
+        const res = await fetch("/api/web/series/my");
+        if (!res.ok) {
+          if (!cancelled) setSeriesLoaded(true);
+          return;
+        }
+        const json = await res.json();
+        // apiSuccess 가 한 번 감싸므로 json.data.data 형식. 폴백 추가.
+        const list: SeriesOption[] = (json.data?.data ?? json.data ?? []) as SeriesOption[];
+        if (!cancelled) {
+          setSeriesOptions(list);
+          setSeriesLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setSeriesLoaded(true);
+      }
+    }
+
+    // 본인 owner/admin 단체 — 인라인 시리즈 생성 폼의 단체 dropdown 용
+    async function loadOrgs() {
+      try {
+        const res = await fetch("/api/web/organizations");
+        if (!res.ok) return;
+        const json = await res.json();
+        const list = (json.data?.organizations ?? json.organizations ?? []) as Array<{
+          id: string;
+          name: string;
+          myRole?: string;
+          my_role?: string;
+        }>;
+        const filtered = list
+          .filter((o) => {
+            const role = o.myRole ?? o.my_role;
+            return role === "owner" || role === "admin";
+          })
+          .map((o) => ({ id: o.id, name: o.name }));
+        if (!cancelled) setMyOrgs(filtered);
+      } catch {
+        // 실패해도 wizard 자체는 계속 사용 가능 — 단체 dropdown 만 안 보임.
+      }
+    }
+
+    loadSeries();
+    loadOrgs();
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus]);
+
+  // 인라인 폼에서 시리즈 생성 성공 시 — seriesOptions 갱신 + 자동 선택 + 폼 닫기.
+  function handleSeriesCreated(created: CreatedSeries) {
+    setSeriesOptions((prev) => [created, ...prev]);
+    setSeriesId(created.id);
+    setShowSeriesForm(false);
+  }
+
   // 로딩/미인증 상태
   if (authStatus === "loading" || authStatus === "unauthenticated") {
     return (
@@ -324,6 +404,9 @@ export default function NewTournamentWizardPage() {
         body: JSON.stringify({
           name,
           format,
+          // 2026-05-13 UI-1.3 — 시리즈 연결 (선택). null/"" 모두 미연결로 처리.
+          // POST /api/web/tournaments 의 seriesId 키 (camelCase) 그대로 전달 — route.ts L160 박제.
+          seriesId: seriesId ?? undefined,
           description: description || undefined,
           organizer: organizer || undefined,
           host: host || undefined,
@@ -467,6 +550,68 @@ export default function NewTournamentWizardPage() {
               />
             </div>
 
+            {/*
+              2026-05-13 UI-1.3 — 소속 시리즈 (선택).
+              이유: 운영자가 wizard 한 번에 시리즈 연결까지 완료. 기존엔 대회 생성 후 편집 wizard
+                재진입해야 했음 → 1단계로 단축. POST body.seriesId 로 전달 (api route.ts L160).
+              "개인 대회" 옵션 = 시리즈 미연결 (서버에서 null 처리).
+              "새 시리즈 만들기" 버튼 → InlineSeriesForm (UI-1.2 공통 컴포넌트) 토글.
+            */}
+            <div>
+              <label className={labelCls}>소속 시리즈 (선택)</label>
+              <select
+                value={seriesId ?? ""}
+                onChange={(e) => setSeriesId(e.target.value === "" ? null : e.target.value)}
+                className={inputCls}
+                disabled={!seriesLoaded}
+              >
+                <option value="">개인 대회 (시리즈 없음)</option>
+                {seriesOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.organization?.name ?? "단체 미연결"})
+                  </option>
+                ))}
+              </select>
+
+              {/* 빈 상태 / 새 시리즈 트리거 — 폼이 열려있지 않을 때만 노출 */}
+              {seriesLoaded && !showSeriesForm && seriesOptions.length === 0 && (
+                <div className="mt-2">
+                  <p className="mb-2 text-xs text-[var(--color-text-muted)]">
+                    아직 보유한 시리즈가 없습니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowSeriesForm(true)}
+                    className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-border)]"
+                  >
+                    <span className="material-symbols-outlined text-base">add</span>
+                    새 시리즈 만들기
+                  </button>
+                </div>
+              )}
+              {seriesLoaded && !showSeriesForm && seriesOptions.length > 0 && (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSeriesForm(true)}
+                    className="inline-flex items-center gap-1 text-xs text-[var(--color-info)] hover:underline"
+                  >
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    새 시리즈 만들기
+                  </button>
+                </div>
+              )}
+
+              {/* InlineSeriesForm — UI-1.2/UI-1.3 공통 컴포넌트 */}
+              {showSeriesForm && (
+                <InlineSeriesForm
+                  myOrgs={myOrgs}
+                  onCreated={handleSeriesCreated}
+                  onCancel={() => setShowSeriesForm(false)}
+                />
+              )}
+            </div>
+
             {/* 주최 / 주관 / 후원사 */}
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
@@ -602,6 +747,25 @@ export default function NewTournamentWizardPage() {
 
             {/* 경기구 선택 */}
             <GameBallInput value={gameBall} onChange={setGameBall} />
+
+            {/*
+              2026-05-13 UI-1.1 — 경기 룰 (비고) textarea.
+              이유: 기존 GameMethodInput 은 FORMAT 4종 pill 과 중복 → 단순 textarea 로 game_method 활용.
+              저장 흐름: state(gameMethod) → POST body.gameMethod (L344 기존) → DB game_method.
+            */}
+            <div>
+              <label className={labelCls}>경기 룰 (비고)</label>
+              <textarea
+                className={inputCls}
+                rows={2}
+                value={gameMethod}
+                onChange={(e) => setGameMethod(e.target.value)}
+                placeholder="예: 올데드 / 자유 교체 / 5반칙 제외 등"
+              />
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                경기 운영 시 적용할 특별 룰을 자유롭게 적어주세요.
+              </p>
+            </div>
           </TossCard>
         </div>
       )}
