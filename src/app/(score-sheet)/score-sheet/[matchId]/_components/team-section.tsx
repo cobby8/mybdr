@@ -461,9 +461,10 @@ export function TeamSection({
                             backgroundColor: filled
                               ? periodFillColor
                               : "transparent",
-                            color: filled
-                              ? "var(--color-bg)"
-                              : "var(--color-text-muted)",
+                            // Phase 17.1 (2026-05-13) — 색 충돌 fix (사용자 보고).
+                            //   채움 박스 글자 = 흰색 hardcode (이전 var(--color-bg) 미정의 → 검정 fallback → 충돌).
+                            //   라이트/다크 모드 무관 — 채움 = 어두운 색 (Q1 검정 / Q2 네이비 / Q3 그린 / Q4 오렌지 / OT 빨강) → 흰 글자 가독성 보장.
+                            color: filled ? "#ffffff" : "var(--color-text-muted)",
                           }}
                           aria-label={`Period ${period} 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
                         >
@@ -521,9 +522,8 @@ export function TeamSection({
                       backgroundColor: filled
                         ? extraFillColor
                         : "transparent",
-                      color: filled
-                        ? "var(--color-bg)"
-                        : "var(--color-text-muted)",
+                      // Phase 17.1 (2026-05-13) — Extra OT 박스 글자 흰색 hardcode (Period 박스와 동일 패턴).
+                      color: filled ? "#ffffff" : "var(--color-text-muted)",
                     }}
                     aria-label={`Extra (OT) 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
                   >
