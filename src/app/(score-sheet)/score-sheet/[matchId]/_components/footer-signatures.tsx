@@ -218,13 +218,18 @@ export function FooterSignatures({
         </div>
       )}
 
-      {/* Phase 8 → Phase 15 — 심판진 (Referee / Umpire 1 / Umpire 2).
-          Phase 15: frameless=true (좌측 50% 컬럼 안) = 세로 3줄 (가로 3컬럼이면 너무 좁아 underscore line 가시성 ↓).
-            frameless=false (legacy 박스 모드) = 가로 3컬럼 유지.
-          이유: 좌측 50% 폭 안에서 가로 3컬럼 = 컬럼당 ~130px / 라벨 100 + underscore 30 = 가독성 X
-            → 세로 3줄 (라벨 100px + underscore 전체 폭) 로 변경. */}
+      {/* Phase 8 → Phase 15 → Phase 16 (2026-05-13) — 심판진 (Referee / Umpire 1 / Umpire 2).
+          Phase 16 사용자 결재 §6 (이미지 40-41 / FIBA PDF 정합):
+            - frameless=true:
+                Referee = 단독 한 줄 (라벨 100 + underscore full)
+                Umpire 1 + Umpire 2 = 같은 한 줄 가로 묶음 (각 50% / 라벨 더 짧게)
+                상단 = mt-1 + border-top (운영진 영역과 분리)
+            - frameless=false (legacy): 변경 0 (기존 grid-cols-3 가로 유지). */}
       {frameless ? (
-        <div className="mt-0.5 flex flex-col gap-0">
+        <div
+          className="mt-1 flex flex-col gap-0 pt-0.5"
+          style={{ borderTop: "1px solid var(--color-border)" }}
+        >
           <SigInput
             label="Referee"
             value={values.refereeSign}
@@ -234,24 +239,32 @@ export function FooterSignatures({
             inline
             labelWidth={100}
           />
-          <SigInput
-            label="Umpire 1"
-            value={values.umpire1Sign}
-            onChange={update("umpire1Sign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-          <SigInput
-            label="Umpire 2"
-            value={values.umpire2Sign}
-            onChange={update("umpire2Sign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
+          {/* Umpire 1 + Umpire 2 가로 묶음 (사용자 결재 §6 / FIBA PDF 정합).
+              각 50% 폭 / 라벨 width 60 (좁은 폭 안 fit). */}
+          <div className="flex items-baseline gap-2">
+            <div className="min-w-0 flex-1">
+              <SigInput
+                label="Umpire 1"
+                value={values.umpire1Sign}
+                onChange={update("umpire1Sign")}
+                maxLength={SIGNATURE_MAX_LENGTH}
+                disabled={disabled}
+                inline
+                labelWidth={60}
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <SigInput
+                label="Umpire 2"
+                value={values.umpire2Sign}
+                onChange={update("umpire2Sign")}
+                maxLength={SIGNATURE_MAX_LENGTH}
+                disabled={disabled}
+                inline
+                labelWidth={60}
+              />
+            </div>
+          </div>
         </div>
       ) : (
         <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
@@ -282,10 +295,18 @@ export function FooterSignatures({
         </div>
       )}
 
-      {/* Phase 8 → Phase 15 — 주장 서명 (항의 시) 한 줄 full-width.
-          frameless=true 시 labelWidth=100 (운영진/심판진과 시각 통일).
-          "Captain's signature in case of protest" 라벨은 100px 안에 줄바꿈 (5-6줄 가능 / 운영 시 미입력 케이스 99%). */}
-      <div className="mt-0.5">
+      {/* Phase 8 → Phase 15 → Phase 16 (2026-05-13) — 주장 서명 한 줄 컴팩트.
+          사용자 결재 §6 (이미지 40 FIBA PDF 정합):
+            - 라벨 = Title case "Captain's signature in case of protest" 한 줄 (줄바꿈 X)
+            - 라벨 width = 200 (좌측 50% 컬럼 안 fit / Phase 15 의 100 → 200 늘려 한 줄 유지)
+            - 상단 = mt-1 + border-top (심판진 영역과 분리 / FIBA PDF 정합)
+            - whiteSpace: nowrap = 줄바꿈 절대 방지 */}
+      <div
+        className="mt-1 pt-0.5"
+        style={{
+          borderTop: frameless ? "1px solid var(--color-border)" : undefined,
+        }}
+      >
         <SigInput
           label="Captain's signature in case of protest"
           value={values.captainSignature}
@@ -293,7 +314,8 @@ export function FooterSignatures({
           maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
           disabled={disabled}
           inline={frameless}
-          labelWidth={frameless ? 100 : undefined}
+          labelWidth={frameless ? 200 : undefined}
+          labelNoWrap
         />
       </div>
 
@@ -356,6 +378,7 @@ function SigInput({
   disabled,
   inline,
   labelWidth,
+  labelNoWrap,
 }: {
   label: string;
   value: string;
@@ -368,14 +391,18 @@ function SigInput({
   //   미지정 시 자동 (기존 동작).
   // Phase 14 — Phase 13 의 compact prop 제거 (운영진 세로 4줄 복원 / 사용처 0).
   labelWidth?: number;
+  // Phase 16 (2026-05-13) — 라벨 줄바꿈 금지 옵션 (Captain's signature ... 한 줄 강제용).
+  labelNoWrap?: boolean;
 }) {
   if (inline) {
     // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄.
     // Phase 9 — 행 22px 컴팩트 (A4 1 페이지 fit). 터치 영역 보완은 inline 행 전체 click 가능.
     // Phase 11 §3 — 라벨 width 고정 (labelWidth) 시 운영진 4줄 라벨 우측 정렬 통일.
     // Phase 14 — compact 제거 / 라벨 10px / minHeight 22px 통일 (요소비율 일관).
-    const labelClass =
-      "shrink-0 text-[10px] font-semibold uppercase tracking-wider";
+    // Phase 16 (2026-05-13) — uppercase 제거 → Title case 보존 (FIBA PDF 정합 / 사용자 결재 §6).
+    //   이유: FIBA PDF 풋터 라벨 = "Scorer / Assistant scorer / Timer / ..." Title case.
+    //   기존 ALL CAPS 는 시각적 무거움 + PDF 정합 위반.
+    const labelClass = "shrink-0 text-[10px] font-semibold tracking-wider";
     const inputMinHeight = 22;
     return (
       <label className="flex items-baseline gap-1 overflow-hidden">
@@ -384,6 +411,10 @@ function SigInput({
           style={{
             color: "var(--color-text-muted)",
             width: labelWidth ? `${labelWidth}px` : undefined,
+            // Phase 16 (2026-05-13) — Captain 라벨 한 줄 강제 (사용자 결재 §6).
+            whiteSpace: labelNoWrap ? "nowrap" : undefined,
+            overflow: labelNoWrap ? "hidden" : undefined,
+            textOverflow: labelNoWrap ? "ellipsis" : undefined,
           }}
         >
           {label}

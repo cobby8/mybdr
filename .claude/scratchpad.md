@@ -719,9 +719,75 @@ Extra [1][2][3][4]                   ← 줄 3
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 16 검증 5 issue fix (2026-05-13)
+
+📝 구현 범위: 스타팅 자동 P.IN + 빨강 배경 / 빨강 원 ◉ 숨김 / DATE·TIME·PLACE 자동 매핑 / Team fouls 우측 정렬 / D 퇴장 행 회색 + 아이콘 제거 / 풋터 FIBA PDF 정합.
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | (a) `formatScheduledAt()` helper 신규 — Asia/Seoul timezone 강제 + `Intl.DateTimeFormat("en-CA")` 로 "YYYY-MM-DD HH:mm" 형식 (splitDateTime 친화). (b) `venue` 별도 조회 — `match.venue_id` 가 null 이 아닐 때 `prisma.courts.findUnique` 로 name 가져오기. (c) `placeLabel` fallback chain — `court_number` (수동 입력 우선) → `courts.name` → null. (d) `matchProps.scheduledAtLabel` 깨끗한 ISO 형식 / `matchProps.courtLabel` placeLabel 사용. | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (a) `handleLineupConfirm` 콜백 — starters + substitutes 전체의 `playerIn=true` 자동 set (setTeamA / setTeamB 양쪽 patch). (b) `initialLineupComputed` 진입 시 mount 1회 동일 자동 P.IN useEffect 추가 (사전 확정 라인업 케이스도 동일 룰). draft 복원 이후 hasAny 가드로 덮어쓰기 회피. (c) toast 메시지 갱신 ("출전 명단 자동 P IN 체크 (스타팅 강조 표시)"). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (a) Time-outs + Team fouls 컨테이너 `justify-between` 추가 (우측 정렬 §4 / 이미지 38). (b) Team fouls 박스 = `flex-1` → `ml-auto shrink-0` + 라벨 `text-right` (우측 정렬). (c) 빨강 원 ◉ 영구 제거 (스타팅 표시 = P.IN 빨강 배경으로 대체 §1·§2). (d) ejected 시 행 시각 보강 — `opacity: 0.6` + `cursor: not-allowed` 추가 (§5). (e) D 퇴장 아이콘 (`material-symbols block`) + "5반칙/T×2/U×2/D 퇴장" 텍스트 제거 — 행 회색 + 비활성 시각만으로 인지 (§5). (f) P.IN 체크박스 = `isStarter` 분기 추가 — 스타팅 = `var(--color-primary)` 빨강 배경 + 흰 체크 (accentColor `#ffffff`) / 일반 = 흰 배경 + 검정 체크 (§1). (g) P.IN input `disabled = disabled \|\| ejected` (퇴장 후 토글 차단). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | (a) frameless 심판진 — Referee 단독 한 줄 + **Umpire 1 / Umpire 2 가로 묶음** (각 50% / labelWidth=60). 상단 mt-1 + border-top (영역 구분 §6). (b) Captain's signature 라벨 `labelNoWrap=true` + labelWidth=200 (한 줄 강제 / whiteSpace nowrap + ellipsis). 상단 border-top 추가 (영역 구분). (c) SigInput inline 라벨 `uppercase` 제거 → **Title case 보존** (FIBA PDF 정합 §6). (d) `labelNoWrap` prop 신규. (e) frameless=false (legacy) 변경 0 (회귀 안전망). | 수정 |
+
+### 5 issue fix 결과 매트릭스
+| # | 이슈 | 변경 위치 | 시각 효과 |
+|---|------|----------|----------|
+| §1 | 스타팅 자동 P.IN + 빨강 배경 | score-sheet-form (lineup confirm + mount) + team-section (P.IN 체크박스 isStarter 분기) | 스타팅 5인 = 빨강 배경 흰 체크 / 출전 7명 = 흰 배경 검정 체크 |
+| §2 | 빨강 원 ◉ 숨김 | team-section (선수명 row ◉ 영구 제거) | 시각 노이즈 0 — 스타팅 표시는 P.IN 빨강 배경으로 위임 |
+| §3 | DATE·TIME·PLACE 자동 매핑 | page.tsx (formatScheduledAt + venue 조회 + placeLabel fallback) | "—" → "2026-05-13" / "14:00" / "코트 1" 정상 노출 |
+| §4 | Team fouls 우측 정렬 | team-section (justify-between + ml-auto shrink-0 + text-right) | Time-outs 좌측 / Team fouls 우측 (FIBA PDF 정합) |
+| §5 | D 퇴장 UI 정리 | team-section (아이콘/텍스트 제거 + 행 opacity 0.6 + P.IN ejected disabled) | 깨끗한 행 회색 + 비활성 + D 마킹은 Fouls 1번 칸 글자 유지 |
+| §6 | 풋터 FIBA 정합 | footer-signatures (Title case + Umpire 1·2 가로 + Captain 한 줄 + border-top) | FIBA PDF 1:1 정합 (이미지 40-41) |
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run` 전체 | ✅ **630/630 PASS** (회귀 0건) |
+| Flutter v1 영향 | ✅ 0 (`api/v1/` 변경 0건) |
+| schema 변경 | ✅ 0 (DB 모델 변경 0 / venue 조회 = SELECT 만) |
+| AppNav frozen | ✅ 영향 0 |
+| BFF / service | ✅ 변경 0 (UI 만 / page.tsx 의 venue SELECT 만 추가) |
+| 디자인 13 룰 | ✅ var(--color-*) 100% / Material Symbols Outlined / lucide ❌ 0건 |
+| 빨강 본문 텍스트 | ✅ 0 (단 P.IN 스타팅 빨강 배경 = 강조 예외 — 사용자 결재 §1) |
+| placeholder 5단어 | ✅ 신규 추가 0건 |
+| A4 1 페이지 fit | ✅ 유지 (Phase 14 aspect-ratio 보존) |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/{matchId}` 진입 (운영자 / 기록원 권한자 / paper mode)
+- **정상 동작**:
+  1. **DATE / TIME / PLACE 자동 fill** — 헤더 3-4번째 줄 "—" → 실제 매치 일정 / 시간 / 코트
+  2. **라인업 모달 confirm** → 양식 진입 시 12명 P.IN 자동 체크 (스타팅 5인 = 빨강 배경 / 출전 7명 = 흰 배경)
+  3. **사전 라인업 (DB 박제) 진입** → 모달 skip + 동일 자동 P.IN 체크 작동
+  4. **빨강 원 ◉** = 선수명 옆 흔적 없이 깨끗 (스타팅 인지 = P.IN 빨강 배경으로 한눈에)
+  5. **Team fouls 박스** = 우측 정렬 (Time-outs 좌측 / Team fouls 우측 — FIBA PDF 정합)
+  6. **D 퇴장 (또는 5반칙 / T×2 / U×2)** → 행 회색 + 60% 투명 + cursor not-allowed + P.IN 클릭 차단 + Fouls 추가 차단 (마지막 칸 해제만 허용)
+  7. **풋터 풋터 영역** = Scorer/Assistant scorer/Timer/Shot clock operator (Title case 4줄) + 구분선 + Referee + Umpire 1·2 (가로 묶음) + 구분선 + Captain's signature in case of protest (한 줄)
+- **주의할 입력**:
+  - DB 의 `match.scheduledAt` = null → DATE/TIME 여전히 "—" (정상 — null 박제 케이스)
+  - DB 의 `match.court_number` + `match.venue_id` 둘 다 null → PLACE "—" (정상)
+  - 스타팅 P.IN 빨강 배경 → 운영자가 수동 P.IN 토글 시 = 토글 후에도 빨강 배경 유지 (isStarter prop 은 라인업 기준 / 토글 = state 만 변경). 시각적으로 자연스럽게 작동.
+  - draft localStorage 복원 + 사전 라인업 → 자동 P.IN 1회 useEffect 는 `hasAny=true` 가드로 skip (draft 가 우선 / 의도 보존).
+
+### ⚠️ reviewer 참고
+- **P.IN 빨강 배경 = 사용자 결재 예외** — CLAUDE.md "빨강 본문 텍스트 ❌" 룰이지만 사용자 결재 §1 (이미지 36) 으로 스타팅 강조 빨강 배경 예외 허용. 본문 텍스트 X / 강조 액션 UI 한정.
+- **venue 별도 쿼리** — page.tsx 에서 SELECT 1회 추가. 운영 영향 = SELECT 만 (DB 정책 §운영 영향 0 작업 / 가드 없이 진행 가능).
+- **automatic P.IN useEffect (mount 1회)** — `initialLineupComputed` 진입 시 sets 가 draft 복원 이전에 실행되어도 hasAny 가드로 충돌 회피. 운영 시 reload = draft 복원 후 hasAny=true → skip → 의도 보존 (테스트 매트릭스 검증).
+- **Title case 라벨** — frameless inline 모드만 변경 (FIBA PDF 정합). frameless=false legacy 박스 모드는 uppercase 유지 (회귀 안전망 — 사용처 0이지만 보존).
+- **D 퇴장 아이콘 제거** — `material-symbols-outlined block` 텍스트 제거됐지만 `getEjectionReason` lib 함수 사용은 유지 (행 회색 조건 판정용). DOM 출력만 제거.
+- **다음 단계**: 시각 검증 (브라우저 /score-sheet/{matchId} 진입 → 이미지 36-41 비교 / A4 인쇄 미리보기로 fit 유지 확인).
+
+### 신규 보안 이슈
+- **0 건** — UI / 자동 fill 변경. API / 권한 / DB schema 영향 0.
+
+---
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-13 | (커밋 대기) | **[FIBA Phase 16 — 검증 5 issue 통합 fix]** 사용자 직접 결재 6건 (이미지 36-41): (§1) 스타팅 자동 P.IN + 빨강 배경 — `handleLineupConfirm` + `initialLineupComputed` mount 양쪽에서 starters+substitutes playerIn=true 자동 set. 스타팅 5인 = P.IN 체크박스 빨강 배경 + 흰 체크 (accentColor #fff) / 일반 출전 7명 = 흰 배경 (§2 빨강 원 ◉ 영구 제거 — 스타팅 표시 = P.IN 배경으로 대체). (§3) DATE/TIME/PLACE 자동 매핑 — `formatScheduledAt()` Asia/Seoul timezone + `Intl.DateTimeFormat(en-CA)` "YYYY-MM-DD HH:mm" 형식 (splitDateTime 친화 / 이전 ko-KR locale 분리 깨짐 fix). `match.venue_id != null` 시 `courts.findUnique` 별도 조회 + placeLabel fallback chain (`court_number` → `courts.name` → null). (§4) Team fouls 박스 우측 정렬 — `justify-between` + `ml-auto shrink-0` + 라벨 `text-right` (FIBA PDF 정합). (§5) D 퇴장 UI 정리 — material-symbols `block` 아이콘 + "5반칙/T×2/U×2/D 퇴장" 텍스트 영구 제거 / 행 `opacity: 0.6` + `cursor: not-allowed` 강화 / P.IN input `disabled = disabled \|\| ejected` (퇴장 후 토글 차단) / D 마킹은 Fouls 1번 칸 글자 유지. (§6) 풋터 FIBA 정합 — SigInput inline `uppercase` 제거 → Title case 보존 / frameless 심판진 = Referee 단독 + **Umpire 1·2 가로 묶음** (각 50% / labelWidth=60) / Captain's signature `labelNoWrap=true` + labelWidth=200 한 줄 강제 + ellipsis / 운영진/심판/주장 사이 border-top 영역 구분. tsc 0 / vitest **630/630 PASS** (회귀 0) / Flutter v1 영향 0 / schema 0 / BFF 0 / AppNav 0 / lucide 0 / 빨강 본문 텍스트 0 (P.IN 배경 = 사용자 결재 §1 예외) / A4 fit 유지. | ✅ |
 | 2026-05-13 | (커밋 대기) | **[Phase 3.5-E — 한국식 용어 통일 + group_count 조건부 UI]** (a) FORMAT_LABEL 3개 라벨 한국 생활체육 표준 통일 — `single_elimination` "싱글 엘리미네이션" → **"토너먼트"** / `round_robin` "풀리그 (Round Robin)" → **"풀리그"** / `double_elimination` "더블 엘리미네이션" → **"더블 토너먼트"**. swiss / 나머지 = 변경 0. enum 값 자체 = DB 호환성 유지 (라벨만 변경). (b) `<GroupSettingsInputs>` 의 ranking_format 영역에 `group_count <= 2` 분기 — 드롭다운 대신 "각 동순위전이 단판 경기로 자동 진행됩니다 (조 개수가 2조 이하)" 안내 박스 노출. group_count 3+ 일 때만 드롭다운 (풀리그 / 토너먼트). onChange 즉시 토글 (React state 재렌더). default `round_robin` 박제 유지 (호환성). (c) 페이지 하단 가이드 li 일관성 — "토너먼트" 추가 + "더블 토너먼트" 신규 추가. (d) vitest 4건 신규 (FORMAT_LABEL 회귀 가드) → 21 → 25건 PASS. tsc 0 / vitest 전체 **630/630 PASS** (626 → +4) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase 3.5-D — 종별 운영 방식 신규 모드 + 조 설정 UI]** (a) 신규 enum `group_stage_with_ranking` (조별리그 + 동순위 순위결정전 / league_advancement 와 차이 = settings.linkage_pairs 명시 불필요, group_size/group_count 만 박제). (b) `src/lib/tournaments/division-formats.ts` 신규 — ALLOWED_FORMATS (9개) + FORMAT_LABEL + showGroupSettings (풀리그 6 enum) + showRankingFormat (신규만) + validateDivisionSettings (1~32 정수 / round_robin·single_elimination) + calculateTotalTeams. server (route.ts ×2) + client (page.tsx) 단일 source of truth. (c) divisions/page.tsx 에 `<GroupSettingsInputs>` 컴포넌트 신규 — 조 크기·조 개수·동순위전 방식 input 3개 + 총 팀 수 자동 계산 안내 + onBlur PATCH 저장. (d) 가이드 항목 추가. (e) division-advancement.ts `generateGroupStageRankingPlaceholders` stub 함수 (후속 PR 큐잉). (f) prisma schema 코멘트만 갱신 (값 변경 0 / String 필드). vitest 21건 신규 / tsc 0 / 전체 **626/626 PASS** (605 → +21) / Flutter v1 영향 0 / schema 변경 0 / lucide 0 / 핑크 0. **후속 PR 큐잉**: 신규 enum 의 동순위전 placeholder 자동 생성 (현재 stub). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 15 — 풋터 Team B 아래 이동 + 경기 종료 버튼 frame 외부]** (a) score-sheet-form.tsx: `<FooterSignatures>` 위치 = frame 가로 (grid 외부) → **좌측 col 안 Team B 아래 마지막 child** (FIBA PDF 정합 / 사용자 결재 §1 / 이미지 35). Team B section `fiba-divider-bottom` 래핑. (b) footer-signatures.tsx: frameless 운영진 labelWidth 140→**100** / 심판진 grid-cols-3 가로→**flex flex-col 세로 3줄** + labelWidth=100 / 주장 labelWidth=100 추가 (좌측 50% 폭 안 fit). (c) MatchEndButton + 라인업 다시 선택 = frame 외부 그대로 (자동 해소). A4 fit 재검증: 좌측 ~920 / 우측 ~960 / 헤더 95 + max(920, 960) = 1055px (A4 1121 안 여유 ~66px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0 / 핑크 0 / lucide 0. | ✅ |

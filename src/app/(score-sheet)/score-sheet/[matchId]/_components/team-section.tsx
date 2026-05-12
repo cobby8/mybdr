@@ -238,8 +238,10 @@ export function TeamSection({
 
       {/* Phase 8 — Time-outs + Team fouls 가로 1줄 배치 (FIBA PDF 정합).
           좌: Time-outs 5칸 (+OT)  /  우: Team fouls Period 1-4 1행 (compact).
-          Phase 9 — 더 컴팩트: mb 0.5 / gap 1.5 */}
-      <div className="mb-0.5 flex flex-wrap items-start gap-1.5">
+          Phase 9 — 더 컴팩트: mb 0.5 / gap 1.5
+          Phase 16 (2026-05-13) — Team fouls 박스 우측 정렬 (사용자 결재 §4 / 이미지 38).
+            justify-between = 좌측 Time-outs / 우측 Team fouls 자연 분리. */}
+      <div className="mb-0.5 flex flex-wrap items-start justify-between gap-1.5">
       {/* Phase 4 — Time-outs (FIBA Article 18-19 — 전반 2 + 후반 3 + OT 1 각각).
           박스 = 전반칸 2개 + 후반칸 3개 = 기본 5칸. OT 진입 시 (currentPeriod >= 5)
           OT 1칸 동적 추가 (각 OT 별도 1칸).
@@ -368,10 +370,12 @@ export function TeamSection({
           Phase 13 (2026-05-12) — UI 겹침 fix (사용자 결재 §2 / 이미지 31).
             박스 h-5 w-5 → h-[12px] w-[12px] (P2 라벨/2FT 안내 겹침 fix).
             라벨 w-8 → w-7 (글자 9px) / 페어 간 gap-2 → gap-1.
-            FT (+N) 안내 = 글자 8px (이전 9px) + 박스 옆 유지 (FIBA 한줄 묶음 룰). */}
-      <div className="min-w-0 flex-1">
+            FT (+N) 안내 = 글자 8px (이전 9px) + 박스 옆 유지 (FIBA 한줄 묶음 룰).
+          Phase 16 (2026-05-13) — flex-1 → shrink-0 + ml-auto (우측 정렬 / 사용자 결재 §4).
+            FIBA PDF 정합 = Time-outs 좌측 / Team fouls 우측. flex-1 은 부모 justify-between 활용. */}
+      <div className="ml-auto min-w-0 shrink-0">
         <div
-          className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider"
+          className="mb-0.5 text-right text-[10px] font-semibold uppercase tracking-wider"
           style={{ color: "var(--color-text-muted)" }}
         >
           Team fouls
@@ -599,17 +603,21 @@ export function TeamSection({
                     borderBottom: "1px solid var(--color-border)",
                     // Phase 13 — 행 높이 20 → 18px (사용자 결재 §4 / 12행 × 18 = 216px)
                     height: 18,
-                    // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리
+                    // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리.
+                    // Phase 16 (2026-05-13) — opacity 0.6 + cursor not-allowed 추가 (사용자 결재 §5 / 이미지 39).
+                    //   이유: D 퇴장 아이콘/텍스트 제거 대신 행 시각만으로 충분히 인지 가능하게 강화.
                     backgroundColor: ejected
                       ? "var(--color-elevated)"
                       : "transparent",
                     color: ejected
                       ? "var(--color-text-muted)"
                       : "var(--color-text-primary)",
+                    opacity: ejected ? 0.6 : 1,
+                    cursor: ejected ? "not-allowed" : "default",
                   }}
                   aria-label={
                     ejected
-                      ? `${p.displayName} 5반칙 퇴장`
+                      ? `${p.displayName} ${ejection.reason ?? ""} 퇴장 (행 비활성)`
                       : `${p.displayName}`
                   }
                 >
@@ -630,20 +638,17 @@ export function TeamSection({
                       {p.userId ?? "—"}
                     </span>
                   </td>
-                  {/* 선수명 — read-only / 사전 라인업 starter ◉ + 캡틴 ★ + 5반칙 시 "퇴장" 안내.
-                      Phase 9 — 텍스트 11px / py-0 */}
+                  {/* 선수명 — read-only / 캡틴 ★ 유지 / 5반칙 시 행 회색 시각으로 충분.
+                      Phase 9 — 텍스트 11px / py-0
+                      Phase 16 (2026-05-13) — 빨강 원 ◉ (isStarter 표시) 숨김 (사용자 결재 §2 / 이미지 36).
+                        이유: 의미 불명확 + 시각 노이즈. 스타팅 표시는 P.IN 체크박스 빨강 배경으로 대체 (§1).
+                      Phase 16 (2026-05-13) — D 퇴장 아이콘/텍스트 제거 (사용자 결재 §5 / 이미지 39).
+                        이유: 좁은 공간 overflow + UI 깨짐. 행 전체 회색 + 비활성화 시각 = 충분 (§5).
+                        D 마킹은 Fouls 1번 칸 "D" 글자로 유지. */}
                   <td
                     className="px-1 py-0 text-[11px]"
                     style={{ lineHeight: "1.1" }}
                   >
-                    {p.isStarter && !ejected && (
-                      <span
-                        className="mr-1"
-                        style={{ color: "var(--color-accent)" }}
-                      >
-                        ◉
-                      </span>
-                    )}
                     {p.displayName}
                     {p.role === "captain" && !ejected && (
                       <span
@@ -651,29 +656,6 @@ export function TeamSection({
                         style={{ color: "var(--color-warning)" }}
                       >
                         ★
-                      </span>
-                    )}
-                    {/* Phase 3.5 — Article 41 퇴장 안내 (사유 분기).
-                        Material Symbols `block` + 사유 라벨 (5반칙/T2/U2/D 즉시) */}
-                    {ejected && ejection.reason && (
-                      <span
-                        className="ml-1 inline-flex items-center gap-0.5 text-[9px] font-semibold"
-                        style={{ color: "var(--color-warning)" }}
-                        aria-label={`퇴장 사유 ${ejection.reason}`}
-                      >
-                        <span
-                          className="material-symbols-outlined text-[11px]"
-                          style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                          block
-                        </span>
-                        {ejection.reason === "5_fouls"
-                          ? "5반칙"
-                          : ejection.reason === "2_technical"
-                            ? "T×2"
-                            : ejection.reason === "2_unsportsmanlike"
-                              ? "U×2"
-                              : "D 퇴장"}
                       </span>
                     )}
                   </td>
@@ -684,11 +666,29 @@ export function TeamSection({
                   {/* Player in 체크 — Phase 9 행 24px fit (h-9 → h-5).
                       Phase 13 — h-5 w-5 → h-[18px] w-[18px] / 내부 input h-4 w-4 → h-[14px] w-[14px]
                         (사용자 결재 §3 체크박스 18px 압축).
-                      터치 영역은 행 전체로 보완 (label 박스 자체 클릭 가능) */}
+                      터치 영역은 행 전체로 보완 (label 박스 자체 클릭 가능).
+                      Phase 16 (2026-05-13) — 스타팅 강조 빨강 배경 (사용자 결재 §1 / 이미지 36).
+                        이유: 라인업 확정 시 스타팅 5인 = 빨강 배경 P.IN / 일반 출전 7명 = 흰 배경 P.IN.
+                        시각 차이로 스타팅 한눈에 인지 — 빨강 원 ◉ (§2) 폐기 대체.
+                        ejected 시 = 비활성화 (사용자 결재 §5 — 퇴장 후 추가 P.IN 토글 차단). */}
                   <td className="px-1 py-0 text-center">
                     <label
                       className="inline-flex h-[18px] w-[18px] cursor-pointer items-center justify-center"
-                      style={{ touchAction: "manipulation" }}
+                      style={{
+                        touchAction: "manipulation",
+                        // 스타팅 5인 = 빨강 배경 + 흰 체크 (강조). 일반 = 흰 배경 + 검정 체크 (기본).
+                        backgroundColor: p.isStarter
+                          ? "var(--color-primary)"
+                          : "transparent",
+                        border: p.isStarter
+                          ? "1px solid var(--color-primary)"
+                          : "1px solid var(--color-border)",
+                      }}
+                      aria-label={
+                        p.isStarter
+                          ? `${p.displayName} 스타팅 (P IN 자동 체크)`
+                          : `${p.displayName} player in`
+                      }
                     >
                       <input
                         type="checkbox"
@@ -698,8 +698,12 @@ export function TeamSection({
                             playerIn: e.target.checked,
                           })
                         }
-                        disabled={disabled}
+                        disabled={disabled || ejected}
                         className="h-[14px] w-[14px] cursor-pointer disabled:opacity-50"
+                        style={{
+                          // 빨강 배경 위 체크 = accentColor 흰 (대비 확보).
+                          accentColor: p.isStarter ? "#ffffff" : undefined,
+                        }}
                         aria-label={`${p.displayName} player in`}
                       />
                     </label>
