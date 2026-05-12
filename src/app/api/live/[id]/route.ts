@@ -823,6 +823,16 @@ export async function GET(
     // 2026-04-17: quarter_scores 는 play_by_plays 기반으로 "항상" 재계산 (DB match.quarterScores 무시)
     // 이유: match 99~104 에서 DB quarterScores 와 실제 score 불일치 발생. PBP 가 진실 원천.
     // 이미 상단에서 조회한 allPbps 를 재사용하므로 추가 쿼리 없음.
+    //
+    // 2026-05-13 FIBA Phase 22 — paper 매치는 예외:
+    //   배경: score-sheet BFF(`/api/web/score-sheet/[matchId]/submit`)가 quarter_scores 를 정확히
+    //         박제하지만, paper-fix PBP 의 `game_clock_seconds = 0` 특성 때문에 아래 STL 보정
+    //         (L862~) 의 "쿼터 마지막 이벤트 = 가장 작은 clock" 판정이 "첫 이벤트"로 잘못 동작 →
+    //         home_score_at_time 누적값이 쿼터 첫 마킹 시점값으로 박혀 delta 계산 왜곡.
+    //         결과: 매치 218 의 OT 점수 3/2 가 LIVE 응답에서 0/0 으로 변환 (Q3 도 합산 흡수).
+    //   해결: paper 매치는 score-sheet BFF 박제 결과 (DB.quarterScores) 가 단일 진실 source —
+    //         PBP 재계산 결과를 DB 값으로 override + STL 보정 블록 skip.
+    const recordingMode = getRecordingMode({ settings: match.settings });
     type QS = { home: { q1: number; q2: number; q3: number; q4: number; ot: number[] }; away: { q1: number; q2: number; q3: number; q4: number; ot: number[] } };
     const homeIdForQS = Number(homeTeamId);
     const qMap: Record<number, { home: number; away: number }> = {};
@@ -847,6 +857,25 @@ export async function GET(
       quarterScores.away.ot.push(qMap[q].away);
     }
 
+    // FIBA Phase 22 — paper 매치 override.
+    //   score-sheet BFF 가 정확 박제한 DB.quarterScores 가 단일 source. PBP 합산 결과를 덮어씀.
+    //   match.quarterScores 가 null/비정상일 경우 PBP 합산 결과 그대로 (안전 fallback).
+    if (recordingMode === "paper" && match.quarterScores) {
+      const dbQs = match.quarterScores as unknown as QS;
+      quarterScores.home.q1 = dbQs.home?.q1 ?? 0;
+      quarterScores.home.q2 = dbQs.home?.q2 ?? 0;
+      quarterScores.home.q3 = dbQs.home?.q3 ?? 0;
+      quarterScores.home.q4 = dbQs.home?.q4 ?? 0;
+      quarterScores.home.ot.length = 0;
+      quarterScores.home.ot.push(...(dbQs.home?.ot ?? []));
+      quarterScores.away.q1 = dbQs.away?.q1 ?? 0;
+      quarterScores.away.q2 = dbQs.away?.q2 ?? 0;
+      quarterScores.away.q3 = dbQs.away?.q3 ?? 0;
+      quarterScores.away.q4 = dbQs.away?.q4 ?? 0;
+      quarterScores.away.ot.length = 0;
+      quarterScores.away.ot.push(...(dbQs.away?.ot ?? []));
+    }
+
     // 2026-05-02 STL Phase 1 — R1 쿼터 점수 보정 (PBP score_at_time 시계열 + 매치 헤더 cap)
     //
     // 배경: Flutter app 의 점수 입력 단축 또는 박스스코어 직접 편집 시 made_shot PBP 가
@@ -859,7 +888,11 @@ export async function GET(
     //   Step 3) 매치 헤더 < PBP 합 (음수 gap) 케이스: 매치 헤더 미갱신 의심 → 보정 미적용 (PBP 그대로)
     // 검증: 매치 101/102/103/132/133 모두 보정 후 합계 = 매치 헤더 정확 일치.
     // 안전: matchPlayerStat 합 = 매치 헤더 100% 일치 (운영 18 매치 검증) → 매치 헤더가 SSOT.
-    {
+    //
+    // FIBA Phase 22 (2026-05-13) — paper 매치는 보정 skip.
+    //   위 paper override 가 이미 DB.quarterScores 신뢰값 박제 → STL 보정 재진입 시 OT 0 변환
+    //   버그 재발 (paper-fix PBP 의 clock=0 특성). score-sheet BFF 가 진실 source.
+    if (recordingMode !== "paper") {
       const homeHeaderScore = match.homeScore ?? 0;
       const awayHeaderScore = match.awayScore ?? 0;
       // 현재 PBP 합산
