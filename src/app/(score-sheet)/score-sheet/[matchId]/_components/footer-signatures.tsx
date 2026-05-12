@@ -35,6 +35,16 @@
  *     - `compact` prop 제거 (SigInput compact 모드 사용 안 함)
  *     - `labelWidth=140` 복원 (Phase 11 — "Shot Clock Operator" 가장 긴 라벨 정렬)
  *   심판진 + 주장 = 변경 0 (Phase 13 유지).
+ *
+ * 2026-05-12 — Phase 15 풋터 좌측 50% 안 fit 압축 (사용자 결재 §1 §2 / 이미지 35).
+ *   이유: 풋터가 frame 가로 펼침 (잘못된 위치 / Phase 14) → score-sheet-form.tsx 에서
+ *     좌측 col 안 Team B 아래로 이동 (FIBA PDF 정합). 풋터 가로 폭 100% → 50% 로 축소되므로
+ *     라벨/심판진 압축 필요.
+ *   변경:
+ *     - frameless 모드 운영진 labelWidth=140 → 100 (좁은 50% 컬럼 안 fit)
+ *     - frameless 모드 심판진 grid-cols-3 → flex flex-col gap-0 (가로 3컬럼 → 세로 3줄)
+ *     - frameless 모드 심판진 + 주장도 labelWidth=100 통일 (운영진과 시각 일관)
+ *   frameless=false (회귀) = 변경 0.
  */
 
 "use client";
@@ -128,10 +138,9 @@ export function FooterSignatures({
       {/* Phase 8 — Signatures 헤더 제거 (FIBA PDF 정합 — 헤더 없이 라벨만).
           frameless 모드에서 라벨 만으로 충분. */}
 
-      {/* Phase 14 (2026-05-12) — 운영진 4명 세로 4줄 복원 (사용자 결재 §2 / 이미지 33).
-          이유: Phase 13 가로 1줄 = FIBA 정합 위반 → 세로 4줄 (FIBA 표준).
-          A4 정확 비율 강제 (_print.css aspect-ratio) 로 fit 자동 보장.
-          labelWidth=140 = "Shot Clock Operator" 가장 긴 라벨 기준 정렬 통일.
+      {/* Phase 14 → Phase 15 (2026-05-12) — 운영진 4명 세로 4줄 (사용자 결재 §2 / 이미지 33+35).
+          이유: FIBA PDF 정합 세로 4줄 복원 (Phase 14) + 좌측 50% 컬럼 안 fit (Phase 15).
+          labelWidth=140 → 100 (좁은 50% 컬럼 안 fit / "Shot clock operator" 라벨은 글자 줄임 또는 줄바꿈).
           frameless=false (회귀) = 기존 grid 4컬럼 유지. */}
       {frameless ? (
         <div className="flex flex-col gap-0">
@@ -142,7 +151,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            labelWidth={100}
           />
           <SigInput
             label="Assistant scorer"
@@ -151,7 +160,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            labelWidth={100}
           />
           <SigInput
             label="Timer"
@@ -160,7 +169,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            labelWidth={100}
           />
           <SigInput
             label="Shot clock operator"
@@ -169,7 +178,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            labelWidth={100}
           />
         </div>
       ) : (
@@ -209,37 +218,73 @@ export function FooterSignatures({
         </div>
       )}
 
-      {/* Phase 8 — 심판진 3 컬럼 가로 1줄 (FIBA PDF 정합).
-          Referee / Umpire 1 / Umpire 2 — frameless 시 구분선 X (단일 외곽 박스 안).
-          Phase 9 — mt-0.5 / gap-x-2 gap-y-0 컴팩트 */}
-      <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
-        <SigInput
-          label="Referee"
-          value={values.refereeSign}
-          onChange={update("refereeSign")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-        <SigInput
-          label="Umpire 1"
-          value={values.umpire1Sign}
-          onChange={update("umpire1Sign")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-        <SigInput
-          label="Umpire 2"
-          value={values.umpire2Sign}
-          onChange={update("umpire2Sign")}
-          maxLength={SIGNATURE_MAX_LENGTH}
-          disabled={disabled}
-          inline={frameless}
-        />
-      </div>
+      {/* Phase 8 → Phase 15 — 심판진 (Referee / Umpire 1 / Umpire 2).
+          Phase 15: frameless=true (좌측 50% 컬럼 안) = 세로 3줄 (가로 3컬럼이면 너무 좁아 underscore line 가시성 ↓).
+            frameless=false (legacy 박스 모드) = 가로 3컬럼 유지.
+          이유: 좌측 50% 폭 안에서 가로 3컬럼 = 컬럼당 ~130px / 라벨 100 + underscore 30 = 가독성 X
+            → 세로 3줄 (라벨 100px + underscore 전체 폭) 로 변경. */}
+      {frameless ? (
+        <div className="mt-0.5 flex flex-col gap-0">
+          <SigInput
+            label="Referee"
+            value={values.refereeSign}
+            onChange={update("refereeSign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={100}
+          />
+          <SigInput
+            label="Umpire 1"
+            value={values.umpire1Sign}
+            onChange={update("umpire1Sign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={100}
+          />
+          <SigInput
+            label="Umpire 2"
+            value={values.umpire2Sign}
+            onChange={update("umpire2Sign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline
+            labelWidth={100}
+          />
+        </div>
+      ) : (
+        <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
+          <SigInput
+            label="Referee"
+            value={values.refereeSign}
+            onChange={update("refereeSign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+          <SigInput
+            label="Umpire 1"
+            value={values.umpire1Sign}
+            onChange={update("umpire1Sign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+          <SigInput
+            label="Umpire 2"
+            value={values.umpire2Sign}
+            onChange={update("umpire2Sign")}
+            maxLength={SIGNATURE_MAX_LENGTH}
+            disabled={disabled}
+            inline={false}
+          />
+        </div>
+      )}
 
-      {/* Phase 8 — 주장 서명 (항의 시) — Phase 9: 한 줄 full-width / mt-0.5 */}
+      {/* Phase 8 → Phase 15 — 주장 서명 (항의 시) 한 줄 full-width.
+          frameless=true 시 labelWidth=100 (운영진/심판진과 시각 통일).
+          "Captain's signature in case of protest" 라벨은 100px 안에 줄바꿈 (5-6줄 가능 / 운영 시 미입력 케이스 99%). */}
       <div className="mt-0.5">
         <SigInput
           label="Captain's signature in case of protest"
@@ -248,6 +293,7 @@ export function FooterSignatures({
           maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
           disabled={disabled}
           inline={frameless}
+          labelWidth={frameless ? 100 : undefined}
         />
       </div>
 
