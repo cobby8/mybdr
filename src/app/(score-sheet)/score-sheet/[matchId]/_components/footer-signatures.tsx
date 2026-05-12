@@ -19,6 +19,12 @@
  *   - 입력 = border-bottom only (FIBA 양식 underscore 정합)
  *   - placeholder 5단어 이내 (룰 12) — 본 컴포넌트는 placeholder 미사용 (FIBA 양식 정합 — 빈 underscore)
  *   - 터치 영역 44px+ (input min-height 44px)
+ *
+ * 2026-05-12 — Phase 13 푸터 운영진 가로 1줄 (사용자 결재 §5 / 이미지 30).
+ *   frameless=true 일 때 운영진 4명 (Scorer/Assistant scorer/Timer/Shot clock operator)
+ *   = 세로 4줄 → 가로 1줄 (4 컬럼 grid). 라벨 9px / labelWidth 제거. 공간 절약 우선
+ *   (FIBA 정합보다 A4 fit 우선 — 사용자 결재).
+ *   심판진 (Referee/Umpire 1·2) + 주장 = 기존 유지 (변경 0).
  */
 
 "use client";
@@ -112,12 +118,13 @@ export function FooterSignatures({
       {/* Phase 8 — Signatures 헤더 제거 (FIBA PDF 정합 — 헤더 없이 라벨만).
           frameless 모드에서 라벨 만으로 충분. */}
 
-      {/* Phase 11 §3 (2026-05-12) — 운영진 4 컬럼 가로 → 세로 4줄 (FIBA 정합 / reviewer Major).
-          이유: FIBA 종이기록지 풋터 = 운영진 4 라벨이 세로 4줄 배치
-          (Scorer: ____ / Assistant scorer: ____ / Timer: ____ / Shot Clock Operator: ____).
-          frameless=true (단일 박스 / FIBA PDF 정합) = 세로 4줄 / frameless=false (회귀) = 기존 grid 유지. */}
+      {/* Phase 13 (2026-05-12) — 운영진 4명 가로 1줄 (사용자 결재 §5 / 이미지 30).
+          이유: 이전 Phase 11 세로 4줄 → 풋터 공간 과다 (~104px).
+          가로 1줄 (4 컬럼 grid) = ~26px (-78px / A4 1 페이지 fit 더 압축).
+          FIBA 정합보다 공간 절약 우선 (사용자 결재).
+          frameless=false (회귀) = 기존 grid 4컬럼 유지. */}
       {frameless ? (
-        <div className="flex flex-col gap-0">
+        <div className="grid grid-cols-4 gap-x-1.5 gap-y-0">
           <SigInput
             label="Scorer"
             value={values.scorer}
@@ -125,7 +132,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            compact
           />
           <SigInput
             label="Assistant scorer"
@@ -134,7 +141,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            compact
           />
           <SigInput
             label="Timer"
@@ -143,7 +150,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            compact
           />
           <SigInput
             label="Shot clock operator"
@@ -152,7 +159,7 @@ export function FooterSignatures({
             maxLength={SIGNATURE_MAX_LENGTH}
             disabled={disabled}
             inline
-            labelWidth={140}
+            compact
           />
         </div>
       ) : (
@@ -293,6 +300,7 @@ function SigInput({
   disabled,
   inline,
   labelWidth,
+  compact,
 }: {
   label: string;
   value: string;
@@ -304,15 +312,23 @@ function SigInput({
   //   "Shot clock operator" 가 가장 긴 라벨 → 140px 정합.
   //   미지정 시 자동 (기존 동작).
   labelWidth?: number;
+  // Phase 13 — compact 모드 (운영진 가로 1줄 / 4 컬럼 grid).
+  //   라벨 9px / minHeight 22px / labelWidth 자동 (좁은 컬럼 fit).
+  compact?: boolean;
 }) {
   if (inline) {
     // Phase 8 inline (FIBA PDF 정합) — 라벨 + underscore input 한 줄.
     // Phase 9 — 행 22px 컴팩트 (A4 1 페이지 fit). 터치 영역 보완은 inline 행 전체 click 가능.
     // Phase 11 §3 — 라벨 width 고정 (labelWidth) 시 운영진 4줄 라벨 우측 정렬 통일.
+    // Phase 13 — compact=true (운영진 가로 1줄) = 라벨 9px / minHeight 22px / labelWidth 자동.
+    const labelClass = compact
+      ? "shrink-0 text-[9px] font-semibold uppercase tracking-tight"
+      : "shrink-0 text-[10px] font-semibold uppercase tracking-wider";
+    const inputMinHeight = compact ? 22 : 26;
     return (
       <label className="flex items-baseline gap-1 overflow-hidden">
         <span
-          className="shrink-0 text-[10px] font-semibold uppercase tracking-wider"
+          className={labelClass}
           style={{
             color: "var(--color-text-muted)",
             width: labelWidth ? `${labelWidth}px` : undefined,
@@ -330,9 +346,8 @@ function SigInput({
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",
-            // Phase 11 — 행 높이 26px (운영진 세로 4줄 = 4 × 26 = 104px / A4 1 페이지 fit).
-            //   Phase 9 = 22px → Phase 11 = 26px (FIBA 정합 정렬 가독성 ↑).
-            minHeight: 26,
+            // Phase 11 — 행 높이 26px / Phase 13 compact = 22px (가로 1줄 / A4 fit).
+            minHeight: inputMinHeight,
             touchAction: "manipulation",
           }}
         />
