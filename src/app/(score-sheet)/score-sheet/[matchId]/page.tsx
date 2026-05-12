@@ -33,6 +33,33 @@ interface PageProps {
 }
 
 /**
+ * Phase 16 (2026-05-13) — scheduledAt 을 splitDateTime() 친화 형식으로 직렬화.
+ *
+ * 이유: FibaHeader 의 splitDateTime() 은 마지막 공백 분리 → DATE / TIME.
+ *   "YYYY-MM-DD HH:mm" 형식이면 깨끗히 분리 가능.
+ *   한국 시간대 (Asia/Seoul) 기준 — Vercel 서버 UTC 회피.
+ */
+function formatScheduledAt(d: Date): string {
+  // Asia/Seoul timezone 강제 (Vercel 서버 = UTC / DB 는 UTC 저장).
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  // en-CA = "YYYY-MM-DD" 형식 (locale 디자인 선택)
+  const date = `${get("year")}-${get("month")}-${get("day")}`;
+  // hour12: false 라도 일부 환경 "24" 반환 가능 → 안전 정규화
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  const time = `${hour}:${get("minute")}`;
+  return `${date} ${time}`;
+}
+
+/**
  * 라인업 / TTP 조회 + 직렬화 — server-only.
  * 기존 (web)/score-sheet/[matchId]/page.tsx 의 loadTeamRoster 패턴 그대로 이전.
  */
@@ -176,6 +203,18 @@ export default async function ScoreSheetPage({ params }: PageProps) {
 
   const { match, tournament } = access;
 
+  // Phase 16 (2026-05-13) — venue (courts.name) 별도 조회.
+  // 이유: require-score-sheet-access 는 courts relation include 안 함 (venue_id 만 보유).
+  //   FIBA 헤더 Place 자동 매핑 위해 court_number 우선 / 없으면 courts.name fallback.
+  //   별도 쿼리 1회 = 작은 비용 (운영 영향 0 / SELECT 만).
+  const venue =
+    match.venue_id != null
+      ? await prisma.courts.findUnique({
+          where: { id: match.venue_id },
+          select: { name: true },
+        })
+      : null;
+
   // 2) 모드 가드 — paper 가 아니면 안내 화면
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {
@@ -242,22 +281,24 @@ export default async function ScoreSheetPage({ params }: PageProps) {
   ]);
 
   // 4) client prop 직렬화 (FIBA Phase 1 필요 필드만)
+  // Phase 16 (2026-05-13) — splitDateTime() 안정성 위해 ISO 형식 "YYYY-MM-DD HH:mm" 사용.
+  // 이유: 이전 toLocaleString("ko-KR") 출력 = "2026. 05. 13. 14:00" 류로 점·여백 섞여
+  //   splitDateTime 의 lastIndexOf(" ") 분리가 어색 → DATE/TIME 표시 깨짐.
+  //   ISO 형식 = 마지막 공백 1개 → date·time 깨끗히 분리.
   const scheduledAtLabel = match.scheduledAt
-    ? new Date(match.scheduledAt).toLocaleString("ko-KR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? formatScheduledAt(new Date(match.scheduledAt))
     : null;
+
+  // Place 자동 매핑 fallback chain — court_number (수동 입력 우선) → courts.name (relation).
+  const placeLabel =
+    (match.court_number && match.court_number.trim()) || venue?.name || null;
 
   const matchProps = {
     id: match.id.toString(),
     tournamentId: match.tournamentId,
     match_code: match.match_code,
     scheduledAtLabel,
-    courtLabel: match.court_number,
+    courtLabel: placeLabel,
   };
 
   const tournamentProps = {
