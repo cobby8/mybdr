@@ -180,6 +180,82 @@
 
 ---
 
+## 구현 기록 (developer) — FIBA Phase 13 UI 겹침 fix + 압축 (2026-05-12)
+
+### 📝 구현 범위
+TIME-OUTS 2 컬럼 grid (가로 6칸 → 2×N) / Team Fouls 박스 12px + 라벨 압축 (P2/2FT 겹침 fix) / 체크박스 P IN + FOULS 1-5 = 24→18px / Players 행 20→18px / 푸터 운영진 4명 가로 1줄 (4 컬럼 grid). 사용자 직접 결재 (이미지 30-31 분석).
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (a) TIME-OUTS `flex flex-wrap gap-1` → `grid grid-cols-2 gap-px` (가로 6칸 → 2×N 동적 행). 박스 h-6 w-6 → h-[18px] w-[18px]. (b) Team Fouls 박스 h-5 w-5 → h-[12px] w-[12px] / 글자 9px → 8px / 라벨 w-8 → w-7 (9px) / 페어 gap-2 → gap-1 / 내부 gap-1 → gap-px / FT 안내 ml-1 → ml-0.5 + 글자 8px (P2 라벨/2FT 겹침 fix). Extra 행도 동일 압축. (c) P IN 체크박스 label h-5 w-5 → h-[18px] w-[18px] / input h-4 w-4 → h-[14px] w-[14px]. (d) FOULS 1-5 박스 h-5 w-5 → h-[18px] w-[18px]. (e) Players 행 (thead/실row/빈row) height 20 → 18. | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | frameless=true 운영진 4명 `flex flex-col gap-0` (세로 4줄) → `grid grid-cols-4 gap-x-1.5 gap-y-0` (가로 1줄). SigInput에 `compact` prop 신규 — 라벨 10px → 9px / minHeight 26 → 22 / labelWidth 자동 (좁은 컬럼 fit). 심판진/주장 변경 0. | 수정 |
+
+### A4 fit 재검증
+| 영역 | Phase 12 | Phase 13 | 차이 |
+|------|---------|---------|------|
+| Players 본문 | 12 × 20 = 240px | **12 × 18 = 216px** | -24 |
+| thead | 20 | **18** | -2 |
+| Team A 합 | ~370 | **~344** | -26 |
+| Team A+B | ~740 | **~688** | -52 |
+| 풋터 운영진 | 4 × 26 = 104 | **1 × 22 = 22** | -82 |
+| 풋터 총합 | ~156 | **~74** | -82 |
+| **좌측 총합** | ~991 | **~857** | **A4 1123 여유 ~266px** ✅ |
+
+→ 사용자 명시 ~931px / 여유 ~192px 목표 대비 **추가 -74px 절약** (운영진 4명 세로→가로 변경 효과 큼).
+
+### 4 issue fix 매트릭스
+| # | 사용자 보고 | Phase 13 fix | 검증 |
+|---|------------|--------------|------|
+| §1 | TIME-OUTS 가로 6칸 너무 김 | grid-cols-2 (2×3) / 18px 박스 | 이미지 30 영역 좁아짐 ✓ |
+| §2 | P2 라벨 + 2FT 안내가 P1 위 겹침 | 박스 12px + 글자 8px + 라벨 w-7 + gap 압축 | 박스 폭 -8px / FT 안내 ml 0.5 ✓ |
+| §3 | 체크박스 크기 | P IN + FOULS 1-5 모두 18px | 시각 일관 ✓ |
+| §4 | Players 행 압축 | 행 20→18px (12×18=216) | -24px ✓ |
+| §5 | 푸터 서명란 재배치 | Scorer/Asst/Timer/Shot Clock 가로 1줄 4컬럼 | -82px / 가장 큰 절약 ✓ |
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| tsc --noEmit | ✅ EXIT_CODE=0 (출력 0줄) |
+| vitest 전체 | ✅ 605/605 PASS |
+| vitest team-section-fill-rows | ✅ 8/8 PASS (행 높이 변경은 함수 로직 불변 / 회귀 0) |
+| lucide-react import | 0건 (코멘트 룰 명시만 2건) |
+| 핑크 hex | 0건 |
+| schema 변경 | 0 |
+| Flutter v1 영향 | 0 |
+| BFF/service 변경 | 0 |
+| AppNav frozen 영향 | 0 |
+| Phase 3 Player Fouls 기능 유지 | ✅ (P/T/U/D + Article 41) |
+| Phase 4 Time-outs 마킹 동작 유지 | ✅ (canAddTimeout / 마지막 해제 분기 / OT 동적 칸) |
+| FIBA 한줄 묶음 (Team Fouls) | ✅ (Period 1·2 / 3·4 / Extra 3줄 유지) |
+| FIBA 정합 (Referee/Umpire/Captain 세로) | ✅ 변경 0 |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/[matchId]` 진입 → Team A / Team B / 풋터 영역 시각 검증 + A4 인쇄 미리보기
+- **정상 동작**:
+  1. TIME-OUTS — **2 컬럼 × 3 행** (5칸 기본 + 마지막 좌측만). currentPeriod >= 5 시 칸 추가 (6/7/8칸 → 3·4·4 행)
+  2. Team Fouls — P1/P2 한 줄 / P3/P4 한 줄 / Extra 한 줄 (3줄 유지). 박스 12px / 라벨 9px / 5+ 시 자유투 안내 (FT +N) 박스 옆 겹침 없이 표시
+  3. 체크박스 — P IN + FOULS 1-5 모두 **18px** 정사각. 글자 (P/T/U/D) 10px 그대로 가독성 OK
+  4. Players — **12행 × 18px = 216px**. 빈 명단 placeholder 도 18px 유지
+  5. 풋터 — Scorer / Assistant scorer / Timer / Shot clock operator 가 **가로 1줄**. 각 컬럼 25% 폭 + 라벨 9px + underscore input
+  6. Referee / Umpire 1 / Umpire 2 / Captain = 변경 없음 (세로 그대로)
+  7. A4 1 페이지 fit — 여유 ~266px 확보
+- **주의할 입력**:
+  - OT 진입 시 TIME-OUTS 칸 추가 (6칸 = 2×3 / 7칸 = 2×4 (마지막 좌측만) / 8칸 = 2×4)
+  - 13명+ 명단 (12 초과) → 12행 자르지 않고 그대로 표시 (운영 안정성)
+  - 좁은 컬럼에서 "Assistant scorer" / "Shot clock operator" 라벨이 길어 컬럼 폭에 따라 줄바꿈 가능 (라벨 9px + tracking-tight 로 최대한 압축)
+
+### ⚠️ reviewer 참고
+- **A4 fit 여유 확대**: Phase 12 ~132px → Phase 13 ~266px (운영진 가로 1줄 -82px 가 가장 큰 절약). 인쇄 시 충분한 여백.
+- **FIBA 정합 vs 공간 절약 트레이드오프**: 풋터 운영진 가로 1줄 = FIBA 종이기록지(세로 4줄)와 다름. 사용자 결재로 공간 절약 우선 선택. Referee/Umpire/Captain 은 FIBA 정합 유지 (세로).
+- **체크박스 input h-[14px] w-[14px]**: 일부 브라우저에서 기본 checkbox 외형이 14px → 더 작게 보일 수 있음. label 박스 18px 안에 중앙 정렬 + touchAction manipulation 유지로 터치 보장.
+- **다음 단계**: 시각 검증 (브라우저 /score-sheet/[matchId] 진입 → A4 인쇄 미리보기 1 페이지 fit 재확인 → 이미지 30-31 4 issue 해소 확인).
+
+### 신규 보안 이슈
+- **0 건** — 디자인 / 박스 크기 / 레이아웃만 변경. API/권한/DB 0.
+
+---
+
 ## 구현 기록 (developer) — FIBA Phase 12 12행 + Team Fouls 3줄 (2026-05-12)
 
 ### 📝 구현 범위
@@ -252,6 +328,7 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 13 — UI 겹침 fix + 압축]** (a) TIME-OUTS 가로 6칸 → 2×N grid (사용자 결재 §1). 박스 18px. (b) Team Fouls 박스 12px + 라벨 9px + FT 안내 8px (P2/2FT 겹침 fix §2). (c) 체크박스 P IN + FOULS 1-5 = 24→18px (§3). (d) Players 행 20→18px (§4 / 12×18=216). (e) 풋터 운영진 4명 세로→가로 1줄 4컬럼 (§5 / -82px). 좌측 ~857px (A4 여유 ~266px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 12 — Players 12행 + Team Fouls 3줄]** (a) fillRowsTo16 → fillRowsTo12 (FIBA Article 4.2.2 실 운영 max 12명 / 사용자 직접 결재). (b) deprecated alias 16/15 → 12 위임 (회귀 안전망). (c) Team Fouls 5줄 → 3줄 — P1·P2 / P3·P4 페어 + Extra. (d) vitest 16 → 12 갱신. 좌측 ~991px (A4 여유 ~132px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase E 단체 lifecycle (Q1 보존)]** E-1) requireOrganizationOwner 헬퍼 + OrganizationPermissionError (owner only — admin 차단 + super_admin 우회 옵션). E-2) POST/DELETE /api/web/organizations/[id]/archive (status='archived'/'approved' 토글, adminLog warning 박제). E-3) ArchiveOrganizationButton confirm 모달 + 운영자 페이지 isOwner 가드 + 헤더 "보관됨" 뱃지 + 단체 목록 active vs archived 분리 (회색 톤) + 공개 페이지 archived 안내 페이지 분기. vitest 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived owner). schema 변경 0 (status=String) / Flutter v1 영향 0 / decisions.md Q1 박제. tsc 0 / vitest 본 PR 10/10 PASS / 전체 601/605 (실패 4건 = 별 PR score-sheet 무관). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase D 단체↔시리즈 셀프서비스]** D-1) 시리즈 카드 ⋮ 메뉴 (SeriesActionsMenu + MoveSeriesModal — 분리 organization_id=null / 이동 본인 owner-admin 단체 목록 radio + confirm). D-2 Q3) canManageTournament 단체 owner/admin 자동 부여 회귀 가드 vitest 9 케이스 (organizer/TAM/단체 owner/admin/member/series_id NULL/super_admin 2종). tsc 0 / vitest 595/595 PASS / Flutter v1 영향 0 / schema 변경 0 / API 신규 0 (Phase C PATCH + 기존 GET 재사용). | ✅ |
@@ -261,6 +338,3 @@ Extra [1][2][3][4]                   ← 줄 3
 | 2026-05-12 | 98f857c | **[design]** admin 빨강 누락 페이지 — series 목록/wizard/모달 (이미지 36) | ✅ |
 | 2026-05-12 | b8f293f | **[design]** pill 9999px + 빨강 본문 일괄 정리 (이미지 35) — 12 파일 | ✅ |
 | 2026-05-12 | 4d989b3 | **[admin]** 자동 종료 + 빨강 토큰 + org admin 등록 (이미지 29~32) | ✅ |
-| 2026-05-12 | d89f600 | **[live]** score-match swap-aware 백포트 — 5/10 결승 영상 사고 2차 fix | ✅ |
-| 2026-05-12 | ff190a7 | **[live]** 결승 영상 매핑 오류 fix — auto-register 1:1 매핑 가드 백포트 | ✅ |
-| 2026-05-12 | 32b8ec9 | **[live]** TeamLink href 404 — TournamentTeam.id → Team.id 분리 | ✅ |

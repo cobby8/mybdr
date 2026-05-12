@@ -21,6 +21,13 @@
  *      Period 1+2 가로 한 줄 / Period 3+4 가로 한 줄 / Extra 단독 한 줄
  *   §3 세로 압축 누적 — 좌측 총합 ~991px (A4 1123 여유 ~132px 확보)
  *
+ * 2026-05-12 — Phase 13 UI 겹침 fix + 압축 (이미지 30-31 사용자 직접 결재).
+ *   §1 TIME-OUTS 가로 6칸 → 2×N grid (2 컬럼 동적 배치) — 가로 공간 확보
+ *   §2 Team Fouls 박스 width 12→9px (P2 라벨/2FT 안내 겹침 fix)
+ *   §3 체크박스 P IN + FOULS 1-5 = 24→18px (시각 압축)
+ *   §4 Players 행 높이 20 → 18px (12 × 18 = 216px / -24px 추가 절약)
+ *   §5 A4 fit 재검증 — 좌측 총합 ~931px (여유 ~192px 확보)
+ *
  * 왜 (이유):
  *   FIBA 양식 좌 절반 = Team A 상 / Team B 하 분할. 각 팀 영역 안에
  *   Time-outs (5칸) + Team fouls (Period 별 1-4 + Extra) + Players 15명
@@ -233,7 +240,10 @@ export function TeamSection({
             - 마지막 마킹 칸 클릭 → 1건 해제
             - 채운 칸 = ● (text-primary) / 빈 칸 = 숫자 (text-muted)
           시각: foul 5칸과 같은 톤 (border 1px / 36px 정사각 큰 터치영역).
-          Phase 8 — mb-3 → 가로 flex 자식 (flex-shrink-0 + 우측 Team fouls 와 인라인). */}
+          Phase 8 — mb-3 → 가로 flex 자식 (flex-shrink-0 + 우측 Team fouls 와 인라인).
+          Phase 13 (2026-05-12) — 가로 6칸 → 2×N grid (사용자 결재 §1).
+            5칸 + OT 추가 시 가로가 너무 길어 → 2 컬럼 동적 배치 (홀수면 마지막 좌측만).
+            박스 크기 h-6 w-6 → h-[18px] w-[18px] (시각 압축). */}
       <div className="shrink-0">
         <div
           className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider"
@@ -263,7 +273,8 @@ export function TeamSection({
             );
           })()}
         </div>
-        <div className="flex flex-wrap gap-1">
+        {/* Phase 13 — grid-cols-2 (2 컬럼 × N 행 동적). gap-px 컴팩트. */}
+        <div className="grid grid-cols-2 gap-px">
           {(() => {
             // 표시할 칸 수 산정:
             //   기본 5칸 (전반 2 + 후반 3)
@@ -299,7 +310,8 @@ export function TeamSection({
                     }
                   }}
                   disabled={disabled || (!isLastFilled && !isNextEmpty)}
-                  className="mark flex h-6 w-6 items-center justify-center text-[11px] font-bold disabled:cursor-default"
+                  // Phase 13 — h-6 w-6 → h-[18px] w-[18px] (시각 압축 / 사용자 결재 §3).
+                  className="mark flex h-[18px] w-[18px] items-center justify-center text-[10px] font-bold disabled:cursor-default"
                   style={{
                     // Phase 10 (2026-05-12) §E — 빈 사각형 + 마킹 시 X 글자 (FIBA 종이기록지 정합).
                     // 검정 ● 폐기 (사용자 결재) — 마킹은 X 글자 (운영자 종이에 X 표시 관행).
@@ -335,7 +347,11 @@ export function TeamSection({
             줄 1) Period ① [1·2·3·4]   ② [1·2·3·4]   ← 가로 한 줄
             줄 2) Period ③ [1·2·3·4]   ④ [1·2·3·4]   ← 가로 한 줄
             줄 3) Extra   [1·2·3·4]                    ← 단독 한 줄
-          5 줄 → 3 줄 (-24px / FIBA 종이기록지 정합). */}
+          5 줄 → 3 줄 (-24px / FIBA 종이기록지 정합).
+          Phase 13 (2026-05-12) — UI 겹침 fix (사용자 결재 §2 / 이미지 31).
+            박스 h-5 w-5 → h-[12px] w-[12px] (P2 라벨/2FT 안내 겹침 fix).
+            라벨 w-8 → w-7 (글자 9px) / 페어 간 gap-2 → gap-1.
+            FT (+N) 안내 = 글자 8px (이전 9px) + 박스 옆 유지 (FIBA 한줄 묶음 룰). */}
       <div className="min-w-0 flex-1">
         <div
           className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider"
@@ -354,7 +370,8 @@ export function TeamSection({
           ).map(([leftPeriod, rightPeriod]) => (
             <div
               key={`pair-${leftPeriod}`}
-              className="flex items-center gap-2"
+              // Phase 13 — gap-2 → gap-1 (페어 간격 압축 / 겹침 fix)
+              className="flex items-center gap-1"
             >
               {[leftPeriod, rightPeriod].map((period) => {
                 // 이 Period 의 팀 파울 누적 (Player Fouls 합산)
@@ -364,24 +381,28 @@ export function TeamSection({
                 return (
                   <div
                     key={period}
-                    className="flex min-w-0 flex-1 items-center gap-1"
+                    // Phase 13 — gap-1 → gap-px (페어 내부 압축)
+                    className="flex min-w-0 flex-1 items-center gap-px"
                   >
                     <span
-                      className="w-8 shrink-0 text-[10px] uppercase"
+                      // Phase 13 — w-8 → w-7 / text-[10px] → text-[9px] (라벨 압축)
+                      className="w-7 shrink-0 text-[9px] uppercase"
                       style={{ color: "var(--color-text-muted)" }}
                       aria-label={`Period ${period}`}
                     >
-                      {/* Phase 12 — w-12 → w-8 압축 (페어 2개 가로 fit). 라벨 = "P{n}" 축약. */}
+                      {/* Phase 12 — w-12 → w-8 압축 / Phase 13 — w-7 추가 압축. */}
                       P{period}
                     </span>
                     {/* Phase 11 §1 (2026-05-12) — FIBA 정합 박스 안 1·2·3·4 라벨 복원 (reviewer Critical).
-                        Phase 12 — 페어 배치 유지 / 박스 크기 동일 (h-5 w-5). */}
+                        Phase 12 — 페어 배치 유지 / 박스 크기 동일 (h-5 w-5).
+                        Phase 13 — 박스 h-5 w-5 → h-[12px] w-[12px] (UI 겹침 fix / 사용자 결재 §2).
+                          글자 9px → 8px / shrink-0 유지. */}
                     {[1, 2, 3, 4].map((n) => {
                       const filled = teamCount >= n;
                       return (
                         <div
                           key={n}
-                          className="mark flex h-5 w-5 shrink-0 items-center justify-center text-[9px] font-semibold"
+                          className="mark flex h-[12px] w-[12px] shrink-0 items-center justify-center text-[8px] font-semibold"
                           style={{
                             border: "1px solid var(--color-border)",
                             backgroundColor: filled
@@ -397,15 +418,16 @@ export function TeamSection({
                         </div>
                       );
                     })}
-                    {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원) */}
+                    {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원).
+                        Phase 13 — 글자 9px → 8px / ml-1 → ml-0.5 (압축) */}
                     {ftAwarded && (
                       <span
-                        className="ml-1 inline-flex shrink-0 items-center gap-0.5 text-[9px] font-semibold"
+                        className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 text-[8px] font-semibold"
                         style={{ color: "var(--color-warning)" }}
                         aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
                       >
                         <span
-                          className="material-symbols-outlined text-[12px]"
+                          className="material-symbols-outlined text-[10px]"
                           style={{ fontVariationSettings: "'FILL' 1" }}
                         >
                           warning
@@ -418,16 +440,18 @@ export function TeamSection({
               })}
             </div>
           ))}
-          {/* Extra periods (OT) — period 5+ 합산. Phase 12 = 단독 줄 (페어 X) */}
-          <div className="flex items-center gap-1">
+          {/* Extra periods (OT) — period 5+ 합산. Phase 12 = 단독 줄 (페어 X)
+              Phase 13 — w-8 → w-7 / 박스 h-5 w-5 → h-[12px] w-[12px] 압축 */}
+          <div className="flex items-center gap-px">
             <span
-              className="w-8 shrink-0 text-[10px] uppercase"
+              className="w-7 shrink-0 text-[9px] uppercase"
               style={{ color: "var(--color-text-muted)" }}
             >
               Extra
             </span>
             {/* Phase 11 §1 (2026-05-12) — OT 박스 안 1·2·3·4 라벨 복원 (FIBA 정합 / Period 행 동일).
-                period 5~7 합산 (FIBA Article — Extra periods 통합 표시) */}
+                period 5~7 합산 (FIBA Article — Extra periods 통합 표시).
+                Phase 13 — h-5 w-5 → h-[12px] w-[12px] (UI 압축 / 사용자 결재 §2). */}
             {(() => {
               const otCount = fouls.filter((f) => f.period >= 5).length;
               return [1, 2, 3, 4].map((n) => {
@@ -435,7 +459,7 @@ export function TeamSection({
                 return (
                   <div
                     key={n}
-                    className="mark flex h-5 w-5 shrink-0 items-center justify-center text-[9px] font-semibold"
+                    className="mark flex h-[12px] w-[12px] shrink-0 items-center justify-center text-[8px] font-semibold"
                     style={{
                       border: "1px solid var(--color-border)",
                       backgroundColor: filled
@@ -460,18 +484,19 @@ export function TeamSection({
       {/* Players 12 행 — FIBA Article 4.2.2 실 운영 max (Phase 12 — 사용자 직접 결재).
           Phase 12 — 행 20px (12행 × 20 = 240px) — A4 1 페이지 fit 여유 확보.
             Phase 11 = 16행 × 20 = 320 → Phase 12 = 12행 × 20 = 240 (-80px) —
-            Team Fouls 5줄 → 3줄 (-24px) 합산해서 A4 1123px 안 ~132px 여유. */}
+            Team Fouls 5줄 → 3줄 (-24px) 합산해서 A4 1123px 안 ~132px 여유.
+          Phase 13 (2026-05-12) — 행 20 → 18px (사용자 결재 §4 / 12 × 18 = 216 / -24px). */}
       <div className="mb-0.5 overflow-x-auto">
         <table
           className="w-full border-collapse text-xs"
           style={{ color: "var(--color-text-primary)" }}
         >
           <thead>
-            {/* Phase 12 — thead 행 = 20px (py-0 압축 + 12행 fit) */}
+            {/* Phase 13 — thead 행 = 18px (py-0 압축 + 12행 fit / 사용자 결재 §4) */}
             <tr
               style={{
                 borderBottom: "1px solid var(--color-border)",
-                height: 20,
+                height: 18,
               }}
             >
               <th
@@ -511,13 +536,13 @@ export function TeamSection({
             {rows.map((p, idx) => {
               if (!p) {
                 // 빈 row — FIBA 양식 12 행 정합용 placeholder (Phase 12 — 사용자 직접 결재).
-                // Phase 12 — 행 높이 20px (A4 1 페이지 fit / 12행 × 20 = 240px)
+                // Phase 13 — 행 높이 20 → 18px (사용자 결재 §4 / 12행 × 18 = 216px / -24px)
                 return (
                   <tr
                     key={`empty-${idx}`}
                     style={{
                       borderBottom: "1px solid var(--color-border)",
-                      height: 20,
+                      height: 18,
                     }}
                   >
                     <td className="px-1 py-0">&nbsp;</td>
@@ -555,8 +580,8 @@ export function TeamSection({
                   key={p.tournamentTeamPlayerId}
                   style={{
                     borderBottom: "1px solid var(--color-border)",
-                    // Phase 12 — 행 높이 20px (A4 1 페이지 fit / 12행 × 20 = 240px)
-                    height: 20,
+                    // Phase 13 — 행 높이 20 → 18px (사용자 결재 §4 / 12행 × 18 = 216px)
+                    height: 18,
                     // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리
                     backgroundColor: ejected
                       ? "var(--color-elevated)"
@@ -640,10 +665,12 @@ export function TeamSection({
                     {p.jerseyNumber ?? "—"}
                   </td>
                   {/* Player in 체크 — Phase 9 행 24px fit (h-9 → h-5).
+                      Phase 13 — h-5 w-5 → h-[18px] w-[18px] / 내부 input h-4 w-4 → h-[14px] w-[14px]
+                        (사용자 결재 §3 체크박스 18px 압축).
                       터치 영역은 행 전체로 보완 (label 박스 자체 클릭 가능) */}
                   <td className="px-1 py-0 text-center">
                     <label
-                      className="inline-flex h-5 w-5 cursor-pointer items-center justify-center"
+                      className="inline-flex h-[18px] w-[18px] cursor-pointer items-center justify-center"
                       style={{ touchAction: "manipulation" }}
                     >
                       <input
@@ -655,7 +682,7 @@ export function TeamSection({
                           })
                         }
                         disabled={disabled}
-                        className="h-4 w-4 cursor-pointer disabled:opacity-50"
+                        className="h-[14px] w-[14px] cursor-pointer disabled:opacity-50"
                         aria-label={`${p.displayName} player in`}
                       />
                     </label>
@@ -702,7 +729,8 @@ export function TeamSection({
                             }
                             // 칸 = 5x5 작지만 버튼 자체 클릭 영역 + touchAction
                             // Phase 11 §5 — `mark` 클래스 = 인쇄 시 검정 강제 (_print.css)
-                            className="mark flex h-5 w-5 items-center justify-center text-[10px] font-bold disabled:cursor-default"
+                            // Phase 13 — h-5 w-5 → h-[18px] w-[18px] (사용자 결재 §3 / 18px 압축)
+                            className="mark flex h-[18px] w-[18px] items-center justify-center text-[10px] font-bold disabled:cursor-default"
                             style={{
                               border: "1px solid var(--color-border)",
                               backgroundColor: filled
