@@ -348,9 +348,10 @@ export default function TournamentSitePage() {
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2">
             <div
+              // 2026-05-12 — admin 빨강 본문 금지 (step indicator) → info(Navy)
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors ${
                 step === s
-                  ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]"
+                  ? "bg-[var(--color-info)] text-white"
                   : step > s
                   ? "bg-[var(--color-success)] text-white"
                   : "bg-[var(--color-border)] text-[var(--color-text-muted)]"
@@ -464,7 +465,8 @@ function Step1({
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-[var(--color-text-primary)]">{tpl.name}</p>
                 {selected === tpl.slug && (
-                  <span className="text-xs font-medium text-[var(--color-accent)]">선택됨 ✓</span>
+                  /* 2026-05-12 — 선택됨 ✓ = 긍정 결과 → success(Green) (룰 11 — 승자/긍정 = success) */
+                  <span className="text-xs font-medium text-[var(--color-success)]">선택됨 ✓</span>
                 )}
               </div>
               <p className="mt-0.5 text-sm text-[var(--color-text-muted)]">{tpl.desc}</p>
@@ -650,7 +652,7 @@ function Step3({
         </div>
         {subdomain && (
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-            https://<span className="text-[var(--color-accent)]">{subdomain}</span>.mybdr.kr
+            https://<span className="text-[var(--color-info)]">{subdomain}</span>.mybdr.kr
           </p>
         )}
       </div>

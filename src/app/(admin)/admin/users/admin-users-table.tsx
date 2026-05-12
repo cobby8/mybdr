@@ -418,11 +418,11 @@ export function AdminUsersTable({
               {/* 탭 */}
               <div className="flex border-b border-[var(--color-border)]">
                 <button onClick={() => { setTab("info"); setConfirm(null); }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === "info" ? "text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]" : "text-[var(--color-text-muted)]"}`}>
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === "info" ? "text-[var(--color-info)] border-b-2 border-[var(--color-info)]" : "text-[var(--color-text-muted)]"}`}>
                   상세정보
                 </button>
                 <button onClick={() => { setTab("edit"); setConfirm(null); }}
-                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === "edit" ? "text-[var(--color-accent)] border-b-2 border-[var(--color-accent)]" : "text-[var(--color-text-muted)]"}`}>
+                  className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === "edit" ? "text-[var(--color-info)] border-b-2 border-[var(--color-info)]" : "text-[var(--color-text-muted)]"}`}>
                   관리
                 </button>
               </div>
