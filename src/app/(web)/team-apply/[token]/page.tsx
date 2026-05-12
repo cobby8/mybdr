@@ -61,8 +61,9 @@ export default async function TeamApplyPage({ params }: PageProps) {
     return (
       <ErrorView
         title="이미 제출된 링크"
-        message="이미 명단이 제출되었습니다. 수정이 필요하면 운영자에게 요청하세요."
+        message="이미 명단이 제출되었습니다. 코치 인증 후 수정 가능합니다."
         existingPlayerCount={tt._count.players}
+        editLink={`/team-apply/${token}/edit`}
       />
     );
   }
@@ -156,10 +157,12 @@ function ErrorView({
   title,
   message,
   existingPlayerCount,
+  editLink,
 }: {
   title: string;
   message: string;
   existingPlayerCount?: number;
+  editLink?: string;
 }) {
   return (
     <div className="mx-auto max-w-md px-4 py-12 sm:py-16">
@@ -180,6 +183,11 @@ function ErrorView({
           <p className="mt-3 text-xs" style={{ color: "var(--color-text-muted)" }}>
             등록된 선수: {existingPlayerCount}명
           </p>
+        )}
+        {editLink && (
+          <a href={editLink} className="btn btn--primary mt-4 inline-block">
+            수정하기
+          </a>
         )}
       </div>
     </div>

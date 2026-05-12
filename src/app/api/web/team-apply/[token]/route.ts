@@ -51,6 +51,25 @@ const PostBodySchema = z.object({
   players: z.array(PlayerSchema).min(1, "선수 1명 이상").max(30, "선수 최대 30명"),
 });
 
+// 2026-05-12 — 명단 수정 (PUT) body 스키마 — POST 와 동일 + 코치 인증 정보 추가.
+const PutBodySchema = z.object({
+  manager_name: z.string().trim().min(1, "코치 이름 입력").max(30),
+  manager_phone: z
+    .string()
+    .trim()
+    .regex(/^(010-\d{4}-\d{4}|01\d{9})$/, "휴대폰 형식 (010-XXXX-XXXX)"),
+  players: z.array(PlayerSchema).min(1, "선수 1명 이상").max(30, "선수 최대 30명"),
+});
+
+// 전화번호 정규화 — '010-XXXX-XXXX' 표준으로 변환 (DB 박제 형식 + 입력값 매칭 시 사용)
+function normalizePhoneStr(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("010")) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  return raw.trim();
+}
+
 // ============================================================
 // GET — 토큰 유효성 검증 + 대회/팀/종별 정보 반환 (페이지 server fetch 용)
 // ============================================================
@@ -85,10 +104,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     return apiError("만료된 토큰입니다. 운영자에게 재발급을 요청하세요.", 410, "TOKEN_EXPIRED");
   }
 
-  // 일회용 검증 — applied_via === 'coach_token' 이면 이미 제출됨
-  if (tt.applied_via === "coach_token") {
-    return apiError("이미 명단이 제출된 토큰입니다.", 409, "TOKEN_CONSUMED");
-  }
+  // 2026-05-12 사용자 요청: 이미 제출된 토큰도 401 대신 409 + "수정 가능" 메타로 응답 변경.
+  //   client 에서 ALREADY_SUBMITTED 신호 받으면 "수정하기" 버튼 표시.
+  //   실제 수정 = PUT /api/web/team-apply/[token]/edit 에서 코치 이름+전화번호 인증.
+  const alreadySubmitted = tt.applied_via === "coach_token";
 
   // 종별 룰 (해당 division 매핑)
   const divisionRule = tt.category
@@ -119,6 +138,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     },
     existingPlayerCount: tt._count.players,
     expiresAt: tt.apply_token_expires_at?.toISOString() ?? null,
+    // 2026-05-12 — 이미 제출 여부 표시 (client 가 "수정하기" 버튼 분기)
+    alreadySubmitted,
+    hasCoachInfo: !!(tt.manager_name && tt.manager_phone),
   });
 }
 
@@ -244,4 +266,109 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     ok: true,
     insertedCount: result.inserted,
   });
+}
+
+// ============================================================
+// PUT — 명단 수정 (제출 완료된 토큰만 / 코치 이름·전화번호 인증)
+// 2026-05-12 사용자 요청:
+//   - 최초 제출한 코치만 수정 가능
+//   - 매번 manager_name + manager_phone 매칭 검증 (별도 세션 토큰 없음)
+//   - 매칭 통과 시 = 기존 명단 DELETE + 새 명단 INSERT (트랜잭션)
+//   - applied_via='coach_token' 유지 (수정 후에도 일회용 status 유지)
+// ============================================================
+export async function PUT(req: NextRequest, { params }: Ctx) {
+  const { token } = await params;
+  if (!TOKEN_REGEX.test(token)) {
+    return apiError("유효하지 않은 토큰 형식입니다.", 400);
+  }
+
+  // 1) 입력 zod 검증
+  let body: unknown;
+  try { body = await req.json(); }
+  catch { return apiError("잘못된 요청입니다.", 400); }
+  const parsed = PutBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return apiError("유효하지 않은 입력입니다.", 422, "VALIDATION_ERROR");
+  }
+  const { manager_name, manager_phone, players } = parsed.data;
+
+  // 2) 토큰 + 코치 정보 조회
+  const tt = await prisma.tournamentTeam.findUnique({
+    where: { apply_token: token },
+    select: {
+      id: true, tournamentId: true, category: true,
+      apply_token_expires_at: true, applied_via: true,
+      manager_name: true, manager_phone: true,
+    },
+  });
+  if (!tt) return apiError("존재하지 않는 토큰입니다.", 404);
+
+  const now = new Date();
+  if (tt.apply_token_expires_at && tt.apply_token_expires_at < now) {
+    return apiError("만료된 토큰입니다.", 410, "TOKEN_EXPIRED");
+  }
+  // 수정 대상 = 최초 제출 완료된 토큰만 (applied_via='coach_token')
+  if (tt.applied_via !== "coach_token") {
+    return apiError("아직 명단이 제출되지 않은 토큰입니다.", 400, "NOT_SUBMITTED");
+  }
+
+  // 3) 코치 인증 매칭 — 이름 trim + 전화번호 정규화 후 비교
+  const inputName = manager_name.trim();
+  const inputPhone = normalizePhoneStr(manager_phone);
+  const dbName = (tt.manager_name ?? "").trim();
+  const dbPhone = normalizePhoneStr(tt.manager_phone ?? "");
+  if (!dbName || !dbPhone) {
+    return apiError("코치 정보가 등록되지 않은 팀입니다. 운영자에게 문의하세요.", 409, "COACH_INFO_MISSING");
+  }
+  if (inputName !== dbName || inputPhone !== dbPhone) {
+    return apiError("코치 이름 또는 연락처가 일치하지 않습니다.", 401, "COACH_AUTH_FAILED");
+  }
+
+  // 4) 종별 룰 검증 (POST 와 동일 — 어린 학년/연령 자유)
+  const rule = tt.category
+    ? await prisma.tournamentDivisionRule.findFirst({
+        where: { tournamentId: tt.tournamentId, code: tt.category },
+        select: { birthYearMin: true, gradeMax: true },
+      })
+    : null;
+  const validationErrors: Array<{ index: number; field: string; message: string }> = [];
+  players.forEach((p, idx) => {
+    const birthYear = Number(p.birth_date.slice(0, 4));
+    if (rule?.birthYearMin && birthYear < rule.birthYearMin) {
+      validationErrors.push({ index: idx, field: "birth_date", message: `${rule.birthYearMin}년 이후 출생자만 가능` });
+    }
+    if (p.grade != null && rule?.gradeMax && p.grade > rule.gradeMax) {
+      validationErrors.push({ index: idx, field: "grade", message: `${rule.gradeMax}학년 이하` });
+    }
+  });
+  if (validationErrors.length > 0) {
+    return apiError("종별 자격 검증 실패", 422, "DIVISION_VALIDATION_FAILED", { errors: validationErrors });
+  }
+
+  // 5) 트랜잭션 — 기존 명단 DELETE + 새 명단 INSERT
+  await prisma.$transaction(async (tx) => {
+    await tx.tournamentTeamPlayer.deleteMany({
+      where: { tournamentTeamId: tt.id },
+    });
+    await tx.tournamentTeamPlayer.createMany({
+      data: players.map((p) => ({
+        tournamentTeamId: tt.id,
+        player_name: p.player_name,
+        birth_date: p.birth_date,
+        jerseyNumber: p.jersey_number,
+        position: p.position ?? null,
+        school_name: p.school_name ?? null,
+        grade: p.grade ?? null,
+        parent_name: p.parent_name ?? null,
+        parent_phone: p.parent_phone,
+        division_code: tt.category,
+        is_active: true,
+        claim_status: "pending",
+        auto_registered: false,
+        invited_at: now,
+      })),
+    });
+  });
+
+  return apiSuccess({ ok: true, updatedCount: players.length });
 }
