@@ -30,10 +30,18 @@ export const ALLOWED_FORMATS = [
 
 export type DivisionFormat = (typeof ALLOWED_FORMATS)[number];
 
+// 2026-05-13 한국 생활체육 농구 표준 용어 통일 (사용자 결재 §A):
+//   - single_elimination — "싱글 엘리미네이션" → "토너먼트" (한국 생활체육 표준)
+//   - round_robin       — "풀리그 (Round Robin)" → "풀리그"
+//   - double_elimination — "더블 엘리미네이션" → "더블 토너먼트"
+//   - swiss             — "스위스 라운드" (일반 명칭 유지)
+//   - 나머지 (dual_tournament / group_stage_knockout / full_league_knockout / league_advancement /
+//     group_stage_with_ranking) — 이미 한국식 → 변경 0
+// enum 값 자체는 DB 호환성 유지 (변경 X — 라벨만 한국화).
 export const FORMAT_LABEL: Record<DivisionFormat, string> = {
-  single_elimination: "싱글 엘리미네이션",
-  double_elimination: "더블 엘리미네이션",
-  round_robin: "풀리그 (Round Robin)",
+  single_elimination: "토너먼트", // single_elimination — 토너먼트(싱글)
+  double_elimination: "더블 토너먼트", // double_elimination — 더블 토너먼트
+  round_robin: "풀리그", // round_robin — 풀리그
   dual_tournament: "듀얼 토너먼트",
   group_stage_knockout: "조별리그 + 토너먼트",
   full_league_knockout: "풀리그 + 토너먼트",
