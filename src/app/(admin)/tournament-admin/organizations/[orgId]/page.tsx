@@ -30,6 +30,8 @@ interface OrgDetail {
   isPublic: boolean;
   seriesCount: number;
   myRole: string | null;
+  // 2026-05-12 hotfix — super_admin 인지 (UI 가드 분기용 — 멤버십 없어도 owner 권한 인정)
+  isSuperAdmin?: boolean;
   members: { id: string; nickname: string; role: string }[];
   series: {
     id: string;
@@ -214,9 +216,10 @@ export default function OrganizationDashboardPage() {
     );
   }
 
-  const isAdmin = org.myRole === "owner" || org.myRole === "admin";
-  // 2026-05-12 Phase E — owner only 액션 (archive/복구) — admin 도 차단
-  const isOwner = org.myRole === "owner";
+  // 2026-05-12 hotfix — super_admin 도 owner/admin 권한 인정 (멤버십 없어도)
+  const isAdmin = org.myRole === "owner" || org.myRole === "admin" || !!org.isSuperAdmin;
+  // 2026-05-12 Phase E — owner only 액션 (archive/복구) — admin 도 차단 (단, super_admin 우회)
+  const isOwner = org.myRole === "owner" || !!org.isSuperAdmin;
   // 2026-05-12 Phase E — archived 단체 표시 분기
   const isArchived = org.status === "archived";
 
