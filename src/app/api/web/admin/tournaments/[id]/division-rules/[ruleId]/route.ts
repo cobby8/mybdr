@@ -9,20 +9,20 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { canManageTournament } from "@/lib/auth/tournament-permission";
 import { apiSuccess, apiError, unauthorized, forbidden, validationError } from "@/lib/api/response";
 
-const ALLOWED_FORMATS = [
-  "single_elimination",
-  "double_elimination",
-  "round_robin",
-  "dual_tournament",
-  "group_stage_knockout",
-  "full_league_knockout",
-  "league_advancement",
-  "swiss",
-] as const;
+// 2026-05-12 Phase 3.5-D — ALLOWED_FORMATS / settings 검증 단일 source of truth.
+import { ALLOWED_FORMATS, validateDivisionSettings } from "@/lib/tournaments/division-formats";
+
+// settings JSON 스키마 (group_size / group_count / ranking_format 검증).
+// 본 zod 는 record 형이므로 추가 키 허용 (legacy linkage_pairs / advanceCount 호환).
+// 룰 검증은 lib/tournaments/division-formats.ts validateDivisionSettings 위임 (단위 테스트 커버).
+const settingsSchema = z.record(z.string(), z.unknown()).refine(
+  (s) => validateDivisionSettings(s) === null,
+  { message: "settings: group_size/group_count = 1~32 정수, ranking_format = round_robin/single_elimination" },
+);
 
 const patchSchema = z.object({
   format: z.enum(ALLOWED_FORMATS).nullable().optional(),
-  settings: z.record(z.string(), z.unknown()).optional(),
+  settings: settingsSchema.optional(),
 });
 
 export async function PATCH(

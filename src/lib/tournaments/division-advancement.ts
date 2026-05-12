@@ -236,6 +236,42 @@ export async function advanceDivisionPlaceholders(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-12 Phase 3.5-D — group_stage_with_ranking 진출 매핑 (stub)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 신규 enum group_stage_with_ranking 의 매핑 로직 placeholder.
+//
+// 기존 advanceDivisionPlaceholders 와 차이:
+//   - league_advancement = settings.linkage_pairs (예: [[1,2],[3,4]]) 명시 → 특정 조끼리만 매칭
+//   - group_stage_with_ranking = group_size × group_count 만 박제 → 모든 동순위 자동 매칭
+//     (1위×N팀 동순위전 / 2위×N팀 동순위전 / ...)
+//
+// 본 PR (Phase 3.5-D) 범위:
+//   - enum + UI input 만 박제 (운영자가 group_size / group_count 입력 가능)
+//   - 매칭 placeholder 자동 생성 = TODO (별 PR 큐잉)
+//
+// TODO 후속 PR:
+//   1. 종별 settings.group_size / group_count 조회
+//   2. standings 계산 (기존 getDivisionStandings 재사용)
+//   3. 1위×group_count / 2위×group_count / ... settings.group_size 위까지 placeholder 매치 자동 생성
+//      (settings.ranking_format = round_robin → 풀리그 매치 / single_elimination → 토너먼트 매치)
+//   4. notes "{N}위 동순위전" 형식 박제
+//   5. advanceDivisionPlaceholders 와 동일하게 standings 기반 자동 채움
+//
+export async function generateGroupStageRankingPlaceholders(
+  _prisma: PrismaClient | Prisma.TransactionClient,
+  _tournamentId: string,
+  _divisionCode: string,
+): Promise<{ generated: number; skipped: number; reason: string }> {
+  // Phase 3.5-D stub — 후속 PR 에서 구현
+  return {
+    generated: 0,
+    skipped: 0,
+    reason: "stub: group_stage_with_ranking 매칭 자동 생성은 후속 PR 구현 (Phase 3.5-D 범위 = enum+UI 만)",
+  };
+}
+
 /**
  * 모든 종별 placeholder 일괄 처리 (운영자 manual trigger 용).
  *
