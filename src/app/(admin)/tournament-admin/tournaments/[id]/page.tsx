@@ -77,6 +77,13 @@ export default async function TournamentAdminDetailPage({
       desc: `${tournament._count.tournamentTeams}팀 등록됨`,
     },
     {
+      // 2026-05-12 Phase 3.5 — 종별 운영 방식 설정 (대진표 생성 전 박제)
+      href: `/tournament-admin/tournaments/${id}/divisions`,
+      label: "종별 운영 방식",
+      icon: "DIV",
+      desc: "종별마다 진행 방식 설정 (싱글/듀얼/링크제 등)",
+    },
+    {
       href: `/tournament-admin/tournaments/${id}/bracket`,
       label: "대진표 생성",
       icon: "BR",

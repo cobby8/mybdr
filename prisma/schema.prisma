@@ -3361,6 +3361,18 @@ model TournamentDivisionRule {
   gradeMax        Int?      @map("grade_max")
   feeKrw          Int       @default(0) @map("fee_krw")
   sortOrder       Int       @default(0) @map("sort_order")
+  // 2026-05-12 Phase 3.5 — 종별 진행 방식 (단일 Tournament.format 우회, 종별마다 다른 방식 지원).
+  //   값: single_elimination / double_elimination / round_robin / dual_tournament /
+  //        group_stage_knockout / full_league_knockout / league_advancement / swiss / null (대회 format 폴백)
+  format          String?   @db.VarChar
+  // 종별별 추가 설정 (JSON):
+  //   - groupCount: 조 수 (예: 4)
+  //   - groupSize: 조당 팀 수 (예: 3 또는 4)
+  //   - advanceCount: 조별 진출 팀 수 (예: 2 = 1·2위 진출)
+  //   - linkagePairs: 링크제 동순위전 페어 (예: [[1,2],[3,4]] = 1·2위 / 3·4위)
+  //   - bracketSize: 본선 토너먼트 사이즈 (예: 8 = 8강 시작)
+  //   - notes: 운영자 메모
+  settings        Json?     @default("{}")
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   tournament      Tournament @relation(fields: [tournamentId], references: [id])
 
