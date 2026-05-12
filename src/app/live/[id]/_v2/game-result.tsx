@@ -175,6 +175,9 @@ export interface MatchDataV2 {
   youtube_video_id?: string | null;
   youtube_status?: "manual" | "auto_verified" | "auto_pending" | null;
   youtube_verified_at?: string | null;
+  // 2026-05-13 FIBA Phase 21: 매치 기록 모드 — "paper" 매치는 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
+  // API getRecordingMode 가 "paper" 만 명시적 match, 그 외 "flutter" fallback. null/undefined = 응답 미제공(레거시) 안전 → 기본 flutter 처리.
+  recording_mode?: "paper" | "flutter" | null;
 }
 
 type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";
@@ -618,7 +621,12 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
         페이지 다른 형제 노드는 모두 display: none 처리됨.
         printOptions 기반으로 (팀 × 기간) 조합마다 PrintBoxScoreTable 렌더 (옛 page.tsx 와 동일).
       */}
-      <PrintBoxScoreArea match={match} printOptions={printOptions} />
+      {/* 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") = 시도/성공 miss 미박제 → 슈팅 6 컬럼 hide */}
+      <PrintBoxScoreArea
+        match={match}
+        printOptions={printOptions}
+        isPaperMatch={match.recording_mode === "paper"}
+      />
     </div>
   );
 }

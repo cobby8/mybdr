@@ -13,6 +13,9 @@ import { calculateMinutes, applyCompletedCap, type MinutesPbp } from "@/lib/live
 import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
 // 2026-05-11 Phase B: PBP 합산 fallback 헬퍼 — match.homeScore=0 + playerStats.pts=0 케이스 (매치 #132) 안전망
 import { computeScoreFromPbp } from "@/lib/tournaments/score-from-pbp";
+// 2026-05-13 FIBA Phase 21: 종이 매치(`settings.recording_mode = "paper"`) 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 클라이언트 hide 게이팅.
+// 종이 기록 = miss/시도 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. 응답에 recording_mode 노출 (snake_case 변환됨).
+import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 
 // 인증 없는 공개 엔드포인트 — 라이브 박스스코어
 // playerStats(종료 후 합계) + play_by_plays(쿼터별 상세 집계)
@@ -1200,6 +1203,10 @@ export async function GET(
         // 2026-04-16: 쿼터별 이벤트 기반 상세 스탯 존재 여부 (프론트 안내 배너 + "—" 처리용)
         // apiSuccess가 camelCase → snake_case 변환하므로 클라이언트는 has_quarter_event_detail로 수신
         hasQuarterEventDetail,
+        // 2026-05-13 FIBA Phase 21: 매치 기록 모드 ("paper" | "flutter") — 클라이언트 박스스코어 슈팅 컬럼 hide 분기용.
+        // getRecordingMode = "paper" 만 명시적 match, 그 외 (settings null / 누락 / 기타) 모두 "flutter" fallback.
+        // apiSuccess camelCase → snake_case 변환으로 클라이언트는 recording_mode 로 수신.
+        recordingMode: getRecordingMode(match),
         // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing 플래그)
         // 운영자 sync 누락 매치 (#141 블랙라벨 vs MSA 등) — 박제 stat 만 입력 + 출전시간 0 표시
         timeDataMissing: ((match.settings as Record<string, unknown> | null)?.timeDataMissing as boolean | undefined) ?? false,

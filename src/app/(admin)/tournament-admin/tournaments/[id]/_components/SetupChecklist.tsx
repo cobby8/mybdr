@@ -1,23 +1,33 @@
 /**
- * 2026-05-13 UI-1 — 대회 셋업 체크리스트 hub (server component).
+ * 2026-05-13 UI-1 — 대회 셋업 체크리스트 hub.
+ * 2026-05-13 UI-5 — 공개 게이트 도입 (클라이언트 컴포넌트로 전환).
  *
  * 이유(왜):
  *   - dashboard 의 8 메뉴 카드는 "어디서 뭘 해야하는지" 만 안내했지 "지금 어디까지 왔는지" 못 보여줌.
  *   - 체크리스트 카드 8개 + 상단 progress bar 로 "진행도 + 잠금 단계 + 진입 링크" 를 한 화면에 통합.
+ *   - UI-5: 필수 7항목 ✅ 일 때만 공개 버튼 활성. 미충족 시 disabled + 사유 노출 (서버 가드 = /site/publish).
  *
  * 구성:
  *   1. 상단 progress bar (`completed / total` + %)
  *   2. 8 카드 (Link wrapper / status 별 색상 / 잠금 시 cursor-not-allowed)
- *   3. 공개 버튼 (allRequiredComplete=false 면 disabled + 사유 표시) — 별도 PublishGuard 클라이언트 X,
- *      현재는 단순 표시만 (실제 공개 토글은 /site 페이지에서 처리).
+ *   3. 공개 버튼 (canPublish 통과 시 활성 / 미통과 시 잠금 + 미충족 항목 안내) + 비공개 전환 버튼 (공개 중일 때)
  *
  * 디자인 룰 (BDR 13):
  *   - var(--color-*) 토큰만 / Material Symbols Outlined / 4px border-radius / 44px+ 터치
  *   - 색상: ✅ accent / 🔄 warning / ⚪ text-muted / 🔒 muted + opacity 0.6
  */
 
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { SetupProgress, ChecklistItem, ChecklistStatus } from "@/lib/tournaments/setup-status";
+import {
+  canPublish,
+  type SetupProgress,
+  type ChecklistItem,
+  type ChecklistStatus,
+} from "@/lib/tournaments/setup-status";
 
 // ─────────────────────────────────────────────────────────────────────────
 // status → 색상/아이콘 매핑 (단일 진실의 원천 — UI 룰 변경 시 한 곳만 수정)
@@ -53,11 +63,25 @@ const STATUS_LABEL: Record<ChecklistStatus, string> = {
 
 type Props = {
   progress: SetupProgress;
+  // UI-5 공개 게이트 — POST /api/web/tournaments/[id]/site/publish 에 필요
+  tournamentId: string;
+  // 현재 사이트 공개 상태 (사이트 박제됐을 때만 의미. 미박제 시 false)
+  isSitePublished: boolean;
+  // 사이트 박제 여부 (false 면 공개 버튼 대신 "사이트 만들기" 링크)
+  hasSite: boolean;
 };
 
-export function SetupChecklist({ progress }: Props) {
+export function SetupChecklist({
+  progress,
+  tournamentId,
+  isSitePublished,
+  hasSite,
+}: Props) {
   // 진행도 % (소수 1자리, 8개 기준이라 정수 가능 시 정수로 노출)
   const percent = Math.round((progress.completed / progress.total) * 100);
+
+  // 공개 가드 — setup-status.ts 단일 source
+  const gate = canPublish(progress);
 
   return (
     <section className="mb-6">
@@ -100,24 +124,230 @@ export function SetupChecklist({ progress }: Props) {
         ))}
       </div>
 
-      {/* 공개 가드 안내 (필수 항목 미충족 시) */}
-      {!progress.allRequiredComplete && progress.missingRequiredTitles.length > 0 && (
-        <div
-          className="mt-4 rounded-[var(--radius-card)] border p-3 text-sm"
+      {/* ⭐ UI-5 공개 게이트 영역 — 필수 항목 충족 여부에 따라 분기 */}
+      <PublishGate
+        gate={gate}
+        tournamentId={tournamentId}
+        isSitePublished={isSitePublished}
+        hasSite={hasSite}
+      />
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 공개 게이트 (UI-5)
+// ─────────────────────────────────────────────────────────────────────────
+
+function PublishGate({
+  gate,
+  tournamentId,
+  isSitePublished,
+  hasSite,
+}: {
+  gate: { ok: boolean; missing: string[] };
+  tournamentId: string;
+  isSitePublished: boolean;
+  hasSite: boolean;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // 공개 액션 (publish=true) — 게이트 통과 + 사이트 박제 시만 호출
+  const handlePublish = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${tournamentId}/site/publish`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publish: true }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        // 서버 가드 위반 시 missing 배열 응답 — 사용자에게 노출
+        const missing = Array.isArray(data?.missing)
+          ? `: ${data.missing.join(", ")}`
+          : "";
+        throw new Error((data?.error ?? "공개 실패") + missing);
+      }
+      // 성공 — 서버 컴포넌트 재렌더링 (페이지 상태 갱신)
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "오류 발생");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 비공개 전환 액션 (publish=false) — 게이트 무관 (즉시 허용)
+  const handleUnpublish = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${tournamentId}/site/publish`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publish: false }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "전환 실패");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "오류 발생");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // 사이트 미박제 시 — 6번 카드의 link 로 우회 안내 (공개 버튼 자체 노출 안 함)
+  if (!hasSite) {
+    return (
+      <div
+        className="mt-4 rounded-[var(--radius-card)] border p-4 text-sm"
+        style={{
+          borderColor: "var(--color-border)",
+          backgroundColor: "var(--color-elevated)",
+          color: "var(--color-text-muted)",
+        }}
+      >
+        <span className="material-symbols-outlined align-middle text-[16px]">
+          info
+        </span>{" "}
+        사이트를 먼저 박제하세요. (6단계 → 사이트 설정)
+      </div>
+    );
+  }
+
+  // 이미 공개 중 — 비공개 전환 버튼
+  if (isSitePublished) {
+    return (
+      <div
+        className="mt-4 rounded-[var(--radius-card)] border p-4"
+        style={{
+          // 이유: 공개 중 = 긍정 상태 → success tone (어두운 톤 살짝)
+          borderColor: "color-mix(in srgb, var(--color-success) 30%, transparent)",
+          backgroundColor: "color-mix(in srgb, var(--color-success) 8%, transparent)",
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span
+              className="material-symbols-outlined"
+              style={{ color: "var(--color-success)", fontSize: 20 }}
+            >
+              public
+            </span>
+            <span className="text-sm font-semibold text-[var(--color-text-primary)]">
+              대회 사이트 공개 중
+            </span>
+          </div>
+          <button
+            onClick={handleUnpublish}
+            disabled={busy}
+            className="rounded-[4px] border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-40"
+            style={{
+              borderColor:
+                "color-mix(in srgb, var(--color-error) 30%, transparent)",
+              color: "var(--color-error)",
+              minHeight: 44, // 디자인 룰 44px+
+            }}
+          >
+            {busy ? "처리 중..." : "비공개 전환"}
+          </button>
+        </div>
+        {error && (
+          <p
+            className="mt-2 text-xs"
+            style={{ color: "var(--color-error)" }}
+          >
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // 비공개 + 게이트 통과 (필수 7항목 ✅) — 공개 버튼 활성
+  if (gate.ok) {
+    return (
+      <div className="mt-4 flex flex-col gap-2">
+        <button
+          onClick={handlePublish}
+          disabled={busy}
+          className="rounded-[4px] px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-40"
           style={{
-            borderColor: "var(--color-border)",
-            backgroundColor: "var(--color-elevated)",
-            color: "var(--color-text-muted)",
+            backgroundColor: "var(--color-primary)",
+            color: "var(--color-on-primary)",
+            minHeight: 44,
           }}
         >
-          <span className="material-symbols-outlined align-middle text-[16px]">info</span>{" "}
-          공개를 위해 남은 항목:{" "}
-          <span className="font-medium text-[var(--color-text-primary)]">
-            {progress.missingRequiredTitles.join(", ")}
+          <span className="material-symbols-outlined align-middle text-[18px] mr-1">
+            rocket_launch
           </span>
-        </div>
-      )}
-    </section>
+          {busy ? "공개 중..." : "대회 공개하기"}
+        </button>
+        {error && (
+          <p className="text-xs" style={{ color: "var(--color-error)" }}>
+            {error}
+          </p>
+        )}
+        <p className="text-xs text-[var(--color-text-muted)]">
+          공개 시 서브도메인 사이트로 누구나 접근 가능합니다. 언제든 비공개 전환
+          가능.
+        </p>
+      </div>
+    );
+  }
+
+  // 비공개 + 게이트 미통과 — 잠긴 버튼 + 미충족 항목 안내
+  return (
+    <div className="mt-4 flex flex-col gap-2">
+      <button
+        disabled
+        className="cursor-not-allowed rounded-[4px] px-4 py-3 text-sm font-semibold"
+        style={{
+          backgroundColor: "var(--color-elevated)",
+          color: "var(--color-text-muted)",
+          minHeight: 44,
+          opacity: 0.7,
+        }}
+      >
+        <span className="material-symbols-outlined align-middle text-[18px] mr-1">
+          lock
+        </span>
+        공개 잠금 (필수 항목 미완료)
+      </button>
+      <div
+        className="rounded-[4px] border p-3 text-sm"
+        style={{
+          // 이유: 안내 = warning tone (작업 필요 = 주의). var(--color-warning) 토큰 룰 11 준수.
+          borderColor:
+            "color-mix(in srgb, var(--color-warning) 30%, transparent)",
+          backgroundColor:
+            "color-mix(in srgb, var(--color-warning) 8%, transparent)",
+        }}
+      >
+        <p className="mb-1 font-semibold text-[var(--color-text-primary)]">
+          <span className="material-symbols-outlined align-middle text-[16px] mr-1">
+            warning
+          </span>
+          다음 항목을 완료해주세요
+        </p>
+        <ul className="ml-1 list-disc pl-4 text-[var(--color-text-muted)]">
+          {gate.missing.map((title) => (
+            <li key={title}>{title}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

@@ -32,6 +32,7 @@ export function BoxScoreTable({
   players,
   hasOT = false,
   hasQuarterEventDetail = true,
+  isPaperMatch = false,
 }: {
   teamName: string;
   color: string;
@@ -40,6 +41,9 @@ export function BoxScoreTable({
   hasOT?: boolean;
   // 쿼터별 이벤트 상세 스탯 존재 여부 — false + 쿼터 필터 활성 시 안내 배너 + 스탯 "-"
   hasQuarterEventDetail?: boolean;
+  // 2026-05-13 FIBA Phase 21: 종이 매치 (recording_mode="paper") 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
+  // 종이 기록 = miss 미박제 → 시도=성공=100% → 가짜 정확도 시각 노이즈 차단. default false (Flutter 매치 19 컬럼 유지).
+  isPaperMatch?: boolean;
 }) {
   // 쿼터 필터 state — "all" | "1" ~ "5"
   // 이유: 사용자가 특정 쿼터만 집중해서 보고 싶을 때 활용. "all"은 전체 합계(기본값).
@@ -221,12 +225,17 @@ export function BoxScoreTable({
                 >
                   PTS
                 </th>
-                <th className="py-2 px-0.5 text-center font-normal">FG</th>
-                <th className="py-2 px-0.5 text-center font-normal">FG%</th>
-                <th className="py-2 px-0.5 text-center font-normal">3P</th>
-                <th className="py-2 px-0.5 text-center font-normal">3P%</th>
-                <th className="py-2 px-0.5 text-center font-normal">FT</th>
-                <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                {/* 2026-05-13 FIBA Phase 21: 종이 매치 (isPaperMatch=true) 시 슈팅 6 컬럼 hide */}
+                {!isPaperMatch && (
+                  <>
+                    <th className="py-2 px-0.5 text-center font-normal">FG</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FG%</th>
+                    <th className="py-2 px-0.5 text-center font-normal">3P</th>
+                    <th className="py-2 px-0.5 text-center font-normal">3P%</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FT</th>
+                    <th className="py-2 px-0.5 text-center font-normal">FT%</th>
+                  </>
+                )}
                 <th className="py-2 px-0.5 text-center font-normal">OR</th>
                 <th className="py-2 px-0.5 text-center font-normal">DR</th>
                 <th className="py-2 px-0.5 text-center font-normal">REB</th>
@@ -281,43 +290,47 @@ export function BoxScoreTable({
                     {!showPlaceholder && <PtsTeamBar />}
                     {showPlaceholder ? "-" : p.pts}
                   </td>
-                  {/* 슈팅 스탯 — showPlaceholder 시 "-" */}
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
-                  </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
-                  </td>
+                  {/* 슈팅 스탯 — showPlaceholder 시 "-". 종이 매치(isPaperMatch=true) 6 컬럼 통째 hide */}
+                  {!isPaperMatch && (
+                    <>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${p.fgm}/${p.fga}`}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${pct(p.fgm, p.fga)}%`}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${p.tpm}/${p.tpa}`}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${pct(p.tpm, p.tpa)}%`}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${p.ftm}/${p.fta}`}
+                      </td>
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {showPlaceholder ? "-" : `${pct(p.ftm, p.fta)}%`}
+                      </td>
+                    </>
+                  )}
                   <td
                     className="py-2 px-0.5 text-center"
                     style={{ color: "var(--color-text-primary)" }}
@@ -408,7 +421,8 @@ export function BoxScoreTable({
                   >
                     DNP
                   </td>
-                  {Array.from({ length: 16 }).map((_, idx) => (
+                  {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임 (PF/+/- 등 나머지 정합) */}
+                  {Array.from({ length: isPaperMatch ? 10 : 16 }).map((_, idx) => (
                     <td
                       key={idx}
                       className="py-2 px-0.5 text-center"
@@ -504,42 +518,47 @@ export function BoxScoreTable({
                       {!showPlaceholder && <PtsTeamBar />}
                       {showPlaceholder ? "-" : total.pts}
                     </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}
-                    </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}
-                    </td>
+                    {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 TOTAL 행도 슈팅 6 컬럼 hide */}
+                    {!isPaperMatch && (
+                      <>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${total.fgm}/${total.fga}`}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${pct(total.fgm, total.fga)}%`}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${total.tpm}/${total.tpa}`}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${pct(total.tpm, total.tpa)}%`}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${total.ftm}/${total.fta}`}
+                        </td>
+                        <td
+                          className="py-2 px-0.5 text-center"
+                          style={{ color: "var(--color-text-primary)" }}
+                        >
+                          {showPlaceholder ? "-" : `${pct(total.ftm, total.fta)}%`}
+                        </td>
+                      </>
+                    )}
                     <td
                       className="py-2 px-0.5 text-center"
                       style={{ color: "var(--color-text-primary)" }}
