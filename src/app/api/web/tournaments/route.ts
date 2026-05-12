@@ -5,6 +5,8 @@ import { createTournament, hasCreatePermission, listTournaments } from "@/lib/se
 import { prisma } from "@/lib/db/prisma";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/security/rate-limit";
 import { getClientIp } from "@/lib/security/get-client-ip";
+// 2026-05-12 Phase B 정합성 가드 — seriesId 전달 시 권한 검증 (본인 시리즈만).
+import { requireSeriesOwner, SeriesPermissionError } from "@/lib/auth/series-permission";
 
 /**
  * GET /api/web/tournaments
@@ -153,6 +155,9 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
       designTemplate, logoUrl, bannerUrl,
       // settings JSON (bracket 세부설정 등) — createTournament에 그대로 전달
       settings,
+      // 2026-05-12 Phase B — series_id (BigInt 문자열 또는 null) — 시리즈 소속 대회로 만들 때 사용.
+      // wizard 또는 직접 호출 모두 본 키로 시리즈 박제. 미전송 시 NULL (개인 대회).
+      seriesId,
     } = body;
 
     if (!name?.trim()) {
@@ -185,9 +190,34 @@ export const POST = withWebAuth(async (req: Request, ctx: WebAuthContext) => {
     const parsedRegStart = registrationStartAt ? new Date(registrationStartAt) : null;
     const parsedRegEnd = registrationEndAt ? new Date(registrationEndAt) : null;
 
+    // 2026-05-12 Phase B 정합성 가드 — seriesId 가 있으면 (1) BigInt 파싱 (2) 권한 검증.
+    // 빈 문자열 / null / undefined 모두 시리즈 미연결로 취급.
+    let parsedSeriesId: bigint | null = null;
+    if (seriesId !== undefined && seriesId !== null && seriesId !== "") {
+      try {
+        parsedSeriesId = BigInt(seriesId);
+      } catch {
+        return apiError("유효하지 않은 시리즈 ID입니다.", 400);
+      }
+      // 본인 시리즈만 허용 (super_admin 우회) — 카운터 +1 박제 전 검증.
+      try {
+        await requireSeriesOwner(parsedSeriesId, ctx.userId, {
+          allowSuperAdmin: true,
+          session: ctx.session,
+        });
+      } catch (e) {
+        if (e instanceof SeriesPermissionError) {
+          return apiError(e.message, e.status);
+        }
+        throw e;
+      }
+    }
+
     const tournament = await createTournament({
       name: name.trim(),
       organizerId: ctx.userId,
+      // 권한 검증 통과한 시리즈 ID 만 전달 (createTournament 가 $transaction 으로 카운터 +1 처리).
+      seriesId: parsedSeriesId,
       format: normalizedFormat,
       startDate: parsedStart,
       endDate: parsedEnd,

@@ -113,4 +113,64 @@ export function safeRedirect(input: string | null | undefined, fallback = "/"): 
   return isValidRedirect(input) ? input : fallback;
 }
 
+/**
+ * 쿼리스트링에서 안전한 redirect 경로를 추출.
+ *
+ * 2026-05-12 신규 — proxy.ts 가 비로그인 보호 페이지 접근 시 `/login?callbackUrl=...` 으로 redirect
+ * 하는데, 로그인 페이지/액션은 `redirect` 만 읽음 → 운영 사고 (사용자가 보호 페이지 진입 후 로그인
+ * 했는데 홈으로 복귀, 원래 페이지 못 감).
+ *
+ * 왜 (이유):
+ *   - proxy.ts (Next.js middleware 자리) 의 `callbackUrl` 쿼리 박제는 NextAuth 컨벤션을 그대로
+ *     채택한 흔적. 본 프로젝트의 redirect 통합 (2026-05-12) 후에도 proxy.ts 는 callbackUrl 사용.
+ *   - 모든 호출처에서 `redirect` 우선 / `callbackUrl` 폴백 패턴이 일관되게 적용되어야 사일런트
+ *     무시 사고 영구 차단.
+ *
+ * 방법 (어떻게):
+ *   - `redirect` 우선 시도 → 무효 시 `callbackUrl` 시도 → 둘 다 무효면 null.
+ *   - 각 후보값은 isValidRedirect 검증 후 통과한 값만 반환 (open redirect 방어 동일 적용).
+ *
+ * @example
+ *   // /login?redirect=%2Fadmin
+ *   extractRedirectFromQuery(searchParams) → "/admin"
+ *
+ *   // /login?callbackUrl=%2Ftournament-admin (proxy.ts 흐름)
+ *   extractRedirectFromQuery(searchParams) → "/tournament-admin"
+ *
+ *   // 둘 다 없거나 무효
+ *   extractRedirectFromQuery(searchParams) → null
+ *
+ * @param searchParams URLSearchParams 또는 동등 인터페이스 (`{ get: (k) => string | null }`).
+ * @returns 유효한 경로 문자열 — 둘 다 무효면 null.
+ */
+export function extractRedirectFromQuery(
+  searchParams: URLSearchParams | { get: (key: string) => string | null },
+): string | null {
+  // redirect 우선 (본 프로젝트 표준 쿼리명)
+  const primary = searchParams.get("redirect");
+  if (isValidRedirect(primary)) return primary;
+  // callbackUrl 폴백 — proxy.ts 가 박제한 NextAuth 호환 쿼리명
+  const fallback = searchParams.get("callbackUrl");
+  if (isValidRedirect(fallback)) return fallback;
+  return null;
+}
+
+/**
+ * FormData 같은 평면 키-값 인터페이스에서 안전한 redirect 경로 추출.
+ *
+ * 본 프로젝트 server action(loginAction) 이 FormData 를 받아 redirect/callbackUrl 둘 중 어떤
+ * 키로 들어와도 처리하도록 별도 분리.
+ *
+ * @param getValue 키별 값 반환 함수 — `(key) => formData.get(key) as string | null` 같은 시그니처.
+ */
+export function extractRedirectFromValues(
+  getValue: (key: string) => string | null,
+): string | null {
+  const primary = getValue("redirect");
+  if (isValidRedirect(primary)) return primary;
+  const fallback = getValue("callbackUrl");
+  if (isValidRedirect(fallback)) return fallback;
+  return null;
+}
+
 export { REDIRECT_QUERY_KEY };

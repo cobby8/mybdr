@@ -99,6 +99,16 @@ export interface TournamentListFilters {
 export interface CreateTournamentInput {
   name: string;
   organizerId: bigint;
+  /**
+   * 시리즈 ID (선택) — 지정 시 tournament.series_id 박제 + tournament_series.tournaments_count +1
+   * $transaction 으로 원자적 처리.
+   *
+   * 2026-05-12 Phase B 정합성 가드 — 직접 createTournament 호출 path (wizard 외) 에서 series_id
+   * 박제 자체가 안 되어 카운터 stale 사고 (series id=8 stored=0 / actual=12) 차단.
+   *
+   * 권한 검증은 호출자(route) 책임 — service 는 $transaction 안에서 단순 카운터 증가만 담당.
+   */
+  seriesId?: bigint | null;
   format?: string;
   startDate?: Date | null;
   endDate?: Date | null;
@@ -410,67 +420,87 @@ export async function getMyTournaments(
 
 /**
  * 대회 생성
+ *
+ * 2026-05-12 Phase B 정합성 가드 — seriesId 입력 시 tournament_series.tournaments_count +1 통합.
+ * 카운터 동기화는 $transaction 으로 원자적 처리 (대회 생성 또는 카운터 증가 둘 중 하나라도 실패 시
+ * 전체 롤백 — 운영 카운터 stale 사고 차단).
  */
 export async function createTournament(input: CreateTournamentInput) {
   const { randomBytes } = await import("crypto");
   const apiToken = randomBytes(32).toString("hex");
 
-  const tournament = await prisma.tournament.create({
-    data: {
-      name: input.name,
-      organizerId: input.organizerId,
-      apiToken,
-      format: input.format ?? "single_elimination",
-      startDate: input.startDate ?? null,
-      endDate: input.endDate ?? null,
-      primary_color: input.primaryColor || "#E31B23",
-      secondary_color: input.secondaryColor || "#E76F51",
-      status: "draft",
-      // 접수 설정
-      description: input.description ?? null,
-      registration_start_at: input.registrationStartAt ?? null,
-      registration_end_at: input.registrationEndAt ?? null,
-      venue_name: input.venueName ?? null,
-      venue_address: input.venueAddress ?? null,
-      city: input.city ?? null,
-      // 대회 관리 확장 필드
-      organizer: input.organizer ?? null,
-      host: input.host ?? null,
-      sponsors: input.sponsors ?? null,
-      game_time: input.gameTime ?? null,
-      game_ball: input.gameBall ?? null,
-      game_method: input.gameMethod ?? null,
-      places: input.places ?? undefined,
-      gender: input.gender ?? null,
-      rules: input.rules ?? input.rules ?? null,
-      prize_info: input.prizeInfo ?? null,
-      categories: input.categories ?? {},
-      div_caps: input.divCaps ?? {},
-      div_fees: input.divFees ?? {},
-      allow_waiting_list: input.allowWaitingList ?? false,
-      waiting_list_cap: input.waitingListCap ?? null,
-      entry_fee: input.entryFee ?? 0,
-      bank_name: input.bankName ?? null,
-      bank_account: input.bankAccount ?? null,
-      bank_holder: input.bankHolder ?? null,
-      fee_notes: input.feeNotes ?? null,
-      maxTeams: input.maxTeams ?? 16,
-      team_size: input.teamSize ?? 5,
-      roster_min: input.rosterMin ?? 5,
-      roster_max: input.rosterMax ?? 12,
-      auto_approve_teams: input.autoApproveTeams ?? false,
-      // 디자인 템플릿 + 이미지 URL
-      design_template: input.designTemplate ?? null,
-      logo_url: input.logoUrl ?? null,
-      banner_url: input.bannerUrl ?? null,
-      // settings JSON — 클라이언트가 보낸 bracket/contact_phone 등을 그대로 저장
-      // 빈 객체 기본값은 스키마에서 @default("{}") 처리
-      // Prisma Json 타입은 readonly 구조를 요구하므로 JSON round-trip으로 호환 값 변환
-      ...(input.settings
-        ? { settings: JSON.parse(JSON.stringify(input.settings)) as Prisma.InputJsonValue }
-        : {}),
-    },
-  });
+  // tournament.create data — series_id 가 있으면 함께 박제. 권한 검증은 호출자 책임.
+  // Unchecked 변형 사용 — series_id (관계 connect 없이 raw FK) 박제 위해.
+  const createData: Prisma.TournamentUncheckedCreateInput = {
+    name: input.name,
+    organizerId: input.organizerId,
+    // seriesId null 이면 박제 안 함 (Prisma optional FK 자연 NULL).
+    ...(input.seriesId != null ? { series_id: input.seriesId } : {}),
+    apiToken,
+    format: input.format ?? "single_elimination",
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    primary_color: input.primaryColor || "#E31B23",
+    secondary_color: input.secondaryColor || "#E76F51",
+    status: "draft",
+    // 접수 설정
+    description: input.description ?? null,
+    registration_start_at: input.registrationStartAt ?? null,
+    registration_end_at: input.registrationEndAt ?? null,
+    venue_name: input.venueName ?? null,
+    venue_address: input.venueAddress ?? null,
+    city: input.city ?? null,
+    // 대회 관리 확장 필드
+    organizer: input.organizer ?? null,
+    host: input.host ?? null,
+    sponsors: input.sponsors ?? null,
+    game_time: input.gameTime ?? null,
+    game_ball: input.gameBall ?? null,
+    game_method: input.gameMethod ?? null,
+    places: input.places ?? undefined,
+    gender: input.gender ?? null,
+    rules: input.rules ?? input.rules ?? null,
+    prize_info: input.prizeInfo ?? null,
+    categories: input.categories ?? {},
+    div_caps: input.divCaps ?? {},
+    div_fees: input.divFees ?? {},
+    allow_waiting_list: input.allowWaitingList ?? false,
+    waiting_list_cap: input.waitingListCap ?? null,
+    entry_fee: input.entryFee ?? 0,
+    bank_name: input.bankName ?? null,
+    bank_account: input.bankAccount ?? null,
+    bank_holder: input.bankHolder ?? null,
+    fee_notes: input.feeNotes ?? null,
+    maxTeams: input.maxTeams ?? 16,
+    team_size: input.teamSize ?? 5,
+    roster_min: input.rosterMin ?? 5,
+    roster_max: input.rosterMax ?? 12,
+    auto_approve_teams: input.autoApproveTeams ?? false,
+    // 디자인 템플릿 + 이미지 URL
+    design_template: input.designTemplate ?? null,
+    logo_url: input.logoUrl ?? null,
+    banner_url: input.bannerUrl ?? null,
+    // settings JSON — 클라이언트가 보낸 bracket/contact_phone 등을 그대로 저장
+    // 빈 객체 기본값은 스키마에서 @default("{}") 처리
+    // Prisma Json 타입은 readonly 구조를 요구하므로 JSON round-trip으로 호환 값 변환
+    ...(input.settings
+      ? { settings: JSON.parse(JSON.stringify(input.settings)) as Prisma.InputJsonValue }
+      : {}),
+  };
+
+  // seriesId 박제 시 — $transaction 안에서 (1) tournament INSERT (2) series 카운터 +1 원자 처리.
+  // 둘 중 하나 실패 시 전체 롤백 → 카운터 stale 사고 차단.
+  // seriesId 없으면 기존 단일 prisma.tournament.create 흐름 유지 (회귀 0).
+  const tournament = input.seriesId != null
+    ? await prisma.$transaction(async (tx) => {
+        const created = await tx.tournament.create({ data: createData });
+        await tx.tournament_series.update({
+          where: { id: input.seriesId! },
+          data: { tournaments_count: { increment: 1 } },
+        });
+        return created;
+      })
+    : await prisma.tournament.create({ data: createData });
 
   // 서브도메인이 있으면 TournamentSite 생성
   if (input.subdomain) {

@@ -9,6 +9,9 @@ import {
   requireSeriesOwner,
   SeriesPermissionError,
 } from "@/lib/auth/series-permission";
+// 2026-05-12 Phase B — DELETE 시 super_admin 분기 + admin_logs 박제.
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { adminLog } from "@/lib/admin/log";
 
 // 다른 시리즈로 "이동" 가능한 대회 status — Q2 결재: draft/registration_open 만 허용.
 // 분리(null) 는 모든 status 에서 허용.
@@ -224,4 +227,115 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const updated = await updateTournament(id, updateData);
 
   return apiSuccess(updated);
+}
+
+// ============================================================
+// DELETE /api/web/tournaments/[id]
+// ============================================================
+// 2026-05-12 Phase B 정합성 가드 신규 — 대회 삭제 흐름 자체 부재 차단.
+//
+// 정책 (사용자 결재 default — 추후 변경 가능):
+//   - Soft DELETE (default): status='cancelled' UPDATE + 카운터 변경 X (현재 카운터 룰 = status 무관 전체 count).
+//     · 권한: tournament organizer 본인 + super_admin (TAM 도 통과 — requireTournamentAdmin 자동 분기).
+//     · 복구: PATCH status='draft' 등으로 운영 복원 가능.
+//   - Hard DELETE (`?hard=1`): row 실제 삭제 + series 카운터 -1 + cascade 정책 (현재 schema FK NoAction
+//     이라 cascade X — 사전 정리 책임은 호출자/운영자에게).
+//     · 권한: super_admin only (운영 안전상 일반 organizer 차단).
+//     · 위험: 관련 매치/팀/통계가 NoAction FK 로 묶여있으면 외래키 위반 에러 — 호출자가 사전 정리 필요.
+//
+// 후속 큐: Phase D 에서 단체 admin/owner 도 단체 소속 시리즈 대회 DELETE 가능하도록 권한 확장.
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const { id } = await params;
+  const auth = await requireTournamentAdmin(id);
+  if ("error" in auth) return auth.error;
+
+  // hard 쿼리 파라미터 — "1" / "true" 면 hard delete 모드. 그 외 (없음/0/false) 는 soft.
+  const hardParam = req.nextUrl.searchParams.get("hard");
+  const isHard = hardParam === "1" || hardParam === "true";
+
+  // 현재 대회 row — series_id (카운터 -1 대상) 확보 + 존재 검증.
+  const currentTournament = await prisma.tournament.findUnique({
+    where: { id },
+    select: { id: true, name: true, status: true, series_id: true, organizerId: true },
+  });
+
+  if (!currentTournament) {
+    return apiError("대회를 찾을 수 없습니다.", 404);
+  }
+
+  if (isHard) {
+    // Hard DELETE — super_admin 만 허용 (운영 안전상).
+    // requireTournamentAdmin 가 organizer/TAM 도 통과시키므로 super_admin 추가 검증 필요.
+    if (!isSuperAdmin(auth.session)) {
+      return apiError("Hard DELETE 는 super_admin 만 가능합니다.", 403);
+    }
+
+    // $transaction — (1) tournament 실제 삭제 (2) series 카운터 -1.
+    // FK NoAction 이라 관련 row (매치/팀/통계) 가 있으면 외래키 위반 throw — 운영자가 사전 정리 책임.
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.tournament.delete({ where: { id } });
+        if (currentTournament.series_id !== null) {
+          await tx.tournament_series.update({
+            where: { id: currentTournament.series_id },
+            data: { tournaments_count: { decrement: 1 } },
+          });
+        }
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // FK 위반 — Prisma P2003 등.
+      if (msg.includes("Foreign key") || msg.includes("P2003")) {
+        return apiError(
+          "관련 매치/팀/통계가 남아있어 삭제할 수 없습니다. 사전 정리 후 다시 시도하세요.",
+          409,
+        );
+      }
+      throw e;
+    }
+
+    // 감사 로그 — critical (영구 삭제).
+    await adminLog("tournament_hard_delete", "tournament", {
+      resourceId: undefined, // tournament.id 는 UUID 문자열 — admin_logs.resource_id 는 BigInt 라 박제 불가
+      targetType: "tournament",
+      description: `대회 영구 삭제 (Hard DELETE): ${currentTournament.name} (${currentTournament.id})`,
+      previousValues: {
+        id: currentTournament.id,
+        name: currentTournament.name,
+        status: currentTournament.status,
+        series_id: currentTournament.series_id?.toString() ?? null,
+        organizer_id: currentTournament.organizerId.toString(),
+      },
+      severity: "critical",
+    });
+
+    return apiSuccess({ deleted: true, mode: "hard", id: currentTournament.id });
+  }
+
+  // Soft DELETE — status='cancelled' UPDATE.
+  // 이미 cancelled 상태면 멱등 처리 (재요청 안전).
+  if (currentTournament.status === "cancelled") {
+    return apiSuccess({ deleted: true, mode: "soft", id: currentTournament.id, alreadyCancelled: true });
+  }
+
+  const previousStatus = currentTournament.status;
+  await prisma.tournament.update({
+    where: { id },
+    data: { status: "cancelled" },
+  });
+
+  // 감사 로그 — warning (복구 가능, 운영 액션 추적).
+  await adminLog("tournament_soft_delete", "tournament", {
+    targetType: "tournament",
+    description: `대회 취소 (Soft DELETE): ${currentTournament.name} (${currentTournament.id})`,
+    previousValues: {
+      id: currentTournament.id,
+      name: currentTournament.name,
+      status: previousStatus,
+    },
+    changesMade: { status: "cancelled" },
+    severity: "warning",
+  });
+
+  return apiSuccess({ deleted: true, mode: "soft", id: currentTournament.id });
 }
