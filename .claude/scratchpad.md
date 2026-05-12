@@ -1,9 +1,66 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: P2 dual_tournament 정합성 경고 + UI-1.5 체크리스트 5 anchor 점프 (단일 PR)
+- **요청**: UI-2 신규 대회 wizard 압축 (3-step → 1-step + 즉시 draft 생성)
 - **상태**: ✅ 구현 완료 (726 vitest 전수 통과 / tsc 0 / 회귀 0)
 - **모드**: no-stop
+
+## 구현 기록 (developer) — UI-2 wizard 압축 (3-step → 1-step) (2026-05-13)
+
+📝 구현한 기능:
+- 신규 대회 wizard `/tournament-admin/tournaments/new/wizard` 의 기본 = 압축 1-step 폼
+- 필수 1 필드 (대회 이름) + 권장 2 필드 (시작일 / 시리즈) 만 받고 즉시 draft 생성 → 체크리스트 hub redirect
+- `?legacy=1` 안전망 — 기존 3-step 폼 보존 (1주 운영 후 별도 PR 폐기)
+- 클라이언트 측 default 박제로 POST schema 변경 0
+
+| 파일 | 변경 내용 | 신규/수정 |
+|------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | default export = 라우터 (?legacy 분기) + QuickCreateForm (신규 압축 1-step) + LegacyWizardForm (기존 함수명 변경만) | 수정 |
+
+🔍 시니어 판단:
+- **POST API 변경 0** — route.ts 가 name 만 required, 그 외 default fallback (`single_elimination` / undefined → 서버 default) → 클라이언트가 일부 default 박아 보냄. zod schema 미수정
+- **default 박제 값 선정** — `format=single_elimination` (route.ts FORMAT_MAP fallback 과 동일) / `maxTeams=16` (BDR 표준 16팀) / `teamSize=5` / `rosterMin=5` `rosterMax=12` / `gender=male` (BDR 운영 비율 우선) / `primaryColor/secondaryColor` = BDR 토큰 hex
+- **InlineSeriesForm 재사용** — UI-1.2/1.3 의 공통 컴포넌트 그대로 사용 (코드 0 추가)
+- **redirect 응답 키** — `data.redirect_url ?? data.redirectUrl` 폴백 (apiSuccess snake_case 변환 대비)
+- **레거시 보존 룰** — 기존 LegacyWizardForm 코드 1185-700 = 485 LOC 거의 동일. `useRouter` 1줄만 본 함수 안으로 이동. ?legacy=1 진입 시 기존 동작 100% 유지
+- **레거시 안전 출구** — QuickCreateForm 폼 하단 "예전 상세 폼으로 만들기" Link → ?legacy=1 (마음에 안 들면 즉시 롤백)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/tournament-admin/tournaments/new/wizard` 진입 → 압축 1-step 폼 노출 (이름/시작일/시리즈 dropdown + 안내 박스)
+  2. 대회 이름만 입력 → "대회 만들기" 클릭 → 즉시 POST → `/tournament-admin/tournaments/{id}` 체크리스트 hub redirect
+  3. `?legacy=1` 추가 → 기존 3-step 폼 그대로 노출 (대회 정보 → 참가 설정 → 확인 생성)
+  4. 시리즈 dropdown — 빈 상태 → "새 시리즈 만들기" 인라인 폼 → 단체 선택 + 이름 → 생성 시 자동 선택
+  5. 시작일 미입력 → 서버에서 null 처리 (대시보드에서 나중에 설정 가능)
+- **정상 동작**:
+  - 대회 생성 후 체크리스트 hub 에서 종별/참가비/대진표 단계별 설정 가능
+  - POST body 에 `format=single_elimination / maxTeams=16 / gender=male` 박제
+  - DB tournaments 박제 후 추후 PATCH 로 모두 변경 가능 (편집 wizard 또는 dashboard inline)
+- **주의할 입력**:
+  - 대회 이름 공백만 입력 → "대회 이름을 입력하세요." 에러 + 버튼 disabled
+  - 시리즈 선택 후 취소 → seriesId 잔존 (UX 정상)
+  - `?legacy=1` 진입 후 다시 압축 폼 진입 = Link 클릭이 아니라 URL 직접 → 정상
+
+⚠️ reviewer 참고:
+- **컴포넌트 분리 = 함수 분리만** (별도 파일 X) — page.tsx 1185 LOC → 1465 LOC. 한 파일 안에서 default 라우터 / QuickCreateForm / LegacyWizardForm 3개 함수
+- **인증 체크 useEffect 중복** — QuickCreateForm 과 LegacyWizardForm 양쪽에 동일 로직. 본 PR 의 목표 = 압축 폼 도입 + 레거시 보존. 공통화는 별 PR 에서 진행
+- **`?legacy=1` 폐기 시점** — 1주 후 별 PR 로 LegacyWizardForm 제거 + 본 파일 ~700 LOC 감소 예상
+- **default 박제 = "운영자 의도 추정"** — `gender=male` 은 BDR 운영 비율 우선 가정. 운영자가 여성부 만들고 싶으면 dashboard 에서 PATCH (편집 wizard 통해)
+- **레거시 안전 출구 link** — QuickCreateForm 하단 1줄. 1주 후 폐기 시 본 Link 도 함께 제거
+
+## 진행 현황표
+| 단계 | 결과 |
+|------|------|
+| 1. POST API 필수 필드 분석 (route.ts) | ✅ name 만 필수 / 그 외 default fallback |
+| 2. default export 라우터 분기 (?legacy=1) | ✅ 완료 (useSearchParams null-safe) |
+| 3. QuickCreateForm 압축 1-step | ✅ 완료 (이름/시작일/시리즈 + 인라인 생성) |
+| 4. LegacyWizardForm 코드 보존 | ✅ 함수명만 변경 (코드 변경 0) |
+| 5. 클라이언트 default 박제 | ✅ format/maxTeams/teamSize/gender/colors |
+| 6. tsc --noEmit | ✅ 0 error |
+| 7. 전체 vitest 회귀 (726/726) | ✅ 전수 PASS / 회귀 0 |
+| 8. 회귀 grep (lucide / BigInt / 핑크) | ✅ 0건 |
+
+---
 
 ## 구현 기록 (developer) — P2 dual 경고 + UI-1.5 step 점프 (2026-05-13)
 
@@ -271,6 +328,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-13 | UI-2 wizard 압축 (3-step → 1-step) + ?legacy=1 안전망 (1 file) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P2 dual 정합성 경고 + UI-1.5 ?step=2 anchor (4 files) | ✅ tsc 0 / vitest 726 / 미커밋 |
 | 2026-05-13 | P0 GameTime 역파싱 + P1 divFees 입력 UI 핫픽스 (4 files) | ✅ tsc 0 / vitest 725 / 미커밋 |
 | 2026-05-13 | FIBA Phase 20 PTS 자동 집계 (2 files) — score-sheet BFF running_score → MatchPlayerStat 박제 | ✅ tsc 0 / vitest 719 / 미커밋 |
@@ -289,6 +347,7 @@
 - (예정) feat(score-sheet): FIBA Phase 20 PTS 자동 집계 — PM 커밋 대기
 - (예정) fix(wizard): P0 GameTime 역파싱 + P1 divFees 입력 UI — PM 커밋 대기
 - (예정) feat(wizard): P2 dual 경고 + UI-1.5 ?step=2 anchor — PM 커밋 대기
+- (예정) feat(wizard): UI-2 신규 대회 wizard 압축 (3-step → 1-step) — PM 커밋 대기
 
 ## 후속 큐 (미진입)
 - UI-1.4 entry_fee 사용者 보고 재현 (커뮤니케이션 — 코드 0)
