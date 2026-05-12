@@ -184,7 +184,8 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
             />
           </label>
           {/* Hero 단독 업로드 */}
-          <label className="cursor-pointer rounded border border-[var(--color-accent)] px-3 py-1.5 text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent-light)]">
+          {/* 2026-05-12 — Hero 대표 사진 강조 = info(Navy) 톤다운 */}
+          <label className="cursor-pointer rounded border border-[var(--color-info)] px-3 py-1.5 text-xs text-[var(--color-info)] hover:bg-[var(--color-elevated)]">
             ⭐ 대표 사진
             <input
               type="file"
@@ -245,7 +246,7 @@ export function NewsPhotoManager({ matchId, initialPhotos }: Props) {
                 unoptimized
               />
               {p.isHero && (
-                <div className="absolute left-1 top-1 rounded bg-[var(--color-accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                <div className="absolute left-1 top-1 rounded bg-[var(--color-info)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                   ⭐ 대표
                 </div>
               )}
