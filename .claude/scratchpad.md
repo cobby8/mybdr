@@ -23,6 +23,102 @@
 | D | 대진표 고도화 | 진행 중 |
 | **Phase E lifecycle** | **단체 archive (Q1 보존)** | **✅ (커밋 대기)** |
 
+## 구현 기록 (developer) — FIBA Phase 14 A4 정확 비율 + 재배치 (2026-05-12)
+
+📝 구현 범위: A4 210×297mm aspect-ratio 강제 / Time-outs 3×2 / 풋터 세로 4줄 / 요소비율 통일
+
+### 변경 파일
+| 파일 | 변경 | 신규/수정 |
+|------|------|----------|
+| `src/app/(score-sheet)/_components/_print.css` | (a) `.score-sheet-fiba-frame` width 100% + max-width 210mm + **aspect-ratio: 210/297** + margin auto + overflow hidden (화면에서 A4 정확 비율 강제). (b) `@page margin 0` (이전 6mm → 0 / 박스가 종이 1:1). (c) 인쇄 시 `.score-sheet-fiba-frame` = width 210mm + height 297mm + aspect-ratio auto override (브라우저 호환). | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | Time-outs grid `grid-cols-2` → `grid-cols-3` (Phase 14 §1 / FIBA 표준 3×2 6칸). totalCells 5칸 → 6칸 (currentPeriod ≤ 4) / OT 진입 시 +1. cellLabel 인덱스 5 = "여유 (OT 진입 시 활성)" 안내 추가. OT 라벨 i-4 → i-5 (6번째 = 여유 / 7번째부터 OT1). 헤더 Phase 14 절 추가. | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | frameless=true 운영진 영역 `grid grid-cols-4 gap-x-1.5 gap-y-0` → `flex flex-col gap-0` (세로 4줄 / Phase 14 §2 / FIBA 정합 복원). 4 SigInput 모두 `compact` prop 제거 + `labelWidth={140}` 추가 (Shot Clock Operator 가장 긴 라벨 기준). SigInput 함수 시그너처에서 `compact` prop 완전 제거 (사용처 0). 헤더 Phase 14 절 추가. | 수정 |
+
+### A4 정확 비율 박제 (핵심)
+| 항목 | Phase 13 | Phase 14 |
+|------|----------|----------|
+| 화면 박스 비율 | 미정 (자동 컨텐츠 fit) | **aspect-ratio: 210/297 강제** (모든 viewport 정확 A4) |
+| 화면 max-width | 컨텐츠 폭 | **210mm (A4 가로 정확)** |
+| 인쇄 박스 | 198mm × 285mm (margin 6mm 안) | **210mm × 297mm (margin 0 / 1:1)** |
+| @page margin | 6mm | **0** |
+| overflow | hidden (인쇄만) | **hidden (화면+인쇄)** |
+
+### Time-outs 3×2 동작
+- grid-cols-3 × 2 row = 6 고정 칸 (FIBA 표준 = 전반 2 + 후반 3 + 여유 1)
+- OT 진입 시 (currentPeriod ≥ 5): 7번째 칸부터 OT1, OT2, ... (3+3+2, 3+3+3 행)
+- 박스 크기 18px 유지 / 빈 칸 클릭 → 마킹 X (Phase 11 룰 유지) / canAddTimeout 검증 (Article 18-19) 유지
+- 마지막 마킹 칸 클릭 → 해제 (역호환)
+- 6번째 칸 cellLabel = "여유 (OT 진입 시 활성)" — 사용자 인지 도움
+
+### 풋터 운영진 세로 4줄
+- Scorer / Assistant scorer / Timer / Shot clock operator = **세로 4줄 (flex flex-col)**
+- labelWidth=140 = "Shot Clock Operator" 가장 긴 라벨 기준 정렬 통일
+- SigInput compact prop 제거 (Phase 13 신규였으나 Phase 14 폐기)
+- 라벨 10px / minHeight 22px / underscore 라인 유지
+
+### 요소비율 통일 매트릭스
+| 영역 | 박스 | 라벨 폰트 | 데이터 폰트 |
+|------|------|----------|------------|
+| Time-outs | 18px | 10px | 10px (X 글자) |
+| Team Fouls | 12px | 9px (P1~P4 / Extra) | 8px (1·2·3·4) |
+| Player Fouls | 18px | 10px | 9px (P/T/U/D) |
+| Player P IN | 18px | 10px | - |
+| 풋터 라벨 | - | **10px** (Phase 14 통일) | 12px (input text-xs) |
+
+→ FIBA PDF 정합 박스 12px (Team Fouls 만 / 가독성 위해 작게) + 일반 영역 18px 통일.
+
+### A4 fit 재검증
+| 영역 | Phase 13 | Phase 14 | 차이 |
+|------|---------|---------|------|
+| Time-outs | 2 컬럼 동적 (~3 행) | **3 컬럼 × 2 행 고정 (~38px)** | 가로 폭 증가 |
+| 풋터 운영진 | 22px (가로 1줄) | **88px (세로 4줄 × 22)** | +66 |
+| 풋터 총합 | ~74 | **~140** | +66 |
+| 좌측 추정 | ~857 | **~923** | +66 |
+| A4 fit 강제 | ❌ aspect-ratio 미정 | **✅ aspect-ratio: 210/297** | 핵심 |
+
+→ A4 정확 비율 강제로 fit 자동 보장. 추정 px 합산이 1123 초과해도 overflow:hidden 으로 안전.
+
+### 검증
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT_CODE=0 (출력 0줄) |
+| `npx vitest run` 전체 | ✅ **605/605 PASS** (45 파일) |
+| `vitest team-section-fill-rows` | ✅ 8/8 PASS (Players 12행 회귀 0) |
+| `vitest timeout-helpers` | ✅ 30/30 PASS (마킹 로직 변경 0 / 시각 칸 수만 변경) |
+| `vitest signature-types` | ✅ 10/10 PASS (풋터 타입 변경 0) |
+| lucide-react import | ✅ 0건 |
+| 핑크 hex | ✅ 0건 (흰색 #ffffff 만) |
+| schema 변경 | ✅ 0 |
+| Flutter v1 영향 | ✅ 0 |
+| BFF / service 변경 | ✅ 0 |
+| AppNav frozen 영향 | ✅ 0 |
+
+### 💡 tester 참고
+- **테스트 방법**: `/score-sheet/[matchId]` 진입 → 시각 검증 + A4 인쇄 미리보기
+- **정상 동작**:
+  1. **A4 정확 비율** — 박스가 정확한 A4 portrait 비율 (210:297 = 0.707) 으로 화면 표시. 어떤 viewport (모바일/태블릿/PC) 에서도 비율 동일.
+  2. **Time-outs 3×2** — 6 고정 칸 (3 컬럼 × 2 행). 4쿼터 시 5칸까지 채울 수 있고 6번째는 "여유" (cursor: default). OT 진입 시 7~8번째 칸 자동 생성 (3 컬럼 grid 에서 다음 행).
+  3. **풋터 운영진 세로 4줄** — Scorer / Assistant scorer / Timer / Shot clock operator 가 세로 4줄로 표시. 라벨 우측 정렬 (140px width 고정) / underscore 라인 우측 input.
+  4. **인쇄 미리보기** — Ctrl+P / 사이드바 PrintButton 으로 미리보기 → A4 1 페이지에 정확 fit (margin 0 / 박스 = 종이 1:1).
+- **주의할 입력**:
+  - OT 진입 시 Time-outs 칸 = 7칸 (3+3+1) / 8칸 (3+3+2). 마지막 칸은 OT 타임아웃 마킹 가능
+  - 13명+ 명단은 Players 12행 잘림 (운영 안정성 - Phase 12 정책 유지)
+  - 풋터 운영진 세로 4줄 = ~88px / 심판 1줄 + 주장 1줄 = ~22+22 / 풋터 총 ~140px (A4 안 fit)
+  - aspect-ratio 가 적용 안 되는 구형 브라우저 = 화면에서는 컨텐츠 폭에 맞춰 늘어남 (인쇄는 mm 단위 정확)
+
+### ⚠️ reviewer 참고
+- **A4 정확 비율 = Phase 14 핵심**: `aspect-ratio: 210 / 297` CSS = 모든 모던 브라우저 지원 (Chrome 88+, Firefox 89+, Safari 15+). 구형 브라우저 fallback 은 max-width: 210mm 만 적용.
+- **@page margin 0 변경**: 이전 6mm 마진 → Phase 14 = 박스 자체가 210×297mm 정확 fit. 일부 프린터 = 무여백 인쇄 불가 → 박스 외곽 1px 검정 라인이 잘릴 가능성 있음. 운영자가 인쇄 설정에서 "프린터 기본 여백 사용" 선택 시 자동 보정.
+- **Time-outs 6 고정 vs 사용자 결재 §1 (3×2)**: 사용자 명시 "3 컬럼 × 2 행 = 6칸 고정" = 그대로 박제. OT 진입 시 7~8 칸은 grid-cols-3 의 자동 행 확장 (브라우저가 다음 행 생성).
+- **풋터 운영진 세로 4줄 = Phase 13 회귀 결재**: Phase 13 가로 1줄 = 사용자가 명시적으로 폐기 (이미지 33). FIBA 정합 복원.
+- **요소비율 통일**: Team Fouls 박스 12px = 가독성 위해 작게 유지 (Phase 13 결재 / 본 PR 변경 0). Time-outs / Player Fouls / P IN 모두 18px 통일.
+- **다음 단계**: 브라우저 시각 검증 + 인쇄 미리보기로 A4 1 페이지 정합 + 6칸 3×2 + 세로 4줄 풋터 확인.
+
+### 신규 보안 이슈
+- **0 건** — CSS / 레이아웃 only / 기능 영향 0. API / 권한 / DB 변경 0.
+
+---
+
 ## 구현 기록 (developer) — Phase E 단체 lifecycle (Q1 보존 = archived) (2026-05-12)
 
 ### 📝 구현한 기능
@@ -328,8 +424,8 @@ Extra [1][2][3][4]                   ← 줄 3
 ## 작업 로그 (최근 10건)
 | 날짜 | 커밋 | 작업 요약 | 결과 |
 |------|------|---------|------|
+| 2026-05-12 | (커밋 대기) | **[FIBA Phase 14 — A4 정확 비율 + 재배치]** (a) `_print.css`: `.score-sheet-fiba-frame` width 100% + max-width 210mm + **aspect-ratio: 210/297 강제** (화면 A4 정확) + overflow hidden. 인쇄 = 210×297mm + @page margin 0 (박스 = 종이 1:1). (b) Time-outs grid-cols-2 → **grid-cols-3 × 2 = 6 고정 칸** (FIBA 표준 / 사용자 결재 §1). 6번째 = "여유 (OT 활성)". (c) 풋터 운영진 가로 1줄 → **세로 4줄** (Phase 13 회귀 복원 / 사용자 결재 §2). labelWidth=140 / compact prop 제거 (사용처 0). (d) 요소비율 통일 — 박스 18px (Time-outs/P IN/Fouls 1-5) + Team Fouls 박스 12px / 라벨 10px (풋터) / 9px (Team Fouls). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0 / AppNav 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[FIBA Phase 13 — UI 겹침 fix + 압축]** (a) TIME-OUTS 가로 6칸 → 2×N grid (사용자 결재 §1). 박스 18px. (b) Team Fouls 박스 12px + 라벨 9px + FT 안내 8px (P2/2FT 겹침 fix §2). (c) 체크박스 P IN + FOULS 1-5 = 24→18px (§3). (d) Players 행 20→18px (§4 / 12×18=216). (e) 풋터 운영진 4명 세로→가로 1줄 4컬럼 (§5 / -82px). 좌측 ~857px (A4 여유 ~266px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
-| 2026-05-12 | (커밋 대기) | **[FIBA Phase 12 — Players 12행 + Team Fouls 3줄]** (a) fillRowsTo16 → fillRowsTo12 (FIBA Article 4.2.2 실 운영 max 12명 / 사용자 직접 결재). (b) deprecated alias 16/15 → 12 위임 (회귀 안전망). (c) Team Fouls 5줄 → 3줄 — P1·P2 / P3·P4 페어 + Extra. (d) vitest 16 → 12 갱신. 좌측 ~991px (A4 여유 ~132px). tsc 0 / vitest 605/605 PASS / schema 0 / Flutter v1 0 / BFF 0. | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase E 단체 lifecycle (Q1 보존)]** E-1) requireOrganizationOwner 헬퍼 + OrganizationPermissionError (owner only — admin 차단 + super_admin 우회 옵션). E-2) POST/DELETE /api/web/organizations/[id]/archive (status='archived'/'approved' 토글, adminLog warning 박제). E-3) ArchiveOrganizationButton confirm 모달 + 운영자 페이지 isOwner 가드 + 헤더 "보관됨" 뱃지 + 단체 목록 active vs archived 분리 (회색 톤) + 공개 페이지 archived 안내 페이지 분기. vitest 10 케이스 (단체없음/super_admin 2종/owner/admin/member/외부인/비활성/allowSuperAdmin=false/archived owner). schema 변경 0 (status=String) / Flutter v1 영향 0 / decisions.md Q1 박제. tsc 0 / vitest 본 PR 10/10 PASS / 전체 601/605 (실패 4건 = 별 PR score-sheet 무관). | ✅ |
 | 2026-05-12 | (커밋 대기) | **[Phase D 단체↔시리즈 셀프서비스]** D-1) 시리즈 카드 ⋮ 메뉴 (SeriesActionsMenu + MoveSeriesModal — 분리 organization_id=null / 이동 본인 owner-admin 단체 목록 radio + confirm). D-2 Q3) canManageTournament 단체 owner/admin 자동 부여 회귀 가드 vitest 9 케이스 (organizer/TAM/단체 owner/admin/member/series_id NULL/super_admin 2종). tsc 0 / vitest 595/595 PASS / Flutter v1 영향 0 / schema 변경 0 / API 신규 0 (Phase C PATCH + 기존 GET 재사용). | ✅ |
 | 2026-05-12 | a3076bc | **[D-3 운영 fix]** B max_teams + A 코치 import 템플릿 + E 권한 자동 부여 + C 단체 편집 모달 | ✅ |

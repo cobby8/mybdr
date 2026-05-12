@@ -28,6 +28,14 @@
  *   §4 Players 행 높이 20 → 18px (12 × 18 = 216px / -24px 추가 절약)
  *   §5 A4 fit 재검증 — 좌측 총합 ~931px (여유 ~192px 확보)
  *
+ * 2026-05-12 — Phase 14 A4 정확 비율 + Time-outs 재배치 (이미지 32-33 사용자 직접 결재).
+ *   §1 TIME-OUTS 2×N → 3×2 grid (FIBA 정합 / 6 고정 칸)
+ *      이유: 이전 Phase 13 2 컬럼 = 마지막 빈 칸 발생 + 시각적 불균형.
+ *        FIBA 종이기록지 표준 = 3×2 6칸 (전반 2 + 후반 3 + 여유 1).
+ *      grid-cols-3 × 2 row = 6 고정 / OT 진입 시 7~8 번째 칸은 자동 행 확장.
+ *   §4 요소비율 통일 — 박스 18px / 폰트 라벨 9px / 데이터 11px 일관 검증.
+ *   §5 A4 정확 비율은 _print.css aspect-ratio 강제 (본 컴포넌트 외부).
+ *
  * 왜 (이유):
  *   FIBA 양식 좌 절반 = Team A 상 / Team B 하 분할. 각 팀 영역 안에
  *   Time-outs (5칸) + Team fouls (Period 별 1-4 + Extra) + Players 15명
@@ -243,7 +251,10 @@ export function TeamSection({
           Phase 8 — mb-3 → 가로 flex 자식 (flex-shrink-0 + 우측 Team fouls 와 인라인).
           Phase 13 (2026-05-12) — 가로 6칸 → 2×N grid (사용자 결재 §1).
             5칸 + OT 추가 시 가로가 너무 길어 → 2 컬럼 동적 배치 (홀수면 마지막 좌측만).
-            박스 크기 h-6 w-6 → h-[18px] w-[18px] (시각 압축). */}
+            박스 크기 h-6 w-6 → h-[18px] w-[18px] (시각 압축).
+          Phase 14 (2026-05-12) — 2×N → 3×2 grid (사용자 결재 §1 / 이미지 32).
+            FIBA 종이기록지 표준 = 3×2 = 6칸 (전반 2 + 후반 3 + 여유 1).
+            grid-cols-3 × 2 row = 6 고정. OT 진입 시 7~8번째 칸은 자동 행 확장 (3+3+2). */}
       <div className="shrink-0">
         <div
           className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-semibold uppercase tracking-wider"
@@ -273,14 +284,17 @@ export function TeamSection({
             );
           })()}
         </div>
-        {/* Phase 13 — grid-cols-2 (2 컬럼 × N 행 동적). gap-px 컴팩트. */}
-        <div className="grid grid-cols-2 gap-px">
+        {/* Phase 14 — grid-cols-3 × 2 row = 6 고정 칸 (FIBA 정합 / 사용자 결재 §1).
+            이전 Phase 13: grid-cols-2 (2 컬럼 동적) → Phase 14: grid-cols-3 (3×2 = 6 고정).
+            OT 진입 시 7~8번째 칸은 자동 다음 행 (3+3+2). */}
+        <div className="grid grid-cols-3 gap-px">
           {(() => {
             // 표시할 칸 수 산정:
-            //   기본 5칸 (전반 2 + 후반 3)
-            //   + OT 진입 시 (currentPeriod >= 5) 각 OT 별 1칸 누적
-            //     → currentPeriod=5 시 6칸 / 6 시 7칸 / 7 시 8칸
-            const totalCells = currentPeriod <= 4 ? 5 : 5 + (currentPeriod - 4);
+            //   Phase 14 — 기본 6칸 (FIBA 표준 = 전반 2 + 후반 3 + 여유 1 / 3×2 grid).
+            //     OT 진입 시 (currentPeriod >= 5) 각 OT 별 1칸 추가 → 7/8/...
+            //     이전 Phase 13 = 5칸 + OT (Phase 4 마킹 로직 = totalUsed 만 채움).
+            //     본 변경 = 시각 칸만 5 → 6 (여유 1칸은 빈 상태) / OT 시 +1.
+            const totalCells = currentPeriod <= 4 ? 6 : 6 + (currentPeriod - 4);
             // 현재까지 사용된 총 타임아웃 수 = 채워진 칸 수
             const totalUsed = timeouts.length;
 
@@ -288,7 +302,8 @@ export function TeamSection({
               const filled = i < totalUsed;
               const isLastFilled = filled && i === totalUsed - 1;
               const isNextEmpty = !filled && i === totalUsed;
-              // 칸 라벨 — 위치별 phase 안내 (1~2=전반 / 3~5=후반 / 6+=OT)
+              // 칸 라벨 — 위치별 phase 안내 (Phase 14 — 6칸 grid 기준)
+              //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5 = 여유 (FIBA 표준 6번째 빈 칸) / 6+ = OT
               //   marked 칸이 어느 period 인지는 timeouts[i].period 로 알 수 있음
               const cellLabel = filled
                 ? `Period ${timeouts[i].period} 타임아웃`
@@ -296,7 +311,9 @@ export function TeamSection({
                   ? `전반 타임아웃 ${i + 1}`
                   : i < 5
                     ? `후반 타임아웃 ${i - 1}`
-                    : `OT${i - 4} 타임아웃`;
+                    : i === 5
+                      ? "여유 (OT 진입 시 활성)"
+                      : `OT${i - 5} 타임아웃`;
               return (
                 <button
                   key={i}
