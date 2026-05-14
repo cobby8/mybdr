@@ -4,7 +4,7 @@
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
-| architecture.md | 51 | 2026-05-12 | 로그인 redirect 흐름 통합 / score-sheet 자동 로드 / Phase C safety net (Phase 23 PR1~3 / Phase C 영향 추가는 후속) |
+| architecture.md | 53 | 2026-05-15 | 이전 51건 + **(1) 마법사 통합 wizard 인프라** (Phase 1 lib 3 파일 + Phase 5 API + Phase 5 C UNIQUE 인덱스 운영 적용) + **(2) Phase 23 PR5-A cross-check audit endpoint** (tournament_match_audits 재사용 / source="web-score-sheet" / context="phase23-cross-check:<warning_type>") |
 | conventions.md | 47 | 2026-05-13 | dev → main release PR 표준 흐름 (gh CLI) — gh pr merge --merge --delete-branch=false / 권한 보유자 본인 발화 시에만 |
 | decisions.md | 113 | 2026-05-15 | 이전 112건 + **마법사 통합 (단체→시리즈→대회→회차) 기존 wizard 확장 + 4 핵심 결정** (Hybrid 구조 / 이전 회차 복제 우선 / Association 별도 분기 / 신규 모델 0 — DB schema 변경 1 = unique 인덱스만) |
 | errors.md | 44 | 2026-05-13 | LIVE API paper 매치 OT 변환 = clock=0 STL 보정 충돌 (FIBA Phase 22) |
