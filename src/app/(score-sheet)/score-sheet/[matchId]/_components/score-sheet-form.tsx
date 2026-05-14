@@ -235,10 +235,8 @@ export function ScoreSheetForm({
     mode: "quarter4" | "overtime";
     period: number;
   } | null>(null);
-  // Phase 19 PR-S2 (2026-05-14) — 시안 toolbar 의 페이퍼/상세 모드 토글 state.
-  //   기본 = "detail" (운영 기존 RunningScoreGrid 동작 모드와 동일).
-  //   PR-S3 에서 RunningScoreGrid wiring (현재는 toolbar 시각 토글만 활성 / 동작 변경 0).
-  const [scoreMode, setScoreMode] = useState<"paper" | "detail">("detail");
+  // PR-S6 (2026-05-14 rev2 롤백) — scoreMode state 제거. 시안 rev2 가 모드 토글을 제거하면서
+  //   단일 모드 (= 기존 detail 동작) 통일. PR-S2 의 toolbar 의 다른 영역 (back/인쇄/종료) 은 유지.
   // Phase 19 PR-S2 — MatchEndButton controlled open state.
   //   왜: 시안 toolbar 의 "경기 종료" 버튼이 MatchEndButton 의 confirm modal trigger 위임.
   //   기존 MatchEndButton 의 confirm modal + BFF submit + submitted 토스트 흐름 100% 보존.
@@ -945,15 +943,12 @@ export function ScoreSheetForm({
           gameNo = FibaHeader 와 동일 source (match.match_code ?? match.id). */}
       <ScoreSheetToolbar
         gameNo={match.match_code ?? match.id}
-        mode={scoreMode}
-        onModeChange={setScoreMode}
         onPrint={() => {
           if (typeof window !== "undefined") window.print();
         }}
         onEndMatch={() => setMatchEndOpen(true)}
         backHref="/admin"
-        // PR-S2 후속 fix 3 (2026-05-14) — 종료 후 종료 버튼 disabled 시각 분기.
-        //   matchEndSubmitted = MatchEndButton.onSubmittedChange 콜백으로 끌어올린 상태.
+        // PR-S2 후속 fix 3 (2026-05-14) — 종료 후 종료 버튼 disabled 시각 분기 (유지).
         endMatchDisabled={matchEndSubmitted}
       />
 
@@ -1102,9 +1097,8 @@ export function ScoreSheetForm({
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
               FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적. */}
           <div className="flex flex-col">
-            {/* Phase 19 PR-S3 (2026-05-14) — toolbar scoreMode state wiring (사용자 결재 D2 / D7).
-                detail (기본) = 운영 onClick / setRunningScore / 모달 trigger 100% 보존.
-                paper = read-only preview (입력 차단 + opacity / cursor 시각 indicator). */}
+            {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
+                단일 모드 (= 기존 detail 동작) 통일. */}
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1112,7 +1106,6 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
-              mode={scoreMode}
               frameless
             />
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).

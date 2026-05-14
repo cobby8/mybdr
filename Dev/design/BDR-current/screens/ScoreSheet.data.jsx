@@ -32,7 +32,7 @@ const SCORESHEET_MOCK = {
   ],
   teamACoach: "이재훈",
   teamAAssistant: "김도윤",
-  teamATimeoutsUsed: 1,
+  teamATimeoutsUsed: 2,
   teamATeamFouls: { Q1: 3, Q2: 4, Q3: 2, Q4: 0, extra: 0 },
 
   teamBPlayers: [
@@ -51,7 +51,7 @@ const SCORESHEET_MOCK = {
   ],
   teamBCoach: "이준영",
   teamBAssistant: "박서준",
-  teamBTimeoutsUsed: 0,
+  teamBTimeoutsUsed: 3,
   teamBTeamFouls: { Q1: 2, Q2: 5, Q3: 1, Q4: 0, extra: 0 }, // Q2=5 보너스 진입
 
   // 누적 도달 점수 — Q1 end / Q2 end / Q3 progress / Q4 end

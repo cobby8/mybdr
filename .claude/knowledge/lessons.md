@@ -2,6 +2,33 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-15] 운영 DB UNIQUE 인덱스 추가 = `prisma db push --accept-data-loss` 회피 + raw `CREATE UNIQUE INDEX` 사용
+- **분류**: lesson / DB 안전 / 운영 정책
+- **발견자**: pm (마법사 Phase 5 C 진입 시)
+- **상황**: `@@unique([series_id, edition_number])` 추가 시 `prisma db push --skip-generate` 가 "There might be data loss" 경고 + `--accept-data-loss` 플래그 요구. CLAUDE.md §🚨 금지 = `prisma db push --accept-data-loss` 운영 DB 실행 ❌.
+- **회피 방법** (검증 통과 시):
+  1. 사전 검증 쿼리 2건 (drift / 중복) → 0건 확인
+  2. `npx prisma migrate diff --from-schema-datasource ... --to-schema-datamodel ... --script` 로 정확한 SQL 출력 + 사용자 결재
+  3. **`prisma db push` 우회** — prisma client `$executeRawUnsafe` 로 raw `CREATE UNIQUE INDEX` 직접 실행 (임시 스크립트 `scripts/_temp/...` + 작업 후 즉시 정리)
+  4. 사후 검증 (`pg_indexes` 조회)
+- **교훈**:
+  - prisma db push 가 보수적으로 data-loss 경고 → 사용자 결재 + 검증 결과 0/0 이면 raw SQL 이 더 안전 (의도 명확 + 단일 명령)
+  - `--accept-data-loss` 는 CLAUDE.md 금지 — 우회 의무
+  - schema.prisma 변경 commit 은 별도 (raw SQL 실행과 분리)
+- **운영 적용 결과**: 96ms / btree (series_id, edition_number) / 데이터 변경 0
+- **재발 방지**: 차후 DB 인덱스 추가 시 본 패턴 답습 (raw SQL via prisma client + 즉시 정리)
+
+### [2026-05-15] 동시 작업 (Claude Code + Claude Desktop) = 자주 git index.lock 충돌 + commit 누적 빠름
+- **분류**: lesson / 협업 / git 관리
+- **발견자**: pm (2026-05-14 세션 전체)
+- **상황**: 사용자가 Claude Code + Claude Desktop 두 도구를 동시 사용. Claude Desktop = BDR v2.5 시안 + Phase 19 PR-S2~S5 + sidebar/team-apply fix 등 병렬 진행. 본 PM Code 작업 중에 `.git/index.lock` 충돌 1회 / commit 누적 빠름 (한 turn 안에 subin head 가 여러 번 갱신).
+- **교훈**:
+  - 사용자가 동시 작업 중일 때는 **commit 분리 stage 필수** — `git add <specific files>` 명시. `git add .` 절대 ❌
+  - **작업 영역 분리** — PM 은 백엔드 / Claude Desktop 은 시안. 사용자가 "시안 관련 작업 빼고" 같은 명시 룰 줄 때까지 영역 침범 ❌
+  - **index.lock 충돌 시 — 사용자 확인 후 제거** (다른 git 프로세스 실행 중 가능성)
+  - **scratchpad 동시 편집 충돌** → Write 직전 Read 또는 Edit 으로 부분 갱신
+- **재발 방지**: 본 lessons.md 항목으로 패턴 박제. 차후 동시 작업 시 PM 이 작업 시작 전 `git status --short` + `git log --oneline subin -5` 로 최신 상태 확인.
+
 ### [2026-05-13] 백필 SQL 결재 전 = DB + API + PBP 3 면 동시 실측 의무 (잘못 백필 → 즉시 롤백 회수)
 - **분류**: lesson/diagnosis / 데이터 안전
 - **발견자**: pm (FIBA Phase 22 turn 내 잘못된 T1 백필 사례)

@@ -298,4 +298,45 @@
 
   /* 마지막 안내 카드 / "Phase 진행 상태" 메시지 등 인쇄 불필요 영역
      `no-print` 클래스로 직접 제거 (score-sheet-form.tsx 적용) */
+
+  /* ============================================================
+     PR-S9 (2026-05-15) — 시안 rev2 print 룰 정합 (BDR-current/scoresheet.css L775~799)
+     ------------------------------------------------------------
+     운영 .ss-* 컴포넌트 (toolbar / 6 wrapper) 인쇄 시 안전망.
+     운영 .score-sheet-print-root 룰과 별도 동작 (.ss-* prefix 격리).
+     ============================================================ */
+  .ss-toolbar {
+    display: none !important;
+  }
+  /* PR-S10 RunningScoreGrid mark cell — 인쇄 시 배경 라이트 유지 (페이퍼 정합) */
+  .ss-rs__cell[data-mark="true"] {
+    background: var(--pap-bg) !important;
+  }
+  /* .ss-shell 안 wrapper 들 — 인쇄 시 padding 0 + 라이트 배경 강제 */
+  .ss-shell {
+    padding: 0 !important;
+    background: #FFFFFF !important;
+  }
+}
+
+/* ============================================================
+   PR-S9 (2026-05-15) — Mobile 분기 정합 (시안 BDR-current/scoresheet.css L804~816)
+   ------------------------------------------------------------
+   모바일 (≤820px): A4 비율 유지 + 가로 스크롤 허용. .ss-toolbar 2열 grid.
+   운영 rotation-guard 와 무관 (rotation-guard 는 가로 모드 안내만).
+   ============================================================ */
+@media (max-width: 820px) {
+  .ss-shell {
+    padding: 12px 8px 60px;
+    overflow-x: auto;
+  }
+  .ss-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    max-width: var(--ss-paper-width);
+  }
+  .ss-toolbar__title {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
 }

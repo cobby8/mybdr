@@ -2,6 +2,28 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-15] 대회 관리자 통합 마법사 = 기존 wizard 확장 + 4 핵심 결정 (단체→시리즈→대회→회차 통합)
+- **분류**: 기술 결정 / UX 통합
+- **결정자**: 사용자 (2026-05-13) + planner-architect (Phase 23 설계 분석 turn)
+- **4 핵심 결정**:
+  1. **"협회" 의미 통합** = organizations(단체) + Association(심판협회) 둘 다 같은 마법사 진입점, 내부 분기
+  2. **Hybrid 구조** = 진입점 1개 + 내부 분기 (단체 0/1/N 자동 인지)
+  3. **기존 wizard 확장** (재작성 ❌) = `/tournament-admin/tournaments/new/wizard/page.tsx` 의 3단계 (info/registration/confirm) 앞에 Step 0 (org) prepend → 총 4단계
+  4. **이전 회차 복제 우선** = 시리즈 선택 시 마지막 회차 Tournament + TournamentDivisionRule prefill (DB 신규 모델 추가 ❌)
+- **대안 검토** (rejected):
+  - A. 시안 통째 재작성: 회귀 위험 / 공용 컴포넌트 (`ScheduleForm` / `InlineSeriesForm` / `DivisionGeneratorModal`) 재구성 비용 큼
+  - B. 별도 모달 단계 (단체 → 새 모달 → 시리즈 → 새 모달): 단계 폭증 / sessionStorage draft 복잡
+  - C. Association 통합 단일 흐름: 99% 일반 운영자에게 노이즈 / Association 모델 군 완전 다름
+- **운영 영향**:
+  - DB 신규 모델 0 (TournamentDraft/SeriesTemplate/WizardSession 모두 보류)
+  - DB schema 변경 1 (선택) = `@@unique([series_id, edition_number])` Phase 5 C
+  - 신규 API 1 (`GET /api/web/series/[id]/last-edition`)
+  - API 확장 1 (`POST /api/web/series/[id]/editions`)
+- **Phase 1~7 분해**: 가이드 `Dev/wizard-2026-05-13/00-MASTER.md` §3
+- **현재 진입**: Phase 1 / 5 A+B+C 완료. Phase 2/3/4/6 = D1~D4 디자인 시안 의존 (BLOCKED)
+- **재발 방지**: 차후 wizard 류 작업 시 (a) 기존 컴포넌트 인벤토리 우선 (`01-current-state-and-gap.md` 패턴) (b) 0/1/N 분기 패턴 (c) 이전 데이터 prefill 룰 답습
+- **참조횟수**: 0
+
 ### [2026-05-12] 단체 삭제 정책 = 보존 (archived) — Phase E Q1 결재
 - **분류**: decision (단체 lifecycle 정책)
 - **결정 사항**:

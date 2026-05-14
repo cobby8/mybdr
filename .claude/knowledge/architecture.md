@@ -2,6 +2,42 @@
 <!-- 담당: planner-architect, developer | 최대 30항목 -->
 <!-- 프로젝트의 폴더 구조, 파일 역할, 핵심 패턴을 기록 -->
 
+### [2026-05-15] 마법사 통합 wizard 인프라 — Phase 1 lib + Phase 5 API (시안 무관 영역)
+- **분류**: architecture (대회 관리자 통합 마법사 / 단체→시리즈→대회→회차)
+- **발견자**: developer
+- **내용**:
+  - **Phase 1 lib (commit `7be3aca`)**:
+    - `src/lib/tournaments/wizard-types.ts` — `WizardDraft` (step + organization_id + series_id + tournament_payload + division_rules) + `OrganizationItem` (my_role) + `SeriesItem` (tournaments_count) + `TournamentPayload` (4 폼 컴포지션: Schedule/RegistrationSettings/TeamSettings/BracketSettings) + `DivisionRulePayload`
+    - `src/lib/tournaments/wizard-draft.ts` — sessionStorage 헬퍼 (saveDraft/loadDraft/clearDraft) + BigInt 직렬화 replacer + SSR 안전 (window 체크) + silent fail
+    - `src/lib/tournaments/wizard-constants.ts` — STEPS 5종 (org/series/info/registration/confirm) + stepIndexToKey/stepKeyToIndex + `TOURNAMENT_STATUS_DEFAULT="draft"` (02-db-changes §3 룰)
+    - vitest 25 케이스 (commit `a4ded2e`) — round-trip / BigInt / SSR / 손상 JSON / KEY 격리
+  - **Phase 5 API**:
+    - `GET /api/web/series/[id]/last-edition` (commit `5306a2c`, 신규) — 마지막 회차 + 종별 룰 prefill 응답. IDOR 가드 (organizer_id OR super_admin). `last_edition.status` 응답 제외 (마법사 항상 draft 강제). 빈 시리즈 → `null` + `[]`.
+    - `POST /api/web/series/[id]/editions` (확장) — body 에 `tournament_payload?` + `division_rules?` 신규 수용. `hasFullPayload` 분기로 기존 path (status="registration_open") 와 마법사 path (status="draft" 강제) 완전 격리. 트랜잭션 안에서 Tournament create + DivisionRule createMany + 카운터 +1.
+    - retry 보강 (commit `d858632`) — Prisma P2002 (UNIQUE constraint) catch → count 재조회 → 1회 재시도 → 409.
+  - **Phase 5 C — 운영 DB 변경 (commit `b28545f`)**:
+    - schema.prisma: Tournament model 에 `@@unique([series_id, edition_number], map: "tournaments_series_edition_unique")`
+    - 운영 적용: prisma client `$executeRawUnsafe` 로 `CREATE UNIQUE INDEX` 직접 실행 (96ms / `prisma db push --accept-data-loss` 회피 / lessons.md 박제)
+    - PostgreSQL UNIQUE 특성: NULL 행끼리 비교 안 함 → 회차 없는 대회 (series_id=NULL) 영향 0
+  - **재사용 경로**: Phase 2/3/4 UI 진입 시 Phase 1 lib import + Phase 5 API 호출. wizard page.tsx 의 4단계 prepend 패턴 (Step 0 → 1 → 2 → 3 → 4).
+- **참조횟수**: 0
+
+### [2026-05-15] Phase 23 PR5-A — score-sheet cross-check audit endpoint (Phase 23 PR2+PR3 후속)
+- **분류**: architecture (감사 로그 / cross-check 모니터링)
+- **발견자**: developer (PR2+PR3 reviewer 후속 권장)
+- **내용**:
+  - **신규 path**: `POST /api/web/score-sheet/[matchId]/cross-check-audit` (commit `d858632`)
+  - **가드**: `requireScoreSheetAccess` (super_admin / organizer / admin member / recorder)
+  - **Body (Zod)**: `warning_type` enum 3종 — `quarter_scores_mismatch` (DB JSON ≠ PBP 합산) / `draft_dom_conflict` (localStorage draft savedAt > match.updatedAt 인데 DB 박제값 있음) / `pbp_zero_with_quarter` (PBP 0건 + quarter_scores 만)
+  - **박제 path**: `tournament_match_audits` 테이블 재사용 (별도 테이블 추가 ❌)
+    - source: `"web-score-sheet"`
+    - context: `"phase23-cross-check:<warning_type>"`
+    - changes: details JSON 그대로
+  - **흐름**: score-sheet 재진입 시 form.tsx 의 useEffect 가 mismatch 감지 → console.warn + UI 노란 배너 + 본 endpoint 호출 (PR5-B 진입 시 — 시안 진행 중 영역)
+  - **운영 모니터링**: tournament_match_audits 의 source/context 검색으로 cross-check 발생 추적 가능. PR2+PR3 운영 적용 후 감사 데이터 누적 시 분석 가능.
+  - **DB schema 변경 0** / Flutter v1 API 영향 0 / 클라이언트 wiring 은 시안 완료 후 PR5-B 별도 진입
+- **참조횟수**: 0
+
 ### [2026-05-12] 로그인 redirect 흐름 통합 — middleware + 헬퍼 단일 source
 - **분류**: architecture (인증 흐름 인프라)
 - **발견자**: developer

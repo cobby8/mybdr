@@ -21,17 +21,19 @@
    Toolbar — back / title / mode seg / print / finish
    ============================================================ */
 .ss-shell .ss-toolbar {
-  /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto 16px;
   display: grid;
-  /* back | title (1fr) | mode seg | print | finish */
-  grid-template-columns: auto 1fr auto auto auto;
+  /* PR-S6 (2026-05-14 rev2 롤백) — mode seg 제거 (5컬럼 → 4컬럼).
+     back | title (1fr) | print | finish */
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
   background: #FFFFFF;
-  border: 1px solid #D0D5DD;
+  /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
+  border: 1px solid var(--ss-toolbar-border);
   border-radius: 4px;
 }
 
@@ -46,7 +48,8 @@
   padding: 0 14px;
   /* 시안 var(--ff-body) → 운영 본문 폰트 (Pretendard) 가족 fallback */
   font: 600 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  border: 1px solid #D0D5DD;
+  /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
+  border: 1px solid var(--ss-toolbar-border);
   background: #FFFFFF;
   color: #1A1E27;
   border-radius: 4px;
@@ -62,8 +65,8 @@
 
 /* 경기 종료 — accent (=BDR Red — D3 토큰) 배경 = 위험 액션 강조 */
 .ss-shell .ss-toolbar__finish {
-  background: var(--ss-paper-accent);
-  border-color: var(--ss-paper-accent);
+  background: var(--pap-bonus);
+  border-color: var(--pap-bonus);
   color: #FFFFFF;
 }
 
@@ -78,61 +81,38 @@
   text-overflow: ellipsis;
 }
 
-/* 모드 토글 — 둘 중 하나 active (data-active="true") */
-.ss-shell .ss-toolbar__seg {
-  display: inline-flex;
-  height: 36px;
-  border: 1px solid #D0D5DD;
-  border-radius: 4px;
-  overflow: hidden;
-  background: #F4F6FA;
-}
-
-.ss-shell .ss-toolbar__seg button {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  height: 100%;
-  padding: 0 14px;
-  font: 600 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  color: #5B6573;
-  cursor: pointer;
-  white-space: nowrap;  /* 모드 라벨 줄바꿈 방지 */
-}
-
-.ss-shell .ss-toolbar__seg button[data-active="true"] {
-  background: #1A1E27;
-  color: #FFFFFF;
-}
-
-/* D6 — 모바일 가로 스크롤 (toolbar 자체는 max-width 794px 유지, 부모 wrap 이 overflow-x 처리) */
-/* toolbar 가 794px 이하 viewport 에서 컬럼 압축 시 가독성 보존을 위해 부모 영역에서 overflow-x:auto 처리 권장 */
+/* PR-S6 (2026-05-14 rev2 롤백) — 모드 토글 (.ss-toolbar__seg) 룰 제거 + paper mode visual 룰 제거.
+   시안 rev2 가 toolbar 의 모드 segment 를 제거하면서 단일 모드 통일.
+   D6 — 모바일 가로 스크롤 (toolbar 자체는 max-width 794px 유지, 부모 wrap 이 overflow-x 처리) */
 
 /* ============================================================
-   Phase 19 PR-S3 (2026-05-14) — RunningScoreGrid paper 모드 visual indicator
+   Phase 19 PR-S8 (2026-05-15 rev2) — .pap-lbl / .pap-u 공통 클래스
    ============================================================
    왜 (이유):
-     사용자 결재 D2 — paper 모드 = read-only preview / detail = 입력 (기본).
-     사용자 결재 D7 — PR-S3 = grid layout 분기 ❌ (운영 layout 유지) / 입력 차단만 + 시각 indicator.
+     시안 rev2 (Dev/design/BDR-current/scoresheet.css L120~141) — FIBA paper 정합 라벨/value
+     공통 클래스 단일 source. fiba-header / period-scores / footer-signatures 모두 이 두 클래스를
+     기존 utility (Tailwind / .ss-* 룰) 와 병행 사용.
 
    어떻게:
-     - RunningScoreGrid wrapper 의 data-score-mode="paper" 속성을 selector 로 잡아 visual 적용.
-     - detail (기본) = 본 룰 미적용 = 운영 시각 변경 0.
-     - paper = opacity 0.85 + cursor not-allowed = 입력 불가 명시.
-
-   절대 룰:
-     - layout / grid-template-columns 변경 ❌ (운영 16 컬럼 layout 유지)
-     - 색상 / 폰트 룰 변경 ❌ (시각 indicator 만)
+     - .pap-lbl = bold 라벨 (시안 rev2 11px bold 흑색)
+     - .pap-u   = underscore value (시안 rev2 11.5px medium 흑색 + border-bottom 1px solid)
+     - .ss-shell 스코프 한정 (다른 영역 미오염)
 */
-.ss-shell [data-score-mode="paper"] {
-  /* 입력 불가 명시 — 운영자가 detail 로 전환해야 마킹 가능 인지 */
-  opacity: 0.85;
-  cursor: not-allowed;
+.ss-shell .pap-lbl {
+  font: 700 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--pap-ink);
+  letter-spacing: 0;
+  flex-shrink: 0;
 }
-
-/* paper 모드 시 마킹 버튼 hover 효과 disabled (cursor 와 일관) */
-.ss-shell [data-score-mode="paper"] button {
-  cursor: not-allowed;
+.ss-shell .pap-u {
+  font: 500 11.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--pap-ink);
+  border-bottom: 1px solid var(--pap-line);
+  /* flex 컨테이너 안 sibling 으로 들어갈 때 minWidth 0 + flex 1 = ellipsis 정합 */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ============================================================
@@ -155,16 +135,19 @@
   display: grid;
   /* 시안 92px → 모바일에서도 로고 영역 보존 */
   grid-template-columns: 92px 1fr;
-  border-bottom: 1.5px solid var(--ss-paper-line);
+  border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-h__logo {
+  /* PR-S8 (2026-05-15 rev2) — column 세로 정렬 (시안 scoresheet.css L151~161 정합).
+     마크 + BDR + We Play Basketball 3줄 세로 누적. */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 4px;
-  border-right: 1.5px solid var(--ss-paper-line);
-  background: var(--ss-paper-ink);
+  gap: 3px;
+  padding: 4px 2px;
+  border-right: 1.5px solid var(--pap-line);
+  background: var(--pap-ink);
   color: #FFFFFF;
 }
 .ss-shell .ss-h__logo-mark {
@@ -176,7 +159,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ss-paper-ink);
+  background: var(--pap-ink);
   overflow: hidden;
 }
 .ss-shell .ss-h__logo-mark .material-symbols-outlined {
@@ -190,15 +173,21 @@
   height: 100%;
   object-fit: contain;
 }
-.ss-shell .ss-h__logo-text {
-  font: 800 9px/1.1 var(--ff-display, "Pretendard", system-ui, sans-serif);
-  letter-spacing: 0.06em;
-  text-align: center;
-}
-.ss-shell .ss-h__logo-text strong {
-  display: block;
+/* PR-S8 (2026-05-15 rev2) — 로고 두 줄 분리 (시안 ScoreSheet.parts.jsx L28~29 + scoresheet.css L177~188 정합).
+   .ss-h__logo-text (단일 박스) → .ss-h__logo-brand (BDR) + .ss-h__logo-tag (We Play Basketball) 분리. */
+.ss-shell .ss-h__logo-brand {
   font: 900 14px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.04em;
+  color: #FFFFFF;
+  margin-top: 1px;
+  text-align: center;
+}
+.ss-shell .ss-h__logo-tag {
+  font: 600 7.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  color: #FFFFFF;
+  opacity: 0.9;
+  text-align: center;
 }
 .ss-shell .ss-h__title {
   display: flex;
@@ -212,13 +201,13 @@
 .ss-shell .ss-h__t2 {
   font: 700 11.5px/1.25 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.16em;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
   text-transform: uppercase;
 }
 .ss-shell .ss-h__t3 {
   font: 900 19px/1.1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.22em;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
   text-transform: uppercase;
   margin-top: 1px;
 }
@@ -227,14 +216,14 @@
 .ss-shell .ss-names {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-bottom: 1.5px solid var(--ss-paper-line);
+  border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-names__cell {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  border-right: 1.5px solid var(--ss-paper-line);
+  border-right: 1.5px solid var(--pap-line);
   /* 헤더 strip 높이 — 시안 26px row */
   min-height: 26px;
 }
@@ -242,14 +231,14 @@
 .ss-shell .ss-names__cell > label {
   font: 700 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.02em;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
   flex-shrink: 0;
 }
 .ss-shell .ss-names__cell > span {
   flex: 1;
   font: 600 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  color: var(--ss-paper-soft);
-  border-bottom: 1px solid var(--ss-paper-line);
+  color: var(--pap-ink);
+  border-bottom: 1px solid var(--pap-line);
   align-self: stretch;
   display: flex;
   align-items: flex-end;
@@ -263,20 +252,20 @@
 .ss-shell .ss-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-bottom: 1.5px solid var(--ss-paper-line);
+  border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-meta__l,
 .ss-shell .ss-meta__r {
   display: grid;
   grid-template-rows: 1fr 1fr;
 }
-.ss-shell .ss-meta__l { border-right: 1.5px solid var(--ss-paper-line); }
+.ss-shell .ss-meta__l { border-right: 1.5px solid var(--pap-line); }
 .ss-shell .ss-meta__row {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  border-bottom: 1px solid var(--ss-paper-hair);
+  border-bottom: 1px solid var(--pap-hair);
   /* row 높이 — 시안 52px 영역을 2 row 균분 = 26px */
   min-height: 26px;
 }
@@ -295,7 +284,7 @@
 .ss-shell .ss-field > label {
   font: 700 10px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.02em;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
   flex-shrink: 0;
   text-transform: uppercase;
 }
@@ -303,8 +292,8 @@
   flex: 1;
   min-width: 0;
   font: 500 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  color: var(--ss-paper-soft);
-  border-bottom: 1px solid var(--ss-paper-line);
+  color: var(--pap-ink);
+  border-bottom: 1px solid var(--pap-line);
   height: 16px;
   display: flex;
   align-items: flex-end;
@@ -319,18 +308,18 @@
   min-width: 0;
   appearance: none;
   border: 0;
-  border-bottom: 1px solid var(--ss-paper-line);
+  border-bottom: 1px solid var(--pap-line);
   background: transparent;
   font: 500 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  color: var(--ss-paper-soft);
+  color: var(--pap-ink);
   height: 16px;
   padding: 0 0 1px 0;
   outline: none;
 }
 .ss-shell .ss-field > input.ss-field__input:focus {
   /* 입력 인지 — 본문 ink 색 강조 (radius / box-shadow ❌ — FIBA 종이 정합) */
-  color: var(--ss-paper-ink);
-  border-bottom-color: var(--ss-paper-ink);
+  color: var(--pap-ink);
+  border-bottom-color: var(--pap-ink);
 }
 .ss-shell .ss-field > input.ss-field__input:disabled {
   opacity: 0.5;
@@ -341,14 +330,14 @@
    본 룰은 FibaHeader 만의 wrapper 이며, 운영 frame 본체 (TeamSection / RunningScoreGrid 등) wrapper 는
    본 PR 범위 ❌ (사용자 핵심 제약 — frame 본체 wrapper 변경 ❌ / PR-S6 검토). */
 .ss-shell.ss-header {
-  /* A4 폭 정합 (D6) — toolbar 와 동일 가로 정렬 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — toolbar 와 동일 가로 정렬. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto;
-  background: var(--ss-paper-bg);
-  color: var(--ss-paper-ink);
+  background: var(--pap-bg);
+  color: var(--pap-ink);
   /* 직각 (D4 FIBA 종이 정합) */
   border-radius: 0;
-  border: 1.5px solid var(--ss-paper-line);
+  border: 1.5px solid var(--pap-line);
   border-bottom: 0; /* 본체 다음 섹션과 시각적으로 연속 — 후속 PR 영역과 무경계 */
 }
 
@@ -369,14 +358,14 @@
 
 /* ----- Section: PeriodScores outer wrapper ----- */
 .ss-shell.ss-ps-section {
-  /* A4 폭 정합 (D6) — FibaHeader 와 동일 가로 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — FibaHeader 와 동일 가로. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto;
-  background: var(--ss-paper-bg);
-  color: var(--ss-paper-ink);
+  background: var(--pap-bg);
+  color: var(--pap-ink);
   /* 직각 (D4 FIBA 종이 정합) */
   border-radius: 0;
-  border: 1.5px solid var(--ss-paper-line);
+  border: 1.5px solid var(--pap-line);
   /* 상하 본체와 연속 시 부모가 border 조정 — 본 wrapper 는 단독 / 또는 PR-S6/S7 wrapping 영역과 연속 */
 }
 
@@ -384,14 +373,14 @@
 .ss-shell .ss-ps {
   display: grid;
   grid-template-rows: repeat(5, 22px);
-  border-bottom: 1.5px solid var(--ss-paper-line);
+  border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-ps__row {
   display: grid;
   grid-template-columns: 90px 60px 1fr 30px 1fr;
   align-items: center;
   padding: 0 8px;
-  border-bottom: 1px solid var(--ss-paper-hair);
+  border-bottom: 1px solid var(--pap-hair);
   gap: 6px;
 }
 .ss-shell .ss-ps__row:last-child { border-bottom: 0; }
@@ -399,11 +388,11 @@
   font: 800 10px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
 }
 .ss-shell .ss-ps__period {
   font: 700 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
 }
 .ss-shell .ss-ps__period .ss-circ {
   display: inline-flex;
@@ -411,32 +400,30 @@
   justify-content: center;
   width: 14px;
   height: 14px;
-  border: 1.2px solid var(--ss-paper-ink);
+  border: 1.2px solid var(--pap-ink);
   /* 시안 §4-1 — 정사각형(W=H) 원형은 50% (사용자 결정 §10 / 9999px pill 회피) */
   border-radius: 50%;
   font: 800 8px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
   margin-right: 4px;
   vertical-align: -2px;
 }
-/* 시안 — Q1~Q4 원형 컬러 (D3 토큰 — PR-S1 정의) */
-.ss-shell .ss-ps__period[data-q="1"] .ss-circ { border-color: var(--ss-paper-q1); color: var(--ss-paper-q1); }
-.ss-shell .ss-ps__period[data-q="2"] .ss-circ { border-color: var(--ss-paper-q2); color: var(--ss-paper-q2); }
-.ss-shell .ss-ps__period[data-q="3"] .ss-circ { border-color: var(--ss-paper-q3); color: var(--ss-paper-q3); }
-.ss-shell .ss-ps__period[data-q="4"] .ss-circ { border-color: var(--ss-paper-q4); color: var(--ss-paper-q4); }
+/* PR-S7 (2026-05-15 rev2 토큰 단순화) — Q1~Q4 원형 컬러 룰 제거.
+   시안 rev2 = .ss-circ 단일 흑색 (border + color = var(--pap-ink)). Q별 색상은 period-color.ts
+   (RunningScoreGrid 마킹) 가 별도 보유 — 본 PeriodScoresSection 원형은 단일 흑색으로 통일. */
 .ss-shell .ss-ps__teamlabel {
   font: 800 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   text-align: center;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
 }
 .ss-shell .ss-ps__val {
   font: 700 12px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
-  border-bottom: 1px solid var(--ss-paper-line);
+  border-bottom: 1px solid var(--pap-line);
   height: 18px;
   display: flex;
   align-items: flex-end;
   padding-bottom: 1px;
   padding-left: 4px;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
 }
 
 /* ----- Final Score 박스 ----- */
@@ -449,7 +436,7 @@
   grid-template-columns: 90px 60px 1fr 30px 1fr;
   align-items: center;
   padding: 0 8px;
-  border-bottom: 1px solid var(--ss-paper-hair);
+  border-bottom: 1px solid var(--pap-hair);
   gap: 6px;
 }
 .ss-shell .ss-final__row > .ss-ps__title {
@@ -473,12 +460,12 @@
   font: 900 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ss-paper-ink);
+  color: var(--pap-ink);
 }
 .ss-shell .ss-winner > .ss-winner__v {
   font: 900 18px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
-  color: var(--ss-paper-ink);
-  border-bottom: 1.5px solid var(--ss-paper-line);
+  color: var(--pap-ink);
+  border-bottom: 1.5px solid var(--pap-line);
   height: 28px;
   display: flex;
   align-items: flex-end;
@@ -490,8 +477,576 @@
 /* 본 wrapper 는 .ss-shell 안 위치하지만 자체 시각 룰은 운영 Tailwind utility 유지 — 시안 정합 ❌ / 운영 동작 보존 ⭕ */
 .ss-shell .ss-ot-controls {
   /* 페이퍼 영역 안 자연스럽게 배치 — border-top 으로 .ss-ps 와 시각 구분 */
-  border-top: 1.5px solid var(--ss-paper-line);
+  border-top: 1.5px solid var(--pap-line);
   padding: 8px;
-  background: var(--ss-paper-bg);
+  background: var(--pap-bg);
   /* 운영 버튼 (chevron / OT 라벨 / OT 종료) 의 Tailwind utility 시각은 그대로 유지 */
+}
+
+/* ============================================================
+   Phase 19 PR-S6 (2026-05-15 rev2) — TeamSection 시각 정합
+   ============================================================
+   왜 (이유):
+     사용자 결재 D6 — FIBA 종이 정합. 운영 Tailwind utility / inline style 시각 → 시안 rev2
+     .ss-tbox* / .ss-c-* / .ss-h-fouls* 정합.
+   어떻게:
+     - .ss-shell 스코프 한정 (PR-S4/S5 와 동일 패턴 — 다른 컴포넌트 미오염)
+     - 시안 출처: Dev/design/BDR-current/scoresheet.css L283~535
+     - 운영 동작 (4종 모달 진입점 / 5반칙 차단 / Phase 17 쿼터별 색 / coach onChange) 변경 0
+   절대 룰:
+     - .ss-shell 스코프 prefix 유지
+     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - Phase 17 쿼터별 색 = inline style 로 wiring (CSS 토큰은 시안 base 색만)
+*/
+
+/* ----- TeamSection outermost wrapper (Section: ss-tbox) ----- */
+.ss-shell .ss-tbox {
+  /* A4 폭 정합 (D6) — FibaHeader / PeriodScores 와 동일 가로. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
+  margin: 0 auto;
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+  border-radius: 0;
+  border: 1.5px solid var(--pap-line);
+  border-top: 0; /* FibaHeader 와 시각 연속 — 위 wrapper 와 무경계 */
+  border-bottom: 1.5px solid var(--pap-line);
+}
+
+/* ----- Head (team name strip) ----- */
+.ss-shell .ss-tbox__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--pap-line);
+  min-height: 24px;
+}
+
+/* ----- Time-outs + Team fouls 블록 ----- */
+.ss-shell .ss-tbox__tt {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  border-bottom: 1.5px solid var(--pap-line);
+}
+.ss-shell .ss-tbox__to {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 4px 4px 4px 8px;
+  border-right: 1px solid var(--pap-line);
+}
+.ss-shell .ss-tbox__to-label {
+  font: 700 10px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  text-align: left;
+  color: var(--pap-ink);
+  letter-spacing: 0;
+}
+.ss-shell .ss-tbox__to-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 1px;
+}
+.ss-shell .ss-tbox__to-row {
+  display: flex;
+  gap: 2px;
+}
+.ss-shell .ss-tbox__to-cell {
+  width: 14px;
+  height: 13px;
+  border: 1px solid var(--pap-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 9px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+  cursor: pointer;
+  padding: 0;
+}
+.ss-shell .ss-tbox__to-cell:disabled {
+  cursor: default;
+}
+.ss-shell .ss-tbox__to-cell[data-used="true"] {
+  background: var(--pap-ink);
+  color: #FFFFFF;
+}
+
+/* ----- Team fouls 우측 영역 ----- */
+.ss-shell .ss-tbox__tf {
+  padding: 2px 12px 3px;
+  display: grid;
+  grid-template-rows: 14px 1fr 1fr 1fr;
+  align-items: center;
+  justify-items: end;
+  gap: 1px;
+}
+.ss-shell .ss-tbox__tf-label {
+  font: 700 10px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  text-align: center;
+  align-self: end;
+  justify-self: center;
+  color: var(--pap-ink);
+  letter-spacing: 0;
+}
+.ss-shell .ss-tbox__tf-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 700 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  justify-self: end;
+}
+.ss-shell .ss-tbox__tf-line[data-extra="true"] {
+  font: 700 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+}
+.ss-shell .ss-tbox__tf-pname {
+  font: 700 10px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  flex-shrink: 0;
+  color: var(--pap-ink);
+}
+.ss-shell .ss-tbox__tf-q {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.ss-shell .ss-tbox__tf-qnum {
+  font: 700 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  width: 12px;
+  text-align: center;
+  color: var(--pap-ink);
+}
+.ss-shell .ss-tbox__tf-cells {
+  display: flex;
+  border: 1px solid var(--pap-line);
+}
+.ss-shell .ss-tbox__tf-cell {
+  width: 13px;
+  height: 14px;
+  border-right: 1px solid var(--pap-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 10px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+  cursor: pointer;
+  padding: 0;
+}
+.ss-shell .ss-tbox__tf-cell:last-child { border-right: 0; }
+.ss-shell .ss-tbox__tf-cell:disabled {
+  cursor: default;
+}
+.ss-shell .ss-tbox__tf-cell[data-on="true"] {
+  background: var(--pap-ink);
+  color: var(--pap-bg);
+}
+.ss-shell .ss-tbox__tf-cell[data-bonus="true"] {
+  background: var(--pap-bonus);
+  color: #FFFFFF;
+}
+/* Phase 17 쿼터별 색 = inline style 의 backgroundColor 로 override (CSS 토큰보다 우선) */
+
+/* ----- Player table header (Licence / Players / No / Player in / Fouls 1-5) ----- */
+.ss-shell .ss-tbox__plyhead,
+.ss-shell .ss-tbox__plyrow {
+  display: grid;
+  grid-template-columns: 36px 1fr 22px 30px 13px 13px 13px 13px 13px;
+}
+.ss-shell .ss-tbox__plyhead {
+  background: var(--pap-fill);
+  border-bottom: 1.5px solid var(--pap-line);
+}
+.ss-shell .ss-tbox__plyhead > div {
+  border-right: 1px solid var(--pap-line);
+  padding: 1px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font: 700 9.5px/1.1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  text-align: center;
+  color: var(--pap-ink);
+  letter-spacing: 0;
+  overflow: hidden;
+}
+.ss-shell .ss-tbox__plyhead > div > span { display: block; }
+.ss-shell .ss-tbox__plyhead > div:last-child { border-right: 0; }
+.ss-shell .ss-tbox__plyhead .ss-h-fouls {
+  grid-column: 5 / span 5;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  padding: 0;
+  border-right: 0;
+}
+.ss-shell .ss-tbox__plyhead .ss-h-fouls-top {
+  border-bottom: 1px solid var(--pap-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+}
+.ss-shell .ss-tbox__plyhead .ss-h-fouls-nums {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+.ss-shell .ss-tbox__plyhead .ss-h-fouls-nums span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--pap-line);
+  font: 700 10px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+}
+.ss-shell .ss-tbox__plyhead .ss-h-fouls-nums span:last-child { border-right: 0; }
+
+/* ----- Player body (12 rows) ----- */
+.ss-shell .ss-tbox__plybody {
+  display: grid;
+  grid-template-rows: repeat(12, 18px);
+  border-bottom: 1.5px solid var(--pap-line);
+  min-height: 0;
+}
+.ss-shell .ss-tbox__plyrow {
+  border-bottom: 1px solid var(--pap-line);
+  min-height: 0;
+}
+.ss-shell .ss-tbox__plyrow:last-child { border-bottom: 0; }
+.ss-shell .ss-tbox__plyrow > div {
+  border-right: 1px solid var(--pap-line);
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  font: 500 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  min-height: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ss-shell .ss-tbox__plyrow > div:last-child { border-right: 0; }
+.ss-shell .ss-tbox__plyrow .ss-c-licence {
+  justify-content: center;
+  font: 600 9px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-hair);
+}
+.ss-shell .ss-tbox__plyrow .ss-c-name {
+  font: 600 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--pap-ink);
+  letter-spacing: -0.01em;
+}
+.ss-shell .ss-tbox__plyrow .ss-c-no,
+.ss-shell .ss-tbox__plyrow .ss-c-pin {
+  justify-content: center;
+  font: 700 10.5px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+}
+/* P in 칸 안 label / checkbox — 시안에는 read-only 라 별도 룰 없음. 운영은 클릭 가능. */
+.ss-shell .ss-tbox__plyrow .ss-c-pin > * {
+  cursor: pointer;
+}
+.ss-shell .ss-tbox__plyrow .ss-c-foul {
+  justify-content: center;
+  font: 700 9.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  background: transparent;
+  border: 0;           /* parent grid border-right 로 충분 */
+  /* button 기본 inset 차단 */
+}
+.ss-shell .ss-tbox__plyrow .ss-c-foul:disabled { cursor: default; }
+/* FIBA paper foul cell — 가로 중간선 (foul type 위 / quarter 아래) */
+.ss-shell .ss-tbox__plyrow .ss-c-foul::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 50%;
+  border-top: 0.5px solid var(--pap-hair);
+  pointer-events: none;
+}
+/* 5반칙 시각 — data-fouled-out true 면 행 빨강 옅게 + 이름 빨강 강조 */
+.ss-shell .ss-tbox__plyrow[data-fouled-out="true"] {
+  background: rgba(227, 27, 35, 0.10);
+}
+.ss-shell .ss-tbox__plyrow[data-fouled-out="true"] .ss-c-name {
+  color: var(--pap-bonus);
+  font-weight: 700;
+}
+
+/* ----- Coach / Asst Coach 영역 ----- */
+.ss-shell .ss-tbox__coach {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 8px;
+  border-top: 1.5px solid var(--pap-line);
+  min-height: 22px;
+}
+.ss-shell .ss-tbox__coach:not(:first-of-type) {
+  border-top: 1px solid var(--pap-line);
+}
+/* coach input 시안 정합 — .pap-u 와 비슷한 underscore + 시안 폰트 */
+.ss-shell .ss-tbox__coach > input.pap-u {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--pap-line);
+  background: transparent;
+  outline: none;
+  padding: 0 0 1px 0;
+  height: 16px;
+}
+.ss-shell .ss-tbox__coach > input.pap-u:focus {
+  border-bottom-color: var(--pap-ink);
+}
+.ss-shell .ss-tbox__coach > input.pap-u:disabled {
+  opacity: 0.5;
+}
+
+/* ============================================================
+   Phase 19 PR-S7-officials (2026-05-15) — FooterSignatures 시안 시각 정합
+   ============================================================
+   왜 (이유):
+     - FIBA 종이기록지 풋터 좌측 = Officials 4행 (Scorer/Asst/Timer/Shot clock op)
+       + 좌하단 sigs 3행 (Referee / Umpire 1+2 / Captain protest).
+     - 시안 source: Dev/design/BDR-current/screens/ScoreSheet.bottom.jsx L100~144
+       + scoresheet.css L650~679 룰을 .ss-shell 스코프 내 wrap.
+     - 운영 footer-signatures.tsx 의 input onChange / state setter / props interface
+       변경 0 — 시각만 시안 정합 (사용자 결재 D3/D4/D6/D7).
+     - 스코프 = `.ss-shell .ss-footer-sigs` (FooterSignatures outermost 한정 / 외부 영향 0).
+
+   사용자 결재 D 표기:
+     - D3: 색상 = .ss-shell 토큰 (--pap-bg/ink/line/hair)
+     - D4: FIBA 종이 정합 — underscore 1px solid var(--pap-line)
+     - D6: 좌측 컬럼 max-width 안 (frame 안 좌측 절반)
+     - D7: 단계별 — FooterSignatures 만
+   ============================================================ */
+
+/* outermost wrapper — FooterSignatures 컨테이너 (frameless 모드용).
+   PR-S6-team 의 .ss-tbox 와 마찬가지로 시안 정합 — 자체 border 1.5px (frame 안 좌측 col).
+   frameless=false (회귀) 시 본 클래스 미적용 (Tailwind 룰 그대로). */
+.ss-shell .ss-footer-sigs {
+  border: 1.5px solid var(--pap-line);
+  background: var(--pap-bg);
+  /* 운영 form.tsx 의 좌측 col 안 마지막 child 위치 보존 (Phase 15) */
+}
+
+/* Officials 4 rows (Scorer / Asst scorer / Timer / Shot clock op)
+   시안 scoresheet.css L651~665 정합 — 4 row grid + 라벨 130px / 데이터 1fr. */
+.ss-shell .ss-officials {
+  display: grid;
+  grid-template-rows: repeat(4, 22px);
+  border-bottom: 1.5px solid var(--pap-line);
+}
+.ss-shell .ss-officials__row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--pap-hair);
+  gap: 6px;
+}
+.ss-shell .ss-officials__row:last-child {
+  border-bottom: 0;
+}
+/* row 안 .pap-u (운영은 <input>) — flex 1 + 시안 underscore 정합.
+   PR-S6-team 의 .ss-tbox__coach > input.pap-u 패턴 동일. */
+.ss-shell .ss-officials__row > input.pap-u {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--pap-line);
+  background: transparent;
+  outline: none;
+  padding: 0 0 1px 0;
+  height: 18px;
+  min-width: 0;
+}
+.ss-shell .ss-officials__row > input.pap-u:focus {
+  border-bottom-color: var(--pap-ink);
+}
+.ss-shell .ss-officials__row > input.pap-u:disabled {
+  opacity: 0.5;
+}
+
+/* Sigs 3 rows (Referee / Umpire 1+2 / Captain protest)
+   시안 scoresheet.css L668~679 정합 — flex row + hair line border-bottom.
+   Umpire 1+2 = 같은 row 안 2개 (시안 L132~136 패턴). */
+.ss-shell .ss-sigs {
+  display: grid;
+  grid-template-rows: 22px 22px 22px;
+}
+.ss-shell .ss-sigs__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--pap-hair);
+}
+.ss-shell .ss-sigs__row:last-child {
+  border-bottom: 0;
+}
+/* sigs row 안 input.pap-u — flex 1 + 시안 underscore 정합 */
+.ss-shell .ss-sigs__row > input.pap-u {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--pap-line);
+  background: transparent;
+  outline: none;
+  padding: 0 0 1px 0;
+  height: 18px;
+  min-width: 0;
+}
+.ss-shell .ss-sigs__row > input.pap-u:focus {
+  border-bottom-color: var(--pap-ink);
+}
+.ss-shell .ss-sigs__row > input.pap-u:disabled {
+  opacity: 0.5;
+}
+
+/* ============================================================
+   Phase 19 PR-S10 (2026-05-15) — RunningScoreGrid 시각 정합 +
+   다크모드 페이퍼 leak 차단
+   ============================================================
+   왜 (이유):
+     reviewer 정적 검토 — running-score-grid.tsx 가 ss-shell wrapper 없이
+     글로벌 `--color-surface` / `--color-border` 토큰을 사용 → 다크모드 진입 시
+     페이퍼 안 다크 영역 leak. 사용자 결재 D3 "페이퍼 라이트 강제" 위반.
+   어떻게:
+     - 시안 출처: Dev/design/BDR-current/scoresheet.css L536~632 (.ss-rs / .ss-rs__title
+       / .ss-rs__head / .ss-rs__grid / .ss-rs__cell + data-* 변형 5개)
+     - .ss-shell 스코프 한정 (다른 컴포넌트 미오염)
+     - 마크업 = RunningScoreGrid outermost `<div className="ss-shell ss-rs">` →
+       자손 `.ss-rs__title` (헤더) / `.ss-rs__head` (A/B 라벨) / `.ss-rs__grid`
+       (16열 본체 — cell 의 data-mark / data-reached / data-period-end /
+       data-section-end 시안 정합).
+     - Phase 17 쿼터별 색 (getPeriodColor) = inline style 로 색 override 유지.
+   절대 룰:
+     - .ss-shell 스코프 prefix 유지
+     - 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 다크 진입 시 페이퍼 라이트 강제 (var(--pap-*) 만 사용)
+*/
+
+/* outer wrapper = .ss-shell + .ss-rs 합성 (높이는 부모가 결정 — flex / grid 자식) */
+.ss-shell.ss-rs {
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+  border-radius: 0;
+}
+
+/* RunningScore 본체 grid = 시안 L537~542 정합 */
+.ss-shell .ss-rs {
+  display: grid;
+  grid-template-rows: 22px 22px 1fr;
+  min-height: 0;
+}
+
+/* 헤더 타이틀 ("Running Score") = 시안 L543~551 정합 */
+.ss-shell .ss-rs__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1.5px solid var(--pap-line);
+  font: 800 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+}
+
+/* 16-col header (A / / / B / A / / / B / ...) = 시안 L554~571 정합 */
+.ss-shell .ss-rs__head {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  border-bottom: 1px solid var(--pap-line);
+  background: var(--pap-fill);
+}
+.ss-shell .ss-rs__head > div {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 800 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  border-right: 1px solid var(--pap-line);
+  color: var(--pap-ink);
+}
+.ss-shell .ss-rs__head > div:last-child {
+  border-right: 0;
+}
+.ss-shell .ss-rs__head > div[data-section-end="true"] {
+  border-right: 1.5px solid var(--pap-line);
+}
+
+/* Body 16-col grid = 시안 L573~579 정합 */
+.ss-shell .ss-rs__grid {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-auto-rows: 1fr;
+  min-height: 0;
+}
+
+/* 점수 / 마킹 셀 공통 = 시안 L580~592 정합 */
+.ss-shell .ss-rs__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 9px/0.95 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  background: var(--pap-bg);
+  border-right: 1px solid var(--pap-line);
+  border-bottom: 1px solid var(--pap-hair);
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* mark 컬럼 (data-mark="true") = 시안 L594~598 정합. Phase 17 색은 inline 으로 override */
+.ss-shell .ss-rs__cell[data-mark="true"] {
+  font: 700 11px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  background: var(--pap-bg);
+  cursor: pointer;
+}
+.ss-shell .ss-rs__cell[data-mark="true"]:disabled {
+  cursor: default;
+}
+
+/* section 끝 (40 / 80 / 120 / 160 마지막 칸) = 시안 L599~601 정합 */
+.ss-shell .ss-rs__cell[data-section-end="true"] {
+  border-right: 1.5px solid var(--pap-line);
+}
+
+/* 마지막 16칸 (160 row) border-bottom 제거 = 시안 L602~604 정합 */
+.ss-shell .ss-rs__grid .ss-rs__cell:nth-last-child(-n+16) {
+  border-bottom: 0;
+}
+
+/* 도달 점수 슬래시 (data-reached="true") = 시안 L606~618 정합 */
+.ss-shell .ss-rs__cell[data-reached="true"]::after {
+  content: '';
+  position: absolute;
+  width: 130%;
+  height: 1px;
+  background: var(--pap-ink);
+  left: -15%;
+  top: 50%;
+  transform: rotate(-22deg);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+/* 분기 종료 원형 마커 (data-period-end="true") = 시안 L620~632 정합 */
+.ss-shell .ss-rs__cell[data-period-end="true"]::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.2px solid var(--pap-ink);
+  border-radius: 50%;
+  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }

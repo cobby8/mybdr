@@ -368,6 +368,10 @@ model Tournament {
   @@index([status, startDate], map: "index_tournaments_on_status_and_start_date")
   @@index([venue_id], map: "index_tournaments_on_venue_id")
   @@index([city], map: "index_tournaments_on_city")
+  // 2026-05-14 Phase 5 C — 마법사 회차 자동 채번 race condition 차단.
+  // PostgreSQL UNIQUE 는 NULL 행끼리 unique 비교 안 함 → 회차 없는 대회 (series_id=NULL) 영향 0.
+  // 사후 검증 (작업 C 진입 전 02-db-changes §7): drift 0 / 중복 0 통과.
+  @@unique([series_id, edition_number], map: "tournaments_series_edition_unique")
   @@map("tournaments")
 }
 
