@@ -301,12 +301,14 @@ export function TeamSection({
                   }}
                   disabled={disabled || (!isLastFilled && !isNextEmpty)}
                   // Phase 17 색 wiring — inline style 로 CSS 토큰 색을 override.
-                  //   filled 시 markColor 가 배경/글자 결정 (data-used CSS 룰의 검정/흰 → period 색/흰).
+                  //   filled 시 markColor 가 배경 결정 (CSS 룰의 data-used color #FFFFFF 그대로).
+                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                  //   CSS 룰 .ss-tbox__to-cell[data-used="true"] { color: #FFFFFF } 가 이미 박제 →
+                  //   inline 중복 안전망 정리. backgroundColor 만 inline 으로 Phase 17 색 wiring.
                   style={
                     filled
                       ? {
                           backgroundColor: markColor,
-                          color: "#FFFFFF",
                         }
                       : undefined
                   }
@@ -392,7 +394,9 @@ export function TeamSection({
                             filled && !isBonus
                               ? {
                                   backgroundColor: periodFillColor,
-                                  color: "#FFFFFF",
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
                                 }
                               : undefined
                           }
@@ -443,7 +447,9 @@ export function TeamSection({
                             filled && !isBonus
                               ? {
                                   backgroundColor: periodFillColor,
-                                  color: "#FFFFFF",
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
                                 }
                               : undefined
                           }
@@ -490,7 +496,9 @@ export function TeamSection({
                             filled && !isBonus
                               ? {
                                   backgroundColor: extraFillColor,
-                                  color: "#FFFFFF",
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
                                 }
                               : undefined
                           }

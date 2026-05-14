@@ -4,6 +4,17 @@
  * 2026-05-12 — Phase 2 신규.
  * 2026-05-13 — Phase 17: 쿼터별 색 매핑 적용.
  * 2026-05-13 — Phase 18: FIBA 표준 4 sub-column 구조 + 1/2/3점 표기.
+ * 2026-05-15 — PR-S10 (영역 A): ss-shell ss-rs wrapper + 시안 .ss-rs* 룰 도입.
+ *   왜: reviewer 정적 검토 — 기존 outermost wrapper 가 ss-shell 스코프 밖이고
+ *     Tailwind utility + 글로벌 `--color-surface` / `--color-border` 사용 →
+ *     다크모드 진입 시 페이퍼 안 다크 영역 leak (사용자 결재 D3 "라이트 강제" 위반).
+ *   어떻게: outermost wrapper = `ss-shell ss-rs` (.ss-shell 스코프 안 자체 토큰 격리).
+ *     각 셀의 색 = `var(--pap-*)` 토큰 (라이트 강제 / 다크 진입 시에도 라이트).
+ *     자손 마크업 = `.ss-rs__title` (헤더) / `.ss-rs__head` (A/B 라벨) / `.ss-rs__grid`
+ *     (16열 본체) + cell 의 `data-mark="true"` (마킹 칸) / `data-reached="true"`
+ *     (점수 칸 + 마킹 도달) / `data-period-end="true"` (period 마지막 마킹).
+ *   운영 동작 보존: onClick / setRunningScore / 모달 trigger / Phase 17 색 wiring /
+ *     Phase 23 initialRunningScore prop 흐름 변경 0. 시각 마크업만 교체.
  *
  * 왜 (이유):
  *   FIBA 양식 우측 = Running Score 1-160 시계열 마킹. 운영자가 양식 그대로 1탭 마킹 →
@@ -31,6 +42,7 @@
  *   - lucide-react ❌ / Material Symbols Outlined 만
  *   - 빨강 본문 텍스트 ❌ / 강조 = var(--color-accent) (Phase 17 = Q별 색)
  *   - 핑크/살몬/코랄 ❌
+ *   - PR-S10 — outermost = ss-shell ss-rs 강제 (다크 leak 차단)
  */
 
 "use client";
@@ -112,6 +124,13 @@ export function RunningScoreGrid({
   const awayLastPos =
     state.away.length === 0 ? 0 : state.away[state.away.length - 1].position;
 
+  // PR-S10 (2026-05-15) — Period 별 마지막 position 산출 (data-period-end 시안 정합).
+  //   왜: 시안 .ss-rs__cell[data-period-end="true"]::before = 분기 종료 원형 마커.
+  //     각 period 의 마지막 마킹 position 에 표시 (FIBA 종이기록지의 분기 종료 표시).
+  //   어떻게: period 별 max(position) 산출. 점수 칸 (PrintScoreCell) 에서 매칭 시 data-period-end="true".
+  const homePeriodEnds = computePeriodEnds(state.home);
+  const awayPeriodEnds = computePeriodEnds(state.away);
+
   // 칸 클릭 핸들러 — 빈 칸이면 모달, 마지막 마킹 칸이면 해제 확인, 그 외 마킹은 안내
   function handleCellClick(team: "home" | "away", position: number) {
     if (disabled) return;
@@ -169,39 +188,50 @@ export function RunningScoreGrid({
   const rowIndexes = Array.from({ length: ROWS_PER_SET }, (_, i) => i + 1);
 
   // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
+  // PR-S10 (2026-05-15) — outermost = `ss-shell ss-rs` (다크 leak 차단 / 페이퍼 라이트 강제).
+  //   frameless 분기는 fiba-frameless 추가 (단일 외곽 박스 안 자체 border 제거 유지).
+  const wrapperClass = frameless
+    ? "ss-shell ss-rs fiba-frameless flex w-full flex-col"
+    : "ss-shell ss-rs flex w-full flex-col";
   const wrapperStyle: React.CSSProperties = frameless
     ? {}
-    : { border: "1px solid var(--color-border)" };
-  const wrapperClass = frameless
-    ? "fiba-frameless flex w-full flex-col"
-    : "flex w-full flex-col";
+    : { border: "1.5px solid var(--pap-line)" };
 
   return (
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     // PR-S6 (2026-05-14 rev2 롤백) — data-score-mode 속성 + paper 안내 텍스트 제거 (모드 토글 제거).
+    // PR-S10 (2026-05-15) — ss-shell ss-rs 스코프 + 페이퍼 토큰 (--pap-*) 사용 (다크 leak 차단).
     <div className={wrapperClass} style={wrapperStyle}>
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
           - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
-          - 우측 안내 9px → 10px (가독성 ↑) */}
+          - 우측 안내 9px → 10px (가독성 ↑)
+          PR-S10 — 색 토큰 페이퍼 (--pap-*) 로 통일 — 다크 진입 시에도 라이트 강제. */}
       <div
-        className="flex items-center justify-between px-2 py-1"
+        className="ss-rs__title flex items-center justify-between px-2 py-1"
         style={{
-          backgroundColor: "var(--color-surface)",
-          borderBottom: "1px solid var(--color-border)",
+          // PR-S10 — --color-surface / --color-border 제거 (다크 leak 차단).
+          //   .ss-rs__title CSS 룰이 var(--pap-bg) + border-bottom var(--pap-line) 박제.
+          //   여기서는 좌/우 정렬 + padding 만 inline 으로 보강.
+          textTransform: "none",
+          letterSpacing: "normal",
         }}
       >
-        <div className="text-[16px] font-bold uppercase tracking-wider text-[var(--color-text-primary)]">
+        <div className="text-[16px] font-bold uppercase tracking-wider" style={{ color: "var(--pap-ink)" }}>
           Running Score
         </div>
-        <div className="text-[10px] text-[var(--color-text-muted)]">
+        <div className="text-[10px]" style={{ color: "var(--pap-hair)" }}>
           P{state.currentPeriod} · 1탭=입력 / 마지막=해제
         </div>
       </div>
 
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.
           사용자 결재 §1 / 이미지 43-44 / FIBA PDF 정합.
-          한 세트 = 마킹A | 점수A | 점수B | 마킹B (양팀 점수 가운데 모음) */}
+          한 세트 = 마킹A | 점수A | 점수B | 마킹B (양팀 점수 가운데 모음)
+          PR-S10 — column-major (4 컬럼 × 4 세트 = 16 col) 운영 wrap 유지 + 각 컬럼 head
+          를 ColumnHeader 컴포넌트로 박제 (시각 100% 보존 + 페이퍼 토큰으로 라이트 강제).
+          시안 .ss-rs__head + .ss-rs__grid 룰은 CSS 박제만 (미사용) — column-major 운영
+          구조와 grid-template-columns repeat(16) 룰이 충돌하지 않도록 inline grid 도입. */}
       <div
         className="grid"
         style={{
@@ -221,6 +251,8 @@ export function RunningScoreGrid({
               awayMarkMap={awayMarkMap}
               homeLastPos={homeLastPos}
               awayLastPos={awayLastPos}
+              homePeriodEnds={homePeriodEnds}
+              awayPeriodEnds={awayPeriodEnds}
               jerseyMap={jerseyMap}
               onCellClick={handleCellClick}
               isLastSet={isLastSet}
@@ -246,6 +278,20 @@ export function RunningScoreGrid({
   );
 }
 
+// PR-S10 (2026-05-15) — Period 별 max(position) 산출 (data-period-end 마커용).
+//   왜: 시안 .ss-rs__cell[data-period-end="true"]::before = 분기 종료 원형 마커.
+//   어떻게: 마크 배열 순회하며 period → 최대 position 매핑. O(n).
+function computePeriodEnds(marks: ScoreMark[]): Set<number> {
+  const periodMax = new Map<number, number>();
+  for (const mark of marks) {
+    const cur = periodMax.get(mark.period) ?? 0;
+    if (mark.position > cur) {
+      periodMax.set(mark.period, mark.position);
+    }
+  }
+  return new Set(periodMax.values());
+}
+
 // Phase 18 — 한 세트 (40 row) = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
 // 양팀 점수가 가운데로 모이고 좌우에 마킹 칸 배치 — FIBA PDF 정합 (이미지 43-44)
 interface SetColumnsProps {
@@ -255,6 +301,9 @@ interface SetColumnsProps {
   awayMarkMap: Map<number, ScoreMark>;
   homeLastPos: number;
   awayLastPos: number;
+  // PR-S10 — period 별 마지막 position 집합 (data-period-end 매핑용)
+  homePeriodEnds: Set<number>;
+  awayPeriodEnds: Set<number>;
   jerseyMap: Map<string, number | null>;
   onCellClick: (team: "home" | "away", position: number) => void;
   isLastSet: boolean;
@@ -267,13 +316,14 @@ function SetColumns({
   awayMarkMap,
   homeLastPos,
   awayLastPos,
+  homePeriodEnds,
+  awayPeriodEnds,
   jerseyMap,
   onCellClick,
   isLastSet,
 }: SetColumnsProps) {
   // Phase 18 — 마지막 세트의 마킹B 컬럼만 우측 border 제거 (wrapper 외곽이 처리)
-  const lastColBorder = isLastSet ? undefined : "1px solid var(--color-border)";
-
+  // PR-S10 — .ss-rs__cell CSS 룰이 border-right 박제. 마지막 세트만 inline 으로 0 override.
   return (
     <>
       {/* (1) 마킹A 컬럼 — A팀 (홈) 마킹 칸. 클릭 가능. */}
@@ -300,14 +350,21 @@ function SetColumns({
       </div>
 
       {/* (2) 점수A 컬럼 — A팀 누적 점수 인쇄 영역. 클릭 불가 (FIBA 정합). */}
-      <div
-        className="flex flex-col"
-        style={{ borderRight: "1px solid var(--color-border)" }}
-      >
+      <div className="flex flex-col">
         <ColumnHeader label="" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
-          return <PrintScoreCell key={`pa-${position}`} position={position} />;
+          // PR-S10 — data-reached (마킹 도달) / data-period-end (period 마지막 마킹)
+          const reached = homeMarkMap.has(position);
+          const periodEnd = homePeriodEnds.has(position);
+          return (
+            <PrintScoreCell
+              key={`pa-${position}`}
+              position={position}
+              reached={reached}
+              periodEnd={periodEnd}
+            />
+          );
         })}
       </div>
 
@@ -316,20 +373,28 @@ function SetColumns({
         <ColumnHeader label="" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
-          return <PrintScoreCell key={`pb-${position}`} position={position} />;
+          const reached = awayMarkMap.has(position);
+          const periodEnd = awayPeriodEnds.has(position);
+          return (
+            <PrintScoreCell
+              key={`pb-${position}`}
+              position={position}
+              reached={reached}
+              periodEnd={periodEnd}
+            />
+          );
         })}
       </div>
 
       {/* (4) 마킹B 컬럼 — B팀 (어웨이) 마킹 칸. 클릭 가능. */}
-      <div
-        className="flex flex-col"
-        style={{ borderRight: lastColBorder }}
-      >
+      <div className="flex flex-col">
         <ColumnHeader label="B" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           const mark = awayMarkMap.get(position);
           const isLast = position === awayLastPos;
+          // PR-S10 — 마지막 세트의 마킹B 만 data-section-end=undefined (우측 border 0)
+          //   나머지 세트는 data-section-end="true" (시안 1.5px border-right)
           return (
             <MarkCell
               key={`mb-${position}`}
@@ -341,6 +406,7 @@ function SetColumns({
               }
               onClick={() => onCellClick("away", position)}
               side="away"
+              sectionEnd={!isLastSet}
             />
           );
         })}
@@ -352,15 +418,19 @@ function SetColumns({
 // Phase 19 — 컬럼 헤더 (A / 빈 / 빈 / B 4종) 폰트 강화.
 //   10px font-semibold → 11px font-bold (FIBA 정합 / 사용자 결재 §2).
 //   높이 h-5 (20px) 유지 — A4 fit 영향 0.
+//
+// PR-S10 (2026-05-15) — 색 토큰 페이퍼 (--pap-*) 로 통일 (다크 leak 차단).
+//   var(--color-surface) → var(--pap-fill) / var(--color-text-muted) → var(--pap-ink)
+//   / var(--color-border) → var(--pap-line) (라이트 강제).
 function ColumnHeader({ label }: { label: string }) {
   return (
     <div
       className="flex h-5 items-center justify-center text-[11px] font-bold uppercase tracking-wider"
       style={{
-        backgroundColor: "var(--color-surface)",
-        color: "var(--color-text-muted)",
-        borderRight: "1px solid var(--color-border)",
-        borderBottom: "1px solid var(--color-border)",
+        backgroundColor: "var(--pap-fill)",
+        color: "var(--pap-ink)",
+        borderRight: "1px solid var(--pap-line)",
+        borderBottom: "1px solid var(--pap-line)",
       }}
     >
       {label}
@@ -375,17 +445,25 @@ function ColumnHeader({ label }: { label: string }) {
 // Phase 19 (2026-05-13) — 시인성 강화 (사용자 결재 §3·§4).
 //   - position 숫자 7px → 9px font-semibold (가독성 ↑).
 //   - 행 높이 16px → 17px (40 row × 17 = 680px / A4 우측 fit OK).
-function PrintScoreCell({ position }: { position: number }) {
+//
+// PR-S10 (2026-05-15) — .ss-rs__cell 클래스 적용 + data-reached / data-period-end 시안 정합.
+//   data-reached="true" = 마킹 도달 → 슬래시 표기 (CSS ::after)
+//   data-period-end="true" = period 마지막 마킹 → 원형 마커 표기 (CSS ::before)
+function PrintScoreCell({
+  position,
+  reached,
+  periodEnd,
+}: {
+  position: number;
+  reached: boolean;
+  periodEnd: boolean;
+}) {
   return (
     <div
-      className="flex w-full items-center justify-center text-[9px] font-semibold"
-      style={{
-        height: "17px",
-        borderRight: "1px solid var(--color-border)",
-        borderBottom: "1px solid var(--color-border)",
-        backgroundColor: "var(--color-bg)",
-        color: "var(--color-text-muted)",
-      }}
+      className="ss-rs__cell flex w-full items-center justify-center text-[9px] font-semibold"
+      style={{ height: "17px" }}
+      data-reached={reached ? "true" : undefined}
+      data-period-end={periodEnd ? "true" : undefined}
       aria-hidden="true"
     >
       {position}
@@ -401,6 +479,8 @@ interface MarkCellProps {
   jerseyNumber: number | null;
   onClick: () => void;
   side: "home" | "away";
+  // PR-S10 — 세트 끝 컬럼 (마지막 세트 제외) 1.5px border-right
+  sectionEnd?: boolean;
 }
 
 function MarkCell({
@@ -410,12 +490,12 @@ function MarkCell({
   jerseyNumber,
   onClick,
   side,
+  sectionEnd,
 }: MarkCellProps) {
   // Phase 19 (2026-05-13) — 행 높이 16 → 17px (PrintScoreCell 와 일치 / 사용자 결재 §4 / 시인성 ↑)
+  // PR-S10 — border / 색은 .ss-rs__cell CSS 룰이 박제. 여기서는 height + touchAction 만.
   const baseStyle = {
     height: "17px",
-    borderRight: "1px solid var(--color-border)",
-    borderBottom: "1px solid var(--color-border)",
     touchAction: "manipulation",
   } as const;
 
@@ -426,12 +506,14 @@ function MarkCell({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center justify-center text-[9px]"
+        className="ss-rs__cell flex w-full items-center justify-center text-[9px]"
         style={{
           ...baseStyle,
-          backgroundColor: "var(--color-bg)",
-          color: "color-mix(in srgb, var(--color-text-muted) 30%, transparent)",
+          // PR-S10 — 색 var(--color-text-muted) → var(--pap-hair) (라이트 강제 / 페이퍼 토큰).
+          color: "color-mix(in srgb, var(--pap-hair) 50%, transparent)",
         }}
+        data-mark="true"
+        data-section-end={sectionEnd ? "true" : undefined}
         aria-label={`${side === "home" ? "A팀" : "B팀"} 마킹 칸 ${position} (빈 칸)`}
       >
         ·
@@ -447,18 +529,24 @@ function MarkCell({
 
   return (
     // Phase 19 — 글자 8px → 9px font-bold (마킹 시인성 강화 / 사용자 결재 §4).
+    // PR-S10 — .ss-rs__cell 클래스 + data-mark="true" 도입.
+    //   배경 마지막 강조 / 일반 마킹 = inline 으로 색 토큰 (페이퍼 토큰 var(--pap-*) 사용).
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center justify-center gap-0.5 text-[9px] font-bold"
+      className="ss-rs__cell flex w-full items-center justify-center gap-0.5 text-[9px] font-bold"
       style={{
         ...baseStyle,
-        // 마지막 = accent 음영 강조 / 그 외 = 진한 surface
+        // PR-S10 — 마지막 = accent 음영 / 일반 = 페이퍼 fill (라이트 강제).
+        //   var(--color-accent) → var(--pap-bonus) (BDR Red — 페이퍼 토큰)
+        //   var(--color-bg) → var(--pap-bg) / var(--color-text-primary) 8% → var(--pap-ink) 8%
         backgroundColor: isLast
-          ? "color-mix(in srgb, var(--color-accent) 25%, var(--color-bg))"
-          : "color-mix(in srgb, var(--color-text-primary) 8%, var(--color-bg))",
+          ? "color-mix(in srgb, var(--pap-bonus) 25%, var(--pap-bg))"
+          : "color-mix(in srgb, var(--pap-ink) 8%, var(--pap-bg))",
         color: periodColor,
       }}
+      data-mark="true"
+      data-section-end={sectionEnd ? "true" : undefined}
       aria-label={`${side === "home" ? "A팀" : "B팀"} 마킹 ${position} (${mark.points}점)${isLast ? " — 마지막, 해제 가능" : ""}`}
       title={`#${position} · ${mark.points}점 · P${mark.period}${
         jerseyNumber !== null ? ` · #${jerseyNumber}` : ""

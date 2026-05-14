@@ -124,7 +124,9 @@ export function PeriodScoresSection({
         {/* Q1 row — 시안 grid 90 / 60 / 1fr / 30 / 1fr */}
         <div className="ss-ps__row">
           <span className="ss-ps__title pap-lbl">Scores</span>
-          <span className="ss-ps__period pap-lbl" data-q="1">
+          {/* PR-S9 (2026-05-15) — data-q 속성 dead 정리. PR-S7 토큰 단순화 후 매칭 CSS 룰 0건
+              (.ss-circ 단일 흑색 통일) — HTML 의미 0 → 제거. 시각 / 동작 영향 0. */}
+          <span className="ss-ps__period pap-lbl">
             <span className="ss-circ">①</span>Period
           </span>
           <span className="ss-ps__val pap-u">
@@ -139,7 +141,7 @@ export function PeriodScoresSection({
         {/* Q2 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period pap-lbl" data-q="2">
+          <span className="ss-ps__period pap-lbl">
             <span className="ss-circ">②</span>Period
           </span>
           <span className="ss-ps__val pap-u">
@@ -154,7 +156,7 @@ export function PeriodScoresSection({
         {/* Q3 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period pap-lbl" data-q="3">
+          <span className="ss-ps__period pap-lbl">
             <span className="ss-circ">③</span>Period
           </span>
           <span className="ss-ps__val pap-u">
@@ -169,7 +171,7 @@ export function PeriodScoresSection({
         {/* Q4 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period pap-lbl" data-q="4">
+          <span className="ss-ps__period pap-lbl">
             <span className="ss-circ">④</span>Period
           </span>
           <span className="ss-ps__val pap-u">

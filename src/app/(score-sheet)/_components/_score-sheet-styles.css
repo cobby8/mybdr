@@ -21,8 +21,8 @@
    Toolbar — back / title / mode seg / print / finish
    ============================================================ */
 .ss-shell .ss-toolbar {
-  /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto 16px;
   display: grid;
   /* PR-S6 (2026-05-14 rev2 롤백) — mode seg 제거 (5컬럼 → 4컬럼).
@@ -32,7 +32,8 @@
   gap: 10px;
   padding: 10px 12px;
   background: #FFFFFF;
-  border: 1px solid #D0D5DD;
+  /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
+  border: 1px solid var(--ss-toolbar-border);
   border-radius: 4px;
 }
 
@@ -47,7 +48,8 @@
   padding: 0 14px;
   /* 시안 var(--ff-body) → 운영 본문 폰트 (Pretendard) 가족 fallback */
   font: 600 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  border: 1px solid #D0D5DD;
+  /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
+  border: 1px solid var(--ss-toolbar-border);
   background: #FFFFFF;
   color: #1A1E27;
   border-radius: 4px;
@@ -328,8 +330,8 @@
    본 룰은 FibaHeader 만의 wrapper 이며, 운영 frame 본체 (TeamSection / RunningScoreGrid 등) wrapper 는
    본 PR 범위 ❌ (사용자 핵심 제약 — frame 본체 wrapper 변경 ❌ / PR-S6 검토). */
 .ss-shell.ss-header {
-  /* A4 폭 정합 (D6) — toolbar 와 동일 가로 정렬 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — toolbar 와 동일 가로 정렬. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto;
   background: var(--pap-bg);
   color: var(--pap-ink);
@@ -356,8 +358,8 @@
 
 /* ----- Section: PeriodScores outer wrapper ----- */
 .ss-shell.ss-ps-section {
-  /* A4 폭 정합 (D6) — FibaHeader 와 동일 가로 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — FibaHeader 와 동일 가로. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto;
   background: var(--pap-bg);
   color: var(--pap-ink);
@@ -499,8 +501,8 @@
 
 /* ----- TeamSection outermost wrapper (Section: ss-tbox) ----- */
 .ss-shell .ss-tbox {
-  /* A4 폭 정합 (D6) — FibaHeader / PeriodScores 와 동일 가로 */
-  max-width: 794px;
+  /* A4 폭 정합 (D6) — FibaHeader / PeriodScores 와 동일 가로. PR-S11 — 토큰 추출. */
+  max-width: var(--ss-paper-width);
   margin: 0 auto;
   background: var(--pap-bg);
   color: var(--pap-ink);
@@ -901,4 +903,150 @@
 }
 .ss-shell .ss-sigs__row > input.pap-u:disabled {
   opacity: 0.5;
+}
+
+/* ============================================================
+   Phase 19 PR-S10 (2026-05-15) — RunningScoreGrid 시각 정합 +
+   다크모드 페이퍼 leak 차단
+   ============================================================
+   왜 (이유):
+     reviewer 정적 검토 — running-score-grid.tsx 가 ss-shell wrapper 없이
+     글로벌 `--color-surface` / `--color-border` 토큰을 사용 → 다크모드 진입 시
+     페이퍼 안 다크 영역 leak. 사용자 결재 D3 "페이퍼 라이트 강제" 위반.
+   어떻게:
+     - 시안 출처: Dev/design/BDR-current/scoresheet.css L536~632 (.ss-rs / .ss-rs__title
+       / .ss-rs__head / .ss-rs__grid / .ss-rs__cell + data-* 변형 5개)
+     - .ss-shell 스코프 한정 (다른 컴포넌트 미오염)
+     - 마크업 = RunningScoreGrid outermost `<div className="ss-shell ss-rs">` →
+       자손 `.ss-rs__title` (헤더) / `.ss-rs__head` (A/B 라벨) / `.ss-rs__grid`
+       (16열 본체 — cell 의 data-mark / data-reached / data-period-end /
+       data-section-end 시안 정합).
+     - Phase 17 쿼터별 색 (getPeriodColor) = inline style 로 색 override 유지.
+   절대 룰:
+     - .ss-shell 스코프 prefix 유지
+     - 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - 다크 진입 시 페이퍼 라이트 강제 (var(--pap-*) 만 사용)
+*/
+
+/* outer wrapper = .ss-shell + .ss-rs 합성 (높이는 부모가 결정 — flex / grid 자식) */
+.ss-shell.ss-rs {
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+  border-radius: 0;
+}
+
+/* RunningScore 본체 grid = 시안 L537~542 정합 */
+.ss-shell .ss-rs {
+  display: grid;
+  grid-template-rows: 22px 22px 1fr;
+  min-height: 0;
+}
+
+/* 헤더 타이틀 ("Running Score") = 시안 L543~551 정합 */
+.ss-shell .ss-rs__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1.5px solid var(--pap-line);
+  font: 800 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  background: var(--pap-bg);
+  color: var(--pap-ink);
+}
+
+/* 16-col header (A / / / B / A / / / B / ...) = 시안 L554~571 정합 */
+.ss-shell .ss-rs__head {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  border-bottom: 1px solid var(--pap-line);
+  background: var(--pap-fill);
+}
+.ss-shell .ss-rs__head > div {
+  grid-column: span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 800 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  border-right: 1px solid var(--pap-line);
+  color: var(--pap-ink);
+}
+.ss-shell .ss-rs__head > div:last-child {
+  border-right: 0;
+}
+.ss-shell .ss-rs__head > div[data-section-end="true"] {
+  border-right: 1.5px solid var(--pap-line);
+}
+
+/* Body 16-col grid = 시안 L573~579 정합 */
+.ss-shell .ss-rs__grid {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  grid-auto-rows: 1fr;
+  min-height: 0;
+}
+
+/* 점수 / 마킹 셀 공통 = 시안 L580~592 정합 */
+.ss-shell .ss-rs__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 9px/0.95 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  background: var(--pap-bg);
+  border-right: 1px solid var(--pap-line);
+  border-bottom: 1px solid var(--pap-hair);
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* mark 컬럼 (data-mark="true") = 시안 L594~598 정합. Phase 17 색은 inline 으로 override */
+.ss-shell .ss-rs__cell[data-mark="true"] {
+  font: 700 11px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  background: var(--pap-bg);
+  cursor: pointer;
+}
+.ss-shell .ss-rs__cell[data-mark="true"]:disabled {
+  cursor: default;
+}
+
+/* section 끝 (40 / 80 / 120 / 160 마지막 칸) = 시안 L599~601 정합 */
+.ss-shell .ss-rs__cell[data-section-end="true"] {
+  border-right: 1.5px solid var(--pap-line);
+}
+
+/* 마지막 16칸 (160 row) border-bottom 제거 = 시안 L602~604 정합 */
+.ss-shell .ss-rs__grid .ss-rs__cell:nth-last-child(-n+16) {
+  border-bottom: 0;
+}
+
+/* 도달 점수 슬래시 (data-reached="true") = 시안 L606~618 정합 */
+.ss-shell .ss-rs__cell[data-reached="true"]::after {
+  content: '';
+  position: absolute;
+  width: 130%;
+  height: 1px;
+  background: var(--pap-ink);
+  left: -15%;
+  top: 50%;
+  transform: rotate(-22deg);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+/* 분기 종료 원형 마커 (data-period-end="true") = 시안 L620~632 정합 */
+.ss-shell .ss-rs__cell[data-period-end="true"]::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1.2px solid var(--pap-ink);
+  border-radius: 50%;
+  pointer-events: none;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }

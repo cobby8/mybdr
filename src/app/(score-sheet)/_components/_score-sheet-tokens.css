@@ -37,4 +37,12 @@
 
   /* bonus — 운영 BDR Red 동기화 (Team fouls bonus / 5+ 자유투 강조) */
   --pap-bonus: #E31B23;
+
+  /* PR-S11 (2026-05-15) — 토큰 추출 (reviewer 권장 후속).
+     왜: _score-sheet-styles.css 의 5건 max-width: 794px (A4 폭 = 210mm) +
+       2건 border-color: #D0D5DD (toolbar) 가 매직 넘버. 단일 source 로 추출.
+     어떻게: --ss-paper-width (A4 794px 정합) + --ss-toolbar-border (toolbar 회색)
+       2 토큰 신규. styles.css 5+2 위치 var() 치환. */
+  --ss-paper-width: 794px;
+  --ss-toolbar-border: #D0D5DD;
 }

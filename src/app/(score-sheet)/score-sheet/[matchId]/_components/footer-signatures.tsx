@@ -277,6 +277,10 @@ export function FooterSignatures({
 
   // ---------- frameless=false (회귀 안전망) — 변경 0 ----------
   // Phase 8 — 단일 외곽 박스 모드 (기존 Tailwind grid / Notes textarea 유지).
+  // PR-S9 (2026-05-15) — 본 분기는 운영 호출 (form.tsx L1093) 가 frameless={true} 만 전달 →
+  //   실제 진입 0 (dead path). 단 회귀 안전망 / 단위 테스트 가능성 / props API 안정성 위해 유지.
+  //   SigInput 의 inline=false 분기도 본 분기 안에서만 사용 — 동시 유지.
+  //   향후 frameless prop 자체 제거 시 본 분기 + SigInput inline=false 동시 정리.
   const sectionStyle: React.CSSProperties = {
     backgroundColor: "var(--color-surface)",
     border: "1px solid var(--color-border)",
