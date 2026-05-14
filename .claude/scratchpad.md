@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 19 PR-S2 후속 권장 3건 — submitted 가드 + ESC deps + toolbar disabled
-- **상태**: ✅ PR-S2 후속 3 fix 완료 (3 파일 +50 LOC / tsc 0 / vitest 204/204). PM 검증 → commit 대기
+- **요청**: Phase 19 PR-S5 — PeriodScoresSection 시안 시각 정합 (운영 OT 탭 / OT 종료 / 합산 100% 보존)
+- **상태**: ✅ PR-S5 박제 완료 (2 파일 +149 styles + 전면 재구성 period-scores-section / tsc 0 / vitest 204/204). PM 검증 → commit 대기
 - **모드**: no-stop
 
 ## 진행 현황표
@@ -11,10 +11,100 @@
 | Phase 19 PR-S1+S2 / Phase 23 PR2+PR3 | ✅ 직전 commit (`ef54e7a`/`4416a91`/`a147bb1`) |
 | **마법사 Phase 1** (shared-types / draft / constants) | ✅ 신규 3 파일 / tsc 0 / KEY 1건 |
 | **Phase 19 PR-S3** (mode prop wiring) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / commit 대기 |
-| **Phase 19 PR-S4** (FibaHeader 시안 시각 정합) | ✅ 2 파일 +220/-82+114 / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / commit 대기 |
+| **Phase 19 PR-S4** (FibaHeader 시각 정합) | ✅ 2 파일 +220 styles + 재구성 / tsc 0 / vitest 204/204 / commit 대기 |
 | **Phase 19 PR-S2 후속 3 fix** (submitted 가드 / ESC deps / toolbar disabled) | ✅ 3 파일 +50 LOC / tsc 0 / vitest 204/204 / commit 대기 |
-| 마법사 Phase 2 (Step 0 단체) | ⏳ 대기 |
-| 마법사 Phase 3~7 | ⏳ 대기 |
+| **Phase 19 PR-S5** (PeriodScoresSection 시각 정합) | ✅ 2 파일 +149 styles + 재구성 tsx / tsc 0 / vitest 204/204 / 운영 데이터·OT 7/7 보존 / commit 대기 |
+| 마법사 Phase 2~7 | ⏳ 대기 |
+
+## 구현 기록 (developer) — Phase 19 PR-S5
+
+📝 구현한 기능: PeriodScoresSection 시안 시각 정합 — Tailwind utility/table 시각 → 시안 `.ss-ps` + `.ss-circ` ① ② ③ ④ + `.ss-final` + `.ss-winner` 마크업 + ss-shell 스코프 CSS 룰 도입. **운영 데이터 매핑 / 합산 / OT 탭 / OT 종료 onClick 100% 보존**.
+
+**사용자 핵심 제약 보존**: props interface 변경 0 / form.tsx L1114-1122 호출 위치 변경 0 / sumByPeriod·computeFinalScore·periodLabel 변경 0 / 외부 컴포넌트 영향 0 / ss-shell 스코프 = PeriodScoresSection outermost 한정.
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|----------|
+| `src/app/(score-sheet)/_components/_score-sheet-styles.css` | 시안 .ss-ps* / .ss-circ / .ss-final* / .ss-winner* + .ss-ps-section wrapper + .ss-ot-controls (OT 탭) 룰 .ss-shell 스코프 wrap | +149 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/period-scores-section.tsx` | 전면 재구성 — 시안 마크업 (.ss-ps 5 row + .ss-final + .ss-winner) + OT 탭/OT 종료 운영 그대로 유지 (위치만 .ss-ps 아래) | 373 → 297 | 수정 |
+
+**합계**: 2 파일 / 신규 0.
+
+### 시각 재구성 범위 (옵션 2 부분 재구성)
+
+| 시안 섹션 | 운영 데이터 매핑 (변경 0) | 마크업 |
+|---------|------------------------|-------|
+| `.ss-ps` Q1~Q4 row × 4 | `sumByPeriod(state)` → `lineByPeriod.get(p)?.homePoints/awayPoints` | `.ss-ps__row` + `.ss-circ` ① ② ③ ④ (data-q 1~4 → Q1~Q4 컬러) |
+| `.ss-ps` Extra row | `state.currentPeriod >= 5` 시 = OT 진행 합산 (`extraLine`) / 미진입 시 빈 칸 | `.ss-ps__row` "Extra periods (OT1)" |
+| `.ss-final` Final Score | `computeFinalScore(state).homeTotal / awayTotal` | `.ss-final__row` (Team A / Team B + 점수) |
+| `.ss-winner` 승팀명 | `final.winner` 분기 → home/away/tie(="동점")/none(="") | `.ss-winner > label` + `.ss-winner__v` underscore |
+| `.ss-ot-controls` (시안 미존재) | **운영 그대로** chevron_left/right onClick + periodLabel + onEndPeriod onClick / disabled / state.currentPeriod | 운영 Tailwind utility 시각 유지 (border-top 으로 .ss-ps 와 시각 구분) |
+
+### 충돌 grep 결과 (사용자 핵심 제약 — PASS)
+
+| 시안 클래스 | 운영 사용처 (grep) | 충돌 |
+|------------|------------------|------|
+| `ss-ps / ss-ps__row / ss-ps__title / ss-ps__period / ss-ps__val / ss-ps__teamlabel` | 0건 | ✅ 안전 도입 |
+| `ss-final / ss-final__row` | 0건 | ✅ 안전 도입 |
+| `ss-winner / ss-winner__v` | 0건 | ✅ 안전 도입 |
+| `ss-circ` | 0건 | ✅ 안전 도입 |
+| `ss-ps-section / ss-ot-controls` (PR-S5 신규) | 0건 | ✅ 안전 도입 |
+
+### ss-shell 스코프 적용 영역 (사용자 핵심 제약 — PASS)
+
+- PeriodScoresSection outermost wrapper `<section className="ss-shell ss-ps-section">` 한정.
+- FibaHeader (PR-S4) 와 독립 — DOM 트리 별개 (각자 root 에 ss-shell).
+- 외부 컴포넌트 (TeamSection / RunningScoreGrid / FooterSignatures) 영향 0.
+
+### 운영 동작 보존 검증 (사용자 핵심 제약 — 7/7 PASS)
+
+| # | 검증 항목 | 결과 |
+|---|----------|------|
+| 1 | period-scores-section.tsx props interface 변경 0 | ✅ 8 필드 동일 (state/homeTeamName/awayTeamName/onAdvancePeriod/onRetreatPeriod/onEndPeriod/disabled/frameless). form.tsx L1114-1122 호출 그대로 |
+| 2 | sumByPeriod / computeFinalScore 매핑 / Final 합산 / Winner 판정 변경 0 | ✅ `const lines = sumByPeriod(state)` / `const final = computeFinalScore(state)` 그대로 / `final.winner` 분기 (home/away/tie/none) 보존 |
+| 3 | OT 탭 onClick / OT 종료 onClick / disabled 가드 변경 0 | ✅ `onRetreatPeriod`/`onAdvancePeriod`/`onEndPeriod` 호출 위치 그대로 / `disabled \|\| currentPeriod <= 1` / `>= 7` 가드 박제 |
+| 4 | RunningScore 합산 → PeriodScores 표시 흐름 보존 (Phase 22 paper DB 신뢰) | ✅ sumByPeriod / computeFinalScore 은 state (RunningScoreState) 만 의존 — Phase 22 변경 0. paper DB 신뢰 흐름은 form.tsx 격리 |
+| 5 | 외부 컴포넌트 (FibaHeader / TeamSection / RunningScoreGrid / FooterSignatures) 영향 0 | ✅ period-scores-section.tsx 만 수정 / styles.css 신규 룰 prefix = .ss-shell .ss-ps* / .ss-final* / .ss-winner* / .ss-circ — 다른 컴포넌트 className 미겹침 |
+| 6 | Phase 23 PR2+PR3 자동 로드 (initialQuarterScoresDB) 영향 0 | ✅ period-scores-section 은 runningScore state 만 받음 — initialRunningScore / draft / cross-check 흐름 격리 |
+| 7 | 인쇄 시 (@media print / _print.css) PeriodScoresSection 영역 정합 | ✅ ss-shell.ss-ps-section 의 var(--ss-paper-*) 토큰 / 직각 border-radius 0 / _print.css 기존 룰 미오염 |
+
+### 검증 (4/4 PASS)
+
+| # | 명령 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | ✅ EXIT=0 (에러 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | ✅ 11 files / **204/204 PASS** / 688ms |
+| 3 | 충돌 grep (ss-ps / ss-final / ss-winner / ss-circ / ss-ps-section / ss-ot-controls) | ✅ 0건 (운영 src 다른 곳 미사용) |
+| 4 | period-scores 관련 vitest | ✅ period-color.test.ts 23/23 / running-score-helpers.test.ts 35/35 (sumByPeriod / computeFinalScore 회귀 0) |
+
+💡 tester 참고:
+- **운영 매치 218** 또는 임의 매치 진입 시 PeriodScoresSection 영역 시각 변경 확인:
+  - 5 row 그리드 (Q1~Q4 + Extra) — 좌측 `①Period`~`④Period` + `Extra periods` 라벨, 원형 마커 ① ② ③ ④ (Q1=red / Q2=blue / Q3=teal / Q4=amber — PR-S1 D3 토큰)
+  - 각 row 우측 = `A {점수}` / `B {점수}` underscore 라인
+  - Final Score 박스 = `Team A {homeTotal}` / `Team B {awayTotal}` 큰 mono 16px
+  - Winner 박스 = `Name of winning team` 라벨 + 18px display 자동 채움 underscore
+  - OT 탭 영역 (Extra row 아래) = 운영 그대로 `< OT1 >` 화살표 + 빨강 `[● OT1 종료]` 버튼
+- **데이터 정확성** — 매치 218 의 Q1 11/9, Q2 12/8, Q3 4/6, Q4 9/13, OT1 3/2 표시 동일
+- **OT 탭 동작** — chevron 클릭 시 currentPeriod 증감 / 빨강 OT1 종료 클릭 시 onEndPeriod 호출 (운영 BFF) — 변경 0
+- **OT 진행 중 합산** — currentPeriod >= 5 시 "Extra periods (OT1)" 라벨에 OT 합산 표시
+- **인쇄 미리보기** — PeriodScoresSection 영역이 FIBA 종이 정합 시각 (직각 / 흑색 ink / underscore)
+
+⚠️ reviewer 참고:
+- **Extra periods 단일 row 매핑** — 시안 = 단일 row. 운영 = OT1/OT2/OT3 동적. 현재 매핑 = 현재 진행 중인 OT (`state.currentPeriod`) 만 표시. 다중 OT 진행 시 이전 OT 표시 안 됨 — **후속 PR 검토** (예: row 추가 또는 OT 합산 = sum(OT1+OT2+...)). 단 일반 5×5 경기는 Q1~Q4 + OT1 까지만 진행 — 실무 영향 미미
+- **frameless prop 호환성 유지** — `frameless: _frameless` 로 destructure (사용 안 함). form.tsx L1121 호환성 보존. 후속 PR 에서 prop 정리 가능
+- **OT 영역 = 운영 그대로 보존** — chevron / OT 종료 버튼 Tailwind utility 시각 보존. 시안 .ss-ps 영역과 시각 톤 차이 (시안=흑/회/언더스코어 / OT=BDR Red 강조) 발생 — 사용자 핵심 제약 충실 박제 결과. 시각 통일은 후속 PR 결재
+- **`.ss-winner__v` underscore 자동 채움** — winner 결정 시 팀명 자동 채움 / 미결정 시 빈 underscore. fiba-divider-top wrapper (form.tsx L1113) 안 = ss-shell.ss-ps-section border 와 중복 가능 — 시각 검수 후 단순화 검토 (후속 PR)
+- **lines 동적 길이** — sumByPeriod 은 항상 Q1~Q4 보장 + currentPeriod 의 OT 포함. lineByPeriod Map 으로 안전 access (`?.homePoints` 옵셔널 체이닝) — period 미존재 시 빈 칸 fallback
+
+### 후속 PR 진입 시 사전 작업 영향 평가
+
+| 후속 PR | 본 PR-S5 영향 |
+|--------|-------------|
+| PR-S6 TeamSection | 독립 컴포넌트 — modal 진입점 보존 의무. ss-shell 스코프 도입 시 본 PR-S4/S5 동일 패턴 재사용 가능 |
+| PR-S7 FooterSignatures (Officials 분리) | 독립 컴포넌트 — 본 PR-S4 의 .ss-field 룰 재사용 가능 |
+| frame 본체 wrapper ss-shell 부착 (장기) | 본 PR 미진행 — 후속 PR 사용자 결재 필요. FibaHeader+PeriodScoresSection 각자 ss-shell 부착 = 시각 일관성 OK |
+| OT 영역 시각 통일 (장기) | OT 탭 영역의 ss-shell 정합화 — Phase 20+ 박제 의뢰 영역 |
+
+---
 
 ## 구현 기록 (developer) — Phase 19 PR-S2 후속 3 fix
 
@@ -350,6 +440,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-14 | Phase 19 PR-S5 — PeriodScoresSection 시안 시각 정합 (.ss-ps / .ss-circ ① ② ③ ④ / .ss-final / .ss-winner + ss-shell 스코프 / OT 탭·OT 종료 운영 그대로) | ✅ 2 파일 +149 styles + 재구성 tsx / tsc 0 / vitest 204/204 / 운영 데이터·OT 7/7 보존 / 충돌 grep 0건 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S2 후속 3 fix — handleConfirm submitted 가드 / ESC useEffect deps + setOpen useCallback / toolbar endMatchDisabled prop + form wiring | ✅ 3 파일 +50 LOC / tsc 0 / vitest 204/204 / breaking change 0 / 사용자 핵심 제약 6/6 보존 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S4 — FibaHeader 시안 시각 정합 (.ss-h / .ss-names / .ss-meta / .ss-field 도입 + ss-shell 스코프 한정) | ✅ 2 파일 +220 styles / 재구성 fiba-header / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / 충돌 grep 0건 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S3 — RunningScoreGrid `mode` prop + scoreMode wiring + paper read-only preview (D2/D7) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / 운영 동작 5/5 보존 / commit 대기 |
@@ -360,15 +451,11 @@
 | 2026-05-14 | Phase 23 PR2+PR3 reviewer 검증 결과 박제 | ✅ `5b065ec` docs commit / 머지 OK 판정 |
 | 2026-05-14 | Phase 23 PR2+PR3 — 매치 재진입 시 자동 로드 (매치 218 사고 영구 차단) + draft/DB confirm + cross-check | ✅ 3 파일 +368 LOC / tsc 0 / vitest 204/204 / commit `a147bb1` push |
 | 2026-05-14 | BDR v2.5 sync + Phase 23 ScoreSheet 시안 5 파일 commit | ✅ commit `1fa9210` (221 파일) / _archive 138 파일 백업 / push |
-| 2026-05-14 | Phase 23 PR1 — PBP 역변환 헬퍼 2개 + vitest 24 케이스 | ✅ tsc 0 / vitest 24/24 / commit `b7c44d8` / push |
-| 2026-05-14 | Phase 23 설계 분석 (planner-architect / read-only) | ✅ Q1~Q5 결재 수락 / PR 3+1 분해 |
 
 ## 미푸시 commit (subin 브랜치)
 **0건** — `ef54e7a` + `5b065ec` + `4416a91` 푸시 완료.
 
 ## 후속 큐 (미진입)
-- **Phase 19 PR-S4** — FibaHeader 시각 디테일 (BDR 로고 + 3줄 타이틀)
-- **Phase 19 PR-S5** — PeriodScoresSection 시각 (① ② ③ ④ + Winner)
 - **Phase 19 PR-S6** — TeamSection head/footer 시각 (모달 진입점 보존). form.tsx 자유 (D1 해제)
 - **Phase 19 PR-S7** — FooterSignatures Officials 분리
 - **Phase 23 PR4** (선택) — status="completed" 매치 수정 가드

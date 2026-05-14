@@ -351,3 +351,147 @@
   border: 1.5px solid var(--ss-paper-line);
   border-bottom: 0; /* 본체 다음 섹션과 시각적으로 연속 — 후속 PR 영역과 무경계 */
 }
+
+/* ============================================================
+   Phase 19 PR-S5 (2026-05-14) — PeriodScoresSection 시각 정합
+   ============================================================
+   왜 (이유):
+     사용자 결재 D6 — FIBA 종이 정합. 운영 Tailwind utility 시각 → 시안 .ss-ps / .ss-final / .ss-winner / .ss-circ 정합.
+   어떻게:
+     - .ss-shell 스코프 한정 (PR-S4 와 동일 패턴 — 다른 컴포넌트 미오염)
+     - 시안 출처: Dev/design/BDR-current/scoresheet.css L755-849
+     - 운영 데이터 매핑 / 합산 로직 / OT 탭 / OT 종료 버튼 onClick 변경 0
+   절대 룰:
+     - .ss-shell 스코프 prefix 유지 (다른 영역 영향 0)
+     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+     - OT 탭 / OT 종료 버튼 = 시안 미존재 → 운영 마크업 그대로 (별도 .ss-ot-controls wrapper)
+*/
+
+/* ----- Section: PeriodScores outer wrapper ----- */
+.ss-shell.ss-ps-section {
+  /* A4 폭 정합 (D6) — FibaHeader 와 동일 가로 */
+  max-width: 794px;
+  margin: 0 auto;
+  background: var(--ss-paper-bg);
+  color: var(--ss-paper-ink);
+  /* 직각 (D4 FIBA 종이 정합) */
+  border-radius: 0;
+  border: 1.5px solid var(--ss-paper-line);
+  /* 상하 본체와 연속 시 부모가 border 조정 — 본 wrapper 는 단독 / 또는 PR-S6/S7 wrapping 영역과 연속 */
+}
+
+/* ----- Period scores 표 (Q1~Q4 + Extra) ----- */
+.ss-shell .ss-ps {
+  display: grid;
+  grid-template-rows: repeat(5, 22px);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-shell .ss-ps__row {
+  display: grid;
+  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  gap: 6px;
+}
+.ss-shell .ss-ps__row:last-child { border-bottom: 0; }
+.ss-shell .ss-ps__title {
+  font: 800 10px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ss-paper-ink);
+}
+.ss-shell .ss-ps__period {
+  font: 700 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  color: var(--ss-paper-ink);
+}
+.ss-shell .ss-ps__period .ss-circ {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1.2px solid var(--ss-paper-ink);
+  /* 시안 §4-1 — 정사각형(W=H) 원형은 50% (사용자 결정 §10 / 9999px pill 회피) */
+  border-radius: 50%;
+  font: 800 8px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+/* 시안 — Q1~Q4 원형 컬러 (D3 토큰 — PR-S1 정의) */
+.ss-shell .ss-ps__period[data-q="1"] .ss-circ { border-color: var(--ss-paper-q1); color: var(--ss-paper-q1); }
+.ss-shell .ss-ps__period[data-q="2"] .ss-circ { border-color: var(--ss-paper-q2); color: var(--ss-paper-q2); }
+.ss-shell .ss-ps__period[data-q="3"] .ss-circ { border-color: var(--ss-paper-q3); color: var(--ss-paper-q3); }
+.ss-shell .ss-ps__period[data-q="4"] .ss-circ { border-color: var(--ss-paper-q4); color: var(--ss-paper-q4); }
+.ss-shell .ss-ps__teamlabel {
+  font: 800 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  text-align: center;
+  color: var(--ss-paper-ink);
+}
+.ss-shell .ss-ps__val {
+  font: 700 12px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  border-bottom: 1px solid var(--ss-paper-line);
+  height: 18px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  padding-left: 4px;
+  color: var(--ss-paper-ink);
+}
+
+/* ----- Final Score 박스 ----- */
+.ss-shell .ss-final {
+  display: grid;
+  grid-template-rows: 32px 1fr;
+}
+.ss-shell .ss-final__row {
+  display: grid;
+  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  gap: 6px;
+}
+.ss-shell .ss-final__row > .ss-ps__title {
+  font: 900 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+}
+.ss-shell .ss-final__row .ss-ps__val {
+  font: 900 16px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  height: 24px;
+}
+
+/* ----- Winner 박스 ----- */
+.ss-shell .ss-winner {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  min-height: 32px;
+}
+.ss-shell .ss-winner > label {
+  font: 900 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ss-paper-ink);
+}
+.ss-shell .ss-winner > .ss-winner__v {
+  font: 900 18px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  color: var(--ss-paper-ink);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+  height: 28px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+  letter-spacing: 0.02em;
+}
+
+/* ----- OT 탭 / OT 종료 버튼 영역 — 시안 미존재 → 운영 그대로 (위치만 .ss-ps 아래) ----- */
+/* 본 wrapper 는 .ss-shell 안 위치하지만 자체 시각 룰은 운영 Tailwind utility 유지 — 시안 정합 ❌ / 운영 동작 보존 ⭕ */
+.ss-shell .ss-ot-controls {
+  /* 페이퍼 영역 안 자연스럽게 배치 — border-top 으로 .ss-ps 와 시각 구분 */
+  border-top: 1.5px solid var(--ss-paper-line);
+  padding: 8px;
+  background: var(--ss-paper-bg);
+  /* 운영 버튼 (chevron / OT 라벨 / OT 종료) 의 Tailwind utility 시각은 그대로 유지 */
+}
