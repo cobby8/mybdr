@@ -2,6 +2,25 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-13] LIVE API 의 paper 매치 OT 점수 0 변환 = paper-fix PBP `game_clock_seconds=0` ↔ STL 보정 충돌 (FIBA Phase 22)
+- **분류**: 함정 / 데이터 source 분기 부재 / 정밀 진단 5단
+- **발견자**: pm (5/13 매치 218 OT 표시 사용자 보고)
+- **증상**: score-sheet (paper) 로 박제한 매치의 LIVE 페이지 quarter 표시에서 **OT 점수가 0/0 으로 변환** + Q3 셀이 Q3+Q4 합산값으로 흡수. 이미지 49 (q3=4, q4=12, ot=0) → 재제출 후 이미지 53 (q3=16, q4=0, ot=0). 합계 39/38 정합 유지로 인해 운영자가 "OT 점수가 사라졌다" 로만 인지하고 root cause 모름.
+- **근본 원인** (3단 진단 결과):
+  1. DB 실측: `quarter_scores.home.ot=[3], away.ot=[2]` **정확 박제** (score-sheet BFF `marksToPaperPBPInputs` 헬퍼가 정상 동작) — DB 는 진실 source
+  2. PBP 실측: paper-fix PBP 의 `quarter=5` 가 6건 / pts_sum=3/2 — quarter 정보도 정확
+  3. API 응답: `/api/live/218` 가 ot=[0]/[0] 반환 — **API 가 quarter_scores 를 무시하고 PBP 합산 + STL 보정 결과 사용** (route.ts L823 주석 = "PBP 가 진실 원천")
+  4. STL 보정 로직 (L862~) 의 "쿼터 마지막 이벤트 = 가장 작은 clock" 판정 → paper-fix PBP 는 모두 `game_clock_seconds=0` (종이 = clock 정보 없음) → "가장 작은" 매칭이 **첫 이벤트** 로 잘못 동작 → `home_score_at_time` 누적값이 쿼터 첫 마킹 시점값으로 박혀 delta 계산 왜곡 → Q3 흡수 + Q4/OT 손실
+- **fix (commit `63c0633` Phase 22)**: `/api/live/[id]/route.ts` 에 `getRecordingMode(match.settings)` 분기 추가. paper 매치 = PBP 합산 직후 `match.quarterScores` 로 덮어쓰기 + STL 보정 블록 skip (`if (recordingMode !== "paper") { ... }`). +34 / -1 라인. Flutter 매치 영향 0.
+- **재발 방지 룰**:
+  (a) **paper 매치 = DB.quarter_scores 단일 진실 source** — score-sheet BFF (`submit/route.ts`) 가 박제하고 LIVE API 가 그대로 노출 (재계산 ❌)
+  (b) **PBP 보정 로직은 Flutter 시계 데이터 결손 매치 한정** — `game_clock_seconds=0` 케이스 (종이/임의 보정) 에서 자동 skip 가드 추가 의무
+  (c) **신규 API 에서 DB ≠ 응답 가능성 의심**: T1 백필 시 LIVE UI 만 보고 판단하지 말 것 — DB 실측 + API 실측 + PBP 실측 3단 동시 검증 필수 (본 turn 의 잘못된 T1 백필 사례)
+  (d) **신규 PBP 생성 path 추가 시** = STL 보정 로직 호환성 1회 점검 (clock 정보 유무 / score_at_time 박제 룰 등)
+- **참조**: `src/app/api/live/[id]/route.ts:823-1000`, `src/lib/score-sheet/running-score-helpers.ts:201-240` (marksToPaperPBPInputs), 매치 218 검증 SELECT 3건
+- **참조횟수**: 0
+
+
 ### [2026-05-13] GameTimeInput value 역파싱 부재 = 운영자 저장값을 마운트 즉시 덮어쓰기 (P0)
 - **분류**: 함정 / state 초기화 / 사일런트 데이터 손실
 - **발견자**: debugger
