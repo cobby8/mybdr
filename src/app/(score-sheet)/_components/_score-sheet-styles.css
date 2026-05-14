@@ -377,7 +377,10 @@
 }
 .ss-shell .ss-ps__row {
   display: grid;
-  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  /* PR-S10.1 (2026-05-15): period column 60px → 110px — "Extra periods (OT1)" wrap 방지.
+     title 90px → 60px (Scores 글자 폭 충분) + period 확대 + spacer 30px → 22px (시안 정합).
+     운영 OT 번호 동적 ("(OT1)" / "(OT2)") 텍스트 안정 표시. */
+  grid-template-columns: 60px 110px 1fr 22px 1fr;
   align-items: center;
   padding: 0 8px;
   border-bottom: 1px solid var(--pap-hair);
@@ -393,6 +396,8 @@
 .ss-shell .ss-ps__period {
   font: 700 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   color: var(--pap-ink);
+  /* PR-S10.1 — 라인 break 방지 (운영 "Extra periods (OT1)" 한 줄 보장) */
+  white-space: nowrap;
 }
 .ss-shell .ss-ps__period .ss-circ {
   display: inline-flex;
@@ -414,6 +419,8 @@
   font: 800 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
   text-align: center;
   color: var(--pap-ink);
+  /* PR-S10.1 — 라벨 wrap 방지 (Team A / Team B 한 줄) */
+  white-space: nowrap;
 }
 .ss-shell .ss-ps__val {
   font: 700 12px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
@@ -433,7 +440,9 @@
 }
 .ss-shell .ss-final__row {
   display: grid;
-  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  /* PR-S10.1 (2026-05-15): Team B label column 30px → 60px — "Team B" 라벨 2줄 wrap 방지.
+     title 90px → 80px (FINAL SCORE 글자 폭 + 우측 확보) + Team A 60px / Team B 60px 대칭. */
+  grid-template-columns: 80px 60px 1fr 60px 1fr;
   align-items: center;
   padding: 0 8px;
   border-bottom: 1px solid var(--pap-hair);
