@@ -311,6 +311,11 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     match_code: match.match_code,
     scheduledAtLabel,
     courtLabel: placeLabel,
+    // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드.
+    //   사용자 결재 Q3 = 차단 ❌ / UI 경고 모달 또는 배너 + audit 박제 (변경 허용).
+    //   ScoreSheetForm 이 이 값으로 노란 배너 표시 + audit endpoint 호출 (진입/재제출 양쪽).
+    //   require-score-sheet-access 가 이미 match.status SELECT 함 (L43/L110/L199) → 추가 쿼리 0.
+    status: match.status,
   };
 
   const tournamentProps = {

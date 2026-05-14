@@ -73,6 +73,10 @@ interface MatchProp {
   match_code: string | null;
   scheduledAtLabel: string | null; // "2026-05-11 14:00" 류 (page.tsx 에서 toLocaleString 처리)
   courtLabel: string | null;
+  // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
+  //   차단 ❌ / UI 경고 배너 + audit 박제 (변경 허용).
+  //   "completed" 이면 mount 1회 노란 배너 표시 + cross-check-audit endpoint 호출.
+  status?: string | null;
 }
 
 interface TournamentProp {
@@ -316,6 +320,56 @@ export function ScoreSheetForm({
     pbpCount === 0 &&
     initialQuarterScoresDB !== undefined &&
     Object.keys(initialQuarterScoresDB).length > 0;
+
+  // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
+  //
+  // 왜 (이유):
+  //   매치가 이미 종료된 상태 (status="completed") 인데 운영자가 score-sheet 재진입 = 수정 의도.
+  //   사용자 결재 Q3 = 차단 ❌ / UI 경고 + audit 박제. 운영자가 사고를 인식할 수 있어야 함.
+  //
+  // 어떻게:
+  //   1. isCompleted 플래그 — match.status === "completed" 일 때 true.
+  //   2. mount 1회 노란 배너 표시 (cross-check 배너 패턴 일관 / no-print).
+  //   3. mount 1회 cross-check-audit endpoint POST — context="completed_edit_entry".
+  //   4. 운영자 submit 시 별도 audit POST — context="completed_edit_resubmit"
+  //      (MatchEndButton 의 onSubmittedChange 콜백 분기 안에서 부모가 호출).
+  //
+  // 운영 동작 보존:
+  //   - 운영자 input / submit 차단 ❌ — 배너 + audit 만.
+  //   - audit fetch 실패 = console.warn + 진행 (silent fail).
+  //   - status !== "completed" 매치 = 변경 0 (회귀 0).
+  const isCompleted = match.status === "completed";
+
+  // 진입 audit POST — mount 1회 / isCompleted=true 일 때만.
+  //   endpoint = /api/web/score-sheet/{matchId}/cross-check-audit (PR5-A 재사용)
+  //   warning_type = "completed_edit_entry" (Zod enum 확장)
+  //   details = { match_status, match_updated_at, pbp_count } (운영자 추적용 메타)
+  useEffect(() => {
+    if (!isCompleted) return;
+    if (typeof window === "undefined") return;
+    // fetch 는 fire-and-forget — 응답 무시. 실패 = console.warn + 진행.
+    fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        warning_type: "completed_edit_entry",
+        details: {
+          extra: {
+            match_status: match.status ?? null,
+            match_updated_at: matchUpdatedAtISO ?? null,
+            pbp_count: pbpCount ?? 0,
+          },
+        },
+      }),
+    }).catch((err) => {
+      // audit endpoint 실패 = 운영자 차단 ❌ (사용자 결재 Q3).
+      console.warn(
+        "[score-sheet:Phase23:PR4] completed-edit-entry audit 실패",
+        err,
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Phase 16 (2026-05-13) — 사전 확정 라인업 (initialLineup) 진입 시 P.IN 자동 체크 (mount 1회).
   //   이유: handleLineupConfirm 와 동일한 자동 P.IN 룰 — 사전 라인업 (DB 박제) 으로 진입한
@@ -883,6 +937,31 @@ export function ScoreSheetForm({
     //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
     <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+      {/* Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
+          차단 ❌ / UI 경고 배너 + audit 박제 (변경 허용).
+          운영자가 종료된 매치를 재진입하면 즉시 인식 + 재제출 시 audit 박제로 추적. */}
+      {isCompleted && (
+        <div
+          className="no-print mb-2 px-3 py-2 text-xs"
+          style={{
+            border: "1px solid var(--color-warning)",
+            backgroundColor:
+              "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+            color: "var(--color-warning)",
+          }}
+        >
+          <p className="font-semibold">
+            <span className="material-symbols-outlined mr-1 align-middle text-base">
+              warning
+            </span>
+            이 매치는 종료된 상태입니다
+          </p>
+          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
+            수정 후 재제출하면 audit 로그에 기록됩니다. 운영자 책임으로 진행해주세요.
+          </p>
+        </div>
+      )}
+
       {/* Phase 23 (2026-05-14) — cross-check 경고 배너 (사용자 결재 Q4).
           PBP 합산 vs DB quarter_scores mismatch 시 노란 배너 + 메시지 + console.warn 로깅.
           매치 218 같은 사고 = 운영자가 빈 폼 위에 다시 제출 → 본 배너로 즉시 인식 가능. */}
@@ -1150,7 +1229,37 @@ export function ScoreSheetForm({
         hideTriggerButton
         // PR-S2 후속 fix 3 (2026-05-14) — submitted 상태를 외부로 lifting.
         //   toolbar 의 "경기 종료" 버튼 disabled 시각 분기를 위함. 콜백 외 영향 0.
-        onSubmittedChange={setMatchEndSubmitted}
+        //
+        // Phase 23 PR4 (2026-05-15) — submit audit 보강 (사용자 결재 Q3).
+        //   completed 매치 재제출 시 audit endpoint 호출 — context="completed_edit_resubmit".
+        //   isCompleted + submitted=true 전환 시 1회 fetch (fire-and-forget).
+        //   MatchEndButton 내부 변경 0 (lifting state up 패턴 유지).
+        onSubmittedChange={(submitted) => {
+          setMatchEndSubmitted(submitted);
+          // 완료된 매치 재제출 시 audit 박제 (사용자 결재 Q3 — 차단 ❌ / 추적만)
+          if (submitted && isCompleted && typeof window !== "undefined") {
+            fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                warning_type: "completed_edit_resubmit",
+                details: {
+                  extra: {
+                    match_status: match.status ?? null,
+                    match_updated_at: matchUpdatedAtISO ?? null,
+                    pbp_count: pbpCount ?? 0,
+                  },
+                },
+              }),
+            }).catch((err) => {
+              // audit 실패 = 운영 영향 0 (재제출 자체는 성공 / 추적만 미박제)
+              console.warn(
+                "[score-sheet:Phase23:PR4] completed-edit-resubmit audit 실패",
+                err,
+              );
+            });
+          }
+        }}
       />
 
       {/* Phase 진행 상태 안내 — Phase 7 완성 시점 갱신.
