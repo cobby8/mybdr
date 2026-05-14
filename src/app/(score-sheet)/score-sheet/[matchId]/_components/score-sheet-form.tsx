@@ -63,6 +63,9 @@ import {
 } from "./lineup-selection-modal";
 // Phase 7-C — Q4/OT 종료 분기 모달
 import { QuarterEndModal } from "./quarter-end-modal";
+// Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
+//   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
+import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
 
 interface MatchProp {
   id: string;
@@ -232,6 +235,18 @@ export function ScoreSheetForm({
     mode: "quarter4" | "overtime";
     period: number;
   } | null>(null);
+  // Phase 19 PR-S2 (2026-05-14) — 시안 toolbar 의 페이퍼/상세 모드 토글 state.
+  //   기본 = "detail" (운영 기존 RunningScoreGrid 동작 모드와 동일).
+  //   PR-S3 에서 RunningScoreGrid wiring (현재는 toolbar 시각 토글만 활성 / 동작 변경 0).
+  const [scoreMode, setScoreMode] = useState<"paper" | "detail">("detail");
+  // Phase 19 PR-S2 — MatchEndButton controlled open state.
+  //   왜: 시안 toolbar 의 "경기 종료" 버튼이 MatchEndButton 의 confirm modal trigger 위임.
+  //   기존 MatchEndButton 의 confirm modal + BFF submit + submitted 토스트 흐름 100% 보존.
+  const [matchEndOpen, setMatchEndOpen] = useState(false);
+  // PR-S2 후속 fix 3 (2026-05-14) — MatchEndButton 의 submitted 상태 추적.
+  //   왜: toolbar 의 "경기 종료" 버튼이 submitted 인지 알아야 시각 disabled 분기 가능.
+  //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
+  const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   const { showToast } = useToast();
 
@@ -921,6 +936,27 @@ export function ScoreSheetForm({
         </div>
       )}
 
+      {/* Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar (back + 모드 토글 + 인쇄 + 경기 종료).
+          위치 = PeriodColorLegend 직전 (frame 외부 최상단). 운영 함수 호출 100% 보존:
+            - onPrint  = window.print() 직접 호출 (기존 PrintButton 와 동일 동작)
+            - onEndMatch = setMatchEndOpen(true) → 아래 MatchEndButton 의 controlled open trigger
+              → confirm modal + BFF submit + submitted 토스트 흐름 그대로
+            - backHref = "/admin" (운영 thin bar 의 "← 매치 관리로" 와 동일)
+          gameNo = FibaHeader 와 동일 source (match.match_code ?? match.id). */}
+      <ScoreSheetToolbar
+        gameNo={match.match_code ?? match.id}
+        mode={scoreMode}
+        onModeChange={setScoreMode}
+        onPrint={() => {
+          if (typeof window !== "undefined") window.print();
+        }}
+        onEndMatch={() => setMatchEndOpen(true)}
+        backHref="/admin"
+        // PR-S2 후속 fix 3 (2026-05-14) — 종료 후 종료 버튼 disabled 시각 분기.
+        //   matchEndSubmitted = MatchEndButton.onSubmittedChange 콜백으로 끌어올린 상태.
+        endMatchDisabled={matchEndSubmitted}
+      />
+
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
           이전 Phase 17 위치 (frame 아래 mt-3) = frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침.
           새 위치 = frame 직전 (진입 즉시 운영자 인식 / 인쇄 시 _print.css `.no-print` 자동 제외). */}
@@ -1066,6 +1102,9 @@ export function ScoreSheetForm({
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
               FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적. */}
           <div className="flex flex-col">
+            {/* Phase 19 PR-S3 (2026-05-14) — toolbar scoreMode state wiring (사용자 결재 D2 / D7).
+                detail (기본) = 운영 onClick / setRunningScore / 모달 trigger 100% 보존.
+                paper = read-only preview (입력 차단 + opacity / cursor 시각 indicator). */}
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1073,6 +1112,7 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
+              mode={scoreMode}
               frameless
             />
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
@@ -1098,13 +1138,26 @@ export function ScoreSheetForm({
 
       {/* Phase 3.5 — 경기 종료 버튼 (BFF POST + 라이브 발행).
           이유: 운영자가 Q4(또는 OT) 종료 후 명시적 매치 종료 트리거.
-          MatchEndButton 내부에서 confirm modal + 응답 처리 */}
+          MatchEndButton 내부에서 confirm modal + 응답 처리.
+
+          Phase 19 PR-S2 (2026-05-14) — controlled mode:
+            - frame 하단 큰 "경기 종료" 버튼 + 종료 후 카드 hide (hideTriggerButton=true).
+              → 시안 toolbar 가 trigger 흡수 → 시각 중복 방지.
+            - open / onOpenChange = 외부 toolbar 가 모달 open 제어 (matchEndOpen state).
+            - confirm modal + BFF submit + 토스트 흐름 = 100% 보존 (컴포넌트 내부 그대로).
+            - buildPayload / final / props 모두 기존 그대로. */}
       <MatchEndButton
         matchId={match.id}
         homeTeamName={homeFilteredRoster.teamName}
         awayTeamName={awayFilteredRoster.teamName}
         final={computeFinalScore(runningScore)}
         buildPayload={buildSubmitPayload}
+        open={matchEndOpen}
+        onOpenChange={setMatchEndOpen}
+        hideTriggerButton
+        // PR-S2 후속 fix 3 (2026-05-14) — submitted 상태를 외부로 lifting.
+        //   toolbar 의 "경기 종료" 버튼 disabled 시각 분기를 위함. 콜백 외 영향 0.
+        onSubmittedChange={setMatchEndSubmitted}
       />
 
       {/* Phase 진행 상태 안내 — Phase 7 완성 시점 갱신.
