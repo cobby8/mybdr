@@ -37,6 +37,17 @@ interface MatchEndButtonProps {
   // 제출 페이로드 빌더 — caller (ScoreSheetForm) 가 running_score/fouls/quarter_scores 박제
   buildPayload: () => unknown;
   disabled?: boolean;
+  // Phase 19 PR-S2 — controlled `open` 패턴 (선택형).
+  //   왜: 시안 toolbar 의 "경기 종료" 버튼 = 본 컴포넌트의 confirm modal trigger 외부 위임.
+  //   기본 (props 미전달): 기존 internal state 그대로 — 운영 동작 100% 보존.
+  //   controlled (open + onOpenChange 둘 다 전달): 외부 toolbar 가 모달 open/close 제어.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Phase 19 PR-S2 — frame 하단 큰 "경기 종료" 버튼 + 종료 후 안내 카드 hide 옵션.
+  //   왜: 시안 toolbar 가 종료 trigger 를 흡수하면 frame 하단 큰 버튼 시각 중복.
+  //   true 시: 종료 버튼 + submitted 카드 모두 hide / Confirm Modal 만 렌더.
+  //   false (기본): 기존 동작 100% 보존 (frame 하단 종료 버튼 + 종료 후 카드 표시).
+  hideTriggerButton?: boolean;
 }
 
 export function MatchEndButton({
@@ -46,8 +57,21 @@ export function MatchEndButton({
   final,
   buildPayload,
   disabled,
+  open: controlledOpen,
+  onOpenChange,
+  hideTriggerButton,
 }: MatchEndButtonProps) {
-  const [open, setOpen] = useState(false);
+  // controlled vs uncontrolled 결정:
+  //   controlledOpen !== undefined = 외부 제어 (toolbar 가 setMatchEndOpen 호출) → useState 무시
+  //   undefined = 기존 internal state (uncontrolled) — 운영 동작 100% 보존
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next);
+    onOpenChange?.(next);
+  };
+
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { showToast } = useToast();
@@ -113,9 +137,12 @@ export function MatchEndButton({
     // Phase 6 — `no-print` = 인쇄 시 경기 종료 영역 전체 제거.
     //   이유: FIBA 양식 = 종이 기록지. 인쇄 시 종료 버튼 / confirm 모달 / 종료 후 카드는
     //   양식과 무관 → 숨김 (실서명 영역만 출력)
-    <div className="no-print mt-4">
-      {/* 종료 후 안내 카드 (submitted = true 시) */}
-      {submitted && (
+    //
+    // Phase 19 PR-S2 — hideTriggerButton=true 시: 종료 버튼 + submitted 카드 hide / 모달만 유지.
+    //   외부 toolbar 가 trigger 흡수 — 시각 중복 방지.
+    <div className={hideTriggerButton ? "no-print" : "no-print mt-4"}>
+      {/* 종료 후 안내 카드 (submitted = true 시) — hideTriggerButton 시 hide */}
+      {submitted && !hideTriggerButton && (
         <div
           className="mb-3 rounded-[4px] px-3 py-3 text-center"
           style={{
@@ -146,8 +173,8 @@ export function MatchEndButton({
         </div>
       )}
 
-      {/* 종료 버튼 */}
-      {!submitted && (
+      {/* 종료 버튼 — hideTriggerButton 시 hide (toolbar 가 흡수) */}
+      {!submitted && !hideTriggerButton && (
         <button
           type="button"
           onClick={() => setOpen(true)}

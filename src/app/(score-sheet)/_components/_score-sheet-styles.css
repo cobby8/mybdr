@@ -1,0 +1,109 @@
+/**
+ * FIBA SCORESHEET — Phase 19 PR-S2 시안 toolbar 운영 도입 (2026-05-14)
+ *
+ * 왜 (이유):
+ *   BDR v2.5 시안 (Dev/design/BDR-current/scoresheet.css L41-104) 의 .ss-toolbar* 룰을
+ *   운영에 이식. PR-S1 토큰 (_score-sheet-tokens.css) 위에 PR-S2 컴포넌트 스타일 박제.
+ *
+ * 사용자 결재 (Phase 19):
+ *   - D5: toolbar 전체 도입 (back + 모드 토글 + 인쇄 + 경기 종료)
+ *   - D6: max-width: 794px 고정 / 모바일 가로 스크롤
+ *
+ * 절대 룰:
+ *   - .ss-shell 스코프 내 .ss-toolbar* 룰만 — 운영 globals.css / 다른 컴포넌트 미오염
+ *   - radius 4px = 디자인 시스템 default (페이퍼는 D4 직각 = scoresheet 본 영역만 0)
+ *   - 페이퍼 외곽이 아닌 toolbar = 4px (시안 그대로)
+ *
+ * 시안 출처: Dev/design/BDR-current/scoresheet.css L41-104 (단 .ss-shell 스코프 wrap)
+ */
+
+/* ============================================================
+   Toolbar — back / title / mode seg / print / finish
+   ============================================================ */
+.ss-shell .ss-toolbar {
+  /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬 */
+  max-width: 794px;
+  margin: 0 auto 16px;
+  display: grid;
+  /* back | title (1fr) | mode seg | print | finish */
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #FFFFFF;
+  border: 1px solid #D0D5DD;
+  border-radius: 4px;
+}
+
+/* back / print / finish — 공통 36px 버튼 (시안 그대로) */
+.ss-shell .ss-toolbar__back,
+.ss-shell .ss-toolbar__print,
+.ss-shell .ss-toolbar__finish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  /* 시안 var(--ff-body) → 운영 본문 폰트 (Pretendard) 가족 fallback */
+  font: 600 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  border: 1px solid #D0D5DD;
+  background: #FFFFFF;
+  color: #1A1E27;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;  /* Link (back) 의 underline 제거 */
+}
+
+.ss-shell .ss-toolbar__back .material-symbols-outlined,
+.ss-shell .ss-toolbar__print .material-symbols-outlined,
+.ss-shell .ss-toolbar__finish .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* 경기 종료 — accent (=BDR Red — D3 토큰) 배경 = 위험 액션 강조 */
+.ss-shell .ss-toolbar__finish {
+  background: var(--ss-paper-accent);
+  border-color: var(--ss-paper-accent);
+  color: #FFFFFF;
+}
+
+/* 타이틀 "SCORESHEET · #{gameNo}" — mono 폰트 (시안 그대로) */
+.ss-shell .ss-toolbar__title {
+  font: 700 14px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  letter-spacing: 0.04em;
+  color: #1A1E27;
+  /* 모바일 가로 스크롤 시 타이틀 줄바꿈 방지 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 모드 토글 — 둘 중 하나 active (data-active="true") */
+.ss-shell .ss-toolbar__seg {
+  display: inline-flex;
+  height: 36px;
+  border: 1px solid #D0D5DD;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #F4F6FA;
+}
+
+.ss-shell .ss-toolbar__seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  height: 100%;
+  padding: 0 14px;
+  font: 600 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: #5B6573;
+  cursor: pointer;
+  white-space: nowrap;  /* 모드 라벨 줄바꿈 방지 */
+}
+
+.ss-shell .ss-toolbar__seg button[data-active="true"] {
+  background: #1A1E27;
+  color: #FFFFFF;
+}
+
+/* D6 — 모바일 가로 스크롤 (toolbar 자체는 max-width 794px 유지, 부모 wrap 이 overflow-x 처리) */
+/* toolbar 가 794px 이하 viewport 에서 컬럼 압축 시 가독성 보존을 위해 부모 영역에서 overflow-x:auto 처리 권장 */
