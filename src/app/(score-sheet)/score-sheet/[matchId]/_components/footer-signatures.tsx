@@ -45,6 +45,25 @@
  *     - frameless 모드 심판진 grid-cols-3 → flex flex-col gap-0 (가로 3컬럼 → 세로 3줄)
  *     - frameless 모드 심판진 + 주장도 labelWidth=100 통일 (운영진과 시각 일관)
  *   frameless=false (회귀) = 변경 0.
+ *
+ * 2026-05-15 — Phase 19 PR-S7-officials (시안 시각 정합).
+ *   이유: 시안 source `ScoreSheet.bottom.jsx` L100~144 + scoresheet.css L650~679 정합.
+ *     기존 SigInput (inline + Tailwind underscore) → 시안 .ss-officials* / .ss-sigs* 마크업으로 재구성.
+ *     frameless=true 분기만 변경. frameless=false (회귀) = 변경 0.
+ *   변경:
+ *     - frameless=true → outermost `.ss-shell.ss-footer-sigs` wrapper
+ *     - Scorer/Asst/Timer/Shot clock op = `.ss-officials` 4 row (시안 SSOfficials 정합)
+ *     - Referee = `.ss-sigs__row` 단독 row
+ *     - Umpire 1 + Umpire 2 = 같은 `.ss-sigs__row` 안 2 입력 (시안 정합)
+ *     - Captain protest = `.ss-sigs__row` (caption 220px / underscore full)
+ *   사용자 결재 D3/D4/D6/D7 (Phase 19).
+ *   운영 로직 100% 보존:
+ *     - 모든 input value / onChange (`update("scorer")` 등) 동일
+ *     - props interface 변경 0
+ *     - didPrefillRef 자동 prefill 영향 0
+ *     - Phase 23 PR2+PR3 자동 로드 (initialSignatures) 영향 0
+ *     - captainSignature / NOTES_MAX_LENGTH 등 import 그대로
+ *     - frameless=false 분기 + Notes textarea 변경 0
  */
 
 "use client";
@@ -117,246 +136,260 @@ export function FooterSignatures({
       onChange({ ...values, [key]: e.target.value });
     };
 
-  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
-  //   가로 펼침 = Scorer/Asst/Timer/Shot Clock 한 줄 (4 컬럼) + Referee/Umpire 1·2 한 줄 (3 컬럼)
-  //   + Captain 한 줄 → FIBA PDF 정합.
-  const sectionStyle: React.CSSProperties = frameless
-    ? {}
-    : {
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-      };
-  // Phase 19 (2026-05-13) — padding 강화 (사용자 결재 §5 / 여백 일관 4~6px).
-  //   px-2 py-0.5 → px-3 py-1 (좌우 12px / 상하 4px / 시인성 ↑).
-  //   계산: 운영진 4줄 × 28px = 112px + 심판 1줄 28 + Umpire 1·2 가로 묶음 28 + 주장 1줄 28 = ~196px.
-  const sectionClass = frameless
-    ? "fiba-frameless w-full px-3 py-1"
-    : "mt-4 w-full px-4 py-3";
-
-  return (
-    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): rounded-0 / shadow X / frameless 옵션
-    <section className={sectionClass} style={sectionStyle}>
-      {/* Phase 8 — Signatures 헤더 제거 (FIBA PDF 정합 — 헤더 없이 라벨만).
-          frameless 모드에서 라벨 만으로 충분. */}
-
-      {/* Phase 14 → Phase 15 (2026-05-12) — 운영진 4명 세로 4줄 (사용자 결재 §2 / 이미지 33+35).
-          이유: FIBA PDF 정합 세로 4줄 복원 (Phase 14) + 좌측 50% 컬럼 안 fit (Phase 15).
-          labelWidth=140 → 100 (좁은 50% 컬럼 안 fit / "Shot clock operator" 라벨은 글자 줄임 또는 줄바꿈).
-          frameless=false (회귀) = 기존 grid 4컬럼 유지. */}
-      {frameless ? (
-        <div className="flex flex-col gap-0">
-          <SigInput
-            label="Scorer"
-            value={values.scorer}
-            onChange={update("scorer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-          <SigInput
-            label="Assistant scorer"
-            value={values.asstScorer}
-            onChange={update("asstScorer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-          <SigInput
-            label="Timer"
-            value={values.timer}
-            onChange={update("timer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-          <SigInput
-            label="Shot clock operator"
-            value={values.shotClockOperator}
-            onChange={update("shotClockOperator")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-4">
-          <SigInput
-            label="Scorer"
-            value={values.scorer}
-            onChange={update("scorer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-          <SigInput
-            label="Assistant scorer"
-            value={values.asstScorer}
-            onChange={update("asstScorer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-          <SigInput
-            label="Timer"
-            value={values.timer}
-            onChange={update("timer")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-          <SigInput
-            label="Shot clock operator"
-            value={values.shotClockOperator}
-            onChange={update("shotClockOperator")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-        </div>
-      )}
-
-      {/* Phase 8 → Phase 15 → Phase 16 (2026-05-13) — 심판진 (Referee / Umpire 1 / Umpire 2).
-          Phase 16 사용자 결재 §6 (이미지 40-41 / FIBA PDF 정합):
-            - frameless=true:
-                Referee = 단독 한 줄 (라벨 100 + underscore full)
-                Umpire 1 + Umpire 2 = 같은 한 줄 가로 묶음 (각 50% / 라벨 더 짧게)
-                상단 = mt-1 + border-top (운영진 영역과 분리)
-            - frameless=false (legacy): 변경 0 (기존 grid-cols-3 가로 유지). */}
-      {frameless ? (
-        <div
-          className="mt-1 flex flex-col gap-0 pt-0.5"
-          style={{ borderTop: "1px solid var(--color-border)" }}
-        >
-          <SigInput
-            label="Referee"
-            value={values.refereeSign}
-            onChange={update("refereeSign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline
-            labelWidth={100}
-          />
-          {/* Umpire 1 + Umpire 2 가로 묶음 (사용자 결재 §6 / FIBA PDF 정합).
-              각 50% 폭 / 라벨 width 60 (좁은 폭 안 fit). */}
-          <div className="flex items-baseline gap-2">
-            <div className="min-w-0 flex-1">
-              <SigInput
-                label="Umpire 1"
-                value={values.umpire1Sign}
-                onChange={update("umpire1Sign")}
-                maxLength={SIGNATURE_MAX_LENGTH}
-                disabled={disabled}
-                inline
-                labelWidth={60}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <SigInput
-                label="Umpire 2"
-                value={values.umpire2Sign}
-                onChange={update("umpire2Sign")}
-                maxLength={SIGNATURE_MAX_LENGTH}
-                disabled={disabled}
-                inline
-                labelWidth={60}
-              />
-            </div>
+  // frameless=true → 시안 정합 분기 (PR-S7-officials).
+  //   outermost = .ss-shell.ss-footer-sigs (시안 marker class).
+  //   내부 = .ss-officials 4 row + .ss-sigs 3 row (시안 ScoreSheet.bottom.jsx 정합).
+  //
+  // frameless=false → 회귀 분기 (변경 0 / 기존 box + SigInput grid).
+  if (frameless) {
+    return (
+      // Phase 19 PR-S7-officials — outermost .ss-shell.ss-footer-sigs (시안 정합 / 사용자 결재 D3/D7).
+      // 운영 form.tsx 호출 위치 (L1087~L1094) 의 frameless 전달 그대로 동작.
+      <section className="ss-shell ss-footer-sigs">
+        {/* Officials 4 row — 시안 ScoreSheet.bottom.jsx L100~120 SSOfficials 정합.
+            grid-rows-4 + 130px label / 1fr input.
+            모든 input value / onChange = 운영 update("scorer"|"asstScorer"|"timer"|"shotClockOperator") 보존. */}
+        <div className="ss-officials">
+          <div className="ss-officials__row">
+            <label className="pap-lbl">Scorer</label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.scorer}
+              onChange={update("scorer")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              // 터치 영역 보장 (룰 13) — height 는 css 에서 18px / 모바일 inputmode 보조
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+          <div className="ss-officials__row">
+            <label className="pap-lbl">Assistant scorer</label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.asstScorer}
+              onChange={update("asstScorer")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+          <div className="ss-officials__row">
+            <label className="pap-lbl">Timer</label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.timer}
+              onChange={update("timer")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+          <div className="ss-officials__row">
+            <label className="pap-lbl">Shot clock operator</label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.shotClockOperator}
+              onChange={update("shotClockOperator")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
           </div>
         </div>
-      ) : (
-        <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
-          <SigInput
-            label="Referee"
-            value={values.refereeSign}
-            onChange={update("refereeSign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-          <SigInput
-            label="Umpire 1"
-            value={values.umpire1Sign}
-            onChange={update("umpire1Sign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-          <SigInput
-            label="Umpire 2"
-            value={values.umpire2Sign}
-            onChange={update("umpire2Sign")}
-            maxLength={SIGNATURE_MAX_LENGTH}
-            disabled={disabled}
-            inline={false}
-          />
-        </div>
-      )}
 
-      {/* Phase 8 → Phase 15 → Phase 16 (2026-05-13) — 주장 서명 한 줄 컴팩트.
-          사용자 결재 §6 (이미지 40 FIBA PDF 정합):
-            - 라벨 = Title case "Captain's signature in case of protest" 한 줄 (줄바꿈 X)
-            - 라벨 width = 200 (좌측 50% 컬럼 안 fit / Phase 15 의 100 → 200 늘려 한 줄 유지)
-            - 상단 = mt-1 + border-top (심판진 영역과 분리 / FIBA PDF 정합)
-            - whiteSpace: nowrap = 줄바꿈 절대 방지 */}
-      <div
-        className="mt-1 pt-0.5"
-        style={{
-          borderTop: frameless ? "1px solid var(--color-border)" : undefined,
-        }}
-      >
+        {/* Sigs 3 row — 시안 ScoreSheet.bottom.jsx L125~143 SSBottomLeftSigs 정합.
+            row1 = Referee 단독
+            row2 = Umpire 1 + Umpire 2 같은 row (시안 L132~136)
+            row3 = Captain protest (라벨 220px / underscore 단독)
+            모든 input value / onChange = 운영 update("refereeSign"|"umpire1Sign"|"umpire2Sign"|"captainSignature") 보존. */}
+        <div className="ss-sigs">
+          {/* row1 — Referee */}
+          <div className="ss-sigs__row">
+            <label className="pap-lbl" style={{ minWidth: 60 }}>
+              Referee
+            </label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.refereeSign}
+              onChange={update("refereeSign")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+          {/* row2 — Umpire 1 + Umpire 2 (시안 L132~136 같은 row) */}
+          <div className="ss-sigs__row">
+            <label className="pap-lbl" style={{ minWidth: 60 }}>
+              Umpire 1
+            </label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.umpire1Sign}
+              onChange={update("umpire1Sign")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+            <label className="pap-lbl" style={{ minWidth: 60, marginLeft: 12 }}>
+              Umpire 2
+            </label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.umpire2Sign}
+              onChange={update("umpire2Sign")}
+              disabled={disabled}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+          {/* row3 — Captain's signature in case of protest (시안 L138~141).
+              비즈니스 로직 보존: maxLength = CAPTAIN_SIGNATURE_MAX_LENGTH (별도 상수 유지). */}
+          <div className="ss-sigs__row">
+            <label
+              className="pap-lbl"
+              style={{ minWidth: 220, whiteSpace: "nowrap" }}
+            >
+              Captain&apos;s signature in case of protest
+            </label>
+            <input
+              type="text"
+              className="pap-u"
+              value={values.captainSignature}
+              onChange={update("captainSignature")}
+              disabled={disabled}
+              maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
+              style={{ touchAction: "manipulation" }}
+            />
+          </div>
+        </div>
+        {/* Notes textarea — frameless=true 분기에서는 숨김 (Phase 9 정책 그대로).
+            이유: FIBA 양식에 Notes 영역 없음 + A4 fit. 회귀 분기 (frameless=false) 에서만 유지. */}
+      </section>
+    );
+  }
+
+  // ---------- frameless=false (회귀 안전망) — 변경 0 ----------
+  // Phase 8 — 단일 외곽 박스 모드 (기존 Tailwind grid / Notes textarea 유지).
+  const sectionStyle: React.CSSProperties = {
+    backgroundColor: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
+  };
+  const sectionClass = "mt-4 w-full px-4 py-3";
+
+  return (
+    <section className={sectionClass} style={sectionStyle}>
+      <div className="grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-4">
+        <SigInput
+          label="Scorer"
+          value={values.scorer}
+          onChange={update("scorer")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+        <SigInput
+          label="Assistant scorer"
+          value={values.asstScorer}
+          onChange={update("asstScorer")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+        <SigInput
+          label="Timer"
+          value={values.timer}
+          onChange={update("timer")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+        <SigInput
+          label="Shot clock operator"
+          value={values.shotClockOperator}
+          onChange={update("shotClockOperator")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+      </div>
+
+      <div className="mt-0.5 grid grid-cols-1 gap-x-2 gap-y-0 sm:grid-cols-3">
+        <SigInput
+          label="Referee"
+          value={values.refereeSign}
+          onChange={update("refereeSign")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+        <SigInput
+          label="Umpire 1"
+          value={values.umpire1Sign}
+          onChange={update("umpire1Sign")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+        <SigInput
+          label="Umpire 2"
+          value={values.umpire2Sign}
+          onChange={update("umpire2Sign")}
+          maxLength={SIGNATURE_MAX_LENGTH}
+          disabled={disabled}
+          inline={false}
+        />
+      </div>
+
+      <div className="mt-1 pt-0.5">
         <SigInput
           label="Captain's signature in case of protest"
           value={values.captainSignature}
           onChange={update("captainSignature")}
           maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
           disabled={disabled}
-          inline={frameless}
-          labelWidth={frameless ? 200 : undefined}
+          inline={false}
           labelNoWrap
         />
       </div>
 
-      {/* Phase 9 — Notes textarea (선택).
-          frameless=true (단일 박스 / A4 1 페이지 fit) = Notes 숨김 (A4 fit 보장).
-          frameless=false (legacy 박스 모드) = Notes 유지 (회귀 안전망).
-          이유: FIBA PDF 양식에는 Notes 영역 없음 + A4 fit 필요. 운영자가 필요 시 외부 메모 사용. */}
-      {!frameless && (
-        <div className="mt-4">
-          <label className="block">
-            <span
-              className="block text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              Notes (선택)
-            </span>
-            <textarea
-              value={values.notes}
-              onChange={update("notes")}
-              disabled={disabled}
-              maxLength={NOTES_MAX_LENGTH}
-              rows={3}
-              className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
-              style={{
-                color: "var(--color-text-primary)",
-                border: "1px solid var(--color-border)",
-                minHeight: 88,
-                resize: "vertical",
-              }}
-            />
-            {/* 글자수 카운터 — NOTES_MAX_LENGTH 가 보이도록 */}
-            <div
-              className="mt-1 text-right text-[10px]"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              {values.notes.length} / {NOTES_MAX_LENGTH}
-            </div>
-          </label>
-        </div>
-      )}
+      {/* Notes textarea — 회귀 분기에서만 유지 (Phase 9 정책 그대로) */}
+      <div className="mt-4">
+        <label className="block">
+          <span
+            className="block text-[10px] font-semibold uppercase tracking-wider"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Notes (선택)
+          </span>
+          <textarea
+            value={values.notes}
+            onChange={update("notes")}
+            disabled={disabled}
+            maxLength={NOTES_MAX_LENGTH}
+            rows={3}
+            className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
+            style={{
+              color: "var(--color-text-primary)",
+              border: "1px solid var(--color-border)",
+              minHeight: 88,
+              resize: "vertical",
+            }}
+          />
+          <div
+            className="mt-1 text-right text-[10px]"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            {values.notes.length} / {NOTES_MAX_LENGTH}
+          </div>
+        </label>
+      </div>
     </section>
   );
 }

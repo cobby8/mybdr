@@ -801,3 +801,104 @@
 .ss-shell .ss-tbox__coach > input.pap-u:disabled {
   opacity: 0.5;
 }
+
+/* ============================================================
+   Phase 19 PR-S7-officials (2026-05-15) — FooterSignatures 시안 시각 정합
+   ============================================================
+   왜 (이유):
+     - FIBA 종이기록지 풋터 좌측 = Officials 4행 (Scorer/Asst/Timer/Shot clock op)
+       + 좌하단 sigs 3행 (Referee / Umpire 1+2 / Captain protest).
+     - 시안 source: Dev/design/BDR-current/screens/ScoreSheet.bottom.jsx L100~144
+       + scoresheet.css L650~679 룰을 .ss-shell 스코프 내 wrap.
+     - 운영 footer-signatures.tsx 의 input onChange / state setter / props interface
+       변경 0 — 시각만 시안 정합 (사용자 결재 D3/D4/D6/D7).
+     - 스코프 = `.ss-shell .ss-footer-sigs` (FooterSignatures outermost 한정 / 외부 영향 0).
+
+   사용자 결재 D 표기:
+     - D3: 색상 = .ss-shell 토큰 (--pap-bg/ink/line/hair)
+     - D4: FIBA 종이 정합 — underscore 1px solid var(--pap-line)
+     - D6: 좌측 컬럼 max-width 안 (frame 안 좌측 절반)
+     - D7: 단계별 — FooterSignatures 만
+   ============================================================ */
+
+/* outermost wrapper — FooterSignatures 컨테이너 (frameless 모드용).
+   PR-S6-team 의 .ss-tbox 와 마찬가지로 시안 정합 — 자체 border 1.5px (frame 안 좌측 col).
+   frameless=false (회귀) 시 본 클래스 미적용 (Tailwind 룰 그대로). */
+.ss-shell .ss-footer-sigs {
+  border: 1.5px solid var(--pap-line);
+  background: var(--pap-bg);
+  /* 운영 form.tsx 의 좌측 col 안 마지막 child 위치 보존 (Phase 15) */
+}
+
+/* Officials 4 rows (Scorer / Asst scorer / Timer / Shot clock op)
+   시안 scoresheet.css L651~665 정합 — 4 row grid + 라벨 130px / 데이터 1fr. */
+.ss-shell .ss-officials {
+  display: grid;
+  grid-template-rows: repeat(4, 22px);
+  border-bottom: 1.5px solid var(--pap-line);
+}
+.ss-shell .ss-officials__row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--pap-hair);
+  gap: 6px;
+}
+.ss-shell .ss-officials__row:last-child {
+  border-bottom: 0;
+}
+/* row 안 .pap-u (운영은 <input>) — flex 1 + 시안 underscore 정합.
+   PR-S6-team 의 .ss-tbox__coach > input.pap-u 패턴 동일. */
+.ss-shell .ss-officials__row > input.pap-u {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--pap-line);
+  background: transparent;
+  outline: none;
+  padding: 0 0 1px 0;
+  height: 18px;
+  min-width: 0;
+}
+.ss-shell .ss-officials__row > input.pap-u:focus {
+  border-bottom-color: var(--pap-ink);
+}
+.ss-shell .ss-officials__row > input.pap-u:disabled {
+  opacity: 0.5;
+}
+
+/* Sigs 3 rows (Referee / Umpire 1+2 / Captain protest)
+   시안 scoresheet.css L668~679 정합 — flex row + hair line border-bottom.
+   Umpire 1+2 = 같은 row 안 2개 (시안 L132~136 패턴). */
+.ss-shell .ss-sigs {
+  display: grid;
+  grid-template-rows: 22px 22px 22px;
+}
+.ss-shell .ss-sigs__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--pap-hair);
+}
+.ss-shell .ss-sigs__row:last-child {
+  border-bottom: 0;
+}
+/* sigs row 안 input.pap-u — flex 1 + 시안 underscore 정합 */
+.ss-shell .ss-sigs__row > input.pap-u {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--pap-line);
+  background: transparent;
+  outline: none;
+  padding: 0 0 1px 0;
+  height: 18px;
+  min-width: 0;
+}
+.ss-shell .ss-sigs__row > input.pap-u:focus {
+  border-bottom-color: var(--pap-ink);
+}
+.ss-shell .ss-sigs__row > input.pap-u:disabled {
+  opacity: 0.5;
+}
