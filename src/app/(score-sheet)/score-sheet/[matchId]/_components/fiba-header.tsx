@@ -1,28 +1,40 @@
 /**
  * FIBA SCORESHEET 상단 헤더 컴포넌트 (1/5 영역).
  *
- * 2026-05-11 — Phase 1 신규 (planner-architect §작업 3 / FIBA 양식 PDF 정합).
+ * 2026-05-11 — Phase 1 신규.
+ * 2026-05-14 — Phase 19 PR-S4 시안 시각 정합 재구성 (사용자 핵심 제약: 운영 데이터 로직 100% 보존).
  *
  * 왜 (이유):
- *   FIBA 표준 양식 상단 = 대회/매치 메타 (자동) + 심판 3명 (입력). 본 컴포넌트는
- *   양식 1 페이지 A4 세로 의 상단 1/5 영역 박제. 운영자/기록원이 직관적으로
- *   "FIBA 양식 그대로" 인지하도록 ALL CAPS 라벨 + underscore (border-bottom)
- *   FIBA 양식 정합 디자인 적용.
+ *   BDR v2.5 시안 (Dev/design/BDR-current/screens/ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta)
+ *   의 FIBA 종이 정합 마크업을 운영에 도입. PR-S1 토큰 + PR-S2/S3 toolbar 박제와 정합.
+ *
+ *   시안 = 3 섹션 구조:
+ *     Section A (.ss-h)      — BDR 로고 + 3줄 타이틀 (Basketball Daily Routine / MyBDR 공식 기록지 / SCORESHEET)
+ *     Section B (.ss-names)  — Team A / Team B 1줄 strip
+ *     Section C (.ss-meta)   — 좌(Competition/Date/Time + Game No/Place) 우(Referee + Umpire 1/2)
+ *
+ * 사용자 핵심 제약 (절대 위반 금지 — PR-S4):
+ *   - 운영 함수 호출 / 데이터 매핑 / props interface 변경 0
+ *   - splitDateTime (Phase 16 Asia/Seoul) + teamA/B + competition + gameNo + place + referee/umpire 1/2 매핑 100% 보존
+ *   - FibaHeader 외부 컴포넌트 (TeamSection / RunningScoreGrid 등) 영향 0
+ *   - ss-shell 스코프 = FibaHeader outermost wrapper 한정 (frame 본체 wrapper 변경 ❌ — PR-S6 검토)
+ *
+ * 사용자 결재 (Phase 19):
+ *   - D3: 색상 = .ss-shell 토큰 (PR-S1 박제) — var(--ss-paper-*)
+ *   - D4: FIBA 종이 정합 = 직각 (border-radius 0)
+ *   - D6: max-width 794px / 모바일 가로 스크롤 (부모 layout 처리)
  *
  * 방법 (어떻게):
- *   - 자동 fill (DB SELECT 결과 prop):
- *       Team A·B name / Competition (tournament.name) / Date·Time (match.scheduledAt)
- *       Game No (match.match_code) / Place (match.court_number)
- *   - 입력 (settings.officials JSON 박제 — Phase 5 BFF 확장 시 활용):
- *       Referee / Umpire 1 / Umpire 2
- *   - 로고: BDR 자체 로고 (`/images/logo.png`) 사용 — FIBA 로고 라이선스 회피
- *     + Material Symbols `sports_basketball` 보조 아이콘 표기
- *   - 디자인 토큰: var(--color-text-primary) / var(--color-border) / var(--color-surface)
+ *   - outermost wrapper = `<section className="ss-shell ss-header">` → .ss-shell 자손 .ss-h / .ss-names / .ss-meta 룰 매칭
+ *   - 자동 fill 변수 (props) 그대로 wiring: teamAName / teamBName / competitionName / scheduledAtLabel → splitDateTime / gameNo / placeLabel
+ *   - 입력 변수 (FibaHeaderInputs) 그대로 wiring: values.referee / values.umpire1 / values.umpire2 + update(key)
+ *   - splitDateTime export 유지 (test 회귀 0)
+ *   - frameless prop = 호환성 위해 시그니처 유지하되 동작 흡수 (시안 마크업이 단일 wrapper 정합)
  *
  * 절대 룰:
  *   - lucide-react ❌ / Material Symbols Outlined 만
- *   - 빨강 본문 텍스트 ❌ — 강조는 var(--color-accent) 또는 var(--color-text-primary)
- *   - 입력 = border-bottom only (FIBA 양식 underscore 정합 — radius/background ❌)
+ *   - 빨강 본문 텍스트 ❌
+ *   - 시안 클래스명 (.ss-h__* / .ss-names__* / .ss-meta__* / .ss-field*) 그대로 — CSS 매칭 정합
  */
 
 "use client";
@@ -37,18 +49,19 @@ export interface FibaHeaderInputs {
 }
 
 interface FibaHeaderProps {
-  // 자동 fill (server prop)
+  // 자동 fill (server prop) — 운영 매핑 (변경 0)
   teamAName: string;
   teamBName: string;
   competitionName: string;
-  scheduledAtLabel: string | null; // "2026-05-11 14:00" 류
+  scheduledAtLabel: string | null; // "2026-05-11 14:00" 류 (Phase 16 Asia/Seoul timezone)
   gameNo: string | null; // match.match_code 또는 fallback match.id
   placeLabel: string | null; // court_number 또는 venue name
-  // 입력 상태
+  // 입력 상태 — 운영 매핑 (변경 0)
   values: FibaHeaderInputs;
   onChange: (next: FibaHeaderInputs) => void;
   disabled?: boolean;
-  // Phase 8 — frameless 모드. 단일 외곽 박스 안에 들어갈 때 자체 border 제거 (parent frame 가 시각적 외곽).
+  // Phase 8 — frameless 모드. PR-S4 시안 정합 후 시각 효과 흡수.
+  //   호출자 호환성 위해 prop 시그니처는 보존 (page.tsx / form.tsx 변경 0).
   frameless?: boolean;
 }
 
@@ -62,199 +75,186 @@ export function FibaHeader({
   values,
   onChange,
   disabled,
-  frameless,
+  frameless: _frameless, // PR-S4 — 시안 정합으로 시각 흡수 (호출자 호환성 위해 시그니처만 유지)
 }: FibaHeaderProps) {
-  // 단일 update 패턴 — values 전체 spread + key 갱신
+  // 단일 update 패턴 — values 전체 spread + key 갱신 (운영 매핑 변경 0)
   const update =
     (key: keyof FibaHeaderInputs) => (e: ChangeEvent<HTMLInputElement>) => {
       onChange({ ...values, [key]: e.target.value });
     };
 
-  // 날짜/시각 분리 표시 — "2026-05-11 14:00" → date "2026-05-11" / time "14:00"
+  // 날짜/시각 분리 — Phase 16 Asia/Seoul timezone 적용된 라벨을 마지막 공백 split
+  // (운영 매핑 변경 0 — splitDateTime 호출 / 인자 동일)
   const { dateLabel, timeLabel } = splitDateTime(scheduledAtLabel);
 
-  // Phase 8 — frameless 모드: 단일 외곽 박스(score-sheet-fiba-frame) 안에서 자체 border 제거.
-  //   바깥 박스가 전체 frame 을 그리고, 본 헤더는 박스 내부 상단 영역으로만 동작.
-  const sectionStyle: React.CSSProperties = frameless
-    ? { backgroundColor: "transparent" }
-    : {
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-      };
-  // Phase 19 (2026-05-13) — 시인성 강화 (사용자 결재 §5).
-  //   px-2 py-0.5 → px-3 py-1.5 — 좌우 padding 3 (가독성) / 상하 1.5 (시인성 ↑).
-  //   이전 Phase 11: Players 16행 + 풋터 세로 4줄 흡수 위한 압축이었으나, Phase 12 (12행) + Phase 14
-  //   (A4 정확 비율) 이후 충분 여유 → 헤더 padding 확장 가능.
-  const sectionClass = frameless
-    ? "fiba-frameless w-full px-3 py-1.5"
-    : "w-full px-4 py-3";
-
   return (
-    // Phase 8 — FIBA PDF 1:1 정합 컴팩트 헤더:
-    //   1줄: 로고 + Scoresheet 타이틀 (작게)
-    //   2줄: Team A 라벨 + 팀명 line  /  Team B 라벨 + 팀명 line
-    //   3줄: Competition  /  Date  /  Time  /  Referee  (4 라벨 한 줄)
-    //   4줄: Game No  /  Place  /  Umpire 1  /  Umpire 2  (4 라벨 한 줄)
-    //   → FIBA PDF 동일 레이아웃 (4 줄 컴팩트)
-    <section className={sectionClass} style={sectionStyle}>
-      {/* 1줄 — FIBA 로고 + SCORESHEET 타이틀 (FIBA PDF 정합 = 좌상 로고 + 우측 타이틀).
-          Phase 19 (2026-05-13) — 폰트 강화 (사용자 결재 §2 / FIBA 정합 90%+).
-            - 로고 h-4 → h-5 (16px → 20px) / width 30→36 (비율 유지).
-            - "Basketball Daily Routine" 8px → 11px (시인성 ↑).
-            - "SCORESHEET" 16px → 18px bold (FIBA 종이기록지 타이틀 굵음). */}
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Image
-            src="/images/logo.png"
-            alt="BDR"
-            width={36}
-            height={18}
-            className="h-5 w-auto"
-          />
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wider"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Basketball Daily Routine
-          </span>
+    // outermost wrapper = ss-shell + ss-header — PR-S1 토큰 활성화 + PR-S4 .ss-h/.ss-names/.ss-meta 룰 매칭
+    // 시안 출처: ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta (3 섹션 직렬)
+    <section className="ss-shell ss-header">
+      {/* Section A — BDR 로고 + 3줄 타이틀 (시안 .ss-h)
+          FIBA 종이 정합: 좌측 92px 흑색 로고 박스 + 우측 3줄 타이틀 (모두 ALL CAPS).
+          BDR 자체 로고 = /images/logo.png (FIBA 로고 라이선스 회피) + Material Symbols 보조 아이콘. */}
+      <section className="ss-h">
+        <div className="ss-h__logo">
+          <div className="ss-h__logo-mark">
+            {/* 운영 BDR 로고 박제 — next/image 사용 (Phase 1 시점부터 보존) */}
+            <Image
+              src="/images/logo.png"
+              alt="BDR"
+              width={36}
+              height={36}
+              priority
+            />
+          </div>
+          <div className="ss-h__logo-text">
+            <strong>BDR</strong>
+            SCORE
+          </div>
         </div>
-        <h1
-          className="text-[18px] font-bold uppercase tracking-widest"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          SCORESHEET
-        </h1>
-      </div>
+        <div className="ss-h__title">
+          <div className="ss-h__t1">BASKETBALL DAILY ROUTINE</div>
+          <div className="ss-h__t2">MyBDR 공식 기록지</div>
+          <div className="ss-h__t3">SCORESHEET</div>
+        </div>
+      </section>
 
-      {/* 2줄 — Team A 라벨 + 팀명 (한 줄)  /  Team B 라벨 + 팀명 (한 줄).
-          FIBA PDF 정합 = 좌우 횡 배치 (각 50% 폭).
-          Phase 19 — gap-y 통일 (mt-1 / 영역 간격 4px 일관). */}
-      <div className="mt-1 grid grid-cols-2 gap-2">
-        <InlineFieldDisplay label="Team A" value={teamAName} bold />
-        <InlineFieldDisplay label="Team B" value={teamBName} bold />
-      </div>
+      {/* Section B — Team A / Team B 1줄 strip (시안 .ss-names)
+          운영 매핑: teamAName / teamBName props 그대로 wiring. */}
+      <section className="ss-names">
+        <div className="ss-names__cell">
+          <label>Team A</label>
+          <span>{teamAName || " "}</span>
+        </div>
+        <div className="ss-names__cell">
+          <label>Team B</label>
+          <span>{teamBName || " "}</span>
+        </div>
+      </section>
 
-      {/* 3줄 — Competition / Date / Time / Referee 한 줄 (FIBA PDF 정합).
-          Phase 19 — gap-y 0 → 0.5 (라벨 간 미세 여백 일관 / 시인성 ↑) */}
-      <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-4">
-        <InlineFieldDisplay label="Competition" value={competitionName} />
-        <InlineFieldDisplay label="Date" value={dateLabel ?? "—"} />
-        <InlineFieldDisplay label="Time" value={timeLabel ?? "—"} />
-        <InlineFieldInput
-          label="Referee"
-          value={values.referee}
-          onChange={update("referee")}
-          disabled={disabled}
-        />
-      </div>
+      {/* Section C — Meta (시안 .ss-meta)
+          좌: Competition / Date / Time + Game No / Place
+          우: Referee + Umpire 1 / Umpire 2
 
-      {/* 4줄 — Game No / Place / Umpire 1 / Umpire 2 한 줄 (FIBA PDF 정합).
-          Phase 19 — gap-y 0 → 0.5 (라벨 간 미세 여백 일관) */}
-      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:grid-cols-4">
-        <InlineFieldDisplay label="Game No" value={gameNo ?? "—"} />
-        <InlineFieldDisplay label="Place" value={placeLabel ?? "—"} />
-        <InlineFieldInput
-          label="Umpire 1"
-          value={values.umpire1}
-          onChange={update("umpire1")}
-          disabled={disabled}
-        />
-        <InlineFieldInput
-          label="Umpire 2"
-          value={values.umpire2}
-          onChange={update("umpire2")}
-          disabled={disabled}
-        />
-      </div>
+          운영 매핑 변경 0:
+            - competitionName / dateLabel / timeLabel / gameNo / placeLabel — 시안 SSField (display)
+            - values.referee / values.umpire1 / values.umpire2 + update(key) — 시안 SSField input 형 */}
+      <section className="ss-meta">
+        <div className="ss-meta__l">
+          <div className="ss-meta__row">
+            <SSFieldDisplay
+              label="Competition"
+              value={competitionName}
+              grow={2}
+            />
+            <SSFieldDisplay label="Date" value={dateLabel ?? ""} />
+            <SSFieldDisplay label="Time" value={timeLabel ?? ""} />
+          </div>
+          <div className="ss-meta__row">
+            <SSFieldDisplay label="Game No." value={gameNo ?? ""} />
+            <SSFieldDisplay label="Place" value={placeLabel ?? ""} grow={3} />
+          </div>
+        </div>
+        <div className="ss-meta__r">
+          <div className="ss-meta__row">
+            <SSFieldInput
+              label="Referee"
+              value={values.referee}
+              onChange={update("referee")}
+              disabled={disabled}
+              grow={2}
+            />
+          </div>
+          <div className="ss-meta__row">
+            <SSFieldInput
+              label="Umpire 1"
+              value={values.umpire1}
+              onChange={update("umpire1")}
+              disabled={disabled}
+            />
+            <SSFieldInput
+              label="Umpire 2"
+              value={values.umpire2}
+              onChange={update("umpire2")}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+      </section>
     </section>
   );
 }
 
 /**
- * Phase 8 — 한 줄 컴팩트 필드 (라벨 + underscore + 값).
+ * 시안 SSField (display 전용) — label + value (border-bottom underscore).
  *
- * 이유: FIBA PDF 정합 = "Competition: ___slow___" 같이 라벨과 값이 한 줄에 인라인 표시.
- *   라벨 = 작은 글자 / 값 밑 border-bottom underscore.
+ * 운영 매핑 박제 위해 React 함수 컴포넌트로 분리 — JSX 트리 가독성 향상.
+ * data-grow 속성으로 시안 .ss-field[data-grow="2"] / [data-grow="3"] flex 룰 매칭.
  */
-function InlineFieldDisplay({
+function SSFieldDisplay({
   label,
   value,
-  bold,
+  grow = 1,
 }: {
   label: string;
   value: string;
-  bold?: boolean;
+  grow?: 1 | 2 | 3;
 }) {
   return (
-    // Phase 19 (2026-05-13) — 라벨 10px bold uppercase / 데이터 12px regular (사용자 결재 §2·§3).
-    //   bold=true 데이터 = 13px semibold (Team 이름 = 더 강조 / 헤더 hierarchy).
-    <div className="flex items-baseline gap-1.5 overflow-hidden">
-      <span
-        className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        {label}
-      </span>
-      <span
-        className={`min-w-0 flex-1 truncate pb-0 ${bold ? "text-[13px] font-semibold" : "text-[12px]"}`}
-        style={{
-          color: "var(--color-text-primary)",
-          borderBottom: "1px solid var(--color-text-primary)",
-        }}
-        title={value || "—"}
-      >
-        {value || "—"}
-      </span>
+    <div className="ss-field" data-grow={grow}>
+      <label>{label}</label>
+      {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합) */}
+      <div className="ss-field__v">{value || " "}</div>
     </div>
   );
 }
 
 /**
- * Phase 8 — 한 줄 컴팩트 입력 (라벨 + underscore input).
+ * 시안 SSField 의 입력 변형 — display div → input 교체.
  *
- * FIBA PDF 정합 = "Referee: _____input_____" 같이 라벨과 입력 인라인.
+ * 시안은 모든 field 를 display 로 박제했으나, 운영 = Referee/Umpire 1/2 = 입력.
+ * CSS .ss-shell .ss-field > input.ss-field__input 룰로 underscore + 폰트 정합.
  */
-function InlineFieldInput({
+function SSFieldInput({
   label,
   value,
   onChange,
   disabled,
+  grow = 1,
 }: {
   label: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  grow?: 1 | 2 | 3;
 }) {
+  // 시안 CSS selector `.ss-shell .ss-field > label` + `.ss-shell .ss-field > input.ss-field__input`
+  // 매칭 위해 outer = div, sibling = label + input.
+  // 접근성 — htmlFor 미사용 (multiple input 시 id 충돌 위험) / 대신 input 의 aria-label 박제.
   return (
-    // Phase 19 — 라벨 10px bold uppercase / input 12px (사용자 결재 §2·§3).
-    <label className="flex items-baseline gap-1.5 overflow-hidden">
-      <span
-        className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        {label}
-      </span>
+    <div className="ss-field" data-grow={grow}>
+      <label>{label}</label>
       <input
         type="text"
+        className="ss-field__input"
         value={value}
         onChange={onChange}
         disabled={disabled}
         maxLength={40}
-        className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
-        style={{
-          color: "var(--color-text-primary)",
-          borderBottom: "1px solid var(--color-text-primary)",
-        }}
-        placeholder=""
+        aria-label={label}
       />
-    </label>
+    </div>
   );
 }
 
 /**
  * "2026-05-11 14:00" → { dateLabel: "2026-05-11", timeLabel: "14:00" }.
- * 단순 split — 입력은 page.tsx 에서 toLocaleString 처리 후 전달됨.
- * 빈 입력 / "—" 등은 null 반환.
+ *
+ * Phase 16 — Asia/Seoul timezone 적용된 라벨을 page.tsx 에서 toLocaleString 으로 생성 후 전달.
+ * 본 함수는 마지막 공백 기준 split — 한국어 toLocaleString 출력 ("2026. 05. 11. 14:00") 도 정합.
+ *
+ * 빈 입력 / "—" placeholder 는 null 반환 — UI 가 빈 값으로 fallback.
+ *
+ * 절대 룰: export 유지 (vitest fiba-header-split-datetime.test.ts 가 import — 변경 0).
  */
 export function splitDateTime(
   label: string | null
@@ -262,7 +262,7 @@ export function splitDateTime(
   if (!label || label === "—") {
     return { dateLabel: null, timeLabel: null };
   }
-  // "2026. 05. 11. 14:00" 또는 "2026-05-11 14:00" 형식 — 마지막 공백 split
+  // "2026. 05. 11. 14:00" 또는 "2026-05-11 14:00" — 마지막 공백 split
   const lastSpace = label.lastIndexOf(" ");
   if (lastSpace < 0) {
     return { dateLabel: label, timeLabel: null };

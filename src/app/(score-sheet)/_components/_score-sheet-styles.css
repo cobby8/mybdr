@@ -134,3 +134,220 @@
 .ss-shell [data-score-mode="paper"] button {
   cursor: not-allowed;
 }
+
+/* ============================================================
+   Phase 19 PR-S4 (2026-05-14) — FibaHeader 시각 정합
+   ============================================================
+   왜 (이유):
+     사용자 결재 D6 — FIBA 종이 정합 = 시안 마크업 (Section A 헤더 / B 팀명 strip / C Meta)
+     운영 fiba-header.tsx 의 Tailwind utility 시각 → 시안 .ss-h / .ss-names / .ss-meta 정합.
+   어떻게:
+     - .ss-shell 스코프 한정 (운영 globals.css / 다른 컴포넌트 미오염)
+     - 시안 출처: Dev/design/BDR-current/scoresheet.css L129-279
+     - 운영 매핑 변수 / props / splitDateTime 변경 0 (시각만)
+   절대 룰:
+     - .ss-shell 스코프 prefix 유지 (다른 영역 영향 0)
+     - 시안 직각 (border-radius 0) — D4 FIBA 종이 정합
+*/
+
+/* ----- Section A — Header (logo + 3-line title) ----- */
+.ss-shell .ss-h {
+  display: grid;
+  /* 시안 92px → 모바일에서도 로고 영역 보존 */
+  grid-template-columns: 92px 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-shell .ss-h__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px;
+  border-right: 1.5px solid var(--ss-paper-line);
+  background: var(--ss-paper-ink);
+  color: #FFFFFF;
+}
+.ss-shell .ss-h__logo-mark {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid #FFFFFF;
+  /* 시안 §4-1 — 정사각형(W=H) 원형은 50% (사용자 결정 §10 / 9999px pill 회피) */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ss-paper-ink);
+  overflow: hidden;
+}
+.ss-shell .ss-h__logo-mark .material-symbols-outlined {
+  font-size: 24px;
+  color: #FFFFFF;
+}
+.ss-shell .ss-h__logo-mark img {
+  /* BDR 자체 로고 (next/image) 가 들어올 때 — 원형 안 가운데 정렬 */
+  display: block;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+}
+.ss-shell .ss-h__logo-text {
+  font: 800 9px/1.1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.ss-shell .ss-h__logo-text strong {
+  display: block;
+  font: 900 14px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.04em;
+}
+.ss-shell .ss-h__title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 16px;
+  text-align: center;
+}
+.ss-shell .ss-h__t1,
+.ss-shell .ss-h__t2 {
+  font: 700 11.5px/1.25 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.16em;
+  color: var(--ss-paper-ink);
+  text-transform: uppercase;
+}
+.ss-shell .ss-h__t3 {
+  font: 900 19px/1.1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.22em;
+  color: var(--ss-paper-ink);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+/* ----- Section B — Team A / Team B name strip ----- */
+.ss-shell .ss-names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-shell .ss-names__cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-right: 1.5px solid var(--ss-paper-line);
+  /* 헤더 strip 높이 — 시안 26px row */
+  min-height: 26px;
+}
+.ss-shell .ss-names__cell:last-child { border-right: 0; }
+.ss-shell .ss-names__cell > label {
+  font: 700 11px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  color: var(--ss-paper-ink);
+  flex-shrink: 0;
+}
+.ss-shell .ss-names__cell > span {
+  flex: 1;
+  font: 600 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ----- Section C — Competition / Game No / Referee / Umpire ----- */
+.ss-shell .ss-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-shell .ss-meta__l,
+.ss-shell .ss-meta__r {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+.ss-shell .ss-meta__l { border-right: 1.5px solid var(--ss-paper-line); }
+.ss-shell .ss-meta__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  /* row 높이 — 시안 52px 영역을 2 row 균분 = 26px */
+  min-height: 26px;
+}
+.ss-shell .ss-meta__row:last-child { border-bottom: 0; }
+
+/* ----- Field — label + underline value (FIBA underscore 정합) ----- */
+.ss-shell .ss-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.ss-shell .ss-field[data-grow="2"] { flex: 2; }
+.ss-shell .ss-field[data-grow="3"] { flex: 3; }
+.ss-shell .ss-field > label {
+  font: 700 10px/1 var(--ff-display, "Pretendard", system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  color: var(--ss-paper-ink);
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+.ss-shell .ss-field > .ss-field__v {
+  flex: 1;
+  min-width: 0;
+  font: 500 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  height: 16px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* 입력형 ss-field — input 자체가 underscore + 시안 폰트 정합 */
+.ss-shell .ss-field > input.ss-field__input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid var(--ss-paper-line);
+  background: transparent;
+  font: 500 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
+  color: var(--ss-paper-soft);
+  height: 16px;
+  padding: 0 0 1px 0;
+  outline: none;
+}
+.ss-shell .ss-field > input.ss-field__input:focus {
+  /* 입력 인지 — 본문 ink 색 강조 (radius / box-shadow ❌ — FIBA 종이 정합) */
+  color: var(--ss-paper-ink);
+  border-bottom-color: var(--ss-paper-ink);
+}
+.ss-shell .ss-field > input.ss-field__input:disabled {
+  opacity: 0.5;
+}
+
+/* ----- ss-shell 의 paper 본체 wrapper 최소 룰 (PR-S4 한정 — frame 본체는 후속 PR) -----
+   FibaHeader outermost = .ss-shell.ss-header — A4 폭 정합 위해 max-width 794px 한정.
+   본 룰은 FibaHeader 만의 wrapper 이며, 운영 frame 본체 (TeamSection / RunningScoreGrid 등) wrapper 는
+   본 PR 범위 ❌ (사용자 핵심 제약 — frame 본체 wrapper 변경 ❌ / PR-S6 검토). */
+.ss-shell.ss-header {
+  /* A4 폭 정합 (D6) — toolbar 와 동일 가로 정렬 */
+  max-width: 794px;
+  margin: 0 auto;
+  background: var(--ss-paper-bg);
+  color: var(--ss-paper-ink);
+  /* 직각 (D4 FIBA 종이 정합) */
+  border-radius: 0;
+  border: 1.5px solid var(--ss-paper-line);
+  border-bottom: 0; /* 본체 다음 섹션과 시각적으로 연속 — 후속 PR 영역과 무경계 */
+}

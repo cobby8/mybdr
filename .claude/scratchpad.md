@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 통합 마법사 (단체 → 시리즈 → 대회 → 회차) — Phase 1 공통 인프라
-- **상태**: ✅ Phase 1 박제 완료 (3 파일 신규 / +336 LOC / tsc 0). PM 검증 → commit 대기
-- **모드**: no-stop / Phase 1~7 순차
+- **요청**: Phase 19 PR-S4 — FibaHeader 시안 시각 정합 (운영 데이터 로직 100% 보존)
+- **상태**: ✅ PR-S4 박제 완료 (2 파일 / +220 LOC styles + 재구성 fiba-header / tsc 0 / vitest 204/204). PM 검증 → commit 대기
+- **모드**: no-stop
 
 ## 진행 현황표
 | 단계 | 결과 |
@@ -11,8 +11,94 @@
 | Phase 19 PR-S1+S2 / Phase 23 PR2+PR3 | ✅ 직전 commit (`ef54e7a`/`4416a91`/`a147bb1`) |
 | **마법사 Phase 1** (shared-types / draft / constants) | ✅ 신규 3 파일 / tsc 0 / KEY 1건 |
 | **Phase 19 PR-S3** (mode prop wiring) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / commit 대기 |
+| **Phase 19 PR-S4** (FibaHeader 시안 시각 정합) | ✅ 2 파일 +220/-82+114 / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / commit 대기 |
 | 마법사 Phase 2 (Step 0 단체) | ⏳ 대기 |
 | 마법사 Phase 3~7 | ⏳ 대기 |
+
+## 구현 기록 (developer) — Phase 19 PR-S4
+
+📝 구현한 기능: FibaHeader 시안 시각 정합 — Tailwind utility 시각 → 시안 .ss-h / .ss-names / .ss-meta 마크업 + ss-shell 스코프 CSS 룰 도입. **운영 데이터 로직 / props interface / splitDateTime / 매핑 변수 100% 보존**.
+
+**사용자 핵심 제약 보존**: props interface 변경 0 / page.tsx + score-sheet-form.tsx 호출 위치 변경 0 / splitDateTime export 보존 (vitest 회귀 0) / 외부 컴포넌트 영향 0.
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|----------|
+| `src/app/(score-sheet)/_components/_score-sheet-styles.css` | 시안 .ss-h* / .ss-names* / .ss-meta* / .ss-field* / .ss-shell.ss-header 룰 .ss-shell 스코프로 wrap (+ ss-field input 변형 룰) | +220 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/fiba-header.tsx` | JSX 트리 시안 정합 재구성 (3 섹션 .ss-h / .ss-names / .ss-meta) + SSFieldDisplay / SSFieldInput 분리 / Tailwind utility 제거 / InlineField* 헬퍼 제거 | -82/+114 (재구성) | 수정 |
+
+**합계**: 2 파일 / 신규 0.
+
+### 시각 재구성 범위 (옵션 2 부분 재구성)
+
+| 시안 섹션 | 운영 데이터 매핑 (변경 0) | 마크업 |
+|---------|------------------------|-------|
+| Section A `.ss-h` | BDR 로고 (`/images/logo.png` next/image) + 3줄 타이틀 정적 카피 | `.ss-h__logo` (mark + text) + `.ss-h__title` (t1/t2/t3) |
+| Section B `.ss-names` | `teamAName` / `teamBName` props 그대로 | `.ss-names__cell × 2` |
+| Section C `.ss-meta` (좌) | `competitionName` / `splitDateTime(scheduledAtLabel)` / `gameNo` / `placeLabel` | `.ss-meta__l` → 2 row 5 SSFieldDisplay |
+| Section C `.ss-meta` (우) | `values.referee` / `values.umpire1` / `values.umpire2` + `update(key)` 그대로 | `.ss-meta__r` → 2 row 3 SSFieldInput |
+
+### 충돌 grep 결과 (사용자 핵심 제약 4 — PASS)
+
+| 시안 클래스 | 운영 사용처 (grep) | 충돌 |
+|------------|------------------|------|
+| `ss-shell` | tokens.css / styles.css / toolbar / running-score-grid / layout.tsx — 동일 시안 출처 박제 | ✅ 정합 |
+| `ss-header` (PR-S4 신규) | 0건 | ✅ 안전 도입 |
+| `ss-h__* / ss-names* / ss-meta* / ss-field*` | 0건 | ✅ 안전 도입 |
+| `ss-paper` | 0건 (후속 PR-S6/7 예약) | ✅ 미사용 |
+
+### ss-shell 스코프 적용 영역 (사용자 핵심 제약 — PASS)
+
+- FibaHeader outermost wrapper `<section className="ss-shell ss-header">` 한정.
+- frame 본체 wrapper (TeamSection / RunningScoreGrid 등) **ss-shell 추가 ❌** (후속 PR 검토).
+- 기존 ss-shell 사용처 (toolbar / running-score-grid) 와 독립 — DOM 트리 별개 (toolbar 와 FibaHeader 둘 다 각자 root 에 ss-shell 부착).
+
+### 운영 동작 보존 검증 (사용자 핵심 제약 — 6/6 PASS)
+
+| # | 검증 항목 | 결과 |
+|---|----------|------|
+| 1 | fiba-header.tsx props interface 변경 0 (page.tsx 호출 위치 변경 0) | ✅ `FibaHeaderProps` 9 필드 동일 — teamAName/teamBName/competitionName/scheduledAtLabel/gameNo/placeLabel/values/onChange/disabled/frameless. score-sheet-form.tsx L1012 호출 그대로 |
+| 2 | splitDateTime / venue / referee / umpire 매핑 로직 변경 0 | ✅ `splitDateTime(scheduledAtLabel)` 그대로 / values.referee/umpire1/umpire2 + update(key) 패턴 보존 / dateLabel/timeLabel/gameNo/placeLabel/competitionName/teamAName/teamBName 변수명 동일 |
+| 3 | 운영 inline subcomponent / helper 함수 변경 0 | ✅ splitDateTime export 보존 (test import 변경 0) / FibaHeaderInputs export 보존 / InlineField* 삭제 → SSFieldDisplay/SSFieldInput 신규 (외부 영향 0 — 내부 helper) |
+| 4 | 인쇄 시 (@media print / _print.css) FibaHeader 영역 정합 | ✅ ss-shell 스코프 룰은 var(--ss-paper-*) 토큰 사용 / _print.css 기존 룰 미오염 / 시안 직각 (border-radius 0) 정합 |
+| 5 | 외부 컴포넌트 (TeamSection / RunningScoreGrid / PeriodScoresSection / FooterSignatures) 영향 0 | ✅ fiba-header.tsx 만 수정 / styles.css 의 신규 룰은 .ss-shell .ss-h* / .ss-names* / .ss-meta* / .ss-field* / .ss-shell.ss-header — 다른 컴포넌트 className 미겹침 (grep 0건) |
+| 6 | Phase 23 PR2+PR3 자동 로드 영향 0 | ✅ initialRunningScore / cross-check / draft confirm 흐름은 score-sheet-form.tsx 내부 — FibaHeader 와 격리 |
+
+### 검증 (4/4 PASS)
+
+| # | 명령 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | ✅ EXIT=0 (에러 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | ✅ 11 files / **204/204 PASS** / 525ms |
+| 3 | 충돌 grep (ss-h / ss-names / ss-meta / ss-field / ss-paper / ss-header) | ✅ 0건 (사용자 핵심 제약 4) |
+| 4 | vitest `fiba-header-split-datetime.test.ts` | ✅ 5/5 PASS / splitDateTime export 보존 / 5 케이스 (null/—/ISO/한국어/공백없음) |
+
+💡 tester 참고:
+- **운영 매치 218** 또는 임의 매치 진입 시 헤더 영역 시각 변경 확인:
+  - BDR 로고 = 흑색 사각 박스 안 원형 흰 보더 (h-38px) + "BDR / SCORE" 텍스트
+  - 우측 3줄 타이틀 = "BASKETBALL DAILY ROUTINE / MyBDR 공식 기록지 / SCORESHEET" (모두 흑색 ALL CAPS)
+  - Team A / Team B = 좌우 50% strip + underscore underline
+  - Meta 좌 = Competition (flex 2) / Date / Time / Game No / Place (flex 3)
+  - Meta 우 = Referee (flex 2 / 입력) / Umpire 1 / Umpire 2 (입력)
+- **데이터 정확성** = 변경 0. 매치 218 의 기존 teamAName / competition / date / referee 값 동일 표시.
+- **입력 동작** = Referee / Umpire 1 / Umpire 2 모두 기존과 동일 (onChange / disabled / maxLength=40).
+- **인쇄 미리보기** = FibaHeader 영역이 FIBA 종이 정합 시각 (직각 border / 흑색 ink / underscore).
+
+⚠️ reviewer 참고:
+- **frameless prop 호환성 유지** — `frameless: _frameless` 로 destructure (사용 안 함). 호출자 (form.tsx L1012) 가 prop 전달해도 무시되며 시안 마크업 = 단일 wrapper 정합. 후속 PR 에서 prop 정리 가능.
+- **`<label>` 시안 selector 정합** — `.ss-shell .ss-field > label` selector 매칭 위해 SSFieldInput 의 outer = `<div>` / sibling = `<label>` + `<input>`. label 안에 input 두는 형 (`<label><span>...</span><input/></label>`) 은 selector 미매칭이라 회피. 접근성 = `aria-label={label}` 박제.
+- **시안 .ss-h__logo-mark 원형 + Image** — 시안 = Material Symbols `sports_basketball` 아이콘. 운영 = BDR 자체 로고 (`/images/logo.png`). CSS `.ss-h__logo-mark img { height: 100%; object-fit: contain; }` 룰로 원형 안 정렬 박제. width 36/height 36 next/image 박제.
+- **`.ss-shell.ss-header { max-width: 794px }`** — D6 정합 박제. 모바일 가로 스크롤은 부모 layout 책임 (현재 form.tsx 의 main 또는 layout.tsx 의 thin bar 컨테이너).
+
+### 후속 PR 진입 시 사전 작업 영향 평가
+
+| 후속 PR | 본 PR-S4 영향 |
+|--------|-------------|
+| PR-S5 PeriodScoresSection | 독립 컴포넌트 — FibaHeader 와 데이터/UI 격리. 본 PR-S4 도입 ss-shell.ss-header 룰과 미겹침 |
+| PR-S6 TeamSection | 독립 컴포넌트 — modal 진입점 보존 의무. ss-shell 스코프 도입 시 본 PR-S4 와 동일 패턴 재사용 가능 |
+| PR-S7 FooterSignatures | 독립 컴포넌트 — Officials 분리 박제. 본 PR-S4 의 .ss-field 룰 재사용 가능 (선택) |
+| frame 본체 wrapper ss-shell 부착 (장기) | 본 PR 미진행 (사용자 핵심 제약) — 후속 PR 사용자 결재 필요 |
+
+---
 
 ## 구현 기록 (developer) — 마법사 Phase 1
 
@@ -141,9 +227,72 @@
 
 검증 8/8 PASS: tsc 0 / vitest 204/204 / 그 외 보존 의무 6건.
 
+## 리뷰 결과 (reviewer) — Phase 19 PR-S2 사후 검증
+
+📊 **종합 판정: 통과 (Approve with minor follow-ups)** — 머지 회수 불필요. 후속 PR 권장 2건.
+
+### 8 항목 검증 결과
+
+| # | 영역 | 판정 | 비고 |
+|---|------|------|------|
+| 1 | D3 ss-shell 스코프 | ✅ PASS | toolbar 컴포넌트 root `<div className="ss-shell no-print">` (line 64) self-contained — 부모 wrapper 의존 0 |
+| 2 | D4 toolbar 4px radius | ✅ PASS | `_score-sheet-styles.css` L35 / L52 / L86 모두 `border-radius: 4px` 박제 |
+| 3 | D5 handleConfirm 경로 | ✅ PASS | toolbar `onEndMatch=() => setMatchEndOpen(true)` → MatchEndButton controlled `open=matchEndOpen` → 동일 confirm modal → 동일 handleConfirm → 동일 BFF POST. 함수 변경 0 |
+| 4 | D6 max-width 794px | ✅ PASS | `_score-sheet-styles.css` L25 `max-width: 794px` + L31 `gap:10px` + 타이틀/seg `white-space: nowrap` |
+| 5 | Phase 23 PR2+PR3 회귀 | ✅ PASS | useState 추가 위치 = 다른 useState 사이 (L241, L245) / 조건부 호출 ❌ / Hooks 룰 보존. cross-check / hasOnlyQuarterScores / initialRunningScore 흐름 모두 변경 0 |
+| 6 | MatchEndButton controlled 패턴 | ✅ PASS | 3 props 모두 optional / `isControlled = controlledOpen !== undefined` 분기로 uncontrolled 호환. 사용처 grep = form.tsx 1건만 — 호환성 검증 자동 충족 |
+| 7 | layout 적용 범위 | ✅ PASS | `(score-sheet)` route group 안 page.tsx = `score-sheet/[matchId]` 1개뿐 — 다른 라우트 영향 0 |
+| 8 | 시각 통합 / AppNav | ✅ PASS | score-sheet 는 (web) 격리 라우트 그룹 — AppNav frozen 룰 영향 0 / 시안 시각 자연 박제 |
+
+### ✅ 잘된 점
+
+- **controlled props 패턴이 교과서적** — `controlledOpen !== undefined` 분기 + `isControlled ? controlledOpen : internalOpen` + setOpen 가 controlled 모드에서 internal state 변경 안 함 → 이중 source-of-truth 회피. 다른 사용처 0 추가에도 호환 보장.
+- **ss-shell self-contained wrapping** — toolbar 컴포넌트 root 가 직접 `ss-shell` className 부착 → 부모(ScoreSheetForm) 의 wrapping 없이도 토큰 활성화. (스크래치패드 reviewer 참고 L117 의 우려 = 토큰 미적용 가능성은 본 commit 에서 해소됨)
+- **no-print 정합** — toolbar wrapper / matchEndButton wrapper 모두 `no-print` → 인쇄 시 깨끗하게 hidden. _print.css L131-136 의 `display: none !important` 와 정합.
+- **운영 함수 호출 0 변경** — onPrint / onEndMatch / backHref 모두 inline 위임 (window.print / setMatchEndOpen / "/admin") → 기존 PrintButton / MatchEndButton trigger / Link 의 동작 1:1 보존.
+- **Phase 23 PR2+PR3 흐름 보존** — useState 4건 추가 (scoreMode + matchEndOpen) 가 기존 Hooks 순서를 깨지 않음. initialRunningScore / cross-check / hasOnlyQuarterScores 모두 변경 0.
+
+### 🟡 후속 권장 수정 (즉시 회수 불필요 / 후속 PR)
+
+1. **`src/app/(score-sheet)/score-sheet/[matchId]/_components/match-end-button.tsx:102` — handleConfirm `submitted` 가드 부재**
+   - 현재 가드 = `if (submitting) return;` 만. `submitted=true` 후 toolbar 의 "경기 종료" 버튼이 다시 눌리면 confirm modal 재표시 → 확인 → BFF POST 재호출 가능.
+   - 기존 코드 (PR-S2 전) = `{!submitted && <button>...}` 분기로 종료 버튼 자체가 hide → 재진입 불가 (UI 안전망).
+   - PR-S2 후 = toolbar "경기 종료" 버튼은 `submitted` 인지 모름 → 재진입 가능. 서버 멱등성 (status="completed" 매치 재제출 거부) 에 의존하게 됨.
+   - **권장 수정** (소규모): handleConfirm 시작에 `if (submitting || submitted) return;` 추가 + (선택) toolbar 의 onEndMatch 가 submitted 상태를 prop 으로 받아 disabled 처리.
+   - 위험도: 낮음 — BFF `/api/web/score-sheet/{id}/submit` 가 status="completed" 매치 재제출을 거부한다면 데이터 손상 0. 다만 토스트 / 라이브 발행 트리거 중복 가능성 잔존.
+
+2. **`src/app/(score-sheet)/score-sheet/[matchId]/_components/match-end-button.tsx:80-89` — useEffect deps 누락**
+   - `useEffect(() => { ... }, [open, submitting]);` 에서 ESC 핸들러가 `setOpen(false)` 호출 → setOpen 은 closure 캡처 (`isControlled`, `onOpenChange`). React strict mode 에서 stale closure 경고 가능성. 단 현재 동작 회귀 0 (PR-S2 전 동일 패턴).
+   - **권장**: 후속 PR 에서 setOpen 을 useCallback 으로 감싸거나 deps 에 추가. 즉시 회수 불필요.
+
+3. **`src/app/(score-sheet)/_components/score-sheet-toolbar.tsx:41` — disabled / submitted 상태 미수용**
+   - toolbar 가 `submitted` 인지 모름 → 종료 후에도 버튼 활성. 시각 disabled 처리도 없음.
+   - **권장**: 후속 PR-S4~S7 또는 별도 패치에서 `endedAt` / `submitted` prop 추가하여 toolbar 버튼 disabled.
+
+4. **scoreMode 후속 PR-S3 wiring**
+   - PR-S2 시점 = scoreMode state 만 박제 / RunningScoreGrid 미전달. 시안 commit 메시지 = "후속 PR-S3 별도" 명시. **PR-S3 이미 진행됨** (스크래치패드 L17 / +88 LOC / tsc 0 / vitest 204/204) → 본 후속 자동 해소.
+
+### 🔴 필수 수정
+
+**없음** — 운영 동작 회귀 0 / 데이터 무결성 위험 0 / Phase 23 흐름 보존 / Hooks 룰 보존.
+
+### 결론 테이블
+
+| 영역 | 판정 | 액션 |
+|------|------|------|
+| **머지 OK** | 8/8 | 회수 불필요 — 이미 push 완료 + 운영 회귀 0 |
+| **즉시 수정** | 0건 | — |
+| **후속 권장** | 3건 | handleConfirm submitted 가드 / useEffect deps / toolbar disabled 수용 (모두 소규모 / 후속 PR) |
+
+### 추가 확인 사항 (정보 전달)
+
+- **commit 메시지 본문 경로 오기재**: commit `4416a91` 메시지가 `_components/score-sheet-toolbar.tsx` 를 `score-sheet/[matchId]/_components/` 아래로 적었으나 실제는 route group root `(score-sheet)/_components/` 에 박제됨. 동작 영향 0 / 의뢰서/스크래치패드 메모만 정정 필요.
+- **PrintButton 컴포넌트 잔존**: `_components/print-button.tsx` 파일은 삭제 안 함 (`layout.tsx` L28 주석 = 향후 복원 대비). 현재 사용처 0 / dead code 잠재 — 후속 cleanup 큐 등재 권장.
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-14 | Phase 19 PR-S4 — FibaHeader 시안 시각 정합 (.ss-h / .ss-names / .ss-meta / .ss-field 도입 + ss-shell 스코프 한정) | ✅ 2 파일 +220 styles / 재구성 fiba-header / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / 충돌 grep 0건 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S3 — RunningScoreGrid `mode` prop + scoreMode wiring + paper read-only preview (D2/D7) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / 운영 동작 5/5 보존 / commit 대기 |
 | 2026-05-14 | 마법사 Phase 1 — 공통 lib 인프라 (wizard-types / wizard-draft / wizard-constants) | ✅ 신규 3 파일 +336 LOC / tsc 0 / KEY 1건 / wizard page.tsx 변경 0 |
 | 2026-05-14 | Phase 19 PR-S2 — 시안 toolbar 전체 도입 (back + 모드토글 + print + 경기종료) + thin bar 흡수 + MatchEndButton controlled props | ✅ 5 파일 +325/-33 / tsc 0 / vitest 204/204 / commit `4416a91` push |
@@ -154,8 +303,6 @@
 | 2026-05-14 | BDR v2.5 sync + Phase 23 ScoreSheet 시안 5 파일 commit | ✅ commit `1fa9210` (221 파일) / _archive 138 파일 백업 / push |
 | 2026-05-14 | Phase 23 PR1 — PBP 역변환 헬퍼 2개 + vitest 24 케이스 | ✅ tsc 0 / vitest 24/24 / commit `b7c44d8` / push |
 | 2026-05-14 | Phase 23 설계 분석 (planner-architect / read-only) | ✅ Q1~Q5 결재 수락 / PR 3+1 분해 |
-| 2026-05-14 | Phase C — status="completed" score safety net + Phase 22 knowledge | ✅ vitest 8/8 / tsc 0 / 분리 commit |
-| 2026-05-13 | FIBA Phase 21+22 — 박스스코어 6 컬럼 hide + LIVE OT 표시 fix | ✅ commit `171de67`+`63c0633` / 운영 배포 |
 
 ## 미푸시 commit (subin 브랜치)
 **0건** — `ef54e7a` + `5b065ec` + `4416a91` 푸시 완료.
