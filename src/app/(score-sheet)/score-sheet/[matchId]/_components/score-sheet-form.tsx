@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { FibaHeader, type FibaHeaderInputs } from "./fiba-header";
 import { TeamSection, type TeamSectionInputs } from "./team-section";
 import { RunningScoreGrid } from "./running-score-grid";
@@ -63,6 +63,9 @@ import {
 } from "./lineup-selection-modal";
 // Phase 7-C — Q4/OT 종료 분기 모달
 import { QuarterEndModal } from "./quarter-end-modal";
+// Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택용).
+//   기존 inline window.confirm() 대체 — 4종 모달 시각 정합 + 인쇄 차단 + 토큰 일관.
+import { ConfirmModal } from "./confirm-modal";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
 //   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
 import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
@@ -249,6 +252,36 @@ export function ScoreSheetForm({
   //   왜: toolbar 의 "경기 종료" 버튼이 submitted 인지 알아야 시각 disabled 분기 가능.
   //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
   const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
+
+  // Phase 23 PR6 (2026-05-15) — ConfirmModal state (draft vs DB 우선순위 사용자 선택용).
+  //
+  // 왜 (이유):
+  //   reviewer WARN 1건 = PR3 의 inline window.confirm() 가 운영 4종 모달 패턴과 다름.
+  //   Promise 패턴으로 캡슐화 → ConfirmModal 의 onSelect / onClose 가 resolve(value) 호출.
+  //   호출자는 `await confirmModal({ title, message, options })` 형태로 사용.
+  //
+  // 어떻게:
+  //   - confirmState = null = 모달 닫힘 / { ...config, resolve } = 모달 열림
+  //   - confirmModal(config) = Promise 반환 + resolve fn 박제. onSelect / onClose 에서 호출.
+  //   - useEffect 안에서 await 가능. 4종 모달 + 새 ConfirmModal 동시 열림 0 (운영자 흐름상 단일).
+  type ConfirmConfig = {
+    title: string;
+    message: ReactNode;
+    options: { value: string; label: string; isPrimary?: boolean; isDestructive?: boolean }[];
+  };
+  const [confirmState, setConfirmState] = useState<
+    | (ConfirmConfig & { resolve: (value: string | null) => void })
+    | null
+  >(null);
+
+  // confirm 모달 호출 헬퍼 — Promise 반환.
+  //   - 선택 시 옵션 value 반환
+  //   - ESC / backdrop 닫기 시 null 반환 (호출자가 취소 분기 처리)
+  function confirmModal(cfg: ConfirmConfig): Promise<string | null> {
+    return new Promise((resolve) => {
+      setConfirmState({ ...cfg, resolve });
+    });
+  }
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   const { showToast } = useToast();
 
@@ -271,7 +304,10 @@ export function ScoreSheetForm({
 
   useEffect(() => {
     if (!initialQuarterScoresDB || !initialRunningScore) return;
-    // 무거운 deep compare 회피 — simple Q1~Q4 + OT 합산만 비교 (충분)
+    // Phase 23 PR6 (2026-05-15) — Q1~Q4 + OT (Q5~Q8) 합산 비교.
+    //   이전 PR2+PR3 = Q1~Q4 만 (reviewer WARN 2건). DB quarter_scores shape = ot: number[] 배열.
+    //   PBP 합산 toQuarterScoresJson 도 ot: number[] 배열 (running-score-helpers L131 동일 shape).
+    //   매핑: ot[0]=OT1=Q5 / ot[1]=OT2=Q6 / ot[2]=OT3=Q7 / ot[3]=OT4=Q8 (이론적 — 운영은 OT3 까지).
     try {
       // PBP 합산 (toQuarterScoresJson 와 동일 형식)
       const pbpSum = toQuarterScoresJson(initialRunningScore);
@@ -284,6 +320,7 @@ export function ScoreSheetForm({
         unknown
       >;
       const diffs: string[] = [];
+      // 1. Q1~Q4 (정규 쿼터) 비교 — 기존 동작 보존
       const qs = ["q1", "q2", "q3", "q4"] as const;
       for (const q of qs) {
         const pHome = pbpSum.home[q];
@@ -298,6 +335,46 @@ export function ScoreSheetForm({
         if (pAway !== dAway) {
           diffs.push(
             `${q.toUpperCase()} Away PBP=${pAway} / DB=${dAway}`,
+          );
+        }
+      }
+      // 2. OT (Q5~Q8) 비교 — Phase 23 PR6 신규.
+      //    DB ot 와 PBP ot 둘 다 number[] 배열 / 길이 차이도 mismatch 로 박제.
+      //    DB ot 누락 = 빈 배열로 안전 처리 / 비배열 (구버전 paper 매치) = 0건 배열로 fallback.
+      const dbOtHomeRaw = dbHome.ot;
+      const dbOtAwayRaw = dbAway.ot;
+      const dbOtHome: number[] = Array.isArray(dbOtHomeRaw)
+        ? (dbOtHomeRaw as unknown[]).map((v) => Number(v ?? 0))
+        : [];
+      const dbOtAway: number[] = Array.isArray(dbOtAwayRaw)
+        ? (dbOtAwayRaw as unknown[]).map((v) => Number(v ?? 0))
+        : [];
+      const pbpOtHome = pbpSum.home.ot ?? [];
+      const pbpOtAway = pbpSum.away.ot ?? [];
+      // 길이 차이 → mismatch (PBP 가 OT1만 있는데 DB 가 OT1+OT2 있는 등)
+      // max length 기준 loop — 한 쪽 0이면 다른 쪽 값 자체가 diff.
+      const maxOtLen = Math.max(
+        pbpOtHome.length,
+        pbpOtAway.length,
+        dbOtHome.length,
+        dbOtAway.length,
+      );
+      for (let i = 0; i < maxOtLen; i++) {
+        const otLabel = `OT${i + 1}`;
+        // q-style 라벨 (Q5/Q6/...) 동시 표기 — 운영자 인식 호환
+        const qLabel = `Q${i + 5}`;
+        const pHome = pbpOtHome[i] ?? 0;
+        const pAway = pbpOtAway[i] ?? 0;
+        const dHome = dbOtHome[i] ?? 0;
+        const dAway = dbOtAway[i] ?? 0;
+        if (pHome !== dHome) {
+          diffs.push(
+            `${qLabel}/${otLabel} Home PBP=${pHome} / DB=${dHome}`,
+          );
+        }
+        if (pAway !== dAway) {
+          diffs.push(
+            `${qLabel}/${otLabel} Away PBP=${pAway} / DB=${dAway}`,
           );
         }
       }
@@ -417,21 +494,23 @@ export function ScoreSheetForm({
   //
   // Phase 23 (2026-05-14) — draft vs DB 우선순위 (사용자 결재 Q1).
   //   기본 = DB 우선 (props 가 useState 초기값으로 이미 박제됨 — draft 적용 안 함).
-  //   draft.savedAt > matchUpdatedAtISO 시 = draft 가 더 최신 = confirm 모달로 사용자 선택.
+  //   draft.savedAt > matchUpdatedAtISO 시 = draft 가 더 최신 = ConfirmModal 로 사용자 선택.
   //     - 사용자 OK → draft 로 덮어쓰기 (기존 동작 유지)
   //     - 사용자 Cancel → DB 유지 (props 값 유지)
   //   draft 없거나 더 오래됨 = DB 유지 (props 값 유지 / draft 무시).
   //
-  // 왜 inline confirm() 인가:
-  //   - 운영의 4종 모달은 각자 도메인 전용 (FoulType / PlayerSelect / LineupSelection / QuarterEnd).
-  //   - 신규 모달 컴포넌트 추가 = JSX 트리 변경 + tester / reviewer 검수 부담 증가.
-  //   - inline confirm() = blocking + 운영 즉시 가능 (모달 컴포넌트 추가 = 별도 PR 후속 가능).
-  //   - 박제 사고 (매치 218) 영구 차단이 1차 목표 — 모달 폴리시는 PR4 또는 후속에서 보강.
+  // Phase 23 PR6 (2026-05-15) — reviewer WARN 1건 fix:
+  //   기존 inline window.confirm() → ConfirmModal 컴포넌트 (Promise 패턴) 교체.
+  //   useEffect 내부 비동기 (async IIFE) 로 변경 — 4종 모달 시각 정합 / 인쇄 차단 / 토큰 일관.
+  //   동작 룰은 100% 보존 (사용자 결재 Q1 흐름 동일).
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
-      if (raw) {
+    // async IIFE — useEffect 내부에서 ConfirmModal Promise await 가능.
+    //   useEffect cleanup 미사용 (mount 1회 + 모달 호출 후 회수 불필요).
+    (async () => {
+      try {
+        const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
+        if (!raw) return;
         const draft = JSON.parse(raw) as Partial<DraftPayload>;
 
         // Phase 23 — draft vs DB 비교. matchUpdatedAtISO 가 없으면 (신규 매치) draft 그대로 적용.
@@ -450,12 +529,30 @@ export function ScoreSheetForm({
                 (initialFouls.home.length > 0 ||
                   initialFouls.away.length > 0));
             if (draftTime > dbTime && hasDBContent) {
-              // 사용자 선택 — OK = draft 우선 / Cancel = DB 유지
-              const msg =
-                "이 매치는 이미 박제된 기록이 있고, 진행 중인 임시 저장본이 더 최신입니다.\n\n" +
-                "[확인] = 임시 저장본으로 진행 (DB 박제는 제출 시 덮어쓰기)\n" +
-                "[취소] = DB 박제본으로 진행 (임시 저장본 무시)";
-              applyDraft = window.confirm(msg);
+              // Phase 23 PR6 — ConfirmModal 호출 (Promise await).
+              //   선택값: "draft" = 임시 저장본 우선 / "db" = DB 박제본 유지
+              //   null (ESC/backdrop) = 안전 기본 = DB 유지 (사고 방지 최우선)
+              const choice = await confirmModal({
+                title: "임시 저장본 vs DB 박제본",
+                message: (
+                  <>
+                    <p>
+                      이 매치는 이미 박제된 기록이 있고, 진행 중인 임시 저장본이 더 최신입니다.
+                    </p>
+                    <ul className="mt-2 list-inside list-disc">
+                      <li>임시 저장본으로 진행 = DB 박제는 제출 시 덮어쓰기</li>
+                      <li>DB 박제본으로 진행 = 임시 저장본 무시</li>
+                    </ul>
+                  </>
+                ),
+                options: [
+                  { value: "draft", label: "임시 저장본으로 진행", isPrimary: true },
+                  { value: "db", label: "DB 박제본으로 진행" },
+                ],
+              });
+              // 모달 닫기 — Promise resolve 후 모달 unmount
+              setConfirmState(null);
+              applyDraft = choice === "draft";
             } else if (draftTime <= dbTime && hasDBContent) {
               // DB 가 더 최신 = draft 무시 (사고 방지 최우선)
               applyDraft = false;
@@ -529,10 +626,10 @@ export function ScoreSheetForm({
             setLineupModalOpen(false);
           }
         }
+      } catch {
+        // 손상된 draft = 무시
       }
-    } catch {
-      // 손상된 draft = 무시
-    }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1337,6 +1434,19 @@ export function ScoreSheetForm({
         onContinueToOvertime={handleContinueToOvertime}
         onCancel={() => setQuarterEndModal(null)}
       />
+
+      {/* Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택).
+          inline window.confirm() 대체 — 4종 모달 시각 정합. confirmState !== null 시만 렌더. */}
+      {confirmState && (
+        <ConfirmModal
+          open
+          title={confirmState.title}
+          message={confirmState.message}
+          options={confirmState.options}
+          onSelect={(value) => confirmState.resolve(value)}
+          onClose={() => confirmState.resolve(null)}
+        />
+      )}
     </main>
   );
 }
