@@ -3,7 +3,6 @@
 // ============================================================
 
 function ScoreSheet({ setRoute }) {
-  const [mode, setMode] = React.useState('paper');
   const m = window.SCORESHEET_MOCK;
 
   return (
@@ -15,14 +14,6 @@ function ScoreSheet({ setRoute }) {
           메인
         </button>
         <div className="ss-toolbar__title">SCORESHEET · #{m.gameNo}</div>
-        <div className="ss-toolbar__seg" role="tablist">
-          <button data-active={mode === 'paper'} onClick={() => setMode('paper')}>
-            페이퍼 정합 (A|B · 8)
-          </button>
-          <button data-active={mode === 'detail'} onClick={() => setMode('detail')}>
-            상세 마킹 (16)
-          </button>
-        </div>
         <button className="ss-toolbar__print" onClick={() => window.print()}>
           <span className="material-symbols-outlined">print</span>
           인쇄
@@ -61,7 +52,7 @@ function ScoreSheet({ setRoute }) {
             />
           </div>
           <div className="ss-body__r">
-            <SSRunningScore mode={mode} m={m}/>
+            <SSRunningScore m={m}/>
           </div>
         </section>
 
