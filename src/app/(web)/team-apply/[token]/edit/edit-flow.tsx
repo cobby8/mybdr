@@ -94,19 +94,40 @@ export function EditFlow({ token, teamName, divisionRule, hasCoachInfo }: Props)
           manager_phone: normalizedPhone,
         }),
       });
-      const json = await res.json();
+
+      // [정밀화] 응답 본문을 먼저 text 로 받고 안전하게 JSON parse
+      // 이유: 5xx HTML 페이지(Vercel timeout 등) 또는 빈 응답 시 res.json() 직접 호출하면
+      //       SyntaxError 발생 → catch 블록이 "네트워크 오류"로 뭉뚱그려 진단 불가
+      const text = await res.text();
+      // any: 서버 응답 스키마는 case-by-case (성공 페이로드 vs apiError 구조) 통합 타입 없음
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let json: any = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        // HTML(5xx 페이지) 또는 빈 응답 — json 은 null 유지
+      }
+
       if (!res.ok) {
-        if (json.code === "COACH_AUTH_FAILED") {
+        // 응답 키는 snake_case 우선 + camelCase fallback (apiError 자동 변환 함정 회피)
+        if (json?.code === "COACH_AUTH_FAILED") {
           setError("코치 이름 또는 연락처가 일치하지 않습니다. 최초 등록한 정보로 다시 시도하세요.");
         } else {
-          setError(json.error ?? "인증에 실패했습니다.");
+          // 4xx/5xx 진짜 에러 메시지 추출 — error / message / error_message / code 순서
+          const code = json?.code ?? json?.error_code;
+          const msg =
+            json?.error ??
+            json?.message ??
+            json?.error_message ??
+            (code ? `인증 실패 (${code})` : `서버 오류 (${res.status})`);
+          setError(msg);
         }
         setVerifying(false);
         return;
       }
 
       // prefill — 서버 응답 (snake_case) → PlayerRow (form 입력 형식)
-      const players = (json.players ?? []) as ServerPlayer[];
+      const players = (json?.players ?? []) as ServerPlayer[];
       const rows: PlayerRow[] = players.map((p) => ({
         player_name: p.player_name,
         birth_date: p.birth_date,
@@ -122,8 +143,11 @@ export function EditFlow({ token, teamName, divisionRule, hasCoachInfo }: Props)
         manager_phone: normalizedPhone,
       });
       setPhase("editing");
-    } catch {
-      setError("네트워크 오류가 발생했습니다.");
+    } catch (e) {
+      // [정밀화] 여기에는 진짜 network 예외만 도달 (DNS 실패 / offline / abort)
+      // JSON parse 실패는 위에서 처리되므로 catch 블록 도달 0
+      const reason = e instanceof Error ? e.message : "알 수 없는 오류";
+      setError(`네트워크 오류: ${reason}`);
     } finally {
       setVerifying(false);
     }
