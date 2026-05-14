@@ -21,16 +21,20 @@
  *   - 트랜잭션: Tournament create + DivisionRule createMany + series.tournaments_count +1 원자 처리
  *   - 실패 시 카운터 +1 안 됨 (롤백)
  *
- * 충돌 가드 (Phase 5 작업 C 진입 시):
- *   - 작업 C 가 (series_id, edition_number) UNIQUE 인덱스 추가 → 동시 채번 시 23505 발생 가능
- *   - 본 turn (작업 C 미진행) 에서는 unique 인덱스 없음 → retry 불필요
- *   - 작업 C 진입 시 retry 로직 추가 의무 (가이드 phase-5-duplicate-edition-api §B)
+ * 충돌 가드 (Phase 5 작업 C 완료 — 2026-05-14 commit `b28545f`):
+ *   - 운영 DB 에 `tournaments_series_edition_unique` UNIQUE 인덱스 적용 완료
+ *   - 동시 채번 (count + 1) 시 23505 / Prisma P2002 발생 가능 → retry 1회 보강
+ *   - retry 동작:
+ *       attempt 0 = 트랜잭션 시도 → P2002 catch → count 재조회 → attempt 1 진입
+ *       attempt 1 = 다시 시도 → 성공 시 응답 / 실패 시 409 (CONFLICT)
+ *   - retry 영향 0 케이스: 성공 path 그대로 / unique 위반 외 에러는 즉시 throw
  */
 
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
-import type { Prisma } from "@prisma/client";
+import { withUniqueRetry } from "@/lib/db/unique-retry";
+import { Prisma } from "@prisma/client";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -76,93 +80,111 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     const body = (await req.json()) as WizardBody & LegacyBody;
     const hasFullPayload = !!body.tournament_payload;
 
-    // =========================================================================
-    // (2) edition_number 자동 채번 — count + 1 패턴 (기존 코드 답습)
-    //     트랜잭션 시작 전에 count 산출 — DB 왕복 1회 절감
-    // =========================================================================
-    const count = await prisma.tournament.count({
-      where: { series_id: series.id },
-    });
-    const editionNumber = count + 1;
-
-    // =========================================================================
-    // (3) Tournament 데이터 결정 — 마법사 path vs 기존 path 분기
-    // =========================================================================
-    let tournamentCreateData: Prisma.TournamentCreateInput | Prisma.TournamentUncheckedCreateInput;
-
-    if (hasFullPayload) {
-      // 마법사 path — tournament_payload 우선
-      //   - status 는 항상 "draft" 강제 (02-db-changes §3 — 입력값 무시)
-      //   - series_id / edition_number / organizerId 는 서버에서 강제 박제 (사용자 입력 무시)
-      const payload = body.tournament_payload!;
-      // status 키를 입력에서 제거 (있어도 무시) — destructuring 으로 분리
-      const { status: _ignoredStatus, ...payloadRest } = payload as { status?: unknown } & Record<string, unknown>;
-      void _ignoredStatus;
-
-      tournamentCreateData = {
-        ...payloadRest,
-        // name 폴백 (payload 에 name 없으면 시리즈명 + 회차)
-        name: (payloadRest.name as string | undefined) ?? `${series.name} ${editionNumber}회`,
-        series_id: series.id,
-        edition_number: editionNumber,
-        status: "draft", // ← 강제
-        organizerId: ctx.userId,
-      } as Prisma.TournamentUncheckedCreateInput;
-    } else {
-      // 기존 path — startDate/venueName/maxTeams 직접 입력 (회귀 호환)
-      const startDate = body.startDate;
-      const venueName = body.venueName?.trim() || null;
-      const maxTeams = Number(body.maxTeams) || 8;
-
-      if (!startDate) {
-        return apiError("날짜는 필수입니다.", 400);
-      }
-
-      tournamentCreateData = {
-        series_id: series.id,
-        edition_number: editionNumber,
-        name: `${series.name} ${editionNumber}회`,
-        startDate: new Date(startDate),
-        venue_name: venueName,
-        maxTeams,
-        status: "registration_open", // 기존 동작 보존 (호출처 회귀 X)
-        format: "single_elimination",
-        organizerId: ctx.userId,
-        is_public: true,
-      };
+    // 기존 path (legacy) 의 입력 사전 검증 — retry 루프 진입 전 1회만
+    // 이유: startDate 누락은 400 (입력 오류) — retry 대상 아님
+    if (!hasFullPayload && !body.startDate) {
+      return apiError("날짜는 필수입니다.", 400);
     }
 
     // =========================================================================
-    // (4) 트랜잭션 — Tournament create + DivisionRule createMany + series 카운터 +1
-    //     실패 시 자동 롤백 (카운터 +1 안 됨 / 자체 검수 #5 충족)
+    // (2~4) edition_number 채번 + 트랜잭션 — withUniqueRetry 헬퍼로 1회 재시도 보강
+    //
+    // 이유: 운영 DB 에 `tournaments_series_edition_unique` 인덱스 (2026-05-14 b28545f).
+    //   동시 회차 추가 시 (count + 1) race 로 P2002 발생 가능 → 헬퍼가 count 재조회
+    //   포함 fn 을 재실행. P2002 외 에러는 즉시 throw (헬퍼 내부 로직).
+    //
+    // 헬퍼: src/lib/db/unique-retry.ts (`withUniqueRetry`)
+    //   vitest: src/__tests__/lib/db/unique-retry.test.ts (9 케이스 / 2026-05-15 박제)
     // =========================================================================
-    const tournament = await prisma.$transaction(async (tx) => {
-      // (4-1) Tournament 생성
-      const created = await tx.tournament.create({
-        data: tournamentCreateData,
+    let editionNumber = 0;
+    const createdTournament = await withUniqueRetry(async () => {
+      // (2) edition_number 자동 채번 — count + 1 패턴 (헬퍼가 재시도마다 재조회)
+      const count = await prisma.tournament.count({
+        where: { series_id: series.id },
       });
+      editionNumber = count + 1;
 
-      // (4-2) division_rules 일괄 생성 (마법사 path 에서만 의미 — 빈 배열 / undefined 모두 안전 skip)
-      if (hasFullPayload && body.division_rules && body.division_rules.length > 0) {
-        const rulesData = body.division_rules.map((rule) => ({
-          ...rule,
-          tournamentId: created.id,
-        })) as Prisma.TournamentDivisionRuleCreateManyInput[];
-        await tx.tournamentDivisionRule.createMany({
-          data: rulesData,
-        });
+      // (3) Tournament 데이터 결정 — 마법사 path vs 기존 path 분기
+      let tournamentCreateData:
+        | Prisma.TournamentCreateInput
+        | Prisma.TournamentUncheckedCreateInput;
+
+      if (hasFullPayload) {
+        // 마법사 path — tournament_payload 우선
+        //   - status 는 항상 "draft" 강제 (02-db-changes §3 — 입력값 무시)
+        //   - series_id / edition_number / organizerId 는 서버에서 강제 박제 (사용자 입력 무시)
+        const payload = body.tournament_payload!;
+        // status 키를 입력에서 제거 (있어도 무시) — destructuring 으로 분리
+        const { status: _ignoredStatus, ...payloadRest } = payload as {
+          status?: unknown;
+        } & Record<string, unknown>;
+        void _ignoredStatus;
+
+        tournamentCreateData = {
+          ...payloadRest,
+          // name 폴백 (payload 에 name 없으면 시리즈명 + 회차)
+          name:
+            (payloadRest.name as string | undefined) ??
+            `${series.name} ${editionNumber}회`,
+          series_id: series.id,
+          edition_number: editionNumber,
+          status: "draft", // ← 강제
+          organizerId: ctx.userId,
+        } as Prisma.TournamentUncheckedCreateInput;
+      } else {
+        // 기존 path — startDate/venueName/maxTeams 직접 입력 (회귀 호환)
+        const startDate = body.startDate!; // 위 사전 검증으로 보장
+        const venueName = body.venueName?.trim() || null;
+        const maxTeams = Number(body.maxTeams) || 8;
+
+        tournamentCreateData = {
+          series_id: series.id,
+          edition_number: editionNumber,
+          name: `${series.name} ${editionNumber}회`,
+          startDate: new Date(startDate),
+          venue_name: venueName,
+          maxTeams,
+          status: "registration_open", // 기존 동작 보존 (호출처 회귀 X)
+          format: "single_elimination",
+          organizerId: ctx.userId,
+          is_public: true,
+        };
       }
 
-      // (4-3) 시리즈 카운터 +1 (기존 코드 패턴 답습)
-      await tx.tournament_series.update({
-        where: { id: series.id },
-        data: {
-          tournaments_count: { increment: 1 },
-          updated_at: new Date(),
-        },
-      });
+      // (4) 트랜잭션 — Tournament create + DivisionRule createMany + series 카운터 +1
+      //     실패 시 자동 롤백 (카운터 +1 안 됨)
+      return await prisma.$transaction(async (tx) => {
+        // (4-1) Tournament 생성
+        const created = await tx.tournament.create({
+          data: tournamentCreateData,
+        });
 
-      return created;
+        // (4-2) division_rules 일괄 생성 (마법사 path 에서만 의미 — 빈 배열 / undefined 모두 안전 skip)
+        if (
+          hasFullPayload &&
+          body.division_rules &&
+          body.division_rules.length > 0
+        ) {
+          const rulesData = body.division_rules.map((rule) => ({
+            ...rule,
+            tournamentId: created.id,
+          })) as Prisma.TournamentDivisionRuleCreateManyInput[];
+          await tx.tournamentDivisionRule.createMany({
+            data: rulesData,
+          });
+        }
+
+        // (4-3) 시리즈 카운터 +1 (기존 코드 패턴 답습)
+        await tx.tournament_series.update({
+          where: { id: series.id },
+          data: {
+            tournaments_count: { increment: 1 },
+            updated_at: new Date(),
+          },
+        });
+
+        return created;
+      });
     });
 
     // =========================================================================
@@ -171,14 +193,21 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     // =========================================================================
     return apiSuccess({
       success: true,
-      tournamentId: tournament.id,
+      tournamentId: createdTournament.id,
       editionNumber,
-      name: tournament.name,
-      redirectUrl: `/tournament-admin/tournaments/${tournament.id}`,
+      name: createdTournament.name,
+      redirectUrl: `/tournament-admin/tournaments/${createdTournament.id}`,
     });
   } catch (e) {
-    // edition_number unique 충돌 (작업 C 진입 후) → 409
-    //   Postgres P2002 (Prisma unique constraint failed) 또는 23505 (raw)
+    // edition_number unique 충돌 — retry 1회 후도 실패 시 도달 (또는 비-P2002 에러)
+    //   Prisma P2002 (또는 raw 23505 / Unique constraint 메시지) → 409 CONFLICT
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return apiError("이미 같은 회차가 있어요. 다시 시도해주세요.", 409);
+    }
+    // raw SQL / 메시지 기반 fallback (Prisma 외 path 경유 시 안전망)
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("P2002") || msg.includes("23505") || msg.includes("Unique constraint")) {
       return apiError("이미 같은 회차가 있어요. 다시 시도해주세요.", 409);

@@ -191,8 +191,12 @@ export function TeamSection({
   timeouts,
   onRequestAddTimeout,
   onRequestRemoveTimeout,
-  frameless,
+  // PR-S6 (2026-05-15 rev2) — frameless prop = 보존 (props interface 변경 0 / 사용자 핵심 제약 #1).
+  // 시안 .ss-shell.ss-tbox 가 자체 border 보유 = 항상 frameless 동일 시각. caller form.tsx 가 전달하지만 본 컴포넌트에서는 무시.
+  frameless: _framelessUnused,
 }: TeamSectionProps) {
+  // frameless 미사용 경고 회피 + 의도된 미사용임을 명시
+  void _framelessUnused;
   // 선수 행 (12 보장 — Phase 12 사용자 직접 결재 / FIBA Article 4.2.2 실 운영 max 12명)
   const rows = fillRowsTo12(players);
 
@@ -220,79 +224,118 @@ export function TeamSection({
       onChange({ ...values, [key]: e.target.value });
     };
 
-  // Phase 8 — frameless 모드: 단일 외곽 박스 안에서 자체 border 제거.
-  const sectionStyle: React.CSSProperties = frameless
-    ? {}
-    : { border: "1px solid var(--color-border)" };
-  // Phase 19 (2026-05-13) — padding 강화 (사용자 결재 §5 / 여백 4~6px 일관).
-  //   px-1 py-1 → px-2 py-1 (좌우 padding 8px / 시인성 ↑).
-  //   A4 fit 영향: 좌우 padding 변화만 → 세로 합 영향 0 (좌측 col 폭은 50% 안에 유지).
-  const sectionClass = frameless
-    ? "fiba-frameless w-full px-2 py-1"
-    : "w-full p-3";
-
+  // Phase 19 PR-S6 (2026-05-15 rev2) — 시안 .ss-shell.ss-tbox outermost wrapper.
+  //   왜: 시안 ScoreSheet.parts.jsx SSTeamBox 의 `.ss-tbox` 마크업 정합 + .ss-shell 스코프 안에서
+  //       _score-sheet-styles.css 의 .ss-tbox* 룰 적용. frameless prop = 운영 호환 (기본 frameless 유지 — wrap 부모가 단일 외곽 박스).
+  //   운영 동작 보존: props interface 변경 0 / onClick 변경 0 / Phase 17 쿼터별 색 inline style 그대로 wiring.
   return (
-    // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1):
-    //   - rounded-0 / shadow X / 박스 내 박스 X (단일 외곽 박스로 통합)
-    //   - Phase 8 = Time-outs + Team fouls 가로 1줄 / Players 15행 ~28px / 컴팩트 패딩
-    <section className={sectionClass} style={sectionStyle}>
-      {/* Phase 10 (2026-05-12) — 헤더 §B FIBA underscore 정합 (사용자 결재).
-          - 큰 글자 박스 폐기 (uppercase + bold + tracking 폐기)
-          - 라벨 = "Team A" Title case (FIBA PDF 정합) / ~10px 작은 글자
-          - 데이터 = 팀명 + border-bottom underscore line
-          왜: FIBA 종이기록지는 "Team A ____슬로우____" 같이 라벨 + underscore line. */}
-      {/* Phase 19 (2026-05-13) — 헤더 폰트 강화 (사용자 결재 §2).
-          - 라벨 sideLabel "Team A" = 10px bold uppercase (FIBA 정합)
-          - 데이터 teamName = 13px semibold (Team 강조 / 헤더 hierarchy 일관 with FibaHeader). */}
-      <div className="mb-1 flex items-baseline gap-1.5">
-        <span
-          className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          {sideLabel}
-        </span>
-        <span
-          className="min-w-0 flex-1 truncate pb-0 text-[13px] font-semibold"
-          style={{
-            color: "var(--color-text-primary)",
-            borderBottom: "1px solid var(--color-text-primary)",
-          }}
-          title={teamName}
-        >
-          {teamName || "—"}
+    <section className="ss-shell ss-tbox" aria-label={`${sideLabel} ${teamName}`}>
+      {/* §1 Head — Team A / Team B name strip (시안 .ss-tbox__head + .pap-lbl + .pap-u) */}
+      <div className="ss-tbox__head">
+        <label className="pap-lbl">{sideLabel}</label>
+        <span className="pap-u" title={teamName}>
+          {teamName || " "}
         </span>
       </div>
 
-      {/* Phase 8 — Time-outs + Team fouls 가로 1줄 배치 (FIBA PDF 정합).
-          좌: Time-outs 5칸 (+OT)  /  우: Team fouls Period 1-4 1행 (compact).
-          Phase 9 — 더 컴팩트: mb 0.5 / gap 1.5
-          Phase 16 (2026-05-13) — Team fouls 박스 우측 정렬 (사용자 결재 §4 / 이미지 38).
-            justify-between = 좌측 Time-outs / 우측 Team fouls 자연 분리. */}
-      <div className="mb-0.5 flex flex-wrap items-start justify-between gap-1.5">
-      {/* Phase 4 — Time-outs (FIBA Article 18-19 — 전반 2 + 후반 3 + OT 1 각각).
-          박스 = 전반칸 2개 + 후반칸 3개 = 기본 5칸. OT 진입 시 (currentPeriod >= 5)
-          OT 1칸 동적 추가 (각 OT 별도 1칸).
-          UX:
-            - 빈 칸 클릭 → caller 가 canAddTimeout 검증 + 마킹
-            - 마지막 마킹 칸 클릭 → 1건 해제
-            - 채운 칸 = ● (text-primary) / 빈 칸 = 숫자 (text-muted)
-          시각: foul 5칸과 같은 톤 (border 1px / 36px 정사각 큰 터치영역).
-          Phase 8 — mb-3 → 가로 flex 자식 (flex-shrink-0 + 우측 Team fouls 와 인라인).
-          Phase 13 (2026-05-12) — 가로 6칸 → 2×N grid (사용자 결재 §1).
-            5칸 + OT 추가 시 가로가 너무 길어 → 2 컬럼 동적 배치 (홀수면 마지막 좌측만).
-            박스 크기 h-6 w-6 → h-[18px] w-[18px] (시각 압축).
-          Phase 14 (2026-05-12) — 2×N → 3×2 grid (사용자 결재 §1 / 이미지 32).
-            FIBA 종이기록지 표준 = 3×2 = 6칸 (전반 2 + 후반 3 + 여유 1).
-            grid-cols-3 × 2 row = 6 고정. OT 진입 시 7~8번째 칸은 자동 행 확장 (3+3+2). */}
-      <div className="shrink-0">
-        {/* Phase 19 — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2 / bold 10px 통일) */}
-        <div
-          className="mb-0.5 flex items-baseline justify-between gap-2 text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          <span>Time-outs</span>
+      {/* §2 Time-outs + Team fouls 블록 (시안 .ss-tbox__tt grid 92px | 1fr).
+          왜: 시안 rev2 = FIBA 종이 2+3+2 = 7 cells (전반 2 / 후반 3 / OT 2).
+          운영 동작 보존:
+            - timeouts state / onRequestAddTimeout / onRequestRemoveTimeout 그대로
+            - Phase 17 쿼터별 색 = getTimeoutPhaseColor(timeouts[i].period) inline style 으로 wiring */}
+      <div className="ss-tbox__tt">
+        {/* 좌측 — Time-outs (시안 SSTimeoutCells 2+3+2 = 7 cells) */}
+        <div className="ss-tbox__to">
+          <div className="ss-tbox__to-label">Time-outs</div>
+          {/* 시안: 1행 2 + 2행 3 + 3행 2 = 총 7 cells.
+              운영 OT 진입 시 currentPeriod >= 5 면 추가 row 동적 확장 (FIBA 다중 OT 대응). */}
           {(() => {
-            // 현재 phase 표시 (운영자 인지 도움 — 전반/후반/OTn 잔여)
+            // 기본 7 cells (전반 2 + 후반 3 + OT 2) — FIBA 정합. OT 추가 진입 시 (>= OT2 = period 6) 동적 +1.
+            // 운영 timeouts.length 가 7 초과 시 (예: OT 다중 진행) 도 채움 가능하도록 max 비교.
+            const baseCells = 7;
+            const totalCells = Math.max(baseCells, timeouts.length);
+            const totalUsed = timeouts.length;
+            // row 분할 — 시안 정합 2+3+2 + 잉여 row (8번째 이상은 단일 row 로 묶음).
+            // 변수명 toRows (외부 rows = players 와 shadowing 회피 / 가독성 ↑).
+            const toRows: number[][] = [[0, 1], [2, 3, 4], [5, 6]];
+            if (totalCells > 7) {
+              const extra = Array.from(
+                { length: totalCells - 7 },
+                (_, i) => i + 7
+              );
+              toRows.push(extra);
+            }
+
+            const renderCell = (i: number) => {
+              const filled = i < totalUsed;
+              const isLastFilled = filled && i === totalUsed - 1;
+              const isNextEmpty = !filled && i === totalUsed;
+              // 칸 라벨 — 위치별 phase 안내 (시안 7 cells 정합)
+              //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5-6 = OT (2칸 / 시안 표준) / 7+ = OT 다중
+              const cellLabel = filled
+                ? `Period ${timeouts[i].period} 타임아웃`
+                : i < 2
+                  ? `전반 타임아웃 ${i + 1}`
+                  : i < 5
+                    ? `후반 타임아웃 ${i - 1}`
+                    : i < 7
+                      ? `OT 타임아웃 ${i - 4}`
+                      : `OT 추가 타임아웃 ${i - 6}`;
+              // Phase 17 — 마킹 색 = phase 별 색 (filled 면 timeouts[i].period 기준).
+              const markColor = filled
+                ? getTimeoutPhaseColor(timeouts[i].period)
+                : undefined;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className="ss-tbox__to-cell"
+                  data-used={filled ? "true" : "false"}
+                  onClick={() => {
+                    if (disabled) return;
+                    if (isLastFilled) {
+                      onRequestRemoveTimeout();
+                    } else if (isNextEmpty) {
+                      onRequestAddTimeout();
+                    }
+                  }}
+                  disabled={disabled || (!isLastFilled && !isNextEmpty)}
+                  // Phase 17 색 wiring — inline style 로 CSS 토큰 색을 override.
+                  //   filled 시 markColor 가 배경 결정 (CSS 룰의 data-used color #FFFFFF 그대로).
+                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                  //   CSS 룰 .ss-tbox__to-cell[data-used="true"] { color: #FFFFFF } 가 이미 박제 →
+                  //   inline 중복 안전망 정리. backgroundColor 만 inline 으로 Phase 17 색 wiring.
+                  style={
+                    filled
+                      ? {
+                          backgroundColor: markColor,
+                        }
+                      : undefined
+                  }
+                  aria-label={
+                    filled
+                      ? `${cellLabel} 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                      : `${cellLabel} 빈 칸${isNextEmpty ? " (클릭 시 마킹)" : ""}`
+                  }
+                  title={cellLabel}
+                >
+                  {filled ? "X" : ""}
+                </button>
+              );
+            };
+
+            return (
+              <div className="ss-tbox__to-grid">
+                {toRows.map((row, rIdx) => (
+                  <div key={rIdx} className="ss-tbox__to-row">
+                    {row.map((i) => renderCell(i))}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          {/* phase 안내 (운영자 잔여 인지) — Time-outs 좌측 영역 안 ss-tbox__to-label 옆 */}
+          {(() => {
             const phase = getGamePhase(currentPeriod);
             const used = getUsedTimeouts(
               timeouts,
@@ -308,583 +351,404 @@ export function TeamSection({
                   ? "후반"
                   : `OT${currentPeriod - 4}`;
             return (
-              <span style={{ color: "var(--color-text-muted)" }}>
+              <div
+                className="text-[8px]"
+                style={{ color: "var(--pap-hair)" }}
+                aria-live="polite"
+              >
                 {phaseLabel} {used}/{max}
-              </span>
+              </div>
             );
           })()}
         </div>
-        {/* Phase 14 — grid-cols-3 × 2 row = 6 고정 칸 (FIBA 정합 / 사용자 결재 §1).
-            이전 Phase 13: grid-cols-2 (2 컬럼 동적) → Phase 14: grid-cols-3 (3×2 = 6 고정).
-            OT 진입 시 7~8번째 칸은 자동 다음 행 (3+3+2). */}
-        <div className="grid grid-cols-3 gap-px">
-          {(() => {
-            // 표시할 칸 수 산정:
-            //   Phase 14 — 기본 6칸 (FIBA 표준 = 전반 2 + 후반 3 + 여유 1 / 3×2 grid).
-            //     OT 진입 시 (currentPeriod >= 5) 각 OT 별 1칸 추가 → 7/8/...
-            //     이전 Phase 13 = 5칸 + OT (Phase 4 마킹 로직 = totalUsed 만 채움).
-            //     본 변경 = 시각 칸만 5 → 6 (여유 1칸은 빈 상태) / OT 시 +1.
-            const totalCells = currentPeriod <= 4 ? 6 : 6 + (currentPeriod - 4);
-            // 현재까지 사용된 총 타임아웃 수 = 채워진 칸 수
-            const totalUsed = timeouts.length;
 
-            return Array.from({ length: totalCells }).map((_, i) => {
-              const filled = i < totalUsed;
-              const isLastFilled = filled && i === totalUsed - 1;
-              const isNextEmpty = !filled && i === totalUsed;
-              // 칸 라벨 — 위치별 phase 안내 (Phase 14 — 6칸 grid 기준)
-              //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5 = 여유 (FIBA 표준 6번째 빈 칸) / 6+ = OT
-              //   marked 칸이 어느 period 인지는 timeouts[i].period 로 알 수 있음
-              const cellLabel = filled
-                ? `Period ${timeouts[i].period} 타임아웃`
-                : i < 2
-                  ? `전반 타임아웃 ${i + 1}`
-                  : i < 5
-                    ? `후반 타임아웃 ${i - 1}`
-                    : i === 5
-                      ? "여유 (OT 진입 시 활성)"
-                      : `OT${i - 5} 타임아웃`;
-              // Phase 17 (2026-05-13) — X 마킹 색 = phase 별 색 (사용자 결재 §5 / 이미지 14:00 KST).
-              //   filled = 해당 마킹의 period 로 phase 분기 → 전반/후반/OT 색 적용.
-              //   빈 칸 = text-muted 유지 (변경 없음).
-              const markColor = filled
-                ? getTimeoutPhaseColor(timeouts[i].period)
-                : "var(--color-text-muted)";
+        {/* 우측 — Team fouls (시안 SSTeamFouls 3 line — Period ①② / ③④ / Extra).
+            운영 보존: getTeamFoulCountByPeriod / 5+ FT 안내 / Phase 17 쿼터별 색 모두 그대로 wiring. */}
+        <div className="ss-tbox__tf">
+          <div className="ss-tbox__tf-label">Team fouls</div>
+          {/* line 1 — Period ① ② */}
+          <div className="ss-tbox__tf-line">
+            <span className="ss-tbox__tf-pname">Period</span>
+            {([1, 2] as const).map((period) => {
+              const teamCount = getTeamFoulCountByPeriod(fouls, period);
+              const ftAwarded = teamCount >= 5;
+              const periodFillColor = getPeriodColor(period);
               return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    if (disabled) return;
-                    if (isLastFilled) {
-                      onRequestRemoveTimeout();
-                    } else if (isNextEmpty) {
-                      onRequestAddTimeout();
-                    }
-                  }}
-                  disabled={disabled || (!isLastFilled && !isNextEmpty)}
-                  // Phase 13 — h-6 w-6 → h-[18px] w-[18px] (시각 압축 / 사용자 결재 §3).
-                  className="mark flex h-[18px] w-[18px] items-center justify-center text-[10px] font-bold disabled:cursor-default"
-                  style={{
-                    // Phase 10 (2026-05-12) §E — 빈 사각형 + 마킹 시 X 글자 (FIBA 종이기록지 정합).
-                    // 검정 ● 폐기 (사용자 결재) — 마킹은 X 글자 (운영자 종이에 X 표시 관행).
-                    border: "1px solid var(--color-border)",
-                    backgroundColor: "transparent",
-                    // Phase 17 — color hardcoded text-primary → markColor (phase 별 색 동적)
-                    color: markColor,
-                    cursor:
-                      isLastFilled || isNextEmpty ? "pointer" : "default",
-                    touchAction: "manipulation",
-                  }}
-                  aria-label={
-                    filled
-                      ? `${cellLabel} 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
-                      : `${cellLabel} 빈 칸${isNextEmpty ? " (클릭 시 마킹)" : ""}`
-                  }
-                  title={cellLabel}
-                >
-                  {/* 마킹 시 X 글자 / 빈 칸 = 비워둠 (FIBA 종이기록지 정합) */}
-                  {filled ? "X" : ""}
-                </button>
-              );
-            });
-          })()}
-        </div>
-      </div>
-
-      {/* Team fouls — Player Fouls 자동 합산 (read-only, 사용자 결재 §3 (a)) */}
-      {/* 이유: 1-4 마킹은 Player Fouls 마킹에서 자동 산출 — 1=●○○○ / 4=●●●● / 5+=●●●●● + 자유투 안내.
-          Phase 8 — Time-outs 옆 가로 인라인 (flex-1 = 남은 폭 차지).
-          Phase 12 (2026-05-12) — FIBA PDF 정합 3 줄 레이아웃 (사용자 직접 결재):
-            줄 1) Period ① [1·2·3·4]   ② [1·2·3·4]   ← 가로 한 줄
-            줄 2) Period ③ [1·2·3·4]   ④ [1·2·3·4]   ← 가로 한 줄
-            줄 3) Extra   [1·2·3·4]                    ← 단독 한 줄
-          5 줄 → 3 줄 (-24px / FIBA 종이기록지 정합).
-          Phase 13 (2026-05-12) — UI 겹침 fix (사용자 결재 §2 / 이미지 31).
-            박스 h-5 w-5 → h-[12px] w-[12px] (P2 라벨/2FT 안내 겹침 fix).
-            라벨 w-8 → w-7 (글자 9px) / 페어 간 gap-2 → gap-1.
-            FT (+N) 안내 = 글자 8px (이전 9px) + 박스 옆 유지 (FIBA 한줄 묶음 룰).
-          Phase 16 (2026-05-13) — flex-1 → shrink-0 + ml-auto (우측 정렬 / 사용자 결재 §4).
-            FIBA PDF 정합 = Time-outs 좌측 / Team fouls 우측. flex-1 은 부모 justify-between 활용. */}
-      <div className="ml-auto min-w-0 shrink-0">
-        {/* Phase 19 — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2) */}
-        <div
-          className="mb-0.5 text-right text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          Team fouls
-        </div>
-        <div className="grid grid-cols-1 gap-0.5">
-          {/* Phase 12 — Period 페어 컴포넌트 inline 렌더링 (좌·우 가로 배치).
-              [1,2] / [3,4] 2 페어 + Extra 1 줄 = 3 줄. */}
-          {(
-            [
-              [1, 2],
-              [3, 4],
-            ] as const
-          ).map(([leftPeriod, rightPeriod]) => (
-            <div
-              key={`pair-${leftPeriod}`}
-              // Phase 13 — gap-2 → gap-1 (페어 간격 압축 / 겹침 fix)
-              className="flex items-center gap-1"
-            >
-              {[leftPeriod, rightPeriod].map((period) => {
-                // 이 Period 의 팀 파울 누적 (Player Fouls 합산)
-                const teamCount = getTeamFoulCountByPeriod(fouls, period);
-                // 5+ 도달 = 자유투 부여 (UI 강조)
-                const ftAwarded = teamCount >= 5;
-                // Phase 17 (2026-05-13) — Team Fouls 박스 채움 색 = Period 별 색 (사용자 결재 §4).
-                //   각 Period 박스 4칸 (1·2·3·4) 채움 = getPeriodColor(period) 통일.
-                //   이전: text-primary 하드코딩 (검정) → 동적 (Q1=검정/Q2=빨강/Q3=초록/Q4=오렌지).
-                const periodFillColor = getPeriodColor(period);
-                return (
-                  <div
-                    key={period}
-                    // Phase 13 — gap-1 → gap-px (페어 내부 압축)
-                    className="flex min-w-0 flex-1 items-center gap-px"
-                  >
-                    <span
-                      // Phase 19 — 라벨 9px → 10px bold uppercase (사용자 결재 §2 / FIBA 정합).
-                      //   width w-7 → w-8 (10px bold 글자 fit).
-                      className="w-8 shrink-0 text-[10px] font-bold uppercase"
-                      style={{ color: "var(--color-text-muted)" }}
-                      aria-label={`Period ${period}`}
-                    >
-                      P{period}
-                    </span>
-                    {/* Phase 19 (2026-05-13) — 박스 안 글자 시인성 강화 (사용자 결재 §4).
-                        - 박스 12×12px → 14×14px (시각 hierarchy + 가독성)
-                        - 글자 8px → 9px font-bold (FIBA 정합) */}
+                <div key={period} className="ss-tbox__tf-q">
+                  <span className="ss-tbox__tf-qnum">
+                    {period === 1 ? "①" : "②"}
+                  </span>
+                  <div className="ss-tbox__tf-cells">
                     {[1, 2, 3, 4].map((n) => {
                       const filled = teamCount >= n;
+                      const isBonus = filled && teamCount >= 5 && n === 4;
                       return (
                         <div
                           key={n}
-                          className="mark flex h-[14px] w-[14px] shrink-0 items-center justify-center text-[9px] font-bold"
-                          style={{
-                            border: "1px solid var(--color-border)",
-                            backgroundColor: filled
-                              ? periodFillColor
-                              : "transparent",
-                            // Phase 17.1 (2026-05-13) — 색 충돌 fix (사용자 보고).
-                            //   채움 박스 글자 = 흰색 hardcode (이전 var(--color-bg) 미정의 → 검정 fallback → 충돌).
-                            //   라이트/다크 모드 무관 — 채움 = 어두운 색 (Q1 검정 / Q2 네이비 / Q3 그린 / Q4 오렌지 / OT 빨강) → 흰 글자 가독성 보장.
-                            color: filled ? "#ffffff" : "var(--color-text-muted)",
-                          }}
+                          className="ss-tbox__tf-cell"
+                          data-on={filled ? "true" : "false"}
+                          data-bonus={isBonus ? "true" : "false"}
+                          // Phase 17 쿼터별 색 wiring — filled 시 periodFillColor 로 배경 override.
+                          //   bonus (5+) 면 BDR Red (var(--pap-bonus)) 가 CSS 룰에서 적용 → inline 미설정.
+                          style={
+                            filled && !isBonus
+                              ? {
+                                  backgroundColor: periodFillColor,
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
+                                }
+                              : undefined
+                          }
                           aria-label={`Period ${period} 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
                         >
                           {n}
                         </div>
                       );
                     })}
-                    {/* 5+ 도달 시 자유투 부여 표시 (사용자 결재 §4 alert toast 와 별도 — 영구 표시 차원).
-                        Phase 13 — 글자 9px → 8px / ml-1 → ml-0.5 (압축) */}
-                    {ftAwarded && (
-                      // Phase 19 — FT (+N) 안내 글자 8px → 9px font-bold (가독성)
-                      <span
-                        className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 text-[9px] font-bold"
-                        style={{ color: "var(--color-warning)" }}
-                        aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
-                      >
-                        <span
-                          className="material-symbols-outlined text-[11px]"
-                          style={{ fontVariationSettings: "'FILL' 1" }}
-                        >
-                          warning
-                        </span>
-                        FT (+{teamCount - 4})
-                      </span>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          ))}
-          {/* Extra periods (OT) — period 5+ 합산. Phase 12 = 단독 줄 (페어 X)
-              Phase 13 — w-8 → w-7 / 박스 h-5 w-5 → h-[12px] w-[12px] 압축 */}
-          <div className="flex items-center gap-px">
-            {/* Phase 19 — Extra 라벨 9px → 10px bold uppercase / w-7 → w-8 (페어 라벨과 일관) */}
-            <span
-              className="w-8 shrink-0 text-[10px] font-bold uppercase"
-              style={{ color: "var(--color-text-muted)" }}
-            >
-              Extra
-            </span>
-            {/* Phase 11 §1 (2026-05-12) — OT 박스 안 1·2·3·4 라벨 복원 (FIBA 정합 / Period 행 동일).
-                period 5~7 합산 (FIBA Article — Extra periods 통합 표시).
-                Phase 13 — h-5 w-5 → h-[12px] w-[12px] (UI 압축 / 사용자 결재 §2).
-                Phase 17 (2026-05-13) — 채움 색 = OT 색 (primary) — 사용자 결재 §4 / 이미지 14:00 KST. */}
+                  {/* 5+ FT 부여 안내 (영구 표시 / 사용자 결재 §4) */}
+                  {ftAwarded && (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
+                      style={{ color: "var(--pap-bonus)" }}
+                      aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
+                    >
+                      FT+{teamCount - 4}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* line 2 — Period ③ ④ */}
+          <div className="ss-tbox__tf-line">
+            <span className="ss-tbox__tf-pname">Period</span>
+            {([3, 4] as const).map((period) => {
+              const teamCount = getTeamFoulCountByPeriod(fouls, period);
+              const ftAwarded = teamCount >= 5;
+              const periodFillColor = getPeriodColor(period);
+              return (
+                <div key={period} className="ss-tbox__tf-q">
+                  <span className="ss-tbox__tf-qnum">
+                    {period === 3 ? "③" : "④"}
+                  </span>
+                  <div className="ss-tbox__tf-cells">
+                    {[1, 2, 3, 4].map((n) => {
+                      const filled = teamCount >= n;
+                      const isBonus = filled && teamCount >= 5 && n === 4;
+                      return (
+                        <div
+                          key={n}
+                          className="ss-tbox__tf-cell"
+                          data-on={filled ? "true" : "false"}
+                          data-bonus={isBonus ? "true" : "false"}
+                          style={
+                            filled && !isBonus
+                              ? {
+                                  backgroundColor: periodFillColor,
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
+                                }
+                              : undefined
+                          }
+                          aria-label={`Period ${period} 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
+                        >
+                          {n}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {ftAwarded && (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
+                      style={{ color: "var(--pap-bonus)" }}
+                      aria-label={`Period ${period} 자유투 부여 (Team fouls ${teamCount}건)`}
+                    >
+                      FT+{teamCount - 4}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* line 3 — Extra periods (OT 통합 합산 / 시안 data-extra="true") */}
+          <div className="ss-tbox__tf-line" data-extra="true">
+            <span className="ss-tbox__tf-pname">Extra periods</span>
             {(() => {
               const otCount = fouls.filter((f) => f.period >= 5).length;
-              // OT 색 = primary (getPeriodColor(5+) 와 동일 토큰) — 사용자 결재 §1.
               const extraFillColor = getPeriodColor(5);
-              return [1, 2, 3, 4].map((n) => {
-                const filled = otCount >= n;
-                return (
-                  // Phase 19 — Extra 박스 12×12 → 14×14 / 8px → 9px font-bold (페어와 일관)
-                  <div
-                    key={n}
-                    className="mark flex h-[14px] w-[14px] shrink-0 items-center justify-center text-[9px] font-bold"
-                    style={{
-                      border: "1px solid var(--color-border)",
-                      backgroundColor: filled
-                        ? extraFillColor
-                        : "transparent",
-                      // Phase 17.1 (2026-05-13) — Extra OT 박스 글자 흰색 hardcode (Period 박스와 동일 패턴).
-                      color: filled ? "#ffffff" : "var(--color-text-muted)",
-                    }}
-                    aria-label={`Extra (OT) 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
-                  >
-                    {n}
+              const ftAwarded = otCount >= 5;
+              return (
+                <>
+                  <div className="ss-tbox__tf-cells">
+                    {[1, 2, 3, 4].map((n) => {
+                      const filled = otCount >= n;
+                      const isBonus = filled && otCount >= 5 && n === 4;
+                      return (
+                        <div
+                          key={n}
+                          className="ss-tbox__tf-cell"
+                          data-on={filled ? "true" : "false"}
+                          data-bonus={isBonus ? "true" : "false"}
+                          style={
+                            filled && !isBonus
+                              ? {
+                                  backgroundColor: extraFillColor,
+                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
+                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
+                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
+                                }
+                              : undefined
+                          }
+                          aria-label={`Extra (OT) 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
+                        >
+                          {n}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              });
+                  {ftAwarded && (
+                    <span
+                      className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
+                      style={{ color: "var(--pap-bonus)" }}
+                      aria-label={`Extra periods 자유투 부여 (OT Team fouls ${otCount}건)`}
+                    >
+                      FT+{otCount - 4}
+                    </span>
+                  )}
+                </>
+              );
             })()}
           </div>
         </div>
       </div>
-      </div>{/* /Phase 8 — Time-outs + Team fouls 가로 1줄 flex container 끝 */}
+      {/* /§2 ss-tbox__tt 끝 */}
 
-      {/* Players 12 행 — FIBA Article 4.2.2 실 운영 max (Phase 12 — 사용자 직접 결재).
-          Phase 12 — 행 20px (12행 × 20 = 240px) — A4 1 페이지 fit 여유 확보.
-            Phase 11 = 16행 × 20 = 320 → Phase 12 = 12행 × 20 = 240 (-80px) —
-            Team Fouls 5줄 → 3줄 (-24px) 합산해서 A4 1123px 안 ~132px 여유.
-          Phase 13 (2026-05-12) — 행 20 → 18px (사용자 결재 §4 / 12 × 18 = 216 / -24px). */}
-      <div className="mb-0.5 overflow-x-auto">
-        <table
-          className="w-full border-collapse text-xs"
-          style={{ color: "var(--color-text-primary)" }}
+      {/* §3 Player table head — Licence / Players / No / Player in / Fouls (1-5) */}
+      <div className="ss-tbox__plyhead">
+        <div>
+          <span>Licence</span>
+          <span>no.</span>
+        </div>
+        <div
+          style={{
+            alignItems: "flex-start",
+            justifyContent: "flex-start",
+            flexDirection: "row",
+          }}
         >
-          <thead>
-            {/* Phase 13 — thead 행 = 18px (py-0 압축 + 12행 fit / 사용자 결재 §4) */}
-            <tr
-              style={{
-                borderBottom: "1px solid var(--color-border)",
-                height: 18,
-              }}
-            >
-              {/* Phase 19 — 테이블 헤더 라벨 font-semibold → font-bold + tracking-wider (FIBA 정합 / 사용자 결재 §2) */}
-              <th
-                className="w-20 px-1 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: "var(--color-text-muted)" }}
-                title="Licence = User ID (자동 fill)"
-              >
-                Licence (UID)
-              </th>
-              <th
-                className="px-1 py-0.5 text-left text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Player
-              </th>
-              <th
-                className="w-10 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                No.
-              </th>
-              <th
-                className="w-12 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                P in
-              </th>
-              <th
-                className="w-32 px-1 py-0.5 text-center text-[10px] font-bold uppercase tracking-wider"
-                style={{ color: "var(--color-text-muted)" }}
-              >
-                Fouls 1-5
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p, idx) => {
-              if (!p) {
-                // 빈 row — FIBA 양식 12 행 정합용 placeholder (Phase 12 — 사용자 직접 결재).
-                // Phase 13 — 행 높이 20 → 18px (사용자 결재 §4 / 12행 × 18 = 216px / -24px)
-                return (
-                  <tr
-                    key={`empty-${idx}`}
-                    style={{
-                      borderBottom: "1px solid var(--color-border)",
-                      height: 18,
-                    }}
-                  >
-                    <td className="px-1 py-0">&nbsp;</td>
-                    <td className="px-1 py-0">&nbsp;</td>
-                    <td className="px-1 py-0 text-center">&nbsp;</td>
-                    <td className="px-1 py-0 text-center">&nbsp;</td>
-                    <td className="px-1 py-0 text-center">&nbsp;</td>
-                  </tr>
-                );
-              }
-
-              const state = values.players[p.tournamentTeamPlayerId] ?? {
-                licence: "",
-                playerIn: false,
-              };
-
-              // Phase 3 — 파울 카운트 + Phase 3.5 Article 41 퇴장 판정
-              const foulCount = getPlayerFoulCount(
-                fouls,
-                p.tournamentTeamPlayerId
-              );
-              const ejection = getEjectionReason(
-                fouls,
-                p.tournamentTeamPlayerId
-              );
-              const ejected = ejection.ejected;
-              // Phase 3.5 — 해당 선수의 파울 마킹 순서대로 type 배열 (UI 칸 표시용)
-              //   예: [P, P, T, U] → 칸 1=P / 칸 2=P / 칸 3=T / 칸 4=U
-              const playerFoulMarks = fouls.filter(
-                (f) => f.playerId === p.tournamentTeamPlayerId
-              );
-
-              return (
-                <tr
-                  key={p.tournamentTeamPlayerId}
-                  style={{
-                    borderBottom: "1px solid var(--color-border)",
-                    // Phase 13 — 행 높이 20 → 18px (사용자 결재 §4 / 12행 × 18 = 216px)
-                    height: 18,
-                    // 사용자 결재 §2 (a) — 5반칙 도달 시 행 전체 회색 처리.
-                    // Phase 16 (2026-05-13) — opacity 0.6 + cursor not-allowed 추가 (사용자 결재 §5 / 이미지 39).
-                    //   이유: D 퇴장 아이콘/텍스트 제거 대신 행 시각만으로 충분히 인지 가능하게 강화.
-                    backgroundColor: ejected
-                      ? "var(--color-elevated)"
-                      : "transparent",
-                    color: ejected
-                      ? "var(--color-text-muted)"
-                      : "var(--color-text-primary)",
-                    opacity: ejected ? 0.6 : 1,
-                    cursor: ejected ? "not-allowed" : "default",
-                  }}
-                  aria-label={
-                    ejected
-                      ? `${p.displayName} ${ejection.reason ?? ""} 퇴장 (행 비활성)`
-                      : `${p.displayName}`
-                  }
-                >
-                  {/* Phase 3.5 — Licence = User.id 자동 fill (Read-only).
-                      이유: 사용자 결재 §3 — 운영자 입력 부담 0, User.id 가 영구 식별자.
-                      미연결 (게스트) 선수 = "—" 표시.
-                      Phase 9 — py-1 → py-0 (24px 행 fit) / 텍스트 11px */}
-                  <td className="px-1 py-0">
-                    {/* Phase 19 — Licence UID 11px → 12px (사용자 결재 §3 데이터 폰트) */}
-                    <span
-                      className="block w-full text-[12px] font-mono"
-                      style={{
-                        color: ejected
-                          ? "var(--color-text-muted)"
-                          : "var(--color-text-primary)",
-                      }}
-                      aria-label={`${p.displayName} licence ${p.userId ?? "미연결"}`}
-                    >
-                      {p.userId ?? "—"}
-                    </span>
-                  </td>
-                  {/* 선수명 — read-only / 캡틴 ★ 유지 / 5반칙 시 행 회색 시각으로 충분.
-                      Phase 9 — 텍스트 11px / py-0
-                      Phase 16 (2026-05-13) — 빨강 원 ◉ (isStarter 표시) 숨김 (사용자 결재 §2 / 이미지 36).
-                        이유: 의미 불명확 + 시각 노이즈. 스타팅 표시는 P.IN 체크박스 빨강 배경으로 대체 (§1).
-                      Phase 16 (2026-05-13) — D 퇴장 아이콘/텍스트 제거 (사용자 결재 §5 / 이미지 39).
-                        이유: 좁은 공간 overflow + UI 깨짐. 행 전체 회색 + 비활성화 시각 = 충분 (§5).
-                        D 마킹은 Fouls 1번 칸 "D" 글자로 유지. */}
-                  {/* Phase 19 — 선수명 11px → 12px (사용자 결재 §3) */}
-                  <td
-                    className="px-1 py-0 text-[12px]"
-                    style={{ lineHeight: "1.1" }}
-                  >
-                    {p.displayName}
-                    {p.role === "captain" && !ejected && (
-                      <span
-                        className="ml-1"
-                        style={{ color: "var(--color-warning)" }}
-                      >
-                        ★
-                      </span>
-                    )}
-                  </td>
-                  {/* Phase 19 — 등번호 11px → 12px font-semibold (사용자 결재 §3 / 등번호 = 시각 중요 데이터) */}
-                  <td className="px-1 py-0 text-center text-[12px] font-semibold">
-                    {p.jerseyNumber ?? "—"}
-                  </td>
-                  {/* Player in 체크 — Phase 9 행 24px fit (h-9 → h-5).
-                      Phase 13 — h-5 w-5 → h-[18px] w-[18px] / 내부 input h-4 w-4 → h-[14px] w-[14px]
-                        (사용자 결재 §3 체크박스 18px 압축).
-                      터치 영역은 행 전체로 보완 (label 박스 자체 클릭 가능).
-                      Phase 16 (2026-05-13) — 스타팅 강조 빨강 배경 (사용자 결재 §1 / 이미지 36).
-                        이유: 라인업 확정 시 스타팅 5인 = 빨강 배경 P.IN / 일반 출전 7명 = 흰 배경 P.IN.
-                        시각 차이로 스타팅 한눈에 인지 — 빨강 원 ◉ (§2) 폐기 대체.
-                        ejected 시 = 비활성화 (사용자 결재 §5 — 퇴장 후 추가 P.IN 토글 차단). */}
-                  <td className="px-1 py-0 text-center">
-                    <label
-                      className="inline-flex h-[18px] w-[18px] cursor-pointer items-center justify-center"
-                      style={{
-                        touchAction: "manipulation",
-                        // 스타팅 5인 = 빨강 배경 + 흰 체크 (강조). 일반 = 흰 배경 + 검정 체크 (기본).
-                        backgroundColor: p.isStarter
-                          ? "var(--color-primary)"
-                          : "transparent",
-                        border: p.isStarter
-                          ? "1px solid var(--color-primary)"
-                          : "1px solid var(--color-border)",
-                      }}
-                      aria-label={
-                        p.isStarter
-                          ? `${p.displayName} 스타팅 (P IN 자동 체크)`
-                          : `${p.displayName} player in`
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        checked={state.playerIn}
-                        onChange={(e) =>
-                          updatePlayer(p.tournamentTeamPlayerId, {
-                            playerIn: e.target.checked,
-                          })
-                        }
-                        disabled={disabled || ejected}
-                        className="h-[14px] w-[14px] cursor-pointer disabled:opacity-50"
-                        style={{
-                          // 빨강 배경 위 체크 = accentColor 흰 (대비 확보).
-                          accentColor: p.isStarter ? "#ffffff" : undefined,
-                        }}
-                        aria-label={`${p.displayName} player in`}
-                      />
-                    </label>
-                  </td>
-                  {/* Phase 3.5 — Fouls 1-5 칸 = P/T/U/D 글자 직접 표시.
-                      UX:
-                        - 빈 칸 클릭 → caller 가 FoulTypeModal open (종류 선택 후 추가)
-                        - 마지막 마킹 칸 클릭 → 1건 해제
-                        - Article 41 퇴장 도달 시 추가 차단 (단 마지막 칸 해제 허용)
-                      MAX_PLAYER_FOULS 상한 폐기 — Article 41 합산 ≥ 5 차단으로 대체.
-                      Phase 9 — py-1 → py-0 (24px 행 fit) */}
-                  <td className="px-1 py-0">
-                    <div className="flex justify-center gap-0.5">
-                      {[1, 2, 3, 4, 5].map((n) => {
-                        // 해당 칸 위치의 파울 마킹 (있으면 type 추출)
-                        const mark =
-                          n <= foulCount ? playerFoulMarks[n - 1] : null;
-                        const filled = mark !== null;
-                        const isLastFilled = filled && n === foulCount;
-                        const isNextEmpty = !filled && n === foulCount + 1;
-                        // Phase 17 (2026-05-13) — 하이브리드 색 (사용자 결재 §3 / 이미지 14:00 KST):
-                        //   - 글자 색 = Q별 색 (mark.period 기준) — 마킹 시점 한눈에.
-                        //   - 배경 색 = 종류 P/T/U/D (FOUL_TYPE_BG_COLOR 옅은 톤).
-                        //   이전 Phase 3.5: 글자 = 종류 색 / 배경 = 종류 색 18% (단일 차원).
-                        //   변경 이유: Q별 색 차원 + 종류 차원 동시 인지 (2D 정보 동시 표현).
-                        const foulTextColor = mark
-                          ? getPeriodColor(mark.period)
-                          : "var(--color-text-muted)";
-                        const foulBgColor = mark
-                          ? FOUL_TYPE_BG_COLOR[mark.type]
-                          : "transparent";
-                        return (
-                          <button
-                            key={n}
-                            type="button"
-                            onClick={() => {
-                              if (disabled) return;
-                              // 퇴장 도달 후 6번째 칸 클릭 = 차단 (마지막 칸 해제는 허용)
-                              if (ejected && !isLastFilled) {
-                                return;
-                              }
-                              if (isLastFilled) {
-                                onRequestRemoveFoul(p.tournamentTeamPlayerId);
-                              } else if (isNextEmpty) {
-                                // 모달 open 요청 (종류 선택 후 caller 가 addFoul)
-                                onRequestAddFoul(p.tournamentTeamPlayerId);
-                              }
-                            }}
-                            disabled={
-                              disabled || (!isLastFilled && !isNextEmpty)
-                            }
-                            // 칸 = 5x5 작지만 버튼 자체 클릭 영역 + touchAction
-                            // Phase 11 §5 — `mark` 클래스 = 인쇄 시 검정 강제 (_print.css)
-                            // Phase 13 — h-5 w-5 → h-[18px] w-[18px] (사용자 결재 §3 / 18px 압축)
-                            className="mark flex h-[18px] w-[18px] items-center justify-center text-[10px] font-bold disabled:cursor-default"
-                            style={{
-                              border: "1px solid var(--color-border)",
-                              // Phase 17 — 배경 = 종류별 옅은 색 (P=투명/T=노랑/U=하늘/D=빨강) 옅게 (15%).
-                              backgroundColor: foulBgColor,
-                              // Phase 17 — 글자 = Q별 색 (mark.period 기준 / Q1=검정/Q2=빨강/Q3=초록/Q4=오렌지/OT=빨강).
-                              color: foulTextColor,
-                              cursor:
-                                isLastFilled || isNextEmpty
-                                  ? "pointer"
-                                  : "default",
-                              touchAction: "manipulation",
-                            }}
-                            aria-label={
-                              mark
-                                ? `${p.displayName} ${n}번째 파울 ${mark.type} (Q${mark.period}) 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
-                                : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (클릭 시 종류 선택)" : ""}`
-                            }
-                            title={`Period ${currentPeriod} 마킹`}
-                          >
-                            {/* Phase 10 §G (2026-05-12) — 빈 박스 / 마킹 시 P/T/U/D 글자만.
-                                숫자 라벨 1·2·3·4·5 폐기 (사용자 결재 — FIBA 종이기록지 정합).
-                                Phase 17 — 글자 색 = Q별 (위 color 동적). */}
-                            {mark ? mark.type : ""}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+          Players
+        </div>
+        <div>No.</div>
+        <div>
+          <span>Player</span>
+          <span>in</span>
+        </div>
+        <div className="ss-h-fouls">
+          <div className="ss-h-fouls-top">Fouls</div>
+          <div className="ss-h-fouls-nums">
+            <span>1</span>
+            <span>2</span>
+            <span>3</span>
+            <span>4</span>
+            <span>5</span>
+          </div>
+        </div>
       </div>
 
-      {/* Coach / Asst Coach 입력 — Phase 8 inline 한 줄 (FIBA PDF 정합).
-          "Coach: ____input____   Asst. Coach: ____input____" 같이 라벨 + underscore input */}
-      {/* Phase 19 — Coach 영역 라벨 bold + 입력 12px (FibaHeader 와 일관 / 사용자 결재 §2·§3).
-          gap-y 0.5 → 1 (라벨 간 4px 여백 일관 / 시인성 ↑). */}
-      <div className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-2">
-        <label className="flex items-baseline gap-1.5 overflow-hidden">
-          <span
-            className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Coach
-          </span>
-          <input
-            type="text"
-            value={values.coach}
-            onChange={updateCoach("coach")}
-            disabled={disabled}
-            maxLength={40}
-            className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
-            style={{
-              color: "var(--color-text-primary)",
-              borderBottom: "1px solid var(--color-text-primary)",
-            }}
-          />
+      {/* §4 Player body — 12 rows (시안 grid-template-rows: repeat(12, 1fr)).
+          운영 동작 보존:
+            - FoulType 모달 진입점 = onRequestAddFoul(p.tournamentTeamPlayerId)
+            - 5반칙 차단 = ejected 분기 (data-fouled-out 시각)
+            - Phase 17 쿼터별 색 = inline style 로 foul cell 글자/배경 wiring
+            - P.IN 체크박스 = updatePlayer(...) onChange 그대로 */}
+      <div className="ss-tbox__plybody">
+        {rows.map((p, idx) => {
+          if (!p) {
+            // 빈 row — FIBA 12 행 정합 placeholder.
+            return (
+              <div key={`empty-${idx}`} className="ss-tbox__plyrow">
+                <div className="ss-c-licence">&nbsp;</div>
+                <div className="ss-c-name">&nbsp;</div>
+                <div className="ss-c-no">&nbsp;</div>
+                <div className="ss-c-pin">&nbsp;</div>
+                <div className="ss-c-foul">&nbsp;</div>
+                <div className="ss-c-foul">&nbsp;</div>
+                <div className="ss-c-foul">&nbsp;</div>
+                <div className="ss-c-foul">&nbsp;</div>
+                <div className="ss-c-foul">&nbsp;</div>
+              </div>
+            );
+          }
+
+          const state = values.players[p.tournamentTeamPlayerId] ?? {
+            licence: "",
+            playerIn: false,
+          };
+
+          // Phase 3 — 파울 카운트 + Phase 3.5 Article 41 퇴장 판정
+          const foulCount = getPlayerFoulCount(fouls, p.tournamentTeamPlayerId);
+          const ejection = getEjectionReason(fouls, p.tournamentTeamPlayerId);
+          const ejected = ejection.ejected;
+          // 해당 선수의 파울 마킹 배열 (UI 칸 표시용)
+          const playerFoulMarks = fouls.filter(
+            (f) => f.playerId === p.tournamentTeamPlayerId
+          );
+
+          return (
+            <div
+              key={p.tournamentTeamPlayerId}
+              className="ss-tbox__plyrow"
+              data-fouled-out={ejected ? "true" : "false"}
+              aria-label={
+                ejected
+                  ? `${p.displayName} ${ejection.reason ?? ""} 퇴장 (행 비활성)`
+                  : `${p.displayName}`
+              }
+            >
+              {/* Licence (UID) — Read-only / User.id 자동 fill */}
+              <div
+                className="ss-c-licence"
+                aria-label={`${p.displayName} licence ${p.userId ?? "미연결"}`}
+              >
+                {p.userId ?? ""}
+              </div>
+              {/* 선수명 — 캡틴 ★ 유지 / 5반칙 시 .ss-c-name 빨강 강조 (CSS) */}
+              <div className="ss-c-name" title={p.displayName}>
+                {p.displayName}
+                {p.role === "captain" && !ejected && (
+                  <span
+                    className="ml-1"
+                    style={{ color: "var(--pap-bonus)" }}
+                    aria-label="캡틴"
+                  >
+                    ★
+                  </span>
+                )}
+              </div>
+              {/* No. (등번호) */}
+              <div className="ss-c-no">
+                {p.jerseyNumber ?? ""}
+              </div>
+              {/* Player in 체크 — 스타팅 5인 = 빨강 배경 / 일반 = 흰 배경. ejected = 비활성화. */}
+              <div className="ss-c-pin">
+                <label
+                  className="inline-flex h-[14px] w-[14px] cursor-pointer items-center justify-center"
+                  style={{
+                    touchAction: "manipulation",
+                    backgroundColor: p.isStarter
+                      ? "var(--pap-bonus)"
+                      : "transparent",
+                    border: p.isStarter
+                      ? "1px solid var(--pap-bonus)"
+                      : "1px solid var(--pap-line)",
+                  }}
+                  aria-label={
+                    p.isStarter
+                      ? `${p.displayName} 스타팅 (P IN 자동 체크)`
+                      : `${p.displayName} player in`
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={state.playerIn}
+                    onChange={(e) =>
+                      updatePlayer(p.tournamentTeamPlayerId, {
+                        playerIn: e.target.checked,
+                      })
+                    }
+                    disabled={disabled || ejected}
+                    className="h-[10px] w-[10px] cursor-pointer disabled:opacity-50"
+                    style={{
+                      accentColor: p.isStarter ? "#FFFFFF" : undefined,
+                    }}
+                    aria-label={`${p.displayName} player in`}
+                  />
+                </label>
+              </div>
+              {/* Fouls 1-5 — 5 cells (시안 .ss-c-foul × 5). */}
+              {[1, 2, 3, 4, 5].map((n) => {
+                const mark = n <= foulCount ? playerFoulMarks[n - 1] : null;
+                const filled = mark !== null;
+                const isLastFilled = filled && n === foulCount;
+                const isNextEmpty = !filled && n === foulCount + 1;
+                // Phase 17 — 글자 색 = Q별 색 (mark.period) / 배경 = 종류 P/T/U/D 옅게.
+                const foulTextColor = mark
+                  ? getPeriodColor(mark.period)
+                  : undefined;
+                const foulBgColor = mark
+                  ? FOUL_TYPE_BG_COLOR[mark.type]
+                  : "transparent";
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    className="ss-c-foul mark"
+                    onClick={() => {
+                      if (disabled) return;
+                      // 퇴장 도달 후 추가 마킹 차단 (마지막 칸 해제는 허용)
+                      if (ejected && !isLastFilled) return;
+                      if (isLastFilled) {
+                        onRequestRemoveFoul(p.tournamentTeamPlayerId);
+                      } else if (isNextEmpty) {
+                        // FoulTypeModal open 진입점 — 운영 동작 보존 의무 #2.
+                        onRequestAddFoul(p.tournamentTeamPlayerId);
+                      }
+                    }}
+                    disabled={disabled || (!isLastFilled && !isNextEmpty)}
+                    style={{
+                      // Phase 17 — 글자 = Q별 색 / 배경 = 종류 옅은 톤 (inline style 로 CSS 토큰 색 override).
+                      color: foulTextColor,
+                      backgroundColor: foulBgColor,
+                      touchAction: "manipulation",
+                    }}
+                    aria-label={
+                      mark
+                        ? `${p.displayName} ${n}번째 파울 ${mark.type} (Q${mark.period}) 마킹됨${isLastFilled ? " (클릭 시 해제)" : ""}`
+                        : `${p.displayName} ${n}번째 파울 빈 칸${isNextEmpty ? " (클릭 시 종류 선택)" : ""}`
+                    }
+                    title={`Period ${currentPeriod} 마킹`}
+                  >
+                    {mark ? mark.type : ""}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+      {/* /§4 ss-tbox__plybody 끝 */}
+
+      {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로) */}
+      <div className="ss-tbox__coach">
+        <label className="pap-lbl" htmlFor={`coach-${sideLabel}`}>
+          Coach
         </label>
-        <label className="flex items-baseline gap-1.5 overflow-hidden">
-          <span
-            className="shrink-0 text-[10px] font-bold uppercase tracking-wider"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            Asst. Coach
-          </span>
-          <input
-            type="text"
-            value={values.asstCoach}
-            onChange={updateCoach("asstCoach")}
-            disabled={disabled}
-            maxLength={40}
-            className="min-w-0 flex-1 bg-transparent pb-0 text-[12px] focus:outline-none disabled:opacity-50"
-            style={{
-              color: "var(--color-text-primary)",
-              borderBottom: "1px solid var(--color-text-primary)",
-            }}
-          />
+        <input
+          id={`coach-${sideLabel}`}
+          type="text"
+          className="pap-u"
+          value={values.coach}
+          onChange={updateCoach("coach")}
+          disabled={disabled}
+          maxLength={40}
+        />
+      </div>
+      <div className="ss-tbox__coach">
+        <label className="pap-lbl" htmlFor={`asst-coach-${sideLabel}`}>
+          Assistant Coach
         </label>
+        <input
+          id={`asst-coach-${sideLabel}`}
+          type="text"
+          className="pap-u"
+          value={values.asstCoach}
+          onChange={updateCoach("asstCoach")}
+          disabled={disabled}
+          maxLength={40}
+        />
       </div>
     </section>
   );

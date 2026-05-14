@@ -20,7 +20,7 @@
  *   - ss-shell 스코프 = FibaHeader outermost wrapper 한정 (frame 본체 wrapper 변경 ❌ — PR-S6 검토)
  *
  * 사용자 결재 (Phase 19):
- *   - D3: 색상 = .ss-shell 토큰 (PR-S1 박제) — var(--ss-paper-*)
+ *   - D3: 색상 = .ss-shell 토큰 (PR-S1 + PR-S7 박제) — var(--pap-*)
  *   - D4: FIBA 종이 정합 = 직각 (border-radius 0)
  *   - D6: max-width 794px / 모바일 가로 스크롤 (부모 layout 처리)
  *
@@ -91,9 +91,11 @@ export function FibaHeader({
     // outermost wrapper = ss-shell + ss-header — PR-S1 토큰 활성화 + PR-S4 .ss-h/.ss-names/.ss-meta 룰 매칭
     // 시안 출처: ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta (3 섹션 직렬)
     <section className="ss-shell ss-header">
-      {/* Section A — BDR 로고 + 3줄 타이틀 (시안 .ss-h)
-          FIBA 종이 정합: 좌측 92px 흑색 로고 박스 + 우측 3줄 타이틀 (모두 ALL CAPS).
-          BDR 자체 로고 = /images/logo.png (FIBA 로고 라이선스 회피) + Material Symbols 보조 아이콘. */}
+      {/* Section A — BDR 로고 + 3줄 타이틀 (시안 .ss-h).
+          PR-S8 (2026-05-15 rev2) — 로고 두 줄 분리 (시안 ScoreSheet.parts.jsx L28~29 정합):
+            - <div.ss-h__logo-brand>BDR</div>
+            - <div.ss-h__logo-tag>We Play Basketball</div>
+          이미지(/images/logo.png)는 .ss-h__logo-mark 원형 마크 안에 그대로 박제. */}
       <section className="ss-h">
         <div className="ss-h__logo">
           <div className="ss-h__logo-mark">
@@ -106,10 +108,9 @@ export function FibaHeader({
               priority
             />
           </div>
-          <div className="ss-h__logo-text">
-            <strong>BDR</strong>
-            SCORE
-          </div>
+          {/* PR-S8 — 로고 두 줄 분리 (시안 rev2 정합) */}
+          <div className="ss-h__logo-brand">BDR</div>
+          <div className="ss-h__logo-tag">We Play Basketball</div>
         </div>
         <div className="ss-h__title">
           <div className="ss-h__t1">BASKETBALL DAILY ROUTINE</div>
@@ -122,12 +123,12 @@ export function FibaHeader({
           운영 매핑: teamAName / teamBName props 그대로 wiring. */}
       <section className="ss-names">
         <div className="ss-names__cell">
-          <label>Team A</label>
-          <span>{teamAName || " "}</span>
+          <label className="pap-lbl">Team A</label>
+          <span className="pap-u">{teamAName || " "}</span>
         </div>
         <div className="ss-names__cell">
-          <label>Team B</label>
-          <span>{teamBName || " "}</span>
+          <label className="pap-lbl">Team B</label>
+          <span className="pap-u">{teamBName || " "}</span>
         </div>
       </section>
 
@@ -201,9 +202,11 @@ function SSFieldDisplay({
 }) {
   return (
     <div className="ss-field" data-grow={grow}>
-      <label>{label}</label>
-      {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합) */}
-      <div className="ss-field__v">{value || " "}</div>
+      {/* PR-S8 — .pap-lbl 클래스 병행 (시안 rev2 정합 / 기존 .ss-field>label 룰 호환 유지) */}
+      <label className="pap-lbl">{label}</label>
+      {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합).
+          PR-S8 — .pap-u 클래스 병행 (시안 rev2 정합). */}
+      <div className="ss-field__v pap-u">{value || " "}</div>
     </div>
   );
 }
@@ -232,10 +235,11 @@ function SSFieldInput({
   // 접근성 — htmlFor 미사용 (multiple input 시 id 충돌 위험) / 대신 input 의 aria-label 박제.
   return (
     <div className="ss-field" data-grow={grow}>
-      <label>{label}</label>
+      {/* PR-S8 — .pap-lbl 클래스 병행 (시안 rev2 정합) */}
+      <label className="pap-lbl">{label}</label>
       <input
         type="text"
-        className="ss-field__input"
+        className="ss-field__input pap-u"
         value={value}
         onChange={onChange}
         disabled={disabled}

@@ -1,60 +1,48 @@
 /**
- * FIBA SCORESHEET — Phase 19 PR-S1 시안 토큰 운영 도입 (2026-05-14)
+ * FIBA SCORESHEET — Phase 19 PR-S1 + PR-S7 (rev2 토큰 단순화 2026-05-15)
  *
  * 왜 (이유):
- *   BDR v2.5 시안 (Dev/design/BDR-current/scoresheet.css 899 LOC) 의 .ss-* 클래스
- *   시각 박제를 운영에 자연스럽게 통합하기 위한 첫 단계. 본 파일 = 토큰 정의만,
- *   사용처 0. PR-S2 (toolbar) ~ PR-S7 (signatures) 에서 .ss-shell 스코프 활성화
- *   시점에 비로소 운영 렌더 영향 발생.
+ *   BDR v2.5 시안 rev2 (Dev/design/BDR-current/scoresheet.css L12-19) — 사용자 fine-tuning 결정에서
+ *   토큰 15종 → 5종 + bonus 1종 단순화. PR-S7 = `--ss-paper-*` 전체 → `--pap-*` 일괄 rename.
  *
  * 사용자 결재 D3 (Phase 19):
- *   "운영 PeriodColorLegend 우선 / 시안 토큰을 운영에 동기화"
- *   → 시안 본래 색 (#1F2937 / #2563EB / #16A34A / #D97706) 대신 운영 PERIOD_LEGEND
- *      (src/lib/score-sheet/period-color.ts) 의 라이트 모드 hex 값 적용.
+ *   시안 rev2 = paper local 토큰 5종 + bonus = 운영 PERIOD_LEGEND 색은 period-color.ts 가 별도 보유.
+ *   → 본 파일은 paper 전용 색상 토큰만 (Q1~Q4 / OT 색상 토큰 = 제거 / period-color.ts 가 var(--color-*) 사용).
  *
  * 사용자 결재 D4 (Phase 19):
  *   페이퍼 외곽 직각 (border-radius: 0) = 13 룰 §10 의 의도적 예외 (FIBA 종이 정합).
- *   본 파일 = 색 토큰만, radius 룰은 PR-S2~S7 에서 .ss-paper {} 적용 시 명시.
+ *   본 파일 = 색 토큰만, radius 룰은 _score-sheet-styles.css 에서 명시.
  *
- * 사용자 결재 D6 (Phase 19):
- *   페이퍼 폭 = 794px 고정 / 모바일 = 가로 스크롤. 토큰만 정의 = 본 파일 영향 0.
+ * 시안 source (rev2): Dev/design/BDR-current/scoresheet.css L12-19
+ *   --pap-bg:    #FFFFFF
+ *   --pap-ink:   #000000
+ *   --pap-line:  #000000
+ *   --pap-hair:  #555555
+ *   --pap-fill:  #F2F4F7
+ *   --pap-bonus: #E31B23 (BDR Red — bonus 마킹)
  *
  * 절대 룰:
- *   - .ss-shell 스코프 격리 — 운영 globals.css 토큰 미오염 (현재 .ss-shell 사용처 0)
+ *   - .ss-shell 스코프 격리 — 운영 globals.css 토큰 미오염
  *   - 페이퍼 = 라이트 강제 (다크모드 진입 시에도 페이퍼 안 색상 = 라이트 hex)
- *     이유: FIBA 종이 정합 + 인쇄 시 라이트 일관성. var(--color-*) 사용 시 다크 진입
- *     →    페이퍼 안 색상이 다크 모드 값이 되어 종이 정합 깨짐 → 라이트 hex 직접.
- *   - 운영 동작 영향 0 — score-sheet 어떤 컴포넌트도 .ss-shell className 미사용 (현재)
- *
- * 운영 hex 출처 (src/app/globals.css 라이트 모드 :root):
- *   --ink:       #1A1E27  (--color-text-primary)
- *   --bdr-red:   #E31B23  (--color-accent / --color-primary)
- *   --ok:        #1CA05E  (--color-success)
- *   --warn:      #E8A33B  (--color-warning)
+ *   - 운영 동작 영향 0 — 본 토큰을 사용하는 컴포넌트만 영향
  */
 
 .ss-shell {
-  /* 페이퍼 베이스 (라이트 강제 — 시안 그대로) */
-  --ss-paper-bg:        #FFFFFF;
-  --ss-paper-ink:       #0A0E14;
-  --ss-paper-soft:      #2D343F;
-  --ss-paper-mute:      #5B6573;
-  --ss-paper-dim:       #8C94A0;
+  /* 페이퍼 5 토큰 — 시안 rev2 그대로 (라이트 강제) */
+  --pap-bg:    #FFFFFF;
+  --pap-ink:   #000000;
+  --pap-line:  #000000;
+  --pap-hair:  #555555;
+  --pap-fill:  #F2F4F7;
 
-  /* 라인/필 (FIBA 종이 정합 — 시안 그대로) */
-  --ss-paper-line:      #0A0E14;  /* 본선 */
-  --ss-paper-line-soft: #444A52;
-  --ss-paper-hair:      #C9CED4;
-  --ss-paper-fill:      #F2F4F7;
+  /* bonus — 운영 BDR Red 동기화 (Team fouls bonus / 5+ 자유투 강조) */
+  --pap-bonus: #E31B23;
 
-  /* 강조 — 운영 BDR Red 동기화 (D3) */
-  --ss-paper-accent:    #E31B23;  /* = var(--color-accent) — BDR Red */
-
-  /* 쿼터별 색 — D3 결재: 운영 PERIOD_LEGEND (period-color.ts) 색상 동기화.
-     시안 본래 #1F2937 / #2563EB / #16A34A / #D97706 → 운영 라이트 모드 hex 로 갱신. */
-  --ss-paper-q1:        #1A1E27;  /* = var(--color-text-primary) — Q1 흑/백 */
-  --ss-paper-q2:        #E31B23;  /* = var(--color-accent) — Q2 BDR Red */
-  --ss-paper-q3:        #1CA05E;  /* = var(--color-success) — Q3 초록 */
-  --ss-paper-q4:        #E8A33B;  /* = var(--color-warning) — Q4 오렌지 */
-  --ss-paper-ot:        #E31B23;  /* = var(--color-primary) — OT BDR Red */
+  /* PR-S11 (2026-05-15) — 토큰 추출 (reviewer 권장 후속).
+     왜: _score-sheet-styles.css 의 5건 max-width: 794px (A4 폭 = 210mm) +
+       2건 border-color: #D0D5DD (toolbar) 가 매직 넘버. 단일 source 로 추출.
+     어떻게: --ss-paper-width (A4 794px 정합) + --ss-toolbar-border (toolbar 회색)
+       2 토큰 신규. styles.css 5+2 위치 var() 치환. */
+  --ss-paper-width: 794px;
+  --ss-toolbar-border: #D0D5DD;
 }

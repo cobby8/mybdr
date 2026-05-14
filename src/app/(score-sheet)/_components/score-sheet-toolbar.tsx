@@ -1,33 +1,24 @@
 /**
- * ScoreSheetToolbar — Phase 19 PR-S2 (2026-05-14).
+ * ScoreSheetToolbar — Phase 19 PR-S2 (2026-05-14) + PR-S6 (rev2 롤백 2026-05-14).
  *
  * 왜 (이유):
- *   BDR v2.5 시안 (Dev/design/BDR-current/screens/ScoreSheet.jsx L1-83 / scoresheet.css L41-92) 의
- *   .ss-toolbar 시각 박제. 운영 기존 thin bar 의 "← 매치 관리로" Link + PrintButton +
- *   frame 하단 MatchEndButton 큰 버튼을 시안 단일 toolbar 로 시각 통합.
+ *   BDR v2.5 시안 rev2 (Dev/design/BDR-current/screens/ScoreSheet.jsx) — 사용자 fine-tuning 결정에서
+ *   모드 토글 (paper/detail segment) 제거 + 단일 모드 통일. PR-S6 = PR-S2/S3 의 mode 분기 박제 부분만
+ *   부분 롤백. toolbar 의 다른 영역 (back / 인쇄 / 경기 종료 / 타이틀) = PR-S2 유지.
  *
- * 핵심 룰 (사용자 결재 Phase 19):
- *   - **운영 함수 호출 100% 보존** — 시각 위치만 통합. onClick 동작 = 기존 PrintButton.window.print() /
- *     MatchEndButton confirm modal trigger / Link "/admin" 그대로 prop drilling.
- *   - **D3** — 토큰은 `_score-sheet-tokens.css` 의 .ss-shell 스코프 (PR-S1 박제 완료) 사용.
- *     본 컴포넌트는 wrapper 에 `ss-shell` className 부착하여 토큰 활성화.
- *   - **D5** — toolbar "경기 종료" 버튼 = 기존 MatchEndButton 의 confirm modal + BFF submit 흐름
- *     100% 호출 (controlled `open` props 패턴).
- *   - **D6** — toolbar max-width: 794px (시안 그대로) — A4 페이퍼 정합 / 모바일 가로 스크롤.
+ * 핵심 룰 (보존 의무):
+ *   - **운영 함수 호출 100% 보존** — onPrint / onEndMatch / backHref / gameNo 그대로.
+ *   - **MatchEndButton controlled props 패턴** — onEndMatch trigger / endMatchDisabled 시각 분기 그대로.
+ *   - **D3** — 토큰은 `_score-sheet-tokens.css` 의 .ss-shell 스코프 (PR-S7 에서 --pap-* 로 rename).
+ *   - **D6** — toolbar max-width: 794px (시안 rev2 그대로) — A4 페이퍼 정합.
  *   - **no-print** — 인쇄 시 toolbar 전체 hidden (FIBA 종이 정합).
  *
- * 절대 룰:
- *   - var(--*) 토큰만 / lucide-react ❌ / Material Symbols Outlined 만
- *   - 빨강 본문 텍스트 ❌ (단 "경기 종료" 버튼 = --ss-paper-accent (=BDR Red) 배경 = 위험 액션 예외)
- *   - 터치 영역 36px (시안 그대로 / toolbar 컴팩트)
- *
- * Props:
- *   gameNo        — 타이틀 "SCORESHEET · #{gameNo}" 표시 (없으면 "#" 만)
- *   mode          — 'paper' | 'detail' — 모드 토글 active 상태
- *   onModeChange  — 모드 변경 콜백 (PR-S3 에서 RunningScoreGrid wiring)
- *   onPrint       — 인쇄 trigger (기존 PrintButton.window.print() 와 동일 동작 위임)
- *   onEndMatch    — 경기 종료 trigger (MatchEndButton 의 setOpen(true) 와 동일 동작 위임)
- *   backHref      — "← 메인" 링크 (기본 "/admin" — 운영 thin bar 의 ← 매치 관리로와 동일)
+ * Props (rev2):
+ *   gameNo         — 타이틀 "SCORESHEET · #{gameNo}" 표시 (없으면 "#" 만)
+ *   onPrint        — 인쇄 trigger (기존 PrintButton.window.print() 와 동일 동작 위임)
+ *   onEndMatch     — 경기 종료 trigger (MatchEndButton 의 setOpen(true) 와 동일 동작 위임)
+ *   backHref       — "← 메인" 링크 (기본 "/admin")
+ *   endMatchDisabled — 종료 후 toolbar 버튼 disabled 시각 분기 (PR-S2 후속 fix 3 / 유지)
  */
 
 "use client";
@@ -36,37 +27,30 @@ import Link from "next/link";
 
 interface ScoreSheetToolbarProps {
   gameNo?: number | string | null;
-  mode: "paper" | "detail";
-  onModeChange: (mode: "paper" | "detail") => void;
   onPrint: () => void;
   onEndMatch: () => void;
   backHref?: string;
-  // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기.
+  // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기 (유지).
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
-  //   기본 undefined / false = 기존 동작 보존 (호출자 변경 없이 호환).
   endMatchDisabled?: boolean;
 }
 
 export function ScoreSheetToolbar({
   gameNo,
-  mode,
-  onModeChange,
   onPrint,
   onEndMatch,
   backHref = "/admin",
   endMatchDisabled,
 }: ScoreSheetToolbarProps) {
   // 타이틀 표시: gameNo 가 있으면 "SCORESHEET · #{gameNo}" / 없으면 "SCORESHEET · #" 만
-  // 이유: 시안 마크업 그대로 + 운영 데이터 (match.match_code ?? match.id) 자연 표시
   const titleSuffix =
     gameNo !== null && gameNo !== undefined && String(gameNo).trim() !== ""
       ? `#${gameNo}`
       : "#";
 
   return (
-    // ss-shell = PR-S1 토큰 활성화 (--ss-paper-accent 등 .ss-toolbar__finish 색 정합)
-    // no-print = 인쇄 시 toolbar 전체 hidden (FIBA 종이 정합)
+    // ss-shell = 토큰 활성화 / no-print = 인쇄 시 toolbar 전체 hidden
     <div className="ss-shell no-print">
       <div className="ss-toolbar">
         {/* 좌측 — "← 메인" 링크 (기존 thin bar 의 ← 매치 관리로와 동일 href) */}
@@ -79,33 +63,6 @@ export function ScoreSheetToolbar({
 
         {/* 중앙 — "SCORESHEET · #{gameNo}" 타이틀 (시안 mono 폰트) */}
         <div className="ss-toolbar__title">SCORESHEET · {titleSuffix}</div>
-
-        {/* 모드 토글 — paper / detail (PR-S3 wiring 완료).
-            Phase 19 PR-S3 (2026-05-14) — 라벨 명확화 (사용자 결재 D2 / D7).
-            왜: PR-S3 는 grid layout 분기 안 함 (운영 layout 유지) → 시안 라벨 "A|B · 8" / "16"
-              은 layout 컬럼 수 의미 → 운영에서 misleading. read-only 의미 명확 라벨로 변경:
-              - 페이퍼 (읽기 전용) = 입력 차단 + 시각 indicator
-              - 상세 (입력) = 운영 기존 동작 (기본) */}
-        <div className="ss-toolbar__seg" role="tablist" aria-label="기록 모드 선택">
-          <button
-            type="button"
-            role="tab"
-            data-active={mode === "paper"}
-            aria-selected={mode === "paper"}
-            onClick={() => onModeChange("paper")}
-          >
-            페이퍼 (읽기 전용)
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-active={mode === "detail"}
-            aria-selected={mode === "detail"}
-            onClick={() => onModeChange("detail")}
-          >
-            상세 (입력)
-          </button>
-        </div>
 
         {/* 인쇄 — 기존 PrintButton.window.print() 위임 */}
         <button
@@ -122,10 +79,7 @@ export function ScoreSheetToolbar({
         </button>
 
         {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit).
-            PR-S2 후속 fix 3 (2026-05-14) — endMatchDisabled prop 수용.
-              종료 후 (submitted=true) 시 native disabled + opacity 0.4 시각 분기.
-              인라인 style 이유: ss-toolbar__finish:disabled CSS 룰 미정의 — 다른 컴포넌트
-              영향 없이 본 컴포넌트만 시각 disabled 표시. cursor not-allowed 추가. */}
+            endMatchDisabled prop = 종료 후 시각 disabled 분기 (PR-S2 후속 fix 3 유지). */}
         <button
           type="button"
           className="ss-toolbar__finish"

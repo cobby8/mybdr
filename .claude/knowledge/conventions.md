@@ -1,6 +1,36 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-15] 운영 DB UNIQUE 인덱스 추가 표준 절차 — 7 단계
+- **분류**: convention/DB-safety
+- **사유**: `prisma db push` 가 보수적으로 "data loss 가능" 경고 → `--accept-data-loss` 요구. CLAUDE.md §🚨 금지. 본 절차로 우회 + 안전 보장.
+- **7 단계**:
+  1. **사전 검증** — DB drift + 중복 SELECT 쿼리 2건 실행 (운영 영향 0 / SELECT only). 둘 다 0건이면 진행
+  2. **schema 수정** — `prisma/schema.prisma` 에 `@@unique(...)` 또는 `@@index(...)` 추가. 사유 주석 박제
+  3. **schema diff 출력** — `npx prisma migrate diff --from-schema-datasource <schema> --to-schema-datamodel <schema> --script` 로 정확한 SQL 생성
+  4. **사용자 명시 결재** — 위 SQL + 검증 결과 (drift 0 / 중복 0) 사용자에게 보고. 명시 승인 받기 (CLAUDE.md §🗄️ 가드 2)
+  5. **raw SQL 실행** — `prisma db push` 대신 prisma client `$executeRawUnsafe` 로 SQL 직접 실행. 임시 스크립트 `scripts/_temp/<phase>-apply.ts` 박제 + tsx 실행. (`prisma db push --accept-data-loss` 사용 ❌)
+  6. **사후 검증** — `pg_indexes` 또는 `information_schema.statistics` 조회로 인덱스 존재 확인 (운영 영향 0 / SELECT only)
+  7. **임시 스크립트 즉시 삭제** — `scripts/_temp/` 정리 (가드 3 — 운영 DB credentials 노출 방지). schema.prisma 변경 commit 별도
+- **무중단 보장 조건**: PostgreSQL UNIQUE INDEX 는 NULL 행끼리 비교 안 함. 검증 쿼리 결과 0/0 통과 시 안전.
+- **사례**: Phase 5 C (`b28545f`) — `@@unique([series_id, edition_number])` 96ms 적용. 검증 0/0 / 사후 btree 정상.
+
+### [2026-05-15] sessionStorage 헬퍼 표준 패턴 — SSR 안전 + BigInt + silent fail
+- **분류**: convention/client-side-state
+- **위치**: `src/lib/tournaments/wizard-draft.ts` (Phase 1 산출물)
+- **3 핵심 가드**:
+  1. **SSR 안전**: 모든 함수 진입부 `if (typeof window === "undefined") return ...;` (Next.js 15 server component 호환)
+  2. **BigInt 직렬화**: `JSON.stringify(draft, safeBigIntReplacer)` — replacer 가 BigInt → string 변환. `JSON.parse` 시 string 으로 보존 (호출자가 다시 BigInt 변환 책임)
+  3. **silent fail**: try/catch 로 sessionStorage 에러 (용량 초과 / private mode / 손상 JSON) 무시. UI 흐름 영향 0
+- **함수 시그니처**:
+  ```ts
+  saveDraft(draft: WizardDraft): void
+  loadDraft(): WizardDraft | null
+  clearDraft(): void
+  ```
+- **검증 의무 (vitest)**: round-trip + 빈 storage → null + 손상 JSON → null + BigInt 직렬화 + SSR 분기. 본 패턴 답습 시 vitest 8+ 케이스.
+- **재사용 후보**: 마법사 외 long-form 입력 (계좌 신청 / 신고 양식 등) — 동일 헬퍼 패턴 + 별도 KEY.
+
 ### [2026-05-13] dev → main release PR 표준 흐름 (gh CLI)
 - **분류**: convention/workflow
 - **발견자**: pm
