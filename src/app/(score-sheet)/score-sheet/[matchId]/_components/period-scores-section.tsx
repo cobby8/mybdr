@@ -52,8 +52,10 @@ export function PeriodScoresSection({
   state,
   homeTeamName,
   awayTeamName,
-  onAdvancePeriod,
-  onRetreatPeriod,
+  // PR-S10.2 (2026-05-15): onAdvancePeriod / onRetreatPeriod = props interface 호환만 유지
+  //   (form.tsx 호출자 변경 0 룰). chevron 임시 버튼 제거 후 destructure 미사용.
+  onAdvancePeriod: _onAdvancePeriod,
+  onRetreatPeriod: _onRetreatPeriod,
   onEndPeriod,
   disabled,
   frameless: _frameless,
@@ -109,8 +111,10 @@ export function PeriodScoresSection({
           ? "동점"
           : "";
 
-  // OT 탭 / OT 종료 버튼 영역 표시 여부 (운영 동작 그대로)
-  const hasOtControls = onAdvancePeriod || onRetreatPeriod || onEndPeriod;
+  // PR-S10.2 (2026-05-15): chevron < / > 임시 quarter ±1 버튼 제거.
+  //   사용자 결정: Phase 4 QuarterEndModal 통합 후 chevron 미사용 (handleEndPeriod 가 정상 흐름).
+  //   onEndPeriod (OT 종료 빨강 버튼) 만 남김. onAdvancePeriod/onRetreatPeriod props 호환만 유지 (call site 호환).
+  const hasOtControls = !!onEndPeriod;
 
   return (
     // ss-shell 스코프 — 본 컴포넌트 outermost 한정 (PR-S4 와 동일 패턴)
@@ -237,49 +241,10 @@ export function PeriodScoresSection({
           ───────────────────────────────────────────── */}
       {hasOtControls && (
         <div className="ss-ot-controls">
-          {/* OT 탭 = 운영 chevron_left / 라벨 / chevron_right (Tailwind utility 그대로) */}
-          {(onAdvancePeriod || onRetreatPeriod) && (
-            <div className="flex items-center justify-end gap-1">
-              {/* 이전 Period 버튼 — onClick / disabled 룰 그대로 */}
-              <button
-                type="button"
-                onClick={onRetreatPeriod}
-                disabled={disabled || state.currentPeriod <= 1}
-                className="inline-flex h-7 min-w-7 items-center justify-center px-1 text-xs disabled:opacity-30"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  color: "var(--color-text-primary)",
-                  touchAction: "manipulation",
-                }}
-                aria-label="이전 Period"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  chevron_left
-                </span>
-              </button>
-              {/* 현재 Period 라벨 (Q1 / OT1 등) */}
-              <div className="px-1 text-[11px] font-semibold text-[var(--color-text-primary)]">
-                {periodLabel(state.currentPeriod)}
-              </div>
-              {/* 다음 Period 버튼 */}
-              <button
-                type="button"
-                onClick={onAdvancePeriod}
-                disabled={disabled || state.currentPeriod >= 7}
-                className="inline-flex h-7 min-w-7 items-center justify-center px-1 text-xs disabled:opacity-30"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  color: "var(--color-text-primary)",
-                  touchAction: "manipulation",
-                }}
-                aria-label="다음 Period"
-              >
-                <span className="material-symbols-outlined text-sm">
-                  chevron_right
-                </span>
-              </button>
-            </div>
-          )}
+          {/* PR-S10.2 (2026-05-15): chevron < OT1 > 임시 버튼 영역 제거.
+              사유: handleAdvancePeriod / handleRetreatPeriod = Phase 4 통합 전 임시.
+              실제 quarter 종료 흐름 = onEndPeriod (handleEndPeriod) 가 담당.
+              레이아웃 깔끔화 + 우하단 정합 회복. */}
 
           {/* OT 종료 큰 빨강 버튼 — onClick 그대로 보존 (운영 BFF 트리거) */}
           {onEndPeriod && (
