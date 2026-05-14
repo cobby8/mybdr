@@ -5,7 +5,7 @@
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 53 | 2026-05-15 | 이전 51건 + **(1) 마법사 통합 wizard 인프라** (Phase 1 lib 3 파일 + Phase 5 API + Phase 5 C UNIQUE 인덱스 운영 적용) + **(2) Phase 23 PR5-A cross-check audit endpoint** (tournament_match_audits 재사용 / source="web-score-sheet" / context="phase23-cross-check:<warning_type>") |
-| conventions.md | 47 | 2026-05-13 | dev → main release PR 표준 흐름 (gh CLI) — gh pr merge --merge --delete-branch=false / 권한 보유자 본인 발화 시에만 |
+| conventions.md | 49 | 2026-05-15 | 이전 47건 + **(1) 운영 DB UNIQUE 인덱스 추가 7단계 표준** (검증 0/0 → schema diff → 사용자 결재 → raw SQL via `$executeRawUnsafe` → 사후 검증 → 임시 스크립트 즉시 삭제 / `prisma db push --accept-data-loss` 회피) + **(2) sessionStorage 헬퍼 표준 패턴** (SSR 안전 + BigInt replacer + silent fail / wizard-draft.ts 박제) |
 | decisions.md | 113 | 2026-05-15 | 이전 112건 + **마법사 통합 (단체→시리즈→대회→회차) 기존 wizard 확장 + 4 핵심 결정** (Hybrid 구조 / 이전 회차 복제 우선 / Association 별도 분기 / 신규 모델 0 — DB schema 변경 1 = unique 인덱스만) |
 | errors.md | 44 | 2026-05-13 | LIVE API paper 매치 OT 변환 = clock=0 STL 보정 충돌 (FIBA Phase 22) |
 | lessons.md | 46 | 2026-05-15 | 이전 44건 + **(1) 운영 DB UNIQUE 추가 = --accept-data-loss 회피 + raw CREATE UNIQUE INDEX 사용** (Phase 5 C / 96ms / 검증 0/0) + **(2) 동시 작업 (Claude Code + Desktop) git index.lock 충돌 + commit 누적 빠름** (작업 영역 분리 / git add specific files 의무) |
