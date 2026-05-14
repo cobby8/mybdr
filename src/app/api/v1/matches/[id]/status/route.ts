@@ -9,6 +9,10 @@ import { createNotificationBulk } from "@/lib/notifications/create";
 import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 // 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — Flutter status 변경 차단 (paper 매치만).
 import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
+// 2026-05-11: Phase C — status="completed" 전환 시 score 자동 보정 (sync 누락 매치 자동 복구).
+//   Flutter app 이 /sync 미호출로 homeScore/awayScore=0 으로 남는 케이스 (매치 #132 패턴) 자동 박제.
+//   응답 schema 변경 ❌ / Flutter app 영향 0 — 백엔드 내부 안전망.
+import { applyScoreSafetyNet } from "@/lib/services/match-score-recompute";
 
 const statusSchema = z.object({
   status: z.enum(["in_progress", "completed", "cancelled"]),
@@ -67,6 +71,29 @@ export async function PATCH(
       context: `PATCH /api/v1/matches/${id}/status`,
       changedBy: (auth as { userId: bigint }).userId,
     });
+
+    // 2026-05-11 Phase C: status="completed" 전환 시 score 자동 보정 (sync 누락 안전망).
+    // 왜:
+    //   - Flutter app 이 매치 종료 시 /sync 한번도 호출 안 하는 케이스 (매치 #132 패턴) 반복.
+    //     → homeScore=0/awayScore=0 으로 운영 DB 박제됨 (Phase A 에서 10건 backfill).
+    //   - safety net = 새 매치도 같은 누락 재발 시 자동 보정 (앞으로 재발 방지).
+    // 어떻게:
+    //   - applyScoreSafetyNet 가 자체 3단 fallback 으로 결정 (homeScore>0 skip / playerStats / PBP).
+    //   - 별도 트랜잭션 — updateMatchStatus 의 메인 트랜잭션 (status/winner/진출/audit) 이 이미
+    //     커밋된 후 호출. safety net 실패해도 status 변경은 살아있음 (운영 영향 0 — Phase D 의
+    //     admin recompute UI 로 별도 복구 가능).
+    //   - 멱등성: 이미 박제된 매치 (homeScore>0) 는 skip → 변경 0.
+    if (status === "completed") {
+      try {
+        await prisma.$transaction(async (tx) => {
+          await applyScoreSafetyNet(tx, matchId, "status-completed-safety-net");
+        });
+      } catch (safetyErr) {
+        // safety net 실패 = status 변경 유지 + 로그만 박제 (운영 영향 0).
+        // 운영자가 Phase D admin recompute UI 또는 별도 backfill 로 수동 복구.
+        console.error("[PATCH /api/v1/matches/[id]/status] safety net 실패", safetyErr);
+      }
+    }
 
     // 경기가 live(in_progress)되면 대회도 자동으로 in_progress 전환
     if (status === "in_progress" && match.tournamentId) {
