@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 2026-05-14 작업 마감
-- **상태**: idle
+- **요청**: Phase 19 PR-S6 / PR-S7 / PR-S8 — 시안 v2.5 rev2 운영 박제 (3 PR 분리)
+- **상태**: developer 구현 완료 (PM 결재 대기 / 3 commit 분리)
 - **모드**: no-stop
 
 ## 진행 현황표 (오늘 누적)
@@ -18,6 +18,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Phase 19 PR-S6/S7/S8 rev2 — 모드 토글 롤백 + 토큰 단순화 + 로고/.pap-lbl/.pap-u | ✅ 8 파일 +120 -200 / tsc 0 / vitest 204/204 PASS / 토큰 grep 0건 / 모드 토글 grep 0건 / 로고 "We Play Basketball" 매치 / PM 3 commit 분리 결재 대기 |
 | 2026-05-14 | release #3 (dev → main) — sidebar fix + 마법사 Phase 5 A+B + Phase 19 PR-S2~S5 + 마법사 Phase 1 | ✅ PR #480 (subin→dev) `918d079` + PR #481 (dev→main) `4bcaefa` 머지 / Vercel 자동 배포 |
 | 2026-05-14 | fix(admin): sidebar — tournament_admin 사용자에게 child-only visible parent 노출 | ✅ 1 파일 +20 -5 / tsc 0 / vitest 757/757 / commit `4af0379` (최영철 사이드바 "대시보드" 1개만 보이던 회귀 영구 차단) |
 | 2026-05-14 | 마법사 Phase 5 작업 A+B — last-edition API 신규 + editions 확장 | ✅ tsc 0 / 자체검수 10/10 / 작업 C (DB unique) 사용자 결재 대기 |
@@ -32,7 +33,6 @@
 | 2026-05-14 | release #1 (dev → main) — Phase C + Phase 23 PR1 | ✅ PR #477 머지 `1c843b1` / Vercel Production SUCCESS |
 | 2026-05-14 | Phase 23 PR1 — PBP 역변환 헬퍼 + vitest 24 | ✅ tsc 0 / 24/24 / 회귀 204/204 / commit `b7c44d8` |
 | 2026-05-14 | Phase 23 설계 분석 (planner-architect / read-only) | ✅ 7 항목 + edge case 10 + 위험 9 / 사용자 결재 5건 수락 |
-| 2026-05-14 | Phase C — status="completed" score safety net + Phase 22 knowledge | ✅ vitest 8/8 / commit `eb4ad9c` + `074c1f7` |
 
 ## 미푸시 commit (subin 브랜치)
 **0건** — 전부 push 완료.
@@ -78,6 +78,250 @@
 - Phase 23 PR1 — PBP → ScoreMark/FoulMark 역변환 헬퍼 (lib only)
 - Phase 19 PR-S1 — BDR v2.5 시안 토큰 운영 도입 (.ss-shell 스코프)
 - Phase 22 knowledge — paper PBP clock=0 STL 보정 충돌 + 잘못 백필 lesson
+
+---
+
+## 구현 기록 (developer) — Phase 19 PR-S6/S7/S8 rev2 (2026-05-15)
+
+📝 구현한 기능: BDR v2.5 rev2 (zip 2) 시안 fine-tuning 운영 박제 — 3 PR 분리.
+
+### PR-S6 (rev2 롤백) — toolbar 모드 토글 + paper 모드 분기 제거
+
+| 파일 경로 (절대) | LOC | 변경 영역 |
+|------|-----|----------|
+| `C:\0. Programing\mybdr\src\app\(score-sheet)\_components\score-sheet-toolbar.tsx` | -64 | mode / onModeChange props + .ss-toolbar__seg 마크업 제거 |
+| `C:\0. Programing\mybdr\src\app\(score-sheet)\score-sheet\[matchId]\_components\running-score-grid.tsx` | -32 | mode prop / isPaperMode / paper 안내 텍스트 / data-score-mode 속성 모두 제거 |
+| `C:\0. Programing\mybdr\src\app\(score-sheet)\score-sheet\[matchId]\_components\score-sheet-form.tsx` | -6 | scoreMode state + toolbar mode props + grid mode prop 전달 제거 |
+| `C:\0. Programing\mybdr\src\app\(score-sheet)\_components\_score-sheet-styles.css` | -45 | `.ss-toolbar` grid-template-columns 5→4 / `.ss-toolbar__seg` 룰 + `[data-score-mode="paper"]` 룰 제거 |
+
+### PR-S7 (토큰 rename) — `--ss-paper-*` → `--pap-*`
+
+| 파일 | LOC | 변경 |
+|------|-----|------|
+| `_components/_score-sheet-tokens.css` | -47 +37 | 15 토큰 → 5 토큰 + bonus (시안 rev2 L12~19 정합). Q1~Q4/OT 색상 토큰 제거 (period-color.ts 가 var(--color-*) 보유) |
+| `_components/_score-sheet-styles.css` | (-50건 일괄 치환) | `var(--ss-paper-*)` → `var(--pap-*)` (line 66/199/254/273 등 + Q1~Q4 색상 룰 4건 통째 제거) |
+| `fiba-header.tsx` | -1 +1 | JSDoc 주석 토큰 참조 갱신 |
+
+### PR-S8 (로고 + .pap-lbl/.pap-u) — FibaHeader 시안 rev2 정합
+
+| 파일 | LOC | 변경 |
+|------|-----|------|
+| `fiba-header.tsx` | +12 -6 | 로고 영역 = `.ss-h__logo-text` 단일 박스 → `.ss-h__logo-brand` (BDR) + `.ss-h__logo-tag` (We Play Basketball) 두 줄 분리. SSFieldDisplay/SSFieldInput 의 label/value 에 `.pap-lbl` / `.pap-u` 클래스 병행. Section B (.ss-names) 라벨/value 동일. |
+| `period-scores-section.tsx` | +24 -24 | `.ss-ps__title` / `.ss-ps__period` / `.ss-ps__val` / `.ss-ps__teamlabel` / `.ss-winner__v` 에 `.pap-lbl` 또는 `.pap-u` 병행 추가 |
+| `footer-signatures.tsx` | +5 -3 | `SigInput` inline 모드 라벨 className 에 `.pap-lbl` 추가 + input className 에 `.pap-u` 추가 (Tailwind utility 와 병행) |
+| `_components/_score-sheet-styles.css` | +35 | `.ss-h__logo` flex-direction column + `.ss-h__logo-brand` + `.ss-h__logo-tag` 룰 (시안 scoresheet.css L177~188) + `.pap-lbl` + `.pap-u` 공통 룰 (시안 L120~141 정합). `.ss-h__logo-text` 룰 제거. |
+
+### 토큰 rename 검증
+
+| 영역 | 결과 |
+|------|------|
+| `grep --ss-paper- src/app/(score-sheet)` | **1건** (tokens.css 주석만 — "PR-S7 = `--ss-paper-*` 전체 → `--pap-*`" 의도된 박제 설명) |
+| `grep --pap- src/app/(score-sheet)` | **59건** (4 파일 — tokens.css 13 / styles.css 44 / toolbar 1 / fiba-header 1) |
+
+### 모드 토글 검증
+
+| 영역 | 결과 |
+|------|------|
+| `grep "페이퍼 정합\|상세 마킹\|onModeChange\|isPaperMode\|data-score-mode\|scoreMode"` | **3건** — 모두 PR-S6 롤백 주석 (toolbar/grid/form 각 1건) — 실 prop / state / className 0건 |
+
+### 로고 검증
+
+| 영역 | 결과 |
+|------|------|
+| `grep "We Play Basketball\|ss-h__logo-brand\|ss-h__logo-tag" fiba-header.tsx` | **4건** (JSDoc 2 + 실 JSX 2) — 시안 rev2 정합 |
+
+### 보존 의무 검증 (6/6 PASS)
+
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | localStorage draft key (`fiba-score-sheet-draft-{matchId}`) | ✅ score-sheet-form.tsx L125 / L378-485 / L488-512 변경 0 |
+| 2 | 4종 모달 진입점 (FoulType / PlayerSelect / LineupSelection / QuarterEnd) | ✅ score-sheet-form.tsx L1196-1237 변경 0 |
+| 3 | BFF submit + `buildSubmitPayload` | ✅ L726-790 변경 0 |
+| 4 | Phase 23 PR2+PR3 자동 로드 (initialRunningScore / initialFouls / ...) | ✅ L172-313 변경 0 |
+| 5 | MatchEndButton controlled props (open/onOpenChange/hideTriggerButton) + onSubmittedChange | ✅ L1149-1161 + toolbar `endMatchDisabled` 유지 |
+| 6 | toolbar 잔여 영역 (back / 인쇄 / 종료 / 타이틀) + Q1~Q4 색상 (period-color.ts) | ✅ ScoreSheetToolbar interface — gameNo/onPrint/onEndMatch/backHref/endMatchDisabled 모두 유지 / period-color.ts 변경 0 |
+
+### 검증 결과
+
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT=0 (PR-S6 / PR-S7 / PR-S8 누적 후) |
+| `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | ✅ **204/204 PASS** (11 test files / 636ms) |
+| 토큰 grep (`--ss-paper-`) | ✅ 0건 (실 사용 — 주석 1건만) |
+| 모드 토글 grep | ✅ 0건 (실 prop/state/className — 주석 3건만) |
+| 로고 grep | ✅ 4건 매치 (JSDoc 2 + 실 JSX 2) |
+
+### PM 분리 commit 가이드 (3 commit)
+
+각 PR 별 staging 영역:
+
+**PR-S6 commit**:
+```
+git add src/app/\(score-sheet\)/_components/score-sheet-toolbar.tsx
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/running-score-grid.tsx
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/score-sheet-form.tsx
+# styles.css 의 toolbar grid 5→4 + .ss-toolbar__seg + [data-score-mode] 영역만 — 일부분 staging 필요
+```
+권장 메시지: `refactor(score-sheet): Phase 19 PR-S6 — rev2 모드 토글 + paper 분기 부분 롤백`
+
+**PR-S7 commit**:
+```
+git add src/app/\(score-sheet\)/_components/_score-sheet-tokens.css
+git add src/app/\(score-sheet\)/_components/_score-sheet-styles.css  # 토큰 rename 부분
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/fiba-header.tsx  # JSDoc 1건
+```
+권장 메시지: `refactor(score-sheet): Phase 19 PR-S7 — rev2 토큰 단순화 (--ss-paper-* → --pap-*)`
+
+**PR-S8 commit**:
+```
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/fiba-header.tsx  # 로고 + .pap-lbl/.pap-u
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/period-scores-section.tsx
+git add src/app/\(score-sheet\)/score-sheet/\[matchId\]/_components/footer-signatures.tsx
+git add src/app/\(score-sheet\)/_components/_score-sheet-styles.css  # .pap-lbl/.pap-u + 로고 brand/tag 룰
+```
+권장 메시지: `feat(score-sheet): Phase 19 PR-S8 — rev2 로고 두 줄 + .pap-lbl/.pap-u 정합`
+
+⚠️ styles.css 는 PR-S6 / PR-S7 / PR-S8 모두 수정 — git add -p 로 부분 staging 권장. 어려우면 PR-S6 + PR-S7 + PR-S8 staged 묶음 한 commit (`feat(score-sheet): Phase 19 PR-S6/S7/S8 — BDR v2.5 rev2 fine-tuning 정합`) 으로 대체 가능 (3 PR 의도는 코드 영역 분리로 reviewer 가 인지).
+
+### tester 참고
+
+- **테스트 방법**:
+  - 운영(mybdr.kr) `/score-sheet/{matchId}` 진입 → toolbar 가 [메인 / SCORESHEET · # / 인쇄 / 경기 종료] 4 영역만 표시 (모드 토글 segment 사라짐 확인)
+  - FibaHeader 좌측 로고 영역 = "BDR" + "We Play Basketball" 두 줄 표시 (이미지 로고 위)
+  - 운영 동작 = 마킹 클릭 / 모달 / BFF submit / 자동 로드 모두 기존과 동일
+  - 인쇄 시 toolbar hidden + paper 영역 출력 변경 0
+- **정상 동작**:
+  - 모드 토글 segment = 화면에 미존재 (rev2 단일 모드 통일)
+  - 마킹 칸 클릭 = 즉시 PlayerSelectModal open (paper 모드 차단 분기 없음)
+  - 경기 종료 = MatchEndButton confirm modal 그대로
+- **주의할 입력**:
+  - 기존 localStorage draft 가 있는 매치 = `draft.savedAt vs matchUpdatedAtISO` 비교 흐름 그대로 (Phase 23)
+  - paper-only 매치 (PBP 0건 + quarter_scores 있는 매치) = 안내 배너 + cross-check 배너 그대로
+
+### reviewer 참고
+
+- **특별히 봐줬으면 하는 부분**:
+  1. **부분 롤백 정확성** (PR-S6) — toolbar 의 mode segment 만 제거, 나머지 (back/인쇄/종료/타이틀/endMatchDisabled) 보존. PR-S2 후속 fix 3 (endMatchDisabled lifting state up) 도 그대로.
+  2. **토큰 매핑 누락 여부** (PR-S7) — `--ss-paper-soft` → `--pap-ink` 치환했는데 시안 rev2 가 soft/mute/dim 토큰 자체를 없앤 결과. 운영에서 다른 컴포넌트가 이 토큰을 참조하지 않는지 확인 필요 (현재 grep 결과 = 외부 사용 0건).
+  3. **클래스 병행 사용** (PR-S8) — `.ss-field__v pap-u` 같이 두 클래스 동시 부착. 기존 `.ss-shell .ss-field__v` 룰 (border-bottom 1px) 과 `.ss-shell .pap-u` 룰 (border-bottom 1px) 이 둘 다 적용 → 동일 결과. 우선순위 충돌 0.
+  4. **로고 flex-direction column** — `.ss-h__logo` 가 row 에서 column 으로 변경. 좌측 로고 박스 92px 폭 안 3줄 (마크 + BDR + We Play Basketball) 세로 누적. 시안 rev2 시각 정합.
+  5. **vitest 204/204 PASS** — fiba-header-split-datetime 5 tests 그대로 통과 (splitDateTime export 변경 0).
+
+### 다음 단계
+
+PM 결재 후 3 commit 분리 (PR-S6 / PR-S7 / PR-S8) — 가이드 §"PM 분리 commit 가이드" 참고. styles.css 가 3 PR 모두 영향 = `git add -p` 또는 단일 묶음 commit 선택.
+
+---
+
+## 구현 기록 (developer) — Phase 5 B retry 보강 + Phase 23 PR5-A audit endpoint (2026-05-14)
+
+📝 구현한 기능:
+- **작업 1 (Phase 5 B 보강)**: editions POST 에 P2002 retry 1회 로직 추가 — 운영 DB 의 `tournaments_series_edition_unique` 인덱스(2026-05-14 `b28545f`) 와 race 충돌 시 자동 재시도
+- **작업 2 (Phase 23 PR5-A)**: 신규 endpoint `/api/web/score-sheet/[matchId]/cross-check-audit` — score-sheet 매치 재진입 시 warning 3종 (`quarter_scores_mismatch` / `draft_dom_conflict` / `pbp_zero_with_quarter`) 을 `tournament_match_audits` 에 박제 → 운영 모니터링 가능
+
+### 변경 파일
+
+| 파일 경로 (절대) | LOC | 신규/수정 | 한 줄 설명 |
+|------|-----|----------|----------|
+| `C:\0. Programing\mybdr\src\app\api\web\series\[id]\editions\route.ts` | +90 -52 | 수정 | for-loop retry 1회 (P2002 catch → count 재조회 → retry) + Prisma value import (instanceof 가드용) + 비-P2002 즉시 throw |
+| `C:\0. Programing\mybdr\src\app\api\web\score-sheet\[matchId]\cross-check-audit\route.ts` | +135 | **신규** | warning 박제 endpoint (Zod 3종 enum + details record / requireScoreSheetAccess 가드 / tournament_match_audits 직접 INSERT) |
+
+### 작업 1 — retry 패턴
+
+```ts
+for (let attempt = 0; attempt < 2; attempt++) {
+  const count = await prisma.tournament.count({ where: { series_id: series.id } });
+  editionNumber = count + 1;
+  // ... tournamentCreateData 결정 (마법사 / 기존 path 분기) ...
+  try {
+    createdTournament = await prisma.$transaction(async (tx) => { /* 3단계 */ });
+    break; // 성공 → 탈출
+  } catch (txErr) {
+    if (
+      attempt === 0 &&
+      txErr instanceof Prisma.PrismaClientKnownRequestError &&
+      txErr.code === "P2002"
+    ) continue; // count 재조회 + 재시도
+    throw txErr; // 비-P2002 또는 retry 후도 P2002 → 바깥 catch
+  }
+}
+```
+
+바깥 catch:
+- `Prisma.PrismaClientKnownRequestError` + `code === "P2002"` → `409 CONFLICT` "이미 같은 회차가 있어요. 다시 시도해주세요."
+- raw SQL fallback (메시지 `P2002` / `23505` / `Unique constraint`) → 동일 409
+- 그 외 → 500
+
+**사전 검증 1회 (retry 루프 외)**:
+- 기존 path `!body.startDate` → `400` (입력 오류 — retry 대상 아님)
+
+### 작업 2 — endpoint 동작
+
+| 단계 | 동작 |
+|------|------|
+| 1 | matchId 파싱 + Number.isFinite 가드 → 400 |
+| 2 | `requireScoreSheetAccess(BigInt(matchIdNum))` — 권한 가드 (super_admin / organizer / admin member / recorder) |
+| 3 | body Zod 검증 — warning_type 3종 enum + details 5필드 optional |
+| 4 | `prisma.tournament_match_audits.create` 직접 INSERT |
+| 5 | 응답 `apiSuccess({ audit_id })` (BigInt → string) |
+
+**audit row 구조** (검증한 schema.prisma L2205-2220):
+- `matchId` = match.id (BigInt)
+- `source` = `"web-score-sheet"` (AuditSource union 답습 — match-audit.ts L26 이미 정의)
+- `context` = `"phase23-cross-check:{warning_type} by {nickname}"` (255자 trim)
+- `changes` = `{ warning_type, details ?? {} }` JSON
+- `changedBy` = user.id
+
+**멱등성 가드**: 본 PR5-A 는 단순 박제만 (1분 가드 옵션 skip — 가이드 §동작 4 명시). 다중 박제 = 운영자 빈도 추적 시 오히려 유리.
+
+### 검증 결과
+
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | ✅ EXIT=0 (에러 0) |
+| 2 | 기존 호출자 회귀 0 | ✅ editions POST 성공 path = 트랜잭션 내용 변경 0 / add-edition 페이지 응답 키 (`success`/`tournamentId`/`editionNumber`/`name`/`redirectUrl`) 모두 유지 |
+| 3 | Zod 유효성 | ✅ 잘못된 warning_type → `validationError` (422) |
+| 4 | 권한 가드 | ✅ `requireScoreSheetAccess` — 401 (익명) / 403 (권한 없음) / 404 (매치 없음) |
+| 5 | audit 박제 | ✅ schema.prisma 컬럼 (matchId/source/context/changes/changedBy) 정합 |
+| 6 | 멱등성 | ⚠️ 본 PR5-A 는 단순 박제 (가이드 명시 — 옵션) |
+| 7 | `any` 사용 | ✅ 0건 (Prisma.InputJsonValue / z.unknown / z.record 사용) |
+| 8 | retry 영향 0 케이스 | ✅ P2002 외 에러 = 즉시 throw → 바깥 catch 500 (기존 동작 보존) |
+
+### tester 참고
+
+- **테스트 방법 — 작업 1 (retry)**:
+  - 단일 회차 추가: `curl -X POST .../editions -d '{"startDate":"2026-06-01","venueName":"강남","maxTeams":16}'` → 200
+  - 동시 회차 추가 시뮬 (DB unique 인덱스 적용된 상태): 2개 동시 호출 → 한쪽 P2002 → retry 후 성공 (editionNumber 다름) 또는 retry 후도 실패 시 409
+  - **수동 시뮬레이션** (단일 호출로 race 재현 어려움): 인덱스 정상 동작 확인 = 같은 (series_id, edition_number) raw INSERT 2회 → 두 번째 23505
+- **테스트 방법 — 작업 2 (cross-check-audit)**:
+  - 정상: `curl -b "_web_session=..." -X POST .../score-sheet/{matchId}/cross-check-audit -d '{"warning_type":"quarter_scores_mismatch","details":{"db_value":[10,20],"pbp_computed":[10,21]}}'` → 200 + `{ audit_id }`
+  - 권한 없음: 비로그인 → 401 / 매치 접근 없는 user → 403
+  - 잘못된 warning_type: `-d '{"warning_type":"unknown"}'` → 422 (Zod validation)
+  - 잘못된 matchId: `/cross-check-audit` path matchId=0 → 400 (INVALID_MATCH_ID)
+- **정상 동작**:
+  - 작업 1: P2002 시 자동 retry → 사용자에게는 성공 응답 (editionNumber 1 증가) / retry 후도 실패 시 409 친절 메시지
+  - 작업 2: warning 3종 박제 후 audit_id 반환 / DB `tournament_match_audits` 에 `source='web-score-sheet' context='phase23-cross-check:...'` row 1건 생성
+- **주의할 입력**:
+  - 작업 1: 비-P2002 에러 (예: FK 위반 / DB 연결 끊김) → retry 안 함 (즉시 500)
+  - 작업 2: details 미전송 → `details: {}` 박제 (Zod default 동작 + `?? {}` 폴백)
+  - 작업 2: 같은 매치 + 같은 warning_type 다중 박제 가능 (멱등성 가드 0 — 옵션 skip)
+
+### reviewer 참고
+
+- **특별히 봐줬으면 하는 부분**:
+  1. **작업 1 retry break 위치** — try 안 마지막 줄 `break;` (성공 시 탈출). catch 의 `continue;` (attempt 0 P2002 시 재시도)
+  2. **작업 1 Prisma import 변경** — `import type { Prisma }` → `import { Prisma }` (instanceof 가드 사용 시 value import 필수). type-only 사용처 (`Prisma.TournamentCreateInput` 등) 정상 동작 확인
+  3. **작업 1 사전 검증 분리** — `!hasFullPayload && !body.startDate` 체크를 retry 루프 외 1회만. 입력 오류는 retry 대상 아님
+  4. **작업 1 createdTournament null 가드** — for 루프가 break 없이 빠져나오는 케이스 (이론상 unreachable but defensive). throw 전파 또는 break 둘 중 하나로 항상 종료
+  5. **작업 2 source = "web-score-sheet"** — AuditSource union (match-audit.ts L26) 에 이미 정의된 값 답습. 신규 source 추가 0
+  6. **작업 2 context 255자 trim** — submit endpoint 와 동일 패턴 (VarChar 안전)
+  7. **작업 2 audit 실패 시** — silent 가 아니라 500 응답 (submit endpoint 의 fire-and-forget 과 다름). 사유: 본 endpoint = 모니터링 목적 단독 endpoint → 실패 시 클라이언트가 인지 가능해야 함 (단, 클라이언트는 무시 가능 — score-sheet 흐름 영향 0)
+
+### 다음 단계
+
+- **PR5-B (시안 완료 후)**: form.tsx 에 fetch wiring 추가 — 매치 재진입 시 mismatch 감지 → 본 endpoint 호출. 시안 진행 중이므로 본 turn 미진입.
+
+PM 결재 받음. commit/push 는 PM.
 
 ---
 

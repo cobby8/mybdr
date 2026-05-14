@@ -118,18 +118,20 @@ export function PeriodScoresSection({
       {/* ─────────────────────────────────────────────
           시안 .ss-ps 표 — Period 5 row (Q1~Q4 + Extra)
           ───────────────────────────────────────────── */}
+      {/* PR-S8 (2026-05-15 rev2) — 라벨 = .pap-lbl, value = .ss-ps__val + .pap-u 병행 (시안 정합).
+          rev2 ScoreSheet.bottom.jsx L114~115 / L129~140 정합. */}
       <div className="ss-ps">
         {/* Q1 row — 시안 grid 90 / 60 / 1fr / 30 / 1fr */}
         <div className="ss-ps__row">
-          <span className="ss-ps__title">Scores</span>
-          <span className="ss-ps__period" data-q="1">
+          <span className="ss-ps__title pap-lbl">Scores</span>
+          <span className="ss-ps__period pap-lbl" data-q="1">
             <span className="ss-circ">①</span>Period
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(1)?.homePoints)}
           </span>
           <span></span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             B&nbsp;&nbsp;{fmt(lineByPeriod.get(1)?.awayPoints)}
           </span>
         </div>
@@ -137,14 +139,14 @@ export function PeriodScoresSection({
         {/* Q2 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period" data-q="2">
+          <span className="ss-ps__period pap-lbl" data-q="2">
             <span className="ss-circ">②</span>Period
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(2)?.homePoints)}
           </span>
           <span></span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             B&nbsp;&nbsp;{fmt(lineByPeriod.get(2)?.awayPoints)}
           </span>
         </div>
@@ -152,14 +154,14 @@ export function PeriodScoresSection({
         {/* Q3 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period" data-q="3">
+          <span className="ss-ps__period pap-lbl" data-q="3">
             <span className="ss-circ">③</span>Period
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.homePoints)}
           </span>
           <span></span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             B&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.awayPoints)}
           </span>
         </div>
@@ -167,14 +169,14 @@ export function PeriodScoresSection({
         {/* Q4 row */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period" data-q="4">
+          <span className="ss-ps__period pap-lbl" data-q="4">
             <span className="ss-circ">④</span>Period
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.homePoints)}
           </span>
           <span></span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             B&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.awayPoints)}
           </span>
         </div>
@@ -182,14 +184,14 @@ export function PeriodScoresSection({
         {/* Extra periods row — 시안 단일 row / 운영 = 현재 진행 OT 합산 */}
         <div className="ss-ps__row">
           <span></span>
-          <span className="ss-ps__period">
+          <span className="ss-ps__period pap-lbl">
             Extra periods{extraPeriod ? ` (${periodLabel(extraPeriod)})` : ""}
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(extraLine?.homePoints)}
           </span>
           <span></span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             B&nbsp;&nbsp;{fmt(extraLine?.awayPoints)}
           </span>
         </div>
@@ -200,26 +202,26 @@ export function PeriodScoresSection({
           ───────────────────────────────────────────── */}
       <div className="ss-final">
         <div className="ss-final__row">
-          <span className="ss-ps__title">Final Score</span>
-          <span className="ss-ps__teamlabel" title={homeTeamName}>
+          <span className="ss-ps__title pap-lbl">Final Score</span>
+          <span className="ss-ps__teamlabel pap-lbl" title={homeTeamName}>
             Team A
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             {final.homeTotal || ""}
           </span>
-          <span className="ss-ps__teamlabel" title={awayTeamName}>
+          <span className="ss-ps__teamlabel pap-lbl" title={awayTeamName}>
             Team B
           </span>
-          <span className="ss-ps__val">
+          <span className="ss-ps__val pap-u">
             {final.awayTotal || ""}
           </span>
         </div>
 
         {/* 시안 .ss-winner — Winner 박스 (underscore 라인 / 자동 채움) */}
         <div className="ss-winner">
-          <label>Name of winning team</label>
+          <label className="pap-lbl">Name of winning team</label>
           <div
-            className="ss-winner__v"
+            className="ss-winner__v pap-u"
             title={winnerName || undefined}
           >
             {winnerName}

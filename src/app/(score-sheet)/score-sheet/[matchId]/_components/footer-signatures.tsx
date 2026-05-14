@@ -401,7 +401,9 @@ function SigInput({
     // Phase 19 (2026-05-13) — 라벨 font-semibold → font-bold (FIBA 정합 / 사용자 결재 §2 / bold 10px 통일).
     //   - 라벨 10px bold tracking-wider (Title case 유지 = FIBA PDF 정합 Phase 16).
     //   - input minHeight 22 → 24px (시인성 ↑ / 사용자 결재 §3 데이터 영역 확장).
-    const labelClass = "shrink-0 text-[10px] font-bold tracking-wider";
+    // PR-S8 (2026-05-15 rev2) — .pap-lbl (라벨) + .pap-u (input underscore) 클래스 병행.
+    //   rev2 ScoreSheet.bottom.jsx L114~115 정합. Tailwind 운영 룰 + 시안 .pap-* 룰 양립.
+    const labelClass = "pap-lbl shrink-0 text-[10px] font-bold tracking-wider";
     const inputMinHeight = 24;
     return (
       <label className="flex items-baseline gap-1 overflow-hidden">
@@ -424,7 +426,7 @@ function SigInput({
           onChange={onChange}
           disabled={disabled}
           maxLength={maxLength}
-          className="min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
+          className="pap-u min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
           style={{
             color: "var(--color-text-primary)",
             borderBottom: "1px solid var(--color-text-primary)",

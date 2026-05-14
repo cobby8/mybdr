@@ -60,19 +60,8 @@ interface RunningScoreGridProps {
   disabled?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
-  // Phase 19 PR-S3 (2026-05-14) — 사용자 결재 D2 / D7.
-  //
-  // 왜 (이유):
-  //   - **detail (기본)** = 운영 기존 동작 100% 보존 — onClick / setRunningScore / 모달 trigger 모두 변경 0.
-  //     prop 미전달 시 'detail' 폴백 = 신규 매치 회귀 0 (호출자 변경 없이도 안전).
-  //   - **paper** = read-only preview — 입력 차단 + 시각 indicator (opacity / cursor / 안내 텍스트).
-  //     grid layout 분기 ❌ (사용자 결재 D7 — 운영 layout 유지 / PR-S3 범위 외 후속 PR).
-  //
-  // 어떻게:
-  //   - paper 모드 시 handleCellClick 시작부 early return (disabled 와 동일 패턴 재사용).
-  //   - wrapper 에 data-score-mode="paper" 속성 부착 → CSS (_score-sheet-styles.css) 가 visual 처리.
-  //   - wrapper 상단 안내 텍스트 (no-print) — paper 모드일 때만 렌더.
-  mode?: "paper" | "detail";
+  // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
+  // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
 
 // FIBA 양식 = 4 세트, 각 세트 = 40 row, A|B 두 컬럼
@@ -98,15 +87,9 @@ export function RunningScoreGrid({
   awayTeamName,
   disabled,
   frameless,
-  // Phase 19 PR-S3 (2026-05-14) — 기본 'detail' = 운영 동작 100% 보존 (prop 미전달 = 회귀 0).
-  mode = "detail",
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
-
-  // Phase 19 PR-S3 — paper 모드 판정 (사용자 결재 D2 = read-only preview).
-  //   detail (기본) = 운영 기존 동작 = 모든 onClick / setRunningScore 호출 변경 0.
-  const isPaperMode = mode === "paper";
 
   // 등번호 lookup — 마킹 표시용 (선수 id → jersey)
   const jerseyMap = new Map<string, number | null>();
@@ -132,9 +115,7 @@ export function RunningScoreGrid({
   // 칸 클릭 핸들러 — 빈 칸이면 모달, 마지막 마킹 칸이면 해제 확인, 그 외 마킹은 안내
   function handleCellClick(team: "home" | "away", position: number) {
     if (disabled) return;
-    // Phase 19 PR-S3 (2026-05-14) — paper 모드 = read-only preview (사용자 결재 D2).
-    //   모든 입력 차단 (모달 미열림 / setRunningScore 미호출). 시각은 detail 과 동일 layout 유지 (D7).
-    if (isPaperMode) return;
+    // PR-S6 (2026-05-14 rev2 롤백) — paper 모드 분기 제거. 시안 rev2 가 모드 토글을 제거.
     const marks = team === "home" ? state.home : state.away;
     const lastPos = team === "home" ? homeLastPos : awayLastPos;
     const markMap = team === "home" ? homeMarkMap : awayMarkMap;
@@ -197,35 +178,8 @@ export function RunningScoreGrid({
 
   return (
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
-    // Phase 19 PR-S3 (2026-05-14) — data-score-mode 속성 부착 (paper 모드 visual = CSS 가 처리).
-    //   detail (기본) = 'detail' 값이지만 CSS 룰 없음 = 운영 시각 변경 0.
-    //   paper = CSS .ss-shell [data-score-mode="paper"] 룰이 opacity / cursor 처리.
-    <div className={wrapperClass} style={wrapperStyle} data-score-mode={mode}>
-      {/* Phase 19 PR-S3 (2026-05-14) — paper 모드 read-only 안내 (사용자 결재 D2).
-          위치 = 헤더 위 상단 / no-print 클래스 (인쇄 시 hidden / FIBA 종이 정합).
-          detail 모드 = 본 블록 렌더 X = 운영 시각 변경 0. */}
-      {isPaperMode && (
-        <div
-          className="no-print flex items-center gap-1 px-2 py-1 text-[10px]"
-          style={{
-            backgroundColor:
-              "color-mix(in srgb, var(--color-info) 10%, transparent)",
-            color: "var(--color-info)",
-            borderBottom: "1px solid var(--color-border)",
-          }}
-        >
-          <span
-            className="material-symbols-outlined text-sm"
-            aria-hidden="true"
-          >
-            visibility
-          </span>
-          <span>
-            페이퍼 모드 — 읽기 전용. 입력하려면 상단 toolbar 의 &quot;상세
-            (입력)&quot; 버튼 클릭.
-          </span>
-        </div>
-      )}
+    // PR-S6 (2026-05-14 rev2 롤백) — data-score-mode 속성 + paper 안내 텍스트 제거 (모드 토글 제거).
+    <div className={wrapperClass} style={wrapperStyle}>
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
           - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
