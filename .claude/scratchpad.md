@@ -18,6 +18,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-14 | fix(admin): sidebar — tournament_admin 사용자에게 child-only visible parent 노출 | ✅ 1 파일 +20 -5 / tsc 0 / vitest 757/757 / commit `4af0379` (최영철 사이드바 "대시보드" 1개만 보이던 회귀 영구 차단) |
 | 2026-05-14 | 마법사 Phase 5 작업 A+B — last-edition API 신규 + editions 확장 | ✅ tsc 0 / 자체검수 10/10 / 작업 C (DB unique) 사용자 결재 대기 |
 | 2026-05-14 | 신유경(3410) 본인인증 수동 부여 + GNBA(org_id=3) admin INSERT | ✅ user UPDATE (name="신유경"/name_verified=true/identity_method="manual"/verified_at=now) + organization_members id=7 (admin/active) + admin_logs 2건 박제(114 warning + 115 info). organizer는 1슬롯 제약으로 skip / 운영 DB 3 row 추가, 코드 변경 0 |
 | 2026-05-14 | 강남구협회장배 유소년부 TAM 등록 — 신유경(id=3410) INSERT | ✅ TAM id=11 (role=admin/active) / 최영철(3408)은 organizer+기존 TAM(id=10)+GNBA admin 3중 권한 보유 (작업 skip) / 운영 DB 1 row 추가, 코드 변경 0 |
