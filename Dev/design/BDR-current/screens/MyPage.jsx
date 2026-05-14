@@ -290,28 +290,19 @@ function MyPage({ setRoute }) {
             </div>
           </div>
 
-          {/* Team — 5/5 박제: 다중 팀 row + 활동 관리 + 팀페이지 → (운영 teams-list-card.tsx 정합) */}
+          {/* Team */}
           <div className="card mypage-aside-card">
             <div className="mypage-aside-card__head">
-              <span className="eyebrow" style={{fontSize:10}}>소속 팀 ({(TEAMS || []).slice(0, 3).length})</span>
+              <span className="eyebrow" style={{fontSize:10}}>소속 팀</span>
               <a className="mypage-aside-card__more" onClick={()=>setRoute('team')}>전체</a>
             </div>
-            <ul style={{listStyle:'none', margin:0, padding:0, display:'flex', flexDirection:'column', gap:8}}>
-              {(TEAMS || []).slice(0, 3).map((t, i) => (
-                <li key={t.id || i} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop: i > 0 ? '1px solid var(--border)' : 'none'}}>
-                  <span className="mypage-team__tag" style={{background:t.color, color:t.ink, flexShrink:0, width:32, height:32}}>{t.tag}</span>
-                  <div style={{flex:1, minWidth:0}}>
-                    <div className="mypage-team__name" style={{fontSize:13, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{t.name}</div>
-                    <div style={{fontSize:11, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{t.location || '서울'} · #{i === 0 ? user.number.replace('#','') : '—'}</div>
-                  </div>
-                  {/* 5/6 박제 — 우측 정렬 stack (활동 관리 + 팀페이지 →) */}
-                  <div style={{display:'flex', flexDirection:'column', gap:4, alignItems:'flex-end', flexShrink:0}}>
-                    <button className="btn btn--sm" style={{padding:'2px 8px', fontSize:10}}>활동 관리</button>
-                    <a onClick={()=>setRoute('teamDetail')} style={{fontSize:10, color:'var(--cafe-blue)', cursor:'pointer'}}>팀페이지 →</a>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="mypage-team" onClick={()=>setRoute('teamDetail')}>
+              <span className="mypage-team__tag" style={{background:team.color, color:team.ink}}>{team.tag}</span>
+              <div style={{flex:1, minWidth:0}}>
+                <div className="mypage-team__name">{team.name}</div>
+                <div className="mypage-team__rec t-mono">{team.wins}W {team.losses}L · {team.rating}</div>
+              </div>
+            </div>
           </div>
 
           {/* Recent activity (5) */}

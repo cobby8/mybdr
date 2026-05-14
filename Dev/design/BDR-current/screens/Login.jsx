@@ -1,4 +1,4 @@
-/* global React, PasswordInput, Icon */
+/* global React, Icon */
 
 function Login({ setRoute }) {
   const [tab, setTab] = React.useState('login');
@@ -8,7 +8,7 @@ function Login({ setRoute }) {
         <div style={{fontFamily:'var(--ff-display)', fontSize:36, fontWeight:900, letterSpacing:'-0.02em'}}>
           MyBDR<span style={{color:'var(--accent)'}}>.</span>
         </div>
-        <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:6}}>서울 3x3 농구 커뮤니티</div>
+        <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:6}}>전국 농구 매칭 플랫폼</div>
       </div>
 
       <div className="card" style={{padding:0, overflow:'hidden'}}>
@@ -28,7 +28,7 @@ function Login({ setRoute }) {
               <div className="label">아이디</div>
               <input className="input" defaultValue="rdm_captain" style={{marginBottom:14}}/>
               <div className="label">비밀번호</div>
-              <PasswordInput defaultValue="••••••••" autoComplete="current-password" style={{marginBottom:12}}/>
+              <input className="input" type="password" defaultValue="••••••••" style={{marginBottom:12}}/>
               <div style={{display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:18}}>
                 <label style={{display:'flex', gap:6, alignItems:'center', cursor:'pointer'}}>
                   <input type="checkbox" defaultChecked/> 자동 로그인
@@ -49,9 +49,9 @@ function Login({ setRoute }) {
               <div className="label">아이디</div>
               <input className="input" placeholder="영문+숫자 6자 이상" style={{marginBottom:14}}/>
               <div className="label">비밀번호</div>
-              <PasswordInput placeholder="8자 이상" autoComplete="new-password" style={{marginBottom:14}}/>
+              <input className="input" type="password" placeholder="8자 이상" style={{marginBottom:14}}/>
               <div className="label">비밀번호 확인</div>
-              <PasswordInput autoComplete="new-password" style={{marginBottom:14}}/>
+              <input className="input" type="password" style={{marginBottom:14}}/>
               <div className="label">닉네임</div>
               <input className="input" placeholder="커뮤니티에서 표시됩니다" style={{marginBottom:14}}/>
               <div className="label">활동 지역</div>

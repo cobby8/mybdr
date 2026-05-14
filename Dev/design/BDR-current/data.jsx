@@ -20,7 +20,7 @@ const TOURNAMENTS = [
     id: 'bdr-challenge-spring-2026',
     title: 'BDR CHALLENGE',
     edition: 'SPRING 2026',
-    subtitle: '서울 3x3 오픈 챔피언십',
+    subtitle: '3x3 오픈 챔피언십',
     status: 'open',              // open | closing | closed | live | ended | preparing
     level: 'OPEN',               // OPEN | PRO | AMATEUR
     format: '3v3 · 더블엘리미네이션',

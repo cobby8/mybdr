@@ -1,89 +1,79 @@
-# BDR v2.4 — Phase A.6 변경 요약
+# BDR v2.5 — Phase 23 (ScoreSheet FIBA-paper pixel-perfect 정합)
 
-> **Phase A.6 — 메인 9개 탭 목록 5 페이지 운영 정합 + AppDrawer PC fix 검수**
-> 작업 일자: 2026-05-08
-> 베이스: v2.3 카피 + 8 파일 덮어쓰기
-
----
-
-## 1. 변경 범위
-
-5 페이지 (Games / Match / Team / Court / BoardList) 를 운영 mybdr.kr 의 src 패턴에 정합 — Hero 헤더 grid 1fr auto + 검색 토글 (.app-nav__icon-btn) + FilterChipBar + 미니멀 카드. AppDrawer PC fix 는 검수 결과 정상 (CSS 미적용 stacked list 아님 — drawer 42vw 우측 슬라이드 + 5그룹 박스 모두 정상 렌더).
-
-## 2. 변경 파일 (8 건)
-
-| # | 파일 | 변경 내용 |
-|---|------|---------|
-| 1 | `screens/Games.jsx` | §1 — area span / 태그 칩 span 에 whiteSpace:nowrap (텍스트 1글자 줄바꿈 fix) |
-| 2 | `screens/Match.jsx` | §2 — viewMode 토글 (리스트/월간/주간), 4탭 단순화 (전체/접수중/진행중/종료), 미니멀 D-day 56px 색상 박스 + 단일 행 리스트 (큰 그라디언트 카드 X), h1 ellipsis |
-| 3 | `screens/Team.jsx` | §3 — Hero 헤더 grid + 검색 토글 + FilterChipBar (지역/정렬) + 미니멀 카드 (로고 + 팀명 한/영 + 📍지역 + 👥멤버 + R레이팅) |
-| 4 | `screens/Court.jsx` | §4 — Hero 헤더 grid + 검색 토글 + 지도 보기 토글 + chip-bar (코트타입/지역) + 카카오맵 placeholder + 미니멀 카드 |
-| 5 | `screens/BoardList.jsx` | §5 — BoardHeader 컴포넌트 추가 (eyebrow 카테고리 + h1 게시판명 + 부제) + 검색 토글 + 글쓰기 |
-| 6 | `components.jsx` | Icon 객체 4 추가 (filter / list / calendar / week) |
-| 7 | `tokens.css` | 다크 모드 .badge font-family `'Pretendard', var(--ff-display)` 변경 (한글 fallback 우선 — Archivo 한글 미지원 깨짐 fix) |
-| 8 | `MyBDR.html` | 위 변경 반영 |
-
-## 3. 검수 결과
-
-**§6 AppDrawer PC fix 통과** — 1280x800 viewport 에서 햄버거 클릭 → drawer width 42vw (~538px), backdrop fixed inset:0, 5그룹 박스 (내 활동 / 경기·대회 / 등록·예약 / 둘러보기 / 계정·도움) 정상 렌더. CSS 미적용 stacked list 아님.
-
-**fix 5건 모두 해결 (verifier 재검수 done)**:
-1. §2 Match h1 줄바꿈 — wrapper flex:1 1 280px / minWidth:0, h1 nowrap+ellipsis
-2. §3 Team 카드 폭 — 그리드 280px → 320px, 한/영 + 지역/멤버 nowrap
-3. §3 §4 정렬·지역 라벨 — 부모 flexShrink:0, 라벨 nowrap+flexShrink:0
-4. §4 Court HOT 뱃지 — 다크 .badge font-family Pretendard 우선 (한글 fallback)
-5. §1 Games area·태그 — span 에 nowrap
-
-**콘솔 에러 0** (Babel warning 만)
-
-## 4. 사용자 결정 §1~§8 보존
-
-- §1 모바일 분기 (720px / iOS 16px / 44px 터치 타겟) — 보존
-- §2 다크 모드 brutalism — 보존
-- §3 NavBadge dot/count/new/live — 보존
-- §4 햄버거 R3 강조 (border 1px accent) — 보존
-- §5 더보기 5그룹 IA — 보존
-- §6 검색·쪽지·알림 .app-nav__icon-btn — 보존 (Team/Court/BoardList 헤더에서 동일 패턴 재사용)
-- §7 ThemeSwitch viewport 분기 — 보존
-- §8 TeamDetail hero / TeamManage ForceActionModal — 보존
-
-## 5. AppNav Frozen 7 룰 준수
-
-AppNav 컴포넌트는 frozen — components.jsx 그대로 카피 사용. 본 Phase 에서 변경한 components.jsx 의 유일한 수정은 Icon 객체 추가 4건 (filter / list / calendar / week) 으로, AppNav 7 룰 (9 메인 탭 / utility bar / main bar 우측 5개 / 다크모드 분기 / app-nav__icon-btn / 모바일 닉네임 hidden / 더보기 9번째) 모두 보존됨.
-
-## 6. 13 룰 준수 (uploads/06 self-checklist)
-
-- ✅ §10 색상 — 모든 신규 코드 var(--accent / --cafe-blue / --ok / --bg-alt / --ink-mute) 토큰만 사용. 핑크/살몬/코랄 0건.
-- ✅ §11 아이콘 — Icon.* (svg) 또는 시안 검증된 이모지 (📍 👥 📅 🗓️) 만 사용. lucide-react 0건.
-- ✅ §12 라운딩 — 카드/버튼 4px (var(--radius-card) = 8px 카드 OK), pill 9999px 0건.
-- ✅ §13 모바일 — 720px 분기 보존, iOS input 16px, 버튼 44px 보존.
-
-## 7. PM 후속 (별도 Phase)
-
-운영 mybdr.kr/teams /courts /community 스크린샷 공유 시 fine-tune. 본 Phase 베이스 = 운영 src 패턴 정합 (스크린샷 받기 전 잠정 박제) 이므로 후속에서 정확한 카피·아이콘·정렬 라벨만 조정하면 됨.
+> **Phase 23 — FIBA 표준 종이 기록지 시각 박제 (시안 신규)**
+> 작업 일자: 2026-05-14
+> 베이스: v2.4 (Phase A.6 — 5 페이지 운영 정합) + ScoreSheet 5 파일 추가
+> 동기화: 2026-05-14 — zip "BDR v2 (1).zip" 의 `Dev/design/BDR v2.5/` 통째로 BDR-current/ 카피
 
 ---
 
-## 8. 산출물 폴더 구조
+## 1. 변경 범위 (v2.4 → v2.5)
+
+신규 ScoreSheet 시안 5 파일 — `(score-sheet)` route group (AppNav 미포함, 인쇄 전용) 의 FIBA 표준 종이 기록지 시각 박제. 비즈니스 로직 / API / 모달 X. 운영 `src/app/(score-sheet)/` 와 짝을 이루는 시각 정합 source.
+
+## 2. 변경 파일 (5 건 추가)
+
+| # | 파일 | 줄수 | 변경 내용 |
+|---|------|------|---------|
+| 1 | `screens/ScoreSheet.jsx` | 82 | 메인 래퍼 — toolbar (페이퍼/상세 모드 토글 + 인쇄 + 경기 종료) + A4 portrait paper |
+| 2 | `screens/ScoreSheet.parts.jsx` | 224 | SSHeader / SSNames / SSMeta / SSTimeoutCells / SSTeamFoulRow / SSTeamBoxHead / SSPlayerHead / SSPlayerRow / SSTeamBox |
+| 3 | `screens/ScoreSheet.bottom.jsx` | 268 | SSRunningScore (mode='paper' A\|B·8 / mode='detail' 16 cols) / SSOfficials / SSBottomLeftSigs / SSPeriodScores |
+| 4 | `screens/ScoreSheet.data.jsx` | 71 | mock 데이터 (양팀 12명 명단 / coach·asst / timeouts / teamFouls / periodScores Q1~Q4·extra) |
+| 5 | `scoresheet.css` | 899 | `.ss-*` 클래스 전 영역 시각 박제 (A4 portrait pixel-perfect + 인쇄 전용 미디어 쿼리) |
+
+## 3. 핵심 UX
+
+- **모드 토글** — toolbar 의 두 모드:
+  - `paper` (페이퍼 정합 A\|B · 8) — 양팀 점수 grid 만 표시. 종이 양식과 1:1 매칭.
+  - `detail` (상세 마킹 16) — FIBA 표준 4 sub-column (`마킹A | 점수A | 점수B | 마킹B`) × 4 세트 = 16 cols.
+- **점수 표기** — FIBA 정합: 1점 `·` / 2점 `●` / 3점 `●+○`
+- **양팀 명단 12명** — licenceNo / name / no / playerIn (쿼터) / fouls (5 슬롯 P/T 마킹)
+- **인쇄 (window.print)** — A4 portrait. `_phase17/` 의 인쇄 미디어 쿼리 보강.
+- **경기 종료** — 단순 버튼 (시안에서는 작동 X — 운영의 match-end-button.tsx 가 실제 로직)
+
+## 4. 운영 ↔ 시안 갭 (CLAUDE.md §🔄)
+
+운영 `src/app/(score-sheet)/` 가 시안보다 앞서 있음 (Phase 1~18 완료):
+- ✅ 운영 박제 / 시안 일치: fiba-header / team-section / running-score-grid (Phase 18 동일) / footer-signatures / period-scores-section
+- ⚠️ 시안에 누락 (운영에는 있음): foul-type-modal / player-select-modal / lineup-selection-modal / quarter-end-modal / rotation-guard / period-color-legend (Phase 17 쿼터별 색)
+- ⚠️ 운영에 누락 (시안에는 있음): 페이퍼/상세 모드 토글 / scoresheet.css 시각 디테일 (~600줄 갭 vs 운영 _print.css 301줄)
+
+→ 후속 작업 (별도 폴더 `Dev/scoresheet-2026-05-14/`):
+- Phase A.7 (역동기화) — 시안에 운영 모달 5종 박제 의뢰 (Claude.ai Project)
+- Phase 19 (시안 → 운영 박제) — CSS 시각 디테일 + 페이퍼 모드 토글 운영 박제 (CLI)
+
+## 5. 사용자 결정 §1~§8 보존
+
+본 동기화는 ScoreSheet 5 파일 추가만 — §1~§8 (AppNav frozen / 더보기 5그룹 IA / 다크모드 brutalism / 720px 분기 등) 모두 v2.4 그대로 보존.
+
+## 6. AppNav Frozen 7 룰 준수
+
+ScoreSheet 는 `(score-sheet)` route group 으로 AppNav 미포함. 컴포넌트 `_phase17/` 영향 0. AppNav 7 룰 전체 보존.
+
+## 7. 13 룰 준수 (06-self-checklist.md)
+
+- ✅ §10 색상 — `.ss-*` 클래스의 모든 색상이 `var(--ss-paper-line)` 등 토큰. 핑크/살몬/코랄 0건.
+- ✅ §11 아이콘 — Material Symbols Outlined (`arrow_back / print / flag`) + 점수 표기 유니코드 (`· ● ○`). lucide-react 0건.
+- ✅ §12 라운딩 — A4 paper 외곽 직각 2px solid (FIBA 종이 정합) — pill 0건.
+- ✅ §13 모바일 — 인쇄 전용이라 모바일 분기 별도 적용 (rotation-guard 는 운영 src/ 에).
+
+## 8. _archive
+
+이전 BDR-current/ (v2.4 베이스) 는 `_archive/BDR-current-2026-05-14-pre-scoresheet-sync/` 로 백업됨 (138 파일).
+
+## 9. 폴더 구조 (현재)
 
 ```
-Dev/design/BDR v2.4/
+Dev/design/BDR-current/
 ├── README.md                         (본 파일)
-├── tokens.css                        (다크 .badge font-family 변경)
-├── components.jsx                    (Icon 4 추가)
-├── data.jsx                          (v2.3 그대로)
-├── extras-data.jsx                   (v2.3 그대로)
-├── community-data.jsx                (v2.3 그대로)
-├── responsive.css                    (v2.3 그대로)
-├── bottom-nav.css                    (v2.3 그대로)
-├── games.css / mypage.css 등         (v2.3 그대로)
-├── MyBDR.html                        (5 페이지 변경 반영)
-├── _mobile_audit.html                (v2.3 그대로)
+├── tokens.css / responsive.css / bottom-nav.css 등  (v2.4 카피)
+├── components.jsx / components-global.jsx / data.jsx 등  (v2.4 카피)
+├── MyBDR.html / _mobile_audit.html 등  (v2.4 카피)
+├── scoresheet.css                    ⭐ Phase 23 신규 (899 lines)
 └── screens/
-    ├── Games.jsx                     (§1 텍스트 폭 fix)
-    ├── Match.jsx                     (§2 viewMode + 미니멀 카드)
-    ├── Team.jsx                      (§3 Hero + chip-bar + 미니멀 카드)
-    ├── Court.jsx                     (§4 Hero + chip-bar + 카카오맵 + 미니멀 카드)
-    ├── BoardList.jsx                 (§5 BoardHeader + 검색 토글)
-    └── (기타 모든 v2.3 screen 카피 보존)
+    ├── (v2.4 의 모든 86 파일)
+    ├── ScoreSheet.jsx                ⭐ Phase 23 신규
+    ├── ScoreSheet.parts.jsx          ⭐ Phase 23 신규
+    ├── ScoreSheet.bottom.jsx         ⭐ Phase 23 신규
+    └── ScoreSheet.data.jsx           ⭐ Phase 23 신규
 ```

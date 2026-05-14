@@ -28,6 +28,10 @@ import { PrintButton } from "./_components/print-button";
 //   본 import 는 score-sheet route group 안에서만 적용 — 기존 globals.css 의 박스스코어
 //   A4 가로 @media print 와 스코프 prefix `.score-sheet-print-root` 로 충돌 회피.
 import "./_components/_print.css";
+// Phase 19 PR-S1 — BDR v2.5 시안 토큰 운영 도입 (2026-05-14).
+//   .ss-shell 스코프 격리 — 운영 globals.css 미오염 / 현재 사용처 0 (토큰 정의만).
+//   사용자 결재 D3: 시안 q1~q4 색을 운영 PERIOD_LEGEND hex 로 동기화.
+import "./_components/_score-sheet-tokens.css";
 
 export default function ScoreSheetLayout({
   children,

@@ -16,66 +16,26 @@ function Search({ setRoute }) {
 
   const totalCount = teamHits.length + gameHits.length + tourneyHits.length + postHits.length;
 
-  const recent = ['하남미사', 'BDR Challenge', '게스트', 'block 팀', '강남 코트'];
-  const trending = ['BDR Challenge Spring', 'Kings Cup', '하남미사', '3x3 게스트', '서울 픽업'];
-
   return (
     <div className="page">
       <div style={{maxWidth:900, margin:'0 auto'}}>
-        <div style={{display:'flex', gap:6, fontSize:12, color:'var(--ink-mute)', marginBottom:12}}>
-          <a onClick={()=>setRoute('home')} style={{cursor:'pointer'}}>홈</a><span>›</span>
-          <span style={{color:'var(--ink)'}}>검색</span>
-        </div>
-
         <div style={{position:'relative', marginBottom:20}}>
-          <Icon.search style={{position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', color:'var(--ink-dim)', width:18, height:18}}/>
-          <input className="input search-input" value={q} onChange={e=>setQ(e.target.value)}
-            placeholder="팀, 경기, 대회 검색"
-            aria-label="검색"
-            style={{paddingLeft:46, height:52, fontSize:16, fontWeight:500, borderRadius:'var(--radius-card)'}}/>
-          {q && (
-            <button onClick={()=>setQ('')} aria-label="지우기" style={{position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'var(--bg-alt)', border:0, width:24, height:24, borderRadius:'50%', cursor:'pointer', color:'var(--ink-mute)', fontSize:14, display:'grid', placeItems:'center'}}>×</button>
-          )}
+          <Icon.search style={{position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', color:'var(--ink-dim)', width:16, height:16}}/>
+          <input className="input" value={q} onChange={e=>setQ(e.target.value)}
+            style={{paddingLeft:44, height:52, fontSize:17, fontWeight:500}}/>
         </div>
 
-        {!q && (
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:24}}>
-            <section>
-              <h2 style={{fontSize:13, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em', textTransform:'uppercase', marginBottom:10}}>최근 검색</h2>
-              <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
-                {recent.map(r => (
-                  <button key={r} onClick={()=>setQ(r)} className="badge" style={{background:'var(--bg-card)', border:'1px solid var(--border)', color:'var(--ink-soft)', cursor:'pointer', padding:'6px 10px', fontSize:12, fontWeight:500}}>{r}</button>
-                ))}
-              </div>
-            </section>
-            <section>
-              <h2 style={{fontSize:13, fontWeight:700, color:'var(--ink-mute)', letterSpacing:'.04em', textTransform:'uppercase', marginBottom:10}}>인기 검색</h2>
-              <ol style={{margin:0, padding:0, listStyle:'none', display:'flex', flexDirection:'column', gap:6}}>
-                {trending.map((t, i) => (
-                  <li key={t} onClick={()=>setQ(t)} style={{display:'flex', alignItems:'center', gap:10, cursor:'pointer', padding:'4px 0', fontSize:13}}>
-                    <span style={{fontFamily:'var(--ff-mono)', color: i < 3 ? 'var(--accent)' : 'var(--ink-dim)', fontWeight:700, width:16}}>{i+1}</span>
-                    <span style={{color:'var(--ink)'}}>{t}</span>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          </div>
-        )}
-
-        {q && (
         <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18, flexWrap:'wrap', gap:8}}>
           <div>
             <h1 style={{margin:0, fontSize:22, fontWeight:700}}>
-              "<span style={{color:'var(--accent)'}}>{q}</span>" 검색 결과
+              "<span style={{color:'var(--accent)'}}>{q || '전체'}</span>" 검색 결과
             </h1>
             <div style={{fontSize:13, color:'var(--ink-mute)', marginTop:4}}>
               총 {totalCount}건 · 팀 {teamHits.length} · 경기 {gameHits.length} · 대회 {tourneyHits.length} · 글 {postHits.length}
             </div>
           </div>
         </div>
-        )}
 
-        {q && (
         <div style={{display:'flex', gap:4, marginBottom:20, borderBottom:'1px solid var(--border)'}}>
           {[['all','전체'],['teams','팀'],['games','경기'],['tournaments','대회'],['posts','커뮤니티']].map(([k,l]) => (
             <button key={k} onClick={()=>setTab(k)} style={{
@@ -86,9 +46,8 @@ function Search({ setRoute }) {
             }}>{l}</button>
           ))}
         </div>
-        )}
 
-        {q && (tab==='all' || tab==='teams') && teamHits.length > 0 && (
+        {(tab==='all' || tab==='teams') && teamHits.length > 0 && (
           <section style={{marginBottom:28}}>
             <h2 style={{fontSize:15, fontWeight:700, marginBottom:10, display:'flex', alignItems:'center', justifyContent:'space-between'}}>
               팀 <span style={{fontSize:12, color:'var(--ink-dim)', fontFamily:'var(--ff-mono)'}}>{teamHits.length}</span>
@@ -107,13 +66,13 @@ function Search({ setRoute }) {
           </section>
         )}
 
-        {q && (tab==='all' || tab==='games') && gameHits.length > 0 && (
+        {(tab==='all' || tab==='games') && gameHits.length > 0 && (
           <section style={{marginBottom:28}}>
             <h2 style={{fontSize:15, fontWeight:700, marginBottom:10}}>경기 모집</h2>
             <div className="card" style={{padding:0, overflow:'hidden'}}>
               {gameHits.map((g, i) => (
                 <div key={g.id} style={{padding:'12px 16px', borderBottom: i < gameHits.length-1 ? '1px solid var(--border)' : 0, display:'grid', gridTemplateColumns:'60px 1fr auto', gap:10, alignItems:'center', cursor:'pointer'}}>
-                  <span className="badge badge--soft">{g.kind === 'pickup' ? '픽업' : g.kind === 'guest' ? '게스트' : '스크림'}</span>
+                  <span className="badge badge--soft">{g.kind === 'pickup' ? '픽업' : g.kind === 'guest' ? '게스트' : '연습경기'}</span>
                   <div>
                     <div style={{fontWeight:600, fontSize:14}}>{g.title}</div>
                     <div style={{fontSize:12, color:'var(--ink-dim)', marginTop:2}}>{g.court} · {g.date}</div>
@@ -125,7 +84,7 @@ function Search({ setRoute }) {
           </section>
         )}
 
-        {q && (tab==='all' || tab==='tournaments') && tourneyHits.length > 0 && (
+        {(tab==='all' || tab==='tournaments') && tourneyHits.length > 0 && (
           <section style={{marginBottom:28}}>
             <h2 style={{fontSize:15, fontWeight:700, marginBottom:10}}>대회</h2>
             <div className="card" style={{padding:0, overflow:'hidden'}}>
@@ -143,7 +102,7 @@ function Search({ setRoute }) {
           </section>
         )}
 
-        {q && (tab==='all' || tab==='posts') && postHits.length > 0 && (
+        {(tab==='all' || tab==='posts') && postHits.length > 0 && (
           <section style={{marginBottom:28}}>
             <h2 style={{fontSize:15, fontWeight:700, marginBottom:10}}>커뮤니티</h2>
             <div className="card" style={{padding:0, overflow:'hidden'}}>
@@ -158,10 +117,10 @@ function Search({ setRoute }) {
           </section>
         )}
 
-        {q && totalCount === 0 && (
+        {totalCount === 0 && (
           <div style={{padding:60, textAlign:'center', color:'var(--ink-dim)'}}>
             <div style={{fontSize:36, marginBottom:8}}>○</div>
-            검색 결과가 없습니다
+            검색 결과가 없습니다. 다른 키워드를 시도해보세요.
           </div>
         )}
       </div>
