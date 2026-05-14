@@ -18,6 +18,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-14 | release #3 (dev → main) — sidebar fix + 마법사 Phase 5 A+B + Phase 19 PR-S2~S5 + 마법사 Phase 1 | ✅ PR #480 (subin→dev) `918d079` + PR #481 (dev→main) `4bcaefa` 머지 / Vercel 자동 배포 |
 | 2026-05-14 | fix(admin): sidebar — tournament_admin 사용자에게 child-only visible parent 노출 | ✅ 1 파일 +20 -5 / tsc 0 / vitest 757/757 / commit `4af0379` (최영철 사이드바 "대시보드" 1개만 보이던 회귀 영구 차단) |
 | 2026-05-14 | 마법사 Phase 5 작업 A+B — last-edition API 신규 + editions 확장 | ✅ tsc 0 / 자체검수 10/10 / 작업 C (DB unique) 사용자 결재 대기 |
 | 2026-05-14 | 신유경(3410) 본인인증 수동 부여 + GNBA(org_id=3) admin INSERT | ✅ user UPDATE (name="신유경"/name_verified=true/identity_method="manual"/verified_at=now) + organization_members id=7 (admin/active) + admin_logs 2건 박제(114 warning + 115 info). organizer는 1슬롯 제약으로 skip / 운영 DB 3 row 추가, 코드 변경 0 |
@@ -187,3 +188,175 @@
 4. retry 로직 보강 (`editions/route.ts`)
 
 PM 결재 받음. commit/push 는 PM 이 진행.
+
+---
+
+## 디버깅 — 유소년 명단 제출 네트워크 오류 (2026-05-14)
+
+### 발생 상황
+운영 (mybdr.kr) — 코치(최영철) 가 `/team-apply/9d638dde.../edit` 에서 11명 명단 prefill 후 "명단 제출" 클릭 시 빨간 박스 **"네트워크 오류가 발생했습니다."** 표시.
+
+### 운영 DB SELECT 결과 (가드 면제 — SELECT only)
+| 항목 | 값 |
+|------|------|
+| token 상태 | **정상** (만료 2026-05-23, applied_via='coach_token') |
+| TournamentTeam | id=273 / 스티즈강남 / category=`i3-U11` / manager_name="최영철" / manager_phone="010-4725-2105" |
+| DivisionRule | birthYearMin/Max=2015 / gradeMax=5 (5학년 이하) |
+| 기존 명단 | 11명 박제 / jerseyNumber 1·2·6·10·17·18·23·24·30·33·39 unique / parent_phone 모두 표준 `010-XXXX-XXXX` |
+| FK 참조 | match_player_stats=0 / play_by_plays=0 (deleteMany 안전) |
+
+→ **DB / 토큰 자체는 정상**. PUT 트랜잭션 시도 시 P2003 가능성 0.
+
+### 코드 정밀 분석
+
+| 파일 | 라인 | 발견 |
+|------|------|------|
+| `src/app/(web)/team-apply/[token]/team-apply-form.tsx` | L213 | `catch { setError("네트워크 오류...") }` — fetch 예외 **또는 res.json() 파싱 실패** 모두 동일 메시지 |
+| `src/app/api/web/team-apply/[token]/route.ts` PUT | L320-357 | 코치 인증 4-분기 — DB에 manager_* 박제 있음 → 분기 1 (둘 다 매칭 검증). 입력값 mismatch 시 401 + COACH_AUTH_FAILED (`json.error` 로 표시되어야 정상) |
+| route.ts PUT | L380-403 | 트랜잭션 — deleteMany + createMany 11건. FK 참조 0 = 정상 동작 |
+| route.ts PUT 응답 | L405 | `apiSuccess({ ok, updatedCount })` → snake_case 자동 변환 (`updated_count`) — form L210 정확히 snake_case 접근 (이 함정은 회피됨) |
+
+### 의심 원인 순위
+
+| 순위 | 원인 | 근거 |
+|------|------|------|
+| **1위** | catch 블록이 4xx/5xx 응답 + JSON parse 실패 + fetch 예외를 **모두 "네트워크 오류"로 뭉뚱그림** | L195 `await res.json()` 가 실패하면 (HTML 500 페이지 등) catch 진입. 진단 불가능 |
+| 2위 | PUT 응답이 Vercel runtime timeout / 502 (HTML 응답) → JSON parse 실패 → catch | 트랜잭션 11건 빠르지만 cold start + region latency 가능 |
+| 3위 | edit-flow.tsx 인증 통과 후 manager_name 입력값과 DB 값(`최영철` / `010-4725-2105`) **mismatch** → PUT L327 → 401 → 정상 json.error 메시지여야 정상 분기, but catch 까지 떨어졌다면 다른 케이스 |
+
+→ DB/API 코드는 정상. **catch 블록의 광범위 메시지가 진짜 원인을 가립니다**.
+
+### 사용자 진단 방법 (F12)
+
+크롬 F12 → **Network 탭** → "명단 제출" 다시 클릭 → `PUT /api/web/team-apply/9d638dde.../` 항목 클릭:
+- **Status**: 200/401/422/500 중 무엇?
+- **Response** 탭: `{ error, code }` JSON 또는 HTML?
+- 결과 알려주시면 정확한 원인 1초 안에 특정 가능.
+
+### 임시 해결책 (사용자 즉시 시도)
+
+1. **페이지 새로고침** 후 코치 정보 재입력 (이름 정확히 "최영철" + 전화 "010-4725-2105")
+2. 브라우저 캐시/쿠키 클리어 후 재시도
+3. 다른 브라우저(크롬↔사파리)로 시도
+
+### 근본 해결 패치 제안 (사용자 승인 대기)
+
+`team-apply-form.tsx` L195-215 catch 블록 정밀화:
+
+```ts
+try {
+  const res = await fetch(...);
+  const text = await res.text();                          // ← 먼저 text 로 받기
+  let json: any = {};
+  try { json = JSON.parse(text); } catch { /* HTML 응답 */ }
+
+  if (!res.ok) {
+    if (json.code === "DIVISION_VALIDATION_FAILED" && ...) { ... }
+    else if (json.code === "COACH_AUTH_FAILED") setError("코치 정보 불일치");
+    else if (json.code === "TOKEN_EXPIRED") setError("토큰 만료");
+    else if (json.error) setError(json.error);
+    else setError(`서버 오류 (${res.status})`);            // ← HTML 응답이면 status 표시
+    return;
+  }
+  ...
+} catch (e) {
+  setError(`네트워크 오류: ${e instanceof Error ? e.message : "알 수 없음"}`);
+}
+```
+
+→ edit-flow.tsx L125 catch 도 동일 패턴 적용.
+
+### 변경 파일 (승인 시)
+- `C:\0. Programing\mybdr\src\app\(web)\team-apply\[token]\team-apply-form.tsx`
+- `C:\0. Programing\mybdr\src\app\(web)\team-apply\[token]\edit\edit-flow.tsx`
+
+### errors.md 박제 예정
+"운영 catch 블록이 4xx/5xx + JSON parse 실패 + fetch 예외를 모두 '네트워크 오류' 단일 메시지로 뭉뚱그리는 진단 불가 UX 함정" — snake_case 함정 재발 5회와 동일한 사일런트 버그 유형.
+
+### 구현 기록 (developer)
+
+📝 구현한 기능: team-apply 페이지 catch 블록 정밀화 — 4xx/5xx 응답의 진짜 에러 메시지 노출 (진단 함정 제거)
+
+| 파일 경로 | 변경 라인 | 핵심 변경 | 신규/수정 |
+|----------|---------|----------|----------|
+| `src/app/(web)/team-apply/[token]/team-apply-form.tsx` | L190-237 (+19 / -3) | text 선 받기 → 안전 JSON parse → res.ok 분기 → 4xx body 메시지 추출 (error/message/error_message/code) → catch 는 진짜 network 예외만 (e.message 포함) | 수정 |
+| `src/app/(web)/team-apply/[token]/edit/edit-flow.tsx` | L87-141 (+22 / -2) | 동일 패턴 적용. setError + setVerifying state 그대로 보존 / finally 블록 유지 (verifying 정리) | 수정 |
+
+#### 적용 패턴 (4단계)
+
+```ts
+// 1) 안전한 text → JSON parse (HTML 5xx 페이지 대응)
+const text = await res.text();
+let json: any = null;
+try { json = text ? JSON.parse(text) : null; } catch { /* HTML/empty */ }
+
+// 2) res.ok 분기 — 4xx/5xx body 진짜 메시지 추출
+if (!res.ok) {
+  const code = json?.code ?? json?.error_code;
+  const msg = json?.error ?? json?.message ?? json?.error_message
+    ?? (code ? `요청 실패 (${code})` : `서버 오류 (${res.status})`);
+  setError(msg);
+  return;
+}
+
+// 3) 성공 분기 (기존 onSuccess 유지)
+// 4) catch 는 진짜 network 예외만 (DNS 실패 / offline / abort)
+catch (e) {
+  const reason = e instanceof Error ? e.message : "알 수 없는 오류";
+  setError(`네트워크 오류: ${reason}`);
+}
+```
+
+#### 호환성 보존 체크리스트 (7/7 PASS)
+
+| # | 보존 항목 | 결과 |
+|---|----------|------|
+| 1 | API 호출 method / URL / payload 변경 0 | ✅ POST/PUT, endpoint, body 동일 |
+| 2 | 성공 분기 (setSuccess / setPhase) 변경 0 | ✅ form L233, edit-flow L141 그대로 |
+| 3 | 응답 키 snake_case 우선 (apiSuccess/apiError 자동 변환 함정 회피) | ✅ inserted_count / updated_count / players 그대로 |
+| 4 | 에러 표시 UI (빨간 박스) 변경 0 | ✅ setError 호출만 정밀 메시지로 |
+| 5 | 다른 함수 / import / type 변경 0 | ✅ 본 catch 블록 + 응답 처리만 |
+| 6 | DIVISION_VALIDATION_FAILED / COACH_AUTH_FAILED 친절 메시지 보존 | ✅ json?.code optional chaining 으로 동일 분기 |
+| 7 | setSubmitting / setVerifying state 정리 정상 | ✅ form: setSubmitting(false) 추가 / edit-flow: finally 그대로 |
+
+#### 검증 결과
+
+| 항목 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | ✅ EXIT=0 (에러 0) |
+| 변경 외 영향 범위 | 0 (catch + 응답 처리만 / 다른 함수/state/UI 0) |
+| any 사용 | ✅ 2건 (각 파일 1건) — eslint-disable 주석 + 사유 명시 (서버 응답 통합 타입 없음 / case-by-case) |
+| optional chaining | ✅ `json?.code` / `json?.error` 등 — JSON parse 실패 시 null 안전 |
+
+#### tester 참고
+
+- **테스트 방법**:
+  1. 운영 (mybdr.kr) → `/team-apply/{token}/edit` 진입
+  2. F12 → Network 탭 켜기
+  3. "명단 제출" → PUT 응답 status 확인
+     - **200**: 기존 정상 흐름 (success 박스 표시)
+     - **4xx with json**: 빨간 박스에 진짜 에러 메시지 (예: "코치 정보 불일치", "DIVISION_VALIDATION_FAILED" 분기 등)
+     - **5xx with json**: `json.error` 또는 `서버 오류 (500)` 표시
+     - **5xx with HTML** (Vercel timeout): `서버 오류 (502)` 등 status 코드 노출
+     - **offline / DNS 실패**: `네트워크 오류: Failed to fetch` 등 진짜 원인
+- **정상 동작**: 사용자가 "네트워크 오류" 만 보이던 케이스 → 진짜 status + 메시지 노출 → 운영자 진단 가능
+- **주의할 입력**:
+  - 코치 정보 mismatch → `COACH_AUTH_FAILED` → "코치 이름 또는 연락처가 일치하지 않습니다" (기존 친절 메시지 보존)
+  - 종별 검증 실패 → `DIVISION_VALIDATION_FAILED` → "N번 선수 생년월일/학년: ..." (기존 분기 보존)
+  - 토큰 만료 → `json.error` 그대로 표시 (예: "토큰이 만료되었습니다")
+
+#### reviewer 참고
+
+- **특별히 봐줬으면 하는 부분**:
+  1. `json?.code` optional chaining — JSON parse 실패 (null) 시 분기 정상 통과 (false 평가 → else 진입)
+  2. `setSubmitting(false)` catch 블록에 추가 (기존 누락된 정리) — form L237
+  3. edit-flow 는 finally 블록 유지 (verifying state 항상 정리)
+  4. `any` 타입 사용 — eslint-disable 주석으로 명시. 통합 타입 없음 (성공/실패 페이로드 다름) — case-by-case 처리
+  5. `text ? JSON.parse(text) : null` — 빈 응답 (204 No Content 등) 대응
+
+#### errors.md 박제 (다음 PM turn)
+
+- **패턴명**: catch 블록 광범위 메시지 진단 함정
+- **사일런트 유형**: 사용자에게 "네트워크 오류" 만 표시 → 운영자 진단 불가능
+- **재발 5회 추적**: snake_case 함정과 동일 카테고리 — UI 가 진짜 원인 가림
+- **방어선**: (1) text 선 받기 + 안전 parse (2) !res.ok 분기 분리 (3) catch 는 진짜 network 예외만 + e.message 포함
