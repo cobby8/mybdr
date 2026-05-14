@@ -33,6 +33,7 @@
 import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
+import { withUniqueRetry } from "@/lib/db/unique-retry";
 import { Prisma } from "@prisma/client";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -86,23 +87,18 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
     }
 
     // =========================================================================
-    // (2~4) edition_number 채번 + 트랜잭션 — retry 1회 보강
+    // (2~4) edition_number 채번 + 트랜잭션 — withUniqueRetry 헬퍼로 1회 재시도 보강
     //
-    // 이유: 운영 DB 에 `tournaments_series_edition_unique` 인덱스 추가 (2026-05-14 b28545f).
-    //   동시 회차 추가 시 (count + 1) race 로 P2002 / 23505 발생 가능.
-    //   → attempt 0 에서 P2002 catch → count 재조회 → attempt 1 한 번 더 시도 → 그래도
-    //     실패면 409 응답.
+    // 이유: 운영 DB 에 `tournaments_series_edition_unique` 인덱스 (2026-05-14 b28545f).
+    //   동시 회차 추가 시 (count + 1) race 로 P2002 발생 가능 → 헬퍼가 count 재조회
+    //   포함 fn 을 재실행. P2002 외 에러는 즉시 throw (헬퍼 내부 로직).
     //
-    // 비-P2002 에러는 즉시 throw → 바깥 catch 가 500 처리 (기존 동작 보존).
+    // 헬퍼: src/lib/db/unique-retry.ts (`withUniqueRetry`)
+    //   vitest: src/__tests__/lib/db/unique-retry.test.ts (9 케이스 / 2026-05-15 박제)
     // =========================================================================
-    let createdTournament:
-      | Awaited<ReturnType<typeof prisma.tournament.create>>
-      | null = null;
     let editionNumber = 0;
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      // (2) edition_number 자동 채번 — count + 1 패턴 (기존 코드 답습)
-      //     attempt 마다 재조회 (race 직후 +1 반영)
+    const createdTournament = await withUniqueRetry(async () => {
+      // (2) edition_number 자동 채번 — count + 1 패턴 (헬퍼가 재시도마다 재조회)
       const count = await prisma.tournament.count({
         where: { series_id: series.id },
       });
@@ -156,62 +152,40 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
       }
 
       // (4) 트랜잭션 — Tournament create + DivisionRule createMany + series 카운터 +1
-      //     실패 시 자동 롤백 (카운터 +1 안 됨 / 자체 검수 #5 충족)
-      try {
-        createdTournament = await prisma.$transaction(async (tx) => {
-          // (4-1) Tournament 생성
-          const created = await tx.tournament.create({
-            data: tournamentCreateData,
-          });
-
-          // (4-2) division_rules 일괄 생성 (마법사 path 에서만 의미 — 빈 배열 / undefined 모두 안전 skip)
-          if (
-            hasFullPayload &&
-            body.division_rules &&
-            body.division_rules.length > 0
-          ) {
-            const rulesData = body.division_rules.map((rule) => ({
-              ...rule,
-              tournamentId: created.id,
-            })) as Prisma.TournamentDivisionRuleCreateManyInput[];
-            await tx.tournamentDivisionRule.createMany({
-              data: rulesData,
-            });
-          }
-
-          // (4-3) 시리즈 카운터 +1 (기존 코드 패턴 답습)
-          await tx.tournament_series.update({
-            where: { id: series.id },
-            data: {
-              tournaments_count: { increment: 1 },
-              updated_at: new Date(),
-            },
-          });
-
-          return created;
+      //     실패 시 자동 롤백 (카운터 +1 안 됨)
+      return await prisma.$transaction(async (tx) => {
+        // (4-1) Tournament 생성
+        const created = await tx.tournament.create({
+          data: tournamentCreateData,
         });
-        break; // 성공 → retry 루프 탈출
-      } catch (txErr) {
-        // P2002 = Prisma unique constraint failed (운영 DB 의 tournaments_series_edition_unique 와 충돌)
-        //   attempt 0 → count 재조회 후 한 번 더 시도
-        //   attempt 1 → 바깥 catch 의 409 처리
-        if (
-          attempt === 0 &&
-          txErr instanceof Prisma.PrismaClientKnownRequestError &&
-          txErr.code === "P2002"
-        ) {
-          // 다음 iteration 진입 (count 재조회 + 재시도)
-          continue;
-        }
-        // 비-P2002 또는 retry 후에도 P2002 → 바깥 catch 로 전파
-        throw txErr;
-      }
-    }
 
-    // retry 루프가 break 없이 빠져나오면 (이론상 unreachable — for 안에서 success break 또는 throw)
-    if (!createdTournament) {
-      return apiError("회차 추가 중 오류가 발생했습니다.", 500);
-    }
+        // (4-2) division_rules 일괄 생성 (마법사 path 에서만 의미 — 빈 배열 / undefined 모두 안전 skip)
+        if (
+          hasFullPayload &&
+          body.division_rules &&
+          body.division_rules.length > 0
+        ) {
+          const rulesData = body.division_rules.map((rule) => ({
+            ...rule,
+            tournamentId: created.id,
+          })) as Prisma.TournamentDivisionRuleCreateManyInput[];
+          await tx.tournamentDivisionRule.createMany({
+            data: rulesData,
+          });
+        }
+
+        // (4-3) 시리즈 카운터 +1 (기존 코드 패턴 답습)
+        await tx.tournament_series.update({
+          where: { id: series.id },
+          data: {
+            tournaments_count: { increment: 1 },
+            updated_at: new Date(),
+          },
+        });
+
+        return created;
+      });
+    });
 
     // =========================================================================
     // (5) 응답 — 기존 호환 keys (success / tournamentId / editionNumber / name / redirectUrl)
