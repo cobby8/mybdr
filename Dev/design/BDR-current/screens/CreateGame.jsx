@@ -5,7 +5,7 @@ function CreateGame({ setRoute }) {
   const kinds = [
     { id:'pickup', label:'픽업', desc:'개인 단위 즉석 경기' },
     { id:'guest', label:'게스트', desc:'우리 팀에 일회성 게스트 모집' },
-    { id:'scrimmage', label:'스크림', desc:'팀 vs 팀 연습경기' },
+    { id:'scrimmage', label:'연습경기', desc:'팀 vs 팀 연습경기' },
   ];
 
   return (
@@ -20,7 +20,7 @@ function CreateGame({ setRoute }) {
         <div style={{marginBottom:20}}>
           <div className="eyebrow">새 경기 · NEW GAME</div>
           <h1 style={{margin:'6px 0 4px', fontSize:30, fontWeight:800, letterSpacing:'-0.015em'}}>경기 개설</h1>
-          <div style={{fontSize:13, color:'var(--ink-mute)'}}>픽업·게스트·스크림 중 하나를 열고 참가자를 모집하세요</div>
+          <div style={{fontSize:13, color:'var(--ink-mute)'}}>픽업·게스트·연습경기 중 하나를 열고 참가자를 모집하세요</div>
         </div>
 
         <div className="card" style={{padding:'24px 26px', marginBottom:14}}>
