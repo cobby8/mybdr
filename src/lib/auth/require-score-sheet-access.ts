@@ -52,6 +52,9 @@ export interface ScoreSheetAccessOk {
     quarterScores: import("@prisma/client").Prisma.JsonValue | null;
     notes: string | null;
     match_code: string | null;
+    // Phase 23 (2026-05-14) — draft vs DB 우선순위 비교용 (사용자 결재 Q1).
+    //   ScoreSheetForm 의 localStorage draft.savedAt 과 비교해 더 최신인 쪽을 선택.
+    updatedAt: Date | null;
   };
   tournament: {
     id: string;
@@ -117,6 +120,8 @@ export async function requireScoreSheetAccess(
       quarterScores: true,
       notes: true,
       match_code: true,
+      // Phase 23 (2026-05-14) — draft vs DB 비교용 (운영 영향 0 — SELECT 만)
+      updatedAt: true,
       tournament: {
         select: {
           id: true,
@@ -204,6 +209,8 @@ export async function requireScoreSheetAccess(
       quarterScores: match.quarterScores,
       notes: match.notes,
       match_code: match.match_code,
+      // Phase 23 — draft vs DB 우선순위 비교용
+      updatedAt: match.updatedAt,
     },
     tournament: match.tournament,
   };

@@ -25,6 +25,18 @@ import type {
   RosterItem,
   TeamRosterData,
 } from "./_components/team-section-types";
+// Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드용 PBP 역변환 헬퍼.
+//   PR1 (commit b7c44d8) 에서 박제된 순수 함수 — `play_by_plays` SELECT 결과를
+//   RunningScoreState / FoulsState 로 변환해 ScoreSheetForm 의 useState 초기값으로 전달.
+import {
+  pbpToScoreMarks,
+  type PaperPBPRow,
+} from "@/lib/score-sheet/running-score-helpers";
+import { pbpToFouls } from "@/lib/score-sheet/foul-helpers";
+import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
+import type { FoulsState } from "@/lib/score-sheet/foul-types";
+import type { TimeoutsState } from "@/lib/score-sheet/timeout-types";
+import type { SignaturesState } from "@/lib/score-sheet/signature-types";
 
 export const dynamic = "force-dynamic";
 
@@ -326,6 +338,120 @@ export default async function ScoreSheetPage({ params }: PageProps) {
         }
       : undefined;
 
+  // Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드 prop 산출.
+  //
+  // 왜 (이유 — 매치 218 사고 영구 차단):
+  //   기존: paper 종이 기록 박제 매치 재진입 = 빈 폼 로드 → 운영자가 빈 폼 위에 다시 제출하면
+  //     기존 q3 박제가 흡수되어 사라짐 (사고 발생).
+  //   변경: 재진입 시 DB `play_by_plays` 의 shot_made / foul 을 헬퍼로 역변환 + settings JSON 의
+  //     timeouts / signatures + notes 자동 로드 → 기존 박제 위에 안전하게 추가/수정.
+  //
+  // 어떻게:
+  //   1. shot_made + foul action_type 만 SELECT (다른 type 무시 — paper 박제는 두 종류만)
+  //   2. quarter ASC / score_at_time ASC / id ASC 정렬 (헬퍼의 안정 정렬 기대값)
+  //   3. paper-fix-* prefix 필터 ❌ — mixed 매치는 헬퍼의 detectTeamSide 안전망이 처리
+  //      (운영 영향 0 — 단일 source SELECT)
+  //
+  // BigInt 직렬화: page.tsx 는 server, ScoreSheetForm 은 client → 모든 BigInt 를
+  //   .toString() 변환 (errors.md 2026-04-17 패턴 = snake_case + bigint 함정 회피).
+  const homeTeamIdStr = match.homeTeamId?.toString() ?? null;
+  const awayTeamIdStr = match.awayTeamId?.toString() ?? null;
+
+  let initialRunningScore: RunningScoreState | undefined;
+  let initialFouls: FoulsState | undefined;
+  let pbpCount = 0;
+
+  if (homeTeamIdStr && awayTeamIdStr) {
+    // PBP 조회 — 운영 영향 0 (SELECT 만)
+    const pbpRows = await prisma.play_by_plays.findMany({
+      where: {
+        tournament_match_id: match.id,
+        action_type: { in: ["shot_made", "foul"] },
+      },
+      select: {
+        id: true,
+        quarter: true,
+        action_type: true,
+        action_subtype: true,
+        is_made: true,
+        points_scored: true,
+        home_score_at_time: true,
+        away_score_at_time: true,
+        tournament_team_id: true,
+        tournament_team_player_id: true,
+        description: true,
+      },
+      orderBy: [
+        { quarter: "asc" },
+        { home_score_at_time: "asc" },
+        { id: "asc" },
+      ],
+    });
+    pbpCount = pbpRows.length;
+
+    // 헬퍼 입력 타입 매핑 — Prisma 반환 타입 ≈ PaperPBPRow (호환).
+    // 명시적 캐스팅으로 TS strict 통과 (action_subtype 등 일부 컬럼은 헬퍼 미사용 — 안전).
+    const typedRows = pbpRows as unknown as PaperPBPRow[];
+
+    initialRunningScore = pbpToScoreMarks(
+      typedRows,
+      homeTeamIdStr,
+      awayTeamIdStr
+    );
+    initialFouls = pbpToFouls(typedRows, homeTeamIdStr, awayTeamIdStr);
+
+    // PBP 0건 = 신규 매치 또는 종이 박제 직전 — 헬퍼 결과 0건 → 빈 폼과 동일 (안전)
+    // 그 경우는 undefined 로 전달해 ScoreSheetForm 이 EMPTY_RUNNING_SCORE / EMPTY_FOULS 사용 (시각 차이 0)
+    if (
+      initialRunningScore.home.length === 0 &&
+      initialRunningScore.away.length === 0
+    ) {
+      initialRunningScore = undefined;
+    }
+    if (initialFouls.home.length === 0 && initialFouls.away.length === 0) {
+      initialFouls = undefined;
+    }
+  }
+
+  // settings JSON 안의 timeouts / signatures 추출 (BFF submit route 와 동일 키 구조 사용).
+  // Phase 4/5 패턴 = match.settings.timeouts / match.settings.signatures JSON merge UPDATE.
+  let initialTimeouts: TimeoutsState | undefined;
+  let initialSignatures: SignaturesState | undefined;
+  if (
+    match.settings &&
+    typeof match.settings === "object" &&
+    !Array.isArray(match.settings)
+  ) {
+    const settingsObj = match.settings as Record<string, unknown>;
+    // timeouts shape 방어 — home/away 배열 검증 후 사용
+    const t = settingsObj.timeouts;
+    if (
+      t &&
+      typeof t === "object" &&
+      !Array.isArray(t) &&
+      Array.isArray((t as Record<string, unknown>).home) &&
+      Array.isArray((t as Record<string, unknown>).away)
+    ) {
+      initialTimeouts = t as TimeoutsState;
+    }
+    // signatures shape 방어 — 8 키 + notes 객체 (BFF 가 partial 박제 가능 — 폼은 ?? "" 폴백)
+    const s = settingsObj.signatures;
+    if (s && typeof s === "object" && !Array.isArray(s)) {
+      initialSignatures = s as SignaturesState;
+    }
+  }
+
+  // quarter_scores DB 값 (cross-check 용 — Q4 PBP 합산과 mismatch 시 ScoreSheetForm 이 경고 배너 표시)
+  const initialQuarterScoresDB =
+    match.quarterScores && typeof match.quarterScores === "object"
+      ? (match.quarterScores as Record<string, unknown>)
+      : undefined;
+
+  // updatedAt (draft vs DB 우선순위 비교용 — ISO string 직렬화)
+  const matchUpdatedAtISO = match.updatedAt
+    ? match.updatedAt.toISOString()
+    : null;
+
   return (
     <ScoreSheetForm
       match={matchProps}
@@ -333,6 +459,14 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       homeRoster={homeTeamData}
       awayRoster={awayTeamData}
       initialLineup={initialLineup}
+      initialRunningScore={initialRunningScore}
+      initialFouls={initialFouls}
+      initialTimeouts={initialTimeouts}
+      initialSignatures={initialSignatures}
+      initialNotes={match.notes ?? undefined}
+      initialQuarterScoresDB={initialQuarterScoresDB}
+      matchUpdatedAtISO={matchUpdatedAtISO}
+      pbpCount={pbpCount}
     />
   );
 }
