@@ -1,8 +1,8 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 19 PR-S4 — FibaHeader 시안 시각 정합 (운영 데이터 로직 100% 보존)
-- **상태**: ✅ PR-S4 박제 완료 (2 파일 / +220 LOC styles + 재구성 fiba-header / tsc 0 / vitest 204/204). PM 검증 → commit 대기
+- **요청**: Phase 19 PR-S2 후속 권장 3건 — submitted 가드 + ESC deps + toolbar disabled
+- **상태**: ✅ PR-S2 후속 3 fix 완료 (3 파일 +50 LOC / tsc 0 / vitest 204/204). PM 검증 → commit 대기
 - **모드**: no-stop
 
 ## 진행 현황표
@@ -12,8 +12,66 @@
 | **마법사 Phase 1** (shared-types / draft / constants) | ✅ 신규 3 파일 / tsc 0 / KEY 1건 |
 | **Phase 19 PR-S3** (mode prop wiring) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / commit 대기 |
 | **Phase 19 PR-S4** (FibaHeader 시안 시각 정합) | ✅ 2 파일 +220/-82+114 / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / commit 대기 |
+| **Phase 19 PR-S2 후속 3 fix** (submitted 가드 / ESC deps / toolbar disabled) | ✅ 3 파일 +50 LOC / tsc 0 / vitest 204/204 / commit 대기 |
 | 마법사 Phase 2 (Step 0 단체) | ⏳ 대기 |
 | 마법사 Phase 3~7 | ⏳ 대기 |
+
+## 구현 기록 (developer) — Phase 19 PR-S2 후속 3 fix
+
+📝 구현한 기능: reviewer 권장 후속 3건 박제 — (1) `handleConfirm` submitted 가드 / (2) ESC `useEffect` deps + `setOpen` useCallback / (3) toolbar `endMatchDisabled` prop 수용 + form wiring. **운영 동작 회귀 0 / 호출 시그니처 breaking change 0**.
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/match-end-button.tsx` | (1) `setOpen` 을 `useCallback` 메모이제이션 + submitted 시 `next=true` 차단 / (2) `handleConfirm` 진입부 `if (submitting \|\| submitted) return;` / (3) ESC useEffect deps 에 `setOpen` 추가 / (4) `onSubmittedChange?: (boolean) => void` prop 추가 + submitted state 변화 시 콜백 호출 useEffect | +29 | 수정 |
+| `src/app/(score-sheet)/_components/score-sheet-toolbar.tsx` | (1) `endMatchDisabled?: boolean` prop 추가 / (2) 종료 버튼 `disabled={endMatchDisabled}` + inline style `{opacity: 0.4, cursor: 'not-allowed'}` 분기 | +18 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (1) `matchEndSubmitted` state 추가 / (2) ScoreSheetToolbar `endMatchDisabled={matchEndSubmitted}` 전달 / (3) MatchEndButton `onSubmittedChange={setMatchEndSubmitted}` wiring | +12 | 수정 |
+
+**합계**: +50 LOC (3 파일 / 신규 0 / breaking change 0).
+
+### Fix 별 before / after 요약
+
+| # | 위치 | Before | After | 효과 |
+|---|------|--------|-------|------|
+| Fix 1a | match-end-button.tsx L102 `handleConfirm` | `if (submitting) return;` | `if (submitting \|\| submitted) return;` | 종료 후 toolbar 재진입 시 BFF POST 중복 호출 차단 (2차 방어선) |
+| Fix 1b | match-end-button.tsx L82 `setOpen` | inline `(next) => { ... }` 매 render 마다 새 ref | `useCallback((next) => { if (next && submitted) return; ... }, [isControlled, onOpenChange, submitted])` | 종료 후 modal 재오픈 차단 (1차 방어선) + ref 안정화 |
+| Fix 2 | match-end-button.tsx L99 ESC useEffect | deps `[open, submitting]` (setOpen closure 캡처 — stale) | deps `[open, submitting, setOpen]` (useCallback 메모로 안전 추가) | stale closure 잠재 영구 차단 / React strict mode 경고 0 |
+| Fix 3a | score-sheet-toolbar.tsx L37 props | `ScoreSheetToolbarProps` 6 필드 | + `endMatchDisabled?: boolean` (optional) | breaking change 0 (모든 사용처 호환) |
+| Fix 3b | score-sheet-toolbar.tsx L119 종료 버튼 | 항상 active | `disabled={endMatchDisabled}` + inline opacity 0.4 / cursor not-allowed | 종료 후 시각 disabled 표시 — 운영자 즉시 인지 |
+| Fix 3c | score-sheet-form.tsx L246 / L942-953 / L1142-1154 | `matchEndSubmitted` state 없음 / wiring 0 | `useState(false)` + toolbar `endMatchDisabled` + MatchEndButton `onSubmittedChange` | lifting state up 단일 흐름 |
+
+### 사용자 핵심 제약 보존 검증 (6/6 PASS)
+
+| # | 검증 항목 | 결과 |
+|---|----------|------|
+| 1 | 기존 props 시그니처 breaking change 0 (모든 추가 prop = optional) | ✅ `onSubmittedChange?` / `endMatchDisabled?` 모두 optional. MatchEndButton 외부 사용처 0 / ScoreSheetToolbar 외부 사용처 0 (form.tsx 만) |
+| 2 | uncontrolled 모드 (PR-S2 전 동작) 회귀 0 | ✅ `open`/`onOpenChange` 미전달 시 `isControlled=false` → 기존 internal state 흐름 그대로. submitted 가드도 동일하게 적용 (오히려 안전성 향상) |
+| 3 | 신규 컴포넌트 0 / 신규 API 0 / DB schema 0 | ✅ 변경 = 3 기존 파일 / 신규 0 |
+| 4 | any 사용 0 | ✅ 모든 신규 타입 = `boolean` / `(submitted: boolean) => void` 명시 |
+| 5 | 토큰 사용 / 하드코딩 색상 0 | ✅ inline `{ opacity: 0.4, cursor: 'not-allowed' }` 만 — 색상 hex 0 / var(--*) 영향 0 |
+| 6 | Phase 23 PR2+PR3 (자동 로드 / draft vs DB / cross-check) 회귀 0 | ✅ 변경 영역 = MatchEndButton + toolbar + form.tsx 3 위치만. initialRunningScore / cross-check / hasOnlyQuarterScores 흐름 변경 0 |
+
+### 검증 (3/3 PASS)
+
+| # | 명령 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | ✅ EXIT=0 (에러 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | ✅ 11 files / 204/204 PASS / 607ms |
+| 3 | grep `MatchEndButton\|ScoreSheetToolbar` 다른 사용처 | ✅ form.tsx 1건만 (검증 자동 충족) |
+
+💡 tester 참고:
+- **재진입 시나리오 1** — 종료 후 toolbar "경기 종료" 버튼 클릭 → modal 안 열림 (setOpen submitted 가드)
+- **재진입 시나리오 2** — 종료 후 toolbar 버튼 시각 disabled (opacity 0.4 + cursor not-allowed) 운영자 인지
+- **재진입 시나리오 3** — 만약 어떻게든 modal 이 열렸어도 handleConfirm 진입부 가드로 BFF POST 미발생
+- **uncontrolled 호환** — 다른 사용처 0 (form.tsx 만) 이지만 PR-S2 전 패턴 (uncontrolled) 도 회귀 0
+- **ESC 키 종료 후 modal** — modal 자체가 안 열리므로 ESC 시나리오 영향 0
+
+⚠️ reviewer 참고:
+- **setOpen useCallback deps** = `[isControlled, onOpenChange, submitted]`. `isControlled` 는 render 마다 controlledOpen 값에 따라 바뀔 수 있지만 동일 값이면 동일 boolean → 안정. `onSubmittedChange` 콜백은 `setMatchEndSubmitted` (React useState setter — 안정 ref) 라 새 ref 0
+- **3 중 방어선 설계 의도** — (a) toolbar 버튼 disabled (시각 + native) → (b) setOpen 의 submitted 가드 → (c) handleConfirm 의 submitted 가드. (a) 깨져도 (b) / (c) 가 막음 / (a)+(b) 깨져도 (c) 가 막음. 서버 멱등성에만 의존하지 않음
+- **inline style opacity / cursor 사용 사유** — `.ss-toolbar__finish:disabled` CSS 룰 추가하면 styles.css 영향 범위 확대. 본 컴포넌트만 한정하기 위해 inline style 채택 (다른 PR-S 영향 0)
+- **lifting state up** — MatchEndButton.submitted 가 컴포넌트 내부 state 라 form 이 직접 접근 불가. `onSubmittedChange` 콜백으로 끌어올림. 콜백 미전달 시 영향 0 (호출 시 useEffect 가 dep 변경 감지하지만 콜백 자체가 noop)
+
+---
 
 ## 구현 기록 (developer) — Phase 19 PR-S4
 
@@ -292,6 +350,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-14 | Phase 19 PR-S2 후속 3 fix — handleConfirm submitted 가드 / ESC useEffect deps + setOpen useCallback / toolbar endMatchDisabled prop + form wiring | ✅ 3 파일 +50 LOC / tsc 0 / vitest 204/204 / breaking change 0 / 사용자 핵심 제약 6/6 보존 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S4 — FibaHeader 시안 시각 정합 (.ss-h / .ss-names / .ss-meta / .ss-field 도입 + ss-shell 스코프 한정) | ✅ 2 파일 +220 styles / 재구성 fiba-header / tsc 0 / vitest 204/204 / 운영 매핑 6/6 보존 / 충돌 grep 0건 / commit 대기 |
 | 2026-05-14 | Phase 19 PR-S3 — RunningScoreGrid `mode` prop + scoreMode wiring + paper read-only preview (D2/D7) | ✅ 4 파일 +88 LOC / tsc 0 / vitest 204/204 / 운영 동작 5/5 보존 / commit 대기 |
 | 2026-05-14 | 마법사 Phase 1 — 공통 lib 인프라 (wizard-types / wizard-draft / wizard-constants) | ✅ 신규 3 파일 +336 LOC / tsc 0 / KEY 1건 / wizard page.tsx 변경 0 |

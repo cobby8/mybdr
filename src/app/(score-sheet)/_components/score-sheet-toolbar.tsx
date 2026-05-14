@@ -41,6 +41,11 @@ interface ScoreSheetToolbarProps {
   onPrint: () => void;
   onEndMatch: () => void;
   backHref?: string;
+  // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기.
+  //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
+  //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
+  //   기본 undefined / false = 기존 동작 보존 (호출자 변경 없이 호환).
+  endMatchDisabled?: boolean;
 }
 
 export function ScoreSheetToolbar({
@@ -50,6 +55,7 @@ export function ScoreSheetToolbar({
   onPrint,
   onEndMatch,
   backHref = "/admin",
+  endMatchDisabled,
 }: ScoreSheetToolbarProps) {
   // 타이틀 표시: gameNo 가 있으면 "SCORESHEET · #{gameNo}" / 없으면 "SCORESHEET · #" 만
   // 이유: 시안 마크업 그대로 + 운영 데이터 (match.match_code ?? match.id) 자연 표시
@@ -115,12 +121,22 @@ export function ScoreSheetToolbar({
           인쇄
         </button>
 
-        {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit) */}
+        {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit).
+            PR-S2 후속 fix 3 (2026-05-14) — endMatchDisabled prop 수용.
+              종료 후 (submitted=true) 시 native disabled + opacity 0.4 시각 분기.
+              인라인 style 이유: ss-toolbar__finish:disabled CSS 룰 미정의 — 다른 컴포넌트
+              영향 없이 본 컴포넌트만 시각 disabled 표시. cursor not-allowed 추가. */}
         <button
           type="button"
           className="ss-toolbar__finish"
           onClick={onEndMatch}
+          disabled={endMatchDisabled}
           aria-label="경기 종료"
+          style={
+            endMatchDisabled
+              ? { opacity: 0.4, cursor: "not-allowed" }
+              : undefined
+          }
         >
           <span className="material-symbols-outlined" aria-hidden>
             flag

@@ -24,7 +24,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/contexts/toast-context";
 import type { FinalScore } from "@/lib/score-sheet/running-score-types";
@@ -48,6 +48,10 @@ interface MatchEndButtonProps {
   //   true 시: 종료 버튼 + submitted 카드 모두 hide / Confirm Modal 만 렌더.
   //   false (기본): 기존 동작 100% 보존 (frame 하단 종료 버튼 + 종료 후 카드 표시).
   hideTriggerButton?: boolean;
+  // Phase 19 PR-S2 후속 (2026-05-14) — submitted 상태 외부 알림 콜백.
+  //   왜: controlled 모드에서 외부 toolbar 가 "경기 종료" 버튼 disabled 시각 분기를 적용할 수
+  //   있도록, submitted=true 가 되는 시점을 form 에 알린다. 콜백 미전달 시 영향 0.
+  onSubmittedChange?: (submitted: boolean) => void;
 }
 
 export function MatchEndButton({
@@ -60,6 +64,7 @@ export function MatchEndButton({
   open: controlledOpen,
   onOpenChange,
   hideTriggerButton,
+  onSubmittedChange,
 }: MatchEndButtonProps) {
   // controlled vs uncontrolled 결정:
   //   controlledOpen !== undefined = 외부 제어 (toolbar 가 setMatchEndOpen 호출) → useState 무시
@@ -67,16 +72,38 @@ export function MatchEndButton({
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
-  const setOpen = (next: boolean) => {
-    if (!isControlled) setInternalOpen(next);
-    onOpenChange?.(next);
-  };
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { showToast } = useToast();
 
+  // PR-S2 후속 fix 2 (2026-05-14) — setOpen 을 useCallback 으로 메모이제이션.
+  //   왜: useEffect 의 ESC 핸들러가 setOpen 을 호출하므로 deps 에 포함해야 안전.
+  //   inline 함수면 매 render 마다 새 reference → useEffect 가 매번 재실행 (성능 + stale closure 잠재).
+  //   useCallback 으로 isControlled / onOpenChange 의존성만 추적하면 안정 reference 유지.
+  //
+  // PR-S2 후속 fix 1 (2026-05-14) — submitted 가드 추가.
+  //   왜: setOpen(true) = modal 열기 trigger. submitted 후 toolbar 가 다시 setMatchEndOpen(true)
+  //   호출해도 modal 재오픈 차단 (재진입 시 BFF 중복 호출 차단의 1차 방어선).
+  const setOpen = useCallback(
+    (next: boolean) => {
+      // submitted 상태에서 modal 다시 열기 시도 차단 (close 는 항상 허용)
+      if (next && submitted) return;
+      if (!isControlled) setInternalOpen(next);
+      onOpenChange?.(next);
+    },
+    [isControlled, onOpenChange, submitted],
+  );
+
+  // PR-S2 후속 fix (2026-05-14) — submitted 외부 알림.
+  //   왜: form (외부) 이 toolbar 의 "경기 종료" 버튼 disabled 시각 분기를 적용할 수 있도록.
+  //   콜백 미전달 시 동작 영향 0.
+  useEffect(() => {
+    onSubmittedChange?.(submitted);
+  }, [submitted, onSubmittedChange]);
+
   // ESC = 모달 닫기 (제출 중에는 차단)
+  // PR-S2 후속 fix 2 — deps 에 setOpen 추가 (useCallback 메모이제이션으로 안정 reference).
   useEffect(() => {
     if (!open) return;
     function handleKey(e: KeyboardEvent) {
@@ -86,7 +113,7 @@ export function MatchEndButton({
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [open, submitting]);
+  }, [open, submitting, setOpen]);
 
   // 승팀명 표시 (tie / none / home / away)
   const winnerLabel =
@@ -99,8 +126,15 @@ export function MatchEndButton({
           : "—";
 
   // BFF POST 호출
+  //
+  // PR-S2 후속 fix 1 (2026-05-14) — submitted 가드 강화.
+  //   왜: 기존 PR-S2 전 코드는 `{!submitted && <button>}` 분기로 종료 버튼 자체가 hide 되어
+  //   재진입이 UI 단에서 자연 차단됐다. PR-S2 후 toolbar 의 "경기 종료" 버튼은 submitted 를
+  //   인지하지 못해 modal 재오픈 → handleConfirm 재호출 가능 → 토스트 / 라이브 발행 중복 위험.
+  //   1차 방어선 (setOpen 의 submitted 가드) 외 2차 방어선으로 handleConfirm 진입부에서도 차단.
+  //   서버 멱등성에만 의존하지 않고 클라이언트 단에서 명시적으로 막는다.
   async function handleConfirm() {
-    if (submitting) return;
+    if (submitting || submitted) return;
     setSubmitting(true);
     try {
       const payload = buildPayload();

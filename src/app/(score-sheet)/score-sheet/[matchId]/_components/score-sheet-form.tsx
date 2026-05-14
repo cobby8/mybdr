@@ -243,6 +243,10 @@ export function ScoreSheetForm({
   //   왜: 시안 toolbar 의 "경기 종료" 버튼이 MatchEndButton 의 confirm modal trigger 위임.
   //   기존 MatchEndButton 의 confirm modal + BFF submit + submitted 토스트 흐름 100% 보존.
   const [matchEndOpen, setMatchEndOpen] = useState(false);
+  // PR-S2 후속 fix 3 (2026-05-14) — MatchEndButton 의 submitted 상태 추적.
+  //   왜: toolbar 의 "경기 종료" 버튼이 submitted 인지 알아야 시각 disabled 분기 가능.
+  //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
+  const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   const { showToast } = useToast();
 
@@ -948,6 +952,9 @@ export function ScoreSheetForm({
         }}
         onEndMatch={() => setMatchEndOpen(true)}
         backHref="/admin"
+        // PR-S2 후속 fix 3 (2026-05-14) — 종료 후 종료 버튼 disabled 시각 분기.
+        //   matchEndSubmitted = MatchEndButton.onSubmittedChange 콜백으로 끌어올린 상태.
+        endMatchDisabled={matchEndSubmitted}
       />
 
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
@@ -1148,6 +1155,9 @@ export function ScoreSheetForm({
         open={matchEndOpen}
         onOpenChange={setMatchEndOpen}
         hideTriggerButton
+        // PR-S2 후속 fix 3 (2026-05-14) — submitted 상태를 외부로 lifting.
+        //   toolbar 의 "경기 종료" 버튼 disabled 시각 분기를 위함. 콜백 외 영향 0.
+        onSubmittedChange={setMatchEndSubmitted}
       />
 
       {/* Phase 진행 상태 안내 — Phase 7 완성 시점 갱신.
