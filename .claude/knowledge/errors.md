@@ -2,6 +2,21 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-14] 광범위 catch 블록이 4xx/5xx 응답을 "네트워크 오류"로 뭉뚱그려 진단 불가 (team-apply 유소년 명단 제출)
+- **분류**: UX 진단 함정 / 에러 메시지 정밀화 부재
+- **발견자**: pm + debugger (운영 mybdr.kr 유소년 명단 제출 사용자 보고)
+- **증상**: 운영에서 `POST/PUT /api/web/team-apply/[token]` 호출 시 빨간 박스 "네트워크 오류가 발생했습니다." 가 떴지만, 운영 DB 실측 결과 토큰/명단 완전 정상. 진짜 원인이 무엇이든 (zod validation 4xx / 코치 인증 실패 / Vercel cold-start 502 / DNS 실패) UI 메시지 한 줄로 뭉개져서 사용자·PM·debugger 모두 root cause 특정 불가. 운영 DB 조회까지 들어가서 토큰 11건 명단 박제 정상임을 검증한 후에야 catch 블록 자체가 함정임을 인지.
+- **근본 원인**: `team-apply-form.tsx` L213 + `edit-flow.tsx` L126 의 catch 블록이 `try { res = await fetch(...); json = await res.json(); }` 형태로 묶여 있어서 4xx/5xx HTTP 응답이라도 body 가 HTML(500) 이거나 빈 응답이면 res.json() 이 throw → catch 진입 → "네트워크 오류" 단일 메시지. 실제로 `apiError()` 응답의 `code` / `error` 필드가 있어도 표시 안 됨.
+- **fix (commit 대기)**: 4단계 방어선 패턴 — (1) `await res.text()` 로 본문 선 받기 (2) `try { JSON.parse(text) } catch { null 유지 }` 안전 parse (3) `!res.ok` 분기 → `json?.error / message / error_message / code` 추출 → fallback `서버 오류 (${status})` (4) catch 는 진짜 network 예외만 (`네트워크 오류: ${e.message}`).
+- **재발 방지 룰**:
+  (a) **모든 fetch 호출의 catch 블록은 응답 body 파싱 실패와 네트워크 예외를 분리** — `await res.text()` 선 받기 + 안전 JSON.parse + `!res.ok` 분기가 표준 패턴
+  (b) **apiError 응답 키는 snake_case** (CLAUDE.md §보안 — 재발 5회) — `error_message / error_code` 우선 시도 + camelCase fallback
+  (c) **운영 환경 에러 표시 UX** = HTTP status + 진짜 메시지 + 사용자 액션 안내 (재시도 / 새로고침 / 관리자 문의) 3요소 — "네트워크 오류" 단일 메시지로는 진단 불가
+  (d) **광범위 try-catch 안티패턴** = fetch + json 파싱 + 비즈니스 로직을 하나의 try 로 묶지 않기. fetch 응답 분기와 catch 는 의미적으로 다른 에러 (서버 응답 vs 네트워크 자체)
+- **참조**: `src/app/(web)/team-apply/[token]/team-apply-form.tsx:190-237`, `src/app/(web)/team-apply/[token]/edit/edit-flow.tsx:87-141`
+- **참조횟수**: 0
+
+
 ### [2026-05-13] LIVE API 의 paper 매치 OT 점수 0 변환 = paper-fix PBP `game_clock_seconds=0` ↔ STL 보정 충돌 (FIBA Phase 22)
 - **분류**: 함정 / 데이터 source 분기 부재 / 정밀 진단 5단
 - **발견자**: pm (5/13 매치 218 OT 표시 사용자 보고)
