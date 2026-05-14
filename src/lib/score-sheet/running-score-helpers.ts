@@ -304,6 +304,158 @@ export const EMPTY_RUNNING_SCORE: RunningScoreState = {
 };
 
 /**
+ * Phase 23 (2026-05-14) — DB 에서 SELECT 한 paper-fix PBP row 의 최소 타입.
+ *
+ * 왜 (이유):
+ *   재진입 시 자동 로드를 위해 `play_by_plays` 테이블 SELECT 결과를 ScoreMark / FoulMark 로
+ *   역변환. Prisma 의존성 없이 (`Prisma.play_by_playsGetPayload<...>` import ❌) 순수 함수로
+ *   유지해 server-safe + vitest 가능. `score-from-pbp.ts` 의 `PbpRowForScore` 패턴 그대로 카피
+ *   + score-sheet 역변환 전용 필드 (home_score_at_time / away_score_at_time /
+ *   tournament_team_player_id / id) 추가.
+ *
+ * 방법 (어떻게):
+ *   - bigint | number | null 형태는 Prisma 가 그대로 반환 → 헬퍼 내부에서 Number() 캐스팅
+ *   - description 은 PBP row 에 박제된 한국어 문자열 (foul 의 P/T/U/D 정규식 추출용)
+ *   - id 는 정렬 안정성 보조키 (같은 quarter + 같은 score_at_time 동률 시)
+ */
+export type PaperPBPRow = {
+  id: bigint | number;
+  quarter: number | null;
+  action_type: string | null;
+  action_subtype: string | null;
+  is_made: boolean | null;
+  points_scored: number | null;
+  home_score_at_time: number | null;
+  away_score_at_time: number | null;
+  tournament_team_id: bigint | number | null;
+  tournament_team_player_id: bigint | number | null;
+  description: string | null;
+};
+
+// PaperPBPRow 의 team_id 가 home 인지 away 인지 판정 (mixed 매치 안전망)
+//
+// 룰:
+//   - tournament_team_id === homeTeamId → "home"
+//   - tournament_team_id === awayTeamId → "away"
+//   - 외 (NULL / 다른 팀 / 가비지) → null (caller 가 row 무시)
+//
+// BigInt 비교 함정 (errors.md 2026-04-17 박제 패턴) 회피:
+//   - bigint === string 비교는 항상 false
+//   - Number() 캐스팅 후 비교 (score-from-pbp.ts 동일 패턴)
+function detectTeamSide(
+  teamId: bigint | number | null,
+  homeIdNum: number,
+  awayIdNum: number,
+): "home" | "away" | null {
+  if (teamId === null || teamId === undefined) return null;
+  const idNum = Number(teamId);
+  if (Number.isNaN(idNum)) return null;
+  if (idNum === homeIdNum) return "home";
+  if (idNum === awayIdNum) return "away";
+  return null;
+}
+
+/**
+ * 역변환 — DB PBP row → RunningScoreState (Phase 23 PR1).
+ *
+ * 왜 (이유):
+ *   `marksToPaperPBPInputs` 의 정방향 박제와 대칭. score-sheet 재진입 시 page.tsx 가
+ *   `play_by_plays.findMany` 로 SELECT 한 row 를 ScoreSheetForm 의 useState 초기값으로
+ *   복원하기 위한 단일 source 역변환 헬퍼.
+ *
+ * 방법 (어떻게):
+ *   1. action_type === "shot_made" + is_made 만 필터 (foul / shot_missed 등 무시)
+ *   2. tournament_team_id 로 home/away 판정 (Number() 캐스팅 비교 — bigint/number/string 안전)
+ *   3. 정렬:
+ *      - home 측 = quarter ASC → home_score_at_time ASC → id ASC (안정성)
+ *      - away 측 = quarter ASC → away_score_at_time ASC → id ASC
+ *   4. ScoreMark 매핑:
+ *      - position = 해당 side 의 score_at_time (정방향 = 마킹 직후 누적값을 저장)
+ *      - playerId = tournament_team_player_id.toString() (BigInt → string)
+ *      - period = quarter ?? 1 (NULL fallback)
+ *      - points = points_scored ∈ {1, 2, 3} (action_subtype 폴백 ❌ — 의뢰 §1.4)
+ *   5. currentPeriod = max(home/away 의 period 최대값, 1) — 호출자 책임 보강 가능
+ *
+ * 입력:
+ *   - pbpRows: DB SELECT 결과 (paper-fix-* prefix 가드는 caller 책임)
+ *   - homeTeamId / awayTeamId: bigint | string (매치 헤더에서 가져옴)
+ *
+ * 출력:
+ *   - RunningScoreState = { home, away, currentPeriod }
+ *
+ * 안전망:
+ *   - mixed 매치 (home/away 외 team_id) → 해당 row 무시 (절대 추가 X)
+ *   - points_scored 가 1/2/3 외 값 → 그대로 통과 (caller 검증 책임 — 정방향이 1/2/3 만 박제)
+ *     단 TypeScript 타입은 1|2|3 유지 → 단정 (as 1|2|3) 필요
+ *   - quarter NULL → 1 로 폴백
+ */
+export function pbpToScoreMarks(
+  pbpRows: PaperPBPRow[],
+  homeTeamId: bigint | string | number,
+  awayTeamId: bigint | string | number,
+): RunningScoreState {
+  // (a) 팀 ID 사전 캐스팅 — bigint/string/number 모두 Number 로 비교 (errors.md 2026-04-17 회피)
+  const homeIdNum = Number(homeTeamId);
+  const awayIdNum = Number(awayTeamId);
+
+  // (b) shot_made 만 필터 + side 판정 + 매핑 1패스
+  type Tagged = { mark: ScoreMark; side: "home" | "away"; id: number };
+  const tagged: Tagged[] = [];
+  for (const row of pbpRows) {
+    if (row.action_type !== "shot_made") continue;
+    // is_made === false 인 shot_made 는 정방향이 박제하지 않지만 안전망
+    if (row.is_made === false) continue;
+    const side = detectTeamSide(row.tournament_team_id, homeIdNum, awayIdNum);
+    if (side === null) continue; // mixed 매치 안전망 — 무시
+    if (row.tournament_team_player_id === null || row.tournament_team_player_id === undefined) {
+      continue; // 선수 미지정 (정방향 박제는 항상 포함 — 안전망)
+    }
+    const period = row.quarter ?? 1;
+    // position = 해당 side 의 score_at_time (정방향 정렬과 일치)
+    const position =
+      side === "home"
+        ? row.home_score_at_time ?? 0
+        : row.away_score_at_time ?? 0;
+    // points = points_scored 우선 (action_subtype 폴백은 정방향이 항상 박제하므로 불필요)
+    const pointsRaw = row.points_scored ?? 0;
+    if (pointsRaw < 1 || pointsRaw > 3) continue; // 정합성 가드 (1/2/3 외 값 무시)
+    const points = pointsRaw as 1 | 2 | 3;
+    const playerId = row.tournament_team_player_id.toString();
+    tagged.push({
+      mark: { position, playerId, period, points },
+      side,
+      id: Number(row.id),
+    });
+  }
+
+  // (c) home / away 분리 + 정렬
+  //     - 정방향이 같은 quarter 안에서 home 먼저 + position ASC 로 박제 →
+  //       역변환은 side 별 분리 후 quarter → score_at_time → id 순으로 안정 정렬
+  const homeTagged = tagged.filter((t) => t.side === "home");
+  const awayTagged = tagged.filter((t) => t.side === "away");
+
+  const compare = (a: Tagged, b: Tagged): number => {
+    if (a.mark.period !== b.mark.period) return a.mark.period - b.mark.period;
+    if (a.mark.position !== b.mark.position) return a.mark.position - b.mark.position;
+    return a.id - b.id; // 보조 정렬 (안정성)
+  };
+  homeTagged.sort(compare);
+  awayTagged.sort(compare);
+
+  const home = homeTagged.map((t) => t.mark);
+  const away = awayTagged.map((t) => t.mark);
+
+  // (d) currentPeriod 결정 — 호출자가 match.status 모르므로 안전한 폴백
+  //     max(home/away period 최대값, 1)
+  //     호출자가 status 알면 별도 보정 가능 (PR2 책임)
+  const maxHomePeriod = home.reduce((acc, m) => Math.max(acc, m.period), 0);
+  const maxAwayPeriod = away.reduce((acc, m) => Math.max(acc, m.period), 0);
+  const currentPeriod = Math.max(maxHomePeriod, maxAwayPeriod, 1);
+
+  return { home, away, currentPeriod };
+}
+
+/**
  * Phase 18 (2026-05-13) — FIBA 표준 1/2/3점 시각 표기 변형 키.
  *
  * 왜 (이유):

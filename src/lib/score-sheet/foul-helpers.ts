@@ -29,6 +29,9 @@ import {
   MAX_PLAYER_FOULS,
   TEAM_FOUL_FT_THRESHOLD,
 } from "./foul-types";
+// Phase 23 (2026-05-14) — 역변환 헬퍼용 PBP row 타입 단일 source.
+// running-score-helpers.ts 에 정의된 타입을 그대로 사용 (foul / score 동일 row 소비).
+import type { PaperPBPRow } from "./running-score-helpers";
 
 // 선수 1인당 파울 누적 카운트 (P/T/U/D 합산)
 //
@@ -280,4 +283,106 @@ export function removeLastFoul(
     return { ...state, home: next };
   }
   return { ...state, away: next };
+}
+
+/**
+ * Phase 23 (2026-05-14) — 역변환 헬퍼: DB PBP row → FoulsState.
+ *
+ * 왜 (이유):
+ *   `foulsToPBPEvents` 정방향 박제와 대칭. score-sheet 재진입 시 page.tsx 가
+ *   `play_by_plays.findMany` 로 SELECT 한 row 를 ScoreSheetForm 의 useState 초기값으로
+ *   복원하기 위한 단일 source 역변환 헬퍼.
+ *
+ * 방법 (어떻게):
+ *   1. action_type === "foul" 만 필터
+ *   2. tournament_team_id 로 home/away 판정 (Number() 캐스팅 — score 헬퍼 동일 패턴)
+ *   3. 정렬: quarter ASC → id ASC (정방향이 같은 quarter 안 home 먼저 + index 순 박제 →
+ *      역변환은 side 별 분리 후 quarter + id 순 안정 정렬로 충분)
+ *   4. description 정규식 `/(?:^|[\s])([PTUD])$/` 로 끝 글자 추출
+ *      - 정방향 형식: "[종이 기록] 선수 N번 P" (마지막 토큰 = 약자)
+ *      - 매치 실패 시 "P" 폴백 (수기 raw SQL 박제 / 한국어 변형 안전망 — 의뢰 §2.4)
+ *   5. FoulMark 매핑 = { playerId, period, type }
+ *
+ * 안전망:
+ *   - mixed 매치 → 무시 (detectTeamSide 동일 패턴)
+ *   - description NULL → "P" 폴백
+ *   - tournament_team_player_id NULL → row 무시
+ */
+export function pbpToFouls(
+  pbpRows: PaperPBPRow[],
+  homeTeamId: bigint | string | number,
+  awayTeamId: bigint | string | number,
+): FoulsState {
+  // (a) 팀 ID 사전 캐스팅
+  const homeIdNum = Number(homeTeamId);
+  const awayIdNum = Number(awayTeamId);
+
+  // (b) foul 만 필터 + 매핑 1패스 + side 태깅
+  type TaggedFoul = { mark: FoulMark; side: "home" | "away"; id: number };
+  const tagged: TaggedFoul[] = [];
+
+  // 끝 글자 P/T/U/D 추출 정규식 — 마지막 단어 토큰 검사
+  //   - 매치: "...선수 5번 T" → "T"
+  //   - 매치 실패: "Foul committed by player" → null → "P" 폴백
+  // (?:^|[\s]) = 시작 또는 공백 직후 (단어 경계 보장 — "PTUD" 같은 문자열 끝 글자 잘못 매치 방지)
+  const TYPE_TAIL_RE = /(?:^|\s)([PTUD])$/;
+
+  for (const row of pbpRows) {
+    if (row.action_type !== "foul") continue;
+    const side = detectTeamSideLocal(row.tournament_team_id, homeIdNum, awayIdNum);
+    if (side === null) continue;
+    if (row.tournament_team_player_id === null || row.tournament_team_player_id === undefined) {
+      continue;
+    }
+    const period = row.quarter ?? 1;
+
+    // description 끝 글자 P/T/U/D 추출 (실패 시 "P" 폴백 — Personal 이 가장 흔함)
+    let type: FoulType = "P";
+    if (row.description) {
+      const match = row.description.match(TYPE_TAIL_RE);
+      if (match && match[1]) {
+        type = match[1] as FoulType;
+      }
+    }
+
+    const playerId = row.tournament_team_player_id.toString();
+    tagged.push({
+      mark: { playerId, period, type },
+      side,
+      id: Number(row.id),
+    });
+  }
+
+  // (c) home / away 분리 + 정렬 (quarter ASC → id ASC)
+  const homeTagged = tagged.filter((t) => t.side === "home");
+  const awayTagged = tagged.filter((t) => t.side === "away");
+
+  const compare = (a: TaggedFoul, b: TaggedFoul): number => {
+    if (a.mark.period !== b.mark.period) return a.mark.period - b.mark.period;
+    return a.id - b.id;
+  };
+  homeTagged.sort(compare);
+  awayTagged.sort(compare);
+
+  return {
+    home: homeTagged.map((t) => t.mark),
+    away: awayTagged.map((t) => t.mark),
+  };
+}
+
+// 내부 헬퍼 — running-score-helpers.ts 의 detectTeamSide 와 동일 로직 (export 안 함).
+//
+// 왜 중복: foul-helpers 가 running-score-helpers 의 내부 함수를 import 하는 것은 모듈 결합도 증가.
+// 본 함수는 4줄 짜리 순수 로직 — 양쪽에 인라인하는 게 안전.
+function detectTeamSideLocal(
+  teamId: bigint | number | null,
+  homeIdNum: number,
+  awayIdNum: number,
+): "home" | "away" | null {
+  if (teamId === null || teamId === undefined) return null;
+  const idNum = Number(teamId);
+  if (Number.isNaN(idNum)) return null;
+  if (idNum === homeIdNum) return "home";
+  if (idNum === awayIdNum) return "away";
+  return null;
 }
