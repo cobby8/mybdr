@@ -107,3 +107,30 @@
 
 /* D6 — 모바일 가로 스크롤 (toolbar 자체는 max-width 794px 유지, 부모 wrap 이 overflow-x 처리) */
 /* toolbar 가 794px 이하 viewport 에서 컬럼 압축 시 가독성 보존을 위해 부모 영역에서 overflow-x:auto 처리 권장 */
+
+/* ============================================================
+   Phase 19 PR-S3 (2026-05-14) — RunningScoreGrid paper 모드 visual indicator
+   ============================================================
+   왜 (이유):
+     사용자 결재 D2 — paper 모드 = read-only preview / detail = 입력 (기본).
+     사용자 결재 D7 — PR-S3 = grid layout 분기 ❌ (운영 layout 유지) / 입력 차단만 + 시각 indicator.
+
+   어떻게:
+     - RunningScoreGrid wrapper 의 data-score-mode="paper" 속성을 selector 로 잡아 visual 적용.
+     - detail (기본) = 본 룰 미적용 = 운영 시각 변경 0.
+     - paper = opacity 0.85 + cursor not-allowed = 입력 불가 명시.
+
+   절대 룰:
+     - layout / grid-template-columns 변경 ❌ (운영 16 컬럼 layout 유지)
+     - 색상 / 폰트 룰 변경 ❌ (시각 indicator 만)
+*/
+.ss-shell [data-score-mode="paper"] {
+  /* 입력 불가 명시 — 운영자가 detail 로 전환해야 마킹 가능 인지 */
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+/* paper 모드 시 마킹 버튼 hover 효과 disabled (cursor 와 일관) */
+.ss-shell [data-score-mode="paper"] button {
+  cursor: not-allowed;
+}

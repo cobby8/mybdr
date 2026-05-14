@@ -1095,6 +1095,9 @@ export function ScoreSheetForm({
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
               FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적. */}
           <div className="flex flex-col">
+            {/* Phase 19 PR-S3 (2026-05-14) — toolbar scoreMode state wiring (사용자 결재 D2 / D7).
+                detail (기본) = 운영 onClick / setRunningScore / 모달 trigger 100% 보존.
+                paper = read-only preview (입력 차단 + opacity / cursor 시각 indicator). */}
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1102,6 +1105,7 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
+              mode={scoreMode}
               frameless
             />
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).

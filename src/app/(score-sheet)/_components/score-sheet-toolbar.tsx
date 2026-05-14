@@ -74,7 +74,12 @@ export function ScoreSheetToolbar({
         {/* 중앙 — "SCORESHEET · #{gameNo}" 타이틀 (시안 mono 폰트) */}
         <div className="ss-toolbar__title">SCORESHEET · {titleSuffix}</div>
 
-        {/* 모드 토글 — paper / detail (PR-S3 wiring 예정) */}
+        {/* 모드 토글 — paper / detail (PR-S3 wiring 완료).
+            Phase 19 PR-S3 (2026-05-14) — 라벨 명확화 (사용자 결재 D2 / D7).
+            왜: PR-S3 는 grid layout 분기 안 함 (운영 layout 유지) → 시안 라벨 "A|B · 8" / "16"
+              은 layout 컬럼 수 의미 → 운영에서 misleading. read-only 의미 명확 라벨로 변경:
+              - 페이퍼 (읽기 전용) = 입력 차단 + 시각 indicator
+              - 상세 (입력) = 운영 기존 동작 (기본) */}
         <div className="ss-toolbar__seg" role="tablist" aria-label="기록 모드 선택">
           <button
             type="button"
@@ -83,7 +88,7 @@ export function ScoreSheetToolbar({
             aria-selected={mode === "paper"}
             onClick={() => onModeChange("paper")}
           >
-            페이퍼 정합 (A|B · 8)
+            페이퍼 (읽기 전용)
           </button>
           <button
             type="button"
@@ -92,7 +97,7 @@ export function ScoreSheetToolbar({
             aria-selected={mode === "detail"}
             onClick={() => onModeChange("detail")}
           >
-            상세 마킹 (16)
+            상세 (입력)
           </button>
         </div>
 
