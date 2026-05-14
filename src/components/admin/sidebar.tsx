@@ -133,15 +133,30 @@ export const navStructure: AdminNavEntry[] = [
 ];
 
 // 역할 필터 — children 도 같이 필터링 (재귀)
+// 2026-05-14 fix: parent self-blocked + child visible 케이스 누락 (tournament_admin
+//   사용자에게 "대회 운영자 도구" 진입점이 통째로 사라지던 회귀). 이제는 children 1개
+//   이상 visible 이면 parent 도 노출 + parent href 를 visible child 의 첫 href 로 rewrite
+//   (parent click 시 자동으로 권한 있는 child 페이지로 진입 — 권한 없는 parent href 차단 회피).
 function filterItemByRoles(item: AdminNavItem, roles: AdminRole[]): AdminNavItem | null {
-  const visible =
-    item.roles === "all" || roles.some((r) => item.roles.includes(r));
-  if (!visible) return null;
-  // children 도 같은 룰로 필터
+  // 1) children 을 먼저 재귀 필터 (parent 가시성 판단에 사용)
   const filteredChildren = item.children
     ?.map((c) => filterItemByRoles(c, roles))
     .filter((c): c is AdminNavItem => c !== null);
-  return { ...item, children: filteredChildren };
+  const hasVisibleChildren = !!filteredChildren && filteredChildren.length > 0;
+
+  // 2) self 가시성
+  const selfVisible =
+    item.roles === "all" || roles.some((r) => item.roles.includes(r));
+
+  // 3) self / children 모두 차단 → 항목 제거 (기존 동작)
+  if (!selfVisible && !hasVisibleChildren) return null;
+
+  // 4) self 차단 + child 노출 → parent href 를 child 첫 href 로 rewrite
+  //    (UX: "대회 관리" label/icon 유지 + click 시 권한 있는 /tournament-admin 으로 자연 진입)
+  const effectiveHref =
+    !selfVisible && hasVisibleChildren ? filteredChildren![0].href : item.href;
+
+  return { ...item, href: effectiveHref, children: filteredChildren };
 }
 
 // 2026-05-04: 그룹화된 구조에서 역할별 필터 (mobile-admin-nav 도 사용)
