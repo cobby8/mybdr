@@ -1,7 +1,7 @@
 # BDR 디자인 작업 허브
 
 > **단일 진입점**. 어떤 디자인 / 박제 작업을 시작하기 전에 이 문서 + `claude-project-knowledge/00-master-guide.md` 부터 본다.
-> **마지막 갱신**: 2026-05-08 (BDR-current sync v2.5.1 — Profile 시리즈 5종 + _GlobalComponents 신규 + components.jsx SettingsRow 추가 / Profile.jsx 갱신 / TeamDetail·TeamManage 사용자 미작업 보존 — 운영 영향 0)
+> **마지막 갱신**: 2026-05-14 (BDR-current sync v2.5 + Phase F3 — Tournament 4 시안 신규: TournamentDetail / TournamentSchedule / TournamentTeams + Scrim 보강 / components.jsx TournamentTabBar 5 탭 / MyBDR.html 3 라우트 추가. 이전 BDR-current 는 _archive/BDR-current-2026-05-14-pre-v2.5sync/ 에 통째 보존 — 5/9 이후 uncommitted 수정 10건 포함.)
 
 ---
 
@@ -37,7 +37,11 @@ Dev/design/
     ├── BDR v2.2/                      옛 v2.2
     ├── BDR v2.3/                      옛 v2.3 (Downloads 최신과 다른 옛 스냅샷)
     ├── BDR v2.4/                      옛 v2.4 (5/1 시점)
-    ├── BDR-current-2026-05-01-v2.3/   ⭐ 옛 BDR-current/ 백업 (5/1 v2.3 Phase 13/19)
+    ├── BDR-current-2026-05-01-v2.3/   옛 BDR-current/ 백업 (5/1 v2.3 Phase 13/19)
+    ├── BDR-current-2026-05-08-pre-v2.5merge/      옛 BDR-current/ 백업 (5/8 v2.5 merge 직전)
+    ├── BDR-current-2026-05-08-pre-v2.5.1merge/    옛 BDR-current/ 백업 (5/8 v2.5.1 merge 직전)
+    ├── BDR-current-2026-05-14-pre-v2.5sync/  ⭐ 옛 BDR-current/ 백업 (5/14 v2.5+F3 sync 직전 / uncommitted 10건 포함)
+    ├── zip-2026-05-14-extras/         5/14 zip 의 추가 영역 (CLAUDE.md / audit / uploads / v1)
     ├── v2-original/                   zip 최상위 옛 v2 시안 (zip 그대로 보존)
     └── prompts/                       옛 phase-N-*.md, v2.X-cli-batch-prompt-*.md 등
 ```
@@ -149,20 +153,34 @@ git commit -m "design: BDR-current sync vX.Y (Phase XX)"
 ## 🎯 현재 활성 작업
 
 - **활성 브랜치**: `subin`
-- **활성 시안**: BDR-current/ (v2.4 — 5/8 sync, Phase 13 마이페이지 hub + Phase 19 BottomNavEditor)
-- **활성 박제 프롬프트**: `v3-rebake-prompt-2026-05-01.md` (P0/P1/P2)
-- **활성 페이즈**: 마이페이지 hub 박제 — `/profile` 본문 재구성 + 16 깊은 페이지 단일 진입
-- **갭 검증 필요**: 5/2~5/8 운영 src/ UI 변경 30+ commit 이 v2.4 시안에 반영됐는지 spot check (별도 작업)
+- **활성 시안**: BDR-current/ (v2.5 — 5/14 sync + Phase F3 Tournament 4 시안 신규)
+- **활성 박제 프롬프트**: `bdr 디자인 시스템 관리/prompts/phase-B-home.md` (다음 차례 — 로드맵 Phase B)
+- **활성 페이즈**: Phase F3 (Tournament 4 시안) sync 완료 → 다음 = Phase B 홈 시안 의뢰
+- **운영 후속**: 새 BDR-current 의 Tournament 3 시안 + Scrim → 운영 src/app/(web)/tournaments/[id]/ 마이그레이션 별도 의뢰 필요
 
-### 박제 우선순위 (v3-rebake-prompt-2026-05-01.md 요약)
+### 로드맵 진행 (design-requests-roadmap-2026-05-07.md)
 
-| 등급 | 영역 | 시안 파일 | 비고 |
-|------|------|-----------|------|
-| **P0** | `/profile` 본문 = MyPage hub | `screens/MyPage.jsx` + `mypage.css` | 3-tier 카드 (Tier 1/2/3) |
-| **P0** | `/profile/settings` 7 nav 통합 | `screens/Settings.jsx` | Phase 19 BottomNavEditor 포함 |
-| **P1** | `/profile/edit` | `screens/EditProfile.jsx` | 공개 범위 §5 이전 |
-| **P1** | `/profile/billing` `/profile/activity` 등 | `screens/Billing.jsx` 외 | 깊은 페이지 |
-| **P2** | 신규 시안 19건 (ContextReviews, GameEdit, MyPage, RefereeInfo, ...) | `screens/*.jsx` | 후속 큐 |
+| Phase | 시안 (Stream ①) | 운영 (Stream ②) |
+|-------|----------------|----------------|
+| A 헤더 진입점 | ✅ 완료 | ⬜ pending |
+| A.5 운영→시안 역박제 | ✅ 완료 | 🟡 staged |
+| A.6 메인 9 탭 목록 5 페이지 | ✅ 완료 | (운영 source — 변경 불필요) |
+| **F3 Tournament 4 시안 (애드혹)** | ✅ 완료 (5/14) | ⬜ pending |
+| B 홈 페이지 | ⬜ pending | ⬜ pending |
+| C 메인 9 탭 목록 | ⬜ pending | ⬜ pending |
+| D 프로필 편집/설정 | ⬜ pending | ⬜ pending |
+| E 글로벌 공유 | ⬜ pending | ⬜ pending |
+| F admin/referee 일괄 | (시안 X) | ⬜ pending |
+
+### Phase F3 신규 산출물 (2026-05-14 sync)
+
+| 영역 | 시안 파일 | 비고 |
+|------|-----------|------|
+| 대회 상세 (개요/일정/대진표/참가팀/규정 5 탭) | `screens/TournamentDetail.jsx` + `components.jsx::TournamentTabBar` | Hero (포스터 + D-day + 진행률 막대 Phase A.6 패턴) |
+| 대회 일정 (라운드별 그룹) | `screens/TournamentSchedule.jsx` | 4 필터 (전체/예정/진행중/종료) + LIVE 펄스 |
+| 대회 참가팀 (조별 그리드) | `screens/TournamentTeams.jsx` | 4 조 × 6 팀 + 본인 팀 강조 |
+| 스크림 매칭 | `screens/Scrim.jsx` (보강) | 4 탭 (찾기/받은/보낸/지난) + 레이팅 바 |
+| MyBDR.html 라우트 등록 | `tournamentDetail / tournamentSchedule / tournamentTeams / scrim` | 4 라우트 wiring |
 
 ---
 

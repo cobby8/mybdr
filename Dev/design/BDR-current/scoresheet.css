@@ -1,0 +1,899 @@
+/* ============================================================
+   ScoreSheet — Phase 23 FIBA-paper pixel-perfect 정합
+   ------------------------------------------------------------
+   - Route group `(score-sheet)` 격리 — AppNav 미포함
+   - A4 portrait (210/297) + 외곽 직각 박스 (radius 0)
+   - 토큰만 사용 (var(--*)) — 핑크/살몬 X
+   - 인쇄 시 라이트 강제 — 다크모드 진입 시에도 인쇄 = 라이트
+   - 입력 = border-bottom only (FIBA 양식 underscore 정합)
+   ============================================================ */
+
+/* ============================================================
+   Local color tokens — 다크모드일 때도 페이퍼는 라이트 강제
+   ============================================================ */
+.ss-shell {
+  --ss-paper-bg: #FFFFFF;
+  --ss-paper-ink: #0A0E14;
+  --ss-paper-soft: #2D343F;
+  --ss-paper-mute: #5B6573;
+  --ss-paper-dim: #8C94A0;
+  --ss-paper-line: #0A0E14;     /* 본선 — 진한 회색에 가까운 검정 */
+  --ss-paper-line-soft: #444A52;
+  --ss-paper-hair: #C9CED4;
+  --ss-paper-fill: #F2F4F7;
+  --ss-paper-accent: #E31B23;
+  --ss-paper-q1: #1F2937;
+  --ss-paper-q2: #2563EB;
+  --ss-paper-q3: #16A34A;
+  --ss-paper-q4: #D97706;
+  --ss-paper-ot: #DC2626;
+
+  background: #E5E8EE;
+  min-height: 100vh;
+  padding: 24px 16px 96px;
+  font-family: var(--ff-body);
+  color: var(--ss-paper-ink);
+}
+
+/* ============================================================
+   Toolbar — 시안 전용 (화면 only — 인쇄 시 hidden)
+   ============================================================ */
+.ss-toolbar {
+  max-width: 794px;
+  margin: 0 auto 16px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #FFFFFF;
+  border: 1px solid #D0D5DD;
+  border-radius: 4px;
+}
+.ss-toolbar__back,
+.ss-toolbar__print,
+.ss-toolbar__finish {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  font: 600 13px/1 var(--ff-body);
+  border: 1px solid #D0D5DD;
+  background: #FFFFFF;
+  color: #1A1E27;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.ss-toolbar__back .material-symbols-outlined,
+.ss-toolbar__print .material-symbols-outlined,
+.ss-toolbar__finish .material-symbols-outlined {
+  font-size: 18px;
+}
+.ss-toolbar__finish {
+  background: var(--ss-paper-accent);
+  border-color: var(--ss-paper-accent);
+  color: #FFFFFF;
+}
+.ss-toolbar__title {
+  font: 700 14px/1 var(--ff-mono);
+  letter-spacing: 0.04em;
+  color: #1A1E27;
+}
+.ss-toolbar__seg {
+  display: inline-flex;
+  height: 36px;
+  border: 1px solid #D0D5DD;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #F4F6FA;
+}
+.ss-toolbar__seg button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  height: 100%;
+  padding: 0 14px;
+  font: 600 12px/1 var(--ff-body);
+  color: #5B6573;
+  cursor: pointer;
+}
+.ss-toolbar__seg button[data-active="true"] {
+  background: #1A1E27;
+  color: #FFFFFF;
+}
+
+/* ============================================================
+   Paper — A4 portrait, 외곽 2px solid, radius 0
+   ============================================================ */
+.ss-paper {
+  width: 794px;       /* A4 width @ 96dpi ~ 210mm */
+  margin: 0 auto;
+  background: var(--ss-paper-bg);
+  color: var(--ss-paper-ink);
+  border: 2px solid var(--ss-paper-line);
+  border-radius: 0;
+  aspect-ratio: 210 / 297;
+  display: grid;
+  grid-template-rows:
+    62px      /* H — header (logo + 3-line title) */
+    26px      /* N — Team A / Team B name strip */
+    52px      /* M — Competition / Game No etc. */
+    1fr       /* B — body (team A/B + running score) */
+    auto;     /* F — footer (officials + period scores + signatures) */
+  overflow: hidden;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* ============================================================
+   Section A — Header (logo + 3-line title)
+   ============================================================ */
+.ss-h {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-h__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px;
+  border-right: 1.5px solid var(--ss-paper-line);
+  background: var(--ss-paper-ink);
+  color: #FFFFFF;
+}
+.ss-h__logo-mark {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ss-paper-ink);
+}
+.ss-h__logo-mark .material-symbols-outlined {
+  font-size: 24px;
+  color: #FFFFFF;
+}
+.ss-h__logo-text {
+  font: 800 9px/1.1 var(--ff-display);
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+.ss-h__logo-text strong {
+  display: block;
+  font: 900 14px/1 var(--ff-display);
+  letter-spacing: 0.04em;
+}
+.ss-h__title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 16px;
+  text-align: center;
+}
+.ss-h__t1,
+.ss-h__t2 {
+  font: 700 11.5px/1.25 var(--ff-display);
+  letter-spacing: 0.16em;
+  color: var(--ss-paper-ink);
+  text-transform: uppercase;
+}
+.ss-h__t3 {
+  font: 900 19px/1.1 var(--ff-display);
+  letter-spacing: 0.22em;
+  color: var(--ss-paper-ink);
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+
+/* ============================================================
+   Section B — Team A / Team B name strip
+   ============================================================ */
+.ss-names {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-names__cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-right: 1.5px solid var(--ss-paper-line);
+}
+.ss-names__cell:last-child { border-right: 0; }
+.ss-names__cell > label {
+  font: 700 11px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+  color: var(--ss-paper-ink);
+  flex-shrink: 0;
+}
+.ss-names__cell > span {
+  flex: 1;
+  font: 600 12px/1 var(--ff-body);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+}
+
+/* ============================================================
+   Section C — Competition / Game No / Referee / Umpire
+   ============================================================ */
+.ss-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-meta__l,
+.ss-meta__r {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+}
+.ss-meta__l { border-right: 1.5px solid var(--ss-paper-line); }
+.ss-meta__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+}
+.ss-meta__row:last-child { border-bottom: 0; }
+
+/* Field — label + underline value (FIBA underscore 정합) */
+.ss-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.ss-field[data-grow="2"] { flex: 2; }
+.ss-field[data-grow="3"] { flex: 3; }
+.ss-field > label {
+  font: 700 10px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+  color: var(--ss-paper-ink);
+  flex-shrink: 0;
+}
+.ss-field > .ss-field__v {
+  flex: 1;
+  min-width: 0;
+  font: 500 11px/1 var(--ff-body);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  height: 16px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   Section D — Body (left: TeamA + TeamB / right: RunningScore)
+   ============================================================ */
+.ss-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+  min-height: 0;
+}
+.ss-body__l {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  border-right: 1.5px solid var(--ss-paper-line);
+  min-height: 0;
+}
+.ss-body__r {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ---------- TeamBox ---------- */
+.ss-tbox {
+  display: grid;
+  grid-template-rows: 22px auto auto 1fr 22px 22px;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+  min-height: 0;
+}
+.ss-tbox:last-child { border-bottom: 0; }
+
+.ss-tbox__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__head label {
+  font: 700 11px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.ss-tbox__head span {
+  flex: 1;
+  font: 600 11px/1 var(--ff-body);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+
+/* Time-outs / Team fouls block */
+.ss-tbox__tt {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  border-bottom: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__to {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 3px 0;
+  border-right: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__to-label {
+  font: 700 9px/1 var(--ff-display);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+.ss-tbox__to-cells {
+  display: flex;
+  gap: 2px;
+  margin-top: 2px;
+}
+.ss-tbox__to-cell {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--ss-paper-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 9px/1 var(--ff-mono);
+  background: var(--ss-paper-bg);
+}
+.ss-tbox__to-cell[data-used="true"] {
+  background: var(--ss-paper-ink);
+  color: var(--ss-paper-bg);
+}
+
+.ss-tbox__tf {
+  padding: 3px 6px;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 2px;
+}
+.ss-tbox__tf-title {
+  position: absolute;
+  display: none;
+}
+.ss-tbox__tf {
+  position: relative;
+}
+.ss-tbox__tf-label {
+  font: 700 9px/1 var(--ff-display);
+  letter-spacing: 0.03em;
+  position: absolute;
+  top: 3px;
+  right: 6px;
+}
+.ss-tbox__tf-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 10px/1 var(--ff-display);
+}
+.ss-tbox__tf-row > .ss-tbox__tf-p {
+  font: 700 9px/1 var(--ff-display);
+  width: 36px;
+  flex-shrink: 0;
+}
+.ss-tbox__tf-q {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.ss-tbox__tf-q-num {
+  font: 800 9px/1 var(--ff-display);
+  width: 9px;
+  text-align: center;
+}
+.ss-tbox__tf-cells {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__tf-cell {
+  width: 11px;
+  height: 11px;
+  border-right: 1px solid var(--ss-paper-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 8px/1 var(--ff-mono);
+  color: var(--ss-paper-ink);
+}
+.ss-tbox__tf-cell:last-child { border-right: 0; }
+.ss-tbox__tf-cell[data-on="true"] {
+  background: var(--ss-paper-ink);
+  color: var(--ss-paper-bg);
+}
+.ss-tbox__tf-cell[data-bonus="true"] {
+  background: var(--ss-paper-accent);
+  color: #FFFFFF;
+}
+.ss-tbox__tf-extra {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ss-tbox__tf-extra-label {
+  font: 700 9px/1 var(--ff-display);
+  width: 70px;
+  flex-shrink: 0;
+}
+
+/* Players table */
+.ss-tbox__plyhead,
+.ss-tbox__plyrow {
+  display: grid;
+  grid-template-columns: 30px 1fr 24px 30px 11px 11px 11px 11px 11px;
+  border-bottom: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__plyhead {
+  background: var(--ss-paper-fill);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-tbox__plyhead > div,
+.ss-tbox__plyrow > div {
+  border-right: 1px solid var(--ss-paper-line);
+  padding: 0 3px;
+  display: flex;
+  align-items: center;
+  font: 500 10px/1 var(--ff-body);
+  min-height: 17px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ss-tbox__plyhead > div:last-child,
+.ss-tbox__plyrow > div:last-child {
+  border-right: 0;
+}
+.ss-tbox__plyhead > div {
+  font: 700 9px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+  justify-content: center;
+  color: var(--ss-paper-ink);
+  text-align: center;
+}
+.ss-tbox__plyhead .ss-h-fouls {
+  grid-column: 5 / span 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font: 700 9px/1.1 var(--ff-display);
+  letter-spacing: 0.02em;
+  border-right: 0;
+}
+.ss-tbox__plyhead .ss-h-fouls-top {
+  border-bottom: 1px solid var(--ss-paper-line);
+  width: 100%;
+  text-align: center;
+  padding: 2px 0;
+}
+.ss-tbox__plyhead .ss-h-fouls-nums {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  width: 100%;
+}
+.ss-tbox__plyhead .ss-h-fouls-nums span {
+  text-align: center;
+  border-right: 1px solid var(--ss-paper-line);
+  padding: 1px 0;
+}
+.ss-tbox__plyhead .ss-h-fouls-nums span:last-child { border-right: 0; }
+
+.ss-tbox__plyrow .ss-c-name {
+  font: 600 10.5px/1 var(--ff-body);
+  color: var(--ss-paper-ink);
+  letter-spacing: -0.01em;
+}
+.ss-tbox__plyrow .ss-c-no,
+.ss-tbox__plyrow .ss-c-pin {
+  justify-content: center;
+  font: 700 10px/1 var(--ff-mono);
+}
+.ss-tbox__plyrow .ss-c-foul {
+  justify-content: center;
+  font: 700 9px/1 var(--ff-mono);
+  padding: 0;
+}
+.ss-tbox__plyrow[data-fouled-out="true"] {
+  background: #FBE5E6;
+}
+.ss-tbox__plyrow[data-fouled-out="true"] .ss-c-name {
+  color: var(--ss-paper-mute);
+  text-decoration: line-through;
+}
+
+.ss-tbox__plybody {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.ss-tbox__plybody .ss-tbox__plyrow:last-child {
+  border-bottom: 0;
+}
+
+.ss-tbox__coach {
+  display: grid;
+  grid-template-columns: 56px 1fr 80px 1fr;
+  border-top: 1.5px solid var(--ss-paper-line);
+  align-items: center;
+}
+.ss-tbox__coach label {
+  font: 700 10px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+  padding: 0 4px;
+}
+.ss-tbox__coach .ss-tbox__coach-v {
+  font: 500 11px/1 var(--ff-body);
+  color: var(--ss-paper-soft);
+  border-bottom: 0;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  border-right: 1px solid var(--ss-paper-line);
+}
+.ss-tbox__coach > *:nth-child(4).ss-tbox__coach-v { border-right: 0; }
+.ss-tbox__coach > *:nth-child(2) { border-right: 1px solid var(--ss-paper-line); }
+
+/* ---------- RunningScore ---------- */
+.ss-rs {
+  display: grid;
+  grid-template-rows: 22px auto 1fr;
+  height: 100%;
+  min-height: 0;
+}
+.ss-rs__title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1.5px solid var(--ss-paper-line);
+  font: 800 12px/1 var(--ff-display);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  position: relative;
+}
+.ss-rs__title .ss-rs__hint {
+  position: absolute;
+  right: 6px;
+  font: 600 8.5px/1 var(--ff-mono);
+  color: var(--ss-paper-mute);
+  letter-spacing: 0;
+}
+
+.ss-rs__head {
+  display: grid;
+  border-bottom: 1px solid var(--ss-paper-line);
+  background: var(--ss-paper-fill);
+}
+.ss-rs__head[data-mode="paper"] {
+  grid-template-columns: repeat(8, 1fr);
+}
+.ss-rs__head[data-mode="detail"] {
+  grid-template-columns: repeat(16, 1fr);
+}
+.ss-rs__head > div {
+  text-align: center;
+  font: 800 9px/1.1 var(--ff-display);
+  padding: 3px 0;
+  border-right: 1px solid var(--ss-paper-line);
+}
+.ss-rs__head > div:last-child { border-right: 0; }
+
+.ss-rs__grid {
+  display: grid;
+  grid-auto-rows: 1fr;
+  min-height: 0;
+}
+.ss-rs__grid[data-mode="paper"] {
+  grid-template-columns: repeat(8, 1fr);
+}
+.ss-rs__grid[data-mode="detail"] {
+  grid-template-columns: repeat(16, 1fr);
+}
+
+.ss-rs__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 9px/1 var(--ff-mono);
+  color: var(--ss-paper-mute);
+  border-right: 1px solid var(--ss-paper-hair);
+  border-bottom: 1px solid var(--ss-paper-hair);
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Thick divider between A and B side of each section pair */
+.ss-rs__cell[data-side="A"] { border-right: 1px solid var(--ss-paper-line); }
+/* Thick divider between sections (each section = 2 cols in paper mode, 4 in detail) */
+.ss-rs__grid[data-mode="paper"] .ss-rs__cell[data-section-end="true"] {
+  border-right: 1.5px solid var(--ss-paper-line);
+}
+.ss-rs__grid[data-mode="detail"] .ss-rs__cell[data-section-end="true"] {
+  border-right: 1.5px solid var(--ss-paper-line);
+}
+.ss-rs__grid .ss-rs__cell:nth-last-child(-n+8) {
+  border-bottom: 0;
+}
+.ss-rs__grid[data-mode="detail"] .ss-rs__cell:nth-last-child(-n+16) {
+  border-bottom: 0;
+}
+
+.ss-rs__cell[data-state="reached"] {
+  color: var(--ss-paper-ink);
+  font-weight: 800;
+}
+.ss-rs__cell[data-state="reached"]::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-top: 1.5px solid var(--ss-paper-ink);
+  transform: rotate(-18deg);
+  transform-origin: left center;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.ss-rs__cell[data-state="period-end"] {
+  color: var(--ss-paper-ink);
+  font-weight: 900;
+}
+.ss-rs__cell[data-state="period-end"]::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--ss-paper-ink);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ss-rs__cell[data-state="period-end"][data-q="1"]::before { border-color: var(--ss-paper-q1); }
+.ss-rs__cell[data-state="period-end"][data-q="2"]::before { border-color: var(--ss-paper-q2); }
+.ss-rs__cell[data-state="period-end"][data-q="3"]::before { border-color: var(--ss-paper-q3); }
+.ss-rs__cell[data-state="period-end"][data-q="4"]::before { border-color: var(--ss-paper-q4); }
+
+.ss-rs__cell[data-state="current"] {
+  background: #FFF3CD;
+  color: var(--ss-paper-ink);
+  font-weight: 900;
+}
+
+/* detail mode mark cells */
+.ss-rs__mark {
+  font: 700 11px/1 var(--ff-mono);
+  color: var(--ss-paper-ink);
+}
+
+/* ============================================================
+   Section E — Footer (officials + period scores + signatures)
+   ============================================================ */
+.ss-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.ss-foot__l,
+.ss-foot__r {
+  display: flex;
+  flex-direction: column;
+}
+.ss-foot__l {
+  border-right: 1.5px solid var(--ss-paper-line);
+}
+
+.ss-officials {
+  display: grid;
+  grid-template-rows: repeat(4, 22px);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-officials__row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  align-items: center;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  gap: 6px;
+}
+.ss-officials__row:last-child { border-bottom: 0; }
+.ss-officials__row label {
+  font: 700 10px/1 var(--ff-display);
+  letter-spacing: 0.02em;
+}
+.ss-officials__row .ss-field__v {
+  font: 500 11px/1 var(--ff-body);
+  color: var(--ss-paper-soft);
+  border-bottom: 1px solid var(--ss-paper-line);
+  height: 16px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+
+.ss-sigs {
+  display: grid;
+  grid-template-rows: 22px 22px 22px;
+}
+.ss-sigs__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+}
+.ss-sigs__row:last-child { border-bottom: 0; }
+
+/* Period scores + Final score (right) */
+.ss-ps {
+  display: grid;
+  grid-template-rows: repeat(5, 22px);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+}
+.ss-ps__row {
+  display: grid;
+  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  gap: 6px;
+}
+.ss-ps__row:last-child { border-bottom: 0; }
+.ss-ps__title {
+  font: 800 10px/1 var(--ff-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ss-ps__period {
+  font: 700 11px/1 var(--ff-display);
+}
+.ss-ps__period .ss-circ {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1.2px solid var(--ss-paper-ink);
+  border-radius: 50%;
+  font: 800 8px/1 var(--ff-mono);
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+.ss-ps__period[data-q="1"] .ss-circ { border-color: var(--ss-paper-q1); color: var(--ss-paper-q1); }
+.ss-ps__period[data-q="2"] .ss-circ { border-color: var(--ss-paper-q2); color: var(--ss-paper-q2); }
+.ss-ps__period[data-q="3"] .ss-circ { border-color: var(--ss-paper-q3); color: var(--ss-paper-q3); }
+.ss-ps__period[data-q="4"] .ss-circ { border-color: var(--ss-paper-q4); color: var(--ss-paper-q4); }
+.ss-ps__teamlabel {
+  font: 800 11px/1 var(--ff-display);
+  text-align: center;
+}
+.ss-ps__val {
+  font: 700 12px/1 var(--ff-mono);
+  border-bottom: 1px solid var(--ss-paper-line);
+  height: 18px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+  padding-left: 4px;
+  color: var(--ss-paper-ink);
+}
+
+.ss-final {
+  display: grid;
+  grid-template-rows: 32px 1fr;
+}
+.ss-final__row {
+  display: grid;
+  grid-template-columns: 90px 60px 1fr 30px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--ss-paper-hair);
+  gap: 6px;
+}
+.ss-final__row > .ss-ps__title {
+  font: 900 11px/1 var(--ff-display);
+}
+.ss-final__row .ss-ps__val {
+  font: 900 16px/1 var(--ff-mono);
+  height: 24px;
+}
+
+.ss-winner {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+}
+.ss-winner > label {
+  font: 900 11px/1 var(--ff-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ss-winner > .ss-winner__v {
+  font: 900 18px/1 var(--ff-display);
+  color: var(--ss-paper-ink);
+  border-bottom: 1.5px solid var(--ss-paper-line);
+  height: 28px;
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   Print rules — A4 portrait + 라이트 강제
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm;
+  }
+  html, body {
+    background: #FFFFFF !important;
+  }
+  .ss-shell {
+    padding: 0 !important;
+    background: #FFFFFF !important;
+  }
+  .ss-toolbar { display: none !important; }
+  .ss-paper {
+    width: 100% !important;
+    aspect-ratio: 210 / 297;
+    margin: 0 !important;
+    border: 2px solid #000 !important;
+    page-break-inside: avoid;
+  }
+  /* 인쇄 시 = 8 컬럼 강제 */
+  .ss-rs__head[data-mode="detail"] {
+    grid-template-columns: repeat(8, 1fr) !important;
+  }
+  .ss-rs__row[data-mode="detail"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .ss-rs__mark, .ss-rs__cell--detail-only { display: none !important; }
+}
+
+/* ============================================================
+   Mobile — A4 비율 유지 + 720px 분기 (태블릿 가로 우선)
+   ============================================================ */
+@media (max-width: 820px) {
+  .ss-shell {
+    padding: 12px 8px 60px;
+    overflow-x: auto;
+  }
+  .ss-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    max-width: 794px;
+  }
+  .ss-toolbar__title { grid-column: 1 / -1; text-align: center; }
+  .ss-toolbar__seg { grid-column: 1 / -1; justify-self: center; }
+}

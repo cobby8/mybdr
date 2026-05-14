@@ -1,4 +1,4 @@
-/* global React, PasswordInput */
+/* global React */
 
 function PasswordReset({ setRoute }) {
   const [step, setStep] = React.useState(1);
@@ -110,7 +110,7 @@ function PasswordReset({ setRoute }) {
         {step === 3 && (
           <div>
             <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6}}>새 비밀번호</label>
-            <PasswordInput value={pw1} onChange={e=>setPw1(e.target.value)} placeholder="8자 이상, 영문·숫자·기호" autoComplete="new-password"/>
+            <input className="input" type="password" value={pw1} onChange={e=>setPw1(e.target.value)} placeholder="8자 이상, 영문·숫자·기호" autoFocus/>
             {pw1 && (
               <div style={{marginTop:8}}>
                 <div style={{display:'flex', gap:4, marginBottom:4}}>
@@ -122,7 +122,7 @@ function PasswordReset({ setRoute }) {
               </div>
             )}
             <label style={{fontSize:12, fontWeight:700, color:'var(--ink-dim)', display:'block', marginBottom:6, marginTop:16}}>비밀번호 확인</label>
-            <PasswordInput value={pw2} onChange={e=>setPw2(e.target.value)} autoComplete="new-password"/>
+            <input className="input" type="password" value={pw2} onChange={e=>setPw2(e.target.value)}/>
             {pw2 && pw1 !== pw2 && <div style={{fontSize:11, color:'var(--err)', marginTop:4, fontWeight:700}}>비밀번호가 일치하지 않습니다</div>}
 
             <div style={{marginTop:18, padding:'10px 12px', background:'var(--bg-alt)', borderRadius:4, fontSize:11, color:'var(--ink-soft)', lineHeight:1.7}}>

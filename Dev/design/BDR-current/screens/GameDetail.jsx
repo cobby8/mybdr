@@ -26,7 +26,7 @@ function GameDetail({ setRoute }) {
         <div>
           <div className="card" style={{padding:'24px 28px', marginBottom:16}}>
             <div style={{display:'flex', gap:8, marginBottom:12}}>
-              <span className="badge badge--soft">{g.kind === 'pickup' ? '픽업' : g.kind === 'guest' ? '게스트' : '스크림'}</span>
+              <span className="badge badge--soft">{g.kind === 'pickup' ? '픽업' : g.kind === 'guest' ? '게스트' : '연습경기'}</span>
               {g.tags.map(t => <span key={t} className="badge badge--ghost">{t}</span>)}
             </div>
             <h1 style={{margin:'0 0 14px', fontSize:28, fontWeight:800, letterSpacing:'-0.015em'}}>{g.title}</h1>

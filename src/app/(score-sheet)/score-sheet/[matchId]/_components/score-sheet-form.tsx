@@ -90,6 +90,32 @@ interface ScoreSheetFormProps {
     home: TeamLineupSelection | null; // null = 사전 미박제
     away: TeamLineupSelection | null;
   };
+  // Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드 props (매치 218 사고 영구 차단).
+  //
+  // 왜 (이유):
+  //   기존 = 빈 폼으로 진입 → 운영자가 빈 폼 위 다시 제출하면 기존 PBP 박제 흡수.
+  //   변경 = page.tsx 가 DB SELECT (PBP + settings.timeouts/signatures + notes) 후 헬퍼로
+  //     역변환한 초기값을 prop drilling → useState 초기값으로 사용 → 기존 박제 안전 보존.
+  //
+  // 우선순위 룰 (사용자 결재 Q1):
+  //   - 기본 = DB 우선 (props 값을 useState 초기값으로 즉시 사용)
+  //   - localStorage draft 가 더 최신이면 (draft.savedAt > match.updatedAt) confirm 모달 표시 후 사용자 선택
+  //   - draft 없거나 더 오래됨 = DB 그대로 (props 값 유지)
+  //
+  // BigInt 직렬화 (errors.md 2026-04-17): 모든 ID 는 string. page.tsx 의 .toString() 변환 결과.
+  initialRunningScore?: RunningScoreState;
+  initialFouls?: FoulsState;
+  initialTimeouts?: TimeoutsState;
+  initialSignatures?: SignaturesState;
+  initialNotes?: string;
+  // cross-check 용 (사용자 결재 Q4) — PBP 합산 (initialRunningScore 기준 toQuarterScoresJson)
+  //   과 본 값이 mismatch 면 경고 배너 + console.warn. shape 는 BFF submit 와 동일.
+  initialQuarterScoresDB?: Record<string, unknown>;
+  // draft 우선순위 비교용 — ISO 8601 (page.tsx 가 Date.toISOString() 변환)
+  matchUpdatedAtISO?: string | null;
+  // 사용자 결재 Q2 — PBP 0건 + quarter_scores 만 있는 매치 안내 배너 트리거.
+  //   pbpCount === 0 && initialQuarterScoresDB 가 있으면 정보 배너 표시.
+  pbpCount?: number;
 }
 
 // localStorage key prefix — 매치당 1건 (Phase 1 FIBA 양식 신규 prefix)
@@ -130,20 +156,44 @@ export function ScoreSheetForm({
   homeRoster,
   awayRoster,
   initialLineup,
+  // Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드 props (PR2 page.tsx 가 박제)
+  initialRunningScore,
+  initialFouls,
+  initialTimeouts,
+  initialSignatures,
+  initialNotes,
+  initialQuarterScoresDB,
+  matchUpdatedAtISO,
+  pbpCount,
 }: ScoreSheetFormProps) {
   const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
   const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
   const [teamB, setTeamB] = useState<TeamSectionInputs>(EMPTY_TEAM);
-  // Phase 2 — Running Score state
+  // Phase 2 — Running Score state.
+  // Phase 23 (2026-05-14) — DB SELECT 결과로 초기값 박제 (?? EMPTY_*).
+  //   기존 동작 100% 보존: prop 미전달 (=undefined) 시 EMPTY 폴백 = 신규 매치 진입과 동일.
   const [runningScore, setRunningScore] = useState<RunningScoreState>(
-    EMPTY_RUNNING_SCORE
+    initialRunningScore ?? EMPTY_RUNNING_SCORE
   );
   // Phase 3 — Fouls state (FIBA 1-5 Player Fouls + Team Fouls 자동 합산 source)
-  const [fouls, setFouls] = useState<FoulsState>(EMPTY_FOULS);
+  const [fouls, setFouls] = useState<FoulsState>(initialFouls ?? EMPTY_FOULS);
   // Phase 4 — Timeouts state (FIBA Article 18-19 전반2/후반3/OT1)
-  const [timeouts, setTimeouts] = useState<TimeoutsState>(EMPTY_TIMEOUTS);
-  // Phase 5 — Signatures state (FIBA 양식 풋터 8 입력 + notes)
-  const [signatures, setSignatures] = useState<SignaturesState>(EMPTY_SIGNATURES);
+  const [timeouts, setTimeouts] = useState<TimeoutsState>(
+    initialTimeouts ?? EMPTY_TIMEOUTS
+  );
+  // Phase 5 — Signatures state (FIBA 양식 풋터 8 입력 + notes).
+  //   Phase 23: initialSignatures 가 있으면 EMPTY 와 spread merge (구버전 partial 박제 호환).
+  //   initialNotes 가 있으면 signatures.notes 로 통합 (DB notes 컬럼 별도 — 폼은 signatures 단일 source).
+  const [signatures, setSignatures] = useState<SignaturesState>(() => {
+    const base = initialSignatures
+      ? { ...EMPTY_SIGNATURES, ...initialSignatures }
+      : EMPTY_SIGNATURES;
+    // notes 는 TournamentMatch.notes 컬럼이 우선 (BFF 별도 update 흐름) — 있으면 덮어쓰기
+    if (initialNotes && initialNotes.length > 0) {
+      return { ...base, notes: initialNotes };
+    }
+    return base;
+  });
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
   const [foulModalCtx, setFoulModalCtx] = useState<{
     team: "home" | "away";
@@ -184,6 +234,75 @@ export function ScoreSheetForm({
   } | null>(null);
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   const { showToast } = useToast();
+
+  // Phase 23 (2026-05-14) — cross-check: PBP 합산 vs DB quarter_scores mismatch 감지.
+  //
+  // 왜 (이유 — 사용자 결재 Q4):
+  //   PBP 합산을 ScoreMarks 단일 source 로 사용. quarter_scores 는 별도 박제 흐름 (예: paper 매치
+  //   q3 박제 시 quarter_scores 만 갱신된 케이스). 두 source mismatch 면 운영자 알림 + 로깅.
+  //
+  // 어떻게:
+  //   - audit endpoint 부재 (route 미존재) → console.warn 로깅 + UI 노란 배너 (mount 1회).
+  //   - mismatch 판정: Q1~Q4 + OT 각 위치 비교 (간단 shallow 비교).
+  //   - 정확도: PBP 합산은 점수만 박제 (자유투 1점 / 야투 2/3점 score event 만). PBP 미박제된
+  //     q3 = 0 vs DB 박제값 ≠ 0 = mismatch (정상 알림 케이스).
+  //
+  // 결과: useState 로 mismatch 메시지 1회 박제 → 노란 배너 렌더. PR4 에서 audit endpoint 박제 시 호출 추가.
+  const [crossCheckWarning, setCrossCheckWarning] = useState<string | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!initialQuarterScoresDB || !initialRunningScore) return;
+    // 무거운 deep compare 회피 — simple Q1~Q4 + OT 합산만 비교 (충분)
+    try {
+      // PBP 합산 (toQuarterScoresJson 와 동일 형식)
+      const pbpSum = toQuarterScoresJson(initialRunningScore);
+      const dbHome = (initialQuarterScoresDB.home ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const dbAway = (initialQuarterScoresDB.away ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const diffs: string[] = [];
+      const qs = ["q1", "q2", "q3", "q4"] as const;
+      for (const q of qs) {
+        const pHome = pbpSum.home[q];
+        const pAway = pbpSum.away[q];
+        const dHome = Number(dbHome[q] ?? 0);
+        const dAway = Number(dbAway[q] ?? 0);
+        if (pHome !== dHome) {
+          diffs.push(
+            `${q.toUpperCase()} Home PBP=${pHome} / DB=${dHome}`,
+          );
+        }
+        if (pAway !== dAway) {
+          diffs.push(
+            `${q.toUpperCase()} Away PBP=${pAway} / DB=${dAway}`,
+          );
+        }
+      }
+      if (diffs.length > 0) {
+        const msg = `PBP 합산과 DB quarter_scores 가 다릅니다 (PBP 신뢰 — 사용자 결재 Q4): ${diffs.join(", ")}`;
+        setCrossCheckWarning(msg);
+        // audit endpoint 부재 → console.warn 로깅 (PR4 에서 endpoint 박제 시 호출 추가)
+        console.warn("[score-sheet:Phase23:cross-check]", msg);
+      }
+    } catch (err) {
+      // 비교 실패 = 운영 영향 0 (배너만 미표시)
+      console.warn("[score-sheet:Phase23:cross-check] failed", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Phase 23 (2026-05-14) — PBP 0건 + quarter_scores 만 있는 매치 안내 배너 트리거 (사용자 결재 Q2).
+  //   재박제 시 PBP 새로 생성됨 → 기존 quarter_scores 값은 cross-check 로 표시만.
+  const hasOnlyQuarterScores =
+    pbpCount === 0 &&
+    initialQuarterScoresDB !== undefined &&
+    Object.keys(initialQuarterScoresDB).length > 0;
 
   // Phase 16 (2026-05-13) — 사전 확정 라인업 (initialLineup) 진입 시 P.IN 자동 체크 (mount 1회).
   //   이유: handleLineupConfirm 와 동일한 자동 P.IN 룰 — 사전 라인업 (DB 박제) 으로 진입한
@@ -227,13 +346,63 @@ export function ScoreSheetForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // localStorage draft 복원 (mount 1회)
+  // localStorage draft 복원 (mount 1회).
+  //
+  // Phase 23 (2026-05-14) — draft vs DB 우선순위 (사용자 결재 Q1).
+  //   기본 = DB 우선 (props 가 useState 초기값으로 이미 박제됨 — draft 적용 안 함).
+  //   draft.savedAt > matchUpdatedAtISO 시 = draft 가 더 최신 = confirm 모달로 사용자 선택.
+  //     - 사용자 OK → draft 로 덮어쓰기 (기존 동작 유지)
+  //     - 사용자 Cancel → DB 유지 (props 값 유지)
+  //   draft 없거나 더 오래됨 = DB 유지 (props 값 유지 / draft 무시).
+  //
+  // 왜 inline confirm() 인가:
+  //   - 운영의 4종 모달은 각자 도메인 전용 (FoulType / PlayerSelect / LineupSelection / QuarterEnd).
+  //   - 신규 모달 컴포넌트 추가 = JSX 트리 변경 + tester / reviewer 검수 부담 증가.
+  //   - inline confirm() = blocking + 운영 즉시 가능 (모달 컴포넌트 추가 = 별도 PR 후속 가능).
+  //   - 박제 사고 (매치 218) 영구 차단이 1차 목표 — 모달 폴리시는 PR4 또는 후속에서 보강.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
       if (raw) {
         const draft = JSON.parse(raw) as Partial<DraftPayload>;
+
+        // Phase 23 — draft vs DB 비교. matchUpdatedAtISO 가 없으면 (신규 매치) draft 그대로 적용.
+        let applyDraft = true;
+        if (matchUpdatedAtISO && draft.savedAt) {
+          try {
+            const draftTime = new Date(draft.savedAt).getTime();
+            const dbTime = new Date(matchUpdatedAtISO).getTime();
+            // draft 가 DB 보다 더 최신이고 props (DB) 가 있는 경우만 사용자 confirm.
+            // DB props 가 모두 비어 있으면 (신규 매치 + draft 만 존재) draft 그대로 적용.
+            const hasDBContent =
+              (initialRunningScore !== undefined &&
+                (initialRunningScore.home.length > 0 ||
+                  initialRunningScore.away.length > 0)) ||
+              (initialFouls !== undefined &&
+                (initialFouls.home.length > 0 ||
+                  initialFouls.away.length > 0));
+            if (draftTime > dbTime && hasDBContent) {
+              // 사용자 선택 — OK = draft 우선 / Cancel = DB 유지
+              const msg =
+                "이 매치는 이미 박제된 기록이 있고, 진행 중인 임시 저장본이 더 최신입니다.\n\n" +
+                "[확인] = 임시 저장본으로 진행 (DB 박제는 제출 시 덮어쓰기)\n" +
+                "[취소] = DB 박제본으로 진행 (임시 저장본 무시)";
+              applyDraft = window.confirm(msg);
+            } else if (draftTime <= dbTime && hasDBContent) {
+              // DB 가 더 최신 = draft 무시 (사고 방지 최우선)
+              applyDraft = false;
+            }
+            // else: DB content 0 = draft 그대로 적용 (신규 매치 + draft)
+          } catch {
+            // Date 파싱 실패 = 안전한 기본 (draft 적용 — 기존 동작 호환)
+            applyDraft = true;
+          }
+        }
+        if (!applyDraft) {
+          return; // DB props 값 유지 (useState 초기값 그대로)
+        }
+
         if (draft.header) setHeader(draft.header);
         if (draft.teamA) setTeamA(draft.teamA);
         if (draft.teamB) setTeamB(draft.teamB);
@@ -701,6 +870,57 @@ export function ScoreSheetForm({
     //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
     <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+      {/* Phase 23 (2026-05-14) — cross-check 경고 배너 (사용자 결재 Q4).
+          PBP 합산 vs DB quarter_scores mismatch 시 노란 배너 + 메시지 + console.warn 로깅.
+          매치 218 같은 사고 = 운영자가 빈 폼 위에 다시 제출 → 본 배너로 즉시 인식 가능. */}
+      {crossCheckWarning && (
+        <div
+          className="no-print mb-2 px-3 py-2 text-xs"
+          style={{
+            border: "1px solid var(--color-warning)",
+            backgroundColor:
+              "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+            color: "var(--color-warning)",
+          }}
+        >
+          <p className="font-semibold">
+            <span className="material-symbols-outlined mr-1 align-middle text-base">
+              warning
+            </span>
+            점수 불일치 경고
+          </p>
+          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
+            {crossCheckWarning}
+          </p>
+        </div>
+      )}
+
+      {/* Phase 23 (2026-05-14) — PBP 0건 + quarter_scores 만 있는 매치 안내 (사용자 결재 Q2).
+          이전에 paper 매치가 PBP 없이 quarter 점수만 박제된 케이스 (구버전 박제 흐름).
+          재박제 시 PBP 새로 생성 → 사용자가 빈 폼을 보고 박제하면 PBP 가 새로 누적됨. */}
+      {hasOnlyQuarterScores && (
+        <div
+          className="no-print mb-2 px-3 py-2 text-xs"
+          style={{
+            border: "1px solid var(--color-info)",
+            backgroundColor:
+              "color-mix(in srgb, var(--color-info) 10%, transparent)",
+            color: "var(--color-info)",
+          }}
+        >
+          <p className="font-semibold">
+            <span className="material-symbols-outlined mr-1 align-middle text-base">
+              info
+            </span>
+            PBP 없이 quarter 점수만 박제된 매치
+          </p>
+          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
+            기록을 재박제하면 새로운 PBP 가 생성됩니다. 기존 quarter 점수는
+            Period scores 박스에서만 확인할 수 있습니다.
+          </p>
+        </div>
+      )}
+
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
           이전 Phase 17 위치 (frame 아래 mt-3) = frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침.
           새 위치 = frame 직전 (진입 즉시 운영자 인식 / 인쇄 시 _print.css `.no-print` 자동 제외). */}
