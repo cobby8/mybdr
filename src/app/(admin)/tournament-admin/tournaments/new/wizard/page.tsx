@@ -116,6 +116,10 @@ function QuickCreateForm() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("loading");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 2026-05-15 Phase 6 PR2 — super_admin / association_admin 분기 카드 노출용.
+  // 이유: 협회 마법사 (/tournament-admin/wizard/association) 진입점을 일반 마법사 상단에 안내.
+  //   AppNav frozen 룰 (CLAUDE.md 13 룰) 위반 회피 — 더보기 메뉴 추가 ❌ / 일반 마법사 진입 카드 ✅.
+  const [showAssociationCard, setShowAssociationCard] = useState(false);
 
   // 필수 1: 대회 이름
   const [name, setName] = useState("");
@@ -151,6 +155,14 @@ function QuickCreateForm() {
           setAuthStatus("authorized");
         } else {
           setAuthStatus("unauthorized");
+        }
+        // 2026-05-15 Phase 6 PR2 — 협회 마법사 카드 노출 분기.
+        // super_admin (JWT role) 또는 협회 관리자 매핑 (admin_info.is_admin=true) 시만 카드 노출.
+        const adminInfo = (data.admin_info ?? data.data?.admin_info) as
+          | { is_admin?: boolean }
+          | null;
+        if (role === "super_admin" || !!adminInfo?.is_admin) {
+          setShowAssociationCard(true);
         }
       })
       .catch(() => setAuthStatus("unauthenticated"));
@@ -305,6 +317,36 @@ function QuickCreateForm() {
           이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요.
         </p>
       </div>
+
+      {/* 2026-05-15 Phase 6 PR2 — super_admin / association_admin 분기 카드.
+          이유: 협회 마법사 진입점을 일반 사용자에게는 숨기고 권한 보유자에게만 안내.
+          AppNav frozen 룰 위반 회피 (메인 탭 / 더보기 추가 ❌) — 일반 마법사 상단 카드 1건만 추가. */}
+      {showAssociationCard && (
+        <div className="mb-4 rounded-md border border-[var(--color-info)]/40 bg-[var(--color-info)]/10 p-4">
+          <div className="flex items-start gap-3">
+            <span className="material-symbols-outlined text-2xl text-[var(--color-info)]">
+              domain
+            </span>
+            <div className="flex-1">
+              <h3 className="text-sm font-bold text-[var(--color-text-primary)]">
+                협회 만들기 (super_admin)
+              </h3>
+              <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                협회 본체, 사무국장, 배정비 단가표를 한 번에 등록합니다.
+              </p>
+              <Link
+                href="/tournament-admin/wizard/association"
+                className="mt-2 inline-flex items-center gap-1 rounded-[4px] bg-[var(--color-info)] px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+              >
+                협회 마법사 열기
+                <span className="material-symbols-outlined text-sm">
+                  arrow_forward
+                </span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 에러 메시지 — color-mix 토큰 (admin 빨강 본문 금지 룰) */}
       {error && (
