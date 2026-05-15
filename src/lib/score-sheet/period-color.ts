@@ -43,8 +43,11 @@ export function getPeriodColor(period: number): PeriodColorToken {
   if (period === 2) return "var(--color-accent)";
   if (period === 3) return "var(--color-success)";
   if (period === 4) return "var(--color-warning)";
-  // 5+ = OT1, OT2, OT3, ... 모두 primary (사용자 결재 §1 — OT 통합 색)
-  return "var(--color-primary)";
+  // Phase 19 PR-T5 (2026-05-15) — 5+ = OT 통합 색 = Q4 색 (var(--color-warning)).
+  //   왜: 사용자 결재 — OT 는 Q4 의 연장 (FIBA Article 정합) → Q4 와 동일 색.
+  //     이전 var(--color-primary) (BDR Red) → Q2 (accent) 와 시각 혼동 우려 + Legend OT 별도 항목 제거.
+  //   회귀 0: Q1~Q4 색 변경 0 / OT 마킹 (Player Fouls / Team Fouls / Running Score / Time-outs) 색만 변경.
+  return "var(--color-warning)";
 }
 
 /**
@@ -80,6 +83,10 @@ export function getTimeoutPhaseColor(period: number): PeriodColorToken {
  *   period-color-legend.tsx 가 본 배열을 map 으로 렌더.
  * 어떻게: 5건 고정 (OT 는 통합 1건 — 사용자 결재 §1).
  */
+// Phase 19 PR-T5 (2026-05-15) — OT 항목 제거 (4 항목 / Q1~Q4 만).
+//   왜: 사용자 결재 — OT = Q4 통합 색 (var(--color-warning)) 로 변경 → Legend 별도 OT 항목 불필요.
+//     운영자가 Q4 색으로 OT 색 인지 (FIBA Article 정합 — OT 는 Q4 연장).
+//   사용처: period-color-legend.tsx 가 본 배열 map → 4 항목 노출 (이전 5 항목).
 export const PERIOD_LEGEND: ReadonlyArray<{
   label: string;
   color: PeriodColorToken;
@@ -88,5 +95,4 @@ export const PERIOD_LEGEND: ReadonlyArray<{
   { label: "Q2", color: "var(--color-accent)" },
   { label: "Q3", color: "var(--color-success)" },
   { label: "Q4", color: "var(--color-warning)" },
-  { label: "OT", color: "var(--color-primary)" },
 ] as const;

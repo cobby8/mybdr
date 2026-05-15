@@ -74,6 +74,7 @@ import type { TimeoutMark } from "@/lib/score-sheet/timeout-types";
 import {
   getGamePhase,
   getUsedTimeouts,
+  isCellActive,
 } from "@/lib/score-sheet/timeout-helpers";
 import {
   getPeriodColor,
@@ -285,21 +286,36 @@ export function TeamSection({
               const markColor = filled
                 ? getTimeoutPhaseColor(timeouts[i].period)
                 : undefined;
+              // Phase 19 PR-T2 (2026-05-15) — cell 위치 phase 와 현재 period phase 불일치 시 비활성.
+              //   왜: 시안 7 cells (전반 2 / 후반 3 / OT 2) 정합 — 다른 phase cell 은 시각 회색 + 클릭 차단.
+              //   AND 가드: 기존 (filled / empty) 로직 보존 + cell phase 불일치 시 추가 차단.
+              //   isCellActive(i, currentPeriod) === false → 시각 disabled (data-disabled-phase="true").
+              const cellActive = isCellActive(i, currentPeriod);
               return (
                 <button
                   key={i}
                   type="button"
                   className="ss-tbox__to-cell"
                   data-used={filled ? "true" : "false"}
+                  // Phase 19 PR-T2 — 다른 phase cell 시각 차단 속성 (CSS opacity 0.5 + cursor not-allowed 트리거).
+                  //   filled cell 은 회귀 보존 (이미 마킹된 cell 은 phase 무관 해제 가능 — isLastFilled 분기 유지).
+                  data-disabled-phase={!cellActive && !filled ? "true" : "false"}
                   onClick={() => {
                     if (disabled) return;
                     if (isLastFilled) {
                       onRequestRemoveTimeout();
-                    } else if (isNextEmpty) {
+                    } else if (isNextEmpty && cellActive) {
+                      // Phase 19 PR-T2 — cell phase 일치 시에만 추가 허용 (AND 가드).
                       onRequestAddTimeout();
                     }
                   }}
-                  disabled={disabled || (!isLastFilled && !isNextEmpty)}
+                  disabled={
+                    disabled ||
+                    (!isLastFilled && !isNextEmpty) ||
+                    // Phase 19 PR-T2 — 빈 cell 이면서 phase 불일치 = 비활성.
+                    //   isLastFilled (마킹된 마지막) = phase 무관 해제 허용 (운영 보존).
+                    (!isLastFilled && !cellActive)
+                  }
                   // Phase 17 색 wiring — inline style 로 CSS 토큰 색을 override.
                   //   filled 시 markColor 가 배경 결정 (CSS 룰의 data-used color #FFFFFF 그대로).
                   // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
@@ -473,42 +489,34 @@ export function TeamSection({
               );
             })}
           </div>
-          {/* line 3 — Extra periods (OT 통합 합산 / 시안 data-extra="true") */}
-          <div className="ss-tbox__tf-line" data-extra="true">
+          {/* line 3 — Extra periods (OT 통합 합산 / 시안 data-extra="true").
+              Phase 19 PR-T4 (2026-05-15) — 1/2/3/4 cell 마크업 삭제 + 텍스트 라벨 유지 + 우측 정렬.
+                왜: 사용자 결재 — Extra periods 는 OT 카운트만 표시 (cell 마킹 ❌) + 영역 우측 정렬.
+                  Q1~Q4 line 과 시각 분리 (Extra 는 텍스트 + FT+N 만).
+                어떻게:
+                  - .ss-tbox__tf-cells 마크업 + .ss-tbox__tf-cell 4 cells 삭제
+                  - inline style justifyContent: flex-end 로 라인 전체 우측 정렬
+                  - ftAwarded 안내는 보존 (운영 OT 5+ 부여 안내)
+              운영 동작 보존: fouls 카운트 로직 그대로 (otCount + ftAwarded). UI 만 단순화. */}
+          <div
+            className="ss-tbox__tf-line"
+            data-extra="true"
+            style={{ justifyContent: "flex-end" }}
+          >
             <span className="ss-tbox__tf-pname">Extra periods</span>
             {(() => {
               const otCount = fouls.filter((f) => f.period >= 5).length;
-              const extraFillColor = getPeriodColor(5);
               const ftAwarded = otCount >= 5;
               return (
                 <>
-                  <div className="ss-tbox__tf-cells">
-                    {[1, 2, 3, 4].map((n) => {
-                      const filled = otCount >= n;
-                      const isBonus = filled && otCount >= 5 && n === 4;
-                      return (
-                        <div
-                          key={n}
-                          className="ss-tbox__tf-cell"
-                          data-on={filled ? "true" : "false"}
-                          data-bonus={isBonus ? "true" : "false"}
-                          style={
-                            filled && !isBonus
-                              ? {
-                                  backgroundColor: extraFillColor,
-                                  // PR-S9 (2026-05-15) — color: "#FFFFFF" inline 제거.
-                                  //   CSS 룰 .ss-tbox__tf-cell[data-on="true"] color: var(--pap-bg)
-                                  //   (=#FFFFFF) 이미 박제. inline 중복 안전망 정리.
-                                }
-                              : undefined
-                          }
-                          aria-label={`Extra (OT) 팀 파울 ${n} ${filled ? "마킹됨" : "빈 칸"}`}
-                        >
-                          {n}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {/* OT 카운트 텍스트 표시 (cell 마크업 삭제 후 운영자 인지용) */}
+                  <span
+                    className="inline-flex shrink-0 items-center text-[9px] font-bold"
+                    style={{ color: "var(--pap-ink)" }}
+                    aria-label={`Extra (OT) 팀 파울 합계 ${otCount}건`}
+                  >
+                    {otCount}
+                  </span>
                   {ftAwarded && (
                     <span
                       className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
