@@ -144,7 +144,12 @@ export function FibaHeader({
           운영 매핑 변경 0:
             - competitionName / dateLabel / timeLabel / gameNo / placeLabel — 시안 SSField (display)
             - values.referee / values.umpire1 / values.umpire2 + update(key) — 시안 SSField input 형 */}
-      <section className="ss-meta">
+      <section
+        className="ss-meta"
+        // 2026-05-15 — inline style 박제 (CSS 캐시/hot reload 우회 강제).
+        //   좌:우 = 23:7 = 76.67% : 23.33% (사용자 누적 요청 — 우측 심판 영역 추가 30% 축소).
+        style={{ gridTemplateColumns: "23fr 7fr" }}
+      >
         <div className="ss-meta__l">
           {/* 2026-05-15 (PR-SS-meta-Layout) — 사용자 요청 재배치:
               1행: Competition (가장 넓게) + Game No.
