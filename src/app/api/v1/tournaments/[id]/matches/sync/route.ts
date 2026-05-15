@@ -13,6 +13,9 @@ import { assertRecordingMode } from "@/lib/tournaments/recording-mode";
 //   본 route 는 zod 검증 + 권한 + 모드 가드 + service 호출 + 응답 wrap 만 담당.
 //   웹 종이 기록지 BFF (`/api/web/score-sheet/[matchId]/submit`) 도 동일 service 호출 = 단일 source.
 import { syncSingleMatch } from "@/lib/services/match-sync";
+// 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 sync 통과)
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 // 단일 경기 동기화 스키마 (Flutter bdr_stat 앱용)
 const playByPlaySchema = z.object({
@@ -93,8 +96,13 @@ const singleMatchSyncSchema = z.object({
 
 // FR-025b: 단일 매치 동기화 (bdr_stat Flutter 앱)
 async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string) {
-  // 권한 확인: super_admin/admin은 모든 대회 접근 가능
-  const isSuperUser = ctx.userRole === "super_admin" || ctx.userRole === "admin";
+  // 권한 확인: super_admin/admin/recorder_admin 은 모든 대회 접근 가능
+  // 2026-05-16: recorder_admin 흡수 (Flutter 기록앱 전역 권한)
+  const isSuperUser =
+    ctx.userRole === "super_admin" ||
+    ctx.userRole === "admin" ||
+    isSuperAdmin(ctx.payload) ||
+    isRecorderAdmin(ctx.payload);
   if (!isSuperUser) {
     const adminMember = await prisma.tournamentAdminMember.findFirst({
       where: { tournamentId, userId: BigInt(ctx.userId), isActive: true },

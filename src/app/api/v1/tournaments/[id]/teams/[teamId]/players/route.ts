@@ -6,6 +6,9 @@ import { verifyToken } from "@/lib/auth/jwt";
 import { onsitePlayerRegistrationSchema } from "@/lib/validation/player";
 import { findUserIdByName } from "@/lib/tournaments/link-player-user";
 import { getDisplayName } from "@/lib/utils/player-display-name";
+// 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 선수 등록 통과)
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 // ---------------------------------------------------------------------------
 // 인증 헬퍼: JWT 우선, API Token 폴백 (match sync 패턴 재사용)
@@ -47,7 +50,12 @@ async function checkTournamentAccess(
   ctx: AuthContext,
   tournamentId: string
 ): Promise<boolean> {
-  const isSuperUser = ctx.userRole === "super_admin" || ctx.userRole === "admin";
+  // 2026-05-16: recorder_admin 흡수 (Flutter 기록앱 전역 권한)
+  const isSuperUser =
+    ctx.userRole === "super_admin" ||
+    ctx.userRole === "admin" ||
+    isSuperAdmin(ctx.payload) ||
+    isRecorderAdmin(ctx.payload);
   if (isSuperUser) return true;
 
   const [adminMember, recorder] = await Promise.all([
