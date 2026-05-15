@@ -20,6 +20,9 @@ import {
 } from "@/lib/tournaments/dual-defaults";
 // Phase 4 — 매치 코드 v4 자동 부여 (호출자 영향 0 / NULL 안전)
 import { applyMatchCodeFields } from "@/lib/tournaments/match-code";
+// 2026-05-16 PR-G5.8 swiss generator — R1 박제 (R(N) 은 별도 endpoint stub)
+import { generateSwissRound1 } from "@/lib/tournaments/swiss-knockout";
+import type { SwissTeam } from "@/lib/tournaments/swiss-helpers";
 import { Prisma } from "@prisma/client";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -206,6 +209,67 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }
       if (err.code === "ALREADY_EXISTS" || err.message === "ALREADY_EXISTS") {
         return apiError("이미 경기가 존재합니다. 재생성을 원하면 clear=true 로 요청하세요.", 409);
+      }
+      throw e;
+    }
+  }
+
+  // ── format 분기: 스위스 라운드 (R1 박제 — R(N) 은 별도 endpoint stub) ──
+  // 2026-05-16 PR-G5.8 swiss generator (옵션 B):
+  //   사유:
+  //     1) swiss = 동적 라운드 생성 특성 — R(N) 은 R(N-1) 결과 없이 산출 불가
+  //     2) 본 PR 범위 = R1 박제 + R(N) endpoint stub (운영 사용 0 / spec 변경 위험 ↓)
+  //     3) generateSwissRound1 = 시드 양분 분배 (1+N/2+1, 2+N/2+2, …) + 홀수 BYE 자동 처리
+  //   회귀 0 — 본 분기는 format === "swiss" 일 때만 진입 후 조기 return.
+  if (tournamentMeta?.format === "swiss") {
+    try {
+      // 1) 승인 팀 조회 — seedNumber 순 (NBA-seed 패턴 동일)
+      //    seedNumber 미박제 팀은 createdAt 순 fallback (안전 가드)
+      const teams = await prisma.tournamentTeam.findMany({
+        where: { tournamentId: id, status: "approved" },
+        orderBy: [{ seedNumber: "asc" }, { createdAt: "asc" }],
+        select: { id: true, seedNumber: true },
+      });
+
+      if (teams.length < 2) {
+        return apiError("2팀 이상 승인되어야 스위스 라운드를 생성할 수 있습니다.", 400);
+      }
+
+      // 2) clear=true 면 기존 매치 삭제 (재생성 지원)
+      if (body.clear) {
+        await prisma.tournamentMatch.deleteMany({ where: { tournamentId: id } });
+      }
+
+      // 3) ranking 변환 — seedNumber NULL 인 팀은 인덱스 + 1 자동 부여
+      //    사유: swiss R1 페어링은 seedNumber 필수 (양분 분배 룰)
+      const ranking: SwissTeam[] = teams.map((t, idx) => ({
+        tournamentTeamId: t.id,
+        seedNumber: t.seedNumber ?? idx + 1,
+      }));
+
+      // 4) generateSwissRound1 호출 — R1 매치 박제 (idempotent)
+      const matchesCreated = await generateSwissRound1(id, ranking);
+
+      // 5) bracket_version 박제 (다른 format 일관성 유지)
+      await createBracketVersion(id, auth.userId);
+
+      return apiSuccess({
+        success: true,
+        type: "swiss",
+        format: "swiss",
+        matchesCreated,
+        teamCount: teams.length,
+        // R(N) 은 별도 endpoint (POST /api/web/admin/tournaments/[id]/swiss/next-round) — 운영 진입 시점에 박제
+        nextRoundEndpoint: `/api/web/admin/tournaments/${id}/swiss/next-round`,
+        versionNumber: versionStatus.currentVersion + 1,
+      });
+    } catch (e) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === "ALREADY_EXISTS" || err.message === "ALREADY_EXISTS") {
+        return apiError("이미 경기가 존재합니다. 재생성을 원하면 clear=true 로 요청하세요.", 409);
+      }
+      if (err.code === "TEAMS_INSUFFICIENT" || err.message === "TEAMS_INSUFFICIENT") {
+        return apiError("2팀 이상 승인되어야 스위스 라운드를 생성할 수 있습니다.", 400);
       }
       throw e;
     }
