@@ -2,6 +2,12 @@ import Link from "next/link";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { EmptyState } from "./_components/empty-state";
+// PR4-UI (2026-05-15): 관리자 진입점 분기 박제용.
+//   이유: recorder_admin/super_admin/협회 관리자가 /referee 진입 시 admin 페이지 발견 경로 0
+//         (사이드바 메뉴만 있고 메인 영역 안내 0) → 상단 CTA 카드 + 빈 프로필 분기 안내 추가.
+//   isRecorderAdmin = isSuperAdmin 자동 흡수 (Q1) / getAssociationAdmin = 협회 관리자 (sentinel 동시 통과).
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
+import { getAssociationAdmin } from "@/lib/auth/admin-guard";
 
 /**
  * /referee — 심판 플랫폼 대시보드 (Server Component)
@@ -19,16 +25,29 @@ export default async function RefereeDashboardPage() {
 
   const userId = BigInt(session.sub);
 
-  // 본인 Referee + 자격증 개수 + 소속 협회 로드
-  const referee = await prisma.referee.findUnique({
-    where: { user_id: userId },
-    include: {
-      association: { select: { id: true, name: true, code: true } },
-      _count: { select: { certificates: true } },
-    },
-  });
+  // 본인 Referee + 자격증 개수 + 소속 협회 로드 + admin 권한 병렬 조회
+  // PR4-UI (2026-05-15): admin 판정 병렬 추가 — recorder_admin / 협회 관리자 둘 다 통과 시 CTA 노출.
+  //   isRecorderAdmin 은 JWT 만 평가 (DB SELECT 0) / getAssociationAdmin 은 sentinel 분기 포함.
+  //   getAssociationAdmin 결과 != null = 협회 관리자 (sentinel 흡수된 super/recorder_admin 도 포함).
+  const [referee, associationAdmin] = await Promise.all([
+    prisma.referee.findUnique({
+      where: { user_id: userId },
+      include: {
+        association: { select: { id: true, name: true, code: true } },
+        _count: { select: { certificates: true } },
+      },
+    }),
+    getAssociationAdmin().catch(() => null),
+  ]);
+
+  // PR4-UI (2026-05-15): admin 사용자 판정 — recorder_admin (JWT) OR 협회 관리자 매핑.
+  //   recorder_admin 은 협회 매핑 없어도 true → /referee/admin 진입 가능 (layout sentinel 흡수).
+  //   협회 관리자 일반 케이스도 동일하게 CTA 노출 (PR4 부수 효과 — admin 진입점 발견 경로 강화).
+  const isAdmin = isRecorderAdmin(session) || !!associationAdmin;
 
   // 미등록 상태: 등록 유도 CTA
+  // PR4-UI (2026-05-15): admin 사용자는 "관리자 진입했습니다" 안내로 분기 —
+  //   기본 프로필 등록 화면도 보조 링크로 유지 (admin 도 본인 심판 프로필 등록 가능).
   if (!referee) {
     return (
       <div className="space-y-6">
@@ -47,10 +66,18 @@ export default async function RefereeDashboardPage() {
           </p>
         </header>
 
+        {/* PR4-UI (2026-05-15): admin 사용자 분기 — admin 진입점 prominent CTA.
+            일반 사용자에게는 기존 EmptyState 만 노출 (회귀 0). */}
+        {isAdmin && <AdminEntryCard />}
+
         <EmptyState
           icon="badge"
-          title="심판 프로필이 없습니다"
-          description="먼저 심판 프로필을 등록해야 자격증과 경기 배정을 관리할 수 있습니다."
+          title={isAdmin ? "본인 심판 프로필 등록 (선택)" : "심판 프로필이 없습니다"}
+          description={
+            isAdmin
+              ? "관리자 권한과 별개로 본인의 심판 프로필을 등록하면 자격증/배정/정산을 함께 관리할 수 있습니다."
+              : "먼저 심판 프로필을 등록해야 자격증과 경기 배정을 관리할 수 있습니다."
+          }
           ctaText="프로필 등록하기"
           ctaHref="/referee/profile/edit"
         />
@@ -75,6 +102,11 @@ export default async function RefereeDashboardPage() {
           안녕하세요, {session.name ?? "회원"}님.
         </p>
       </header>
+
+      {/* PR4-UI (2026-05-15): admin 진입점 CTA — 등록 상태에서도 헤더 바로 아래 prominent 노출.
+          이유: recorder_admin/super_admin/협회 관리자가 본인 프로필 등록되어 있을 때도 admin 페이지
+                발견 경로 보장. 일반 사용자에게는 노출 0 (회귀 0). */}
+      {isAdmin && <AdminEntryCard />}
 
       {/* 매칭 완료 안내 배너 — 협회가 사전 등록한 심판과 유저가 매칭된 경우 표시 */}
       {referee.match_status === "matched" && referee.association && (
@@ -333,4 +365,61 @@ function QuickLinkCard({
 
   if (disabled) return content;
   return <Link href={href}>{content}</Link>;
+}
+
+/**
+ * PR4-UI (2026-05-15): 관리자 진입점 prominent CTA 카드.
+ *
+ * 노출 조건: recorder_admin (전역 기록원 관리자) / super_admin (자동 흡수) / 협회 관리자.
+ * 디자인: var(--color-primary) accent 좌측 border + admin_panel_settings 아이콘.
+ * 클릭: /referee/admin 라우팅 (layout sentinel 흡수 → 자동 통과).
+ *
+ * 이유: recorder_admin 신설 후 운영 사용자가 admin 페이지 존재를 알 수 없는 UX 갭 해소.
+ *       사이드바 메뉴는 lg+ 화면에서만 보임 / 모바일에서는 5번째 탭 + 본 카드 두 경로로 발견 가능.
+ */
+function AdminEntryCard() {
+  return (
+    <Link
+      href="/referee/admin"
+      className="flex items-start gap-3 p-4 transition-colors hover:opacity-90"
+      style={{
+        backgroundColor: "var(--color-card)",
+        // 좌측 4px primary accent — 시각 강조 (사이드바 active 상태와 동일 패턴)
+        borderLeft: "4px solid var(--color-primary)",
+        border: "1px solid var(--color-border)",
+        borderLeftWidth: 4,
+        borderRadius: 4,
+      }}
+    >
+      <span
+        className="material-symbols-outlined text-3xl"
+        style={{ color: "var(--color-primary)" }}
+      >
+        admin_panel_settings
+      </span>
+      <div className="min-w-0 flex-1">
+        <h3
+          className="text-sm font-black uppercase tracking-wider"
+          style={{ color: "var(--color-text-primary)" }}
+        >
+          관리자 권한이 있습니다
+        </h3>
+        <p
+          className="mt-1 text-xs"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          대회 기록원 배정, 심판 관리, 정산 등 관리자 작업을 수행할 수 있습니다.
+        </p>
+        <p
+          className="mt-2 inline-flex items-center gap-1 text-xs font-bold"
+          style={{ color: "var(--color-primary)" }}
+        >
+          관리자 대시보드로 이동
+          <span className="material-symbols-outlined text-base">
+            arrow_forward
+          </span>
+        </p>
+      </div>
+    </Link>
+  );
 }
