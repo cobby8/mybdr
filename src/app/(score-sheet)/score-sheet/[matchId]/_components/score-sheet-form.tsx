@@ -1795,6 +1795,39 @@ export function ScoreSheetForm({
       `점프볼 승리 = ${winnerName} (첫 공격권) / 다음 공격권 화살표 = ${loserName}`,
       "info"
     );
+
+    // 2026-05-16 (긴급 박제 — 점프볼 = 매치 시작 즉시 sync / 시합 운영 중).
+    //
+    // 왜 (이유):
+    //   기존 = 10초 interval 자동 sync — 점프볼 박제 후 최대 10초 지연 → 라이브 페이지 노출 늦음.
+    //   사용자 명시 = "점프볼 박제 시점에 즉시 sync (첫 기록 인식)" → 매치 status="in_progress" 즉시 전환.
+    //
+    // 어떻게:
+    //   - setPossession 은 React state 갱신 (다음 렌더에서 ref 가 latest payload 반영).
+    //   - setTimeout(0) 으로 macrotask 큐에 넣어 다음 tick 에 실행 → 그 시점에 useEffect 가
+    //     buildSubmitPayloadRef.current 를 latest payload builder 로 갱신 완료.
+    //   - 동일 BFF endpoint 호출 + status="in_progress" override (10초 interval 과 같은 방식).
+    //   - silent fail = toast 0 / console.warn 만 (운영자 흐름 방해 0).
+    //
+    // 보존:
+    //   - 10초 interval 자동 sync 그대로 유지 (별도 useEffect 변경 0).
+    //   - 점프볼 즉시 sync = "1회 추가 호출" — interval 미간섭.
+    setTimeout(() => {
+      try {
+        const basePayload = buildSubmitPayloadRef.current() as Record<string, unknown>;
+        const payload = { ...basePayload, status: "in_progress" as const };
+        fetch(`/api/web/score-sheet/${match.id}/submit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          credentials: "include",
+        }).catch((err) => {
+          console.warn("[score-sheet] 점프볼 즉시 sync 실패 (silent):", err);
+        });
+      } catch (err) {
+        console.warn("[score-sheet] 점프볼 즉시 sync payload build 실패 (silent):", err);
+      }
+    }, 0);
   }
 
   // 2026-05-16 (PR-Possession-2) — 헬드볼 confirm 모달 confirm 핸들러.
