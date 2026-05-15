@@ -1654,8 +1654,12 @@ export function ScoreSheetForm({
             좌하 = Signatures / 우하 = Period Scores
             grid auto rows = max(좌, 우) → 같은 row 양 자식 자동 stretch (자식 잘림 0). */}
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* 좌상 — Team A + Team B 묶음 cell. */}
-          <div className="md-fiba-divider-right fiba-divider-bottom flex flex-col" data-ss-area="left-top">
+          {/* 좌상 — Team A + Team B 묶음 cell. 2026-05-15 — inline border 강제 (CSS 캐시 우회). */}
+          <div
+            className="md-fiba-divider-right fiba-divider-bottom flex flex-col"
+            data-ss-area="left-top"
+            style={{ border: "2px solid #1A1E27" }}
+          >
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1721,8 +1725,12 @@ export function ScoreSheetForm({
             </div>
           </div>
 
-          {/* 우상 — Running Score */}
-          <div className="fiba-divider-bottom" data-ss-area="right-top">
+          {/* 우상 — Running Score. 2026-05-15 — inline border 강제. */}
+          <div
+            className="fiba-divider-bottom"
+            data-ss-area="right-top"
+            style={{ border: "2px solid #1A1E27" }}
+          >
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1736,8 +1744,12 @@ export function ScoreSheetForm({
             />
           </div>
 
-          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등) */}
-          <div className="md-fiba-divider-right" data-ss-area="left-bottom">
+          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등). inline border 강제. */}
+          <div
+            className="md-fiba-divider-right"
+            data-ss-area="left-bottom"
+            style={{ border: "2px solid #1A1E27" }}
+          >
             <FooterSignatures
               values={signatures}
               onChange={setSignatures}
@@ -1749,8 +1761,8 @@ export function ScoreSheetForm({
             />
           </div>
 
-          {/* 우하 — Period Scores + Final + Winner */}
-          <div data-ss-area="right-bottom">
+          {/* 우하 — Period Scores + Final + Winner. inline border 강제. */}
+          <div data-ss-area="right-bottom" style={{ border: "2px solid #1A1E27" }}>
               <PeriodScoresSection
                 state={runningScore}
                 homeTeamName={homeFilteredRoster.teamName}
