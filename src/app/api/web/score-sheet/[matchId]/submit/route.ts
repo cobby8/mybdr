@@ -114,6 +114,24 @@ const signaturesSchema = z.object({
   captainSignature: z.string().max(100).optional(),
 });
 
+// Phase 19 PR-Stat4 (2026-05-15) — player_stats_input zod schema (6 stat: OR/DR/A/S/B/TO).
+//   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+//   shape = Record<playerId, { or, dr, a, s, b, to }> — UI PlayerStatsState 와 동일 shape.
+//   playerId = BigInt 문자열 (errors.md 2026-04-17 패턴).
+//   각 stat 0~199 안전 룰 (1팀 1매치 50건 안팎 — 199 = 충분히 큰 상한).
+const playerStatEntrySchema = z.object({
+  or: z.number().int().min(0).max(199).default(0),
+  dr: z.number().int().min(0).max(199).default(0),
+  a: z.number().int().min(0).max(199).default(0),
+  s: z.number().int().min(0).max(199).default(0),
+  b: z.number().int().min(0).max(199).default(0),
+  to: z.number().int().min(0).max(199).default(0),
+});
+const playerStatsInputSchema = z.record(
+  z.string().regex(/^\d+$/, "playerId는 BigInt 문자열"),
+  playerStatEntrySchema
+);
+
 // Phase 7-B — lineup zod schema (FIBA 양식 오늘 출전 명단 + 선발 5인).
 //   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source — Phase PR1~5 와 통합).
 //   - starters: 선발 5인 (BigInt 문자열 5개 정확히)
@@ -168,14 +186,27 @@ type FoulsInput = {
   away: Array<{ playerId: string; period: number; type: "P" | "T" | "U" | "D" }>;
 };
 
+// Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 입력 shape.
+//   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+//   UI PlayerStatsState 와 동일 shape (key = playerId string).
+type PlayerStatsInput = Record<
+  string,
+  { or: number; dr: number; a: number; s: number; b: number; to: number }
+>;
+
 export function buildPlayerStatsFromRunningScore(params: {
   runningScore?: RunningScoreInput;
   fouls?: FoulsInput;
+  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 (OR/DR/A/S/B/TO).
+  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+  //   미전송 = 기존 동작 호환 (모든 6 stat 0 박제).
+  stats?: PlayerStatsInput;
   homeTeamIdNum: number;
   awayTeamIdNum: number;
 }): PlayerStatInput[] {
-  const { runningScore, fouls, homeTeamIdNum, awayTeamIdNum } = params;
+  const { runningScore, fouls, stats, homeTeamIdNum, awayTeamIdNum } = params;
   // player_id (BigInt string) → 누적 stat
+  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 컬럼 추가 (offensiveRebounds / defensiveRebounds / assists / steals / blocks / turnovers).
   const acc = new Map<
     string,
     {
@@ -188,6 +219,13 @@ export function buildPlayerStatsFromRunningScore(params: {
       personalFouls: number;
       technicalFouls: number;
       unsportsmanlikeFouls: number;
+      // Phase 19 PR-Stat4 — 6 stat 누적
+      offensiveRebounds: number;
+      defensiveRebounds: number;
+      assists: number;
+      steals: number;
+      blocks: number;
+      turnovers: number;
     }
   >();
 
@@ -204,6 +242,13 @@ export function buildPlayerStatsFromRunningScore(params: {
         personalFouls: 0,
         technicalFouls: 0,
         unsportsmanlikeFouls: 0,
+        // Phase 19 PR-Stat4 — 6 stat 0 초기값
+        offensiveRebounds: 0,
+        defensiveRebounds: 0,
+        assists: 0,
+        steals: 0,
+        blocks: 0,
+        turnovers: 0,
       };
       acc.set(playerIdStr, row);
     }
@@ -244,9 +289,40 @@ export function buildPlayerStatsFromRunningScore(params: {
     }
   }
 
-  // 3) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
+  // 3) Phase 19 PR-Stat4 (2026-05-15) — 6 stat 합산 (OR/DR/A/S/B/TO).
+  //
+  // 이유: 사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+  //   UI 의 PlayerStatsState (playerId → {or,dr,a,s,b,to}) 를 acc 에 합산.
+  //   team 분기 정보가 없음 (UI 는 양 팀 통합 record) → ensure 호출 시 acc 에 이미 있으면
+  //   기존 teamId 유지 / 없으면 home/away 어느 쪽인지 추론 필요.
+  //
+  // teamId 추론: stats record key 만으로는 home/away 식별 불가.
+  //   → 안전 룰: stats 박제는 runningScore 또는 fouls 가 같은 player 에 박제됨을 전제.
+  //   → 둘 다 없는 player 의 6 stat 박제 = 매우 예외 (FIBA 종이기록지 흐름상 정상 케이스 X).
+  //   → 그런 player 는 home 으로 기본 분류 (UI 에서 입력 안 되는 player 는 stats 도 0 — 안전).
+  //   안전망: ensure 호출 시 acc 에 player 가 있으면 기존 teamId 유지 (모순 시 home 폴백).
+  if (stats) {
+    for (const [playerIdStr, statRow] of Object.entries(stats)) {
+      // 기존 row 가 있으면 그 teamId 사용 / 없으면 home 기본 폴백 (예외 케이스 안전망)
+      const existing = acc.get(playerIdStr);
+      const teamIdNum = existing
+        ? existing.tournamentTeamIdNum
+        : homeTeamIdNum;
+      const row = ensure(playerIdStr, teamIdNum);
+      row.offensiveRebounds += statRow.or;
+      row.defensiveRebounds += statRow.dr;
+      row.assists += statRow.a;
+      row.steals += statRow.s;
+      row.blocks += statRow.b;
+      row.turnovers += statRow.to;
+    }
+  }
+
+  // 4) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
   //    field_goals_made = 2pt + 3pt / attempted = made (종이 기록 = miss 무박제)
   //    free_throws_attempted = made (동일)
+  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 박제 wiring.
+  //   total_rebounds = or + dr 자동 계산 (FIBA 표준).
   return Array.from(acc.values()).map((row) => {
     const fgMade = row.twoMade + row.threeMade;
     const totalFouls = row.personalFouls + row.technicalFouls + row.unsportsmanlikeFouls;
@@ -264,13 +340,14 @@ export function buildPlayerStatsFromRunningScore(params: {
       three_pointers_attempted: row.threeMade,
       free_throws_made: row.ftMade,
       free_throws_attempted: row.ftMade,
-      offensive_rebounds: 0,
-      defensive_rebounds: 0,
-      total_rebounds: 0,
-      assists: 0,
-      steals: 0,
-      blocks: 0,
-      turnovers: 0,
+      // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 (사용자 결재 Q3 = match_player_stats 직접 박제)
+      offensive_rebounds: row.offensiveRebounds,
+      defensive_rebounds: row.defensiveRebounds,
+      total_rebounds: row.offensiveRebounds + row.defensiveRebounds, // FIBA 표준 = or + dr 자동 계산
+      assists: row.assists,
+      steals: row.steals,
+      blocks: row.blocks,
+      turnovers: row.turnovers,
       personal_fouls: row.personalFouls,
       technical_fouls: row.technicalFouls,
       unsportsmanlike_fouls: row.unsportsmanlikeFouls,
@@ -305,6 +382,11 @@ const submitSchema = z.object({
   //   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source).
   //   사용자 결재 §2 §3 — 향후 팀장 사전 제출 기능과 같은 모델.
   lineup: lineupSchema.optional(),
+  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 (optional — 미전송 시 6 stat 0 박제).
+  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+  //   shape = Record<playerId, { or, dr, a, s, b, to }> (UI PlayerStatsState 와 동일).
+  //   buildPlayerStatsFromRunningScore 가 본 값을 합산하여 MatchPlayerStat 컬럼 6개에 박제.
+  player_stats_input: playerStatsInputSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -488,10 +570,16 @@ export async function POST(
   //
   // 박제 범위: points + FG/3P/FT made + foul type 카운트 (자세한 룰은 헬퍼 docstring 참조).
   let playerStats: PlayerStatInput[] | undefined = undefined;
-  if ((input.running_score || input.fouls) && match.homeTeamId && match.awayTeamId) {
+  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 도 함께 합산.
+  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+  //   running_score / fouls / player_stats_input 중 하나라도 있으면 build 수행.
+  const hasAnyStatInput =
+    input.running_score || input.fouls || input.player_stats_input;
+  if (hasAnyStatInput && match.homeTeamId && match.awayTeamId) {
     const built = buildPlayerStatsFromRunningScore({
       runningScore: input.running_score,
       fouls: input.fouls,
+      stats: input.player_stats_input,
       homeTeamIdNum: Number(match.homeTeamId),
       awayTeamIdNum: Number(match.awayTeamId),
     });
@@ -662,6 +750,20 @@ export async function POST(
     const lineupAwayCount = input.lineup
       ? input.lineup.away.starters.length + input.lineup.away.substitutes.length
       : 0;
+    // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 카운트 (audit context 박제용).
+    //   playerCount = 6 stat 중 1건 이상 박제된 player 수.
+    //   eventCount = 6 stat 의 모든 카운트 합 (총 입력 이벤트).
+    let stat6PlayerCount = 0;
+    let stat6EventCount = 0;
+    if (input.player_stats_input) {
+      for (const stat of Object.values(input.player_stats_input)) {
+        const total = stat.or + stat.dr + stat.a + stat.s + stat.b + stat.to;
+        if (total > 0) {
+          stat6PlayerCount += 1;
+          stat6EventCount += total;
+        }
+      }
+    }
     const auditContext =
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
@@ -678,6 +780,10 @@ export async function POST(
         : "") +
       (input.lineup
         ? ` / Lineup home ${lineupHomeCount}명 / away ${lineupAwayCount}명`
+        : "") +
+      // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 audit
+      (stat6PlayerCount > 0
+        ? ` / Stat6 ${stat6PlayerCount}명/${stat6EventCount}건`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
@@ -708,6 +814,9 @@ export async function POST(
               // Phase 7-B — lineup 박제 결과 (MatchLineupConfirmed upsert)
               lineup_home_count: lineupHomeCount,
               lineup_away_count: lineupAwayCount,
+              // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 (사용자 결재 Q3)
+              stat6_player_count: stat6PlayerCount,
+              stat6_event_count: stat6EventCount,
             },
           } as object,
           changedBy: user.id,

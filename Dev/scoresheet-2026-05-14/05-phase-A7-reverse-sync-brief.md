@@ -1,9 +1,9 @@
 # Phase A.7 — 운영 → 시안 역동기화 의뢰서
 
-> **목적**: 운영 `src/app/(score-sheet)/` 에 박제된 모달 4종 + period-color-legend + rotation-guard 시각을 시안 `BDR-current/` 에 역박제 (운영 → 시안 동기화).
-> **의뢰 일자**: 2026-05-15
-> **베이스**: BDR-current/ v2.5 rev2 + 운영 Phase 19 완료 (PR-S1~S10 commit `185e1d2` / Phase 23 PR4·PR6 commit `29ac1dd`)
-> **사유**: BDR-current/ 에 운영 score-sheet 모달 5종 + rotation-guard 시각이 부재 — 차후 디자인 fine-tune 시 stale baseline 위에서 작업할 위험 (`CLAUDE.md` §🔄 운영 → 시안 동기화 룰).
+> **목적**: 운영 `src/app/(score-sheet)/` 에 박제된 모달 4종 + period-color-legend + rotation-guard + **TeamSection player row stat 6 cell + StatPopover** 시각을 시안 `BDR-current/` 에 역박제 (운영 → 시안 동기화).
+> **의뢰 일자**: 2026-05-15 (Phase 19 PR-Stat1~Stat5 묶음 갱신)
+> **베이스**: BDR-current/ v2.5 rev2 + 운영 Phase 19 완료 (PR-S1~S10 commit `185e1d2` / Phase 23 PR4·PR6 commit `29ac1dd` / **Phase 19 PR-Stat1~Stat5 — FIBA 박스스코어 6 stat OR/DR/A/S/B/TO 입력 + StatPopover**)
+> **사유**: BDR-current/ 에 운영 score-sheet 모달 5종 + rotation-guard + **신규 6 stat 입력 영역** 시각이 부재 — 차후 디자인 fine-tune 시 stale baseline 위에서 작업할 위험 (`CLAUDE.md` §🔄 운영 → 시안 동기화 룰).
 > **수신자**: Claude.ai Project (BDR 시안 작업용)
 > **작성자**: doc-writer (mybdr / Phase A.7)
 
@@ -34,6 +34,7 @@
 | **QuarterEndModal** | `score-sheet/[matchId]/_components/quarter-end-modal.tsx` | Phase 7-C (2026-05-12) | ❌ 미박제 | ✅ §2-4 |
 | **PeriodColorLegend** (카드) | `score-sheet/[matchId]/_components/period-color-legend.tsx` | Phase 17 + 18 (2026-05-13) | ❌ 미박제 | ✅ §2-5 |
 | **RotationGuard** | `(score-sheet)/_components/rotation-guard.tsx` | Phase 1 (2026-05-11) | ❌ 미박제 | ✅ §2-6 |
+| **TeamSection stat 6 cell + StatPopover** ⭐ | `score-sheet/[matchId]/_components/team-section.tsx` + `stat-popover.tsx` | Phase 19 PR-Stat1~5 (2026-05-15) | ❌ 미박제 | ✅ §2-7 |
 
 ### 1-3. 박제 산출 위치 (시안)
 
@@ -427,6 +428,109 @@ interface RotationGuardProps {
 
 ---
 
+### 2-7. TeamSection stat 6 cell (OR/DR/A/S/B/TO) + StatPopover — Phase 19 PR-Stat1~5 (⭐ 신규 — 2026-05-15)
+
+#### 운영 정보
+
+- **운영 경로**:
+  - `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` (player row 6 stat cell)
+  - `src/app/(score-sheet)/score-sheet/[matchId]/_components/stat-popover.tsx` (+1/-1 popover)
+  - `src/lib/score-sheet/player-stats-types.ts` / `player-stats-helpers.ts` (state 헬퍼)
+- **운영 Phase**: Phase 19 PR-Stat1~Stat5 (2026-05-15, FIBA 박스스코어 6 stat 정합)
+- **사유**: 종이기록지에 OR (Offensive Rebound) / DR (Defensive Rebound) / A (Assist) / S (Steal) / B (Block) / TO (Turnover) 6 stat 입력 가능. 라이브 박스스코어 6 컬럼 이미 노출 — 운영자 기록 시 박제 path 일관.
+
+#### 운영 위치 (사용자 결재 Q1 = FIBA 박스스코어 표준 순서)
+
+- **TeamSection player row** 안 — Player in (P.IN) 체크 직후 + Fouls (1-5) 직전
+- 헤더 라벨: `OR | DR | A | S | B | TO` (단일 행, 각 cell 안에 약자 글자)
+- player row body: 각 cell = 카운트 숫자 표시 (0 = 빈 칸 / 1 이상 = 숫자)
+- ejected 선수 (5반칙/T2회/U2회/D 1건) = cell 클릭 비활성 (Fouls cell 패턴 일관)
+
+#### 시각 spec
+
+- **grid-template-columns** 확장:
+  - 기존 9 col = `36px 1fr 22px 30px 13px 13px 13px 13px 13px` (Licence / Players / No / P.IN / Fouls 1-5)
+  - 신규 15 col = `36px 1fr 22px 30px 14px×6 13px×5` (Licence / Players / No / P.IN / **OR/DR/A/S/B/TO** / Fouls 1-5)
+  - A4 폭 fit 검증: 36+22+30+(14×6=84)+(13×5=65) = 237px + 1fr (Players) → A4 인쇄 정합
+- **stat cell 시각 룰**:
+  - `.ss-c-stat-or / -dr / -a / -s / -b / -to` 신규 클래스 (6 개)
+  - 폰트 = `var(--ff-mono)` Space Grotesk 9.5px bold (Foul cell 폰트와 동일 폭)
+  - 색 = `var(--pap-ink)` (본문 잉크색 / 토큰 일관)
+  - 배경 = transparent (parent grid border-right 가 cell 분리선 역할)
+- **stat cell 호버/클릭**:
+  - `cursor: pointer` (활성) / `cursor: default` (disabled)
+  - 클릭 → StatPopover open (caller 가 +1/-1 처리)
+
+#### StatPopover Props (신규 컴포넌트)
+
+```ts
+interface StatPopoverProps {
+  open: boolean;
+  playerName: string;       // 선수명 (헤더 표시 — FoulTypeModal 패턴 일관)
+  jerseyNumber: number | null;
+  statKey: "or" | "dr" | "a" | "s" | "b" | "to";
+  currentValue: number;     // 현재 카운트 (-1 disabled 분기용)
+  onAdd: () => void;        // +1 액션
+  onRemove: () => void;     // -1 액션 (currentValue=0 시 disabled)
+  onClose: () => void;      // ESC / backdrop / 닫기 버튼
+}
+```
+
+#### StatPopover 시각 spec
+
+- **오버레이**: `fixed inset-0 z-50 flex items-center justify-center px-4` / `background: color-mix(in srgb, #000 50%, transparent)`
+- **본체 (popover)**:
+  - `max-w-xs` (~ 320px) / `border-radius: 4px` / `p-3`
+  - `backgroundColor: var(--color-background)` / `border: 1px solid var(--color-border)`
+- **헤더 (컨텍스트)**:
+  - 작은 eyebrow: `OR · Offensive Rebound` 형식 (uppercase tracking-wider muted text-[10px])
+  - 큰 컨텍스트: `#5 김민수` 형식 (`text-sm font-semibold` primary)
+- **현재 카운트 표시**:
+  - `flex justify-between text-xs` muted
+  - 좌측 "현재" / 우측 `font-mono text-base font-bold` 숫자 (primary 글자)
+- **2 버튼 영역 (+1 / -1)** — 사용자 결재 Q2 = 정확히 2 옵션:
+  - `flex gap-2`
+  - **+1 버튼** (좌, primary 강조):
+    - `flex-1 py-3 text-sm font-bold`
+    - `backgroundColor: var(--color-accent)` 흰 글자
+    - `min-height: 44px` (터치 영역 룰 13)
+    - `border-radius: 4px`
+  - **-1 버튼** (우, currentValue=0 시 disabled):
+    - `flex-1 py-3 text-sm font-bold`
+    - 활성: `backgroundColor: var(--color-background)` primary 글자 + border
+    - 비활성: `backgroundColor: var(--color-surface)` muted 글자 + opacity 0.5 + cursor not-allowed
+    - `min-height: 44px`
+- **닫기 버튼** (우하단): `px-3 py-1 text-xs muted` + border + `border-radius: 4px`
+
+#### 동작
+
+- TeamSection stat cell 클릭 → score-sheet-form 의 `handleRequestOpenStatPopover(team, playerId, statKey)` 호출 → popover open
+- StatPopover [+1] → `handleAddStat()` → `addStat` 헬퍼 호출 → state 갱신 + 토스트 + 자동 닫기
+- StatPopover [-1] → `handleRemoveStat()` → `removeStat` 헬퍼 호출 (min 0 보장) + 토스트 + 자동 닫기
+- ESC / backdrop / 닫기 버튼 → `setStatPopoverCtx(null)` (모달 닫기)
+
+#### 데이터 흐름
+
+- **state**: `PlayerStatsState = Record<playerId, { or, dr, a, s, b, to }>` (양 팀 통합 단일 record)
+- **draft**: localStorage `fiba-score-sheet-draft-{matchId}` 의 `playerStats` 키 박제 (mid-game reload 복원)
+- **재진입 자동 로드**: `page.tsx` 가 `match_player_stats` SELECT → PlayerStatsState 직렬화 → `initialPlayerStats` prop 전달 (사용자 결재 Q3 = DB 변경 0)
+- **BFF 박제**: submit/route.ts 의 `buildPlayerStatsFromRunningScore` 가 stats 합산 → `MatchPlayerStat.offensive_rebounds / defensive_rebounds / total_rebounds / assists / steals / blocks / turnovers` 컬럼에 박제 (total_rebounds = or + dr 자동 계산)
+
+#### 절대 룰 — 박제 시 준수
+
+- `var(--*)` 토큰만 / lucide-react ❌ / Material Symbols Outlined 만
+- 정사각형 (W=H) 원형은 50% (해당 영역 직접 적용 없음 — 향후 시각 강조 시)
+- 빨강 본문 텍스트 ❌ — +1 버튼은 accent **배경** + 흰 글자 (배경 색 강조는 룰 안)
+- 터치 영역 44px+ (popover 버튼 `min-height: 44px` 명시)
+- `no-print` 클래스 필수 (인쇄 시 popover 제거 — FIBA 양식 정합)
+
+#### 박제 산출 위치 (시안)
+
+- 기존 `BDR-current/screens/ScoreSheet.parts.jsx` 의 `SSTeamBox` 안 player row 마크업 갱신 (15 col grid + 6 stat cell)
+- 신규 `BDR-current/screens/ScoreSheet.stat-popover.jsx` 또는 `ScoreSheet.modals.jsx` 에 통합
+
+---
+
 ## 3. 13 룰 + 사용자 결정 §1~§8 준수
 
 ### 3-1. 13 룰 (CLAUDE.md §🎨 / 00-master-guide.md)
@@ -470,13 +574,14 @@ score-sheet 페이지는 자체 셸 (AppNav 미사용 — RotationGuard wrapper 
 ## 2. 변경 요구사항
 
 ### 2-1. 핵심 변경 (시안 신규 박제)
-다음 6 컴포넌트의 운영 시각을 시안에 박제 (의뢰서 본 문서 §2-1 ~ §2-6 참조):
+다음 7 컴포넌트의 운영 시각을 시안에 박제 (의뢰서 본 문서 §2-1 ~ §2-7 참조):
 1. FoulTypeModal (Phase 3.5 — P/T/U/D 4 옵션 grid)
 2. PlayerSelectModal (Phase 2 — 선수 12 큰 버튼 grid + 점수 추론)
 3. LineupSelectionModal (Phase 7-B + 7.1 — 양 팀 출전 12명 cap + 선발 5인)
 4. QuarterEndModal (Phase 7-C — Q4/OT 종료 2 버튼 분기)
 5. PeriodColorLegend (Phase 17 + 18 — 쿼터 색상 + 점수 표기 카드)
 6. RotationGuard (Phase 1 — 모바일 회전 안내, 후순위)
+7. **TeamSection stat 6 cell + StatPopover** (Phase 19 PR-Stat1~5 — OR/DR/A/S/B/TO 입력 + +1/-1 popover) ⭐ 신규
 
 ### 2-2. 박제 위치 (제안 — 시안 구조에 맞게 조정 가능)
 - 신규 `BDR-current/screens/ScoreSheet.modals.jsx` (4 모달 통합)
@@ -557,7 +662,8 @@ score-sheet 페이지는 자체 셸 (AppNav 미사용 — RotationGuard wrapper 
 [ ] QuarterEndModal — 점수 요약 카드 / 동점 안내 / 2 버튼 분기 / OT 라벨 자동 산출
 [ ] PeriodColorLegend — 2 영역 (색상 / 점수 표기) / 정사각 50% 색 원 / no-print
 [ ] RotationGuard — Material screen_rotation 96px / 세로 안내 카피
-[ ] no-print 클래스 = 모든 모달 + Legend (인쇄 시 제거)
+[ ] **TeamSection 15 col grid (P.IN 직후 6 stat OR/DR/A/S/B/TO + Fouls 직전) + StatPopover (+1/-1 정확히 2 옵션 / 44px+ 터치)** ⭐ 신규
+[ ] no-print 클래스 = 모든 모달 + Legend + StatPopover (인쇄 시 제거)
 [ ] var(--*) 토큰만 (하드코딩 hex 0) / lucide-react ❌
 [ ] 빨강 본문 텍스트 ❌ (D 파울 / 경기 종료 = 배경만 BDR Red — 위험 액션 예외 ✅)
 [ ] 정사각형 (W=H) 원형 = 50% (Legend 색 원 / 3점 외곽 원) ✅
@@ -615,6 +721,12 @@ git log --since="<above>" --oneline -- "src/app/(score-sheet)/" \
 - Phase 7-C (QuarterEndModal) — 2026-05-12
 - Phase 17 + 18 (PeriodColorLegend) — 2026-05-13
 - 통합 commit: PR-S1~S10 commit `185e1d2` / Phase 23 PR4·PR6 commit `29ac1dd`
+- **Phase 19 PR-Stat1~Stat5 (TeamSection stat 6 cell + StatPopover) — 2026-05-15** ⭐ 신규
+  - PR-Stat1: player-stats-types + helpers + vitest 13 케이스
+  - PR-Stat2: TeamSection 15 col grid (P.IN 직후 6 stat cell) + StatPopover 신규 컴포넌트
+  - PR-Stat3: score-sheet-form playerStats state wiring + draft 박제 + page.tsx 자동 로드
+  - PR-Stat4: submit/route.ts buildPlayerStatsFromRunningScore 확장 (6 stat 박제)
+  - PR-Stat5: live 박스스코어 6 stat 확인 — 응답 이미 노출 / 변경 0건 (Phase 21 hide 룰은 슈팅 6 컬럼만)
 
 ### 7-2. 시안 박제 후 후속 작업
 

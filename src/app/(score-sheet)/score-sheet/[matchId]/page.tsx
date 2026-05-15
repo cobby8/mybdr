@@ -39,6 +39,10 @@ import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import type { FoulsState } from "@/lib/score-sheet/foul-types";
 import type { TimeoutsState } from "@/lib/score-sheet/timeout-types";
 import type { SignaturesState } from "@/lib/score-sheet/signature-types";
+// Phase 19 PR-Stat3 (2026-05-15) — match_player_stats SELECT 결과 → PlayerStatsState 직렬화.
+//   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+//   재진입 시 자동 로드 — 운영자가 빈 폼 위에 다시 박제하지 않도록 보존.
+import type { PlayerStatsState } from "@/lib/score-sheet/player-stats-types";
 
 export const dynamic = "force-dynamic";
 
@@ -456,6 +460,53 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       ? (match.quarterScores as Record<string, unknown>)
       : undefined;
 
+  // Phase 19 PR-Stat3 (2026-05-15) — match_player_stats SELECT → PlayerStatsState 직렬화.
+  //
+  // 왜 (이유):
+  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+  //   재진입 시 운영자가 빈 폼 위에 다시 박제하지 않도록 6 stat (OR/DR/A/S/B/TO) 자동 로드.
+  //   기존 PBP / fouls 자동 로드와 동일 패턴 (Phase 23 PR2+PR3).
+  //
+  // 어떻게:
+  //   - match_player_stats SELECT (matchId 기준) — 6 stat 컬럼만 필요
+  //   - tournament_team_player_id → string key
+  //   - PlayerStatsState 직렬화 (BigInt → string — errors.md 2026-04-17 패턴)
+  //   - 0건 = undefined 전달 (form 이 EMPTY_PLAYER_STATS 폴백)
+  let initialPlayerStats: PlayerStatsState | undefined;
+  {
+    const statsRows = await prisma.matchPlayerStat.findMany({
+      where: { tournamentMatchId: match.id },
+      select: {
+        tournamentTeamPlayerId: true,
+        offensive_rebounds: true,
+        defensive_rebounds: true,
+        assists: true,
+        steals: true,
+        blocks: true,
+        turnovers: true,
+      },
+    });
+
+    if (statsRows.length > 0) {
+      const map: PlayerStatsState = {};
+      for (const row of statsRows) {
+        // 모든 stat 이 0 인 row 는 skip (record 부피 최소화 — UI 빈 칸 표시와 동일 결과)
+        const or = row.offensive_rebounds ?? 0;
+        const dr = row.defensive_rebounds ?? 0;
+        const a = row.assists ?? 0;
+        const s = row.steals ?? 0;
+        const b = row.blocks ?? 0;
+        const to = row.turnovers ?? 0;
+        if (or + dr + a + s + b + to === 0) continue;
+        const key = row.tournamentTeamPlayerId.toString();
+        map[key] = { or, dr, a, s, b, to };
+      }
+      if (Object.keys(map).length > 0) {
+        initialPlayerStats = map;
+      }
+    }
+  }
+
   // updatedAt (draft vs DB 우선순위 비교용 — ISO string 직렬화)
   const matchUpdatedAtISO = match.updatedAt
     ? match.updatedAt.toISOString()
@@ -476,6 +527,8 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       initialQuarterScoresDB={initialQuarterScoresDB}
       matchUpdatedAtISO={matchUpdatedAtISO}
       pbpCount={pbpCount}
+      // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 자동 로드 (사용자 결재 Q3 = match_player_stats 직접 박제)
+      initialPlayerStats={initialPlayerStats}
     />
   );
 }
