@@ -18,7 +18,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
+import {
+  requireScoreSheetAccess,
+  // Phase 23 PR-EDIT2 (2026-05-15) — 종료 매치 수정 모드 권한 분리 (사용자 결재 Q4).
+  //   기존 가드 통과한 사용자 중에서 super/organizer/TAM 만 canEdit=true 반환.
+  //   recorder / recorder_admin = canEdit=false (수정 권한 ❌ — 보수적).
+  checkScoreSheetEditAccess,
+} from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 import { ScoreSheetForm } from "./_components/score-sheet-form";
 import type {
@@ -512,6 +518,99 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     ? match.updatedAt.toISOString()
     : null;
 
+  // Phase 23 PR-EDIT2 (2026-05-15) — 종료 매치 수정 모드 권한 산출 (사용자 결재 Q4).
+  //
+  // 왜 (이유):
+  //   기존 requireScoreSheetAccess = 점수 입력 권한 (recorder 까지 통과).
+  //   수정 모드 = super_admin / organizer / TAM 만 통과 (recorder 제외 — 보수적).
+  //   본 boolean = ScoreSheetForm 의 canEdit prop → toolbar "수정 모드" 버튼 노출 분기.
+  //
+  // 운영 동작 보존:
+  //   - 진행 중 매치 (status != "completed") = canEdit 사용 안 함 (form 안 isCompleted=false 분기).
+  //   - 종료 매치 + canEdit=false (recorder/recorder_admin) = "수정 모드" 버튼 미노출 → RO 차단 유지.
+  //   - 종료 매치 + canEdit=true (super/organizer/TAM) = 버튼 노출 → confirm 시 isEditMode true.
+  //
+  // DB 라운드트립: 별도 SELECT 2 (tournament + TAM) — Promise.all 병렬.
+  //   super_admin 시 = parallel SELECT 결과 무시 (early return) — 작은 비용.
+  const canEdit = await checkScoreSheetEditAccess(match.id, tournament.id);
+
+  // Phase 23 PR-EDIT4 (2026-05-15) — 종료 매치 수정 이력 SELECT (사용자 결재 Q7 옵션 A).
+  //
+  // 왜 (이유):
+  //   운영 매치 상세 페이지 미존재 (운영 구조 = 매치 목록 페이지만). 종료 매치 진입 시 score-sheet
+  //   페이지 안에 inline "수정 이력 N건" 표시 → 운영자가 수정 직전 추적 가능.
+  //
+  // 어떻게:
+  //   - tournament_match_audits SELECT (matchId 기준)
+  //   - context LIKE 수정 모드 관련 (completed_edit_entry / completed_edit_resubmit / completed_edit_mode_enter)
+  //   - 최대 20건 (UI inline 표시 한도 — 많아도 운영자가 펼침)
+  //   - 종료 매치 (isCompleted=true) 만 SELECT — 진행 매치 = 빈 배열 (DB 부하 0)
+  //
+  // 운영 동작 보존:
+  //   - 진행 매치 = SELECT 0 (조건문으로 skip).
+  //   - 종료 매치 = 1회 SELECT (audit table — 인덱스 활용).
+  //   - 권한 무관 표시 (recorder 도 본인 이력 확인 가능 — 추적 투명성).
+  type AuditEntry = {
+    id: string;
+    context: string;
+    source: string | null;
+    occurredAt: string; // ISO
+    userId: string | null;
+    userNickname: string | null;
+  };
+  let editAuditLogs: AuditEntry[] = [];
+  if (match.status === "completed") {
+    const audits = await prisma.tournament_match_audits.findMany({
+      where: {
+        matchId: match.id,
+        // context 안에 "completed_edit" 또는 "수정 모드" 가 포함된 행
+        OR: [
+          { context: { contains: "completed_edit", mode: "insensitive" } },
+          { context: { contains: "수정 모드", mode: "insensitive" } },
+        ],
+      },
+      select: {
+        id: true,
+        context: true,
+        source: true,
+        changedAt: true,
+        changedBy: true,
+      },
+      orderBy: { changedAt: "desc" },
+      take: 20,
+    });
+    // 사용자 nickname 조회 (병렬 — N+1 회피 위해 unique user id 만 추출 → IN 1회 SELECT)
+    const userIds = Array.from(
+      new Set(
+        audits
+          .map((a) => a.changedBy)
+          .filter((u): u is bigint => u != null)
+      )
+    );
+    const users =
+      userIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, nickname: true },
+          })
+        : [];
+    const userMap = new Map<string, string | null>();
+    for (const u of users) {
+      userMap.set(u.id.toString(), u.nickname);
+    }
+    editAuditLogs = audits.map((a) => ({
+      id: a.id.toString(),
+      context: a.context ?? "",
+      source: a.source,
+      // schema 컬럼명 = changedAt — UI 표시용 키 occurredAt 로 정규화 (form prop 일관)
+      occurredAt: a.changedAt.toISOString(),
+      userId: a.changedBy?.toString() ?? null,
+      userNickname: a.changedBy
+        ? userMap.get(a.changedBy.toString()) ?? null
+        : null,
+    }));
+  }
+
   return (
     <ScoreSheetForm
       match={matchProps}
@@ -529,6 +628,13 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       pbpCount={pbpCount}
       // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 자동 로드 (사용자 결재 Q3 = match_player_stats 직접 박제)
       initialPlayerStats={initialPlayerStats}
+      // Phase 23 PR-EDIT2 (2026-05-15) — 수정 모드 권한 (사용자 결재 Q4).
+      //   true = super/organizer/TAM (수정 가능) / false = recorder/recorder_admin/일반 (RO 유지).
+      canEdit={canEdit}
+      // Phase 23 PR-EDIT4 (2026-05-15) — 종료 매치 수정 이력 inline (사용자 결재 Q7 옵션 A).
+      //   audit log SELECT 결과 → ScoreSheetForm 이 노란 배너 아래 inline 표시.
+      //   진행 매치 = 빈 배열 (운영 동작 보존).
+      editAuditLogs={editAuditLogs}
     />
   );
 }

@@ -2,6 +2,27 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-15] recorder_admin 전역 권한 시스템 = 1-A 통합 모드 + 옵션 C (두 테이블 분리 유지)
+- **분류**: 기술 결정 / 권한 시스템 / 운영 인프라
+- **결정자**: 사용자 (Q1~Q6 결재) + planner-architect
+- **6 핵심 결정 (Q1~Q6)**:
+  1. **Q1 super_admin 자동 흡수**: `isRecorderAdmin(session)` 내부에서 `isSuperAdmin || admin_role==="recorder_admin"` OR 분기 — 전능 정책 일관
+  2. **Q2 sentinel 12 permission 전체 통과**: `getAssociationAdmin()` sentinel 분기에 recorder_admin 추가 — 협회 12 permission 모두 통과 (별도 차단 분기 추가 금지)
+  3. **Q3 재로그인 필수**: JWT.admin_role 갱신 위해 사용자에게 명시 안내 (단, PR4-FIX 의 DB ground truth 폴백으로 우회 가능)
+  4. **Q4 PR4(운영자 UI 지정) 분리**: PR1~3 검증 후 별도 PR로 / 본 release 미포함
+  5. **Q5 PR5(통합 탭) 후속 큐**: /referee/admin/members 에 tournament_recorders + Referee 통합 조회 — 본 release 미포함
+  6. **Q6 옵션 C (두 테이블 분리 유지)**: Referee = "협회 영구 자산" / tournament_recorders = "대회 일시 권한" 도메인 분리 — 마이그레이션 0 / Flutter 영향 0
+- **대안 검토** (rejected):
+  - 옵션 A (양방향 sync): sync 코드 = 새 함정 발생원. recorder 등록 시 Referee 자동 row 생성 → 미신원확인 사용자가 자격증/정산 영역 노출
+  - 옵션 B (Referee 단일화 + tournament_recorders 폐기): Flutter 기록앱 코드 변경 필요 → 원영 사전 공지 + 빌드/배포 부담
+- **DB schema 변경 0**: `User.admin_role: String?` 컬럼 재사용 (이미 `association_admin` / `super_admin` 용으로 존재) — `"recorder_admin"` 문자열만 추가
+- **변경 파일**: 신규 3 (is-recorder-admin.ts + vitest 2) + 수정 10+ (require-recorder / require-score-sheet-access / admin-guard / admin-roles / role-matrix-card / api/v1/recorder/matches / api/web/tournaments/[id]/recorders / referee/admin layout+page / referee-shell / referee/page / api/web/me) / 약 511 LOC
+- **PR 분해**: PR1 권한 헬퍼+기록 API → PR2 배정 API → PR3 페이지+sentinel+매트릭스 → PR4-UI 사용자 발견 경로 → PR4-FIX DB ground truth 폴백
+- **운영 계정**: bdr-recorder@mybdr.kr (user_id=3431 / nickname=BDR기록원관리자 / admin_role=recorder_admin) — 2026-05-15 생성
+- **검증**: vitest 921/921 PASS / tsc 0 / Flutter 영향 0 / 운영 배포 완료 (PR #511 + #512)
+- **commit**: 718c32f (PR1) + 29730ba (PR2) + facafd7 (PR3) + d1290c0 (PR4-UI) + b67c55d (PR4-FIX)
+- **참조횟수**: 0
+
 ### [2026-05-15] 대회 관리자 통합 마법사 = 기존 wizard 확장 + 4 핵심 결정 (단체→시리즈→대회→회차 통합)
 - **분류**: 기술 결정 / UX 통합
 - **결정자**: 사용자 (2026-05-13) + planner-architect (Phase 23 설계 분석 turn)

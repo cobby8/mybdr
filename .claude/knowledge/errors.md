@@ -2,6 +2,28 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] Phase 7 B 스모크 template 3 함정 — cookie 이름 + snake_case 변환 + me 비로그인 200
+- **분류**: 스모크 스크립트 spec 위반 / 인증 / 응답 파싱
+- **발견자**: pm (Phase 7 B 스모크 실행 시 발견 — `scripts/_temp/wizard-smoke.ts` 4회 실패 후 진단)
+- **증상**: 박제된 template (`scripts/_templates/wizard-smoke.template.ts`) 실행 시 Step 1 통과 + Step 2 이후 모두 실패. 최초 실행 = 401 UNAUTHORIZED / 2차 실행 = `tournament_id=undefined` + cleanup FK 위반 → 운영 DB 잔존 발생 (즉시 정리 필요).
+- **근본 원인** (3 함정 동시 발생):
+  - **(1) Cookie 이름 mismatch**: template placeholder `_web_session=...` ❌ — 실제 운영 cookie 이름 = **`bdr_session`** (브라우저 DevTools Application → Cookies 확인 가능). spec 박제 시 추측으로 작성됨.
+  - **(2) `apiSuccess()` 응답 키 자동 snake_case 변환**: CLAUDE.md §보안 명시. template 가 camelCase 가정 (`tournamentId` / `editionNumber`) 응답 파싱 시도 → undefined. 실제 응답 = `tournament_id` / `edition_number`. organizations/series 도 `{ data: { organization/series: { id } } }` 가정이지만 실제 = `{ id, uuid, slug, name, status }` 직접 (data 래핑 없음).
+  - **(3) `/api/web/me` 비로그인 200 + `{id: null}` (2026-05-05 fix)**: SWR 폭주 방지 fix 로 변경됨. template 의 단순 `res.ok` 검증은 cookie 무효도 통과 (가짜 "cookie OK") → Step 2 401 발생 시까지 cookie 무효 인지 못 함.
+- **fix** (commit 대기):
+  - **template 8 곳 수정**: cookie 이름 (`bdr_session=...`) + Step 1 body 검증 강화 (`meData.id !== null`) + Step 2/3 응답 파싱 (`data.id` 직접) + Step 4/6 응답 파싱 (`tournament_id` snake_case) + Step 5 응답 (`last_edition` / `division_rules` 직접) + interface CreatedIds id 타입 number → string (BigInt 변환 응답)
+  - 운영 DB 잔존 정리 완료 (organizations + tournament_series + tournaments + division_rules + organization_members 모두 DELETE)
+- **재발 방지 룰**:
+  - **(a) spec 박제 시 실제 응답 1회 확인 의무**: route.ts 의 `apiSuccess({...})` 페이로드 키를 직접 grep 또는 curl 1회로 검증 — 추측 박제 금지 (CLAUDE.md errors.md §snake_case 5회 사고와 동일 함정)
+  - **(b) cookie 이름 확인 의무**: 브라우저 DevTools Application → Cookies → 정확한 cookie 이름 확인 후 박제 — `_web_session` 등 추측 이름 사용 금지. 운영 cookie = `bdr_session`
+  - **(c) `/api/web/me` 검증 강화**: 비로그인 시 200 + `{id: null}` 응답이므로 `res.ok` 만 보지 말고 body `id !== null` 검증 의무
+  - **(d) apiSuccess snake_case 변환 인지**: 응답 키 camelCase 작성해도 자동 변환되어 클라이언트는 snake_case 로 접근 (`tournamentId` → `tournament_id`). 새 라우트 작성 시 응답 키 작성과 클라이언트 접근 분리 인지
+  - **(e) try-finally cleanup 가드 = 부분 실패 시도 DELETE 보장**: 스모크 실패해도 cleanup 호출되어 잔존 0 유지. 단 `ids.tournament_1_id=undefined` 같이 파싱 실패 = cleanup 호출 못 함 → 별도 정리 스크립트 필요 (재발 시 `scripts/_temp/cleanup-smoke.ts` 패턴 참고)
+- **검증**: 스크립트 fix 후 8/8 단계 PASS + cleanup 4 row DELETE + 운영 DB 잔존 0 확인 (2026-05-15)
+- **참조**: `scripts/_templates/wizard-smoke.template.ts`, CLAUDE.md §보안 (snake_case), `src/lib/auth/web-session.ts` (withWebAuth), `src/app/api/web/me/route.ts` (200 + null fix)
+- **참조횟수**: 0
+
+
 ### [2026-05-15] recorder_admin 사이드바 admin 섹션 비노출 = JWT stale 함정 (PR4-UI 사용자 보고 fix)
 - **분류**: 인증 / JWT stale / DB ground truth 누락
 - **발견자**: debugger (PR4-UI 박제 후 사용자 보고 — `user_id=3431, admin_role="recorder_admin", isAdmin=false`)

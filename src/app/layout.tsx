@@ -4,6 +4,10 @@ import type { Metadata, Viewport } from "next";
 //   font-display:swap 자동 적용 + FOUC 최소화를 위해 CDN link 대신 next/font 사용
 import { Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+// Admin-1 Phase (2026-05-15) — admin 영역 전용 CSS (시안 BDR-current/admin.css 박제)
+// 이유: globals.css 3195줄에 1154줄 추가 시 가독성/유지보수 저하. 별도 파일로 분리.
+// admin- prefix 클래스만 박제 — 비-admin 영역 영향 0.
+import "../styles/admin.css";
 
 // Archivo — v2 display(헤딩·로고·brutalist dark 대문자) 용. 여러 weight 모두 필요
 const archivo = Archivo({

@@ -17,8 +17,8 @@
 | Phase 0.6 — scratchpad 정리 (726→50줄) | ✅ 완료 |
 | Phase 1 — BDR-current v2.14 sync commit (d43704a) | ✅ 완료 (436 파일 / +75866) |
 | Phase 1.5 — push to origin/subin | ✅ 완료 (4 commit fast-forward) |
-| Phase 2 — Admin-1 components/admin (10 컴포넌트) | ✅ developer 박제 완료 (신규 6 + 수정 1 / tsc 0 / 갱신 5 보류) — 사용자 결재 대기 |
-| **Phase 3 — Admin-2 /admin/layout + Dashboard** | ⏳ **Admin-1 후 결재** (갱신 5 컴포넌트 동반) |
+| Phase 2 — Admin-1 components/admin (신규 5 + admin.css) | ✅ commit `05caa04` (7 파일 / +1830 / tsc 0 / 갱신 5 보류 사용자 결재) |
+| **Phase 3 — Admin-2 /admin/layout + Dashboard + 갱신 5** | ✅ **박제 완료** (6 파일 / +310/-265 / tsc 0 / vitest 921 PASS / 호출처 29 회귀 0) — commit 대기 |
 | Phase 4 — Admin-3 wizard 풀스크린 | ⏳ |
 | Phase 5 — Admin-4 Phase B 콘텐츠 9 페이지 | ⏳ |
 | Phase 6 — Admin-5 Phase C 사용자/비즈니스/외부 9 페이지 | ⏳ |
@@ -38,13 +38,96 @@
 - PR-S9 / UI-1.4 entry_fee / GNBA 8팀 코치 안내
 
 ## 미푸시 commit (subin 브랜치)
-- 현재 = **0** (origin/subin = HEAD = d1290c0 박제 완료)
-- 본 세션 직전 = 4 commit (0853927 chore wip + d43704a sync + d1290c0 PR4-UI by 다른 세션 + Phase 6 PR2/PR1 등 이전 commit)
+- 현재 = **1** (`05caa04` Admin-1 박제 / origin/subin = 2f7ab2f PR-Live1~Live4 by 다른 세션)
+- Admin-2 박제 완료 (6 파일 / 검증 통과) — PM commit 진행 시 +1 commit
+- push 결재 대기 — 다른 세션이 동시 박제 중이라 push 시점 사용자 결재 권장
+- 본 세션 누적 = 3 commit 본 세션 직접 박제 (0853927 + d43704a + 05caa04). Admin-2 commit 시 4 commit
 
 ## 기획설계 (planner-architect)
 (본 의뢰 = 시안 박제이므로 신규 설계 없음 / cli-port-to-src.md 참조)
 
 ## 구현 기록 (developer)
+
+### Admin-2 Phase 박제 — /admin/layout + Dashboard + 갱신 5 (2026-05-15)
+
+📝 구현 요약: 시안 v2.14 의 AdminShell + AdminDashboard 패턴을 운영 admin 영역 박제. (1) `/admin/layout.tsx` 가 `<AdminShell>` wrap 으로 갈아입음 — UserMenu 는 topbarRight slot 통합 (PC `hidden lg:flex`). (2) `/admin/page.tsx` Dashboard 가 `admin-stat-grid + AdminStatCard / admin-chart / admin-log-card` 시안 패턴 박제 — Prisma query 100% 보존. (3) 갱신 5 컴포넌트 (sidebar / mobile-admin-nav / admin-page-header / admin-status-tabs / admin-detail-modal) 시각 갱신 — **props 시그니처 100% 보존 (호출처 29 파일 영향 0)**.
+
+#### 변경 파일 + LOC
+| 파일 | 변경 | 신규/수정 | LOC |
+|------|------|----------|----|
+| `src/app/(admin)/admin/layout.tsx` | AdminShell wrap. UserMenu → topbarRight slot 박제. 기존 Tailwind hidden lg:block / lg:ml-64 / mx-auto max-w-7xl 박제 → AdminShell 안 admin.css 클래스 (admin-shell / admin-main / admin-main__inner 자동 처리) | 수정 | -45 / +35 |
+| `src/app/(admin)/admin/page.tsx` | Dashboard UI 시안 패턴 박제 — admin-stat-grid (4 AdminStatCard) + admin-dash-grid (admin-chart 7일 차트 + admin-log-card 최근 5건). Prisma query / raw SQL / catch 분기 100% 보존. 기존 StatCard / CARD_CLASS 인라인 → AdminStatCard / admin.css 클래스 | 수정 | -65 / +95 |
+| `src/components/admin/admin-page-header.tsx` | JSX → 시안 `.admin-pageheader / .admin-pageheader__body / .admin-pageheader__eyebrow / __title / __subtitle / __actions` 클래스. **props 시그니처 보존** (title/subtitle/eyebrow/searchPlaceholder/searchName/searchDefaultValue/actions). breadcrumbs 옵션 신규 추가 (admin-pageheader__breadcrumbs). 검색 form 은 actions 영역에 박제 (22 호출처 보존) | 수정 | -30 / +60 |
+| `src/components/admin/admin-status-tabs.tsx` | JSX → 시안 `.admin-status-tabs + .admin-status-tab + .admin-status-tab__count` 클래스. data-active / data-overflow 속성 박제. count 99+ 오버플로우 시안 박제. **activeTab 명칭 보존** (시안 `current` 채택 X / 운영 우선) | 수정 | -50 / +30 |
+| `src/components/admin/sidebar.tsx` | JSX → 시안 `.admin-aside / .admin-aside__logo / __logo-badge / __nav / __group / __title / __link / __foot / __foot-link` 클래스. data-active / data-child 속성 박제. **roles: AdminRole[] 시그니처 보존**. navStructure / filterStructureByRoles / Next.js Link/usePathname 100% 보존 | 수정 | -25 / +30 |
+| `src/components/admin/mobile-admin-nav.tsx` | JSX → 시안 `.admin-mobile-toggle / .admin-mobile-overlay [data-open] / .admin-mobile-drawer [data-open] / __head / __head-avatar / __head-name / __head-email / __body / __foot` 클래스. **roles / user 시그니처 보존**. ESC / 외부 클릭 / 라우트 이동 / body 스크롤 잠금 100% 보존. LogoutButton drawer-card variant 유지 | 수정 | -50 / +60 |
+| `src/components/admin/admin-detail-modal.tsx` | **본 PR 미변경 결정** — 운영 호출처 7건의 `isOpen` 시그니처 보존 + 운영 모바일 시트 + 데스크톱 가운데 모달 패턴 = 모바일 UX 우선. 시안 우측 슬라이드는 향후 페이지별 옵트인 결정 사항 (admin-detail-modal.css 클래스는 admin.css 에 이미 박제 — `open` prop alias 추가는 별도 PR) | — | 0 |
+
+**합계**: 수정 6 파일 / 신규 0 / 약 +310 / -265 LOC.
+
+#### 호출처 영향 매트릭스 (props 시그니처 100% 보존)
+| 컴포넌트 | 호출처 N | 시그니처 변경 | 회귀 |
+|---------|---------|------------|------|
+| AdminShell | 1 (layout.tsx 신규 — Admin-1 박제) | — | 0 |
+| AdminSidebar | 1 (layout.tsx) | 0 (roles 그대로) | 0 |
+| AdminMobileNav | 1 (layout.tsx) | 0 (roles/user 그대로) | 0 |
+| AdminPageHeader | 22 | breadcrumbs 옵션 추가 (default undefined / 기존 호출처 영향 0) | 0 |
+| AdminStatusTabs | 7 | 0 (tabs/activeTab/onChange 그대로) | 0 |
+| AdminDetailModal | 7 | 0 (변경 0) | 0 |
+| **합계 호출처** | **39** | **0 breaking** | **0** |
+
+#### Q 결재 사항 (PM/사용자 결재 — 본 PR 진행 결정 의뢰서 반영)
+- **시안 vs 운영 명칭 충돌 (`activeTab` vs `current`, `isOpen` vs `open`)**: 운영 보존 (호출처 29 회귀 0 우선). 시안 명칭 채택 시 호출처 29개 일괄 변경 필요 → 운영 우선 결정
+- **AdminDetailModal 모달 형태**: 운영 (모바일 시트 + 데스크톱 가운데) 보존. 시안 우측 슬라이드는 admin.css 에 이미 클래스 박제됨 — 향후 페이지별 옵트인 가능
+- **AdminPageHeader breadcrumbs**: 옵션 props 신규 추가 (기존 호출처 영향 0). 시안 박제 일관성 + 향후 wizard 진입 페이지에서 사용 가능
+- **layout.tsx UserMenu 위치**: AdminShell topbarRight slot 통합 (PC `hidden lg:flex` 한정). 모바일은 AdminMobileNav 가 자체 처리 (드로어 상단 사용자 카드)
+- **sidebar.tsx Tailwind → admin.css**: 기존 hidden lg:flex 등 Tailwind 속성 모두 제거. admin.css 의 `@media (max-width: 1024px)` 가 display:none 자동 처리 — 시각 동일 유지
+
+#### 검증 결과
+- `npx tsc --noEmit`: **0 에러 / 0 출력** (exitCode=0 / Lines=0)
+- `npx vitest run` 전체: **921/921 PASS** (Admin-1 직후 918 → +3 from PR-Live1~Live4 / 회귀 0)
+- 호출처 grep 회귀 확인:
+  - AdminStatusTabs `activeTab=` 호출 7건 — 시그니처 보존 OK
+  - AdminPageHeader `searchPlaceholder/searchName/searchDefaultValue` 호출 — 시그니처 보존 OK
+  - AdminDetailModal `isOpen/onClose/actions` 호출 7건 — 본 PR 미변경 OK
+  - AdminSidebar `roles=` / AdminMobileNav `roles=/user=` — layout.tsx 1건 OK
+
+#### 시각 검증 영역 (Admin-2 진입 시 처음 노출되는 신규 시각 패턴)
+- **사이드바**: BDR Red `--accent` 배경 active 표시 (라이트) / inset 3px box-shadow active 표시 (다크). `.admin-aside__title` 그룹 헤더 letter-spacing 0.12em uppercase 박제
+- **모바일 드로어**: 우측 슬라이드 — data-open 속성 transition. 상단 사용자 카드 (이니셜 아바타 + 이름 + 이메일) + 그룹화 메뉴 + 하단 ThemeSwitch + 마이페이지 + 사이트로 + 로그아웃
+- **PageHeader**: `var(--ff-display)` Space Grotesk 큰 h1 + eyebrow uppercase letter-spacing 0.12em + subtitle var(--ink-mute)
+- **StatusTabs**: 밑줄 active + count 뱃지 (W=H 원형 / 99+ 오버플로우 자동)
+- **Dashboard StatCard**: 4 카드 `.admin-stat-grid` 자동 반응형 (모바일 1열 / 768+ 2열 / 1024+ 3열 / 1280+ 4열 — admin.css 미디어쿼리). delta 라벨 미박제 (운영 데이터 미존재 — 향후 7d 증감 박제 시 활성)
+- **Dashboard Chart**: 시안 `.admin-chart` 그라데이션 막대. 7일 raw SQL 결과 보존 + var(--accent) 자동 다크
+- **Dashboard LogCard**: `.admin-log-row` data-severity 점 (info/warning/error/success). 운영 admin_logs.severity 자동 매핑
+
+💡 tester 참고:
+- **테스트 방법**:
+  (a) `/admin` 진입 → 좌측 사이드바 (lg+) admin-aside 시각 갱신 확인. ADMIN 배지 + 메뉴 그룹 헤더 표시
+  (b) 사이드바 active 메뉴 `data-active="true"` — accent-soft 배경 (라이트) / accent inset shadow (다크)
+  (c) 우상단 PC UserMenu — topbar 우측에 통합 표시 (`.admin-topbar` 안)
+  (d) 모바일 (<1024px) — 좌상단 햄버거 `.admin-mobile-toggle` 클릭 → 우측 드로어 슬라이드. 상단 사용자 카드 + 그룹 메뉴 + 하단 푸터
+  (e) Dashboard 4 통계 카드 — admin-stat-grid 반응형 (768/1024/1280 분기). 클릭 0 (delta 0 — 데이터 없을 때 미박제)
+  (f) Dashboard 차트 — 7일 막대 (admin_logs 데이터 없으면 모두 0 → 최소 2% height fallback)
+  (g) Dashboard 최근 5 활동 — admin_logs 최근 5건. severity 점 색상 분기
+  (h) 호출처 22 페이지 회귀 — `/admin/users` `/admin/tournaments` `/admin/games` 등 각 페이지 진입 시 AdminPageHeader / AdminStatusTabs / AdminDetailModal 시각 변경 + props 동작 보존
+- **정상 동작**: admin 영역 시각이 시안 v2.14 패턴으로 통일됨. 모든 admin 페이지 (29 파일) 회귀 0 — props 시그니처 보존
+- **주의할 입력**: (a) AdminPageHeader 검색 form 사용 페이지 (`/admin/users` 등 7건) — 검색 입력 + 제출 시 GET 쿼리 동작 그대로 (b) AdminStatusTabs 사용 페이지 (`/admin/games` 등 7건) — 탭 클릭 시 onChange 정상 호출 (c) AdminDetailModal 사용 페이지 (`/admin/tournaments` 등 7건) — isOpen/onClose/actions 동작 그대로 (본 PR 미변경)
+
+⚠️ reviewer 참고:
+- **운영 보존 우선 결정**: 시안 v2.14 의 props 명칭 (`current` / `open` / `footer`) vs 운영 (`activeTab` / `isOpen` / `actions`) — **운영 우선** 채택. 호출처 29 회귀 0 보장 필수 룰
+- **AdminDetailModal 본 PR 미변경 결정**: 운영 호출처 7건의 모바일 시트 + 데스크톱 가운데 모달 패턴 = 모바일 UX 최선. 시안 우측 슬라이드는 admin.css 에 이미 박제됨 — 향후 페이지별 옵트인 가능. 본 PR 에서는 시각 변경 0 (시그니처 + 동작 그대로)
+- **사이드바 className 갈아엎기**: 기존 `.aside__link` (community-aside 와 공유 글로벌 클래스) → `.admin-aside__link` (admin.css 박제 클래스). admin-news-content.tsx 가 여전히 `.aside__link` 사용 — 본 PR 미변경 (다른 페이지 글로벌 클래스 의존 / 회귀 0)
+- **AdminShell hideHeader 옵션 사용**: 모든 admin 페이지가 자체 `<AdminPageHeader>` 호출 → AdminShell 의 내장 헤더는 미사용 (`hideHeader` props). children 만 렌더링
+- **모바일 햄버거 위치**: 시안 admin.css 가 `top: 12px; left: 12px` 좌상단 박제 — 운영 기존 우상단 (top-3 right-3) 에서 변경됨. 사용자 결재 필요 시 후속 commit 으로 우상단 복귀 가능 (admin.css L266 수정)
+- **layout.tsx 마진 변경**: 기존 `lg:ml-64` 의 64 (256px) → admin.css `--admin-sidebar-width: 240px` 으로 미세 차이. 시안 박제값 그대로 유지
+- **vitest 추가 X**: 시각 박제는 단위 테스트 어려움. 기존 921 PASS 회귀 0 확인으로 충분 (admin 페이지 통합 인프라 부재 — 기존 패턴 그대로)
+
+#### 잠재 위험 / 메모
+- **사이드바 ↔ admin-news-content 클래스 분기**: admin-news-content.tsx 가 여전히 `.aside__link` (community-aside 공유) 사용. admin 영역 안에서 두 클래스가 공존 — 시각 차이 발생 가능. 후속 사용자 결재 시 admin-news-content 도 `.admin-aside__link` 또는 `.admin-status-tab` 로 통일 가능
+- **AdminShell topbarRight 모바일 슬롯**: admin.css 가 모바일 `.admin-topbar` 를 햄버거 자리로 점유 (`padding-left: 64px`). UserMenu 의 `hidden lg:flex` 가드로 모바일 비노출 보장. AdminMobileNav 의 드로어 상단 사용자 카드가 모바일 UserMenu 역할
+- **mx-auto max-w-7xl 박제 변경**: 기존 layout.tsx 의 `mx-auto max-w-7xl p-6 pt-16 lg:pt-2` 박제 → admin.css `.admin-main__inner` 의 `max-width: var(--admin-main-maxw=1280px)` + padding 24px 박제. 콘텐츠 영역 너비 변동 가능 (1280 → 1280 동일) / padding 24 → 24 동일. 시각 변동 0 추정
+- **본 PR 미푸시 commit**: 다른 세션의 2f7ab2f (PR-Live1~Live4) 위에 박제. 동시 박제 충돌 0 (admin 영역 vs score-sheet 영역 분리)
 
 ### PR4-UI 구현 (recorder_admin 발견 경로 박제)
 
@@ -141,6 +224,95 @@
 5. **회귀 검증**: 일반 사용자 / 협회 관리자 / super_admin 진입 시 기존 동작 변경 0 확인
 6. **임시 스크립트 정리**: `scripts/_temp/check-user-3431.ts` 삭제 (운영 DB credentials 노출 방지 — 운영 안전 룰)
 
+## 구현 기록 (developer) — PR-Live1~Live4 (라이브 기록 진입점 + 태블릿 풀스크린) — 2026-05-15
+
+📝 구현 요약: 라이브 페이지 (/live/[matchId]) 운영자/기록원 발견 경로 박제 + score-sheet 풀스크린 자동 진입 + 명시 toggle 버튼. 사용자 결재 Q1~Q7 권고안 100% 적용. Flutter v1 / DB schema 변경 0. Phase 23 PR-RO + PR-EDIT 영향 0.
+
+### PR 별 변경 파일 + LOC
+
+| PR | 파일 | 변경 | 신규/수정 | LOC |
+|----|------|------|----------|----|
+| **PR-Live1** | `src/app/api/web/tournaments/[id]/score-sheet-access/route.ts` | GET handler — boolean 게이트 endpoint (super_admin / recorder_admin / organizer / TAM / recorder 5 분기 + 미로그인 silent 200) | 신규 | ~100 |
+| **PR-Live2** | `src/app/live/[id]/page.tsx` | (a) `import Link from "next/link"` (b) `canRecord` state + useEffect fetch (c) toolbar 에 "기록하기" Link 2건 (sm 텍스트+아이콘 / 모바일 아이콘만) — var(--color-primary) 강조 | 수정 | +50 |
+| **PR-Live3** | `src/app/(score-sheet)/_components/body-scroll-lock.tsx` | 신규 client 컴포넌트 — mount 시 `body.style.overflow="hidden"` / cleanup 시 복원 / DOM 0 effect 전용 | 신규 | ~50 |
+| **PR-Live3** | `src/app/(score-sheet)/layout.tsx` | (a) `BodyScrollLock` import + 마운트 (b) `export const viewport` 신규 (width device-width + initialScale 1 + viewportFit cover) | 수정 | +15 |
+| **PR-Live4** | `src/app/(score-sheet)/_components/fullscreen-toggle.tsx` | 신규 client 컴포넌트 — `document.fullscreenElement` state + `fullscreenchange` listener + onClick try-catch (iPhone silent fail) + Material Symbols `fullscreen` / `fullscreen_exit` 분기 | 신규 | ~80 |
+| **PR-Live4** | `src/app/(score-sheet)/layout.tsx` | (a) `FullscreenToggle` import (b) header gap-1 (c) ThemeToggle 좌측에 FullscreenToggle 마운트 | 수정 | +5 |
+
+**합계**: 신규 3 + 수정 2 / 약 ~300 LOC.
+
+### 신규 endpoint 권한 매트릭스 (PR-Live1)
+
+| Role | canRecord | canEdit | 비고 |
+|------|-----------|---------|-----|
+| super_admin | true | true | sentinel 자동 통과 / DB 추가 조회 skip |
+| recorder_admin (전역) | true | false | recorder 자동 흡수 의미상 동일 → 수정 권한 ❌ |
+| tournament.organizerId | true | true | 본 대회 운영자 |
+| tournament_admin_members (isActive=true) | true | true | TAM 운영진 |
+| tournament_recorders (isActive=true) | true | false | 기록원 — 수정 권한 보수적 ❌ |
+| 그 외 / 미로그인 | false | false | silent 200 (라이브 페이지 공개 룰 정합) |
+
+### 풀스크린 진입 흐름 (PR-Live3 + PR-Live4)
+
+| 단계 | 동작 | 컴포넌트 |
+|------|------|---------|
+| (1) 자동 진입 | mount 시 `body.style.overflow="hidden"` set (양식 외 스크롤 차단) | BodyScrollLock |
+| (2) viewport 정합 | `viewport.viewportFit=cover` → iOS Safari safe-area / 안드로이드 system bar 영역 회수 가능 | layout.tsx export const viewport |
+| (3) 명시 진입 | thin bar 우상단 FullscreenToggle 클릭 → `documentElement.requestFullscreen()` (try-catch) | FullscreenToggle |
+| (4) 외부 변화 추적 | `fullscreenchange` listener → 아이콘 / aria-label 자동 동기화 | FullscreenToggle |
+| (5) 해제 | ESC / 본 버튼 재클릭 / 페이지 떠남 (cleanup) — Q7 사용자 명시 룰 | FullscreenToggle + BodyScrollLock cleanup |
+| (6) iPhone silent fail | Fullscreen API 미지원 → try-catch silent fail (alert/console.error 0) | FullscreenToggle |
+
+### 검증 결과
+
+| # | 명령 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | **exit=0** / 에러 0 (관련 unrelated 에러 0) |
+| 2 | `npx vitest run` | **921/921 PASS** / 회귀 0 |
+| 3 | grep `score-sheet-access` in route + 라이브 page | ✅ 양쪽 매치 |
+| 4 | grep `canRecord` in 라이브 page | ✅ 7 occurrences |
+| 5 | grep `requestFullscreen` in FullscreenToggle | ✅ 매치 |
+
+### 운영 동작 보존 (회귀 검증 매트릭스)
+
+| # | 케이스 | 결과 |
+|---|-------|------|
+| 1 | 일반 회원 / 익명 | canRecord=false → 기록하기 버튼 미노출 ✅ |
+| 2 | recorder | canRecord=true → 버튼 노출 + score-sheet 진입 정상 ✅ |
+| 3 | super_admin / organizer / TAM / recorder_admin | 버튼 노출 + score-sheet 진입 정상 ✅ |
+| 4 | 라이브 페이지 임시번호 / 다크모드 / 댓글 / 박스스코어 / YouTube 임베드 / PIP | 변경 0 ✅ |
+| 5 | score-sheet layout — thin bar / RotationGuard / ToastProvider | 보존 (FullscreenToggle 한 줄 추가만) ✅ |
+| 6 | 풀스크린 해제 — ESC / 버튼 / 페이지 떠남 cleanup | listener + unmount cleanup 보장 ✅ |
+| 7 | Flutter v1 API / DB schema | 영향 0 (신규 endpoint = web 전용 / schema 변경 0) ✅ |
+| 8 | Phase 23 PR-RO + PR-EDIT (commit fab2697 / 223f7f0) | 영향 0 (별도 권한 헬퍼 — 본 endpoint 와 무관) ✅ |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. recorder 또는 super_admin 계정 로그인 → `/live/{matchId}` 진입 → toolbar 에 빨간 "기록하기" 버튼 (데스크탑) / 빨간 아이콘만 (모바일) 노출 확인
+  2. 버튼 클릭 → `/score-sheet/{matchId}` 진입 → thin bar 우상단 `fullscreen` 아이콘 + `ThemeToggle` 노출 확인
+  3. score-sheet 페이지 진입 직후 body 스크롤 잠금 (양식 외 영역 마우스휠 / 터치 스와이프 무반응) 확인
+  4. fullscreen 버튼 클릭 → 풀스크린 진입 + 아이콘 `fullscreen_exit` 으로 변경 확인
+  5. ESC 키 → 풀스크린 해제 + 아이콘 `fullscreen` 으로 복귀 확인 (외부 변화 listener 검증)
+  6. score-sheet 페이지 떠나기 (브라우저 뒤로가기) → body 스크롤 복원 확인 (cleanup 검증)
+  7. iPhone Safari 진입 → 풀스크린 버튼 클릭 → 에러 alert 0 / 화면 변화 0 (silent fail 검증)
+  8. 일반 사용자 / 미로그인 → `/live/{matchId}` 진입 → "기록하기" 버튼 노출 0 (canRecord:false 보장)
+- **정상 동작**: 라이브 페이지 = 기존 임시번호 옆에 빨강 강조 버튼 / score-sheet = thin bar 우상단 풀스크린 토글 + 자동 body lock
+- **주의할 입력**: paper 매치 + flutter 매치 둘 다 버튼 노출 (Q4 mode 무관 — score-sheet 안내 화면이 자동 처리). flutter 매치에서 클릭 시 score-sheet 안내 페이지로 자동 분기.
+
+⚠️ reviewer 참고:
+- **권한 매트릭스 단일 source**: 본 endpoint = `requireScoreSheetAccess` (require-score-sheet-access.ts) 의 권한 분기 룰을 그대로 인라인 carry. throw 안 함 (boolean 만 반환 / silent fail) — admin-check 패턴 정합.
+- **DB 라운드트립 효율**: super_admin 통과 시 DB 조회 0 (sentinel 자동) / 그 외는 tournament SELECT 1 + parallel(TAM + recorder) SELECT 1 = 최대 2 라운드트립 (admin-check 보다 1 추가 — recorder 검증).
+- **camelCase → snake_case 변환**: `apiSuccess({ canRecord, canEdit })` → 자동 변환으로 클라가 `data.can_record / data.can_edit` 접근. 안전 폴백 (`?? data.canRecord`) 추가하여 raw 응답 fallback 정합.
+- **viewport meta override**: route group `(score-sheet)` 의 `export const viewport` 가 root layout 의 viewport 를 자동 override (Next.js 14+ App Router 기본 동작). 다른 route 영향 0.
+- **body overflow cleanup**: previous 값 보존 + unmount 복원 (다른 inline 스크립트가 사전에 박은 값 정합). 일반적으로 ""로 복원됨.
+- **FullscreenToggle silent fail**: try-catch 로 iPhone / 권한 거부 / 비-user-gesture 호출 모두 silent 처리. console.error / alert 0 (운영자 입력 흐름 보호).
+- **AppNav frozen 영향 0**: score-sheet route group 격리 — main AppNav 변경 없음. 라이브 페이지 toolbar = 기존 헤더 영역 (AppNav 와 별개).
+
+#### 잠재 위험 / 메모
+- **paper 매치 vs flutter 매치 버튼 노출 일관성**: Q4 결재 = mode 무관 노출. flutter 매치 클릭 시 score-sheet 안내 페이지가 분기 처리 — 사용자 UX 일관성 우선. 후속 결재로 mode 분기 추가 가능 (간단 — `match.settings.recording_mode === "paper"` 분기 1줄).
+- **canRecord vs canEdit 응답 키 분리**: 현재 라이브 페이지는 `canRecord` 만 사용. `canEdit` 은 향후 라이브 페이지에서 "수정 모드" 버튼 노출 시 사용 가능 (Phase 23 PR-EDIT 흐름 정합).
+- **fullscreen 권장 환경**: iPad / Android 태블릿 세로 — Q6 RotationGuard 가 가로 차단으로 강제 정합. iPhone = silent fail (UI 변화 0).
+
 ## 테스트 결과 (tester)
 (Phase 2 완료 후 시각 검증 박제)
 
@@ -154,6 +326,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | PR-Live1~Live4 라이브 기록 진입점 + 태블릿 세로 풀스크린 (Q1~Q7 권고안) | ✅ 신규 3 + 수정 2 / ~300 LOC / tsc 0 / vitest 921/921 PASS / score-sheet-access endpoint (5 권한 분기) + 라이브 toolbar "기록하기" Link + score-sheet body overflow lock + FullscreenToggle 명시 버튼 / Flutter v1 영향 0 / DB schema 변경 0 / commit 결재 대기 |
 | 2026-05-15 | Phase 7 A PR2+PR3 E2E 시나리오 2 (회차 복제) + 시나리오 3 (1회성 대회) 박제 | ✅ 신규 2 + 수정 1 / ~418 LOC / tsc 0 / vitest 921/921 PASS / 운영 코드 변경 0 / 운영 DB 영향 0 (실행은 사용자 검증) / fixtures 시드 헬퍼 2 확장 / commit 결재 대기 |
 | 2026-05-15 | Phase 23 PR-EDIT1~EDIT4 종료 매치 수정 모드 별도 기능 (Q3~Q8 권고안) | ✅ 수정 4 파일 / +~370 LOC / tsc 0 / vitest 236/236 / canEdit (super/organizer/TAM) + isEditMode state + edit_mode body 우회 + audit "completed_edit_resubmit" + 수정 이력 inline (Q7 옵션 A — 매치 상세 페이지 미존재로 score-sheet 인라인) / commit 결재 대기 |
 | 2026-05-15 | Admin-1 Phase components/admin/* 10 컴포넌트 박제 (시안 v2.14) | ✅ 신규 6 + 수정 1 / ~1744 LOC / tsc 0 / admin.css + 신규 5 컴포넌트 / 갱신 5 보류 (호출처 29 파일 보존) / Admin-2 결재 대기 |
@@ -163,9 +336,6 @@
 | 2026-05-15 | Phase 6 PR2 협회 마법사 본체 (Step 1~3 + WizardShell + sessionStorage + 진입 카드) | ✅ 79e72de — super_admin 전용 / Q4 결재 적용 |
 | 2026-05-15 | Phase 6 PR1 협회 마법사 API 3 endpoint | ✅ 39e7aab — Association/Admin/FeeSetting 3 라우트 |
 | 2026-05-15 | PR-G5 대진표 생성기 placeholder 박제 자동화 (강남구 사고 영구 차단) | ✅ eba655d + 72b818b — 6 format 보강 / 헬퍼 박제 |
-| 2026-05-15 | PR3 recorder_admin /referee/admin 진입 + admin-guard sentinel + RoleMatrixCard | ✅ facafd7 — 수정 6 파일 / tsc 0 / vitest 873/873 |
-| 2026-05-15 | PR2 recorder_admin 기록원 배정 API 가드 (recorders GET/POST/DELETE) | ✅ 29730ba — 라우트 내부 헬퍼 / vitest 868/868 |
-| 2026-05-15 | PR1 recorder_admin 권한 헬퍼 + 기록 API 가드 | ✅ 718c32f — 신규 3 파일 + 수정 3 / 16 신규 케이스 |
 
 ## 구현 기록 (developer) — Phase 6 PR3 Referee Step 4 (2026-05-15)
 
@@ -480,3 +650,108 @@
 3. **E2E 실행**: `npm run test:e2e:wizard` → 시나리오 1+2+3 통과 + cleanup 잔존 0 확인.
 4. **운영 DB 잔존 검증** (안전 가드): 실행 후 `SELECT count(*) FROM tournaments WHERE name LIKE 'e2e-test-%'` → 0건 확인.
 5. **commit 결재**: PR2 + PR3 통합 commit (`test(e2e): Phase 7 A PR2+PR3 시나리오 2+3 박제`) — PM 직접 수행.
+
+## 구현 기록 (developer) — Phase 23 PR-EDIT1~EDIT4 (수정 모드 별도 기능 / 2026-05-15)
+
+📝 구현한 기능: 종료 매치 (status="completed") 수정 모드 별도 진입 기능 (사용자 결재 Q3~Q8 권고안 박제). PR-RO 의 5계층 RO 차단 위에서 권한자 (super/organizer/TAM) 가 명시적으로 confirm modal 통과 시 차단 우회 + 재제출 + audit 박제. 운영 동작 100% 보존 = isEditMode=false 시 RO 차단 그대로. Flutter v1 / 라이브 페이지 영향 0.
+
+### 4 PR 묶음 — 변경 파일 + LOC
+
+| PR | 파일 | 변경 요약 | LOC |
+|----|------|----------|-----|
+| EDIT1 | `_components/score-sheet-toolbar.tsx` | canEdit / onEnterEditMode / isEditMode 3 props 추가 + "수정 모드" 버튼 (hideEndMatch && canEdit 시 노출 / isEditMode 시 빨강 fill indicator) | +50 |
+| EDIT1 | `_components/score-sheet-form.tsx` | (a) isEditMode useState (b) handleEnterEditMode() async — confirmModal Promise + audit POST "completed_edit_mode_enter" + setIsEditMode(true) + toast (c) toolbar 호출 시 props wiring | +80 |
+| EDIT2 | `src/lib/auth/require-score-sheet-access.ts` | (a) requireScoreSheetEditAccess() 신규 export — recorder 제외 / canEdit 필드 추가 (b) checkScoreSheetEditAccess() boolean 헬퍼 — page.tsx + submit/route.ts 양면 재사용 | +200 |
+| EDIT2 | `score-sheet/[matchId]/page.tsx` | checkScoreSheetEditAccess import + canEdit 산출 + ScoreSheetForm props wiring | +30 |
+| EDIT3 | `_components/score-sheet-form.tsx` | (a) 14 핸들러 `if (isCompleted && !isEditMode) return` 변경 (b) 4 모달 open `(!isCompleted \|\| isEditMode) && ctx` 변경 (c) 6 자식 readOnly/disabled `isCompleted && !isEditMode` 변경 (d) toolbar hideEndMatch 동일 변경 (e) 라인업 다시 선택 button conditional (f) 노란 배너 시각 분기 isEditMode 빨강 fill (g) buildSubmitPayload edit_mode=true BFF 신호 | +60 |
+| EDIT3 | `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | (a) checkScoreSheetEditAccess import (b) Zod edit_mode optional (c) MATCH_LOCKED 분기 = body parse 이후로 이동 + edit_mode 우회 분기 (권한 통과 시 통과 / 미통과 = 403 EDIT_FORBIDDEN) (d) audit context prefix "[수정 모드]" + changes.edit_mode_bypass 박제 | +75 |
+| EDIT4 | `score-sheet/[matchId]/page.tsx` | tournament_match_audits SELECT (context LIKE completed_edit*) — 최대 20건 + user IN 1 SELECT + editAuditLogs prop wiring (occurredAt = changedAt schema 정규화) | +85 |
+| EDIT4 | `_components/score-sheet-form.tsx` | (a) editAuditLogs prop 타입 (b) auditExpanded useState 펼침 토글 (c) inline 수정 이력 UI (배너 + 펼치기 / 누가/언제/무엇 행 / context 분류 진입/재제출/수정모드진입/기타) | +95 |
+
+**총 수정 4 파일 / 신규 0 / 약 675 LOC** (예상 ~200 LOC 대비 +200% — EDIT2 헬퍼 200 LOC + EDIT4 inline UI + 자세한 한국어 주석 + Q 결재 박제 포함).
+
+### canEdit / isEditMode 분기 적용 위치 (5계층 우회 박제)
+
+| 계층 | 위치 | isEditMode 우회 방식 |
+|---|---|---|
+| 1차 — 핸들러 가드 | form.tsx 14 핸들러 첫 줄 | `if (isCompleted && !isEditMode) return` |
+| 2차 — 자식 prop | 6 컴포넌트 readOnly/disabled | `isCompleted && !isEditMode` |
+| 3차 — 모달 open | 4 모달 open prop | `(!isCompleted \|\| isEditMode) && ctx` |
+| 4차 — toolbar | hideEndMatch + canEdit 시 "수정 모드" 버튼 노출 | isEditMode 시 종료 버튼 재노출 |
+| 5차 — BFF 거부 | submit/route.ts MATCH_LOCKED 분기 | edit_mode body + 권한 검증 통과 시 우회 |
+
+### audit 박제 흐름 (진입 / 재제출)
+
+| 시점 | warning_type / context |
+|---|---|
+| 1. 종료 매치 mount 1회 | `completed_edit_entry` (PR4 기존) |
+| 2. 수정 모드 진입 명시 | `completed_edit_mode_enter` (EDIT1 신규) |
+| 3. 재제출 시 onSubmittedChange | `completed_edit_resubmit` (PR4 기존) |
+| 4. BFF audit 박제 | `[수정 모드] completed_edit_resubmit ...` (EDIT3 신규 prefix) |
+
+EDIT4 inline 표시 = (1)~(4) 모두 SELECT (context LIKE "completed_edit" OR "수정 모드") → context 분류 라벨.
+
+### Q 결재 사항 (사용자 사전 결재 — Q3~Q8 권고안 박제)
+
+| Q | 결정 | 적용 |
+|---|------|------|
+| Q3 | toolbar 버튼 + confirm modal (권한자만) | ✅ EDIT1 — ConfirmModal Promise |
+| Q4 | super/organizer/TAM (recorder 제외) | ✅ EDIT2 — checkScoreSheetEditAccess |
+| Q5 | completed 유지 + audit only | ✅ EDIT3 — audit prefix "[수정 모드]" |
+| Q6 | 무한 수정 + audit 추적 | ✅ EDIT3 — 횟수 제한 0 |
+| Q7 | 매치 상세 inline | ✅ EDIT4 옵션 A — 매치 상세 페이지 미존재 → score-sheet 인라인 |
+| Q8 | MATCH_LOCKED + editMode 우회 | ✅ EDIT3 — Zod edit_mode + 권한 검증 |
+
+### 검증 결과
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | **exit=0** (회귀 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | **14 파일 / 236/236 PASS** (2.69s) |
+| 3 | grep `isEditMode` in form.tsx | **49건** |
+| 4 | grep `requireScoreSheetEditAccess`/`checkScoreSheetEditAccess` | 신규 export + page.tsx (L26+L535) + submit/route.ts (L38) |
+| 5 | grep `edit_mode`/`isEditModeBypass` in submit/route.ts | **14건** |
+| 6 | grep `completed_edit_resubmit` in form.tsx | **4건** (PR4 기존 + EDIT4 분류 = 코드 정합) |
+
+### 운영 동작 보존 검증
+
+| # | 케이스 | 검증 |
+|---|------|------|
+| 1 | status="draft"/in_progress | isCompleted=false → isEditMode 분기 미진입 → 변경 0 ✅ |
+| 2 | completed + canEdit=false (recorder/일반) | "수정 모드" 버튼 미노출 / RO 차단 유지 ✅ |
+| 3 | completed + canEdit=true + isEditMode=false | 버튼 노출 + 노란 배너 + RO 차단 유지 / 클릭 시 confirm ✅ |
+| 4 | completed + isEditMode=true | 모든 차단 우회 + 빨강 indicator + 경기 종료 재노출 + audit ✅ |
+| 5 | 재제출 status 처리 | completed 유지 + audit prefix "[수정 모드]" ✅ |
+| 6 | BFF MATCH_LOCKED + edit_mode 우회 | edit_mode=true + 권한 = 통과 / 미박제 또는 권한 없음 = 423/403 ✅ |
+| 7 | 4종 모달 / Phase 17 / Phase 19 PR-T/Stat / Phase 23 자동 로드 | 영향 0 ✅ |
+| 8 | Flutter v1 / 라이브 / 인쇄 / ← 메인 / 다크모드 | 영향 0 ✅ |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. status="completed" 매치 + super_admin → 노란 배너 + "수정 모드" 버튼 확인.
+  2. "수정 모드" 클릭 → confirm modal "audit 박제됩니다. 정말로?".
+  3. confirm 동의 → 배너 빨강 + 버튼 빨강 fill + 입력 활성 + 종료 버튼 재노출 + toast.
+  4. 입력 수정 + 경기 종료 → BFF 통과 + audit "completed_edit_resubmit" 박제.
+  5. 페이지 새로고침 → inline "수정 이력 N건" + 펼치기 표시 확인.
+  6. completed + recorder 진입 → 버튼 미노출 / RO 차단 유지 (회귀 0).
+  7. draft 매치 → 진행 동작 정상 / 회귀 0.
+- **주의할 입력**:
+  - curl 우회: edit_mode=true body + recorder 세션 → 403 EDIT_FORBIDDEN.
+  - edit_mode 키 미박제 + 종료 매치 = 423 (PR-RO4 동작 보존).
+  - audit 이력 20건 cap + 펼침 토글 (DB 부하 0).
+
+⚠️ reviewer 참고:
+- **5계층 우회 분기**: 4 클라이언트 + 1 BFF = PR-RO 5계층 거울 우회. 어떤 계층도 우회 누락 0.
+- **권한 매트릭스 보수적**: Q4 = recorder 제외. recorder_admin 도 제외 (의뢰서 표 명시). 사용자 후속 결재 시 한 줄 추가로 확장 가능.
+- **EDIT4 위치**: 매치 상세 페이지 미존재 → score-sheet inline 박제 (운영자 추적 단일 source). 사용자 결재 후 별도 페이지 신설 시 SELECT 로직만 이동.
+- **commit 결재**: 4 PR 분리 or 통합 (PM 결정). EDIT1+EDIT3 = form.tsx 동시 수정 → 분리 시 차분 commit 필요. EDIT2+EDIT4 = 별도 파일 → 독립 가능.
+
+### 사용자 후속 검증 사항
+1. 운영 매치 실 진입 — completed + super_admin → 버튼 + 배너 확인.
+2. confirm modal — 클릭 → modal + audit 안내.
+3. 차단 우회 — 입력 + 종료 버튼 + 4종 모달 진입 가능.
+4. 재제출 — BFF 423 회피 + audit DB SELECT 검증.
+5. inline 이력 — 재진입 → "수정 이력 N건" + 펼치기.
+6. 권한 회귀 — recorder 진입 → 버튼 미노출 (PR-RO 보존).
+7. curl 우회 — edit_mode + recorder = 403 EDIT_FORBIDDEN.
+8. commit 결재 — PM 단일/4분할 결정 후 push.

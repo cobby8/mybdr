@@ -1,18 +1,14 @@
-// 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
-// - <Card> wrapper → div + 토큰 (admin/* 단순화). StatCard 는 통계 시각화 의도 유지
+// 2026-05-15 Admin-2 박제 — 시안 v2.14 AdminDashboard 패턴 박제
+//   - Prisma query / raw SQL / catch 분기 100% 보존 (비즈니스 로직 변경 0)
+//   - UI 만 시안 패턴으로: admin-stat-grid + AdminStatCard / admin-chart / admin-log-card
+//   - admin.css 클래스 박제 (Admin-1 commit 05caa04 에서 박제됨)
+//
+// 박제 source: Dev/design/BDR-current/screens/AdminDashboard.jsx
 
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
-import { StatCard } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-
-// (web) 시안 카드 패턴
-const CARD_CLASS = "rounded-[var(--radius-card)] border p-4 sm:p-5";
-const CARD_STYLE: React.CSSProperties = {
-  borderColor: "var(--color-border)",
-  backgroundColor: "var(--color-card)",
-  boxShadow: "var(--shadow-card)",
-};
+import { AdminStatCard } from "@/components/admin/admin-stat-card";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +29,9 @@ const ACTION_LABEL: Record<string, string> = {
   "settings.maintenance_toggle": "점검모드 변경",
 };
 
-// FR-060: Admin 대시보드
+// FR-060: Admin 대시보드 (Admin-2 박제 — UI 갱신만)
 export default async function AdminDashboard() {
-  // 통계 + 최근 활동 로그 + 7일 활동 추이를 병렬로 조회
+  // 통계 + 최근 활동 로그 + 7일 활동 추이를 병렬로 조회 — 운영 로직 100% 보존
   const [userCount, tournamentCount, matchCount, teamCount, recentLogs, weeklyActivity] =
     await Promise.all([
       prisma.user.count(),
@@ -78,122 +74,142 @@ export default async function AdminDashboard() {
 
   return (
     <div>
+      {/* 페이지 헤더 — 시안 박제 (eyebrow + 큰 title + subtitle) */}
       <AdminPageHeader
-        eyebrow="ADMIN · DASHBOARD"
-        title="대시보드"
-        subtitle="유저 / 토너먼트 / 경기 / 팀 통계 + 최근 활동"
+        eyebrow="ADMIN · 대시보드"
+        title="관리자 대시보드"
+        subtitle="유저 · 토너먼트 · 경기 · 팀 통계와 최근 활동을 한 눈에 확인합니다."
       />
 
-      {/* 통계 카드 4개: Material Symbols 아이콘 사용
-       * 이유: 기존 sm(640+) 시점부터 2열 → admin layout `lg:ml-64` 사이드바 보상이 없는 모바일에서 카드가 좁게 몰림.
-       *      모바일 1열 / md(768+) 2열 / lg(1024+) 3열 / xl(1280+) 4열로 점진 확장. */}
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <StatCard
+      {/* 섹션 타이틀 — admin.css `.admin-section-title` (시안 박제) */}
+      <div className="admin-section-title">통계 · 최근 7일</div>
+
+      {/* 통계 카드 4종 — 시안 .admin-stat-grid + AdminStatCard (admin.css 자동 반응형) */}
+      <div className="admin-stat-grid">
+        <AdminStatCard
+          icon="group"
           label="전체 유저"
-          value={userCount}
-          icon={<span className="material-symbols-outlined text-2xl">people</span>}
+          value={userCount.toLocaleString()}
         />
-        <StatCard
+        <AdminStatCard
+          icon="emoji_events"
           label="토너먼트"
           value={tournamentCount}
-          icon={<span className="material-symbols-outlined text-2xl">emoji_events</span>}
         />
-        <StatCard
-          label="진행 중 경기"
+        <AdminStatCard
+          icon="sports_basketball"
+          label="진행중 경기"
           value={matchCount}
-          icon={<span className="material-symbols-outlined text-2xl">sports_basketball</span>}
         />
-        <StatCard
+        <AdminStatCard
+          icon="groups"
           label="등록 팀"
-          value={teamCount}
-          icon={<span className="material-symbols-outlined text-2xl">groups</span>}
+          value={teamCount.toLocaleString()}
         />
       </div>
 
-      {/* 7일 활동 추이 차트: CSS bar chart (외부 라이브러리 없음) */}
-      <div className={`${CARD_CLASS} mb-6`} style={CARD_STYLE}>
-        <h2 className="mb-4 text-lg font-semibold">7일 활동 추이</h2>
-        <div className="flex items-end gap-2" style={{ height: 120 }}>
-          {chartData.map((d) => {
-            // 각 막대 높이를 최대값 대비 비율로 계산 (최소 4px)
-            const heightPct = Math.max((d.count / maxCount) * 100, 4);
-            return (
-              <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
-                {/* 건수 라벨 */}
-                <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
-                  {d.count}
-                </span>
-                {/* 막대 바 */}
-                <div
-                  className="w-full rounded-t"
-                  style={{
-                    height: `${heightPct}%`,
-                    backgroundColor: d.count > 0 ? "var(--color-primary)" : "var(--color-border)",
-                    minHeight: 4,
-                    transition: "height 0.3s ease",
-                  }}
-                />
-                {/* 날짜 라벨 */}
-                <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
-                  {d.day}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 최근 활동 로그: admin_logs 테이블에서 최근 5건 */}
-      <div className={CARD_CLASS} style={CARD_STYLE}>
-        <h2 className="mb-4 text-lg font-semibold">최근 활동</h2>
-        {recentLogs.length > 0 ? (
-          <div className="divide-y divide-[var(--color-border-subtle)]">
-            {recentLogs.map((log) => {
-              const admin = log.users
-                ? (log.users.nickname ?? log.users.email)
-                : "unknown";
+      {/* 차트 + 최근 활동 2 컬럼 그리드 — 시안 박제 (모바일 1열 / lg+ 1.4:1) */}
+      <div className="admin-dash-grid">
+        {/* 7일 활동 추이 차트 — 시안 `.admin-chart` */}
+        <div className="admin-chart">
+          <div className="admin-chart__head">
+            <span className="admin-chart__title">활동 추이</span>
+            <span className="admin-chart__sub">관리자 활동 · 최근 7일</span>
+          </div>
+          <div className="admin-chart__body">
+            {chartData.map((d) => {
+              // 각 막대 높이를 최대값 대비 비율로 계산 — 0 이면 최소 2% 박제
+              const heightPct = (d.count / maxCount) * 100;
               return (
                 <div
-                  key={log.id.toString()}
-                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  key={d.day}
+                  className="admin-chart__bar"
+                  data-zero={d.count === 0 ? "true" : "false"}
+                  style={{ height: `${Math.max(heightPct, 2)}%` }}
+                  title={`${d.day} · ${d.count}건`}
                 >
-                  {/* 심각도 표시 점 */}
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${
-                      log.severity === "error"
-                        ? "bg-[var(--color-error)]"
-                        : log.severity === "warning"
-                          ? "bg-[var(--color-warning)]"
-                          : "bg-[var(--color-text-muted)]"
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">
-                      <span className="font-medium">
-                        {ACTION_LABEL[log.action] ?? log.action}
-                      </span>
-                      {log.description && (
-                        <span className="ml-1 text-[var(--color-text-muted)]">
-                          - {log.description}
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-[var(--color-text-muted)]">
-                      {admin} ·{" "}
-                      {log.created_at.toLocaleString("ko-KR", {
-                        timeZone: "Asia/Seoul",
-                      })}
-                    </p>
-                  </div>
+                  <span className="admin-chart__bar-value">{d.count}</span>
                 </div>
               );
             })}
           </div>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-            아직 기록된 활동이 없습니다.
-          </p>
-        )}
+          <div className="admin-chart__x">
+            {chartData.map((d) => (
+              <span key={d.day}>{d.day}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* 최근 활동 로그 — 시안 `.admin-log-card` (admin_logs 최근 5건) */}
+        <div className="admin-log-card">
+          <div className="admin-log-card__head">
+            <span className="admin-log-card__title">최근 활동</span>
+            {/* 전체 보기 링크 — Admin-2 박제 (logs 페이지 진입) */}
+            <a
+              href="/admin/logs"
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "var(--ink-mute)",
+                fontSize: 12,
+                textDecoration: "none",
+              }}
+            >
+              전체 보기 →
+            </a>
+          </div>
+          {recentLogs.length > 0 ? (
+            recentLogs.map((log) => {
+              const admin = log.users
+                ? (log.users.nickname ?? log.users.email)
+                : "unknown";
+              // 시각화 — 시안 .admin-log-row + data-severity (info/warning/error/success)
+              const severity =
+                log.severity === "error"
+                  ? "error"
+                  : log.severity === "warning"
+                    ? "warning"
+                    : log.severity === "success"
+                      ? "success"
+                      : "info";
+              return (
+                <div key={log.id.toString()} className="admin-log-row">
+                  <span
+                    className="admin-log-row__dot"
+                    data-severity={severity}
+                  />
+                  <div className="admin-log-row__body">
+                    <div className="admin-log-row__action">
+                      {ACTION_LABEL[log.action] ?? log.action}
+                    </div>
+                    {log.description && (
+                      <div className="admin-log-row__desc">{log.description}</div>
+                    )}
+                  </div>
+                  <div className="admin-log-row__meta">
+                    <div>{admin}</div>
+                    <div style={{ opacity: 0.7 }}>
+                      {log.created_at.toLocaleString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div
+              style={{
+                padding: 28,
+                textAlign: "center",
+                color: "var(--ink-mute)",
+                fontSize: 13,
+              }}
+            >
+              아직 기록된 활동이 없습니다.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
