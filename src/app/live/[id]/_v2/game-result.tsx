@@ -279,6 +279,7 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
           borderBottom: "1px solid var(--border)",
         }}
       >
+        {/* 2026-05-15 (PR-Back-Button-Unify) — score-sheet "<" 패턴 통일. */}
         <button
           type="button"
           onClick={() => {
@@ -289,13 +290,24 @@ export function GameResultV2({ match }: { match: MatchDataV2 }) {
             }
           }}
           aria-label="뒤로 가기"
-          className="btn btn--sm"
-          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+          title="이전 페이지로"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 36,
+            height: 36,
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            color: "var(--color-text-primary)",
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-          뒤로
+          <span className="material-symbols-outlined" style={{ fontSize: 22 }} aria-hidden>
+            arrow_back_ios
+          </span>
         </button>
         <a
           href="/"
