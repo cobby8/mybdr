@@ -230,6 +230,12 @@ export async function GET(
         // 2026-05-02 STL R1: 쿼터 점수 보정 — 절대 점수 시계열로 누락 쿼터 식별
         home_score_at_time: true,
         away_score_at_time: true,
+        // 2026-05-16 (긴급 박제 — 사용자 보고 이미지 #168 / paper PBP 정렬 불안정 fix):
+        //   paper 매치는 모든 PBP 가 game_clock_seconds=0 박혀있어 timeline 정렬의 2차 tiebreak 가
+        //   불안정 (Prisma findMany default order 비결정). created_at 을 마지막 tiebreak 로 사용 →
+        //   기록원 INSERT 순서 (= 자연 sequence) 안정 정렬.
+        //   digital PBP (Flutter) = game_clock_seconds 다른 값 → tiebreak 미발화 → 기존 동작 보존.
+        created_at: true,
       },
     });
 
@@ -1194,10 +1200,23 @@ export async function GET(
     // allPbps 는 created_at 순서대로 insert 되어 있으므로 quarter + game_clock_seconds 로 정렬.
     // 농구 게임 클럭은 내려가는 방식(10:00 → 0:00) 이므로 쿼터별로 clock 내림차순 = 발생순.
     // 최신순 렌더를 위해 여기서는 quarter DESC + clock ASC (쿼터 후반부가 먼저 오도록).
+    //
+    // 2026-05-16 (긴급 박제 — 사용자 보고 이미지 #168 / paper PBP 정렬 불안정 fix):
+    //   paper 매치는 모든 PBP 가 game_clock_seconds=0 박혀있어 동일 쿼터 안에서 2차 tiebreak 가
+    //   비결정 (Prisma findMany default order 불안정) → 새로고침마다 순서 바뀜.
+    //   해결: created_at 을 3차 tiebreak 로 사용 → 기록원 INSERT 순서 (= 자연 sequence) 안정 정렬.
+    //   digital PBP (Flutter) = game_clock_seconds 다른 값 → 2차 tiebreak 에서 결정 → 3차 미발화 → 기존 동작 보존.
+    //   같은 paper 매치 안에서도 score events (마킹) / foul events / possession events 모두 INSERT 순서대로 노출.
     const sortedPbp = [...allPbps].sort((a, b) => {
       if ((b.quarter ?? 0) !== (a.quarter ?? 0)) return (b.quarter ?? 0) - (a.quarter ?? 0);
       // 같은 쿼터 안에서는 clock 값이 작은 쪽(후반)이 먼저 — 농구 클럭은 10:00→0:00 감소
-      return (a.game_clock_seconds ?? 0) - (b.game_clock_seconds ?? 0);
+      const clockDiff = (a.game_clock_seconds ?? 0) - (b.game_clock_seconds ?? 0);
+      if (clockDiff !== 0) return clockDiff;
+      // 3차 tiebreak — created_at ASC (INSERT 순서 = paper 기록원 입력 순서 보존)
+      // paper 매치 game_clock=0 동률 시 + digital 매치에서도 같은 clock 동률 시 안정 정렬.
+      const aMs = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bMs = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return aMs - bMs;
     });
     const playByPlays = sortedPbp.slice(0, 500).map((p, idx) => {
       const pid = p.tournament_team_player_id ? Number(p.tournament_team_player_id) : null;
