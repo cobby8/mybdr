@@ -124,13 +124,7 @@ export function AppNav({
                               super_admin → /admin / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin */}
               {user.admin_entry_url && (
                 <>
-                  <Link
-                    href={user.admin_entry_url}
-                    className="app-nav__utility-admin"
-                    style={{ color: "var(--color-primary)", fontWeight: 600 }}
-                  >
-                    관리자
-                  </Link>
+                  <Link href={user.admin_entry_url}>관리자</Link>
                   <span className="sep" />
                 </>
               )}
