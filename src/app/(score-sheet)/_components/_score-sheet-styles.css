@@ -1156,38 +1156,3 @@
   top: 50%;
   transform: translate(-50%, -50%);
 }
-
-/* ============================================================
-   2026-05-15 (PR-Zoom-2 + PR-Zoom-3) — 기록 확대 모드.
-   사용자 요청: 작은 태블릿에서 기록 영역 (Team 표 + Running Score) 만 크게.
-   ============================================================ */
-
-/* PR-Zoom-2 — 비기록 영역 hide (FibaHeader / FooterSignatures / Coach 행 등).
-   data-zoom-hide attr 박힌 영역만 display:none.
-   진행 매치 + 수정 모드에서만 노출 (form 이 onToggleZoom 분기). */
-main[data-zoom="on"] [data-zoom-hide] {
-  display: none !important;
-}
-
-/* PR-Zoom-3 — 기록 영역 1.3x scale.
-   ss-shell.ss-frame 안 콘텐츠 (Team A/B + Running Score) 만 영향.
-   transform-origin: top center = 좌우 가운데 + 위쪽 기준 확대.
-   width 130% 으로 보정해서 우측 잘림 방지. */
-main[data-zoom="on"] .score-sheet-fiba-frame {
-  transform: scale(1.3);
-  transform-origin: top center;
-  width: 76.92%; /* 100 / 1.3 = 76.92 → scale 후 100% fit */
-  margin: 0 auto;
-}
-
-/* PR-Zoom-4 — 인쇄 시 강제 off (FIBA 양식 정합 보호).
-   @media print 에서 data-zoom 무력화 + 비기록 영역도 다시 display 복원. */
-@media print {
-  main[data-zoom="on"] [data-zoom-hide] {
-    display: revert !important;
-  }
-  main[data-zoom="on"] .score-sheet-fiba-frame {
-    transform: none !important;
-    width: 100% !important;
-  }
-}
