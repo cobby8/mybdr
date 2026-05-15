@@ -28,6 +28,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | feat(division-generator): 유청소년 STEP 4 (U연령) + cross-product 코드 생성 | ✅ divisions.ts YOUTH_AGES(U7~U18) + buildYouthDivisionCodes 헬퍼 / 모달 STEP 4 (youth + 디비전 1개+ 시 노출 + 미리보기 N×M개 종별) / vitest 8 신규 / tsc 0 / vitest 806/806 / PM 결재 Q1+Q4=b 진행 |
+| 2026-05-15 | release #4 (dev → main) — hotfix 명단 제출 500 + Phase 19 PR-S10.1+2 + Phase 23 PR4+PR6 + Phase A.7 | ✅ PR #486 (subin→dev) `31b9f22` + PR #487 (dev→main) `e9f63d1` 머지 / Vercel 자동 배포 / 6 commits 운영 적용 |
+| 2026-05-15 | 최영철 사이드바 메뉴 미노출 다각도 진단 (read-only) | ✅ 운영 DB + 시뮬레이션 + Vercel status 7면 점검 — **코드 100% 정상 + 배포 SUCCESS** / filterStructureByRoles 시뮬레이션 = "대시보드 + 콘텐츠/대회 관리/대회 운영자 도구" 정상 노출 / 원인 = 브라우저 JS bundle 캐시 hit (Hard refresh 안내) |
 | 2026-05-15 | fix(team-apply): 명단 제출 500 에러 hotfix — 등번호 중복 3중 가드 | ✅ team-apply-form.tsx Layer1 client 사전 차단 + route.ts Layer2 zod refine (PostBody/PutBody) + Layer3 P2002 try/catch 422 응답 / tsc 0 / vitest 798/798 / **운영 사용자 보고 즉시 대응** (강남구협회장배 유소년부 / 12번 row 김보민 등번호 1 중복) |
 | 2026-05-15 | Phase 19 PR-S10.8 score-sheet P1 3 영역 시각 hotfix (빈 row + section border + footer/coach 정합) | ✅ _score-sheet-styles.css 1 파일 / #1 빈 row `:not([data-fouled-out])` + var(--pap-fill) 옅은 회색 (옵션 A) / #2 변경 0 (selector + 룰 이미 정합 ✓) / #3 coach padding `2px 8px` → `0 8px` 시안 정합 / tsc 0 / vitest 211/211 / PM 결재 대기 |
 | 2026-05-15 | Phase 19 PR-S10.7 score-sheet 4 영역 hotfix (frame 폭 + selector + A4 + 선 두께) | ✅ _score-sheet-styles.css L549 ss-tbox 합성 + L1012 ss-rs 통합 / form.tsx L1217 frame grid md:grid-cols-[45fr_55fr] / 영역 C/D = 이미 만족 변경 0 / tsc 0 / vitest 211/211 / PM 결재 대기 |
