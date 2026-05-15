@@ -1,33 +1,31 @@
-import { type ReactNode } from "react";
+﻿import { type ReactNode } from "react";
 
 /* ============================================================
- * AdminPageHeader — 관리자 페이지 공통 헤더 (Admin-2 박제 2026-05-15)
+ * AdminPageHeader ??愿由ъ옄 ?섏씠吏 怨듯넻 ?ㅻ뜑 (Admin-2 諛뺤젣 2026-05-15)
  *
- * 박제 source: Dev/design/BDR-current/components-admin.jsx (AdminPageHeader)
- * 박제 target: src/components/admin/admin-page-header.tsx
+ * 諛뺤젣 source: Dev/design/BDR-current/components-admin.jsx (AdminPageHeader)
+ * 諛뺤젣 target: src/components/admin/admin-page-header.tsx
  *
- * 이유 (왜):
- *   - 시안 v2.14 의 `.admin-pageheader` 시각 패턴 일관 박제 (eyebrow + h1
- *     display + subtitle + actions). admin.css 박제 클래스로 시각 갱신.
- *   - 호출처 22개 회귀 0 보장 — props 시그니처 100% 보존
+ * ?댁쑀 (??:
+ *   - ?쒖븞 v2.14 ??`.admin-pageheader` ?쒓컖 ?⑦꽩 ?쇨? 諛뺤젣 (eyebrow + h1
+ *     display + subtitle + actions). admin.css 諛뺤젣 ?대옒?ㅻ줈 ?쒓컖 媛깆떊.
+ *   - ?몄텧泥?22媛??뚭? 0 蹂댁옣 ??props ?쒓렇?덉쿂 100% 蹂댁〈
  *     (title, subtitle, eyebrow, searchPlaceholder, searchName,
- *      searchDefaultValue, actions). breadcrumbs 만 옵션 신규 추가.
+ *      searchDefaultValue, actions). breadcrumbs 留??듭뀡 ?좉퇋 異붽?.
  *
- * 어떻게:
- *   1. JSX 구조를 시안 그대로: header.admin-pageheader > body + actions.
- *   2. breadcrumbs 옵션 (admin-pageheader__breadcrumbs).
- *   3. searchPlaceholder/searchName/searchDefaultValue 가 있으면 검색 form
- *      을 actions 영역 좌측에 박제 — 22개 호출처 보존.
+ * ?대뼸寃?
+ *   1. JSX 援ъ“瑜??쒖븞 洹몃?濡? header.admin-pageheader > body + actions.
+ *   2. breadcrumbs ?듭뀡 (admin-pageheader__breadcrumbs).
+ *   3. searchPlaceholder/searchName/searchDefaultValue 媛 ?덉쑝硫?寃??form
+ *      ??actions ?곸뿭 醫뚯륫??諛뺤젣 ??22媛??몄텧泥?蹂댁〈.
  * ============================================================ */
 interface AdminPageHeaderProps {
   title: string;
-  subtitle?: string; // "전체 42개" 같은 부제
-  eyebrow?: string; // (web) 패턴: title 위 작은 라벨 (예: "ADMIN · USERS")
+  subtitle?: string; // "?꾩껜 42媛? 媛숈? 遺??  eyebrow?: string; // (web) ?⑦꽩: title ???묒? ?쇰꺼 (?? "ADMIN 쨌 USERS")
   searchPlaceholder?: string;
-  searchName?: string; // form input name (기본값 "q")
+  searchName?: string; // form input name (湲곕낯媛?"q")
   searchDefaultValue?: string;
-  actions?: ReactNode; // 우측 추가 버튼 등
-  // 2026-05-15 Admin-2 박제 — 시안 breadcrumbs 옵션 (admin-pageheader__breadcrumbs)
+  actions?: ReactNode; // ?곗륫 異붽? 踰꾪듉 ??  // 2026-05-15 Admin-2 諛뺤젣 ???쒖븞 breadcrumbs ?듭뀡 (admin-pageheader__breadcrumbs)
   breadcrumbs?: { label: string; onClick?: () => void }[];
 }
 
@@ -41,21 +39,20 @@ export function AdminPageHeader({
   actions,
   breadcrumbs,
 }: AdminPageHeaderProps) {
-  // 검색 form 노출 여부 — searchPlaceholder 있을 때만
+  // 寃??form ?몄텧 ?щ? ??searchPlaceholder ?덉쓣 ?뚮쭔
   const hasSearch = !!searchPlaceholder;
-  // actions 영역 노출 — 검색 또는 사용자 액션 1개라도 있을 때
-  const hasActions = hasSearch || !!actions;
+  // actions ?곸뿭 ?몄텧 ??寃???먮뒗 ?ъ슜???≪뀡 1媛쒕씪???덉쓣 ??  const hasActions = hasSearch || !!actions;
 
   return (
-    // 시안 클래스 — admin.css `.admin-pageheader` 박제
+    // ?쒖븞 ?대옒????admin.css `.admin-pageheader` 諛뺤젣
     <header className="admin-pageheader">
-      {/* 좌측: breadcrumbs + eyebrow + 제목 + 부제 */}
+      {/* 醫뚯륫: breadcrumbs + eyebrow + ?쒕ぉ + 遺??*/}
       <div className="admin-pageheader__body">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <div className="admin-pageheader__breadcrumbs">
             {breadcrumbs.map((b, i) => (
               <span key={`${b.label}-${i}`}>
-                {i > 0 && <span style={{ opacity: 0.4, marginRight: 6 }}>›</span>}
+                {i > 0 && <span style={{ opacity: 0.4, marginRight: 6 }}>??/span>}
                 {b.onClick ? (
                   <a onClick={b.onClick} style={{ cursor: "pointer" }}>
                     {b.label}
@@ -72,7 +69,7 @@ export function AdminPageHeader({
         {subtitle && <p className="admin-pageheader__subtitle">{subtitle}</p>}
       </div>
 
-      {/* 우측: 검색 form (있을 때) + actions slot (호출처 보존) */}
+      {/* ?곗륫: 寃??form (?덉쓣 ?? + actions slot (?몄텧泥?蹂댁〈) */}
       {hasActions && (
         <div className="admin-pageheader__actions">
           {hasSearch && (
@@ -85,8 +82,7 @@ export function AdminPageHeader({
                 style={{ minWidth: 0 }}
               />
               <button type="submit" className="btn btn--primary btn--sm shrink-0">
-                검색
-              </button>
+                寃??              </button>
             </form>
           )}
           {actions}

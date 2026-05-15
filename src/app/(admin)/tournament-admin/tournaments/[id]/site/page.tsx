@@ -204,9 +204,13 @@ export default function TournamentSitePage() {
   };
 
   const handleNextFromStep2 = async () => {
-    // Step 2 → Step 3: 중간 저장
-    const ok = await save();
-    if (ok) setStep(3);
+    // Step 2 → Step 3: subdomain 입력은 Step 3 에서 받음 → subdomain 있을 때만 중간 저장.
+    // (2026-05-15 fix: subdomain 빈 상태 PATCH 시 BFF 가 400 "서브도메인이 필요합니다" 반환 → UX 차단.)
+    if (subdomain.trim()) {
+      const ok = await save();
+      if (!ok) return;
+    }
+    setStep(3);
   };
 
   if (loading) {
