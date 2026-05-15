@@ -146,18 +146,22 @@ export function FibaHeader({
             - values.referee / values.umpire1 / values.umpire2 + update(key) — 시안 SSField input 형 */}
       <section className="ss-meta">
         <div className="ss-meta__l">
+          {/* 2026-05-15 (PR-SS-meta-Layout) — 사용자 요청 재배치:
+              1행: Competition (가장 넓게) + Game No.
+              2행: Date + Time + Place
+              이전 박제: 1행 Competition+Date+Time / 2행 Game No.+Place. */}
           <div className="ss-meta__row">
             <SSFieldDisplay
               label="Competition"
               value={competitionName}
-              grow={2}
+              grow={3}
               allowWrap
             />
-            <SSFieldDisplay label="Date" value={dateLabel ?? ""} />
-            <SSFieldDisplay label="Time" value={timeLabel ?? ""} />
+            <SSFieldDisplay label="Game No." value={gameNo ?? ""} />
           </div>
           <div className="ss-meta__row">
-            <SSFieldDisplay label="Game No." value={gameNo ?? ""} />
+            <SSFieldDisplay label="Date" value={dateLabel ?? ""} />
+            <SSFieldDisplay label="Time" value={timeLabel ?? ""} />
             <SSFieldDisplay label="Place" value={placeLabel ?? ""} grow={3} />
           </div>
         </div>
