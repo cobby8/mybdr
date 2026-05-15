@@ -315,6 +315,9 @@ export function ScoreSheetForm({
   //   왜: 시안 toolbar 의 "경기 종료" 버튼이 MatchEndButton 의 confirm modal trigger 위임.
   //   기존 MatchEndButton 의 confirm modal + BFF submit + submitted 토스트 흐름 100% 보존.
   const [matchEndOpen, setMatchEndOpen] = useState(false);
+  // 2026-05-15 (PR-Zoom-1) — 기록 확대 mode (작은 태블릿 fit).
+  //   on 시 main wrapper data-zoom="on" → CSS 가 비기록 영역 hide + 기록 영역 1.3x.
+  const [isZoomMode, setIsZoomMode] = useState(false);
   // PR-S2 후속 fix 3 (2026-05-14) — MatchEndButton 의 submitted 상태 추적.
   //   왜: toolbar 의 "경기 종료" 버튼이 submitted 인지 알아야 시각 disabled 분기 가능.
   //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
@@ -1450,7 +1453,10 @@ export function ScoreSheetForm({
     //
     //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
-    <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+    <main
+      className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1"
+      data-zoom={isZoomMode ? "on" : "off"}
+    >
       {/* Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
           차단 ❌ / UI 경고 배너 + audit 박제 (변경 허용).
           운영자가 종료된 매치를 재진입하면 즉시 인식 + 재제출 시 audit 박제로 추적. */}
@@ -1655,6 +1661,11 @@ export function ScoreSheetForm({
         }
         // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
         onOpenManual={handleOpenManual}
+        // 2026-05-15 (PR-Zoom-1) — 기록 확대 toggle. 진행 매치 + 수정 모드 시 노출.
+        isZoomMode={isZoomMode}
+        onToggleZoom={
+          !isCompleted || isEditMode ? () => setIsZoomMode((v) => !v) : undefined
+        }
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
