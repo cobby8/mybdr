@@ -86,6 +86,10 @@ interface FibaHeaderProps {
   // 화살표 클릭 콜백 (헬드볼 confirm 모달 trigger). 미전달 시 = read-only 클릭 비활성.
   //   isReadOnly 매치 또는 첫 점프볼 미완료 시 caller 가 undefined 전달 → 본 컴포넌트가 자동 비활성.
   onArrowClick?: () => void;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //   "halves" 시 = 쿼터 뱃지 라벨 = "전반" / "후반" / "OT{N}". 기본 (= "quarters" 또는 미전달) = Q{N} / OT{N}.
+  //   form.tsx 가 periodFormat state 를 prop drilling. 운영 호환 = 미전달 시 기본 동작 유지.
+  periodFormat?: "halves" | "quarters";
 }
 
 export function FibaHeader({
@@ -105,12 +109,28 @@ export function FibaHeader({
   marksCount, // 2026-05-16 (PR-Quarter-Badge-v3) — 뱃지 하단 상태 라벨 산출 (이미지 #157)
   possessionArrow, // 2026-05-16 (PR-Possession-2) — 공격권 화살표 (home/away/null)
   onArrowClick, // 2026-05-16 (PR-Possession-2) — 화살표 클릭 = 헬드볼 confirm 모달 trigger
+  periodFormat, // 2026-05-16 (긴급 박제 — 전후반 모드)
 }: FibaHeaderProps) {
   // 2026-05-16 (PR-Quarter-Badge) — 쿼터 라벨 산출.
   //   matchEnded=true → "경기 종료" / currentPeriod 1~4 → "Q{N}" / 5~ → "OT{N-4}" / 미전달 → null.
+  //
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별):
+  //   periodFormat === "halves" 시:
+  //     - currentPeriod 1 → "전반"
+  //     - currentPeriod 2 → "후반"
+  //     - currentPeriod 3+ → "OT{N-2}" (전후반 모드 OT = period 3 부터 시작 = OT1)
+  //   그 외 (= quarters 또는 미전달) = 기존 4쿼터 룰 (운영 호환).
   const quarterLabel: string | null = (() => {
     if (matchEnded) return "경기 종료";
     if (currentPeriod == null) return null;
+    // 전후반 모드 분기
+    if (periodFormat === "halves") {
+      if (currentPeriod === 1) return "전반";
+      if (currentPeriod === 2) return "후반";
+      if (currentPeriod >= 3) return `OT${currentPeriod - 2}`;
+      return null;
+    }
+    // 기본 (4쿼터)
     if (currentPeriod >= 1 && currentPeriod <= 4) return `Q${currentPeriod}`;
     if (currentPeriod >= 5) return `OT${currentPeriod - 4}`;
     return null;
