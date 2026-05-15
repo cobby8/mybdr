@@ -284,14 +284,41 @@ export function TeamSection({
               toRows.push(extra);
             }
 
+            // PR-Stat3.3 (2026-05-15) — phase 별 cell idx 매핑 (사용자 명시 — OT cell 동작 안 함).
+            //   기존 `filled = i < totalUsed` = 순차 채움 (cell 0 부터). OT 진입 시 cell 5 = 비어있음 + isNextEmpty
+            //   (i === totalUsed) = false → 클릭 불가.
+            //   수정 = phase 별 timeouts 분리 후 cell idx → phase position 매핑:
+            //     - cell 0/1 (전반): firstHalfTimeouts[0/1]
+            //     - cell 2/3/4 (후반): secondHalfTimeouts[0/1/2]
+            //     - cell 5+ (OT): overtimeTimeouts[0/1/2+]
+            const firstHalfTimeouts = timeouts.filter((t) => t.period <= 2);
+            const secondHalfTimeouts = timeouts.filter(
+              (t) => t.period === 3 || t.period === 4,
+            );
+            const overtimeTimeouts = timeouts.filter((t) => t.period >= 5);
+
             const renderCell = (i: number) => {
-              const filled = i < totalUsed;
-              const isLastFilled = filled && i === totalUsed - 1;
-              const isNextEmpty = !filled && i === totalUsed;
+              // phase 별 cell 매핑 — i 가 어느 phase 의 몇 번째인지 결정
+              const phaseStart = i < 2 ? 0 : i < 5 ? 2 : 5;
+              const positionInPhase = i - phaseStart;
+              const phaseTimeouts =
+                i < 2
+                  ? firstHalfTimeouts
+                  : i < 5
+                    ? secondHalfTimeouts
+                    : overtimeTimeouts;
+              const phaseUsed = phaseTimeouts.length;
+              const filled = positionInPhase < phaseUsed;
+              const isLastFilled =
+                filled && positionInPhase === phaseUsed - 1;
+              const isNextEmpty =
+                !filled && positionInPhase === phaseUsed;
               // 칸 라벨 — 위치별 phase 안내 (시안 7 cells 정합)
               //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5-6 = OT (2칸 / 시안 표준) / 7+ = OT 다중
-              const cellLabel = filled
-                ? `Period ${timeouts[i].period} 타임아웃`
+              // PR-Stat3.3 (2026-05-15) — phase 매핑 적용 후 timeouts[i] 대신 phaseTimeouts[positionInPhase].
+              const cellTimeout = filled ? phaseTimeouts[positionInPhase] : null;
+              const cellLabel = cellTimeout
+                ? `Period ${cellTimeout.period} 타임아웃`
                 : i < 2
                   ? `전반 타임아웃 ${i + 1}`
                   : i < 5
@@ -299,9 +326,9 @@ export function TeamSection({
                     : i < 7
                       ? `OT 타임아웃 ${i - 4}`
                       : `OT 추가 타임아웃 ${i - 6}`;
-              // Phase 17 — 마킹 색 = phase 별 색 (filled 면 timeouts[i].period 기준).
-              const markColor = filled
-                ? getTimeoutPhaseColor(timeouts[i].period)
+              // Phase 17 — 마킹 색 = phase 별 색 (filled 면 cellTimeout.period 기준).
+              const markColor = cellTimeout
+                ? getTimeoutPhaseColor(cellTimeout.period)
                 : undefined;
               // Phase 19 PR-T2 (2026-05-15) — cell 위치 phase 와 현재 period phase 불일치 시 비활성.
               //   왜: 시안 7 cells (전반 2 / 후반 3 / OT 2) 정합 — 다른 phase cell 은 시각 회색 + 클릭 차단.
