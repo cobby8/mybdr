@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-16 (Phase 1 admin 흐름 개선 6 PR 완료 — Admin-1~6 / 강남구협회장배 시나리오 단절·누락 8건 해소 / lessons.md 49항목 / decisions.md 119항목 / conventions.md 52항목 / 본 세션 push 12 commit / +4,000+ LOC)
+> 최종 갱신: 2026-05-16 (PR-Public-1 공개 bracket 탭 종별 view + 강남구협회장배 운영 적용 / decisions.md 120항목 / lessons.md 49 / conventions.md 52 / 본 세션 push 16 commit)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -17,6 +17,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-16] decisions: **PR-Public-1 공개 bracket 탭 종별 view + 강남구협회장배 운영 박제** — 강남구협회장배 6 종별 / 36 팀 / 59 매치 (format=dual_tournament + round_number NULL 케이스) 공개 페이지 표시. 신규 3 컴포넌트 (divisions-view / division-schedule-table / division-group-composition) + API 확장 (public-bracket route +48) + wrapper 4단 우선순위 분기 (hasKnockout > divisionRules >= 1 > groupTeams > BracketEmpty). 3 commit (`6f54990` 본체 + `53245b2` fix1 isDual 분기 + `ccd6f0f` fix2 isLeague 강제). admin /playoffs 패턴 답습 / 회귀 0 / 사용자 시각 검증 PASS.
 - [05-16] decisions: **Phase 1 admin 흐름 개선 6 PR 박제** — Phase 0 점검 (`Dev/admin-flow-audit-2026-05-16.md` 231줄 / 18건 인벤토리 / 영향도 H 8건) → Phase 1 우선 1~6 PR 6건 박제. **PR-Admin-1** `4c05c8c` NextStepCTA / **PR-Admin-2** `1e4b535` AdvancePlayoffsButton / **PR-Admin-3** `823d692` PlaceholderValidationBanner / **PR-Admin-4** `6d7718a` DivisionGenerateButton (별도 endpoint /division-rules/[ruleId]/generate) / **PR-Admin-5** `f4b0f95` SetupChecklist 8→7 통합 / **PR-Admin-6** `f250e8c` /playoffs 신규 hub (5 섹션 + 재사용 컴포넌트 4종). 강남구협회장배 시나리오 §3 단계 4·7·10·10.5 단절·누락 해소. 회귀 0 (bracket POST 5 분기 / canPublish / placeholder-helpers / match-sync 모두 시그니처 변경 0). 옵션 B PM 직접 검증 모드 적용 (PR당 30~40분→15~20분). 총 +3,060 LOC.
 - [05-16] lessons: **admin 흐름 점검 = Phase 0 read-only 보고서 → Phase 1 우선 PR 분해 패턴** — 대규모 UX 개선 표준 절차 4 Phase. 본 세션 적용 = Phase 0 점검 30분 + Phase 1 6 PR 분해 3시간. 룰: (a) 점검 보고서는 read-only 별도 파일 (scratchpad 박제 0 / 오염 방지) (b) 단절/중복/혼란/누락 4 분류 + 영향도 H/M/L 표준 (c) 재사용 컴포넌트 우선 (d) planner 통합 설계 (3 PR 묶음 = 1회 호출) (e) PM 직접 검증 모드 옵션 B. 다른 도메인 대규모 UX 개선 시 동일 4 Phase 적용 가능.
 - [05-16] conventions: **PM `git add` 전 = `git status` staged 상태 의무 점검** — PR-Admin-1 commit 시 다른 세션이 staged 한 score-sheet 22 파일이 본 PR 에 휩쓸림 (총 25 files changed / 의도 위반). 표준 절차 5단계: (1) git status (2) staged 인 파일 확인 (3) 본 PR 무관 파일 unstage (`git reset HEAD <파일>`) (4) `git add <본 PR 파일>` (5) commit. 다중 세션 환경 특이성 = 같은 worktree 에서 다른 세션 staged 누적 가능.
