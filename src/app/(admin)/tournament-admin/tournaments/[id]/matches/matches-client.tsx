@@ -496,6 +496,13 @@ export default function MatchesClient() {
             ← 대회 관리
           </Link>
           <h1 className="mt-1 text-xl font-bold sm:text-2xl">경기 관리</h1>
+          {/* 2026-05-16 PR-Admin-6 — 순위전·결승 hub 진입 link (운영자 단계 10~11 흐름 단축) */}
+          <Link
+            href={`/tournament-admin/tournaments/${id}/playoffs`}
+            className="mt-1 inline-block text-xs text-[var(--color-info)] hover:underline"
+          >
+            순위전·결승 hub →
+          </Link>
         </div>
         <div className="flex flex-wrap gap-2">
           {matches.length > 0 ? (

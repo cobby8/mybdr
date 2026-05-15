@@ -295,6 +295,20 @@ export default function DivisionsSetupPage() {
         </div>
       )}
 
+      {/* 2026-05-16 PR-Admin-6 — 순위전·결승 hub 진입 안내 (예선 종료 후 단계 10~11 통합 hub) */}
+      <Card className="mb-3" style={{ borderLeft: "3px solid var(--color-info)" }}>
+        <p className="text-sm text-[var(--color-text-primary)]">
+          예선 종료 후 순위전·결승·우승팀 결정은{" "}
+          <Link
+            href={`/tournament-admin/tournaments/${tournamentId}/playoffs`}
+            className="font-semibold text-[var(--color-info)] hover:underline"
+          >
+            순위전·결승 hub →
+          </Link>{" "}
+          에서 일괄 처리하세요.
+        </p>
+      </Card>
+
       {/* 안내 */}
       <Card className="bg-[var(--color-elevated)]">
         <h3 className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">진행 방식 가이드</h3>
