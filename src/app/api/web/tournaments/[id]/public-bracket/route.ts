@@ -40,7 +40,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 2026-05-15 PR-G5.9 — league_advancement / group_stage_with_ranking 추가 (강남구 다종별 운영).
   //   tournament.format 이 null 인 다종별 대회 (종별마다 다른 format) 도 leagueMatches 노출 위해
   //   bracketOnlyMatches (round_number+bracket_position) 미해당 매치는 모두 leagueMatches 분기.
-  const isLeague =
+  // 2026-05-16 PR-Public-1 fix — divisionRules.length >= 1 (다종별 대회) 도 leagueMatches 노출.
+  //   강남구협회장배 (format="dual_tournament" + 6 종별) 케이스 — DivisionsView 가 매치 0건 받지 않도록.
+  //   divisionRules SELECT 가 line 109 에 있어 const 대신 let + 재할당 패턴.
+  let isLeague =
     tournament.format === "round_robin" ||
     tournament.format === "full_league" ||
     tournament.format === "full_league_knockout" ||
@@ -133,6 +136,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     format: r.format,
     settings: r.settings,
   }));
+
+  // 2026-05-16 PR-Public-1 fix — 다종별 대회 (divisionRules >= 1) 는 isLeague=true 강제.
+  //   강남구협회장배 (format="dual_tournament" + 6 종별) 같은 케이스 — leagueMatches 빌드 의무.
+  //   회귀 0 — 단일 종별 dual_tournament 대회 (divisionRules=0) 는 영향 0.
+  if (divisionRulesRaw.length >= 1) {
+    isLeague = true;
+  }
 
   // 2026-05-02: live + in_progress 둘 다 라이브로 인식 (Flutter app 은 'live' 사용)
   const liveMatchList = matches.filter((m) => m.status === "live" || m.status === "in_progress");
