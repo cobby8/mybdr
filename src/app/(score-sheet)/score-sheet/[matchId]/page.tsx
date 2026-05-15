@@ -471,6 +471,69 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     }
   }
 
+  // 2026-05-16 (긴급 박제 — i3 종별 자동 halves / 운영 시급).
+  //
+  // 왜 (이유):
+  //   유청소년 i3 종별 매치는 운영 룰상 전후반(20분 × 2). 운영자가 매번 "전후반 ON" 토글
+  //   하는 부담 + 깜빡 가능성 차단 위해 매치 진입 시 자동 halves 기본값 박제.
+  //
+  // 우선순위 (낮 → 높):
+  //   1. "quarters" 기본 폴백 (4쿼터)
+  //   2. i3 종별 자동 halves (본 박제)
+  //   3. server settings.period_format (운영자 직접 박제 — 위 추출 결과)
+  //   4. localStorage draft.periodFormat (score-sheet-form 내부에서 마지막에 적용)
+  //
+  // i3 판정 룰:
+  //   - match.settings.division_code 가 "i3" 로 시작 (예: "i3", "i3W") = i3 종별
+  //   - 또는 home_team.division / away_team.division 이 "i3" 로 시작 = i3 종별
+  //   - 한쪽이라도 i3 일 시 = i3 매치 (믹스 매치 없음 — 종별 분리 룰)
+  //
+  // 운영 영향:
+  //   - 기존 server settings.period_format 박제된 매치 = 본 분기 안 탐 (위 우선순위 3 우선)
+  //   - i3 외 종별 매치 (D/U/S/i1/i2/i4 등) = 변경 0 (4쿼터 유지)
+  //   - localStorage 미박제 신규 매치 = 자동 halves 적용 (운영자 편의)
+  if (!initialPeriodFormat) {
+    // settings.division_code 우선 추출
+    let divisionCodeCandidate: string | null = null;
+    if (
+      match.settings &&
+      typeof match.settings === "object" &&
+      !Array.isArray(match.settings)
+    ) {
+      const dc = (match.settings as Record<string, unknown>).division_code;
+      if (typeof dc === "string" && dc.length > 0) {
+        divisionCodeCandidate = dc;
+      }
+    }
+    // settings 미박제 시 home/away tournamentTeam.division SELECT 폴백.
+    //   추가 쿼리 1 (작은 비용 / SELECT 만 / 운영 영향 0).
+    if (!divisionCodeCandidate) {
+      const [homeDiv, awayDiv] = await Promise.all([
+        match.homeTeamId
+          ? prisma.tournamentTeam.findUnique({
+              where: { id: match.homeTeamId },
+              select: { division: true },
+            })
+          : Promise.resolve(null),
+        match.awayTeamId
+          ? prisma.tournamentTeam.findUnique({
+              where: { id: match.awayTeamId },
+              select: { division: true },
+            })
+          : Promise.resolve(null),
+      ]);
+      divisionCodeCandidate = homeDiv?.division ?? awayDiv?.division ?? null;
+    }
+    // i3 판정 — "i3" 로 시작 (i3 / i3W 등 여성부 접미사 허용).
+    //   대소문자 case-insensitive (운영자 입력 변종 방어).
+    const isI3 =
+      divisionCodeCandidate != null &&
+      divisionCodeCandidate.toLowerCase().startsWith("i3");
+    if (isI3) {
+      initialPeriodFormat = "halves";
+    }
+  }
+
   // quarter_scores DB 값 (cross-check 용 — Q4 PBP 합산과 mismatch 시 ScoreSheetForm 이 경고 배너 표시)
   const initialQuarterScoresDB =
     match.quarterScores && typeof match.quarterScores === "object"

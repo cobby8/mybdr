@@ -1755,13 +1755,12 @@ export function ScoreSheetForm({
       "라인업 확정 — 선발 5인 자동 P.IN 체크 (후보는 교체 시 수동 체크)",
       "info"
     );
-    // 2026-05-16 (PR-Possession-2) — 라인업 확정 직후 점프볼 모달 자동 open.
-    //   possession.openingJumpBall === null = 미박제 = 첫 진입 → 모달 open.
-    //   재진입 (이미 박제됨) = skip (재정정은 별도 흐름 — PR-3 이후 검토).
-    //   isReadOnly 매치 (수정 모드 미진입) = skip (이중 방어 — open 분기 가드 + 본 trigger 가드).
-    if (!isReadOnly && possession.openingJumpBall === null) {
-      setJumpBallModalOpen(true);
-    }
+    // 2026-05-16 (긴급 박제 — 점프볼 버튼 박제 / 시합 운영 중):
+    //   기존 박제 = 라인업 confirm 직후 점프볼 모달 자동 trigger.
+    //   변경 = trigger 제거 (사용자 명시). 운영자가 헤더 [점프볼] 버튼 클릭 시 수동 open.
+    //   사유: 자동 open = 운영자 흐름 끊김 + 라인업 확정 단계에서 점프볼 강제 → UX 부담.
+    //   대체 = fiba-header 의 화살표 자리에 [점프볼] 버튼 노출 (openingJumpBall === null 시) →
+    //     클릭 시 handleArrowClick 호출 → 본 form 의 분기 (아래 handleArrowClick) 가 처리.
   }
 
   // 2026-05-16 (PR-Possession-2) — 점프볼 모달 confirm 핸들러.
@@ -1827,12 +1826,22 @@ export function ScoreSheetForm({
 
   // 2026-05-16 (PR-Possession-2) — 헤더 화살표 클릭 핸들러.
   //
-  // 흐름:
-  //   1. FibaHeader 의 화살표 버튼 클릭 → onArrowClick 콜백 = 본 handler
+  // 흐름 (긴급 박제 — 점프볼 버튼 박제 / 시합 운영 중):
+  //   1. FibaHeader 의 화살표/[점프볼] 버튼 클릭 → onArrowClick 콜백 = 본 handler
   //   2. isReadOnly 가드 (수정 모드 미진입 시 차단)
-  //   3. setHeldBallConfirmOpen(true) → PossessionConfirmModal 표시
+  //   3. 분기:
+  //      - openingJumpBall === null (= [점프볼] 버튼 노출 상태) → setJumpBallModalOpen(true)
+  //        (점프볼 모달 수동 open — 라인업 confirm 직후 자동 trigger 제거됨)
+  //      - openingJumpBall 박제됨 (= 화살표 ←/→ 노출 상태) → setHeldBallConfirmOpen(true)
+  //        (헬드볼 confirm 모달 — 기존 동작 보존)
   function handleArrowClick() {
     if (isReadOnly) return;
+    if (possession.openingJumpBall === null) {
+      // 첫 점프볼 미박제 = [점프볼] 버튼 노출 상태 → 점프볼 모달 직접 open
+      setJumpBallModalOpen(true);
+      return;
+    }
+    // 점프볼 박제 완료 = 화살표 노출 상태 → 헬드볼 confirm 모달
     setHeldBallConfirmOpen(true);
   }
 
