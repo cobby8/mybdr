@@ -7,11 +7,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0,0&display=swap" rel="stylesheet">
+<style>
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'opsz' 24;
+}
+</style>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet"/>
 <link rel="stylesheet" href="tokens.css"/>
 <link rel="stylesheet" href="responsive.css"/>
 <link rel="stylesheet" href="scoresheet.css"/>
+<link rel="stylesheet" href="admin.css"/>
 </head>
 <body>
 
@@ -126,6 +145,44 @@
 <script type="text/babel" src="screens/Invite.jsx"></script>
 <script type="text/babel" src="screens/PricingFail.jsx"></script>
 <script type="text/babel" src="screens/PricingSuccess.jsx"></script>
+<script type="text/babel" src="screens/TournamentAdminWizard.data.jsx"></script>
+<script type="text/babel" src="screens/TournamentAdminWizard.parts.jsx"></script>
+<script type="text/babel" src="screens/TournamentAdminWizard.jsx"></script>
+<script type="text/babel" src="screens/AssociationWizard.jsx"></script>
+<script type="text/babel" src="components-admin.jsx"></script>
+<script type="text/babel" src="components-admin-checklist.jsx"></script>
+<script type="text/babel" src="screens/AdminDashboard.jsx"></script>
+<script type="text/babel" src="screens/AdminComingSoon.jsx"></script>
+<script type="text/babel" src="screens/AdminTournaments.jsx"></script>
+<script type="text/babel" src="screens/AdminGames.jsx"></script>
+<script type="text/babel" src="screens/AdminTeams.jsx"></script>
+<script type="text/babel" src="screens/AdminCourts.jsx"></script>
+<script type="text/babel" src="screens/AdminCommunity.jsx"></script>
+<script type="text/babel" src="screens/AdminNews.jsx"></script>
+<script type="text/babel" src="screens/AdminUsers.jsx"></script>
+<script type="text/babel" src="screens/AdminGameReports.jsx"></script>
+<script type="text/babel" src="screens/AdminSuggestions.jsx"></script>
+<script type="text/babel" src="screens/AdminPlans.jsx"></script>
+<script type="text/babel" src="screens/AdminPayments.jsx"></script>
+<script type="text/babel" src="screens/AdminCampaigns.jsx"></script>
+<script type="text/babel" src="screens/AdminPartners.jsx"></script>
+<script type="text/babel" src="screens/PartnerAdminEntry.jsx"></script>
+<script type="text/babel" src="screens/AdminAnalytics.jsx"></script>
+<script type="text/babel" src="screens/AdminSettings.jsx"></script>
+<script type="text/babel" src="screens/AdminLogs.jsx"></script>
+<script type="text/babel" src="screens/AdminMe.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentDetail.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentAuditLog.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentTransferOrganizer.jsx"></script>
+<script type="text/babel" src="screens/AdminOrganizations.jsx"></script>
+<script type="text/babel" src="screens/AdminNotifications.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentAdminHome.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentAdminList.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentSetupHub.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentWizard1Step.jsx"></script>
+<script type="text/babel" src="screens/AdminTournamentEditWizard.jsx"></script>
+<script type="text/babel" src="screens/AdminWizardTournament.jsx"></script>
+<script type="text/babel" src="screens/AdminWizardAssociation.jsx"></script>
 <script type="text/babel" src="screens/ScoreSheet.data.jsx"></script>
 <script type="text/babel" src="screens/ScoreSheet.parts.jsx"></script>
 <script type="text/babel" src="screens/ScoreSheet.bottom.jsx"></script>
@@ -296,12 +353,82 @@ function App() {
   else if (route === 'pricingFail')    screen = <PricingFail setRoute={setRoute}/>;
   else if (route === 'pricingSuccess') screen = <PricingSuccess setRoute={setRoute}/>;
   else if (route === 'scoreSheet')     screen = <ScoreSheet setRoute={setRoute}/>;
+  else if (route === 'tournamentAdminWizard') screen = <TournamentAdminWizard setRoute={setRoute}/>;
+  else if (route === 'associationWizard')     screen = <AssociationWizard setRoute={setRoute}/>;
+  else if (route === 'adminDashboard')        screen = <AdminDashboard setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminWizardTournament') screen = <AdminWizardTournament setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminWizardAssociation') screen = <AdminWizardAssociation setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournaments')      screen = <AdminTournaments setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminGames')            screen = <AdminGames setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTeams')            screen = <AdminTeams setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminCourts')           screen = <AdminCourts setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminCommunity')        screen = <AdminCommunity setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminNews')             screen = <AdminNews setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminUsers')            screen = <AdminUsers setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminGameReports')      screen = <AdminGameReports setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminSuggestions')      screen = <AdminSuggestions setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminPlans')            screen = <AdminPlans setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminPayments')         screen = <AdminPayments setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminCampaigns')        screen = <AdminCampaigns setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminPartners')         screen = <AdminPartners setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'partnerAdminEntry')     screen = <PartnerAdminEntry setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminAnalytics')        screen = <AdminAnalytics setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminSettings')         screen = <AdminSettings setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminLogs')             screen = <AdminLogs setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminMe')               screen = <AdminMe setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentDetail') screen = <AdminTournamentDetail setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentAuditLog') screen = <AdminTournamentAuditLog setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentTransferOrganizer') screen = <AdminTournamentTransferOrganizer setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminOrganizations')    screen = <AdminOrganizations setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminNotifications')    screen = <AdminNotifications setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentAdminHome')   screen = <AdminTournamentAdminHome setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentAdminList')   screen = <AdminTournamentAdminList setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentSetupHub')    screen = <AdminTournamentSetupHub setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentNew')         screen = <AdminTournamentWizard1Step setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (route === 'adminTournamentEditWizard')  screen = <AdminTournamentEditWizard setRoute={setRoute} theme={theme} setTheme={setTheme}/>;
+  else if (window.ADMIN_COMING_SOON_ROUTES && window.ADMIN_COMING_SOON_ROUTES.indexOf(route) !== -1) screen = <AdminComingSoon setRoute={setRoute} theme={theme} setTheme={setTheme} routeKey={route}/>;
   else                          screen = <Home setRoute={setRoute} setActiveBoard={setActiveBoard}/>;
 
   // route group `(score-sheet)` 격리 — AppNav / footer 미노출
   const isScoreSheet = route === 'scoreSheet';
+  const isAdmin = route === 'adminDashboard'
+               || route === 'adminWizardTournament'
+               || route === 'adminWizardAssociation'
+               || route === 'adminTournaments'
+               || route === 'adminGames'
+               || route === 'adminTeams'
+               || route === 'adminCourts'
+               || route === 'adminCommunity'
+               || route === 'adminNews'
+               || route === 'adminUsers'
+               || route === 'adminGameReports'
+               || route === 'adminSuggestions'
+               || route === 'adminPlans'
+               || route === 'adminPayments'
+               || route === 'adminCampaigns'
+               || route === 'adminPartners'
+               || route === 'partnerAdminEntry'
+               || route === 'adminAnalytics'
+               || route === 'adminSettings'
+               || route === 'adminLogs'
+               || route === 'adminMe'
+               || route === 'adminTournamentDetail'
+               || route === 'adminTournamentAuditLog'
+               || route === 'adminTournamentTransferOrganizer'
+               || route === 'adminOrganizations'
+               || route === 'adminNotifications'
+               || route === 'adminTournamentAdminHome'
+               || route === 'adminTournamentAdminList'
+               || route === 'adminTournamentSetupHub'
+               || route === 'adminTournamentNew'
+               || route === 'adminTournamentEditWizard'
+               || (window.ADMIN_COMING_SOON_ROUTES && window.ADMIN_COMING_SOON_ROUTES.indexOf(route) !== -1);
 
   if (isScoreSheet) {
+    return screen;
+  }
+  if (isAdmin) {
+    // admin 자체 셰 — AppNav / footer 미노출
     return screen;
   }
 
@@ -326,6 +453,13 @@ function App() {
           <a onClick={(e)=>{e.preventDefault();setRoute('billing');}} style={{cursor:'pointer'}}>결제</a> ·
           <a onClick={(e)=>{e.preventDefault();setRoute('terms');}} style={{cursor:'pointer'}}>이용약관</a> ·
           <a onClick={(e)=>{e.preventDefault();setRoute('privacy');}} style={{cursor:'pointer'}}>개인정보처리방침</a>
+        </div>
+        <div style={{marginTop:18, display:'inline-flex', flexWrap:'wrap', gap:8, justifyContent:'center', alignItems:'center', padding:'10px 14px', borderRadius:6, background:'var(--bg-alt)', border:'1px solid var(--border)', fontSize:11, color:'var(--ink-mute)', fontFamily:'var(--ff-mono)', letterSpacing:'0.04em'}}>
+          <span style={{color:'var(--accent)', fontWeight:700}}>ADMIN DEBUG</span>
+          <span style={{opacity:0.4}}>·</span>
+          <a onClick={(e)=>{e.preventDefault();setRoute('adminDashboard');}} style={{cursor:'pointer', color:'var(--ink-soft)'}}>대시보드</a>
+          <a onClick={(e)=>{e.preventDefault();setRoute('adminWizardTournament');}} style={{cursor:'pointer', color:'var(--ink-soft)'}}>대회 마법사</a>
+          <a onClick={(e)=>{e.preventDefault();setRoute('adminWizardAssociation');}} style={{cursor:'pointer', color:'var(--ink-soft)'}}>협회 마법사</a>
         </div>
       </footer>
     </>

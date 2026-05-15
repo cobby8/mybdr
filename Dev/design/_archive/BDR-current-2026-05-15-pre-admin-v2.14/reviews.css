@@ -1,0 +1,96 @@
+/* ============================================================
+   Reviews — 통합 리뷰 모음 페이지 (Phase 17)
+   13 룰 §10 토큰만 / §12 4px 라운딩 / §13 모바일 720px 분기
+   ============================================================ */
+
+/* Header — 데스크톱: 본문 + 별점 분포 카드 2열 */
+.reviews-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+/* Controls — 필터 칩 + 정렬 + 리뷰 쓰기 */
+.reviews-controls {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Review card — ContextReviews 비주얼 통일 (bg-alt + 4px 라운딩) */
+.review-card {
+  padding: 18px 22px;
+  background: var(--bg-card, var(--bg-alt));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 18px;
+}
+
+.review-card__target {
+  min-width: 0;
+}
+
+.review-card__type-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px; /* 룰 §12: pill 9999 금지, 카드 표준 4px */
+  text-transform: uppercase;
+}
+
+.review-card__actions {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  min-width: 100px;
+}
+
+/* ============================================================
+   모바일 (≤720px) — 룰 §13
+   ============================================================ */
+@media (max-width: 720px) {
+  .reviews-header {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .reviews-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .reviews-controls > div {
+    justify-content: flex-start;
+  }
+
+  /* 카드 — target / body / actions 세로 stack */
+  .review-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .review-card__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    text-align: left;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* 룰 §13: 버튼 44px 터치 타겟 */
+  .review-card__actions .btn {
+    min-height: 44px;
+  }
+}

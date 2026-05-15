@@ -576,4 +576,143 @@ function ForceActionModal({ open, onClose, mode, memberName, onSubmit }) {
     </Modal>);
 }
 
-Object.assign(window, { Icon, ThemeSwitch, AppNav, NavBadge, MemberPendingBadge, PasswordInput, Modal, ForceActionModal, Onboarding, LevelBadge, Pager, Sidebar, Avatar, Poster });
+// ============================================================
+// WizardShell — 마법사 외곽 wrapper (좌 240 sticky aside + 우 main)
+//   진입: TournamentAdminWizard / AssociationWizard / EditionWizard(예정)
+//   복귀: setRoute('home') 또는 외부 callback
+//   에러: ErrorBoundary 자체 핸들 X (caller 가 EmptyState 카드로 처리)
+// 모바일 (≤720px): aside 가로 stepper / main 1열 stack
+// ============================================================
+function WizardShell({ title, subtitle, eyebrow, stepper, footer, children, onBack, shellMode = 'page', backLabel = '뒤로' }) {
+  const wrapperClass = shellMode === 'admin' ? 'wizard-shell-wrap--admin' : 'page';
+  // admin 모드 = AdminShell.main__inner 가 외부 padding 제공하므로 wizard 자체 padding 최소화
+  const wrapperStyle = shellMode === 'admin' ? { padding: 0, maxWidth: 'none', margin: 0 } : { maxWidth: 1080 };
+  const isAdmin = shellMode === 'admin';
+  return (
+    <div className={wrapperClass} style={wrapperStyle}>
+      {!isAdmin && (
+        <div style={{ fontSize: 12, color: 'var(--ink-mute)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {onBack && (
+            <button onClick={onBack} style={{ background: 'transparent', border: 0, color: 'var(--ink-mute)', cursor: 'pointer', padding: 0, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>arrow_back</span> {backLabel}
+            </button>
+          )}
+          {onBack && <span style={{ opacity: 0.4 }}>·</span>}
+          <span>대회 관리자</span>
+          <span style={{ opacity: 0.4 }}>›</span>
+          <span style={{ color: 'var(--ink)' }}>{eyebrow || '마법사'}</span>
+        </div>
+      )}
+
+      <div className="eyebrow">{eyebrow || 'WIZARD'}</div>
+      <h1 style={{ margin: '8px 0 6px', fontSize: 28, fontWeight: 800, letterSpacing: '-0.02em' }}>{title}</h1>
+      {subtitle && <p style={{ color: 'var(--ink-mute)', fontSize: 14, marginBottom: 24, lineHeight: 1.6, maxWidth: 720 }}>{subtitle}</p>}
+
+      <div className="wizard-shell">
+        <aside className="wizard-shell__aside">{stepper}</aside>
+        <main className="wizard-shell__main">
+          {children}
+          {footer && <div className="wizard-shell__footer">{footer}</div>}
+        </main>
+      </div>
+    </div>);
+
+}
+
+// ============================================================
+// WizardStepper — 단계 표시
+// step 상태: 완료 (var(--ok) ✓) / 현재 (accent) / 미진행 (--ink-mute + --bg-alt)
+// 동그라미는 02 §4-1 명확화 — 정사각형 50% 만 예외 허용
+// 데스크톱 세로 / 모바일 가로 (스크롤)
+// ============================================================
+function WizardStepper({ steps, currentStep, completedSteps, onJump }) {
+  const isDone = (i) => completedSteps.includes(i);
+  const isCurrent = (i) => i === currentStep;
+  const canJump = (i) => isDone(i) || i === currentStep || i < currentStep;
+  return (
+    <ol className="wizard-stepper">
+      {steps.map((s, i) =>
+      <li key={i}
+      className="wizard-stepper__item"
+      data-status={isCurrent(i) ? 'current' : isDone(i) ? 'done' : 'todo'}
+      data-jumpable={canJump(i) ? 'true' : 'false'}>
+
+          <button
+          type="button"
+          className="wizard-stepper__btn"
+          onClick={() => canJump(i) && onJump?.(i)}
+          disabled={!canJump(i)}>
+
+            <span className="wizard-stepper__dot" aria-hidden="true">
+              {isDone(i) ?
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span> :
+
+            <span>{i + 1}</span>
+            }
+            </span>
+            <span className="wizard-stepper__label">
+              <span className="wizard-stepper__title">{s.title}</span>
+              {s.hint && <span className="wizard-stepper__hint">{s.hint}</span>}
+            </span>
+          </button>
+        </li>
+      )}
+    </ol>);
+
+}
+
+// ============================================================
+// WizardCard — step 내부 카드 (입력 그룹 단위)
+//   radius 8px / bg var(--bg-card) / border var(--border)
+//   상단 eyebrow + h3 + 본문 / 우상단 보조 액션
+// ============================================================
+function WizardCard({ eyebrow, title, hint, action, children, accent }) {
+  return (
+    <section className="wizard-card" data-accent={accent ? 'true' : 'false'}>
+      <header className="wizard-card__head">
+        <div style={{ minWidth: 0 }}>
+          {eyebrow && <div className="wizard-card__eyebrow">{eyebrow}</div>}
+          {title && <h3 className="wizard-card__title">{title}</h3>}
+          {hint && <p className="wizard-card__hint">{hint}</p>}
+        </div>
+        {action && <div className="wizard-card__action">{action}</div>}
+      </header>
+      <div className="wizard-card__body">{children}</div>
+    </section>);
+
+}
+
+// ============================================================
+// WizardFooter — 하단 navigation
+//   좌측: 이전 / 중앙: 임시저장(텍스트 링크) / 우측: 다음 / 마지막 = primary 생성
+// ============================================================
+function WizardFooter({ onPrev, onNext, onDraft, nextLabel, nextDisabled, isLast, prevDisabled }) {
+  return (
+    <div className="wizard-footer">
+      <button
+        type="button"
+        className="btn"
+        onClick={onPrev}
+        disabled={prevDisabled}
+        style={{ visibility: prevDisabled ? 'hidden' : 'visible' }}>
+
+        <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 2 }}>arrow_back</span>
+        이전
+      </button>
+      <button type="button" className="wizard-footer__draft" onClick={onDraft}>임시저장</button>
+      <button
+        type="button"
+        className={isLast ? "btn btn--accent btn--lg" : "btn btn--primary"}
+        onClick={onNext}
+        disabled={nextDisabled}>
+
+        {nextLabel || '다음'}
+        {!isLast &&
+        <span className="material-symbols-outlined" style={{ fontSize: 16, marginLeft: 2 }}>arrow_forward</span>
+        }
+      </button>
+    </div>);
+
+}
+
+Object.assign(window, { Icon, ThemeSwitch, AppNav, NavBadge, MemberPendingBadge, PasswordInput, Modal, ForceActionModal, Onboarding, LevelBadge, Pager, Sidebar, Avatar, Poster, WizardShell, WizardStepper, WizardCard, WizardFooter });

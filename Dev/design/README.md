@@ -1,7 +1,7 @@
 # BDR 디자인 작업 허브
 
 > **단일 진입점**. 어떤 디자인 / 박제 작업을 시작하기 전에 이 문서 + `claude-project-knowledge/00-master-guide.md` 부터 본다.
-> **마지막 갱신**: 2026-05-14 (BDR-current sync v2.5 + Phase F3 — Tournament 4 시안 신규: TournamentDetail / TournamentSchedule / TournamentTeams + Scrim 보강 / components.jsx TournamentTabBar 5 탭 / MyBDR.html 3 라우트 추가. 이전 BDR-current 는 _archive/BDR-current-2026-05-14-pre-v2.5sync/ 에 통째 보존 — 5/9 이후 uncommitted 수정 10건 포함.)
+> **마지막 갱신**: 2026-05-15 (BDR-current sync v2.14 — Admin 디자인 시스템 편입 / Phase A·B·C·D 100% + Phase E 35% / 38 admin 페이지 + 9 컴포넌트 박제. 신규 admin 라우트 약 30건. 상세는 `bdr 디자인 시스템 관리/admin-design-2026-05-15/` 참조. 이전 BDR-current 는 `_archive/BDR-current-2026-05-15-pre-admin-v2.14/` 에 통째 보존.)
 
 ---
 
