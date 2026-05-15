@@ -836,3 +836,81 @@ GET /api/web/admin/analytics/wizard-kpi?from=YYYY-MM-DD&to=YYYY-MM-DD&granularit
   3. PR3 (옵션) = Step 4 Referee 사전 등록 + `/referees` POST endpoint (Q2 결재 = 별도 후속).
 - **운영 영향 0 보증**: 본 PR1 머지 후에도 UI 진입 0 (마법사 본체 없음) → 운영 사용자 호출 0. 단독 머지 안전.
 
+## 구현 기록 (developer) — Phase 6 PR2 마법사 본체 (2026-05-15)
+
+📝 구현한 기능: 협회 마법사 본체 신규 — `/tournament-admin/wizard/association` (Step 1~3 + 확인). PR1 API 3건 (associations / [id]/admins / [id]/fee-setting) 순차 호출. sessionStorage draft 보존 (`wizard:association:draft`). 일반 마법사 (`new/wizard`) 상단에 super_admin / association_admin 분기 카드 1건 추가.
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/lib/tournaments/association-wizard-types.ts` | 공통 타입 (Draft / Step1~3Data / Admin/Level enum / API 응답 시그니처) | 신규 | ~110 |
+| `src/lib/tournaments/association-wizard-constants.ts` | 4 step 메타 + STORAGE_KEY + role/level 옵션 + INITIAL_DRAFT | 신규 | ~85 |
+| `src/lib/tournaments/use-association-wizard-draft.ts` | sessionStorage hook (wizard-draft.ts 패턴 답습 — SSR + BigInt + silent fail) | 신규 | ~95 |
+| `src/app/(admin)/tournament-admin/wizard/association/page.tsx` | 마법사 본체 — me API 권한 판정 + Step 분기 + API 3건 순차 호출 | 신규 | ~225 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/WizardShell.tsx` | progress bar (4 step) + 이전/다음/생성 nav 버튼 + 에러 표시 | 신규 | ~120 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/Step1AssociationForm.tsx` | name/code/level/region_sido/parent_id/description 입력 (level=sido 시 region 활성) | 신규 | ~130 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/Step2AdminPicker.tsx` | `/api/web/admin/users/search` 재사용 + debounce 350ms + role 9 종 select | 신규 | ~180 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/Step3FeeSettings.tsx` | 4 정수 input (>=0, step 1000) | 신규 | ~105 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/WizardConfirm.tsx` | 3 step 미리보기 (라벨 row + 천 단위 콤마) | 신규 | ~125 |
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | super_admin / association_admin 분기 카드 1건 추가 (QuickCreateForm 헤더 아래) | 수정 | +35 |
+
+**총 신규 9 파일 + 수정 1 파일 / ~1210 LOC** (예상 ~600 LOC 대비 +101% — Step 컴포넌트 + 타입/상수 분리 + 가드 코드 완비).
+
+🛡️ 적용된 가드:
+- **권한 분기**: `/api/web/me` 조회 → JWT role super_admin OR admin_info.is_admin → 통과. 미통과 시 redirect (`/login` or `/tournament-admin`).
+- **PR1 API 정합**: snake_case body (`main_fee` 등) + 응답 `data.association.id` (snake_case + BigInt → string).
+- **sessionStorage 안전**: SSR (`typeof window`) + BigInt replacer + try/catch silent fail (conventions.md 2026-05-15 패턴 답습).
+- **검증 (canProceed)**: Step 1 (name min 2 + code min 2) / Step 2 (user_id 필수) / Step 3 (4 정수 >=0) — PR1 Zod 와 정합.
+- **AppNav frozen 룰**: main 탭 / 더보기 변경 0 — 일반 마법사 상단 카드 1건만 추가.
+- **빨강 본문 금지 룰**: `var(--color-info)` / `var(--color-text-*)` / `color-mix` 토큰만 — `--color-primary` 본문 사용 0.
+- **AssociationAdmin.user_id @unique 안내**: Step 2 안내 박스 = "한 회원은 한 협회만" — UI 인지 (P2002 거부 후 안내가 아닌 사전 안내).
+
+✅ 검증 결과:
+| 항목 | 결과 |
+|---|---|
+| `npx tsc --noEmit` | **exit=0** (회귀 0) |
+| `npx vitest run` (전체) | **918/918 PASS** (PR1 머지 후 동일 — 신규 vitest 0, 본 PR2 = UI client 만이라 vitest 부담 0) |
+| 운영 DB 변경 | 0 (schema 변경 0 / prisma db push 0 / row UPDATE 0) |
+| Flutter v1 영향 | 0 (`/api/v1/...` 변경 0) |
+| 다른 세션 박제 (recorder_admin / PR-Stat / PR-G5 등) | 손대지 0 (파일 끝 append only) |
+| working tree 다른 세션 변경 (score-sheet / Dev/design 등) | 손대지 0 (본 PR 변경 = 신규 9 + 수정 1 only) |
+
+💡 tester 참고:
+- **테스트 방법** (실제 페이지 렌더 — 사용자 검증):
+  1. super_admin 계정 로그인 → `/tournament-admin/tournaments/new/wizard` 진입 → 헤더 아래 "협회 만들기 (super_admin)" 카드 노출 확인.
+  2. 카드 클릭 → `/tournament-admin/wizard/association` 진입 → Step 1 (협회 정보) 렌더.
+  3. Step 1 입력 (name "서울특별시농구협회" / code "KBA-TEST-11" / level sido / region "서울특별시") → 다음.
+  4. Step 2 회원 검색 (이메일 또는 닉네임) → 결과 클릭 → role select → 다음.
+  5. Step 3 4 정수 입력 (예: 50000 / 40000 / 30000 / 20000) → 다음.
+  6. Step 4 확인 → 생성 클릭 → 3 API 순차 호출 → 성공 시 `/tournament-admin?association_created=1` redirect.
+  7. 일반 사용자 (super_admin / association_admin 아닌) → `/tournament-admin/tournaments/new/wizard` 진입 → 카드 미노출 확인.
+  8. 비로그인 → `/tournament-admin/wizard/association` 직접 진입 → `/login?redirect=...` 자동 이동.
+- **정상 동작**:
+  - sessionStorage 박제: Step 1 입력 후 새로고침 → Step 1 입력값 보존.
+  - 검증 가드: name 1자 / code 1자 / user 미선택 / fee 음수 입력 → "다음" 버튼 비활성.
+  - 에러 표시: 409 ASSOC_CODE_CONFLICT (코드 중복) / 422 (Zod) / 403 (권한 부족) → WizardShell 하단 에러 박스.
+- **주의할 입력**:
+  - code 중복 (`KBA-11` 이미 존재) → Step 4 생성 시 409 응답 → 에러 메시지 + Step 4 머무름 (운영자가 Step 1 으로 이동해 수정).
+  - user_id 가 이미 다른 협회 admin → upsert 로 본 협회로 이동 (사용자 안내 박스 의도).
+  - parent_id 비-숫자 ("abc") → 서버 측 BigInt() throw → 404 NOT_FOUND.
+  - 도중 실패 시 rollback 없음 — 운영자가 `/admin/associations` 페이지에서 수동 정정 (시안 spec).
+
+⚠️ reviewer 참고:
+- **특별히 봐줬으면 하는 부분**:
+  - `page.tsx` 의 권한 판정 로직 — `admin_info.is_admin=true` 가 association_admin 9 role 전체 통과 (시안 spec). recorder_admin 도 admin_info 가 박제될 수 있으므로 (admin-guard.ts sentinel 패턴) 후속에서 role 세분화 필요 시 별도 PR.
+  - `WizardShell` 의 progress 원형 = `rounded-[50%]` (정사각 원형 / 9999px 회피 — CLAUDE.md 13 룰 §10).
+  - 일반 마법사 카드 = `bg-[var(--color-info)]/10 border-[var(--color-info)]/40` 톤 (admin 빨강 본문 금지 룰).
+  - Step 2 검색 debounce 350ms — 입력 즉시 호출 회피 (운영 DB 부하 가드 / errors.md 2026-04-17 함정 답습).
+  - 생성 흐름 = API 3건 직렬 순차 — 1번 (assoc) 성공 후 2번 (admin) 실패 시 협회는 생성됨 (rollback 없음). 운영자 안내 의도.
+- **PR3 진입 준비**:
+  1. Q2 결재 = "Step 4 Referee 사전 등록 = PR3 (별도 후속)" → 본 PR2 는 4 step 만 박제.
+  2. PR3 = Step 5 Referee 추가 + `POST /api/web/admin/associations/[id]/referees` endpoint (다건 INSERT, match_status="unmatched").
+  3. PR3 진입 시 본 PR2 의 `ASSOCIATION_WIZARD_STEPS` 에 5번째 step 추가 + WizardShell progress 5 column + `WizardConfirm` 에 referee section 추가.
+- **scratchpad / 다른 세션 보호**: 본 섹션 = 파일 끝 append only / 다른 섹션 (recorder_admin / PR-Stat / PR-G5 / 기획설계 §F~§I 등) 손대지 0.
+
+### 사용자 후속 검증 사항
+1. **페이지 렌더**: `npm run dev` (port 3001) → super_admin 계정 로그인 → 일반 마법사 카드 노출 + 협회 마법사 진입 + Step 1~4 진행.
+2. **권한 분기**: 일반 사용자 / 미로그인 / association_admin / super_admin 4 케이스 진입 확인.
+3. **생성 흐름**: Step 1~4 통과 후 실제 협회 1건 생성 (운영 DB row 추가 — `Association` + `AssociationAdmin` + `AssociationFeeSetting`).
+4. **sessionStorage**: Step 도중 새로고침 → 입력값 보존 + Step 위치 보존 확인.
+5. **PR3 진입 결재**: Q2 결재 = PR3 (별도 후속) — 본 PR2 머지 후 사용자 결재 시 진입.
+
