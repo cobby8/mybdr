@@ -406,6 +406,10 @@ export default function MatchesClient() {
   const [divisionFilter, setDivisionFilter] = useState<string | null>(
     searchParams?.get("division") ?? null
   );
+  // 2026-05-15 — 체육관 필터 (강남구협회장배 2 체육관 분리 / PR-G2). ?venue= deep link.
+  const [venueFilter, setVenueFilter] = useState<string | null>(
+    searchParams?.get("venue") ?? null
+  );
 
   const load = useCallback(async () => {
     try {
@@ -449,10 +453,19 @@ export default function MatchesClient() {
   ).sort();
   const hasDivisions = divisionCodes.length > 1;
 
-  // 종별 필터 (URL 박제 X — local state 만, 새로고침 시 초기화)
-  const filteredMatches = !divisionFilter
-    ? matches
-    : matches.filter((m) => getMatchDivision(m) === divisionFilter);
+  // 2026-05-15 — 체육관 필터 (강남구협회장배 2 체육관: 수도공고 / 강남구민체육관 / PR-G2).
+  // matches 안 venue_name 추출 → venue selector (2개 이상일 때만 표시).
+  const venueNames = Array.from(
+    new Set(matches.map((m) => m.venue_name).filter((v): v is string => !!v)),
+  ).sort();
+  const hasVenues = venueNames.length > 1;
+
+  // 종별 필터 + venue 필터 동시 적용 (교집합)
+  const filteredMatches = matches.filter((m) => {
+    if (divisionFilter && getMatchDivision(m) !== divisionFilter) return false;
+    if (venueFilter && m.venue_name !== venueFilter) return false;
+    return true;
+  });
 
   // 라운드별 그룹핑 — round_number 우선, null 이면 roundName 으로 폴백 (강남구협회장배 케이스)
   const useRoundNameFallback = filteredMatches.every((m) => m.round_number == null);
@@ -536,6 +549,44 @@ export default function MatchesClient() {
                 }`}
               >
                 {code} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2026-05-15 — 체육관 필터 (PR-G2 / 강남구협회장배 2 체육관). venue 2개 이상일 때만 표시. */}
+      {hasVenues && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--color-text-muted)]">체육관:</span>
+          <button
+            type="button"
+            onClick={() => setVenueFilter(null)}
+            className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+              venueFilter === null
+                ? "bg-[var(--color-info)] text-white"
+                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            전체
+          </button>
+          {venueNames.map((v) => {
+            const count = matches.filter((m) => m.venue_name === v).length;
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVenueFilter(v)}
+                className={`rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                  venueFilter === v
+                    ? "bg-[var(--color-info)] text-white"
+                    : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                <span className="material-symbols-outlined align-middle" style={{ fontSize: 14, marginRight: 4 }}>
+                  location_on
+                </span>
+                {v} ({count})
               </button>
             );
           })}

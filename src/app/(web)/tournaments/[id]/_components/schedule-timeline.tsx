@@ -42,6 +42,32 @@ export interface ScheduleMatch {
   // 형식: `26-GG-MD21-001` (14자 영숫자) — 대회 short_code/region_code 미부여 시 null
   // 카드 매치번호 자리에 우선 표시, NULL 이면 기존 #매치번호 fallback
   matchCode?: string | null;
+  // 2026-05-15 — 강남구협회장배 6 종별 × 2 체육관 분리 UI (PR-G3).
+  //   division: settings.division_code (예: "i2-U11"). null = 종별 미부여 (단일 종별 대회).
+  //   venueName: tournament_match.venue_name (예: "수도공고"). null = 체육관 미부여.
+  //   둘 다 옵셔널 — 일반 대회 (단일 종별 / 단일 체육관) 회귀 0.
+  division?: string | null;
+  venueName?: string | null;
+}
+
+// 종별 색상 매핑 — 6 종별 가시성 (BDR 토큰 우선, primary/info/success/warning/secondary 분산)
+// 사유: 종별 카드 좌측 border 색상 분리 — 동일 종별 시각 군집화.
+// `getDivisionColorVar(code)` = 결정적 (입력 동일 = 출력 동일) — 캐시 무관.
+// 토큰만 사용 (하드코딩 hex 0 / CLAUDE.md 13 룰 준수).
+const DIVISION_COLOR_TOKENS = [
+  "var(--color-primary)",
+  "var(--color-secondary)",
+  "var(--color-info)",
+  "var(--color-success)",
+  "var(--color-warning)",
+  "var(--color-accent)",
+];
+export function getDivisionColorVar(code: string | null | undefined): string | null {
+  if (!code) return null;
+  // 결정적 hash — 코드 첫 글자 charCode + 길이 합산 % 6
+  let sum = 0;
+  for (let i = 0; i < code.length; i++) sum += code.charCodeAt(i);
+  return DIVISION_COLOR_TOKENS[sum % DIVISION_COLOR_TOKENS.length];
 }
 
 export interface ScheduleTeam {
@@ -139,6 +165,12 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
   const [selectedDateState, setSelectedDateState] = useState<string | null>(null);
   const selectedDate = selectedDateProp !== undefined ? selectedDateProp : selectedDateState;
 
+  // 2026-05-15 — 종별 / 체육관 필터 (강남구협회장배 6 종별 × 2 체육관 분리)
+  //   동시 적용 가능: 종별=i2-U11 + venue=강남구민체육관 = 교집합.
+  //   매치 데이터에 종별/체육관 1개 이하 → 해당 필터 row 자체 미표시 (회귀 0).
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
+  const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
+
   // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
   const uniqueDates: { key: string; short: string }[] = useMemo(() => {
     const seen = new Set<string>();
@@ -158,7 +190,17 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
     return order;
   }, [matches]);
 
-  // 선택된 팀 + 날짜 필터 적용 (5/9 사용자 결정 — 날짜 탭)
+  // 종별 / 체육관 unique 추출 (필터 chip row 표시 조건 — 2개 이상일 때만 노출)
+  const uniqueDivisions = useMemo(
+    () => Array.from(new Set(matches.map((m) => m.division ?? null).filter((d): d is string => !!d))).sort(),
+    [matches],
+  );
+  const uniqueVenues = useMemo(
+    () => Array.from(new Set(matches.map((m) => m.venueName ?? null).filter((v): v is string => !!v))).sort(),
+    [matches],
+  );
+
+  // 선택된 팀 + 날짜 + 종별 + 체육관 필터 적용
   const filteredMatches = useMemo(() => {
     let filtered = matches;
     // 팀 필터
@@ -176,8 +218,16 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
         (m) => formatGroupDate(m.scheduledAt) === selectedDate
       );
     }
+    // 2026-05-15 — 종별 필터
+    if (selectedDivision) {
+      filtered = filtered.filter((m) => m.division === selectedDivision);
+    }
+    // 2026-05-15 — 체육관 필터
+    if (selectedVenue) {
+      filtered = filtered.filter((m) => m.venueName === selectedVenue);
+    }
     return filtered;
-  }, [matches, selectedTeam, selectedDate, teams]);
+  }, [matches, selectedTeam, selectedDate, selectedDivision, selectedVenue, teams]);
 
   // 날짜별 그룹핑
   const dateGroups = useMemo(() => groupByDate(filteredMatches), [filteredMatches]);
@@ -189,6 +239,93 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
 
   return (
     <div>
+      {/* 2026-05-15 — 종별 필터 (강남구협회장배 6 종별 × 2 체육관 분리 UI / PR-G3).
+          종별 2개 이상일 때만 노출 — 단일 종별 대회 회귀 0. 색상 = getDivisionColorVar 결정. */}
+      {uniqueDivisions.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+            종별:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedDivision(null)}
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: selectedDivision === null ? "var(--color-info)" : "var(--color-elevated)",
+              color: selectedDivision === null ? "white" : "var(--color-text-secondary)",
+              border: `1px solid ${selectedDivision === null ? "var(--color-info)" : "var(--color-border)"}`,
+            }}
+          >
+            전체 ({matches.length})
+          </button>
+          {uniqueDivisions.map((code) => {
+            const count = matches.filter((m) => m.division === code).length;
+            const color = getDivisionColorVar(code);
+            const active = selectedDivision === code;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setSelectedDivision(active ? null : code)}
+                className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: active ? (color ?? "var(--color-primary)") : "var(--color-elevated)",
+                  color: active ? "white" : "var(--color-text-secondary)",
+                  border: `1px solid ${active ? (color ?? "var(--color-primary)") : "var(--color-border)"}`,
+                  borderLeftWidth: active ? "1px" : "3px",
+                  borderLeftColor: color ?? "var(--color-border)",
+                }}
+              >
+                {code} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2026-05-15 — 체육관 필터 (PR-G3). 체육관 2개 이상일 때만 노출. */}
+      {uniqueVenues.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+            체육관:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedVenue(null)}
+            className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            style={{
+              backgroundColor: selectedVenue === null ? "var(--color-info)" : "var(--color-elevated)",
+              color: selectedVenue === null ? "white" : "var(--color-text-secondary)",
+              border: `1px solid ${selectedVenue === null ? "var(--color-info)" : "var(--color-border)"}`,
+            }}
+          >
+            전체
+          </button>
+          {uniqueVenues.map((venue) => {
+            const count = matches.filter((m) => m.venueName === venue).length;
+            const active = selectedVenue === venue;
+            return (
+              <button
+                key={venue}
+                type="button"
+                onClick={() => setSelectedVenue(active ? null : venue)}
+                className="flex-shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: active ? "var(--color-info)" : "var(--color-elevated)",
+                  color: active ? "white" : "var(--color-text-secondary)",
+                  border: `1px solid ${active ? "var(--color-info)" : "var(--color-border)"}`,
+                }}
+              >
+                <span className="material-symbols-outlined align-middle" style={{ fontSize: 14, marginRight: 4 }}>
+                  location_on
+                </span>
+                {venue} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* 5/9 사용자 결정: 날짜 탭 — 팀 필터 위 row + 가로 스크롤 + 줄바꿈 X */}
       {uniqueDates.length > 1 && (
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
@@ -305,6 +442,10 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                 const homeWins = isCompleted && (match.homeScore ?? 0) > (match.awayScore ?? 0);
                 const awayWins = isCompleted && (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
+                // 2026-05-15 — 종별 색상 좌측 border (PR-G3 시각 분리).
+                //   동일 종별 = 동일 색상 좌측 4px border → 카드 군집화. 팀 highlight 우선 (3px primary).
+                const divisionColor = getDivisionColorVar(match.division ?? null);
+                const showDivisionBorder = !isHighlighted && !!divisionColor;
                 return (
                   // 4단계 C: 카드 전체 Link → div + onClick 으로 변경 (TeamLink 와 nested anchor 회피).
                   //   클릭 영역/UX 동일 — 카드 안 빈 영역 클릭 시 router.push, 팀명 클릭 시 stopPropagation 으로
@@ -325,8 +466,12 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                     style={{
                       borderColor: isHighlighted ? "var(--color-primary)" : "var(--color-border)",
                       backgroundColor: "var(--color-card)",
-                      borderLeftWidth: isHighlighted ? "3px" : undefined,
-                      borderLeftColor: isHighlighted ? "var(--color-primary)" : undefined,
+                      borderLeftWidth: isHighlighted ? "3px" : showDivisionBorder ? "4px" : undefined,
+                      borderLeftColor: isHighlighted
+                        ? "var(--color-primary)"
+                        : showDivisionBorder
+                        ? divisionColor!
+                        : undefined,
                     }}
                   >
                     {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): 코드/번호 | 라운드 | 시간 | 코트 ... [상태] */}
@@ -389,6 +534,35 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                               {match.courtNumber}코트
                             </span>
                           </>
+                        )}
+                        {/* 2026-05-15 — 체육관 표시 (PR-G3). venue 박혀있을 때만. */}
+                        {match.venueName && (
+                          <>
+                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                            <span
+                              className="inline-flex items-center gap-0.5 text-xs"
+                              style={{ color: "var(--color-text-tertiary)" }}
+                              title={`체육관: ${match.venueName}`}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+                                location_on
+                              </span>
+                              {match.venueName}
+                            </span>
+                          </>
+                        )}
+                        {/* 2026-05-15 — 종별 배지 (PR-G3). 종별 색상 + 코드. uniqueDivisions 1개 이하 = 표시 0 (회귀). */}
+                        {match.division && uniqueDivisions.length > 1 && (
+                          <span
+                            className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                            style={{
+                              backgroundColor: `color-mix(in srgb, ${divisionColor ?? "var(--color-text-muted)"} 12%, transparent)`,
+                              color: divisionColor ?? "var(--color-text-secondary)",
+                            }}
+                            title={`종별: ${match.division}`}
+                          >
+                            {match.division}
+                          </span>
                         )}
                       </div>
                       <StatusBadge status={match.status} />
