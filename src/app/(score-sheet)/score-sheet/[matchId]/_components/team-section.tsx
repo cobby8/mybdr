@@ -543,15 +543,10 @@ export function TeamSection({
           <span>Licence</span>
           <span>no.</span>
         </div>
-        <div
-          style={{
-            alignItems: "flex-start",
-            justifyContent: "flex-start",
-            flexDirection: "row",
-          }}
-        >
-          Players
-        </div>
+        {/* PR-Stat3.2 (2026-05-15) — 사용자 명시: 헤더 가로세로 가운데 정렬.
+            시안 SSPlayerHead 의 Players column inline style (flex-start) 제거 → 부모 .ss-tbox__plyhead > div 의
+            align-items: center + justify-content: center 룰 그대로 받음 (가운데 정렬). */}
+        <div>Players</div>
         <div>No.</div>
         <div>
           <span>Player</span>
