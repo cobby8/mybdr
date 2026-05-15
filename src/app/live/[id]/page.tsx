@@ -1123,7 +1123,8 @@ export default function LiveBoxScorePage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
             <span className="text-xs font-medium hidden sm:inline">뒤로</span>
           </button>
-          {/* 홈 진입점 — 모바일/PC 모두 노출 (직접 URL 접속 시 history fallback 외 추가 보조) */}
+          {/* 2026-05-15 사용자 결정: 홈 버튼 삭제 (브라우저 홈/뒤로 버튼으로 충분).
+              JSX 보존 = 복원 쉬움.
           <a
             href="/"
             aria-label="홈"
@@ -1132,6 +1133,7 @@ export default function LiveBoxScorePage() {
           >
             <span className="material-symbols-outlined text-lg">home</span>
           </a>
+          */}
           {/*
             토너먼트명 — 모바일에서 미니스코어 자리 확보 위해 sm:inline 으로 PC 만 노출.
             모바일은 미니스코어가 더 중요 (라이브 중계 시 가장 자주 보고 싶은 정보).
