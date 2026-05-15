@@ -39,6 +39,10 @@ import type { LiveMatchCardData } from "./_v2/live-match-card";
 // 2026-05-10 PlayerLink/TeamLink 2단계 마이그 — 라이브/scheduled/ready 매치 hero scoreboard 팀명·박스스코어 선수명 link.
 import { TeamLink } from "@/components/links/team-link";
 import { PlayerLink } from "@/components/links/player-link";
+// 2026-05-16 (긴급 박제 — PBP 표시 한글 라벨 / 사용자 보고 이미지 #163).
+//   formatPbpAction = action_type + meta 분기 → 구체 한글 라벨 ("3점 성공", "수비리바운드", "U파울" 등).
+//   PbpSection 행 렌더에서 호출 — 기존 ACTION_LABEL 단순 lookup 대체.
+import { formatPbpAction } from "@/lib/live/pbp-format";
 
 // 2026-04-16: 프린트 옵션 타입 — 팀별로 "누적 / 1~5쿼터"를 개별 체크 가능
 // "5"는 OT(연장) 1쿼터(이후 OT는 현재 단일 키로 단순화: 있으면 전체 OT 포함)
@@ -2170,12 +2174,17 @@ function PbpSection({ match }: { match: MatchData }) {
       >
         <div className="overflow-x-auto">
           {/* PBP 테이블 전체 text-xs → text-base (두 단계 확대) */}
+          {/* 2026-05-16 (긴급 박제 — 사용자 보고 이미지 #163):
+              - 컬럼 순서 = 시간 / 팀 / # / 선수이름 / 행동 / 점수 (선수이름 신규)
+              - 팀 컬럼 = 점 → 팀명 텍스트 칩 (배경색 = team.color, 흰 글자)
+              - 행동 = formatPbpAction(pbp) (구체 한글 라벨) */}
           <table className="w-full text-base">
             <thead>
               <tr className="border-b" style={{ borderColor: "var(--color-border)", color: "var(--color-text-muted)" }}>
                 <th className="py-2 px-2 text-left font-normal w-[60px]">시간</th>
-                <th className="py-2 px-2 text-center font-normal w-[32px]">팀</th>
+                <th className="py-2 px-2 text-center font-normal w-[72px]">팀</th>
                 <th className="py-2 px-2 text-center font-normal w-[32px]">#</th>
+                <th className="py-2 px-2 text-left font-normal w-[110px]">선수</th>
                 <th className="py-2 px-2 text-left font-normal">행동</th>
                 <th className="py-2 px-2 text-center font-normal w-[60px]">점수</th>
               </tr>
@@ -2183,8 +2192,15 @@ function PbpSection({ match }: { match: MatchData }) {
             <tbody>
               {visiblePbps.map((pbp, i) => {
                 const isHome = pbp.team_id === match.home_team.id;
+                // 팀명 / 색 — 홈 vs 원정 분기. (PBP 행에서 외부 이벤트 = team_id 일치 0 = 폴백 "-").
+                const teamName = isHome
+                  ? match.home_team.name
+                  : pbp.team_id === match.away_team.id
+                    ? match.away_team.name
+                    : "";
                 const teamColor = isHome ? match.home_team.color : match.away_team.color;
-                const actionLabel = ACTION_LABEL[pbp.action_type] ?? pbp.action_type;
+                // 한글 라벨 — formatPbpAction (action_type + subtype + points 분기).
+                const actionLabel = formatPbpAction(pbp);
 
                 return (
                   <tr
@@ -2199,14 +2215,36 @@ function PbpSection({ match }: { match: MatchData }) {
                       <span style={{ color: "var(--color-text-muted)" }}>{getQuarterLabel(pbp.quarter)}</span>{" "}
                       {formatGameClock(pbp.game_clock_seconds)}
                     </td>
+                    {/* 팀 컬럼 = 팀명 텍스트 칩. 배경색 = team.color, 글자 = #fff (대비 약한 색 폴백은 추후). */}
                     <td className="py-1.5 px-2 text-center">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full mx-auto"
-                        style={{ backgroundColor: teamColor }}
-                      />
+                      {teamName ? (
+                        <span
+                          style={{
+                            display: "inline-block",
+                            padding: "2px 7px",
+                            borderRadius: 3,
+                            background: teamColor,
+                            color: "#fff",
+                            fontSize: "0.75em",
+                            fontWeight: 700,
+                            maxWidth: 68,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {teamName}
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--color-text-muted)" }}>-</span>
+                      )}
                     </td>
                     <td className="py-1.5 px-2 text-center" style={{ color: "var(--color-text-secondary)" }}>
                       {pbp.jersey_number ?? "-"}
+                    </td>
+                    {/* 선수이름 컬럼 신규 — 없으면 "-" (사용자 명시 룰표 = # 다음). */}
+                    <td className="py-1.5 px-2 whitespace-nowrap" style={{ color: "var(--color-text-secondary)" }}>
+                      {pbp.player_name || "-"}
                     </td>
                     <td className="py-1.5 px-2" style={{ color: "var(--color-text-primary)" }}>
                       {actionLabel}
