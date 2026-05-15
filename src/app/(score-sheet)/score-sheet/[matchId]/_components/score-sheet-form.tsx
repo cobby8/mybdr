@@ -1843,6 +1843,8 @@ export function ScoreSheetForm({
               // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
               readOnly={isCompleted && !isEditMode}
               frameless
+              // 2026-05-15 — 쿼터 종료 = 헤더 우측 작은 버튼 (FIBA 양식 정합 / 기존 큰 버튼 영역 제거).
+              onEndPeriod={isCompleted && !isEditMode ? undefined : handleEndPeriod}
             />
             </div>
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
