@@ -3,6 +3,12 @@
 /**
  * Admin 단체 승인 관리 페이지
  * pending 단체를 승인/거절하고, 전체 단체 목록을 관리한다.
+ *
+ * 2026-05-15: Admin-5-C 박제 (BDR v2.14)
+ * - AdminPageHeader eyebrow + breadcrumbs (시안 v2.14)
+ * - statusBadge(inline bg) → STATUS_TONE + admin-stat-pill[data-tone]
+ *   (pending=warn / approved=ok / rejected=err)
+ * - 비즈 로직 (fetch/handleApprove/handleReject/state) 100% 보존
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -24,15 +30,20 @@ interface Organization {
   approved_at: string | null;
 }
 
-// 상태별 뱃지 색상
-function statusBadge(status: string) {
-  const map: Record<string, { bg: string; label: string }> = {
-    pending:  { bg: "var(--color-warning)", label: "대기" },
-    approved: { bg: "var(--color-success)", label: "승인" },
-    rejected: { bg: "var(--color-error)",   label: "거절" },
-  };
-  return map[status] || map.pending;
-}
+// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
+// (pending=warn / approved=ok / rejected=err)
+const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
+  pending: "warn",
+  approved: "ok",
+  rejected: "err",
+};
+
+// 상태별 라벨 매핑
+const STATUS_LABEL: Record<string, string> = {
+  pending: "대기",
+  approved: "승인",
+  rejected: "거절",
+};
 
 export default function AdminOrganizationsPage() {
   const [orgs, setOrgs] = useState<Organization[]>([]);
@@ -89,9 +100,16 @@ export default function AdminOrganizationsPage() {
 
   return (
     <div>
+      {/* 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-C 박제) */}
       <AdminPageHeader
+        eyebrow="ADMIN · 외부 관리"
         title="단체 관리"
-        subtitle="단체 신청 승인/거절 및 전체 단체 목록을 관리합니다."
+        subtitle="단체 신청 승인 / 거절 및 전체 단체 목록을 관리합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "외부 관리" },
+          { label: "단체 관리" },
+        ]}
       />
 
       {/* 상태 필터 탭 — (web) .btn 패턴 */}
@@ -137,7 +155,6 @@ export default function AdminOrganizationsPage() {
             </thead>
             <tbody>
               {orgs.map((org) => {
-                const badge = statusBadge(org.status);
                 return (
                   <tr key={org.id}>
                     <td data-primary="true" className="px-4 py-3">
@@ -156,11 +173,9 @@ export default function AdminOrganizationsPage() {
                       <div className="text-xs text-[var(--color-text-muted)]">{org.owner.email}</div>
                     </td>
                     <td data-label="상태" className="px-4 py-3">
-                      <span
-                        className="inline-block rounded px-2 py-0.5 text-xs font-semibold text-white"
-                        style={{ backgroundColor: badge.bg }}
-                      >
-                        {badge.label}
+                      {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
+                      <span className="admin-stat-pill" data-tone={STATUS_TONE[org.status] ?? "mute"}>
+                        {STATUS_LABEL[org.status] ?? org.status}
                       </span>
                     </td>
                     <td data-label="신청일" className="px-4 py-3 text-[var(--color-text-muted)]">

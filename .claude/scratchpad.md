@@ -217,3 +217,70 @@
   4. `plans/page.tsx` 의 `next/link` 신규 import — client 컴포넌트 ("use client") 내 정합. `Link` 에 `className="btn"` 직접 사용 (Button 컴포넌트 ≠ 시안 actions secondary btn pattern)
   5. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
 - 미박제 갭 (의도): AdminDataTable / 시안 가격 그리드 / 갱신률 / ROI / 노출·클릭 KPI / 결제수단 아이콘 / 통계 카드 3종 / mock toggle / bulk action / 모달 footer 액션 일부. 별 PR 권장 (특히 결제수단 아이콘 매핑 / 갱신률·구독자 필드 = DB 스키마 확장 필요).
+
+### Admin-5-C Phase 박제 — Partners + Organizations (PartnerAdminEntry 보류) (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminPartners.jsx` / `AdminOrganizations.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) + 상태 뱃지(`admin-stat-pill[data-tone]`) 박제. fetch / handleStatusChange / handleCreate / handleApprove / handleReject / state / hook / 거절 사유 모달 100% 보존. **PartnerAdminEntry 는 시안과 운영 구조 완전 상이 (entry/gate landing vs SWR 대시보드) → 박제 보류 별 PR 권장**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/partners/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 비즈니스"` + `breadcrumbs` + `actions` (파트너 등록 버튼 = actions slot 이동). `statusBadge` (inline bg/text/label) 함수 제거 → `STATUS_TONE` + `STATUS_LABEL` 매핑 신규 (pending=warn / approved=ok / rejected=err / suspended=mute). 행 상태 컬럼 `<span style={{backgroundColor: badge.bg, color: badge.text}}>` → `admin-stat-pill[data-tone]`. 상태 필터 탭도 inline css → (web) `.btn btn--sm`/`btn--primary` 패턴 (Organizations 박제와 일관). | 수정 |
+| `src/app/(admin)/admin/organizations/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 외부 관리"` + `breadcrumbs` 추가. `statusBadge` 함수 제거 → `STATUS_TONE` + `STATUS_LABEL` 매핑 신규 (pending=warn / approved=ok / rejected=err). 행 상태 컬럼 `<span className="inline-block rounded ... text-white">` → `admin-stat-pill[data-tone]` 통일. | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- partners/page.tsx: `fetch('/api/admin/partners')` (GET 목록 / PATCH 상태변경) / `handleStatusChange` (승인/반려/정지/재승인 4 분기) / `handleCreate` (POST 신규 등록 form) / `useState`/`useEffect`/`useCallback` 등 비즈 라인 변경 0 — header prop + STATUS_LABEL 매핑 + 상태 뱃지 markup 만 변경
+- organizations/page.tsx: `fetch('/api/web/admin/organizations')` / `handleApprove` (POST approve) / `handleReject` (POST reject + reason body) / `setActionLoading`/`setRejectId`/`setRejectReason` 등 비즈 라인 변경 0
+
+**grep 검증** (run):
+```
+src\app\(admin)\admin\organizations\page.tsx:60:    const res = await fetch(`/api/web/admin/organizations${qs}`);
+src\app\(admin)\admin\organizations\page.tsx:73:  async function handleApprove(id: string) {
+src\app\(admin)\admin\organizations\page.tsx:85:  async function handleReject(id: string) {
+src\app\(admin)\admin\partners\page.tsx:60:    const res = await fetch(`/api/admin/partners${qs}`);
+src\app\(admin)\admin\partners\page.tsx:71:  const handleStatusChange = async (id: string, newStatus: string) => {
+src\app\(admin)\admin\partners\page.tsx:81:  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+```
+→ 호출처 + 핸들러 함수명 그대로 보존 확인.
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**갭 / 미박제 항목**:
+- **PartnerAdminEntry 박제 보류 (별 PR 권장)** — 시안 `PartnerAdminEntry.jsx` 는 entry/gate landing 패턴 (좌측: 혜택 4종 + 신청 3 step / 우측: 로그인 form + 신청 큐 미리보기 / super_admin role 분기). 운영 `src/app/(web)/partner-admin/page.tsx` 는 이미 로그인 된 파트너의 **SWR 대시보드** (통계 카드 4종 + 캠페인 상태 분포 + 빠른 액션 링크 2개). 구조/책임 완전 상이 → 시각 박제만으로 정합 불가. 별 PR 권장 (entry/gate 페이지 신규 라우트 추가 or partner-admin 대시보드 헤더만 시안 패턴으로 변환). 본 PR 에서 변경 0
+- `AdminDataTable` 컴포넌트 미박제 → 기존 `<table className="admin-table">` 유지 (옵션 A)
+- `AdminFilterBar` 미박제 → 기존 filter 버튼 row 유지
+- 시안 `AdminStatusTabs` 미박제 (Organizations) → 기존 `(web) .btn` 패턴 유지 (운영 기존 패턴)
+- 시안 Partners 카테고리 필터 (코트/장비/스폰서/협회) + 등급 필터 (PLATINUM/GOLD/SILVER/BRONZE) → 운영 Partner 모델에 `category` / `tier` 필드 없음 → 박제 스킵
+- 시안 Partners 누적 매출 / 캠페인 수 컬럼 → 운영 partner 모델에 `revenue` 필드 없음 (`campaigns_count` 는 이미 존재) → 매출 박제 스킵
+- 시안 Partners 상세 모달 (계약 시작/만료 / 운영 액션 등급 변경) → 운영 모달 미구현 → 박제 스킵
+- 시안 Organizations 거절 사유 모달 (textarea + 최소 10자 검증 + 카운터) → 운영은 inline textarea + 버튼 직접 호출 패턴 (모달 X) → 박제 스킵 (UX 차이 큼)
+- 시안 Organizations 시리즈/멤버 카운트 컬럼 → 운영 컬럼에 없음 (`series_count`/`members_count` 필드는 응답에 존재) → 박제 스킵
+- 시안 Organizations 일괄 승인 (selectable + bulk approve) → 운영 미구현 → 박제 스킵
+- 시안 mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/admin/partners` 진입 — 헤더 eyebrow "ADMIN · 비즈니스" + breadcrumbs (ADMIN › 비즈니스 › 파트너 관리) + 우측 "+ 파트너 등록" actions 버튼 노출
+  2. 상태 필터 탭 (전체/대기/승인/반려) `.btn btn--sm` 패턴 박제 (활성 탭은 `btn--primary` 빨강)
+  3. "+ 파트너 등록" 클릭 → 신규 등록 폼 토글 (기존 form 보존). 폼 제출 → POST `/api/admin/partners` 후 목록 새로고침
+  4. 테이블 상태 컬럼 (대기=warn 주황 / 승인=ok 초록 / 반려=err 빨강 / 정지=mute 회색) admin-stat-pill 박제
+  5. 액션 버튼 (대기 = 승인/반려 / 승인 = 정지 / 정지 = 재승인) PATCH `/api/admin/partners/{id}` 동작 보존
+  6. `/admin/organizations` 진입 — 헤더 eyebrow "ADMIN · 외부 관리" + breadcrumbs (ADMIN › 외부 관리 › 단체 관리) 노출
+  7. 상태 필터 탭 (대기/승인/거절/전체) 동작 / 테이블 상태 컬럼 admin-stat-pill 박제
+  8. pending 행에 승인/거절 버튼 → 거절 클릭 시 inline textarea 표시 → 사유 입력 후 확인 → POST `/api/web/admin/organizations/{id}/reject` (reason body) 동작 보존
+- **정상 동작**:
+  - partners: 상태 필터 / 신규 등록 / 승인·반려·정지·재승인 PATCH / 목록 새로고침 100% 기존 동일
+  - organizations: 상태 필터 / 승인 POST / 거절 (사유 입력) POST / actionLoading 비활성화 100% 기존 동일
+- **주의할 입력**:
+  - partner.status: "pending"/"approved"/"rejected"/"suspended" 외 → `STATUS_TONE` 미매치 시 "mute" 폴백 + raw status 표시
+  - organization.status: "pending"/"approved"/"rejected" 외 → "mute" 폴백
+  - 거절 사유: 운영은 trim 후 비어있지 않으면 통과 (시안 10자 제약은 미박제 — 기존 동일)
+
+⚠️ reviewer 참고:
+- 특히 봐줬으면 하는 부분:
+  1. **PartnerAdminEntry 박제 보류 결정** — 시안 entry/gate landing 패턴 vs 운영 SWR 대시보드 구조 완전 상이. 시각 박제만으로 정합 불가 → 별 PR. 박제 보고 본 항목 명시.
+  2. `partners/page.tsx` 의 `statusBadge` 함수 제거 — 호출처 1곳 (테이블 행 상태 컬럼) 동시 갱신 + `STATUS_TONE` / `STATUS_LABEL` 모듈 상수로 분리 (다른 박제 (Admin-5-B campaigns/payments) 와 일관 패턴)
+  3. `partners/page.tsx` 상태 필터 탭 inline css → `.btn btn--sm`/`btn--primary` (Organizations 와 일관). 기능 동일 (filter 값 비교 + setFilter)
+  4. `partners/page.tsx` "+ 파트너 등록" 버튼 ml-auto + 별도 row → `AdminPageHeader actions` slot 으로 이동. 토글 동작 (setShowForm) 보존
+  5. `organizations/page.tsx` 거절 사유 inline textarea + 버튼 (기존 운영 UX) 그대로 보존 — 시안 거절 모달 (textarea + 10자 검증) 박제 스킵
+  6. `admin-stat-pill` 클래스 — 이미 admin.css 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
+- 미박제 갭 (의도): PartnerAdminEntry (별 PR) / AdminDataTable / AdminFilterBar / 카테고리·등급 컬럼 / 누적 매출 / 시리즈·멤버 컬럼 / 거절 모달 / 일괄 승인 / mock toggle. 별 PR 권장.
