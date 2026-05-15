@@ -1844,9 +1844,11 @@ export function ScoreSheetForm({
         initialHome={lineup?.home}
         initialAway={lineup?.away}
         onConfirm={handleLineupConfirm}
-        // 라인업이 한 번도 확정 안 된 상태 = 취소 불가 (양식 진입 차단)
-        // 이미 확정된 상태에서 "라인업 다시 선택" = 취소 허용 (모달 닫기)
-        onCancel={lineup !== null ? () => setLineupModalOpen(false) : undefined}
+        // 2026-05-15 (PR-Lineup-Close-UX) — onCancel 항상 박제. 사용자 보고
+        //   "라이브 페이지에서 X/닫기 없음". 닫기 후 양식이 lineup null 인 채
+        //   렌더되어도 사용자가 다시 "라인업 다시 선택" 트리거로 진입 가능.
+        //   기존 박제: lineup === null 시 onCancel undefined → 모달 강제 = 닫기 0.
+        onCancel={() => setLineupModalOpen(false)}
         // Phase 7.1 — 12명 cap 경고 / 13번째 차단 toast 책임 주입
         onToast={showToast}
       />
