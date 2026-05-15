@@ -29,6 +29,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | feat(schedule+admin): GNBA 종별·체육관 시각 분리 (PR-G2 + PR-G3) | ✅ 매치 데이터 박제 100% 검증 (59 매치 / 6 종별 / 2 체육관 운영 자료 완벽 매칭) / public-schedule API + ScheduleMatch type + tournament-tabs 매핑 + schedule-timeline 종별/체육관 필터+카드 venue 라벨+종별 색상 좌측 border + admin matches-client venue 필터 chip / vitest 5 신규 / tsc 0 / **vitest 852/852 PASS** |
 | 2026-05-15 | Phase 3.5 유청소년 결합 코드 "i2-U11" 후속 영향 분석 (planner-architect) | ✅ 20+ 파일 read-only 진단 / 핵심 발견 = `getDivisionInfo` 호출자 0건 + 모든 매칭 DB row 매칭 + `rule.label` 운영자 직접 박제 → 실제 회귀 경로 0건 / 후속 안전 박제 = `parseDivisionCode` 헬퍼 + `getDivisionInfo` fallback (백워드 호환) + vitest 12 케이스 / 단일 PR 125 LOC / 사용자 결재 Q1~Q5 대기 |
 | 2026-05-15 | Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일) | ✅ timeout-helpers `getCellPhase`+`isCellActive` 신규 + vitest 12 신규 / team-section.tsx SSTimeoutCells `data-disabled-phase` AND 가드 + Extra periods cell 마크업 삭제 (텍스트 + 우측 정렬) / _score-sheet-styles.css `[data-disabled-phase="true"]` 회색+opacity 0.5+not-allowed / period-color.ts getPeriodColor(5+)=warning + PERIOD_LEGEND OT 제거 (4 항목) + 테스트 6 케이스 정합 갱신 / tsc 0 / vitest **223/223 PASS** (211+12) / PM 결재 대기 |
 | 2026-05-15 | release #6 (dev → main) — 경기시간 6분 + 분 직접 입력 | ✅ PR #490 (subin→dev) `dedbf04` + PR #491 (dev→main) `3d39065` 머지 / Vercel 자동 배포 |

@@ -51,7 +51,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     // (예: "A조 1경기 패자" / "8강 1경기 승자") 를 보여주기 위함.
     // 데이터 출처 = tournament_matches.settings JSON (dual-tournament-generator 등이 저장).
     // public-bracket route 와 동일한 추출 패턴 사용 → 일관성 유지.
-    const settings = m.settings as { homeSlotLabel?: string; awaySlotLabel?: string } | null;
+    //
+    // 2026-05-15 — division_code 추출 (강남구협회장배 6 종별 분리 UI 용).
+    //   설정 박제: division-generator-modal cross-product / 종별 관리 페이지 PATCH.
+    //   예: "i2-U11" / "i3-U9" / "i3w-U12" — 종별·체육관 분리 표시 root key.
+    const settings = m.settings as {
+      homeSlotLabel?: string;
+      awaySlotLabel?: string;
+      division_code?: string;
+    } | null;
 
     return {
       id: m.id.toString(),
@@ -85,6 +93,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       // null 가능: short_code/region_code 미부여 대회의 매치는 null
       // 클라이언트는 NULL 안전 분기로 매치번호 fallback
       matchCode: m.match_code,
+      // 2026-05-15 — 강남구협회장배 6 종별 × 2 체육관 분리 UI (PR-G3).
+      //   division: 종별 코드 (예: "i2-U11"). null = 종별 미부여 (단일 종별 대회).
+      //   venueName: 체육관 이름 (예: "수도공고"). null = 체육관 미부여.
+      division: settings?.division_code ?? null,
+      venueName: m.venue_name,
     };
   });
 
