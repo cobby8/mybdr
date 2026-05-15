@@ -16,7 +16,8 @@
 import { ASSOCIATION_WIZARD_STEPS } from "@/lib/tournaments/association-wizard-constants";
 
 export interface WizardShellProps {
-  currentStep: 1 | 2 | 3 | 4;
+  // PR3: 5 step 확장 (4=Referee 사전 등록 / 5=확인).
+  currentStep: 1 | 2 | 3 | 4 | 5;
   // canProceed = 현재 step 검증 통과 여부 — false 면 다음/생성 버튼 비활성.
   canProceed: boolean;
   // submitting = 마지막 step "생성" 클릭 후 API 호출 중 (true 면 버튼 비활성 + 라벨 변경).
@@ -39,8 +40,8 @@ export function WizardShell({
   onSubmit,
   children,
 }: WizardShellProps) {
-  // 마지막 step 판정 — 4 = 확인 및 생성.
-  const isLastStep = currentStep === 4;
+  // 마지막 step 판정 — PR3: 5 = 확인 및 생성.
+  const isLastStep = currentStep === 5;
   const isFirstStep = currentStep === 1;
 
   return (

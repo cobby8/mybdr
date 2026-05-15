@@ -34,6 +34,15 @@ type AdminInfo = {
   permissions: string[];
 } | null;
 
+// PR4-UI (2026-05-15): /api/web/me 응답 전체 형상 — admin_info + recorder_admin 분리 박제.
+//   이유: 모바일 5번째 탭 "관리자" 노출 판정에 둘 다 필요.
+//         admin_info = 협회 관리자 / recorder_admin = 전역 기록원 관리자 (super_admin 자동 흡수).
+//         둘 중 하나라도 true 면 admin 진입점 노출.
+type MeResponse = {
+  admin_info: AdminInfo;
+  recorder_admin: boolean;
+};
+
 type NavItem = {
   href: string;
   label: string;
@@ -122,20 +131,25 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
   // 이유: 로그인 직후 admin 메뉴가 잠깐 보였다 사라지는 깜빡임을 방지하려면
   //      초기값을 null로 두고 fetch 완료 후에만 관리자 메뉴를 표시
   const [adminInfo, setAdminInfo] = useState<AdminInfo>(null);
+  // PR4-UI (2026-05-15): recorder_admin (전역 기록원 관리자) boolean — 모바일 5번째 탭 표시 판정용.
+  //   admin_info 와 별도 박제. isRecorderAdmin = isSuperAdmin 자동 흡수 (Q1).
+  const [recorderAdmin, setRecorderAdmin] = useState<boolean>(false);
 
   useEffect(() => {
-    // /api/web/me 호출 — 응답의 data.admin_info 필드를 사용
+    // /api/web/me 호출 — 응답의 data.admin_info + data.recorder_admin 사용
     // 이미 다른 곳에서 이 API를 호출하고 있을 수 있지만, 셸 자체가 개별 상태를 관리
     fetch("/api/web/me", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         // apiSuccess 응답 형식: { success: true, data: {...} }
-        const info = json?.data?.admin_info ?? null;
-        setAdminInfo(info);
+        const data: MeResponse | undefined = json?.data;
+        setAdminInfo(data?.admin_info ?? null);
+        setRecorderAdmin(data?.recorder_admin === true);
       })
       .catch(() => {
         // 실패 시 비관리자로 간주 — 본인 메뉴만 표시되어 안전함
         setAdminInfo(null);
+        setRecorderAdmin(false);
       });
   }, []);
 
@@ -143,6 +157,9 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
   const visibleItems = NAV_ITEMS.filter((item) => isNavVisible(item, adminInfo));
   // 관리자 메뉴 표시 여부 — 하나라도 있으면 구분선 렌더
   const hasAdminItems = visibleItems.some((item) => item.requires !== null);
+  // PR4-UI (2026-05-15): 모바일 5번째 탭 "관리자" 노출 여부 — admin_info 있거나 recorder_admin
+  //   둘 중 하나라도 true 면 admin 진입점 노출. 일반 사용자는 기존 4탭 그대로 (회귀 0).
+  const showAdminTab = adminInfo?.is_admin === true || recorderAdmin;
 
   // 현재 경로가 해당 nav 항목에 활성 상태인지 판정
   // /referee 자체는 startsWith로 잡으면 전부 활성되므로 정확히 일치하는 경우만
@@ -332,7 +349,21 @@ export function RefereeShell({ children }: { children: React.ReactNode }) {
           paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))",
         }}
       >
-        {BOTTOM_TABS.map((tab) => {
+        {/* PR4-UI (2026-05-15): showAdminTab 일 때 5번째 탭 "관리자" 동적 추가.
+            이유: recorder_admin 또는 협회 관리자 진입 시 모바일에서 admin 진입점 발견 가능.
+                  일반 사용자는 기존 4탭 그대로 (회귀 0). 라벨/아이콘은 사이드바 admin 항목과 일관. */}
+        {[
+          ...BOTTOM_TABS,
+          ...(showAdminTab
+            ? [
+                {
+                  href: "/referee/admin",
+                  label: "관리자",
+                  icon: "admin_panel_settings",
+                } as BottomTabItem,
+              ]
+            : []),
+        ].map((tab) => {
           const active = isActive(tab.href);
           return (
             <Link
