@@ -58,6 +58,12 @@ export interface BuildSubmitPayloadParams {
   } | null;
   /** 수정 모드 = BFF MATCH_LOCKED 423 우회 (PR-EDIT3 Q8). */
   isEditMode: boolean;
+  /**
+   * 2026-05-16 (PR-Possession-3) — 공격권 (Possession Arrow) BFF 전달.
+   *   openingJumpBall === null = 미박제 = 키 통째 생략 (BFF optional 처리).
+   *   submit/route.ts 의 possessionSchema 와 1:1 정합.
+   */
+  possession?: PassThrough;
 }
 
 export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
@@ -70,6 +76,7 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     header,
     lineup,
     isEditMode,
+    possession,
   } = params;
 
   const final = computeFinalScore(runningScore);
@@ -127,5 +134,7 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     referee_sub2: header.umpire2 || undefined,
     notes: signatures.notes || undefined,
     ...(isEditMode ? { edit_mode: true } : {}),
+    /* 2026-05-16 (PR-Possession-3) — possession 박제 (openingJumpBall !== null 시만). */
+    ...(possession ? { possession } : {}),
   };
 }

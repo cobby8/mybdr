@@ -45,6 +45,14 @@ import {
 } from "@/lib/services/match-sync";
 import { marksToPaperPBPInputs } from "@/lib/score-sheet/running-score-helpers";
 import { foulsToPBPEvents } from "@/lib/score-sheet/foul-helpers";
+// PR-Possession-3 (2026-05-16) — 공격권 (Possession Arrow) PBP 변환 헬퍼.
+//
+//   왜: UI 에서 박제한 PossessionState (openingJumpBall + heldBallEvents) 를
+//       jump_ball / held_ball 액션 타입의 PBP row 로 변환 → play_by_plays 박제.
+//       score events / foul events 와 동일 path (PlayByPlayInput[]) — service idempotent 흐름.
+//
+//   PURE 헬퍼 (PR-Possession-1) 단순 직렬화 — vitest 15 케이스 보장.
+import { possessionToPBPInputs } from "@/lib/score-sheet/possession-helpers";
 
 // zod schema — 종이 기록지 제출 input
 // 이유: Phase 2 = running_score 신규. Phase 1 의 quarter_scores 는 호환성 유지 (없으면 running_score 로부터 자동 산출)
@@ -364,6 +372,36 @@ export function buildPlayerStatsFromRunningScore(params: {
   });
 }
 
+// PR-Possession-3 (2026-05-16) — 공격권 (Possession Arrow) zod schema.
+//
+//   왜 (이유):
+//     UI 의 PossessionState (arrow + openingJumpBall + heldBallEvents) 를 BFF zod 검증 후
+//     possessionToPBPInputs 헬퍼로 변환하여 play_by_plays 박제.
+//     FIBA Article 12 (Alternating Possession) — 점프볼 / 헬드볼 발생 시 PBP row 박제.
+//
+//   shape (PossessionState 와 동일):
+//     - arrow: "home" | "away" | null — 화살표 방향 (null = Opening Jump Ball 미박제)
+//     - openingJumpBall: { winner, winnerPlayerId } | null — 경기 시작 점프볼 1회
+//     - heldBallEvents: { period, takingTeam }[] — 경기 중 헬드볼 시계열
+//
+//   안전 룰:
+//     - heldBallEvents 최대 50건 (1매치 헬드볼 발생 횟수 매우 적음 — 50 = 안전 상한)
+//     - period 1~20 (Phase 1~4 + OT 다회 — possession-types.ts 와 동일 룰)
+//     - 모든 필드 optional / nullable (UI 가 미박제 케이스 통째 생략 가능)
+const jumpBallEventSchema = z.object({
+  winner: z.enum(["home", "away"]),
+  winnerPlayerId: z.string().nullable(),
+});
+const heldBallEventSchema = z.object({
+  period: z.number().int().min(1).max(20),
+  takingTeam: z.enum(["home", "away"]),
+});
+const possessionSchema = z.object({
+  arrow: z.enum(["home", "away"]).nullable(),
+  openingJumpBall: jumpBallEventSchema.nullable(),
+  heldBallEvents: z.array(heldBallEventSchema).max(50),
+});
+
 const submitSchema = z.object({
   home_score: z.number().int().min(0).max(199),
   away_score: z.number().int().min(0).max(199),
@@ -392,6 +430,11 @@ const submitSchema = z.object({
   //   shape = Record<playerId, { or, dr, a, s, b, to }> (UI PlayerStatsState 와 동일).
   //   buildPlayerStatsFromRunningScore 가 본 값을 합산하여 MatchPlayerStat 컬럼 6개에 박제.
   player_stats_input: playerStatsInputSchema.optional(),
+  // PR-Possession-3 (2026-05-16) — 공격권 (Possession Arrow) 입력 (optional).
+  //   미전송 = jump_ball / held_ball PBP 박제 0 (운영 동작 보존 — 구버전 client 호환).
+  //   전송 = possessionToPBPInputs 변환 후 play_by_plays 박제 (score/foul events 와 동일 path).
+  //   FIBA Article 12 (Alternating Possession).
+  possession: possessionSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -614,9 +657,122 @@ export async function POST(
     });
   }
 
-  // 통합 — score + foul events 한 배열 (service idempotent — local_id 단위)
-  if (scoreEvents.length > 0 || foulEvents.length > 0) {
-    playByPlays = [...scoreEvents, ...foulEvents];
+  // 4-3) PR-Possession-3 (2026-05-16) — possession → PBP events.
+  //
+  //   왜 (이유):
+  //     FIBA Article 12 (Alternating Possession) — 경기 시작 점프볼 + 경기 중 헬드볼 발생 시
+  //     play_by_plays 에 jump_ball / held_ball 액션 타입으로 박제. 점수 영향 0 (points=0).
+  //     score events / foul events 와 동일 path (PlayByPlayInput[]) — service idempotent 흐름.
+  //
+  //   박제 룰:
+  //     - action_type = "jump_ball" (Opening Jump Ball) / "held_ball" (경기 중 헬드볼)
+  //     - local_id = `paper-possession-{actionType}-{idx}` — service deleteMany NOT IN 가드에 포함
+  //     - team_side 변환: "home" → match.homeTeamId / "away" → match.awayTeamId
+  //     - points_scored = 0, is_made = null (점수 영향 0)
+  //     - quarter = event.period (jump_ball = 1 / held_ball = event.period)
+  //     - description = "[종이 기록] 점프볼 (홈팀 첫 점유)" / "[종이 기록] 헬드볼 (홈팀 공격권)"
+  //
+  //   tournament_team_player_id 해결 (NOT NULL FK — service `> 0` 가드 통과 필수):
+  //     - jump_ball: openingJumpBall.winnerPlayerId 우선 사용 (UI 점프볼 모달 박제값)
+  //     - jump_ball winnerPlayerId 미박제 / held_ball: lineup.starters[0] (takingTeam 선발 1번)
+  //     - lineup 미전송 + winnerPlayerId 미박제 = 본 PBP 박제 skip (안전망 — 운영 영향 0)
+  //
+  //   안전망:
+  //     - team 변환 시 match.homeTeamId / awayTeamId 필요 → needsTeamCheck 분기 확장
+  //     - player_id 0 박제 시 service `> 0` 가드로 skip → 박제 시도 자체 무의미 → fallback 미사용 시 skip
+  const possessionEvents: PlayByPlayInput[] = [];
+  if (input.possession) {
+    // team 가드 — possession 전송 시 양 팀 배정 필수
+    if (!match.homeTeamId || !match.awayTeamId) {
+      return apiError(
+        "매치에 양 팀이 배정되지 않았습니다. 운영자에게 문의해주세요.",
+        422,
+        "TEAMS_NOT_ASSIGNED"
+      );
+    }
+    // PURE 헬퍼 호출 — PossessionState → PossessionPBPInput[] 변환 (jump_ball 1번째 + held_ball 시계열)
+    // matchId 인자 = 헬퍼 시그니처 일관성 유지 (실제 사용 0 — 본 BFF 가 직접 team_id 변환)
+    const possessionPbps = possessionToPBPInputs(
+      input.possession,
+      match.id.toString()
+    );
+    // player_id fallback 계산 — lineup.starters[0] (takingTeam 별 선발 1번)
+    // 이유: jump_ball winnerPlayerId 미박제 / held_ball event 는 player 미식별 → 라인업 첫 선수로 placeholder.
+    //       PBP query 시 action_type='jump_ball'/'held_ball' 으로 필터 → tournament_team_player_id 컬럼은 placeholder 무방.
+    const homeStarter0 = input.lineup?.home.starters[0] ?? null;
+    const awayStarter0 = input.lineup?.away.starters[0] ?? null;
+    possessionPbps.forEach((p, idx) => {
+      const teamIdBig =
+        p.team === "home" ? match.homeTeamId! : match.awayTeamId!;
+      const teamLabel = p.team === "home" ? "홈팀" : "원정팀";
+      // player_id 결정 (NOT NULL FK 통과 필수)
+      //   jump_ball: winnerPlayerId 우선 → lineup.starters[0] → skip
+      //   held_ball: lineup.starters[0] → skip
+      let playerIdStr: string | null = null;
+      if (p.actionType === "jump_ball") {
+        // openingJumpBall.winnerPlayerId 우선 (UI 점프볼 모달 박제값)
+        const winnerPid = input.possession?.openingJumpBall?.winnerPlayerId ?? null;
+        playerIdStr =
+          winnerPid ?? (p.team === "home" ? homeStarter0 : awayStarter0);
+      } else {
+        // held_ball — takingTeam 선발 1번
+        playerIdStr = p.team === "home" ? homeStarter0 : awayStarter0;
+      }
+      // player_id fallback 미확보 시 본 event 박제 skip (운영 영향 0 — service `> 0` 가드와 동일 효과)
+      if (!playerIdStr) {
+        return;
+      }
+      const playerIdNum = Number(playerIdStr);
+      if (!Number.isFinite(playerIdNum) || playerIdNum <= 0) {
+        return; // 비정상 player_id 차단
+      }
+      // description = 액션 타입 분기 (FIBA 표준 카피)
+      const description =
+        p.actionType === "jump_ball"
+          ? `[종이 기록] 점프볼 (${teamLabel} 첫 점유)`
+          : `[종이 기록] 헬드볼 (${teamLabel} 공격권)`;
+      possessionEvents.push({
+        // local_id — service deleteMany NOT IN 가드 (매번 전체 재INSERT — idempotent)
+        local_id: `paper-possession-${p.actionType}-${idx}`,
+        tournament_team_player_id: playerIdNum,
+        tournament_team_id: Number(teamIdBig),
+        quarter: p.period,
+        game_clock_seconds: 0, // 종이 기록 = 시각 미박제
+        shot_clock_seconds: null,
+        action_type: p.actionType, // "jump_ball" | "held_ball"
+        action_subtype: null,
+        is_made: null,
+        points_scored: 0, // 점수 영향 0 (Phase 22 paper override quarter_scores 합산 영향 0)
+        court_x: null,
+        court_y: null,
+        court_zone: null,
+        shot_distance: null,
+        home_score_at_time: 0,
+        away_score_at_time: 0,
+        assist_player_id: null,
+        rebound_player_id: null,
+        block_player_id: null,
+        steal_player_id: null,
+        fouled_player_id: null,
+        sub_in_player_id: null,
+        sub_out_player_id: null,
+        is_flagrant: false,
+        is_technical: false,
+        is_fastbreak: false,
+        is_second_chance: false,
+        is_from_turnover: false,
+        description,
+      });
+    });
+  }
+
+  // 통합 — score + foul + possession events 한 배열 (service idempotent — local_id 단위)
+  if (
+    scoreEvents.length > 0 ||
+    foulEvents.length > 0 ||
+    possessionEvents.length > 0
+  ) {
+    playByPlays = [...scoreEvents, ...foulEvents, ...possessionEvents];
   }
 
   // 4-3) Phase 20 — running_score + fouls → player_stats 자동 집계.
@@ -788,6 +944,15 @@ export async function POST(
     const pbpCount = playByPlays?.length ?? 0;
     const scoreCount = scoreEvents.length;
     const foulCount = foulEvents.length;
+    // PR-Possession-3 (2026-05-16) — possession PBP 박제 카운트 (audit context 박제용).
+    //   jump_ball + held_ball event 개수 (player_id fallback 미확보로 skip 된 건 제외 = 실제 박제 수).
+    const possessionCount = possessionEvents.length;
+    const possessionJumpBallCount = possessionEvents.filter(
+      (e) => e.action_type === "jump_ball"
+    ).length;
+    const possessionHeldBallCount = possessionEvents.filter(
+      (e) => e.action_type === "held_ball"
+    ).length;
     // Phase 20 — player_stats 박제 카운트 (audit context 박제용)
     const playerStatCount = playerStats?.length ?? 0;
     // Phase 4 — timeouts 박제 카운트 (audit context 박제용)
@@ -832,7 +997,11 @@ export async function POST(
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
       (pbpCount > 0
-        ? ` / PBP ${pbpCount}건 (score ${scoreCount} / foul ${foulCount})`
+        ? ` / PBP ${pbpCount}건 (score ${scoreCount} / foul ${foulCount}` +
+          (possessionCount > 0
+            ? ` / poss ${possessionCount} = JB${possessionJumpBallCount}+HB${possessionHeldBallCount}`
+            : "") +
+          ")"
         : "") +
       // Phase 20 — player_stats 자동 집계 박제 카운트 (사용자 보고 이미지 46 fix)
       (playerStatCount > 0 ? ` / Stat ${playerStatCount}명` : "") +
@@ -868,6 +1037,12 @@ export async function POST(
               quarter_scores: input.quarter_scores,
               running_score_count: scoreCount,
               fouls_count: foulCount,
+              // PR-Possession-3 (2026-05-16) — possession PBP 박제 카운트 (audit input).
+              //   FIBA Article 12 (Alternating Possession) — jump_ball / held_ball 액션 박제 결과.
+              //   skip 된 건 (player_id fallback 미확보) 제외 = 실제 INSERT 수.
+              possession_pbp_count: possessionCount,
+              possession_jump_ball_count: possessionJumpBallCount,
+              possession_held_ball_count: possessionHeldBallCount,
               // Phase 20 — player_stats 자동 집계 결과 (MatchPlayerStat upsert)
               player_stat_count: playerStatCount,
               // Phase 4 — timeouts 카운트 박제 (settings.timeouts JSON merge 결과)
@@ -909,6 +1084,8 @@ export async function POST(
       play_by_play_count: pbpCount,
       // Phase 20 — player_stats 자동 집계 결과 (MatchPlayerStat upsert)
       player_stat_count: playerStatCount,
+      // PR-Possession-3 (2026-05-16) — possession PBP 박제 결과 (jump_ball + held_ball).
+      possession_pbp_count: possessionCount,
       ...(syncResult.data.warnings && { warnings: syncResult.data.warnings }),
     });
   } catch (err) {

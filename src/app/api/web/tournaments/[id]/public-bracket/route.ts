@@ -4,6 +4,10 @@ import { apiSuccess, apiError } from "@/lib/api/response";
 import { buildRoundGroups } from "@/lib/tournaments/bracket-builder";
 // 5/9 displayName P0 — 공식 기록(MVP) 실명 우선 헬퍼
 import { getDisplayName } from "@/lib/utils/player-display-name";
+// 2026-05-16 PR-Public-1 — 종별 standings 산출 (admin /playoffs 와 동일 server-side 패턴 / 단일 source).
+//   강남구협회장배 같은 다종별 대회에서 공개 bracket 탭에 종별 view 노출용.
+//   getDivisionStandings 는 Promise.all 안에서 종별별 1쿼리 (admin 동등 부담).
+import { getDivisionStandings, type DivisionStanding } from "@/lib/tournaments/division-advancement";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -36,7 +40,10 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 2026-05-15 PR-G5.9 — league_advancement / group_stage_with_ranking 추가 (강남구 다종별 운영).
   //   tournament.format 이 null 인 다종별 대회 (종별마다 다른 format) 도 leagueMatches 노출 위해
   //   bracketOnlyMatches (round_number+bracket_position) 미해당 매치는 모두 leagueMatches 분기.
-  const isLeague =
+  // 2026-05-16 PR-Public-1 fix — divisionRules.length >= 1 (다종별 대회) 도 leagueMatches 노출.
+  //   강남구협회장배 (format="dual_tournament" + 6 종별) 케이스 — DivisionsView 가 매치 0건 받지 않도록.
+  //   divisionRules SELECT 가 line 109 에 있어 const 대신 let + 재할당 패턴.
+  let isLeague =
     tournament.format === "round_robin" ||
     tournament.format === "full_league" ||
     tournament.format === "full_league_knockout" ||
@@ -87,6 +94,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       },
     }),
     // 참가팀
+    // 2026-05-16 PR-Public-1: groupTeams 가 종별 필터링 가능하도록 category (division_code) 도 가져옴.
+    //   (include 는 select 와 함께 못 쓰니 기존 include 유지 + tournamentTeam 자체 필드는 자동 포함됨 / category 도 자동 포함)
     prisma.tournamentTeam.findMany({
       where: { tournamentId: id },
       include: {
@@ -96,6 +105,44 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       orderBy: [{ wins: "desc" }, { losses: "asc" }],
     }),
   ]);
+
+  // 2026-05-16 PR-Public-1 — 종별 룰 fetch (라벨 / format / settings).
+  //   admin /playoffs:50 동일 패턴. divisionRules 0건이면 단일 종별 운영 ('default' 폴백 X — 빈 배열 그대로 반환).
+  //   클라이언트가 divisionRules.length 로 종별 view 분기 결정.
+  const divisionRulesRaw = await prisma.tournamentDivisionRule.findMany({
+    where: { tournamentId: id },
+    select: { code: true, label: true, sortOrder: true, format: true, settings: true },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  // 2026-05-16 PR-Public-1 — 종별별 standings 병렬 산출 (Promise.all / N+1 회피).
+  //   admin /playoffs:77 동일 패턴. divisionRules 0건 = 빈 배열 (회귀 0).
+  //   각 종별 standings = DivisionStanding[] (groupName 별 정렬 + groupRank 부여 / division-advancement.ts:54).
+  const divisionStandings: Array<{ code: string; label: string; standings: DivisionStanding[] }> =
+    divisionRulesRaw.length > 0
+      ? await Promise.all(
+          divisionRulesRaw.map(async (r) => ({
+            code: r.code,
+            label: r.label,
+            standings: await getDivisionStandings(prisma, id, r.code),
+          })),
+        )
+      : [];
+
+  // divisionRules 응답 페이로드 (settings JSON은 그대로 — 클라이언트가 group_size / group_count 등 활용).
+  const divisionRules = divisionRulesRaw.map((r) => ({
+    code: r.code,
+    label: r.label,
+    format: r.format,
+    settings: r.settings,
+  }));
+
+  // 2026-05-16 PR-Public-1 fix — 다종별 대회 (divisionRules >= 1) 는 isLeague=true 강제.
+  //   강남구협회장배 (format="dual_tournament" + 6 종별) 같은 케이스 — leagueMatches 빌드 의무.
+  //   회귀 0 — 단일 종별 dual_tournament 대회 (divisionRules=0) 는 영향 0.
+  if (divisionRulesRaw.length >= 1) {
+    isLeague = true;
+  }
 
   // 2026-05-02: live + in_progress 둘 다 라이브로 인식 (Flutter app 은 'live' 사용)
   const liveMatchList = matches.filter((m) => m.status === "live" || m.status === "in_progress");
@@ -307,6 +354,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     : null;
 
   // 그룹 팀 데이터
+  // 2026-05-16 PR-Public-1: 종별 분류 필요 (다종별 view 에서 종별 탭 클릭 시 해당 종별 그룹만 표시).
+  //   tournamentTeam.category = 종별 코드 (TournamentDivisionRule.code 와 매핑 / 다종별 단일 source).
+  //   기존 단일 종별 운영은 division=null 그대로 → 클라이언트가 모든 그룹 표시 (회귀 0).
   const groupTeams = tournamentTeams
     .filter((t) => t.groupName != null)
     .map((t) => ({
@@ -319,6 +369,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       // 2026-05-15 — 팀 로고 표시 (사용자 결재 옵션 B). 없으면 클라이언트가 이니셜 fallback.
       logoUrl: t.team.logoUrl ?? null,
       groupName: t.groupName,
+      // 2026-05-16 PR-Public-1: 종별 코드 (다종별 view 에서 필터링용 / 단일 종별은 null).
+      division: t.category ?? null,
       wins: t.wins ?? 0,
       losses: t.losses ?? 0,
       draws: t.draws ?? 0,
@@ -433,5 +485,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     tournamentStatus: tournament.status,
     leagueTeams,
     leagueMatches,
+    // 2026-05-16 PR-Public-1 — 다종별 view 용 신규 필드 3건.
+    //   divisionRules: 종별 라벨 / 진행 방식 / settings (group_size 등).
+    //   divisionStandings: 종별별 standings (admin /playoffs 와 동일 server-side 산출 / 단일 source).
+    //   기존 필드 변경 0 — 단일 종별 대회 회귀 0.
+    divisionRules,
+    divisionStandings,
   });
 }
