@@ -18,7 +18,32 @@ export const updateTournamentSchema = z
     // 빈 문자열("")도 허용 — datetime-local 입력 초기화 시 빈 문자열이 올 수 있음
     startDate: z.string().nullable().or(z.literal("")),
     endDate: z.string().nullable().or(z.literal("")),
-    status: z.enum(["draft", "registration_open", "in_progress", "completed", "cancelled"]),
+    // 운영 DB legacy status 모두 허용 (tournament-status.ts §TOURNAMENT_STATUS_LABEL 정합)
+    // 사유: 운영 대회는 published / registration / active / live 등 legacy 값 박혀있음.
+    //   wizard 가 운영 status 를 그대로 PATCH 전송 → enum mismatch 422 차단. 단일 source 통일 (4종 매핑) 은 별 PR.
+    status: z.enum([
+      // 준비중
+      "draft",
+      "upcoming",
+      // 접수중
+      "registration",
+      "registration_open",
+      "active",
+      "published",
+      "open",
+      "opening_soon",
+      "registration_closed",
+      // 진행중
+      "in_progress",
+      "live",
+      "ongoing",
+      "group_stage",
+      // 종료
+      "completed",
+      "ended",
+      "closed",
+      "cancelled",
+    ]),
     venue_name: z.string().nullable(),
     venue_address: z.string().nullable(),
     city: z.string().nullable(),

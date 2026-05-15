@@ -62,11 +62,14 @@ export default async function AdminTeamsPage({
 
   return (
     <div>
+      {/* 2026-05-15 Admin-4-B 박제 — eyebrow + breadcrumbs 추가 (시안 AdminTeams.jsx v2.9) */}
       <AdminPageHeader
+        eyebrow="ADMIN · 콘텐츠"
         title="팀 관리"
         subtitle={`전체 ${totalCount}개`}
         searchPlaceholder="팀명, 도시 검색"
         searchDefaultValue={q ?? ""}
+        breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "팀 관리" }]}
       />
       <AdminTeamsContent
         teams={serialized}

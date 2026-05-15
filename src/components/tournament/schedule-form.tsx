@@ -106,7 +106,7 @@ export function ScheduleForm({ data, onChange }: Props) {
       </div>
 
       {/* 등록된 경기장 목록 */}
-      {places.length > 0 && (
+      {places.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
             등록된 경기장 ({places.length}개)
@@ -133,7 +133,37 @@ export function ScheduleForm({ data, onChange }: Props) {
             </div>
           ))}
         </div>
-      )}
+      ) : data.venueName ? (
+        /* 2026-05-15 — legacy venue_name 단독 박제 케이스 (places=null 인데 venue_name 있음).
+                        운영 DB 의 옛 대회 (예: 4차 BDR 뉴비리그) 호환. 카드 1단계 표시와 정합.
+                        삭제 시 venue_name + venue_address 비우고 PlaceAutocomplete 로 재검색 유도. */
+        <div className="space-y-2">
+          <p className="text-xs font-medium" style={{ color: "var(--color-text-muted)" }}>
+            등록된 경기장 (1개)
+          </p>
+          <div
+            className="flex items-center gap-3 rounded-md p-3"
+            style={{ backgroundColor: "var(--color-surface)" }}
+          >
+            <span className="material-symbols-outlined text-lg" style={{ color: "var(--color-primary)" }}>location_on</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>{data.venueName}</p>
+              <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{data.venueAddress || "주소 미등록"}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onChange("venueName", "");
+                onChange("venueAddress", "");
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-[var(--color-error)]/10"
+              style={{ color: "var(--color-error)" }}
+            >
+              <span className="material-symbols-outlined text-base">close</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {/* 도시 (자동 입력 또는 직접) */}
       <div>

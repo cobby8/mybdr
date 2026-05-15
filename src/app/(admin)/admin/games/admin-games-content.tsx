@@ -38,24 +38,13 @@ const STATUS_LABEL: Record<number, string> = {
   1: "모집중", 2: "확정", 3: "완료", 4: "취소",
 };
 
-// 상태별 .badge--soft inline color (success / info / secondary / error)
-const STATUS_STYLE: Record<number, React.CSSProperties | undefined> = {
-  1: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
-  2: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
-  3: undefined, // .badge--soft 기본 (secondary 톤)
-  4: {
-    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
-    color: "var(--color-error)",
-    borderColor: "transparent",
-  },
+// 2026-05-15 Admin-4-B 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
+// 1.모집중=ok / 2.확정=info / 3.완료=mute / 4.취소=err (시안 AdminGames.jsx v2.9 status_tone 박제 패턴)
+const STATUS_TONE: Record<number, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  1: "ok",
+  2: "info",
+  3: "mute",
+  4: "err",
 };
 
 const TYPE_LABEL: Record<number, string> = {
@@ -160,7 +149,8 @@ export function AdminGamesContent({ games, updateStatusAction, pagination }: Pro
                   {TYPE_LABEL[g.gameType] ?? g.gameType}
                 </td>
                 <td data-label="상태" className="px-3 py-3">
-                  <span className="badge badge--soft" style={STATUS_STYLE[g.status]}>
+                  {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[g.status] ?? "mute"}>
                     {STATUS_LABEL[g.status] ?? "알 수 없음"}
                   </span>
                 </td>

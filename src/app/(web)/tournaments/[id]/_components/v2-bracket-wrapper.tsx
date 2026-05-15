@@ -253,8 +253,9 @@ export function V2BracketWrapper({
     return [];
   })();
 
-  // 우측 사이드 (시드 순위 카드) 렌더 여부 — seedTeams 정의 후 평가
-  const hasSidebar = seedTeams.length > 0;
+  // 2026-05-15 — 시드 순위 카드 삭제 (사용자 결정 / 조별 순위표 중복).
+  //              hasSidebar 항상 false → grid 1컬럼 (메인 트리 풀폭).
+  const hasSidebar = false;
 
   // 헤더 props 조립
   const eyebrow = formatToEyebrow(d.format ?? null);
@@ -276,7 +277,9 @@ export function V2BracketWrapper({
           single elim/풀리그/group_stage 등 기존 format 은 그대로 표시 (회귀 0). */}
       {!isDual && (
         <>
-          {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼) */}
+          {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼)
+                — 2026-05-15 사용자 결정: 모든 대회에서 숨김 (페이지 상단에 이미 대회 정보 있어 중복).
+                  JSX 보존 = 복원 쉬움. eyebrow / title / subtitle / seriesEditions / 저장·공유·출력 버튼 모두 hidden.
           <V2BracketHeader
             eyebrow={eyebrow}
             title={title}
@@ -284,6 +287,7 @@ export function V2BracketWrapper({
             seriesEditions={seriesEditions}
             currentTournamentId={tournamentId}
           />
+          */}
 
           {/* 2. Status Bar (5칸) — 로딩 시 스켈레톤, 에러 시 경량 안내 */}
           {isLoading ? (
@@ -345,6 +349,55 @@ export function V2BracketWrapper({
               ) : (
                 <BracketEmpty tournamentId={tournamentId} />
               )
+            ) : hasLeagueData && groupTeams.length > 0 ? (
+              /* 2026-05-15 — 조별리그 + 토너먼트 케이스 (예: 4차 BDR 뉴비리그 3팀×2조).
+                              format=full_league_knockout 이지만 teams.groupName 박혀있는 케이스.
+                              기존 단일 LeagueStandings 분기 → 조별 GroupStandings 분기로 전환.
+                              조 수 기반 토너먼트 안내 동적 (2조=결승 / 4조+=기존 4강). */
+              <>
+                {/* 조별 순위표 (groupName 기준 분리) */}
+                <GroupStandings teams={groupTeams} />
+
+                {/* full_league_knockout 만 토너먼트 영역 */}
+                {format === "full_league_knockout" &&
+                  (hasKnockout ? (
+                    <section className="mt-8">
+                      <h3
+                        className="mb-4 text-lg font-bold sm:text-xl"
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        토너먼트 대진
+                      </h3>
+                      <BracketView rounds={rounds} tournamentId={tournamentId} />
+                    </section>
+                  ) : (
+                    <section className="mt-8">
+                      <div
+                        className="rounded-md border p-6 text-center"
+                        style={{
+                          borderColor: "var(--color-border)",
+                          backgroundColor: "var(--color-surface)",
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined mb-2 text-4xl"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          account_tree
+                        </span>
+                        <h3 className="mb-2 text-base font-bold">토너먼트 대진</h3>
+                        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                          {(() => {
+                            const groupCount = new Set(groupTeams.map((t) => t.groupName ?? "X")).size;
+                            return groupCount === 2
+                              ? "각 조 1위가 결승에서 만납니다."
+                              : "조별리그 종료 후 본선 대진이 확정됩니다.";
+                          })()}
+                        </p>
+                      </div>
+                    </section>
+                  ))}
+              </>
             ) : hasLeagueData ? (
               <>
                 {/* 풀리그: 리그 순위표 (4강 진출 조편성 기준) */}
@@ -406,13 +459,14 @@ export function V2BracketWrapper({
           {!isDual && hasKnockout && <V2BracketScheduleList rounds={rounds} />}
         </div>
 
-        {/* 2026-05-02: 우승 예측은 page.tsx aside 로 이동 (사용자 요청 — 참가비 박스 아래).
-            시드 순위만 있을 때만 우측 사이드 표시. seedTeams 0 일 때 grid 가 1컬럼이라 본 aside 자체 미렌더. */}
+        {/* 2026-05-15 사용자 결정: 시드 순위 카드 삭제 (조별리그 순위표와 중복 정보).
+                                  JSX 보존 = 복원 쉬움. 운영 데이터 (seedTeams) 영향 0.
         {seedTeams.length > 0 && (
           <aside className="flex flex-col gap-4">
             <V2BracketSeedRanking teams={seedTeams} />
           </aside>
         )}
+        */}
       </div>
       )}
     </div>

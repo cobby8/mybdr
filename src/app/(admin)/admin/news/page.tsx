@@ -131,9 +131,18 @@ export default async function AdminNewsPage({
 
   return (
     <div>
+      {/* 2026-05-15 Admin-4-C 박제 — eyebrow + breadcrumbs (커뮤니티 ← 부모) 추가
+          시안 source: Dev/design/BDR-current/screens/AdminNews.jsx (v2.9) header 박제. */}
       <AdminPageHeader
+        eyebrow="ADMIN · 콘텐츠"
         title="BDR NEWS 검수"
         subtitle={`draft ${draftCount} · published ${publishedCount} · rejected ${rejectedCount}`}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "콘텐츠" },
+          { label: "커뮤니티" },
+          { label: "BDR NEWS" },
+        ]}
       />
       <AdminNewsContent
         posts={serialized}

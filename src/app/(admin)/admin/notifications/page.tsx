@@ -13,6 +13,7 @@
 // - 발송 버튼 → .btn .btn--primary
 
 import { useState, FormEvent } from "react";
+import Link from "next/link"; // Admin-6 박제 — 시안 actions "활동 로그" Link 신규
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 // (web) 시안 카드 패턴
@@ -82,7 +83,27 @@ export default function AdminNotificationsPage() {
 
   return (
     <div>
-      <AdminPageHeader title="알림 발송" />
+      {/* Admin-6 박제 — 시안 v2.14 AdminNotifications.jsx 헤더 패턴 카피 */}
+      {/* eyebrow + subtitle + breadcrumbs + actions (활동 로그 Link) 신규 */}
+      {/* POST /api/web/admin/notifications 비즈 로직 보존 — handleSubmit / fetch / state 0 변경 */}
+      <AdminPageHeader
+        eyebrow="ADMIN · 시스템"
+        title="알림 발송"
+        subtitle="시스템 알림을 대상별로 발송합니다. 일반 유저 대상 발송은 신중히 진행하세요."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "시스템" },
+          { label: "알림 발송" },
+        ]}
+        actions={
+          <Link href="/admin/logs" className="btn">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              list_alt
+            </span>
+            활동 로그
+          </Link>
+        }
+      />
 
       <div className={CARD_CLASS} style={CARD_STYLE}>
         <form onSubmit={handleSubmit} className="space-y-5">

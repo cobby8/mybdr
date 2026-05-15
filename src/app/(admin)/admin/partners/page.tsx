@@ -3,6 +3,12 @@
 /* ============================================================
  * Admin 파트너 관리 페이지
  * 파트너사 목록 / 상태 변경(승인/반려) / 신규 등록
+ *
+ * 2026-05-15: Admin-5-C 박제 (BDR v2.14)
+ * - AdminPageHeader eyebrow + breadcrumbs (시안 v2.14)
+ * - statusBadge(inline bg) → STATUS_TONE + admin-stat-pill[data-tone]
+ *   (pending=warn / approved=ok / rejected=err / suspended=mute)
+ * - 비즈 로직 (fetch/handleStatusChange/handleCreate/state) 100% 보존
  * ============================================================ */
 
 import { useState, useEffect, useCallback } from "react";
@@ -24,16 +30,22 @@ interface Partner {
   created_at: string;
 }
 
-// 상태별 뱃지 색상 매핑
-function statusBadge(status: string) {
-  const map: Record<string, { bg: string; text: string; label: string }> = {
-    pending:   { bg: "var(--color-warning)",  text: "#fff", label: "대기" },
-    approved:  { bg: "var(--color-success)",  text: "#fff", label: "승인" },
-    rejected:  { bg: "var(--color-error)",    text: "#fff", label: "반려" },
-    suspended: { bg: "var(--color-text-muted)", text: "#fff", label: "정지" },
-  };
-  return map[status] || map.pending;
-}
+// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
+// (pending=warn / approved=ok / rejected=err / suspended=mute)
+const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
+  pending: "warn",
+  approved: "ok",
+  rejected: "err",
+  suspended: "mute",
+};
+
+// 상태별 라벨 매핑 (운영 4개 상태 보존)
+const STATUS_LABEL: Record<string, string> = {
+  pending: "대기",
+  approved: "승인",
+  rejected: "반려",
+  suspended: "정지",
+};
 
 export default function AdminPartnersPage() {
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -89,11 +101,29 @@ export default function AdminPartnersPage() {
 
   return (
     <div>
-      <AdminPageHeader title="파트너 관리" subtitle="광고 파트너사 등록/승인/관리" />
+      {/* 시안 v2.14 — eyebrow + breadcrumbs + actions (파트너 등록 버튼은 actions slot) */}
+      <AdminPageHeader
+        eyebrow="ADMIN · 비즈니스"
+        title="파트너 관리"
+        subtitle="광고 파트너사 등록 / 승인 / 관리"
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "비즈니스" },
+          { label: "파트너 관리" },
+        ]}
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn btn--primary"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
+            파트너 등록
+          </button>
+        }
+      />
 
-      {/* 필터 + 등록 버튼 */}
-      <div className="flex items-center gap-3 mb-6">
-        {/* 상태 필터 탭 */}
+      {/* 상태 필터 탭 — (web) .btn 패턴 (Organizations 박제와 일관) */}
+      <div className="mb-4 flex gap-2">
         {[
           { value: "", label: "전체" },
           { value: "pending", label: "대기" },
@@ -103,24 +133,11 @@ export default function AdminPartnersPage() {
           <button
             key={tab.value}
             onClick={() => setFilter(tab.value)}
-            className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
-            style={{
-              backgroundColor: filter === tab.value ? "var(--color-primary)" : "var(--color-surface)",
-              color: filter === tab.value ? "#fff" : "var(--color-text-secondary)",
-            }}
+            className={`btn btn--sm ${filter === tab.value ? "btn--primary" : ""}`}
           >
             {tab.label}
           </button>
         ))}
-
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="ml-auto flex items-center gap-1 px-4 py-2 rounded text-sm font-bold text-white"
-          style={{ backgroundColor: "var(--color-primary)" }}
-        >
-          <span className="material-symbols-outlined text-lg">add</span>
-          파트너 등록
-        </button>
       </div>
 
       {/* 신규 등록 폼 (토글) */}
@@ -197,7 +214,6 @@ export default function AdminPartnersPage() {
             </thead>
             <tbody>
               {partners.map((p) => {
-                const badge = statusBadge(p.status);
                 return (
                   <tr key={p.id} className="border-t" style={{ borderColor: "var(--color-border)" }}>
                     <td data-primary="true" className="px-4 py-3">
@@ -211,9 +227,9 @@ export default function AdminPartnersPage() {
                       {p.campaigns_count}개
                     </td>
                     <td data-label="상태" className="px-4 py-3 text-center">
-                      <span className="inline-block px-2 py-0.5 rounded text-xs font-bold"
-                        style={{ backgroundColor: badge.bg, color: badge.text }}>
-                        {badge.label}
+                      {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
+                      <span className="admin-stat-pill" data-tone={STATUS_TONE[p.status] ?? "mute"}>
+                        {STATUS_LABEL[p.status] ?? p.status}
                       </span>
                     </td>
                     <td data-actions="true" className="px-4 py-3 text-center">

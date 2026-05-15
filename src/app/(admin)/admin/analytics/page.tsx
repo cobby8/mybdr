@@ -86,10 +86,17 @@ export default async function AdminAnalyticsPage() {
 
   return (
     <div>
+      {/* Admin-6 박제 — 시안 v2.14 AdminAnalytics.jsx 헤더 패턴 카피 */}
+      {/* eyebrow 영문 → 한글 카피("ADMIN · 시스템") + breadcrumbs 신규 */}
       <AdminPageHeader
-        eyebrow="ADMIN · ANALYTICS"
+        eyebrow="ADMIN · 시스템"
         title="분석"
         subtitle="이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이"
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "시스템" },
+          { label: "분석" },
+        ]}
       />
 
       {/* 이번 달 통계: Material Symbols 아이콘 사용 */}

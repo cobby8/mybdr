@@ -3,14 +3,41 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import {
   TOURNAMENT_STATUS_LABEL,
-  TOURNAMENT_STATUS_COLOR,
   TOURNAMENT_FORMAT_LABEL,
 } from "@/lib/constants/tournament-status";
 import { calculateSetupProgress } from "@/lib/tournaments/setup-status";
 import { SetupChecklist } from "./_components/SetupChecklist";
+
+// 이유: 시안 AdminTournamentSetupHub v2.14 의 상태 뱃지 패턴(`admin-stat-pill[data-tone]`)
+//   박제 — Admin-7-A `STATUS_TONE` 매핑과 일관 (17 status 키 4 tone 매핑).
+//   tournament.status enum 17종 (TOURNAMENT_STATUS_LABEL) 모두 커버 + 폴백 "mute".
+type StatusTone = "ok" | "warn" | "info" | "mute" | "err";
+const STATUS_TONE: Record<string, StatusTone> = {
+  // 준비중 = mute (회색)
+  draft: "mute",
+  upcoming: "mute",
+  // 접수중 = info (파랑)
+  registration: "info",
+  registration_open: "info",
+  active: "info",
+  published: "info",
+  open: "info",
+  opening_soon: "info",
+  registration_closed: "info",
+  // 진행중 = ok (초록)
+  in_progress: "ok",
+  live: "ok",
+  ongoing: "ok",
+  group_stage: "ok",
+  // 종료 = mute (회색) — Admin-7-A 패턴과 동일
+  completed: "mute",
+  ended: "mute",
+  closed: "mute",
+  cancelled: "mute",
+};
 
 // 2026-05-13 UI-1 (대시보드 체크리스트 hub):
 //   기존 8 메뉴 카드 → 8 항목 체크리스트 + 진행도 바 + 공개 가드로 재구성.
@@ -120,52 +147,64 @@ export default async function TournamentAdminDetailPage({
     },
   ];
 
+  // 이유: 시안 v2.14 AdminTournamentSetupHub 헤더 패턴 박제 — eyebrow + breadcrumbs +
+  //   actions slot. subtitle 에 시작일·종료일·D-Day·format 통합 (한 줄 표시).
+  //   상태 + D-Day 는 본문 상단 메타 라인(admin-stat-pill)으로 분리 — 시안 동일 패턴.
+  const statusTone = STATUS_TONE[status] ?? "mute";
+  const statusLabel = TOURNAMENT_STATUS_LABEL[status] ?? status;
+  const formatLabel =
+    TOURNAMENT_FORMAT_LABEL[tournament.format ?? ""] ?? tournament.format ?? "토너먼트";
+  // 기존 subtitle 정보 (시작일·종료일·format) 통합. D-Day 는 별 pill 로 분리.
+  const dateRangeText = tournament.startDate
+    ? `${tournament.startDate.toLocaleDateString("ko-KR")}${
+        tournament.endDate ? ` ~ ${tournament.endDate.toLocaleDateString("ko-KR")}` : ""
+      }`
+    : null;
+  const subtitleParts = [dateRangeText, formatLabel].filter(Boolean).join(" · ");
+
   return (
     <div>
-      {/* 헤더 */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <Link
-                href="/tournament-admin/tournaments"
-                className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-              >
-                ← 대회 목록
-              </Link>
-            </div>
-            <h1
-              className="text-2xl font-extrabold uppercase tracking-wide sm:text-3xl"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {tournament.name}
-            </h1>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-sm">
-              <span
-                className={TOURNAMENT_STATUS_COLOR[status] ?? "text-[var(--color-text-muted)]"}
-              >
-                ● {TOURNAMENT_STATUS_LABEL[status] ?? status}
+      {/* 헤더 — 시안 v2.14 AdminPageHeader 박제 (Admin-2 commit) */}
+      <AdminPageHeader
+        eyebrow="ADMIN · 대회 운영"
+        title={tournament.name}
+        subtitle={subtitleParts || undefined}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "대회 운영자 도구" },
+          { label: "내 대회" },
+          { label: tournament.name },
+        ]}
+        actions={
+          <>
+            <Link href="/tournament-admin/tournaments" className="btn btn--sm">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                arrow_back
               </span>
-              {tournament.startDate && (
-                <>
-                  <span className="text-[var(--color-text-muted)]">
-                    {tournament.startDate.toLocaleDateString("ko-KR")}
-                    {tournament.endDate &&
-                      ` ~ ${tournament.endDate.toLocaleDateString("ko-KR")}`}
-                  </span>
-                  {/* D-Day 뱃지 = accent (빨강 본문 금지) */}
-                  <span className="rounded-[10px] bg-[rgba(244,162,97,0.12)] px-2 py-0.5 text-xs font-semibold text-[var(--color-accent)]">
-                    {getDDay(tournament.startDate)}
-                  </span>
-                </>
-              )}
-              <span className="text-[var(--color-text-muted)]">
-                {TOURNAMENT_FORMAT_LABEL[tournament.format ?? ""] ?? tournament.format ?? "토너먼트"}
-              </span>
-            </div>
-          </div>
-          {site?.isPublished && <Badge>공개 중</Badge>}
-        </div>
+              대회 목록
+            </Link>
+          </>
+        }
+      />
+
+      {/* 상태 메타 라인 — 시안 admin-stat-pill 패턴 박제 (D-Day + 상태 + 공개 여부) */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <span className="admin-stat-pill" data-tone={statusTone}>
+          {statusLabel}
+        </span>
+        {tournament.startDate && (
+          <span className="admin-stat-pill" data-tone="mute">
+            {getDDay(tournament.startDate)}
+          </span>
+        )}
+        {site?.isPublished && (
+          <span className="admin-stat-pill" data-tone="ok">
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
+              public
+            </span>
+            공개 중
+          </span>
+        )}
       </div>
 
       {/* 빠른 통계 */}

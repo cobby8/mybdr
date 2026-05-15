@@ -2,6 +2,23 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-15] "Match 218 BFF 실패" = false premise — PBP 테이블 2개 (`match_events` vs `play_by_plays`) 혼동 함정
+- **분류**: 진단 함정 / 운영 schema 이해
+- **계기**: Task #17 (사용자 보고 "Match 218 BFF 실패") 추적
+- **잘못된 출발점**: 매치 218 = "PBP 데이터 사라짐" 으로 인지 (`match_events count = 0` 만 보고)
+- **진단 함정 — schema 2 PBP 테이블 혼동**:
+  - **`match_events`** = v1 API (Flutter app) 의 기존 운영 path. count=0 = score-sheet 사용한 운영에서는 자연 (Flutter 미사용 매치 = 0 기본)
+  - **`play_by_plays`** = score-sheet submit route 가 `syncSingleMatch` service 통해 박는 신규 PBP. **이게 실제 박제 대상**
+- **실제 진단 결과**: `play_by_plays.count = 57` (audit pbp_count=57 와 정확 일치) — submit BFF **정상 동작 + 데이터 손실 0**
+- **사용자가 "incident" 로 인지한 이유**: 5/15 score-sheet 재진입 시 화면이 비어 보였음 → 이미 Phase 23 PR2+PR3 (PBP 역변환 + draft vs DB 우선) 으로 자동 로드 박제 완료. = **재발 방지 fix 까지 완료된 상태에서 BFF 실패 원인 추적이라는 false premise 의뢰**
+- **재발 방지 룰**:
+  - **(a) PBP 진단 시 두 테이블 동시 확인**: `match_events` (v1 Flutter) + `play_by_plays` (web score-sheet). 0 일 때 다른 테이블 정상일 가능성 확인 후 결론
+  - **(b) 사용자 보고 "데이터 손실" 의 본질 = 화면 표시 vs DB 잔존 분리 진단**: BFF 실패 / DB 손실 / 화면 미렌더 3 가능성 동시 검증
+  - **(c) submit BFF 박제 검증 source**: `tournament_match_audits` 의 source='web-score-sheet' / ctx='score-sheet 입력...' 의 changes.input 비교 (running_score_count + fouls_count 합 = pbp_count 예상)
+- **결론**: Task #17 종료 — BFF 실패 사실 0, PBP 57건 정상 보존, Phase 23 PR2+PR3 가 화면 표시 issue 까지 해결 완료
+- **참조횟수**: 0
+
+
 ### [2026-05-15] 대진표 generator = `plan` (PURE) + `generate` (DB INSERT) 분리 패턴 (vitest 친화 + 운영 idempotent)
 - **분류**: 코드 설계 패턴 / vitest 인프라 / 운영 안전성
 - **계기**: PR-G5 강남구협회장배 순위결정전 사고 영구 차단 작업 (`league_advancement` / `group_stage_with_ranking` generator 신규)

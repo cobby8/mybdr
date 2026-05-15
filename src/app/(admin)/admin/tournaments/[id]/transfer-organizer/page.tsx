@@ -16,7 +16,14 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { TransferOrganizerForm } from "./transfer-organizer-form";
+
+// 2026-05-15 Admin-4-A 박제 (v2.14):
+// - h1 직접 → <AdminPageHeader> (eyebrow + breadcrumbs + actions) 시안 패턴
+// - 현 주최자 / 위임 운영자 카드 = "읽기 전용" admin-stat-pill 보조
+// - 비즈 로직 (Prisma tournament / TournamentAdminMember 조회) 100% 보존
+// - TransferOrganizerForm 자체는 미박제 — 이미 신 토큰 (--color-*) 사용 중
 
 export const dynamic = "force-dynamic";
 
@@ -69,30 +76,30 @@ export default async function OrganizerManagementPage({
 
   return (
     <div>
-      <div className="mb-6">
-        <Link
-          href="/admin/tournaments"
-          className="text-sm"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          ← 대회 관리
-        </Link>
-        <h1
-          className="mt-1 text-2xl font-extrabold uppercase tracking-wide sm:text-3xl"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          운영자 관리
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: "var(--color-text-muted)" }}>
-          {tournament.name}
-          {orgInfo && (
-            <>
-              {" · "}
-              <span style={{ color: "var(--color-accent)" }}>소속 단체 {orgInfo.name}</span>
-            </>
-          )}
-        </p>
-      </div>
+      {/* Admin-4-A 박제 — AdminPageHeader 시안 패턴 (eyebrow + breadcrumbs) */}
+      <AdminPageHeader
+        eyebrow={`ADMIN · 대회 관리 > ${tournament.name} > 운영자 관리`}
+        title="운영자 관리"
+        subtitle={
+          orgInfo
+            ? `${tournament.name} · 소속 단체 ${orgInfo.name}`
+            : tournament.name
+        }
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "대회 관리" },
+          { label: tournament.name },
+          { label: "운영자 관리" },
+        ]}
+        actions={
+          <Link href="/admin/tournaments" className="btn btn--sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              arrow_back
+            </span>
+            대회 관리
+          </Link>
+        }
+      />
 
       {/* 현 주최자 카드 */}
       <div

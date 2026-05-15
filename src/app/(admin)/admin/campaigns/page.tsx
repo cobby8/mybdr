@@ -29,15 +29,16 @@ interface Campaign {
   created_at: string;
 }
 
-// 상태별 뱃지 색상 매핑
+// 시안 v2.14 — admin-stat-pill[data-tone] 매핑 (2026-05-15 박제)
+// draft=info (초안) / pending=warn (심사) / approved=ok / rejected=err / paused=mute / ended=mute
 function statusBadge(status: string) {
-  const map: Record<string, { bg: string; text: string; label: string }> = {
-    draft:    { bg: "var(--color-surface-bright)", text: "var(--color-text-muted)", label: "초안" },
-    pending:  { bg: "var(--color-warning)", text: "#fff", label: "심사중" },
-    approved: { bg: "var(--color-success)", text: "#fff", label: "승인" },
-    rejected: { bg: "var(--color-error)",   text: "#fff", label: "반려" },
-    paused:   { bg: "var(--color-text-muted)", text: "#fff", label: "일시정지" },
-    ended:    { bg: "var(--color-surface-bright)", text: "var(--color-text-muted)", label: "종료" },
+  const map: Record<string, { tone: "ok" | "warn" | "err" | "info" | "mute"; label: string }> = {
+    draft:    { tone: "info",  label: "초안" },
+    pending:  { tone: "warn",  label: "심사중" },
+    approved: { tone: "ok",    label: "승인" },
+    rejected: { tone: "err",   label: "반려" },
+    paused:   { tone: "mute",  label: "일시정지" },
+    ended:    { tone: "mute",  label: "종료" },
   };
   return map[status] || map.draft;
 }
@@ -79,7 +80,17 @@ export default function AdminCampaignsPage() {
 
   return (
     <div>
-      <AdminPageHeader title="광고 캠페인" subtitle="캠페인 심사/승인/반려 관리" />
+      <AdminPageHeader
+        // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제 2026-05-15)
+        eyebrow="ADMIN · 비즈니스"
+        title="광고 캠페인"
+        subtitle="채널별 캠페인 집행과 전환·ROI 성과를 추적합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "비즈니스" },
+          { label: "광고 캠페인" },
+        ]}
+      />
 
       {/* 상태 필터 탭 */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -143,8 +154,8 @@ export default function AdminCampaignsPage() {
                     <p className="text-sm font-bold truncate" style={{ color: "var(--color-text-primary)" }}>
                       {c.headline}
                     </p>
-                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold shrink-0"
-                      style={{ backgroundColor: badge.bg, color: badge.text }}>
+                    {/* 시안 v2.14 — admin-stat-pill[data-tone] (inline bg/text 제거) */}
+                    <span className="admin-stat-pill shrink-0" data-tone={badge.tone}>
                       {badge.label}
                     </span>
                   </div>

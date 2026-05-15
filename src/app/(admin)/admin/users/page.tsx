@@ -11,6 +11,7 @@ import {
   updateUserProfileAction,
   updateTournamentPlayerJerseyAction,
 } from "@/app/actions/admin-users";
+import Link from "next/link";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminUsersTable } from "./admin-users-table";
 
@@ -95,13 +96,29 @@ export default async function AdminUsersPage({
 
   return (
     <div>
+      {/* 2026-05-15 Admin-5-A 박제 — eyebrow 한국어화 + breadcrumbs + actions
+          시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (line 319~343)
+          - eyebrow: "ADMIN · USERS" → "ADMIN · 사용자" (시안 카피 박제) */}
       <AdminPageHeader
-        eyebrow="ADMIN · USERS"
+        eyebrow="ADMIN · 사용자"
         title="유저 관리"
         subtitle={subtitle}
         searchPlaceholder="닉네임/이메일 검색 (전체 DB)"
         searchName="q"
         searchDefaultValue={q ?? ""}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "사용자" },
+          { label: "유저 관리" },
+        ]}
+        actions={
+          <Link href="/admin/game-reports" className="btn btn--sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              report
+            </span>
+            신고 검토로
+          </Link>
+        }
       />
 
       {error && (

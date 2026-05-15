@@ -310,12 +310,36 @@ function QuickCreateForm() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      {/* === 헤더 === */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold sm:text-2xl">새 대회 만들기</h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요.
-        </p>
+      {/* === 헤더 === Admin-3 박제 (2026-05-15) — 시안 AdminWizardTournament v2.8.1.
+          이유: wizard 진입 시 "마법사 진행 중" 컨텍스트 명시 + 작성 중단 종료 버튼 박제 (사용자 결정).
+          좌상단 백 링크 ❌ (시안 v2.8.1 결정 — sidebar 가 dashboard 진입점 제공). */}
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
+          <span
+            className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-info)]"
+            style={{ fontFamily: "var(--ff-mono, ui-monospace, SFMono-Regular, monospace)" }}
+          >
+            대회 운영자 도구 · 마법사 진행 중
+          </span>
+          <h1 className="mt-1 text-xl font-bold sm:text-2xl">새 대회 만들기</h1>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
+            이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요.
+          </p>
+        </div>
+        {/* × 종료 — 진행 중단 시 admin 대시보드 복귀 (confirm 1회) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
+              router.push("/tournament-admin");
+            }
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text-primary)]"
+          aria-label="작성 종료"
+        >
+          <span className="material-symbols-outlined text-lg">close</span>
+          종료
+        </button>
       </div>
 
       {/* 2026-05-15 Phase 6 PR2 — super_admin / association_admin 분기 카드.

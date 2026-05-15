@@ -24,12 +24,13 @@
   /* A4 폭 정합 (D6) — 페이퍼 영역과 동일 가로 정렬. PR-S11 — 토큰 추출. */
   max-width: var(--ss-paper-width);
   margin: 0 auto 16px;
-  display: grid;
-  /* PR-S6 (2026-05-14 rev2 롤백) — mode seg 제거 (5컬럼 → 4컬럼).
-     back | title (1fr) | print | finish */
-  grid-template-columns: auto 1fr auto auto;
+  /* 2026-05-15 (PR-SS-Manual-Legend) — grid 4컬럼 → flex 한 줄 정렬.
+     사용자 요청 "한 행으로 재배치 + 버튼 우측 정렬".
+     좌측 back + spacer (flex-1) + 우측 버튼 다수 = 한 줄 우측 정렬. */
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 10px 12px;
   background: #FFFFFF;
   /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
@@ -37,27 +38,50 @@
   border-radius: 4px;
 }
 
-/* back / print / finish — 공통 36px 버튼 (시안 그대로) */
-.ss-shell .ss-toolbar__back,
+/* 2026-05-15 — toolbar 안 버튼들 = shrink 0 (wrap 차단, 항상 한 줄 유지) */
+.ss-shell .ss-toolbar > * {
+  flex-shrink: 0;
+}
+
+/* print / finish — 공통 32px 버튼.
+   2026-05-15 (PR-SS-Manual-Legend) — 36px → 32px + padding 14→10 + font 13→12.
+     사유: 한 줄에 [라인업][설명서][인쇄][기록취소] 4개 + spacer 정합. */
 .ss-shell .ss-toolbar__print,
 .ss-shell .ss-toolbar__finish {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  /* 시안 var(--ff-body) → 운영 본문 폰트 (Pretendard) 가족 fallback */
-  font: 600 13px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
-  /* PR-S11 — 토큰 추출 (toolbar 회색 외곽). */
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  font: 600 12px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
   border: 1px solid var(--ss-toolbar-border);
   background: #FFFFFF;
   color: #1A1E27;
   border-radius: 4px;
   cursor: pointer;
-  text-decoration: none;  /* Link (back) 의 underline 제거 */
+  text-decoration: none;
 }
 
-.ss-shell .ss-toolbar__back .material-symbols-outlined,
+/* 2026-05-15 (PR-SS-52) — 뒤로 버튼 = 아이콘만 (외곽 박스 제거, 사용자 요청).
+   터치 영역 = 36px hit area 유지 (display: inline-flex + 44px wide). */
+.ss-shell .ss-toolbar__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--pap-ink);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ss-shell .ss-toolbar__back .material-symbols-outlined {
+  font-size: 22px;
+}
+
 .ss-shell .ss-toolbar__print .material-symbols-outlined,
 .ss-shell .ss-toolbar__finish .material-symbols-outlined {
   font-size: 18px;
@@ -248,10 +272,13 @@
   text-overflow: ellipsis;
 }
 
-/* ----- Section C — Competition / Game No / Referee / Umpire ----- */
+/* ----- Section C — Competition / Game No / Referee / Umpire -----
+   2026-05-15 (PR-SS-meta-Layout) — 좌:우 비율 1:1 → 7:3 → 2:1 (66.7:33.3).
+     사용자 요청 누적: 긴 대회명 fit + 심판 영역 60% 축소 → 추가 미세조정 66%.
+     2fr 1fr = 66.67% : 33.33% (정확). */
 .ss-shell .ss-meta {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-meta__l,

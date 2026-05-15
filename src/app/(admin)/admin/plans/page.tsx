@@ -5,8 +5,13 @@
 // - 자체 rounded bg-* 버튼 → .btn .btn--primary / .btn--ghost / .btn--sm
 // - thead 자체 className 제거 (admin-table CSS 자동)
 // - tr hover className 제거 (admin-table CSS 자동)
+// 2026-05-15: Admin-5-B 박제 (BDR v2.14)
+// - AdminPageHeader 에 eyebrow="ADMIN · 비즈니스" + breadcrumbs + actions(결제 내역 링크)
+// - 상태 `.badge--soft` 인라인 색상 → `admin-stat-pill[data-tone]` (active=ok / withdrawn=mute)
+// - 프로모션 종료 버튼 / 모달 / fetch / Server Action 100% 보존
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
@@ -154,10 +159,28 @@ export default function AdminPlansPage() {
   return (
     <div>
       <AdminPageHeader
-        eyebrow="ADMIN · PLANS"
+        // 시안 v2.14 카피 박제 — eyebrow 영역명 (USERS → 사용자 동일 한글화)
+        eyebrow="ADMIN · 비즈니스"
         title="요금제 관리"
-        subtitle="기능별 요금제 / 프로모션 관리"
-        actions={<Button onClick={openCreate}>+ 요금제 추가</Button>}
+        subtitle="유료·무료 플랜의 가격·기능·가입자 추이를 관리합니다."
+        // 시안 breadcrumbs (ADMIN › 비즈니스 › 요금제 관리)
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "비즈니스" },
+          { label: "요금제 관리" },
+        ]}
+        actions={
+          <>
+            {/* 시안 v2.14 — 결제 내역 이동 보조 actions (운영 라우트 /admin/payments) */}
+            <Link href="/admin/payments" className="btn">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                credit_card
+              </span>
+              결제 내역
+            </Link>
+            <Button onClick={openCreate}>+ 요금제 추가</Button>
+          </>
+        }
       />
 
       {/* 프로모션 관리 */}
@@ -191,7 +214,8 @@ export default function AdminPlansPage() {
                     {endingPromo === tier.membershipType ? "처리 중..." : "프로모션 종료"}
                   </button>
                 ) : (
-                  <span className="badge badge--soft">프로모션 없음</span>
+                  // 시안 v2.14 — admin-stat-pill mute 톤 (회색)
+                  <span className="admin-stat-pill" data-tone="mute">프로모션 없음</span>
                 )}
               </div>
             );
@@ -244,13 +268,10 @@ export default function AdminPlansPage() {
                   <td data-label="타입" className="py-3 pr-4 text-xs" style={{ color: "var(--color-text-muted)" }}>{PLAN_TYPE_LABELS[plan.plan_type] ?? plan.plan_type}</td>
                   <td data-label="금액" className="py-3 pr-4 font-semibold">{plan.price.toLocaleString()}원</td>
                   <td data-label="상태" className="py-3 pr-4">
+                    {/* 시안 v2.14 — admin-stat-pill (active=ok / 비활성=mute) */}
                     <span
-                      className="badge badge--soft"
-                      style={
-                        plan.is_active
-                          ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }
-                          : undefined
-                      }
+                      className="admin-stat-pill"
+                      data-tone={plan.is_active ? "ok" : "mute"}
                     >
                       {plan.is_active ? "활성" : "비활성"}
                     </span>

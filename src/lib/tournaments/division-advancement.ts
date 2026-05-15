@@ -623,6 +623,215 @@ export async function generateGroupStageKnockoutMatches(
 // 본 PR 미진입 사유: 운영 사용처 0 + 복잡도 ↑ + 강남구 사고 영구 차단 무관.
 // 후속 진입 = 운영 사용 시점에 사용자 결재.
 
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-15 PR-G5.5-followup — Tournament 단위 standings + placeholder applier
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 컨텍스트 (4차 BDR 뉴비리그 — Tournament 443f23f8 / 5/16 시작):
+//   - division_rule = 0건 (종별 룰 없음)
+//   - 매치 settings.division_code 도 없음
+//   - 단판 결승 매치 (예: 매치 232) 가 placeholder 로 박혀야 하나, 기존
+//     advanceDivisionPlaceholders 는 division_code 매칭 필수라 진입 불가
+//
+// 해결: division_code 무관 Tournament 단위 applier 신규 박제 (옵션 A — 신규 함수).
+//   - getTournamentStandings: getDivisionStandings 의 category 필터 제거 버전
+//   - advanceTournamentPlaceholders: settings.division_code 매칭 제거 + groupName 기준 매핑
+//   - 기존 advanceDivisionPlaceholders / getDivisionStandings 시그니처/동작 변경 0 (회귀 차단)
+//
+// 호출처 (본 PR 범위 X — 후속 PR 큐):
+//   - G5.5-followup-B: 매치 PATCH route 통합 (status='completed' UPDATE 시 division_rule=0 분기 → advanceTournamentPlaceholders 호출)
+//   - 또는 운영자 manual trigger (어드민 API)
+
+/**
+ * Tournament 전체의 standings 조회 + 그룹별 순위 계산 (category 필터 없음).
+ *
+ * getDivisionStandings 와 차이:
+ *   - category 매칭 제거 — 모든 TournamentTeam SELECT (4차 뉴비리그 케이스)
+ *   - groupName 기준으로 그룹핑 (null → "X" 폴백, 기존 동일)
+ *
+ * 정렬 룰 (NBA / 한국농구협회 표준 — getDivisionStandings 와 100% 동일):
+ *   1. wins desc
+ *   2. point_difference desc
+ *   3. points_for desc
+ *   4. teamName asc (최종 tie-breaker)
+ *
+ * @param prisma - Prisma client 또는 transaction client
+ * @param tournamentId - 대회 UUID
+ */
+export async function getTournamentStandings(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  tournamentId: string,
+): Promise<DivisionStanding[]> {
+  // 사유: category 필터 제거 — 4차 뉴비리그처럼 division_rule=0 인 대회 진입 가능
+  const teams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId },
+    select: {
+      id: true,
+      groupName: true,
+      wins: true,
+      losses: true,
+      draws: true,
+      points_for: true,
+      points_against: true,
+      point_difference: true,
+      team: { select: { name: true } },
+    },
+  });
+
+  // 그룹별 분류 (getDivisionStandings 와 동일 — groupName null = "X" 폴백)
+  const byGroup: Record<string, typeof teams> = {};
+  for (const t of teams) {
+    const g = t.groupName ?? "X";
+    (byGroup[g] ??= []).push(t);
+  }
+
+  const result: DivisionStanding[] = [];
+  for (const group of Object.keys(byGroup).sort()) {
+    // 정렬 룰 = getDivisionStandings 동일 (분기 안전성 — 같은 로직 복사)
+    const sorted = [...byGroup[group]].sort((a, b) => {
+      const wd = (b.wins ?? 0) - (a.wins ?? 0);
+      if (wd !== 0) return wd;
+      const pd = (b.point_difference ?? 0) - (a.point_difference ?? 0);
+      if (pd !== 0) return pd;
+      const pf = (b.points_for ?? 0) - (a.points_for ?? 0);
+      if (pf !== 0) return pf;
+      return (a.team?.name ?? "").localeCompare(b.team?.name ?? "");
+    });
+    sorted.forEach((t, i) => {
+      result.push({
+        tournamentTeamId: t.id.toString(),
+        teamName: t.team?.name ?? "(이름 없음)",
+        groupName: group,
+        wins: t.wins ?? 0,
+        losses: t.losses ?? 0,
+        draws: t.draws ?? 0,
+        pointsFor: t.points_for ?? 0,
+        pointsAgainst: t.points_against ?? 0,
+        pointDifference: t.point_difference ?? 0,
+        groupRank: i + 1,
+      });
+    });
+  }
+  return result;
+}
+
+/**
+ * Tournament 단위 advanceResult — divisionCode 무관 (4차 뉴비리그 케이스).
+ *
+ * 본 PR (G5.5-followup) 의 placeholder applier 반환 타입. AdvanceResult 와 차이:
+ *   - divisionCode 필드 → tournamentId (Tournament 단위 진입)
+ *   - 그 외 (updated/skipped/errors/standings) 100% 동일 — 호환성 위해 동일 형식
+ */
+export type TournamentAdvanceResult = {
+  tournamentId: string;
+  updated: number;
+  skipped: number;
+  errors: Array<{ matchId: string; reason: string }>;
+  standings: DivisionStanding[];
+};
+
+/**
+ * Tournament 전체 placeholder 매치를 standings 기반으로 자동 채움
+ * (division_code 무관 / division_rule=0 대회 진입 가능).
+ *
+ * advanceDivisionPlaceholders 와 차이:
+ *   - placeholder fetch where 절에서 settings.division_code 필터 제거
+ *   - standings 계산도 category 무관 (getTournamentStandings 호출)
+ *
+ * 안전성 (기존 advanceDivisionPlaceholders 동일 룰 — 회귀 0):
+ *   - 이미 채워진 슬롯 보호 — NULL slot 만 UPDATE (운영자 수동 변경 보호)
+ *   - notes 형식 위반 → errors 박제 + skip (UPDATE 0)
+ *   - standings 매핑 실패 → errors 박제 + skip
+ *   - idempotent 가드 — homeTeamId/awayTeamId 모두 NOT NULL row 는 fetch 자체 안 됨
+ *
+ * @param prisma - Prisma client 또는 transaction client
+ * @param tournamentId - 대회 UUID
+ */
+export async function advanceTournamentPlaceholders(
+  prisma: PrismaClient | Prisma.TransactionClient,
+  tournamentId: string,
+): Promise<TournamentAdvanceResult> {
+  // 1) Tournament 전체 standings 계산 (category 필터 없음)
+  const standings = await getTournamentStandings(prisma, tournamentId);
+
+  // standings 매핑 key = "그룹:랭크" (예: "A:1")
+  const standingsMap: Record<string, bigint> = {};
+  for (const s of standings) {
+    standingsMap[`${s.groupName}:${s.groupRank}`] = BigInt(s.tournamentTeamId);
+  }
+
+  // 2) placeholder 매치 fetch — division_code 필터 제거 (본 함수 차별점)
+  //    homeTeamId OR awayTeamId 하나라도 NULL 이면 진입 (절반 NULL 케이스 포함)
+  const placeholders = await prisma.tournamentMatch.findMany({
+    where: {
+      tournamentId,
+      OR: [{ homeTeamId: null }, { awayTeamId: null }],
+    },
+    select: {
+      id: true,
+      notes: true,
+      homeTeamId: true,
+      awayTeamId: true,
+    },
+  });
+
+  let updated = 0;
+  let skipped = 0;
+  const errors: TournamentAdvanceResult["errors"] = [];
+
+  for (const m of placeholders) {
+    // notes 파싱 — "A조 N위 vs B조 N위" 형식 (parseAdvancement 재사용)
+    const parsed = parseAdvancement(m.notes);
+    if (!parsed) {
+      errors.push({
+        matchId: m.id.toString(),
+        reason: "notes 파싱 실패 (A조 N위 vs B조 N위 형식 부재)",
+      });
+      skipped++;
+      continue;
+    }
+
+    const homeKey = `${parsed.home.group}:${parsed.home.rank}`;
+    const awayKey = `${parsed.away.group}:${parsed.away.rank}`;
+    const homeTtId = standingsMap[homeKey];
+    const awayTtId = standingsMap[awayKey];
+
+    if (!homeTtId || !awayTtId) {
+      errors.push({
+        matchId: m.id.toString(),
+        reason: `standings 매핑 실패 (home=${homeKey} ${homeTtId ? "✓" : "✗"} / away=${awayKey} ${awayTtId ? "✓" : "✗"})`,
+      });
+      skipped++;
+      continue;
+    }
+
+    // 이미 채워진 슬롯 덮어쓰지 않음 (운영자 수동 변경 보호 — null 인 슬롯만 UPDATE)
+    const updateData: { homeTeamId?: bigint; awayTeamId?: bigint } = {};
+    if (m.homeTeamId === null) updateData.homeTeamId = homeTtId;
+    if (m.awayTeamId === null) updateData.awayTeamId = awayTtId;
+
+    if (Object.keys(updateData).length === 0) {
+      // 양 슬롯 모두 NOT NULL — placeholder fetch where 절상 진입 자체 불가능하지만 방어
+      skipped++;
+      continue;
+    }
+
+    await prisma.tournamentMatch.update({
+      where: { id: m.id },
+      data: updateData,
+    });
+    updated++;
+  }
+
+  return {
+    tournamentId,
+    updated,
+    skipped,
+    errors,
+    standings,
+  };
+}
+
 /**
  * 모든 종별 placeholder 일괄 처리 (운영자 manual trigger 용).
  *

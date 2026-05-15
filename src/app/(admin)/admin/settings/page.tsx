@@ -6,6 +6,7 @@
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { useState, useTransition } from "react";
+import Link from "next/link"; // Admin-6 박제 — 시안 actions "활동 로그" Link 신규
 import { clearCacheAction, toggleMaintenanceModeAction } from "@/app/actions/admin-settings";
 
 // (web) 시안 카드 패턴 — Card 컴포넌트와 동일 룩 (rounded + border + bg + p)
@@ -44,10 +45,25 @@ export default function AdminSettingsPage() {
 
   return (
     <div>
+      {/* Admin-6 박제 — 시안 v2.14 AdminSettings.jsx 헤더 패턴 카피 */}
+      {/* eyebrow "ADMIN · 시스템" + breadcrumbs + actions (활동 로그 Link) */}
       <AdminPageHeader
-        eyebrow="ADMIN · SYSTEM"
+        eyebrow="ADMIN · 시스템"
         title="시스템 설정"
-        subtitle="점검 모드 전환 · 캐시 초기화 등 시스템 운영 도구"
+        subtitle="사이트 정보·운영 정책·알림·점검 모드를 관리합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "시스템" },
+          { label: "시스템 설정" },
+        ]}
+        actions={
+          <Link href="/admin/logs" className="btn">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              list_alt
+            </span>
+            활동 로그
+          </Link>
+        }
       />
       <div className="space-y-4">
 

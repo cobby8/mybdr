@@ -18,6 +18,7 @@
  * - API 라우트에서 super_admin 재검증 (세션 변조 대비)
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
@@ -52,12 +53,14 @@ interface ReportItem {
   ratings: RatingItem[];
 }
 
-// 상태별 뱃지 색상 (organizations 페이지 패턴 참조)
-function statusBadge(status: string): { bg: string; label: string } {
-  const map: Record<string, { bg: string; label: string }> = {
-    submitted: { bg: "var(--color-warning)", label: "검토 대기" },
-    reviewed: { bg: "var(--color-success)", label: "검토 완료" },
-    dismissed: { bg: "var(--color-text-muted)", label: "기각" },
+// 2026-05-15 Admin-5-A 박제 — 시안 admin-stat-pill[data-tone] 패턴
+// 시안 source: Dev/design/BDR-current/screens/AdminGameReports.jsx (line 247~249)
+// 상태별 (label / tone) 매핑 — submitted=warn / reviewed=ok / dismissed=mute
+function statusBadge(status: string): { tone: string; label: string } {
+  const map: Record<string, { tone: string; label: string }> = {
+    submitted: { tone: "warn", label: "검토 대기" },
+    reviewed: { tone: "ok", label: "검토 완료" },
+    dismissed: { tone: "mute", label: "기각" },
   };
   return map[status] || map.submitted;
 }
@@ -93,9 +96,25 @@ export default function AdminGameReportsPage() {
 
   return (
     <div>
+      {/* 2026-05-15 Admin-5-A 박제 — eyebrow + breadcrumbs + actions (유저 관리로)
+          시안 source: Dev/design/BDR-current/screens/AdminGameReports.jsx (line 304~328) */}
       <AdminPageHeader
+        eyebrow="ADMIN · 사용자"
         title="신고 검토 큐"
         subtitle="경기 평가에 누적된 신고 플래그를 검토합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "사용자" },
+          { label: "신고 검토" },
+        ]}
+        actions={
+          <Link href="/admin/users" className="btn btn--sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              group
+            </span>
+            유저 관리로
+          </Link>
+        }
       />
 
       {/* 상태 필터 탭 — (web) .btn 패턴 (활성 .btn--primary) */}
@@ -148,10 +167,8 @@ export default function AdminGameReportsPage() {
                       {r.game.title || "(제목 없음)"}
                     </h3>
                   </div>
-                  <span
-                    className="inline-block shrink-0 rounded px-2 py-0.5 text-xs font-semibold text-white"
-                    style={{ backgroundColor: badge.bg }}
-                  >
+                  {/* 2026-05-15 Admin-5-A 박제 — admin-stat-pill[data-tone] */}
+                  <span className="admin-stat-pill" data-tone={badge.tone}>
                     {badge.label}
                   </span>
                 </header>
@@ -196,18 +213,15 @@ export default function AdminGameReportsPage() {
                         <span className="text-xs text-[var(--color-text-muted)]">
                           ({rt.rating}/5)
                         </span>
-                        {/* 플래그 칩 */}
+                        {/* 플래그 칩 — 시안 admin-stat-pill[data-tone=err] 박제 */}
                         <div className="flex flex-wrap gap-1">
                           {rt.flags.map((f) => (
-                            <span
-                              key={f}
-                              className="rounded bg-[var(--color-error)] px-2 py-0.5 text-xs font-semibold text-white"
-                            >
+                            <span key={f} className="admin-stat-pill" data-tone="err">
                               {FLAG_LABELS[f] || f}
                             </span>
                           ))}
                           {rt.is_noshow && !rt.flags.includes("no_show") && (
-                            <span className="rounded bg-[var(--color-error)] px-2 py-0.5 text-xs font-semibold text-white">
+                            <span className="admin-stat-pill" data-tone="err">
                               노쇼
                             </span>
                           )}
