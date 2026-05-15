@@ -1240,6 +1240,27 @@ export async function GET(
         // getRecordingMode = "paper" 만 명시적 match, 그 외 (settings null / 누락 / 기타) 모두 "flutter" fallback.
         // apiSuccess camelCase → snake_case 변환으로 클라이언트는 recording_mode 로 수신.
         recordingMode: getRecordingMode(match),
+        // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 응답 박제.
+        //
+        // 왜 (이유):
+        //   halves 모드 매치 (강남구 i3 등) 라이브 페이지에서 쿼터 라벨 "전반/후반/OT1+" 분기.
+        //   score-sheet BFF 가 match.settings.period_format JSON 키에 박제 → 본 응답 transfer.
+        //
+        // shape:
+        //   - "halves" = 전후반 모드 (라벨 "전반/후반/OT1+")
+        //   - "quarters" = 4쿼터 모드 (라벨 "Q1/Q2/Q3/Q4/OT1+" / 기본 / 호환성)
+        //   - 미박제 (구버전 매치) = "quarters" 기본 폴백 — settings.period_format 키 자체 미존재 시.
+        //
+        // 운영 동작 보존:
+        //   - 4쿼터 매치 (기본) = "quarters" 응답 → 라이브 페이지 기존 라벨 그대로.
+        //   - halves 매치만 = "halves" 응답 → 라이브 페이지 라벨 분기 트리거.
+        //
+        // apiSuccess snake_case 변환: 응답 키 = period_format (이미 snake_case — 그대로 통과).
+        periodFormat:
+          ((match.settings as Record<string, unknown> | null)?.period_format as
+            | "halves"
+            | "quarters"
+            | undefined) ?? "quarters",
         // 2026-05-03: 시간 데이터 소실 매치 안내 배너 트리거 (settings.timeDataMissing 플래그)
         // 운영자 sync 누락 매치 (#141 블랙라벨 vs MSA 등) — 박제 stat 만 입력 + 출전시간 0 표시
         timeDataMissing: ((match.settings as Record<string, unknown> | null)?.timeDataMissing as boolean | undefined) ?? false,

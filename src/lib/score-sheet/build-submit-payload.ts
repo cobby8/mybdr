@@ -64,6 +64,19 @@ export interface BuildSubmitPayloadParams {
    *   submit/route.ts 의 possessionSchema 와 1:1 정합.
    */
   possession?: PassThrough;
+  /**
+   * 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format DB 박제.
+   *
+   *   왜 (이유):
+   *     halves 모드 매치 (강남구 i3 등) 운영 시 = 라이브 페이지가 quarter 라벨을 "전반/후반/OT1+"
+   *     로 분기해야 함. localStorage 만으로는 다른 사용자 (관전자) 라이브 페이지 보존 불가.
+   *     → DB match.settings.period_format JSON 키에 박제 → 라이브 API 응답 → 라이브 페이지 분기.
+   *
+   *   미전달 = 키 통째 생략 (BFF settings 미갱신 — 기존 동작 보존 / 4쿼터 매치 영향 0).
+   *   "quarters" = 기본값 일치 (생략 가능하지만 명시 박제로 명확화 — 라이브 페이지 분기 안전망).
+   *   "halves" = 라이브 페이지 라벨 분기 트리거.
+   */
+  periodFormat?: "halves" | "quarters";
 }
 
 export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
@@ -77,6 +90,8 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     lineup,
     isEditMode,
     possession,
+    // 2026-05-16 (긴급 박제 — 전후반 모드) — period_format 박제 (halves/quarters).
+    periodFormat,
   } = params;
 
   const final = computeFinalScore(runningScore);
@@ -136,5 +151,8 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     ...(isEditMode ? { edit_mode: true } : {}),
     /* 2026-05-16 (PR-Possession-3) — possession 박제 (openingJumpBall !== null 시만). */
     ...(possession ? { possession } : {}),
+    /* 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 박제.
+       미전달 = 키 통째 생략 (BFF settings 미갱신 — 기존 동작 보존). */
+    ...(periodFormat ? { period_format: periodFormat } : {}),
   };
 }

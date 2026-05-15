@@ -166,6 +166,10 @@ interface MatchData {
   // 빈 배열 또는 1건만 있으면 Rail 자체 hidden (사용자 결정 Q4=A 가변).
   // 응답 키 이미 snake_case → apiSuccess 자동 변환에서 그대로 통과 (errors.md 2026-04-17 룰).
   same_day_matches?: LiveMatchCardData[];
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format.
+  //   "halves" = 라벨 "전반/후반/OT1+" / "quarters" = "Q1/Q2/Q3/Q4/OT1+" (기본 / 호환성).
+  //   미박제 매치 (구버전 / 4쿼터 기본) = "quarters" 폴백 (API 가 항상 박제하지만 안전망).
+  period_format?: "halves" | "quarters";
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -1039,17 +1043,47 @@ export default function LiveBoxScorePage() {
   const qs = match.quarter_scores;
   const qh = qs?.home;
   const qa = qs?.away;
-  const quarters = [
-    { label: "Q1", home: qh?.q1 ?? 0, away: qa?.q1 ?? 0 },
-    { label: "Q2", home: qh?.q2 ?? 0, away: qa?.q2 ?? 0 },
-    { label: "Q3", home: qh?.q3 ?? 0, away: qa?.q3 ?? 0 },
-    { label: "Q4", home: qh?.q4 ?? 0, away: qa?.q4 ?? 0 },
-    ...(qh?.ot ?? []).map((v, i) => ({
-      label: `OT${i + 1}`,
-      home: v,
-      away: qa?.ot?.[i] ?? 0,
-    })),
-  ];
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 라벨 분기.
+  //
+  //   "halves" 모드 (강남구 i3 등):
+  //     - Q1 → "전반" / Q2 → "후반"
+  //     - Q3 (= 1차 OT) → "OT1" / Q4 (= 2차 OT) → "OT2" / OT[i] → "OT{i+3}"
+  //     사유: halves 매치는 period 1 / 2 만 정규 / 3+ 부터 OT (사용자 결재).
+  //   "quarters" 모드 (기본 / 4쿼터):
+  //     - Q1/Q2/Q3/Q4 + OT[i] → "OT{i+1}" (기존 보존).
+  //
+  //   미박제 매치 (period_format undefined) = "quarters" 폴백 (API 가 항상 박제하지만 안전망).
+  const isHalves = match.period_format === "halves";
+  const quarters = isHalves
+    ? [
+        { label: "전반", home: qh?.q1 ?? 0, away: qa?.q1 ?? 0 },
+        { label: "후반", home: qh?.q2 ?? 0, away: qa?.q2 ?? 0 },
+        // halves 모드 = period 3+ 부터 OT — Q3/Q4 칸은 OT1/OT2 로 변환.
+        // 점수 0/0 일 시 = 미발생 OT → quarters.some 의 hidden 분기로 자동 hide (기존 룰 재사용).
+        ...((qh?.q3 ?? 0) > 0 || (qa?.q3 ?? 0) > 0
+          ? [{ label: "OT1", home: qh?.q3 ?? 0, away: qa?.q3 ?? 0 }]
+          : []),
+        ...((qh?.q4 ?? 0) > 0 || (qa?.q4 ?? 0) > 0
+          ? [{ label: "OT2", home: qh?.q4 ?? 0, away: qa?.q4 ?? 0 }]
+          : []),
+        ...(qh?.ot ?? []).map((v, i) => ({
+          // halves OT 추가 인덱스 시작 = 3 (전반/후반 이후 Q3=OT1 / Q4=OT2 / ot[0]=OT3)
+          label: `OT${i + 3}`,
+          home: v,
+          away: qa?.ot?.[i] ?? 0,
+        })),
+      ]
+    : [
+        { label: "Q1", home: qh?.q1 ?? 0, away: qa?.q1 ?? 0 },
+        { label: "Q2", home: qh?.q2 ?? 0, away: qa?.q2 ?? 0 },
+        { label: "Q3", home: qh?.q3 ?? 0, away: qa?.q3 ?? 0 },
+        { label: "Q4", home: qh?.q4 ?? 0, away: qa?.q4 ?? 0 },
+        ...(qh?.ot ?? []).map((v, i) => ({
+          label: `OT${i + 1}`,
+          home: v,
+          away: qa?.ot?.[i] ?? 0,
+        })),
+      ];
 
   // 2026-04-22: 종료된 경기는 v2 GameResult 컴포넌트로 전체 렌더 교체
   // 기존 라이브/진행중 UI 코드는 0 수정. finished/completed 외 상태는 기존 그대로 렌더.

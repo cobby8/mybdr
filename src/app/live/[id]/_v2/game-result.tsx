@@ -178,6 +178,10 @@ export interface MatchDataV2 {
   // 2026-05-13 FIBA Phase 21: 매치 기록 모드 — "paper" 매치는 박스스코어 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) hide.
   // API getRecordingMode 가 "paper" 만 명시적 match, 그 외 "flutter" fallback. null/undefined = 응답 미제공(레거시) 안전 → 기본 flutter 처리.
   recording_mode?: "paper" | "flutter" | null;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format.
+  //   "halves" = 라벨 "전반/후반/OT1+" / "quarters" = "Q1/Q2/Q3/Q4/OT1+" (기본 / 호환성).
+  //   미박제 (구버전 매치) = "quarters" 폴백 (API 가 항상 박제하지만 안전망).
+  period_format?: "halves" | "quarters";
 }
 
 type TabId = "summary" | "team" | "players" | "timeline" | "shotchart";

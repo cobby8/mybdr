@@ -436,6 +436,11 @@ export default async function ScoreSheetPage({ params }: PageProps) {
   // Phase 4/5 패턴 = match.settings.timeouts / match.settings.signatures JSON merge UPDATE.
   let initialTimeouts: TimeoutsState | undefined;
   let initialSignatures: SignaturesState | undefined;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+  //   match.settings.period_format SELECT → ScoreSheetForm 의 initialPeriodFormat prop 전달.
+  //   localStorage 박제 (draft.periodFormat) 와 우선순위 = ScoreSheetForm 내부에서 결정.
+  //   미박제 (구버전 매치 / 4쿼터 매치) = undefined → form 기본 "quarters" fallback.
+  let initialPeriodFormat: "halves" | "quarters" | undefined;
   if (
     match.settings &&
     typeof match.settings === "object" &&
@@ -457,6 +462,12 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     const s = settingsObj.signatures;
     if (s && typeof s === "object" && !Array.isArray(s)) {
       initialSignatures = s as SignaturesState;
+    }
+    // 2026-05-16 (긴급 박제 — 전후반 모드) — period_format 추출.
+    //   값 검증: "halves" | "quarters" 외 = undefined (안전망 — 잘못된 박제 차단).
+    const pf = settingsObj.period_format;
+    if (pf === "halves" || pf === "quarters") {
+      initialPeriodFormat = pf;
     }
   }
 
@@ -635,6 +646,10 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       //   audit log SELECT 결과 → ScoreSheetForm 이 노란 배너 아래 inline 표시.
       //   진행 매치 = 빈 배열 (운영 동작 보존).
       editAuditLogs={editAuditLogs}
+      // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 자동 로드.
+      //   server settings.period_format SELECT 결과 → ScoreSheetForm 초기값 전달.
+      //   localStorage draft 와의 우선순위 = ScoreSheetForm 내부에서 결정 (localStorage > server > "quarters").
+      initialPeriodFormat={initialPeriodFormat}
     />
   );
 }

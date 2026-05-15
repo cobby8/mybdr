@@ -193,6 +193,20 @@ interface ScoreSheetFormProps {
     userId: string | null;
     userNickname: string | null;
   }>;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+  //
+  // 왜 (이유):
+  //   page.tsx 가 match.settings.period_format SELECT 결과 prop drilling.
+  //   localStorage draft 의 periodFormat 과 우선순위 비교 → useState 초기값 결정.
+  //
+  // 우선순위:
+  //   1. localStorage draft.periodFormat (운영자 토글 즉시 반영 / 새로고침 보존)
+  //   2. server initialPeriodFormat (DB settings.period_format — 다른 브라우저 / 첫 진입)
+  //   3. "quarters" (기본값 / 호환성)
+  //
+  //   사유: 운영자가 score-sheet 안에서 토글한 즉시 = localStorage 박제 → 우선.
+  //   서버 박제는 BFF submit 시점 → 다른 브라우저 / 첫 진입 시 SSOT.
+  initialPeriodFormat?: "halves" | "quarters";
 }
 
 // 2026-05-15 (PR-D-4a) — draft localStorage IO 가 lib/score-sheet/draft-storage.ts
@@ -251,6 +265,9 @@ export function ScoreSheetForm({
   canEdit,
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 inline (사용자 결재 Q7 옵션 A).
   editAuditLogs,
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+  //   server settings.period_format SELECT 결과 (page.tsx prop drilling).
+  initialPeriodFormat,
 }: ScoreSheetFormProps) {
   // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅 단일 source.
   const inputState = useScoreSheetInputState({
@@ -348,11 +365,14 @@ export function ScoreSheetForm({
   //   toolbar 토글로 즉시 전환. DB schema 변경 0 — localStorage draft 박제로 새로고침 시 보존.
   //
   // 어떻게:
-  //   - 기본값 = "quarters" (4쿼터 / 호환 유지).
+  //   - 초기값 = initialPeriodFormat (server settings.period_format) ?? "quarters" (4쿼터 / 호환 유지).
+  //     사유: 사용자 보고 이미지 #160 — 박제 후 다시 새로고침 시 server settings 가 SSOT
+  //         → 다른 브라우저 / 첫 진입 시 라벨 일관성 보장.
   //   - toolbar [전후반] 버튼 클릭 시 togglePeriodFormat 호출 → halves ↔ quarters 토글.
   //   - localStorage 복원 = 아래 useEffect (loadDraft) 에서 setPeriodFormat (draft.periodFormat 있을 시).
+  //     사유: 운영자 즉시 토글 우선 (localStorage > server > 기본값) — useEffect 가 mount 후 덮어씀.
   const [periodFormat, setPeriodFormat] = useState<"halves" | "quarters">(
-    "quarters",
+    initialPeriodFormat ?? "quarters",
   );
   const togglePeriodFormat = () => {
     setPeriodFormat((prev) => (prev === "halves" ? "quarters" : "halves"));
@@ -1583,6 +1603,10 @@ export function ScoreSheetForm({
               heldBallEvents: possession.heldBallEvents,
             }
           : undefined,
+      // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format DB 박제.
+      //   halves 모드 매치 = "halves" 전송 / quarters 모드 = "quarters" 전송 (기본값과 동일 → 운영 영향 0).
+      //   BFF 가 match.settings.period_format 키에 박제 → 라이브 페이지가 SELECT 후 라벨 분기.
+      periodFormat,
     });
   }
 
@@ -2361,6 +2385,9 @@ export function ScoreSheetForm({
         onEndMatch={handleEndMatchFromQuarterEnd}
         onContinueToOvertime={handleContinueToOvertime}
         onCancel={() => setQuarterEndModal(null)}
+        // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+        //   halves 모드 매치 = "후반 종료" 라벨 / quarters 모드 = "Q4 종료" (기존 보존).
+        periodFormat={periodFormat}
       />
 
       {/* 2026-05-16 (PR-PBP-Edit) — PBP 조회/수정 플로팅 모달.
