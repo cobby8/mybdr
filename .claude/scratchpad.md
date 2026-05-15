@@ -40,6 +40,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Admin-6 Phase D 5 페이지 박제 (Analytics / Settings / Logs / Me / Notifications) BDR v2.14 | ✅ 박제 5 파일 (+105/-22 LOC) / tsc 0 / AdminPageHeader eyebrow+breadcrumbs+actions + AdminLogs severity admin-stat-pill / **AdminMe 7카드 0 변경 (G4)** + **AdminNotifications POST 비즈 0 변경** / commit 결재 대기 |
 | 2026-05-15 | wizard 저장 status enum mismatch fix (운영 DB legacy 17종 허용) | ✅ commit `ddb1dfc` — Zod 5종 → 17종 확장 (tournament-status.ts 정합) / 4차 BDR 뉴비리그 (status="published") 저장 422 차단 / 운영 DB 영향 0 / errors.md 박제 (48항목) / 후속 PR = 4종 통일 마이그레이션 |
 | 2026-05-15 | 종별 참가비 입력란 UI 삭제 (registration-settings-form.tsx) | ✅ commit `c88ea99` — divFees 입력 input + 안내문 삭제 / 데이터 layer (state/API/DB) 보존 / 호출처 영향 0 / tsc 0 |
 | 2026-05-15 | PR-G5.5-followup Tournament 단위 placeholder applier (4차 BDR 뉴비리그 5/16 운영) | ✅ commit `6d52a33` — 신규 함수 2 (`advanceTournamentPlaceholders` + `getTournamentStandings` / 옵션 A 분리) + vitest 5 (정상/idempotent/notes 위반/절반 NULL/standings 단독) + 운영 매치 232 UPDATE 1건 완료 (notes "A조 1위 vs B조 1위" + settings.homeSlotLabel/awaySlotLabel) / tsc 0 / vitest 926/926 / 강남구 4 종별 회귀 0 / placeholder-helpers 통과 100% / DB schema 변경 0 / Flutter v1 영향 0 / 8중 안전 가드 통과 |
@@ -284,3 +285,56 @@ src\app\(admin)\admin\partners\page.tsx:81:  const handleCreate = async (e: Reac
   5. `organizations/page.tsx` 거절 사유 inline textarea + 버튼 (기존 운영 UX) 그대로 보존 — 시안 거절 모달 (textarea + 10자 검증) 박제 스킵
   6. `admin-stat-pill` 클래스 — 이미 admin.css 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
 - 미박제 갭 (의도): PartnerAdminEntry (별 PR) / AdminDataTable / AdminFilterBar / 카테고리·등급 컬럼 / 누적 매출 / 시리즈·멤버 컬럼 / 거절 모달 / 일괄 승인 / mock toggle. 별 PR 권장.
+
+### Admin-6 Phase 박제 — Phase D 5 페이지 (Analytics / Settings / Logs / Me / Notifications) (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminAnalytics.jsx` / `AdminSettings.jsx` / `AdminLogs.jsx` / `AdminMe.jsx` / `AdminNotifications.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) 박제 + AdminLogs severity 뱃지(`admin-stat-pill[data-tone]`) 박제. **AdminMe 운영 7 카드 구조 100% 보존 (사용자 결정 G4)** + **AdminNotifications POST `/api/web/admin/notifications` 비즈 로직 100% 보존**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/analytics/page.tsx` | AdminPageHeader eyebrow 영문 "ADMIN · ANALYTICS" → 한글 "ADMIN · 시스템" (시안 카피) + `breadcrumbs` 신규 (ADMIN › 시스템 › 분석). 12 Prisma 쿼리 / StatCard / 차트 0 변경 | 수정 |
+| `src/app/(admin)/admin/settings/page.tsx` | eyebrow "ADMIN · SYSTEM" → "ADMIN · 시스템" + subtitle 시안 카피 ("사이트 정보·운영 정책·알림·점검 모드를 관리합니다.") + `breadcrumbs` + `actions` (활동 로그 Link). `next/link` import 신규. Server Action (clearCacheAction / toggleMaintenanceModeAction) / useState / useTransition 0 변경 | 수정 |
+| `src/app/(admin)/admin/logs/page.tsx` | eyebrow "ADMIN · LOGS" → "ADMIN · 시스템" + `breadcrumbs` + `actions` (시스템 설정 Link). `SEVERITY_TONE` + `SEVERITY_LABEL` 매핑 신규 (info=info / warning=warn / error=err). 로그 라인 severity dot 옆에 `admin-stat-pill[data-tone]` 추가 (INFO/WARN/ERROR mono 라벨). resource_type 도 admin-stat-pill mute 톤. Prisma admin_logs.findMany (KST 변환 / 마크다운 export) 0 변경 | 수정 |
+| `src/app/(admin)/admin/me/page.tsx` | raw `<header><h1>+<p>` → `AdminPageHeader` 박제 (eyebrow "ADMIN · 계정" + title "내 정보" + subtitle 시안 카피 + breadcrumbs ADMIN › 계정 › 내 정보). `AdminPageHeader` import 신규. **운영 7 카드 (UserInfoCard / IdentityStatusCard / NotificationsCard / SuggestionsCard / RoleMatrixCard / ManagedTournamentsCard / RecentActivityCard) import + render + props + Prisma SELECT 7건 (getAdminRoles / user / admin_logs / notifications count·list / suggestions count·list) 0 변경** | 수정 |
+| `src/app/(admin)/admin/notifications/page.tsx` | AdminPageHeader 에 eyebrow "ADMIN · 시스템" + subtitle 시안 카피 + `breadcrumbs` + `actions` (활동 로그 Link) 추가. `next/link` import 신규. **POST `/api/web/admin/notifications` (handleSubmit / fetch / setTitle·setContent·setActionUrl·setSending·setResult / TARGET_OPTIONS) 0 변경** | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- analytics/page.tsx: prisma.user.count / prisma.tournament.count / prisma.games.count / community_posts.count / court_ambassadors.count / monthlyUsers raw SQL — 추가/삭제 0 (header prop 만 변경)
+- settings/page.tsx: clearCacheAction / toggleMaintenanceModeAction / startCacheTransition / startMaintenanceTransition / setMaintenanceEnabled — 0 변경 (next/link import + header prop 만 추가)
+- logs/page.tsx: prisma.admin_logs.findMany / KST 변환 함수 3개 / 그룹핑 + 마크다운 생성 — 0 변경 (SEVERITY_TONE/LABEL 매핑 신규 + pill markup 추가 only)
+- me/page.tsx: `git diff` 비즈 키워드 (prisma. / getAdminRoles / notifications / suggestions / admin_logs / getAuthUser) 매치 0 — 헤더 markup + AdminPageHeader import 1줄만 +/-
+- notifications/page.tsx: `git diff` POST 비즈 키워드 (handleSubmit / fetch / sent_count / setTitle / setContent / target) 실제 코드 라인 변경 0 (주석 1줄만 추가)
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**갭 / 미박제 항목**:
+- 시안 AdminAnalytics 의 다채널 차트 (DAU/MAU / 매출 트렌드 / 코호트) → 운영 단일 차트 (월별 가입 추이 6개월) 유지. 12 Prisma 쿼리 결과만 표시 (운영 데이터 모델 한계)
+- 시안 AdminSettings 의 사이트 정보 / 알림 정책 / 운영 정책 폼 — 운영 미구현 (점검모드 / 캐시 초기화 2개만 존재) → 박제 스킵
+- 시안 AdminLogs 의 severity 필터 탭 (info/warn/error/critical) + 정렬 + JSON 내보내기 actions — 운영 미구현. 시안 critical 레벨도 운영 enum 없음 → "ERROR" 폴백 매핑. JSON 내보내기 actions 박제 스킵 (운영 .md 다운로드만 존재)
+- 시안 AdminMe 의 7카드 시각 (CardHeader num + icon + Pill) — 운영 _components/ 7카드 구조 그대로 보존 (G4 사용자 결정). 본 PR 시각 박제 영역 = page.tsx 헤더만. _components/ 7카드 내부 시각 박제 = 별 PR 권장
+- 시안 AdminNotifications 의 발송 이력 + 토스트 + 발송 후 통계 — 운영 미구현 (1회 POST 후 result 메시지만) → 박제 스킵
+- mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/admin/analytics` 진입 — 헤더 eyebrow "ADMIN · 시스템" + breadcrumbs (ADMIN › 시스템 › 분석) 노출. 12 통계 카드 + 차트 정상 렌더
+  2. `/admin/settings` 진입 — 헤더 eyebrow + breadcrumbs + 우측 "활동 로그" Link. 점검모드 토글 / 캐시 초기화 버튼 정상 동작
+  3. `/admin/logs` 진입 — 헤더 eyebrow + breadcrumbs + 우측 "시스템 설정" Link. 로그 라인 severity → admin-stat-pill (INFO=info 회색 / WARN=warn 주황 / ERROR=err 빨강) + resource_type → mute pill. 날짜 필터 칩 + 마크다운 다운로드 정상
+  4. `/admin/me` 진입 — 헤더 eyebrow "ADMIN · 계정" + breadcrumbs (ADMIN › 계정 › 내 정보) + subtitle "내 운영자 계정 정보 · 알림 ..." 노출. **운영 7 카드 (로그인 정보 / 본인인증 / 알림 / 건의사항 / 권한 매트릭스 / 관리 토너먼트 / 최근 활동) 모두 기존과 100% 동일 렌더**
+  5. `/admin/notifications` 진입 — 헤더 eyebrow + subtitle 시안 카피 + breadcrumbs + 우측 "활동 로그" Link. 폼 전송 → POST `/api/web/admin/notifications` (target=all/active/admin 분기) 정상 동작 + result 메시지 표시
+- **정상 동작**: 5 페이지 모두 비즈 로직 (SELECT / Server Action / fetch / state) 100% 기존 동일
+- **주의할 입력**:
+  - logs.severity: "info"/"warning"/"error" 외 → SEVERITY_TONE 미매치 시 "info" 폴백 + SEVERITY_LABEL 미매치 시 raw severity uppercase 표시
+  - notifications.target: "all"/"active"/"admin" 만 허용 (TARGET_OPTIONS 보존)
+  - me.identity_method: "mock"/"portone"/null (IdentityStatusCard 내부 분기 보존)
+  - me.notifications.status: "unread"/"read" — unreadCount = "unread" 필터 (Prisma where 보존)
+  - me.suggestions.status: "pending"/기타 — pendingCount = "pending" 필터 (assigned_to_id = userId 만 — IDOR 0)
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **AdminMe 7 카드 보존** (사용자 결정 G4) — page.tsx 의 import 7건 + render 7건 + Prisma SELECT 7건 (병렬 Promise.all) + bigint 직렬화 3건 (adminLogRows / notificationRows / suggestionRows) **모두 100% 보존**. 변경 영역 = `<header>` raw 만 `AdminPageHeader` 1컴포넌트로 교체
+  2. **AdminNotifications POST 비즈 보존** — `git diff` 결과 비즈 라인 변경 0 (주석 1줄만 추가). handleSubmit / fetch / TARGET_OPTIONS / setTitle·setContent·setSending·setResult 모두 동일
+  3. `logs/page.tsx` 의 SEVERITY_TONE / SEVERITY_LABEL 매핑 신규 — info/warning/error 만 매핑. 운영 admin_logs.severity enum 은 nullable 이라 폴백 처리 보존. 시안 "CRIT" 레벨은 운영 enum 없음 → "ERROR" 폴백 (info/warn/err 3 톤만 사용)
+  4. 시안 카피 (eyebrow / subtitle) 갱신 — analytics/settings/logs/notifications 모두 "ADMIN · 시스템" (시안), me 만 "ADMIN · 계정" (시안). subtitle 도 시안 카피 우선 박제 (analytics 만 운영 기능 설명 유지: "이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이")
+  5. `next/link` 신규 import 2건 (settings client / notifications client) + 1건 (logs server 는 기존 보유) — Link `className="btn"` 직접 사용 (다른 admin 페이지와 일관)
+- 미박제 갭 (의도): 시안 차트 다채널 / 사이트 정보 폼 / severity 필터 탭 / JSON 내보내기 / me 7카드 내부 시각 / 발송 이력. 별 PR 권장 (특히 me _components/ 7카드 내부 시각 박제는 큰 코드 (1956 LOC) → 별 PR).
