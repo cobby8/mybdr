@@ -37,11 +37,70 @@ import { PERIOD_LEGEND } from "@/lib/score-sheet/period-color";
  * 사용처: score-sheet-form.tsx frame 외부 (MatchEndButton 인근).
  * 인쇄 제외: `no-print` 클래스 적용 — _print.css 가 display:none 처리.
  */
-export function PeriodColorLegend() {
+/**
+ * 2026-05-15 (PR-SS-54) — `inline` prop 신규.
+ *   - false (default) = 기존 박스 형태 (border + flex-col, frame 외부 단독 박스)
+ *   - true = toolbar 중앙 inline 모드 — border 0 + flex-row (2개 row → 1 row 통합 wrap 허용)
+ *     사용자 요청 "헤더의 중앙 빈 영역에 배치".
+ */
+interface PeriodColorLegendProps {
+  inline?: boolean;
+}
+
+export function PeriodColorLegend({ inline = false }: PeriodColorLegendProps) {
+  // inline 모드 = toolbar 중앙 (수평) — 박스 / max-width 제거, 작은 폰트로 압축
+  if (inline) {
+    return (
+      <div
+        className="no-print flex flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-1 px-1 text-[10px]"
+        aria-label="쿼터 색상 + 점수 표기 안내"
+      >
+        {/* 색상 안내 (inline) — 라벨 + Q1~Q4 */}
+        <span className="inline-flex flex-wrap items-center gap-x-2">
+          <span className="shrink-0 font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            색상
+          </span>
+          {PERIOD_LEGEND.map((p) => (
+            <span key={p.label} className="inline-flex items-center gap-0.5" aria-label={`${p.label} 색`}>
+              <span
+                className="inline-block h-2 w-2"
+                style={{ backgroundColor: p.color, borderRadius: "50%" }}
+                aria-hidden="true"
+              />
+              <span className="text-[10px] font-semibold" style={{ color: p.color }}>
+                {p.label}
+              </span>
+            </span>
+          ))}
+        </span>
+        {/* 점수 표기 (inline) */}
+        <span
+          className="inline-flex flex-wrap items-center gap-x-2"
+          style={{ borderLeft: "1px solid var(--color-border)", paddingLeft: 8, marginLeft: 4 }}
+        >
+          <span className="shrink-0 font-semibold" style={{ color: "var(--color-text-muted)" }}>
+            점수
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span style={{ fontSize: 14, lineHeight: 1 }}>·</span>
+            <span className="text-[10px]">=1점</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span style={{ fontSize: 10, lineHeight: 1 }}>●</span>
+            <span className="text-[10px]">=2점</span>
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <span style={{ fontSize: 10, lineHeight: 1 }}>◉</span>
+            <span className="text-[10px]">=3점</span>
+          </span>
+        </span>
+      </div>
+    );
+  }
+
+  // 기존 박스 모드 (form 외부 fallback — 다른 사용처 호환)
   return (
     <div
-      // 2026-05-15 (PR-SS-53) — toolbar 바로 아래 붙이도록 mt-3 → mt-0 + border-top 제거.
-      //   사용자 요청 "위 아래 두 영역 병합" — toolbar (인쇄/취소) + legend 시각 통합.
       className="no-print mx-auto flex w-full max-w-[794px] flex-col gap-y-1.5 px-2 py-1.5 text-xs"
       style={{
         backgroundColor: "var(--color-surface)",

@@ -25,6 +25,8 @@
 
 import { useRouter } from "next/navigation";
 import { useFullscreen } from "./fullscreen-context";
+// 2026-05-15 (PR-SS-54) — title 자리에 색상/점수 안내 inline 모드 박제 (사용자 요청).
+import { PeriodColorLegend } from "../score-sheet/[matchId]/_components/period-color-legend";
 
 interface ScoreSheetToolbarProps {
   gameNo?: number | string | null;
@@ -111,8 +113,12 @@ export function ScoreSheetToolbar({
           </span>
         </button>
 
-        {/* 중앙 — "SCORESHEET · #{gameNo}" 타이틀 (시안 mono 폰트) */}
-        <div className="ss-toolbar__title">SCORESHEET · {titleSuffix}</div>
+        {/* 2026-05-15 (PR-SS-54) — title 자리에 PeriodColorLegend inline 모드 배치
+            (사용자 요청 "헤더의 중앙 빈 영역에 배치"). 기존 SCORESHEET · #N 라벨은
+            제거 — 사용자가 "기록 취소" 등 우측 버튼만 인지 / 중앙은 색상·점수 안내. */}
+        <PeriodColorLegend inline />
+        {/* aria 보조 — gameNo 정보 유지 (스크린리더용 hidden) */}
+        <span className="sr-only">SCORESHEET · {titleSuffix}</span>
 
         {/* 인쇄 — 기존 PrintButton.window.print() 위임 */}
         <button

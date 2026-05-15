@@ -30,7 +30,8 @@ import { PeriodScoresSection } from "./period-scores-section";
 import { FoulTypeModal } from "./foul-type-modal";
 import { MatchEndButton } from "./match-end-button";
 // Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (frame 외부 / no-print).
-import { PeriodColorLegend } from "./period-color-legend";
+// 2026-05-15 (PR-SS-54) — PeriodColorLegend 가 ScoreSheetToolbar 안으로 이동. form 직접 import 불필요.
+// import { PeriodColorLegend } from "./period-color-legend";
 import type { TeamRosterData } from "./team-section-types";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import {
@@ -1536,10 +1537,8 @@ export function ScoreSheetForm({
         onCancelRecord={canEdit ? handleCancelRecord : undefined}
       />
 
-      {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
-          이전 Phase 17 위치 (frame 아래 mt-3) = frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침.
-          새 위치 = frame 직전 (진입 즉시 운영자 인식 / 인쇄 시 _print.css `.no-print` 자동 제외). */}
-      <PeriodColorLegend />
+      {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
+          color/점수 안내 = ScoreSheetToolbar 중앙 inline 모드로 통합 (사용자 요청). */}
 
       {/* Phase 7-B — 라인업 미선택 시 진입 시점 안내 카드 + 모달 자동 표시.
           양식은 lineup 확정 후 렌더. */}
