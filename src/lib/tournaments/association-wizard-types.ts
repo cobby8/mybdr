@@ -58,13 +58,28 @@ export interface AssociationStep3Data {
   timer_fee: number; // 타이머
 }
 
+// Step 4 (옵션): Referee 사전 등록 입력 1건.
+// 왜 1차 미검증:
+//   - Q7 결재 = 자격번호 검증 0 (운영자 책임 입력) → `verifiedAt: null` 박제.
+//   - schema Referee 모델은 license_number @unique 라 비어 있어도 됨 (1차 의도 = 매칭 키 박제).
+// snake_case 의무 — PR1 API 컨벤션 일치.
+export interface RefereeInput {
+  name: string; // 필수, min 2 — Referee.registered_name 박제
+  license_number?: string; // 선택 — 추후 매칭/검증 키
+  region?: string; // 선택 — Referee.region_sido 박제
+  contact?: string; // 선택 — Referee.registered_phone 박제
+  role?: string; // 선택 — Referee.role_type (default "referee")
+}
+
 // 마법사 전체 draft — sessionStorage 박제 대상.
-// current_step 은 1~4 (4 = 확인). 마지막 단계 = WizardConfirm 에서 API 3건 순차 호출.
+// current_step 은 1~5 (1=협회/2=사무국장/3=단가/4=심판 사전등록/5=확인).
+// PR3 추가: Step 4 Referee 사전 등록 옵션 (빈 배열 = skip 진행).
 export interface AssociationWizardDraft {
   association: AssociationStep1Data;
   admin: AssociationStep2Data;
   fee_setting: AssociationStep3Data;
-  current_step: 1 | 2 | 3 | 4;
+  referees: RefereeInput[]; // PR3 신규 — 빈 배열 허용 (skip 의도)
+  current_step: 1 | 2 | 3 | 4 | 5;
 }
 
 // PR1 API 응답 시그니처 — fetch 결과 타입 가드용.
@@ -101,4 +116,20 @@ export interface AssociationFeeSettingResponse {
     fee_timer: number;
     updated_at: string;
   };
+}
+
+// PR3 신규 — Referee 사전 등록 API 응답 시그니처.
+// 왜: createMany 결과 count + 일부 박제 데이터 (검증/디버깅 용).
+export interface AssociationRefereesCreateResponse {
+  created_count: number;
+  referees: Array<{
+    id: string;
+    association_id: string;
+    registered_name: string | null;
+    license_number: string | null;
+    region_sido: string | null;
+    registered_phone: string | null;
+    role_type: string;
+    match_status: string;
+  }>;
 }

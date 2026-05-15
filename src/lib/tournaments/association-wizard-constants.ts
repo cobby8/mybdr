@@ -16,13 +16,14 @@ import type {
   AssociationAdminRole,
 } from "./association-wizard-types";
 
-// 4 step 메타 — WizardShell progress 표시용.
+// 5 step 메타 — WizardShell progress 표시용 (PR3: 4=Referee 사전 등록 추가, 5=확인).
 // Material Symbols Outlined 아이콘 (lucide-react 금지 — CLAUDE.md 13 룰).
 export const ASSOCIATION_WIZARD_STEPS = [
   { id: 1 as const, label: "협회 정보", icon: "domain" },
   { id: 2 as const, label: "사무국장 지정", icon: "person_add" },
   { id: 3 as const, label: "배정비 단가", icon: "payments" },
-  { id: 4 as const, label: "확인 및 생성", icon: "check_circle" },
+  { id: 4 as const, label: "심판 사전 등록", icon: "sports" },
+  { id: 5 as const, label: "확인 및 생성", icon: "check_circle" },
 ];
 
 // sessionStorage 단일 key. wizard-draft.ts 의 `wizard:tournament:draft` 와 별도 keyspace.
@@ -75,5 +76,7 @@ export const INITIAL_DRAFT: AssociationWizardDraft = {
     recorder_fee: 0,
     timer_fee: 0,
   },
+  // PR3 신규: Referee 사전 등록 옵션 (빈 배열 = skip 진행).
+  referees: [],
   current_step: 1,
 };

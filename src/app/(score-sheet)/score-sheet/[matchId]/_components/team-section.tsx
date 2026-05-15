@@ -142,6 +142,10 @@ interface TeamSectionProps {
   values: TeamSectionInputs;
   onChange: (next: TeamSectionInputs) => void;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 input 차단).
+  //   왜: input (coach/asstCoach + checkbox) 는 readOnly / button (foul/timeout/stat cell) 는 disabled.
+  //   호출자 미전달 (= undefined) 시 동작 변경 0 (운영 보존).
+  readOnly?: boolean;
   // Phase 3 — 파울 상태 (이 팀 전용 FoulMark[] — home/away 한쪽만 전달)
   fouls: FoulMark[];
   // Phase 3.5 — 파울 추가 요청 (다음 빈 칸 클릭) — caller 가 FoulTypeModal open 처리
@@ -199,6 +203,8 @@ export function TeamSection({
   values,
   onChange,
   disabled,
+  // Phase 23 PR-RO1 (2026-05-15) — input readOnly wiring (종료 매치 차단 / 사용자 결재 Q2)
+  readOnly,
   fouls,
   onRequestAddFoul,
   onRequestRemoveFoul,
@@ -808,7 +814,8 @@ export function TeamSection({
       </div>
       {/* /§4 ss-tbox__plybody 끝 */}
 
-      {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로) */}
+      {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로).
+          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2). */}
       <div className="ss-tbox__coach">
         <label className="pap-lbl" htmlFor={`coach-${sideLabel}`}>
           Coach
@@ -820,6 +827,7 @@ export function TeamSection({
           value={values.coach}
           onChange={updateCoach("coach")}
           disabled={disabled}
+          readOnly={readOnly}
           maxLength={40}
         />
       </div>
@@ -834,6 +842,7 @@ export function TeamSection({
           value={values.asstCoach}
           onChange={updateCoach("asstCoach")}
           disabled={disabled}
+          readOnly={readOnly}
           maxLength={40}
         />
       </div>

@@ -5,8 +5,13 @@ import {
   getAssociationAdmin,
   isExecutive,
   PERMISSIONS,
+  SUPER_ADMIN_SENTINEL_ROLE,
   type Permission,
 } from "@/lib/auth/admin-guard";
+// PR4-UI (2026-05-15): recorder_admin (전역 기록원 관리자) 응답 필드 박제.
+//   이유: referee 대시보드/사이드바/모바일 탭 UI 분기에서 "관리자 진입점" 노출 판정용.
+//         서버 단일 source — 클라이언트가 별도 API 호출 안 하도록 me 응답에 포함.
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -91,10 +96,20 @@ export async function GET() {
     | null = null;
 
   if (admin) {
-    // PERMISSIONS 매트릭스를 역순으로 순회 — 이 role이 속한 키만 뽑아냄
-    const permissionKeys = (Object.keys(PERMISSIONS) as Permission[]).filter(
-      (key) => PERMISSIONS[key].includes(admin.role)
-    );
+    // PR4-UI (2026-05-15) — sentinel role 자동 흡수 fix.
+    //   이유: getAssociationAdmin() 이 super_admin/recorder_admin 시 SUPER_ADMIN_SENTINEL_ROLE
+    //         반환 (admin-guard.ts L165). 기존 필터는 sentinel 이 PERMISSIONS 매트릭스 어디에도
+    //         없으므로 빈 배열 반환 → referee-shell 사이드바에서 super_admin/recorder_admin 이
+    //         "관리자" 메뉴만 보이고 "배정 관리/공고/풀/정산" 등 permission 메뉴 차단되는 회귀.
+    //   fix: sentinel role 이면 12 permission 전체 자동 부여 (서버 hasPermission 과 정합).
+    //   회귀 0: 일반 association_admin 은 기존 필터 그대로 (sg/refchief/staff 등 role 매칭).
+    const allPermissionKeys = Object.keys(PERMISSIONS) as Permission[];
+    const permissionKeys =
+      admin.role === SUPER_ADMIN_SENTINEL_ROLE
+        ? allPermissionKeys // sentinel = 12 permission 자동 통과 (hasPermission 동일 룰)
+        : allPermissionKeys.filter((key) =>
+            PERMISSIONS[key].includes(admin.role)
+          );
 
     adminInfo = {
       is_admin: true,
@@ -105,6 +120,14 @@ export async function GET() {
       permissions: permissionKeys,
     };
   }
+
+  // PR4-UI (2026-05-15) — recorder_admin (전역 기록원 관리자) boolean 박제.
+  //   이유: referee 대시보드 admin CTA + 모바일 5번째 탭 분기 판정용.
+  //         isRecorderAdmin = isSuperAdmin 자동 흡수 (Q1) — super_admin 도 true 반환.
+  //         admin_info 만으로 협회 관리자는 판별 가능하지만 recorder_admin 은 admin_info
+  //         가 sentinel role 으로 흡수되어 구분 불가 → 별도 boolean 필드로 분리 표시.
+  //   응답 키: `recorderAdmin` (camelCase) → apiSuccess 가 snake_case 자동 변환 → `recorder_admin`.
+  const recorderAdmin = isRecorderAdmin(ctx.session);
 
   return apiSuccess({
     id: ctx.session.sub,
@@ -121,6 +144,8 @@ export async function GET() {
     is_referee: !!referee,
     // 관리자 정보 — 비관리자는 null. referee-shell에서 admin 메뉴 필터링에 사용
     admin_info: adminInfo,
+    // PR4-UI (2026-05-15) — recorder_admin boolean (apiSuccess snake_case 자동 변환 — 응답 키 `recorder_admin`)
+    recorder_admin: recorderAdmin,
     // 프로필 완성 배너 5단계 판정용 원본 필드 (snake_case 변환 후 전달)
     // 이유: 프로필 완성 배너가 이 값들로 어느 단계까지 채웠는지 계산
     phone: user?.phone ?? null,
