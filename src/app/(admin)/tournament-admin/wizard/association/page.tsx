@@ -22,6 +22,7 @@ import { WizardShell } from "./_components/WizardShell";
 import { Step1AssociationForm } from "./_components/Step1AssociationForm";
 import { Step2AdminPicker } from "./_components/Step2AdminPicker";
 import { Step3FeeSettings } from "./_components/Step3FeeSettings";
+import { Step4RefereeRegister } from "./_components/Step4RefereeRegister";
 import { WizardConfirm } from "./_components/WizardConfirm";
 import { useAssociationWizardDraft } from "@/lib/tournaments/use-association-wizard-draft";
 import type {
@@ -94,8 +95,8 @@ export default function AssociationWizardPage() {
   }, [authStatus, router]);
 
   // === Step 별 canProceed 계산 ===
-  // 검증 룰은 PR1 API Zod 와 정합 (name min 2 / user_id 존재 / fee >=0).
-  function canProceedAtStep(step: 1 | 2 | 3 | 4): boolean {
+  // 검증 룰은 PR1/PR3 API Zod 와 정합 (name min 2 / user_id 존재 / fee >=0 / referee name min 2).
+  function canProceedAtStep(step: 1 | 2 | 3 | 4 | 5): boolean {
     if (step === 1) {
       // Step 1: name min 2 + code min 2 + level enum 통과.
       return (
@@ -117,16 +118,25 @@ export default function AssociationWizardPage() {
         f.timer_fee >= 0
       );
     }
-    // Step 4 = 확인 — 1~3 모두 통과해야 생성 가능.
+    if (step === 4) {
+      // Step 4 (옵션): row 0건 = skip 통과 / row 1건 이상 = 모든 name min 2 필요.
+      //   이유: PR3 API Zod 가 name min 2 강제 — 미통과 시 422 발생 사전 차단.
+      if (draft.referees.length === 0) return true;
+      return draft.referees.every((r) => r.name.trim().length >= 2);
+    }
+    // Step 5 = 확인 — 1~4 모두 통과해야 생성 가능.
     return (
-      canProceedAtStep(1) && canProceedAtStep(2) && canProceedAtStep(3)
+      canProceedAtStep(1) &&
+      canProceedAtStep(2) &&
+      canProceedAtStep(3) &&
+      canProceedAtStep(4)
     );
   }
 
   // 다음 단계 — current_step 증가.
   function handleNext() {
-    if (draft.current_step >= 4) return;
-    const next = (draft.current_step + 1) as 1 | 2 | 3 | 4;
+    if (draft.current_step >= 5) return;
+    const next = (draft.current_step + 1) as 1 | 2 | 3 | 4 | 5;
     setDraft({ ...draft, current_step: next });
     // 스크롤 상단 — 모바일 UX (긴 폼 진입 시 위에서 시작).
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -135,7 +145,7 @@ export default function AssociationWizardPage() {
   // 이전 단계.
   function handlePrev() {
     if (draft.current_step <= 1) return;
-    const prev = (draft.current_step - 1) as 1 | 2 | 3 | 4;
+    const prev = (draft.current_step - 1) as 1 | 2 | 3 | 4 | 5;
     setDraft({ ...draft, current_step: prev });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -144,7 +154,8 @@ export default function AssociationWizardPage() {
   // 실패 시 알림 + rollback 없음 (운영자 수동 정정 — 시안 spec).
   async function handleSubmit() {
     if (submitting) return;
-    if (!canProceedAtStep(4)) {
+    // PR3: Step 5 = 최종 확인 (Step 1~4 모두 통과 필요).
+    if (!canProceedAtStep(5)) {
       setSubmitError("입력값을 다시 확인해주세요.");
       return;
     }
@@ -233,7 +244,40 @@ export default function AssociationWizardPage() {
         return;
       }
 
-      // 4) 성공 — draft 삭제 + tournament-admin 메인으로 redirect.
+      // 4) Referee 사전 등록 (옵션) — PR3 추가.
+      //    빈 배열이면 skip (API 호출 안 함 — UX 빠른 완료 + 운영 DB 부하 0).
+      //    이유: Step 4 가 옵션 단계 (Q2 결재) → 등록 없이 협회 마법사 완료 가능.
+      if (draft.referees.length > 0) {
+        const resReferees = await fetch(
+          `/api/web/admin/associations/${associationId}/referees`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              // snake_case body — PR3 Zod schema 정합.
+              referees: draft.referees.map((r) => ({
+                name: r.name.trim(),
+                license_number: r.license_number?.trim() || null,
+                region: r.region?.trim() || null,
+                contact: r.contact?.trim() || null,
+                // role 명시 0 — Referee.role_type schema default "referee" 박제.
+              })),
+            }),
+          },
+        );
+        if (!resReferees.ok) {
+          const jsonReferees = await resReferees.json().catch(() => ({}));
+          const msg =
+            jsonReferees.error ??
+            jsonReferees.message ??
+            "심판 사전 등록에 실패했습니다. (협회/사무국장/단가표는 등록되었습니다)";
+          setSubmitError(msg);
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // 5) 성공 — draft 삭제 + tournament-admin 메인으로 redirect.
       //    이유: 협회 상세 페이지 (`/tournament-admin/associations/[id]`) 가 아직 PR 없음 → tournament-admin 안전 fallback.
       clearDraft();
       router.push("/tournament-admin?association_created=1");
@@ -297,7 +341,13 @@ export default function AssociationWizardPage() {
           onChange={(next) => setDraft({ ...draft, fee_setting: next })}
         />
       )}
-      {step === 4 && <WizardConfirm draft={draft} />}
+      {step === 4 && (
+        <Step4RefereeRegister
+          data={draft.referees}
+          onChange={(next) => setDraft({ ...draft, referees: next })}
+        />
+      )}
+      {step === 5 && <WizardConfirm draft={draft} />}
     </WizardShell>
   );
 }

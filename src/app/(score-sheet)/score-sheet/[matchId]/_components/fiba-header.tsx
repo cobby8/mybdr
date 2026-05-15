@@ -60,6 +60,10 @@ interface FibaHeaderProps {
   values: FibaHeaderInputs;
   onChange: (next: FibaHeaderInputs) => void;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 input 차단).
+  //   왜: disabled 와 분리 = 시각 회색 처리 없이 readOnly 만 적용 (UX 우호적 / 포커스 + 선택 허용).
+  //   호출자 미전달 (= undefined) 시 동작 변경 0 (운영 보존).
+  readOnly?: boolean;
   // Phase 8 — frameless 모드. PR-S4 시안 정합 후 시각 효과 흡수.
   //   호출자 호환성 위해 prop 시그니처는 보존 (page.tsx / form.tsx 변경 0).
   frameless?: boolean;
@@ -75,6 +79,7 @@ export function FibaHeader({
   values,
   onChange,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — input readOnly wiring (종료 매치 차단)
   frameless: _frameless, // PR-S4 — 시안 정합으로 시각 흡수 (호출자 호환성 위해 시그니처만 유지)
 }: FibaHeaderProps) {
   // 단일 update 패턴 — values 전체 spread + key 갱신 (운영 매핑 변경 0)
@@ -162,6 +167,7 @@ export function FibaHeader({
               value={values.referee}
               onChange={update("referee")}
               disabled={disabled}
+              readOnly={readOnly}
               grow={2}
             />
           </div>
@@ -171,12 +177,14 @@ export function FibaHeader({
               value={values.umpire1}
               onChange={update("umpire1")}
               disabled={disabled}
+              readOnly={readOnly}
             />
             <SSFieldInput
               label="Umpire 2"
               value={values.umpire2}
               onChange={update("umpire2")}
               disabled={disabled}
+              readOnly={readOnly}
             />
           </div>
         </div>
@@ -222,12 +230,14 @@ function SSFieldInput({
   value,
   onChange,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 input 차단 wiring
   grow = 1,
 }: {
   label: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  readOnly?: boolean;
   grow?: 1 | 2 | 3;
 }) {
   // 시안 CSS selector `.ss-shell .ss-field > label` + `.ss-shell .ss-field > input.ss-field__input`
@@ -243,6 +253,7 @@ function SSFieldInput({
         value={value}
         onChange={onChange}
         disabled={disabled}
+        readOnly={readOnly}
         maxLength={40}
         aria-label={label}
       />

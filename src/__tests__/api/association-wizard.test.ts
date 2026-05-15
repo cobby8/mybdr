@@ -1,7 +1,7 @@
 /**
- * 2026-05-15 Phase 6 PR1 — 협회 마법사 API 3개 회귀 가드.
+ * 2026-05-15 Phase 6 PR1+PR3 — 협회 마법사 API 4개 회귀 가드.
  *
- * 검증 매트릭스 (8 케이스):
+ * 검증 매트릭스 (11 케이스):
  *   POST /api/web/admin/associations
  *     1) admin 통과 → 생성 성공 (200 + association 응답)
  *     2) 비로그인 / 일반 사용자 → 403 (admin-guard)
@@ -13,11 +13,15 @@
  *   POST /api/web/admin/associations/[id]/fee-setting
  *     7) 정상 upsert → 200 (fee_setting)
  *     8) 음수 fee → 422 (Zod)
+ *   POST /api/web/admin/associations/[id]/referees (PR3 신규)
+ *     9) 정상 배치 등록 (3 referees) → 200 (created_count=3)
+ *    10) 빈 배열 → 200 (created_count=0, createMany 호출 안 함)
+ *    11) 존재하지 않는 association_id → 404
  *
  * mock 전략:
  *   - admin-guard.getAssociationAdmin 을 직접 vi.doMock (super_admin sentinel 통과 시뮬레이션).
  *   - prisma.association.create / .findUnique, prisma.associationAdmin.upsert,
- *     prisma.associationFeeSetting.upsert, prisma.user.findUnique 를 stub.
+ *     prisma.associationFeeSetting.upsert, prisma.user.findUnique, prisma.referee.createMany/findMany 를 stub.
  *   - 응답은 apiSuccess() 통과 후 snake_case + BigInt toString — 응답 키 검증.
  */
 
@@ -45,6 +49,9 @@ type PrismaMocks = {
   userFindUnique: ReturnType<typeof vi.fn>;
   associationAdminUpsert: ReturnType<typeof vi.fn>;
   feeSettingUpsert: ReturnType<typeof vi.fn>;
+  // PR3: Referee 배치 등록 mock.
+  refereeCreateMany: ReturnType<typeof vi.fn>;
+  refereeFindMany: ReturnType<typeof vi.fn>;
 };
 
 /**
@@ -61,6 +68,9 @@ function setupMocks(opts: { adminPass: boolean }): PrismaMocks {
     userFindUnique: vi.fn(),
     associationAdminUpsert: vi.fn(),
     feeSettingUpsert: vi.fn(),
+    // PR3: Referee mock.
+    refereeCreateMany: vi.fn(),
+    refereeFindMany: vi.fn(),
   };
 
   vi.doMock("@/lib/auth/admin-guard", () => ({
@@ -89,6 +99,11 @@ function setupMocks(opts: { adminPass: boolean }): PrismaMocks {
       },
       associationFeeSetting: {
         upsert: mocks.feeSettingUpsert,
+      },
+      // PR3: Referee 배치 등록.
+      referee: {
+        createMany: mocks.refereeCreateMany,
+        findMany: mocks.refereeFindMany,
       },
     },
   }));
@@ -377,5 +392,157 @@ describe("POST /api/web/admin/associations/[id]/fee-setting — 단가표 upsert
     expect(json.code).toBe("VALIDATION_ERROR");
     // upsert 호출 안 됨 (early return).
     expect(mocks.feeSettingUpsert).not.toHaveBeenCalled();
+  });
+});
+
+// === PR3 (Phase 6 — 2026-05-15): POST /referees 배치 등록 회귀 가드 ===
+describe("POST /api/web/admin/associations/[id]/referees — Referee 배치 등록", () => {
+  it("9) 정상 배치 등록 (3 referees) → 200 + created_count=3", async () => {
+    const mocks = setupMocks({ adminPass: true });
+    // association 존재.
+    mocks.associationFindUnique.mockResolvedValue({ id: ASSOCIATION_ID });
+    // createMany 결과 count=3.
+    mocks.refereeCreateMany.mockResolvedValue({ count: 3 });
+    // findMany — 응답 검증용 (등록 후 최근 N건).
+    mocks.refereeFindMany.mockResolvedValue([
+      {
+        id: BigInt(1),
+        association_id: ASSOCIATION_ID,
+        registered_name: "심판1",
+        license_number: "KBA-R-001",
+        region_sido: "서울",
+        registered_phone: "010-0000-0001",
+        role_type: "referee",
+        match_status: "unmatched",
+      },
+      {
+        id: BigInt(2),
+        association_id: ASSOCIATION_ID,
+        registered_name: "심판2",
+        license_number: null,
+        region_sido: null,
+        registered_phone: null,
+        role_type: "referee",
+        match_status: "unmatched",
+      },
+      {
+        id: BigInt(3),
+        association_id: ASSOCIATION_ID,
+        registered_name: "심판3",
+        license_number: "KBA-R-003",
+        region_sido: "부산",
+        registered_phone: null,
+        role_type: "referee",
+        match_status: "unmatched",
+      },
+    ]);
+
+    const { POST } = await import(
+      "@/app/api/web/admin/associations/[id]/referees/route"
+    );
+    const req = new Request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        referees: [
+          {
+            name: "심판1",
+            license_number: "KBA-R-001",
+            region: "서울",
+            contact: "010-0000-0001",
+          },
+          { name: "심판2" },
+          {
+            name: "심판3",
+            license_number: "KBA-R-003",
+            region: "부산",
+          },
+        ],
+      }),
+    });
+    const res = await POST(req, {
+      params: Promise.resolve({ id: ASSOCIATION_ID.toString() }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      created_count: number;
+      referees: Array<Record<string, unknown>>;
+    };
+    expect(json.created_count).toBe(3);
+    expect(json.referees).toHaveLength(3);
+    // BigInt → string 자동 변환.
+    expect(json.referees[0].id).toBe("1");
+    expect(json.referees[0].association_id).toBe(ASSOCIATION_ID.toString());
+    expect(json.referees[0].match_status).toBe("unmatched");
+    // createMany 호출 검증 — match_status=unmatched + role_type=referee + skipDuplicates 박제.
+    expect(mocks.refereeCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skipDuplicates: true,
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            association_id: ASSOCIATION_ID,
+            registered_name: "심판1",
+            license_number: "KBA-R-001",
+            region_sido: "서울",
+            registered_phone: "010-0000-0001",
+            role_type: "referee",
+            match_status: "unmatched",
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("10) 빈 배열 → 200 + created_count=0 (createMany 호출 안 함)", async () => {
+    const mocks = setupMocks({ adminPass: true });
+    mocks.associationFindUnique.mockResolvedValue({ id: ASSOCIATION_ID });
+
+    const { POST } = await import(
+      "@/app/api/web/admin/associations/[id]/referees/route"
+    );
+    const req = new Request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referees: [] }),
+    });
+    const res = await POST(req, {
+      params: Promise.resolve({ id: ASSOCIATION_ID.toString() }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      created_count: number;
+      referees: unknown[];
+    };
+    expect(json.created_count).toBe(0);
+    expect(json.referees).toEqual([]);
+    // skip 흐름 — createMany / findMany 호출 안 됨 (DB 부하 0).
+    expect(mocks.refereeCreateMany).not.toHaveBeenCalled();
+    expect(mocks.refereeFindMany).not.toHaveBeenCalled();
+  });
+
+  it("11) 존재하지 않는 association_id → 404 NOT_FOUND", async () => {
+    const mocks = setupMocks({ adminPass: true });
+    // association 부재.
+    mocks.associationFindUnique.mockResolvedValue(null);
+
+    const { POST } = await import(
+      "@/app/api/web/admin/associations/[id]/referees/route"
+    );
+    const req = new Request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        referees: [{ name: "심판1" }],
+      }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ id: "99999" }) });
+
+    expect(res.status).toBe(404);
+    const json = (await res.json()) as { code: string };
+    expect(json.code).toBe("NOT_FOUND");
+    // createMany 호출 안 됨 (early return).
+    expect(mocks.refereeCreateMany).not.toHaveBeenCalled();
   });
 });
