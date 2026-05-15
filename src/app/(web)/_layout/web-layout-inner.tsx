@@ -66,12 +66,28 @@ function WebLayoutBody({ children, initialUser }: WebLayoutInnerProps) {
         role?: string;
         prefer_filter_enabled?: boolean;
         is_referee?: boolean;
+        // 2026-05-15 — 관리자 진입 판정용 필드 (이미 /api/web/me 응답에 박제됨)
+        admin_info?: { is_admin?: boolean; role?: string } | null;
+        recorder_admin?: boolean;
+        admin_role?: string | null;
       } | null;
       if (u && u.id) {
+        // 2026-05-15 — 관리자 진입 URL 도출.
+        //   우선순위: super_admin → /admin (전역) / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin
+        //   다중 권한 보유 시 super_admin 우선 (포함 범위 가장 넓음).
+        const adminEntryUrl: string | null =
+          u.admin_role === "super_admin" || u.admin_info?.role === "super_admin_sentinel"
+            ? "/admin"
+            : u.admin_info?.is_admin
+              ? "/tournament-admin"
+              : u.recorder_admin
+                ? "/referee/admin"
+                : null;
         setUser({
           name: u.name ?? "사용자",
           role: u.role ?? "user",
           is_referee: u.is_referee ?? false,
+          admin_entry_url: adminEntryUrl,
         });
         setLoggedIn(true, u.prefer_filter_enabled ?? false);
         if (notifData) setUnreadCount(notifData.unread_count ?? 0);

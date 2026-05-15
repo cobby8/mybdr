@@ -38,6 +38,10 @@ export interface AppNavUser {
   name: string;
   role: string;
   is_referee?: boolean;
+  // 2026-05-15 — 관리자 진입 링크 (utility bar 계정 이름 왼쪽 노출용).
+  //   admin_role / admin_info / recorder_admin 종합 판정 후 1 URL 도출 (web-layout-inner.tsx).
+  //   null = 비관리자 (링크 미노출).
+  admin_entry_url?: string | null;
 }
 
 interface AppNavProps {
@@ -116,6 +120,20 @@ export function AppNav({
           {/* 우측 그룹 — 모바일에서도 표시 유지 (작업 1 픽스) */}
           {user ? (
             <>
+              {/* 2026-05-15 — 관리자 진입 (계정 이름 왼쪽). 비관리자는 user.admin_entry_url=null → 미노출.
+                              super_admin → /admin / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin */}
+              {user.admin_entry_url && (
+                <>
+                  <Link
+                    href={user.admin_entry_url}
+                    className="app-nav__utility-admin"
+                    style={{ color: "var(--color-primary)", fontWeight: 600 }}
+                  >
+                    관리자
+                  </Link>
+                  <span className="sep" />
+                </>
+              )}
               <Link href="/profile">{user.name}</Link>
               <span className="sep" />
               <Link href="/profile/settings">설정</Link>
