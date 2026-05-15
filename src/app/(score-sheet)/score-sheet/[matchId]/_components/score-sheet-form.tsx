@@ -335,6 +335,8 @@ export function ScoreSheetForm({
     title: string;
     message: ReactNode;
     options: { value: string; label: string; isPrimary?: boolean; isDestructive?: boolean }[];
+    // 2026-05-15 (PR-SS-Manual-Wide) — 모달 폭 — default md / lg / xl. 설명서 = xl.
+    size?: "md" | "lg" | "xl";
   };
   const [confirmState, setConfirmState] = useState<
     | (ConfirmConfig & { resolve: (value: string | null) => void })
@@ -434,6 +436,7 @@ export function ScoreSheetForm({
   async function handleOpenManual() {
     await confirmModal({
       title: "전자 기록지 작성법",
+      size: "xl",
       message: (
         <div className="space-y-4 text-sm">
           {/* 색상/점수 표기 안내 박스 (작성법 위쪽). */}
@@ -1999,6 +2002,7 @@ export function ScoreSheetForm({
           title={confirmState.title}
           message={confirmState.message}
           options={confirmState.options}
+          size={confirmState.size}
           onSelect={(value) => confirmState.resolve(value)}
           onClose={() => confirmState.resolve(null)}
         />
