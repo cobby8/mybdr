@@ -1094,7 +1094,9 @@
 }
 
 /* 점수 / 마킹 셀 공통 = 시안 L580~592 정합.
-   2026-05-15 — flex: 1 1 0 추가. column .flex-col 가용 공간 균등 분배 → 좌측 Team A+B 와 정합. */
+   2026-05-15 — flex: 1 1 0 적용 시 column 가용 공간 부족하여 cell 높이 0 → 사용자 보고
+     "RUNNING SCORE 영역 깨짐". 명시 min-height 22px 로 fallback (30 row × 22px = 660px
+     충분 보임). 좌측 Team A+B 와 완벽 정합 어렵지만 양식 표시 보장 우선. */
 .ss-shell .ss-rs__cell {
   display: flex;
   align-items: center;
@@ -1105,8 +1107,7 @@
   border-right: 1px solid var(--pap-line);
   border-bottom: 1px solid var(--pap-hair);
   position: relative;
-  min-height: 0;
-  flex: 1 1 0;
+  min-height: 22px;
   overflow: hidden;
   padding: 0;
 }
