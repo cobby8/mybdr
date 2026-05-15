@@ -31,7 +31,12 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError, validationError } from "@/lib/api/response";
-import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
+import {
+  requireScoreSheetAccess,
+  // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 권한 검증 (사용자 결재 Q4 + Q8).
+  //   recorder 제외 / super/organizer/TAM 만 통과. 클라이언트 우회 시도 차단 최후 가드.
+  checkScoreSheetEditAccess,
+} from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 import {
   syncSingleMatch,
@@ -396,6 +401,14 @@ const submitSchema = z.object({
   recorder: z.string().max(50).optional(),
   timekeeper: z.string().max(50).optional(),
   notes: z.string().max(500).optional(),
+  // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 신호 (사용자 결재 Q8).
+  //
+  //   true = 클라이언트 isEditMode=true 시 박제. MATCH_LOCKED (423) 거부 분기 우회.
+  //         권한 검증 (requireScoreSheetEditAccess) 통과 시만 우회 (recorder 제외 / 최후 가드).
+  //   false / undefined = 키 미박제. MATCH_LOCKED 거부 유지 (RO 차단 보존).
+  //
+  //   재제출 시 audit context = "completed_edit_resubmit" (Phase 23 PR4 + 본 PR 일관 박제).
+  edit_mode: z.boolean().optional(),
 });
 
 export async function POST(
@@ -414,30 +427,8 @@ export async function POST(
 
   const { user, match, tournament } = access;
 
-  // Phase 23 PR-RO4 (2026-05-15) — 종료 매치 BFF 거부 (사용자 결재 Q8 = MATCH_LOCKED 423 + 수정 모드 우회 분기).
-  //
-  // 왜 (이유):
-  //   클라이언트 차단 (PR-RO1~RO3) 우회 시도 = curl / Postman / 콘솔 fetch.
-  //   BFF 가 status="completed" 매치를 거부 = 이중 방어 (사용자 결재 Q8 — 권고안).
-  //
-  // 어떻게:
-  //   - match.status === "completed" 거부 → 423 (Locked) + MATCH_LOCKED 코드.
-  //   - 수정 모드 우회는 별도 PR-EDIT3 에서 처리 (본 PR 은 거부만).
-  //   - getRecordingMode 가드 직전 (Flutter 모드 가드와 순서 정렬).
-  //
-  // 운영 동작 보존:
-  //   - status != "completed" 매치 (draft / in_progress) = 변경 0 (회귀 0).
-  //   - Phase 23 PR4 / PR2~PR6 흐름과 충돌 0 (완료된 매치는 본 분기에서 거부 / 진행 매치는 통과).
-  if (match.status === "completed") {
-    return apiError(
-      "종료된 매치는 수정할 수 없습니다. 수정 모드로 진입해주세요.",
-      423,
-      "MATCH_LOCKED",
-      { match_id: match.id.toString() }
-    );
-  }
-
   // 2) 모드 가드 — paper 가 아니면 403 (caller 가 잘못된 매치 접근 차단)
+  // 이유: 모드 가드는 status 와 무관 — 본 위치 보존 (Flutter 모드 매치는 종료 여부 무관 거부).
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {
     return apiError(
@@ -448,7 +439,7 @@ export async function POST(
     );
   }
 
-  // 3) body zod 검증
+  // 3) body zod 검증 — edit_mode 검사 위해 사전 parse (PR-EDIT3).
   let body: unknown;
   try {
     body = await req.json();
@@ -462,6 +453,49 @@ export async function POST(
   }
 
   const input = parsed.data;
+
+  // Phase 23 PR-RO4 + PR-EDIT3 (2026-05-15) — 종료 매치 BFF 거부 + 수정 모드 우회 분기.
+  //
+  // 왜 (이유):
+  //   PR-RO4 = 클라이언트 차단 우회 시도 = curl / Postman / 콘솔 fetch 모두 423 거부 (사용자 결재 Q8).
+  //   PR-EDIT3 = isEditMode=true + 권한 통과 시 우회 (사용자 결재 Q3 + Q4 + Q8).
+  //
+  // 어떻게:
+  //   1. status="completed" 매치 진입 → 다음 분기 진입.
+  //   2. input.edit_mode !== true → 423 MATCH_LOCKED 거부 (RO 차단 유지).
+  //   3. input.edit_mode === true → 권한 검증 (checkScoreSheetEditAccess).
+  //      - 권한 있음 = 우회 통과 → service 호출 → audit context = "completed_edit_resubmit".
+  //      - 권한 없음 = 403 EDIT_FORBIDDEN 거부 (recorder 등 차단 — Q4 결재).
+  //
+  // 운영 동작 보존:
+  //   - status != "completed" 매치 (draft / in_progress) = 본 분기 미진입 (회귀 0).
+  //   - edit_mode 키 미박제 = 423 거부 유지 (PR-RO4 동작 보존).
+  //   - edit_mode=true + 권한 = 통과 (수정 흐름 활성).
+  let isEditModeBypass = false;
+  if (match.status === "completed") {
+    if (input.edit_mode !== true) {
+      return apiError(
+        "종료된 매치는 수정할 수 없습니다. 수정 모드로 진입해주세요.",
+        423,
+        "MATCH_LOCKED",
+        { match_id: match.id.toString() }
+      );
+    }
+    // edit_mode=true → 권한 검증 (super/organizer/TAM 만 통과 — Q4 보수적)
+    const canEdit = await checkScoreSheetEditAccess(
+      match.id,
+      match.tournamentId
+    );
+    if (!canEdit) {
+      return apiError(
+        "종료 매치 수정 권한이 없습니다. 운영자 또는 대회 관리자만 수정 모드로 진입할 수 있습니다.",
+        403,
+        "EDIT_FORBIDDEN",
+        { match_id: match.id.toString() }
+      );
+    }
+    isEditModeBypass = true;
+  }
 
   // 4) Phase 2/3 — running_score / fouls → PBP 변환 (있을 때만)
   // 변환 시 tournament_team_id 필요 → match.homeTeamId / awayTeamId 사용 (match SELECT 에 이미 포함)
@@ -787,7 +821,14 @@ export async function POST(
         }
       }
     }
+    // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 prefix (사용자 결재 Q5 = audit only / status 유지).
+    //   isEditModeBypass=true 시 audit context 앞에 "[수정 모드]" prefix + context = "completed_edit_resubmit".
+    //   추적 단일 source — admin dashboard 가 본 context 로 수정 이력 SELECT.
+    const auditPrefix = isEditModeBypass
+      ? `[수정 모드] completed_edit_resubmit `
+      : "";
     const auditContext =
+      auditPrefix +
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
       (pbpCount > 0
@@ -840,6 +881,9 @@ export async function POST(
               // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 (사용자 결재 Q3)
               stat6_player_count: stat6PlayerCount,
               stat6_event_count: stat6EventCount,
+              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 박제 (audit 추적용 / Q3 + Q5).
+              //   isEditModeBypass=true = 종료 매치 수정 재제출 흐름. EDIT4 (수정 이력 inline) 의 SELECT 기준.
+              edit_mode_bypass: isEditModeBypass,
             },
           } as object,
           changedBy: user.id,

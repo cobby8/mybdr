@@ -38,6 +38,17 @@ interface ScoreSheetToolbarProps {
   //   왜: 이미 종료된 매치 = 종료 버튼 자체 노출 0 (인쇄 / ← 메인 / 다크모드만 활성).
   //   호출자 미전달 시 동작 변경 0 (운영 보존).
   hideEndMatch?: boolean;
+  // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 진입 (사용자 결재 Q3 + Q4).
+  //   왜:
+  //     hideEndMatch=true (종료 매치) + canEdit=true (super/organizer/TAM) 시
+  //     "수정 모드" 버튼 노출 → 클릭 시 onEnterEditMode 콜백 호출 (form 이 confirm modal + setIsEditMode 처리).
+  //   추가 룰:
+  //     - canEdit=false → 버튼 미노출 (Q4 결재 = recorder 제외).
+  //     - isEditMode=true → 버튼이 빨강 indicator 로 시각 변경 (운영자 인지 — 현재 수정 모드).
+  //     - 인쇄 / ← 메인 = 항상 활성 (PR-RO3 동일 룰).
+  canEdit?: boolean;
+  onEnterEditMode?: () => void;
+  isEditMode?: boolean;
 }
 
 export function ScoreSheetToolbar({
@@ -47,6 +58,10 @@ export function ScoreSheetToolbar({
   backHref = "/admin",
   endMatchDisabled,
   hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
+  // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 props (사용자 결재 Q3 / Q4)
+  canEdit,
+  onEnterEditMode,
+  isEditMode,
 }: ScoreSheetToolbarProps) {
   // 타이틀 표시: gameNo 가 있으면 "SCORESHEET · #{gameNo}" / 없으면 "SCORESHEET · #" 만
   const titleSuffix =
@@ -104,6 +119,44 @@ export function ScoreSheetToolbar({
               flag
             </span>
             경기 종료
+          </button>
+        )}
+
+        {/* Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 버튼 (사용자 결재 Q3 + Q4).
+            노출 조건 (3 AND):
+              1. hideEndMatch=true (= 종료 매치 — PR-RO3 의 isCompleted prop 일치)
+              2. canEdit=true (= super_admin / organizer / TAM — PR-EDIT2 권한 헬퍼 결과)
+              3. onEnterEditMode 콜백 박제됨 (= form 이 confirm + setIsEditMode 흐름 박제됨)
+            시각 분기:
+              - isEditMode=false → outline 노란 (warning) — "수정 모드 진입" 안내
+              - isEditMode=true  → 빨강 fill (--color-primary) — "수정 모드 활성 중" indicator
+            경기 종료 빨강과 시각 분리 = warning 토큰 사용 (의뢰서 권고). */}
+        {hideEndMatch && canEdit && onEnterEditMode && (
+          <button
+            type="button"
+            className="ss-toolbar__finish"
+            onClick={onEnterEditMode}
+            aria-label={isEditMode ? "수정 모드 활성 중" : "수정 모드 진입"}
+            style={
+              isEditMode
+                ? {
+                    // 활성 중 = 빨강 fill (운영자 인지 — 시각 강조).
+                    backgroundColor: "var(--color-primary)",
+                    color: "#fff",
+                    border: "1px solid var(--color-primary)",
+                  }
+                : {
+                    // 미활성 = warning outline (경기 종료 빨강과 시각 분리).
+                    backgroundColor: "transparent",
+                    color: "var(--color-warning)",
+                    border: "1px solid var(--color-warning)",
+                  }
+            }
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              {isEditMode ? "edit" : "edit_note"}
+            </span>
+            {isEditMode ? "수정 모드 활성" : "수정 모드"}
           </button>
         )}
       </div>

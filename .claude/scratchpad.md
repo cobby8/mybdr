@@ -480,3 +480,108 @@
 3. **E2E 실행**: `npm run test:e2e:wizard` → 시나리오 1+2+3 통과 + cleanup 잔존 0 확인.
 4. **운영 DB 잔존 검증** (안전 가드): 실행 후 `SELECT count(*) FROM tournaments WHERE name LIKE 'e2e-test-%'` → 0건 확인.
 5. **commit 결재**: PR2 + PR3 통합 commit (`test(e2e): Phase 7 A PR2+PR3 시나리오 2+3 박제`) — PM 직접 수행.
+
+## 구현 기록 (developer) — Phase 23 PR-EDIT1~EDIT4 (수정 모드 별도 기능 / 2026-05-15)
+
+📝 구현한 기능: 종료 매치 (status="completed") 수정 모드 별도 진입 기능 (사용자 결재 Q3~Q8 권고안 박제). PR-RO 의 5계층 RO 차단 위에서 권한자 (super/organizer/TAM) 가 명시적으로 confirm modal 통과 시 차단 우회 + 재제출 + audit 박제. 운영 동작 100% 보존 = isEditMode=false 시 RO 차단 그대로. Flutter v1 / 라이브 페이지 영향 0.
+
+### 4 PR 묶음 — 변경 파일 + LOC
+
+| PR | 파일 | 변경 요약 | LOC |
+|----|------|----------|-----|
+| EDIT1 | `_components/score-sheet-toolbar.tsx` | canEdit / onEnterEditMode / isEditMode 3 props 추가 + "수정 모드" 버튼 (hideEndMatch && canEdit 시 노출 / isEditMode 시 빨강 fill indicator) | +50 |
+| EDIT1 | `_components/score-sheet-form.tsx` | (a) isEditMode useState (b) handleEnterEditMode() async — confirmModal Promise + audit POST "completed_edit_mode_enter" + setIsEditMode(true) + toast (c) toolbar 호출 시 props wiring | +80 |
+| EDIT2 | `src/lib/auth/require-score-sheet-access.ts` | (a) requireScoreSheetEditAccess() 신규 export — recorder 제외 / canEdit 필드 추가 (b) checkScoreSheetEditAccess() boolean 헬퍼 — page.tsx + submit/route.ts 양면 재사용 | +200 |
+| EDIT2 | `score-sheet/[matchId]/page.tsx` | checkScoreSheetEditAccess import + canEdit 산출 + ScoreSheetForm props wiring | +30 |
+| EDIT3 | `_components/score-sheet-form.tsx` | (a) 14 핸들러 `if (isCompleted && !isEditMode) return` 변경 (b) 4 모달 open `(!isCompleted \|\| isEditMode) && ctx` 변경 (c) 6 자식 readOnly/disabled `isCompleted && !isEditMode` 변경 (d) toolbar hideEndMatch 동일 변경 (e) 라인업 다시 선택 button conditional (f) 노란 배너 시각 분기 isEditMode 빨강 fill (g) buildSubmitPayload edit_mode=true BFF 신호 | +60 |
+| EDIT3 | `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | (a) checkScoreSheetEditAccess import (b) Zod edit_mode optional (c) MATCH_LOCKED 분기 = body parse 이후로 이동 + edit_mode 우회 분기 (권한 통과 시 통과 / 미통과 = 403 EDIT_FORBIDDEN) (d) audit context prefix "[수정 모드]" + changes.edit_mode_bypass 박제 | +75 |
+| EDIT4 | `score-sheet/[matchId]/page.tsx` | tournament_match_audits SELECT (context LIKE completed_edit*) — 최대 20건 + user IN 1 SELECT + editAuditLogs prop wiring (occurredAt = changedAt schema 정규화) | +85 |
+| EDIT4 | `_components/score-sheet-form.tsx` | (a) editAuditLogs prop 타입 (b) auditExpanded useState 펼침 토글 (c) inline 수정 이력 UI (배너 + 펼치기 / 누가/언제/무엇 행 / context 분류 진입/재제출/수정모드진입/기타) | +95 |
+
+**총 수정 4 파일 / 신규 0 / 약 675 LOC** (예상 ~200 LOC 대비 +200% — EDIT2 헬퍼 200 LOC + EDIT4 inline UI + 자세한 한국어 주석 + Q 결재 박제 포함).
+
+### canEdit / isEditMode 분기 적용 위치 (5계층 우회 박제)
+
+| 계층 | 위치 | isEditMode 우회 방식 |
+|---|---|---|
+| 1차 — 핸들러 가드 | form.tsx 14 핸들러 첫 줄 | `if (isCompleted && !isEditMode) return` |
+| 2차 — 자식 prop | 6 컴포넌트 readOnly/disabled | `isCompleted && !isEditMode` |
+| 3차 — 모달 open | 4 모달 open prop | `(!isCompleted \|\| isEditMode) && ctx` |
+| 4차 — toolbar | hideEndMatch + canEdit 시 "수정 모드" 버튼 노출 | isEditMode 시 종료 버튼 재노출 |
+| 5차 — BFF 거부 | submit/route.ts MATCH_LOCKED 분기 | edit_mode body + 권한 검증 통과 시 우회 |
+
+### audit 박제 흐름 (진입 / 재제출)
+
+| 시점 | warning_type / context |
+|---|---|
+| 1. 종료 매치 mount 1회 | `completed_edit_entry` (PR4 기존) |
+| 2. 수정 모드 진입 명시 | `completed_edit_mode_enter` (EDIT1 신규) |
+| 3. 재제출 시 onSubmittedChange | `completed_edit_resubmit` (PR4 기존) |
+| 4. BFF audit 박제 | `[수정 모드] completed_edit_resubmit ...` (EDIT3 신규 prefix) |
+
+EDIT4 inline 표시 = (1)~(4) 모두 SELECT (context LIKE "completed_edit" OR "수정 모드") → context 분류 라벨.
+
+### Q 결재 사항 (사용자 사전 결재 — Q3~Q8 권고안 박제)
+
+| Q | 결정 | 적용 |
+|---|------|------|
+| Q3 | toolbar 버튼 + confirm modal (권한자만) | ✅ EDIT1 — ConfirmModal Promise |
+| Q4 | super/organizer/TAM (recorder 제외) | ✅ EDIT2 — checkScoreSheetEditAccess |
+| Q5 | completed 유지 + audit only | ✅ EDIT3 — audit prefix "[수정 모드]" |
+| Q6 | 무한 수정 + audit 추적 | ✅ EDIT3 — 횟수 제한 0 |
+| Q7 | 매치 상세 inline | ✅ EDIT4 옵션 A — 매치 상세 페이지 미존재 → score-sheet 인라인 |
+| Q8 | MATCH_LOCKED + editMode 우회 | ✅ EDIT3 — Zod edit_mode + 권한 검증 |
+
+### 검증 결과
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | **exit=0** (회귀 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | **14 파일 / 236/236 PASS** (2.69s) |
+| 3 | grep `isEditMode` in form.tsx | **49건** |
+| 4 | grep `requireScoreSheetEditAccess`/`checkScoreSheetEditAccess` | 신규 export + page.tsx (L26+L535) + submit/route.ts (L38) |
+| 5 | grep `edit_mode`/`isEditModeBypass` in submit/route.ts | **14건** |
+| 6 | grep `completed_edit_resubmit` in form.tsx | **4건** (PR4 기존 + EDIT4 분류 = 코드 정합) |
+
+### 운영 동작 보존 검증
+
+| # | 케이스 | 검증 |
+|---|------|------|
+| 1 | status="draft"/in_progress | isCompleted=false → isEditMode 분기 미진입 → 변경 0 ✅ |
+| 2 | completed + canEdit=false (recorder/일반) | "수정 모드" 버튼 미노출 / RO 차단 유지 ✅ |
+| 3 | completed + canEdit=true + isEditMode=false | 버튼 노출 + 노란 배너 + RO 차단 유지 / 클릭 시 confirm ✅ |
+| 4 | completed + isEditMode=true | 모든 차단 우회 + 빨강 indicator + 경기 종료 재노출 + audit ✅ |
+| 5 | 재제출 status 처리 | completed 유지 + audit prefix "[수정 모드]" ✅ |
+| 6 | BFF MATCH_LOCKED + edit_mode 우회 | edit_mode=true + 권한 = 통과 / 미박제 또는 권한 없음 = 423/403 ✅ |
+| 7 | 4종 모달 / Phase 17 / Phase 19 PR-T/Stat / Phase 23 자동 로드 | 영향 0 ✅ |
+| 8 | Flutter v1 / 라이브 / 인쇄 / ← 메인 / 다크모드 | 영향 0 ✅ |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. status="completed" 매치 + super_admin → 노란 배너 + "수정 모드" 버튼 확인.
+  2. "수정 모드" 클릭 → confirm modal "audit 박제됩니다. 정말로?".
+  3. confirm 동의 → 배너 빨강 + 버튼 빨강 fill + 입력 활성 + 종료 버튼 재노출 + toast.
+  4. 입력 수정 + 경기 종료 → BFF 통과 + audit "completed_edit_resubmit" 박제.
+  5. 페이지 새로고침 → inline "수정 이력 N건" + 펼치기 표시 확인.
+  6. completed + recorder 진입 → 버튼 미노출 / RO 차단 유지 (회귀 0).
+  7. draft 매치 → 진행 동작 정상 / 회귀 0.
+- **주의할 입력**:
+  - curl 우회: edit_mode=true body + recorder 세션 → 403 EDIT_FORBIDDEN.
+  - edit_mode 키 미박제 + 종료 매치 = 423 (PR-RO4 동작 보존).
+  - audit 이력 20건 cap + 펼침 토글 (DB 부하 0).
+
+⚠️ reviewer 참고:
+- **5계층 우회 분기**: 4 클라이언트 + 1 BFF = PR-RO 5계층 거울 우회. 어떤 계층도 우회 누락 0.
+- **권한 매트릭스 보수적**: Q4 = recorder 제외. recorder_admin 도 제외 (의뢰서 표 명시). 사용자 후속 결재 시 한 줄 추가로 확장 가능.
+- **EDIT4 위치**: 매치 상세 페이지 미존재 → score-sheet inline 박제 (운영자 추적 단일 source). 사용자 결재 후 별도 페이지 신설 시 SELECT 로직만 이동.
+- **commit 결재**: 4 PR 분리 or 통합 (PM 결정). EDIT1+EDIT3 = form.tsx 동시 수정 → 분리 시 차분 commit 필요. EDIT2+EDIT4 = 별도 파일 → 독립 가능.
+
+### 사용자 후속 검증 사항
+1. 운영 매치 실 진입 — completed + super_admin → 버튼 + 배너 확인.
+2. confirm modal — 클릭 → modal + audit 안내.
+3. 차단 우회 — 입력 + 종료 버튼 + 4종 모달 진입 가능.
+4. 재제출 — BFF 423 회피 + audit DB SELECT 검증.
+5. inline 이력 — 재진입 → "수정 이력 N건" + 펼치기.
+6. 권한 회귀 — recorder 진입 → 버튼 미노출 (PR-RO 보존).
+7. curl 우회 — edit_mode + recorder = 403 EDIT_FORBIDDEN.
+8. commit 결재 — PM 단일/4분할 결정 후 push.
