@@ -40,8 +40,25 @@ export default async function AdminDashboardPage() {
   //   기존 페이지 동작 보존을 위해 sentinel 경로는 별도 처리 — 협회명/통계는 첫 협회 사용.
   // PR3 분기 우선순위: super_admin 이면 "Super Admin" / 그 외 recorder_admin 이면 "Recorder Admin".
   //   이유: isRecorderAdmin 가 super 자동 흡수 — super_admin 보유자는 super 정체성 우선 표시.
-  const superAdmin = isSuperAdmin(session);
-  const recorderAdmin = !superAdmin && isRecorderAdmin(session);
+  //
+  // PR4-FIX (2026-05-15) — DB User.admin_role 직접 SELECT 폴백 (JWT stale 방어).
+  //   이유: PR4-UI 박제 후 recorder_admin 사용자가 admin 페이지에서 "Super Admin 권한 진입" 신고.
+  //         가능 원인 = JWT 발급 시점에 admin_role 박제 전이라 session.admin_role 미존재 →
+  //         isRecorderAdmin(session) === false → 판정 잘못. DB 값으로 명확하게 판정.
+  //   판정: DB.admin_role 우선 → 그 다음 JWT session 폴백 (호환). DB isAdmin=true 는 super_admin 자동 흡수.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isAdmin: true, admin_role: true },
+  });
+  // super_admin: DB isAdmin=true OR DB.admin_role="super_admin" OR JWT 폴백
+  const superAdmin =
+    dbUser?.isAdmin === true ||
+    dbUser?.admin_role === "super_admin" ||
+    isSuperAdmin(session);
+  // recorder_admin: super_admin 아니면서 DB.admin_role="recorder_admin" OR JWT 폴백
+  const recorderAdmin =
+    !superAdmin &&
+    (dbUser?.admin_role === "recorder_admin" || isRecorderAdmin(session));
   const isSentinelSession = superAdmin || recorderAdmin;
   let associationId: bigint;
   let associationName: string;
@@ -155,6 +172,10 @@ export default async function AdminDashboardPage() {
   ];
 
   // 빠른 링크
+  // PR4-FIX (2026-05-15): recorder_admin 사용자 보고 — 빠른 메뉴에 핵심 admin 페이지 진입 카드 부족.
+  //   기존 2개(심판 관리/Excel 일괄 검증) + 신규 6개 (배정/공고/일자별/정산/단가/일괄 등록).
+  //   카드 디자인 일관성 유지 (var(--color-primary) 아이콘 + chevron_right + Material Symbols).
+  //   /referee/admin/settlements/dashboard / /referee/admin/settings 는 보조 페이지 (사이드바만 박제 / 빠른 메뉴 미박제 — 8개 그리드 일관).
   const quickLinks = [
     {
       href: "/referee/admin/members",
@@ -163,8 +184,44 @@ export default async function AdminDashboardPage() {
       description: "소속 심판 목록 조회 및 자격증 검증",
     },
     {
-      href: "/referee/admin/bulk-verify",
+      href: "/referee/admin/assignments",
+      icon: "event_available",
+      label: "배정 관리",
+      description: "경기별 심판/기록원 배정 운영",
+    },
+    {
+      href: "/referee/admin/announcements",
+      icon: "campaign",
+      label: "공고 관리",
+      description: "심판 배정 신청 공고 게시 및 관리",
+    },
+    {
+      href: "/referee/admin/pools",
+      icon: "calendar_today",
+      label: "일자별 운영",
+      description: "대회별 일자별 풀 대시보드",
+    },
+    {
+      href: "/referee/admin/settlements",
+      icon: "payments",
+      label: "정산 관리",
+      description: "심판 정산 내역 조회 및 처리",
+    },
+    {
+      href: "/referee/admin/fee-settings",
+      icon: "monetization_on",
+      label: "배정비 단가",
+      description: "협회 단가표 설정",
+    },
+    {
+      href: "/referee/admin/bulk-register",
       icon: "upload_file",
+      label: "일괄 등록",
+      description: "Excel 파일로 심판/기록원 명단 일괄 등록",
+    },
+    {
+      href: "/referee/admin/bulk-verify",
+      icon: "fact_check",
       label: "Excel 일괄 검증",
       description: "Excel 파일로 자격증 일괄 검증 처리",
     },

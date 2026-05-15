@@ -2,21 +2,30 @@
 
 ## 현재 작업
 - **요청**: CLI 마스터 핸드오프 — admin 디자인 시스템 운영 박제 (`admin-design-2026-05-15/cli-port-to-src.md` 따라 Admin-1 ~ Admin-9 진행)
-- **상태**: Phase 0~1 진행 중 (사전 점검 + sync commit + push 결재)
+- **상태**: Admin-1 진입 — components/admin/* 10 컴포넌트 박제 진행 중 (developer 위임)
 - **결재 받음**:
-  - src/ 미커밋 5 파일 (score-sheet + me + association-wizard 78 lines) → 별도 WIP commit 분리 박제 완료
-  - `.git/index` 손상 발견 + 복구 (`.git/index` 삭제 + `git reset`) → 정상 동작 확인
+  - Phase별 결재 방식 (Admin-1 → 검증 → Admin-2 ... 순차) ✅
+  - src/ 미커밋 5 파일 → 별도 WIP commit 분리 (`0853927`) ✅
+  - `.git/index` 손상 복구 + Phase 0~1 push 완료 (origin/subin = `d1290c0`) ✅
+  - 다른 세션 PR4-UI commit (d1290c0) 자연스럽게 본 세션 commit 위에 박제 — 충돌 0
 
 ## 진행 현황표
 | 단계 | 상태 |
 |------|------|
 | Phase 0 — `.git/index` 복구 | ✅ 완료 |
 | Phase 0.5 — src/ 미커밋 분리 commit (0853927) | ✅ 완료 |
-| Phase 0.6 — scratchpad 정리 (726→100줄 룰 회복) | ✅ 본 commit 시점 |
-| Phase 1 — Dev/design/ BDR-current v2.14 sync commit | ⏳ 진행 예정 |
-| Phase 1.5 — push 결재 + push | ⏳ 사용자 결재 대기 |
-| Phase 2 — Admin-1 components/admin 박제 (developer 위임) | ⏳ push 후 결재 |
-| Phase 3~10 — Admin-2 ~ Admin-9 순차 박제 | ⏳ Phase별 결재 |
+| Phase 0.6 — scratchpad 정리 (726→50줄) | ✅ 완료 |
+| Phase 1 — BDR-current v2.14 sync commit (d43704a) | ✅ 완료 (436 파일 / +75866) |
+| Phase 1.5 — push to origin/subin | ✅ 완료 (4 commit fast-forward) |
+| **Phase 2 — Admin-1 components/admin (10 컴포넌트)** | 🔄 **진행 중** (developer 위임) |
+| Phase 3 — Admin-2 /admin/layout + Dashboard | ⏳ Admin-1 후 결재 |
+| Phase 4 — Admin-3 wizard 풀스크린 | ⏳ |
+| Phase 5 — Admin-4 Phase B 콘텐츠 9 페이지 | ⏳ |
+| Phase 6 — Admin-5 Phase C 사용자/비즈니스/외부 9 페이지 | ⏳ |
+| Phase 7 — Admin-6 Phase D 시스템/me 5 페이지 | ⏳ |
+| Phase 8 — Admin-7 Phase E 8 라우트 (UI-1~5 보존) | ⏳ |
+| Phase 9 — Admin-8 Phase F 잔여 토큰 매핑 | ⏳ |
+| Phase 10 — Admin-9 자동 검증 | ⏳ |
 
 ## 후속 큐 (별도 세션 / 본 의뢰 후)
 - **본 의뢰 후속**: Phase E 잔여 14 라우트 시안 박제 (Claude.ai 디자인) → CLI 박제
@@ -29,8 +38,8 @@
 - PR-S9 / UI-1.4 entry_fee / GNBA 8팀 코치 안내
 
 ## 미푸시 commit (subin 브랜치)
-- 본 응답 직전 = 0 (origin/subin 일치)
-- 본 응답 후 = `0853927` (chore wip) + 본 commit 다음 sync commit 1건 = 2 commit (push 결재 대기)
+- 현재 = **0** (origin/subin = HEAD = d1290c0 박제 완료)
+- 본 세션 직전 = 4 commit (0853927 chore wip + d43704a sync + d1290c0 PR4-UI by 다른 세션 + Phase 6 PR2/PR1 등 이전 commit)
 
 ## 기획설계 (planner-architect)
 (본 의뢰 = 시안 박제이므로 신규 설계 없음 / cli-port-to-src.md 참조)
@@ -86,6 +95,52 @@
 - **DB 0 추가 라운드트립**: referee/page.tsx 에 `getAssociationAdmin()` 추가 (1 추가 SELECT) — `Promise.all` 병렬로 referee 조회와 동시 실행 → 추가 latency 0 (DB 동시 처리).
 - **JWT 갱신 필요 (Q4 결재 유지)**: recorder_admin 지정 후 사용자 본인 로그아웃→재로그인 필요 (기존 룰 그대로). `isRecorderAdmin` 은 session.admin_role 평가 — JWT 갱신 전까지 false 반환.
 
+### PR4-FIX 진단 + 수정 (사용자 피드백 반영 — recorder_admin UI 결함 3건)
+
+📝 진단 요약:
+- 결함 #1 (사이드바 비노출): JWT stale 함정 — `isRecorderAdmin(session)` 가 JWT.admin_role 만 평가. DB 박제 후 재로그인 안 하면 stale → `getAssociationAdmin()` sentinel 미진입 → me API admin=null → adminInfo=null → 사이드바 admin 섹션 0
+- 결함 #2 (Super Admin 라벨): 코드 분석상 정확 (recorder_admin 이면 "Recorder Admin" 표시되어야 함). 가능 원인 = stale JWT (과거 isAdmin=true) 또는 사용자 인용 오류. fix = DB ground truth 우선 판정으로 stale JWT 무관 정확 표시
+- 결함 #3 (빠른 메뉴 부족): 코드에서 확인 — quickLinks 배열에 2개만 박제. 존재하는 6 핵심 admin 페이지 (배정/공고/일자별/정산/단가/일괄 등록) 미박제
+
+#### 변경 파일 + LOC
+| 파일 | 변경 | 신규/수정 | LOC |
+|------|------|---------|----|
+| `src/app/api/web/me/route.ts` | (a) User select isAdmin/admin_role 추가 (b) `recorderAdmin` DB 폴백 (4 분기 OR) (c) `effectiveAdmin` 강제 sentinel — DB ground truth 가 admin-like 면 admin=null 이어도 첫 활성 협회 자동 선택 + sentinel role 박제 (d) 응답에 `admin_role` 키 추가 | 수정 | +35 |
+| `src/app/(referee)/referee/admin/page.tsx` | (a) `prisma.user.findUnique` 추가 (isAdmin/admin_role) (b) `superAdmin` / `recorderAdmin` 판정 DB 폴백 (OR 분기) (c) quickLinks 2 → 8 확장 (배정/공고/일자별/정산/단가/일괄 등록 신규 6) | 수정 | +60 |
+
+**합계**: 수정 2 파일 / 신규 0 / 약 95 LOC.
+
+#### 진단 결과 (원인)
+- **결함 #1**: **JWT stale 함정** — `is-recorder-admin.ts` L61~62 가 `session.admin_role` JWT 만 평가. JWT 만료 7일 동안 DB 박제 반영 X. 운영 DB 에서 user_id=3431 의 admin_role="recorder_admin" 확인 (`scripts/_temp/check-user-3431.ts`) 했으나 사용자 JWT 는 박제 전 발급 → stale → 사이드바 admin 메뉴 0
+- **결함 #2**: **stale JWT 가능 원인** — 코드 분석상 entryRole 분기 정확 (admin/page.tsx L60 = recorder_admin). 사용자 보고 "Super Admin" 라벨은 (a) stale JWT (b) 인용 오류 둘 다 가능. fix = DB ground truth 우선 판정으로 stale JWT 무관 보장
+- **결함 #3**: **박제 누락** — admin/page.tsx L158~171 quickLinks 배열에 2개만. 페이지는 8 핵심 admin 라우트 모두 존재 (Glob 확인) — 빠른 메뉴 진입 카드 박제 부족
+
+#### Q 결재 사항 (debugger 권고 — PM/사용자 결재 후 확정)
+- **DB 폴백 vs JWT 갱신**: 본 fix = DB 폴백 (즉시 + 안전). 후속 PR 큐 = JWT 강제 만료 (admin_role 변경 시 자동 재로그인 — 운영 자동화)
+- **첫 활성 협회 자동 선택**: me API 의 `effectiveAdmin` 강제 sentinel = admin-guard.ts 의 sentinel 분기 (L144~167) 와 동일 로직 카피 — 1차 source (admin-guard) 변경 안 함 (회귀 위험 회피)
+- **quickLinks 8개**: 정산 대시보드 / 설정 2개는 사이드바만 박제 (빠른 메뉴 미박제 — 8 카드 lg:grid-cols-2 = 4행 가지런)
+
+#### 검증 결과
+- `npx tsc --noEmit`: **0 에러** (회귀 0)
+- `npx vitest run`: **921/921 PASS** (PR4-UI 직후 921 동일 / 회귀 0)
+
+#### 회귀 검증
+- **일반 user (비관리자)**: DB.isAdmin=false / DB.admin_role=null → 폴백 분기 false → 기존 동작 그대로 (admin=null / adminInfo=null / recorder_admin=false / 사이드바 본인 메뉴만) ✅
+- **super_admin (DB.isAdmin=true)**: DB 폴백으로 effectiveAdmin sentinel 채움 보장 — JWT stale 이어도 사이드바 admin 섹션 노출 + entryRole="super_admin" → "Super Admin 권한 진입" 정확 표시 ✅
+- **recorder_admin (DB.admin_role="recorder_admin" / JWT stale)**: DB 폴백으로 effectiveAdmin sentinel 채움 + admin/page.tsx entryRole="recorder_admin" → "Recorder Admin 권한 진입" 정확 표시 + 사이드바 admin 섹션 12 permission 노출 + 빠른 메뉴 8개 ✅
+- **협회 관리자 (기존 association_admin)**: 기존 동작 보존 — `admin` 변수가 정상 채워지므로 폴백 분기 미진입. sg/refchief/staff 등 role 매칭 그대로 ✅
+
+#### errors.md 박제 항목
+- `[2026-05-15] recorder_admin 사이드바 admin 섹션 비노출 = JWT stale 함정 (PR4-UI 사용자 보고 fix)` — JWT stale 함정 + DB ground truth 폴백 표준 + role 변경 시 재로그인 안내 의무 + JWT 강제 만료 후속 PR 큐
+
+#### 사용자 후속 검증 사항
+1. **로그아웃 후 재로그인 권장**: 본 fix 는 stale JWT 도 통과시키도록 DB 폴백 박제. 그러나 클린 검증 위해 user_id=3431 본인이 한 번은 로그아웃→재로그인 권장 (JWT 갱신 후 DB.admin_role 반영)
+2. **사이드바 검증** (lg+): /referee 진입 → 좌측 사이드바 = 본인 7항목 + "관리자" 섹션 + 9 admin 항목 (관리자/배정 관리/공고 관리/일괄 등록/일자별 운영/정산 관리/정산 대시보드/배정비 단가/설정) 노출
+3. **admin 페이지 라벨 검증**: /referee/admin 진입 → 상단 안내 박스 "**Recorder Admin** 권한 진입" 표시 (Super Admin 아님 — DB 폴백으로 보장)
+4. **빠른 메뉴 8개 검증**: /referee/admin 진입 → "빠른 메뉴" 영역 8개 카드 노출 (심판 관리 / 배정 관리 / 공고 관리 / 일자별 운영 / 정산 관리 / 배정비 단가 / 일괄 등록 / Excel 일괄 검증)
+5. **회귀 검증**: 일반 사용자 / 협회 관리자 / super_admin 진입 시 기존 동작 변경 0 확인
+6. **임시 스크립트 정리**: `scripts/_temp/check-user-3431.ts` 삭제 (운영 DB credentials 노출 방지 — 운영 안전 룰)
+
 ## 테스트 결과 (tester)
 (Phase 2 완료 후 시각 검증 박제)
 
@@ -99,6 +154,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | PR4-FIX recorder_admin UI 결함 3건 진단+수정 (사이드바/Super Admin 라벨/빠른 메뉴) | ✅ 수정 2 파일 / +95 LOC / tsc 0 / vitest 921/921 PASS / DB ground truth 폴백 박제 (JWT stale 함정 영구 차단) / 회귀 0 / errors.md 박제 / commit 결재 대기 |
+| 2026-05-15 | Phase 23 PR-RO1~RO4 종료 매치 read-only 차단 (5 계층 방어 박제) | ✅ 수정 7 파일 / ~131 LOC / tsc 0 / vitest 236/236 PASS / 운영 동작 8 케이스 보존 / Q1~Q8 권고안 박제 / commit 결재 대기 |
 | 2026-05-15 | `.git/index` 손상 복구 + 다른 세션 미커밋 5 파일 WIP commit 분리 (0853927) | ✅ score-sheet + me + association-wizard 78 lines 박제 / admin sync 전 working tree clean 확보 / 본 의뢰 §2 Phase 0 실제 필요했음 (의뢰서 가정 맞음) |
 | 2026-05-15 | Phase 6 PR2 협회 마법사 본체 (Step 1~3 + WizardShell + sessionStorage + 진입 카드) | ✅ 79e72de — super_admin 전용 / Q4 결재 적용 |
 | 2026-05-15 | Phase 6 PR1 협회 마법사 API 3 endpoint | ✅ 39e7aab — Association/Admin/FeeSetting 3 라우트 |
@@ -106,10 +163,6 @@
 | 2026-05-15 | PR3 recorder_admin /referee/admin 진입 + admin-guard sentinel + RoleMatrixCard | ✅ facafd7 — 수정 6 파일 / tsc 0 / vitest 873/873 |
 | 2026-05-15 | PR2 recorder_admin 기록원 배정 API 가드 (recorders GET/POST/DELETE) | ✅ 29730ba — 라우트 내부 헬퍼 / vitest 868/868 |
 | 2026-05-15 | PR1 recorder_admin 권한 헬퍼 + 기록 API 가드 | ✅ 718c32f — 신규 3 파일 + 수정 3 / 16 신규 케이스 |
-| 2026-05-15 | Phase 19 PR-Stat3.9 useToast no-op fallback (Turbopack dev 안전망) | ✅ 4721d60 |
-| 2026-05-15 | Phase 19 PR-Stat3.8 QuarterEndModal OT max 9 (OT4/OT5 진입) | ✅ e108b84 |
-| 2026-05-15 | Phase 19 PR-Stat3.7 OT max 7→9 (OT5 확장) | ✅ d814486 |
-| 2026-05-15 | Phase 6 PR3 협회 마법사 Step 4 Referee 사전 등록 (옵션) | ✅ 신규 2 + 수정 6 파일 / 약 480 LOC / vitest 11/11 + 921/921 회귀 0 / Q2 PR3 분리 + Q7 1차 미검증 박제 적용 / DB schema 변경 0 |
 
 ## 구현 기록 (developer) — Phase 6 PR3 Referee Step 4 (2026-05-15)
 
@@ -182,3 +235,103 @@
 3. **skip 흐름**: Step 4 등록 없이 다음 → 협회/사무국장/단가표 3건만 INSERT (referees 0건).
 4. **검증 실패**: row 추가 + name 미입력 → 다음 버튼 비활성 / row 100건 초과 → 422.
 5. **license_number 중복**: 동일 license_number 2건 동시 입력 → skipDuplicates 로 1건만 INSERT (created_count=1).
+
+## 구현 기록 (developer) — Phase 23 PR-RO1~RO4 (종료 매치 read-only 차단)
+
+📝 구현한 기능: 종료된 매치 (status="completed") 진입 시 모든 input/button/모달 차단 (사용자 결재 Q1~Q8 권고안 박제). 클라이언트 4 PR (RO1~RO3) + BFF 1 PR (RO4) = 5 분리 묶음 통합 박제. 운영 동작 100% 보존 = 진행 중 매치 (isCompleted=false) 변경 0. 인쇄 / ← 메인 / 다크모드 = 항상 활성. Phase 22 PBP 보정 / Phase 23 PR4 audit / Phase 19 PR-S/Stat 흐름 영향 0.
+
+### 4 PR 묶음 — 변경 파일 + LOC
+
+| PR | 파일 | 변경 | 신규/수정 | LOC |
+|----|------|------|----------|-----|
+| RO1 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/fiba-header.tsx` | `readOnly?: boolean` prop 추가 → SSFieldInput 3 input (Referee/Umpire 1/Umpire 2) readOnly wiring | 수정 | +9 |
+| RO1 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | `readOnly?: boolean` prop 추가 → Coach + Assistant Coach input readOnly wiring (button/cell 은 기존 disabled 그대로) | 수정 | +9 |
+| RO1 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/footer-signatures.tsx` | `readOnly?: boolean` prop 추가 → frameless=true 분기 8 input readOnly wiring (Scorer/Asst/Timer/ShotClockOp/Referee/Umpire 1/2/Captain) + frameless=false 분기 SigInput 8 + Notes textarea (회귀 안전망) | 수정 | +22 |
+| RO1 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/period-scores-section.tsx` | 변경 0 (이미 `disabled?: boolean` prop 보유 — OT 종료 빨강 버튼 분기 그대로) | — | 0 |
+| RO1 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/running-score-grid.tsx` | `readOnly?: boolean` prop 추가 → handleCellClick early return 분기 (모달 open / addMark / undoLastMark 차단) | 수정 | +9 |
+| RO1 | `stat-popover.tsx` / `quarter-end-modal.tsx` | 변경 0 (RO2 form.tsx 에서 mount X — open 강제 false) | — | 0 |
+| RO2 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (a) 12 핸들러 isCompleted early return (handleAdvancePeriod/handleRetreatPeriod/handleEndPeriod/handleEndMatchFromQuarterEnd/handleContinueToOvertime/handleRequestAddFoul/handleRequestRemoveFoul/handleRequestAddTimeout/handleRequestRemoveTimeout/handleRequestOpenStatPopover/handleAddStat/handleRemoveStat/handleSelectFoulType/handleLineupConfirm) (b) 4종 모달 open 가드 (`!isCompleted && ctx !== null` 패턴 — FoulTypeModal/StatPopover/QuarterEndModal/LineupSelectionModal) (c) 자식 6 컴포넌트 readOnly/disabled prop 전달 (FibaHeader/TeamSection×2/FooterSignatures/RunningScoreGrid/PeriodScoresSection) (d) 라인업 다시 선택 button conditional render (isCompleted 시 hidden) | 수정 | +52 |
+| RO3 | `src/app/(score-sheet)/_components/score-sheet-toolbar.tsx` | `hideEndMatch?: boolean` prop 추가 → 경기 종료 button conditional render (인쇄 + ← 메인 = 항상 노출 / 사용자 결재 Q2) | 수정 | +12 |
+| RO3 | `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | ScoreSheetToolbar 호출에 `hideEndMatch={isCompleted}` + onEndMatch 안 `if (isCompleted) return` 이중 방어 wiring (MatchEndButton hideTriggerButton 기존 hardcoded true 그대로 — 운영 동작 보존) | 수정 | (RO2 합산) |
+| RO4 | `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | `match.status === "completed"` 거부 분기 (423 MATCH_LOCKED) — getRecordingMode 가드 직전 박제 (L415 부근). 수정 모드 우회는 별도 PR-EDIT3 큐 | 수정 | +18 |
+
+**총 수정 7 파일 (period-scores-section / stat-popover / quarter-end-modal 변경 0) / 신규 0 / 약 131 LOC**.
+
+### isCompleted 분기 적용 위치 (방어 깊이)
+
+| 계층 | 위치 | 차단 효과 |
+|---|---|---|
+| 1차 — 핸들러 가드 | score-sheet-form.tsx 14개 핸들러 첫 줄 `if (isCompleted) return` | 사용자 액션 진입점 0 (setState 0) |
+| 2차 — 자식 prop | 6 컴포넌트에 readOnly/disabled 전달 | HTML 표준 input/button 시각 차단 |
+| 3차 — 모달 open | 4 모달 `!isCompleted && ctx` 분기 | 모달 mount 0 (state 박제되도 렌더 0) |
+| 4차 — toolbar hide | ScoreSheetToolbar hideEndMatch | 경기 종료 button DOM 0 |
+| 5차 — BFF 거부 | submit/route.ts MATCH_LOCKED 423 | curl/콘솔 우회도 BFF 단계 차단 |
+
+### 검증 결과
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | **exit=0** (에러 0 / 회귀 0) |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | **14 파일 / 236/236 PASS** (회귀 0 / 1.20s) |
+| 3 | grep `readOnly\?:` in 자식 컴포넌트 | 4 파일 매치 (fiba-header/team-section/footer-signatures/running-score-grid — period-scores-section 은 의뢰서대로 변경 0) |
+| 4 | grep `isCompleted` 분기 in form.tsx | 23건 매치 (핸들러 14 + 모달 open 4 + 자식 prop 6 - 일부 중복 = 23) |
+| 5 | grep `MATCH_LOCKED` in submit/route.ts | 3건 (주석 2 + apiError 코드 1) |
+
+### 운영 동작 보존 검증
+
+| # | 케이스 | 검증 결과 |
+|---|------|------|
+| 1 | status="draft" / in_progress 매치 진입 | isCompleted=false → 모든 차단 분기 미진입 → 운영 동작 변경 0 ✅ |
+| 2 | status="completed" 매치 진입 | 모든 input readOnly + button disabled + 4 모달 mount X + 노란 배너 유지 ✅ |
+| 3 | 인쇄 / ← 메인 / 다크모드 토글 | 활성 유지 (toolbar hideEndMatch 만 차단 / 인쇄+메인+다크 = 분기 0) ✅ |
+| 4 | 4종 모달 진입점 | 차단 (핸들러 가드 + open 분기 가드 이중 방어) ✅ |
+| 5 | 5반칙 차단 / Phase 17 색 / Phase 19 PR-T/Stat / Phase 23 자동 로드 | 영향 0 (props prop drilling 만 추가 / 비즈니스 로직 변경 0) ✅ |
+| 6 | BFF submit (status=draft/in_progress) | MATCH_LOCKED 분기 미진입 → 통과 ✅ |
+| 7 | 라이브 페이지 | 영향 0 (status 변경 0 / 본 PR = score-sheet 한정) ✅ |
+| 8 | Flutter v1 API | 영향 0 (paper 매치 BFF 전용 / `/api/v1/...` 변경 0) ✅ |
+
+### Q 결재 사항 (사용자 사전 결재 — Q1~Q8 권고안 박제)
+
+| Q | 결정 | 본 PR 적용 |
+|---|------|------|
+| Q1 | tester 별도 추적 | 본 작업 범위 외 (RO 적용 후 자동 해소 검증은 tester 큐) |
+| Q2 | 종료 매치 = 모든 input/button/모달 차단 (인쇄+메인 제외) | ✅ 적용 — 5 계층 방어 |
+| Q3~Q7 | EDIT1~EDIT4 (B 영역 후속) | 본 PR 범위 외 (RO4 = 거부만 / EDIT3 = 수정 모드 우회) |
+| Q8 | BFF MATCH_LOCKED 423 + 수정 모드 우회 분기 (이중 방어) | ✅ RO4 적용 — 거부만 (우회는 EDIT3 후속) |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. 진행 중 매치 (status="draft") 진입 → 모든 input/button/모달 정상 동작 확인 (회귀 0).
+  2. 종료 매치 (status="completed") 진입 → 노란 배너 노출 + Coach input 클릭 시 readOnly (입력 차단) + 파울 cell 클릭 시 disabled (모달 mount 0) + toolbar 경기 종료 버튼 hidden 확인.
+  3. 종료 매치에서 인쇄 클릭 → window.print() 정상 호출 / ← 메인 클릭 → /admin 이동 / 다크모드 토글 정상.
+  4. curl/fetch 로 종료 매치 submit POST → 423 MATCH_LOCKED 응답 + "종료된 매치는 수정할 수 없습니다" 메시지 확인.
+- **정상 동작**: status 분기 = 진행 매치 변경 0 / 종료 매치 5 계층 차단. 다크모드 / 인쇄 / 메인 유지.
+- **주의할 입력**:
+  - status="completed" + draft 가 localStorage 에 남아있는 케이스: ConfirmModal 띄우는 useEffect 는 isCompleted 가드 미포함 (사용자 결재 Q3 별도 흐름 / Phase 23 PR4 audit 만) — 의도된 동작 (draft 비교는 표시만 / 실제 수정은 모든 가드로 차단).
+  - 라인업 미박제 + status="completed" 동시 케이스: LineupSelectionModal 자동 open 차단 (open={!isCompleted && lineupModalOpen}) → 양식 미렌더 + 라인업 선택 열기 버튼만 노출 (드물지만 운영자 인지 가능).
+
+⚠️ reviewer 참고:
+- **특별히 봐줬으면 하는 부분**:
+  - **방어 깊이 5 계층** — 사용자 결재 Q8 (이중 방어) 권고안 충실 박제. 클라이언트 4 계층 (핸들러/prop/모달/toolbar) + BFF 1 계층 (MATCH_LOCKED) = 어떤 우회 경로도 차단.
+  - **MatchEndButton.hideTriggerButton** — 의뢰서 표현 "controlled props 재활용 (PR-S2)" = 이미 hardcoded true (toolbar 가 trigger 흡수). isCompleted 분기 별도 추가 시 → 진행 매치 hideTriggerButton=false 회귀. 그래서 기존 true 유지 + toolbar hideEndMatch 만 분기 (이중 방어 충분).
+  - **MatchEndButton.onSubmittedChange 안 audit 호출** — Phase 23 PR4 의 completed_edit_resubmit audit endpoint 호출 분기 보존 (RO 차단으로 BFF 401 도달 차단이 우선 — audit 호출은 사실상 발생 X but 코드 정합 보존).
+  - **dead path readOnly 추가** — footer-signatures.tsx 의 frameless=false 분기 (실제 진입 0) 도 readOnly wiring. 회귀 안전망 + 단위 테스트 가능성 위해 동시 박제.
+- **API 패칭 최소**: BFF 1 라우트 (submit/route.ts) 거부 분기 1개 추가 — match.status SELECT 는 access 가드에서 이미 fetch (추가 DB 라운드트립 0).
+- **DB 변경 0**: schema / migration / prisma db push 호출 0.
+- **Flutter v1 영향 0**: `/api/v1/...` 변경 0 — paper 매치 BFF (`/api/web/score-sheet/[matchId]/submit`) 전용.
+- **AppNav frozen 영향 0**: score-sheet 페이지 = layout.tsx 의 RotationGuard / no AppNav.
+
+### 잠재 위험 / 메모
+
+- **수정 모드 우회 (PR-EDIT1~EDIT4)** = 본 PR 범위 외. 종료 매치 수정이 필요한 경우 사용자가 별도 PR-EDIT3 (`editMode: true` query param/body) 으로 진입. 본 PR = 차단만.
+- **MATCH_LOCKED 응답 키** = 운영 BFF 첫 도입 코드. Flutter v1 영향 0 (`/api/web/...` BFF 전용). 후속 EDIT3 에서 동일 코드 재사용 가능.
+- **cross-check-audit endpoint 영향 0** = Phase 23 PR4 흐름 그대로 (mount 1회 entry audit + submit 시 resubmit audit). RO 차단으로 submit 도달 0 = resubmit audit 실제 발생 0 (의도된 동작 / 코드 정합 보존).
+- **PR 분리 commit 전략**: 4 PR 묶음 (RO1/RO2/RO3/RO4) — commit 분리 시 RO1 → RO2 → RO3 → RO4 순서 권장 (RO2 가 자식 prop 의존). PM 결재 시 단일 commit 또는 4 분할 선택.
+
+### 사용자 후속 검증 사항
+
+1. **종료 매치 실 진입**: 운영 DB 에 status="completed" 매치 1건 선택 → /score-sheet/{matchId} 진입 → 노란 배너 + 모든 input readOnly + 모든 button disabled + toolbar 경기 종료 hidden + 4종 모달 mount 0 확인.
+2. **진행 매치 회귀 0**: status="draft" / in_progress 매치 진입 → 모든 입력/버튼/모달 정상 동작 (5 계층 차단 미진입 확인).
+3. **curl 우회 검증**: `curl -X POST /api/web/score-sheet/{completed_match_id}/submit -d '{...}'` → 423 MATCH_LOCKED 응답 확인.
+4. **인쇄 + ← 메인 + 다크모드**: 종료 매치 진입 후 3 액션 모두 정상 동작 확인.
+5. **commit 결재**: PM 단일 또는 4 분할 commit 결정 후 사용자 결재 받아 push.
