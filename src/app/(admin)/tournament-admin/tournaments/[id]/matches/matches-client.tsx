@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 // 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
 import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
+// 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (teams 페이지 헤더에서 이동 박제)
+import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
 
 type TeamInfo = {
   id: string;
@@ -495,7 +497,7 @@ export default function MatchesClient() {
           </Link>
           <h1 className="mt-1 text-xl font-bold sm:text-2xl">경기 관리</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {matches.length > 0 ? (
             <Button
               variant="secondary"
@@ -509,6 +511,16 @@ export default function MatchesClient() {
             <Button onClick={() => generateBracket(false)} disabled={generating}>
               {generating ? "생성 중..." : "대진표 생성"}
             </Button>
+          )}
+          {/* 2026-05-16 PR-Admin-2 — 단일 순위전 진출 trigger (matches 페이지 단일 위치).
+              teams 페이지 기존 버튼 제거 + 본 위치로 이동 (admin-flow §3 단계 10 정렬).
+              호출 후 onSuccess → load() refetch (자동 매핑 결과 즉시 반영). */}
+          {matches.length > 0 && (
+            <AdvancePlayoffsButton
+              tournamentId={id}
+              divisionCodes={divisionCodes}
+              onSuccess={load}
+            />
           )}
         </div>
       </div>

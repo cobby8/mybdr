@@ -1,9 +1,91 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-Admin-3 placeholder 검증 배너 (PlaceholderValidationBanner + detectInvalidPlaceholderMatches) 박제
-- **상태**: ✅ 박제 완료 — PM 검증 대기 (tsc 0 / vitest 26 PASS / 4 파일 변경 — 신규 1 + 수정 3)
+- **요청**: PR-Admin-2 matches 단일 순위전 trigger (AdvancePlayoffsButton + matches 헤더 박제 + teams 정리)
+- **상태**: ✅ 박제 완료 — PM 검증 대기 (tsc 0 / 3 파일 변경 — 신규 1 + 수정 2)
 - **현재 담당**: developer → PM
+
+## 구현 기록 (developer) — PR-Admin-2
+
+📝 구현한 기능:
+- admin-flow-audit §3 단계 10 정렬 — "예선 종료 → 순위전 진출" trigger 를 matches 페이지로 이동 박제 (teams 부적절 위치 제거)
+- AdvancePlayoffsButton: modal 2종 (success/warning 결과 + error 분기) + 종별 4 col 표 (UPDATE/SKIP/에러)
+- onSuccess → matches load() refetch trigger (자동 매핑 결과 즉시 반영)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/AdvancePlayoffsButton.tsx` | 신규 (320 LOC / Card 모달 + 4 col 표 + success/warning/error 3 톤 분기 / BDR Navy trigger) | 신규 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/matches/matches-client.tsx` | import 1줄 + 헤더 우측 박제 5줄 + flex-wrap 보정 (matches.length>0 가드) | 수정 (+14) |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/teams/page.tsx` | 기존 "순위전 자동 채우기" 버튼 제거 (-10) + advancePlaceholders 헬퍼 제거 (-29) + 안내 주석 4줄 | 수정 (+4 -39) |
+
+📊 검증 결과:
+
+```
+git diff --stat HEAD (PR-Admin-2 한정 — 2 파일 수정)
+ .../tournaments/[id]/matches/matches-client.tsx    | 14 ++++++-
+ .../tournaments/[id]/teams/page.tsx                | 45 +++-------------------
+ 2 files changed, 18 insertions(+), 41 deletions(-)
+
+git status (untracked — 신규 1 파일)
+?? src/app/(admin)/tournament-admin/tournaments/[id]/_components/AdvancePlayoffsButton.tsx
+
+npx tsc --noEmit: EXIT_CODE=0 (전체 PASS / 0 error)
+```
+
+🔧 자가 진단 5건:
+
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | AdvancePlayoffsButton.tsx 신규 파일 (LOC > 0) | ✅ 320 LOC |
+| 2 | matches-client.tsx 헤더 우측 박제 확인 | ✅ +14 LOC (import 1 + AdvancePlayoffsButton 박제 6 + flex-wrap 보정 + matches.length>0 가드) |
+| 3 | teams/page.tsx 기존 버튼 + 헬퍼 제거 확인 | ✅ -39 LOC (버튼 -10 + 헬퍼 -29) + 안내 주석 +4 |
+| 4 | tsc 0 | ✅ EXIT_CODE=0 (전체 PASS) |
+| 5 | 디자인 13 룰 준수 (var(--color-*) / rounded-[4px] / material-symbols / 44px+) | ✅ 모두 준수 (아래 상세) |
+
+🛡️ 디자인 13 룰 준수:
+- ✅ var(--color-info) Navy trigger 버튼 (matches 헤더 우측)
+- ✅ var(--color-success) 결과 배너 (에러 0 케이스 / check_circle)
+- ✅ var(--color-warning) 결과 배너 (에러 ≥1 케이스 / warning)
+- ✅ var(--color-error) 에러 모달 (네트워크/서버 오류 / error)
+- ✅ rounded-[4px] 만 사용 (pill 9999px ❌)
+- ✅ material-symbols-outlined "trending_up" / "check_circle" / "warning" / "error" (lucide-react ❌)
+- ✅ 모바일 44px+ 터치 영역 (trigger / 모달 확인 버튼 모두 minHeight: 44)
+- ✅ 핑크/살몬/코랄 ❌
+
+⚠️ 규약 준수:
+- ✅ planner-architect 박제 spec 100% 일치 (3 파일 / spec 예상 +87 LOC → 실제 +14 -41 = 컴포넌트 풍성화로 신규 320 LOC)
+- ✅ NextStepCTA (PR-Admin-1) / PlaceholderValidationBanner (PR-Admin-3) 변경 0 (영역 분리)
+- ✅ advance-placeholders route 변경 0 (재사용 / route 동작 그대로)
+- ✅ match-sync.ts 변경 0 (자동 trigger 와 양면 박제 / 운영자 fallback UI 만 박제)
+- ✅ matches-client.tsx 다른 영역 변경 0 (헤더 우측 1 영역만 / flex-wrap 보정 외 무관 영역 0)
+- ✅ teams/page.tsx 헤더 layout 검증 — flex-wrap gap-2 + 잔존 2 버튼 (CSV / 카톡) 정상 표시 (3 → 2 버튼)
+- ✅ 운영 DB SELECT 0 (UI 컴포넌트 + 기존 route 재사용만)
+
+💡 tester 참고:
+- 테스트 방법:
+  1. 강남구협회장배 같은 다중 종별 대회 ID 진입 → `/tournament-admin/tournaments/[id]/matches`
+  2. 헤더 우측 "예선 종료 → 순위전 진출" Navy 버튼 노출 확인 (대진표 재생성 옆)
+  3. 클릭 → confirm 다이얼로그 → "확인" → 처리 중 표시 → 결과 모달 노출
+  4. 결과 모달 = 종별 표 (UPDATE/SKIP/에러 4 col) + 에러 0 = 초록 톤 / 에러 ≥1 = 노란 톤
+  5. "확인" 클릭 → 모달 닫힘 + matches 자동 새로고침 (load() refetch — placeholder 슬롯 채워진 매치 노출)
+  6. teams 페이지 진입 → 기존 "순위전 자동 채우기" 버튼 미표시 확인 (CSV/카톡 2 버튼만 잔존)
+- 정상 동작:
+  - 모바일(≤720px): 헤더 flex-wrap → trigger 버튼 줄바꿈 / 모달 풀너비 (max-w-lg + p-4 inset)
+  - PC(≥sm): 헤더 inline / 모달 가운데 정렬 max-w-lg
+  - matches.length === 0 → trigger 버튼 미표시 (대진표 미생성 시 의미 0)
+- 주의할 입력:
+  - 대회에 placeholder 매치 0건 → 응답 results 빈 배열 → 표 미표시 + "업데이트 0건" 노출 (정상)
+  - 모든 종 처리 (body {}) — divisionCode 옵션 미사용 (전체 종 일괄)
+  - confirm 취소 → POST 호출 0 (현 상태 유지)
+
+⚠️ reviewer 참고:
+- AdvancePlayoffsButton.tsx 320 LOC = planner 예상 120 LOC 초과. 사유: ResultModal wrapper / success+warning+error 3 톤 분기 / 4 col 표 / 본 PR 본질 = 운영자 신뢰성 (모달 결과 정확 표시) — 의도된 풍성화.
+- apiSuccess() 응답 구조 = `{ success: true, data: { ... } }` 형식. payload = `json.data ?? json` fallback 처리 (snake_case 변환 후).
+- divisionCodes prop 은 결과 모달 표 라벨 안내용 (현재는 응답 division_code 만 표기 / 추후 종별 한글명 매핑 옵션).
+- match-sync.ts:674 자동 trigger 와 본 PR 운영자 수동 trigger 양면 박제 = advance route idempotent 보장 (placeholder-helpers `isStandingsAutoFillable` + `division-advancement.ts` skip 로직).
+- teams 헤더 layout 회귀 0 — flex-wrap gap-2 유지 / 3 버튼 → 2 버튼 (CSV / 카톡) — 시각 깨짐 0.
+
+## 구현 기록 (developer) — PR-Admin-3
 
 ## 구현 기록 (developer) — PR-Admin-3
 
@@ -369,6 +451,7 @@ export function detectInvalidPlaceholderMatches(
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Admin-2 matches 단일 순위전 trigger (developer)** | ✅ AdvancePlayoffsButton 신규 (320 LOC / Card 모달 + 4 col 표 + 3 톤 분기) + matches-client.tsx 헤더 박제 (+14) + teams/page.tsx 기존 버튼 + 헬퍼 제거 (-39) / tsc 0 / 자가 진단 5/5 PASS |
 | 2026-05-16 | **PR-Admin-1/2/3 통합 설계 (planner-architect)** | ✅ scratchpad "기획설계" 섹션 박제 — NextStepCTA / AdvancePlayoffsButton / PlaceholderValidationBanner 3 컴포넌트 / 권장 순서 1→3→2 / 총 LOC +298 / vitest 4 케이스 / 회귀 0 |
 | 2026-05-16 | **PR-G5.8 swiss generator R1 박제 + R(N) 501 stub (옵션 B)** | ✅ commit `b8b3117` — swiss-helpers + swiss-knockout 신규 / planSwissRound1 시드 양분 + planSwissNextRound Dutch+Buchholz+최근대전회피 / generateSwissNextRound 501 stub / vitest 240/240 PASS (신규 13 케이스) / 회귀 0 |
 | 2026-05-16 | **PR-G5.2 dual-generator placeholder-helpers 통과 (옵션 B)** | ✅ commit `eaccd54` — 인라인 박제 12건 → buildSlotLabel / group_match_result kind 신규 / vitest 227/227 PASS |
