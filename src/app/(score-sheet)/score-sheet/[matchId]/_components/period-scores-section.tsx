@@ -46,6 +46,10 @@ interface PeriodScoresSectionProps {
   disabled?: boolean;
   // Phase 8 — frameless 모드. PR-S5 에서는 호환성 유지만 (시각은 .ss-shell 룰 우선)
   frameless?: boolean;
+  // 2026-05-16 (PR-Winner-Gate) — 사용자 보고 이미지 #140 fix.
+  //   경기 종료 (matchEnded=true) 시에만 NAME OF WINNING TEAM 자동 채움.
+  //   진행 중에는 빈 칸 (현재 점수 = 임시. 사용자 명시 = 경기 종료 후 결정).
+  matchEnded?: boolean;
 }
 
 export function PeriodScoresSection({
@@ -59,6 +63,7 @@ export function PeriodScoresSection({
   onEndPeriod,
   disabled,
   frameless: _frameless,
+  matchEnded, // 2026-05-16 (PR-Winner-Gate) — 경기 종료 시에만 승리팀 표시
 }: PeriodScoresSectionProps) {
   // ─────────────────────────────────────────────
   // 운영 데이터 매핑 — 변경 0 (사용자 핵심 제약)
@@ -102,14 +107,17 @@ export function PeriodScoresSection({
   };
 
   // Winner 결정 (운영 computeFinalScore 결과를 시안 표시 형식으로 매핑)
-  const winnerName =
-    final.winner === "home"
+  // 2026-05-16 (PR-Winner-Gate) — 사용자 보고 이미지 #140 fix.
+  //   matchEnded=true 일 때만 winnerName 노출. 진행 중 = 빈 칸.
+  const winnerName = matchEnded
+    ? final.winner === "home"
       ? homeTeamName
       : final.winner === "away"
         ? awayTeamName
         : final.winner === "tie"
           ? "동점"
-          : "";
+          : ""
+    : "";
 
   // PR-S10.2 (2026-05-15): chevron < / > 임시 quarter ±1 버튼 제거.
   //   사용자 결정: Phase 4 QuarterEndModal 통합 후 chevron 미사용 (handleEndPeriod 가 정상 흐름).
@@ -118,7 +126,7 @@ export function PeriodScoresSection({
 
   return (
     // ss-shell 스코프 — 본 컴포넌트 outermost 한정 (PR-S4 와 동일 패턴)
-    <section className="ss-shell ss-ps-section">
+    <section className="ss-shell ss-ps-section" data-ss-section="period-scores">
       {/* ─────────────────────────────────────────────
           시안 .ss-ps 표 — Period 5 row (Q1~Q4 + Extra)
           ───────────────────────────────────────────── */}
@@ -235,43 +243,9 @@ export function PeriodScoresSection({
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────
-          OT 탭 + OT 종료 버튼 — 시안 미존재 / 운영 그대로 보존
-          (위치만 .ss-ps 영역 아래로 배치 — JSX 구조 조정만)
-          ───────────────────────────────────────────── */}
-      {hasOtControls && (
-        <div className="ss-ot-controls">
-          {/* PR-S10.2 (2026-05-15): chevron < OT1 > 임시 버튼 영역 제거.
-              사유: handleAdvancePeriod / handleRetreatPeriod = Phase 4 통합 전 임시.
-              실제 quarter 종료 흐름 = onEndPeriod (handleEndPeriod) 가 담당.
-              레이아웃 깔끔화 + 우하단 정합 회복. */}
-
-          {/* OT 종료 큰 빨강 버튼 — onClick 그대로 보존 (운영 BFF 트리거) */}
-          {onEndPeriod && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={onEndPeriod}
-                disabled={disabled || state.currentPeriod >= 7}
-                className="flex w-full items-center justify-center gap-1 py-1 text-xs font-semibold disabled:opacity-40"
-                style={{
-                  border: "1px solid var(--color-accent)",
-                  backgroundColor:
-                    "color-mix(in srgb, var(--color-accent) 12%, transparent)",
-                  color: "var(--color-accent)",
-                  touchAction: "manipulation",
-                }}
-                aria-label={`현재 ${periodLabel(state.currentPeriod)} 종료`}
-              >
-                <span className="material-symbols-outlined text-sm">
-                  stop_circle
-                </span>
-                {periodLabel(state.currentPeriod)} 종료
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* 2026-05-15 — 큰 빨강 쿼터 종료 버튼 영역 제거 (FIBA 양식 정합).
+          쿼터 종료 trigger 는 RunningScoreGrid 헤더 우측 작은 버튼으로 이동.
+          기존 onEndPeriod prop 은 호환성 위해 유지 (form 이 동일 핸들러 RunningScoreGrid 에 직접 전달). */}
     </section>
   );
 }

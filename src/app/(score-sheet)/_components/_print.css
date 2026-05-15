@@ -52,8 +52,11 @@
 .score-sheet-fiba-frame {
   width: 100%;
   max-width: 210mm; /* A4 가로 정확 */
-  aspect-ratio: 210 / 297; /* A4 비율 강제 (210:297) — min-content > aspect height 면 박스 자동 늘어남 */
-  min-height: 297mm; /* A4 세로 최소 보장 — 풋터 잘림 방지 */
+  /* 2026-05-16 (PR-Frame-Auto-Height) — 사용자 보고 이미지 #146 fix.
+     이전: aspect-ratio 210/297 + min-height: 297mm → frame 가 자식 콘텐츠 보다 크게 강제됨 →
+       자식 끝(=Captain's signature/NAME OF WINNING TEAM) 아래 큰 공백 → 하단 frame border 가 멀리 박힘.
+     수정: aspect-ratio + min-height 제거 → frame 가 자식 콘텐츠 크기에 fit → 하단 border 콘텐츠 직후.
+     인쇄 시 (@media print) 별도 width/height: 210mm/297mm 강제 (이 파일 L219~220) — 인쇄 정합 유지. */
   margin: 0 auto;
   /* Phase 19 (2026-05-13) — 외곽 border 1px → 2px (사용자 결재 §1 / FIBA 정합).
      이유: FIBA 종이기록지 외곽선이 굵음. 내부 분할선 1px 유지로 시각 hierarchy 분리. */
@@ -61,9 +64,11 @@
   border-radius: 0;
   box-shadow: none;
   background: var(--color-bg, #ffffff);
-  /* 2026-05-12 Phase 14.1 — overflow: hidden 제거 (사용자 보고 풋터 잘림 fix).
-     화면 = 풋터 잘림 없이 모두 표시 / aspect-ratio 는 콘텐츠 fit 시 유지.
-     인쇄는 @media print 에서 별도 overflow: hidden + 정확 mm 강제. */
+  /* 2026-05-16 (PR-Frame-Padding) — 사용자 보고 이미지 #145 fix.
+     외곽 frame border 안쪽에 4px padding (좌우 여백과 균등). */
+  padding: 4px;
+  box-sizing: border-box;
+  /* 2026-05-12 Phase 14.1 — overflow: hidden 제거 (사용자 보고 풋터 잘림 fix). */
   overflow: visible;
 }
 
@@ -102,14 +107,12 @@
    ============================================================ */
 @media print {
   /* @page = score-sheet 전용 페이지 룰 (A4 세로).
-     이유: 기존 globals.css 의 @page size: A4 landscape 와 충돌 회피 위해
-     score-sheet 루트 wrapper 안에서 별도 size override.
-     Phase 9 — margin 8mm → 6mm 축소 (A4 1 페이지 fit 보장).
-     Phase 14 (2026-05-12) — margin 0 (사용자 결재 §5 / A4 정확 비율 강제).
-       박스 자체가 210×297mm A4 정확 fit → 페이지 margin 0 으로 박스 = 종이 1:1. */
+     2026-05-16 (PR-Print-FIBA) — 사용자 보고 이미지 #148~#150 fix.
+       이전 margin 0 + frame 210×297mm 강제 → 자식 콘텐츠 over → 2페이지 잘림.
+       새 margin 8mm + frame auto + zoom 비례 축소 → 화면 layout 그대로 + FIBA 같이 좌우 흰색 여백. */
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 8mm;
   }
 
   /* 사이트 wide 모바일 가드 무력화 (errors.md 박스스코어 fix 와 동일 패턴) */
@@ -146,14 +149,24 @@
      score-sheet 인쇄 root 스코프 — A4 세로 정합 영역
      ============================================================ */
   .score-sheet-print-root {
-    /* 한 페이지 강제 — 5 영역 합본 후 자동 다음 페이지 진입 차단.
-       Phase 6 = 1 페이지 양식. 2 페이지 분할은 Phase 7 후속 (현재 미지원). */
+    /* 한 페이지 강제 — 5 영역 합본 후 자동 다음 페이지 진입 차단. */
     page-break-inside: avoid;
+    page-break-after: avoid;
+    page-break-before: avoid;
     /* 인쇄 시 좌우 여백 0 — @page margin 8mm 가 흡수 */
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
+    /* 2026-05-16 (PR-Print-Fit-Final) — 사용자 보고 이미지 #156 fix.
+       양식 자연 비율 0.91 (가로:세로) vs A4 비율 0.71 → 둘 다 가로/세로 100% fit 불가능.
+       선택: 세로 fit 우선 (모든 영역 노출 보장) + 가로 자연 빈 공백 인정 (좌우 가운데 정렬).
+       zoom = 페이지 세로 1063px / 양식 자연 세로 추정 1500px = 0.71 → 안전 마진 포함 0.7. */
+    zoom: 0.7;
+    -moz-transform: scale(0.7);
+    -moz-transform-origin: top left;
+    max-height: 281mm !important;
+    overflow: hidden !important;
     /* 폰트 = 한글 정합 + FIBA 양식 시안과 비슷한 톤 */
     font-family: 'Pretendard', system-ui, -apple-system, sans-serif !important;
     background: #ffffff !important;
@@ -169,6 +182,19 @@
     /* shadow / blur / 효과 제거 */
     box-shadow: none !important;
     text-shadow: none !important;
+  }
+
+  /* 2026-05-16 (PR-Print-Grid-Bg) — 사용자 보고 이미지 #155 fix.
+     영역 구분 grid 부모 (gap 2px + bg 검정) 가 위 light forced 룰에 의해 흰색 강제 → 영역 구분선 사라짐.
+     예외 처리 = 검정 배경 다시 강제 (인쇄 시 영역 구분선 노출 보장).
+     자식 cell wrapper [data-ss-area] 의 흰색 배경은 다른 룰에서 보장 (충돌 없음 — 자식만 흰). */
+  .score-sheet-print-root [data-grid-frame="2x2"] {
+    background-color: #1A1E27 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .score-sheet-print-root [data-ss-area] {
+    background-color: #FFFFFF !important;
   }
 
   /* Phase 11 §5-3 (2026-05-12) — 마킹 색 회색 → 검정 (FIBA 정합 / reviewer Minor).
@@ -211,16 +237,22 @@
     border-width: 2px !important;
     background: #ffffff !important;
     border-radius: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    max-width: 210mm !important;
-    max-height: 297mm !important;
-    margin: 0 !important;
-    /* 인쇄 시 aspect-ratio 보다 width/height 명시 우선 (브라우저 호환) */
+    /* 2026-05-16 (PR-Print-FIBA) — 사용자 보고 이미지 #148~#150 fix.
+       이전 width: 210mm + height: 297mm 강제 → 자식 콘텐츠 over → 잘림 + 2페이지 사고.
+       새 = auto / 100% → 화면 콘텐츠 자연 크기 그대로 → zoom 0.72 (부모) 가 비례 축소 → A4 fit. */
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    min-height: auto !important;
+    /* 2026-05-16 (PR-Print-Center) — 양식 가운데 정렬 (좌우 자연 빈 공백 균등). */
+    margin: 0 auto !important;
     aspect-ratio: auto !important;
     page-break-inside: avoid;
-    page-break-after: always;
-    overflow: hidden;
+    overflow: visible !important;
+    /* padding 화면과 동일 (frame 내부 4px) — frame border 와 자식 grid 사이 여백 보장 */
+    padding: 4px !important;
+    box-sizing: border-box !important;
   }
   .score-sheet-print-root .fiba-divider-bottom {
     border-bottom-color: #000000 !important;
@@ -246,54 +278,17 @@
     opacity: 1 !important;
   }
 
-  /* 5 영역 비율 정합 — Phase 9 인쇄 시 더 좁은 패딩 (A4 fit) */
-  .score-sheet-print-root section {
-    padding: 2px 4px !important;
-    margin-bottom: 0 !important;
-  }
+  /* 2026-05-16 (PR-Print-FIBA) — 사용자 보고 이미지 #148~#150 fix.
+     이전 Phase 9 폰트/row/padding 축소 룰 다수 → 화면 layout 과 인쇄 layout 시각 불일치.
+     새 = zoom 0.72 부모 비례 축소 단일 source. 화면 layout 그대로 → 인쇄 자연 fit.
+     단 grid 2 col 강제 만 보존 (모바일 viewport 인쇄해도 2 col 양식 유지). */
 
-  /* 좌·우 컬럼 = grid 2 컬럼 강제 (모바일 1 컬럼 viewport 인쇄해도 2 컬럼) */
+  /* 좌·우 컬럼 = grid 2 컬럼 강제 (모바일 1 컬럼 viewport 인쇄해도 2 컬럼).
+     2026-05-16 (PR-Print-FIBA) — gap 0 → 2px (영역 구분선 검정 노출 일관). */
   .score-sheet-print-root .md\:grid-cols-2 {
     display: grid !important;
     grid-template-columns: 50% 50% !important;
-    gap: 0 !important;
-  }
-
-  /* 글꼴 크기 — Phase 9 압축 (A4 1 페이지 fit) */
-  .score-sheet-print-root h1 {
-    font-size: 10pt !important;
-  }
-  .score-sheet-print-root h2,
-  .score-sheet-print-root h3 {
-    font-size: 9pt !important;
-  }
-  /* 본문 텍스트 기본 (라벨 / 데이터) = 8pt — FIBA PDF 정합 */
-  .score-sheet-print-root {
-    font-size: 8pt !important;
-  }
-  .score-sheet-print-root table {
-    font-size: 7pt !important;
-  }
-  .score-sheet-print-root th,
-  .score-sheet-print-root td {
-    padding: 1px 2px !important;
-    line-height: 1.2 !important;
-  }
-  .score-sheet-print-root input {
-    font-size: 8pt !important;
-    padding: 0 2px !important;
-    min-height: auto !important;
-    height: 14pt !important;
-  }
-  .score-sheet-print-root textarea {
-    font-size: 8pt !important;
-    padding: 2px !important;
-    min-height: auto !important;
-  }
-
-  /* Material Symbols 아이콘 = 인쇄 시 글꼴 fallback (browser 자동 처리). 크기 축소 */
-  .score-sheet-print-root .material-symbols-outlined {
-    font-size: 9pt !important;
+    gap: 2px !important;
   }
 
   /* 마지막 안내 카드 / "Phase 진행 상태" 메시지 등 인쇄 불필요 영역

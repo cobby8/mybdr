@@ -18,8 +18,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { FullscreenToggle } from "./fullscreen-toggle";
+// 2026-05-16 (PR-Chrome-Cleanup) — 사용자 보고 이미지 #132 fix.
+//   1. 다크모드 토글 (ThemeToggle) 제거 — 기록지 모드에서 미사용 (사용자 명시).
+//   2. 전체화면 토글 (FullscreenToggle) 제거 — toolbar 라인업 좌측으로 이동 (사용자 명시).
+//   3. thin bar 자체 제거 — 두 토글이 모두 사라져 빈 header 유지 불필요.
+//   exit 콜백은 풀스크린 종료 X 버튼에 그대로 필요 → useFullscreen import 보존.
 import { useFullscreen } from "./fullscreen-context";
 
 export function ScoreSheetChrome({ children }: { children: ReactNode }) {
@@ -27,17 +30,6 @@ export function ScoreSheetChrome({ children }: { children: ReactNode }) {
 
   return (
     <>
-      {/* thin bar — 일반 모드에서만 노출 (풀스크린 시 hidden) */}
-      {!isFullscreen && (
-        <header
-          className="no-print flex items-center justify-end gap-1 px-3 py-1.5"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-          <FullscreenToggle />
-          <ThemeToggle />
-        </header>
-      )}
-
       {/* 풀스크린 진입 시 우상단 floating X — 양식 본체 위에 떠 있음.
           이유: 사용자 의도 = 양식만 보이도록 + 한 번에 종료 가능. */}
       {isFullscreen && (

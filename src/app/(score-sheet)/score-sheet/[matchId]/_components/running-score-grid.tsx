@@ -70,16 +70,28 @@ interface RunningScoreGridProps {
   homeTeamName: string;
   awayTeamName: string;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 cell 클릭 차단).
+  //   왜: onClick early return — 모달 open / undo / addMark 분기 진입 0.
+  //   호출자 미전달 시 동작 변경 0 (운영 보존).
+  readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
+  // 2026-05-15 — 쿼터 종료 trigger. 헤더 "Running Score" 라벨 우측 작은 버튼.
+  //   FIBA 표준 양식 정합 (별도 큰 버튼 영역 없음) — 사용자 요청.
+  onEndPeriod?: () => void;
+  // 2026-05-16 (PR-Quarter-Retreat) — 이전 쿼터로 되돌리기 trigger (사용자 보고).
+  //   2쿼터부터 (state.currentPeriod >= 2) 헤더 좌측 "이전 쿼터" 버튼 노출.
+  //   미전달 시 버튼 미노출 (운영 호환). form 의 handleRetreatPeriod 와 wiring.
+  onRetreatPeriod?: () => void;
   // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
   // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
 
-// FIBA 양식 = 4 세트, 각 세트 = 40 row, A|B 두 컬럼
+// 2026-05-15 — FIBA 양식: 4 세트 × 30 row = 120점 (사용자 요청, 40×4=160 → 30×4=120).
+//   각 컬럼 row 수 감소 + cell flex stretch 로 좌측 Team A+B 와 정합.
 const SETS = 4;
-const ROWS_PER_SET = 40;
-const MAX_POSITION = SETS * ROWS_PER_SET; // 160
+const ROWS_PER_SET = 30;
+const MAX_POSITION = SETS * ROWS_PER_SET; // 120
 // Phase 18 (2026-05-13) — 한 세트 = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
 const SUB_COLS_PER_SET = 4;
 
@@ -98,7 +110,10 @@ export function RunningScoreGrid({
   homeTeamName,
   awayTeamName,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2)
   frameless,
+  onEndPeriod, // 2026-05-15 — 헤더 우측 쿼터 종료 작은 버튼 (FIBA 양식 정합).
+  onRetreatPeriod, // 2026-05-16 — 헤더 좌측 "이전 쿼터" 버튼 (P2+ 노출).
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
@@ -134,6 +149,9 @@ export function RunningScoreGrid({
   // 칸 클릭 핸들러 — 빈 칸이면 모달, 마지막 마킹 칸이면 해제 확인, 그 외 마킹은 안내
   function handleCellClick(team: "home" | "away", position: number) {
     if (disabled) return;
+    // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
+    //   왜: addMark / undoLastMark / 모달 open 모두 차단. disabled 와 별도 가드 (이중 방어).
+    if (readOnly) return;
     // PR-S6 (2026-05-14 rev2 롤백) — paper 모드 분기 제거. 시안 rev2 가 모드 토글을 제거.
     const marks = team === "home" ? state.home : state.away;
     const lastPos = team === "home" ? homeLastPos : awayLastPos;
@@ -201,7 +219,7 @@ export function RunningScoreGrid({
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     // PR-S6 (2026-05-14 rev2 롤백) — data-score-mode 속성 + paper 안내 텍스트 제거 (모드 토글 제거).
     // PR-S10 (2026-05-15) — ss-shell ss-rs 스코프 + 페이퍼 토큰 (--pap-*) 사용 (다크 leak 차단).
-    <div className={wrapperClass} style={wrapperStyle}>
+    <div className={wrapperClass} style={wrapperStyle} data-ss-section="running-score">
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
           - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
@@ -220,18 +238,77 @@ export function RunningScoreGrid({
         <div className="text-[16px] font-bold uppercase tracking-wider" style={{ color: "var(--pap-ink)" }}>
           Running Score
         </div>
-        <div className="text-[10px]" style={{ color: "var(--pap-hair)" }}>
-          P{state.currentPeriod} · 1탭=입력 / 마지막=해제
+        {/* 2026-05-15 — 우측 안내 텍스트 ("P1·1탭=입력 / 마지막=해제") 제거.
+            대신 쿼터 종료 작은 버튼 배치 (FIBA 양식 정합 — 기존 큰 빨강 버튼 영역 제거). */}
+        {/* 2026-05-16 (PR-Quarter-Buttons-Group) — 사용자 보고 이미지 #135 fix.
+            "이전 쿼터" + "다음 쿼터" 버튼을 헤더 우측 그룹으로 묶음. ml-auto 로 우측 정렬.
+            - 이전 쿼터: 2쿼터부터 (state.currentPeriod >= 2) 노출 / 회색 outline
+            - 다음 쿼터: 사용자 명시 라벨 변경 (이전 "쿼터 종료") / accent color */}
+        <div className="ml-auto flex items-center gap-2">
+          {onRetreatPeriod && state.currentPeriod >= 2 && (
+            <button
+              type="button"
+              onClick={onRetreatPeriod}
+              disabled={disabled || readOnly}
+              className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold disabled:opacity-40"
+              style={{
+                border: "1px solid var(--color-text-secondary)",
+                backgroundColor: "color-mix(in srgb, var(--color-text-secondary) 8%, transparent)",
+                color: "var(--color-text-secondary)",
+                borderRadius: 3,
+                touchAction: "manipulation",
+              }}
+              aria-label="이전 쿼터로 되돌리기"
+              title="이전 쿼터로 되돌리기 (잘못 기록한 경우)"
+            >
+              이전 쿼터
+            </button>
+          )}
+          {onEndPeriod && (
+            <button
+              type="button"
+              onClick={onEndPeriod}
+              disabled={disabled || readOnly || state.currentPeriod >= 9}
+              className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold disabled:opacity-40"
+              style={{
+                border: "1px solid var(--color-accent)",
+                backgroundColor: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+                color: "var(--color-accent)",
+                borderRadius: 3,
+                touchAction: "manipulation",
+              }}
+              aria-label="다음 쿼터로 이동"
+              title="다음 쿼터로 이동"
+            >
+              다음 쿼터
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* 2026-05-16 (PR-RS-Header-8col) — 사용자 보고 이미지 #152 fix.
+          이전 = 16 col 헤더 (각 set 마킹A=A / 점수A="" / 점수B="" / 마킹B=B) → 사용자 명시 "8 col 병합".
+          새 = 별도 8 col header row (각 set A header 2 sub-col span + B header 2 sub-col span).
+          데이터 grid 는 16 col 유지 (SetColumns 안 ColumnHeader 제거 — 데이터 cell 만 박제). */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${SETS * 2}, minmax(0, 1fr))`,
+        }}
+      >
+        {Array.from({ length: SETS }).map((_, setIdx) => {
+          return (
+            <div key={`hd-${setIdx}`} style={{ display: "contents" }}>
+              <ColumnHeader label="A" />
+              <ColumnHeader label="B" />
+            </div>
+          );
+        })}
       </div>
 
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.
           사용자 결재 §1 / 이미지 43-44 / FIBA PDF 정합.
-          한 세트 = 마킹A | 점수A | 점수B | 마킹B (양팀 점수 가운데 모음)
-          PR-S10 — column-major (4 컬럼 × 4 세트 = 16 col) 운영 wrap 유지 + 각 컬럼 head
-          를 ColumnHeader 컴포넌트로 박제 (시각 100% 보존 + 페이퍼 토큰으로 라이트 강제).
-          시안 .ss-rs__head + .ss-rs__grid 룰은 CSS 박제만 (미사용) — column-major 운영
-          구조와 grid-template-columns repeat(16) 룰이 충돌하지 않도록 inline grid 도입. */}
+          한 세트 = 마킹A | 점수A | 점수B | 마킹B (양팀 점수 가운데 모음). */}
       <div
         className="grid"
         style={{
@@ -326,9 +403,9 @@ function SetColumns({
   // PR-S10 — .ss-rs__cell CSS 룰이 border-right 박제. 마지막 세트만 inline 으로 0 override.
   return (
     <>
-      {/* (1) 마킹A 컬럼 — A팀 (홈) 마킹 칸. 클릭 가능. */}
+      {/* (1) 마킹A 컬럼 — A팀 (홈) 마킹 칸. 클릭 가능.
+          2026-05-16 (PR-RS-Header-8col) — ColumnHeader 제거 (별도 8 col 헤더 row 박제). */}
       <div className="flex flex-col">
-        <ColumnHeader label="A" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           const mark = homeMarkMap.get(position);
@@ -351,7 +428,6 @@ function SetColumns({
 
       {/* (2) 점수A 컬럼 — A팀 누적 점수 인쇄 영역. 클릭 불가 (FIBA 정합). */}
       <div className="flex flex-col">
-        <ColumnHeader label="" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           // PR-S10 — data-reached (마킹 도달) / data-period-end (period 마지막 마킹)
@@ -370,7 +446,6 @@ function SetColumns({
 
       {/* (3) 점수B 컬럼 — B팀 누적 점수 인쇄 영역. 클릭 불가 (FIBA 정합). */}
       <div className="flex flex-col">
-        <ColumnHeader label="" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           const reached = awayMarkMap.has(position);
@@ -388,7 +463,6 @@ function SetColumns({
 
       {/* (4) 마킹B 컬럼 — B팀 (어웨이) 마킹 칸. 클릭 가능. */}
       <div className="flex flex-col">
-        <ColumnHeader label="B" />
         {rowIndexes.map((rowIdx) => {
           const position = offset + rowIdx;
           const mark = awayMarkMap.get(position);

@@ -50,6 +50,11 @@ export interface ConfirmModalProps {
   onSelect: (value: string) => void;
   // ESC / backdrop / 외부 닫기 트리거. 옵션 0건 선택 = onClose 만 호출.
   onClose: () => void;
+  /**
+   * 2026-05-15 — 모달 폭 size prop. default "md" (max-w-md = 448px, 호환).
+   *   "lg" = max-w-2xl (672px) / "xl" = max-w-3xl (768px). 긴 설명서 등에 사용.
+   */
+  size?: "md" | "lg" | "xl";
 }
 
 export function ConfirmModal({
@@ -59,7 +64,11 @@ export function ConfirmModal({
   options,
   onSelect,
   onClose,
+  size = "md",
 }: ConfirmModalProps) {
+  // 2026-05-15 — size 별 max-width 매핑 (긴 설명서 = xl, 일반 confirm = md).
+  const sizeClass =
+    size === "xl" ? "max-w-3xl" : size === "lg" ? "max-w-2xl" : "max-w-md";
   // ESC 키 핸들러 — 4종 모달 패턴 일관
   useEffect(() => {
     if (!open) return;
@@ -86,10 +95,13 @@ export function ConfirmModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md p-4"
+        className={`w-full ${sizeClass} p-4`}
         style={{
           backgroundColor: "var(--color-background)",
           border: "1px solid var(--color-border)",
+          // 2026-05-15 — 긴 컨텐츠 (설명서) 시 모달 자체에 스크롤 (외부 화면 변동 없음).
+          maxHeight: "85vh",
+          overflowY: "auto",
         }}
         // 내부 클릭 = backdrop 전파 차단
         onClick={(e) => e.stopPropagation()}

@@ -80,6 +80,15 @@ import {
   getPeriodColor,
   getTimeoutPhaseColor,
 } from "@/lib/score-sheet/period-color";
+// Phase 19 PR-Stat2 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 표시용.
+//   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 위치 (FIBA 박스스코어 표준 순서).
+//   stat 추가/제거 = StatPopover 가 처리 (caller 가 onRequestOpenStatPopover 위임).
+import type {
+  PlayerStatsState,
+  StatKey,
+} from "@/lib/score-sheet/player-stats-types";
+import { STAT_KEYS } from "@/lib/score-sheet/player-stats-types";
+import { getStat } from "@/lib/score-sheet/player-stats-helpers";
 
 // Phase 3.5 — 파울 종류별 글자 색상 (P=text-primary / T=warning / U=accent / D=primary)
 // 이유: P/T/U/D 약자를 칸 안에 직접 표시 — 종류별 색 차이로 한눈에 인지.
@@ -133,6 +142,10 @@ interface TeamSectionProps {
   values: TeamSectionInputs;
   onChange: (next: TeamSectionInputs) => void;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 input 차단).
+  //   왜: input (coach/asstCoach + checkbox) 는 readOnly / button (foul/timeout/stat cell) 는 disabled.
+  //   호출자 미전달 (= undefined) 시 동작 변경 0 (운영 보존).
+  readOnly?: boolean;
   // Phase 3 — 파울 상태 (이 팀 전용 FoulMark[] — home/away 한쪽만 전달)
   fouls: FoulMark[];
   // Phase 3.5 — 파울 추가 요청 (다음 빈 칸 클릭) — caller 가 FoulTypeModal open 처리
@@ -148,6 +161,11 @@ interface TeamSectionProps {
   onRequestAddTimeout: () => void;
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 마킹 칸 클릭)
   onRequestRemoveTimeout: () => void;
+  // Phase 19 PR-Stat2 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) wiring.
+  //   playerStats = 양 팀 통합 단일 record (TeamSection 은 자신의 player id 만 lookup).
+  //   onRequestOpenStatPopover = stat cell 클릭 시 StatPopover open 위임 (form 이 +1/-1 처리).
+  playerStats: PlayerStatsState;
+  onRequestOpenStatPopover: (playerId: string, statKey: StatKey) => void;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
 }
@@ -185,6 +203,8 @@ export function TeamSection({
   values,
   onChange,
   disabled,
+  // Phase 23 PR-RO1 (2026-05-15) — input readOnly wiring (종료 매치 차단 / 사용자 결재 Q2)
+  readOnly,
   fouls,
   onRequestAddFoul,
   onRequestRemoveFoul,
@@ -192,6 +212,9 @@ export function TeamSection({
   timeouts,
   onRequestAddTimeout,
   onRequestRemoveTimeout,
+  // Phase 19 PR-Stat2 (2026-05-15) — 6 stat wiring (사용자 결재 Q1 / FIBA 박스스코어 표준 순서)
+  playerStats,
+  onRequestOpenStatPopover,
   // PR-S6 (2026-05-15 rev2) — frameless prop = 보존 (props interface 변경 0 / 사용자 핵심 제약 #1).
   // 시안 .ss-shell.ss-tbox 가 자체 border 보유 = 항상 frameless 동일 시각. caller form.tsx 가 전달하지만 본 컴포넌트에서는 무시.
   frameless: _framelessUnused,
@@ -230,7 +253,12 @@ export function TeamSection({
   //       _score-sheet-styles.css 의 .ss-tbox* 룰 적용. frameless prop = 운영 호환 (기본 frameless 유지 — wrap 부모가 단일 외곽 박스).
   //   운영 동작 보존: props interface 변경 0 / onClick 변경 0 / Phase 17 쿼터별 색 inline style 그대로 wiring.
   return (
-    <section className="ss-shell ss-tbox" aria-label={`${sideLabel} ${teamName}`}>
+    <section
+      className="ss-shell ss-tbox"
+      aria-label={`${sideLabel} ${teamName}`}
+      // 2026-05-15 (PR-Section-Labels) — 7 섹터 그룹명. sideLabel → team-a / team-b.
+      data-ss-section={sideLabel === "Team A" ? "team-a" : "team-b"}
+    >
       {/* §1 Head — Team A / Team B name strip (시안 .ss-tbox__head + .pap-lbl + .pap-u) */}
       <div className="ss-tbox__head">
         <label className="pap-lbl">{sideLabel}</label>
@@ -251,40 +279,74 @@ export function TeamSection({
           {/* 시안: 1행 2 + 2행 3 + 3행 2 = 총 7 cells.
               운영 OT 진입 시 currentPeriod >= 5 면 추가 row 동적 확장 (FIBA 다중 OT 대응). */}
           {(() => {
-            // 기본 7 cells (전반 2 + 후반 3 + OT 2) — FIBA 정합. OT 추가 진입 시 (>= OT2 = period 6) 동적 +1.
-            // 운영 timeouts.length 가 7 초과 시 (예: OT 다중 진행) 도 채움 가능하도록 max 비교.
-            const baseCells = 7;
-            const totalCells = Math.max(baseCells, timeouts.length);
-            const totalUsed = timeouts.length;
-            // row 분할 — 시안 정합 2+3+2 + 잉여 row (8번째 이상은 단일 row 로 묶음).
-            // 변수명 toRows (외부 rows = players 와 shadowing 회피 / 가독성 ↑).
-            const toRows: number[][] = [[0, 1], [2, 3, 4], [5, 6]];
-            if (totalCells > 7) {
-              const extra = Array.from(
-                { length: totalCells - 7 },
-                (_, i) => i + 7
-              );
-              toRows.push(extra);
-            }
+            // PR-Stat3.6 (2026-05-15) — OT cell 동적 확장 (사용자 명시 — 최대 5 OT slots / cell 5~9).
+            //   기본 7 cells (전반 2 + 후반 3 + OT 2). currentPeriod ≥ 5 시 OT slot = currentPeriod - 4 (최대 5).
+            //   timeouts.length 가 더 크면 그것 우선 (재진입 자동 로드 시 OT 다중 박제 케이스).
+            const otSlots = Math.max(2, Math.min(currentPeriod - 4, 5));
+            const baseCells = 5 + otSlots;
+            const totalCells = Math.max(
+              baseCells,
+              timeouts.length > 5 ? 5 + Math.max(2, timeouts.length - 5) : 7,
+            );
+            // row 분할 — 시안 정합 2+3 + OT row 가변 (cell 5~9 한 row 묶음 / 사용자 결정).
+            const otCells: number[] = [];
+            for (let i = 5; i < totalCells; i += 1) otCells.push(i);
+            const toRows: number[][] = [[0, 1], [2, 3, 4], otCells];
+
+            // PR-Stat3.3 (2026-05-15) — phase 별 cell idx 매핑.
+            // PR-Stat3.6 (2026-05-15) — OT cell ↔ period 1:1 매핑 (사용자 명시 — B팀 OT2 cell 동작 안 함).
+            //   원인: 기존 OT phase position 매핑 = cell 5(OT1) 미사용 시 cell 6 positionInPhase=1 ≠ phaseUsed=0 → 클릭 불가.
+            //   수정: cell N (>=5) = period N 1:1 (cell 5=OT1=period 5 / cell 6=OT2=period 6 / cell 9=OT5=period 9).
+            //   전반/후반 cell = 기존 phase position 매핑 그대로 (순차 채움).
+            const firstHalfTimeouts = timeouts.filter((t) => t.period <= 2);
+            const secondHalfTimeouts = timeouts.filter(
+              (t) => t.period === 3 || t.period === 4,
+            );
+            const overtimeTimeouts = timeouts.filter((t) => t.period >= 5);
+            // OT 마지막 박제 period — isLastFilled 결정 (가장 큰 period 의 cell 만 해제 가능)
+            const lastOtPeriod =
+              overtimeTimeouts.length > 0
+                ? Math.max(...overtimeTimeouts.map((t) => t.period))
+                : -1;
 
             const renderCell = (i: number) => {
-              const filled = i < totalUsed;
-              const isLastFilled = filled && i === totalUsed - 1;
-              const isNextEmpty = !filled && i === totalUsed;
-              // 칸 라벨 — 위치별 phase 안내 (시안 7 cells 정합)
-              //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5-6 = OT (2칸 / 시안 표준) / 7+ = OT 다중
-              const cellLabel = filled
-                ? `Period ${timeouts[i].period} 타임아웃`
+              let filled: boolean;
+              let isLastFilled: boolean;
+              let isNextEmpty: boolean;
+              let cellTimeout: { period: number } | null;
+
+              if (i >= 5) {
+                // OT cell: cell N = period N 1:1 매핑 (사용자 결재 Q1 시안 OT 2 cell + OT3+ 동적 확장)
+                const cellPeriod = i;
+                cellTimeout =
+                  overtimeTimeouts.find((t) => t.period === cellPeriod) ?? null;
+                filled = !!cellTimeout;
+                isLastFilled = filled && cellPeriod === lastOtPeriod;
+                isNextEmpty = !filled && cellPeriod === currentPeriod;
+              } else {
+                // 전반/후반 cell: phase position 매핑 (순차 채움)
+                const phaseStart = i < 2 ? 0 : 2;
+                const positionInPhase = i - phaseStart;
+                const phaseTimeouts =
+                  i < 2 ? firstHalfTimeouts : secondHalfTimeouts;
+                const phaseUsed = phaseTimeouts.length;
+                filled = positionInPhase < phaseUsed;
+                cellTimeout = filled ? phaseTimeouts[positionInPhase] : null;
+                isLastFilled = filled && positionInPhase === phaseUsed - 1;
+                isNextEmpty = !filled && positionInPhase === phaseUsed;
+              }
+              // 칸 라벨 — 위치별 phase 안내 (PR-Stat3.6 — OT 1:1 매핑 후).
+              //   cell 5/6/7/8/9 = OT1/OT2/OT3/OT4/OT5 (cell idx - 4 = OT 번호).
+              const cellLabel = cellTimeout
+                ? `Period ${cellTimeout.period} 타임아웃`
                 : i < 2
                   ? `전반 타임아웃 ${i + 1}`
                   : i < 5
                     ? `후반 타임아웃 ${i - 1}`
-                    : i < 7
-                      ? `OT 타임아웃 ${i - 4}`
-                      : `OT 추가 타임아웃 ${i - 6}`;
-              // Phase 17 — 마킹 색 = phase 별 색 (filled 면 timeouts[i].period 기준).
-              const markColor = filled
-                ? getTimeoutPhaseColor(timeouts[i].period)
+                    : `OT${i - 4} 타임아웃`;
+              // Phase 17 — 마킹 색 = phase 별 색.
+              const markColor = cellTimeout
+                ? getTimeoutPhaseColor(cellTimeout.period)
                 : undefined;
               // Phase 19 PR-T2 (2026-05-15) — cell 위치 phase 와 현재 period phase 불일치 시 비활성.
               //   왜: 시안 7 cells (전반 2 / 후반 3 / OT 2) 정합 — 다른 phase cell 은 시각 회색 + 클릭 차단.
@@ -441,7 +503,13 @@ export function TeamSection({
           <div className="ss-tbox__tf-line">
             <span className="ss-tbox__tf-pname">Period</span>
             {([3, 4] as const).map((period) => {
-              const teamCount = getTeamFoulCountByPeriod(fouls, period);
+              // PR-Stat3.1 (2026-05-15) — 사용자 명시: 연장전 파울 = Q4 합산 (OT 는 4쿼터 연장).
+              //   Q4 cell = period 4 + period 5+ (OT) 합산 / Q3 cell = period 3 만 (기존).
+              //   getTeamFoulCountByPeriod 헬퍼 자체는 보존 (다른 영역 영향 0) — 표시 시점에만 합산.
+              const teamCount =
+                period === 4
+                  ? fouls.filter((f) => f.period >= 4).length
+                  : getTeamFoulCountByPeriod(fouls, period);
               const ftAwarded = teamCount >= 5;
               const periodFillColor = getPeriodColor(period);
               return (
@@ -498,62 +566,44 @@ export function TeamSection({
                   - inline style justifyContent: flex-end 로 라인 전체 우측 정렬
                   - ftAwarded 안내는 보존 (운영 OT 5+ 부여 안내)
               운영 동작 보존: fouls 카운트 로직 그대로 (otCount + ftAwarded). UI 만 단순화. */}
+          {/* PR-Stat3.1 (2026-05-15) — Extra periods row = 라벨만 유지 (OT 카운트/FT 표시 제거).
+              사용자 명시: 연장전 = 4쿼터의 연장 → Q4 cell 에 합산 표시 → OT 별도 카운트 ❌.
+              시안 정합 (텍스트 라벨) + 우측 정렬은 보존 (PR-T4). */}
           <div
             className="ss-tbox__tf-line"
             data-extra="true"
             style={{ justifyContent: "flex-end" }}
           >
             <span className="ss-tbox__tf-pname">Extra periods</span>
-            {(() => {
-              const otCount = fouls.filter((f) => f.period >= 5).length;
-              const ftAwarded = otCount >= 5;
-              return (
-                <>
-                  {/* OT 카운트 텍스트 표시 (cell 마크업 삭제 후 운영자 인지용) */}
-                  <span
-                    className="inline-flex shrink-0 items-center text-[9px] font-bold"
-                    style={{ color: "var(--pap-ink)" }}
-                    aria-label={`Extra (OT) 팀 파울 합계 ${otCount}건`}
-                  >
-                    {otCount}
-                  </span>
-                  {ftAwarded && (
-                    <span
-                      className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
-                      style={{ color: "var(--pap-bonus)" }}
-                      aria-label={`Extra periods 자유투 부여 (OT Team fouls ${otCount}건)`}
-                    >
-                      FT+{otCount - 4}
-                    </span>
-                  )}
-                </>
-              );
-            })()}
           </div>
         </div>
       </div>
       {/* /§2 ss-tbox__tt 끝 */}
 
-      {/* §3 Player table head — Licence / Players / No / Player in / Fouls (1-5) */}
+      {/* §3 Player table head — Licence / Players / No / Player in / Stats(OR/DR/A/S/B/TO) / Fouls (1-5)
+          Phase 19 PR-Stat2 (2026-05-15) — 사용자 결재 Q1 = P.IN 직후 + Fouls 직전 6 cell 추가.
+            FIBA 박스스코어 표준 순서 (OR → DR → A → S → B → TO). 헤더 단일 행 라벨. */}
       <div className="ss-tbox__plyhead">
         <div>
           <span>Licence</span>
           <span>no.</span>
         </div>
-        <div
-          style={{
-            alignItems: "flex-start",
-            justifyContent: "flex-start",
-            flexDirection: "row",
-          }}
-        >
-          Players
-        </div>
+        {/* PR-Stat3.2 (2026-05-15) — 사용자 명시: 헤더 가로세로 가운데 정렬.
+            시안 SSPlayerHead 의 Players column inline style (flex-start) 제거 → 부모 .ss-tbox__plyhead > div 의
+            align-items: center + justify-content: center 룰 그대로 받음 (가운데 정렬). */}
+        <div>Players</div>
         <div>No.</div>
         <div>
           <span>Player</span>
           <span>in</span>
         </div>
+        {/* Phase 19 PR-Stat2 — 6 stat 헤더 cell (OR/DR/A/S/B/TO) */}
+        <div className="ss-c-stat-or" aria-label="Offensive Rebounds">OR</div>
+        <div className="ss-c-stat-dr" aria-label="Defensive Rebounds">DR</div>
+        <div className="ss-c-stat-a" aria-label="Assists">A</div>
+        <div className="ss-c-stat-s" aria-label="Steals">S</div>
+        <div className="ss-c-stat-b" aria-label="Blocks">B</div>
+        <div className="ss-c-stat-to" aria-label="Turnovers">TO</div>
         <div className="ss-h-fouls">
           <div className="ss-h-fouls-top">Fouls</div>
           <div className="ss-h-fouls-nums">
@@ -576,12 +626,21 @@ export function TeamSection({
         {rows.map((p, idx) => {
           if (!p) {
             // 빈 row — FIBA 12 행 정합 placeholder.
+            // Phase 19 PR-Stat2 (2026-05-15) — P.IN 직후 6 stat cell 추가 (Fouls 직전).
+            //   grid-template-columns 의 cell 개수와 정확히 맞춰야 grid 라인 무너지지 않음.
             return (
               <div key={`empty-${idx}`} className="ss-tbox__plyrow">
                 <div className="ss-c-licence">&nbsp;</div>
                 <div className="ss-c-name">&nbsp;</div>
                 <div className="ss-c-no">&nbsp;</div>
                 <div className="ss-c-pin">&nbsp;</div>
+                {/* 6 stat cell — 빈 row 시각 통일 */}
+                <div className="ss-c-stat-or">&nbsp;</div>
+                <div className="ss-c-stat-dr">&nbsp;</div>
+                <div className="ss-c-stat-a">&nbsp;</div>
+                <div className="ss-c-stat-s">&nbsp;</div>
+                <div className="ss-c-stat-b">&nbsp;</div>
+                <div className="ss-c-stat-to">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
@@ -676,6 +735,37 @@ export function TeamSection({
                   />
                 </label>
               </div>
+              {/* Phase 19 PR-Stat2 (2026-05-15) — 6 stat cell (OR/DR/A/S/B/TO).
+                  사용자 결재 Q1 = P.IN 직후 + Fouls 직전 (FIBA 박스스코어 표준 순서).
+                  각 cell 클릭 → StatPopover open (caller 가 +1/-1 처리).
+                  ejected 선수 = 클릭 차단 (운영자 사고 방지 — Fouls cell 패턴 일관). */}
+              {STAT_KEYS.map((statKey) => {
+                const value = getStat(playerStats, p.tournamentTeamPlayerId, statKey);
+                return (
+                  <button
+                    key={statKey}
+                    type="button"
+                    className={`ss-c-stat-${statKey}`}
+                    onClick={() => {
+                      if (disabled) return;
+                      // 퇴장 선수 stat 추가/수정 차단 (Fouls cell 패턴 일관)
+                      if (ejected) return;
+                      onRequestOpenStatPopover(
+                        p.tournamentTeamPlayerId,
+                        statKey
+                      );
+                    }}
+                    disabled={disabled || ejected}
+                    style={{
+                      touchAction: "manipulation",
+                    }}
+                    aria-label={`${p.displayName} ${statKey.toUpperCase()} ${value > 0 ? value : "빈 칸"} (클릭 시 +1/-1 선택)`}
+                    title={`${statKey.toUpperCase()}: ${value}`}
+                  >
+                    {value > 0 ? value : ""}
+                  </button>
+                );
+              })}
               {/* Fouls 1-5 — 5 cells (시안 .ss-c-foul × 5). */}
               {[1, 2, 3, 4, 5].map((n) => {
                 const mark = n <= foulCount ? playerFoulMarks[n - 1] : null;
@@ -729,7 +819,8 @@ export function TeamSection({
       </div>
       {/* /§4 ss-tbox__plybody 끝 */}
 
-      {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로) */}
+      {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로).
+          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2). */}
       <div className="ss-tbox__coach">
         <label className="pap-lbl" htmlFor={`coach-${sideLabel}`}>
           Coach
@@ -741,6 +832,7 @@ export function TeamSection({
           value={values.coach}
           onChange={updateCoach("coach")}
           disabled={disabled}
+          readOnly={readOnly}
           maxLength={40}
         />
       </div>
@@ -755,6 +847,7 @@ export function TeamSection({
           value={values.asstCoach}
           onChange={updateCoach("asstCoach")}
           disabled={disabled}
+          readOnly={readOnly}
           maxLength={40}
         />
       </div>

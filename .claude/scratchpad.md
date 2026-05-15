@@ -1,11 +1,133 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: fiba-header 쿼터 뱃지 위로 이동 + 뱃지 하단 매치 상태 라벨 (경기 전/중/종료) 박제
-- **상태**: 🟢 구현 완료 (developer) — 2 파일 수정 / tsc 0
-- **현재 담당**: developer → PM 보고
+- **요청**: 공격권 기록 (possession arrow) 기능 — 헤더 큰 화살표 + 헬드볼 모달 + 첫 점프볼 / 쿼터종료 자동 토글
+- **상태**: 🟢 PR-Possession-1 박제 완료 (developer) — PR-2 진입 = PM 결재 대기
+- **현재 담당**: developer (PR-1 완료) → PM 결재 / commit → developer (PR-2 진입)
 
-## 구현 기록 (developer / 2026-05-16) — fiba-header 쿼터 뱃지 v3
+## 기획설계 (planner-architect / 2026-05-16) — possession arrow MVP
+
+🎯 **목표**: FIBA 종이 기록지에 공격권 (possession arrow) 박제. 첫 점프볼 승자 선택 → 헤더 큰 화살표 (←/→) 노출 → 쿼터 종료 시 자동 토글 → 헬드볼 발생 시 운영자가 헤더 화살표 클릭 → confirm 모달 → 토글.
+
+📍 **데이터 모델 (옵션 B — action_type 확장)**:
+- `play_by_plays.action_type` = `String @db.VarChar` (자유 문자열 / **enum 박제 X**) — **DB schema 변경 0** 확인 완료.
+- 신규 action_type 2건 운영 박제만:
+  - `jump_ball` (첫 점프볼) — quarter=1 / position=N/A / points=0 / 승자 player_id 박제 / loser team 의 next possession
+  - `held_ball` (헬드볼) — quarter=현재 / 가져가는 팀의 placeholder player (또는 NULL) / points=0 / 토글 audit
+- **prisma migrate 불필요** — 운영 DB 영향 0 (사용자 DB 정책 §1 통과).
+- `home_score_at_time` / `away_score_at_time` = 시점 누적 (현 점수 유지).
+
+📍 **state 위치 결정 (단순화 우선)**:
+- `runningScore` (RunningScoreState) **확장 X** — score 도메인 오염 회피.
+- **신규 state 1건** `possession` (form local state):
+  ```
+  type PossessionState = {
+    arrow: "home" | "away" | null;  // null = 첫 점프볼 미선택
+    openingJumpBall: { winnerTeam: "home" | "away"; winnerPlayerId: string } | null;
+    heldBallEvents: Array<{ period: number; takingTeam: "home" | "away" }>;
+  }
+  ```
+- 자동 토글 = setPossession (handleEndPeriod + handleHeldBallConfirm) 한 곳.
+- draft-storage `loadDraft` / `saveDraft` 에 possession 박제 (Phase 7-B lineup 패턴 재사용).
+
+📁 **만들 위치와 구조**:
+| 파일 경로 | 역할 | 신규/수정 | 예상 LOC |
+|----------|------|----------|---------|
+| `src/lib/score-sheet/possession-types.ts` | `PossessionState` / `JumpBallEvent` / `HeldBallEvent` 타입 (running-score-types 패턴) | **신규** | ~50 |
+| `src/lib/score-sheet/possession-helpers.ts` | `togglePossession()` / `applyHeldBall()` / `applyOpeningJumpBall()` / `possessionToPBPInputs()` PURE 헬퍼 (running-score-helpers 패턴) | **신규** | ~120 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/jump-ball-modal.tsx` | 첫 점프볼 모달 (4 모달 UX 패턴 = ESC/backdrop/sm:flex-row footer) — 점프볼 승자 팀 + 선수 선택 (라인업에서 1인) | **신규** | ~180 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/possession-confirm-modal.tsx` | 헬드볼 confirm 모달 (ConfirmModal 재사용 박제로 ~60 LOC) — Q: "헬드볼 발생 — 공격권 [Team X] 가져갑니다" | **신규** | ~60 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/fiba-header.tsx` | `possessionArrow` prop 추가 + 큰 화살표 SVG (Material `arrow_back` / `arrow_forward` 56px) + onArrowClick 콜백 (헤더 우측 / 쿼터 뱃지 좌측) | 수정 | +50 / -0 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | `possession` state + handler 4건 (open jump-ball / confirm jump-ball / confirm held-ball / quarter end 자동 토글) + 모달 mount 2건 + FibaHeader props wiring + buildSubmitPayload 확장 | 수정 | +90 |
+| `src/lib/score-sheet/running-score-helpers.ts` | `marksToPaperPBPInputs` 옆에 `possessionToPBPInputs` 추가 import (또는 helpers 에서 합성) | 수정 | +10 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | possession 페이로드 받아 PBP 박제 (action_type=jump_ball/held_ball) + zod schema 확장 | 수정 | +40 |
+| `src/lib/score-sheet/draft-storage.ts` | draft 박제 키 1건 추가 (`possession`) | 수정 | +6 |
+| `src/__tests__/score-sheet/possession-helpers.test.ts` | PURE 헬퍼 vitest (togglePossession 4 / applyHeldBall 3 / applyOpeningJumpBall 3 / possessionToPBPInputs 5) | **신규** | ~140 |
+
+🔗 **기존 코드 연결**:
+- `lineup-selection-modal` 닫기 (handleLineupConfirm) **직후** → `possession.arrow === null` 이면 `setJumpBallModalOpen(true)` 자동 open (현재 lineup confirm 후 양식 노출 흐름 사이에 단계 1개 추가)
+- `handleEndPeriod` (line 980) 에서 마지막에 `setPossession(p => ({ ...p, arrow: p.arrow === "home" ? "away" : "home" }))` 1줄 추가 + toast (FIBA 룰 자동 토글)
+- `FibaHeader` props (line 51) 에 `possessionArrow / onArrowClick` 2건만 추가 — 기존 prop 14건 전부 보존
+- `buildSubmitPayload` (line 1222) 에 `possession` 키 박제 → BFF 가 possession PBP 변환
+- `pbp-edit-modal` (line 80) = **본 PR 영향 0** — jump_ball / held_ball 은 read-only (점수 변경 X)
+
+📋 **실행 계획 — 3 단계 PR 분해**:
+
+| 순서 | PR | 작업 | 담당 | 선행 조건 | 예상 시간 |
+|------|----|------|------|----------|-----------|
+| 1 | **PR-Possession-1** PURE 헬퍼 + 타입 | 신규 파일 2건 (possession-types / possession-helpers) + vitest 15 케이스 — DB / UI 영향 0 / `tsc 0` + `vitest possession-helpers` 15/15 | developer | 없음 | ~30분 |
+| 2 | **PR-Possession-2** UI + state + 모달 | 모달 2건 신규 + fiba-header / score-sheet-form 수정 — UI 만 (BFF 영향 0) / draft 박제 / 운영자 직접 확인 가능 | developer | PR-1 머지 | ~60분 |
+| 2.5 | (병렬) tester + reviewer | tester = paper 매치 manual / reviewer = 시안 13 룰 점검 (var(--color-*) / Material Symbols / 빨강 본문 0) | tester + reviewer 병렬 | PR-2 완료 | ~20분 |
+| 3 | **PR-Possession-3** BFF + PBP 박제 | submit/route.ts zod 확장 + action_type=jump_ball/held_ball PBP INSERT + 운영 검증 (실제 paper 매치 submit) | developer | PR-2 머지 | ~40분 |
+
+⚠️ **developer 주의사항**:
+
+1. **DB schema 변경 0 강제** — `prisma/schema.prisma` 수정 금지 (action_type=String VarChar 그대로 / migrate 불필요). 사용자 DB 정책 §2 위반 위험 0.
+2. **시안 13 룰 절대 준수** — 큰 화살표는 Material Symbols `arrow_back` / `arrow_forward` (lucide-react ❌). 화살표 색상 = `var(--color-text-primary)` 또는 `var(--accent)` (빨강 본문 텍스트 ❌ — 화살표는 아이콘이라 허용. 단 본문 문장 색은 회색). pill 9999px ❌ → 사각 박스 (radius 4px 또는 0 — 쿼터 뱃지와 정합).
+3. **모달 4종 UX 패턴 100% 정합** — ESC / backdrop / 헤더 X / sm:flex-row footer (FoulType / PlayerSelect / LineupSelection / QuarterEnd / PBP-Edit 5종 직참).
+4. **possession === null 시 화살표 미노출** — fiba-header `possessionArrow == null` 조건부 (운영 호환 / 기존 paper 매치 영향 0).
+5. **첫 점프볼 모달 trigger 단계** — `handleLineupConfirm` (line 1357 setLineup 직후) 에 `if (!possession.openingJumpBall) setJumpBallModalOpen(true)` 1줄. lineup === null → lineupModal → onConfirm → jumpBallModal → onConfirm → 양식 진입 순서.
+6. **헬드볼 confirm 모달 메시지** — "헬드볼 발생 — 다음 공격권은 [Team X] 가 가집니다 (FIBA Art. 12.5)". 토글 후 양 팀 운영자 모두 인지하도록 toast 5초 (foul toast 패턴).
+7. **draft 박제 / 복원** — Phase 7-B lineup 패턴 그대로 (`draft.possession` 객체 spread, shape 검증 후 setPossession).
+8. **Phase 22/23 read-only 정합** — `isReadOnly=true` 시 (a) jumpBallModal 강제 close (b) onArrowClick undefined (c) submit BFF 가 possession 키 무시. **Phase 22 paper override (commit `63c0633`) 영향 0** (paper PBP 그대로 + jump_ball/held_ball 만 추가 / quarter_scores 합산 변화 0).
+9. **light forced + zoom 0.7 인쇄 룰** — 모달 2건 모두 `.no-print` / 화살표는 인쇄 시 자연 노출 (헤더 박제). 인쇄 검증 manual 1회.
+10. **회귀 검증 의무** — `npx tsc --noEmit` = 0 / `npx vitest run running-score-helpers.test.ts` = 50/50 PASS (기존 35 + 신규 15) / score-sheet 4 기존 모달 동작 0 변경.
+
+📋 **PM 결재 필요 (developer 진입 전)**:
+- Q1. 화살표 위치 = "쿼터 뱃지 좌측" (헤더 우측 영역에서 쿼터 뱃지 옆) 확정?
+- Q2. 화살표 색상 = `var(--accent)` (BDR Red 류) vs `var(--color-text-primary)` (회색) — 시안 13 룰 빨강 본문 ❌ 이지만 아이콘은 허용 → **회색 권장** (헤더 시각 노이즈 최소).
+- Q3. PR 3단 분해 (~2.5시간) vs 1 PR 통합 (~1.5시간 / 회귀 위험 ↑) — **3단 분해 권장**.
+- Q4. PR-3 운영 DB 박제 검증 = paper 매치 1건 직접 submit 후 SELECT 1회 (사용자 결재 후 진행 / 운영 영향 = INSERT 2건 / 회수 가능).
+
+## 구현 기록 (developer / 2026-05-16) — PR-Possession-1 PURE 헬퍼 + 타입 + vitest
+
+📝 **구현한 기능**: 공격권 (Possession Arrow) PURE 헬퍼 + 타입 박제. UI / BFF / DB 영향 0. PR-2 (UI + state) / PR-3 (BFF + PBP 박제) 진입을 위한 단일 source 헬퍼.
+
+📁 **변경 파일**:
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/lib/score-sheet/possession-types.ts` | `PossessionState` / `JumpBallEvent` / `HeldBallEvent` interface + `EMPTY_POSSESSION` const (running-score-types.ts 패턴) | **신규** | 58 |
+| `src/lib/score-sheet/possession-helpers.ts` | `togglePossession` / `applyOpeningJumpBall` / `applyHeldBall` / `possessionToPBPInputs` PURE 함수 4건 + `PossessionPBPInput` interface (running-score-helpers.ts 패턴) | **신규** | 122 |
+| `src/__tests__/score-sheet/possession-helpers.test.ts` | vitest 15 케이스 (toggle 4 / opening 3 / held 3 / PBP 변환 5) | **신규** | 187 |
+
+🔗 **운영 제약 준수**:
+- 다른 파일 변경 0 (form / fiba-header / submit route / draft-storage / running-score-helpers 모두 unchanged)
+- DB schema 변경 0 (action_type=String VarChar 그대로 — PR-3 에서 INSERT 만)
+- 시안 13 룰: 시각 컴포넌트 없음 (PURE 헬퍼만) → 룰 적용 0건
+- server-safe (`src/lib/score-sheet/` 위치 일관 — Prisma / DOM 의존 0)
+
+✅ **검증**:
+- `npx tsc --noEmit` = **exit code 0** (에러 0)
+- `npx vitest run possession-helpers` = **15/15 PASS** (315ms)
+- 다른 vitest 회귀: score-sheet 전체 210 케이스 중 `running-score-helpers.test.ts` 1건 fail 발견 — **본 PR 범위 밖** (작업 시작 시점에 이미 M 상태 / 다른 미커밋 작업의 회귀 / `git diff --stat` 242 라인 추가됨)
+
+💡 **tester 참고**:
+- **테스트 방법**: `npx vitest run possession-helpers` 1회 — 15 케이스 통과 확인
+- **정상 동작**:
+  - `togglePossession({arrow:"home", ...})` → `{arrow:"away", ...}` (immutable)
+  - `togglePossession({arrow:null, ...})` → 원본 state 반환 (가드)
+  - `applyOpeningJumpBall(state, "home", "p1")` → `arrow="away"` (loser 방향) + `openingJumpBall={winner:"home", winnerPlayerId:"p1"}`
+  - `applyHeldBall(state, 2)` → `arrow` 토글 + `heldBallEvents` 에 `{period:2, takingTeam:이전arrow}` push
+  - `possessionToPBPInputs(state, matchId)` → `[{actionType:"jump_ball", period:1, team:winner}, ...{actionType:"held_ball", period:N, team:takingTeam}]`
+- **주의할 입력**:
+  - `arrow=null` 상태에서 `togglePossession` / `applyHeldBall` 호출 → state 그대로 반환 (Opening Jump Ball 선행 필수 — caller 보호)
+  - `applyOpeningJumpBall` 재호출 시 마지막 박제값 보존 (재정정 시나리오 — 운영자 실수 fix)
+- **수동 검증 불필요** — PURE 헬퍼 + vitest 15 PASS 로 충분 (UI / DB 영향 0)
+
+⚠️ **reviewer 참고**:
+- **`possessionToPBPInputs` 의 `_matchId` 파라미터** — 본 PR 에서는 사용 ❌ (caller (PR-3 BFF) 가 PBP row 의 `match_id` 컬럼에 활용 / 시그니처 일관성). underscore prefix 로 unused 경고 회피 + 다음 PR 에서 사용 예정 박제.
+- **`PossessionPBPInput` interface** — `PaperPBPInput` (running-score-helpers) 와 의도적으로 분리. paper PBP 는 11 필드 (score / player / made / subtype 등) / possession PBP 는 3 필드 (actionType / period / team) 만 — domain 분리 의도적.
+- **immutability 패턴** — running-score-helpers 의 `addMark` / `undoLastMark` 와 동일 (spread + 새 객체). 모든 헬퍼는 `state` 직접 변형 0.
+- **테스트 케이스 케이스 #7 (재호출 보존)** — Opening Jump Ball 의 winner 변경 시 arrow 도 같이 갱신됨을 검증 (운영자 실수 정정 시나리오 박제).
+- **회귀 발견 (별건)** — `running-score-helpers.test.ts` 1건 fail 은 본 PR 시작 전 다른 미커밋 작업 (`running-score-helpers.ts` 96 라인 추가 + 테스트 148 라인 추가) 의 회귀. **본 PR 범위 밖** — PM 별도 조치 필요.
+
+🚀 **다음 PR 진입 조건**:
+- PR-2 (UI + state + 모달): 본 PR `possession-types.ts` + `possession-helpers.ts` import 하여 `score-sheet-form.tsx` state + `fiba-header.tsx` 화살표 박제. 본 PR 완료 = PR-2 진입 가능 (DB 영향 0 / draft-storage 만 확장).
+- PR-3 (BFF + PBP 박제): `possessionToPBPInputs` 호출 → `play_by_plays` INSERT. 운영 DB 영향 = INSERT 만 (사용자 결재 후 진행).
+
+## 이전 구현 기록 (fiba-header 쿼터 뱃지 v3 — 보존)
+
+### fiba-header 쿼터 뱃지 v3
 
 📝 **구현한 기능**: fiba-header.tsx 의 쿼터 뱃지 (Q2/OT1 빨강 outline 박스) 위치 위로 이동 (`alignSelf: flex-start` + `marginTop: -4px`) + 뱃지 바로 아래 매치 상태 라벨 (10px / 회색) 박제. 사용자 보고 이미지 #157 fix.
 
@@ -679,6 +801,7 @@ EXIT=0 (no output / 0 error)
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Possession-1 PURE 헬퍼 + 타입 + vitest 박제 (developer)** ⭐ | ✅ 신규 3 (`possession-types.ts` +58 / `possession-helpers.ts` +122 / `possession-helpers.test.ts` +187) = **+367 LOC** / tsc 0 / vitest 15/15 PASS (315ms) / UI / BFF / DB 영향 0 / 다른 파일 변경 0 / PR-2 진입 대기 (PM 결재) / 별건: running-score-helpers.test.ts 1건 fail 발견 (작업 시작 전 미커밋 회귀 — PR 범위 밖) |
 | 2026-05-16 | **fiba-header 쿼터 뱃지 v3 (위로 이동 + 매치 상태 라벨)** ⭐ | ✅ fiba-header.tsx +44/-19 (`marksCount?: number` prop + matchPhaseLabel 산출 + 뱃지 wrapper column flex + 라벨 div 박제) / score-sheet-form.tsx +4 (`marksCount={home.length + away.length}` wiring) / `alignSelf: flex-start + marginTop: -4px` 위로 이동 / 라벨 10px / `var(--color-text-secondary)` 회색 / tsc 0 / props 시그니처 신규 1건만 추가 (운영 호환) |
 | 2026-05-16 | **Track A `/playoffs` 종별 탭 (옵션 A 인라인) 박제** ⭐ | ✅ playoffs-client.tsx +128/-14 / useSearchParams + useState + 2 useEffect (URL sync + 폴백) / 5 섹션 prop 차등 / divisionStandings.length ≤ 1 가드 / tsc 0 / 자가 진단 5/5 / 시그니처 변경 0 |
 | 2026-05-16 | **score-sheet PBP 수정 모달 박제 (developer)** | ✅ 신규 1 (`pbp-edit-modal.tsx` +455) + 수정 4 (`running-score-helpers.ts` +90 / `score-sheet-toolbar.tsx` +25 / `score-sheet-form.tsx` +50 / `running-score-helpers.test.ts` +148) = **+768 LOC** / tsc 0 / vitest PR-PBP-Edit 15/15 PASS / planner 결정 plan 5건 100% 준수 / 신규 BFF endpoint 0 / 시안 13 룰 100% / isReadOnly 이중 방어 |
