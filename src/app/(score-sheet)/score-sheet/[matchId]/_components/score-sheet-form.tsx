@@ -80,6 +80,8 @@ import { QuarterEndModal } from "./quarter-end-modal";
 // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
 //   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
 import { useConfirm } from "../../../_components/confirm-modal-provider";
+// 2026-05-15 (PR-D-3) — 수정 모드 / read-only 가드 단일 source.
+import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
 //   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
 import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
@@ -686,41 +688,14 @@ export function ScoreSheetForm({
     initialQuarterScoresDB !== undefined &&
     Object.keys(initialQuarterScoresDB).length > 0;
 
-  // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
-  //
-  // 왜 (이유):
-  //   매치가 이미 종료된 상태 (status="completed") 인데 운영자가 score-sheet 재진입 = 수정 의도.
-  //   사용자 결재 Q3 = 차단 ❌ / UI 경고 + audit 박제. 운영자가 사고를 인식할 수 있어야 함.
-  //
-  // 어떻게:
-  //   1. isCompleted 플래그 — match.status === "completed" 일 때 true.
-  //   2. mount 1회 노란 배너 표시 (cross-check 배너 패턴 일관 / no-print).
-  //   3. mount 1회 cross-check-audit endpoint POST — context="completed_edit_entry".
-  //   4. 운영자 submit 시 별도 audit POST — context="completed_edit_resubmit"
-  //      (MatchEndButton 의 onSubmittedChange 콜백 분기 안에서 부모가 호출).
+  // 2026-05-15 (PR-D-3) — isCompleted / isEditMode / isReadOnly = useEditModeGuard 훅 단일 source.
+  //   기존 17개 위치 산재 `isReadOnly` 패턴 → isReadOnly 단일 표현 통일.
   //
   // 운영 동작 보존:
-  //   - 운영자 input / submit 차단 ❌ — 배너 + audit 만.
-  //   - audit fetch 실패 = console.warn + 진행 (silent fail).
-  //   - status !== "completed" 매치 = 변경 0 (회귀 0).
-  const isCompleted = match.status === "completed";
-
-  // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 state (사용자 결재 Q3).
-  //
-  // 왜 (이유):
-  //   RO 차단 (PR-RO1~RO4) = isCompleted 단일 조건. 수정 모드 진입 = isCompleted=true + isEditMode=true.
-  //   isEditMode=true 일 때 모든 차단 분기 우회 (사용자가 명시적으로 수정 동의).
-  //
-  // 어떻게:
-  //   - default false (진입 시 RO 차단 유지)
-  //   - toolbar "수정 모드" 버튼 클릭 → handleEnterEditMode() → confirm modal → 동의 시 setIsEditMode(true)
-  //   - 모든 차단 분기 = `if (isCompleted && !isEditMode) return;` 패턴 (isEditMode 우회 분기)
-  //
-  // 운영 동작 보존:
-  //   - 진행 중 매치 (isCompleted=false) = isEditMode 분기 무관 (이미 통과 / 회귀 0).
-  //   - 종료 매치 + isEditMode=false = RO 차단 유지 (PR-RO 동작 보존).
-  //   - 종료 매치 + isEditMode=true = 모든 차단 우회 + 재제출 시 audit 박제.
-  const [isEditMode, setIsEditMode] = useState(false);
+  //   - 진행 중 매치 (isCompleted=false) = isReadOnly=false → 기존 동작 보존.
+  //   - 종료 매치 + isEditMode=false = isReadOnly=true → RO 차단 유지 (PR-RO 동작 보존).
+  //   - 종료 매치 + isEditMode=true = isReadOnly=false → 사용자 명시 동의 후 수정 가능.
+  const { isCompleted, isEditMode, setIsEditMode, isReadOnly } = useEditModeGuard(match);
 
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 펼침 토글 (사용자 결재 Q7).
   //   기본 = 접힘 (배너만 N건 표시) / 클릭 시 = 펼침 (행 리스트 표시).
@@ -987,14 +962,14 @@ export function ScoreSheetForm({
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
   function handleAdvancePeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
   function handleRetreatPeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
@@ -1008,7 +983,7 @@ export function ScoreSheetForm({
   //   - period 4 (Q4) 종료 = QuarterEndModal 표시 (경기 종료 / OT1 진행 2 버튼)
   //   - period 5~7 (OTn) 종료 = QuarterEndModal 표시 (경기 종료 / 다음 OT 진행 / 동점 시 종료 비활성)
   function handleEndPeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const endedPeriod = runningScore.currentPeriod;
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
@@ -1032,7 +1007,7 @@ export function ScoreSheetForm({
   //   이유: 사용자가 Q4 종료 시점에서 별도 confirm 모달 (MatchEndButton) 통과 안 해도 즉시 종료.
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / quarter-end modal 진입점)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
     try {
       const payload = buildSubmitPayload();
       const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
@@ -1062,7 +1037,7 @@ export function ScoreSheetForm({
   // Phase 7-C — "다음 OT 진행" 버튼 (QuarterEndModal 안).
   //   동작: currentPeriod++ (OT1/OT2/OT3 진입) + 모달 close + toast 안내.
   function handleContinueToOvertime() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
@@ -1081,7 +1056,7 @@ export function ScoreSheetForm({
   //   3. TeamSection 마지막 마킹 칸 클릭 → handleRequestRemoveFoul → 즉시 1건 해제
 
   function handleRequestAddFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / 모달 mount)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / 모달 mount)
     // 모달 컨텍스트 박제 — 선수 이름 / 등번호 표시용
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -1094,7 +1069,7 @@ export function ScoreSheetForm({
   }
 
   function handleRequestRemoveFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     // PR-Stat3.5 (2026-05-15) — React 19 strict mode updater double-invoke 회피.
     //   기존 setFouls(prev => ...) 패턴 = strict mode 의 dev double-invoke 가 updater 2회 호출
     //   → queueMicrotask 도 2회 schedule → toast 2회 (사용자 보고 이미지 #30).
@@ -1114,7 +1089,7 @@ export function ScoreSheetForm({
   //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
   //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
   function handleRequestAddTimeout(team: "home" | "away") {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴 (updater 미사용 — strict mode double-invoke 회피).
     const result = addTimeout(timeouts, team, {
       period: runningScore.currentPeriod,
@@ -1130,7 +1105,7 @@ export function ScoreSheetForm({
 
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
   function handleRequestRemoveTimeout(team: "home" | "away") {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const next = removeLastTimeout(timeouts, team);
     setTimeouts(next);
     if (next !== timeouts) {
@@ -1153,7 +1128,7 @@ export function ScoreSheetForm({
     playerId: string,
     statKey: StatKey
   ) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / popover mount)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / popover mount)
     // 컨텍스트 박제 — 선수명 / 등번호 표시용 (FoulTypeModal 패턴 일관).
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -1167,7 +1142,7 @@ export function ScoreSheetForm({
   }
 
   function handleAddStat() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1180,7 +1155,7 @@ export function ScoreSheetForm({
   }
 
   function handleRemoveStat() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     const ctx = statPopoverCtx;
@@ -1195,7 +1170,7 @@ export function ScoreSheetForm({
 
   // 모달 → 종류 선택 콜백 — addFoul 호출 + Article 41 alert + 5+ FT alert
   function handleSelectFoulType(type: FoulType) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!foulModalCtx) return;
     const { team, playerId } = foulModalCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1383,7 +1358,7 @@ export function ScoreSheetForm({
   //   기존 동작: 운영자가 12명 P.IN 일일이 체크 → 중복 부담 + 라인업 의미와 모순.
   //   변경: 모달 confirm 시 양 팀 모든 라인업 선수의 playerIn=true 자동 fill (한 번에).
   function handleLineupConfirm(result: LineupSelectionResult) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 — 라인업 재선택)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 — 라인업 재선택)
     setLineup(result);
     setLineupModalOpen(false);
     // 양 팀 라인업 (starters + substitutes) 의 모든 선수 playerIn=true 자동 set.
@@ -1603,7 +1578,7 @@ export function ScoreSheetForm({
           // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 이중 방어).
           //   hideEndMatch 시 button 자체 render 0 이지만, onClick 까지 가드 (회귀 안전망).
           // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (재제출 허용 — 사용자 결재 Q5).
-          if (isCompleted && !isEditMode) return;
+          if (isReadOnly) return;
           setMatchEndOpen(true);
         }}
         backHref="/admin"
@@ -1612,8 +1587,8 @@ export function ScoreSheetForm({
         // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 경기 종료 버튼 hidden (사용자 결재 Q2).
         //   인쇄 / ← 메인 만 노출 / 종료 버튼 진입점 차단.
         // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 = 경기 종료 다시 노출 (재제출 허용).
-        //   isCompleted && !isEditMode 시만 hide (수정 모드 활성 시 종료 버튼 활성).
-        hideEndMatch={isCompleted && !isEditMode}
+        //   isReadOnly 시만 hide (수정 모드 활성 시 종료 버튼 활성).
+        hideEndMatch={isReadOnly}
         // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 진입 (사용자 결재 Q3 + Q4).
         //   canEdit (page.tsx 가 권한 산출) + 종료 매치 시 "수정 모드" 버튼 노출.
         //   onEnterEditMode = confirm modal → 동의 시 setIsEditMode(true).
@@ -1627,7 +1602,7 @@ export function ScoreSheetForm({
         // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
         //   종료 매치 = undefined (PR-RO2 룰). 수정 모드 진입 시 = 허용.
         onReselectLineup={
-          !isCompleted || isEditMode ? () => setLineupModalOpen(true) : undefined
+          !isReadOnly ? () => setLineupModalOpen(true) : undefined
         }
         // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
         onOpenManual={handleOpenManual}
@@ -1700,7 +1675,7 @@ export function ScoreSheetForm({
             values={header}
             onChange={setHeader}
             // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-            readOnly={isCompleted && !isEditMode}
+            readOnly={isReadOnly}
             frameless
           />
         </div>
@@ -1743,8 +1718,8 @@ export function ScoreSheetForm({
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
                 //   disabled = button (foul/timeout/stat cell) + checkbox 차단
                 //   readOnly = input (coach/asstCoach) 차단
-                disabled={isCompleted && !isEditMode}
-                readOnly={isCompleted && !isEditMode}
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
                 frameless
               />
             </div>
@@ -1774,8 +1749,8 @@ export function ScoreSheetForm({
                   handleRequestOpenStatPopover("away", playerId, statKey)
                 }
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
-                disabled={isCompleted && !isEditMode}
-                readOnly={isCompleted && !isEditMode}
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
                 frameless
               />
             </div>
@@ -1792,7 +1767,7 @@ export function ScoreSheetForm({
               headerUmpire2={header.umpire2}
               // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
               // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-              readOnly={isCompleted && !isEditMode}
+              readOnly={isReadOnly}
               frameless
             />
             </div>
@@ -1817,10 +1792,10 @@ export function ScoreSheetForm({
               // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
               //   readOnly = onClick early return (모달 open / undo / addMark 차단)
               // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-              readOnly={isCompleted && !isEditMode}
+              readOnly={isReadOnly}
               frameless
               // 2026-05-15 — 쿼터 종료 = 헤더 우측 작은 버튼 (FIBA 양식 정합 / 기존 큰 버튼 영역 제거).
-              onEndPeriod={isCompleted && !isEditMode ? undefined : handleEndPeriod}
+              onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
             />
             </div>
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
@@ -1836,7 +1811,7 @@ export function ScoreSheetForm({
                 onEndPeriod={handleEndPeriod}
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 OT 종료 빨강 버튼 차단 (사용자 결재 Q2)
                 // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-                disabled={isCompleted && !isEditMode}
+                disabled={isReadOnly}
                 frameless
               />
             </div>
@@ -1920,7 +1895,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             handleRequestAddFoul 가드 + open 분기 가드 = 이중 방어. */}
       <FoulTypeModal
-        open={(!isCompleted || isEditMode) && foulModalCtx !== null}
+        open={(!isReadOnly) && foulModalCtx !== null}
         playerName={foulModalCtx?.playerName ?? ""}
         jerseyNumber={foulModalCtx?.jerseyNumber ?? null}
         period={runningScore.currentPeriod}
@@ -1933,7 +1908,7 @@ export function ScoreSheetForm({
           open 시만 렌더 — 운영 동작 보존 (FoulTypeModal 패턴 일관). */}
       {/* Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <StatPopover
-        open={(!isCompleted || isEditMode) && statPopoverCtx !== null}
+        open={(!isReadOnly) && statPopoverCtx !== null}
         playerName={statPopoverCtx?.playerName ?? ""}
         jerseyNumber={statPopoverCtx?.jerseyNumber ?? null}
         statKey={statPopoverCtx?.statKey ?? "or"}
@@ -1958,7 +1933,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             라인업 재선택 진입점 차단 (handleLineupConfirm 가드 + open 분기 가드 이중 방어). */}
       <LineupSelectionModal
-        open={(!isCompleted || isEditMode) && lineupModalOpen}
+        open={(!isReadOnly) && lineupModalOpen}
         homeTeamName={homeRoster.teamName}
         awayTeamName={awayRoster.teamName}
         homePlayers={homeRoster.players}
@@ -1978,7 +1953,7 @@ export function ScoreSheetForm({
       {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <QuarterEndModal
-        open={(!isCompleted || isEditMode) && quarterEndModal !== null}
+        open={(!isReadOnly) && quarterEndModal !== null}
         mode={quarterEndModal?.mode ?? "quarter4"}
         currentPeriod={quarterEndModal?.period ?? 4}
         homeTeamName={homeFilteredRoster.teamName}
