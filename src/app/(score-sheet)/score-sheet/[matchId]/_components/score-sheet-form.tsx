@@ -1804,9 +1804,10 @@ export function ScoreSheetForm({
               />
             </div>
             {/* Phase 15 — FooterSignatures = 좌측 col 안 Team B 아래 (FIBA PDF 정합).
-                이유: 풋터가 frame 가로 펼침 (Phase 14 잘못된 위치 / 경기 종료 버튼과 겹침) →
-                  좌측 50% 컬럼 안 마지막 child 로 이동 (사용자 결재 §1 / 이미지 35).
-                풋터 내부 = footer-signatures.tsx Phase 15 압축 (라벨 100px / 심판진 세로 3줄). */}
+                2026-05-15 — mt-auto wrapper 추가. 좌측 column = Team A + Team B + FooterSignatures
+                  stretch (grid stretch). FooterSignatures 가 bottom 정렬 = 우측 PeriodScoresSection
+                  과 정확 매치 (양쪽 column 끝 자식 = bottom 베이스라인 동일). */}
+            <div className="mt-auto">
             <FooterSignatures
               values={signatures}
               onChange={setSignatures}
@@ -1818,13 +1819,18 @@ export function ScoreSheetForm({
               readOnly={isCompleted && !isEditMode}
               frameless
             />
+            </div>
           </div>
 
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
-              FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적. */}
+              FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적.
+              2026-05-15 — RunningScoreGrid flex-1 + PeriodScoresSection mt-auto.
+                좌측 column (Team A + B + Footer) 와 동일 height stretch + 끝 자식 bottom 정렬. */}
           <div className="flex flex-col">
             {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
-                단일 모드 (= 기존 detail 동작) 통일. */}
+                단일 모드 (= 기존 detail 동작) 통일.
+                2026-05-15 — flex-1 wrapper 추가. Running Score 가 좌측 Team A+B 높이만큼 자동 확장. */}
+            <div className="flex-1">
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1838,9 +1844,11 @@ export function ScoreSheetForm({
               readOnly={isCompleted && !isEditMode}
               frameless
             />
+            </div>
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
-                상단 분할선 = fiba-divider-top 으로 Running Score 와 시각 구분 */}
-            <div className="fiba-divider-top">
+                상단 분할선 = fiba-divider-top 으로 Running Score 와 시각 구분.
+                2026-05-15 — mt-auto = column 의 bottom 정렬 (좌측 FooterSignatures 와 베이스라인 매치). */}
+            <div className="fiba-divider-top mt-auto">
               <PeriodScoresSection
                 state={runningScore}
                 homeTeamName={homeFilteredRoster.teamName}
