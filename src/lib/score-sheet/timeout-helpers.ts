@@ -167,6 +167,56 @@ export function addTimeout(
   };
 }
 
+// FIBA Phase 19 PR-T1 (2026-05-15) — 셀 위치 기반 phase 추출 + 활성 분기
+//
+// 왜 (이유):
+//   FIBA SCORESHEET Time-outs 7 cells (전반 2 / 후반 3 / OT 2) — 시안 정합 고정 grid.
+//   현재 period 와 cell 위치 phase 가 다르면 사용 불가 (예: Q3 진행 중 = 전반 cell 0/1 disabled).
+//   기존 canAddTimeout 은 "phase 잔여" 만 검증 → cell index 별 시각 disabled 차단 룰 별도 필요.
+//
+// 방법 (어떻게):
+//   - getCellPhase(cellIndex): 0~1 = first_half / 2~4 = second_half / 5+ = overtime
+//   - isCellActive(cellIndex, currentPeriod):
+//       cell phase === current phase 일 때만 활성
+//       단, OT 의 경우 cellIndex 5 = OT1 (period 5) / 6 = OT2 (period 6) ... 1:1 매칭
+//
+// 사용처:
+//   team-section.tsx SSTimeoutCells onClick / disabled / data-disabled-phase 속성 wiring.
+//   cell 의 시각 회색 (data-disabled-phase="true") + cursor not-allowed CSS 룰 트리거.
+
+// cell 위치 → 해당 cell 이 속한 phase
+//
+// 룰 (시안 7 cells 정합):
+//   - index 0, 1 = first_half (전반 2칸)
+//   - index 2, 3, 4 = second_half (후반 3칸)
+//   - index 5+ = overtime (OT 2칸 기본 + 다중 OT 확장)
+export function getCellPhase(cellIndex: number): GamePhase {
+  if (cellIndex <= 1) return "first_half";
+  if (cellIndex <= 4) return "second_half";
+  return "overtime";
+}
+
+// cell 활성 여부 — 현재 period 와 cell phase 일치 시 true
+//
+// 룰:
+//   - cell phase === current phase 인 경우 활성
+//   - OT 의 경우 cellIndex 와 currentPeriod 일대일 매칭:
+//       cellIndex 5 ↔ period 5 (OT1) / 6 ↔ 6 (OT2) / 7 ↔ 7 (OT3) ...
+//       다른 OT 진행 중인 cell = 비활성 (예: OT2 진행 중 = cell 5 disabled)
+//   - 미래 phase (e.g. Q1 진행 중 = 후반/OT cell) = 비활성
+//   - 과거 phase (e.g. Q3 진행 중 = 전반 cell) = 비활성 (이미 채워진 셀은 caller 에서 별도 isLastFilled 분기)
+export function isCellActive(cellIndex: number, currentPeriod: number): boolean {
+  const cellPhase = getCellPhase(cellIndex);
+  const currentPhase = getGamePhase(currentPeriod);
+  if (cellPhase !== currentPhase) return false;
+  // OT phase 일 때만 cellIndex ↔ currentPeriod 일대일 매칭
+  if (cellPhase === "overtime") {
+    // cellIndex 5 = period 5 / 6 = period 6 / 7 = period 7 ...
+    return cellIndex === currentPeriod;
+  }
+  return true;
+}
+
 // 마지막 타임아웃 1건 제거 (해제 — pop 패턴, foul-helpers 와 일관)
 //
 // 룰:
