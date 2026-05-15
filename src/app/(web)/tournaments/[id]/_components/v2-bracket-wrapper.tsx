@@ -47,6 +47,14 @@ import { V2BracketSeedRanking, type SeedTeam } from "./v2-bracket-seed-ranking";
 // 2026-05-02: V2BracketPrediction 은 page.tsx aside 로 이동됨 (참가비 박스 아래 sticky 노출)
 // Phase F2-F3: 듀얼토너먼트 5섹션 카드 (옵션 D — BracketView SVG 트리 재사용 X)
 import { V2DualBracketView } from "./v2-dual-bracket-view";
+// 2026-05-16 PR-Public-1 — 다종별 view (강남구협회장배 같은 풀리그/조별/순위전 placeholder 대회).
+//   hasKnockout false + divisionRules >= 1 시 BracketEmpty 대신 종별 탭 view 노출.
+import {
+  DivisionsView,
+  type DivisionRule,
+  type DivisionStandingBundle,
+} from "./divisions-view";
+import type { DivisionMatch } from "./division-schedule-table";
 
 // API 응답 fetcher — 기존 tournament-tabs.tsx와 동일 패턴
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API 응답 구조 다양
@@ -193,6 +201,13 @@ export function V2BracketWrapper({
   const liveMatchCount: number = d.liveMatchCount ?? 0;
   const totalMatches: number = d.totalMatches ?? 0;
   const completedMatches: number = d.completedMatches ?? 0;
+
+  // 2026-05-16 PR-Public-1 — 다종별 view 용 신규 필드 (route.ts 응답 추가).
+  //   divisionRules.length >= 1 시 강남구협회장배 같은 다종별 대회 = 신규 view 진입.
+  //   leagueMatches = 모든 매치 시간순 (PR-G5.9 박제됨 / division 필드 포함).
+  const divisionRules: DivisionRule[] = d.divisionRules ?? [];
+  const divisionStandings: DivisionStandingBundle[] = d.divisionStandings ?? [];
+  const leagueMatchesAll: DivisionMatch[] = d.leagueMatches ?? [];
 
   // 포맷 정규화
   const format: string | null = d.format
@@ -440,12 +455,31 @@ export function V2BracketWrapper({
               </>
             ) : (
               <>
-                {/* 조별 단계 (있으면) */}
-                {groupTeams.length > 0 && <GroupStandings teams={groupTeams} />}
-
-                {/* 토너먼트 트리 — SVG 유지 (BracketView 그대로) */}
+                {/* 2026-05-16 PR-Public-1 — 분기 우선순위:
+                      1. hasKnockout = true → 기존 BracketView (회귀 0 / 단일 종별 single elim 등 보존)
+                      2. divisionRules.length >= 1 → 신규 DivisionsView (강남구협회장배 다종별 view)
+                      3. groupTeams.length > 0 → 기존 GroupStandings (조별 풀리그 / 다종별 룰 0 케이스)
+                      4. 기본 → BracketEmpty
+                    이 순서가 회귀 0 보장 — hasKnockout (single elim / dual / full_league_knockout)
+                    가 모두 우선 처리됨. */}
                 {hasKnockout ? (
-                  <BracketView rounds={rounds} tournamentId={tournamentId} />
+                  <>
+                    {/* 조별 단계 (있으면) — hasKnockout 도 조별이 있을 수 있음 */}
+                    {groupTeams.length > 0 && <GroupStandings teams={groupTeams} />}
+                    <BracketView rounds={rounds} tournamentId={tournamentId} />
+                  </>
+                ) : divisionRules.length >= 1 ? (
+                  // PR-Public-1 신규 view — 다종별 + 풀리그/조별/순위전 placeholder 대회.
+                  // 강남구협회장배 매치 59건 (round_number/bracket_position NULL) 표시 가능.
+                  <DivisionsView
+                    divisionRules={divisionRules}
+                    divisionStandings={divisionStandings}
+                    groupTeams={groupTeams}
+                    leagueMatches={leagueMatchesAll}
+                  />
+                ) : groupTeams.length > 0 ? (
+                  // 다종별 룰 0 + 조별 운영 케이스 (기존 동작 보존)
+                  <GroupStandings teams={groupTeams} />
                 ) : (
                   <BracketEmpty tournamentId={tournamentId} />
                 )}

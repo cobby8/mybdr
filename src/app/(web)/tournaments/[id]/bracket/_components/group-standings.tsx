@@ -17,6 +17,9 @@ export type GroupTeam = {
   // 2026-05-15 — 팀 로고 URL (사용자 결재 옵션 B / DB team.logoUrl). null = 이니셜 fallback.
   logoUrl?: string | null;
   groupName: string | null;
+  // 2026-05-16 PR-Public-1 — 종별 코드 (다종별 view 에서 종별별 필터링용).
+  //   단일 종별 운영 = null (회귀 0 / GroupStandings 가 division 미사용 = 모든 그룹 표시).
+  division?: string | null;
   wins: number;
   losses: number;
   draws: number;

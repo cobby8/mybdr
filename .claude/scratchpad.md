@@ -1046,9 +1046,70 @@ EXIT=0 (no output / 0 error)
 | 요청자 | 대상 | 문제 | 상태 |
 |--------|-----|-----|------|
 
+## 구현 기록 (developer) — PR-Public-1
+
+📝 구현한 기능: 공개 tournament 페이지 bracket 탭 다종별 view (강남구협회장배 매치 59건 미표시 fix). 통합 1 PR (API + UI).
+
+### git diff --stat HEAD (자가 진단 1 — 박제 검증)
+```
+ .../_components/division-group-composition.tsx     | 159 +++++++  (신규)
+ .../[id]/_components/division-schedule-table.tsx   | 391 ++++++  (신규)
+ .../[id]/_components/divisions-view.tsx            | 478 ++++++  (신규)
+ .../[id]/_components/v2-bracket-wrapper.tsx        |  44 +/-5    (분기 추가)
+ .../[id]/bracket/_components/group-standings.tsx   |   3 +       (GroupTeam.division 옵셔널 필드)
+ .../web/tournaments/[id]/public-bracket/route.ts   |  48 +       (divisionRules / divisionStandings / groupTeams.division)
+ 6 files changed, 1118 insertions(+), 5 deletions(-)
+```
+
+### 자가 진단 6건
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | public-bracket route.ts +35 LOC 확인 | ✅ +48 (divisionRules + divisionStandings Promise.all + groupTeams.division 신규 필드 3건) |
+| 2 | v2-bracket-wrapper.tsx 분기 추가 | ✅ +44/-5 (default 분기 4단 우선순위: hasKnockout > divisionRules >= 1 > groupTeams > BracketEmpty) |
+| 3 | 3 신규 컴포넌트 박제 | ✅ divisions-view (478) + division-schedule-table (391) + division-group-composition (159) = 1028 LOC |
+| 4 | 종별 탭 + 5 섹션 렌더링 | ✅ 탭 (≥2 종별 가드 / admin /playoffs:138 동등) + 섹션 1 조편성 / 2 종별 standings / 3 예선 일정 / 4 순위결정전 / 5 결승 |
+| 5 | tsc 0 | ✅ 0 errors (GroupTeam.division 옵셔널 추가 시 회귀 0) |
+| 6 | admin /playoffs 변경 0 (회귀 0) | ✅ admin 디렉토리 0 변경 (StandingsTable / playoffs-client / Banner / Advance 모두 그대로) |
+
+### 변경 파일 표
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/tournaments/[id]/public-bracket/route.ts` | divisionRules (4 필드 selet) + divisionStandings (Promise.all + getDivisionStandings) + groupTeams[].division 추가 (+48) | 수정 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-wrapper.tsx` | 데이터 추출 (+5) + default 분기 4단 우선순위 (+44/-5) | 수정 |
+| `src/app/(web)/tournaments/[id]/_components/divisions-view.tsx` | 종별 탭 + 5 섹션 컴포지션 + URL deep link + DivisionStandingsView 인라인 | 신규 (478) |
+| `src/app/(web)/tournaments/[id]/_components/division-schedule-table.tsx` | 매치 일정 표 (PC 표 + 모바일 카드) + slotLabel 폴백 + 상태 색상 | 신규 (391) |
+| `src/app/(web)/tournaments/[id]/_components/division-group-composition.tsx` | 조편성 표 (Navy 헤더 + 시드/팀명/로고) | 신규 (159) |
+| `src/app/(web)/tournaments/[id]/bracket/_components/group-standings.tsx` | GroupTeam.division 옵셔널 필드 추가 (3줄) | 수정 |
+| **합계** | **+1118 / -5 LOC** | |
+
+💡 tester 참고:
+- **테스트 방법**: `/tournaments/<강남구협회장배 ID>?tab=bracket` 접속 → 종별 탭 (i3-U9 / i3-U11 / i3-U14 / i3-U12W / i2-U11 / i2-U12 등 6 종별) + "전체" 탭 노출 확인.
+- **정상 동작**:
+  1. 종별 탭 클릭 → URL `?tab=bracket&division=i3-U9` deep link 동기화
+  2. 단일 종별 = 섹션 4 (조편성 / standings / 예선 / 순위전 / 결승) 박제분만 표시
+  3. 매치 59건 = 종별별 (예선 46 + 순위전 13 placeholder) 분류 표시
+  4. placeholder 매치 = "A조 1위" 등 settings.homeSlotLabel/awaySlotLabel 텍스트 (italic muted)
+  5. PC = 표 / 모바일 (sm 미만) = 카드 스택
+- **회귀 검증 필수 (단일 종별 대회)**:
+  - 4차 BDR 뉴비리그 (`full_league_knockout` + groupTeams 박제) — 기존 `hasLeagueData && groupTeams.length > 0` 분기 진입 (회귀 0)
+  - single_elim 대회 — `hasKnockout=true` 분기 진입 (회귀 0)
+  - dual_tournament 대회 — `isDual=true` 분기 진입 (회귀 0)
+  - round_robin 단일 종별 (divisionRules.length=0) → 기존 LeagueStandings 분기 (회귀 0)
+- **주의할 입력**:
+  - 강남구 매치는 `round_number=null` `bracket_position=null` (기존 BracketView 트리 미적용 / 본 PR 의 신규 view 진입)
+  - format=null 다종별 대회는 isLeague=true (route.ts:45) → 단 hasLeagueData false (leagueTeams 0건 = 종별 분류 → leagueTeams 의 wins/losses 가 0 종별별 합산 안 됨) → divisionRules >= 1 분기 진입
+
+⚠️ reviewer 참고:
+- **분기 우선순위 4단 핵심**: hasKnockout > divisionRules >= 1 > groupTeams > BracketEmpty. 이 순서가 single_elim / dual / full_league_knockout 회귀 0 보장.
+- **GroupTeam.division 옵셔널** (`?: string | null`): 단일 종별 운영 = undefined 또는 null → 기존 GroupStandings 가 이 필드 미사용 (회귀 0).
+- **divisionStandings 0건 분기**: divisionRules >= 1 이라도 standings 0건 (예선 시작 전) = 섹션 2 (DivisionStandingsView) 미렌더 (조건 `standings.length > 0`).
+- **admin /playoffs 의존 0**: admin 컴포넌트 (StandingsTable / playoffs-client / DivisionMatchGroup / PlayoffMatchRow / FinalCard) 변경 0. 본 컴포넌트들은 web 디자인 토큰 (var(--color-*)) + GroupStandings 패턴 답습 = 디자인 정합.
+- **운영 DB 영향**: 0 (route.ts SELECT 1쿼리 추가 = TournamentDivisionRule + getDivisionStandings 의 종별 N회. UPDATE 0).
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Public-1 공개 bracket 종별 view 박제 (developer)** ⭐ | ✅ 신규 3 (`divisions-view` 478 / `division-schedule-table` 391 / `division-group-composition` 159) + 수정 3 (`public-bracket/route.ts` +48 / `v2-bracket-wrapper.tsx` +44/-5 / `group-standings.tsx` +3) = **+1118 / -5 LOC** / tsc 0 / 자가 진단 6/6 / admin /playoffs 변경 0 / hasKnockout 우선 분기 보존 (회귀 0) / divisionRules / divisionStandings / groupTeams.division 신규 필드 3건 / URL ?division= deep link / 종별 탭 (≥2 가드) / 5 섹션 (조편성 / standings / 예선 / 순위전 / 결승) / 시안 13 룰 100% / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **PR-Possession-2 UI + state + 모달 박제 (developer)** ⭐ | ✅ 신규 2 (`jump-ball-modal.tsx` +296 / `possession-confirm-modal.tsx` +84) + 수정 3 (`fiba-header.tsx` +85/-10 / `score-sheet-form.tsx` +130/-3 / `draft-storage.ts` +4) = **+612 / -13 LOC** / tsc 0 / vitest possession-helpers 15/15 PASS (295ms) / score-sheet 전체 209/210 PASS (1 fail = PR 범위 밖 기존 회귀) / 첫 점프볼 자동 trigger / 화살표 56px 회색 / 헬드볼 confirm 모달 / 쿼터 종료 자동 토글 / draft 박제 / BFF / DB 영향 0 (= PR-3) / 시안 13 룰 100% / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **PR-Public-1 공개 bracket 종별 view 기획설계 (planner-architect)** ⭐ | 🟡 read-only 분석 / 코드 수정 0 / 운영 DB SELECT 0 / 옵션 A (공개 신규 view) + D1 (기존 API 확장) 권장 / 예상 ~530 LOC (API +35 / wrapper +30 / 신규 3 컴포넌트 ~460 / GroupStandings +5) / 2 PR 분해 권장 (API +50 / UI +480) / admin /playoffs 회귀 0 / 시안 13 룰 100% / PM 결재 6 항목 (Q1~Q6) — D1+A 권장 |
 | 2026-05-16 | **PR-Possession-1 PURE 헬퍼 + 타입 + vitest 박제 (developer)** ⭐ | ✅ 신규 3 (`possession-types.ts` +58 / `possession-helpers.ts` +122 / `possession-helpers.test.ts` +187) = **+367 LOC** / tsc 0 / vitest 15/15 PASS (315ms) / UI / BFF / DB 영향 0 / 다른 파일 변경 0 / PR-2 진입 대기 (PM 결재) / 별건: running-score-helpers.test.ts 1건 fail 발견 (작업 시작 전 미커밋 회귀 — PR 범위 밖) |
