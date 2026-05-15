@@ -22,16 +22,9 @@
  *   - AppNav frozen 영향 0 (route group 격리 — 9 탭/햄버거 호출 0)
  */
 
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ToastProvider } from "@/contexts/toast-context";
-import { RotationGuard } from "./_components/rotation-guard";
-// 2026-05-15 PR-Live3 — body overflow lock (자동 진입 / cleanup 시 복원).
-//   layout = server component 이므로 client effect 는 별도 컴포넌트로 분리 (DOM 0 effect 전용).
-import { BodyScrollLock } from "./_components/body-scroll-lock";
-// 2026-05-15 PR-Live4 — 풀스크린 명시 toggle 버튼 (태블릿 세로 ±10% viewport 회수).
-//   ThemeToggle 옆 thin bar 우상단 배치 (Q5 명시 버튼 룰).
 // 2026-05-15 PR-Fullscreen-Clean — 풀스크린 진입 시 thin bar 자동 hidden + 우상단 X
-//   noflicker overlay 마운트 책임. ScoreSheetChrome client 컴포넌트로 분리.
+//   noflicker overlay 마운트 책임. ScoreSheetChrome client 컴포넌트가 통합.
 import { ScoreSheetChrome } from "./_components/score-sheet-chrome";
 import { FullscreenProvider } from "./_components/fullscreen-context";
 // PrintButton 컴포넌트는 삭제하지 않음 (다른 곳 사용 가능 / 향후 복원 대비) — import 만 제거.
@@ -69,8 +62,6 @@ export default function ScoreSheetLayout({
   return (
     <ToastProvider>
       <FullscreenProvider>
-        {/* PR-Live3 — body overflow:hidden 자동 lock (cleanup 시 복원). */}
-        <BodyScrollLock />
         <div
           className="min-h-screen"
           style={{ backgroundColor: "var(--color-background)" }}
@@ -78,10 +69,7 @@ export default function ScoreSheetLayout({
           {/* 2026-05-15 PR-Fullscreen-Clean — header + 우상단 X overlay 책임을
               ScoreSheetChrome client 컴포넌트가 통합. 풀스크린 시 thin bar
               자동 hidden + 우상단 X floating 노출 (양식만 보이도록 정합). */}
-          <ScoreSheetChrome>
-            {/* RotationGuard = 태블릿 가로 시 회전 안내 */}
-            <RotationGuard>{children}</RotationGuard>
-          </ScoreSheetChrome>
+          <ScoreSheetChrome>{children}</ScoreSheetChrome>
         </div>
       </FullscreenProvider>
     </ToastProvider>
