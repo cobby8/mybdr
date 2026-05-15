@@ -204,12 +204,12 @@ export function FibaHeader({
             possessionArrow != null 시 화살표 노출 (회색 / 56px / Material Symbols).
             possessionArrow == null 시 자리만 차지 (운영 호환 / 기존 paper 매치 영향 0). */}
         {quarterLabel && (
-          // 2026-05-16 (PR-Quarter-Badge-v4) — 사용자 보고 이미지 #158 fix.
-          //   v3 의 alignSelf: flex-start + marginTop: -4px → 너무 위로 이동 사고.
-          //   원복 = alignSelf: center (기존 v2 위치) + 라벨만 아래 추가 유지.
+          // 2026-05-16 (PR-Possession-Box / 사용자 이미지 #164/#165) — 시각 정합 박제.
+          //   왜: 화살표/점프볼 영역 = 우측 쿼터 뱃지와 동일한 박스 스타일로 재구성 (빨강 outline / 22px / 88px).
+          //   박스 하단 = "경기 중" 라벨과 동일 패턴 (10px 회색) 으로 공격권 소유팀명 표시.
           //
-          //   2026-05-16 (PR-Possession-2) — flex row 컨테이너로 변경 (화살표 좌측 + 뱃지 우측).
-          //   기존 column flex 박제 = 뱃지 + 상태 라벨 세로 누적 → wrapper 1단 추가해 row + column 중첩.
+          //   외부 wrapper = row flex (좌: possession 박스 column / 우: 쿼터 뱃지 column).
+          //   각 column = [박스] + [10px 라벨] 세로 누적 — 시각 정합.
           <div
             style={{
               display: "flex",
@@ -220,98 +220,100 @@ export function FibaHeader({
               alignSelf: "center",
             }}
           >
-            {/* 2026-05-16 (PR-Possession-2) — 공격권 화살표 (쿼터 뱃지 좌측).
-                possessionArrow=null 시 = 미박제 = [점프볼] 버튼 노출 (긴급 박제 / 사용자 명시 / 이미지 #162).
-                  → onArrowClick 호출 시 score-sheet-form 의 handleArrowClick 분기가 점프볼 모달 open.
-                "home" = arrow_forward (오른쪽 향 / home 방향) / "away" = arrow_back (왼쪽 향 / away 방향).
-                색상 = var(--color-text-primary) 회색 (사용자 결재 — 빨강 본문 텍스트 룰 ❌).
-                onArrowClick 미전달 시 = read-only (cursor: default + 클릭 비활성).
-                possessionArrow=undefined (운영 호환 / 미전달) = 미노출. */}
-            {possessionArrow === null && (
-              // 2026-05-16 (긴급 박제 — 점프볼 버튼 / 사용자 보고 이미지 #162).
-              //   openingJumpBall 미박제 시 = 화살표 자리에 [점프볼] 버튼 노출.
-              //   클릭 시 = onArrowClick (= score-sheet-form 의 handleArrowClick) → 점프볼 모달 open.
-              //   시각: 회색 outline + 텍스트만 (빨강 본문 ❌ / Material Symbols ❌ — 텍스트 버튼).
-              <button
-                type="button"
-                onClick={onArrowClick}
-                disabled={!onArrowClick}
-                aria-label="점프볼 — 첫 공격권 결정"
-                title={
-                  onArrowClick
-                    ? "점프볼 클릭 — 첫 공격권 결정 (FIBA Article 12)"
-                    : "점프볼 (read-only)"
-                }
+            {/* 2026-05-16 (PR-Possession-Box) — 좌측 column = 공격권 박스 + 소유팀명 라벨.
+                possessionArrow=null → 박스 안 "점프볼" 텍스트 / 라벨 "선공 미선택"
+                possessionArrow="home" → arrow_forward + 라벨 = homeTeamName
+                possessionArrow="away" → arrow_back + 라벨 = awayTeamName
+                possessionArrow=undefined (운영 호환 / 미전달) → 미노출. */}
+            {possessionArrow !== undefined && (
+              <div
                 style={{
-                  // 회색 outline + 텍스트만 (빨강 본문 텍스트 룰 ❌)
-                  border: "1.5px solid var(--color-text-secondary, #6B7280)",
-                  borderRadius: 4, // BDR 디자인 시스템 = 4px
-                  background: "transparent",
-                  color: "var(--color-text-primary)",
-                  cursor: onArrowClick ? "pointer" : "default",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  padding: "10px 14px",
-                  // 터치 영역 = 56px (기존 화살표와 동일 — 사용자 결재 보존)
-                  minWidth: 56,
-                  minHeight: 56,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  whiteSpace: "nowrap",
-                  touchAction: "manipulation",
-                  letterSpacing: "0.02em",
+                  gap: 4,
                 }}
               >
-                점프볼
-              </button>
-            )}
-            {possessionArrow !== null && possessionArrow !== undefined && (
-              <button
-                type="button"
-                onClick={onArrowClick}
-                disabled={!onArrowClick}
-                aria-label={
-                  possessionArrow === "home"
-                    ? "공격권 = home — 헬드볼 발생 시 공격권 토글"
-                    : "공격권 = away — 헬드볼 발생 시 공격권 토글"
-                }
-                title={
-                  onArrowClick
-                    ? "헬드볼 발생 시 클릭 — 공격권 토글"
-                    : "공격권 화살표 (read-only)"
-                }
-                style={{
-                  // 화살표 자체 크기 = 56px (사용자 결재)
-                  fontSize: 0, // material-symbols 자체 폰트 크기는 inline span 으로 분리
-                  border: "none",
-                  background: "transparent",
-                  padding: 4,
-                  cursor: onArrowClick ? "pointer" : "default",
-                  color: "var(--color-text-primary)",
-                  lineHeight: 1,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  // 터치 영역 = 56px (사용자 결재)
-                  minWidth: 56,
-                  minHeight: 56,
-                  touchAction: "manipulation",
-                }}
-              >
-                {/* Material Symbols Outlined — arrow_forward (home 방향) / arrow_back (away 방향).
-                    크기 = 56px (사용자 결재) — 회색 (var(--color-text-primary)). */}
-                <span
-                  className="material-symbols-outlined"
-                  style={{ fontSize: 56, fontWeight: 500 }}
-                  aria-hidden="true"
+                {/* 공격권 박스 = 쿼터 뱃지와 동일 시각 (빨강 outline / radius 6 / minWidth 88 / 22px 800).
+                    onArrowClick 미전달 시 = cursor default + 클릭 비활성. */}
+                <button
+                  type="button"
+                  onClick={onArrowClick}
+                  disabled={!onArrowClick}
+                  aria-label={
+                    possessionArrow === null
+                      ? "점프볼 — 첫 공격권 결정"
+                      : possessionArrow === "home"
+                      ? "공격권 = home — 헬드볼 발생 시 공격권 토글"
+                      : "공격권 = away — 헬드볼 발생 시 공격권 토글"
+                  }
+                  title={
+                    onArrowClick
+                      ? possessionArrow === null
+                        ? "점프볼 클릭 — 첫 공격권 결정 (FIBA Article 12)"
+                        : "헬드볼 발생 시 클릭 — 공격권 토글"
+                      : possessionArrow === null
+                      ? "점프볼 (read-only)"
+                      : "공격권 화살표 (read-only)"
+                  }
+                  className="flex items-center justify-center px-4 py-2"
+                  style={{
+                    // 쿼터 뱃지와 동일 박스 스타일 (사용자 결재 / 이미지 #164/#165)
+                    border: "2px solid #E31B23",
+                    borderRadius: 6,
+                    backgroundColor: "#FEF2F2",
+                    color: "#E31B23",
+                    minWidth: 88,
+                    fontSize: 22,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    cursor: onArrowClick ? "pointer" : "default",
+                    // button reset
+                    fontFamily: "inherit",
+                    touchAction: "manipulation",
+                  }}
                 >
-                  {possessionArrow === "home" ? "arrow_forward" : "arrow_back"}
-                </span>
-              </button>
+                  {possessionArrow === null ? (
+                    // 점프볼 미박제 → 박스 안 "점프볼" 텍스트
+                    <span>점프볼</span>
+                  ) : (
+                    // 점프볼 박제 후 → 박스 안 Material 화살표 (home=→ / away=←).
+                    // 박스 fontSize 22px 와 시각 정합 — 화살표 크기도 박스 본문과 동일.
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        fontSize: 28,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        color: "#E31B23",
+                      }}
+                      aria-hidden="true"
+                    >
+                      {possessionArrow === "home" ? "arrow_forward" : "arrow_back"}
+                    </span>
+                  )}
+                </button>
+                {/* 박스 아래 팀명 라벨 = "경기 중" 라벨과 동일 (10px 회색 600 / 가운데 정렬).
+                    home/away → 해당 팀명 / null → "선공 미선택" (시각 일관). */}
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "var(--color-text-secondary, #6B7280)",
+                    fontWeight: 600,
+                    textAlign: "center",
+                    lineHeight: 1,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {possessionArrow === "home"
+                    ? teamAName || ""
+                    : possessionArrow === "away"
+                    ? teamBName || ""
+                    : "선공 미선택"}
+                </div>
+              </div>
             )}
-            {/* 뱃지 + 상태 라벨 = 기존 column flex (위로 옮김). */}
+            {/* 우측 column = 쿼터 뱃지 + 매치 상태 라벨 (기존 v3 박제 보존). */}
             <div
               style={{
                 display: "flex",
@@ -320,46 +322,42 @@ export function FibaHeader({
                 gap: 4,
               }}
             >
-            {/* 2026-05-16 (PR-Quarter-Badge-v2) — "PERIOD"/"STATUS" 라벨 제거 (이미지 #134 fix).
-                v3: 부모 wrapper 에서 marginRight/alignSelf 흡수 → 본 div 는 박스 시각만. */}
-            <div
-              className="flex items-center justify-center px-4 py-2"
-              style={{
-                border: isEndedBadge
-                  ? "2px solid #6B7280"
-                  : "2px solid #E31B23",
-                borderRadius: 6,
-                backgroundColor: isEndedBadge ? "#F3F4F6" : "#FEF2F2",
-                color: isEndedBadge ? "#6B7280" : "#E31B23",
-                minWidth: 88,
-                fontSize: isEndedBadge ? 16 : 22,
-                fontWeight: 800,
-                lineHeight: 1,
-              }}
-              aria-live="polite"
-              aria-label={isEndedBadge ? "경기 종료" : `현재 쿼터 ${quarterLabel}`}
-            >
-              {quarterLabel}
-            </div>
-            {/* 2026-05-16 (PR-Quarter-Badge-v3) — 매치 상태 라벨 (이미지 #157 fix).
-                작은 글씨 (10px) / 회색 (var(--color-text-secondary)) / 가운데 정렬.
-                marksCount 미전달 시 matchPhaseLabel === null → 미노출 (운영 호환). */}
-            {matchPhaseLabel && (
+              {/* 쿼터 뱃지 (v2/v3 박제 시각 보존 — matchEnded 시 회색). */}
               <div
+                className="flex items-center justify-center px-4 py-2"
                 style={{
-                  fontSize: 10,
-                  color: "var(--color-text-secondary, #6B7280)",
-                  fontWeight: 600,
-                  textAlign: "center",
+                  border: isEndedBadge
+                    ? "2px solid #6B7280"
+                    : "2px solid #E31B23",
+                  borderRadius: 6,
+                  backgroundColor: isEndedBadge ? "#F3F4F6" : "#FEF2F2",
+                  color: isEndedBadge ? "#6B7280" : "#E31B23",
+                  minWidth: 88,
+                  fontSize: isEndedBadge ? 16 : 22,
+                  fontWeight: 800,
                   lineHeight: 1,
-                  letterSpacing: "0.02em",
                 }}
+                aria-live="polite"
+                aria-label={isEndedBadge ? "경기 종료" : `현재 쿼터 ${quarterLabel}`}
               >
-                {matchPhaseLabel}
+                {quarterLabel}
               </div>
-            )}
+              {/* 매치 상태 라벨 (v3 박제 보존 — 10px 회색 600). */}
+              {matchPhaseLabel && (
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "var(--color-text-secondary, #6B7280)",
+                    fontWeight: 600,
+                    textAlign: "center",
+                    lineHeight: 1,
+                    letterSpacing: "0.02em",
+                  }}
+                >
+                  {matchPhaseLabel}
+                </div>
+              )}
             </div>
-            {/* 2026-05-16 (PR-Possession-2) — 외부 row flex wrapper 닫기 (화살표 + 뱃지column 묶음). */}
           </div>
         )}
       </section>
