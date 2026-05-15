@@ -3,7 +3,10 @@
  *
  * 시안 데이터: 6 종별 / 36 팀 / 59 매치 (예선 46 + 순위전 13).
  *
- * 사용법:
+ * 사용법 (TOURNAMENT_ID env 권장 — 동명이대회 회피):
+ *   TOURNAMENT_ID=<uuid> ORGANIZER_USER_ID=<BigInt user_id> npx tsx scripts/_temp/seed-gnba-youth-2026.ts
+ *
+ * 또는 (TOURNAMENT_ID 미명시 시 name LIKE 검색 / 중복 시 throw):
  *   ORGANIZER_USER_ID=<BigInt user_id> npx tsx scripts/_temp/seed-gnba-youth-2026.ts
  *
  * ⚠️ 운영 DB 직접 INSERT — CLAUDE.md §🗄️ DB 정책 준수:
@@ -333,26 +336,43 @@ async function main() {
   }
   console.log(`  ✓ 운영자 확인: ${organizer.nickname ?? "(닉네임 없음)"} / ${organizer.email ?? "(이메일 없음)"}`);
 
-  // ─── 가드 3: 기존 Tournament 검색 (idempotent — 0건/1건/2건+ 분기) ───
-  console.log(`\n[2/8] 기존 Tournament 검색 — name LIKE "강남구협회장배" + startDate 2026-05-15~17...`);
-  const existingTournaments = await prisma.tournament.findMany({
-    where: {
-      name: { contains: "강남구협회장배" },
-      startDate: {
-        gte: new Date("2026-05-15T00:00:00+09:00"),
-        lt: new Date("2026-05-18T00:00:00+09:00"),
+  // ─── 가드 3: 기존 Tournament 검색 (idempotent — TOURNAMENT_ID env 우선 / fallback name LIKE) ───
+  // TOURNAMENT_ID env 명시 시 정확 매칭 (동명이대회 회피 / 권장)
+  // 미명시 시 name LIKE "강남구협회장배" + startDate 2026-05-15~17 검색
+  const tournamentIdEnv = process.env.TOURNAMENT_ID;
+  let existingTournament: { id: string; name: string; startDate: Date | null } | null = null;
+  if (tournamentIdEnv) {
+    console.log(`\n[2/8] Tournament 검색 — TOURNAMENT_ID env 명시 (id=${tournamentIdEnv})...`);
+    const found = await prisma.tournament.findUnique({
+      where: { id: tournamentIdEnv },
+      select: { id: true, name: true, startDate: true },
+    });
+    if (!found) {
+      throw new Error(`[가드 3 위반] TOURNAMENT_ID env (${tournamentIdEnv}) 부재 — 운영 DB 미등록`);
+    }
+    existingTournament = found;
+    console.log(`  ✓ Tournament 재사용 (TOURNAMENT_ID 매칭): id=${existingTournament.id} / name="${existingTournament.name}"`);
+  } else {
+    console.log(`\n[2/8] 기존 Tournament 검색 — name LIKE "강남구협회장배" + startDate 2026-05-15~17...`);
+    const existingTournaments = await prisma.tournament.findMany({
+      where: {
+        name: { contains: "강남구협회장배" },
+        startDate: {
+          gte: new Date("2026-05-15T00:00:00+09:00"),
+          lt: new Date("2026-05-18T00:00:00+09:00"),
+        },
       },
-    },
-    select: { id: true, name: true, startDate: true },
-  });
-  if (existingTournaments.length > 1) {
-    throw new Error(
-      `[가드 3 위반] Tournament 중복 ${existingTournaments.length}건 검출 — 운영자 확인 필요:\n` +
-        existingTournaments.map((t) => `  - id=${t.id} / name="${t.name}" / startDate=${t.startDate?.toISOString()}`).join("\n"),
-    );
+      select: { id: true, name: true, startDate: true },
+    });
+    if (existingTournaments.length > 1) {
+      throw new Error(
+        `[가드 3 위반] Tournament 중복 ${existingTournaments.length}건 검출 — TOURNAMENT_ID env 명시 필요:\n` +
+          existingTournaments.map((t) => `  - id=${t.id} / name="${t.name}" / startDate=${t.startDate?.toISOString()}`).join("\n"),
+      );
+    }
+    existingTournament = existingTournaments[0] ?? null;
+    console.log(`  ✓ Tournament: ${existingTournament ? `재사용 (id=${existingTournament.id} / name="${existingTournament.name}")` : "신규 생성 예정"}`);
   }
-  const existingTournament = existingTournaments[0] ?? null;
-  console.log(`  ✓ Tournament: ${existingTournament ? `재사용 (id=${existingTournament.id})` : "신규 생성 예정"}`);
 
   // ─── 트랜잭션 시작 (timeout 30000ms) ───
   // 사유: 부분 실패 시 전체 롤백 (운영 DB orphan 데이터 방지)
