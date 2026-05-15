@@ -2,6 +2,45 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-16] Phase 1 admin 흐름 개선 6 PR 박제 (강남구협회장배 시나리오 § 단계 4·7·10·10.5 단절 + 누락 해소)
+- **분류**: 기술 결정 / admin UX / 다종별 대회 운영 흐름
+- **계기**: 사용자 지적 — "조별리그+토너먼트 시나리오에서 조편성 → 경기일정 → 토너먼트 트리 흐름이 자연스럽지 않음 / 흐름 복잡 / 중복 / 분리됨". Phase 0 점검 보고서 (`Dev/admin-flow-audit-2026-05-16.md`) 18건 단절/중복/혼란/누락 (영향도 H 8건) → Phase 1 우선 1~6 채택
+- **6 PR 박제 (모두 옵션 B PM 직접 검증 모드)**:
+  - **PR-Admin-1** `4c05c8c` — NextStepCTA 컴포넌트 + 3 페이지 박제 (divisions → teams → bracket → matches 단계간 CTA)
+  - **PR-Admin-2** `1e4b535` — matches 단일 순위전 trigger AdvancePlayoffsButton (teams 페이지 기존 버튼 → matches 페이지 이동 / 단일 다이얼로그 + 4 col 결과 모달)
+  - **PR-Admin-3** `823d692` — placeholder 검증 배너 PlaceholderValidationBanner (강남구 사고 패턴 자동 검출 / format-violation + missing-slot-label / detectInvalidPlaceholderMatches 신규 export / RANKING_ROUND_REGEX)
+  - **PR-Admin-4** `6d7718a` — bracket 종별별 generator trigger (별도 endpoint `/api/web/admin/tournaments/[id]/division-rules/[ruleId]/generate` / DivisionGenerateButton / bracket POST 시그니처 변경 0 / 트랜잭션 + advisory lock + 다른 종별 매치 보존)
+  - **PR-Admin-5** `f4b0f95` — SetupChecklist 두 카드 통합 (8 항목 → 7 항목 / #3 + #4 → 통합 #3 "종별 + 운영방식" / progress N/M 표시 / canPublish 회귀 0)
+  - **PR-Admin-6** `f250e8c` — /playoffs 신규 hub (5 섹션: Banner + Advance + Standings + 순위전 매치 + 결승 trophy / Promise.all 종별 N건 병렬 / 재사용 컴포넌트 4종)
+- **신규 컴포넌트 5건**: NextStepCTA / AdvancePlayoffsButton / PlaceholderValidationBanner / DivisionGenerateButton / StandingsTable
+- **신규 endpoint 1건**: division-rules/[ruleId]/generate (POST)
+- **신규 페이지 1건**: /tournament-admin/tournaments/[id]/playoffs
+- **재사용 우선 룰**: PR-Admin-6 hub 가 PR-Admin-1~3 컴포넌트 4종 재사용 → 신규 비즈 로직 ↓ / 시그니처 변경 0
+- **회귀 보장**:
+  - bracket POST 5 분기 (single_elim / dual / full_league_knockout / NBA-seed / swiss) 시그니처 변경 0
+  - canPublish 로직 코드 변경 0 (#3 + #4 통합으로 required 카운트 회귀 0)
+  - placeholder-helpers 6 함수 시그니처 변경 0 (export 추가만)
+  - match-sync.ts 변경 0 (advance 자동 trigger 와 양면 박제)
+  - Flutter v1 영향 0
+- **검증**: tsc 0 (전체 PASS) / vitest tournaments 240/240 PASS + setup-status 50/50 PASS + placeholder-helpers 26/26 PASS
+- **총 LOC**: +3,060 (Phase 0 점검 보고서 제외 / 신규 5 컴포넌트 + 1 endpoint + 1 페이지 + 5 기존 페이지 통합)
+- **강남구협회장배 시나리오 개선 비교** (`Dev/admin-flow-audit-2026-05-16.md` §3 단계별):
+  | 단계 | Before | After |
+  |------|--------|-------|
+  | 4 (divisions → teams) | 단절 | NextStepCTA |
+  | 7 (teams → bracket) | 단절 | NextStepCTA |
+  | 7.5 (bracket 종별 재생성) | 전체 재생성 위험 | DivisionGenerateButton 종별별 |
+  | 10 (순위전 trigger) | divisions 4 클릭 | matches 1 클릭 + /playoffs hub |
+  | 10.5 (placeholder 검증) | 누락 | 자동 배너 |
+  | 10~11 (순위전·결승) | 분산 (matches+divisions+bracket) | /playoffs 단일 hub |
+- **후속 PR 큐 (Phase 2)**:
+  - /setup stepper (셋업 단계별 진행 stepper / 점검 §6.4 신규 페이지 후보)
+  - 마법사 Phase 2~4 (Step 0/1/2 시안 진입 / D1~D4 BLOCKED)
+  - 마법사 Phase 5~10 (종별·팀·대진표 흡수 / 대규모)
+  - group_stage_knockout generator 풀구현 (현재 stub)
+  - generate endpoint GenerateOptions 확장 (venueName / startScheduledAt / intervalMinutes)
+- **참조횟수**: 0
+
 ### [2026-05-16] PR-G5.8 swiss generator R1 박제 + R(N) endpoint stub (옵션 B)
 - **분류**: 기술 결정 / 대진표 generator / swiss 시스템
 - **결정**: 옵션 B (R1 풀구현 + R(N) endpoint 501 stub) ⭕ / 옵션 A (R1+R(N) 전체 풀구현 ~700~900 LOC) ❌ / 옵션 C (R1 만 / R(N) 미박제) ❌
