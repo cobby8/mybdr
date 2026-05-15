@@ -825,7 +825,10 @@ export function ScoreSheetForm({
     setFouls((prev) => {
       const next = removeLastFoul(prev, team, playerId);
       if (next !== prev) {
-        showToast("파울 1건 해제", "info");
+        // PR-Stat3.4 (2026-05-15) — React 19 strict mode double-invoke render phase 회피.
+        //   updater 안 showToast 직접 호출 → ToastProvider setState → render 중 violation.
+        //   queueMicrotask defer = 같은 tick 안 처리 (사용자 인지 차이 0).
+        queueMicrotask(() => showToast("파울 1건 해제", "info"));
       }
       return next;
     });
@@ -844,13 +847,16 @@ export function ScoreSheetForm({
         period: runningScore.currentPeriod,
       });
       const teamLabel = team === "home" ? "Team A" : "Team B";
+      // PR-Stat3.4 (2026-05-15) — queueMicrotask defer (render phase 회피).
       if (!result.ok) {
-        // Article 18-19 차단 — toast 에러
-        showToast(`${teamLabel} ${result.reason}`, "error");
+        queueMicrotask(() =>
+          showToast(`${teamLabel} ${result.reason}`, "error"),
+        );
         return prev;
       }
-      // 정상 추가 — toast 안내 (잔여 표시)
-      showToast(`${teamLabel} ${result.reason}`, "info");
+      queueMicrotask(() =>
+        showToast(`${teamLabel} ${result.reason}`, "info"),
+      );
       return result.state;
     });
   }
@@ -861,7 +867,9 @@ export function ScoreSheetForm({
       const next = removeLastTimeout(prev, team);
       if (next !== prev) {
         const teamLabel = team === "home" ? "Team A" : "Team B";
-        showToast(`${teamLabel} 타임아웃 1건 해제`, "info");
+        queueMicrotask(() =>
+          showToast(`${teamLabel} 타임아웃 1건 해제`, "info"),
+        );
       }
       return next;
     });
@@ -908,12 +916,16 @@ export function ScoreSheetForm({
   function handleRemoveStat() {
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
+    const ctx = statPopoverCtx; // closure capture (setStatPopoverCtx 호출 후도 안전)
     setPlayerStats((prev) => {
       const next = removeStat(prev, playerId, statKey);
       if (next !== prev) {
-        showToast(
-          `${statKey.toUpperCase()} -1 (${statPopoverCtx.playerName})`,
-          "info"
+        // PR-Stat3.4 — queueMicrotask defer.
+        queueMicrotask(() =>
+          showToast(
+            `${statKey.toUpperCase()} -1 (${ctx.playerName})`,
+            "info",
+          ),
         );
       }
       return next;
@@ -931,12 +943,11 @@ export function ScoreSheetForm({
         period: runningScore.currentPeriod,
         type,
       });
+      // PR-Stat3.4 (2026-05-15) — queueMicrotask defer (render phase 회피).
       if (!result.ok) {
-        // Article 41 차단 (이미 퇴장) — TeamSection 가 차단해야 하지만 안전망
-        showToast(result.reason, "error");
+        queueMicrotask(() => showToast(result.reason, "error"));
         return prev;
       }
-      // 마킹 후 합산 — Article 41 / 5+ FT 토스트
       const newTeamFouls =
         team === "home" ? result.state.home : result.state.away;
       const periodTeamCount = getTeamFoulCountByPeriod(
@@ -944,37 +955,38 @@ export function ScoreSheetForm({
         runningScore.currentPeriod
       );
 
-      // 5+ Team Fouls = 자유투 부여 toast
       if (periodTeamCount >= 5) {
         const teamLabel = team === "home" ? "Team A" : "Team B";
-        showToast(
-          `자유투 부여 — ${teamLabel} Period ${runningScore.currentPeriod} ${periodTeamCount}번째 파울`,
-          "info"
+        queueMicrotask(() =>
+          showToast(
+            `자유투 부여 — ${teamLabel} Period ${runningScore.currentPeriod} ${periodTeamCount}번째 파울`,
+            "info",
+          ),
         );
       }
-      // Phase 3.5 — Article 41 퇴장 도달 toast (사유 분기)
-      // 이유: 5반칙 / T 2회 / U 2회 / D 1회 = 4가지 사유 차별화 alert (사용자 결재 §1.2)
       const ejection = type;
-      // type 자체로 빠른 분기 (D 는 1건만으로도 즉시 퇴장)
       if (ejection === "D") {
-        showToast(`Disqualifying — 즉시 퇴장`, "info");
+        queueMicrotask(() =>
+          showToast(`Disqualifying — 즉시 퇴장`, "info"),
+        );
       } else {
-        // 추가 후 임계 도달 케이스 검증 — 사유 분기 toast
         const playerFouls = newTeamFouls.filter((f) => f.playerId === playerId);
         const tCount = playerFouls.filter((f) => f.type === "T").length;
         const uCount = playerFouls.filter((f) => f.type === "U").length;
         if (tCount === 2) {
-          showToast(`Technical 2회 — 퇴장`, "info");
+          queueMicrotask(() =>
+            showToast(`Technical 2회 — 퇴장`, "info"),
+          );
         } else if (uCount === 2) {
-          showToast(`Unsportsmanlike 2회 — 퇴장`, "info");
+          queueMicrotask(() =>
+            showToast(`Unsportsmanlike 2회 — 퇴장`, "info"),
+          );
         } else if (playerFouls.length === 5) {
-          // P+T+U+D 합 = 5 (5반칙)
-          showToast(`5반칙 — 퇴장`, "info");
+          queueMicrotask(() => showToast(`5반칙 — 퇴장`, "info"));
         }
       }
       return result.state;
     });
-    // 모달 close
     setFoulModalCtx(null);
   }
 
