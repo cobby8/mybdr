@@ -253,7 +253,12 @@ export function TeamSection({
   //       _score-sheet-styles.css 의 .ss-tbox* 룰 적용. frameless prop = 운영 호환 (기본 frameless 유지 — wrap 부모가 단일 외곽 박스).
   //   운영 동작 보존: props interface 변경 0 / onClick 변경 0 / Phase 17 쿼터별 색 inline style 그대로 wiring.
   return (
-    <section className="ss-shell ss-tbox" aria-label={`${sideLabel} ${teamName}`}>
+    <section
+      className="ss-shell ss-tbox"
+      aria-label={`${sideLabel} ${teamName}`}
+      // 2026-05-15 (PR-Section-Labels) — 7 섹터 그룹명. sideLabel → team-a / team-b.
+      data-ss-section={sideLabel === "Team A" ? "team-a" : "team-b"}
+    >
       {/* §1 Head — Team A / Team B name strip (시안 .ss-tbox__head + .pap-lbl + .pap-u) */}
       <div className="ss-tbox__head">
         <label className="pap-lbl">{sideLabel}</label>
