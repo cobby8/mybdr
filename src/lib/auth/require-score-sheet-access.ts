@@ -26,6 +26,8 @@ import { apiError } from "@/lib/api/response";
 import { getWebSession } from "@/lib/auth/web-session";
 // 2026-05-11 Phase 2 — isSuperAdmin 단일 source 통합 (인라인 제거).
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+// 2026-05-15 PR1 — recorder_admin 권한 자동 흡수 (모든 대회 점수기록 통과).
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 // 권한 통과 시 반환 — match/tournament 양쪽 정보 (settings 포함, BFF 모드 가드 재사용)
 export interface ScoreSheetAccessOk {
@@ -139,14 +141,16 @@ export async function requireScoreSheetAccess(
     };
   }
 
-  // 3) 권한 매트릭스 — super_admin / organizer / admin member / recorder 중 하나면 통과
+  // 3) 권한 매트릭스 — super_admin / recorder_admin / organizer / admin member / recorder 중 하나면 통과
   // 이유: 점수 입력 = recorder 기본 권한 + 운영자 메타 변경 권한 양쪽 포괄 (lineup-confirm 헬퍼 패턴 동일).
-  // isSuperAdmin 은 단일 source `@/lib/auth/is-super-admin` 사용 (Phase 2 통합).
+  // isSuperAdmin / isRecorderAdmin 은 단일 source 사용 (Phase 2 통합 + PR1 add-only 분기).
+  // recorder_admin = 전역 기록원 관리자 — 본인 배정 여부 무관 모든 대회 통과 (Q1 결재 = super_admin 자동 흡수).
   const superAdmin = isSuperAdmin(session);
+  const recorderAdmin = isRecorderAdmin(session);
 
   const isOrganizer = match.tournament.organizerId === userId;
 
-  let hasAccess = superAdmin || isOrganizer;
+  let hasAccess = superAdmin || recorderAdmin || isOrganizer;
 
   // 4) 운영자 멤버 / 기록원 SELECT — super_admin/organizer 면 추가 쿼리 skip (효율)
   if (!hasAccess) {

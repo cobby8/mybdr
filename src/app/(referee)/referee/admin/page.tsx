@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 import {
   getAssociationAdmin,
   SUPER_ADMIN_SENTINEL_ROLE,
@@ -19,6 +20,12 @@ import {
  *         자동 선택 (getAssociationAdmin sentinel role).
  *   동작: 일반 association_admin 진입 시 기존 동작 유지. super_admin 진입 시 안내 헤더 + sentinel
  *         협회 (첫 활성) 데이터 표시. 협회 0개 운영 시 (associationId=0n) 안내만 표시 + 통계 0.
+ *
+ * 2026-05-15 PR3 — recorder_admin sentinel 안내 헤더 분기 추가.
+ *   이유: recorder_admin 도 sentinel 분기 (협회 N/A 상태에서도 진입 허용) — 안내 텍스트는
+ *         "Recorder Admin 권한 진입" 으로 분기 표시 (운영자가 진입 경로 식별).
+ *   분기: super_admin 우선 표시 (isRecorderAdmin 가 super 흡수하지만, 진입 정체성은 super_admin 이면
+ *         "Super Admin", recorder_admin 만 있으면 "Recorder Admin" 으로 분기).
  */
 
 export default async function AdminDashboardPage() {
@@ -28,16 +35,21 @@ export default async function AdminDashboardPage() {
 
   const userId = BigInt(session.sub);
 
-  // 🆕 super_admin sentinel 분기 (Phase 1-B)
-  //   getAssociationAdmin() 이 super_admin 시 sentinel role + 첫 활성 협회 자동 선택.
+  // 🆕 super_admin / recorder_admin sentinel 분기 (Phase 1-B / PR3)
+  //   getAssociationAdmin() 이 super/recorder_admin 시 sentinel role + 첫 활성 협회 자동 선택.
   //   기존 페이지 동작 보존을 위해 sentinel 경로는 별도 처리 — 협회명/통계는 첫 협회 사용.
+  // PR3 분기 우선순위: super_admin 이면 "Super Admin" / 그 외 recorder_admin 이면 "Recorder Admin".
+  //   이유: isRecorderAdmin 가 super 자동 흡수 — super_admin 보유자는 super 정체성 우선 표시.
   const superAdmin = isSuperAdmin(session);
+  const recorderAdmin = !superAdmin && isRecorderAdmin(session);
+  const isSentinelSession = superAdmin || recorderAdmin;
   let associationId: bigint;
   let associationName: string;
-  let isSuperAdminEntry = false;
+  let isSuperAdminEntry = false; // 안내 헤더 표시 여부 (super or recorder 진입)
+  let entryRole: "super_admin" | "recorder_admin" | null = null; // 안내 텍스트 분기
   let hasAssociation = true;
 
-  if (superAdmin) {
+  if (isSentinelSession) {
     // sentinel — getAssociationAdmin() 통해서 첫 활성 협회 자동 선택 (admin-guard 동일 로직).
     const guardResult = await getAssociationAdmin();
     if (!guardResult || guardResult.role !== SUPER_ADMIN_SENTINEL_ROLE) {
@@ -45,6 +57,7 @@ export default async function AdminDashboardPage() {
       return null;
     }
     isSuperAdminEntry = true;
+    entryRole = superAdmin ? "super_admin" : "recorder_admin";
     associationId = guardResult.associationId;
     // 협회 0개 운영 시 associationId=0n sentinel — 안전 처리.
     if (associationId === BigInt(0)) {
@@ -186,7 +199,10 @@ export default async function AdminDashboardPage() {
               className="text-sm font-semibold"
               style={{ color: "var(--color-text-primary)" }}
             >
-              Super Admin 권한 진입
+              {/* PR3 분기 — super_admin 우선 / recorder_admin 별도 라벨 */}
+              {entryRole === "recorder_admin"
+                ? "Recorder Admin 권한 진입"
+                : "Super Admin 권한 진입"}
               {hasAssociation && (
                 <span
                   className="ml-2 text-xs font-normal"

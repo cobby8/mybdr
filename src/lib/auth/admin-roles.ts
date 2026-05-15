@@ -27,8 +27,15 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { getAuthUser, type AuthUser } from "./get-auth-user";
+// PR3 (2026-05-15): recorder_admin (전역 기록원 관리자) 매트릭스 박제용 — isSuperAdmin 자동 흡수.
+import { isRecorderAdmin } from "./is-recorder-admin";
 
 // AdminLayout 호환 — sidebar.tsx 의 AdminRole 타입과 동일 (메뉴 필터링 재사용)
+// PR3 (2026-05-15): recorder_admin 은 AdminRole union 에 추가하지 않음.
+//   이유: (admin)/admin/* sidebar 진입 자동 허용 금지 (scratchpad §1 권한 매트릭스).
+//         recorder_admin = /referee/admin/* 전용 신호. summary.recorderAdmin boolean 으로 분리 표시.
+//         summary.roles 에 "recorder_admin" 을 넣으면 (admin)/admin/layout 의 length>0 가드 통과 발생.
+//         RoleMatrixCard 는 boolean 으로 직접 표시 — roles 배열 push 불필요.
 export type AdminRole =
   | "super_admin"
   | "site_admin"
@@ -102,6 +109,10 @@ export interface AdminRoleSummary {
   superAdmin: boolean;
   siteAdmin: boolean;
   tournamentAdmin: boolean;
+  // 2026-05-15 PR3 — recorder_admin (전역 기록원 관리자) boolean.
+  //   isRecorderAdmin(session) 결과 — super_admin 자동 흡수 (Q1 결재).
+  //   RoleMatrixCard 가 superAdmin 도 "Super 자동" 흡수 표시할 수 있도록 분리 박제.
+  recorderAdmin: boolean;
   // 토너먼트별 운영 권한 리스트 (마이페이지 표시 — 5건 펼치기 UX 는 Phase 2)
   tournamentAdminMembers: TournamentAdminEntry[];
   tournamentRecorders: TournamentRecorderEntry[];
@@ -145,6 +156,10 @@ export const getAdminRoles = cache(
     const superAdmin = session?.role === "super_admin";
     const siteAdmin = session?.admin_role === "site_admin";
     const tournamentAdmin = session?.role === "tournament_admin";
+    // 2026-05-15 PR3 — recorder_admin (전역 기록원 관리자) 박제.
+    //   isRecorderAdmin 은 isSuperAdmin 자동 흡수 → super_admin 보유자도 true 반환 (Q1 결재).
+    //   UI 측 (RoleMatrixCard) 에서 super_admin 일 때는 "Super 자동" 표시 / 그 외 본인 권한 표시.
+    const recorderAdmin = isRecorderAdmin(session);
 
     // 2) DB SELECT — super_admin 이면 일부 skip (효율)
     // partner/org 는 super_admin 인 경우 굳이 조회 불필요 (AdminLayout 동일 패턴 + 마이페이지
@@ -298,11 +313,16 @@ export const getAdminRoles = cache(
       if (partnerMember) roles.push("partner_member");
       if (orgMember) roles.push("org_member");
     }
+    // 2026-05-15 PR3 — recorder_admin 은 roles 배열 push 하지 않음.
+    //   이유: (admin)/admin/layout 이 roles.length === 0 일 때만 차단 — recorder_admin push 시
+    //         일반 사용자가 (admin)/admin/* 영역 진입 가능해짐 (혼선 회피 룰 위반).
+    //         RoleMatrixCard 가 boolean 으로 별도 표시 (summary.recorderAdmin) → push 불필요.
 
     return {
       superAdmin,
       siteAdmin,
       tournamentAdmin,
+      recorderAdmin,
       tournamentAdminMembers,
       tournamentRecorders,
       partnerMember,
@@ -335,6 +355,7 @@ export async function getAdminRolesFromAuth(
       superAdmin: false,
       siteAdmin: false,
       tournamentAdmin: false,
+      recorderAdmin: false, // PR3 (2026-05-15)
       tournamentAdminMembers: [],
       tournamentRecorders: [],
       partnerMember: null,

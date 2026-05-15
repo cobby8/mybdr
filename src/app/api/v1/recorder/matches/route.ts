@@ -9,9 +9,13 @@ import { ACTIVE_MATCH_STATUSES, ACTIVE_TOURNAMENT_STATUSES } from "@/lib/constan
 async function handler(_req: NextRequest, ctx: AuthContext) {
   const userId = BigInt(ctx.userId);
   const isSuperAdmin = ctx.userRole === "super_admin";
+  // 2026-05-15 PR1 — recorder_admin (전역 기록원 관리자) = 모든 대회 매치 응답
+  // 이유: Flutter 기록앱이 JWT payload.admin_role 필드를 확인 (web session 아님).
+  // super_admin 자동 흡수 = isSuperAdmin 분기에서 이미 통과 → recorder_admin OR 분기로 동일 응답 경로 진입.
+  const isRecorderAdmin = ctx.payload.admin_role === "recorder_admin";
 
-  // super_admin은 진행중인 모든 대회의 경기를 볼 수 있음
-  if (isSuperAdmin) {
+  // super_admin / recorder_admin 은 진행중인 모든 대회의 경기를 볼 수 있음
+  if (isSuperAdmin || isRecorderAdmin) {
     const matches = await prisma.tournamentMatch.findMany({
       where: {
         status: { in: [...ACTIVE_MATCH_STATUSES] },

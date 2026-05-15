@@ -514,6 +514,20 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           continue;
         }
 
+        // 2026-05-15 PR-G5.6 — single_elim 2R~ NULL placeholder 슬롯 라벨 보강.
+        //   사유: 강남구 사고 영구 차단 패턴 동일 적용 — placeholder 매치도 UI 카드에
+        //         "준결승 1경기 승자" 형식 표시 (homeTeamId NULL 시 settings.homeSlotLabel 우선).
+        //   r=1 (실팀 매칭) = 슬롯 라벨 없음 / r > 1 = 이전 라운드 두 매치 승자 슬롯.
+        //   buildSlotLabel 호출로 형식 일관성 보장 (CLAUDE.md G5.1 헬퍼 단일 source).
+        let slotSettings: { homeSlotLabel: string; awaySlotLabel: string } | undefined;
+        if (r > 1) {
+          const prevRoundName = roundName(r - 1, totalRounds);
+          slotSettings = {
+            homeSlotLabel: `${prevRoundName} ${2 * pos - 1}경기 승자`,
+            awaySlotLabel: `${prevRoundName} ${2 * pos}경기 승자`,
+          };
+        }
+
         // Phase 4 — applyV4 로 v4 필드 자동 부여 (match_code 등)
         const match = await tx.tournamentMatch.create({
           data: applyV4({
@@ -528,6 +542,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
             status: r === 1 ? "scheduled" : "pending",
             next_match_id: nextMatchId,
             next_match_slot: nextMatchSlot,
+            ...(slotSettings && { settings: slotSettings }),
           }),
         });
         roundMatchIds[r].push(match.id);

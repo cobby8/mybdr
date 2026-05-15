@@ -33,10 +33,16 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   // 풀리그 포맷 판별 (리그 순위표/일정을 추가로 반환할지 결정)
   // round_robin: 순수 풀리그 / full_league: 풀리그만 / full_league_knockout: 풀리그 후 토너먼트
+  // 2026-05-15 PR-G5.9 — league_advancement / group_stage_with_ranking 추가 (강남구 다종별 운영).
+  //   tournament.format 이 null 인 다종별 대회 (종별마다 다른 format) 도 leagueMatches 노출 위해
+  //   bracketOnlyMatches (round_number+bracket_position) 미해당 매치는 모두 leagueMatches 분기.
   const isLeague =
     tournament.format === "round_robin" ||
     tournament.format === "full_league" ||
-    tournament.format === "full_league_knockout";
+    tournament.format === "full_league_knockout" ||
+    tournament.format === "league_advancement" ||
+    tournament.format === "group_stage_with_ranking" ||
+    tournament.format == null; // 다종별 대회 (종별별 다른 format)
 
   const [matches, tournamentTeams] = await Promise.all([
     // 매치 데이터
@@ -365,19 +371,36 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 토너먼트 트리와 달리 풀리그는 라운드 개념이 없으므로 시간순 리스트로 표시
   const leagueMatches = isLeague
     ? matches
-        .map((m) => ({
-          id: m.id.toString(),
-          // homeTeam/awayTeam은 TournamentTeam을 가리키고, 그 안의 teamId가 실제 Team.id
-          homeTeamId: m.homeTeam?.teamId?.toString() ?? null,
-          awayTeamId: m.awayTeam?.teamId?.toString() ?? null,
-          homeTeamName: m.homeTeam?.team?.name ?? null,
-          awayTeamName: m.awayTeam?.team?.name ?? null,
-          homeScore: m.homeScore,
-          awayScore: m.awayScore,
-          status: m.status,
-          scheduledAt: m.scheduledAt?.toISOString() ?? null,
-          courtNumber: m.court_number,
-        }))
+        .map((m) => {
+          // 2026-05-15 PR-G5.9 — placeholder 매치 + 다종별 시각화용 필드 추가.
+          //   settings.division_code / homeSlotLabel / awaySlotLabel → bracket 탭 카드에서
+          //   종별 chip + "A조 1위" 슬롯 라벨 표시 가능. venue_name 도 동시 노출.
+          //   schedule-timeline 와 동일 필드 (UI 컴포넌트 재사용 친화).
+          const s = m.settings as {
+            division_code?: string;
+            homeSlotLabel?: string;
+            awaySlotLabel?: string;
+          } | null;
+          return {
+            id: m.id.toString(),
+            // homeTeam/awayTeam은 TournamentTeam을 가리키고, 그 안의 teamId가 실제 Team.id
+            homeTeamId: m.homeTeam?.teamId?.toString() ?? null,
+            awayTeamId: m.awayTeam?.teamId?.toString() ?? null,
+            homeTeamName: m.homeTeam?.team?.name ?? null,
+            awayTeamName: m.awayTeam?.team?.name ?? null,
+            homeScore: m.homeScore,
+            awayScore: m.awayScore,
+            status: m.status,
+            scheduledAt: m.scheduledAt?.toISOString() ?? null,
+            courtNumber: m.court_number,
+            roundName: m.roundName,
+            // PR-G5.9 신규 필드
+            venueName: m.venue_name,
+            division: s?.division_code ?? null,
+            homeSlotLabel: s?.homeSlotLabel ?? null,
+            awaySlotLabel: s?.awaySlotLabel ?? null,
+          };
+        })
         .sort((a, b) => {
           // 일정 미정(scheduledAt=null)은 맨 뒤로
           if (!a.scheduledAt && !b.scheduledAt) return 0;

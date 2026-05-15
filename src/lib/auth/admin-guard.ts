@@ -1,6 +1,7 @@
 import { getWebSession } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
-import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+// PR3 (2026-05-15): isRecorderAdmin 가 isSuperAdmin 자동 흡수 — sentinel 분기 단일 진입점.
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 /**
  * 협회 관리자(Association Admin) 인증 + 권한 유틸리티.
@@ -27,6 +28,12 @@ import { isSuperAdmin } from "@/lib/auth/is-super-admin";
  *   동작: super_admin 진입 시 첫 활성 협회 자동 선택 + sentinel role (`__super_admin__`).
  *         `hasPermission()` 이 sentinel role 무조건 true 반환 → 12 permission 자동 통과.
  *         협회 0개 운영 상태 = associationId=0n sentinel (페이지 별 안내 처리).
+ *
+ * 2026-05-15 PR3 — recorder_admin sentinel 통과 (Q2 결재 = 옵션 A).
+ *   이유: recorder_admin = 전역 기록원 관리자. /referee/admin 진입 + 협회 12 permission 자동 통과.
+ *   동작: isRecorderAdmin 분기 = isSuperAdmin OR recorder_admin (자동 흡수) → 둘 다 동일 sentinel role 반환.
+ *         별도 sentinel 상수 분리 없이 SUPER_ADMIN_SENTINEL_ROLE 그대로 재사용 (permission 자동 통과 일관).
+ *         별도 권한 차단 분기 추가 0 (정산 등 12 permission 전부 통과 — 본 PR 범위 외 세분화는 PR4 이후).
  */
 
 // ── super_admin sentinel 상수 ──
@@ -128,11 +135,13 @@ export async function getAssociationAdmin(): Promise<AdminGuardResult | null> {
 
   const userId = BigInt(session.sub);
 
-  // 2) 🆕 super_admin sentinel 분기 (Phase 1-B / 2026-05-11)
+  // 2) 🆕 super_admin / recorder_admin sentinel 분기 (Phase 1-B / 2026-05-11 + PR3 / 2026-05-15)
   //   이유: super_admin = 모든 협회 + 12 permission 자동 통과 (partner-admin 패턴 일관).
+  //         recorder_admin = 전역 기록원 관리자도 /referee/admin 영역 자동 통과 (Q2 결재 옵션 A).
   //   동작: 첫 활성 협회 자동 선택 + sentinel role 반환 → hasPermission() 자동 통과.
+  //         isRecorderAdmin 가 isSuperAdmin 자동 흡수 (Q1) — 단일 분기로 둘 다 통과.
   //   협회 0개 운영 상태 = associationId=0n sentinel (페이지 별 안내).
-  if (isSuperAdmin(session)) {
+  if (isRecorderAdmin(session)) {
     // 첫 활성 협회 자동 선택 — 협회별 active 컬럼 없음 (Association 모델 = 정적 마스터).
     // 협회 admin 매핑이 존재하는 첫 협회를 우선 선택 (운영 안전 — 실제 사용 중인 협회).
     // 매핑이 0건이면 협회 자체 첫 row 사용. 둘 다 0이면 0n sentinel.

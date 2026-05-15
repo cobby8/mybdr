@@ -77,11 +77,11 @@ export function QuarterEndModal({
   // - Q4 종료 → OT1
   // - OT1 종료 → OT2
   // - OT2 종료 → OT3
-  // - OT3 종료 → 진행 불가 (caller 가 currentPeriod>=7 차단)
+  // - OT5 종료 → 진행 불가 (PR-Stat3.7 — OT max 7 → 9 / OT5 확장 / 사용자 결재).
   const nextOtNumber = mode === "quarter4" ? 1 : currentPeriod - 4 + 1;
   const nextOtLabel = `OT${nextOtNumber}`;
-  // OT3 (period=7) 종료 시 = 더 이상 OT 불가 → "다음 진행" 비활성
-  const canContinue = currentPeriod < 7;
+  // PR-Stat3.7 (2026-05-15) — OT max 7 → 9 (OT5 까지 확장 / 무한 OT 차단).
+  const canContinue = currentPeriod < 9;
 
   return (
     // Phase 7 — `no-print` = 인쇄 시 모달 제거
@@ -225,14 +225,15 @@ export function QuarterEndModal({
             aria-label={
               canContinue
                 ? `${nextOtLabel} 으로 진행`
-                : "다음 OT 진행 불가 (OT3 종료)"
+                : `다음 OT 진행 불가 (OT${currentPeriod - 4} 최종)`
             }
             aria-disabled={!canContinue}
           >
             <span className="material-symbols-outlined mr-1 align-middle text-base">
               skip_next
             </span>
-            {canContinue ? `${nextOtLabel} 진행` : "OT3 종료"}
+            {/* PR-Stat3.7 (2026-05-15) — 라벨 동적 (currentPeriod 기반). max OT5 시 "OT5 최종" 표시. */}
+            {canContinue ? `${nextOtLabel} 진행` : `OT${currentPeriod - 4} 최종`}
           </button>
         </div>
 
