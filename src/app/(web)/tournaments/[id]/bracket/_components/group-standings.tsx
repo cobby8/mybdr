@@ -14,6 +14,8 @@ export type GroupTeam = {
   id: string;
   teamId: string; // Team 테이블의 실제 id (팀 페이지 링크용)
   teamName: string;
+  // 2026-05-15 — 팀 로고 URL (사용자 결재 옵션 B / DB team.logoUrl). null = 이니셜 fallback.
+  logoUrl?: string | null;
   groupName: string | null;
   wins: number;
   losses: number;
@@ -141,20 +143,26 @@ export function GroupStandings({
                           {/* 팀명 */}
                           <td className="px-3 py-4 sm:px-6">
                             <div className="flex items-center gap-3">
-                              {/* 팀 아이콘 placeholder */}
-                              <div
-                                className="w-8 h-8 rounded flex items-center justify-center shrink-0"
-                                style={{
-                                  backgroundColor: "var(--color-surface)",
-                                }}
-                              >
-                                <span
-                                  className="material-symbols-outlined text-xs"
-                                  style={{ color: "var(--color-text-muted)" }}
+                              {/* 2026-05-15 — 팀 로고 (logoUrl 있으면 이미지 / 없으면 이니셜 fallback).
+                                              운영자 권장: DB team.logoUrl 박제 시 정상 표시. */}
+                              {team.logoUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={team.logoUrl}
+                                  alt={team.teamName}
+                                  className="w-8 h-8 rounded object-cover shrink-0"
+                                />
+                              ) : (
+                                <div
+                                  className="w-8 h-8 rounded flex items-center justify-center shrink-0 text-xs font-bold"
+                                  style={{
+                                    backgroundColor: "var(--color-surface)",
+                                    color: "var(--color-text-secondary)",
+                                  }}
                                 >
-                                  shield
-                                </span>
-                              </div>
+                                  {team.teamName.charAt(0)}
+                                </div>
+                              )}
                               <TeamLink
                                 teamId={team.teamId}
                                 name={team.teamName}
