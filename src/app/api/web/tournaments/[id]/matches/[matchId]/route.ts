@@ -16,6 +16,13 @@ import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
 //  본 함수는 dual_tournament 분기에서만 호출하여 loser 진출만 신규 효과를 만든다.
 //  winner 진출 update 는 idempotent — 같은 슬롯/같은 winnerTeamId 두 번 UPDATE 안전)
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
+// 2026-05-16 PR-G5.5-followup-B: 매치 status='completed' UPDATE 시 placeholder advancer 자동 호출.
+// 이유: 운영자 manual `/advance-placeholders` 의존 제거 — 4차 뉴비리그 결승 매치 232 자동 채움.
+// 분기: division_rule>0 (강남구 4 종별 등) → advanceAllDivisions / =0 (Tournament 단위) → advanceTournamentPlaceholders
+import {
+  advanceAllDivisions,
+  advanceTournamentPlaceholders,
+} from "@/lib/tournaments/division-advancement";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
 
@@ -316,6 +323,30 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       // 토너먼트 자동 생성 실패는 로그만 남기고 사용자 응답은 성공 유지
       // admin이 수동 트리거 API로 재시도 가능
       console.error("[auto-knockout-gen]", e);
+    }
+
+    // 2026-05-16 PR-G5.5-followup-B: division_rule 분기로 placeholder advancer 자동 호출.
+    // 이유: 종전에는 운영자가 manual `/advance-placeholders` 라우트 호출해야 4차 뉴비리그
+    //   결승 매치 232 의 homeTeamId/awayTeamId 가 채워졌음 (예선 6건 종료 후 운영자 수동 trigger 의존).
+    //   본 분기 박제로 매치 status='completed' UPDATE 시점에 standings 기반 placeholder 자동 채움.
+    // 분기:
+    //   - division_rule>0 (강남구 4 종별: i3-U9/U11/U14/i3w-U12) → advanceAllDivisions
+    //   - division_rule=0 (4차 뉴비리그 등 Tournament 단위) → advanceTournamentPlaceholders
+    // 안전성: 별도 try/catch + 자체 트랜잭션 — 자동 진출 실패해도 매치 update / 사용자 응답은 성공 유지.
+    //   Manual `/advance-placeholders` 라우트는 fallback 으로 유지 (운영자 정정 가능).
+    try {
+      await prisma.$transaction(async (tx) => {
+        const ruleCount = await tx.tournamentDivisionRule.count({
+          where: { tournamentId: id },
+        });
+        if (ruleCount > 0) {
+          await advanceAllDivisions(tx, id);
+        } else {
+          await advanceTournamentPlaceholders(tx, id);
+        }
+      });
+    } catch (e) {
+      console.error("[advance-placeholders:auto] PATCH route", e);
     }
   }
 
