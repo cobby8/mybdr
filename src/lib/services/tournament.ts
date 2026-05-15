@@ -340,7 +340,10 @@ export async function listTournaments(filters: TournamentListFilters = {}) {
  */
 export async function listUpcomingTournaments(take = 4) {
   return prisma.tournament.findMany({
-    where: { is_public: true, status: { in: ["active", "published", "registration_open"] } },
+    // 2026-05-15 — `in_progress` 추가 (home.ts L451 hero slide 와 정합).
+    // 이전 박제는 진행 중 대회를 다가오는 대회 리스트에서 누락 → 강남구
+    // 협회장배 유소년 대회 (5/16 시작, status=in_progress) 메인 미노출 사고.
+    where: { is_public: true, status: { in: ["active", "published", "registration_open", "in_progress"] } },
     orderBy: { startDate: "asc" },
     take,
     select: TOURNAMENT_HOME_SELECT,
