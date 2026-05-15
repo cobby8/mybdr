@@ -221,10 +221,52 @@ export function FibaHeader({
             }}
           >
             {/* 2026-05-16 (PR-Possession-2) — 공격권 화살표 (쿼터 뱃지 좌측).
-                possessionArrow=null 시 = 미박제 = 미노출 (운영 호환).
+                possessionArrow=null 시 = 미박제 = [점프볼] 버튼 노출 (긴급 박제 / 사용자 명시 / 이미지 #162).
+                  → onArrowClick 호출 시 score-sheet-form 의 handleArrowClick 분기가 점프볼 모달 open.
                 "home" = arrow_forward (오른쪽 향 / home 방향) / "away" = arrow_back (왼쪽 향 / away 방향).
                 색상 = var(--color-text-primary) 회색 (사용자 결재 — 빨강 본문 텍스트 룰 ❌).
-                onArrowClick 미전달 시 = read-only (cursor: default + 클릭 비활성). */}
+                onArrowClick 미전달 시 = read-only (cursor: default + 클릭 비활성).
+                possessionArrow=undefined (운영 호환 / 미전달) = 미노출. */}
+            {possessionArrow === null && (
+              // 2026-05-16 (긴급 박제 — 점프볼 버튼 / 사용자 보고 이미지 #162).
+              //   openingJumpBall 미박제 시 = 화살표 자리에 [점프볼] 버튼 노출.
+              //   클릭 시 = onArrowClick (= score-sheet-form 의 handleArrowClick) → 점프볼 모달 open.
+              //   시각: 회색 outline + 텍스트만 (빨강 본문 ❌ / Material Symbols ❌ — 텍스트 버튼).
+              <button
+                type="button"
+                onClick={onArrowClick}
+                disabled={!onArrowClick}
+                aria-label="점프볼 — 첫 공격권 결정"
+                title={
+                  onArrowClick
+                    ? "점프볼 클릭 — 첫 공격권 결정 (FIBA Article 12)"
+                    : "점프볼 (read-only)"
+                }
+                style={{
+                  // 회색 outline + 텍스트만 (빨강 본문 텍스트 룰 ❌)
+                  border: "1.5px solid var(--color-text-secondary, #6B7280)",
+                  borderRadius: 4, // BDR 디자인 시스템 = 4px
+                  background: "transparent",
+                  color: "var(--color-text-primary)",
+                  cursor: onArrowClick ? "pointer" : "default",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  padding: "10px 14px",
+                  // 터치 영역 = 56px (기존 화살표와 동일 — 사용자 결재 보존)
+                  minWidth: 56,
+                  minHeight: 56,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                  touchAction: "manipulation",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                점프볼
+              </button>
+            )}
             {possessionArrow !== null && possessionArrow !== undefined && (
               <button
                 type="button"
