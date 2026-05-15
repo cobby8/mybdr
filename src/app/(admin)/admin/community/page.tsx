@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { hidePostAction, unhidePostAction, deletePostAction } from "@/app/actions/admin-community";
@@ -6,6 +7,8 @@ import { AdminCommunityContent } from "./admin-community-content";
 export const dynamic = "force-dynamic";
 
 // 커뮤니티 관리 — 서버 컴포넌트: 데이터 패칭만 담당
+// 2026-05-15 Admin-4-C 박제 — eyebrow + breadcrumbs + actions (BDR NEWS 링크) 추가
+//   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.9)
 export default async function AdminCommunityPage({
   searchParams,
 }: {
@@ -60,11 +63,22 @@ export default async function AdminCommunityPage({
 
   return (
     <div>
+      {/* 2026-05-15 Admin-4-C 박제 — eyebrow + breadcrumbs + actions (BDR NEWS 링크)
+          시안 AdminCommunity.jsx (v2.9) header 박제. */}
       <AdminPageHeader
+        eyebrow="ADMIN · 콘텐츠"
         title="커뮤니티 관리"
         subtitle={`전체 ${totalCount}개`}
         searchPlaceholder="제목, 작성자 검색"
         searchDefaultValue={q ?? ""}
+        breadcrumbs={[{ label: "ADMIN" }, { label: "콘텐츠" }, { label: "커뮤니티 관리" }]}
+        actions={
+          // 시안 actions slot — BDR NEWS 페이지 진입 (시안 §actions 박제)
+          <Link href="/admin/news" className="btn btn--sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>newspaper</span>
+            BDR NEWS
+          </Link>
+        }
       />
       <AdminCommunityContent
         posts={serialized}

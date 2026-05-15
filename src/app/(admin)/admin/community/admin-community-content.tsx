@@ -4,6 +4,11 @@
 // - <Card> wrapper 제거 → 직접 .admin-table-wrap (5/2 통일된 board 톤)
 // - <Badge> → .badge--soft (web 동일 클래스)
 // - admin-table 은 이미 5/2 작업으로 (web) .board.data-table 톤 정합 (globals.css L2174~)
+//
+// 2026-05-15 Admin-4-C 박제 — 카테고리/상태 뱃지를 admin-stat-pill[data-tone] 으로 통일
+//   시안 source: Dev/design/BDR-current/screens/AdminCommunity.jsx (v2.9)
+//   - 카테고리 뱃지: badge--soft → admin-stat-pill data-tone="mute" (시안 type_label 박제)
+//   - 상태 뱃지: 신규 추가 (hidden=warn / 그 외=ok). 시안 status_tone 패턴 일관
 
 import { useState } from "react";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
@@ -11,6 +16,17 @@ import {
   AdminDetailModal,
   ModalInfoSection,
 } from "@/components/admin/admin-detail-modal";
+
+// 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone 매핑
+//   hidden 일 때만 warn(주황), 정상 게시는 ok(녹) (시안 v2.9 status_tone 패턴 박제)
+const STATUS_LABEL: Record<string, string> = {
+  published: "게시중",
+  hidden: "숨김",
+};
+const STATUS_TONE: Record<string, "ok" | "warn" | "mute"> = {
+  published: "ok",
+  hidden: "warn",
+};
 
 // 서버에서 직렬화된 게시글 타입
 interface SerializedPost {
@@ -108,8 +124,9 @@ export function AdminCommunityContent({
                     </p>
                   </td>
                   <td data-label="카테고리" className="px-5 py-3">
-                    {/* (web) .badge--soft 패턴 — community 게시판 카테고리 뱃지와 동일 */}
-                    <span className="badge badge--soft">
+                    {/* 2026-05-15 Admin-4-C 박제 — admin-stat-pill[data-tone="mute"] 통일
+                        (시안 v2.9 type_label 패턴 — 카테고리는 의미 톤 0 = mute) */}
+                    <span className="admin-stat-pill" data-tone="mute">
                       {CATEGORY_LABEL[p.category ?? ""] ?? p.category ?? "기타"}
                     </span>
                   </td>
@@ -174,9 +191,25 @@ export function AdminCommunityContent({
             <ModalInfoSection
               title="게시글 정보"
               rows={[
-                ["카테고리", CATEGORY_LABEL[selected.category ?? ""] ?? selected.category ?? "기타"],
+                [
+                  "카테고리",
+                  // 2026-05-15 Admin-4-C 박제 — admin-stat-pill 통일 (시안 v2.9 modal header pill 박제)
+                  <span key="cat" className="admin-stat-pill" data-tone="mute">
+                    {CATEGORY_LABEL[selected.category ?? ""] ?? selected.category ?? "기타"}
+                  </span>,
+                ],
                 ["작성자", selected.authorName ?? selected.authorEmail ?? "-"],
-                ["상태", selected.status === "hidden" ? "숨김" : "게시중"],
+                [
+                  "상태",
+                  // 2026-05-15 Admin-4-C 박제 — 상태 pill (hidden=warn / 게시중=ok)
+                  <span
+                    key="st"
+                    className="admin-stat-pill"
+                    data-tone={STATUS_TONE[selected.status ?? "published"] ?? "ok"}
+                  >
+                    {STATUS_LABEL[selected.status ?? "published"] ?? "게시중"}
+                  </span>,
+                ],
               ]}
             />
             <ModalInfoSection

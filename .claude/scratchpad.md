@@ -26,9 +26,10 @@
 - Phase E 잔여 14 라우트 시안 박제 → CLI 박제
 
 ## 미푸시 commit (subin 브랜치)
-- **2건** (본 세션 박제):
-  - `c88ea99` style(registration) 종별 참가비 입력란 UI 삭제 (기본 참가비 단일 사용)
+- **3건** (본 세션 박제):
+  - `c88ea99` style(registration) 종별 참가비 입력란 UI 삭제
   - `ddb1dfc` fix(validation) wizard 저장 status enum mismatch — legacy 17종 허용
+  - `b50f6aa` docs(knowledge) wizard status enum 함정 박제 + scratchpad 갱신
 
 ## 수정 요청
 | 요청자 | 대상 | 문제 | 상태 |
@@ -47,3 +48,50 @@
 | 2026-05-15 | PR4-FIX recorder_admin UI 결함 3건 (사이드바/Super Admin/빠른 메뉴) | ✅ commit `b67c55d` — DB ground truth 폴백 (JWT stale 함정 영구 차단) |
 | 2026-05-15 | Phase 23 PR-RO1~RO4 종료 매치 read-only 차단 (5계층 방어) | ✅ commit `fab2697` |
 | 2026-05-15 | Phase 6 PR3 협회 마법사 Step 4 Referee 사전 등록 (옵션) | ✅ commit `12daf56` — Q7 1차 미검증 박제 |
+
+## 구현 기록 (developer)
+
+### Admin-4-C Phase 박제 — Community + News (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminCommunity.jsx` / `AdminNews.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) + 카테고리/상태 뱃지(`admin-stat-pill[data-tone]`) 박제. 비즈 로직 / Server Action / Prisma 쿼리 / aside 탭 / 미리보기 모달 100% 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/community/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 콘텐츠"` + `breadcrumbs` + `actions` (BDR NEWS 링크) 추가. `next/link` import 1건 신규 | 수정 |
+| `src/app/(admin)/admin/community/admin-community-content.tsx` | 카테고리 `.badge--soft` → `admin-stat-pill[data-tone="mute"]`. 모달 "카테고리"/"상태" row 도 ReactNode pill 로 통일. `STATUS_LABEL` / `STATUS_TONE` 매핑 신규 (hidden=warn / published=ok) | 수정 |
+| `src/app/(admin)/admin/news/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 콘텐츠"` + `breadcrumbs` (커뮤니티 ← 부모 표시) 추가 | 수정 |
+| `src/app/(admin)/admin/news/admin-news-content.tsx` | 미리보기 헤더의 raw `{selected.status}` 텍스트 → `admin-stat-pill[data-tone]` (draft=warn / published=ok / rejected=err). `NEWS_STATUS_LABEL` / `NEWS_STATUS_TONE` 매핑 신규 | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- community/page.tsx: 추가된 비즈 매치 = `hidePostAction`/`unhidePostAction`/`deletePostAction` import 1줄 (기존 라인 동일)
+- news/page.tsx: 비즈 키워드 추가 0 (헤더 prop 만 변경)
+- community-content / news-content: server action / state / filtered / setSelected / router.refresh / useTransition 변경 0
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**갭 / 미박제 항목 (Admin-4-A/B 패턴 동일)**:
+- `AdminDataTable` 컴포넌트 미박제 → 기존 `<table className="admin-table">` 유지 (옵션 A)
+- `AdminFilterBar` 컴포넌트 미박제 → 기존 검색 form 유지 (community)
+- `AdminDetailModal` 시안 footer 액션(수정/게시판 페이지 등) 일부 미박제 → 기존 운영 footer (숨김/복원/삭제 form) 보존
+- 시안 활성도 progress bar / 게시판별 통계 dashboard → 운영 데이터(community_posts) 와 다른 모델 (board 단위) → 박제 스킵
+- news `aside__link` (.aside__link / community-aside 공유) → Admin-2 보고에 따라 본 PR 미변경
+- 시안 mock state(filled/empty/loading/error) 토글 → 운영 미적용 (의도)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/admin/community` 진입 — 헤더에 "ADMIN · 콘텐츠" eyebrow + breadcrumbs (ADMIN › 콘텐츠 › 커뮤니티 관리) + 우측 "BDR NEWS" 링크 노출
+  2. 카테고리 뱃지 (자유게시판/팀원모집 등) `admin-stat-pill` (mute tone, 회색 박스) 박제 확인
+  3. 게시글 클릭 → 모달 "게시글 정보" row의 카테고리/상태가 pill 로 표시 (hidden 게시글은 warn=주황)
+  4. `/admin/news` 진입 — 헤더에 eyebrow + breadcrumbs (ADMIN › 콘텐츠 › 커뮤니티 › BDR NEWS) 노출
+  5. 좌측 sidebar 탭 (검수 대기/발행됨/거절됨) 정상 동작 (.aside__link 보존)
+  6. 우측 미리보기 헤더 라인 — raw "draft" 텍스트 → admin-stat-pill ("검수 대기" / warn=주황)
+- **정상 동작**: 검색/필터/숨김/복원/삭제 (community) / 발행/거절/재생성/수정/사진 업로드 (news) 100% 기존 동일
+- **주의할 입력**: 운영 DB 의 community_posts.status enum (`hidden` / null / `published`) — STATUS_TONE 매핑에서 null → "published" 기본값 (ok tone) 처리. news.status enum (`draft` / `published` / `rejected`) — mapping 외 값은 mute 톤 폴백.
+
+⚠️ reviewer 참고:
+- 특히 봐줬으면 하는 부분:
+  1. `news/admin-news-content.tsx` 의 ReactNode 사용 — flex-wrap 으로 모바일 줄바꿈 정상 동작 확인
+  2. `community/admin-community-content.tsx` 의 ModalInfoSection 에 ReactNode (pill 컴포넌트) 전달 — `admin-detail-modal.tsx` line 120 의 `rows: [string, string | ReactNode | null | undefined][]` 시그니처 호환
+  3. `next/link` 신규 import (community/page.tsx) — server 컴포넌트 에서 사용 정합
+  4. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
+- 미박제 갭 (의도): AdminDataTable / AdminFilterBar / 시안 footer / activity progress / mock toggle. 별 PR 권장.
