@@ -81,6 +81,20 @@ import { QuarterEndModal } from "./quarter-end-modal";
 //   toolbar "기록수정" 버튼 → form 의 setPbpEditModalOpen(true) → 모달 표시.
 //   "저장" 시 onApply 콜백으로 next marks 전달 → setRunningScore() 박제.
 import { PbpEditModal } from "./pbp-edit-modal";
+// 2026-05-16 (PR-Possession-2) — 공격권 (Alternating Possession) 박제.
+//   PR-1 (PURE 헬퍼 + 타입) 머지 완료 후 본 PR (UI + state + 모달) 진입.
+//   - PossessionState / EMPTY_POSSESSION = state 타입 + 초기값
+//   - applyOpeningJumpBall / applyHeldBall / togglePossession = 4 handler 안에서 사용
+//   - JumpBallModal = 라인업 confirm 후 자동 open / PossessionConfirmModal = 헤더 화살표 클릭 시 open
+import type { PossessionState } from "@/lib/score-sheet/possession-types";
+import { EMPTY_POSSESSION } from "@/lib/score-sheet/possession-types";
+import {
+  applyOpeningJumpBall,
+  applyHeldBall,
+  togglePossession,
+} from "@/lib/score-sheet/possession-helpers";
+import { JumpBallModal } from "./jump-ball-modal";
+import { PossessionConfirmModal } from "./possession-confirm-modal";
 // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
 //   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
 import { useConfirm } from "../../../_components/confirm-modal-provider";
@@ -203,6 +217,9 @@ interface DraftPayload {
   // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 박제 (mid-game reload 후 OR/DR/A/S/B/TO 복원).
   //   사용자 결재 Q3 = match_player_stats 직접 박제 / DB 변경 0.
   playerStats: PlayerStatsState;
+  // 2026-05-16 (PR-Possession-2) — 공격권 박제 (mid-game reload 후 화살표 + 점프볼 이벤트 복원).
+  //   optional = 구버전 draft 호환 (없으면 EMPTY_POSSESSION fallback).
+  possession?: PossessionState;
   savedAt: string;
 }
 
@@ -302,6 +319,21 @@ export function ScoreSheetForm({
   //   왜: toolbar 의 "경기 종료" 버튼이 submitted 인지 알아야 시각 disabled 분기 가능.
   //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
   const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
+
+  // 2026-05-16 (PR-Possession-2) — 공격권 (Alternating Possession) state 3건.
+  //
+  // possession: 화살표 + Opening Jump Ball + 헬드볼 이벤트 시계열 (PR-1 헬퍼 사용).
+  //   EMPTY_POSSESSION = { arrow: null, openingJumpBall: null, heldBallEvents: [] }
+  //   draft 복원 시 useEffect 안에서 setPossession (구버전 draft 호환 = optional).
+  //
+  // jumpBallModalOpen: 라인업 confirm 직후 자동 open (possession.openingJumpBall=null 시).
+  //   isReadOnly 매치 = open 강제 false (이중 방어).
+  //
+  // heldBallConfirmOpen: 헤더 화살표 클릭 시 open (PossessionConfirmModal).
+  //   "확인" → applyHeldBall + toast 5초 / "취소" → 닫기.
+  const [possession, setPossession] = useState<PossessionState>(EMPTY_POSSESSION);
+  const [jumpBallModalOpen, setJumpBallModalOpen] = useState(false);
+  const [heldBallConfirmOpen, setHeldBallConfirmOpen] = useState(false);
 
   // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
   //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
@@ -1053,6 +1085,23 @@ export function ScoreSheetForm({
             setPlayerStats(ps);
           }
         }
+        // 2026-05-16 (PR-Possession-2) — possession 복원 (구버전 draft 호환: 없으면 EMPTY).
+        //   방어: arrow ∈ {"home","away",null} + openingJumpBall null|{winner,winnerPlayerId} +
+        //         heldBallEvents = 배열. shape 위반 시 EMPTY 유지 (안전망).
+        if (draft.possession && typeof draft.possession === "object") {
+          const ps = draft.possession;
+          const arrowOk =
+            ps.arrow === "home" || ps.arrow === "away" || ps.arrow === null;
+          const ojbOk =
+            ps.openingJumpBall === null ||
+            (typeof ps.openingJumpBall === "object" &&
+              ps.openingJumpBall !== null &&
+              (ps.openingJumpBall as { winner?: unknown }).winner !== undefined);
+          const hbOk = Array.isArray(ps.heldBallEvents);
+          if (arrowOk && ojbOk && hbOk) {
+            setPossession(ps);
+          }
+        }
         // Phase 7-B — lineup 복원 (mid-game reload 후 출전 명단 / 선발 5인 유지).
         //   draft 에 lineup 박제되어 있으면 그 값 우선. UI 룰 (starters=5 + lineup≥5) 위반 시 skip.
         if (draft.lineup && typeof draft.lineup === "object") {
@@ -1084,6 +1133,7 @@ export function ScoreSheetForm({
     if (typeof window === "undefined") return;
     const timer = window.setTimeout(() => {
       // 2026-05-15 (PR-D-4a) — saveDraft 헬퍼 사용. savedAt 자동 박제.
+      // 2026-05-16 (PR-Possession-2) — possession 박제 (mid-game reload 후 화살표 복원).
       saveDraft(match.id, {
         header,
         teamA,
@@ -1094,10 +1144,11 @@ export function ScoreSheetForm({
         signatures,
         lineup,
         playerStats,
+        possession,
       });
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, possession, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
@@ -1125,13 +1176,38 @@ export function ScoreSheetForm({
   function handleEndPeriod() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const endedPeriod = runningScore.currentPeriod;
+    // 2026-05-16 (PR-Possession-2) — 쿼터 종료 시 공격권 자동 토글 (FIBA Article 12).
+    //   룰: 쿼터 종료 = 다음 쿼터 시작 공격권 = 이전 쿼터 시작과 반대.
+    //   arrow === null (Opening Jump Ball 미박제) 시 togglePossession 가 state 그대로 반환 (헬퍼 가드).
+    //   토글 후 새 arrow 값을 toast 메시지에서 안내 (운영자가 양 팀 모두 인지하도록 5초).
+    let nextArrowLabel: string | null = null;
+    if (possession.arrow !== null) {
+      const nextPossession = togglePossession(possession);
+      setPossession(nextPossession);
+      // 토글 후 새 arrow = nextPossession.arrow (= 반대 팀)
+      nextArrowLabel =
+        nextPossession.arrow === "home"
+          ? homeFilteredRoster.teamName
+          : nextPossession.arrow === "away"
+            ? awayFilteredRoster.teamName
+            : null;
+    }
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
       setRunningScore((prev) => ({
         ...prev,
         currentPeriod: Math.min(prev.currentPeriod + 1, 9),
       }));
-      showToast(`Q${endedPeriod} 종료 — Q${endedPeriod + 1} 진행`, "info");
+      // 2026-05-16 (PR-Possession-2) — 토글 발생 시 toast 추가 안내 (양 팀 인지).
+      //   showToast 자체는 duration 미지원 → 메시지 안 "공격권" 키워드로 운영자 시각 강조.
+      if (nextArrowLabel) {
+        showToast(
+          `Q${endedPeriod} 종료 — Q${endedPeriod + 1} 진행 / 다음 쿼터 공격권 = ${nextArrowLabel}`,
+          "info"
+        );
+      } else {
+        showToast(`Q${endedPeriod} 종료 — Q${endedPeriod + 1} 진행`, "info");
+      }
       return;
     }
     // Q4 / OT 종료 = 모달 분기 (사용자 결재 §5 §6 — 자동 OT 진입 차단)
@@ -1530,6 +1606,85 @@ export function ScoreSheetForm({
       "라인업 확정 — 선발 5인 자동 P.IN 체크 (후보는 교체 시 수동 체크)",
       "info"
     );
+    // 2026-05-16 (PR-Possession-2) — 라인업 확정 직후 점프볼 모달 자동 open.
+    //   possession.openingJumpBall === null = 미박제 = 첫 진입 → 모달 open.
+    //   재진입 (이미 박제됨) = skip (재정정은 별도 흐름 — PR-3 이후 검토).
+    //   isReadOnly 매치 (수정 모드 미진입) = skip (이중 방어 — open 분기 가드 + 본 trigger 가드).
+    if (!isReadOnly && possession.openingJumpBall === null) {
+      setJumpBallModalOpen(true);
+    }
+  }
+
+  // 2026-05-16 (PR-Possession-2) — 점프볼 모달 confirm 핸들러.
+  //
+  // 흐름:
+  //   1. JumpBallModal "확정" → onConfirm(winner, winnerPlayerId) 호출
+  //   2. applyOpeningJumpBall (PR-1 헬퍼) 호출 → arrow = loser 방향 박제
+  //   3. 모달 close + 운영자 안내 toast (어느 팀이 첫 공격권을 가졌는지)
+  //
+  // 룰:
+  //   - winner = 점프볼 승자 (= 첫 점유 팀) → arrow 는 반대 (loser) 방향
+  //   - winnerPlayerId = 옵셔널 (null 허용 — 모달에서 선수 미선택 시)
+  //   - isReadOnly 가드 = open 분기 가드 + 본 handler 가드 = 이중 방어
+  function handleJumpBallConfirm(
+    winner: "home" | "away",
+    winnerPlayerId: string | null
+  ) {
+    if (isReadOnly) return;
+    // applyOpeningJumpBall = PURE 헬퍼 → state.arrow = loser 방향 / openingJumpBall 박제
+    setPossession(applyOpeningJumpBall(possession, winner, winnerPlayerId));
+    setJumpBallModalOpen(false);
+    // toast 안내 — 승자 팀 이름 + 화살표 방향 (= 반대 팀) 명시
+    const winnerName =
+      winner === "home"
+        ? homeFilteredRoster.teamName
+        : awayFilteredRoster.teamName;
+    const loserName =
+      winner === "home"
+        ? awayFilteredRoster.teamName
+        : homeFilteredRoster.teamName;
+    showToast(
+      `점프볼 승리 = ${winnerName} (첫 공격권) / 다음 공격권 화살표 = ${loserName}`,
+      "info"
+    );
+  }
+
+  // 2026-05-16 (PR-Possession-2) — 헬드볼 confirm 모달 confirm 핸들러.
+  //
+  // 흐름:
+  //   1. 헤더 화살표 클릭 → setHeldBallConfirmOpen(true) → 모달 표시
+  //   2. PossessionConfirmModal "확인" → onConfirm 호출 (본 handler)
+  //   3. applyHeldBall (PR-1 헬퍼) 호출 → heldBallEvents push + arrow 토글
+  //   4. 모달 close + toast 5초 안내 (= 메시지 안 키워드 "공격권" 로 강조)
+  //
+  // 룰:
+  //   - applyHeldBall 의 takingTeam = 현재 arrow 값 (= 화살표 방향 팀) — 이벤트 박제 후 arrow 토글
+  //   - arrow=null 가드 = applyHeldBall 내부에서 state 그대로 반환 (안전망)
+  function handleHeldBallConfirm() {
+    if (isReadOnly) return;
+    if (possession.arrow === null) return; // 안전망 (Opening Jump Ball 선행 필수)
+    // 공격권 획득 팀 = 현재 arrow (토글 전)
+    const takingTeamName =
+      possession.arrow === "home"
+        ? homeFilteredRoster.teamName
+        : awayFilteredRoster.teamName;
+    setPossession(applyHeldBall(possession, runningScore.currentPeriod));
+    setHeldBallConfirmOpen(false);
+    showToast(
+      `헬드볼 발생 — 공격권 = ${takingTeamName} (화살표는 반대 팀으로 토글됨)`,
+      "info"
+    );
+  }
+
+  // 2026-05-16 (PR-Possession-2) — 헤더 화살표 클릭 핸들러.
+  //
+  // 흐름:
+  //   1. FibaHeader 의 화살표 버튼 클릭 → onArrowClick 콜백 = 본 handler
+  //   2. isReadOnly 가드 (수정 모드 미진입 시 차단)
+  //   3. setHeldBallConfirmOpen(true) → PossessionConfirmModal 표시
+  function handleArrowClick() {
+    if (isReadOnly) return;
+    setHeldBallConfirmOpen(true);
   }
 
   return (
@@ -1833,6 +1988,13 @@ export function ScoreSheetForm({
             //   RunningScoreState.marks 는 home/away 분리 → 두 배열 합산.
             //   0 = "경기 전" / 1+ = "경기 중" / matchEnded=true 우선 = "경기 종료".
             marksCount={runningScore.home.length + runningScore.away.length}
+            // 2026-05-16 (PR-Possession-2) — 공격권 화살표 wiring.
+            //   possessionArrow = possession.arrow ("home"/"away"/null).
+            //     null = 첫 점프볼 미박제 = 화살표 미노출 (운영 호환 / 기존 paper 매치 영향 0).
+            //   onArrowClick = isReadOnly 시 undefined (read-only / 클릭 비활성) /
+            //                  그 외 = handleArrowClick (헬드볼 confirm 모달 trigger).
+            possessionArrow={possession.arrow}
+            onArrowClick={isReadOnly ? undefined : handleArrowClick}
           />
         </div>
 
@@ -2135,6 +2297,39 @@ export function ScoreSheetForm({
         awayTeamName={awayRoster.teamName}
         onApply={handleApplyPbpEdit}
         onClose={() => setPbpEditModalOpen(false)}
+      />
+
+      {/* 2026-05-16 (PR-Possession-2) — JumpBallModal (경기 시작 점프볼 승자 선택).
+          라인업 confirm 직후 자동 open (handleLineupConfirm 가드).
+          isReadOnly 시 open 강제 false (이중 방어 — handler 가드 + 본 분기 가드).
+          lineup === null 시 출전 명단이 없으므로 모달 안의 dropdown 도 빈 배열. */}
+      <JumpBallModal
+        open={(!isReadOnly) && jumpBallModalOpen}
+        homeTeamName={homeFilteredRoster.teamName}
+        awayTeamName={awayFilteredRoster.teamName}
+        homePlayers={homeFilteredRoster.players}
+        awayPlayers={awayFilteredRoster.players}
+        onConfirm={handleJumpBallConfirm}
+        onClose={() => setJumpBallModalOpen(false)}
+      />
+
+      {/* 2026-05-16 (PR-Possession-2) — PossessionConfirmModal (헬드볼 발생 시 공격권 변경 확인).
+          헤더 화살표 클릭 시 open (handleArrowClick).
+          takingTeam = possession.arrow (화살표 방향 = 공격권 획득 팀).
+            possession.arrow === null 시 = 안전망 fallback "home" (실제 상황 = 발생 불가 — Opening Jump Ball 선행 필수).
+          isReadOnly 시 open 강제 false (이중 방어 — handler 가드 + 본 분기 가드). */}
+      <PossessionConfirmModal
+        open={(!isReadOnly) && heldBallConfirmOpen}
+        takingTeam={possession.arrow ?? "home"}
+        takingTeamName={
+          possession.arrow === "home"
+            ? homeFilteredRoster.teamName
+            : possession.arrow === "away"
+              ? awayFilteredRoster.teamName
+              : ""
+        }
+        onConfirm={handleHeldBallConfirm}
+        onClose={() => setHeldBallConfirmOpen(false)}
       />
 
       {/* 2026-05-15 (PR-D-2) — ConfirmModal JSX 마운트는 ConfirmModalProvider 가 담당.

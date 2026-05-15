@@ -2,6 +2,29 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-16] PR-Public-1 공개 bracket 종별 view — 옵션 A (공개 신규 view) + D1 (기존 API 확장) 선택
+- **분류**: architecture + decision
+- **발견자**: planner-architect
+- **계기**: 강남구협회장배 매치 59건 (round_number/bracket_position NULL = 풀리그 + 조별 + 순위전 placeholder) 이 공개 페이지 bracket 탭에서 BracketEmpty ("아직 대진표가 없습니다") 로 노출. 원인 = `v2-bracket-wrapper.tsx:441-453` 가 `hasKnockout = bracketOnlyMatches.length > 0` 분기만 박제 / `leagueMatches` (PR-G5.9 박제 필드) 0 소비.
+- **분석한 옵션**:
+  - **컴포넌트**: A (공개 신규 view 신규 / admin 의존 0) vs B (admin DivisionMatchGroup·PlayoffMatchRow·FinalCard 추출 후 공유) → A 선택 (admin 회귀 0 / web 디자인 일관 / admin 콤팩트 디자인이 web 카드 디자인과 충돌)
+  - **데이터 source**: D1 (기존 public-bracket API 확장 + Promise.all standings) vs D2 (신규 endpoint `/api/web/tournaments/[id]/public-divisions`) vs D3 (클라 자체 그룹핑) → D1 선택 (단순 / lazy 이미 적용 / D3 = 단일 source 위반)
+- **선택 옵션 A + D1 + 2 PR 분해**:
+  - PR-Public-1A (~50 LOC): `route.ts` 에 `divisionStandings` (Promise.all + getDivisionStandings) + `divisionRules` (label) + `groupTeams[].division` 추가
+  - PR-Public-1B (~480 LOC): `multi-division-view.tsx` 신규 (종별 탭 + 4 섹션 컴포지션) + `public-match-schedule.tsx` 신규 (예선 매치 시간순 list) + `public-ranking-matches.tsx` 신규 (순위전 placeholder 표) + `v2-bracket-wrapper.tsx` 분기 추가 (`format=null + leagueMatches.length > 0` 분기 / BracketEmpty 회피)
+- **재사용 결정**:
+  - GroupStandings (web 측) 재사용 — Phase 2C 한/영 병기 박제 / web 카드 디자인 정합 (`bracket/_components/group-standings.tsx`)
+  - admin StandingsTable / DivisionMatchGroup / PlayoffMatchRow / FinalCard 모두 재사용 X — admin 콤팩트 디자인이 web 어울림 X / private 함수 (export 부재)
+  - admin AdvancePlayoffsButton / PlaceholderValidationBanner 절대 재사용 X — admin 전용 API 또는 운영자 전용 경고
+- **종별 탭 패턴**: admin /playoffs (`playoffs-client.tsx:224`) `useSearchParams` + `useState` + `router.replace` URL sync 패턴 복제. 가드 = `divisionStandings.length ≤ 1` 시 미렌더 (단일 종별 회귀 0).
+- **참조횟수**: 0
+- **참조 파일**:
+  - 분석 박제: `.claude/scratchpad.md` "## 기획설계 (planner-architect / 2026-05-16) — PR-Public-1"
+  - 변경 대상: `src/app/api/web/tournaments/[id]/public-bracket/route.ts` (수정) / `src/app/(web)/tournaments/[id]/_components/v2-bracket-wrapper.tsx` (수정) / 신규 3 컴포넌트
+  - 재사용 컴포넌트: `src/app/(web)/tournaments/[id]/bracket/_components/group-standings.tsx`
+  - 패턴 source: `src/app/(admin)/tournament-admin/tournaments/[id]/playoffs/playoffs-client.tsx`
+  - 도메인 헬퍼: `src/lib/tournaments/division-advancement.ts:54` `getDivisionStandings` / `src/lib/tournaments/placeholder-helpers.ts:76` `buildSlotLabel`
+
 ### [2026-05-16] Phase 1 admin 흐름 개선 6 PR 박제 (강남구협회장배 시나리오 § 단계 4·7·10·10.5 단절 + 누락 해소)
 - **분류**: 기술 결정 / admin UX / 다종별 대회 운영 흐름
 - **계기**: 사용자 지적 — "조별리그+토너먼트 시나리오에서 조편성 → 경기일정 → 토너먼트 트리 흐름이 자연스럽지 않음 / 흐름 복잡 / 중복 / 분리됨". Phase 0 점검 보고서 (`Dev/admin-flow-audit-2026-05-16.md`) 18건 단절/중복/혼란/누락 (영향도 H 8건) → Phase 1 우선 1~6 채택

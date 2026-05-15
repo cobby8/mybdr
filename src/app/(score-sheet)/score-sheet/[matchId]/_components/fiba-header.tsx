@@ -78,6 +78,14 @@ interface FibaHeaderProps {
   //   0 = 경기 전 / 1+ = 경기 중 / matchEnded=true 가 우선 = 경기 종료.
   //   미전달 시 라벨 미노출 (운영 호환).
   marksCount?: number;
+  // 2026-05-16 (PR-Possession-2) — 공격권 화살표 (FIBA Article 12 Alternating Possession).
+  //   "home" = home 방향 (오른쪽 forward) / "away" = away 방향 (왼쪽 back) / null = 미박제 (Opening Jump Ball 전).
+  //   사용자 결재 위치 = 쿼터 뱃지 좌측 (.ss-h grid 3번째 cell wrapper 안).
+  //   null 시 화살표 미노출 (운영 호환 / 기존 paper 매치 영향 0).
+  possessionArrow?: "home" | "away" | null;
+  // 화살표 클릭 콜백 (헬드볼 confirm 모달 trigger). 미전달 시 = read-only 클릭 비활성.
+  //   isReadOnly 매치 또는 첫 점프볼 미완료 시 caller 가 undefined 전달 → 본 컴포넌트가 자동 비활성.
+  onArrowClick?: () => void;
 }
 
 export function FibaHeader({
@@ -95,6 +103,8 @@ export function FibaHeader({
   currentPeriod, // 2026-05-16 (PR-Quarter-Badge) — 우상단 쿼터 뱃지 (이미지 #130)
   matchEnded, // 2026-05-16 (PR-Quarter-Badge) — 경기 종료 시 "경기 종료" 표시
   marksCount, // 2026-05-16 (PR-Quarter-Badge-v3) — 뱃지 하단 상태 라벨 산출 (이미지 #157)
+  possessionArrow, // 2026-05-16 (PR-Possession-2) — 공격권 화살표 (home/away/null)
+  onArrowClick, // 2026-05-16 (PR-Possession-2) — 화살표 클릭 = 헬드볼 confirm 모달 trigger
 }: FibaHeaderProps) {
   // 2026-05-16 (PR-Quarter-Badge) — 쿼터 라벨 산출.
   //   matchEnded=true → "경기 종료" / currentPeriod 1~4 → "Q{N}" / 5~ → "OT{N-4}" / 미전달 → null.
@@ -168,21 +178,86 @@ export function FibaHeader({
         </div>
         {/* 2026-05-16 (PR-Quarter-Badge) — 사용자 보고 이미지 #130 fix.
             .ss-h grid 의 3번째 cell 로 뱃지 박제. grid-template-columns 인라인 강제 = "92px 1fr auto"
-            (.ss-h__logo 92px / .ss-h__title 1fr / 뱃지 자연 폭). Q1~Q4 / OT1+ / 경기 종료 표시. */}
+            (.ss-h__logo 92px / .ss-h__title 1fr / 뱃지 자연 폭). Q1~Q4 / OT1+ / 경기 종료 표시.
+
+            2026-05-16 (PR-Possession-2) — 쿼터 뱃지 좌측에 공격권 화살표 추가.
+            possessionArrow != null 시 화살표 노출 (회색 / 56px / Material Symbols).
+            possessionArrow == null 시 자리만 차지 (운영 호환 / 기존 paper 매치 영향 0). */}
         {quarterLabel && (
           // 2026-05-16 (PR-Quarter-Badge-v4) — 사용자 보고 이미지 #158 fix.
           //   v3 의 alignSelf: flex-start + marginTop: -4px → 너무 위로 이동 사고.
           //   원복 = alignSelf: center (기존 v2 위치) + 라벨만 아래 추가 유지.
+          //
+          //   2026-05-16 (PR-Possession-2) — flex row 컨테이너로 변경 (화살표 좌측 + 뱃지 우측).
+          //   기존 column flex 박제 = 뱃지 + 상태 라벨 세로 누적 → wrapper 1단 추가해 row + column 중첩.
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
+              flexDirection: "row",
               alignItems: "center",
-              gap: 4,
+              gap: 8,
               marginRight: 8,
               alignSelf: "center",
             }}
           >
+            {/* 2026-05-16 (PR-Possession-2) — 공격권 화살표 (쿼터 뱃지 좌측).
+                possessionArrow=null 시 = 미박제 = 미노출 (운영 호환).
+                "home" = arrow_forward (오른쪽 향 / home 방향) / "away" = arrow_back (왼쪽 향 / away 방향).
+                색상 = var(--color-text-primary) 회색 (사용자 결재 — 빨강 본문 텍스트 룰 ❌).
+                onArrowClick 미전달 시 = read-only (cursor: default + 클릭 비활성). */}
+            {possessionArrow !== null && possessionArrow !== undefined && (
+              <button
+                type="button"
+                onClick={onArrowClick}
+                disabled={!onArrowClick}
+                aria-label={
+                  possessionArrow === "home"
+                    ? "공격권 = home — 헬드볼 발생 시 공격권 토글"
+                    : "공격권 = away — 헬드볼 발생 시 공격권 토글"
+                }
+                title={
+                  onArrowClick
+                    ? "헬드볼 발생 시 클릭 — 공격권 토글"
+                    : "공격권 화살표 (read-only)"
+                }
+                style={{
+                  // 화살표 자체 크기 = 56px (사용자 결재)
+                  fontSize: 0, // material-symbols 자체 폰트 크기는 inline span 으로 분리
+                  border: "none",
+                  background: "transparent",
+                  padding: 4,
+                  cursor: onArrowClick ? "pointer" : "default",
+                  color: "var(--color-text-primary)",
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  // 터치 영역 = 56px (사용자 결재)
+                  minWidth: 56,
+                  minHeight: 56,
+                  touchAction: "manipulation",
+                }}
+              >
+                {/* Material Symbols Outlined — arrow_forward (home 방향) / arrow_back (away 방향).
+                    크기 = 56px (사용자 결재) — 회색 (var(--color-text-primary)). */}
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: 56, fontWeight: 500 }}
+                  aria-hidden="true"
+                >
+                  {possessionArrow === "home" ? "arrow_forward" : "arrow_back"}
+                </span>
+              </button>
+            )}
+            {/* 뱃지 + 상태 라벨 = 기존 column flex (위로 옮김). */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
             {/* 2026-05-16 (PR-Quarter-Badge-v2) — "PERIOD"/"STATUS" 라벨 제거 (이미지 #134 fix).
                 v3: 부모 wrapper 에서 marginRight/alignSelf 흡수 → 본 div 는 박스 시각만. */}
             <div
@@ -221,6 +296,8 @@ export function FibaHeader({
                 {matchPhaseLabel}
               </div>
             )}
+            </div>
+            {/* 2026-05-16 (PR-Possession-2) — 외부 row flex wrapper 닫기 (화살표 + 뱃지column 묶음). */}
           </div>
         )}
       </section>

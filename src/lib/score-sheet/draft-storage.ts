@@ -29,11 +29,15 @@ export function draftKey(matchId: string): string {
 /**
  * draft 페이로드 — 운영 박제 형식. 신규 필드 추가 시 backward-compatible 로
  *   default 박제 (load 시 누락 키 fallback). serialize 자유 — caller 책임.
+ *
+ * 2026-05-16 (PR-Possession-2) — possession 옵셔널 키 박제 (mid-game reload 후
+ *   공격권 화살표 + 점프볼 이벤트 복원). PossessionState 타입은 caller (form) 가
+ *   복원 시 shape 검증 후 적용 — 본 인터페이스는 unknown 으로 유연 박제.
  */
 export interface ScoreSheetDraft {
   /** Date.toISOString — load 시 new Date() 변환 */
   savedAt: string;
-  /** form state 박제 — runningScore / fouls / timeouts / signatures / lineup / playerStats / teamA / teamB / header */
+  /** form state 박제 — runningScore / fouls / timeouts / signatures / lineup / playerStats / teamA / teamB / header / possession */
   [key: string]: unknown;
 }
 

@@ -1,9 +1,182 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 공격권 기록 (possession arrow) 기능 — 헤더 큰 화살표 + 헬드볼 모달 + 첫 점프볼 / 쿼터종료 자동 토글
-- **상태**: 🟢 PR-Possession-1 박제 완료 (developer) — PR-2 진입 = PM 결재 대기
-- **현재 담당**: developer (PR-1 완료) → PM 결재 / commit → developer (PR-2 진입)
+- **요청**: PR-Public-1 공개 tournament 페이지 bracket 탭 종별 view 설계 (강남구협회장배 매치 59건 미표시 fix)
+- **상태**: 🟢 분석 완료 (planner-architect) — PM 결재 대기 (옵션 A 권장)
+- **현재 담당**: PM (옵션 결재) → developer
+
+## 기획설계 (planner-architect / 2026-05-16) — PR-Public-1 공개 bracket 종별 view
+
+🎯 **목표**: 공개 tournament 페이지 (`/tournaments/[id]?tab=bracket`) bracket 탭이 강남구협회장배 매치 59건 (round_number/bracket_position 미박제 / 풀리그 + 조별 + 순위전 placeholder) 을 표시 못해 "아직 대진표가 없습니다" 노출 → **종별 탭 + 조편성 + 매치 일정 + 순위전 placeholder 통합 view 박제**.
+
+### 1. 현 흐름 분석 (cite + line)
+
+**A. 공개 페이지 진입 흐름**:
+```
+src/app/(web)/tournaments/[id]/page.tsx → TournamentTabs
+  └─ tournament-tabs.tsx:240 BracketTabContent → V2BracketWrapper
+       └─ v2-bracket-wrapper.tsx:174 useSWR("/api/web/tournaments/[id]/public-bracket")
+            ↓ 분기 (line 197~210)
+            ├─ isDual                                  → V2DualBracketView
+            ├─ isLeague + groupTeams.length > 0        → GroupStandings + (knockout 옵션)
+            ├─ isLeague (= leagueTeams.length > 0)     → LeagueStandings
+            └─ default                                 → BracketView | BracketEmpty
+```
+
+**B. BracketEmpty trigger (`v2-bracket-wrapper.tsx:441-453`)**:
+```
+{groupTeams.length > 0 && <GroupStandings />}
+{hasKnockout ? <BracketView /> : <BracketEmpty />}
+```
+→ `hasKnockout = rounds.length > 0` / `rounds = bracketOnlyMatches.length > 0 ? buildRoundGroups(...) : []` / `bracketOnlyMatches = matches.filter(m => round_number != null && bracket_position != null)`.
+
+**C. 강남구 데이터 실제 매치 = 모두 round_number / bracket_position NULL**:
+- 예선 = 풀리그 / 조별 풀리그 (round_number 무의미)
+- 순위전 = placeholder (notes "A조 N위 vs B조 N위" + settings.homeSlotLabel/awaySlotLabel)
+- → `bracketOnlyMatches.length === 0` → `rounds = []` → `hasKnockout = false` → **BracketEmpty 노출**
+
+**D. API 응답 (`route.ts:336-413`) 이미 보유한 필드**:
+- `groupTeams` (line 310) — tournamentTeam.groupName 별 분류 + name / wins / losses / pointDifference / logoUrl
+- `leagueMatches` (line 374, **PR-G5.9 박제됨**) — 모든 매치 시간순 + division (settings.division_code) + homeSlotLabel / awaySlotLabel / venueName / roundName ⭐
+- `tournamentName / format / liveMatchCount / totalMatches / completedMatches`
+- ❌ `divisionStandings` (admin 전용 `getDivisionStandings`) 미노출
+- ❌ `divisionRules` (label 매핑) 미노출
+
+**E. V2BracketWrapper 가 `leagueMatches` 미사용** — 현재 leagueMatches 는 0 컴포넌트에서 소비. **이 필드를 활성화하면 매치 59건 즉시 노출 가능**.
+
+### 2. admin /playoffs 재사용 가능성 평가
+
+| 컴포넌트 | 위치 | 공개 페이지 재사용 가능? | 사유 |
+|---------|-----|----------|-----|
+| `StandingsTable` | `_components/StandingsTable.tsx` | 🟡 가능 (props pure / 데이터만 server fetch) | DivisionStanding[] 만 있으면 됨. 단 `getDivisionStandings` (server-only Prisma) 호출 필요 = API 확장 필수 |
+| `DivisionMatchGroup` | `playoffs-client.tsx:408` (내부 함수) | 🔴 불가 (private) | 외부 export 안 됨. 추출 또는 복제 필요 |
+| `PlayoffMatchRow` | `playoffs-client.tsx:457` (내부 함수) | 🔴 불가 (private) | 동일 — 추출 또는 복제 필요 |
+| `FinalCard` | `playoffs-client.tsx:560` (내부 함수) | 🔴 불가 (private) | 동일 |
+| `AdvancePlayoffsButton` | `_components/AdvancePlayoffsButton.tsx` | 🚫 절대 불가 | admin 전용 API (`/api/web/admin/...`) 호출 = 권한 violation |
+| `PlaceholderValidationBanner` | `_components/PlaceholderValidationBanner.tsx` | 🚫 표시 안 함 | 운영자 전용 경고 — 공개 페이지 노이즈 |
+
+→ **admin /playoffs 의 4 내부 컴포넌트는 export 부재**. 옵션 = (A) 공개 view 신규 생성 (단순) / (B) admin 4 컴포넌트 별도 파일 추출 후 공유 (admin 회귀 위험 +).
+
+### 3. 데이터 source 결정 (옵션 비교)
+
+| 옵션 | 데이터 source | 공개 API 변경 | 신규 endpoint | 운영 DB 부담 | 회귀 위험 |
+|------|-------------|------------|------------|----------|---------|
+| **D1** 기존 public-bracket 확장 | `route.ts` 에 `divisionStandings` + `divisionRules` 추가 (Prisma 1쿼리 추가 / Promise.all 안) | ✅ +20 LOC | ❌ 0 | 종별 N개 = N회 standings 쿼리 (admin 동등 패턴) | 🟢 낮음 — 신규 필드만 (응답 shape 추가) |
+| **D2** 신규 endpoint `/api/web/tournaments/[id]/public-divisions` | 별도 route — 강남구 종별만 분리 fetch | 0 | ✅ +120 LOC | 동일 (별도 호출 1회) | 🟢 낮음 — 기존 회귀 0 |
+| **D3** 클라이언트 자체 그룹핑 (현 leagueMatches + groupTeams 만 활용) | API 변경 0 | 0 | ❌ 0 | 0 | 🔴 - 종별 standings 정렬 로직 클라이언트 중복 (단일 source 위반) |
+
+→ **권장 = D1** (admin /playoffs 와 동일한 server-side 산출 + idempotent 1쿼리). D2 는 lazy load 메리트 적음 (이미 bracket 탭 = lazy).
+
+### 4. matches 분류 로직 (settings.division_code 그룹핑 + 순위전 식별)
+
+```
+const divisionMatches = leagueMatches.reduce((map, m) => {
+  const code = m.division ?? "_no_division";
+  if (!map.has(code)) map.set(code, []);
+  map.get(code).push(m);
+  return map;
+}, new Map());
+
+// 종별 안 매치 = 3 분류 (admin /playoffs:191-198 패턴 동등)
+function classifyMatch(m) {
+  if (m.roundName && /순위/.test(m.roundName)) return "ranking";       // 순위전
+  if (m.roundName && /결승|final/i.test(m.roundName)) return "final";  // 결승
+  return "preliminary";  // 예선 (풀리그 / 조별)
+}
+```
+
+→ 강남구 매치 59건 = 종별 6 × (예선 46 + 순위전 13).
+
+### 5. 신규 view 설계 (시안 4사진 패턴)
+
+**섹션 구성** (admin /playoffs 5 섹션 → 공개용 4 섹션):
+
+| # | 섹션 | source | 컴포넌트 | admin /playoffs 대응 |
+|---|------|-------|--------|------|
+| 0 | 종별 탭 (≥2 종별) | `divisionStandings.code` | 인라인 (playoffs-client:224 패턴) | ⚙️ 동일 |
+| 1 | **조편성 표** (사진 1) | `groupTeams` (이미 있음) | `GroupStandings` 재사용 (web 측) — 종별 필터 추가 | (admin = StandingsTable 표) |
+| 2 | **종별별 매치 일정** (사진 2~4) | `leagueMatches` (PR-G5.9 필드) — `preliminary` 분류 | 신규 `PublicMatchSchedule` (시간순 list) | ❌ admin 미박제 (예선 매치 표시 X) |
+| 3 | **순위전 placeholder 표** | `leagueMatches` `ranking` 분류 | 신규 `PublicRankingMatches` — admin DivisionMatchGroup 패턴 복제 | DivisionMatchGroup |
+| 4 | 결승 + 우승팀 (있으면) | `leagueMatches` `final` 분류 | 신규 `PublicFinalCard` — admin FinalCard 패턴 복제 | FinalCard |
+
+❌ **제외**: AdvancePlayoffsButton / PlaceholderValidationBanner (admin 전용).
+
+**섹션 1 (GroupStandings) 재사용 vs StandingsTable** :
+- 공개 페이지 = 이미 web GroupStandings 사용 중 (`v2-bracket-wrapper.tsx:444`) → **GroupStandings 재사용** (디자인 정합성 우선 / `Phase 2C` 한/영 병기 등 이미 박제). admin StandingsTable 은 admin 디자인 (rounded-[4px] 콤팩트) 이라 공개 페이지 어울림 X.
+- 단 GroupStandings 는 종별 분리 X → 호출 시 종별별 필터링한 `groupTeams.filter(t => t.division === code)` 전달. **`groupTeams` 에 division 필드 추가 필요** (API 확장 1줄).
+
+### 6. 변경 파일 목록 (옵션 A 권장 / D1 데이터 source)
+
+| 파일 경로 | 역할 | 신규/수정 | 예상 LOC |
+|----------|------|----------|---------|
+| `src/app/api/web/tournaments/[id]/public-bracket/route.ts` | (1) `groupTeams` 에 `division` (tournamentTeam.category) 추가 / (2) `divisionStandings` 신규 (Promise.all + getDivisionStandings) / (3) `divisionRules` (label 매핑) 추가 | 수정 | +35 |
+| `src/app/(web)/tournaments/[id]/_components/v2-bracket-wrapper.tsx` | (1) format=null + leagueMatches.length > 0 분기 신규 (BracketEmpty 회피) / (2) 신규 `MultiDivisionView` 컴포넌트 호출 | 수정 | +30 / -0 |
+| `src/app/(web)/tournaments/[id]/_components/multi-division-view.tsx` ⭐ | 신규 view — 종별 탭 (인라인 / `playoffs-client:224` 패턴 복제) + 4 섹션 컴포지션 (GroupStandings + PublicMatchSchedule + PublicRankingMatches + PublicFinalCard) + URL ?division= deep link | **신규** | ~200 |
+| `src/app/(web)/tournaments/[id]/_components/public-match-schedule.tsx` | 신규 — 종별 예선 매치 일정 list (시간 / HOME / AWAY / 점수 / 코트 / 상태) — 시안 사진 2~4 표 패턴 / 모바일 카드 / PC 표 | **신규** | ~140 |
+| `src/app/(web)/tournaments/[id]/_components/public-ranking-matches.tsx` | 신규 — 순위전 placeholder 표 (admin DivisionMatchGroup + PlayoffMatchRow 패턴 복제 / 슬롯 라벨 표시) | **신규** | ~120 |
+| `src/app/(web)/tournaments/[id]/bracket/_components/group-standings.tsx` | (선택) `division` prop 추가 — 종별 필터 시 그룹 키만 표시 | 수정 (선택) | +5 |
+| **합계** | | | **~530 LOC** |
+
+⚠️ **admin 회귀 위험 0**: admin /playoffs / StandingsTable / AdvancePlayoffsButton 모두 변경 X. public-bracket API 도 신규 필드만 추가 (기존 키 변경 0).
+
+### 7. 구현 옵션 비교 + 권장
+
+| 옵션 | 핵심 | 신규 LOC | admin 회귀 | 디자인 정합 | 권장 |
+|------|-----|---------|----------|----------|-----|
+| **A** 공개 페이지 신규 view (multi-division-view + 2 신규 컴포넌트) | admin 컴포넌트 0 의존 / GroupStandings 만 재사용 | ~530 | 🟢 0 | 🟢 web 디자인 일관 | ⭐ **권장** |
+| **B** admin DivisionMatchGroup / PlayoffMatchRow / FinalCard 추출 후 공유 | admin playoffs-client.tsx 리팩터링 + 공유 폴더 | ~600 (기존 admin -150 / 신규 +750) | 🟡 admin 회귀 검증 필수 | 🟡 admin 콤팩트 디자인이 web 카드 디자인과 충돌 | 🔵 비추 |
+| **C** D2 신규 endpoint + 옵션 A | A + 별도 endpoint | ~620 | 🟢 0 | 🟢 동일 | 🔵 lazy 메리트 적음 (overhead) |
+
+→ **권장 = A** (단순 / 회귀 0 / web 디자인 일관 / placeholder-helpers 도메인 재사용).
+
+### 8. 회귀 위험 평가
+
+| 영역 | 위험 | 검증 방법 |
+|------|-----|---------|
+| 단일 종별 대회 (기존 동작) | 🟢 0 — `divisionStandings.length ≤ 1` 시 탭 미렌더 (admin 동등 가드) | 4차 뉴비리그 / 일반 single_elim 대회 1건씩 manual |
+| `format=null` 외 대회 (single_elim / dual / round_robin) | 🟢 0 — `leagueMatches.length > 0 && format == null` 분기 신규 (기존 분기 후행) | dual_tournament + round_robin 대회 manual |
+| API 응답 shape 변경 | 🟢 0 — `divisionStandings` / `divisionRules` 신규 필드만 추가 (기존 필드 보존) | curl 1회 raw 확인 + tsc 0 |
+| admin /playoffs | 🟢 0 — admin 측 0 변경 | tsc 0 + manual 1회 |
+| Schedule 탭 (기존 division 필터) | 🟢 0 — public-schedule API 별도 / 본 PR 영향 0 | 강남구 schedule 탭 manual |
+| **주의: groupTeams.division 필드 추가** | 🟡 GroupStandings 가 division prop 없으면 모든 그룹 표시 (현 동작) — 회귀 0 | tsc 0 |
+
+### 9. 시안 4 사진 매핑 (사용자 시안 → 컴포넌트)
+
+| 시안 사진 | 내용 | 매핑 컴포넌트 |
+|---------|-----|-----------|
+| 사진 1 | 조편성 표 (종별별 A조/B조 팀 + 인원) | GroupStandings (종별 필터 적용) |
+| 사진 2 | 경기일정 표 (시간 / HOME / AWAY) | PublicMatchSchedule (preliminary) |
+| 사진 3 | 경기일정 표 (점수 + 결과) | PublicMatchSchedule (preliminary + completed) |
+| 사진 4 | 순위결정전 placeholder ("A조 N위 vs B조 N위") | PublicRankingMatches (slot 라벨 표시) |
+
+### 10. PM 결재 항목 (developer 진입 전)
+
+| Q | 항목 | 권장 |
+|---|------|-----|
+| Q1 | 데이터 source = D1 (기존 API 확장) vs D2 (신규 endpoint)? | **D1** (단순 / lazy 이미 적용) |
+| Q2 | 컴포넌트 전략 = A (공개 신규) vs B (admin 추출 공유)? | **A** (admin 회귀 0 / web 디자인 일관) |
+| Q3 | 종별 탭 가드 = 종별 ≥2 시만 노출 (admin 동등) vs 항상 노출? | **종별 ≥2** (단일 종별 회귀 0) |
+| Q4 | 결승 섹션 (섹션 4) = 강남구 미박제 시 미표시 vs 빈 카드? | **미표시** (운영 호환 / hasFinalMatches 가드) |
+| Q5 | URL deep link = `?tab=bracket&division=i3-U9` 박제? | **YES** (admin /playoffs 패턴 동등) |
+| Q6 | PR 분해 = 단일 PR (~530 LOC / 4 신규 + 2 수정) vs 2 분해 (API + UI)? | **2 분해 권장** — PR-Public-1A (API + groupTeams.division) ~50 LOC / PR-Public-1B (view 컴포넌트 3건 + wrapper 분기) ~480 LOC |
+
+⚠️ **developer 주의사항**:
+1. **API 응답 shape 보존** — `divisionStandings` / `divisionRules` / `groupTeams[].division` 모두 신규 필드만 / 기존 키 0 변경 / curl 1회 raw 응답 검증 필수 (`apiSuccess` snake_case 변환 → 클라 `divisionStandings` / `division_rules` / `division` 키 폴백)
+2. **종별 탭 가드** — `divisionStandings.length ≤ 1` 시 탭 미렌더 (admin /playoffs:138 동등 / 단일 종별 회귀 0)
+3. **format=null + leagueMatches.length > 0 분기 위치** — `v2-bracket-wrapper.tsx:441` `default` 분기 안 (groupTeams.length > 0 && hasKnockout=false 사이) 에 `multiDivisionMode` 우선 분기 추가 — NOT 가장 위 (dual / hasLeagueData 우선순위 보존)
+4. **시안 13 룰 100%** — `var(--color-*)` 토큰만 / `material-symbols-outlined` 아이콘만 (lucide-react ❌) / pill 9999px ❌ (rounded-[4px]) / 빨강 본문 텍스트 0
+5. **placeholder-helpers 의존 0** — 슬롯 라벨은 `leagueMatches[*].homeSlotLabel / awaySlotLabel` 그대로 사용 (이미 generator 가 박제 / 클라 재계산 X)
+6. **deep link** — `useSearchParams().get("division")` 폴백 + `router.replace` URL sync (admin playoffs-client:142-165 패턴 복제)
+7. **모바일** — schedule-timeline 패턴 답습 (모바일 카드 / PC 표) — public-match-schedule.tsx 안 720px 분기
+
+### 11. 산출물 위치
+
+📂 분석 박제 위치: `.claude/scratchpad.md` "## 기획설계 (planner-architect / 2026-05-16) — PR-Public-1 공개 bracket 종별 view" 섹션
+📂 권장 옵션: A (공개 신규 view) + D1 (기존 API 확장)
+📂 예상 총 LOC: **~530** (API +35 / wrapper +30 / 신규 view 3건 +460 / GroupStandings +5 선택)
+📂 PR 분해 권장: 2 PR (API +50 / UI +480) — 회귀 검증 격리
+
+
 
 ## 기획설계 (planner-architect / 2026-05-16) — possession arrow MVP
 
@@ -124,6 +297,81 @@
 🚀 **다음 PR 진입 조건**:
 - PR-2 (UI + state + 모달): 본 PR `possession-types.ts` + `possession-helpers.ts` import 하여 `score-sheet-form.tsx` state + `fiba-header.tsx` 화살표 박제. 본 PR 완료 = PR-2 진입 가능 (DB 영향 0 / draft-storage 만 확장).
 - PR-3 (BFF + PBP 박제): `possessionToPBPInputs` 호출 → `play_by_plays` INSERT. 운영 DB 영향 = INSERT 만 (사용자 결재 후 진행).
+
+## 구현 기록 (developer / 2026-05-16) — PR-Possession-2 UI + state + 모달
+
+📝 **구현한 기능**: 공격권 (Possession Arrow) UI + state + 모달 박제. PR-1 PURE 헬퍼 (commit 64be0f0) 위에서 fiba-header 화살표 + 점프볼 모달 + 헬드볼 confirm 모달 + score-sheet-form state 통합. BFF / submit / DB 영향 0 (= PR-3).
+
+📁 **변경 파일** (5건 = 신규 2 + 수정 3):
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/jump-ball-modal.tsx` | 첫 점프볼 모달 (2 단계 = 팀 선택 + 선수 dropdown / 4 모달 UX 패턴 정합 — ESC + backdrop + sm:flex-row footer + 인쇄 차단) | **신규** | 296 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/possession-confirm-modal.tsx` | 헬드볼 confirm 모달 (ConfirmModal 재사용 — 4 모달 UX 자동) | **신규** | 84 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/fiba-header.tsx` | `possessionArrow` / `onArrowClick` props 추가 + 쿼터 뱃지 좌측 화살표 (Material `arrow_forward`/`arrow_back` 56px / 회색 var(--color-text-primary)) + row flex wrapper 중첩 | 수정 | +85 / -10 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | `possession` state + `jumpBallModalOpen` / `heldBallConfirmOpen` 2 모달 state + 3 handler (`handleJumpBallConfirm` / `handleHeldBallConfirm` / `handleArrowClick`) + `handleEndPeriod` 자동 토글 + `handleLineupConfirm` 자동 open trigger + FibaHeader props wiring + 모달 2건 mount + draft 박제/복원 | 수정 | +130 / -3 |
+| `src/lib/score-sheet/draft-storage.ts` | `possession` 키 박제 docstring 갱신 (`[key: string]: unknown` 인덱스 시그니처 이미 박제 — 타입 변경 0 / 주석만 +4) | 수정 | +4 |
+
+🔗 **운영 제약 준수**:
+- BFF / submit / `buildSubmitPayload` 변경 0 (= PR-3 작업 영역)
+- DB schema 변경 0 (`prisma/schema.prisma` 미변경)
+- 시안 13 룰 100% 정합: `var(--color-*)` 토큰만 / Material Symbols Outlined / lucide-react ❌ / 빨강 본문 텍스트 ❌ / pill 9999px ❌ / radius 4~6px / 44px+ 터치 영역
+- 4종 모달 UX 패턴 정합: ESC + backdrop 클릭 + `sm:flex-row` footer + 모바일 column stack + 인쇄 차단 (`no-print`)
+- Phase 22/23 호환 보존: paper override / read-only (isReadOnly) / quarter_scores 영향 0
+- 미전달 prop = 미노출 (possessionArrow=null / undefined → 화살표 미노출 / 기존 paper 매치 영향 0)
+
+✅ **검증**:
+- `npx tsc --noEmit` = **exit code 0** (에러 0)
+- `npx vitest run possession-helpers` = **15/15 PASS** (295ms / PR-1 회귀 0)
+- `npx vitest run src/__tests__/score-sheet` = **209/210 PASS** (1 fail = `running-score-helpers.test.ts:298` — **본 PR 범위 밖** / PR-1 시작 전 이미 fail 상태 명시됨)
+
+💡 **tester 참고**:
+- **테스트 시나리오 1 (첫 점프볼 흐름)**:
+  1. paper 매치 진입 → 라인업 모달 → 양 팀 5인 선발 + 확정
+  2. **자동**: 점프볼 모달 open (사용자 결재 위치) — "1. 점프볼 승자 팀" + "2. 점프볼 승리 선수" 단계
+  3. Team A 또는 Team B 버튼 클릭 → 단계 2 선수 dropdown 활성화 (출전 명단 = starters+substitutes)
+  4. 선수 선택 (또는 "선택 안 함") → "확정" 클릭
+  5. **정상**: 헤더 쿼터 뱃지 좌측에 회색 화살표 노출 (winner=home → arrow=away → `arrow_back`)
+  6. toast 안내 = "점프볼 승리 = {팀명} (첫 공격권) / 다음 공격권 화살표 = {반대 팀}"
+
+- **테스트 시나리오 2 (헬드볼 흐름)**:
+  1. 점프볼 박제 후 화살표 노출 상태
+  2. 헤더 화살표 클릭 → PossessionConfirmModal 표시 — "헬드볼 발생 — 공격권 = {화살표 방향 팀명}"
+  3. "확인 (공격권 변경)" 클릭 → 화살표 토글 (반대 방향) + toast 5초 안내
+  4. "취소" 클릭 → 모달 닫기 / 화살표 상태 유지
+
+- **테스트 시나리오 3 (쿼터 종료 자동 토글)**:
+  1. Q1 진행 중 (화살표 = home 또는 away)
+  2. "쿼터 종료" 버튼 클릭 (Q1~Q3) → 자동 currentPeriod++ + 화살표 자동 토글
+  3. toast 안내 = "Q1 종료 — Q2 진행 / 다음 쿼터 공격권 = {반대 팀명}"
+  4. **주의**: Q4 / OT 종료 시 quarter-end 모달이 우선 → 본 자동 토글은 ENDED period 시점에 한 번만 (모달 progression 별도)
+
+- **테스트 시나리오 4 (read-only 매치 검증)**:
+  1. 종료 매치 (status=completed) 재진입 — isReadOnly=true
+  2. **확인 1**: 화살표 노출되지만 클릭 비활성 (cursor: default / onClick 무동작)
+  3. **확인 2**: JumpBallModal / PossessionConfirmModal open 강제 false (이중 방어)
+  4. **확인 3**: 수정 모드 진입 (super_admin / organizer / TAM 만) 시 다시 활성
+
+- **테스트 시나리오 5 (draft 복원)**:
+  1. 점프볼 박제 + 헬드볼 1회 박제 후 5초 대기 (draft 자동 저장)
+  2. 페이지 새로고침 (mid-game reload)
+  3. **정상**: 화살표 + 점프볼 상태 + heldBallEvents 모두 복원 (구버전 draft 호환 = EMPTY fallback)
+
+- **주의할 입력**:
+  - 라인업 미확정 상태 = lineup === null → 점프볼 모달 안 dropdown 빈 배열 (운영자가 라인업 confirm 부터 진행)
+  - possession.arrow === null + 헤더 화살표 미노출 → 헤더 클릭 trigger 자체 없음 (안전망)
+  - showToast 시그니처 = `(message, type)` 만 (duration 미지원) → 메시지 안 "공격권" 키워드로 강조
+
+⚠️ **reviewer 참고**:
+- **fiba-header row flex wrapper 중첩** — 기존 column flex (뱃지+라벨) → row flex (화살표+컬럼) 외부 wrapper 추가. `.ss-h` grid-template-columns "92px 1fr auto" 변경 0 — wrapper auto 폭 자연 정합. 닫는 div 1개 추가 (line 299 라벨 영역 → wrapper 닫기).
+- **화살표 클릭 가능 가드 = onArrowClick 함수 존재 여부** — caller (form) 가 `isReadOnly ? undefined : handleArrowClick` 전달 → fiba-header 가 `disabled={!onArrowClick}` + `cursor: onArrowClick ? "pointer" : "default"` 자동 분기. 자체 컴포넌트는 isReadOnly 모름 (책임 분리).
+- **possession-confirm-modal = ConfirmModal 재사용 박제** — LOC 84 (목표 60 약간 초과 / docstring 풍부) — 별도 모달 구조 박제 ❌. ConfirmModal `isPrimary` 옵션으로 "확인" 강조.
+- **handleEndPeriod 자동 토글** — Q1~Q3 자동 진입 분기 안에서 togglePossession 호출. arrow=null 가드 (헬퍼 자체 보호) — 첫 점프볼 미박제 매치도 안전. Q4/OT 모달 분기는 토글 X (사용자 결재 — 자동 OT 진입 차단 흐름과 정합).
+- **draft 복원 shape 검증** — arrow / openingJumpBall / heldBallEvents 3 키 약식 검증 후 setPossession. 구버전 draft (possession 키 없음) = EMPTY 유지 (운영 호환).
+- **buildSubmitPayload 변경 0** — possession 키는 BFF 에 미전달 (= PR-3 작업). 본 PR 의 화살표 / 점프볼 / 헬드볼 상태는 draft localStorage 만 → 새로고침 후에도 복원 가능하지만 submit 후 = 손실 (= 의도적 PR-3 영역).
+
+🚀 **다음 PR 진입 조건**:
+- PR-3 (BFF + PBP 박제): `buildSubmitPayload` 에 `possession` 키 추가 → submit/route.ts zod 확장 + `possessionToPBPInputs` 호출 → `play_by_plays` INSERT (action_type = "jump_ball" / "held_ball"). 운영 DB 영향 = INSERT 만 (사용자 결재 후 진행 — paper 매치 1건 submit + SELECT 검증).
 
 ## 이전 구현 기록 (fiba-header 쿼터 뱃지 v3 — 보존)
 
@@ -801,6 +1049,8 @@ EXIT=0 (no output / 0 error)
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Possession-2 UI + state + 모달 박제 (developer)** ⭐ | ✅ 신규 2 (`jump-ball-modal.tsx` +296 / `possession-confirm-modal.tsx` +84) + 수정 3 (`fiba-header.tsx` +85/-10 / `score-sheet-form.tsx` +130/-3 / `draft-storage.ts` +4) = **+612 / -13 LOC** / tsc 0 / vitest possession-helpers 15/15 PASS (295ms) / score-sheet 전체 209/210 PASS (1 fail = PR 범위 밖 기존 회귀) / 첫 점프볼 자동 trigger / 화살표 56px 회색 / 헬드볼 confirm 모달 / 쿼터 종료 자동 토글 / draft 박제 / BFF / DB 영향 0 (= PR-3) / 시안 13 룰 100% / PM 결재 (commit / push) 대기 |
+| 2026-05-16 | **PR-Public-1 공개 bracket 종별 view 기획설계 (planner-architect)** ⭐ | 🟡 read-only 분석 / 코드 수정 0 / 운영 DB SELECT 0 / 옵션 A (공개 신규 view) + D1 (기존 API 확장) 권장 / 예상 ~530 LOC (API +35 / wrapper +30 / 신규 3 컴포넌트 ~460 / GroupStandings +5) / 2 PR 분해 권장 (API +50 / UI +480) / admin /playoffs 회귀 0 / 시안 13 룰 100% / PM 결재 6 항목 (Q1~Q6) — D1+A 권장 |
 | 2026-05-16 | **PR-Possession-1 PURE 헬퍼 + 타입 + vitest 박제 (developer)** ⭐ | ✅ 신규 3 (`possession-types.ts` +58 / `possession-helpers.ts` +122 / `possession-helpers.test.ts` +187) = **+367 LOC** / tsc 0 / vitest 15/15 PASS (315ms) / UI / BFF / DB 영향 0 / 다른 파일 변경 0 / PR-2 진입 대기 (PM 결재) / 별건: running-score-helpers.test.ts 1건 fail 발견 (작업 시작 전 미커밋 회귀 — PR 범위 밖) |
 | 2026-05-16 | **fiba-header 쿼터 뱃지 v3 (위로 이동 + 매치 상태 라벨)** ⭐ | ✅ fiba-header.tsx +44/-19 (`marksCount?: number` prop + matchPhaseLabel 산출 + 뱃지 wrapper column flex + 라벨 div 박제) / score-sheet-form.tsx +4 (`marksCount={home.length + away.length}` wiring) / `alignSelf: flex-start + marginTop: -4px` 위로 이동 / 라벨 10px / `var(--color-text-secondary)` 회색 / tsc 0 / props 시그니처 신규 1건만 추가 (운영 호환) |
 | 2026-05-16 | **Track A `/playoffs` 종별 탭 (옵션 A 인라인) 박제** ⭐ | ✅ playoffs-client.tsx +128/-14 / useSearchParams + useState + 2 useEffect (URL sync + 폴백) / 5 섹션 prop 차등 / divisionStandings.length ≤ 1 가드 / tsc 0 / 자가 진단 5/5 / 시그니처 변경 0 |
