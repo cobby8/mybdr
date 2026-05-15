@@ -1502,6 +1502,29 @@ export function ScoreSheetForm({
             },
           }
         : {}),
+      // PR-Possession-3 (2026-05-16) — 공격권 (Possession Arrow) BFF 전달.
+      //
+      //   왜 (이유):
+      //     UI state 의 possession (arrow + openingJumpBall + heldBallEvents) 을 BFF 에 전달 →
+      //     BFF 가 possessionToPBPInputs 로 변환하여 play_by_plays 에 박제 (jump_ball / held_ball).
+      //     score events / foul events 와 동일 path (PlayByPlayInput[]) — service idempotent 흐름 그대로.
+      //
+      //   방법 (어떻게):
+      //     - openingJumpBall === null = 미박제 = 키 통째 생략 (BFF 가 optional 처리 — 운영 동작 보존)
+      //     - 박제 됐으면 = arrow + openingJumpBall + heldBallEvents 그대로 직렬화
+      //
+      //   보존:
+      //     - match.settings.possession JSON 박제는 PR-2 이미 완료 (mid-game reload 복원용) — 본 PR 영향 0
+      //     - 본 PR = PBP 박제만 (jump_ball / held_ball 액션 타입)
+      ...(possession.openingJumpBall !== null
+        ? {
+            possession: {
+              arrow: possession.arrow,
+              openingJumpBall: possession.openingJumpBall,
+              heldBallEvents: possession.heldBallEvents,
+            },
+          }
+        : {}),
       status: "completed" as const,
       referee_main: header.referee || undefined,
       referee_sub1: header.umpire1 || undefined,

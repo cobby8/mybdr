@@ -373,6 +373,95 @@ function classifyMatch(m) {
 🚀 **다음 PR 진입 조건**:
 - PR-3 (BFF + PBP 박제): `buildSubmitPayload` 에 `possession` 키 추가 → submit/route.ts zod 확장 + `possessionToPBPInputs` 호출 → `play_by_plays` INSERT (action_type = "jump_ball" / "held_ball"). 운영 DB 영향 = INSERT 만 (사용자 결재 후 진행 — paper 매치 1건 submit + SELECT 검증).
 
+## 구현 기록 (developer / 2026-05-16) — PR-Possession-3 BFF + PBP 박제 ⭐
+
+📝 **구현한 기능**: 공격권 (Possession Arrow) BFF + PBP 박제. PR-1 PURE 헬퍼 (commit 64be0f0) + PR-2 UI/state/모달 (commit 9f21090) 위에서 buildSubmitPayload → BFF possession payload 전달 → zod 검증 → possessionToPBPInputs 변환 → play_by_plays INSERT (action_type = `jump_ball` / `held_ball`). score events / foul events 와 동일 path (PlayByPlayInput[]) — service idempotent 흐름 보존.
+
+📁 **변경 파일** (2건 = 수정 2):
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | `buildSubmitPayload()` 에 `possession` 키 박제 (UI state → BFF payload / openingJumpBall=null 시 통째 생략) | 수정 | +23 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | (1) `possessionSchema` zod 추가 (`jumpBallEventSchema` + `heldBallEventSchema` + arr max 50) (2) `submitSchema.possession` optional (3) `possessionToPBPInputs` 호출 → PBP 변환 → `PlayByPlayInput[]` 통합 (4) player_id fallback (winnerPlayerId / lineup.starters[0] / skip) (5) audit context + changes.input + response 박제 카운트 | 수정 | +185 / -4 |
+
+총 **+208 / -4 LOC** (2 파일).
+
+🔗 **운영 제약 준수**:
+- DB schema 변경 0 (action_type = String @db.VarChar 자유 박제 — planner 확정)
+- 기존 score events / foul events 박제 흐름 변경 0 (PossessionPBPInput → PlayByPlayInput[] 통합만)
+- service `match-sync.ts` 변경 0 (deleteMany NOT IN incoming 가드로 idempotent 자동 — possession local_id 도 보존)
+- Phase 22 paper override 영향 0 (possession PBP points_scored=0 → quarter_scores 합산 영향 0)
+- Phase 23 read-only 영향 0 (isEditMode 흐름 그대로 — possession 도 우회 통과)
+- 구버전 client 호환 (possession 키 미전송 = PBP 박제 0건 / 기존 매치 영향 0)
+
+✅ **검증 3단계**:
+1. **tsc**: `npx tsc --noEmit` = **exit code 0** (에러 0)
+2. **vitest 전체**: `npx vitest run` = **1002/1003 PASS** (실패 1건 = `running-score-helpers.test.ts:298` 기존 회귀 — planner plan 명시된 PR 범위 밖)
+3. **운영 DB SELECT 검증** (사용자 옵션 C 결재 명시 — INSERT 0건):
+   - paper 매치 인벤토리: **10건** (218 completed / 217~209 scheduled)
+   - 기존 jump_ball/held_ball PBP: **0건** (baseline 확인 — PR-3 신규 박제 대상)
+   - 매치 171 상태: scheduled / paper mode / 양팀 배정 완료 (266 vs 267)
+   - 임시 검증 스크립트 `scripts/_temp/check-possession-pbp.ts` 박제 + SELECT 후 즉시 정리 (운영 영향 0)
+
+📦 **PBP 박제 룰** (FIBA Article 12 / Alternating Possession):
+- **action_type**: `jump_ball` (Opening Jump Ball) / `held_ball` (경기 중 헬드볼)
+- **local_id**: `paper-possession-{actionType}-{idx}` — service deleteMany NOT IN 가드 통과 (매번 전체 재INSERT — idempotent)
+- **tournament_team_player_id** (NOT NULL FK — service `> 0` 가드 통과 필수):
+  - jump_ball: openingJumpBall.winnerPlayerId 우선 → lineup.starters[0] (takingTeam) → 미확보 시 skip
+  - held_ball: lineup.starters[0] (takingTeam) → 미확보 시 skip
+- **tournament_team_id**: `team === "home"` → match.homeTeamId / `away` → match.awayTeamId
+- **quarter**: jump_ball = 1 (Q1 시작) / held_ball = event.period
+- **points_scored**: 0 (점수 영향 0)
+- **is_made / shot_clock / court_x/y/zone / 모든 player FK**: null
+- **description**: `[종이 기록] 점프볼 ({팀} 첫 점유)` / `[종이 기록] 헬드볼 ({팀} 공격권)`
+
+💡 **tester 참고**:
+- **테스트 시나리오 1 (jump_ball PBP 박제)**:
+  1. paper 매치 (예: 171) 진입 → 라인업 5인 확정 → 자동 점프볼 모달
+  2. 점프볼 승자 선택 + winnerPlayerId 선택 → 확정
+  3. running_score 1점 박제 + 쿼터 종료 → 매치 종료 buildSubmitPayload + submit
+  4. **정상**: SELECT `action_type, period, tournament_team_player_id, tournament_team_id FROM play_by_plays WHERE tournament_match_id = ? AND action_type IN ('jump_ball','held_ball')` → `jump_ball` 1행 + winnerPlayerId = winner_team starter
+
+- **테스트 시나리오 2 (held_ball PBP 박제)**:
+  1. 점프볼 박제 후 진행 중 헬드볼 발생 → 화살표 클릭 → confirm 모달 → 확인
+  2. 헬드볼 1~2회 박제 후 submit
+  3. **정상**: SELECT 결과 `jump_ball` 1행 + `held_ball` N행 (period = 발생 쿼터 / team = takingTeam = lineup.starters[0])
+
+- **테스트 시나리오 3 (audit context + changes.input 박제)**:
+  1. submit 후 `tournament_match_audits` SELECT
+  2. **정상**: context 안 `poss N = JB1+HB(N-1)` 박제 + changes.input 안 `possession_pbp_count / possession_jump_ball_count / possession_held_ball_count` 박제
+
+- **테스트 시나리오 4 (idempotent 재제출)**:
+  1. 매치 1회 submit → possession PBP N건 INSERT
+  2. 재제출 (수정 모드) → 동일 possession 박제
+  3. **정상**: deleteMany NOT IN (local_id `paper-possession-*`) → 같은 local_id 재upsert → 중복 박제 0
+
+- **테스트 시나리오 5 (운영 동작 보존 — 구버전 client 호환)**:
+  1. score-sheet UI 의 점프볼 모달 무시 (또는 미박제 매치) → buildSubmitPayload 가 possession 키 통째 생략
+  2. **정상**: BFF 가 input.possession === undefined → possession PBP 박제 0건 / 기존 매치 동작 유지
+
+- **테스트 시나리오 6 (player_id fallback skip 안전망)**:
+  1. lineup 미전송 + winnerPlayerId 미박제 케이스 (가설 — 실 UI 흐름상 불가능)
+  2. **정상**: 각 possession event 박제 skip (운영 영향 0 — service `> 0` 가드와 동일 효과)
+
+- **주의할 입력**:
+  - possession.openingJumpBall === null (운영자가 라인업 미확정 또는 점프볼 모달 무시) → BFF 키 미박제 = PBP 0건
+  - lineup.starters.length < 1 = unlikely (zod `.length(5)` 가드) — 가드 통과 시 fallback 정상 동작
+  - held_ball event 의 takingTeam 라인업 starters[0] = placeholder (실 선수 미식별) — PBP query 시 action_type 필터만으로 식별 가능
+
+⚠️ **reviewer 참고**:
+- **service `> 0` 가드와 tournament_team_player_id 결정 룰** — `match-sync.ts:573` validPbps 필터 (`pbp.tournament_team_player_id > 0 && pbp.tournament_team_id > 0`) 통과 의무. 본 BFF 가 fallback (winnerPlayerId / lineup.starters[0]) 으로 정상 ID 박제. 미확보 시 BFF 자체 skip (운영 영향 0 / service 가드와 일관).
+- **action_type 자유 박제 확인** — `prisma/schema.prisma:1849` action_type 컬럼 = String @db.VarChar (enum 0 / 자유). `jump_ball` / `held_ball` 박제 = DB 호환 (planner 확정 + 실 SELECT 검증).
+- **player_id placeholder = lineup.starters[0]** — held_ball 은 팀 단위 이벤트 (실 선수 미식별). 라인업 첫 선수로 placeholder 박제. PBP query 시 action_type 필터로 식별 가능 (player 통산 stat 영향 0 — 라이브 API 가 jump_ball/held_ball action_type 자체를 stat 카운트 0 처리).
+- **local_id 단위 idempotent 보존** — `paper-possession-{actionType}-{idx}` 형식. service deleteMany NOT IN incoming_local_ids 가드로 매번 전체 재INSERT (Flutter sync 와 동일 패턴 / score events / foul events 와 정합).
+- **schema 변경 0** — possession PBP 박제는 기존 play_by_plays 테이블 그대로. action_type 자유 / tournament_team_player_id NOT NULL FK 가드 통과 / 6 인덱스 영향 0.
+- **운영 DB INSERT 0건 (본 PR 박제 시점)** — 코드 박제만 (스크립트 0 / SELECT 만). 실제 INSERT = 운영 사용자가 score-sheet 제출 시점에 자동 trigger. 사후 audit log + PBP SELECT 로 검증 가능.
+
+🚀 **PR-Possession 시리즈 박제 완료**:
+- PR-1 (PURE 헬퍼 + vitest 15) `64be0f0` ✅
+- PR-2 (UI + state + 모달) `9f21090` ✅
+- PR-3 (BFF + PBP 박제) ⭐ 박제 완료 — PM 결재 (commit / push) 대기
+
 ## 이전 구현 기록 (fiba-header 쿼터 뱃지 v3 — 보존)
 
 ### fiba-header 쿼터 뱃지 v3
@@ -1109,6 +1198,7 @@ EXIT=0 (no output / 0 error)
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Possession-3 BFF + PBP 박제 (developer)** ⭐ | ✅ 수정 2 (`score-sheet-form.tsx` +23 buildSubmitPayload possession 키 / `submit/route.ts` +185/-4 possessionSchema zod + possessionToPBPInputs 호출 + player_id fallback + audit 박제) = **+208 / -4 LOC** / tsc 0 / vitest 1002/1003 PASS (1 fail = PR 범위 밖 기존 회귀) / 운영 DB SELECT: paper 매치 10건 / 기존 jump_ball/held_ball PBP 0건 baseline / 매치 171 paper scheduled / action_type=`jump_ball`/`held_ball` 박제 / local_id=`paper-possession-{type}-{idx}` idempotent / player_id fallback (winnerPlayerId → starters[0] → skip) / schema 변경 0 / Phase 22/23 영향 0 / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **PR-Public-1 공개 bracket 종별 view 박제 (developer)** ⭐ | ✅ 신규 3 (`divisions-view` 478 / `division-schedule-table` 391 / `division-group-composition` 159) + 수정 3 (`public-bracket/route.ts` +48 / `v2-bracket-wrapper.tsx` +44/-5 / `group-standings.tsx` +3) = **+1118 / -5 LOC** / tsc 0 / 자가 진단 6/6 / admin /playoffs 변경 0 / hasKnockout 우선 분기 보존 (회귀 0) / divisionRules / divisionStandings / groupTeams.division 신규 필드 3건 / URL ?division= deep link / 종별 탭 (≥2 가드) / 5 섹션 (조편성 / standings / 예선 / 순위전 / 결승) / 시안 13 룰 100% / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **PR-Possession-2 UI + state + 모달 박제 (developer)** ⭐ | ✅ 신규 2 (`jump-ball-modal.tsx` +296 / `possession-confirm-modal.tsx` +84) + 수정 3 (`fiba-header.tsx` +85/-10 / `score-sheet-form.tsx` +130/-3 / `draft-storage.ts` +4) = **+612 / -13 LOC** / tsc 0 / vitest possession-helpers 15/15 PASS (295ms) / score-sheet 전체 209/210 PASS (1 fail = PR 범위 밖 기존 회귀) / 첫 점프볼 자동 trigger / 화살표 56px 회색 / 헬드볼 confirm 모달 / 쿼터 종료 자동 토글 / draft 박제 / BFF / DB 영향 0 (= PR-3) / 시안 13 룰 100% / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **PR-Public-1 공개 bracket 종별 view 기획설계 (planner-architect)** ⭐ | 🟡 read-only 분석 / 코드 수정 0 / 운영 DB SELECT 0 / 옵션 A (공개 신규 view) + D1 (기존 API 확장) 권장 / 예상 ~530 LOC (API +35 / wrapper +30 / 신규 3 컴포넌트 ~460 / GroupStandings +5) / 2 PR 분해 권장 (API +50 / UI +480) / admin /playoffs 회귀 0 / 시안 13 룰 100% / PM 결재 6 항목 (Q1~Q6) — D1+A 권장 |
