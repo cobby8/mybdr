@@ -17,8 +17,8 @@
 | Phase 0.6 — scratchpad 정리 (726→50줄) | ✅ 완료 |
 | Phase 1 — BDR-current v2.14 sync commit (d43704a) | ✅ 완료 (436 파일 / +75866) |
 | Phase 1.5 — push to origin/subin | ✅ 완료 (4 commit fast-forward) |
-| Phase 2 — Admin-1 components/admin (10 컴포넌트) | ✅ developer 박제 완료 (신규 6 + 수정 1 / tsc 0 / 갱신 5 보류) — 사용자 결재 대기 |
-| **Phase 3 — Admin-2 /admin/layout + Dashboard** | ⏳ **Admin-1 후 결재** (갱신 5 컴포넌트 동반) |
+| Phase 2 — Admin-1 components/admin (신규 5 + admin.css) | ✅ commit `05caa04` (7 파일 / +1830 / tsc 0 / 갱신 5 보류 사용자 결재) |
+| **Phase 3 — Admin-2 /admin/layout + Dashboard** | ⏳ **push + Admin-2 결재 대기** (갱신 5 동반) |
 | Phase 4 — Admin-3 wizard 풀스크린 | ⏳ |
 | Phase 5 — Admin-4 Phase B 콘텐츠 9 페이지 | ⏳ |
 | Phase 6 — Admin-5 Phase C 사용자/비즈니스/외부 9 페이지 | ⏳ |
@@ -38,8 +38,9 @@
 - PR-S9 / UI-1.4 entry_fee / GNBA 8팀 코치 안내
 
 ## 미푸시 commit (subin 브랜치)
-- 현재 = **0** (origin/subin = HEAD = d1290c0 박제 완료)
-- 본 세션 직전 = 4 commit (0853927 chore wip + d43704a sync + d1290c0 PR4-UI by 다른 세션 + Phase 6 PR2/PR1 등 이전 commit)
+- 현재 = **1** (`05caa04` Admin-1 박제 / origin/subin = 223f7f0 Phase 23 PR-EDIT by 다른 세션)
+- push 결재 대기 — 다른 세션이 동시 박제 중이라 push 시점 사용자 결재 권장
+- 본 세션 누적 = 2 commit (0853927 chore wip + d43704a sync) + Admin-1 (05caa04) = 3 commit 본 세션 직접 박제
 
 ## 기획설계 (planner-architect)
 (본 의뢰 = 시안 박제이므로 신규 설계 없음 / cli-port-to-src.md 참조)
@@ -141,6 +142,95 @@
 5. **회귀 검증**: 일반 사용자 / 협회 관리자 / super_admin 진입 시 기존 동작 변경 0 확인
 6. **임시 스크립트 정리**: `scripts/_temp/check-user-3431.ts` 삭제 (운영 DB credentials 노출 방지 — 운영 안전 룰)
 
+## 구현 기록 (developer) — PR-Live1~Live4 (라이브 기록 진입점 + 태블릿 풀스크린) — 2026-05-15
+
+📝 구현 요약: 라이브 페이지 (/live/[matchId]) 운영자/기록원 발견 경로 박제 + score-sheet 풀스크린 자동 진입 + 명시 toggle 버튼. 사용자 결재 Q1~Q7 권고안 100% 적용. Flutter v1 / DB schema 변경 0. Phase 23 PR-RO + PR-EDIT 영향 0.
+
+### PR 별 변경 파일 + LOC
+
+| PR | 파일 | 변경 | 신규/수정 | LOC |
+|----|------|------|----------|----|
+| **PR-Live1** | `src/app/api/web/tournaments/[id]/score-sheet-access/route.ts` | GET handler — boolean 게이트 endpoint (super_admin / recorder_admin / organizer / TAM / recorder 5 분기 + 미로그인 silent 200) | 신규 | ~100 |
+| **PR-Live2** | `src/app/live/[id]/page.tsx` | (a) `import Link from "next/link"` (b) `canRecord` state + useEffect fetch (c) toolbar 에 "기록하기" Link 2건 (sm 텍스트+아이콘 / 모바일 아이콘만) — var(--color-primary) 강조 | 수정 | +50 |
+| **PR-Live3** | `src/app/(score-sheet)/_components/body-scroll-lock.tsx` | 신규 client 컴포넌트 — mount 시 `body.style.overflow="hidden"` / cleanup 시 복원 / DOM 0 effect 전용 | 신규 | ~50 |
+| **PR-Live3** | `src/app/(score-sheet)/layout.tsx` | (a) `BodyScrollLock` import + 마운트 (b) `export const viewport` 신규 (width device-width + initialScale 1 + viewportFit cover) | 수정 | +15 |
+| **PR-Live4** | `src/app/(score-sheet)/_components/fullscreen-toggle.tsx` | 신규 client 컴포넌트 — `document.fullscreenElement` state + `fullscreenchange` listener + onClick try-catch (iPhone silent fail) + Material Symbols `fullscreen` / `fullscreen_exit` 분기 | 신규 | ~80 |
+| **PR-Live4** | `src/app/(score-sheet)/layout.tsx` | (a) `FullscreenToggle` import (b) header gap-1 (c) ThemeToggle 좌측에 FullscreenToggle 마운트 | 수정 | +5 |
+
+**합계**: 신규 3 + 수정 2 / 약 ~300 LOC.
+
+### 신규 endpoint 권한 매트릭스 (PR-Live1)
+
+| Role | canRecord | canEdit | 비고 |
+|------|-----------|---------|-----|
+| super_admin | true | true | sentinel 자동 통과 / DB 추가 조회 skip |
+| recorder_admin (전역) | true | false | recorder 자동 흡수 의미상 동일 → 수정 권한 ❌ |
+| tournament.organizerId | true | true | 본 대회 운영자 |
+| tournament_admin_members (isActive=true) | true | true | TAM 운영진 |
+| tournament_recorders (isActive=true) | true | false | 기록원 — 수정 권한 보수적 ❌ |
+| 그 외 / 미로그인 | false | false | silent 200 (라이브 페이지 공개 룰 정합) |
+
+### 풀스크린 진입 흐름 (PR-Live3 + PR-Live4)
+
+| 단계 | 동작 | 컴포넌트 |
+|------|------|---------|
+| (1) 자동 진입 | mount 시 `body.style.overflow="hidden"` set (양식 외 스크롤 차단) | BodyScrollLock |
+| (2) viewport 정합 | `viewport.viewportFit=cover` → iOS Safari safe-area / 안드로이드 system bar 영역 회수 가능 | layout.tsx export const viewport |
+| (3) 명시 진입 | thin bar 우상단 FullscreenToggle 클릭 → `documentElement.requestFullscreen()` (try-catch) | FullscreenToggle |
+| (4) 외부 변화 추적 | `fullscreenchange` listener → 아이콘 / aria-label 자동 동기화 | FullscreenToggle |
+| (5) 해제 | ESC / 본 버튼 재클릭 / 페이지 떠남 (cleanup) — Q7 사용자 명시 룰 | FullscreenToggle + BodyScrollLock cleanup |
+| (6) iPhone silent fail | Fullscreen API 미지원 → try-catch silent fail (alert/console.error 0) | FullscreenToggle |
+
+### 검증 결과
+
+| # | 명령 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | **exit=0** / 에러 0 (관련 unrelated 에러 0) |
+| 2 | `npx vitest run` | **921/921 PASS** / 회귀 0 |
+| 3 | grep `score-sheet-access` in route + 라이브 page | ✅ 양쪽 매치 |
+| 4 | grep `canRecord` in 라이브 page | ✅ 7 occurrences |
+| 5 | grep `requestFullscreen` in FullscreenToggle | ✅ 매치 |
+
+### 운영 동작 보존 (회귀 검증 매트릭스)
+
+| # | 케이스 | 결과 |
+|---|-------|------|
+| 1 | 일반 회원 / 익명 | canRecord=false → 기록하기 버튼 미노출 ✅ |
+| 2 | recorder | canRecord=true → 버튼 노출 + score-sheet 진입 정상 ✅ |
+| 3 | super_admin / organizer / TAM / recorder_admin | 버튼 노출 + score-sheet 진입 정상 ✅ |
+| 4 | 라이브 페이지 임시번호 / 다크모드 / 댓글 / 박스스코어 / YouTube 임베드 / PIP | 변경 0 ✅ |
+| 5 | score-sheet layout — thin bar / RotationGuard / ToastProvider | 보존 (FullscreenToggle 한 줄 추가만) ✅ |
+| 6 | 풀스크린 해제 — ESC / 버튼 / 페이지 떠남 cleanup | listener + unmount cleanup 보장 ✅ |
+| 7 | Flutter v1 API / DB schema | 영향 0 (신규 endpoint = web 전용 / schema 변경 0) ✅ |
+| 8 | Phase 23 PR-RO + PR-EDIT (commit fab2697 / 223f7f0) | 영향 0 (별도 권한 헬퍼 — 본 endpoint 와 무관) ✅ |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. recorder 또는 super_admin 계정 로그인 → `/live/{matchId}` 진입 → toolbar 에 빨간 "기록하기" 버튼 (데스크탑) / 빨간 아이콘만 (모바일) 노출 확인
+  2. 버튼 클릭 → `/score-sheet/{matchId}` 진입 → thin bar 우상단 `fullscreen` 아이콘 + `ThemeToggle` 노출 확인
+  3. score-sheet 페이지 진입 직후 body 스크롤 잠금 (양식 외 영역 마우스휠 / 터치 스와이프 무반응) 확인
+  4. fullscreen 버튼 클릭 → 풀스크린 진입 + 아이콘 `fullscreen_exit` 으로 변경 확인
+  5. ESC 키 → 풀스크린 해제 + 아이콘 `fullscreen` 으로 복귀 확인 (외부 변화 listener 검증)
+  6. score-sheet 페이지 떠나기 (브라우저 뒤로가기) → body 스크롤 복원 확인 (cleanup 검증)
+  7. iPhone Safari 진입 → 풀스크린 버튼 클릭 → 에러 alert 0 / 화면 변화 0 (silent fail 검증)
+  8. 일반 사용자 / 미로그인 → `/live/{matchId}` 진입 → "기록하기" 버튼 노출 0 (canRecord:false 보장)
+- **정상 동작**: 라이브 페이지 = 기존 임시번호 옆에 빨강 강조 버튼 / score-sheet = thin bar 우상단 풀스크린 토글 + 자동 body lock
+- **주의할 입력**: paper 매치 + flutter 매치 둘 다 버튼 노출 (Q4 mode 무관 — score-sheet 안내 화면이 자동 처리). flutter 매치에서 클릭 시 score-sheet 안내 페이지로 자동 분기.
+
+⚠️ reviewer 참고:
+- **권한 매트릭스 단일 source**: 본 endpoint = `requireScoreSheetAccess` (require-score-sheet-access.ts) 의 권한 분기 룰을 그대로 인라인 carry. throw 안 함 (boolean 만 반환 / silent fail) — admin-check 패턴 정합.
+- **DB 라운드트립 효율**: super_admin 통과 시 DB 조회 0 (sentinel 자동) / 그 외는 tournament SELECT 1 + parallel(TAM + recorder) SELECT 1 = 최대 2 라운드트립 (admin-check 보다 1 추가 — recorder 검증).
+- **camelCase → snake_case 변환**: `apiSuccess({ canRecord, canEdit })` → 자동 변환으로 클라가 `data.can_record / data.can_edit` 접근. 안전 폴백 (`?? data.canRecord`) 추가하여 raw 응답 fallback 정합.
+- **viewport meta override**: route group `(score-sheet)` 의 `export const viewport` 가 root layout 의 viewport 를 자동 override (Next.js 14+ App Router 기본 동작). 다른 route 영향 0.
+- **body overflow cleanup**: previous 값 보존 + unmount 복원 (다른 inline 스크립트가 사전에 박은 값 정합). 일반적으로 ""로 복원됨.
+- **FullscreenToggle silent fail**: try-catch 로 iPhone / 권한 거부 / 비-user-gesture 호출 모두 silent 처리. console.error / alert 0 (운영자 입력 흐름 보호).
+- **AppNav frozen 영향 0**: score-sheet route group 격리 — main AppNav 변경 없음. 라이브 페이지 toolbar = 기존 헤더 영역 (AppNav 와 별개).
+
+#### 잠재 위험 / 메모
+- **paper 매치 vs flutter 매치 버튼 노출 일관성**: Q4 결재 = mode 무관 노출. flutter 매치 클릭 시 score-sheet 안내 페이지가 분기 처리 — 사용자 UX 일관성 우선. 후속 결재로 mode 분기 추가 가능 (간단 — `match.settings.recording_mode === "paper"` 분기 1줄).
+- **canRecord vs canEdit 응답 키 분리**: 현재 라이브 페이지는 `canRecord` 만 사용. `canEdit` 은 향후 라이브 페이지에서 "수정 모드" 버튼 노출 시 사용 가능 (Phase 23 PR-EDIT 흐름 정합).
+- **fullscreen 권장 환경**: iPad / Android 태블릿 세로 — Q6 RotationGuard 가 가로 차단으로 강제 정합. iPhone = silent fail (UI 변화 0).
+
 ## 테스트 결과 (tester)
 (Phase 2 완료 후 시각 검증 박제)
 
@@ -154,6 +244,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | PR-Live1~Live4 라이브 기록 진입점 + 태블릿 세로 풀스크린 (Q1~Q7 권고안) | ✅ 신규 3 + 수정 2 / ~300 LOC / tsc 0 / vitest 921/921 PASS / score-sheet-access endpoint (5 권한 분기) + 라이브 toolbar "기록하기" Link + score-sheet body overflow lock + FullscreenToggle 명시 버튼 / Flutter v1 영향 0 / DB schema 변경 0 / commit 결재 대기 |
 | 2026-05-15 | Phase 7 A PR2+PR3 E2E 시나리오 2 (회차 복제) + 시나리오 3 (1회성 대회) 박제 | ✅ 신규 2 + 수정 1 / ~418 LOC / tsc 0 / vitest 921/921 PASS / 운영 코드 변경 0 / 운영 DB 영향 0 (실행은 사용자 검증) / fixtures 시드 헬퍼 2 확장 / commit 결재 대기 |
 | 2026-05-15 | Phase 23 PR-EDIT1~EDIT4 종료 매치 수정 모드 별도 기능 (Q3~Q8 권고안) | ✅ 수정 4 파일 / +~370 LOC / tsc 0 / vitest 236/236 / canEdit (super/organizer/TAM) + isEditMode state + edit_mode body 우회 + audit "completed_edit_resubmit" + 수정 이력 inline (Q7 옵션 A — 매치 상세 페이지 미존재로 score-sheet 인라인) / commit 결재 대기 |
 | 2026-05-15 | Admin-1 Phase components/admin/* 10 컴포넌트 박제 (시안 v2.14) | ✅ 신규 6 + 수정 1 / ~1744 LOC / tsc 0 / admin.css + 신규 5 컴포넌트 / 갱신 5 보류 (호출처 29 파일 보존) / Admin-2 결재 대기 |
@@ -163,9 +254,6 @@
 | 2026-05-15 | Phase 6 PR2 협회 마법사 본체 (Step 1~3 + WizardShell + sessionStorage + 진입 카드) | ✅ 79e72de — super_admin 전용 / Q4 결재 적용 |
 | 2026-05-15 | Phase 6 PR1 협회 마법사 API 3 endpoint | ✅ 39e7aab — Association/Admin/FeeSetting 3 라우트 |
 | 2026-05-15 | PR-G5 대진표 생성기 placeholder 박제 자동화 (강남구 사고 영구 차단) | ✅ eba655d + 72b818b — 6 format 보강 / 헬퍼 박제 |
-| 2026-05-15 | PR3 recorder_admin /referee/admin 진입 + admin-guard sentinel + RoleMatrixCard | ✅ facafd7 — 수정 6 파일 / tsc 0 / vitest 873/873 |
-| 2026-05-15 | PR2 recorder_admin 기록원 배정 API 가드 (recorders GET/POST/DELETE) | ✅ 29730ba — 라우트 내부 헬퍼 / vitest 868/868 |
-| 2026-05-15 | PR1 recorder_admin 권한 헬퍼 + 기록 API 가드 | ✅ 718c32f — 신규 3 파일 + 수정 3 / 16 신규 케이스 |
 
 ## 구현 기록 (developer) — Phase 6 PR3 Referee Step 4 (2026-05-15)
 
