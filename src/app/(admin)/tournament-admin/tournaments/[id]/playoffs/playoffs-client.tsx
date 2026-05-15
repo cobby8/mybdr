@@ -21,7 +21,12 @@
 
 "use client";
 
-import { useRouter } from "next/navigation";
+// 2026-05-16 Track A — 종별 탭 박제 (옵션 A 인라인).
+//   이유(왜): 강남구 6 종별 박제 시 5 섹션 × 6 = 세로 약 6240px (운영 불가능).
+//   탭 1개로 단일 종별 표시 (또는 "전체") → 운영자 시각 단축.
+//   matches-client.tsx line 553~624 패턴 재사용 (검증된 패턴 / premature abstraction 회피).
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import type { DivisionStanding } from "@/lib/tournaments/division-advancement";
 import { AdvancePlayoffsButton } from "../_components/AdvancePlayoffsButton";
@@ -112,26 +117,85 @@ function getDivisionCode(m: PlayoffsMatch): string | null {
 export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Props) {
   // Advance 버튼 성공 시 router.refresh() — server component 재실행으로 standings + matches 재조회
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ─────────────────────────────────────────────────────────────
-  // 매치 분류 — 한번만 계산 (rendering 분기 단순화)
+  // 2026-05-16 Track A — 종별 탭 state (옵션 A 인라인 / matches-client 패턴)
+  //   selectedDivision = null → "전체" / "i3-U9" 등 → 단일 종별
+  //   URL ?division= deep link (bracket 페이지에서 종별 클릭 진입 후속 박제 시 활용)
   // ─────────────────────────────────────────────────────────────
-
-  // 순위전 매치 — roundName 에 "순위" 포함
-  const rankingMatches = matches.filter(
-    (m) => m.roundName && RANKING_ROUND_REGEX.test(m.roundName),
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(
+    searchParams?.get("division") ?? null,
   );
 
-  // 결승 매치 — roundName 에 "결승" 또는 "final" 포함
-  const finalMatches = matches.filter(
-    (m) => m.roundName && FINAL_ROUND_REGEX.test(m.roundName),
-  );
-
-  // 종별 코드 목록 (Advance 버튼 props)
+  // 종별 코드 목록 (Advance 버튼 props + 탭 렌더 source)
   const divisionCodes = divisionStandings.map((d) => d.code);
 
   // 종별 라벨 lookup (순위전/결승 매치 그룹핑 시 표시명 변환)
   const labelByCode = new Map(divisionStandings.map((d) => [d.code, d.label]));
+
+  // 탭 표시 가드 — 종별이 2개 이상일 때만 탭 렌더 (단일 종별 운영 시 회귀 0)
+  const showDivisionTabs = divisionStandings.length > 1;
+
+  // URL deep link 폴백 — ?division= 잘못된 코드면 null 로 초기화 (빈 화면 방지)
+  // showDivisionTabs 가 false 면 selectedDivision = null 강제 (단일 종별 일관)
+  useEffect(() => {
+    if (!showDivisionTabs && selectedDivision !== null) {
+      setSelectedDivision(null);
+      return;
+    }
+    if (selectedDivision !== null && !divisionCodes.includes(selectedDivision)) {
+      setSelectedDivision(null);
+    }
+  }, [selectedDivision, divisionCodes, showDivisionTabs]);
+
+  // selectedDivision 변경 시 URL 동기화 (브라우저 뒤로가기 / deep link 공유)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (selectedDivision) {
+      params.set("division", selectedDivision);
+    } else {
+      params.delete("division");
+    }
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "?", { scroll: false });
+    // searchParams 는 dependency 에서 제외 — replace 호출 시 자기 자신 변경 → 무한 loop 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDivision, router]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 5 섹션 prop 차등 — selectedDivision 에 따라 source 필터링
+  //   재사용 컴포넌트 (Banner / Advance / StandingsTable / DivisionMatchGroup / FinalCard)
+  //   시그니처는 0 변경 — 부모에서 prop 만 차등 전달.
+  // ─────────────────────────────────────────────────────────────
+
+  // 단일 종별 모드 = matches 도 해당 종별만 (Banner 검증 범위 축소)
+  const filteredMatches = selectedDivision
+    ? matches.filter((m) => getDivisionCode(m) === selectedDivision)
+    : matches;
+
+  // Advance 버튼 호출 종별 = 단일 종별 모드면 1개만 / 전체면 전부
+  const advanceDivisionCodes = selectedDivision ? [selectedDivision] : divisionCodes;
+
+  // 종별 standings = 단일 종별 모드면 해당 종별만 / 전체면 전부
+  const visibleStandings = selectedDivision
+    ? divisionStandings.filter((d) => d.code === selectedDivision)
+    : divisionStandings;
+
+  // ─────────────────────────────────────────────────────────────
+  // 매치 분류 — filteredMatches 기반 (단일 종별 모드 = 해당 종별 매치만)
+  // ─────────────────────────────────────────────────────────────
+
+  // 순위전 매치 — roundName 에 "순위" 포함
+  const rankingMatches = filteredMatches.filter(
+    (m) => m.roundName && RANKING_ROUND_REGEX.test(m.roundName),
+  );
+
+  // 결승 매치 — roundName 에 "결승" 또는 "final" 포함
+  const finalMatches = filteredMatches.filter(
+    (m) => m.roundName && FINAL_ROUND_REGEX.test(m.roundName),
+  );
 
   // 순위전 매치 종별 그룹핑 — 종별 코드 → 매치들
   const rankingByDivision = rankingMatches.reduce<Map<string, PlayoffsMatch[]>>((map, m) => {
@@ -152,11 +216,58 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
   return (
     <div className="space-y-6">
       {/* ─────────────────────────────────────────────────────────────
+          2026-05-16 Track A — 종별 탭 (옵션 A 인라인 / matches-client 패턴 재사용)
+          이유: 강남구 6 종별 박제 시 5 섹션 × 6 종별 = 세로 약 6240px (운영 불가능).
+          탭 1개로 단일 종별 표시 (또는 "전체") → 운영자 시각 단축.
+          가드: divisionStandings.length ≤ 1 = 탭 미렌더 (단일 종별 운영 회귀 0).
+         ───────────────────────────────────────────────────────────── */}
+      {showDivisionTabs && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--color-text-muted)]">종별:</span>
+          {/* "전체" 탭 — selectedDivision = null (모든 종별 표시 / 기존 동작 유지) */}
+          <button
+            type="button"
+            onClick={() => setSelectedDivision(null)}
+            className={`min-h-[44px] rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+              selectedDivision === null
+                ? "bg-[var(--color-info)] text-white"
+                : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+            }`}
+          >
+            전체 ({divisionStandings.length}종별)
+          </button>
+          {/* 종별별 탭 — 카운트 = 해당 종별 매치 수 (운영자가 한눈에 규모 파악) */}
+          {divisionStandings.map((d) => {
+            const count = matches.filter((m) => getDivisionCode(m) === d.code).length;
+            const tabLabel = d.label === d.code ? d.code : d.label;
+            return (
+              <button
+                key={d.code}
+                type="button"
+                onClick={() => setSelectedDivision(d.code)}
+                className={`min-h-[44px] rounded-[4px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedDivision === d.code
+                    ? "bg-[var(--color-info)] text-white"
+                    : "bg-[var(--color-elevated)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                {tabLabel} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
           섹션 5 (상단 배치) — placeholder 형식 위반 검출 배너
           이유: 상단 노출 = 운영자가 진입 즉시 사고 인지 가능.
           검출 0건 = null 반환 (배너 미표시).
+          Track A: filteredMatches (단일 종별 모드 = 해당 종별 매치만 검증) + applyFilter true 라벨.
          ───────────────────────────────────────────────────────────── */}
-      <PlaceholderValidationBanner matches={matches} />
+      <PlaceholderValidationBanner
+        matches={filteredMatches}
+        applyFilter={selectedDivision !== null}
+      />
 
       {/* ─────────────────────────────────────────────────────────────
           섹션 2 — Advance 버튼 (예선 종료 → 순위전 placeholder 일괄 매핑)
@@ -179,7 +290,8 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
           </div>
           <AdvancePlayoffsButton
             tournamentId={tournamentId}
-            divisionCodes={divisionCodes}
+            // Track A: 단일 종별 모드 = 해당 종별만 호출 / 전체 = 일괄 호출 (기존 동작)
+            divisionCodes={advanceDivisionCodes}
             // server component 재실행 → standings + matches 재조회
             onSuccess={() => router.refresh()}
           />
@@ -195,10 +307,12 @@ export function PlayoffsClient({ tournamentId, divisionStandings, matches }: Pro
           <span className="material-symbols-outlined align-middle text-[16px]" aria-hidden="true">
             leaderboard
           </span>{" "}
-          종별 예선 결과 ({divisionStandings.length}종별)
+          종별 예선 결과 ({visibleStandings.length}
+          {selectedDivision ? "종별 (선택)" : "종별"})
         </h2>
         <div className="grid gap-4 lg:grid-cols-2">
-          {divisionStandings.map((d) => (
+          {/* Track A: visibleStandings = 단일 종별 모드 = 해당 종별만 / 전체 = 전부 */}
+          {visibleStandings.map((d) => (
             <StandingsTable
               key={d.code}
               divisionLabel={d.label === d.code ? d.code : `${d.label} (${d.code})`}
