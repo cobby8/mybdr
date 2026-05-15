@@ -3,6 +3,10 @@
 // 2026-05-04: (web) 디자인 시스템 통일 (Phase C-3)
 // - 통계 <Card> → div + 토큰 (3 카드 단순화)
 // - 본문 <Card> wrapper 제거 / 상태 뱃지 → .badge--soft + 상태별 inline color
+// 2026-05-15: Admin-5-B 박제 (BDR v2.14)
+// - STATUS_STYLE(inline css) → STATUS_TONE (admin-stat-pill[data-tone] 매핑)
+// - paid=ok / pending=warn / failed=err / cancelled=mute / refunded=info / partial_refunded=info
+// - 비즈 로직 (fetch / filter / setSelected) 100% 보존
 
 import { useState } from "react";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
@@ -43,35 +47,16 @@ const STATUS_LABEL: Record<string, string> = {
   partial_refunded: "부분 환불",
 };
 
-// 상태별 .badge--soft inline color (warning / success / error / info)
-const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
-  pending: {
-    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-    color: "var(--color-warning)",
-    borderColor: "transparent",
-  },
-  paid: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
-  failed: {
-    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
-    color: "var(--color-error)",
-    borderColor: "transparent",
-  },
-  cancelled: undefined, // .badge--soft 기본
-  refunded: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
+// 시안 v2.14 — admin-stat-pill[data-tone] 매핑
+// (paid=ok / pending=warn / failed=err / cancelled=mute / refunded=info / partial_refunded=info)
+const STATUS_TONE: Record<string, "ok" | "warn" | "err" | "info" | "mute"> = {
+  pending: "warn",
+  paid: "ok",
+  failed: "err",
+  cancelled: "mute",
+  refunded: "info",
   // 부분 환불은 환불(info)과 같은 톤 유지 — 시각적 일관성
-  partial_refunded: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
+  partial_refunded: "info",
 };
 
 interface Props {
@@ -149,7 +134,8 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                   {p.finalAmount.toLocaleString()}원
                 </td>
                 <td data-label="상태" className="px-5 py-3">
-                  <span className="badge badge--soft" style={STATUS_STYLE[p.status]}>
+                  {/* 시안 v2.14 — admin-stat-pill data-tone (미매치 시 mute 폴백) */}
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[p.status] ?? "mute"}>
                     {STATUS_LABEL[p.status] ?? p.status}
                   </span>
                 </td>
@@ -184,7 +170,8 @@ export function AdminPaymentsContent({ payments, stats }: Props) {
                 ["금액", `${selected.finalAmount.toLocaleString()}원`],
                 ["결제 방법", selected.paymentMethod ?? "-"],
                 ["상태", (
-                  <span className="badge badge--soft" style={STATUS_STYLE[selected.status]}>
+                  // 시안 v2.14 — admin-stat-pill data-tone (ReactNode row)
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[selected.status] ?? "mute"}>
                     {STATUS_LABEL[selected.status] ?? selected.status}
                   </span>
                 )],

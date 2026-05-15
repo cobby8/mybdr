@@ -158,3 +158,62 @@
   3. `next/link` 신규 import 2건 (users/page.tsx server / game-reports/page.tsx client) — 정합
   4. `admin-stat-pill` 클래스 — 이미 admin.css 박제 완료 (Admin-1 commit `05caa04`)
 - 미박제 갭 (의도): AdminDataTable / AdminFilterBar / 시안 등급 컬럼 / 우선도 / upvote / mock toggle / bulk action / 시안 footer 액션 일부. 별 PR 권장.
+
+### Admin-5-B Phase 박제 — Plans + Payments + Campaigns (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminPlans.jsx` / `AdminPayments.jsx` / `AdminCampaigns.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) + 상태 뱃지(`admin-stat-pill[data-tone]`) 박제. Prisma 쿼리 / Server Action / fetch API / state / hook / 결제/환불 비즈 로직 100% 보존. **결제(Payments) 영역 — final_amount / refund / payment_code / users.nickname 등 민감 키워드 라인 변경 0 검증 완료**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/plans/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 비즈니스"` + `breadcrumbs` + `actions` (결제 내역 Link + 요금제 추가). `next/link` import 신규. 테이블 행 상태 `.badge--soft` (inline css) → `admin-stat-pill[data-tone]` (active=ok / 비활성=mute). 프로모션 "프로모션 없음" `.badge--soft` → `admin-stat-pill[data-tone=mute]` | 수정 |
+| `src/app/(admin)/admin/payments/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 비즈니스"` + `breadcrumbs` 추가. Prisma findMany / groupBy / serialize 100% 보존 | 수정 |
+| `src/app/(admin)/admin/payments/admin-payments-content.tsx` | `STATUS_STYLE` (inline css 5종) → `STATUS_TONE` 매핑 (paid=ok / pending=warn / failed=err / cancelled=mute / refunded=info / partial_refunded=info). 테이블 행 + 모달 row 2곳 동시 갱신 (`badge--soft` → `admin-stat-pill[data-tone]`). useState/AdminStatusTabs/AdminDetailModal/filter 보존 | 수정 |
+| `src/app/(admin)/admin/campaigns/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 비즈니스"` + `breadcrumbs` + `subtitle` 박제. `statusBadge` return `{bg, text, label}` → `{tone, label}` 시그니처 변경 (draft=info / pending=warn / approved=ok / rejected=err / paused=mute / ended=mute). 카드 우측 인라인 `style={{backgroundColor, color}}` → `admin-stat-pill[data-tone]`. fetch / handleStatusChange / 액션 버튼 (승인/반려/일시정지/재개) 변경 0 | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- plans/page.tsx: `endPromotion`/`handleSave`/`handleToggle`/`handleDelete`/`fetch('/api/admin/plans')`/`endPromotionAction` Server Action import 등 비즈 라인 변경 0 (header prop 만 변경 + Link import 추가)
+- payments/page.tsx: `prisma.payments.findMany`/`groupBy`/`final_amount`/`payment_code`/`payable_type`/`payable_id`/`users.nickname` 등 결제 민감 키워드 변경 0
+- payments/admin-payments-content.tsx: `setActiveTab`/`setSelected`/`filtered`/`AdminStatusTabs`/`AdminDetailModal`/`fetch` 등 18건 변경 0 — `STATUS_STYLE` → `STATUS_TONE` 시그니처 변경 + 사용처 2곳 동시 갱신만
+- campaigns/page.tsx: `handleStatusChange`/`fetchCampaigns`/`fetch('/api/admin/campaigns')`/`PATCH`/`onClick` 액션 핸들러 변경 0 — `statusBadge` return shape 만 변경 + 사용처 1곳 동시 갱신
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**갭 / 미박제 항목 (Admin-4 / Admin-5-A 패턴 동일)**:
+- `AdminDataTable` 컴포넌트 미박제 → 기존 `<table className="admin-table">` 유지 (옵션 A)
+- `AdminFilterBar` / `AdminStatusTabs` (이미 박제) — 그대로 유지. campaigns 의 자체 filter 탭 (가로 버튼 배열) 도 보존 (운영 폼 동일)
+- 시안 통계 카드 (총 매출/거래 건수/실패+환불) — payments 운영은 이미 3 카드 (총건수/완료건수/총 금액) 존재 → 시안 카피와 다르지만 운영 데이터 모델에 맞춰 유지
+- 시안 결제수단 아이콘 (`credit_card`/`account_balance_wallet`/`account_balance`) — 운영 `payment_method` 컬럼 raw string 만 보유 / icon mapping 미구현 → 박제 스킵
+- 시안 캠페인 ROI / 노출/클릭/전환 KPI 그리드 — 운영 모달 미구현 + 우선순위 낮음 → 박제 스킵
+- 시안 캠페인 다중 선택 / 일괄 일시중지·종료 → 운영 미구현 → 박제 스킵
+- 시안 plans 가격 강조 그리드 / 가입자수 / 갱신률 / 매출 패널 — 운영 plan 모델에 `subscribers` / `renewal_rate` 필드 없음 (별도 promo_stats API 만 존재) → 박제 스킵
+- 시안 mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+- 모달 footer 시안 액션 (수정/요금제 보기 / 유저 보기/환불 처리/재시도 / 수정/일시중지/게재 시작) 일부 미박제 → 기존 운영 footer (모달 없음 / 닫기·결제 상세 row only / 승인·반려·일시정지·재개 inline 버튼) 보존
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/admin/plans` 진입 — 헤더 eyebrow "ADMIN · 비즈니스" + breadcrumbs (ADMIN › 비즈니스 › 요금제 관리) + 우측 "결제 내역" Link + "+ 요금제 추가" 버튼 노출
+  2. 테이블 상태 칼럼 (활성=초록 ok pill / 비활성=회색 mute pill) admin-stat-pill 박제 확인
+  3. 프로모션 관리 박스 — 구독자 0명일 때 "프로모션 없음" mute pill 박제
+  4. `/admin/payments` 진입 — 헤더 eyebrow + breadcrumbs (ADMIN › 비즈니스 › 결제) 노출
+  5. 상태 필터 탭 (전체/대기/완료/실패) 동작 / 테이블 행 상태 admin-stat-pill (paid=초록 / pending=주황 / failed=빨강 / refunded=파랑 / cancelled=회색) 박제
+  6. 행 클릭 → 상세 모달 "결제 정보" row 의 상태도 admin-stat-pill 박제
+  7. `/admin/campaigns` 진입 — 헤더 eyebrow + breadcrumbs (ADMIN › 비즈니스 › 광고 캠페인) + subtitle "채널별 캠페인 집행과 전환·ROI 성과를 추적합니다." 노출
+  8. 상태 필터 (전체/심사중/승인/반려/일시정지) 버튼 동작 / 캠페인 카드 우측 상태 뱃지 admin-stat-pill (draft=info 파랑 / pending=warn 주황 / approved=ok 초록 / rejected=err 빨강 / paused·ended=mute 회색) 박제
+- **정상 동작**:
+  - plans: 요금제 추가/수정/활성·비활성 토글/삭제/프로모션 종료/형식 입력 모달 100% 기존 동일
+  - payments: 상태 필터 탭 전환/상세 모달/통계 카드 (총 건수/완료/총 금액) 100% 기존 동일
+  - campaigns: 상태 필터/승인·반려·일시정지·재개 PATCH 액션/CTR 계산 100% 기존 동일
+- **주의할 입력**:
+  - plans.is_active: true → ok (초록) / false → mute (회색) — null/undefined 시 false 폴백 (기존 동일)
+  - payments.status: "paid"/"pending"/"failed"/"cancelled"/"refunded"/"partial_refunded" 외 → `STATUS_TONE` 미매치 시 "mute" 폴백 + `STATUS_LABEL` 미매치 시 raw status 표시
+  - campaigns.status: "draft"/"pending"/"approved"/"rejected"/"paused"/"ended" 외 → `statusBadge` 폴백 "draft" (기존 동일)
+  - campaigns.image_url: null 시 회색 박스 + image 아이콘 (기존 동일)
+
+⚠️ reviewer 참고:
+- 특히 봐줬으면 하는 부분:
+  1. **결제(Payments) 영역 — 비즈 로직 라인 변경 0 검증 완료**. final_amount / payment_code / payable_type / payable_id / refund / Prisma findMany / groupBy / serialize 모두 보존. 시각 박제만.
+  2. `payments/admin-payments-content.tsx` 의 `STATUS_TONE` 매핑 변경 — `partial_refunded` 도 시안에 없는 운영 enum 값이지만 info 톤 (환불과 동일) 으로 시각적 일관성 유지. 시안 v2.14 에는 `refunded` 만 정의되어 있어 mute 톤 (status_tone="mute") 이지만 운영은 `refunded`/`partial_refunded` 둘 다 info 톤 = 환불 카테고리 일관 표시 (변경 0 — 기존 5/4 박제 정책 유지)
+  3. `campaigns/page.tsx` 의 `statusBadge` return 시그니처 변경 (`{ bg, text, label }` → `{ tone, label }`) — 사용처 1곳 (행 카드 우측 뱃지 inline style) 동시 갱신. 외부 호출처 0
+  4. `plans/page.tsx` 의 `next/link` 신규 import — client 컴포넌트 ("use client") 내 정합. `Link` 에 `className="btn"` 직접 사용 (Button 컴포넌트 ≠ 시안 actions secondary btn pattern)
+  5. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
+- 미박제 갭 (의도): AdminDataTable / 시안 가격 그리드 / 갱신률 / ROI / 노출·클릭 KPI / 결제수단 아이콘 / 통계 카드 3종 / mock toggle / bulk action / 모달 footer 액션 일부. 별 PR 권장 (특히 결제수단 아이콘 매핑 / 갱신률·구독자 필드 = DB 스키마 확장 필요).
