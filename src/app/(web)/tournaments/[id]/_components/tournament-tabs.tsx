@@ -151,6 +151,12 @@ function ScheduleTabContent({ tournamentId }: { tournamentId: string }) {
     // Phase 5 (매치 코드 v4) — 글로벌 매치 식별 코드 (NULL 가능)
     // 형식: `26-GG-MD21-001` (14자) 또는 null. ScheduleMatch 카드에서 우선 표시.
     matchCode: (m.matchCode ?? m.match_code ?? null) as string | null,
+    // 2026-05-15 — 강남구협회장배 6 종별 × 2 체육관 분리 UI (PR-G3).
+    //   division: API public-schedule route 가 settings.division_code → snake_case 변환.
+    //   venueName: API 가 m.venue_name → snake_case 변환.
+    //   둘 다 옵셔널 (일반 대회 회귀 0).
+    division: (m.division ?? m.division_code ?? null) as string | null,
+    venueName: (m.venueName ?? m.venue_name ?? null) as string | null,
   }));
   const teams: ScheduleTeam[] = (data?.data?.teams ?? data?.teams ?? []).map((t: Record<string, unknown>) => ({
     id: String(t.id ?? ''),
