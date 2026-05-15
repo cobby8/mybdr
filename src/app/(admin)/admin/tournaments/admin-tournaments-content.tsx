@@ -9,6 +9,11 @@
 // - 제거: 공개 토글 / 상태 변경 dropdown / 신청서 관리 Link (운영자 페이지로 이관)
 // - 추가: "대회 운영 페이지로 이동" Link (primary) + 행정 placeholder 4건 (Phase 3 예정)
 // - server action 2개 (updateStatus / toggleVisibility) 는 import 제거 (행정 모달 미사용)
+//
+// 2026-05-15 Admin-4-A 박제 (v2.14):
+// - 상태 뱃지: .badge--soft + inline color → .admin-stat-pill[data-tone=...] (admin.css 박제)
+// - 공개 뱃지: 동일 패턴. 비즈 로직 / state / props 시그니처 100% 보존.
+// - 토큰 --color-* 는 globals.css alias 로 신 토큰 자동 매핑 — 추가 치환 불필요.
 
 import { useState } from "react";
 import Link from "next/link";
@@ -49,20 +54,13 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "종료", ended: "종료", closed: "종료", cancelled: "종료",
 };
 
-// 탭별 .badge--soft inline color (default / info / success / secondary)
-const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
-  draft: undefined, // .badge--soft 기본
-  registration: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
-  in_progress: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
-  completed: undefined, // .badge--soft 기본 (secondary 톤)
+// 2026-05-15 Admin-4-A 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
+// draft=mute / registration=info / in_progress=ok / completed=mute (시안 v2.14 박제 패턴)
+const STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  draft: "mute",
+  registration: "info",
+  in_progress: "ok",
+  completed: "mute",
 };
 
 const FORMAT_LABEL: Record<string, string> = {
@@ -197,19 +195,14 @@ export function AdminTournamentsContent({
                     </p>
                   </td>
                   <td data-label="상태" className="px-5 py-3">
-                    <span className="badge badge--soft" style={STATUS_STYLE[tabKey]}>
+                    {/* Admin-4-A 박제 — admin-stat-pill[data-tone] 시안 패턴 (admin.css) */}
+                    <span className="admin-stat-pill" data-tone={STATUS_TONE[tabKey] ?? "mute"}>
                       {STATUS_LABEL[status] ?? status}
                     </span>
                   </td>
                   <td data-label="공개" className="px-4 py-3">
-                    <span
-                      className="badge badge--soft"
-                      style={
-                        t.isPublic
-                          ? { background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }
-                          : undefined
-                      }
-                    >
+                    {/* 공개=ok / 비공개=mute (시안 박제) */}
+                    <span className="admin-stat-pill" data-tone={t.isPublic ? "ok" : "mute"}>
                       {t.isPublic ? "공개" : "비공개"}
                     </span>
                   </td>
