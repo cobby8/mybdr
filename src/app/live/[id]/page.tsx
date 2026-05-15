@@ -2215,7 +2215,10 @@ function PbpSection({ match }: { match: MatchData }) {
                       <span style={{ color: "var(--color-text-muted)" }}>{getQuarterLabel(pbp.quarter)}</span>{" "}
                       {formatGameClock(pbp.game_clock_seconds)}
                     </td>
-                    {/* 팀 컬럼 = 팀명 텍스트 칩. 배경색 = team.color, 글자 = #fff (대비 약한 색 폴백은 추후). */}
+                    {/* 팀 컬럼 = 팀명 텍스트 칩.
+                        2026-05-16 (PR-PBP-Chip-Fix / 사용자 보고 이미지 #166) — team.color 가 흰색일 때
+                        흰 글씨 = 안 보임 사고. 통일 outline (회색 border + var(--color-text-primary) 글씨).
+                        team.color 무시 (모든 팀 동일 시각 — 가독성 우선). */}
                     <td className="py-1.5 px-2 text-center">
                       {teamName ? (
                         <span
@@ -2223,15 +2226,17 @@ function PbpSection({ match }: { match: MatchData }) {
                             display: "inline-block",
                             padding: "2px 7px",
                             borderRadius: 3,
-                            background: teamColor,
-                            color: "#fff",
+                            backgroundColor: "var(--color-surface)",
+                            border: "1px solid var(--color-border)",
+                            color: "var(--color-text-primary)",
                             fontSize: "0.75em",
-                            fontWeight: 700,
-                            maxWidth: 68,
+                            fontWeight: 600,
+                            maxWidth: 80,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
                           }}
+                          title={teamName}
                         >
                           {teamName}
                         </span>
