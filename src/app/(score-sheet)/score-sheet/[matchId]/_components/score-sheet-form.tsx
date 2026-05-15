@@ -822,16 +822,15 @@ export function ScoreSheetForm({
   }
 
   function handleRequestRemoveFoul(team: "home" | "away", playerId: string) {
-    setFouls((prev) => {
-      const next = removeLastFoul(prev, team, playerId);
-      if (next !== prev) {
-        // PR-Stat3.4 (2026-05-15) — React 19 strict mode double-invoke render phase 회피.
-        //   updater 안 showToast 직접 호출 → ToastProvider setState → render 중 violation.
-        //   queueMicrotask defer = 같은 tick 안 처리 (사용자 인지 차이 0).
-        queueMicrotask(() => showToast("파울 1건 해제", "info"));
-      }
-      return next;
-    });
+    // PR-Stat3.5 (2026-05-15) — React 19 strict mode updater double-invoke 회피.
+    //   기존 setFouls(prev => ...) 패턴 = strict mode 의 dev double-invoke 가 updater 2회 호출
+    //   → queueMicrotask 도 2회 schedule → toast 2회 (사용자 보고 이미지 #30).
+    //   수정: closure state 사용 + setFouls(next) 일반 인자 / showToast 는 함수 body 1회 호출.
+    const next = removeLastFoul(fouls, team, playerId);
+    setFouls(next);
+    if (next !== fouls) {
+      showToast("파울 1건 해제", "info");
+    }
   }
 
   // Phase 4 — 타임아웃 추가 요청 (빈 칸 클릭).
@@ -842,37 +841,27 @@ export function ScoreSheetForm({
   //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
   //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
   function handleRequestAddTimeout(team: "home" | "away") {
-    setTimeouts((prev) => {
-      const result = addTimeout(prev, team, {
-        period: runningScore.currentPeriod,
-      });
-      const teamLabel = team === "home" ? "Team A" : "Team B";
-      // PR-Stat3.4 (2026-05-15) — queueMicrotask defer (render phase 회피).
-      if (!result.ok) {
-        queueMicrotask(() =>
-          showToast(`${teamLabel} ${result.reason}`, "error"),
-        );
-        return prev;
-      }
-      queueMicrotask(() =>
-        showToast(`${teamLabel} ${result.reason}`, "info"),
-      );
-      return result.state;
+    // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴 (updater 미사용 — strict mode double-invoke 회피).
+    const result = addTimeout(timeouts, team, {
+      period: runningScore.currentPeriod,
     });
+    const teamLabel = team === "home" ? "Team A" : "Team B";
+    if (!result.ok) {
+      showToast(`${teamLabel} ${result.reason}`, "error");
+      return;
+    }
+    setTimeouts(result.state);
+    showToast(`${teamLabel} ${result.reason}`, "info");
   }
 
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
   function handleRequestRemoveTimeout(team: "home" | "away") {
-    setTimeouts((prev) => {
-      const next = removeLastTimeout(prev, team);
-      if (next !== prev) {
-        const teamLabel = team === "home" ? "Team A" : "Team B";
-        queueMicrotask(() =>
-          showToast(`${teamLabel} 타임아웃 1건 해제`, "info"),
-        );
-      }
-      return next;
-    });
+    const next = removeLastTimeout(timeouts, team);
+    setTimeouts(next);
+    if (next !== timeouts) {
+      const teamLabel = team === "home" ? "Team A" : "Team B";
+      showToast(`${teamLabel} 타임아웃 1건 해제`, "info");
+    }
   }
 
   // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 핸들러.
@@ -904,32 +893,25 @@ export function ScoreSheetForm({
   function handleAddStat() {
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
-    setPlayerStats((prev) => addStat(prev, playerId, statKey));
+    // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
+    setPlayerStats(addStat(playerStats, playerId, statKey));
     showToast(
       `${statKey.toUpperCase()} +1 (${statPopoverCtx.playerName})`,
       "info"
     );
-    // popover 닫기 (사용자 결재 흐름 — 1회 클릭 후 자동 닫기 = 빠른 입력 + 의도 명확)
     setStatPopoverCtx(null);
   }
 
   function handleRemoveStat() {
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
-    const ctx = statPopoverCtx; // closure capture (setStatPopoverCtx 호출 후도 안전)
-    setPlayerStats((prev) => {
-      const next = removeStat(prev, playerId, statKey);
-      if (next !== prev) {
-        // PR-Stat3.4 — queueMicrotask defer.
-        queueMicrotask(() =>
-          showToast(
-            `${statKey.toUpperCase()} -1 (${ctx.playerName})`,
-            "info",
-          ),
-        );
-      }
-      return next;
-    });
+    const ctx = statPopoverCtx;
+    // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
+    const next = removeStat(playerStats, playerId, statKey);
+    setPlayerStats(next);
+    if (next !== playerStats) {
+      showToast(`${statKey.toUpperCase()} -1 (${ctx.playerName})`, "info");
+    }
     setStatPopoverCtx(null);
   }
 
@@ -937,56 +919,47 @@ export function ScoreSheetForm({
   function handleSelectFoulType(type: FoulType) {
     if (!foulModalCtx) return;
     const { team, playerId } = foulModalCtx;
-    setFouls((prev) => {
-      const result = addFoul(prev, team, {
-        playerId,
-        period: runningScore.currentPeriod,
-        type,
-      });
-      // PR-Stat3.4 (2026-05-15) — queueMicrotask defer (render phase 회피).
-      if (!result.ok) {
-        queueMicrotask(() => showToast(result.reason, "error"));
-        return prev;
-      }
-      const newTeamFouls =
-        team === "home" ? result.state.home : result.state.away;
-      const periodTeamCount = getTeamFoulCountByPeriod(
-        newTeamFouls,
-        runningScore.currentPeriod
-      );
-
-      if (periodTeamCount >= 5) {
-        const teamLabel = team === "home" ? "Team A" : "Team B";
-        queueMicrotask(() =>
-          showToast(
-            `자유투 부여 — ${teamLabel} Period ${runningScore.currentPeriod} ${periodTeamCount}번째 파울`,
-            "info",
-          ),
-        );
-      }
-      const ejection = type;
-      if (ejection === "D") {
-        queueMicrotask(() =>
-          showToast(`Disqualifying — 즉시 퇴장`, "info"),
-        );
-      } else {
-        const playerFouls = newTeamFouls.filter((f) => f.playerId === playerId);
-        const tCount = playerFouls.filter((f) => f.type === "T").length;
-        const uCount = playerFouls.filter((f) => f.type === "U").length;
-        if (tCount === 2) {
-          queueMicrotask(() =>
-            showToast(`Technical 2회 — 퇴장`, "info"),
-          );
-        } else if (uCount === 2) {
-          queueMicrotask(() =>
-            showToast(`Unsportsmanlike 2회 — 퇴장`, "info"),
-          );
-        } else if (playerFouls.length === 5) {
-          queueMicrotask(() => showToast(`5반칙 — 퇴장`, "info"));
-        }
-      }
-      return result.state;
+    // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
+    const result = addFoul(fouls, team, {
+      playerId,
+      period: runningScore.currentPeriod,
+      type,
     });
+    if (!result.ok) {
+      showToast(result.reason, "error");
+      setFoulModalCtx(null);
+      return;
+    }
+    setFouls(result.state);
+
+    const newTeamFouls =
+      team === "home" ? result.state.home : result.state.away;
+    const periodTeamCount = getTeamFoulCountByPeriod(
+      newTeamFouls,
+      runningScore.currentPeriod
+    );
+    if (periodTeamCount >= 5) {
+      const teamLabel = team === "home" ? "Team A" : "Team B";
+      showToast(
+        `자유투 부여 — ${teamLabel} Period ${runningScore.currentPeriod} ${periodTeamCount}번째 파울`,
+        "info",
+      );
+    }
+    const ejection = type;
+    if (ejection === "D") {
+      showToast(`Disqualifying — 즉시 퇴장`, "info");
+    } else {
+      const playerFouls = newTeamFouls.filter((f) => f.playerId === playerId);
+      const tCount = playerFouls.filter((f) => f.type === "T").length;
+      const uCount = playerFouls.filter((f) => f.type === "U").length;
+      if (tCount === 2) {
+        showToast(`Technical 2회 — 퇴장`, "info");
+      } else if (uCount === 2) {
+        showToast(`Unsportsmanlike 2회 — 퇴장`, "info");
+      } else if (playerFouls.length === 5) {
+        showToast(`5반칙 — 퇴장`, "info");
+      }
+    }
     setFoulModalCtx(null);
   }
 
