@@ -238,3 +238,68 @@ export function buildPlaceholderMatchPayload(opts: {
 export function isStandingsAutoFillable(home: SlotLabelParams, away: SlotLabelParams): boolean {
   return home.kind === "group_rank" && away.kind === "group_rank";
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// PR-Admin-3 (2026-05-16) — placeholder 매치 위반 검출 (read-only)
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 사유:
+//   강남구협회장배 (2026-05-15) = 순위전 매치 13건이 실팀으로 박혀버려 advance 자동 채움 불가.
+//   본 함수 = matches-client.tsx 검증 배너 backing — admin 이 해당 케이스를 즉시 감지·경고할 수 있게 함.
+//
+// 검출 2 케이스:
+//   1) format-violation = 강남구 사고 패턴 그대로
+//      - roundName 가 "순위" 포함 (순위전 / 순위결정전 / 동순위전)
+//      - AND home/away 중 1+ 가 실팀 박혀있음 (placeholder 의도 위반)
+//      - AND notes 가 placeholder 형식 미준수 (parseSlotLabel null)
+//   2) missing-slot-label = G7 후속 자동 fix 후보
+//      - roundName 가 "순위" 포함
+//      - AND settings.homeSlotLabel / awaySlotLabel 미박제
+//      - 향후 generator 가 자동 박제하도록 G7 큐 진행 예정
+//
+// ⚠️ 본 함수는 read-only 검사 — DB 변경 0. 검출 결과는 UI 배너 + 운영자 수동 조치 가이드 용.
+
+/**
+ * "순위" 키워드 포함 — 순위결정전 / 순위전 / 동순위전 모두 매치.
+ * 사유: roundName 표기가 generator 별로 다름 ("순위결정전" / "1위 동순위전" 등) — 단일 정규식 통과 보장.
+ */
+const RANKING_ROUND_REGEX = /순위/;
+
+export function detectInvalidPlaceholderMatches(
+  matches: Array<{
+    id: string | number;
+    roundName: string | null;
+    homeTeamId: string | number | null;
+    awayTeamId: string | number | null;
+    notes: string | null;
+    settings?: Record<string, unknown> | null;
+  }>,
+): Array<{ matchId: string | number; reason: "format-violation" | "missing-slot-label" }> {
+  const violations: Array<{ matchId: string | number; reason: "format-violation" | "missing-slot-label" }> = [];
+
+  for (const m of matches) {
+    // 1) 순위전 매치만 검사 — 예선 등 일반 매치는 본 검증 대상 0
+    if (!m.roundName || !RANKING_ROUND_REGEX.test(m.roundName)) continue;
+
+    // 2) format-violation 우선 검사 (강남구 사고 패턴)
+    //    - 실팀이 박혀있는데 (homeTeamId != null OR awayTeamId != null)
+    //    - notes 가 placeholder 형식 미준수 (parseSlotLabel null)
+    const hasRealTeam = m.homeTeamId !== null || m.awayTeamId !== null;
+    const notesParsed = parseSlotLabel(m.notes);
+    if (hasRealTeam && notesParsed === null) {
+      violations.push({ matchId: m.id, reason: "format-violation" });
+      continue; // format-violation 검출 시 missing-slot-label 중복 보고 skip
+    }
+
+    // 3) missing-slot-label 검사 (G7 후속 큐 후보)
+    //    - settings.homeSlotLabel 또는 awaySlotLabel 미박제
+    const settings = m.settings ?? null;
+    const homeSlotLabel = settings?.homeSlotLabel as string | undefined;
+    const awaySlotLabel = settings?.awaySlotLabel as string | undefined;
+    if (!homeSlotLabel || !awaySlotLabel) {
+      violations.push({ matchId: m.id, reason: "missing-slot-label" });
+    }
+  }
+
+  return violations;
+}

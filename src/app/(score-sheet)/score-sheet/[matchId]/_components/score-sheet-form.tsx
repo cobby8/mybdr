@@ -79,6 +79,10 @@ import {
 } from "./lineup-selection-modal";
 // Phase 7-C — Q4/OT 종료 분기 모달
 import { QuarterEndModal } from "./quarter-end-modal";
+// 2026-05-16 (PR-PBP-Edit) — PBP 조회/수정 플로팅 모달.
+//   toolbar "기록수정" 버튼 → form 의 setPbpEditModalOpen(true) → 모달 표시.
+//   "저장" 시 onApply 콜백으로 next marks 전달 → setRunningScore() 박제.
+import { PbpEditModal } from "./pbp-edit-modal";
 // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
 //   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
 import { useConfirm } from "../../../_components/confirm-modal-provider";
@@ -287,6 +291,9 @@ export function ScoreSheetForm({
     mode: "quarter4" | "overtime";
     period: number;
   } | null>(null);
+  // 2026-05-16 (PR-PBP-Edit) — PBP 조회/수정 모달 open state.
+  //   toolbar "기록수정" 버튼 클릭 시 true / 모달 안 "취소" / "저장" / ESC / backdrop 시 false.
+  const [pbpEditModalOpen, setPbpEditModalOpen] = useState(false);
   // PR-S6 (2026-05-14 rev2 롤백) — scoreMode state 제거. 시안 rev2 가 모드 토글을 제거하면서
   //   단일 모드 (= 기존 detail 동작) 통일. PR-S2 의 toolbar 의 다른 영역 (back/인쇄/종료) 은 유지.
   // Phase 19 PR-S2 — MatchEndButton controlled open state.
@@ -378,55 +385,141 @@ export function ScoreSheetForm({
   }
 
   // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
-  //   toolbar "설명서" 버튼 클릭 시 호출. ConfirmModal 재사용 — options 1개 (닫기) +
-  //   message 에 작성법 7항목 JSX. 사용자 의도 = 플로팅 안내로 빠르게 확인 가능.
+  // 2026-05-16 (PR-SS-Manual-v2) — 현재 작동 기능 정합 갱신:
+  //   (1) 신규 섹션 = 매치 상태 표시 / 수정 기능 (기록수정/라인업/이전 쿼터) / 전체화면 모드
+  //   (2) 시인성 개선 = 섹션 borderLeft 3px accent + h3 16px 굵게 / 본문 14px + line-height 1.7
+  //   (3) 신규 박제 = 이전·다음 쿼터 버튼 / 현재 쿼터 뱃지 / 개인기록 6칸 (OR/DR/A/S/B/TO)
+  //   (4) 시안 13 룰: 강조 = bold + var(--color-info) (빨강 본문 금지) / material-symbols-outlined 아이콘
+  //   왜 (이유):
+  //     기존 7항목은 라인업/점수/파울/팀파울/타임아웃/쿼터종료/기타 만 박제 → score-sheet 가
+  //     최근 추가한 6개 기능 (기록수정 / 전체화면 / 이전·다음 쿼터 / 쿼터 뱃지 / 매치 상태 라벨
+  //     / 개인기록 popover OR/DR/A/S/B/TO) 미반영. 운영자가 모달 한 번에 전체 흐름 파악
+  //     하도록 갱신.
+  //   ConfirmModal 호출 패턴 변경 0 (title / size / options 그대로) — JSX 본문만 교체.
   async function handleOpenManual() {
+    // 섹션 박스 공통 스타일 — borderLeft 3px accent + 부드러운 배경 + padding.
+    //   시인성 = 섹션 간 명확한 구분선 (시안 룰 §10 var(--color-*) 토큰 만).
+    const sectionBoxStyle: React.CSSProperties = {
+      borderLeft: "3px solid var(--color-accent)",
+      backgroundColor: "var(--color-surface)",
+      padding: "12px 14px",
+      borderRadius: "4px", // CLAUDE.md §디자인 핵심 — 버튼 radius 4px 룰 정합
+    };
+
+    // h3 공통 스타일 — 16px 굵게 + 아이콘 정합 (gap 8px).
+    const sectionH3Style: React.CSSProperties = {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      marginBottom: "10px",
+      fontSize: "16px",
+      fontWeight: 700,
+      color: "var(--color-text-primary)",
+    };
+
+    // 아이콘 공통 스타일 — material-symbols-outlined / accent 색 (빨강 본문 금지 룰 ✅).
+    const iconStyle: React.CSSProperties = {
+      fontSize: "20px",
+      color: "var(--color-accent)",
+      lineHeight: 1,
+    };
+
+    // 본문 ol / ul 공통 스타일 — 14px + line-height 1.7 (시인성 향상).
+    const bodyTextStyle: React.CSSProperties = {
+      fontSize: "14px",
+      lineHeight: 1.7,
+      color: "var(--color-text-primary)",
+    };
+
+    // 강조 (bold) 공통 — info 색 (빨강 금지 룰 §10).
+    //   inline 사용 = `<strong style={emphasisStyle}>…</strong>` 패턴.
+    const emphasisStyle: React.CSSProperties = {
+      fontWeight: 700,
+      color: "var(--color-info)",
+    };
+
     await confirmModal({
       title: "전자 기록지 작성법",
       size: "xl",
       message: (
-        <div className="space-y-4 text-sm">
-          {/* 색상/점수 표기 안내 박스 (작성법 위쪽). */}
+        <div className="space-y-4" style={bodyTextStyle}>
+          {/* 색상/점수 표기 안내 박스 (작성법 위쪽 유지 — 기존 자리 보존). */}
           <PeriodColorLegend />
 
-          {/* 경기 시작 전 */}
-          <section>
-            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-              경기 시작 전
+          {/* (1) 매치 상태 표시 — 신규 박제 (헤더 우상단 뱃지 + 라벨 안내). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                info
+              </span>
+              매치 상태 보는 법
             </h3>
-            <ol className="ml-5 list-decimal space-y-2 text-sm">
+            <ul className="ml-5 list-disc space-y-2" style={bodyTextStyle}>
               <li>
-                <strong>선수 명단 정하기</strong> — 화면 위쪽 <em>"라인업"</em> 버튼을 누르세요.
-                양 팀에서 오늘 경기에 나올 선수들을 체크하고, 그 중 선발 5명을 따로 표시해주세요.
-                라인업을 확정하면 선발 5명은 자동으로 <em>"P. in"</em> (코트 안) 표시가 됩니다.
-                후보 선수는 실제로 경기에 들어갈 때 직접 "P. in" 칸을 눌러주세요.
+                화면 <strong style={emphasisStyle}>오른쪽 위 빨강 박스</strong>가 지금 경기의
+                현재 쿼터를 알려줍니다 (예: <em>Q1 / Q2 / Q3 / Q4 / OT1</em>).
+                연장전에 들어가면 자동으로 <em>OT1, OT2…</em> 로 바뀝니다.
+              </li>
+              <li>
+                박스 바로 <strong style={emphasisStyle}>아래 작은 회색 글씨</strong>는 매치 상태입니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>"경기 전" — 아직 첫 점수가 기록되지 않은 상태</li>
+                  <li>"경기 중" — 점수가 1개 이상 기록된 진행 중인 상태</li>
+                  <li>"경기 종료" — 최종 결과가 제출된 상태</li>
+                </ul>
+              </li>
+            </ul>
+          </section>
+
+          {/* (2) 경기 시작 전 — 라인업. */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                groups
+              </span>
+              경기 시작 전 (선수 명단)
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                화면 위쪽 <strong style={emphasisStyle}>"라인업"</strong> 버튼을 누르세요.
+                양 팀에서 오늘 경기에 나올 선수들을 체크하고, 그 중 <em>선발 5명</em>을 따로
+                표시해주세요. 라인업을 확정하면 선발 5명은 자동으로 <em>"P. in"</em>
+                (코트 안) 표시가 됩니다. 후보 선수는 실제로 경기에 들어갈 때 직접
+                "P. in" 칸을 눌러주세요.
               </li>
             </ol>
           </section>
 
-          {/* 경기 진행 중 */}
-          <section>
-            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-              경기 진행 중
+          {/* (3) 경기 진행 중 — 점수/파울/타임아웃/개인기록. */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                sports_basketball
+              </span>
+              경기 진행 중 (점수·파울·기록)
             </h3>
-            <ol start={2} className="ml-5 list-decimal space-y-2 text-sm">
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
               <li>
-                <strong>점수 기록</strong> — 점수를 넣은 선수 행에서 해당 점수 칸을 누르세요.
-                <span className="block">· (작은 점) = 1점 / ● (채워진 원) = 2점 / ◉ (테두리 원) = 3점</span>
-                현재 쿼터 색깔로 표시됩니다 (Q1 검정 / Q2 빨강 / Q3 초록 / Q4 노랑).
+                <strong style={emphasisStyle}>점수 기록</strong> — 점수를 넣은 선수 행에서 해당
+                점수 칸을 누르세요. 표기는 <em>·</em> (작은 점) = 1점 / <em>●</em> (채워진 원) = 2점 /
+                <em> ◉</em> (테두리 있는 원) = 3점. 현재 쿼터 색깔로 표시됩니다
+                (Q1 검정 / Q2 빨강 / Q3 초록 / Q4 노랑).
               </li>
               <li>
-                <strong>파울 기록</strong> — 파울을 한 선수의 <em>"Fouls"</em> 영역에서 1~5번
-                칸 중 비어있는 첫 칸을 누르세요. 5번째 파울이 기록되면 더 이상 입력되지 않고
-                화면에 알림이 뜹니다.
+                <strong style={emphasisStyle}>파울 기록</strong> — 파울을 한 선수의
+                <em> "Fouls"</em> 영역에서 1~5번 칸 중 비어있는 첫 칸을 누르세요.
+                <strong style={emphasisStyle}> 5번째 파울</strong>이 기록되면 더 이상
+                입력되지 않고 "5반칙 퇴장" 알림이 뜹니다.
               </li>
               <li>
-                <strong>팀 파울 누적</strong> — <em>"Team fouls"</em> 영역은 한 쿼터에서 팀이
-                범한 전체 파울 수입니다. 1~4까지 표시하며, 4를 넘으면 다음 파울부터 상대 팀에게
-                자유투를 부여한다는 안내가 화면에 뜹니다. <em>"Extra periods"</em> 는 연장전용입니다.
+                <strong style={emphasisStyle}>팀 파울 누적</strong> — <em>"Team fouls"</em>
+                영역은 한 쿼터에서 팀이 범한 전체 파울 수입니다. 1~4까지 표시하며,
+                4를 넘으면 다음 파울부터 상대 팀에게 자유투를 부여한다는 안내가 뜹니다.
+                <em> "Extra periods"</em> 는 연장전용입니다.
               </li>
               <li>
-                <strong>타임아웃</strong> — 양 팀 <em>"Time-outs"</em> 영역에 표시합니다.
+                <strong style={emphasisStyle}>타임아웃</strong> — 양 팀
+                <em> "Time-outs"</em> 영역에 표시합니다.
                 <ul className="ml-4 mt-1 list-disc space-y-0.5">
                   <li>윗줄 (Period ①②) = 전반 (1·2쿼터) 동안 쓸 수 있는 2개</li>
                   <li>가운데 줄 (Period ③④) = 후반 (3·4쿼터) 동안 쓸 수 있는 3개</li>
@@ -434,50 +527,109 @@ export function ScoreSheetForm({
                 </ul>
                 후반에 들어가면 전반 칸이 자동으로 잠겨서 더 이상 누를 수 없습니다.
               </li>
+              <li>
+                <strong style={emphasisStyle}>개인 기록 (OR/DR/A/S/B/TO)</strong> — 선수 행
+                오른쪽 끝 <em>6칸</em>은 개인 세부 기록입니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li><strong>OR</strong> = 공격 리바운드 / <strong>DR</strong> = 수비 리바운드</li>
+                  <li><strong>A</strong> = 어시스트 / <strong>S</strong> = 스틸 / <strong>B</strong> = 블록</li>
+                  <li><strong>TO</strong> = 턴오버</li>
+                </ul>
+                각 칸을 누르면 작은 창이 떠서 <em>[+1] / [-1]</em> 버튼으로 숫자를
+                늘리거나 줄일 수 있습니다. 잘못 눌렀으면 [-1] 로 되돌리세요.
+              </li>
             </ol>
           </section>
 
-          {/* 쿼터 / 경기 종료 */}
-          <section>
-            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+          {/* (4) 쿼터 / 경기 종료 — Running Score 헤더 이전·다음 쿼터 버튼 박제. */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                flag
+              </span>
               쿼터 / 경기 종료
             </h3>
-            <ol start={6} className="ml-5 list-decimal space-y-2 text-sm">
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
               <li>
-                <strong>쿼터 끝났을 때</strong> — 화면 아래쪽 <em>"Q1 종료" / "Q2 종료" …</em>
-                버튼을 누르면 안내 창이 뜹니다.
+                <strong style={emphasisStyle}>쿼터가 끝났을 때</strong> — 화면 아래쪽
+                <em> "Q1 종료" / "Q2 종료" …</em> 버튼을 누르면 안내 창이 뜹니다.
                 <ul className="ml-4 mt-1 list-disc space-y-0.5">
-                  <li>Q1~Q3 끝: "다음 쿼터 진행" 누르세요.</li>
-                  <li>Q4 끝: 동점이면 "OT (연장전) 진행" / 점수 차이가 있으면 "경기 종료".</li>
+                  <li>Q1~Q3 끝: <em>"다음 쿼터 진행"</em>을 누르세요.</li>
+                  <li>Q4 끝: 동점이면 <em>"OT (연장전) 진행"</em> / 점수 차이가 있으면 <em>"경기 종료"</em>.</li>
                   <li>연장전 끝: 또 동점이면 추가 연장전 / 결판 나면 경기 종료.</li>
+                </ul>
+              </li>
+              <li>
+                <strong style={emphasisStyle}>이전 / 다음 쿼터 버튼</strong> — Running Score
+                영역 위쪽 우측에 <em>◀ 이전 쿼터 / 다음 쿼터 ▶</em> 버튼이 있습니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li><em>다음 쿼터</em> = 현재 쿼터를 건너뛰고 다음 쿼터로 이동 (점수 입력 X)</li>
+                  <li><em>이전 쿼터</em> = 잘못 종료한 쿼터를 되돌릴 때 사용</li>
                 </ul>
               </li>
             </ol>
           </section>
 
-          {/* 기타 기능 */}
-          <section>
-            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
-              기타 기능
+          {/* (5) 수정 기능 — 신규 박제 (기록수정 / 라인업 재선택 / 이전 쿼터). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                edit_note
+              </span>
+              잘못 기록했을 때 (수정 기능)
             </h3>
-            <ol start={7} className="ml-5 list-decimal space-y-2 text-sm">
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
               <li>
-                <strong>잘못 기록했어요 (기록 취소)</strong> — 테스트로 입력했거나 처음부터
-                다시 기록해야 할 때, 화면 위쪽 우측 <em>"기록 취소"</em> 버튼을 누르세요.
-                경고 창이 뜨고, 확인하면 이 경기의 점수·파울·라인업·등번호 기록이 모두
-                완전히 삭제되며 이전 페이지로 돌아갑니다.
-                <span className="block text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  (대회 운영자만 가능 — 일반 기록원은 보이지 않습니다)
+                <strong style={emphasisStyle}>점수 / 선수 수정</strong> — 화면 위쪽
+                <em> "기록수정"</em> 버튼을 누르세요. 지금까지 기록된 모든 득점이
+                쿼터별 시간 순으로 나타나며, 각 항목에서 <em>1↔2↔3점</em> 변경,
+                선수 교체, 삭제 가 가능합니다. 수정한 뒤 <em>"저장"</em>을 누르면
+                바로 반영됩니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>라인업 다시 선택</strong> — 시작 라인업 5명을
+                잘못 골랐을 때 화면 위쪽 <em>"라인업"</em> 버튼을 다시 누르면
+                선발 5명을 새로 고를 수 있습니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>전체 초기화 (기록 취소)</strong> — 테스트로
+                입력했거나 처음부터 다시 기록해야 할 때, 화면 위쪽 우측
+                <em> "기록 취소"</em> 버튼을 누르세요. 경고 창이 뜨고, 확인하면
+                이 경기의 점수·파울·라인업·등번호 기록이 모두 완전히 삭제되며
+                이전 페이지로 돌아갑니다.
+                <span className="block text-xs" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+                  (대회 운영자만 가능 — 일반 기록원은 이 버튼이 보이지 않습니다)
+                </span>
+              </li>
+            </ol>
+          </section>
+
+          {/* (6) 전체화면 / 인쇄 — 신규 박제 (toolbar 전체화면 버튼 + ESC). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                fullscreen
+              </span>
+              전체화면 모드 / 인쇄
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                <strong style={emphasisStyle}>전체화면 모드</strong> — 화면 위쪽
+                <em> "⛶ 전체화면"</em> 버튼을 누르면 도구 모음 (라인업 / 설명서 등) 이
+                숨겨지고 양식만 크게 보입니다.
+                <span className="block" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+                  추천 환경 = <strong>태블릿 세로 모드</strong> (양식이 한 화면에 깔끔히 들어옴).
+                  종료는 키보드 <em>ESC</em> 또는 우상단 <em>✕</em> 버튼.
                 </span>
               </li>
               <li>
-                <strong>인쇄 / 전체화면</strong> — <em>"인쇄"</em> 버튼은 FIBA 공식 양식
-                그대로 PDF/종이로 출력합니다. 화면 위쪽 <em>⛶ 전체화면</em> 버튼은 태블릿
-                세로 모드로 양식만 크게 보여줍니다 (종료는 우상단 ✕).
+                <strong style={emphasisStyle}>인쇄</strong> — <em>"인쇄"</em> 버튼은 FIBA
+                공식 양식 그대로 PDF / 종이로 출력합니다 (배경 색상 자동 보존).
               </li>
               <li>
-                <strong>이전 페이지로</strong> — 화면 위쪽 좌측 <em>&lt;</em> 버튼을 누르면
-                이 기록지에 들어오기 전 페이지 (경기 일정 / 대진표 등) 로 돌아갑니다.
+                <strong style={emphasisStyle}>이전 페이지로</strong> — 화면 위쪽 좌측
+                <em> &lt;</em> 버튼을 누르면 이 기록지에 들어오기 전 페이지
+                (경기 일정 / 대진표 등) 로 돌아갑니다.
               </li>
             </ol>
           </section>
@@ -485,6 +637,32 @@ export function ScoreSheetForm({
       ),
       options: [{ value: "close", label: "닫기", isPrimary: true }],
     });
+  }
+
+  // 2026-05-16 (PR-PBP-Edit) — PBP 조회/수정 모달 "저장" 콜백.
+  //
+  // 왜 (이유):
+  //   모달이 임시 state (draftMarks) 안에서 수정/삭제를 한 뒤 운영자가 "저장" 클릭 시
+  //   본 콜백으로 next marks 전달 → setRunningScore() 박제. currentPeriod 는 prev 유지.
+  //   이후 form 의 기존 useEffect 가 5초 throttle draft localStorage 자동 박제.
+  //
+  // 어떻게:
+  //   - next.home / next.away 만 받음 (currentPeriod 는 caller 가 변경 X — 모달 룰).
+  //   - 즉시 BFF 호출 X (planner-architect 결정 plan §2 — form 자연 흐름에서 submit BFF 재사용).
+  //
+  // 안전망:
+  //   - isReadOnly 시 호출 0 (toolbar 버튼이 이미 미노출이지만 이중 방어).
+  function handleApplyPbpEdit(next: {
+    home: typeof runningScore.home;
+    away: typeof runningScore.away;
+  }) {
+    if (isReadOnly) return;
+    setRunningScore((prev) => ({
+      ...prev,
+      home: next.home,
+      away: next.away,
+      // currentPeriod 는 변경 X — 모달 안에서 쿼터 변경 미허용 (planner-architect §3 범위 제외).
+    }));
   }
 
   async function handleEnterEditMode() {
@@ -1505,6 +1683,12 @@ export function ScoreSheetForm({
         }
         // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
         onOpenManual={handleOpenManual}
+        // 2026-05-16 (PR-PBP-Edit) — 기록 수정 모달 (라인업 ↔ 설명서 사이).
+        //   진행 매치 + 수정 모드 매치 = 콜백 전달 / 종료 매치 + 수정 모드 미진입 = undefined (버튼 미노출).
+        //   onReselectLineup 의 isReadOnly 룰 정합.
+        onOpenPbpEdit={
+          !isReadOnly ? () => setPbpEditModalOpen(true) : undefined
+        }
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
@@ -1562,8 +1746,9 @@ export function ScoreSheetForm({
             │   └─ 우측 ← Running Score + Period Scores + Final + Winner 누적
             └─ FooterSignatures 가로 펼침 (풋터 영역 ~15% / 1~2 줄 컴팩트) */}
       <div className="score-sheet-fiba-frame w-full">
-        {/* 헤더 영역 (~10% / 110px) — 4 줄 컴팩트 inline 라벨 */}
-        <div className="fiba-divider-bottom">
+        {/* 헤더 영역 (~10% / 110px) — 4 줄 컴팩트 inline 라벨.
+            2026-05-16 (PR-Layout-Unify) — fiba-divider-bottom (1px) → inline 2px 박제. 영역 구분 두께 통일. */}
+        <div style={{ borderBottom: "2px solid #1A1E27" }}>
           <FibaHeader
             teamAName={homeRoster.teamName}
             teamBName={awayRoster.teamName}
@@ -1576,6 +1761,15 @@ export function ScoreSheetForm({
             // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
             readOnly={isReadOnly}
             frameless
+            // 2026-05-16 (PR-Quarter-Badge) — 우상단 쿼터 뱃지 wiring (사용자 보고 이미지 #130).
+            //   currentPeriod = runningScore.currentPeriod (Q1~Q4 / OT1~)
+            //   matchEnded = matchEndSubmitted (경기 종료 시 "경기 종료" 표시)
+            currentPeriod={runningScore.currentPeriod}
+            matchEnded={matchEndSubmitted}
+            // 2026-05-16 (PR-Quarter-Badge-v3) — 뱃지 하단 상태 라벨 산출용 (사용자 보고 이미지 #157).
+            //   RunningScoreState.marks 는 home/away 분리 → 두 배열 합산.
+            //   0 = "경기 전" / 1+ = "경기 중" / matchEnded=true 우선 = "경기 종료".
+            marksCount={runningScore.home.length + runningScore.away.length}
           />
         </div>
 
@@ -1590,9 +1784,18 @@ export function ScoreSheetForm({
             좌상 = Team A+B (한 cell 묶음) / 우상 = Running Score
             좌하 = Signatures / 우하 = Period Scores
             grid auto rows = max(좌, 우) → 같은 row 양 자식 자동 stretch (자식 잘림 0). */}
-        <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* 좌상 — Team A + Team B 묶음 cell. */}
-          <div className="md-fiba-divider-right fiba-divider-bottom flex flex-col" data-ss-area="left-top">
+        {/* 2026-05-16 (PR-Layout-Unify) — 사용자 보고 fix.
+            grid 부모 = gap 2px + backgroundColor 검정 (light 강제 + cell #fff bg 박혀 갭만 검정).
+            자식 cell wrapper = inline border 제거 (grid gap 으로 영역 구분만 의존).
+            divider class (md-fiba-divider-right / fiba-divider-bottom) 제거 — 중복 1px 차단.
+            data-grid-frame="2x2" = 인쇄 시 background 검정 강제 (_print.css PR-Print-Grid-Bg). */}
+        <div
+          className="grid grid-cols-1 md:grid-cols-2"
+          data-grid-frame="2x2"
+          style={{ gap: "2px", backgroundColor: "#1A1E27" }}
+        >
+          {/* 좌상 — Team A + Team B 묶음 cell. inline border 제거 (grid gap 의존). */}
+          <div className="flex flex-col" data-ss-area="left-top">
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1658,8 +1861,8 @@ export function ScoreSheetForm({
             </div>
           </div>
 
-          {/* 우상 — Running Score */}
-          <div className="fiba-divider-bottom" data-ss-area="right-top">
+          {/* 우상 — Running Score. inline border 제거 (grid gap 의존). */}
+          <div data-ss-area="right-top">
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1670,11 +1873,15 @@ export function ScoreSheetForm({
               readOnly={isReadOnly}
               frameless
               onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
+              // 2026-05-16 (PR-Quarter-Retreat) — 사용자 보고. 2쿼터+ 시 "이전 쿼터" 버튼.
+              //   handleRetreatPeriod = confirm modal + setRunningScore (currentPeriod-1).
+              //   종료/read-only 매치 = undefined (수정 모드 진입 시 활성).
+              onRetreatPeriod={isReadOnly ? undefined : handleRetreatPeriod}
             />
           </div>
 
-          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등) */}
-          <div className="md-fiba-divider-right" data-ss-area="left-bottom">
+          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등). inline border 제거 (grid gap 의존). */}
+          <div data-ss-area="left-bottom">
             <FooterSignatures
               values={signatures}
               onChange={setSignatures}
@@ -1686,7 +1893,7 @@ export function ScoreSheetForm({
             />
           </div>
 
-          {/* 우하 — Period Scores + Final + Winner */}
+          {/* 우하 — Period Scores + Final + Winner. inline border 제거 (grid gap 의존). */}
           <div data-ss-area="right-bottom">
               <PeriodScoresSection
                 state={runningScore}
@@ -1699,6 +1906,8 @@ export function ScoreSheetForm({
                 // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
                 disabled={isReadOnly}
                 frameless
+                // 2026-05-16 (PR-Winner-Gate) — 경기 종료 시에만 NAME OF WINNING TEAM 표시.
+                matchEnded={matchEndSubmitted}
               />
           </div>
         </div>
@@ -1848,6 +2057,21 @@ export function ScoreSheetForm({
         onEndMatch={handleEndMatchFromQuarterEnd}
         onContinueToOvertime={handleContinueToOvertime}
         onCancel={() => setQuarterEndModal(null)}
+      />
+
+      {/* 2026-05-16 (PR-PBP-Edit) — PBP 조회/수정 플로팅 모달.
+          toolbar "기록수정" 버튼 → setPbpEditModalOpen(true) → 본 모달 표시.
+          "저장" 시 handleApplyPbpEdit → setRunningScore() 박제 (즉시 BFF 호출 X — form 자연 흐름).
+          종료 매치 + 수정 모드 미진입 시 open=false 강제 (이중 방어 — toolbar 버튼이 이미 미노출). */}
+      <PbpEditModal
+        open={(!isReadOnly) && pbpEditModalOpen}
+        marks={runningScore}
+        homeRoster={homeRoster.players}
+        awayRoster={awayRoster.players}
+        homeTeamName={homeRoster.teamName}
+        awayTeamName={awayRoster.teamName}
+        onApply={handleApplyPbpEdit}
+        onClose={() => setPbpEditModalOpen(false)}
       />
 
       {/* 2026-05-15 (PR-D-2) — ConfirmModal JSX 마운트는 ConfirmModalProvider 가 담당.

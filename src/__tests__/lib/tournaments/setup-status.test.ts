@@ -1,11 +1,13 @@
 /**
  * 2026-05-13 UI-1 — setup-status.ts (대시보드 체크리스트) 단위 테스트.
+ * 2026-05-16 PR-Admin-5 — 8 항목 → 7 항목 통합 회귀 가드 (#3 종별 정의 + #4 운영 방식 → 통합 #3).
  *
  * 검증 범위:
- *   - 8 항목 개별 판정 함수 (isBasicInfoComplete / ... / isBracketGenerated)
- *   - calculateSetupProgress 종합 (0/8, 4/8, 8/8)
- *   - 잠금 조건 (3 미정의 → 4 잠금 / 4 미완료 → 7·8 잠금 / 1 미박제 → 3·6 잠금)
- *   - 공개 가드 (allRequiredComplete) — 2 시리즈는 제외
+ *   - 8 항목 개별 판정 함수 (isBasicInfoComplete / ... / isBracketGenerated) — 함수 시그니처 변경 0
+ *   - calculateSetupProgress 종합 (0/7, 3/7, 7/7) — 통합 후 7 항목
+ *   - 잠금 조건 (3 종별+운영방식 미완료 → 6·7 잠금 / 1 미박제 → 3·5 잠금)
+ *   - 공개 가드 (allRequiredComplete) — 2 시리즈는 제외 / 필수 6 항목 ALL ✅
+ *   - PR-Admin-5: 통합 카드 #3 progress 필드 (정의 N건 / 운영방식 M건) + status 분기
  */
 
 import { describe, it, expect } from "vitest";
@@ -267,13 +269,13 @@ describe("setup-status — isBracketGenerated", () => {
 // calculateSetupProgress — 종합 + 잠금
 // ─────────────────────────────────────────────────────────────────────────
 
-describe("setup-status — calculateSetupProgress 종합", () => {
+describe("setup-status — calculateSetupProgress 종합 (PR-Admin-5: 8→7 통합)", () => {
   const tid = "11111111-1111-1111-1111-111111111111";
 
-  it("모든 항목 박제 = 8/8 + allRequiredComplete=true", () => {
+  it("모든 항목 박제 = 7/7 + allRequiredComplete=true", () => {
     const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
-    expect(p.completed).toBe(8);
-    expect(p.total).toBe(8);
+    expect(p.completed).toBe(7);
+    expect(p.total).toBe(7);
     expect(p.allRequiredComplete).toBe(true);
     expect(p.missingRequiredTitles).toEqual([]);
   });
@@ -298,7 +300,7 @@ describe("setup-status — calculateSetupProgress 종합", () => {
     const p = calculateSetupProgress(tid, t, r);
     expect(p.completed).toBe(0);
     expect(p.allRequiredComplete).toBe(false);
-    // 기본 정보 미박제 → 3 종별 정의 / 6 사이트 모두 locked
+    // 기본 정보 미박제 → 3 종별+운영방식 / 5 사이트 모두 locked (PR-Admin-5: site step 6→5)
     const divs = p.items.find((i) => i.key === "divisions");
     const site = p.items.find((i) => i.key === "site");
     expect(divs?.status).toBe("locked");
@@ -306,7 +308,7 @@ describe("setup-status — calculateSetupProgress 종합", () => {
     expect(divs?.lockedReason).toBeTruthy();
   });
 
-  it("기본 정보만 박제 + 종별 미정의 → 4 운영 방식 locked", () => {
+  it("기본 정보만 박제 + 종별 미정의 → 통합 #3 종별+운영방식 empty + 6·7 locked", () => {
     const t = buildFullTournament();
     const r: ChecklistRelationInput = {
       divisionRules: [],
@@ -315,15 +317,17 @@ describe("setup-status — calculateSetupProgress 종합", () => {
       matchesCount: 0,
     };
     const p = calculateSetupProgress(tid, t, r);
-    const rules = p.items.find((i) => i.key === "divisionRules");
+    const divs = p.items.find((i) => i.key === "divisions");
     const recording = p.items.find((i) => i.key === "recording");
     const bracket = p.items.find((i) => i.key === "bracket");
-    expect(rules?.status).toBe("locked");
+    // 통합 카드 — basic ✅ / divsDefined ❌ → empty (locked 아님 — 진입 가능)
+    expect(divs?.status).toBe("empty");
+    // 종별 미정의 → 6·7 모두 locked
     expect(recording?.status).toBe("locked");
     expect(bracket?.status).toBe("locked");
   });
 
-  it("4 운영 방식 미완료 → 7·8 잠금 + 공개 불가", () => {
+  it("종별+운영방식 일부 미완료 (group_size 미박제) → in_progress + 6·7 잠금 + 공개 불가", () => {
     const t = buildFullTournament();
     const r = buildFullRelation({
       divisionRules: [
@@ -331,33 +335,34 @@ describe("setup-status — calculateSetupProgress 종합", () => {
       ],
     });
     const p = calculateSetupProgress(tid, t, r);
-    const rules = p.items.find((i) => i.key === "divisionRules");
+    const divs = p.items.find((i) => i.key === "divisions");
     const recording = p.items.find((i) => i.key === "recording");
     const bracket = p.items.find((i) => i.key === "bracket");
-    expect(rules?.status).toBe("in_progress"); // format 박제됐지만 settings 미박제 → in_progress
+    // 통합 카드 — divsDefined ✅ + divsComplete ❌ → in_progress
+    expect(divs?.status).toBe("in_progress");
     expect(recording?.status).toBe("locked");
     expect(bracket?.status).toBe("locked");
     expect(p.allRequiredComplete).toBe(false);
-    expect(p.missingRequiredTitles).toContain("운영 방식");
+    expect(p.missingRequiredTitles).toContain("종별 + 운영 방식");
   });
 
   it("시리즈 미연결 (2) 만 빠지면 allRequiredComplete=true (선택 항목)", () => {
     const t = buildFullTournament({ series_id: null });
     const r = buildFullRelation();
     const p = calculateSetupProgress(tid, t, r);
-    expect(p.completed).toBe(7); // 시리즈 빼고 7개 완료
+    expect(p.completed).toBe(6); // 시리즈 빼고 6개 완료 (PR-Admin-5: 7→6)
     expect(p.allRequiredComplete).toBe(true); // 시리즈는 required=false → 공개 가능
     const series = p.items.find((i) => i.key === "series");
     expect(series?.required).toBe(false);
     expect(series?.status).toBe("empty");
   });
 
-  it("진행도 4/8 케이스 — 기본/시리즈/종별/운영방식 박제 + 나머지 미완", () => {
+  it("진행도 3/7 케이스 — 기본/시리즈/종별+운영방식 박제 + 나머지 미완 (PR-Admin-5: 4/8 → 3/7)", () => {
     const t = buildFullTournament({
       maxTeams: null,
       entry_fee: null,
       auto_approve_teams: null,
-      settings: null, // 7 기록 미박제
+      settings: null, // 6 기록 미박제
     });
     const r = buildFullRelation({
       hasTournamentSite: false,
@@ -365,7 +370,7 @@ describe("setup-status — calculateSetupProgress 종합", () => {
       matchesCount: 0,
     });
     const p = calculateSetupProgress(tid, t, r);
-    expect(p.completed).toBe(4); // 1, 2, 3, 4 완료
+    expect(p.completed).toBe(3); // 1, 2, 3 (통합) 완료
     expect(p.allRequiredComplete).toBe(false);
     expect(p.missingRequiredTitles.length).toBeGreaterThan(0);
   });
@@ -377,13 +382,77 @@ describe("setup-status — calculateSetupProgress 종합", () => {
     }
   });
 
-  // 2026-05-13 UI-1.5 회귀 가드 — 신청 정책(5번) 카드는 wizard 의 RegistrationSettingsForm 영역(Step 2)
-  //   으로 바로 진입하도록 ?step=2 query 가 박제되어야 한다.
-  it("신청 정책(5) 카드 link 는 ?step=2 query 포함 (UI-1.5 회귀 가드)", () => {
+  // 2026-05-13 UI-1.5 회귀 가드 — 신청 정책(4번) 카드는 wizard 의 RegistrationSettingsForm 영역(Step 2)
+  //   으로 바로 진입하도록 ?step=2 query 가 박제되어야 한다. PR-Admin-5: 5번 → 4번 step renumbering.
+  it("신청 정책(4) 카드 link 는 ?step=2 query 포함 (UI-1.5 회귀 가드)", () => {
     const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
     const regItem = p.items.find((i) => i.key === "registration");
     expect(regItem).toBeDefined();
     expect(regItem?.link).toMatch(/\/wizard\?step=2$/);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PR-Admin-5 신규 가드 — 통합 카드 #3 "종별 + 운영 방식"
+  // ─────────────────────────────────────────────────────────────────────────
+
+  it("PR-Admin-5: items.length === 7 (8→7 축소 회귀 가드)", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    expect(p.items).toHaveLength(7);
+  });
+
+  it("PR-Admin-5: 통합 카드 key='divisions' / step=3 / title='종별 + 운영 방식'", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const divs = p.items.find((i) => i.key === "divisions");
+    expect(divs).toBeDefined();
+    expect(divs?.step).toBe(3);
+    expect(divs?.title).toBe("종별 + 운영 방식");
+    expect(divs?.link).toMatch(/\/divisions$/);
+    expect(divs?.required).toBe(true);
+  });
+
+  it("PR-Admin-5: 통합 카드 progress = { current: 2, total: 4 } (4 종별 중 2 운영방식 박제)", () => {
+    const t = buildFullTournament();
+    const r = buildFullRelation({
+      divisionRules: [
+        { format: "single_elimination", settings: {} }, // 박제
+        { format: "group_stage_knockout", settings: { group_size: 4, group_count: 2 } }, // 박제
+        { format: null, settings: {} }, // 미박제
+        { format: null, settings: {} }, // 미박제
+      ],
+    });
+    const p = calculateSetupProgress(tid, t, r);
+    const divs = p.items.find((i) => i.key === "divisions");
+    expect(divs?.progress).toEqual({ current: 2, total: 4 });
+    expect(divs?.status).toBe("in_progress");
+  });
+
+  it("PR-Admin-5: 통합 카드 모든 종별 박제 시 progress = { current: N, total: N } + status=complete", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const divs = p.items.find((i) => i.key === "divisions");
+    // buildFullRelation = 2 종별 모두 format 박제 + group_stage_knockout settings 박제
+    expect(divs?.progress).toEqual({ current: 2, total: 2 });
+    expect(divs?.status).toBe("complete");
+  });
+
+  it("PR-Admin-5: 통합 카드 종별 0건 시 progress=undefined (표시 0)", () => {
+    const t = buildFullTournament();
+    const r = buildFullRelation({ divisionRules: [] });
+    const p = calculateSetupProgress(tid, t, r);
+    const divs = p.items.find((i) => i.key === "divisions");
+    expect(divs?.progress).toBeUndefined();
+    expect(divs?.status).toBe("empty"); // basic ✅ + divsDefined ❌ → empty
+  });
+
+  it("PR-Admin-5: 기존 #4 'divisionRules' key 제거 (통합 흡수 회귀 가드)", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const oldKey = p.items.find((i) => i.key === "divisionRules");
+    expect(oldKey).toBeUndefined();
+  });
+
+  it("PR-Admin-5: step 번호 1~7 연속 (renumbering 회귀 가드)", () => {
+    const p = calculateSetupProgress(tid, buildFullTournament(), buildFullRelation());
+    const steps = p.items.map((i) => i.step).sort((a, b) => a - b);
+    expect(steps).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
 
@@ -421,9 +490,8 @@ describe("setup-status — canPublish (UI-5 공개 게이트)", () => {
     const gate = canPublish(calculateSetupProgress(tid, t, r));
     expect(gate.ok).toBe(false);
     expect(gate.missing.length).toBeGreaterThan(0);
-    // 종별/운영방식/신청정책/사이트/기록/대진표 = 6개 모두 미충족
-    expect(gate.missing).toContain("종별 정의");
-    expect(gate.missing).toContain("운영 방식");
+    // PR-Admin-5: 종별+운영방식 통합 / 신청정책/사이트/기록/대진표 = 5개 모두 미충족
+    expect(gate.missing).toContain("종별 + 운영 방식");
     expect(gate.missing).toContain("신청 정책");
     expect(gate.missing).toContain("사이트 설정");
     expect(gate.missing).toContain("기록 설정");

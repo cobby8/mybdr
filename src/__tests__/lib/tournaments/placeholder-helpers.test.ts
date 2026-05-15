@@ -15,6 +15,7 @@ import {
   parseSlotLabel,
   buildPlaceholderMatchPayload,
   isStandingsAutoFillable,
+  detectInvalidPlaceholderMatches,
 } from "@/lib/tournaments/placeholder-helpers";
 
 // ADVANCEMENT_REGEX 와 동일 (단일 source 호환 검증)
@@ -216,5 +217,88 @@ describe("isStandingsAutoFillable — 자동 채움 가능 페어 판정", () =>
       { kind: "tie_rank", rank: 1 },
       { kind: "tie_rank", rank: 1 },
     )).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// PR-Admin-3 (2026-05-16) — detectInvalidPlaceholderMatches 검증 4 케이스
+// ─────────────────────────────────────────────────────────────────────────
+describe("detectInvalidPlaceholderMatches — placeholder 매치 위반 검출 (강남구 사고 재발 방지)", () => {
+  it("케이스 1: 정상 placeholder ('A조 1위 vs B조 1위' + homeTeamId=null) → 0 검출", () => {
+    const matches = [
+      {
+        id: "m1",
+        roundName: "순위결정전",
+        homeTeamId: null,
+        awayTeamId: null,
+        notes: "A조 1위 vs B조 1위", // parseSlotLabel("A조 1위") = group_rank → null 아님
+        settings: { homeSlotLabel: "A조 1위", awaySlotLabel: "B조 1위" },
+      },
+    ];
+    const result = detectInvalidPlaceholderMatches(matches);
+    expect(result).toEqual([]);
+  });
+
+  it("케이스 2: 강남구 사고 패턴 (실팀 박혀있고 notes 형식 위반) → 1 검출 / reason='format-violation'", () => {
+    // 강남구협회장배 13건 사고 그대로:
+    // - roundName "순위결정전" (또는 "순위전" / "동순위전")
+    // - homeTeamId / awayTeamId 가 실팀으로 박혀있음 (placeholder 의도 위반)
+    // - notes 가 placeholder 형식 미준수 (parseSlotLabel null) — 운영자 수동 INSERT 시 형식 위반
+    const matches = [
+      {
+        id: "m-gangnam-1",
+        roundName: "순위결정전",
+        homeTeamId: "team-A1", // 실팀 박힘 (의도 위반)
+        awayTeamId: "team-B1",
+        notes: "수동입력 - 1·2위팀 결정전", // parseSlotLabel null (강남구 사고 형식)
+        settings: null,
+      },
+    ];
+    const result = detectInvalidPlaceholderMatches(matches);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ matchId: "m-gangnam-1", reason: "format-violation" });
+  });
+
+  it("케이스 3: settings.slotLabel 미박제 → reason='missing-slot-label' (G7 후속 큐 후보)", () => {
+    // notes 는 형식 OK (placeholder 의도) + 실팀 미박힘 — format-violation 아님
+    // settings.homeSlotLabel / awaySlotLabel 미박제 → missing-slot-label 만 검출
+    const matches = [
+      {
+        id: "m-missing-label",
+        roundName: "1위 동순위전", // "동순위" → "순위" 정규식 매치
+        homeTeamId: null,
+        awayTeamId: null,
+        notes: "A조 1위 vs B조 1위", // parseSlotLabel 통과 — format OK
+        settings: {}, // homeSlotLabel / awaySlotLabel 미박제 — G7 후속 큐
+      },
+    ];
+    const result = detectInvalidPlaceholderMatches(matches);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ matchId: "m-missing-label", reason: "missing-slot-label" });
+  });
+
+  it("케이스 4: roundName '예선' (순위전 아님) → 0 검출 (검사 대상 0)", () => {
+    // 예선 매치는 본 검증 대상 0 — 실팀이 박혀있어도 정상 흐름
+    const matches = [
+      {
+        id: "m-prelim",
+        roundName: "예선 1R",
+        homeTeamId: "team-X",
+        awayTeamId: "team-Y",
+        notes: null, // notes 없어도 예선은 검증 대상 0
+        settings: null,
+      },
+      // 추가: roundName null 케이스 — 본 검증 대상 0
+      {
+        id: "m-no-round",
+        roundName: null,
+        homeTeamId: "team-Z",
+        awayTeamId: "team-W",
+        notes: "임의 notes",
+        settings: null,
+      },
+    ];
+    const result = detectInvalidPlaceholderMatches(matches);
+    expect(result).toEqual([]);
   });
 });

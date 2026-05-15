@@ -45,6 +45,10 @@ interface ScoreSheetToolbarProps {
   // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달 trigger.
   //   form 이 ConfirmModal 로 작성법 안내 노출.
   onOpenManual?: () => void;
+  // 2026-05-16 (PR-PBP-Edit) — 기록 수정 (PBP 조회/수정) 모달 trigger.
+  //   라인업 ↔ 설명서 사이에 박제. 진행 매치 + 수정 모드 매치 = form 이 콜백 전달.
+  //   종료 매치 + 수정 모드 미진입 = undefined → 버튼 미노출 (이중 방어).
+  onOpenPbpEdit?: () => void;
   // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기 (유지).
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
@@ -74,6 +78,8 @@ export function ScoreSheetToolbar({
   onCancelRecord,
   onReselectLineup,
   onOpenManual,
+  // 2026-05-16 (PR-PBP-Edit) — 기록 수정 모달 trigger (라인업 ↔ 설명서 사이).
+  onOpenPbpEdit,
   endMatchDisabled,
   hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
   // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 props (사용자 결재 Q3 / Q4)
@@ -83,7 +89,9 @@ export function ScoreSheetToolbar({
 }: ScoreSheetToolbarProps) {
   const router = useRouter();
   // 2026-05-15 (PR-Fullscreen-Clean) — 풀스크린 시 toolbar 자체 hidden (양식만 보이도록).
-  const { isFullscreen } = useFullscreen();
+  // 2026-05-16 (PR-Fullscreen-Button) — 라인업 좌측 "전체화면" 텍스트 버튼 박제 (이미지 #132).
+  //   chrome.tsx 의 thin bar 가 제거됐으므로 toolbar 에서 전체화면 진입점 제공.
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   // 2026-05-15 (PR-Toolbar-Back) — 뒤로 = router.back() 우선. history 없으면 backHref fallback.
   //   typeof window 가드 = SSR 안전 + history.length === 1 (직접 URL 진입) 케이스 fallback.
@@ -127,6 +135,19 @@ export function ScoreSheetToolbar({
         {/* aria 보조 — gameNo 정보 유지 (스크린리더용 hidden) */}
         <span className="sr-only">SCORESHEET · {titleSuffix}</span>
 
+        {/* 2026-05-16 (PR-Fullscreen-Button) — 사용자 보고 이미지 #132 fix.
+            라인업 좌측에 "전체화면" 텍스트 버튼 (아이콘 0). useFullscreen.toggle 호출.
+            isFullscreen=true 일 때는 위 if (isFullscreen) return null 으로 toolbar 자체 미렌더. */}
+        <button
+          type="button"
+          className="ss-toolbar__print"
+          onClick={toggleFullscreen}
+          aria-label="전체화면 (태블릿 세로 권장)"
+          title="전체화면 (ESC 또는 우상단 X 로 종료)"
+        >
+          전체화면
+        </button>
+
         {/* 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
             진행 매치 + 수정 모드 매치 = form 이 콜백 전달. 종료 매치 = 미전달 (PR-RO2 룰). */}
         {onReselectLineup && (
@@ -141,6 +162,24 @@ export function ScoreSheetToolbar({
               edit
             </span>
             라인업
+          </button>
+        )}
+
+        {/* 2026-05-16 (PR-PBP-Edit) — 기록 수정 모달 trigger.
+            라인업 ↔ 설명서 사이 박제. 진행 매치 + 수정 모드 매치 = form 이 콜백 전달.
+            종료 매치 + 수정 모드 미진입 = 미전달 → 버튼 미노출 (PR-RO 룰 정합). */}
+        {onOpenPbpEdit && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onOpenPbpEdit}
+            aria-label="기록 수정 (PBP 점수/선수/삭제)"
+            title="기록 수정 — 점수 / 선수 / 삭제"
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              edit_note
+            </span>
+            기록수정
           </button>
         )}
 

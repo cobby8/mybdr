@@ -265,8 +265,11 @@
   border-bottom: 1px solid var(--pap-line);
   align-self: stretch;
   display: flex;
-  align-items: flex-end;
-  padding-bottom: 2px;
+  /* 2026-05-16 (PR-Field-Align) — 사용자 보고 이미지 #127 fix.
+     이전 align-items: flex-end + padding-bottom: 2px → 값이 라벨보다 아래로 밀려 baseline 어긋남.
+     수정 = center + padding 0 → 값/라벨 baseline 정합. */
+  align-items: center;
+  padding-bottom: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -279,13 +282,25 @@
      23fr 7fr = 76.67% : 23.33% (정확). */
 .ss-shell .ss-meta {
   display: grid;
-  grid-template-columns: 23fr 7fr;
+  /* 2026-05-16 (PR-Overflow-Fix-meta) — 사용자 보고 이미지 #124 "너무 줄어들었어" fix.
+     이전 5fr 1fr (= 우측 16.7%) → 2fr 1fr (= 우측 33.3%) — Umpire 1/2 underline 충분 폭. */
+  grid-template-columns: 2fr 1fr !important;
   border-bottom: 1.5px solid var(--pap-line);
+  /* 2026-05-16 (PR-Overflow-Fix) — meta 영역 우측 이탈 차단 (이미지 #121 REFEREE/UMPIRE). */
+  overflow: hidden;
 }
 .ss-shell .ss-meta__l,
 .ss-shell .ss-meta__r {
   display: grid;
   grid-template-rows: 1fr 1fr;
+  /* 2026-05-16 (PR-Overflow-Fix) — grid item min-width: 0 + overflow cut.
+     grid item 기본 min-width = min-content → 자식 input 자연 폭 유지 → underline 이탈.
+     min-width: 0 + overflow: hidden = 자식 flex/input flex:1 자연 축소 허용. */
+  min-width: 0;
+  overflow: hidden;
+}
+.ss-shell .ss-meta__row {
+  min-width: 0;
 }
 .ss-shell .ss-meta__l { border-right: 1.5px solid var(--pap-line); }
 .ss-shell .ss-meta__row {
@@ -324,8 +339,11 @@
   border-bottom: 1px solid var(--pap-line);
   height: 16px;
   display: flex;
-  align-items: flex-end;
-  padding-bottom: 1px;
+  /* 2026-05-16 (PR-Field-Align) — 사용자 보고 이미지 #127 fix.
+     이전 align-items: flex-end + padding-bottom: 1px → 값이 라벨보다 아래로 밀려 baseline 어긋남.
+     수정 = center + padding 0 → 값/라벨 baseline 정합. */
+  align-items: center;
+  padding-bottom: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -484,12 +502,14 @@
   height: 24px;
 }
 
-/* ----- Winner 박스 ----- */
+/* ----- Winner 박스 -----
+   2026-05-16 (PR-Winner-Padding) — 사용자 보고 이미지 #143 fix.
+   하단 padding 0 → 8px (cell 외곽 검정 border 와 텍스트 사이 여백 확보). */
 .ss-shell .ss-winner {
   display: grid;
   grid-template-columns: 160px 1fr;
   align-items: center;
-  padding: 0 8px;
+  padding: 0 8px 8px 8px;
   gap: 6px;
   min-height: 32px;
 }
@@ -1004,6 +1024,9 @@
   padding: 0 0 1px 0;
   height: 18px;
   min-width: 0;
+  /* 2026-05-16 (PR-Overflow-Fix-input) — input default size=20 (~150px) 자연 폭 강제 차단.
+     width: 0 + flex:1 = 0px 부터 시작해 flex 으로 자연 grow → 부모 cell cap 정확. */
+  width: 0;
 }
 .ss-shell .ss-sigs__row > input.pap-u:focus {
   border-bottom-color: var(--pap-ink);
@@ -1095,8 +1118,11 @@
 
 /* 점수 / 마킹 셀 공통 = 시안 L580~592 정합.
    2026-05-15 — flex: 1 1 0 적용 시 column 가용 공간 부족하여 cell 높이 0 → 사용자 보고
-     "RUNNING SCORE 영역 깨짐". 명시 min-height 22px 로 fallback (30 row × 22px = 660px
-     충분 보임). 좌측 Team A+B 와 완벽 정합 어렵지만 양식 표시 보장 우선. */
+     "RUNNING SCORE 영역 깨짐". 명시 min-height 22px 로 fallback.
+   2026-05-16 (PR-Stretch-RS) — 사용자 보고 이미지 #126 "Running Score 아래 공백 제거" fix.
+     이전 = min-height: 22px 만 → 30 row × 22px = 660px 고정 → 좌측 Team A+B 보다 짧으면 공백.
+     수정 = flex: 1 + min-height: 22px → 부모 column flex 안에서 가용 공간 균등 stretch.
+     좌상 Team A+B cell 높이만큼 Running Score 30 row 가 비례 늘어남 (공백 0). */
 .ss-shell .ss-rs__cell {
   display: flex;
   align-items: center;
@@ -1107,6 +1133,7 @@
   border-right: 1px solid var(--pap-line);
   border-bottom: 1px solid var(--pap-hair);
   position: relative;
+  flex: 1;
   min-height: 22px;
   overflow: hidden;
   padding: 0;
@@ -1163,13 +1190,39 @@
 
 /* ============================================================
    2026-05-15 (PR-Section-Borders) — 7 섹터 두꺼운 테두리 구분 (사용자 요청).
-   각 [data-ss-area] cell 에 2px outer border. 내부 자식 (data-ss-section 컴포넌트)
-   는 자체 border 없음 (cell wrapper 가 담당).
+   2026-05-15 fix — selector 단순화 + !important 강제 (이전 룰 미적용 사고 우회).
    ============================================================ */
-.score-sheet-fiba-frame [data-ss-area] {
-  border: 2px solid var(--pap-line);
-  /* 인접 cell 끼리 겹침 차단 (단 grid gap 0 = border 더블 시각 가능 — 운영 검수 후 조정) */
-  margin: -1px 0 0 -1px;
+[data-ss-area] {
+  /* 2026-05-16 (PR-Layout-Unify) — 사용자 보고 fix.
+     이전 border 2px (cell wrapper 외곽) → 제거. grid 부모의 gap 2px + bg 검정이
+     영역 구분 단일 source. 자식 cell wrapper 는 background 만 박제 (#fff = 갭만 검정 노출). */
+  border: 0 !important;
+  /* 2026-05-16 (PR-Section-Bg-Revert) — 사용자 보고 이미지 #133 fix.
+     이전 var(--pap-bg) = .ss-shell 스코프 밖 토큰 invalid → 부모 grid 검정 비침 사고.
+     직접 #FFFFFF 강제 (다크모드 진입 케이스도 light 강제 — 사용자 명시 "다크모드 미사용"). */
+  background-color: #FFFFFF !important;
+  /* 2026-05-16 (PR-Overflow-Fix) — cell 자식 (underline / 글자 / 박스) 우측 경계 이탈 차단.
+     사용자 보고 이미지 #121 (REFEREE/UMPIRE underline 우측 frame border 침범) +
+     이미지 #122/#125 (좌하 footer signatures + 우하 NAME OF WINNING TEAM 박스 침범).
+     box-sizing: border-box → border 가 content 폭 내부로 포함됨 → overflow cut 영역 정확. */
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+/* 2026-05-16 (PR-Overflow-Fix-children) — cell 직계 자식도 부모 폭 안에 cap.
+   자식 section / div 가 width:100% + box-sizing border-box 면 부모 cell 안에 정확히 fit. */
+[data-ss-area] > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+/* 좌상 cell 안 Team A/B 사이 (fiba-divider-bottom) 두꺼운 구분선.
+   2026-05-16 (PR-Team-A-B-Divider) — 사용자 보고 이미지 #138 fix.
+   Team A wrapper (첫 자식) 의 border-bottom = 2px = Team A/B 분리선.
+   Team B wrapper (마지막 자식) 의 border-bottom = 0 (부모 cell 외곽 border 와 중복 방지). */
+[data-ss-area="left-top"] > .fiba-divider-bottom:not(:last-child) {
+  border-bottom: 2px solid #1A1E27;
+}
+[data-ss-area="left-top"] > .fiba-divider-bottom:last-child {
+  border-bottom: 0;
 }
 
 /* RUNNING SCORE 영역 — 좌측 Team A+B 합과 height 정합:
@@ -1194,4 +1247,26 @@
 [data-ss-area="left-bottom"] .ss-footer-sigs,
 [data-ss-area="right-bottom"] .ss-ps-section {
   height: 100%;
+}
+
+/* 2026-05-16 (PR-Layout-Unify-Children) — 사용자 보고 fix.
+   자식 컴포넌트 outer self-border (.ss-tbox / .ss-footer-sigs / .ss-ps-section) 1.5px 가
+   cell wrapper grid gap 2px 와 중복 → 두꺼움 사고.
+   cell wrapper 안 자식 outer border = 0 강제 (grid gap 단일 source). */
+[data-ss-area] .ss-tbox,
+[data-ss-area] .ss-footer-sigs,
+[data-ss-area] .ss-ps-section {
+  border: 0 !important;
+}
+
+/* 2026-05-16 (PR-Page-Light-Forced) — 사용자 보고 이미지 #133 fix.
+   score-sheet 전체 양식 영역 = light 강제 (다크모드 진입 케이스 차단).
+   사용자 명시 "기록지 모드에서 다크모드 미사용" → page 자체에서 다크 색상 차단. */
+.score-sheet-print-root {
+  color-scheme: light;
+  background-color: #FFFFFF;
+  color: #000000;
+}
+.score-sheet-print-root .score-sheet-fiba-frame {
+  background-color: #FFFFFF;
 }
