@@ -34,6 +34,10 @@ interface ScoreSheetToolbarProps {
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
   endMatchDisabled?: boolean;
+  // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 경기 종료 버튼 hidden (사용자 결재 Q2).
+  //   왜: 이미 종료된 매치 = 종료 버튼 자체 노출 0 (인쇄 / ← 메인 / 다크모드만 활성).
+  //   호출자 미전달 시 동작 변경 0 (운영 보존).
+  hideEndMatch?: boolean;
 }
 
 export function ScoreSheetToolbar({
@@ -42,6 +46,7 @@ export function ScoreSheetToolbar({
   onEndMatch,
   backHref = "/admin",
   endMatchDisabled,
+  hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
 }: ScoreSheetToolbarProps) {
   // 타이틀 표시: gameNo 가 있으면 "SCORESHEET · #{gameNo}" / 없으면 "SCORESHEET · #" 만
   const titleSuffix =
@@ -79,24 +84,28 @@ export function ScoreSheetToolbar({
         </button>
 
         {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit).
-            endMatchDisabled prop = 종료 후 시각 disabled 분기 (PR-S2 후속 fix 3 유지). */}
-        <button
-          type="button"
-          className="ss-toolbar__finish"
-          onClick={onEndMatch}
-          disabled={endMatchDisabled}
-          aria-label="경기 종료"
-          style={
-            endMatchDisabled
-              ? { opacity: 0.4, cursor: "not-allowed" }
-              : undefined
-          }
-        >
-          <span className="material-symbols-outlined" aria-hidden>
-            flag
-          </span>
-          경기 종료
-        </button>
+            endMatchDisabled prop = 종료 후 시각 disabled 분기 (PR-S2 후속 fix 3 유지).
+            Phase 23 PR-RO3 (2026-05-15) — hideEndMatch=true 시 버튼 자체 렌더 0 (사용자 결재 Q2).
+              종료 매치 진입 = 인쇄 / ← 메인 만 노출. 종료 버튼 진입점 차단. */}
+        {!hideEndMatch && (
+          <button
+            type="button"
+            className="ss-toolbar__finish"
+            onClick={onEndMatch}
+            disabled={endMatchDisabled}
+            aria-label="경기 종료"
+            style={
+              endMatchDisabled
+                ? { opacity: 0.4, cursor: "not-allowed" }
+                : undefined
+            }
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              flag
+            </span>
+            경기 종료
+          </button>
+        )}
       </div>
     </div>
   );
