@@ -1106,10 +1106,12 @@ export default function LiveBoxScorePage() {
         }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {/* 2026-05-02: 나가는 액션 강화 — chevron + "뒤로" 텍스트 + history fallback "/" */}
+          {/* 2026-05-15 (PR-Back-Button-Unify) — score-sheet "<" 패턴 통일.
+              chevron SVG + "뒤로" 텍스트 + hover bg → Material Symbols arrow_back_ios
+              22px 아이콘만 (36x36 hit area, border 0, bg transparent).
+              router.back history>1 + "/" fallback 유지. */}
           <button
             onClick={() => {
-              // history 비어있을 때 (직접 URL 접속) "/" 로 fallback
               if (typeof window !== "undefined" && window.history.length > 1) {
                 window.history.back();
               } else if (typeof window !== "undefined") {
@@ -1117,13 +1119,16 @@ export default function LiveBoxScorePage() {
               }
             }}
             aria-label="뒤로 가기"
-            className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
-            style={{ color: "var(--color-text-secondary)" }}
+            title="이전 페이지로"
+            className="shrink-0 flex h-9 w-9 items-center justify-center"
+            style={{ color: "var(--color-text-primary)", touchAction: "manipulation" }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            <span className="text-xs font-medium hidden sm:inline">뒤로</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+              arrow_back_ios
+            </span>
           </button>
-          {/* 홈 진입점 — 모바일/PC 모두 노출 (직접 URL 접속 시 history fallback 외 추가 보조) */}
+          {/* 2026-05-15 사용자 결정: 홈 버튼 삭제 (브라우저 홈/뒤로 버튼으로 충분).
+              JSX 보존 = 복원 쉬움.
           <a
             href="/"
             aria-label="홈"
@@ -1132,6 +1137,7 @@ export default function LiveBoxScorePage() {
           >
             <span className="material-symbols-outlined text-lg">home</span>
           </a>
+          */}
           {/*
             토너먼트명 — 모바일에서 미니스코어 자리 확보 위해 sm:inline 으로 PC 만 노출.
             모바일은 미니스코어가 더 중요 (라이브 중계 시 가장 자주 보고 싶은 정보).
@@ -1186,23 +1192,19 @@ export default function LiveBoxScorePage() {
               LIVE
             </span>
           )}
-          {/* 상태 라벨: 라이브 외 상태 (예정/종료)에서만 표시 — 빨간 LIVE 펄스와 회색 LIVE 텍스트 중복 제거 (2026-05-02) */}
-          {!isLive && (
-            <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-              {STATUS_LABEL[match.status] ?? match.status}
-            </span>
-          )}
+          {/* 2026-05-15 사용자 결정: 상태 라벨 ("예정"/"종료" 등) 삭제 — toolbar 단순화.
+                                    isLive 펄스만 유지 (live 상태 시각 인지). */}
+
           {/* 2026-05-15 PR-Live2 — 운영자/기록원 전용 "기록하기" Link (score-sheet 진입).
-              canRecord = score-sheet-access endpoint 통과 시에만 노출 (Q2 권고안 = toolbar 위치).
-              시각 = var(--color-primary) 빨강 배경 + 흰 글자 (강조 액션 / 임시번호 회색 보조 액션과 분리).
-              Q4 결재 = recording_mode 무관 노출 (paper/flutter 모두) — score-sheet 안내 화면이 자동 처리.
-              데스크탑 = 아이콘 + 텍스트 / 모바일 = 아이콘만 (Q1 path = /score-sheet/{matchId}). */}
+              canRecord = score-sheet-access endpoint 통과 시에만 노출.
+              시각 = var(--color-primary) 빨강 배경 + 흰 글자 (강조 액션).
+              2026-05-15 사용자 결정: PC/모바일 통합 (모든 화면에서 텍스트 + 아이콘 버전 1개만). */}
           {canRecord && (
             <Link
               href={`/score-sheet/${id}`}
               aria-label="이 매치 기록하기 (운영자/기록원 전용)"
               title="이 매치 기록하기 (운영자/기록원 전용)"
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-opacity hover:opacity-90"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-opacity hover:opacity-90"
               style={{
                 color: "#fff",
                 backgroundColor: "var(--color-primary)",
@@ -1210,20 +1212,6 @@ export default function LiveBoxScorePage() {
             >
               <span className="material-symbols-outlined text-base">edit_note</span>
               <span>기록하기</span>
-            </Link>
-          )}
-          {/* 모바일: 아이콘만 (텍스트 생략) — 헤더 공간 보호. 빨강 배경은 유지하여 강조 액션 시각 일관성 보존. */}
-          {canRecord && (
-            <Link
-              href={`/score-sheet/${id}`}
-              aria-label="이 매치 기록하기 (운영자/기록원 전용)"
-              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-opacity hover:opacity-90"
-              style={{
-                color: "#fff",
-                backgroundColor: "var(--color-primary)",
-              }}
-            >
-              <span className="material-symbols-outlined text-base">edit_note</span>
             </Link>
           )}
           {/* 2026-05-05 PR4 — 운영자 전용 "임시 번호" 버튼 (W1 매치 한정 jersey override).
