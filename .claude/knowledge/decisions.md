@@ -2,6 +2,27 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-16] PR-G5.8 swiss generator R1 박제 + R(N) endpoint stub (옵션 B)
+- **분류**: 기술 결정 / 대진표 generator / swiss 시스템
+- **결정**: 옵션 B (R1 풀구현 + R(N) endpoint 501 stub) ⭕ / 옵션 A (R1+R(N) 전체 풀구현 ~700~900 LOC) ❌ / 옵션 C (R1 만 / R(N) 미박제) ❌
+- **사유**:
+  1. swiss 동적 라운드 특성 → 운영 데이터 0 상태에서 R(N) 풀구현 = 과투자 (spec 변경 위험)
+  2. plan PURE 2건 (planSwissRound1 + planSwissNextRound) 박제 → 알고리즘 vitest 검증 가능 (운영 데이터 0 보완)
+  3. generateSwissNextRound stub (501) = 진입점 명확화 + 후속 PR 결재 트리거
+- **planner 의견**: 보류 권장 (운영 사용 0). 사용자 선택 옵션 3 (G5.7 보류 / G5.8 만 박제) 진행
+- **신규 함수**:
+  - `swiss-helpers.ts` (PURE): `getSwissRoundCount(N)` (Math.ceil(log2(N))) + `planSwissRound1` (시드 양분 분배 + 홀수 BYE) + `planSwissNextRound` (Dutch + Buchholz + 최근 대전 회피)
+  - `swiss-knockout.ts` (DB): `generateSwissRound1` (idempotent + match_code v4) + `generateSwissNextRound = 501 stub throw`
+- **신규 SlotKind 0개**: placeholder-helpers 7 kind 그대로 (swiss = 실팀 INSERT 만 / settings = JsonNull)
+- **진입점**:
+  - `bracket/route.ts` POST format='swiss' 분기 (isLeagueFormat 직후 / dual_tournament 앞)
+  - `/api/web/admin/tournaments/[id]/swiss/next-round` 신규 endpoint (501 stub)
+- **회귀 보장**: 기존 single_elim / dual / NBA-seed / full_league_knockout 분기 시그니처 변경 0 / Flutter v1 영향 0
+- **검증**: tsc 0 / vitest swiss-knockout 13/13 PASS / tournaments 240/240 PASS
+- **commit**: `b8b3117`
+- **후속 PR 큐**: generateSwissNextRound 풀구현 + PR-G5.7 double_elim (모두 운영 진입 시점)
+- **참조횟수**: 0
+
 ### [2026-05-16] PR-G5.2 dual-generator placeholder-helpers 통과 (옵션 B 인라인 패치)
 - **분류**: 기술 결정 / 대진표 generator / 단일 source 룰
 - **결정**: 옵션 B (기존 함수 inline 패치) ⭕ / 옵션 A (신규 plan/generate 분리) ❌ / 옵션 C (양면) ❌
