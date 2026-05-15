@@ -53,6 +53,19 @@ import {
 } from "@/lib/score-sheet/timeout-helpers";
 import type { SignaturesState } from "@/lib/score-sheet/signature-types";
 import { EMPTY_SIGNATURES } from "@/lib/score-sheet/signature-types";
+// Phase 19 PR-Stat3 (2026-05-15) — player stats state wiring (6 stat: OR/DR/A/S/B/TO).
+//   사용자 결재 Q1 (위치) / Q2 (StatPopover) / Q3 (match_player_stats 직접 박제 / DB 변경 0).
+import type {
+  PlayerStatsState,
+  StatKey,
+} from "@/lib/score-sheet/player-stats-types";
+import { EMPTY_PLAYER_STATS } from "@/lib/score-sheet/player-stats-types";
+import {
+  addStat,
+  removeStat,
+  getStat,
+} from "@/lib/score-sheet/player-stats-helpers";
+import { StatPopover } from "./stat-popover";
 import { FooterSignatures } from "./footer-signatures";
 import { useToast } from "@/contexts/toast-context";
 // Phase 7-B — 라인업 선택 모달 (오늘 출전 명단 + 선발 5인)
@@ -118,6 +131,10 @@ interface ScoreSheetFormProps {
   initialTimeouts?: TimeoutsState;
   initialSignatures?: SignaturesState;
   initialNotes?: string;
+  // Phase 19 PR-Stat3 (2026-05-15) — match_player_stats SELECT 결과 자동 로드 (사용자 결재 Q3).
+  //   DB 변경 0 — match_player_stats 직접 박제. page.tsx 가 SELECT 후 직렬화 전달.
+  //   미전달 (=undefined) 시 EMPTY 폴백 = 신규 매치 진입과 동일.
+  initialPlayerStats?: PlayerStatsState;
   // cross-check 용 (사용자 결재 Q4) — PBP 합산 (initialRunningScore 기준 toQuarterScoresJson)
   //   과 본 값이 mismatch 면 경고 배너 + console.warn. shape 는 BFF submit 와 동일.
   initialQuarterScoresDB?: Record<string, unknown>;
@@ -157,6 +174,9 @@ interface DraftPayload {
   // Phase 7-B — 라인업 박제 (mid-game reload 후 출전 명단 / 선발 5인 복원)
   //   미박제 (모달 미통과) = null
   lineup: { home: TeamLineupSelection; away: TeamLineupSelection } | null;
+  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 박제 (mid-game reload 후 OR/DR/A/S/B/TO 복원).
+  //   사용자 결재 Q3 = match_player_stats 직접 박제 / DB 변경 0.
+  playerStats: PlayerStatsState;
   savedAt: string;
 }
 
@@ -175,6 +195,8 @@ export function ScoreSheetForm({
   initialQuarterScoresDB,
   matchUpdatedAtISO,
   pbpCount,
+  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 자동 로드 (사용자 결재 Q3 = match_player_stats 직접 박제).
+  initialPlayerStats,
 }: ScoreSheetFormProps) {
   const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
   const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
@@ -210,6 +232,24 @@ export function ScoreSheetForm({
     playerId: string;
     playerName: string;
     jerseyNumber: number | null;
+  } | null>(null);
+
+  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) state.
+  //   사용자 결재 Q1 (위치) / Q2 (StatPopover) / Q3 (DB 변경 0 — match_player_stats 직접 박제).
+  //   initialPlayerStats 가 있으면 page.tsx 의 match_player_stats SELECT 결과 사용 (재진입 자동 로드).
+  //   양 팀 통합 단일 record (key = tournamentTeamPlayerId.toString()) — TeamSection 이 자신의 id 만 lookup.
+  const [playerStats, setPlayerStats] = useState<PlayerStatsState>(
+    initialPlayerStats ?? EMPTY_PLAYER_STATS
+  );
+
+  // Phase 19 PR-Stat3 — StatPopover state (어떤 선수의 어떤 stat 을 +1/-1 할지).
+  //   null = 닫힘 / { ...컨텍스트 } = 열림. team 분기 = 안전망 (cell 클릭 시 caller 가 분기 처리).
+  const [statPopoverCtx, setStatPopoverCtx] = useState<{
+    team: "home" | "away";
+    playerId: string;
+    playerName: string;
+    jerseyNumber: number | null;
+    statKey: StatKey;
   } | null>(null);
   // Phase 7-B — 라인업 state.
   //   - lineup === null → 모달 강제 표시 (양식 미렌더)
@@ -608,6 +648,22 @@ export function ScoreSheetForm({
             setSignatures({ ...EMPTY_SIGNATURES, ...sig });
           }
         }
+        // Phase 19 PR-Stat3 (2026-05-15) — playerStats 복원 (기존 draft 호환: 없으면 EMPTY).
+        //   방어: 객체 검증 + key=string + value={or,dr,a,s,b,to} shape 약식 검증.
+        if (draft.playerStats && typeof draft.playerStats === "object") {
+          const ps = draft.playerStats;
+          // shape 검증 — 하나라도 PlayerStat shape 면 통과 (구버전 draft 호환).
+          //   완전 미준수 = 무시 (안전망).
+          const isValid = Object.values(ps).every(
+            (v) =>
+              v !== null &&
+              typeof v === "object" &&
+              typeof (v as unknown as Record<string, unknown>).or === "number"
+          );
+          if (isValid) {
+            setPlayerStats(ps);
+          }
+        }
         // Phase 7-B — lineup 복원 (mid-game reload 후 출전 명단 / 선발 5인 유지).
         //   draft 에 lineup 박제되어 있으면 그 값 우선. UI 룰 (starters=5 + lineup≥5) 위반 시 skip.
         if (draft.lineup && typeof draft.lineup === "object") {
@@ -634,6 +690,7 @@ export function ScoreSheetForm({
   }, []);
 
   // localStorage draft 저장 (5초 throttle — 입력 변경 후 일정 시간마다 자동 박제)
+  // Phase 19 PR-Stat3 (2026-05-15) — playerStats 도 draft 박제 (mid-game reload 6 stat 복원).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const timer = window.setTimeout(() => {
@@ -647,6 +704,8 @@ export function ScoreSheetForm({
           timeouts,
           signatures,
           lineup,
+          // Phase 19 PR-Stat3 — 6 stat draft 박제
+          playerStats,
           savedAt: new Date().toISOString(),
         };
         window.localStorage.setItem(
@@ -658,7 +717,7 @@ export function ScoreSheetForm({
       }
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
   function handleAdvancePeriod() {
@@ -808,6 +867,60 @@ export function ScoreSheetForm({
     });
   }
 
+  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 핸들러.
+  //
+  // 흐름:
+  //   1. TeamSection stat cell 클릭 → handleRequestOpenStatPopover → 컨텍스트 박제 + popover open
+  //   2. StatPopover 의 [+1] 버튼 → handleAddStat → addStat 헬퍼 호출 + state 갱신
+  //   3. StatPopover 의 [-1] 버튼 → handleRemoveStat → removeStat 헬퍼 호출 (min 0)
+  //   4. backdrop / ESC / 닫기 버튼 → setStatPopoverCtx(null)
+  //
+  // 사용자 결재 Q2 = StatPopover (+1/-1 2 옵션 만).
+  function handleRequestOpenStatPopover(
+    team: "home" | "away",
+    playerId: string,
+    statKey: StatKey
+  ) {
+    // 컨텍스트 박제 — 선수명 / 등번호 표시용 (FoulTypeModal 패턴 일관).
+    const roster = team === "home" ? homeRoster.players : awayRoster.players;
+    const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
+    setStatPopoverCtx({
+      team,
+      playerId,
+      playerName: player?.displayName ?? "(이름 없음)",
+      jerseyNumber: player?.jerseyNumber ?? null,
+      statKey,
+    });
+  }
+
+  function handleAddStat() {
+    if (!statPopoverCtx) return;
+    const { playerId, statKey } = statPopoverCtx;
+    setPlayerStats((prev) => addStat(prev, playerId, statKey));
+    showToast(
+      `${statKey.toUpperCase()} +1 (${statPopoverCtx.playerName})`,
+      "info"
+    );
+    // popover 닫기 (사용자 결재 흐름 — 1회 클릭 후 자동 닫기 = 빠른 입력 + 의도 명확)
+    setStatPopoverCtx(null);
+  }
+
+  function handleRemoveStat() {
+    if (!statPopoverCtx) return;
+    const { playerId, statKey } = statPopoverCtx;
+    setPlayerStats((prev) => {
+      const next = removeStat(prev, playerId, statKey);
+      if (next !== prev) {
+        showToast(
+          `${statKey.toUpperCase()} -1 (${statPopoverCtx.playerName})`,
+          "info"
+        );
+      }
+      return next;
+    });
+    setStatPopoverCtx(null);
+  }
+
   // 모달 → 종류 선택 콜백 — addFoul 호출 + Article 41 alert + 5+ FT alert
   function handleSelectFoulType(type: FoulType) {
     if (!foulModalCtx) return;
@@ -896,6 +1009,12 @@ export function ScoreSheetForm({
       fouls,
       // Phase 4 — timeouts (match.settings.timeouts JSON 박제)
       timeouts,
+      // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) BFF 전달.
+      //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
+      //   submit/route.ts 의 buildPlayerStatsFromRunningScore 가 본 값을 합산하여
+      //   MatchPlayerStat 의 oreb/dreb/ast/stl/blk/to 컬럼에 박제.
+      //   빈 record (= EMPTY_PLAYER_STATS) 도 그대로 전송 (BFF 가 0건 case 처리).
+      player_stats_input: playerStats,
       // Phase 5 — signatures (match.settings.signatures JSON 박제). 빈 객체면 생략
       ...(hasAnySig
         ? {
@@ -1230,6 +1349,11 @@ export function ScoreSheetForm({
                 timeouts={timeouts.home}
                 onRequestAddTimeout={() => handleRequestAddTimeout("home")}
                 onRequestRemoveTimeout={() => handleRequestRemoveTimeout("home")}
+                // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
+                playerStats={playerStats}
+                onRequestOpenStatPopover={(playerId, statKey) =>
+                  handleRequestOpenStatPopover("home", playerId, statKey)
+                }
                 frameless
               />
             </div>
@@ -1253,6 +1377,11 @@ export function ScoreSheetForm({
                 timeouts={timeouts.away}
                 onRequestAddTimeout={() => handleRequestAddTimeout("away")}
                 onRequestRemoveTimeout={() => handleRequestRemoveTimeout("away")}
+                // Phase 19 PR-Stat3 — 6 stat wiring (양 팀 통합 record / TeamSection 이 자신의 id 만 lookup)
+                playerStats={playerStats}
+                onRequestOpenStatPopover={(playerId, statKey) =>
+                  handleRequestOpenStatPopover("away", playerId, statKey)
+                }
                 frameless
               />
             </div>
@@ -1399,6 +1528,28 @@ export function ScoreSheetForm({
         period={runningScore.currentPeriod}
         onSelect={handleSelectFoulType}
         onCancel={() => setFoulModalCtx(null)}
+      />
+
+      {/* Phase 19 PR-Stat2 (2026-05-15) — StatPopover (6 stat OR/DR/A/S/B/TO +1/-1).
+          사용자 결재 Q2 = 신규 StatPopover (+1/-1 옵션) — 4종 모달 패턴과 다른 popover 형식.
+          open 시만 렌더 — 운영 동작 보존 (FoulTypeModal 패턴 일관). */}
+      <StatPopover
+        open={statPopoverCtx !== null}
+        playerName={statPopoverCtx?.playerName ?? ""}
+        jerseyNumber={statPopoverCtx?.jerseyNumber ?? null}
+        statKey={statPopoverCtx?.statKey ?? "or"}
+        currentValue={
+          statPopoverCtx
+            ? getStat(
+                playerStats,
+                statPopoverCtx.playerId,
+                statPopoverCtx.statKey
+              )
+            : 0
+        }
+        onAdd={handleAddStat}
+        onRemove={handleRemoveStat}
+        onClose={() => setStatPopoverCtx(null)}
       />
         </>
       )}

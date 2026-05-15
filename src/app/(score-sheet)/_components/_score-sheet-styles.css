@@ -670,11 +670,17 @@
 }
 /* Phase 17 쿼터별 색 = inline style 의 backgroundColor 로 override (CSS 토큰보다 우선) */
 
-/* ----- Player table header (Licence / Players / No / Player in / Fouls 1-5) ----- */
+/* ----- Player table header (Licence / Players / No / Player in / OR/DR/A/S/B/TO / Fouls 1-5) -----
+   Phase 19 PR-Stat2 (2026-05-15) — 사용자 결재 Q1 (P.IN 직후 + Fouls 직전 6 stat cell 추가).
+     기존 9 col (36 + 1fr + 22 + 30 + 13×5) → 15 col (36 + 1fr + 22 + 30 + 14×6 + 13×5).
+     stat cell 폭 = 14px (Fouls cell 13px 와 시각 정합 + A4 폭 fit).
+     A4 폭 계산: 36+22+30+(14×6=84)+(13×5=65) = 237px + 1fr (Players) → A4 인쇄 fit. */
 .ss-shell .ss-tbox__plyhead,
 .ss-shell .ss-tbox__plyrow {
   display: grid;
-  grid-template-columns: 36px 1fr 22px 30px 13px 13px 13px 13px 13px;
+  /* PR-Stat2.1 (2026-05-15) — stat 폭 14px → 17px (+20%) / Name 1fr 자연 축소
+     PR-Stat2.4 (2026-05-15) — 추가 +20% — stat 17→20 (102→120) / foul 13→16 (65→80) */
+  grid-template-columns: 36px 1fr 22px 30px 20px 20px 20px 20px 20px 20px 16px 16px 16px 16px 16px;
 }
 .ss-shell .ss-tbox__plyhead {
   background: var(--pap-fill);
@@ -695,14 +701,20 @@
 }
 .ss-shell .ss-tbox__plyhead > div > span { display: block; }
 .ss-shell .ss-tbox__plyhead > div:last-child { border-right: 0; }
+/* Phase 19 PR-Stat2 (2026-05-15) — Fouls 헤더 위치 col 5 → col 11 (P.IN+6 stat 직후).
+   PR-Stat2.1 (2026-05-15) — 사용자 명시: 헤더 (1/2/3/4/5) 와 cell 정합 = subgrid 적용.
+   부모 .ss-tbox__plyhead 의 col 11~15 (Foul 5 cell) 와 자식 라벨 1/2/3/4/5 가 정확히 정합. */
 .ss-shell .ss-tbox__plyhead .ss-h-fouls {
-  grid-column: 5 / span 5;
+  grid-column: 11 / span 5;
   display: grid;
+  /* subgrid = 부모 grid 의 col 11~15 그대로 상속 (라벨 정합 보장) */
+  grid-template-columns: subgrid;
   grid-template-rows: 1fr 1fr;
   padding: 0;
   border-right: 0;
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-top {
+  grid-column: 1 / span 5;
   border-bottom: 1px solid var(--pap-line);
   display: flex;
   align-items: center;
@@ -710,8 +722,10 @@
   font: 700 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-nums {
+  grid-column: 1 / span 5;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* subgrid = 부모 ss-h-fouls 의 5 col 그대로 (= 부모 plyhead 의 col 11~15) */
+  grid-template-columns: subgrid;
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-nums span {
   display: flex;
@@ -734,7 +748,9 @@
   min-height: 0;
 }
 .ss-shell .ss-tbox__plyrow:last-child { border-bottom: 0; }
-.ss-shell .ss-tbox__plyrow > div {
+/* PR-Stat2.2 (2026-05-15) — > div → > * (button 포함) — stat cell 이 button 이라
+   `> div` selector 매칭 안 함 → 세로 구분선 누락 (사용자 이미지 #25). */
+.ss-shell .ss-tbox__plyrow > * {
   border-right: 1px solid var(--pap-line);
   padding: 0 3px;
   display: flex;
@@ -745,7 +761,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ss-shell .ss-tbox__plyrow > div:last-child { border-right: 0; }
+.ss-shell .ss-tbox__plyrow > *:last-child { border-right: 0; }
 .ss-shell .ss-tbox__plyrow .ss-c-licence {
   justify-content: center;
   font: 600 9px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
@@ -755,6 +771,8 @@
   font: 600 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
   color: var(--pap-ink);
   letter-spacing: -0.01em;
+  /* PR-Stat2.4 (2026-05-15) — 사용자 명시: Players 영역 가운데 정렬 */
+  justify-content: center;
 }
 .ss-shell .ss-tbox__plyrow .ss-c-no,
 .ss-shell .ss-tbox__plyrow .ss-c-pin {
@@ -766,6 +784,45 @@
 .ss-shell .ss-tbox__plyrow .ss-c-pin > * {
   cursor: pointer;
 }
+/* Phase 19 PR-Stat2 (2026-05-15) — 6 stat cell (OR/DR/A/S/B/TO).
+   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 (FIBA 박스스코어 표준 순서).
+   각 cell button = 클릭 시 StatPopover open. 빈 칸 = 텍스트 없음, 값 표시 = 카운트 숫자.
+   배경 = transparent (parent grid border-right 가 cell 분리선). */
+.ss-shell .ss-tbox__plyrow .ss-c-stat-or,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-dr,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-a,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-s,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-b,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to {
+  justify-content: center;
+  font: 700 9.5px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  /* PR-Stat2.2 (2026-05-15) — `border: 0` 제거 → 부모 .ss-tbox__plyrow > * 의 border-right 1px 받음.
+     이전: button 의 user-agent border 제거 위해 border: 0 → 부모 룰의 border-right 까지 제거 → 세로선 누락.
+     수정: border-top/bottom/left 만 0 명시 / border-right 는 부모 룰 유지. */
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+.ss-shell .ss-tbox__plyrow .ss-c-stat-or:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-dr:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-a:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-s:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-b:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to:disabled {
+  cursor: default;
+}
+/* PR-Stat2.1 (2026-05-15) — Stat 영역 마지막 cell (TO) 와 Foul 영역 첫 cell 사이 굵은 세로 구분선.
+   사용자 명시: 기록칸 / 파울칸 사이 세로 구분선 필요.
+   body + header 둘 다 적용 (Fouls 헤더의 col 10 위치도 동일 굵은 border-right). */
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to,
+.ss-shell .ss-tbox__plyhead > div:nth-child(10) {
+  border-right: 1.5px solid var(--pap-line);
+}
+
 .ss-shell .ss-tbox__plyrow .ss-c-foul {
   justify-content: center;
   font: 700 9.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
@@ -773,19 +830,18 @@
   position: relative;
   cursor: pointer;
   background: transparent;
-  border: 0;           /* parent grid border-right 로 충분 */
-  /* button 기본 inset 차단 */
+  /* PR-Stat2.3 (2026-05-15) — `border: 0` 제거 → 부모 .ss-tbox__plyrow > * 의 border-right 1px 받음.
+     stat cell (PR-Stat2.2) 와 동일 패턴 — button user-agent border 제거하면서 세로 구분선도 사라짐 → 명시. */
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
 }
 .ss-shell .ss-tbox__plyrow .ss-c-foul:disabled { cursor: default; }
-/* FIBA paper foul cell — 가로 중간선 (foul type 위 / quarter 아래) */
+/* PR-Stat2.3 (2026-05-15) — 사용자 명시 (이미지 #26): foul cell 의 가로 중간선 삭제.
+   기존: .ss-c-foul::before 가 cell 중앙 가로선 (foul type 위 / quarter 아래 시안 정합).
+   사용자 결정: 가로선 제거 → ::before 룰 제거 (display none 또는 통째 삭제). */
 .ss-shell .ss-tbox__plyrow .ss-c-foul::before {
-  content: '';
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  top: 50%;
-  border-top: 0.5px solid var(--pap-hair);
-  pointer-events: none;
+  content: none;
 }
 /* 5반칙 시각 — data-fouled-out true 면 행 빨강 옅게 + 이름 빨강 강조 */
 .ss-shell .ss-tbox__plyrow[data-fouled-out="true"] {

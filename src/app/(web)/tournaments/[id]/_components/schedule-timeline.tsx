@@ -262,6 +262,10 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
             const count = matches.filter((m) => m.division === code).length;
             const color = getDivisionColorVar(code);
             const active = selectedDivision === code;
+            // 2026-05-15 fix — shorthand (`border`) + non-shorthand (`borderLeftWidth/Color`) 혼용 React 경고 회피.
+            //   borderStyle + 4면 분리 borderWidth/Color 로 통일. 비-active = 좌측 3px 종별색상 강조.
+            const sideColor = active ? (color ?? "var(--color-primary)") : "var(--color-border)";
+            const leftColor = color ?? "var(--color-border)";
             return (
               <button
                 key={code}
@@ -271,9 +275,15 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                 style={{
                   backgroundColor: active ? (color ?? "var(--color-primary)") : "var(--color-elevated)",
                   color: active ? "white" : "var(--color-text-secondary)",
-                  border: `1px solid ${active ? (color ?? "var(--color-primary)") : "var(--color-border)"}`,
+                  borderStyle: "solid",
+                  borderTopWidth: "1px",
+                  borderRightWidth: "1px",
+                  borderBottomWidth: "1px",
                   borderLeftWidth: active ? "1px" : "3px",
-                  borderLeftColor: color ?? "var(--color-border)",
+                  borderTopColor: sideColor,
+                  borderRightColor: sideColor,
+                  borderBottomColor: sideColor,
+                  borderLeftColor: active ? sideColor : leftColor,
                 }}
               >
                 {code} ({count})
@@ -462,17 +472,30 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                         router.push(`/live/${match.id}`);
                       }
                     }}
-                    className="block cursor-pointer rounded-lg border p-3 transition-all hover:opacity-80"
-                    style={{
-                      borderColor: isHighlighted ? "var(--color-primary)" : "var(--color-border)",
-                      backgroundColor: "var(--color-card)",
-                      borderLeftWidth: isHighlighted ? "3px" : showDivisionBorder ? "4px" : undefined,
-                      borderLeftColor: isHighlighted
+                    className="block cursor-pointer rounded-lg p-3 transition-all hover:opacity-80"
+                    style={(() => {
+                      // 2026-05-15 fix — borderColor (shorthand) + borderLeftColor (non-shorthand) 충돌 회피.
+                      //   4면 non-shorthand 분리. 우선순위: 팀 highlight (3px primary) > 종별 border (4px) > 기본 (1px).
+                      const sideColor = isHighlighted ? "var(--color-primary)" : "var(--color-border)";
+                      const leftColor = isHighlighted
                         ? "var(--color-primary)"
                         : showDivisionBorder
                         ? divisionColor!
-                        : undefined,
-                    }}
+                        : "var(--color-border)";
+                      const leftWidth = isHighlighted ? "3px" : showDivisionBorder ? "4px" : "1px";
+                      return {
+                        backgroundColor: "var(--color-card)",
+                        borderStyle: "solid",
+                        borderTopWidth: "1px",
+                        borderRightWidth: "1px",
+                        borderBottomWidth: "1px",
+                        borderLeftWidth: leftWidth,
+                        borderTopColor: sideColor,
+                        borderRightColor: sideColor,
+                        borderBottomColor: sideColor,
+                        borderLeftColor: leftColor,
+                      };
+                    })()}
                   >
                     {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): 코드/번호 | 라운드 | 시간 | 코트 ... [상태] */}
                     <div className="mb-2.5 flex items-center justify-between gap-2">
