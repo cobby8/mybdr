@@ -1,9 +1,248 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-Public-1 공개 tournament 페이지 bracket 탭 종별 view 설계 (강남구협회장배 매치 59건 미표시 fix)
-- **상태**: 🟢 분석 완료 (planner-architect) — PM 결재 대기 (옵션 A 권장)
-- **현재 담당**: PM (옵션 결재) → developer
+- **요청**: 긴급 — 라이브 PBP paper 매치 정렬 불안정 fix (새로고침마다 순서 바뀜 → 기록원 INSERT 순서 안정)
+- **상태**: 🟢 박제 완료 (developer / 옵션 C 선택) — PM 즉시 처리 (commit / push / 머지)
+- **현재 담당**: PM (즉시 commit)
+
+## 구현 기록 (developer / 2026-05-16) — 라이브 PBP paper 매치 정렬 안정 fix
+
+📝 **구현한 기능**: paper 매치 PBP 가 모두 `game_clock_seconds=0` 박혀있어 라이브 API `sortedPbp` 2차 tiebreak 가 불안정 (Prisma `findMany` default order 비결정) → 새로고침마다 PBP 순서 바뀜. **3차 tiebreak = `created_at` ASC 추가** → 기록원 INSERT 순서 (= 자연 sequence) 안정 정렬.
+
+### 옵션 비교 (결정 근거)
+
+| 옵션 | 변경 LOC | 다른 영역 영향 | 시간 표시 | 선택 |
+|------|---------|-----------|---------|------|
+| A: paper PBP `game_clock_seconds = 1200-idx` 박제 (submit BFF) | ~15 (3곳) | 0 | "Q1 19:59 / 19:58..." 가짜 시간 | ❌ |
+| B: live API `orderBy` paper 분기 | ~10 | live route 회귀 | "0:00" 보존 | ❌ |
+| **C**: live API `sortedPbp` 정렬에 3차 tiebreak `created_at ASC` 추가 | **~3** | **0 (digital 영향 0 — game_clock 차이로 2차에서 결정 → 3차 미발화)** | "0:00" 보존 | ⭐ |
+
+### 변경 파일
+
+| 파일 경로 | 변경 내용 | LOC |
+|----------|----------|-----|
+| `src/app/api/live/[id]/route.ts` | (1) L217 `allPbps` Prisma select 에 `created_at: true` 추가 (+8 LOC 주석 포함) (2) L1210 `sortedPbp` 정렬 함수 — 2차 tiebreak `clockDiff !== 0` 분기 + 3차 tiebreak `created_at` ASC 추가 (+10 LOC 주석 포함) | +18 / -2 |
+
+### 박제 흐름
+
+```
+prisma.play_by_plays.findMany — created_at SELECT 추가 (paper PBP idempotent INSERT 시점)
+  ↓
+sortedPbp 정렬 (line 1210):
+  1차: quarter DESC
+  2차: game_clock_seconds ASC
+       → digital 매치 = 다양한 값 (10:00→0:00) → 여기서 결정 → 3차 미발화
+       → paper 매치 = 모두 0 → 2차 동률 → 3차 발화
+  3차 (신규): created_at ASC
+       → paper PBP INSERT 순서 (= 기록원 입력 순서) 안정 정렬
+  ↓
+playByPlays 응답 (apiSuccess camelCase → snake_case)
+  ↓
+라이브 페이지 PbpSection (page.tsx L2158) — 기존 렌더 그대로
+```
+
+### 보존 의무 만족
+
+| 의무 | 검증 |
+|------|------|
+| digital (Flutter) PBP 영향 0 | game_clock_seconds 다양한 값 → 2차 tiebreak 결정 → 3차 미발화 |
+| 라이브 시간 표시 "Q1 0:00" | UI 변경 0 (`formatGameClock` 호출 그대로) |
+| 박스스코어 / quarterScores | sortedPbp 미사용 (quarterScores 는 별도 합산 + Phase 22 paper override) |
+| hero-scoreboard / GameResult v2 | playByPlays 응답 키 변경 0 / shape 변경 0 |
+| score-sheet UX | submit 흐름 변경 0 |
+| DB schema | 변경 0 (`created_at` 컬럼 기존 박혀있음) |
+| 4쿼터 / halves / OT 매치 | 모두 영향 0 (quarter 1차 분기 + clock 2차 분기 보존) |
+| Phase 22 paper quarter_scores override | sortedPbp 와 무관 (별도 합산 흐름) — 영향 0 |
+| 시안 13 룰 | UI 변경 0 |
+
+### 검증
+
+| 검증 | 결과 |
+|------|-----|
+| `npx tsc --noEmit` | ✅ EXIT=0 |
+| Prisma select `created_at` 컬럼 존재 | ✅ play_by_plays 모델 박혀있음 (paper INSERT 시점 = upsert `created_at: now`) |
+| sort 안정성 | ✅ paper 매치 = clock 0 동률 → created_at ASC tiebreak / digital = clock 차이로 2차에서 결정 |
+
+💡 **tester 참고**:
+- **테스트 방법**: paper 매치 라이브 페이지 (예: `/live/161` 또는 진행 중 매치) → PbpSection 렌더 + 5~10초 간격 새로고침 → 순서 안정 확인.
+- **정상 동작**: 모든 paper PBP `Q1 0:00` 시간 표시 그대로 (변경 0). 단 같은 쿼터 안 순서 = INSERT 순서 (기록원이 마킹 / 파울 / 점프볼 입력한 자연 시계열) 보존. 새로고침마다 순서 바뀜 0.
+- **digital 매치 (Flutter)**: 기존 동작 100% 보존 — game_clock 시계열 정렬 그대로.
+- **주의할 입력**:
+  - paper 매치 + 동일 ms INSERT (Promise.all 병렬 upsert) — 매우 드물지만 created_at 동률 시 다시 불안정 가능. 현실적으로 0건 (service Promise.all 도 await 단위 ms 정밀도 차이 발생).
+  - 구버전 매치 (created_at NULL?) — Prisma 기본값 (`DateTime @default(now())`) 박혀있음 → NULL 0건 보장. 안전망: `?? 0` fallback 박제.
+
+⚠️ **reviewer 참고**:
+- 3차 tiebreak 만 추가 — 1/2차 sort 룰 변경 0. digital 매치 회귀 가능성 매우 낮음.
+- created_at = Prisma timestamp → `new Date().getTime()` 변환 비용 = 매치당 ≤500 PBP × O(1) = 무시 가능.
+- 같은 fix 가 라이브 페이지의 다른 sortedPbp 사용처 (sortBy 별도 박제) 있는지 검색 = 0건. playByPlays 응답 전용.
+- 옵션 A (submit BFF game_clock 박제) 미선택 사유: "Q1 19:59" 같은 가짜 시간 노출 = 사용자 화면 의도 ("Q1 0:00" 보존) 위반.
+
+## 구현 기록 (developer / 2026-05-16) — 라이브 박스스코어 라인업 전원 노출
+
+📝 **구현한 기능**: `/api/live/[id]` 종료 분기 (`hasPlayerStats=true`) 가 기존엔 MatchPlayerStat row 박힌 선수만 노출 → 라인업 (`MatchLineupConfirmed`) 박제된 출전 명단 **전원** row 박제. 기록 0 선수도 PTS 0 / MIN 0:00 fallback row. 라인업 미박제 매치 = 기존 흐름 보존 (ttp 전체 — DNP 분류).
+
+### 변경 파일
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/live/[id]/route.ts` | (1) MatchLineupConfirmed fetch + lineupTtpIds 화이트리스트 세팅 (~25 LOC, line ~275) (2) toPlayerRow 시그니처 = `(ttp, stat \| null)` 변경 + 모든 stat 참조 `stat?.x ?? 0` (3) 종료 분기 source = ttp 기반 재구성 (statByTtp Map / lineup 화이트리스트 filter) | 수정 (+~70 LOC) |
+
+### 박제 흐름
+
+```
+종료 분기 (hasPlayerStats=true) 진입
+  ↓
+MatchLineupConfirmed fetch (matchId) — line ~275 추가
+  ↓
+lineupTtpIds = lineups[].starters + substitutes union (없으면 null)
+  ↓
+homeTtps = match.homeTeam.players ∩ isPlayerRole ∩ (lineupTtpIds === null || in lineupTtpIds)
+awayTtps = match.awayTeam.players ∩ isPlayerRole ∩ (lineupTtpIds === null || in lineupTtpIds)
+  ↓
+각 ttp → toPlayerRow(ttp, statByTtp.get(ttp.id) ?? null)
+  ↓
+stat 있으면 stat 사용 / 없으면 모든 stat 컬럼 0 fallback
+  ↓
+DNP 판정 — isStarter || PBP 등장 시 DNP 해제 (기존 로직 유지)
+  ↓
+sortWithDnp (DNP 하단 / 득점 내림차순)
+```
+
+### DB 검증 (매치 #161, status=in_progress)
+
+| 항목 | 기존 | 변경 후 |
+|------|------|---------|
+| home 노출 | 4명 (정슬우/김리원/박시원/김수호) | **7명 전원** (라인업 starters 5 + subs 2) |
+| away 노출 | 4명 (최큰별/전진우/임유섭/김이찬) | **8명 전원** (라인업 starters 5 + subs 3) |
+| stat 매칭 | playerStats 있는 선수 — 점수/리바 등 정상 (정슬우 9pts / 임유섭 6pts) |
+| fallback | playerStats 없는 선수 — pts=0 / fgm=0 / 모든 컬럼 0 row |
+
+### 보존 의무 만족
+
+| 의무 | 검증 |
+|------|------|
+| 응답 shape 0 | PlayerRow 인터페이스 변경 0 / 추가 키 0 / 제거 키 0 |
+| 컴포넌트 변경 0 | `box-score-table.tsx` 미수정 (응답 그대로 받음) |
+| 진행중 분기 영향 0 | `!hasPlayerStats` 블록 변경 0 (이미 ttp 전체 박제 정합) |
+| 라인업 미박제 매치 | `lineupTtpIds === null` → passLineup 항상 통과 → ttp 전체 노출. 기존 동작 대비 매치 (=match.playerStats) 외 ttp 도 추가되지만 모두 DNP=true 로 박스스코어 하단 분리 (사용자 영향 미미 + 라인업 박제 매치만 영향) |
+| 4쿼터/halves/digital | match.settings recording_mode 무관 (lineup 박제 여부만 분기) — paper/digital 동일 동작 |
+| DB schema 변경 0 | 신규 컬럼/테이블 0 — MatchLineupConfirmed/MatchPlayerStat/TournamentTeamPlayer 기존 사용 |
+| tsc --noEmit | EXIT=0 |
+
+### 부수 효과 (긍정)
+
+- `home_players[].id` 가 종료 분기에서 stat.id → **ttp.id 로 통일** (진행중 분기와 일관).
+- 기존 line 1155 BUG 주석 ("home_players[].id 분기에 따라 stat.id 또는 ttp.id") **자동 해소**.
+- PBP 타임라인 playerNameById 매칭 정확도 ↑ (id 통일).
+
+💡 **tester 참고**:
+- **테스트 방법**: dev 서버 + `curl /api/live/161` raw 응답 / 또는 `https://mybdr-git-dev-mybdr.vercel.app/live/161` 박스스코어 시각
+- **정상 동작**: home 박스스코어 7행 / away 박스스코어 8행 (라인업 starters + subs 전원). 기록 0 선수 = MIN "00:00" + PTS 0 + 모든 컬럼 0 row 노출.
+- **DNP 표시**: starter 도 아니고 PBP 등장도 없는 fallback 선수 = DNP=true → 박스스코어 하단 별도 영역 (box-score-table.tsx line 398). 출전 가능 후보 (라인업 subs) 가 DNP 영역에 들어가는 게 정상.
+- **주의 입력**:
+  - 라인업 미박제 매치 (예전 매치 #100 이하 대부분) = 기존 동작 보존 — playerStats + ttp 전체. ttp 만 있고 stat 없는 선수도 노출되지만 모두 DNP 하단 분리.
+  - 종이 매치 (recording_mode=paper) — 동일 동작 (paper 분기 따로 없음 / paper FIBA Phase 22 quarter_scores override 만 유지).
+
+⚠️ **reviewer 참고**:
+- `lineupTtpIds === null` 분기 = 라인업 미박제 매치 보호. 회귀 가능성: 라인업 미박제 + playerStats 있는 매치에서 ttp 일부가 새로 DNP row 로 추가됨 (기존엔 안 보였음). DNP 영역 별도 분리 정렬 → 사용자 영향 미미. 만약 회귀 우려 시 `lineupTtpIds === null` 일 때 statByTtp 기반 기존 흐름 fallback 가능 — 현재는 ttp 전체 통일이 더 일관적 + 진행중 분기와 동일.
+- `row.id` ttp.id 로 변경 = box-score-table key 영향만 (unique 보장). 외부 consumer 가 stat.id 기대하는 곳 없음 (라이브 페이지 + GameResult v2 컴포넌트 검색 결과 0건).
+- MatchLineupConfirmed fetch 1회 추가 — 라이브 폴링 3초 부하 증가 미미 (인덱스 hit + 매치당 ≤2 row).
+
+## 구현 기록 (developer / 2026-05-16) — score-sheet 10초 자동 sync
+
+📝 **구현한 기능**: score-sheet 마킹 중 10초마다 BFF submit 자동 호출 → 라이브 페이지 실시간 점수/PBP/박스스코어 노출.
+
+### 사양 분석 결과
+
+| 항목 | 박제 필요 여부 | 사유 |
+|------|--------------|-----|
+| **A. score-sheet 자동 sync (10초)** | ✅ 박제 (~40 LOC) | useEffect 신규 — 본 PR 핵심 |
+| **B. submit BFF zod status="in_progress"** | ❌ 변경 0 | zod 이미 `z.enum(["in_progress","completed"])` 박혀있음 (line 439) |
+| **C. 라이브 페이지 자동 새로고침** | ❌ 변경 0 | 이미 3초 polling + completed 시 자동 정지 박혀있음 (page.tsx:498 POLL_INTERVAL / 644 분기) |
+| **D. status="scheduled"→"in_progress" 자동 박제** | ❌ 변경 0 | service syncSingleMatch 가 match.status 인자 그대로 박제 (Flutter sync 동등) |
+
+→ **실제 박제 = A 항목 한 곳 / ~50 LOC** (주석 포함). 나머지 B/C/D 인프라 이미 정합.
+
+### 변경 파일
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | useRef + useEffect 자동 sync (10초 interval / lineup ∧ !isReadOnly ∧ !matchEndSubmitted 조건 / status="in_progress" override / silent fail) | 수정 (+~50 LOC) |
+
+### 박제 흐름
+
+```
+운영자 score-sheet 진입 → 라인업 confirm (lineup !== null)
+  ↓
+useEffect 활성 — setInterval 10초
+  ↓
+buildSubmitPayloadRef.current() → { ...payload, status: "in_progress" }
+  ↓
+POST /api/web/score-sheet/[matchId]/submit (silent fail)
+  ↓
+BFF zod 통과 (status="in_progress" 이미 enum 멤버)
+  ↓
+syncSingleMatch — TournamentMatch.status="in_progress" 박제 + quarter_scores
+                  + running_score → PBP + fouls → PBP + MatchPlayerStat 박제
+  ↓
+existing.status !== "completed" && match.status === "completed" = FALSE
+  → triggerMatchBriefPublish skip (= completed 시에만 발화 보존)
+  ↓
+라이브 페이지 = 이미 3초 polling — 다음 tick 에 새 점수 즉시 노출
+```
+
+### 트리거 조건 (3 AND)
+
+| 조건 | 의미 |
+|------|-----|
+| `lineup !== null` | 라인업 모달 confirm 완료 (마킹 시작 시점) |
+| `!isReadOnly` | 진행 중 매치 (종료 + 수정 모드 미진입 = sync 0) |
+| `!matchEndSubmitted` | "경기 종료" 미박제 (자동 sync 와 종료 submit 충돌 0) |
+
+### closure stale state 회피
+
+```ts
+const buildSubmitPayloadRef = useRef<() => unknown>(buildSubmitPayload);
+useEffect(() => { buildSubmitPayloadRef.current = buildSubmitPayload; });
+// → 매 렌더마다 ref 갱신. interval 콜백 = ref.current() 호출 = 항상 최신 state.
+// → useEffect 의존성을 buildSubmitPayload 에 두면 매 렌더 effect 재설정 → interval 끊김.
+```
+
+### 회귀 위험 평가
+
+| 잠재 위험 | 박제 결과 |
+|---------|----------|
+| 4쿼터 매치 영향 | ❌ 영향 0 — buildSubmitPayload 헬퍼 변경 0 |
+| halves 매치 영향 | ❌ 영향 0 — periodFormat 동일 박제 |
+| 운영자 수동 submit 흐름 | ❌ 변경 0 — buildPayload 동일 + endpoint 동일 |
+| BFF 부하 | 1매치당 10초 1회 — 1동시 매치 60건 = 6 RPS (운영 안전) |
+| BFF zod 거부 | ❌ 0 — status enum 이미 박혀있음 |
+| 운영 DB schema | ❌ 변경 0 (사용자 명시 보존 의무) |
+| 알기자 자동 발행 (triggerMatchBriefPublish) | ❌ skip — existing != completed && new == completed 조건 false |
+| 시안 13 룰 위반 | ❌ 0 — UI 변경 0 |
+
+### 검증
+
+| 검증 | 결과 |
+|------|-----|
+| `npx tsc --noEmit` | ✅ 통과 (에러 0) |
+| Production smoke (DB / 라이브) | ⏳ PM 처리 — 시합 직전 우선 머지 권장 |
+
+💡 **tester 참고** (시간 허용 시):
+- 테스트 방법: localhost dev = score-sheet 매치 진입 + 라인업 confirm → 첫 마킹 → 10초 후 network 탭 = POST `/api/web/score-sheet/[matchId]/submit` 호출 확인 → 라이브 페이지 진입 시 새 점수 노출
+- 정상 동작:
+  - 라인업 confirm 후 = 10초마다 1회 POST (status="in_progress")
+  - "경기 종료" 클릭 후 = matchEndSubmitted=true → interval 자동 정지
+  - 종료 매치 + 수정 모드 미진입 (isReadOnly=true) = interval 미설치 (운영 동작 보존)
+  - 라이브 페이지 = 다음 3초 polling tick 에 새 점수 즉시 표시
+- 주의할 입력:
+  - 라인업 모달 미통과 (lineup === null) = sync 0 = 라이브 페이지 0건 노출 (정상)
+  - 자동 sync 실패 = console.warn 만 / toast 0 / 운영자 마킹 흐름 영향 0
+
+⚠️ **reviewer 참고**:
+- 핵심 = useRef 패턴 (closure stale state 회피). interval 콜백이 매번 ref.current() 호출 = 최신 state 보장.
+- BFF zod / service path 변경 0 = score-sheet 기존 submit 흐름 보존 (단일 source).
+- silent fail 박제 = 운영자 화면 노이즈 0 (사용자 명시 사양). console.warn 만으로 디버깅 가능.
 
 ## 기획설계 (planner-architect / 2026-05-16) — PR-Public-1 공개 bracket 종별 view
 
@@ -1197,6 +1436,9 @@ EXIT=0 (no output / 0 error)
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
+| 2026-05-16 | **긴급 박제 — 라이브 PBP paper 매치 정렬 안정 fix (developer / 옵션 C)** ⭐ | ✅ 수정 1 (`src/app/api/live/[id]/route.ts` +18/-2 LOC — Prisma select `created_at` 추가 + `sortedPbp` 3차 tiebreak `created_at ASC` 박제) / tsc EXIT=0 / digital (Flutter) PBP 영향 0 (game_clock 차이로 2차에서 결정 → 3차 미발화) / 라이브 시간 표시 "Q1 0:00" 보존 / 박스스코어 / quarterScores / hero-scoreboard / score-sheet 영향 0 / DB schema 0 / Phase 22 paper override 충돌 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
+| 2026-05-16 | **긴급 박제 — 점프볼 즉시 sync + PBP 한글 라벨 (developer)** ⭐ | ✅ 신규 1 (`src/lib/live/pbp-format.ts` +120 — formatPbpAction 헬퍼 / action_type + points + subtype 분기 → "3점 성공" / "수비리바운드" / "U파울" 등) + 수정 2 (`score-sheet-form.tsx` handleJumpBallConfirm +36 LOC — setTimeout(0) 즉시 sync 1회 fire-and-forget + status="in_progress" override / `live/[id]/page.tsx` import +4 + PbpSection 컬럼 박제 +29/-7 — 시간/팀/번호/**선수**/행동/점수 6 컬럼 + 팀명 텍스트 칩 (색 점 ❌) + formatPbpAction 호출) = **+185 / -7 LOC** / tsc 0 / 자동 sync 10초 interval 영향 0 (점프볼 = 1회 추가) / 다른 라이브 컴포넌트 영향 0 / score-sheet UX 변경 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
+| 2026-05-16 | **긴급 박제 — i3 자동 halves + 점프볼 버튼 박제 (developer)** ⭐ | ✅ 3 파일 수정 (`page.tsx` +65 / `score-sheet-form.tsx` +18/-13 / `fiba-header.tsx` +55/-2) = **~+135 LOC** / tsc 0 / 작업 1 = i3 종별 (division_code 또는 ttp.division "i3" prefix) 자동 `initialPeriodFormat="halves"` (server settings.period_format 우선순위 보존) / 작업 2 = `handleLineupConfirm` 자동 점프볼 trigger 제거 + `handleArrowClick` 분기 (openingJumpBall===null → 점프볼 모달 / 박힘 → 헬드볼 confirm) + fiba-header 화살표 자리에 [점프볼] 텍스트 버튼 박제 (회색 outline / 4px radius / 빨강 본문 ❌) / 운영 영향 0 (i3 외 종별 / 기존 박제 매치) |
 |------|------|------|
 | 2026-05-16 | **긴급 박제 — 전후반 모드 라벨 분기 + period_format DB 박제 (developer)** ⭐ | ✅ 수정 7 (`quarter-end-modal.tsx` +17/-3 props + endedLabel 분기 / `score-sheet-form.tsx` +12 modal periodFormat prop + buildPayload 인자 + state 초기값 server 우선 / `build-submit-payload.ts` +21 인자 + payload 박제 / `submit/route.ts` +18 zod schema + settings JSON merge / `page.tsx` +13 settings.period_format SELECT + prop drilling / `api/live/[id]/route.ts` +20 응답 periodFormat 박제 / `live/[id]/page.tsx` +38/-7 interface 확장 + quarters 라벨 분기 / `_v2/game-result.tsx` +5 interface 확장 / `_v2/hero-scoreboard.tsx` +35/-4 quarters 라벨 분기) = **+179 / -14 LOC** / tsc 0 / "후반 종료" + "전반/후반/OT1+" 라벨 / halves 매치 = period 3+ OT / quarters 매치 영향 0 / DB schema 0 / settings JSON merge / PM 결재 (commit / 머지) 대기 |
 | 2026-05-16 | **PR-SS-Manual-v3 공격권 섹션 추가 (developer)** ⭐ | ✅ 수정 1 (`score-sheet-form.tsx` handleOpenManual +67/-13 LOC) / 신규 섹션 = (5) **공격권 (FIBA Alternating Possession)** icon `sync_alt` 본문 4건 (첫 점프볼 / 화살표 / 헬드볼 / 쿼터 종료 자동 토글) / PeriodColorLegend 박스화 (h3 "쿼터별 색상 / 점수 표기" icon `palette`) / 기존 5/6 → 6/7 번호 밀림 / 비개발자 표현 "점프볼(공중 던진 공 잡기)" / "헬드볼(두 팀이 공 동시에 잡음)" 풀어 설명 / tsc 0 / handleOpenManual signature 변경 0 / ConfirmModal 호출 패턴 변경 0 (title / size: "xl" / options) / 다른 핸들러 영향 0 / var(--color-*) 토큰만 / material-symbols-outlined / 빨강 본문 0 / PM 결재 (commit / push) 대기 |
