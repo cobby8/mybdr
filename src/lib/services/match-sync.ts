@@ -25,7 +25,11 @@ import { prisma } from "@/lib/db/prisma";
 import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
 import { progressDualMatch } from "@/lib/tournaments/dual-progression";
 // 2026-05-12 Phase 3-B 자동 trigger 통합 — 조별 풀리그/링크제 standings 기반 placeholder UPDATE
-import { advanceDivisionPlaceholders } from "@/lib/tournaments/division-advancement";
+// 2026-05-16 PR-G5.5-followup-B: divisionCode 없는 매치 (Tournament 단위) 자동 채움 분기 추가
+import {
+  advanceDivisionPlaceholders,
+  advanceTournamentPlaceholders,
+} from "@/lib/tournaments/division-advancement";
 // 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' 자동 UPDATE
 import { checkAndAutoCompleteTournament } from "@/lib/tournaments/auto-complete";
 // 2026-05-09: 알기자 자동 발행 — sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
@@ -663,8 +667,24 @@ export async function syncSingleMatch(
         })
       );
     }
+    // 2026-05-16 PR-G5.5-followup-B:
+    //   - divisionCode 있음 → 기존 advanceDivisionPlaceholders 호출 (강남구 4 종별)
+    //   - divisionCode 없음 + ruleCount=0 → advanceTournamentPlaceholders 호출 (4차 뉴비리그 등 Tournament 단위)
+    // 이유: Flutter sync path 도 매치 status='completed' 시점에 placeholder 자동 채움 필요.
+    //   기존: divisionCode null → skip → 운영자 manual `/advance-placeholders` 의존
+    //   변경: divisionCode null + ruleCount=0 → advanceTournamentPlaceholders 자동 호출
+    // 안전성: tasks Promise.allSettled — 실패해도 sync 응답 자체는 성공 유지 (warnings 수집).
+    let usedTournamentPlaceholders = false;
     if (divisionCode) {
       tasks.push(advanceDivisionPlaceholders(prisma, tournamentId, divisionCode));
+    } else {
+      const ruleCount = await prisma.tournamentDivisionRule.count({
+        where: { tournamentId },
+      });
+      if (ruleCount === 0) {
+        tasks.push(advanceTournamentPlaceholders(prisma, tournamentId));
+        usedTournamentPlaceholders = true;
+      }
     }
     // 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' UPDATE.
     //   - 멱등 (이미 종료/매치 0건/미완료 매치 1건+ = no-op)
@@ -673,11 +693,13 @@ export async function syncSingleMatch(
     tasks.push(checkAndAutoCompleteTournament(prisma, tournamentId));
 
     const results = await Promise.allSettled(tasks);
-    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders?, autoComplete]
+    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders | advanceTournamentPlaceholders?, autoComplete]
+    // 2026-05-16 PR-G5.5-followup-B: divisionCode 없는 매치 + ruleCount=0 → advanceTournamentPlaceholders 도 cursor 점유
     let cursor = 0;
     const advanceResult =
       !isDual || (isDual && winnerTeamId) ? results[cursor++] : null;
-    const divisionResult = divisionCode ? results[cursor++] : null;
+    const placeholderResult =
+      divisionCode || usedTournamentPlaceholders ? results[cursor++] : null;
     const autoCompleteResult = results[cursor++];
 
     if (advanceResult && advanceResult.status === "rejected") {
@@ -691,10 +713,14 @@ export async function syncSingleMatch(
           : "승자 진출 처리 실패 — 관리자에게 문의하세요",
       );
     }
-    if (divisionResult && divisionResult.status === "rejected") {
+    if (placeholderResult && placeholderResult.status === "rejected") {
+      // 분기별 로그 — divisionCode 있으면 advanceDivisionPlaceholders / 없으면 advanceTournamentPlaceholders
+      const fnName = divisionCode
+        ? `advanceDivisionPlaceholders (div=${divisionCode})`
+        : "advanceTournamentPlaceholders (tournament-level)";
       console.error(
-        `[match-sync:post-process] advanceDivisionPlaceholders failed matchId=${match.server_id} div=${divisionCode}:`,
-        divisionResult.reason
+        `[match-sync:post-process] ${fnName} failed matchId=${match.server_id}:`,
+        placeholderResult.reason
       );
       warnings.push("순위전 placeholder 자동 매핑 실패 — 관리자에게 문의하세요");
     }

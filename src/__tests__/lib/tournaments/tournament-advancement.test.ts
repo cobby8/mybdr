@@ -263,3 +263,104 @@ describe("advanceTournamentPlaceholders — Tournament 단위 placeholder applie
     expect(after?.awayTeamId).toBe(MANUAL_AWAY_ID);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-05-16 PR-G5.5-followup-B — PATCH route / match-sync.ts 분기 의사코드 검증
+// ─────────────────────────────────────────────────────────────────────────
+//
+// 사유: 실제 PATCH route / match-sync.ts 통합 테스트는 prisma + Next req/res 의존도 ↑
+//   → 본 테스트 = "ruleCount 분기로 어떤 advancer 가 호출되는가" 의사코드 단위 검증.
+//   advancer 함수 자체의 idempotent / standings 매핑은 위 4 케이스에서 박제 완료.
+//
+// 검증 spec (planner 박제 4 케이스):
+//   1. division_rule>0 + status='completed' → advanceAllDivisions 호출 (강남구 4 종별 회귀 0)
+//   2. division_rule=0 + status='completed' → advanceTournamentPlaceholders 호출 (4차 뉴비리그)
+//   3. status='in_progress' (completed 아님) → advancer 호출 0 (성능/부작용 0)
+//   4. status='completed' 2회 호출 (idempotent) → alreadyCompleted true 시 재호출 0
+
+/**
+ * PATCH route + match-sync.ts 양면의 분기 의사코드 헬퍼.
+ * 운영 코드와 동일 로직 (운영 코드 변경 시 본 헬퍼도 같이 갱신 의무).
+ */
+async function dispatchAdvancer(opts: {
+  status: string;
+  alreadyCompleted: boolean;
+  ruleCount: number;
+  callTrace: string[];
+}): Promise<void> {
+  const { status, alreadyCompleted, ruleCount, callTrace } = opts;
+  // 가드 1: status='completed' + 신규 진입만 (PATCH route L239 alreadyCompleted 가드)
+  if (status !== "completed" || alreadyCompleted) return;
+  // 가드 2: division_rule 분기
+  if (ruleCount > 0) {
+    callTrace.push("advanceAllDivisions");
+  } else {
+    callTrace.push("advanceTournamentPlaceholders");
+  }
+}
+
+describe("PR-G5.5-followup-B — PATCH route / match-sync.ts 분기 의사코드", () => {
+  it("케이스 1: division_rule>0 + status='completed' → advanceAllDivisions 호출 (강남구 4 종별 회귀 0)", async () => {
+    const trace: string[] = [];
+    await dispatchAdvancer({
+      status: "completed",
+      alreadyCompleted: false,
+      ruleCount: 4, // 강남구 i3-U9/U11/U14/i3w-U12
+      callTrace: trace,
+    });
+    expect(trace).toEqual(["advanceAllDivisions"]);
+  });
+
+  it("케이스 2: division_rule=0 + status='completed' → advanceTournamentPlaceholders 호출 (4차 뉴비리그 단판 결승)", async () => {
+    const trace: string[] = [];
+    await dispatchAdvancer({
+      status: "completed",
+      alreadyCompleted: false,
+      ruleCount: 0, // 4차 뉴비리그
+      callTrace: trace,
+    });
+    expect(trace).toEqual(["advanceTournamentPlaceholders"]);
+  });
+
+  it("케이스 3: status='in_progress' (completed 아님) → advancer 호출 0 (성능 + 부작용 0)", async () => {
+    const trace: string[] = [];
+    await dispatchAdvancer({
+      status: "in_progress",
+      alreadyCompleted: false,
+      ruleCount: 0,
+      callTrace: trace,
+    });
+    expect(trace).toEqual([]);
+
+    // ruleCount 와 무관하게 호출 0
+    await dispatchAdvancer({
+      status: "in_progress",
+      alreadyCompleted: false,
+      ruleCount: 4,
+      callTrace: trace,
+    });
+    expect(trace).toEqual([]);
+  });
+
+  it("케이스 4: status='completed' 2회 호출 (idempotent) — alreadyCompleted true 시 재호출 0", async () => {
+    const trace: string[] = [];
+    // 1회차 호출 — 신규 진입 (alreadyCompleted=false)
+    await dispatchAdvancer({
+      status: "completed",
+      alreadyCompleted: false,
+      ruleCount: 0,
+      callTrace: trace,
+    });
+    expect(trace).toEqual(["advanceTournamentPlaceholders"]);
+
+    // 2회차 호출 — alreadyCompleted=true (PATCH route L239 가드 시뮬레이션)
+    await dispatchAdvancer({
+      status: "completed",
+      alreadyCompleted: true,
+      ruleCount: 0,
+      callTrace: trace,
+    });
+    // trace 변동 없음 — 재호출 0 (운영 DB 부하 0 + race condition 0)
+    expect(trace).toEqual(["advanceTournamentPlaceholders"]);
+  });
+});

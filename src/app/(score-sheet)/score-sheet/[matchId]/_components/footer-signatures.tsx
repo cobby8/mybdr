@@ -149,7 +149,7 @@ export function FooterSignatures({
     return (
       // Phase 19 PR-S7-officials — outermost .ss-shell.ss-footer-sigs (시안 정합 / 사용자 결재 D3/D7).
       // 운영 form.tsx 호출 위치 (L1087~L1094) 의 frameless 전달 그대로 동작.
-      <section className="ss-shell ss-footer-sigs">
+      <section className="ss-shell ss-footer-sigs" data-ss-section="signatures">
         {/* Officials 4 row — 시안 ScoreSheet.bottom.jsx L100~120 SSOfficials 정합.
             grid-rows-4 + 130px label / 1fr input.
             모든 input value / onChange = 운영 update("scorer"|"asstScorer"|"timer"|"shotClockOperator") 보존. */}

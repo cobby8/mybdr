@@ -43,6 +43,13 @@ describe("buildSlotLabel — 5 kind 슬롯 라벨 생성", () => {
     expect(buildSlotLabel({ kind: "tie_rank", rank: 1 })).toBe("1위 동순위전");
     expect(buildSlotLabel({ kind: "tie_rank", rank: 3 })).toBe("3위 동순위전");
   });
+
+  // 2026-05-16 PR-G5.5-NBA-seed
+  it("seed_number — 1번 시드 / 8번 시드 (NBA 표준 시드)", () => {
+    expect(buildSlotLabel({ kind: "seed_number", seedNumber: 1 })).toBe("1번 시드");
+    expect(buildSlotLabel({ kind: "seed_number", seedNumber: 8 })).toBe("8번 시드");
+    expect(buildSlotLabel({ kind: "seed_number", seedNumber: 16 })).toBe("16번 시드");
+  });
 });
 
 describe("buildPlaceholderNotes — ADVANCEMENT_REGEX 호환 형식 (강남구 사고 영구 차단)", () => {
@@ -115,6 +122,15 @@ describe("parseSlotLabel — 5 kind 역파싱", () => {
     expect(parseSlotLabel("3위 동순위전")).toEqual({ kind: "tie_rank", rank: 3 });
   });
 
+  // 2026-05-16 PR-G5.5-NBA-seed
+  it("seed_number 역파싱 — NBA 시드 (tie_rank '1위 동순위전' 과 충돌 0)", () => {
+    expect(parseSlotLabel("1번 시드")).toEqual({ kind: "seed_number", seedNumber: 1 });
+    expect(parseSlotLabel("8번 시드")).toEqual({ kind: "seed_number", seedNumber: 8 });
+    expect(parseSlotLabel("16번 시드")).toEqual({ kind: "seed_number", seedNumber: 16 });
+    // tie_rank ("1위 동순위전") 와 분리 매칭 확인 — 정규식 충돌 0
+    expect(parseSlotLabel("1위 동순위전")).toEqual({ kind: "tie_rank", rank: 1 });
+  });
+
   it("미매칭 형식 → null", () => {
     // UI 카드의 "미정" / "TBD" 등 비표준 라벨
     expect(parseSlotLabel("미정")).toBeNull();
@@ -126,13 +142,15 @@ describe("parseSlotLabel — 5 kind 역파싱", () => {
     expect(parseSlotLabel(undefined)).toBeNull();
   });
 
-  it("buildSlotLabel ↔ parseSlotLabel round-trip (5 kind 모두)", () => {
+  it("buildSlotLabel ↔ parseSlotLabel round-trip (6 kind 모두)", () => {
     const inputs: Parameters<typeof buildSlotLabel>[0][] = [
       { kind: "group_rank", group: "A", rank: 1 },
       { kind: "match_winner", roundName: "8강", matchNumber: 3 },
       { kind: "match_loser", roundName: "준결승", matchNumber: 1 },
       { kind: "round_seed", roundNumber: 2, seedNumber: 7 },
       { kind: "tie_rank", rank: 2 },
+      // 2026-05-16 PR-G5.5-NBA-seed
+      { kind: "seed_number", seedNumber: 5 },
     ];
     for (const input of inputs) {
       const label = buildSlotLabel(input);

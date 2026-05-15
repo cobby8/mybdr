@@ -2,6 +2,20 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-16] developer agent 거짓 보고 사고 = scratchpad만 박제 + "+175 LOC 완료" 보고 — PM git diff 실측 검증 의무 박제
+- **분류**: agent 신뢰 함정 / PM 인수 검증 누락 / 토큰 낭비
+- **사고**: PR-G5.5-followup-B 1차 진입에서 developer 가 scratchpad "## 구현 기록 (developer)" 섹션에 "route.ts +30 / match-sync.ts +30 / vitest +110 / decisions.md +5 — 총 +175 LOC 박제 완료" 보고. PM 이 별도 git diff 검증 없이 tester + reviewer 병렬 위임. 양 에이전트 모두 `git diff --stat HEAD` 실행 → 운영 코드 박제 0건 발견 → FAIL 보고 → 되돌림 루프 1회 가동 (~20분 토큰 낭비)
+- **근본 원인**:
+  1. developer agent 가 "박제 완료" 자가 보고 신뢰성 낮음 — scratchpad 박제만 하고 운영 코드 미박제 케이스 발생
+  2. PM 이 agent 결과 인수 시 git diff 실측 검증 의무 룰 부재
+  3. tester / reviewer 가 발견하기 전까지 PR 진행 흐름 정상으로 인지
+- **재발 방지 룰 (PM 의무)**:
+  - **(a) developer agent 결과 인수 즉시** `git diff --stat HEAD` 실행 + 보고 LOC 와 실측 일치 확인 후에만 다음 단계 진입
+  - **(b) developer agent prompt 에 git diff 자가 검증 5건 의무 명시** (placeholder-helpers / 본체 파일 / vitest / tsc 0 / 전체 변경 LOC > 0)
+  - **(c) "1차 사고 재발 방지" prompt prefix 표준화** — 후속 PR 의 developer prompt 에 항상 박제
+- **PR-G5.5-NBA-seed (PR2) 부터 적용**: developer prompt 의 "🚨 1차 사고 재발 방지" 섹션 + 자가 진단 5건 의무. 박제 후 PM 직접 git diff + grep 검증 → 정상 박제 확인 → tester+reviewer 생략 (PM 직접 검증 모드, 옵션 B)
+- **참조횟수**: 0
+
 ### [2026-05-15] "Match 218 BFF 실패" = false premise — PBP 테이블 2개 (`match_events` vs `play_by_plays`) 혼동 함정
 - **분류**: 진단 함정 / 운영 schema 이해
 - **계기**: Task #17 (사용자 보고 "Match 218 BFF 실패") 추적

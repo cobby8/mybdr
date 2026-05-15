@@ -214,7 +214,7 @@ export function RunningScoreGrid({
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     // PR-S6 (2026-05-14 rev2 롤백) — data-score-mode 속성 + paper 안내 텍스트 제거 (모드 토글 제거).
     // PR-S10 (2026-05-15) — ss-shell ss-rs 스코프 + 페이퍼 토큰 (--pap-*) 사용 (다크 leak 차단).
-    <div className={wrapperClass} style={wrapperStyle}>
+    <div className={wrapperClass} style={wrapperStyle} data-ss-section="running-score">
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
           - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)

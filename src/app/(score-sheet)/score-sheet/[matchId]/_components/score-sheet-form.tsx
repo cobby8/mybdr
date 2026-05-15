@@ -79,9 +79,17 @@ import {
 } from "./lineup-selection-modal";
 // Phase 7-C — Q4/OT 종료 분기 모달
 import { QuarterEndModal } from "./quarter-end-modal";
-// Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택용).
-//   기존 inline window.confirm() 대체 — 4종 모달 시각 정합 + 인쇄 차단 + 토큰 일관.
-import { ConfirmModal } from "./confirm-modal";
+// 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
+//   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
+import { useConfirm } from "../../../_components/confirm-modal-provider";
+// 2026-05-15 (PR-D-3) — 수정 모드 / read-only 가드 단일 source.
+import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
+// 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅.
+import { useScoreSheetInputState } from "../_hooks/use-score-sheet-input-state";
+// 2026-05-15 (PR-D-4c) — 핵심 기록 state 6건 통합 훅.
+import { useScoreSheetRecordState } from "../_hooks/use-score-sheet-record-state";
+// 2026-05-15 (PR-D-4a) — draft localStorage IO 순수 함수 (vitest 가능).
+import { loadDraft, saveDraft, clearDraft } from "@/lib/score-sheet/draft-storage";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
 //   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
 import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
@@ -169,20 +177,12 @@ interface ScoreSheetFormProps {
   }>;
 }
 
-// localStorage key prefix — 매치당 1건 (Phase 1 FIBA 양식 신규 prefix)
-const DRAFT_KEY_PREFIX = "fiba-score-sheet-draft-";
+// 2026-05-15 (PR-D-4a) — draft localStorage IO 가 lib/score-sheet/draft-storage.ts
+//   순수 함수로 외부화. form 안 직접 localStorage 호출 0.
+//   DRAFT_KEY_PREFIX 는 draft-storage.ts 내부 상수 (운영 키 보존).
 
-const EMPTY_HEADER: FibaHeaderInputs = {
-  referee: "",
-  umpire1: "",
-  umpire2: "",
-};
-
-const EMPTY_TEAM: TeamSectionInputs = {
-  coach: "",
-  asstCoach: "",
-  players: {},
-};
+// 2026-05-15 (PR-D-4b) — EMPTY_HEADER / EMPTY_TEAM 이 useScoreSheetInputState 훅 안으로 이동.
+//   필요 시 훅에서 import (외부 export 유지).
 
 interface DraftPayload {
   header: FibaHeaderInputs;
@@ -227,34 +227,38 @@ export function ScoreSheetForm({
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 inline (사용자 결재 Q7 옵션 A).
   editAuditLogs,
 }: ScoreSheetFormProps) {
-  const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
-  const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
-  const [teamB, setTeamB] = useState<TeamSectionInputs>(EMPTY_TEAM);
-  // Phase 2 — Running Score state.
-  // Phase 23 (2026-05-14) — DB SELECT 결과로 초기값 박제 (?? EMPTY_*).
-  //   기존 동작 100% 보존: prop 미전달 (=undefined) 시 EMPTY 폴백 = 신규 매치 진입과 동일.
-  const [runningScore, setRunningScore] = useState<RunningScoreState>(
-    initialRunningScore ?? EMPTY_RUNNING_SCORE
-  );
-  // Phase 3 — Fouls state (FIBA 1-5 Player Fouls + Team Fouls 자동 합산 source)
-  const [fouls, setFouls] = useState<FoulsState>(initialFouls ?? EMPTY_FOULS);
-  // Phase 4 — Timeouts state (FIBA Article 18-19 전반2/후반3/OT1)
-  const [timeouts, setTimeouts] = useState<TimeoutsState>(
-    initialTimeouts ?? EMPTY_TIMEOUTS
-  );
-  // Phase 5 — Signatures state (FIBA 양식 풋터 8 입력 + notes).
-  //   Phase 23: initialSignatures 가 있으면 EMPTY 와 spread merge (구버전 partial 박제 호환).
-  //   initialNotes 가 있으면 signatures.notes 로 통합 (DB notes 컬럼 별도 — 폼은 signatures 단일 source).
-  const [signatures, setSignatures] = useState<SignaturesState>(() => {
-    const base = initialSignatures
-      ? { ...EMPTY_SIGNATURES, ...initialSignatures }
-      : EMPTY_SIGNATURES;
-    // notes 는 TournamentMatch.notes 컬럼이 우선 (BFF 별도 update 흐름) — 있으면 덮어쓰기
-    if (initialNotes && initialNotes.length > 0) {
-      return { ...base, notes: initialNotes };
-    }
-    return base;
+  // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅 단일 source.
+  const inputState = useScoreSheetInputState({
+    initialSignatures,
+    initialNotes,
   });
+  const { header, setHeader, teamA, setTeamA, teamB, setTeamB, signatures, setSignatures } = inputState;
+  // 2026-05-15 (PR-D-4c) — 핵심 기록 state 6건 (runningScore/fouls/timeouts/playerStats/lineup/lineupModalOpen)
+  //   useScoreSheetRecordState 훅 단일 source.
+  const recordState = useScoreSheetRecordState({
+    initialRunningScore,
+    initialFouls,
+    initialTimeouts,
+    initialPlayerStats,
+    initialLineup,
+  });
+  const {
+    runningScore,
+    setRunningScore,
+    fouls,
+    setFouls,
+    timeouts,
+    setTimeouts,
+    playerStats,
+    setPlayerStats,
+    lineup,
+    setLineup,
+    lineupModalOpen,
+    setLineupModalOpen,
+    initialLineupComputed,
+  } = recordState;
+  // 2026-05-15 (PR-D-4b) — signatures state 가 useScoreSheetInputState 훅 안으로 이동.
+  //   기존 lazy init (initialSignatures spread + initialNotes 우선) 동일하게 보존.
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
   const [foulModalCtx, setFoulModalCtx] = useState<{
     team: "home" | "away";
@@ -263,13 +267,7 @@ export function ScoreSheetForm({
     jerseyNumber: number | null;
   } | null>(null);
 
-  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) state.
-  //   사용자 결재 Q1 (위치) / Q2 (StatPopover) / Q3 (DB 변경 0 — match_player_stats 직접 박제).
-  //   initialPlayerStats 가 있으면 page.tsx 의 match_player_stats SELECT 결과 사용 (재진입 자동 로드).
-  //   양 팀 통합 단일 record (key = tournamentTeamPlayerId.toString()) — TeamSection 이 자신의 id 만 lookup.
-  const [playerStats, setPlayerStats] = useState<PlayerStatsState>(
-    initialPlayerStats ?? EMPTY_PLAYER_STATS
-  );
+  // 2026-05-15 (PR-D-4c) — playerStats state 가 useScoreSheetRecordState 훅 안으로 이동.
 
   // Phase 19 PR-Stat3 — StatPopover state (어떤 선수의 어떤 stat 을 +1/-1 할지).
   //   null = 닫힘 / { ...컨텍스트 } = 열림. team 분기 = 안전망 (cell 클릭 시 caller 가 분기 처리).
@@ -280,30 +278,8 @@ export function ScoreSheetForm({
     jerseyNumber: number | null;
     statKey: StatKey;
   } | null>(null);
-  // Phase 7-B — 라인업 state.
-  //   - lineup === null → 모달 강제 표시 (양식 미렌더)
-  //   - lineup === { home, away } → 양식 렌더 (출전 명단만 12행 X / 실제 명수 표시)
-  //
-  //   초기값:
-  //     1. initialLineup.home/away 가 확정 = 사전 박제 → 모달 skip + 자동 fill
-  //     2. 미확정 (둘 중 하나라도 null) → null → 모달 강제 표시
-  //
-  //   draft localStorage 복원 후 lineup 이 박제되어 있으면 그 값 우선 (운영 중 reload 케이스).
-  const initialLineupComputed: {
-    home: TeamLineupSelection;
-    away: TeamLineupSelection;
-  } | null =
-    initialLineup?.home && initialLineup?.away
-      ? { home: initialLineup.home, away: initialLineup.away }
-      : null;
-  const [lineup, setLineup] = useState<{
-    home: TeamLineupSelection;
-    away: TeamLineupSelection;
-  } | null>(initialLineupComputed);
-  // 모달 명시적 control — open 토글 (라인업 미확정 시 자동 true / 확정 시 false)
-  const [lineupModalOpen, setLineupModalOpen] = useState<boolean>(
-    initialLineupComputed === null
-  );
+  // 2026-05-15 (PR-D-4c) — lineup / lineupModalOpen / initialLineupComputed 가
+  //   useScoreSheetRecordState 훅 안으로 이동.
   // Phase 7-C — Q4 / OT 종료 분기 modal state
   //   - null = 모달 닫힘
   //   - { mode, period } = 모달 열림 (어떤 종료 시점인지 / 어떤 period 가 종료되었는지)
@@ -322,37 +298,10 @@ export function ScoreSheetForm({
   //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
   const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
 
-  // Phase 23 PR6 (2026-05-15) — ConfirmModal state (draft vs DB 우선순위 사용자 선택용).
-  //
-  // 왜 (이유):
-  //   reviewer WARN 1건 = PR3 의 inline window.confirm() 가 운영 4종 모달 패턴과 다름.
-  //   Promise 패턴으로 캡슐화 → ConfirmModal 의 onSelect / onClose 가 resolve(value) 호출.
-  //   호출자는 `await confirmModal({ title, message, options })` 형태로 사용.
-  //
-  // 어떻게:
-  //   - confirmState = null = 모달 닫힘 / { ...config, resolve } = 모달 열림
-  //   - confirmModal(config) = Promise 반환 + resolve fn 박제. onSelect / onClose 에서 호출.
-  //   - useEffect 안에서 await 가능. 4종 모달 + 새 ConfirmModal 동시 열림 0 (운영자 흐름상 단일).
-  type ConfirmConfig = {
-    title: string;
-    message: ReactNode;
-    options: { value: string; label: string; isPrimary?: boolean; isDestructive?: boolean }[];
-    // 2026-05-15 (PR-SS-Manual-Wide) — 모달 폭 — default md / lg / xl. 설명서 = xl.
-    size?: "md" | "lg" | "xl";
-  };
-  const [confirmState, setConfirmState] = useState<
-    | (ConfirmConfig & { resolve: (value: string | null) => void })
-    | null
-  >(null);
-
-  // confirm 모달 호출 헬퍼 — Promise 반환.
-  //   - 선택 시 옵션 value 반환
-  //   - ESC / backdrop 닫기 시 null 반환 (호출자가 취소 분기 처리)
-  function confirmModal(cfg: ConfirmConfig): Promise<string | null> {
-    return new Promise((resolve) => {
-      setConfirmState({ ...cfg, resolve });
-    });
-  }
+  // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
+  //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
+  //   호출자 = useConfirm() 훅 + await confirmModal({...}). resolve 후 자동 close.
+  const confirmModal = useConfirm();
 
   // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 진입 (사용자 결재 Q3).
   //
@@ -396,7 +345,6 @@ export function ScoreSheetForm({
         { value: "confirm", label: "기록 취소 (완전 초기화)", isDestructive: true },
       ],
     });
-    setConfirmState(null);
 
     if (choice !== "confirm") return;
 
@@ -414,12 +362,9 @@ export function ScoreSheetForm({
       // 2026-05-15 (사용자 추가 요청) — 기록 취소 시 선수 선택 (draft) 도 초기화 + 이전 페이지로 나가기.
       //   reset 후 reload (같은 페이지) → 사용자 의도와 다름. router.back() 으로 진입 경로 (경기일정/대진표) 복귀.
       //   draft localStorage 도 같이 삭제 (key = score-sheet-draft-{matchId}).
+      // draft localStorage 도 같이 삭제 (2026-05-15 PR-D-4a — clearDraft 헬퍼 사용).
+      clearDraft(match.id);
       if (typeof window !== "undefined") {
-        try {
-          window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
-        } catch {
-          /* localStorage 접근 실패 silent */
-        }
         if (window.history.length > 1) {
           window.history.back();
         } else {
@@ -540,7 +485,6 @@ export function ScoreSheetForm({
       ),
       options: [{ value: "close", label: "닫기", isPrimary: true }],
     });
-    setConfirmState(null);
   }
 
   async function handleEnterEditMode() {
@@ -564,8 +508,6 @@ export function ScoreSheetForm({
         { value: "cancel", label: "취소" },
       ],
     });
-    // 모달 닫기 — Promise resolve 후 모달 unmount
-    setConfirmState(null);
 
     if (choice !== "enter") return; // 사용자 취소 / ESC = 진입 안 함
 
@@ -719,41 +661,14 @@ export function ScoreSheetForm({
     initialQuarterScoresDB !== undefined &&
     Object.keys(initialQuarterScoresDB).length > 0;
 
-  // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
-  //
-  // 왜 (이유):
-  //   매치가 이미 종료된 상태 (status="completed") 인데 운영자가 score-sheet 재진입 = 수정 의도.
-  //   사용자 결재 Q3 = 차단 ❌ / UI 경고 + audit 박제. 운영자가 사고를 인식할 수 있어야 함.
-  //
-  // 어떻게:
-  //   1. isCompleted 플래그 — match.status === "completed" 일 때 true.
-  //   2. mount 1회 노란 배너 표시 (cross-check 배너 패턴 일관 / no-print).
-  //   3. mount 1회 cross-check-audit endpoint POST — context="completed_edit_entry".
-  //   4. 운영자 submit 시 별도 audit POST — context="completed_edit_resubmit"
-  //      (MatchEndButton 의 onSubmittedChange 콜백 분기 안에서 부모가 호출).
+  // 2026-05-15 (PR-D-3) — isCompleted / isEditMode / isReadOnly = useEditModeGuard 훅 단일 source.
+  //   기존 17개 위치 산재 `isReadOnly` 패턴 → isReadOnly 단일 표현 통일.
   //
   // 운영 동작 보존:
-  //   - 운영자 input / submit 차단 ❌ — 배너 + audit 만.
-  //   - audit fetch 실패 = console.warn + 진행 (silent fail).
-  //   - status !== "completed" 매치 = 변경 0 (회귀 0).
-  const isCompleted = match.status === "completed";
-
-  // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 state (사용자 결재 Q3).
-  //
-  // 왜 (이유):
-  //   RO 차단 (PR-RO1~RO4) = isCompleted 단일 조건. 수정 모드 진입 = isCompleted=true + isEditMode=true.
-  //   isEditMode=true 일 때 모든 차단 분기 우회 (사용자가 명시적으로 수정 동의).
-  //
-  // 어떻게:
-  //   - default false (진입 시 RO 차단 유지)
-  //   - toolbar "수정 모드" 버튼 클릭 → handleEnterEditMode() → confirm modal → 동의 시 setIsEditMode(true)
-  //   - 모든 차단 분기 = `if (isCompleted && !isEditMode) return;` 패턴 (isEditMode 우회 분기)
-  //
-  // 운영 동작 보존:
-  //   - 진행 중 매치 (isCompleted=false) = isEditMode 분기 무관 (이미 통과 / 회귀 0).
-  //   - 종료 매치 + isEditMode=false = RO 차단 유지 (PR-RO 동작 보존).
-  //   - 종료 매치 + isEditMode=true = 모든 차단 우회 + 재제출 시 audit 박제.
-  const [isEditMode, setIsEditMode] = useState(false);
+  //   - 진행 중 매치 (isCompleted=false) = isReadOnly=false → 기존 동작 보존.
+  //   - 종료 매치 + isEditMode=false = isReadOnly=true → RO 차단 유지 (PR-RO 동작 보존).
+  //   - 종료 매치 + isEditMode=true = isReadOnly=false → 사용자 명시 동의 후 수정 가능.
+  const { isCompleted, isEditMode, setIsEditMode, isReadOnly } = useEditModeGuard(match);
 
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 펼침 토글 (사용자 결재 Q7).
   //   기본 = 접힘 (배너만 N건 표시) / 클릭 시 = 펼침 (행 리스트 표시).
@@ -849,9 +764,9 @@ export function ScoreSheetForm({
     //   useEffect cleanup 미사용 (mount 1회 + 모달 호출 후 회수 불필요).
     (async () => {
       try {
-        const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
-        if (!raw) return;
-        const draft = JSON.parse(raw) as Partial<DraftPayload>;
+        // 2026-05-15 (PR-D-4a) — loadDraft 헬퍼 사용 (직접 localStorage 호출 X).
+        const draft = loadDraft(match.id) as Partial<DraftPayload> | null;
+        if (!draft) return;
 
         // Phase 23 — draft vs DB 비교. matchUpdatedAtISO 가 없으면 (신규 매치) draft 그대로 적용.
         let applyDraft = true;
@@ -890,8 +805,6 @@ export function ScoreSheetForm({
                   { value: "db", label: "DB 박제본으로 진행" },
                 ],
               });
-              // 모달 닫기 — Promise resolve 후 모달 unmount
-              setConfirmState(null);
               applyDraft = choice === "draft";
             } else if (draftTime <= dbTime && hasDBContent) {
               // DB 가 더 최신 = draft 무시 (사고 방지 최우선)
@@ -994,27 +907,18 @@ export function ScoreSheetForm({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const timer = window.setTimeout(() => {
-      try {
-        const draft: DraftPayload = {
-          header,
-          teamA,
-          teamB,
-          runningScore,
-          fouls,
-          timeouts,
-          signatures,
-          lineup,
-          // Phase 19 PR-Stat3 — 6 stat draft 박제
-          playerStats,
-          savedAt: new Date().toISOString(),
-        };
-        window.localStorage.setItem(
-          DRAFT_KEY_PREFIX + match.id,
-          JSON.stringify(draft)
-        );
-      } catch {
-        // localStorage quota / disabled — 무시
-      }
+      // 2026-05-15 (PR-D-4a) — saveDraft 헬퍼 사용. savedAt 자동 박제.
+      saveDraft(match.id, {
+        header,
+        teamA,
+        teamB,
+        runningScore,
+        fouls,
+        timeouts,
+        signatures,
+        lineup,
+        playerStats,
+      });
     }, 5000);
     return () => window.clearTimeout(timer);
   }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, match.id]);
@@ -1022,14 +926,14 @@ export function ScoreSheetForm({
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
   function handleAdvancePeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
   function handleRetreatPeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
@@ -1043,7 +947,7 @@ export function ScoreSheetForm({
   //   - period 4 (Q4) 종료 = QuarterEndModal 표시 (경기 종료 / OT1 진행 2 버튼)
   //   - period 5~7 (OTn) 종료 = QuarterEndModal 표시 (경기 종료 / 다음 OT 진행 / 동점 시 종료 비활성)
   function handleEndPeriod() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const endedPeriod = runningScore.currentPeriod;
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
@@ -1067,7 +971,7 @@ export function ScoreSheetForm({
   //   이유: 사용자가 Q4 종료 시점에서 별도 confirm 모달 (MatchEndButton) 통과 안 해도 즉시 종료.
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / quarter-end modal 진입점)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
     try {
       const payload = buildSubmitPayload();
       const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
@@ -1097,7 +1001,7 @@ export function ScoreSheetForm({
   // Phase 7-C — "다음 OT 진행" 버튼 (QuarterEndModal 안).
   //   동작: currentPeriod++ (OT1/OT2/OT3 진입) + 모달 close + toast 안내.
   function handleContinueToOvertime() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
@@ -1116,7 +1020,7 @@ export function ScoreSheetForm({
   //   3. TeamSection 마지막 마킹 칸 클릭 → handleRequestRemoveFoul → 즉시 1건 해제
 
   function handleRequestAddFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / 모달 mount)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / 모달 mount)
     // 모달 컨텍스트 박제 — 선수 이름 / 등번호 표시용
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -1129,7 +1033,7 @@ export function ScoreSheetForm({
   }
 
   function handleRequestRemoveFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     // PR-Stat3.5 (2026-05-15) — React 19 strict mode updater double-invoke 회피.
     //   기존 setFouls(prev => ...) 패턴 = strict mode 의 dev double-invoke 가 updater 2회 호출
     //   → queueMicrotask 도 2회 schedule → toast 2회 (사용자 보고 이미지 #30).
@@ -1149,7 +1053,7 @@ export function ScoreSheetForm({
   //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
   //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
   function handleRequestAddTimeout(team: "home" | "away") {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴 (updater 미사용 — strict mode double-invoke 회피).
     const result = addTimeout(timeouts, team, {
       period: runningScore.currentPeriod,
@@ -1165,7 +1069,7 @@ export function ScoreSheetForm({
 
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
   function handleRequestRemoveTimeout(team: "home" | "away") {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     const next = removeLastTimeout(timeouts, team);
     setTimeouts(next);
     if (next !== timeouts) {
@@ -1188,7 +1092,7 @@ export function ScoreSheetForm({
     playerId: string,
     statKey: StatKey
   ) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / popover mount)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / popover mount)
     // 컨텍스트 박제 — 선수명 / 등번호 표시용 (FoulTypeModal 패턴 일관).
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -1202,7 +1106,7 @@ export function ScoreSheetForm({
   }
 
   function handleAddStat() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1215,7 +1119,7 @@ export function ScoreSheetForm({
   }
 
   function handleRemoveStat() {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     const ctx = statPopoverCtx;
@@ -1230,7 +1134,7 @@ export function ScoreSheetForm({
 
   // 모달 → 종류 선택 콜백 — addFoul 호출 + Article 41 alert + 5+ FT alert
   function handleSelectFoulType(type: FoulType) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일)
     if (!foulModalCtx) return;
     const { team, playerId } = foulModalCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1353,7 +1257,7 @@ export function ScoreSheetForm({
   //   기존 동작: 운영자가 12명 P.IN 일일이 체크 → 중복 부담 + 라인업 의미와 모순.
   //   변경: 모달 confirm 시 양 팀 모든 라인업 선수의 playerIn=true 자동 fill (한 번에).
   function handleLineupConfirm(result: LineupSelectionResult) {
-    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 — 라인업 재선택)
+    if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 — 라인업 재선택)
     setLineup(result);
     setLineupModalOpen(false);
     // 양 팀 라인업 (starters + substitutes) 의 모든 선수 playerIn=true 자동 set.
@@ -1573,7 +1477,7 @@ export function ScoreSheetForm({
           // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 이중 방어).
           //   hideEndMatch 시 button 자체 render 0 이지만, onClick 까지 가드 (회귀 안전망).
           // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (재제출 허용 — 사용자 결재 Q5).
-          if (isCompleted && !isEditMode) return;
+          if (isReadOnly) return;
           setMatchEndOpen(true);
         }}
         backHref="/admin"
@@ -1582,8 +1486,8 @@ export function ScoreSheetForm({
         // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 경기 종료 버튼 hidden (사용자 결재 Q2).
         //   인쇄 / ← 메인 만 노출 / 종료 버튼 진입점 차단.
         // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 = 경기 종료 다시 노출 (재제출 허용).
-        //   isCompleted && !isEditMode 시만 hide (수정 모드 활성 시 종료 버튼 활성).
-        hideEndMatch={isCompleted && !isEditMode}
+        //   isReadOnly 시만 hide (수정 모드 활성 시 종료 버튼 활성).
+        hideEndMatch={isReadOnly}
         // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 진입 (사용자 결재 Q3 + Q4).
         //   canEdit (page.tsx 가 권한 산출) + 종료 매치 시 "수정 모드" 버튼 노출.
         //   onEnterEditMode = confirm modal → 동의 시 setIsEditMode(true).
@@ -1597,7 +1501,7 @@ export function ScoreSheetForm({
         // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
         //   종료 매치 = undefined (PR-RO2 룰). 수정 모드 진입 시 = 허용.
         onReselectLineup={
-          !isCompleted || isEditMode ? () => setLineupModalOpen(true) : undefined
+          !isReadOnly ? () => setLineupModalOpen(true) : undefined
         }
         // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
         onOpenManual={handleOpenManual}
@@ -1670,7 +1574,7 @@ export function ScoreSheetForm({
             values={header}
             onChange={setHeader}
             // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-            readOnly={isCompleted && !isEditMode}
+            readOnly={isReadOnly}
             frameless
           />
         </div>
@@ -1682,10 +1586,13 @@ export function ScoreSheetForm({
 
             Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
             이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
+        {/* 2026-05-15 (PR-E-2) — grid 2x2 정합 (사용자 요청):
+            좌상 = Team A+B (한 cell 묶음) / 우상 = Running Score
+            좌하 = Signatures / 우하 = Period Scores
+            grid auto rows = max(좌, 우) → 같은 row 양 자식 자동 stretch (자식 잘림 0). */}
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하) (md 이상 = 우측 분할선).
-              Phase 15: FooterSignatures 가 본 컬럼 안 마지막 child 로 이동 (FIBA PDF 정합). */}
-          <div className="md-fiba-divider-right flex flex-col">
+          {/* 좌상 — Team A + Team B 묶음 cell. */}
+          <div className="md-fiba-divider-right fiba-divider-bottom flex flex-col" data-ss-area="left-top">
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1713,8 +1620,8 @@ export function ScoreSheetForm({
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
                 //   disabled = button (foul/timeout/stat cell) + checkbox 차단
                 //   readOnly = input (coach/asstCoach) 차단
-                disabled={isCompleted && !isEditMode}
-                readOnly={isCompleted && !isEditMode}
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
                 frameless
               />
             </div>
@@ -1744,39 +1651,15 @@ export function ScoreSheetForm({
                   handleRequestOpenStatPopover("away", playerId, statKey)
                 }
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
-                disabled={isCompleted && !isEditMode}
-                readOnly={isCompleted && !isEditMode}
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
                 frameless
               />
             </div>
-            {/* Phase 15 — FooterSignatures = 좌측 col 안 Team B 아래 (FIBA PDF 정합).
-                2026-05-15 — mt-auto wrapper 추가. 좌측 column = Team A + Team B + FooterSignatures
-                  stretch (grid stretch). FooterSignatures 가 bottom 정렬 = 우측 PeriodScoresSection
-                  과 정확 매치 (양쪽 column 끝 자식 = bottom 베이스라인 동일). */}
-            <div className="mt-auto">
-            <FooterSignatures
-              values={signatures}
-              onChange={setSignatures}
-              headerReferee={header.referee}
-              headerUmpire1={header.umpire1}
-              headerUmpire2={header.umpire2}
-              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-              readOnly={isCompleted && !isEditMode}
-              frameless
-            />
-            </div>
           </div>
 
-          {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
-              FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적.
-              2026-05-15 — RunningScoreGrid flex-1 + PeriodScoresSection mt-auto.
-                좌측 column (Team A + B + Footer) 와 동일 height stretch + 끝 자식 bottom 정렬. */}
-          <div className="flex flex-col">
-            {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
-                단일 모드 (= 기존 detail 동작) 통일.
-                2026-05-15 — flex-1 wrapper 추가. Running Score 가 좌측 Team A+B 높이만큼 자동 확장. */}
-            <div className="flex-1">
+          {/* 우상 — Running Score */}
+          <div className="fiba-divider-bottom" data-ss-area="right-top">
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1784,19 +1667,27 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
-              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
-              //   readOnly = onClick early return (모달 open / undo / addMark 차단)
-              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-              readOnly={isCompleted && !isEditMode}
+              readOnly={isReadOnly}
               frameless
-              // 2026-05-15 — 쿼터 종료 = 헤더 우측 작은 버튼 (FIBA 양식 정합 / 기존 큰 버튼 영역 제거).
-              onEndPeriod={isCompleted && !isEditMode ? undefined : handleEndPeriod}
+              onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
             />
-            </div>
-            {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
-                상단 분할선 = fiba-divider-top 으로 Running Score 와 시각 구분.
-                2026-05-15 — mt-auto = column 의 bottom 정렬 (좌측 FooterSignatures 와 베이스라인 매치). */}
-            <div className="fiba-divider-top mt-auto">
+          </div>
+
+          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등) */}
+          <div className="md-fiba-divider-right" data-ss-area="left-bottom">
+            <FooterSignatures
+              values={signatures}
+              onChange={setSignatures}
+              headerReferee={header.referee}
+              headerUmpire1={header.umpire1}
+              headerUmpire2={header.umpire2}
+              readOnly={isReadOnly}
+              frameless
+            />
+          </div>
+
+          {/* 우하 — Period Scores + Final + Winner */}
+          <div data-ss-area="right-bottom">
               <PeriodScoresSection
                 state={runningScore}
                 homeTeamName={homeFilteredRoster.teamName}
@@ -1806,10 +1697,9 @@ export function ScoreSheetForm({
                 onEndPeriod={handleEndPeriod}
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 OT 종료 빨강 버튼 차단 (사용자 결재 Q2)
                 // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-                disabled={isCompleted && !isEditMode}
+                disabled={isReadOnly}
                 frameless
               />
-            </div>
           </div>
         </div>
       </div>
@@ -1851,7 +1741,7 @@ export function ScoreSheetForm({
           //   불필요한 ConfirmModal 노출. submit 성공 = DB 최신 = draft 무가치.
           if (submitted && typeof window !== "undefined") {
             try {
-              window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
+              clearDraft(match.id);
             } catch {
               /* localStorage 접근 실패 silent */
             }
@@ -1890,7 +1780,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             handleRequestAddFoul 가드 + open 분기 가드 = 이중 방어. */}
       <FoulTypeModal
-        open={(!isCompleted || isEditMode) && foulModalCtx !== null}
+        open={(!isReadOnly) && foulModalCtx !== null}
         playerName={foulModalCtx?.playerName ?? ""}
         jerseyNumber={foulModalCtx?.jerseyNumber ?? null}
         period={runningScore.currentPeriod}
@@ -1903,7 +1793,7 @@ export function ScoreSheetForm({
           open 시만 렌더 — 운영 동작 보존 (FoulTypeModal 패턴 일관). */}
       {/* Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <StatPopover
-        open={(!isCompleted || isEditMode) && statPopoverCtx !== null}
+        open={(!isReadOnly) && statPopoverCtx !== null}
         playerName={statPopoverCtx?.playerName ?? ""}
         jerseyNumber={statPopoverCtx?.jerseyNumber ?? null}
         statKey={statPopoverCtx?.statKey ?? "or"}
@@ -1928,7 +1818,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             라인업 재선택 진입점 차단 (handleLineupConfirm 가드 + open 분기 가드 이중 방어). */}
       <LineupSelectionModal
-        open={(!isCompleted || isEditMode) && lineupModalOpen}
+        open={(!isReadOnly) && lineupModalOpen}
         homeTeamName={homeRoster.teamName}
         awayTeamName={awayRoster.teamName}
         homePlayers={homeRoster.players}
@@ -1948,7 +1838,7 @@ export function ScoreSheetForm({
       {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <QuarterEndModal
-        open={(!isCompleted || isEditMode) && quarterEndModal !== null}
+        open={(!isReadOnly) && quarterEndModal !== null}
         mode={quarterEndModal?.mode ?? "quarter4"}
         currentPeriod={quarterEndModal?.period ?? 4}
         homeTeamName={homeFilteredRoster.teamName}
@@ -1960,19 +1850,8 @@ export function ScoreSheetForm({
         onCancel={() => setQuarterEndModal(null)}
       />
 
-      {/* Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택).
-          inline window.confirm() 대체 — 4종 모달 시각 정합. confirmState !== null 시만 렌더. */}
-      {confirmState && (
-        <ConfirmModal
-          open
-          title={confirmState.title}
-          message={confirmState.message}
-          options={confirmState.options}
-          size={confirmState.size}
-          onSelect={(value) => confirmState.resolve(value)}
-          onClose={() => confirmState.resolve(null)}
-        />
-      )}
+      {/* 2026-05-15 (PR-D-2) — ConfirmModal JSX 마운트는 ConfirmModalProvider 가 담당.
+          form 안 직접 마운트 불필요. score-sheet route group layout 에 한 번 mount. */}
     </main>
   );
 }
