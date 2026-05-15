@@ -190,12 +190,15 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
   const syncUrl = useCallback(
     (team: string | null, date: string | null, division: string | null, venue: string | null) => {
       const params = new URLSearchParams();
+      // 2026-05-15 fix — tab=schedule 강제 박제. 이전엔 누락 → 뒤로가기 시 page.tsx
+      //   server-side initialTab default("overview") 로 복귀하던 사고. 본 컴포넌트는
+      //   schedule 탭에서만 마운트되므로 항상 tab=schedule 박제 정합.
+      params.set("tab", "schedule");
       if (team) params.set("team", team);
       if (date) params.set("date", date);
       if (division) params.set("division", division);
       if (venue) params.set("venue", venue);
-      const query = params.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [router, pathname],
   );

@@ -13,7 +13,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -335,15 +335,22 @@ export function TournamentTabs({
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // 2026-05-02: 탭 클릭 시 URL ?tab=X 동기화
-  // 이유: /live/{id} → 뒤로가기 시 원 탭 + 스크롤 위치 정확 복귀
-  //   - scroll: false → URL 만 변경 (현재 스크롤 유지)
-  //   - replace: 매 탭 클릭이 history 누적 안 되도록 (원 페이지 진입 1건만 유지)
+  // 2026-05-02: 탭 클릭 시 URL ?tab=X 동기화 + /live/{id} 뒤로가기 시 원 탭 복귀.
+  // 2026-05-15 fix: 탭 변경 시 다른 query params (filter 등) 보존.
+  //   이전 박제는 ?tab=X 만 박고 기존 query 덮어씀 → schedule 탭에서 다른 탭 클릭
+  //   후 돌아오면 필터 손실. 본 fix = 다른 params 유지 + tab 만 갱신.
   function handleTabChange(key: TabKey) {
     setActiveTab(key);
-    const url = key === "overview" ? pathname : `${pathname}?tab=${key}`;
-    router.replace(url, { scroll: false });
+    const params = new URLSearchParams(searchParams.toString());
+    if (key === "overview") {
+      params.delete("tab");
+    } else {
+      params.set("tab", key);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   return (
