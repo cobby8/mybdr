@@ -345,6 +345,55 @@ export function V2BracketWrapper({
               ) : (
                 <BracketEmpty tournamentId={tournamentId} />
               )
+            ) : hasLeagueData && groupTeams.length > 0 ? (
+              /* 2026-05-15 — 조별리그 + 토너먼트 케이스 (예: 4차 BDR 뉴비리그 3팀×2조).
+                              format=full_league_knockout 이지만 teams.groupName 박혀있는 케이스.
+                              기존 단일 LeagueStandings 분기 → 조별 GroupStandings 분기로 전환.
+                              조 수 기반 토너먼트 안내 동적 (2조=결승 / 4조+=기존 4강). */
+              <>
+                {/* 조별 순위표 (groupName 기준 분리) */}
+                <GroupStandings teams={groupTeams} />
+
+                {/* full_league_knockout 만 토너먼트 영역 */}
+                {format === "full_league_knockout" &&
+                  (hasKnockout ? (
+                    <section className="mt-8">
+                      <h3
+                        className="mb-4 text-lg font-bold sm:text-xl"
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        토너먼트 대진
+                      </h3>
+                      <BracketView rounds={rounds} tournamentId={tournamentId} />
+                    </section>
+                  ) : (
+                    <section className="mt-8">
+                      <div
+                        className="rounded-md border p-6 text-center"
+                        style={{
+                          borderColor: "var(--color-border)",
+                          backgroundColor: "var(--color-surface)",
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined mb-2 text-4xl"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          account_tree
+                        </span>
+                        <h3 className="mb-2 text-base font-bold">토너먼트 대진</h3>
+                        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                          {(() => {
+                            const groupCount = new Set(groupTeams.map((t) => t.groupName ?? "X")).size;
+                            return groupCount === 2
+                              ? "각 조 1위가 결승에서 만납니다."
+                              : "조별리그 종료 후 본선 대진이 확정됩니다.";
+                          })()}
+                        </p>
+                      </div>
+                    </section>
+                  ))}
+              </>
             ) : hasLeagueData ? (
               <>
                 {/* 풀리그: 리그 순위표 (4강 진출 조편성 기준) */}
