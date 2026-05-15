@@ -83,10 +83,11 @@ interface RunningScoreGridProps {
   // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
 
-// FIBA 양식 = 4 세트, 각 세트 = 40 row, A|B 두 컬럼
+// 2026-05-15 — FIBA 양식: 4 세트 × 30 row = 120점 (사용자 요청, 40×4=160 → 30×4=120).
+//   각 컬럼 row 수 감소 + cell flex stretch 로 좌측 Team A+B 와 정합.
 const SETS = 4;
-const ROWS_PER_SET = 40;
-const MAX_POSITION = SETS * ROWS_PER_SET; // 160
+const ROWS_PER_SET = 30;
+const MAX_POSITION = SETS * ROWS_PER_SET; // 120
 // Phase 18 (2026-05-13) — 한 세트 = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
 const SUB_COLS_PER_SET = 4;
 

@@ -1093,7 +1093,8 @@
   min-height: 0;
 }
 
-/* 점수 / 마킹 셀 공통 = 시안 L580~592 정합 */
+/* 점수 / 마킹 셀 공통 = 시안 L580~592 정합.
+   2026-05-15 — flex: 1 1 0 추가. column .flex-col 가용 공간 균등 분배 → 좌측 Team A+B 와 정합. */
 .ss-shell .ss-rs__cell {
   display: flex;
   align-items: center;
@@ -1105,6 +1106,7 @@
   border-bottom: 1px solid var(--pap-hair);
   position: relative;
   min-height: 0;
+  flex: 1 1 0;
   overflow: hidden;
   padding: 0;
 }
