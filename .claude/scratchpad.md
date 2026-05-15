@@ -402,3 +402,69 @@ src\app\(admin)\admin\partners\page.tsx:81:  const handleCreate = async (e: Reac
   5. `next/link` 기존 import 보존 (page.tsx / tournaments/page.tsx 모두 이미 있음). `AdminPageHeader` 신규 import 2건
   6. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
 - 미박제 갭 (의도): StatCard 4통계 카드 / QuickAction 4빠른 액션 / 좌 최근 활동·우 곧 시작 2컬럼 / AdminStatusTabs 6탭 / AdminFilterBar / AdminDataTable / D-day badge / progress bar / divisions 컬럼 / 설정 hub chevron / 비공개 pill / mock toggle. 별 PR 권장 (특히 StatCard + AdminStatusTabs 박제는 비즈 로직 + state 추가 필요 → 큰 작업).
+
+### Admin-7-B Phase 박제 — SetupHub (Sub-B1 만, EditWizard + Wizard1Step 보류) (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 `AdminTournamentSetupHub.jsx` 의 헤더(eyebrow + breadcrumbs + actions) + 상태/D-Day/공개 메타 라인(`admin-stat-pill[data-tone]`) 박제. **UI-1 (c3474db) SetupChecklist 호출 영역 + UI-5 (3d8d5bf) 공개 게이트 props 100% 보존**. **SetupChecklist.tsx 변경 0 = UI-1 + UI-5 영역 비즈 로직 + 클라이언트 핸들러 (`handlePublish` / `handleUnpublish` / `gate` / `canPublish` / `router.refresh` / 4분기) 완전 보존**.
+
+⚠️ **분할 진행 결정 (의뢰서 §한계 권장 그대로)**: 3 라우트 동시 박제 = 4,466 LOC + UI-1~5 보존 위험 → Sub-B1 (SetupHub 695 LOC) 만 박제. **Sub-B2 EditWizard ([id]/wizard 1,169 LOC) + Sub-B3 Wizard1Step (new/wizard 1,619 LOC) 보류 — 별 PR 권장**.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/[id]/page.tsx` | 인라인 헤더 60줄 (`<div className="mb-6"><div flex justify-between><div><Link mb-1>← 대회 목록</Link><h1>...</h1><div mt-1 flex gap-3>...</div></div>{site.isPublished && <Badge>공개 중</Badge>}</div></div>`) → `AdminPageHeader` (eyebrow + title + subtitle + breadcrumbs + actions) + 별도 상태 메타 라인 (`admin-stat-pill[data-tone]` 3건: 상태 / D-Day / 공개 중). `STATUS_TONE` 매핑 신규 (17 status 키 4 tone — Admin-7-A 패턴 동일). `Badge` + `TOURNAMENT_STATUS_COLOR` import 제거 (사용처 0). `AdminPageHeader` import 신규. `Link` + `Card` + `TOURNAMENT_STATUS_LABEL` + `TOURNAMENT_FORMAT_LABEL` import 보존 | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/SetupChecklist.tsx` | **변경 0** — UI-1 + UI-5 100% 보존 | 변경 없음 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- page.tsx 비즈 키워드 잔존 카운트 = 35건 (prisma.tournament.findUnique / getWebSession / tournamentAdminMember / calculateSetupProgress / SetupChecklist / tournamentSite / divisionRules / _count / notFound / redirect / getDDay / secondaryActions / isPublished / subdomain) — 변경 0
+- page.tsx `git diff` 비즈 라인 매치 = **`getDDay(tournament.startDate)` 호출 1건 (위치만 변경, 동일 호출 — Admin-7-A 패턴 동일하게 인라인 텍스트 → admin-stat-pill wrap 변경)**
+- super_admin 분기 / `tournament.organizerId === userId` / `tournamentAdminMember.findFirst { isActive: true }` / `calculateSetupProgress(id, tournamentInputs, relationInputs)` / `SetupChecklist progress={progress} tournamentId={id} isSitePublished={!!site?.isPublished} hasSite={!!site}` / 빠른 통계 4 Card / 빠른 액션 4 Link / 공개 사이트 외부 Link (site.subdomain) — 모두 변경 0
+- **SetupChecklist.tsx `git diff` LOC = 0** (UI-1 진행도 바 + 8 카드 grid + UI-5 공개 게이트 4분기 + `handlePublish` POST `/api/web/tournaments/[id]/site/publish` body `{publish: true}` + `handleUnpublish` body `{publish: false}` + `router.refresh()` + `setBusy` / `setError` / `gate.ok` / `gate.missing` 모두 100% 보존)
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**LOC 변화**:
+- page.tsx: +84 / -45 (헤더 60줄 → AdminPageHeader + 메타 라인 / STATUS_TONE 17 매핑 신규)
+- SetupChecklist.tsx: 0 / 0
+- 총 +84 / -45
+
+**갭 / 미박제 항목 (Sub-B1 범위 — UI-1 + UI-5 보존 우선)**:
+- 시안 `AdminTournamentSetupHub` 의 `AdminProgressBar` 상단 진행도 바 (시안 컴포넌트) → 운영 `SetupChecklist` 내부 progress bar 기존 패턴 (var(--color-elevated) 트랙 + var(--color-accent) fill 8px) 보존. **변경 0 = UI-1 100% 보존**. 별 PR 권장 (시안 패턴 정합 = `AdminProgressBar` 신규 컴포넌트 박제 필요)
+- 시안 `AdminChecklistCard` 8 카드 grid (2x4 desktop) → 운영 `ChecklistCard` 기존 패턴 (2 cols sm:grid-cols-2 + 좌측 상태 아이콘 + 본문 + chevron) 보존. 변경 0. 별 PR (grid 4 cols + 시안 card 패턴 정합)
+- 시안 하단 "공개 게이트" 카드 (좌: 공개 가드 + 미완료 카운트 / 우: 보조 액션 4 grid) → 운영 `PublishGate` 기존 4분기 (!hasSite / isSitePublished / gate.ok / 미통과) + 보조 액션 `secondaryActions` 4 Card 보존. 변경 0. 별 PR (시각 정합)
+- 시안 상단 progression mock select (D-day + 0/8 / 3/8 / 7/8 / 8/8 토글) — 시안 mock 전용 (운영 진입 X)
+- 시안 publish toast → 운영은 router.refresh() 후 페이지 재렌더 (toast 미박제) → 별 PR 권장
+- 빠른 통계 4 Card (`참가팀` / `최대팀` / `경기 수` / `참가비`) → 시안 미정의 영역 (운영 기능 유지) → 변경 0
+- mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+
+**Sub-B2/B3 보류 사유**:
+- Sub-B2 `[id]/wizard/page.tsx` (1,169 LOC) — UI-1.1~1.3 (71b0eaa InlineSeriesForm wiring) + UI-1.5 (e8adc1a ?step=2 anchor) + UI-3+4 (8478a24 bracketSettings 통합 + 사이트 영역 제거) 4 commit 보존 필요. 단일 PR 한계 + 위험도 높음. 별 PR 권장
+- Sub-B3 `new/wizard/page.tsx` (1,619 LOC) — UI-2 (60dd37e 1-step 압축) + Admin-3 박제 (d98ff79 QuickCreateForm 헤더 eyebrow + × 종료) 보존 필요. 가장 큰 파일 + Admin-3 박제 직접 영역. 별 PR 권장
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/tournament-admin/tournaments/{id}` 진입 (organizer 또는 super_admin 또는 활성 TAM 세션) — 헤더 eyebrow "ADMIN · 대회 운영" + breadcrumbs (ADMIN › 대회 운영자 도구 › 내 대회 › {대회명}) + 우측 actions "← 대회 목록" Link (arrow_back 아이콘) 노출
+  2. subtitle "2026.MM.DD ~ 2026.MM.DD · 토너먼트 단판" (startDate · endDate · format) 표시
+  3. 상태 메타 라인 — admin-stat-pill 3건: 상태(준비중=mute / 접수중=info / 진행중=ok / 종료=mute) + D-Day(mute) + (공개 시) "공개 중"(ok + public 아이콘)
+  4. 빠른 통계 4 Card (참가팀 / 최대팀 / 경기 수 / 참가비) — 기존 동일
+  5. **셋업 체크리스트 hub (UI-1) + 공개 게이트 (UI-5)** — `SetupChecklist` 컴포넌트 100% 기존 동일 (progress bar / 8 카드 / 공개 버튼 4분기)
+  6. 빠른 액션 (참가팀 관리 / 관리자 / 기록원) 3 Card + (공개 시) 공개 사이트 외부 Link Card — 기존 동일
+- **정상 동작**: 권한 가드(super_admin / organizer / TAM) / SetupChecklist 8 카드 link 동작 / 공개 버튼 POST `/api/web/tournaments/{id}/site/publish` / router.refresh / 빠른 액션 Link / 공개 사이트 외부 도메인 (subdomain.mybdr.kr) Link — 100% 기존 동일
+- **주의할 입력**:
+  - tournament.status: STATUS_TONE 17종 외 → "mute" 폴백 + raw status 표시
+  - tournament.startDate null → subtitle 의 dateRangeText 생략 + D-Day pill 자체 렌더 X
+  - tournament.endDate null → " ~ {endDate}" 생략 (기존 동일)
+  - tournament.format null → "토너먼트" 폴백 (기존 동일)
+  - site (tournamentSite[0]) null → `site?.isPublished` false → "공개 중" pill + 외부 Link Card 자체 렌더 X
+  - super_admin / organizer / TAM 외 사용자 → notFound() (기존 동일)
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **UI-1 SetupChecklist 호출 props 100% 보존** — `progress={progress}` / `tournamentId={id}` / `isSitePublished={!!site?.isPublished}` / `hasSite={!!site}` 4 props 모두 동일 (위치 동일)
+  2. **UI-5 SetupChecklist.tsx 변경 0** — `git diff` LOC = 0 검증. `handlePublish` / `handleUnpublish` / fetch POST 2건 / `body: JSON.stringify({publish: true/false})` / `router.refresh()` / `setBusy` / `setError` / 4분기 (!hasSite → 안내 / isSitePublished → 비공개 전환 / gate.ok → 공개 버튼 / 미통과 → 잠금 + 미충족 항목) 모두 100% 보존
+  3. **page.tsx 비즈 로직 변경 0** — Prisma `tournament.findUnique` include 7건 (_count / tournamentSite / divisionRules) / 권한 가드 (super_admin OR organizer OR TAM `isActive: true`) / `calculateSetupProgress` 호출 + 입력 객체 14 필드 / `getDDay` 함수 / `secondaryActions` 3 배열 / 빠른 통계 4 Card 데이터 / 빈 상태 분기 / 외부 Link (subdomain.mybdr.kr) — 모두 변경 0. 변경 영역 = JSX wrap only
+  4. `STATUS_TONE` 신규 매핑 (17 status 키 4 tone) — Admin-7-A `tournaments/page.tsx` 매핑과 동일 카테고리 분류 (준비중=mute / 접수중=info / 진행중=ok / 종료=mute). 폴백 "mute" + raw status 표시 (기존 패턴)
+  5. `Badge` 컴포넌트 import 제거 (사용처 0) + `TOURNAMENT_STATUS_COLOR` import 제거 (사용처 0) — 클린 정리. `Link` + `Card` + `TOURNAMENT_STATUS_LABEL` + `TOURNAMENT_FORMAT_LABEL` import 보존 (사용처 존재)
+  6. `AdminPageHeader` 신규 import — server component 정합 (Admin-2 박제 후 22+ 호출처 동일 패턴). breadcrumbs `onClick` 미사용 (server component는 onClick props 전달 불가 → 단순 라벨 표시 = Admin-7-A 동일 패턴)
+  7. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
+- 미박제 갭 (의도): AdminProgressBar 시안 패턴 / AdminChecklistCard grid 4 cols / 공개 게이트 2 카드 grid (좌 공개 / 우 보조 액션) / publish toast / progression mock select. 별 PR 권장
+- **Sub-B2 EditWizard + Sub-B3 Wizard1Step 보류 — 별 PR 권장** (의뢰서 §한계 권장 그대로). 사유: 단일 PR LOC 한계 + UI-1.1~1.3 + UI-1.5 + UI-2 + UI-3+4 + Admin-3 박제 5 commit 보존 위험. 분할 PR 안전
