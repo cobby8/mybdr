@@ -2,6 +2,24 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] Flutter 앱 "Token parameter required" — editions/ 라우트 apiToken 자동 발급 누락
+- **분류**: 서비스 우회 / 자동 생성 필드 누락
+- **발견자**: pm (사용자 보고 "4차 뉴비리그 Flutter 앱 접속 안 됨" + 테스터 에러 문구 "token parameter required")
+- **증상**: 4차 뉴비리그(`id=443f23f8-0000-41d4-bcbd-1843f7e16e1f`)의 `tournament.api_token` = NULL → Flutter 앱이 `/api/v1/tournaments/connect?token=XXX` 호출 시 토큰 매칭 불가 → "Token parameter required" (400)
+- **근본 원인**:
+  - `createTournament()` 서비스 (src/lib/services/tournament.ts L431) = `randomBytes(32).toString("hex")` 자동 발급
+  - 그러나 `src/app/api/web/series/[id]/editions/route.ts` (시리즈 회차 추가) = `tx.tournament.create()` **직접 호출**로 서비스 우회 → `apiToken` 박제 누락
+  - 4차 뉴비리그는 시리즈 회차 추가 경로로 생성됨 → NULL
+- **fix**:
+  - **즉시**: scripts/_temp/issue-newbie4-apitoken.ts (1행 UPDATE NULL → 64자 hex, 사전+사후 SELECT, 본 사고 후 삭제)
+  - **재발 방지**: `generateApiToken()` 헬퍼 분리 (tournament.ts) + `editions/route.ts` 두 path (legacy + wizard) 모두 박제
+- **재발 방지 룰**:
+  - **`prisma.tournament.create()` 직접 호출 금지** — 반드시 `createTournament()` 서비스 또는 `generateApiToken()` 헬퍼 경유
+  - **자동 생성 필드 (apiToken / shortCode / UUID 등)** = 서비스 함수 우회 시 단일 source 헬퍼 필수
+  - **다른 직접 호출 경로 (감시 대상)**: `prisma/seed-tournament.ts` / `tests/e2e/wizard/fixtures.ts` / `scripts/seed-test-tournament.ts` — 개발/테스트용이라 영향 0 이지만 일관성 차원에서 후속 적용 검토
+- **검증**: tsc 0 / vitest createTournament 회귀 4/4
+- **참조횟수**: 0
+
 ### [2026-05-15] wizard 저장 status enum mismatch — Zod enum 5종 vs 운영 DB legacy 17종 정합성 결렬
 - **분류**: validation / 운영 DB ground truth 정합
 - **발견자**: pm (사용자 보고 "저장 시 오류 발생" + 422 "Invalid option: expected one of 'draft'|'registration_open'|'in_progress'|'completed'|'cancelled'")
