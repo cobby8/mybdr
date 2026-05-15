@@ -49,7 +49,15 @@ const PlayerSchema = z.object({
 });
 
 const PostBodySchema = z.object({
-  players: z.array(PlayerSchema).min(1, "선수 1명 이상").max(30, "선수 최대 30명"),
+  players: z
+    .array(PlayerSchema)
+    .min(1, "선수 1명 이상")
+    .max(30, "선수 최대 30명")
+    // 2026-05-15 — 등번호 array unique 검증 (DB @@unique([tournamentTeamId, jerseyNumber]) 위반 → 500 회귀 영구 차단)
+    .refine(
+      (arr) => new Set(arr.map((p) => p.jersey_number)).size === arr.length,
+      { message: "등번호 중복 — 한 팀 안에서 등번호는 unique 해야 합니다." },
+    ),
 });
 
 // 2026-05-12 — 명단 수정 (PUT) body 스키마 — POST 와 동일 + 코치 인증 정보 추가.
@@ -59,7 +67,15 @@ const PutBodySchema = z.object({
     .string()
     .trim()
     .regex(/^(010-\d{4}-\d{4}|01\d{9})$/, "휴대폰 형식 (010-XXXX-XXXX)"),
-  players: z.array(PlayerSchema).min(1, "선수 1명 이상").max(30, "선수 최대 30명"),
+  players: z
+    .array(PlayerSchema)
+    .min(1, "선수 1명 이상")
+    .max(30, "선수 최대 30명")
+    // 2026-05-15 — 등번호 array unique 검증 (DB @@unique([tournamentTeamId, jerseyNumber]) 위반 → 500 회귀 영구 차단)
+    .refine(
+      (arr) => new Set(arr.map((p) => p.jersey_number)).size === arr.length,
+      { message: "등번호 중복 — 한 팀 안에서 등번호는 unique 해야 합니다." },
+    ),
 });
 
 // 전화번호 정규화 — '010-XXXX-XXXX' 표준으로 변환 (DB 박제 형식 + 입력값 매칭 시 사용)
@@ -213,6 +229,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   // 5) 트랜잭션 — Player INSERT + TournamentTeam 마킹 (applied_via='coach_token' 일회용 가드)
+  // 2026-05-15 — P2002 명시 catch 추가 (PUT 과 동일 — defense in depth)
   const result = await prisma.$transaction(async (tx) => {
     // 이중 제출 guard — 트랜잭션 내부에서 applied_via 재검증
     const cur = await tx.tournamentTeam.findUnique({
@@ -252,14 +269,24 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     });
 
     return { inserted: players.length };
-  }).catch((e) => {
-    if (e?.message === "CONCURRENT_SUBMIT") {
+  }).catch((e: unknown) => {
+    if ((e as { message?: string } | null)?.message === "CONCURRENT_SUBMIT") {
       return { error: "CONCURRENT_SUBMIT" as const };
+    }
+    if ((e as { code?: string } | null)?.code === "P2002") {
+      return { error: "JERSEY_DUPLICATE" as const };
     }
     throw e;
   });
 
   if ("error" in result) {
+    if (result.error === "JERSEY_DUPLICATE") {
+      return apiError(
+        "등번호 중복 — 같은 팀 안에서 등번호는 unique 해야 합니다.",
+        422,
+        "JERSEY_DUPLICATE",
+      );
+    }
     return apiError("동시 제출 충돌 — 이미 명단이 제출되었습니다.", 409, "TOKEN_CONSUMED");
   }
 
@@ -378,29 +405,43 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
 
   // 5) 트랜잭션 — 기존 명단 DELETE + 새 명단 INSERT
-  await prisma.$transaction(async (tx) => {
-    await tx.tournamentTeamPlayer.deleteMany({
-      where: { tournamentTeamId: tt.id },
+  // 2026-05-15 — P2002 (unique 위반) 명시 catch — zod refine 통과 후 외부 race 등 외 케이스에서도
+  //   500 회귀 차단. 1차 가드 = 클라이언트 + 2차 = zod refine + 3차 = 본 catch (defense in depth).
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.tournamentTeamPlayer.deleteMany({
+        where: { tournamentTeamId: tt.id },
+      });
+      await tx.tournamentTeamPlayer.createMany({
+        data: players.map((p) => ({
+          tournamentTeamId: tt.id,
+          player_name: p.player_name,
+          birth_date: p.birth_date,
+          jerseyNumber: p.jersey_number,
+          position: p.position ?? null,
+          school_name: p.school_name ?? null,
+          grade: p.grade ?? null,
+          parent_name: p.parent_name ?? null,
+          parent_phone: p.parent_phone,
+          division_code: tt.category,
+          is_active: true,
+          claim_status: "pending",
+          auto_registered: false,
+          invited_at: now,
+        })),
+      });
     });
-    await tx.tournamentTeamPlayer.createMany({
-      data: players.map((p) => ({
-        tournamentTeamId: tt.id,
-        player_name: p.player_name,
-        birth_date: p.birth_date,
-        jerseyNumber: p.jersey_number,
-        position: p.position ?? null,
-        school_name: p.school_name ?? null,
-        grade: p.grade ?? null,
-        parent_name: p.parent_name ?? null,
-        parent_phone: p.parent_phone,
-        division_code: tt.category,
-        is_active: true,
-        claim_status: "pending",
-        auto_registered: false,
-        invited_at: now,
-      })),
-    });
-  });
+  } catch (e: unknown) {
+    const code = (e as { code?: string } | null)?.code;
+    if (code === "P2002") {
+      return apiError(
+        "등번호 중복 — 같은 팀 안에서 등번호는 unique 해야 합니다.",
+        422,
+        "JERSEY_DUPLICATE",
+      );
+    }
+    throw e;
+  }
 
   return apiSuccess({ ok: true, updatedCount: players.length });
 }

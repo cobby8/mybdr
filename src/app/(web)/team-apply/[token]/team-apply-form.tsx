@@ -166,6 +166,21 @@ export function TeamApplyForm({
       }
     }
 
+    // 2026-05-15 — 등번호 중복 사전 차단 (DB unique 위반 시 500 응답 회귀 영구 차단).
+    //   schema TournamentTeamPlayer @@unique([tournamentTeamId, jerseyNumber]) — 같은 팀 내
+    //   등번호 중복 불가. 이전엔 클라이언트/서버 가드 0건 → DB createMany P2002 → throw → 500.
+    //   첫 번째 충돌 row 만 표시 (사용자가 한 번에 1건씩 fix 하도록 UX 단순화).
+    const seenJersey = new Map<number, number>(); // 등번호 → 첫 등장 row index
+    for (let i = 0; i < rows.length; i++) {
+      const num = Number(rows[i].jersey_number);
+      if (seenJersey.has(num)) {
+        const firstIdx = seenJersey.get(num)!;
+        setError(`${i + 1}번 선수: 등번호 ${num}이(가) ${firstIdx + 1}번 선수와 중복됩니다. 한 팀 안에서 등번호는 unique 해야 합니다.`);
+        return;
+      }
+      seenJersey.set(num, i);
+    }
+
     setSubmitting(true);
     try {
       const players = rows.map((r) => {
