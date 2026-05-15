@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-15 (마법사 Phase 1+5 A+B+C 완료 / decisions+lessons 갱신 / wizard-regression-checklist.md 신규)
+> 최종 갱신: 2026-05-15 (코치 명단 제출 500 → 3중 가드 영구 차단 / errors.md 45항목)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -7,7 +7,7 @@
 | architecture.md | 53 | 2026-05-15 | 이전 51건 + **(1) 마법사 통합 wizard 인프라** (Phase 1 lib 3 파일 + Phase 5 API + Phase 5 C UNIQUE 인덱스 운영 적용) + **(2) Phase 23 PR5-A cross-check audit endpoint** (tournament_match_audits 재사용 / source="web-score-sheet" / context="phase23-cross-check:<warning_type>") |
 | conventions.md | 49 | 2026-05-15 | 이전 47건 + **(1) 운영 DB UNIQUE 인덱스 추가 7단계 표준** (검증 0/0 → schema diff → 사용자 결재 → raw SQL via `$executeRawUnsafe` → 사후 검증 → 임시 스크립트 즉시 삭제 / `prisma db push --accept-data-loss` 회피) + **(2) sessionStorage 헬퍼 표준 패턴** (SSR 안전 + BigInt replacer + silent fail / wizard-draft.ts 박제) |
 | decisions.md | 113 | 2026-05-15 | 이전 112건 + **마법사 통합 (단체→시리즈→대회→회차) 기존 wizard 확장 + 4 핵심 결정** (Hybrid 구조 / 이전 회차 복제 우선 / Association 별도 분기 / 신규 모델 0 — DB schema 변경 1 = unique 인덱스만) |
-| errors.md | 44 | 2026-05-13 | LIVE API paper 매치 OT 변환 = clock=0 STL 보정 충돌 (FIBA Phase 22) |
+| errors.md | 45 | 2026-05-15 | 이전 44건 + **코치 명단 제출 500 = `TournamentTeamPlayer` 등번호 array unique 가드 3중 누락** (DB @@unique 만 / client+zod+P2002 catch 모두 0 → DB throw → 500). fix = 3중 방어선 (client seenJersey Map + zod refine 422 + P2002 try/catch 422 JERSEY_DUPLICATE). 재발 방지 = DB @@unique 복합키 = zod array refine 동시 박제 의무 / createMany 호출은 P2002 try/catch 의무 / 클라이언트 array 폼 = required + array-level unique 양면 가드 |
 | lessons.md | 46 | 2026-05-15 | 이전 44건 + **(1) 운영 DB UNIQUE 추가 = --accept-data-loss 회피 + raw CREATE UNIQUE INDEX 사용** (Phase 5 C / 96ms / 검증 0/0) + **(2) 동시 작업 (Claude Code + Desktop) git index.lock 충돌 + commit 누적 빠름** (작업 영역 분리 / git add specific files 의무) |
 | wizard-regression-checklist.md | (8 항목) | 2026-05-15 | 신규 — 통합 마법사 회귀 체크리스트 8 항목 (UI 3 + 백엔드/DB 5) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |
@@ -15,6 +15,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-15] errors: **코치 명단 제출 500 = `TournamentTeamPlayer` 등번호 array unique 가드 3중 누락** (Phase 1 유소년 강남구협회장배 운영 사용자 보고). schema `@@unique([tournamentTeamId, jerseyNumber])` 만 있고 (a) `team-apply-form.tsx` 클라이언트 가드 4건 (required) 만 / 등번호 array unique 0 (b) `route.ts` PostBody/PutBody zod `.array(...).min/.max` 만 / `.refine` 0 (c) createMany P2002 try/catch 0 → DB throw → Next.js 500 + apiError 메시지 없음. fix (3중 방어선) = L1 클라이언트 `seenJersey` Map 첫 등장 index 추적 → 명확 메시지 + return / L2 서버 zod `.refine` array unique → 422 / L3 P2002 try/catch → 422 `JERSEY_DUPLICATE`. 재발 방지 = DB @@unique = zod array refine 동시 박제 의무 / createMany 호출 = P2002 try/catch 의무 / 클라이언트 array 폼 = row-level required + array-level unique 양면 가드 / 운영 사용자 보고 500 진단 시퀀스 (errors.md grep → DB↔zod↔client 3면 점검 → 운영 DB SELECT → catch 보강).
 - [05-15] decisions+lessons+wizard: **대회 관리자 통합 마법사 (단체→시리즈→대회→회차) Phase 1+5 A+B+C 완료** — 기존 wizard 확장 / 4 핵심 결정 박제 / GET /api/web/series/[id]/last-edition 신규 + POST .../editions 확장 + retry 보강 / @@unique([series_id, edition_number]) 운영 적용 (96ms, raw CREATE UNIQUE INDEX via prisma client `$executeRawUnsafe`, --accept-data-loss 회피) / wizard-regression-checklist.md 신규 (8 항목 — UI 3 BLOCKED + 백엔드/DB 5 즉시) / Phase 2/3/4/6 = D1~D4 시안 의존 BLOCKED. lessons: 운영 DB UNIQUE 추가 안전 절차 + 동시 작업 (Claude Code + Desktop) git 충돌 관리.
 - [05-13] errors+lessons: **FIBA Phase 22 = LIVE API paper 매치 OT 점수 0 변환 fix + 잘못 백필 회수 lesson** — 매치 218 OT 점수가 LIVE 응답에서 0/0 으로 변환 + Q3 가 Q3+Q4 합산값 흡수. 진단 = DB 실측 (ot=[3]/[2] 정확) ≠ API 응답 (ot=[0]/[0] 잘못) ≠ PBP 실측 (Q5=3/2 정확) 3 면 분기. 원인 = route.ts L823 의 "PBP 가 진실 원천" 룰이 paper-fix PBP 의 `game_clock_seconds=0` 특성과 충돌 (STL 보정 로직의 "쿼터 마지막 이벤트 = 가장 작은 clock" 판정이 모든 clock=0 케이스에서 "첫 이벤트"로 잘못 동작 → delta 왜곡). fix (commit `63c0633`) = `getRecordingMode` 분기 / paper = PBP 합산 직후 DB.quarterScores 덮어쓰기 + STL 보정 skip. 운영 검증 = OT1 3/2 정확 표시. 동시 turn 의 잘못된 T1 백필 (LIVE UI 만 보고 결재) → 즉시 롤백 회수 = lesson "백필 SQL 전 DB+API+PBP 3 면 동시 실측 의무" 박제. Flutter 매치 영향 0 / Phase 21 (commit `171de67`) 박스스코어 슈팅 6 컬럼 hide 와 동일 PR 머지.
 - [05-13] errors: **코치 자가수정 페이지 = 최초 1회 setup 분기 누락 + 가드 의도 정반대** — `tournament_team.manager_phone` NULL 팀(GNBA 8팀 89%) 코치가 ErrorView 차단으로 자가수정 페이지 진입 불가. 사용자 의도 vs 실제 코드 정반대 (3중 가드 모두 "이미 정보 있어야 통과"만 검증 / setup 분기 어디에도 없음). fix = 4-분기 인증 로직 (둘다있음 매칭 / 이름만 매칭+phone SET / 전화만 매칭+name SET / 둘다없음 무조건통과+둘다 SET) POST /players + PUT /[token] 양쪽 동일 적용. page.tsx ErrorView 가드 제거 + edit-flow.tsx 헤더/버튼 텍스트 hasCoachInfo 분기. 재발 방지 = (a) 시드 스크립트 manager_* 하드코딩 NULL 시 자가수정 차단 부작용 주석 필수 (b) 인증 가드 작성 시 운영자 사전등록 + 코치 자가 흐름 양면 케이스 사전 점검 (c) GNBA 처럼 시드+자가수정 병행 시 시드에서 manager_phone 수집을 운영자에게 요청. commit `7689e3f` (4 files, +95 -24).

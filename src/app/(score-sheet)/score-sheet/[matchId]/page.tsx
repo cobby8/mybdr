@@ -28,9 +28,11 @@ import type {
 // Phase 23 (2026-05-14) — 매치 재진입 시 자동 로드용 PBP 역변환 헬퍼.
 //   PR1 (commit b7c44d8) 에서 박제된 순수 함수 — `play_by_plays` SELECT 결과를
 //   RunningScoreState / FoulsState 로 변환해 ScoreSheetForm 의 useState 초기값으로 전달.
+// Phase 23 PR6 (2026-05-15) — prismaToPaperPBPRow 명시 매핑 추가 import.
+//   기존 `as unknown as PaperPBPRow[]` 캐스팅 → `.map(prismaToPaperPBPRow)` 변환.
 import {
   pbpToScoreMarks,
-  type PaperPBPRow,
+  prismaToPaperPBPRow,
 } from "@/lib/score-sheet/running-score-helpers";
 import { pbpToFouls } from "@/lib/score-sheet/foul-helpers";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
@@ -311,6 +313,11 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     match_code: match.match_code,
     scheduledAtLabel,
     courtLabel: placeLabel,
+    // Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드.
+    //   사용자 결재 Q3 = 차단 ❌ / UI 경고 모달 또는 배너 + audit 박제 (변경 허용).
+    //   ScoreSheetForm 이 이 값으로 노란 배너 표시 + audit endpoint 호출 (진입/재제출 양쪽).
+    //   require-score-sheet-access 가 이미 match.status SELECT 함 (L43/L110/L199) → 추가 쿼리 0.
+    status: match.status,
   };
 
   const tournamentProps = {
@@ -389,9 +396,11 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     });
     pbpCount = pbpRows.length;
 
-    // 헬퍼 입력 타입 매핑 — Prisma 반환 타입 ≈ PaperPBPRow (호환).
-    // 명시적 캐스팅으로 TS strict 통과 (action_subtype 등 일부 컬럼은 헬퍼 미사용 — 안전).
-    const typedRows = pbpRows as unknown as PaperPBPRow[];
+    // Phase 23 PR6 (2026-05-15) — reviewer WARN 1건 fix:
+    //   기존 `as unknown as PaperPBPRow[]` 캐스팅 → prismaToPaperPBPRow 명시 매핑.
+    //   왜: TS strict 우회 (캐스팅) 제거 + 타입 안전 보장 (Prisma schema 변경 시 컴파일 에러로 즉시 감지).
+    //   함수 export 단일 source = running-score-helpers.ts (PaperPBPRow type 박제 위치).
+    const typedRows = pbpRows.map(prismaToPaperPBPRow);
 
     initialRunningScore = pbpToScoreMarks(
       typedRows,

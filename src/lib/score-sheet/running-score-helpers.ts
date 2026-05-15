@@ -332,6 +332,63 @@ export type PaperPBPRow = {
   description: string | null;
 };
 
+/**
+ * Prisma `play_by_plays.findMany` 반환 row → PaperPBPRow 명시 매핑.
+ *
+ * Phase 23 PR6 (2026-05-15) — reviewer WARN 1건 fix:
+ *   기존 page.tsx 의 `pbpRows as unknown as PaperPBPRow[]` 캐스팅 (TS strict 우회) 제거 목적.
+ *   본 헬퍼로 명시 변환 → 타입 안전 + nullable 의도 명확화.
+ *
+ * 왜 (이유):
+ *   Prisma 가 `play_by_plays.findMany` 의 select 필드 반환 시 자체 타입 추론을 제공하지만,
+ *   PaperPBPRow 는 score-sheet 영역 전용 좁은 type. 두 type 이 호환 (structural typing) 이어도
+ *   `as unknown as` 우회는 reviewer 점검 차원에서 함정. 명시 매핑 함수로 의도 박제.
+ *
+ * 방법 (어떻게):
+ *   - 입력: Prisma 반환 row (select 11 필드)
+ *   - 출력: PaperPBPRow (11 필드 그대로)
+ *   - nullable 보존 (Prisma 반환 시 NULL 컬럼은 그대로 null — fallback 0 / 빈 문자열 변환 ❌)
+ *   - bigint / number 변환 0 (PaperPBPRow 가 `bigint | number` 양쪽 허용)
+ *
+ * 안전성:
+ *   - 입력 필드가 누락되어도 (Prisma select 옵션 변경) TS 가 컴파일 시점에 즉시 차단.
+ *   - vitest 회귀 가드 (pbp-mapping.test.ts) 로 nullable / NULL / 정상 케이스 검증.
+ */
+export type PrismaPlayByPlayRow = {
+  id: bigint | number;
+  quarter: number | null;
+  action_type: string | null;
+  action_subtype: string | null;
+  is_made: boolean | null;
+  points_scored: number | null;
+  home_score_at_time: number | null;
+  away_score_at_time: number | null;
+  tournament_team_id: bigint | number | null;
+  tournament_team_player_id: bigint | number | null;
+  description: string | null;
+};
+
+export function prismaToPaperPBPRow(
+  row: PrismaPlayByPlayRow,
+): PaperPBPRow {
+  // 명시 매핑 — 11 필드 그대로 변환 (nullable 보존).
+  //   추후 PaperPBPRow / PrismaPlayByPlayRow 한쪽 schema 가 변경되면 본 함수가 컴파일 에러 발생.
+  //   = TS strict 가드 회복 (캐스팅 우회 시 누락 / 함정).
+  return {
+    id: row.id,
+    quarter: row.quarter,
+    action_type: row.action_type,
+    action_subtype: row.action_subtype,
+    is_made: row.is_made,
+    points_scored: row.points_scored,
+    home_score_at_time: row.home_score_at_time,
+    away_score_at_time: row.away_score_at_time,
+    tournament_team_id: row.tournament_team_id,
+    tournament_team_player_id: row.tournament_team_player_id,
+    description: row.description,
+  };
+}
+
 // PaperPBPRow 의 team_id 가 home 인지 away 인지 판정 (mixed 매치 안전망)
 //
 // 룰:

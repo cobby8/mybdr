@@ -38,16 +38,23 @@ import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
 import type { Prisma } from "@prisma/client";
 
 // ============================================================================
-// Zod schema — warning_type 3종 (가이드 §Body 스키마 답습)
+// Zod schema — warning_type 5종 (가이드 §Body 스키마 답습)
 // ============================================================================
 //   - quarter_scores_mismatch: quarter_scores DB JSON ≠ PBP 합산 결과
 //   - draft_dom_conflict     : localStorage draft.savedAt > match.updatedAt 인데 DB 에 박제값
 //   - pbp_zero_with_quarter  : PBP 0건이지만 quarter_scores 만 있음 (구버전 매치)
+//   - completed_edit_entry   : Phase 23 PR4 — status="completed" 매치 score-sheet 진입 시 박제
+//   - completed_edit_resubmit: Phase 23 PR4 — status="completed" 매치 score-sheet 재제출 시 박제
+//
+// Phase 23 PR4 (2026-05-15) — 사용자 결재 Q3 = 차단 ❌ / UI 경고 + audit 박제.
+//   운영자가 완료된 매치도 수정/재제출 가능. 본 endpoint 가 진입/재제출 양쪽 추적.
 const crossCheckAuditBodySchema = z.object({
   warning_type: z.enum([
     "quarter_scores_mismatch",
     "draft_dom_conflict",
     "pbp_zero_with_quarter",
+    "completed_edit_entry",
+    "completed_edit_resubmit",
   ]),
   // 상세 정보 (mismatch 의 구체적 값) — 모두 optional (클라이언트가 부분 박제 가능)
   details: z

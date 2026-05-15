@@ -2,6 +2,24 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] 코치 명단 제출 500 = `TournamentTeamPlayer` 등번호 array unique 가드 3중 누락 (Phase 1 유소년 도메인)
+- **분류**: DB unique 위반 → 500 / 클라이언트·서버 zod 가드 부재 / 운영 사용자 보고
+- **발견자**: pm (운영 mybdr.kr 강남구협회장배 유소년부 명단 수정 사용자 보고 — 2026-05-15)
+- **증상**: 운영 코치 자가수정 페이지(`/team-apply/[token]/edit`)에서 12번째 row 김보민 + 등번호 1 입력 후 "명단 제출" → "서버 오류 (500)" 빨간 박스. PUT `/api/web/team-apply/[token]` 호출 결과 500. 화면 캡처상 "12번 선수" = `index+1` 라벨 (row 번호 ≠ 등번호) 라서 사용자/PM 모두 즉시 원인 특정 어려움.
+- **근본 원인**: schema `TournamentTeamPlayer @@unique([tournamentTeamId, jerseyNumber])` 제약은 있지만 (a) `team-apply-form.tsx` submit() 클라이언트 가드 4건 (이름/생년월일/등번호/부모연락처 required) 만 / **등번호 array unique 0**, (b) `route.ts` `PostBodySchema` / `PutBodySchema` 의 `z.array(PlayerSchema)` 도 `.min/.max` 만 있고 **`.refine` array unique 0**, (c) 트랜잭션 createMany 의 P2002 try/catch 0 → DB 가 P2002 throw → Next.js 500 응답 + apiError 메시지 없음 (Bare throw). 같은 입력값(예: row[0] 등번호 1 + row[11] 등번호 1) 시 즉시 재현.
+- **fix (commit 대기)**: 3중 방어선 (defense in depth):
+  - **L1 클라이언트** (`team-apply-form.tsx` submit L168~) — `seenJersey` Map 으로 첫 등장 row index 추적 → 두 번째 등장 시 `${i+1}번 선수: 등번호 N이(가) ${firstIdx+1}번 선수와 중복됩니다.` 명확 메시지 + return
+  - **L2 서버 zod** (`route.ts` PostBodySchema/PutBodySchema) — `players: z.array(PlayerSchema).min(1).max(30).refine((arr) => new Set(arr.map((p) => p.jersey_number)).size === arr.length, { message: "등번호 중복 — ..." })` → 422 VALIDATION_ERROR
+  - **L3 P2002 catch** (POST/PUT 트랜잭션) — `catch (e: unknown) { if ((e as { code?: string }).code === "P2002") return apiError("등번호 중복 — ...", 422, "JERSEY_DUPLICATE"); throw e; }` → 외부 race / 클라이언트 우회 모두 422 응답 (500 절대 회귀 X)
+- **재발 방지 룰**:
+  (a) **DB `@@unique` 복합키 = zod array `.refine` 동시 박제 의무** — schema 무중단 변경 시 동시 진입 룰. unique 제약은 마지막 방어선이지 1차 방어선 아님. createMany 호출 전 array 자체에 unique 검증 필수
+  (b) **createMany / createManyAndReturn 호출은 P2002 try/catch 의무** — defense in depth 3단계. zod 통과 후 외부 race (동시 제출) 또는 클라이언트 우회 시에도 500 회귀 차단
+  (c) **클라이언트 array 입력 폼은 row-level required + array-level unique 양면 가드** — required 만으로는 unique 위반 (등번호/email/userId 등) 차단 불가
+  (d) **운영 사용자 보고 500 진단 시퀀스** — (i) errors.md 갱신 항목 grep (전형적 패턴 발견 가능) (ii) DB 제약 ↔ zod ↔ client 가드 3면 점검 (iii) 운영 DB SELECT 현 상태 (병행 진행 중 정상 데이터 vs 충돌 데이터 식별) (iv) catch 보강 + 메시지 명확화
+- **참조**: `src/app/api/web/team-apply/[token]/route.ts:51-72,215-280,381-450`, `src/app/(web)/team-apply/[token]/team-apply-form.tsx:148-185`
+- **참조횟수**: 0
+
+
 ### [2026-05-14] 광범위 catch 블록이 4xx/5xx 응답을 "네트워크 오류"로 뭉뚱그려 진단 불가 (team-apply 유소년 명단 제출)
 - **분류**: UX 진단 함정 / 에러 메시지 정밀화 부재
 - **발견자**: pm + debugger (운영 mybdr.kr 유소년 명단 제출 사용자 보고)
