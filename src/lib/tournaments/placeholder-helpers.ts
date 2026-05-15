@@ -18,24 +18,36 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────
-// SlotKind 6종 — generator 별 사용처
+// SlotKind 7종 — generator 별 사용처
 // ─────────────────────────────────────────────────────────────────────────
 //
-// | kind          | 사용 generator                                | 라벨 예시         |
-// |---------------|----------------------------------------------|------------------|
-// | group_rank    | league_advancement / group_stage_with_ranking | "A조 1위"        |
-// |               | (조별 풀리그 종료 → 순위전 매핑)              |                  |
-// | match_winner  | single_elim / dual / group_stage_knockout    | "8강 1경기 승자"  |
-// | match_loser   | single_elim (3·4위전)                        | "준결승 1경기 패자"|
-// | round_seed    | single_elim 1R (시드 배정)                    | "R1 시드 1"      |
-// | tie_rank      | group_stage_with_ranking 동순위전             | "1위 동순위전"    |
-// | seed_number   | nba_seed_knockout (NBA 표준 시드)             | "1번 시드"        |
-//                 (2026-05-16 PR-G5.5-NBA-seed 추가)
-//                 기존 round_seed ("R1 시드 5") = 라운드별 시드 인덱스 의미.
-//                 신규 seed_number ("1번 시드") = 절대 시드 번호 (NBA 양분 트리 페어링용).
-//                 ⚠️ assignTeamsToKnockout (settings.homeSlotLabel "N위" 정규식 파싱) 와
-//                    의미 충돌 주의 — NBA 모드는 skeleton 단계 우회 (옵션 B 분기) 결정됨.
-export type SlotKind = "group_rank" | "match_winner" | "match_loser" | "round_seed" | "tie_rank" | "seed_number";
+// | kind                 | 사용 generator                                | 라벨 예시         |
+// |----------------------|----------------------------------------------|------------------|
+// | group_rank           | league_advancement / group_stage_with_ranking | "A조 1위"        |
+// |                      | dual (8강 home/away — 조 1·2위)               |                  |
+// | match_winner         | single_elim / dual / group_stage_knockout    | "8강 1경기 승자"  |
+// | match_loser          | single_elim (3·4위전)                        | "준결승 1경기 패자"|
+// | round_seed           | single_elim 1R (시드 배정)                    | "R1 시드 1"      |
+// | tie_rank             | group_stage_with_ranking 동순위전             | "1위 동순위전"    |
+// | seed_number          | nba_seed_knockout (NBA 표준 시드)             | "1번 시드"        |
+//                        (2026-05-16 PR-G5.5-NBA-seed 추가)
+//                        기존 round_seed ("R1 시드 5") = 라운드별 시드 인덱스 의미.
+//                        신규 seed_number ("1번 시드") = 절대 시드 번호 (NBA 양분 트리 페어링용).
+//                        ⚠️ assignTeamsToKnockout (settings.homeSlotLabel "N위" 정규식 파싱) 와
+//                           의미 충돌 주의 — NBA 모드는 skeleton 단계 우회 (옵션 B 분기) 결정됨.
+// | group_match_result   | dual (조 G3 승자전 / G4 패자전 / 조 최종전)   | "A조 1경기 승자" / "A조 승자전 패자" |
+//                        (2026-05-16 PR-G5.2 추가 — A·B·C 군 단일 kind 흡수)
+//                        matchSlot=G1·G2 → "{group}조 N경기 {result}"
+//                        matchSlot=G3 → "{group}조 승자전 {result}"
+//                        matchSlot=G4 → "{group}조 패자전 {result}"
+export type SlotKind =
+  | "group_rank"
+  | "match_winner"
+  | "match_loser"
+  | "round_seed"
+  | "tie_rank"
+  | "seed_number"
+  | "group_match_result";
 
 export type SlotLabelParams =
   | { kind: "group_rank"; group: string; rank: number }
@@ -43,7 +55,11 @@ export type SlotLabelParams =
   | { kind: "match_loser"; roundName: string; matchNumber: number }
   | { kind: "round_seed"; roundNumber: number; seedNumber: number }
   | { kind: "tie_rank"; rank: number }
-  | { kind: "seed_number"; seedNumber: number };
+  | { kind: "seed_number"; seedNumber: number }
+  // 2026-05-16 PR-G5.2 dual-generator refactor — 조별 더블엘리미 결과 슬롯 (A·B·C 군)
+  // matchSlot: G1/G2 = 조내 1경기/2경기 / G3 = 승자전 / G4 = 패자전
+  // result:    winner | loser
+  | { kind: "group_match_result"; group: string; matchSlot: "G1" | "G2" | "G3" | "G4"; result: "winner" | "loser" };
 
 /**
  * 슬롯 라벨 생성 — 5 kind 단일 진입점.
@@ -74,6 +90,22 @@ export function buildSlotLabel(params: SlotLabelParams): string {
       // 사유: round_seed ("R1 시드 5") 는 라운드별 시드 인덱스라 NBA 양분 트리 의미와 충돌.
       //   "1번 시드" 는 토너먼트 전체 절대 시드 번호 — 1·8·4·5 같은 NBA 표준 페어링용.
       return `${params.seedNumber}번 시드`;
+    case "group_match_result": {
+      // 2026-05-16 PR-G5.2 dual-generator refactor: 조별 더블엘리미 결과 슬롯 (A·B·C 군 흡수).
+      // 사유: dual-tournament-generator.ts 의 인라인 박제 12건 중 A·B·C 군 (8건) 을
+      //       기존 5 kind 로 매핑 시 의미 모호 (roundName 중복 / null 어색) → 도메인 응집성 위해 단일 신규 kind.
+      //   matchSlot=G1·G2 → "{group}조 N경기 {result}"  (예: "A조 1경기 승자")
+      //   matchSlot=G3    → "{group}조 승자전 {result}"  (예: "A조 승자전 패자" — 조 최종전 home)
+      //   matchSlot=G4    → "{group}조 패자전 {result}"  (예: "A조 패자전 승자" — 조 최종전 away)
+      const slotLabel =
+        params.matchSlot === "G3"
+          ? "승자전"
+          : params.matchSlot === "G4"
+            ? "패자전"
+            : `${params.matchSlot.replace("G", "")}경기`;
+      const resultLabel = params.result === "winner" ? "승자" : "패자";
+      return `${params.group}조 ${slotLabel} ${resultLabel}`;
+    }
   }
 }
 
@@ -114,23 +146,44 @@ export function parseSlotLabel(label: string | null | undefined): SlotLabelParam
   let m = s.match(/^([A-Z])조\s*(\d+)위$/);
   if (m) return { kind: "group_rank", group: m[1], rank: Number(m[2]) };
 
-  // 2) match_winner: "8강 1경기 승자" / "준결승 2경기 승자"
+  // 2) group_match_result: "A조 1경기 승자" / "A조 승자전 패자" / "A조 패자전 승자"
+  //    ⚠️ 반드시 match_winner / match_loser 보다 먼저 매칭 — "A조 1경기 승자" 가
+  //       match_winner 정규식 (`^(.+?)\s*(\d+)경기\s*승자$`) 에 lazy match 되어 roundName="A조" 로 해석되는 충돌 회피.
+  //    PR-G5.2 추가 (2026-05-16) — dual-tournament-generator.ts A·B·C 군 박제용
+  m = s.match(/^([A-Z])조\s+(\d+경기|승자전|패자전)\s+(승자|패자)$/);
+  if (m) {
+    const slotPart = m[2];
+    const matchSlot: "G1" | "G2" | "G3" | "G4" =
+      slotPart === "승자전"
+        ? "G3"
+        : slotPart === "패자전"
+          ? "G4"
+          : (`G${slotPart.replace("경기", "")}` as "G1" | "G2");
+    return {
+      kind: "group_match_result",
+      group: m[1],
+      matchSlot,
+      result: m[3] === "승자" ? "winner" : "loser",
+    };
+  }
+
+  // 3) match_winner: "8강 1경기 승자" / "준결승 2경기 승자"
   m = s.match(/^(.+?)\s*(\d+)경기\s*승자$/);
   if (m) return { kind: "match_winner", roundName: m[1].trim(), matchNumber: Number(m[2]) };
 
-  // 3) match_loser: "준결승 1경기 패자"
+  // 4) match_loser: "준결승 1경기 패자"
   m = s.match(/^(.+?)\s*(\d+)경기\s*패자$/);
   if (m) return { kind: "match_loser", roundName: m[1].trim(), matchNumber: Number(m[2]) };
 
-  // 4) round_seed: "R1 시드 5"
+  // 5) round_seed: "R1 시드 5"
   m = s.match(/^R(\d+)\s*시드\s*(\d+)$/);
   if (m) return { kind: "round_seed", roundNumber: Number(m[1]), seedNumber: Number(m[2]) };
 
-  // 5) tie_rank: "1위 동순위전"
+  // 6) tie_rank: "1위 동순위전"
   m = s.match(/^(\d+)위\s*동순위전$/);
   if (m) return { kind: "tie_rank", rank: Number(m[1]) };
 
-  // 6) seed_number: "1번 시드" / "8번 시드" (NBA 표준 시드 — PR-G5.5-NBA-seed)
+  // 7) seed_number: "1번 시드" / "8번 시드" (NBA 표준 시드 — PR-G5.5-NBA-seed)
   //    ⚠️ tie_rank ("1위 동순위전") 정규식보다 뒤에 두면 충돌 0 — 패턴 분리 명확
   //    ⚠️ assignTeamsToKnockout 의 "N위" 정규식 (replace(/\D/g, "")) 과는 별도 — NBA 모드 우회 결정
   m = s.match(/^(\d+)번\s*시드$/);

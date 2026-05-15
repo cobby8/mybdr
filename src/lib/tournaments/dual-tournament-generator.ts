@@ -15,6 +15,9 @@
 
 import type { SemifinalPairingMode } from "./dual-defaults";
 import { DUAL_DEFAULT_PAIRING } from "./dual-defaults";
+// 2026-05-16 PR-G5.2 — 슬롯 라벨 박제 단일 source 통과 (강남구 사고 영구 차단)
+//   인라인 backtick 라벨 박제 ❌ → buildSlotLabel 호출 의무
+import { buildSlotLabel } from "./placeholder-helpers";
 //
 // 매치 생성 후 caller 가 처리해야 할 후처리:
 //   1) tx.tournamentMatch.createMany 로 27 건 INSERT (next_match_id 는 null 로)
@@ -289,8 +292,9 @@ export function generateDualTournament(
       // 승자전 패자 → 조별 최종전 home (Step 3에서 채움)
       _loserNextMatchIndex: null,
       _loserNextMatchSlot: null,
-      _homeSlotLabel: `${groupKey}조 1경기 승자`,
-      _awaySlotLabel: `${groupKey}조 2경기 승자`,
+      // PR-G5.2: A 군 — 조 G3 승자전 home/away 슬롯 라벨 (G1·G2 의 승자가 들어옴)
+      _homeSlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G1", result: "winner" }),
+      _awaySlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G2", result: "winner" }),
     });
     groupMatchIndex.set(`${groupKey}-G3`, g3Idx);
 
@@ -313,8 +317,9 @@ export function generateDualTournament(
       // 패자전 패자 → 4위 확정 (next 없음)
       _loserNextMatchIndex: null,
       _loserNextMatchSlot: null,
-      _homeSlotLabel: `${groupKey}조 1경기 패자`,
-      _awaySlotLabel: `${groupKey}조 2경기 패자`,
+      // PR-G5.2: B 군 — 조 G4 패자전 home/away 슬롯 라벨 (G1·G2 의 패자가 들어옴)
+      _homeSlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G1", result: "loser" }),
+      _awaySlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G2", result: "loser" }),
     });
     groupMatchIndex.set(`${groupKey}-G4`, g4Idx);
 
@@ -353,8 +358,9 @@ export function generateDualTournament(
       // 최종전 패자 = 조 3위 → next 없음 (3·4위전 미운영)
       _loserNextMatchIndex: null,
       _loserNextMatchSlot: null,
-      _homeSlotLabel: `${groupKey}조 승자전 패자`,
-      _awaySlotLabel: `${groupKey}조 패자전 승자`,
+      // PR-G5.2: C 군 — 조 최종전 home (G3 패자) / away (G4 승자)
+      _homeSlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G3", result: "loser" }),
+      _awaySlotLabel: buildSlotLabel({ kind: "group_match_result", group: groupKey, matchSlot: "G4", result: "winner" }),
     });
     groupMatchIndex.set(`${groupKey}-FINAL`, finalIdx);
 
@@ -391,8 +397,9 @@ export function generateDualTournament(
       // 8강 패자 → 공동 5위 확정 (next 없음)
       _loserNextMatchIndex: null,
       _loserNextMatchSlot: null,
-      _homeSlotLabel: `${spec.home.group}조 1위`,
-      _awaySlotLabel: `${spec.away.group}조 2위`,
+      // PR-G5.2: D 군 — 8강 home (N조 1위) / away (M조 2위) — group_rank kind 매핑
+      _homeSlotLabel: buildSlotLabel({ kind: "group_rank", group: spec.home.group, rank: 1 }),
+      _awaySlotLabel: buildSlotLabel({ kind: "group_rank", group: spec.away.group, rank: 2 }),
     });
     quarterFinalIndices.set(spec.matchIndex, qfIdx);
 
@@ -429,8 +436,9 @@ export function generateDualTournament(
       // 4강 패자 → 공동 3위 확정 (3·4위전 미운영, 사진 그대로)
       _loserNextMatchIndex: null,
       _loserNextMatchSlot: null,
-      _homeSlotLabel: `8강 ${spec.homeFromQfIndex}경기 승자`,
-      _awaySlotLabel: `8강 ${spec.awayFromQfIndex}경기 승자`,
+      // PR-G5.2: E 군 — 4강 home/away (8강 N경기 승자) — match_winner kind, roundName="8강"
+      _homeSlotLabel: buildSlotLabel({ kind: "match_winner", roundName: "8강", matchNumber: spec.homeFromQfIndex }),
+      _awaySlotLabel: buildSlotLabel({ kind: "match_winner", roundName: "8강", matchNumber: spec.awayFromQfIndex }),
     });
     semiFinalIndices.set(spec.matchIndex, sfIdx);
 
@@ -462,8 +470,9 @@ export function generateDualTournament(
     // 결승 패자 = 준우승 (next 없음)
     _loserNextMatchIndex: null,
     _loserNextMatchSlot: null,
-    _homeSlotLabel: "4강 1경기 승자",
-    _awaySlotLabel: "4강 2경기 승자",
+    // PR-G5.2: F 군 — 결승 home/away (4강 1·2경기 승자) — match_winner kind, roundName="4강"
+    _homeSlotLabel: buildSlotLabel({ kind: "match_winner", roundName: "4강", matchNumber: 1 }),
+    _awaySlotLabel: buildSlotLabel({ kind: "match_winner", roundName: "4강", matchNumber: 2 }),
   });
 
   // 4강 → 결승 매핑
