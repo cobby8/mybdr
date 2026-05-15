@@ -1,6 +1,22 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-15] 세분화 권한 헬퍼 = DB ground truth 폴백 의무 (JWT stale 함정 영구 차단)
+- **분류**: convention/auth-safety
+- **사유**: `isRecorderAdmin(session)` 처럼 JWT claim (`payload.admin_role`) 만 평가하는 헬퍼는 **DB UPDATE 후 재로그인 안 하면 stale claim → sentinel 미진입 → 사이드바 admin 0**. recorder_admin PR4-FIX 운영 사용자 보고로 발견 (errors.md `[2026-05-15]` JWT stale 함정).
+- **표준 패턴 (DB ground truth 폴백)**:
+  1. **응답 빌더 (예: `/api/web/me/route.ts`)**: 세분화 권한 plain JWT claim 평가 → 우선 검사. JWT claim 없을 시 (또는 falsy) `prisma.user.findUnique({ select: { isAdmin, admin_role } })` 1회 SELECT 폴백
+  2. **server component page (예: `/referee/admin/page.tsx`)**: `getWebSession()` 결과의 JWT claim 평가 후, sentinel 판정 시 동일 DB SELECT 폴백 1회 추가
+  3. **응답에 admin_role 키 추가**: 클라이언트가 권한 인지할 수 있도록 me API 응답에 박제 (snake_case 자동 변환)
+  4. **effectiveAdmin 강제 sentinel**: DB ground truth 가 admin-like (isAdmin=true 또는 admin_role="recorder_admin"/"super_admin") 면 admin=null 이어도 첫 활성 협회 + sentinel role 강제 박제 → adminInfo non-null 보장
+- **재발 방지 룰**:
+  - 세분화 권한 신설 시 → **JWT-only 헬퍼 + DB 폴백 응답 빌더 양면 박제 의무**. 단방향 헬퍼만 만들면 영구 stale 함정
+  - role 변경 후 → **재로그인 안내 의무** (운영자 UI / admin 응답 모달 / 등)
+- **후속 큐**: JWT 강제 만료 자동화 — `admin_role` 변경 시 forced session invalidate (해당 user 의 모든 JWT 토큰 강제 만료 = 즉시 재로그인 강제)
+- **검증 통과 사용자 유형 (회귀 검증 4)**: 일반 user / super_admin (DB isAdmin=true) / recorder_admin (JWT stale) / 협회 관리자 — 모두 사이드바 + 라벨 정확 표시
+- **commit**: b67c55d (recorder_admin PR4-FIX)
+- **참조횟수**: 0
+
 ### [2026-05-15] 운영 DB UNIQUE 인덱스 추가 표준 절차 — 7 단계
 - **분류**: convention/DB-safety
 - **사유**: `prisma db push` 가 보수적으로 "data loss 가능" 경고 → `--accept-data-loss` 요구. CLAUDE.md §🚨 금지. 본 절차로 우회 + 안전 보장.

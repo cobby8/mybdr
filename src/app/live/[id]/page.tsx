@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
+// 2026-05-15 PR-Live2 — score-sheet 진입 Link (운영자/기록원 전용 "기록하기" 버튼).
+import Link from "next/link";
 // 헤더 우측에 테마 토글 버튼을 배치하기 위해 공통 컴포넌트 재사용
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 // 2026-04-22: GameResult v2 — finished/completed 상태일 때 이 컴포넌트로 전체 렌더 갈아끼움.
@@ -536,6 +538,12 @@ export default function LiveBoxScorePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [jerseyModalOpen, setJerseyModalOpen] = useState(false);
 
+  // 2026-05-15 PR-Live2 — score-sheet 진입 가능 여부 (운영자/기록원 전용 "기록하기" 버튼 노출).
+  // 라이브 페이지는 공개 — 미로그인/일반회원 = canRecord:false (silent fail).
+  // super/recorder_admin/organizer/TAM/recorder 통과 시 toolbar 에 빨간 강조 액션 버튼 노출.
+  // 분리 사유: admin-check 는 W1 임시번호용 (organizer/TAM 만) / 본 게이트는 recorder 까지 포괄.
+  const [canRecord, setCanRecord] = useState(false);
+
   // 2026-05-09 PR4+PR5 — 매치 YouTube 영상 운영자 모달 상태.
   // isAdmin && match 일 때 마운트. 영상 등록 시 YouTubeEmbed edit 버튼 / 미등록 시 hero 아래 등록 버튼.
   const [streamModalOpen, setStreamModalOpen] = useState(false);
@@ -667,6 +675,31 @@ export default function LiveBoxScorePage() {
       })
       .catch(() => {
         // 실패 = 운영자 아닌 것으로 간주 (보수적 default)
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [match?.tournament_id]);
+
+  // 2026-05-15 PR-Live2 — score-sheet 진입 권한 1회 확인 (admin-check 와 별도 게이트).
+  // 사유: admin-check 는 organizer/TAM 만 (W1 임시번호용) / 본 게이트는 super/recorder_admin/recorder 까지 포괄.
+  // 미로그인/일반회원 = canRecord:false silent fail → 버튼 노출 0 (라이브 페이지 공개 룰 유지).
+  // Q4 결재: recording_mode 무관 노출 (paper/flutter 모두) — score-sheet 안내 화면이 자동 처리.
+  useEffect(() => {
+    const tid = match?.tournament_id;
+    if (!tid) return;
+    let cancelled = false;
+    fetch(`/api/web/tournaments/${tid}/score-sheet-access`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        // apiSuccess 의 자동 snake_case 변환 → can_record 으로 수신.
+        // 안전 분기 (camelCase 폴백) — 운영 envelope 일관 패턴 (admin-check 동일).
+        const v = data?.can_record ?? data?.canRecord ?? false;
+        setCanRecord(Boolean(v));
+      })
+      .catch(() => {
+        // 실패 = 권한 없음으로 간주 (보수적 default — 일반 사용자 화면 보호)
       });
     return () => {
       cancelled = true;
@@ -1158,6 +1191,40 @@ export default function LiveBoxScorePage() {
             <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
               {STATUS_LABEL[match.status] ?? match.status}
             </span>
+          )}
+          {/* 2026-05-15 PR-Live2 — 운영자/기록원 전용 "기록하기" Link (score-sheet 진입).
+              canRecord = score-sheet-access endpoint 통과 시에만 노출 (Q2 권고안 = toolbar 위치).
+              시각 = var(--color-primary) 빨강 배경 + 흰 글자 (강조 액션 / 임시번호 회색 보조 액션과 분리).
+              Q4 결재 = recording_mode 무관 노출 (paper/flutter 모두) — score-sheet 안내 화면이 자동 처리.
+              데스크탑 = 아이콘 + 텍스트 / 모바일 = 아이콘만 (Q1 path = /score-sheet/{matchId}). */}
+          {canRecord && (
+            <Link
+              href={`/score-sheet/${id}`}
+              aria-label="이 매치 기록하기 (운영자/기록원 전용)"
+              title="이 매치 기록하기 (운영자/기록원 전용)"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-opacity hover:opacity-90"
+              style={{
+                color: "#fff",
+                backgroundColor: "var(--color-primary)",
+              }}
+            >
+              <span className="material-symbols-outlined text-base">edit_note</span>
+              <span>기록하기</span>
+            </Link>
+          )}
+          {/* 모바일: 아이콘만 (텍스트 생략) — 헤더 공간 보호. 빨강 배경은 유지하여 강조 액션 시각 일관성 보존. */}
+          {canRecord && (
+            <Link
+              href={`/score-sheet/${id}`}
+              aria-label="이 매치 기록하기 (운영자/기록원 전용)"
+              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-opacity hover:opacity-90"
+              style={{
+                color: "#fff",
+                backgroundColor: "var(--color-primary)",
+              }}
+            >
+              <span className="material-symbols-outlined text-base">edit_note</span>
+            </Link>
           )}
           {/* 2026-05-05 PR4 — 운영자 전용 "임시 번호" 버튼 (W1 매치 한정 jersey override).
               isAdmin = admin-check 통과 시에만 노출. 모달 열면 home/away players 전달. */}

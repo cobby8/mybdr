@@ -6,6 +6,27 @@ import { usePathname } from "next/navigation";
 // 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — admin 영역에서도 라이트/다크 토글 가능하도록 (web)와 같은 ThemeSwitch 마운트
 import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
 
+/* ============================================================
+ * AdminSidebar — 좌측 사이드바 (Admin-2 박제 2026-05-15)
+ *
+ * 박제 source: Dev/design/BDR-current/components-admin.jsx (AdminSidebar)
+ * 박제 target: src/components/admin/sidebar.tsx
+ *
+ * 이유 (왜):
+ *   - 시안 v2.14 의 `.admin-aside / .admin-aside__*` 시각 패턴 박제.
+ *   - **props 시그니처 100% 보존** — `roles: AdminRole[]` 그대로.
+ *     호출처 layout.tsx 1건 회귀 0.
+ *   - navStructure / filterStructureByRoles / Next.js Link/usePathname
+ *     패턴 100% 보존 (router 의존성 유지).
+ *
+ * 어떻게:
+ *   1. <aside className="admin-aside"> 로 갈아입힘 (Tailwind → admin.css 클래스).
+ *   2. 로고 영역 `.admin-aside__logo` 박제.
+ *   3. 메뉴 `.admin-aside__group + .admin-aside__title + .admin-aside__link`
+ *      (data-active / data-child 속성으로 시각 분기).
+ *   4. 하단 `.admin-aside__foot + .admin-aside__foot-link` 박제.
+ * ============================================================ */
+
 // 권한별 메뉴 접근 정의
 // "all" = 모든 관리자 권한에서 노출
 export type AdminRole =
@@ -181,32 +202,30 @@ interface AdminSidebarProps {
   roles: AdminRole[];
 }
 
-// 메뉴 항목 1개 렌더링 (children 들여쓰기 포함)
-// 2026-05-04: (web) community-aside 패턴 (.aside__link + data-active) 적용 — 시각 통일
-function renderItem(item: AdminNavItem, pathname: string, depth = 0) {
+// 메뉴 항목 1개 렌더링 (children = data-child 속성으로 들여쓰기 시각)
+// 2026-05-15 Admin-2: `.admin-aside__link` 시안 박제 클래스로 갈아입힘
+function renderItem(item: AdminNavItem, pathname: string, isChild = false) {
   const isActive =
     item.href === "/admin"
       ? pathname === "/admin"
       : pathname.startsWith(item.href);
-  const indentStyle = depth > 0 ? { paddingLeft: 28 } : undefined;
   return (
     <div key={item.href}>
       <Link
         href={item.href}
-        className="aside__link"
-        data-active={isActive}
-        style={indentStyle}
+        className="admin-aside__link"
+        data-active={isActive ? "true" : "false"}
+        data-child={isChild ? "true" : "false"}
       >
-        <span>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{item.icon}</span>
-          {item.label}
-        </span>
+        {/* Material Symbol 아이콘 — admin.css 가 사이즈/색상 자동 처리 */}
+        <span className="material-symbols-outlined">{item.icon}</span>
+        <span>{item.label}</span>
       </Link>
-      {/* children — 들여쓰기 (28px), 항상 노출 */}
+      {/* children — admin.css 의 data-child="true" 가 padding-left 38px 자동 박제 */}
       {item.children && item.children.length > 0 && (
-        <div>
-          {item.children.map((child) => renderItem(child, pathname, depth + 1))}
-        </div>
+        <>
+          {item.children.map((child) => renderItem(child, pathname, true))}
+        </>
       )}
     </div>
   );
@@ -219,28 +238,33 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
   const visibleStructure = filterStructureByRoles(roles);
 
   return (
-    // 사이드바: CSS 변수 기반 배경/보더 (다크모드 자동 전환)
-    // 2026-05-04: overflow-y-auto + flex-1 nav 로 메뉴 많아도 스크롤 가능 (사용자 요청)
-    <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:flex">
-      {/* 로고: BDR 이미지 + ADMIN 배지 */}
-      <Link href="/admin" className="mb-6 flex items-center gap-3 px-3 shrink-0">
-        <Image src="/images/logo.png" alt="BDR" width={120} height={36} className="h-9 w-auto" />
-        <span className="rounded bg-[var(--color-primary)] px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
-          Admin
-        </span>
+    // 시안 박제 — admin.css `.admin-aside` 박제 (≥1024 fixed left)
+    // hidden lg:flex 는 admin.css 의 @media (max-width: 1024px) display:none 으로 처리
+    <aside className="admin-aside">
+      {/* 로고 — 시안 .admin-aside__logo */}
+      <Link
+        href="/admin"
+        className="admin-aside__logo"
+        style={{ textDecoration: "none" }}
+      >
+        <Image src="/images/logo.png" alt="BDR" width={100} height={28} className="h-7 w-auto" />
+        <span className="admin-aside__logo-badge">ADMIN</span>
       </Link>
 
-      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능
-          2026-05-04: (web) community-aside 패턴 (.aside__title + .aside__link) 적용 */}
-      <nav className="flex-1 overflow-y-auto pr-1 -mr-1">
+      {/* 내비게이션 메뉴 — 그룹화 + 스크롤 가능 */}
+      <nav className="admin-aside__nav">
         {visibleStructure.map((entry, idx) => {
           if (entry.type === "item") {
-            return renderItem(entry, pathname);
+            return (
+              <div key={`item-${idx}`} className="admin-aside__group">
+                {renderItem(entry, pathname)}
+              </div>
+            );
           }
-          // 그룹 — .aside__title 헤더 + items (community-aside 와 동일 클래스)
+          // 그룹 — 시안 .admin-aside__title 헤더 + items
           return (
-            <div key={`group-${idx}`}>
-              <div className="aside__title">{entry.label}</div>
+            <div key={`group-${idx}`} className="admin-aside__group">
+              <div className="admin-aside__title">{entry.label}</div>
               {entry.items.map((item) => renderItem(item, pathname))}
             </div>
           );
@@ -248,28 +272,20 @@ export function AdminSidebar({ roles }: AdminSidebarProps) {
       </nav>
 
       {/* 하단: 테마 토글 + 마이페이지 + 사이트로 돌아가기 */}
-      {/* 2026-05-11 admin 마이페이지 Phase 1 — "마이페이지" 1줄 추가 (사이트로 돌아가기 위) */}
-      <div className="mt-3 border-t border-[var(--color-border)] pt-3 shrink-0">
-        {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨, theme-preference localStorage 키) */}
-        <div className="px-3 pb-2">
+      {/* 2026-05-15 Admin-2: 시안 .admin-aside__foot + .admin-aside__foot-link 박제 */}
+      <div className="admin-aside__foot">
+        {/* 테마 토글 — (web) AppNav 와 동일 컴포넌트 (라이트/다크 듀얼 라벨) */}
+        <div style={{ padding: "4px 6px 6px", display: "flex", justifyContent: "center" }}>
           <ThemeSwitch />
         </div>
-        {/* 마이페이지 — 사용자 결재 §7 (사이트로 돌아가기 위 / 가장 자연) */}
-        <Link
-          href="/admin/me"
-          className="aside__link"
-          data-active={pathname === "/admin/me" || pathname.startsWith("/admin/me/")}
-        >
-          <span>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_circle</span>
-            마이페이지
-          </span>
+        {/* 마이페이지 — 사용자 결재 §7 */}
+        <Link href="/admin/me" className="admin-aside__foot-link">
+          <span className="material-symbols-outlined">account_circle</span>
+          마이페이지
         </Link>
-        <Link href="/" className="aside__link">
-          <span>
-            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
-            사이트로 돌아가기
-          </span>
+        <Link href="/" className="admin-aside__foot-link">
+          <span className="material-symbols-outlined">arrow_back</span>
+          사이트로 돌아가기
         </Link>
       </div>
     </aside>

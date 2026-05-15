@@ -1,8 +1,23 @@
 "use client";
 
-// 관리자 상태 탭 — (web) 디자인 시스템 일관성 (Phase D, 2026-05-02)
-// 프론트 시안의 .eyebrow + 밑줄 탭 패턴 차용 (web 페이지 탭 시각 일치).
-// 각 페이지에서 "전체/준비중/진행중/종료" 등 상태 필터링에 사용.
+/* ============================================================
+ * AdminStatusTabs — 상태 필터 탭 + count 뱃지 (Admin-2 박제 2026-05-15)
+ *
+ * 박제 source: Dev/design/BDR-current/components-admin.jsx (AdminStatusTabs)
+ * 박제 target: src/components/admin/admin-status-tabs.tsx
+ *
+ * 이유 (왜):
+ *   - 시안 v2.14 의 `.admin-status-tabs / .admin-status-tab` 시각 박제.
+ *     count 뱃지 (99+ 오버플로우) 동일 패턴.
+ *   - 호출처 7개 회귀 0 보장 — props 시그니처 100% 보존
+ *     (tabs, activeTab, onChange). 시안의 `current` 명칭은 채택 X
+ *     (운영 우선 — `activeTab` 그대로).
+ *
+ * 어떻게:
+ *   1. JSX 를 시안 박제: div.admin-status-tabs > button.admin-status-tab.
+ *   2. data-active / data-overflow 속성 사용 — admin.css 가 시각 처리.
+ *   3. count 99+ 오버플로우 박제 (시안 그대로).
+ * ============================================================ */
 interface Tab {
   key: string;
   label: string;
@@ -21,56 +36,32 @@ export function AdminStatusTabs({
   onChange,
 }: AdminStatusTabsProps) {
   return (
-    // 가로 스크롤 가능 — 모바일에서 탭이 많아도 사용 가능
-    <div className="mb-4 overflow-x-auto -mx-1 px-1">
-      <div
-        className="flex gap-1 border-b"
-        style={{ borderColor: "var(--color-border)" }}
-      >
-        {tabs.map((tab) => {
-          const isActive = tab.key === activeTab;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => onChange(tab.key)}
-              className="relative shrink-0 px-4 py-2.5 text-[13px] font-semibold transition-colors"
-              style={{
-                fontFamily: "var(--ff-display)",
-                letterSpacing: "-0.01em",
-                color: isActive
-                  ? "var(--color-accent)"
-                  : "var(--color-text-muted)",
-              }}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span
-                  className="ml-1.5 inline-flex min-w-[20px] items-center justify-center rounded-md px-1.5 py-0.5 text-[11px] font-bold"
-                  style={{
-                    backgroundColor: isActive
-                      ? "color-mix(in oklab, var(--color-accent) 12%, transparent)"
-                      : "var(--color-elevated)",
-                    color: isActive
-                      ? "var(--color-accent)"
-                      : "var(--color-text-muted)",
-                    fontFamily: "var(--ff-mono)",
-                  }}
-                >
-                  {tab.count}
-                </span>
-              )}
-              {/* 활성 탭 밑줄 — primary 색상 */}
-              {isActive && (
-                <span
-                  className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                  style={{ backgroundColor: "var(--color-accent)" }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+    // 시안 클래스 — admin.css `.admin-status-tabs` 박제
+    <div className="admin-status-tabs" role="tablist">
+      {tabs.map((tab) => {
+        const isActive = tab.key === activeTab;
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            className="admin-status-tab"
+            data-active={isActive ? "true" : "false"}
+            onClick={() => onChange(tab.key)}
+          >
+            <span>{tab.label}</span>
+            {tab.count !== undefined && (
+              // count 뱃지 — 99+ 오버플로우 (시안 박제)
+              <span
+                className="admin-status-tab__count"
+                data-overflow={tab.count > 99 ? "true" : "false"}
+              >
+                {tab.count > 99 ? "99+" : tab.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

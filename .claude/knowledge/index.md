@@ -1,13 +1,13 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-15 (PR-G5 대진표 generator placeholder 박제 자동화 / errors.md 46항목 / lessons.md 47항목)
+> 최종 갱신: 2026-05-15 (recorder_admin 전역 권한 시스템 + JWT stale 함정 박제 / decisions.md 114항목 / conventions.md 50항목 / errors.md 47항목)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
 |------|--------|------------|------|
 | architecture.md | 53 | 2026-05-15 | 이전 51건 + **(1) 마법사 통합 wizard 인프라** (Phase 1 lib 3 파일 + Phase 5 API + Phase 5 C UNIQUE 인덱스 운영 적용) + **(2) Phase 23 PR5-A cross-check audit endpoint** (tournament_match_audits 재사용 / source="web-score-sheet" / context="phase23-cross-check:<warning_type>") |
-| conventions.md | 49 | 2026-05-15 | 이전 47건 + **(1) 운영 DB UNIQUE 인덱스 추가 7단계 표준** (검증 0/0 → schema diff → 사용자 결재 → raw SQL via `$executeRawUnsafe` → 사후 검증 → 임시 스크립트 즉시 삭제 / `prisma db push --accept-data-loss` 회피) + **(2) sessionStorage 헬퍼 표준 패턴** (SSR 안전 + BigInt replacer + silent fail / wizard-draft.ts 박제) |
-| decisions.md | 113 | 2026-05-15 | 이전 112건 + **마법사 통합 (단체→시리즈→대회→회차) 기존 wizard 확장 + 4 핵심 결정** (Hybrid 구조 / 이전 회차 복제 우선 / Association 별도 분기 / 신규 모델 0 — DB schema 변경 1 = unique 인덱스만) |
-| errors.md | 46 | 2026-05-15 | 이전 45건 + **순위결정전 매치 placeholder 누락 = 대진표 generator 결함 (강남구협회장배 사고)** — `league_advancement` / `group_stage_with_ranking` generator 부재 → 운영자 수동 INSERT 시 실제 팀 박힘 → 예선 결과 무시. fix 1 (즉시) = 13건 매치 UPDATE / fix 2 (영구) = PR-G5 placeholder-helpers.ts + plan/generate 분리 6 PR. 재발 방지 = 신규 format 도입 시 generator 동시 박제 의무 / 공통 헬퍼 통과 의무 / placeholder = NULL+notes+slotLabel 3중 박제 표준 / idempotent 가드 / 사전 검증 도구 (PR-G7 후속) |
+| conventions.md | 50 | 2026-05-15 | 이전 49건 + **세분화 권한 헬퍼 = DB ground truth 폴백 의무** (JWT claim 만 보는 헬퍼는 stale JWT 영구 함정 — recorder_admin PR4-FIX 박제 / me API + admin page 직접 SELECT 폴백 / role 변경 후 재로그인 안내 의무) |
+| decisions.md | 114 | 2026-05-15 | 이전 113건 + **recorder_admin 전역 권한 시스템 (1-A 통합 / 옵션 C)** — User.admin_role 컬럼 재사용 / schema 변경 0 / Referee + tournament_recorders 분리 유지 / super_admin 자동 흡수 / sentinel 12 permission 전체 통과 / Flutter add-only 분기 (5 PR 박제 + 운영 계정 bdr-recorder@mybdr.kr) |
+| errors.md | 47 | 2026-05-15 | 이전 46건 + **JWT stale 함정 = 세분화 권한 헬퍼가 JWT claim 만 평가 → DB UPDATE 후 재로그인 안 하면 sentinel 미진입 → 사이드바 admin 0** (recorder_admin PR4-FIX 운영 사용자 보고). 재발 방지 = DB ground truth 폴백 의무 / role 변경 후 재로그인 안내 의무 / JWT 강제 만료 자동화 (후속 큐) |
 | lessons.md | 47 | 2026-05-15 | 이전 46건 + **대진표 generator = plan (PURE) + generate (DB INSERT) 분리 패턴** — 공통 헬퍼 (placeholder-helpers.ts) + plan 순수 함수 (vitest 친화 / DB mock 불필요) + DB INSERT 함수 (idempotent 가드). 효과 = ADVANCEMENT_REGEX 호환 100% 보장 + 단위 검증 친화 + 인라인 박제 영구 차단. 재사용 룰 = 신규 generator 진입 시 plan/generate 분리 의무 / 인라인 문자열 박제 금지 / stub + 후속 PR 메모 패턴 |
 | wizard-regression-checklist.md | (8 항목) | 2026-05-15 | 신규 — 통합 마법사 회귀 체크리스트 8 항목 (UI 3 + 백엔드/DB 5) |
 | toss-design-analysis.md | 10 | 2026-03-28 | 토스 디자인 시스템 심층 분석 |

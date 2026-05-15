@@ -143,6 +143,27 @@ interface ScoreSheetFormProps {
   // 사용자 결재 Q2 — PBP 0건 + quarter_scores 만 있는 매치 안내 배너 트리거.
   //   pbpCount === 0 && initialQuarterScoresDB 가 있으면 정보 배너 표시.
   pbpCount?: number;
+  // Phase 23 PR-EDIT2 (2026-05-15) — 종료 매치 수정 모드 권한 (사용자 결재 Q4).
+  //
+  //   - true  = super_admin / organizer / TAM → toolbar "수정 모드" 버튼 노출.
+  //   - false = recorder / recorder_admin / 일반 → 버튼 미노출 (RO 차단 유지).
+  //   - undefined = 진행 중 매치 (변경 0) — page.tsx 가 항상 boolean 전달하지만 안전 fallback.
+  //
+  //   page.tsx 의 checkScoreSheetEditAccess() 결과. 진행 매치 = 본 prop 미사용 (isCompleted=false 분기).
+  canEdit?: boolean;
+  // Phase 23 PR-EDIT4 (2026-05-15) — 종료 매치 수정 이력 (사용자 결재 Q7 옵션 A).
+  //
+  //   audit log SELECT 결과 (page.tsx 가 박제). 노란 배너 아래 inline "수정 이력 N건" 표시.
+  //   완료 매치 + 이력 1건 이상 시만 렌더 (진행 매치 = 빈 배열).
+  //   배열 순서 = occurredAt DESC (최신 우선).
+  editAuditLogs?: Array<{
+    id: string;
+    context: string;
+    source: string | null;
+    occurredAt: string;
+    userId: string | null;
+    userNickname: string | null;
+  }>;
 }
 
 // localStorage key prefix — 매치당 1건 (Phase 1 FIBA 양식 신규 prefix)
@@ -197,6 +218,11 @@ export function ScoreSheetForm({
   pbpCount,
   // Phase 19 PR-Stat3 (2026-05-15) — 6 stat 자동 로드 (사용자 결재 Q3 = match_player_stats 직접 박제).
   initialPlayerStats,
+  // Phase 23 PR-EDIT2 (2026-05-15) — 수정 모드 권한 (사용자 결재 Q4).
+  //   true = super/organizer/TAM (수정 가능) / false = recorder/일반 (RO 유지).
+  canEdit,
+  // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 inline (사용자 결재 Q7 옵션 A).
+  editAuditLogs,
 }: ScoreSheetFormProps) {
   const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
   const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
@@ -321,6 +347,77 @@ export function ScoreSheetForm({
     return new Promise((resolve) => {
       setConfirmState({ ...cfg, resolve });
     });
+  }
+
+  // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 진입 (사용자 결재 Q3).
+  //
+  // 왜 (이유):
+  //   종료 매치 + canEdit=true 사용자가 toolbar "수정 모드" 버튼 클릭 시 호출.
+  //   confirm modal 로 "audit 박제됩니다. 정말로?" 확인 후 동의 시 setIsEditMode(true) → 차단 우회.
+  //
+  // 어떻게:
+  //   1. confirmModal 호출 (Promise) — 사용자 선택 await.
+  //   2. value === "enter" → setIsEditMode(true) + audit POST (context="completed_edit_mode_enter").
+  //   3. 그 외 (ESC / "cancel" / null) → 무동작 (isEditMode 그대로 false 유지).
+  //
+  // audit 박제:
+  //   - 진입 audit POST `/api/web/score-sheet/{matchId}/cross-check-audit`
+  //   - warning_type = "completed_edit_mode_enter" (PR-RO4 의 cross-check-audit endpoint 재사용)
+  //   - fire-and-forget (실패 시 console.warn / 진행 차단 안 함)
+  //   - PR-RO2 의 mount 1회 audit (entry) 와는 별도 — toolbar 버튼 명시 진입 의도 박제.
+  async function handleEnterEditMode() {
+    if (!isCompleted) return; // 진행 매치 = 호출 불가 (안전망)
+    if (!canEdit) return; // 권한 없음 = 호출 불가 (UI 버튼이 이미 미노출이지만 이중 방어)
+
+    const choice = await confirmModal({
+      title: "종료 매치 수정 모드 진입",
+      message: (
+        <>
+          <p>이 매치는 이미 종료된 상태입니다.</p>
+          <ul className="mt-2 list-inside list-disc text-sm">
+            <li>수정 모드 진입 시 모든 입력/버튼이 활성화됩니다.</li>
+            <li>재제출 시 audit 로그에 기록됩니다.</li>
+            <li>운영자 책임으로 진행해주세요.</li>
+          </ul>
+        </>
+      ),
+      options: [
+        { value: "enter", label: "수정 모드 진입", isDestructive: true },
+        { value: "cancel", label: "취소" },
+      ],
+    });
+    // 모달 닫기 — Promise resolve 후 모달 unmount
+    setConfirmState(null);
+
+    if (choice !== "enter") return; // 사용자 취소 / ESC = 진입 안 함
+
+    setIsEditMode(true);
+
+    // 진입 audit POST — fire-and-forget (PR-RO2 entry audit 패턴 일관).
+    //   warning_type = "completed_edit_mode_enter" — toolbar 명시 진입 의도 박제 (mount 1회 audit 와 별도).
+    if (typeof window !== "undefined") {
+      fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warning_type: "completed_edit_mode_enter",
+          details: {
+            extra: {
+              match_status: match.status ?? null,
+              match_updated_at: matchUpdatedAtISO ?? null,
+              pbp_count: pbpCount ?? 0,
+            },
+          },
+        }),
+      }).catch((err) => {
+        console.warn(
+          "[score-sheet:Phase23:PR-EDIT1] completed-edit-mode-enter audit 실패",
+          err,
+        );
+      });
+    }
+
+    showToast("수정 모드 활성 — 모든 입력이 활성화되었습니다.", "info");
   }
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
   // PR-Stat3.9 (2026-05-15) — toast-context.tsx 의 useToast throw 제거 + default no-op 박제.
@@ -458,6 +555,27 @@ export function ScoreSheetForm({
   //   - audit fetch 실패 = console.warn + 진행 (silent fail).
   //   - status !== "completed" 매치 = 변경 0 (회귀 0).
   const isCompleted = match.status === "completed";
+
+  // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 state (사용자 결재 Q3).
+  //
+  // 왜 (이유):
+  //   RO 차단 (PR-RO1~RO4) = isCompleted 단일 조건. 수정 모드 진입 = isCompleted=true + isEditMode=true.
+  //   isEditMode=true 일 때 모든 차단 분기 우회 (사용자가 명시적으로 수정 동의).
+  //
+  // 어떻게:
+  //   - default false (진입 시 RO 차단 유지)
+  //   - toolbar "수정 모드" 버튼 클릭 → handleEnterEditMode() → confirm modal → 동의 시 setIsEditMode(true)
+  //   - 모든 차단 분기 = `if (isCompleted && !isEditMode) return;` 패턴 (isEditMode 우회 분기)
+  //
+  // 운영 동작 보존:
+  //   - 진행 중 매치 (isCompleted=false) = isEditMode 분기 무관 (이미 통과 / 회귀 0).
+  //   - 종료 매치 + isEditMode=false = RO 차단 유지 (PR-RO 동작 보존).
+  //   - 종료 매치 + isEditMode=true = 모든 차단 우회 + 재제출 시 audit 박제.
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 펼침 토글 (사용자 결재 Q7).
+  //   기본 = 접힘 (배너만 N건 표시) / 클릭 시 = 펼침 (행 리스트 표시).
+  const [auditExpanded, setAuditExpanded] = useState(false);
 
   // 진입 audit POST — mount 1회 / isCompleted=true 일 때만.
   //   endpoint = /api/web/score-sheet/{matchId}/cross-check-audit (PR5-A 재사용)
@@ -724,14 +842,14 @@ export function ScoreSheetForm({
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
   function handleAdvancePeriod() {
-    if (isCompleted) return; // 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
   function handleRetreatPeriod() {
-    if (isCompleted) return; // 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
@@ -745,7 +863,7 @@ export function ScoreSheetForm({
   //   - period 4 (Q4) 종료 = QuarterEndModal 표시 (경기 종료 / OT1 진행 2 버튼)
   //   - period 5~7 (OTn) 종료 = QuarterEndModal 표시 (경기 종료 / 다음 OT 진행 / 동점 시 종료 비활성)
   function handleEndPeriod() {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     const endedPeriod = runningScore.currentPeriod;
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
@@ -769,7 +887,7 @@ export function ScoreSheetForm({
   //   이유: 사용자가 Q4 종료 시점에서 별도 confirm 모달 (MatchEndButton) 통과 안 해도 즉시 종료.
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2 / quarter-end modal 진입점도 차단)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / quarter-end modal 진입점)
     try {
       const payload = buildSubmitPayload();
       const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
@@ -799,7 +917,7 @@ export function ScoreSheetForm({
   // Phase 7-C — "다음 OT 진행" 버튼 (QuarterEndModal 안).
   //   동작: currentPeriod++ (OT1/OT2/OT3 진입) + 모달 close + toast 안내.
   function handleContinueToOvertime() {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
@@ -818,7 +936,7 @@ export function ScoreSheetForm({
   //   3. TeamSection 마지막 마킹 칸 클릭 → handleRequestRemoveFoul → 즉시 1건 해제
 
   function handleRequestAddFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (모달 mount 차단)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / 모달 mount)
     // 모달 컨텍스트 박제 — 선수 이름 / 등번호 표시용
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -831,7 +949,7 @@ export function ScoreSheetForm({
   }
 
   function handleRequestRemoveFoul(team: "home" | "away", playerId: string) {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     // PR-Stat3.5 (2026-05-15) — React 19 strict mode updater double-invoke 회피.
     //   기존 setFouls(prev => ...) 패턴 = strict mode 의 dev double-invoke 가 updater 2회 호출
     //   → queueMicrotask 도 2회 schedule → toast 2회 (사용자 보고 이미지 #30).
@@ -851,7 +969,7 @@ export function ScoreSheetForm({
   //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
   //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
   function handleRequestAddTimeout(team: "home" | "away") {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴 (updater 미사용 — strict mode double-invoke 회피).
     const result = addTimeout(timeouts, team, {
       period: runningScore.currentPeriod,
@@ -867,7 +985,7 @@ export function ScoreSheetForm({
 
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
   function handleRequestRemoveTimeout(team: "home" | "away") {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     const next = removeLastTimeout(timeouts, team);
     setTimeouts(next);
     if (next !== timeouts) {
@@ -890,7 +1008,7 @@ export function ScoreSheetForm({
     playerId: string,
     statKey: StatKey
   ) {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (popover mount 차단)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 / popover mount)
     // 컨텍스트 박제 — 선수명 / 등번호 표시용 (FoulTypeModal 패턴 일관).
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -904,7 +1022,7 @@ export function ScoreSheetForm({
   }
 
   function handleAddStat() {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -917,7 +1035,7 @@ export function ScoreSheetForm({
   }
 
   function handleRemoveStat() {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     const ctx = statPopoverCtx;
@@ -932,7 +1050,7 @@ export function ScoreSheetForm({
 
   // 모달 → 종류 선택 콜백 — addFoul 호출 + Article 41 alert + 5+ FT alert
   function handleSelectFoulType(type: FoulType) {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3)
     if (!foulModalCtx) return;
     const { team, playerId } = foulModalCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1055,6 +1173,14 @@ export function ScoreSheetForm({
       // Phase 5 — notes (TournamentMatch.notes 컬럼 — BFF route 의 기존 별도 update 흐름).
       //   빈 문자열은 BFF 가 무시 (overwrite 안 함).
       notes: signatures.notes || undefined,
+      // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 신호 (사용자 결재 Q8 = MATCH_LOCKED 우회).
+      //
+      //   BFF 가 status="completed" 매치 = 423 거부 (PR-RO4). 본 키 = true 일 때 BFF 가 권한 검증
+      //   후 거부 우회 (requireScoreSheetEditAccess 통과 시 통과).
+      //
+      //   isEditMode=false 시 = 키 미박제 (BFF 가 423 그대로 거부 — RO 차단 유지).
+      //   isEditMode=true 시 = 키 박제 → BFF 우회 + audit 박제.
+      ...(isEditMode ? { edit_mode: true } : {}),
     };
   }
 
@@ -1112,7 +1238,7 @@ export function ScoreSheetForm({
   //   기존 동작: 운영자가 12명 P.IN 일일이 체크 → 중복 부담 + 라인업 의미와 모순.
   //   변경: 모달 confirm 시 양 팀 모든 라인업 선수의 playerIn=true 자동 fill (한 번에).
   function handleLineupConfirm(result: LineupSelectionResult) {
-    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2 — 라인업 재선택 차단)
+    if (isCompleted && !isEditMode) return; // Phase 23 PR-EDIT3 — 수정 모드 시 우회 (Q2 + Q3 — 라인업 재선택)
     setLineup(result);
     setLineupModalOpen(false);
     // 양 팀 라인업 (starters + substitutes) 의 모든 선수 playerIn=true 자동 set.
@@ -1162,21 +1288,126 @@ export function ScoreSheetForm({
         <div
           className="no-print mb-2 px-3 py-2 text-xs"
           style={{
-            border: "1px solid var(--color-warning)",
-            backgroundColor:
-              "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-            color: "var(--color-warning)",
+            // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 활성 시 빨강 indicator (운영자 인지 시각 강조).
+            border: isEditMode
+              ? "1px solid var(--color-primary)"
+              : "1px solid var(--color-warning)",
+            backgroundColor: isEditMode
+              ? "color-mix(in srgb, var(--color-primary) 10%, transparent)"
+              : "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+            color: isEditMode
+              ? "var(--color-primary)"
+              : "var(--color-warning)",
           }}
         >
           <p className="font-semibold">
             <span className="material-symbols-outlined mr-1 align-middle text-base">
-              warning
+              {isEditMode ? "edit" : "warning"}
             </span>
-            이 매치는 종료된 상태입니다
+            {isEditMode
+              ? "수정 모드 활성 중 — 모든 입력이 활성화되었습니다"
+              : "이 매치는 종료된 상태입니다"}
           </p>
           <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
-            수정 후 재제출하면 audit 로그에 기록됩니다. 운영자 책임으로 진행해주세요.
+            {isEditMode
+              ? "재제출 시 audit 로그에 기록됩니다. 변경 사항을 확인 후 진행해주세요."
+              : canEdit
+              ? "수정하려면 상단 '수정 모드' 버튼을 눌러 진입하세요. 입력은 차단된 상태입니다."
+              : "수정 후 재제출하면 audit 로그에 기록됩니다. 운영자 책임으로 진행해주세요."}
           </p>
+        </div>
+      )}
+
+      {/* Phase 23 PR-EDIT4 (2026-05-15) — 종료 매치 수정 이력 inline 표시 (사용자 결재 Q7 옵션 A).
+          종료 매치 + 이력 1건 이상 시만 표시. 기본 = 접힘 (N건 + 펼치기 버튼).
+          클릭 시 = 펼침 (행 리스트 표시 / 누가/언제/무엇).
+          운영 매치 상세 페이지 미존재 — 본 위치 = 운영자 추적 단일 source. */}
+      {isCompleted && editAuditLogs && editAuditLogs.length > 0 && (
+        <div
+          className="no-print mb-2 px-3 py-2 text-xs"
+          style={{
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface)",
+            color: "var(--color-text-primary)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setAuditExpanded((prev) => !prev)}
+            className="flex w-full items-center justify-between"
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "inherit",
+            }}
+            aria-expanded={auditExpanded}
+            aria-label="수정 이력 펼침 토글"
+          >
+            <span className="font-semibold">
+              <span className="material-symbols-outlined mr-1 align-middle text-base">
+                history
+              </span>
+              수정 이력 {editAuditLogs.length}건
+            </span>
+            <span className="material-symbols-outlined align-middle text-base">
+              {auditExpanded ? "expand_less" : "expand_more"}
+            </span>
+          </button>
+          {auditExpanded && (
+            <ul
+              className="mt-2 space-y-1"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {editAuditLogs.map((entry) => {
+                // context 분류 — 진입 / 재제출 / 명시 진입 구분 (운영자 추적용)
+                const kind = entry.context.includes("completed_edit_resubmit")
+                  ? "재제출"
+                  : entry.context.includes("completed_edit_mode_enter")
+                  ? "수정 모드 진입"
+                  : entry.context.includes("completed_edit_entry")
+                  ? "종료 매치 재진입"
+                  : "기타 수정";
+                return (
+                  <li
+                    key={entry.id}
+                    className="flex items-center gap-2 border-t pt-1"
+                    style={{ borderColor: "var(--color-border)" }}
+                  >
+                    <span
+                      className="inline-block min-w-[88px] font-medium"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {kind}
+                    </span>
+                    <span style={{ minWidth: 110 }}>
+                      {new Date(entry.occurredAt).toLocaleString("ko-KR", {
+                        timeZone: "Asia/Seoul",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span>{entry.userNickname ?? "(익명)"}</span>
+                    {entry.source && (
+                      <span
+                        className="ml-auto"
+                        style={{
+                          color: "var(--color-text-muted)",
+                          fontSize: "0.65rem",
+                        }}
+                      >
+                        {entry.source}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
 
@@ -1246,7 +1477,8 @@ export function ScoreSheetForm({
         onEndMatch={() => {
           // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 이중 방어).
           //   hideEndMatch 시 button 자체 render 0 이지만, onClick 까지 가드 (회귀 안전망).
-          if (isCompleted) return;
+          // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (재제출 허용 — 사용자 결재 Q5).
+          if (isCompleted && !isEditMode) return;
           setMatchEndOpen(true);
         }}
         backHref="/admin"
@@ -1254,7 +1486,16 @@ export function ScoreSheetForm({
         endMatchDisabled={matchEndSubmitted}
         // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 경기 종료 버튼 hidden (사용자 결재 Q2).
         //   인쇄 / ← 메인 만 노출 / 종료 버튼 진입점 차단.
-        hideEndMatch={isCompleted}
+        // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 = 경기 종료 다시 노출 (재제출 허용).
+        //   isCompleted && !isEditMode 시만 hide (수정 모드 활성 시 종료 버튼 활성).
+        hideEndMatch={isCompleted && !isEditMode}
+        // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 진입 (사용자 결재 Q3 + Q4).
+        //   canEdit (page.tsx 가 권한 산출) + 종료 매치 시 "수정 모드" 버튼 노출.
+        //   onEnterEditMode = confirm modal → 동의 시 setIsEditMode(true).
+        //   isEditMode = 현재 수정 모드 활성 여부 (시각 indicator 분기).
+        canEdit={canEdit}
+        onEnterEditMode={handleEnterEditMode}
+        isEditMode={isEditMode}
       />
 
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
@@ -1326,7 +1567,7 @@ export function ScoreSheetForm({
             values={header}
             onChange={setHeader}
             // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-            readOnly={isCompleted}
+            readOnly={isCompleted && !isEditMode}
             frameless
           />
         </div>
@@ -1369,8 +1610,8 @@ export function ScoreSheetForm({
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
                 //   disabled = button (foul/timeout/stat cell) + checkbox 차단
                 //   readOnly = input (coach/asstCoach) 차단
-                disabled={isCompleted}
-                readOnly={isCompleted}
+                disabled={isCompleted && !isEditMode}
+                readOnly={isCompleted && !isEditMode}
                 frameless
               />
             </div>
@@ -1400,8 +1641,8 @@ export function ScoreSheetForm({
                   handleRequestOpenStatPopover("away", playerId, statKey)
                 }
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
-                disabled={isCompleted}
-                readOnly={isCompleted}
+                disabled={isCompleted && !isEditMode}
+                readOnly={isCompleted && !isEditMode}
                 frameless
               />
             </div>
@@ -1416,7 +1657,8 @@ export function ScoreSheetForm({
               headerUmpire1={header.umpire1}
               headerUmpire2={header.umpire2}
               // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-              readOnly={isCompleted}
+              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
+              readOnly={isCompleted && !isEditMode}
               frameless
             />
           </div>
@@ -1435,7 +1677,8 @@ export function ScoreSheetForm({
               awayTeamName={awayFilteredRoster.teamName}
               // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
               //   readOnly = onClick early return (모달 open / undo / addMark 차단)
-              readOnly={isCompleted}
+              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
+              readOnly={isCompleted && !isEditMode}
               frameless
             />
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
@@ -1449,7 +1692,8 @@ export function ScoreSheetForm({
                 onRetreatPeriod={handleRetreatPeriod}
                 onEndPeriod={handleEndPeriod}
                 // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 OT 종료 빨강 버튼 차단 (사용자 결재 Q2)
-                disabled={isCompleted}
+                // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
+                disabled={isCompleted && !isEditMode}
                 frameless
               />
             </div>
@@ -1531,7 +1775,7 @@ export function ScoreSheetForm({
 
       {/* Phase 7-B — 라인업 다시 선택 버튼 (양식 표시 후에도 운영자가 재선택 가능).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 시 hidden (사용자 결재 Q2). */}
-      {!isCompleted && (
+      {(!isCompleted || isEditMode) && (
         <button
           type="button"
           onClick={() => setLineupModalOpen(true)}
@@ -1554,7 +1798,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             handleRequestAddFoul 가드 + open 분기 가드 = 이중 방어. */}
       <FoulTypeModal
-        open={!isCompleted && foulModalCtx !== null}
+        open={(!isCompleted || isEditMode) && foulModalCtx !== null}
         playerName={foulModalCtx?.playerName ?? ""}
         jerseyNumber={foulModalCtx?.jerseyNumber ?? null}
         period={runningScore.currentPeriod}
@@ -1567,7 +1811,7 @@ export function ScoreSheetForm({
           open 시만 렌더 — 운영 동작 보존 (FoulTypeModal 패턴 일관). */}
       {/* Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <StatPopover
-        open={!isCompleted && statPopoverCtx !== null}
+        open={(!isCompleted || isEditMode) && statPopoverCtx !== null}
         playerName={statPopoverCtx?.playerName ?? ""}
         jerseyNumber={statPopoverCtx?.jerseyNumber ?? null}
         statKey={statPopoverCtx?.statKey ?? "or"}
@@ -1592,7 +1836,7 @@ export function ScoreSheetForm({
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
             라인업 재선택 진입점 차단 (handleLineupConfirm 가드 + open 분기 가드 이중 방어). */}
       <LineupSelectionModal
-        open={!isCompleted && lineupModalOpen}
+        open={(!isCompleted || isEditMode) && lineupModalOpen}
         homeTeamName={homeRoster.teamName}
         awayTeamName={awayRoster.teamName}
         homePlayers={homeRoster.players}
@@ -1610,7 +1854,7 @@ export function ScoreSheetForm({
       {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <QuarterEndModal
-        open={!isCompleted && quarterEndModal !== null}
+        open={(!isCompleted || isEditMode) && quarterEndModal !== null}
         mode={quarterEndModal?.mode ?? "quarter4"}
         currentPeriod={quarterEndModal?.period ?? 4}
         homeTeamName={homeFilteredRoster.teamName}
