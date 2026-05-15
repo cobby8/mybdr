@@ -1649,12 +1649,13 @@ export function ScoreSheetForm({
 
             Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
             이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
-        {/* 2026-05-15 (PR-E-1 revert) — grid-rows 1fr 1fr auto 적용 시 Team 자식 콘텐츠
-            자연 height 잘림 사고. 이전 flex-col 복귀 + mt-auto 박제 (시각 정합은 미세 차이
-            허용 / 자식 잘림 0 우선). */}
+        {/* 2026-05-15 (PR-E-2) — grid 2x2 정합 (사용자 요청):
+            좌상 = Team A+B (한 cell 묶음) / 우상 = Running Score
+            좌하 = Signatures / 우하 = Period Scores
+            grid auto rows = max(좌, 우) → 같은 row 양 자식 자동 stretch (자식 잘림 0). */}
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하). */}
-          <div className="md-fiba-divider-right flex flex-col">
+          {/* 좌상 — Team A + Team B 묶음 cell. */}
+          <div className="md-fiba-divider-right fiba-divider-bottom flex flex-col" data-ss-area="left-top">
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1718,32 +1719,10 @@ export function ScoreSheetForm({
                 frameless
               />
             </div>
-            {/* Phase 15 — FooterSignatures = 좌측 col 안 Team B 아래 (FIBA PDF 정합).
-                2026-05-15 — mt-auto wrapper 추가. 좌측 column = Team A + Team B + FooterSignatures
-                  stretch (grid stretch). FooterSignatures 가 bottom 정렬 = 우측 PeriodScoresSection
-                  과 정확 매치 (양쪽 column 끝 자식 = bottom 베이스라인 동일). */}
-            <div className="mt-auto">
-            <FooterSignatures
-              values={signatures}
-              onChange={setSignatures}
-              headerReferee={header.referee}
-              headerUmpire1={header.umpire1}
-              headerUmpire2={header.umpire2}
-              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
-              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
-              readOnly={isReadOnly}
-              frameless
-            />
-            </div>
           </div>
 
-          {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
-              2026-05-15 (PR-E-1 revert) — flex-col 복귀. */}
-          <div className="flex flex-col">
-            {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
-                단일 모드 (= 기존 detail 동작) 통일.
-                2026-05-15 — flex-1 wrapper 추가. Running Score 가 좌측 Team A+B 높이만큼 자동 확장. */}
-            <div className="flex-1">
+          {/* 우상 — Running Score */}
+          <div className="fiba-divider-bottom" data-ss-area="right-top">
             <RunningScoreGrid
               state={runningScore}
               onChange={setRunningScore}
@@ -1751,19 +1730,27 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
-              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
-              //   readOnly = onClick early return (모달 open / undo / addMark 차단)
-              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 시 우회 (Q3 + Q5)
               readOnly={isReadOnly}
               frameless
-              // 2026-05-15 — 쿼터 종료 = 헤더 우측 작은 버튼 (FIBA 양식 정합 / 기존 큰 버튼 영역 제거).
               onEndPeriod={isReadOnly ? undefined : handleEndPeriod}
             />
-            </div>
-            {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
-                상단 분할선 = fiba-divider-top 으로 Running Score 와 시각 구분.
-                2026-05-15 — mt-auto = column 의 bottom 정렬 (좌측 FooterSignatures 와 베이스라인 매치). */}
-            <div className="fiba-divider-top mt-auto">
+          </div>
+
+          {/* 좌하 — Signatures (Scorer/Timer/Referee/Umpire/Captain 등) */}
+          <div className="md-fiba-divider-right" data-ss-area="left-bottom">
+            <FooterSignatures
+              values={signatures}
+              onChange={setSignatures}
+              headerReferee={header.referee}
+              headerUmpire1={header.umpire1}
+              headerUmpire2={header.umpire2}
+              readOnly={isReadOnly}
+              frameless
+            />
+          </div>
+
+          {/* 우하 — Period Scores + Final + Winner */}
+          <div data-ss-area="right-bottom">
               <PeriodScoresSection
                 state={runningScore}
                 homeTeamName={homeFilteredRoster.teamName}
@@ -1776,7 +1763,6 @@ export function ScoreSheetForm({
                 disabled={isReadOnly}
                 frameless
               />
-            </div>
           </div>
         </div>
       </div>
