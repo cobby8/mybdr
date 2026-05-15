@@ -118,7 +118,7 @@ export function PeriodScoresSection({
 
   return (
     // ss-shell 스코프 — 본 컴포넌트 outermost 한정 (PR-S4 와 동일 패턴)
-    <section className="ss-shell ss-ps-section" data-ss-section="period-scores">
+    <section className="ss-shell ss-ps-section">
       {/* ─────────────────────────────────────────────
           시안 .ss-ps 표 — Period 5 row (Q1~Q4 + Extra)
           ───────────────────────────────────────────── */}
@@ -235,9 +235,43 @@ export function PeriodScoresSection({
         </div>
       </div>
 
-      {/* 2026-05-15 — 큰 빨강 쿼터 종료 버튼 영역 제거 (FIBA 양식 정합).
-          쿼터 종료 trigger 는 RunningScoreGrid 헤더 우측 작은 버튼으로 이동.
-          기존 onEndPeriod prop 은 호환성 위해 유지 (form 이 동일 핸들러 RunningScoreGrid 에 직접 전달). */}
+      {/* ─────────────────────────────────────────────
+          OT 탭 + OT 종료 버튼 — 시안 미존재 / 운영 그대로 보존
+          (위치만 .ss-ps 영역 아래로 배치 — JSX 구조 조정만)
+          ───────────────────────────────────────────── */}
+      {hasOtControls && (
+        <div className="ss-ot-controls">
+          {/* PR-S10.2 (2026-05-15): chevron < OT1 > 임시 버튼 영역 제거.
+              사유: handleAdvancePeriod / handleRetreatPeriod = Phase 4 통합 전 임시.
+              실제 quarter 종료 흐름 = onEndPeriod (handleEndPeriod) 가 담당.
+              레이아웃 깔끔화 + 우하단 정합 회복. */}
+
+          {/* OT 종료 큰 빨강 버튼 — onClick 그대로 보존 (운영 BFF 트리거) */}
+          {onEndPeriod && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={onEndPeriod}
+                disabled={disabled || state.currentPeriod >= 7}
+                className="flex w-full items-center justify-center gap-1 py-1 text-xs font-semibold disabled:opacity-40"
+                style={{
+                  border: "1px solid var(--color-accent)",
+                  backgroundColor:
+                    "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+                  color: "var(--color-accent)",
+                  touchAction: "manipulation",
+                }}
+                aria-label={`현재 ${periodLabel(state.currentPeriod)} 종료`}
+              >
+                <span className="material-symbols-outlined text-sm">
+                  stop_circle
+                </span>
+                {periodLabel(state.currentPeriod)} 종료
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }

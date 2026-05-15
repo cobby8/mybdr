@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 대진표 생성 →")
+import { NextStepCTA } from "../_components/NextStepCTA";
 
 /* ---------- 타입 ---------- */
 
@@ -1151,6 +1153,9 @@ export default function TournamentTeamsPage() {
         }
         .print-only { display: none; }
       `}</style>
+
+      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
+      <NextStepCTA tournamentId={id} currentStep="teams" />
     </div>
   );
 }

@@ -31,12 +31,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError, validationError } from "@/lib/api/response";
-import {
-  requireScoreSheetAccess,
-  // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 권한 검증 (사용자 결재 Q4 + Q8).
-  //   recorder 제외 / super/organizer/TAM 만 통과. 클라이언트 우회 시도 차단 최후 가드.
-  checkScoreSheetEditAccess,
-} from "@/lib/auth/require-score-sheet-access";
+import { requireScoreSheetAccess } from "@/lib/auth/require-score-sheet-access";
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
 import {
   syncSingleMatch,
@@ -119,24 +114,6 @@ const signaturesSchema = z.object({
   captainSignature: z.string().max(100).optional(),
 });
 
-// Phase 19 PR-Stat4 (2026-05-15) — player_stats_input zod schema (6 stat: OR/DR/A/S/B/TO).
-//   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-//   shape = Record<playerId, { or, dr, a, s, b, to }> — UI PlayerStatsState 와 동일 shape.
-//   playerId = BigInt 문자열 (errors.md 2026-04-17 패턴).
-//   각 stat 0~199 안전 룰 (1팀 1매치 50건 안팎 — 199 = 충분히 큰 상한).
-const playerStatEntrySchema = z.object({
-  or: z.number().int().min(0).max(199).default(0),
-  dr: z.number().int().min(0).max(199).default(0),
-  a: z.number().int().min(0).max(199).default(0),
-  s: z.number().int().min(0).max(199).default(0),
-  b: z.number().int().min(0).max(199).default(0),
-  to: z.number().int().min(0).max(199).default(0),
-});
-const playerStatsInputSchema = z.record(
-  z.string().regex(/^\d+$/, "playerId는 BigInt 문자열"),
-  playerStatEntrySchema
-);
-
 // Phase 7-B — lineup zod schema (FIBA 양식 오늘 출전 명단 + 선발 5인).
 //   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source — Phase PR1~5 와 통합).
 //   - starters: 선발 5인 (BigInt 문자열 5개 정확히)
@@ -191,27 +168,14 @@ type FoulsInput = {
   away: Array<{ playerId: string; period: number; type: "P" | "T" | "U" | "D" }>;
 };
 
-// Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 입력 shape.
-//   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-//   UI PlayerStatsState 와 동일 shape (key = playerId string).
-type PlayerStatsInput = Record<
-  string,
-  { or: number; dr: number; a: number; s: number; b: number; to: number }
->;
-
 export function buildPlayerStatsFromRunningScore(params: {
   runningScore?: RunningScoreInput;
   fouls?: FoulsInput;
-  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 (OR/DR/A/S/B/TO).
-  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-  //   미전송 = 기존 동작 호환 (모든 6 stat 0 박제).
-  stats?: PlayerStatsInput;
   homeTeamIdNum: number;
   awayTeamIdNum: number;
 }): PlayerStatInput[] {
-  const { runningScore, fouls, stats, homeTeamIdNum, awayTeamIdNum } = params;
+  const { runningScore, fouls, homeTeamIdNum, awayTeamIdNum } = params;
   // player_id (BigInt string) → 누적 stat
-  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 컬럼 추가 (offensiveRebounds / defensiveRebounds / assists / steals / blocks / turnovers).
   const acc = new Map<
     string,
     {
@@ -224,13 +188,6 @@ export function buildPlayerStatsFromRunningScore(params: {
       personalFouls: number;
       technicalFouls: number;
       unsportsmanlikeFouls: number;
-      // Phase 19 PR-Stat4 — 6 stat 누적
-      offensiveRebounds: number;
-      defensiveRebounds: number;
-      assists: number;
-      steals: number;
-      blocks: number;
-      turnovers: number;
     }
   >();
 
@@ -247,13 +204,6 @@ export function buildPlayerStatsFromRunningScore(params: {
         personalFouls: 0,
         technicalFouls: 0,
         unsportsmanlikeFouls: 0,
-        // Phase 19 PR-Stat4 — 6 stat 0 초기값
-        offensiveRebounds: 0,
-        defensiveRebounds: 0,
-        assists: 0,
-        steals: 0,
-        blocks: 0,
-        turnovers: 0,
       };
       acc.set(playerIdStr, row);
     }
@@ -294,40 +244,9 @@ export function buildPlayerStatsFromRunningScore(params: {
     }
   }
 
-  // 3) Phase 19 PR-Stat4 (2026-05-15) — 6 stat 합산 (OR/DR/A/S/B/TO).
-  //
-  // 이유: 사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-  //   UI 의 PlayerStatsState (playerId → {or,dr,a,s,b,to}) 를 acc 에 합산.
-  //   team 분기 정보가 없음 (UI 는 양 팀 통합 record) → ensure 호출 시 acc 에 이미 있으면
-  //   기존 teamId 유지 / 없으면 home/away 어느 쪽인지 추론 필요.
-  //
-  // teamId 추론: stats record key 만으로는 home/away 식별 불가.
-  //   → 안전 룰: stats 박제는 runningScore 또는 fouls 가 같은 player 에 박제됨을 전제.
-  //   → 둘 다 없는 player 의 6 stat 박제 = 매우 예외 (FIBA 종이기록지 흐름상 정상 케이스 X).
-  //   → 그런 player 는 home 으로 기본 분류 (UI 에서 입력 안 되는 player 는 stats 도 0 — 안전).
-  //   안전망: ensure 호출 시 acc 에 player 가 있으면 기존 teamId 유지 (모순 시 home 폴백).
-  if (stats) {
-    for (const [playerIdStr, statRow] of Object.entries(stats)) {
-      // 기존 row 가 있으면 그 teamId 사용 / 없으면 home 기본 폴백 (예외 케이스 안전망)
-      const existing = acc.get(playerIdStr);
-      const teamIdNum = existing
-        ? existing.tournamentTeamIdNum
-        : homeTeamIdNum;
-      const row = ensure(playerIdStr, teamIdNum);
-      row.offensiveRebounds += statRow.or;
-      row.defensiveRebounds += statRow.dr;
-      row.assists += statRow.a;
-      row.steals += statRow.s;
-      row.blocks += statRow.b;
-      row.turnovers += statRow.to;
-    }
-  }
-
-  // 4) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
+  // 3) PlayerStatInput[] 변환 — 22 stat 의 미박제 항목은 모두 0
   //    field_goals_made = 2pt + 3pt / attempted = made (종이 기록 = miss 무박제)
   //    free_throws_attempted = made (동일)
-  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 박제 wiring.
-  //   total_rebounds = or + dr 자동 계산 (FIBA 표준).
   return Array.from(acc.values()).map((row) => {
     const fgMade = row.twoMade + row.threeMade;
     const totalFouls = row.personalFouls + row.technicalFouls + row.unsportsmanlikeFouls;
@@ -345,14 +264,13 @@ export function buildPlayerStatsFromRunningScore(params: {
       three_pointers_attempted: row.threeMade,
       free_throws_made: row.ftMade,
       free_throws_attempted: row.ftMade,
-      // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 (사용자 결재 Q3 = match_player_stats 직접 박제)
-      offensive_rebounds: row.offensiveRebounds,
-      defensive_rebounds: row.defensiveRebounds,
-      total_rebounds: row.offensiveRebounds + row.defensiveRebounds, // FIBA 표준 = or + dr 자동 계산
-      assists: row.assists,
-      steals: row.steals,
-      blocks: row.blocks,
-      turnovers: row.turnovers,
+      offensive_rebounds: 0,
+      defensive_rebounds: 0,
+      total_rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      turnovers: 0,
       personal_fouls: row.personalFouls,
       technical_fouls: row.technicalFouls,
       unsportsmanlike_fouls: row.unsportsmanlikeFouls,
@@ -387,11 +305,6 @@ const submitSchema = z.object({
   //   박제 위치 = MatchLineupConfirmed (Flutter 앱 단일 source).
   //   사용자 결재 §2 §3 — 향후 팀장 사전 제출 기능과 같은 모델.
   lineup: lineupSchema.optional(),
-  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 (optional — 미전송 시 6 stat 0 박제).
-  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-  //   shape = Record<playerId, { or, dr, a, s, b, to }> (UI PlayerStatsState 와 동일).
-  //   buildPlayerStatsFromRunningScore 가 본 값을 합산하여 MatchPlayerStat 컬럼 6개에 박제.
-  player_stats_input: playerStatsInputSchema.optional(),
   // status: 진행 중 (운영자가 일부만 박제) 또는 완료
   status: z.enum(["in_progress", "completed"]),
   // 헤더 입력 (audit context 박제용 — DB 컬럼 없음)
@@ -401,14 +314,6 @@ const submitSchema = z.object({
   recorder: z.string().max(50).optional(),
   timekeeper: z.string().max(50).optional(),
   notes: z.string().max(500).optional(),
-  // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 신호 (사용자 결재 Q8).
-  //
-  //   true = 클라이언트 isEditMode=true 시 박제. MATCH_LOCKED (423) 거부 분기 우회.
-  //         권한 검증 (requireScoreSheetEditAccess) 통과 시만 우회 (recorder 제외 / 최후 가드).
-  //   false / undefined = 키 미박제. MATCH_LOCKED 거부 유지 (RO 차단 보존).
-  //
-  //   재제출 시 audit context = "completed_edit_resubmit" (Phase 23 PR4 + 본 PR 일관 박제).
-  edit_mode: z.boolean().optional(),
 });
 
 export async function POST(
@@ -428,7 +333,6 @@ export async function POST(
   const { user, match, tournament } = access;
 
   // 2) 모드 가드 — paper 가 아니면 403 (caller 가 잘못된 매치 접근 차단)
-  // 이유: 모드 가드는 status 와 무관 — 본 위치 보존 (Flutter 모드 매치는 종료 여부 무관 거부).
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {
     return apiError(
@@ -439,7 +343,7 @@ export async function POST(
     );
   }
 
-  // 3) body zod 검증 — edit_mode 검사 위해 사전 parse (PR-EDIT3).
+  // 3) body zod 검증
   let body: unknown;
   try {
     body = await req.json();
@@ -453,49 +357,6 @@ export async function POST(
   }
 
   const input = parsed.data;
-
-  // Phase 23 PR-RO4 + PR-EDIT3 (2026-05-15) — 종료 매치 BFF 거부 + 수정 모드 우회 분기.
-  //
-  // 왜 (이유):
-  //   PR-RO4 = 클라이언트 차단 우회 시도 = curl / Postman / 콘솔 fetch 모두 423 거부 (사용자 결재 Q8).
-  //   PR-EDIT3 = isEditMode=true + 권한 통과 시 우회 (사용자 결재 Q3 + Q4 + Q8).
-  //
-  // 어떻게:
-  //   1. status="completed" 매치 진입 → 다음 분기 진입.
-  //   2. input.edit_mode !== true → 423 MATCH_LOCKED 거부 (RO 차단 유지).
-  //   3. input.edit_mode === true → 권한 검증 (checkScoreSheetEditAccess).
-  //      - 권한 있음 = 우회 통과 → service 호출 → audit context = "completed_edit_resubmit".
-  //      - 권한 없음 = 403 EDIT_FORBIDDEN 거부 (recorder 등 차단 — Q4 결재).
-  //
-  // 운영 동작 보존:
-  //   - status != "completed" 매치 (draft / in_progress) = 본 분기 미진입 (회귀 0).
-  //   - edit_mode 키 미박제 = 423 거부 유지 (PR-RO4 동작 보존).
-  //   - edit_mode=true + 권한 = 통과 (수정 흐름 활성).
-  let isEditModeBypass = false;
-  if (match.status === "completed") {
-    if (input.edit_mode !== true) {
-      return apiError(
-        "종료된 매치는 수정할 수 없습니다. 수정 모드로 진입해주세요.",
-        423,
-        "MATCH_LOCKED",
-        { match_id: match.id.toString() }
-      );
-    }
-    // edit_mode=true → 권한 검증 (super/organizer/TAM 만 통과 — Q4 보수적)
-    const canEdit = await checkScoreSheetEditAccess(
-      match.id,
-      match.tournamentId
-    );
-    if (!canEdit) {
-      return apiError(
-        "종료 매치 수정 권한이 없습니다. 운영자 또는 대회 관리자만 수정 모드로 진입할 수 있습니다.",
-        403,
-        "EDIT_FORBIDDEN",
-        { match_id: match.id.toString() }
-      );
-    }
-    isEditModeBypass = true;
-  }
 
   // 4) Phase 2/3 — running_score / fouls → PBP 변환 (있을 때만)
   // 변환 시 tournament_team_id 필요 → match.homeTeamId / awayTeamId 사용 (match SELECT 에 이미 포함)
@@ -627,16 +488,10 @@ export async function POST(
   //
   // 박제 범위: points + FG/3P/FT made + foul type 카운트 (자세한 룰은 헬퍼 docstring 참조).
   let playerStats: PlayerStatInput[] | undefined = undefined;
-  // Phase 19 PR-Stat4 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 도 함께 합산.
-  //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-  //   running_score / fouls / player_stats_input 중 하나라도 있으면 build 수행.
-  const hasAnyStatInput =
-    input.running_score || input.fouls || input.player_stats_input;
-  if (hasAnyStatInput && match.homeTeamId && match.awayTeamId) {
+  if ((input.running_score || input.fouls) && match.homeTeamId && match.awayTeamId) {
     const built = buildPlayerStatsFromRunningScore({
       runningScore: input.running_score,
       fouls: input.fouls,
-      stats: input.player_stats_input,
       homeTeamIdNum: Number(match.homeTeamId),
       awayTeamIdNum: Number(match.awayTeamId),
     });
@@ -807,28 +662,7 @@ export async function POST(
     const lineupAwayCount = input.lineup
       ? input.lineup.away.starters.length + input.lineup.away.substitutes.length
       : 0;
-    // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 입력 카운트 (audit context 박제용).
-    //   playerCount = 6 stat 중 1건 이상 박제된 player 수.
-    //   eventCount = 6 stat 의 모든 카운트 합 (총 입력 이벤트).
-    let stat6PlayerCount = 0;
-    let stat6EventCount = 0;
-    if (input.player_stats_input) {
-      for (const stat of Object.values(input.player_stats_input)) {
-        const total = stat.or + stat.dr + stat.a + stat.s + stat.b + stat.to;
-        if (total > 0) {
-          stat6PlayerCount += 1;
-          stat6EventCount += total;
-        }
-      }
-    }
-    // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 prefix (사용자 결재 Q5 = audit only / status 유지).
-    //   isEditModeBypass=true 시 audit context 앞에 "[수정 모드]" prefix + context = "completed_edit_resubmit".
-    //   추적 단일 source — admin dashboard 가 본 context 로 수정 이력 SELECT.
-    const auditPrefix = isEditModeBypass
-      ? `[수정 모드] completed_edit_resubmit `
-      : "";
     const auditContext =
-      auditPrefix +
       `score-sheet 입력 by ${user.nickname ?? "익명"}` +
       ` / 점수 ${input.home_score}-${input.away_score} / status ${input.status}` +
       (pbpCount > 0
@@ -844,10 +678,6 @@ export async function POST(
         : "") +
       (input.lineup
         ? ` / Lineup home ${lineupHomeCount}명 / away ${lineupAwayCount}명`
-        : "") +
-      // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 audit
-      (stat6PlayerCount > 0
-        ? ` / Stat6 ${stat6PlayerCount}명/${stat6EventCount}건`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");
@@ -878,12 +708,6 @@ export async function POST(
               // Phase 7-B — lineup 박제 결과 (MatchLineupConfirmed upsert)
               lineup_home_count: lineupHomeCount,
               lineup_away_count: lineupAwayCount,
-              // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 (사용자 결재 Q3)
-              stat6_player_count: stat6PlayerCount,
-              stat6_event_count: stat6EventCount,
-              // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 박제 (audit 추적용 / Q3 + Q5).
-              //   isEditModeBypass=true = 종료 매치 수정 재제출 흐름. EDIT4 (수정 이력 inline) 의 SELECT 기준.
-              edit_mode_bypass: isEditModeBypass,
             },
           } as object,
           changedBy: user.id,

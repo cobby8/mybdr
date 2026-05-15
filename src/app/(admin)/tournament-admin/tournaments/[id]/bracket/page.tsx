@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
 import { DualGroupAssignmentEditor } from "./_components/dual-group-assignment-editor";
 import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
+// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 경기 관리 →")
+import { NextStepCTA } from "../_components/NextStepCTA";
 
 const MAX_FREE_VERSIONS = 3;
 
@@ -518,6 +520,9 @@ export default function BracketAdminPage() {
           </p>
         </Card>
       )}
+
+      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 7 단절 해소) */}
+      <NextStepCTA tournamentId={id} currentStep="bracket" />
     </div>
   );
 }

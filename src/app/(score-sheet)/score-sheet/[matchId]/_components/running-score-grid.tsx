@@ -70,24 +70,16 @@ interface RunningScoreGridProps {
   homeTeamName: string;
   awayTeamName: string;
   disabled?: boolean;
-  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 cell 클릭 차단).
-  //   왜: onClick early return — 모달 open / undo / addMark 분기 진입 0.
-  //   호출자 미전달 시 동작 변경 0 (운영 보존).
-  readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
-  // 2026-05-15 — 쿼터 종료 trigger. 헤더 "Running Score" 라벨 우측 작은 버튼.
-  //   FIBA 표준 양식 정합 (별도 큰 버튼 영역 없음) — 사용자 요청.
-  onEndPeriod?: () => void;
   // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
   // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
 
-// 2026-05-15 — FIBA 양식: 4 세트 × 30 row = 120점 (사용자 요청, 40×4=160 → 30×4=120).
-//   각 컬럼 row 수 감소 + cell flex stretch 로 좌측 Team A+B 와 정합.
+// FIBA 양식 = 4 세트, 각 세트 = 40 row, A|B 두 컬럼
 const SETS = 4;
-const ROWS_PER_SET = 30;
-const MAX_POSITION = SETS * ROWS_PER_SET; // 120
+const ROWS_PER_SET = 40;
+const MAX_POSITION = SETS * ROWS_PER_SET; // 160
 // Phase 18 (2026-05-13) — 한 세트 = 4 sub-column (마킹A | 점수A | 점수B | 마킹B)
 const SUB_COLS_PER_SET = 4;
 
@@ -106,9 +98,7 @@ export function RunningScoreGrid({
   homeTeamName,
   awayTeamName,
   disabled,
-  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2)
   frameless,
-  onEndPeriod, // 2026-05-15 — 헤더 우측 쿼터 종료 작은 버튼 (FIBA 양식 정합).
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
@@ -144,9 +134,6 @@ export function RunningScoreGrid({
   // 칸 클릭 핸들러 — 빈 칸이면 모달, 마지막 마킹 칸이면 해제 확인, 그 외 마킹은 안내
   function handleCellClick(team: "home" | "away", position: number) {
     if (disabled) return;
-    // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
-    //   왜: addMark / undoLastMark / 모달 open 모두 차단. disabled 와 별도 가드 (이중 방어).
-    if (readOnly) return;
     // PR-S6 (2026-05-14 rev2 롤백) — paper 모드 분기 제거. 시안 rev2 가 모드 토글을 제거.
     const marks = team === "home" ? state.home : state.away;
     const lastPos = team === "home" ? homeLastPos : awayLastPos;
@@ -214,7 +201,7 @@ export function RunningScoreGrid({
     // Phase 7-A → Phase 8 — 디자인 정합 (FIBA PDF 1:1): radius X / shadow X
     // PR-S6 (2026-05-14 rev2 롤백) — data-score-mode 속성 + paper 안내 텍스트 제거 (모드 토글 제거).
     // PR-S10 (2026-05-15) — ss-shell ss-rs 스코프 + 페이퍼 토큰 (--pap-*) 사용 (다크 leak 차단).
-    <div className={wrapperClass} style={wrapperStyle} data-ss-section="running-score">
+    <div className={wrapperClass} style={wrapperStyle}>
       {/* Phase 19 (2026-05-13) — 헤더 시인성 강화 (사용자 결재 §2 / FIBA 정합).
           - 영역 padding px-2 py-0.5 → px-2 py-1 (상하 4px 여백 일관)
           - "Running Score" 14px font-semibold → 16px font-bold (FIBA 종이기록지 정합)
@@ -233,30 +220,9 @@ export function RunningScoreGrid({
         <div className="text-[16px] font-bold uppercase tracking-wider" style={{ color: "var(--pap-ink)" }}>
           Running Score
         </div>
-        {/* 2026-05-15 — 우측 안내 텍스트 ("P1·1탭=입력 / 마지막=해제") 제거.
-            대신 쿼터 종료 작은 버튼 배치 (FIBA 양식 정합 — 기존 큰 빨강 버튼 영역 제거). */}
-        {onEndPeriod && (
-          <button
-            type="button"
-            onClick={onEndPeriod}
-            disabled={disabled || readOnly || state.currentPeriod >= 9}
-            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold disabled:opacity-40"
-            style={{
-              border: "1px solid var(--color-accent)",
-              backgroundColor: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
-              color: "var(--color-accent)",
-              borderRadius: 3,
-              touchAction: "manipulation",
-            }}
-            aria-label={`현재 P${state.currentPeriod} 종료`}
-            title={`P${state.currentPeriod} 종료`}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              stop_circle
-            </span>
-            P{state.currentPeriod} 종료
-          </button>
-        )}
+        <div className="text-[10px]" style={{ color: "var(--pap-hair)" }}>
+          P{state.currentPeriod} · 1탭=입력 / 마지막=해제
+        </div>
       </div>
 
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.

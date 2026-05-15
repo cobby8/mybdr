@@ -60,10 +60,6 @@ interface FibaHeaderProps {
   values: FibaHeaderInputs;
   onChange: (next: FibaHeaderInputs) => void;
   disabled?: boolean;
-  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 input 차단).
-  //   왜: disabled 와 분리 = 시각 회색 처리 없이 readOnly 만 적용 (UX 우호적 / 포커스 + 선택 허용).
-  //   호출자 미전달 (= undefined) 시 동작 변경 0 (운영 보존).
-  readOnly?: boolean;
   // Phase 8 — frameless 모드. PR-S4 시안 정합 후 시각 효과 흡수.
   //   호출자 호환성 위해 prop 시그니처는 보존 (page.tsx / form.tsx 변경 0).
   frameless?: boolean;
@@ -79,7 +75,6 @@ export function FibaHeader({
   values,
   onChange,
   disabled,
-  readOnly, // Phase 23 PR-RO1 (2026-05-15) — input readOnly wiring (종료 매치 차단)
   frameless: _frameless, // PR-S4 — 시안 정합으로 시각 흡수 (호출자 호환성 위해 시그니처만 유지)
 }: FibaHeaderProps) {
   // 단일 update 패턴 — values 전체 spread + key 갱신 (운영 매핑 변경 0)
@@ -95,7 +90,7 @@ export function FibaHeader({
   return (
     // outermost wrapper = ss-shell + ss-header — PR-S1 토큰 활성화 + PR-S4 .ss-h/.ss-names/.ss-meta 룰 매칭
     // 시안 출처: ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta (3 섹션 직렬)
-    <section className="ss-shell ss-header" data-ss-section="header">
+    <section className="ss-shell ss-header">
       {/* Section A — BDR 로고 + 3줄 타이틀 (시안 .ss-h).
           PR-S8 (2026-05-15 rev2) — 로고 두 줄 분리 (시안 ScoreSheet.parts.jsx L28~29 정합):
             - <div.ss-h__logo-brand>BDR</div>
@@ -144,40 +139,29 @@ export function FibaHeader({
           운영 매핑 변경 0:
             - competitionName / dateLabel / timeLabel / gameNo / placeLabel — 시안 SSField (display)
             - values.referee / values.umpire1 / values.umpire2 + update(key) — 시안 SSField input 형 */}
-      <section
-        className="ss-meta"
-        // 2026-05-15 — inline style 박제 (CSS 캐시/hot reload 우회 강제).
-        //   좌:우 = 23:7 = 76.67% : 23.33% (사용자 누적 요청 — 우측 심판 영역 추가 30% 축소).
-        style={{ gridTemplateColumns: "5fr 1fr" }}
-      >
-        <div className="ss-meta__l" data-ss-section="header-meta">
-          {/* 2026-05-15 (PR-SS-meta-Layout) — 사용자 요청 재배치:
-              1행: Competition (가장 넓게) + Game No.
-              2행: Date + Time + Place
-              이전 박제: 1행 Competition+Date+Time / 2행 Game No.+Place. */}
+      <section className="ss-meta">
+        <div className="ss-meta__l">
           <div className="ss-meta__row">
             <SSFieldDisplay
               label="Competition"
               value={competitionName}
-              grow={3}
-              allowWrap
+              grow={2}
             />
-            <SSFieldDisplay label="Game No." value={gameNo ?? ""} />
-          </div>
-          <div className="ss-meta__row">
             <SSFieldDisplay label="Date" value={dateLabel ?? ""} />
             <SSFieldDisplay label="Time" value={timeLabel ?? ""} />
+          </div>
+          <div className="ss-meta__row">
+            <SSFieldDisplay label="Game No." value={gameNo ?? ""} />
             <SSFieldDisplay label="Place" value={placeLabel ?? ""} grow={3} />
           </div>
         </div>
-        <div className="ss-meta__r" data-ss-section="header-officials">
+        <div className="ss-meta__r">
           <div className="ss-meta__row">
             <SSFieldInput
               label="Referee"
               value={values.referee}
               onChange={update("referee")}
               disabled={disabled}
-              readOnly={readOnly}
               grow={2}
             />
           </div>
@@ -187,14 +171,12 @@ export function FibaHeader({
               value={values.umpire1}
               onChange={update("umpire1")}
               disabled={disabled}
-              readOnly={readOnly}
             />
             <SSFieldInput
               label="Umpire 2"
               value={values.umpire2}
               onChange={update("umpire2")}
               disabled={disabled}
-              readOnly={readOnly}
             />
           </div>
         </div>
@@ -213,37 +195,18 @@ function SSFieldDisplay({
   label,
   value,
   grow = 1,
-  allowWrap = false,
 }: {
   label: string;
   value: string;
   grow?: 1 | 2 | 3;
-  /**
-   * 2026-05-15 (PR-Score-Sheet-Cleanup #49) — 긴 텍스트 wrap 허용.
-   *   default false = FIBA 종이 정합 (1줄 + ellipsis).
-   *   true = Competition 등 긴 대회명 wrap (2줄까지 확장, height auto).
-   */
-  allowWrap?: boolean;
 }) {
-  // 2026-05-15 — allowWrap 시 .ss-field__v 기본 룰 (nowrap + ellipsis) 우회.
-  //   inline style 로 white-space/height/line-height override (CSS 추가 없이 단일 컴포넌트).
-  const valueStyle: React.CSSProperties | undefined = allowWrap
-    ? {
-        whiteSpace: "normal",
-        textOverflow: "clip",
-        height: "auto",
-        minHeight: 16,
-        lineHeight: "13px",
-        wordBreak: "keep-all",
-      }
-    : undefined;
   return (
     <div className="ss-field" data-grow={grow}>
       {/* PR-S8 — .pap-lbl 클래스 병행 (시안 rev2 정합 / 기존 .ss-field>label 룰 호환 유지) */}
       <label className="pap-lbl">{label}</label>
       {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합).
           PR-S8 — .pap-u 클래스 병행 (시안 rev2 정합). */}
-      <div className="ss-field__v pap-u" style={valueStyle}>{value || " "}</div>
+      <div className="ss-field__v pap-u">{value || " "}</div>
     </div>
   );
 }
@@ -259,14 +222,12 @@ function SSFieldInput({
   value,
   onChange,
   disabled,
-  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 input 차단 wiring
   grow = 1,
 }: {
   label: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
-  readOnly?: boolean;
   grow?: 1 | 2 | 3;
 }) {
   // 시안 CSS selector `.ss-shell .ss-field > label` + `.ss-shell .ss-field > input.ss-field__input`
@@ -282,7 +243,6 @@ function SSFieldInput({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        readOnly={readOnly}
         maxLength={40}
         aria-label={label}
       />

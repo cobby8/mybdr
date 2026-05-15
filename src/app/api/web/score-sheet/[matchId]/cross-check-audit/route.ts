@@ -55,9 +55,6 @@ const crossCheckAuditBodySchema = z.object({
     "pbp_zero_with_quarter",
     "completed_edit_entry",
     "completed_edit_resubmit",
-    // 2026-05-15 (PR-A / P0-1) — form 의 handleEnterEditMode 가 보내는 warning_type.
-    //   이전 enum 누락 → 422 silent fail → 수정 모드 진입 audit 박제 0.
-    "completed_edit_mode_enter",
   ]),
   // 상세 정보 (mismatch 의 구체적 값) — 모두 optional (클라이언트가 부분 박제 가능)
   details: z

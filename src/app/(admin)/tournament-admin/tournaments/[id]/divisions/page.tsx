@@ -23,6 +23,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 팀 등록 →")
+import { NextStepCTA } from "../_components/NextStepCTA";
 // 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
 import {
   FORMAT_LABEL,
@@ -308,6 +310,9 @@ export default function DivisionsSetupPage() {
           <li>• <strong>조별리그 + 동순위 순위결정전</strong> — 각 조 풀리그 → 1위×N팀 / 2위×N팀 ... 동순위전 자동 매칭. 4×4=16팀 / 9경기+12경기 ≈ 21경기</li>
         </ul>
       </Card>
+
+      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
+      <NextStepCTA tournamentId={tournamentId} currentStep="divisions" />
     </div>
   );
 }
