@@ -574,8 +574,10 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                             </span>
                           </>
                         )}
-                        {/* 2026-05-15 — 종별 배지 (PR-G3). 종별 색상 + 코드. uniqueDivisions 1개 이하 = 표시 0 (회귀). */}
-                        {match.division && uniqueDivisions.length > 1 && (
+                        {/* 2026-05-15 — 종별 배지 (PR-G3 / PR-G4 사용자 요청 — 모든 카드 표시).
+                            사유: 다종별 대회에서 일부 카드만 chip 표시 시 시각 일관성 부족.
+                            uniqueDivisions.length > 1 조건 제거 — match.division 있으면 항상 표시. */}
+                        {match.division && (
                           <span
                             className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase"
                             style={{
