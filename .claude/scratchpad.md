@@ -29,6 +29,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Phase 19 PR-Stat1~Stat5 + A.7 의뢰서 갱신 (FIBA 박스스코어 6 stat OR/DR/A/S/B/TO 입력 + StatPopover) | ✅ player-stats-types/helpers 신규 + vitest 13건 / TeamSection 15 col grid (P.IN 직후 + Fouls 직전 = FIBA 표준 / Q1) + StatPopover 신규 (+1/-1 / Q2) / page.tsx match_player_stats SELECT 자동 로드 + draft 박제 / submit/route.ts buildPlayerStatsFromRunningScore 확장 (Q3 = DB 변경 0) / **PR-Stat5 = live 박스스코어 6 컬럼 이미 노출 / 변경 0건 (Q4 충족)** / Flutter v1 영향 0 (Q5) / A.7 §2-7 추가 (Q6) / tsc 0 / vitest **236/236** (211+12+13) / PM 결재 대기 |
 | 2026-05-15 | feat(schedule+admin): GNBA 종별·체육관 시각 분리 (PR-G2 + PR-G3) | ✅ 매치 데이터 박제 100% 검증 (59 매치 / 6 종별 / 2 체육관 운영 자료 완벽 매칭) / public-schedule API + ScheduleMatch type + tournament-tabs 매핑 + schedule-timeline 종별/체육관 필터+카드 venue 라벨+종별 색상 좌측 border + admin matches-client venue 필터 chip / vitest 5 신규 / tsc 0 / **vitest 852/852 PASS** |
 | 2026-05-15 | Phase 3.5 유청소년 결합 코드 "i2-U11" 후속 영향 분석 (planner-architect) | ✅ 20+ 파일 read-only 진단 / 핵심 발견 = `getDivisionInfo` 호출자 0건 + 모든 매칭 DB row 매칭 + `rule.label` 운영자 직접 박제 → 실제 회귀 경로 0건 / 후속 안전 박제 = `parseDivisionCode` 헬퍼 + `getDivisionInfo` fallback (백워드 호환) + vitest 12 케이스 / 단일 PR 125 LOC / 사용자 결재 Q1~Q5 대기 |
 | 2026-05-15 | Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일) | ✅ timeout-helpers `getCellPhase`+`isCellActive` 신규 + vitest 12 신규 / team-section.tsx SSTimeoutCells `data-disabled-phase` AND 가드 + Extra periods cell 마크업 삭제 (텍스트 + 우측 정렬) / _score-sheet-styles.css `[data-disabled-phase="true"]` 회색+opacity 0.5+not-allowed / period-color.ts getPeriodColor(5+)=warning + PERIOD_LEGEND OT 제거 (4 항목) + 테스트 6 케이스 정합 갱신 / tsc 0 / vitest **223/223 PASS** (211+12) / PM 결재 대기 |
@@ -55,9 +56,98 @@
 | 2026-05-15 | Phase 19 PR-S3 (RunningScoreGrid mode prop — rev2 롤백) | ✅ commit `1a37981` push |
 
 ## 미푸시 commit (subin 브랜치)
-**0건** — 모두 푸시 완료. (Phase 23 PR4 + PR-T1~T5 는 PM 결재 후 commit)
+**0건** — 모두 푸시 완료. (Phase 23 PR4 + PR-T1~T5 + **PR-Stat1~Stat5 + A.7 의뢰서 갱신** 은 PM 결재 후 commit)
 
 ---
+
+## 구현 기록 (developer) — Phase 19 PR-Stat1~Stat5 + A.7 의뢰서 갱신
+
+📝 구현한 기능: FIBA 박스스코어 6 stat (OR/DR/A/S/B/TO) 입력 영역을 score-sheet TeamSection 의 player row 안 (P.IN 직후 + Fouls 직전 / 사용자 결재 Q1) 에 박제 + 신규 StatPopover (+1/-1 정확히 2 옵션 / 사용자 결재 Q2) + match_player_stats 직접 박제 (DB 변경 0 / Q3) + 재진입 자동 로드 + draft 박제 + BFF buildPlayerStatsFromRunningScore 확장 + live 박스스코어 6 컬럼 확인 (이미 노출 / 변경 0) + Phase A.7 의뢰서 §2 7종 확장.
+
+### 6 task 변경 파일 + LOC
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `C:/0. Programing/mybdr/src/lib/score-sheet/player-stats-types.ts` | (PR-Stat1) PlayerStat + PlayerStatsState + EMPTY_* + STAT_KEYS | 신규 | +49 |
+| `C:/0. Programing/mybdr/src/lib/score-sheet/player-stats-helpers.ts` | (PR-Stat1) addStat / removeStat / getStat / totalStats 4 헬퍼 (immutable + min 0 가드) | 신규 | +113 |
+| `C:/0. Programing/mybdr/src/__tests__/lib/score-sheet/player-stats-helpers.test.ts` | (PR-Stat1) vitest 13 케이스 (add/remove/min0/getStat/total/통합) | 신규 | +140 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (PR-Stat2) Props 확장 `playerStats / onRequestOpenStatPopover` + 헤더 6 stat cell (OR/DR/A/S/B/TO) + body 빈 row + 실제 row 에 6 stat button 추가 (P.IN 직후 / Fouls 직전 — 사용자 결재 Q1 FIBA 박스스코어 표준 순서) + ejected AND 가드 | 수정 | +56/-2 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/score-sheet/[matchId]/_components/stat-popover.tsx` | (PR-Stat2) 신규 컴포넌트 — Props (open/playerName/jerseyNumber/statKey/currentValue/onAdd/onRemove/onClose) + +1/-1 2 버튼 + currentValue=0 시 -1 disabled + ESC + backdrop + 닫기 버튼 + 44px+ 터치 + `no-print` | 신규 | +183 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/_components/_score-sheet-styles.css` | (PR-Stat2) `.ss-tbox__plyhead`/`.ss-tbox__plyrow` grid-template-columns 9→15 col 확장 (36px+1fr+22px+30px+14px×6+13px×5 / A4 폭 fit 검증 237px+1fr) + `.ss-h-fouls` grid-column 5→11 (P.IN+6 stat 직후) + `.ss-c-stat-{or,dr,a,s,b,to}` 신규 6 룰 + `:disabled` 룰 | 수정 | +29/-2 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | (PR-Stat3) Props `initialPlayerStats?: PlayerStatsState` 추가 + `playerStats` state + `statPopoverCtx` state + DraftPayload 확장 (`playerStats` 키) + draft 복원/저장 wiring + handler 3종 (`handleRequestOpenStatPopover` / `handleAddStat` / `handleRemoveStat`) + TeamSection 2곳 props 전달 + buildSubmitPayload `player_stats_input` 키 + StatPopover 마운트 | 수정 | +127/-2 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | (PR-Stat3) match_player_stats SELECT (matchId 기준 / 6 stat 컬럼) + PlayerStatsState 직렬화 (BigInt→string / 0 stat row skip) + `initialPlayerStats` prop 전달 | 수정 | +47/-0 |
+| `C:/0. Programing/mybdr/src/app/api/web/score-sheet/[matchId]/submit/route.ts` | (PR-Stat4) `playerStatEntrySchema` + `playerStatsInputSchema` 신규 (zod Record) + submitSchema 에 `player_stats_input?` 추가 + `PlayerStatsInput` 타입 + `buildPlayerStatsFromRunningScore` params 에 `stats?` 추가 + acc Map 에 6 stat 누적 컬럼 추가 + stats 합산 로직 (teamId 추론 안전망 — 기존 row 보존) + return 객체에 6 stat 컬럼 박제 (offensive/defensive_rebounds / total_rebounds = or+dr / assists / steals / blocks / turnovers) + 호출처 wiring (`hasAnyStatInput` 변수 / `stats: input.player_stats_input`) + audit context `Stat6 N명/N건` + `stat6_player_count` / `stat6_event_count` audit 박제 | 수정 | +95/-9 |
+| live 박스스코어 (PR-Stat5) | OR/DR/REB/AST/STL/BLK/TO 컬럼 = `box-score-table.tsx` + `print-box-score.tsx` 양쪽 모두 paper/Flutter 양 모드에서 **이미 노출 중** (Phase 21 hide 룰은 슈팅 6 컬럼 FG/FG%/3P/3P%/FT/FT% 에만 적용). 응답 wiring 정상 / **변경 0건** | 확인만 | 0 |
+| `C:/0. Programing/mybdr/Dev/scoresheet-2026-05-14/05-phase-A7-reverse-sync-brief.md` | §1-2 표 7종 확장 (TeamSection stat 6 cell + StatPopover 추가) + §2-7 신규 섹션 (Props + grid 확장 + StatPopover spec + 데이터 흐름) + §4-1 의뢰 본문 6→7 컴포넌트 + §5 체크리스트 stat 항목 + §7-1 commit 추적 PR-Stat1~Stat5 추가 | 수정 | +110 |
+
+총: 신규 4 파일 (player-stats-types + helpers + test + stat-popover) + 수정 6 파일 + 확인 1 영역 / **운영 동작 100% 보존**.
+
+### vitest 인벤토리
+
+| 영역 | 케이스 |
+|------|------|
+| PR-Stat1 player-stats-helpers (신규) | 13건 (addStat 4 / removeStat 4 / getStat 2 / totalStats 3) |
+| 기존 score-sheet | 211건 (회귀 0) |
+| Phase 23 PR4 / PR6 | 12건 (회귀 0) |
+| **전체** | **236건 PASS** |
+
+### 결재 Q1~Q7 처리 결과
+
+| Q | 결정 | 처리 결과 |
+|---|------|---------|
+| Q1 | stat 6 칸 위치 = P.IN 직후 + Fouls 직전 | ✅ team-section.tsx + CSS grid 15 col (P.IN 4 + stat 6 + Fouls 5) — FIBA 박스스코어 표준 순서 |
+| Q2 | 플로팅 UI = StatPopover (+1/-1) | ✅ stat-popover.tsx 신규 / 정확히 2 옵션 / 44px+ |
+| Q3 | 박제 path = match_player_stats 직접 (DB 변경 0) | ✅ submit/route.ts buildPlayerStatsFromRunningScore 확장 + page.tsx SELECT / schema 변경 0 |
+| Q4 | live 표시 = hide 룰 해제만 | ✅ 확인 결과 = OR/DR/AST/STL/BLK/TO 6 컬럼은 이미 paper/Flutter 모드 모두 노출 / Phase 21 hide 는 슈팅 6 컬럼만 / **변경 0건** |
+| Q5 | Flutter app 영향 = 무관 | ✅ paper 매치만 박제 / sync API 변경 0 / Flutter v1 route 변경 0 |
+| Q6 | 시안 역동기화 = Phase A.7 의뢰서에 추가 | ✅ §2-7 신규 + §1-2 표 7종 확장 + §4 §5 §7 갱신 |
+| Q7 | 기록원 dashboard = 보고만 | ✅ 영역 C 후속 미진행 (본 PR 범위 0) |
+
+### 검증 결과
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | ✅ 에러 0 |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | ✅ **236/236 PASS** (이전 223 + 신규 13 player-stats-helpers / 회귀 0) |
+| 3 | grep `PlayerStat\|playerStats\|StatPopover` in player-stats-types.ts | ✅ 6건 매치 (PlayerStat / PlayerStatsState / EMPTY_PLAYER_STAT / EMPTY_PLAYER_STATS / StatKey / STAT_KEYS) |
+| 4 | grep `offensive_rebounds.*stats\|defensive_rebounds.*stats` in submit/route.ts | ✅ 5건 매치 (`row.offensiveRebounds += statRow.or` / `row.defensiveRebounds += statRow.dr` / return 객체 offensive_rebounds / defensive_rebounds / total_rebounds = or+dr) |
+| 5 | grep `oreb\|dreb\|ast\|stl\|blk` in box-score-table.tsx | ✅ 30건 매치 (이미 노출 중 / Phase 21 hide 룰은 슈팅 6 컬럼만) |
+
+### 운영 동작 보존 검증
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | TimeoutMark / fouls / signatures / runningScore / lineup state shape 변경 0 | ✅ 모든 state 인터페이스 보존 (playerStats 만 신규 추가) |
+| 2 | 4종 모달 / localStorage key / BFF submit 흐름 변경 0 | ✅ FoulType/PlayerSelect/LineupSelection/QuarterEnd 모달 변경 0 / draft key `fiba-score-sheet-draft-{matchId}` 동일 (playerStats 키 추가만) |
+| 3 | 5반칙 차단 / Phase 17 색 / OT 종료 small 버튼 / Team fouls Extra 우측 정렬 / Phase 19 PR-T1~T5 (timeout phase disable) 변경 0 | ✅ ejected 분기 보존 / Phase 17 inline style 유지 / Phase 19 PR-T1~T5 disabled-phase 룰 보존 |
+| 4 | Phase 23 PR2+PR3 자동 로드 (initialRunningScore/Fouls/Timeouts/Signatures/Notes) 변경 0 | ✅ 모든 initial* prop 보존 / `initialPlayerStats` 만 추가 (옵셔널) |
+| 5 | Flutter sync API (`/api/v1/...`) 변경 0 (paper 매치만 박제) | ✅ Q5 결재 — submit/route.ts (web BFF) 만 수정 / Flutter v1 route 변경 0 |
+| 6 | _print.css 인쇄 정합 유지 | ✅ StatPopover 는 `no-print` 클래스 / 인쇄 시 자동 제거 / TeamSection grid 확장 시 print fit 검증 (237px + 1fr Players 컬럼 A4 폭 안) |
+| 7 | A4 폭 fit (15 col 후) — _print.css overflow 확인 | ✅ 고정 cell 폭 합 = 237px (Licence 36 + No 22 + P.IN 30 + 6 stat 84 + 5 Fouls 65) / Players (1fr) 가 잔여 폭 흡수 — A4 인쇄 시 overflow 0 |
+
+💡 tester 참고:
+- 테스트 방법:
+  1. score-sheet 페이지 진입 (paper 매치) → TeamSection player row 에 P.IN 직후 6 stat cell (OR/DR/A/S/B/TO) 노출 확인
+  2. 빈 stat cell 클릭 → StatPopover open (+1 / -1 / 닫기 3 버튼) — currentValue=0 시 -1 disabled
+  3. [+1] 클릭 → cell 에 1 표시 + popover 자동 닫기 + 토스트
+  4. 다시 클릭 → popover open / currentValue=1 표시 / -1 활성화
+  5. [-1] 클릭 → cell 에 빈 칸 + popover 자동 닫기
+  6. 페이지 reload → draft 박제 확인 (5초 throttle 후 reload 시 stat 카운트 복원)
+  7. 제출 후 재진입 → match_player_stats SELECT → cell 자동 복원 (Phase 23 PR2+PR3 패턴 일관)
+  8. live 박스스코어 페이지 → OR/DR/REB/AST/STL/BLK/TO 컬럼에 박제 값 표시 (paper 매치)
+- 정상 동작: 6 stat 박제 시 MatchPlayerStat 컬럼 6 개 (offensive_rebounds / defensive_rebounds / total_rebounds = or+dr / assists / steals / blocks / turnovers) 정상 업데이트 + audit context `Stat6 N명/N건`
+- 주의할 입력:
+  - ejected 선수 (5반칙 / T2 / U2 / D 1건) = stat cell 클릭 차단 — Fouls cell 패턴 일관
+  - currentValue=0 에서 -1 시도 = 차단 (helper removeStat min 0 / popover -1 disabled)
+  - 빈 폼 (record 미박제) 제출 시 모든 stat 0 박제 — Q3 결재 흐름
+
+⚠️ reviewer 참고:
+- **stats teamId 추론 안전망** (route.ts L302~314): UI 의 PlayerStatsState 는 양 팀 통합 record (team 분기 없음). runningScore / fouls 가 같은 player 에 박제됨을 전제 — 둘 다 없는 player 의 6 stat 만 박제 = 매우 예외 (FIBA 정상 흐름 X). 그런 player 는 home 으로 기본 분류 (안전망). 운영 흐름상 라인업 확정 → runningScore 박제 → 6 stat 박제 순서이므로 사고 가능성 낮음.
+- **PR-Stat5 = 변경 0건** (live 박스스코어): OR/DR/REB/AST/STL/BLK/TO 6 컬럼은 이미 `box-score-table.tsx` + `print-box-score.tsx` 양쪽에 노출 중. Phase 21 hide 룰은 슈팅 6 컬럼 (FG/FG%/3P/3P%/FT/FT%) 에만 적용. 응답 (game-result.tsx) 에서도 PlayerRowV2 타입에 6 stat 이미 포함됨. Q4 결재 "hide 룰 해제만" = 추가 조치 0 (이미 충족).
+- **A4 폭 fit**: 15 col grid 확장 후 고정 cell 폭 합 = 237px / A4 인쇄 폭 (~210mm = ~793px) 안에 fit. Players (1fr) 컬럼이 잔여 폭 흡수. _print.css 의 `.score-sheet-fiba-frame` max-width 210mm 안에서 overflow 0.
+- **draft 호환성**: 구버전 draft (playerStats 키 없음) = 무시 (안전망 isValid 검증). 새 draft = playerStats 키 박제. mid-game reload 시 기존 박제 보존.
+
+
 
 ## 구현 기록 (developer) — Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기)
 

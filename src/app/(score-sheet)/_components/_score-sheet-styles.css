@@ -670,11 +670,15 @@
 }
 /* Phase 17 쿼터별 색 = inline style 의 backgroundColor 로 override (CSS 토큰보다 우선) */
 
-/* ----- Player table header (Licence / Players / No / Player in / Fouls 1-5) ----- */
+/* ----- Player table header (Licence / Players / No / Player in / OR/DR/A/S/B/TO / Fouls 1-5) -----
+   Phase 19 PR-Stat2 (2026-05-15) — 사용자 결재 Q1 (P.IN 직후 + Fouls 직전 6 stat cell 추가).
+     기존 9 col (36 + 1fr + 22 + 30 + 13×5) → 15 col (36 + 1fr + 22 + 30 + 14×6 + 13×5).
+     stat cell 폭 = 14px (Fouls cell 13px 와 시각 정합 + A4 폭 fit).
+     A4 폭 계산: 36+22+30+(14×6=84)+(13×5=65) = 237px + 1fr (Players) → A4 인쇄 fit. */
 .ss-shell .ss-tbox__plyhead,
 .ss-shell .ss-tbox__plyrow {
   display: grid;
-  grid-template-columns: 36px 1fr 22px 30px 13px 13px 13px 13px 13px;
+  grid-template-columns: 36px 1fr 22px 30px 14px 14px 14px 14px 14px 14px 13px 13px 13px 13px 13px;
 }
 .ss-shell .ss-tbox__plyhead {
   background: var(--pap-fill);
@@ -695,8 +699,9 @@
 }
 .ss-shell .ss-tbox__plyhead > div > span { display: block; }
 .ss-shell .ss-tbox__plyhead > div:last-child { border-right: 0; }
+/* Phase 19 PR-Stat2 (2026-05-15) — Fouls 헤더 위치 col 5 → col 11 (P.IN+6 stat 직후). */
 .ss-shell .ss-tbox__plyhead .ss-h-fouls {
-  grid-column: 5 / span 5;
+  grid-column: 11 / span 5;
   display: grid;
   grid-template-rows: 1fr 1fr;
   padding: 0;
@@ -766,6 +771,33 @@
 .ss-shell .ss-tbox__plyrow .ss-c-pin > * {
   cursor: pointer;
 }
+/* Phase 19 PR-Stat2 (2026-05-15) — 6 stat cell (OR/DR/A/S/B/TO).
+   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 (FIBA 박스스코어 표준 순서).
+   각 cell button = 클릭 시 StatPopover open. 빈 칸 = 텍스트 없음, 값 표시 = 카운트 숫자.
+   배경 = transparent (parent grid border-right 가 cell 분리선). */
+.ss-shell .ss-tbox__plyrow .ss-c-stat-or,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-dr,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-a,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-s,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-b,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to {
+  justify-content: center;
+  font: 700 9.5px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
+  color: var(--pap-ink);
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  border: 0; /* parent grid border-right 가 cell 분리선 */
+}
+.ss-shell .ss-tbox__plyrow .ss-c-stat-or:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-dr:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-a:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-s:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-b:disabled,
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to:disabled {
+  cursor: default;
+}
+
 .ss-shell .ss-tbox__plyrow .ss-c-foul {
   justify-content: center;
   font: 700 9.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);

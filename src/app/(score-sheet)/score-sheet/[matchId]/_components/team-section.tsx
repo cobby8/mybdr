@@ -80,6 +80,15 @@ import {
   getPeriodColor,
   getTimeoutPhaseColor,
 } from "@/lib/score-sheet/period-color";
+// Phase 19 PR-Stat2 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 표시용.
+//   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 위치 (FIBA 박스스코어 표준 순서).
+//   stat 추가/제거 = StatPopover 가 처리 (caller 가 onRequestOpenStatPopover 위임).
+import type {
+  PlayerStatsState,
+  StatKey,
+} from "@/lib/score-sheet/player-stats-types";
+import { STAT_KEYS } from "@/lib/score-sheet/player-stats-types";
+import { getStat } from "@/lib/score-sheet/player-stats-helpers";
 
 // Phase 3.5 — 파울 종류별 글자 색상 (P=text-primary / T=warning / U=accent / D=primary)
 // 이유: P/T/U/D 약자를 칸 안에 직접 표시 — 종류별 색 차이로 한눈에 인지.
@@ -148,6 +157,11 @@ interface TeamSectionProps {
   onRequestAddTimeout: () => void;
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 마킹 칸 클릭)
   onRequestRemoveTimeout: () => void;
+  // Phase 19 PR-Stat2 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) wiring.
+  //   playerStats = 양 팀 통합 단일 record (TeamSection 은 자신의 player id 만 lookup).
+  //   onRequestOpenStatPopover = stat cell 클릭 시 StatPopover open 위임 (form 이 +1/-1 처리).
+  playerStats: PlayerStatsState;
+  onRequestOpenStatPopover: (playerId: string, statKey: StatKey) => void;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
 }
@@ -192,6 +206,9 @@ export function TeamSection({
   timeouts,
   onRequestAddTimeout,
   onRequestRemoveTimeout,
+  // Phase 19 PR-Stat2 (2026-05-15) — 6 stat wiring (사용자 결재 Q1 / FIBA 박스스코어 표준 순서)
+  playerStats,
+  onRequestOpenStatPopover,
   // PR-S6 (2026-05-15 rev2) — frameless prop = 보존 (props interface 변경 0 / 사용자 핵심 제약 #1).
   // 시안 .ss-shell.ss-tbox 가 자체 border 보유 = 항상 frameless 동일 시각. caller form.tsx 가 전달하지만 본 컴포넌트에서는 무시.
   frameless: _framelessUnused,
@@ -534,7 +551,9 @@ export function TeamSection({
       </div>
       {/* /§2 ss-tbox__tt 끝 */}
 
-      {/* §3 Player table head — Licence / Players / No / Player in / Fouls (1-5) */}
+      {/* §3 Player table head — Licence / Players / No / Player in / Stats(OR/DR/A/S/B/TO) / Fouls (1-5)
+          Phase 19 PR-Stat2 (2026-05-15) — 사용자 결재 Q1 = P.IN 직후 + Fouls 직전 6 cell 추가.
+            FIBA 박스스코어 표준 순서 (OR → DR → A → S → B → TO). 헤더 단일 행 라벨. */}
       <div className="ss-tbox__plyhead">
         <div>
           <span>Licence</span>
@@ -554,6 +573,13 @@ export function TeamSection({
           <span>Player</span>
           <span>in</span>
         </div>
+        {/* Phase 19 PR-Stat2 — 6 stat 헤더 cell (OR/DR/A/S/B/TO) */}
+        <div className="ss-c-stat-or" aria-label="Offensive Rebounds">OR</div>
+        <div className="ss-c-stat-dr" aria-label="Defensive Rebounds">DR</div>
+        <div className="ss-c-stat-a" aria-label="Assists">A</div>
+        <div className="ss-c-stat-s" aria-label="Steals">S</div>
+        <div className="ss-c-stat-b" aria-label="Blocks">B</div>
+        <div className="ss-c-stat-to" aria-label="Turnovers">TO</div>
         <div className="ss-h-fouls">
           <div className="ss-h-fouls-top">Fouls</div>
           <div className="ss-h-fouls-nums">
@@ -576,12 +602,21 @@ export function TeamSection({
         {rows.map((p, idx) => {
           if (!p) {
             // 빈 row — FIBA 12 행 정합 placeholder.
+            // Phase 19 PR-Stat2 (2026-05-15) — P.IN 직후 6 stat cell 추가 (Fouls 직전).
+            //   grid-template-columns 의 cell 개수와 정확히 맞춰야 grid 라인 무너지지 않음.
             return (
               <div key={`empty-${idx}`} className="ss-tbox__plyrow">
                 <div className="ss-c-licence">&nbsp;</div>
                 <div className="ss-c-name">&nbsp;</div>
                 <div className="ss-c-no">&nbsp;</div>
                 <div className="ss-c-pin">&nbsp;</div>
+                {/* 6 stat cell — 빈 row 시각 통일 */}
+                <div className="ss-c-stat-or">&nbsp;</div>
+                <div className="ss-c-stat-dr">&nbsp;</div>
+                <div className="ss-c-stat-a">&nbsp;</div>
+                <div className="ss-c-stat-s">&nbsp;</div>
+                <div className="ss-c-stat-b">&nbsp;</div>
+                <div className="ss-c-stat-to">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
                 <div className="ss-c-foul">&nbsp;</div>
@@ -676,6 +711,37 @@ export function TeamSection({
                   />
                 </label>
               </div>
+              {/* Phase 19 PR-Stat2 (2026-05-15) — 6 stat cell (OR/DR/A/S/B/TO).
+                  사용자 결재 Q1 = P.IN 직후 + Fouls 직전 (FIBA 박스스코어 표준 순서).
+                  각 cell 클릭 → StatPopover open (caller 가 +1/-1 처리).
+                  ejected 선수 = 클릭 차단 (운영자 사고 방지 — Fouls cell 패턴 일관). */}
+              {STAT_KEYS.map((statKey) => {
+                const value = getStat(playerStats, p.tournamentTeamPlayerId, statKey);
+                return (
+                  <button
+                    key={statKey}
+                    type="button"
+                    className={`ss-c-stat-${statKey}`}
+                    onClick={() => {
+                      if (disabled) return;
+                      // 퇴장 선수 stat 추가/수정 차단 (Fouls cell 패턴 일관)
+                      if (ejected) return;
+                      onRequestOpenStatPopover(
+                        p.tournamentTeamPlayerId,
+                        statKey
+                      );
+                    }}
+                    disabled={disabled || ejected}
+                    style={{
+                      touchAction: "manipulation",
+                    }}
+                    aria-label={`${p.displayName} ${statKey.toUpperCase()} ${value > 0 ? value : "빈 칸"} (클릭 시 +1/-1 선택)`}
+                    title={`${statKey.toUpperCase()}: ${value}`}
+                  >
+                    {value > 0 ? value : ""}
+                  </button>
+                );
+              })}
               {/* Fouls 1-5 — 5 cells (시안 .ss-c-foul × 5). */}
               {[1, 2, 3, 4, 5].map((n) => {
                 const mark = n <= foulCount ? playerFoulMarks[n - 1] : null;
