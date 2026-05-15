@@ -68,6 +68,16 @@ interface ScoreSheetToolbarProps {
   canEdit?: boolean;
   onEnterEditMode?: () => void;
   isEditMode?: boolean;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 토글 / 강남구 i3 종별 1시간 안 시합)
+  //   왜:
+  //     종이 기록지가 전후반 (2 period) 모드 운영 매치 대응. 4쿼터 기본 유지 + 토글로 즉시 전환.
+  //   동작:
+  //     - undefined → 버튼 미노출 (운영 호환 / 진행 매치 영향 0)
+  //     - "halves" → "4쿼터로 전환" 라벨 (현재 전후반 / 빨강 강조 outline)
+  //     - "quarters" → "전후반" 라벨 (현재 4쿼터 / 일반 outline)
+  //   클릭 시 onTogglePeriodFormat 콜백 호출 (form 이 setPeriodFormat 토글).
+  periodFormat?: "halves" | "quarters";
+  onTogglePeriodFormat?: () => void;
 }
 
 export function ScoreSheetToolbar({
@@ -86,6 +96,9 @@ export function ScoreSheetToolbar({
   canEdit,
   onEnterEditMode,
   isEditMode,
+  // 2026-05-16 (긴급 박제 — 전후반 모드 토글)
+  periodFormat,
+  onTogglePeriodFormat,
 }: ScoreSheetToolbarProps) {
   const router = useRouter();
   // 2026-05-15 (PR-Fullscreen-Clean) — 풀스크린 시 toolbar 자체 hidden (양식만 보이도록).
@@ -147,6 +160,45 @@ export function ScoreSheetToolbar({
         >
           전체화면
         </button>
+
+        {/* 2026-05-16 (긴급 박제 — 전후반 모드 토글 / 강남구 i3 종별).
+            왜:
+              종이 기록지 전후반 (2 period) 모드 운영 매치 즉시 대응. 4쿼터 기본 + 토글로 전환.
+            시각:
+              - "halves" (현재 전후반) = accent border + 빨강 색 (운영자 인지 — 현재 모드).
+              - "quarters" (현재 4쿼터) = 일반 outline (=ss-toolbar__print 그대로).
+            노출 조건:
+              onTogglePeriodFormat 콜백 박제 시만 노출 (운영 호환 / 진행 매치 미박제 시 미노출).
+              종료 매치 + 수정 모드 미진입 = form 이 undefined 전달 → 미노출. */}
+        {onTogglePeriodFormat && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onTogglePeriodFormat}
+            aria-label="전후반/4쿼터 모드 전환"
+            title={
+              periodFormat === "halves"
+                ? "현재 = 전후반 (2 period) / 클릭 시 4쿼터로 전환"
+                : "현재 = 4쿼터 / 클릭 시 전후반 (2 period) 로 전환"
+            }
+            // 활성 (halves) = accent border + 빨강 (운영자 즉시 인지).
+            // 비활성 (quarters) = 일반 outline (기본 ss-toolbar__print 룰 보존).
+            style={
+              periodFormat === "halves"
+                ? {
+                    border: "2px solid var(--color-primary)",
+                    color: "var(--color-primary)",
+                    fontWeight: 700,
+                  }
+                : undefined
+            }
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              schedule
+            </span>
+            {periodFormat === "halves" ? "전후반 ON" : "전후반"}
+          </button>
+        )}
 
         {/* 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
             진행 매치 + 수정 모드 매치 = form 이 콜백 전달. 종료 매치 = 미전달 (PR-RO2 룰). */}
