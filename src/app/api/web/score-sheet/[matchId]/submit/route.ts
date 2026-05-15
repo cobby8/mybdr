@@ -452,6 +452,15 @@ const submitSchema = z.object({
   //
   //   재제출 시 audit context = "completed_edit_resubmit" (Phase 23 PR4 + 본 PR 일관 박제).
   edit_mode: z.boolean().optional(),
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format DB 박제.
+  //
+  //   "halves" = 전후반 모드 매치 (강남구 i3 등) — 라이브 페이지 라벨 분기 트리거.
+  //   "quarters" = 4쿼터 모드 (기본) — 라이브 페이지 기존 라벨 보존.
+  //   미전달 = settings.period_format 갱신 0 (기존 동작 보존 — 4쿼터 매치 영향 0).
+  //
+  //   박제 위치 = match.settings.period_format JSON (timeouts / signatures merge 패턴 재사용).
+  //   라이브 페이지 = /api/live/[id] 응답의 period_format 키로 라벨 분기.
+  period_format: z.enum(["halves", "quarters"]).optional(),
 });
 
 export async function POST(
@@ -856,7 +865,10 @@ export async function POST(
     //   - 둘 중 하나라도 전송 = 단일 UPDATE 로 통합 처리 (DB 왕복 최소화)
     //   - match.settings 가 객체가 아닌 경우 (null / array / primitive) → 빈 객체에서 시작
     //   - timeouts / signatures 키만 set — 기존 recording_mode 등 모든 키 보존
-    if (input.timeouts || input.signatures) {
+    // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format settings JSON merge.
+    //   기존 timeouts / signatures merge 패턴 그대로 확장 — recording_mode 등 기존 키 보존.
+    //   input.period_format 미전달 시 = UPDATE skip (기존 settings.period_format 유지).
+    if (input.timeouts || input.signatures || input.period_format) {
       const currentSettings = match.settings;
       const baseSettings: Record<string, unknown> =
         currentSettings &&
@@ -874,6 +886,11 @@ export async function POST(
         // 빈 문자열 / undefined 키는 통째 제거하지 않음 — 운영자가 명시적으로 빈 값 박제 가능
         // (예: 사용자가 "Scorer" 만 입력하고 나머지 비움 = 그대로 빈 문자열 박제)
         baseSettings.signatures = { ...input.signatures };
+      }
+      // 2026-05-16 (긴급 박제 — 전후반 모드) — period_format JSON 키 박제.
+      //   라이브 API 가 본 키 SELECT → 응답 period_format 키 → 라이브 페이지 라벨 분기.
+      if (input.period_format) {
+        baseSettings.period_format = input.period_format;
       }
       await prisma.tournamentMatch.update({
         where: { id: match.id },

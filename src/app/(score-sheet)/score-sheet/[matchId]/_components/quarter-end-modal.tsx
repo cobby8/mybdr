@@ -37,6 +37,19 @@ interface QuarterEndModalProps {
   // 룰: OT3 (period=7) 종료 시 = 더 이상 OT 진행 불가 → "다음 진행" 비활성 (caller 가 제어)
   onContinueToOvertime: () => void;
   onCancel?: () => void;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+  //
+  // 왜 (이유):
+  //   halves 모드 매치 (강남구 i3 등) 의 후반 (period=2) 종료 시 = 제목 "Q4 종료" 가 어색.
+  //   사용자 요청 = "후반 종료" 라벨로 분기. quarters 모드 = "Q4 종료" 기존 보존.
+  //
+  // 어떻게:
+  //   - mode==="quarter4" && periodFormat==="halves" → "후반 종료"
+  //   - mode==="quarter4" && periodFormat==="quarters" (또는 미전달) → "Q4 종료" (기존)
+  //   - mode==="overtime" → OT{N} 종료 (기존 보존 — OT 라벨 분기 불필요)
+  //
+  // 미전달 = "quarters" 기본 (호환성 보존 / 4쿼터 매치 영향 0).
+  periodFormat?: "halves" | "quarters";
 }
 
 export function QuarterEndModal({
@@ -50,6 +63,9 @@ export function QuarterEndModal({
   onEndMatch,
   onContinueToOvertime,
   onCancel,
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
+  //   미전달 = "quarters" 기본 (호환성 보존 — 4쿼터 매치 영향 0).
+  periodFormat,
 }: QuarterEndModalProps) {
   // ESC 키 = 취소 (모달 닫기)
   useEffect(() => {
@@ -70,8 +86,16 @@ export function QuarterEndModal({
   const isTie = homeTotal === awayTotal;
 
   // 현재 period 라벨 (종료될 period)
+  //
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — halves 분기.
+  //   mode="quarter4" + periodFormat="halves" = "후반" / 그 외 = "Q4" (기존 보존).
+  //   mode="overtime" = OT{N} (기존 보존 — OT 라벨 분기 불필요).
   const endedLabel =
-    mode === "quarter4" ? "Q4" : `OT${currentPeriod - 4}`;
+    mode === "quarter4"
+      ? periodFormat === "halves"
+        ? "후반"
+        : "Q4"
+      : `OT${currentPeriod - 4}`;
 
   // 다음 OT 라벨 ("다음 진행" 버튼)
   // - Q4 종료 → OT1

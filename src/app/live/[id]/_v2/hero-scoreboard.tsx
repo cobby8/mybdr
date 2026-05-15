@@ -23,18 +23,55 @@ export function HeroScoreboard({ match }: { match: MatchDataV2 }) {
   const awayWin = awayScore > homeScore;
 
   // 쿼터 스코어 배열 구성 — Q1~Q4 + OT (있는 경우만)
+  //
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 라벨 분기.
+  //   "halves" 모드:
+  //     - Q1 → "전반" / Q2 → "후반" / Q3+ → "OT1, OT2..."
+  //     - period 3+ 부터 OT (사용자 결재) — Q3 점수 = OT1 / Q4 점수 = OT2 / ot[i] = OT{i+3}
+  //     - 점수 0/0 = 미발생 OT → 배열에서 제외 (라벨 노출 0)
+  //   "quarters" 모드 (기본 / 4쿼터): 기존 보존.
+  const isHalves = match.period_format === "halves";
   const qs = match.quarter_scores;
-  const quarters: { label: string; home: number; away: number }[] = [
-    { label: "Q1", home: qs?.home.q1 ?? 0, away: qs?.away.q1 ?? 0 },
-    { label: "Q2", home: qs?.home.q2 ?? 0, away: qs?.away.q2 ?? 0 },
-    { label: "Q3", home: qs?.home.q3 ?? 0, away: qs?.away.q3 ?? 0 },
-    { label: "Q4", home: qs?.home.q4 ?? 0, away: qs?.away.q4 ?? 0 },
-    ...(qs?.home.ot ?? []).map((v, i) => ({
-      label: `OT${i + 1}`,
-      home: v,
-      away: qs?.away.ot?.[i] ?? 0,
-    })),
-  ];
+  const quarters: { label: string; home: number; away: number }[] = isHalves
+    ? [
+        { label: "전반", home: qs?.home.q1 ?? 0, away: qs?.away.q1 ?? 0 },
+        { label: "후반", home: qs?.home.q2 ?? 0, away: qs?.away.q2 ?? 0 },
+        ...((qs?.home.q3 ?? 0) > 0 || (qs?.away.q3 ?? 0) > 0
+          ? [
+              {
+                label: "OT1",
+                home: qs?.home.q3 ?? 0,
+                away: qs?.away.q3 ?? 0,
+              },
+            ]
+          : []),
+        ...((qs?.home.q4 ?? 0) > 0 || (qs?.away.q4 ?? 0) > 0
+          ? [
+              {
+                label: "OT2",
+                home: qs?.home.q4 ?? 0,
+                away: qs?.away.q4 ?? 0,
+              },
+            ]
+          : []),
+        ...(qs?.home.ot ?? []).map((v, i) => ({
+          // halves OT 추가 인덱스 시작 = 3 (전반/후반 이후 Q3=OT1 / Q4=OT2 / ot[0]=OT3)
+          label: `OT${i + 3}`,
+          home: v,
+          away: qs?.away.ot?.[i] ?? 0,
+        })),
+      ]
+    : [
+        { label: "Q1", home: qs?.home.q1 ?? 0, away: qs?.away.q1 ?? 0 },
+        { label: "Q2", home: qs?.home.q2 ?? 0, away: qs?.away.q2 ?? 0 },
+        { label: "Q3", home: qs?.home.q3 ?? 0, away: qs?.away.q3 ?? 0 },
+        { label: "Q4", home: qs?.home.q4 ?? 0, away: qs?.away.q4 ?? 0 },
+        ...(qs?.home.ot ?? []).map((v, i) => ({
+          label: `OT${i + 1}`,
+          home: v,
+          away: qs?.away.ot?.[i] ?? 0,
+        })),
+      ];
 
   // 경기 일시 포맷 — "YYYY.MM.DD (요일) HH:MM"
   // scheduled_at 우선, 없으면 started_at, 둘 다 없으면 빈 문자열
