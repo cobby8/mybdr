@@ -10,6 +10,21 @@ import { LinkifyNewsBody, type LinkifyEntry } from "@/lib/news/linkify-news-body
 // 2026-05-04: 알기자 기사 사진 업로드/관리 (모바일 카메라 + 멀티 + Hero 지정 + 삭제)
 import { NewsPhotoManager, type NewsPhoto } from "./_components/news-photo-manager";
 
+// 2026-05-15 Admin-4-C 박제 — 상태별 admin-stat-pill data-tone + 라벨 매핑
+//   시안 source: Dev/design/BDR-current/screens/AdminNews.jsx (v2.9) status_tone 박제
+//   - draft=warn / published=ok / rejected=err
+//   - aside__link 좌측 탭: community-aside 공유 패턴 — 본 PR 미변경
+const NEWS_STATUS_LABEL: Record<string, string> = {
+  draft: "검수 대기",
+  published: "발행됨",
+  rejected: "거절됨",
+};
+const NEWS_STATUS_TONE: Record<string, "ok" | "warn" | "err" | "mute"> = {
+  draft: "warn",
+  published: "ok",
+  rejected: "err",
+};
+
 type NewsPost = {
   id: string;
   title: string;
@@ -274,9 +289,19 @@ export function AdminNewsContent({
               ) : (
                 <>
                   <h2 className="text-lg font-semibold">{selected.title}</h2>
-                  <div className="text-xs text-[var(--color-text-dim)]">
-                    match #{selected.tournament_match_id} · {selected.status} ·{" "}
-                    {new Date(selected.created_at).toLocaleString("ko-KR")}
+                  {/* 2026-05-15 Admin-4-C 박제 — raw status 텍스트를 admin-stat-pill 로 교체
+                      시안 v2.9 status_tone 박제 (draft=warn / published=ok / rejected=err) */}
+                  <div className="text-xs text-[var(--color-text-dim)] flex flex-wrap items-center gap-2">
+                    <span>match #{selected.tournament_match_id}</span>
+                    <span>·</span>
+                    <span
+                      className="admin-stat-pill"
+                      data-tone={NEWS_STATUS_TONE[selected.status] ?? "mute"}
+                    >
+                      {NEWS_STATUS_LABEL[selected.status] ?? selected.status}
+                    </span>
+                    <span>·</span>
+                    <span>{new Date(selected.created_at).toLocaleString("ko-KR")}</span>
                   </div>
                   <LinkifyNewsBody
                     content={selected.content}

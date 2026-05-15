@@ -38,6 +38,10 @@ export interface AppNavUser {
   name: string;
   role: string;
   is_referee?: boolean;
+  // 2026-05-15 — 관리자 진입 링크 (utility bar 계정 이름 왼쪽 노출용).
+  //   admin_role / admin_info / recorder_admin 종합 판정 후 1 URL 도출 (web-layout-inner.tsx).
+  //   null = 비관리자 (링크 미노출).
+  admin_entry_url?: string | null;
 }
 
 interface AppNavProps {
@@ -104,18 +108,27 @@ export function AppNav({
               style={{ height: 18, width: "auto" }}
             />
           </Link>
-          <span className="sep util-left" />
-          {/* [2026-04-29] 좌측 그룹 — 모바일에서 숨김 (CSS 셀렉터 .util-left 사용)
-                          좌/우를 명시 클래스로 분리해 모바일에서 좌측만 hide. */}
-          <Link href="/about" className="util-left">소개</Link>
-          <span className="sep util-left" />
-          <Link href="/pricing" className="util-left">요금제</Link>
-          <span className="sep util-left" />
-          <Link href="/help/glossary" className="util-left">도움말</Link>
+          {/* 2026-05-15 — 소개/요금제/도움말 임시 숨김 (사용자 결정).
+                          후속 큐: 콘텐츠 박제 또는 메뉴 영구 제거 결정. JSX 보존 = 복원 쉬움.
+              <span className="sep util-left" />
+              <Link href="/about" className="util-left">소개</Link>
+              <span className="sep util-left" />
+              <Link href="/pricing" className="util-left">요금제</Link>
+              <span className="sep util-left" />
+              <Link href="/help/glossary" className="util-left">도움말</Link>
+          */}
           <span className="app-nav__utility-spacer" />
           {/* 우측 그룹 — 모바일에서도 표시 유지 (작업 1 픽스) */}
           {user ? (
             <>
+              {/* 2026-05-15 — 관리자 진입 (계정 이름 왼쪽). 비관리자는 user.admin_entry_url=null → 미노출.
+                              super_admin → /admin / 협회 관리자 → /tournament-admin / recorder_admin → /referee/admin */}
+              {user.admin_entry_url && (
+                <>
+                  <Link href={user.admin_entry_url}>관리자</Link>
+                  <span className="sep" />
+                </>
+              )}
               <Link href="/profile">{user.name}</Link>
               <span className="sep" />
               <Link href="/profile/settings">설정</Link>

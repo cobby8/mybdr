@@ -73,18 +73,11 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: "비활성",
 };
 
-// 상태별 .badge--soft inline color (success / error)
-const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  active: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
-  inactive: {
-    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
-    color: "var(--color-error)",
-    borderColor: "transparent",
-  },
+// 2026-05-15 Admin-4-B 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
+// active=ok / inactive=err (시안 AdminCourts.jsx v2.9 status_tone 박제 패턴 — 운영중/폐쇄/등록대기)
+const STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  active: "ok",
+  inactive: "err",
 };
 
 interface Props {
@@ -335,7 +328,8 @@ export function AdminCourtsContent({
                 ["도시", `${selected.city}${selected.district ? ` ${selected.district}` : ""}`],
                 ["유형", COURT_TYPE_LABEL[selected.courtType] ?? selected.courtType],
                 ["상태", (
-                  <span className="badge badge--soft" style={STATUS_STYLE[selected.status]}>
+                  // Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css)
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[selected.status] ?? "mute"}>
                     {STATUS_LABEL[selected.status] ?? selected.status}
                   </span>
                 )],
@@ -429,7 +423,8 @@ function SuggestionsTab({ suggestions }: { suggestions: SerializedSuggestion[] }
                 {s.nickname} &middot; {new Date(s.createdAt).toLocaleDateString("ko-KR")}
               </p>
             </div>
-            <span className="badge badge--soft">대기중</span>
+            {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
+            <span className="admin-stat-pill" data-tone="info">대기중</span>
           </div>
 
           {/* 변경 내용 diff */}
@@ -509,10 +504,12 @@ const AMBASSADOR_STATUS_LABEL: Record<string, string> = {
   revoked: "해임/거절",
 };
 
-const AMBASSADOR_STATUS_COLOR: Record<string, string> = {
-  pending: "var(--color-warning)",
-  active: "var(--color-success)",
-  revoked: "var(--color-error)",
+// 2026-05-15 Admin-4-B 박제 — AMBASSADOR_STATUS_COLOR inline 색 → admin-stat-pill data-tone 매핑.
+// pending=warn / active=ok / revoked=err (시안 AdminCourts.jsx v2.9 status_tone 박제 패턴)
+const AMBASSADOR_STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  pending: "warn",
+  active: "ok",
+  revoked: "err",
 };
 
 // 앰배서더 상태 필터 타입
@@ -632,13 +629,8 @@ function AmbassadorsTab({ ambassadors }: { ambassadors: SerializedAmbassador[] }
                 {a.courtCity}{a.courtDistrict ? ` ${a.courtDistrict}` : ""}
               </p>
             </div>
-            <span
-              className="rounded-[4px] px-2 py-0.5 text-xs font-semibold"
-              style={{
-                backgroundColor: `color-mix(in srgb, ${AMBASSADOR_STATUS_COLOR[a.status] ?? "var(--color-text-muted)"} 15%, transparent)`,
-                color: AMBASSADOR_STATUS_COLOR[a.status] ?? "var(--color-text-muted)",
-              }}
-            >
+            {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
+            <span className="admin-stat-pill" data-tone={AMBASSADOR_STATUS_TONE[a.status] ?? "mute"}>
               {AMBASSADOR_STATUS_LABEL[a.status] ?? a.status}
             </span>
           </div>

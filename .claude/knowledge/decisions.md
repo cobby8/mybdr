@@ -2,6 +2,32 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-15] Tournament 단위 placeholder applier 분리 (옵션 A) — 4차 BDR 뉴비리그
+- **분류**: 기술 결정 / 대진표 generator / placeholder advancement
+- **결정자**: 사용자 (옵션 A — 운영 우선) + planner-architect (PR-G5.5-followup turn)
+- **결정**: `advanceDivisionPlaceholders` 시그니처 확장 (옵션 B) ❌ / 신규 함수 `advanceTournamentPlaceholders(prisma, tournamentId)` 분리 (옵션 A) ⭕
+- **사유**:
+  1. 기존 함수 = `settings.division_code` 필터 필수 → 4차 뉴비리그처럼 `division_rule=0건` + `settings={}` 케이스 진입 불가 (운영 매치 232)
+  2. 시그니처 확장 (divisionCode 옵셔널) = 회귀 위험 ↑. 기존 호출처 2건 (advance-placeholders/route.ts) 영향 점검 부담
+  3. 도메인 분기 명확화: Tournament 단위 = `category=null` + `groupName` 만 standings / Division 단위 = `category=divisionCode` 필터 — 헬퍼도 `getTournamentStandings` 신규 분리 (`getDivisionStandings` 의 category 필터 제거 버전)
+- **대안 검토** (rejected):
+  - 옵션 B (`advanceDivisionPlaceholders(divisionCode?)` 옵셔널 확장): 단일 함수 / 회귀 위험 ↑ — division_rule 기반 호출처 보호 부담
+  - 옵션 C (advanceAllDivisions 가 division_rule=0건 분기 추가): tournament-level fallback 진입을 advanceAllDivisions 내부에 박제 — 함수 책임 비대화 + 호출 의도 불명
+- **운영 케이스**:
+  - 4차 BDR 뉴비리그 (Tournament `443f23f8-0000-41d4-bcbd-1843f7e16e1f`) / format=`full_league_knockout` / 5/16 시작
+  - 팀: A조 3팀 (모보/CBL/레드핫) + B조 3팀 (피기보이즈/GTB/ATLAS)
+  - 매치 7건 (예선 6 + 결승 1 — 매치 232 NULL placeholder)
+  - Phase A (5/16 전): 매치 232 UPDATE (notes "A조 1위 vs B조 1위" + slot labels) — `scripts/_temp/seed-newbie4-final-placeholder.ts` 사용자 결재 후 실행
+  - Phase B (예선 6건 종료 후): `advanceTournamentPlaceholders()` 호출 → standings 계산 → 232 의 homeTeamId/awayTeamId UPDATE
+- **회귀 보장**:
+  - 강남구협회장배 4 종별 (i3-U9 `league_advancement` / i3-U11·U14·i3w-U12 `group_stage_with_ranking`) = 기존 `advanceDivisionPlaceholders` 그대로 동작 (division_rule>0 진입)
+  - placeholder-helpers.ts `buildSlotLabel` + `buildPlaceholderNotes` 통과 의무 — 매치 232 UPDATE SQL 도 동일 헬퍼 통과 (인라인 박제 금지)
+- **Flutter v1 영향 0** / **DB schema 변경 0** (placeholder 박제 + applier 로직만)
+- **후속 PR 큐**:
+  - G5.5-followup-B: 매치 PATCH route 통합 (status="completed" 시 division_rule>0 → advanceAllDivisions / division_rule=0 → advanceTournamentPlaceholders 분기)
+  - G5.5-NBA-seed: 8강/4강 NBA 시드 표준 generator (교차 시드 + 2^N 올림 + bye)
+- **참조횟수**: 0
+
 ### [2026-05-15] recorder_admin 전역 권한 시스템 = 1-A 통합 모드 + 옵션 C (두 테이블 분리 유지)
 - **분류**: 기술 결정 / 권한 시스템 / 운영 인프라
 - **결정자**: 사용자 (Q1~Q6 결재) + planner-architect

@@ -461,12 +461,16 @@ export function LineupSelectionModal({
 
   return (
     // Phase 7 — `no-print` = 인쇄 시 모달 제거 (FIBA 양식 정합)
+    // 2026-05-15 (PR-Lineup-Close UX fix) — 백드롭 클릭/터치 → onCancel 호출.
+    //   모달 내부 클릭은 stopPropagation 으로 보호 = 외부 영역만 닫기 trigger.
+    //   onCancel 미제공 시 (lineup 강제 모드) 백드롭 click 무동작 (안전망).
     <div
       className="no-print fixed inset-0 z-50 flex items-center justify-center px-2 py-4"
       style={{ backgroundColor: "color-mix(in srgb, #000 60%, transparent)" }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="lineup-selection-modal-title"
+      onClick={onCancel}
     >
       <div
         className="max-h-full w-full max-w-3xl overflow-auto p-4"
@@ -476,20 +480,39 @@ export function LineupSelectionModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          id="lineup-selection-modal-title"
-          className="text-base font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          오늘 출전 명단 선택
-        </h2>
-        <p
-          className="mt-1 text-xs"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          오늘 출전할 선수를 양 팀 각각 체크하고, 선발 5인을 선택해주세요.
-          출전 미체크 선수는 양식에 표시되지 않습니다.
-        </p>
+        {/* 상단 헤더 — 제목 + 우측 X 닫기 버튼 (2026-05-15 신규) */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1">
+            <h2
+              id="lineup-selection-modal-title"
+              className="text-base font-bold"
+              style={{ color: "var(--color-text-primary)" }}
+            >
+              오늘 출전 명단 선택
+            </h2>
+            <p
+              className="mt-1 text-xs"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              오늘 출전할 선수를 양 팀 각각 체크하고, 선발 5인을 선택해주세요.
+              출전 미체크 선수는 양식에 표시되지 않습니다.
+            </p>
+          </div>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              aria-label="모달 닫기"
+              className="flex h-9 w-9 shrink-0 items-center justify-center"
+              style={{
+                color: "var(--color-text-muted)",
+                touchAction: "manipulation",
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 24 }}>close</span>
+            </button>
+          )}
+        </div>
 
         {/* 양 팀 패널 — md 이상 = 2 컬럼 / 미만 = 1 컬럼 (모바일 stack) */}
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">

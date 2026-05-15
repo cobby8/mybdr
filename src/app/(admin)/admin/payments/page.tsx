@@ -43,8 +43,15 @@ export default async function AdminPaymentsPage() {
   return (
     <div>
       <AdminPageHeader
+        // 시안 v2.14 — eyebrow + breadcrumbs (Admin-5-B 박제)
+        eyebrow="ADMIN · 비즈니스"
         title="결제 관리"
         subtitle={`전체 ${payments.length}건`}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "비즈니스" },
+          { label: "결제" },
+        ]}
       />
       <AdminPaymentsContent
         payments={serialized}

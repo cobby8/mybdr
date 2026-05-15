@@ -30,6 +30,7 @@ import { PeriodScoresSection } from "./period-scores-section";
 import { FoulTypeModal } from "./foul-type-modal";
 import { MatchEndButton } from "./match-end-button";
 // Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (frame 외부 / no-print).
+// 2026-05-15 (PR-SS-Manual-Legend) — PeriodColorLegend = 설명서 모달 안에서 사용 (box 형태).
 import { PeriodColorLegend } from "./period-color-legend";
 import type { TeamRosterData } from "./team-section-types";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
@@ -334,6 +335,8 @@ export function ScoreSheetForm({
     title: string;
     message: ReactNode;
     options: { value: string; label: string; isPrimary?: boolean; isDestructive?: boolean }[];
+    // 2026-05-15 (PR-SS-Manual-Wide) — 모달 폭 — default md / lg / xl. 설명서 = xl.
+    size?: "md" | "lg" | "xl";
   };
   const [confirmState, setConfirmState] = useState<
     | (ConfirmConfig & { resolve: (value: string | null) => void })
@@ -365,6 +368,179 @@ export function ScoreSheetForm({
   //   - warning_type = "completed_edit_mode_enter" (PR-RO4 의 cross-check-audit endpoint 재사용)
   //   - fire-and-forget (실패 시 console.warn / 진행 차단 안 함)
   //   - PR-RO2 의 mount 1회 audit (entry) 와는 별도 — toolbar 버튼 명시 진입 의도 박제.
+  // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 핸들러.
+  //   1. 경고 ConfirmModal (되돌릴 수 없음 명시)
+  //   2. 동의 시 /api/web/score-sheet/{matchId}/reset POST
+  //   3. 성공 시 toast + window.location.reload() (양식 빈 상태로 재진입)
+  //   4. 실패 시 toast (error)
+  //   권한: BFF 가 super_admin / organizer / TAM 만 통과 (recorder 차단).
+  async function handleCancelRecord() {
+    if (!canEdit) return; // recorder 단일 = 버튼이 이미 미노출이지만 이중 방어
+
+    const choice = await confirmModal({
+      title: "기록 취소 — 매치 완전 초기화",
+      message: (
+        <>
+          <p>이 매치의 모든 기록을 삭제하고 처음부터 다시 시작합니다.</p>
+          <ul className="mt-2 list-inside list-disc text-sm">
+            <li>득점/파울 (PBP), 선수 스탯, 라인업, 등번호 모두 삭제됩니다.</li>
+            <li>매치 상태가 &quot;예정&quot;으로 초기화됩니다.</li>
+            <li>되돌릴 수 없습니다. 운영자 책임으로 진행해주세요.</li>
+          </ul>
+        </>
+      ),
+      options: [
+        { value: "cancel", label: "취소" },
+        { value: "confirm", label: "기록 취소 (완전 초기화)", isDestructive: true },
+      ],
+    });
+    setConfirmState(null);
+
+    if (choice !== "confirm") return;
+
+    try {
+      const res = await fetch(`/api/web/score-sheet/${match.id}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast(data.error ?? "기록 취소에 실패했습니다.", "error");
+        return;
+      }
+      showToast("매치가 초기화되었습니다.", "success");
+      // 2026-05-15 (사용자 추가 요청) — 기록 취소 시 선수 선택 (draft) 도 초기화 + 이전 페이지로 나가기.
+      //   reset 후 reload (같은 페이지) → 사용자 의도와 다름. router.back() 으로 진입 경로 (경기일정/대진표) 복귀.
+      //   draft localStorage 도 같이 삭제 (key = score-sheet-draft-{matchId}).
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
+        } catch {
+          /* localStorage 접근 실패 silent */
+        }
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = "/admin";
+        }
+      }
+    } catch (err) {
+      console.error("[handleCancelRecord] fetch failed:", err);
+      showToast("네트워크 오류로 기록 취소에 실패했습니다.", "error");
+    }
+  }
+
+  // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
+  //   toolbar "설명서" 버튼 클릭 시 호출. ConfirmModal 재사용 — options 1개 (닫기) +
+  //   message 에 작성법 7항목 JSX. 사용자 의도 = 플로팅 안내로 빠르게 확인 가능.
+  async function handleOpenManual() {
+    await confirmModal({
+      title: "전자 기록지 작성법",
+      size: "xl",
+      message: (
+        <div className="space-y-4 text-sm">
+          {/* 색상/점수 표기 안내 박스 (작성법 위쪽). */}
+          <PeriodColorLegend />
+
+          {/* 경기 시작 전 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              경기 시작 전
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>선수 명단 정하기</strong> — 화면 위쪽 <em>"라인업"</em> 버튼을 누르세요.
+                양 팀에서 오늘 경기에 나올 선수들을 체크하고, 그 중 선발 5명을 따로 표시해주세요.
+                라인업을 확정하면 선발 5명은 자동으로 <em>"P. in"</em> (코트 안) 표시가 됩니다.
+                후보 선수는 실제로 경기에 들어갈 때 직접 "P. in" 칸을 눌러주세요.
+              </li>
+            </ol>
+          </section>
+
+          {/* 경기 진행 중 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              경기 진행 중
+            </h3>
+            <ol start={2} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>점수 기록</strong> — 점수를 넣은 선수 행에서 해당 점수 칸을 누르세요.
+                <span className="block">· (작은 점) = 1점 / ● (채워진 원) = 2점 / ◉ (테두리 원) = 3점</span>
+                현재 쿼터 색깔로 표시됩니다 (Q1 검정 / Q2 빨강 / Q3 초록 / Q4 노랑).
+              </li>
+              <li>
+                <strong>파울 기록</strong> — 파울을 한 선수의 <em>"Fouls"</em> 영역에서 1~5번
+                칸 중 비어있는 첫 칸을 누르세요. 5번째 파울이 기록되면 더 이상 입력되지 않고
+                화면에 알림이 뜹니다.
+              </li>
+              <li>
+                <strong>팀 파울 누적</strong> — <em>"Team fouls"</em> 영역은 한 쿼터에서 팀이
+                범한 전체 파울 수입니다. 1~4까지 표시하며, 4를 넘으면 다음 파울부터 상대 팀에게
+                자유투를 부여한다는 안내가 화면에 뜹니다. <em>"Extra periods"</em> 는 연장전용입니다.
+              </li>
+              <li>
+                <strong>타임아웃</strong> — 양 팀 <em>"Time-outs"</em> 영역에 표시합니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>윗줄 (Period ①②) = 전반 (1·2쿼터) 동안 쓸 수 있는 2개</li>
+                  <li>가운데 줄 (Period ③④) = 후반 (3·4쿼터) 동안 쓸 수 있는 3개</li>
+                  <li>아랫줄 (Extra periods) = 연장전</li>
+                </ul>
+                후반에 들어가면 전반 칸이 자동으로 잠겨서 더 이상 누를 수 없습니다.
+              </li>
+            </ol>
+          </section>
+
+          {/* 쿼터 / 경기 종료 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              쿼터 / 경기 종료
+            </h3>
+            <ol start={6} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>쿼터 끝났을 때</strong> — 화면 아래쪽 <em>"Q1 종료" / "Q2 종료" …</em>
+                버튼을 누르면 안내 창이 뜹니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>Q1~Q3 끝: "다음 쿼터 진행" 누르세요.</li>
+                  <li>Q4 끝: 동점이면 "OT (연장전) 진행" / 점수 차이가 있으면 "경기 종료".</li>
+                  <li>연장전 끝: 또 동점이면 추가 연장전 / 결판 나면 경기 종료.</li>
+                </ul>
+              </li>
+            </ol>
+          </section>
+
+          {/* 기타 기능 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              기타 기능
+            </h3>
+            <ol start={7} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>잘못 기록했어요 (기록 취소)</strong> — 테스트로 입력했거나 처음부터
+                다시 기록해야 할 때, 화면 위쪽 우측 <em>"기록 취소"</em> 버튼을 누르세요.
+                경고 창이 뜨고, 확인하면 이 경기의 점수·파울·라인업·등번호 기록이 모두
+                완전히 삭제되며 이전 페이지로 돌아갑니다.
+                <span className="block text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  (대회 운영자만 가능 — 일반 기록원은 보이지 않습니다)
+                </span>
+              </li>
+              <li>
+                <strong>인쇄 / 전체화면</strong> — <em>"인쇄"</em> 버튼은 FIBA 공식 양식
+                그대로 PDF/종이로 출력합니다. 화면 위쪽 <em>⛶ 전체화면</em> 버튼은 태블릿
+                세로 모드로 양식만 크게 보여줍니다 (종료는 우상단 ✕).
+              </li>
+              <li>
+                <strong>이전 페이지로</strong> — 화면 위쪽 좌측 <em>&lt;</em> 버튼을 누르면
+                이 기록지에 들어오기 전 페이지 (경기 일정 / 대진표 등) 로 돌아갑니다.
+              </li>
+            </ol>
+          </section>
+        </div>
+      ),
+      options: [{ value: "close", label: "닫기", isPrimary: true }],
+    });
+    setConfirmState(null);
+  }
+
   async function handleEnterEditMode() {
     if (!isCompleted) return; // 진행 매치 = 호출 불가 (안전망)
     if (!canEdit) return; // 권한 없음 = 호출 불가 (UI 버튼이 이미 미노출이지만 이중 방어)
@@ -609,23 +785,20 @@ export function ScoreSheetForm({
   }, []);
 
   // Phase 16 (2026-05-13) — 사전 확정 라인업 (initialLineup) 진입 시 P.IN 자동 체크 (mount 1회).
-  //   이유: handleLineupConfirm 와 동일한 자동 P.IN 룰 — 사전 라인업 (DB 박제) 으로 진입한
-  //     케이스도 동일하게 출전 명단 자동 체크 (사용자 결재 §1).
-  //   draft 복원 이전 mount 1회 — draft 복원이 playerIn 값을 덮어쓰면 그게 우선 (운영 중 reload).
+  // 2026-05-15 (PR-Score-Sheet-Cleanup) — 사용자 보고 "출전 안 한 선수도 P.IN 체크됨".
+  //   이전 박제: starters + substitutes 모두 P.IN=true → 경기에 한 번도 안 들어간 후보 선수도 체크됨 (FIBA 양식 룰 위반).
+  //   fix: **starters (5명) 만 P.IN=true 자동 박제**. substitutes 는 default false (교체 실제 들어올 때 기록원 수동 체크).
+  //   draft 복원 이전 mount 1회 — draft 복원 후 일부 P.IN=true 면 skip.
   useEffect(() => {
     if (!initialLineupComputed) return;
     setTeamA((prev) => {
-      // 이미 playerIn=true 가 일부 존재 (draft 복원 후) = skip (덮어쓰기 X)
       const hasAny = Object.values(prev.players).some((p) => p.playerIn);
       if (hasAny) return prev;
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [
-        ...initialLineupComputed.home.starters,
-        ...initialLineupComputed.home.substitutes,
-      ];
-      for (const id of allIds) {
+      // 2026-05-15 — starters 만 자동 P.IN=true (5명). substitutes 는 default false.
+      for (const id of initialLineupComputed.home.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -637,11 +810,7 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [
-        ...initialLineupComputed.away.starters,
-        ...initialLineupComputed.away.substitutes,
-      ];
-      for (const id of allIds) {
+      for (const id of initialLineupComputed.away.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -1247,8 +1416,10 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [...result.home.starters, ...result.home.substitutes];
-      for (const id of allIds) {
+      // 2026-05-15 (PR-Score-Sheet-Cleanup) — starters (5인) 만 P.IN=true 자동.
+      //   이전: starters + substitutes 모두 true → 한 번도 안 들어간 후보까지 체크되는 버그.
+      //   substitutes 는 후보 — 실제 교체 들어올 때 기록원이 수동 체크 (FIBA 양식 정합).
+      for (const id of result.home.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -1258,15 +1429,14 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [...result.away.starters, ...result.away.substitutes];
-      for (const id of allIds) {
+      for (const id of result.away.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
       return { ...prev, players: next };
     });
     showToast(
-      "라인업 확정 — 출전 명단 자동 P IN 체크 (스타팅 강조 표시)",
+      "라인업 확정 — 선발 5인 자동 P.IN 체크 (후보는 교체 시 수동 체크)",
       "info"
     );
   }
@@ -1436,31 +1606,10 @@ export function ScoreSheetForm({
         </div>
       )}
 
-      {/* Phase 23 (2026-05-14) — PBP 0건 + quarter_scores 만 있는 매치 안내 (사용자 결재 Q2).
-          이전에 paper 매치가 PBP 없이 quarter 점수만 박제된 케이스 (구버전 박제 흐름).
-          재박제 시 PBP 새로 생성 → 사용자가 빈 폼을 보고 박제하면 PBP 가 새로 누적됨. */}
-      {hasOnlyQuarterScores && (
-        <div
-          className="no-print mb-2 px-3 py-2 text-xs"
-          style={{
-            border: "1px solid var(--color-info)",
-            backgroundColor:
-              "color-mix(in srgb, var(--color-info) 10%, transparent)",
-            color: "var(--color-info)",
-          }}
-        >
-          <p className="font-semibold">
-            <span className="material-symbols-outlined mr-1 align-middle text-base">
-              info
-            </span>
-            PBP 없이 quarter 점수만 박제된 매치
-          </p>
-          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
-            기록을 재박제하면 새로운 PBP 가 생성됩니다. 기존 quarter 점수는
-            Period scores 박스에서만 확인할 수 있습니다.
-          </p>
-        </div>
-      )}
+      {/* 2026-05-15 (PR-Score-Sheet-Cleanup) — "PBP 없이 quarter 점수만 박제된 매치"
+          안내 박스 제거 (사용자 보고 — 기록원에게 혼선만 발생).
+          이전 박제는 운영 디버깅 용도였으나 기록원 입장 = 의미 불명 + 작업 흐름 방해.
+          필요시 super_admin 진단 페이지에서 재노출 검토. */}
 
       {/* Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar (back + 모드 토글 + 인쇄 + 경기 종료).
           위치 = PeriodColorLegend 직전 (frame 외부 최상단). 운영 함수 호출 100% 보존:
@@ -1496,12 +1645,20 @@ export function ScoreSheetForm({
         canEdit={canEdit}
         onEnterEditMode={handleEnterEditMode}
         isEditMode={isEditMode}
+        // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (super/organizer/TAM 만).
+        //   recorder 단일 = 버튼 미노출 (canEdit 분기 재사용).
+        onCancelRecord={canEdit ? handleCancelRecord : undefined}
+        // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
+        //   종료 매치 = undefined (PR-RO2 룰). 수정 모드 진입 시 = 허용.
+        onReselectLineup={
+          !isCompleted || isEditMode ? () => setLineupModalOpen(true) : undefined
+        }
+        // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
+        onOpenManual={handleOpenManual}
       />
 
-      {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
-          이전 Phase 17 위치 (frame 아래 mt-3) = frame 콘텐츠 overflow + Final Score/Captain 영역과 시각 겹침.
-          새 위치 = frame 직전 (진입 즉시 운영자 인식 / 인쇄 시 _print.css `.no-print` 자동 제외). */}
-      <PeriodColorLegend />
+      {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
+          color/점수 안내 = ScoreSheetToolbar 중앙 inline 모드로 통합 (사용자 요청). */}
 
       {/* Phase 7-B — 라인업 미선택 시 진입 시점 안내 카드 + 모달 자동 표시.
           양식은 lineup 확정 후 렌더. */}
@@ -1759,40 +1916,9 @@ export function ScoreSheetForm({
         }}
       />
 
-      {/* Phase 진행 상태 안내 — Phase 7 완성 시점 갱신.
-          `no-print` = 인쇄 시 안내 카드 제거 (FIBA 양식 정합) */}
-      <div
-        className="no-print mt-4 px-3 py-2 text-xs"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text-muted)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        Phase 9 = A4 1 페이지 fit + FIBA PDF 정합 (좌 Team A/B 세로 / 우 Running+Period+Final 누적
-        / Footer 최하단 1줄 컴팩트). 라인업 다시 선택하려면 아래 &quot;라인업 다시 선택&quot; 버튼 사용.
-      </div>
-
-      {/* Phase 7-B — 라인업 다시 선택 버튼 (양식 표시 후에도 운영자가 재선택 가능).
-          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 시 hidden (사용자 결재 Q2). */}
-      {(!isCompleted || isEditMode) && (
-        <button
-          type="button"
-          onClick={() => setLineupModalOpen(true)}
-          className="no-print mt-2 px-3 py-1.5 text-xs"
-          style={{
-            border: "1px solid var(--color-border)",
-            color: "var(--color-text-muted)",
-            touchAction: "manipulation",
-          }}
-          aria-label="라인업 다시 선택 (출전 명단 / 선발 5인)"
-        >
-          <span className="material-symbols-outlined mr-1 align-middle text-sm">
-            edit
-          </span>
-          라인업 다시 선택
-        </button>
-      )}
+      {/* 2026-05-15 (PR-SS-Manual+Reselect) — Phase 9 안내 박스 + "라인업 다시 선택"
+          버튼 form 하단에서 제거. 라인업 다시 선택 = toolbar 우측으로 이동
+          (사용자 요청). 설명서 = toolbar "설명서" 버튼 → ConfirmModal 모달. */}
 
       {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
@@ -1844,9 +1970,11 @@ export function ScoreSheetForm({
         initialHome={lineup?.home}
         initialAway={lineup?.away}
         onConfirm={handleLineupConfirm}
-        // 라인업이 한 번도 확정 안 된 상태 = 취소 불가 (양식 진입 차단)
-        // 이미 확정된 상태에서 "라인업 다시 선택" = 취소 허용 (모달 닫기)
-        onCancel={lineup !== null ? () => setLineupModalOpen(false) : undefined}
+        // 2026-05-15 (PR-Lineup-Close-UX) — onCancel 항상 박제. 사용자 보고
+        //   "라이브 페이지에서 X/닫기 없음". 닫기 후 양식이 lineup null 인 채
+        //   렌더되어도 사용자가 다시 "라인업 다시 선택" 트리거로 진입 가능.
+        //   기존 박제: lineup === null 시 onCancel undefined → 모달 강제 = 닫기 0.
+        onCancel={() => setLineupModalOpen(false)}
         // Phase 7.1 — 12명 cap 경고 / 13번째 차단 toast 책임 주입
         onToast={showToast}
       />
@@ -1874,6 +2002,7 @@ export function ScoreSheetForm({
           title={confirmState.title}
           message={confirmState.message}
           options={confirmState.options}
+          size={confirmState.size}
           onSelect={(value) => confirmState.resolve(value)}
           onClose={() => confirmState.resolve(null)}
         />

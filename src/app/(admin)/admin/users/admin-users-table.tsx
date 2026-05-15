@@ -77,54 +77,43 @@ interface UserDetail {
   };
 }
 
-// 역할별 .badge--soft inline color (default / info / warning / info)
-const ROLE_STYLE: Record<number, React.CSSProperties | undefined> = {
-  0: undefined, // .badge--soft 기본
-  1: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
-  2: {
-    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-    color: "var(--color-warning)",
-    borderColor: "transparent",
-  },
-  3: {
-    background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-    color: "var(--color-info)",
-    borderColor: "transparent",
-  },
+// 2026-05-15 Admin-5-A 박제 — 시안 admin-stat-pill[data-tone] 패턴 적용
+// 시안 source: Dev/design/BDR-current/screens/AdminUsers.jsx (line 250~253)
+// ROLE_TONE: 운영 membershipType (0=일반/1=호스트/2=팀장/3=대회관리자) → tone
+const ROLE_TONE: Record<number, string> = {
+  0: "mute", // 일반유저
+  1: "info", // 픽업호스트
+  2: "warn", // 팀장
+  3: "info", // 대회관리자
 };
 
-// 공통 라벨 + UI inline style 을 합쳐서 반환하는 헬퍼
+// 공통 라벨 + tone 매핑 헬퍼
 function getRoleInfo(mt: number) {
   return {
     label: MEMBERSHIP_LABELS[mt as MembershipType] ?? String(mt),
-    style: ROLE_STYLE[mt],
+    tone: ROLE_TONE[mt] ?? "mute",
   };
 }
 
 // 상태 뱃지 — DataTableV2 columns 명세에서도 사용하므로 모듈 스코프로 끌어올림
+// 시안 admin-stat-pill[data-tone] 박제 (ok=활성 / mute=탈퇴 / err=정지)
 function statusBadge(s: string | null) {
   if (s === "active") {
     return (
-      <span
-        className="badge badge--soft"
-        style={{ background: "color-mix(in srgb, var(--color-success) 12%, transparent)", color: "var(--color-success)", borderColor: "transparent" }}
-      >
+      <span className="admin-stat-pill" data-tone="ok">
         활성
       </span>
     );
   }
   if (s === "withdrawn") {
-    return <span className="badge badge--soft">탈퇴</span>;
+    return (
+      <span className="admin-stat-pill" data-tone="mute">
+        탈퇴
+      </span>
+    );
   }
   return (
-    <span
-      className="badge badge--soft"
-      style={{ background: "color-mix(in srgb, var(--color-error) 12%, transparent)", color: "var(--color-error)", borderColor: "transparent" }}
-    >
+    <span className="admin-stat-pill" data-tone="err">
       정지
     </span>
   );
@@ -184,9 +173,10 @@ const USER_COLUMNS: DataTableColumn<SerializedUser>[] = [
     label: "역할",
     width: "120px",
     render: (u) => {
+      // 시안 admin-stat-pill[data-tone] 박제
       const role = getRoleInfo(u.membershipType);
       return (
-        <span className="badge badge--soft" style={role.style}>
+        <span className="admin-stat-pill" data-tone={role.tone}>
           {role.label}
         </span>
       );
@@ -409,7 +399,8 @@ export function AdminUsersTable({
                   </div>
                 </div>
                 <div className="mt-3 flex items-center gap-2">
-                  <span className="badge badge--soft" style={role.style}>{role.label}</span>
+                  {/* 2026-05-15 Admin-5-A 박제 — admin-stat-pill[data-tone] 통일 */}
+                  <span className="admin-stat-pill" data-tone={role.tone}>{role.label}</span>
                   {statusBadge(u.status)}
                   {u.provider && <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80">{u.provider}</span>}
                 </div>

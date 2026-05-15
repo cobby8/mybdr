@@ -32,18 +32,11 @@ const STATUS_LABEL: Record<string, string> = {
   inactive: "비활성",
 };
 
-// 상태별 .badge--soft inline color (success / error 톤)
-const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  active: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
-  inactive: {
-    background: "color-mix(in srgb, var(--color-error) 12%, transparent)",
-    color: "var(--color-error)",
-    borderColor: "transparent",
-  },
+// 2026-05-15 Admin-4-B 박제 — STATUS_STYLE inline 색 → admin-stat-pill data-tone 매핑.
+// active=ok / inactive=err (시안 AdminTeams.jsx v2.9 status_tone 박제 패턴)
+const STATUS_TONE: Record<string, "mute" | "info" | "ok" | "warn" | "err" | "accent"> = {
+  active: "ok",
+  inactive: "err",
 };
 
 interface Props {
@@ -99,7 +92,8 @@ export function AdminTeamsContent({ teams, updateStatusAction }: Props) {
                   {t.city ?? "-"}
                 </td>
                 <td data-label="상태" className="px-5 py-3">
-                  <span className="badge badge--soft" style={STATUS_STYLE[t.status]}>
+                  {/* Admin-4-B 박제 — admin-stat-pill[data-tone] (admin.css) */}
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[t.status] ?? "mute"}>
                     {STATUS_LABEL[t.status] ?? t.status}
                   </span>
                 </td>

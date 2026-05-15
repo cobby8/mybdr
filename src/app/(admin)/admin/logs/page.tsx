@@ -22,6 +22,20 @@ const SEVERITY_COLOR: Record<string, string> = {
   error: "text-[var(--color-error)]",
 };
 
+// Admin-6 박제 — 시안 v2.14 AdminLogs.jsx severity_tone 매핑
+// info/warn/error → admin-stat-pill[data-tone] (info/warn/err)
+// 시안 라벨도 영문 대문자 (INFO/WARN/ERROR/CRIT) — 운영은 enum "info"/"warning"/"error" 만 보유
+const SEVERITY_TONE: Record<string, string> = {
+  info: "info",
+  warning: "warn",
+  error: "err",
+};
+const SEVERITY_LABEL: Record<string, string> = {
+  info: "INFO",
+  warning: "WARN",
+  error: "ERROR",
+};
+
 const ACTION_LABEL: Record<string, string> = {
   "user.role_change": "역할 변경",
   "user.status_change": "상태 변경",
@@ -90,10 +104,25 @@ export default async function AdminLogsPage({
 
   return (
     <div>
+      {/* Admin-6 박제 — 시안 v2.14 AdminLogs.jsx 헤더 패턴 카피 */}
+      {/* eyebrow 영문 → 한글 ("ADMIN · 시스템") + breadcrumbs + actions */}
       <AdminPageHeader
-        eyebrow="ADMIN · LOGS"
+        eyebrow="ADMIN · 시스템"
         title="활동 로그"
         subtitle={`${dateFilter ? `${dateFilter} 로그` : "최근 200건"} · 총 ${logs.length}건`}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "시스템" },
+          { label: "활동 로그" },
+        ]}
+        actions={
+          <Link href="/admin/settings" className="btn">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              settings
+            </span>
+            시스템 설정
+          </Link>
+        }
       />
       {/* 날짜 필터 칩 — 다중 행이라 별도 영역 (AdminPageHeader actions slot 에 안 넣음) */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -171,7 +200,7 @@ export default async function AdminLogsPage({
                             {toKSTTime(log.created_at)}
                           </span>
 
-                          {/* 심각도 dot */}
+                          {/* 심각도 dot — 시안 라인 inline 인디케이터 보존 (시안엔 pill+dot 병행) */}
                           <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
                             log.severity === "error" ? "bg-[var(--color-error)]" :
                             log.severity === "warning" ? "bg-[var(--color-warning)]" : "bg-[var(--color-text-muted)]"
@@ -179,10 +208,19 @@ export default async function AdminLogsPage({
 
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
+                              {/* Admin-6 박제 — severity pill (시안 admin-stat-pill[data-tone]) */}
+                              <span
+                                className="admin-stat-pill"
+                                data-tone={SEVERITY_TONE[log.severity ?? "info"] ?? "info"}
+                                style={{ fontFamily: "var(--ff-mono)", fontSize: 10, letterSpacing: "0.04em", fontWeight: 700 }}
+                              >
+                                {SEVERITY_LABEL[log.severity ?? "info"] ?? (log.severity ?? "info").toUpperCase()}
+                              </span>
                               <span className={`font-mono text-xs font-semibold ${SEVERITY_COLOR[log.severity ?? "info"]}`}>
                                 {log.action}
                               </span>
-                              <span className="rounded bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-xs text-[var(--color-text-muted)]">
+                              {/* resource_type → admin-stat-pill mute (시안 source_label 패턴) */}
+                              <span className="admin-stat-pill" data-tone="mute" style={{ fontFamily: "var(--ff-mono)", fontSize: 10 }}>
                                 {log.resource_type}
                               </span>
                               {ACTION_LABEL[log.action] && (

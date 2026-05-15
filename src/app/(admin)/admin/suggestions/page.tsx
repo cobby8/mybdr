@@ -51,11 +51,19 @@ export default async function AdminSuggestionsPage({
 
   return (
     <div>
+      {/* 2026-05-15 Admin-5-A 박제 — eyebrow + breadcrumbs 추가
+          시안 source: Dev/design/BDR-current/screens/AdminSuggestions.jsx (line 272~293) */}
       <AdminPageHeader
+        eyebrow="ADMIN · 사용자"
         title="건의사항"
         subtitle={`전체 ${totalCount}건`}
         searchPlaceholder="제목/내용 검색"
         searchDefaultValue={q ?? ""}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "사용자" },
+          { label: "건의사항" },
+        ]}
       />
       <AdminSuggestionsContent
         suggestions={serialized}

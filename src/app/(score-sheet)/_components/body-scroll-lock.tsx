@@ -25,20 +25,15 @@
 import { useEffect } from "react";
 
 export function BodyScrollLock() {
+  // 2026-05-15 — 사용자 요청 "가로 모드에서 스크롤 가능".
+  //   이전 박제: mount 시 body.overflow="hidden" → 가로 진입 시 양식이 viewport 보다
+  //   커서 스크롤 차단 → 양식 일부 미노출.
+  //   현재: lock 자체 비활성화 (스크롤 항상 허용). 세로 강제는 fullscreen-context
+  //   의 enter() 가 screen.orientation.lock("portrait") 으로 처리.
+  //   컴포넌트는 향후 fullscreen 종속 lock 으로 부활 가능성 위해 유지 (effect 빈 노옵).
   useEffect(() => {
-    // 이전 값 보존 (다른 스크립트/시안이 inline 으로 박은 값이 있으면 복원 정합)
-    // 일반적으로는 "" — 운영 globals.css 에 body.overflow 미설정.
-    const previous = document.body.style.overflow;
-
-    // mount 시 lock — 양식 외 영역 스크롤 차단 (Q5 자동 lock)
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      // unmount = score-sheet 떠날 때 → 원래 값 복원 (Q7 cleanup 룰 정합)
-      document.body.style.overflow = previous;
-    };
+    return () => {};
   }, []);
 
-  // DOM 안 렌더 — effect 전용 컴포넌트
   return null;
 }

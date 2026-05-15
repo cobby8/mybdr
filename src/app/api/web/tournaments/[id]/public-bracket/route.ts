@@ -91,7 +91,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       where: { tournamentId: id },
       include: {
         // Phase 2C: 리그/조별 순위표 한 줄 표기용 name_en/name_primary 포함
-        team: { select: { name: true, name_en: true, name_primary: true } },
+        team: { select: { name: true, name_en: true, name_primary: true, logoUrl: true } },
       },
       orderBy: [{ wins: "desc" }, { losses: "asc" }],
     }),
@@ -316,6 +316,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       // Phase 2C: 조별 순위표 한 줄 표기용
       teamNameEn: t.team.name_en,
       teamNamePrimary: t.team.name_primary,
+      // 2026-05-15 — 팀 로고 표시 (사용자 결재 옵션 B). 없으면 클라이언트가 이니셜 fallback.
+      logoUrl: t.team.logoUrl ?? null,
       groupName: t.groupName,
       wins: t.wins ?? 0,
       losses: t.losses ?? 0,

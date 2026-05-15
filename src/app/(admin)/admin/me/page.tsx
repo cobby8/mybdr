@@ -37,6 +37,8 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/auth/get-auth-user";
 import { getAdminRoles } from "@/lib/auth/admin-roles";
 import { prisma } from "@/lib/db/prisma";
+// Admin-6 박제 — 시안 v2.14 AdminMe.jsx 헤더 패턴 (eyebrow + breadcrumbs)
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { UserInfoCard } from "./_components/user-info-card";
 import { RoleMatrixCard } from "./_components/role-matrix-card";
 import { IdentityStatusCard } from "./_components/identity-status-card";
@@ -193,21 +195,20 @@ export default async function AdminMyPage() {
 
   return (
     <div className="space-y-6">
-      {/* 페이지 헤더 */}
-      <header>
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          마이페이지
-        </h1>
-        <p
-          className="mt-1 text-sm"
-          style={{ color: "var(--color-text-secondary)" }}
-        >
-          내 로그인 정보, 알림, 건의사항, 관리자 권한, 관리 토너먼트, 최근 활동을 확인할 수 있습니다.
-        </p>
-      </header>
+      {/* Admin-6 박제 — 시안 v2.14 AdminMe.jsx 헤더 패턴 카피 */}
+      {/* raw <header><h1>+<p> → AdminPageHeader (eyebrow + title + subtitle + breadcrumbs) */}
+      {/* 시안 카피 그대로: title "내 정보" / subtitle "내 운영자 계정 정보 · 알림 ..." */}
+      {/* 사용자 결정 G4 — 운영 7 카드 구조 100% 보존 (아래 7개 카드 변경 0) */}
+      <AdminPageHeader
+        eyebrow="ADMIN · 계정"
+        title="내 정보"
+        subtitle="내 운영자 계정 정보 · 알림 · 권한 · 관리 토너먼트 · 활동 로그를 확인합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "계정" },
+          { label: "내 정보" },
+        ]}
+      />
 
       {/* 1) 로그인 정보 카드 (+ Phase 3 비번 변경 진입점) */}
       <UserInfoCard
