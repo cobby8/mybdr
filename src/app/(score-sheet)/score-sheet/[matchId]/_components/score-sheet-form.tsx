@@ -1649,15 +1649,12 @@ export function ScoreSheetForm({
 
             Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
             이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
-        {/* 2026-05-15 (PR-E-1) — 좌/우 column 명시 grid-rows 정합:
-            좌측 = Team A (1fr) / Team B (1fr) / Footer (auto)
-            우측 = RunningScore (2fr) / PeriodScores (auto)
-            grid items align-stretch 기본 → Team A+B 합 = RunningScore 높이. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 items-stretch">
-          {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하) (md 이상 = 우측 분할선).
-              2026-05-15 (PR-E-1) — flex-col → grid grid-rows-[1fr_1fr_auto] (자식 3개 명시 row).
-              Team A / Team B 균등 분배 + Footer 자연 height. */}
-          <div className="md-fiba-divider-right grid grid-rows-[1fr_1fr_auto]">
+        {/* 2026-05-15 (PR-E-1 revert) — grid-rows 1fr 1fr auto 적용 시 Team 자식 콘텐츠
+            자연 height 잘림 사고. 이전 flex-col 복귀 + mt-auto 박제 (시각 정합은 미세 차이
+            허용 / 자식 잘림 0 우선). */}
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하). */}
+          <div className="md-fiba-divider-right flex flex-col">
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1741,10 +1738,8 @@ export function ScoreSheetForm({
           </div>
 
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
-              FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적.
-              2026-05-15 (PR-E-1) — flex-col → grid grid-rows-[2fr_auto].
-                RunningScore (2fr) = 좌측 Team A+B 합과 정합 + PeriodScores (auto) = Footer 정합. */}
-          <div className="grid grid-rows-[2fr_auto]">
+              2026-05-15 (PR-E-1 revert) — flex-col 복귀. */}
+          <div className="flex flex-col">
             {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
                 단일 모드 (= 기존 detail 동작) 통일.
                 2026-05-15 — flex-1 wrapper 추가. Running Score 가 좌측 Team A+B 높이만큼 자동 확장. */}
