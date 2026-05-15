@@ -1610,6 +1610,65 @@ export function ScoreSheetForm({
     });
   }
 
+  // 2026-05-16 (긴급 박제 — 라이브 자동 sync / 시합 직전).
+  //
+  // 왜 (이유):
+  //   운영자가 score-sheet 마킹할 때마다 수동 submit 없이도 라이브 페이지가 실시간으로 점수/PBP 노출되어야 함.
+  //   사용자 명시 사양: "score-sheet 가 10초마다 자동으로 라이브 페이지에 데이터 전송".
+  //   기존 흐름 = "경기 종료" 버튼 / "Q4 종료 → 종료" 분기에서만 BFF submit → 진행 중 매치 라이브 노출 0.
+  //
+  // 어떻게:
+  //   1. 10초 interval 로 동일 BFF submit endpoint 호출 (단일 source — 별도 endpoint 0).
+  //   2. payload = buildSubmitPayload() 결과의 status 만 "in_progress" 로 override (헬퍼 변경 0).
+  //   3. status="in_progress" → service 가 TournamentMatch.status="in_progress" 박제 + quarter_scores
+  //      + running_score + PBP + MatchPlayerStat 모두 박제 / completed 신규 전환 0 = triggerMatchBrief skip.
+  //   4. 라이브 페이지 = 이미 3초 polling 박혀있음 (page.tsx:498 POLL_INTERVAL) → 별도 박제 0.
+  //
+  // 트리거 조건 (셋 다 만족 시만 interval 활성):
+  //   - lineup !== null    = 라인업 모달 confirm 완료 (시즌 시작 시점부터 마킹 가능)
+  //   - !isReadOnly        = 진행 중 매치 (종료 매치 + 수정 모드 미진입 = sync 0)
+  //   - !matchEndSubmitted = "경기 종료" 미박제 (= 자동 sync 와 종료 submit 충돌 0)
+  //
+  // 에러 처리:
+  //   - silent fail = 운영자 화면 toast 노이즈 0 (사용자 명시 사양).
+  //   - console.warn 만 = 개발자 디버깅용 흔적 보존.
+  //
+  // closure stale state 회피:
+  //   - useRef 로 latest buildSubmitPayload 함수 추적. 매 렌더마다 ref.current 갱신.
+  //   - setInterval 콜백 = ref.current() 호출 → 항상 최신 state 참조 (state 갱신마다 effect 재설정 0).
+  const buildSubmitPayloadRef = useRef<() => unknown>(buildSubmitPayload);
+  useEffect(() => {
+    buildSubmitPayloadRef.current = buildSubmitPayload;
+  });
+
+  useEffect(() => {
+    // 자동 sync 비활성 조건 (위 3 트리거) — 한 가지라도 false 면 interval 미설치.
+    if (lineup === null) return;
+    if (isReadOnly) return;
+    if (matchEndSubmitted) return;
+
+    const intervalId = setInterval(() => {
+      // 매 호출 시 latest state 기반 payload 생성 (ref 패턴).
+      const basePayload = buildSubmitPayloadRef.current() as Record<string, unknown>;
+      // status override = "in_progress" — BFF zod 가 이미 enum 에 포함.
+      //   service 가 TournamentMatch.status="in_progress" 박제 (scheduled → in_progress 자동 전환).
+      const payload = { ...basePayload, status: "in_progress" as const };
+
+      // fire-and-forget — 응답 무시. 운영자 화면 영향 0.
+      fetch(`/api/web/score-sheet/${match.id}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      }).catch((err) => {
+        // silent fail — toast 0 / console.warn 만 (디버깅용 흔적).
+        console.warn("[score-sheet] 자동 sync 실패 (silent):", err);
+      });
+    }, 10_000);
+
+    return () => clearInterval(intervalId);
+  }, [lineup, isReadOnly, matchEndSubmitted, match.id]);
+
   // Phase 7-B — 출전 명단 필터 + isStarter 재계산.
   //   lineup state 확정 시 양식 (TeamSection / RunningScoreGrid) 에 표시될 선수 = 출전 명단만.
   //   lineup === null = 모달 표시 단계 = 양식 미렌더.
