@@ -1900,6 +1900,16 @@ export function ScoreSheetForm({
         //   MatchEndButton 내부 변경 0 (lifting state up 패턴 유지).
         onSubmittedChange={(submitted) => {
           setMatchEndSubmitted(submitted);
+          // 2026-05-15 (PR-A / P1-4) — submit 성공 시 draft 자동 삭제.
+          //   이전: reset 만 삭제 → 다음 진입 시 draft.savedAt > matchUpdatedAt 으로
+          //   불필요한 ConfirmModal 노출. submit 성공 = DB 최신 = draft 무가치.
+          if (submitted && typeof window !== "undefined") {
+            try {
+              window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
+            } catch {
+              /* localStorage 접근 실패 silent */
+            }
+          }
           // 완료된 매치 재제출 시 audit 박제 (사용자 결재 Q3 — 차단 ❌ / 추적만)
           if (submitted && isCompleted && typeof window !== "undefined") {
             fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
