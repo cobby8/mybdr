@@ -3,32 +3,37 @@ import { getWebSession } from "@/lib/auth/web-session";
 import { isSuperAdmin } from "@/lib/auth/is-super-admin";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+// Admin-7-A 박제 (BDR v2.14 AdminTournamentAdminHome.jsx) — eyebrow + breadcrumbs + actions 헤더
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 /* ============================================================
  * 대회 운영자 도구 — /tournament-admin (대시보드)
  *
  * 2026-05-04 (사용자 요청): 다른 관리자 페이지(/admin/tournaments)와 UI 일치 + 대회 목록 리스트형.
- * 이전: 통계 카드 3개 + 큰 카드 list + 빠른 시작 + 시리즈 섹션.
- * 변경: AdminPageHeader + 통계 mini bar + admin-table 리스트.
+ * 2026-05-15 Admin-7-A 박제: AdminPageHeader (eyebrow/breadcrumbs/actions) +
+ *   상태 inline css → admin-stat-pill[data-tone] 통일. 비즈 로직(Prisma/searchParams/탭) 0 변경.
  *
  * 서버 컴포넌트에서 Prisma로 직접 쿼리 (API 호출 X).
  * ============================================================ */
 
 export const dynamic = "force-dynamic";
 
-// 대회 상태 4종 통일 매핑 (admin-table 뱃지 색상)
-const STATUS_DISPLAY: Record<string, { label: string; color: string }> = {
-  draft: { label: "준비중", color: "var(--color-text-muted)" },
-  upcoming: { label: "준비중", color: "var(--color-text-muted)" },
-  registration: { label: "접수중", color: "var(--color-info)" },
-  active: { label: "접수중", color: "var(--color-info)" },
-  open: { label: "접수중", color: "var(--color-info)" },
-  in_progress: { label: "진행중", color: "var(--color-primary)" },
-  live: { label: "진행중", color: "var(--color-primary)" },
-  ongoing: { label: "진행중", color: "var(--color-primary)" },
-  completed: { label: "종료", color: "var(--color-text-disabled)" },
-  ended: { label: "종료", color: "var(--color-text-disabled)" },
-  cancelled: { label: "종료", color: "var(--color-text-disabled)" },
+// 대회 상태 4종 통일 매핑 (admin-stat-pill[data-tone] 박제 — Admin-5 패턴 동일)
+//   draft/upcoming → mute (회색)  / registration·active·open → info (파랑) /
+//   in_progress·live·ongoing → ok (초록)  / completed·ended·cancelled → mute (회색)
+type StatusTone = "ok" | "warn" | "info" | "mute" | "err";
+const STATUS_DISPLAY: Record<string, { label: string; tone: StatusTone }> = {
+  draft: { label: "준비중", tone: "mute" },
+  upcoming: { label: "준비중", tone: "mute" },
+  registration: { label: "접수중", tone: "info" },
+  active: { label: "접수중", tone: "info" },
+  open: { label: "접수중", tone: "info" },
+  in_progress: { label: "진행중", tone: "ok" },
+  live: { label: "진행중", tone: "ok" },
+  ongoing: { label: "진행중", tone: "ok" },
+  completed: { label: "종료", tone: "mute" },
+  ended: { label: "종료", tone: "mute" },
+  cancelled: { label: "종료", tone: "mute" },
 };
 
 // 탭 키별 status 매핑
@@ -127,68 +132,41 @@ export default async function TournamentAdminDashboard({
 
   return (
     <div>
-      {/* 2026-05-04 (사용자 fix 2차): AdminPageHeader 폐기 + 인라인 마크업.
-          본질: AdminPageHeader 의 sm:flex-row 가 어떤 이유로 미적용 → actions 가 title 아래 좌측 정렬됨.
-          해결: 인라인 마크업으로 직접 제어 — title block 좌 + 새 대회 만들기 우측 상단 (style 인라인). */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-          marginBottom: 24,
-          flexWrap: "wrap",
-        }}
-      >
-        {/* 좌측: eyebrow + h1 + subtitle */}
-        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "var(--color-text-muted)",
-              marginBottom: 4,
-            }}
-          >
-            ADMIN · TOURNAMENT{isSuper && " · SUPER"}
-          </div>
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              fontFamily: "var(--ff-display)",
-              letterSpacing: "-0.015em",
-              color: "var(--color-text-primary)",
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
-            {isSuper ? "전체 대회 운영자 도구" : "대회 운영자 도구"}
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "var(--color-text-muted)",
-              marginTop: 4,
-              marginBottom: 0,
-            }}
-          >
-            {isSuper ? "전체 대회" : "내 대회"} {totalTournaments}개 · 진행 중 {activeTournaments} · 완료 {completedTournaments}
-            {myOrganizations.length > 0 && ` · 관리 단체 ${myOrganizations.length}개`}
-          </p>
-        </div>
-
-        {/* 우측 상단: + 새 대회 만들기 (인라인 정렬, sm:flex-row 의존 X) */}
-        <Link
-          href="/tournament-admin/tournaments/new/wizard"
-          className="btn btn--primary"
-          style={{ textDecoration: "none", flexShrink: 0 }}
-        >
-          + 새 대회 만들기
-        </Link>
-      </div>
+      {/*
+        Admin-7-A 박제 (BDR v2.14 AdminTournamentAdminHome.jsx):
+          - 인라인 헤더 60줄 → AdminPageHeader 컴포넌트 (eyebrow + breadcrumbs + title + subtitle + actions)
+          - eyebrow 시안 카피 "ADMIN · 대회 운영" 채택 (super_admin 시 " · SUPER" 부착)
+          - breadcrumbs: ADMIN › 대회 운영자 도구
+          - actions: "대회 목록" Link + "+ 새 대회 만들기" Link (시안 동일 2버튼)
+          - 비즈 보존: totalTournaments / activeTournaments / completedTournaments / myOrganizations 카운트 그대로 subtitle 노출
+      */}
+      <AdminPageHeader
+        eyebrow={`ADMIN · 대회 운영${isSuper ? " · SUPER" : ""}`}
+        title={isSuper ? "전체 대회 운영자 도구" : "대회 운영자 도구"}
+        subtitle={`${isSuper ? "전체 대회" : "내 대회"} ${totalTournaments}개 · 진행 중 ${activeTournaments} · 완료 ${completedTournaments}${myOrganizations.length > 0 ? ` · 관리 단체 ${myOrganizations.length}개` : ""}`}
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: isSuper ? "전체 대회 운영자 도구" : "대회 운영자 도구" },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/tournament-admin/tournaments"
+              className="btn"
+              style={{ textDecoration: "none" }}
+            >
+              대회 목록
+            </Link>
+            <Link
+              href="/tournament-admin/tournaments/new/wizard"
+              className="btn btn--primary"
+              style={{ textDecoration: "none" }}
+            >
+              + 새 대회 만들기
+            </Link>
+          </>
+        }
+      />
 
       {/* 2026-05-12 — 관리 단체 카드 (내 organization_members) — Phase 4-B 후속 단체-대회 연결 시각화 */}
       {myOrganizations.length > 0 && (
@@ -419,30 +397,20 @@ export default async function TournamentAdminDashboard({
                           · {tournament.tournament_series.name}
                         </span>
                       )}
+                      {/* 위임 받은 대회 표시 (TAM) — Admin-7-A 박제: 999px pill → admin-stat-pill[data-tone="info"] */}
                       {!isMyOrganizer && (
                         <span
-                          style={{
-                            marginLeft: 6,
-                            padding: "1px 6px",
-                            fontSize: 10,
-                            fontWeight: 600,
-                            borderRadius: 999,
-                            background: "color-mix(in srgb, var(--color-info) 12%, transparent)",
-                            color: "var(--color-info)",
-                          }}
+                          className="admin-stat-pill"
+                          data-tone="info"
+                          style={{ marginLeft: 6, fontSize: 9.5 }}
                         >
                           위임
                         </span>
                       )}
                     </td>
                     <td>
-                      <span
-                        className="rounded-full px-2 py-0.5 text-xs font-semibold"
-                        style={{
-                          color: statusInfo.color,
-                          backgroundColor: "var(--color-surface)",
-                        }}
-                      >
+                      {/* Admin-7-A 박제: rounded-full px-2 inline css → admin-stat-pill[data-tone] */}
+                      <span className="admin-stat-pill" data-tone={statusInfo.tone}>
                         {statusInfo.label}
                       </span>
                     </td>

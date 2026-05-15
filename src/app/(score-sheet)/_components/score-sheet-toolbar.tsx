@@ -151,29 +151,11 @@ export function ScoreSheetToolbar({
           </button>
         )}
 
-        {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit).
-            endMatchDisabled prop = 종료 후 시각 disabled 분기 (PR-S2 후속 fix 3 유지).
-            Phase 23 PR-RO3 (2026-05-15) — hideEndMatch=true 시 버튼 자체 렌더 0 (사용자 결재 Q2).
-              종료 매치 진입 = 인쇄 / ← 메인 만 노출. 종료 버튼 진입점 차단. */}
-        {!hideEndMatch && (
-          <button
-            type="button"
-            className="ss-toolbar__finish"
-            onClick={onEndMatch}
-            disabled={endMatchDisabled}
-            aria-label="경기 종료"
-            style={
-              endMatchDisabled
-                ? { opacity: 0.4, cursor: "not-allowed" }
-                : undefined
-            }
-          >
-            <span className="material-symbols-outlined" aria-hidden>
-              flag
-            </span>
-            경기 종료
-          </button>
-        )}
+        {/* 2026-05-15 (PR-SS-51) — 헤더 "경기 종료" 버튼 영구 제거. 사용자 요청:
+            경기 종료 단일 진입점 = 하단 쿼터 종료 버튼 → QuarterEndModal (4쿼터 종료 시
+            "경기 종료" / "OT 진행" 분기 / OT 종료 시 "OT 추가" / "경기 종료" 분기).
+            중복 진입점 제거로 운영자 혼선 차단. onEndMatch prop 은 QuarterEndModal 의
+            handleEndMatchFromQuarterEnd 가 호출 (form 내부 그대로). */}
 
         {/* Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 버튼 (사용자 결재 Q3 + Q4).
             노출 조건 (3 AND):

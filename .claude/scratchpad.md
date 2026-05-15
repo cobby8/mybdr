@@ -338,3 +338,67 @@ src\app\(admin)\admin\partners\page.tsx:81:  const handleCreate = async (e: Reac
   4. 시안 카피 (eyebrow / subtitle) 갱신 — analytics/settings/logs/notifications 모두 "ADMIN · 시스템" (시안), me 만 "ADMIN · 계정" (시안). subtitle 도 시안 카피 우선 박제 (analytics 만 운영 기능 설명 유지: "이번 달 가입 / 토너먼트 / 경기 / 게시글 + 6개월 추이")
   5. `next/link` 신규 import 2건 (settings client / notifications client) + 1건 (logs server 는 기존 보유) — Link `className="btn"` 직접 사용 (다른 admin 페이지와 일관)
 - 미박제 갭 (의도): 시안 차트 다채널 / 사이트 정보 폼 / severity 필터 탭 / JSON 내보내기 / me 7카드 내부 시각 / 발송 이력. 별 PR 권장 (특히 me _components/ 7카드 내부 시각 박제는 큰 코드 (1956 LOC) → 별 PR).
+
+### Admin-7-A Phase 박제 — tournament-admin Home + List (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminTournamentAdminHome.jsx` / `AdminTournamentAdminList.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) + 상태 뱃지(`admin-stat-pill[data-tone]`) 박제. Prisma 쿼리 / super_admin 분기 / TAM 위임 OR 조건 / searchParams 탭·검색 / myOrganizations 관리 단체 카드 / 탭별 카운트(in-memory) / format 표시 비즈 로직 100% 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/tournament-admin/page.tsx` | 인라인 헤더 60줄 (`<div><div fontSize:10>ADMIN · TOURNAMENT</div><h1>…</h1><p>…</p></div><Link>`) → `AdminPageHeader` (eyebrow + title + subtitle + breadcrumbs + actions). `STATUS_DISPLAY` color → tone 시그니처 변경 (`StatusTone` type 신규: ok/warn/info/mute/err — STATUS_TONE 매핑 11건). 행 상태 컬럼 `rounded-full px-2 py-0.5` inline css → `admin-stat-pill[data-tone]`. "위임" 999px pill → `admin-stat-pill[data-tone="info"]`. `AdminPageHeader` import 신규. actions 슬롯에 "대회 목록" Link + "+ 새 대회 만들기" Link 2개 (시안 동일) | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/page.tsx` | raw `<h1 className="text-2xl">` + Link → `AdminPageHeader` (eyebrow + breadcrumbs + actions). `<Badge>` (badge.tsx 컴포넌트) → `admin-stat-pill[data-tone]` + `STATUS_TONE` 매핑 신규 (17 status 키 4 tone 매핑). `Badge` import 제거 (사용 없음). `AdminPageHeader` import 신규. `Card` 컴포넌트 / Prisma 쿼리 / super_admin 분기 / format 표시 보존 | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- page.tsx 비즈 키워드 매치 36건 (prisma. / getWebSession / isSuperAdmin / tournamentWhere / TAB_STATUS_MAP / myOrganizations / allTournaments / myTournaments / currentTab / qParam) — 추가/삭제 0
+- page.tsx `git diff` 비즈 라인 = template literal 1건 (`myOrganizations.length > 0 && ' · 관리 단체 ${myOrganizations.length}개'` → subtitle 안 ternary로 흡수, 동일 데이터 동일 출력)
+- tournaments/page.tsx 비즈 키워드 매치 11건 (prisma. / getWebSession / isSuperAdmin / adminMembers / organizerId / TOURNAMENT_STATUS_LABEL / TOURNAMENT_FORMAT_LABEL) — `git diff` 비즈 라인 = 0건
+- Prisma `tournament.findMany` 4건 (page.tsx 2: myOrganizations + allTournaments / tournaments/page.tsx 1) — 변경 0
+- isSuper 분기 / TAM `adminMembers some isActive` OR 조건 / `myOrganizations.findMany` include + orderBy / `tournamentTeams` filter (approved/pending/paid) — 변경 0
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**LOC 변화**:
+- page.tsx: +57 / -97 (헤더 60줄 → AdminPageHeader 1컴포넌트 + 인라인 css 제거)
+- tournaments/page.tsx: +73 / -35 (STATUS_TONE 매핑 신규 17건 + AdminPageHeader + 폴백 처리)
+- 총 +130 / -132
+
+**갭 / 미박제 항목 (Admin-4~6 패턴 동일)**:
+- 시안 `AdminTournamentAdminHome` 의 통계 4 카드 (StatCard live/apply/done/draft) — 운영 page.tsx 는 subtitle 한 줄 텍스트 표시 (`내 대회 X개 · 진행 중 Y · 완료 Z · 관리 단체 N개`) — Prisma 카운트 데이터는 모두 있지만 시각 카드 박제는 시안 추가 작업 필요 → **별 PR (UI-only StatCard 컴포넌트 박제 + grid 추가)**
+- 시안 `AdminTournamentAdminHome` 의 빠른 액션 4 (QuickAction 새 대회/시리즈/단체/템플릿) — 운영은 actions 슬롯 2 Link (대회 목록 + 새 대회 만들기) 만 박제. 시리즈/단체/템플릿 라우트 박제는 Admin-7-B (Series 3) / 후속 → **별 PR**
+- 시안 `AdminTournamentAdminHome` 의 2컬럼 (좌 최근 활동 / 우 곧 시작 대회) — 운영 데이터 모델에 admin_logs 테이블은 있으나 본인 tournament-specific filter 미구현. 곧 시작 대회는 Prisma sort/take 로 가능하나 시안 D-day 디자인 박제는 별 PR
+- 시안 `AdminTournamentAdminList` 의 `AdminStatusTabs` (6탭 전체/작성중/신청중/진행중/완료/보관) — 운영은 단순 목록 (탭 없음, all 표시) → 박제 스킵 (탭 추가는 비즈 로직 변경 — 본 PR 시각 박제 범위 초과)
+- 시안 `AdminTournamentAdminList` 의 `AdminFilterBar` (검색 + 시리즈 필터) + `AdminDataTable` (컬럼 정의 + 정렬 + pagination + 행 클릭) → 운영은 `Card` 컴포넌트 + Link 행으로 단순 표시 → 박제 스킵 (옵션 A — 별 PR)
+- 시안 카드 우측 `설정 hub →` chevron / 비공개 pill / D-day badge / team_count progress bar / divisions 컬럼 → 운영 카드 시각 차이 큼. 박제 스킵 → 별 PR
+- mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+- 관리 단체 카드 (myOrganizations 2026-05-12 Phase 4-B) 박제 → 시안 시각 패턴 (sectionLabel + grid) 유사하므로 보존 (별도 시각 정합 불필요)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/tournament-admin` 진입 (organizer 또는 super_admin 세션) — 헤더 eyebrow "ADMIN · 대회 운영" (super_admin 시 " · SUPER") + breadcrumbs (ADMIN › 대회 운영자 도구) + 우측 actions "대회 목록" Link + "+ 새 대회 만들기" Link 노출
+  2. subtitle "내 대회 X개 · 진행 중 Y · 완료 Z · 관리 단체 N개" 표시 (관리 단체 0건 시 마지막 클로즈 생략)
+  3. 관리 단체 카드 (organization_members 행 있을 때) 헤더 아래 grid 박스 정상 렌더 — 시각 변경 0 (기존 동일)
+  4. 검색 form + 탭 (전체/준비중/접수중/진행중/종료) + admin-table 정상 동작
+  5. 테이블 행 상태 칼럼 — `admin-stat-pill[data-tone]` 박제 (준비중=mute / 접수중=info / 진행중=ok / 종료=mute)
+  6. 위임 받은 대회 (organizerId !== userId) 의 이름 옆 "위임" 라벨 → `admin-stat-pill[data-tone="info"]` 박제 (작은 9.5px pill)
+  7. `/tournament-admin/tournaments` 진입 — 헤더 eyebrow + breadcrumbs (ADMIN › 대회 운영자 도구 › 내 대회 / 전체 대회) + 우측 "+ 새 대회 만들기" Link 노출
+  8. 카드 우측 상태 뱃지 — `admin-stat-pill[data-tone]` (status enum 17종 → 4 tone 매핑)
+  9. super_admin 진입 → "전체 대회 운영자 도구" / "전체 대회" 라벨 + breadcrumbs 도 "전체 대회" 표기
+  10. 빈 상태 (대회 0건) — 기존 안내 박스 (`emoji_events` 아이콘 + "아직 대회가 없어요" + "대회 만들기" 버튼) 그대로 렌더
+- **정상 동작**:
+  - page.tsx: Prisma 쿼리 (myOrganizations + allTournaments) / TAB_STATUS_MAP 분기 / qParam 검색 / 탭 카운트 / 위임 뱃지 / 입금·대기 카운트 / 시작일 표시 — 100% 기존 동일
+  - tournaments/page.tsx: Prisma findMany (super_admin OR organizer OR TAM adminMembers) / Card 행 클릭 → 상세 / format 표시 / 빈 상태 안내 — 100% 기존 동일
+- **주의할 입력**:
+  - tournament.status: STATUS_DISPLAY (page.tsx 11종) / STATUS_TONE (tournaments/page.tsx 17종) 외 값 → 폴백 page.tsx `STATUS_DISPLAY.draft` (준비중/mute) / tournaments/page.tsx `STATUS_TONE.fallback = "mute"` + raw status 표시
+  - super_admin 세션: `isSuperAdmin(session)` true → where {} (모든 대회) + 헤더 "전체 대회 운영자 도구" / "전체 대회"
+  - organizerId mismatch (TAM 위임만): "위임" pill 표시 + 같은 행에 데이터 정상
+  - myOrganizations 0건 → 관리 단체 카드 grid 자체 렌더 X (기존 동일) + subtitle 마지막 클로즈 생략
+
+⚠️ reviewer 참고:
+- 특별히 봐줬으면 하는 부분:
+  1. **page.tsx 의 인라인 헤더 60줄 → AdminPageHeader 1 컴포넌트 교체** — 시안 admin-pageheader 박제 (Admin-2 commit). actions 슬롯에 시안 동일 2 Link (대회 목록 + 새 대회 만들기) — 기존 1 Link ("+ 새 대회 만들기") 에 시안 패턴 1 Link ("대회 목록") 추가
+  2. `STATUS_DISPLAY` color → tone 시그니처 변경 (page.tsx) — 호출처 1곳 (`<span className={...} style={{color: statusInfo.color}}>` → `<span className="admin-stat-pill" data-tone={statusInfo.tone}>`) 동시 갱신. 외부 export 없음 (모듈 내부 const)
+  3. `STATUS_TONE` 신규 매핑 (tournaments/page.tsx) — `TOURNAMENT_STATUS_LABEL` 의 17 status 키 모두 커버 + 폴백 "mute". `Badge` 컴포넌트 import 제거 (사용처 0)
+  4. **Prisma 쿼리 / super_admin 분기 / TAM OR 조건 100% 보존** — `git diff` 검증 결과 비즈 라인 변경 0 (template literal 1건은 subtitle 데이터 흡수 동일 출력)
+  5. `next/link` 기존 import 보존 (page.tsx / tournaments/page.tsx 모두 이미 있음). `AdminPageHeader` 신규 import 2건
+  6. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
+- 미박제 갭 (의도): StatCard 4통계 카드 / QuickAction 4빠른 액션 / 좌 최근 활동·우 곧 시작 2컬럼 / AdminStatusTabs 6탭 / AdminFilterBar / AdminDataTable / D-day badge / progress bar / divisions 컬럼 / 설정 hub chevron / 비공개 pill / mock toggle. 별 PR 권장 (특히 StatCard + AdminStatusTabs 박제는 비즈 로직 + state 추가 필요 → 큰 작업).

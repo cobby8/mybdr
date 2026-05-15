@@ -40,10 +40,13 @@ import { PERIOD_LEGEND } from "@/lib/score-sheet/period-color";
 export function PeriodColorLegend() {
   return (
     <div
-      className="no-print mx-auto mt-3 flex w-full max-w-[820px] flex-col gap-y-1.5 px-2 py-1.5 text-xs"
+      // 2026-05-15 (PR-SS-53) — toolbar 바로 아래 붙이도록 mt-3 → mt-0 + border-top 제거.
+      //   사용자 요청 "위 아래 두 영역 병합" — toolbar (인쇄/취소) + legend 시각 통합.
+      className="no-print mx-auto flex w-full max-w-[794px] flex-col gap-y-1.5 px-2 py-1.5 text-xs"
       style={{
         backgroundColor: "var(--color-surface)",
         border: "1px solid var(--color-border)",
+        borderTop: "none",
       }}
       aria-label="쿼터 색상 + 점수 표기 안내"
     >

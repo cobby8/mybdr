@@ -48,6 +48,19 @@ export function FullscreenProvider({ children }: { children: ReactNode }) {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
       }
+      // 2026-05-15 (PR-SS-50) — 전체화면 진입 시 세로 (portrait) 강제 lock.
+      //   Screen Orientation API — iOS Safari 미지원 (silent fail), Android Chrome / iPadOS 16+ 지원.
+      //   try-catch 별도 = lock 실패가 fullscreen 진입까지 막지 않도록 분리.
+      try {
+        const orientation = (screen as Screen & {
+          orientation?: ScreenOrientation & { lock?: (orientation: string) => Promise<void> };
+        }).orientation;
+        if (orientation && typeof orientation.lock === "function") {
+          await orientation.lock("portrait");
+        }
+      } catch {
+        /* lock 미지원 / 권한 거부 silent — 사용자가 가로로 들어와도 양식 노출 (스크롤) */
+      }
     } catch {
       /* silent fail (iPhone / non-user-gesture / 권한 거부) */
     }
