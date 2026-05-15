@@ -1,10 +1,24 @@
 import { type ReactNode } from "react";
 
-// 관리자 페이지 공통 헤더 컴포넌트 (Phase D + 디자인 시스템 통합 — 2026-05-02)
-// (web) 디자인 시스템 일관성:
-//  - eyebrow (대문자 + tracking-wider) + h1 (var(--ff-display) Space Grotesk)
-//  - .input / .btn 글로벌 클래스 사용 (web 페이지와 동일 시각)
-//  - 모바일: 검색 form 풀폭 + iOS 16px input 자동 (globals.css 룰)
+/* ============================================================
+ * AdminPageHeader — 관리자 페이지 공통 헤더 (Admin-2 박제 2026-05-15)
+ *
+ * 박제 source: Dev/design/BDR-current/components-admin.jsx (AdminPageHeader)
+ * 박제 target: src/components/admin/admin-page-header.tsx
+ *
+ * 이유 (왜):
+ *   - 시안 v2.14 의 `.admin-pageheader` 시각 패턴 일관 박제 (eyebrow + h1
+ *     display + subtitle + actions). admin.css 박제 클래스로 시각 갱신.
+ *   - 호출처 22개 회귀 0 보장 — props 시그니처 100% 보존
+ *     (title, subtitle, eyebrow, searchPlaceholder, searchName,
+ *      searchDefaultValue, actions). breadcrumbs 만 옵션 신규 추가.
+ *
+ * 어떻게:
+ *   1. JSX 구조를 시안 그대로: header.admin-pageheader > body + actions.
+ *   2. breadcrumbs 옵션 (admin-pageheader__breadcrumbs).
+ *   3. searchPlaceholder/searchName/searchDefaultValue 가 있으면 검색 form
+ *      을 actions 영역 좌측에 박제 — 22개 호출처 보존.
+ * ============================================================ */
 interface AdminPageHeaderProps {
   title: string;
   subtitle?: string; // "전체 42개" 같은 부제
@@ -13,6 +27,8 @@ interface AdminPageHeaderProps {
   searchName?: string; // form input name (기본값 "q")
   searchDefaultValue?: string;
   actions?: ReactNode; // 우측 추가 버튼 등
+  // 2026-05-15 Admin-2 박제 — 시안 breadcrumbs 옵션 (admin-pageheader__breadcrumbs)
+  breadcrumbs?: { label: string; onClick?: () => void }[];
 }
 
 export function AdminPageHeader({
@@ -23,54 +39,59 @@ export function AdminPageHeader({
   searchName = "q",
   searchDefaultValue,
   actions,
+  breadcrumbs,
 }: AdminPageHeaderProps) {
+  // 검색 form 노출 여부 — searchPlaceholder 있을 때만
+  const hasSearch = !!searchPlaceholder;
+  // actions 영역 노출 — 검색 또는 사용자 액션 1개라도 있을 때
+  const hasActions = hasSearch || !!actions;
+
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-baseline sm:justify-between">
-      {/* 좌측: eyebrow + 제목 + 부제 (web 디자인 시스템 패턴) */}
-      <div className="min-w-0">
-        {eyebrow && (
-          <div
-            className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.12em]"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            {eyebrow}
+    // 시안 클래스 — admin.css `.admin-pageheader` 박제
+    <header className="admin-pageheader">
+      {/* 좌측: breadcrumbs + eyebrow + 제목 + 부제 */}
+      <div className="admin-pageheader__body">
+        {breadcrumbs && breadcrumbs.length > 0 && (
+          <div className="admin-pageheader__breadcrumbs">
+            {breadcrumbs.map((b, i) => (
+              <span key={`${b.label}-${i}`}>
+                {i > 0 && <span style={{ opacity: 0.4, marginRight: 6 }}>›</span>}
+                {b.onClick ? (
+                  <a onClick={b.onClick} style={{ cursor: "pointer" }}>
+                    {b.label}
+                  </a>
+                ) : (
+                  <span style={{ color: "var(--ink)" }}>{b.label}</span>
+                )}
+              </span>
+            ))}
           </div>
         )}
-        <h1
-          className="text-[22px] sm:text-[28px] font-extrabold leading-tight"
-          style={{
-            fontFamily: "var(--ff-display)",
-            letterSpacing: "-0.015em",
-            color: "var(--color-text-primary)",
-          }}
-        >
-          {title}
-        </h1>
-        {subtitle && (
-          <p className="mt-1 text-[13px]" style={{ color: "var(--color-text-muted)" }}>
-            {subtitle}
-          </p>
-        )}
+        {eyebrow && <div className="admin-pageheader__eyebrow">{eyebrow}</div>}
+        {title && <h1 className="admin-pageheader__title">{title}</h1>}
+        {subtitle && <p className="admin-pageheader__subtitle">{subtitle}</p>}
       </div>
 
-      {/* 우측: 검색 + 액션 — 모바일 풀폭 / sm+ inline */}
-      <div className="flex items-center gap-2 w-full sm:w-auto">
-        {searchPlaceholder && (
-          <form method="GET" className="flex gap-2 flex-1 sm:flex-initial">
-            <input
-              name={searchName}
-              defaultValue={searchDefaultValue ?? ""}
-              placeholder={searchPlaceholder}
-              className="input flex-1 sm:flex-initial"
-              style={{ minWidth: 0 }}
-            />
-            <button type="submit" className="btn btn--primary btn--sm shrink-0">
-              검색
-            </button>
-          </form>
-        )}
-        {actions}
-      </div>
-    </div>
+      {/* 우측: 검색 form (있을 때) + actions slot (호출처 보존) */}
+      {hasActions && (
+        <div className="admin-pageheader__actions">
+          {hasSearch && (
+            <form method="GET" className="flex gap-2 flex-1 sm:flex-initial">
+              <input
+                name={searchName}
+                defaultValue={searchDefaultValue ?? ""}
+                placeholder={searchPlaceholder}
+                className="input flex-1 sm:flex-initial"
+                style={{ minWidth: 0 }}
+              />
+              <button type="submit" className="btn btn--primary btn--sm shrink-0">
+                검색
+              </button>
+            </form>
+          )}
+          {actions}
+        </div>
+      )}
+    </header>
   );
 }

@@ -41,14 +41,15 @@ import { PrismaClient } from "@prisma/client";
 // 사용자 입력 (실행 전 채우기)
 // =============================================================================
 const DEV_PREVIEW_URL = "http://localhost:3001"; // 또는 dev 프리뷰 URL
-const SESSION_COOKIE = "_web_session=..."; // 로그인 후 devtools 에서 cookie 추출
+// ⚠️ Cookie 이름 = "bdr_session" (NOT "_web_session"). DevTools Application → Cookies → http://localhost:3001 확인.
+const SESSION_COOKIE = "bdr_session=..."; // 로그인 후 devtools 에서 bdr_session 값 추출
 // =============================================================================
 
 const prisma = new PrismaClient();
 
 interface CreatedIds {
-  organization_id?: number;
-  series_id?: number;
+  organization_id?: string; // BigInt → string 응답 (apiSuccess snake_case 자동 변환)
+  series_id?: string; // BigInt → string 응답
   tournament_1_id?: string;
   tournament_2_id?: string;
 }
@@ -102,10 +103,14 @@ async function main() {
 
   try {
     // (1) 로그인 검증 (cookie 유효성)
+    // ⚠️ /api/web/me 는 비로그인 시도 200 + {id: null} 반환 (2026-05-05 fix, SWR 폭주 방지).
+    //    단순 res.ok 검증 부족 — body 의 id !== null 확인 필수.
     console.log("=== 1. 로그인 cookie 검증 ===");
     const meRes = await fetchJson("GET", "/api/web/me");
     if (!meRes.ok) throw new Error(`로그인 실패: ${meRes.status}`);
-    console.log("✅ cookie OK");
+    const meData = meRes.data as { id: string | null } | null;
+    if (!meData?.id) throw new Error("cookie 무효 — /api/web/me 응답 id: null (비로그인 상태). cookie 재박제 필요.");
+    console.log(`✅ cookie OK (user_id=${meData.id})`);
 
     // (2) 단체 생성
     console.log("\n=== 2. POST /api/web/organizations ===");
@@ -114,7 +119,8 @@ async function main() {
       region: "서울특별시",
     });
     if (!orgRes.ok) throw new Error(`단체 생성 실패: ${JSON.stringify(orgRes.data)}`);
-    ids.organization_id = (orgRes.data as { data: { organization: { id: number } } }).data.organization.id;
+    // ⚠️ apiSuccess() 응답 키 자동 snake_case 변환 (CLAUDE.md 보안 §) — `id` 직접 (data 래핑 없음)
+    ids.organization_id = (orgRes.data as { id: string }).id;
     console.log(`✅ organization_id=${ids.organization_id}`);
 
     // (3) 시리즈 생성
@@ -124,7 +130,7 @@ async function main() {
       organization_id: ids.organization_id,
     });
     if (!seriesRes.ok) throw new Error(`시리즈 생성 실패: ${JSON.stringify(seriesRes.data)}`);
-    ids.series_id = (seriesRes.data as { data: { series: { id: number } } }).data.series.id;
+    ids.series_id = (seriesRes.data as { id: string }).id;
     console.log(`✅ series_id=${ids.series_id}`);
 
     // (4) 회차 1 (기존 path)
@@ -139,7 +145,8 @@ async function main() {
       },
     );
     if (!ed1Res.ok) throw new Error(`회차 1 생성 실패: ${JSON.stringify(ed1Res.data)}`);
-    ids.tournament_1_id = (ed1Res.data as { data: { tournamentId: string } }).data.tournamentId;
+    // ⚠️ apiSuccess() snake_case 자동 변환 — `tournamentId` → `tournament_id`
+    ids.tournament_1_id = (ed1Res.data as { tournament_id: string }).tournament_id;
     console.log(`✅ tournament_1_id=${ids.tournament_1_id}`);
 
     // (5) last-edition GET
@@ -147,10 +154,11 @@ async function main() {
     const lastRes = await fetchJson("GET", `/api/web/series/${ids.series_id}/last-edition`);
     if (!lastRes.ok) throw new Error(`last-edition 조회 실패: ${JSON.stringify(lastRes.data)}`);
     const lastData = lastRes.data as {
-      data: { last_edition: { id: string } | null; division_rules: unknown[] };
+      last_edition: { id: string } | null;
+      division_rules: unknown[];
     };
     console.log(
-      `✅ last_edition.id=${lastData.data.last_edition?.id} / division_rules=${lastData.data.division_rules.length}`,
+      `✅ last_edition.id=${lastData.last_edition?.id} / division_rules=${lastData.division_rules.length}`,
     );
 
     // (6) 회차 2 (마법사 path)
@@ -170,7 +178,7 @@ async function main() {
       },
     );
     if (!ed2Res.ok) throw new Error(`회차 2 생성 실패: ${JSON.stringify(ed2Res.data)}`);
-    ids.tournament_2_id = (ed2Res.data as { data: { tournamentId: string } }).data.tournamentId;
+    ids.tournament_2_id = (ed2Res.data as { tournament_id: string }).tournament_id;
     console.log(`✅ tournament_2_id=${ids.tournament_2_id}`);
 
     // (7) status="draft" 강제 확인

@@ -18,7 +18,7 @@
 | Phase 1 — BDR-current v2.14 sync commit (d43704a) | ✅ 완료 (436 파일 / +75866) |
 | Phase 1.5 — push to origin/subin | ✅ 완료 (4 commit fast-forward) |
 | Phase 2 — Admin-1 components/admin (신규 5 + admin.css) | ✅ commit `05caa04` (7 파일 / +1830 / tsc 0 / 갱신 5 보류 사용자 결재) |
-| **Phase 3 — Admin-2 /admin/layout + Dashboard** | ⏳ **push + Admin-2 결재 대기** (갱신 5 동반) |
+| **Phase 3 — Admin-2 /admin/layout + Dashboard + 갱신 5** | ✅ **박제 완료** (6 파일 / +310/-265 / tsc 0 / vitest 921 PASS / 호출처 29 회귀 0) — commit 대기 |
 | Phase 4 — Admin-3 wizard 풀스크린 | ⏳ |
 | Phase 5 — Admin-4 Phase B 콘텐츠 9 페이지 | ⏳ |
 | Phase 6 — Admin-5 Phase C 사용자/비즈니스/외부 9 페이지 | ⏳ |
@@ -38,14 +38,96 @@
 - PR-S9 / UI-1.4 entry_fee / GNBA 8팀 코치 안내
 
 ## 미푸시 commit (subin 브랜치)
-- 현재 = **1** (`05caa04` Admin-1 박제 / origin/subin = 223f7f0 Phase 23 PR-EDIT by 다른 세션)
+- 현재 = **1** (`05caa04` Admin-1 박제 / origin/subin = 2f7ab2f PR-Live1~Live4 by 다른 세션)
+- Admin-2 박제 완료 (6 파일 / 검증 통과) — PM commit 진행 시 +1 commit
 - push 결재 대기 — 다른 세션이 동시 박제 중이라 push 시점 사용자 결재 권장
-- 본 세션 누적 = 2 commit (0853927 chore wip + d43704a sync) + Admin-1 (05caa04) = 3 commit 본 세션 직접 박제
+- 본 세션 누적 = 3 commit 본 세션 직접 박제 (0853927 + d43704a + 05caa04). Admin-2 commit 시 4 commit
 
 ## 기획설계 (planner-architect)
 (본 의뢰 = 시안 박제이므로 신규 설계 없음 / cli-port-to-src.md 참조)
 
 ## 구현 기록 (developer)
+
+### Admin-2 Phase 박제 — /admin/layout + Dashboard + 갱신 5 (2026-05-15)
+
+📝 구현 요약: 시안 v2.14 의 AdminShell + AdminDashboard 패턴을 운영 admin 영역 박제. (1) `/admin/layout.tsx` 가 `<AdminShell>` wrap 으로 갈아입음 — UserMenu 는 topbarRight slot 통합 (PC `hidden lg:flex`). (2) `/admin/page.tsx` Dashboard 가 `admin-stat-grid + AdminStatCard / admin-chart / admin-log-card` 시안 패턴 박제 — Prisma query 100% 보존. (3) 갱신 5 컴포넌트 (sidebar / mobile-admin-nav / admin-page-header / admin-status-tabs / admin-detail-modal) 시각 갱신 — **props 시그니처 100% 보존 (호출처 29 파일 영향 0)**.
+
+#### 변경 파일 + LOC
+| 파일 | 변경 | 신규/수정 | LOC |
+|------|------|----------|----|
+| `src/app/(admin)/admin/layout.tsx` | AdminShell wrap. UserMenu → topbarRight slot 박제. 기존 Tailwind hidden lg:block / lg:ml-64 / mx-auto max-w-7xl 박제 → AdminShell 안 admin.css 클래스 (admin-shell / admin-main / admin-main__inner 자동 처리) | 수정 | -45 / +35 |
+| `src/app/(admin)/admin/page.tsx` | Dashboard UI 시안 패턴 박제 — admin-stat-grid (4 AdminStatCard) + admin-dash-grid (admin-chart 7일 차트 + admin-log-card 최근 5건). Prisma query / raw SQL / catch 분기 100% 보존. 기존 StatCard / CARD_CLASS 인라인 → AdminStatCard / admin.css 클래스 | 수정 | -65 / +95 |
+| `src/components/admin/admin-page-header.tsx` | JSX → 시안 `.admin-pageheader / .admin-pageheader__body / .admin-pageheader__eyebrow / __title / __subtitle / __actions` 클래스. **props 시그니처 보존** (title/subtitle/eyebrow/searchPlaceholder/searchName/searchDefaultValue/actions). breadcrumbs 옵션 신규 추가 (admin-pageheader__breadcrumbs). 검색 form 은 actions 영역에 박제 (22 호출처 보존) | 수정 | -30 / +60 |
+| `src/components/admin/admin-status-tabs.tsx` | JSX → 시안 `.admin-status-tabs + .admin-status-tab + .admin-status-tab__count` 클래스. data-active / data-overflow 속성 박제. count 99+ 오버플로우 시안 박제. **activeTab 명칭 보존** (시안 `current` 채택 X / 운영 우선) | 수정 | -50 / +30 |
+| `src/components/admin/sidebar.tsx` | JSX → 시안 `.admin-aside / .admin-aside__logo / __logo-badge / __nav / __group / __title / __link / __foot / __foot-link` 클래스. data-active / data-child 속성 박제. **roles: AdminRole[] 시그니처 보존**. navStructure / filterStructureByRoles / Next.js Link/usePathname 100% 보존 | 수정 | -25 / +30 |
+| `src/components/admin/mobile-admin-nav.tsx` | JSX → 시안 `.admin-mobile-toggle / .admin-mobile-overlay [data-open] / .admin-mobile-drawer [data-open] / __head / __head-avatar / __head-name / __head-email / __body / __foot` 클래스. **roles / user 시그니처 보존**. ESC / 외부 클릭 / 라우트 이동 / body 스크롤 잠금 100% 보존. LogoutButton drawer-card variant 유지 | 수정 | -50 / +60 |
+| `src/components/admin/admin-detail-modal.tsx` | **본 PR 미변경 결정** — 운영 호출처 7건의 `isOpen` 시그니처 보존 + 운영 모바일 시트 + 데스크톱 가운데 모달 패턴 = 모바일 UX 우선. 시안 우측 슬라이드는 향후 페이지별 옵트인 결정 사항 (admin-detail-modal.css 클래스는 admin.css 에 이미 박제 — `open` prop alias 추가는 별도 PR) | — | 0 |
+
+**합계**: 수정 6 파일 / 신규 0 / 약 +310 / -265 LOC.
+
+#### 호출처 영향 매트릭스 (props 시그니처 100% 보존)
+| 컴포넌트 | 호출처 N | 시그니처 변경 | 회귀 |
+|---------|---------|------------|------|
+| AdminShell | 1 (layout.tsx 신규 — Admin-1 박제) | — | 0 |
+| AdminSidebar | 1 (layout.tsx) | 0 (roles 그대로) | 0 |
+| AdminMobileNav | 1 (layout.tsx) | 0 (roles/user 그대로) | 0 |
+| AdminPageHeader | 22 | breadcrumbs 옵션 추가 (default undefined / 기존 호출처 영향 0) | 0 |
+| AdminStatusTabs | 7 | 0 (tabs/activeTab/onChange 그대로) | 0 |
+| AdminDetailModal | 7 | 0 (변경 0) | 0 |
+| **합계 호출처** | **39** | **0 breaking** | **0** |
+
+#### Q 결재 사항 (PM/사용자 결재 — 본 PR 진행 결정 의뢰서 반영)
+- **시안 vs 운영 명칭 충돌 (`activeTab` vs `current`, `isOpen` vs `open`)**: 운영 보존 (호출처 29 회귀 0 우선). 시안 명칭 채택 시 호출처 29개 일괄 변경 필요 → 운영 우선 결정
+- **AdminDetailModal 모달 형태**: 운영 (모바일 시트 + 데스크톱 가운데) 보존. 시안 우측 슬라이드는 admin.css 에 이미 클래스 박제됨 — 향후 페이지별 옵트인 가능
+- **AdminPageHeader breadcrumbs**: 옵션 props 신규 추가 (기존 호출처 영향 0). 시안 박제 일관성 + 향후 wizard 진입 페이지에서 사용 가능
+- **layout.tsx UserMenu 위치**: AdminShell topbarRight slot 통합 (PC `hidden lg:flex` 한정). 모바일은 AdminMobileNav 가 자체 처리 (드로어 상단 사용자 카드)
+- **sidebar.tsx Tailwind → admin.css**: 기존 hidden lg:flex 등 Tailwind 속성 모두 제거. admin.css 의 `@media (max-width: 1024px)` 가 display:none 자동 처리 — 시각 동일 유지
+
+#### 검증 결과
+- `npx tsc --noEmit`: **0 에러 / 0 출력** (exitCode=0 / Lines=0)
+- `npx vitest run` 전체: **921/921 PASS** (Admin-1 직후 918 → +3 from PR-Live1~Live4 / 회귀 0)
+- 호출처 grep 회귀 확인:
+  - AdminStatusTabs `activeTab=` 호출 7건 — 시그니처 보존 OK
+  - AdminPageHeader `searchPlaceholder/searchName/searchDefaultValue` 호출 — 시그니처 보존 OK
+  - AdminDetailModal `isOpen/onClose/actions` 호출 7건 — 본 PR 미변경 OK
+  - AdminSidebar `roles=` / AdminMobileNav `roles=/user=` — layout.tsx 1건 OK
+
+#### 시각 검증 영역 (Admin-2 진입 시 처음 노출되는 신규 시각 패턴)
+- **사이드바**: BDR Red `--accent` 배경 active 표시 (라이트) / inset 3px box-shadow active 표시 (다크). `.admin-aside__title` 그룹 헤더 letter-spacing 0.12em uppercase 박제
+- **모바일 드로어**: 우측 슬라이드 — data-open 속성 transition. 상단 사용자 카드 (이니셜 아바타 + 이름 + 이메일) + 그룹화 메뉴 + 하단 ThemeSwitch + 마이페이지 + 사이트로 + 로그아웃
+- **PageHeader**: `var(--ff-display)` Space Grotesk 큰 h1 + eyebrow uppercase letter-spacing 0.12em + subtitle var(--ink-mute)
+- **StatusTabs**: 밑줄 active + count 뱃지 (W=H 원형 / 99+ 오버플로우 자동)
+- **Dashboard StatCard**: 4 카드 `.admin-stat-grid` 자동 반응형 (모바일 1열 / 768+ 2열 / 1024+ 3열 / 1280+ 4열 — admin.css 미디어쿼리). delta 라벨 미박제 (운영 데이터 미존재 — 향후 7d 증감 박제 시 활성)
+- **Dashboard Chart**: 시안 `.admin-chart` 그라데이션 막대. 7일 raw SQL 결과 보존 + var(--accent) 자동 다크
+- **Dashboard LogCard**: `.admin-log-row` data-severity 점 (info/warning/error/success). 운영 admin_logs.severity 자동 매핑
+
+💡 tester 참고:
+- **테스트 방법**:
+  (a) `/admin` 진입 → 좌측 사이드바 (lg+) admin-aside 시각 갱신 확인. ADMIN 배지 + 메뉴 그룹 헤더 표시
+  (b) 사이드바 active 메뉴 `data-active="true"` — accent-soft 배경 (라이트) / accent inset shadow (다크)
+  (c) 우상단 PC UserMenu — topbar 우측에 통합 표시 (`.admin-topbar` 안)
+  (d) 모바일 (<1024px) — 좌상단 햄버거 `.admin-mobile-toggle` 클릭 → 우측 드로어 슬라이드. 상단 사용자 카드 + 그룹 메뉴 + 하단 푸터
+  (e) Dashboard 4 통계 카드 — admin-stat-grid 반응형 (768/1024/1280 분기). 클릭 0 (delta 0 — 데이터 없을 때 미박제)
+  (f) Dashboard 차트 — 7일 막대 (admin_logs 데이터 없으면 모두 0 → 최소 2% height fallback)
+  (g) Dashboard 최근 5 활동 — admin_logs 최근 5건. severity 점 색상 분기
+  (h) 호출처 22 페이지 회귀 — `/admin/users` `/admin/tournaments` `/admin/games` 등 각 페이지 진입 시 AdminPageHeader / AdminStatusTabs / AdminDetailModal 시각 변경 + props 동작 보존
+- **정상 동작**: admin 영역 시각이 시안 v2.14 패턴으로 통일됨. 모든 admin 페이지 (29 파일) 회귀 0 — props 시그니처 보존
+- **주의할 입력**: (a) AdminPageHeader 검색 form 사용 페이지 (`/admin/users` 등 7건) — 검색 입력 + 제출 시 GET 쿼리 동작 그대로 (b) AdminStatusTabs 사용 페이지 (`/admin/games` 등 7건) — 탭 클릭 시 onChange 정상 호출 (c) AdminDetailModal 사용 페이지 (`/admin/tournaments` 등 7건) — isOpen/onClose/actions 동작 그대로 (본 PR 미변경)
+
+⚠️ reviewer 참고:
+- **운영 보존 우선 결정**: 시안 v2.14 의 props 명칭 (`current` / `open` / `footer`) vs 운영 (`activeTab` / `isOpen` / `actions`) — **운영 우선** 채택. 호출처 29 회귀 0 보장 필수 룰
+- **AdminDetailModal 본 PR 미변경 결정**: 운영 호출처 7건의 모바일 시트 + 데스크톱 가운데 모달 패턴 = 모바일 UX 최선. 시안 우측 슬라이드는 admin.css 에 이미 박제됨 — 향후 페이지별 옵트인 가능. 본 PR 에서는 시각 변경 0 (시그니처 + 동작 그대로)
+- **사이드바 className 갈아엎기**: 기존 `.aside__link` (community-aside 와 공유 글로벌 클래스) → `.admin-aside__link` (admin.css 박제 클래스). admin-news-content.tsx 가 여전히 `.aside__link` 사용 — 본 PR 미변경 (다른 페이지 글로벌 클래스 의존 / 회귀 0)
+- **AdminShell hideHeader 옵션 사용**: 모든 admin 페이지가 자체 `<AdminPageHeader>` 호출 → AdminShell 의 내장 헤더는 미사용 (`hideHeader` props). children 만 렌더링
+- **모바일 햄버거 위치**: 시안 admin.css 가 `top: 12px; left: 12px` 좌상단 박제 — 운영 기존 우상단 (top-3 right-3) 에서 변경됨. 사용자 결재 필요 시 후속 commit 으로 우상단 복귀 가능 (admin.css L266 수정)
+- **layout.tsx 마진 변경**: 기존 `lg:ml-64` 의 64 (256px) → admin.css `--admin-sidebar-width: 240px` 으로 미세 차이. 시안 박제값 그대로 유지
+- **vitest 추가 X**: 시각 박제는 단위 테스트 어려움. 기존 921 PASS 회귀 0 확인으로 충분 (admin 페이지 통합 인프라 부재 — 기존 패턴 그대로)
+
+#### 잠재 위험 / 메모
+- **사이드바 ↔ admin-news-content 클래스 분기**: admin-news-content.tsx 가 여전히 `.aside__link` (community-aside 공유) 사용. admin 영역 안에서 두 클래스가 공존 — 시각 차이 발생 가능. 후속 사용자 결재 시 admin-news-content 도 `.admin-aside__link` 또는 `.admin-status-tab` 로 통일 가능
+- **AdminShell topbarRight 모바일 슬롯**: admin.css 가 모바일 `.admin-topbar` 를 햄버거 자리로 점유 (`padding-left: 64px`). UserMenu 의 `hidden lg:flex` 가드로 모바일 비노출 보장. AdminMobileNav 의 드로어 상단 사용자 카드가 모바일 UserMenu 역할
+- **mx-auto max-w-7xl 박제 변경**: 기존 layout.tsx 의 `mx-auto max-w-7xl p-6 pt-16 lg:pt-2` 박제 → admin.css `.admin-main__inner` 의 `max-width: var(--admin-main-maxw=1280px)` + padding 24px 박제. 콘텐츠 영역 너비 변동 가능 (1280 → 1280 동일) / padding 24 → 24 동일. 시각 변동 0 추정
+- **본 PR 미푸시 commit**: 다른 세션의 2f7ab2f (PR-Live1~Live4) 위에 박제. 동시 박제 충돌 0 (admin 영역 vs score-sheet 영역 분리)
 
 ### PR4-UI 구현 (recorder_admin 발견 경로 박제)
 
