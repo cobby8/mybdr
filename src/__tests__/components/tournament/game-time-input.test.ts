@@ -17,7 +17,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseGameTime } from "@/components/tournament/game-time-input";
+import {
+  parseGameTime,
+  TIME_OPTIONS,
+  MIN_GAME_MINUTES,
+  MAX_GAME_MINUTES,
+} from "@/components/tournament/game-time-input";
 
 describe("parseGameTime — 경기시간 문자열 역파싱", () => {
   it("기본 프리셋 '7분 4쿼터 논스탑' 정확 파싱", () => {
@@ -53,5 +58,39 @@ describe("parseGameTime — 경기시간 문자열 역파싱", () => {
     expect(parseGameTime("7 4쿼터 논스탑")).toBeNull();
     expect(parseGameTime("7분 5쿼터 논스탑")).toBeNull(); // 미정의 period
     expect(parseGameTime("7분 4쿼터 하프타임")).toBeNull(); // 미정의 dead
+  });
+});
+
+describe("TIME_OPTIONS — 프리셋 6종 (2026-05-15 사용자 요청: 6분 추가)", () => {
+  it("프리셋 = [5, 6, 7, 8, 10, 12] 순서 보장", () => {
+    expect([...TIME_OPTIONS]).toEqual([5, 6, 7, 8, 10, 12]);
+  });
+
+  it("6분 추가 확인 (UI 버튼 + parseGameTime 양면)", () => {
+    expect(TIME_OPTIONS).toContain(6);
+    expect(parseGameTime("6분 4쿼터 논스탑")).toEqual({
+      minutes: 6,
+      period: "4Q",
+      dead: "nonstop",
+    });
+    expect(parseGameTime("6분 전후반 올데드")).toEqual({
+      minutes: 6,
+      period: "2H",
+      dead: "alldead",
+    });
+  });
+});
+
+describe("분 직접 입력 — MIN/MAX 범위 가드", () => {
+  it("MIN=1 / MAX=60 (한국 농구 표준 범위)", () => {
+    expect(MIN_GAME_MINUTES).toBe(1);
+    expect(MAX_GAME_MINUTES).toBe(60);
+  });
+
+  it("프리셋 외 값도 parseGameTime 통과 (정규식 \\d+ 자유)", () => {
+    // 사용자가 9분 / 11분 / 15분 등 직접 입력 시 DB 저장값 회귀 검증
+    expect(parseGameTime("9분 4쿼터 논스탑")?.minutes).toBe(9);
+    expect(parseGameTime("11분 전후반 올데드")?.minutes).toBe(11);
+    expect(parseGameTime("20분 4쿼터 논스탑")?.minutes).toBe(20);
   });
 });
