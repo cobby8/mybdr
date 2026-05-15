@@ -271,6 +271,30 @@ export async function GET(
       if (p.sub_in_player_id) playedPlayerIds.add(Number(p.sub_in_player_id));
     }
 
+    // 2026-05-16 핫픽스 — 라이브 박스스코어 = 라인업 출전 명단 전체 노출.
+    // 이유(왜): 종료 분기 (line ~690, hasPlayerStats=true) 는 기존에 match.playerStats row 박힌 선수만 row 박혔음
+    //          → MatchPlayerStat 미생성 (PBP 한번도 없거나 sync 누락) 선수는 매치 진행중에 사라짐.
+    //          매치 #161 (status=in_progress, playerStats 4건) = 김수호/정슬우/임유섭/최큰별 4명만 노출.
+    //          사용자 명시 = 라인업 확정된 출전 명단 전원 노출 (기록 0 = 0/0:00 fallback row).
+    // 동작: 라인업 fetch 후 starters+substitutes 의 ttp.id 집합을 노출 대상 화이트리스트로 사용.
+    //       라인업 미박제 매치 = 집합 null → 기존 흐름 (playerStats only) 그대로 보존 (회귀 0).
+    //
+    // 보존 의무: 응답 shape 변경 0 / DB schema 변경 0 / 진행중 분기 (hasPlayerStats=false) 영향 0.
+    //          진행중 분기는 이미 match.homeTeam/awayTeam.players (ttp 전체) 기준 박제하므로 변경 불필요.
+    const lineups = await prisma.matchLineupConfirmed.findMany({
+      where: { matchId: BigInt(matchId) },
+      select: { teamSide: true, starters: true, substitutes: true },
+    });
+    // 라인업 박힌 매치만 화이트리스트 활성화 (양 팀 모두 박혀야 의미 있음 — 단 한쪽만 박혀도 그쪽은 화이트리스트 적용)
+    const lineupTtpIds: Set<number> | null = lineups.length > 0
+      ? new Set<number>(
+          lineups.flatMap((l) => [
+            ...l.starters.map((id) => Number(id)),
+            ...l.substitutes.map((id) => Number(id)),
+          ])
+        )
+      : null;
+
     // 2026-05-03: PBP-only 출전시간 산출 — quarterStatsJson / minutesPlayed / MAX 전략 폐기.
     // qLen 추정: PBP 의 max game_clock_seconds = 쿼터 시작 시점 (보통 420/480/600/720).
     // 일반 농구 룰 후보 중 가장 가까운 값 채택, 비정상값(<300/>1200) 시 600 default.
@@ -695,14 +719,22 @@ export async function GET(
       //   - row.quarter_stats[q].min/min_seconds = pbpMinutesByQ (쿼터별)
       //   - quarterStatsJson 은 plus_minus(pm) 만 추출 (시간은 PBP SSOT)
       //   - 비시간 스탯(점수/리바 등)은 matchPlayerStat 컬럼 그대로
-      const toPlayerRow = (stat: (typeof match.playerStats)[number]): PlayerRow => {
-        const player = stat.tournamentTeamPlayer;
+      //
+      // 2026-05-16 핫픽스 — 라인업 박힌 매치는 라인업 출전 명단 전원을 row 박제.
+      //   playerStats row 없는 라인업 선수는 0 fallback row 박제 (위 lineupTtpIds 화이트리스트 사용).
+      //   toPlayerRow 시그니처: ttp 객체 (필수) + matchPlayerStat (있으면 stat, 없으면 null) 모두 받음.
+      type PlayerStatEntry = (typeof match.playerStats)[number];
+      type TtpEntry = NonNullable<typeof match.homeTeam>["players"][number];
+      const toPlayerRow = (player: TtpEntry, stat: PlayerStatEntry | null): PlayerRow => {
         const user = player.users;
         const playerIdNum = Number(player.id);
         // PBP-only 출전시간 (DNP 시 0)
         const minSeconds = getPbpSec(playerIdNum);
         const row: PlayerRow = {
-          id: Number(stat.id),
+          // 2026-05-16: id = ttp.id 로 통일 (기존 stat.id 는 stat 없을 때 null → 라인업 fallback row 박제 불가).
+          //   line 1155 BUG 주석 ("home_players[].id 분기에 따라 ttp.id 또는 stat.id") 도 본 변경으로 자동 해소.
+          //   key= 용도 (box-score-table.tsx line 254/398) — ttp.id 도 매치당 unique 보장.
+          id: playerIdNum,
           // 2026-05-09: jerseyMap (임시 # 우선) ?? ttp.jerseyNumber. player.id 는 ttp.id 와 동일.
           jerseyNumber: getJersey(player.id, player.jerseyNumber),
           // 선수명단 실명 표시 규칙 (conventions.md 2026-05-01)
@@ -712,24 +744,25 @@ export async function GET(
           user_id: user?.id ? Number(user.id) : null,
           min: Math.round(minSeconds / 60),
           min_seconds: minSeconds,
-          pts: stat.points ?? 0,
-          fgm: stat.fieldGoalsMade ?? 0,
-          fga: stat.fieldGoalsAttempted ?? 0,
-          tpm: stat.threePointersMade ?? 0,
-          tpa: stat.threePointersAttempted ?? 0,
-          ftm: stat.freeThrowsMade ?? 0,
-          fta: stat.freeThrowsAttempted ?? 0,
-          oreb: stat.offensive_rebounds ?? 0,
-          dreb: stat.defensive_rebounds ?? 0,
-          reb: stat.total_rebounds ?? 0,
-          ast: stat.assists ?? 0,
-          stl: stat.steals ?? 0,
-          blk: stat.blocks ?? 0,
-          to: stat.turnovers ?? 0,
-          fouls: stat.personal_fouls ?? 0,
-          plus_minus: stat.plusMinus ?? 0,
+          // 2026-05-16: stat 없으면 0 fallback (라인업 박힘 + MatchPlayerStat 미생성 케이스).
+          pts: stat?.points ?? 0,
+          fgm: stat?.fieldGoalsMade ?? 0,
+          fga: stat?.fieldGoalsAttempted ?? 0,
+          tpm: stat?.threePointersMade ?? 0,
+          tpa: stat?.threePointersAttempted ?? 0,
+          ftm: stat?.freeThrowsMade ?? 0,
+          fta: stat?.freeThrowsAttempted ?? 0,
+          oreb: stat?.offensive_rebounds ?? 0,
+          dreb: stat?.defensive_rebounds ?? 0,
+          reb: stat?.total_rebounds ?? 0,
+          ast: stat?.assists ?? 0,
+          stl: stat?.steals ?? 0,
+          blk: stat?.blocks ?? 0,
+          to: stat?.turnovers ?? 0,
+          fouls: stat?.personal_fouls ?? 0,
+          plus_minus: stat?.plusMinus ?? 0,
           // 2026-04-15: 스타팅 여부 — MatchPlayerStat 우선, TournamentTeamPlayer fallback
-          isStarter: stat.isStarter ?? player.isStarter ?? false,
+          isStarter: stat?.isStarter ?? player.isStarter ?? false,
         };
 
         row.dnp = isDnpRow(row);
@@ -743,7 +776,7 @@ export async function GET(
           row.quarter_stats = qs;
         }
         // 2026-05-03: quarterStatsJson 에서 plus_minus 만 추출 (시간은 아래 PBP 일괄 주입)
-        if (stat.quarterStatsJson) {
+        if (stat?.quarterStatsJson) {
           try {
             const parsed = JSON.parse(stat.quarterStatsJson) as Record<string, { min?: number; pm?: number }>;
             if (!row.quarter_stats) row.quarter_stats = {};
@@ -787,10 +820,9 @@ export async function GET(
       };
 
       // 0414: role='player' + is_active !== false 필터 (감독/코치 제외)
-      const isPlayerRole = (stat: (typeof match.playerStats)[number]) => {
-        const p = stat.tournamentTeamPlayer;
-        return (p.role ?? "player") === "player" && p.is_active !== false;
-      };
+      // 2026-05-16: ttp 기준 필터로 변경 (기존 stat 기준 → ttp 기준).
+      const isPlayerRoleTtp = (p: TtpEntry) =>
+        (p.role ?? "player") === "player" && p.is_active !== false;
 
       // DNP는 항상 마지막, 그 외는 득점 내림차순
       const sortWithDnp = (rows: PlayerRow[]) =>
@@ -801,17 +833,38 @@ export async function GET(
           return b.pts - a.pts;
         });
 
+      // 2026-05-16 핫픽스 — 종료 분기 source 를 ttp 기반으로 재구성.
+      //   배경: 기존은 match.playerStats 만 source → row 박힌 선수만 노출 (라인업에 박혀도 PBP 0인 선수 누락).
+      //   변경:
+      //     1) ttp 전체 (양 팀 players) 를 source 로 사용
+      //     2) lineupTtpIds 가 있으면 ttp ∩ lineupTtpIds (라인업 박힌 매치 = 출전 명단 한정)
+      //     3) lineupTtpIds 가 null (라인업 미박제) 이면 ttp 전체 → 기존 동작과 유사 (DNP fallback 추가)
+      //     4) 각 ttp 에 대해 playerStats 매칭 (statByTtp Map) — 있으면 stat, 없으면 null
+      //
+      //   회귀 안전:
+      //     - 라인업 미박제 + playerStats 있는 매치: 기존엔 playerStats 만 노출 / 변경 후 ttp 전체 노출
+      //       → 추가 row 는 모두 DNP=true (PBP 0 + stat 0 → isDnpRow=true). DNP 분리 정렬 → 박스스코어 하단.
+      //     - 라인업 박제 매치: 라인업 외 ttp 제외 + 라인업 내 ttp 전체 박제 (PBP 0 / stat null 시 0 fallback row).
+      const statByTtp = new Map<bigint, PlayerStatEntry>();
+      for (const s of match.playerStats) {
+        statByTtp.set(s.tournamentTeamPlayerId, s);
+      }
+      // 라인업 화이트리스트 적용 헬퍼: lineupTtpIds 가 null 이면 통과, 있으면 set 내부 검사.
+      const passLineup = (ttpId: bigint | number) =>
+        lineupTtpIds === null || lineupTtpIds.has(Number(ttpId));
+
+      const homeTtps = (match.homeTeam?.players ?? [])
+        .filter(isPlayerRoleTtp)
+        .filter((p) => passLineup(p.id));
+      const awayTtps = (match.awayTeam?.players ?? [])
+        .filter(isPlayerRoleTtp)
+        .filter((p) => passLineup(p.id));
+
       homePlayers = sortWithDnp(
-        match.playerStats
-          .filter((s) => s.tournamentTeamPlayer.tournamentTeamId === homeTeamId)
-          .filter(isPlayerRole)
-          .map(toPlayerRow)
+        homeTtps.map((p) => toPlayerRow(p, statByTtp.get(p.id) ?? null))
       );
       awayPlayers = sortWithDnp(
-        match.playerStats
-          .filter((s) => s.tournamentTeamPlayer.tournamentTeamId === awayTeamId)
-          .filter(isPlayerRole)
-          .map(toPlayerRow)
+        awayTtps.map((p) => toPlayerRow(p, statByTtp.get(p.id) ?? null))
       );
     }
 
