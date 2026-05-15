@@ -678,7 +678,8 @@
 .ss-shell .ss-tbox__plyhead,
 .ss-shell .ss-tbox__plyrow {
   display: grid;
-  grid-template-columns: 36px 1fr 22px 30px 14px 14px 14px 14px 14px 14px 13px 13px 13px 13px 13px;
+  /* PR-Stat2.1 (2026-05-15) — 사용자 명시 — stat 폭 14px → 17px (+20%) / Name 1fr 자연 축소 */
+  grid-template-columns: 36px 1fr 22px 30px 17px 17px 17px 17px 17px 17px 13px 13px 13px 13px 13px;
 }
 .ss-shell .ss-tbox__plyhead {
   background: var(--pap-fill);
@@ -699,15 +700,20 @@
 }
 .ss-shell .ss-tbox__plyhead > div > span { display: block; }
 .ss-shell .ss-tbox__plyhead > div:last-child { border-right: 0; }
-/* Phase 19 PR-Stat2 (2026-05-15) — Fouls 헤더 위치 col 5 → col 11 (P.IN+6 stat 직후). */
+/* Phase 19 PR-Stat2 (2026-05-15) — Fouls 헤더 위치 col 5 → col 11 (P.IN+6 stat 직후).
+   PR-Stat2.1 (2026-05-15) — 사용자 명시: 헤더 (1/2/3/4/5) 와 cell 정합 = subgrid 적용.
+   부모 .ss-tbox__plyhead 의 col 11~15 (Foul 5 cell) 와 자식 라벨 1/2/3/4/5 가 정확히 정합. */
 .ss-shell .ss-tbox__plyhead .ss-h-fouls {
   grid-column: 11 / span 5;
   display: grid;
+  /* subgrid = 부모 grid 의 col 11~15 그대로 상속 (라벨 정합 보장) */
+  grid-template-columns: subgrid;
   grid-template-rows: 1fr 1fr;
   padding: 0;
   border-right: 0;
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-top {
+  grid-column: 1 / span 5;
   border-bottom: 1px solid var(--pap-line);
   display: flex;
   align-items: center;
@@ -715,8 +721,10 @@
   font: 700 10.5px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-nums {
+  grid-column: 1 / span 5;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* subgrid = 부모 ss-h-fouls 의 5 col 그대로 (= 부모 plyhead 의 col 11~15) */
+  grid-template-columns: subgrid;
 }
 .ss-shell .ss-tbox__plyhead .ss-h-fouls-nums span {
   display: flex;
@@ -796,6 +804,13 @@
 .ss-shell .ss-tbox__plyrow .ss-c-stat-b:disabled,
 .ss-shell .ss-tbox__plyrow .ss-c-stat-to:disabled {
   cursor: default;
+}
+/* PR-Stat2.1 (2026-05-15) — Stat 영역 마지막 cell (TO) 와 Foul 영역 첫 cell 사이 굵은 세로 구분선.
+   사용자 명시: 기록칸 / 파울칸 사이 세로 구분선 필요.
+   body + header 둘 다 적용 (Fouls 헤더의 col 10 위치도 동일 굵은 border-right). */
+.ss-shell .ss-tbox__plyrow .ss-c-stat-to,
+.ss-shell .ss-tbox__plyhead > div:nth-child(10) {
+  border-right: 1.5px solid var(--pap-line);
 }
 
 .ss-shell .ss-tbox__plyrow .ss-c-foul {
