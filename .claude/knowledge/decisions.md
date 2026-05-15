@@ -25,6 +25,18 @@
   - 패턴 source: `src/app/(admin)/tournament-admin/tournaments/[id]/playoffs/playoffs-client.tsx`
   - 도메인 헬퍼: `src/lib/tournaments/division-advancement.ts:54` `getDivisionStandings` / `src/lib/tournaments/placeholder-helpers.ts:76` `buildSlotLabel`
 
+### [2026-05-16] PR-Public-1 공개 bracket 탭 종별 view + 강남구협회장배 운영 박제
+- **분류**: 기술 결정 / 공개 페이지 UI / 다종별 대회 표시
+- **3 commit**: `6f54990` 본체 (+1,179) / `53245b2` fix1 (isDual 분기 안 DivisionsView 진입) / `ccd6f0f` fix2 (isLeague 강제)
+- **신규 컴포넌트 3건**: divisions-view / division-schedule-table / division-group-composition (admin /playoffs 패턴 답습 / web 전용 / admin 의존 0)
+- **API 확장**: public-bracket/route.ts (+48) — divisionRules + divisionStandings + groupTeams.division + isLeague 강제 (divisionRules >= 1)
+- **wrapper 4단 우선순위 분기**: hasKnockout > divisionRules >= 1 (DivisionsView) > groupTeams (GroupStandings) > BracketEmpty / isDual 분기 안에도 DivisionsView 진입 추가
+- **운영 적용**: 강남구협회장배 6 종별 / 36 팀 / 59 매치 모두 표시 (시안 디자인 100% 정합)
+- **임시 스크립트**: seed-gnba-youth-2026.ts (`630530f` + `7e0375a`) 박제했으나 운영자가 사전 등록 → 트랜잭션 롤백 / 본 세션 종료 시 삭제
+- **검증**: tsc 0 / 사용자 시각 검증 PASS
+- **회귀 0** (기존 4 분기 모두 보존 / Flutter v1 영향 0)
+- **참조횟수**: 0
+
 ### [2026-05-16] Phase 1 admin 흐름 개선 6 PR 박제 (강남구협회장배 시나리오 § 단계 4·7·10·10.5 단절 + 누락 해소)
 - **분류**: 기술 결정 / admin UX / 다종별 대회 운영 흐름
 - **계기**: 사용자 지적 — "조별리그+토너먼트 시나리오에서 조편성 → 경기일정 → 토너먼트 트리 흐름이 자연스럽지 않음 / 흐름 복잡 / 중복 / 분리됨". Phase 0 점검 보고서 (`Dev/admin-flow-audit-2026-05-16.md`) 18건 단절/중복/혼란/누락 (영향도 H 8건) → Phase 1 우선 1~6 채택
