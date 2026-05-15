@@ -267,13 +267,12 @@
 }
 
 /* ----- Section C — Competition / Game No / Referee / Umpire -----
-   2026-05-15 (PR-SS-meta-Layout) — 좌:우 비율 1:1 → 7:3 (우측 심판 영역 60% 축소).
-     사유: 사용자 요청 — 긴 대회명 (예: "제17회 강남구협회장배 농구대회 (유소년부)")
-     fit 위해 좌측 Competition 폭 확장 필요. 심판 영역 (REFEREE / UMPIRE 1/2) 은
-     실제 사용 빈도 / 데이터 길이 낮음 → 60% 축소 정합. */
+   2026-05-15 (PR-SS-meta-Layout) — 좌:우 비율 1:1 → 7:3 → 2:1 (66.7:33.3).
+     사용자 요청 누적: 긴 대회명 fit + 심판 영역 60% 축소 → 추가 미세조정 66%.
+     2fr 1fr = 66.67% : 33.33% (정확). */
 .ss-shell .ss-meta {
   display: grid;
-  grid-template-columns: 7fr 3fr;
+  grid-template-columns: 2fr 1fr;
   border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-meta__l,
