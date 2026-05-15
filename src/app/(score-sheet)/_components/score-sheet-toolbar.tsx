@@ -39,6 +39,12 @@ interface ScoreSheetToolbarProps {
   // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (form 에서 confirm modal + API 호출).
   //   미전달 시 버튼 미노출 (점진 박제 안전망).
   onCancelRecord?: () => void;
+  // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 trigger (form 의 setLineupModalOpen(true)).
+  //   진행 매치 + 수정 모드 매치에서만 form 이 전달 (종료 매치 차단).
+  onReselectLineup?: () => void;
+  // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달 trigger.
+  //   form 이 ConfirmModal 로 작성법 안내 노출.
+  onOpenManual?: () => void;
   // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기 (유지).
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
@@ -66,6 +72,8 @@ export function ScoreSheetToolbar({
   onEndMatch,
   backHref = "/admin",
   onCancelRecord,
+  onReselectLineup,
+  onOpenManual,
   endMatchDisabled,
   hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
   // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 props (사용자 결재 Q3 / Q4)
@@ -119,6 +127,40 @@ export function ScoreSheetToolbar({
         <PeriodColorLegend inline />
         {/* aria 보조 — gameNo 정보 유지 (스크린리더용 hidden) */}
         <span className="sr-only">SCORESHEET · {titleSuffix}</span>
+
+        {/* 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
+            진행 매치 + 수정 모드 매치 = form 이 콜백 전달. 종료 매치 = 미전달 (PR-RO2 룰). */}
+        {onReselectLineup && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onReselectLineup}
+            aria-label="라인업 다시 선택 (출전 명단 / 선발 5인)"
+            title="라인업 다시 선택"
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              edit
+            </span>
+            라인업
+          </button>
+        )}
+
+        {/* 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달 trigger.
+            form 이 ConfirmModal 로 작성법 7항목 안내 노출. */}
+        {onOpenManual && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onOpenManual}
+            aria-label="전자 기록지 작성법 보기"
+            title="전자 기록지 작성법"
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              help_outline
+            </span>
+            설명서
+          </button>
+        )}
 
         {/* 인쇄 — 기존 PrintButton.window.print() 위임 */}
         <button

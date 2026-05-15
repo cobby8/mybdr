@@ -428,6 +428,48 @@ export function ScoreSheetForm({
     }
   }
 
+  // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
+  //   toolbar "설명서" 버튼 클릭 시 호출. ConfirmModal 재사용 — options 1개 (닫기) +
+  //   message 에 작성법 7항목 JSX. 사용자 의도 = 플로팅 안내로 빠르게 확인 가능.
+  async function handleOpenManual() {
+    await confirmModal({
+      title: "전자 기록지 작성법",
+      message: (
+        <ul className="space-y-2 text-sm">
+          <li>
+            <strong>1. 라인업</strong> — 헤더 "라인업" 버튼 → 양 팀 출전 명단 + 선발 5인
+            선택. 선발 5인은 자동 P.IN 체크 (후보는 교체 시 수동).
+          </li>
+          <li>
+            <strong>2. 득점</strong> — 선수 행에서 1점·2점·3점 클릭. 색상 = 현재 쿼터
+            (헤더 색상 안내 참조). 자유투 = · / 2점 = ● / 3점 = ◉.
+          </li>
+          <li>
+            <strong>3. 파울</strong> — 선수 P1~P5 박스 클릭. 5반칙 시 자동 차단 + 토스트.
+            팀 파울 (5+) 시 자유투 부여 안내 토스트.
+          </li>
+          <li>
+            <strong>4. Team fouls</strong> — 팀 파울 누적 박스 (1~4 / Extra periods).
+          </li>
+          <li>
+            <strong>5. Time-outs</strong> — 전반 (2개) / 후반 (3개) / 연장. 후반 진입 시
+            전반 박스 자동 비활성.
+          </li>
+          <li>
+            <strong>6. 쿼터 종료</strong> — 하단 "Q1 종료" 등 버튼 → 모달 (다음 쿼터 진행
+            / 4쿼터 종료 후 = 경기 종료 / OT 진행 분기).
+          </li>
+          <li>
+            <strong>7. 기록 취소</strong> — 헤더 우측 "기록 취소" (운영자 전용) → 경고
+            확인 → 매치 완전 초기화 + 이전 페이지 복귀.
+          </li>
+        </ul>
+      ),
+      options: [{ value: "close", label: "닫기", isPrimary: true }],
+    });
+    setConfirmState(null);
+  }
+
   async function handleEnterEditMode() {
     if (!isCompleted) return; // 진행 매치 = 호출 불가 (안전망)
     if (!canEdit) return; // 권한 없음 = 호출 불가 (UI 버튼이 이미 미노출이지만 이중 방어)
@@ -1535,6 +1577,13 @@ export function ScoreSheetForm({
         // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (super/organizer/TAM 만).
         //   recorder 단일 = 버튼 미노출 (canEdit 분기 재사용).
         onCancelRecord={canEdit ? handleCancelRecord : undefined}
+        // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
+        //   종료 매치 = undefined (PR-RO2 룰). 수정 모드 진입 시 = 허용.
+        onReselectLineup={
+          !isCompleted || isEditMode ? () => setLineupModalOpen(true) : undefined
+        }
+        // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
+        onOpenManual={handleOpenManual}
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
@@ -1796,40 +1845,9 @@ export function ScoreSheetForm({
         }}
       />
 
-      {/* Phase 진행 상태 안내 — Phase 7 완성 시점 갱신.
-          `no-print` = 인쇄 시 안내 카드 제거 (FIBA 양식 정합) */}
-      <div
-        className="no-print mt-4 px-3 py-2 text-xs"
-        style={{
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text-muted)",
-          border: "1px solid var(--color-border)",
-        }}
-      >
-        Phase 9 = A4 1 페이지 fit + FIBA PDF 정합 (좌 Team A/B 세로 / 우 Running+Period+Final 누적
-        / Footer 최하단 1줄 컴팩트). 라인업 다시 선택하려면 아래 &quot;라인업 다시 선택&quot; 버튼 사용.
-      </div>
-
-      {/* Phase 7-B — 라인업 다시 선택 버튼 (양식 표시 후에도 운영자가 재선택 가능).
-          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 시 hidden (사용자 결재 Q2). */}
-      {(!isCompleted || isEditMode) && (
-        <button
-          type="button"
-          onClick={() => setLineupModalOpen(true)}
-          className="no-print mt-2 px-3 py-1.5 text-xs"
-          style={{
-            border: "1px solid var(--color-border)",
-            color: "var(--color-text-muted)",
-            touchAction: "manipulation",
-          }}
-          aria-label="라인업 다시 선택 (출전 명단 / 선발 5인)"
-        >
-          <span className="material-symbols-outlined mr-1 align-middle text-sm">
-            edit
-          </span>
-          라인업 다시 선택
-        </button>
-      )}
+      {/* 2026-05-15 (PR-SS-Manual+Reselect) — Phase 9 안내 박스 + "라인업 다시 선택"
+          버튼 form 하단에서 제거. 라인업 다시 선택 = toolbar 우측으로 이동
+          (사용자 요청). 설명서 = toolbar "설명서" 버튼 → ConfirmModal 모달. */}
 
       {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더).
           Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
