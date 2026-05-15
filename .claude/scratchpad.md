@@ -1,9 +1,60 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-Admin-4/5/6 통합 설계 (Phase 1 우선 4~6 / 점검 §6.5)
-- **상태**: ✅ 설계 완료 — PM 검토 대기 (코드 수정 0 / scratchpad §PR-Admin-4/5/6 박제)
-- **현재 담당**: planner-architect → PM
+- **요청**: PR-Admin-4 bracket 종별별 generator trigger 박제 (회귀 위험 중)
+- **상태**: ✅ developer 박제 완료 (tsc 0 / 자가 진단 6/6 PASS / 회귀 0) — PM 검토 대기
+- **현재 담당**: developer → PM
+
+## 구현 기록 (developer) — PR-Admin-4
+
+📝 구현한 기능:
+- admin-flow-audit §6.5 우선 4 — bracket 페이지 종별별 generator trigger 박제 (강남구협회장배 4 종별 × 다른 format 운영 가능 흐름 박제)
+- 신규 endpoint `POST /api/web/admin/tournaments/[id]/division-rules/[ruleId]/generate` — division_rule.format 분기로 3 generator 호출 (league_advancement / group_stage_with_ranking / group_stage_knockout)
+- 신규 컴포넌트 `DivisionGenerateButton` — DivisionBracketSections 종별 헤더 우측 inline 배치 (Navy/refresh 아이콘 + confirm + 결과 모달)
+- bracket route GET 응답 확장 — `divisionRules: [{id, code, format}]` 추가 (UI 가 code → ruleId 매핑)
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/api/web/admin/tournaments/[id]/division-rules/[ruleId]/generate/route.ts` | POST endpoint — 권한+ruleId 가드+format 화이트리스트+트랜잭션 (advisory lock + clear deleteMany + generator + matches_count + bracket_version + admin_logs) | 신규 (+185) |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/DivisionGenerateButton.tsx` | 종별 단위 trigger (AdvancePlayoffsButton 패턴 재사용) — 미지원 format 자동 비노출 / hasMatches 분기 confirm / 결과 모달 (success/warning 톤 + reason 표시) | 신규 (+254) |
+| `src/app/api/web/tournaments/[id]/bracket/route.ts` | GET 응답에 divisionRules 추가 (bracket POST 변경 0 — 회귀 보장 핵심) | 수정 (+14) |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/bracket/page.tsx` | BracketData type 확장 / DivisionBracketSections 시그니처 +divisionRules+onDivisionGenerated / 종별 헤더 inline 버튼 박제 | 수정 (+33) |
+
+🛡️ 회귀 가드 (자가 진단 6/6 PASS):
+1. ✅ bracket POST 변경 0 — 별도 endpoint 신규 박제 (scratchpad §PR-Admin-4 spec 따름)
+2. ✅ ruleId BigInt 가드 + tournamentId 매칭 검증 (IDOR 방지 → 미일치 시 404)
+3. ✅ 트랜잭션 + advisory lock + `settings.path:["division_code"]` 매칭 deleteMany (다른 종별 매치 보존)
+4. ✅ DivisionBracketSections 헤더에 inline 박제 (`_no_division` + `ruleByCode.has(divCode)` 가드)
+5. ✅ tsc 0 (npx tsc --noEmit 출력 비어있음)
+6. ✅ 5 기존 format 분기 (round_robin/swiss/dual/single_elim/NBA-seed) 시그니처 변경 0 — divisionCode 인자 받지 않음
+
+⚠️ 추가 박제 결정:
+- **GenerateOptions 인자 미전달** — generator 의 `venueName/startScheduledAt/intervalMinutes` 3 옵션은 이번 PR 범위 외 (scratchpad spec 미언급). 후속 PR 에서 운영자 입력 폼 박제 시 추가.
+- **format 화이트리스트 분기** — single_elim/dual/swiss/round_robin/full_league* 종별 = 400 (안내 메시지 = "대회 단위 bracket POST 사용"). 강남구 케이스 100% 커버 (3 format 만 사용).
+- **group_stage_knockout = stub 유지** — generator 자체가 stub (생성 0 / reason="후속 PR") 이라 endpoint 도 stub 동작. 결과 모달 = warning 톤 (generated=0).
+
+💡 tester 참고:
+- 테스트 방법: 강남구협회장배 (i3-U9 league_advancement / i3-U11/U14/i3w-U12 group_stage_with_ranking) 4 종별 대회 → bracket 페이지 진입 → 종별 sub-Card 헤더 우측 "이 종별만 재생성" 버튼 클릭
+- 정상 동작:
+  1. confirm 메시지 분기 (매치 존재 → 삭제 후 재생성 / 매치 0건 → 첫 생성)
+  2. 응답 = 200 + 결과 모달 (success 톤 + generated > 0)
+  3. 다른 종별 매치 = 영향 0 (settings.division_code 매칭 deleteMany 만)
+- 주의할 입력:
+  - 잘못된 ruleId (다른 대회 ruleId) → 404 "rule-not-found-or-mismatch" (IDOR 가드)
+  - 미지원 format (single_elim/dual/swiss/round_robin) → 400 + 안내 메시지
+  - clear=true + 매치 0건 → 정상 (deleteMany count=0 + generator 정상 진행)
+  - 동시 호출 (동일 대회 + 동일 종별) → advisory lock 으로 직렬화
+
+⚠️ reviewer 참고:
+- **bracket POST 시그니처 변경 0** — 본 PR 의 회귀 0 보장 핵심. divisionCode 인자 받지 않음 (scratchpad spec 옵션 별도 endpoint 선택)
+- **bracket_version 박제** — 종별 단위 generator 호출 시에도 +1 박제 (scratchpad spec 가드 5: "사용자 명확 인지"). MAX_FREE_VERSIONS 한도 도달 케이스는 createBracketVersion 내부 분기로 정상 동작
+- **adminLog resourceId** — string tournamentId 가 BigInt 변환 catch 안 됨 (cuid 형식). adminLog 내부 try/catch 로 본 작업 영향 0 (다른 endpoint 동일 패턴)
+
+📊 git diff --stat HEAD (본 PR 영향만):
+- 신규 2 파일 (+439): DivisionGenerateButton.tsx (+254) + generate route.ts (+185)
+- 수정 2 파일 (+47): bracket page.tsx (+33) + bracket route.ts (+14)
+- **본 PR 합계**: +486 (예상 +342 대비 144 추가 — adminLog/admin_logs 통합 + reason 표시 + Modal wrapper)
+- 다른 22 파일 (score-sheet 관련) = 워킹트리 시작 시점 기존 변경 (본 작업 무관)
 
 ## 구현 기록 (developer) — PR-Admin-5
 
@@ -813,6 +864,7 @@ export type ChecklistItem = {
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-16 | **PR-Admin-4 bracket 종별별 generator trigger (developer)** ⭐ | ✅ 신규 endpoint `division-rules/[ruleId]/generate` (+185) + DivisionGenerateButton (+254) + bracket route GET divisionRules (+14) + page.tsx 헤더 inline 박제 (+33) = +486 / tsc 0 / 자가 진단 6/6 PASS (bracket POST 변경 0 = 회귀 보장 핵심 / advisory lock + settings.division_code 매칭 deleteMany 로 다른 종별 보존 / IDOR 가드 = ruleId+tournamentId 매칭 검증 404) |
 | 2026-05-16 | **PR-Admin-5 divisions 두 카드 통합 (developer)** | ✅ setup-status.ts 8→7 항목 통합 (#3 종별+운영방식 / step renumbering) + ChecklistItem.progress 신규 / SetupChecklist.tsx progress bar 박제 (+29) / vitest 50/50 PASS (기존 36 update + 신규 7 + canPublish 1 update) / tsc 0 / 자가 진단 5/5 PASS / 공개 게이트 회귀 0 |
 | 2026-05-16 | **PR-Admin-4/5/6 통합 설계 (planner-architect)** | ✅ scratchpad §PR-Admin-4/5/6 박제 — bracket 종별별 generator (+342) / divisions 두 카드 통합 7항목 (+60) / playoffs 신규 hub (+426) / 권장 순서 5→4→6 (단순→회귀중→대규모) / 총 LOC +853 / vitest 4 케이스 (PR-Admin-5 만) / 회귀 위험 PR-Admin-4 중 (API spec 변경) / 재사용 컴포넌트 = AdvancePlayoffsButton + Banner + getDivisionStandings |
 | 2026-05-16 | **PR-Admin-2 matches 단일 순위전 trigger (developer)** | ✅ AdvancePlayoffsButton 신규 (320 LOC / Card 모달 + 4 col 표 + 3 톤 분기) + matches-client.tsx 헤더 박제 (+14) + teams/page.tsx 기존 버튼 + 헬퍼 제거 (-39) / tsc 0 / 자가 진단 5/5 PASS |

@@ -51,7 +51,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if ("error" in auth) return auth.error;
 
   // 풀리그/토너먼트 UI 분기에 필요한 format 을 함께 반환
-  const [versionStatus, versions, matches, approvedTeams, tournamentMeta] = await Promise.all([
+  // 2026-05-16 PR-Admin-4 — divisionRules 추가 (bracket page 의 종별별 generator 버튼이 ruleId 매핑용)
+  const [versionStatus, versions, matches, approvedTeams, tournamentMeta, divisionRules] = await Promise.all([
     getBracketVersionStatus(id),
     prisma.tournament_bracket_versions.findMany({
       where: { tournament_id: id },
@@ -100,6 +101,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       // 2026-05-04 (P4) — settings 추가: dual 조 배정 에디터가 기존 settings.bracket.groupAssignment + semifinalPairing 복원
       select: { format: true, settings: true },
     }),
+    // 2026-05-16 PR-Admin-4 — divisionRules 노출 (bracket page 의 종별별 generator 버튼)
+    //   - id: ruleId (BigInt → string 변환 응답에서 자동 처리)
+    //   - code: 매치 settings.division_code 매칭 키
+    //   - format: 종별 단위 generator 분기 (league_advancement / group_stage_with_ranking / group_stage_knockout)
+    prisma.tournamentDivisionRule.findMany({
+      where: { tournamentId: id },
+      orderBy: { code: "asc" },
+      select: { id: true, code: true, format: true },
+    }),
   ]);
 
   return apiSuccess({
@@ -110,6 +120,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     format: tournamentMeta?.format ?? null, // UI 가 풀리그/토너먼트 분기할 때 사용
     // 2026-05-04 (P4) — settings.bracket 노출 (dual editor 복원용 / 다른 포맷도 안전 — 무시)
     settings: tournamentMeta?.settings ?? null,
+    // 2026-05-16 PR-Admin-4 — 종별 단위 generator 버튼이 code → ruleId 매핑에 사용
+    divisionRules,
   });
 }
 
