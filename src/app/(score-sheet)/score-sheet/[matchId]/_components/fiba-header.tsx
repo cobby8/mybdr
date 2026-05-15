@@ -95,7 +95,7 @@ export function FibaHeader({
   return (
     // outermost wrapper = ss-shell + ss-header — PR-S1 토큰 활성화 + PR-S4 .ss-h/.ss-names/.ss-meta 룰 매칭
     // 시안 출처: ScoreSheet.parts.jsx SSHeader / SSNames / SSMeta (3 섹션 직렬)
-    <section className="ss-shell ss-header">
+    <section className="ss-shell ss-header" data-ss-section="header">
       {/* Section A — BDR 로고 + 3줄 타이틀 (시안 .ss-h).
           PR-S8 (2026-05-15 rev2) — 로고 두 줄 분리 (시안 ScoreSheet.parts.jsx L28~29 정합):
             - <div.ss-h__logo-brand>BDR</div>
@@ -148,9 +148,9 @@ export function FibaHeader({
         className="ss-meta"
         // 2026-05-15 — inline style 박제 (CSS 캐시/hot reload 우회 강제).
         //   좌:우 = 23:7 = 76.67% : 23.33% (사용자 누적 요청 — 우측 심판 영역 추가 30% 축소).
-        style={{ gridTemplateColumns: "23fr 7fr" }}
+        style={{ gridTemplateColumns: "5fr 1fr" }}
       >
-        <div className="ss-meta__l">
+        <div className="ss-meta__l" data-ss-section="header-meta">
           {/* 2026-05-15 (PR-SS-meta-Layout) — 사용자 요청 재배치:
               1행: Competition (가장 넓게) + Game No.
               2행: Date + Time + Place
@@ -170,7 +170,7 @@ export function FibaHeader({
             <SSFieldDisplay label="Place" value={placeLabel ?? ""} grow={3} />
           </div>
         </div>
-        <div className="ss-meta__r">
+        <div className="ss-meta__r" data-ss-section="header-officials">
           <div className="ss-meta__row">
             <SSFieldInput
               label="Referee"

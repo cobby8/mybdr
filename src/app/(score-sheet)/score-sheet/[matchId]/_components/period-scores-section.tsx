@@ -118,7 +118,7 @@ export function PeriodScoresSection({
 
   return (
     // ss-shell 스코프 — 본 컴포넌트 outermost 한정 (PR-S4 와 동일 패턴)
-    <section className="ss-shell ss-ps-section">
+    <section className="ss-shell ss-ps-section" data-ss-section="period-scores">
       {/* ─────────────────────────────────────────────
           시안 .ss-ps 표 — Period 5 row (Q1~Q4 + Extra)
           ───────────────────────────────────────────── */}
