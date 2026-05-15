@@ -127,27 +127,8 @@ export function RegistrationSettingsForm({ data, onChange }: Props) {
                     <span className="text-xs text-[var(--color-text-muted)]">팀</span>
                   </div>
 
-                  {/* 디비전별 참가비 입력 — P1 fix (안내문만 있고 입력란 부재였음) */}
-                  {/* 0 입력 시 무료, 빈 값이면 기본 참가비(entryFee) 적용 */}
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      placeholder="—"
-                      value={divFees[div] ?? ""}
-                      onChange={(e) => {
-                        // 빈 문자열 → undefined (key 삭제) / 숫자 0 포함 → 그대로 저장
-                        const raw = e.target.value;
-                        const next = { ...divFees };
-                        if (raw === "") delete next[div];
-                        else next[div] = Number(raw);
-                        onChange({ divFees: next });
-                      }}
-                      className="w-24 rounded-lg border border-[var(--color-border)] bg-transparent px-2 py-1 text-center text-sm"
-                      min={0}
-                      step={1000}
-                    />
-                    <span className="text-xs text-[var(--color-text-muted)]">원</span>
-                  </div>
+                  {/* 디비전별 참가비 입력란 = 2026-05-15 UI 삭제 (사용자 결정 — 기본 참가비 단일 사용 통일) */}
+                  {/* 데이터 layer (divFees state / API / DB div_fees) 는 보존 — 기존 운영 대회 데이터 안전 */}
 
                   {/* 디비전 삭제 버튼 — 오른쪽 끝 */}
                   <button
@@ -186,9 +167,6 @@ export function RegistrationSettingsForm({ data, onChange }: Props) {
           onChange={(e) => onChange({ entryFee: e.target.value })}
           placeholder="0 (무료)"
         />
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          디비전별 참가비를 설정하면 기본 참가비 대신 적용됩니다.
-        </p>
       </div>
 
       {/* 대기접수 */}
