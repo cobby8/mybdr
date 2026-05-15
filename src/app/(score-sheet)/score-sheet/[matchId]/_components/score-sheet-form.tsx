@@ -82,6 +82,8 @@ import { QuarterEndModal } from "./quarter-end-modal";
 import { useConfirm } from "../../../_components/confirm-modal-provider";
 // 2026-05-15 (PR-D-3) — 수정 모드 / read-only 가드 단일 source.
 import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
+// 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅.
+import { useScoreSheetInputState } from "../_hooks/use-score-sheet-input-state";
 // 2026-05-15 (PR-D-4a) — draft localStorage IO 순수 함수 (vitest 가능).
 import { loadDraft, saveDraft, clearDraft } from "@/lib/score-sheet/draft-storage";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
@@ -175,17 +177,8 @@ interface ScoreSheetFormProps {
 //   순수 함수로 외부화. form 안 직접 localStorage 호출 0.
 //   DRAFT_KEY_PREFIX 는 draft-storage.ts 내부 상수 (운영 키 보존).
 
-const EMPTY_HEADER: FibaHeaderInputs = {
-  referee: "",
-  umpire1: "",
-  umpire2: "",
-};
-
-const EMPTY_TEAM: TeamSectionInputs = {
-  coach: "",
-  asstCoach: "",
-  players: {},
-};
+// 2026-05-15 (PR-D-4b) — EMPTY_HEADER / EMPTY_TEAM 이 useScoreSheetInputState 훅 안으로 이동.
+//   필요 시 훅에서 import (외부 export 유지).
 
 interface DraftPayload {
   header: FibaHeaderInputs;
@@ -230,9 +223,12 @@ export function ScoreSheetForm({
   // Phase 23 PR-EDIT4 (2026-05-15) — 수정 이력 inline (사용자 결재 Q7 옵션 A).
   editAuditLogs,
 }: ScoreSheetFormProps) {
-  const [header, setHeader] = useState<FibaHeaderInputs>(EMPTY_HEADER);
-  const [teamA, setTeamA] = useState<TeamSectionInputs>(EMPTY_TEAM);
-  const [teamB, setTeamB] = useState<TeamSectionInputs>(EMPTY_TEAM);
+  // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅 단일 source.
+  const inputState = useScoreSheetInputState({
+    initialSignatures,
+    initialNotes,
+  });
+  const { header, setHeader, teamA, setTeamA, teamB, setTeamB, signatures, setSignatures } = inputState;
   // Phase 2 — Running Score state.
   // Phase 23 (2026-05-14) — DB SELECT 결과로 초기값 박제 (?? EMPTY_*).
   //   기존 동작 100% 보존: prop 미전달 (=undefined) 시 EMPTY 폴백 = 신규 매치 진입과 동일.
@@ -245,19 +241,8 @@ export function ScoreSheetForm({
   const [timeouts, setTimeouts] = useState<TimeoutsState>(
     initialTimeouts ?? EMPTY_TIMEOUTS
   );
-  // Phase 5 — Signatures state (FIBA 양식 풋터 8 입력 + notes).
-  //   Phase 23: initialSignatures 가 있으면 EMPTY 와 spread merge (구버전 partial 박제 호환).
-  //   initialNotes 가 있으면 signatures.notes 로 통합 (DB notes 컬럼 별도 — 폼은 signatures 단일 source).
-  const [signatures, setSignatures] = useState<SignaturesState>(() => {
-    const base = initialSignatures
-      ? { ...EMPTY_SIGNATURES, ...initialSignatures }
-      : EMPTY_SIGNATURES;
-    // notes 는 TournamentMatch.notes 컬럼이 우선 (BFF 별도 update 흐름) — 있으면 덮어쓰기
-    if (initialNotes && initialNotes.length > 0) {
-      return { ...base, notes: initialNotes };
-    }
-    return base;
-  });
+  // 2026-05-15 (PR-D-4b) — signatures state 가 useScoreSheetInputState 훅 안으로 이동.
+  //   기존 lazy init (initialSignatures spread + initialNotes 우선) 동일하게 보존.
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
   const [foulModalCtx, setFoulModalCtx] = useState<{
     team: "home" | "away";
