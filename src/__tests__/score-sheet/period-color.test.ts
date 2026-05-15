@@ -33,16 +33,18 @@ describe("getPeriodColor", () => {
     expect(getPeriodColor(4)).toBe("var(--color-warning)");
   });
 
-  it("OT1 (period=5) = primary (BDR Red OT 통합)", () => {
-    expect(getPeriodColor(5)).toBe("var(--color-primary)");
+  // Phase 19 PR-T5 (2026-05-15) — 5+ = warning (Q4 통합 / 이전 primary).
+  //   사용자 결재 — OT 는 Q4 의 연장 → Q4 색 (warning) 으로 통합.
+  it("OT1 (period=5) = warning (Q4 통합 색 / PR-T5)", () => {
+    expect(getPeriodColor(5)).toBe("var(--color-warning)");
   });
 
-  it("OT2 (period=6) = primary (모든 OT 통합 색)", () => {
-    expect(getPeriodColor(6)).toBe("var(--color-primary)");
+  it("OT2 (period=6) = warning (모든 OT 통합 색 / PR-T5)", () => {
+    expect(getPeriodColor(6)).toBe("var(--color-warning)");
   });
 
-  it("OT3 (period=7) = primary", () => {
-    expect(getPeriodColor(7)).toBe("var(--color-primary)");
+  it("OT3 (period=7) = warning (PR-T5)", () => {
+    expect(getPeriodColor(7)).toBe("var(--color-warning)");
   });
 
   it("경계 — period=0 (이상치) = text-primary fallback (Q1 동일)", () => {
@@ -99,13 +101,14 @@ describe("getTimeoutPhaseColor", () => {
 });
 
 describe("PERIOD_LEGEND", () => {
-  it("5건 고정 (Q1·Q2·Q3·Q4·OT 통합)", () => {
-    expect(PERIOD_LEGEND.length).toBe(5);
+  // Phase 19 PR-T5 (2026-05-15) — 4건 고정 (OT 항목 제거 / Q4 색에 OT 통합).
+  it("4건 고정 (Q1·Q2·Q3·Q4 / PR-T5)", () => {
+    expect(PERIOD_LEGEND.length).toBe(4);
   });
 
-  it("라벨 순서 정합 (Q1·Q2·Q3·Q4·OT)", () => {
+  it("라벨 순서 정합 (Q1·Q2·Q3·Q4 / PR-T5)", () => {
     const labels = PERIOD_LEGEND.map((p) => p.label);
-    expect(labels).toEqual(["Q1", "Q2", "Q3", "Q4", "OT"]);
+    expect(labels).toEqual(["Q1", "Q2", "Q3", "Q4"]);
   });
 
   it("Q1 색 = text-primary", () => {
@@ -115,13 +118,14 @@ describe("PERIOD_LEGEND", () => {
     });
   });
 
-  it("OT 색 = primary (getPeriodColor 5+ 와 정합)", () => {
-    expect(PERIOD_LEGEND[4]).toEqual({
-      label: "OT",
-      color: "var(--color-primary)",
+  it("Q4 색 = warning (OT 통합 / PR-T5)", () => {
+    expect(PERIOD_LEGEND[3]).toEqual({
+      label: "Q4",
+      color: "var(--color-warning)",
     });
-    // 헬퍼 정합 — period 5+ = primary
-    expect(getPeriodColor(5)).toBe(PERIOD_LEGEND[4].color);
+    // 헬퍼 정합 — period 4 와 5+ 모두 warning (OT 통합)
+    expect(getPeriodColor(4)).toBe(PERIOD_LEGEND[3].color);
+    expect(getPeriodColor(5)).toBe(PERIOD_LEGEND[3].color);
   });
 
   it("Legend 색 vs getPeriodColor Q1~Q4 정합", () => {

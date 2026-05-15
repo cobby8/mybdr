@@ -581,6 +581,20 @@
   background: var(--pap-ink);
   color: #FFFFFF;
 }
+/* Phase 19 PR-T3 (2026-05-15) — cell 위치 phase 와 현재 period phase 불일치 시 시각 회색 + 차단.
+   왜: 시안 7 cells (전반 2 / 후반 3 / OT 2) 정합 — 운영자가 다른 phase cell 시각으로 식별.
+   어떻게:
+     - background 옅은 회색 (var(--pap-fill)) — 빈 cell 의 흰 배경과 구분
+     - opacity 0.5 — 시각 약화
+     - cursor not-allowed — 마우스 hover 시 차단 표시
+   회귀 0: filled cell (data-used="true") 은 별도 룰 (#2 위) 우선 적용 (CSS 후순위 cascade).
+   본 룰은 빈 cell 의 phase 불일치 케이스만 트리거 (team-section.tsx 가 data-disabled-phase 를
+   filled=false 일 때만 "true" 설정 — AND 가드). */
+.ss-shell .ss-tbox__to-cell[data-disabled-phase="true"] {
+  background: var(--pap-fill);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ----- Team fouls 우측 영역 ----- */
 .ss-shell .ss-tbox__tf {

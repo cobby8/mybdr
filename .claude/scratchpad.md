@@ -1,9 +1,9 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 19 PR-S10.8 score-sheet P1 3 영역 시각 hotfix (빈 row 시각 + section border 검증 + footer/coach 정합)
-- **상태**: developer 완료 — PM 결재 대기 (1 파일 변경 + tsc 0 + vitest 211/211)
-- **선행 작업**: ✅ PR-S10.7 완료 / ✅ subin → dev → main 머지 / ✅ Phase 23 PR4 commit `79b497e`
+- **요청**: Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일)
+- **상태**: developer 완료 — PM 결재 대기 (6 파일 변경 + tsc 0 + vitest 223/223)
+- **선행 작업**: ✅ PR-S10.8 / PR-S10.7 / PR-S10.4 / Phase 23 PR4~PR6 / Phase A.7 / division-generator 유청소년 / game-time-input 6분 — 모두 release #4·#5 머지 또는 PM 결재 대기
 
 ## 진행 현황표
 | 단계 | 결과 |
@@ -28,6 +28,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일) | ✅ timeout-helpers `getCellPhase`+`isCellActive` 신규 + vitest 12 신규 / team-section.tsx SSTimeoutCells `data-disabled-phase` AND 가드 + Extra periods cell 마크업 삭제 (텍스트 + 우측 정렬) / _score-sheet-styles.css `[data-disabled-phase="true"]` 회색+opacity 0.5+not-allowed / period-color.ts getPeriodColor(5+)=warning + PERIOD_LEGEND OT 제거 (4 항목) + 테스트 6 케이스 정합 갱신 / tsc 0 / vitest **223/223 PASS** (211+12) / PM 결재 대기 |
+| 2026-05-15 | release #6 (dev → main) — 경기시간 6분 + 분 직접 입력 | ✅ PR #490 (subin→dev) `dedbf04` + PR #491 (dev→main) `3d39065` 머지 / Vercel 자동 배포 |
 | 2026-05-15 | feat(game-time-input): 6분 버튼 추가 + 분 직접 입력 input | ✅ TIME_OPTIONS [5,6,7,8,10,12] 6종 + number input (MIN 1 / MAX 60 clamp) + 프리셋 외 값 시 input border accent / vitest 4 신규 / tsc 0 / vitest 822/822 |
 | 2026-05-15 | release #5 (dev → main) — 유청소년 STEP 4 (U연령) cross-product | ✅ PR #488 (subin→dev) `4db18a1` + PR #489 (dev→main) `2ba310f` 머지 / Vercel 자동 배포 |
 | 2026-05-15 | feat(division-generator): 유청소년 STEP 4 (U연령) + cross-product 코드 생성 | ✅ divisions.ts YOUTH_AGES(U7~U18) + buildYouthDivisionCodes 헬퍼 / 모달 STEP 4 (youth + 디비전 1개+ 시 노출 + 미리보기 N×M개 종별) / vitest 8 신규 / tsc 0 / vitest 806/806 / PM 결재 Q1+Q4=b 진행 |
@@ -50,7 +52,89 @@
 | 2026-05-15 | Phase 19 PR-S3 (RunningScoreGrid mode prop — rev2 롤백) | ✅ commit `1a37981` push |
 
 ## 미푸시 commit (subin 브랜치)
-**0건** — 모두 푸시 완료. (Phase 23 PR4 는 PM 결재 후 commit)
+**0건** — 모두 푸시 완료. (Phase 23 PR4 + PR-T1~T5 는 PM 결재 후 commit)
+
+---
+
+## 구현 기록 (developer) — Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기)
+
+📝 구현한 기능: FIBA SCORESHEET 타임아웃 + Player Fouls + Legend 의 OT 처리 3 영역 hotfix.
+- **PR-T1**: timeout-helpers.ts `getCellPhase` + `isCellActive` 헬퍼 신규 + vitest 12 케이스 (cell index → phase 분기 + 현재 period 와 일치 여부)
+- **PR-T2**: team-section.tsx SSTimeoutCells `!isCellActive(i, currentPeriod)` AND 가드 추가 (빈 cell 만 disabled / 마킹된 cell 해제는 phase 무관 허용) + `data-disabled-phase` 속성
+- **PR-T3**: _score-sheet-styles.css `.ss-tbox__to-cell[data-disabled-phase="true"]` 회색 (`var(--pap-fill)`) + opacity 0.5 + cursor not-allowed
+- **PR-T4**: team-section.tsx Extra periods 라인 = 텍스트 + 우측 정렬만 유지 (1/2/3/4 cell 마크업 삭제 → OT 카운트 텍스트 표시 + FT+N 안내 보존)
+- **PR-T5**: period-color.ts `getPeriodColor(5+)` = `var(--color-warning)` (Q4 통일 / 이전 primary) + PERIOD_LEGEND OT 항목 제거 (5 → 4 항목) + 테스트 6 케이스 정합 갱신
+
+### 변경 파일
+
+| 파일 (절대 경로) | 변경 | 신규/수정 | LOC |
+|------|------|----|----|
+| `C:/0. Programing/mybdr/src/lib/score-sheet/timeout-helpers.ts` | (T1) `getCellPhase` + `isCellActive` 함수 신규 + 한국어 주석 docblock | 수정 | +50 |
+| `C:/0. Programing/mybdr/src/__tests__/lib/score-sheet/timeout-helpers-cell-phase.test.ts` | (T1) vitest 12 케이스 (getCellPhase 5 + isCellActive 7) | 신규 | +89 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | (T2) `isCellActive` import + SSTimeoutCells `cellActive` 변수 + `data-disabled-phase` 속성 + onClick AND 가드 + disabled AND 가드 / (T4) Extra periods cell 마크업 4 cell 삭제 + 우측 정렬 + OT 카운트 텍스트 | 수정 | +30/-44 |
+| `C:/0. Programing/mybdr/src/app/(score-sheet)/_components/_score-sheet-styles.css` | (T3) `.ss-tbox__to-cell[data-disabled-phase="true"]` 룰 추가 (회색 + opacity 0.5 + not-allowed) + 한국어 주석 | 수정 | +14 |
+| `C:/0. Programing/mybdr/src/lib/score-sheet/period-color.ts` | (T5) `getPeriodColor` 5+ return = `var(--color-warning)` + 주석 갱신 / `PERIOD_LEGEND` 5건 → 4건 (OT 항목 제거) + 주석 갱신 | 수정 | +9/-3 |
+| `C:/0. Programing/mybdr/src/__tests__/score-sheet/period-color.test.ts` | (T5) OT1/OT2/OT3 expect 변경 (primary → warning) + PERIOD_LEGEND length 5→4 + 라벨 ['Q1'~'Q4'] + PERIOD_LEGEND[3] = Q4 warning 검증 / OT 항목 제거 | 수정 | +13/-13 |
+
+### 결정 요약
+
+| PR | 결정 | 핵심 사유 |
+|---|---|---|
+| T1 | `getCellPhase` cellIndex 0/1 → first_half / 2/3/4 → second_half / 5+ → overtime | 시안 7 cells (2+3+2) 정합 — 운영 SSTimeoutCells `toRows = [[0,1],[2,3,4],[5,6]]` 배열과 1:1 매핑 |
+| T1 | `isCellActive` OT 의 경우 cellIndex ↔ currentPeriod **일대일** | OT2 진행 중 = cell 5 (OT1) disabled 정상 (다른 OT phase) |
+| T2 | `!filled` 조건으로 `data-disabled-phase="true"` 만 적용 | 마킹된 cell 해제 (isLastFilled) = phase 무관 허용 (운영 보존 의무 #1) |
+| T2 | `isLastFilled` 분기는 `cellActive` 무시 | 잘못 마킹한 OT cell 도 해제 가능 (사용자 안전) |
+| T3 | `var(--pap-fill)` 옅은 회색 사용 (`var(--color-disabled)` 미사용) | 페이퍼 토큰 일관 + 인쇄 정합 (PR-S10 다크모드 leak 차단 룰 보존) |
+| T4 | Extra periods cell 삭제 + `otCount` 텍스트 표시 보존 | 운영자 OT 누적 인지 (cell 시각 없어도 숫자 + FT+N 안내로 인지) |
+| T5 | OT = `var(--color-warning)` (Q4 색) | 사용자 결재 — OT = Q4 연장 (FIBA Article 정합) / Q2 (accent) BDR Red 와 시각 혼동 해소 |
+| T5 | PERIOD_LEGEND 4 항목 (OT 제거) | OT 색 = Q4 색 → 별도 OT 항목 불필요 (운영자가 Q4 색으로 OT 인지) |
+
+### 검증 결과
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | `npx tsc --noEmit` | exit=0 / 통과 |
+| 2 | `npx vitest run src/__tests__/score-sheet/ src/__tests__/lib/score-sheet/` | **223/223 PASS** (이전 211 + 신규 12) |
+| 3 | grep `getCellPhase\|isCellActive` in `timeout-helpers.ts` | 5건 매치 ✅ |
+| 4 | grep `isCellActive` in `team-section.tsx` | 3건 매치 (import 1 + 변수 1 + 호출 2 중 표시) ✅ |
+| 5 | grep `data-disabled-phase` 전체 src | 6건 (CSS 룰 1 + 주석 1 + tsx 속성 1 + 주석 1 + helper 주석 2) ✅ |
+| 6 | grep `\.ss-tbox__to-cell\[data-disabled-phase="true"\]` in CSS | 1건 매치 (L593) ✅ |
+| 7 | grep `ss-tbox__tf-cells` in team-section.tsx | 3건 (Q1Q2 line + Q3Q4 line + Extra 주석 — Extra 안 cell 마크업 0 ✓) |
+| 8 | grep `var(--color-primary)` in `period-color.ts` | 4건 (type alias 정의만 — 호출처 0 / 5+ return 변경 ✓) |
+
+### 운영 동작 보존 검증
+
+| # | 검증 | 결과 |
+|---|------|------|
+| 1 | TimeoutMark / TimeoutsState shape 변경 0 | ✅ timeout-types.ts 변경 0 / `addTimeout` / `removeLastTimeout` 변경 0 |
+| 2 | `handleRequestAddTimeout` / `canAddTimeout` 변경 0 | ✅ score-sheet-form.tsx 호출처 + canAddTimeout 룰 그대로 / Article 18-19 phase 합산 가드 보존 |
+| 3 | 4종 모달 / localStorage / BFF submit 변경 0 | ✅ FoulType / PlayerSelect / LineupSelection / QuarterEnd 모달 변경 0 / submit payload 변경 0 |
+| 4 | Phase 23 PR2+PR3 자동 로드 (initialRunningScore prop) 영향 0 | ✅ team-section props interface 변경 0 — disabled-phase 는 client side UI 가드만 |
+| 5 | 5반칙 차단 (data-fouled-out) / Phase 17 쿼터별 색 wiring 보존 | ✅ Player Fouls cell 의 `getPeriodColor` 호출은 그대로 — 5+ 가 warning 으로 변경되어 OT 마킹 시 색만 자동 변경 |
+| 6 | Time-outs `getTimeoutPhaseColor` 보존 (전반 text-primary / 후반 success / OT primary) | ✅ getTimeoutPhaseColor 변경 0 — Time-outs 영역 OT 색은 그대로 primary (의도된 분리) |
+| 7 | _print.css 인쇄 정합 유지 | ✅ _print.css 변경 0 / `var(--pap-fill)` = 페이퍼 토큰 (인쇄 시 라이트 강제) / `data-disabled-phase` 룰 = 화면+인쇄 동일 적용 |
+| 8 | Team Fouls Q1~Q4 4 cell 마크업 (Q1Q2 / Q3Q4 line) 보존 | ✅ Extra periods line 만 cell 마크업 삭제 / Q1Q2 / Q3Q4 cell 4개 ✓ |
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. **PR-T2/T3** (셀 phase 시각 차단): paper 매치 진입 → period 1 (Q1) 진행 중 = cell 0/1 (전반) 흰 배경 클릭 가능 ✅ / cell 2/3/4 (후반) 회색 배경 opacity 0.5 + cursor not-allowed ✅. period 3 (Q3) 변경 후 = cell 2/3/4 클릭 가능 + cell 0/1 회색 ✅.
+  2. **마킹된 cell 해제 허용**: 후반 진행 중 (Q3) → 전반 cell 1 에 이미 마킹된 X 있으면 isLastFilled 분기로 해제 가능 ✅ (phase 무관 해제).
+  3. **PR-T4** (Extra periods): Team A 좌측 Team fouls 영역 line 3 (Extra periods) = "Extra periods" 라벨 + (OT 카운트 숫자) + (5+ FT+N 안내) 우측 정렬 ✅. 1/2/3/4 cell 박스 마크업 ❌ (시각 단순화).
+  4. **PR-T5** (OT 색): Player Fouls Q5+ (OT) 마킹 시 글자 색 = 오렌지 (Q4 색 = `var(--color-warning)`) ✅. Team Fouls Q1Q2 line + Q3Q4 line 의 Q1=text-primary / Q2=accent / Q3=success / Q4=warning 보존 ✅.
+  5. **Legend** (`period-color-legend.tsx`): 화면 표시 시 4 항목만 (Q1~Q4) — OT 항목 ❌ ✅.
+  6. **운영 동작**: 4종 모달 / 자동 로드 / 5반칙 차단 / Article 18-19 phase 합산 가드 / submit 모두 정상.
+- **정상 동작**: 셀 phase 시각 차단 + Extra periods 단순화 + OT 색 Q4 통일 + Legend 4 항목.
+- **주의할 입력**: period 5 (OT1) 진행 중 + 사용자가 cell 6 (OT2) 클릭 시도 = disabled ✅ (cellActive=false / OT 일대일 매칭). 마킹된 OT1 (cell 5) 해제 클릭 = 허용 ✅ (isLastFilled 분기 우선).
+
+⚠️ reviewer 참고:
+- **getCellPhase 1대1 매칭 (OT)**: `cellPhase === overtime` 일 때 `cellIndex === currentPeriod` strict 비교 — cell 5 = period 5 (OT1) / cell 6 = period 6 (OT2) ... 시안 SSTimeoutCells `toRows = [[5,6]]` 의 2 cell 이 각각 OT1 / OT2 와 매핑 (다중 OT 동시 진행 X = 운영자 1 phase 진행).
+- **AND 가드 회귀 안전**: 빈 cell 이면서 (`!isLastFilled && !isNextEmpty`) 또는 phase 불일치 (`!isLastFilled && !cellActive`) 시 disabled. 운영 동작 (마킹/해제) 변경 0 — 시각 추가 차단만.
+- **data-disabled-phase 빈 cell 한정**: `!cellActive && !filled` 일 때만 "true" 설정 — 마킹된 cell (`filled=true`) 은 phase 무관 회색 안 됨 (마킹 색 보존).
+- **CSS cascade 우선순위**: `.ss-tbox__to-cell[data-disabled-phase="true"]` 룰이 `.ss-tbox__to-cell[data-used="true"]` 룰 뒤 (CSS 후순위 cascade) → 동등 specificity 시 후행 룰 우선. 그러나 team-section.tsx 가 `filled=true` 시 `data-disabled-phase="false"` 강제 → CSS 매칭 ❌ → 충돌 0.
+- **var(--pap-fill) 토큰 선택**: `var(--color-disabled)` 미사용 — 페이퍼 토큰 일관 (PR-S10 다크모드 leak 차단 룰). 인쇄 시 페이퍼 라이트 강제 보존.
+- **PR-T5 OT 색 변경 영향 범위**: `getPeriodColor` 호출처 3 곳 (Player Fouls / Team Fouls Q1~Q4 / Team Fouls Extra). Q1~Q4 = 영향 0 (5+ 만 변경). Player Fouls OT 마킹 시 글자 색 변경 / Team Fouls Extra = PR-T4 로 cell 마크업 삭제됨 → 시각 영향 0. `getTimeoutPhaseColor` 는 별도 함수 — Time-outs OT 색 (primary) 보존.
+- **PERIOD_LEGEND 4 항목 회귀**: `period-color-legend.tsx` 가 본 배열 map 으로 렌더 → 자동 4 항목 노출. 호출처 변경 0.
+- **TS strict 보존**: `getCellPhase` 반환 `GamePhase` 타입 / `isCellActive` 반환 boolean — 호출처 strict 검증.
 
 ---
 
