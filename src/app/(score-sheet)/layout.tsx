@@ -27,6 +27,8 @@ import { ToastProvider } from "@/contexts/toast-context";
 //   noflicker overlay 마운트 책임. ScoreSheetChrome client 컴포넌트가 통합.
 import { ScoreSheetChrome } from "./_components/score-sheet-chrome";
 import { FullscreenProvider } from "./_components/fullscreen-context";
+// 2026-05-15 (PR-D-2) — confirm 모달 전역 Provider (form 클로저 패턴 외부화).
+import { ConfirmModalProvider } from "./_components/confirm-modal-provider";
 // PrintButton 컴포넌트는 삭제하지 않음 (다른 곳 사용 가능 / 향후 복원 대비) — import 만 제거.
 // Phase 6 — A4 세로 인쇄 CSS (@media print + 라이트 강제 + 5 영역 정합).
 //   본 import 는 score-sheet route group 안에서만 적용 — 기존 globals.css 의 박스스코어
@@ -62,15 +64,17 @@ export default function ScoreSheetLayout({
   return (
     <ToastProvider>
       <FullscreenProvider>
-        <div
-          className="min-h-screen"
-          style={{ backgroundColor: "var(--color-background)" }}
-        >
-          {/* 2026-05-15 PR-Fullscreen-Clean — header + 우상단 X overlay 책임을
-              ScoreSheetChrome client 컴포넌트가 통합. 풀스크린 시 thin bar
-              자동 hidden + 우상단 X floating 노출 (양식만 보이도록 정합). */}
-          <ScoreSheetChrome>{children}</ScoreSheetChrome>
-        </div>
+        <ConfirmModalProvider>
+          <div
+            className="min-h-screen"
+            style={{ backgroundColor: "var(--color-background)" }}
+          >
+            {/* 2026-05-15 PR-Fullscreen-Clean — header + 우상단 X overlay 책임을
+                ScoreSheetChrome client 컴포넌트가 통합. 풀스크린 시 thin bar
+                자동 hidden + 우상단 X floating 노출 (양식만 보이도록 정합). */}
+            <ScoreSheetChrome>{children}</ScoreSheetChrome>
+          </div>
+        </ConfirmModalProvider>
       </FullscreenProvider>
     </ToastProvider>
   );

@@ -24,7 +24,7 @@
   - placeholder-helpers.ts `buildSlotLabel` + `buildPlaceholderNotes` 통과 의무 — 매치 232 UPDATE SQL 도 동일 헬퍼 통과 (인라인 박제 금지)
 - **Flutter v1 영향 0** / **DB schema 변경 0** (placeholder 박제 + applier 로직만)
 - **후속 PR 큐**:
-  - G5.5-followup-B: 매치 PATCH route 통합 (status="completed" 시 division_rule>0 → advanceAllDivisions / division_rule=0 → advanceTournamentPlaceholders 분기)
+  - ✅ **G5.5-followup-B 통합 완료** (2026-05-16 commit `[TBD-PM-CommitHash]`) — 매치 PATCH route + Flutter match-sync.ts 양면 박제. `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` (status="completed" 진입 시 별도 trx + try/catch 로 ruleCount 분기 → advanceAllDivisions / advanceTournamentPlaceholders 자동 호출) + `src/lib/services/match-sync.ts` (divisionCode 없는 매치 + ruleCount=0 → advanceTournamentPlaceholders 신규 분기). vitest 4 케이스 박제 (`src/__tests__/lib/tournaments/tournament-advancement.test.ts` 신규 describe — division_rule 분기 의사코드 / status='in_progress' skip / idempotent 가드). 운영자 manual `/api/web/admin/tournaments/[id]/advance-placeholders` 라우트는 fallback 으로 유지 (변경 0). 강남구 4 종별 회귀 0 / 4차 뉴비리그 자동 채움 신규 진입 / Flutter v1 클라이언트 코드 0 변경 / DB schema 변경 0.
   - G5.5-NBA-seed: 8강/4강 NBA 시드 표준 generator (교차 시드 + 2^N 올림 + bye)
 - **참조횟수**: 0
 

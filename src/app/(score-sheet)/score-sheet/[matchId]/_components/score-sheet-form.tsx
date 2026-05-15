@@ -77,9 +77,9 @@ import {
 } from "./lineup-selection-modal";
 // Phase 7-C — Q4/OT 종료 분기 모달
 import { QuarterEndModal } from "./quarter-end-modal";
-// Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택용).
-//   기존 inline window.confirm() 대체 — 4종 모달 시각 정합 + 인쇄 차단 + 토큰 일관.
-import { ConfirmModal } from "./confirm-modal";
+// 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
+//   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
+import { useConfirm } from "../../../_components/confirm-modal-provider";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
 //   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
 import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
@@ -320,37 +320,10 @@ export function ScoreSheetForm({
   //   MatchEndButton 내부 submitted state 를 onSubmittedChange 콜백으로 끌어올림 (lifting state up).
   const [matchEndSubmitted, setMatchEndSubmitted] = useState(false);
 
-  // Phase 23 PR6 (2026-05-15) — ConfirmModal state (draft vs DB 우선순위 사용자 선택용).
-  //
-  // 왜 (이유):
-  //   reviewer WARN 1건 = PR3 의 inline window.confirm() 가 운영 4종 모달 패턴과 다름.
-  //   Promise 패턴으로 캡슐화 → ConfirmModal 의 onSelect / onClose 가 resolve(value) 호출.
-  //   호출자는 `await confirmModal({ title, message, options })` 형태로 사용.
-  //
-  // 어떻게:
-  //   - confirmState = null = 모달 닫힘 / { ...config, resolve } = 모달 열림
-  //   - confirmModal(config) = Promise 반환 + resolve fn 박제. onSelect / onClose 에서 호출.
-  //   - useEffect 안에서 await 가능. 4종 모달 + 새 ConfirmModal 동시 열림 0 (운영자 흐름상 단일).
-  type ConfirmConfig = {
-    title: string;
-    message: ReactNode;
-    options: { value: string; label: string; isPrimary?: boolean; isDestructive?: boolean }[];
-    // 2026-05-15 (PR-SS-Manual-Wide) — 모달 폭 — default md / lg / xl. 설명서 = xl.
-    size?: "md" | "lg" | "xl";
-  };
-  const [confirmState, setConfirmState] = useState<
-    | (ConfirmConfig & { resolve: (value: string | null) => void })
-    | null
-  >(null);
-
-  // confirm 모달 호출 헬퍼 — Promise 반환.
-  //   - 선택 시 옵션 value 반환
-  //   - ESC / backdrop 닫기 시 null 반환 (호출자가 취소 분기 처리)
-  function confirmModal(cfg: ConfirmConfig): Promise<string | null> {
-    return new Promise((resolve) => {
-      setConfirmState({ ...cfg, resolve });
-    });
-  }
+  // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
+  //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
+  //   호출자 = useConfirm() 훅 + await confirmModal({...}). resolve 후 자동 close.
+  const confirmModal = useConfirm();
 
   // Phase 23 PR-EDIT1 (2026-05-15) — 종료 매치 수정 모드 진입 (사용자 결재 Q3).
   //
@@ -394,7 +367,6 @@ export function ScoreSheetForm({
         { value: "confirm", label: "기록 취소 (완전 초기화)", isDestructive: true },
       ],
     });
-    setConfirmState(null);
 
     if (choice !== "confirm") return;
 
@@ -538,7 +510,6 @@ export function ScoreSheetForm({
       ),
       options: [{ value: "close", label: "닫기", isPrimary: true }],
     });
-    setConfirmState(null);
   }
 
   async function handleEnterEditMode() {
@@ -562,8 +533,6 @@ export function ScoreSheetForm({
         { value: "cancel", label: "취소" },
       ],
     });
-    // 모달 닫기 — Promise resolve 후 모달 unmount
-    setConfirmState(null);
 
     if (choice !== "enter") return; // 사용자 취소 / ESC = 진입 안 함
 
@@ -888,8 +857,6 @@ export function ScoreSheetForm({
                   { value: "db", label: "DB 박제본으로 진행" },
                 ],
               });
-              // 모달 닫기 — Promise resolve 후 모달 unmount
-              setConfirmState(null);
               applyDraft = choice === "draft";
             } else if (draftTime <= dbTime && hasDBContent) {
               // DB 가 더 최신 = draft 무시 (사고 방지 최우선)
@@ -2023,19 +1990,8 @@ export function ScoreSheetForm({
         onCancel={() => setQuarterEndModal(null)}
       />
 
-      {/* Phase 23 PR6 (2026-05-15) — ConfirmModal (draft vs DB 우선순위 사용자 선택).
-          inline window.confirm() 대체 — 4종 모달 시각 정합. confirmState !== null 시만 렌더. */}
-      {confirmState && (
-        <ConfirmModal
-          open
-          title={confirmState.title}
-          message={confirmState.message}
-          options={confirmState.options}
-          size={confirmState.size}
-          onSelect={(value) => confirmState.resolve(value)}
-          onClose={() => confirmState.resolve(null)}
-        />
-      )}
+      {/* 2026-05-15 (PR-D-2) — ConfirmModal JSX 마운트는 ConfirmModalProvider 가 담당.
+          form 안 직접 마운트 불필요. score-sheet route group layout 에 한 번 mount. */}
     </main>
   );
 }
