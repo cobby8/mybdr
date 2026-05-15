@@ -1160,3 +1160,38 @@
   top: 50%;
   transform: translate(-50%, -50%);
 }
+
+/* ============================================================
+   2026-05-15 (PR-Section-Borders) — 7 섹터 두꺼운 테두리 구분 (사용자 요청).
+   각 [data-ss-area] cell 에 2px outer border. 내부 자식 (data-ss-section 컴포넌트)
+   는 자체 border 없음 (cell wrapper 가 담당).
+   ============================================================ */
+.score-sheet-fiba-frame [data-ss-area] {
+  border: 2px solid var(--pap-line);
+  /* 인접 cell 끼리 겹침 차단 (단 grid gap 0 = border 더블 시각 가능 — 운영 검수 후 조정) */
+  margin: -1px 0 0 -1px;
+}
+
+/* RUNNING SCORE 영역 — 좌측 Team A+B 합과 height 정합:
+   grid 의 같은 row 자식 stretch 기본 동작. .ss-rs wrapper 가 grid item 의 height
+   100% 차지하도록 명시. */
+[data-ss-area="right-top"] .ss-rs {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* RUNNING SCORE 내부 grid (16 cell × 30 row) = 가용 공간 stretch.
+   row stretch 로 cell 들이 좌측 Team A+B 합 만큼 늘어남. */
+[data-ss-area="right-top"] .ss-rs > .grid {
+  flex: 1;
+  align-content: stretch;
+}
+
+/* 좌하 Signatures vs 우하 Period — height 정합:
+   grid auto row = max(좌, 우) → 작은 쪽 stretch. 안쪽 컴포넌트가 자기 wrapper
+   안에서 stretch 하도록 .ss-footer-sigs / .ss-ps-section 도 height 100%. */
+[data-ss-area="left-bottom"] .ss-footer-sigs,
+[data-ss-area="right-bottom"] .ss-ps-section {
+  height: 100%;
+}

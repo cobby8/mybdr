@@ -148,7 +148,7 @@ export function FibaHeader({
         className="ss-meta"
         // 2026-05-15 — inline style 박제 (CSS 캐시/hot reload 우회 강제).
         //   좌:우 = 23:7 = 76.67% : 23.33% (사용자 누적 요청 — 우측 심판 영역 추가 30% 축소).
-        style={{ gridTemplateColumns: "23fr 7fr" }}
+        style={{ gridTemplateColumns: "5fr 1fr" }}
       >
         <div className="ss-meta__l" data-ss-section="header-meta">
           {/* 2026-05-15 (PR-SS-meta-Layout) — 사용자 요청 재배치:
