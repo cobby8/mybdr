@@ -827,19 +827,18 @@
   position: relative;
   cursor: pointer;
   background: transparent;
-  border: 0;           /* parent grid border-right 로 충분 */
-  /* button 기본 inset 차단 */
+  /* PR-Stat2.3 (2026-05-15) — `border: 0` 제거 → 부모 .ss-tbox__plyrow > * 의 border-right 1px 받음.
+     stat cell (PR-Stat2.2) 와 동일 패턴 — button user-agent border 제거하면서 세로 구분선도 사라짐 → 명시. */
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
 }
 .ss-shell .ss-tbox__plyrow .ss-c-foul:disabled { cursor: default; }
-/* FIBA paper foul cell — 가로 중간선 (foul type 위 / quarter 아래) */
+/* PR-Stat2.3 (2026-05-15) — 사용자 명시 (이미지 #26): foul cell 의 가로 중간선 삭제.
+   기존: .ss-c-foul::before 가 cell 중앙 가로선 (foul type 위 / quarter 아래 시안 정합).
+   사용자 결정: 가로선 제거 → ::before 룰 제거 (display none 또는 통째 삭제). */
 .ss-shell .ss-tbox__plyrow .ss-c-foul::before {
-  content: '';
-  position: absolute;
-  left: 1px;
-  right: 1px;
-  top: 50%;
-  border-top: 0.5px solid var(--pap-hair);
-  pointer-events: none;
+  content: none;
 }
 /* 5반칙 시각 — data-fouled-out true 면 행 빨강 옅게 + 이름 빨강 강조 */
 .ss-shell .ss-tbox__plyrow[data-fouled-out="true"] {
