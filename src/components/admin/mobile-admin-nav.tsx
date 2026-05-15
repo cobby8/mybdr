@@ -1,22 +1,23 @@
-﻿"use client";
+"use client";
 
 /* ============================================================
- * AdminMobileNav ??紐⑤컮???꾨쾭嫄?+ ?쒕줈??(Admin-2 諛뺤젣 2026-05-15)
+ * AdminMobileNav — 모바일 햄버거 + 드로어 (Admin-2 박제 2026-05-15)
  *
- * 諛뺤젣 source: Dev/design/BDR-current/components-admin.jsx (AdminMobileNav)
- * 諛뺤젣 target: src/components/admin/mobile-admin-nav.tsx
+ * 박제 source: Dev/design/BDR-current/components-admin.jsx (AdminMobileNav)
+ * 박제 target: src/components/admin/mobile-admin-nav.tsx
  *
- * ?댁쑀 (??:
- *   - ?쒖븞 v2.14 ??`.admin-mobile-toggle / .admin-mobile-overlay /
- *     .admin-mobile-drawer*` ?쒓컖 諛뺤젣. (web) AppNav ? ?쇨??? *     ?곗륫 ?щ씪?대뱶 ?쒕줈??+ admin ?곸뿭 ?ㅽ겕 ?좏겙 ?먮룞 泥섎━.
- *   - **props ?쒓렇?덉쿂 100% 蹂댁〈** ??`roles, user` 洹몃?濡? ?몄텧泥?0嫄??뚭?.
- *   - ESC / ?몃? ?대┃ / ?쇱슦???대룞 ?먮룞 ?ロ옒 / body ?ㅽ겕濡??좉툑 蹂댁〈.
+ * 이유 (왜):
+ *   - 시안 v2.14 의 `.admin-mobile-toggle / .admin-mobile-overlay /
+ *     .admin-mobile-drawer*` 시각 박제. (web) AppNav 와 일관된
+ *     우측 슬라이드 드로어 + admin 영역 다크 토큰 자동 처리.
+ *   - **props 시그니처 100% 보존** — `roles, user` 그대로. 호출처 0건 회귀.
+ *   - ESC / 외부 클릭 / 라우트 이동 자동 닫힘 / body 스크롤 잠금 보존.
  *
- * ?대뼸寃?
- *   1. ?꾨쾭嫄?= `.admin-mobile-toggle` (admin.css 媛 紐⑤컮??fixed top-left 諛뺤젣).
- *   2. ?ㅻ쾭?덉씠 = `.admin-mobile-overlay [data-open]` (?쒖븞 ?⑦꽩 洹몃?濡?.
- *   3. ?쒕줈??= `.admin-mobile-drawer [data-open]` (?곗륫 ?щ씪?대뱶).
- *   4. 硫붾돱 = `.admin-aside__link [data-active] [data-child]` (?ъ씠?쒕컮? ?숈씪 ?대옒??.
+ * 어떻게:
+ *   1. 햄버거 = `.admin-mobile-toggle` (admin.css 가 모바일 fixed top-left 박제).
+ *   2. 오버레이 = `.admin-mobile-overlay [data-open]` (시안 패턴 그대로).
+ *   3. 드로어 = `.admin-mobile-drawer [data-open]` (우측 슬라이드).
+ *   4. 메뉴 = `.admin-aside__link [data-active] [data-child]` (사이드바와 동일 클래스).
  * ============================================================ */
 
 import { useState, useEffect } from "react";
@@ -28,27 +29,28 @@ import {
   type AdminRole,
   type AdminNavItem,
 } from "./sidebar";
-// 2026-05-02 (Admin-Web ?쒓컖 ?듯빀 v2 Phase 3) ??紐⑤컮??admin ?쒕줈?댁뿉?쒕룄 ?뚮쭏 ?좉? 媛??import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
-// 2026-05-11 admin 留덉씠?섏씠吏 Phase 1 ???쒕줈???곷떒 ?ъ슜??移대뱶 + 濡쒓렇?꾩썐 ?듯빀
+// 2026-05-02 (Admin-Web 시각 통합 v2 Phase 3) — 모바일 admin 드로어에서도 테마 토글 가능
+import { ThemeSwitch } from "@/components/bdr-v2/theme-switch";
+// 2026-05-11 admin 마이페이지 Phase 1 — 드로어 상단 사용자 카드 + 로그아웃 통합
 import { LogoutButton } from "@/app/(admin)/admin/_components/logout-button";
 
 interface Props {
   roles: AdminRole[];
-  // 2026-05-11: ?쒕줈???곷떒 ?ъ슜??移대뱶????layout ?먯꽌 prop ?꾨떖
+  // 2026-05-11: 드로어 상단 사용자 카드용 — layout 에서 prop 전달
   user?: {
     nickname: string | null;
     email: string;
   };
 }
 
-// ?대땲??異붿텧 (?쒕줈???곷떒 ?꾨컮???
+// 이니셜 추출 (드로어 상단 아바타용)
 function getInitial(nickname: string | null, email: string): string {
   const source = nickname?.trim() || email;
   return (source[0] ?? "?").toUpperCase();
 }
 
-// 硫붾돱 ??ぉ 1媛??뚮뜑留?(children ?ㅼ뿬?곌린 + ?대┃ ???쒕줈???リ린)
-// 2026-05-15 Admin-2: ?쒖븞 `.admin-aside__link` 諛뺤젣 ?대옒???ъ슜 (?ъ씠?쒕컮? ?숈씪)
+// 메뉴 항목 1개 렌더링 (children 들여쓰기 + 클릭 시 드로어 닫기)
+// 2026-05-15 Admin-2: 시안 `.admin-aside__link` 박제 클래스 사용 (사이드바와 동일)
 function renderMobileItem(
   item: AdminNavItem,
   pathname: string,
@@ -85,16 +87,16 @@ function renderMobileItem(
 export function AdminMobileNav({ roles, user }: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  // ?쒕줈???곷떒 ?ъ슜??移대뱶 ?쒖떆??(user prop ?덉쓣 ?뚮쭔)
+  // 드로어 상단 사용자 카드 표시용 (user prop 있을 때만)
   const displayName = user
     ? user.nickname?.trim() || user.email.split("@")[0]
     : null;
   const initial = user ? getInitial(user.nickname, user.email) : null;
 
-  // ?좎? ??븷??留욌뒗 硫붾돱留??꾪꽣留?(sidebar ? ?숈씪 ??洹몃９??援ъ“)
+  // 유저 역할에 맞는 메뉴만 필터링 (sidebar 와 동일 — 그룹화 구조)
   const visibleStructure = filterStructureByRoles(roles);
 
-  // ESC ?ㅻ줈 ?リ린
+  // ESC 키로 닫기
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
@@ -104,12 +106,12 @@ export function AdminMobileNav({ roles, user }: Props) {
     return () => document.removeEventListener("keydown", handleEsc);
   }, [open]);
 
-  // ?섏씠吏 ?대룞 ???먮룞 ?ロ옒
+  // 페이지 이동 시 자동 닫힘
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // body ?ㅽ겕濡??좉툑 (?쒕줈???대┝ ??
+  // body 스크롤 잠금 (드로어 열림 시)
   useEffect(() => {
     if (open) {
       const original = document.body.style.overflow;
@@ -122,17 +124,17 @@ export function AdminMobileNav({ roles, user }: Props) {
 
   return (
     <>
-      {/* ?꾨쾭嫄?踰꾪듉 ???쒖븞 .admin-mobile-toggle (admin.css 紐⑤컮??fixed top-left) */}
+      {/* 햄버거 버튼 — 시안 .admin-mobile-toggle (admin.css 모바일 fixed top-left) */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        aria-label="愿由ъ옄 硫붾돱 ?닿린"
+        aria-label="관리자 메뉴 열기"
         className="admin-mobile-toggle"
       >
         <span className="material-symbols-outlined">menu</span>
       </button>
 
-      {/* ?ㅻ쾭?덉씠 ???쒖븞 .admin-mobile-overlay [data-open] */}
+      {/* 오버레이 — 시안 .admin-mobile-overlay [data-open] */}
       <div
         aria-hidden="true"
         onClick={() => setOpen(false)}
@@ -140,15 +142,15 @@ export function AdminMobileNav({ roles, user }: Props) {
         data-open={open ? "true" : "false"}
       />
 
-      {/* ?쒕줈???⑤꼸 ???쒖븞 .admin-mobile-drawer [data-open] (?곗륫 ?щ씪?대뱶) */}
+      {/* 드로어 패널 — 시안 .admin-mobile-drawer [data-open] (우측 슬라이드) */}
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="愿由ъ옄 硫붾돱"
+        aria-label="관리자 메뉴"
         className="admin-mobile-drawer"
         data-open={open ? "true" : "false"}
       >
-        {/* ?곷떒: ?ъ슜??移대뱶 + ?リ린 ???쒖븞 .admin-mobile-drawer__head */}
+        {/* 상단: 사용자 카드 + 닫기 — 시안 .admin-mobile-drawer__head */}
         <div className="admin-mobile-drawer__head">
           {user ? (
             <>
@@ -159,7 +161,7 @@ export function AdminMobileNav({ roles, user }: Props) {
               </div>
             </>
           ) : (
-            // user ?놁쑝硫?濡쒓퀬留?(?쒖븞 ?泥?
+            // user 없으면 로고만 (시안 대체)
             <Link
               href="/admin"
               onClick={() => setOpen(false)}
@@ -175,18 +177,18 @@ export function AdminMobileNav({ roles, user }: Props) {
               <span className="admin-aside__logo-badge">ADMIN</span>
             </Link>
           )}
-          {/* ?リ린 ???쒖븞 .admin-detail-modal__close ?ъ궗??(admin.css ?뺤쓽) */}
+          {/* 닫기 — 시안 .admin-detail-modal__close 재사용 (admin.css 정의) */}
           <button
             type="button"
             onClick={() => setOpen(false)}
-            aria-label="硫붾돱 ?リ린"
+            aria-label="메뉴 닫기"
             className="admin-detail-modal__close"
           >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        {/* 硫붾돱 ???쒖븞 .admin-mobile-drawer__body */}
+        {/* 메뉴 — 시안 .admin-mobile-drawer__body */}
         <nav className="admin-mobile-drawer__body">
           {visibleStructure.map((entry, idx) => {
             if (entry.type === "item") {
@@ -196,7 +198,7 @@ export function AdminMobileNav({ roles, user }: Props) {
                 </div>
               );
             }
-            // 洹몃９ ???쒖븞 .admin-aside__title ?ㅻ뜑 + items
+            // 그룹 — 시안 .admin-aside__title 헤더 + items
             return (
               <div key={`group-${idx}`} className="admin-aside__group">
                 <div className="admin-aside__title">{entry.label}</div>
@@ -208,7 +210,7 @@ export function AdminMobileNav({ roles, user }: Props) {
           })}
         </nav>
 
-        {/* ?섎떒: ?뚮쭏 ?좉? + 留덉씠?섏씠吏 + ?ъ씠?몃줈 + 濡쒓렇?꾩썐 ???쒖븞 .admin-mobile-drawer__foot */}
+        {/* 하단: 테마 토글 + 마이페이지 + 사이트로 + 로그아웃 — 시안 .admin-mobile-drawer__foot */}
         <div className="admin-mobile-drawer__foot">
           <div style={{ padding: "4px 6px 6px", display: "flex", justifyContent: "center" }}>
             <ThemeSwitch />
@@ -220,7 +222,7 @@ export function AdminMobileNav({ roles, user }: Props) {
               className="admin-aside__foot-link"
             >
               <span className="material-symbols-outlined">account_circle</span>
-              留덉씠?섏씠吏
+              마이페이지
             </Link>
           )}
           <Link
@@ -229,8 +231,9 @@ export function AdminMobileNav({ roles, user }: Props) {
             className="admin-aside__foot-link"
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            ?ъ씠?몃줈 ?뚯븘媛湲?          </Link>
-          {/* 濡쒓렇?꾩썐 (drawer-card variant ???쒖븞 諛뺤젣 ?꾩냽?먯꽌 留덉씠洹몃젅?댁뀡) */}
+            사이트로 돌아가기
+          </Link>
+          {/* 로그아웃 (drawer-card variant — 시안 박제 후속에서 마이그레이션) */}
           {user && (
             <LogoutButton
               variant="drawer-card"
