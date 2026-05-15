@@ -1,29 +1,31 @@
 /**
  * 2026-05-13 UI-1 (대시보드 체크리스트 hub) — 대회 셋업 진행도 판정 헬퍼.
+ * 2026-05-16 PR-Admin-5 — 8 항목 → 7 항목 통합 (#3 종별 정의 + #4 운영 방식 → 통합 #3 "종별 + 운영 방식").
  *
  * 이유(왜):
  *   - 운영자가 8 메뉴 카드 사이에서 "지금 뭘 해야 하는지" 파악이 어려움 (IA 진단 §3).
- *   - dashboard 를 체크리스트로 재구성 → 결정 8 항목의 진행도/잠금/요약을 한 화면에 노출.
+ *   - dashboard 를 체크리스트로 재구성 → 결정 7 항목의 진행도/잠금/요약을 한 화면에 노출.
  *   - 각 항목의 완료 여부 판정 로직을 page.tsx 에서 분리 → 단위 테스트 + 재사용.
+ *   - PR-Admin-5: 종별 정의/운영 방식 두 카드는 같은 페이지(/divisions) → 운영자 클릭 2회 + 같은 페이지 진입 혼란 발생.
+ *     통합 1 카드 + 진행도 ("정의 N건 / 운영방식 M건") 표시로 IA 단순화.
  *
- * 항목 8 개 (PM 명세):
+ * 항목 7 개 (PM 명세 / PR-Admin-5 통합 후):
  *   1. 기본 정보   — name + startDate + venue_name
  *   2. 시리즈 연결 — series_id != null (선택이지만 단계로 노출)
- *   3. 종별 정의   — divisionRules 1건 이상
- *   4. 운영 방식   — 모든 divisionRules.format != null + group_* 모드면 settings.group_size/group_count 박제
- *   5. 신청 정책   — maxTeams + entry_fee + auto_approve_teams 박제 (auto_approve 는 boolean — null 만 미설정)
- *   6. 사이트 설정 — tournamentSite 존재 + isPublished
- *   7. 기록 설정   — tournament.settings.default_recording_mode 박제
- *   8. 대진표 생성 — matches 1건 이상
+ *   3. 종별 + 운영 방식 — divisionRules 1건 이상 + 모든 format 박제 + group_* 모드면 settings.group_size/group_count 박제
+ *   4. 신청 정책   — maxTeams + entry_fee + auto_approve_teams 박제 (auto_approve 는 boolean — null 만 미설정)
+ *   5. 사이트 설정 — tournamentSite 존재 + isPublished
+ *   6. 기록 설정   — tournament.settings.default_recording_mode 박제
+ *   7. 대진표 생성 — matches 1건 이상
  *
- * 잠금 조건:
- *   - 4 운영 방식 ← 3 종별 정의 선행
- *   - 6 사이트     ← 1 기본 정보 선행
- *   - 7 기록 설정  ← 4 운영 방식 선행
- *   - 8 대진표     ← 4 운영 방식 선행
+ * 잠금 조건 (통합 후 step 번호 한 단계씩 당김):
+ *   - 3 종별 + 운영 방식 ← 1 기본 정보 선행
+ *   - 5 사이트            ← 1 기본 정보 선행
+ *   - 6 기록 설정         ← 3 종별 + 운영 방식 선행
+ *   - 7 대진표            ← 3 종별 + 운영 방식 선행
  *
  * 공개 가드:
- *   - 필수 7 항목 (1·3·4·5·6·7·8) ALL ✅ 일 때 공개 가능 (2 시리즈 연결은 선택)
+ *   - 필수 6 항목 (1·3·4·5·6·7) ALL ✅ 일 때 공개 가능 (2 시리즈 연결은 선택)
  */
 
 import type { Prisma } from "@prisma/client";
@@ -161,7 +163,7 @@ export type ChecklistStatus = "complete" | "in_progress" | "empty" | "locked";
 
 export type ChecklistItem = {
   key: string;
-  step: number; // 1~8
+  step: number; // 1~7 (PR-Admin-5: 8→7 축소)
   title: string;
   summary: string; // 한 줄 요약 (예: "i3-U9 / i2-U11")
   status: ChecklistStatus;
@@ -169,18 +171,21 @@ export type ChecklistItem = {
   link: string;
   required: boolean; // 공개 필수 항목 여부 (2 시리즈는 false, 나머지 true)
   lockedReason?: string; // status=locked 일 때 안내 문구
+  // 2026-05-16 PR-Admin-5 — UI 표시용 진행도 (예: 통합 #3 "종별 + 운영 방식" — "정의 4건 / 운영방식 2건").
+  //   undefined 이면 status 만 표시 (기존 동작 유지).
+  progress?: { current: number; total: number };
 };
 
 export type SetupProgress = {
   completed: number; // ✅ 개수 (locked 제외)
-  total: number; // 8
+  total: number; // 7 (PR-Admin-5: 8→7 통합)
   items: ChecklistItem[];
-  allRequiredComplete: boolean; // 공개 가드 (필수 7 항목 ALL ✅)
-  missingRequiredTitles: string[]; // disabled 시 tooltip 용 ("기본 정보, 종별 정의, ...")
+  allRequiredComplete: boolean; // 공개 가드 (필수 6 항목 ALL ✅)
+  missingRequiredTitles: string[]; // disabled 시 tooltip 용 ("기본 정보, 종별 + 운영 방식, ...")
 };
 
 /**
- * 8 항목 진행도 종합.
+ * 7 항목 진행도 종합 (PR-Admin-5: 8→7 통합).
  *
  * @param tournamentId — 카드 href 생성용 (각 카드의 진입 링크 prefix)
  * @param t — Tournament row (필요 필드만)
@@ -203,17 +208,24 @@ export function calculateSetupProgress(
   const recordingComplete = isRecordingModeConfigured(t);
   const bracketComplete = isBracketGenerated(r);
 
+  // 통합 카드 #3 진행도 산출 — "정의 N건 / 운영방식 M건"
+  //   - rulesWithFormat = format 박제된 종별 수 (운영방식 박제 진척)
+  //   - 통합 카드 status = 종별 0 = empty / 일부 = in_progress / 모두 박제 = complete
+  const rulesWithFormatCount = r.divisionRules.filter((d) => !!d.format).length;
+  const totalDivisionsCount = r.divisionRules.length;
+
   // 요약 텍스트 헬퍼 (한 줄 — 모든 카드 동일 톤)
   const venueSummary = t.venue_name ? `장소: ${t.venue_name}` : "장소 미설정";
   const seriesSummary = seriesLinked ? "시리즈 연결됨" : "시리즈 미연결 (선택)";
-  const divsSummary = divsDefined
-    ? `${r.divisionRules.length}개 종별`
-    : "종별 미정의";
-  const divsCompleteSummary = divsComplete
-    ? "모든 종별 운영 방식 박제됨"
-    : divsDefined
-      ? `${r.divisionRules.filter((d) => !!d.format).length}/${r.divisionRules.length} 박제`
-      : "종별 먼저 정의 필요";
+  // 통합 카드 #3 "종별 + 운영 방식" summary
+  //   - 종별 미정의 = "종별 미정의"
+  //   - 종별 정의 + 모든 운영 방식 박제 = "종별 N건 모두 운영 방식 박제됨"
+  //   - 종별 정의 + 일부 운영 방식 박제 = "종별 N건 / 운영방식 M건"
+  const divsCombinedSummary = !divsDefined
+    ? "종별 미정의"
+    : divsComplete
+      ? `종별 ${totalDivisionsCount}건 모두 운영 방식 박제됨`
+      : `종별 ${totalDivisionsCount}건 / 운영방식 ${rulesWithFormatCount}건`;
   const regSummary = regComplete
     ? `최대 ${t.maxTeams}팀 · 참가비 ${Number(t.entry_fee).toLocaleString()}원`
     : "정원/참가비/자동승인 미박제";
@@ -229,7 +241,9 @@ export function calculateSetupProgress(
     ? `${r.matchesCount}경기 생성됨`
     : "대진표 미생성";
 
-  // 8 항목 (PM 명세 순서) — 잠금 조건 처리 포함.
+  // 7 항목 (PR-Admin-5 통합 후) — 잠금 조건 처리 포함.
+  //   기존 #3 종별 정의 + #4 운영 방식 → 통합 #3 "종별 + 운영 방식" (key="divisions")
+  //   기존 #5~#8 → #4~#7 step renumbering
   const items: ChecklistItem[] = [
     {
       key: "basic",
@@ -251,37 +265,34 @@ export function calculateSetupProgress(
       link: `${base}/wizard`,
       required: false, // 선택 항목
     },
+    // ⭐ PR-Admin-5 통합 카드 — 종별 정의 + 운영 방식 (같은 페이지 = /divisions)
+    //   사유: 운영자가 같은 페이지로 클릭 2회 진입 혼란 → 1 카드 + 진행도 표시 (정의 N건 / 운영방식 M건)
+    //   status: divsComplete (= 종별 정의 ALL + 운영 방식 박제 ALL) 시만 complete
+    //   progress: divsDefined 시 운영방식 진척 (rulesWithFormat / totalDivisions) 표시
     {
       key: "divisions",
       step: 3,
-      title: "종별 정의",
-      summary: divsSummary,
-      status: divsDefined ? "complete" : basic ? "empty" : "locked",
+      title: "종별 + 운영 방식",
+      summary: divsCombinedSummary,
+      status: !basic
+        ? "locked"
+        : divsComplete
+          ? "complete"
+          : divsDefined
+            ? "in_progress"
+            : "empty",
       icon: "category",
       link: `${base}/divisions`,
       required: true,
       lockedReason: !basic ? "기본 정보를 먼저 박제하세요" : undefined,
-    },
-    {
-      key: "divisionRules",
-      step: 4,
-      title: "운영 방식",
-      summary: divsCompleteSummary,
-      status: !divsDefined
-        ? "locked"
-        : divsComplete
-          ? "complete"
-          : r.divisionRules.some((d) => !!d.format)
-            ? "in_progress"
-            : "empty",
-      icon: "settings_input_component",
-      link: `${base}/divisions`,
-      required: true,
-      lockedReason: !divsDefined ? "종별을 먼저 정의하세요" : undefined,
+      // 진행도 표시 — 종별 정의된 경우에만 (정의 0이면 progress undefined = 표시 0)
+      progress: divsDefined
+        ? { current: rulesWithFormatCount, total: totalDivisionsCount }
+        : undefined,
     },
     {
       key: "registration",
-      step: 5,
+      step: 4,
       title: "신청 정책",
       summary: regSummary,
       status: regComplete ? "complete" : "empty",
@@ -293,11 +304,11 @@ export function calculateSetupProgress(
     },
     {
       key: "site",
-      step: 6,
+      step: 5,
       title: "사이트 설정",
       summary: siteSummary,
       // 2026-05-13 UI-5: siteComplete (= hasTournamentSite) 면 ✅. isPublished 는 status 분리됨
-      //   → 사이트 박제만 완료되면 6번 카드 ✅ (공개는 hub 의 공개 버튼이 별도 책임)
+      //   → 사이트 박제만 완료되면 5번 카드 ✅ (공개는 hub 의 공개 버튼이 별도 책임)
       status: !basic ? "locked" : siteComplete ? "complete" : "empty",
       icon: "language",
       link: `${base}/site`,
@@ -306,25 +317,25 @@ export function calculateSetupProgress(
     },
     {
       key: "recording",
-      step: 7,
+      step: 6,
       title: "기록 설정",
       summary: recordingSummary,
       status: !divsComplete ? "locked" : recordingComplete ? "complete" : "empty",
       icon: "edit_note",
       link: `${base}/matches`,
       required: true,
-      lockedReason: !divsComplete ? "운영 방식을 먼저 박제하세요" : undefined,
+      lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
     },
     {
       key: "bracket",
-      step: 8,
+      step: 7,
       title: "대진표 생성",
       summary: bracketSummary,
       status: !divsComplete ? "locked" : bracketComplete ? "complete" : "empty",
       icon: "account_tree",
       link: `${base}/bracket`,
       required: true,
-      lockedReason: !divsComplete ? "운영 방식을 먼저 박제하세요" : undefined,
+      lockedReason: !divsComplete ? "종별 + 운영 방식을 먼저 박제하세요" : undefined,
     },
   ];
 
