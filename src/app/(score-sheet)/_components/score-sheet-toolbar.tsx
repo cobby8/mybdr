@@ -45,6 +45,10 @@ interface ScoreSheetToolbarProps {
   // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달 trigger.
   //   form 이 ConfirmModal 로 작성법 안내 노출.
   onOpenManual?: () => void;
+  // 2026-05-15 (PR-Zoom-1) — 기록 확대 mode toggle (작은 태블릿 fit).
+  //   on 시 비기록 영역 hide + 기록 영역 1.3x. 미전달 시 버튼 미노출.
+  isZoomMode?: boolean;
+  onToggleZoom?: () => void;
   // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기 (유지).
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
@@ -74,6 +78,8 @@ export function ScoreSheetToolbar({
   onCancelRecord,
   onReselectLineup,
   onOpenManual,
+  isZoomMode,
+  onToggleZoom,
   endMatchDisabled,
   hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
   // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 props (사용자 결재 Q3 / Q4)
@@ -158,6 +164,32 @@ export function ScoreSheetToolbar({
               help_outline
             </span>
             설명서
+          </button>
+        )}
+
+        {/* 2026-05-15 (PR-Zoom-1) — 기록 확대 toggle (작은 태블릿 fit).
+            on 시 비기록 영역 hide + 기록 영역 1.3x. 활성 시 시각 강조 (info accent). */}
+        {onToggleZoom && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onToggleZoom}
+            aria-label={isZoomMode ? "기록 확대 해제" : "기록 확대"}
+            title={isZoomMode ? "기록 확대 해제" : "기록 확대 (1.3x)"}
+            style={
+              isZoomMode
+                ? {
+                    backgroundColor: "var(--color-info)",
+                    color: "#fff",
+                    border: "1px solid var(--color-info)",
+                  }
+                : undefined
+            }
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              {isZoomMode ? "zoom_out" : "zoom_in"}
+            </span>
+            {isZoomMode ? "확대 해제" : "확대"}
           </button>
         )}
 
