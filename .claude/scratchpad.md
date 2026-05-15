@@ -38,8 +38,8 @@
 - PR-S9 / UI-1.4 entry_fee / GNBA 8팀 코치 안내
 
 ## 미푸시 commit (subin 브랜치)
-- 본 응답 직전 = 0 (origin/subin 일치)
-- 본 응답 후 = `0853927` (chore wip) + 본 commit 다음 sync commit 1건 = 2 commit (push 결재 대기)
+- 현재 = **0** (origin/subin = HEAD = d1290c0 박제 완료)
+- 본 세션 직전 = 4 commit (0853927 chore wip + d43704a sync + d1290c0 PR4-UI by 다른 세션 + Phase 6 PR2/PR1 등 이전 commit)
 
 ## 기획설계 (planner-architect)
 (본 의뢰 = 시안 박제이므로 신규 설계 없음 / cli-port-to-src.md 참조)
@@ -95,6 +95,52 @@
 - **DB 0 추가 라운드트립**: referee/page.tsx 에 `getAssociationAdmin()` 추가 (1 추가 SELECT) — `Promise.all` 병렬로 referee 조회와 동시 실행 → 추가 latency 0 (DB 동시 처리).
 - **JWT 갱신 필요 (Q4 결재 유지)**: recorder_admin 지정 후 사용자 본인 로그아웃→재로그인 필요 (기존 룰 그대로). `isRecorderAdmin` 은 session.admin_role 평가 — JWT 갱신 전까지 false 반환.
 
+### PR4-FIX 진단 + 수정 (사용자 피드백 반영 — recorder_admin UI 결함 3건)
+
+📝 진단 요약:
+- 결함 #1 (사이드바 비노출): JWT stale 함정 — `isRecorderAdmin(session)` 가 JWT.admin_role 만 평가. DB 박제 후 재로그인 안 하면 stale → `getAssociationAdmin()` sentinel 미진입 → me API admin=null → adminInfo=null → 사이드바 admin 섹션 0
+- 결함 #2 (Super Admin 라벨): 코드 분석상 정확 (recorder_admin 이면 "Recorder Admin" 표시되어야 함). 가능 원인 = stale JWT (과거 isAdmin=true) 또는 사용자 인용 오류. fix = DB ground truth 우선 판정으로 stale JWT 무관 정확 표시
+- 결함 #3 (빠른 메뉴 부족): 코드에서 확인 — quickLinks 배열에 2개만 박제. 존재하는 6 핵심 admin 페이지 (배정/공고/일자별/정산/단가/일괄 등록) 미박제
+
+#### 변경 파일 + LOC
+| 파일 | 변경 | 신규/수정 | LOC |
+|------|------|---------|----|
+| `src/app/api/web/me/route.ts` | (a) User select isAdmin/admin_role 추가 (b) `recorderAdmin` DB 폴백 (4 분기 OR) (c) `effectiveAdmin` 강제 sentinel — DB ground truth 가 admin-like 면 admin=null 이어도 첫 활성 협회 자동 선택 + sentinel role 박제 (d) 응답에 `admin_role` 키 추가 | 수정 | +35 |
+| `src/app/(referee)/referee/admin/page.tsx` | (a) `prisma.user.findUnique` 추가 (isAdmin/admin_role) (b) `superAdmin` / `recorderAdmin` 판정 DB 폴백 (OR 분기) (c) quickLinks 2 → 8 확장 (배정/공고/일자별/정산/단가/일괄 등록 신규 6) | 수정 | +60 |
+
+**합계**: 수정 2 파일 / 신규 0 / 약 95 LOC.
+
+#### 진단 결과 (원인)
+- **결함 #1**: **JWT stale 함정** — `is-recorder-admin.ts` L61~62 가 `session.admin_role` JWT 만 평가. JWT 만료 7일 동안 DB 박제 반영 X. 운영 DB 에서 user_id=3431 의 admin_role="recorder_admin" 확인 (`scripts/_temp/check-user-3431.ts`) 했으나 사용자 JWT 는 박제 전 발급 → stale → 사이드바 admin 메뉴 0
+- **결함 #2**: **stale JWT 가능 원인** — 코드 분석상 entryRole 분기 정확 (admin/page.tsx L60 = recorder_admin). 사용자 보고 "Super Admin" 라벨은 (a) stale JWT (b) 인용 오류 둘 다 가능. fix = DB ground truth 우선 판정으로 stale JWT 무관 보장
+- **결함 #3**: **박제 누락** — admin/page.tsx L158~171 quickLinks 배열에 2개만. 페이지는 8 핵심 admin 라우트 모두 존재 (Glob 확인) — 빠른 메뉴 진입 카드 박제 부족
+
+#### Q 결재 사항 (debugger 권고 — PM/사용자 결재 후 확정)
+- **DB 폴백 vs JWT 갱신**: 본 fix = DB 폴백 (즉시 + 안전). 후속 PR 큐 = JWT 강제 만료 (admin_role 변경 시 자동 재로그인 — 운영 자동화)
+- **첫 활성 협회 자동 선택**: me API 의 `effectiveAdmin` 강제 sentinel = admin-guard.ts 의 sentinel 분기 (L144~167) 와 동일 로직 카피 — 1차 source (admin-guard) 변경 안 함 (회귀 위험 회피)
+- **quickLinks 8개**: 정산 대시보드 / 설정 2개는 사이드바만 박제 (빠른 메뉴 미박제 — 8 카드 lg:grid-cols-2 = 4행 가지런)
+
+#### 검증 결과
+- `npx tsc --noEmit`: **0 에러** (회귀 0)
+- `npx vitest run`: **921/921 PASS** (PR4-UI 직후 921 동일 / 회귀 0)
+
+#### 회귀 검증
+- **일반 user (비관리자)**: DB.isAdmin=false / DB.admin_role=null → 폴백 분기 false → 기존 동작 그대로 (admin=null / adminInfo=null / recorder_admin=false / 사이드바 본인 메뉴만) ✅
+- **super_admin (DB.isAdmin=true)**: DB 폴백으로 effectiveAdmin sentinel 채움 보장 — JWT stale 이어도 사이드바 admin 섹션 노출 + entryRole="super_admin" → "Super Admin 권한 진입" 정확 표시 ✅
+- **recorder_admin (DB.admin_role="recorder_admin" / JWT stale)**: DB 폴백으로 effectiveAdmin sentinel 채움 + admin/page.tsx entryRole="recorder_admin" → "Recorder Admin 권한 진입" 정확 표시 + 사이드바 admin 섹션 12 permission 노출 + 빠른 메뉴 8개 ✅
+- **협회 관리자 (기존 association_admin)**: 기존 동작 보존 — `admin` 변수가 정상 채워지므로 폴백 분기 미진입. sg/refchief/staff 등 role 매칭 그대로 ✅
+
+#### errors.md 박제 항목
+- `[2026-05-15] recorder_admin 사이드바 admin 섹션 비노출 = JWT stale 함정 (PR4-UI 사용자 보고 fix)` — JWT stale 함정 + DB ground truth 폴백 표준 + role 변경 시 재로그인 안내 의무 + JWT 강제 만료 후속 PR 큐
+
+#### 사용자 후속 검증 사항
+1. **로그아웃 후 재로그인 권장**: 본 fix 는 stale JWT 도 통과시키도록 DB 폴백 박제. 그러나 클린 검증 위해 user_id=3431 본인이 한 번은 로그아웃→재로그인 권장 (JWT 갱신 후 DB.admin_role 반영)
+2. **사이드바 검증** (lg+): /referee 진입 → 좌측 사이드바 = 본인 7항목 + "관리자" 섹션 + 9 admin 항목 (관리자/배정 관리/공고 관리/일괄 등록/일자별 운영/정산 관리/정산 대시보드/배정비 단가/설정) 노출
+3. **admin 페이지 라벨 검증**: /referee/admin 진입 → 상단 안내 박스 "**Recorder Admin** 권한 진입" 표시 (Super Admin 아님 — DB 폴백으로 보장)
+4. **빠른 메뉴 8개 검증**: /referee/admin 진입 → "빠른 메뉴" 영역 8개 카드 노출 (심판 관리 / 배정 관리 / 공고 관리 / 일자별 운영 / 정산 관리 / 배정비 단가 / 일괄 등록 / Excel 일괄 검증)
+5. **회귀 검증**: 일반 사용자 / 협회 관리자 / super_admin 진입 시 기존 동작 변경 0 확인
+6. **임시 스크립트 정리**: `scripts/_temp/check-user-3431.ts` 삭제 (운영 DB credentials 노출 방지 — 운영 안전 룰)
+
 ## 테스트 결과 (tester)
 (Phase 2 완료 후 시각 검증 박제)
 
@@ -108,6 +154,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | PR4-FIX recorder_admin UI 결함 3건 진단+수정 (사이드바/Super Admin 라벨/빠른 메뉴) | ✅ 수정 2 파일 / +95 LOC / tsc 0 / vitest 921/921 PASS / DB ground truth 폴백 박제 (JWT stale 함정 영구 차단) / 회귀 0 / errors.md 박제 / commit 결재 대기 |
 | 2026-05-15 | Phase 23 PR-RO1~RO4 종료 매치 read-only 차단 (5 계층 방어 박제) | ✅ 수정 7 파일 / ~131 LOC / tsc 0 / vitest 236/236 PASS / 운영 동작 8 케이스 보존 / Q1~Q8 권고안 박제 / commit 결재 대기 |
 | 2026-05-15 | `.git/index` 손상 복구 + 다른 세션 미커밋 5 파일 WIP commit 분리 (0853927) | ✅ score-sheet + me + association-wizard 78 lines 박제 / admin sync 전 working tree clean 확보 / 본 의뢰 §2 Phase 0 실제 필요했음 (의뢰서 가정 맞음) |
 | 2026-05-15 | Phase 6 PR2 협회 마법사 본체 (Step 1~3 + WizardShell + sessionStorage + 진입 카드) | ✅ 79e72de — super_admin 전용 / Q4 결재 적용 |
@@ -116,10 +163,6 @@
 | 2026-05-15 | PR3 recorder_admin /referee/admin 진입 + admin-guard sentinel + RoleMatrixCard | ✅ facafd7 — 수정 6 파일 / tsc 0 / vitest 873/873 |
 | 2026-05-15 | PR2 recorder_admin 기록원 배정 API 가드 (recorders GET/POST/DELETE) | ✅ 29730ba — 라우트 내부 헬퍼 / vitest 868/868 |
 | 2026-05-15 | PR1 recorder_admin 권한 헬퍼 + 기록 API 가드 | ✅ 718c32f — 신규 3 파일 + 수정 3 / 16 신규 케이스 |
-| 2026-05-15 | Phase 19 PR-Stat3.9 useToast no-op fallback (Turbopack dev 안전망) | ✅ 4721d60 |
-| 2026-05-15 | Phase 19 PR-Stat3.8 QuarterEndModal OT max 9 (OT4/OT5 진입) | ✅ e108b84 |
-| 2026-05-15 | Phase 19 PR-Stat3.7 OT max 7→9 (OT5 확장) | ✅ d814486 |
-| 2026-05-15 | Phase 6 PR3 협회 마법사 Step 4 Referee 사전 등록 (옵션) | ✅ 신규 2 + 수정 6 파일 / 약 480 LOC / vitest 11/11 + 921/921 회귀 0 / Q2 PR3 분리 + Q7 1차 미검증 박제 적용 / DB schema 변경 0 |
 
 ## 구현 기록 (developer) — Phase 6 PR3 Referee Step 4 (2026-05-15)
 
