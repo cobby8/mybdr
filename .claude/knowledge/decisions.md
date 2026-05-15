@@ -2,6 +2,36 @@
 <!-- 담당: planner-architect | 최대 30항목 -->
 <!-- "왜 A 대신 B를 선택했는지" 기술 결정의 배경과 이유를 기록 -->
 
+### [2026-05-16] PR-G5.2 dual-generator placeholder-helpers 통과 (옵션 B 인라인 패치)
+- **분류**: 기술 결정 / 대진표 generator / 단일 source 룰
+- **결정**: 옵션 B (기존 함수 inline 패치) ⭕ / 옵션 A (신규 plan/generate 분리) ❌ / 옵션 C (양면) ❌
+- **사유**:
+  1. dual-tournament-generator.ts 는 이미 DB I/O 0 (settings JSON 박제만) → plan 분리 가치 ↓
+  2. 인라인 박제 12건 → buildSlotLabel 호출 변환 = 시그니처 / DualMatchSettings / settings JSON 키 변경 0 (회귀 0)
+  3. 신규 SlotKind `group_match_result` 1개 추가로 A·B·C 패턴군 통합 흡수 (5 → 6 → 7 kind)
+- **신규 SlotKind**: `group_match_result` (`{ group, matchSlot: G1|G2|G3|G4, result: winner|loser }`)
+- **회귀 보장**: 5/2 운영 adjacent 17 매치 라벨 BEFORE/AFTER 100% 일치 (vitest) / B 대회 138b22d8 sequential 16팀 영향 0 / Flutter v1 영향 0
+- **검증**: tsc 0 / vitest dual-tournament-generator 8/8 PASS / tournaments 디렉토리 227/227 PASS
+- **commit**: `eaccd54`
+- **참조횟수**: 0
+
+### [2026-05-16] PR-G5.5-NBA-seed 8강/4강 NBA 시드 표준 generator (옵션 A opt-in)
+- **분류**: 기술 결정 / 대진표 generator / NBA 시드 표준
+- **결정**: 옵션 A (신규 helper + 함수 + opt-in 분기) ⭕ / 옵션 B (single_elim 진입점 분기 + admin UI) ❌ / 옵션 C (기존 generateKnockoutMatches 직접 패치) ❌
+- **사유**:
+  1. 운영 single_elim (`bracket/route.ts:466~474`) + full_league_knockout (`tournament-seeding.ts:148~165`) 모두 시드 무시 / 순차 슬롯 → NBA 표준 양분 트리 (1+8 / 4+5 / 3+6 / 2+7) 위반
+  2. 옵션 B/C = 기존 진입점 동작 변경 = 회귀 위험 ↑. 옵션 A = settings.bracket.seedingMode='nba' 시만 진입 = 회귀 0
+  3. NBA 시드 알고리즘은 vitest 친화 PURE 함수로 분리 가능 → plan/generate 패턴 의무 (lessons.md 22번)
+- **신규 파일 2건**:
+  - `src/lib/tournaments/nba-seed-helpers.ts` — `nbaSeedPairs(teamCount)` PURE / 8/16/6BYE/12BYE 자동 처리
+  - `src/lib/tournaments/nba-seed-knockout.ts` — `planNbaSeedKnockout` PURE + `generateNbaSeedKnockout` DB INSERT idempotent
+- **신규 SlotKind**: `seed_number` ("N번 시드" 라벨) — placeholder-helpers.ts 6 kind 확장
+- **진입점**: `bracket/knockout/route.ts` POST + `matches/[matchId]/route.ts` PATCH (followup-B 분기 직후)
+- **회귀 보장**: 기본 sequential 동작 보존 (default) / 강남구 4 종별 / 4차 뉴비리그 영향 0 / Flutter v1 영향 0
+- **검증**: tsc 0 / vitest 219/219 PASS (신규 25 케이스 — placeholder-helpers 3 + nba-seed-helpers 13 + nba-seed-knockout 9)
+- **commit**: `b1e48b8`
+- **참조횟수**: 0
+
 ### [2026-05-15] Tournament 단위 placeholder applier 분리 (옵션 A) — 4차 BDR 뉴비리그
 - **분류**: 기술 결정 / 대진표 generator / placeholder advancement
 - **결정자**: 사용자 (옵션 A — 운영 우선) + planner-architect (PR-G5.5-followup turn)
@@ -24,7 +54,7 @@
   - placeholder-helpers.ts `buildSlotLabel` + `buildPlaceholderNotes` 통과 의무 — 매치 232 UPDATE SQL 도 동일 헬퍼 통과 (인라인 박제 금지)
 - **Flutter v1 영향 0** / **DB schema 변경 0** (placeholder 박제 + applier 로직만)
 - **후속 PR 큐**:
-  - ✅ **G5.5-followup-B 통합 완료** (2026-05-16 commit `[TBD-PM-CommitHash]`) — 매치 PATCH route + Flutter match-sync.ts 양면 박제. `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` (status="completed" 진입 시 별도 trx + try/catch 로 ruleCount 분기 → advanceAllDivisions / advanceTournamentPlaceholders 자동 호출) + `src/lib/services/match-sync.ts` (divisionCode 없는 매치 + ruleCount=0 → advanceTournamentPlaceholders 신규 분기). vitest 4 케이스 박제 (`src/__tests__/lib/tournaments/tournament-advancement.test.ts` 신규 describe — division_rule 분기 의사코드 / status='in_progress' skip / idempotent 가드). 운영자 manual `/api/web/admin/tournaments/[id]/advance-placeholders` 라우트는 fallback 으로 유지 (변경 0). 강남구 4 종별 회귀 0 / 4차 뉴비리그 자동 채움 신규 진입 / Flutter v1 클라이언트 코드 0 변경 / DB schema 변경 0.
+  - ✅ **G5.5-followup-B 통합 완료** (2026-05-16 commit `df96522`) — 매치 PATCH route + Flutter match-sync.ts 양면 박제. `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` (status="completed" 진입 시 별도 trx + try/catch 로 ruleCount 분기 → advanceAllDivisions / advanceTournamentPlaceholders 자동 호출) + `src/lib/services/match-sync.ts` (divisionCode 없는 매치 + ruleCount=0 → advanceTournamentPlaceholders 신규 분기). vitest 4 케이스 박제 (`src/__tests__/lib/tournaments/tournament-advancement.test.ts` 신규 describe — division_rule 분기 의사코드 / status='in_progress' skip / idempotent 가드). 운영자 manual `/api/web/admin/tournaments/[id]/advance-placeholders` 라우트는 fallback 으로 유지 (변경 0). 강남구 4 종별 회귀 0 / 4차 뉴비리그 자동 채움 신규 진입 / Flutter v1 클라이언트 코드 0 변경 / DB schema 변경 0.
   - G5.5-NBA-seed: 8강/4강 NBA 시드 표준 generator (교차 시드 + 2^N 올림 + bye)
 - **참조횟수**: 0
 

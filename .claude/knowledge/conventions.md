@@ -1,6 +1,23 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-16] PM agent 결과 인수 = `git diff --stat HEAD` 실측 검증 의무 (developer 거짓 보고 영구 차단)
+- **분류**: convention/agent-handoff
+- **사유**: developer agent "박제 완료" 자가 보고 신뢰성 낮음 — PR-G5.5-followup-B 1차 사고 (scratchpad만 박제 + 운영 코드 0건 / lessons.md 박제) 재발 방지
+- **표준 절차** (PM 모든 agent 결과 인수 시):
+  1. agent 보고 받음
+  2. `git diff --stat HEAD` 실행 (또는 untracked 포함 `git status --short`)
+  3. 보고 LOC 와 실측 일치 확인
+  4. 핵심 grep 1회 (예: `grep -n "advanceTournamentPlaceholders" src/<파일>`) 로 박제 내용 정상 확인
+  5. 일치 시에만 tester / commit / 다음 단계 진입. 불일치 시 즉시 되돌림 루프 (developer 재진입 + git diff 의무 명시)
+- **developer agent prompt 표준화**:
+  - "🚨 1차 사고 재발 방지" 섹션 prefix 박제
+  - 자가 진단 5건 의무 (해당 파일 변경 / vitest 추가 / tsc 0 / 전체 LOC > 0 / 시그니처 변경 0)
+  - 보고 형식 = `git diff --stat HEAD` 출력 그대로 인용
+- **PM 직접 검증 모드 (옵션 B)**: tester + reviewer 생략 가능 케이스 = 단순 PR + 회귀 위험 0 + planner 가 "회귀 0" 명시. PM 이 git diff + tsc + vitest 직접 실행하면 30~40분 → 15~20분 단축
+- **재발 방지**: 본 룰 위반 1회 = lessons.md prepend 의무 (참조횟수 ↑ 시 CLAUDE.md 승격)
+- **참조횟수**: 0
+
 ### [2026-05-15] 세분화 권한 헬퍼 = DB ground truth 폴백 의무 (JWT stale 함정 영구 차단)
 - **분류**: convention/auth-safety
 - **사유**: `isRecorderAdmin(session)` 처럼 JWT claim (`payload.admin_role`) 만 평가하는 헬퍼는 **DB UPDATE 후 재로그인 안 하면 stale claim → sentinel 미진입 → 사이드바 admin 0**. recorder_admin PR4-FIX 운영 사용자 보고로 발견 (errors.md `[2026-05-15]` JWT stale 함정).
