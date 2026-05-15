@@ -435,39 +435,102 @@ export function ScoreSheetForm({
     await confirmModal({
       title: "전자 기록지 작성법",
       message: (
-        <div className="space-y-3">
-          {/* 2026-05-15 (PR-SS-Manual-Legend) — 색상/점수 안내 (이전 toolbar 중앙)
-              설명서 모달로 이동. 박스 형태 (default mode, inline=false). */}
+        <div className="space-y-4 text-sm">
+          {/* 색상/점수 표기 안내 박스 (작성법 위쪽). */}
           <PeriodColorLegend />
-          <ul className="space-y-2 text-sm">
-          <li>
-            <strong>1. 라인업</strong> — 헤더 "라인업" 버튼 → 양 팀 출전 명단 + 선발 5인
-            선택. 선발 5인은 자동 P.IN 체크 (후보는 교체 시 수동).
-          </li>
-          <li>
-            <strong>2. 득점</strong> — 선수 행에서 1점·2점·3점 클릭. 색상 = 현재 쿼터
-            (헤더 색상 안내 참조). 자유투 = · / 2점 = ● / 3점 = ◉.
-          </li>
-          <li>
-            <strong>3. 파울</strong> — 선수 P1~P5 박스 클릭. 5반칙 시 자동 차단 + 토스트.
-            팀 파울 (5+) 시 자유투 부여 안내 토스트.
-          </li>
-          <li>
-            <strong>4. Team fouls</strong> — 팀 파울 누적 박스 (1~4 / Extra periods).
-          </li>
-          <li>
-            <strong>5. Time-outs</strong> — 전반 (2개) / 후반 (3개) / 연장. 후반 진입 시
-            전반 박스 자동 비활성.
-          </li>
-          <li>
-            <strong>6. 쿼터 종료</strong> — 하단 "Q1 종료" 등 버튼 → 모달 (다음 쿼터 진행
-            / 4쿼터 종료 후 = 경기 종료 / OT 진행 분기).
-          </li>
-          <li>
-            <strong>7. 기록 취소</strong> — 헤더 우측 "기록 취소" (운영자 전용) → 경고
-            확인 → 매치 완전 초기화 + 이전 페이지 복귀.
-          </li>
-          </ul>
+
+          {/* 경기 시작 전 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              경기 시작 전
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>선수 명단 정하기</strong> — 화면 위쪽 <em>"라인업"</em> 버튼을 누르세요.
+                양 팀에서 오늘 경기에 나올 선수들을 체크하고, 그 중 선발 5명을 따로 표시해주세요.
+                라인업을 확정하면 선발 5명은 자동으로 <em>"P. in"</em> (코트 안) 표시가 됩니다.
+                후보 선수는 실제로 경기에 들어갈 때 직접 "P. in" 칸을 눌러주세요.
+              </li>
+            </ol>
+          </section>
+
+          {/* 경기 진행 중 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              경기 진행 중
+            </h3>
+            <ol start={2} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>점수 기록</strong> — 점수를 넣은 선수 행에서 해당 점수 칸을 누르세요.
+                <span className="block">· (작은 점) = 1점 / ● (채워진 원) = 2점 / ◉ (테두리 원) = 3점</span>
+                현재 쿼터 색깔로 표시됩니다 (Q1 검정 / Q2 빨강 / Q3 초록 / Q4 노랑).
+              </li>
+              <li>
+                <strong>파울 기록</strong> — 파울을 한 선수의 <em>"Fouls"</em> 영역에서 1~5번
+                칸 중 비어있는 첫 칸을 누르세요. 5번째 파울이 기록되면 더 이상 입력되지 않고
+                화면에 알림이 뜹니다.
+              </li>
+              <li>
+                <strong>팀 파울 누적</strong> — <em>"Team fouls"</em> 영역은 한 쿼터에서 팀이
+                범한 전체 파울 수입니다. 1~4까지 표시하며, 4를 넘으면 다음 파울부터 상대 팀에게
+                자유투를 부여한다는 안내가 화면에 뜹니다. <em>"Extra periods"</em> 는 연장전용입니다.
+              </li>
+              <li>
+                <strong>타임아웃</strong> — 양 팀 <em>"Time-outs"</em> 영역에 표시합니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>윗줄 (Period ①②) = 전반 (1·2쿼터) 동안 쓸 수 있는 2개</li>
+                  <li>가운데 줄 (Period ③④) = 후반 (3·4쿼터) 동안 쓸 수 있는 3개</li>
+                  <li>아랫줄 (Extra periods) = 연장전</li>
+                </ul>
+                후반에 들어가면 전반 칸이 자동으로 잠겨서 더 이상 누를 수 없습니다.
+              </li>
+            </ol>
+          </section>
+
+          {/* 쿼터 / 경기 종료 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              쿼터 / 경기 종료
+            </h3>
+            <ol start={6} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>쿼터 끝났을 때</strong> — 화면 아래쪽 <em>"Q1 종료" / "Q2 종료" …</em>
+                버튼을 누르면 안내 창이 뜹니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>Q1~Q3 끝: "다음 쿼터 진행" 누르세요.</li>
+                  <li>Q4 끝: 동점이면 "OT (연장전) 진행" / 점수 차이가 있으면 "경기 종료".</li>
+                  <li>연장전 끝: 또 동점이면 추가 연장전 / 결판 나면 경기 종료.</li>
+                </ul>
+              </li>
+            </ol>
+          </section>
+
+          {/* 기타 기능 */}
+          <section>
+            <h3 className="mb-1 text-sm font-bold" style={{ color: "var(--color-text-primary)" }}>
+              기타 기능
+            </h3>
+            <ol start={7} className="ml-5 list-decimal space-y-2 text-sm">
+              <li>
+                <strong>잘못 기록했어요 (기록 취소)</strong> — 테스트로 입력했거나 처음부터
+                다시 기록해야 할 때, 화면 위쪽 우측 <em>"기록 취소"</em> 버튼을 누르세요.
+                경고 창이 뜨고, 확인하면 이 경기의 점수·파울·라인업·등번호 기록이 모두
+                완전히 삭제되며 이전 페이지로 돌아갑니다.
+                <span className="block text-xs" style={{ color: "var(--color-text-muted)" }}>
+                  (대회 운영자만 가능 — 일반 기록원은 보이지 않습니다)
+                </span>
+              </li>
+              <li>
+                <strong>인쇄 / 전체화면</strong> — <em>"인쇄"</em> 버튼은 FIBA 공식 양식
+                그대로 PDF/종이로 출력합니다. 화면 위쪽 <em>⛶ 전체화면</em> 버튼은 태블릿
+                세로 모드로 양식만 크게 보여줍니다 (종료는 우상단 ✕).
+              </li>
+              <li>
+                <strong>이전 페이지로</strong> — 화면 위쪽 좌측 <em>&lt;</em> 버튼을 누르면
+                이 기록지에 들어오기 전 페이지 (경기 일정 / 대진표 등) 로 돌아갑니다.
+              </li>
+            </ol>
+          </section>
         </div>
       ),
       options: [{ value: "close", label: "닫기", isPrimary: true }],
