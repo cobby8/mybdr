@@ -214,26 +214,42 @@ export function QuarterEndModal({
           <button
             type="button"
             onClick={onContinueToOvertime}
-            disabled={!canContinue}
-            className="flex-1 py-3 text-sm font-semibold disabled:opacity-30"
+            disabled={!canContinue || !isTie}
+            className="flex-1 py-3 text-sm font-semibold disabled:opacity-40"
             style={{
-              backgroundColor: "var(--color-accent)",
-              color: "var(--color-on-accent, #fff)",
+              // 2026-05-16 (PR-OT-Tie-Gate) — 사용자 보고 이미지 #159 fix.
+              //   비동점 시 = 비활성 시각 명확 (회색 배경 + 회색 텍스트).
+              backgroundColor:
+                !isTie || !canContinue
+                  ? "var(--color-surface)"
+                  : "var(--color-accent)",
+              color:
+                !isTie || !canContinue
+                  ? "var(--color-text-muted)"
+                  : "var(--color-on-accent, #fff)",
               touchAction: "manipulation",
               border: "1px solid var(--color-border)",
             }}
             aria-label={
-              canContinue
+              !isTie
+                ? `OT 진행 불가 (동점 아닐 시 OT 미진행 — FIBA 룰)`
+                : canContinue
                 ? `${nextOtLabel} 으로 진행`
                 : `다음 OT 진행 불가 (OT${currentPeriod - 4} 최종)`
             }
-            aria-disabled={!canContinue}
+            aria-disabled={!canContinue || !isTie}
           >
             <span className="material-symbols-outlined mr-1 align-middle text-base">
               skip_next
             </span>
-            {/* PR-Stat3.7 (2026-05-15) — 라벨 동적 (currentPeriod 기반). max OT5 시 "OT5 최종" 표시. */}
-            {canContinue ? `${nextOtLabel} 진행` : `OT${currentPeriod - 4} 최종`}
+            {/* PR-Stat3.7 (2026-05-15) — 라벨 동적 (currentPeriod 기반). max OT5 시 "OT5 최종" 표시.
+                2026-05-16 (PR-OT-Tie-Gate) — 사용자 보고 이미지 #159 fix.
+                동점 아닐 시 = OT 진행 비활성 (경기 종료만 활성). FIBA 룰 정합. */}
+            {!isTie
+              ? `OT 진행 불가 (동점 아님)`
+              : canContinue
+              ? `${nextOtLabel} 진행`
+              : `OT${currentPeriod - 4} 최종`}
           </button>
         </div>
 
