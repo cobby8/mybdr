@@ -160,15 +160,17 @@ export async function proxy(req: NextRequest) {
   }
 
   // 3. 페이지 요청: 서브도메인 감지
-  // 2026-05-15 fix — 이전 박제는 `response.headers.set` (응답 헤더) 에 subdomain
-  // 박았는데 `_site/page.tsx` 의 `headers()` (from next/headers) = 요청 헤더를 읽음
-  // → SitePage 가 못 읽고 notFound() → 404. requestHeaders 에 박은 후 rewrite 의
-  // request.headers 옵션으로 전달해야 page server component 가 인지.
+  // 2026-05-15 fix #1 — 이전엔 response.headers.set 으로 박았으나 _site/page.tsx
+  //   의 headers() (from next/headers) = 요청 헤더 read → SitePage 못 읽고 notFound.
+  //   requestHeaders 에 박은 후 rewrite 의 request.headers 옵션으로 전달.
+  // 2026-05-15 fix #2 — `_site` 폴더 = underscore prefix = Next.js private folder
+  //   → routing system 제외 → rewrite 도 차단 (404). `site-host/` 일반 폴더로 변경.
+  //   사용자 직접 URL 접근 안전망 = page.tsx L11~12 (헤더 없으면 notFound).
   const subdomain = extractSubdomain(hostname, req.nextUrl.searchParams);
   if (subdomain) {
     requestHeaders.set("x-tournament-subdomain", subdomain);
     const url = req.nextUrl.clone();
-    url.pathname = `/_site${pathname}`;
+    url.pathname = `/site-host${pathname}`;
     return NextResponse.rewrite(url, { request: { headers: requestHeaders } });
   }
 

@@ -659,8 +659,7 @@ main().finally(() => prisma.$disconnect());
 ## ?묒뾽 濡쒓렇 (理쒓렐 10嫄?
 | ?좎쭨 | ?묒뾽 | 寃곌낵 |
 |------|------|------|
-| 2026-05-15 | PR-G5.5-followup 코드 박제 — advanceTournamentPlaceholders + getTournamentStandings + vitest 5 + 매치 232 UPDATE 스크립트 | 신규 함수 2 (옵션 A 분리 — 기존 advanceDivisionPlaceholders 회귀 0) / vitest 5/5 PASS (case 1 정상 + case 2 idempotent + case 3 notes 위반 + case 4 절반 NULL + getTournamentStandings 1) / 전체 vitest 926/926 PASS / tsc 0 / 신규 2 + 수정 1 / ~577 LOC / 운영 DB UPDATE 0 (스크립트 작성만 — PM 결재 후 실행) / Flutter v1 영향 0 / schema 변경 0 / tester+reviewer 병렬 검증 대기 |
-| 2026-05-15 | PR-G5.5-followup 기획설계 — 4차 BDR 뉴비리그 (Tournament 443f23f8 / 5/16) 단판 결승 매치 232 placeholder 박제 자동화 + Tournament 단위 applier 분리 결정 | 설계 완료 / developer 진입 대기. 신규 advanceTournamentPlaceholders + getTournamentStandings (옵션 A 분리) / 매치 232 UPDATE SQL spec + vitest 4 케이스 명세 + 회귀 검증 (강남구 4 종별 영향 0) / decisions.md +1 항목 / 후속 PR 큐 4건. 5/16 마감 |
+| 2026-05-15 | PR-G5.5-followup Tournament 단위 placeholder applier (4차 BDR 뉴비리그 5/16 운영) | ✅ commit `6d52a33` — 신규 함수 2 (advanceTournamentPlaceholders + getTournamentStandings / 옵션 A 분리 / 기존 회귀 0) + vitest 5 (정상/idempotent/notes 위반/절반 NULL/standings 단독) + 운영 UPDATE 스크립트 1회성 (8중 가드 / 매치 232 / 사용자 결재 후 실행) / tsc 0 / vitest 926/926 PASS / 강남구 4 종별 회귀 0 / placeholder-helpers 통과 의무 100% / DB schema 변경 0 / Flutter v1 영향 0 / 미푸시 commit 1건 / **사용자 결재 대기 = 운영 매치 232 UPDATE 실행** |
 | 2026-05-15 | PR-Live1~Live4 ?쇱씠釉?湲곕줉 吏꾩엯??+ ?쒕툝由??몃줈 ??ㅽ겕由?(Q1~Q7 沅뚭퀬?? | ???좉퇋 3 + ?섏젙 2 / ~300 LOC / tsc 0 / vitest 921/921 PASS / score-sheet-access endpoint (5 沅뚰븳 遺꾧린) + ?쇱씠釉?toolbar "湲곕줉?섍린" Link + score-sheet body overflow lock + FullscreenToggle 紐낆떆 踰꾪듉 / Flutter v1 ?곹뼢 0 / DB schema 蹂寃?0 / commit 寃곗옱 ?湲?|
 | 2026-05-15 | Phase 7 A PR2+PR3 E2E ?쒕굹由ъ삤 2 (?뚯감 蹂듭젣) + ?쒕굹由ъ삤 3 (1?뚯꽦 ??? 諛뺤젣 | ???좉퇋 2 + ?섏젙 1 / ~418 LOC / tsc 0 / vitest 921/921 PASS / ?댁쁺 肄붾뱶 蹂寃?0 / ?댁쁺 DB ?곹뼢 0 (?ㅽ뻾? ?ъ슜??寃利? / fixtures ?쒕뱶 ?ы띁 2 ?뺤옣 / commit 寃곗옱 ?湲?|
 | 2026-05-15 | Phase 23 PR-EDIT1~EDIT4 醫낅즺 留ㅼ튂 ?섏젙 紐⑤뱶 蹂꾨룄 湲곕뒫 (Q3~Q8 沅뚭퀬?? | ???섏젙 4 ?뚯씪 / +~370 LOC / tsc 0 / vitest 236/236 / canEdit (super/organizer/TAM) + isEditMode state + edit_mode body ?고쉶 + audit "completed_edit_resubmit" + ?섏젙 ?대젰 inline (Q7 ?듭뀡 A ??留ㅼ튂 ?곸꽭 ?섏씠吏 誘몄〈?щ줈 score-sheet ?몃씪?? / commit 寃곗옱 ?湲?|
@@ -1167,4 +1166,58 @@ EDIT4 inline ?쒖떆 = (1)~(4) 紐⑤몢 SELECT (context LIKE "completed_edit" O
 - AdminDataTable 미박제 = 의뢰서 §4 명시했으나 컴포넌트 자체 미박제 (Admin-1 신규 5에 미포함). 옵션 A 채택 → 시각 톤만 admin.css 가 처리. 의뢰서 §4 후속 컴포넌트 박제 필요 시 별 PR.
 - `/admin/tournaments/[id]/page.tsx` (detail) 미존재 → Admin-4-B 또는 별 PR 에서 신규 라우트 생성 시 박제. 현재 운영에 detail 라우트 호출 없음 (모달 + sub-route 만 사용 패턴).
 - transfer-organizer-form.tsx (클라이언트 컴포넌트) 미박제 = 이미 신 토큰 alias 자동 매핑 + 비즈 로직 복잡 (fetch / search / 액션 토글 / submit). 향후 Admin-4-B 또는 별 PR 에서 박제 가능.
+
+### Admin-4-B Phase 박제 — Games + Teams + Courts (2026-05-15)
+
+📝 구현: CLI 마스터 핸드오프 Phase 5 — Admin-4 콘텐츠 그룹 두 번째 구간 (Games / Teams / Courts) 시각 박제. 시안 BDR v2.14 `AdminGames.jsx` / `AdminTeams.jsx` / `AdminCourts.jsx`.
+
+#### 변경 파일 + LOC
+| 파일 | LOC ± | 변경 내용 |
+|------|------|----------|
+| `src/app/(admin)/admin/games/page.tsx` | +3 / -0 | AdminPageHeader 에 `eyebrow="ADMIN · 콘텐츠"` + `breadcrumbs` 추가 |
+| `src/app/(admin)/admin/games/admin-games-content.tsx` | +9 / -19 | STATUS_STYLE inline (4key) → STATUS_TONE 매핑 / 상태 뱃지 badge--soft → `.admin-stat-pill[data-tone]` |
+| `src/app/(admin)/admin/teams/page.tsx` | +3 / -0 | AdminPageHeader eyebrow + breadcrumbs |
+| `src/app/(admin)/admin/teams/admin-teams-content.tsx` | +6 / -14 | STATUS_STYLE (active/inactive) → STATUS_TONE / 상태 뱃지 admin-stat-pill |
+| `src/app/(admin)/admin/courts/page.tsx` | +3 / -0 | AdminPageHeader eyebrow + breadcrumbs |
+| `src/app/(admin)/admin/courts/admin-courts-content.tsx` | +12 / -30 | STATUS_STYLE → STATUS_TONE (코트) / AMBASSADOR_STATUS_COLOR → AMBASSADOR_STATUS_TONE / 3개 뱃지 (모달 상태 + "대기중" + 앰배서더 상태) admin-stat-pill 박제 |
+
+총 LOC: +42 / -57 = -15 (정리됨). 6 파일.
+
+#### 비즈 로직 보존 검증
+- `git diff | grep -iE "prisma\.|fetch\(|useState|useEffect|server.*action|updateStatusAction|createCourtAction|updateCourtAction|deleteCourtAction|updateGameStatus|updateTeamStatus"` = **0 매치** (코멘트 제외).
+- Prisma findMany/count 쿼리 (games / team / court_infos / court_edit_suggestions / court_ambassadors) 전체 보존.
+- Server Action props (updateGameStatusAction / updateTeamStatusAction / createCourtAction / updateCourtAction / deleteCourtAction) 시그니처 보존.
+- AdminGamesContent / AdminTeamsContent / AdminCourtsContent props 시그니처 보존.
+- TRANSITIONS / STATUS_LABEL / TYPE_LABEL / COURT_TYPE_LABEL / AMBASSADOR_STATUS_LABEL / EDITABLE_FIELDS 헬퍼 보존.
+- /api/web/admin/ambassadors/[id] PATCH fetch 호출 보존.
+- pagination / activeTab / setSelected / processing / rejectNote 등 state 모두 보존.
+- 코트 등록 폼 (form action={createCourtAction}) 보존 — 본 PR 박제 영역 아님 (별 PR 권장).
+- 코트 자체 탭 UI (코트/수정제안/앰배서더 3탭) 보존 — AdminStatusTabs 미적용 (시안 v2.9 = 단일 페이지 status 탭, 운영 = 도메인 3탭으로 구조 다름).
+
+#### 룰 정합
+- 토큰: 신규 `--ink` / `--ink-mute` / `--bg-card` 등은 globals.css alias 자동 매핑 + admin.css 박제 클래스 활용 ✅
+- pill 9999px 금지: `admin-stat-pill` = admin.css 박제 (4px radius) ✅
+- Material Symbols Outlined: 기존 사용 보존 (lucide-react 미도입) ✅
+- AppNav: 변경 0 ✅
+- 컴포넌트 신규 박제 0 (AdminPageHeader / admin-stat-pill 모두 Admin-1+2 박제분 재사용) ✅
+- admin 빨강 본문 금지: STATUS_TONE 매핑에 `accent` 미사용 (ok/info/mute/err/warn 만) ✅
+
+#### tsc: exit 0 (errors 0)
+
+#### 시각 검증 영역 (tester)
+- `/admin/games` → AdminPageHeader breadcrumbs (ADMIN › 콘텐츠 › 경기 관리) + eyebrow 노출. 상태 뱃지 admin-stat-pill: 모집중=ok / 확정=info / 완료=mute / 취소=err 톤.
+- `/admin/teams` → AdminPageHeader breadcrumbs (ADMIN › 콘텐츠 › 팀 관리) + eyebrow. 상태 뱃지: 활동중=ok / 비활성=err.
+- `/admin/courts` → AdminPageHeader breadcrumbs (ADMIN › 콘텐츠 › 코트 관리) + eyebrow.
+  - 코트 관리 탭: 기존 도메인 3탭 (코트/수정제안/앰배서더) 보존.
+  - 모달 안 상태 뱃지 admin-stat-pill (활성=ok / 비활성=err).
+  - 수정 제안 탭: "대기중" 뱃지 = admin-stat-pill data-tone=info.
+  - 앰배서더 탭: 상태 뱃지 admin-stat-pill (대기중=warn / 활동중=ok / 해임거절=err).
+- 모달 (AdminDetailModal) / 페이지네이션 / 검색 / 페이지 크기 선택 / 폼 액션 모두 변경 0 — 기능 그대로 동작.
+
+#### 잠재 위험
+- 시안 v2.9 AdminGames 의 status 분류 (`live` / `scheduled` / `done` / `cancelled`)와 운영 DB status 분류 (1=모집중 / 2=확정 / 3=완료 / 4=취소) 다름. 시안 = 경기 진행 시점 / 운영 = 모집·진행 워크플로우. 박제는 운영 분류 보존 + 적절한 admin-stat-pill 톤 매핑만 (live="진행중"에 해당하는 운영 status 미존재 → 운영에 라이브 모니터 도입 시 별 PR 필요).
+- 시안 actions (CSV 내보내기 / 새 경기 등록 / 팀 추가 / 코트 등록) page.tsx 에 미추가 — Server Action / fetch 비즈 로직 박제 필요 (별 PR). Courts 의 코트 등록 폼은 활성 (admin-courts-content.tsx 내부) — 시안 actions 박제 시 중복 가능 → 통합 작업 별 PR.
+- 시안 AdminFilterBar (court/division/org 필터) 운영 미박제 — 운영은 검색만. AdminFilterBar 컴포넌트 자체 박제 필요 (별 PR).
+- 시안 AdminStatusTabs 의 status 카운트 (live / scheduled 등) 와 운영 STATUS_LABEL (모집중/확정/완료/취소) 정합 — STATUS_TONE 매핑 적용으로 시각 일관 확보, 카운트 로직 변경 0.
+- Courts 의 도메인 3탭 (코트 / 수정 제안 / 앰배서더) = 운영 고유 구조 (시안 v2.9 단일 페이지와 다름). 본 PR 보존, 별 PR 박제 검토 시 시안 페이지 분리 또는 sub-route 결정 필요.
 
