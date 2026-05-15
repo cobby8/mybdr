@@ -294,6 +294,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           isLeagueComplete,
           assignTeamsToKnockout,
           generateKnockoutMatches,
+          calculateLeagueRanking,
         } = await import("@/lib/tournaments/tournament-seeding");
 
         const leagueDone = await isLeagueComplete(id);
@@ -310,12 +311,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
             await assignTeamsToKnockout(id);
           } else {
             // 뼈대가 없는 구버전 대회 fallback — 기존 방식으로 전체 생성
+            // 2026-05-16 PR-G5.5-NBA-seed: settings.bracket.seedingMode === "nba" 이면 NBA 표준 generator 호출
+            //   default sequential 보존 (운영 회귀 0 / 강남구 / 4차 뉴비리그 영향 0)
             const settings = tournament.settings as Record<string, unknown> | null;
             const bracket = settings?.bracket as Record<string, unknown> | undefined;
             const knockoutSize = (bracket?.knockoutSize as number | undefined) ?? 4;
             const bronzeMatch = (bracket?.bronzeMatch as boolean | undefined) ?? false;
+            const seedingMode = (bracket?.seedingMode as "nba" | "sequential" | undefined) ?? "sequential";
 
-            await generateKnockoutMatches(id, knockoutSize, bronzeMatch);
+            if (seedingMode === "nba") {
+              const { generateNbaSeedKnockout } = await import("@/lib/tournaments/nba-seed-knockout");
+              const ranking = await calculateLeagueRanking(id);
+              const seedingTeams = ranking.map((r) => ({
+                tournamentTeamId: r.tournamentTeamId,
+                seedNumber: r.rank,
+              }));
+              await generateNbaSeedKnockout(id, seedingTeams, knockoutSize, bronzeMatch);
+            } else {
+              await generateKnockoutMatches(id, knockoutSize, bronzeMatch);
+            }
           }
         }
       }

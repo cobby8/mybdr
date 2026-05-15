@@ -18,7 +18,7 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────
-// SlotKind 5종 — generator 별 사용처
+// SlotKind 6종 — generator 별 사용처
 // ─────────────────────────────────────────────────────────────────────────
 //
 // | kind          | 사용 generator                                | 라벨 예시         |
@@ -29,14 +29,21 @@
 // | match_loser   | single_elim (3·4위전)                        | "준결승 1경기 패자"|
 // | round_seed    | single_elim 1R (시드 배정)                    | "R1 시드 1"      |
 // | tie_rank      | group_stage_with_ranking 동순위전             | "1위 동순위전"    |
-export type SlotKind = "group_rank" | "match_winner" | "match_loser" | "round_seed" | "tie_rank";
+// | seed_number   | nba_seed_knockout (NBA 표준 시드)             | "1번 시드"        |
+//                 (2026-05-16 PR-G5.5-NBA-seed 추가)
+//                 기존 round_seed ("R1 시드 5") = 라운드별 시드 인덱스 의미.
+//                 신규 seed_number ("1번 시드") = 절대 시드 번호 (NBA 양분 트리 페어링용).
+//                 ⚠️ assignTeamsToKnockout (settings.homeSlotLabel "N위" 정규식 파싱) 와
+//                    의미 충돌 주의 — NBA 모드는 skeleton 단계 우회 (옵션 B 분기) 결정됨.
+export type SlotKind = "group_rank" | "match_winner" | "match_loser" | "round_seed" | "tie_rank" | "seed_number";
 
 export type SlotLabelParams =
   | { kind: "group_rank"; group: string; rank: number }
   | { kind: "match_winner"; roundName: string; matchNumber: number }
   | { kind: "match_loser"; roundName: string; matchNumber: number }
   | { kind: "round_seed"; roundNumber: number; seedNumber: number }
-  | { kind: "tie_rank"; rank: number };
+  | { kind: "tie_rank"; rank: number }
+  | { kind: "seed_number"; seedNumber: number };
 
 /**
  * 슬롯 라벨 생성 — 5 kind 단일 진입점.
@@ -62,6 +69,11 @@ export function buildSlotLabel(params: SlotLabelParams): string {
       return `R${params.roundNumber} 시드 ${params.seedNumber}`;
     case "tie_rank":
       return `${params.rank}위 동순위전`;
+    case "seed_number":
+      // 2026-05-16 PR-G5.5-NBA-seed: NBA 표준 시드 번호 라벨.
+      // 사유: round_seed ("R1 시드 5") 는 라운드별 시드 인덱스라 NBA 양분 트리 의미와 충돌.
+      //   "1번 시드" 는 토너먼트 전체 절대 시드 번호 — 1·8·4·5 같은 NBA 표준 페어링용.
+      return `${params.seedNumber}번 시드`;
   }
 }
 
@@ -117,6 +129,12 @@ export function parseSlotLabel(label: string | null | undefined): SlotLabelParam
   // 5) tie_rank: "1위 동순위전"
   m = s.match(/^(\d+)위\s*동순위전$/);
   if (m) return { kind: "tie_rank", rank: Number(m[1]) };
+
+  // 6) seed_number: "1번 시드" / "8번 시드" (NBA 표준 시드 — PR-G5.5-NBA-seed)
+  //    ⚠️ tie_rank ("1위 동순위전") 정규식보다 뒤에 두면 충돌 0 — 패턴 분리 명확
+  //    ⚠️ assignTeamsToKnockout 의 "N위" 정규식 (replace(/\D/g, "")) 과는 별도 — NBA 모드 우회 결정
+  m = s.match(/^(\d+)번\s*시드$/);
+  if (m) return { kind: "seed_number", seedNumber: Number(m[1]) };
 
   return null;
 }
