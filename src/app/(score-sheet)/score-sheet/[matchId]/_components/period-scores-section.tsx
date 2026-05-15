@@ -235,47 +235,9 @@ export function PeriodScoresSection({
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────
-          OT 탭 + OT 종료 버튼 — 시안 미존재 / 운영 그대로 보존
-          (위치만 .ss-ps 영역 아래로 배치 — JSX 구조 조정만)
-          ───────────────────────────────────────────── */}
-      {hasOtControls && (
-        <div className="ss-ot-controls">
-          {/* PR-S10.2 (2026-05-15): chevron < OT1 > 임시 버튼 영역 제거.
-              사유: handleAdvancePeriod / handleRetreatPeriod = Phase 4 통합 전 임시.
-              실제 quarter 종료 흐름 = onEndPeriod (handleEndPeriod) 가 담당.
-              레이아웃 깔끔화 + 우하단 정합 회복. */}
-
-          {/* OT 종료 큰 빨강 버튼 — onClick 그대로 보존 (운영 BFF 트리거).
-              2026-05-15 — 위/아래 여백 축소 (mt-2 → mt-0, py-1 → py-0.5).
-              사용자 요청 = 좌측 서명 영역과 높이 정합. */}
-          {onEndPeriod && (
-            <div>
-              <button
-                type="button"
-                onClick={onEndPeriod}
-                // PR-Stat3.7 (2026-05-15) — OT max 7 → 9 (사용자 명시: OT5 까지 cell 확장 — PR-Stat3.6 정합).
-                //   OT5 진입 (currentPeriod=9) 후 종료 클릭 = 더 진행 불가 → 비활성화. OT3/OT4 = 활성.
-                disabled={disabled || state.currentPeriod >= 9}
-                className="flex w-full items-center justify-center gap-1 py-0.5 text-xs font-semibold disabled:opacity-40"
-                style={{
-                  border: "1px solid var(--color-accent)",
-                  backgroundColor:
-                    "color-mix(in srgb, var(--color-accent) 12%, transparent)",
-                  color: "var(--color-accent)",
-                  touchAction: "manipulation",
-                }}
-                aria-label={`현재 ${periodLabel(state.currentPeriod)} 종료`}
-              >
-                <span className="material-symbols-outlined text-sm">
-                  stop_circle
-                </span>
-                {periodLabel(state.currentPeriod)} 종료
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {/* 2026-05-15 — 큰 빨강 쿼터 종료 버튼 영역 제거 (FIBA 양식 정합).
+          쿼터 종료 trigger 는 RunningScoreGrid 헤더 우측 작은 버튼으로 이동.
+          기존 onEndPeriod prop 은 호환성 위해 유지 (form 이 동일 핸들러 RunningScoreGrid 에 직접 전달). */}
     </section>
   );
 }
