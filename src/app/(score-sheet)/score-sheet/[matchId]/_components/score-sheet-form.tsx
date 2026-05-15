@@ -84,6 +84,8 @@ import { useConfirm } from "../../../_components/confirm-modal-provider";
 import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
 // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅.
 import { useScoreSheetInputState } from "../_hooks/use-score-sheet-input-state";
+// 2026-05-15 (PR-D-4c) — 핵심 기록 state 6건 통합 훅.
+import { useScoreSheetRecordState } from "../_hooks/use-score-sheet-record-state";
 // 2026-05-15 (PR-D-4a) — draft localStorage IO 순수 함수 (vitest 가능).
 import { loadDraft, saveDraft, clearDraft } from "@/lib/score-sheet/draft-storage";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
@@ -229,18 +231,30 @@ export function ScoreSheetForm({
     initialNotes,
   });
   const { header, setHeader, teamA, setTeamA, teamB, setTeamB, signatures, setSignatures } = inputState;
-  // Phase 2 — Running Score state.
-  // Phase 23 (2026-05-14) — DB SELECT 결과로 초기값 박제 (?? EMPTY_*).
-  //   기존 동작 100% 보존: prop 미전달 (=undefined) 시 EMPTY 폴백 = 신규 매치 진입과 동일.
-  const [runningScore, setRunningScore] = useState<RunningScoreState>(
-    initialRunningScore ?? EMPTY_RUNNING_SCORE
-  );
-  // Phase 3 — Fouls state (FIBA 1-5 Player Fouls + Team Fouls 자동 합산 source)
-  const [fouls, setFouls] = useState<FoulsState>(initialFouls ?? EMPTY_FOULS);
-  // Phase 4 — Timeouts state (FIBA Article 18-19 전반2/후반3/OT1)
-  const [timeouts, setTimeouts] = useState<TimeoutsState>(
-    initialTimeouts ?? EMPTY_TIMEOUTS
-  );
+  // 2026-05-15 (PR-D-4c) — 핵심 기록 state 6건 (runningScore/fouls/timeouts/playerStats/lineup/lineupModalOpen)
+  //   useScoreSheetRecordState 훅 단일 source.
+  const recordState = useScoreSheetRecordState({
+    initialRunningScore,
+    initialFouls,
+    initialTimeouts,
+    initialPlayerStats,
+    initialLineup,
+  });
+  const {
+    runningScore,
+    setRunningScore,
+    fouls,
+    setFouls,
+    timeouts,
+    setTimeouts,
+    playerStats,
+    setPlayerStats,
+    lineup,
+    setLineup,
+    lineupModalOpen,
+    setLineupModalOpen,
+    initialLineupComputed,
+  } = recordState;
   // 2026-05-15 (PR-D-4b) — signatures state 가 useScoreSheetInputState 훅 안으로 이동.
   //   기존 lazy init (initialSignatures spread + initialNotes 우선) 동일하게 보존.
   // Phase 3.5 — FoulTypeModal state (어떤 선수의 어떤 팀에 추가할지)
@@ -251,13 +265,7 @@ export function ScoreSheetForm({
     jerseyNumber: number | null;
   } | null>(null);
 
-  // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) state.
-  //   사용자 결재 Q1 (위치) / Q2 (StatPopover) / Q3 (DB 변경 0 — match_player_stats 직접 박제).
-  //   initialPlayerStats 가 있으면 page.tsx 의 match_player_stats SELECT 결과 사용 (재진입 자동 로드).
-  //   양 팀 통합 단일 record (key = tournamentTeamPlayerId.toString()) — TeamSection 이 자신의 id 만 lookup.
-  const [playerStats, setPlayerStats] = useState<PlayerStatsState>(
-    initialPlayerStats ?? EMPTY_PLAYER_STATS
-  );
+  // 2026-05-15 (PR-D-4c) — playerStats state 가 useScoreSheetRecordState 훅 안으로 이동.
 
   // Phase 19 PR-Stat3 — StatPopover state (어떤 선수의 어떤 stat 을 +1/-1 할지).
   //   null = 닫힘 / { ...컨텍스트 } = 열림. team 분기 = 안전망 (cell 클릭 시 caller 가 분기 처리).
@@ -268,30 +276,8 @@ export function ScoreSheetForm({
     jerseyNumber: number | null;
     statKey: StatKey;
   } | null>(null);
-  // Phase 7-B — 라인업 state.
-  //   - lineup === null → 모달 강제 표시 (양식 미렌더)
-  //   - lineup === { home, away } → 양식 렌더 (출전 명단만 12행 X / 실제 명수 표시)
-  //
-  //   초기값:
-  //     1. initialLineup.home/away 가 확정 = 사전 박제 → 모달 skip + 자동 fill
-  //     2. 미확정 (둘 중 하나라도 null) → null → 모달 강제 표시
-  //
-  //   draft localStorage 복원 후 lineup 이 박제되어 있으면 그 값 우선 (운영 중 reload 케이스).
-  const initialLineupComputed: {
-    home: TeamLineupSelection;
-    away: TeamLineupSelection;
-  } | null =
-    initialLineup?.home && initialLineup?.away
-      ? { home: initialLineup.home, away: initialLineup.away }
-      : null;
-  const [lineup, setLineup] = useState<{
-    home: TeamLineupSelection;
-    away: TeamLineupSelection;
-  } | null>(initialLineupComputed);
-  // 모달 명시적 control — open 토글 (라인업 미확정 시 자동 true / 확정 시 false)
-  const [lineupModalOpen, setLineupModalOpen] = useState<boolean>(
-    initialLineupComputed === null
-  );
+  // 2026-05-15 (PR-D-4c) — lineup / lineupModalOpen / initialLineupComputed 가
+  //   useScoreSheetRecordState 훅 안으로 이동.
   // Phase 7-C — Q4 / OT 종료 분기 modal state
   //   - null = 모달 닫힘
   //   - { mode, period } = 모달 열림 (어떤 종료 시점인지 / 어떤 period 가 종료되었는지)
