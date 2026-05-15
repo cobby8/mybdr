@@ -273,12 +273,13 @@
 }
 
 /* ----- Section C — Competition / Game No / Referee / Umpire -----
-   2026-05-15 (PR-SS-meta-Layout) — 좌:우 비율 1:1 → 7:3 → 2:1 (66.7:33.3).
-     사용자 요청 누적: 긴 대회명 fit + 심판 영역 60% 축소 → 추가 미세조정 66%.
-     2fr 1fr = 66.67% : 33.33% (정확). */
+   2026-05-15 누적: 1:1 → 7:3 → 2:1 (66.7%) → 23:7 (76.67%).
+     사용자 요청 — 우측 심판 영역 현재의 70%로 추가 축소.
+       33.33% × 70% = 23.33%, 좌측 = 76.67%.
+     23fr 7fr = 76.67% : 23.33% (정확). */
 .ss-shell .ss-meta {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 23fr 7fr;
   border-bottom: 1.5px solid var(--pap-line);
 }
 .ss-shell .ss-meta__l,
