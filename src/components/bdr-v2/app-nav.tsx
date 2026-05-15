@@ -108,14 +108,15 @@ export function AppNav({
               style={{ height: 18, width: "auto" }}
             />
           </Link>
-          <span className="sep util-left" />
-          {/* [2026-04-29] 좌측 그룹 — 모바일에서 숨김 (CSS 셀렉터 .util-left 사용)
-                          좌/우를 명시 클래스로 분리해 모바일에서 좌측만 hide. */}
-          <Link href="/about" className="util-left">소개</Link>
-          <span className="sep util-left" />
-          <Link href="/pricing" className="util-left">요금제</Link>
-          <span className="sep util-left" />
-          <Link href="/help/glossary" className="util-left">도움말</Link>
+          {/* 2026-05-15 — 소개/요금제/도움말 임시 숨김 (사용자 결정).
+                          후속 큐: 콘텐츠 박제 또는 메뉴 영구 제거 결정. JSX 보존 = 복원 쉬움.
+              <span className="sep util-left" />
+              <Link href="/about" className="util-left">소개</Link>
+              <span className="sep util-left" />
+              <Link href="/pricing" className="util-left">요금제</Link>
+              <span className="sep util-left" />
+              <Link href="/help/glossary" className="util-left">도움말</Link>
+          */}
           <span className="app-nav__utility-spacer" />
           {/* 우측 그룹 — 모바일에서도 표시 유지 (작업 1 픽스) */}
           {user ? (

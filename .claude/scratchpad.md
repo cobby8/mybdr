@@ -13,6 +13,8 @@
 | Admin-3~9 | ⏳ 순차 결재 대기 |
 
 ## 후속 큐 (별도 세션 / 본 의뢰 후)
+- **AppNav utility 좌측 메뉴 (소개/요금제/도움말)**: 2026-05-15 임시 숨김 (JSX 주석 보존). 후속 결정 = (1) 페이지 콘텐츠 박제 후 복원 / (2) 메뉴 영구 제거 / (3) 다른 위치 (footer / drawer) 이전
+- **AppNav SSR admin 메뉴 정합**: 첫 페인트부터 admin 진입 노출 — (web)/layout.tsx getAuthUser 에 admin_role / association 매핑 SELECT 확장. 현재는 useEffect /api/web/me 후 200ms 지연 노출
 - **PR-G5.5-followup-B**: 매치 PATCH route 통합 (status='completed' 시 division_rule=0 분기 → advanceTournamentPlaceholders)
 - **PR-G5.5-NBA-seed**: 8강/4강 NBA 시드 표준 generator (교차 시드 + 2^N 올림 + bye)
 - PR-G5.7 double_elim / PR-G5.8 swiss (운영 사용 0)
