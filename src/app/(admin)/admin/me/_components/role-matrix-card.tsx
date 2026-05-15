@@ -393,8 +393,8 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
         </div>
       )}
 
-      {/* 1) 전역 권한 3종 (boolean) */}
-      {/* super_admin 본인의 site/tournament_admin 은 "Super 자동" 표시 (superAdminAuto prop) */}
+      {/* 1) 전역 권한 4종 (boolean) */}
+      {/* super_admin 본인의 site/tournament/recorder_admin 은 "Super 자동" 표시 (superAdminAuto prop) */}
       <div className="space-y-2">
         <BooleanRow
           label="Super Admin"
@@ -411,6 +411,18 @@ export function RoleMatrixCard({ roles }: RoleMatrixCardProps) {
           label="Tournament Admin"
           description="membership type 3 — 대회 운영자 권한"
           granted={roles.tournamentAdmin}
+          superAdminAuto={roles.superAdmin}
+        />
+        {/* 2026-05-15 PR3 — 기록원 관리자 (recorder_admin) 행.
+            이유: 전역 기록원 관리자 = 모든 대회 점수기록 + 기록원 배정 + /referee/admin 진입 권한.
+                  super_admin 자동 흡수 (isRecorderAdmin 내부 OR) → super 보유자는 "Super 자동" 표시.
+            granted 분기: roles.recorderAdmin 은 super 자동 흡수 결과라서, super_admin 일 때는
+                  실제 본인 recorder_admin 직접 부여 여부 알 수 없음 → superAdminAuto 패턴 사용.
+                  super 가 아닐 때만 granted=true 평가 (= recorder_admin 직접 부여). */}
+        <BooleanRow
+          label="기록원 관리자 (Recorder Admin)"
+          description="모든 대회 점수기록 + 기록원 배정 + /referee/admin 진입"
+          granted={!roles.superAdmin && roles.recorderAdmin}
           superAdminAuto={roles.superAdmin}
         />
       </div>

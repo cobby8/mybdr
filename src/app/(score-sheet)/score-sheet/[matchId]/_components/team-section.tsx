@@ -268,65 +268,72 @@ export function TeamSection({
           {/* 시안: 1행 2 + 2행 3 + 3행 2 = 총 7 cells.
               운영 OT 진입 시 currentPeriod >= 5 면 추가 row 동적 확장 (FIBA 다중 OT 대응). */}
           {(() => {
-            // 기본 7 cells (전반 2 + 후반 3 + OT 2) — FIBA 정합. OT 추가 진입 시 (>= OT2 = period 6) 동적 +1.
-            // 운영 timeouts.length 가 7 초과 시 (예: OT 다중 진행) 도 채움 가능하도록 max 비교.
-            const baseCells = 7;
-            const totalCells = Math.max(baseCells, timeouts.length);
-            const totalUsed = timeouts.length;
-            // row 분할 — 시안 정합 2+3+2 + 잉여 row (8번째 이상은 단일 row 로 묶음).
-            // 변수명 toRows (외부 rows = players 와 shadowing 회피 / 가독성 ↑).
-            const toRows: number[][] = [[0, 1], [2, 3, 4], [5, 6]];
-            if (totalCells > 7) {
-              const extra = Array.from(
-                { length: totalCells - 7 },
-                (_, i) => i + 7
-              );
-              toRows.push(extra);
-            }
+            // PR-Stat3.6 (2026-05-15) — OT cell 동적 확장 (사용자 명시 — 최대 5 OT slots / cell 5~9).
+            //   기본 7 cells (전반 2 + 후반 3 + OT 2). currentPeriod ≥ 5 시 OT slot = currentPeriod - 4 (최대 5).
+            //   timeouts.length 가 더 크면 그것 우선 (재진입 자동 로드 시 OT 다중 박제 케이스).
+            const otSlots = Math.max(2, Math.min(currentPeriod - 4, 5));
+            const baseCells = 5 + otSlots;
+            const totalCells = Math.max(
+              baseCells,
+              timeouts.length > 5 ? 5 + Math.max(2, timeouts.length - 5) : 7,
+            );
+            // row 분할 — 시안 정합 2+3 + OT row 가변 (cell 5~9 한 row 묶음 / 사용자 결정).
+            const otCells: number[] = [];
+            for (let i = 5; i < totalCells; i += 1) otCells.push(i);
+            const toRows: number[][] = [[0, 1], [2, 3, 4], otCells];
 
-            // PR-Stat3.3 (2026-05-15) — phase 별 cell idx 매핑 (사용자 명시 — OT cell 동작 안 함).
-            //   기존 `filled = i < totalUsed` = 순차 채움 (cell 0 부터). OT 진입 시 cell 5 = 비어있음 + isNextEmpty
-            //   (i === totalUsed) = false → 클릭 불가.
-            //   수정 = phase 별 timeouts 분리 후 cell idx → phase position 매핑:
-            //     - cell 0/1 (전반): firstHalfTimeouts[0/1]
-            //     - cell 2/3/4 (후반): secondHalfTimeouts[0/1/2]
-            //     - cell 5+ (OT): overtimeTimeouts[0/1/2+]
+            // PR-Stat3.3 (2026-05-15) — phase 별 cell idx 매핑.
+            // PR-Stat3.6 (2026-05-15) — OT cell ↔ period 1:1 매핑 (사용자 명시 — B팀 OT2 cell 동작 안 함).
+            //   원인: 기존 OT phase position 매핑 = cell 5(OT1) 미사용 시 cell 6 positionInPhase=1 ≠ phaseUsed=0 → 클릭 불가.
+            //   수정: cell N (>=5) = period N 1:1 (cell 5=OT1=period 5 / cell 6=OT2=period 6 / cell 9=OT5=period 9).
+            //   전반/후반 cell = 기존 phase position 매핑 그대로 (순차 채움).
             const firstHalfTimeouts = timeouts.filter((t) => t.period <= 2);
             const secondHalfTimeouts = timeouts.filter(
               (t) => t.period === 3 || t.period === 4,
             );
             const overtimeTimeouts = timeouts.filter((t) => t.period >= 5);
+            // OT 마지막 박제 period — isLastFilled 결정 (가장 큰 period 의 cell 만 해제 가능)
+            const lastOtPeriod =
+              overtimeTimeouts.length > 0
+                ? Math.max(...overtimeTimeouts.map((t) => t.period))
+                : -1;
 
             const renderCell = (i: number) => {
-              // phase 별 cell 매핑 — i 가 어느 phase 의 몇 번째인지 결정
-              const phaseStart = i < 2 ? 0 : i < 5 ? 2 : 5;
-              const positionInPhase = i - phaseStart;
-              const phaseTimeouts =
-                i < 2
-                  ? firstHalfTimeouts
-                  : i < 5
-                    ? secondHalfTimeouts
-                    : overtimeTimeouts;
-              const phaseUsed = phaseTimeouts.length;
-              const filled = positionInPhase < phaseUsed;
-              const isLastFilled =
-                filled && positionInPhase === phaseUsed - 1;
-              const isNextEmpty =
-                !filled && positionInPhase === phaseUsed;
-              // 칸 라벨 — 위치별 phase 안내 (시안 7 cells 정합)
-              //   인덱스 0-1 = 전반 (2칸) / 2-4 = 후반 (3칸) / 5-6 = OT (2칸 / 시안 표준) / 7+ = OT 다중
-              // PR-Stat3.3 (2026-05-15) — phase 매핑 적용 후 timeouts[i] 대신 phaseTimeouts[positionInPhase].
-              const cellTimeout = filled ? phaseTimeouts[positionInPhase] : null;
+              let filled: boolean;
+              let isLastFilled: boolean;
+              let isNextEmpty: boolean;
+              let cellTimeout: { period: number } | null;
+
+              if (i >= 5) {
+                // OT cell: cell N = period N 1:1 매핑 (사용자 결재 Q1 시안 OT 2 cell + OT3+ 동적 확장)
+                const cellPeriod = i;
+                cellTimeout =
+                  overtimeTimeouts.find((t) => t.period === cellPeriod) ?? null;
+                filled = !!cellTimeout;
+                isLastFilled = filled && cellPeriod === lastOtPeriod;
+                isNextEmpty = !filled && cellPeriod === currentPeriod;
+              } else {
+                // 전반/후반 cell: phase position 매핑 (순차 채움)
+                const phaseStart = i < 2 ? 0 : 2;
+                const positionInPhase = i - phaseStart;
+                const phaseTimeouts =
+                  i < 2 ? firstHalfTimeouts : secondHalfTimeouts;
+                const phaseUsed = phaseTimeouts.length;
+                filled = positionInPhase < phaseUsed;
+                cellTimeout = filled ? phaseTimeouts[positionInPhase] : null;
+                isLastFilled = filled && positionInPhase === phaseUsed - 1;
+                isNextEmpty = !filled && positionInPhase === phaseUsed;
+              }
+              // 칸 라벨 — 위치별 phase 안내 (PR-Stat3.6 — OT 1:1 매핑 후).
+              //   cell 5/6/7/8/9 = OT1/OT2/OT3/OT4/OT5 (cell idx - 4 = OT 번호).
               const cellLabel = cellTimeout
                 ? `Period ${cellTimeout.period} 타임아웃`
                 : i < 2
                   ? `전반 타임아웃 ${i + 1}`
                   : i < 5
                     ? `후반 타임아웃 ${i - 1}`
-                    : i < 7
-                      ? `OT 타임아웃 ${i - 4}`
-                      : `OT 추가 타임아웃 ${i - 6}`;
-              // Phase 17 — 마킹 색 = phase 별 색 (filled 면 cellTimeout.period 기준).
+                    : `OT${i - 4} 타임아웃`;
+              // Phase 17 — 마킹 색 = phase 별 색.
               const markColor = cellTimeout
                 ? getTimeoutPhaseColor(cellTimeout.period)
                 : undefined;

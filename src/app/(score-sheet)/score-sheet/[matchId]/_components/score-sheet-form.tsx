@@ -723,7 +723,7 @@ export function ScoreSheetForm({
   function handleAdvancePeriod() {
     setRunningScore((prev) => ({
       ...prev,
-      currentPeriod: Math.min(prev.currentPeriod + 1, 7),
+      currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
   function handleRetreatPeriod() {
@@ -745,7 +745,7 @@ export function ScoreSheetForm({
     if (endedPeriod <= 3) {
       setRunningScore((prev) => ({
         ...prev,
-        currentPeriod: Math.min(prev.currentPeriod + 1, 7),
+        currentPeriod: Math.min(prev.currentPeriod + 1, 9),
       }));
       showToast(`Q${endedPeriod} 종료 — Q${endedPeriod + 1} 진행`, "info");
       return;
@@ -794,7 +794,7 @@ export function ScoreSheetForm({
   function handleContinueToOvertime() {
     setRunningScore((prev) => ({
       ...prev,
-      currentPeriod: Math.min(prev.currentPeriod + 1, 7),
+      currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
     const nextPeriod = runningScore.currentPeriod + 1;
     const nextLabel = nextPeriod <= 4 ? `Q${nextPeriod}` : `OT${nextPeriod - 4}`;
