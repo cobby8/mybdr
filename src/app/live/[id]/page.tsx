@@ -1106,10 +1106,12 @@ export default function LiveBoxScorePage() {
         }}
       >
         <div className="flex items-center gap-2 min-w-0">
-          {/* 2026-05-02: 나가는 액션 강화 — chevron + "뒤로" 텍스트 + history fallback "/" */}
+          {/* 2026-05-15 (PR-Back-Button-Unify) — score-sheet "<" 패턴 통일.
+              chevron SVG + "뒤로" 텍스트 + hover bg → Material Symbols arrow_back_ios
+              22px 아이콘만 (36x36 hit area, border 0, bg transparent).
+              router.back history>1 + "/" fallback 유지. */}
           <button
             onClick={() => {
-              // history 비어있을 때 (직접 URL 접속) "/" 로 fallback
               if (typeof window !== "undefined" && window.history.length > 1) {
                 window.history.back();
               } else if (typeof window !== "undefined") {
@@ -1117,11 +1119,13 @@ export default function LiveBoxScorePage() {
               }
             }}
             aria-label="뒤로 가기"
-            className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-md transition-colors hover:bg-[var(--color-elevated)]"
-            style={{ color: "var(--color-text-secondary)" }}
+            title="이전 페이지로"
+            className="shrink-0 flex h-9 w-9 items-center justify-center"
+            style={{ color: "var(--color-text-primary)", touchAction: "manipulation" }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            <span className="text-xs font-medium hidden sm:inline">뒤로</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 22 }}>
+              arrow_back_ios
+            </span>
           </button>
           {/* 2026-05-15 사용자 결정: 홈 버튼 삭제 (브라우저 홈/뒤로 버튼으로 충분).
               JSX 보존 = 복원 쉬움.
