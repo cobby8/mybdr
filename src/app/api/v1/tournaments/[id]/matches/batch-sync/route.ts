@@ -9,13 +9,20 @@ import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 // 2026-05-11: Phase 1-A 매치별 recording_mode 게이팅 — paper 매치 batch 차단 (per-match try 안에서 검사).
 import { getRecordingMode } from "@/lib/tournaments/recording-mode";
+// 2026-05-16: recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 batch-sync 통과)
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 // FR-025: 매치 일괄 동기화
 async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string) {
-  const adminMember = await prisma.tournamentAdminMember.findFirst({
-    where: { tournamentId, userId: BigInt(ctx.userId), isActive: true },
-  });
-  if (!adminMember) return forbidden("No access to this tournament");
+  // 2026-05-16: super_admin / recorder_admin 자동 통과 (전역 기록원 관리자 — DB 조회 0)
+  const hasGlobalAccess = isSuperAdmin(ctx.payload) || isRecorderAdmin(ctx.payload);
+  if (!hasGlobalAccess) {
+    const adminMember = await prisma.tournamentAdminMember.findFirst({
+      where: { tournamentId, userId: BigInt(ctx.userId), isActive: true },
+    });
+    if (!adminMember) return forbidden("No access to this tournament");
+  }
 
   let body: unknown;
   try { body = await req.json(); } catch { return validationError([{ message: "Invalid JSON body" }]); }
