@@ -276,7 +276,9 @@ export function V2BracketWrapper({
           single elim/풀리그/group_stage 등 기존 format 은 그대로 표시 (회귀 0). */}
       {!isDual && (
         <>
-          {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼) */}
+          {/* 1. 헤더 (eyebrow + h1 + 부제 + select + 액션 버튼)
+                — 2026-05-15 사용자 결정: 모든 대회에서 숨김 (페이지 상단에 이미 대회 정보 있어 중복).
+                  JSX 보존 = 복원 쉬움. eyebrow / title / subtitle / seriesEditions / 저장·공유·출력 버튼 모두 hidden.
           <V2BracketHeader
             eyebrow={eyebrow}
             title={title}
@@ -284,6 +286,7 @@ export function V2BracketWrapper({
             seriesEditions={seriesEditions}
             currentTournamentId={tournamentId}
           />
+          */}
 
           {/* 2. Status Bar (5칸) — 로딩 시 스켈레톤, 에러 시 경량 안내 */}
           {isLoading ? (
