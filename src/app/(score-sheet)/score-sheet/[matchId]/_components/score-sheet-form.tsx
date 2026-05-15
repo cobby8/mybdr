@@ -323,6 +323,8 @@ export function ScoreSheetForm({
     });
   }
   // toast 알림 — Article 41 차단 + 5+ FT 자유투 부여 안내 + 쿼터 종료
+  // PR-Stat3.9 (2026-05-15) — toast-context.tsx 의 useToast throw 제거 + default no-op 박제.
+  //   Next.js 16 Turbopack dev hot reload 시 ToastProvider 모듈 분리 안전망.
   const { showToast } = useToast();
 
   // Phase 23 (2026-05-14) — cross-check: PBP 합산 vs DB quarter_scores mismatch 감지.
