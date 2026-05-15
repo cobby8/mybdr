@@ -373,15 +373,20 @@ export async function getTournament(id: string) {
 
 /**
  * 내 대회 목록 — 주최자 / admin member / 기록원 통합
- * isSuperAdmin이면 모든 대회를 가져온다.
+ * hasAllAccess (super_admin / recorder_admin) 이면 모든 대회를 가져온다.
+ *
+ * 2026-05-16 — recorder_admin 흡수 (PR-RecorderAdmin-MyTournaments)
+ *   기존: isSuperAdmin boolean 1개 → super_admin 만 모든 대회 노출
+ *   신규: hasAllAccess boolean 1개 → super_admin OR recorder_admin 모두 모든 대회 노출
+ *   호출처: `getMyTournaments(userId, isSuperAdmin(payload) || isRecorderAdmin(payload))`
  */
 export async function getMyTournaments(
   userId: bigint,
-  isSuperAdmin: boolean
+  hasAllAccess: boolean
 ): Promise<MyTournamentItem[]> {
   // 1. 주최자로 만든 대회
   const ownedTournaments = await prisma.tournament.findMany({
-    where: isSuperAdmin ? {} : { organizerId: userId },
+    where: hasAllAccess ? {} : { organizerId: userId },
     select: MY_TOURNAMENT_SELECT,
     orderBy: { startDate: "desc" },
   });
@@ -393,7 +398,7 @@ export async function getMyTournaments(
     ])
   );
 
-  if (!isSuperAdmin) {
+  if (!hasAllAccess) {
     // 2. admin member로 등록된 대회
     const adminMembers = await prisma.tournamentAdminMember.findMany({
       where: { userId, isActive: true },
@@ -593,12 +598,21 @@ export async function getTournamentFullData(tournamentId: string) {
 }
 
 /**
- * 대회 접근 권한 확인 (주최자 또는 admin member)
+ * 대회 접근 권한 확인 — 주최자 / admin member / 기록원
+ *
+ * 2026-05-16 — recorder_admin 흡수 (PR-RecorderAdmin-FullData)
+ *   - hasGlobalAccess=true 이면 DB 조회 0 으로 즉시 통과 (super_admin / recorder_admin 자동 흡수)
+ *   - false 또는 미전달 시 기존 DB 검증 (organizer / TAM / recorder)
+ *   - 호출처: `hasAccessToTournament(id, userId, isSuperAdmin(payload) || isRecorderAdmin(payload))`
  */
 export async function hasAccessToTournament(
   tournamentId: string,
-  userId: bigint
+  userId: bigint,
+  hasGlobalAccess = false
 ): Promise<boolean> {
+  // 신규: super_admin / recorder_admin 등 전역 접근 권한자는 DB 조회 0 으로 즉시 통과
+  if (hasGlobalAccess) return true;
+
   const [isOrganizer, adminMember, isRecorder] = await Promise.all([
     prisma.tournament.findFirst({
       where: { id: tournamentId, organizerId: userId },

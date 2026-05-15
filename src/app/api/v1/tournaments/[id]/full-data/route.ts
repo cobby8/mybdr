@@ -3,19 +3,21 @@ import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middlewa
 import { apiSuccess, notFound, forbidden } from "@/lib/api/response";
 import { getTournamentFullData, hasAccessToTournament } from "@/lib/services/tournament";
 import { getDisplayName } from "@/lib/utils/player-display-name";
+import { isSuperAdmin } from "@/lib/auth/is-super-admin";
+import { isRecorderAdmin } from "@/lib/auth/is-recorder-admin";
 
 // FR-024: 토너먼트 전체 데이터 다운로드 (Flutter 오프라인 동기화)
 // 이 라우트는 Flutter와의 호환성을 위해 명시적 snake_case 사용
+// 2026-05-16 — recorder_admin 전역 흡수 (Flutter 기록앱 모든 대회 진입 통과)
 async function handler(
   _req: NextRequest,
   ctx: AuthContext,
   tournamentId: string
 ) {
-  // IDOR 방지 (super_admin은 모든 대회 접근 가능)
-  if (ctx.userRole !== "super_admin") {
-    const hasAccess = await hasAccessToTournament(tournamentId, BigInt(ctx.userId));
-    if (!hasAccess) return forbidden("No access to this tournament");
-  }
+  // IDOR 방지 — super_admin / recorder_admin 자동 통과, 그 외 organizer/TAM/recorder DB 검증
+  const hasGlobalAccess = isSuperAdmin(ctx.payload) || isRecorderAdmin(ctx.payload);
+  const hasAccess = await hasAccessToTournament(tournamentId, BigInt(ctx.userId), hasGlobalAccess);
+  if (!hasAccess) return forbidden("No access to this tournament");
 
   let fullData;
   try {
