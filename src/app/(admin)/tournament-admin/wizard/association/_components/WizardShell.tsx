@@ -13,6 +13,10 @@
  *   - 이전 버튼은 step > 1 시만 활성, 마지막 step 은 onSubmit (생성), 그 외 onNext.
  */
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ASSOCIATION_WIZARD_STEPS } from "@/lib/tournaments/association-wizard-constants";
 
 export interface WizardShellProps {
@@ -43,18 +47,52 @@ export function WizardShell({
   // 마지막 step 판정 — PR3: 5 = 확인 및 생성.
   const isLastStep = currentStep === 5;
   const isFirstStep = currentStep === 1;
+  // Admin-9 박제 (2026-05-16) — 종료 버튼 confirm 후 /admin 으로 라우팅.
+  const router = useRouter();
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* === 헤더 === */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-[var(--color-text-primary)] sm:text-2xl">
-          새 협회 만들기
-        </h1>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          super_admin 전용 — 협회 본체 + 사무국장 + 단가표를 차례로 등록합니다.
-        </p>
-      </div>
+      {/* === 헤더 — Admin-9 박제: AdminPageHeader (eyebrow + breadcrumbs + actions) === */}
+      <AdminPageHeader
+        eyebrow="협회 마법사 · 진행 중"
+        title="새 협회 만들기"
+        subtitle="super_admin 전용 — 협회 본체 + 사무국장 + 단가표를 차례로 등록합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "대회 운영자 도구" },
+          { label: "협회 마법사" },
+        ]}
+        actions={
+          <>
+            {/* 일반 대회 마법사로 이동 — Link (페이지 전환) */}
+            <Link
+              href="/tournament-admin/tournaments/new/wizard"
+              className="btn btn--sm"
+            >
+              일반 대회 마법사로
+            </Link>
+            {/* 종료 버튼 — confirm 후 /admin 으로 라우팅 (작성 중단) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
+                  router.push("/admin");
+                }
+              }}
+              className="btn btn--sm"
+              aria-label="작성 종료"
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 16 }}
+              >
+                close
+              </span>
+              종료
+            </button>
+          </>
+        }
+      />
 
       {/* === Progress bar (4 step) === */}
       <div className="mb-6">
