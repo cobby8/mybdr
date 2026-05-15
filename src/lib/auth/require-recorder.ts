@@ -39,8 +39,12 @@ export async function requireRecorder(
   if (payload) {
     const userId = BigInt(payload.sub);
 
-    // super_admin은 항상 허용
-    if (payload.role !== "super_admin") {
+    // super_admin은 항상 허용 / recorder_admin은 모든 대회 점수기록 허용 (PR1 add-only 분기)
+    // 이유: 전역 기록원 관리자(admin_role="recorder_admin")는 본인 배정 여부 무관 모든 대회 통과.
+    // super_admin 분기와 동일한 위치에 OR 박제 — Q1 결재 = super_admin 자동 흡수 (isRecorderAdmin 내부 처리).
+    const isRecorderAdminRole = payload.admin_role === "recorder_admin";
+
+    if (payload.role !== "super_admin" && !isRecorderAdminRole) {
       // 주최자 확인
       const isOrganizer = await prisma.tournament.findFirst({
         where: { id: match.tournamentId, organizerId: userId },
