@@ -28,6 +28,8 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | feat(game-time-input): 6분 버튼 추가 + 분 직접 입력 input | ✅ TIME_OPTIONS [5,6,7,8,10,12] 6종 + number input (MIN 1 / MAX 60 clamp) + 프리셋 외 값 시 input border accent / vitest 4 신규 / tsc 0 / vitest 822/822 |
+| 2026-05-15 | release #5 (dev → main) — 유청소년 STEP 4 (U연령) cross-product | ✅ PR #488 (subin→dev) `4db18a1` + PR #489 (dev→main) `2ba310f` 머지 / Vercel 자동 배포 |
 | 2026-05-15 | feat(division-generator): 유청소년 STEP 4 (U연령) + cross-product 코드 생성 | ✅ divisions.ts YOUTH_AGES(U7~U18) + buildYouthDivisionCodes 헬퍼 / 모달 STEP 4 (youth + 디비전 1개+ 시 노출 + 미리보기 N×M개 종별) / vitest 8 신규 / tsc 0 / vitest 806/806 / PM 결재 Q1+Q4=b 진행 |
 | 2026-05-15 | release #4 (dev → main) — hotfix 명단 제출 500 + Phase 19 PR-S10.1+2 + Phase 23 PR4+PR6 + Phase A.7 | ✅ PR #486 (subin→dev) `31b9f22` + PR #487 (dev→main) `e9f63d1` 머지 / Vercel 자동 배포 / 6 commits 운영 적용 |
 | 2026-05-15 | 최영철 사이드바 메뉴 미노출 다각도 진단 (read-only) | ✅ 운영 DB + 시뮬레이션 + Vercel status 7면 점검 — **코드 100% 정상 + 배포 SUCCESS** / filterStructureByRoles 시뮬레이션 = "대시보드 + 콘텐츠/대회 관리/대회 운영자 도구" 정상 노출 / 원인 = 브라우저 JS bundle 캐시 hit (Hard refresh 안내) |

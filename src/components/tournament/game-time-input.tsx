@@ -19,8 +19,11 @@ const PERIOD_OPTIONS = [
   { value: "2H", label: "전후반" },
 ];
 
-// 시간(분) 옵션
-const TIME_OPTIONS = [5, 7, 8, 10, 12];
+// 시간(분) 옵션 — 2026-05-15 사용자 요청: 6분 추가 (5/6/7/8/10/12)
+export const TIME_OPTIONS = [5, 6, 7, 8, 10, 12] as const;
+// 분 직접 입력 시 허용 범위 (방어 — 0/음수/60+ 차단)
+export const MIN_GAME_MINUTES = 1;
+export const MAX_GAME_MINUTES = 60;
 
 // 데드타임 옵션
 const DEAD_OPTIONS = [
@@ -114,8 +117,8 @@ export function GameTimeInput({ value, onChange }: Props) {
             ))}
           </div>
 
-          {/* 시간(분) 선택 */}
-          <div className="flex gap-2">
+          {/* 시간(분) 선택 — 프리셋 6종 + 직접 입력 (2026-05-15 사용자 요청) */}
+          <div className="flex flex-wrap items-center gap-2">
             {TIME_OPTIONS.map((t) => (
               <button
                 key={t}
@@ -126,6 +129,34 @@ export function GameTimeInput({ value, onChange }: Props) {
                 {t}분
               </button>
             ))}
+            {/* 분 직접 입력 — TIME_OPTIONS 외 값 (예: 9분, 11분, 15분) 자유 입력 */}
+            <div
+              className={`flex items-center gap-1 rounded-[4px] border px-2 py-1 ${
+                !TIME_OPTIONS.includes(minutes as typeof TIME_OPTIONS[number])
+                  ? "border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)]"
+              }`}
+            >
+              <input
+                type="number"
+                min={MIN_GAME_MINUTES}
+                max={MAX_GAME_MINUTES}
+                value={minutes}
+                onChange={(e) => {
+                  // 빈 칸/NaN 방어 — 사용자가 지우는 중간 단계는 임시 통과 (blur 시 clamp)
+                  const raw = e.target.value;
+                  if (raw === "") return; // 빈 칸은 onChange 무시 (input 자체는 빈 상태 표시)
+                  const num = Number(raw);
+                  if (Number.isNaN(num)) return;
+                  // 범위 clamp — 음수/0/60 초과 차단
+                  const clamped = Math.max(MIN_GAME_MINUTES, Math.min(MAX_GAME_MINUTES, Math.floor(num)));
+                  setMinutes(clamped);
+                }}
+                className="w-12 bg-transparent text-center text-sm font-medium text-[var(--color-text-primary)] focus:outline-none"
+                aria-label="분 직접 입력"
+              />
+              <span className="text-sm text-[var(--color-text-secondary)]">분</span>
+            </div>
           </div>
 
           {/* 데드타임 선택 */}
