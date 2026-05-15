@@ -1649,10 +1649,15 @@ export function ScoreSheetForm({
 
             Phase 14 → Phase 15 핵심: 풋터가 frame 가로 펼침 (잘못된 위치) → 좌측 col 안 Team B 아래로 이동.
             이유 (사용자 결재 §1 / 이미지 35): FIBA PDF 정합 (좌측 = Team A + Team B + Coach + 풋터). */}
-        <div className="grid grid-cols-1 md:grid-cols-2">
+        {/* 2026-05-15 (PR-E-1) — 좌/우 column 명시 grid-rows 정합:
+            좌측 = Team A (1fr) / Team B (1fr) / Footer (auto)
+            우측 = RunningScore (2fr) / PeriodScores (auto)
+            grid items align-stretch 기본 → Team A+B 합 = RunningScore 높이. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 items-stretch">
           {/* 좌측 컬럼 — Team A (상) + Team B (중) + FooterSignatures (하) (md 이상 = 우측 분할선).
-              Phase 15: FooterSignatures 가 본 컬럼 안 마지막 child 로 이동 (FIBA PDF 정합). */}
-          <div className="md-fiba-divider-right flex flex-col">
+              2026-05-15 (PR-E-1) — flex-col → grid grid-rows-[1fr_1fr_auto] (자식 3개 명시 row).
+              Team A / Team B 균등 분배 + Footer 자연 height. */}
+          <div className="md-fiba-divider-right grid grid-rows-[1fr_1fr_auto]">
             {/* Team A — 상단 (Time-outs + Team Fouls + Players 12행 + Coach) */}
             <div className="fiba-divider-bottom">
               <TeamSection
@@ -1737,9 +1742,9 @@ export function ScoreSheetForm({
 
           {/* 우측 컬럼 — Running Score (상) + Period Scores + Final (하).
               FIBA PDF 정합 = Period scores 가 Running Score 박스 안 하단에 누적.
-              2026-05-15 — RunningScoreGrid flex-1 + PeriodScoresSection mt-auto.
-                좌측 column (Team A + B + Footer) 와 동일 height stretch + 끝 자식 bottom 정렬. */}
-          <div className="flex flex-col">
+              2026-05-15 (PR-E-1) — flex-col → grid grid-rows-[2fr_auto].
+                RunningScore (2fr) = 좌측 Team A+B 합과 정합 + PeriodScores (auto) = Footer 정합. */}
+          <div className="grid grid-rows-[2fr_auto]">
             {/* PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
                 단일 모드 (= 기존 detail 동작) 통일.
                 2026-05-15 — flex-1 wrapper 추가. Running Score 가 좌측 Team A+B 높이만큼 자동 확장. */}
