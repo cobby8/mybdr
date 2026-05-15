@@ -678,8 +678,9 @@
 .ss-shell .ss-tbox__plyhead,
 .ss-shell .ss-tbox__plyrow {
   display: grid;
-  /* PR-Stat2.1 (2026-05-15) — 사용자 명시 — stat 폭 14px → 17px (+20%) / Name 1fr 자연 축소 */
-  grid-template-columns: 36px 1fr 22px 30px 17px 17px 17px 17px 17px 17px 13px 13px 13px 13px 13px;
+  /* PR-Stat2.1 (2026-05-15) — stat 폭 14px → 17px (+20%) / Name 1fr 자연 축소
+     PR-Stat2.4 (2026-05-15) — 추가 +20% — stat 17→20 (102→120) / foul 13→16 (65→80) */
+  grid-template-columns: 36px 1fr 22px 30px 20px 20px 20px 20px 20px 20px 16px 16px 16px 16px 16px;
 }
 .ss-shell .ss-tbox__plyhead {
   background: var(--pap-fill);
@@ -770,6 +771,8 @@
   font: 600 11px/1 var(--ff-body, "Pretendard", system-ui, sans-serif);
   color: var(--pap-ink);
   letter-spacing: -0.01em;
+  /* PR-Stat2.4 (2026-05-15) — 사용자 명시: Players 영역 가운데 정렬 */
+  justify-content: center;
 }
 .ss-shell .ss-tbox__plyrow .ss-c-no,
 .ss-shell .ss-tbox__plyrow .ss-c-pin {
