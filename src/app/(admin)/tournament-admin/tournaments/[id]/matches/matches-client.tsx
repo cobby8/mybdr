@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+// 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지)
+import { PlaceholderValidationBanner } from "../_components/PlaceholderValidationBanner";
 
 type TeamInfo = {
   id: string;
@@ -27,6 +29,10 @@ type Match = {
   winner_team_id: string | null;
   homeTeam: TeamInfo | null;
   awayTeam: TeamInfo | null;
+  // 2026-05-16 PR-Admin-3 — placeholder 검증용 notes 필드.
+  //   GET /api/web/tournaments/[id]/matches 응답에 이미 포함 (MATCH_LIST_INCLUDE 가 include 만 사용).
+  //   PlaceholderValidationBanner 가 parseSlotLabel 통과 여부 검증.
+  notes: string | null;
   // 2026-05-11: Phase 1-A 매치별 recording_mode — settings JSON 의 recording_mode 키.
   // apiSuccess 가 snake_case 자동 변환 → settings 객체 안 recording_mode 그대로 노출.
   // null / undefined / "flutter" / 알 수 없는 값 = fallback "flutter" 로 표시.
@@ -519,6 +525,11 @@ export default function MatchesClient() {
           {error}
         </div>
       )}
+
+      {/* 2026-05-16 PR-Admin-3 — placeholder 매치 검증 배너 (강남구협회장배 사고 재발 방지).
+          검출 0건 = null 반환 (배너 미표시) / 검출 ≥1건 = warning 톤 카드 + 펼치기 토글.
+          현재 필터 적용된 매치만 검증 (운영자가 보고 있는 매치 = 검증 대상). */}
+      <PlaceholderValidationBanner matches={filteredMatches} applyFilter />
 
       {/* 2026-05-12 — 종별 필터 (강남구협회장배 다중 종별 운영). 종별 2개 이상일 때만 표시. */}
       {hasDivisions && (

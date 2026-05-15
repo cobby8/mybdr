@@ -1,9 +1,84 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: PR-Admin-1 단계간 CTA (NextStepCTA 컴포넌트) 박제
-- **상태**: ✅ 박제 완료 — PM 검증 대기 (tsc PASS / 4 파일 변경 / 신규 109 LOC)
+- **요청**: PR-Admin-3 placeholder 검증 배너 (PlaceholderValidationBanner + detectInvalidPlaceholderMatches) 박제
+- **상태**: ✅ 박제 완료 — PM 검증 대기 (tsc 0 / vitest 26 PASS / 4 파일 변경 — 신규 1 + 수정 3)
 - **현재 담당**: developer → PM
+
+## 구현 기록 (developer) — PR-Admin-3
+
+📝 구현한 기능:
+- 강남구협회장배 사고 (2026-05-15 / errors.md 102) 재발 방지 — 순위전 매치 placeholder 형식 위반 검출 + admin UI 배너
+- detectInvalidPlaceholderMatches: read-only 검출 함수 (format-violation / missing-slot-label 2 reason)
+- PlaceholderValidationBanner: matches-client.tsx 본문 박제 — 검출 0건 = null / 검출 ≥1건 = warning 톤 + 펼치기 토글
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/tournament-admin/tournaments/[id]/_components/PlaceholderValidationBanner.tsx` | 신규 (165 LOC / warning 톤 카드 + expand 토글 + 분류별 요약) | 신규 |
+| `src/lib/tournaments/placeholder-helpers.ts` | detectInvalidPlaceholderMatches 신규 export (+65 LOC / RANKING_ROUND_REGEX + 2-reason 분기) | 수정 |
+| `src/app/(admin)/tournament-admin/tournaments/[id]/matches/matches-client.tsx` | Match type 에 notes 필드 추가 + import 1줄 + 종별 필터 직전 배너 박제 (+11) | 수정 |
+| `src/__tests__/lib/tournaments/placeholder-helpers.test.ts` | detectInvalidPlaceholderMatches 4 케이스 추가 (+84) | 수정 |
+
+📊 검증 결과:
+
+```
+git diff --stat HEAD (PR-Admin-3 한정 — 3 파일 수정)
+ .../lib/tournaments/placeholder-helpers.test.ts    | 84 ++++++++++++++++++++++
+ .../tournaments/[id]/matches/matches-client.tsx    | 11 +++
+ src/lib/tournaments/placeholder-helpers.ts         | 65 +++++++++++++++++
+ 3 files changed, 160 insertions(+)
+
+git status (untracked — 신규 1 파일)
+?? src/app/(admin)/tournament-admin/tournaments/[id]/_components/PlaceholderValidationBanner.tsx
+
+npx tsc --noEmit: EXIT_CODE=0 (전체 PASS / 0 error)
+npx vitest run src/__tests__/lib/tournaments/placeholder-helpers.test.ts: 26/26 PASS (신규 4 + 기존 22)
+```
+
+🔧 자가 진단 5건:
+
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | PlaceholderValidationBanner.tsx 신규 파일 (LOC > 0) | ✅ 165 LOC |
+| 2 | placeholder-helpers.ts detectInvalidPlaceholderMatches export 추가 | ✅ +65 LOC / RANKING_ROUND_REGEX 신규 |
+| 3 | matches-client.tsx Match type 보강 + 배너 박제 | ✅ +11 LOC (notes 필드 + import + 컴포넌트) |
+| 4 | vitest 신규 4 케이스 추가 + PASS | ✅ 26/26 PASS (정상 / 강남구 / missing-label / 예선) |
+| 5 | tsc 0 | ✅ EXIT_CODE=0 |
+
+🛡️ 디자인 13 룰 준수:
+- ✅ var(--color-warning) 톤 사용 (오류 아닌 경고 — 운영 진행 가능 / 수동 조치 권장)
+- ✅ rounded-[4px] 만 사용 (pill 9999px ❌)
+- ✅ material-symbols-outlined "warning" / "expand_more" / "expand_less" (lucide-react ❌)
+- ✅ 모바일 full-width / PC sm:flex-row / 36~44px 터치 영역
+- ✅ 핑크/살몬/코랄 ❌
+
+⚠️ 규약 준수:
+- ✅ planner-architect 박제 spec 100% 일치 (4 파일 / +148 LOC 예상 → 실제 3 수정 +160 + 신규 1 = 부합)
+- ✅ AdvancePlayoffsButton (PR-Admin-2) / NextStepCTA (PR-Admin-1) 변경 0 (영역 분리)
+- ✅ placeholder-helpers 기존 시그니처 변경 0 (export 추가만 / 6 기존 함수 시그니처 그대로)
+- ✅ matches-client.tsx 다른 영역 변경 0 (Match type 1 필드 + import 1 + 컴포넌트 박제 1만)
+- ✅ 운영 DB SELECT 0 (read-only 검출 함수만)
+
+💡 tester 참고:
+- 테스트 방법:
+  1. 강남구협회장배 ID 진입 → `/tournament-admin/tournaments/[id]/matches`
+  2. 종별 필터 직전 위치에 warning 톤 배너 노출 확인 ("⚠️ 순위결정전 N건이 placeholder 형식이 아닙니다.")
+  3. "상세 보기" 클릭 → 검출 매치 ID + roundName + notes + 권장 액션 노출
+  4. 정상 운영 대회 (placeholder 형식 정합) 진입 → 배너 미표시 확인
+- 정상 동작:
+  - 모바일(≤720px): 배너 풀너비 + 헤더/버튼 세로 배치
+  - PC(≥sm): 헤더 좌측 + 펼치기 버튼 우측 정렬
+  - 종별 / 체육관 필터 적용 시 filteredMatches 만 검증 (applyFilter=true 라벨 노출)
+- 주의할 입력:
+  - matches 빈 배열 → 검출 0 → 배너 미표시 (정상)
+  - roundName "예선" / null → 검증 대상 0 (조용히 skip)
+  - format-violation + missing-slot-label 동시 만족 시 → format-violation 우선 보고 (continue 로 missing 중복 skip)
+
+⚠️ reviewer 참고:
+- detectInvalidPlaceholderMatches 검출 우선순위: format-violation > missing-slot-label (강남구 사고 패턴 = 더 시급한 운영 조치 신호)
+- RANKING_ROUND_REGEX = /순위/ 단순 매치 — "순위결정전" / "순위전" / "동순위전" 모두 포함 / 향후 generator 가 신규 라운드명 추가해도 자동 매칭
+- PlaceholderValidationBanner.tsx 165 LOC = planner 예상 70 LOC 초과 (펼치기 상세 + 분류 요약 추가 박제로 풍성화). 운영자 인지 비용 최소화가 본 PR 핵심 목적이라 의도된 확장.
+- matches-client.tsx 의 settings type (`{ recording_mode?: ... [k: string]: unknown }`) 가 detectInvalidPlaceholderMatches 의 settings (`Record<string, unknown> | null`) 와 호환 — homeSlotLabel/awaySlotLabel 키는 [k: string]: unknown 으로 흡수.
 
 ## 구현 기록 (developer) — PR-Admin-1
 
