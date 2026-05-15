@@ -815,9 +815,8 @@ export function TeamSection({
       {/* /§4 ss-tbox__plybody 끝 */}
 
       {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로).
-          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2).
-          2026-05-15 (PR-Zoom-2) — data-zoom-hide → 확대 모드 시 hide (비기록 메타). */}
-      <div className="ss-tbox__coach" data-zoom-hide>
+          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2). */}
+      <div className="ss-tbox__coach">
         <label className="pap-lbl" htmlFor={`coach-${sideLabel}`}>
           Coach
         </label>
@@ -832,7 +831,7 @@ export function TeamSection({
           maxLength={40}
         />
       </div>
-      <div className="ss-tbox__coach" data-zoom-hide>
+      <div className="ss-tbox__coach">
         <label className="pap-lbl" htmlFor={`asst-coach-${sideLabel}`}>
           Assistant Coach
         </label>
