@@ -23,6 +23,9 @@ import { ImageUploader } from "@/components/shared/image-uploader";
 import { TournamentCopyModal, type CopyData } from "@/components/tournament/tournament-copy-modal";
 // 2026-05-11: BDR 브랜드 hex hardcode 단일화 (conventions.md `admin 빨강 본문 금지` 박제)
 import { BDR_PRIMARY_HEX, BDR_SECONDARY_HEX } from "@/lib/constants/colors";
+// 2026-05-15 Admin-7-B Sub-B3 박제 — 시안 v2.14 AdminTournamentWizard1Step.jsx 헤더 패턴.
+//   eyebrow + breadcrumbs 3단계 + actions slot (× 종료). Sub-B1/B2 와 동일 패턴 (옵션 A 보수적).
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 // --- 3단계 구성 (기존 8탭 → 3단계로 간소화) ---
 const STEPS = [
@@ -310,37 +313,36 @@ function QuickCreateForm() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      {/* === 헤더 === Admin-3 박제 (2026-05-15) — 시안 AdminWizardTournament v2.8.1.
-          이유: wizard 진입 시 "마법사 진행 중" 컨텍스트 명시 + 작성 중단 종료 버튼 박제 (사용자 결정).
-          좌상단 백 링크 ❌ (시안 v2.8.1 결정 — sidebar 가 dashboard 진입점 제공). */}
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <span
-            className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--color-info)]"
-            style={{ fontFamily: "var(--ff-mono, ui-monospace, SFMono-Regular, monospace)" }}
+      {/* === 헤더: 시안 v2.14 AdminTournamentWizard1Step 패턴 박제 (Admin-7-B Sub-B3) ===
+          이유: Sub-B1 (SetupHub) / Sub-B2 (EditWizard) 와 시각 일관성 박제 — AdminPageHeader 공통 컴포넌트.
+                Admin-3 `d98ff79` 박제 시각 자산 (eyebrow Navy + × 종료 confirm 1회) 100% 동등 이전.
+                breadcrumbs 3단계 (ADMIN › 대회 운영자 도구 › 새 대회) 신규 박제.
+          비즈 보존 (UI-2 `60dd37e`): 라우터 분기 / QuickCreateForm state / handleCreate POST / Phase 6 PR2 카드 / InlineSeriesForm 변경 0. */}
+      <AdminPageHeader
+        eyebrow="대회 운영자 도구 · 마법사 진행 중"
+        title="새 대회 만들기"
+        subtitle="이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "대회 운영자 도구" },
+          { label: "새 대회" },
+        ]}
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
+                router.push("/tournament-admin");
+              }
+            }}
+            className="btn btn--sm"
+            aria-label="작성 종료"
           >
-            대회 운영자 도구 · 마법사 진행 중
-          </span>
-          <h1 className="mt-1 text-xl font-bold sm:text-2xl">새 대회 만들기</h1>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-            이름만 입력해도 대회를 만들 수 있어요. 나머지 설정은 대회 대시보드에서 차근차근 진행하세요.
-          </p>
-        </div>
-        {/* × 종료 — 진행 중단 시 admin 대시보드 복귀 (confirm 1회) */}
-        <button
-          type="button"
-          onClick={() => {
-            if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-              router.push("/tournament-admin");
-            }
-          }}
-          className="inline-flex shrink-0 items-center gap-1 rounded-[4px] px-2 py-1.5 text-sm text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-border)] hover:text-[var(--color-text-primary)]"
-          aria-label="작성 종료"
-        >
-          <span className="material-symbols-outlined text-lg">close</span>
-          종료
-        </button>
-      </div>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+            종료
+          </button>
+        }
+      />
 
       {/* 2026-05-15 Phase 6 PR2 — super_admin / association_admin 분기 카드.
           이유: 협회 마법사 진입점을 일반 사용자에게는 숨기고 권한 보유자에게만 안내.
