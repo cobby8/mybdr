@@ -417,16 +417,17 @@ export function ScoreSheetForm({
   }
 
   // 2026-05-15 (PR-SS-Manual+Reselect) — 설명서 (작성법) 모달.
-  // 2026-05-16 (PR-SS-Manual-v2) — 현재 작동 기능 정합 갱신:
-  //   (1) 신규 섹션 = 매치 상태 표시 / 수정 기능 (기록수정/라인업/이전 쿼터) / 전체화면 모드
-  //   (2) 시인성 개선 = 섹션 borderLeft 3px accent + h3 16px 굵게 / 본문 14px + line-height 1.7
-  //   (3) 신규 박제 = 이전·다음 쿼터 버튼 / 현재 쿼터 뱃지 / 개인기록 6칸 (OR/DR/A/S/B/TO)
-  //   (4) 시안 13 룰: 강조 = bold + var(--color-info) (빨강 본문 금지) / material-symbols-outlined 아이콘
+  // 2026-05-16 (PR-SS-Manual-v3) — 공격권 (Possession Arrow) 섹션 추가 + 색상 안내 박스화:
+  //   (1) 신규 섹션 = 공격권 표시 (FIBA Alternating Possession) — 첫 점프볼 / 화살표 / 헬드볼 /
+  //       쿼터 종료 자동 토글 4건. 위치 = 4번 "쿼터 종료" 뒤 (5번째 신규 섹션).
+  //   (2) 시인성 개선 = PeriodColorLegend 를 다른 6 섹션과 동일 sectionBoxStyle 박스로 감싸
+  //       라벨 (h3 "쿼터별 색상 / 점수 표기") + padding 통일.
+  //   (3) 비개발자 표현 = "점프볼(공중 던진 공 잡기)" / "헬드볼(두 팀이 공 동시에 잡음)" 풀어 설명.
+  //   (4) 기존 5/6 → 6/7 번호 밀림 (잘못 기록했을 때 / 전체화면).
   //   왜 (이유):
-  //     기존 7항목은 라인업/점수/파울/팀파울/타임아웃/쿼터종료/기타 만 박제 → score-sheet 가
-  //     최근 추가한 6개 기능 (기록수정 / 전체화면 / 이전·다음 쿼터 / 쿼터 뱃지 / 매치 상태 라벨
-  //     / 개인기록 popover OR/DR/A/S/B/TO) 미반영. 운영자가 모달 한 번에 전체 흐름 파악
-  //     하도록 갱신.
+  //     PR-Possession-2 박제로 헤더에 점유 화살표 + JumpBallModal + PossessionConfirmModal 추가.
+  //     운영자가 모달 한 번에 점유권 흐름 (첫 점프볼 → 화살표 → 헬드볼 클릭 → 쿼터 자동 토글)
+  //     전체를 파악하도록 신규 섹션 박제. 비개발자 표현으로 점프볼/헬드볼 정의 풀이 동봉.
   //   ConfirmModal 호출 패턴 변경 0 (title / size / options 그대로) — JSX 본문만 교체.
   async function handleOpenManual() {
     // 섹션 박스 공통 스타일 — borderLeft 3px accent + 부드러운 배경 + padding.
@@ -475,8 +476,18 @@ export function ScoreSheetForm({
       size: "xl",
       message: (
         <div className="space-y-4" style={bodyTextStyle}>
-          {/* 색상/점수 표기 안내 박스 (작성법 위쪽 유지 — 기존 자리 보존). */}
-          <PeriodColorLegend />
+          {/* 색상/점수 표기 안내 — Legend 자체는 inline 컴포넌트(작음) → 시인성 향상 위해
+              섹션 박스로 한 번 더 감싸서 다른 6개 섹션과 동일 라벨/스타일 정합 갖춤.
+              (2026-05-16 PR-SS-Manual-Legend-v2 — 라벨 명시 + padding 통일). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                palette
+              </span>
+              쿼터별 색상 / 점수 표기
+            </h3>
+            <PeriodColorLegend />
+          </section>
 
           {/* (1) 매치 상태 표시 — 신규 박제 (헤더 우상단 뱃지 + 라벨 안내). */}
           <section style={sectionBoxStyle}>
@@ -602,7 +613,50 @@ export function ScoreSheetForm({
             </ol>
           </section>
 
-          {/* (5) 수정 기능 — 신규 박제 (기록수정 / 라인업 재선택 / 이전 쿼터). */}
+          {/* (5) 공격권 표시 (FIBA Alternating Possession) — 신규 박제 (2026-05-16 PR-Possession-2).
+              왜: 운영자가 첫 점프볼 / 헬드볼 / 쿼터 종료 자동 토글 흐름을 모달 한 번에 파악.
+              비개발자 표현 = "점프볼(공중 던진 공 잡기)" / "헬드볼(두 팀이 공 동시에 잡음)" 풀어 설명. */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                sync_alt
+              </span>
+              공격권 표시 (FIBA Alternating Possession)
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                <strong style={emphasisStyle}>첫 점프볼 (공중 던진 공 잡기)</strong> — 라인업을
+                확정하면 자동으로 작은 창이 뜹니다. <em>점프볼을 이긴 팀</em>과
+                <em> 그 선수</em>를 골라주세요. 이긴 팀이 첫 공격권을 가져가며, 화면
+                위쪽 쿼터 뱃지 옆에 <strong style={emphasisStyle}>회색 화살표</strong>가 나타납니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li><em>←</em> 표시 = 다음 점유권은 <strong>어웨이 팀</strong></li>
+                  <li><em>→</em> 표시 = 다음 점유권은 <strong>홈 팀</strong></li>
+                </ul>
+              </li>
+              <li>
+                <strong style={emphasisStyle}>공격권 화살표 보는 법</strong> — 헤더 쿼터 뱃지
+                <em> 왼쪽</em>에 항상 표시됩니다. 화살표가 가리키는 팀이
+                <em> 다음번에 공격권을 가져갈 팀</em>입니다 (FIBA 점프볼 / 헬드볼 룰).
+              </li>
+              <li>
+                <strong style={emphasisStyle}>헬드볼 (두 팀이 공 동시에 잡음) 발생 시</strong> —
+                두 팀 선수가 동시에 공을 잡았을 때, 헤더의
+                <em> 회색 화살표를 직접 눌러주세요</em>. 작은 확인 창이 뜨며
+                <em> "헬드볼 발생 — 공격권 [팀 이름]"</em> 으로 나타납니다. 확인을 누르면 그
+                팀이 공격권을 가져가고, 화살표는 자동으로 <strong>반대 팀 방향</strong>으로
+                바뀝니다 (다음 헬드볼은 반대 팀).
+              </li>
+              <li>
+                <strong style={emphasisStyle}>쿼터가 끝나면 자동으로 바뀝니다</strong> —
+                <em> "다음 쿼터"</em> 버튼을 누르는 순간 화살표가 자동으로 반대 방향으로
+                토글됩니다 (FIBA 공식 룰 Art. 12.5). 운영자가 따로 누를 필요는 없으며,
+                토스트 알림 <em>"다음 쿼터 공격권 = [팀]"</em>이 잠깐 표시됩니다.
+              </li>
+            </ol>
+          </section>
+
+          {/* (6) 수정 기능 — 신규 박제 (기록수정 / 라인업 재선택 / 이전 쿼터). */}
           <section style={sectionBoxStyle}>
             <h3 style={sectionH3Style}>
               <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
@@ -636,7 +690,7 @@ export function ScoreSheetForm({
             </ol>
           </section>
 
-          {/* (6) 전체화면 / 인쇄 — 신규 박제 (toolbar 전체화면 버튼 + ESC). */}
+          {/* (7) 전체화면 / 인쇄 — 신규 박제 (toolbar 전체화면 버튼 + ESC). */}
           <section style={sectionBoxStyle}>
             <h3 style={sectionH3Style}>
               <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
