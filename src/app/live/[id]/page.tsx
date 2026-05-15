@@ -1186,23 +1186,19 @@ export default function LiveBoxScorePage() {
               LIVE
             </span>
           )}
-          {/* 상태 라벨: 라이브 외 상태 (예정/종료)에서만 표시 — 빨간 LIVE 펄스와 회색 LIVE 텍스트 중복 제거 (2026-05-02) */}
-          {!isLive && (
-            <span className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-              {STATUS_LABEL[match.status] ?? match.status}
-            </span>
-          )}
+          {/* 2026-05-15 사용자 결정: 상태 라벨 ("예정"/"종료" 등) 삭제 — toolbar 단순화.
+                                    isLive 펄스만 유지 (live 상태 시각 인지). */}
+
           {/* 2026-05-15 PR-Live2 — 운영자/기록원 전용 "기록하기" Link (score-sheet 진입).
-              canRecord = score-sheet-access endpoint 통과 시에만 노출 (Q2 권고안 = toolbar 위치).
-              시각 = var(--color-primary) 빨강 배경 + 흰 글자 (강조 액션 / 임시번호 회색 보조 액션과 분리).
-              Q4 결재 = recording_mode 무관 노출 (paper/flutter 모두) — score-sheet 안내 화면이 자동 처리.
-              데스크탑 = 아이콘 + 텍스트 / 모바일 = 아이콘만 (Q1 path = /score-sheet/{matchId}). */}
+              canRecord = score-sheet-access endpoint 통과 시에만 노출.
+              시각 = var(--color-primary) 빨강 배경 + 흰 글자 (강조 액션).
+              2026-05-15 사용자 결정: PC/모바일 통합 (모든 화면에서 텍스트 + 아이콘 버전 1개만). */}
           {canRecord && (
             <Link
               href={`/score-sheet/${id}`}
               aria-label="이 매치 기록하기 (운영자/기록원 전용)"
               title="이 매치 기록하기 (운영자/기록원 전용)"
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-opacity hover:opacity-90"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-opacity hover:opacity-90"
               style={{
                 color: "#fff",
                 backgroundColor: "var(--color-primary)",
@@ -1210,20 +1206,6 @@ export default function LiveBoxScorePage() {
             >
               <span className="material-symbols-outlined text-base">edit_note</span>
               <span>기록하기</span>
-            </Link>
-          )}
-          {/* 모바일: 아이콘만 (텍스트 생략) — 헤더 공간 보호. 빨강 배경은 유지하여 강조 액션 시각 일관성 보존. */}
-          {canRecord && (
-            <Link
-              href={`/score-sheet/${id}`}
-              aria-label="이 매치 기록하기 (운영자/기록원 전용)"
-              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-md transition-opacity hover:opacity-90"
-              style={{
-                color: "#fff",
-                backgroundColor: "var(--color-primary)",
-              }}
-            >
-              <span className="material-symbols-outlined text-base">edit_note</span>
             </Link>
           )}
           {/* 2026-05-05 PR4 — 운영자 전용 "임시 번호" 버튼 (W1 매치 한정 jersey override).
