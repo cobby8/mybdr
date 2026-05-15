@@ -6,6 +6,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { TossCard } from "@/components/toss/toss-card";
+// 2026-05-15 Admin-7-B Sub-B2 박제 — 시안 v2.14 AdminTournamentEditWizard.jsx 헤더 패턴
+//   eyebrow + breadcrumbs 4단계 + actions slot (설정 hub 로). Sub-B1 `[id]/page.tsx` 와 동일 패턴.
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ScheduleForm, type ScheduleFormData, type PlaceInfo } from "@/components/tournament/schedule-form";
 import {
   RegistrationSettingsForm,
@@ -534,17 +537,28 @@ export default function TournamentEditWizardPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* === 헤더: 뒤로가기 + 타이틀 === */}
-      <div className="mb-6 flex items-center gap-3">
-        <button
-          onClick={() => router.push(`/tournament-admin/tournaments/${id}`)}
-          className="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
-        >
-          <span className="material-symbols-outlined text-base align-middle">arrow_back</span>
-          대회 관리
-        </button>
-      </div>
-      <h1 className="mb-6 text-xl font-bold sm:text-2xl">대회 설정</h1>
+      {/* === 헤더: 시안 v2.14 AdminTournamentEditWizard 패턴 박제 (Admin-7-B Sub-B2) === */}
+      {/* 이유: Sub-B1 SetupHub 와 시각 일관성 박제 (eyebrow + breadcrumbs 4단계 + actions).
+          비즈 로직 (3-step stepper / handleSave / UI-1.5 ?step= / UI-3 / UI-4) 모두 보존. */}
+      <AdminPageHeader
+        eyebrow="ADMIN · 대회 수정"
+        title={name || "대회 수정"}
+        subtitle="기존 대회의 설정을 일괄 수정합니다. 공개 사이트·서브도메인은 별도 페이지에서 관리합니다."
+        breadcrumbs={[
+          { label: "ADMIN" },
+          { label: "대회 운영자 도구" },
+          { label: name || "대회" },
+          { label: "수정 wizard" },
+        ]}
+        actions={
+          <Link href={`/tournament-admin/tournaments/${id}`} className="btn btn--sm">
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+              arrow_back
+            </span>
+            설정 hub 로
+          </Link>
+        }
+      />
 
       {/* === 3단계 탭 인디케이터 (생성 위자드와 동일) === */}
       <div className="mb-6 flex gap-2">
