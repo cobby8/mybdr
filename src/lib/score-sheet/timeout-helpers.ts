@@ -35,11 +35,33 @@ import {
 
 // period → GamePhase 분기
 //
-// 룰:
+// 룰 (4쿼터 모드 = 기본):
 //   - 1, 2 → first_half (전반)
 //   - 3, 4 → second_half (후반)
 //   - 5+ → overtime (연장)
-export function getGamePhase(period: number): GamePhase {
+//
+// 룰 (전후반 모드 = halves — 2026-05-16 긴급 박제):
+//   - 1 → first_half (전반)
+//   - 2 → second_half (후반)
+//   - 3+ → overtime (연장 OT1+)
+//
+// 왜 (이유):
+//   강남구 i3 종별 등 종이 기록지가 전후반 (2 period) 모드로 운영되는 매치 대응.
+//   타임아웃 phase 분기를 한 곳에서 처리 — 호출자 (canAddTimeout / getCellPhase / isCellActive)
+//   가 자동으로 periodFormat 따라 동작.
+//
+// 호환성:
+//   periodFormat 미전달 (= undefined) 시 기존 4쿼터 룰 그대로 (운영 매치 영향 0).
+export function getGamePhase(
+  period: number,
+  periodFormat?: "halves" | "quarters",
+): GamePhase {
+  if (periodFormat === "halves") {
+    if (period === 1) return "first_half";
+    if (period === 2) return "second_half";
+    return "overtime";
+  }
+  // 기본 (4쿼터)
   if (period <= 2) return "first_half";
   if (period <= 4) return "second_half";
   return "overtime";
@@ -102,9 +124,12 @@ export function getRemainingTimeouts(
 //       - 차단: "전반 타임아웃 모두 사용" / "후반 타임아웃 모두 사용" / "OT 타임아웃 모두 사용"
 export function canAddTimeout(
   timeouts: TimeoutMark[],
-  currentPeriod: number
+  currentPeriod: number,
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //   periodFormat 미전달 시 = 4쿼터 기본 룰 (운영 호환).
+  periodFormat?: "halves" | "quarters",
 ): { allowed: boolean; reason: string } {
-  const phase = getGamePhase(currentPeriod);
+  const phase = getGamePhase(currentPeriod, periodFormat);
   // overtime 일 때만 현재 OT period 전달 (각 OT 별도 카운트)
   const otPeriod = phase === "overtime" ? currentPeriod : undefined;
   const remaining = getRemainingTimeouts(timeouts, phase, otPeriod);
@@ -144,12 +169,14 @@ export function canAddTimeout(
 export function addTimeout(
   state: TimeoutsState,
   team: "home" | "away",
-  mark: TimeoutMark
+  mark: TimeoutMark,
+  // 2026-05-16 (긴급 박제 — 전후반 모드)
+  periodFormat?: "halves" | "quarters",
 ):
   | { ok: true; state: TimeoutsState; reason: string }
   | { ok: false; reason: string } {
   const teamTimeouts = team === "home" ? state.home : state.away;
-  const check = canAddTimeout(teamTimeouts, mark.period);
+  const check = canAddTimeout(teamTimeouts, mark.period, periodFormat);
   if (!check.allowed) {
     return { ok: false, reason: check.reason };
   }
@@ -205,13 +232,26 @@ export function getCellPhase(cellIndex: number): GamePhase {
 //       다른 OT 진행 중인 cell = 비활성 (예: OT2 진행 중 = cell 5 disabled)
 //   - 미래 phase (e.g. Q1 진행 중 = 후반/OT cell) = 비활성
 //   - 과거 phase (e.g. Q3 진행 중 = 전반 cell) = 비활성 (이미 채워진 셀은 caller 에서 별도 isLastFilled 분기)
-export function isCellActive(cellIndex: number, currentPeriod: number): boolean {
+export function isCellActive(
+  cellIndex: number,
+  currentPeriod: number,
+  // 2026-05-16 (긴급 박제 — 전후반 모드)
+  //   호출자 미전달 시 = 4쿼터 기본 룰 (운영 호환).
+  periodFormat?: "halves" | "quarters",
+): boolean {
   const cellPhase = getCellPhase(cellIndex);
-  const currentPhase = getGamePhase(currentPeriod);
+  const currentPhase = getGamePhase(currentPeriod, periodFormat);
   if (cellPhase !== currentPhase) return false;
   // OT phase 일 때만 cellIndex ↔ currentPeriod 일대일 매칭
   if (cellPhase === "overtime") {
-    // cellIndex 5 = period 5 / 6 = period 6 / 7 = period 7 ...
+    // halves 모드 OT = period 3+ ↔ cellIndex 5+
+    //   halves: period 3 = OT1 / period 4 = OT2 / period 5 = OT3 ...
+    //   cellIndex 5 = OT1 cell / 6 = OT2 / ...
+    //   매칭: cellIndex - 4 === period - 2 (= OT 번호)
+    if (periodFormat === "halves") {
+      return cellIndex - 4 === currentPeriod - 2;
+    }
+    // quarters: cellIndex 5 = period 5 / 6 = period 6 / ...
     return cellIndex === currentPeriod;
   }
   return true;

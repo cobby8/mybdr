@@ -222,6 +222,10 @@ interface DraftPayload {
   // 2026-05-16 (PR-Possession-2) — 공격권 박제 (mid-game reload 후 화살표 + 점프볼 이벤트 복원).
   //   optional = 구버전 draft 호환 (없으면 EMPTY_POSSESSION fallback).
   possession?: PossessionState;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //   optional = 구버전 draft 호환 (없으면 "quarters" fallback).
+  //   localStorage 박제로 새로고침 시 토글 보존 (page.tsx 변경 0 — 시간 부족 시 ok).
+  periodFormat?: "halves" | "quarters";
   savedAt: string;
 }
 
@@ -336,6 +340,23 @@ export function ScoreSheetForm({
   const [possession, setPossession] = useState<PossessionState>(EMPTY_POSSESSION);
   const [jumpBallModalOpen, setJumpBallModalOpen] = useState(false);
   const [heldBallConfirmOpen, setHeldBallConfirmOpen] = useState(false);
+
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //
+  // 왜 (이유):
+  //   종이 기록지가 전후반 (2 period) 모드 운영 매치 (강남구 i3 등) 대응. 4쿼터 기본 유지 +
+  //   toolbar 토글로 즉시 전환. DB schema 변경 0 — localStorage draft 박제로 새로고침 시 보존.
+  //
+  // 어떻게:
+  //   - 기본값 = "quarters" (4쿼터 / 호환 유지).
+  //   - toolbar [전후반] 버튼 클릭 시 togglePeriodFormat 호출 → halves ↔ quarters 토글.
+  //   - localStorage 복원 = 아래 useEffect (loadDraft) 에서 setPeriodFormat (draft.periodFormat 있을 시).
+  const [periodFormat, setPeriodFormat] = useState<"halves" | "quarters">(
+    "quarters",
+  );
+  const togglePeriodFormat = () => {
+    setPeriodFormat((prev) => (prev === "halves" ? "quarters" : "halves"));
+  };
 
   // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
   //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
@@ -1141,6 +1162,11 @@ export function ScoreSheetForm({
             setPlayerStats(ps);
           }
         }
+        // 2026-05-16 (긴급 박제 — 전후반 모드) — periodFormat 복원 (구버전 draft 호환: 없으면 "quarters").
+        //   방어: "halves" | "quarters" 외 값 = 무시 (안전망).
+        if (draft.periodFormat === "halves" || draft.periodFormat === "quarters") {
+          setPeriodFormat(draft.periodFormat);
+        }
         // 2026-05-16 (PR-Possession-2) — possession 복원 (구버전 draft 호환: 없으면 EMPTY).
         //   방어: arrow ∈ {"home","away",null} + openingJumpBall null|{winner,winnerPlayerId} +
         //         heldBallEvents = 배열. shape 위반 시 EMPTY 유지 (안전망).
@@ -1190,6 +1216,8 @@ export function ScoreSheetForm({
     const timer = window.setTimeout(() => {
       // 2026-05-15 (PR-D-4a) — saveDraft 헬퍼 사용. savedAt 자동 박제.
       // 2026-05-16 (PR-Possession-2) — possession 박제 (mid-game reload 후 화살표 복원).
+      // 2026-05-16 (긴급 박제 — 전후반 모드) — periodFormat 박제.
+      //   draft-storage.ts 의 saveDraft 시그니처는 Record<string, unknown> 류 — 추가 key 호환.
       saveDraft(match.id, {
         header,
         teamA,
@@ -1201,10 +1229,11 @@ export function ScoreSheetForm({
         lineup,
         playerStats,
         possession,
+        periodFormat,
       });
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, possession, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, possession, periodFormat, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
@@ -1247,6 +1276,43 @@ export function ScoreSheetForm({
           : nextPossession.arrow === "away"
             ? awayFilteredRoster.teamName
             : null;
+    }
+    // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별):
+    //   halves 모드 분기 = period 1 (전반) 종료 시 자동 후반 진입 / period 2 (후반) 종료 시 경기 종료 모달.
+    //   quarters 모드 = 기존 동작 (Q1~Q3 자동 / Q4 → 모달 / OT → 모달).
+    if (periodFormat === "halves") {
+      // 전반 (period 1) 종료 = 자동 후반 진입
+      if (endedPeriod === 1) {
+        setRunningScore((prev) => ({
+          ...prev,
+          currentPeriod: Math.min(prev.currentPeriod + 1, 9),
+        }));
+        if (nextArrowLabel) {
+          showToast(
+            `전반 종료 — 후반 진행 / 다음 공격권 = ${nextArrowLabel}`,
+            "info",
+          );
+        } else {
+          showToast("전반 종료 — 후반 진행", "info");
+        }
+        return;
+      }
+      // 후반 (period 2) 종료 = 경기 종료 모달 (= quarters 의 Q4 와 동일 흐름).
+      //   OT 진행 가능 (동점 시) → QuarterEndModal 의 "OT 진행" 버튼 활용.
+      //   QuarterEndModal 의 mode="quarter4" 분기 재사용 (UI 라벨은 모달 안 별도 처리 — 시간 부족 시 그대로).
+      if (endedPeriod === 2) {
+        setQuarterEndModal({
+          mode: "quarter4",
+          period: endedPeriod,
+        });
+        return;
+      }
+      // halves OT (period 3+) 종료 = overtime 모달 (= quarters 의 OT 와 동일 흐름).
+      setQuarterEndModal({
+        mode: "overtime",
+        period: endedPeriod,
+      });
+      return;
     }
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
@@ -1907,6 +1973,11 @@ export function ScoreSheetForm({
         onOpenPbpEdit={
           !isReadOnly ? () => setPbpEditModalOpen(true) : undefined
         }
+        // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별).
+        //   toolbar 의 "전후반" 토글 버튼 wiring. isReadOnly (종료/RO) 시 = undefined → 버튼 미노출.
+        //   진행 매치 + 수정 모드 매치 = 토글 가능.
+        periodFormat={periodFormat}
+        onTogglePeriodFormat={isReadOnly ? undefined : togglePeriodFormat}
       />
 
       {/* 2026-05-15 (PR-SS-54) — 별도 PeriodColorLegend 박스 제거.
@@ -1995,6 +2066,8 @@ export function ScoreSheetForm({
             //                  그 외 = handleArrowClick (헬드볼 confirm 모달 trigger).
             possessionArrow={possession.arrow}
             onArrowClick={isReadOnly ? undefined : handleArrowClick}
+            // 2026-05-16 (긴급 박제 — 전후반 모드) — 쿼터 뱃지 라벨 분기 (Q{N} ↔ "전반/후반/OT{N}").
+            periodFormat={periodFormat}
           />
         </div>
 
@@ -2051,6 +2124,8 @@ export function ScoreSheetForm({
                 disabled={isReadOnly}
                 readOnly={isReadOnly}
                 frameless
+                // 2026-05-16 (긴급 박제 — 전후반 모드) — Team fouls Period 라벨 + timeout phase 분기.
+                periodFormat={periodFormat}
               />
             </div>
             {/* Team B — 중단 (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할).
@@ -2082,6 +2157,8 @@ export function ScoreSheetForm({
                 disabled={isReadOnly}
                 readOnly={isReadOnly}
                 frameless
+                // 2026-05-16 (긴급 박제 — 전후반 모드) — Team B 도 동일 wiring.
+                periodFormat={periodFormat}
               />
             </div>
           </div>
@@ -2133,6 +2210,8 @@ export function ScoreSheetForm({
                 frameless
                 // 2026-05-16 (PR-Winner-Gate) — 경기 종료 시에만 NAME OF WINNING TEAM 표시.
                 matchEnded={matchEndSubmitted}
+                // 2026-05-16 (긴급 박제 — 전후반 모드) — Period row 라벨 분기 (전반/후반 + Q3/Q4 hide).
+                periodFormat={periodFormat}
               />
           </div>
         </div>

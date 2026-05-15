@@ -168,6 +168,11 @@ interface TeamSectionProps {
   onRequestOpenStatPopover: (playerId: string, statKey: StatKey) => void;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //   "halves" 시 = Team fouls Period 라벨 = "전반/후반" / line 2 (Period ③④) hide.
+  //   기본 (= "quarters" 또는 미전달) = 기존 4쿼터 2 line 동작 (운영 호환).
+  //   timeout cell active 검증도 본 prop 으로 분기 (isCellActive 호출 시 전달).
+  periodFormat?: "halves" | "quarters";
 }
 
 /**
@@ -218,9 +223,13 @@ export function TeamSection({
   // PR-S6 (2026-05-15 rev2) — frameless prop = 보존 (props interface 변경 0 / 사용자 핵심 제약 #1).
   // 시안 .ss-shell.ss-tbox 가 자체 border 보유 = 항상 frameless 동일 시각. caller form.tsx 가 전달하지만 본 컴포넌트에서는 무시.
   frameless: _framelessUnused,
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  periodFormat,
 }: TeamSectionProps) {
   // frameless 미사용 경고 회피 + 의도된 미사용임을 명시
   void _framelessUnused;
+  // 2026-05-16 (긴급 박제) — 전후반 모드 분기 헬퍼.
+  const isHalves = periodFormat === "halves";
   // 선수 행 (12 보장 — Phase 12 사용자 직접 결재 / FIBA Article 4.2.2 실 운영 max 12명)
   const rows = fillRowsTo12(players);
 
@@ -352,7 +361,8 @@ export function TeamSection({
               //   왜: 시안 7 cells (전반 2 / 후반 3 / OT 2) 정합 — 다른 phase cell 은 시각 회색 + 클릭 차단.
               //   AND 가드: 기존 (filled / empty) 로직 보존 + cell phase 불일치 시 추가 차단.
               //   isCellActive(i, currentPeriod) === false → 시각 disabled (data-disabled-phase="true").
-              const cellActive = isCellActive(i, currentPeriod);
+              // 2026-05-16 (긴급 박제) — periodFormat 전달 (halves 시 cell active 룰 분기).
+              const cellActive = isCellActive(i, currentPeriod, periodFormat);
               return (
                 <button
                   key={i}
@@ -414,7 +424,8 @@ export function TeamSection({
           })()}
           {/* phase 안내 (운영자 잔여 인지) — Time-outs 좌측 영역 안 ss-tbox__to-label 옆 */}
           {(() => {
-            const phase = getGamePhase(currentPeriod);
+            // 2026-05-16 (긴급 박제) — periodFormat 전달 (halves 시 phase 분기).
+            const phase = getGamePhase(currentPeriod, periodFormat);
             const used = getUsedTimeouts(
               timeouts,
               phase,
@@ -422,12 +433,16 @@ export function TeamSection({
             );
             const max =
               phase === "first_half" ? 2 : phase === "second_half" ? 3 : 1;
+            // 2026-05-16 (긴급 박제) — OT 번호 산출 분기.
+            //   halves: OT = period 3+ → OT 번호 = currentPeriod - 2
+            //   quarters: OT = period 5+ → OT 번호 = currentPeriod - 4
+            const otNumber = isHalves ? currentPeriod - 2 : currentPeriod - 4;
             const phaseLabel =
               phase === "first_half"
                 ? "전반"
                 : phase === "second_half"
                   ? "후반"
-                  : `OT${currentPeriod - 4}`;
+                  : `OT${otNumber}`;
             return (
               <div
                 className="text-[8px]"
@@ -444,9 +459,12 @@ export function TeamSection({
             운영 보존: getTeamFoulCountByPeriod / 5+ FT 안내 / Phase 17 쿼터별 색 모두 그대로 wiring. */}
         <div className="ss-tbox__tf">
           <div className="ss-tbox__tf-label">Team fouls</div>
-          {/* line 1 — Period ① ② */}
+          {/* line 1 — Period ① ② (halves 시 = 전반 / 후반).
+              2026-05-16 (긴급 박제) — halves 모드 시 라벨 변경:
+                - pname = "Period" → 비표시 (halves 라벨 박제로 자체 안내).
+                - qnum ① → "전반" / ② → "후반". */}
           <div className="ss-tbox__tf-line">
-            <span className="ss-tbox__tf-pname">Period</span>
+            <span className="ss-tbox__tf-pname">{isHalves ? "" : "Period"}</span>
             {([1, 2] as const).map((period) => {
               const teamCount = getTeamFoulCountByPeriod(fouls, period);
               const ftAwarded = teamCount >= 5;
@@ -454,7 +472,13 @@ export function TeamSection({
               return (
                 <div key={period} className="ss-tbox__tf-q">
                   <span className="ss-tbox__tf-qnum">
-                    {period === 1 ? "①" : "②"}
+                    {isHalves
+                      ? period === 1
+                        ? "전반"
+                        : "후반"
+                      : period === 1
+                        ? "①"
+                        : "②"}
                   </span>
                   <div className="ss-tbox__tf-cells">
                     {[1, 2, 3, 4].map((n) => {
@@ -499,7 +523,9 @@ export function TeamSection({
               );
             })}
           </div>
-          {/* line 2 — Period ③ ④ */}
+          {/* line 2 — Period ③ ④ (halves 모드 = 미노출 / 전반/후반만 사용).
+              2026-05-16 (긴급 박제) — isHalves 시 line 2 hide. quarters 모드 = 기존 그대로. */}
+          {!isHalves && (
           <div className="ss-tbox__tf-line">
             <span className="ss-tbox__tf-pname">Period</span>
             {([3, 4] as const).map((period) => {
@@ -557,6 +583,7 @@ export function TeamSection({
               );
             })}
           </div>
+          )}
           {/* line 3 — Extra periods (OT 통합 합산 / 시안 data-extra="true").
               Phase 19 PR-T4 (2026-05-15) — 1/2/3/4 cell 마크업 삭제 + 텍스트 라벨 유지 + 우측 정렬.
                 왜: 사용자 결재 — Extra periods 는 OT 카운트만 표시 (cell 마킹 ❌) + 영역 우측 정렬.

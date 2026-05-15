@@ -50,6 +50,10 @@ interface PeriodScoresSectionProps {
   //   경기 종료 (matchEnded=true) 시에만 NAME OF WINNING TEAM 자동 채움.
   //   진행 중에는 빈 칸 (현재 점수 = 임시. 사용자 명시 = 경기 종료 후 결정).
   matchEnded?: boolean;
+  // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
+  //   "halves" 시 = Period ①/② row 라벨 = "전반/후반" / ③/④ row hide.
+  //   기본 (= "quarters" 또는 미전달) = 기존 Q1~Q4 row 4개 + Extra 1개.
+  periodFormat?: "halves" | "quarters";
 }
 
 export function PeriodScoresSection({
@@ -64,7 +68,12 @@ export function PeriodScoresSection({
   disabled,
   frameless: _frameless,
   matchEnded, // 2026-05-16 (PR-Winner-Gate) — 경기 종료 시에만 승리팀 표시
+  periodFormat, // 2026-05-16 (긴급 박제 — 전후반 모드)
 }: PeriodScoresSectionProps) {
+  // 2026-05-16 (긴급 박제) — 전후반 모드 분기 헬퍼.
+  //   isHalves = true 시: ①/② 라벨 = "전반/후반" / ③/④ row hide / Extra row = OT1+ 표시.
+  //   기본 (= false) = 기존 4쿼터 동작 (운영 호환).
+  const isHalves = periodFormat === "halves";
   // ─────────────────────────────────────────────
   // 운영 데이터 매핑 — 변경 0 (사용자 핵심 제약)
   // ─────────────────────────────────────────────
@@ -75,8 +84,16 @@ export function PeriodScoresSection({
   // 최종 점수 + 승자 — computeFinalScore 유지
   const final = computeFinalScore(state);
 
-  // Period 라벨 (1=Q1 / 5=OT1) — 운영 헬퍼 유지
+  // Period 라벨 (1=Q1 / 5=OT1) — 운영 헬퍼 유지.
+  // 2026-05-16 (긴급 박제) — halves 모드 분기:
+  //   halves: 1=전반 / 2=후반 / 3+=OT1+
+  //   quarters: 1~4=Q1~Q4 / 5+=OT1+
   function periodLabel(period: number): string {
+    if (isHalves) {
+      if (period === 1) return "전반";
+      if (period === 2) return "후반";
+      return `OT${period - 2}`;
+    }
     if (period <= 4) {
       return `Q${period}`;
     }
@@ -92,10 +109,13 @@ export function PeriodScoresSection({
   });
 
   // 시안의 "Extra periods" row = OT 합산 표시.
-  // 운영 합리 매핑 = 현재 진행 중인 OT 의 합산 (currentPeriod >=5 일 때).
+  // 운영 합리 매핑 = 현재 진행 중인 OT 의 합산.
+  //   - quarters: currentPeriod >= 5 (OT1+)
+  //   - halves:   currentPeriod >= 3 (OT1+)
   // 미진입 시 빈 칸 (= 마킹 없음).
+  const otStartPeriod = isHalves ? 3 : 5;
   const extraPeriod =
-    state.currentPeriod >= 5 ? state.currentPeriod : null;
+    state.currentPeriod >= otStartPeriod ? state.currentPeriod : null;
   const extraLine = extraPeriod
     ? lineByPeriod.get(extraPeriod) ?? { homePoints: 0, awayPoints: 0 }
     : null;
@@ -133,13 +153,20 @@ export function PeriodScoresSection({
       {/* PR-S8 (2026-05-15 rev2) — 라벨 = .pap-lbl, value = .ss-ps__val + .pap-u 병행 (시안 정합).
           rev2 ScoreSheet.bottom.jsx L114~115 / L129~140 정합. */}
       <div className="ss-ps">
-        {/* Q1 row — 시안 grid 90 / 60 / 1fr / 30 / 1fr */}
+        {/* Q1 row — 시안 grid 90 / 60 / 1fr / 30 / 1fr.
+            2026-05-16 (긴급 박제) — halves 시 = "전반" 라벨 / quarters = "① Period". */}
         <div className="ss-ps__row">
           <span className="ss-ps__title pap-lbl">Scores</span>
           {/* PR-S9 (2026-05-15) — data-q 속성 dead 정리. PR-S7 토큰 단순화 후 매칭 CSS 룰 0건
               (.ss-circ 단일 흑색 통일) — HTML 의미 0 → 제거. 시각 / 동작 영향 0. */}
           <span className="ss-ps__period pap-lbl">
-            <span className="ss-circ">①</span>Period
+            {isHalves ? (
+              "전반"
+            ) : (
+              <>
+                <span className="ss-circ">①</span>Period
+              </>
+            )}
           </span>
           <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(1)?.homePoints)}
@@ -150,11 +177,17 @@ export function PeriodScoresSection({
           </span>
         </div>
 
-        {/* Q2 row */}
+        {/* Q2 row — halves 시 = "후반". */}
         <div className="ss-ps__row">
           <span></span>
           <span className="ss-ps__period pap-lbl">
-            <span className="ss-circ">②</span>Period
+            {isHalves ? (
+              "후반"
+            ) : (
+              <>
+                <span className="ss-circ">②</span>Period
+              </>
+            )}
           </span>
           <span className="ss-ps__val pap-u">
             A&nbsp;&nbsp;{fmt(lineByPeriod.get(2)?.homePoints)}
@@ -165,35 +198,39 @@ export function PeriodScoresSection({
           </span>
         </div>
 
-        {/* Q3 row */}
-        <div className="ss-ps__row">
-          <span></span>
-          <span className="ss-ps__period pap-lbl">
-            <span className="ss-circ">③</span>Period
-          </span>
-          <span className="ss-ps__val pap-u">
-            A&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.homePoints)}
-          </span>
-          <span></span>
-          <span className="ss-ps__val pap-u">
-            B&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.awayPoints)}
-          </span>
-        </div>
+        {/* Q3 row — halves 모드에서는 미노출 (3 = OT1 — Extra periods row 에 표시). */}
+        {!isHalves && (
+          <div className="ss-ps__row">
+            <span></span>
+            <span className="ss-ps__period pap-lbl">
+              <span className="ss-circ">③</span>Period
+            </span>
+            <span className="ss-ps__val pap-u">
+              A&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.homePoints)}
+            </span>
+            <span></span>
+            <span className="ss-ps__val pap-u">
+              B&nbsp;&nbsp;{fmt(lineByPeriod.get(3)?.awayPoints)}
+            </span>
+          </div>
+        )}
 
-        {/* Q4 row */}
-        <div className="ss-ps__row">
-          <span></span>
-          <span className="ss-ps__period pap-lbl">
-            <span className="ss-circ">④</span>Period
-          </span>
-          <span className="ss-ps__val pap-u">
-            A&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.homePoints)}
-          </span>
-          <span></span>
-          <span className="ss-ps__val pap-u">
-            B&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.awayPoints)}
-          </span>
-        </div>
+        {/* Q4 row — halves 모드에서는 미노출. */}
+        {!isHalves && (
+          <div className="ss-ps__row">
+            <span></span>
+            <span className="ss-ps__period pap-lbl">
+              <span className="ss-circ">④</span>Period
+            </span>
+            <span className="ss-ps__val pap-u">
+              A&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.homePoints)}
+            </span>
+            <span></span>
+            <span className="ss-ps__val pap-u">
+              B&nbsp;&nbsp;{fmt(lineByPeriod.get(4)?.awayPoints)}
+            </span>
+          </div>
+        )}
 
         {/* Extra periods row — 시안 단일 row / 운영 = 현재 진행 OT 합산 */}
         <div className="ss-ps__row">
