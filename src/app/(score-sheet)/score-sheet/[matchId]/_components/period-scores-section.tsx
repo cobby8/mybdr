@@ -252,7 +252,9 @@ export function PeriodScoresSection({
               <button
                 type="button"
                 onClick={onEndPeriod}
-                disabled={disabled || state.currentPeriod >= 7}
+                // PR-Stat3.7 (2026-05-15) — OT max 7 → 9 (사용자 명시: OT5 까지 cell 확장 — PR-Stat3.6 정합).
+                //   OT5 진입 (currentPeriod=9) 후 종료 클릭 = 더 진행 불가 → 비활성화. OT3/OT4 = 활성.
+                disabled={disabled || state.currentPeriod >= 9}
                 className="flex w-full items-center justify-center gap-1 py-1 text-xs font-semibold disabled:opacity-40"
                 style={{
                   border: "1px solid var(--color-accent)",
