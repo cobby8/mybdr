@@ -82,6 +82,8 @@ import { QuarterEndModal } from "./quarter-end-modal";
 import { useConfirm } from "../../../_components/confirm-modal-provider";
 // 2026-05-15 (PR-D-3) — 수정 모드 / read-only 가드 단일 source.
 import { useEditModeGuard } from "../_hooks/use-edit-mode-guard";
+// 2026-05-15 (PR-D-4a) — draft localStorage IO 순수 함수 (vitest 가능).
+import { loadDraft, saveDraft, clearDraft } from "@/lib/score-sheet/draft-storage";
 // Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar 운영 도입 (back + 모드 토글 + 인쇄 + 경기 종료).
 //   사용자 결재 D5/D6 — 운영 함수 호출 100% 보존 / 시각 위치만 통합.
 import { ScoreSheetToolbar } from "../../../_components/score-sheet-toolbar";
@@ -169,8 +171,9 @@ interface ScoreSheetFormProps {
   }>;
 }
 
-// localStorage key prefix — 매치당 1건 (Phase 1 FIBA 양식 신규 prefix)
-const DRAFT_KEY_PREFIX = "fiba-score-sheet-draft-";
+// 2026-05-15 (PR-D-4a) — draft localStorage IO 가 lib/score-sheet/draft-storage.ts
+//   순수 함수로 외부화. form 안 직접 localStorage 호출 0.
+//   DRAFT_KEY_PREFIX 는 draft-storage.ts 내부 상수 (운영 키 보존).
 
 const EMPTY_HEADER: FibaHeaderInputs = {
   referee: "",
@@ -386,12 +389,9 @@ export function ScoreSheetForm({
       // 2026-05-15 (사용자 추가 요청) — 기록 취소 시 선수 선택 (draft) 도 초기화 + 이전 페이지로 나가기.
       //   reset 후 reload (같은 페이지) → 사용자 의도와 다름. router.back() 으로 진입 경로 (경기일정/대진표) 복귀.
       //   draft localStorage 도 같이 삭제 (key = score-sheet-draft-{matchId}).
+      // draft localStorage 도 같이 삭제 (2026-05-15 PR-D-4a — clearDraft 헬퍼 사용).
+      clearDraft(match.id);
       if (typeof window !== "undefined") {
-        try {
-          window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
-        } catch {
-          /* localStorage 접근 실패 silent */
-        }
         if (window.history.length > 1) {
           window.history.back();
         } else {
@@ -791,9 +791,9 @@ export function ScoreSheetForm({
     //   useEffect cleanup 미사용 (mount 1회 + 모달 호출 후 회수 불필요).
     (async () => {
       try {
-        const raw = window.localStorage.getItem(DRAFT_KEY_PREFIX + match.id);
-        if (!raw) return;
-        const draft = JSON.parse(raw) as Partial<DraftPayload>;
+        // 2026-05-15 (PR-D-4a) — loadDraft 헬퍼 사용 (직접 localStorage 호출 X).
+        const draft = loadDraft(match.id) as Partial<DraftPayload> | null;
+        if (!draft) return;
 
         // Phase 23 — draft vs DB 비교. matchUpdatedAtISO 가 없으면 (신규 매치) draft 그대로 적용.
         let applyDraft = true;
@@ -934,27 +934,18 @@ export function ScoreSheetForm({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const timer = window.setTimeout(() => {
-      try {
-        const draft: DraftPayload = {
-          header,
-          teamA,
-          teamB,
-          runningScore,
-          fouls,
-          timeouts,
-          signatures,
-          lineup,
-          // Phase 19 PR-Stat3 — 6 stat draft 박제
-          playerStats,
-          savedAt: new Date().toISOString(),
-        };
-        window.localStorage.setItem(
-          DRAFT_KEY_PREFIX + match.id,
-          JSON.stringify(draft)
-        );
-      } catch {
-        // localStorage quota / disabled — 무시
-      }
+      // 2026-05-15 (PR-D-4a) — saveDraft 헬퍼 사용. savedAt 자동 박제.
+      saveDraft(match.id, {
+        header,
+        teamA,
+        teamB,
+        runningScore,
+        fouls,
+        timeouts,
+        signatures,
+        lineup,
+        playerStats,
+      });
     }, 5000);
     return () => window.clearTimeout(timer);
   }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, match.id]);
@@ -1856,7 +1847,7 @@ export function ScoreSheetForm({
           //   불필요한 ConfirmModal 노출. submit 성공 = DB 최신 = draft 무가치.
           if (submitted && typeof window !== "undefined") {
             try {
-              window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
+              clearDraft(match.id);
             } catch {
               /* localStorage 접근 실패 silent */
             }
