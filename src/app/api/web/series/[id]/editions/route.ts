@@ -34,6 +34,7 @@ import { withWebAuth, type WebAuthContext } from "@/lib/auth/web-session";
 import { prisma } from "@/lib/db/prisma";
 import { apiSuccess, apiError } from "@/lib/api/response";
 import { withUniqueRetry } from "@/lib/db/unique-retry";
+import { generateApiToken } from "@/lib/services/tournament";
 import { Prisma } from "@prisma/client";
 
 type RouteCtx = { params: Promise<{ id: string }> };
@@ -130,6 +131,8 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
           edition_number: editionNumber,
           status: "draft", // ← 강제
           organizerId: ctx.userId,
+          // apiToken 자동 발급 — Flutter 앱 대회 진입 토큰 (2026-05-15 NULL 사고 후 박제)
+          apiToken: generateApiToken(),
         } as Prisma.TournamentUncheckedCreateInput;
       } else {
         // 기존 path — startDate/venueName/maxTeams 직접 입력 (회귀 호환)
@@ -148,6 +151,8 @@ export const POST = withWebAuth(async (req: Request, routeCtx: RouteCtx, ctx: We
           format: "single_elimination",
           organizerId: ctx.userId,
           is_public: true,
+          // apiToken 자동 발급 — Flutter 앱 대회 진입 토큰 (2026-05-15 NULL 사고 후 박제)
+          apiToken: generateApiToken(),
         };
       }
 

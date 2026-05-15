@@ -5,9 +5,20 @@
  * 이 서비스를 통해 데이터에 접근한다.
  * Service 함수는 순수 데이터만 반환한다 (NextResponse 사용 금지).
  */
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 // Prisma namespace — Json 타입 호환용 InputJsonValue 캐스팅에 사용
 import type { Prisma } from "@prisma/client";
+
+// ---------------------------------------------------------------------------
+// apiToken 발급 헬퍼 — Flutter 앱 대회 진입 토큰 (64자 hex)
+// ---------------------------------------------------------------------------
+// 2026-05-15 — 4차 뉴비리그 apiToken NULL 사고 (editions/ 라우트에서 누락) 후
+// 단일 source 로 분리. tournament.create 직접 호출 경로는 모두 이 헬퍼 사용 필수.
+// 사고 패턴: errors.md / lessons.md 박제.
+export function generateApiToken(): string {
+  return randomBytes(32).toString("hex");
+}
 
 // ---------------------------------------------------------------------------
 // Select 상수 — 동일 쿼리의 select 객체 중복을 제거한다
@@ -429,8 +440,7 @@ export async function getMyTournaments(
  * 전체 롤백 — 운영 카운터 stale 사고 차단).
  */
 export async function createTournament(input: CreateTournamentInput) {
-  const { randomBytes } = await import("crypto");
-  const apiToken = randomBytes(32).toString("hex");
+  const apiToken = generateApiToken();
 
   // tournament.create data — series_id 가 있으면 함께 박제. 권한 검증은 호출자 책임.
   // Unchecked 변형 사용 — series_id (관계 connect 없이 raw FK) 박제 위해.
