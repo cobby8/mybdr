@@ -7,8 +7,8 @@
  * - 선택 팀 경기 하이라이트 (왼쪽 primary 보더)
  */
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { formatShortTime, formatGroupDate, formatGroupDateShort } from "@/lib/utils/format-date";
 // 4단계 C — 일정 카드 양 팀명 → 팀페이지 TeamLink (nested anchor 회피 위해 카드 전체 router.push 변경)
@@ -159,17 +159,58 @@ function StatusBadge({ status }: { status: string | null }) {
 export function ScheduleTimeline({ matches, teams, selectedDate: selectedDateProp }: Props) {
   // 4단계 C: 카드 전체 Link → router.push 로 변경 (TeamLink 와 nested anchor 회피)
   const router = useRouter();
-  // 선택된 팀 ID (null = 전체 보기)
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  // 2026-05-15 (PR-Schedule-Filter-Persist) — URL query params 으로 필터 박제.
+  //   라이브 페이지 진입 → 뒤로가기 시 URL 그대로 복원 = 필터 자동 보존.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // 선택된 팀 ID (null = 전체 보기) — URL ?team=xxx 에서 초기화
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(
+    () => searchParams.get("team") || null,
+  );
   // 5/9 사용자 결정: 날짜 탭 자체 state (controlled prop 우선 / fallback 자체 관리)
-  const [selectedDateState, setSelectedDateState] = useState<string | null>(null);
+  const [selectedDateState, setSelectedDateState] = useState<string | null>(
+    () => searchParams.get("date") || null,
+  );
   const selectedDate = selectedDateProp !== undefined ? selectedDateProp : selectedDateState;
 
   // 2026-05-15 — 종별 / 체육관 필터 (강남구협회장배 6 종별 × 2 체육관 분리)
   //   동시 적용 가능: 종별=i2-U11 + venue=강남구민체육관 = 교집합.
   //   매치 데이터에 종별/체육관 1개 이하 → 해당 필터 row 자체 미표시 (회귀 0).
-  const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
-  const [selectedVenue, setSelectedVenue] = useState<string | null>(null);
+  const [selectedDivision, setSelectedDivision] = useState<string | null>(
+    () => searchParams.get("division") || null,
+  );
+  const [selectedVenue, setSelectedVenue] = useState<string | null>(
+    () => searchParams.get("venue") || null,
+  );
+
+  // 2026-05-15 (PR-Schedule-Filter-Persist) — 필터 변경 시 URL query params 동기화.
+  //   router.replace = history 추가 0 (back 동작 정합 — 카드 클릭 push 후 뒤로 시
+  //   query 박힌 URL 로 복귀). scroll preserve = 필터 칩 클릭 시 페이지 점프 0.
+  const syncUrl = useCallback(
+    (team: string | null, date: string | null, division: string | null, venue: string | null) => {
+      const params = new URLSearchParams();
+      if (team) params.set("team", team);
+      if (date) params.set("date", date);
+      if (division) params.set("division", division);
+      if (venue) params.set("venue", venue);
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [router, pathname],
+  );
+
+  // 필터 변경 시 URL 동기화 (state 변경 → effect → URL 갱신).
+  //   selectedDateProp 가 외부 controlled 시 effect 가 외부 값 박지 않음 (selectedDateState 만 박제).
+  useEffect(() => {
+    syncUrl(
+      selectedTeam,
+      selectedDateProp !== undefined ? null : selectedDateState,
+      selectedDivision,
+      selectedVenue,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeam, selectedDateState, selectedDivision, selectedVenue]);
 
   // 매치들에서 unique 날짜 추출 — key (풀 텍스트) + short (탭 표시용) 페어
   const uniqueDates: { key: string; short: string }[] = useMemo(() => {
