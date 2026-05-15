@@ -340,6 +340,63 @@ main().finally(() => prisma.$disconnect());
 수정 요청 없음 (실패 0).
 
 
+## 리뷰 결과 (reviewer) — G5.5-followup (2026-05-15)
+
+### A. placeholder-helpers 통과
+- seed-newbie4 notes 박제: ✅ — `scripts/_temp/seed-newbie4-final-placeholder.ts:87` `buildPlaceholderNotes(homeSlot, awaySlot)` 호출. 인라인 문자열 박제 0.
+- seed-newbie4 slot label 박제: ✅ — `scripts/_temp/seed-newbie4-final-placeholder.ts:85~86` `buildSlotLabel({ kind: "group_rank", group: "A"|"B", rank: 1 })` 호출. 인라인 박제 0.
+
+### B. 알고리즘 정합
+- `getTournamentStandings` 정렬: ✅ 기존 동일 — `division-advancement.ts:687~695` 의 정렬 함수가 `getDivisionStandings` (`L83~91`) 와 100% 같은 비교 순서 (wins desc → point_difference desc → points_for desc → teamName localeCompare). null 폴백 (`?? 0`) + groupName null → "X" 처리도 동일.
+- NULL slot 가드: ✅ 독립 — `L805~807` `if (m.homeTeamId === null) updateData.homeTeamId = ...` + `if (m.awayTeamId === null) updateData.awayTeamId = ...` 각각 별도 검사. 절반 NULL 케이스 정확 처리 (vitest 케이스 4 통과).
+- standings 매핑 key 형식: ✅ `${groupName}:${groupRank}` (`L756`) — 기존 `advanceDivisionPlaceholders` (`L168`) 와 100% 동일.
+
+### C. 회귀 보장
+- 기존 함수 시그니처: 변경 0 ✅ — `getDivisionStandings(prisma, tournamentId, divisionCode)` / `advanceDivisionPlaceholders(prisma, tournamentId, divisionCode)` / `advanceAllDivisions(prisma, tournamentId)` 모두 인자 변경 없음. export 추가만 (옵션 A 분리 원칙 준수).
+- 강남구 4 종별 진입 경로: 변경 0 ✅ — 호출처 3개소 (`advance-placeholders/route.ts` `L60,63` / `match-sync.ts` `L667` / `division-rules/[ruleId]/advance/route.ts`) 모두 `advanceDivisionPlaceholders` 또는 `advanceAllDivisions` 호출. 본 PR 신규 함수 호출처 0건 (정확히 옵션 A 의도). i3-U9 / i3-U11 / i3-U14 / i3w-U12 는 기존 진입 경로 그대로.
+
+### D. 운영 스크립트 안전
+- tournamentId: ✅ — `L28` `TOURNAMENT_ID = "443f23f8-0000-41d4-bcbd-1843f7e16e1f"` 박제 + `L59` 사전 검증 `before.tournamentId !== TOURNAMENT_ID` throw.
+- 사전 검증: ✅ 3중 — (1) matchId=232 findUnique (`L40~52`) (2) tournamentId UUID 일치 (`L59`) (3) homeTeamId/awayTeamId 모두 NULL 확인 (`L76`).
+- idempotent: ✅ — `L76~79` 이미 실팀 박혔으면 return (UPDATE 미진입). UPDATE `where: { id: MATCH_ID }` (`L117`) 만 사용해 그 외 row 영향 0.
+- 사후 검증: ✅ 3중 — (1) `ADVANCEMENT_REGEX` 매칭 (`L143~148`) (2) settings.homeSlotLabel / awaySlotLabel 박제 확인 (`L150~157`) (3) count=1 검증 with id+tournamentId+notes contains (`L160~170`).
+- 결재 메모: ✅ — `L5` `⚠️ 본 스크립트 실행 = 운영 DB UPDATE 1건. CLAUDE.md §DB 정책 따라 사용자 결재 후 실행` 상단 박제. 사후 정리 의무도 `L23` 명시.
+
+### E. vitest 정합
+- 5 케이스 cover: ✅ — `getTournamentStandings` 1 (정렬 + groupRank 박제 + category 필터 없음 검증 `L133~135`) + `advanceTournamentPlaceholders` 4 (정상 단판 결승 / idempotent / notes 위반 / 절반 NULL). 실측 통과 5/5 PASS (12ms).
+- planner spec 4 케이스 + getTournamentStandings 1 케이스 = 명세 5 케이스 정확 cover.
+
+### F. 코딩 컨벤션
+- snake_case/camelCase: ✅ — DB select 는 `points_for`/`points_against`/`point_difference` snake_case (`L668~672`) / TS 반환 타입은 `pointsFor`/`pointsAgainst`/`pointDifference` camelCase (`L704~706`). `groupName` (camelCase TS) — schema.prisma `@map("group_name")` 가정 (기존 패턴 동일).
+- BigInt 변환: ✅ — `standingsMap[key] = BigInt(s.tournamentTeamId)` (`L756`) 문자열 → bigint 안전 변환. vitest 도 `BigInt(100)` 호출 패턴 (ES2017 호환).
+- Prisma TransactionClient: ✅ — `advanceTournamentPlaceholders(prisma: PrismaClient | Prisma.TransactionClient, ...)` (`L747`). caller 가 `prisma.$transaction(async (tx) => advanceTournamentPlaceholders(tx, ...))` 묶음 가능.
+
+### G. 후속 PR 명시
+- 매치 PATCH 통합 큐: ✅ (조건부) — scratchpad "구현 기록" (`L278`) + "기획설계" (`L162`) 에 G5.5-followup-B 명시. 단, **`division-advancement.ts` 코드 주석 자체에는 매치 PATCH 통합 후속 PR 명시 X** — 다른 후속 PR (G5.5 group_stage_knockout / G5.7 / G5.8) 만 박제. 권장 개선 ↓.
+
+### 자체 실측 검증
+- `npx vitest run src/__tests__/lib/tournaments/tournament-advancement.test.ts` → **5/5 PASS** (12ms).
+- `npx tsc --noEmit` → **exit=0 / 에러 0**.
+- 호출처 grep (`advanceDivisionPlaceholders|advanceAllDivisions|advanceTournamentPlaceholders`) — 신규 함수 호출처 0건 / 기존 함수 호출처 3개소 변경 0.
+
+### 잠재 위험 / 개선 메모
+- **(개선 권장 / 비-blocking)** `division-advancement.ts:627~640` PR-G5.5-followup 섹션 주석에 "호출처: 후속 PR (매치 PATCH route 통합 / status='completed' UPDATE 시 division_rule=0 분기)" 한 줄 추가 권장. 본 PR 에서는 caller 0건이므로 미래의 reviewer 가 "이 함수 호출 위치는?" 질문할 때 코드 자체로 답변 가능.
+- **(향후 회귀 차단 / PM 작업)** `decisions.md` 에 "옵션 A 분리 — 본 PR 함수 박제 / 호출은 후속 PR G5.5-followup-B" 결정 박제 권장 (planner 계획에 이미 포함되어 있음).
+- **(저우려 / 운영 결재 시 1회 확인)** `seed-newbie4-final-placeholder.ts:160~166` `count` 검증의 `notes: { contains: "A조 1위 vs B조 1위" }` — Prisma string filter contains 는 PostgreSQL `ILIKE`/`LIKE` 변환. NULL notes 인 row 는 매칭 안 되므로 안전. 정확.
+
+### 종합 판정
+✅ **PR-G5.5-followup commit 진행 가능**
+
+핵심 검증 결과:
+- placeholder-helpers 통과 의무 ✅ (강남구 사고 영구 차단 룰 준수)
+- 기존 4 종별 (i3-U9/U11/U14 + i3w-U12) 진입 경로 변경 0 ✅
+- 운영 DB 영향 = 매치 232 row 1건 (5중 안전 가드 통과 시만) ✅
+- vitest 5/5 PASS (실측) + tsc 0 에러 (실측)
+- DB schema 변경 0 / Flutter v1 영향 0
+
+권장 후속 (비-blocking): division-advancement.ts:627~640 주석에 매치 PATCH 통합 후속 PR 한 줄 박제 — PM 이 본 PR commit 후 또는 G5.5-followup-B 진입 시 처리.
+
+
 ## 援ы쁽 湲곕줉 (developer)
 
 ### Admin-2 Phase 諛뺤젣 ??/admin/layout + Dashboard + 媛깆떊 5 (2026-05-15)
