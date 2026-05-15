@@ -24,12 +24,12 @@ export type GroupTeam = {
 
 type GroupStandingsProps = {
   teams: GroupTeam[];
-  advancedCount?: number; // 조 통과 팀 수 (기본 2)
+  // 2026-05-15 — advancedCount prop deprecated (ADVANCED 뱃지 삭제됨 / 호환 위해 남김)
+  advancedCount?: number;
 };
 
 export function GroupStandings({
   teams,
-  advancedCount = 2,
 }: GroupStandingsProps) {
   // 그룹별로 팀을 분류
   const groups = useMemo(() => {
@@ -39,12 +39,10 @@ export function GroupStandings({
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
-    // 각 그룹 내에서 승점(승*3 + 무*1) 내림차순 정렬
+    // 2026-05-15 — 농구 정렬: 승수 desc → 득실차 desc (승점/무승부 미사용 — 사용자 결정)
     for (const [, groupTeams] of map) {
       groupTeams.sort((a, b) => {
-        const ptsA = a.wins * 3 + a.draws;
-        const ptsB = b.wins * 3 + b.draws;
-        if (ptsB !== ptsA) return ptsB - ptsA;
+        if (b.wins !== a.wins) return b.wins - a.wins;
         return b.pointDifference - a.pointDifference;
       });
     }
@@ -102,7 +100,10 @@ export function GroupStandings({
         </div>
       </div>
 
-      {/* 순위 테이블 */}
+      {/* 순위 테이블
+          2026-05-15 사용자 결정: 무/승점 컬럼 삭제 (농구 무승부 없음 / 승점 의미 없음).
+                                  ADVANCED 뱃지 삭제 (advancedCount 자동 판정 부정확).
+                                  가로 스크롤 제거 (컬럼 5개 = 모바일 fit). */}
       <div
         className="rounded overflow-hidden"
         style={{
@@ -111,167 +112,116 @@ export function GroupStandings({
           boxShadow: "var(--shadow-card)",
         }}
       >
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr
-                className="text-xs font-bold uppercase tracking-widest"
-                style={{
-                  backgroundColor: "var(--color-surface)",
-                  color: "var(--color-text-muted)",
-                  borderBottom: "1px solid var(--color-border)",
-                }}
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr
+              className="text-xs font-bold uppercase tracking-widest"
+              style={{
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-text-muted)",
+                borderBottom: "1px solid var(--color-border)",
+              }}
+            >
+              <th className="px-3 py-4 sm:px-6">순위</th>
+              <th className="px-3 py-4 sm:px-6">팀명</th>
+              <th className="px-2 py-4 text-center sm:px-6">경기</th>
+              <th
+                className="px-2 py-4 text-center sm:px-6"
+                style={{ color: "var(--color-primary)" }}
               >
-                <th className="px-6 py-4">순위</th>
-                <th className="px-6 py-4">팀명</th>
-                <th className="px-6 py-4 text-center">경기</th>
-                <th
-                  className="px-6 py-4 text-center"
-                  style={{ color: "var(--color-primary)" }}
-                >
-                  승
-                </th>
-                <th className="px-6 py-4 text-center">무</th>
-                <th className="px-6 py-4 text-center">패</th>
-                <th className="px-6 py-4 text-center">득실차</th>
-                <th
-                  className="px-6 py-4 text-center"
-                  style={{ backgroundColor: "rgba(0,0,0,0.03)" }}
-                >
-                  승점
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeTeams.map((team, idx) => {
-                const rank = idx + 1;
-                const totalGames = team.wins + team.losses + team.draws;
-                const pts = team.wins * 3 + team.draws;
-                // 조 통과 여부 (상위 N팀)
-                const isAdvanced = rank <= advancedCount;
-                // 탈락 팀은 약간 흐리게
-                const isEliminated = !isAdvanced;
+                승
+              </th>
+              <th className="px-2 py-4 text-center sm:px-6">패</th>
+              <th className="px-2 py-4 text-center sm:px-6">득실차</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activeTeams.map((team, idx) => {
+              const rank = idx + 1;
+              const totalGames = team.wins + team.losses + team.draws;
 
-                return (
-                  <tr
-                    key={team.id}
-                    className="transition-colors"
-                    style={{
-                      borderBottom: "1px solid var(--color-border)",
-                      opacity: isEliminated ? 0.6 : 1,
-                    }}
+              return (
+                <tr
+                  key={team.id}
+                  className="transition-colors"
+                  style={{
+                    borderBottom: "1px solid var(--color-border)",
+                  }}
+                >
+                  {/* 순위 */}
+                  <td
+                    className="px-3 py-4 font-bold sm:px-6"
+                    style={{ color: "var(--color-text-primary)" }}
                   >
-                    {/* 순위 */}
-                    <td
-                      className="px-6 py-4 font-bold"
-                      style={{
-                        color: isAdvanced
-                          ? "var(--color-primary)"
-                          : "var(--color-text-muted)",
-                      }}
-                    >
-                      {String(rank).padStart(2, "0")}
-                    </td>
+                    {String(rank).padStart(2, "0")}
+                  </td>
 
-                    {/* 팀명 + ADVANCED 배지 */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {/* 팀 아이콘 placeholder */}
-                        <div
-                          className="w-8 h-8 rounded flex items-center justify-center"
-                          style={{
-                            backgroundColor: "var(--color-surface)",
-                          }}
+                  {/* 팀명 */}
+                  <td className="px-3 py-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                      {/* 팀 아이콘 placeholder */}
+                      <div
+                        className="w-8 h-8 rounded flex items-center justify-center shrink-0"
+                        style={{
+                          backgroundColor: "var(--color-surface)",
+                        }}
+                      >
+                        <span
+                          className="material-symbols-outlined text-xs"
+                          style={{ color: "var(--color-text-muted)" }}
                         >
-                          <span
-                            className="material-symbols-outlined text-xs"
-                            style={{ color: "var(--color-text-muted)" }}
-                          >
-                            shield
-                          </span>
-                        </div>
-                        {/* 5/10: 팀명 클릭 → 팀 페이지. style 그대로 보존 (text-primary 색상 유지). */}
-                        <TeamLink
-                          teamId={team.teamId}
-                          name={team.teamName}
-                          className="font-bold"
-                          style={{ color: "var(--color-text-primary)" }}
-                        />
-                        {/* 조 통과 배지 */}
-                        {isAdvanced && (
-                          <span
-                            className="px-2 py-0.5 text-xs font-bold rounded"
-                            style={{
-                              backgroundColor: "rgba(34, 197, 94, 0.1)",
-                              color: "var(--color-success)",
-                            }}
-                          >
-                            ADVANCED
-                          </span>
-                        )}
+                          shield
+                        </span>
                       </div>
-                    </td>
+                      <TeamLink
+                        teamId={team.teamId}
+                        name={team.teamName}
+                        className="font-bold"
+                        style={{ color: "var(--color-text-primary)" }}
+                      />
+                    </div>
+                  </td>
 
-                    {/* 경기 수 */}
-                    <td
-                      className="px-6 py-4 text-center font-medium"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {totalGames}
-                    </td>
+                  {/* 경기 수 */}
+                  <td
+                    className="px-2 py-4 text-center font-medium sm:px-6"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {totalGames}
+                  </td>
 
-                    {/* 승 */}
-                    <td
-                      className="px-6 py-4 text-center font-bold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {team.wins}
-                    </td>
+                  {/* 승 */}
+                  <td
+                    className="px-2 py-4 text-center font-bold sm:px-6"
+                    style={{ color: "var(--color-text-primary)" }}
+                  >
+                    {team.wins}
+                  </td>
 
-                    {/* 무 */}
-                    <td
-                      className="px-6 py-4 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {team.draws}
-                    </td>
+                  {/* 패 */}
+                  <td
+                    className="px-2 py-4 text-center sm:px-6"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {team.losses}
+                  </td>
 
-                    {/* 패 */}
-                    <td
-                      className="px-6 py-4 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {team.losses}
-                    </td>
-
-                    {/* 득실차 */}
-                    <td
-                      className="px-6 py-4 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {team.pointDifference > 0
-                        ? `+${team.pointDifference}`
-                        : team.pointDifference === 0
-                          ? "0"
-                          : String(team.pointDifference)}
-                    </td>
-
-                    {/* 승점 (강조 배경) */}
-                    <td
-                      className="px-6 py-4 text-center font-black"
-                      style={{
-                        color: "var(--color-text-primary)",
-                        backgroundColor: "rgba(0,0,0,0.03)",
-                      }}
-                    >
-                      {pts}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  {/* 득실차 */}
+                  <td
+                    className="px-2 py-4 text-center sm:px-6"
+                    style={{ color: "var(--color-text-secondary)" }}
+                  >
+                    {team.pointDifference > 0
+                      ? `+${team.pointDifference}`
+                      : team.pointDifference === 0
+                        ? "0"
+                        : String(team.pointDifference)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );

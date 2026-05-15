@@ -253,8 +253,9 @@ export function V2BracketWrapper({
     return [];
   })();
 
-  // 우측 사이드 (시드 순위 카드) 렌더 여부 — seedTeams 정의 후 평가
-  const hasSidebar = seedTeams.length > 0;
+  // 2026-05-15 — 시드 순위 카드 삭제 (사용자 결정 / 조별 순위표 중복).
+  //              hasSidebar 항상 false → grid 1컬럼 (메인 트리 풀폭).
+  const hasSidebar = false;
 
   // 헤더 props 조립
   const eyebrow = formatToEyebrow(d.format ?? null);
@@ -458,13 +459,14 @@ export function V2BracketWrapper({
           {!isDual && hasKnockout && <V2BracketScheduleList rounds={rounds} />}
         </div>
 
-        {/* 2026-05-02: 우승 예측은 page.tsx aside 로 이동 (사용자 요청 — 참가비 박스 아래).
-            시드 순위만 있을 때만 우측 사이드 표시. seedTeams 0 일 때 grid 가 1컬럼이라 본 aside 자체 미렌더. */}
+        {/* 2026-05-15 사용자 결정: 시드 순위 카드 삭제 (조별리그 순위표와 중복 정보).
+                                  JSX 보존 = 복원 쉬움. 운영 데이터 (seedTeams) 영향 0.
         {seedTeams.length > 0 && (
           <aside className="flex flex-col gap-4">
             <V2BracketSeedRanking teams={seedTeams} />
           </aside>
         )}
+        */}
       </div>
       )}
     </div>
