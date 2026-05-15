@@ -207,10 +207,15 @@ export function marksToPaperPBPInputs(
     ...state.away.map((m) => ({ mark: m, side: "away" as const })),
   ];
 
+  // 2026-05-15 (PR-B / P0-2) — period 동일 시 position 1차 정렬.
+  //   이전: period 후 side (home 우선) 후 position → away 5번째 후 home 1번째 같은
+  //     교차 입력 시 home 이 항상 먼저 박제되어 라이브 PBP 시계열 왜곡.
+  //   fix: position (= 누적 점수 박제 순서) 1차 → side 보조 정렬.
+  //     quarter_scores 합산은 영향 없음 (period 합산만 사용). 박스스코어 시간순 정합.
   merged.sort((a, b) => {
     if (a.mark.period !== b.mark.period) return a.mark.period - b.mark.period;
-    if (a.side !== b.side) return a.side === "home" ? -1 : 1;
-    return a.mark.position - b.mark.position;
+    if (a.mark.position !== b.mark.position) return a.mark.position - b.mark.position;
+    return a.side === "home" ? -1 : 1;
   });
 
   let homeCum = 0;

@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FibaHeader, type FibaHeaderInputs } from "./fiba-header";
 import { TeamSection, type TeamSectionInputs } from "./team-section";
 import { RunningScoreGrid } from "./running-score-grid";
@@ -617,8 +617,12 @@ export function ScoreSheetForm({
     null,
   );
 
+  // 2026-05-15 (PR-B / P1-5) — useRef 플래그로 HMR 시 중복 비교 차단.
+  const crossCheckFired = useRef(false);
   useEffect(() => {
     if (!initialQuarterScoresDB || !initialRunningScore) return;
+    if (crossCheckFired.current) return;
+    crossCheckFired.current = true;
     // Phase 23 PR6 (2026-05-15) — Q1~Q4 + OT (Q5~Q8) 합산 비교.
     //   이전 PR2+PR3 = Q1~Q4 만 (reviewer WARN 2건). DB quarter_scores shape = ot: number[] 배열.
     //   PBP 합산 toQuarterScoresJson 도 ot: number[] 배열 (running-score-helpers L131 동일 shape).
@@ -757,8 +761,13 @@ export function ScoreSheetForm({
   //   endpoint = /api/web/score-sheet/{matchId}/cross-check-audit (PR5-A 재사용)
   //   warning_type = "completed_edit_entry" (Zod enum 확장)
   //   details = { match_status, match_updated_at, pbp_count } (운영자 추적용 메타)
+  // 2026-05-15 (PR-B / P1-5) — useRef 플래그로 HMR / re-mount 시 중복 audit 차단.
+  //   이전: [] 의존성만 = HMR 시 effect 재실행 → 중복 INSERT 사고 가능.
+  const auditEntryFired = useRef(false);
   useEffect(() => {
     if (!isCompleted) return;
+    if (auditEntryFired.current) return;
+    auditEntryFired.current = true;
     if (typeof window === "undefined") return;
     // fetch 는 fire-and-forget — 응답 무시. 실패 = console.warn + 진행.
     fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
