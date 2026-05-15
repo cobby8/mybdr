@@ -196,12 +196,104 @@ const CATEGORY_DIVISION_CODES: Record<CategoryCode, string[]> = {
 // ─── 유틸 함수 ───────────────────────────────────────
 
 /**
- * 디비전 코드로 상세 정보 조회
- * @param code - 디비전 코드 (예: "D3", "D3W", "하모니W")
+ * 디비전 코드로 상세 정보 조회.
+ *
+ * 2026-05-15 fallback 확장 (Phase 3.5 Q3=A 결재):
+ *   1) 직접 lookup (기존 동작 — `"D3"`, `"i2W"`, `"하모니W"` 등) — 회귀 0
+ *   2) 실패 시 `parseDivisionCode` 호출 → 결합 코드 (`"i2-U11"`) 파싱
+ *   3) parse 결과의 `baseCode` 로 재 lookup → 미래 호출자에서 결합 코드 입력 시 안전
+ *
+ * 호출자 0건이지만 (commit `8d92c9d` 가 생성한 결합 코드 lookup 영구 차단 보호막).
+ *
+ * @param code - 디비전 코드 (예: "D3", "D3W", "하모니W", "i2-U11")
  * @returns 디비전 정보 또는 null
  */
 export function getDivisionInfo(code: string): DivisionInfo | null {
-  return ALL_DIVISIONS_MAP[code] ?? null;
+  // 1) 직접 lookup 우선 — 일반 코드 ("D3"/"i2W") 성능 영향 0
+  const direct = ALL_DIVISIONS_MAP[code];
+  if (direct) return direct;
+
+  // 2) 결합 코드 fallback ("i2-U11" → "i2" lookup)
+  const parsed = parseDivisionCode(code);
+  if (parsed && parsed.isCombined) {
+    return ALL_DIVISIONS_MAP[parsed.baseCode] ?? null;
+  }
+
+  return null;
+}
+
+// ─── 결합 코드 파싱 (2026-05-15 Phase 3.5) ────────────────
+// 사유: commit `8d92c9d` 으로 생성된 유청소년 결합 코드 ("i2-U11" 형식) 후속 안전 박제.
+//   - 운영 매칭 (DB row findFirst) 영향 0 — 메모리 lookup 영향 0 (호출자 0건)
+//   - 미래 호출자 (라벨 생성 / 필터 분기 / 정렬) 가 baseCode/age 분리 필요 시 단일 source
+//   - Q2=A 결재: 4 필드 시그니처 (baseCode + age + gender + isCombined)
+//   - Q5=A 결재: YOUTH_AGES strict 화이트리스트 ("U99" 같은 형식만 정규식 매칭 = null)
+
+/**
+ * `parseDivisionCode` 반환 타입.
+ *
+ * - `baseCode`: ALL_DIVISIONS_MAP lookup 가능한 코드 ("i2", "D3W", "하모니" 등)
+ * - `age`: 결합 코드 시 YouthAge ("U11" 등), 아니면 null
+ * - `gender`: baseCode 가 "W" 로 끝나면 female, 아니면 male
+ * - `isCombined`: age !== null (편의 플래그 — 호출자 분기 단순화)
+ */
+export interface ParsedDivisionCode {
+  baseCode: string;
+  age: YouthAge | null;
+  gender: GenderCode;
+  isCombined: boolean;
+}
+
+/**
+ * 디비전 코드 (단독 또는 결합) 를 구성 요소로 파싱.
+ *
+ * 룰 (Q5=A YOUTH_AGES strict 화이트리스트):
+ *   1) null/undefined/empty/non-string → null
+ *   2) 결합 형식 (`/^(.+)-(U\d{1,2})$/`) 매칭 + age ∈ YOUTH_AGES + baseCode ∈ ALL_DIVISIONS_MAP
+ *      → `{ baseCode, age, gender, isCombined: true }`
+ *   3) 단독 코드 + ALL_DIVISIONS_MAP 멤버 → `{ baseCode: code, age: null, gender, isCombined: false }`
+ *   4) 이상 매칭 모두 실패 → null
+ *
+ * gender 계산: baseCode 가 "W" 로 끝나면 female (기존 `getGenderFromDivision` 룰 재사용).
+ *
+ * @param code - 디비전 코드 (예: "i2-U11" / "i2W-U11" / "D3" / "하모니W")
+ * @returns 파싱 결과 또는 null
+ */
+export function parseDivisionCode(
+  code: string | null | undefined,
+): ParsedDivisionCode | null {
+  // 1) null/undefined/empty/non-string 방어
+  if (typeof code !== "string" || code.length === 0) return null;
+
+  // 2) 결합 형식 시도 — base code + "-" + age ("U" + 1~2 digit)
+  const combinedMatch = code.match(/^(.+)-(U\d{1,2})$/);
+  if (combinedMatch) {
+    const [, baseCode, ageStr] = combinedMatch;
+    // Q5=A strict — YOUTH_AGES 화이트리스트만 통과 ("U99" 같은 형식만 매칭 거부)
+    const ageValid = (YOUTH_AGES as readonly string[]).includes(ageStr);
+    if (!ageValid) return null;
+    // baseCode 검증 — ALL_DIVISIONS_MAP 멤버여야 통과
+    if (!ALL_DIVISIONS_MAP[baseCode]) return null;
+    return {
+      baseCode,
+      age: ageStr as YouthAge,
+      gender: getGenderFromDivision(baseCode),
+      isCombined: true,
+    };
+  }
+
+  // 3) 단독 코드 시도 — ALL_DIVISIONS_MAP 멤버여야 통과
+  if (ALL_DIVISIONS_MAP[code]) {
+    return {
+      baseCode: code,
+      age: null,
+      gender: getGenderFromDivision(code),
+      isCombined: false,
+    };
+  }
+
+  // 4) 모두 실패 = null (잘못된 코드)
+  return null;
 }
 
 /**

@@ -1,9 +1,10 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일)
-- **상태**: developer 완료 — PM 결재 대기 (6 파일 변경 + tsc 0 + vitest 223/223)
-- **선행 작업**: ✅ PR-S10.8 / PR-S10.7 / PR-S10.4 / Phase 23 PR4~PR6 / Phase A.7 / division-generator 유청소년 / game-time-input 6분 — 모두 release #4·#5 머지 또는 PM 결재 대기
+- **요청**: Phase 3.5 유청소년 결합 코드 후속 (commit `8d92c9d` "i2-U11" 형식 후속 표시/매칭 로직)
+- **상태**: 진행 중 — planner-architect 구조 분석 위임 예정
+- **선행 작업**: ✅ scratchpad 정리 / ✅ subin → dev → main 머지 (PR #484/#485) / ⏸️ Phase 7 B 스모크 (cookie 박제 대기, scripts/_temp/wizard-smoke.ts 복사됨)
+- **병행 결재 대기**: Phase 19 PR-T1~T5 / PR-S10.4 / PR-S10.7 / PR-S10.8 / Phase 23 PR6 (아래 상세 박제 — 별도 세션 작업)
 
 ## 진행 현황표
 | 단계 | 결과 |
@@ -28,6 +29,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Phase 3.5 유청소년 결합 코드 "i2-U11" 후속 영향 분석 (planner-architect) | ✅ 20+ 파일 read-only 진단 / 핵심 발견 = `getDivisionInfo` 호출자 0건 + 모든 매칭 DB row 매칭 + `rule.label` 운영자 직접 박제 → 실제 회귀 경로 0건 / 후속 안전 박제 = `parseDivisionCode` 헬퍼 + `getDivisionInfo` fallback (백워드 호환) + vitest 12 케이스 / 단일 PR 125 LOC / 사용자 결재 Q1~Q5 대기 |
 | 2026-05-15 | Phase 19 PR-T1~T5 (FIBA 타임아웃 phase 분기 + Extra periods 단순화 + OT 색 Q4 통일) | ✅ timeout-helpers `getCellPhase`+`isCellActive` 신규 + vitest 12 신규 / team-section.tsx SSTimeoutCells `data-disabled-phase` AND 가드 + Extra periods cell 마크업 삭제 (텍스트 + 우측 정렬) / _score-sheet-styles.css `[data-disabled-phase="true"]` 회색+opacity 0.5+not-allowed / period-color.ts getPeriodColor(5+)=warning + PERIOD_LEGEND OT 제거 (4 항목) + 테스트 6 케이스 정합 갱신 / tsc 0 / vitest **223/223 PASS** (211+12) / PM 결재 대기 |
 | 2026-05-15 | release #6 (dev → main) — 경기시간 6분 + 분 직접 입력 | ✅ PR #490 (subin→dev) `dedbf04` + PR #491 (dev→main) `3d39065` 머지 / Vercel 자동 배포 |
 | 2026-05-15 | feat(game-time-input): 6분 버튼 추가 + 분 직접 입력 input | ✅ TIME_OPTIONS [5,6,7,8,10,12] 6종 + number input (MIN 1 / MAX 60 clamp) + 프리셋 외 값 시 input border accent / vitest 4 신규 / tsc 0 / vitest 822/822 |
@@ -678,3 +680,185 @@ flex flex-col
 - **CSS 스코프**: 모든 변경이 `.ss-shell` 스코프 prefix 안 — 외부 컴포넌트 영향 0.
 - **A4 인쇄 정합**: min-height 210px 는 `mm`/`px` 절대 단위 — 인쇄 미디어 쿼리 (`_print.css`) 영향 0 (별도 인쇄 룰 미존재). 자연 측정 값 정합으로 인쇄 fit 안정.
 - **다크모드 leak 회귀 0**: 모든 변경은 layout (width/height/overflow/flex) — `var(--color-*)` 추가 없음. PR-S10 다크모드 페이퍼 라이트 강제 룰 보존.
+
+---
+
+## 기획설계 (planner-architect) — Phase 3.5 유청소년 결합 코드 "i2-U11"
+
+🎯 목표: commit `8d92c9d` 으로 생성된 결합 코드 ("i2-U11") 의 후속 표시/매칭/lookup 안전성을 영구 박제.
+
+### 핵심 발견 (read-only 사전 진단 결과)
+
+**진단 1 — `getDivisionInfo` 호출자 = 0건** (grep 결과). 즉 commit body 가 우려한 "ALL_DIVISIONS_MAP[\"i2-U11\"] null lookup → 표시 깨짐" **실제 회귀 경로 = 미존재**. 현재 lookup 호출자 0건 = null 반환해도 영향 0.
+
+**진단 2 — 모든 매칭은 DB row 매칭** (`tournamentDivisionRule.findFirst({ where: { code } })`) — 메모리 lookup 미사용. `tt.category` 가 "i2-U11" 이면 DB row 가 "i2-U11" 으로 박제됨 → findFirst 자동 매칭 성공. 운영 회귀 0.
+
+**진단 3 — 표시 = `rule.label` 운영자 직접 박제** — `divisions/page.tsx` / `teams/page.tsx` / `team-apply/page.tsx` 모두 `rule.label` (운영자 입력) 표시. 헬퍼가 라벨 생성하지 않음. 운영자가 STEP 4 직후 "초3 U11" 류 라벨 입력 → 운영 깨짐 0.
+
+**진단 4 — `preference-form.tsx` L1035 = `D3~D8` 하드코딩** (일반부 전용 사용자 선호 UI). 유청소년 결합 코드와 무관. 회귀 0.
+
+**진단 5 — `getDivisionsForCategory` / `DIVISIONS_BY_CATEGORY` 호출자 = 일반부 필터 UI 3 파일** (tournaments-filter / preference-form / division-generator-modal). 결합 코드는 cross-product 결과로 별도 박제 → 이 헬퍼 분기 영향 0.
+
+### 결론: 즉시 박제 필요 = 0건. 후속 = 안전 박제 (헬퍼 + 회귀 가드)
+
+🟢 실제로 깨질 곳이 0건이라 운영 영향 0 / 회귀 차단 = 헬퍼 + vitest 케이스 + grep guard 3 종.
+
+📍 만들 위치와 구조:
+| 파일 (절대 경로) | 역할 | 신규/수정 | 예상 LOC |
+|------|------|----|----|
+| `C:/0. Programing/mybdr/src/lib/constants/divisions.ts` | `parseDivisionCode` 헬퍼 신규 (결합 코드 파싱) + `getDivisionInfo` 확장 (fallback to base code lookup) | 수정 | +35 |
+| `C:/0. Programing/mybdr/src/__tests__/lib/constants/divisions-combined.test.ts` | vitest 12 케이스 (parse 5 + getDivisionInfo fallback 4 + 경계 3) | 신규 | +90 |
+
+🔗 기존 코드 연결:
+- `divisions.ts` L203 `getDivisionInfo` 가 결합 코드 들어와도 base code (`"i2"`) 로 fallback lookup → 미래 호출자 추가 시 자동 안전.
+- `parseDivisionCode("i2-U11")` → `{ baseCode: "i2", age: "U11", gender: "male" }` 시그니처. 호출자는 표시/매칭/필터링 자유 결정.
+- 운영 DB / 매칭 API / preference-form / 기존 호출 = 변경 0 (백워드 호환).
+
+### A. 결합 코드 파싱 헬퍼 설계
+
+```ts
+export interface ParsedDivisionCode {
+  baseCode: string;        // "i2" / "D3W" / "하모니" — DIVISIONS lookup 가능
+  age: YouthAge | null;    // "U11" 등 / 결합 아니면 null
+  gender: GenderCode;      // baseCode 의 W 접미사 기반
+  isCombined: boolean;     // age !== null
+}
+
+export function parseDivisionCode(code: string | null | undefined): ParsedDivisionCode | null;
+```
+
+**파싱 룰**:
+1. null/undefined/empty → null 반환
+2. `/^(.+)-(U\d{1,2})$/` 매칭 시 → `baseCode + age` 분리 + age 가 `YOUTH_AGES` 멤버여야 통과 (`U99` 같은 잘못된 형식 = 결합 아님 처리)
+3. 매칭 실패 시 → `{ baseCode: code, age: null, gender, isCombined: false }` (기존 lookup 호환)
+4. base code 가 ALL_DIVISIONS_MAP 미존재 시 → null (잘못된 코드)
+
+**경계 케이스**:
+- `"i2-U11"` → `{ baseCode: "i2", age: "U11", gender: "male", isCombined: true }` ✅
+- `"i2W-U11"` → `{ baseCode: "i2W", age: "U11", gender: "female", isCombined: true }` ✅
+- `"i2-U99"` → null (`U99` 미존재)
+- `"D3"` → `{ baseCode: "D3", age: null, gender: "male", isCombined: false }` ✅
+- `""` / `null` → null
+
+**`getDivisionInfo` 확장 (옵션 B 권장)**:
+- 직접 lookup 실패 시 → `parseDivisionCode` 호출 → base code 로 fallback lookup
+- 미래 호출자가 `getDivisionInfo("i2-U11")` 호출해도 i2 정보 반환 → null 회귀 영구 차단
+- 추가 필드 `age: "U11" | null` 포함 (호출자가 라벨 생성 시 활용)
+
+### B. 표시 라벨 결정 (운영자 박제 우선)
+
+| 옵션 | 결합 코드 | 라벨 표시 | 사유 |
+|------|-----------|-----------|------|
+| **A (권장)** | "i2-U11" | `rule.label` 운영자 직접 입력 ("초3 U11" 등) | 학년/연령 표시 자유도 100% — 현재 패턴 |
+| B | "i2-U11" | 헬퍼 자동 생성 ("i2 U11" / "초3 U11") | DB 라벨 무시 → 운영자 입력 충돌 |
+| C | "i2-U11" | gradeMin/gradeMax 기반 자동 (DB) | DB schema 의존 (기존 호환) |
+
+→ **사용자 결재 Q1**: 옵션 A (현재 운영) 유지 권장. STEP 4 마법사가 결합 코드 생성 시 default label = "{div} {age}" 자동 채움 (후속 작업).
+
+### C. 영향 파일 우선순위 매트릭스
+
+| 파일 | 영향 분류 | 결합 코드 처리 | 수정 필요? |
+|------|----------|---------------|-----------|
+| `lib/constants/divisions.ts` | 🟢 후속 | 헬퍼 추가 | **수정** (PR1) |
+| `lib/tournaments/division-formats.ts` | 🟢 후속 | format enum 만 다룸 / 코드 무관 | 0 |
+| `lib/tournaments/division-advancement.ts` | 🟢 후속 | L295 `r.code` 그대로 전달 (DB 매칭) | 0 |
+| `lib/tournaments/setup-status.ts` | 🟢 후속 | division code 미사용 (대회 수준) | 0 |
+| `lib/utils/korean-grade.ts` | 🟢 후속 | 학년 number 만 변환 (코드 무관) | 0 |
+| `components/shared/preference-form.tsx` | 🟢 후속 | L1035 D3~D8 하드코딩 (일반부 전용) | 0 |
+| `components/tournament/division-generator-modal.tsx` | ✅ 완료 | commit `8d92c9d` 생성 측 | 0 |
+| `tournament-admin/.../divisions/page.tsx` | 🟢 후속 | `rule.code/label` 단순 표시 | 0 |
+| `tournament-admin/.../bracket/page.tsx` | 🟢 후속 | DB rule 매칭 | 0 |
+| `tournament-admin/.../matches/matches-client.tsx` | 🟢 후속 | match.division 직접 표시 | 0 |
+| `tournament-admin/.../teams/page.tsx` | 🟢 후속 | `divisionRules` dropdown (code 그대로) | 0 |
+| `tournament-admin/.../wizard/page.tsx` (편집) | 🟢 후속 | rule row 단순 편집 | 0 |
+| `tournament-admin/new/wizard/page.tsx` (신규) | ✅ 완료 | division-generator-modal 호출 측 | 0 |
+| `api/web/admin/.../division-rules/route.ts` (CRUD) | 🟢 후속 | `r.code` snake_case 그대로 응답 | 0 |
+| `api/web/admin/.../division-rules/[ruleId]/advance/route.ts` | 🟢 후속 | DB rule 매칭 | 0 |
+| `api/web/team-apply/[token]/route.ts` | 🟢 후속 | `where: { code: tt.category }` DB 매칭 | 0 |
+| `(web)/team-apply/[token]/edit/page.tsx` | 🟢 후속 | divisionRule 단순 표시 | 0 |
+| `lib/services/match-sync.ts` | 🟢 후속 | category 필드 동기화 (code 그대로) | 0 |
+| `api/web/admin/.../teams/[ttId]/category/route.ts` | 🟢 후속 | DB rule 매칭 + 선수 일괄 업데이트 | 0 |
+| `api/web/admin/.../teams/[ttId]/import-players/route.ts` | 🟢 후속 | DB rule 매칭 | 0 |
+| `(referee)/referee/admin/announcements/page.tsx` | 🟢 후속 | division code 미사용 | 0 |
+
+📊 결론: **20+ 파일 중 수정 필요 = `divisions.ts` 1 파일 + 테스트 1 파일** (~125 LOC). 운영 회귀 0.
+
+### D. 구현 단계 (단일 PR)
+
+| 순서 | 작업 | 담당 | 선행 조건 | LOC | 운영 영향 |
+|------|------|------|----------|-----|----------|
+| 1 | `parseDivisionCode` 헬퍼 신규 + `getDivisionInfo` fallback 확장 (divisions.ts) | developer | 사용자 결재 Q1~Q3 | +35 | 0 |
+| 2 | vitest 12 케이스 (parse 5 + fallback 4 + 경계 3) | developer | 1단계 | +90 | 0 |
+| 3 | tsc --noEmit + vitest run | tester + reviewer (병렬) | 2단계 | 0 | 0 |
+
+총 ~125 LOC / 1 commit / 회귀 위험 ZERO (백워드 호환 — 기존 호출자 동작 변경 0).
+
+### E. 회귀 가드 + 검증 명령
+
+**vitest 12 케이스**:
+1. `parseDivisionCode("i2-U11")` = `{ baseCode: "i2", age: "U11", gender: "male", isCombined: true }`
+2. `parseDivisionCode("i2W-U11")` = `{ baseCode: "i2W", age: "U11", gender: "female", isCombined: true }`
+3. `parseDivisionCode("D3")` = `{ baseCode: "D3", age: null, gender: "male", isCombined: false }`
+4. `parseDivisionCode("하모니W")` = `{ baseCode: "하모니W", age: null, gender: "female", isCombined: false }`
+5. `parseDivisionCode("i2-U99")` = null (U99 미존재)
+6. `parseDivisionCode(null)` = null
+7. `parseDivisionCode("")` = null
+8. `parseDivisionCode("invalid-code")` = null
+9. `getDivisionInfo("i2-U11")` = i2 정보 (fallback)
+10. `getDivisionInfo("i2W-U11")` = i2W 정보 + gender female
+11. `getDivisionInfo("D3")` = 기존 동작 (회귀 0)
+12. `getDivisionInfo("xxx")` = null
+
+**grep 회귀 가드 명령** (PR 머지 전 실행):
+```
+grep -rn "DIVISIONS\[" src/         → 호출자 결과 0건 외 모두 base code 호환 확인
+grep -rn "ALL_DIVISIONS_MAP\[" src/ → divisions.ts 내부만 (외부 0)
+grep -rn "getDivisionInfo(" src/    → 호출자 추가 시 fallback 동작 검증
+```
+
+### F. 사용자 결재 후보
+
+| Q | 결재 사항 | 옵션 | 권장 |
+|---|----------|------|------|
+| **Q1** | 표시 라벨 전략 | A=`rule.label` 운영자 입력 / B=헬퍼 자동 / C=DB grade 자동 | **A** (현재 운영 보존 / 자유도 100%) |
+| **Q2** | `parseDivisionCode` 시그니처 | A=`{ baseCode, age, gender, isCombined }` / B=`{ divCode, age }` 단순 | **A** (gender + isCombined 추가 → 호출자 분기 편의) |
+| **Q3** | `getDivisionInfo` 확장 | A=fallback 추가 (백워드 호환) / B=신규 헬퍼 `getDivisionInfoCombined` 분리 | **A** (호출자 0건이라 회귀 위험 0 + 미래 안전) |
+| **Q4** | PR 분해 | A=단일 PR (125 LOC) / B=헬퍼+테스트 분리 2 PR | **A** (단일 — 영향 작음) |
+| **Q5** | YOUTH_AGES 외 age 형식 허용? | A=YOUTH_AGES 화이트리스트 strict / B=`/^U\d{1,2}$/` 정규식만 | **A** (현재 STEP 4 cross-product 가 화이트리스트 — 일관성) |
+
+⚠️ developer 주의사항:
+- **운영 호출자 변경 0** — 기존 `getDivisionInfo("D3")` 회귀 검증 vitest 필수 (case 11)
+- **`getDivisionInfo` 확장 시 fallback 순서**: 직접 lookup 우선 → 실패 시 parse → base code lookup. (직접 lookup 우선 = "i2" 같은 단독 코드 성능 영향 0)
+- **gender 계산**: parse 결과의 baseCode 가 W 끝나면 female. parseDivisionCode 가 gender 직접 계산 (호출자가 다시 계산 불필요)
+- **YOUTH_AGES 변경 시 vitest 갱신 필수** — U7~U18 화이트리스트 strict
+- **scratchpad 다른 섹션 보존** — Phase 19 PR-T1~T5 / PR-S10.4/7/8 / Phase 23 PR6 결재 대기 박제 손대지 말 것
+
+---
+
+## 구현 기록 (developer) — Phase 3.5 parseDivisionCode
+
+📝 구현한 기능: 결합 코드 ("i2-U11") 후속 안전 박제 — `parseDivisionCode` 헬퍼 신규 + `getDivisionInfo` fallback 확장 + vitest 12 케이스.
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/lib/constants/divisions.ts` | `ParsedDivisionCode` interface export + `parseDivisionCode()` 신규 + `getDivisionInfo()` fallback 확장 (직접 lookup → parse → base lookup) | 수정 | +89 |
+| `src/__tests__/lib/constants/divisions.test.ts` | 신규 describe 2개 (parseDivisionCode 8 + getDivisionInfo fallback 4 = 12 케이스) | 수정 | +93 |
+
+🔧 검증 결과:
+- `npx tsc --noEmit` → exit=0
+- `npx vitest run src/__tests__/lib/constants/divisions.test.ts` → 20 tests PASS (기존 8 + 신규 12)
+- `npx vitest run` (전체) → 59 files / 834 tests PASS / 회귀 0
+
+💡 tester 참고:
+- 12 케이스 모두 PASS — case 9 (기존 `i2`) + case 11 (기존 `D3`) 회귀 가드 통과
+- fallback 순서 검증: case 10 (`i2-U11`) 이 base `i2` info 반환 — label 은 자동 생성 안 함 (Q1=A 운영자 입력 우선)
+- YOUTH_AGES strict: case 5 (`i2-U99`) = null (정규식만 매칭 거부)
+- 경계 케이스: null/empty/invalid-code 모두 null (case 6/7/8)
+
+⚠️ reviewer 참고:
+- `parseDivisionCode` 가 `YOUTH_AGES` 와 `getGenderFromDivision` 을 참조 — 둘 다 파일 후방에 선언되어 있으나 (`YOUTH_AGES` L244 / `getGenderFromDivision` L229) 모듈 평가 완료 후 호출 시점엔 모두 초기화 완료 (TDZ 영향 0)
+- `getDivisionInfo` 직접 lookup 우선 = 단독 코드 ("D3"/"i2W") 성능 영향 0
+- 미래 라벨 자동 생성이 필요해지면 별도 헬퍼 (`buildCombinedDivisionLabel`) 분리 권장 — 본 PR 은 spec 그대로 base info 만 반환
+
+📦 운영 영향: 0 (호출자 0건 / 백워드 호환 / DB 변경 0 / UI 변경 0)
+🔀 commit: PM 직접 수행 예정 (developer 는 commit 하지 않음)
