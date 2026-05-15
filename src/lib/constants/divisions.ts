@@ -237,6 +237,36 @@ export function getAllDivisionCodes(): string[] {
   return Object.keys(ALL_DIVISIONS_MAP);
 }
 
+// ─── 유청소년 연령 옵션 (U7~U18, 2026-05-15 사용자 결재 Q1=b) ──────────────
+// 사유: 강남구협회장배 등 유소년 대회는 디비전(i1~i4) × 연령(U7~U18) 결합 코드 박제
+//   (예: "i2-U11", "i3-U9"). 운영 DB 의 TournamentDivisionRule.code 형식 호환.
+// 사용처: division-generator-modal STEP 4 (category="youth" 시에만 노출).
+export const YOUTH_AGES = [
+  "U7", "U8", "U9", "U10", "U11", "U12",
+  "U13", "U14", "U15", "U16", "U17", "U18",
+] as const;
+export type YouthAge = (typeof YOUTH_AGES)[number];
+
+/**
+ * 디비전 × 연령 cross-product 으로 결합 코드 배열 생성.
+ *
+ * @param divs - 선택된 디비전 (예: ["i2", "i3"])
+ * @param ages - 선택된 연령 (예: ["U11", "U12"]) — 빈 배열이면 디비전 단독 반환 (회귀 0)
+ * @returns 결합 코드 배열 (예: ["i2-U11", "i2-U12", "i3-U11", "i3-U12"])
+ *
+ * 사유 (Q4=b): 사용자 결재로 "1개 이상 선택 (cross-product)" 룰 박제.
+ *   - 디비전 N × 연령 M → N×M row 생성.
+ *   - 운영 DB 호환: format/settings 는 row 단위 독립 → divisions 관리 페이지에서 별도 편집.
+ *   - 호환: ages 빈 배열 = 기존 동작 (i2 단독) 보존 — youth 외 종별 cross-product 회피.
+ */
+export function buildYouthDivisionCodes(
+  divs: string[],
+  ages: string[],
+): string[] {
+  if (ages.length === 0) return [...divs];
+  return divs.flatMap((d) => ages.map((a) => `${d}-${a}`));
+}
+
 // ─── 배열 형태 export (UI 필터/드롭다운용) ──────────────
 // Record 형태 외에 배열 형태도 필요한 곳(필터 UI 등)이 있어서 추가
 export const GENDERS_LIST = [

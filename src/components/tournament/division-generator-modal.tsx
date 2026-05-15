@@ -5,6 +5,8 @@ import {
   GENDERS_LIST,
   CATEGORIES_LIST,
   DIVISIONS_BY_CATEGORY,
+  YOUTH_AGES,
+  buildYouthDivisionCodes,
   type GenderCode,
   type CategoryCode,
 } from "@/lib/constants/divisions";
@@ -12,8 +14,17 @@ import {
 /**
  * 종별 생성기 모달 (BDR-join-v1 스타일)
  *
- * 3단계: 성별 선택 → 종별 선택 → 디비전 선택
- * "생성하기" 버튼으로 선택된 디비전을 위자드에 반환
+ * 단계:
+ *   STEP 1. 성별 선택
+ *   STEP 2. 종별 템플릿 선택
+ *   STEP 3. 디비전 선택
+ *   STEP 4. 연령 선택 (category === "youth" 시에만 노출 — 2026-05-15 사용자 결재)
+ *
+ * "생성하기" 버튼으로 선택된 (디비전 × 연령) cross-product 결합 코드를 위자드에 반환.
+ *   - youth + 연령 선택 시: ["i2-U11", "i2-U12", "i3-U11", "i3-U12"] 형식
+ *   - 그 외: ["i2"] 단독 (기존 동작 보존)
+ *
+ * format/settings 는 본 모달에서 결정 X → 종별 관리 페이지 (Phase 3.5) 에서 row 단위 편집.
  */
 
 interface Props {
@@ -26,10 +37,23 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
   const [gender, setGender] = useState<GenderCode>("male");
   const [category, setCategory] = useState<CategoryCode>("general");
   const [selectedDivs, setSelectedDivs] = useState<string[]>([]);
+  // 2026-05-15 — 유청소년 연령 옵션 (Q1=b: U7~U18 / Q4=b: 1개 이상 선택 cross-product)
+  const [selectedAges, setSelectedAges] = useState<string[]>([]);
 
   if (!open) return null;
 
   const divisions = DIVISIONS_BY_CATEGORY[gender]?.[category] ?? [];
+  // youth 종별 + 디비전 1개 이상 선택 시에만 STEP 4 노출 (UX: 디비전 먼저 선택 유도)
+  const showAgeStep = category === "youth" && selectedDivs.length > 0;
+  // 생성 가능 여부 — youth = 디비전+연령 둘 다 필요 / 그 외 = 디비전만 필요
+  const canCreate =
+    selectedDivs.length > 0 &&
+    (category !== "youth" || selectedAges.length > 0);
+  // 미리보기 생성될 row 개수 (UX: 사용자가 cross-product 결과 직감)
+  const previewCount =
+    category === "youth"
+      ? selectedDivs.length * Math.max(selectedAges.length, 1)
+      : selectedDivs.length;
 
   function toggleDiv(key: string) {
     setSelectedDivs((prev) =>
@@ -37,13 +61,25 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
     );
   }
 
+  function toggleAge(age: string) {
+    setSelectedAges((prev) =>
+      prev.includes(age) ? prev.filter((a) => a !== age) : [...prev, age]
+    );
+  }
+
   function handleCreate() {
-    if (selectedDivs.length === 0) return;
+    if (!canCreate) return;
+    // youth = cross-product (i2 × U11, U12 → i2-U11, i2-U12) / 그 외 = 디비전 단독
+    const codes =
+      category === "youth"
+        ? buildYouthDivisionCodes(selectedDivs, selectedAges)
+        : [...selectedDivs];
     const catInfo = CATEGORIES_LIST.find((c) => c.key === category);
     const label = catInfo?.label ?? category;
-    onApply({ [label]: [...selectedDivs] });
+    onApply({ [label]: codes });
     // 초기화
     setSelectedDivs([]);
+    setSelectedAges([]);
     onClose();
   }
 
@@ -90,6 +126,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
                   onClick={() => {
                     setGender(g.key);
                     setSelectedDivs([]);
+                    setSelectedAges([]); // 2026-05-15 STEP 4 — 성별 변경 시 연령도 초기화
                   }}
                   className="flex-1 py-3 text-[12px] font-black uppercase tracking-widest transition-all"
                   style={
@@ -118,6 +155,7 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
                   onClick={() => {
                     setCategory(cat.key);
                     setSelectedDivs([]);
+                    setSelectedAges([]); // 2026-05-15 STEP 4 — 종별 변경 시 연령도 초기화
                   }}
                   className="rounded-sm px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-all"
                   style={
@@ -175,23 +213,72 @@ export function DivisionGeneratorModal({ open, onClose, onApply }: Props) {
               })}
             </div>
           </div>
+
+          {/* STEP 4: 연령 선택 (유청소년만 / 디비전 1개 이상 선택 후 노출) */}
+          {showAgeStep && (
+            <div>
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--color-text-muted)" }}>
+                <span className="material-symbols-outlined align-middle text-sm mr-1">cake</span>
+                STEP 4. 연령 선택
+                {selectedAges.length > 0 && (
+                  <span className="ml-2 font-bold" style={{ color: "var(--color-primary)" }}>
+                    ({selectedAges.length}개)
+                  </span>
+                )}
+                <span className="ml-2 text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                  · 디비전 × 연령 cross-product 으로 {selectedDivs.length * Math.max(selectedAges.length, 1)}개 종별 생성
+                </span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {YOUTH_AGES.map((age) => {
+                  const active = selectedAges.includes(age);
+                  return (
+                    <button
+                      key={age}
+                      type="button"
+                      onClick={() => toggleAge(age)}
+                      className="flex items-center gap-1 rounded-sm px-3 py-2 text-[11px] font-black uppercase tracking-wider transition-all border"
+                      style={
+                        active
+                          ? {
+                              borderColor: "var(--color-primary)",
+                              backgroundColor: "color-mix(in srgb, var(--color-primary) 8%, transparent)",
+                              color: "var(--color-primary)",
+                            }
+                          : {
+                              borderColor: "var(--color-border)",
+                              backgroundColor: "var(--color-surface)",
+                              color: "var(--color-text-secondary)",
+                            }
+                      }
+                    >
+                      {active && (
+                        <span className="material-symbols-outlined text-sm">check</span>
+                      )}
+                      {age}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 하단 생성 버튼 */}
         <button
           type="button"
           onClick={handleCreate}
-          disabled={selectedDivs.length === 0}
+          disabled={!canCreate}
           className="flex w-full items-center justify-center gap-2 py-4 text-[13px] font-black uppercase tracking-widest text-white transition-all disabled:opacity-40"
-          style={{ backgroundColor: selectedDivs.length > 0 ? "var(--color-accent, #191F28)" : "var(--color-text-disabled)" }}
+          style={{ backgroundColor: canCreate ? "var(--color-accent, #191F28)" : "var(--color-text-disabled)" }}
         >
           생성하기
-          {selectedDivs.length > 0 && (
+          {canCreate && (
             <span
               className="rounded-md px-2 py-0.5 text-xs"
               style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
             >
-              {selectedDivs.length}개 디비전
+              {previewCount}개 종별
             </span>
           )}
         </button>
