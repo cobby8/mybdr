@@ -747,7 +747,9 @@
   min-height: 0;
 }
 .ss-shell .ss-tbox__plyrow:last-child { border-bottom: 0; }
-.ss-shell .ss-tbox__plyrow > div {
+/* PR-Stat2.2 (2026-05-15) — > div → > * (button 포함) — stat cell 이 button 이라
+   `> div` selector 매칭 안 함 → 세로 구분선 누락 (사용자 이미지 #25). */
+.ss-shell .ss-tbox__plyrow > * {
   border-right: 1px solid var(--pap-line);
   padding: 0 3px;
   display: flex;
@@ -758,7 +760,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ss-shell .ss-tbox__plyrow > div:last-child { border-right: 0; }
+.ss-shell .ss-tbox__plyrow > *:last-child { border-right: 0; }
 .ss-shell .ss-tbox__plyrow .ss-c-licence {
   justify-content: center;
   font: 600 9px/1 var(--ff-mono, "Space Grotesk", ui-monospace, monospace);
@@ -795,7 +797,12 @@
   padding: 0;
   cursor: pointer;
   background: transparent;
-  border: 0; /* parent grid border-right 가 cell 분리선 */
+  /* PR-Stat2.2 (2026-05-15) — `border: 0` 제거 → 부모 .ss-tbox__plyrow > * 의 border-right 1px 받음.
+     이전: button 의 user-agent border 제거 위해 border: 0 → 부모 룰의 border-right 까지 제거 → 세로선 누락.
+     수정: border-top/bottom/left 만 0 명시 / border-right 는 부모 룰 유지. */
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
 }
 .ss-shell .ss-tbox__plyrow .ss-c-stat-or:disabled,
 .ss-shell .ss-tbox__plyrow .ss-c-stat-dr:disabled,
