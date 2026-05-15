@@ -414,6 +414,29 @@ export async function POST(
 
   const { user, match, tournament } = access;
 
+  // Phase 23 PR-RO4 (2026-05-15) — 종료 매치 BFF 거부 (사용자 결재 Q8 = MATCH_LOCKED 423 + 수정 모드 우회 분기).
+  //
+  // 왜 (이유):
+  //   클라이언트 차단 (PR-RO1~RO3) 우회 시도 = curl / Postman / 콘솔 fetch.
+  //   BFF 가 status="completed" 매치를 거부 = 이중 방어 (사용자 결재 Q8 — 권고안).
+  //
+  // 어떻게:
+  //   - match.status === "completed" 거부 → 423 (Locked) + MATCH_LOCKED 코드.
+  //   - 수정 모드 우회는 별도 PR-EDIT3 에서 처리 (본 PR 은 거부만).
+  //   - getRecordingMode 가드 직전 (Flutter 모드 가드와 순서 정렬).
+  //
+  // 운영 동작 보존:
+  //   - status != "completed" 매치 (draft / in_progress) = 변경 0 (회귀 0).
+  //   - Phase 23 PR4 / PR2~PR6 흐름과 충돌 0 (완료된 매치는 본 분기에서 거부 / 진행 매치는 통과).
+  if (match.status === "completed") {
+    return apiError(
+      "종료된 매치는 수정할 수 없습니다. 수정 모드로 진입해주세요.",
+      423,
+      "MATCH_LOCKED",
+      { match_id: match.id.toString() }
+    );
+  }
+
   // 2) 모드 가드 — paper 가 아니면 403 (caller 가 잘못된 매치 접근 차단)
   const mode = getRecordingMode({ settings: match.settings });
   if (mode !== "paper") {

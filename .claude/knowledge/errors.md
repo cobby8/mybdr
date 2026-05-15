@@ -2,6 +2,27 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] recorder_admin 사이드바 admin 섹션 비노출 = JWT stale 함정 (PR4-UI 사용자 보고 fix)
+- **분류**: 인증 / JWT stale / DB ground truth 누락
+- **발견자**: debugger (PR4-UI 박제 후 사용자 보고 — `user_id=3431, admin_role="recorder_admin", isAdmin=false`)
+- **증상**: 운영 DB 에서 `User.admin_role="recorder_admin"` 박제 후 사용자 본인은 로그아웃→재로그인 안 함. `/referee` 진입 시 (1) 사이드바에 관리자 섹션 0 (2) `/referee/admin` 진입 시 "Super Admin 권한 진입" 라벨 (recorder_admin 인데 super_admin 표시) (3) 관리자 빠른 메뉴 카드 부족 (2개만)
+- **근본 원인**:
+  - **JWT stale**: `generateToken()` 시점에 박힌 `admin_role` claim 이 JWT 만료 7일 동안 stale. DB 박제 후 재로그인 안 하면 `session.admin_role` 이 비어있거나 옛 값
+  - **`isRecorderAdmin(session)` 단일 source 함정**: `is-recorder-admin.ts` L61~62 가 `session.admin_role === "recorder_admin"` JWT 만 평가 → stale 이면 false → me API `recorder_admin=false` + adminInfo=null
+  - **`getAssociationAdmin()` JWT 의존**: `admin-guard.ts` L144 `isRecorderAdmin(session)` 분기로 sentinel 진입 → JWT stale 시 sentinel 미진입 → admin=null → adminInfo 채움 미발생 → 사이드바 admin 섹션 0
+  - **결함 #2 라벨**: 코드 분석상 정확 ("Recorder Admin 권한 진입" 표시되어야 함). 사용자 인용 "Super Admin" 은 (a) stale JWT (과거 isAdmin=true 였으면 role="super_admin" 박힘) 또는 (b) 사용자 인용 오류 가능성
+- **fix 1 (PR4-FIX commit 대기)** — 3 파일 DB ground truth 폴백 박제:
+  - `/api/web/me/route.ts`: User select 에 `isAdmin + admin_role` 추가. `recorderAdmin` 판정에 DB 폴백 (OR 분기). `admin` 변수가 null 이어도 `DB.isAdmin=true OR admin_role IN ("super_admin", "recorder_admin")` 이면 **첫 활성 협회 자동 선택 + sentinel role 강제 박제** → adminInfo 채움 보장. 응답에 `admin_role` 키 추가 (UI 진단/디버깅 보조)
+  - `/referee/admin/page.tsx`: 페이지 진입 시 `prisma.user.findUnique({ select: { isAdmin, admin_role } })` 직접 SELECT. `superAdmin` / `recorderAdmin` 판정에 DB 폴백 (JWT stale 무관 정확 라벨 표시). entryRole = "recorder_admin" → "Recorder Admin 권한 진입" 정확 표시
+  - quickLinks 배열 2 → 8 확장 (배정 관리 / 공고 관리 / 일자별 운영 / 정산 관리 / 배정비 단가 / 일괄 등록 신규 6개 + 기존 2)
+- **재발 방지 룰**:
+  - **세분화 권한 신설 시 DB 폴백 의무**: JWT claim 만 보는 헬퍼 (isSuperAdmin/isRecorderAdmin 류) 는 stale JWT 함정 영구 존재 → 진입점 (me API / layout / page) 에서 **반드시 DB ground truth 직접 SELECT 폴백**
+  - **role 변경 = 재로그인 안내 의무**: 사용자에게 admin_role 박제 후 "로그아웃 후 재로그인 필요" 명시 안내 (현재 결재 Q4 에 박제됨 / 운영 자동화 큐: admin_role 변경 시 forced session invalidate)
+  - **fix 의 회귀 0 보장**: DB.isAdmin=true / DB.admin_role IN (...) OR 분기만 추가 — 일반 사용자 (모두 false) = 기존 동작 그대로
+  - **JWT 갱신 후속 PR 큐**: `admin_role` 변경 시 next-auth/JWT 강제 만료 + 클라이언트 자동 리로드 (운영 환경 강제 재로그인 자동화)
+- **검증**: tsc 0 / vitest 921/921 PASS (회귀 0)
+- **참조횟수**: 0
+
 ### [2026-05-15] 순위결정전 매치 placeholder 누락 = 대진표 generator 결함 (강남구협회장배 사고)
 - **분류**: 대진표 생성 결함 / 시스템 차원 자동화 부재 / 운영 사용자 보고
 - **발견자**: pm (운영 mybdr.kr 강남구협회장배 유소년부 사용자 보고 — 2026-05-15)

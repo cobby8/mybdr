@@ -70,6 +70,10 @@ interface RunningScoreGridProps {
   homeTeamName: string;
   awayTeamName: string;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 cell 클릭 차단).
+  //   왜: onClick early return — 모달 open / undo / addMark 분기 진입 0.
+  //   호출자 미전달 시 동작 변경 0 (운영 보존).
+  readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
   // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
@@ -98,6 +102,7 @@ export function RunningScoreGrid({
   homeTeamName,
   awayTeamName,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2)
   frameless,
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
@@ -134,6 +139,9 @@ export function RunningScoreGrid({
   // 칸 클릭 핸들러 — 빈 칸이면 모달, 마지막 마킹 칸이면 해제 확인, 그 외 마킹은 안내
   function handleCellClick(team: "home" | "away", position: number) {
     if (disabled) return;
+    // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
+    //   왜: addMark / undoLastMark / 모달 open 모두 차단. disabled 와 별도 가드 (이중 방어).
+    if (readOnly) return;
     // PR-S6 (2026-05-14 rev2 롤백) — paper 모드 분기 제거. 시안 rev2 가 모드 토글을 제거.
     const marks = team === "home" ? state.home : state.away;
     const lastPos = team === "home" ? homeLastPos : awayLastPos;

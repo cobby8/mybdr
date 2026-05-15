@@ -721,14 +721,17 @@ export function ScoreSheetForm({
     return () => window.clearTimeout(timer);
   }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, match.id]);
 
-  // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안)
+  // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
+  // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
   function handleAdvancePeriod() {
+    if (isCompleted) return; // 종료 매치 차단 (Q2)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
     }));
   }
   function handleRetreatPeriod() {
+    if (isCompleted) return; // 종료 매치 차단 (Q2)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.max(prev.currentPeriod - 1, 1),
@@ -742,6 +745,7 @@ export function ScoreSheetForm({
   //   - period 4 (Q4) 종료 = QuarterEndModal 표시 (경기 종료 / OT1 진행 2 버튼)
   //   - period 5~7 (OTn) 종료 = QuarterEndModal 표시 (경기 종료 / 다음 OT 진행 / 동점 시 종료 비활성)
   function handleEndPeriod() {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     const endedPeriod = runningScore.currentPeriod;
     // Q1~Q3 종료 = 기존 동작 (자동 진입)
     if (endedPeriod <= 3) {
@@ -765,6 +769,7 @@ export function ScoreSheetForm({
   //   이유: 사용자가 Q4 종료 시점에서 별도 confirm 모달 (MatchEndButton) 통과 안 해도 즉시 종료.
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2 / quarter-end modal 진입점도 차단)
     try {
       const payload = buildSubmitPayload();
       const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
@@ -794,6 +799,7 @@ export function ScoreSheetForm({
   // Phase 7-C — "다음 OT 진행" 버튼 (QuarterEndModal 안).
   //   동작: currentPeriod++ (OT1/OT2/OT3 진입) + 모달 close + toast 안내.
   function handleContinueToOvertime() {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     setRunningScore((prev) => ({
       ...prev,
       currentPeriod: Math.min(prev.currentPeriod + 1, 9),
@@ -812,6 +818,7 @@ export function ScoreSheetForm({
   //   3. TeamSection 마지막 마킹 칸 클릭 → handleRequestRemoveFoul → 즉시 1건 해제
 
   function handleRequestAddFoul(team: "home" | "away", playerId: string) {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (모달 mount 차단)
     // 모달 컨텍스트 박제 — 선수 이름 / 등번호 표시용
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -824,6 +831,7 @@ export function ScoreSheetForm({
   }
 
   function handleRequestRemoveFoul(team: "home" | "away", playerId: string) {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     // PR-Stat3.5 (2026-05-15) — React 19 strict mode updater double-invoke 회피.
     //   기존 setFouls(prev => ...) 패턴 = strict mode 의 dev double-invoke 가 updater 2회 호출
     //   → queueMicrotask 도 2회 schedule → toast 2회 (사용자 보고 이미지 #30).
@@ -843,6 +851,7 @@ export function ScoreSheetForm({
   //   3. ok → state 갱신 + toast "전반 타임아웃 1/2" 류
   //   4. !ok → toast "전반 타임아웃 모두 사용 — 추가 불가" 류 (state 미변경)
   function handleRequestAddTimeout(team: "home" | "away") {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴 (updater 미사용 — strict mode double-invoke 회피).
     const result = addTimeout(timeouts, team, {
       period: runningScore.currentPeriod,
@@ -858,6 +867,7 @@ export function ScoreSheetForm({
 
   // Phase 4 — 타임아웃 마지막 1건 해제 (마지막 칸 클릭).
   function handleRequestRemoveTimeout(team: "home" | "away") {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     const next = removeLastTimeout(timeouts, team);
     setTimeouts(next);
     if (next !== timeouts) {
@@ -880,6 +890,7 @@ export function ScoreSheetForm({
     playerId: string,
     statKey: StatKey
   ) {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (popover mount 차단)
     // 컨텍스트 박제 — 선수명 / 등번호 표시용 (FoulTypeModal 패턴 일관).
     const roster = team === "home" ? homeRoster.players : awayRoster.players;
     const player = roster.find((p) => p.tournamentTeamPlayerId === playerId);
@@ -893,6 +904,7 @@ export function ScoreSheetForm({
   }
 
   function handleAddStat() {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -905,6 +917,7 @@ export function ScoreSheetForm({
   }
 
   function handleRemoveStat() {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     if (!statPopoverCtx) return;
     const { playerId, statKey } = statPopoverCtx;
     const ctx = statPopoverCtx;
@@ -919,6 +932,7 @@ export function ScoreSheetForm({
 
   // 모달 → 종류 선택 콜백 — addFoul 호출 + Article 41 alert + 5+ FT alert
   function handleSelectFoulType(type: FoulType) {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2)
     if (!foulModalCtx) return;
     const { team, playerId } = foulModalCtx;
     // PR-Stat3.5 (2026-05-15) — closure state + setX(next) 패턴.
@@ -1098,6 +1112,7 @@ export function ScoreSheetForm({
   //   기존 동작: 운영자가 12명 P.IN 일일이 체크 → 중복 부담 + 라인업 의미와 모순.
   //   변경: 모달 confirm 시 양 팀 모든 라인업 선수의 playerIn=true 자동 fill (한 번에).
   function handleLineupConfirm(result: LineupSelectionResult) {
+    if (isCompleted) return; // Phase 23 PR-RO2 — 종료 매치 차단 (Q2 — 라인업 재선택 차단)
     setLineup(result);
     setLineupModalOpen(false);
     // 양 팀 라인업 (starters + substitutes) 의 모든 선수 playerIn=true 자동 set.
@@ -1228,10 +1243,18 @@ export function ScoreSheetForm({
         onPrint={() => {
           if (typeof window !== "undefined") window.print();
         }}
-        onEndMatch={() => setMatchEndOpen(true)}
+        onEndMatch={() => {
+          // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 이중 방어).
+          //   hideEndMatch 시 button 자체 render 0 이지만, onClick 까지 가드 (회귀 안전망).
+          if (isCompleted) return;
+          setMatchEndOpen(true);
+        }}
         backHref="/admin"
         // PR-S2 후속 fix 3 (2026-05-14) — 종료 후 종료 버튼 disabled 시각 분기 (유지).
         endMatchDisabled={matchEndSubmitted}
+        // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 경기 종료 버튼 hidden (사용자 결재 Q2).
+        //   인쇄 / ← 메인 만 노출 / 종료 버튼 진입점 차단.
+        hideEndMatch={isCompleted}
       />
 
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
@@ -1302,6 +1325,8 @@ export function ScoreSheetForm({
             placeLabel={match.courtLabel}
             values={header}
             onChange={setHeader}
+            // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
+            readOnly={isCompleted}
             frameless
           />
         </div>
@@ -1341,6 +1366,11 @@ export function ScoreSheetForm({
                 onRequestOpenStatPopover={(playerId, statKey) =>
                   handleRequestOpenStatPopover("home", playerId, statKey)
                 }
+                // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2).
+                //   disabled = button (foul/timeout/stat cell) + checkbox 차단
+                //   readOnly = input (coach/asstCoach) 차단
+                disabled={isCompleted}
+                readOnly={isCompleted}
                 frameless
               />
             </div>
@@ -1369,6 +1399,9 @@ export function ScoreSheetForm({
                 onRequestOpenStatPopover={(playerId, statKey) =>
                   handleRequestOpenStatPopover("away", playerId, statKey)
                 }
+                // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — Team A 와 동일 패턴)
+                disabled={isCompleted}
+                readOnly={isCompleted}
                 frameless
               />
             </div>
@@ -1382,6 +1415,8 @@ export function ScoreSheetForm({
               headerReferee={header.referee}
               headerUmpire1={header.umpire1}
               headerUmpire2={header.umpire2}
+              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
+              readOnly={isCompleted}
               frameless
             />
           </div>
@@ -1398,6 +1433,9 @@ export function ScoreSheetForm({
               awayPlayers={awayFilteredRoster.players}
               homeTeamName={homeFilteredRoster.teamName}
               awayTeamName={awayFilteredRoster.teamName}
+              // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2).
+              //   readOnly = onClick early return (모달 open / undo / addMark 차단)
+              readOnly={isCompleted}
               frameless
             />
             {/* Period scores + Final + Winner — Running Score 아래 누적 (FIBA PDF 정합).
@@ -1410,6 +1448,8 @@ export function ScoreSheetForm({
                 onAdvancePeriod={handleAdvancePeriod}
                 onRetreatPeriod={handleRetreatPeriod}
                 onEndPeriod={handleEndPeriod}
+                // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 OT 종료 빨강 버튼 차단 (사용자 결재 Q2)
+                disabled={isCompleted}
                 frameless
               />
             </div>
@@ -1489,27 +1529,32 @@ export function ScoreSheetForm({
         / Footer 최하단 1줄 컴팩트). 라인업 다시 선택하려면 아래 &quot;라인업 다시 선택&quot; 버튼 사용.
       </div>
 
-      {/* Phase 7-B — 라인업 다시 선택 버튼 (양식 표시 후에도 운영자가 재선택 가능) */}
-      <button
-        type="button"
-        onClick={() => setLineupModalOpen(true)}
-        className="no-print mt-2 px-3 py-1.5 text-xs"
-        style={{
-          border: "1px solid var(--color-border)",
-          color: "var(--color-text-muted)",
-          touchAction: "manipulation",
-        }}
-        aria-label="라인업 다시 선택 (출전 명단 / 선발 5인)"
-      >
-        <span className="material-symbols-outlined mr-1 align-middle text-sm">
-          edit
-        </span>
-        라인업 다시 선택
-      </button>
+      {/* Phase 7-B — 라인업 다시 선택 버튼 (양식 표시 후에도 운영자가 재선택 가능).
+          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 시 hidden (사용자 결재 Q2). */}
+      {!isCompleted && (
+        <button
+          type="button"
+          onClick={() => setLineupModalOpen(true)}
+          className="no-print mt-2 px-3 py-1.5 text-xs"
+          style={{
+            border: "1px solid var(--color-border)",
+            color: "var(--color-text-muted)",
+            touchAction: "manipulation",
+          }}
+          aria-label="라인업 다시 선택 (출전 명단 / 선발 5인)"
+        >
+          <span className="material-symbols-outlined mr-1 align-middle text-sm">
+            edit
+          </span>
+          라인업 다시 선택
+        </button>
+      )}
 
-      {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더) */}
+      {/* Phase 3.5 — FoulTypeModal (전역 마운트 — open 시만 렌더).
+          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
+            handleRequestAddFoul 가드 + open 분기 가드 = 이중 방어. */}
       <FoulTypeModal
-        open={foulModalCtx !== null}
+        open={!isCompleted && foulModalCtx !== null}
         playerName={foulModalCtx?.playerName ?? ""}
         jerseyNumber={foulModalCtx?.jerseyNumber ?? null}
         period={runningScore.currentPeriod}
@@ -1520,8 +1565,9 @@ export function ScoreSheetForm({
       {/* Phase 19 PR-Stat2 (2026-05-15) — StatPopover (6 stat OR/DR/A/S/B/TO +1/-1).
           사용자 결재 Q2 = 신규 StatPopover (+1/-1 옵션) — 4종 모달 패턴과 다른 popover 형식.
           open 시만 렌더 — 운영 동작 보존 (FoulTypeModal 패턴 일관). */}
+      {/* Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <StatPopover
-        open={statPopoverCtx !== null}
+        open={!isCompleted && statPopoverCtx !== null}
         playerName={statPopoverCtx?.playerName ?? ""}
         jerseyNumber={statPopoverCtx?.jerseyNumber ?? null}
         statKey={statPopoverCtx?.statKey ?? "or"}
@@ -1542,9 +1588,11 @@ export function ScoreSheetForm({
       )}
 
       {/* Phase 7-B — LineupSelectionModal (전역 마운트).
-          lineupModalOpen=true 시만 렌더. 양식 미렌더 (lineup === null) 인 경우에도 표시. */}
+          lineupModalOpen=true 시만 렌더. 양식 미렌더 (lineup === null) 인 경우에도 표시.
+          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — open 강제 false).
+            라인업 재선택 진입점 차단 (handleLineupConfirm 가드 + open 분기 가드 이중 방어). */}
       <LineupSelectionModal
-        open={lineupModalOpen}
+        open={!isCompleted && lineupModalOpen}
         homeTeamName={homeRoster.teamName}
         awayTeamName={awayRoster.teamName}
         homePlayers={homeRoster.players}
@@ -1559,9 +1607,10 @@ export function ScoreSheetForm({
         onToast={showToast}
       />
 
-      {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기) */}
+      {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기).
+          Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (open 강제 false / 이중 방어) */}
       <QuarterEndModal
-        open={quarterEndModal !== null}
+        open={!isCompleted && quarterEndModal !== null}
         mode={quarterEndModal?.mode ?? "quarter4"}
         currentPeriod={quarterEndModal?.period ?? 4}
         homeTeamName={homeFilteredRoster.teamName}

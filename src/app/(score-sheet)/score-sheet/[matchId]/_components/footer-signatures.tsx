@@ -86,6 +86,9 @@ interface FooterSignaturesProps {
   headerUmpire1?: string;
   headerUmpire2?: string;
   disabled?: boolean;
+  // Phase 23 PR-RO1 (2026-05-15) — read-only 차단 (사용자 결재 Q2 — 종료 매치 input 차단).
+  //   왜: 8 input + notes textarea readOnly wiring. 호출자 미전달 시 동작 변경 0.
+  readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
 }
@@ -97,6 +100,7 @@ export function FooterSignatures({
   headerUmpire1,
   headerUmpire2,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 input 차단 (사용자 결재 Q2)
   frameless,
 }: FooterSignaturesProps) {
   // 헤더 → 풋터 자동 prefill (mount 1회).
@@ -158,6 +162,7 @@ export function FooterSignatures({
               value={values.scorer}
               onChange={update("scorer")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               // 터치 영역 보장 (룰 13) — height 는 css 에서 18px / 모바일 inputmode 보조
               style={{ touchAction: "manipulation" }}
@@ -171,6 +176,7 @@ export function FooterSignatures({
               value={values.asstScorer}
               onChange={update("asstScorer")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -183,6 +189,7 @@ export function FooterSignatures({
               value={values.timer}
               onChange={update("timer")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -195,6 +202,7 @@ export function FooterSignatures({
               value={values.shotClockOperator}
               onChange={update("shotClockOperator")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -218,6 +226,7 @@ export function FooterSignatures({
               value={values.refereeSign}
               onChange={update("refereeSign")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -233,6 +242,7 @@ export function FooterSignatures({
               value={values.umpire1Sign}
               onChange={update("umpire1Sign")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -245,6 +255,7 @@ export function FooterSignatures({
               value={values.umpire2Sign}
               onChange={update("umpire2Sign")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -264,6 +275,7 @@ export function FooterSignatures({
               value={values.captainSignature}
               onChange={update("captainSignature")}
               disabled={disabled}
+              readOnly={readOnly}
               maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
               style={{ touchAction: "manipulation" }}
             />
@@ -296,6 +308,7 @@ export function FooterSignatures({
           onChange={update("scorer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
         <SigInput
@@ -304,6 +317,7 @@ export function FooterSignatures({
           onChange={update("asstScorer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
         <SigInput
@@ -312,6 +326,7 @@ export function FooterSignatures({
           onChange={update("timer")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
         <SigInput
@@ -320,6 +335,7 @@ export function FooterSignatures({
           onChange={update("shotClockOperator")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
       </div>
@@ -331,6 +347,7 @@ export function FooterSignatures({
           onChange={update("refereeSign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
         <SigInput
@@ -339,6 +356,7 @@ export function FooterSignatures({
           onChange={update("umpire1Sign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
         <SigInput
@@ -347,6 +365,7 @@ export function FooterSignatures({
           onChange={update("umpire2Sign")}
           maxLength={SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
         />
       </div>
@@ -358,6 +377,7 @@ export function FooterSignatures({
           onChange={update("captainSignature")}
           maxLength={CAPTAIN_SIGNATURE_MAX_LENGTH}
           disabled={disabled}
+          readOnly={readOnly}
           inline={false}
           labelNoWrap
         />
@@ -376,6 +396,7 @@ export function FooterSignatures({
             value={values.notes}
             onChange={update("notes")}
             disabled={disabled}
+            readOnly={readOnly}
             maxLength={NOTES_MAX_LENGTH}
             rows={3}
             className="mt-1 w-full bg-transparent px-2 py-2 text-sm focus:outline-none disabled:opacity-50"
@@ -414,6 +435,7 @@ function SigInput({
   onChange,
   maxLength,
   disabled,
+  readOnly, // Phase 23 PR-RO1 (2026-05-15) — input readOnly wiring (회귀 안전망 분기)
   inline,
   labelWidth,
   labelNoWrap,
@@ -423,6 +445,7 @@ function SigInput({
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   maxLength: number;
   disabled?: boolean;
+  readOnly?: boolean;
   inline?: boolean;
   // Phase 11 §3 — 운영진 세로 4줄에서 라벨 정렬을 맞추기 위한 고정 width (px).
   //   "Shot clock operator" 가 가장 긴 라벨 → 140px 정합.
@@ -462,6 +485,7 @@ function SigInput({
           value={value}
           onChange={onChange}
           disabled={disabled}
+          readOnly={readOnly}
           maxLength={maxLength}
           className="pap-u min-w-0 flex-1 bg-transparent pb-0 text-xs focus:outline-none disabled:opacity-50"
           style={{
@@ -490,6 +514,7 @@ function SigInput({
         value={value}
         onChange={onChange}
         disabled={disabled}
+        readOnly={readOnly}
         maxLength={maxLength}
         className="w-full bg-transparent px-1 pb-0.5 pt-2 text-sm focus:outline-none disabled:opacity-50"
         style={{

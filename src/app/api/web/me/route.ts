@@ -42,6 +42,14 @@ export async function GET() {
         nickname: true,
         profile_image: true,
         profile_image_url: true,
+        // PR4-FIX (2026-05-15): admin_role DB 직접 SELECT (JWT stale 방어).
+        //   이유: PR4-UI 박제 후 recorder_admin 사용자 사이드바에서 admin 섹션 안 보임 신고.
+        //         JWT 만료 7일 — admin_role 박제 전 발급된 JWT 면 session.admin_role 미존재 →
+        //         isRecorderAdmin(session) === false → me 응답의 recorder_admin=false →
+        //         사이드바 비노출. DB 폴백으로 stale JWT 도 통과.
+        //   isAdmin 도 같이 — super_admin 자동 흡수 일관 (DB isAdmin=true 이면 super_admin 처리).
+        isAdmin: true,
+        admin_role: true,
         // 맞춤 보기 토글 상태를 DB에서 직접 읽어옴 (디비전 존재 여부가 아닌 실제 저장값)
         prefer_filter_enabled: true,
         // 숨긴 메뉴 slug 배열 — 사이드/슬라이드 메뉴 필터링에 사용
@@ -95,7 +103,41 @@ export async function GET() {
       }
     | null = null;
 
-  if (admin) {
+  // PR4-FIX (2026-05-15) — DB ground truth 기반 admin 강제 sentinel.
+  //   이유: getAssociationAdmin() 은 JWT session.admin_role 만 평가 (admin-guard.ts L144).
+  //         DB 에 admin_role 박제했지만 JWT 가 stale (admin_role 박제 전 발급) 이면 admin=null
+  //         → adminInfo=null → 사이드바 admin 섹션 0 + recorder_admin boolean 도 false (회귀 #1).
+  //   fix: DB.isAdmin=true OR DB.admin_role IN ("super_admin", "recorder_admin") 이면 admin
+  //        결과가 null 이어도 sentinel 강제 — 첫 활성 협회 조회 후 sentinel role 부여.
+  //   회귀 0: 일반 association_admin / DB 비관리자 = 기존 동작 그대로 (admin 변수 그대로).
+  const dbIsAdminLike =
+    user?.isAdmin === true ||
+    user?.admin_role === "super_admin" ||
+    user?.admin_role === "recorder_admin";
+
+  let effectiveAdmin = admin;
+  if (!effectiveAdmin && dbIsAdminLike) {
+    // JWT stale 폴백 — 첫 활성 협회 자동 선택 (admin-guard.ts sentinel 분기와 동일 로직)
+    const firstActiveAdmin = await prisma.associationAdmin.findFirst({
+      select: { association_id: true },
+      orderBy: { id: "asc" },
+    }).catch(() => null);
+    let associationId = firstActiveAdmin?.association_id;
+    if (associationId === undefined) {
+      const firstAssociation = await prisma.association.findFirst({
+        select: { id: true },
+        orderBy: { id: "asc" },
+      }).catch(() => null);
+      associationId = firstAssociation?.id ?? BigInt(0);
+    }
+    effectiveAdmin = {
+      userId: ctx.userId,
+      associationId,
+      role: SUPER_ADMIN_SENTINEL_ROLE,
+    };
+  }
+
+  if (effectiveAdmin) {
     // PR4-UI (2026-05-15) — sentinel role 자동 흡수 fix.
     //   이유: getAssociationAdmin() 이 super_admin/recorder_admin 시 SUPER_ADMIN_SENTINEL_ROLE
     //         반환 (admin-guard.ts L165). 기존 필터는 sentinel 이 PERMISSIONS 매트릭스 어디에도
@@ -105,18 +147,18 @@ export async function GET() {
     //   회귀 0: 일반 association_admin 은 기존 필터 그대로 (sg/refchief/staff 등 role 매칭).
     const allPermissionKeys = Object.keys(PERMISSIONS) as Permission[];
     const permissionKeys =
-      admin.role === SUPER_ADMIN_SENTINEL_ROLE
+      effectiveAdmin.role === SUPER_ADMIN_SENTINEL_ROLE
         ? allPermissionKeys // sentinel = 12 permission 자동 통과 (hasPermission 동일 룰)
         : allPermissionKeys.filter((key) =>
-            PERMISSIONS[key].includes(admin.role)
+            PERMISSIONS[key].includes(effectiveAdmin!.role)
           );
 
     adminInfo = {
       is_admin: true,
       // bigint는 JSON 직렬화 불가 → Number로 변환 (협회 id는 안전 범위 내)
-      association_id: Number(admin.associationId),
-      role: admin.role,
-      is_executive: isExecutive(admin.role),
+      association_id: Number(effectiveAdmin.associationId),
+      role: effectiveAdmin.role,
+      is_executive: isExecutive(effectiveAdmin.role),
       permissions: permissionKeys,
     };
   }
@@ -127,7 +169,16 @@ export async function GET() {
   //         admin_info 만으로 협회 관리자는 판별 가능하지만 recorder_admin 은 admin_info
   //         가 sentinel role 으로 흡수되어 구분 불가 → 별도 boolean 필드로 분리 표시.
   //   응답 키: `recorderAdmin` (camelCase) → apiSuccess 가 snake_case 자동 변환 → `recorder_admin`.
-  const recorderAdmin = isRecorderAdmin(ctx.session);
+  //
+  // PR4-FIX (2026-05-15) — DB 폴백 추가 (JWT stale 방어).
+  //   이유: JWT 발급 후 DB admin_role 박제된 사용자 = session.admin_role 미존재 →
+  //         isRecorderAdmin(session) === false 회귀. DB 값을 OR 폴백으로 통과 보장.
+  //         isAdmin=true DB 컬럼도 동시 폴백 (super_admin 자동 흡수 일관).
+  const recorderAdmin =
+    isRecorderAdmin(ctx.session) ||
+    user?.admin_role === "recorder_admin" ||
+    user?.admin_role === "super_admin" ||
+    user?.isAdmin === true;
 
   return apiSuccess({
     id: ctx.session.sub,
@@ -146,6 +197,9 @@ export async function GET() {
     admin_info: adminInfo,
     // PR4-UI (2026-05-15) — recorder_admin boolean (apiSuccess snake_case 자동 변환 — 응답 키 `recorder_admin`)
     recorder_admin: recorderAdmin,
+    // PR4-FIX (2026-05-15) — DB User.admin_role 직접 응답 (UI 진단/디버깅 보조 + 향후 분기 확장 여지)
+    //   stale JWT 우회 — 클라이언트가 DB ground truth 직접 활용 가능.
+    admin_role: user?.admin_role ?? null,
     // 프로필 완성 배너 5단계 판정용 원본 필드 (snake_case 변환 후 전달)
     // 이유: 프로필 완성 배너가 이 값들로 어느 단계까지 채웠는지 계산
     phone: user?.phone ?? null,
