@@ -149,5 +149,120 @@ export function apiHelper(request: APIRequestContext) {
   };
 }
 
+// ============================================================
+// 4. seedSeries — 시리즈 1건 INSERT (시나리오 2 의존)
+// ============================================================
+/**
+ * 시나리오 2 (회차 복제) 사전 시드 — tournament_series 1건 박제.
+ *
+ * 이유:
+ *   - add-edition 페이지 진입을 위해 시리즈 1건 + 기존 회차 1건 필요.
+ *   - organization_id 는 옵션 (NULL 허용 — schema 2083 line `organization_id BigInt?`).
+ *
+ * 박제 룰:
+ *   - name = `${prefix}-series-{ts}` (cleanupByPrefix 필터 호환)
+ *   - slug = name 그대로 (unique 제약 — prefix 자체가 unique 보장)
+ *   - status = "active" (default)
+ *   - tournaments_count = 0 (다음 회차 박제 시 +1)
+ *
+ * @param organizerId — 시리즈 소유자 (me API 로 추출한 testUserId)
+ * @param prefix       — 예: "e2e-test-{ts}" (cleanup 필터 prefix 와 정합)
+ */
+export async function seedSeries({
+  organizerId,
+  prefix,
+}: {
+  organizerId: bigint;
+  prefix: string;
+}): Promise<{ id: bigint; name: string; slug: string }> {
+  // tournament_series 모델 (schema 2069~2092) — name/slug/organizer_id/created_at/updated_at 필수
+  const ts = Date.now();
+  const uniq = `${prefix}-series-${ts}`;
+  const created = await prisma.tournament_series.create({
+    data: {
+      uuid: crypto.randomUUID(),
+      name: uniq,
+      slug: uniq, // unique — prefix+ts 자체가 unique 보장
+      organizer_id: organizerId,
+      status: "active",
+      is_public: true,
+      tournaments_count: 0,
+      created_at: new Date(),
+      updated_at: new Date(),
+    },
+    select: { id: true, name: true, slug: true },
+  });
+  return created;
+}
+
+// ============================================================
+// 5. seedTournamentWithRules — Tournament 1건 + DivisionRule N건 INSERT (시나리오 2 의존)
+// ============================================================
+/**
+ * 시나리오 2 의 "이전 회차" 시드 — tournament + division_rules 박제.
+ *
+ * 이유:
+ *   - 회차 복제 시 division_rules 가 자동 복사되는지 검증하려면 이전 회차에 룰이 박제되어 있어야 함.
+ *   - 현재 운영 라우트 (`/api/web/series/[id]/editions`) 의 legacy path 는 division_rules 복제를 자동 수행하지 않음.
+ *     → 본 시나리오는 운영 동작 (legacy POST) 기준 검증 — division_rules 가 신규 회차에 0건 박제됨이 정상.
+ *     (마법사 path 의 분기 = tournament_payload + division_rules 명시 전달 케이스 — 별도 시나리오)
+ *
+ * 박제 룰:
+ *   - name = `${prefix}-edition-1` (edition_number=1 박제)
+ *   - status = "registration_open" (legacy path 기본 박제값)
+ *   - division_rules N건 = `${prefix}-div-{i}` code (unique 보장)
+ *
+ * @param seriesId       — seedSeries 의 BigInt id
+ * @param organizerId    — Tournament.organizerId (IDOR 가드 정합)
+ * @param prefix         — 예: "e2e-test-{ts}"
+ * @param ruleCount      — 박제할 division_rules 건수 (의뢰서 §A = 5건)
+ */
+export async function seedTournamentWithRules({
+  seriesId,
+  organizerId,
+  prefix,
+  ruleCount,
+}: {
+  seriesId: bigint;
+  organizerId: bigint;
+  prefix: string;
+  ruleCount: number;
+}): Promise<{ id: string; name: string; editionNumber: number }> {
+  // Tournament 박제 (UUID 자동 생성 — gen_random_uuid())
+  const tournament = await prisma.tournament.create({
+    data: {
+      series_id: seriesId,
+      edition_number: 1,
+      name: `${prefix}-edition-1`,
+      organizerId,
+      status: "registration_open", // legacy path 기본값 정합
+      format: "single_elimination",
+      maxTeams: 8,
+      startDate: new Date(),
+    },
+    select: { id: true, name: true },
+  });
+
+  // division_rules N건 박제 (tournamentId String @db.Uuid + code/label/feeKrw 필수)
+  if (ruleCount > 0) {
+    const rules = Array.from({ length: ruleCount }).map((_, idx) => ({
+      tournamentId: tournament.id,
+      code: `${prefix}-div-${idx}`, // 운영 unique 제약 없음 — 박제 자체는 안전
+      label: `테스트 종별 ${idx}`,
+      feeKrw: 10000,
+      sortOrder: idx,
+    }));
+    await prisma.tournamentDivisionRule.createMany({ data: rules });
+  }
+
+  // series.tournaments_count +1 (legacy 라우트 트랜잭션 정합)
+  await prisma.tournament_series.update({
+    where: { id: seriesId },
+    data: { tournaments_count: { increment: 1 }, updated_at: new Date() },
+  });
+
+  return { id: tournament.id, name: tournament.name, editionNumber: 1 };
+}
+
 // Prisma client export — 시나리오 spec 에서 DB 사후 검증용
 export { prisma };
