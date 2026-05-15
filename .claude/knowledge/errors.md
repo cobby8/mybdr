@@ -2,6 +2,28 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] snake_case 자동 변환 사일런트 undefined — 6회째 회귀 (대회 사이트 발행 UI 미전환)
+- **분류**: API 응답 파싱 / 클라이언트 타입 정합
+- **발견자**: pm (사용자 보고 "공개하기 눌렀는데 아무 동작 없어")
+- **증상**: `/tournament-admin/tournaments/[id]/site` Step 3 발행 토글 클릭 → PATCH/publish 둘 다 200 성공 → load() 재호출 → 그런데 UI "사이트 공개 중" 화면 (L226 `site?.isPublished`) 으로 전환 안 됨
+- **근본 원인** (= errors.md 단일 함정 6회 누적):
+  - `apiSuccess()` 가 `convertKeysToSnakeCase` 로 응답 키 자동 변환 (src/lib/api/response.ts L5)
+  - GET `/api/web/tournaments/[id]/site` 응답 = `{is_published, primary_color, secondary_color, site_template_slug, site_template: {slug}}`
+  - 클라이언트 `Site` interface (page.tsx L62~66) = camelCase (`isPublished` / `primaryColor` / `siteTemplateSlug`) 로 가정
+  - 결과: `site?.isPublished` 항상 undefined → `!undefined = true` → publish 만 가능, unpublish 불가 + UI 전환 0
+- **fix** (commit 대기, PR-Site-Sync + PR-Site-Publish-Gap):
+  - **A (snake-case 정합)**: Site interface 4 필드 + L143 (`data.primary_color`/`data.site_template?.slug`) + L194 (`site?.is_published`) + L226 분기 모두 snake_case 통일
+  - **B (단일 source 보강)**: `/api/web/tournaments/[id]/site/publish/route.ts` 가 `tournamentSite.isPublished` + `tournament.is_public` 동시 update ($transaction). 이전엔 site flag 만 토글 → 메인/검색/피드 (= `tournament.is_public` 필터) 가 stale → 운영자 1회 클릭으로 메인 노출 안 됨 (강남구 협회장배 누락 사고)
+- **재발 방지 룰** (이전 5회 + 이번 6회째 누적):
+  - **신규 라우트 / 클라이언트 인터페이스 작성 전 curl 1회로 raw 응답 확인 의무** — `apiSuccess()` 거치는 라우트 = 응답 키 = snake_case (자동 변환)
+  - 클라이언트 fetch 응답 타입은 항상 **snake_case 로 정의** — route.ts 의 camelCase 코드만 보고 클라 인터페이스 짜면 사일런트 undefined
+  - **request body** (PATCH/POST) 는 zod 스키마 그대로 (camelCase OK — 자동 변환 = response 전용)
+  - publish/visibility 게이트 라우트는 단일 source 의 모든 boolean flag 동시 update — 운영자 1회 클릭으로 모든 노출 경로 정상화 (split flag = stale 발생)
+- **검증**: tsc --noEmit 통과 (2026-05-15)
+- **참조**: page.tsx L59~70 / 138~152 / 194 / 226 / publish route L81~99
+- **참조횟수**: 0
+
+
 ### [2026-05-15] Phase 7 B 스모크 template 3 함정 — cookie 이름 + snake_case 변환 + me 비로그인 200
 - **분류**: 스모크 스크립트 spec 위반 / 인증 / 응답 파싱
 - **발견자**: pm (Phase 7 B 스모크 실행 시 발견 — `scripts/_temp/wizard-smoke.ts` 4회 실패 후 진단)

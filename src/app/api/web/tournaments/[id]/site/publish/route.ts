@@ -78,13 +78,23 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
   }
 
-  const updated = await prisma.tournamentSite.update({
-    where: { id: site.id },
-    data: {
-      isPublished: publish,
-      ...(publish && !site.published_at && { published_at: new Date() }),
-    },
-  });
+  // 2026-05-15 (Option B — 단일 source 보강) — 이전엔 tournamentSite.isPublished 만
+  // 토글해서 메인/검색/피드 (= tournament.is_public 필터) 가 stale 인 회귀.
+  // wizard 코멘트 "단일 source" 의도와 일치 = 운영자 1회 클릭으로 메인 노출까지 완료.
+  // atomic 보장 위해 $transaction 으로 동시 update.
+  const [updated] = await prisma.$transaction([
+    prisma.tournamentSite.update({
+      where: { id: site.id },
+      data: {
+        isPublished: publish,
+        ...(publish && !site.published_at && { published_at: new Date() }),
+      },
+    }),
+    prisma.tournament.update({
+      where: { id },
+      data: { is_public: publish },
+    }),
+  ]);
 
   return apiSuccess(updated);
 }

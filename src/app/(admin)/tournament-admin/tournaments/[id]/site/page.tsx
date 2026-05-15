@@ -56,14 +56,18 @@ const COLOR_PRESETS = [
 
 // ─── 타입 ─────────────────────────────────────────────────────────────────────
 
+// 2026-05-15 (Snake-case sync fix) — apiSuccess() 가 응답 키를 자동 snake_case
+// 변환하므로 GET /site 응답 = snake_case. 이전에 camelCase (isPublished) 로
+// 정의해서 site?.isPublished = undefined → 발행 후 UI 전환 실패.
+// errors.md "재발 5회" 패턴 6회째 회귀 차단.
 type Site = {
   id: string;
   subdomain: string;
-  isPublished: boolean;
-  primaryColor: string | null;
-  secondaryColor: string | null;
+  is_published: boolean;
+  primary_color: string | null;
+  secondary_color: string | null;
   site_name: string | null;
-  siteTemplateSlug?: string | null;
+  site_template_slug?: string | null;
 };
 
 // ─── 템플릿 미리보기 카드 ────────────────────────────────────────────────────
@@ -136,11 +140,12 @@ export default function TournamentSitePage() {
     try {
       const res = await fetch(`/api/web/tournaments/${id}/site`);
       if (res.ok) {
-        const data: Site & { siteTemplate?: { slug: string } | null } = await res.json();
+        // 2026-05-15 — 응답 = snake_case (apiSuccess 자동 변환). site_template relation 도 site_template 로 변환됨.
+        const data: Site & { site_template?: { slug: string } | null } = await res.json();
         if (data?.id) {
           setSite(data);
-          if (data.siteTemplate?.slug) setSelectedTemplate(data.siteTemplate.slug);
-          if (data.primaryColor) setSelectedColor(data.primaryColor);
+          if (data.site_template?.slug) setSelectedTemplate(data.site_template.slug);
+          if (data.primary_color) setSelectedColor(data.primary_color);
           if (data.subdomain) setSubdomain(data.subdomain);
         }
       }
@@ -191,7 +196,7 @@ export default function TournamentSitePage() {
       const res = await fetch(`/api/web/tournaments/${id}/site/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ publish: forcePublish ?? !site?.isPublished }),
+        body: JSON.stringify({ publish: forcePublish ?? !site?.is_published }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "실패");
@@ -223,7 +228,7 @@ export default function TournamentSitePage() {
 
   // ─── 발행 완료 상태 ──────────────────────────────────────────────────────
 
-  if (site?.isPublished) {
+  if (site?.is_published) {
     return (
       <div>
         <div className="mb-6">
