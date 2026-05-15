@@ -2,6 +2,20 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] wizard 저장 status enum mismatch — Zod enum 5종 vs 운영 DB legacy 17종 정합성 결렬
+- **분류**: validation / 운영 DB ground truth 정합
+- **발견자**: pm (사용자 보고 "저장 시 오류 발생" + 422 "Invalid option: expected one of 'draft'|'registration_open'|'in_progress'|'completed'|'cancelled'")
+- **증상**: 4차 BDR 뉴비리그 (status="published") wizard "확인 및 저장" → 422. wizard L212 `setStatus(t.status ?? "draft")` → state="published" → PATCH 전송 → Zod enum (5종) 불일치
+- **근본 원인**:
+  - `src/lib/validation/tournament.ts` `updateTournamentSchema.status` = 5종 enum (`draft|registration_open|in_progress|completed|cancelled`)
+  - `src/lib/constants/tournament-status.ts` `TOURNAMENT_STATUS_LABEL` = **17종 legacy 허용** (운영 DB ground truth)
+  - 두 source 가 정합성 깨짐 → 운영 DB legacy 값 (published / registration / active / live / ongoing 등) wizard 진입 시 422
+- **fix** (commit `ddb1dfc`): `updateTournamentSchema.status` enum 을 `tournament-status.ts` 와 정합 17종 확장
+- **재발 방지 룰**:
+  - **enum / DB string 컬럼 = 단일 source 의무** — Zod schema 와 표시 매핑 (`*-status.ts`) 가 같은 source 참조 (별도 export 후 share)
+  - **운영 DB legacy 값 사전 SELECT** — 새 enum 작성 시 `SELECT DISTINCT status FROM table` 로 ground truth 확보 의무
+  - **4종 통일 마이그레이션** = 후속 PR — enum 17종 → 5종 복귀 + DB legacy 값 일괄 정규화 (`published → registration_open` 등)
+
 ### [2026-05-15] snake_case 자동 변환 사일런트 undefined — 6회째 회귀 (대회 사이트 발행 UI 미전환)
 - **분류**: API 응답 파싱 / 클라이언트 타입 정합
 - **발견자**: pm (사용자 보고 "공개하기 눌렀는데 아무 동작 없어")
