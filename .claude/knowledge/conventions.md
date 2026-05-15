@@ -1,6 +1,23 @@
 # 코딩 규칙 및 스타일
 <!-- 담당: developer, reviewer | 최대 30항목 -->
 
+### [2026-05-16] PM `git add` 전 = `git status` staged 상태 의무 점검 (다른 세션 휩쓸림 영구 차단)
+- **분류**: convention/multi-session-safety
+- **사유**: PR-Admin-1 commit (`4c05c8c`) 시 score-sheet 트랙 22 파일이 다른 세션에 의해 미리 staged 상태 → PM 이 본 PR 만 add 명령 줬지만 이미 staged 된 22 파일도 함께 commit (총 25 files changed) → 의도 위반
+- **표준 절차** (PM 모든 commit 전):
+  1. `git status` 또는 `git status --short` 실행
+  2. **이미 staged 인 파일 (`A`/`M`/`D` prefix)** 확인 — 본 PR 무관 파일이 staged 면:
+     - (a) `git reset HEAD <파일>` 로 unstage
+     - (b) 또는 commit 메시지에 명시 + 사용자에게 사전 보고 후 진행
+  3. `git add <본 PR 파일>` (특정 파일만 명시 / `git add .` `git add -A` 금지)
+  4. 다시 `git status` 로 staged 결과 확인
+  5. commit 진행
+- **다중 세션 환경 특이성**:
+  - 같은 worktree 에서 다른 세션이 작업 중일 때 staged 상태 가 누적될 수 있음
+  - 다른 세션의 staged 파일을 우리 commit 에 휩쓸리지 않도록 주의
+- **재발 방지 룰**: 본 룰 위반 1회 = lessons.md prepend 의무
+- **참조횟수**: 0
+
 ### [2026-05-16] PM agent 결과 인수 = `git diff --stat HEAD` 실측 검증 의무 (developer 거짓 보고 영구 차단)
 - **분류**: convention/agent-handoff
 - **사유**: developer agent "박제 완료" 자가 보고 신뢰성 낮음 — PR-G5.5-followup-B 1차 사고 (scratchpad만 박제 + 운영 코드 0건 / lessons.md 박제) 재발 방지

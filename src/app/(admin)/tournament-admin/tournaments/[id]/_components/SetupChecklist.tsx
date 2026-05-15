@@ -406,6 +406,35 @@ function ChecklistCard({ item }: { item: ChecklistItem }) {
             {item.title}
           </h3>
           <p className="text-sm text-[var(--color-text-muted)]">{item.summary}</p>
+          {/* ⭐ PR-Admin-5 — progress 필드 표시 (통합 카드 #3 "종별 + 운영 방식" 진행도 bar)
+              사유: 통합 카드는 status 만으로 진척 파악 어려움 (in_progress 일 때 N/M 시각화 필요).
+              progress 미박제 카드 (다른 6 카드) 는 영향 0. */}
+          {item.progress && item.progress.total > 0 && (
+            <div className="mt-2">
+              <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-[var(--color-text-muted)]">
+                <span>운영방식 박제 진척</span>
+                <span>
+                  {item.progress.current} / {item.progress.total}
+                </span>
+              </div>
+              {/* progress bar (통합 카드 전용) — 4px 라운드 / accent fill */}
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-[4px]"
+                style={{ backgroundColor: "var(--color-elevated)" }}
+              >
+                <div
+                  className="h-full transition-all duration-300"
+                  style={{
+                    width: `${(item.progress.current / item.progress.total) * 100}%`,
+                    backgroundColor:
+                      item.progress.current === item.progress.total
+                        ? "var(--color-accent)"
+                        : "var(--color-warning)",
+                  }}
+                />
+              </div>
+            </div>
+          )}
           {/* 잠금 사유 (locked 시만) */}
           {isLocked && item.lockedReason && (
             <p

@@ -23,6 +23,9 @@ import {
   undoLastMark,
   EMPTY_RUNNING_SCORE,
   getScoreMarkVariant,
+  updateMarkPoints,
+  removeMark,
+  renumberPositions,
 } from "@/lib/score-sheet/running-score-helpers";
 import type {
   ScoreMark,
@@ -351,5 +354,150 @@ describe("getScoreMarkVariant (Phase 18 FIBA 1/2/3점 시각)", () => {
     ];
     expect(new Set(variants).size).toBe(3); // 3종 = 중복 없음
     expect(variants).toEqual(["dot", "filled", "filled-ring"]);
+  });
+});
+
+// PR-PBP-Edit Phase 2-A (2026-05-16) — PBP 수정 모달 헬퍼 3건 회귀 가드.
+//   updateMarkPoints / removeMark / renumberPositions = 모달 안 수정/삭제 시 호출.
+//   position 재정렬 invariant (마지막 마킹 position = 팀 누적 점수) 보장 의무.
+describe("renumberPositions (PR-PBP-Edit)", () => {
+  it("빈 배열 = 빈 배열 그대로", () => {
+    expect(renumberPositions([])).toEqual([]);
+  });
+
+  it("1개 마크 = position 그대로 1~3 (points 값)", () => {
+    const result = renumberPositions([mark(99, 2)]);
+    expect(result).toEqual([{ position: 2, playerId: "100", period: 1, points: 2 }]);
+  });
+
+  it("3개 마크 (2/3/1) = 누적 position 2/5/6", () => {
+    const result = renumberPositions([mark(0, 2), mark(0, 3), mark(0, 1)]);
+    expect(result.map((m) => m.position)).toEqual([2, 5, 6]);
+  });
+
+  it("playerId / period / points 보존 (position 만 재할당)", () => {
+    const input = [
+      { position: 99, playerId: "A", period: 1, points: 2 as const },
+      { position: 99, playerId: "B", period: 2, points: 3 as const },
+    ];
+    const result = renumberPositions(input);
+    expect(result).toEqual([
+      { position: 2, playerId: "A", period: 1, points: 2 },
+      { position: 5, playerId: "B", period: 2, points: 3 },
+    ]);
+  });
+});
+
+describe("updateMarkPoints (PR-PBP-Edit)", () => {
+  // 헬퍼: home 3마크 (2/3/1 = pos 2/5/6) state 빌더
+  function buildState(): RunningScoreState {
+    return {
+      home: [mark(2, 2), mark(5, 3), mark(6, 1)],
+      away: [],
+      currentPeriod: 1,
+    };
+  }
+
+  it("범위 밖 인덱스 = no-op (state 그대로)", () => {
+    const state = buildState();
+    const result = updateMarkPoints(state, "home", 99, 1);
+    expect(result).toEqual(state);
+  });
+
+  it("음수 인덱스 = no-op", () => {
+    const state = buildState();
+    const result = updateMarkPoints(state, "home", -1, 2);
+    expect(result).toEqual(state);
+  });
+
+  it("2번째 마크 (3pt→1pt) = position 자동 재정렬 (2/3/4)", () => {
+    const state = buildState();
+    const result = updateMarkPoints(state, "home", 1, 1);
+    expect(result.home.map((m) => m.position)).toEqual([2, 3, 4]);
+    expect(result.home[1].points).toBe(1);
+    // 다른 마크 points 보존
+    expect(result.home[0].points).toBe(2);
+    expect(result.home[2].points).toBe(1);
+  });
+
+  it("away 측 변경 시 home 영향 0", () => {
+    const state: RunningScoreState = {
+      home: [mark(2, 2)],
+      away: [mark(3, 3)],
+      currentPeriod: 1,
+    };
+    const result = updateMarkPoints(state, "away", 0, 1);
+    expect(result.home).toEqual(state.home); // 참조 또는 내용 동일
+    expect(result.away[0].points).toBe(1);
+    expect(result.away[0].position).toBe(1); // 재정렬: 1pt → pos 1
+  });
+
+  it("마지막 마크 변경 시 팀 총점 (마지막 position) 자동 갱신", () => {
+    const state = buildState();
+    // 마지막 1pt → 3pt 변경 → 총점 6→8
+    const result = updateMarkPoints(state, "home", 2, 3);
+    expect(result.home[2].position).toBe(8); // 2+3+3
+    expect(result.home[2].points).toBe(3);
+  });
+});
+
+describe("removeMark (PR-PBP-Edit)", () => {
+  function buildState(): RunningScoreState {
+    return {
+      home: [mark(2, 2), mark(5, 3), mark(6, 1)], // 2/3/1 = 누적 2/5/6
+      away: [],
+      currentPeriod: 1,
+    };
+  }
+
+  it("범위 밖 인덱스 = no-op", () => {
+    const state = buildState();
+    const result = removeMark(state, "home", 99);
+    expect(result).toEqual(state);
+  });
+
+  it("중간 마크 삭제 시 후속 마크 position 재정렬", () => {
+    const state = buildState();
+    // 2번째 마크 (3pt) 삭제 → 남은 [2pt, 1pt] → pos 2/3
+    const result = removeMark(state, "home", 1);
+    expect(result.home).toHaveLength(2);
+    expect(result.home.map((m) => m.position)).toEqual([2, 3]);
+    expect(result.home.map((m) => m.points)).toEqual([2, 1]);
+  });
+
+  it("마지막 마크 삭제 시 팀 총점 자동 감소", () => {
+    const state = buildState();
+    const result = removeMark(state, "home", 2);
+    expect(result.home).toHaveLength(2);
+    // 마지막 = 누적 5 (= 2+3)
+    expect(result.home[result.home.length - 1].position).toBe(5);
+  });
+
+  it("첫 마크 삭제 시 모든 후속 position 감소", () => {
+    const state = buildState();
+    const result = removeMark(state, "home", 0);
+    // 2pt 제거 → 남은 [3pt, 1pt] → pos 3/4
+    expect(result.home.map((m) => m.position)).toEqual([3, 4]);
+  });
+
+  it("away 마크 삭제 시 home 영향 0", () => {
+    const state: RunningScoreState = {
+      home: [mark(2, 2)],
+      away: [mark(3, 3)],
+      currentPeriod: 1,
+    };
+    const result = removeMark(state, "away", 0);
+    expect(result.away).toEqual([]);
+    expect(result.home).toEqual(state.home);
+  });
+
+  it("빈 팀 마크 삭제 시도 = no-op", () => {
+    const state: RunningScoreState = {
+      home: [],
+      away: [mark(2, 2)],
+      currentPeriod: 1,
+    };
+    const result = removeMark(state, "home", 0);
+    expect(result).toEqual(state);
   });
 });

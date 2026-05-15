@@ -23,6 +23,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 팀 등록 →")
+import { NextStepCTA } from "../_components/NextStepCTA";
 // 2026-05-12 Phase 3.5-D — division format / settings 헬퍼 (lib 분리 → vitest 단위 검증 가능)
 import {
   FORMAT_LABEL,
@@ -293,6 +295,20 @@ export default function DivisionsSetupPage() {
         </div>
       )}
 
+      {/* 2026-05-16 PR-Admin-6 — 순위전·결승 hub 진입 안내 (예선 종료 후 단계 10~11 통합 hub) */}
+      <Card className="mb-3" style={{ borderLeft: "3px solid var(--color-info)" }}>
+        <p className="text-sm text-[var(--color-text-primary)]">
+          예선 종료 후 순위전·결승·우승팀 결정은{" "}
+          <Link
+            href={`/tournament-admin/tournaments/${tournamentId}/playoffs`}
+            className="font-semibold text-[var(--color-info)] hover:underline"
+          >
+            순위전·결승 hub →
+          </Link>{" "}
+          에서 일괄 처리하세요.
+        </p>
+      </Card>
+
       {/* 안내 */}
       <Card className="bg-[var(--color-elevated)]">
         <h3 className="mb-2 text-sm font-semibold text-[var(--color-text-primary)]">진행 방식 가이드</h3>
@@ -308,6 +324,9 @@ export default function DivisionsSetupPage() {
           <li>• <strong>조별리그 + 동순위 순위결정전</strong> — 각 조 풀리그 → 1위×N팀 / 2위×N팀 ... 동순위전 자동 매칭. 4×4=16팀 / 9경기+12경기 ≈ 21경기</li>
         </ul>
       </Card>
+
+      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 4 단절 해소) */}
+      <NextStepCTA tournamentId={tournamentId} currentStep="divisions" />
     </div>
   );
 }

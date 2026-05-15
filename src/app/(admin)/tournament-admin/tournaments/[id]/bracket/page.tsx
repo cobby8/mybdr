@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 // 2026-05-04 (P4) — 듀얼 조 배정 에디터 (16팀 → 4그룹 배정 + 페어링 모드 + 저장/생성)
 import { DualGroupAssignmentEditor } from "./_components/dual-group-assignment-editor";
 import type { SemifinalPairingMode } from "@/lib/tournaments/dual-defaults";
+// 2026-05-16 PR-Admin-1 — 단계간 CTA (페이지 footer "다음: 경기 관리 →")
+import { NextStepCTA } from "../_components/NextStepCTA";
+// 2026-05-16 PR-Admin-4 — 종별 단위 매치 generator trigger (DivisionBracketSections 헤더 박제)
+import { DivisionGenerateButton } from "../_components/DivisionGenerateButton";
 
 const MAX_FREE_VERSIONS = 3;
 
@@ -73,6 +77,13 @@ type BracketData = {
       semifinal_pairing?: SemifinalPairingMode;
     } | null;
   } | null;
+  // 2026-05-16 PR-Admin-4 — 종별 단위 generator 버튼이 code → ruleId 매핑에 사용
+  // 옵셔널: divisionRules 미박제 대회는 빈 배열 → 버튼 비노출
+  divisionRules?: Array<{
+    id: string;
+    code: string;
+    format: string | null;
+  }>;
 };
 
 // 풀리그 계열 포맷 판별 — UI 분기용
@@ -441,6 +452,9 @@ export default function BracketAdminPage() {
         <DivisionBracketSections
           matches={data?.matches ?? []}
           tournamentId={id}
+          // 2026-05-16 PR-Admin-4 — 종별 단위 generator 버튼이 ruleId 매핑 + refetch 에 사용
+          divisionRules={data?.divisionRules ?? []}
+          onDivisionGenerated={() => load()}
         />
       )}
       {hasMatches && isDual && !hasMultipleDivisions(data?.matches ?? []) && (
@@ -518,6 +532,9 @@ export default function BracketAdminPage() {
           </p>
         </Card>
       )}
+
+      {/* 2026-05-16 PR-Admin-1 — 단계간 CTA (admin-flow-audit §3 단계 7 단절 해소) */}
+      <NextStepCTA tournamentId={id} currentStep="bracket" />
     </div>
   );
 }
@@ -790,10 +807,18 @@ function DualMatchCard({ match }: { match: Match }) {
 function DivisionBracketSections({
   matches,
   tournamentId,
+  divisionRules,
+  onDivisionGenerated,
 }: {
   matches: Match[];
   tournamentId: string;
+  // 2026-05-16 PR-Admin-4 — divisionCode → ruleId/format 매핑 (DivisionGenerateButton 인자)
+  divisionRules: Array<{ id: string; code: string; format: string | null }>;
+  // 2026-05-16 PR-Admin-4 — 종별 단위 generator 성공 시 부모 load() 호출 (refetch)
+  onDivisionGenerated?: () => void;
 }) {
+  // divisionCode → rule 빠른 조회용 Map (렌더 1회 빌드)
+  const ruleByCode = new Map(divisionRules.map((r) => [r.code, r]));
   // 종별 collapsed/expanded 토글 (기본 펼침)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setCollapsed((prev) => ({ ...prev, [k]: !prev[k] }));
@@ -894,6 +919,19 @@ function DivisionBracketSections({
                 </span>
               </button>
               <div className="flex items-center gap-2">
+                {/* 2026-05-16 PR-Admin-4 — 종별 단위 매치 generator 버튼.
+                    rule 매칭 + 지원 format 일 때만 노출 (DivisionGenerateButton 내부 가드 중복).
+                    "_no_division" 매치는 ruleId 없으므로 버튼 비노출. */}
+                {divCode !== "_no_division" && ruleByCode.has(divCode) && (
+                  <DivisionGenerateButton
+                    tournamentId={tournamentId}
+                    ruleId={ruleByCode.get(divCode)!.id}
+                    divisionCode={divCode}
+                    divisionFormat={ruleByCode.get(divCode)!.format}
+                    hasMatches={divMatches.length > 0}
+                    onSuccess={onDivisionGenerated}
+                  />
+                )}
                 {/* 2026-05-12 Phase 3.5-B — 종별 deep link → matches 페이지 자동 필터 */}
                 {divCode !== "_no_division" && (
                   <Link

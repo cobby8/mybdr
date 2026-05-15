@@ -46,6 +46,10 @@ interface PeriodScoresSectionProps {
   disabled?: boolean;
   // Phase 8 — frameless 모드. PR-S5 에서는 호환성 유지만 (시각은 .ss-shell 룰 우선)
   frameless?: boolean;
+  // 2026-05-16 (PR-Winner-Gate) — 사용자 보고 이미지 #140 fix.
+  //   경기 종료 (matchEnded=true) 시에만 NAME OF WINNING TEAM 자동 채움.
+  //   진행 중에는 빈 칸 (현재 점수 = 임시. 사용자 명시 = 경기 종료 후 결정).
+  matchEnded?: boolean;
 }
 
 export function PeriodScoresSection({
@@ -59,6 +63,7 @@ export function PeriodScoresSection({
   onEndPeriod,
   disabled,
   frameless: _frameless,
+  matchEnded, // 2026-05-16 (PR-Winner-Gate) — 경기 종료 시에만 승리팀 표시
 }: PeriodScoresSectionProps) {
   // ─────────────────────────────────────────────
   // 운영 데이터 매핑 — 변경 0 (사용자 핵심 제약)
@@ -102,14 +107,17 @@ export function PeriodScoresSection({
   };
 
   // Winner 결정 (운영 computeFinalScore 결과를 시안 표시 형식으로 매핑)
-  const winnerName =
-    final.winner === "home"
+  // 2026-05-16 (PR-Winner-Gate) — 사용자 보고 이미지 #140 fix.
+  //   matchEnded=true 일 때만 winnerName 노출. 진행 중 = 빈 칸.
+  const winnerName = matchEnded
+    ? final.winner === "home"
       ? homeTeamName
       : final.winner === "away"
         ? awayTeamName
         : final.winner === "tie"
           ? "동점"
-          : "";
+          : ""
+    : "";
 
   // PR-S10.2 (2026-05-15): chevron < / > 임시 quarter ±1 버튼 제거.
   //   사용자 결정: Phase 4 QuarterEndModal 통합 후 chevron 미사용 (handleEndPeriod 가 정상 흐름).

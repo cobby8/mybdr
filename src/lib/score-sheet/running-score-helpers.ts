@@ -518,6 +518,93 @@ export function pbpToScoreMarks(
 }
 
 /**
+ * PBP Edit Phase 2-A (2026-05-16) — 마크 1건의 점수를 변경 + position 재정렬.
+ *
+ * 왜 (이유):
+ *   "기록수정" 모달에서 운영자가 1점↔2점↔3점 변경 시 호출.
+ *   ScoreMark.points 만 변경하면 마지막 마킹 position (= 팀 누적 점수) invariant 깨짐.
+ *   → 변경 후 reduce 로 1번째 마크부터 position 재할당 (각 마크의 points 누적).
+ *
+ * 방법 (어떻게):
+ *   1. team (home/away) 에서 markIndex 의 마크를 찾아 points 만 변경 (의도된 새 값).
+ *   2. 같은 팀 마크 배열을 reduce 로 순회하며 position 을 누적 (1번째 = points / 2번째 = 1번째 + points / ...).
+ *   3. period / playerId 는 변경 X.
+ *
+ * 안전성:
+ *   - markIndex 범위 밖이면 no-op (state 그대로 반환).
+ *   - 같은 팀의 다른 마크는 position 만 재할당 (points / playerId / period 보존).
+ */
+export function updateMarkPoints(
+  state: RunningScoreState,
+  team: "home" | "away",
+  markIndex: number,
+  newPoints: 1 | 2 | 3,
+): RunningScoreState {
+  const arr = team === "home" ? state.home : state.away;
+  if (markIndex < 0 || markIndex >= arr.length) return state;
+  // 1. 해당 인덱스의 points 만 교체
+  const updated = arr.map((m, idx) =>
+    idx === markIndex ? { ...m, points: newPoints } : m,
+  );
+  // 2. position 재정렬 (1번째 = points / 2번째 = 1번째 누적 + points / ...)
+  const renumbered = renumberPositions(updated);
+  if (team === "home") return { ...state, home: renumbered };
+  return { ...state, away: renumbered };
+}
+
+/**
+ * PBP Edit Phase 2-A (2026-05-16) — 마크 1건 삭제 + position 재정렬.
+ *
+ * 왜 (이유):
+ *   "기록수정" 모달에서 운영자가 실수 입력 삭제 시 호출.
+ *   삭제 후 같은 팀의 후속 마크 position 이 깨지므로 재정렬 필수.
+ *
+ * 방법 (어떻게):
+ *   1. team 의 markIndex 마크 제거.
+ *   2. 남은 마크 reduce 로 position 누적 재할당 (1번째 = points / 2번째 = 1번째 + points / ...).
+ *
+ * 안전성:
+ *   - markIndex 범위 밖이면 no-op.
+ *   - 빈 배열이 되어도 정상 동작.
+ */
+export function removeMark(
+  state: RunningScoreState,
+  team: "home" | "away",
+  markIndex: number,
+): RunningScoreState {
+  const arr = team === "home" ? state.home : state.away;
+  if (markIndex < 0 || markIndex >= arr.length) return state;
+  const filtered = arr.filter((_, idx) => idx !== markIndex);
+  const renumbered = renumberPositions(filtered);
+  if (team === "home") return { ...state, home: renumbered };
+  return { ...state, away: renumbered };
+}
+
+/**
+ * PBP Edit Phase 2-A (2026-05-16) — 한 팀의 마크 배열에 대해 position 1~N 누적 재할당.
+ *
+ * 왜 (이유):
+ *   FIBA 양식 룰: 마킹 칸 position = 해당 팀의 누적 점수.
+ *   `updateMarkPoints` (점수 변경) 또는 `removeMark` (삭제) 후 position 깨지면 일관성 회복.
+ *
+ * 방법 (어떻게):
+ *   - reduce 로 cumulative 점수 누적 → 각 마크의 position = cumulative 점수.
+ *   - period / playerId / points 는 보존.
+ *
+ * 예시:
+ *   [(2pt, pos=2), (3pt, pos=5), (1pt, pos=6)] → [(2pt, pos=2), (3pt, pos=5), (1pt, pos=6)] 그대로
+ *   [(2pt, pos=2), (1pt, pos=3), (3pt, pos=6)] 에서 2번째 삭제 →
+ *     [(2pt, pos=2), (3pt, pos=5)] (3번째가 6→5로 재정렬)
+ */
+export function renumberPositions(marks: ScoreMark[]): ScoreMark[] {
+  let cumulative = 0;
+  return marks.map((m) => {
+    cumulative += m.points;
+    return { ...m, position: cumulative };
+  });
+}
+
+/**
  * Phase 18 (2026-05-13) — FIBA 표준 1/2/3점 시각 표기 변형 키.
  *
  * 왜 (이유):
