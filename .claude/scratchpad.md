@@ -277,6 +277,118 @@ UPDATE "User" SET admin_role = 'recorder_admin' WHERE email = '<지정할_이메
 ## 테스트 결과 (tester)
 (대기)
 
+## 리뷰 결과 (reviewer) — recorder_admin PR1~PR3
+
+### 종합 평가
+| 영역 | 판정 | 근거 |
+|------|------|------|
+| 보안 (A) | ✅ PASS | JWT 서명 검증 후 payload만 신뢰 / null/undefined 가드 박제 / super_admin 자동 흡수 무한 재귀 0 / `/admin` 영역 분리 의도대로 차단 |
+| 코드 품질 (B) | ✅ PASS | isSuperAdmin 패턴 정확히 카피 / JSDoc 충분 / 타입 strict 위반 0 / 8+8+19=35 케이스 vitest 통과 |
+| 회귀 가능성 (C) | ✅ PASS | add-only 분기 일관 / 기존 super_admin/organizer/recorder 경로 변경 0 / 873/873 PASS / Flutter v1 미변경 |
+| 운영 위험 (D) | ✅ PASS | DB schema 변경 0 / revert 단독 롤백 가능 / 디자인 13 룰 위반 0 |
+
+📊 종합 판정: **통과 (머지 가능)**
+
+### 영역별 상세 검증
+
+**A. 보안 (최우선)**
+
+A1. 권한 우회 가능성 — ✅ 안전
+- `isRecorderAdmin(session)`: `if (!session) return false` 미로그인 즉시 차단 (L55). `isSuperAdmin(session)` 도 동일 가드.
+- `require-recorder.ts` L38: `verifyToken(token)` JWT 서명 검증 통과 후에만 `payload.admin_role` 접근. 서명 위조 토큰은 verifyToken null 반환 → 즉시 차단.
+- `recorders/route.ts` L41: `getWebSession()` 이 httpOnly 쿠키 JWT를 `verifyToken` 으로 서명 검증한 후 payload 반환. 안전.
+- `/api/v1/recorder/matches/route.ts` L15: `ctx.payload` 는 `withAuth` 미들웨어가 verifyToken으로 서명 검증한 payload (middleware.ts L48). 안전.
+- 무한 재귀: `isRecorderAdmin` → `isSuperAdmin` 단방향 호출만. `isSuperAdmin` 은 `isRecorderAdmin` 미호출. 재귀 0.
+
+A2. add-only 분기 검증 — ✅ 안전
+- `requireTournamentAdmin` 자체 미변경 → `/recorders` 외 22개 라우트 영향 0.
+- `requireRecordersManageAccess`: recorder_admin 분기 통과 시 `prisma.tournament.findUnique` 로 tournament 존재 확인 후 404 분기. 존재하지 않는 대회로 임의 INSERT/DELETE 차단.
+- fallback `requireTournamentAdmin(id)` 호출 시 기존 organizer/TAM/super_admin 검증 동작 그대로.
+
+A3. sentinel 일관성 — ✅ 안전
+- `admin-guard.ts` L144: `isRecorderAdmin(session)` 단일 분기 (super_admin 자동 흡수 활용). 별도 OR 분기 미추가 → 코드 가독성 단일 진입점.
+- `SUPER_ADMIN_SENTINEL_ROLE` 동일 상수 재사용 → 12 permission `hasPermission` 자동 통과 일관 (admin-guard.test.ts 케이스 18 검증).
+- `getAdminRoles` 의 `recorderAdmin: boolean` 필드는 `isRecorderAdmin(session)` 호출 — RoleMatrixCard 표시 분기만 사용 (권한 결정 분기 0).
+
+A4. `/admin/*` vs `/referee/admin/*` 분리 — ✅ 의도대로 동작
+- `admin-roles.ts` L316~318: `roles` 배열에 `recorder_admin` push **하지 않음** (주석 명시).
+- `(admin)/admin/layout.tsx` L47: `summary.roles.length === 0` 시 `/login?error=no_permission` redirect → recorder_admin 단독자는 `/admin/*` 진입 차단. ✅
+- `AdminRole` union 에 `"recorder_admin"` 미추가 → sidebar.tsx 타입 호환 + admin 메뉴 노출 0.
+
+**B. 코드 품질**
+
+B1. 패턴 일관성 — ✅
+- `is-recorder-admin.ts`: `is-super-admin.ts` 시그니처 카피 + JSDoc 32줄 박제 (이유/방법/Q1 결재/매트릭스 표기). 일관성 ⭐⭐⭐.
+- `requireRecordersManageAccess` 헬퍼: 라우트 내부 박제 (export X) — 단일 라우트 전용이며 향후 동일 패턴 발생 시 `src/lib/auth/` 승격 의견 박제 (developer 참고 주석).
+
+B2. TypeScript strict — ✅
+- `payload.admin_role` 접근: `JwtPayload` 인터페이스에 `admin_role?: string` 명시 (jwt.ts L25). 캐스팅 0.
+- `session.user.admin_role` 옵셔널: `SuperAdminSession` 인터페이스에 `admin_role?: string` 옵션 처리. `if (!session) return false` 가드 후 접근.
+- `recorders/route.ts` L20: `RecordersAuthOk` 명시 타입 — fallback `requireTournamentAdmin` AuthOk 와 구조 호환. `role: session.role ?? ""` fallback 박제.
+- tsc --noEmit: 0 에러 (reviewer 재실행 검증).
+
+B3. 테스트 커버리지 — ✅
+- 4가지 권한 조합 모두 케이스: recorder (case 1) / recorder_admin (case 5+6) / tournament_admin (case 3, 8 in is-recorder-admin) / super_admin (case 4) — `require-recorder.test.ts`.
+- session 경계: null/undefined/일반 user (is-recorder-admin.test.ts case 5+6+4).
+- Q1 super_admin 자동 흡수: case 2+3 (is-recorder-admin.test.ts).
+- vitest 통합 재실행: 3 파일 35/35 PASS (reviewer 재실행 검증).
+
+**C. 회귀 가능성**
+
+C1. Flutter 기록앱 — ✅ 회귀 0
+- `/api/v1/recorder/matches` 일반 recorder JWT: `isSuperAdmin=false && isRecorderAdmin=false` → 기존 `tournament_recorders.findMany` + `tournament.findMany` (organizer) 분기 그대로. 응답 동일.
+- `requireRecorder`: case 1 (recorder + 본인 배정) vitest 검증 → 기존 동작 보존.
+
+C2. 기존 운영 데이터 — ✅ 변경 0
+- DB schema 변경 0, `prisma db push` 호출 0건. `User.admin_role` 컬럼 재사용만.
+- `tournament_recorders` 테이블 SELECT/INSERT/DELETE: recorder_admin 분기 진입 시에도 동일 prisma 호출 (테이블 변경 0).
+- organizer / tournament_admin_members 검증 그대로 (PR2 fallback 분기 보존).
+
+C3. (referee)/referee/admin 페이지 — ✅ 회귀 0
+- super_admin 진입 시: `superAdmin = isSuperAdmin(session) === true` → `recorderAdmin = !superAdmin && ... = false` → `entryRole = "super_admin"` → 헤더 "Super Admin 권한 진입" (page.tsx L60). 기존 텍스트 그대로.
+- 협회 관리자 (association_admin): `isRecorderAdmin(session) = false` → sentinel 분기 skip → 기존 `user.admin_role === "association_admin"` 검증 그대로 (admin-guard L169~189). 케이스 9 검증.
+
+**D. 운영 위험**
+
+D1. 운영 사용자 영향 — ⚠️ INFO (운영 안내 필요)
+- recorder_admin 지정 후 사용자 본인의 기존 JWT 토큰은 `admin_role` 미박제 상태 → 로그아웃→재로그인 전까지 권한 미적용. **Q4 결재대로 운영 안내 필수**.
+- Flutter 앱: JWT 토큰이 `admin_role` 박제 후 발급되면 `/api/v1/recorder/matches` 모든 대회 응답. 박제 전 토큰으로는 기존 권한 그대로 (회귀 0).
+
+D2. 롤백 시나리오 — ✅ 안전
+- DB 변경 0 → revert 단독으로 롤백 가능. raw SQL UPDATE 발생 시 `admin_role` 값 NULL 또는 다른 role 로 복원 1 row UPDATE 가능 (CLAUDE.md §DB 정책 안전 가드 = SELECT 사전 확인 + 1 row UPDATE).
+
+D3. CLAUDE.md 디자인 13 룰 — ✅ 위반 0
+- `role-matrix-card.tsx` "기록원 관리자" 행: 색상 모두 `var(--color-primary)` / `var(--color-border)` / `var(--color-elevated)` / `var(--color-text-*)` 토큰. hardcoded 0건.
+- `page.tsx` 안내 헤더: `var(--color-warning, #FFAB00)` fallback 박제 (기존 super_admin 패턴 그대로 — Phase 1-B 시점 박제된 케이스).
+- Material Symbols Outlined: `check_circle` / `remove_circle_outline` / `verified` / `shield_person`. lucide-react 0건.
+- 핑크/살몬/코랄 0건. 모바일 분기 영향 0 (보조 행 추가만).
+
+### 강점
+- **Q1 자동 흡수 패턴**: `isRecorderAdmin` 내부에서 `isSuperAdmin` OR 박제 → 호출자가 super_admin 분기를 따로 안 써도 됨. `admin-guard.ts` L144 단일 분기 + `(referee)/admin/layout.tsx` L45 단일 분기로 코드 중복 0.
+- **/admin vs /referee/admin 분리 의도 명확**: `summary.roles` 에 recorder_admin push 0 + AdminRole union 미수정 → admin 메뉴 자동 노출 회피. 주석에 의도 박제 (admin-roles.ts L34~38, L316~318).
+- **RoleMatrixCard superAdminAuto 패턴 재사용**: 기존 site/tournament admin 행과 동일한 "Super 자동" 표시 패턴 유지 → 일관성 ⭐⭐⭐.
+- **테스트 회귀 가드 강함**: 기존 case 9~14 회귀 가드 그대로 + PR3 신규 case 15~19 명세 박제. 19 case 모두 PASS.
+- **tournament 존재 확인 추가**: `/recorders` recorder_admin 분기에서도 `prisma.tournament.findUnique` → 404 분기 박제 (임의 ID 대상 INSERT 차단).
+
+### 발견 사항 (모두 INFO — 머지 차단 0)
+
+| # | 영역 | 심각도 | 위치 | 설명 | 권장 조치 |
+|---|------|--------|------|------|---------|
+| 1 | 코드 품질 | INFO | `recorders/route.ts` L41~55 | recorder_admin 분기 통과 시 `getWebSession()` 호출 + 통과 못 하면 fallback 의 `requireTournamentAdmin` 가 다시 세션 가져옴 (중복 호출). 동작은 정확 / 응답 시간 미세 영향. | 후속 최적화 큐 — fallback 에 session 인자 전달 옵션 추가 (PR4 검토). 본 PR 머지 영향 0. |
+| 2 | 코드 품질 | INFO | `require-score-sheet-access.ts` L148~149 | `superAdmin` 변수 + `recorderAdmin` 변수 분리 박제 — `isRecorderAdmin` 가 super 자동 흡수하므로 `superAdmin === true` 면 `recorderAdmin === true` 보장 (사실상 중복). developer 주석에 "향후 recorder_admin 만 추가 권한 분기 시 변수 분리 유용" 박제 — 의도적 가독성 박제. | 박제 의도 명확 → 변경 권장 0. |
+| 3 | 운영 안내 | INFO | 운영 절차 | JWT 박제 시점 (재로그인 필수) — Q4 결재 사항이지만 코드에는 자동 안내 0. UI 별도 박제 없음. | recorder_admin 1 row UPDATE 후 운영자가 사용자에게 "재로그인" 별도 안내 — PR4 (admin/users 드롭다운) 박제 시 토스트/안내 추가 권장. |
+| 4 | 테스트 커버리지 | INFO | `recorders/route.ts` | 라우트 자체 통합 테스트 0건 (developer 참고에 "통합 테스트 인프라 부재로 스킵" 박제). 단위 테스트는 `isRecorderAdmin` 헬퍼로 분기 검증 충분. | 통합 테스트 인프라 도입 후속 큐 — 현재 안전성 영향 0. |
+
+### 결론
+
+**머지 가능** ✅
+
+- 4 영역 (보안/품질/회귀/운영) 모두 PASS.
+- 발견 사항 4건 모두 INFO 등급 (머지 차단 0).
+- vitest 873/873 + tsc 0 + 디자인 13 룰 0 위반.
+- 운영 사용자 영향: recorder_admin 지정 시점에 재로그인 안내만 필수 (별도 코드 박제 불필요).
+- 후속 큐: PR4 (admin/users 드롭다운 옵션) + 운영 안내 토스트 + recorders/route.ts session 인자 최적화.
+
 ## 수정 요청
 | 요청자 | 대상 파일 | 문제 설명 | 상태 |
 |--------|----------|----------|------|
@@ -411,6 +523,110 @@ GET /api/web/admin/analytics/wizard-kpi?from=YYYY-MM-DD&to=YYYY-MM-DD&granularit
 
 | format | placeholder 필요 매치 | 슬롯 라벨 형식 | 자동 채움 트리거 | 비고 |
 |---|---|---|---|---|
+
+## 기획설계 (planner-architect) — Phase 6 협회 마법사
+
+🎯 목표: super_admin / association_admin 전용 협회(Association) 마법사 신설. 일반 마법사 (Phase 1~5) 흐름 완전 분리 + 신규 API 3개 (현재 admin/associations/members 만 존재). DB schema 변경 0 — 4 모델 (Association/AssociationAdmin/AssociationFeeSetting/Referee) 모두 박제 완료 확인.
+
+### 핵심 분석 (DB schema 박제 상태)
+- ✅ `Association` (line 2603): id/parent_id/name/code @unique/region_sido/level — 박제 완료
+- ✅ `AssociationAdmin` (line 2633): id/user_id @unique/association_id/role (default `"secretary_general"`) — 9 role 박제 (v3 박제)
+- ✅ `AssociationFeeSetting` (line 2804): association_id @unique + fee_main/sub/recorder/timer default 박제 — schema 변경 0 (단일 정수 4 필드만 / 시안 `WIZARD_FEE_GRID` 종별×등급×시간 표는 schema 와 불일치 → §F Q4 결재 대상)
+- ✅ `Referee` (line 2651): 사전 등록 user_id NULL 허용 + registered_name/phone/birth_date + match_status 박제 — Step 4 동작 가능
+
+### 시안 vs schema 갭 1건 (사용자 결재 필수)
+| # | 시안 (AssociationWizard.jsx) | 운영 schema | 갭 |
+|---|---|---|---|
+| 1 | Step 3 단가표 = 종별×등급×시간 grid (WIZARD_FEE_GRID 다행) | AssociationFeeSetting = 1행 4정수 (main/sub/recorder/timer) | **schema 변경 필수** if 시안 그대로 박제. 권장 = 1차 schema 그대로 (4 정수) + 시안 grid 는 후속 PR (Q4) |
+
+📍 만들 위치와 구조:
+| 파일 경로 | 역할 | 신규/수정 |
+|---|---|---|
+| `src/app/(admin)/tournament-admin/wizard/association/page.tsx` | 마법사 본체 (super_admin 가드 + Step 0~3 컴포지션 + WizardShell) | 신규 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/step1-association-form.tsx` | Step 1: name / code / level (national/sido/pro_league) / region_sido (sido 시) | 신규 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/step2-admin-picker.tsx` | Step 2: 본인 즉시 등록 체크박스 + 사용자 검색 (이메일/닉네임) + role 9종 select + 다건 누적 | 신규 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/step3-fee-setting.tsx` | Step 3: 4 정수 입력 (main/sub/recorder/timer) — schema 그대로 (PR1 권장) | 신규 |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/step4-referee-register.tsx` | Step 4 (옵션): Referee 사전 등록 (registered_name/phone/birth_date) + skip 분기 | 신규 (Q2=PR2 시) |
+| `src/app/(admin)/tournament-admin/wizard/association/_components/wizard-confirm.tsx` | 최종 확인 + 4 API 순차 호출 + 성공 시 `/admin/associations/[id]` redirect | 신규 |
+| `src/lib/tournaments/association-wizard-types.ts` | `AssociationWizardDraft` / Step 타입 / `STEPS` 정의 — Phase 1 wizard-types 패턴 카피 | 신규 |
+| `src/lib/tournaments/association-wizard-draft.ts` | sessionStorage 헬퍼 (key `wizard:association:draft`) — wizard-draft.ts 패턴 카피 (BigInt replacer + SSR 안전 + silent fail) | 신규 |
+| `src/app/api/web/admin/associations/route.ts` | POST: super_admin 가드 + Zod (name/code/level/region_sido?/parent_id?) + code @unique P2002 → 409 + apiSuccess { id, name, code, level } | 신규 |
+| `src/app/api/web/admin/associations/[id]/admins/route.ts` | POST 다건: super_admin 가드 + Zod admins[] (user_id/role) + user_id @unique skip 패턴 (absorb-tournaments 답습) + apiSuccess { created, skipped } | 신규 |
+| `src/app/api/web/admin/associations/[id]/fee-setting/route.ts` | POST upsert: super_admin 가드 + Zod (fee_main/sub/recorder/timer 정수) + prisma.upsert (association_id @unique) | 신규 |
+| `src/app/api/web/admin/associations/[id]/referees/route.ts` | POST 다건 (옵션): super_admin 가드 + Zod referees[] (registered_name/phone/birth_date) + match_status="unmatched" 박제 | 신규 (Q2=PR2 시) |
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | super_admin 카드 1건 추가 (Step 0 또는 상단 안내 영역에 "협회 만들기" link) — isSuperAdmin 분기로 노출 제어 | 수정 |
+| `src/__tests__/api/admin-associations.test.ts` | API 3개 (POST associations / POST admins / POST fee-setting) mock prisma 단위 케이스 (정상 / 권한 부족 403 / code 충돌 409 / 다건 skip) | 신규 |
+
+**LOC 예상**: 신규 12 파일 (~1100 LOC: page 200 + step 컴포넌트 4×120 + types/draft 2×80 + API 4×100 + 테스트 200) + 수정 1 파일 (+20 LOC) = ~1120 LOC.
+
+🔗 기존 코드 연결:
+- **인증 가드**: `isSuperAdmin(session)` (lib/auth/is-super-admin.ts) — page server component 진입 시 redirect 분기. 신규 헬퍼 0.
+- **admin-guard 자동 통과**: `getAssociationAdmin()` (admin-guard.ts L42) — super_admin sentinel 박제됨. 본 마법사는 sentinel 우회 (super_admin 이 협회 *생성* 액션이라 sentinel 첫 활성 협회 자동 선택 흐름 비대상).
+- **sessionStorage 패턴**: `src/lib/tournaments/wizard-draft.ts` (conventions.md 2026-05-15 박제 — SSR 안전 + BigInt replacer + silent fail) 그대로 카피. KEY 만 `wizard:association:draft` 분리.
+- **응답 형식**: `apiSuccess()` 자동 snake_case 변환 (errors.md 2026-04-17 5회 사고 함정) — Zod schema / 프론트 fetch 접근자 모두 snake_case 의무.
+- **`@unique` 충돌 처리**: Association.code (P2002) → 409 + ASSOC_CODE_CONFLICT / AssociationAdmin.user_id (P2002) → skip 패턴 (1인 1협회 제약).
+
+📋 실행 계획 (PR 분해 — Q5 권장 = **3 PR**):
+| 순서 | 작업 | 담당 | 선행 조건 | 분량 |
+|---|---|---|---|---|
+| 1 | Q1~Q8 사용자 결재 | PM | 없음 | 5분 |
+| 2 | **PR1**: API 3개 (Association/Admins/FeeSetting POST) + 단위 테스트 + tsc/vitest | developer → tester+reviewer (병렬) | Q 결재 | ~3h |
+| 3 | **PR2**: 마법사 본체 (Step 1~3 + WizardShell + sessionStorage + super_admin 가드) + 일반 마법사 카드 1건 추가 | developer → tester+reviewer | PR1 머지 | ~4h |
+| 4 | **PR3** (옵션): Step 4 Referee 사전 등록 + API `/referees` POST + Step 4 컴포넌트 | developer → tester+reviewer | PR2 머지 + Q2=YES | ~2h |
+| 5 | knowledge 박제 (architecture/decisions + index.md) + 미푸시 commit | PM | PR1~3 통과 | 10분 |
+
+⚠️ developer 주의사항:
+- **PR1 우선** — API 단독 머지 가능 (UI 의존 0 / 운영 영향 0). PR2 (UI) 만으로는 동작 안 함.
+- **schema 변경 0** 의무 — AssociationFeeSetting grid 형식 (시안)은 PR3 이후 별도 의뢰. 1차 PR1~2 는 schema 그대로 4 정수.
+- **AssociationAdmin.user_id @unique** = 1인 1협회. UI 에서 "이미 다른 협회 사무국장" 사용자 검색 결과에 안내 배지 표시 + POST 시 skip 응답 처리. P2002 catch 의무 (errors.md 2026-05-15 코치 등번호 사고 답습 — DB @unique 와 zod 와 client 3중 가드).
+- **Association.code 자동 추천**: level + 시도 코드 (예: KBA-11 = 서울 / KBA-26 = 부산). 행정안전부 시도 코드 박제 — 신규 상수 파일 `src/lib/associations/sido-codes.ts` 추천 (level=sido 선택 시 자동 채움).
+- **시안 mockHasPermission 토글**은 시안 전용 — 운영 박제 시 제거. `isSuperAdmin === false` 시 즉시 `redirect("/tournament-admin")`.
+- **AppNav frozen** (CLAUDE.md 7 룰) — main tab 변경 0 / 더보기 진입 0. 본 마법사는 URL 직접 또는 일반 마법사 페이지 카드에서만 진입.
+- **admin 빨강 본문 금지** (conventions.md 2026-05-11) — `var(--color-info)` 또는 `var(--color-accent)` 통일. 권한 부족 빈 상태는 시안 `var(--bg-alt)` 회색 톤.
+- **운영 DB 영향**: PR1~3 운영 DB schema 변경 0 / row 신규 (사용자가 마법사 통과 시) — `prisma db push` 호출 0건.
+
+### F. 사용자 결재 Q1~Q8 (권장값 포함)
+
+| # | 결재 항목 | 권장 답 | 사유 |
+|---|---|---|---|
+| **Q1** | 일반 마법사에 super_admin 카드 추가 위치 | **Step 0 상단 안내 영역 + isSuperAdmin 분기** (`/tournament-admin/tournaments/new/wizard` page.tsx) | (a) 더보기 메뉴 별도 추가 = AppNav frozen 룰 위반 (b) admin 메뉴 별도 = recorder_admin 와 분리 의도 흐려짐 (c) 일반 마법사 진입점에 분기 카드 = 사용자 인지 명확 + super_admin 가시성 ⭐⭐⭐ |
+| **Q2** | Step 4 Referee 사전 등록 PR 분리? | **PR3 (별도 후속)** | 본 PR 핵심은 Association/Admin/FeeSetting 3 모델. Referee 사전 등록 = 2026-05-11 Phase 1-B 박제 흐름 (admin/users 사전등록 + 매칭) 과 동일 흐름 → 마법사에 흡수 시 검증 부담 ↑. PR2 검증 후 PR3 분리 |
+| **Q3** | AssociationAdmin 지정 방법 (시안 = 사용자 검색) | **기존 user 선택만 (검색)** | 이메일 invite (신규 user 초대) = 별도 신원확인/회원가입 흐름 필요 → 본 마법사 범위 초과. 시안 그대로 |
+| **Q4** | AssociationFeeSetting 기본값 박제 여부 | **시안 grid 형식 무시 + schema 그대로 (4 정수)** PR1~2 | schema 변경 0 룰 의무 (CLAUDE.md DB 정책). 시안 grid (종별×등급×시간) = 후속 별도 의뢰 시 schema 확장 결재 + 새 모델 `AssociationFeeGridRow` 검토 |
+| **Q5** | PR 분해 | **3 PR (PR1=API / PR2=UI Step1~3 / PR3=Step4 Referee)** | PR1 운영 영향 0 + 단독 머지 가능 / PR2 검증 후 PR3 진입 = 회귀 가드 강함 |
+| **Q6** | UI 디자인 토큰 | **시안 그대로 (`var(--bg-alt)` `var(--accent)` `var(--ink-mute)` `var(--ff-mono)` 등 BDR-current 토큰)** | BDR-current 시안 정합 = CLAUDE.md §🔄 운영↔시안 동기화 룰 의무 |
+| **Q7** | Referee 자격번호 검증 옵션 | **1차 = 미검증 박제 (license_number 입력 only)** + 후속 = OCR/협회 API 연동 | 본 PR 범위 핵심 아님. Phase 1-B 의 `RefereeCertificate.verified` 별도 흐름 |
+| **Q8** | 일반 마법사 카드 추가 시점 | **PR2 동시 (마법사 본체 + 진입 카드 = 같은 PR)** | 카드 link 가 `/tournament-admin/wizard/association` 인데 마법사 본체 없으면 404 → 같은 PR 머지 |
+
+### G. 검증 + 회귀 가드
+
+| 영역 | 회귀 검증 방법 |
+|---|---|
+| 일반 마법사 (Phase 1~5) | PR2 머지 후 일반 사용자 (super_admin 아닌) 로 `/tournament-admin/tournaments/new/wizard` 진입 — Step 0~4 동작 그대로 / "협회 만들기" 카드 미노출 |
+| super_admin 자동 흡수 | super_admin 계정으로 `/tournament-admin/wizard/association` 진입 → Step 1 렌더 + Association 생성 1건 |
+| association_admin 권한 | spec 명시 = super_admin OR association_admin 둘 다 진입 가능. **현재 시안 `mockHasPermission` 분기는 super_admin 전용 카피만** — 본 마법사가 *새 협회 생성* 액션이라 기존 association_admin 의 의미 모호 (이미 1협회 소속). 권장 = **super_admin 전용** (Q1 권장답 보완) |
+| AppNav frozen | PR2 머지 후 시안 검수 13 룰 자체 검수 — `06-self-checklist.md` 9 케이스 |
+| `admin/associations/members` 기존 API | 변경 0 (본 PR 은 신규 라우트 4개만 추가). vitest 회귀 영향 0 |
+| Flutter v1 | 영향 0 (`/api/v1/...` 변경 0) |
+| DB schema | 변경 0. `prisma db push` 호출 0건. row 신규 (사용자 마법사 통과 시 4 row: Association/AssociationAdmin/AssociationFeeSetting/[옵션 Referee N건]) |
+
+### H. knowledge 박제 후속 (PM 작업)
+
+- **architecture.md**: "협회 마법사 = super_admin 분기 별도 라우트 `/tournament-admin/wizard/association`" + "AssociationFeeSetting = 1행 4정수 schema (시안 grid 와 불일치 — PR3 별도)"
+- **decisions.md**: 8 결정 (Q1~Q8) 박제 + "schema 변경 0 = 시안 grid 형식 후속 분리" + "PR 3 분해 = API → UI → Referee"
+- **conventions.md**: "association-wizard-draft.ts = wizard-draft.ts 패턴 카피 + KEY 분리 (`wizard:association:draft`)"
+- **index.md**: 항목 수 갱신 + 날짜 갱신
+
+### I. 진입 의존성 / 위험
+
+| 위험 | 영향 | 완화 |
+|---|---|---|
+| schema 변경 0 룰 위반 (시안 grid 그대로 박제) | 운영 DB 영향 + 사용자 결재 필수 | Q4 결재 = 4 정수 schema 박제 (1차 PR) |
+| AssociationAdmin.user_id @unique 충돌 (사용자가 이미 다른 협회 소속) | UI 에서 "이미 소속" 안내 0 시 사용자 혼선 | UI 검색 결과 배지 + skip 응답 안내 토스트 |
+| Association.code 충돌 (KBA-11 이미 있음) | 409 응답 → 사용자 재입력 부담 | level=sido 선택 시 자동 추천 + 충돌 검증 inline |
+| 시안 mockHasPermission 토글 운영 박제 | 일반 사용자가 `?permission=1` 등으로 우회 가능 | 시안 전용 — 운영 page.tsx 진입 가드에서 토글 분기 제거 + isSuperAdmin redirect 의무 |
+| 다른 세션 recorder_admin 작업 충돌 | scratchpad 동시 박제 가능 | 본 작업은 파일 끝 append only — 다른 섹션 손대지 않음 |
+
 | `single_elimination` | 2R~결승 | `roundName` ("8강"/"4강"/"결승") 만 / homeSlotLabel 라벨 ❌ → **UI 카드 빈 슬롯 모호** | match PATCH winner → next_match_id FK | 라벨 추가 시 사용자 UX 개선 |
 | `double_elimination` | Winner Bracket 2R~ + Loser Bracket 모든 R + Grand Final | "WB 1R 승자" / "LB R1 패자" / "WB 결승 패자" | **신규 generator + progression 필요** | swiss 다음 우선순위 |
 | `round_robin` | 없음 (모든 매치 확정) | — | — | 의무 0 |
@@ -503,6 +719,7 @@ GET /api/web/admin/analytics/wizard-kpi?from=YYYY-MM-DD&to=YYYY-MM-DD&granularit
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-15 | Phase 6 협회 마법사 (super_admin 전용) 기획설계 (read-only 분석) | ✅ schema 4 모델 박제 확인 (Association/AssociationAdmin/AssociationFeeSetting/Referee 모두 운영 박제 완료 / 변경 0) / 시안 vs schema 갭 1건 (Step 3 grid vs 4 정수 — Q4 결재 = 1차 4 정수) / 신규 12 파일 ~1120 LOC / 3 PR 분해 (API → UI → Referee 옵션) / Q1~Q8 권장값 박제 / DB 변경 0 / Flutter 0 / AppNav frozen 0 |
 | 2026-05-15 | PR3 recorder_admin /referee/admin 진입 + admin-guard sentinel + RoleMatrixCard 매트릭스 확장 | ✅ 수정 6 파일 (~136 LOC) / sentinel 단일 진입점 (isRecorderAdmin OR 자동 흡수) / AdminRole union 미수정 (admin sidebar 자동 허용 회피 — recorder_admin = /referee/admin/* 전용) / tsc 0 / vitest 873/873 (이전 868 + 신규 5 = 873) 회귀 0 / DB 변경 0 / Q2 옵션 A (12 permission 자동 통과) 박제 |
 | 2026-05-15 | PR-G5 대진표 생성기 placeholder 박제 자동화 설계 (9 format 인벤토리 + 갭 분석 + PR 분해) | ✅ read-only 분석 / 옵션 B (공통 헬퍼) 권장 / PR-G5.1~G5.8 분할 / 본 PR 약 8h / Flutter 0 / DB 0 / 디자인 13 룰 0 |
 | 2026-05-15 | Phase 7 D KPI endpoint 설계 (read-only 분석) | ✅ 측정 가능 KPI 4건 + 측정 불가 3건 (서버 event log 부재) / 옵션 C 권장 / Q1~Q5 권장값 / DB 변경 0 |
@@ -565,3 +782,57 @@ GET /api/web/admin/analytics/wizard-kpi?from=YYYY-MM-DD&to=YYYY-MM-DD&granularit
   - `bucketKey` weekly 분기 — ISO week 단순화 (월요일 키). 운영 사용자 친화 우선 박제 (정식 ISO week 표기 "YYYY-Www" 추후 검토)
   - `route.ts` parseDate — YYYY-MM-DD 입력 시 from=00:00:00 / to=23:59:59.999 UTC 자동 boundary 박제 (사용자 직관 일치)
 - **PR2 (후속) 의존성**: 본 KPI lib 는 후속 옵션 B (wizard_events 테이블 신설) 진입 시 동일 lib 확장 의무 (route.ts 100 LOC 룰 보호). 단계별 이탈 측정 추가 시 `computeWizardFunnel(input)` 신규 export 추천.
+
+## 구현 기록 (developer) — Phase 6 PR1 API (2026-05-15)
+
+📝 구현한 기능: 협회 마법사 API 3 endpoint 신규 (Association/Admins/FeeSetting POST). super_admin 자동 통과 + Zod 검증 + BigInt/snake_case 자동 변환. UI / 마법사 본체는 PR2 영역.
+
+| 파일 경로 | 변경 내용 | 신규/수정 | LOC |
+|----------|----------|----------|-----|
+| `src/app/api/web/admin/associations/route.ts` | POST 협회 생성 — getAssociationAdmin 가드 + Zod (name/code/level/region_sido/parent_id) + prisma.create + P2002 → 409 ASSOC_CODE_CONFLICT | 신규 | ~90 |
+| `src/app/api/web/admin/associations/[id]/admins/route.ts` | POST AssociationAdmin upsert — Zod (user_id + role 9종 enum) + association/user 존재 확인 (404) + upsert (user_id @unique = 1인 1협회 룰) | 신규 | ~120 |
+| `src/app/api/web/admin/associations/[id]/fee-setting/route.ts` | POST FeeSetting upsert — Zod (4 정수 main/sub/recorder/timer >=0) + association 확인 (404) + upsert (association_id @unique = 1행 1협회) | 신규 | ~105 |
+| `src/__tests__/api/association-wizard.test.ts` | vitest 8 케이스 (3 endpoint × 인증/검증/생성/upsert/회귀) — vi.doMock admin-guard + prisma | 신규 | ~310 |
+
+**총 신규 4 파일 / 0 수정** — 총 ~625 LOC.
+
+🛡️ 적용된 가드:
+- 인증: `getAssociationAdmin()` 단일 진입점 — super_admin sentinel 자동 통과 (admin-guard.ts 2026-05-11 박제).
+- 응답: `apiSuccess()` → BigInt 자동 `.toString()` + snake_case 자동 변환 (errors.md 5회 사고 함정 회피).
+- Validation: Zod 422 + `validationError()` 표준 헬퍼 (내부 schema 상세 sanitize).
+- P2002 처리: 협회 코드 충돌 → 409 명시 (`ASSOC_CODE_CONFLICT`) — try/catch 의무 (errors.md 2026-05-15 등번호 사고 패턴 답습).
+- BigInt 변환 안전: `try { BigInt(...) } catch { 404 NOT_FOUND }` — 비-숫자 route param 방어.
+
+✅ 검증 결과:
+| 항목 | 결과 |
+|---|---|
+| `npx tsc --noEmit` | exit=0 (회귀 0) |
+| 신규 vitest (association-wizard.test.ts) | **8/8 PASS** (421ms) |
+| 전체 회귀 vitest | **918/918 PASS** (5.19s — 재실행 0 flaky) |
+| 운영 DB 변경 | 0 (schema 변경 0 / prisma db push 0 / row UPDATE 0) |
+| Flutter v1 영향 | 0 (`/api/v1/...` 변경 0) |
+| 디자인 / UI 변경 | 0 (API 라우트만) |
+
+💡 tester 참고:
+- 테스트 방법: `npx vitest run src/__tests__/api/association-wizard.test.ts` — 8 케이스 모두 PASS 정상.
+- 정상 동작:
+  - super_admin 세션 → 3 endpoint 모두 200 응답 + BigInt → string + snake_case 자동 변환.
+  - 비로그인/일반 사용자 → 403 FORBIDDEN.
+  - Zod 위반 (name 누락 / 음수 fee) → 422 VALIDATION_ERROR.
+  - 존재하지 않는 association_id → 404 NOT_FOUND (user.findUnique / upsert 호출 안 됨 — early return 검증 박제).
+  - 중복 user_id (1인 1협회) → upsert update 분기 → 200 + role 갱신.
+- 주의할 입력:
+  - parent_id 는 문자열 BigInt 로 입력 (Zod 문자열 → 내부 BigInt 변환).
+  - code 중복 (KBA-11 이미 존재) → 409 ASSOC_CODE_CONFLICT (Prisma P2002 catch).
+  - user_id 가 비-숫자 ("abc") → 404 NOT_FOUND (BigInt() throw catch).
+
+⚠️ reviewer 참고:
+- **추가 schema 변경 0** — Association/AssociationAdmin/AssociationFeeSetting 4 모델 모두 운영 박제 완료 (현 PR1 은 신규 라우트만 추가).
+- **admin-guard 단일 진입점 의무** — `getAssociationAdmin()` 외 직접 super_admin 분기 작성 0 (DRY + sentinel 자동 통과 보존).
+- **응답 키 일관성** — 세 endpoint 모두 `{ association | association_admin | fee_setting }` snake_case 단일 컨벤션.
+- **PR2 진입 준비**:
+  1. 본 API 3 endpoint 동작 검증 완료 → PR2 마법사 본체 (Step 1~3 UI) 진입 가능.
+  2. PR2 = `src/app/(admin)/tournament-admin/wizard/association/page.tsx` + Step1~3 컴포넌트 + sessionStorage 헬퍼 + super_admin 가드 + 일반 마법사 카드 추가.
+  3. PR3 (옵션) = Step 4 Referee 사전 등록 + `/referees` POST endpoint (Q2 결재 = 별도 후속).
+- **운영 영향 0 보증**: 본 PR1 머지 후에도 UI 진입 0 (마법사 본체 없음) → 운영 사용자 호출 0. 단독 머지 안전.
+

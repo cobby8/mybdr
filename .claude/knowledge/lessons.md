@@ -2,6 +2,33 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-15] 대진표 generator = `plan` (PURE) + `generate` (DB INSERT) 분리 패턴 (vitest 친화 + 운영 idempotent)
+- **분류**: 코드 설계 패턴 / vitest 인프라 / 운영 안전성
+- **계기**: PR-G5 강남구협회장배 순위결정전 사고 영구 차단 작업 (`league_advancement` / `group_stage_with_ranking` generator 신규)
+- **상황**: 9 운영 방식 (`ALLOWED_FORMATS`) 중 강남구가 사용하는 `league_advancement` (i3-U9 링크제) + `group_stage_with_ranking` (i3-U11/U14/i3w-U12) 의 generator 부재. 운영자 수동 INSERT 의존 → 형식 위반 사고. 새 generator 6 PR (G5.1~G5.9) 박제 필요.
+- **시도한 패턴 비교**:
+  - ❌ **옵션 A: format 별 분기** — 각 generator 안에 인라인 슬롯 라벨 생성. 라벨 형식 비일관 → ADVANCEMENT_REGEX 매칭 실패 가능 (강남구 사고 패턴)
+  - ❌ **옵션 C: post-processing** — generator 호출 후 별 룰로 placeholder 변환. 2-pass 비용 + 트랜잭션 일관성 약함
+  - ✅ **옵션 B: 공통 헬퍼 + plan(PURE)/generate(DB) 분리** (채택)
+- **채택 패턴 (PR-G5)**:
+  1. **공통 헬퍼** (`placeholder-helpers.ts`) — `buildSlotLabel` (5 kind) + `buildPlaceholderNotes` + `parseSlotLabel` + `buildPlaceholderMatchPayload` + `isStandingsAutoFillable`. 단일 source → 정규식 호환 자동 보장
+  2. **plan 순수 함수** (예: `planLeagueAdvancementPlaceholders`) — 입력 `{groupSize, groupCount, linkagePairs}` → 출력 `PlaceholderMatchSpec[]` (DB I/O 0)
+  3. **DB INSERT 함수** (예: `generateLeagueAdvancementMatches`) — plan 함수 호출 + idempotent 가드 (`roundName="순위결정전"` 매치 이미 존재 시 skip) + Prisma create
+- **효과**:
+  - **vitest 단위 검증 친화**: plan 함수는 DB mock 불필요 (순수 함수) → 12 케이스 단위 검증 100% PASS / 강남구 4 종별 운영 케이스 재현
+  - **runtime 안전성**: 헬퍼 통과 의무 → ADVANCEMENT_REGEX 매칭 100% 보장 (인라인 박제 시 위험 차단)
+  - **운영 idempotent**: 재호출 시 중복 INSERT 0 (`clear=true` 명시 시만 재생성)
+  - **호출자 단순**: caller = `await generateLeagueAdvancementMatches(prisma, tid, code, opts)` 한 줄
+- **재사용 룰**:
+  (a) **신규 generator 진입 시 plan/generate 분리** — plan = 순수 함수 (DB mock 불필요) / generate = DB I/O (e2e 또는 통합 테스트)
+  (b) **공통 헬퍼 통과 의무** — 인라인 문자열 박제 절대 금지 (인라인 박제 1회 = 강남구 사고 패턴)
+  (c) **idempotent 가드 표준** — generator 호출 전 같은 종별 + roundName 매치 존재 검증 → 존재 시 skip + reason 명시
+  (d) **PURE 함수 + vitest 우선** — 인프라 의존 작업 (DB / fetch / file I/O) 분리 → vitest 친화 + reviewer 인지 부담 ↓
+  (e) **stub + 후속 PR 메모 패턴** — 운영 사용처 0 인 format (`group_stage_knockout` / `double_elim` / `swiss`) = stub + 명확한 후속 PR 진입점 명시 (운영 사용 시점에 진입)
+- **PR 분해 시간 절약**: 6 PR (G5.1~G5.9) 을 단일 commit 으로 통합 (912 LOC / +58 vitest) — release 1회. PR 분리 시 효율 ↓
+- **참조**: `src/lib/tournaments/placeholder-helpers.ts` / `src/lib/tournaments/division-advancement.ts:240+`. 본 패턴 = 다른 generator 작성 시 표준
+
+
 ### [2026-05-15] 운영 DB UNIQUE 인덱스 추가 = `prisma db push --accept-data-loss` 회피 + raw `CREATE UNIQUE INDEX` 사용
 - **분류**: lesson / DB 안전 / 운영 정책
 - **발견자**: pm (마법사 Phase 5 C 진입 시)

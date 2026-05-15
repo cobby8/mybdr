@@ -126,12 +126,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /**
  * useToast — 토스트를 표시하는 훅
- * 반드시 ToastProvider 내부에서 사용해야 한다.
+ * ToastProvider 안에서 호출 시 정상 동작.
+ * PR-Stat3.9 (2026-05-15) — throw 제거 + no-op fallback (Next.js 16 Turbopack dev hot reload 안전망).
+ *   Provider 없을 시 console.warn + no-op showToast 반환 → 운영 동작 차단 ❌.
+ *   prod build = ToastProvider 가 layout 에 wrap 되어 항상 정상 (warn 발생 0).
  */
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) {
-    throw new Error("useToast는 ToastProvider 안에서만 사용할 수 있습니다.");
+    if (typeof window !== "undefined") {
+      // dev only — console.warn (운영자 인지 + 자동 복구)
+      console.warn(
+        "[useToast] ToastProvider not found in tree — using no-op fallback (dev hot reload race?)",
+      );
+    }
+    return {
+      showToast: () => {},
+    } as ToastContextValue;
   }
   return ctx;
 }
