@@ -458,7 +458,13 @@ export function TeamSection({
           <div className="ss-tbox__tf-line">
             <span className="ss-tbox__tf-pname">Period</span>
             {([3, 4] as const).map((period) => {
-              const teamCount = getTeamFoulCountByPeriod(fouls, period);
+              // PR-Stat3.1 (2026-05-15) — 사용자 명시: 연장전 파울 = Q4 합산 (OT 는 4쿼터 연장).
+              //   Q4 cell = period 4 + period 5+ (OT) 합산 / Q3 cell = period 3 만 (기존).
+              //   getTeamFoulCountByPeriod 헬퍼 자체는 보존 (다른 영역 영향 0) — 표시 시점에만 합산.
+              const teamCount =
+                period === 4
+                  ? fouls.filter((f) => f.period >= 4).length
+                  : getTeamFoulCountByPeriod(fouls, period);
               const ftAwarded = teamCount >= 5;
               const periodFillColor = getPeriodColor(period);
               return (
@@ -515,37 +521,15 @@ export function TeamSection({
                   - inline style justifyContent: flex-end 로 라인 전체 우측 정렬
                   - ftAwarded 안내는 보존 (운영 OT 5+ 부여 안내)
               운영 동작 보존: fouls 카운트 로직 그대로 (otCount + ftAwarded). UI 만 단순화. */}
+          {/* PR-Stat3.1 (2026-05-15) — Extra periods row = 라벨만 유지 (OT 카운트/FT 표시 제거).
+              사용자 명시: 연장전 = 4쿼터의 연장 → Q4 cell 에 합산 표시 → OT 별도 카운트 ❌.
+              시안 정합 (텍스트 라벨) + 우측 정렬은 보존 (PR-T4). */}
           <div
             className="ss-tbox__tf-line"
             data-extra="true"
             style={{ justifyContent: "flex-end" }}
           >
             <span className="ss-tbox__tf-pname">Extra periods</span>
-            {(() => {
-              const otCount = fouls.filter((f) => f.period >= 5).length;
-              const ftAwarded = otCount >= 5;
-              return (
-                <>
-                  {/* OT 카운트 텍스트 표시 (cell 마크업 삭제 후 운영자 인지용) */}
-                  <span
-                    className="inline-flex shrink-0 items-center text-[9px] font-bold"
-                    style={{ color: "var(--pap-ink)" }}
-                    aria-label={`Extra (OT) 팀 파울 합계 ${otCount}건`}
-                  >
-                    {otCount}
-                  </span>
-                  {ftAwarded && (
-                    <span
-                      className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
-                      style={{ color: "var(--pap-bonus)" }}
-                      aria-label={`Extra periods 자유투 부여 (OT Team fouls ${otCount}건)`}
-                    >
-                      FT+{otCount - 4}
-                    </span>
-                  )}
-                </>
-              );
-            })()}
           </div>
         </div>
       </div>
