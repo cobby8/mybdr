@@ -30,8 +30,8 @@ import { PeriodScoresSection } from "./period-scores-section";
 import { FoulTypeModal } from "./foul-type-modal";
 import { MatchEndButton } from "./match-end-button";
 // Phase 17 (2026-05-13) — 쿼터별 색상 안내 Legend (frame 외부 / no-print).
-// 2026-05-15 (PR-SS-54) — PeriodColorLegend 가 ScoreSheetToolbar 안으로 이동. form 직접 import 불필요.
-// import { PeriodColorLegend } from "./period-color-legend";
+// 2026-05-15 (PR-SS-Manual-Legend) — PeriodColorLegend = 설명서 모달 안에서 사용 (box 형태).
+import { PeriodColorLegend } from "./period-color-legend";
 import type { TeamRosterData } from "./team-section-types";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import {
@@ -435,7 +435,11 @@ export function ScoreSheetForm({
     await confirmModal({
       title: "전자 기록지 작성법",
       message: (
-        <ul className="space-y-2 text-sm">
+        <div className="space-y-3">
+          {/* 2026-05-15 (PR-SS-Manual-Legend) — 색상/점수 안내 (이전 toolbar 중앙)
+              설명서 모달로 이동. 박스 형태 (default mode, inline=false). */}
+          <PeriodColorLegend />
+          <ul className="space-y-2 text-sm">
           <li>
             <strong>1. 라인업</strong> — 헤더 "라인업" 버튼 → 양 팀 출전 명단 + 선발 5인
             선택. 선발 5인은 자동 P.IN 체크 (후보는 교체 시 수동).
@@ -463,7 +467,8 @@ export function ScoreSheetForm({
             <strong>7. 기록 취소</strong> — 헤더 우측 "기록 취소" (운영자 전용) → 경고
             확인 → 매치 완전 초기화 + 이전 페이지 복귀.
           </li>
-        </ul>
+          </ul>
+        </div>
       ),
       options: [{ value: "close", label: "닫기", isPrimary: true }],
     });
