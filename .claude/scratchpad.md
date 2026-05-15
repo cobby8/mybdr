@@ -28,6 +28,7 @@
 - recorder_admin Q1~Q6 寃곗옱 ?湲?(PR1~3 commit ?꾨즺 / ?ъ슜??寃利?+ PR4 ?댁쁺??UI ?듭뀡)
 - Phase 6 PR3 ?묓쉶 留덈쾿??referee ?듭뀡 (PR2 ?꾨즺 ???꾩냽)
 - PR-G5.2~G5.8 placeholder 諛뺤젣 generator 蹂??뺤옣 (PR-G5.1 commit ?꾨즺)
+- **PR-G5.5-followup 상태**: 기획설계 완료 / **developer 진입 대기** — 4차 BDR 뉴비리그 (Tournament 443f23f8 / 5/16 시작) 단판 결승 매치 232 placeholder 박제 + advanceTournamentPlaceholders 신규 박제. 운영 적용 5/16 마감 (사용자 결재 후 scripts/_temp 실행)
 - Phase 19 PR-T1~T5 / PR-S10.4 / PR-S10.7 / PR-S10.8 / PR-Stat1~Stat5 寃곗옱 ?湲?- Phase 23 PR4 / PR6 / Phase A.7 ?섎ː??- Phase 3.5 ?좎껌?뚮뀈 寃고빀 肄붾뱶 ?꾩냽 (parseDivisionCode + 諛깆썙???명솚)
 - PR-S9 / UI-1.4 entry_fee / GNBA 8? 肄붿튂 ?덈궡
 
@@ -37,8 +38,152 @@
 - push 寃곗옱 ?湲????ㅻⅨ ?몄뀡???숈떆 諛뺤젣 以묒씠??push ?쒖젏 ?ъ슜??寃곗옱 沅뚯옣
 - 蹂??몄뀡 ?꾩쟻 = 3 commit 蹂??몄뀡 吏곸젒 諛뺤젣 (0853927 + d43704a + 05caa04). Admin-2 commit ??4 commit
 
-## 湲고쉷?ㅺ퀎 (planner-architect)
-(蹂??섎ː = ?쒖븞 諛뺤젣?대?濡??좉퇋 ?ㅺ퀎 ?놁쓬 / cli-port-to-src.md 李몄“)
+## 기획설계 (planner-architect) — G5.5-followup (2026-05-15)
+
+🎯 목표: 4차 BDR 뉴비리그 (Tournament 443f23f8 / 5/16 시작 / division_rule=0건) 단판 결승 매치 232 placeholder 박제 자동화 + Tournament 단위 applier 함수 신규 박제. 기존 G5.3/G5.4 generator 회귀 0 보장.
+
+📍 신규 함수 시그니처 + 의도
+
+| 항목 | 내용 |
+|------|------|
+| 위치 | `src/lib/tournaments/division-advancement.ts` (advanceDivisionPlaceholders 직후) |
+| 함수명 | `advanceTournamentPlaceholders` (옵션 A — 신규 함수 / 회귀 0) |
+| 시그니처 | `async function advanceTournamentPlaceholders(prisma: PrismaClient \| Prisma.TransactionClient, tournamentId: string): Promise<AdvanceResult>` |
+| 의도 | division_code 무관 Tournament 단위 placeholder 채움. 4차 뉴비리그처럼 division_rule=0건이고 settings.division_code 가 없는 매치도 진입 가능. category=null + groupName="A"/"B" standings 만 기준 |
+| 헬퍼 | `getTournamentStandings(prisma, tournamentId)` 신규 — getDivisionStandings 의 category 필터 제거 버전 (모든 TournamentTeam SELECT + groupName 그룹핑 + 동일 정렬 룰 wins/pd/pf/name) |
+| placeholder fetch 조건 | `tournamentId 일치 + (homeTeamId IS NULL OR awayTeamId IS NULL)` (settings.division_code 필터 제거 — 본 함수 차별점) |
+| 이미 채워진 슬롯 보호 | 기존 advanceDivisionPlaceholders 동일 룰 — `m.homeTeamId === null` 일 때만 UPDATE / 운영자 수동 변경 보호 |
+| 정렬 룰 | wins desc → pd desc → pf desc → name asc (NBA 표준 + getDivisionStandings 동일) |
+
+🔗 기존 코드 연결
+
+- **placeholder-helpers.ts**: `buildSlotLabel({ kind: "group_rank", group: "A", rank: 1 })` + `buildPlaceholderNotes("A조 1위", "B조 1위")` 통과 의무 — 운영 매치 232 UPDATE SQL 가 호환 형식 박제
+- **ADVANCEMENT_REGEX**: `/([A-Z])조\s*(\d+)위\s*vs\s*([A-Z])조\s*(\d+)위/` — 신규 함수는 기존 `parseAdvancement` 재사용
+- **advanceAllDivisions** (기존): division_rule 기반 loop → division_rule=0건 케이스 진입 불가 → 4차 뉴비리그용 별도 applier 호출 필요
+- **호출 시점 (Phase B)**: 별도 후속 PR 의 매치 PATCH route 통합. 본 PR 범위 = 함수 박제만
+
+📋 실행 계획
+
+| 순서 | 작업 | 담당 | 선행 조건 | 산출물 |
+|------|------|------|----------|--------|
+| 1 | `getTournamentStandings` + `advanceTournamentPlaceholders` 신규 박제 | developer | 본 설계 | division-advancement.ts +~80 LOC |
+| 2 | vitest 케이스 박제 (최소 3 + 추가 1) | developer | 1 | `src/__tests__/lib/tournaments/tournament-advancement.test.ts` 신규 |
+| 3 | 매치 232 UPDATE 스크립트 박제 (사용자 결재 후 실행) | developer | 1, 2 | `scripts/_temp/seed-newbie4-final-placeholder.ts` |
+| 4 | 회귀 검증 (강남구 4 종별 영향 0) | tester + reviewer (병렬) | 1, 2 | 기존 vitest 통과 + division-placeholder-plan.test.ts 영향 0 |
+| 5 | 사용자 결재 후 스크립트 실행 + 운영 DB UPDATE 232 | PM | 사용자 결재 | tournament_matches.id=232 row 검증 (count=1 / homeTeamId IS NULL / notes 호환) |
+| 6 | decisions.md + 작업 로그 박제 | PM | 5 | 본 PR 박제 commit |
+
+⚠️ developer 주의사항
+
+1. **신규 함수 = 옵션 A 분리** — 기존 `advanceDivisionPlaceholders` 시그니처 변경 ❌. divisionCode 옵셔널 확장 (옵션 B) 회피
+2. **idempotent 가드** — placeholder fetch where 절에 `OR: [{ homeTeamId: null }, { awayTeamId: null }]` + UPDATE 시 NULL slot 만 채움. 이미 실팀 박힌 row 보호
+3. **standings 동률 처리** — wins/pd/pf 동률 시 teamName asc tie-breaker (`localeCompare`) — getDivisionStandings 동일 로직 카피 (분기 안전성)
+4. **groupName=null 방어** — `t.groupName ?? "X"` 폴백 (getDivisionStandings 동일 패턴). 4차 뉴비리그는 A/B 명확 박제됨
+5. **placeholder-helpers 통과 의무** — 매치 232 UPDATE SQL 의 notes 와 settings.homeSlotLabel/awaySlotLabel 은 buildSlotLabel + buildPlaceholderNotes 통과한 결과여야 함 (인라인 문자열 박제 ❌)
+6. **Flutter v1 + DB schema 변경 0** — 새 함수만 박제. 호출처 = 0 (후속 PR 매치 PATCH route 통합 시 호출). schema migration 0
+
+📋 매치 232 UPDATE SQL spec (Phase A — 즉시 / 5/16 전)
+
+```typescript
+// scripts/_temp/seed-newbie4-final-placeholder.ts
+// 사용자 결재 후 실행. SELECT 1건 검증 → UPDATE → SELECT 1건 사후 검증.
+import { PrismaClient } from "@prisma/client";
+import { buildSlotLabel, buildPlaceholderNotes } from "@/lib/tournaments/placeholder-helpers";
+
+const TOURNAMENT_ID = "443f23f8-0000-41d4-bcbd-1843f7e16e1f";
+const MATCH_ID = 232n;
+
+const prisma = new PrismaClient();
+async function main() {
+  // 1) 사전 검증 (SELECT — DESTRUCTIVE 아님 / 가드 0)
+  const before = await prisma.tournamentMatch.findUnique({
+    where: { id: MATCH_ID },
+    select: { id: true, tournamentId: true, homeTeamId: true, awayTeamId: true, notes: true, settings: true, status: true },
+  });
+  if (!before) throw new Error(`match ${MATCH_ID} not found`);
+  if (before.tournamentId !== TOURNAMENT_ID) throw new Error(`tournament mismatch`);
+  if (before.homeTeamId !== null || before.awayTeamId !== null) {
+    console.log("이미 실팀 박힘 — skip"); return;
+  }
+
+  // 2) placeholder-helpers 통과 — 인라인 문자열 박제 ❌
+  const homeSlot = buildSlotLabel({ kind: "group_rank", group: "A", rank: 1 }); // "A조 1위"
+  const awaySlot = buildSlotLabel({ kind: "group_rank", group: "B", rank: 1 }); // "B조 1위"
+  const notes = buildPlaceholderNotes(homeSlot, awaySlot); // "A조 1위 vs B조 1위"
+
+  // 3) settings 병합 (기존 키 보존 — settings 단일 UPDATE 통합 패턴)
+  const baseSettings = (before.settings && typeof before.settings === "object" && !Array.isArray(before.settings))
+    ? (before.settings as Record<string, unknown>) : {};
+  const nextSettings = { ...baseSettings, homeSlotLabel: homeSlot, awaySlotLabel: awaySlot };
+
+  // 4) UPDATE 1건
+  const result = await prisma.tournamentMatch.update({
+    where: { id: MATCH_ID },
+    data: { notes, settings: nextSettings },
+    select: { id: true, notes: true, settings: true },
+  });
+
+  // 5) 사후 검증 (실측)
+  console.log("UPDATE result:", result);
+  const regex = /([A-Z])조\s*(\d+)위\s*vs\s*([A-Z])조\s*(\d+)위/;
+  if (!regex.test(result.notes ?? "")) throw new Error("ADVANCEMENT_REGEX 호환 실패");
+}
+main().finally(() => prisma.$disconnect());
+```
+
+📋 vitest 케이스 명세 (`tournament-advancement.test.ts`)
+
+| # | 케이스 | 시나리오 | 기대 |
+|---|--------|---------|------|
+| 1 | 정상 — 단판 결승 (4차 뉴비리그) | groupName="A"/"B" 각 3팀 / wins+pd 박제 / 결승 1건 (NULL+notes "A조 1위 vs B조 1위") | updated=1 / skipped=0 / errors=0 / homeTeamId+awayTeamId 모두 A1+B1 row id |
+| 2 | idempotent — 이미 채워짐 skip | 결승 1건 homeTeamId/awayTeamId 모두 NOT NULL | updated=0 / skipped=1 / errors=0 |
+| 3 | standings 매핑 실패 — notes 형식 위반 | NULL placeholder + notes="결승전" (REGEX 불일치) | updated=0 / skipped=1 / errors=[{reason: "notes 파싱 실패"}] |
+| 4 (보강) | 절반만 NULL — home NULL / away 실팀 | UPDATE 시 home 만 채우고 away 보존 | updated=1 / homeTeamId set / awayTeamId 기존 값 그대로 |
+
+테스트 박제 패턴:
+- vitest mock = PrismaClient mock 또는 in-memory fake (기존 `division-placeholder-plan.test.ts` 와 다름 — 본 함수는 DB 접근 → mock 필요)
+- 또는 plan 함수 분리 패턴 도입 가능 (선택) — `planTournamentAdvancement(standings, placeholders): UpdateSpec[]` pure 함수 + `advanceTournamentPlaceholders` 가 plan 호출 + DB UPDATE. 시간 여유 시 분리 (lessons.md "plan/generate 분리 패턴")
+
+📋 회귀 검증 명세 (강남구 4 종별 영향 0 증명)
+
+| 검증 항목 | 방법 | 기대 |
+|----------|------|------|
+| 기존 `advanceDivisionPlaceholders` 호출 시그니처 변경 | grep `advanceDivisionPlaceholders\|advanceAllDivisions` | 호출처 2건 (advance-placeholders/route.ts) — 시그니처 변경 0 |
+| 기존 vitest 통과 | `npx vitest run src/__tests__/lib/tournaments/` | 기존 division-placeholder-plan.test.ts + placeholder-helpers.test.ts 통과 (regression 0) |
+| 강남구협회장배 (i3-U9 / i3-U11 / i3-U14 / i3w-U12) division_rule 기반 진입 보존 | advanceAllDivisions 가 본 함수 호출 ❌ (별 진입점) | division-code 분기 매치는 기존 함수, division-code=null 매치는 신규 함수 진입 |
+| tsc + 전체 vitest | `npx tsc --noEmit` + `npx vitest run` | 0 에러 / 921+4 = 925/925 PASS (신규 케이스 추가만큼) |
+| Flutter v1 영향 | `/api/v1/...` 변경 0 | api/v1 grep — 변경 0 |
+| DB schema | prisma db push 미진입 | schema.prisma 변경 0 |
+
+📋 후속 PR 큐 (본 PR 범위 ❌ / 명시만)
+
+| PR | 내용 | 시점 |
+|----|------|------|
+| G5.5-followup-B | 매치 PATCH route 통합 — 매치 status="completed" 변경 시 (a) tournament 의 division_rule>0 → advanceAllDivisions / (b) division_rule=0 → advanceTournamentPlaceholders 자동 호출 분기 | 4차 뉴비리그 예선 6건 종료 직전 (5/16 D-Day or 5/17 분기 종료 직후) |
+| G5.5-NBA-seed | 8강/4강 NBA 시드 표준 generator (교차 시드 알고리즘 — A1 vs B2, B1 vs A2 / 같은 조 1R 회피 / 2^N 올림 / bye 처리) | 운영 사용처 0 — 본 4차 뉴비리그는 결승 단판이라 시드 알고리즘 불필요. 후속 협회배 진입 시 |
+| G5.7 | double_elimination generator | 운영 사용처 0 |
+| G5.8 | swiss generator | 운영 사용처 0 |
+
+📋 운영 적용 시점 (사용자 결재 후)
+
+| Phase | 시점 | 작업 |
+|-------|------|------|
+| A (즉시 / 5/16 전) | 사용자 결재 후 | scripts/_temp/seed-newbie4-final-placeholder.ts 실행 → 매치 232 UPDATE (notes + slot labels) → 결승 매치 카드 "A조 1위 vs B조 1위" 표시 |
+| B (예선 6건 종료 후) | 5/17 분기 종료 직후 | 매치 PATCH route 통합 (별 PR) 또는 운영자 manual `advanceTournamentPlaceholders()` trigger → standings 계산 → 매치 232 의 homeTeamId/awayTeamId UPDATE |
+
+📋 산출물 위치
+
+| 파일 | 변경 | LOC |
+|------|------|-----|
+| `src/lib/tournaments/division-advancement.ts` | `getTournamentStandings` + `advanceTournamentPlaceholders` 박제 | +~80 |
+| `src/__tests__/lib/tournaments/tournament-advancement.test.ts` | vitest 4 케이스 박제 | +~180 |
+| `scripts/_temp/seed-newbie4-final-placeholder.ts` | 매치 232 UPDATE 스크립트 (사용자 결재 후 1회성 실행) | +~70 |
+| `.claude/knowledge/decisions.md` | Tournament 단위 applier 분리 결정 박제 | +1 항목 |
+
+**총 신규 2 + 수정 2 / ~330 LOC** (이중 운영 DB UPDATE = 매치 232 row 1건만).
+
+→ **developer 진입 대기**.
+
 
 ## 援ы쁽 湲곕줉 (developer)
 
@@ -302,6 +447,7 @@
 ## ?묒뾽 濡쒓렇 (理쒓렐 10嫄?
 | ?좎쭨 | ?묒뾽 | 寃곌낵 |
 |------|------|------|
+| 2026-05-15 | PR-G5.5-followup 기획설계 — 4차 BDR 뉴비리그 (Tournament 443f23f8 / 5/16) 단판 결승 매치 232 placeholder 박제 자동화 + Tournament 단위 applier 분리 결정 | 설계 완료 / developer 진입 대기. 신규 advanceTournamentPlaceholders + getTournamentStandings (옵션 A 분리) / 매치 232 UPDATE SQL spec + vitest 4 케이스 명세 + 회귀 검증 (강남구 4 종별 영향 0) / decisions.md +1 항목 / 후속 PR 큐 4건. 5/16 마감 |
 | 2026-05-15 | PR-Live1~Live4 ?쇱씠釉?湲곕줉 吏꾩엯??+ ?쒕툝由??몃줈 ??ㅽ겕由?(Q1~Q7 沅뚭퀬?? | ???좉퇋 3 + ?섏젙 2 / ~300 LOC / tsc 0 / vitest 921/921 PASS / score-sheet-access endpoint (5 沅뚰븳 遺꾧린) + ?쇱씠釉?toolbar "湲곕줉?섍린" Link + score-sheet body overflow lock + FullscreenToggle 紐낆떆 踰꾪듉 / Flutter v1 ?곹뼢 0 / DB schema 蹂寃?0 / commit 寃곗옱 ?湲?|
 | 2026-05-15 | Phase 7 A PR2+PR3 E2E ?쒕굹由ъ삤 2 (?뚯감 蹂듭젣) + ?쒕굹由ъ삤 3 (1?뚯꽦 ??? 諛뺤젣 | ???좉퇋 2 + ?섏젙 1 / ~418 LOC / tsc 0 / vitest 921/921 PASS / ?댁쁺 肄붾뱶 蹂寃?0 / ?댁쁺 DB ?곹뼢 0 (?ㅽ뻾? ?ъ슜??寃利? / fixtures ?쒕뱶 ?ы띁 2 ?뺤옣 / commit 寃곗옱 ?湲?|
 | 2026-05-15 | Phase 23 PR-EDIT1~EDIT4 醫낅즺 留ㅼ튂 ?섏젙 紐⑤뱶 蹂꾨룄 湲곕뒫 (Q3~Q8 沅뚭퀬?? | ???섏젙 4 ?뚯씪 / +~370 LOC / tsc 0 / vitest 236/236 / canEdit (super/organizer/TAM) + isEditMode state + edit_mode body ?고쉶 + audit "completed_edit_resubmit" + ?섏젙 ?대젰 inline (Q7 ?듭뀡 A ??留ㅼ튂 ?곸꽭 ?섏씠吏 誘몄〈?щ줈 score-sheet ?몃씪?? / commit 寃곗옱 ?湲?|
@@ -726,3 +872,41 @@ EDIT4 inline ?쒖떆 = (1)~(4) 紐⑤몢 SELECT (context LIKE "completed_edit" O
 6. 沅뚰븳 ?뚭? ??recorder 吏꾩엯 ??踰꾪듉 誘몃끂異?(PR-RO 蹂댁〈).
 7. curl ?고쉶 ??edit_mode + recorder = 403 EDIT_FORBIDDEN.
 8. commit 寃곗옱 ??PM ?⑥씪/4遺꾪븷 寃곗젙 ??push.
+
+---
+
+## 구현 기록 (developer) — Admin-3 Phase 박제 (2026-05-15)
+
+📝 구현: tournament-admin wizard 페이지 상단 헤더 박제 — 시안 `AdminWizardTournament.jsx` v2.8.1 패턴.
+
+#### 시안 vs 의뢰서 갭 (사용자 결정 우선)
+- 의뢰서: AdminShell sidebarVariant='hidden' wrap (풀스크린) + 좌상단 백 링크
+- 실제 시안 (v2.8.1, 2026-05-15): sidebar 유지 + 좌상단 백 링크 ❌ + 우상단 × 종료 버튼
+- **시안 v2.8.1 채택** (사용자 최종 결정). 시안 source line 9~13 주석 명시.
+
+#### 변경 파일
+
+| 파일 | 변경 | LOC |
+|------|------|-----|
+| `src/app/(admin)/tournament-admin/tournaments/new/wizard/page.tsx` | QuickCreateForm 상단 헤더 — eyebrow "대회 운영자 도구 · 마법사 진행 중" + 우상단 × 종료 버튼 | +30 / -6 |
+
+#### 보존 검증
+- 60dd37e UI-2 1-step 압축 + 즉시 draft: handleCreate/POST/state 변경 0
+- 71b0eaa InlineSeriesForm: 보존
+- e8adc1a UI-1.5 / 8478a24 UI-3+4: LegacyWizardForm 미변경
+
+#### 룰 정합
+- admin 빨강 본문 금지: eyebrow Navy `var(--color-info)` ✅
+- pill 9999px ❌: `rounded-[4px]` ✅ / Material Symbols ✅
+
+#### tsc: exit 0 (errors 0)
+
+#### 시각 검증 영역 (tester)
+- `/tournament-admin/tournaments/new/wizard` 진입 → eyebrow + × 종료 노출
+- × 종료 → confirm → `/tournament-admin` 이동
+- POST 동작 변경 0 / sidebar 정상
+
+#### 잠재 위험
+- v2.7 풀스크린 → v2.8.1 sidebar 유지로 사용자 결정 갱신. 의뢰서 cli-port-to-src.md §3 추후 갱신 필요 (PM 판단).
+- `?legacy=1` 폼은 변경 0 (1주 후 폐기 예정 — skip 의도).
+
