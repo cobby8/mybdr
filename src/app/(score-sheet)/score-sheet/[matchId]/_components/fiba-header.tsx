@@ -151,6 +151,7 @@ export function FibaHeader({
               label="Competition"
               value={competitionName}
               grow={2}
+              allowWrap
             />
             <SSFieldDisplay label="Date" value={dateLabel ?? ""} />
             <SSFieldDisplay label="Time" value={timeLabel ?? ""} />
@@ -203,18 +204,37 @@ function SSFieldDisplay({
   label,
   value,
   grow = 1,
+  allowWrap = false,
 }: {
   label: string;
   value: string;
   grow?: 1 | 2 | 3;
+  /**
+   * 2026-05-15 (PR-Score-Sheet-Cleanup #49) — 긴 텍스트 wrap 허용.
+   *   default false = FIBA 종이 정합 (1줄 + ellipsis).
+   *   true = Competition 등 긴 대회명 wrap (2줄까지 확장, height auto).
+   */
+  allowWrap?: boolean;
 }) {
+  // 2026-05-15 — allowWrap 시 .ss-field__v 기본 룰 (nowrap + ellipsis) 우회.
+  //   inline style 로 white-space/height/line-height override (CSS 추가 없이 단일 컴포넌트).
+  const valueStyle: React.CSSProperties | undefined = allowWrap
+    ? {
+        whiteSpace: "normal",
+        textOverflow: "clip",
+        height: "auto",
+        minHeight: 16,
+        lineHeight: "13px",
+        wordBreak: "keep-all",
+      }
+    : undefined;
   return (
     <div className="ss-field" data-grow={grow}>
       {/* PR-S8 — .pap-lbl 클래스 병행 (시안 rev2 정합 / 기존 .ss-field>label 룰 호환 유지) */}
       <label className="pap-lbl">{label}</label>
       {/* 빈 값은 nbsp 박제 — underscore 가 빈 줄로 보존 (FIBA 종이 정합).
           PR-S8 — .pap-u 클래스 병행 (시안 rev2 정합). */}
-      <div className="ss-field__v pap-u">{value || " "}</div>
+      <div className="ss-field__v pap-u" style={valueStyle}>{value || " "}</div>
     </div>
   );
 }

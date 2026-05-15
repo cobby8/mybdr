@@ -406,9 +406,20 @@ export function ScoreSheetForm({
         return;
       }
       showToast("매치가 초기화되었습니다.", "success");
-      // 양식 빈 상태로 재진입 — draft 자동 로드도 reset 됨 (draft localStorage 는 별도 reset 필요 — 다음 PR)
+      // 2026-05-15 (사용자 추가 요청) — 기록 취소 시 선수 선택 (draft) 도 초기화 + 이전 페이지로 나가기.
+      //   reset 후 reload (같은 페이지) → 사용자 의도와 다름. router.back() 으로 진입 경로 (경기일정/대진표) 복귀.
+      //   draft localStorage 도 같이 삭제 (key = score-sheet-draft-{matchId}).
       if (typeof window !== "undefined") {
-        window.location.reload();
+        try {
+          window.localStorage.removeItem(DRAFT_KEY_PREFIX + match.id);
+        } catch {
+          /* localStorage 접근 실패 silent */
+        }
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = "/admin";
+        }
       }
     } catch (err) {
       console.error("[handleCancelRecord] fetch failed:", err);
@@ -660,23 +671,20 @@ export function ScoreSheetForm({
   }, []);
 
   // Phase 16 (2026-05-13) — 사전 확정 라인업 (initialLineup) 진입 시 P.IN 자동 체크 (mount 1회).
-  //   이유: handleLineupConfirm 와 동일한 자동 P.IN 룰 — 사전 라인업 (DB 박제) 으로 진입한
-  //     케이스도 동일하게 출전 명단 자동 체크 (사용자 결재 §1).
-  //   draft 복원 이전 mount 1회 — draft 복원이 playerIn 값을 덮어쓰면 그게 우선 (운영 중 reload).
+  // 2026-05-15 (PR-Score-Sheet-Cleanup) — 사용자 보고 "출전 안 한 선수도 P.IN 체크됨".
+  //   이전 박제: starters + substitutes 모두 P.IN=true → 경기에 한 번도 안 들어간 후보 선수도 체크됨 (FIBA 양식 룰 위반).
+  //   fix: **starters (5명) 만 P.IN=true 자동 박제**. substitutes 는 default false (교체 실제 들어올 때 기록원 수동 체크).
+  //   draft 복원 이전 mount 1회 — draft 복원 후 일부 P.IN=true 면 skip.
   useEffect(() => {
     if (!initialLineupComputed) return;
     setTeamA((prev) => {
-      // 이미 playerIn=true 가 일부 존재 (draft 복원 후) = skip (덮어쓰기 X)
       const hasAny = Object.values(prev.players).some((p) => p.playerIn);
       if (hasAny) return prev;
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [
-        ...initialLineupComputed.home.starters,
-        ...initialLineupComputed.home.substitutes,
-      ];
-      for (const id of allIds) {
+      // 2026-05-15 — starters 만 자동 P.IN=true (5명). substitutes 는 default false.
+      for (const id of initialLineupComputed.home.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -688,11 +696,7 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [
-        ...initialLineupComputed.away.starters,
-        ...initialLineupComputed.away.substitutes,
-      ];
-      for (const id of allIds) {
+      for (const id of initialLineupComputed.away.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -1298,8 +1302,10 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [...result.home.starters, ...result.home.substitutes];
-      for (const id of allIds) {
+      // 2026-05-15 (PR-Score-Sheet-Cleanup) — starters (5인) 만 P.IN=true 자동.
+      //   이전: starters + substitutes 모두 true → 한 번도 안 들어간 후보까지 체크되는 버그.
+      //   substitutes 는 후보 — 실제 교체 들어올 때 기록원이 수동 체크 (FIBA 양식 정합).
+      for (const id of result.home.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
@@ -1309,15 +1315,14 @@ export function ScoreSheetForm({
       const next: Record<string, { licence: string; playerIn: boolean }> = {
         ...prev.players,
       };
-      const allIds = [...result.away.starters, ...result.away.substitutes];
-      for (const id of allIds) {
+      for (const id of result.away.starters) {
         const existing = next[id] ?? { licence: "", playerIn: false };
         next[id] = { ...existing, playerIn: true };
       }
       return { ...prev, players: next };
     });
     showToast(
-      "라인업 확정 — 출전 명단 자동 P IN 체크 (스타팅 강조 표시)",
+      "라인업 확정 — 선발 5인 자동 P.IN 체크 (후보는 교체 시 수동 체크)",
       "info"
     );
   }
@@ -1487,31 +1492,10 @@ export function ScoreSheetForm({
         </div>
       )}
 
-      {/* Phase 23 (2026-05-14) — PBP 0건 + quarter_scores 만 있는 매치 안내 (사용자 결재 Q2).
-          이전에 paper 매치가 PBP 없이 quarter 점수만 박제된 케이스 (구버전 박제 흐름).
-          재박제 시 PBP 새로 생성 → 사용자가 빈 폼을 보고 박제하면 PBP 가 새로 누적됨. */}
-      {hasOnlyQuarterScores && (
-        <div
-          className="no-print mb-2 px-3 py-2 text-xs"
-          style={{
-            border: "1px solid var(--color-info)",
-            backgroundColor:
-              "color-mix(in srgb, var(--color-info) 10%, transparent)",
-            color: "var(--color-info)",
-          }}
-        >
-          <p className="font-semibold">
-            <span className="material-symbols-outlined mr-1 align-middle text-base">
-              info
-            </span>
-            PBP 없이 quarter 점수만 박제된 매치
-          </p>
-          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
-            기록을 재박제하면 새로운 PBP 가 생성됩니다. 기존 quarter 점수는
-            Period scores 박스에서만 확인할 수 있습니다.
-          </p>
-        </div>
-      )}
+      {/* 2026-05-15 (PR-Score-Sheet-Cleanup) — "PBP 없이 quarter 점수만 박제된 매치"
+          안내 박스 제거 (사용자 보고 — 기록원에게 혼선만 발생).
+          이전 박제는 운영 디버깅 용도였으나 기록원 입장 = 의미 불명 + 작업 흐름 방해.
+          필요시 super_admin 진단 페이지에서 재노출 검토. */}
 
       {/* Phase 19 PR-S2 (2026-05-14) — 시안 .ss-toolbar (back + 모드 토글 + 인쇄 + 경기 종료).
           위치 = PeriodColorLegend 직전 (frame 외부 최상단). 운영 함수 호출 100% 보존:
