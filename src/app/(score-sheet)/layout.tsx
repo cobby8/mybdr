@@ -30,7 +30,10 @@ import { RotationGuard } from "./_components/rotation-guard";
 import { BodyScrollLock } from "./_components/body-scroll-lock";
 // 2026-05-15 PR-Live4 — 풀스크린 명시 toggle 버튼 (태블릿 세로 ±10% viewport 회수).
 //   ThemeToggle 옆 thin bar 우상단 배치 (Q5 명시 버튼 룰).
-import { FullscreenToggle } from "./_components/fullscreen-toggle";
+// 2026-05-15 PR-Fullscreen-Clean — 풀스크린 진입 시 thin bar 자동 hidden + 우상단 X
+//   noflicker overlay 마운트 책임. ScoreSheetChrome client 컴포넌트로 분리.
+import { ScoreSheetChrome } from "./_components/score-sheet-chrome";
+import { FullscreenProvider } from "./_components/fullscreen-context";
 // PrintButton 컴포넌트는 삭제하지 않음 (다른 곳 사용 가능 / 향후 복원 대비) — import 만 제거.
 // Phase 6 — A4 세로 인쇄 CSS (@media print + 라이트 강제 + 5 영역 정합).
 //   본 import 는 score-sheet route group 안에서만 적용 — 기존 globals.css 의 박스스코어
@@ -65,30 +68,22 @@ export default function ScoreSheetLayout({
   // 방법: useToast() 훅이 score-sheet 안 client 컴포넌트에서 호출 가능하도록 root wrap.
   return (
     <ToastProvider>
-      {/* PR-Live3 — body overflow:hidden 자동 lock (cleanup 시 복원).
-          이유: 태블릿 세로 양식 외부 스크롤 차단 → 입력 집중 + 양식 정합성 보호.
-          DOM 0 effect 전용 컴포넌트 — 본 layout 의 children 흐름에 영향 0. */}
-      <BodyScrollLock />
-      <div
-        className="min-h-screen"
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
-        {/* Phase 19 PR-S2 — thin bar 단순화: 우상단 ThemeToggle 만 유지.
-            2026-05-15 PR-Live4 — FullscreenToggle 추가 (ThemeToggle 옆).
-            기존 "← 매치 관리로" Link + PrintButton 은 score-sheet-form 안 .ss-toolbar 가 흡수.
-            `no-print` = 인쇄 시 전체 thin bar 숨김 (FIBA 양식 정합) */}
-        <header
-          className="no-print flex items-center justify-end gap-1 px-3 py-1.5"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
+      <FullscreenProvider>
+        {/* PR-Live3 — body overflow:hidden 자동 lock (cleanup 시 복원). */}
+        <BodyScrollLock />
+        <div
+          className="min-h-screen"
+          style={{ backgroundColor: "var(--color-background)" }}
         >
-          {/* PR-Live4 — 풀스크린 toggle (iPad/태블릿 세로 권장 / iPhone silent fail try-catch). */}
-          <FullscreenToggle />
-          <ThemeToggle />
-        </header>
-
-        {/* 본문 = 풀스크린 (44px header 제외 viewport) */}
-        <RotationGuard>{children}</RotationGuard>
-      </div>
+          {/* 2026-05-15 PR-Fullscreen-Clean — header + 우상단 X overlay 책임을
+              ScoreSheetChrome client 컴포넌트가 통합. 풀스크린 시 thin bar
+              자동 hidden + 우상단 X floating 노출 (양식만 보이도록 정합). */}
+          <ScoreSheetChrome>
+            {/* RotationGuard = 태블릿 가로 시 회전 안내 */}
+            <RotationGuard>{children}</RotationGuard>
+          </ScoreSheetChrome>
+        </div>
+      </FullscreenProvider>
     </ToastProvider>
   );
 }

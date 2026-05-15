@@ -23,13 +23,20 @@
 
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useFullscreen } from "./fullscreen-context";
 
 interface ScoreSheetToolbarProps {
   gameNo?: number | string | null;
   onPrint: () => void;
   onEndMatch: () => void;
+  // 2026-05-15 (PR-Toolbar-Back) — backHref 제거, router.back() 으로 변경.
+  //   사용자 요청 = 경기일정/대진표에서 진입 시 그 페이지로 정확히 복귀 → router.back 가 정합.
+  //   기존 backHref 는 호환성 위해 유지 (전달 시 history 없으면 fallback).
   backHref?: string;
+  // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (form 에서 confirm modal + API 호출).
+  //   미전달 시 버튼 미노출 (점진 박제 안전망).
+  onCancelRecord?: () => void;
   // PR-S2 후속 fix 3 (2026-05-14) — "경기 종료" 버튼 disabled 분기 (유지).
   //   왜: 종료 후 (MatchEndButton.submitted=true) toolbar 버튼이 시각적으로 활성 잔존 →
   //   운영자 혼란. MatchEndButton 의 onSubmittedChange 콜백을 form 이 받아 본 prop 으로 전달.
@@ -56,6 +63,7 @@ export function ScoreSheetToolbar({
   onPrint,
   onEndMatch,
   backHref = "/admin",
+  onCancelRecord,
   endMatchDisabled,
   hideEndMatch, // Phase 23 PR-RO3 (2026-05-15) — 종료 매치 진입 시 버튼 숨김 (사용자 결재 Q2)
   // Phase 23 PR-EDIT1 (2026-05-15) — 수정 모드 props (사용자 결재 Q3 / Q4)
@@ -63,23 +71,45 @@ export function ScoreSheetToolbar({
   onEnterEditMode,
   isEditMode,
 }: ScoreSheetToolbarProps) {
+  const router = useRouter();
+  // 2026-05-15 (PR-Fullscreen-Clean) — 풀스크린 시 toolbar 자체 hidden (양식만 보이도록).
+  const { isFullscreen } = useFullscreen();
+
+  // 2026-05-15 (PR-Toolbar-Back) — 뒤로 = router.back() 우선. history 없으면 backHref fallback.
+  //   typeof window 가드 = SSR 안전 + history.length === 1 (직접 URL 진입) 케이스 fallback.
+  const handleBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(backHref);
+    }
+  };
   // 타이틀 표시: gameNo 가 있으면 "SCORESHEET · #{gameNo}" / 없으면 "SCORESHEET · #" 만
   const titleSuffix =
     gameNo !== null && gameNo !== undefined && String(gameNo).trim() !== ""
       ? `#${gameNo}`
       : "#";
 
+  // 풀스크린 모드에선 toolbar 자체 미렌더 (양식만 보이도록 — 사용자 요청).
+  if (isFullscreen) return null;
+
   return (
     // ss-shell = 토큰 활성화 / no-print = 인쇄 시 toolbar 전체 hidden
     <div className="ss-shell no-print">
       <div className="ss-toolbar">
-        {/* 좌측 — "← 메인" 링크 (기존 thin bar 의 ← 매치 관리로와 동일 href) */}
-        <Link href={backHref} className="ss-toolbar__back">
+        {/* 좌측 — "<" 뒤로 버튼 (router.back). 2026-05-15 (PR-Toolbar-Back):
+            경기일정 / 대진표에서 진입 시 그 페이지로 복귀 (라벨 "메인" 제거). */}
+        <button
+          type="button"
+          onClick={handleBack}
+          className="ss-toolbar__back"
+          aria-label="뒤로"
+          title="이전 페이지로"
+        >
           <span className="material-symbols-outlined" aria-hidden>
-            arrow_back
+            arrow_back_ios
           </span>
-          메인
-        </Link>
+        </button>
 
         {/* 중앙 — "SCORESHEET · #{gameNo}" 타이틀 (시안 mono 폰트) */}
         <div className="ss-toolbar__title">SCORESHEET · {titleSuffix}</div>
@@ -97,6 +127,29 @@ export function ScoreSheetToolbar({
           </span>
           인쇄
         </button>
+
+        {/* 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 (매치 완전 초기화).
+            onCancelRecord 콜백 (form 의 confirm modal + API 호출) 박제 시만 노출.
+            warning 색 (admin 룰 본문 빨강 금지 — warning 토큰).
+            종료 매치 진입 시 hideEndMatch=true / 수정 모드 진입 후에도 노출 (테스트 회수용). */}
+        {onCancelRecord && (
+          <button
+            type="button"
+            className="ss-toolbar__print"
+            onClick={onCancelRecord}
+            aria-label="기록 취소 — 매치 완전 초기화"
+            title="기록 취소 (되돌릴 수 없음)"
+            style={{
+              color: "var(--color-warning)",
+              border: "1px solid var(--color-warning)",
+            }}
+          >
+            <span className="material-symbols-outlined" aria-hidden>
+              restart_alt
+            </span>
+            기록 취소
+          </button>
+        )}
 
         {/* 경기 종료 — 기존 MatchEndButton 의 setOpen(true) 위임 (confirm modal + BFF submit).
             endMatchDisabled prop = 종료 후 시각 disabled 분기 (PR-S2 후속 fix 3 유지).

@@ -365,6 +365,57 @@ export function ScoreSheetForm({
   //   - warning_type = "completed_edit_mode_enter" (PR-RO4 의 cross-check-audit endpoint 재사용)
   //   - fire-and-forget (실패 시 console.warn / 진행 차단 안 함)
   //   - PR-RO2 의 mount 1회 audit (entry) 와는 별도 — toolbar 버튼 명시 진입 의도 박제.
+  // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 핸들러.
+  //   1. 경고 ConfirmModal (되돌릴 수 없음 명시)
+  //   2. 동의 시 /api/web/score-sheet/{matchId}/reset POST
+  //   3. 성공 시 toast + window.location.reload() (양식 빈 상태로 재진입)
+  //   4. 실패 시 toast (error)
+  //   권한: BFF 가 super_admin / organizer / TAM 만 통과 (recorder 차단).
+  async function handleCancelRecord() {
+    if (!canEdit) return; // recorder 단일 = 버튼이 이미 미노출이지만 이중 방어
+
+    const choice = await confirmModal({
+      title: "기록 취소 — 매치 완전 초기화",
+      message: (
+        <>
+          <p>이 매치의 모든 기록을 삭제하고 처음부터 다시 시작합니다.</p>
+          <ul className="mt-2 list-inside list-disc text-sm">
+            <li>득점/파울 (PBP), 선수 스탯, 라인업, 등번호 모두 삭제됩니다.</li>
+            <li>매치 상태가 &quot;예정&quot;으로 초기화됩니다.</li>
+            <li>되돌릴 수 없습니다. 운영자 책임으로 진행해주세요.</li>
+          </ul>
+        </>
+      ),
+      options: [
+        { value: "cancel", label: "취소" },
+        { value: "confirm", label: "기록 취소 (완전 초기화)", isDestructive: true },
+      ],
+    });
+    setConfirmState(null);
+
+    if (choice !== "confirm") return;
+
+    try {
+      const res = await fetch(`/api/web/score-sheet/${match.id}/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast(data.error ?? "기록 취소에 실패했습니다.", "error");
+        return;
+      }
+      showToast("매치가 초기화되었습니다.", "success");
+      // 양식 빈 상태로 재진입 — draft 자동 로드도 reset 됨 (draft localStorage 는 별도 reset 필요 — 다음 PR)
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error("[handleCancelRecord] fetch failed:", err);
+      showToast("네트워크 오류로 기록 취소에 실패했습니다.", "error");
+    }
+  }
+
   async function handleEnterEditMode() {
     if (!isCompleted) return; // 진행 매치 = 호출 불가 (안전망)
     if (!canEdit) return; // 권한 없음 = 호출 불가 (UI 버튼이 이미 미노출이지만 이중 방어)
@@ -1496,6 +1547,9 @@ export function ScoreSheetForm({
         canEdit={canEdit}
         onEnterEditMode={handleEnterEditMode}
         isEditMode={isEditMode}
+        // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (super/organizer/TAM 만).
+        //   recorder 단일 = 버튼 미노출 (canEdit 분기 재사용).
+        onCancelRecord={canEdit ? handleCancelRecord : undefined}
       />
 
       {/* Phase 20.1 (2026-05-13) — Legend 위치 = frame 외부 상단으로 이동 (사용자 보고 이미지 48 겹침 fix).
