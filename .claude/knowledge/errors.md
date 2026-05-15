@@ -2,6 +2,31 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-15] 순위결정전 매치 placeholder 누락 = 대진표 generator 결함 (강남구협회장배 사고)
+- **분류**: 대진표 생성 결함 / 시스템 차원 자동화 부재 / 운영 사용자 보고
+- **발견자**: pm (운영 mybdr.kr 강남구협회장배 유소년부 사용자 보고 — 2026-05-15)
+- **증상**: 운영 강남구협회장배 13 매치 (i3-U9 4 + i3-U14 3 + i3-U11 3 + i3w-U12 3) 의 `roundName="순위결정전"` 임에도 `homeTeamId`/`awayTeamId` 에 **실제 팀이 미리 박힘** → 예선 결과 무시 + advance-placeholders 자동 채움 회피 (homeTeamId NULL 조건 위배). 일정 탭 카드에 "위례삼성 vs 넥스트레벨" 같이 표시되어 사용자 의문 제기.
+- **근본 원인**:
+  - `league_advancement` (i3-U9) 와 `group_stage_with_ranking` (i3-U11/U14/i3w-U12) format 의 **generator 가 부재** → 운영자가 수동으로 매치 INSERT 시 실제 팀 박제
+  - `division-advancement.ts` 의 `generateGroupStageRankingPlaceholders` = **stub (return 0)** 상태로 박제
+  - 운영자가 매치 생성 시 `homeTeamId/awayTeamId=NULL` + `notes "A조 N위 vs B조 N위"` + `settings.homeSlotLabel/awaySlotLabel` 형식을 직접 박제해야 했지만 의도된 패턴 인지 부재
+- **fix 1 (즉시, commit 대기 외)**: `scripts/_temp/fix-gnba-playoff-placeholders.ts` — 13건 매치 UPDATE (`homeTeamId/awayTeamId=NULL` + `notes "A조 N위 vs B조 N위"` + `settings.home/awaySlotLabel`). 사후 검증 13/13 OK
+- **fix 2 (영구 차단, PR-G5 commit `eba655d`)**:
+  - `placeholder-helpers.ts` (신규 200 LOC) — `buildSlotLabel(5 kind)` + `buildPlaceholderNotes` + `parseSlotLabel` + `isStandingsAutoFillable`. ADVANCEMENT_REGEX 호환 형식 자동 생성 (운영자 수동 INSERT 시에도 헬퍼 통과만 거치면 안전)
+  - `planLeagueAdvancementPlaceholders` + `generateLeagueAdvancementMatches` (G5.3) — 링크제 순위전 매치 자동 INSERT
+  - `planGroupStageRankingPlaceholders` + `generateGroupStageRankingMatches` (G5.4) — stub 완성
+  - `single_elim` 트리 2R~ 매치에 `settings.homeSlotLabel` 자동 박제 (G5.6, `bracket/route.ts`)
+  - `public-bracket` API 직렬화에 `division/venueName/homeSlotLabel/awaySlotLabel` 4 필드 추가 (G5.9)
+- **재발 방지 룰**:
+  (a) **신규 format 도입 시 generator 동시 박제 의무** — enum/UI 만 박제하고 generator 를 stub 으로 두면 운영자 수동 INSERT 의존 → 형식 위반 위험. PR 분리 시에도 같은 stage 에 generator 포함
+  (b) **공통 헬퍼 (placeholder-helpers.ts) 통과 의무** — generator 가 인라인 문자열 박제 시 ADVANCEMENT_REGEX 호환 형식 위반 가능. `buildSlotLabel` + `buildPlaceholderNotes` 헬퍼만 사용
+  (c) **placeholder 매치 = `homeTeamId/awayTeamId=NULL` + `notes`(자동 채움용) + `settings.slotLabel`(UI 표시용) 3중 박제 표준** — 한쪽만 박제 시 자동 채움 또는 UI 표시 실패
+  (d) **idempotent 가드** — generator 재호출 시 같은 종별 + roundName="순위결정전" 매치 존재하면 skip (clear=true 명시 시만 재생성)
+  (e) **운영 매치 수동 INSERT 검증 도구** (PR-G7 후속 큐) — admin matches 페이지에 "⚠ 순위결정전 N건이 placeholder 형식이 아닙니다" 사전 배너
+- **참조**: `src/lib/tournaments/placeholder-helpers.ts:1-200`, `src/lib/tournaments/division-advancement.ts:240-560`, `src/app/api/web/tournaments/[id]/bracket/route.ts:517-548`, `src/app/api/web/tournaments/[id]/public-bracket/route.ts:35-50,367-400`
+- **참조횟수**: 0
+
+
 ### [2026-05-15] 코치 명단 제출 500 = `TournamentTeamPlayer` 등번호 array unique 가드 3중 누락 (Phase 1 유소년 도메인)
 - **분류**: DB unique 위반 → 500 / 클라이언트·서버 zod 가드 부재 / 운영 사용자 보고
 - **발견자**: pm (운영 mybdr.kr 강남구협회장배 유소년부 명단 수정 사용자 보고 — 2026-05-15)
