@@ -30,24 +30,14 @@ const STATUS_LABEL: Record<string, string> = {
   resolved: "완료",
 };
 
-// 상태별 .badge--soft inline color (default / warning / success)
-const STATUS_STYLE: Record<string, React.CSSProperties | undefined> = {
-  pending: undefined, // default = .badge--soft 기본
-  open: {
-    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-    color: "var(--color-warning)",
-    borderColor: "transparent",
-  },
-  in_progress: {
-    background: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
-    color: "var(--color-warning)",
-    borderColor: "transparent",
-  },
-  resolved: {
-    background: "color-mix(in srgb, var(--color-success) 12%, transparent)",
-    color: "var(--color-success)",
-    borderColor: "transparent",
-  },
+// 2026-05-15 Admin-5-A 박제 — 시안 admin-stat-pill[data-tone] 패턴
+// 시안 source: Dev/design/BDR-current/screens/AdminSuggestions.jsx (line 198~200)
+// 상태 → tone 매핑 (mute/warn/ok 만 사용 — 시안 status_tone)
+const STATUS_TONE: Record<string, string> = {
+  pending: "mute",
+  open: "warn",
+  in_progress: "warn",
+  resolved: "ok",
 };
 
 // 상태 전환 규칙
@@ -117,7 +107,8 @@ export function AdminSuggestionsContent({
                   {s.authorName ?? s.authorEmail ?? "-"}
                 </td>
                 <td data-label="상태" className="px-5 py-3">
-                  <span className="badge badge--soft" style={STATUS_STYLE[s.status]}>
+                  {/* 시안 admin-stat-pill[data-tone] 박제 */}
+                  <span className="admin-stat-pill" data-tone={STATUS_TONE[s.status] ?? "mute"}>
                     {STATUS_LABEL[s.status] ?? s.status}
                   </span>
                 </td>

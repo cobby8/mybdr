@@ -95,3 +95,64 @@
   3. `next/link` 신규 import (community/page.tsx) — server 컴포넌트 에서 사용 정합
   4. `admin-stat-pill` 클래스 — 이미 `src/styles/admin.css` 박제 완료 (Admin-1 commit `05caa04`) — 별도 CSS 추가 0
 - 미박제 갭 (의도): AdminDataTable / AdminFilterBar / 시안 footer / activity progress / mock toggle. 별 PR 권장.
+
+### Admin-5-A Phase 박제 — Users + GameReports + Suggestions (2026-05-15)
+
+📝 구현한 기능: BDR v2.14 시안 (`AdminUsers.jsx` / `AdminGameReports.jsx` / `AdminSuggestions.jsx`) 의 헤더(eyebrow + breadcrumbs + actions) + 역할/상태/플래그 뱃지(`admin-stat-pill[data-tone]`) 박제. Prisma 쿼리 / Server Action / fetch API / state / hook / 모달 폼 100% 보존.
+
+| 파일 경로 | 변경 내용 | 신규/수정 |
+|----------|----------|----------|
+| `src/app/(admin)/admin/users/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · USERS"` → `"ADMIN · 사용자"` (시안 카피 박제) + `breadcrumbs` + `actions` (신고 검토 링크). `next/link` import 1건 신규 | 수정 |
+| `src/app/(admin)/admin/users/admin-users-table.tsx` | `ROLE_STYLE` (inline CSS) → `ROLE_TONE` (admin-stat-pill data-tone 매핑). `statusBadge` 함수 `.badge--soft` → `admin-stat-pill[data-tone]` (active=ok / withdrawn=mute / suspended=err). USER_COLUMNS role 컬럼 + 모달 헤더 role pill 도 통일 | 수정 |
+| `src/app/(admin)/admin/game-reports/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 사용자"` + `breadcrumbs` + `actions` (유저 관리 링크) 추가. `statusBadge` return `{ bg, label }` → `{ tone, label }` 으로 시그니처 변경 (submitted=warn / reviewed=ok / dismissed=mute). 상태 뱃지 + 플래그 chip 모두 `admin-stat-pill[data-tone]` 통일. `next/link` import 1건 신규 | 수정 |
+| `src/app/(admin)/admin/suggestions/page.tsx` | AdminPageHeader 에 `eyebrow="ADMIN · 사용자"` + `breadcrumbs` 추가 | 수정 |
+| `src/app/(admin)/admin/suggestions/admin-suggestions-content.tsx` | `STATUS_STYLE` (inline CSS) → `STATUS_TONE` 매핑 (pending=mute / open=warn / in_progress=warn / resolved=ok). 테이블 상태 칼럼 `.badge--soft` → `admin-stat-pill[data-tone]` 통일 | 수정 |
+
+**비즈 로직 보존 검증 (grep diff)**:
+- users/page.tsx: prisma/Action/useState 등 비즈 키워드 21건 (변경 0 — header prop 만 변경 + Link import 추가)
+- users/admin-users-table.tsx: useState/useEffect/loadMoreAction/getDetailAction 등 39건 (변경 0 — ROLE_STYLE→ROLE_TONE / statusBadge className 만 갱신, 호출처 시그니처 동일)
+- game-reports/page.tsx: useState/useCallback/useEffect/fetch 8건 (변경 0 — statusBadge return shape `{bg→tone}` 만 변경, 사용처 destructure `badge.tone` 1행 동시 변경)
+- suggestions/page.tsx: prisma/Action 4건 (변경 0)
+- suggestions/admin-suggestions-content.tsx: useState/updateStatusAction 11건 (변경 0)
+
+**tsc 결과**: `npx tsc --noEmit` exit 0 (errors 0)
+
+**갭 / 미박제 항목 (Admin-4 패턴 동일)**:
+- `AdminDataTable` 미박제 → 기존 `DataTableV2` (users) / `<table className="admin-table">` (suggestions) 유지
+- `AdminFilterBar` 미박제 → 기존 검색 form 유지
+- 시안 다중 선택 bulk action (메시지/등급 변경/정지 / 나에게 배정/일괄 처리/반려 / 채택/반려) → 운영 미존재 → 박제 스킵
+- 시안 등급 컬럼 (VVIP/VIP/A/B/C/D/F) → 운영 user 모델에 등급 필드 없음 → 박제 스킵
+- 시안 신고 우선도 (critical/high/normal/low) → 운영 game_report 모델에 priority 필드 없음 → 박제 스킵
+- 시안 좋아요/싫어요/댓글수 → 운영 suggestions 모델에 upvote/downvote/comment_count 필드 없음 → 박제 스킵
+- 시안 mock state toggle / topbarRight admin-user 박스 → AdminShell 영역 (Admin-2 박제 완료) → 박제 스킵
+- 모달 footer 시안 액션 (메시지 보내기/등급 변경/계정 정지/정지 해제/휴면 해제 / 처리 완료/반려/재오픈 / 채택/반려) 일부 미박제 → 기존 운영 footer (강제탈퇴/완전 삭제 / 상태 변경 form) 보존
+- game-reports `검토/기각 PATCH` 기능 자체가 운영 미구현 ("추후 추가 예정") → 박제 스킵 (비즈 0 변경)
+
+💡 tester 참고:
+- **테스트 방법**:
+  1. `/admin/users` 진입 — 헤더에 "ADMIN · 사용자" eyebrow + breadcrumbs (ADMIN › 사용자 › 유저 관리) + 우측 "신고 검토로" Link 노출
+  2. 테이블 역할 칼럼 (일반유저/픽업호스트/팀장/대회관리자) `admin-stat-pill` (각 tone) 박제 확인
+  3. 상태 칼럼 (활성=초록/탈퇴=회색/정지=빨강) admin-stat-pill 박제 확인
+  4. 행 클릭 → 상세 모달 헤더의 역할/상태 pill 도 동일
+  5. `/admin/game-reports` 진입 — 헤더에 eyebrow + breadcrumbs + "유저 관리로" Link 노출
+  6. 상태 필터 탭 (검토 대기/검토 완료/기각/전체) 동작 / 카드 우측 상태 뱃지 admin-stat-pill (warn/ok/mute) 박제
+  7. 신고된 선수 행의 플래그 chip (노쇼/지각/매너 불량 등) admin-stat-pill[data-tone=err] (빨강) 박제
+  8. `/admin/suggestions` 진입 — 헤더에 eyebrow + breadcrumbs (ADMIN › 사용자 › 건의사항) 노출
+  9. 테이블 상태 칼럼 (대기=회색/접수됨=주황/처리중=주황/완료=초록) admin-stat-pill 박제
+- **정상 동작**:
+  - users: 검색/페이지네이션/역할 변경/슈퍼관리자 토글/정지·활성화/강제탈퇴/완전 삭제/긴급 변경 폼/배번 수정 — 100% 기존 동일
+  - game-reports: 상태 필터 탭 전환/리스트 fetch/페이지네이션 안내 — 100% 기존 동일
+  - suggestions: 검색/상태 필터 탭/모달 상태 변경 form — 100% 기존 동일
+- **주의할 입력**:
+  - users.membershipType: 0/1/2/3 외 값 (운영 DB 위반) → `getRoleInfo` fallback `tone="mute"` + `label=String(mt)` 처리
+  - users.status: "active"/"withdrawn"/null/기타 → null/기타 모두 "정지" (err) 폴백 (기존 동일)
+  - game_report.status: "submitted"/"reviewed"/"dismissed" 외 → "submitted" (warn) 폴백 (기존 동일)
+  - suggestion.status: "pending"/"open"/"in_progress"/"resolved" 외 → `STATUS_TONE` 미매치 시 "mute" 폴백 + `STATUS_LABEL` 미매치 시 raw status 표시
+
+⚠️ reviewer 참고:
+- 특히 봐줬으면 하는 부분:
+  1. `users/admin-users-table.tsx` 의 `ROLE_STYLE` 제거 — `ROLE_TONE` 만 export 안 되는 함수 내부에서 사용. `getRoleInfo` 시그니처 변경 (`style` → `tone`) 호출처 2곳 (USER_COLUMNS render / 모달 헤더) 동시 갱신 — 호출처 외부 0
+  2. `game-reports/page.tsx` 의 `statusBadge` return `{ bg, label }` → `{ tone, label }` 시그니처 변경 — 사용처 `style={{ backgroundColor: badge.bg }}` → `data-tone={badge.tone}` 1곳 동시 갱신
+  3. `next/link` 신규 import 2건 (users/page.tsx server / game-reports/page.tsx client) — 정합
+  4. `admin-stat-pill` 클래스 — 이미 admin.css 박제 완료 (Admin-1 commit `05caa04`)
+- 미박제 갭 (의도): AdminDataTable / AdminFilterBar / 시안 등급 컬럼 / 우선도 / upvote / mock toggle / bulk action / 시안 footer 액션 일부. 별 PR 권장.
