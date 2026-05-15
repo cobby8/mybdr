@@ -39,6 +39,8 @@ import {
   computeFinalScore,
   toQuarterScoresJson,
 } from "@/lib/score-sheet/running-score-helpers";
+// 2026-05-15 (PR-D / P2-7) — buildSubmitPayload 외부 추출 (순수 함수, vitest 가능).
+import { buildSubmitPayload as buildSubmitPayloadHelper } from "@/lib/score-sheet/build-submit-payload";
 import type { FoulsState, FoulType } from "@/lib/score-sheet/foul-types";
 import { EMPTY_FOULS } from "@/lib/score-sheet/foul-types";
 import {
@@ -1440,107 +1442,28 @@ export function ScoreSheetForm({
   //   - running_score: position-mark 시계열 (PaperPBP score event 박제 source)
   //   - fouls: P/T/U/D 종류 + period (PaperPBP foul event 박제 source)
   //   - referee_main / umpire1 / umpire2 = header state 의 audit context 박제
+  // 2026-05-15 (PR-D / P2-7) — buildSubmitPayload 외부 추출.
+  //   lib/score-sheet/build-submit-payload.ts 가 순수 함수로 박제. vitest 가능.
+  // 2026-05-16 (PR-Possession-3) — possession 키 추가 박제 (openingJumpBall 박혀있을 때만).
   function buildSubmitPayload(): unknown {
-    const final = computeFinalScore(runningScore);
-    const quarterScores = toQuarterScoresJson(runningScore);
-    // Phase 5 — signatures payload 박제.
-    //   이유: BFF 가 match.settings.signatures JSON 으로 merge UPDATE (Phase 4 timeouts 패턴 재사용).
-    //   notes 는 별도 컬럼 (TournamentMatch.notes) 박제 — BFF route 의 별도 update 흐름 활용.
-    //   빈 값 키는 schema optional 로 자동 제거 (전송 부하 최소화 — 빈 객체면 통째 생략).
-    const hasAnySig =
-      signatures.scorer ||
-      signatures.asstScorer ||
-      signatures.timer ||
-      signatures.shotClockOperator ||
-      signatures.refereeSign ||
-      signatures.umpire1Sign ||
-      signatures.umpire2Sign ||
-      signatures.captainSignature;
-    return {
-      home_score: final.homeTotal,
-      away_score: final.awayTotal,
-      quarter_scores: quarterScores,
-      running_score: runningScore,
+    return buildSubmitPayloadHelper({
+      runningScore,
       fouls,
-      // Phase 4 — timeouts (match.settings.timeouts JSON 박제)
       timeouts,
-      // Phase 19 PR-Stat3 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) BFF 전달.
-      //   사용자 결재 Q3 = match_player_stats 직접 박제 (DB 변경 0).
-      //   submit/route.ts 의 buildPlayerStatsFromRunningScore 가 본 값을 합산하여
-      //   MatchPlayerStat 의 oreb/dreb/ast/stl/blk/to 컬럼에 박제.
-      //   빈 record (= EMPTY_PLAYER_STATS) 도 그대로 전송 (BFF 가 0건 case 처리).
-      player_stats_input: playerStats,
-      // Phase 5 — signatures (match.settings.signatures JSON 박제). 빈 객체면 생략
-      ...(hasAnySig
-        ? {
-            signatures: {
-              scorer: signatures.scorer || undefined,
-              asstScorer: signatures.asstScorer || undefined,
-              timer: signatures.timer || undefined,
-              shotClockOperator: signatures.shotClockOperator || undefined,
-              refereeSign: signatures.refereeSign || undefined,
-              umpire1Sign: signatures.umpire1Sign || undefined,
-              umpire2Sign: signatures.umpire2Sign || undefined,
-              captainSignature: signatures.captainSignature || undefined,
-            },
-          }
-        : {}),
-      // Phase 7-B — lineup (MatchLineupConfirmed upsert 박제). 미선택 = 생략.
-      //   BFF 가 starters/substitutes 배열 받아 upsert (매치당 home/away 각 1건).
-      //   향후 팀장 사전 제출 기능 = 같은 모델 upsert → 단일 source.
-      ...(lineup
-        ? {
-            lineup: {
-              home: {
-                starters: lineup.home.starters,
-                substitutes: lineup.home.substitutes,
-              },
-              away: {
-                starters: lineup.away.starters,
-                substitutes: lineup.away.substitutes,
-              },
-            },
-          }
-        : {}),
-      // PR-Possession-3 (2026-05-16) — 공격권 (Possession Arrow) BFF 전달.
-      //
-      //   왜 (이유):
-      //     UI state 의 possession (arrow + openingJumpBall + heldBallEvents) 을 BFF 에 전달 →
-      //     BFF 가 possessionToPBPInputs 로 변환하여 play_by_plays 에 박제 (jump_ball / held_ball).
-      //     score events / foul events 와 동일 path (PlayByPlayInput[]) — service idempotent 흐름 그대로.
-      //
-      //   방법 (어떻게):
-      //     - openingJumpBall === null = 미박제 = 키 통째 생략 (BFF 가 optional 처리 — 운영 동작 보존)
-      //     - 박제 됐으면 = arrow + openingJumpBall + heldBallEvents 그대로 직렬화
-      //
-      //   보존:
-      //     - match.settings.possession JSON 박제는 PR-2 이미 완료 (mid-game reload 복원용) — 본 PR 영향 0
-      //     - 본 PR = PBP 박제만 (jump_ball / held_ball 액션 타입)
-      ...(possession.openingJumpBall !== null
-        ? {
-            possession: {
+      playerStats,
+      signatures,
+      header,
+      lineup,
+      isEditMode,
+      possession:
+        possession.openingJumpBall !== null
+          ? {
               arrow: possession.arrow,
               openingJumpBall: possession.openingJumpBall,
               heldBallEvents: possession.heldBallEvents,
-            },
-          }
-        : {}),
-      status: "completed" as const,
-      referee_main: header.referee || undefined,
-      referee_sub1: header.umpire1 || undefined,
-      referee_sub2: header.umpire2 || undefined,
-      // Phase 5 — notes (TournamentMatch.notes 컬럼 — BFF route 의 기존 별도 update 흐름).
-      //   빈 문자열은 BFF 가 무시 (overwrite 안 함).
-      notes: signatures.notes || undefined,
-      // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 우회 신호 (사용자 결재 Q8 = MATCH_LOCKED 우회).
-      //
-      //   BFF 가 status="completed" 매치 = 423 거부 (PR-RO4). 본 키 = true 일 때 BFF 가 권한 검증
-      //   후 거부 우회 (requireScoreSheetEditAccess 통과 시 통과).
-      //
-      //   isEditMode=false 시 = 키 미박제 (BFF 가 423 그대로 거부 — RO 차단 유지).
-      //   isEditMode=true 시 = 키 박제 → BFF 우회 + audit 박제.
-      ...(isEditMode ? { edit_mode: true } : {}),
-    };
+            }
+          : undefined,
+    });
   }
 
   // Phase 7-B — 출전 명단 필터 + isStarter 재계산.

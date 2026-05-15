@@ -361,6 +361,15 @@ export function V2BracketWrapper({
             {isDual ? (
               hasKnockout ? (
                 <V2DualBracketView rounds={rounds} tournamentId={tournamentId} />
+              ) : divisionRules.length >= 1 ? (
+                // 2026-05-16 PR-Public-1 fix — format=dual_tournament 이지만 다종별 대회 (강남구협회장배 등)
+                // = 종별 view 우선. dual_tournament 단일 토너먼트 대회는 영향 0 (divisionRules=0 분기 그대로).
+                <DivisionsView
+                  divisionRules={divisionRules}
+                  divisionStandings={d.divisionStandings ?? []}
+                  groupTeams={groupTeams}
+                  leagueMatches={d.leagueMatches ?? []}
+                />
               ) : (
                 <BracketEmpty tournamentId={tournamentId} />
               )
