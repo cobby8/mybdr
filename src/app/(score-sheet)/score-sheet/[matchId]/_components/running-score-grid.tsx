@@ -76,6 +76,9 @@ interface RunningScoreGridProps {
   readOnly?: boolean;
   // Phase 8 — frameless 모드. 단일 외곽 박스 안에서 자체 border 제거.
   frameless?: boolean;
+  // 2026-05-15 — 쿼터 종료 trigger. 헤더 "Running Score" 라벨 우측 작은 버튼.
+  //   FIBA 표준 양식 정합 (별도 큰 버튼 영역 없음) — 사용자 요청.
+  onEndPeriod?: () => void;
   // PR-S6 (2026-05-14 rev2 롤백) — mode prop 제거. 시안 rev2 가 모드 토글을 제거하면서
   // 단일 모드 (= 기존 detail 동작) 통일. 호출자 (score-sheet-form.tsx) 도 mode 미전달.
 }
@@ -104,6 +107,7 @@ export function RunningScoreGrid({
   disabled,
   readOnly, // Phase 23 PR-RO1 (2026-05-15) — 종료 매치 cell 클릭 차단 (사용자 결재 Q2)
   frameless,
+  onEndPeriod, // 2026-05-15 — 헤더 우측 쿼터 종료 작은 버튼 (FIBA 양식 정합).
 }: RunningScoreGridProps) {
   // 모달 컨텍스트 — null 이면 모달 닫힘
   const [modalContext, setModalContext] = useState<ModalContext | null>(null);
@@ -228,9 +232,30 @@ export function RunningScoreGrid({
         <div className="text-[16px] font-bold uppercase tracking-wider" style={{ color: "var(--pap-ink)" }}>
           Running Score
         </div>
-        <div className="text-[10px]" style={{ color: "var(--pap-hair)" }}>
-          P{state.currentPeriod} · 1탭=입력 / 마지막=해제
-        </div>
+        {/* 2026-05-15 — 우측 안내 텍스트 ("P1·1탭=입력 / 마지막=해제") 제거.
+            대신 쿼터 종료 작은 버튼 배치 (FIBA 양식 정합 — 기존 큰 빨강 버튼 영역 제거). */}
+        {onEndPeriod && (
+          <button
+            type="button"
+            onClick={onEndPeriod}
+            disabled={disabled || readOnly || state.currentPeriod >= 9}
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold disabled:opacity-40"
+            style={{
+              border: "1px solid var(--color-accent)",
+              backgroundColor: "color-mix(in srgb, var(--color-accent) 12%, transparent)",
+              color: "var(--color-accent)",
+              borderRadius: 3,
+              touchAction: "manipulation",
+            }}
+            aria-label={`현재 P${state.currentPeriod} 종료`}
+            title={`P${state.currentPeriod} 종료`}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              stop_circle
+            </span>
+            P{state.currentPeriod} 종료
+          </button>
+        )}
       </div>
 
       {/* Phase 18 (2026-05-13) — 4 세트 × 4 sub-column = 16 컬럼 가로 배치.
