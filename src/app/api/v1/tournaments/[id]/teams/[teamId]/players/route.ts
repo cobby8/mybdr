@@ -1,3 +1,7 @@
+// 2026-05-16: match_player_jersey resolver 미적용 — 매치 컨텍스트 없는 팀 영구 명단 endpoint.
+// POST = 선수 등록 (ttp.jerseyNumber 직접 INSERT — 본 컬럼이 source-of-truth 자체).
+// GET = 팀 선수 명단 증분 동기화 (Flutter 앱 캐싱용, 매치 무관). 두 경로 모두 resolver 적용 대상 아님.
+// 매치별 정확값은 v1/matches/[id]/stats / roster (이미 PR5 적용) 가 담당.
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { withErrorHandler, type AuthContext } from "@/lib/api/middleware";

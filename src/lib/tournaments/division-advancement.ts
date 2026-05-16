@@ -159,6 +159,28 @@ export async function advanceDivisionPlaceholders(
   tournamentId: string,
   divisionCode: string,
 ): Promise<AdvanceResult> {
+  // 2026-05-16 사고 fix — 예선 종료 가드 (i3w-U12 사고 영구 차단).
+  //   사용자 보고: 예선 시작 전 (매치 0건 완료) standings 모두 0 → 동순위 → 임의 매핑으로 placeholder 박제.
+  //   룰: 종별 예선 매치 (roundName "순위" 미포함) status=completed 가 1건 이상이어야 advancer 진입.
+  //   0건 = 동순위 = name asc 임의 정렬 = 잘못된 박제 → skip 으로 보호.
+  const prelimCompleted = await prisma.tournamentMatch.count({
+    where: {
+      tournamentId,
+      settings: { path: ["division_code"], equals: divisionCode },
+      status: "completed",
+      NOT: { roundName: { contains: "순위" } },
+    },
+  });
+  if (prelimCompleted === 0) {
+    return {
+      divisionCode,
+      updated: 0,
+      skipped: 0,
+      errors: [{ matchId: "(advancer-guard)", reason: "예선 매치 0건 완료 — standings 결정 불가 / advancer skip" }],
+      standings: [],
+    };
+  }
+
   // 1) standings 계산
   const standings = await getDivisionStandings(prisma, tournamentId, divisionCode);
 
