@@ -1,3 +1,8 @@
+// 2026-05-16: match_player_jersey resolver 미적용 — 매치 컨텍스트 없는 정적 명단 dump.
+// 응답 players[].jersey_number = ttp 영구값 (선수당 1번호, 매치 무관). matches[] 배열은 별도이며
+// players 와 join 안 됨 → 매치별 jersey 매핑 응답 스키마상 표현 불가. Flutter 앱은 매치 진입 시
+// v1/matches/[id]/stats (이미 PR5 적용) 또는 roster 를 호출해 그 매치의 정확값을 받음.
+// 따라서 본 full-data dump 는 ttp.jerseyNumber 직접 사용이 정답.
 import { NextRequest } from "next/server";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { apiSuccess, notFound, forbidden } from "@/lib/api/response";

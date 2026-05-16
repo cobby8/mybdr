@@ -1,3 +1,7 @@
+// 2026-05-16: match_player_jersey resolver 미적용 — 매치 컨텍스트 없는 GET (선수 시즌통계).
+// 응답 player.jerseyNumber = ttp 1건 대표 영구값 (대회 등록 시점). 본 endpoint 는 다중 매치 stats 를
+// 집계만 수행하며 jersey 와 매치 매핑은 응답 스키마상 표현 불가 → ttp.jerseyNumber 직접 사용이 정답.
+// (매치별 정확값은 v1/matches/[id]/stats 가 담당 — 이미 PR5 적용 완료)
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
