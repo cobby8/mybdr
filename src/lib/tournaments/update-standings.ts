@@ -112,7 +112,7 @@ export async function updateTeamStandings(
     matchesWhere.settings = { path: ["division_code"], equals: divisionCode };
   }
 
-  const completedMatches = await prisma.tournamentMatch.findMany({
+  const rawCompletedMatches = await prisma.tournamentMatch.findMany({
     where: matchesWhere,
     select: {
       id: true,
@@ -121,8 +121,16 @@ export async function updateTeamStandings(
       homeScore: true,
       awayScore: true,
       winner_team_id: true,
+      roundName: true,
     },
   });
+  // 2026-05-16 사고 fix — 순위전 매치는 standings 에서 제외 (예선 결과만 standings 반영).
+  //   사용자 보고: i3-U11 순위전 결과가 standings (예선 결과 표시) 에 합산되어 잘못된 순위 표시.
+  //   룰: roundName 가 "순위" 포함 (순위결정전 / 순위전 / 동순위전 등) = 순위전 = 제외.
+  //   placeholder-helpers 의 RANKING_ROUND_REGEX 와 동일 정규식.
+  const completedMatches = rawCompletedMatches.filter(
+    (m) => !m.roundName || !/순위/.test(m.roundName),
+  );
 
   // 무승부 매치도 standings 에 포함 — winner_team_id NOT NULL 필터 후 별도 SELECT 1건
   // 사유: 현 비즈니스 룰상 무승부 매치도 PF/PA + draws 박제 의무.
@@ -141,7 +149,7 @@ export async function updateTeamStandings(
   if (divisionCode !== null) {
     drawMatchesWhere.settings = { path: ["division_code"], equals: divisionCode };
   }
-  const drawMatches = await prisma.tournamentMatch.findMany({
+  const rawDrawMatches = await prisma.tournamentMatch.findMany({
     where: drawMatchesWhere,
     select: {
       id: true,
@@ -149,8 +157,13 @@ export async function updateTeamStandings(
       awayTeamId: true,
       homeScore: true,
       awayScore: true,
+      roundName: true,
     },
   });
+  // 동일 룰 — 순위전 무승부 매치도 예선 standings 에서 제외
+  const drawMatches = rawDrawMatches.filter(
+    (m) => !m.roundName || !/순위/.test(m.roundName),
+  );
 
   // ─────────────────────────────────────────────────────────────────────
   // 3. in-memory 합산 (영향 받는 2 팀: home + away 만 계산)
