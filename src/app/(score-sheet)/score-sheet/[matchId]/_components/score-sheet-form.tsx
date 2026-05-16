@@ -760,7 +760,136 @@ export function ScoreSheetForm({
             </ol>
           </section>
 
-          {/* (6) 수정 기능 — 신규 박제 (기록수정 / 라인업 재선택 / 이전 쿼터). */}
+          {/* (6) 벤치 테크니컬 파울 (B/C) — 2026-05-17 신규 박제 (사용자 지시).
+              왜: 운영자가 Coach row 우측 3 cells 클릭 → C/B 선택 모달 흐름을 모달 한 번에 파악.
+              비개발자 표현 = "C 파울 = 코치 본인 위반" / "B 파울 = 어시스트 또는 벤치 인원 위반"
+              FIBA Article 36.3 (Coach T) / 36.4 (Bench T). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                psychology_alt
+              </span>
+              벤치 테크니컬 파울 (B/C)
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                <strong style={emphasisStyle}>C 파울 (Head Coach 본인 위반)</strong> — 헤드 코치가
+                직접 룰을 어겼을 때 (예: 심판에게 거칠게 항의, 의자 차기 등). 모든 책임이
+                <em> 헤드 코치 본인</em>에게 박제됩니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>B 파울 (어시 코치 / 벤치 인원 위반)</strong> —
+                어시스턴트 코치, 대체 선수, 팀 관계자가 위반했을 때. 그러나 결국
+                <em> 헤드 코치 책임</em>으로 누적 박제됩니다 (FIBA 룰 — 벤치 통솔 책임).
+              </li>
+              <li>
+                <strong style={emphasisStyle}>입력 방법</strong> — Coach 행 <em>우측 빈 cell</em>을
+                누르면 작은 창이 떠서 <em>Head Coach (C)</em> / <em>Head Coach (B)</em> /
+                <em> Asst Coach (B)</em> 중 하나를 고를 수 있습니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>누적 룰 / 추방 자동 알림</strong> —
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>Head Coach <em>누적 3개</em> (C×2 또는 C×1+B×2 또는 B×3) → 자동 추방 + toast 알림</li>
+                  <li>Asst Coach <em>누적 2개</em> → 추방</li>
+                  <li>추방되면 4번째 cell 은 자동으로 잠겨서 더 누를 수 없습니다.</li>
+                </ul>
+              </li>
+              <li>
+                <strong style={emphasisStyle}>자유투 부여</strong> — 벤치 테크니컬 1건 당
+                <em> 상대 자유투 1개</em>가 부여됩니다. 자유투는 운영자가 Running Score 영역에서
+                <em> 별도로 1점</em>을 마킹해주세요 (자동 박제 아님).
+                <span className="block text-xs" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+                  (FIBA 공식 룰 Article 36.3 / 36.4)
+                </span>
+              </li>
+            </ol>
+          </section>
+
+          {/* (7) 딜레이 오브 게임 (W/T) — 2026-05-17 신규 박제 (사용자 지시).
+              왜: Team fouls 박스 안 좌측 [W][T1~T5] cells 자동 분기 (1차=W / 2차+=T) 흐름 운영자 인지.
+              비개발자 표현 = "공 안 잡음 / 라인 밟기 / 던지기 전 상대 공 만짐 등".
+              FIBA Article 36.2.3. */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                schedule
+              </span>
+              딜레이 오브 게임 (지연 위반)
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                <strong style={emphasisStyle}>어떤 상황에 박제하나요?</strong> — 경기 흐름을
+                지연시키는 사소한 위반들입니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>슛 후 공을 빨리 안 잡고 미루는 경우</li>
+                  <li>Throw-in (사이드 인) 할 때 라인 밟기</li>
+                  <li>던지기 전에 상대 팀 공을 만지는 경우 등</li>
+                </ul>
+              </li>
+              <li>
+                <strong style={emphasisStyle}>1차 위반 = 경고 (W)</strong> — 매치당 <em>1회만</em>
+                자동으로 W (Warning) 가 박제됩니다. 점수 변동은 없습니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>2차 이후 위반 = 테크니컬 파울 (T)</strong> —
+                같은 팀의 두 번째 지연 위반부터는 자동으로 <em>T (Technical Foul)</em> 로
+                박제됩니다. <em>상대 팀 자유투 1개</em>가 부여됩니다 (운영자가 Running Score 영역에서
+                별도로 1점 마킹).
+              </li>
+              <li>
+                <strong style={emphasisStyle}>입력 방법</strong> — Team fouls 박스 안 좌측
+                <em> Delay [W][T1~T5]</em> cells 를 차례로 누르면 됩니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>첫 번째 클릭 = 자동 <strong>W (경고)</strong> 박제</li>
+                  <li>두 번째 클릭부터 = 자동 <strong>T (자유투 1개)</strong> 박제</li>
+                </ul>
+                <span className="block text-xs" style={{ color: "var(--color-text-muted)", marginTop: 4 }}>
+                  (FIBA 공식 룰 Article 36.2.3)
+                </span>
+              </li>
+            </ol>
+          </section>
+
+          {/* (8) i3 종별 자동 전후반 모드 — 2026-05-17 신규 박제 (사용자 지시).
+              왜: i3 종별 매치는 자동으로 전후반 모드 진입 / 운영자 토글 불필요.
+              4쿼터 매치와 자동 분기 (라벨 / 모달 / 라이브 점수). */}
+          <section style={sectionBoxStyle}>
+            <h3 style={sectionH3Style}>
+              <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
+                category
+              </span>
+              i3 종별 자동 전후반 모드
+            </h3>
+            <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
+              <li>
+                <strong style={emphasisStyle}>i3 종별이란?</strong> — 유소년 / 청소년 종별
+                (예: <em>i3-U9, i3-U12, i3-U14</em> 등) 으로, 4쿼터가 아닌
+                <em> 전반·후반 2 피리어드</em> 로 진행됩니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>자동 전환</strong> — i3 종별 매치에 진입하면 화면이
+                자동으로 <em>전후반 모드</em>로 바뀝니다. 운영자가 따로 모드 토글을 누를 필요가
+                없습니다.
+              </li>
+              <li>
+                <strong style={emphasisStyle}>자동 분기 표시</strong> — 4쿼터 매치와 차이가
+                자동으로 적용됩니다.
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                  <li>쿼터 라벨 = <em>전반 / 후반 / OT</em> (Q1/Q2/Q3/Q4 ❌)</li>
+                  <li>후반 종료 모달 = "후반 종료" 안내</li>
+                  <li>라이브 페이지 점수 표시 = 전후반 합산 자동</li>
+                </ul>
+              </li>
+              <li>
+                <strong style={emphasisStyle}>혼합 운영 시 직접 토글</strong> — 같은 대회 안에
+                4쿼터 종별 + i3 종별이 섞여있을 때, 운영자가 직접 모드를 ON/OFF 할 수
+                있습니다. (드물게 사용)
+              </li>
+            </ol>
+          </section>
+
+          {/* (9) 수정 기능 — 신규 박제 (기록수정 / 라인업 재선택 / 이전 쿼터). */}
           <section style={sectionBoxStyle}>
             <h3 style={sectionH3Style}>
               <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
@@ -794,7 +923,7 @@ export function ScoreSheetForm({
             </ol>
           </section>
 
-          {/* (7) 전체화면 / 인쇄 — 신규 박제 (toolbar 전체화면 버튼 + ESC). */}
+          {/* (10) 전체화면 / 인쇄 — 신규 박제 (toolbar 전체화면 버튼 + ESC). */}
           <section style={sectionBoxStyle}>
             <h3 style={sectionH3Style}>
               <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
