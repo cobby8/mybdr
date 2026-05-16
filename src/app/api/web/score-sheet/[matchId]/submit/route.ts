@@ -461,6 +461,71 @@ const submitSchema = z.object({
   //   박제 위치 = match.settings.period_format JSON (timeouts / signatures merge 패턴 재사용).
   //   라이브 페이지 = /api/live/[id] 응답의 period_format 키로 라벨 분기.
   period_format: z.enum(["halves", "quarters"]).optional(),
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //
+  //   bench_technical = settings.bench_technicals JSON snapshot (Head Coach 누적 박제).
+  //     home/away 각각 head[] 배열 (kind: C / B_HEAD / B_BENCH + period 박제).
+  //     assistant 필드 = 호환성 보존용 ([] 고정 — 현재 미사용).
+  //
+  //   delay_of_game = settings.delay_of_game JSON snapshot.
+  //     home/away 각각 { warned: boolean, technicals: number }.
+  //     1차 W (점수 영향 0) / 2차+ T (자유투 1개 — 운영자 수동 박제).
+  //
+  //   미전달 = settings 갱신 0 (운영 동작 보존 / 구버전 매치 영향 0).
+  bench_technical: z
+    .object({
+      home: z.object({
+        head: z
+          .array(
+            z.object({
+              kind: z.enum(["C", "B_HEAD", "B_BENCH"]),
+              period: z.number().int().min(1).max(20),
+            }),
+          )
+          .max(10),
+        assistant: z
+          .array(
+            z.object({
+              kind: z.enum(["C", "B_HEAD", "B_BENCH"]),
+              period: z.number().int().min(1).max(20),
+            }),
+          )
+          .max(10)
+          .default([]),
+      }),
+      away: z.object({
+        head: z
+          .array(
+            z.object({
+              kind: z.enum(["C", "B_HEAD", "B_BENCH"]),
+              period: z.number().int().min(1).max(20),
+            }),
+          )
+          .max(10),
+        assistant: z
+          .array(
+            z.object({
+              kind: z.enum(["C", "B_HEAD", "B_BENCH"]),
+              period: z.number().int().min(1).max(20),
+            }),
+          )
+          .max(10)
+          .default([]),
+      }),
+    })
+    .optional(),
+  delay_of_game: z
+    .object({
+      home: z.object({
+        warned: z.boolean(),
+        technicals: z.number().int().min(0).max(20),
+      }),
+      away: z.object({
+        warned: z.boolean(),
+        technicals: z.number().int().min(0).max(20),
+      }),
+    })
+    .optional(),
 });
 
 export async function POST(
@@ -775,13 +840,197 @@ export async function POST(
     });
   }
 
-  // 통합 — score + foul + possession events 한 배열 (service idempotent — local_id 단위)
+  // 4-4) 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36) → PBP events.
+  //
+  //   왜 (이유):
+  //     FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 종이 양식 박제 후
+  //     PBP action_subtype 박제 (이력 추적 / 감사용). action_type = "foul" 통일 + subtype 분기.
+  //
+  //   박제 룰:
+  //     - action_type = "foul" (live API + 통산 stat 호환 — fouls 누적 +1)
+  //     - action_subtype = "B_HEAD" / "B_BENCH" / "C" / "DELAY_W" / "DELAY_T" (신규 5종)
+  //     - tournament_team_player_id = lineup.starters[0] 폴백 (코치/팀 단위 = 선수 미식별)
+  //     - lineup 미전송 = 본 PBP 박제 skip (안전망 — 운영 영향 0)
+  //     - points_scored = 0 (점수 영향 0 — 자유투는 운영자가 별도 Running Score 박제)
+  //     - period = entry.period (Bench Tech) / currentPeriod 또는 1 (Delay - period state 미박제)
+  const benchAndDelayEvents: PlayByPlayInput[] = [];
+  const homeStarter0 = input.lineup?.home.starters[0] ?? null;
+  const awayStarter0 = input.lineup?.away.starters[0] ?? null;
+
+  if (input.bench_technical) {
+    if (!match.homeTeamId || !match.awayTeamId) {
+      return apiError(
+        "매치에 양 팀이 배정되지 않았습니다. 운영자에게 문의해주세요.",
+        422,
+        "TEAMS_NOT_ASSIGNED",
+      );
+    }
+    // home + away head[] 합산 (시간순 = 배열 push 순서 보존)
+    let btIdx = 0;
+    (["home", "away"] as const).forEach((team) => {
+      const teamHead = input.bench_technical![team].head;
+      const teamLabel = team === "home" ? "홈팀" : "원정팀";
+      const teamIdBig =
+        team === "home" ? match.homeTeamId! : match.awayTeamId!;
+      const starter0 = team === "home" ? homeStarter0 : awayStarter0;
+      teamHead.forEach((entry) => {
+        // player_id fallback (NOT NULL FK — service `> 0` 가드 통과 필수)
+        if (!starter0) {
+          // lineup 미전송 = skip (안전망 — 운영 영향 0)
+          return;
+        }
+        const playerIdNum = Number(starter0);
+        if (!Number.isFinite(playerIdNum) || playerIdNum <= 0) {
+          return;
+        }
+        const kindLabel =
+          entry.kind === "C"
+            ? "Coach T (Head)"
+            : entry.kind === "B_HEAD"
+              ? "Bench T (Head)"
+              : "Bench T (Asst/벤치)";
+        benchAndDelayEvents.push({
+          // local_id — service deleteMany NOT IN 가드 (매번 전체 재INSERT — idempotent)
+          local_id: `paper-bench-tech-${entry.kind}-${team}-${btIdx}`,
+          tournament_team_player_id: playerIdNum,
+          tournament_team_id: Number(teamIdBig),
+          quarter: entry.period,
+          game_clock_seconds: 0,
+          shot_clock_seconds: null,
+          action_type: "foul", // live API 호환 (foul 누적 +1)
+          action_subtype: entry.kind, // "C" / "B_HEAD" / "B_BENCH"
+          is_made: null,
+          points_scored: 0,
+          court_x: null,
+          court_y: null,
+          court_zone: null,
+          shot_distance: null,
+          home_score_at_time: 0,
+          away_score_at_time: 0,
+          assist_player_id: null,
+          rebound_player_id: null,
+          block_player_id: null,
+          steal_player_id: null,
+          fouled_player_id: null,
+          sub_in_player_id: null,
+          sub_out_player_id: null,
+          is_flagrant: false,
+          is_technical: true, // Bench Tech / Coach T = is_technical true
+          is_fastbreak: false,
+          is_second_chance: false,
+          is_from_turnover: false,
+          description: `[종이 기록] ${teamLabel} ${kindLabel}`,
+        });
+        btIdx += 1;
+      });
+    });
+  }
+
+  if (input.delay_of_game) {
+    if (!match.homeTeamId || !match.awayTeamId) {
+      return apiError(
+        "매치에 양 팀이 배정되지 않았습니다. 운영자에게 문의해주세요.",
+        422,
+        "TEAMS_NOT_ASSIGNED",
+      );
+    }
+    let dgIdx = 0;
+    (["home", "away"] as const).forEach((team) => {
+      const teamState = input.delay_of_game![team];
+      const teamLabel = team === "home" ? "홈팀" : "원정팀";
+      const teamIdBig =
+        team === "home" ? match.homeTeamId! : match.awayTeamId!;
+      const starter0 = team === "home" ? homeStarter0 : awayStarter0;
+      // player_id fallback — lineup 미전송 시 skip
+      if (!starter0) return;
+      const playerIdNum = Number(starter0);
+      if (!Number.isFinite(playerIdNum) || playerIdNum <= 0) return;
+      // 1차 W 박제 (warned=true 시)
+      if (teamState.warned) {
+        benchAndDelayEvents.push({
+          local_id: `paper-delay-W-${team}-${dgIdx}`,
+          tournament_team_player_id: playerIdNum,
+          tournament_team_id: Number(teamIdBig),
+          quarter: 1, // Delay state 는 period 미박제 — 1 fallback (운영 영향 0)
+          game_clock_seconds: 0,
+          shot_clock_seconds: null,
+          action_type: "foul",
+          action_subtype: "DELAY_W",
+          is_made: null,
+          points_scored: 0,
+          court_x: null,
+          court_y: null,
+          court_zone: null,
+          shot_distance: null,
+          home_score_at_time: 0,
+          away_score_at_time: 0,
+          assist_player_id: null,
+          rebound_player_id: null,
+          block_player_id: null,
+          steal_player_id: null,
+          fouled_player_id: null,
+          sub_in_player_id: null,
+          sub_out_player_id: null,
+          is_flagrant: false,
+          is_technical: false, // W = 경고만 (T 아님)
+          is_fastbreak: false,
+          is_second_chance: false,
+          is_from_turnover: false,
+          description: `[종이 기록] ${teamLabel} Delay of Game 경고 (W)`,
+        });
+        dgIdx += 1;
+      }
+      // 2차+ T 박제 (technicals 개수만큼)
+      for (let i = 0; i < teamState.technicals; i += 1) {
+        benchAndDelayEvents.push({
+          local_id: `paper-delay-T-${team}-${i}`,
+          tournament_team_player_id: playerIdNum,
+          tournament_team_id: Number(teamIdBig),
+          quarter: 1,
+          game_clock_seconds: 0,
+          shot_clock_seconds: null,
+          action_type: "foul",
+          action_subtype: "DELAY_T",
+          is_made: null,
+          points_scored: 0,
+          court_x: null,
+          court_y: null,
+          court_zone: null,
+          shot_distance: null,
+          home_score_at_time: 0,
+          away_score_at_time: 0,
+          assist_player_id: null,
+          rebound_player_id: null,
+          block_player_id: null,
+          steal_player_id: null,
+          fouled_player_id: null,
+          sub_in_player_id: null,
+          sub_out_player_id: null,
+          is_flagrant: false,
+          is_technical: true, // T = 자유투 1개 = is_technical true
+          is_fastbreak: false,
+          is_second_chance: false,
+          is_from_turnover: false,
+          description: `[종이 기록] ${teamLabel} Delay of Game T (자유투 1개)`,
+        });
+        dgIdx += 1;
+      }
+    });
+  }
+
+  // 통합 — score + foul + possession + bench/delay events 한 배열 (service idempotent — local_id 단위)
   if (
     scoreEvents.length > 0 ||
     foulEvents.length > 0 ||
-    possessionEvents.length > 0
+    possessionEvents.length > 0 ||
+    benchAndDelayEvents.length > 0
   ) {
-    playByPlays = [...scoreEvents, ...foulEvents, ...possessionEvents];
+    playByPlays = [
+      ...scoreEvents,
+      ...foulEvents,
+      ...possessionEvents,
+      ...benchAndDelayEvents,
+    ];
   }
 
   // 4-3) Phase 20 — running_score + fouls → player_stats 자동 집계.
@@ -868,7 +1117,13 @@ export async function POST(
     // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format settings JSON merge.
     //   기존 timeouts / signatures merge 패턴 그대로 확장 — recording_mode 등 기존 키 보존.
     //   input.period_format 미전달 시 = UPDATE skip (기존 settings.period_format 유지).
-    if (input.timeouts || input.signatures || input.period_format) {
+    if (
+      input.timeouts ||
+      input.signatures ||
+      input.period_format ||
+      input.bench_technical ||
+      input.delay_of_game
+    ) {
       const currentSettings = match.settings;
       const baseSettings: Record<string, unknown> =
         currentSettings &&
@@ -891,6 +1146,15 @@ export async function POST(
       //   라이브 API 가 본 키 SELECT → 응답 period_format 키 → 라이브 페이지 라벨 분기.
       if (input.period_format) {
         baseSettings.period_format = input.period_format;
+      }
+      // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+      //   bench_technicals / delay_of_game JSON snapshot 박제 (운영자 빠른 조회 + 추방 가드).
+      //   PBP action_subtype 박제와 함께 단일 source — 페이지 진입 시 settings SELECT 후 UI 복원.
+      if (input.bench_technical) {
+        baseSettings.bench_technicals = input.bench_technical;
+      }
+      if (input.delay_of_game) {
+        baseSettings.delay_of_game = input.delay_of_game;
       }
       await prisma.tournamentMatch.update({
         where: { id: match.id },
@@ -1003,6 +1267,19 @@ export async function POST(
         }
       }
     }
+    // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game) — audit context 카운트.
+    const benchTechCount = input.bench_technical
+      ? input.bench_technical.home.head.length +
+        input.bench_technical.away.head.length
+      : 0;
+    const delayWCount = input.delay_of_game
+      ? (input.delay_of_game.home.warned ? 1 : 0) +
+        (input.delay_of_game.away.warned ? 1 : 0)
+      : 0;
+    const delayTCount = input.delay_of_game
+      ? input.delay_of_game.home.technicals +
+        input.delay_of_game.away.technicals
+      : 0;
     // Phase 23 PR-EDIT3 (2026-05-15) — 수정 모드 prefix (사용자 결재 Q5 = audit only / status 유지).
     //   isEditModeBypass=true 시 audit context 앞에 "[수정 모드]" prefix + context = "completed_edit_resubmit".
     //   추적 단일 source — admin dashboard 가 본 context 로 수정 이력 SELECT.
@@ -1034,6 +1311,11 @@ export async function POST(
       // Phase 19 PR-Stat4 (2026-05-15) — 6 stat 박제 카운트 audit
       (stat6PlayerCount > 0
         ? ` / Stat6 ${stat6PlayerCount}명/${stat6EventCount}건`
+        : "") +
+      // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+      (benchTechCount > 0 ? ` / BenchT ${benchTechCount}건` : "") +
+      (delayWCount + delayTCount > 0
+        ? ` / Delay W${delayWCount}+T${delayTCount}`
         : "") +
       (input.recorder ? ` / 기록원 ${input.recorder}` : "") +
       (input.referee_main ? ` / 1심 ${input.referee_main}` : "");

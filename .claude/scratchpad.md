@@ -1,9 +1,80 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: score-sheet 벤치 테크니컬 (B) + 딜레이 오브 게임 (Delay) 박제 design **검토** (계획만 / 박제 X)
-- **상태**: 🟡 기획설계 박제 완료 — 위치/모델/UX 권장 + 결재 Q1~Q3 대기
-- **현재 담당**: PM (Q1~Q3 결재)
+- **요청**: score-sheet 벤치 테크니컬 (B) + 딜레이 오브 게임 (Delay) 박제 — 사용자 권장안 100% 결재 완료 / 시합 운영 중 시급 일괄 박제
+- **상태**: 🟢 박제 완료 — tsc 0 / vitest 18/18 PASS / 기존 회귀 0
+- **현재 담당**: PM (commit / push 즉시 처리 — 사용자 명시 자동 머지)
+
+## 구현 기록 (developer / 2026-05-16) — Bench Tech (B/C) + Delay of Game (W/T) 일괄 박제
+
+📝 **구현한 기능**: FIBA Article 36.3 (Coach T) / 36.4 (Bench T) / 36.2.3 (Delay of Game) 종이 양식 박제. 사용자 결재 권장안 100% (Q1 3 cell 고정 / Q2 W→T 자동 분기 / Q3 자유투 운영자 수동 / Q4 추방 자동 toast).
+
+### 변경 파일 (신규 4 / 수정 7)
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|---------|
+| `src/lib/score-sheet/bench-tech-types.ts` | BenchTechnicalState / DelayOfGameState / CoachFoulEntry / 라벨/임계 상수 | +130 | 신규 |
+| `src/lib/score-sheet/bench-tech-helpers.ts` | addCoachFoul / removeLastCoachFoul / addDelayEvent (자동 W→T 분기) / canEjectCoach / coachFoulSummary / getCoachFoulCellState / removeLastDelayEvent / benchTechToPBPEvents / delayToPBPEvents (PURE) | +260 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/bench-tech-modal.tsx` | C / B_HEAD / B_BENCH 3 옵션 라디오 모달 (foul-type-modal 패턴 일관) | +180 | 신규 |
+| `src/__tests__/score-sheet/bench-tech-helpers.test.ts` | vitest 18 케이스 (addCoachFoul / removeLastCoachFoul / canEject / coachFoulSummary / getCoachFoulCellState / addDelayEvent W→T / removeLastDelayEvent / PBP events) | +200 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | Coach row 우측 3 cells + Team fouls 위 Delay row ([W][T1...]) + 새 props 6건 (benchTechnical / delayOfGame / 4 핸들러) | +180 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | benchTechnical / delayOfGame state + 5 handler + BenchTechModal mount + TeamSection wiring (home + away) + draft 박제/복원 + buildSubmitPayload 인자 추가 | +180 | 수정 |
+| `src/lib/score-sheet/build-submit-payload.ts` | benchTechnical / delayOfGame 인자 추가 → payload 박제 (1건 이상 박제 시만 키 박제 — undefined = 키 통째 생략) | +20 | 수정 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | submitSchema 확장 (bench_technical / delay_of_game zod) + PBP action_subtype 박제 (C / B_HEAD / B_BENCH / DELAY_W / DELAY_T) + settings JSON merge + audit context 카운트 | +210 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | match.settings.bench_technicals + delay_of_game SELECT + ScoreSheetForm prop drilling | +70 | 수정 |
+| `src/lib/live/pbp-format.ts` | 신규 action_subtype 5종 한글 라벨 (코치 T (Head) / 벤치 T (Head) / 벤치 T (Asst/벤치) / 지연 경고 (W) / 지연 T (자유투)) | +15 | 수정 |
+| **합계** | | **+1445 LOC** (신규 770 / 수정 675) | |
+
+### 자동 분기 동작
+
+| 동작 | 트리거 | 결과 |
+|------|-------|------|
+| Bench Tech 박제 (B/C 분기) | Coach row 우측 빈 cell 클릭 | BenchTechModal open → C / B_HEAD / B_BENCH 선택 → head[] push |
+| Head Coach 추방 | head[] 누적 3건 도달 (kind 무관) | cell disabled (4번째 cell 박제 차단) + toast "Head Coach 추방 (누적 3건) — 어시 코치 인계" |
+| Delay 1차 (W) | Delay row 빈 W cell 클릭 (warned=false) | warned=true 박제 / toast "1차 경고 (W) — 다음 위반부터 T (자유투 1개)" |
+| Delay 2차+ (T) | warned=true 후 cell 클릭 | technicals + 1 / toast "T 박제 — 상대 자유투 1개 (운영자 별도 박제)" |
+| 자유투 박제 | T / B / C / Delay-T 발생 | 운영자가 Running Score 영역에서 별도 1점 마킹 (모달 X — 사용자 결재 Q3) |
+
+### 데이터 모델 (옵션 D 혼합)
+
+- **settings.bench_technicals JSON**: `{ home: { head: [{kind, period}...], assistant: [] }, away: {...} }` — 현재 상태 snapshot
+- **settings.delay_of_game JSON**: `{ home: { warned: boolean, technicals: number }, away: {...} }`
+- **PBP action_subtype 신규 5종**: `C` / `B_HEAD` / `B_BENCH` / `DELAY_W` / `DELAY_T` — 이력 추적 (action_type="foul" 통일 / points_scored=0 / is_technical=true)
+- **player_id fallback**: lineup.starters[0] (코치/팀 단위 = 선수 미식별 / lineup 미박제 시 PBP skip)
+- **idempotent**: local_id = `paper-bench-tech-{kind}-{team}-{idx}` / `paper-delay-{W|T}-{team}-{idx}` → service deleteMany NOT IN 가드 통과
+
+### 검증 결과
+
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 ✅ |
+| `npx vitest run bench-tech-helpers.test.ts` | 18 / 18 통과 ✅ (310ms) |
+| `npx vitest run src/__tests__/score-sheet/` 회귀 | 270/271 통과 (실패 1건 = 기존 running-score-helpers 무관 — git stash 검증) ✅ |
+
+### 보존 의무 검증 (모두 ✅)
+
+- 기존 player fouls (P/T/U/D) FoulType 변경 0
+- score-sheet UX (4종 모달 / draft / Phase 23 read-only) 변경 0
+- Phase 22 paper override 영향 0 (settings JSON = paper 전용 + PBP points=0)
+- digital (Flutter) PBP 영향 0 (paper 모드 분기 — settings + new action_subtype = paper only)
+- DB schema 변경 0 (settings JSON + action_subtype String 자유 박제)
+- 4쿼터 / halves / OT 매치 모두 영향 0
+- 시안 13 룰 (var(--color-*) / Material Symbols / 빨강 본문 ❌ / radius 4px / pill 9999px ❌)
+
+💡 **tester 참고**:
+- 테스트 방법:
+  1. score-sheet 진입 → Coach row 우측 빈 cell 클릭 → BenchTechModal open → C / B_HEAD / B_BENCH 선택 → cell 박제 (글자 C 또는 B / 색 = warning / accent / elevated)
+  2. 3 cells 누적 박제 → 4번째 cell 자동 disabled + 추방 toast
+  3. Team fouls 위 Delay row 빈 W cell 클릭 → W 박제 (warning 톤) → 다음 cell 클릭 = T 박제 (primary 빨강) → FT+1 안내 표시
+  4. mid-game 새로고침 → settings (server) + draft (localStorage) 둘 다 복원 (draft 우선)
+- 정상 동작: head 3건 누적 = cell disabled (수정 모드만 해제 가능) / Delay W 1회 = 매치당 1회만 자동 / 자유투는 Running Score 영역 운영자 수동
+- 주의할 입력: lineup 미박제 시 BFF 가 PBP skip (player_id NOT NULL FK fallback 실패) — UI 박제는 정상 but PBP 0건. 운영 영향 0 (settings JSON = SSOT).
+
+⚠️ **reviewer 참고**:
+- 특별히 봐줬으면 하는 부분:
+  - `bench-tech-helpers.ts` 의 `addCoachFoul` 추방 가드 (재발 안전망 — kind 무관 합산 3 = 추방)
+  - `submit/route.ts` 의 PBP 박제 — local_id idempotent 룰 (`paper-bench-tech-{kind}-{team}-{idx}` 형식 보존 — service deleteMany NOT IN 가드 호환)
+  - `team-section.tsx` 의 Coach row 우측 cells flex 레이아웃 — 시안 12 종이 양식 정합 (`.ss-tbox__coach` 안 flex gap 6px / cell `.ss-tbox__tf-cell` 재사용)
 
 ## 기획설계 (planner-architect / 2026-05-16) — Bench Tech (B) + Delay of Game 박제 design
 

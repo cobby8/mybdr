@@ -441,6 +441,22 @@ export default async function ScoreSheetPage({ params }: PageProps) {
   //   localStorage 박제 (draft.periodFormat) 와 우선순위 = ScoreSheetForm 내부에서 결정.
   //   미박제 (구버전 매치 / 4쿼터 매치) = undefined → form 기본 "quarters" fallback.
   let initialPeriodFormat: "halves" | "quarters" | undefined;
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //   match.settings.bench_technicals + match.settings.delay_of_game SELECT → ScoreSheetForm prop drilling.
+  //   localStorage 박제와 우선순위 = ScoreSheetForm 내부에서 결정 (draft 우선 — 운영자 즉시 박제).
+  //   shape 검증 (방어 코드) — 잘못된 박제 시 undefined fallback.
+  let initialBenchTechnical:
+    | {
+        home: { head: Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>; assistant: Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }> };
+        away: { head: Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>; assistant: Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }> };
+      }
+    | undefined;
+  let initialDelayOfGame:
+    | {
+        home: { warned: boolean; technicals: number };
+        away: { warned: boolean; technicals: number };
+      }
+    | undefined;
   if (
     match.settings &&
     typeof match.settings === "object" &&
@@ -468,6 +484,56 @@ export default async function ScoreSheetPage({ params }: PageProps) {
     const pf = settingsObj.period_format;
     if (pf === "halves" || pf === "quarters") {
       initialPeriodFormat = pf;
+    }
+    // 2026-05-16 (긴급 박제 — Bench Technical) — bench_technicals 추출.
+    //   shape 방어: home/away 객체 + head 배열 (assistant 누락 fallback [] 로 안전 박제).
+    const bt = settingsObj.bench_technicals;
+    if (bt && typeof bt === "object" && !Array.isArray(bt)) {
+      const btObj = bt as Record<string, unknown>;
+      const home = btObj.home as Record<string, unknown> | undefined;
+      const away = btObj.away as Record<string, unknown> | undefined;
+      if (
+        home &&
+        away &&
+        Array.isArray(home.head) &&
+        Array.isArray(away.head)
+      ) {
+        initialBenchTechnical = {
+          home: {
+            head: home.head as Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>,
+            assistant: Array.isArray(home.assistant)
+              ? (home.assistant as Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>)
+              : [],
+          },
+          away: {
+            head: away.head as Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>,
+            assistant: Array.isArray(away.assistant)
+              ? (away.assistant as Array<{ kind: "C" | "B_HEAD" | "B_BENCH"; period: number }>)
+              : [],
+          },
+        };
+      }
+    }
+    // 2026-05-16 (긴급 박제 — Delay of Game) — delay_of_game 추출.
+    //   shape 방어: home/away 객체 + warned boolean + technicals number.
+    const dog = settingsObj.delay_of_game;
+    if (dog && typeof dog === "object" && !Array.isArray(dog)) {
+      const dogObj = dog as Record<string, unknown>;
+      const home = dogObj.home as Record<string, unknown> | undefined;
+      const away = dogObj.away as Record<string, unknown> | undefined;
+      if (
+        home &&
+        away &&
+        typeof home.warned === "boolean" &&
+        typeof away.warned === "boolean" &&
+        typeof home.technicals === "number" &&
+        typeof away.technicals === "number"
+      ) {
+        initialDelayOfGame = {
+          home: { warned: home.warned, technicals: home.technicals },
+          away: { warned: away.warned, technicals: away.technicals },
+        };
+      }
     }
   }
 
@@ -713,6 +779,11 @@ export default async function ScoreSheetPage({ params }: PageProps) {
       //   server settings.period_format SELECT 결과 → ScoreSheetForm 초기값 전달.
       //   localStorage draft 와의 우선순위 = ScoreSheetForm 내부에서 결정 (localStorage > server > "quarters").
       initialPeriodFormat={initialPeriodFormat}
+      // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+      //   server settings.bench_technicals / delay_of_game SELECT → 초기값 전달.
+      //   localStorage draft 와의 우선순위 = ScoreSheetForm 내부 (draft 우선 — 운영자 즉시 박제).
+      initialBenchTechnical={initialBenchTechnical}
+      initialDelayOfGame={initialDelayOfGame}
     />
   );
 }
