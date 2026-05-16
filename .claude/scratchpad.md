@@ -1,9 +1,179 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 영구 fix planner — 매치 종료 시 standings 자동 계산 + 결선 진출 자동 채움 누락 path 진단
-- **상태**: 🟡 기획설계 박제 완료 (옵션 B 권장) — PM 결재 대기
-- **현재 담당**: PM (옵션 결재)
+- **요청**: score-sheet 벤치 테크니컬 (B) + 딜레이 오브 게임 (Delay) 박제 design **검토** (계획만 / 박제 X)
+- **상태**: 🟡 기획설계 박제 완료 — 위치/모델/UX 권장 + 결재 Q1~Q3 대기
+- **현재 담당**: PM (Q1~Q3 결재)
+
+## 기획설계 (planner-architect / 2026-05-16) — Bench Tech (B) + Delay of Game 박제 design
+
+🎯 **목표**: FIBA Article 36.5 (벤치 테크니컬) + Article 17.2.6/36.4.7 (딜레이 오브 게임) 을 score-sheet 종이 양식에 박제. 운영자가 코치 추방 알림 / 자유투 부여 trigger 자동 지원. **기존 player fouls (P/T/U/D) + UX 변경 0 / Phase 22 paper override 영향 0 / digital Flutter PBP 영향 0**.
+
+### 1) 위치 옵션 분석 (Score sheet 양식 어디 박제)
+
+| 옵션 | 박제 위치 | 시각 | 운영 편의 | score-sheet 침범 정도 | FIBA 양식 정합 | 권장 |
+|------|---------|------|----------|------------------|--------------|------|
+| **A** | Team fouls 영역 아래 신규 row | 1줄 추가 (delay × 2 / bench T × 2 cells) | 중 — Team fouls 시선 흐름 안에 있어 자연 | 중 — `.ss-tbox__tf` 격자 row 1개 확장 | 중 — FIBA 종이 양식엔 별도 row 없음 (운영자 익숙도 ↓) | ❌ |
+| **B** | Coach 영역 옆 (Coach / Asst Coach 우측) ⭐ | Coach + Asst Coach 우측에 Bench T (B 1·2·3) + Delay (W·T1·T2) 칸 추가 | **상** — 코치 본인 우측에 즉시 박제 = 코치 추방 가산 직관적 | 작음 — `.ss-tbox__coach` 우측 grid 1열 추가 | **상** — FIBA Article 36.5 룰 = 코치 인원 fouls 영역과 같은 그룹 (벤치 테크 = 코치 개인 fouls 가산) | **⭐ 권장 (Bench T)** |
+| **C** | Time-outs 영역 옆 | Time-outs 영역 (7 cells) 옆 작은 박스 | 하 — 의미 무관 (Time-out 과 Delay/BenchT 룰 무관) | 작음 | 하 — FIBA 양식 정합 0 | ❌ |
+| **D** | 별도 신규 박스 (양식 하단 또는 헤더 아래) | 신규 박스 (Delay 1행 / Bench T 1행) | 중 | 큼 — `.ss-tbox` 외부 신규 섹션 추가 (양식 7 섹터 깨짐) | 중 | ❌ (Delay 한정 권장) |
+
+→ **권장**: **B (Bench T) + D 변형 (Delay 는 Team 영역 안 별도 row)** 혼합.
+
+**근거 (FIBA 종이 양식)**:
+- **벤치 테크니컬 (B)** = 코치 개인 fouls 영역 (Article 36.5 — "코치/어시스트/벤치 인원 vs **코치 개인**에게 박제"). FIBA 종이 양식엔 Coach row 끝에 "Tech" 칸 (1·2·3 누적) 있음. **본 프로젝트 = Coach + Asst Coach 입력 우측에 Bench T 박스 신설 (옵션 B)**.
+- **딜레이 오브 게임 (Delay)** = 팀 단위 누적 (Article 17.2.6 — "팀에게 부여"). FIBA 양식엔 별도 항목 없음 (운영자가 메모 박제). 본 프로젝트 = **Team fouls 영역 위 또는 옆에 1행 (W + T1) 추가 (옵션 D 변형 = `.ss-tbox` 내부)**.
+
+### 2) 데이터 모델 옵션
+
+| 옵션 | 박제 방식 | 장점 | 단점 | 권장 |
+|------|---------|------|------|------|
+| **A** | `match.settings.bench_technicals` + `match.settings.delay_of_game` JSON (timeouts/signatures merge 패턴 재사용) | • Phase 4 timeouts 패턴 100% 재사용 / DB schema 변경 0 / paper 모드 전용 깔끔 | 이력 추적 (시각순) 0 — count snapshot 만 | 회복 가능 (Phase 22 paper override 처럼 settings 가 SSOT) |
+| **B** | play_by_plays `action_type` 확장 (`bench_technical` / `delay_warning` / `delay_technical`) | • 시각 이력 / Q별 색 / PBP 박제 일관성 / 라이브 timeline 자동 노출 | Flutter v1 digital 매치에 신규 action_type 영향 (= 원영 사전 공지 필요) / 통산 stat 합산 영향 (개인 stat 0 처리 가드) | ❌ 영향 범위 큼 |
+| **C** | TournamentMatch 컬럼 확장 (schema migration) | 명시적 컬럼 / 쿼리 단순 | schema migration 필수 — 운영 DB push (룰 §DB 정책 §2) | ❌ |
+| **D** | 혼합 — current state = settings JSON (옵션 A) + 이벤트 이력 = PBP `action_subtype` (action_type="foul" 유지 + subtype="BENCH_TECH"/"DELAY_W"/"DELAY_T") ⭐ | • Phase 22 paper override 의 PBP-에서-recompute 패턴 단일 source 정합 (PaperPBP 가 source 면 settings 갱신 자동) / **digital Flutter 매치 영향 0** (digital 은 settings 미사용) / 이력 추적 가능 | 복잡성 ↑ — settings recompute 함수 필요 | **⭐ 권장 (옵션 D)** |
+
+**옵션 D 상세**:
+- **PBP 박제**: 기존 `action_type="foul"` 유지 + `action_subtype` 확장 (현재 "P"/"T"/"U"/"D" → 신규 "B_BENCH"/"DELAY_W"/"DELAY_T" 추가). pbp-to-fouls.test.ts foul 필터링이 `action_subtype` 분기 추가 (개인 통산 stat 미가산 가드).
+- **settings 박제**: paper 매치 submit BFF 가 `bench_technicals: { home: [{coachRole, period}...], away: [...] }` + `delay_of_game: { home: { warnings: 1, technicals: 0 }, away: {...} }` 박제 (timeouts 패턴 100% 재사용).
+- **단일 source**: PBP 가 source (=  Phase 22 paper override 룰 정합). settings 는 운영자 빠른 조회 + 차단 가드용 snapshot.
+
+### 3) 운영자 UI 흐름 (ASCII mockup)
+
+**A. Bench Technical (B) — Coach 영역 옆 신규 박스 (옵션 B)**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Coach     [______입력______]   Bench Tech (B)  ┌──┬──┬──┐      │
+│                                                 │  │  │  │      │
+│ Asst Coach [______입력______]   Asst Tech       ├──┴──┴──┘      │
+│                                                 │  │  │  │      │
+│                                                 └──┴──┴──┘      │
+└─────────────────────────────────────────────────────────────────┘
+                                  ↑
+                          빈 칸 클릭 → 모달 open
+```
+
+**모달 (재사용 = BenchTechModal — 신규 1파일)**:
+```
+┌─────────────────────────────┐
+│ 벤치 테크니컬 박제           │
+│ ─────────────────────────── │
+│ 대상:  ⦿ Head Coach          │
+│        ◯ Asst Coach          │
+│        ◯ Bench Member        │
+│ Period: [현재 Q 자동 박제]  │
+│ ─────────────────────────── │
+│       [취소]  [박제]         │
+└─────────────────────────────┘
+```
+
+**자동 분기 룰**:
+- Head Coach 3회 OR Asst Coach 2회 OR Head + Asst 합산 = 코치 추방 toast (`퇴장 — Coach Eject`)
+- 추방 후 빈 칸 클릭 = 차단 (disabled)
+- 누적 추방 alert 후 운영자가 `disqualifying` 카운트 별도 추가 (= 상대 자유투 1개 + ball)
+
+**B. Delay of Game — Team fouls 위 또는 좌측 1행 (옵션 D 변형)**
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Delay of Game   W  T1                                │
+│                ┌──┬──┐                              │
+│                │  │  │  ← 1차 W (회색 톤) / 2차+ T1 (warning 톤)
+│                └──┴──┘                              │
+├──────────────────────────────────────────────────────┤
+│ Time-outs     [기존 7 cells]                         │
+│ Team fouls    [기존 Period 1·2·3·4 + Extra]          │
+└──────────────────────────────────────────────────────┘
+```
+
+**자동 분기 룰**:
+- 1차 클릭 = W (warning) 박제 — 점수 변동 0
+- 2차+ 클릭 = T (technical) 박제 — toast: `T 자동 추가 — 상대 자유투 1개 부여`
+- 자유투 박제 = **수동** (운영자가 상대 team_fouls 영역 또는 별도 stat 직접 +1) — 사용자 결재 Q2
+
+### 4) 위치 / 데이터 모델 / 작동방식 권장 조합 (단순화 + FIBA 정합)
+
+| 항목 | 권장 |
+|------|------|
+| **위치** | Bench T = 옵션 B (Coach 영역 옆) / Delay = 옵션 D 변형 (`.ss-tbox` 내부 Team fouls 위) |
+| **데이터 모델** | 옵션 D (settings JSON snapshot + PBP `action_subtype` 이력) |
+| **자유투 부여** | **수동** — 자동 박제 ❌ (운영자 별도 박제). 사유: FIBA 룰 = "상대 코치가 자유투 슈터 선택" → 자동 박제 = 슈터 미정 PBP 박제 함정 |
+| **경고 vs T 분기 (Delay)** | **자동 누적 카운트** — 1차=W / 2차+=T. 운영자 별도 선택 X (FIBA 명시 룰 = 자동) |
+| **코치 추방 alert** | 자동 toast + 빈 칸 disabled. 자유투/볼 점유 박제는 운영자가 별도 |
+| **digital Flutter 영향** | **0** — settings JSON 은 paper 매치 전용. PBP action_subtype 신규 값 = Flutter v1 digital 매치 미박제 (Flutter 앱 PBP 박제 path 분기 추가 ❌) |
+
+### 5) 박제 분량 추정
+
+| 파일 | 변경 | LOC | 신규/수정 |
+|------|------|-----|---------|
+| `src/lib/score-sheet/bench-tech-types.ts` | 신규 — BenchTechMark / BenchTechRole / DelayOfGameState 타입 + EJECTION 룰 헬퍼 | +80 | 신규 |
+| `src/lib/score-sheet/bench-tech-helpers.ts` | 신규 — addBenchTech / removeBenchTech / getCoachEjectionStatus / addDelay / getDelayCount | +120 | 신규 |
+| `src/lib/score-sheet/foul-types.ts` | FoulType 확장 (action_subtype 신규 "B_BENCH"/"DELAY_W"/"DELAY_T" 라벨 추가) — pbp-to-fouls 필터링은 별도 분리 헬퍼 | +30 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/bench-tech-modal.tsx` | 신규 — Head Coach / Asst Coach / Bench Member 라디오 선택 모달 (FoulTypeModal 패턴 재사용) | +180 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | Coach 영역 우측 BenchTech 박스 (3 cells × 2 row) + Delay of Game 박스 (2 cells × 1 row) 추가 | +90 / -5 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | benchTech / delayOfGame state + handleAddBenchTech / handleAddDelay + 모달 wiring + draft 박제/복원 + buildSubmitPayload 인자 추가 | +120 / -3 | 수정 |
+| `src/lib/score-sheet/build-submit-payload.ts` | bench_technicals + delay_of_game 인자 추가 → payload 박제 | +30 | 수정 |
+| `src/lib/score-sheet/draft-storage.ts` | benchTech / delay 키 박제/복원 추가 | +20 | 수정 |
+| `src/app/api/web/score-sheet/[matchId]/submit/route.ts` | submitSchema 확장 (bench_technicals + delay_of_game zod) + settings JSON merge (timeouts/signatures 패턴 100% 재사용) + PBP `action_subtype` 박제 | +80 / -5 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | initial state 복원 (DB settings.bench_technicals + delay_of_game SELECT) | +30 | 수정 |
+| `src/__tests__/score-sheet/bench-tech-helpers.test.ts` | 신규 vitest — 12 케이스 (Head 3 추방 / Asst 2 추방 / Head+Asst 합산 / Delay 1차 W / 2차 T / 박제 후 disable) | +250 | 신규 |
+| `src/__tests__/score-sheet/build-submit-payload.test.ts` | 추가 케이스 — bench_tech + delay payload 박제 (+ 미전송 시 키 통째 생략) | +60 | 수정 |
+| **합계** | | **+1090 / -13 LOC** | |
+
+### 6) Phase 분리 (PR 분해 권장)
+
+| Phase | 범위 | LOC | 의존성 | 시간 |
+|-------|------|-----|--------|------|
+| **Phase 1** | bench-tech-types + helpers + vitest 12 케이스 | +450 | 없음 | 3 시간 |
+| **Phase 2** | BenchTechModal + team-section.tsx Coach 영역 우측 박스 (UI only — state 미연동) | +280 | Phase 1 | 4 시간 |
+| **Phase 3** | score-sheet-form.tsx state + 모달 wiring + draft 박제 | +130 | Phase 2 | 3 시간 |
+| **Phase 4** | submit BFF zod + settings JSON merge + PBP action_subtype 박제 | +90 | Phase 3 | 3 시간 |
+| **Phase 5** | Delay of Game UI 박스 + state + submit 박제 (Bench T 와 분리 검증 가능) | +120 | Phase 4 | 3 시간 |
+| **Phase 6** | page.tsx initial state 복원 + 운영 검증 | +40 | Phase 5 | 2 시간 |
+| **합계** | | **+1110 LOC** | | **18 시간 (~2.5일)** |
+
+**PR 분해 권장**: **3 PR (= Phase 1+2 / Phase 3+4 / Phase 5+6)** — 각 PR 단독 머지 가능 + 회귀 0.
+
+### 7) 운영 호환성 / 회귀 위험 분석
+
+| 항목 | 평가 | 대응 |
+|------|------|------|
+| **기존 player fouls (P/T/U/D)** | 변경 0 — foul-types.ts FoulType 미변경 / pbp-to-fouls 필터링 보존 (action_subtype != "B_BENCH"/"DELAY_*" 가드 추가) | ✅ |
+| **기존 score-sheet 4종 모달** | 변경 0 — 신규 BenchTechModal 추가만 (FoulTypeModal/PlayerSelectModal/StatPopover 패턴 재사용) | ✅ |
+| **draft 자동 박제** | 추가 키 (benchTech/delay) 박제 — 구버전 draft 복원 시 EMPTY fallback | ✅ |
+| **Phase 23 read-only** | bench-tech 박스 / delay 박스 = readOnly prop drilling — 종료 매치 input/button disabled | ✅ |
+| **Phase 22 paper override** | settings.bench_technicals + delay_of_game = paper 매치 전용 (digital 매치 미박제) — paper override 영향 0 | ✅ |
+| **Flutter v1 digital PBP** | action_subtype 신규 값 ("B_BENCH"/"DELAY_W"/"DELAY_T") 박제 = paper 매치 only / Flutter 앱 모드 분기로 디지털 매치 미박제 | ✅ (원영 사전 공지 ❌ — paper 전용) |
+| **라이브 페이지 timeline** | PBP "foul" action_type 표시 시 action_subtype "B_BENCH" / "DELAY_W" / "DELAY_T" 라벨 분기 — tab-timeline.tsx case "foul" 확장 (+20 LOC) | ✅ (별도 PR 권장) |
+| **통산 stat 합산** | pbp-to-stat 합산 시 `action_subtype IN (B_BENCH, DELAY_W, DELAY_T)` 미가산 가드 — 개인 통산 fouls 영향 0 | ✅ |
+| **알기자 brief 자동 발행** | LLM 입력 PBP 에 bench tech / delay 포함 = 카피 영향 가능 → buildUserPrompt 에서 본 subtype 필터링 (별도 PR 또는 본 PR Phase 4 포함) | ⚠️ 별도 검토 |
+| **PDF 인쇄 (Phase 6)** | bench-tech / delay 박스 = 인쇄 시 표시 (FIBA 양식 정합) — `no-print` 클래스 미적용 (의도) | ✅ |
+
+### 8) 시안 13 룰 준수 확인
+
+| 룰 | 준수 |
+|----|------|
+| `var(--color-*)` 토큰만 | ✅ — bench-tech-modal.tsx 가 FoulTypeModal 패턴 재사용 (모든 색 var) |
+| Material Symbols Outlined | ✅ — 아이콘 미사용 (B / W / T1 텍스트만) |
+| 빨강 본문 텍스트 ❌ | ✅ — 추방 toast 만 warning 톤 / 코치 추방 = D 모달과 동일 (예외 허용) |
+| radius 4px | ✅ — 모달 + 박스 모두 4px |
+| pill 9999px ❌ | ✅ — 정사각형 cell (foul cell 패턴) |
+| 모바일 터치 44px+ | ✅ — bench-tech cell = foul cell 동일 크기 (44px+) |
+
+### 9) PM 결재 사항 (Q1~Q3)
+
+| # | 결재 항목 | 옵션 | 권장 |
+|---|---------|------|------|
+| **Q1** | 박제 위치 (Bench T) | A (Team fouls 아래) / **B (Coach 옆)** / C (Time-outs 옆) / D (별도 박스) | **B** (FIBA Article 36.5 룰 정합 + 시안 침범 최소 + 운영자 직관) |
+| **Q2** | 자유투 자동 박제 (Delay 2차 T + Bench T 추방) | **수동** (운영자 별도 박제) / 자동 (PBP 자동 INSERT) | **수동** — FIBA 룰 "상대 코치 슈터 선택" 정합 + 슈터 미정 PBP 함정 회피 |
+| **Q3** | 데이터 모델 (옵션 D 혼합 vs 옵션 A settings 단독) | A (settings JSON 단독 / 단순) / **D (settings + PBP action_subtype 혼합 / 이력 추적 + 단일 source 정합)** | **D** — Phase 22 paper override 룰 정합 + 라이브 timeline 자동 노출 |
+
+→ **PM 결재 후** developer 진입 (Phase 1~6 순차 / 3 PR 분해).
+
+---
+
+
 
 ## 기획설계 (planner-architect / 2026-05-16) — 매치 종료 path 누락 영구 fix
 
@@ -1679,8 +1849,83 @@ EXIT=0 (no output / 0 error)
 - **admin /playoffs 의존 0**: admin 컴포넌트 (StandingsTable / playoffs-client / DivisionMatchGroup / PlayoffMatchRow / FinalCard) 변경 0. 본 컴포넌트들은 web 디자인 토큰 (var(--color-*)) + GroupStandings 패턴 답습 = 디자인 정합.
 - **운영 DB 영향**: 0 (route.ts SELECT 1쿼리 추가 = TournamentDivisionRule + getDivisionStandings 의 종별 N회. UPDATE 0).
 
+## 구현 기록 (developer) — 영구 fix updateTeamStandings SET 방식 (2026-05-16)
+
+📝 구현한 기능: `updateTeamStandings` SET 방식 변환 (옵션 A) — 동일 매치 N회 호출 시 idempotent 보장. errors.md 6회째 회귀 (강남구 i3-U9 / 은평 PA 17→34 사고) 영구 차단.
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|---------|
+| `src/lib/tournaments/update-standings.ts` | `updateTeamStandings` SET 방식 재구현 (매치 fetch → 종별 매치 전체 SELECT → in-memory 합산 → SET UPDATE) / `advanceWinner` 변경 0 | +205 / -28 | 수정 |
+| `src/__tests__/lib/tournaments/update-standings.test.ts` | 신규 vitest 5 케이스 (단건 / idempotent / 합산 / 정정 / 종별 격리) — `vi.doMock("@/lib/db/prisma")` 패턴 | +420 신규 | 신규 |
+| `scripts/_temp/recalc-standings-set.ts` | 삭제 (함수 통합) | -116 (untracked) | 삭제 |
+| `scripts/_temp/diag-i3u9.ts` | 삭제 (조사 종료) | -90 (untracked) | 삭제 |
+| `src/lib/tournaments/finalize-match-completion.ts` | **변경 0** (시그니처 동일) | 0 | - |
+
+### 검증 결과
+
+| 검증 | 명령 | 결과 |
+|-----|------|------|
+| `git diff --stat HEAD` (intent-to-add 포함) | `git add -N + diff --stat` | scratchpad +325 / update-standings.test.ts +420 신규 / update-standings.ts +205/-28 / **합계 +919 / -31** |
+| TypeScript 컴파일 | `npx tsc --noEmit` | EXIT=0 (에러 0) |
+| vitest tournaments | `npx vitest run src/__tests__/lib/tournaments/` | **14 files / 256/256 PASS** (신규 update-standings.test.ts 5/5 PASS 112ms) |
+
+### 자가 진단 5건 (PM spec)
+
+| # | 항목 | 결과 |
+|---|------|------|
+| 1 | update-standings.ts SET 방식 재구현 | ✅ L70~ updateTeamStandings 본문 = 매치 fetch → 종별 매치 SELECT → in-memory 합산 → updateMany SET (트랜잭션 wrap) |
+| 2 | vitest 5 케이스 PASS (idempotent + 합산 정확 + 격리) | ✅ 5/5 PASS — 케이스 2 (동일 매치 3회 호출 → 결과 변화 0) + 케이스 4 (점수 수정 후 정정) + 케이스 5 (종별 격리) 핵심 통과 |
+| 3 | 즉시 fix 스크립트 삭제 | ✅ `recalc-standings-set.ts` + `diag-i3u9.ts` 둘 다 삭제 (둘 다 untracked → git ls-files 미존재 = 운영 영향 0) |
+| 4 | tsc 0 | ✅ EXIT=0 출력 0 |
+| 5 | finalize-match-completion / 다른 caller 시그니그 변경 0 | ✅ `updateTeamStandings(matchId: bigint)` 시그니처 유지. 호출처 = finalize-match-completion L102 1건 (variadic 변경 0) |
+
+### 핵심 로직 구조
+
+```ts
+// 1. 매치 fetch (tournamentId + home/away + division_code)
+const match = await prisma.tournamentMatch.findUnique({ where: { id: matchId }, select: {...} });
+
+// 2. 종별 완료 매치 전체 SELECT (winner_team_id NOT NULL + division_code 일치)
+const completedMatches = await prisma.tournamentMatch.findMany({
+  where: { tournamentId, status: "completed", winner_team_id: { not: null }, settings: { path: ["division_code"], equals: divisionCode } },
+});
+// 무승부 매치도 별도 SELECT (winner_team_id=null + scores 있음)
+
+// 3. in-memory 합산 (영향 받는 2 팀: home + away 만 — 매치 단건 trigger 의무)
+//    한 팀이 home/away 양쪽으로 출전 가능 → m.homeTeamId/m.awayTeamId 양 케이스 분기
+
+// 4. updateMany SET (트랜잭션 wrap — 영향 받는 2 팀)
+await prisma.$transaction([
+  prisma.tournamentTeam.updateMany({ where: {...home}, data: { wins, losses, draws, points_for, points_against, point_difference } }),
+  prisma.tournamentTeam.updateMany({ where: {...away}, data: {...} }),
+]);
+```
+
+### race / 외부 스크립트 안전성
+
+| 시나리오 | 기존 (increment) | 신규 (SET) |
+|---------|----------------|---------|
+| Flutter sync 단건 + batch-sync 동시 호출 | ❌ 2배 increment (은평 PA 17→34) | ✅ 마지막 호출이 정확한 결과 SET |
+| 외부 스크립트 (`scripts/_temp/*`) 직접 호출 | ❌ 무조건 increment | ✅ SET 재계산 (안전) |
+| concurrent 2회 호출 (TOCTOU) | ❌ 가드 무관 누적 | ✅ 같은 매치 SELECT → 같은 결과 SET |
+
+💡 tester / reviewer 참고:
+- **테스트 방법**: `npx vitest run src/__tests__/lib/tournaments/update-standings.test.ts` (5 케이스 모두 PASS 확인)
+- **정상 동작**:
+  - 단일 매치 종료 후 standings 정확
+  - 동일 매치 N회 호출 후에도 standings 변화 0 (idempotent 핵심)
+  - 종별 격리 (i3-U9 trigger → i4-U10 매치 합산 제외)
+- **주의할 입력**:
+  - settings.division_code 없는 매치 (4차 뉴비리그 패턴) → tournament 전체 매치 합산 (격리 0)
+  - 운영 DB 검증 시 강남구 i3-U9 6 매치 trigger → 사후 standings 정합 확인 권장
+- **회귀 위험 점검**:
+  - 매치 단건 trigger 이므로 본 함수는 영향 받는 2 팀 (home/away) 만 UPDATE — 종별 전체 reset (예: 매치 0건 팀) 은 미수행 → 정상 운영에선 finalize 가 모든 매치 종료시 호출되므로 자연스럽게 정확값 SET
+- **finalize-match-completion 영향 0**: caller 시그니처 동일 (matchId: bigint) → 회귀 위험 0
+- **운영 DB 영향**: 본 PR 자체는 SELECT 0 / UPDATE 0 (코드 변경만). 박제 후 첫 finalize 호출 시 standings SET 으로 정정 (강남구 i3-U9 자동 정상화)
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
+| 2026-05-16 | **영구 fix 박제 — updateTeamStandings SET 방식 변환 (developer / 옵션 A)** ⭐ | ✅ 수정 1 (`src/lib/tournaments/update-standings.ts` +205/-28) + 신규 1 (`src/__tests__/lib/tournaments/update-standings.test.ts` +420) + 삭제 2 (`scripts/_temp/recalc-standings-set.ts` -116 untracked / `scripts/_temp/diag-i3u9.ts` -90 untracked) = **+625 / -28 LOC** / tsc 0 / vitest 256/256 PASS (신규 5/5 PASS 112ms) / `updateTeamStandings(matchId: bigint)` 시그니처 변경 0 / finalize-match-completion 영향 0 / advanceWinner 영향 0 / idempotent 100% (동일 매치 N회 호출 결과 동일) / race / 외부 스크립트 안전 / 종별 격리 (settings.division_code 기준) / 자가 진단 5/5 / PM 결재 (commit / push / 강남구 i3-U9 정상화 trigger) 대기 |
 | 2026-05-16 | **영구 fix 기획설계 — 매치 종료 path 5종 중 1종 누락 (planner-architect)** ⭐ | 🟡 분석 / 코드 수정 0 / DB SELECT 0 / 누락 path 발견 #5 Flutter v1 `/api/v1/matches/:id/status` (`updateMatchStatus`) = updateTeamStandings + placeholder advancer 둘 다 누락 (강남구 i3-U9 사고 = 본 path 의심) + #3 batch-sync = placeholder + dual 누락 / 옵션 B (단일 통합 헬퍼 `finalizeMatchCompletion`) 권장 / 예상 +148 / -220 LOC 순감 -72 / 5 파일 변경 / errors.md defense in depth 5회째 회귀 / PM 결재 5 항목 (Q1~Q5) — B + 2 PR 분해 + 즉시 fix 별건 권장 |
 | 2026-05-16 | **긴급 박제 — 라이브 PBP paper 매치 정렬 안정 fix (developer / 옵션 C)** ⭐ | ✅ 수정 1 (`src/app/api/live/[id]/route.ts` +18/-2 LOC — Prisma select `created_at` 추가 + `sortedPbp` 3차 tiebreak `created_at ASC` 박제) / tsc EXIT=0 / digital (Flutter) PBP 영향 0 (game_clock 차이로 2차에서 결정 → 3차 미발화) / 라이브 시간 표시 "Q1 0:00" 보존 / 박스스코어 / quarterScores / hero-scoreboard / score-sheet 영향 0 / DB schema 0 / Phase 22 paper override 충돌 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
 | 2026-05-16 | **긴급 박제 — 점프볼 즉시 sync + PBP 한글 라벨 (developer)** ⭐ | ✅ 신규 1 (`src/lib/live/pbp-format.ts` +120 — formatPbpAction 헬퍼 / action_type + points + subtype 분기 → "3점 성공" / "수비리바운드" / "U파울" 등) + 수정 2 (`score-sheet-form.tsx` handleJumpBallConfirm +36 LOC — setTimeout(0) 즉시 sync 1회 fire-and-forget + status="in_progress" override / `live/[id]/page.tsx` import +4 + PbpSection 컬럼 박제 +29/-7 — 시간/팀/번호/**선수**/행동/점수 6 컬럼 + 팀명 텍스트 칩 (색 점 ❌) + formatPbpAction 호출) = **+185 / -7 LOC** / tsc 0 / 자동 sync 10초 interval 영향 0 (점프볼 = 1회 추가) / 다른 라이브 컴포넌트 영향 0 / score-sheet UX 변경 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
@@ -1697,6 +1942,155 @@ EXIT=0 (no output / 0 error)
 | 2026-05-16 | **Track A `/playoffs` 종별 탭 (옵션 A 인라인) 박제** ⭐ | ✅ playoffs-client.tsx +128/-14 / useSearchParams + useState + 2 useEffect (URL sync + 폴백) / 5 섹션 prop 차등 / divisionStandings.length ≤ 1 가드 / tsc 0 / 자가 진단 5/5 / 시그니처 변경 0 |
 | 2026-05-16 | **score-sheet PBP 수정 모달 박제 (developer)** | ✅ 신규 1 (`pbp-edit-modal.tsx` +455) + 수정 4 (`running-score-helpers.ts` +90 / `score-sheet-toolbar.tsx` +25 / `score-sheet-form.tsx` +50 / `running-score-helpers.test.ts` +148) = **+768 LOC** / tsc 0 / vitest PR-PBP-Edit 15/15 PASS / planner 결정 plan 5건 100% 준수 / 신규 BFF endpoint 0 / 시안 13 룰 100% / isReadOnly 이중 방어 |
 | 2026-05-16 | **Track B GNBA 유소년 INSERT 스크립트 박제 (developer)** ⭐ | ✅ `scripts/_temp/seed-gnba-youth-2026.ts` 신규 +669 LOC / 6 종별 + 36 팀 + 59 매치 (예선 46 + 순위전 13 placeholder) / placeholder-helpers 통과 (인라인 ❌) / 8중 가드 박제 (env / user / Tournament 분기 / transaction / DivisionRule code / Team 동명+부재 / TT upsert / Match 복합키) / 사후 5 query 검증 / generateApiToken 헬퍼 경유 / tsc 0 / **운영 DB 호출 0 (실행 = 사용자 명시 승인 후)** |
+## 기획설계 — 영구 fix updateTeamStandings idempotent (planner-architect / 2026-05-16)
+
+🎯 **목표**: `updateTeamStandings` 가 increment 방식 → 동일 매치 N회 호출 시 N배 박제. 즉시 fix 스크립트 (`scripts/_temp/recalc-standings-set.ts` SET 방식) 가 운영 path (헬퍼 + finalizeMatchCompletion) 과 충돌 위험. **함수 자체를 idempotent 화** (옵션 A — SET 방식 변환) 권장. 6회째 회귀 영구 차단.
+
+### 1) 현 함수 로직 분석 (`src/lib/tournaments/update-standings.ts:53~107`)
+
+```ts
+await prisma.$transaction([
+  prisma.tournamentTeam.updateMany({
+    where: { tournamentId, teamId: homeTeamId },
+    data: {
+      wins:   homeWon ? { increment: 1 } : undefined,    // ← increment 방식
+      losses: awayWon ? { increment: 1 } : undefined,
+      draws:  isDraw  ? { increment: 1 } : undefined,
+      points_for:       { increment: homeScore },
+      points_against:   { increment: awayScore },
+      point_difference: { increment: homeScore - awayScore },
+    },
+  }),
+  // away 도 동일 패턴
+]);
+```
+
+→ **함수 자체 idempotent 가드 0** / caller 책임 (admin PATCH `alreadyCompleted` 가드 / match-sync.ts `existing.status !== "completed"` 가드 / score-sheet submit route L527 `match.status === "completed"` 가드).
+
+### 2) 호출 path 인벤토리 (영구 fix 후 — finalizeMatchCompletion 단일 통합 완료)
+
+| # | path | 가드 (자체) | 가드 종류 |
+|---|------|-----------|---------|
+| 1 | admin PATCH route | ✅ L243 `if (status === "completed" && !alreadyCompleted)` | services/match.ts updateMatch 결과 |
+| 2 | match-sync-service (Flutter sync 단건 + 웹 BFF) | ✅ L474 `existing.status !== "completed"` 신규 전환만 trigger / 본 헬퍼 진입 가드 |
+| 3 | Flutter batch-sync | ⚠️ **자체 가드 0** — `if (match.status === "completed")` 만 (이전 status 무관) |
+| 4 | Flutter v1 status PATCH (`updateMatchStatus`) | ✅ L517 `capturedPrevStatus !== "completed"` |
+| 5 | **외부 스크립트** (`scripts/_temp/*` 즉시 fix) | ⚠️ **가드 0** — `updateTeamStandings(matchId)` 직접 호출 시 무조건 increment |
+
+**race 시나리오 (실제 사고 6회째)**:
+- Flutter 앱이 매치 종료 status PATCH → updateMatchStatus → finalizeMatchCompletion (1회 increment)
+- Flutter 앱이 batch-sync 재전송 (network retry) → batch-sync route → finalizeMatchCompletion (**2회 increment** — batch-sync 자체 prev status 가드 0)
+- 운영자가 즉시 fix 스크립트 실행 → updateTeamStandings 직접 호출 (**3회 increment**)
+- → **은평 PA 17→34 (2배) 정확히 위 시나리오 매칭**
+
+### 3) 옵션 비교
+
+| 옵션 | 변경 LOC | DB 호출 ↑ | schema 변경 | idempotent 보장 | race 안전 | 외부 스크립트 안전 |
+|------|---------|----------|----------|---------------|----------|----------------|
+| **A: SET 방식 변환** ⭐ | ~30 LOC | 매치 1회 + tournament 매치 SELECT (N건 합산) | 0 | ✅ 100% (재계산) | ✅ | ✅ |
+| **B: matchId 추적 테이블** | ~80 LOC + migration | -50% (skip) | 신규 `MatchStandingsApplied` table | ✅ 100% (skip) | ✅ | ✅ |
+| **C: settings.standingsApplied 가드** | ~25 LOC | -50% (skip) | 0 (Json 활용) | △ (race 위험 — TOCTOU) | ⚠️ Concurrent 2회 시 둘 다 skip 통과 가능 | ✅ |
+
+### 4) 권장 옵션 + 사유
+
+⭐ **옵션 A (SET 방식 변환)** 권장:
+
+1. **idempotent 100% 보장** — 호출 N회 = 결과 동일 (skip 가드 무관, 재계산이라 항상 정확)
+2. **race 안전** — concurrent 2회 호출 시 마지막 호출이 정확한 결과 SET (increment 처럼 누적 X)
+3. **외부 스크립트 호환 100%** — `scripts/_temp/recalc-standings-set.ts` 와 동일 로직 → 함수 통합 가능 (스크립트 삭제 가능)
+4. **schema 변경 0** = 운영 영향 0
+5. **기존 즉시 fix 6건 강남구 i3-U9 자동 정상화** — 영구 fix 박제 후 매치 status PATCH 1회면 standings SET 으로 정정
+6. **DB 호출 증가 = 미미** — 매치별 같은 종별 매치 SELECT (보통 3~10건) → 운영 영향 ✅
+7. **옵션 C (settings 가드) TOCTOU race 위험** — finalizeMatchCompletion 이 5종 path 동시 호출 가능 시 둘 다 가드 통과 → 박제 후 둘 다 increment (위 §2 race 시나리오 재현)
+
+### 5) 신규 함수 시그니처 (옵션 A)
+
+```ts
+/**
+ * 경기 완료 시 팀 전적 SET 방식 박제 (idempotent — 동일 매치 N회 호출 안전).
+ *
+ * 2026-05-16 영구 fix (errors.md 6회째 회귀 차단):
+ *   기존 increment 방식 → 동일 매치 다중 path 호출 시 N배 박제 (은평 PA 17→34 사고).
+ *   본 함수 = 매치 단건 SET 방식 (재계산) — 호출 가드 의존 0.
+ *
+ * 동작:
+ *   1. 매치 단건 SELECT (winner_team_id / home/away score)
+ *   2. 같은 tournament 같은 팀이 참여한 status=completed + winner_team_id NOT NULL 매치 N건 SELECT
+ *   3. in-memory 합산 (wins/losses/draws/PF/PA/PD)
+ *   4. TournamentTeam.updateMany (2건 — home + away) SET 방식 박제
+ *
+ * race 안전: concurrent 2회 호출 시 마지막 호출이 정확한 결과 SET (증분 누적 X).
+ * 가드 무관: caller 가드 (alreadyCompleted / prev status) 우회해도 항상 정확.
+ */
+export async function updateTeamStandings(matchId: bigint): Promise<void>;
+```
+
+**호출 시그니처 변경 0** — 기존 caller 5종 (admin/match-sync/batch-sync/status PATCH/score-sheet) 모두 그대로 호출 가능.
+
+### 6) 변경 파일 목록 + LOC
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|---------|
+| `src/lib/tournaments/update-standings.ts` | `updateTeamStandings` SET 방식 재구현 (53~107 → ~70 LOC). `advanceWinner` 유지 (별건). | +50 / -55 | 수정 |
+| `src/lib/tournaments/finalize-match-completion.ts` | 변경 0 (함수 시그니처 동일) | 0 | - |
+| `src/__tests__/lib/tournaments/update-standings.test.ts` | 신규 vitest — 5 케이스 (단건 / N회 호출 / draw / 외부 스크립트 시뮬레이션) | +120 | 신규 |
+| `scripts/_temp/recalc-standings-set.ts` | 삭제 (함수에 통합) | -116 | 삭제 |
+| **합계** | | **+170 / -171 LOC = 순감 -1** | |
+
+### 7) 회귀 위험 평가
+
+| 위험 케이스 | 평가 | 대응 |
+|-----------|------|------|
+| **기존 정상 박제 매치 재계산 결과 불일치** (이전 increment 누적값 ≠ 재계산 SET 값) | 중 — 본 영구 fix 박제 후 첫 호출 시 정확값 SET → **운영 이득** (강남구 i3-U9 자동 정상화) | 박제 전 dry-run 스크립트로 모든 종별 영향 사전 확인 |
+| **DB 호출 증가** (매치당 같은 팀 매치 N건 SELECT) | 낮음 — 종별당 보통 3~10 매치 (i3-U9 = 6 / 큰 풀리그 = 20건+) | index 활용 (`tournament_id`, `home_team_id`, `away_team_id`, `status`) — 이미 존재 |
+| **draws 박제 정합** (winner_team_id=null = 무승부) | 낮음 — 재계산 시 draws 도 SET 처리 (기존 increment 와 동일 로직) | vitest 케이스 #3 |
+| **트랜잭션 격리** (concurrent 2회 호출 시 같은 매치 SELECT 결과 다름) | 낮음 — race 시 둘 다 같은 매치 SELECT → 같은 결과 SET (idempotent) | $transaction wrap 유지 |
+| **forfeit / disqualified 매치** (winner_team_id 있음 + scores=0) | 낮음 — 기존 함수 동작 보존 (winner_team_id 기반 분기) | vitest 케이스 #5 |
+| **테스트 mock 회귀** (`__tests__/lib/match-sync.test.ts` L389/455 `updateTeamStandings: vi.fn()`) | 없음 — mock 시그니처 동일 | - |
+
+### 8) vitest 케이스
+
+| # | 케이스 | 검증 항목 |
+|---|------|---------|
+| 1 | 단건 매치 종료 (홈 승) | TournamentTeam home wins=1/losses=0/PF=10/PA=8 / away wins=0/losses=1/PF=8/PA=10 |
+| 2 | **N회 호출 idempotent** ⭐ | `updateTeamStandings(matchId)` 3회 호출 → wins/losses/PF/PA 변화 0 (1회 호출 결과 = 3회 호출 결과) |
+| 3 | 무승부 (winner_team_id=null) | draws=1 / wins/losses 변화 0 |
+| 4 | 누적 (3 매치 진행) | wins/losses/PF/PA 합산 정확 (1매치=11→8 / 2매치=8→11 / 3매치=10→10 → wins=2 losses=1 draws=0 PF=29 PA=29) |
+| 5 | **외부 스크립트 시뮬레이션** ⭐ | `scripts/_temp/recalc-standings-set.ts` 와 동일 결과 (스크립트 삭제 가능 검증) |
+
+### 9) 즉시 fix 스크립트와의 호환성
+
+`scripts/_temp/recalc-standings-set.ts` 와 신규 `updateTeamStandings` 비교:
+
+| 항목 | scripts/_temp | 신규 updateTeamStandings |
+|-----|---------------|-------------------------|
+| 입력 | TOURNAMENT_ID + DIVISION_CODE | matchId |
+| SELECT 범위 | 종별 완료 매치 전체 | 매치 단건 → 같은 팀이 참여한 완료 매치 전체 |
+| 합산 방식 | in-memory loop | in-memory loop (동일) |
+| UPDATE 방식 | SET (트랜잭션) | SET (트랜잭션) |
+| placeholder advancer 호출 | ✅ (스크립트 내부) | ❌ (finalizeMatchCompletion 가 별도 호출) |
+
+→ **결론**: 신규 함수 = 스크립트 핵심 로직 100% 추출 + 매치 단건 trigger. 스크립트 삭제 가능. 운영자가 강남구 i3-U9 정상화 시 `updateTeamStandings(matchId)` 6회 호출 = SET 방식이라 안전.
+
+### 10) PM 결재 사항
+
+| # | 결재 항목 | 권장 |
+|---|---------|------|
+| Q1 | 옵션 (A SET / B 신규 table / C settings 가드) | **A** (race 안전 + 외부 스크립트 호환) |
+| Q2 | 강남구 i3-U9 즉시 fix 재실행 (영구 fix 박제 후 자동 정상화) | 별도 fix 스크립트 불필요 — 운영자가 매치 status PATCH 6회 호출 (Flutter 앱 sync 재트리거) 또는 admin route 1회 호출 |
+| Q3 | scripts/_temp/recalc-standings-set.ts 삭제 시점 | PR 머지 후 즉시 (함수 통합) |
+| Q4 | DB 호출 증가 (매치당 N건 SELECT) 운영 영향 | 미미 — index 이미 존재. dry-run 후 확정 |
+
+### 11) 권장 PR 분해
+
+| PR | 범위 | LOC | 검증 |
+|----|------|-----|------|
+| **PR-1** | `update-standings.ts` SET 방식 변환 + vitest 5 케이스 | +170 / -55 | tester (vitest 5/5 통과) + reviewer (idempotent 보장 검토) |
+| **PR-2** | `scripts/_temp/recalc-standings-set.ts` 삭제 + 강남구 i3-U9 정상화 검증 | -116 | PM 운영 SELECT 검증 (standings = 매치 결과 정합) |
+
+---
+
+| 2026-05-16 | **score-sheet Bench Tech (B) + Delay of Game 박제 design 검토** | 🟡 위치 = 옵션 B (Coach 영역 옆) + Delay 옵션 D 변형 (Team fouls 위) / 데이터 모델 = 옵션 D 혼합 (settings JSON + PBP action_subtype) / 자유투 = 수동 / Phase 1~6 (+1090 LOC / 18h / 3 PR 분해) / Q1~Q3 결재 대기 / 박제 X 계획만 |
 | 2026-05-16 | **Track B GNBA 유소년 INSERT 스크립트 spec 분석** | 🟡 `scripts/_temp/seed-gnba-youth-2026.ts` 신규 ~450 LOC / Tournament 분기 A안 (SELECT 후 자동) / 6 종별 format 매핑 (round_robin x2 / league_advancement x1 / group_stage_with_ranking x3) / 36 팀 + 59 매치 (예선 46 + 순위전 13) / placeholder-helpers 통과 의무 / 8중 idempotent 가드 / 사용자 결재 8 항목 (organizerId / linkage_pairs 형식 / KST→UTC 등) |
 | 2026-05-16 | **score-sheet PBP 수정 모달 기획설계** | 🟡 Phase 1 (조회) / Phase 2 (수정) 분리 / 6 step commit 단위 결정 / source = runningScore state / 신규 endpoint 0 / submit BFF 재사용 / 신규 1파일 + 수정 3파일 |
 | 2026-05-16 | **Phase 1 admin 흐름 개선 6 PR 박제** ⭐ | ✅ 6 commit (`4c05c8c` + `1e4b535` + `823d692` + `6d7718a` + `f4b0f95` + `f250e8c`) push 완료 / 강남구협회장배 단계 4·7·10·10.5 단절·누락 해소 / +3,060 LOC / 회귀 0 / 옵션 B 적용 |
