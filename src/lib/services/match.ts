@@ -15,6 +15,11 @@ import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
 //             해결 — @vercel/functions 의 waitUntil 로 wrap. dev/local 에서는 단순 Promise 처리로 동작.
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 import { waitUntil } from "@vercel/functions";
+// 2026-05-16 영구 fix (PR-G5.5-followup-B): updateMatchStatus path 가 그동안
+//   updateTeamStandings / advanceDivisionPlaceholders 호출 누락 — Flutter v1 /matches/:id/status PATCH 사용 시
+//   standings=0 + 결선 placeholder null 사고 (강남구 i3-U9 6건 의심).
+//   본 헬퍼 호출 추가 = 모든 매치 종료 path 단일 source 박제.
+import { finalizeMatchCompletion } from "@/lib/tournaments/finalize-match-completion";
 
 // ---------------------------------------------------------------------------
 // Select / Include 상수
@@ -316,6 +321,13 @@ export async function updateMatchStatus(
   // - homeScore vs awayScore 비교로 winner_team_id 자동 결정 (이미 채워져 있으면 그대로)
   // - winner → next_match_id 슬롯 채움 (single elim 호환, 기존 updateMatch 동일 패턴)
   // - dual_tournament 면 progressDualMatch 호출 (loser 진출 + idempotent winner 처리)
+  //
+  // 2026-05-16 영구 fix (PR-G5.5-followup-B): 트랜잭션 외부에서 finalizeMatchCompletion 호출.
+  //   클로저 캡처 — 트랜잭션 안 current.tournamentId / 이전 status / winnerTeamId 가 .then() 에서 사용 가능.
+  //   기존 path 가 standings + advancer 누락 → 강남구 i3-U9 사고 의심 원인.
+  let capturedTournamentId: string | null = null;
+  let capturedPrevStatus: string | null = null;
+  let capturedWinnerTeamId: bigint | null = null;
   return prisma.$transaction(async (tx) => {
     // 현재 매치 + tournament format 조회
     const current = await tx.tournamentMatch.findUnique({
@@ -334,6 +346,17 @@ export async function updateMatchStatus(
     if (!current) {
       throw new Error(`updateMatchStatus: 매치 ${matchId} 를 찾을 수 없습니다.`);
     }
+
+    // 2026-05-16 영구 fix: 트랜잭션 외부 finalizeMatchCompletion 호출용 prev_status 캡처
+    //   사유: 트랜잭션 내 UPDATE 전 status 가 "completed" 였는지 확인 — 중복 increment 방지 가드
+    //   기존 audit 분기 (L387) 도 동일 SELECT 호출 — 중복 회피 위해 본 SELECT 결과 재사용 가능하나
+    //   분기 안정성 위해 별도 SELECT (status 컬럼만 — 가벼움). audit 분기 별도 호출은 보존.
+    const beforeStatusRow = await tx.tournamentMatch.findUnique({
+      where: { id: matchId },
+      select: { status: true },
+    });
+    capturedTournamentId = current.tournamentId;
+    capturedPrevStatus = beforeStatusRow?.status ?? null;
 
     // status="completed" + winner 미결정 + 점수 있으면 자동 결정
     let winnerTeamId: bigint | null = current.winner_team_id;
@@ -364,6 +387,10 @@ export async function updateMatchStatus(
       },
       select: { id: true, status: true, started_at: true, ended_at: true },
     });
+
+    // 2026-05-16 영구 fix: finalizeMatchCompletion 호출용 winnerTeamId 캡처
+    //   트랜잭션 외부 .then() 에서 사용 — 클로저로 전달
+    capturedWinnerTeamId = winnerTeamId;
 
     // audit 기록 (caller 가 audit 옵션 전달한 경우만)
     if (audit) {
@@ -474,12 +501,35 @@ export async function updateMatchStatus(
     }
 
     return updated;
-  }).then((result) => {
+  }).then(async (result) => {
     // 2026-05-03: status="completed" 변경 시 알기자 자동 발행 (트랜잭션 외부)
     // 2026-05-09: waitUntil 로 wrap — Vercel serverless 응답 종료 후 process abort 방지.
     // dev/local 에서도 동작 (waitUntil 가 단순 Promise 처리).
     if (status === "completed") {
       waitUntil(triggerMatchBriefPublish(matchId));
+
+      // 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 통합 헬퍼 호출.
+      //   기존 path 누락 — updateTeamStandings / advanceDivisionPlaceholders / advanceTournamentPlaceholders /
+      //   checkAndAutoCompleteTournament 미호출 → 강남구 i3-U9 6건 standings=0 사고 의심 원인.
+      //
+      //   가드: capturedPrevStatus !== "completed" (중복 increment 방지 — admin route alreadyCompleted 가드와 동일 의도)
+      //   실패해도 status update 응답 자체는 성공 유지 (try/catch — 헬퍼 자체도 내부 allSettled)
+      if (capturedPrevStatus !== "completed" && capturedTournamentId) {
+        try {
+          await finalizeMatchCompletion(
+            matchId,
+            capturedTournamentId,
+            "flutter-status-patch",
+            { winnerTeamId: capturedWinnerTeamId },
+          );
+        } catch (err) {
+          console.error(
+            `[finalize-match:flutter-status-patch] matchId=${matchId} 후처리 실패:`,
+            err,
+          );
+          // 응답 자체는 성공 유지 (운영자가 manual 정정 가능)
+        }
+      }
     }
     return result;
   });
