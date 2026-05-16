@@ -1,6 +1,5 @@
 import { type NextRequest } from "next/server";
 import { requireTournamentAdmin } from "@/lib/auth/tournament-auth";
-import { updateTeamStandings } from "@/lib/tournaments/update-standings";
 import { VALID_TRANSITIONS } from "@/lib/tournaments/match-transitions";
 import { parseBigIntParam } from "@/lib/utils/parse-bigint";
 import { apiSuccess, apiError } from "@/lib/api/response";
@@ -11,18 +10,11 @@ import { NOTIFICATION_TYPES } from "@/lib/notifications/types";
 // 2026-05-10: pending → scheduled 자동 전환 헬퍼
 // (homeTeam + awayTeam + scheduledAt 모두 채워지면 자동 scheduled — stale pending 재발 방지)
 import { shouldAutoSchedule } from "@/lib/tournaments/auto-status";
-// Phase C: 듀얼토너먼트 매치 종료 시 winner/loser 자동 진출 처리
-// (single elim 의 winner 진출은 services/match.ts 의 updateMatch 가 이미 처리하므로
-//  본 함수는 dual_tournament 분기에서만 호출하여 loser 진출만 신규 효과를 만든다.
-//  winner 진출 update 는 idempotent — 같은 슬롯/같은 winnerTeamId 두 번 UPDATE 안전)
-import { progressDualMatch } from "@/lib/tournaments/dual-progression";
-// 2026-05-16 PR-G5.5-followup-B: 매치 status='completed' UPDATE 시 placeholder advancer 자동 호출.
-// 이유: 운영자 manual `/advance-placeholders` 의존 제거 — 4차 뉴비리그 결승 매치 232 자동 채움.
-// 분기: division_rule>0 (강남구 4 종별 등) → advanceAllDivisions / =0 (Tournament 단위) → advanceTournamentPlaceholders
-import {
-  advanceAllDivisions,
-  advanceTournamentPlaceholders,
-} from "@/lib/tournaments/division-advancement";
+// 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 5종 통합 헬퍼.
+//   기존 분산 호출 (updateTeamStandings / progressDualMatch / advanceAllDivisions /
+//   advanceTournamentPlaceholders) → 본 헬퍼 1회 호출로 통합 (단일 source 박제).
+//   alreadyCompleted 가드 = 본 route 책임 (헬퍼 호출 조건 if 안에서 보존).
+import { finalizeMatchCompletion } from "@/lib/tournaments/finalize-match-completion";
 
 type Ctx = { params: Promise<{ id: string; matchId: string }> };
 
@@ -242,51 +234,46 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   // TC-006: 이미 completed였던 매치는 전적 재갱신 금지 (중복 increment 방지)
   // M-04: fire-and-forget 제거 -> await + 실패 시 warning 응답
+  //
+  // 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 5종 호출을 finalizeMatchCompletion 통합.
+  //   기존 분산 호출 (updateTeamStandings / progressDualMatch / advanceAllDivisions /
+  //   advanceTournamentPlaceholders) = 헬퍼 1회로 통합 (단일 source 박제).
+  //   alreadyCompleted 가드 보존 — 본 if 안에서만 헬퍼 호출 (중복 increment 차단).
   let standingsWarning: string | undefined;
   if (status === "completed" && !alreadyCompleted) {
     try {
-      await updateTeamStandings(matchBigInt);
+      const finalizeResult = await finalizeMatchCompletion(
+        matchBigInt,
+        id,
+        "admin-patch",
+        // winner_team_id 캐스팅 — 본 route 는 string | null 로 받음
+        {
+          winnerTeamId:
+            winner_team_id != null ? BigInt(String(winner_team_id)) : null,
+        },
+      );
+      if (finalizeResult.warnings.length > 0) {
+        // 첫 warning 만 사용자 응답에 박제 (기존 standingsWarning 단일 메시지 패턴 보존)
+        standingsWarning = finalizeResult.warnings[0];
+      }
     } catch (err) {
-      console.error(`[updateTeamStandings] matchId=${matchBigInt} 전적 갱신 실패:`, err);
-      standingsWarning = "경기 상태는 변경되었으나 팀 전적 갱신에 실패했습니다. 관리자에게 문의하세요.";
+      // 헬퍼 자체 throw 는 사실상 발생 X (내부 try/catch + allSettled)
+      console.error(
+        `[finalize-match] matchId=${matchBigInt} 후처리 실패:`,
+        err,
+      );
+      standingsWarning =
+        "경기 상태는 변경되었으나 팀 전적 갱신에 실패했습니다. 관리자에게 문의하세요.";
     }
 
     // ✨ Phase 2A: full_league_knockout 대회의 리그 전부 완료 시 토너먼트 경기 자동 생성
-    // ✨ Phase C (2026-05-02): dual_tournament 매치 완료 시 winner/loser 자동 진출
-    // 실패해도 경기 완료 응답 자체는 성공으로 처리 (사용자 요청 흐름 보존)
+    // 본 분기는 finalizeMatchCompletion 과 별개 — knockout 트리 자동 INSERT (별도 비즈니스 로직).
+    // 실패해도 경기 완료 응답 자체는 성공으로 처리 (사용자 요청 흐름 보존).
     try {
       const tournament = await prisma.tournament.findUnique({
         where: { id },
         select: { format: true, settings: true },
       });
-
-      // Phase C: dual_tournament 분기 — winner/loser 다음 매치 슬롯 자동 채움
-      // - winner 진출: services/match.ts:updateMatch 가 이미 처리 (next_match_id + slot UPDATE)
-      //   → 본 호출은 idempotent (같은 슬롯에 같은 winnerTeamId 두 번 UPDATE 안전)
-      // - loser 진출: settings.loserNextMatchId 매핑된 패자전 슬롯 채움 (신규 효과)
-      // - winner_team_id null / next_match_id null → progressDualMatch 내부에서 자체 가드
-      // 별도 트랜잭션으로 호출 (match.ts 트랜잭션은 이미 commit 됨, loser update 1건만 atomic 보장)
-      if (
-        tournament?.format === "dual_tournament" &&
-        winner_team_id != null
-      ) {
-        try {
-          await prisma.$transaction(async (tx) => {
-            await progressDualMatch(
-              tx,
-              matchBigInt,
-              BigInt(String(winner_team_id)),
-            );
-          });
-        } catch (e) {
-          // 진출 실패 = 매치 자체는 이미 update 됨 (trx 분리)
-          // → 사용자 응답은 성공 유지, 로그만 남김 (admin 이 수동 정정 가능)
-          console.error(
-            `[dual-progression] matchId=${matchBigInt} 자동 진출 실패:`,
-            e,
-          );
-        }
-      }
 
       if (tournament?.format === "full_league_knockout") {
         // 동적 import: 자동 생성 로직은 엣지 케이스이므로 번들 크기 최적화
@@ -337,30 +324,6 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       // 토너먼트 자동 생성 실패는 로그만 남기고 사용자 응답은 성공 유지
       // admin이 수동 트리거 API로 재시도 가능
       console.error("[auto-knockout-gen]", e);
-    }
-
-    // 2026-05-16 PR-G5.5-followup-B: division_rule 분기로 placeholder advancer 자동 호출.
-    // 이유: 종전에는 운영자가 manual `/advance-placeholders` 라우트 호출해야 4차 뉴비리그
-    //   결승 매치 232 의 homeTeamId/awayTeamId 가 채워졌음 (예선 6건 종료 후 운영자 수동 trigger 의존).
-    //   본 분기 박제로 매치 status='completed' UPDATE 시점에 standings 기반 placeholder 자동 채움.
-    // 분기:
-    //   - division_rule>0 (강남구 4 종별: i3-U9/U11/U14/i3w-U12) → advanceAllDivisions
-    //   - division_rule=0 (4차 뉴비리그 등 Tournament 단위) → advanceTournamentPlaceholders
-    // 안전성: 별도 try/catch + 자체 트랜잭션 — 자동 진출 실패해도 매치 update / 사용자 응답은 성공 유지.
-    //   Manual `/advance-placeholders` 라우트는 fallback 으로 유지 (운영자 정정 가능).
-    try {
-      await prisma.$transaction(async (tx) => {
-        const ruleCount = await tx.tournamentDivisionRule.count({
-          where: { tournamentId: id },
-        });
-        if (ruleCount > 0) {
-          await advanceAllDivisions(tx, id);
-        } else {
-          await advanceTournamentPlaceholders(tx, id);
-        }
-      });
-    } catch (e) {
-      console.error("[advance-placeholders:auto] PATCH route", e);
     }
   }
 

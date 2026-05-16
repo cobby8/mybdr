@@ -22,18 +22,17 @@
  */
 
 import { prisma } from "@/lib/db/prisma";
-import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
-import { progressDualMatch } from "@/lib/tournaments/dual-progression";
-// 2026-05-12 Phase 3-B 자동 trigger 통합 — 조별 풀리그/링크제 standings 기반 placeholder UPDATE
-// 2026-05-16 PR-G5.5-followup-B: divisionCode 없는 매치 (Tournament 단위) 자동 채움 분기 추가
+// 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 5종 호출 통합 헬퍼
+//   기존 분산 호출 (updateTeamStandings / advanceWinner / progressDualMatch /
+//   advanceDivisionPlaceholders / advanceTournamentPlaceholders / checkAndAutoCompleteTournament)
+//   = finalize-match-completion.ts 단일 source 로 통합. 신규 매치 종료 path 박제 시 1줄 호출만.
 import {
-  advanceDivisionPlaceholders,
-  advanceTournamentPlaceholders,
-} from "@/lib/tournaments/division-advancement";
-// 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' 자동 UPDATE
-import { checkAndAutoCompleteTournament } from "@/lib/tournaments/auto-complete";
+  finalizeMatchCompletion,
+  type FinalizeMatchCompletionResult,
+} from "@/lib/tournaments/finalize-match-completion";
 // 2026-05-09: 알기자 자동 발행 — sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
 //   waitUntil 로 wrap (Vercel serverless 응답 종료 후 process abort 방지).
+//   본 헬퍼 외 호출 — status 전환 시점 (existing.status !== "completed") 검증 필요 → finalizeMatchCompletion 미포함.
 import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
 
@@ -619,132 +618,45 @@ export async function syncSingleMatch(
     await Promise.all(pbpPromises);
   }
 
-  // 11) 경기 완료 시 승자 진출 + 전적 업데이트
-  // 2026-05-12 Phase 3-B 후속: standings 박제 → advanceDivisionPlaceholders sequential 순서 보장.
-  //   기존 = 모두 Promise.allSettled 병렬 (standings vs advance race condition 위험)
-  //   변경 = (1) updateTeamStandings 먼저 await — wins/losses/point_difference 박제 완료 보장
-  //          (2) advanceWinner / progressDualMatch / advanceDivisionPlaceholders 병렬 (standings 기반 매핑)
+  // 11) 경기 완료 시 통합 post-process 헬퍼 호출 (2026-05-16 영구 fix)
+  //
+  // 기존 (147 LOC 분산):
+  //   updateTeamStandings → advanceWinner/progressDualMatch + advanceDivisionPlaceholders/
+  //   advanceTournamentPlaceholders + checkAndAutoCompleteTournament 직접 호출
+  //
+  // 변경 (헬퍼 1회 호출):
+  //   finalizeMatchCompletion 이 위 5종 통합 호출 (분기 로직 + try/catch + warnings 100% 보존).
+  //   회귀 0 — match-sync.ts L622~748 블록을 그대로 추출한 헬퍼.
+  //
+  // 신규 path (Flutter status PATCH / batch-sync) 도 본 헬퍼 호출 = 단일 source 박제.
   const warnings: string[] = [];
   let postProcessStatus: SyncPostProcessStatus = "skipped";
 
   if (match.status === "completed") {
-    const isDual = tournament?.format === "dual_tournament";
-
-    // (1) standings 박제 sequential — 후속 advanceDivisionPlaceholders 가 의존 (DB 박제값 기반 ranking)
+    let finalizeResult: FinalizeMatchCompletionResult | null = null;
     try {
-      await updateTeamStandings(matchId);
+      finalizeResult = await finalizeMatchCompletion(
+        matchId,
+        tournamentId,
+        "match-sync-service",
+        { winnerTeamId },
+      );
     } catch (err) {
+      // 헬퍼 자체 throw 는 사실상 발생 X (내부 try/catch + Promise.allSettled)
+      // 방어적 처리 — 응답 자체는 성공 유지 (warnings 박제만).
       console.error(
-        `[match-sync:post-process] updateTeamStandings failed matchId=${match.server_id}:`,
-        err
+        `[match-sync:post-process] finalizeMatchCompletion threw matchId=${match.server_id}:`,
+        err,
       );
-      warnings.push("전적 갱신 실패 — 관리자에게 문의하세요");
+      warnings.push("매치 종료 후처리 실패 — 관리자에게 문의하세요");
     }
 
-    // (2) 진출 처리 — Promise.allSettled 병렬 (standings 박제 후 ranking 기반 매핑)
-    // - advanceWinner: single-elim 토너먼트 next_match_id 진출
-    // - progressDualMatch: dual_tournament winner/loser bracket
-    // - advanceDivisionPlaceholders: 조별 풀리그/링크제 → 순위전 placeholder 자동 매핑 (Phase 3-B)
-    //
-    // divisionCode = match.settings.division_code (Phase 2 INSERT 시 박제됨).
-    // 없으면 (다른 대회 / Flutter 매치 등) advanceDivisionPlaceholders skip.
-    // 별도 SELECT — ExistingMatchForSync type 미확장 (caller 영향 0 보장).
-    const matchSettings = await prisma.tournamentMatch.findUnique({
-      where: { id: matchId },
-      select: { settings: true },
-    });
-    const settingsRaw = (matchSettings?.settings ?? {}) as Record<string, unknown>;
-    const divisionCode =
-      typeof settingsRaw.division_code === "string" ? settingsRaw.division_code : null;
-
-    const tasks: Promise<unknown>[] = [];
-    if (!isDual) {
-      tasks.push(advanceWinner(matchId));
-    } else if (winnerTeamId) {
-      tasks.push(
-        prisma.$transaction(async (tx) => {
-          await progressDualMatch(tx, matchId, winnerTeamId!);
-        })
-      );
-    }
-    // 2026-05-16 PR-G5.5-followup-B:
-    //   - divisionCode 있음 → 기존 advanceDivisionPlaceholders 호출 (강남구 4 종별)
-    //   - divisionCode 없음 + ruleCount=0 → advanceTournamentPlaceholders 호출 (4차 뉴비리그 등 Tournament 단위)
-    // 이유: Flutter sync path 도 매치 status='completed' 시점에 placeholder 자동 채움 필요.
-    //   기존: divisionCode null → skip → 운영자 manual `/advance-placeholders` 의존
-    //   변경: divisionCode null + ruleCount=0 → advanceTournamentPlaceholders 자동 호출
-    // 안전성: tasks Promise.allSettled — 실패해도 sync 응답 자체는 성공 유지 (warnings 수집).
-    let usedTournamentPlaceholders = false;
-    if (divisionCode) {
-      tasks.push(advanceDivisionPlaceholders(prisma, tournamentId, divisionCode));
+    if (finalizeResult) {
+      warnings.push(...finalizeResult.warnings);
+      postProcessStatus = finalizeResult.status === "ok" ? "ok" : "partial_failure";
     } else {
-      const ruleCount = await prisma.tournamentDivisionRule.count({
-        where: { tournamentId },
-      });
-      if (ruleCount === 0) {
-        tasks.push(advanceTournamentPlaceholders(prisma, tournamentId));
-        usedTournamentPlaceholders = true;
-      }
+      postProcessStatus = "partial_failure";
     }
-    // 2026-05-12 대회 자동 종료 trigger — 모든 매치 종료 시 tournament.status='completed' UPDATE.
-    //   - 멱등 (이미 종료/매치 0건/미완료 매치 1건+ = no-op)
-    //   - 진출 / standings 박제 후 호출 보장 위해 sequential 이 아닌 병렬 — race condition 영향 0
-    //     (status='completed' UPDATE 는 매치 count 기준 / advanceWinner 와 독립).
-    tasks.push(checkAndAutoCompleteTournament(prisma, tournamentId));
-
-    const results = await Promise.allSettled(tasks);
-    // 순서 = [advanceWinner | progressDualMatch?, advanceDivisionPlaceholders | advanceTournamentPlaceholders?, autoComplete]
-    // 2026-05-16 PR-G5.5-followup-B: divisionCode 없는 매치 + ruleCount=0 → advanceTournamentPlaceholders 도 cursor 점유
-    let cursor = 0;
-    const advanceResult =
-      !isDual || (isDual && winnerTeamId) ? results[cursor++] : null;
-    const placeholderResult =
-      divisionCode || usedTournamentPlaceholders ? results[cursor++] : null;
-    const autoCompleteResult = results[cursor++];
-
-    if (advanceResult && advanceResult.status === "rejected") {
-      console.error(
-        `[match-sync:post-process] ${isDual ? "progressDualMatch" : "advanceWinner"} failed matchId=${match.server_id}:`,
-        advanceResult.reason
-      );
-      warnings.push(
-        isDual
-          ? "듀얼토너먼트 자동 진출 실패 — 관리자에게 문의하세요"
-          : "승자 진출 처리 실패 — 관리자에게 문의하세요",
-      );
-    }
-    if (placeholderResult && placeholderResult.status === "rejected") {
-      // 분기별 로그 — divisionCode 있으면 advanceDivisionPlaceholders / 없으면 advanceTournamentPlaceholders
-      const fnName = divisionCode
-        ? `advanceDivisionPlaceholders (div=${divisionCode})`
-        : "advanceTournamentPlaceholders (tournament-level)";
-      console.error(
-        `[match-sync:post-process] ${fnName} failed matchId=${match.server_id}:`,
-        placeholderResult.reason
-      );
-      warnings.push("순위전 placeholder 자동 매핑 실패 — 관리자에게 문의하세요");
-    }
-    if (autoCompleteResult && autoCompleteResult.status === "rejected") {
-      // 자동 종료 실패는 warning 만 (operating critical 아님 — 운영자 수동 종료 가능)
-      console.error(
-        `[match-sync:post-process] checkAndAutoCompleteTournament failed matchId=${match.server_id} tournamentId=${tournamentId}:`,
-        autoCompleteResult.reason
-      );
-      // warnings 에 추가하지 않음 (운영자에게 노이즈 — 자동 종료 실패는 매치 처리 자체와 무관)
-    } else if (
-      autoCompleteResult &&
-      autoCompleteResult.status === "fulfilled" &&
-      autoCompleteResult.value &&
-      typeof autoCompleteResult.value === "object" &&
-      "updated" in autoCompleteResult.value &&
-      autoCompleteResult.value.updated === true
-    ) {
-      console.log(
-        `[match-sync:post-process] auto-completed tournamentId=${tournamentId} reason=${(autoCompleteResult.value as unknown as { reason: string }).reason}`
-      );
-    }
-
-    postProcessStatus = warnings.length === 0 ? "ok" : "partial_failure";
   }
 
   // 12) 응답 데이터 반환 — caller (sync route) 가 apiSuccess wrap.

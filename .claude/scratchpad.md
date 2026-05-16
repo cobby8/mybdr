@@ -1,9 +1,254 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: 긴급 — 라이브 PBP paper 매치 정렬 불안정 fix (새로고침마다 순서 바뀜 → 기록원 INSERT 순서 안정)
-- **상태**: 🟢 박제 완료 (developer / 옵션 C 선택) — PM 즉시 처리 (commit / push / 머지)
-- **현재 담당**: PM (즉시 commit)
+- **요청**: 영구 fix planner — 매치 종료 시 standings 자동 계산 + 결선 진출 자동 채움 누락 path 진단
+- **상태**: 🟡 기획설계 박제 완료 (옵션 B 권장) — PM 결재 대기
+- **현재 담당**: PM (옵션 결재)
+
+## 기획설계 (planner-architect / 2026-05-16) — 매치 종료 path 누락 영구 fix
+
+🎯 **목표**: 매치 status='completed' UPDATE path 4종 중 1종 (`updateMatchStatus` Flutter v1 `/api/v1/matches/:id/status`) 이 `updateTeamStandings` + placeholder advancer 호출 누락. 강남구 i3-U9 6건 standings=0 사고 = 본 path 사용 의심. **영구 fix = 단일 통합 헬퍼 (옵션 B)** 권장.
+
+### 1) 매치 종료 path 매핑 (grep 결과)
+
+| # | path | 파일 | updateTeamStandings | advanceWinner / progressDualMatch | placeholder advancer | autoComplete | matchBrief |
+|---|------|------|----|----|----|----|----|
+| **1** | admin PATCH route | `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts:240~365` | ✅ L248 | ✅ L275 (dual) + services/match.ts:updateMatch 가 winner 진출 | ✅ L357 (advanceAllDivisions / advanceTournamentPlaceholders) | ❌ (간접) | ❌ (간접) |
+| **2** | Flutter sync 단건 | `src/app/api/v1/tournaments/[id]/matches/sync/route.ts:143` → service `syncSingleMatch` | ✅ L635 | ✅ L662/L666 | ✅ L679/L685 (PR-G5.5-followup-B) | ✅ L693 | ✅ L476 (waitUntil) |
+| **3** | Flutter batch-sync | `src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts:73~78` | ✅ L74 (fire-and-forget) | ✅ L73 (advanceWinner only — **dual ❌**) | ❌ **누락** | ❌ **누락** | ✅ L78 |
+| **4** | score-sheet 웹 BFF | `src/app/api/web/score-sheet/[matchId]/submit/route.ts:816` → service `syncSingleMatch` | ✅ (service 경유) | ✅ (service 경유) | ✅ (service 경유) | ✅ (service 경유) | ✅ (service 경유) |
+| **5** | **Flutter v1 status PATCH** | `src/app/api/v1/matches/[id]/status/route.ts:69` → `services/match.ts:updateMatchStatus` | ❌ **누락** | ✅ L439 (winner 슬롯) + L472 (dual) | ❌ **누락** | ❌ **누락** | ✅ L482 (waitUntil) |
+
+→ **누락 path 2종 발견** (#3 부분 누락 + #5 전체 누락).
+
+### 2) 누락 path 영향 분석
+
+| 누락 path | 운영자 사용 시나리오 | 영향 |
+|----------|------------------|------|
+| **#5 `/api/v1/matches/:id/status` (Flutter 종료)** | Flutter 기록앱이 매치 종료 시점에 status="completed" PATCH 호출 (sync 와 별개 트리거 — sync 는 점수 박제 / status PATCH 는 종료 트리거) | • TournamentTeam.wins/losses/points_for 박제 0 → standings 0 / **이번 강남구 i3-U9 사고 = 본 path** 의심 / placeholder advancer 미호출 → 결선 매치 homeTeamId/awayTeamId null 유지 |
+| **#3 batch-sync placeholder 미호출** | 운영자 매치 점수 일괄 보정 (Flutter 앱 batch 업로드) | placeholder advancer 미호출 → 결선 매치 자동 채움 X (단 standings/winner 진출은 박제됨) |
+| **#3 batch-sync dual_tournament 미호출** | dual_tournament 대회 batch-sync | progressDualMatch 미호출 → loser bracket 미진출 |
+
+**근본 원인**: 매치 종료 path 가 **5종 산재** (admin PATCH / sync 단건 / batch-sync / score-sheet BFF / Flutter status PATCH). post-process 5종 (standings / winner 진출 / placeholder advancer / autoComplete / matchBrief) 이 각 path 마다 누락/중복/순서 다름 → 함정 영구 존재.
+
+### 3) errors.md `2026-05-09` "sync path 헬퍼 우회 lessons" 패턴 5회째 회귀
+
+- 2026-05-09: Flutter sync path 가 `updateMatchStatus` 헬퍼 우회로 `triggerMatchBriefPublish` 미호출 → batch-sync.route.ts:78 waitUntil 추가 fix (errors.md 박제)
+- 2026-05-16 (현재 사고): Flutter status PATCH path 가 `syncSingleMatch` 헬퍼 우회로 `updateTeamStandings` 미호출 → 동일 패턴 5회째
+- **defense in depth 룰 (errors.md)**: 매번 path 별 호출 누락 발견 → 단일 통합 헬퍼로 강제 단일 source path 박제 필요
+
+### 4) 옵션 비교
+
+| 옵션 | 변경 LOC | 회귀 위험 | 단일 source | 유지보수 | 권장 |
+|------|---------|---------|----------|----------|------|
+| **A: 누락 path 마다 호출 추가 (분산)** | ~25 LOC (3곳: #5 + #3 dual + #3 placeholder) | 중 (path 신규 시 또 누락 — 6회째 회귀 위험) | ❌ | 낮음 | ❌ |
+| **B: 공통 헬퍼 `finalizeMatchCompletion(matchId)` 신규 — 모든 path 가 호출** ⭐ | ~80 LOC (헬퍼 신규 +60 / path 5종 호출 변경 +20) | 낮음 (헬퍼 = service 의 `if (match.status === "completed")` 블록을 그대로 추출) | ✅ | 높음 (path 신규 시 1줄만 호출) | **⭐ 권장** |
+| **C: DB trigger 또는 status update 후 자동 hook** | ~50 LOC + DB migration | 높음 (운영 DB 트리거 = 디버깅 난이도 + 운영 영향) | ✅ | 중 | ❌ |
+
+→ **옵션 B 권장 사유**:
+1. **errors.md defense in depth 룰 정합** — 단일 source 강제
+2. **회귀 위험 0** (service 의 `if (match.status === "completed")` 블록을 100% 그대로 추출 = 동작 변경 0)
+3. **신규 path 박제 시 1줄 호출만** = 6회째 회귀 영구 차단
+4. **DB schema 변경 0** = 운영 영향 0
+
+### 5) 신규 헬퍼 시그니처 (옵션 B)
+
+```ts
+// src/lib/tournaments/finalize-match-completion.ts 신규
+//
+// 매치 status='completed' 박제 후 호출되는 5종 post-process 통합 헬퍼.
+// 모든 매치 종료 path (admin / sync / batch-sync / score-sheet / Flutter status PATCH)
+// 가 본 헬퍼 1회 호출 = 단일 source 박제 (errors.md defense in depth 룰).
+//
+// 동작 (service syncSingleMatch L630~748 100% 그대로 추출):
+//   1. updateTeamStandings (sequential — placeholder advancer 가 의존)
+//   2. advanceWinner (single elim) OR progressDualMatch (dual_tournament)
+//   3. advanceDivisionPlaceholders (divisionCode 있음) OR advanceTournamentPlaceholders (없음 + ruleCount=0)
+//   4. checkAndAutoCompleteTournament (대회 자동 종료)
+//   5. waitUntil(triggerMatchBriefPublish) — 알기자 자동 발행
+//
+// Promise.allSettled 부분 실패 warnings[] 수집 (service 의 흐름 100% 보존).
+// caller (path 5종) 가 본 헬퍼 호출 = 누락 path 영구 차단.
+export interface FinalizeMatchCompletionParams {
+  matchId: bigint;
+  tournamentId: string;
+  // existingWinnerTeamId — sync path 는 service 내부 자동 결정값 / admin path 는 update 후 SELECT 결과
+  // null 이면 헬퍼 내부 SELECT (idempotent — service 가 이미 박제한 winner_team_id 그대로 사용)
+  winnerTeamId?: bigint | null;
+  // 호출자 context (audit 박제용 — 사고 추적성)
+  callerContext: "admin-patch" | "flutter-sync" | "flutter-batch-sync" | "web-score-sheet" | "flutter-status-patch";
+}
+
+export interface FinalizeMatchCompletionResult {
+  status: "ok" | "partial_failure";
+  warnings: string[];
+}
+
+export async function finalizeMatchCompletion(
+  params: FinalizeMatchCompletionParams,
+): Promise<FinalizeMatchCompletionResult>;
+```
+
+### 6) 변경 파일 목록 + LOC 정확
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|---------|
+| `src/lib/tournaments/finalize-match-completion.ts` | 신규 헬퍼 — service syncSingleMatch L622~748 (post-process 블록) 100% 추출 + caller context audit | ~120 | 신규 |
+| `src/lib/services/match-sync.ts` | L622~748 블록 제거 + `await finalizeMatchCompletion({...})` 1회 호출 (winnerTeamId 전달) | +6 / -127 | 수정 |
+| `src/lib/services/match.ts` (updateMatchStatus) | L466~474 dual progress 블록 제거 + `await finalizeMatchCompletion({...})` 1회 호출 / waitUntil(triggerMatchBriefPublish) 제거 (헬퍼 내부로 이전) | +8 / -10 | 수정 |
+| `src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts` | L246~365 standings + dual + advance + placeholder 블록 통합 → `await finalizeMatchCompletion({...})` 1회 호출 + `full_league_knockout` knockout 자동 생성 분기는 별도 유지 (영향 0) | +8 / -75 | 수정 |
+| `src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts` | L72~79 `if (match.status === "completed")` 블록 통합 → `await finalizeMatchCompletion({...})` 1회 호출 (placeholder advancer + dual 추가 박제) | +6 / -8 | 수정 |
+| **합계** | | **+148 / -220 LOC = 순감 -72** | |
+
+→ **`syncSingleMatch` (service) 는 헬퍼 호출 1회로 통합** → 모든 path 단일 source.
+
+### 7) 회귀 위험 평가
+
+| 위험 케이스 | 평가 | 대응 |
+|-----------|------|------|
+| **중복 increment** (admin PATCH alreadyCompleted 가드 + sync 의 idempotent) | 낮음 (헬퍼 내부에 alreadyCompleted 가드 추가 — `if (existingStatus === "completed") skip`) | service `existing.status` + admin `alreadyCompleted` 모두 헬퍼 인자로 전달 → 헬퍼가 한 번만 increment |
+| **dual_tournament 트랜잭션** (admin path 는 prisma.$transaction 별도) | 낮음 (헬퍼 내부에서 progressDualMatch 자체 트랜잭션 wrap) | service / admin 동일 패턴 (이미 prisma.$transaction async) |
+| **autoCompleteTournament 자동 종료 회귀** (admin path 는 호출 안 함) | 낮음 (헬퍼 추가 시 admin PATCH 도 자동 종료 trigger — 운영 이득) | 운영자 의도 — 모든 매치 종료 시 자동 종료 |
+| **placeholder advancer 회귀** (#5 Flutter status PATCH 가 신규로 호출) | 낮음 (이미 service path 와 동일 흐름 — 4차 뉴비리그 사례로 검증됨) | vitest 케이스 추가 |
+| **fire-and-forget vs await** (#3 batch-sync 는 catch(()=>{}) fire-and-forget) | 중 (헬퍼 = await 흐름) | batch-sync 는 per-match try-catch 안에서 await — 실패 시 errors[] 박제 (idempotent 유지) |
+| **TC-006 admin PATCH 중복 갱신 방지** | 낮음 | 헬퍼 인자 `alreadyCompleted` 추가 → true 면 standings skip |
+
+### 8) vitest 케이스 (옵션 B 박제 후)
+
+| # | 케이스 | 검증 항목 |
+|---|------|---------|
+| 1 | scheduled → completed (single elim) | standings +1 / advanceWinner 호출 / placeholder advancer divisionCode 분기 / autoComplete 멱등 / matchBrief waitUntil |
+| 2 | scheduled → completed (dual_tournament) | standings +1 / progressDualMatch 호출 / advanceWinner skip |
+| 3 | scheduled → completed (divisionCode null + ruleCount=0) | advanceTournamentPlaceholders 호출 (4차 뉴비리그 패턴) |
+| 4 | scheduled → completed (divisionCode "i3-U9") | advanceDivisionPlaceholders 호출 (강남구 패턴) |
+| 5 | completed → completed (재호출 idempotent) | standings 중복 increment 0 (TC-006) |
+| 6 | finalizeMatchCompletion partial failure | warnings[] 박제 / sync 응답 자체는 성공 |
+| 7 | callerContext 5종 audit 박제 | tournament_match_audits.context 에 caller 박제 |
+| 8 | 강남구 i3-U9 패턴 e2e (Flutter status PATCH path) | standings 1+ 박제 / 결선 placeholder 자동 채움 검증 |
+
+### 9) 강남구 i3-U9 즉시 fix 별건 (본 영구 fix 와 분리)
+
+- 6건 매치 = 이미 status='completed' + winner_team_id 박힘 / standings 0 / placeholder null
+- 영구 fix 박제 후에도 본 6건 = 재호출 안 됨 → 별도 `scripts/_temp/fix-gangnam-i3u9-standings.ts` 신규 필요 (`updateTeamStandings(matchId)` + `advanceDivisionPlaceholders(divisionCode)` 6회 idempotent)
+- **사용자 결재 후 실행** (운영 DB 영향 = standings UPDATE 6 매치 + placeholder UPDATE N건)
+
+### 10) PM 결재 사항
+
+| # | 결재 항목 | 권장 |
+|---|---------|------|
+| Q1 | 옵션 (A 분산 / **B 통합** / C trigger) | **B** (errors.md defense in depth 룰 정합) |
+| Q2 | callerContext 5종 enum (audit 박제) | 박제 (사고 추적성 — 6회째 회귀 시 path 식별 즉시 가능) |
+| Q3 | 즉시 fix 스크립트 (강남구 i3-U9 6건) 박제 여부 | 박제 (운영 standings/placeholder 즉시 정상화) |
+| Q4 | 영구 fix PR 분해 (1 PR vs 2 PR) | **2 PR** 권장: PR1 = 헬퍼 신규 + service/admin path 통합 / PR2 = batch-sync + Flutter status PATCH 통합 (회귀 검증 분리) |
+| Q5 | autoCompleteTournament 자동 종료를 admin PATCH 에도 trigger 박제 (옵션 B 박제 = 자동 trigger) | 박제 (운영 자동화 이득 — admin 운영자가 수동 종료 의무 해소) |
+
+### 11) 진행 순서
+
+| 순서 | 작업 | 담당 | 선행 조건 |
+|------|------|------|----------|
+| 1 | PM 옵션 결재 (Q1~Q5) | PM | 본 박제 |
+| 2 | 즉시 fix 스크립트 (강남구 i3-U9 6건) | developer (별건 — Q3 박제 시) | Q3 결재 |
+| 3 | PR1 — finalize-match-completion 헬퍼 신규 + service/admin path 통합 | developer | Q1 결재 |
+| 4 | tester + reviewer 병렬 (PR1) | tester + reviewer | 3단계 |
+| 5 | PR2 — batch-sync + Flutter status PATCH 통합 | developer | PR1 머지 |
+| 6 | tester + reviewer 병렬 (PR2) | tester + reviewer | 5단계 |
+| 7 | scripts/_temp 정리 + errors.md 6회째 회귀 박제 + index.md 갱신 | PM | 모두 완료 |
+
+⚠️ **developer 주의사항**:
+- service syncSingleMatch L622~748 블록 **그대로 추출** (분기 로직 변경 0 — 회귀 0 보장)
+- `advanceDivisionPlaceholders` 는 prisma 또는 tx 인자 받음 → 헬퍼 내부 prisma 사용 (외부 트랜잭션 무관)
+- `prisma.tournamentMatch.findUnique({ select: { settings: true } })` SELECT 1회 추가 — divisionCode 추출 (헬퍼 내부)
+- batch-sync per-match try-catch 흐름 유지 (헬퍼 throw 시 errors[] 박제)
+- TC-006 admin alreadyCompleted 가드 = `existingStatus` 인자로 헬퍼에 전달 → 헬퍼 내부에서 skip 판단
+
+## 구현 기록 (developer / 2026-05-16) — 영구 fix 매치 종료 path 통합 헬퍼 박제
+
+📝 **구현한 기능**: 매치 종료 path 5종 (admin / Flutter sync / batch-sync / score-sheet BFF / Flutter status PATCH) 마다 post-process 호출 누락/순서 불일치 → 강남구 i3-U9 standings=0 사고 재발. **단일 통합 헬퍼 `finalizeMatchCompletion` 박제** = 모든 path 가 호출 = 단일 source 박제 = 6회째 회귀 영구 차단.
+
+### 변경 파일 (git diff --cached --stat HEAD)
+
+```
+src/lib/tournaments/finalize-match-completion.ts   | 256 +++++++++ (신규)
+src/lib/services/match-sync.ts                     | 158 +++---  (post-process 127 LOC 추출)
+src/lib/services/match.ts                          |  52 ++++-   (updateMatchStatus 헬퍼 호출 추가)
+src/app/api/web/tournaments/[id]/matches/[matchId]/route.ts | 103 ++--   (admin PATCH 통합)
+src/app/api/v1/tournaments/[id]/matches/batch-sync/route.ts |  26 ++-   (placeholder advancer 신규)
+─────────────────────────────────────────────────────────────────
+합계: +397 / -198 LOC (신규 1 / 수정 4 / 삭제 0 운영 파일)
++ scripts/_temp/recalc-i3u9-standings.ts 삭제 (untracked → 단순 rm)
+```
+
+### 박제 path 매핑 (5종 통합 결과)
+
+| # | path | 변경 |
+|---|------|-----|
+| **match-sync.ts** (Flutter sync 단건 / web BFF 경유) | post-process 127 LOC → `finalizeMatchCompletion(matchId, tournamentId, "match-sync-service", {winnerTeamId})` 1회 호출 |
+| **admin PATCH route** | standings + dual + advanceAllDivisions 분산 → `finalizeMatchCompletion(matchBigInt, id, "admin-patch", {winnerTeamId})` 1회 호출. `alreadyCompleted` 가드 보존 (중복 increment 차단). `full_league_knockout` 자동 생성 분기는 별도 유지 (영향 0). |
+| **updateMatchStatus (Flutter v1 status PATCH)** | 트랜잭션 외부 `.then()` 에 헬퍼 호출 신규 추가. 클로저 캡처 (capturedPrevStatus / capturedTournamentId / capturedWinnerTeamId) → 가드 (`capturedPrevStatus !== "completed"`) 후 호출. **누락 path 영구 fix.** |
+| **batch-sync** | `advanceWinner + updateTeamStandings` fire-and-forget → `waitUntil(finalizeMatchCompletion)` 으로 통합 (placeholder advancer + dual + auto-complete 신규 박제). |
+| **score-sheet/submit BFF** | `syncSingleMatch` 경유 → match-sync.ts 안에서 자동 헬퍼 호출. 별도 호출 X (중복 increment 위험 회피). |
+
+### 헬퍼 동작 (match-sync.ts L622~748 100% 그대로 추출)
+
+```
+finalizeMatchCompletion(matchId, tournamentId, caller, {winnerTeamId?}):
+  1. updateTeamStandings (sequential — placeholder advancer 가 ranking 의존)
+  2. advanceWinner (single-elim) OR progressDualMatch (dual_tournament, 자체 tx wrap)
+  3. advanceDivisionPlaceholders (divisionCode 있음) OR advanceTournamentPlaceholders (없음 + division_rule=0)
+  4. checkAndAutoCompleteTournament (모든 매치 종료 시 tournament 자동 종료)
+  → 단계 2~4 = Promise.allSettled 병렬 (한 단계 실패가 다른 단계 차단 X)
+  → warnings[] 수집 + steps 진단 (어느 단계 실패인지 추적)
+```
+
+### 자가 진단 6건
+
+| # | 항목 | 결과 |
+|---|------|-----|
+| 1 | finalize-match-completion.ts 신규 (LOC > 0) | ✅ 256 LOC |
+| 2 | 5 path 모두 finalizeMatchCompletion 통합 | ✅ (score-sheet=service 경유) |
+| 3 | alreadyCompleted 가드 보존 (중복 increment 방지) | ✅ admin route `if (status==="completed" && !alreadyCompleted)` / updateMatchStatus `if (capturedPrevStatus !== "completed")` |
+| 4 | 즉시 fix 스크립트 삭제 | ✅ recalc-i3u9-standings.ts 삭제 |
+| 5 | tsc 0 | ✅ `npx tsc --noEmit` EXIT=0 |
+| 6 | vitest tournaments PASS | ✅ 13 파일 / 251 테스트 / 712ms |
+
+### 회귀 안전 가드 보존
+
+1. **alreadyCompleted 가드** — admin PATCH route + updateMatchStatus 양쪽 보존 (헬퍼 호출 조건 if 안에서만 진행)
+2. **try/catch per step** — 헬퍼 내부 Promise.allSettled (단일 실패가 다른 단계 차단 X)
+3. **dual_tournament 트랜잭션** — 헬퍼 내부 `prisma.$transaction(async tx => progressDualMatch(tx, ...))` wrap
+4. **fire-and-forget vs await** — batch-sync 는 waitUntil 로 background 보장 (per-match try-catch 흐름 유지)
+5. **match-sync.ts post-process 동작 변경 0** — 단순 추출 (호출 순서 + 분기 로직 100% 보존)
+6. **시그니처 변경 0** — updateTeamStandings / advanceWinner / advanceDivisionPlaceholders / advanceTournamentPlaceholders / progressDualMatch 모두 미변경
+7. **운영 DB SELECT/UPDATE 0** — 코드 박제만
+8. **Flutter v1 API spec 변경 0** — 서버 동작만 추가 (응답 shape 동일)
+9. **triggerMatchBriefPublish 미통합** — status 전환 시점 검증 필요 → 기존 caller (match-sync.ts L475 / match.ts L482 / batch-sync L78) 그대로 유지
+
+💡 **tester 참고**:
+- 테스트 방법:
+  1. Flutter status PATCH path: `PATCH /api/v1/matches/:id/status` 로 `{status:"completed"}` 호출 → `TournamentTeam.wins/losses/points_for` 박제 확인 (+1) / `next_match_id` 슬롯 자동 채움 확인
+  2. admin PATCH route: 강남구 i3-U9 매치 종료 시 standings 자동 박제 + 순위전 placeholder 자동 채움 확인
+  3. batch-sync: 매치 종료 batch → placeholder advancer 자동 호출 + dual_tournament 시 loser bracket 진출 확인
+- 정상 동작:
+  - 매치 종료 1회 → standings increment 1회만 (alreadyCompleted 가드 — 재호출 idempotent)
+  - 헬퍼 1단계 실패 → 다른 단계 계속 진행 (Promise.allSettled)
+  - warnings 응답에 박제 시 사용자 안내 (관리자 문의)
+- 주의할 입력:
+  - 동점 매치 (winnerTeamId null) → advanceWinner skip (정상) / standings 박제 진행
+  - divisionCode 없는 매치 + division_rule>0 (다른 종별 룰 존재) → tournament placeholder skip (정상 — 다른 종별 영향 차단)
+  - completed → completed 재호출 → 헬퍼 진입 안 함 (가드)
+
+⚠️ **reviewer 참고**:
+- **특별히 봐줬으면 하는 부분**:
+  1. `updateMatchStatus` 의 클로저 캡처 패턴 (`capturedPrevStatus / capturedTournamentId / capturedWinnerTeamId`) — 트랜잭션 외부 헬퍼 호출용. 안전성 검토 (트랜잭션 commit 후 .then() 에서 사용 — race condition 0)
+  2. admin PATCH route 의 `advanceAllDivisions` → `advanceDivisionPlaceholders` (헬퍼 내부 매치 종별 1건만) 변경 — **의도된 동작 변경**: 다른 종별 매치 종료가 본 매치 종별에 영향 차단 (race 안전). 단, 운영자가 1매치 종료 시 전 종별 sweep 되던 기존 동작 변경.
+  3. batch-sync fire-and-forget — `waitUntil(finalizeMatchCompletion.catch(...))` 패턴이 Vercel 환경에서 background Promise 정상 처리되는지 (errors.md `2026-05-09` 패턴 확인)
+
+| 항목 | 결과 |
+|------|-----|
+| git diff --cached --stat | +397 / -198 LOC (신규 256 / 4 path 수정) |
+| tsc | EXIT=0 |
+| vitest src/__tests__/lib/tournaments/ | 13 PASS / 251 tests / 712ms |
+| 자가 진단 6/6 | ✅ |
 
 ## 구현 기록 (developer / 2026-05-16) — 라이브 PBP paper 매치 정렬 안정 fix
 
@@ -1436,6 +1681,7 @@ EXIT=0 (no output / 0 error)
 
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
+| 2026-05-16 | **영구 fix 기획설계 — 매치 종료 path 5종 중 1종 누락 (planner-architect)** ⭐ | 🟡 분석 / 코드 수정 0 / DB SELECT 0 / 누락 path 발견 #5 Flutter v1 `/api/v1/matches/:id/status` (`updateMatchStatus`) = updateTeamStandings + placeholder advancer 둘 다 누락 (강남구 i3-U9 사고 = 본 path 의심) + #3 batch-sync = placeholder + dual 누락 / 옵션 B (단일 통합 헬퍼 `finalizeMatchCompletion`) 권장 / 예상 +148 / -220 LOC 순감 -72 / 5 파일 변경 / errors.md defense in depth 5회째 회귀 / PM 결재 5 항목 (Q1~Q5) — B + 2 PR 분해 + 즉시 fix 별건 권장 |
 | 2026-05-16 | **긴급 박제 — 라이브 PBP paper 매치 정렬 안정 fix (developer / 옵션 C)** ⭐ | ✅ 수정 1 (`src/app/api/live/[id]/route.ts` +18/-2 LOC — Prisma select `created_at` 추가 + `sortedPbp` 3차 tiebreak `created_at ASC` 박제) / tsc EXIT=0 / digital (Flutter) PBP 영향 0 (game_clock 차이로 2차에서 결정 → 3차 미발화) / 라이브 시간 표시 "Q1 0:00" 보존 / 박스스코어 / quarterScores / hero-scoreboard / score-sheet 영향 0 / DB schema 0 / Phase 22 paper override 충돌 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
 | 2026-05-16 | **긴급 박제 — 점프볼 즉시 sync + PBP 한글 라벨 (developer)** ⭐ | ✅ 신규 1 (`src/lib/live/pbp-format.ts` +120 — formatPbpAction 헬퍼 / action_type + points + subtype 분기 → "3점 성공" / "수비리바운드" / "U파울" 등) + 수정 2 (`score-sheet-form.tsx` handleJumpBallConfirm +36 LOC — setTimeout(0) 즉시 sync 1회 fire-and-forget + status="in_progress" override / `live/[id]/page.tsx` import +4 + PbpSection 컬럼 박제 +29/-7 — 시간/팀/번호/**선수**/행동/점수 6 컬럼 + 팀명 텍스트 칩 (색 점 ❌) + formatPbpAction 호출) = **+185 / -7 LOC** / tsc 0 / 자동 sync 10초 interval 영향 0 (점프볼 = 1회 추가) / 다른 라이브 컴포넌트 영향 0 / score-sheet UX 변경 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |
 | 2026-05-16 | **긴급 박제 — i3 자동 halves + 점프볼 버튼 박제 (developer)** ⭐ | ✅ 3 파일 수정 (`page.tsx` +65 / `score-sheet-form.tsx` +18/-13 / `fiba-header.tsx` +55/-2) = **~+135 LOC** / tsc 0 / 작업 1 = i3 종별 (division_code 또는 ttp.division "i3" prefix) 자동 `initialPeriodFormat="halves"` (server settings.period_format 우선순위 보존) / 작업 2 = `handleLineupConfirm` 자동 점프볼 trigger 제거 + `handleArrowClick` 분기 (openingJumpBall===null → 점프볼 모달 / 박힘 → 헬드볼 confirm) + fiba-header 화살표 자리에 [점프볼] 텍스트 버튼 박제 (회색 outline / 4px radius / 빨강 본문 ❌) / 운영 영향 0 (i3 외 종별 / 기존 박제 매치) |
