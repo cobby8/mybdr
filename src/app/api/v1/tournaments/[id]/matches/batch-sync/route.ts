@@ -3,7 +3,10 @@ import { prisma } from "@/lib/db/prisma";
 import { withAuth, withErrorHandler, type AuthContext } from "@/lib/api/middleware";
 import { batchSyncSchema } from "@/lib/validation/match";
 import { apiSuccess, forbidden, validationError } from "@/lib/api/response";
-import { advanceWinner, updateTeamStandings } from "@/lib/tournaments/update-standings";
+// 2026-05-16 영구 fix (PR-G5.5-followup-B): post-process 5종 통합 헬퍼.
+//   기존: advanceWinner + updateTeamStandings fire-and-forget — placeholder advancer / dual / auto-complete 누락.
+//   변경: finalizeMatchCompletion fire-and-forget — 5종 통합 + 신규 path 박제 단일 source.
+import { finalizeMatchCompletion } from "@/lib/tournaments/finalize-match-completion";
 // 2026-05-09: 알기자 자동 발행 — Flutter batch-sync path 가 updateMatchStatus 헬퍼 우회로 trigger 미호출되던 문제 fix.
 import { waitUntil } from "@vercel/functions";
 import { triggerMatchBriefPublish } from "@/lib/news/auto-publish-match-brief";
@@ -68,10 +71,25 @@ async function handler(req: NextRequest, ctx: AuthContext, tournamentId: string)
         }).catch(() => {});
       }
 
-      // 경기 완료 시 승자 진출 + 전적 업데이트 (fire-and-forget)
+      // 경기 완료 시 통합 post-process 헬퍼 호출 (fire-and-forget)
+      // 2026-05-16 영구 fix (PR-G5.5-followup-B): 기존 분산 호출 (advanceWinner + updateTeamStandings) →
+      //   finalizeMatchCompletion 통합 (placeholder advancer / dual / auto-complete 신규 박제).
+      //   기존 누락 사고: divisionCode 있는 batch-sync 매치가 placeholder advancer 미호출 → 결선 매치 null 유지.
+      //   안전성: fire-and-forget — batch 응답 자체는 매치 update 성공 시 synced++ (헬퍼 실패는 errors[] 미포함).
+      //   waitUntil = Vercel 응답 종료 후 background 보장.
       if (match.status === "completed") {
-        advanceWinner(BigInt(match.matchId)).catch(() => {});
-        updateTeamStandings(BigInt(match.matchId)).catch(() => {});
+        waitUntil(
+          finalizeMatchCompletion(
+            BigInt(match.matchId),
+            tournamentId,
+            "flutter-batch-sync",
+          ).catch((err) => {
+            console.error(
+              `[finalize-match:flutter-batch-sync] matchId=${match.matchId} 후처리 실패:`,
+              err,
+            );
+          }),
+        );
         // 2026-05-09: 알기자 자동 발행 — completed 신규 전환만 trigger (existing 의 status 비교는 트랜잭션 내 already 처리되었으므로 idempotent 신뢰).
         //   triggerMatchBriefPublish 자체가 멱등 (이미 brief 박혔으면 skip / community_post 중복 방지 가드 내장).
         //   waitUntil = Vercel 응답 종료 후 background Promise 보장.
