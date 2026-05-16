@@ -77,6 +77,19 @@ export interface BuildSubmitPayloadParams {
    *   "halves" = 라이브 페이지 라벨 분기 트리거.
    */
   periodFormat?: "halves" | "quarters";
+  /**
+   * 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+   *
+   * 왜 (이유):
+   *   FIBA Article 36.3 (C) / 36.4 (B) / 36.2.3 (Delay) — score-sheet 종이 양식 박제.
+   *   BFF settings.bench_technicals / settings.delay_of_game JSON merge (timeouts 패턴 재사용).
+   *   PBP action_subtype 신규 (B_HEAD / B_BENCH / C / DELAY_W / DELAY_T) 박제 (이력 추적).
+   *
+   * 미전달 (= undefined) = BFF settings 미갱신 (운영 동작 보존 / 구버전 매치 영향 0).
+   * 1건이라도 박제됐을 때만 전송 (caller 가 EMPTY 체크 후 undefined 분기).
+   */
+  benchTechnical?: PassThrough;
+  delayOfGame?: PassThrough;
 }
 
 export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
@@ -92,6 +105,9 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     possession,
     // 2026-05-16 (긴급 박제 — 전후반 모드) — period_format 박제 (halves/quarters).
     periodFormat,
+    // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+    benchTechnical,
+    delayOfGame,
   } = params;
 
   const final = computeFinalScore(runningScore);
@@ -154,5 +170,9 @@ export function buildSubmitPayload(params: BuildSubmitPayloadParams): unknown {
     /* 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160) — period_format 박제.
        미전달 = 키 통째 생략 (BFF settings 미갱신 — 기존 동작 보존). */
     ...(periodFormat ? { period_format: periodFormat } : {}),
+    /* 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+       미전달 = 키 통째 생략 (BFF settings 미갱신 — 기존 동작 보존 / 구버전 매치 영향 0). */
+    ...(benchTechnical ? { bench_technical: benchTechnical } : {}),
+    ...(delayOfGame ? { delay_of_game: delayOfGame } : {}),
   };
 }

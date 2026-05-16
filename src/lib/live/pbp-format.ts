@@ -99,7 +99,20 @@ export function formatPbpAction(p: PbpFormatInput): string {
       return "실책";
 
     // 파울 — subtype = "P"(personal) / "T"(technical) / "U"(unsportsmanlike) / "D"(disqualifying).
+    //
+    // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+    //   신규 action_subtype 5종:
+    //     - "C"        = Coach Technical (Head Coach 본인 — Article 36.3)
+    //     - "B_HEAD"   = Bench Tech (Head Coach 본인 B — Article 36.4 보강)
+    //     - "B_BENCH"  = Bench Tech (Asst/벤치 인원 — Article 36.4 표준)
+    //     - "DELAY_W"  = Delay of Game 경고 (Article 36.2.3 1차 — 점수 변동 0)
+    //     - "DELAY_T"  = Delay of Game 테크니컬 (Article 36.2.3 2차+ — 자유투 1개)
     case "foul": {
+      if (subtype === "C") return "코치 T (Head)";
+      if (subtype === "B_HEAD") return "벤치 T (Head)";
+      if (subtype === "B_BENCH") return "벤치 T (Asst/벤치)";
+      if (subtype === "DELAY_W") return "지연 경고 (W)";
+      if (subtype === "DELAY_T") return "지연 T (자유투)";
       if (subtype === "T") return "T파울";
       if (subtype === "U") return "U파울";
       if (subtype === "D") return "D파울";

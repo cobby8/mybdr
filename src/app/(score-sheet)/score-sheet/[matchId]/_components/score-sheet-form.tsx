@@ -97,6 +97,26 @@ import {
 } from "@/lib/score-sheet/possession-helpers";
 import { JumpBallModal } from "./jump-ball-modal";
 import { PossessionConfirmModal } from "./possession-confirm-modal";
+// 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+//   사용자 결재 권장안 — Coach row 우측 3 cells (B/C/B_HEAD/B_BENCH 라디오) + Delay row 자동 분기.
+//   PURE 헬퍼 (vitest 가능) + state 박제 본 form 단일 source.
+import type {
+  BenchTechnicalState,
+  DelayOfGameState,
+  CoachFoulKind,
+} from "@/lib/score-sheet/bench-tech-types";
+import {
+  EMPTY_BENCH_TECHNICAL,
+  EMPTY_DELAY_OF_GAME,
+  COACH_FOUL_KIND_LABEL,
+} from "@/lib/score-sheet/bench-tech-types";
+import {
+  addCoachFoul,
+  removeLastCoachFoul,
+  addDelayEvent,
+  removeLastDelayEvent,
+} from "@/lib/score-sheet/bench-tech-helpers";
+import { BenchTechModal } from "./bench-tech-modal";
 // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
 //   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
 import { useConfirm } from "../../../_components/confirm-modal-provider";
@@ -207,6 +227,14 @@ interface ScoreSheetFormProps {
   //   사유: 운영자가 score-sheet 안에서 토글한 즉시 = localStorage 박제 → 우선.
   //   서버 박제는 BFF submit 시점 → 다른 브라우저 / 첫 진입 시 SSOT.
   initialPeriodFormat?: "halves" | "quarters";
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //   page.tsx 가 match.settings.bench_technicals / match.settings.delay_of_game SELECT
+  //   결과 prop drilling (운영 중 새로고침 = server SSOT 우선).
+  //   localStorage draft 의 동일 필드와 비교 → useState 초기값 결정 (운영자 즉시 박제 우선).
+  //
+  //   미전달 (= undefined) = EMPTY 초기값 (구버전 매치 호환).
+  initialBenchTechnical?: BenchTechnicalState;
+  initialDelayOfGame?: DelayOfGameState;
 }
 
 // 2026-05-15 (PR-D-4a) — draft localStorage IO 가 lib/score-sheet/draft-storage.ts
@@ -240,6 +268,11 @@ interface DraftPayload {
   //   optional = 구버전 draft 호환 (없으면 "quarters" fallback).
   //   localStorage 박제로 새로고침 시 토글 보존 (page.tsx 변경 0 — 시간 부족 시 ok).
   periodFormat?: "halves" | "quarters";
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //   optional = 구버전 draft 호환 (없으면 EMPTY fallback).
+  //   localStorage 박제로 새로고침 시 박제 상태 보존 — 서버 settings 와 양방향 sync.
+  benchTechnical?: BenchTechnicalState;
+  delayOfGame?: DelayOfGameState;
   savedAt: string;
 }
 
@@ -268,6 +301,9 @@ export function ScoreSheetForm({
   // 2026-05-16 (긴급 박제 — 전후반 모드 / 사용자 보고 이미지 #160).
   //   server settings.period_format SELECT 결과 (page.tsx prop drilling).
   initialPeriodFormat,
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  initialBenchTechnical,
+  initialDelayOfGame,
 }: ScoreSheetFormProps) {
   // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅 단일 source.
   const inputState = useScoreSheetInputState({
@@ -377,6 +413,33 @@ export function ScoreSheetForm({
   const togglePeriodFormat = () => {
     setPeriodFormat((prev) => (prev === "halves" ? "quarters" : "halves"));
   };
+
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //
+  // 왜 (이유):
+  //   FIBA Article 36.3 / 36.4 — Coach 본인 위반 (C) / Asst / 벤치 인원 위반 (B) →
+  //   모두 Head Coach 통계 가산. 누적 3건 = 추방 (사용자 결재 권장안).
+  //   Article 36.2.3 — 팀 단위 지연 위반. 1차 W (점수 변동 0) / 2차+ T (자유투 1개 — 운영자 수동).
+  //
+  // state 초기값 우선순위:
+  //   1. localStorage draft (운영자 즉시 박제 우선 — 새로고침 보존)
+  //      → 아래 useEffect (loadDraft) 가 setBenchTechnical / setDelayOfGame 호출.
+  //   2. server initial* (DB settings.bench_technicals / delay_of_game — page.tsx prop drilling)
+  //   3. EMPTY_* (신규 매치 / 구버전 호환)
+  //
+  //   useState 초기값 = server initial 우선 → useEffect 가 localStorage 박제 시 override.
+  const [benchTechnical, setBenchTechnical] = useState<BenchTechnicalState>(
+    initialBenchTechnical ?? EMPTY_BENCH_TECHNICAL,
+  );
+  const [delayOfGame, setDelayOfGame] = useState<DelayOfGameState>(
+    initialDelayOfGame ?? EMPTY_DELAY_OF_GAME,
+  );
+
+  // BenchTechModal 컨텍스트 — 어느 팀의 코치 위반인지 (모달 open 시 박제 / close 시 null).
+  const [benchTechModalCtx, setBenchTechModalCtx] = useState<{
+    team: "home" | "away";
+    teamLabel: string;
+  } | null>(null);
 
   // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
   //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
@@ -1204,6 +1267,52 @@ export function ScoreSheetForm({
             setPossession(ps);
           }
         }
+        // 2026-05-16 (긴급 박제 — Bench Technical) — benchTechnical 복원.
+        //   shape 검증: home/away 객체 + head 배열 (assistant 보존용 / 현재 미사용 — fallback [] 로 안전 박제).
+        if (draft.benchTechnical && typeof draft.benchTechnical === "object") {
+          const bt = draft.benchTechnical;
+          if (
+            bt.home &&
+            bt.away &&
+            typeof bt.home === "object" &&
+            typeof bt.away === "object" &&
+            Array.isArray((bt.home as { head?: unknown }).head) &&
+            Array.isArray((bt.away as { head?: unknown }).head)
+          ) {
+            // assistant 필드 누락 안전망 (구버전 draft 호환 — [] 로 강제).
+            setBenchTechnical({
+              home: {
+                head: (bt.home as { head: unknown[] }).head as BenchTechnicalState["home"]["head"],
+                assistant: Array.isArray((bt.home as { assistant?: unknown }).assistant)
+                  ? ((bt.home as { assistant: unknown[] }).assistant as BenchTechnicalState["home"]["assistant"])
+                  : [],
+              },
+              away: {
+                head: (bt.away as { head: unknown[] }).head as BenchTechnicalState["away"]["head"],
+                assistant: Array.isArray((bt.away as { assistant?: unknown }).assistant)
+                  ? ((bt.away as { assistant: unknown[] }).assistant as BenchTechnicalState["away"]["assistant"])
+                  : [],
+              },
+            });
+          }
+        }
+        // 2026-05-16 (긴급 박제 — Delay of Game) — delayOfGame 복원.
+        //   shape 검증: home/away 객체 + warned boolean + technicals number.
+        if (draft.delayOfGame && typeof draft.delayOfGame === "object") {
+          const dog = draft.delayOfGame;
+          if (
+            dog.home &&
+            dog.away &&
+            typeof dog.home === "object" &&
+            typeof dog.away === "object" &&
+            typeof (dog.home as { warned?: unknown }).warned === "boolean" &&
+            typeof (dog.away as { warned?: unknown }).warned === "boolean" &&
+            typeof (dog.home as { technicals?: unknown }).technicals === "number" &&
+            typeof (dog.away as { technicals?: unknown }).technicals === "number"
+          ) {
+            setDelayOfGame(dog);
+          }
+        }
         // Phase 7-B — lineup 복원 (mid-game reload 후 출전 명단 / 선발 5인 유지).
         //   draft 에 lineup 박제되어 있으면 그 값 우선. UI 룰 (starters=5 + lineup≥5) 위반 시 skip.
         if (draft.lineup && typeof draft.lineup === "object") {
@@ -1250,10 +1359,13 @@ export function ScoreSheetForm({
         playerStats,
         possession,
         periodFormat,
+        // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+        benchTechnical,
+        delayOfGame,
       });
     }, 5000);
     return () => window.clearTimeout(timer);
-  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, possession, periodFormat, match.id]);
+  }, [header, teamA, teamB, runningScore, fouls, timeouts, signatures, lineup, playerStats, possession, periodFormat, benchTechnical, delayOfGame, match.id]);
 
   // Period 진행/후퇴 — Phase 4 통합 전 임시 버튼 (PeriodScoresSection 안).
   // Phase 23 PR-RO2 (2026-05-15) — 종료 매치 차단 (사용자 결재 Q2 — 모든 핸들러 isCompleted early return).
@@ -1575,6 +1687,105 @@ export function ScoreSheetForm({
     setFoulModalCtx(null);
   }
 
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //
+  // 흐름 (Bench Technical):
+  //   1. TeamSection Coach row 우측 빈 cell 클릭 → handleRequestAddCoachFoul(team)
+  //      → setBenchTechModalCtx({ team, teamLabel }) (모달 open).
+  //   2. BenchTechModal 의 3 옵션 (C / B_HEAD / B_BENCH) 클릭 → handleSelectCoachFoul(kind)
+  //      → addCoachFoul 헬퍼 호출 → setBenchTechnical / toast 분기 + 추방 도달 시 추방 toast.
+  //   3. TeamSection 마지막 마킹 cell 클릭 → handleRequestRemoveLastCoachFoul(team)
+  //      → removeLastCoachFoul 헬퍼 호출 → setBenchTechnical / toast.
+  //
+  // 흐름 (Delay of Game):
+  //   1. TeamSection Delay row cell 클릭 → handleRequestDelayClick(team)
+  //      → addDelayEvent 헬퍼 호출 → 자동 분기 (warned=false → W / true → T) → toast 분기.
+  //   2. TeamSection 마지막 cell 클릭 → handleRequestRemoveLastDelay(team)
+  //      → removeLastDelayEvent 헬퍼 호출 → setDelayOfGame / toast.
+  //
+  // PR-Stat3.5 (2026-05-15) 패턴 = closure state + setX(next) (strict mode double-invoke 회피).
+  function handleRequestAddCoachFoul(team: "home" | "away") {
+    if (isReadOnly) return;
+    const teamLabel =
+      team === "home"
+        ? homeFilteredRoster?.teamName || "Team A"
+        : awayFilteredRoster?.teamName || "Team B";
+    setBenchTechModalCtx({ team, teamLabel });
+  }
+
+  function handleRequestRemoveLastCoachFoul(team: "home" | "away") {
+    if (isReadOnly) return;
+    const next = removeLastCoachFoul(benchTechnical, team);
+    setBenchTechnical(next);
+    if (next !== benchTechnical) {
+      showToast("Coach Foul 1건 해제", "info");
+    }
+  }
+
+  function handleSelectCoachFoul(kind: CoachFoulKind) {
+    if (isReadOnly) return;
+    if (!benchTechModalCtx) return;
+    const { team, teamLabel } = benchTechModalCtx;
+    const result = addCoachFoul(benchTechnical, team, {
+      kind,
+      period: runningScore.currentPeriod,
+    });
+    if (!result.ok) {
+      // 추방 도달 후 추가 시도 차단 (cell 이미 disabled — 안전망)
+      showToast(result.reason, "error");
+      setBenchTechModalCtx(null);
+      return;
+    }
+    setBenchTechnical(result.state);
+    // 박제 toast — kind 라벨 (사용자 인지)
+    showToast(
+      `${teamLabel} ${COACH_FOUL_KIND_LABEL[kind]} 박제 — 상대 자유투 1개 (운영자 별도 박제)`,
+      "info",
+    );
+    // 추방 도달 시 별도 toast (3건 누적 = Head Coach 추방)
+    if (result.ejected) {
+      showToast(
+        `${teamLabel} Head Coach 추방 (누적 3건) — 어시 코치 인계`,
+        "info",
+      );
+    }
+    setBenchTechModalCtx(null);
+  }
+
+  function handleRequestDelayClick(team: "home" | "away") {
+    if (isReadOnly) return;
+    const result = addDelayEvent(delayOfGame, team);
+    setDelayOfGame(result.state);
+    const teamLabel =
+      team === "home"
+        ? homeFilteredRoster?.teamName || "Team A"
+        : awayFilteredRoster?.teamName || "Team B";
+    if (result.kind === "W") {
+      showToast(
+        `${teamLabel} Delay of Game 1차 경고 (W) — 다음 위반부터 T (자유투 1개)`,
+        "info",
+      );
+    } else {
+      showToast(
+        `${teamLabel} Delay of Game T 박제 — 상대 자유투 1개 (운영자 별도 박제)`,
+        "info",
+      );
+    }
+  }
+
+  function handleRequestRemoveLastDelay(team: "home" | "away") {
+    if (isReadOnly) return;
+    const next = removeLastDelayEvent(delayOfGame, team);
+    setDelayOfGame(next);
+    if (next !== delayOfGame) {
+      const teamLabel =
+        team === "home"
+          ? homeFilteredRoster?.teamName || "Team A"
+          : awayFilteredRoster?.teamName || "Team B";
+      showToast(`${teamLabel} Delay 1건 해제`, "info");
+    }
+  }
+
   // Phase 3.5 — 경기 종료 BFF payload 빌더 (MatchEndButton 가 호출).
   //
   // 이유: status="completed" + running_score + fouls + quarter_scores 동시 박제.
@@ -1607,6 +1818,21 @@ export function ScoreSheetForm({
       //   halves 모드 매치 = "halves" 전송 / quarters 모드 = "quarters" 전송 (기본값과 동일 → 운영 영향 0).
       //   BFF 가 match.settings.period_format 키에 박제 → 라이브 페이지가 SELECT 후 라벨 분기.
       periodFormat,
+      // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+      //   박제 cell 0 + technicals 0 + warned false = EMPTY 상태 = 키 생략 (BFF UPDATE skip — 운영 영향 0).
+      //   1건이라도 박제됐으면 전체 snapshot 전송 (BFF settings JSON merge + PBP action_subtype 박제).
+      benchTechnical:
+        benchTechnical.home.head.length > 0 ||
+        benchTechnical.away.head.length > 0
+          ? benchTechnical
+          : undefined,
+      delayOfGame:
+        delayOfGame.home.warned ||
+        delayOfGame.away.warned ||
+        delayOfGame.home.technicals > 0 ||
+        delayOfGame.away.technicals > 0
+          ? delayOfGame
+          : undefined,
     });
   }
 
@@ -2251,6 +2477,17 @@ export function ScoreSheetForm({
                 frameless
                 // 2026-05-16 (긴급 박제 — 전후반 모드) — Team fouls Period 라벨 + timeout phase 분기.
                 periodFormat={periodFormat}
+                // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+                benchTechnical={benchTechnical.home}
+                onRequestAddCoachFoul={() => handleRequestAddCoachFoul("home")}
+                onRequestRemoveLastCoachFoul={() =>
+                  handleRequestRemoveLastCoachFoul("home")
+                }
+                delayOfGame={delayOfGame.home}
+                onRequestDelayClick={() => handleRequestDelayClick("home")}
+                onRequestRemoveLastDelay={() =>
+                  handleRequestRemoveLastDelay("home")
+                }
               />
             </div>
             {/* Team B — 중단 (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할).
@@ -2284,6 +2521,17 @@ export function ScoreSheetForm({
                 frameless
                 // 2026-05-16 (긴급 박제 — 전후반 모드) — Team B 도 동일 wiring.
                 periodFormat={periodFormat}
+                // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+                benchTechnical={benchTechnical.away}
+                onRequestAddCoachFoul={() => handleRequestAddCoachFoul("away")}
+                onRequestRemoveLastCoachFoul={() =>
+                  handleRequestRemoveLastCoachFoul("away")
+                }
+                delayOfGame={delayOfGame.away}
+                onRequestDelayClick={() => handleRequestDelayClick("away")}
+                onRequestRemoveLastDelay={() =>
+                  handleRequestRemoveLastDelay("away")
+                }
               />
             </div>
           </div>
@@ -2424,6 +2672,17 @@ export function ScoreSheetForm({
         period={runningScore.currentPeriod}
         onSelect={handleSelectFoulType}
         onCancel={() => setFoulModalCtx(null)}
+      />
+
+      {/* 2026-05-16 (긴급 박제 — Bench Technical / FIBA Article 36.3 / 36.4).
+          Coach row 우측 빈 cell 클릭 시 open — C / B_HEAD / B_BENCH 라디오 선택.
+          종료 매치 차단 (open 강제 false / 이중 방어). */}
+      <BenchTechModal
+        open={(!isReadOnly) && benchTechModalCtx !== null}
+        teamLabel={benchTechModalCtx?.teamLabel ?? ""}
+        period={runningScore.currentPeriod}
+        onSelect={handleSelectCoachFoul}
+        onCancel={() => setBenchTechModalCtx(null)}
       />
 
       {/* Phase 19 PR-Stat2 (2026-05-15) — StatPopover (6 stat OR/DR/A/S/B/TO +1/-1).

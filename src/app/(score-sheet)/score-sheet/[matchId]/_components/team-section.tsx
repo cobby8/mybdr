@@ -80,6 +80,19 @@ import {
   getPeriodColor,
   getTimeoutPhaseColor,
 } from "@/lib/score-sheet/period-color";
+// 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+//   Coach 영역 우측 cells (B/C 박제) + Team fouls 위 Delay row (W/T 박제).
+//   PURE 헬퍼 (vitest 가능) + state 박제는 score-sheet-form.tsx 가 단일 source.
+import type {
+  TeamBenchTechnicalState,
+  TeamDelayOfGameState,
+  CoachFoulKind,
+} from "@/lib/score-sheet/bench-tech-types";
+import { COACH_FOULS_CELL_COUNT } from "@/lib/score-sheet/bench-tech-types";
+import {
+  getCoachFoulCellState,
+  canEjectCoach,
+} from "@/lib/score-sheet/bench-tech-helpers";
 // Phase 19 PR-Stat2 (2026-05-15) — 6 stat (OR/DR/A/S/B/TO) 표시용.
 //   사용자 결재 Q1 = P.IN 직후 + Fouls 직전 위치 (FIBA 박스스코어 표준 순서).
 //   stat 추가/제거 = StatPopover 가 처리 (caller 가 onRequestOpenStatPopover 위임).
@@ -173,6 +186,30 @@ interface TeamSectionProps {
   //   기본 (= "quarters" 또는 미전달) = 기존 4쿼터 2 line 동작 (운영 호환).
   //   timeout cell active 검증도 본 prop 으로 분기 (isCellActive 호출 시 전달).
   periodFormat?: "halves" | "quarters";
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  //
+  //   benchTechnical (이 팀 전용 TeamBenchTechnicalState):
+  //     Coach 영역 우측 3 cell 박제 — head[] 누적 (C/B_HEAD/B_BENCH).
+  //     누적 3건 = 추방 (cell disabled + toast).
+  //
+  //   delayOfGame (이 팀 전용 TeamDelayOfGameState):
+  //     Team fouls 위 row 박제 — W cell (warned) + T cells (technicals).
+  //     1차 = W / 2차+ = T 자동 분기 (사용자 결재 Q2).
+  //
+  //   onRequestAddCoachFoul / onRequestRemoveLastCoachFoul:
+  //     Coach cell 클릭 처리 (caller 가 BenchTechModal open 또는 즉시 해제).
+  //
+  //   onRequestDelayClick / onRequestRemoveLastDelay:
+  //     Delay cell 클릭 처리 (caller 가 자동 분기 헬퍼 호출).
+  //
+  //   미전달 (=undefined) = 운영 호환 (구버전 사용자 — Coach/Delay UI 미노출).
+  //     본 박제는 부모 (score-sheet-form) 가 반드시 모두 전달.
+  benchTechnical?: TeamBenchTechnicalState;
+  onRequestAddCoachFoul?: () => void;
+  onRequestRemoveLastCoachFoul?: () => void;
+  delayOfGame?: TeamDelayOfGameState;
+  onRequestDelayClick?: () => void;
+  onRequestRemoveLastDelay?: () => void;
 }
 
 /**
@@ -225,6 +262,13 @@ export function TeamSection({
   frameless: _framelessUnused,
   // 2026-05-16 (긴급 박제 — 전후반 모드 / 강남구 i3 종별)
   periodFormat,
+  // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
+  benchTechnical,
+  onRequestAddCoachFoul,
+  onRequestRemoveLastCoachFoul,
+  delayOfGame,
+  onRequestDelayClick,
+  onRequestRemoveLastDelay,
 }: TeamSectionProps) {
   // frameless 미사용 경고 회피 + 의도된 미사용임을 명시
   void _framelessUnused;
@@ -458,6 +502,139 @@ export function TeamSection({
         {/* 우측 — Team fouls (시안 SSTeamFouls 3 line — Period ①② / ③④ / Extra).
             운영 보존: getTeamFoulCountByPeriod / 5+ FT 안내 / Phase 17 쿼터별 색 모두 그대로 wiring. */}
         <div className="ss-tbox__tf">
+          {/* 2026-05-16 (긴급 박제 — Delay of Game / FIBA Article 36.2.3).
+              왜: Team fouls 위 1행 신규 row — [Delay] [W][T1][T2][T3]... 1차=W / 2차+=T 자동.
+              자동 분기: warned=false → W 박제 (점수 변동 0) / warned=true → T 박제 (자유투 1개 — 운영자 수동).
+              운영 동작 보존: delayOfGame 미전달 (=undefined) 시 row 미렌더 (구버전 호환).
+              사용자 결재 Q3 = 자유투 슈터 모달 X (= 운영자가 Running Score 영역 별도 박제). */}
+          {delayOfGame && (
+            <div
+              className="ss-tbox__tf-line"
+              data-delay="true"
+              style={{
+                marginBottom: "2px",
+                paddingBottom: "2px",
+                borderBottom: "1px dotted var(--pap-hair)",
+              }}
+            >
+              <span
+                className="ss-tbox__tf-pname"
+                style={{ minWidth: "auto" }}
+                aria-label="Delay of Game — 지연 위반"
+              >
+                Delay
+              </span>
+              {/* W cell — 1차 경고 (warned 시 filled / 빈 시 다음 클릭 = W 박제) */}
+              <div className="ss-tbox__tf-cells" style={{ gap: "2px" }}>
+                <button
+                  type="button"
+                  className="ss-tbox__tf-cell"
+                  data-on={delayOfGame.warned ? "true" : "false"}
+                  onClick={() => {
+                    if (disabled) return;
+                    if (!onRequestDelayClick && !onRequestRemoveLastDelay) return;
+                    // 마지막 박제 = T 가 있으면 T 마지막 / 없으면 W (warned 시) 해제.
+                    //   W cell 자체 클릭 = warned 해제는 technicals === 0 일 때만 (caller 헬퍼 removeLastDelayEvent 룰).
+                    //   현재 cell 클릭 = warned cell. T 가 박혀있으면 마지막 T 클릭 = 해제 / W cell 클릭 = 추가 박제 (자동 분기).
+                    if (delayOfGame.warned && delayOfGame.technicals === 0) {
+                      // W 박제만 있고 T 0 = 마지막 cell = 해제 가능
+                      onRequestRemoveLastDelay?.();
+                      return;
+                    }
+                    if (!delayOfGame.warned) {
+                      // 빈 W cell = 1차 W 박제
+                      onRequestDelayClick?.();
+                    }
+                    // warned + technicals > 0 = W cell 클릭 = no-op (T 가 더 최근 — T cell 통해 해제)
+                  }}
+                  disabled={
+                    disabled ||
+                    // warned=true + T 가 있으면 W cell 자체는 클릭 차단 (T cell 부터 해제)
+                    (delayOfGame.warned && delayOfGame.technicals > 0)
+                  }
+                  style={
+                    delayOfGame.warned
+                      ? {
+                          // W 박제 톤 = warning 옅게 (경고 — 점수 변동 0)
+                          backgroundColor:
+                            "color-mix(in srgb, var(--color-warning) 50%, transparent)",
+                          color: "#FFFFFF",
+                          fontWeight: 700,
+                        }
+                      : undefined
+                  }
+                  aria-label={
+                    delayOfGame.warned
+                      ? "Delay of Game 경고 (W) 박제됨 — 다음 위반부터 T (자유투 1개)"
+                      : "Delay of Game 빈 칸 (클릭 시 1차 경고 W 박제)"
+                  }
+                  title="Delay of Game — 1차 W / 2차+ T"
+                >
+                  {delayOfGame.warned ? "W" : ""}
+                </button>
+                {/* T cells — technicals 개수 + 다음 빈 cell (warned=true 시만 표시).
+                    무제한 누적 (T cells max 5 까지 UI 노출 — 그 이상은 운영자가 직접 박제 시 동일 cell 시각 반복).
+                    사용자 결재 = 무제한 (HEAD coach 추방 아님 / Team 박제). */}
+                {delayOfGame.warned &&
+                  Array.from({
+                    length: Math.max(delayOfGame.technicals + 1, 1),
+                  })
+                    .slice(0, 5)
+                    .map((_, idx) => {
+                      const tFilled = idx < delayOfGame.technicals;
+                      const isLastT =
+                        tFilled && idx === delayOfGame.technicals - 1;
+                      const isNextT =
+                        !tFilled && idx === delayOfGame.technicals;
+                      return (
+                        <button
+                          key={`t-${idx}`}
+                          type="button"
+                          className="ss-tbox__tf-cell"
+                          data-on={tFilled ? "true" : "false"}
+                          onClick={() => {
+                            if (disabled) return;
+                            if (isLastT) {
+                              onRequestRemoveLastDelay?.();
+                            } else if (isNextT) {
+                              onRequestDelayClick?.();
+                            }
+                          }}
+                          disabled={disabled || (!isLastT && !isNextT)}
+                          style={
+                            tFilled
+                              ? {
+                                  // T 박제 톤 = primary 빨강 (자유투 1개 부여 = 강조)
+                                  backgroundColor: "var(--pap-bonus)",
+                                  color: "#FFFFFF",
+                                  fontWeight: 700,
+                                }
+                              : undefined
+                          }
+                          aria-label={
+                            tFilled
+                              ? `Delay T ${idx + 1} 박제됨${isLastT ? " (클릭 시 해제)" : ""} — 상대 자유투 1개 (운영자 별도 박제)`
+                              : `Delay T ${idx + 1} 빈 칸${isNextT ? " (클릭 시 T 박제)" : ""}`
+                          }
+                          title="Delay T — 자유투 1개 (운영자 수동 박제)"
+                        >
+                          {tFilled ? `T${idx + 1}` : ""}
+                        </button>
+                      );
+                    })}
+              </div>
+              {/* 자유투 안내 (T 박제 시 영구 표시 — 운영자 인지). */}
+              {delayOfGame.technicals > 0 && (
+                <span
+                  className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
+                  style={{ color: "var(--pap-bonus)" }}
+                  aria-label={`Delay T ${delayOfGame.technicals}건 — 상대 자유투 ${delayOfGame.technicals}개 (운영자 수동)`}
+                >
+                  FT+{delayOfGame.technicals}
+                </span>
+              )}
+            </div>
+          )}
           <div className="ss-tbox__tf-label">Team fouls</div>
           {/* line 1 — Period ① ② (halves 시 = 전반 / 후반).
               2026-05-16 (긴급 박제) — halves 모드 시 라벨 변경:
@@ -847,9 +1024,27 @@ export function TeamSection({
       {/* /§4 ss-tbox__plybody 끝 */}
 
       {/* §5 Coach — 시안 .ss-tbox__coach + .pap-lbl + input.pap-u (운영 onChange 그대로).
-          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2). */}
-      <div className="ss-tbox__coach">
-        <label className="pap-lbl" htmlFor={`coach-${sideLabel}`}>
+          Phase 23 PR-RO1 (2026-05-15) — 종료 매치 차단 시 readOnly 적용 (사용자 결재 Q2).
+          2026-05-16 (긴급 박제 — Bench Technical) — Coach row 우측 3 cells 박제.
+            cell 1~3 = head[] 누적 (C/B_HEAD/B_BENCH 라디오 — BenchTechModal 분기).
+            누적 3건 = 추방 (cell disabled + toast — score-sheet-form 의 handler 분기). */}
+      <div
+        className="ss-tbox__coach"
+        style={
+          benchTechnical
+            ? {
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }
+            : undefined
+        }
+      >
+        <label
+          className="pap-lbl"
+          htmlFor={`coach-${sideLabel}`}
+          style={benchTechnical ? { flexShrink: 0 } : undefined}
+        >
           Coach
         </label>
         <input
@@ -861,7 +1056,86 @@ export function TeamSection({
           disabled={disabled}
           readOnly={readOnly}
           maxLength={40}
+          style={benchTechnical ? { flex: 1, minWidth: 0 } : undefined}
         />
+        {/* Bench Technical cells — Coach row 우측 3 cells (사용자 결재 Q1). */}
+        {benchTechnical && (
+          <div
+            className="ss-tbox__bench-tech"
+            style={{
+              display: "flex",
+              gap: "2px",
+              flexShrink: 0,
+            }}
+            aria-label={`${sideLabel} Coach Fouls (B/C — 누적 3건 추방)`}
+          >
+            {Array.from({ length: COACH_FOULS_CELL_COUNT }).map((_, idx) => {
+              const cell = getCoachFoulCellState(benchTechnical, idx);
+              const ejected = canEjectCoach(benchTechnical);
+              // cell 시각 — kind 별 색 (C=warning / B_HEAD=accent / B_BENCH=elevated)
+              let cellBg: string | undefined;
+              let cellColor: string | undefined;
+              let cellTag = "";
+              if (cell.filled && cell.kind) {
+                cellTag = cell.kind === "C" ? "C" : "B";
+                if (cell.kind === "C") {
+                  cellBg =
+                    "color-mix(in srgb, var(--color-warning) 60%, transparent)";
+                  cellColor = "#FFFFFF";
+                } else if (cell.kind === "B_HEAD") {
+                  cellBg =
+                    "color-mix(in srgb, var(--color-accent) 60%, transparent)";
+                  cellColor = "#FFFFFF";
+                } else {
+                  // B_BENCH = var(--pap-fg) (text-primary 톤 — Asst/벤치 회색 베이스 강조)
+                  cellBg = "var(--pap-fg)";
+                  cellColor = "var(--pap-bg)";
+                }
+              }
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  // ss-tbox__tf-cell 와 동일 클래스 — 시안 일관성 (Team fouls cell 과 같은 크기)
+                  className="ss-tbox__tf-cell"
+                  data-on={cell.filled ? "true" : "false"}
+                  onClick={() => {
+                    if (disabled) return;
+                    if (cell.isLastFilled) {
+                      onRequestRemoveLastCoachFoul?.();
+                    } else if (cell.isNextEmpty) {
+                      onRequestAddCoachFoul?.();
+                    }
+                  }}
+                  disabled={
+                    disabled ||
+                    cell.blocked ||
+                    (!cell.isLastFilled && !cell.isNextEmpty)
+                  }
+                  style={
+                    cell.filled
+                      ? {
+                          backgroundColor: cellBg,
+                          color: cellColor,
+                          fontWeight: 700,
+                        }
+                      : undefined
+                  }
+                  aria-label={
+                    cell.filled
+                      ? `Coach Foul ${idx + 1} = ${cell.kind} 박제됨${cell.isLastFilled ? " (클릭 시 해제)" : ""}`
+                      : ejected
+                        ? `Coach Foul ${idx + 1} 빈 칸 (Head Coach 추방 — 추가 차단)`
+                        : `Coach Foul ${idx + 1} 빈 칸${cell.isNextEmpty ? " (클릭 시 종류 선택)" : ""}`
+                  }
+                  title="Coach Foul — C / B (Head/Bench) 분기"
+                >
+                  {cellTag}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       <div className="ss-tbox__coach">
         <label className="pap-lbl" htmlFor={`asst-coach-${sideLabel}`}>
