@@ -54,6 +54,8 @@ export interface ScheduleMatch {
 // 사유: 종별 카드 좌측 border 색상 분리 — 동일 종별 시각 군집화.
 // `getDivisionColorVar(code)` = 결정적 (입력 동일 = 출력 동일) — 캐시 무관.
 // 토큰만 사용 (하드코딩 hex 0 / CLAUDE.md 13 룰 준수).
+// 2026-05-16 fix — 강남구협회장배 6 종별 hash collision (3 종별이 primary 동일) 해소.
+//   명시 매핑 우선 + 알 수 없는 종별만 hash fallback (다른 대회 호환).
 const DIVISION_COLOR_TOKENS = [
   "var(--color-primary)",
   "var(--color-secondary)",
@@ -62,9 +64,21 @@ const DIVISION_COLOR_TOKENS = [
   "var(--color-warning)",
   "var(--color-accent)",
 ];
+const DIVISION_COLOR_MAP: Record<string, string> = {
+  // 강남구협회장배 6 종별 (case-insensitive 매칭)
+  "i3-u9": "var(--color-primary)",
+  "i2-u11": "var(--color-secondary)",
+  "i3-u11": "var(--color-info)",
+  "i2-u12": "var(--color-success)",
+  "i3w-u12": "var(--color-warning)",
+  "i3-u14": "var(--color-accent)",
+};
 export function getDivisionColorVar(code: string | null | undefined): string | null {
   if (!code) return null;
-  // 결정적 hash — 코드 첫 글자 charCode + 길이 합산 % 6
+  // 1) 명시 매핑 우선 (case-insensitive)
+  const explicit = DIVISION_COLOR_MAP[code.toLowerCase()];
+  if (explicit) return explicit;
+  // 2) fallback hash — 알 수 없는 종별 (다른 대회) 결정적 매핑
   let sum = 0;
   for (let i = 0; i < code.length; i++) sum += code.charCodeAt(i);
   return DIVISION_COLOR_TOKENS[sum % DIVISION_COLOR_TOKENS.length];
@@ -623,10 +637,11 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                             uniqueDivisions.length > 1 조건 제거 — match.division 있으면 항상 표시. */}
                         {match.division && (
                           <span
-                            className="rounded-sm px-1.5 py-0.5 text-[10px] font-bold uppercase"
+                            className="rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
                             style={{
-                              backgroundColor: `color-mix(in srgb, ${divisionColor ?? "var(--color-text-muted)"} 12%, transparent)`,
-                              color: divisionColor ?? "var(--color-text-secondary)",
+                              backgroundColor: divisionColor ?? "var(--color-text-muted)",
+                              color: "var(--color-card)",
+                              border: `1px solid ${divisionColor ?? "var(--color-text-muted)"}`,
                             }}
                             title={`종별: ${match.division}`}
                           >
