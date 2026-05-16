@@ -555,34 +555,27 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                       };
                     })()}
                   >
-                    {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄): 코드/번호 | 라운드 | 시간 | 코트 ... [상태] */}
+                    {/* 카드 상단 메타 — DualMatchCard 패턴 (inline 1줄)
+                        2026-05-16 사용자 요청 — 순서 변경: [종별] | 라운드 | 시간 | 코트 | 체육관 ... [상태]
+                          · 종별 배지를 좌측 최상단 첫 번째로 이동 (시각 분류 우선).
+                          · matchCode (글로벌 코드) / matchNumber (#N) 표시는 완전 제거 — 사용자 결정. */}
                     <div className="mb-2.5 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        {/* Phase 5 (매치 코드 v4) — 글로벌 코드 우선, NULL 시 매치번호 fallback
-                            이유: 코드(`26-GG-MD21-001`) 14자 = 대회+회차+지역+번호 정보 풍부.
-                            모바일 360px viewport flex-wrap 으로 줄바꿈 안전 (font-size 10px). */}
-                        {match.matchCode ? (
-                          <>
-                            <span
-                              className="match-code"
-                              title={`매치 코드: ${match.matchCode}`}
-                              aria-label={`매치 코드 ${match.matchCode}`}
-                            >
-                              {match.matchCode}
-                            </span>
-                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
-                          </>
-                        ) : match.matchNumber != null ? (
-                          <>
-                            <span
-                              className="font-mono text-xs"
-                              style={{ color: "var(--color-text-muted)" }}
-                            >
-                              #{match.matchNumber}
-                            </span>
-                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
-                          </>
-                        ) : null}
+                        {/* 종별 배지 — 첫 번째 위치 (2026-05-16).
+                            chip 자체 배경/테두리가 시각 분리자 역할 → 다음 라운드명과 | 구분자 불필요. */}
+                        {match.division && (
+                          <span
+                            className="rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
+                            style={{
+                              backgroundColor: divisionColor ?? "var(--color-text-muted)",
+                              color: "var(--color-card)",
+                              border: `1px solid ${divisionColor ?? "var(--color-text-muted)"}`,
+                            }}
+                            title={`종별: ${match.division}`}
+                          >
+                            {match.division}
+                          </span>
+                        )}
                         {/* 라운드명 */}
                         {match.roundName && (
                           <span
@@ -592,10 +585,12 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                             {match.roundName}
                           </span>
                         )}
-                        {/* 시간 */}
+                        {/* 시간 — 선행 요소(종별/라운드) 있을 때만 | 표시 (단독 시작 시 | 회피) */}
                         {match.scheduledAt && (
                           <>
-                            <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                            {(match.division || match.roundName) && (
+                              <span className="text-xs" style={{ color: "var(--color-border)" }}>|</span>
+                            )}
                             <span
                               className="whitespace-nowrap text-xs font-bold"
                               style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-heading)" }}
@@ -631,22 +626,6 @@ export function ScheduleTimeline({ matches, teams, selectedDate: selectedDatePro
                               {match.venueName}
                             </span>
                           </>
-                        )}
-                        {/* 2026-05-15 — 종별 배지 (PR-G3 / PR-G4 사용자 요청 — 모든 카드 표시).
-                            사유: 다종별 대회에서 일부 카드만 chip 표시 시 시각 일관성 부족.
-                            uniqueDivisions.length > 1 조건 제거 — match.division 있으면 항상 표시. */}
-                        {match.division && (
-                          <span
-                            className="rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wide"
-                            style={{
-                              backgroundColor: divisionColor ?? "var(--color-text-muted)",
-                              color: "var(--color-card)",
-                              border: `1px solid ${divisionColor ?? "var(--color-text-muted)"}`,
-                            }}
-                            title={`종별: ${match.division}`}
-                          >
-                            {match.division}
-                          </span>
                         )}
                       </div>
                       <StatusBadge status={match.status} />
