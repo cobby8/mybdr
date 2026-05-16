@@ -76,6 +76,12 @@
   - `submit/route.ts` 의 PBP 박제 — local_id idempotent 룰 (`paper-bench-tech-{kind}-{team}-{idx}` 형식 보존 — service deleteMany NOT IN 가드 호환)
   - `team-section.tsx` 의 Coach row 우측 cells flex 레이아웃 — 시안 12 종이 양식 정합 (`.ss-tbox__coach` 안 flex gap 6px / cell `.ss-tbox__tf-cell` 재사용)
 
+#### 수정 이력
+| 회차 | 날짜 | 수정 내용 | 수정 파일 | 사유 |
+|------|------|----------|----------|------|
+| 1차 | 2026-05-17 | (1) 빈 Delay W/T cell + 빈 Coach B/C cell 시인성 강화 (흰 배경 + 회색 border + 회색 라벨 "W"/"T1~T5"/"B" + opacity 0.5 / active 시 빨강·노랑·accent fill 대비 명확) (2) Delay row 위치 이동 (Team fouls 박스 안 위 → 아래 Extra periods row 뒤 / borderTop dotted 분리선) | `team-section.tsx` | 사용자 직접 결재 §1 (이미지 #170 시인성 사고) + §2 (이미지 #171 위치 이동). tsc EXIT=0 / vitest 18/18 PASS / 동작 로직 보존 0건 |
+| 2차 | 2026-05-17 | Delay row + Extra periods row **단일 row 합성** (1 row 안 좌측 = Delay block [W][T1~T5] FT+N / 우측 = "Extra periods" 텍스트 / justifyContent: space-between + alignItems: center / delayOfGame undefined 시 좌측 미렌더 = 우측 정렬 유지). Delay 동작 로직 (W→T 자동 분기 / removeLast / disabled / aria-label / inline style) 100% 보존 | `team-section.tsx` | 사용자 보고 #172 — Delay row 가 Extra periods row 와 **같은 행** 에 위치 명시. tsc EXIT=0 / vitest 회귀 0 (실패 1건 = 사전 회귀 running-score-helpers / 본 작업 무관 — stash 검증) |
+
 ## 기획설계 (planner-architect / 2026-05-16) — Bench Tech (B) + Delay of Game 박제 design
 
 🎯 **목표**: FIBA Article 36.5 (벤치 테크니컬) + Article 17.2.6/36.4.7 (딜레이 오브 게임) 을 score-sheet 종이 양식에 박제. 운영자가 코치 추방 알림 / 자유투 부여 trigger 자동 지원. **기존 player fouls (P/T/U/D) + UX 변경 0 / Phase 22 paper override 영향 0 / digital Flutter PBP 영향 0**.
@@ -1994,8 +2000,53 @@ await prisma.$transaction([
 - **finalize-match-completion 영향 0**: caller 시그니처 동일 (matchId: bigint) → 회귀 위험 0
 - **운영 DB 영향**: 본 PR 자체는 SELECT 0 / UPDATE 0 (코드 변경만). 박제 후 첫 finalize 호출 시 standings SET 으로 정정 (강남구 i3-U9 자동 정상화)
 
+## 구현 기록 (developer / 2026-05-16) — PR5 마무리: 남은 3 endpoint 결정 사유 박제
+
+📝 **구현한 기능**: 옵션 C+UI PR5 v1 6 endpoints 우선순위 로직의 **마지막 3 endpoint** 분류 + 코드 박제. 케이스 분석 결과 3개 모두 **매치 컨텍스트 없는 endpoint** 로 판단 → resolver 미적용 + 결정 사유 코멘트 박제. PR 지시문에서 PM이 예상한 케이스와 100% 일치.
+
+### 변경 파일 (3건 모두 코멘트 추가만)
+
+| 파일 경로 | 변경 내용 | resolver 적용 여부 | 사유 |
+|----------|----------|------------------|------|
+| `src/app/api/v1/players/[id]/stats/route.ts` | 파일 상단 3줄 코멘트 박제 | ❌ 미적용 | **선수 시즌통계** = `player.jerseyNumber` 단일 필드 (대표 영구값). 응답이 다중 매치 stats 집계인데 jersey 와 매치 매핑은 스키마상 표현 불가 → ttp.jerseyNumber 정답. 매치별 정확값은 `v1/matches/[id]/stats` (이미 PR5 적용) 가 담당. |
+| `src/app/api/v1/tournaments/[id]/full-data/route.ts` | 파일 상단 4줄 코멘트 박제 | ❌ 미적용 | **대회 전체 오프라인 dump** = `players[].jersey_number` (선수당 1번호 정적 명단) + `matches[]` (별도 배열, join 없음). 매치별 매핑 스키마상 불가 → Flutter 앱이 매치 진입 시 별도 endpoint 호출로 정확값 획득. |
+| `src/app/api/v1/tournaments/[id]/teams/[teamId]/players/route.ts` | 파일 상단 3줄 코멘트 박제 | ❌ 미적용 | **팀 영구 명단 관리 endpoint** = POST (ttp.jerseyNumber 직접 INSERT, source-of-truth 자체) + GET (팀 영구 명단 증분 동기화). 매치 컨텍스트 0 — resolver 적용 대상 자체가 아닌 admin endpoint. |
+
+### PR5 v1 6 endpoints 최종 분류
+
+| # | endpoint | 적용 여부 | 사용 helper |
+|---|----------|----------|------------|
+| 1 | `v1/matches/[id]/stats` | ✅ 적용 (이전 PR) | `resolveMatchJerseysBatch` |
+| 2 | `v1/matches/[id]/roster` | ✅ 적용 (이전 PR) | `resolveMatchJerseysBatch` |
+| 3 | `v1/tournaments/[id]/player-stats` | ✅ 적용 (이전 PR) | `resolveMatchJerseysMulti` |
+| 4 | `v1/players/[id]/stats` | ❌ 미적용 (본 PR — 코멘트 박제) | — |
+| 5 | `v1/tournaments/[id]/full-data` | ❌ 미적용 (본 PR — 코멘트 박제) | — |
+| 6 | `v1/tournaments/[id]/teams/[teamId]/players` | ❌ 미적용 (본 PR — 코멘트 박제) | — |
+
+→ 적용 3 / 미적용 3 = 100% 분류 완료. 미적용 3 의 사유는 코드에 영구 박제 (재방문 시 회귀 0).
+
+### 검증 결과
+
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 ✅ |
+| 응답 스키마 변경 | 0 (Flutter v1 영향 0) |
+| 운영 DB 영향 | 0 (코드만 수정) |
+| import 변경 | 0 (resolver 미적용 → import 추가 없음) |
+
+💡 **tester 참고**:
+- 테스트 방법: tsc 통과만으로 검증 충분 (코멘트 추가만, 로직 변경 0)
+- 정상 동작: 3 endpoint 응답 스키마 변경 0, jersey_number 값 = ttp.jerseyNumber 그대로 (이전과 동일)
+- 주의할 입력: 매치 컨텍스트 가진 새 endpoint 가 추가될 경우 → 본 PR 코멘트 패턴 따라 적용 / 미적용 결정 명시
+
+⚠️ **reviewer 참고**:
+- 특별히 봐줬으면 하는 부분:
+  - 3 파일 상단 코멘트 의 **결정 사유** (매치 컨텍스트 유무 + 응답 스키마 의미 + 대안 endpoint 안내)
+  - PR5 의 6 endpoints 분류가 **응답 스키마 매핑 가능성** 기준으로 정확한지 (매치별 jersey 표현 가능 = 적용 / 단일 jersey 필드 = 미적용)
+
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
+| 2026-05-16 | **PR5 마무리 — 남은 3 endpoint 결정 사유 박제 (developer)** ⭐ | ✅ 코멘트 박제 3 파일 (`v1/players/[id]/stats` +3줄 / `v1/tournaments/[id]/full-data` +5줄 / `v1/tournaments/[id]/teams/[teamId]/players` +4줄) = **+12 LOC** / tsc EXIT=0 / 응답 스키마 변경 0 (Flutter v1 영향 0) / 운영 DB 영향 0 / 3개 모두 매치 컨텍스트 없는 endpoint 로 판단 (선수 시즌통계 / 대회 정적 dump / 팀 영구 명단 admin) → resolver 미적용 + 결정 사유 영구 박제 / PR5 6 endpoints 분류 완료 (적용 3 / 미적용 3) / PM 결재 (commit / push) 대기 |
 | 2026-05-16 | **영구 fix 박제 — updateTeamStandings SET 방식 변환 (developer / 옵션 A)** ⭐ | ✅ 수정 1 (`src/lib/tournaments/update-standings.ts` +205/-28) + 신규 1 (`src/__tests__/lib/tournaments/update-standings.test.ts` +420) + 삭제 2 (`scripts/_temp/recalc-standings-set.ts` -116 untracked / `scripts/_temp/diag-i3u9.ts` -90 untracked) = **+625 / -28 LOC** / tsc 0 / vitest 256/256 PASS (신규 5/5 PASS 112ms) / `updateTeamStandings(matchId: bigint)` 시그니처 변경 0 / finalize-match-completion 영향 0 / advanceWinner 영향 0 / idempotent 100% (동일 매치 N회 호출 결과 동일) / race / 외부 스크립트 안전 / 종별 격리 (settings.division_code 기준) / 자가 진단 5/5 / PM 결재 (commit / push / 강남구 i3-U9 정상화 trigger) 대기 |
 | 2026-05-16 | **영구 fix 기획설계 — 매치 종료 path 5종 중 1종 누락 (planner-architect)** ⭐ | 🟡 분석 / 코드 수정 0 / DB SELECT 0 / 누락 path 발견 #5 Flutter v1 `/api/v1/matches/:id/status` (`updateMatchStatus`) = updateTeamStandings + placeholder advancer 둘 다 누락 (강남구 i3-U9 사고 = 본 path 의심) + #3 batch-sync = placeholder + dual 누락 / 옵션 B (단일 통합 헬퍼 `finalizeMatchCompletion`) 권장 / 예상 +148 / -220 LOC 순감 -72 / 5 파일 변경 / errors.md defense in depth 5회째 회귀 / PM 결재 5 항목 (Q1~Q5) — B + 2 PR 분해 + 즉시 fix 별건 권장 |
 | 2026-05-16 | **긴급 박제 — 라이브 PBP paper 매치 정렬 안정 fix (developer / 옵션 C)** ⭐ | ✅ 수정 1 (`src/app/api/live/[id]/route.ts` +18/-2 LOC — Prisma select `created_at` 추가 + `sortedPbp` 3차 tiebreak `created_at ASC` 박제) / tsc EXIT=0 / digital (Flutter) PBP 영향 0 (game_clock 차이로 2차에서 결정 → 3차 미발화) / 라이브 시간 표시 "Q1 0:00" 보존 / 박스스코어 / quarterScores / hero-scoreboard / score-sheet 영향 0 / DB schema 0 / Phase 22 paper override 충돌 0 / 시안 13 룰 100% / PM 결재 (commit / push / 머지) 대기 |

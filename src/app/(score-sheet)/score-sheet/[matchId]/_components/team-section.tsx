@@ -628,180 +628,172 @@ export function TeamSection({
             })}
           </div>
           )}
-          {/* line 3 — Extra periods (OT 통합 합산 / 시안 data-extra="true").
-              Phase 19 PR-T4 (2026-05-15) — 1/2/3/4 cell 마크업 삭제 + 텍스트 라벨 유지 + 우측 정렬.
-                왜: 사용자 결재 — Extra periods 는 OT 카운트만 표시 (cell 마킹 ❌) + 영역 우측 정렬.
-                  Q1~Q4 line 과 시각 분리 (Extra 는 텍스트 + FT+N 만).
-                어떻게:
-                  - .ss-tbox__tf-cells 마크업 + .ss-tbox__tf-cell 4 cells 삭제
-                  - inline style justifyContent: flex-end 로 라인 전체 우측 정렬
-                  - ftAwarded 안내는 보존 (운영 OT 5+ 부여 안내)
-              운영 동작 보존: fouls 카운트 로직 그대로 (otCount + ftAwarded). UI 만 단순화. */}
-          {/* PR-Stat3.1 (2026-05-15) — Extra periods row = 라벨만 유지 (OT 카운트/FT 표시 제거).
-              사용자 명시: 연장전 = 4쿼터의 연장 → Q4 cell 에 합산 표시 → OT 별도 카운트 ❌.
-              시안 정합 (텍스트 라벨) + 우측 정렬은 보존 (PR-T4). */}
+          {/* line 3 — 2026-05-17 (사용자 보고 #172) Delay + Extra periods **단일 row 합성**.
+              왜: 사용자 명시 — Team fouls 박스 안 Delay row 가 Extra periods row 와 **같은 행** 에 위치해야 함.
+                좌측 = Delay [W][T1~T5] FT+N / 우측 = "Extra periods" 텍스트.
+              어떻게:
+                - 1 row 안에 좌측 (delayOfGame 있을 때만) + 우측 (Extra periods 텍스트) 양쪽 배치
+                - justifyContent: space-between + alignItems: center → 좌/우 양 끝 정렬
+                - delayOfGame === undefined 시 좌측 미렌더 → 우측 Extra periods 만 우측 정렬 (= 기존 동등)
+              보존:
+                - Delay W → T 자동 분기 / removeLast / disabled / aria-label / inline style 100% 동일
+                - Extra periods 텍스트 라벨 (PR-Stat3.1 룰 — OT 카운트/FT 표시 제거) 동일
+                - 시인성 (빈 cell 회색 톤 / active 빨강·노랑 fill / opacity 0.5) 동일 */}
           <div
             className="ss-tbox__tf-line"
-            data-extra="true"
-            style={{ justifyContent: "flex-end" }}
+            data-extra-with-delay="true"
+            style={{
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
           >
+            {/* 좌측: Delay block (W cell + T cells + FT+N) — delayOfGame 있을 때만 렌더 */}
+            {delayOfGame ? (
+              <div className="flex items-center" style={{ gap: "4px" }}>
+                <span
+                  className="ss-tbox__tf-pname"
+                  style={{ minWidth: "auto" }}
+                  aria-label="Delay of Game — 지연 위반"
+                >
+                  Delay
+                </span>
+                {/* W cell — 1차 경고 (warned 시 filled / 빈 시 다음 클릭 = W 박제) */}
+                <div className="ss-tbox__tf-cells" style={{ gap: "2px" }}>
+                  <button
+                    type="button"
+                    className="ss-tbox__tf-cell"
+                    data-on={delayOfGame.warned ? "true" : "false"}
+                    onClick={() => {
+                      if (disabled) return;
+                      if (!onRequestDelayClick && !onRequestRemoveLastDelay) return;
+                      // 마지막 박제 = T 가 있으면 T 마지막 / 없으면 W (warned 시) 해제.
+                      //   W cell 자체 클릭 = warned 해제는 technicals === 0 일 때만 (caller 헬퍼 removeLastDelayEvent 룰).
+                      //   현재 cell 클릭 = warned cell. T 가 박혀있으면 마지막 T 클릭 = 해제 / W cell 클릭 = 추가 박제 (자동 분기).
+                      if (delayOfGame.warned && delayOfGame.technicals === 0) {
+                        // W 박제만 있고 T 0 = 마지막 cell = 해제 가능
+                        onRequestRemoveLastDelay?.();
+                        return;
+                      }
+                      if (!delayOfGame.warned) {
+                        // 빈 W cell = 1차 W 박제
+                        onRequestDelayClick?.();
+                      }
+                      // warned + technicals > 0 = W cell 클릭 = no-op (T 가 더 최근 — T cell 통해 해제)
+                    }}
+                    disabled={
+                      disabled ||
+                      // warned=true + T 가 있으면 W cell 자체는 클릭 차단 (T cell 부터 해제)
+                      (delayOfGame.warned && delayOfGame.technicals > 0)
+                    }
+                    style={
+                      delayOfGame.warned
+                        ? {
+                            // W 박제 (active) 톤 = warning 옅게 (경고 — 점수 변동 0)
+                            backgroundColor:
+                              "color-mix(in srgb, var(--color-warning) 50%, transparent)",
+                            color: "#FFFFFF",
+                            fontWeight: 700,
+                            opacity: 1,
+                          }
+                        : {
+                            // 2026-05-17 (사용자 결재 §1 / 이미지 #170) — 빈 (inactive) cell 시인성 강화.
+                            //   active 시 빨강/노랑 fill 과 대비 명확하게: 흰 배경 + 명시적 회색 border + 회색 라벨 + opacity 0.5.
+                            backgroundColor: "var(--pap-bg)",
+                            border: "1px solid var(--pap-line)",
+                            color: "var(--pap-hair)",
+                            fontWeight: 700,
+                            opacity: 0.5,
+                          }
+                    }
+                    aria-label={
+                      delayOfGame.warned
+                        ? "Delay of Game 경고 (W) 박제됨 — 다음 위반부터 T (자유투 1개)"
+                        : "Delay of Game 빈 칸 (클릭 시 1차 경고 W 박제)"
+                    }
+                    title="Delay of Game — 1차 W / 2차+ T"
+                  >
+                    {/* 빈 cell 도 "W" 라벨 표시 — 사용자 결재: 빈 cell = 회색 W 글자 (= 어떤 cell 인지 명확 안내) */}
+                    W
+                  </button>
+                  {/* T cells — technicals 개수 + 다음 빈 cell (warned=true 시만 표시).
+                      무제한 누적 (T cells max 5 까지 UI 노출 — 그 이상은 운영자가 직접 박제 시 동일 cell 시각 반복).
+                      사용자 결재 = 무제한 (HEAD coach 추방 아님 / Team 박제). */}
+                  {delayOfGame.warned &&
+                    Array.from({
+                      length: Math.max(delayOfGame.technicals + 1, 1),
+                    })
+                      .slice(0, 5)
+                      .map((_, idx) => {
+                        const tFilled = idx < delayOfGame.technicals;
+                        const isLastT =
+                          tFilled && idx === delayOfGame.technicals - 1;
+                        const isNextT =
+                          !tFilled && idx === delayOfGame.technicals;
+                        return (
+                          <button
+                            key={`t-${idx}`}
+                            type="button"
+                            className="ss-tbox__tf-cell"
+                            data-on={tFilled ? "true" : "false"}
+                            onClick={() => {
+                              if (disabled) return;
+                              if (isLastT) {
+                                onRequestRemoveLastDelay?.();
+                              } else if (isNextT) {
+                                onRequestDelayClick?.();
+                              }
+                            }}
+                            disabled={disabled || (!isLastT && !isNextT)}
+                            style={
+                              tFilled
+                                ? {
+                                    // T 박제 (active) 톤 = primary 빨강 (자유투 1개 부여 = 강조)
+                                    backgroundColor: "var(--pap-bonus)",
+                                    color: "#FFFFFF",
+                                    fontWeight: 700,
+                                    opacity: 1,
+                                  }
+                                : {
+                                    // 2026-05-17 (사용자 결재 §1 / 이미지 #170) — 빈 (inactive) T cell 시인성 강화.
+                                    //   active 시 빨강 fill 과 대비 명확하게: 흰 배경 + 명시적 회색 border + 회색 라벨 + opacity 0.5.
+                                    backgroundColor: "var(--pap-bg)",
+                                    border: "1px solid var(--pap-line)",
+                                    color: "var(--pap-hair)",
+                                    fontWeight: 700,
+                                    opacity: 0.5,
+                                  }
+                            }
+                            aria-label={
+                              tFilled
+                                ? `Delay T ${idx + 1} 박제됨${isLastT ? " (클릭 시 해제)" : ""} — 상대 자유투 1개 (운영자 별도 박제)`
+                                : `Delay T ${idx + 1} 빈 칸${isNextT ? " (클릭 시 T 박제)" : ""}`
+                            }
+                            title="Delay T — 자유투 1개 (운영자 수동 박제)"
+                          >
+                            {/* 빈 cell 도 "T{N}" 라벨 표시 (회색) — 어떤 cell 인지 명확 안내 */}
+                            {`T${idx + 1}`}
+                          </button>
+                        );
+                      })}
+                </div>
+                {/* 자유투 안내 (T 박제 시 영구 표시 — 운영자 인지). */}
+                {delayOfGame.technicals > 0 && (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
+                    style={{ color: "var(--pap-bonus)" }}
+                    aria-label={`Delay T ${delayOfGame.technicals}건 — 상대 자유투 ${delayOfGame.technicals}개 (운영자 수동)`}
+                  >
+                    FT+{delayOfGame.technicals}
+                  </span>
+                )}
+              </div>
+            ) : (
+              // delayOfGame 미전달 시 좌측 placeholder (= 우측 Extra periods 만 우측 정렬 유지)
+              <span aria-hidden="true" />
+            )}
+            {/* 우측: Extra periods 텍스트 (PR-Stat3.1 룰 — 라벨만 표시 / OT 카운트/FT 표시 제거) */}
             <span className="ss-tbox__tf-pname">Extra periods</span>
           </div>
-          {/* 2026-05-17 (사용자 직접 결재 §2 / 이미지 #171).
-              왜: Delay row 위치 이동 — 기존 = Team fouls 박스 위쪽 (label 위) / 신규 = Team fouls 박스 아래쪽 (Extra periods 아래).
-              사용자 명시: "Team fouls 박스 안 좌측 하단으로 이동" = Team fouls 영역 내부 마지막 row.
-              순서: Team fouls 라벨 → Period ①② → Period ③④ → Extra periods → **Delay [W][T1~T5] FT+N** (신규 위치).
-              FIBA Article 36.2.3 — 지연 위반 (W/T 자동 분기) 박제 로직 동일.
-              운영 동작 보존: delayOfGame 미전달 (=undefined) 시 row 미렌더 (구버전 호환).
-              시인성 개선 (사용자 결재 §1 / 이미지 #170): 빈 W/T cell = 회색 톤 inline (active 시 빨강/노랑 대비 강화). */}
-          {delayOfGame && (
-            <div
-              className="ss-tbox__tf-line"
-              data-delay="true"
-              style={{
-                marginTop: "2px",
-                paddingTop: "2px",
-                borderTop: "1px dotted var(--pap-hair)",
-              }}
-            >
-              <span
-                className="ss-tbox__tf-pname"
-                style={{ minWidth: "auto" }}
-                aria-label="Delay of Game — 지연 위반"
-              >
-                Delay
-              </span>
-              {/* W cell — 1차 경고 (warned 시 filled / 빈 시 다음 클릭 = W 박제) */}
-              <div className="ss-tbox__tf-cells" style={{ gap: "2px" }}>
-                <button
-                  type="button"
-                  className="ss-tbox__tf-cell"
-                  data-on={delayOfGame.warned ? "true" : "false"}
-                  onClick={() => {
-                    if (disabled) return;
-                    if (!onRequestDelayClick && !onRequestRemoveLastDelay) return;
-                    // 마지막 박제 = T 가 있으면 T 마지막 / 없으면 W (warned 시) 해제.
-                    //   W cell 자체 클릭 = warned 해제는 technicals === 0 일 때만 (caller 헬퍼 removeLastDelayEvent 룰).
-                    //   현재 cell 클릭 = warned cell. T 가 박혀있으면 마지막 T 클릭 = 해제 / W cell 클릭 = 추가 박제 (자동 분기).
-                    if (delayOfGame.warned && delayOfGame.technicals === 0) {
-                      // W 박제만 있고 T 0 = 마지막 cell = 해제 가능
-                      onRequestRemoveLastDelay?.();
-                      return;
-                    }
-                    if (!delayOfGame.warned) {
-                      // 빈 W cell = 1차 W 박제
-                      onRequestDelayClick?.();
-                    }
-                    // warned + technicals > 0 = W cell 클릭 = no-op (T 가 더 최근 — T cell 통해 해제)
-                  }}
-                  disabled={
-                    disabled ||
-                    // warned=true + T 가 있으면 W cell 자체는 클릭 차단 (T cell 부터 해제)
-                    (delayOfGame.warned && delayOfGame.technicals > 0)
-                  }
-                  style={
-                    delayOfGame.warned
-                      ? {
-                          // W 박제 (active) 톤 = warning 옅게 (경고 — 점수 변동 0)
-                          backgroundColor:
-                            "color-mix(in srgb, var(--color-warning) 50%, transparent)",
-                          color: "#FFFFFF",
-                          fontWeight: 700,
-                          opacity: 1,
-                        }
-                      : {
-                          // 2026-05-17 (사용자 결재 §1 / 이미지 #170) — 빈 (inactive) cell 시인성 강화.
-                          //   active 시 빨강/노랑 fill 과 대비 명확하게: 흰 배경 + 명시적 회색 border + 회색 라벨 + opacity 0.5.
-                          backgroundColor: "var(--pap-bg)",
-                          border: "1px solid var(--pap-line)",
-                          color: "var(--pap-hair)",
-                          fontWeight: 700,
-                          opacity: 0.5,
-                        }
-                  }
-                  aria-label={
-                    delayOfGame.warned
-                      ? "Delay of Game 경고 (W) 박제됨 — 다음 위반부터 T (자유투 1개)"
-                      : "Delay of Game 빈 칸 (클릭 시 1차 경고 W 박제)"
-                  }
-                  title="Delay of Game — 1차 W / 2차+ T"
-                >
-                  {/* 빈 cell 도 "W" 라벨 표시 — 사용자 결재: 빈 cell = 회색 W 글자 (= 어떤 cell 인지 명확 안내) */}
-                  W
-                </button>
-                {/* T cells — technicals 개수 + 다음 빈 cell (warned=true 시만 표시).
-                    무제한 누적 (T cells max 5 까지 UI 노출 — 그 이상은 운영자가 직접 박제 시 동일 cell 시각 반복).
-                    사용자 결재 = 무제한 (HEAD coach 추방 아님 / Team 박제). */}
-                {delayOfGame.warned &&
-                  Array.from({
-                    length: Math.max(delayOfGame.technicals + 1, 1),
-                  })
-                    .slice(0, 5)
-                    .map((_, idx) => {
-                      const tFilled = idx < delayOfGame.technicals;
-                      const isLastT =
-                        tFilled && idx === delayOfGame.technicals - 1;
-                      const isNextT =
-                        !tFilled && idx === delayOfGame.technicals;
-                      return (
-                        <button
-                          key={`t-${idx}`}
-                          type="button"
-                          className="ss-tbox__tf-cell"
-                          data-on={tFilled ? "true" : "false"}
-                          onClick={() => {
-                            if (disabled) return;
-                            if (isLastT) {
-                              onRequestRemoveLastDelay?.();
-                            } else if (isNextT) {
-                              onRequestDelayClick?.();
-                            }
-                          }}
-                          disabled={disabled || (!isLastT && !isNextT)}
-                          style={
-                            tFilled
-                              ? {
-                                  // T 박제 (active) 톤 = primary 빨강 (자유투 1개 부여 = 강조)
-                                  backgroundColor: "var(--pap-bonus)",
-                                  color: "#FFFFFF",
-                                  fontWeight: 700,
-                                  opacity: 1,
-                                }
-                              : {
-                                  // 2026-05-17 (사용자 결재 §1 / 이미지 #170) — 빈 (inactive) T cell 시인성 강화.
-                                  //   active 시 빨강 fill 과 대비 명확하게: 흰 배경 + 명시적 회색 border + 회색 라벨 + opacity 0.5.
-                                  backgroundColor: "var(--pap-bg)",
-                                  border: "1px solid var(--pap-line)",
-                                  color: "var(--pap-hair)",
-                                  fontWeight: 700,
-                                  opacity: 0.5,
-                                }
-                          }
-                          aria-label={
-                            tFilled
-                              ? `Delay T ${idx + 1} 박제됨${isLastT ? " (클릭 시 해제)" : ""} — 상대 자유투 1개 (운영자 별도 박제)`
-                              : `Delay T ${idx + 1} 빈 칸${isNextT ? " (클릭 시 T 박제)" : ""}`
-                          }
-                          title="Delay T — 자유투 1개 (운영자 수동 박제)"
-                        >
-                          {/* 빈 cell 도 "T{N}" 라벨 표시 (회색) — 어떤 cell 인지 명확 안내 */}
-                          {`T${idx + 1}`}
-                        </button>
-                      );
-                    })}
-              </div>
-              {/* 자유투 안내 (T 박제 시 영구 표시 — 운영자 인지). */}
-              {delayOfGame.technicals > 0 && (
-                <span
-                  className="inline-flex shrink-0 items-center gap-0.5 text-[8px] font-bold"
-                  style={{ color: "var(--pap-bonus)" }}
-                  aria-label={`Delay T ${delayOfGame.technicals}건 — 상대 자유투 ${delayOfGame.technicals}개 (운영자 수동)`}
-                >
-                  FT+{delayOfGame.technicals}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
       {/* /§2 ss-tbox__tt 끝 */}
