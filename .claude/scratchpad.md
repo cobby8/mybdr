@@ -81,6 +81,7 @@
 |------|------|----------|----------|------|
 | 1차 | 2026-05-17 | (1) 빈 Delay W/T cell + 빈 Coach B/C cell 시인성 강화 (흰 배경 + 회색 border + 회색 라벨 "W"/"T1~T5"/"B" + opacity 0.5 / active 시 빨강·노랑·accent fill 대비 명확) (2) Delay row 위치 이동 (Team fouls 박스 안 위 → 아래 Extra periods row 뒤 / borderTop dotted 분리선) | `team-section.tsx` | 사용자 직접 결재 §1 (이미지 #170 시인성 사고) + §2 (이미지 #171 위치 이동). tsc EXIT=0 / vitest 18/18 PASS / 동작 로직 보존 0건 |
 | 2차 | 2026-05-17 | Delay row + Extra periods row **단일 row 합성** (1 row 안 좌측 = Delay block [W][T1~T5] FT+N / 우측 = "Extra periods" 텍스트 / justifyContent: space-between + alignItems: center / delayOfGame undefined 시 좌측 미렌더 = 우측 정렬 유지). Delay 동작 로직 (W→T 자동 분기 / removeLast / disabled / aria-label / inline style) 100% 보존 | `team-section.tsx` | 사용자 보고 #172 — Delay row 가 Extra periods row 와 **같은 행** 에 위치 명시. tsc EXIT=0 / vitest 회귀 0 (실패 1건 = 사전 회귀 running-score-helpers / 본 작업 무관 — stash 검증) |
+| 3차 | 2026-05-17 | 설명서 모달 JSX 신규 3 섹션 추가: (6) 벤치 테크니컬 파울 B/C (psychology_alt) — C/B 정의 + 입력 방법 + 누적 룰 + 자유투 / (7) 딜레이 오브 게임 W/T (schedule) — 위반 상황 + 1차 W / 2차+ T 자동 분기 + 입력 방법 / (8) i3 종별 자동 전후반 (category) — 자동 모드 + 라벨 분기 + 혼합 토글. 기존 (6) 수정 → (9), (7) 전체화면 → (10) 번호 재정렬. 섹션 박스/h3/iconStyle/bodyTextStyle/emphasisStyle 기존 상수 재사용 (시각 정합) | `score-sheet-form.tsx` (handleOpenManual JSX 만) | 사용자 직접 결재 (+159 LOC, JSX only). tsc EXIT=0 / handleOpenManual signature + ConfirmModal title/size/options 변경 0 / 다른 핸들러·state·핸들러 영향 0 |
 
 ## 기획설계 (planner-architect / 2026-05-16) — Bench Tech (B) + Delay of Game 박제 design
 
