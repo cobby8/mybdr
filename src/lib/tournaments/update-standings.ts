@@ -229,9 +229,13 @@ export async function updateTeamStandings(
   // 4. TournamentTeam UPDATE (영향 받는 2 팀만 SET 방식 — 트랜잭션 wrap)
   //   사유: increment 가 아닌 SET → race / 다중 호출 / 외부 스크립트 모두 안전.
   // ─────────────────────────────────────────────────────────────────────
+  // 2026-05-16 BUG FIX — where 절이 `teamId: homeId` 였음 (Team.id 매칭) → 다른 종별 섞임.
+  //   `homeId` = `match.homeTeamId` = **TournamentTeam.id** (FK) 인데 Team.id 컬럼으로 검색.
+  //   결과: 매치 0건 매칭 → standings 박제 안 됨 + 우연히 매칭된 다른 종별 row 에 박힘.
+  //   수정: `id: homeId` 로 TournamentTeam.id 직접 매칭.
   await prisma.$transaction([
     prisma.tournamentTeam.updateMany({
-      where: { tournamentId: match.tournamentId, teamId: homeId },
+      where: { id: homeId },
       data: {
         wins: homeStats.wins,
         losses: homeStats.losses,
@@ -242,7 +246,8 @@ export async function updateTeamStandings(
       },
     }),
     prisma.tournamentTeam.updateMany({
-      where: { tournamentId: match.tournamentId, teamId: awayId },
+      // BUG FIX (위 home 동일) — teamId → id (TournamentTeam.id FK 직접 매칭)
+      where: { id: awayId },
       data: {
         wins: awayStats.wins,
         losses: awayStats.losses,
