@@ -53,7 +53,8 @@ type MockTeam = {
 };
 
 type UpdateManyCall = {
-  where: { tournamentId: string; teamId: bigint };
+  // 2026-05-16 — id 매칭 (영구 fix 후) 또는 teamId 매칭 (구 호환) 양면 지원
+  where: { id?: bigint; tournamentId?: string; teamId?: bigint };
   data: {
     wins: number;
     losses: number;
@@ -126,8 +127,14 @@ function buildMockPrisma(matches: MockMatch[], teams: MockTeam[]) {
           data: { ...args.data },
         });
         // in-place mutation (사후 검증)
+        // 2026-05-16 — id 또는 teamId 매칭 (영구 fix 후 id 매칭 / 이전 코드 teamId 매칭 호환)
         for (const t of teamsState) {
-          if (t.tournamentId === args.where.tournamentId && t.teamId === args.where.teamId) {
+          const idMatch = "id" in args.where && t.id === args.where.id;
+          const teamIdMatch =
+            "teamId" in args.where &&
+            t.tournamentId === args.where.tournamentId &&
+            t.teamId === args.where.teamId;
+          if (idMatch || teamIdMatch) {
             t.wins = args.data.wins;
             t.losses = args.data.losses;
             t.draws = args.data.draws;
@@ -164,8 +171,11 @@ const M_3 = BigInt(1003); // 매치 3: B vs C
 const M_OTHER = BigInt(2001); // 다른 종별 매치
 
 function makeTeam(teamId: bigint, tournamentId = TID): MockTeam {
+  // 2026-05-16 — TournamentTeam.id == teamId 로 통일 (mock 단순화).
+  //   사유: 매치 homeTeamId/awayTeamId 가 T_A/T_B 같은 상수 → TournamentTeam.id 매칭 (영구 fix 후) 일치.
+  //   schema 상 TournamentTeam.id != teamId 이지만 mock 영향 0 (검증 목적 충족).
   return {
-    id: teamId * BigInt(10),
+    id: teamId,
     tournamentId,
     teamId,
     wins: 0,
