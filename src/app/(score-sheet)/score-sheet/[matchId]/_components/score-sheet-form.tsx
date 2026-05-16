@@ -851,40 +851,37 @@ export function ScoreSheetForm({
             </ol>
           </section>
 
-          {/* (8) i3 종별 자동 전후반 모드 — 2026-05-17 신규 박제 (사용자 지시).
-              왜: i3 종별 매치는 자동으로 전후반 모드 진입 / 운영자 토글 불필요.
-              4쿼터 매치와 자동 분기 (라벨 / 모달 / 라이브 점수). */}
+          {/* (8) 전후반 모드 — 2026-05-17 갱신 (사용자 지시 = i3 자동 박제 제거 / 일반 운영자 설명만).
+              왜: 일부 대회는 4쿼터 대신 전반/후반 2 피리어드로 진행. 운영자가 toolbar [전후반] 토글로 전환. */}
           <section style={sectionBoxStyle}>
             <h3 style={sectionH3Style}>
               <span className="material-symbols-outlined" style={iconStyle} aria-hidden="true">
-                category
+                schedule
               </span>
-              i3 종별 자동 전후반 모드
+              전후반 모드 (2 피리어드)
             </h3>
             <ol className="ml-5 list-decimal space-y-2" style={bodyTextStyle}>
               <li>
-                <strong style={emphasisStyle}>i3 종별이란?</strong> — 유소년 / 청소년 종별
-                (예: <em>i3-U9, i3-U12, i3-U14</em> 등) 으로, 4쿼터가 아닌
-                <em> 전반·후반 2 피리어드</em> 로 진행됩니다.
+                <strong style={emphasisStyle}>전후반 모드란?</strong> — 4쿼터가 아닌
+                <em> 전반·후반 2 피리어드</em> 로 진행되는 매치 (예: 유소년부 / 특정 종별).
               </li>
               <li>
-                <strong style={emphasisStyle}>자동 전환</strong> — i3 종별 매치에 진입하면 화면이
-                자동으로 <em>전후반 모드</em>로 바뀝니다. 운영자가 따로 모드 토글을 누를 필요가
-                없습니다.
+                <strong style={emphasisStyle}>모드 전환</strong> — 화면 위쪽 <em>"전후반"</em> 버튼을
+                누르면 전후반 모드가 활성됩니다. 버튼이 <strong style={emphasisStyle}>빨강 outline</strong>
+                + "<em>전후반 ON</em>" 으로 변경되면 활성된 것입니다. 다시 누르면 4쿼터 모드로 돌아갑니다.
               </li>
               <li>
-                <strong style={emphasisStyle}>자동 분기 표시</strong> — 4쿼터 매치와 차이가
-                자동으로 적용됩니다.
+                <strong style={emphasisStyle}>전후반 모드 표시 변화</strong>:
                 <ul className="ml-4 mt-1 list-disc space-y-0.5">
-                  <li>쿼터 라벨 = <em>전반 / 후반 / OT</em> (Q1/Q2/Q3/Q4 ❌)</li>
-                  <li>후반 종료 모달 = "후반 종료" 안내</li>
+                  <li>쿼터 뱃지 = <em>전반 / 후반 / OT</em> (Q1/Q2/Q3/Q4 ❌)</li>
+                  <li>Team fouls / Time-outs 영역 = 전반 / 후반 라벨</li>
+                  <li>후반 종료 시 = "후반 종료" 모달 (= 4쿼터의 Q4 종료와 동일 흐름)</li>
                   <li>라이브 페이지 점수 표시 = 전후반 합산 자동</li>
                 </ul>
               </li>
               <li>
-                <strong style={emphasisStyle}>혼합 운영 시 직접 토글</strong> — 같은 대회 안에
-                4쿼터 종별 + i3 종별이 섞여있을 때, 운영자가 직접 모드를 ON/OFF 할 수
-                있습니다. (드물게 사용)
+                <strong style={emphasisStyle}>새로고침 보존</strong> — 한 번 전후반 모드를 켜면
+                새로고침해도 같은 매치 진입 시 자동으로 다시 활성됩니다 (브라우저 단위 박제).
               </li>
             </ol>
           </section>
