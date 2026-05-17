@@ -218,7 +218,8 @@ export function BoxScoreTable({
                 >
                   이름
                 </th>
-                <th className="py-2 px-0.5 text-center font-normal">MIN</th>
+                {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 추가 hide (시간 추적 칸 없음) */}
+                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">MIN</th>}
                 <th
                   className="py-2 px-0.5 text-center font-semibold"
                   style={{ color: "var(--color-text-primary)" }}
@@ -244,7 +245,8 @@ export function BoxScoreTable({
                 <th className="py-2 px-0.5 text-center font-normal">BLK</th>
                 <th className="py-2 px-0.5 text-center font-normal">TO</th>
                 <th className="py-2 px-0.5 text-center font-normal">PF</th>
-                <th className="py-2 px-0.5 text-center font-normal">+/-</th>
+                {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 추가 hide (시간+점수 변동 추적 불가) */}
+                {!isPaperMatch && <th className="py-2 px-0.5 text-center font-normal">+/-</th>}
               </tr>
             </thead>
             <tbody>
@@ -272,12 +274,15 @@ export function BoxScoreTable({
                         user_id null (placeholder ttp) → 자동 span fallback. truncate CSS 부모 td 가 처리. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    {formatGameClock(p.min_seconds ?? p.min * 60)}
-                  </td>
+                  {/* 2026-05-17 사용자 결재 — paper 매치 = MIN 셀 hide */}
+                  {!isPaperMatch && (
+                    <td
+                      className="py-2 px-0.5 text-center"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      {formatGameClock(p.min_seconds ?? p.min * 60)}
+                    </td>
+                  )}
                   {/* PTS — 팀색 좌측 띠 (3px) + 텍스트 기본색. 부모 td 가 relative */}
                   <td
                     className="py-2 px-0.5 text-center font-bold relative"
@@ -379,16 +384,19 @@ export function BoxScoreTable({
                   >
                     {showPlaceholder ? "-" : p.fouls}
                   </td>
-                  <td
-                    className="py-2 px-0.5 text-center"
-                    style={{ color: "var(--color-text-secondary)" }}
-                  >
-                    {p.plus_minus != null
-                      ? p.plus_minus > 0
-                        ? `+${p.plus_minus}`
-                        : p.plus_minus
-                      : "-"}
-                  </td>
+                  {/* 2026-05-17 사용자 결재 — paper 매치 = +/- 셀 hide */}
+                  {!isPaperMatch && (
+                    <td
+                      className="py-2 px-0.5 text-center"
+                      style={{ color: "var(--color-text-secondary)" }}
+                    >
+                      {p.plus_minus != null
+                        ? p.plus_minus > 0
+                          ? `+${p.plus_minus}`
+                          : p.plus_minus
+                        : "-"}
+                    </td>
+                  )}
                 </tr>
               ))}
 
@@ -415,20 +423,23 @@ export function BoxScoreTable({
                     {/* 2026-05-10 PlayerLink/TeamLink 2단계 — DNP 행 이름 셀도 동일하게 공개프로필 link. */}
                     <PlayerLink userId={p.user_id} name={p.name} />
                   </td>
-                  <td
-                    className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
-                    style={{ color: "var(--color-text-muted)" }}
-                  >
-                    DNP
-                  </td>
-                  {/* 2026-05-13 FIBA Phase 21: 종이 매치 시 슈팅 6 컬럼 hide → 16 → 10 으로 줄임 (PF/+/- 등 나머지 정합) */}
-                  {Array.from({ length: isPaperMatch ? 10 : 16 }).map((_, idx) => (
+                  {/* DNP 셀: 정상행 MIN 자리. 2026-05-17 paper 매치 시 MIN hide → DNP 표시는 첫 일반 셀(PTS 자리)로 이동 */}
+                  {!isPaperMatch && (
                     <td
-                      key={idx}
-                      className="py-2 px-0.5 text-center"
+                      className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      -
+                      DNP
+                    </td>
+                  )}
+                  {/* 2026-05-13 FIBA Phase 21: paper 매치 시 슈팅 6 컬럼 hide. 2026-05-17 paper 매치 시 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
+                  {Array.from({ length: isPaperMatch ? 8 : 16 }).map((_, idx) => (
+                    <td
+                      key={idx}
+                      className="py-2 px-0.5 text-center text-xs font-semibold tracking-wider"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      {isPaperMatch && idx === 0 ? "DNP" : "-"}
                     </td>
                   ))}
                 </tr>
@@ -501,12 +512,15 @@ export function BoxScoreTable({
                     >
                       TOTAL
                     </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      {formatGameClock(total.min_seconds)}
-                    </td>
+                    {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL MIN 셀 hide */}
+                    {!isPaperMatch && (
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {formatGameClock(total.min_seconds)}
+                      </td>
+                    )}
                     <td
                       className="py-2 px-0.5 text-center relative"
                       style={{
@@ -607,12 +621,15 @@ export function BoxScoreTable({
                     >
                       {showPlaceholder ? "-" : total.fouls}
                     </td>
-                    <td
-                      className="py-2 px-0.5 text-center"
-                      style={{ color: "var(--color-text-secondary)" }}
-                    >
-                      -
-                    </td>
+                    {/* 2026-05-17 사용자 결재 — paper 매치 = TOTAL +/- 셀 hide */}
+                    {!isPaperMatch && (
+                      <td
+                        className="py-2 px-0.5 text-center"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        -
+                      </td>
+                    )}
                   </tr>
                 );
               })()}

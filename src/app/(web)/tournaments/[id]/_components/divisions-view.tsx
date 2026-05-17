@@ -60,12 +60,18 @@ export type DivisionStandingItem = {
   pointsFor: number;
   pointsAgainst: number;
   pointDifference: number;
+  // 2026-05-17 강남구 승점 — server-side 박제값 (단일 source / 재계산 회피).
+  //   showWinPoints=true (pointsRule="gnba") 일 때만 컬럼 노출.
+  winPoints: number;
   groupRank: number;
 };
 
 export type DivisionStandingBundle = {
   code: string;
   label: string;
+  // 2026-05-17 — 종별 승점 룰 (route.ts 가 tournament.settings.points_rule 박제).
+  //   "gnba" = P 컬럼 + 승점 정렬 적용 / "default" = 기존 (회귀 0).
+  pointsRule: "gnba" | "default";
   standings: DivisionStandingItem[];
 };
 
@@ -304,11 +310,13 @@ export function DivisionsView({
             />
 
             {/* 섹션 2 — 종별 standings (예선 결과 / 진행 중 시 표시).
-                standings 0건 (예선 시작 전) = 미렌더 (회귀 0) */}
+                standings 0건 (예선 시작 전) = 미렌더 (회귀 0).
+                2026-05-17 — pointsRule 전달 (강남구 한정 P 컬럼 + 승점 정렬). */}
             {standingsBundle && standingsBundle.standings.length > 0 && (
               <DivisionStandingsView
                 divisionLabel={divisionLabel}
                 standings={standingsBundle.standings}
+                pointsRule={standingsBundle.pointsRule}
               />
             )}
 
@@ -352,11 +360,20 @@ export function DivisionsView({
 function DivisionStandingsView({
   divisionLabel,
   standings,
+  pointsRule = "default",
 }: {
   divisionLabel: string;
   standings: DivisionStandingItem[];
+  // 2026-05-17 — pointsRule="gnba" 일 때 "P" 컬럼 노출 (강남구협회장배 한정).
+  //   server-side 에서 이미 winPoints desc 정렬되어 오므로 client 정렬은 보조 X.
+  //   미전달 시 default = "default" (P 컬럼 hide / 회귀 0).
+  pointsRule?: "gnba" | "default";
 }) {
+  // 강남구 룰 ON 여부 — "P" 컬럼 노출 결정 (group-standings.tsx 패턴 답습 / 단일 source).
+  const showWinPoints = pointsRule === "gnba";
+
   // 그룹별 분류 (standings 는 이미 groupRank 정렬됨 — division-advancement.ts:82)
+  //   server-side 정렬이 pointsRule 분기 처리 → client 재정렬 불필요 (회귀 0 / 단일 source).
   const byGroup = useMemo(() => {
     const map = new Map<string, DivisionStandingItem[]>();
     for (const s of standings) {
@@ -421,6 +438,16 @@ function DivisionStandingsView({
                     <th className="px-3 py-2">팀명</th>
                     <th className="px-2 py-2 text-center w-12">승</th>
                     <th className="px-2 py-2 text-center w-12">패</th>
+                    {/* 2026-05-17 (사용자 명시) — 승점 컬럼 = 득실차 좌측 + 라벨 "승점" (강남구 한정). */}
+                    {showWinPoints && (
+                      <th
+                        className="px-2 py-2 text-center w-12"
+                        style={{ color: "var(--color-primary)" }}
+                        title="승점 (강남구협회장배 규정)"
+                      >
+                        승점
+                      </th>
+                    )}
                     <th className="px-2 py-2 text-center w-16">득실</th>
                   </tr>
                 </thead>
@@ -457,6 +484,15 @@ function DivisionStandingsView({
                       >
                         {s.losses}
                       </td>
+                      {/* 2026-05-17 (사용자 명시) — 승점 컬럼 본문 = 득실차 좌측 (강남구 한정 / Primary 색 강조). */}
+                      {showWinPoints && (
+                        <td
+                          className="px-2 py-2 text-center font-bold tabular-nums"
+                          style={{ color: "var(--color-primary)" }}
+                        >
+                          {s.winPoints ?? 0}
+                        </td>
+                      )}
                       <td
                         className="px-2 py-2 text-center tabular-nums"
                         style={{ color: "var(--color-text-secondary)" }}

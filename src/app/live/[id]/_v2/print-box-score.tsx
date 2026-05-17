@@ -359,7 +359,8 @@ function PrintBoxScoreTable({
             <tr>
               <th>#</th>
               <th style={{ textAlign: "left" }}>이름</th>
-              <th>MIN</th>
+              {/* 2026-05-17 사용자 결재 — paper 매치 = MIN/+/- hide (시간/점수변동 추적 불가) */}
+              {!isPaperMatch && <th>MIN</th>}
               <th>PTS</th>
               {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
               {!isPaperMatch && (
@@ -380,7 +381,7 @@ function PrintBoxScoreTable({
               <th>BLK</th>
               <th>TO</th>
               <th>PF</th>
-              <th>+/-</th>
+              {!isPaperMatch && <th>+/-</th>}
             </tr>
           </thead>
           <tbody>
@@ -388,7 +389,10 @@ function PrintBoxScoreTable({
               <tr key={p.id}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
+                {/* 2026-05-17 paper 매치 = MIN 셀 hide */}
+                {!isPaperMatch && (
+                  <td>{formatGameClock(p.min_seconds ?? p.min * 60)}</td>
+                )}
                 <td style={{ fontWeight: 700 }}>{showPlaceholder ? "-" : p.pts}</td>
                 {/* 2026-05-13 FIBA Phase 21: 종이 매치 슈팅 6 컬럼 hide */}
                 {!isPaperMatch && (
@@ -409,13 +413,16 @@ function PrintBoxScoreTable({
                 <td>{showPlaceholder ? "-" : p.blk}</td>
                 <td>{showPlaceholder ? "-" : p.to}</td>
                 <td>{showPlaceholder ? "-" : p.fouls}</td>
-                <td>
-                  {p.plus_minus != null
-                    ? p.plus_minus > 0
-                      ? `+${p.plus_minus}`
-                      : p.plus_minus
-                    : "-"}
-                </td>
+                {/* 2026-05-17 paper 매치 = +/- 셀 hide */}
+                {!isPaperMatch && (
+                  <td>
+                    {p.plus_minus != null
+                      ? p.plus_minus > 0
+                        ? `+${p.plus_minus}`
+                        : p.plus_minus
+                      : "-"}
+                  </td>
+                )}
               </tr>
             ))}
             {/* DNP 행 — MIN 셀에 "DNP", 나머지 셀 "-".
@@ -424,9 +431,13 @@ function PrintBoxScoreTable({
               <tr key={`dnp-${p.id}`}>
                 <td>{p.jersey_number ?? "-"}</td>
                 <td style={{ textAlign: "left" }}>{p.name}</td>
-                <td style={{ fontWeight: 600 }}>DNP</td>
-                {Array.from({ length: isPaperMatch ? 10 : 16 }).map((_, idx) => (
-                  <td key={idx}>-</td>
+                {/* DNP 셀: 정상행 MIN 자리. paper 매치 시 MIN hide → DNP 표시는 첫 일반 셀(PTS 자리)로 이동 */}
+                {!isPaperMatch && <td style={{ fontWeight: 600 }}>DNP</td>}
+                {/* 2026-05-13 paper 매치 슈팅 6컬럼 hide + 2026-05-17 MIN/+/- 추가 hide → 16 - 6 - 2 = 8 */}
+                {Array.from({ length: isPaperMatch ? 8 : 16 }).map((_, idx) => (
+                  <td key={idx} style={isPaperMatch && idx === 0 ? { fontWeight: 600 } : undefined}>
+                    {isPaperMatch && idx === 0 ? "DNP" : "-"}
+                  </td>
                 ))}
               </tr>
             ))}
@@ -434,7 +445,8 @@ function PrintBoxScoreTable({
             <tr className="print-total-row">
               <td></td>
               <td style={{ textAlign: "left" }}>TOTAL</td>
-              <td>{formatGameClock(total.min_seconds)}</td>
+              {/* 2026-05-17 paper 매치 = TOTAL MIN 셀 hide */}
+              {!isPaperMatch && <td>{formatGameClock(total.min_seconds)}</td>}
               <td>{showPlaceholder ? "-" : total.pts}</td>
               {/* 2026-05-13 FIBA Phase 21: 종이 매치 TOTAL 행도 슈팅 6 컬럼 hide */}
               {!isPaperMatch && (
@@ -455,7 +467,8 @@ function PrintBoxScoreTable({
               <td>{showPlaceholder ? "-" : total.blk}</td>
               <td>{showPlaceholder ? "-" : total.to}</td>
               <td>{showPlaceholder ? "-" : total.fouls}</td>
-              <td>-</td>
+              {/* 2026-05-17 paper 매치 = TOTAL +/- 셀 hide */}
+              {!isPaperMatch && <td>-</td>}
             </tr>
           </tbody>
         </table>
