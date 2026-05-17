@@ -168,14 +168,15 @@ export function LeagueStandings({ teams, tournamentStatus, pointsRule = "default
           </thead>
           <tbody>
             {teams.map((t, i) => {
-              // 상위 3팀은 왼쪽에 primary 색상의 강조 막대 표시
-              const isTop3 = ranks[i] <= 3;
+              // 2026-05-17 (사용자 명시 이미지 #185) — 4위까지 플레이오프 진출 강조 (이전 = 3위까지).
+              //   열혈농구단 전국최강전 등 일반 농구 플레이오프 표준 (1~4위 진출).
+              const isPlayoff = ranks[i] <= 4;
               return (
                 <tr
                   key={t.id}
                   style={{
                     borderTop: "1px solid var(--color-border)",
-                    borderLeft: isTop3
+                    borderLeft: isPlayoff
                       ? "3px solid var(--color-primary)"
                       : "3px solid transparent",
                   }}
