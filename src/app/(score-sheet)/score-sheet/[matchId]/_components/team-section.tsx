@@ -210,20 +210,10 @@ interface TeamSectionProps {
   delayOfGame?: TeamDelayOfGameState;
   onRequestDelayClick?: () => void;
   onRequestRemoveLastDelay?: () => void;
-  // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제).
-  //
-  //   No. cell 클릭 → 본 콜백 호출 → 부모가 JerseyEditModal open.
-  //   미전달 (=undefined) = 동작 변경 0 (구버전 호출자 호환 — No. cell 비클릭 read-only 박제).
-  //
-  //   콜백 인자:
-  //     - playerId = tournamentTeamPlayerId (string)
-  //     - currentJersey = 현재 등번호 (number | null) — 모달 입력 초기값
-  //     - playerName = 선수명 (UI 헤더 표시용)
-  onRequestEditJersey?: (
-    playerId: string,
-    currentJersey: number | null,
-    playerName: string,
-  ) => void;
+  // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A + A).
+  //   기존 = No. cell 클릭 → JerseyEditModal open. 이 prop = 폐기.
+  //   이동 후 = LineupSelectionModal 안 각 선수 row 우측 임시번호 input.
+  //   기존 호출자 (form.tsx) 의 onRequestEditJersey wiring 도 일괄 삭제.
 }
 
 /**
@@ -283,8 +273,6 @@ export function TeamSection({
   delayOfGame,
   onRequestDelayClick,
   onRequestRemoveLastDelay,
-  // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제).
-  onRequestEditJersey,
 }: TeamSectionProps) {
   // frameless 미사용 경고 회피 + 의도된 미사용임을 명시
   void _framelessUnused;
@@ -929,38 +917,12 @@ export function TeamSection({
                   </span>
                 )}
               </div>
-              {/* No. (등번호) — 2026-05-17 임시번호 박제 UI:
-                  클릭 → onRequestEditJersey 호출 → 부모가 JerseyEditModal open.
-                  운영 보존:
-                    - onRequestEditJersey 미전달 = read-only div (구버전 호출자 호환).
-                    - disabled / readOnly / ejected 시 = read-only div (운영 사고 방지 / Fouls cell 패턴 일관).
-                    - 시각 동일 (배경/border 없는 cell) — 클릭 가능성은 cursor + aria-label 로만 노출. */}
-              {onRequestEditJersey && !disabled && !readOnly && !ejected ? (
-                <button
-                  type="button"
-                  className="ss-c-no"
-                  style={{
-                    background: "transparent",
-                    cursor: "pointer",
-                    touchAction: "manipulation",
-                  }}
-                  onClick={() =>
-                    onRequestEditJersey(
-                      p.tournamentTeamPlayerId,
-                      p.jerseyNumber,
-                      p.displayName,
-                    )
-                  }
-                  aria-label={`${p.displayName} 등번호 ${p.jerseyNumber ?? "미박제"} — 클릭 시 임시 번호 변경`}
-                  title="임시 등번호 변경"
-                >
-                  {p.jerseyNumber ?? ""}
-                </button>
-              ) : (
-                <div className="ss-c-no">
-                  {p.jerseyNumber ?? ""}
-                </div>
-              )}
+              {/* No. (등번호) — 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A).
+                  기존 = 클릭 → JerseyEditModal open. 폐기 사유: 사용자 명시 — 라인업 모달 안에서 일괄 박제.
+                  이동 후 = read-only div 만. 임시번호 변경은 LineupSelectionModal row input 에서 박제. */}
+              <div className="ss-c-no">
+                {p.jerseyNumber ?? ""}
+              </div>
               {/* Player in 체크 — 스타팅 5인 = 빨강 배경 / 일반 = 흰 배경. ejected = 비활성화. */}
               <div className="ss-c-pin">
                 <label
