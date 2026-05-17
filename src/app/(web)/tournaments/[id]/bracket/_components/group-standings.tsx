@@ -26,17 +26,26 @@ export type GroupTeam = {
   pointsFor: number;
   pointsAgainst: number;
   pointDifference: number;
+  // 2026-05-17 강남구 승점 — DB 박제값 (강남구 = 가산점 / 그 외 = wins*3).
+  //   showWinPoints=true 일 때만 컬럼 노출 (강남구 한정 — 다른 대회 시각 변경 0).
+  winPoints?: number;
 };
 
 type GroupStandingsProps = {
   teams: GroupTeam[];
   // 2026-05-15 — advancedCount prop deprecated (ADVANCED 뱃지 삭제됨 / 호환 위해 남김)
   advancedCount?: number;
+  // 2026-05-17 — pointsRule="gnba" 일 때 "P" 컬럼 + 승점 정렬 적용.
+  //   미전달 시 default 동작 (기존 = 회귀 0).
+  pointsRule?: "gnba" | "default";
 };
 
 export function GroupStandings({
   teams,
+  pointsRule = "default",
 }: GroupStandingsProps) {
+  // 강남구 룰 ON 여부 — "P" 컬럼 노출 + 1차 정렬키 결정.
+  const showWinPoints = pointsRule === "gnba";
   // 그룹별로 팀을 분류
   const groups = useMemo(() => {
     const map = new Map<string, GroupTeam[]>();
@@ -45,16 +54,28 @@ export function GroupStandings({
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(t);
     }
-    // 2026-05-15 — 농구 정렬: 승수 desc → 득실차 desc (승점/무승부 미사용 — 사용자 결정)
+    // 2026-05-17 강남구 승점 룰 — pointsRule="gnba" 일 때 1차키 = winPoints / 그 외 = wins (기존).
+    //   강남구: 승점 → 득실차 → 다득점 (규정 정합).
+    //   default: 승수 → 득실차 (기존 / 회귀 0).
     for (const [, groupTeams] of map) {
-      groupTeams.sort((a, b) => {
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        return b.pointDifference - a.pointDifference;
-      });
+      if (showWinPoints) {
+        groupTeams.sort((a, b) => {
+          const aWP = a.winPoints ?? 0;
+          const bWP = b.winPoints ?? 0;
+          if (bWP !== aWP) return bWP - aWP;
+          if (b.pointDifference !== a.pointDifference) return b.pointDifference - a.pointDifference;
+          return b.pointsFor - a.pointsFor;
+        });
+      } else {
+        groupTeams.sort((a, b) => {
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return b.pointDifference - a.pointDifference;
+        });
+      }
     }
     // 그룹명 알파벳 순 정렬
     return new Map([...map.entries()].sort((a, b) => a[0].localeCompare(b[0])));
-  }, [teams]);
+  }, [teams, showWinPoints]);
 
   const groupNames = Array.from(groups.keys());
 
@@ -119,6 +140,16 @@ export function GroupStandings({
                         승
                       </th>
                       <th className="px-2 py-4 text-center sm:px-6">패</th>
+                      {/* 2026-05-17 강남구 승점 — P 컬럼 (강남구 한정 노출). */}
+                      {showWinPoints && (
+                        <th
+                          className="px-2 py-4 text-center sm:px-6"
+                          style={{ color: "var(--color-primary)" }}
+                          title="승점 (강남구협회장배 규정)"
+                        >
+                          P
+                        </th>
+                      )}
                       <th className="px-2 py-4 text-center sm:px-6">득실차</th>
                     </tr>
                   </thead>
@@ -198,6 +229,16 @@ export function GroupStandings({
                           >
                             {team.losses}
                           </td>
+
+                          {/* 2026-05-17 강남구 승점 — P 셀 (강남구 한정 노출). */}
+                          {showWinPoints && (
+                            <td
+                              className="px-2 py-4 text-center font-bold sm:px-6"
+                              style={{ color: "var(--color-primary)" }}
+                            >
+                              {team.winPoints ?? 0}
+                            </td>
+                          )}
 
                           {/* 득실차 */}
                           <td

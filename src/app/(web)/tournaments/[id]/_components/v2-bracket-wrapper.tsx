@@ -379,8 +379,8 @@ export function V2BracketWrapper({
                               기존 단일 LeagueStandings 분기 → 조별 GroupStandings 분기로 전환.
                               조 수 기반 토너먼트 안내 동적 (2조=결승 / 4조+=기존 4강). */
               <>
-                {/* 조별 순위표 (groupName 기준 분리) */}
-                <GroupStandings teams={groupTeams} />
+                {/* 조별 순위표 (groupName 기준 분리) — 2026-05-17 pointsRule 전달 (강남구 P 컬럼) */}
+                <GroupStandings teams={groupTeams} pointsRule={d.pointsRule} />
 
                 {/* full_league_knockout 만 토너먼트 영역 */}
                 {format === "full_league_knockout" &&
@@ -424,8 +424,8 @@ export function V2BracketWrapper({
               </>
             ) : hasLeagueData ? (
               <>
-                {/* 풀리그: 리그 순위표 (4강 진출 조편성 기준) */}
-                <LeagueStandings teams={leagueTeams} tournamentStatus={d.tournamentStatus} />
+                {/* 풀리그: 리그 순위표 (4강 진출 조편성 기준) — 2026-05-17 pointsRule 전달 */}
+                <LeagueStandings teams={leagueTeams} tournamentStatus={d.tournamentStatus} pointsRule={d.pointsRule} />
 
                 {/* full_league_knockout만 4강 토너먼트 영역 */}
                 {format === "full_league_knockout" &&
@@ -473,8 +473,8 @@ export function V2BracketWrapper({
                     가 모두 우선 처리됨. */}
                 {hasKnockout ? (
                   <>
-                    {/* 조별 단계 (있으면) — hasKnockout 도 조별이 있을 수 있음 */}
-                    {groupTeams.length > 0 && <GroupStandings teams={groupTeams} />}
+                    {/* 조별 단계 (있으면) — hasKnockout 도 조별이 있을 수 있음 — 2026-05-17 pointsRule 전달 */}
+                    {groupTeams.length > 0 && <GroupStandings teams={groupTeams} pointsRule={d.pointsRule} />}
                     <BracketView rounds={rounds} tournamentId={tournamentId} />
                   </>
                 ) : divisionRules.length >= 1 ? (
@@ -487,8 +487,8 @@ export function V2BracketWrapper({
                     leagueMatches={leagueMatchesAll}
                   />
                 ) : groupTeams.length > 0 ? (
-                  // 다종별 룰 0 + 조별 운영 케이스 (기존 동작 보존)
-                  <GroupStandings teams={groupTeams} />
+                  // 다종별 룰 0 + 조별 운영 케이스 (기존 동작 보존) — 2026-05-17 pointsRule 전달
+                  <GroupStandings teams={groupTeams} pointsRule={d.pointsRule} />
                 ) : (
                   <BracketEmpty tournamentId={tournamentId} />
                 )}
