@@ -23,6 +23,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+// 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제):
+//   POST /api/web/tournaments/[id]/matches/[matchId]/jersey-override 호출 후 router.refresh()
+//   → server component (page.tsx) 다시 fetch → loadTeamRoster 결과 갱신 → No. cell 즉시 반영.
+//   라이브 페이지 (/live/[id]) 는 3초 polling 으로 자동 반영 (route /api/live/[id] 의 jerseyMap 재계산).
+import { useRouter } from "next/navigation";
 import { FibaHeader, type FibaHeaderInputs } from "./fiba-header";
 import { TeamSection, type TeamSectionInputs } from "./team-section";
 import { RunningScoreGrid } from "./running-score-grid";
@@ -117,6 +122,9 @@ import {
   removeLastDelayEvent,
 } from "@/lib/score-sheet/bench-tech-helpers";
 import { BenchTechModal } from "./bench-tech-modal";
+// 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제).
+//   No. cell 클릭 → 본 모달 open → 운영자가 0~99 입력 → POST upsert + router.refresh().
+import { JerseyEditModal } from "./jersey-edit-modal";
 // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴 외부화 (ConfirmModalProvider).
 //   form 안 ConfirmModal JSX 마운트 불필요 (Provider 가 담당) + useConfirm 훅 사용.
 import { useConfirm } from "../../../_components/confirm-modal-provider";
@@ -441,6 +449,31 @@ export function ScoreSheetForm({
     teamLabel: string;
   } | null>(null);
 
+  // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제).
+  //
+  // 왜 (이유):
+  //   No. cell 클릭 → 본 컨텍스트 박제 → JerseyEditModal open (관련 props 전달).
+  //   저장/해제 시 BFF (`/api/web/tournaments/{id}/matches/{matchId}/jersey-override`) 호출
+  //   → router.refresh() = server component 재호출 → roster 갱신 (단일 source / page reload 회피).
+  //
+  // 어떻게:
+  //   - ctx 박제: { team, playerId, currentJersey, playerName }
+  //   - team = 어느 팀 (잠재 audit / 향후 확장용 — 현재는 동일 BFF 라 미사용 but 일관)
+  //   - currentJersey = 모달 입력 초기값 (TTP 원본 또는 기존 임시 번호 / page.tsx 가 이미 합산 후 전달)
+  //   - hasOverride 판정 = currentJersey 와 TTP 원본 비교 X (TTP 원본 정보 미가용) →
+  //                       homeRoster / awayRoster 의 jerseyNumber 가 이미 page.tsx 의 resolveMatchJerseysBatch
+  //                       결과이므로 두 값이 같다고 임시 번호 박제 여부를 알 수 없음 (TTP=15 + override=15 케이스).
+  //                       BFF 측 = upsert 가 이미 같은 ttp 의 row 있으면 UPDATE → idempotent → 안전.
+  //                       해제 버튼 = 항상 표시 (BFF 가 404 처리 = "해제할 임시 번호 없음" — 운영 친절 안내).
+  //   - 라이브 페이지는 3초 polling 으로 자동 반영 (별도 처리 0).
+  const router = useRouter();
+  const [jerseyEditCtx, setJerseyEditCtx] = useState<{
+    team: "home" | "away";
+    playerId: string;
+    currentJersey: number | null;
+    playerName: string;
+  } | null>(null);
+
   // 2026-05-15 (PR-D-2) — ConfirmModal Promise 패턴이 ConfirmModalProvider 로 외부화.
   //   기존 useState/타입/JSX 마운트 = score-sheet route group layout 의 Provider 가 담당.
   //   호출자 = useConfirm() 훅 + await confirmModal({...}). resolve 후 자동 close.
@@ -462,6 +495,105 @@ export function ScoreSheetForm({
   //   - warning_type = "completed_edit_mode_enter" (PR-RO4 의 cross-check-audit endpoint 재사용)
   //   - fire-and-forget (실패 시 console.warn / 진행 차단 안 함)
   //   - PR-RO2 의 mount 1회 audit (entry) 와는 별도 — toolbar 버튼 명시 진입 의도 박제.
+  // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제) — 3 핸들러.
+  //
+  // 1) handleRequestEditJersey: No. cell 클릭 → 컨텍스트 박제 → 모달 open.
+  //    isReadOnly (Phase 23 종료 매치 RO) 차단 = 운영자 사고 방지 (team-section 이 이미 button 자체를
+  //    렌더 안 함 — 이중 방어).
+  //
+  // 2) handleJerseySave: 모달 "저장" → POST upsert + router.refresh() + toast.
+  //    BFF (/api/web/tournaments/[id]/matches/[matchId]/jersey-override) = 운영자 권한 자동 검증
+  //    (requireTournamentAdmin). 409 JERSEY_CONFLICT = 같은 매치 같은 번호 다른 선수 사용 중 → 친절 안내.
+  //
+  // 3) handleJerseyRelease: 모달 "해제" → DELETE + router.refresh() + toast.
+  //    BFF 404 = 임시 번호 미박제 (운영자가 "원본" 번호 위에서 해제 시도) → 친절 안내.
+  function handleRequestEditJersey(
+    team: "home" | "away",
+    playerId: string,
+    currentJersey: number | null,
+    playerName: string,
+  ) {
+    if (isReadOnly) return; // 이중 방어 (team-section 이미 button 미렌더)
+    setJerseyEditCtx({ team, playerId, currentJersey, playerName });
+  }
+
+  async function handleJerseySave(newJersey: number) {
+    if (!jerseyEditCtx) return;
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${tournament.id}/matches/${match.id}/jersey-override`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tournamentTeamPlayerId: jerseyEditCtx.playerId,
+            jerseyNumber: newJersey,
+            // reason 은 score-sheet 컨텍스트 표시 (admin_logs 추적용)
+            reason: "score-sheet 입력 중 박제",
+          }),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          errorCode?: string;
+        };
+        // 409 = 같은 번호 다른 선수 사용 중 / 403 = 권한 없음 / 422 = 입력 검증 실패.
+        showToast(
+          data.error ?? "임시 등번호 저장에 실패했습니다.",
+          "error",
+        );
+        return;
+      }
+      showToast(
+        `${jerseyEditCtx.playerName} 임시 등번호 #${newJersey} 박제 완료`,
+        "success",
+      );
+      setJerseyEditCtx(null);
+      // server component 재호출 → loadTeamRoster 결과 갱신 → No. cell 즉시 반영.
+      //   homeRoster / awayRoster (props) 가 새 값으로 들어와서 homeFilteredRoster 재계산.
+      router.refresh();
+    } catch (err) {
+      console.error("[handleJerseySave] fetch failed:", err);
+      showToast("네트워크 오류로 저장에 실패했습니다.", "error");
+    }
+  }
+
+  async function handleJerseyRelease() {
+    if (!jerseyEditCtx) return;
+    try {
+      const res = await fetch(
+        `/api/web/tournaments/${tournament.id}/matches/${match.id}/jersey-override`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tournamentTeamPlayerId: jerseyEditCtx.playerId,
+            reason: "score-sheet 입력 중 해제",
+          }),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        // 404 = 임시 번호 미박제 (운영자가 원본 번호 위에서 해제 시도) — 친절 안내.
+        showToast(
+          data.error ?? "임시 등번호 해제에 실패했습니다.",
+          "error",
+        );
+        return;
+      }
+      showToast(
+        `${jerseyEditCtx.playerName} 임시 등번호 해제 완료 (원본 복귀)`,
+        "success",
+      );
+      setJerseyEditCtx(null);
+      router.refresh();
+    } catch (err) {
+      console.error("[handleJerseyRelease] fetch failed:", err);
+      showToast("네트워크 오류로 해제에 실패했습니다.", "error");
+    }
+  }
+
   // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 핸들러.
   //   1. 경고 ConfirmModal (되돌릴 수 없음 명시)
   //   2. 동의 시 /api/web/score-sheet/{matchId}/reset POST
@@ -2614,6 +2746,10 @@ export function ScoreSheetForm({
                 onRequestRemoveLastDelay={() =>
                   handleRequestRemoveLastDelay("home")
                 }
+                // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제) — No. cell 클릭 wiring.
+                onRequestEditJersey={(playerId, currentJersey, playerName) =>
+                  handleRequestEditJersey("home", playerId, currentJersey, playerName)
+                }
               />
             </div>
             {/* Team B — 중단 (FIBA PDF 정합 — Team A 와 동일 구조 세로 분할).
@@ -2657,6 +2793,10 @@ export function ScoreSheetForm({
                 onRequestDelayClick={() => handleRequestDelayClick("away")}
                 onRequestRemoveLastDelay={() =>
                   handleRequestRemoveLastDelay("away")
+                }
+                // 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제) — No. cell 클릭 wiring.
+                onRequestEditJersey={(playerId, currentJersey, playerName) =>
+                  handleRequestEditJersey("away", playerId, currentJersey, playerName)
                 }
               />
             </div>
@@ -2809,6 +2949,21 @@ export function ScoreSheetForm({
         period={runningScore.currentPeriod}
         onSelect={handleSelectCoachFoul}
         onCancel={() => setBenchTechModalCtx(null)}
+      />
+
+      {/* 2026-05-17 (사용자 보고 — 종이기록지 내부 임시번호 부여 UI 박제).
+          No. cell 클릭 → 본 모달 open → 운영자가 0~99 입력 → POST + router.refresh().
+          isReadOnly (종료 매치 / 수정 모드 OFF) = open 강제 false (이중 방어). */}
+      <JerseyEditModal
+        open={(!isReadOnly) && jerseyEditCtx !== null}
+        playerName={jerseyEditCtx?.playerName ?? ""}
+        currentJersey={jerseyEditCtx?.currentJersey ?? null}
+        // hasOverride: 운영 친절 위해 항상 true (해제 버튼 노출 → BFF 404 케이스도 친절 안내).
+        //   상세 사유 = jerseyEditCtx 정의부 주석 참조 (TTP 원본 vs override 구분 정보 미가용).
+        hasOverride={jerseyEditCtx !== null}
+        onConfirm={handleJerseySave}
+        onRelease={handleJerseyRelease}
+        onCancel={() => setJerseyEditCtx(null)}
       />
 
       {/* Phase 19 PR-Stat2 (2026-05-15) — StatPopover (6 stat OR/DR/A/S/B/TO +1/-1).
