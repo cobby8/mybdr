@@ -430,9 +430,16 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
           };
         })
         .sort((a, b) => {
-          // 2026-05-17 정렬 변경: 승점 desc → 득실차 desc → 다득점 desc.
-          //   사유: 강남구 규정 정합 + default 대회 winPoints = wins*3 = 승률 정렬 동치 (회귀 0).
-          if (b.winPoints !== a.winPoints) return b.winPoints - a.winPoints;
+          // 2026-05-17 정렬 분기 (사용자 명시 이미지 #182):
+          //   - 강남구 (pointsRule="gnba"): 승점 desc → 득실차 desc → 다득점 desc (규정 정합)
+          //   - default 대회: 승률 desc → 득실차 desc → 다득점 desc (= 기존 정렬 복원)
+          //     사유: default 대회는 winPoints=wins*3 이라 경기수 다를 시 winPoints ≠ winRate.
+          //     예: 5승 2패 (winPoints 15 / .714) vs 4승 0패 (winPoints 12 / 1.000) → 승률 정렬 정합.
+          if (pointsRule === "gnba") {
+            if (b.winPoints !== a.winPoints) return b.winPoints - a.winPoints;
+          } else {
+            if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+          }
           if (b.pointDifference !== a.pointDifference) return b.pointDifference - a.pointDifference;
           return b.pointsFor - a.pointsFor;
         })
