@@ -10,6 +10,8 @@ import { V2TournamentHero } from "./_components/v2-tournament-hero";
 import { V2RegistrationSidebar } from "./_components/v2-registration-sidebar";
 import { V2BracketPrediction } from "./_components/v2-bracket-prediction";
 import { TournamentAbout } from "./_components/tournament-about";
+// 강남구협회장배 한정 규정 박제 — settings.points_rule === "gnba" 시만 렌더 (다른 대회 회귀 0)
+import { GnbaRules } from "./_components/gnba-rules";
 // L3: 소속 시리즈 카드 + EditionSwitcher (Hero 직후에 배치)
 import { SeriesCard } from "./_components/series-card";
 import { Breadcrumb, type BreadcrumbItem } from "@/components/shared/breadcrumb";
@@ -427,8 +429,40 @@ export default async function TournamentDetailPage({
   // 5) 규정 탭 콘텐츠 (Phase 2 Match 추가)
   //    DB tournaments.rules 필드를 기반으로 서버에서 렌더. 데이터 없으면 빈 상태 카드.
   //    탭 자체는 TournamentTabs에서 항상 표시되고, 이 콘텐츠만 내용물로 주입.
+  //
+  //  강남구협회장배 한정 (2026-05-17 박제):
+  //    settings.points_rule === "gnba" 시 = GnbaRules 4 섹션 박제 (이미지 #183 기준).
+  //    tournament.rules 자유텍스트가 있으면 GnbaRules 아래에 함께 표시 (양립 보존).
+  //    그 외 대회 = 기존 동작 그대로 (tournament.rules 텍스트 / 빈 상태 카드).
   // ========================================
-  const rulesContent = tournament.rules ? (
+  const pointsRule =
+    (tournament.settings as Record<string, unknown> | null)?.points_rule;
+  const isGnba = pointsRule === "gnba";
+
+  const rulesContent = isGnba ? (
+    <div className="space-y-6">
+      {/* 강남구협회장배 4 섹션 박제 — 이미지 #183 기준 */}
+      <GnbaRules />
+      {/* tournament.rules 자유텍스트가 있으면 함께 표시 (강남구 한정 부가 안내 보존) */}
+      {tournament.rules && (
+        <div
+          className="rounded-md border p-6"
+          style={{
+            borderColor: "var(--color-border)",
+            backgroundColor: "var(--color-card)",
+          }}
+        >
+          <h3 className="mb-3 text-base font-bold sm:text-lg">추가 안내</h3>
+          <div
+            className="text-sm leading-relaxed whitespace-pre-line"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            {tournament.rules}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : tournament.rules ? (
     <div
       className="rounded-md border p-6"
       style={{ borderColor: "var(--color-border)", backgroundColor: "var(--color-card)" }}
