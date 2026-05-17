@@ -438,18 +438,17 @@ function DivisionStandingsView({
                     <th className="px-3 py-2">팀명</th>
                     <th className="px-2 py-2 text-center w-12">승</th>
                     <th className="px-2 py-2 text-center w-12">패</th>
-                    <th className="px-2 py-2 text-center w-16">득실</th>
-                    {/* 2026-05-17 (사용자 명시 이미지 #181) — 득실차 우측 P 컬럼 (강남구 한정).
-                        group-standings.tsx:144 동일 패턴 (단일 source / 시각 일관성). */}
+                    {/* 2026-05-17 (사용자 명시) — 승점 컬럼 = 득실차 좌측 + 라벨 "승점" (강남구 한정). */}
                     {showWinPoints && (
                       <th
                         className="px-2 py-2 text-center w-12"
                         style={{ color: "var(--color-primary)" }}
                         title="승점 (강남구협회장배 규정)"
                       >
-                        P
+                        승점
                       </th>
                     )}
+                    <th className="px-2 py-2 text-center w-16">득실</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -485,15 +484,7 @@ function DivisionStandingsView({
                       >
                         {s.losses}
                       </td>
-                      <td
-                        className="px-2 py-2 text-center tabular-nums"
-                        style={{ color: "var(--color-text-secondary)" }}
-                      >
-                        {s.pointDifference > 0
-                          ? `+${s.pointDifference}`
-                          : s.pointDifference}
-                      </td>
-                      {/* 2026-05-17 — P 컬럼 본문 셀 (강남구 한정 노출 / Primary 색 강조). */}
+                      {/* 2026-05-17 (사용자 명시) — 승점 컬럼 본문 = 득실차 좌측 (강남구 한정 / Primary 색 강조). */}
                       {showWinPoints && (
                         <td
                           className="px-2 py-2 text-center font-bold tabular-nums"
@@ -502,6 +493,14 @@ function DivisionStandingsView({
                           {s.winPoints ?? 0}
                         </td>
                       )}
+                      <td
+                        className="px-2 py-2 text-center tabular-nums"
+                        style={{ color: "var(--color-text-secondary)" }}
+                      >
+                        {s.pointDifference > 0
+                          ? `+${s.pointDifference}`
+                          : s.pointDifference}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
