@@ -134,6 +134,8 @@ export async function GET(
           awayScore: true,
           started_at: true,
           ended_at: true,
+          // 2026-05-17 — period_format 표시 분기 (halves vs quarters)
+          settings: true,
           homeTeam: {
             select: {
               id: true,
@@ -171,12 +173,21 @@ export async function GET(
       }
 
       sameDayMatchesPayload = sameDayMatches.map((m) => {
-        const isLive = m.started_at !== null && m.ended_at === null;
-        const isCompleted = m.ended_at !== null;
+        // 2026-05-17 fix — status 우선 판정 (ended_at 박제 누락 path 방어).
+        //   사고: score-sheet submit / Flutter sync 가 status='completed' 박제하면서 ended_at NULL → 화면에 잘못된 LIVE 표시.
+        //   룰: status='completed' = 무조건 isCompleted 우선 / 'in_progress' = isLive / 그 외 = 예정.
+        const isCompleted = m.status === "completed" || m.ended_at !== null;
+        const isLive =
+          !isCompleted &&
+          (m.status === "in_progress" || (m.started_at !== null && m.ended_at === null));
+        // 2026-05-17 — period_format 표시 분기 (halves vs quarters)
+        const settings = (m.settings ?? {}) as { period_format?: string };
+        const periodFormat = typeof settings.period_format === "string" ? settings.period_format : null;
         return {
           id: Number(m.id),
           scheduled_at: m.scheduledAt?.toISOString() ?? null,
           status: m.status ?? null,
+          period_format: periodFormat,
           // 라이브 매치만 current_quarter 노출. 종료/예정 매치는 null.
           current_quarter: isLive ? quarterMap.get(m.id) ?? null : null,
           match_code: m.match_code ?? null,

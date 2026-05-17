@@ -2,6 +2,24 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-17] YouTube 자동 매핑 — 공백 포함 다단어 팀명 토큰 분리 실패 ("YNC B" 사고)
+- **분류**: 알고리즘 / 다단어 입력 처리 누락 (5/10 swap-aware 백포트 후 잔존 케이스)
+- **발견자**: pm (사용자 보고 "5/17 강남구협회장배 유소년부 유튜브 라이브 모두 매핑됐는지 확인")
+- **증상**: 토너먼트 `bd527531...` 5/17 매치 6건 진행 중 매치 201 (10:30 스티즈강남 vs YNC B) + 매치 203 (11:30 YNC B vs 김포훕스타) 2건만 `youtube_video_id` NULL. 동일 토너먼트 5/16 31건 + 5/17 4건은 auto_verified/auto_pending 정상. 공통점 = 누락 2건 모두 "YNC B" 참여
+- **근본 원인**:
+  - `src/lib/youtube/score-match.ts` L97-115 `extractTeamsFromTitle` 가 ` vs ` 좌측 마지막 토큰 1개 + 우측 첫 토큰 1개만 채택
+  - 영상 제목이 `... 스티즈강남 vs YNC B ...` 패턴이면 우측 첫 토큰 = "YNC" 만 추출 → "B" 누락 → normalize 비교 실패 → 30+30 0점 → 80점 미달
+  - 5/10 백포트한 swap-aware 정책은 정확/swap 일치만 30점 부여 (반쪽 매칭 차단) → 다단어 팀명 토큰 분리 자체가 깨지는 케이스는 미해결로 잔존
+- **fix**:
+  - **즉시**: 운영자가 영상 ID 받아 매치 201/203 1행씩 manual UPDATE (`youtube_status="manual"`)
+  - **영구 (commit `8cdb481`)**: `scoreMatch` 안에 옵션 E fallback block 추가 (+44 LOC) — 기존 token 매칭 실패 시 매치 home/away 양쪽 normalize 후 제목 substring 매칭 + 위치 순서로 정확/swap 판정. 6중 안전 가드 (token 성공 skip / 양쪽 모두 존재 / 위치 순서 / substring 자기참조 skip / 영역 겹침 skip / normalize 일관). vitest 21/21 (신규 7 + 기존 14 회귀 가드)
+- **재발 방지 룰**:
+  - **공백 포함 팀명 신규 등록 시** = `extractTeamsFromTitle` 토큰 분리 실패 가능 → fallback block 동작 의무 (또는 영상 제목 표준화)
+  - **auto-register 매핑 누락 진단 시** = admin_logs 진입 흔적은 0건일 수 있음 (cron 이 로그 안 남김). 결과 SELECT (`tournament_matches.youtube_video_id`/`youtube_status` 분포) + `tournament_match_audits` 우선 확인. 같은 토너먼트 인접 시간대 매핑 성공 vs 실패 비교 = cron 진입 여부 판별 1차 수단
+  - **score-match.ts 변경 시** = 5/10 사고 (반쪽 매칭) + 5/17 사고 (다단어 팀명) 회귀 가드 vitest 케이스 필수 보존
+- **검증**: tsc 0 / vitest 21/21 / git diff --stat 158 insertions (운영 코드 + 테스트만)
+- **참조횟수**: 0
+
 ### [2026-05-17] 일별 경기 카드 종별 뱃지 누락 — 매치 settings.division_code 박제 누락 (generator 우회)
 - **분류**: 데이터 박제 누락 / 어드민 수동 매치 추가 경로 회귀
 - **발견자**: pm (사용자 보고 "예선1경기 종별 매칭 빠짐 — I3W-U12 뱃지 안 보임")
