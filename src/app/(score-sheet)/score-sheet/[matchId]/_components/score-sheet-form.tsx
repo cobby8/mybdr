@@ -2523,7 +2523,8 @@ export function ScoreSheetForm({
         isEditMode={isEditMode}
         // 2026-05-15 (PR-Record-Cancel-UI) — 기록 취소 trigger (super/organizer/TAM 만).
         //   recorder 단일 = 버튼 미노출 (canEdit 분기 재사용).
-        onCancelRecord={canEdit ? handleCancelRecord : undefined}
+        // 2026-05-17 (PR-Practice-Cancel) — 연습 모드 시 = canEdit 무관 항상 노출 (= localStorage 초기화 + reload).
+        onCancelRecord={canEdit || isPractice ? handleCancelRecord : undefined}
         // 2026-05-15 (PR-SS-Manual+Reselect) — 라인업 다시 선택 (헤더 이동).
         //   종료 매치 = undefined (PR-RO2 룰). 수정 모드 진입 시 = 허용.
         onReselectLineup={
