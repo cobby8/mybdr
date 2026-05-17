@@ -140,17 +140,17 @@ export function GroupStandings({
                         승
                       </th>
                       <th className="px-2 py-4 text-center sm:px-6">패</th>
-                      {/* 2026-05-17 강남구 승점 — P 컬럼 (강남구 한정 노출). */}
+                      <th className="px-2 py-4 text-center sm:px-6">득실차</th>
+                      {/* 2026-05-17 (사용자 명시 이미지 #181) — 득실차 다음에 승점 (강남구 한정). */}
                       {showWinPoints && (
                         <th
                           className="px-2 py-4 text-center sm:px-6"
                           style={{ color: "var(--color-primary)" }}
                           title="승점 (강남구협회장배 규정)"
                         >
-                          P
+                          승점
                         </th>
                       )}
-                      <th className="px-2 py-4 text-center sm:px-6">득실차</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -230,16 +230,6 @@ export function GroupStandings({
                             {team.losses}
                           </td>
 
-                          {/* 2026-05-17 강남구 승점 — P 셀 (강남구 한정 노출). */}
-                          {showWinPoints && (
-                            <td
-                              className="px-2 py-4 text-center font-bold sm:px-6"
-                              style={{ color: "var(--color-primary)" }}
-                            >
-                              {team.winPoints ?? 0}
-                            </td>
-                          )}
-
                           {/* 득실차 */}
                           <td
                             className="px-2 py-4 text-center sm:px-6"
@@ -251,6 +241,16 @@ export function GroupStandings({
                                 ? "0"
                                 : String(team.pointDifference)}
                           </td>
+
+                          {/* 2026-05-17 (사용자 명시 이미지 #181) — 득실차 다음에 승점 (강남구 한정 노출). */}
+                          {showWinPoints && (
+                            <td
+                              className="px-2 py-4 text-center font-bold sm:px-6"
+                              style={{ color: "var(--color-primary)" }}
+                            >
+                              {team.winPoints ?? 0}
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
