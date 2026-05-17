@@ -576,6 +576,9 @@ model TournamentTeam {
   points_for                                                             Int?                   @default(0)
   points_against                                                         Int?                   @default(0)
   point_difference                                                       Int?                   @default(0)
+  // 2026-05-17 강남구협회장배 한정 승점 컬럼 — NULL 허용 무중단 ADD COLUMN.
+  // 강남구 외 대회 = NULL / 0 (default 룰 = 표시 시 hide). 강남구 = 매치 종료마다 SET 박제.
+  win_points                                                             Int?                   @default(0) @map("win_points")
   final_rank                                                             Int?
   createdAt                                                              DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                                                              DateTime               @updatedAt @map("updated_at") @db.Timestamp(6)

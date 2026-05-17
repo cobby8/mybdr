@@ -28,7 +28,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // format / status도 함께 조회해서 클라이언트가 포맷별 분기 렌더링을 할 수 있게 한다.
   const tournament = await prisma.tournament.findUnique({
     where: { id },
-    select: { name: true, venue_name: true, city: true, entry_fee: true, format: true, status: true },
+    // 2026-05-17 — settings 추가 SELECT (points_rule 분기 — 강남구 P 컬럼 노출 결정).
+    select: { name: true, venue_name: true, city: true, entry_fee: true, format: true, status: true, settings: true },
   });
 
   if (!tournament) {
@@ -164,11 +165,18 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const completedMatchCount = matches.filter((m) => m.status === "completed").length;
   const isAllCompleted = totalMatchCount > 0 && completedMatchCount === totalMatchCount;
 
+  // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출 (P 컬럼 + 정렬 분기).
+  const tournamentSettingsRaw = (tournament.settings ?? {}) as Record<string, unknown>;
+  const pointsRule: "gnba" | "default" =
+    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
+
   // 핫팀 계산: 경기 결과 기반 승률→득실차→다득점 1위 팀
   // Phase 2C: teamStats에 name_en/name_primary도 캐시해두어 리그 순위표/핫팀 응답에 함께 내려줌
+  // 2026-05-17 — winPoints 추가 (강남구 승점 / DB 박제값 기반).
   const teamStats: Record<string, {
     wins: number; losses: number;
     pointsFor: number; pointsAgainst: number;
+    winPoints: number;
     teamId: bigint; teamName: string;
     teamNameEn: string | null; teamNamePrimary: string | null;
   }> = {};
@@ -177,6 +185,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     teamStats[t.id.toString()] = {
       wins: 0, losses: 0,
       pointsFor: 0, pointsAgainst: 0,
+      // 2026-05-17 — DB 박제 win_points 직접 사용 (update-standings.ts 가 SET).
+      //   재계산 vs DB 박제 — 후자 (단일 source / 회귀 위험 0).
+      winPoints: t.win_points ?? 0,
       teamId: t.teamId, teamName: t.team.name,
       // Phase 2C: 한/영 병기 필드
       teamNameEn: t.team.name_en,
@@ -377,6 +388,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       pointsFor: t.points_for ?? 0,
       pointsAgainst: t.points_against ?? 0,
       pointDifference: t.point_difference ?? 0,
+      // 2026-05-17 강남구 승점 — DB 박제값 (강남구 한정 의미. 다른 대회는 wins*3 자연 박제).
+      winPoints: t.win_points ?? 0,
     }));
 
   // 라운드 그룹 빌드
@@ -393,6 +406,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             losses: 0,
             pointsFor: 0,
             pointsAgainst: 0,
+            winPoints: 0,
           };
           const gamesPlayed = stats.wins + stats.losses;
           // 소수점 3자리까지 유지 (KBL 형식)
@@ -411,11 +425,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
             pointsFor: stats.pointsFor,
             pointsAgainst: stats.pointsAgainst,
             pointDifference: stats.pointsFor - stats.pointsAgainst,
+            // 2026-05-17 강남구 승점 — DB 박제값.
+            winPoints: stats.winPoints,
           };
         })
         .sort((a, b) => {
-          // 1순위: 승률 → 2순위: 득실차 → 3순위: 다득점
-          if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+          // 2026-05-17 정렬 변경: 승점 desc → 득실차 desc → 다득점 desc.
+          //   사유: 강남구 규정 정합 + default 대회 winPoints = wins*3 = 승률 정렬 동치 (회귀 0).
+          if (b.winPoints !== a.winPoints) return b.winPoints - a.winPoints;
           if (b.pointDifference !== a.pointDifference) return b.pointDifference - a.pointDifference;
           return b.pointsFor - a.pointsFor;
         })
@@ -491,5 +508,9 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     //   기존 필드 변경 0 — 단일 종별 대회 회귀 0.
     divisionRules,
     divisionStandings,
+    // 2026-05-17 강남구 승점 룰 — 클라이언트 컴포넌트 P 컬럼 분기 노출용.
+    //   "gnba" 박제 = LeagueStandings/GroupStandings 가 P 컬럼 렌더링.
+    //   "default" = P 컬럼 hide (회귀 0).
+    pointsRule,
   });
 }

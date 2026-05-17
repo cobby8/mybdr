@@ -23,24 +23,53 @@ export type LeagueTeam = {
   pointsFor: number;
   pointsAgainst: number;
   pointDifference: number;
+  // 2026-05-17 강남구 승점 — DB 박제값 (강남구 = 가산점 / 그 외 = wins*3).
+  winPoints?: number;
 };
 
 type Props = {
   teams: LeagueTeam[];
   tournamentStatus?: string | null; // "completed"면 공동순위 판단 기준이 엄격해짐
+  // 2026-05-17 — pointsRule="gnba" 일 때 "P" 컬럼 + 승점 기반 공동순위 판단.
+  //   미전달 시 default = 승률 기반 (기존 / 회귀 0).
+  pointsRule?: "gnba" | "default";
 };
 
-export function LeagueStandings({ teams, tournamentStatus }: Props) {
+export function LeagueStandings({ teams, tournamentStatus, pointsRule = "default" }: Props) {
   // 대회 상태에 따라 공동순위 기준이 다름 (순위 탭과 동일한 로직)
   // - 진행 중: 승률만 같으면 공동순위
   // - 종료: 승률+득실차+다득점 모두 같아야 공동순위 (사실상 확정 순위)
   const isCompleted = tournamentStatus === "completed";
+  // 2026-05-17 — 강남구 룰 ON 여부 (P 컬럼 + 공동순위 1차키 분기).
+  const showWinPoints = pointsRule === "gnba";
 
   let rank = 1;
   const ranks = teams.map((t, i) => {
     if (i > 0) {
       const prev = teams[i - 1];
-      if (isCompleted) {
+      // 2026-05-17 강남구 룰 — 공동순위 1차키 = winPoints 동일 여부.
+      //   default 룰 = 기존 승률 동일 여부.
+      if (showWinPoints) {
+        const tWP = t.winPoints ?? 0;
+        const prevWP = prev.winPoints ?? 0;
+        if (isCompleted) {
+          if (
+            tWP === prevWP &&
+            t.pointDifference === prev.pointDifference &&
+            t.pointsFor === prev.pointsFor
+          ) {
+            // 공동순위 유지
+          } else {
+            rank = i + 1;
+          }
+        } else {
+          if (tWP === prevWP) {
+            // 공동순위 유지
+          } else {
+            rank = i + 1;
+          }
+        }
+      } else if (isCompleted) {
         if (
           t.winRate === prev.winRate &&
           t.pointDifference === prev.pointDifference &&
@@ -119,6 +148,16 @@ export function LeagueStandings({ teams, tournamentStatus }: Props) {
               >
                 승률
               </th>
+              {/* 2026-05-17 강남구 승점 — P 컬럼 (강남구 한정 노출 / 모바일도 노출). */}
+              {showWinPoints && (
+                <th
+                  className="px-2 py-2.5 text-center text-xs font-medium sm:px-3"
+                  style={{ color: "var(--color-primary)" }}
+                  title="승점 (강남구협회장배 규정)"
+                >
+                  P
+                </th>
+              )}
               <th
                 className="hidden px-2 py-2.5 text-center text-xs font-medium sm:table-cell sm:px-3"
                 style={{ color: "var(--color-text-tertiary)" }}
@@ -157,6 +196,15 @@ export function LeagueStandings({ teams, tournamentStatus }: Props) {
                   <td className="px-2 py-2.5 text-center font-mono sm:px-3">
                     {formatWinRate(t)}
                   </td>
+                  {/* 2026-05-17 강남구 승점 — P 셀 (강남구 한정 노출). */}
+                  {showWinPoints && (
+                    <td
+                      className="px-2 py-2.5 text-center font-bold sm:px-3"
+                      style={{ color: "var(--color-primary)" }}
+                    >
+                      {t.winPoints ?? 0}
+                    </td>
+                  )}
                   <td
                     className="hidden px-2 py-2.5 text-center sm:table-cell sm:px-3"
                     style={{

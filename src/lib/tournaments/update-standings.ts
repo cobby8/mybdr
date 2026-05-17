@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
+import {
+  calculateMatchPoints,
+  type PointsRuleScheme,
+} from "@/lib/tournaments/standings-points";
 
 /**
  * 경기 결과 기록 후 승자 진출 처리
@@ -80,6 +84,8 @@ export async function updateTeamStandings(
       homeTeamId: true,
       awayTeamId: true,
       settings: true,
+      // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 분기 위해 SELECT
+      tournament: { select: { settings: true } },
     },
   });
 
@@ -91,6 +97,13 @@ export async function updateTeamStandings(
   const settingsRaw = (match.settings ?? {}) as Record<string, unknown>;
   const divisionCode =
     typeof settingsRaw.division_code === "string" ? settingsRaw.division_code : null;
+
+  // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출.
+  //   "gnba" 박제 시만 강남구 가산점 분기 적용 / 그 외 = "default" (= 승=3 / 패=0).
+  //   미박제 대회 = "default" 폴백 (= 회귀 0).
+  const tournamentSettingsRaw = (match.tournament?.settings ?? {}) as Record<string, unknown>;
+  const pointsRule: PointsRuleScheme =
+    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
 
   // ─────────────────────────────────────────────────────────────────────
   // 2. 같은 tournament + 같은 division_code 의 완료 매치 전체 SELECT
@@ -170,8 +183,18 @@ export async function updateTeamStandings(
   //   사유: 모든 팀을 합산할 필요 없음 — 본 함수는 매치 단건 trigger 이므로 영향 받는 2 팀만 UPDATE.
   //   (전체 종별 reset 은 scripts/_temp/recalc-standings-set.ts 의 역할이었음 — 본 함수 통합 후 삭제)
   // ─────────────────────────────────────────────────────────────────────
-  type Stats = { wins: number; losses: number; draws: number; pf: number; pa: number };
-  const init = (): Stats => ({ wins: 0, losses: 0, draws: 0, pf: 0, pa: 0 });
+  // 2026-05-17 — winPoints 추가 (강남구 승점 룰).
+  //   default 룰 = 승=3 / 패=0 → 단순 wins * 3 과 동일하나, 강남구는 점수차 분기 = 매치별 계산.
+  //   매치별 calculateMatchPoints 호출 → home/awayPoints 합산.
+  type Stats = {
+    wins: number;
+    losses: number;
+    draws: number;
+    pf: number;
+    pa: number;
+    winPoints: number;
+  };
+  const init = (): Stats => ({ wins: 0, losses: 0, draws: 0, pf: 0, pa: 0, winPoints: 0 });
 
   const homeId = match.homeTeamId;
   const awayId = match.awayTeamId;
@@ -185,28 +208,44 @@ export async function updateTeamStandings(
     const hs = m.homeScore;
     const as = m.awayScore;
     const winnerId = m.winner_team_id;
+
+    // 2026-05-17 강남구 승점 — 매치 단위 home/awayPoints 산출.
+    //   loop 매치의 divisionCode = 본 update-standings 가 처리 중인 매치의 divisionCode 와 동일
+    //   (= 위 matchesWhere 가 같은 division_code 로 filter 한 상태).
+    //   따라서 본 매치의 divisionCode 를 전달.
+    const matchPoints = calculateMatchPoints({
+      homeScore: hs,
+      awayScore: as,
+      divisionCode,
+      pointsRule,
+    });
+
     // 매치의 home/away 가 본 함수의 home/away 와 같을 수도, 반대일 수도 있음 — 양 케이스 모두 처리
     // (한 팀이 home 으로 출전한 매치 + away 로 출전한 매치 모두 합산 필요)
     if (m.homeTeamId === homeId) {
       homeStats.pf += hs;
       homeStats.pa += as;
+      homeStats.winPoints += matchPoints.homePoints;
       if (winnerId === homeId) homeStats.wins++;
       else if (winnerId === m.awayTeamId) homeStats.losses++;
     } else if (m.awayTeamId === homeId) {
       // homeId 팀이 본 매치에서 away 로 출전
       homeStats.pf += as;
       homeStats.pa += hs;
+      homeStats.winPoints += matchPoints.awayPoints;
       if (winnerId === homeId) homeStats.wins++;
       else if (winnerId === m.homeTeamId) homeStats.losses++;
     }
     if (m.homeTeamId === awayId) {
       awayStats.pf += hs;
       awayStats.pa += as;
+      awayStats.winPoints += matchPoints.homePoints;
       if (winnerId === awayId) awayStats.wins++;
       else if (winnerId === m.homeTeamId) awayStats.losses++;
     } else if (m.awayTeamId === awayId) {
       awayStats.pf += as;
       awayStats.pa += hs;
+      awayStats.winPoints += matchPoints.awayPoints;
       if (winnerId === awayId) awayStats.wins++;
       else if (winnerId === m.homeTeamId) awayStats.losses++;
     }
@@ -256,6 +295,9 @@ export async function updateTeamStandings(
         points_for: homeStats.pf,
         points_against: homeStats.pa,
         point_difference: homeStats.pf - homeStats.pa,
+        // 2026-05-17 강남구 승점 — default 룰 대회도 동일하게 박제 (= wins * 3 자연 합산).
+        //   강남구 외 대회: points_rule 미박제 → default → 모든 승=3 / 패=0 = wins * 3 동일.
+        win_points: homeStats.winPoints,
       },
     }),
     prisma.tournamentTeam.updateMany({
@@ -268,6 +310,7 @@ export async function updateTeamStandings(
         points_for: awayStats.pf,
         points_against: awayStats.pa,
         point_difference: awayStats.pf - awayStats.pa,
+        win_points: awayStats.winPoints,
       },
     }),
   ]);
