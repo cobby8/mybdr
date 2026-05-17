@@ -168,18 +168,13 @@ function StatusBadge({ status }: { status: string | null }) {
     return <Badge variant="info">종료</Badge>;
   }
   if (status === "live" || status === "in_progress") {
+    // 2026-05-17 (사용자 결정 갱신) — solid 빨강 배경 + 흰색 점 + 흰색 LIVE 텍스트
     return (
       <span
-        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider"
-        style={{
-          backgroundColor: "color-mix(in srgb, var(--color-status-live) 20%, transparent)",
-          color: "var(--color-status-live)",
-        }}
+        className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white"
+        style={{ backgroundColor: "var(--color-status-live)" }}
       >
-        <span
-          className="h-1.5 w-1.5 rounded-full animate-pulse"
-          style={{ backgroundColor: "var(--color-status-live)" }}
-        />
+        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
         LIVE
       </span>
     );
