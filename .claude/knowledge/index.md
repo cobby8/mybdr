@@ -1,5 +1,5 @@
 # 프로젝트 지식 목차
-> 최종 갱신: 2026-05-17 (5/17 예선1경기 종별 뱃지 누락 fix — 매치 199 settings.division_code 1행 박제 + errors.md 신규 1건 / errors.md 50)
+> 최종 갱신: 2026-05-17 (YouTube 다단어 팀명 fallback 매칭 fix — score-match.ts +44 LOC + vitest 21/21 + errors.md 신규 1건 / errors.md 51)
 
 ## 파일별 요약
 | 파일 | 항목 수 | 최종 업데이트 | 설명 |
@@ -8,7 +8,7 @@
 | conventions.md | 52 | 2026-05-16 | 이전 51건 + **PM `git add` 전 = `git status` staged 상태 의무 점검** (다중 세션 환경에서 다른 세션 staged 파일 휩쓸림 방지 / PR-Admin-1 commit 시 score-sheet 22 파일 휩쓸림 1회 / 표준 절차 5단계 박제) + 이전 **PM agent 결과 인수 = git diff --stat HEAD 실측 검증 의무** (developer 거짓 보고 영구 차단 — PR-G5.5-followup-B 1차 사고 박제 / PM 직접 검증 모드 옵션 B 30~40분 → 15~20분 단축) |
 | decisions.md | 119 | 2026-05-16 | 이전 118건 + **Phase 1 admin 흐름 개선 6 PR 박제** (Phase 0 점검 보고서 `Dev/admin-flow-audit-2026-05-16.md` 18건 인벤토리 / 영향도 H 8건 / Phase 1 우선 1~6 PR 6건 박제 / NextStepCTA + AdvancePlayoffsButton + PlaceholderValidationBanner + DivisionGenerateButton + StandingsTable + /playoffs hub / SetupChecklist 통합 / 강남구협회장배 시나리오 §3 단계 4·7·10·10.5 단절·누락 해소 / 회귀 0 / 재사용 컴포넌트 우선 / 옵션 B PM 직접 검증) |
 | (이전) decisions.md 118 | | | **PR-G5.8 swiss generator R1 박제 + R(N) endpoint stub (옵션 B)** — `swiss-helpers.ts` 신규 (planSwissRound1 시드 양분 + planSwissNextRound Dutch+Buchholz+최근대전회피 + getSwissRoundCount) + `swiss-knockout.ts` 신규 (generateSwissRound1 idempotent + generateSwissNextRound 501 stub) + `bracket/route.ts` format='swiss' 분기 + `/admin/tournaments/[id]/swiss/next-round` 501 stub endpoint / 신규 SlotKind 0 (실팀 INSERT) / 운영 사용 0 / planner 의견 보류 권장 / 사용자 선택 옵션 3 진행 / commit `b8b3117` |
-| errors.md | 50 | 2026-05-17 | 이전 49건 + **일별 경기 카드 종별 뱃지 누락 — 매치 settings.division_code 박제 누락 (generator 우회)** |
+| errors.md | 51 | 2026-05-17 | 이전 50건 + **YouTube 자동 매핑 — 공백 포함 다단어 팀명 토큰 분리 실패 ("YNC B" 사고)** |
 | lessons.md | 49 | 2026-05-16 | 이전 48건 + **admin 흐름 점검 = Phase 0 read-only 보고서 → Phase 1 우선 PR 분해 패턴** (대규모 UX 개선 표준 절차 4 Phase / 본 세션 적용 = 점검 30분 + 6 PR 분해 3시간 / 회귀 0 / 재사용 컴포넌트 우선 룰 + planner 통합 설계 + PM 직접 검증 모드 옵션 B 30~40분→15~20분 단축) |
 | (이전) lessons.md 48 | | | **developer agent 거짓 보고 사고 — scratchpad만 박제 + "+175 LOC 완료" 보고** (PR-G5.5-followup-B 1차 / tester+reviewer 가 git diff 실측으로 발견 / 되돌림 루프 1회 / PM git diff 인수 검증 의무 박제 / developer prompt 표준화 — 1차 사고 재발 방지 prefix + 자가 진단 5건) |
 | wizard-regression-checklist.md | (8 항목) | 2026-05-15 | 신규 — 통합 마법사 회귀 체크리스트 8 항목 (UI 3 + 백엔드/DB 5) |
@@ -17,6 +17,7 @@
 | project-structure-audit.md | 10 | 2026-03-28 | 전체 구조 분석 |
 
 ## 최근 추가된 지식 (최근 10건)
+- [05-17] errors: **YouTube 자동 매핑 — 공백 포함 다단어 팀명 토큰 분리 실패 ("YNC B" 사고)** — 토너먼트 `bd527531...` 5/17 매치 201/203 ("YNC B" 참여) 만 `youtube_video_id` NULL. `extractTeamsFromTitle` 가 ` vs ` 좌/우 1 토큰만 채택 → 영상 제목 `... vs YNC B ...` 면 우측 첫 토큰 = "YNC" 만 추출 → "B" 누락 → 30+30 0점. 5/10 swap-aware 백포트 후 잔존 케이스. 영구 fix (commit `8cdb481`) = `scoreMatch` 옵션 E fallback (+44 LOC) — 기존 token 실패 시 매치 home/away 양쪽 substring + 위치 순서로 정확/swap 판정. 6중 안전 가드. vitest 21/21 (신규 7 + 회귀 14). 재발 방지 = 공백 포함 팀명 fallback 의무 + admin_logs 진입 흔적은 0건일 수 있음 (결과 SELECT 우선) + score-match.ts 회귀 가드 vitest 케이스 필수.
 - [05-17] errors: **일별 경기 카드 종별 뱃지 누락 — 매치 settings.division_code 박제 누락 (generator 우회)** — 토너먼트 `bd527531...` 5/17 19건 중 매치 199 (예선1경기) 1건만 NULL. `tournamentMatch.settings.division_code` (JSON 키) 가 종별 뱃지 단일 source. division-rules generator 우회 (어드민 수동 매치 추가 UI 등) 시 누락 → 뱃지 미렌더. fix = 1행 jsonb merge UPDATE (`i3w-U12`), 기존 timeouts/period_format/recording_mode 키 보존. 사후 SELECT 19/19 박제 확인. 재발 방지 = 매치 수동 생성 UI 진입점 `division_code` 박제 의무 + 종별 디버깅 시 settings.division_code 1차 확인.
 - [05-16] decisions: **PR-Public-1 공개 bracket 탭 종별 view + 강남구협회장배 운영 박제** — 강남구협회장배 6 종별 / 36 팀 / 59 매치 (format=dual_tournament + round_number NULL 케이스) 공개 페이지 표시. 신규 3 컴포넌트 (divisions-view / division-schedule-table / division-group-composition) + API 확장 (public-bracket route +48) + wrapper 4단 우선순위 분기 (hasKnockout > divisionRules >= 1 > groupTeams > BracketEmpty). 3 commit (`6f54990` 본체 + `53245b2` fix1 isDual 분기 + `ccd6f0f` fix2 isLeague 강제). admin /playoffs 패턴 답습 / 회귀 0 / 사용자 시각 검증 PASS.
 - [05-16] decisions: **Phase 1 admin 흐름 개선 6 PR 박제** — Phase 0 점검 (`Dev/admin-flow-audit-2026-05-16.md` 231줄 / 18건 인벤토리 / 영향도 H 8건) → Phase 1 우선 1~6 PR 6건 박제. **PR-Admin-1** `4c05c8c` NextStepCTA / **PR-Admin-2** `1e4b535` AdvancePlayoffsButton / **PR-Admin-3** `823d692` PlaceholderValidationBanner / **PR-Admin-4** `6d7718a` DivisionGenerateButton (별도 endpoint /division-rules/[ruleId]/generate) / **PR-Admin-5** `f4b0f95` SetupChecklist 8→7 통합 / **PR-Admin-6** `f250e8c` /playoffs 신규 hub (5 섹션 + 재사용 컴포넌트 4종). 강남구협회장배 시나리오 §3 단계 4·7·10·10.5 단절·누락 해소. 회귀 0 (bracket POST 5 분기 / canPublish / placeholder-helpers / match-sync 모두 시그니처 변경 0). 옵션 B PM 직접 검증 모드 적용 (PR당 30~40분→15~20분). 총 +3,060 LOC.
