@@ -139,6 +139,8 @@ export interface ExistingMatchForSync {
   awayTeamId: bigint | null;
   winner_team_id: bigint | null;
   status: string | null;
+  // 2026-05-17 fix A — status='in_progress' 전환 시 started_at NULL 박제 가드용 (auto-register 윈도우 정확성)
+  started_at: Date | null;
 }
 
 /**
@@ -464,7 +466,15 @@ export async function syncSingleMatch(
           ? { current_quarter: match.current_quarter }
           : undefined,
       mvp_player_id: match.mvp_player_id ? BigInt(match.mvp_player_id) : undefined,
-      started_at: match.started_at ? new Date(match.started_at) : undefined,
+      // 2026-05-17 fix A (강남구협회장배 #203 사고 영구 차단):
+      //   클라이언트 started_at 미전송 + status='in_progress' 전환 + 기존 started_at NULL 시
+      //   서버 NOW() 자동 박제. (auto-register 윈도우 가드의 ref 정확성 보장)
+      //   기존 동작 보존: started_at 있으면 클라이언트 값 우선 / 다른 status 영향 0.
+      started_at: match.started_at
+        ? new Date(match.started_at)
+        : (match.status === "in_progress" && existing.started_at === null
+            ? new Date()
+            : undefined),
       ended_at: match.ended_at ? new Date(match.ended_at) : undefined,
     },
   });

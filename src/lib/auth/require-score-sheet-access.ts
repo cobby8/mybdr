@@ -54,6 +54,8 @@ export interface ScoreSheetAccessOk {
     quarterScores: import("@prisma/client").Prisma.JsonValue | null;
     notes: string | null;
     match_code: string | null;
+    // 2026-05-17 fix A — match-sync.ts started_at NULL 가드용 (강남구 #203 자동 등록 사고)
+    started_at: Date | null;
     // Phase 23 (2026-05-14) — draft vs DB 우선순위 비교용 (사용자 결재 Q1).
     //   ScoreSheetForm 의 localStorage draft.savedAt 과 비교해 더 최신인 쪽을 선택.
     updatedAt: Date | null;
@@ -122,6 +124,8 @@ export async function requireScoreSheetAccess(
       quarterScores: true,
       notes: true,
       match_code: true,
+      // 2026-05-17 fix A — match-sync.ts started_at NULL 가드 (강남구 #203 자동 등록 사고)
+      started_at: true,
       // Phase 23 (2026-05-14) — draft vs DB 비교용 (운영 영향 0 — SELECT 만)
       updatedAt: true,
       tournament: {
@@ -213,6 +217,7 @@ export async function requireScoreSheetAccess(
       quarterScores: match.quarterScores,
       notes: match.notes,
       match_code: match.match_code,
+      started_at: match.started_at, // 2026-05-17 fix A
       // Phase 23 — draft vs DB 우선순위 비교용
       updatedAt: match.updatedAt,
     },
@@ -316,6 +321,7 @@ export async function requireScoreSheetEditAccess(
       quarterScores: true,
       notes: true,
       match_code: true,
+      started_at: true, // 2026-05-17 fix A — match-sync.ts started_at NULL 가드
       updatedAt: true,
       tournament: {
         select: {
@@ -394,6 +400,7 @@ export async function requireScoreSheetEditAccess(
       quarterScores: match.quarterScores,
       notes: match.notes,
       match_code: match.match_code,
+      started_at: match.started_at, // 2026-05-17 fix A
       updatedAt: match.updatedAt,
     },
     tournament: match.tournament,

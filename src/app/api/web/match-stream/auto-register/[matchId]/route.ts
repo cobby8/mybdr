@@ -154,14 +154,21 @@ export async function POST(req: NextRequest, routeCtx: Ctx) {
 
   // 6) 윈도우 가드 — 매치 시작/예정 시각 ±10분 (Q1 결재)
   // started_at 우선 (실제 시작 시각 — 라이브 영상 publishedAt 과 가장 정확 매칭)
-  const ref = match.started_at ?? match.scheduledAt;
-  if (!ref) {
-    return apiSuccess({ registered: false, reason: "out_of_window", window_minutes: 10 });
-  }
-  const refTime = ref.getTime();
-  const now = Date.now();
-  if (Math.abs(now - refTime) > WINDOW_MS) {
-    return apiSuccess({ registered: false, reason: "out_of_window", window_minutes: 10 });
+  //
+  // 2026-05-17 fix B (강남구협회장배 #203 사고) — status='in_progress' 매치는 윈도우 가드 우회.
+  //   사유: 운영자가 매치 시작 했는데 started_at 박제 path 누락 (다른 path 사용) → ref=scheduledAt →
+  //         실제 시작이 예정보다 늦으면 자동으로 윈도우 밖 → 폴링 종료 → 영상 등록 실패.
+  //   룰: 진행 중인 매치 = 시간 무관 폴링 유지 (라이브 영상 등록 기회 보장).
+  if (match.status !== "in_progress") {
+    const ref = match.started_at ?? match.scheduledAt;
+    if (!ref) {
+      return apiSuccess({ registered: false, reason: "out_of_window", window_minutes: 10 });
+    }
+    const refTime = ref.getTime();
+    const now = Date.now();
+    if (Math.abs(now - refTime) > WINDOW_MS) {
+      return apiSuccess({ registered: false, reason: "out_of_window", window_minutes: 10 });
+    }
   }
 
   // 7) Redis cache 확인 — no_match 결과 5분 캐시 (30초 폴링 N viewer 시 quota 1회 만)
