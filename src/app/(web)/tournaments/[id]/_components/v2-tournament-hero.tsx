@@ -109,8 +109,14 @@ export function V2TournamentHero({
 
   return (
     <section
+      // 왜 className 도입: 모바일 (< 480px) 에서 row grid (200px 1fr) 가
+      // Galaxy Z Fold 5 외부 (344px) 같은 좁은 viewport 에서 텍스트 영역을
+      // ~84px 까지 압축 (1~2글자 폭 줄바꿈 사고) → 모바일에서 column 으로 전환.
+      // inline style + media query 불가능하므로 className + 내부 <style> 조합.
       // 2026-05-02: 콤팩트 (사용자 요청 — 빈 공간 ↓ + 탭과 여백 ↓)
       // padding 36/32 → clamp 모바일/PC 자연 적응 / marginBottom 20 → 10
+      className="v2-tournament-hero"
+      data-has-poster={hasPoster ? "true" : "false"}
       style={{
         background: `linear-gradient(135deg, ${accent}, ${accent}AA 50%, #0B0D10)`,
         color: "#fff",
@@ -128,6 +134,31 @@ export function V2TournamentHero({
         marginRight: "auto",
       }}
     >
+      {/*
+        모바일 (< 480px) 회귀 방지 룰 — 좁은 viewport (Galaxy Z Fold 5 외부 344px 포함) 에서
+        row grid 가 텍스트 영역을 1~2글자 폭으로 압축하는 사고 fix.
+        - 모바일: column grid + 로고 max 140×196 (가독성 우선)
+        - 데스크탑/태블릿 (≥ 480px): 기존 200×280 row grid 보존 (시각 변경 0)
+        RSC 환경이라 <style jsx> 사용 못함 → 정적 <style> tag 로 글로벌 영향 없이 scoped 클래스 적용.
+      */}
+      <style>{`
+        @media (max-width: 479px) {
+          .v2-tournament-hero[data-has-poster="true"] {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+            justify-items: center;
+            text-align: left;
+          }
+          .v2-tournament-hero[data-has-poster="true"] > img {
+            width: 140px !important;
+            height: 196px !important;
+            max-width: 50% !important;
+          }
+          .v2-tournament-hero[data-has-poster="true"] > div {
+            width: 100%;
+          }
+        }
+      `}</style>
       {/* 좌측 포스터 (hasPoster일 때만 렌더) */}
       {hasPoster && posterUrl && (
         // eslint-disable-next-line @next/next/no-img-element
