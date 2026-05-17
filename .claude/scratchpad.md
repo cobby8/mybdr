@@ -1,9 +1,83 @@
 # 작업 스크래치패드
 
 ## 현재 작업
-- **요청**: score-sheet 벤치 테크니컬 (B) + 딜레이 오브 게임 (Delay) 박제 — 사용자 권장안 100% 결재 완료 / 시합 운영 중 시급 일괄 박제
-- **상태**: 🟢 박제 완료 — tsc 0 / vitest 18/18 PASS / 기존 회귀 0
+- **요청**: 사용자 보고 2건 — (1) score-sheet 임시번호 미적용 fix (loadTeamRoster → resolveMatchJerseysBatch) + (2) 종이기록지 내부 임시번호 부여 UI 박제 (No. cell → JerseyEditModal → POST + router.refresh)
+- **상태**: 🟢 박제 완료 — tsc EXIT=0 / 운영 보존 (라이브 API 변경 0 / digital PBP 변경 0 / draft / 4종 모달 / read-only / 시안 13 룰)
 - **현재 담당**: PM (commit / push 즉시 처리 — 사용자 명시 자동 머지)
+
+## 구현 기록 (developer / 2026-05-17) — score-sheet 임시번호 적용 + 부여 UI 박제
+
+📝 **구현한 기능**: 사용자 보고 2건 일괄 — (1) score-sheet 표시 임시 번호 미적용 fix (MatchPlayerJersey override 우선 / TTP fallback / 라이브 API 패턴 답습) + (2) score-sheet 안 No. cell 클릭 → JerseyEditModal → BFF upsert/release + router.refresh.
+
+### 변경 파일 (신규 1 / 수정 3)
+
+| 파일 경로 | 변경 내용 | LOC | 신규/수정 |
+|----------|----------|-----|---------|
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/jersey-edit-modal.tsx` | 임시 등번호 모달 (입력 1칸 0~99 + 저장/취소/해제 + ESC + 외부 클릭) — foul-type-modal / bench-tech-modal 패턴 일관 | +240 | 신규 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/page.tsx` | loadTeamRoster 안 resolveMatchJerseysBatch 호출 추가 (1회 batch SELECT) → jerseyNumber = override 우선 / TTP fallback / null | +25 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/team-section.tsx` | onRequestEditJersey prop 추가 (optional / 구버전 호환) + No. cell `<div>` → `<button>` 분기 (onRequestEditJersey 전달 + disabled/readOnly/ejected 아닐 때만 클릭 가능) | +40 | 수정 |
+| `src/app/(score-sheet)/score-sheet/[matchId]/_components/score-sheet-form.tsx` | useRouter + JerseyEditModal import + jerseyEditCtx state + 3 handler (handleRequestEditJersey / handleJerseySave / handleJerseyRelease) + home/away TeamSection wiring + 모달 mount | +135 | 수정 |
+| **합계** | | **+440 LOC** (신규 240 / 수정 200) | |
+
+### 작업 1 — score-sheet 임시번호 미적용 fix
+
+| 측면 | 변경 전 | 변경 후 |
+|------|--------|--------|
+| 호출 패턴 | `players.map((p) => ({ jerseyNumber: p.jerseyNumber, ... }))` | `resolveMatchJerseysBatch(matchId, ttpEntries)` → `jerseyMap.get(p.id) ?? p.jerseyNumber ?? null` |
+| 우선순위 | TTP.jerseyNumber 만 | MatchPlayerJersey override → TTP.jerseyNumber → null (라이브 API 와 동일) |
+| 운영 영향 | match override 무시 (정영민 #9 누락 같은 사고 가능) | 라이브 응답과 정합 (같은 매치 = 같은 번호) |
+| DB 부하 | +1 SELECT (matchId + IN(ttp.id...)) — 라이브 API 와 동일 수준 |
+
+### 작업 2 — 종이기록지 내부 임시번호 부여 UI
+
+| 흐름 | 동작 |
+|------|------|
+| 1. No. cell 클릭 | team-section button → onRequestEditJersey(playerId, currentJersey, playerName) |
+| 2. score-sheet-form handler | jerseyEditCtx state 박제 → JerseyEditModal open |
+| 3. 모달 저장 | POST /api/web/tournaments/[id]/matches/[matchId]/jersey-override (운영자 권한 필수) |
+| 4. 모달 해제 | DELETE 같은 endpoint (기존 임시 번호 있을 때만) |
+| 5. 성공 후 | router.refresh() = server component (page.tsx) 재호출 → roster 갱신 → No. cell 즉시 반영 |
+| 6. 라이브 페이지 | 별도 처리 0 (3초 polling 으로 자동 반영) |
+| RO 가드 | isReadOnly (종료 매치) = team-section 이 button 미렌더 + form 의 handler / modal open=false 이중 방어 |
+
+### 보존 의무 검증 (모두 ✅)
+
+- 라이브 API (`src/app/api/live/[id]/route.ts`) 변경 0 — 이미 정합
+- digital (Flutter) PBP 변경 0 — paper score-sheet 전용 모달
+- BFF `/api/web/tournaments/[id]/matches/[matchId]/jersey-override` 변경 0 — 기존 endpoint 재사용
+- score-sheet UX (4종 모달 / draft localStorage / Phase 23 read-only / 라인업 / 점프볼 / 공격권) 변경 0
+- 시안 13 룰 (var(--color-*) / Material Symbols / 빨강 본문 ❌ (해제 버튼만 예외) / radius 4px / pill 9999px ❌)
+- 모바일 iOS input fontSize 16px+ (자동 줌 회피)
+- 터치 영역 44px+ (input + 모든 버튼)
+
+### 검증
+
+| 검증 | 결과 |
+|------|------|
+| `npx tsc --noEmit` | EXIT=0 ✅ |
+| 신규 import / state / handler 회귀 | 0 — useRouter / JerseyEditModal 신규 추가 only |
+| 운영 매치 흐름 | (1) score-sheet 진입 → No. cell 값 = 라이브와 동일 (override 우선) (2) cell 클릭 → 모달 → 저장 → cell 즉시 갱신 (router.refresh) (3) 라이브 페이지도 3초 내 자동 반영 |
+
+💡 **tester 참고**:
+- 테스트 방법:
+  1. **임시번호 적용 검증**: 운영 매치 = TTP 원본 jersey + MatchPlayerJersey override 둘 다 박혀있는 매치 진입 → score-sheet No. cell 값 = 라이브 페이지와 동일 (override 우선)
+  2. **No. cell 클릭**: score-sheet 진입 → 임의 선수 No. cell 클릭 → JerseyEditModal open (선수명 + 현재 번호 + 입력 칸)
+  3. **저장 흐름**: 0~99 범위 입력 → "저장" → toast "임시 등번호 #N 박제 완료" → No. cell 즉시 갱신 (router.refresh)
+  4. **충돌 검증**: 같은 매치 다른 선수가 쓰는 번호 입력 → 409 JERSEY_CONFLICT toast (BFF 측 안내)
+  5. **해제 흐름**: 임시 번호 박제된 선수 No. cell → 모달 → "해제" → toast "원본 복귀" → cell 원본 번호 표시
+  6. **권한 검증**: 운영자 아닌 사용자 = BFF 403 차단 (모달 자체는 RO 아니면 노출되나 저장 시 차단)
+  7. **종료 매치 RO**: status=completed + 수정 모드 OFF = team-section 이 button 미렌더 (cell read-only 동작)
+  8. **라이브 자동 반영**: score-sheet 저장 → 별도 탭의 라이브 페이지 3초 내 새 번호 노출 (polling)
+- 정상 동작: 모달 open/close / 입력 클램프 (0~99) / disabled 가드 (busy / unchanged / invalid) / ESC = 취소 / 외부 클릭 = 취소
+- 주의할 입력: 음수/100+/빈 칸 = 저장 버튼 disabled / 동일 값 = 저장 버튼 disabled (UX 가드)
+
+⚠️ **reviewer 참고**:
+- 특별히 봐줬으면 하는 부분:
+  - `page.tsx` 의 `resolveMatchJerseysBatch` 호출 패턴 — 라이브 API L264 와 동일 구조 (ttpEntries 변환 + teamJersey null fallback)
+  - `team-section.tsx` 의 No. cell `<button>` 분기 가드 — disabled / readOnly / ejected / onRequestEditJersey 미전달 4 조건 모두 미통과 시 read-only div 유지 (구버전 호출자 호환)
+  - `score-sheet-form.tsx` 의 hasOverride={jerseyEditCtx !== null} 항상 true 박제 — TTP 원본 vs override 구분 정보 client 측 미가용 → 모달이 항상 "해제" 버튼 노출 → BFF 404 가 친절 안내 (재발 안전망)
+  - JerseyEditModal 의 모바일 iOS fontSize: "16px" 강제 — 자동 줌 회피 (시안 13 룰 §D-13)
+
 
 ## 구현 기록 (developer / 2026-05-16) — Bench Tech (B/C) + Delay of Game (W/T) 일괄 박제
 
@@ -2218,6 +2292,7 @@ export async function updateTeamStandings(matchId: bigint): Promise<void>;
 | 2026-05-16 | **score-sheet PBP 수정 모달 기획설계** | 🟡 Phase 1 (조회) / Phase 2 (수정) 분리 / 6 step commit 단위 결정 / source = runningScore state / 신규 endpoint 0 / submit BFF 재사용 / 신규 1파일 + 수정 3파일 |
 | 2026-05-16 | **Phase 1 admin 흐름 개선 6 PR 박제** ⭐ | ✅ 6 commit (`4c05c8c` + `1e4b535` + `823d692` + `6d7718a` + `f4b0f95` + `f250e8c`) push 완료 / 강남구협회장배 단계 4·7·10·10.5 단절·누락 해소 / +3,060 LOC / 회귀 0 / 옵션 B 적용 |
 | 2026-05-16 | **Phase 0 admin 흐름 점검 보고서** | ✅ `Dev/admin-flow-audit-2026-05-16.md` 231줄 / 18건 인벤토리 / 영향도 H 8건 |
+| 2026-05-17 | **🚨 긴급 — i3w-U12 stale 매핑 영구 fix + 매치 205/207 복원** | ✅ `division-advancement.ts` 가드 강화 (`prelimTotal !== prelimCompleted` skip) + 임시 script 매치 205/207 NULL 복원 (운영 DB 2건 UPDATE) + 매치 206 정합 보존 / tsc 통과 / vitest 35/35 통과 / 임시 script 삭제 |
 | 2026-05-16 | **PR-G5.8 swiss generator R1 박제 + R(N) 501 stub (옵션 B)** | ✅ commit `b8b3117` |
 | 2026-05-16 | **PR-G5.2 dual-generator placeholder-helpers 통과 (옵션 B)** | ✅ commit `eaccd54` |
 | 2026-05-16 | **PR-G5.5-NBA-seed 8강/4강 NBA 시드 generator** | ✅ commit `b1e48b8` |
