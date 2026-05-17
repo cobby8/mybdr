@@ -52,6 +52,10 @@ interface MatchEndButtonProps {
   //   왜: controlled 모드에서 외부 toolbar 가 "경기 종료" 버튼 disabled 시각 분기를 적용할 수
   //   있도록, submitted=true 가 되는 시점을 form 에 알린다. 콜백 미전달 시 영향 0.
   onSubmittedChange?: (submitted: boolean) => void;
+  // 2026-05-17 연습 모드 (사용자 결재 옵션 E).
+  //   true = BFF POST /submit 호출 skip → "연습 모드 — 저장되지 않음" toast + submitted state 진입.
+  //   undefined / false = 운영 매치 흐름 (기존 동작 100% 보존).
+  isPractice?: boolean;
 }
 
 export function MatchEndButton({
@@ -65,6 +69,7 @@ export function MatchEndButton({
   onOpenChange,
   hideTriggerButton,
   onSubmittedChange,
+  isPractice = false,
 }: MatchEndButtonProps) {
   // controlled vs uncontrolled 결정:
   //   controlledOpen !== undefined = 외부 제어 (toolbar 가 setMatchEndOpen 호출) → useState 무시
@@ -135,6 +140,15 @@ export function MatchEndButton({
   //   서버 멱등성에만 의존하지 않고 클라이언트 단에서 명시적으로 막는다.
   async function handleConfirm() {
     if (submitting || submitted) return;
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   BFF POST /submit 호출 skip → "연습 모드 — 저장되지 않음" toast + submitted state 진입.
+    //   submitted=true 박제 = onSubmittedChange 콜백 trigger → 외부 toolbar disabled 분기 일관.
+    //   라이브 발행 0 / DB 박제 0.
+    if (isPractice) {
+      showToast("연습 모드 — 저장되지 않음 (운영 DB 영향 0)", "info");
+      setSubmitted(true);
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = buildPayload();
