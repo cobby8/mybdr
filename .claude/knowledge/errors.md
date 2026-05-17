@@ -2,6 +2,25 @@
 <!-- 담당: debugger, tester | 최대 30항목 -->
 <!-- 이 프로젝트에서 반복되는 에러 패턴, 함정, 주의사항을 기록 -->
 
+### [2026-05-17] 일별 경기 카드 종별 뱃지 누락 — 매치 settings.division_code 박제 누락 (generator 우회)
+- **분류**: 데이터 박제 누락 / 어드민 수동 매치 추가 경로 회귀
+- **발견자**: pm (사용자 보고 "예선1경기 종별 매칭 빠짐 — I3W-U12 뱃지 안 보임")
+- **증상**: 토너먼트 `bd527531-3745-483a-a7d8-ebd77200480a` 5/17 19건 중 매치 id=199 (예선1경기 09:30 강남구민체육관) 1건만 `settings.division_code` NULL → schedule-timeline.tsx 뱃지 미렌더. 나머지 18건은 generator 통과로 정상 (i3w-U12 / i2-U12)
+- **근본 원인**:
+  - `tournamentMatch.settings.division_code` (JSON 키) 가 종별 뱃지 **단일 source** — 별도 컬럼 없음 (`tournament_matches`에 `division_tier` 컬럼은 있으나 미사용)
+  - `division-rules generator` 또는 `dual-tournament-generator` 경유 시만 settings에 박제됨
+  - **어드민 수동 매치 추가 UI (`matches/matches-client.tsx`)** 등 우회 경로로 만들면 `division_code` 키 누락 → 뱃지 미표시
+  - `TournamentTeam.category` 변경은 팀 분류만 갱신하고 기존 매치 settings에 propagate 안 됨
+- **fix**:
+  - **즉시**: scripts/_temp/fix-2026-05-17-game1-division.ts (1행 jsonb merge UPDATE — 기존 timeouts/period_format/recording_mode 키 보존, 사전+사후 SELECT, 본 사고 후 삭제)
+  - **재발 방지 후속 PR 안건**: 어드민 수동 매치 추가 경로에서 `division_code` 필수 박제 가드 + 토너먼트 저장 시 매치별 `settings.division_code` NOT NULL 검증
+- **재발 방지 룰**:
+  - 매치 수동 생성/수정 UI 신규 진입점 추가 시 → 반드시 `division_code` 박제 의무
+  - 종별 표시 디버깅 = `tournamentMatch.settings.division_code` 1차 확인 (컬럼 X)
+  - 같은 토너먼트 내 매치들의 settings.division_code 표기 일관성 확인 (대소문자 / 표기 mismatch)
+- **검증**: 사후 SELECT 19/19 division_code 보유 확인
+- **참조횟수**: 0
+
 ### [2026-05-15] Flutter 앱 "Token parameter required" — editions/ 라우트 apiToken 자동 발급 누락
 - **분류**: 서비스 우회 / 자동 생성 필드 누락
 - **발견자**: pm (사용자 보고 "4차 뉴비리그 Flutter 앱 접속 안 됨" + 테스터 에러 문구 "token parameter required")
