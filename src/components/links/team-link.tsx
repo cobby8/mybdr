@@ -64,6 +64,15 @@ export function TeamLink({ teamId, name, children, className, style, newTab, onC
   // BigInt → string 변환
   const href = `/teams/${teamId.toString()}`;
 
+  // 2026-05-18 fix — server component → client onClick 직렬화 사고 차단.
+  //   server 가 onClick prop 전달 시 = Next.js 직렬화 사고.
+  //   해결: TeamLink 자체에서 stopPropagation 자동 박제 (= 부모 row router.push 회피).
+  //   caller 가 onClick 전달 시 = 호출 (= optional / client component 호출자 한정).
+  const handleClick: MouseEventHandler<HTMLAnchorElement> = (e) => {
+    e.stopPropagation();
+    onClick?.(e);
+  };
+
   return (
     <Link
       href={href}
@@ -72,7 +81,7 @@ export function TeamLink({ teamId, name, children, className, style, newTab, onC
       style={style}
       target={newTab ? "_blank" : undefined}
       rel={newTab ? "noopener noreferrer" : undefined}
-      onClick={onClick}
+      onClick={handleClick}
     >
       {content}
     </Link>
