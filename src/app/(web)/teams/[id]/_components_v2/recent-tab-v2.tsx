@@ -175,12 +175,13 @@ export async function RecentTabV2({ teamId }: Props) {
               {dateLabel}
             </div>
             {/* 상대 — data-primary 모바일 카드 제목 */}
-            {/* 4단계 C: 상대팀명 → TeamLink. teamId 없으면 자동 span fallback ("미정" 케이스) */}
+            {/* 4단계 C: 상대팀명 → TeamLink. teamId 없으면 자동 span fallback ("미정" 케이스).
+                2026-05-18 fix — server component → client onClick 직렬화 사고 차단:
+                  onClick prop 제거. stopPropagation 은 TeamLink 자체 onClick handler 에서 자동. */}
             <div data-primary="true" className="title">
               <TeamLink
                 teamId={oppTeamId}
                 name={oppName}
-                onClick={(e) => e.stopPropagation()}
                 style={{ fontWeight: 600 }}
               />
             </div>
