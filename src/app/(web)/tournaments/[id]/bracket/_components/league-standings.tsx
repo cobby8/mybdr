@@ -148,22 +148,22 @@ export function LeagueStandings({ teams, tournamentStatus, pointsRule = "default
               >
                 승률
               </th>
-              {/* 2026-05-17 강남구 승점 — P 컬럼 (강남구 한정 노출 / 모바일도 노출). */}
-              {showWinPoints && (
-                <th
-                  className="px-2 py-2.5 text-center text-xs font-medium sm:px-3"
-                  style={{ color: "var(--color-primary)" }}
-                  title="승점 (강남구협회장배 규정)"
-                >
-                  P
-                </th>
-              )}
               <th
                 className="hidden px-2 py-2.5 text-center text-xs font-medium sm:table-cell sm:px-3"
                 style={{ color: "var(--color-text-tertiary)" }}
               >
                 득실차
               </th>
+              {/* 2026-05-17 (사용자 명시 이미지 #181) — 득실차 다음에 승점 (강남구 한정 노출 / 모바일도 노출). */}
+              {showWinPoints && (
+                <th
+                  className="px-2 py-2.5 text-center text-xs font-medium sm:px-3"
+                  style={{ color: "var(--color-primary)" }}
+                  title="승점 (강남구협회장배 규정)"
+                >
+                  승점
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -196,15 +196,6 @@ export function LeagueStandings({ teams, tournamentStatus, pointsRule = "default
                   <td className="px-2 py-2.5 text-center font-mono sm:px-3">
                     {formatWinRate(t)}
                   </td>
-                  {/* 2026-05-17 강남구 승점 — P 셀 (강남구 한정 노출). */}
-                  {showWinPoints && (
-                    <td
-                      className="px-2 py-2.5 text-center font-bold sm:px-3"
-                      style={{ color: "var(--color-primary)" }}
-                    >
-                      {t.winPoints ?? 0}
-                    </td>
-                  )}
                   <td
                     className="hidden px-2 py-2.5 text-center sm:table-cell sm:px-3"
                     style={{
@@ -217,6 +208,15 @@ export function LeagueStandings({ teams, tournamentStatus, pointsRule = "default
                     {t.pointDifference > 0 ? "+" : ""}
                     {t.pointDifference}
                   </td>
+                  {/* 2026-05-17 (사용자 명시 이미지 #181) — 득실차 다음에 승점 (강남구 한정 노출). */}
+                  {showWinPoints && (
+                    <td
+                      className="px-2 py-2.5 text-center font-bold sm:px-3"
+                      style={{ color: "var(--color-primary)" }}
+                    >
+                      {t.winPoints ?? 0}
+                    </td>
+                  )}
                 </tr>
               );
             })}
