@@ -160,12 +160,29 @@ function TeamLogo({ logoUrl, name }: { logoUrl: string | null; name: string | nu
 }
 
 // -- 상태 배지 렌더링 --
+// 2026-05-17 — LIVE 뱃지를 라이브 페이지 (/live, /live/[id]) 와 동일 스타일로 통일.
+//   사용자 결정: 매치 카드 = 펄스 점 + 빨간 본색 텍스트 + 빨간 20% 배경 + rounded-full.
+//   var(--color-status-live) 토큰 = 라이브 페이지와 단일 source.
 function StatusBadge({ status }: { status: string | null }) {
   if (status === "completed") {
     return <Badge variant="info">종료</Badge>;
   }
   if (status === "live" || status === "in_progress") {
-    return <Badge variant="error">LIVE</Badge>;
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider"
+        style={{
+          backgroundColor: "color-mix(in srgb, var(--color-status-live) 20%, transparent)",
+          color: "var(--color-status-live)",
+        }}
+      >
+        <span
+          className="h-1.5 w-1.5 rounded-full animate-pulse"
+          style={{ backgroundColor: "var(--color-status-live)" }}
+        />
+        LIVE
+      </span>
+    );
   }
   return <Badge variant="default">예정</Badge>;
 }
