@@ -89,6 +89,7 @@ export default async function BasketballPage() {
   const [
     user,
     statAgg,
+    paperOnlyMinAgg,
     recentGames,
     playerStats,
     representativeJersey,
@@ -149,6 +150,7 @@ export default async function BasketballPage() {
     // 2) 통산 8열 aggregate (PPG/RPG/APG/MIN/FG%/3P% — Phase 1 8열)
     // 2026-05-10 NBA 표준 fix: FG%/3P% 매치별 % 평균 → _sum (made/attempted 누적) 기반 sum/sum
     //   사유: 시도 0 매치 동등 weight 왜곡 회피 (정환조 39.8% vs 31.0% 케이스)
+    // 2026-05-17 paper 매치 MIN 제외 (사용자 결재 Q3): _sum.minutesPlayed 추가하여 paper 합산 따로 빼기
     prisma.matchPlayerStat
       .aggregate({
         where: {
@@ -161,7 +163,7 @@ export default async function BasketballPage() {
           assists: true,
           steals: true,
           blocks: true,
-          minutesPlayed: true,
+          // minutesPlayed: paper 매치는 시간 박제 불가 → 후처리로 분리 계산 (paperOnlyMinAgg)
         },
         _sum: {
           // NBA 표준 % = 누적 made / 누적 attempted (sum 기반)
@@ -171,7 +173,26 @@ export default async function BasketballPage() {
           threePointersAttempted: true,
           freeThrowsMade: true,
           freeThrowsAttempted: true,
+          // 2026-05-17 paper 분리 계산용
+          minutesPlayed: true,
         },
+        _count: { id: true },
+      })
+      .catch(() => null),
+
+    // 2-b) paper 매치만 MIN _sum + _count — 통산 MIN 평균에서 제외하기 위한 차감용
+    // 2026-05-17 사용자 결재 Q3: paper 매치는 시간 박제 불가 (FIBA 종이 기록지에 출전 시간 칸 없음)
+    //   → flutter 매치만으로 MIN 평균 계산: (전체합 - paper합) / (전체수 - paper수)
+    prisma.matchPlayerStat
+      .aggregate({
+        where: {
+          tournamentTeamPlayer: { userId },
+          tournamentMatch: {
+            ...officialMatchNestedFilter(),
+            settings: { path: ["recording_mode"], equals: "paper" },
+          },
+        },
+        _sum: { minutesPlayed: true },
         _count: { id: true },
       })
       .catch(() => null),
@@ -500,7 +521,14 @@ export default async function BasketballPage() {
   const avgAssists = Number(statAgg?._avg?.assists ?? 0);
   // 2026-05-10 — DB minutes_played 단위 = 초 (Int). 통산 mpg 표시 단위 = 분 → /60 변환.
   // 박스스코어 (formatGameClock) 는 초 그대로 사용해서 정상이지만 통산 _avg 는 단위 변환 누락이었음.
-  const avgMinutes = Number(statAgg?._avg?.minutesPlayed ?? 0) / 60;
+  // 2026-05-17 사용자 결재 Q3: paper 매치 MIN 합산 제외 → (전체합 - paper합) / (전체수 - paper수)
+  //   사유: FIBA 종이 기록지에 출전 시간 칸 없음 = paper 매치 minutesPlayed = 0 박제 → 평균 왜곡 회피
+  const totalMinSum = Number(statAgg?._sum?.minutesPlayed ?? 0);
+  const paperMinSum = Number(paperOnlyMinAgg?._sum?.minutesPlayed ?? 0);
+  const paperCount = paperOnlyMinAgg?._count?.id ?? 0;
+  const flutterMinSum = totalMinSum - paperMinSum;
+  const flutterCount = gamesPlayed - paperCount;
+  const avgMinutes = flutterCount > 0 ? flutterMinSum / flutterCount / 60 : 0;
   // 2026-05-10 NBA 표준 fix — FG%/3P% 는 _sum 누적 메이드/시도 기반 (매치별 % 산술평균 X)
   const fgMadeSum = Number(statAgg?._sum?.fieldGoalsMade ?? 0);
   const fgAttSum = Number(statAgg?._sum?.fieldGoalsAttempted ?? 0);
@@ -514,7 +542,8 @@ export default async function BasketballPage() {
     ppg: gamesPlayed > 0 ? Number(avgPoints.toFixed(1)) : null,
     rpg: gamesPlayed > 0 ? Number(avgRebounds.toFixed(1)) : null,
     apg: gamesPlayed > 0 ? Number(avgAssists.toFixed(1)) : null,
-    mpg: gamesPlayed > 0 ? Number(avgMinutes.toFixed(1)) : null,
+    // 2026-05-17 mpg = flutter 매치 수 기준 (paper 매치 0건이어도 통산 매치 있으면 null 표시 X)
+    mpg: flutterCount > 0 ? Number(avgMinutes.toFixed(1)) : null,
     fgPct: fgAttSum > 0 ? Number(fgPctSum.toFixed(1)) : null,
     threePct: threeAttSum > 0 ? Number(threePctSum.toFixed(1)) : null,
   };
