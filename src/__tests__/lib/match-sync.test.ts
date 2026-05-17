@@ -405,6 +405,7 @@ describe("match-sync — syncSingleMatch existingMatch 분기 (SELECT 통합)", 
       awayTeamId: BigInt(20),
       winner_team_id: null,
       status: "scheduled",
+      started_at: null, // 2026-05-17 fix A — auto-register 윈도우 가드용
     };
 
     const result = await syncSingleMatch({

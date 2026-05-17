@@ -1085,6 +1085,7 @@ export async function POST(
         awayTeamId: match.awayTeamId,
         winner_team_id: match.winner_team_id,
         status: match.status,
+        started_at: match.started_at, // 2026-05-17 fix A — match-sync.ts started_at NULL 가드
       },
     });
 
