@@ -2,6 +2,50 @@
 <!-- 담당: 전체 에이전트 | 최대 30항목 -->
 <!-- 삽질 경험, 다음에 피해야 할 것, 효과적이었던 접근법을 기록 -->
 
+### [2026-05-17] 시합 운영 중 박제 → 즉시 main 머지 흐름 (= 사용자 명시 결재 매번 / classifier 차단 대응)
+- **분류**: 시합 운영 / 긴급 박제 / 사용자 명시 결재 / 사고 대응
+- **계기**: 강남구협회장배 5/16~5/17 시합 운영 중 60+ PR 박제 + main 머지. classifier 가 main 머지 매번 차단 → 사용자 한 마디 결재 받고 머지.
+- **채택 패턴**:
+  1. **사용자 명시 작업 시급도** = "긴급" / "지금 바로" / "1시간 후 시합" 등 명시 시 = 즉시 박제 + 즉시 머지
+  2. **머지 결재** = 사용자 "머지해" / "PR 머지해" / "메인까지 머지해" 등 명시 = 1회 결재 후 PR subin → dev → main 일괄 진행
+  3. **classifier 차단 시** = PM 사용자 1줄 결재 요청 ("머지해" 한 마디) → 명시 받고 진행
+  4. **운영 DB destructive 작업** = 사용자 명시 결재 필수 (CLAUDE.md §DB) — 임시 script 박제 + DRY_RUN 검증 + LIVE → 작업 후 즉시 정리
+- **방지**: 사용자 명시 결재 없이 main 머지 / 운영 DB UPDATE 진행 0
+- **참조횟수**: 0
+
+### [2026-05-17] 강남구 한정 룰 분기 패턴 = `tournament.settings.points_rule` 박제 (다른 대회 회귀 0)
+- **분류**: 대회별 분기 / 운영 호환 / 시스템 룰 박제
+- **계기**: 강남구협회장배 = i2/i3 가산점 룰 (20/30점차 / 10/15점차) 적용. 다른 대회 = 단순 3vs0 그대로.
+- **채택 패턴**:
+  1. `Tournament.settings.points_rule = "gnba"` 박제 (운영 DB 단일 row UPDATE)
+  2. 모든 분기 점 = `pointsRule === "gnba"` 체크 (= `calculateMatchPoints` / public-bracket sort / group-standings / league-standings 등)
+  3. 미설정 (= "default") 시 = 기본 룰 (= 회귀 0)
+  4. DB 컬럼 ADD (= `TournamentTeam.win_points`) = NULL 허용 = 무중단 / 기존 매치 영향 0
+- **방지**: 하드코딩 분기 (= tournament name 비교 등) — 운영 유연성 0 + 신규 대회 추가 시 코드 변경 필요. settings JSON 키 박제 = 유연 + 운영자 결정.
+- **참조횟수**: 0
+
+### [2026-05-17] advancer 가드 = `prelimTotal === prelimCompleted` (전수 완료 시에만) — partial completion stale 매핑 차단
+- **분류**: 알고리즘 가드 / standings tiebreak / stale 데이터 방지
+- **계기**: 강남구 I3W-U12 순위결정전 매치 205/206/207 = 예선 5/6 완료 시점에 stale 매핑 (= 매치 종료 trigger 시 advancer 호출). 이전 가드 = `prelimCompleted >= 1` (= 1건만 완료되면 진입) → partial standings (wins=0 동률) tiebreak = teamName asc → 잘못된 팀 박제.
+- **채택 패턴**:
+  1. **`prelimTotal !== prelimCompleted` skip** (= 모두 완료 시에만 매핑 진행)
+  2. console.log "[advanceDivisionPlaceholders] skip — group matches partial: N/M" 운영 추적
+  3. 4 호출 site 통합 (finalizeMatchCompletion / advance-route / advance-placeholders / advanceAllDivisions) → 단일 함수 가드
+- **방지**: partial standings tiebreak = teamName / group_order / 다른 임시 키 의존 → stale 매핑 사고 보장. 항상 "확정 후" 매핑.
+- **참조횟수**: 0
+
+### [2026-05-17] 연습 모드 옵션 E = fixture + localStorage (= 운영 DB 영향 0 / 다수 동시 사용)
+- **분류**: 연습 환경 설계 / DB 오염 차단 / 학습 효과
+- **계기**: 기록원 연습용 score-sheet 필요. 옵션 A (가상 매치 DB 박제) / B (별도 페이지) / C (운영 매치 토글) / D (status="practice") / E (fixture + localStorage) 비교.
+- **채택 (E) 이유**:
+  - 운영 DB 영향 0 (= 매치/PBP/Stat/MatchPlayerJersey 박제 0)
+  - 다수 동시 사용 가능 (= 각자 브라우저 = 독립)
+  - 무한 reset (= localStorage 초기화)
+  - 동일 UI / 모든 기능 (= score-sheet-form 재사용 / `isPractice` prop 분기 = BFF 호출 skip)
+  - 신규 페이지 단독 (`/score-sheet/practice`)
+- **방지**: 옵션 A (= 운영 DB 오염) / 옵션 C (= 운영자 실수 위험)
+- **참조횟수**: 0
+
 ### [2026-05-16] admin 흐름 점검 = Phase 0 read-only 보고서 → Phase 1 우선 PR 분해 패턴 (대규모 UX 개선 표준 절차)
 - **분류**: 작업 분해 패턴 / 대규모 UX 개선 / 사용자 결재 흐름
 - **계기**: 사용자 지적 "전면적인 점검과 개선 필요" — 대회 생성 + 대회 관리 페이지 흐름 복잡/중복/분리. PM 즉시 구현 진입 시 = 회귀 위험 + 토큰 낭비 위험
