@@ -41,6 +41,11 @@ import {
   prismaToPaperPBPRow,
 } from "@/lib/score-sheet/running-score-helpers";
 import { pbpToFouls } from "@/lib/score-sheet/foul-helpers";
+// 2026-05-17 (사용자 보고 — score-sheet 임시번호 미적용 fix):
+//   왜: loadTeamRoster 가 TTP.jerseyNumber 만 직접 매핑 → MatchPlayerJersey override 무시.
+//   라이브 API (`src/app/api/live/[id]/route.ts` L264) 가 이미 본 헬퍼로 정합 박제.
+//   동일 패턴 답습 — 매치별 임시 번호 우선 / TTP fallback / null.
+import { resolveMatchJerseysBatch } from "@/lib/jersey/resolve";
 import type { RunningScoreState } from "@/lib/score-sheet/running-score-types";
 import type { FoulsState } from "@/lib/score-sheet/foul-types";
 import type { TimeoutsState } from "@/lib/score-sheet/timeout-types";
@@ -150,14 +155,39 @@ async function loadTeamRoster(
     (lineup?.substitutes ?? []).map((b) => b.toString())
   );
 
+  // 2026-05-17 (사용자 보고 — score-sheet 임시번호 미적용 fix):
+  //   왜: 라이브 API 는 resolveMatchJerseysBatch 로 매치별 임시 번호 (MatchPlayerJersey) 를
+  //       우선 적용 / TTP.jerseyNumber 는 fallback. score-sheet 도 동일 패턴 답습해야
+  //       양쪽 응답 정합 (= 같은 매치 = 같은 번호 표시).
+  //   어떻게:
+  //     1. players 의 ttp.id + ttpJersey 를 batch 인자로 변환 (teamJersey=null — score-sheet 도
+  //        라이브 API 와 동일하게 team_members.jersey_number 미조회 / 라이브 L254 패턴 답습)
+  //     2. resolveMatchJerseysBatch 1회 호출 (N+1 회피 — 매치 1건 + 모든 ttp 합산 IN 쿼리)
+  //     3. 직렬화 시 jerseyNumber = override 우선 / TTP fallback / null
+  //   운영 영향:
+  //     - matchId, ttpId IN ([...]) SELECT 1회 (작은 비용 — 보통 ttp 12 미만)
+  //     - 임시 번호 박혀있으면 양식 No. cell 즉시 정합 / 없으면 기존 동작 그대로
+  const jerseyMap = await resolveMatchJerseysBatch(
+    matchId,
+    players.map((p) => ({
+      ttpId: p.id,
+      ttpJersey: p.jerseyNumber,
+      teamJersey: null,
+    })),
+  );
+
   // bigint → string 직렬화 (Next.js 15 server → client prop = plain JSON)
   const serialized: RosterItem[] = players.map((p) => {
     const idStr = p.id.toString();
     const isInLineup = starterSet.has(idStr) || subSet.has(idStr);
     const isStarter = starterSet.has(idStr);
+    // 임시 번호 (MatchPlayerJersey) 우선 / 없으면 TTP.jerseyNumber / 둘 다 없으면 null.
+    //   배치 호출 결과 Map<BigInt, number|null> 에서 ttp.id 조회.
+    //   Map 에 없는 케이스 = 이론상 없음 (위 호출 인자 = players 전체) → null 안전 fallback.
+    const resolvedJersey = jerseyMap.get(p.id) ?? p.jerseyNumber ?? null;
     return {
       tournamentTeamPlayerId: idStr,
-      jerseyNumber: p.jerseyNumber,
+      jerseyNumber: resolvedJersey,
       role: p.role,
       displayName:
         p.player_name?.trim() ||
