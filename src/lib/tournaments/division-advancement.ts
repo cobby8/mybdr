@@ -159,24 +159,53 @@ export async function advanceDivisionPlaceholders(
   tournamentId: string,
   divisionCode: string,
 ): Promise<AdvanceResult> {
-  // 2026-05-16 사고 fix — 예선 종료 가드 (i3w-U12 사고 영구 차단).
-  //   사용자 보고: 예선 시작 전 (매치 0건 완료) standings 모두 0 → 동순위 → 임의 매핑으로 placeholder 박제.
-  //   룰: 종별 예선 매치 (roundName "순위" 미포함) status=completed 가 1건 이상이어야 advancer 진입.
-  //   0건 = 동순위 = name asc 임의 정렬 = 잘못된 박제 → skip 으로 보호.
-  const prelimCompleted = await prisma.tournamentMatch.count({
-    where: {
-      tournamentId,
-      settings: { path: ["division_code"], equals: divisionCode },
-      status: "completed",
-      NOT: { roundName: { contains: "순위" } },
-    },
-  });
-  if (prelimCompleted === 0) {
+  // 2026-05-17 영구 fix — 예선 전수 종료 가드 (i3w-U12 stale 매핑 사고 영구 차단).
+  //   사용자 결재 (2026-05-17): "순위결정전 매칭은 해당 종별 group 매치 전부 종료 후 진행".
+  //
+  //   사고 케이스 (i3w-U12 2026-05-17):
+  //     - 예선 1건 완료 시점에 advancer 진입 → 동률 standings (남은 팀 0:0)
+  //       → 이름 asc tie-break → stale 매핑으로 매치 207 (13:30 김포훕스타 vs YNC A) 잘못 박제.
+  //     - 이전 가드 (prelimCompleted >= 1) 가 partial completion 시 진입 허용 = 사고 원인.
+  //
+  //   새 룰: 종별 예선 매치 (roundName "순위" 미포함) prelimTotal === prelimCompleted 시에만 진입.
+  //     - prelimTotal === 0 → group 매치 자체 없음 → skip (방어)
+  //     - prelimCompleted < prelimTotal → partial → skip (사고 차단)
+  //     - prelimCompleted === prelimTotal → 모든 group 매치 종료 → advancer 진입 안전
+  const [prelimTotal, prelimCompleted] = await Promise.all([
+    prisma.tournamentMatch.count({
+      where: {
+        tournamentId,
+        settings: { path: ["division_code"], equals: divisionCode },
+        NOT: { roundName: { contains: "순위" } },
+      },
+    }),
+    prisma.tournamentMatch.count({
+      where: {
+        tournamentId,
+        settings: { path: ["division_code"], equals: divisionCode },
+        status: "completed",
+        NOT: { roundName: { contains: "순위" } },
+      },
+    }),
+  ]);
+  if (prelimTotal === 0 || prelimTotal !== prelimCompleted) {
+    // 운영 추적 로그 — partial completion 시 advancer skip 사유 명시
+    console.log(
+      `[advanceDivisionPlaceholders] skip — group matches partial: ${prelimCompleted} completed / ${prelimTotal} total (division=${divisionCode}, tournament=${tournamentId})`,
+    );
     return {
       divisionCode,
       updated: 0,
       skipped: 0,
-      errors: [{ matchId: "(advancer-guard)", reason: "예선 매치 0건 완료 — standings 결정 불가 / advancer skip" }],
+      errors: [
+        {
+          matchId: "(advancer-guard)",
+          reason:
+            prelimTotal === 0
+              ? "예선 매치 0건 — group 매치 자체 없음 / advancer skip"
+              : `예선 매치 partial 완료 (${prelimCompleted}/${prelimTotal}) — 전수 종료 후 진입 가능 / advancer skip`,
+        },
+      ],
       standings: [],
     };
   }
