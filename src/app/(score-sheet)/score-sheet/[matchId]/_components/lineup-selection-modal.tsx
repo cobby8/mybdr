@@ -119,6 +119,11 @@ interface LineupSelectionModalProps {
   // 라인업 확정 후 router.refresh() 호출자 (= server roster 갱신).
   //   미전달 시 onConfirm 만 호출 (= 운영 호환 / 단위 테스트 격리).
   onAfterJerseyUpdate?: () => void;
+  // 2026-05-17 연습 모드 (사용자 결재 옵션 E + 기록원 인증 가드).
+  //   true = jersey-override BFF 호출 skip → diff 계산 0 (= 라인업 confirm 바로 호출).
+  //   임시번호 input 자체는 노출되지만 변경분이 DB 박제되지 않음 (연습 = 운영 영향 0).
+  //   undefined / false = 운영 흐름 (기존 동작 100% 보존).
+  isPractice?: boolean;
 }
 
 /**
@@ -504,6 +509,8 @@ export function LineupSelectionModal({
   tournamentId,
   matchId,
   onAfterJerseyUpdate,
+  // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — BFF jersey-override 호출 skip.
+  isPractice = false,
 }: LineupSelectionModalProps) {
   // 초기값 — 사전 라인업 있으면 prefill / 없으면 빈 selection
   // 이유: page.tsx 가 hasConfirmedLineup 시 starters[]/substitutes[] 전달 → caller 가 그대로 prefill.
@@ -678,6 +685,14 @@ export function LineupSelectionModal({
 
   async function handleConfirm() {
     if (!canConfirm) return;
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   BFF jersey-override 호출 전체 skip → diff 계산 없이 onConfirm 즉시 호출.
+    //   임시번호 input 변경은 모달 닫힘 시 사라짐 (= localStorage 박제 0).
+    //   사유: 연습 = 운영 영향 0 / 임시번호 실험은 라인업 결과만 보면 충분.
+    if (isPractice) {
+      onConfirm({ home: homeSel, away: awaySel });
+      return;
+    }
     // 1) 임시번호 변경분 diff 계산 (양 팀 합산).
     const homeDiff = showJerseyInput
       ? buildJerseyDiff(homeBaseline, homeJerseys)

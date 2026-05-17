@@ -243,6 +243,13 @@ interface ScoreSheetFormProps {
   //   미전달 (= undefined) = EMPTY 초기값 (구버전 매치 호환).
   initialBenchTechnical?: BenchTechnicalState;
   initialDelayOfGame?: DelayOfGameState;
+  // 2026-05-17 연습 모드 (사용자 결재 옵션 E + 기록원 인증 가드).
+  //   true = `/score-sheet/practice` 진입 (가상 매치 fixture / DB 영향 0).
+  //   - 모든 BFF 호출 (submit / auto-sync / cross-check-audit / reset / jersey-override) skip
+  //   - localStorage draft 박제는 그대로 (= 새로고침 시 데이터 보존)
+  //   - "기록 취소" = localStorage 초기화 + 페이지 reload (= 운영 reset 대체)
+  //   undefined / false = 운영 매치 흐름 (기존 동작 100% 보존).
+  isPractice?: boolean;
 }
 
 // 2026-05-15 (PR-D-4a) — draft localStorage IO 가 lib/score-sheet/draft-storage.ts
@@ -312,6 +319,8 @@ export function ScoreSheetForm({
   // 2026-05-16 (긴급 박제 — Bench Technical + Delay of Game / FIBA Article 36).
   initialBenchTechnical,
   initialDelayOfGame,
+  // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — BFF 호출 일괄 skip + localStorage 만 박제.
+  isPractice = false,
 }: ScoreSheetFormProps) {
   // 2026-05-15 (PR-D-4b) — input state 묶음 (header / signatures / teamA / teamB) 훅 단일 source.
   const inputState = useScoreSheetInputState({
@@ -508,6 +517,19 @@ export function ScoreSheetForm({
     });
 
     if (choice !== "confirm") return;
+
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   BFF /reset 호출 skip → localStorage draft 초기화 + 페이지 reload.
+    //   reload 시 isPractice=true 가 유지되어 빈 폼으로 재진입 (= 운영 reset 결과와 동일 UX).
+    //   사유: router.back() 사용 시 진입 경로가 매치 목록이 아닌 외부 페이지일 수 있어 reload 가 안전.
+    if (isPractice) {
+      clearDraft(match.id);
+      showToast("연습 데이터 초기화 완료 — 다시 시작합니다.", "success");
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
+      return;
+    }
 
     try {
       const res = await fetch(`/api/web/score-sheet/${match.id}/reset`, {
@@ -1027,7 +1049,8 @@ export function ScoreSheetForm({
 
     // 진입 audit POST — fire-and-forget (PR-RO2 entry audit 패턴 일관).
     //   warning_type = "completed_edit_mode_enter" — toolbar 명시 진입 의도 박제 (mount 1회 audit 와 별도).
-    if (typeof window !== "undefined") {
+    // 2026-05-17 연습 모드 = audit skip (운영 DB 영향 0 — 연습은 추적 0).
+    if (typeof window !== "undefined" && !isPractice) {
       fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1198,6 +1221,10 @@ export function ScoreSheetForm({
     if (auditEntryFired.current) return;
     auditEntryFired.current = true;
     if (typeof window === "undefined") return;
+    // 2026-05-17 연습 모드 = mount audit skip (운영 DB 영향 0).
+    //   완료 매치 진입은 운영에서만 발생 → 연습은 status=null 이라 isCompleted=false → 본 분기 미진입.
+    //   안전 가드 차원에서 명시적 skip 추가.
+    if (isPractice) return;
     // fetch 는 fire-and-forget — 응답 무시. 실패 = console.warn + 진행.
     fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
       method: "POST",
@@ -1622,6 +1649,14 @@ export function ScoreSheetForm({
   //   submit 흐름은 MatchEndButton 와 동일 path 사용 (단일 source) — fetch 직접 호출.
   async function handleEndMatchFromQuarterEnd() {
     if (isReadOnly) return; // Phase 23 PR-EDIT3 (PR-D-3 isReadOnly 통일 / quarter-end modal 진입점)
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   BFF /submit 호출 skip → 모달만 닫고 toast 안내. 실제 발행 0.
+    //   localStorage draft 는 유지 (운영자가 다시 진입해 검토 가능).
+    if (isPractice) {
+      showToast("연습 모드 — 매치 종료 저장 skip (운영 DB 영향 0)", "info");
+      setQuarterEndModal(null);
+      return;
+    }
     try {
       const payload = buildSubmitPayload();
       const res = await fetch(`/api/web/score-sheet/${match.id}/submit`, {
@@ -2016,6 +2051,10 @@ export function ScoreSheetForm({
     if (lineup === null) return;
     if (isReadOnly) return;
     if (matchEndSubmitted) return;
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   10초 auto-sync 전체 skip → interval 미설치 (= 운영 DB 호출 0).
+    //   localStorage draft 는 별도 useEffect (5초 throttle) 가 박제 → 새로고침 보존 유지.
+    if (isPractice) return;
 
     const intervalId = setInterval(() => {
       // 매 호출 시 latest state 기반 payload 생성 (ref 패턴).
@@ -2037,7 +2076,7 @@ export function ScoreSheetForm({
     }, 10_000);
 
     return () => clearInterval(intervalId);
-  }, [lineup, isReadOnly, matchEndSubmitted, match.id]);
+  }, [lineup, isReadOnly, matchEndSubmitted, match.id, isPractice]);
 
   // Phase 7-B — 출전 명단 필터 + isStarter 재계산.
   //   lineup state 확정 시 양식 (TeamSection / RunningScoreGrid) 에 표시될 선수 = 출전 명단만.
@@ -2182,6 +2221,10 @@ export function ScoreSheetForm({
     // 보존:
     //   - 10초 interval 자동 sync 그대로 유지 (별도 useEffect 변경 0).
     //   - 점프볼 즉시 sync = "1회 추가 호출" — interval 미간섭.
+    // 2026-05-17 연습 모드 (사용자 결재 옵션 E):
+    //   점프볼 즉시 sync = BFF 호출 skip (운영 DB 영향 0).
+    //   localStorage 박제는 별도 useEffect (5초 throttle) 가 처리.
+    if (isPractice) return;
     setTimeout(() => {
       try {
         const basePayload = buildSubmitPayloadRef.current() as Record<string, unknown>;
@@ -2258,6 +2301,32 @@ export function ScoreSheetForm({
     //   페이지 폭 = max-w-screen-md (768px) 가 아닌 A4 비율에 가깝게 조절 — 화면 시각 fit.
     //   인쇄 시 = _print.css 의 198mm × 285mm 강제.
     <main className="score-sheet-print-root mx-auto w-full max-w-[820px] px-1 py-1">
+      {/* 2026-05-17 연습 모드 안내 배너 (사용자 결재 옵션 E + 기록원 인증 가드).
+          왜: 운영 매치가 아님을 운영자에게 즉시 인식시키고 자유롭게 연습하도록 안내.
+          위치 = main 최상단 (= 종료 배너보다 위 / 인쇄 시 hide).
+          색상 = info (파랑) — 시안 13 룰 정합 (var(--color-info)). */}
+      {isPractice && (
+        <div
+          className="no-print mb-2 px-3 py-2 text-xs"
+          style={{
+            border: "1px solid var(--color-info)",
+            backgroundColor: "color-mix(in srgb, var(--color-info) 12%, transparent)",
+            color: "var(--color-info)",
+          }}
+        >
+          <p className="font-semibold">
+            <span className="material-symbols-outlined mr-1 align-middle text-base">
+              school
+            </span>
+            연습 모드 — 실제 운영 DB 영향 없음
+          </p>
+          <p className="mt-1" style={{ color: "var(--color-text-muted)" }}>
+            자유롭게 연습한 후 상단 &quot;기록 취소&quot; 로 초기화하세요. 모든
+            입력은 브라우저 localStorage 에만 박제됩니다 (새로고침 시 보존).
+          </p>
+        </div>
+      )}
+
       {/* Phase 23 PR4 (2026-05-15) — status="completed" 매치 수정 가드 (사용자 결재 Q3).
           차단 ❌ / UI 경고 배너 + audit 박제 (변경 허용).
           운영자가 종료된 매치를 재진입하면 즉시 인식 + 재제출 시 audit 박제로 추적. */}
@@ -2759,6 +2828,9 @@ export function ScoreSheetForm({
         open={matchEndOpen}
         onOpenChange={setMatchEndOpen}
         hideTriggerButton
+        // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — BFF submit skip + practice toast.
+        //   MatchEndButton 내부에서 isPractice=true 면 fetch 호출 0 / "연습 모드 — 저장되지 않음" toast.
+        isPractice={isPractice}
         // PR-S2 후속 fix 3 (2026-05-14) — submitted 상태를 외부로 lifting.
         //   toolbar 의 "경기 종료" 버튼 disabled 시각 분기를 위함. 콜백 외 영향 0.
         //
@@ -2779,7 +2851,8 @@ export function ScoreSheetForm({
             }
           }
           // 완료된 매치 재제출 시 audit 박제 (사용자 결재 Q3 — 차단 ❌ / 추적만)
-          if (submitted && isCompleted && typeof window !== "undefined") {
+          // 2026-05-17 연습 모드 = audit skip (운영 DB 영향 0).
+          if (submitted && isCompleted && typeof window !== "undefined" && !isPractice) {
             fetch(`/api/web/score-sheet/${match.id}/cross-check-audit`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -2885,6 +2958,9 @@ export function ScoreSheetForm({
         tournamentId={tournament.id}
         matchId={match.id}
         onAfterJerseyUpdate={() => router.refresh()}
+        // 2026-05-17 연습 모드 (사용자 결재 옵션 E) — 모달 내부에서 BFF jersey-override 호출 skip.
+        //   localStorage 박제 0 (= 임시번호 UI 보존 / DB 박제 0). 운영자 흐름은 동일 (input 노출).
+        isPractice={isPractice}
       />
 
       {/* Phase 7-C — QuarterEndModal (Q4 / OT 종료 분기).
