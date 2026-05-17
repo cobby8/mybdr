@@ -389,30 +389,8 @@ function TeamLogo({
 // 공통 빌딩블록으로 뽑아 모바일/데스크톱 양쪽에서 재사용.
 // ─────────────────────────────────────────────────────────────
 
-// 팀명 약칭 helper — 모바일 미니스코어용 (sticky 헤더 좁은 공간)
-// 왜 인라인 helper:
-//   - DB 에 약칭 필드 없음 (team_abbr 컬럼 미존재)
-//   - 한글 팀명: 처음 2자 (예: "라이징스타" → "라이")
-//   - 영문/혼합: 단어 머릿글자 최대 4자 (예: "BDR Black Label" → "BBL")
-//   - 단일 단어 영문: 처음 4자 (예: "Lakers" → "Lake")
-function abbreviateTeamName(name: string): string {
-  if (!name) return "";
-  const trimmed = name.trim();
-  // 한글 포함 여부 (Hangul Syllables 범위)
-  const hasHangul = /[가-힯]/.test(trimmed);
-  if (hasHangul) {
-    // 한글이면 공백 제거 후 처음 2자 (CJK 폭 좁아 2자만으로 충분)
-    return trimmed.replace(/\s+/g, "").slice(0, 2);
-  }
-  // 영문 — 공백으로 단어 분리
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.length >= 2) {
-    // 다단어: 머릿글자 최대 4자 (대문자)
-    return words.slice(0, 4).map((w) => w[0]?.toUpperCase() ?? "").join("");
-  }
-  // 단일 단어: 처음 4자
-  return trimmed.slice(0, 4);
-}
+// 2026-05-17 모바일 미니스코어 제거 (옵션 C) — abbreviateTeamName 호출처 0 → 함수 정의 삭제.
+//   (기존: 헤더 미니스코어에서 팀명 약칭용. 영상 위 컨트롤 정리 + 헤더 노이즈 제거 박제 시 동시 제거)
 
 // 팀 블록: 로고 + 팀명(+홈 아이콘)
 // logoSize는 호출부에서 모바일 48 / 데스크톱 72로 지정
@@ -1184,36 +1162,9 @@ export default function LiveBoxScorePage() {
             {match.tournament_name}
           </span>
         </div>
-        {/*
-          모바일 미니스코어 — 라이브 매치만 / 모바일 전용 (sm:hidden = ≥640px 에서 숨김).
-          왜 모바일만:
-            - PC 는 HeroScoreboard (L770~) 가 항상 보이는 위치에 있어 미니스코어 중복
-            - 모바일은 화면 좁아 sticky 헤더에 미니스코어를 끼워 넣어야 스크롤 내려도 스코어 인지 가능
-          왜 라이브만:
-            - 종료 매치는 헤더 sticky 만으로 충분 (게임 결과는 박스스코어/요약 탭에서 확인)
-            - scheduled/cancelled 는 스코어 자체가 0:0
-        */}
-        {isLive && (
-          <div
-            className="flex items-center gap-1.5 sm:hidden font-mono text-sm font-bold tabular-nums shrink-0"
-            style={{ color: "var(--color-text-primary)" }}
-            aria-label={`${match.home_team.name} ${match.home_score} 대 ${match.away_score} ${match.away_team.name}`}
-          >
-            {/* 홈팀 약칭 (한글 2자 / 영문 단어 머릿글자 4자 이내) */}
-            <span className="truncate max-w-[3.5rem]">{abbreviateTeamName(match.home_team.name)}</span>
-            {/* 점수: 홈 우세 시 진하게 / 동점 시 동등 / 원정 우세 시 원정 진하게 */}
-            <span className={match.home_score >= match.away_score ? "" : "opacity-60"}>{match.home_score}</span>
-            <span style={{ color: "var(--color-text-muted)" }}>:</span>
-            <span className={match.away_score >= match.home_score ? "" : "opacity-60"}>{match.away_score}</span>
-            <span className="truncate max-w-[3.5rem]">{abbreviateTeamName(match.away_team.name)}</span>
-            {/* Q 표기 (current_quarter 있을 때만) */}
-            {match.current_quarter != null && (
-              <span className="ml-0.5 text-[10px] font-normal" style={{ color: "var(--color-text-muted)" }}>
-                Q{match.current_quarter}
-              </span>
-            )}
-          </div>
-        )}
+        {/* 2026-05-17 사용자 결재 (옵션 C) — 모바일 미니스코어 제거.
+            사유: HeroScoreboard 가 영상 바로 아래에 있어 헤더 미니스코어 중복 + 영상 시청 노이즈.
+            기존 블록: isLive && <div sm:hidden> [홈 14 : 16 원정 Q1] — 삭제됨. */}
         <div className="flex items-center gap-2 shrink-0">
           {isLive && (
             // LIVE 인디케이터: 상태 시맨틱 변수 + 온에어 스타일 펄스 (2026-05-02)
