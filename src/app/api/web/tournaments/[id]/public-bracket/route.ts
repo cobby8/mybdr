@@ -116,16 +116,31 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     orderBy: { sortOrder: "asc" },
   });
 
+  // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출 (P 컬럼 + 정렬 분기).
+  //   먼저 추출해서 종별 standings 산출 시 pointsRule 인자로 전달 (server-side 정렬 단일 source).
+  const tournamentSettingsRaw = (tournament.settings ?? {}) as Record<string, unknown>;
+  const pointsRule: "gnba" | "default" =
+    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
+
   // 2026-05-16 PR-Public-1 — 종별별 standings 병렬 산출 (Promise.all / N+1 회피).
   //   admin /playoffs:77 동일 패턴. divisionRules 0건 = 빈 배열 (회귀 0).
   //   각 종별 standings = DivisionStanding[] (groupName 별 정렬 + groupRank 부여 / division-advancement.ts:54).
-  const divisionStandings: Array<{ code: string; label: string; standings: DivisionStanding[] }> =
+  // 2026-05-17 — pointsRule 인자 추가 (강남구협회장배 i3 U9 등 다종별 view P 컬럼 + 승점 정렬).
+  //   bundle 안에 pointsRule 박제 → DivisionsView 가 그대로 사용 (단일 source).
+  const divisionStandings: Array<{
+    code: string;
+    label: string;
+    pointsRule: "gnba" | "default";
+    standings: DivisionStanding[];
+  }> =
     divisionRulesRaw.length > 0
       ? await Promise.all(
           divisionRulesRaw.map(async (r) => ({
             code: r.code,
             label: r.label,
-            standings: await getDivisionStandings(prisma, id, r.code),
+            // 2026-05-17 — bundle 안에 pointsRule 박제 (클라이언트 컴포넌트가 그대로 사용).
+            pointsRule,
+            standings: await getDivisionStandings(prisma, id, r.code, pointsRule),
           })),
         )
       : [];
@@ -165,12 +180,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const completedMatchCount = matches.filter((m) => m.status === "completed").length;
   const isAllCompleted = totalMatchCount > 0 && completedMatchCount === totalMatchCount;
 
-  // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출 (P 컬럼 + 정렬 분기).
-  const tournamentSettingsRaw = (tournament.settings ?? {}) as Record<string, unknown>;
-  const pointsRule: "gnba" | "default" =
-    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
-
   // 핫팀 계산: 경기 결과 기반 승률→득실차→다득점 1위 팀
+  // (pointsRule 은 위 divisionStandings 산출 시점에 이미 추출됨 — 재추출 0)
   // Phase 2C: teamStats에 name_en/name_primary도 캐시해두어 리그 순위표/핫팀 응답에 함께 내려줌
   // 2026-05-17 — winPoints 추가 (강남구 승점 / DB 박제값 기반).
   const teamStats: Record<string, {

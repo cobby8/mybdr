@@ -36,6 +36,13 @@ export type DivisionStanding = {
   pointsFor: number;
   pointsAgainst: number;
   pointDifference: number;
+  /**
+   * 2026-05-17 — 강남구 승점 (DB 박제값 직접 읽음 / TournamentTeam.win_points).
+   *   - 강남구 룰: 승 +3, 무 +1, 패 +0 (+ 점수차 가산점은 DB 박제 단계 처리).
+   *   - default 룰: wins*3 자연 박제 (다른 대회는 winPoints 컬럼 hide 가능).
+   *   - 회귀 0 — 기존 정렬 (wins desc) 변경 0 / showWinPoints 분기는 client.
+   */
+  winPoints: number;
   /** 그룹 내 순위 (1~N) */
   groupRank: number;
 };
@@ -43,18 +50,28 @@ export type DivisionStanding = {
 /**
  * 종별 모든 팀의 standings 조회 + 그룹별 순위 계산.
  *
- * 정렬 룰 (NBA / 한국농구협회 표준):
- *   1. wins desc (승수 많은 팀 우선)
- *   2. point_difference desc (득실차)
- *   3. points_for desc (득점)
- *   4. teamName asc (최종 tie-breaker — 결정 안 되면 이름순)
+ * 정렬 룰:
+ *   - pointsRule="gnba" (강남구협회장배 규정):
+ *       1. winPoints desc (승점 — 승 +3 / 무 +1 / 패 +0 + 점수차 가산점)
+ *       2. point_difference desc (득실차)
+ *       3. points_for desc (득점)
+ *       4. teamName asc (최종 tie-breaker)
+ *   - pointsRule="default" (NBA / 한국농구협회 표준 / 기존 동작):
+ *       1. wins desc (승수 많은 팀 우선)
+ *       2. point_difference desc (득실차)
+ *       3. points_for desc (득점)
+ *       4. teamName asc (최종 tie-breaker)
+ *
+ * 회귀 0: pointsRule 인자 미전달 시 default = "default" → 기존 wins desc 정렬과 동치.
  *
  * @param prisma - Prisma client 또는 transaction client
+ * @param pointsRule - 승점 룰 분기 (default "default" — admin /playoffs 등 호환)
  */
 export async function getDivisionStandings(
   prisma: PrismaClient | Prisma.TransactionClient,
   tournamentId: string,
   divisionCode: string,
+  pointsRule: "gnba" | "default" = "default",
 ): Promise<DivisionStanding[]> {
   const teams = await prisma.tournamentTeam.findMany({
     where: { tournamentId, category: divisionCode },
@@ -67,6 +84,8 @@ export async function getDivisionStandings(
       points_for: true,
       points_against: true,
       point_difference: true,
+      // 2026-05-17 — 강남구 승점 박제값 SELECT (update-standings.ts 가 SET).
+      win_points: true,
       team: { select: { name: true } },
     },
   });
@@ -81,8 +100,14 @@ export async function getDivisionStandings(
   const result: DivisionStanding[] = [];
   for (const group of Object.keys(byGroup).sort()) {
     const sorted = [...byGroup[group]].sort((a, b) => {
-      const wd = (b.wins ?? 0) - (a.wins ?? 0);
-      if (wd !== 0) return wd;
+      // 2026-05-17 강남구 룰 분기 — 1차키 = winPoints (그 외 = wins / 기존 정렬 보존).
+      if (pointsRule === "gnba") {
+        const wpd = (b.win_points ?? 0) - (a.win_points ?? 0);
+        if (wpd !== 0) return wpd;
+      } else {
+        const wd = (b.wins ?? 0) - (a.wins ?? 0);
+        if (wd !== 0) return wd;
+      }
       const pd = (b.point_difference ?? 0) - (a.point_difference ?? 0);
       if (pd !== 0) return pd;
       const pf = (b.points_for ?? 0) - (a.points_for ?? 0);
@@ -100,6 +125,8 @@ export async function getDivisionStandings(
         pointsFor: t.points_for ?? 0,
         pointsAgainst: t.points_against ?? 0,
         pointDifference: t.point_difference ?? 0,
+        // 2026-05-17 — DB 박제값 (단일 source / 재계산 회피).
+        winPoints: t.win_points ?? 0,
         groupRank: i + 1,
       });
     });
@@ -700,18 +727,20 @@ export async function generateGroupStageKnockoutMatches(
  *   - category 매칭 제거 — 모든 TournamentTeam SELECT (4차 뉴비리그 케이스)
  *   - groupName 기준으로 그룹핑 (null → "X" 폴백, 기존 동일)
  *
- * 정렬 룰 (NBA / 한국농구협회 표준 — getDivisionStandings 와 100% 동일):
- *   1. wins desc
- *   2. point_difference desc
- *   3. points_for desc
- *   4. teamName asc (최종 tie-breaker)
+ * 정렬 룰 (getDivisionStandings 동일 — pointsRule 분기):
+ *   - "gnba": winPoints desc → PD → PF → name asc
+ *   - "default" (기본): wins desc → PD → PF → name asc (기존)
+ *
+ * 회귀 0: pointsRule 인자 미전달 시 default = "default" → 기존 정렬과 동치.
  *
  * @param prisma - Prisma client 또는 transaction client
  * @param tournamentId - 대회 UUID
+ * @param pointsRule - 승점 룰 분기 (default "default")
  */
 export async function getTournamentStandings(
   prisma: PrismaClient | Prisma.TransactionClient,
   tournamentId: string,
+  pointsRule: "gnba" | "default" = "default",
 ): Promise<DivisionStanding[]> {
   // 사유: category 필터 제거 — 4차 뉴비리그처럼 division_rule=0 인 대회 진입 가능
   const teams = await prisma.tournamentTeam.findMany({
@@ -725,6 +754,8 @@ export async function getTournamentStandings(
       points_for: true,
       points_against: true,
       point_difference: true,
+      // 2026-05-17 — winPoints 박제 (getDivisionStandings 와 시그니처 호환).
+      win_points: true,
       team: { select: { name: true } },
     },
   });
@@ -738,10 +769,15 @@ export async function getTournamentStandings(
 
   const result: DivisionStanding[] = [];
   for (const group of Object.keys(byGroup).sort()) {
-    // 정렬 룰 = getDivisionStandings 동일 (분기 안전성 — 같은 로직 복사)
+    // 정렬 룰 = getDivisionStandings 동일 (단일 source 룰).
     const sorted = [...byGroup[group]].sort((a, b) => {
-      const wd = (b.wins ?? 0) - (a.wins ?? 0);
-      if (wd !== 0) return wd;
+      if (pointsRule === "gnba") {
+        const wpd = (b.win_points ?? 0) - (a.win_points ?? 0);
+        if (wpd !== 0) return wpd;
+      } else {
+        const wd = (b.wins ?? 0) - (a.wins ?? 0);
+        if (wd !== 0) return wd;
+      }
       const pd = (b.point_difference ?? 0) - (a.point_difference ?? 0);
       if (pd !== 0) return pd;
       const pf = (b.points_for ?? 0) - (a.points_for ?? 0);
@@ -759,6 +795,8 @@ export async function getTournamentStandings(
         pointsFor: t.points_for ?? 0,
         pointsAgainst: t.points_against ?? 0,
         pointDifference: t.point_difference ?? 0,
+        // 2026-05-17 — DB 박제값 (단일 source / 재계산 회피).
+        winPoints: t.win_points ?? 0,
         groupRank: i + 1,
       });
     });
