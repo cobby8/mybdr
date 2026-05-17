@@ -171,6 +171,50 @@ export function scoreMatch(video: EnrichedVideo, match: MatchContext): ScoredCan
     }
   }
 
+  // 2026-05-17 fallback — 다단어 팀명 매칭 (옵션 E, "YNC B" 사고 박제).
+  // 사유: extractTeamsFromTitle 가 좌측 마지막 / 우측 첫 1 토큰만 추출하므로
+  //       공백 포함 다단어 팀명 ("YNC B", "스티즈 강남" 등) 은 좌/우 1 토큰만
+  //       잡혀 매칭 실패 → 5/17 매치 201/203 자동 매핑 누락.
+  // 6중 안전 가드 (PM 설계):
+  //   룰 1: 기존 token 매칭 성공 시 fallback skip (회귀 위험 0)
+  //   룰 2: 매치 home/away 양쪽 모두 제목에 존재해야 점수 부여 (반쪽 매칭 차단)
+  //   룰 3: 위치 비교로 정확/swap 두 케이스만 인정 (둘 다 30+30 부여)
+  //   룰 4: 한쪽이 다른 쪽 substring 이면 skip (예: "강남" ⊂ "스티즈강남" false positive 차단)
+  //   룰 5: 두 팀명 영역 겹침 시 skip (동일 팀명 매치 등 엣지 케이스)
+  //   룰 6: 기존 normalizeTeamName 일관 사용 (별도 normalize 도입 ❌)
+  if (breakdown.home_team === 0 && breakdown.away_team === 0) {
+    const matchHomeNorm = normalizeTeamName(match.homeTeamName);
+    const matchAwayNorm = normalizeTeamName(match.awayTeamName);
+
+    // 룰 4: substring 관계면 false positive 위험 → fallback 전체 skip
+    if (
+      matchHomeNorm &&
+      matchAwayNorm &&
+      !matchHomeNorm.includes(matchAwayNorm) &&
+      !matchAwayNorm.includes(matchHomeNorm)
+    ) {
+      // 룰 6: haystackNorm (제목+설명 normalize) 와 동일 normalize 일관성 유지
+      // → 제목 단독으로도 동일 normalize 적용 (공백 제거 + 특수문자 제거 + 소문자)
+      const titleNorm = normalizeTeamName(video.title);
+      const homeIdx = titleNorm.indexOf(matchHomeNorm);
+      const awayIdx = titleNorm.indexOf(matchAwayNorm);
+
+      // 룰 2: 양쪽 모두 제목에 존재해야 점수 부여
+      if (homeIdx >= 0 && awayIdx >= 0) {
+        // 룰 5: 두 팀명 영역 겹침 검증 (substring 관계 외 동일 위치 겹침 차단)
+        const homeEnd = homeIdx + matchHomeNorm.length;
+        const awayEnd = awayIdx + matchAwayNorm.length;
+        const overlap = !(homeEnd <= awayIdx || awayEnd <= homeIdx);
+
+        if (!overlap) {
+          // 룰 3: 정확(home<away) 또는 swap(home>away) 두 케이스 모두 30+30 부여
+          breakdown.home_team = 30;
+          breakdown.away_team = 30;
+        }
+      }
+    }
+  }
+
   // 대회명 — 길어서 부분 매칭 (앞 8자만 사용)
   const tournamentTrim = match.tournamentName.replace(/\s+/g, "").toLowerCase().slice(0, 8);
   if (tournamentTrim.length >= 3 && haystackNorm.includes(tournamentTrim)) {

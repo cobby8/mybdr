@@ -18,6 +18,7 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-17 | **YouTube 다단어 팀명 fallback 매칭 박제** (옵션 E, YNC B 사고) | ✅ commit `8cdb481` / score-match.ts +44 LOC / vitest 21/21 (신규 7 + 회귀 14) / 5/10 swap-aware 정책 보존 / errors.md 룰 박제 |
 | 2026-05-17 | **대회 hero 모바일 비율 사고 fix** (v2-tournament-hero.tsx column grid 분기) | ✅ < 480px = column / ≥ 480px = 기존 200px 보존 / 로고 max 140×196 / +30 LOC / tsc 0 error / 데스크탑 시각 변경 0 |
 | 2026-05-17 | **5/17 예선1경기 종별 뱃지 누락 fix** (settings.division_code 1행 박제) | ✅ 매치 199 / `i3w-U12` jsonb merge UPDATE / 다른 settings 키 보존 / 사후 검증 19/19 박제 / 임시 script 2개 삭제 / errors.md 기록 |
 | 2026-05-17 | score-sheet 임시번호 적용 + 부여 UI (No. cell 모달) | ✅ commit `87169a9` |
@@ -27,10 +28,9 @@
 | 2026-05-17 | score-sheet Delay/벤치T 시인성 + Delay 위치 이동 | ✅ commit `f3d7b96` |
 | 2026-05-17 | 🚨 i3w-U12 stale 매핑 영구 fix + 매치 205/207 복원 | ✅ division-advancement 가드 강화 / vitest 35/35 통과 |
 | 2026-05-16 | score-sheet Bench Tech + Delay 박제 design 검토 | 🟡 Phase 1~6 (+1090 LOC / 18h / 3 PR 분해) / Q1~Q3 대기 |
-| 2026-05-16 | Track B GNBA 유소년 INSERT spec 분석 | 🟡 8중 idempotent 가드 / 결재 8 항목 대기 |
 
 ## 미푸시 commit
-- 직전 push 이후 미푸시 commit: **0건** (본 fix commit = PM 자동 처리 예정)
+- 직전 push 이후 미푸시 commit: **2건** (`8cdb481` youtube fallback fix + `37f7d3d` 5/17 division_code fix docs)
 
 ## 구현 기록 (developer — 2026-05-17 hero 모바일 fix)
 

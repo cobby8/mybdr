@@ -36,6 +36,8 @@ export interface LiveMatchCardData {
   scheduled_at: string | null;
   status: string | null;
   current_quarter: number | null;
+  // 2026-05-17 — period 표시 분기 (quarters=쿼터 / halves=전후반 / null=default quarters)
+  period_format?: string | null;
   match_code: string | null;
   round_name: string | null;
   home_score: number | null;
@@ -72,7 +74,13 @@ function getStatusLabel(match: LiveMatchCardData): {
   if (match.is_live) {
     if (match.current_quarter !== null) {
       const q = match.current_quarter;
-      const text = q <= 4 ? `${q}쿼터` : q === 5 ? "연장" : `연장${q - 4}`;
+      // 2026-05-17 — halves 모드 분기 (전반/후반/연장) vs quarters 모드 (1~4쿼터/연장)
+      let text: string;
+      if (match.period_format === "halves") {
+        text = q === 1 ? "전반" : q === 2 ? "후반" : q === 3 ? "연장" : `연장${q - 2}`;
+      } else {
+        text = q <= 4 ? `${q}쿼터` : q === 5 ? "연장" : `연장${q - 4}`;
+      }
       return { text, isLiveBadge: true };
     }
     // status="halftime" 별도 안내 — current_quarter 없을 때만

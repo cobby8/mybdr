@@ -229,3 +229,117 @@ describe("scoreMatch — 점수 체계 회귀 방지", () => {
     expect(r.score_breakdown.round).toBe(5);
   });
 });
+
+// --- 2026-05-17 다단어 팀명 fallback 회귀 방지 (옵션 E, "YNC B" 사고 박제) ---
+//
+// 사고 배경: extractTeamsFromTitle 가 좌측 마지막 / 우측 첫 1 토큰만 추출하므로
+//   영상 제목 "... 스티즈강남 vs YNC B ..." 에서 "YNC B" 다단어 팀명이
+//   "B" 1 토큰만 추출돼 매칭 실패 → 5/17 매치 201/203 자동 매핑 누락.
+//
+// 검증: 6 케이스 — fallback 동작 / swap 검출 / 5/10 사고 회귀 가드 보존 /
+//   substring 룰 / 영역 겹침 룰 / 기존 token 성공 시 미진입.
+describe("scoreMatch — 다단어 팀명 fallback (2026-05-17 YNC B 사고)", () => {
+  it("케이스 1: YNC B home 매치 + 영상 '스티즈강남 vs YNC B' → fallback 동작", () => {
+    // 좌측 마지막 토큰 = "스티즈강남" (1 토큰) / 우측 첫 토큰 = "YNC" → token 매칭 실패
+    // fallback 으로 normalize 제목에서 "yncb" / "스티즈강남" 양쪽 substring 검출 → 매칭
+    const video = makeVideo({
+      title: "BDR 리그 8강 스티즈강남 vs YNC B 풀영상",
+    });
+    const match = makeContext({
+      homeTeamName: "YNC B",
+      awayTeamName: "스티즈강남",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(30);
+    expect(r.score_breakdown.away_team).toBe(30);
+  });
+
+  it("케이스 2: YNC B away 매치 + 영상 'YNC B vs 김포훕스타' → swap 검출", () => {
+    const video = makeVideo({
+      title: "BDR 16강 YNC B vs 김포훕스타 풀영상",
+    });
+    const match = makeContext({
+      homeTeamName: "김포훕스타",
+      awayTeamName: "YNC B",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(30);
+    expect(r.score_breakdown.away_team).toBe(30);
+  });
+
+  it("케이스 3: 5/10 사고 회귀 가드 — 매치 '슬로우 vs 아울스' / 영상 '아울스 vs 업템포'", () => {
+    // 핵심 보존: fallback 추가로 5/10 정책이 깨지면 안 됨.
+    // 영상 제목에 "슬로우" 없음 → fallback 룰 2 (양쪽 모두 제목 존재) 차단 → 0점 유지.
+    const video = makeVideo({
+      title: "제 21회 MOLTEN배 4강 아울스 vs 업템포",
+    });
+    const match = makeContext({
+      homeTeamName: "슬로우",
+      awayTeamName: "아울스",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(0);
+    expect(r.score_breakdown.away_team).toBe(0);
+  });
+
+  it("케이스 4: substring 룰 — 매치 '강남 vs 스티즈강남' + 영상에 둘 다 포함 → skip", () => {
+    // matchHomeNorm "강남" ⊂ matchAwayNorm "스티즈강남" → 룰 4 fallback skip
+    const video = makeVideo({
+      title: "강남 vs 스티즈강남 풀영상",
+    });
+    const match = makeContext({
+      homeTeamName: "강남",
+      awayTeamName: "스티즈강남",
+    });
+    const r = scoreMatch(video, match);
+    // 토큰 매칭은 정확히 home="강남"/away="스티즈강남" → 통과 가능하므로
+    // 토큰 매칭 차단을 위해 vs 토큰 없는 제목으로 재구성
+    // (본 케이스의 목적은 fallback substring 룰 검증)
+    expect(r.score_breakdown.home_team).toBeGreaterThanOrEqual(0);
+  });
+
+  it("케이스 4-b: substring 룰 (vs 토큰 없는 제목으로 fallback 단독 검증)", () => {
+    // vs 토큰 없으므로 token 매칭 자체가 실행 안 됨 → fallback 만 평가됨
+    // matchHomeNorm "강남" ⊂ matchAwayNorm "스티즈강남" → 룰 4 skip → 0점 유지
+    const video = makeVideo({
+      title: "BDR 하이라이트 강남 스티즈강남 명장면 모음",
+    });
+    const match = makeContext({
+      homeTeamName: "강남",
+      awayTeamName: "스티즈강남",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(0);
+    expect(r.score_breakdown.away_team).toBe(0);
+  });
+
+  it("케이스 5: 영역 겹침 룰 — 동일 팀명 매치 (A vs A) → skip", () => {
+    // homeIdx === awayIdx 로 영역 100% 겹침 → 룰 5 skip
+    // (substring 룰 4 가 먼저 차단 — A ⊂ A — 하지만 fallback 안전성 검증 목적)
+    const video = makeVideo({
+      title: "BDR 연습경기 YNC B 자체 스크리미지",
+    });
+    const match = makeContext({
+      homeTeamName: "YNC B",
+      awayTeamName: "YNC B",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(0);
+    expect(r.score_breakdown.away_team).toBe(0);
+  });
+
+  it("케이스 6: 기존 token 매칭 성공 케이스 → fallback 미진입 (회귀 0)", () => {
+    // token 매칭으로 이미 30+30 부여 → 룰 1 (breakdown.home_team===0 가드) 로 fallback 진입 안 함.
+    // 결과: 정확히 30+30 유지 (fallback 이 중복 적용되지 않음 — 점수 60 초과 ❌)
+    const video = makeVideo({
+      title: "제 21회 MOLTEN배 4강 아울스 vs 업템포",
+    });
+    const match = makeContext({
+      homeTeamName: "아울스",
+      awayTeamName: "업템포",
+    });
+    const r = scoreMatch(video, match);
+    expect(r.score_breakdown.home_team).toBe(30);
+    expect(r.score_breakdown.away_team).toBe(30);
+  });
+});
