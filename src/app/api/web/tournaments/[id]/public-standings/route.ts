@@ -22,10 +22,12 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   // 1) 대회 상태 + 참가팀 + 완료/진행중 경기를 병렬로 조회 (DB 왕복 1회로 최적화)
   const [tournament, teams, matches] = await Promise.all([
     // 대회 상태 조회 (진행 중 vs 종료에 따라 프론트에서 공동순위 로직이 달라짐)
+    // 2026-05-17 — settings.points_rule 도 SELECT (강남구 승점 룰 분기 표시).
     prisma.tournament.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, settings: true },
     }),
+    // 2026-05-17 — win_points 컬럼 추가 SELECT (강남구 가산점 박제 / update-standings SET 값).
     prisma.tournamentTeam.findMany({
       where: { tournamentId: id },
       include: { team: { select: { name: true } } },
@@ -90,7 +92,16 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     }
   }
 
-  // 3) 직렬화 + KBL 방식 정렬 (승률 → 득실차 → 다득점)
+  // 2026-05-17 강남구 승점 룰 — tournament.settings.points_rule 추출.
+  //   "gnba" 박제 시만 강남구 룰 (정렬 1차키 = winPoints / 컴포넌트 P 컬럼 노출).
+  //   미박제 / 그 외 대회 = "default" → 모든 팀 winPoints = wins * 3 = 승률 정렬과 동치 → 회귀 0.
+  const tournamentSettingsRaw = (tournament?.settings ?? {}) as Record<string, unknown>;
+  const pointsRule: "gnba" | "default" =
+    tournamentSettingsRaw.points_rule === "gnba" ? "gnba" : "default";
+
+  // 3) 직렬화 + 정렬 (승점 → 득실차 → 다득점).
+  //   2026-05-17 — 정렬 1차키 = winPoints (강남구 규정 정합).
+  //   default 룰 대회 = winPoints = wins * 3 으로 박제됨 → 승률 정렬과 동치 (회귀 0).
   const serialized = teams
     .map((t) => {
       const tid = t.id.toString();
@@ -120,15 +131,22 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         pointsFor: stats.pointsFor,
         pointsAgainst: stats.pointsAgainst,
         pointDifference: stats.pointsFor - stats.pointsAgainst,
+        // 2026-05-17 강남구 승점 — DB win_points 박제값 (null = 0 폴백).
+        winPoints: t.win_points ?? 0,
       };
     })
     .sort((a, b) => {
-      // KBL 순위 결정: 1) 승률 높은 순 → 2) 득실차 높은 순 → 3) 다득점 순
-      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      // 2026-05-17 정렬 변경: 승점 desc → 득실차 desc → 다득점 desc.
+      // 사유: 강남구 규정 정합 + default 대회는 wins*3 = 자연스럽게 승률 순과 동치.
+      if (b.winPoints !== a.winPoints) return b.winPoints - a.winPoints;
       if (b.pointDifference !== a.pointDifference) return b.pointDifference - a.pointDifference;
       return b.pointsFor - a.pointsFor;
     });
 
-  // 대회 상태를 함께 반환 (프론트에서 공동순위 판단에 사용)
-  return apiSuccess({ teams: serialized, tournamentStatus: tournament?.status ?? "draft" });
+  // 대회 상태 + 승점 룰 (프론트 컴포넌트 P 컬럼 노출 분기용).
+  return apiSuccess({
+    teams: serialized,
+    tournamentStatus: tournament?.status ?? "draft",
+    pointsRule,
+  });
 }
