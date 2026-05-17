@@ -17,11 +17,19 @@
  *   - 12명 초과 케이스 = 앞 12명 자동 체크 + 경고 toast
  *   - 13번째 수동 체크 = 차단 + toast
  *
+ *   2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A + A):
+ *   - team-section No. cell 클릭 → jersey-edit-modal 동작 = 폐기
+ *   - 각 선수 row 옆에 "임시번호" input 추가 (0~99 / placeholder = "임시")
+ *   - 라인업 확정 시 변경분만 BFF POST/DELETE 박제 (기존 동일 endpoint 재사용)
+ *   - 같은 endpoint = `/api/web/tournaments/[id]/matches/[matchId]/jersey-override`
+ *   - DB schema 변경 0 (MatchPlayerJersey 박혀있음) / 라이브 페이지 = 3초 polling 자동 반영
+ *
  * 동작:
  *   1. 양 팀 (Team A / Team B) 출전 명단 다중 체크 (체크박스, 최대 12명)
  *   2. 체크된 명단 중 선발 5인 선택 (선발 라디오/체크)
- *   3. 양 팀 각각 (a) 출전 5~12명 + (b) 선발 = 5명 만족 시 "라인업 확정" 활성
- *   4. 확정 → onConfirm(home, away) callback → caller 가 BFF 호출 + 양식 표시
+ *   3. 각 선수 row 옆 임시번호 input (선택 — 변경 시만 BFF 호출)
+ *   4. 양 팀 각각 (a) 출전 5~12명 + (b) 선발 = 5명 만족 시 "라인업 확정" 활성
+ *   5. 확정 → 임시번호 변경분 BFF 호출 → 전부 성공 시 onConfirm(home, away) callback
  *
  * 절대 룰:
  *   - var(--*) 토큰만 / lucide-react ❌ / Material Symbols Outlined 만
@@ -29,6 +37,7 @@
  *   - 터치 영역 44px+ (체크박스 영역)
  *   - FIBA 양식 정합 = border 1px + rounded-0 (Phase 7-A 정합)
  *   - FIBA Article 4.2.2 = 팀 명단 최대 12명
+ *   - iOS 자동 줌 방지 = input fontSize 16px+
  */
 
 "use client";
@@ -101,6 +110,15 @@ interface LineupSelectionModalProps {
   // Phase 7.1 — 12명 cap 경고 / 13번째 차단 toast 책임 분리 (caller 가 useToast 주입).
   //   이유: 본 컴포넌트는 useToast 직접 import 안 함 (테스트 격리 / 책임 분리).
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
+  // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A + A).
+  //   tournamentId / matchId = BFF endpoint 호출 박제 (각 선수 row 옆 임시번호 input).
+  //   라인업 확정 시 임시번호 변경분 diff → POST/DELETE 일괄 호출.
+  //   미전달 (= undefined) 시 임시번호 input UI 미렌더 (구버전 호출자 호환).
+  tournamentId?: string;
+  matchId?: string;
+  // 라인업 확정 후 router.refresh() 호출자 (= server roster 갱신).
+  //   미전달 시 onConfirm 만 호출 (= 운영 호환 / 단위 테스트 격리).
+  onAfterJerseyUpdate?: () => void;
 }
 
 /**
@@ -115,6 +133,12 @@ interface LineupSelectionModalProps {
  *   - 출전 체크 = 큰 체크박스 (44px touch)
  *   - 선발 선택 = "S" 토글 버튼 (출전 체크된 선수만 활성)
  *   - 선발 행 = 글자 굵게 + 배경 강조 (이유: 사용자 결재 §4)
+ *
+ * 2026-05-17 임시번호 부여 UI 이동:
+ *   - 각 선수 row 우측 = "임시" input (number 0~99 / 비어있으면 = 임시번호 박제 0).
+ *   - jerseyOverrides 의 값 = 사용자 변경 후 state (= "" / number).
+ *   - 변경 시 onJerseyChange(playerId, value) 호출 → 부모 (LineupSelectionModal) 가 통합 박제.
+ *   - 라인업 확정 시 부모가 baseline (RosterItem.jerseyNumber) 과 diff → BFF POST/DELETE.
  */
 function TeamLineupPanel({
   teamLabel,
@@ -123,6 +147,9 @@ function TeamLineupPanel({
   selection,
   onChange,
   onToast,
+  jerseyOverrides,
+  onJerseyChange,
+  showJerseyInput,
 }: {
   teamLabel: "Team A" | "Team B";
   teamName: string;
@@ -130,6 +157,12 @@ function TeamLineupPanel({
   selection: TeamLineupSelection;
   onChange: (next: TeamLineupSelection) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
+  // 2026-05-17 — 임시번호 박제용. playerId → number|"" 매핑.
+  //   초기값 = baseline (RosterItem.jerseyNumber) = page.tsx 의 resolveMatchJerseysBatch 결과 (override 우선).
+  jerseyOverrides: Record<string, number | "">;
+  onJerseyChange: (playerId: string, value: number | "") => void;
+  // tournamentId/matchId 미전달 시 input 숨김 (구버전 호출자 호환).
+  showJerseyInput: boolean;
 }) {
   // 출전 체크된 선수 id set (빠른 조회용)
   const lineupSet = new Set([...selection.starters, ...selection.substitutes]);
@@ -371,6 +404,55 @@ function TeamLineupPanel({
                   )}
                 </label>
 
+                {/* 2026-05-17 임시번호 input — 사용자 결재 옵션 A.
+                    이유: team-section No. cell 클릭 모달 = 폐기. 라인업 모달 안에서 같이 박제.
+                    동작:
+                      - 비어있음 ("") = 임시번호 미박제 (= 원본 TTP 번호 사용 — 라인업 확정 시 DELETE)
+                      - number 0~99 = 임시번호 박제 (= 라인업 확정 시 POST upsert)
+                      - 변경 없음 = BFF 호출 0 (= baseline 동일 = no-op)
+                    시각:
+                      - placeholder = "임시" (5단어 이내 / 시안 13 룰)
+                      - fontSize 16px+ (iOS 자동 줌 방지)
+                      - width 44px / minHeight 32px (터치 영역) */}
+                {showJerseyInput && (
+                  <input
+                    type="number"
+                    min={0}
+                    max={99}
+                    step={1}
+                    inputMode="numeric"
+                    className="text-center text-xs"
+                    style={{
+                      width: 48,
+                      minHeight: 32,
+                      fontSize: 16, // iOS 자동 줌 방지
+                      border: "1px solid var(--color-border)",
+                      backgroundColor: "var(--color-elevated)",
+                      color: "var(--color-text-primary)",
+                      touchAction: "manipulation",
+                    }}
+                    placeholder="임시"
+                    value={jerseyOverrides[p.tournamentTeamPlayerId] ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        onJerseyChange(p.tournamentTeamPlayerId, "");
+                        return;
+                      }
+                      const n = Number.parseInt(raw, 10);
+                      if (Number.isFinite(n)) {
+                        // 0~99 클램프 (BFF zod 와 동일 범위 사전 차단)
+                        onJerseyChange(
+                          p.tournamentTeamPlayerId,
+                          Math.max(0, Math.min(99, n)),
+                        );
+                      }
+                    }}
+                    aria-label={`${p.displayName} 임시 등번호 (선택, 0~99)`}
+                    title="임시 등번호 (변경 시만 박제)"
+                  />
+                )}
+
                 {/* 선발 5인 토글 버튼 — 출전 체크된 선수만 활성 */}
                 <button
                   type="button"
@@ -418,6 +500,10 @@ export function LineupSelectionModal({
   onConfirm,
   onCancel,
   onToast,
+  // 2026-05-17 임시번호 부여 UI 이동 (사용자 결재 옵션 A + A).
+  tournamentId,
+  matchId,
+  onAfterJerseyUpdate,
 }: LineupSelectionModalProps) {
   // 초기값 — 사전 라인업 있으면 prefill / 없으면 빈 selection
   // 이유: page.tsx 가 hasConfirmedLineup 시 starters[]/substitutes[] 전달 → caller 가 그대로 prefill.
@@ -429,11 +515,58 @@ export function LineupSelectionModal({
     initialAway ?? { starters: [], substitutes: [] }
   );
 
+  // 2026-05-17 임시번호 input state — 양 팀 각각 playerId → number|"" 매핑.
+  //   초기값 = RosterItem.jerseyNumber (= page.tsx 의 resolveMatchJerseysBatch 결과 / override 우선).
+  //   사용자 변경 시 setState → 라인업 확정 시 baseline 과 diff → BFF 호출.
+  //   "" = 임시번호 박제 0 (= 원본 TTP 번호 사용 / 라인업 확정 시 DELETE if baseline 이 override 였음).
+  const [homeJerseys, setHomeJerseys] = useState<Record<string, number | "">>(
+    {},
+  );
+  const [awayJerseys, setAwayJerseys] = useState<Record<string, number | "">>(
+    {},
+  );
+  // baseline (모달 open 시점 RosterItem.jerseyNumber) — diff 비교용. 모달 재오픈 시 재계산.
+  const [homeBaseline, setHomeBaseline] = useState<Record<string, number | null>>({});
+  const [awayBaseline, setAwayBaseline] = useState<Record<string, number | null>>({});
+  // BFF 호출 진행 중 = 라인업 확정 버튼 disabled (중복 클릭 방어).
+  const [savingJerseys, setSavingJerseys] = useState(false);
+
+  // 임시번호 input UI 노출 분기 — tournamentId + matchId 모두 박제 시만 활성.
+  //   사유: BFF 호출 = tournamentId / matchId 필수. 미전달 = 구버전 호출자 호환 (input 숨김).
+  const showJerseyInput = Boolean(tournamentId && matchId);
+
   // open 토글 시 초기값 재적용 (모달 재오픈 케이스)
   useEffect(() => {
     if (open) {
       setHomeSel(initialHome ?? { starters: [], substitutes: [] });
       setAwaySel(initialAway ?? { starters: [], substitutes: [] });
+      // 2026-05-17 — 임시번호 baseline / state 초기화.
+      //   RosterItem.jerseyNumber 가 이미 override 우선 박제됨 (resolveMatchJerseysBatch).
+      //   number → state value, null → "" 매핑.
+      const buildBaseline = (rows: RosterItem[]): Record<string, number | null> => {
+        const acc: Record<string, number | null> = {};
+        for (const p of rows) {
+          acc[p.tournamentTeamPlayerId] = p.jerseyNumber;
+        }
+        return acc;
+      };
+      const buildEditState = (
+        baseline: Record<string, number | null>,
+      ): Record<string, number | ""> => {
+        const acc: Record<string, number | ""> = {};
+        for (const id in baseline) {
+          const v = baseline[id];
+          acc[id] = v === null ? "" : v;
+        }
+        return acc;
+      };
+      const homeBase = buildBaseline(homePlayers);
+      const awayBase = buildBaseline(awayPlayers);
+      setHomeBaseline(homeBase);
+      setAwayBaseline(awayBase);
+      setHomeJerseys(buildEditState(homeBase));
+      setAwayJerseys(buildEditState(awayBase));
+      setSavingJerseys(false);
     }
     // initialHome / initialAway 변경 시는 모달 재오픈 trigger 시에만 반영
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -452,11 +585,153 @@ export function LineupSelectionModal({
     );
   }
 
-  const canConfirm = isValid(homeSel) && isValid(awaySel);
+  const canConfirm = isValid(homeSel) && isValid(awaySel) && !savingJerseys;
 
-  function handleConfirm() {
+  /**
+   * 임시번호 변경분 diff 계산 — baseline 과 edit state 비교.
+   *
+   * 케이스:
+   *   - baseline null + edit "" = 변경 0 (no-op)
+   *   - baseline null + edit number = POST (신규 임시번호 박제)
+   *   - baseline number + edit "" = DELETE (임시번호 해제)
+   *   - baseline number + edit 같은 number = 변경 0 (no-op)
+   *   - baseline number + edit 다른 number = POST upsert (변경)
+   *
+   * 주의:
+   *   - baseline 이 null 인데도 운영자가 다시 "" 로 둔 케이스 = no-op (= BFF 호출 0).
+   *   - baseline 이 number (override 박제됨) 인데 edit 가 같은 number = no-op.
+   *     (= BFF 측 idempotent UPSERT 라도 호출 비용 절약).
+   */
+  function buildJerseyDiff(
+    baseline: Record<string, number | null>,
+    edit: Record<string, number | "">,
+  ): Array<{
+    playerId: string;
+    action: "POST" | "DELETE";
+    jerseyNumber?: number;
+  }> {
+    const diff: Array<{
+      playerId: string;
+      action: "POST" | "DELETE";
+      jerseyNumber?: number;
+    }> = [];
+    for (const playerId in edit) {
+      const baseVal = baseline[playerId] ?? null;
+      const editVal = edit[playerId];
+      if (editVal === "") {
+        // edit 빈 값 = 운영자가 임시번호 비우려는 의도.
+        //   baseline 이 number 였으면 DELETE (= 해제). null 이었으면 no-op.
+        if (baseVal !== null) {
+          diff.push({ playerId, action: "DELETE" });
+        }
+      } else {
+        // edit number — baseline 과 같으면 no-op / 다르면 POST.
+        if (baseVal !== editVal) {
+          diff.push({
+            playerId,
+            action: "POST",
+            jerseyNumber: editVal,
+          });
+        }
+      }
+    }
+    return diff;
+  }
+
+  /**
+   * BFF 호출 1건 박제 — POST upsert 또는 DELETE.
+   *   실패 시 throw → handleConfirm 가 Promise.all 에서 catch.
+   */
+  async function callJerseyApi(
+    playerId: string,
+    action: "POST" | "DELETE",
+    jerseyNumber: number | undefined,
+  ): Promise<void> {
+    if (!tournamentId || !matchId) {
+      // showJerseyInput=false 케이스 — diff 0 이므로 호출 안 옴 (안전망).
+      throw new Error("tournamentId/matchId 미전달");
+    }
+    const url = `/api/web/tournaments/${tournamentId}/matches/${matchId}/jersey-override`;
+    const body =
+      action === "POST"
+        ? {
+            tournamentTeamPlayerId: playerId,
+            jerseyNumber,
+            reason: "라인업 모달 임시번호 일괄 박제",
+          }
+        : {
+            tournamentTeamPlayerId: playerId,
+            reason: "라인업 모달 임시번호 일괄 해제",
+          };
+    const res = await fetch(url, {
+      method: action,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(
+        data.error ?? `임시 등번호 ${action === "POST" ? "박제" : "해제"} 실패 (${res.status})`,
+      );
+    }
+  }
+
+  async function handleConfirm() {
     if (!canConfirm) return;
-    onConfirm({ home: homeSel, away: awaySel });
+    // 1) 임시번호 변경분 diff 계산 (양 팀 합산).
+    const homeDiff = showJerseyInput
+      ? buildJerseyDiff(homeBaseline, homeJerseys)
+      : [];
+    const awayDiff = showJerseyInput
+      ? buildJerseyDiff(awayBaseline, awayJerseys)
+      : [];
+    const allDiff = [...homeDiff, ...awayDiff];
+
+    // 2) 변경분 없음 = 곧바로 onConfirm (운영 친절 — toast 0)
+    if (allDiff.length === 0) {
+      onConfirm({ home: homeSel, away: awaySel });
+      return;
+    }
+
+    // 3) 변경분 있음 = BFF 일괄 호출 (Promise.all = 작은 매치 12명 미만 = 동시 호출 OK).
+    setSavingJerseys(true);
+    try {
+      const results = await Promise.allSettled(
+        allDiff.map((d) =>
+          callJerseyApi(d.playerId, d.action, d.jerseyNumber),
+        ),
+      );
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        // 일부 실패 = 모달 그대로 유지 (입력값 보존 → 운영자 재시도).
+        //   상세 사유 = 첫 실패 메시지 (= 409 JERSEY_CONFLICT / 422 / 403 등 친절 안내).
+        const firstErr = failures[0] as PromiseRejectedResult;
+        const errMsg =
+          firstErr.reason instanceof Error
+            ? firstErr.reason.message
+            : "임시 등번호 박제에 실패했습니다.";
+        onToast?.(
+          `임시번호 박제 ${failures.length}/${allDiff.length}건 실패 — ${errMsg}`,
+          "error",
+        );
+        setSavingJerseys(false);
+        return;
+      }
+      // 4) 전부 성공 = toast + onConfirm + refresh
+      onToast?.(`임시번호 ${allDiff.length}건 박제 완료`, "success");
+      // server roster 갱신 — caller (form) 의 router.refresh() 트리거.
+      //   router.refresh 는 비동기지만 await 불필요 (다음 렌더에 반영).
+      onAfterJerseyUpdate?.();
+      // onConfirm 호출 — 라인업 state 박제 + 모달 close.
+      //   주의: refresh 가 RosterItem.jerseyNumber 를 갱신해도 lineup state (starters/substitutes) 는
+      //         playerId 기준이라 영향 0 (= 안전).
+      onConfirm({ home: homeSel, away: awaySel });
+    } catch (err) {
+      console.error("[LineupSelectionModal.handleConfirm] BFF 호출 실패:", err);
+      onToast?.("네트워크 오류로 임시번호 박제에 실패했습니다.", "error");
+      setSavingJerseys(false);
+    }
+    // 성공 경로 = setSavingJerseys(false) 미호출 → 모달 unmount 시 자동 정리.
   }
 
   return (
@@ -523,6 +798,12 @@ export function LineupSelectionModal({
             selection={homeSel}
             onChange={setHomeSel}
             onToast={onToast}
+            // 2026-05-17 임시번호 input 박제 — Team A.
+            jerseyOverrides={homeJerseys}
+            onJerseyChange={(playerId, value) =>
+              setHomeJerseys((prev) => ({ ...prev, [playerId]: value }))
+            }
+            showJerseyInput={showJerseyInput}
           />
           <TeamLineupPanel
             teamLabel="Team B"
@@ -531,6 +812,12 @@ export function LineupSelectionModal({
             selection={awaySel}
             onChange={setAwaySel}
             onToast={onToast}
+            // 2026-05-17 임시번호 input 박제 — Team B.
+            jerseyOverrides={awayJerseys}
+            onJerseyChange={(playerId, value) =>
+              setAwayJerseys((prev) => ({ ...prev, [playerId]: value }))
+            }
+            showJerseyInput={showJerseyInput}
           />
         </div>
 
@@ -564,10 +851,13 @@ export function LineupSelectionModal({
             aria-label={
               canConfirm
                 ? "라인업 확정"
-                : "라인업 확정 — 양 팀 모두 출전 5명 + 선발 5명 필요"
+                : savingJerseys
+                  ? "임시번호 박제 중"
+                  : "라인업 확정 — 양 팀 모두 출전 5명 + 선발 5명 필요"
             }
           >
-            라인업 확정
+            {/* 2026-05-17 — BFF 호출 진행 중 표시 (임시번호 박제 중) */}
+            {savingJerseys ? "박제 중..." : "라인업 확정"}
           </button>
         </div>
       </div>
