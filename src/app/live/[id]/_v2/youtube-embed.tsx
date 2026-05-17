@@ -97,78 +97,9 @@ function YouTubeEmbedInner({
           }
         }
       `}</style>
-      {/* 우상단 LIVE 뱃지 + 운영자 관리 버튼 — z-index 로 iframe 위에 띄움 */}
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-        {isLive && (
-          // 라이브 뱃지 — 빨간 ping 애니메이션 (5/9 RecommendedVideos LIVE 패턴 동일)
-          // var(--color-status-live) 토큰 / 핑크/살몬 금지 (BDR-current 13룰 §C-10)
-          <span
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-bold uppercase tracking-wide"
-            style={{
-              backgroundColor: "var(--color-status-live)",
-              color: "#ffffff",
-            }}
-            aria-label="라이브 진행 중"
-          >
-            <span
-              className="relative flex w-2 h-2"
-            >
-              {/* ping 외곽 — 점이 퍼지는 방송 온에어 스타일 */}
-              <span
-                className="absolute inset-0 rounded-full animate-ping opacity-75"
-                style={{ backgroundColor: "#ffffff" }}
-              />
-              <span
-                className="relative w-2 h-2 rounded-full"
-                style={{ backgroundColor: "#ffffff" }}
-              />
-            </span>
-            LIVE
-          </span>
-        )}
-        {/* VOD 뱃지 — 라이브가 아니면 회색 "다시보기" */}
-        {!isLive && (
-          <span
-            className="px-2 py-1 rounded text-xs font-medium"
-            style={{
-              backgroundColor: "var(--color-elevated)",
-              color: "var(--color-text-secondary)",
-            }}
-          >
-            다시보기
-          </span>
-        )}
-        {/* auto_verified 뱃지 — 운영자에게 "자동 검색으로 등록됨" 안내 */}
-        {status === "auto_verified" && isAdmin && (
-          <span
-            className="px-2 py-1 rounded text-xs font-medium"
-            style={{
-              backgroundColor: "var(--color-info)",
-              color: "#ffffff",
-            }}
-            title="자동 검색 신뢰도 80점 이상으로 자동 등록됨"
-          >
-            자동
-          </span>
-        )}
-        {/* 운영자 변경 버튼 — onManageClick 전달 시에만 노출 */}
-        {showAdminButton && (
-          <button
-            type="button"
-            onClick={onManageClick}
-            aria-label="영상 변경 또는 제거 (운영자)"
-            title="영상 변경 또는 제거 (운영자)"
-            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
-            style={{
-              backgroundColor: "var(--color-card)",
-              color: "var(--color-text-secondary)",
-              border: "1px solid var(--color-border)",
-            }}
-          >
-            <span className="material-symbols-outlined text-base">edit</span>
-          </button>
-        )}
-      </div>
+      {/* 2026-05-17 사용자 결재 (옵션 C) — 영상 영역과 운영자 도구 분리.
+          영상 위 absolute 박스: 시청자 정보(LIVE/다시보기 뱃지)만 좌측 상단으로.
+          운영자 도구(자동 뱃지 + 편집 버튼): 영상 영역 밖 별도 toolbar로 분리. */}
 
       {/* 16:9 비율 컨테이너 — aspect-video (Tailwind) = 56.25% padding-bottom 등가.
           rounded 모서리 + overflow-hidden 으로 iframe 모서리 정리 (iOS Safari 대응). */}
@@ -191,7 +122,97 @@ function YouTubeEmbedInner({
           className="absolute inset-0 w-full h-full"
           style={{ border: "0" }}
         />
+        {/* 좌측 상단 시청자 뱃지 — 영상 위 z-10 (iframe 위), 시청 영역 최소 침범. */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-2 pointer-events-none">
+          {isLive && (
+            // 라이브 뱃지 — 빨간 ping 애니메이션 (5/9 RecommendedVideos LIVE 패턴 동일)
+            // var(--color-status-live) 토큰 / 핑크/살몬 금지 (BDR-current 13룰 §C-10)
+            <span
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-bold uppercase tracking-wide"
+              style={{
+                backgroundColor: "var(--color-status-live)",
+                color: "#ffffff",
+              }}
+              aria-label="라이브 진행 중"
+            >
+              <span className="relative flex w-2 h-2">
+                {/* ping 외곽 — 점이 퍼지는 방송 온에어 스타일 */}
+                <span
+                  className="absolute inset-0 rounded-full animate-ping opacity-75"
+                  style={{ backgroundColor: "#ffffff" }}
+                />
+                <span
+                  className="relative w-2 h-2 rounded-full"
+                  style={{ backgroundColor: "#ffffff" }}
+                />
+              </span>
+              LIVE
+            </span>
+          )}
+          {/* VOD 뱃지 — 라이브가 아니면 회색 "다시보기" */}
+          {!isLive && (
+            <span
+              className="px-2 py-1 rounded text-xs font-medium"
+              style={{
+                backgroundColor: "var(--color-elevated)",
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              다시보기
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* 2026-05-17 운영자 도구 toolbar — 영상 영역 밖 분리 (옵션 C).
+          시청자에게는 노출 안 됨 (showAdminButton 또는 auto_verified+isAdmin). */}
+      {(showAdminButton || (status === "auto_verified" && isAdmin)) && (
+        <div
+          className="mt-2 flex items-center gap-2 rounded-md px-2.5 py-1.5"
+          style={{
+            backgroundColor: "var(--color-card)",
+            border: "1px dashed var(--color-border)",
+          }}
+        >
+          <span
+            className="text-[11px] font-medium uppercase tracking-wider"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            운영자
+          </span>
+          {/* auto_verified 뱃지 — "자동 검색으로 등록됨" 안내 */}
+          {status === "auto_verified" && isAdmin && (
+            <span
+              className="px-2 py-0.5 rounded text-xs font-medium"
+              style={{
+                backgroundColor: "var(--color-info)",
+                color: "#ffffff",
+              }}
+              title="자동 검색 신뢰도 80점 이상으로 자동 등록됨"
+            >
+              자동
+            </span>
+          )}
+          {/* 운영자 변경 버튼 — onManageClick 전달 시에만 노출 */}
+          {showAdminButton && (
+            <button
+              type="button"
+              onClick={onManageClick}
+              aria-label="영상 변경 또는 제거 (운영자)"
+              title="영상 변경 또는 제거 (운영자)"
+              className="ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: "var(--color-elevated)",
+                color: "var(--color-text-secondary)",
+                border: "1px solid var(--color-border)",
+              }}
+            >
+              <span className="material-symbols-outlined text-sm">edit</span>
+              <span>영상 변경</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 영상 제목 (선택) — title 전달 시에만 노출 */}
       {title && (
