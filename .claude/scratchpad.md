@@ -4,7 +4,7 @@
 - **요청**: 경기 메뉴 리디자인 — 클로드 디자인(`BDR-current/screens/Game*.jsx`) 운영 src/ 적용 (2026-05-20 세션)
 - **상태**: 세션 컨텍스트 세팅 / 시안↔운영 매핑 분석 완료 / 페이지 우선순위 사용자 결재 대기
 - **현재 담당**: pm
-- **Phase 1 완료**: prospectus AI Phase 1-A (`ca99e94`) + 1-B (`e37ae80`) + 1-C (`ea1bd44`) 모두 박제 / 다음 = Phase 2 API route
+- **Phase 1+2+3 완료** (end-to-end 흐름): 1-A (`ca99e94`) + 1-B (`e37ae80`) + 1-C (`ea1bd44`) + 2 (`138d1de`) + 3 (`c046f73`) 박제 / Phase 1 dev 머지 (PR #620) / Phase 2+3 PR 생성 예정
 
 ## 구현 기록 (prospectus AI Phase 1-A + 1-B / PM 직접 박제 2026-05-19~20)
 - **신규 파일 3건** (총 527L / 외부 npm 1건 추가 = `ai@^6.0.185`)
@@ -66,6 +66,9 @@
 ## 작업 로그 (최근 10건)
 | 날짜 | 작업 | 결과 |
 |------|------|------|
+| 2026-05-20 | prospectus AI wizard Phase 3 (wizard UI 진입 + 분석 미리보기 + sessionStorage 통합) | ✅ commit `c046f73` / +1154L / 4 신규 파일 + 헤더 1건 / 5 상태 분기 (idle/uploading/analyzing/done/failed) / tsc 0 |
+| 2026-05-20 | prospectus AI wizard Phase 2 (analyze-prospectus API route + pdf-parse + file-type) | ✅ commit `138d1de` / +670L / 가드 다층 8단 / 응답 분기 8종 / RATE_LIMITS.aiAnalyze 5/min + 일 20건 / tsc 0 |
+| 2026-05-20 | prospectus AI wizard Phase 1 PR #620 머지 + subin↔dev 동기화 | ✅ PR #620 머지 (mergedBy=cobby8) / subin = dev fast-forward (8c52ff8) |
 | 2026-05-20 | prospectus AI wizard Phase 1-C (prisma `prospectus_ai_analysis` 모델 + db push) | ✅ commit `ea1bd44` / CREATE TABLE 1 + INDEX 3 / 운영 DB 1.55s / 무중단 / tsc 0 / .prisma 타입 399건 |
 | 2026-05-20 | prospectus AI wizard Phase 1-B (gateway.ts + ai SDK v6 설치) | ✅ commit `e37ae80` / +345L / tsc 0 / AI_GATEWAY_API_KEY 사용자 발급 완료 |
 | 2026-05-20 | 오늘 작업 시작 — dev 머지 + dev서버 실행 | ✅ `492819f` Merge origin/dev (7커밋 catch-up, 충돌 0) / npm run dev port 3001 Ready 4s (Next 16.1.6 Turbopack) |
@@ -73,12 +76,9 @@
 | 2026-05-19 | nonggudan@mybdr.kr 비밀번호 변경 (제작진용 계정) | ✅ id=2989 / bcrypt salt 12 / 검증 PASS / DB UPDATE 1행 / 임시 스크립트 즉시 삭제 |
 | 2026-05-18 | 대회 요강 AI 분석 → wizard 자동 채움 기획설계 보고서 | ✅ `Dev/prospectus-ai-wizard-plan-2026-05-18.md` 박제 / 2026-05-19 사용자 결재 완료 |
 | 2026-05-17 | 열혈농구단 플레이오프 4위까지 강조 (league-standings isPlayoff) | ✅ commit `4b51d2f` / PR #616 main 머지 |
-| 2026-05-17 | 연습 모드 [기록 취소] 버튼 노출 fix (canEdit || isPractice) | ✅ commit `263b9e0` / PR #614 main 머지 |
-| 2026-05-17 | 연습용 score-sheet 박제 (`/score-sheet/practice` + 5종 권한 가드 + fixture + localStorage) | ✅ commit `d06a6ce` / PR #612 main 머지 |
-| 2026-05-17 | 임시번호 = 라인업 모달 row input 이동 (jersey-edit-modal 삭제) | ✅ commit `0a5a96c` / PR #608 main 머지 |
 
 ## 미푸시 commit
-- **4건** — `ca99e94` Phase 1-A + `492819f` Merge dev→subin + `e37ae80` Phase 1-B + `ea1bd44` Phase 1-C (subin 로컬 only / push 대기)
+- **2건** — `138d1de` Phase 2 + `c046f73` Phase 3 (subin 로컬 only / Phase 2+3 PR 생성 대기)
 
 ## 메모
 - 강남구협회장배 시합 5/16~5/17 = 운영 중 즉시 fix 다수 (60+ PR main 머지)

@@ -328,19 +328,30 @@ function QuickCreateForm() {
           { label: "새 대회" },
         ]}
         actions={
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
-                router.push("/tournament-admin");
-              }
-            }}
-            className="btn btn--sm"
-            aria-label="작성 종료"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-            종료
-          </button>
+          <>
+            {/* 2026-05-20 Phase 3 — 요강 AI 분석 진입점 (별도 라우트 / 시그니처 변경 0). */}
+            <Link
+              href="/tournament-admin/tournaments/new/wizard/prospectus"
+              className="btn btn--sm"
+              aria-label="요강 AI 분석"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
+              요강 분석
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("진행 중인 작성을 종료하시겠습니까?")) {
+                  router.push("/tournament-admin");
+                }
+              }}
+              className="btn btn--sm"
+              aria-label="작성 종료"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+              종료
+            </button>
+          </>
         }
       />
 
